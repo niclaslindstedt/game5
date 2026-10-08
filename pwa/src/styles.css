@@ -22,11 +22,19 @@
   --snow: #f4f8fb;
   --snow-shadow: #b9cde0;
   --track: #dfe7ee;
-  --flag: #e8412c;
+  --flag: #e0332b;
   --pine: #1f4a36;
   --pine-dark: #143326;
   /* The deepest tone a card is washed toward — the HUD's own navy. */
   --night: #0d2233;
+  /* THE FIRST LIGHT the title and the logo are set in: the night the app
+     opens on (BRAND_COLOR — deeper than the HUD's navy above, which is a
+     plate's tone rather than a sky's), the dusk of the mountain's shadow
+     side, the alpenglow on the ridge and the ice of shadowed snow. */
+  --brand-night: #0a1726;
+  --dusk: #16304f;
+  --alpenglow: #ffb27a;
+  --ice: #9fd2f5;
   /* THE NIGHT DRESSING's dial at its day value (`.hud` ramps the chrome
      along it), stated here as well so a rule read outside the HUD gets the
      undipped chrome rather than an invalid declaration. */
@@ -72,7 +80,7 @@
      that can be stale — an installed iOS app turned from upright onto its
      side can read its window slid most of the way down a layout that has not
      caught up, and the unit less that offset is a sliver along the top of
-     the screen over `body`'s blue. The unit caps it, so a window read too
+     the screen over `body`'s night. The unit caps it, so a window read too
      tall is no taller than the viewport. 0 until measured, which is no
      opinion. */
   --shell-top: 0px;
@@ -91,7 +99,7 @@ body {
   height: var(--shell-height);
   overflow: hidden;
   overscroll-behavior: none;
-  background: var(--sky-high);
+  background: var(--brand-night);
   color: var(--hud-ink);
   touch-action: none;
   -webkit-user-select: none;
@@ -133,8 +141,8 @@ canvas {
 /* iOS EDGE TO EDGE, and the fallback under the measured shell. A fixed,
    non-scrolling shell laid out with `inset: 0` stops at the LAYOUT viewport,
    which on iOS leaves a dead band along the bottom of the screen — the game
-   paints down to the layout edge and `body`'s own `--sky-high` fills the rest, a
-   flat blue strip under the instrument panel. Percentage heights
+   paints down to the layout edge and `body`'s own `--brand-night` fills the rest,
+   a flat dark strip under the instrument panel. Percentage heights
    (`height: 100%`) land in the same place for the same reason: the document
    stops at the letterboxed viewport instead of reaching under the home
    indicator. An explicit viewport height is what carries the shell to the
@@ -2090,7 +2098,7 @@ canvas {
    HUD wears so that lifting a card reads as the game arriving. */
 
 /* ── THE APP MARK, BUILDING ────────────────────────────────────────────────
-   The two trails off the icon, laid left to right (`mark-trails.tsx`).
+   The two tracks off the icon, laid from the summit down (`mark-trails.tsx`).
 
    IT IS A WIPE, NOT A STROKE. `stroke-dashoffset` is the obvious way to draw
    a line on and it is the wrong one: it animates on the MAIN THREAD, which is
@@ -2102,10 +2110,10 @@ canvas {
 .mark-trails {
   position: relative;
   display: block;
-  /* The drawing's own ratio — MARK_TRAIL_VIEWBOX in app-mark.ts (400 × 160),
+  /* The drawing's own ratio — MARK_TRAIL_VIEWBOX in app-mark.ts (204 × 384),
      restated because a stylesheet cannot import a TypeScript module, so a
      mark mounted anywhere needs only a width. Change one, change both. */
-  aspect-ratio: 400 / 160;
+  aspect-ratio: 204 / 384;
 }
 
 .mark-trails svg {
@@ -2114,7 +2122,7 @@ canvas {
   height: auto;
   overflow: visible;
   fill: none;
-  stroke: var(--snow);
+  stroke: var(--flag);
   stroke-linecap: round;
 }
 
@@ -2125,11 +2133,12 @@ canvas {
   opacity: 0.22;
 }
 
-/* THE WINDOW, and the drawing inside it. The window slides RIGHT over the
-   shape while the shape slides LEFT by the same amount, so what is on screen
-   stays put and only the window into it moves: at `translateX(-100%)` the
-   window sits entirely left of the mark and nothing shows, and at `0` it
-   covers all of it. Both halves are transforms, which is the whole point. */
+/* THE WINDOW, and the drawing inside it. The window slides DOWN over the
+   shape — from the summit, the way a track is cut — while the shape slides
+   UP by the same amount, so what is on screen stays put and only the window
+   into it moves: at `translateY(-100%)` the window sits entirely above the
+   mark and nothing shows, and at `0` it covers all of it. Both halves are
+   transforms, which is the whole point. */
 .mark-trails-wipe {
   position: absolute;
   inset: 0;
@@ -2166,50 +2175,50 @@ canvas {
 
 @keyframes mark-wipe {
   from {
-    transform: translateX(-100%);
+    transform: translateY(-100%);
   }
   to {
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
 @keyframes mark-slide {
   from {
-    transform: translateX(100%);
+    transform: translateY(100%);
   }
   to {
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
 /* Filled, held long enough to be read as a shape rather than a sweep, then
    faded off so the next one starts from nothing. The fade is opacity, which
    is composited like the transform beside it; at the moment the loop wraps
-   the window is back left of the mark and there is nothing on screen to
+   the window is back above the mark and there is nothing on screen to
    pop. */
 @keyframes mark-wipe-loop {
   0% {
-    transform: translateX(-100%);
+    transform: translateY(-100%);
     opacity: 1;
   }
   55%,
   78% {
-    transform: translateX(0);
+    transform: translateY(0);
     opacity: 1;
   }
   100% {
-    transform: translateX(0);
+    transform: translateY(0);
     opacity: 0;
   }
 }
 
 @keyframes mark-slide-loop {
   0% {
-    transform: translateX(100%);
+    transform: translateY(100%);
   }
   55%,
   100% {
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
@@ -2280,16 +2289,16 @@ canvas {
   opacity: 0.85;
 }
 
-/* Beat two: the crest and the game's name, mounted the moment the game behind
-   the card is standing.
+/* Beat two: the game's logo, mounted the moment the game behind the card is
+   standing.
 
-   THE HAND-OVER IS FOUR BEATS, NOT ONE MOVE, and the delays below are what
+   THE HAND-OVER IS THREE BEATS, NOT ONE MOVE, and the delays below are what
    keeps them apart. The block takes its place in the layout blank, so the
    lockup above has somewhere to walk to (`.held`); it fades in once the walk
-   has landed; the crest then draws ITSELF, which is the mark's own animation
-   and must not have run behind an invisible block; and the name rises last.
-   The walk itself is the one part the stylesheet cannot own — its distance is
-   the height of this block, so `splash-screen.tsx` measures it. */
+   has landed; and the logo then reveals ITSELF (`title.css`), which is its
+   own animation and must not have run behind an invisible block. The walk
+   itself is the one part the stylesheet cannot own — its distance is the
+   height of this block, so `splash-screen.tsx` measures it. */
 .splash-title {
   display: flex;
   flex-direction: column;
@@ -2300,13 +2309,12 @@ canvas {
 
 /* The lift in progress: the space taken, nothing drawn in it. Every animation
    inside is stopped rather than merely hidden — an animation that had run
-   behind this would arrive FINISHED, which for the crest means a mark that
+   behind this would arrive FINISHED, which for the logo means a carve that
    never draws itself at all. Dropping the class starts each of them from its
    own first frame. */
 .splash-title.held,
-.splash-title.held .splash-game,
-.splash-title.held .mark-trails-wipe,
-.splash-title.held .mark-trails-slide {
+.splash-title.held .title-logo *,
+.splash-title.held .title-logo-word {
   animation: none;
 }
 
@@ -2314,39 +2322,12 @@ canvas {
   opacity: 0;
 }
 
-/* The crest ARRIVES, and only then draws itself. The wipe waits out the
-   block's own fade so the two read as two beats rather than one muddle; it
-   holds its first frame through the wait (`both` on the animation itself),
-   so what stands there in the meantime is the faint ghost of the finished
-   shape — the mark present, and not yet made. */
-.splash-mark.mark-trails-once .mark-trails-wipe,
-.splash-mark.mark-trails-once .mark-trails-slide {
-  animation-delay: 300ms;
-}
-
-/* The crest's box. The ratio is the SVG's own viewBox, restated here so the
-   space is reserved before the trails have been laid in it — and the height cap
-   is what keeps the crest off the title on a phone held sideways, the
+/* The logo's box: sized by width, and capped by the height so the stacked
+   lockup (about two and a half times as wide as it is tall) stays clear of
+   the publisher above and the prompt below on a phone held sideways, the
    tightest surface in the app. */
-.splash-mark {
-  width: min(64vw, 34vh, 22rem);
-}
-
-.splash-game {
-  max-width: 14ch;
-  font-size: clamp(1.8rem, 8vmin, 3.2rem);
-  letter-spacing: 0.05em;
-  line-height: 0.94;
-  text-align: center;
-  text-wrap: balance;
-  color: var(--flag);
-  text-shadow: 0 3px 0 var(--hud-shadow);
-}
-
-/* The name rises into place under the crest the wipe is still filling, so the
-   two read as one flourish rather than two appearances. */
-.splash-title .splash-game {
-  animation: splash-name 520ms 700ms ease-out both;
+.splash-logo {
+  width: min(84vw, 92vh, 40rem);
 }
 
 /* WHAT THE CARD WANTS — beat two only, and the one thing on screen the player
@@ -2360,13 +2341,14 @@ canvas {
   text-align: center;
   color: var(--flag);
   text-shadow: 0 2px 0 var(--hud-shadow);
-  /* It arrives LAST, after the name it sits under, and only then starts
-     asking. The blink carries no fill of its own: a backwards fill would put
-     the prompt on screen through its own delay, which is the one thing the
-     rise in front of it is there to prevent. */
+  /* It arrives LAST, once the logo's reveal has landed (its cut opens at
+     1.3 s), and only then starts asking. The blink carries no fill of its
+     own: a backwards fill would put the prompt on screen through its own
+     delay, which is the one thing the rise in front of it is there to
+     prevent. */
   animation:
-    splash-name 400ms 900ms ease-out both,
-    splash-blink 1.05s linear 1300ms infinite;
+    splash-name 400ms 1500ms ease-out both,
+    splash-blink 1.05s linear 1900ms infinite;
 }
 
 /* WHAT THE CARD IS DOING — beat one, and all it has to say is that work is
@@ -2791,27 +2773,10 @@ canvas {
   margin-bottom: 0.4rem;
 }
 
-/* The mark rides with the NAME, not with the name and its billing: paired
-   with the whole block it sits visibly low, because the tagline under it
-   drags the centre it is aligned to down a line. */
-.menu-brand-line {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-}
-
-.menu-brand-mark {
-  width: clamp(3.4rem, 13vmin, 5rem);
-  flex: none;
-}
-
-.menu-brand-name {
-  white-space: nowrap;
-  font-size: clamp(1.6rem, 7vmin, 2.6rem);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  line-height: 1;
-  text-shadow: 0 3px 0 var(--hud-shadow);
+/* The inline lockup (`title-logo.tsx`): sized by its height, the width
+   following the drawing's own ratio. */
+.menu-brand-logo {
+  height: clamp(2.6rem, 10vmin, 3.8rem);
 }
 
 /* EVERY MARK FROM menu-glyphs.tsx. Sized in `em`, so a glyph is whatever the
@@ -3248,12 +3213,8 @@ canvas {
     padding: 0;
   }
 
-  .menu-brand-mark {
-    width: 2.5rem;
-  }
-
-  .menu-brand-name {
-    font-size: 1.35rem;
+  .menu-brand-logo {
+    height: 2.1rem;
   }
 
   .menu-card-root .menu-chip {
@@ -4637,7 +4598,7 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, var(--night) 0%, var(--sky-high) 100%);
+  background: linear-gradient(180deg, var(--brand-night) 0%, var(--dusk) 100%);
   opacity: 1;
   transition: opacity 260ms ease-out;
 }
@@ -4656,8 +4617,10 @@ canvas {
   text-transform: uppercase;
 }
 
+/* The tracks stand tall (MARK_TRAIL_VIEWBOX), so the box is sized by its
+   HEIGHT's budget: a fifth of a phone on its side, a little more upright. */
 .loading-mark {
-  width: 100%;
+  width: min(5.5rem, 11vh);
 }
 
 .loading-word {
@@ -4754,7 +4717,6 @@ canvas {
 @media (prefers-reduced-motion: reduce) {
   .splash-card,
   .splash-title,
-  .splash-title .splash-game,
   .loading-bar-fill {
     animation: none;
     transform: none;

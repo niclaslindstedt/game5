@@ -1,32 +1,35 @@
 <!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- The app mark: a pair of carved ski tracks coming down off a peak. A
-       white mountain rises under a clear sky with a shadowed ridge behind
-       it; the two parallel tracks start just under the summit and swing
-       down the face in an S — each two tangent arcs of opposite turn —
-       toward the lower left, and a red slalom gate stands on the face
-       beside them. The raster icons (pwa-*.png, apple-touch, favicon) are
-       generated from this same geometry by scripts/generate-icons.mjs, and
-       pwa/src/game/app-mark.ts carries the two track paths as data — keep
-       all three in lockstep. -->
+  <!-- The app mark: THE CARVE OFF THE PEAK. A faceted mountain on a night
+       tile — the shadow face right of the crest, the lit face, a lower
+       shoulder a shade off the snow, and a blade of alpenglow along the
+       sunlit skyline under the summit — with a pair of carved ski tracks in
+       the flag's red swinging down the lit face in an S, each two tangent
+       arcs of opposite turn. The raster icons (pwa-*.png, apple-touch,
+       favicon) are generated from this same geometry by
+       scripts/generate-icons.mjs, and pwa/src/game/app-mark.ts carries the
+       facets and the two track paths as data — keep all three in lockstep
+       (tests/app_mark_test.ts holds the SVG to app-mark.ts). The facets are
+       polygons and the tracks the only paths, which is how the test tells
+       them apart. -->
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#6fa8dc"/>
-      <stop offset="1" stop-color="#cfe6f7"/>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a1726"/>
+      <stop offset="1" stop-color="#16304f"/>
     </linearGradient>
     <clipPath id="tile">
       <rect width="512" height="512" rx="96"/>
     </clipPath>
   </defs>
   <g clip-path="url(#tile)">
-    <rect width="512" height="512" fill="url(#sky)"/>
-    <polygon fill="#b9cde0" points="118,228 -260,512 440,512"/>
-    <polygon fill="#f4f8fb" points="330,100 -120,512 780,512"/>
+    <rect width="512" height="512" fill="url(#night)"/>
+    <polygon fill="#b9cde0" points="296,84 512,232 512,512 0,512 0,350 140,214"/>
+    <polygon fill="#f4f8fb" points="296,84 440,512 96,512 140,214"/>
+    <polygon fill="#dbe6f1" points="140,214 96,512 0,512 0,350"/>
+    <polygon fill="#ffb27a" points="296,84 415,165 407,177"/>
+    <g fill="none" stroke="#e0332b" stroke-width="26" stroke-linecap="round">
+      <path d="M 272.5 117.81 A 117 117 0 0 1 257.83 327.62 A 91 91 0 0 0 210.13 451.88"/>
+      <path d="M 251.5 154.19 A 75 75 0 0 1 242.1 288.68 A 133 133 0 0 0 172.38 470.3"/>
+    </g>
   </g>
-  <g fill="none" stroke="#6fa8dc" stroke-width="22" stroke-linecap="round">
-    <path d="M 320.95 148.7 A 150 150 0 0 1 206.05 347.72 A 130 130 0 0 0 110.8 420.81"/>
-    <path d="M 287.12 161.01 A 114 114 0 0 1 199.8 312.27 A 166 166 0 0 0 78.17 405.6"/>
-  </g>
-  <rect x="440" y="222" width="10" height="118" rx="3" fill="#0d2233"/>
-  <rect x="372" y="224" width="68" height="46" rx="2" fill="#e0332b"/>
 </svg>

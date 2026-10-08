@@ -58,10 +58,10 @@ pub const SHELL_COMMAND: &str = "sh-shell-command";
 /// The page inside the bundle that the window opens on.
 pub const APP_ENTRY: &str = "index.html";
 
-/// The brand background (`BRAND_COLOR` in `pwa/src/identity.ts` — the high
-/// sky, the colour the page's own boot screen paints). It fills the window behind the page so no
+/// The brand background (`BRAND_COLOR` in `pwa/src/identity.ts` — the
+/// night, the colour the page's own boot screen paints). It fills the window behind the page so no
 /// white flash shows through while it loads.
-pub const BRAND_BG: &str = "#6fa8dc";
+pub const BRAND_BG: &str = "#0a1726";
 
 /// What the window is called before the page has said otherwise —
 /// `APP_NAME` in `pwa/src/identity.ts`, which `tests/tauri_test.ts` holds it to.

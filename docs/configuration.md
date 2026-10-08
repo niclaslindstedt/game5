@@ -131,11 +131,11 @@ Name, copy, palette, and URLs live in `pwa/src/identity.ts` and nowhere else:
 | Publisher     | Agilator Games                                                                    |
 | `SITE_URL`    | https://game5.niclaslindstedt.se                                                  |
 | `REPO_URL`    | https://github.com/niclaslindstedt/game5                                          |
-| `BRAND_COLOR` | `PALETTE.skyHigh`, `#6fa8dc` — the manifest, the boot card and the browser chrome |
+| `BRAND_COLOR` | `PALETTE.night`, `#0a1726` — the manifest, the boot card and the browser chrome |
 
 Every surface that cannot import the module restates what it needs: `pwa/index.html` (the title and the theme colour — deliberately carrying no crawlable copy, see _Discoverability_), `pwa/public/` (CNAME, robots, the privacy and support pages), `scripts/generate-icons.mjs` (the palette the icons are painted in) and the two `package.json` descriptions. `tests/identity_test.ts` holds every one of them to the module, so a rename or a palette change is one edit and a failing test naming the copies.
 
-**The app mark** — two carved ski tracks, an S of two parallel lines over a peak, with a red gate flag — is stated three times: `pwa/public/icons/icon.svg`, the arcs `scripts/generate-icons.mjs` rasterizes (`make icons`), and the two trail paths as data in `pwa/src/game/app-mark.ts`. `tests/app_mark_test.ts` holds the SVG and the data module together.
+**The app mark** — the carve off the peak: a faceted mountain on a night tile with a blade of alpenglow under its summit, and two carved ski tracks in the flag's red swinging down its lit face in an S — is stated three times: `pwa/public/icons/icon.svg`, the arcs and polygons `scripts/generate-icons.mjs` rasterizes (`make icons`; the 16-pixel favicon draws the pair as one ribbon), and the facets and the two track paths as data in `pwa/src/game/app-mark.ts`. `tests/app_mark_test.ts` holds the SVG and the data module together. **The wordmark** — FALL LINE, heavy, condensed and leant forward, with one cut through it down a fall line's angle — is drawn as polygons in `pwa/src/game/wordmark.ts` (the letters, the cut and the two lockups, stacked and inline) and rendered with the mark by `title-logo.tsx` (the reveal in `pwa/src/title.css`); `tests/wordmark_test.ts` holds its letters and the cut.
 
 ## Discoverability
 

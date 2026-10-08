@@ -23,13 +23,19 @@
          installed launcher both need one. -->
     <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <!-- The brand colour is the high sky (BRAND_COLOR, PALETTE.skyHigh in
+    <!-- The brand colour is the night (BRAND_COLOR, PALETTE.night in
          src/identity.ts, restated here because a static head cannot import
-         it; the manifest the build emits carries the same value). One sky,
-         either scheme: the game paints its own canvas and does not have a
-         light look. -->
-    <meta name="theme-color" content="#6fa8dc" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#6fa8dc" media="(prefers-color-scheme: dark)" />
+         it; the manifest the build emits carries the same value). One
+         night, either scheme: the game paints its own canvas and does not
+         have a light look. The page is painted it before the stylesheet
+         arrives, so the first frame of a boot is never a white flash. -->
+    <meta name="theme-color" content="#0a1726" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a1726" media="(prefers-color-scheme: dark)" />
+    <style>
+      html {
+        background: #0a1726;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

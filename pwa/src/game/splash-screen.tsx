@@ -7,9 +7,9 @@
 //
 // Beat two, the moment the game is standing, is a HAND-OVER rather than a
 // cut: the house's lockup walks up out of the middle of the card to make room,
-// the app's own trails arrive in the space it left, lay themselves, POWDER
-// RUN rises under it, and only then does the card ask for a press. Then it
-// waits.
+// the game's logo arrives in the space it left and reveals itself — the
+// peak, the carve drawn down it, the name swept on and cut — and only then
+// does the card ask for a press. Then it waits.
 // Nothing lifts it on a timer — see `splash.ts` for why the press is worth
 // waiting for.
 //
@@ -26,10 +26,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
-import { APP_NAME, PUBLISHER } from "../identity.ts";
-import { MarkTrails } from "./mark-trails.tsx";
+import { PUBLISHER } from "../identity.ts";
 import { SPLASH_MIN_MS, SPLASH_STUCK_MS, splashReady } from "./splash.ts";
 import { STRINGS } from "./strings.ts";
+import { TitleLogo } from "./title-logo.tsx";
 
 /** How long the card takes to fade out of the way. Must match the
  * `.splash.leaving` transition in styles.css. */
@@ -198,8 +198,7 @@ export function SplashScreen({ warm, onDone }: { warm: boolean; onDone: () => vo
           progress: the space taken, the drawing in it not started. */}
       {staged && (
         <div class={`splash-title${phase === "lifting" ? " held" : ""}`}>
-          <MarkTrails lay="once" className="splash-mark" />
-          <span class="splash-game">{APP_NAME.toUpperCase()}</span>
+          <TitleLogo lockup="stacked" reveal className="splash-logo" />
         </div>
       )}
       {/* THE TWO BEATS SAY DIFFERENT KINDS OF THING, so they are not one slot.

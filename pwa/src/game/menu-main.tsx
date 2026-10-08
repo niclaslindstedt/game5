@@ -37,12 +37,12 @@
 import { useEffect, useRef } from "preact/hooks";
 import { DISCIPLINES, SLALOM } from "@engine";
 
-import { APP_NAME, REPO_URL } from "../identity.ts";
-import { MarkTrails } from "./mark-trails.tsx";
+import { REPO_URL } from "../identity.ts";
 import { Glyph } from "./menu-glyphs.tsx";
 import { NO_HOLD, holdWait, tickHold, type HoldState } from "./menu-hold.ts";
 import { DEV_HOLD_MS } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
+import { TitleLogo } from "./title-logo.tsx";
 
 /** The build, bottom right, linking to the exact commit it was cut from. A
  * build with no commit behind it says so and links nowhere — a dead link is
@@ -114,10 +114,7 @@ export function MainMenu({
     <div class="menu">
       <div class="menu-card menu-card-root">
         <div class="menu-brand" {...hold}>
-          <div class="menu-brand-line">
-            <MarkTrails lay="once" className="menu-brand-mark" />
-            <span class="menu-brand-name">{APP_NAME.toUpperCase()}</span>
-          </div>
+          <TitleLogo lockup="inline" className="menu-brand-logo" />
         </div>
         <div class="menu-tiles">
           <button

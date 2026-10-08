@@ -12,6 +12,7 @@ import "./afterski.css";
 import "./para.css";
 import "./balloon.css";
 import "./stats.css";
+import "./title.css";
 import { App } from "./App.tsx";
 import { guardAgainstLoupe } from "./game/no-loupe.ts";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";

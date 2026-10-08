@@ -421,7 +421,7 @@ And the pieces that belong to no skill in particular:
 | Map geometry / compilation | `engine/mapgen/compile.ts` — bakes the grids ONCE; nothing downstream regenerates any of it |
 | A generic grid, a quaternion, noise, the PRNG, the sun's astronomy | the framework's `core/` — the generic pool, nothing of THIS game in it (§23.7 rule 5); fixed THERE (see *The framework*) |
 | App identity (name, palette, URLs) | `pwa/src/identity.ts` — the single source; `tests/identity_test.ts` holds every restatement to it |
-| The app mark, wherever the app draws one | `pwa/src/game/app-mark.ts` (the two carved tracks over the peak and the gate flag, as data) |
+| The app mark, wherever the app draws one | `pwa/src/game/app-mark.ts` (the faceted peak and the two red carved tracks down it, as data); the FALL LINE wordmark and its lockups are `wordmark.ts`, drawn with the mark by `title-logo.tsx` |
 | A Node script needing an app module | `aliasEngine` from the framework's `tooling/alias` before the dynamic import — never a Vite build to read a table |
 | Engine and DOM-free app tests | `tests/<topic>_test.ts`; shared maps in `tests/support/` |
 | A DECISION the desktop window makes | `tauri/shell/src/` + a case in `tauri/shell/tests/` |
@@ -506,7 +506,7 @@ Each of these is the one place an answer is written down. Anything that needs it
 
 Places where one idea is deliberately written in two files that cannot import each other. Each is a live trap: change one, change both.
 
-- `pwa/src/identity.ts` is the identity source of truth; `pwa/public/icons/icon.svg`, `scripts/generate-icons.mjs` and `pwa/src/game/app-mark.ts` encode the same mark geometry (the two carved tracks over the peak, the gate flag) and the same palette. None can import either of the others, so change one and change all three, then `make icons`. `tests/identity_test.ts` holds the generator's palette to `PALETTE`, and `tests/app_mark_test.ts` holds the SVG to `app-mark.ts`.
+- `pwa/src/identity.ts` is the identity source of truth; `pwa/public/icons/icon.svg`, `scripts/generate-icons.mjs` and `pwa/src/game/app-mark.ts` encode the same mark geometry (the faceted peak, the two carved tracks down it) and the same palette. None can import either of the others, so change one and change all three, then `make icons`. `tests/identity_test.ts` holds the generator's palette to `PALETTE`, and `tests/app_mark_test.ts` holds the SVG to `app-mark.ts`.
 - `pwa/index.html` restates the name and `BRAND_COLOR` (a static head cannot import); `pwa/public/CNAME` restates the domain. **THE SITE IS DELIBERATELY NOT INDEXED** — the head carries `noindex` and no description, canonical, Open Graph, Twitter card or JSON-LD, the body prerenders no copy, `robots.txt` is `Disallow: /`, and `sitemap.xml`, `llms.txt` and `og.png` are not shipped. `tests/identity_test.ts` holds all of it from both sides; `docs/configuration.md` § *Discoverability* is the description.
 - The service worker contract (the cache id, the emitted files) is shared between `pwa/pwa-plugin.ts` and `pwa/src/app-pwa.ts` (`cacheIdForBase`) — keep them agreeing.
 - **The rule book has a mirror.** `engine/mapgen/rules.ts` states R1–R24 once in its header; `docs/level-generator.md` carries the same prose VERBATIM. `tests/docs_rules_test.ts` reads the ids off the code, so a new rule fails the test until its mirror lands.

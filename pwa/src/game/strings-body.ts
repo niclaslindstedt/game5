@@ -174,4 +174,8 @@ export const BODY_STRINGS = {
     blast: "BLOWN APART",
   } satisfies Record<DeathCause, string>,
   diedAgain: "A NEW RIDER AT THE TOP",
+  /** HURT TOO BADLY TO SKI ON (`rescue.ts`): the word and what comes next
+   * — what keeps him down is his worst such injury's own line. */
+  injuredWord: "INJURED",
+  injuredAgain: "THE AIR AMBULANCE IS ON ITS WAY",
 };

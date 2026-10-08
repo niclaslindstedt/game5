@@ -65,7 +65,7 @@ import type { HudSnapshot } from "./snapshot.ts";
 import { speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
 import { wreckOf } from "./hud-wreck.ts";
-import { DeathCard } from "./hud-glass.tsx";
+import { DeathCard, InjuredCard } from "./hud-glass.tsx";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
@@ -203,9 +203,18 @@ export function Hud({
       {lever === "right" && leverZone}
     </div>
   );
-  // THE GLASS TAKING HIS BLOWS, and his death (`hud-wreck.ts`): only
+  // THE GLASS TAKING HIS BLOWS, and his death or the run he ends INJURED
+  // (`hud-wreck.ts`): only
   // where his injuries are drawn at all.
-  const wreck = injuries ? wreckOf(snap.body.blow, snap.died?.since ?? null) : null;
+  const wreck = injuries
+    ? wreckOf(snap.body.blow, snap.died?.since ?? null, snap.injured?.since ?? null)
+    : null;
+  const card =
+    wreck && snap.died ? (
+      <DeathCard wreck={wreck} cause={snap.died.cause} />
+    ) : wreck && snap.injured ? (
+      <InjuredCard wreck={wreck} injury={snap.injured} />
+    ) : null;
   // The readouts faded off the glass (`hudFade`): any other reason to clear
   // it folds in here with `Math.max`.
   const fade = wreck?.fade ?? 0;
@@ -215,7 +224,7 @@ export function Hud({
         <div class="hud-topright">
           <HudActions onPause={onPause} onReset={onReset} onCamera={onCamera} lit={lit} />
         </div>
-        {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
+        {card}
         {thumbs}
       </div>
     );
@@ -699,7 +708,7 @@ export function Hud({
         </div>
       )}
 
-      {wreck && snap.died && <DeathCard wreck={wreck} cause={snap.died.cause} />}
+      {card}
 
       {thumbs}
     </div>

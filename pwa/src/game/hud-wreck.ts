@@ -12,6 +12,11 @@
 //     they stand, gone before anything else happens; then the word DIED
 //     comes up over the picture and the picture goes dark; then the run starts again from the top, a new rider and a
 //     new try (`DEATH.again`, read by `App.tsx`).
+//   * HURT TOO BADLY TO SKI ON (`rescue.ts`) it clears the same way, on the
+//     same timeline: the word INJURED and what keeps him down come up, the
+//     picture goes WHITE rather than dark, and the run starts again from
+//     the top — where, on the next run, the air ambulance is taking him off
+//     the mountain (`rescue-plan.ts`).
 
 import type { GameState } from "@engine";
 
@@ -43,9 +48,12 @@ export type Wreck = {
   joltId: number;
   /** How far the readouts have faded, 0 … 1. */
   fade: number;
-  /** The word DIED's opacity, and the dark over the picture, 0 … 1. */
+  /** The word DIED's (or INJURED's) opacity, and the dark (or the white)
+   * over the picture, 0 … 1. */
   word: number;
   dark: number;
+  /** The run ends INJURED rather than dead: the picture goes white. */
+  white: boolean;
 };
 
 const ramp = (t: number, from: number, over: number): number =>
@@ -64,20 +72,24 @@ export function hudFade(since: number | null): number {
 }
 
 /** THE HUD'S WRECK for a body that took the blow `blow` (its g, its id
- * and its age, s — or none) and died `died` s ago (null: alive). */
+ * and its age, s — or none), died `died` s ago (null: alive) or was found
+ * too hurt to ski on `injured` s ago (null: he was not) — a death first. */
 export function wreckOf(
   blow: { g: number; id: number; age: number } | null,
   died: number | null,
+  injured: number | null = null,
 ): Wreck {
   const jolt =
     blow && blow.age < JOLT_FOR ? Math.min(1, blow.g / JOLT_G) * (1 - blow.age / JOLT_FOR) : 0;
-  const dead = died !== null;
+  const since = died ?? injured;
+  const over = since !== null;
   return {
     jolt,
     joltId: blow?.id ?? 0,
-    fade: dead ? hudFade(died - DEATH.clear) : 0,
-    word: dead ? ramp(died, DEATH.word, DEATH.rise) : 0,
-    dark: dead ? ramp(died, DEATH.dark, DEATH.fade) : 0,
+    fade: over ? hudFade(since - DEATH.clear) : 0,
+    word: over ? ramp(since, DEATH.word, DEATH.rise) : 0,
+    dark: over ? ramp(since, DEATH.dark, DEATH.fade) : 0,
+    white: died === null && injured !== null,
   };
 }
 
@@ -88,8 +100,17 @@ export function diedOf(state: GameState): number | null {
   return g && g.dead >= 0 ? Math.max(0, state.t - g.dead) : null;
 }
 
-/** Whether a death has run its course and the run starts again. */
+/** Seconds since the player was found too hurt to ski on, or null: he
+ * was not, a run without the wounds (`GameState.gore`) — or he has died
+ * since, which a death's card says instead. */
+export function injuredOf(state: GameState): number | null {
+  const g = state.gore;
+  return g && g.injured >= 0 && g.dead < 0 ? Math.max(0, state.t - g.injured) : null;
+}
+
+/** Whether a death — or a run ended INJURED — has run its course and the
+ * run starts again. */
 export function deathOver(state: GameState): boolean {
-  const d = diedOf(state);
+  const d = diedOf(state) ?? injuredOf(state);
   return d !== null && d >= DEATH.again;
 }

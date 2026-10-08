@@ -49,8 +49,10 @@ import {
   techniqueOf,
   holdsHim,
   type DeathCause,
+  type BodyPart,
+  type InjuryKind,
 } from "@engine";
-import { diedOf } from "./hud-wreck.ts";
+import { diedOf, injuredOf } from "./hud-wreck.ts";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
@@ -276,6 +278,9 @@ export type HudSnapshot = {
   /** HIS DEATH on an injuries run (`hud-wreck.ts`): how long ago, s, and
    * what of — null alive, or on a run without the wounds that kill. */
   died: { since: number; cause: DeathCause } | null;
+  /** Found too hurt to ski on (`rescue.ts`), s ago, and what keeps him
+   * down — null: he was not (or has died since). */
+  injured: { since: number; kind: InjuryKind; part: BodyPart } | null;
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
@@ -695,6 +700,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
       : null,
     body: bodyTile(c.body, state.t),
     died: diedLine(state),
+    injured: injuredLine(state),
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
     region: regionOf(state.level).id,
@@ -709,6 +715,13 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     buzz: c.buzz ?? 0,
     dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,
   };
+}
+
+/** Hurt too badly to ski on, as the HUD reads it. */
+function injuredLine(state: GameState): HudSnapshot["injured"] {
+  const since = injuredOf(state);
+  const h = state.gore?.injury;
+  return since === null || !h ? null : { since, kind: h.kind, part: h.part };
 }
 
 /** His death, as the HUD reads it. */

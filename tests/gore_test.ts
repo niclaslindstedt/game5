@@ -23,8 +23,10 @@ const HEAD_INTO_TRUNK: Staging = {
   stage: { how: "into", pose: "head", stuff: "trunk", speed: 25 },
   ground: "groomed",
 };
+// A shoulder into a trunk on his skis: a collarbone broken, an arm hurt —
+// nothing that keeps him down (`rescue.ts`).
 const SOFT_TRUNK: Staging = {
-  stage: { how: "into", pose: "front", stuff: "trunk", speed: 8 },
+  stage: { how: "ski", stuff: "trunk", speed: 12, offset: 0.5 },
   ground: "groomed",
 };
 const ON_A_TREE: Staging = {

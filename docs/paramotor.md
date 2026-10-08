@@ -50,6 +50,8 @@ Some behaviour comes out of the model with no special case:
 
 **The drop.** The machine press (**Enter**, or a double tap on touch) releases the whole rig. The canopy streams down as cloth, the motor falls on its own, and both lie where they land. The skier goes on as a skier. Drop it low: a pilot who lets go of the wing 100 m up falls 100 m. The lens follows him down from over his back, looking at the snow he will land on (`camera-fall.ts`), and a steep face takes a long fall far better than the flat (`landing.steep`, `docs/riding.md`).
 
+**The cameras under the wing** (`camera-para.ts`). The chase, far and orbit lenses frame the whole rig off a point 2.6 m up his lines. The bolted rungs are the cameras a pilot flies with: **HELMET** is his own eyes, wide and tipped down so the horizon rides high and his knees, boots and skis hang in the bottom of the frame, banked with the wing and turned a little into a turn, where a pilot looks; **TIPS** looks down past his skis at the drop, his gloves on the toggles and the risers in view; **HIGH** is the canopy cam, under the wing's middle looking down the lines at him over the mountain. His figure is drawn on these rungs once he flies, so a camera on his helmet sees his arms and legs. On the snow before he flies his eyes are up on the slope ahead, and they come down over the drop in the first second or so of flight.
+
 **The collapse.** A wing brought down within 0.4 m of the snow, or into a tree's crown, collapses and is cut away the same way.
 
 **A reset** (R) while the rig is on starts the ride again on the summit.
@@ -82,6 +84,7 @@ The look is built from how real speed wings and foot-launch paramotors are made,
 | `gear` | The motor, the harness and the risers close up, and the canopy's underside. |
 | `turntable` | The rig in the air from eight sides. |
 | `lenses` | Every rung of the camera ladder in flight. |
+| `pov` | Through his own eyes: the helmet from the summit to the final glide, the look down past the skis and the canopy cam. |
 | `night` | In the air after dark. |
 
 `ARGS="--sheet=gear,turntable"` shoots some; `--views=` some views of them; `SEED=` another map. Run it before and after any change to how the rig looks, and look at both.

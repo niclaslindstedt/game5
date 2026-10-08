@@ -293,6 +293,38 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     }
     st.camera("chase");
   },
+  // ── THROUGH HIS OWN EYES ───────────────────────────────────────────────
+  // The pilot's cameras (`camera-para.ts`) at every moment of a flight:
+  // HELMET on the summit, skiing off, lifting off and climbing on the
+  // throttle, cruising, in a hard turn and on the final glide; TIPS (the
+  // look down past the skis) and HIGH (the canopy cam) in the cruise.
+  pov(st) {
+    const s = st.fresh();
+    st.camera("helmet");
+    st.run(s, 0.5, still);
+    st.shoot(s, "summit", "helmet");
+    st.until(s, (q) => q.para!.mode === "flown", 8, ride({ tuck: 1 }));
+    st.run(s, 0.5, ride({ tuck: 1 }));
+    st.shoot(s, "let-fly", "helmet");
+    st.until(s, (q) => q.para!.flying, 6, ride({ tuck: 1 }));
+    st.run(s, 2.5, ride({ tuck: 1 }));
+    st.shoot(s, "climb", "helmet");
+    const a = airborne(st);
+    st.run(a, 2, ride({ tuck: 0.6 }));
+    st.shoot(a, "cruise", "helmet");
+    st.run(a, 0.6, ride({ tuck: 0.6 }));
+    st.shoot(a, "cruise-tips", "tips");
+    st.run(a, 0.6, ride({ tuck: 0.6 }));
+    st.shoot(a, "cruise-high", "high");
+    st.camera("helmet");
+    st.run(a, 1.5, ride({ tuck: 0.6, steer: 0.5 }));
+    st.shoot(a, "turn", "helmet");
+    const l = airborne(st, 9);
+    for (let k = 0; k < 360 && l.para!.agl > 25; k++) st.skip(l, 0.5, across(0.2));
+    st.until(l, (q) => q.para!.agl < 8, 20, across(0.2));
+    st.shoot(l, "final", "helmet");
+    st.camera("chase");
+  },
   // ── AFTER DARK ─────────────────────────────────────────────────────────
   async night(st) {
     await st.sky({ hour: 21 });
@@ -315,5 +347,6 @@ export const GROUPS: Record<string, readonly string[]> = {
   gear: ["gear"],
   turntable: ["turntable"],
   lenses: ["lenses"],
+  pov: ["pov"],
   night: ["night"],
 };

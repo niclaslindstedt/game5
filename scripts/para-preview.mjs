@@ -21,6 +21,8 @@
 //              the risers, the canopy's underside
 //   turntable  the rig in flight from eight sides
 //   lenses     every rung of the game's camera in flight
+//   pov        through his own eyes: the helmet from the summit to the final
+//              glide, the look down past the skis and the canopy cam
 //   night      in the air at 21:00
 //
 // Each GROUP is one contact sheet, previews/para-<group>.png, and every
@@ -57,7 +59,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (summit, launch, flight, turn, lean, landing, fold, drop, gear, turntable, lenses, night); every one when left out",
+      help: "which sheets, comma-separated (summit, launch, flight, turn, lean, landing, fold, drop, gear, turntable, lenses, pov, night); every one when left out",
     },
     views: {
       kind: "string",

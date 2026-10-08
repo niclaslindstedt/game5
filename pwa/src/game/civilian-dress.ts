@@ -105,6 +105,7 @@ function headOf(c: Civilian, h: number): Head {
     case "partier":
       return pick(0.12, 0.33);
     case "terraceSitter":
+    case "terraceKnot":
     case "lounger":
       return pick(0.1, 0.35);
     case "rester":

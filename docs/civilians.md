@@ -123,9 +123,10 @@ snow between two samples is clear too.
 | instructor + class | `base` | 1 + 3–5 children on an arc | talks, points; the class stands holding skis | skis (class) | a morning and an afternoon class |
 | guest desk | `base` | 1 | stands, talks, waves | — | 08:30–16:30 |
 | walker (+ children) | `base`, `yard`, `porch` | 1–2 (+1–2) | walks a leg to another place and back, pausing at each end | skis on a shoulder (six in ten), else nothing | daytime; the odd one at night |
-| partier | `terrace` | 8–14 | dances on one beat, drinks, holds a beer up, talks | beer | from three, the whole evening |
-| terrace sitter | `terrace` seats | 4–8 | sits at a table, drinks, talks | beer | the same |
-| lounger | `yard` (a deck chair) | 2–5 | lies back in the sun, sips | mug | 11:00–16:30 |
+| partier | `terrace` | 8–14 | dances on one beat, drinks, holds a beer up, talks | beer | from half past three, the whole evening |
+| terrace sitter | `terrace` seats | 8–14 | sits at a table, drinks, talks | beer | the lunch crowd from about half past eleven, then the afterski and the evening |
+| terrace knot | `terrace` | a ring of 3–5 | stands talking with mugs, sips, raises one | mug | the same |
+| lounger | `yard`, `terrace` (a deck chair) | 2–5 | lies back in the sun, sips | mug | 11:00–16:30 |
 | cocoa | `yard`, `porch`, `base` | a ring of 2–3 | stands, sips, talks | mug | lunch, from mid-morning |
 | rester | `yard`, `porch`, `base` | 1–2 | sits in the snow, talks | — | lunch |
 | snowball fight | `yard`, `base` | 2–3 children on a wide ring | throws, ducks | — | 10:00–17:00 |
@@ -162,9 +163,14 @@ the snowmen.
 
 Each person is one instance of a figure built in code on the crowd's bench
 (`civilian-shapes.ts`): the crowd's eight bodies with the legs, trunk and arms
-the amateurs are cut with (`crowd-shapes.ts`), boots with flat soles instead of
-skis, no poles, a bare head under a helmet, a beanie or the person's own hair,
-and every prop he may hold — skis over the left shoulder, a mug, a beer, a
+the amateurs are cut with (`crowd-shapes.ts`), SKI BOOTS instead of skis (a
+sole of a mid-size shell's 300–330 mm, barely wider than the shin, a high heel
+block, a low toe box, the cuff up to the pants' hem with its strap in a darker
+band), no poles, a bare head under a helmet, a beanie or the person's own hair,
+and every prop he may hold — a PAIR of skis over the left shoulder (two skis
+side by side a finger apart, turned half onto their edges so both and the gap
+read from behind and a topsheet from the side, each with its tip curled up and
+a dark toe and heel piece), a mug, a beer, a
 snowball, a shovel and a broom — built into the same mesh and folded away in
 the vertex shader unless his kit shows it. A patrol's jacket carries a white
 cross; the staff wear their post's colours (`civilian-dress.ts`).
@@ -172,8 +178,10 @@ cross; the staff wear their post's colours (`civilian-dress.ts`).
 The poses are morph targets of that one mesh, each the afterski's own key
 (`party-pose.ts`'s `keyPoints`) solved onto the body (`civilian-moves.ts`):
 two stances, four walk keys a stride apart, the skis carried, a sip, two talk
-gestures, two of a wave, two of a cheer, two dances of four keys each, a
-shovel's scoop and toss, a broom's two strokes, a throw's wind-up and
+gestures, two of a wave, two of a cheer, two dances of four keys each (the
+arms-up sway and a step-touch side to side with the fists pumping), a
+shovel's scoop and toss and the rest leant on it with the blade on the snow
+in front (so the tool never jumps upright between loads), a broom's two strokes, a throw's wind-up and
 release, a snowman's two pats, and sat on a bench, in the snow and in a deck
 chair (each with a sip and a word). `civilianDials` turns a `CivilianPose`
 into the weights of a moment — a walk stepped off the metres walked, a dance

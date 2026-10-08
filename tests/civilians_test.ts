@@ -166,7 +166,9 @@ describe("who is where", () => {
         Math.abs(lx) <= d.width / 2 + DECK_END && lz >= d.depth / 2 && lz <= d.depth / 2 + TERRACE
       );
     };
-    const partiers = plan.people.filter((c) => c.role === "partier" || c.role === "terraceSitter");
+    const partiers = plan.people.filter(
+      (c) => c.role === "partier" || c.role === "terraceSitter" || c.role === "terraceKnot",
+    );
     expect(partiers.length).toBeGreaterThan(0);
     for (const c of partiers) {
       expect(c.deck).toBe(true);

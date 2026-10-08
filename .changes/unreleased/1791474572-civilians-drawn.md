@@ -3,4 +3,4 @@ type: Added
 title: People on foot at the ski area
 ---
 
-The free ride's people on foot are drawn: lift crew, patrol, instructors and guests walking with their skis on the shoulder, drinking cocoa, sat on the terrace's benches and in deck chairs, dancing at the afterski after dark, shovelling, sweeping, throwing snowballs and building snowmen.
+A free ride's ski area now has people on foot as well as on skis: the lift crew sweeping and shovelling at every lift, the patrol in red at the tops, instructors gathering their classes, guests clumping about in ski boots with their skis on a shoulder, a lunch crowd at the lodge's terrace tables, deck chairs in the sun, knots of people with mugs of cocoa, children in a snowball fight or round a snowman, and the afterski dancing from mid-afternoon into the night.

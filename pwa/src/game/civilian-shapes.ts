@@ -124,30 +124,46 @@ function emitBoots(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod, hips: 
       const below: V3 = [ankle[0] + level[0] * 0.03 * k, 0.012 * k, ankle[2] + level[2] * 0.03 * k];
       sole = mix(sole, below, flat);
     }
-    const heel = add(sole, mul(f, -0.1 * k));
-    const toe = add(sole, mul(f, 0.19 * k));
+    // A SKI BOOT, not a shoe: a sole about a third of a metre long (a
+    // mid-size shell's 300–330 mm), barely wider than the shin; a high
+    // heel block under the instep and a low toe box; the shell's cuff
+    // standing up the shin to the pants' hem, its top strap in a darker
+    // band; the sole a darker strip proud of the shell.
+    const heel = add(sole, mul(f, -0.11 * k));
+    const toe = add(sole, mul(f, 0.205 * k));
     if (lod === "far") {
       fig.limb(
         ankle,
         add(mix(heel, toe, 0.55), mul(n, 0.04 * k)),
         hips.r,
         0.06 * k,
-        0.07 * k,
+        0.066 * k,
         3,
         BOOT,
       );
       continue;
     }
+    const at = (along: number, upBy: number): V3 =>
+      add(add(sole, mul(f, along * k)), mul(n, upBy * k));
+    // The sole: a thin dark strip from heel to toe.
+    box(fig, at(-0.115, 0.011), at(0.21, 0.011), r, n, 0.098 * k, 0.022 * k, PAINT.grip);
+    // The heel block, high, under the instep.
+    box(fig, at(-0.105, 0.085), at(0.05, 0.085), r, n, 0.094 * k, 0.13 * k, BOOT);
+    // The toe box, low, its nose rounded off by a step.
+    box(fig, at(0.04, 0.055), at(0.17, 0.055), r, n, 0.09 * k, 0.07 * k, BOOT);
+    box(fig, at(0.165, 0.045), at(0.2, 0.045), r, n, 0.078 * k, 0.05 * k, BOOT);
+    // The cuff up the shin, wider than the pants' leg at the hem.
+    const cuffTop = add(ankle, mul(shinUp, 0.1 * k));
+    fig.limb(at(-0.03, 0.14), cuffTop, r, 0.064 * k, 0.066 * k, 4, BOOT);
     fig.limb(
-      ankle,
-      add(add(sole, mul(n, 0.07 * k)), mul(f, 0.02 * k)),
+      add(cuffTop, mul(shinUp, -0.035 * k)),
+      cuffTop,
       r,
-      0.06 * k,
-      0.066 * k,
+      0.068 * k,
+      0.068 * k,
       4,
-      BOOT,
+      PAINT.binding,
     );
-    box(fig, heel, toe, r, n, 0.11 * k, 0.1 * k, BOOT);
   }
 }
 
@@ -285,38 +301,61 @@ function emitProps(
   const k = look.height / 1.8;
   const small = cutOf(lod).small;
   const world: V3 = [0, 1, 0];
-  // SKIS ON THE LEFT SHOULDER: the pair base to base, the bindings behind
+  // SKIS ON THE LEFT SHOULDER: the pair side by side, the bindings behind
   // the shoulder, the tips forward and down, the left hand on them.
-  fig.part(PART.skis);
-  fig.slot(SLOT.skis);
   const L = look.ski;
   const along = norm(add(mul(chest.f, 0.96), mul(chest.u, -0.27)));
   const onShoulder = add(add(P.shoulderL, mul(chest.u, 0.075 * k)), mul(chest.r, -0.04 * k));
-  const tail = add(onShoulder, mul(along, -0.42 * L));
-  const tip = add(onShoulder, mul(along, 0.58 * L));
-  const up = norm(sub(chest.u, mul(along, dot(chest.u, along))));
-  box(fig, tail, tip, chest.r, up, look.skiWidth, 0.05, FULL);
-  if (lod !== "far") {
-    // The tips' curl, up off the pair's top, and the bindings on it.
+  // The pair's tops turned up and out to his left, half way to on edge,
+  // so the two skis and the gap between them read from behind and above
+  // and a topsheet with its binding from the side.
+  const lift = norm(add(mul(chest.u, 0.75), mul(chest.r, -0.66)));
+  const up = norm(sub(lift, mul(along, dot(lift, along))));
+  const across = norm(cross(along, up));
+  const W = look.skiWidth;
+  // THE PAIR, side by side across the shoulder with a finger's gap between
+  // them (the far cut a single plank of the two), each with its tip curled
+  // up off its top and its binding — a toe piece and a taller heel piece —
+  // a dark block on it behind the shoulder.
+  const pair = lod === "far" ? [0] : [-0.5 * W - 0.012, 0.5 * W + 0.012];
+  for (const side of pair) {
+    const o = mul(across, side);
+    const tail = add(add(onShoulder, o), mul(along, -0.42 * L));
+    const tip = add(add(onShoulder, o), mul(along, 0.58 * L));
+    fig.part(PART.skis);
+    fig.slot(SLOT.skis);
+    box(fig, tail, tip, across, up, lod === "far" ? 2 * W : W, 0.022, FULL);
+    if (lod === "far") continue;
     box(
       fig,
       tip,
-      add(add(tip, mul(along, 0.1)), mul(up, 0.06)),
-      chest.r,
+      add(add(tip, mul(along, 0.11)), mul(up, 0.07)),
+      across,
       up,
-      look.skiWidth,
-      0.04,
+      W * 0.92,
+      0.018,
       SHADE,
     );
     fig.slot(SLOT.own);
-    const b = add(add(onShoulder, mul(along, -0.22 * L)), mul(up, 0.03));
+    const on = (at: number, h: number): V3 =>
+      add(add(add(onShoulder, o), mul(along, at)), mul(up, 0.011 + h / 2));
     box(
       fig,
-      b,
-      add(b, mul(along, 0.3 * k)),
-      chest.r,
+      on(-0.2 * L, 0.035),
+      on(-0.2 * L + 0.09 * k, 0.035),
+      across,
       up,
-      look.skiWidth * 1.15,
+      W * 0.8,
+      0.035,
+      PAINT.binding,
+    );
+    box(
+      fig,
+      on(-0.2 * L + 0.24 * k, 0.05),
+      on(-0.2 * L + 0.33 * k, 0.05),
+      across,
+      up,
+      W * 0.85,
       0.05,
       PAINT.binding,
     );

@@ -65,6 +65,7 @@ export const CIVILIAN_POSES = [
   "danceB3",
   "shovel0",
   "shovel1",
+  "shovel2",
   "sweep0",
   "sweep1",
   "throw0",
@@ -115,6 +116,40 @@ function walkKey(u: number): Key {
   key.hipY -= 0.025 * Math.abs(Math.cos(ph));
   key.hipX = 0.025 * Math.sin(ph);
   key.twist = 0.08 * Math.sin(ph);
+  return key;
+}
+
+/** THE STEP-TOUCH, the terrace's other dance, at its `k`th quarter bar:
+ * the feet wide and the body dropped low on one beat, then the other
+ * foot drawn in to touch beside the first on the next, the hips carried
+ * over it and a fist punched up and forward on that side — then the same
+ * the other way. The body travels side to side over its feet, the arms
+ * pump; nothing like the arms-up sway (`dance`'s style 1). */
+function stepTouch(k: 0 | 1 | 2 | 3): Key {
+  const key = dance(k * 0.25, 0, 1);
+  const hy = key.hipY;
+  if (k === 0 || k === 2) {
+    // Closed up on one side: the touching foot in beside the planted one.
+    const side = k === 0 ? 1 : -1;
+    const planted = side > 0 ? 1 : 0;
+    key.feet[planted] = v(side * 0.36, ANKLE, 0.04);
+    key.feet[1 - planted] = v(side * 0.12, ANKLE + 0.05, 0.02);
+    key.hipX = side * 0.22;
+    key.hipY = hy + 0.02;
+    key.roll = -side * 0.12;
+    key.twist = side * 0.25;
+    key.hands[planted] = v(side * 0.36, hy + 0.92, 0.26);
+    key.hands[1 - planted] = v(side * 0.06, hy + 0.36, 0.28);
+  } else {
+    // Wide and low between, both fists pumped down at the hips.
+    key.feet = [v(-0.34, ANKLE, 0.04), v(0.34, ANKLE, 0.04)];
+    key.hipX = 0;
+    key.hipY = hy - 0.1;
+    key.roll = 0;
+    key.twist = 0;
+    key.pitch = 0.14;
+    key.hands = [v(-0.24, hy + 0.12, 0.26), v(0.24, hy + 0.12, 0.26)];
+  }
   return key;
 }
 
@@ -238,10 +273,10 @@ const MOVES: Readonly<Record<CivilianTarget, { key: Key } & Partial<Holding>>> =
   danceA1: { key: dance(0.25, 1, 1) },
   danceA2: { key: dance(0.5, 1, 1) },
   danceA3: { key: dance(0.75, 1, 1) },
-  danceB0: { key: dance(0, 2, 1) },
-  danceB1: { key: dance(0.25, 2, 1) },
-  danceB2: { key: dance(0.5, 2, 1) },
-  danceB3: { key: dance(0.75, 2, 1) },
+  danceB0: { key: stepTouch(0) },
+  danceB1: { key: stepTouch(1) },
+  danceB2: { key: stepTouch(2) },
+  danceB3: { key: stepTouch(3) },
   // THE SHOVEL: bent into the scoop, the right hand on the grip by his hip
   // and the left low on the shaft — then up and turned, the load thrown off
   // to his left.
@@ -264,6 +299,16 @@ const MOVES: Readonly<Record<CivilianTarget, { key: Key } & Partial<Holding>>> =
       nod: -0.1,
       feet: [v(-0.2, A, 0.18), v(0.15, A, -0.08)],
       hands: [v(-0.32, 1.12, 0.46), v(0.06, 0.98, 0.24)],
+    }),
+    tool: "work",
+  },
+  // Between two loads, leant on it: stood a little bent, both hands on
+  // the shaft, the blade resting on the snow out in front.
+  shovel2: {
+    key: at({
+      pitch: 0.16,
+      nod: -0.2,
+      hands: [v(0.05, 0.84, 0.5), v(0.1, 1.12, 0.34)],
     }),
     tool: "work",
   },
@@ -502,7 +547,9 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
       const toss = ease((c - 0.45) / 0.15) * (1 - ease((c - 0.75) / 0.25));
       out[AT.shovel0] += scoop;
       out[AT.shovel1] += toss;
-      // The rest of the cycle he stands leaning on it.
+      // The rest of the cycle he stands leaning on it, the blade down in
+      // front — never let go to the stance, whose tool is held upright.
+      out[AT.shovel2] += Math.max(0, 1 - scoop - toss);
       break;
     }
     case "sweep": {

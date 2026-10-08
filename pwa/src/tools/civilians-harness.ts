@@ -423,9 +423,13 @@ function moveCells(): Cell[] {
           const parts = kitParts(kit, pose, [0, 0, 0, 0]);
           // A move that is read across the body (a dance's sway, a wave)
           // is turned toward the lens; the rest are seen from the side.
-          const facing = ["dance", "wave", "talk", "cheer"].includes(mv.act)
-            ? -0.75
-            : -Math.PI / 2 + 0.35;
+          // A dance faces the lens square, so its step to the side reads.
+          const facing =
+            mv.act === "dance"
+              ? 0.15
+              : ["wave", "talk", "cheer"].includes(mv.act)
+                ? -0.75
+                : -Math.PI / 2 + 0.35;
           scene.add(figure(mv.body, "near", w, { colours: kit.colours, parts }, 0, facing, 0, 0));
           if (mv.seat === 0.47) bench(scene, 0, 0, facing);
           if (mv.seat === 0.32) deckchairs(scene, [[0, 0, facing]]);
@@ -743,10 +747,55 @@ async function resort(): Promise<void> {
       return "a lodge's yard";
     },
     base() {
-      const s = busiestSpot("base");
-      if (!s) return "no base";
-      from(s, s.heading + 2.4, 24, 8, 50, 0.6);
-      return "the base area";
+      // The base area's busiest knot — round a base spot or a lift's foot
+      // (after dark the people left are the crew and the odd walker) —
+      // framed on the people there, not on the spot: the person with the
+      // most others within 15 m and those others, the lens standing back
+      // as far as they are spread, from the side clearest of trunks.
+      const people = out().filter((q) =>
+        spots.some(
+          (s) =>
+            (s.kind === "base" || s.kind === "liftFoot") &&
+            Math.hypot(q.p.x - s.x, q.p.z - s.z) < 45,
+        ),
+      );
+      if (people.length === 0) return "nobody at the base";
+      const knot = (r: number) => {
+        const within = (c: { p: CivilianPose }) =>
+          people.filter((q) => Math.hypot(q.p.x - c.p.x, q.p.z - c.p.z) < r);
+        const core = people.reduce((a, q) => (within(q).length > within(a).length ? q : a));
+        return { core, near: within(core) };
+      };
+      // A thin night's knot is a crew of two: look wider for the most.
+      const tight = knot(15);
+      const { core, near } = tight.near.length >= 4 ? tight : knot(35);
+      const cx = near.reduce((a, q) => a + q.p.x, 0) / near.length;
+      const cz = near.reduce((a, q) => a + q.p.z, 0) / near.length;
+      const spread = Math.max(...near.map((q) => Math.hypot(q.p.x - cx, q.p.z - cz)));
+      const at = { x: cx, y: level.groundAt(cx, cz), z: cz };
+      const back = Math.max(10, spread * 1.6 + 7);
+      /** Trunks within 2 m of the sight line from a bearing. */
+      const blocked = (bearing: number): number => {
+        const ex = cx + Math.sin(bearing) * back;
+        const ez = cz + Math.cos(bearing) * back;
+        let n = 0;
+        for (const t of level.trees) {
+          const vx = ex - cx;
+          const vz = ez - cz;
+          const u = Math.max(0, Math.min(1, ((t.x - cx) * vx + (t.z - cz) * vz) / (back * back)));
+          if (Math.hypot(t.x - (cx + vx * u), t.z - (cz + vz * u)) < 2) n++;
+        }
+        return n;
+      };
+      // In front of the core and to one side (a crew's front is the load
+      // line, its back the booth).
+      let bearing = core.p.heading + 0.7;
+      for (let k = 1; k < 12 && blocked(bearing) > 0; k++) {
+        const b = core.p.heading + 0.7 + (k * Math.PI) / 6;
+        if (blocked(b) < blocked(bearing)) bearing = b;
+      }
+      from(at, bearing, back, Math.max(5, spread * 0.35), 50, 0.6);
+      return `the base area, ${near.length} in the knot of ${people.length} out round it`;
     },
     walker() {
       const w =

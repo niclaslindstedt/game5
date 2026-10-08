@@ -69,6 +69,7 @@ export type RoleId =
   | "host"
   | "partier"
   | "terraceSitter"
+  | "terraceKnot"
   | "lounger"
   | "cocoa"
   | "rester"
@@ -221,10 +222,18 @@ const H = {
   afterski: [
     [0, 0.5],
     [3, 0],
-    [11, 0],
-    [13, 0.2],
-    [15, 0.6],
+    [13.5, 0],
+    [15.5, 0.6],
     [16.5, 1],
+    [21, 1],
+    [24, 0.5],
+  ],
+  terrace: [
+    [0, 0.5],
+    [3, 0],
+    [10, 0],
+    [11.5, 0.8],
+    [12.5, 1],
     [21, 1],
     [24, 0.5],
   ],
@@ -465,12 +474,13 @@ export const CIVILIAN_ROLES: readonly Role[] = [
     hours: H.afterski,
     staff: false,
   },
-  // At the terrace's tables, sat with a glass.
+  // At the terrace's tables, sat with a glass: the lunch crowd from late
+  // morning, the same tables through the afterski and into the night.
   {
     id: "terraceSitter",
     at: ["terrace"],
     chance: 1,
-    count: [4, 8],
+    count: [8, 14],
     bodies: GUESTS,
     dress: "guest",
     carry: "beer",
@@ -481,13 +491,35 @@ export const CIVILIAN_ROLES: readonly Role[] = [
       { act: "sit", seconds: [15, 30] },
       { act: "talk", seconds: [8, 15] },
     ],
-    hours: H.afterski,
+    hours: H.terrace,
     staff: false,
   },
-  // Deck chairs on the snow before a lodge, faces to the sun.
+  // A knot stood at the terrace's rail with mugs and glasses, talking —
+  // the lunch crowd that found no table, and later the afterski's edge.
+  {
+    id: "terraceKnot",
+    at: ["terrace"],
+    chance: 1,
+    count: [3, 5],
+    bodies: GUESTS,
+    dress: "guest",
+    carry: "mug",
+    moves: "ring",
+    routine: [
+      { act: "talk", seconds: [6, 14] },
+      { act: "drink", seconds: [3, 5] },
+      { act: "stand", seconds: [4, 10] },
+      { act: "talk", seconds: [6, 12] },
+      { act: "cheer", seconds: [2, 3] },
+    ],
+    hours: H.terrace,
+    staff: false,
+  },
+  // Deck chairs on the snow before a lodge and along a terrace, faces to
+  // the sun.
   {
     id: "lounger",
-    at: ["yard"],
+    at: ["yard", "terrace"],
     chance: 0.8,
     count: [2, 5],
     bodies: GUESTS,

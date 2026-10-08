@@ -19,7 +19,9 @@ export type TunnelRide = {
 /** A skier on a LIFT (`lift-ride.ts`). `board`: skating from where he
  * rode into its load zone or its boarding ring (`from`) up the queue's
  * lane, past the queue, to where it carries him off; `wait`: stood on a
- * drag's track for the next T-bar to come round to him; `ride`: carried,
+ * drag's track for the next T-bar to come round to him, or on a gondola's
+ * platform while his cabin comes round the wheel to him (`u` then the
+ * station rail's, `lift-board.ts`'s `railAt`); `ride`: carried,
  * his grip `u` m of plan up the line at `speed` m/s, his chair or cabin
  * swung `swing` rad about the rope (its foot toward the top positive) at
  * `swingRate` rad/s — and stood off at the top, he is the lift's no more.
@@ -46,6 +48,14 @@ export type LiftRide = {
   s?: number;
   pace?: number;
   head?: number;
+  /** Whether he came in by the boarding ring rather than the load zone;
+   * whether he has set off along the way — before it he turns to it on his
+   * own line (`lift-board.ts`'s `setOut`) — and, stepping his skis round on
+   * the spot, the way he steps (±1) and how far into the pair he is, 0..1. */
+  ringed?: boolean;
+  set?: boolean;
+  pivot?: number;
+  pair?: number;
   /** Gone into a gondola's station or onto a chair's load line out of
    * sight (`ride`): he is sat in his carrier as it leaves the station — the
    * picture fades out at the door and back in on him sat there. */

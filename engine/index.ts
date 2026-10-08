@@ -869,6 +869,7 @@ export {
 export {
   arriveByLift,
   arrivalOf,
+  cabinDoors,
   chairStrike,
   emptyChairAt,
   freeRunOf,
@@ -878,6 +879,7 @@ export {
   seatedShare,
   stepLift,
 } from "./game/lift-ride.ts";
+export { CABIN_HALF, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {
   airPointsPerSecond,
   landingGrade,

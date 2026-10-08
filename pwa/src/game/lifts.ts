@@ -41,9 +41,13 @@ import {
   COLUMN_TAPER,
   DRAG_ARM,
   TOWER_PAD,
+  cabinDoors,
   carrierAt,
   carrierCount,
   emptyChairAt,
+  gondolaGrip,
+  railAt,
+  seatedShare,
   planLift,
   ropeAt,
   stationHouses,
@@ -53,6 +57,7 @@ import {
 import { createBoardingRings } from "./boarding-rings.ts";
 import { createCabins } from "./cabins-view.ts";
 import { liftFade } from "./camera-lift.ts";
+import { createOwnCabin } from "./own-cabin.ts";
 import { CHAIR_BACK, CHAIR_SEAT, TOW } from "./skier-seat.ts";
 import { box, buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
@@ -131,31 +136,6 @@ function cabinGeometry(): THREE.BufferGeometry {
     box(1.95, 0.22, 2.15, 0, -2.2, 0, PAINT.cabin),
     box(1.9, 0.85, 2.1, 0, -2.75, 0, PAINT.glass),
     box(1.92, 1.05, 2.12, 0, -3.7, 0, PAINT.cabin),
-  ]);
-}
-
-/** THE RIDER'S OWN CABIN, its glass apart: the grip, the hanger, the roof,
- * the posts at the corners of the glazed band, the body under it, the
- * bench along its back wall he sits on (at a chair's seat height under his
- * origin, `TUNING.lift.cabin` under the grip and `cabinBack` behind it) and
- * the rack on its right side with his skis stood in it. */
-function ownCabinGeometry(): THREE.BufferGeometry {
-  const benchTop = -(TUNING.lift.cabin + CHAIR_SEAT - TUNING.lift.seat);
-  const posts = [-1, 1].flatMap((sx) =>
-    [-1, 1].map((sz) => box(0.07, 0.85, 0.07, sx * 0.94, -2.75, sz * 1.04, PAINT.cabin)),
-  );
-  return merged([
-    box(0.32, 0.3, 0.9, 0, -0.1, 0, PAINT.dark),
-    box(0.12, 1.9, 0.12, 0, -1.15, 0, PAINT.dark),
-    box(1.95, 0.22, 2.15, 0, -2.2, 0, PAINT.cabin),
-    ...posts,
-    box(1.92, 1.05, 2.12, 0, -3.7, 0, PAINT.cabin),
-    box(1.8, 0.08, 0.5, 0, benchTop - 0.04, -0.78, PAINT.seat),
-    box(1.8, 0.08, 0.5, 0, benchTop - 0.04, 0.78, PAINT.seat),
-    // The rack on the right-hand door, two pairs of skis stood in it.
-    box(0.06, 0.06, 1.6, 1.0, -3.4, 0, PAINT.dark),
-    box(0.03, 1.75, 0.09, 1.02, -3.25, -0.42, PAINT.skis),
-    box(0.03, 1.75, 0.09, 1.06, -3.25, -0.3, PAINT.skis),
   ]);
 }
 
@@ -530,12 +510,9 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     m.castShadow = true;
     group.add(m);
   }
-  // THE RIDER'S OWN CABIN while a gondola carries him: hung from the grip
-  // over him, its glass clear enough to see him sat inside.
-  const cabin = new THREE.Group();
-  const cabinBody = new THREE.Mesh(ownCabinGeometry(), painted);
-  cabinBody.castShadow = true;
-  geos.push(cabinBody.geometry);
+  // THE RIDER'S OWN CABIN (`own-cabin.ts`): coming round the wheel to him
+  // on the platform, its doors open, and hung from the grip over him once
+  // he is in it — its glass clear enough to see him sat inside.
   const glassMat = std(
     {
       color: PAINT.glass,
@@ -547,13 +524,14 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     },
     "lift-glass",
   );
-  const glassGeo = new THREE.BoxGeometry(1.9, 0.85, 2.1);
-  glassGeo.translate(0, -2.75, 0);
-  geos.push(glassGeo);
-  const glass = new THREE.Mesh(glassGeo, glassMat);
-  glass.renderOrder = 1;
-  cabin.add(cabinBody, glass);
-  cabin.visible = false;
+  const own = createOwnCabin(
+    painted,
+    glassMat,
+    PAINT,
+    -(TUNING.lift.cabin + CHAIR_SEAT - TUNING.lift.seat),
+    geos,
+  );
+  const cabin = own.group;
   group.add(cabin);
   // THE FADE through a station (`camera-lift.ts`'s `liftFade`): a black
   // sheet over the whole frame, drawn last, in clip space.
@@ -718,14 +696,25 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       towTee.position.copy(bar);
       towTee.quaternion.copy(riderQ);
     }
-    // His own cabin on a gondola, hung from the grip over him: the grip
-    // `lift.cabin` up and `cabinBack` ahead of him in his frame.
-    const inCabin = carried?.kind === "gondola" && drawn;
-    cabin.visible = !!inCabin;
-    if (inCabin) {
-      lift.set(0, TUNING.lift.cabin, TUNING.lift.cabinBack).applyQuaternion(riderQ);
-      cabin.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);
-      cabin.quaternion.copy(riderQ);
+    // His own cabin on a gondola: coming round the bottom wheel on the
+    // station's rail to him on the platform, creeping on while he steps in
+    // — both where the engine has its grip — and once he is sat in it hung
+    // from the grip over him: `lift.cabin` up and `cabinBack` ahead of him
+    // in his frame.
+    const cab = rider?.kind === "gondola" && rider.phase !== "board" ? rider : null;
+    cabin.visible = !!cab && (cab.phase === "wait" || !!drawn);
+    if (cab) {
+      const plan = plans[cab.index];
+      own.set(cabinDoors(cab), cab.phase === "ride");
+      if (cab.phase === "ride" && seatedShare(cab) >= 1 && drawn) {
+        lift.set(0, TUNING.lift.cabin, TUNING.lift.cabinBack).applyQuaternion(riderQ);
+        cabin.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);
+        cabin.quaternion.copy(riderQ);
+      } else if (plan) {
+        const r = railAt(plan, cab.u);
+        cabin.position.set(r.x, gondolaGrip(plan, Math.max(0, cab.u)), r.z);
+        cabin.quaternion.setFromAxisAngle(up, r.heading);
+      }
     }
     // His own chair, hung from the grip over him: in the body's frame, the
     // grip `lift.seat` up from his origin — or running on without him.

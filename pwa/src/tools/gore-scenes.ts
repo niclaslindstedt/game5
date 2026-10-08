@@ -508,6 +508,25 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "remains", onBody(1.2, 4, 2.5, 50));
     st.shoot(s, "above", around(st.level, at, 0.5, 6, 18, 60, 0));
   },
+  /** The same blast followed in the air: the body thrown off the skid with
+   * its belly open, the bowel streaming behind him, frame by frame from
+   * beside his line until he is down. */
+  "heli-fly"(st) {
+    const s = st.fresh({ heli: true });
+    const hands =
+      (collective: number): Drive =>
+      () => ({
+        ...NEUTRAL_INPUT,
+        heli: { collective, pitch: 0, roll: 0, pedal: 0 },
+      });
+    st.run(s, 6, hands(0.95));
+    if (!st.until(s, (q) => q.heli?.mode === "wreck", 40, hands(0.1))) {
+      st.shoot(s, "no-crash", "chase");
+      return;
+    }
+    const side = s.heli!.heading + Math.PI / 2;
+    strobe(st, s, [0.6, 0.8, 1.0, 1.15, 1.3, 1.45, 1.6, 1.8, 2.4], onBody(side, 3.2, 0.6, 50));
+  },
   // ── THE BLOOD ──────────────────────────────────────────────────────────
   /** The spurt on the heartbeat: a stump close, frame by frame over two
    * beats. */
@@ -706,7 +725,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   snow: ["mangled", "crush", "fracture"],
   spike: ["spike-tree", "spike-post"],
   maul: ["maul"],
-  machines: ["groomer", "heli"],
+  machines: ["groomer", "heli", "heli-fly"],
   blood: ["spray", "snow"],
   leak: ["leak", "leak-face", "got-up", "got-up-powder"],
   pools: ["pool-piste", "pool-powder"],

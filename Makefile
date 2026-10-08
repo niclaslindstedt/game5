@@ -53,12 +53,15 @@ world:
 # previews/world-free-stations.png (`docs/buildings.md`, the `buildings`
 # skill), then the slalom's start house and the finish arena —
 # previews/world-race-buildings.png, then the wind tunnels' fan house,
-# gallery and exit portal — previews/world-free-tunnels.png. ARGS=--hour=21
+# gallery and exit portal — previews/world-free-tunnels.png, then the ski
+# area's village and mountain buildings — previews/world-free-village.png
+# (and village-plaza, village-lift). ARGS=--hour=21
 # shows the panes lit after dark.
 buildings:
 	npm run world -- --free --views=stations $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --slalom --hour=12 --views=race-buildings $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --free --views=tunnels $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --views=village-plaza,village-lift,village $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE LIFTS LAB: the lifts' hardware as drawn (`lifts.ts`, `lift-shapes.ts`,
 # `docs/lifts.md`) through the game's own renderer — a chair's tower from

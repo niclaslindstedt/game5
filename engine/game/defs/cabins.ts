@@ -28,13 +28,21 @@
 //     boards out across its front with benches and tables on it, SKI RACKS
 //     along the terrace's foot and its door in the middle of the long side
 //     (`afterski.ts`: the skier skis up to the racks and goes in).
-// A kind is a name the placer and the drawing both read.
+// A kind is a name the placer and the drawing both read. Beside these the
+// ski area's OWN buildings — the village's lodge, ticket office, rental,
+// ski school, first aid, hotels, garage and pump house, and the mountain's
+// restaurant and patrol hut — are kinds of the same table, measured in
+// `defs/resort-buildings.ts` and stood by `resort-buildings.ts`.
 //
 // THE FRAME is the building's own: x across its front (`width`), z from its
 // back to its front (`depth`, +z the way it faces), y up from its FLOOR —
 // the top of the plinth. Every number is metres.
 
-export type CabinKind = "hut" | "cabin" | "chalet" | "shed" | "afterski";
+import { RESORT_BUILDINGS, type ResortKind } from "./resort-buildings.ts";
+
+/** The log buildings' kinds. */
+export type LogKind = "hut" | "cabin" | "chalet" | "shed" | "afterski";
+export type CabinKind = LogKind | ResortKind;
 
 /** One kind's measure.
  *   * `width`, `depth`: the walls' footprint, outside to outside.
@@ -51,7 +59,9 @@ export type CabinKind = "hut" | "cabin" | "chalet" | "shed" | "afterski";
  *     group (the shed is only ever a companion, the afterski placed apart
  *     by `cabins.ts`'s `placeLodges`).
  *   * `plinth`: the most stone shown on the downhill side, m, where the
- *     kind has its own (`CABIN_LAYOUT.plinth.most` otherwise). */
+ *     kind has its own (`CABIN_LAYOUT.plinth.most` otherwise).
+ *   * `cut`: how far the uphill side may be dug in under the floor, m,
+ *     where the kind has its own (`CABIN_LAYOUT.plinth.cut` otherwise). */
 export type CabinDef = {
   width: number;
   depth: number;
@@ -61,6 +71,7 @@ export type CabinDef = {
   terrace: number;
   share: number;
   plinth?: number;
+  cut?: number;
 };
 
 export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
@@ -116,6 +127,7 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
     share: 0,
     plinth: 1.8,
   },
+  ...RESORT_BUILDINGS,
 };
 
 /** Where the cabins stand, m and shares.

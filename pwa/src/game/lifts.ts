@@ -27,7 +27,8 @@
 //   * THE WIND TUNNELS along the valley floor, the horizontal lift, are
 //     `wind-tunnels.ts`'s, held in this group and moved by `update`; THE
 //     CABINS beside the runs and lanes are `cabins-view.ts`'s, held here
-//     too and handed their cuts by `update`'s lens.
+//     too and handed their cuts by `update`'s lens; the ski area's own
+//     village and mountain buildings are `village-build.ts`'s, one mesh.
 //
 // THE DRAWS ARE FEW: every part of a kind is one INSTANCE of one mesh for
 // the whole resort, coloured per vertex where it is more than one paint —
@@ -86,6 +87,7 @@ import { buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
+import { buildResortBuildings } from "./village-build.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
@@ -176,6 +178,17 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   group.add(tunnels.group);
   const houses = createCabins(level, haze);
   group.add(houses.group);
+  // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
+  // the village round the hub and the mountain's restaurant and patrol hut,
+  // one mesh in the painted materials.
+  const villageMat = facadeMaterial(haze, "village");
+  mats.push(villageMat);
+  const villageGeo = facadeGeometry(buildResortBuildings(level).out);
+  geos.push(villageGeo);
+  const village = new THREE.Mesh(villageGeo, villageMat);
+  village.castShadow = true;
+  village.receiveShadow = true;
+  group.add(village);
   let disposeBoards = (): void => {};
   let disposeRings = (): void => {};
   const dispose = () => {

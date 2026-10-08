@@ -74,9 +74,12 @@
 // the note says so; and the tunnels as buildings (`tunnel-view.ts`):
 // tunnel-mouth (the fan house), tunnel-span (the gallery from beside it),
 // tunnel-exit (the exit portal) and tunnels (the sheet: each from three
-// sides, and a row from inside the lane); and the lifts' hardware
-// (`lift-view.ts`, `make lifts`): lift-tower, lift-chair, lift-cabin,
-// lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
+// sides, and a row from inside the lane); and the ski area's own buildings
+// (`village-view.ts`, on a free ride): village-plaza (the base from over the
+// hub), village-lift (from up the mountain), village-<kind> (one kind close)
+// and village (the sheet: every kind from three sides); and the lifts'
+// hardware (`lift-view.ts`, `make lifts`): lift-tower, lift-chair,
+// lift-cabin, lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
 // the cabins, the T-bars, the lines and a bullwheel).
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
@@ -183,6 +186,19 @@ const VIEWS = [
   "tunnel-span",
   "tunnel-exit",
   "tunnels",
+  "village-plaza",
+  "village-lift",
+  "village-restaurant",
+  "village-ticket",
+  "village-rental",
+  "village-school",
+  "village-firstAid",
+  "village-hotel",
+  "village-garage",
+  "village-pumpHouse",
+  "village-mountainHut",
+  "village-patrol",
+  "village",
   "lift-tower",
   "lift-chair",
   "lift-cabin",

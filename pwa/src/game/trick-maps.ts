@@ -12,12 +12,12 @@
 // for the fields their seeds carry — every one with the three sizes on it
 // and at least three of the high lips — out of a sweep of the first seventy.
 //
-// LIKE A CAMPAIGN MAP, each names the generator that built it and carries
+// LIKE A RACE MAP, each names the generator that built it and carries
 // the DIGEST of the map that came out (`levelDigest`), written out on every
 // map on purpose, and `tests/trick_maps_test.ts` rebuilds all six and holds
 // them to it: a rule moving under one is a red suite, not a silent re-roll.
-// Their loops are drawn on the card from `campaign-routes.ts` (`make
-// routes`), as a campaign box's is.
+// Their loops are drawn on the card from `map-routes.ts` (`make
+// routes`), as a race map box's is.
 //
 // A MAP IS NAMED FOR WHAT IT IS LIKE, never for where it is.
 //
@@ -182,6 +182,6 @@ export function tricksTile(
 
 /** The day a trick map is ridden on, on one line under its name. */
 export function trickDayLine(map: TrickMap): string {
-  const sky = STRINGS.campaignSky[map.day.weather] ?? map.day.weather.toUpperCase();
+  const sky = STRINGS.mapSky[map.day.weather] ?? map.day.weather.toUpperCase();
   return STRINGS.tricksDay(sky, map.day.hour, map.day.dayOfYear);
 }

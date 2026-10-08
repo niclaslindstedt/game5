@@ -14,8 +14,7 @@
 // carries its UNLOAD RAMP: a mound of packed snow under the point a few
 // metres short of the bullwheel where the rider stands up, falling off
 // whichever way he turns, so he slides off the chair clear of it swinging
-// round the wheel. (Generator v4's pads are level and smaller,
-// `levelPads`.)
+// round the wheel.
 //
 // Pressed into the ground BEFORE the runs are walked, so the pistes start
 // off the pad's edges as the mountain now is (R12) and press their own
@@ -32,7 +31,7 @@ import type { Lift } from "./types.ts";
 
 /** What a pad is cut to: its radius, m; the half-width of its level deck
  * either side of the line, m; how fast it falls off the deck to its rim, m
- * per m; and whether a chair's unload is a MOUND falling every way (v4, v5)
+ * per m; and whether a chair's unload is a MOUND falling every way (v5)
  * rather than a ramp falling ahead of the rider, and where the cut under a
  * chair's way in starts, m short of its top. */
 export type PadShape = {
@@ -43,11 +42,10 @@ export type PadShape = {
   approach?: number;
 };
 
-/** The pad a version cuts (`levelPads`: v4's, level and 30 m across;
- * `looseTops`: v5's, its unload a mound and its cut 11 m short of the top). */
-export function padShape(levelPads = false, looseTops = false): PadShape {
+/** The pad a version cuts (`looseTops`: v5's, its unload a mound and its
+ * cut 11 m short of the top). */
+export function padShape(looseTops = false): PadShape {
   const L = RR.lift;
-  if (levelPads) return { r: L.pad / 2, deck: L.pad / 2, lean: 0, mound: true };
   const shape = { r: L.top.pad / 2, deck: L.top.deck, lean: L.top.lean };
   return looseTops ? { ...shape, mound: true, approach: V5_APPROACH } : shape;
 }
@@ -287,7 +285,7 @@ function levelPad(
 }
 
 /** A chair's UNLOAD RAMP at (x, z), a share of its height: on a level pad
- * (v4, v5) a mound falling off the unload point every way over
+ * (v5) a mound falling off the unload point every way over
  * `lift.unload.reach`; on a leaning one a RAMP — whole under the chair and
  * the lane beside it up to the unload point, and falling from it on up the
  * line over `lift.unload.reach`, so a rider stood up there slides on ahead

@@ -69,8 +69,7 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   on ahead of the chair, never back into the cut under its way in (v6; v4's
   is a mound falling every way). The runs off a
   top leave from beyond the pad's rim — their starts and first stretch keep
-  10 m past it, and a lane's route 12 m. The campaign's maps stand on
-  generator v4, whose pads are level and 30 m across (`levelPads`).
+  10 m past it, and a lane's route 12 m.
 - **Every run under its top (generator v6, `run-start.ts`)** — a rider off a
   lift must never climb to his run: every run off a top, a transport lane
   too, STARTS UNDER it by 4 m and a tenth of the way from the pad's rim to

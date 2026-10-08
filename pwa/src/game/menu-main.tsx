@@ -5,13 +5,7 @@
 // turns slowly round the skis. A menu that stopped the snow would be a menu
 // that announces the game is not running.
 //
-// THE CAMPAIGN IS THE LIT TILE: four shelves of pinned maps, raced for
-// points against the field (`menu-campaign.tsx`). Its face is the one on the
-// card that CHANGES between visits — how far up the ladder the player has
-// got, and the rung it would pick next — which is what stops a front door
-// being furniture.
-//
-// THE RACE under it is ONE tile for every discipline: it opens the race card
+// THE RACE IS THE LIT TILE, ONE tile for every discipline: it opens the race card
 // (`menu-races.tsx`) — the SLALOM, two runs against a field of thirty, one on
 // the course at a time; the SUPER-G, one run unseen; the DOWNHILL, a
 // training run and then the race; and the disciplines named and not built
@@ -67,8 +61,6 @@ function VersionStamp() {
 }
 
 export function MainMenu({
-  campaign,
-  onCampaign,
   seed,
   pinned,
   onRace,
@@ -83,9 +75,6 @@ export function MainMenu({
   onDeveloper,
   onHeld,
 }: {
-  /** THE CAMPAIGN tile's face: how far up the ladder, and the rung next. */
-  campaign: { cleared: number; of: number; next: string | null };
-  onCampaign: () => void;
   /** The seed a run off a seed of its own will build. */
   seed: number;
   /** Whether a link pinned it. */
@@ -120,35 +109,21 @@ export function MainMenu({
           </div>
         </div>
         <div class="menu-tiles">
+          {/* THE RACES, one tile: the disciplines built, named on it, and
+              the race card behind it (`menu-races.tsx`) — the seed a link
+              pinned said instead. */}
           <button
             type="button"
             class="menu-tile menu-tile-hero"
-            data-menu="campaign"
+            data-menu="race"
             data-nav-next
             data-nav-focus
-            onClick={onCampaign}
+            onClick={onRace}
           >
             {/* The sheen: a slow bar of light travelling the tile, the one
                 moving thing on the card. A transform, and off under
                 `prefers-reduced-motion`. */}
             <span class="menu-tile-sheen" aria-hidden="true" />
-            <Glyph name="peaks" />
-            <span class="menu-tile-words">
-              <span class="menu-tile-name">{STRINGS.campaign}</span>
-              <span class="menu-tile-line">
-                {STRINGS.menuCampaignLine(campaign.cleared, campaign.of)}
-              </span>
-              <span class="menu-tile-line">
-                {campaign.next === null
-                  ? STRINGS.menuCampaignDone
-                  : STRINGS.menuCampaignNext(campaign.next)}
-              </span>
-            </span>
-          </button>
-          {/* THE RACES, one tile: the disciplines built, named on it, and
-              the race card behind it (`menu-races.tsx`) — the seed a link
-              pinned said instead. */}
-          <button type="button" class="menu-tile menu-tile-wide" data-menu="race" onClick={onRace}>
             <Glyph name="flag" />
             <span class="menu-tile-words">
               <span class="menu-tile-name">{STRINGS.menuRaces}</span>

@@ -13,14 +13,13 @@
 // a downhill's the black courses with a downhill's vertical and length under
 // them (R32), the bot home with no net, no out and no harsh landing. Each
 // ladder runs from the gentlest to the hardest, across the countries a race
-// is raced in and the days it is raced on. All nine are open: the campaign
-// is the ladder, and it keeps its own shelves (`campaign-levels.ts`).
+// is raced in and the days it is raced on. All nine are open.
 //
-// A row has a campaign map's shape (`CampaignLevel`) on purpose, so every
+// A row has a pinned map's shape (`PinnedLevel`) on purpose, so every
 // question already asked of a pinned map — what it builds, the sky it is
 // skied under, whether a map standing is the one asked for, the run stood up
-// on it, the record book's row — is asked of a race map the same way. LIKE
-// A CAMPAIGN MAP, each names the generator that built it and carries the
+// on it, the record book's row — is asked of a race map the same way. Each
+// names the generator that built it and carries the
 // DIGEST of the map that came out (`levelDigest`), and `tests/race_maps_test.ts`
 // rebuilds every one and holds it to it: a rule moving under one is a red
 // suite, never a silent re-roll. Every one was curated on the generator
@@ -34,12 +33,12 @@
 
 import { DISCIPLINES, type Discipline, type GameMode } from "@engine";
 
-import type { CampaignLevel } from "./campaign-levels.ts";
+import type { PinnedLevel } from "./pinned-levels.ts";
 
 /** A RACE MAP: a pinned map raced as its discipline, with the course's own
  * figures quoted so its box can bill them without building it — held to the
  * built course by `tests/race_maps_test.ts`. */
-export type RaceMap = CampaignLevel & {
+export type RaceMap = PinnedLevel & {
   figures: {
     /** The course's vertical drop, start wand to finish line, m. */
     vertical: number;

@@ -21,8 +21,7 @@
 // the way in, so what the book's tape writes down is what was ridden. The
 // bot's race under a card is armed with nothing.
 //
-// THE CAMPAIGN (`campaign-run.ts`, `pinned-run.ts`): a rung is armed before its
-// first step and booked at the flag; a RACE rides a pinned map too.
+// THE PINNED MAPS (`pinned-run.ts`): a RACE rides a pinned map.
 // THE REPLAY (`replay-run.ts`): the same runs are recorded as the controls
 // that rode them, and WATCH REPLAY on the finish plate or the pause card
 // rebuilds the race and steps it off the tape under the `replay` surface —
@@ -71,9 +70,9 @@ import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
 import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
-import { frontDoorPins, pinnedFor, pinnedPress, type PinnedSkier } from "./game/campaign.ts";
+import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
 import { carriesPoles } from "./game/outfit.ts";
-import { useCampaign } from "./game/campaign-app.ts";
+import { mapPicks } from "./game/map-picks.ts";
 import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
 import {
@@ -223,12 +222,12 @@ export function App() {
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
   // (A link to the start card is a free ride on its way to the skis card.)
   const modeRef = useRef<GameMode>(params.page === "start" ? "free" : params.mode);
-  /** THE CAMPAIGN: the board, the rig that books a rung, the rung being ridden. */
-  const campaign = useCampaign({ mode: modeRef, setPage, setSettings });
+  /** The presses that route a card to the skis card (`map-picks.ts`). */
+  const picks = mapPicks({ mode: modeRef, setPage, setSettings });
   const dev = useDevApp();
   const bookRef = useRef<RunBook | null>(null);
   const stats = useStats();
-  useCloudSync({ settings, setSettings, campaign, book: bookRef, shell });
+  useCloudSync({ settings, setSettings, book: bookRef, shell });
   const [input, setInput] = useState<InputManager | null>(null);
   /** The bar over a recording, and whether there is one worth offering —
    * both refreshed on the HUD's tick, never per frame. */
@@ -448,7 +447,6 @@ export function App() {
       if (soundsLive(shellRef.current)) audio.events(state.events, state);
       if (rides && !params.bot) stats.rig.step(state);
       if (rides) {
-        if (!params.bot) campaign.rig.step(state);
         runRumble.events(state.events);
         runRumble.step(state.skier);
       }
@@ -516,7 +514,6 @@ export function App() {
     };
 
     const pinned = createPinnedRuns({
-      rig: campaign.rig,
       loader,
       current: () => state,
       settings: () => settingsRef.current,
@@ -825,8 +822,8 @@ export function App() {
    * the seed that tile showed and the pair the ski card holds. */
   const race = (): void => {
     setPage("root");
-    // A RUNG off the campaign card, or a PINNED map off the level card.
-    const pin = pinnedPress(campaign.rung.current, settings, modeRef.current, params.seed);
+    // A PINNED map off the level card.
+    const pin = pinnedPress(settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
     // A TRICKS run on the trick map card's map, unless a link pinned a seed.
     // ...and a BIG AIR contest, a SLOPESTYLE run, a HALFPIPE, MOGULS or
@@ -914,8 +911,6 @@ export function App() {
           setPage("levels");
         }}
         onMenu={() => pressRef.current.toMenu()}
-        campaign={shell === "run" ? campaign.rig.plate() : null}
-        onNext={(next) => pressRef.current.pinned((campaign.rung.current = next), next.mode, true)}
         onReplay={canReplay ? () => pressRef.current.watch() : null}
         onSecond={() => pressRef.current.second()}
       />
@@ -936,12 +931,10 @@ export function App() {
       )}
       {shell === "menu" && page === "root" && (
         <MainMenu
-          {...frontDoorPins(campaign.progress, settings, params.seed)}
-          onCampaign={() => setPage("campaign")}
           seed={nextSeed}
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
-          onFree={() => campaign.openCard("free", "start")}
+          onFree={() => picks.openCard("free", "start")}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}
@@ -961,7 +954,7 @@ export function App() {
           settings={settings}
           setSettings={setSettings}
           skis={specOf(settings).id}
-          campaign={campaign}
+          picks={picks}
           standing={(key) => bookRef.current?.standing(key) ?? null}
           linkSeed={params.seed}
           startSeed={startSeed}

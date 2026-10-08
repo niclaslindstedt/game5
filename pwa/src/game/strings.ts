@@ -14,7 +14,7 @@ import type { TrickKind, TrickPart } from "@engine";
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { BODY_STRINGS } from "./strings-body.ts";
-import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
+import { MAP_STRINGS } from "./strings-maps.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
@@ -744,6 +744,6 @@ export const STRINGS = {
   replayExit: "EXIT",
   replayNote: "C for the camera · ESC to leave",
 
-  /* ── THE CAMPAIGN (strings-campaign.ts, spread in) ─────────────────── */
-  ...CAMPAIGN_STRINGS,
+  /* ── THE PINNED MAPS (strings-maps.ts, spread in) ──────────────────── */
+  ...MAP_STRINGS,
 } as const;

@@ -54,7 +54,7 @@ and **`mapgen-improvement`** for anything that moves what a seed builds.
    tests/docs_rules_test.ts` — `lift_ride_test`'s `followSign` is the same
    rider as the lab.
 7. A change that moves what a seed builds owes a generator version
-   (`versions.ts`, `mapgen-improvement`, `campaign`).
+   (`versions.ts`, `mapgen-improvement`, `pinned-maps`).
 
 ## What the first pass learned
 
@@ -104,7 +104,7 @@ and **`mapgen-improvement`** for anything that moves what a seed builds.
   rider who follows the sign only needs to arrive on the run's snow, and the
   lab checks exactly that.
 - **An older version's code reads the rule book too.** Maps pinned on an
-  older generator (the campaign, the trick maps, the race maps) are rebuilt
+  older generator (the trick maps, the race maps) are rebuilt
   by that version's trait over the SAME `RESORT_RULES`, so a number moved
   for the new version (here a ramp's reach) moves them unless the legacy
   module restates the old number. Run the pinned suites

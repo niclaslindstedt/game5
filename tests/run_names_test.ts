@@ -29,7 +29,7 @@ import {
   runNumber,
   runNumbers,
 } from "../pwa/src/game/run-names.ts";
-import { buildCampaignLevel } from "../pwa/src/game/campaign.ts";
+import { buildPinnedLevel } from "../pwa/src/game/pinned.ts";
 import { RACE_MAPS } from "../pwa/src/game/race-maps.ts";
 import { SIGN, onCourse, signPlan, summitSigns } from "../pwa/src/game/run-sign-plan.ts";
 import { createRunWatch } from "../pwa/src/game/run-watch.ts";
@@ -260,7 +260,7 @@ describe("the piste-head signs stand at the edge, on the lift's side", () => {
 describe("the piste-head signs keep off a race course", () => {
   it("takes down the lane's sign standing on the super-G's course (superG-5, seed 38)", () => {
     const map = RACE_MAPS.superG!.find((m) => m.id === "superG-5")!;
-    const built = buildCampaignLevel(map);
+    const built = buildPinnedLevel(map);
     const level = createGame({ seed: map.seed, level: built, mode: map.mode, quiet: true }).level;
     const course = raceCourseOf(level)!;
     // The map unraced keeps it: the lane's junction sign at the piste's

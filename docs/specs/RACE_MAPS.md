@@ -10,6 +10,11 @@ final's, and quotes the final's figures). What stays here is the SHAPE a
 discipline added later fills in as part of being built, the criteria each
 discipline's nine were curated by, and the tooling (*The tooling*).
 
+The CAMPAIGN this spec took the disciplines off has since been removed
+altogether: the race maps are now the only pinned maps a race is run on,
+`campaign.ts` is `pinned.ts` and `CampaignLevel` is `PinnedLevel`
+(`pinned-levels.ts`). What follows is kept as written at the time.
+
 ## What it is
 
 Before this, a SLALOM and a DOWNHILL off the front door were skied on the

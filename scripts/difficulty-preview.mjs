@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE DIFFICULTY SCHEMATIC: one map from above with what makes it HARD drawn
-// over the plan, so a campaign rung can be judged by eye as well as by
+// over the plan, so a pinned map can be judged by eye as well as by
 // `make rate`'s row. Pure Node — the engine and the level painter, no build,
 // no browser, seconds.
 //
 //   make difficulty SEED=38                       previews/difficulty-38.png
 //   make difficulty SEED=38 ARGS="--hour 20 --weather fog"
 //   make difficulty SEED=38 ARGS=--sim            ...the bot's run as the length axis
-//   make difficulty CAMPAIGN=1                    one sheet per committed map
+//   make difficulty RACE=slalom                   one sheet per race map of a discipline
 //
 // Over `level-draw.mjs`'s map it lays, in this order:
 //
@@ -60,10 +60,10 @@ const args = parseArgs(
     weather: { kind: "string", help: "…this sky (clear, fair, high, overcast, snow, fog)" },
     sim: { kind: "flag", help: "ride the map with the bot and rate its run as the length axis" },
     scale: { kind: "number", default: 0.6, help: "pixels per metre" },
-    campaign: { kind: "flag", help: "draw every committed campaign map instead" },
+    race: { kind: "string", help: "draw a discipline's nine race maps instead (race-maps.ts)" },
     out: { kind: "string", help: "file name under previews/ (one map only)" },
   },
-  "usage: npm run difficulty -- [--seed n] [--hour h] [--weather w] [--sim] [--scale px/m] [--campaign] [--out name]",
+  "usage: npm run difficulty -- [--seed n] [--hour h] [--weather w] [--sim] [--scale px/m] [--race id] [--out name]",
 );
 
 if (args.weather !== undefined && !WEATHER_KINDS.includes(args.weather)) {
@@ -241,19 +241,22 @@ function botRun(level) {
   return run.finished ? run.time : undefined;
 }
 
-if (args.campaign) {
-  const { SHELVES } = await import(join(root, "pwa/src/game/campaign-levels.ts"));
-  const { buildCampaignLevel, campaignSky } = await import(join(root, "pwa/src/game/campaign.ts"));
-  for (const shelf of SHELVES) {
-    for (const pinned of shelf.levels) {
-      const level = buildCampaignLevel(pinned);
-      drawSheet({
-        level,
-        opts: { sky: campaignSky(pinned), runSeconds: botRun(level) },
-        name: `difficulty-${pinned.id}`,
-        title: `${pinned.id.toUpperCase()}  ${pinned.name.toUpperCase()}  SEED ${pinned.seed} COURSE ${pinned.course} ${pinned.grade.toUpperCase()}  ${pinned.mode.toUpperCase()}  V${pinned.version}`,
-      });
-    }
+if (args.race !== undefined) {
+  const { RACE_MAPS } = await import(join(root, "pwa/src/game/race-maps.ts"));
+  const { buildPinnedLevel, pinnedSky } = await import(join(root, "pwa/src/game/pinned.ts"));
+  const maps = RACE_MAPS[args.race];
+  if (!maps) {
+    console.error(`no race maps for "${args.race}" (${Object.keys(RACE_MAPS).join(", ")})`);
+    process.exit(2);
+  }
+  for (const pinned of maps) {
+    const level = buildPinnedLevel(pinned);
+    drawSheet({
+      level,
+      opts: { sky: pinnedSky(pinned), runSeconds: botRun(level) },
+      name: `difficulty-${pinned.id}`,
+      title: `${pinned.id.toUpperCase()}  ${pinned.name.toUpperCase()}  SEED ${pinned.seed} COURSE ${pinned.course} ${pinned.grade.toUpperCase()}  ${pinned.mode.toUpperCase()}  V${pinned.version}`,
+    });
   }
 } else {
   const level = generateLevel(args.seed);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE WORDS OF THE DEVELOPER PAGE — the page, its overlay, the benchmark and
-// the unlocks — a block of the one strings table (`strings.ts`, §39.1),
+// THE WORDS OF THE DEVELOPER PAGE — the page, its overlay and the benchmark
+// — a block of the one strings table (`strings.ts`, §39.1),
 // stated next door and spread into `STRINGS` under the same names, the
 // `strings-gallery.ts` pattern.
 
@@ -69,18 +69,4 @@ export const DEV_STRINGS = {
   benchHistoryClear: "FORGET EVERY RUN",
   /** The loading card's last phase before a benchmark: the lights. */
   loadLights: "Counting the lights",
-
-  /* ── UNLOCKS (menu-unlocks.tsx) ───────────────────────────────────── */
-  unlocksTitle: "UNLOCKS",
-  unlocksRowHint: (cleared: number, of: number): string => `${cleared} of ${of} runs cleared`,
-  unlocksLine: (cleared: number, of: number): string =>
-    `The campaign's board, set by hand: ${cleared} of ${of} runs cleared.`,
-  unlocksAll: "OPEN EVERYTHING",
-  unlocksNone: "SHUT EVERYTHING",
-  unlocksRule:
-    "Opening a shelf wins it and every shelf before it; shutting one wipes it and every shelf after. Times skied are kept.",
-  unlocksShelfLine: (cleared: number, of: number, open: boolean): string =>
-    `${cleared}/${of} cleared · ${open ? "open" : "locked"}`,
-  unlocksOpen: "OPEN",
-  unlocksShut: "SHUT",
 };

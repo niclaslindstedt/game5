@@ -8,8 +8,6 @@
 
 import type { GameMode, SkiId } from "@engine";
 
-import type { CampaignApp } from "./campaign-app.ts";
-import { frontDoorPins } from "./campaign.ts";
 import type { DevApp } from "./dev-app.tsx";
 import { DevPages } from "./menu-dev.tsx";
 import { SkisCards } from "./menu-dress.tsx";
@@ -18,6 +16,8 @@ import { StatsPage } from "./menu-stats.tsx";
 import { KeysPage } from "./menu-keys.tsx";
 import { OptionsPage } from "./menu-options.tsx";
 import { PinnedCards } from "./menu-pinned.tsx";
+import { frontDoorPins } from "./pinned.ts";
+import type { MapPicks } from "./map-picks.ts";
 import { RacesPage } from "./menu-races.tsx";
 import { FreestylePage } from "./menu-freestyle.tsx";
 import { StartPage } from "./menu-start.tsx";
@@ -37,7 +37,7 @@ export function MenuPages(p: {
   settings: Settings;
   setSettings: (next: Settings | ((s: Settings) => Settings)) => void;
   skis: SkiId;
-  campaign: CampaignApp;
+  picks: MapPicks;
   standing: (key: RecordKey) => RunRecord | null;
   /** The seed a link pinned, or null. */
   linkSeed: number | null;
@@ -54,10 +54,10 @@ export function MenuPages(p: {
   stats: StatsBook;
   onResetStats: () => void;
 }) {
-  const { page, setPage, settings, setSettings, campaign } = p;
+  const { page, setPage, settings, setSettings, picks } = p;
   const back = (): void => setPage("root");
   if (page === "races") {
-    const pins = frontDoorPins(campaign.progress, settings, p.linkSeed);
+    const pins = frontDoorPins(settings, p.linkSeed);
     const seedLine = p.linkSeed === null ? null : STRINGS.menuRaceSeed(p.linkSeed);
     return (
       <div class="menu">
@@ -72,7 +72,7 @@ export function MenuPages(p: {
           }}
           chosen={p.mode}
           onBack={back}
-          onPick={(mode) => campaign.openCard(mode, p.linkSeed === null ? "levels" : "skis")}
+          onPick={(mode) => picks.openCard(mode, p.linkSeed === null ? "levels" : "skis")}
         />
       </div>
     );
@@ -83,7 +83,7 @@ export function MenuPages(p: {
         <FreestylePage
           chosen={p.mode}
           onBack={back}
-          onPick={(mode) => campaign.openCard(mode, p.linkSeed === null ? "tricks" : "skis")}
+          onPick={(mode) => picks.openCard(mode, p.linkSeed === null ? "tricks" : "skis")}
         />
       </div>
     );
@@ -99,19 +99,18 @@ export function MenuPages(p: {
     p.mode === "skiCross";
   return (
     <div class="menu">
-      {page === "campaign" || page === "levels" || page === "tricks" ? (
+      {page === "levels" || page === "tricks" ? (
         <PinnedCards
           page={page}
           mode={p.mode}
           settings={settings}
           skis={p.skis}
-          progress={campaign.progress}
           standing={p.standing}
           onBack={() =>
             setPage(page === "levels" && race ? "races" : page === "tricks" ? "freestyle" : "root")
           }
-          onChoose={campaign.choose}
-          onTrick={campaign.chooseTrick}
+          onChoose={picks.choose}
+          onTrick={picks.chooseTrick}
           onSettings={setSettings}
         />
       ) : page === "skis" || page === "dress" ? (
@@ -123,7 +122,7 @@ export function MenuPages(p: {
           onLink={p.onLinkSkis}
           onPage={setPage}
           onBack={() => {
-            const to = skisBack(campaign.rung.current, p.mode, p.linkSeed);
+            const to = skisBack(p.mode, p.linkSeed);
             const trick =
               p.mode === "tricks" ||
               p.mode === "bigAir" ||
@@ -153,14 +152,12 @@ export function MenuPages(p: {
         <GalleryPage onBack={back} />
       ) : page === "stats" ? (
         <StatsPage book={p.stats} onBack={back} onReset={p.onResetStats} />
-      ) : page === "dev" || page === "unlocks" || page === "benchHistory" ? (
+      ) : page === "dev" || page === "benchHistory" ? (
         <DevPages
           page={page}
           settings={settings}
-          progress={campaign.progress}
           repro={() => p.dev.rig.current?.repro() ?? ""}
           onSettings={setSettings}
-          onProgress={campaign.setProgress}
           onPage={setPage}
           onBack={back}
           onBenchmark={() => p.dev.rig.current?.startBench()}

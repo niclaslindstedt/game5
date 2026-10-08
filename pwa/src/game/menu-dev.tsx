@@ -13,8 +13,7 @@
 //
 // THE PRESSES UNDER THEM each leave the page: BENCHMARK takes the canvas and
 // times a pinned race on it (`bench-run.ts`), its HISTORY is every run this
-// machine has scored (`menu-bench.tsx`), UNLOCKS sets the campaign's board
-// (`menu-unlocks.tsx`), and COPY REPRO LINK puts the race on screen on the
+// machine has scored (`menu-bench.tsx`), and COPY REPRO LINK puts the race on screen on the
 // clipboard as a URL the app reads back (`debug-readout.ts`). LOCK is the
 // way back out — for somebody who opened the door by accident.
 
@@ -24,7 +23,6 @@ import { RACE } from "@engine";
 import { copyText } from "../lib/copy-text.ts";
 import { benchmarkRuns } from "./benchmark-history.ts";
 import { BENCHMARK, benchmarkSeconds } from "./benchmark-plan.ts";
-import { campaignStanding, type CampaignProgress } from "./campaign.ts";
 import { useReceipt } from "./copy-receipt.ts";
 import { BenchHistoryPage } from "./menu-bench.tsx";
 import {
@@ -37,14 +35,12 @@ import {
   onOff,
   type Hint,
 } from "./menu-knobs.tsx";
-import { UnlocksPage } from "./menu-unlocks.tsx";
 import { DEV_SWITCHES, freshSettings, type DevSettings, type Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
 import type { DevPage } from "./url-params.ts";
 
 function DeveloperPage({
   settings,
-  progress,
   repro,
   onSettings,
   onBack,
@@ -52,7 +48,6 @@ function DeveloperPage({
   onBenchmark,
 }: {
   settings: Settings;
-  progress: CampaignProgress;
   repro: () => string;
   onSettings: (settings: Settings) => void;
   onBack: () => void;
@@ -62,7 +57,6 @@ function DeveloperPage({
   const [hint, setHint] = useState<Hint | null>(null);
   const [said, say] = useReceipt();
   const dev = settings.dev;
-  const standing = campaignStanding(progress);
   return (
     <div class="menu-card menu-card-options" onPointerLeave={() => setHint(null)}>
       <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.devTitle} />
@@ -96,10 +90,6 @@ function DeveloperPage({
           {STRINGS.benchHistoryTitle}
           <span class="menu-item-sub">{STRINGS.benchHistoryRowHint(benchmarkRuns().length)}</span>
         </button>
-        <button type="button" class="menu-item menu-item-dev" onClick={() => onPage("unlocks")}>
-          {STRINGS.unlocksTitle}
-          <span class="menu-item-sub">{STRINGS.unlocksRowHint(standing.cleared, standing.of)}</span>
-        </button>
         <button
           type="button"
           class="opt-reset"
@@ -129,35 +119,27 @@ function DeveloperPage({
 export function DevPages({
   page,
   settings,
-  progress,
   repro,
   onSettings,
-  onProgress,
   onPage,
   onBack,
   onBenchmark,
 }: {
   page: DevPage;
   settings: Settings;
-  progress: CampaignProgress;
   repro: () => string;
   onSettings: (settings: Settings) => void;
-  onProgress: (progress: CampaignProgress) => void;
   onPage: (page: DevPage) => void;
   /** Out to the front door. */
   onBack: () => void;
   onBenchmark: () => void;
 }) {
-  if (page === "unlocks") {
-    return <UnlocksPage progress={progress} onProgress={onProgress} onBack={() => onPage("dev")} />;
-  }
   if (page === "benchHistory") {
     return <BenchHistoryPage onBack={() => onPage("dev")} onRun={onBenchmark} />;
   }
   return (
     <DeveloperPage
       settings={settings}
-      progress={progress}
       repro={repro}
       onSettings={onSettings}
       onBack={onBack}

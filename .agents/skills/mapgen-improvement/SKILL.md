@@ -153,8 +153,8 @@ is cited in the rule book's comments, never a name):
   groomed pitches run to about 78 % (38°). The generator BUILDS to the grade
   it is asked for (its row sets the vertical, the fall line, the walk's
   steepest, the grading's ceiling and a cap on every hundred metres) and the
-  analysis refuses a map that does not measure it. The campaign's four
-  shelves are the four colours (`campaign`), and `engine/rating/`'s
+  analysis refuses a map that does not measure it. The race maps are pinned
+  to their colours (`pinned-maps`), and `engine/rating/`'s
   steepness axis reads the same bands. A black's DROPS (R24) have no apron
   on purpose: off an edge taken along the line the fall is the drop's
   height at any speed, and an apron is height added to it.
@@ -332,7 +332,7 @@ undoes it without knowing it was ever a rule.
 - `npx vitest run tests/mapgen_test.ts tests/analysis_test.ts
   tests/docs_rules_test.ts tests/simulation_test.ts tests/determinism_test.ts`.
 - A change that moves what a seed builds owes a row in `versions.ts` and
-  leaves every pinned campaign map's digest alone (`campaign`).
+  leaves every pinned map's digest alone (`pinned-maps`).
 - A `.changes/unreleased/` fragment: generator changes are player-visible by
   definition.
 

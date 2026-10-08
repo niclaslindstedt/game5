@@ -6,16 +6,17 @@
 // one stops: of two maps that both pass every rule, which asks more of the
 // skier, and what does it ask for — the pitch, the bends, the air, the
 // trees, the traverses, the powder, the sky, the sheer length of the run? A
-// campaign is a LADDER of those answers, and it is built out of this module
-// rather than out of the analyzer, because "no rule broken" says nothing
-// about whether the second rung asks more than the first.
+// discipline's nine race maps are a LADDER of those answers, gentlest first,
+// and it is built out of this module rather than out of the analyzer,
+// because "no rule broken" says nothing about whether the second asks more
+// than the first.
 //
 // EIGHT AXES, each 0..1 and none of them better than another. Seven are the
 // MAP's and are read off the level (how steep the piste falls, the bends,
 // the kickers, the woods walling the line, the traverses across the face,
 // the drifts across it, and how long the run is); one is the DAY's and is
 // read off what the run is skied in (the dark and the sky, folded into
-// one) — because an hour and a weather are the cheapest levers a campaign
+// one) — because an hour and a weather are the cheapest levers a ladder
 // has, they cost nothing that has to be re-verified, and a ladder that
 // ignores them wastes a part of its climb. `difficulty` folds the eight
 // into one number on the weights in `RATING`.
@@ -24,7 +25,7 @@
 // skier takes from the gate to the finish is the bot's run (`simulateRun`),
 // which costs a second of simulation and so is not taken here: a caller
 // that has one hands it in (`RateOptions.runSeconds` — `make rate --sim`
-// does, and `make rate CAMPAIGN=1` always does), and one that has not is
+// does, and `make rate RACE=…` always does), and one that has not is
 // given the piste's length at the pace the bot averages across a sweep.
 // Both are SECONDS, so the axis means the same thing either way; the
 // measurement is only the better reading of it.
@@ -267,7 +268,7 @@ export function cornerRadius(points: readonly TrackPoint[], i: number): number {
 /** What a caller may hand the rating beyond the map. */
 export type RateOptions = {
   /** The sky and hour the run is skied under instead of the map's own
-   * (`withSky`) — a campaign rung's pinned day. */
+   * (`withSky`) — a pinned map's pinned day. */
   sky?: SkyOverride;
   /** The run as the bot skied it, s — the measurement the length axis
    * prefers. */
@@ -416,7 +417,7 @@ export function rateLevel(built: Level, opts: RateOptions = {}): MapRating {
 }
 
 /** Which axis a map LEADS on — the one word its character is read as, for a
- * table and a campaign box. */
+ * table and a map box. */
 export function leadingAxis(axes: RatingAxes): keyof RatingAxes {
   let best: keyof RatingAxes = RATING_AXES[0];
   for (const axis of RATING_AXES) if (axes[axis] > axes[best]) best = axis;

@@ -134,9 +134,8 @@ const SURFACES = {
     settle: 60,
   },
   pause: { params: { paused: "1", t: "14" }, wait: ".menu-card-pause", settle: 700 },
-  // THE CAMPAIGN CARD and the LEVEL CARD a RACE picks its pinned map on,
-  // straight off the URL (`?menu=campaign|levels`).
-  campaign: { params: { menu: "campaign" }, wait: ".menu-card-campaign", settle: 900 },
+  // THE LEVEL CARD a RACE picks its pinned map on, straight off the URL
+  // (`?menu=levels`).
   levels: { params: { menu: "levels" }, wait: ".menu-card-levels", settle: 900 },
   // ...and the one a DOWNHILL picks its black on (`?menu=levels&mode=downhill`).
   "downhill-levels": {
@@ -209,9 +208,8 @@ const SURFACES = {
   options: { params: { menu: "options" }, wait: ".menu-card-options", settle: 900 },
   keys: { params: { menu: "keys" }, wait: ".menu-card-keys", settle: 900 },
   // THE DEVELOPER PAGE (`?menu=dev` lets it out, as the title's hold does)
-  // and the two pages behind it.
+  // and the page behind it.
   dev: { params: { menu: "dev" }, wait: ".menu-card-options", settle: 900 },
-  unlocks: { params: { menu: "unlocks" }, wait: ".dev-locks", settle: 900 },
   // The list itself is empty on a fresh visit (and an empty box is "hidden"
   // to a wait), so the line over it says the card is up.
   "bench-history": { params: { menu: "benchHistory" }, wait: ".dev-line", settle: 900 },

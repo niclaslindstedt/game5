@@ -38,7 +38,7 @@ read as high and the finish read as low, and it is a rule (R14), not a paint.
 `createRng`, reading only what the `Level` publishes (`wild-ground.ts`) and
 writing nothing back; poses are pure functions of the engine's clock. A
 placement that drew from the generator's stream or wrote into the `Level`
-would move a pinned campaign map's digest (`tests/generator_version_test.ts`)
+would move a pinned map's digest (`tests/generator_version_test.ts`)
 — and `tests/birds_test.ts` holds that it does not.
 
 **Read this skill's lessons first** —

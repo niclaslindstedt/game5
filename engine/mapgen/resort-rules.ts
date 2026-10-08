@@ -232,7 +232,7 @@
 import type { Band } from "./rules.ts";
 import type { PisteGrade } from "./grades.ts";
 
-/** THE LOW MASSIF (generator v4–v6, `GeneratorTraits.lowMassif`): the
+/** THE LOW MASSIF (generator v5–v6, `GeneratorTraits.lowMassif`): the
  * mountain as the resorts were curated on — a mid-size area's 900–1150 m
  * of vertical (the region's multiple on top, the fell's half of it), R3's
  * folds at their own height and the valley floor at the region's base
@@ -398,8 +398,8 @@ export const RESORT_RULES = {
     /** A chair's UNLOAD RAMP: the unload point, m short of the top down
      * the line (a rider stands up 5–8 m before the bullwheel); the ramp
      * under it, m high (1–1.5 m of ramp); and how far it falls off, m —
-     * 12–25 % of pitch: on a level pad (v4) a mound falling every way, on a
-     * leaning one falling only on up the line ahead of the rider, whole
+     * 12–25 % of pitch: a mound falling every way on v5's tops, from v6
+     * on falling only on up the line ahead of the rider, whole
      * `half` m either side of the line (the lane beside the chairs on it)
      * and `back` m behind the unload, eased out over `edge` m. */
     unload: { at: 7, height: 1.2, reach: 7, half: 6, edge: 2, back: 3 },

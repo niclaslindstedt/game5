@@ -26,7 +26,7 @@ give a phone:
 | The game, on-device      | `src/local-server.ts`                                                               | `assets/webroot.zip` unzipped once per bundle and served from a fixed loopback port, so the origin — and the stored settings on it — survives every launch                                                                                                           |
 | Sound through the ringer | `App.tsx` (`setAudioModeAsync`)                                                     | iOS silences a WebView's WebAudio on the ringer switch; a game should sound like a game                                                                                                                                                                              |
 | The snow in the hands    | `src/injected.ts` → `src/rumble.ts` → `src/haptics.ts`                              | a WKWebView has no Vibration API at all, and the phone under it has the best haptics the game will ever run on                                                                                                                                                       |
-| The book on every device | `src/injected.ts` → `src/cloud-ask.ts` → `src/cloud-save.ts` → `modules/cloud-save` | a web page cannot reach the iCloud account the phone is already signed into; the skier's records, ghosts, campaign board and preferences follow them to their other devices                                                                                          |
+| The book on every device | `src/injected.ts` → `src/cloud-ask.ts` → `src/cloud-save.ts` → `modules/cloud-save` | a web page cannot reach the iCloud account the phone is already signed into; the skier's records, ghosts and preferences follow them to their other devices                                                                                          |
 | A child's phone          | `src/content-filter.ts` → `modules/content-filter` → `src/injected.ts` (`contentFlag`) | a web page cannot read the phone's content restrictions; a parental control (Communication Safety) hides the HUD's injuries and locks the switch, an adult's Sensitive Content Warning hides them until switched back on — see below |
 | Off-site links           | `src/navigation.ts`                                                                 | there is no address bar and no back button, so a link out would replace the game with a page the skier cannot leave                                                                                                                                                  |
 | No caret loupe           | `App.tsx` (`textInteractionEnabled={false}`)                                        | the magnifier a double tap or a press-and-hold puts over the snow is a UIKit gesture recognized before the page is consulted, so the website's `user-select: none` cannot reach it — the cost is that the seed field types but cannot have a caret placed mid-number |
@@ -58,7 +58,7 @@ would pass on a script that dispatches nothing.
 
 The website owns WHAT is saved and how two devices reconcile
 ([`pwa/src/game/cloud-save.ts`](../pwa/src/game/cloud-save.ts): the best row
-per record, the faster ghost, the furthest campaign, the later-changed
+per record, the faster ghost, the later-changed
 settings — never the picture or the thumbs, which are facts about the machine)
 and WHEN (`use-cloud-sync.ts`: at boot, when told, after a write, on the way
 to the background). The shell moves one opaque string in and out of iCloud:

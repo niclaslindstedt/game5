@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE LAST RESORT BUILT. Every map of one resort is the same mountain, so
-// the campaign's six maps of it and a lab's sweep of its courses build it
+// the race maps on it and a lab's sweep of its courses build it
 // once (`buildResort`), and a page can ask whether a seed's map would come
 // off it in milliseconds rather than seconds (`levelIsCached`).
 

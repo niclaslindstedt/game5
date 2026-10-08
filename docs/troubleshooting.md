@@ -13,7 +13,7 @@ The failures a player or a contributor actually meets, and what each one is.
 - **No sound.** A browser makes no sound until the page has been touched — a tap or a key after it loads unlocks it. Check the SOUND switch in OPTIONS (off the front door or the pause card), and on an iPhone the ringer switch (the browser respects it; the store app does not).
 - **The phone does not buzz.** Vibration is the browser's Vibration API, which iOS Safari does not offer; the store app uses the phone's own haptics.
 - **A stale build after a deploy.** The installed app keeps running the build it has and shows a small new-build button in a corner when a newer one is waiting — press it. If that was missed, reload twice or clear the site's data.
-- **The same mountain every time.** A `?seed=` on the URL pins the front door's RACE to that map; the tile says so. Drop it from the URL for the campaign's pinned map, or pick another on the level card.
+- **The same mountain every time.** A `?seed=` on the URL pins the front door's RACE to that map; the tile says so. Drop it from the URL for the discipline's pinned race map, or pick another on the level card.
 
 ## Developing
 

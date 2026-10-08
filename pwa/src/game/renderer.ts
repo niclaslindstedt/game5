@@ -679,7 +679,7 @@ export function createWorldRenderer(
         gore = createGoreView(level, wrap);
         scene.add(gore.group);
       }
-      gore?.update(state, riders[0].model, simDt, dt);
+      gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);

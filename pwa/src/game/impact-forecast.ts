@@ -8,7 +8,10 @@
 // there to be read: a COPY of the run (`forkRun`) is stepped on ahead with
 // the hands the player holds now, and the first step that breaks a bone,
 // does an injury of `FORECAST.ais` or worse, or tears him open (`gore.ts`)
-// is the blow coming. The copy is the player's alone — the field and the
+// is the blow coming — read on past it a moment (`FORECAST.after`), through
+// the tumble, for whether his wounds will be MORTAL (`GoreState.mortal`):
+// the X-ray cam is shot only for a fall he clearly dies of. The copy is the
+// player's alone — the field and the
 // crowd are left behind (a shoulder into one of them is the one blow this
 // cannot see) — shares the map, which nothing in a step writes but its
 // memos, and takes a stream of its own wherever the run carries one, so the
@@ -33,12 +36,23 @@ export const FORECAST = {
   every: 12,
   /** The least AIS rank an injury with no fracture must be. */
   ais: 3,
+  /** Seconds read on past the blow for whether it kills him, and the
+   * steps a frame that read takes (it is cut short as soon as it knows). */
+  after: 1.2,
+  afterPer: 40,
 } as const;
 
 /** A blow seen coming: how many seconds off, the part it lands on, the
  * bones it breaks (none: an organ, a ligament, a wound) and whether it
  * tears him open (`gore.ts`). */
-export type Forecast = { in: number; part: BodyPart | null; bones: Bone[]; gore: boolean };
+export type Forecast = {
+  in: number;
+  part: BodyPart | null;
+  bones: Bone[];
+  gore: boolean;
+  /** Whether he dies of it: mortal by the blow or the tumble after it. */
+  fatal: boolean;
+};
 
 const isRng = (o: Record<string, unknown>): boolean =>
   typeof o.next === "function" && typeof o.pick === "function" && typeof o.range === "function";
@@ -115,15 +129,26 @@ export function forecast(
   for (let i = 1; i <= steps; i++) {
     step(run, input);
     for (const e of run.events) {
-      if (e.kind === "gore") return { in: i * TUNING.dt, part: null, bones: [], gore: true };
-      if (e.kind !== "injury") continue;
-      const bones = worth(e);
-      if (bones) return { in: i * TUNING.dt, part: e.part, bones, gore: false };
+      const bones = e.kind === "injury" ? worth(e) : null;
+      if (e.kind !== "gore" && !bones) continue;
+      const found = {
+        in: i * TUNING.dt,
+        part: e.kind === "injury" ? e.part : null,
+        bones: bones ?? [],
+        gore: e.kind === "gore",
+      };
+      // On through the tumble for whether he dies of it.
+      for (let j = 0; j < Math.round(FORECAST.after / TUNING.dt) && !diesOf(run); j++)
+        step(run, input);
+      return { ...found, fatal: diesOf(run) };
     }
     if (run.progress.finished) break;
   }
   return null;
 }
+
+/** Whether a run's skier is dying (`GoreState.mortal`, or dead). */
+const diesOf = (s: GameState): boolean => !!s.gore && (s.gore.mortal >= 0 || s.gore.dead >= 0);
 
 /** THE READ SPREAD OVER FRAMES: a copy of the run stepped on `per` steps a
  * frame rather than all at once, so reading ahead never costs one frame
@@ -142,6 +167,17 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
   let level: GameState["level"] | null = null;
   let input: SkierInput | null = null;
   let left = 0;
+  /** The blow found, while the read goes on for whether it kills him, and
+   * the step it lands on. */
+  let found: Omit<Forecast, "in" | "fatal"> | null = null;
+  let at = 0;
+  const dies = diesOf;
+  const verdict = (state: GameState, fatal: boolean): Forecast => {
+    const f = { ...found!, in: Math.max(0, (at - state.tick) * TUNING.dt), fatal };
+    run = null;
+    found = null;
+    return f;
+  };
   return {
     frame(state, held) {
       if (!run || level !== state.level || run.tick < state.tick) {
@@ -149,28 +185,39 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
         level = state.level;
         input = { ...held };
         left = Math.round(horizon / TUNING.dt);
+        found = null;
       }
-      for (let i = 0; i < per && left > 0; i++, left--) {
+      const most = found ? FORECAST.afterPer : per;
+      for (let i = 0; i < most && left > 0; i++, left--) {
         step(run, input!);
+        if (found) {
+          if (dies(run)) return verdict(state, true);
+          continue;
+        }
         for (const e of run.events) {
           const bones = e.kind === "injury" ? worth(e) : null;
           if (e.kind !== "gore" && !bones) continue;
-          const found: Forecast = {
-            in: Math.max(0, (run.tick - state.tick) * TUNING.dt),
+          found = {
             part: e.kind === "injury" ? e.part : null,
             bones: bones ?? [],
             gore: e.kind === "gore",
           };
-          run = null;
-          return found;
+          at = run.tick;
+          if (dies(run)) return verdict(state, true);
+          left = Math.round(FORECAST.after / TUNING.dt);
+          break;
         }
-        if (run.progress.finished) left = 0;
+        if (!found && run.progress.finished) left = 0;
       }
-      if (left <= 0) run = null;
+      if (left <= 0) {
+        if (found) return verdict(state, false);
+        run = null;
+      }
       return null;
     },
     drop() {
       run = null;
+      found = null;
     },
   };
 }

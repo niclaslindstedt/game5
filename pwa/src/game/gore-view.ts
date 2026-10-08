@@ -85,8 +85,11 @@ export type GoreModel = {
 
 export type GoreView = {
   group: THREE.Group;
-  /** One frame: `simDt` the engine's time it moved, `dt` the frame's. */
-  update(state: GameState, model: GoreModel, simDt: number, dt: number): void;
+  /** One frame: `simDt` the engine's time it moved, `dt` the frame's;
+   * `veil` how far the X-ray has him (`xray-view.ts`), under which the
+   * blood flying and the bone out through his skin stand down — the X-ray
+   * draws its own, and under its dark veil they read as black specks. */
+  update(state: GameState, model: GoreModel, simDt: number, dt: number, veil?: number): void;
   /** A new run: everything gone, his clothes clean. */
   clear(model: GoreModel | null): void;
   dispose(): void;
@@ -534,7 +537,10 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
 
   return {
     group,
-    update(state, model, simDt, dt) {
+    update(state, model, simDt, dt, veil = 0) {
+      const veiled = veil > 0.4;
+      blood.group.visible = !veiled;
+      for (const m of fractures.values()) m.visible = !veiled;
       if (state !== last || state.tick === 0) {
         if (last) clearAll(model);
         last = state;

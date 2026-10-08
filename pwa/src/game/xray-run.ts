@@ -5,7 +5,8 @@
 // look the renderer draws. Only while the player rides a run with the
 // INJURIES switch on (`GameState.gore`, dealt by `injuriesShown`): off,
 // nothing is read ahead, the run goes at its own pace and nothing is drawn.
-// DOM-free.
+// DOM-free but for one class on the page (`xrayHud`), under which the body
+// plate and the g meter fade away while the X-ray has him.
 
 import type { GameState } from "@engine";
 
@@ -16,6 +17,16 @@ import { createXrayDirector, type XrayLook } from "./xray-shots.ts";
  * nothing at a crawl breaks a bone. m/s. */
 const STILL = 6;
 
+/** Whether a run's skier is dying: only then may the death cam take him. */
+export const dying = (state: GameState): boolean =>
+  !!state.gore && (state.gore.mortal >= 0 || state.gore.dead >= 0);
+
+/** The HUD's half of a look: the page's `xray-on` class (`body.css`). */
+export function xrayHud(look: XrayLook | null): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("xray-on", !!look?.active && look.xray > 0.05);
+}
+
 export type XrayRun = {
   /** One frame, `wall` seconds on, `on` whether the cam may run: the rate
    * the run is to be stepped at this frame (1: its own pace). */
@@ -24,7 +35,10 @@ export type XrayRun = {
   step(state: GameState): void;
 };
 
-export function createXrayRun(show: (look: XrayLook | null) => void): XrayRun {
+export function createXrayRun(
+  show: (look: XrayLook | null) => void,
+  hud: (look: XrayLook | null) => void = () => {},
+): XrayRun {
   const ahead = createForecaster();
   const director = createXrayDirector();
   let running = false;
@@ -35,6 +49,7 @@ export function createXrayRun(show: (look: XrayLook | null) => void): XrayRun {
           ahead.drop();
           director.drop();
           show(null);
+          hud(null);
           running = false;
         }
         return 1;
@@ -45,6 +60,7 @@ export function createXrayRun(show: (look: XrayLook | null) => void): XrayRun {
       if (moving && state.gore.dead < 0) director.seen(ahead.frame(state, state.input), state);
       const look = director.frame(state, wall);
       show(look);
+      hud(look);
       return look.rate;
     },
     step(state) {

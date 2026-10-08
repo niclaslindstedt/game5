@@ -40,7 +40,7 @@ function run(d: ReturnType<typeof createXrayDirector>, s: Fake, wall: number) {
   return look;
 }
 
-const femur: Forecast = { in: 0.3, part: "thighL", bones: ["femurL"], gore: false };
+const femur: Forecast = { in: 0.3, part: "thighL", bones: ["femurL"], gore: false, fatal: true };
 
 describe("the X-ray director", () => {
   it("idles until a blow is seen coming", () => {
@@ -106,19 +106,66 @@ describe("the X-ray director", () => {
     expect(shots.filter((x) => x !== "broke")).toEqual(["femurL", "tear", "body", "-"]);
   });
 
-  it("holds on a body that is dying", () => {
+  it("draws the lens back home and the skin back solid, then lets go", () => {
     const d = createXrayDirector();
     const s = fake();
     s.skier.thrown = {};
+    s.gore = { dead: -1, mortal: 0 };
     d.step(as(s));
     s.events.push({ kind: "gore", t: 0, what: "torn", piece: "head", x: 0, y: 0, z: 0 });
     d.step(as(s));
     s.events = [];
-    s.gore = { dead: -1, mortal: 0 };
-    const look = run(d, s, XRAY.tear + XRAY.bodyHold + 4);
-    expect(look).toMatchObject({ active: true, shot: { kind: "body" } });
-    expect(look.rate).toBeGreaterThan(0.95);
-    expect(look.xray).toBe(0);
+    let look = run(d, s, XRAY.tear + 0.2);
+    expect(look.shot?.kind).toBe("body");
+    let back = look.back;
+    let xray = look.xray;
+    let rate = look.rate;
+    for (let w = 0; w < XRAY.back + 2 && look.active; w += WALL) {
+      look = run(d, s, WALL);
+      if (!look.active) break;
+      // Never a jump: the lens only goes home, the skin only comes back.
+      expect(look.back).toBeGreaterThanOrEqual(back);
+      expect(look.xray).toBeLessThanOrEqual(xray);
+      expect(look.rate).toBeGreaterThanOrEqual(rate - 1e-9);
+      expect(look.back - back).toBeLessThan(0.05);
+      expect(xray - look.xray).toBeLessThan(0.05);
+      ({ back, xray, rate } = look);
+    }
+    // It let go home, solid and at the run's own pace.
+    expect(look.active).toBe(false);
+    expect(back).toBeGreaterThan(0.99);
+    expect(xray).toBeLessThan(0.01);
+    expect(rate).toBeGreaterThan(0.97);
+  });
+
+  it("shoots only a fall he dies of", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    s.skier.thrown = {};
+    d.step(as(s));
+    // A bone broken that he lives through: seen coming or landed, no cam.
+    d.seen({ ...femur, fatal: false }, as(s));
+    s.events.push({ kind: "injury", t: 0, part: "thighL", injury: "brokenFemur", ais: 3 });
+    d.step(as(s));
+    s.events = [];
+    expect(run(d, s, 0.5).active).toBe(false);
+    // The run knows he is dying: the next blow is shot.
+    s.gore = { dead: -1, mortal: s.t };
+    s.events.push({ kind: "gore", t: s.t, what: "torn", piece: "armL", x: 0, y: 0, z: 0 });
+    d.step(as(s));
+    s.events = [];
+    expect(run(d, s, 0.2).active).toBe(true);
+  });
+
+  it("closes first on the part of him the blow lands on", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s));
+    d.seen(
+      { in: 0.3, part: "thighL", bones: ["pelvis", "femurL"], gore: false, fatal: true },
+      as(s),
+    );
+    expect(run(d, s, 0.5).shot).toEqual({ kind: "bone", bone: "femurL" });
   });
 });
 

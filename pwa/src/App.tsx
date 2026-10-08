@@ -99,7 +99,7 @@ import { deathOver } from "./game/hud-wreck.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
-import { createXrayRun } from "./game/xray-run.ts";
+import { createXrayRun, dying, xrayHud } from "./game/xray-run.ts";
 import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
@@ -284,7 +284,7 @@ export function App() {
       adopt: (s) => adopt(s),
       shell: () => shellRef.current,
     });
-    const xray = createXrayRun(renderer.setXray);
+    const xray = createXrayRun(renderer.setXray, xrayHud);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -686,7 +686,7 @@ export function App() {
       const shown = drawable();
       // SLOW MOTION is fewer steps a frame: the replay director's (`replay-shots.ts`) and the X-ray cam's.
       const xrayOn = playerRides(shellRef.current) && !frozen && !held && shown;
-      renderer.setDeathCam(playerRides(shellRef.current));
+      renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
       const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn);
       const dtRun = dtFrame * rate;
       const simAt = performance.now();

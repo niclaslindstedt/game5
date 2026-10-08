@@ -42,11 +42,11 @@ const args = parseArgs(
     scene: {
       kind: "string",
       default: "",
-      help: "which scenes, comma-separated (trunk, trunk-fast, head, slam); every one when left out",
+      help: "which scenes, comma-separated (trunk-fast, head, slam, fall, spike, spike-post, groomer, maul, heli); every one when left out",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     every: { kind: "number", default: 0.5, help: "wall seconds between two frames shot" },
-    most: { kind: "number", default: 14, help: "the most wall seconds a scene runs" },
+    most: { kind: "number", default: 18, help: "the most wall seconds a scene runs" },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
     height: { kind: "number", default: 720, help: "a frame's height, px" },
     cols: { kind: "number", default: 4, help: "tiles a row on a sheet" },

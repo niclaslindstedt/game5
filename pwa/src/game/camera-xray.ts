@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE X-RAY CAM'S LENS: close on the bone that is breaking, circling it
-// slowly while the run crawls, panning to the next bone that goes and the
-// limb that tears, then drawing back to the whole of him (`xray-shots.ts`
-// says which). Every move is eased off where the lens was — the ladder's
-// or the death cam's — so the fly-in and every pan is a curve, never a cut;
+// THE X-RAY CAM'S LENS: flown in off the game's own camera right up to the
+// part of him the blow lands on, circling it slowly while the run crawls,
+// panning to the next bone that goes and the limb that tears, then drawn
+// back out to where the game's own camera has him (`xray-shots.ts` says
+// which, and how far back it is). Every move is eased off where the lens
+// was, so the fly-in, every pan and the way back are curves, never a cut;
 // the circling runs on the WALL clock, so the slowed run still turns.
 //
 // Three-free: `frameXray` turns what the shot looks at into a `LensPose`
@@ -15,13 +16,14 @@ import type { XrayShot } from "./xray-shots.ts";
 
 /** The lens, as numbers: metres, wall seconds, degrees, radians. */
 export const XRAY_LENS = {
-  /** How far off the bone, over it, and the zoom. */
-  bone: { arm: 1.1, height: 0.55, fov: 38 },
+  /** How far off the bone, over it, and the zoom: close enough that the
+   * part hit fills the frame. */
+  bone: { arm: 0.75, height: 0.3, fov: 34 },
   /** A big flat bone (the ribs, the pelvis, the skull) wants more room. */
-  wide: { arm: 1.5, height: 0.6, fov: 40 },
-  tear: { arm: 2, height: 0.8, fov: 44 },
-  /** THE BODY: from its arm and height out to `far` and `top` over `out` s. */
-  body: { arm: 2.6, height: 1.6, fov: 48, far: 4.8, top: 3.6, out: 2.5 },
+  wide: { arm: 1, height: 0.35, fov: 36 },
+  tear: { arm: 1.2, height: 0.45, fov: 40 },
+  /** THE WAY BACK: the whole of him, drawn on toward the game's camera. */
+  body: { arm: 2.2, height: 1.2, fov: 46 },
   /** How fast the lens circles, rad/s, and chases its place, its aim and
    * its zoom, 1/s. */
   orbit: 0.32,
@@ -30,8 +32,8 @@ export const XRAY_LENS = {
   fovRate: 3,
   /** Never closer to the snow than this, m, nor pulled closer to what it
    * looks at than `pullMin` by what stands between. */
-  clearance: 0.25,
-  pullMin: 1,
+  clearance: 0.2,
+  pullMin: 0.7,
 } as const;
 
 export type XrayLens = {
@@ -41,8 +43,11 @@ export type XrayLens = {
   fov: number;
   /** The bearing the lens circles at, rad (0 = +z, clockwise). */
   yaw: number;
-  /** Wall seconds on the body shot. */
-  bodyAge: number;
+  /** What it looked at last frame, and on which shot: a lens on one shot
+   * is carried along with what it looks at (a body falling 60 m/s is still
+   * 5 m/s slowed), so the chase is only the framing's. */
+  last: Vec3 | null;
+  key: string;
 };
 
 export function createXrayLens(): XrayLens {
@@ -52,7 +57,8 @@ export function createXrayLens(): XrayLens {
     aim: { x: 0, y: 0, z: 0 },
     fov: 50,
     yaw: 0,
-    bodyAge: 0,
+    last: null,
+    key: "",
   };
 }
 
@@ -61,43 +67,54 @@ const chase = (rate: number, dt: number): number => 1 - Math.exp(-rate * dt);
 const WIDE = /^(skull|ribs|pelvis|thoracic|lumbar)/;
 
 /** One frame of the lens, `dt` wall seconds after the last: what the shot
- * looks at (`target`, world), the lens to fly off (`from`), or null to put
+ * looks at (`target`, world), the game's own lens this frame (`home`: flown
+ * off on the way in, drawn toward by `back` on the way out), or null to put
  * it down. */
 export function frameXray(
   st: XrayLens,
   shot: XrayShot | null,
   target: Vec3 | null,
-  from: LensPose,
+  home: LensPose,
+  back: number,
   dt: number,
   groundAt: (x: number, z: number) => number,
   clear?: LineClear,
 ): LensPose | null {
   if (!shot || !target) {
     st.active = false;
+    st.last = null;
     return null;
   }
   if (!st.active) {
     st.active = true;
-    st.eye = { ...from.eye };
-    st.aim = { ...from.target };
-    st.fov = from.fov;
-    st.yaw = Math.atan2(from.eye.x - target.x, from.eye.z - target.z);
-    st.bodyAge = 0;
+    st.eye = { ...home.eye };
+    st.aim = { ...home.target };
+    st.fov = home.fov;
+    st.yaw = Math.atan2(home.eye.x - target.x, home.eye.z - target.z);
   }
+  const key = shot.kind === "bone" ? shot.bone : shot.kind;
+  if (st.last && st.key === key) {
+    const dx = target.x - st.last.x;
+    const dy = target.y - st.last.y;
+    const dz = target.z - st.last.z;
+    if (dx * dx + dy * dy + dz * dz < 4) {
+      st.eye.x += dx;
+      st.eye.y += dy;
+      st.eye.z += dz;
+      st.aim.x += dx;
+      st.aim.y += dy;
+      st.aim.z += dz;
+    }
+  }
+  st.last = { ...target };
+  st.key = key;
   st.yaw += XRAY_LENS.orbit * dt;
   let arm: number;
   let height: number;
   let fov: number;
   if (shot.kind === "body") {
-    st.bodyAge += dt;
-    const b = XRAY_LENS.body;
-    const k = clamp(st.bodyAge / b.out, 0, 1);
-    const s = k * k * (3 - 2 * k);
-    arm = b.arm + (b.far - b.arm) * s;
-    height = b.height + (b.top - b.height) * s;
-    fov = b.fov;
+    ({ arm, height, fov } = XRAY_LENS.body);
   } else {
-    st.bodyAge = 0;
     const look =
       shot.kind === "tear"
         ? XRAY_LENS.tear
@@ -125,7 +142,25 @@ export function frameXray(
   st.aim.y += (target.y - st.aim.y) * ka;
   st.aim.z += (target.z - st.aim.z) * ka;
   st.fov += (fov - st.fov) * chase(XRAY_LENS.fovRate, dt);
-  return { eye: { ...st.eye }, target: { ...st.aim }, fov: st.fov, roll: 0 };
+  // On the way back the lens drawn is this one carried toward the game's
+  // own, all the way at `back` = 1: the frame the cam lets go is the
+  // frame the two meet.
+  const k = clamp(back, 0, 1);
+  const mix = (a: number, b: number): number => a + (b - a) * k;
+  return {
+    eye: {
+      x: mix(st.eye.x, home.eye.x),
+      y: mix(st.eye.y, home.eye.y),
+      z: mix(st.eye.z, home.eye.z),
+    },
+    target: {
+      x: mix(st.aim.x, home.target.x),
+      y: mix(st.aim.y, home.target.y),
+      z: mix(st.aim.z, home.target.z),
+    },
+    fov: mix(st.fov, home.fov),
+    roll: home.roll * k,
+  };
 }
 
 /** Draw the lens in toward what it looks at, to what is clear. */

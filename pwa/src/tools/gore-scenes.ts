@@ -52,7 +52,7 @@ const bot: Drive = (s) => botInput(s);
 const R = RAGDOLL;
 
 /** How his body meets it (the injury lab's poses, heading +z). */
-type Pose = "head" | "face" | "back" | "left" | "feet" | "front";
+export type Pose = "head" | "face" | "back" | "left" | "feet" | "front";
 
 function poseOf(pose: Pose, into: boolean): Quat {
   const unlean = fromAxisAngle(1, 0, 0, -0.4);
@@ -83,7 +83,7 @@ function radius(i: number): number {
 
 /** A spot on the piste past its first stretch, where the ground is the
  * flattest — the snow a fall is staged on. */
-function flatSpot(level: Level): { x: number; z: number; heading: number } {
+export function flatSpot(level: Level): { x: number; z: number; heading: number } {
   let best = level.track.points[0];
   let flat = -1;
   const n = { x: 0, y: 1, z: 0 };
@@ -105,7 +105,7 @@ const BARE = new Set(["pine", "larch", "lodgepole", "snag", "whitepine"]);
 /** A tree standing alone on gentle ground near the piste, at least `tall`
  * m tall — the one a scene throws him at or onto; a `bare` one's trunk is
  * clear under its crown. */
-function loneTree(
+export function loneTree(
   level: Level,
   tall = 0,
   bare = false,
@@ -135,7 +135,7 @@ function loneTree(
 
 /** Throw the body: posed `pose` heading `heading`, going `v`, its lowest
  * point `lift` m over `floor`, its hips over (x, z). */
-function throwAt(
+export function throwAt(
   s: GameState,
   x: number,
   z: number,
@@ -274,15 +274,16 @@ export function ontoSnow(
 }
 
 /** His body falling `speed` m/s onto the top of `post` (a tree's or a
- * post's), his hips over it. */
-function ontoTop(
+ * post's), his hips over it, `lift` m over it. */
+export function ontoTop(
   st: Stage,
   post: { x: number; z: number; y: number; height: number },
   pose: Pose,
   speed: number,
+  lift = 0.3,
 ): GameState {
   const s = st.fresh();
-  throwAt(s, post.x, post.z, 0.4, pose, { x: 0, y: -speed, z: 0 }, post.y + post.height, 0.3);
+  throwAt(s, post.x, post.z, 0.4, pose, { x: 0, y: -speed, z: 0 }, post.y + post.height, lift);
   return s;
 }
 

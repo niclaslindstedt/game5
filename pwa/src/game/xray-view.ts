@@ -12,8 +12,21 @@
 //     as it goes and reddening from the break;
 //   * a WEDGE knocks a butterfly fragment out of the side; a SHATTER
 //     throws the pieces round the break apart, each its own way;
-//   * a hurt ORGAN swells and throbs dark red on his heart's beat.
+//   * a hurt ORGAN swells and throbs dark red on his heart's beat;
+//   * the blood from a break or a torn organ pools inside him
+//     (`xray-blood.ts`).
 // A piece torn off him (`gore.ts`) takes its bones out of the skeleton.
+//
+// It is an X-RAY: nothing in the world hides him while it is on — the veil
+// clears the depth behind it, so a trunk, a piste machine or the snow he is
+// buried in never stands between the lens and his bones — and only his own
+// skin, where it still stands, does (a depth-only MASK of the solid patches
+// drawn just after the veil).
+//
+// The skin is never swapped for the glass in one frame: the glass is a
+// second skin over it, and the skin itself DISSOLVES away in patches as the
+// X-ray comes in and grows back over the bones as it goes, a glowing edge
+// on the front, until he is solid again.
 //
 // The model is its own chunk, loaded the first time a run with injuries on
 // is drawn; until it is in, nothing is drawn.
@@ -34,6 +47,7 @@ import {
 } from "@engine";
 
 import type { SkierBone, BoneFrame } from "./skier-rig.ts";
+import { BLEED, CAVITY, createXrayBlood, type Bleed } from "./xray-blood.ts";
 import type { XrayLook } from "./xray-shots.ts";
 
 /** What the view reads off the figure: his skin's bone frames, the group
@@ -251,7 +265,59 @@ void main() {
 `;
 
 /** The order the X-ray draws in, after every effect in the world. */
-const ORDER = { veil: 20, glass: 21, organ: 22, bone: 23 } as const;
+const ORDER = { veil: 20, mask: 20.5, glass: 21, organ: 22, bone: 23, blood: 24 } as const;
+
+/** THE DISSOLVE, grafted onto the skin's own material: each fragment
+ * dropped while a noise over the body's own (bind-pose) surface stands above
+ * how solid he is, a glowing edge along the front. */
+const DISSOLVE_VERT_PARS = "varying vec3 vXrBody;\n";
+const DISSOLVE_VERT = "vXrBody = position;\n";
+const DISSOLVE_PARS = /* glsl */ `
+uniform float uXrSolid;
+uniform vec3 uXrEdge;
+varying vec3 vXrBody;
+float xrHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float xrNoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(xrHash(i), xrHash(i + vec3(1, 0, 0)), f.x), mix(xrHash(i + vec3(0, 1, 0)), xrHash(i + vec3(1, 1, 0)), f.x), f.y),
+    mix(mix(xrHash(i + vec3(0, 0, 1)), xrHash(i + vec3(1, 0, 1)), f.x), mix(xrHash(i + vec3(0, 1, 1)), xrHash(i + vec3(1, 1, 1)), f.x), f.y),
+    f.z);
+}
+float xrPatch() { return xrNoise(vXrBody * 9.0) * 0.65 + xrNoise(vXrBody * 23.0) * 0.35; }
+`;
+const DISSOLVE_MAIN = /* glsl */ `
+  float xrCut = uXrSolid * 1.1 - 0.05;
+  if (uXrSolid < 1.0 && xrPatch() > xrCut) discard;
+`;
+/** THE MASK: his skin's solid patches, depth only. */
+const MASK_VERT = /* glsl */ `
+#include <common>
+#include <skinning_pars_vertex>
+varying vec3 vXrBody;
+void main() {
+  #include <skinbase_vertex>
+  #include <begin_vertex>
+  vXrBody = position;
+  #include <skinning_vertex>
+  #include <project_vertex>
+}
+`;
+const MASK_FRAG = /* glsl */ `
+${DISSOLVE_PARS}
+void main() {
+${DISSOLVE_MAIN}
+  gl_FragColor = vec4(0.0);
+}
+`;
+const DISSOLVE_EDGE = /* glsl */ `
+  if (uXrSolid < 1.0) {
+    float xrEdge = 1.0 - smoothstep(0.0, 0.05, xrCut - xrPatch());
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, uXrEdge * 1.6, xrEdge);
+  }
+`;
 
 type Piece = {
   name: Bone | Organ;
@@ -261,6 +327,9 @@ type Piece = {
   mesh: THREE.Mesh;
   mat: THREE.ShaderMaterial;
   centre: THREE.Vector3;
+  /** Where a bone breaks (its frame), and the axis it lies along. */
+  breakAt: THREE.Vector3;
+  axis: THREE.Vector3;
   /** Index in `BONES` or `ORGANS`. */
   slot: number;
 };
@@ -272,7 +341,14 @@ function pieceGeometry(
   pos: Int16Array,
   idx: Uint16Array,
   unit: number,
-): { geo: THREE.BufferGeometry; axis: THREE.Vector3; perp: THREE.Vector3; centre: THREE.Vector3 } {
+): {
+  geo: THREE.BufferGeometry;
+  axis: THREE.Vector3;
+  perp: THREE.Vector3;
+  centre: THREE.Vector3;
+  lo: number;
+  span: number;
+} {
   const nv = pos.length / 3;
   const v = new Float32Array(pos.length);
   for (let i = 0; i < pos.length; i++) v[i] = pos[i] * unit;
@@ -348,7 +424,7 @@ function pieceGeometry(
   geo.setAttribute("aCell", new THREE.BufferAttribute(cell, 1));
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
-  return { geo, axis, perp, centre: m };
+  return { geo, axis, perp, centre: m, lo, span };
 }
 
 const decode = (b64: string): Uint8Array => {
@@ -378,10 +454,30 @@ export function createXrayView(): XrayView {
     transparent: true,
     depthWrite: false,
     side: THREE.FrontSide,
+    // Drawn over the skin where it still stands, at the skin's own depth.
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
   mats.push(glass);
-  /** The skin's own materials (and draw order) while it is glass. */
-  const kept = new Map<THREE.Mesh, { mat: THREE.Material | THREE.Material[]; order: number }>();
+  /** The glass skin over each of his skin's meshes, and the mask of its
+   * solid patches. */
+  const shells = new Map<THREE.Mesh, THREE.SkinnedMesh[]>();
+  /** How solid his skin is (1 whole, 0 gone), read by the dissolve. */
+  const solid = { value: 1 };
+  const edge = { value: new THREE.Color(XRAY_LOOK.glassRim) };
+  const mask = new THREE.ShaderMaterial({
+    vertexShader: MASK_VERT,
+    fragmentShader: MASK_FRAG,
+    uniforms: { uXrSolid: solid, uXrEdge: edge },
+    transparent: true,
+    colorWrite: false,
+    depthWrite: true,
+    side: THREE.DoubleSide,
+  });
+  mats.push(mask);
+  const grafted = new WeakSet<THREE.Material>();
+  const blood = createXrayBlood(ORDER.blood);
 
   const veilGeo = new THREE.PlaneGeometry(2, 2);
   geos.push(veilGeo);
@@ -398,7 +494,10 @@ export function createXrayView(): XrayView {
   const veil = new THREE.Mesh(veilGeo, veilMat);
   veil.frustumCulled = false;
   veil.renderOrder = ORDER.veil;
+  // Nothing in the world hides him under the X-ray.
+  veil.onBeforeRender = (r) => r.clearDepth();
   group.add(veil);
+  group.add(blood.group);
 
   const load = (): void => {
     if (loading) return;
@@ -415,11 +514,14 @@ export function createXrayView(): XrayView {
         geos.push(g.geo);
         const slot = organ ? ORGANS.indexOf(p.name as Organ) : BONES.indexOf(p.name as Bone);
         const kind = p.name.replace(/[LR]$/, "");
+        const cut = organ ? 0.5 : 0.35 + 0.3 * hash(slot, 1);
+        const onAxis = g.lo + cut * g.span - g.axis.dot(g.centre);
+        const breakAt = g.centre.clone().addScaledVector(g.axis, onAxis);
         const mat = new THREE.ShaderMaterial({
           vertexShader: VERT,
           fragmentShader: FRAG,
           uniforms: {
-            uBreak: { value: organ ? 2 : 0.35 + 0.3 * hash(slot, 1) },
+            uBreak: { value: organ ? 2 : cut },
             uGrade: { value: 0 },
             uEnergy: { value: 0 },
             uOpen: { value: 0 },
@@ -455,6 +557,8 @@ export function createXrayView(): XrayView {
           mesh,
           mat,
           centre: g.centre,
+          breakAt,
+          axis: g.axis,
           slot,
         });
       };
@@ -465,21 +569,60 @@ export function createXrayView(): XrayView {
   };
 
   const basis = new THREE.Matrix4();
-  const glassOn = (meshes: THREE.Mesh[], on: boolean): void => {
-    if (on) {
-      for (const m of meshes)
-        if (!kept.has(m)) {
-          kept.set(m, { mat: m.material, order: m.renderOrder });
-          m.material = glass;
-          m.renderOrder = ORDER.glass;
-        }
-    } else if (kept.size) {
-      for (const [m, was] of kept) {
-        m.material = was.mat;
-        m.renderOrder = was.order;
+  /** Graft the dissolve onto his skin's materials and hang a glass skin
+   * over each mesh — once, as soon as a run that can show the X-ray is
+   * drawn, so the program is linked long before the first blow. */
+  const dress = (meshes: THREE.Mesh[]): void => {
+    for (const m of meshes) {
+      // The glass skins hang beside his own: never grafted, never shelled.
+      if (m.material === glass || m.material === mask) continue;
+      const mat = m.material as THREE.Material;
+      if (!grafted.has(mat)) {
+        grafted.add(mat);
+        const before = mat.onBeforeCompile.bind(mat);
+        const key = mat.customProgramCacheKey.bind(mat);
+        mat.onBeforeCompile = (shader, r) => {
+          before(shader, r);
+          shader.uniforms.uXrSolid = solid;
+          shader.uniforms.uXrEdge = edge;
+          shader.vertexShader = shader.vertexShader
+            .replace("#include <common>", `#include <common>\n${DISSOLVE_VERT_PARS}`)
+            .replace("#include <begin_vertex>", `#include <begin_vertex>\n${DISSOLVE_VERT}`);
+          shader.fragmentShader = shader.fragmentShader
+            .replace("#include <common>", `#include <common>\n${DISSOLVE_PARS}`)
+            .replace("void main() {", `void main() {\n${DISSOLVE_MAIN}`)
+            .replace(
+              "#include <dithering_fragment>",
+              `#include <dithering_fragment>\n${DISSOLVE_EDGE}`,
+            );
+        };
+        mat.customProgramCacheKey = (): string => `${key()}:xray`;
+        mat.needsUpdate = true;
       }
-      kept.clear();
+      const sk = m as THREE.SkinnedMesh;
+      if (!shells.has(m) && sk.isSkinnedMesh && m.parent) {
+        const two = (
+          [
+            [glass, ORDER.glass],
+            [mask, ORDER.mask],
+          ] as const
+        ).map(([mat, order]) => {
+          const shell = new THREE.SkinnedMesh(m.geometry, mat);
+          shell.bind(sk.skeleton, sk.bindMatrix);
+          shell.frustumCulled = false;
+          shell.renderOrder = order;
+          shell.visible = false;
+          m.parent!.add(shell);
+          return shell;
+        });
+        shells.set(m, two);
+      }
     }
+  };
+  const showGlass = (xray: number): void => {
+    solid.value = 1 - xray;
+    glass.uniforms.uAlpha.value = Math.min(1, xray * 1.2);
+    for (const two of shells.values()) for (const shell of two) shell.visible = xray > 0.01;
   };
 
   /** Each bone's fracture, its energy and the game second it came. */
@@ -488,6 +631,17 @@ export function createXrayView(): XrayView {
   const seenGrade: number[] = [];
   let lastState: GameState | null = null;
 
+  /** A broken bone's bleed: round its break, or in the cavity it bounds. */
+  const boneBleed = (p: Piece, grade: number, since: number): Bleed => {
+    const kind = p.name.replace(/[LR]$/, "") as keyof typeof BLEED.bone;
+    const radius = (BLEED.bone[kind] ?? 0.03) * (grade >= 2 ? 1 : BLEED.hairline);
+    const into = CAVITY[kind];
+    const room = into && pieces?.find((q) => q.name === into && q.mesh.visible);
+    if (room)
+      return { key: p.name, matrix: room.mesh.matrix, at: room.centre, axis: null, radius, since };
+    return { key: p.name, matrix: p.mesh.matrix, at: p.breakAt, axis: p.axis, radius, since };
+  };
+
   return {
     group,
     update(look, state, skin, meshes) {
@@ -495,19 +649,21 @@ export function createXrayView(): XrayView {
         brokeAt.clear();
         hurtAt.clear();
         seenGrade.length = 0;
+        blood.clear();
         lastState = state;
       }
-      // The model is fetched as soon as a run with injuries on is drawn, so it
-      // is in long before the first blow.
-      if (state.gore) load();
+      // The model is fetched, and his skin dressed for it, as soon as a run
+      // with injuries on is drawn, so both are in long before the first blow.
+      if (state.gore) {
+        load();
+        dress(meshes);
+      }
       const on = look.active && look.xray > 0.01;
+      showGlass(on ? look.xray : 0);
       if (!on) {
         group.visible = false;
-        glassOn(meshes, false);
         return;
       }
-      glassOn(meshes, look.xray > 0.35);
-      glass.uniforms.uAlpha.value = Math.min(1, look.xray * 1.4);
       if (!pieces) return;
       group.visible = true;
       veilMat.uniforms.uAlpha.value = Math.min(1, look.xray * 1.2);
@@ -531,6 +687,7 @@ export function createXrayView(): XrayView {
       const world = skin.group.matrixWorld;
       const beat = state.gore ? state.gore.pulse : 0.5 + 0.5 * Math.sin(state.t * 7.5);
       const alpha = Math.min(1, look.xray * 1.25);
+      const bleeds: Bleed[] = [];
       for (const p of pieces) {
         const f = skin.frames[p.bone];
         p.mesh.visible = !!f && !gone.has(p.bone);
@@ -564,6 +721,16 @@ export function createXrayView(): XrayView {
           u.uHurt.value = ais > 0 ? Math.min(1, 0.35 + 0.15 * ais) * (0.7 + 0.3 * beat) : 0;
           u.uSwell.value = ais > 0 ? 0.002 * ais * (0.6 + 0.4 * beat) : 0;
           u.uFlash.value = age >= 0 && age < 0.1 ? 0.6 * (1 - age / 0.1) : 0;
+          // A torn organ bleeds into its cavity.
+          if (ais >= 3)
+            bleeds.push({
+              key: p.name,
+              matrix: p.mesh.matrix,
+              at: p.centre,
+              axis: null,
+              radius: BLEED.organ[p.name.replace(/[LR]$/, "")] ?? 0.05,
+              since: hurtAt.get(p.name as Organ) ?? state.t,
+            });
         } else {
           const g = grade[p.slot];
           const age = g > 0 ? state.t - (brokeAt.get(p.name as Bone) ?? state.t) : -1;
@@ -572,8 +739,10 @@ export function createXrayView(): XrayView {
           // The break SNAPS open over a few hundredths of a second.
           u.uOpen.value = g >= 2 ? Math.min(1, Math.max(0, age) / 0.06) : 0;
           u.uFlash.value = age >= 0 && age < 0.08 ? 1 - age / 0.08 : 0;
+          if (g > 0) bleeds.push(boneBleed(p, g, brokeAt.get(p.name as Bone) ?? state.t));
         }
       }
+      blood.update(bleeds, state.t, alpha, beat);
     },
     centreOf(name, out) {
       const p = pieces?.find((q) => q.name === name);
@@ -588,7 +757,9 @@ export function createXrayView(): XrayView {
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
-      kept.clear();
+      for (const two of shells.values()) for (const shell of two) shell.parent?.remove(shell);
+      shells.clear();
+      blood.dispose();
     },
   };
 }

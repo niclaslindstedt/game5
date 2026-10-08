@@ -305,6 +305,34 @@ function generateResortLevel(
     grade: opts.grade,
     dealt: dealGrade(seed),
   });
-  const level = resortLevel(built, index, laps, version);
-  return opts.sky ? withSky(level, opts.sky) : level;
+  const level = opts.tricks ? parkedLevel(seed, built, index, laps, version, opts.course) : null;
+  const raced = level ?? resortLevel(built, index, laps, version);
+  return opts.sky ? withSky(raced, opts.sky) : raced;
+}
+
+/** R20 on a ski area — the course with the terrain park laid down it: the
+ * course asked for, or the one the seed's grade picked and, where that will
+ * not carry a park that stands, the first of the others that will; null
+ * where none does (the map is then ridden without one). */
+function parkedLevel(
+  seed: number,
+  built: BuiltResort,
+  index: number,
+  laps: number,
+  version: GeneratorVersion,
+  asked: string | undefined,
+): GeneratedLevel | null {
+  const order = [index, ...built.courses.map((_, i) => i).filter((i) => i !== index)];
+  for (const i of asked === undefined ? order : [index]) {
+    const parked = resortLevel(built, i, laps, version, true);
+    const why = parked.kickers.some((k) => k.trick)
+      ? analyzeLevel(parked, { network: false })
+          .findings.filter((f) => f.severity === "error")
+          .map((f) => `${f.rule} ${f.message}`)
+          .join(", ")
+      : "no park fits it";
+    if (why === "") return parked;
+    debug(`resort ${seed}: course ${built.courses[i].course.id} carries no park — ${why}`);
+  }
+  return null;
 }

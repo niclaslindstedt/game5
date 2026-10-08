@@ -232,15 +232,13 @@
 import type { Band } from "./rules.ts";
 import type { PisteGrade } from "./grades.ts";
 
-/** THE LOW MASSIF (generator v5–v6, `GeneratorTraits.lowMassif`): the
- * mountain as the resorts were curated on — a mid-size area's 900–1150 m
- * of vertical (the region's multiple on top, the fell's half of it), R3's
- * folds at their own height and the valley floor at the region's base
- * altitude. From v8 the massif is `massif.vertical` tall over a valley
- * floor a few metres above the sea, its folds `massif.relief` times R3's. */
-export const LOW_MASSIF = {
+/** THE MOUNTAIN A REGION'S TREE-LINE BANDS ARE STATED FOR: a mid-size
+ * area's 900–1150 m of vertical (the region's multiple on top, the fell's
+ * half of it) over the region's base altitude. The massif (`massif.vertical`
+ * over a floor near the sea) stands its tree line the same share of the
+ * mountain over its floor (`planMassif`). */
+export const TREE_LINE_MASSIF = {
   vertical: { min: 900, max: 1150 } as Band,
-  relief: { flank: 1, hills: 1, ridges: 1, rollers: 1, bowls: 1, headwalls: 1, scale: 1 },
 } as const;
 
 export const RESORT_RULES = {
@@ -398,8 +396,7 @@ export const RESORT_RULES = {
     /** A chair's UNLOAD RAMP: the unload point, m short of the top down
      * the line (a rider stands up 5–8 m before the bullwheel); the ramp
      * under it, m high (1–1.5 m of ramp); and how far it falls off, m —
-     * 12–25 % of pitch: a mound falling every way on v5's tops, from v6
-     * on falling only on up the line ahead of the rider, whole
+     * 12–25 % of pitch, falling only on up the line ahead of the rider, whole
      * `half` m either side of the line (the lane beside the chairs on it)
      * and `back` m behind the unload, eased out over `edge` m. */
     unload: { at: 7, height: 1.2, reach: 7, half: 6, edge: 2, back: 3 },

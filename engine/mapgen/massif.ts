@@ -44,7 +44,7 @@ import { sampleNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
 import { scaleBand, scaleCount, type Region } from "./regions.ts";
-import { LOW_MASSIF, RESORT_RULES as RR } from "./resort-rules.ts";
+import { TREE_LINE_MASSIF, RESORT_RULES as RR } from "./resort-rules.ts";
 import { LEVEL_RULES as R, inBand, type Band } from "./rules.ts";
 import {
   countryFields,
@@ -95,8 +95,8 @@ export type Massif = {
   readonly tables: readonly [Float64Array, Float64Array, Float64Array, Float64Array];
   /** A slow noise along the ridge, so a ridge is not two bells. */
   readonly ridgeSeed: number;
-  /** How much wider than the rule book's square the massif's is (one on
-   * the low massif): the ridge's slow noise is stretched with it. */
+  /** How much wider than the rule book's square the massif's is: the
+   * ridge's slow noise is stretched with it. */
   readonly wide: number;
 };
 
@@ -145,23 +145,21 @@ function sample(table: Float64Array, u: number): number {
 
 /** R25 — deal the resort's mountain off the attempt's stream, in `region`
  * (R21): the vertical, the peak and the shoulder, the bench, the village,
- * and the folds R3 lays over it — `low` on the low massif of the
- * generators before v8 (`LOW_MASSIF`). */
-export function planMassif(rng: Rng, region: Region, low = false): TerrainPlan {
+ * and the folds R3 lays over it. */
+export function planMassif(rng: Rng, region: Region): TerrainPlan {
   const M = RR.massif;
-  // R1 — the low massif stands on the rule book's square; from v8 a
-  // resort's is wider, so its taller mountain falls as far over each
-  // metre down the face as the low one did.
-  const size = low ? R.world.size : M.size;
+  // R1 — a resort's square is wider than the rule book's, so its tall
+  // mountain falls as far over each metre down the face as a mountain of
+  // the rule book's height does over its own.
+  const size = M.size;
   const F = R.face;
   const K = region.relief;
-  // From v8 every country's mountain stands the massif's own vertical over
-  // a floor near the sea, whatever the region's multiple.
-  const T = low ? LOW_MASSIF : M;
+  // Every country's mountain stands the massif's own vertical over a floor
+  // near the sea, whatever the region's multiple.
   const cx = size / 2;
   const summitZ = size * R.mountain.summit;
   const baseZ = size * R.mountain.base;
-  const vertical = inBand(rng, low ? scaleBand(T.vertical, K.vertical) : T.vertical);
+  const vertical = inBand(rng, M.vertical);
   // Everything across the face is stretched with the square, so the ridge
   // falls from the peak to the shoulder over as far as it rises.
   const wide = size / R.world.size;
@@ -179,7 +177,7 @@ export function planMassif(rng: Rng, region: Region, low = false): TerrainPlan {
   const benchX = villageX + (peakX - villageX) * inBand(rng, M.bench.toward);
   const benchSpread = inBand(rng, across(M.bench.spread));
   const flankBand = { inner: M.flank.inner * wide, outer: M.flank.outer * wide };
-  const Q = T.relief;
+  const Q = M.relief;
   const flank = inBand(rng, scaleBand(R.mountain.flank.height, K.flank * Q.flank));
   const hills = inBand(rng, scaleBand(F.hills.amplitude, K.hills * Q.hills));
   const ridges = inBand(rng, scaleBand(F.ridges.amplitude, K.ridges * M.ridges * Q.ridges));
@@ -244,24 +242,25 @@ export function planMassif(rng: Rng, region: Region, low = false): TerrainPlan {
     ridgeSeed: seed(),
     wide,
   };
-  // R21 — the tree line. On the low massif the floor stands at the
-  // region's base altitude and the line at its own; from v8 the floor is
-  // a few metres over the sea (`massif.sea`, the lowest ground's — the
-  // published altitude is set off the built ground, `seaLevelOf`) and the
-  // line stands the same SHARE of the mountain over it as the region's
-  // bands give the low massif's, so a country is as wooded as it was.
-  const sea = low ? undefined : inBand(rng, M.sea);
+  // R21 — the tree line. The floor is a few metres over the sea
+  // (`massif.sea`, the lowest ground's — the published altitude is set off
+  // the built ground, `seaLevelOf`) and the line stands the same SHARE of
+  // the mountain over it as the region's bands give a mountain of the
+  // region's own height (`TREE_LINE_MASSIF`), so a country is as wooded
+  // over its floor whatever the massif's vertical.
+  const sea = inBand(rng, M.sea);
   const above = dealtLine - dealtBase;
-  const altitude = sea ?? dealtBase;
-  const lowVertical = ((LOW_MASSIF.vertical.min + LOW_MASSIF.vertical.max) / 2) * K.vertical;
-  const treeLine = low ? dealtLine : altitude + (above * vertical) / lowVertical;
+  const altitude = sea;
+  const regionVertical =
+    ((TREE_LINE_MASSIF.vertical.min + TREE_LINE_MASSIF.vertical.max) / 2) * K.vertical;
+  const treeLine = altitude + (above * vertical) / regionVertical;
   return {
     vertical,
     altitude,
     treeLine,
     size,
-    ...(low ? {} : { fold: Q.scale }),
-    ...(sea === undefined ? {} : { sea }),
+    fold: Q.scale,
+    sea,
     summitZ,
     baseZ,
     flank,

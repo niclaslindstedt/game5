@@ -76,28 +76,10 @@ export type GeneratorTraits = {
    * from before the grades and the turned face too, it is built on the
    * rule book's own numbers (the UNGRADED row of `grades.ts`, whatever
    * grade it is asked for: no grade dealt, no drop laid, no `Level.grade`
-   * published) down a face due north (no `Level.sun.facing`). The trick
-   * maps and the benchmark stand on it. From the resorts on every map is a ski area
+   * published) down a face due north (no `Level.sun.facing`). The
+   * benchmark stands on it. From the resorts on every map is a ski area
    * (R25–R28) raced on one course of it. */
   singlePiste?: boolean;
-  /** THE TOPS LEFT TO THE CONTOUR (v5): every run off a top starts on the
-   * top's contour 4 m under its snow, at whatever distance, a lane where
-   * its slot puts it; a ramp comes down off a pad's rim only where one
-   * reaches a run's snow past its head, met at its shoulder, rolling over a
-   * lip where it must fall far (`summit-ramps-v5.ts`); a chair's unload is
-   * a mound falling every way, the cut under its way in starting 11 m
-   * short of the top, and a drag's top has no ramps. From v6 every run off a
-   * top starts UNDER it where a ramp has room, every ramp lands on its
-   * run's own snow falling all the way and evenly, a chair's unload falls
-   * ahead of the rider and the cut starts behind his tails. */
-  looseTops?: boolean;
-  /** THE PEAK'S CHAIR BESIDE THE MID-STATION (v5–v6): its bottom station
-   * stands 45 m across the face and 20 m down from the gondola's top, slid
-   * across its line off any run — its queue as often beside or behind a
-   * rider out of the gondola as ahead of him, or straight in his way. From
-   * v7 its queue lies ahead of him and to one side, on snow that falls to
-   * it, groomed and kept clear (R26, `lift.chain`). */
-  queueBeside?: boolean;
   /** STEPS WHERE RUNS MEET (v1–v7): a lane leaving a piste, or a run
    * merging into another, was graded under the other's surface where it ran
    * on it — a surface the stamp never touches — so a lip or a wall stood on
@@ -107,13 +89,6 @@ export type GeneratorTraits = {
    * line stays on the other's surface and is filled down off it, and the
    * junction's corridor is levelled onto the other's surface as it falls. */
   steppedJunctions?: boolean;
-  /** THE LOW MASSIF (v5–v6): the resort's mountain 900–1150 m tall (the
-   * region's multiple on it, the fell's half of it) over a valley floor at
-   * the region's base altitude, its folds R3's own. From v8 it stands
-   * 1420–1620 m over a floor 10–20 m above the sea, every country at least
-   * that tall, and its hills, spurs, gullies, bowls and headwalls rise and
-   * fall about twice as far (R25, `massif.relief`). */
-  lowMassif?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -134,40 +109,6 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
     steppedJunctions: true,
   },
   {
-    version: 5,
-    note:
-      "The leaning tops: every gondola's and chair's top stands on a pad 48 m across, its " +
-      "deck along the line level and the pad leaning off it to both sides to its rim; a " +
-      "wide groomed RAMP comes down off the rim to a run where one reaches its snow; the " +
-      "ground under the last of every line is cut away beneath the rope's way in (R26); and " +
-      "every run starts on its top's contour 4 m under the station (R27). v6 starts every " +
-      "run off a top UNDER it where a ramp has room and lays that ramp onto the run's own " +
-      "snow, falling all the way; this row keeps the race maps' tops as they were pinned.",
-    looseTops: true,
-    queueBeside: true,
-    steppedJunctions: true,
-    lowMassif: true,
-  },
-  {
-    version: 6,
-    note:
-      "The tops above their runs: every gondola's and chair's top stands on a pad 48 m " +
-      "across, its deck along the line level and the pad leaning off it to both sides to " +
-      "its rim; the ground under the last of every line is cut away beneath the rope's " +
-      "way in, so no carrier ever runs into the snow (R26); and every run off a top STARTS " +
-      "UNDER IT by 4 m and a tenth of the way from the rim to it, within reach of a ramp " +
-      "(R27), and a wide groomed RAMP comes down off the rim to it — onto its own head from " +
-      "behind where it can — FALLING at least 10 % all the way, so a rider let go on the " +
-      "pad slides down to his run and never climbs; a chair's unload ramp falls ahead of " +
-      "the rider, and a drag's top has ramps off where it lets go, where they fit. v8 lays " +
-      "the peak's chair's queue ahead of a rider out of the gondola and raises the mountain " +
-      "to 1420 m and more over a floor by the sea; this row keeps the maps pinned on it with " +
-      "that chair beside the mid-station, on the low massif.",
-    queueBeside: true,
-    steppedJunctions: true,
-    lowMassif: true,
-  },
-  {
     version: 8,
     note:
       "The tall mountain: the massif stands 1420–1620 m over a valley floor 10–20 m above " +
@@ -183,7 +124,9 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "other's surface where they run on it and are filled down off it at no more than their " +
       "ceiling, and a merging run's corridor is levelled onto the surface of the run it " +
       "joins as that run falls — no lip where a lane branches, no wall where a wide run " +
-      "comes in (R27).",
+      "comes in (R27). A map built for a tricks run carries its terrain park (R20) down " +
+      "the course it is ridden on, the course's gates set round the park's kickers; the " +
+      "first course the seed's grade picks that carries one, or the next that does.",
   },
 ];
 

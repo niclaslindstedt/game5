@@ -148,6 +148,95 @@ the PR.
 - **Every later discipline** writes its own criteria here (or in its spec)
   from its course rule, before the sweep.
 
+### The re-pin on generator v8
+
+Every discipline's nine were picked again when the race maps moved onto
+generator v8 (the tall mountain) and v5 and v6 were retired: seeds 1–40
+swept in all four countries, every course a discipline can be set on
+built and skied by the bot (`simulateRun`), the clean ones (home, no out,
+no harsh landing, no wipeout) sorted by the discipline's ladder key — the
+slalom's, the giant slalom's, the super-G's and the ski cross's by their
+pitch, the downhill's by its vertical, speed skiing's by its clean run's
+speed — and one picked from each ninth of it, spreading the countries and
+the skies. No seed a trick map rides and no (mode, seed, course) a race
+map stood on before was taken, so no old record meets a new map. Every
+pick was then built cold on its course and grade, and the seven that took
+six or more attempts to build were swapped for a neighbour in the ladder
+that builds in a few. The tables below the first are the history of the
+earlier picks.
+
+| Slalom | Seed | Country | Course | Vertical | Length | Sky |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sea Pitch | 25 | maritime | red 6 | 161 m | 640 m | high |
+| Grey Morning | 12 | fell | red 2 | 190 m | 650 m | overcast |
+| Fog Gates | 19 | alpine | red 8 | 191 m | 620 m | fog |
+| Floodlit | 26 | continental | red 3 | 190 m | 600 m | clear (night) |
+| Afternoon Hill | 2 | alpine | red 6 | 190 m | 598 m | fair |
+| Bright Fell | 38 | fell | red 5 | 190 m | 568 m | clear |
+| Storm Hill | 33 | alpine | red 5 | 140 m | 402 m | storm |
+| Snow Gates | 35 | maritime | red 7 | 191 m | 532 m | snow |
+| Black Wall | 36 | alpine | black 8 | 191 m | 422 m | flurries |
+
+| Giant slalom | Seed | Country | Course | Vertical | Length | Sky |
+| --- | --- | --- | --- | --- | --- | --- |
+| Wide Blue | 25 | alpine | blue 5 | 400 m | 2186 m | high |
+| Fell Afternoon | 14 | fell | red 6 | 400 m | 2097 m | fair |
+| Fog Black | 7 | continental | black 11 | 399 m | 2006 m | fog |
+| Grey Sound | 37 | maritime | red 6 | 400 m | 1953 m | overcast |
+| Snow Turns | 30 | maritime | red 6 | 400 m | 1892 m | snow |
+| Clear Fell | 34 | fell | black 10 | 400 m | 1868 m | clear |
+| Flurry Red | 5 | alpine | red 7 | 400 m | 1772 m | flurries |
+| Steep Black | 26 | continental | black 9 | 400 m | 1722 m | clear |
+| Short and Sharp | 3 | fell | red 8 | 400 m | 1704 m | high |
+
+| Super-G | Seed | Country | Course | Vertical | Length | Sky |
+| --- | --- | --- | --- | --- | --- | --- |
+| Morning Blue | 31 | fell | blue 5 | 600 m | 3137 m | clear |
+| Grey Coast | 21 | maritime | red 7 | 600 m | 2913 m | overcast |
+| Early Light | 19 | continental | red 4 | 600 m | 2769 m | fair |
+| High Cloud | 23 | alpine | red 7 | 600 m | 2707 m | high |
+| Fast Red | 34 | alpine | red 6 | 599 m | 2603 m | high |
+| Snow Speed | 5 | maritime | red 5 | 600 m | 2540 m | snow |
+| Low Sun | 36 | fell | red 6 | 600 m | 2458 m | clear |
+| Evening Black | 38 | alpine | black 12 | 599 m | 2378 m | fair |
+| Black Flurries | 39 | continental | black 7 | 599 m | 2292 m | flurries |
+
+| Downhill | Seed | Country | Course | Vertical | Length | Sky |
+| --- | --- | --- | --- | --- | --- | --- |
+| Evening Run | 38 | alpine | black 12 | 816 m | 2822 m | fair |
+| Snow Black | 20 | continental | black 9 | 876 m | 2902 m | snow |
+| Long Glide | 25 | maritime | blue 5 | 894 m | 4408 m | high |
+| Fell Classic | 14 | fell | red 6 | 933 m | 4161 m | fair |
+| Into the Fog | 1 | maritime | red 5 | 950 m | 4132 m | fog |
+| Grey Giant | 30 | alpine | red 6 | 979 m | 4138 m | overcast |
+| Black Flurries | 39 | continental | black 7 | 1018 m | 3592 m | flurries |
+| Low Sun | 36 | fell | red 6 | 1041 m | 3920 m | clear |
+| Big Drop | 5 | alpine | red 7 | 1083 m | 3862 m | flurries |
+
+| Speed skiing | Seed | Country | Course | Vertical | Length | Sky |
+| --- | --- | --- | --- | --- | --- | --- |
+| First Track | 39 | continental | red 6 | 222 m | 445 m | clear |
+| Fog Track | 7 | alpine | black 11 | 231 m | 437 m | fog |
+| Fair Fell | 29 | fell | red 13 | 245 m | 545 m | fair |
+| Sea Fog | 20 | maritime | red 8 | 253 m | 542 m | fog |
+| Flurry Track | 23 | maritime | red 3 | 272 m | 529 m | flurries |
+| Long Launch | 25 | alpine | red 12 | 301 m | 740 m | high |
+| High Track | 26 | alpine | red 2 | 282 m | 525 m | high |
+| Snow Track | 36 | continental | black 6 | 289 m | 521 m | snow |
+| The Fastest | 19 | maritime | red 11 | 318 m | 732 m | high |
+
+| Ski cross | Seed | Country | Course | Vertical | Length | Sky |
+| --- | --- | --- | --- | --- | --- | --- |
+| Alpine Berms | 25 | alpine | red 12 | 166 m | 861 m | high |
+| Fell Black | 15 | fell | black 12 | 190 m | 961 m | clear |
+| Continental Cross | 26 | continental | red 3 | 189 m | 951 m | clear |
+| Snow Cross | 12 | maritime | red 11 | 181 m | 904 m | snow |
+| Flurry Cross | 23 | continental | red 7 | 185 m | 913 m | flurries |
+| Roller Coast | 7 | maritime | red 10 | 166 m | 814 m | clear |
+| Afternoon Cross | 29 | alpine | red 7 | 184 m | 895 m | flurries |
+| Blue Jumps | 39 | fell | blue 6 | 181 m | 869 m | clear |
+| Fog Cross | 31 | alpine | red 4 | 192 m | 882 m | fog |
+
 ### How the first eighteen were picked
 
 Seeds 1–60 swept in the alpine, the continental and the maritime on

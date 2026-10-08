@@ -74,9 +74,6 @@ export type StartTop = {
   z: number;
   y: number;
   rim: number;
-  /** v5's starts (`looseTops`): on the top's contour `drop` m under it,
-   * at whatever distance. */
-  loose?: boolean;
 };
 
 /** A lift's top as the starts under it read it: its snow's height off
@@ -86,10 +83,9 @@ export function startTop(
   ground: Heightfield,
   lift: { kind: string; top: { x: number; z: number } },
   rim: number,
-  loose = false,
 ): StartTop {
   const y = sampleField(ground, lift.top.x, lift.top.z);
-  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim, loose };
+  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim };
 }
 
 /** The fall line a start is slid along, m a step and steps. */
@@ -103,7 +99,6 @@ const HEAD_SLIDES = 60;
  * down it. */
 function headBelow(top: StartTop, x: number, z: number): number {
   const K = RR.lift.top.ramp;
-  if (top.loose) return K.drop;
   return K.drop + K.fall * Math.max(0, hypot(x - top.x, z - top.z) - top.rim);
 }
 
@@ -122,7 +117,7 @@ export function headOnContour(
 ): number | null {
   const under = (z: number): boolean => sampleField(ground, x, z) <= top.y - headBelow(top, x, z);
   const near = (z: number): boolean =>
-    top.loose === true || hypot(x - top.x, z - top.z) <= RR.lift.top.ramp.far - REACH_SPARE;
+    hypot(x - top.x, z - top.z) <= RR.lift.top.ramp.far - REACH_SPARE;
   if (!under(z0)) {
     for (let k = 1; k <= HEAD_SLIDES; k++) {
       const z = z0 + k * HEAD_SLIDE;
@@ -166,7 +161,7 @@ export function placeStart(
   const mid = ((ground.cols - 1) * ground.cell) / 2;
   // Under a top, at half the step along the contour and a little further
   // down the fall line at each, for the ramp's room as much as the start's.
-  const close = top !== null && !top.loose;
+  const close = top !== null;
   const split = close ? 2 : 1;
   const downs = close ? HEAD_DOWNS : [0];
   for (let k = 0; k <= START_STEPS * split; k++) {

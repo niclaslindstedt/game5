@@ -2,8 +2,7 @@
 // THE DEVELOPER PAGE AND THE BENCHMARK, held without a browser: the pinned
 // race and the stretch it rides, the score and its lines, the report and
 // the history, the hold that lets the page out, the frame-rate readout, the
-// REPRO line read back as a URL, the physics readouts, the free camera and
-// the campaign's board set by hand.
+// REPRO line read back as a URL, the physics readouts and the free camera.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -57,16 +56,6 @@ import { NO_HOLD, holdWait, tickHold } from "../pwa/src/game/menu-hold.ts";
 import { FPS_STALL_MS, smoothFps } from "../pwa/src/game/frame-rate.ts";
 import { physicsOf, readPose, reproOf, reproQuery } from "../pwa/src/game/debug-readout.ts";
 import { flyLens, flyLook, flyStep, FLY, NO_KEYS } from "../pwa/src/game/free-fly.ts";
-import { lockShelves, unlockRows, unlockShelves } from "../pwa/src/game/campaign-unlocks.ts";
-import {
-  EMPTY_PROGRESS,
-  SHELVES,
-  levelCleared,
-  mergeProgress,
-  recordRun,
-  shelfUnlocked,
-  shelfWon,
-} from "../pwa/src/game/campaign.ts";
 import { DEFAULT_VIDEO } from "../pwa/src/game/settings-video.ts";
 import { DEV_HOLD_MS, freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -446,44 +435,6 @@ describe("the free camera (free-fly.ts)", () => {
     expect(fly.pitch).toBe(FLY.pitchLimit);
     const lens = flyLens({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
     expect(lens.target.z).toBeGreaterThan(lens.eye.z);
-  });
-});
-
-describe("the campaign set by hand (campaign-unlocks.ts)", () => {
-  it("opens the whole ladder, every shelf WON, and invents no time", () => {
-    const open = unlockShelves(EMPTY_PROGRESS, null);
-    for (const shelf of SHELVES) expect(shelfWon(shelf, open), shelf.id).toBe(true);
-    for (const result of Object.values(open.results)) expect(result.best).toBeUndefined();
-    expect(unlockRows(open).every((r) => r.won && r.open)).toBe(true);
-    // A board opened by hand survives the trip through storage.
-    expect(mergeProgress(JSON.parse(JSON.stringify(open)))).toEqual(open);
-  });
-
-  it("works on a PREFIX: opening a shelf wins the ones before it, shutting one those after", () => {
-    const mid = unlockShelves(EMPTY_PROGRESS, SHELVES[1].id);
-    expect(shelfWon(SHELVES[0], mid)).toBe(true);
-    expect(shelfWon(SHELVES[1], mid)).toBe(true);
-    expect(shelfUnlocked(SHELVES[2], mid)).toBe(true);
-    expect(shelfWon(SHELVES[2], mid)).toBe(false);
-    const back = lockShelves(unlockShelves(EMPTY_PROGRESS, null), SHELVES[1].id);
-    expect(shelfWon(SHELVES[0], back)).toBe(true);
-    expect(SHELVES[1].levels.every((l) => back.results[l.id] === undefined)).toBe(true);
-    expect(lockShelves(back, null)).toEqual(EMPTY_PROGRESS);
-  });
-
-  it("keeps a time actually ridden, and a real run fills a granted one in", () => {
-    const level = SHELVES[0].levels[0];
-    const ridden = recordRun(EMPTY_PROGRESS, level, {
-      time: 321,
-      skis: "hare",
-      order: [null, 0, 1, 2],
-    });
-    const open = unlockShelves(ridden, null);
-    expect(open.results[level.id].best).toBe(321);
-    const granted = unlockShelves(EMPTY_PROGRESS, null);
-    const after = recordRun(granted, level, { time: 400, skis: "swift", order: [0, null, 1, 2] });
-    expect(after.results[level.id]).toMatchObject({ best: 400, skis: "swift", place: 1 });
-    expect(levelCleared(after, level)).toBe(true);
   });
 });
 

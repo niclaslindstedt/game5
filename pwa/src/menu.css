@@ -279,7 +279,7 @@
 }
 
 /* `.menu-door` in front of every door rule: the shared card's own
-   sideways and upright blocks in `styles.css` (and `campaign.css`) come
+   sideways and upright blocks in `styles.css` (and `maps.css`) come
    later in the cascade and restate a card's measures at one class. */
 .menu-door .menu-card-root {
   align-self: stretch;

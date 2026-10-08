@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// STANDING A RUN UP ON A PINNED MAP — a campaign rung, a RACE off the level
-// card, or a TRICKS run off the trick map card — and
-// standing the same one up again.
+// STANDING A RUN UP ON A PINNED MAP — a RACE off the level card, or a
+// TRICKS run off the trick map card — and standing the same one up again.
 //
 // A FACTORY over the app's own closures, the shape `app-load.ts` is built
-// in and for the same reason: the loader, the engine state and the campaign
-// rig are `App.tsx`'s, built once on mount and outliving every card, and
-// this is what a press on a pinned map DOES with them.
+// in and for the same reason: the loader and the engine state are
+// `App.tsx`'s, built once on mount and outliving every card, and this is
+// what a press on a pinned map DOES with them.
 //
-// THE RIG IS ARMED IN THE BUILD, not at the press, so a run is a rung from
-// its first step and a load given up on arms nothing. The map under the menu
-// is REUSED when it is the very one pinned (`isPinnedMap` — the same seed on
+// The map under the menu is REUSED when it is the very one pinned (`isPinnedMap` — the same seed on
 // the same generator): building a map is the dearest thing the engine does,
 // and a RACE pressed over the map just ridden is a race on that map. A free
 // ride's map is never reused, because it is the seed's map on another day;
@@ -23,19 +20,16 @@
 // (`recipeOf`) with the first run handed over as its heat (`heatAfter`). A
 // run already in its second run stands up again as its second run — the
 // heat read back off it (`heatOf`, in `recipeOf`) — so a restart never drops
-// a racer back into the first. The second run books no campaign rung: the
-// rung is booked at the first run's flag.
+// a racer back into the first.
 //
 // A SKI CROSS stands up as its QUALIFICATION, and the plate over each of its
 // runs stands up the player's NEXT HEAT (`ski-cross-run.ts`'s
 // `nextBracket`): the run read back off its first step with the bracket as
-// it now stands handed over — the heat it names his. A heat books no rung.
+// it now stands handed over — the heat it names his.
 //
 // A DOWNHILL stands up as its TRAINING run (every racer starts one before
 // he may race, `downhill-run.ts`), and the plate over it — home or out —
-// stands up its RACE through the same press. A campaign rung is booked at
-// the RACE's flag, never the training's: the rig is armed for the rung only
-// when the race is stood up.
+// stands up its RACE through the same press.
 
 import { TUNING, botInput, createGame, step, type GameMode, type GameState } from "@engine";
 
@@ -44,11 +38,10 @@ import {
   isPinnedMap,
   NO_PICKS,
   pinnedFor,
-  pinnedRun,
-  type CampaignLevel,
+  pinnedGameOptions,
+  type PinnedLevel,
   type PinnedSkier,
-} from "./campaign.ts";
-import type { CampaignRig } from "./campaign-run.ts";
+} from "./pinned.ts";
 import { recipeOf } from "./replay.ts";
 import type { Settings } from "./settings.ts";
 import { trainingOf } from "./downhill-run.ts";
@@ -63,8 +56,8 @@ import { nextAerialsContest } from "./aerials-run.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export type PinnedRuns = {
-  /** Stand `pin` up as `mode` — a rung of the campaign when `rung`. */
-  press: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
+  /** Stand `pin` up as `mode`. */
+  press: (pin: PinnedLevel, mode: PinnedLevel["mode"]) => void;
   /** Stand a TRICKS run up on a trick map (`trick-maps.ts`) — or, as
    * `bigAir`, a BIG AIR contest's first jump with its jump built over it
    * (R37), as `slopestyle`, a SLOPESTYLE contest's first run on its
@@ -82,13 +75,12 @@ export type PinnedRuns = {
   /** A slalom's SECOND RUN, behind the loading card, off the first run on
    * the snow — nothing where it earned none (`secondRunOf`). */
   second: () => void;
-  /** The run on the snow is no longer a pinned one: the rig disarmed and
-   * nothing to stand up again. */
+  /** The run on the snow is no longer a pinned one: nothing to stand up
+   * again. */
   clear: () => void;
 };
 
 export function createPinnedRuns(world: {
-  rig: CampaignRig;
   loader: Loader;
   /** The run on the snow now. */
   current: () => GameState;
@@ -104,24 +96,19 @@ export function createPinnedRuns(world: {
   /** Run on the frame the loading card lifts. */
   done: () => void;
 }): PinnedRuns {
-  let last: ReturnType<typeof pinnedRun> | null = null;
-  /** The campaign rung a downhill's training was stood up for — armed when
-   * its race is. */
-  let rungOf: CampaignLevel | null = null;
+  let last: ReturnType<typeof pinnedGameOptions> | null = null;
   return {
-    press: (pin, mode, rung) => {
+    press: (pin, mode) => {
       world.setMode(mode);
       const s = world.settings();
       const skier = world.skier(s);
       world.loader.begin({
         build: () => {
-          // A downhill's training books nothing: the rung waits for its race.
+          // A downhill stands up as its training.
           const training = mode === "downhill";
-          rungOf = rung ? pin : null;
-          world.rig.arm(training ? null : rungOf);
           const now = world.current();
           const built = now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
-          const opts = { ...pinnedRun(pin, mode, rung, skier, built), training };
+          const opts = { ...pinnedGameOptions(pin, mode, skier, built), training };
           const game = createGame(opts);
           last = { ...opts, level: game.level };
           return game;
@@ -133,7 +120,6 @@ export function createPinnedRuns(world: {
     tricks: (map, mode = "tricks") => {
       world.setMode(mode);
       last = null;
-      world.rig.arm(null);
       const s = world.settings();
       const skier = world.skier(s);
       world.loader.begin({
@@ -155,55 +141,43 @@ export function createPinnedRuns(world: {
       if (heatOf(now)) return secondRunAgain(now);
       // A big air jump again: the same jump of the same contest.
       if (now.bigAir) {
-        world.rig.arm(null);
         return createGame(recipeOf(now, "bigAir"));
       }
       // A slopestyle run again: the same run of the same contest.
       if (now.slopestyle) {
-        world.rig.arm(null);
         return createGame(recipeOf(now, "slopestyle"));
       }
       // An aerials jump again: the same jump of the same contest.
       if (now.aerials) {
-        world.rig.arm(null);
         return createGame(recipeOf(now, "aerials"));
       }
       // A moguls run again: the same run of the same contest.
       if (now.moguls) {
-        world.rig.arm(null);
         return createGame(recipeOf(now, "moguls"));
       }
       // A halfpipe run again: the same run of the same contest.
       if (now.halfpipe) {
-        world.rig.arm(null);
         return createGame(recipeOf(now, "halfpipe"));
       }
       // A ski-cross heat again: the same heat of the same bracket.
       if (now.cross) {
-        world.rig.arm(null);
         return createGame(recipeOf(now, "skiCross"));
       }
       // A downhill again as the run it is: its training, or its race.
       const training = trainingOf(now);
       if (training !== undefined) {
-        world.rig.arm(training ? null : world.rig.riding());
         return createGame(recipeOf(now, "downhill"));
       }
       if (!last) return null;
-      world.rig.arm(world.rig.riding());
       return createGame(last);
     },
     second: () => {
       const now = world.current();
-      // A DOWNHILL'S RACE, after its training: the same course, the rung
-      // armed now.
+      // A DOWNHILL'S RACE, after its training: the same course.
       if (secondRunOf(now)?.kind === "race") {
         world.setMode("downhill");
         world.loader.begin({
-          build: () => {
-            world.rig.arm(rungOf);
-            return createGame({ ...recipeOf(now, "downhill"), training: false });
-          },
+          build: () => createGame({ ...recipeOf(now, "downhill"), training: false }),
           camera: world.settings().camera,
           done: world.done,
         });
@@ -215,7 +189,6 @@ export function createPinnedRuns(world: {
         world.setMode("bigAir");
         world.loader.begin({
           build: () => {
-            world.rig.arm(null);
             return createGame({ ...recipeOf(now, "bigAir"), bigAir: contest });
           },
           camera: world.settings().camera,
@@ -229,7 +202,6 @@ export function createPinnedRuns(world: {
         world.setMode("slopestyle");
         world.loader.begin({
           build: () => {
-            world.rig.arm(null);
             return createGame({ ...recipeOf(now, "slopestyle"), slopestyle: slope });
           },
           camera: world.settings().camera,
@@ -243,7 +215,6 @@ export function createPinnedRuns(world: {
         world.setMode("aerials");
         world.loader.begin({
           build: () => {
-            world.rig.arm(null);
             return createGame({ ...recipeOf(now, "aerials"), aerials: jumps });
           },
           camera: world.settings().camera,
@@ -257,7 +228,6 @@ export function createPinnedRuns(world: {
         world.setMode("moguls");
         world.loader.begin({
           build: () => {
-            world.rig.arm(null);
             return createGame({ ...recipeOf(now, "moguls"), moguls: bumps });
           },
           camera: world.settings().camera,
@@ -271,7 +241,6 @@ export function createPinnedRuns(world: {
         world.setMode("halfpipe");
         world.loader.begin({
           build: () => {
-            world.rig.arm(null);
             return createGame({ ...recipeOf(now, "halfpipe"), halfpipe: pipe });
           },
           camera: world.settings().camera,
@@ -285,7 +254,6 @@ export function createPinnedRuns(world: {
         world.setMode("skiCross");
         world.loader.begin({
           build: () => {
-            world.rig.arm(null);
             return createGame({
               ...recipeOf(now, "skiCross"),
               cross: undefined,
@@ -306,7 +274,6 @@ export function createPinnedRuns(world: {
       world.setMode(mode);
       world.loader.begin({
         build: () => {
-          world.rig.arm(null);
           return createGame({ ...recipeOf(now, mode), heat });
         },
         camera: world.settings().camera,
@@ -315,8 +282,6 @@ export function createPinnedRuns(world: {
     },
     clear: () => {
       last = null;
-      rungOf = null;
-      world.rig.arm(null);
     },
   };
 }
@@ -407,16 +372,10 @@ export function secondRunAgain(state: GameState): GameState | null {
 }
 
 /** Where BACK on the skis card goes: the card that opened it — the free
- * ride's start card, the campaign card for a rung, the level card for a
- * pinned map, the trick map card for a tricks run — or the front door,
+ * ride's start card, the level card for a pinned map, the trick map card for a tricks run — or the front door,
  * where a link pinned a seed instead. */
-export function skisBack(
-  rung: CampaignLevel | null,
-  mode: GameMode,
-  linkSeed: number | null,
-): MenuPage {
+export function skisBack(mode: GameMode, linkSeed: number | null): MenuPage {
   if (mode === "free") return "start";
-  if (rung) return "campaign";
   if (mode === "tricks" || mode === "bigAir" || mode === "slopestyle")
     return linkSeed === null ? "tricks" : "root";
   return pinnedFor(NO_PICKS, mode, linkSeed) ? "levels" : "root";

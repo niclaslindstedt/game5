@@ -5,4 +5,4 @@ scope: pwa/src/game/menu-main.tsx, pwa/src/game/strings.ts, tests/hud_test.ts
 concepts: strings, front-door, tests
 ---
 
-`tests/hud_test.ts` holds that every `STRINGS` key is read somewhere in the app's source. Dropping the CAMPAIGN tile from the door left `menuCampaignLine`, `menuCampaignNext` and `menuCampaignDone` (in `strings-campaign.ts`) unread, and shrinking STATISTICS to a small button left `menuStatsTop` unread: the suite went red on the first of them only, so grep every `STRINGS.<key>` the removed markup used (`grep -rl "STRINGS\.<key>\b" pwa/src`) and delete each one nothing reads any more, in the sheet that defines it, in the same change.
+`tests/hud_test.ts` holds that every `STRINGS` key is read somewhere in the app's source. Dropping a tile from the door left its face's three line strings unread, and shrinking STATISTICS to a small button left `menuStatsTop` unread: the suite went red on the first of them only, so grep every `STRINGS.<key>` the removed markup used (`grep -rl "STRINGS\.<key>\b" pwa/src`) and delete each one nothing reads any more, in the sheet that defines it, in the same change.

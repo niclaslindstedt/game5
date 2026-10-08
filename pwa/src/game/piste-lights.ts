@@ -152,10 +152,17 @@ function uploadLight(
   return texture;
 }
 
-export function createPisteLights(level: Level, haze: HazeUniforms): PisteLights {
+export function createPisteLights(
+  level: Level,
+  haze: HazeUniforms,
+  others: readonly PisteMast[] = [],
+): PisteLights {
   const group = new THREE.Group();
   group.name = "piste-lights";
   const masts = planPisteLights(level);
+  // Every lamp whose light is baked: the masts' and `others`' (the
+  // village's street lamps, drawn by their own builder).
+  const baked = [...masts, ...others];
   const lamps = masts.flatMap((m) => m.lamps);
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -265,8 +272,8 @@ export function createPisteLights(level: Level, haze: HazeUniforms): PisteLights
       glowMat.uniforms.uPixels.value = pixels;
       // The light is baked the first time it is wanted: a map skied by day
       // never pays for it.
-      if (on > 0.001 && texture === null && lamps.length > 0) {
-        texture = uploadLight(level, masts, haze);
+      if (on > 0.001 && texture === null && baked.length > 0) {
+        texture = uploadLight(level, baked, haze);
       }
       haze.uPisteOn.value.x = texture ? on * LUX_TO_LAMP : 0;
     },

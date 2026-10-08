@@ -28,6 +28,8 @@ import {
   liftPlans,
   queueSpot,
   ropeAt,
+  carrierGripAt,
+  carrierSpeedAt,
   upRope,
   type LiftPlan,
 } from "./lift-line.ts";
@@ -130,6 +132,7 @@ export function stepCrowdLifts(state: GameState, crowd: CrowdState, net: LiftRun
     if (
       mine &&
       mine.index === i &&
+      mine.kind === "drag" &&
       (mine.phase === "wait" || (mine.phase === "ride" && mine.t < 2 * dt))
     )
       continue;
@@ -331,12 +334,16 @@ function ride(
   const side = (kind === "drag" ? DRAG_ARM : upRope(plan)) + (kind === "gondola" ? 0 : across);
   a.x = plan.lift.bottom.x + plan.dx * at.u + plan.dz * side;
   a.z = plan.lift.bottom.z + plan.dz * at.u - plan.dx * side;
+  // A chair's grip runs on its terminals' rails (`carrierGripAt`) and at
+  // the speed the clock carries it.
   a.y =
     kind === "drag"
       ? state.level.groundAt(a.x, a.z)
-      : ropeAt(plan, at.u) - (kind === "gondola" ? R.under + 2 : R.under);
+      : kind === "gondola"
+        ? ropeAt(plan, at.u) - R.under - 2
+        : carrierGripAt(plan, at.u) - R.under;
   a.heading = plan.heading;
-  a.speed = plan.look.speed;
+  a.speed = carrierSpeedAt(plan, at.u, at.side);
   a.vx = plan.dx * a.speed;
   a.vz = plan.dz * a.speed;
   stood(a);
@@ -357,9 +364,11 @@ function letGo(
 ): void {
   const g = crowd.groups[a.group];
   const off = offAt(plan);
-  // Side by side as the carrier held them, a skier's room apart — never
-  // let go on one spot to skate off inside each other.
-  const side = (a.seat - (R.seats[plan.lift.kind] - 1) / 2) * R.apart;
+  // Side by side as the carrier held them — off a chair stood up where
+  // each sat, to spread out as they skate off; off any other a skier's
+  // room apart — never let go on one spot to skate off inside each other.
+  const place = a.seat - (R.seats[plan.lift.kind] - 1) / 2;
+  const side = plan.lift.kind === "chair" ? upRope(plan) + place * R.seat : place * R.apart;
   const sx = plan.lift.bottom.x + plan.dx * off + plan.dz * side;
   const sz = plan.lift.bottom.z + plan.dz * off - plan.dx * side;
   a.x = sx;

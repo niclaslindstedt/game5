@@ -9,7 +9,7 @@
 //
 //   AT BOOT        a device that has been away comes back with the other's.
 //   WHEN TOLD      the shell says another device wrote the store.
-//   AFTER A WRITE  debounced. A write is the board, the skier's settings, or
+//   AFTER A WRITE  debounced. A write is the skier's settings, or
 //                  a card coming up over a run — which is when the book and
 //                  the tape of a finish have just been filed (`ghost-run.ts`
 //                  writes them at the flag, outside render state).
@@ -29,7 +29,6 @@
 import { useEffect, useRef } from "preact/hooks";
 
 import { askShellCloud, onShellCloud, shellHost, type ShellCloudReply } from "../shell-host.ts";
-import type { CampaignApp } from "./campaign-app.ts";
 import {
   applyCloudSave,
   carriedSettings,
@@ -42,7 +41,7 @@ import type { Settings } from "./settings.ts";
 import type { Shell } from "./shell.ts";
 
 /** How long after the last write the push goes up. Long enough to coalesce
- * a finish (book, tape and board together) and a skier who rides again. */
+ * a finish (book and tape together) and a skier who rides again. */
 const PUSH_AFTER_MS = 4000;
 
 /** How long an ask may go unanswered before the game stops waiting. A shell
@@ -75,12 +74,11 @@ function ask(action: "status" | "load" | "save", data = ""): Promise<ShellCloudR
 export type CloudSyncApp = {
   settings: Settings;
   setSettings: (settings: Settings) => void;
-  campaign: Pick<CampaignApp, "progress" | "adopt">;
   book: { current: Pick<RunBook, "reload"> | null };
   shell: Shell;
 };
 
-/** Keep this device's book, tapes, board and the skier's settings in step
+/** Keep this device's book, tapes and the skier's settings in step
  * with the skier's other devices. A no-op anywhere but the store app. */
 export function useCloudSync(app: CloudSyncApp): void {
   const native = shellHost() === "native";
@@ -101,7 +99,6 @@ export function useCloudSync(app: CloudSyncApp): void {
     const now = latest.current;
     const applied = applyCloudSave(remote, now.settings);
     if (applied.records) now.book.current?.reload();
-    if (applied.campaign) now.campaign.adopt(applied.save.campaign);
     if (applied.settings) {
       carried.current = JSON.stringify(carriedSettings(applied.settings));
       now.setSettings(applied.settings);
@@ -167,5 +164,5 @@ export function useCloudSync(app: CloudSyncApp): void {
     }
     const timer = setTimeout(() => sync.current(), PUSH_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [native, app.settings, app.campaign.progress, app.shell]);
+  }, [native, app.settings, app.shell]);
 }

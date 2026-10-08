@@ -95,6 +95,7 @@ describe("the baked ground (minimap-bake.ts)", () => {
       rock: { tone: [90, 80, 70] as [number, number, number], from: 0.75, to: 1.2 },
       wood: [90, 140, 100] as [number, number, number],
       cabins: new Float32Array(0),
+      streets: new Float32Array(0),
     };
     const px = 100;
     const rgba = bakeMinimap(src, px);
@@ -124,6 +125,7 @@ describe("the baked ground (minimap-bake.ts)", () => {
       wood: [90, 140, 100] as [number, number, number],
       // A roof 16 m by 8 m at (200, 200), turned a quarter: long along z.
       cabins: new Float32Array([200, 200, 8, 4, Math.PI / 2, 1]),
+      streets: new Float32Array(0),
     };
     const px = 200;
     const rgba = bakeMinimap(src, px);

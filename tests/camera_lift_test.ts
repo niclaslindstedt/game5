@@ -25,7 +25,6 @@ function ride(phase: LiftRide["phase"], t = 0, kind: LiftRide["kind"] = "chair")
     u: 0,
     speed: 0,
     swing: 0,
-    swingRate: 0,
     t,
     tower: 1,
     from: { x: 0, y: 0, z: 0, heading: 0 },

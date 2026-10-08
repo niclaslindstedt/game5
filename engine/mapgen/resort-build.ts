@@ -100,7 +100,6 @@ import {
 } from "./network.ts";
 import { funnelInto, gradeRun, networkStamp, onCore, stampRun } from "./network-build.ts";
 import { headOnContour, placeStart, startTop } from "./run-start.ts";
-import { groomRampsV5, layRampsV5 } from "./summit-ramps-v5.ts";
 import { regionRow, type Region, type RegionId } from "./regions.ts";
 import { ROAD_ROW, planResort } from "./resort.ts";
 import { cachedResort, keepResort, resortKey } from "./resort-cache.ts";
@@ -114,6 +113,7 @@ import { foldSurface, layCrust } from "./surface.ts";
 import { seaLevelOf, type TerrainPlan } from "./terrain.ts";
 import { compileLevel } from "./compile.ts";
 import { courseGates } from "./course-gates.ts";
+import { parkCourse, stampPark } from "./resort-park.ts";
 import { nearestTrackPoint, trackPointAt } from "./query.ts";
 import type {
   Cliff,
@@ -234,9 +234,8 @@ export function attemptResort(
 ): BuiltResort | string {
   const rng = createRng(sub);
   const traits = generatorTraits(version);
-  const plan = planMassif(rng, region, traits.lowMassif);
+  const plan = planMassif(rng, region);
   const ground = bakeMassif(plan);
-  const chained = !traits.queueBeside;
   const stepped = traits.steppedJunctions === true;
   const grade = (
     run: WalkedRun,
@@ -244,22 +243,18 @@ export function attemptResort(
     onto: WalkedRun | null,
     pinned?: (x: number, z: number) => boolean,
   ) => gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto, pinned, stepped);
-  const { lifts: liftPlans, specs, village: v } = planResort(rng, plan, chained);
+  const { lifts: liftPlans, specs, village: v } = planResort(rng, plan);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
-  const shape = padShape(traits.levelPads, traits.looseTops);
-  const raw = chained ? ground.data.slice() : null;
-  let pads = pressPads(ground, liftPlans, shape);
-  // v7: the peak's chair's queue ahead of a rider out of the gondola, at
-  // the first aim whose way the pressed snow carries him down (R26).
-  let way: ChainWay | null = null;
-  if (raw) {
-    const chain = layChain(ground, raw, liftPlans, pads, shape);
-    if (!chain) return "R26: no way off the gondola's top falls to the peak's chair's queue";
-    way = chain.way;
-    pads = chain.pads;
-  }
-  // v6's tops: runs started under them where a ramp has room (R26, R27).
-  const tight = shape.lean > 0 && !traits.looseTops;
+  const shape = padShape();
+  const raw = ground.data.slice();
+  // The peak's chair's queue ahead of a rider out of the gondola, at the
+  // first aim whose way the pressed snow carries him down (R26).
+  const chain = layChain(ground, raw, liftPlans, pressPads(ground, liftPlans, shape), shape);
+  if (!chain) return "R26: no way off the gondola's top falls to the peak's chair's queue";
+  let way: ChainWay | null = chain.way;
+  const pads = chain.pads;
+  // The tops: runs started under them where a ramp has room (R26, R27).
+  const tight = shape.lean > 0;
   /** Every station standing as the runs are walked — a lift's two ends,
    * the valley floor's aside (the runs finish among them in the hub, and
    * they are stood clear of them once every run stands) (R26). */
@@ -306,12 +301,11 @@ export function attemptResort(
     // Under its top by a glide's fall from the pad's rim (a drag's top,
     // from the top itself), R27.
     const lift = liftPlans.find((l) => l.id === spec.from);
-    const top =
-      lift && !traits.startsAcrossTop ? startTop(ground, lift, shape.r, traits.looseTops) : null;
+    const top = lift ? startTop(ground, lift, shape.r) : null;
     if (spec.kind === "road") {
       // The lane's route to the cheapest join on a piste off another top —
       // from under its own top, slid down the fall line (R27).
-      const z = top && !top.loose ? headOnContour(ground, spec.x, spec.z, top) : spec.z;
+      const z = top ? headOnContour(ground, spec.x, spec.z, top) : spec.z;
       const lane =
         z === null
           ? null
@@ -407,14 +401,14 @@ export function attemptResort(
     let laid =
       lay(before.length > 0 ? { ...fair, avoid } : fair, shared) ||
       (!!drag && lay({ ...fair, avoid: before.length > 0 ? offRooms : undefined }, shared));
-    // From v8 a piste the tall mountain is too steep to lay at its colour
+    // A piste the tall mountain is too steep to lay at its colour
     // is walked again a colour harder (R27): a shoulder's blue comes down as
     // a red where the face will not carry a blue.
     const harder =
       spec.kind === "piste" && spec.row.id
         ? PISTE_GRADES[PISTE_GRADES.indexOf(spec.row.id) + 1]
         : undefined;
-    if (!laid && !traits.lowMassif && harder) {
+    if (!laid && harder) {
       const again = { ...fair, row: GRADES[harder] };
       laid = lay(before.length > 0 ? { ...again, avoid } : again, shared);
     }
@@ -627,11 +621,9 @@ export function attemptResort(
   const runIn = (x: number, z: number, past: number): number =>
     net.covers(x, z, past, hit) ? hit.run : -1;
   const runs = shape.lean > 0 ? kept.map((w) => ({ ...w.spec, points: w.points })) : [];
-  const ramps = traits.looseTops
-    ? layRampsV5(ground, pads, runs, runAt, liftPlans)
-    : layRamps(ground, pads, runs, runIn, liftPlans, (x, z) =>
-        way ? offQueue(way, x, z) : Infinity,
-      );
+  const ramps = layRamps(ground, pads, runs, runIn, liftPlans, (x, z) =>
+    way ? offQueue(way, x, z) : Infinity,
+  );
 
   // ── 4b. ACCESS, AS THE RUNS MEASURE ──────────────────────────────────
   // R29 again on the colours the pressed runs measure and the runs that
@@ -741,8 +733,7 @@ export function attemptResort(
   // A drag's top too, the ground its rider is let go on (R26).
   groomPads([...pads, ...dragTops], packed, runAt);
   if (way) groomWay(way, packed, runAt);
-  if (traits.looseTops) groomRampsV5(packed, ramps, pads, (x, z) => runAt(x, z, RAMP_GROOM));
-  else groomRamps(packed, ramps, [...pads, ...dragTops], runs, runIn, RAMP_GROOM);
+  groomRamps(packed, ramps, [...pads, ...dragTops], runs, runIn, RAMP_GROOM);
   const tunnels = layTunnels(hubPlan, ground);
 
   // ── 7. THE WOODS ─────────────────────────────────────────────────────
@@ -875,6 +866,7 @@ export function resortLevel(
   index: number,
   laps: number,
   version: GeneratorVersion,
+  park = false,
 ): GeneratedLevel {
   const { plan: cp, course } = b.courses[index];
   const points: TrackPoint[] = cp.points.map((p) => ({ ...p, y: sampleField(b.ground, p.x, p.z) }));
@@ -926,7 +918,21 @@ export function resortLevel(
   const last = points[points.length - 1];
   const base: Vec3 = { x: last.x, z: last.z, y: last.y };
   const { sun, weather } = courseDay(b, course.id);
-  return {
+  // R20 — the park down the course, where one is asked for and fits, and
+  // the gates set round it.
+  const gatesFor = (field: readonly Kicker[]) =>
+    courseGates(
+      track,
+      drops,
+      onCourse,
+      course.grade,
+      b.sub ^ Math.imul(Number(course.id), 0x51a1e),
+      field,
+    );
+  const { field, checkpoints } = park
+    ? parkCourse({ points, length: cp.length }, onCourse, drops, drifts, gatesFor)
+    : { field: [], checkpoints: gatesFor([]) };
+  const level: GeneratedLevel = {
     ...compileLevel({
       seed: b.seed,
       size: b.plan.size,
@@ -934,16 +940,10 @@ export function resortLevel(
       packed: b.packed,
       points,
       length: cp.length,
-      checkpoints: courseGates(
-        track,
-        drops,
-        onCourse,
-        course.grade,
-        b.sub ^ Math.imul(Number(course.id), 0x51a1e),
-      ),
+      checkpoints,
       ...gridOnTrack(track),
       trees: b.trees,
-      kickers: onCourse.concat(kickers, b.offKickers),
+      kickers: onCourse.concat(field, kickers, b.offKickers),
       cliffs: drops.concat(cliffs, b.cliffs),
       sun,
       laps,
@@ -975,6 +975,7 @@ export function resortLevel(
       tunnels: b.tunnels,
     },
   };
+  return field.length > 0 ? stampPark(level, field) : level;
 }
 
 export { BENCH, GRADES };

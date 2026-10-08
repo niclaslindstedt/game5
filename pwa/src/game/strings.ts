@@ -14,7 +14,7 @@ import type { TrickKind, TrickPart } from "@engine";
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { BODY_STRINGS } from "./strings-body.ts";
-import { CAMPAIGN_STRINGS } from "./strings-campaign.ts";
+import { MAP_STRINGS } from "./strings-maps.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
@@ -28,6 +28,7 @@ import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
+import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
 import { SLOPESTYLE_STRINGS } from "./strings-slopestyle.ts";
@@ -108,6 +109,7 @@ export const STRINGS = {
   ...PARA_STRINGS,
   ...BALLOON_STRINGS,
   ...GROOMER_STRINGS,
+  ...TRAFFIC_STRINGS,
   ...BIG_AIR_STRINGS,
   ...SLOPESTYLE_STRINGS,
   ...HALFPIPE_STRINGS,
@@ -253,35 +255,38 @@ export const STRINGS = {
       | "net"
       | "maul"
       | "groomer"
+      | "car"
       | "balloon",
   ): string =>
-    cause === "balloon"
-      ? BALLOON_STRINGS.newsBalloonCrash
-      : cause === "maul"
-        ? "TAKEN BY THE GRIMBEAR"
-        : cause === "groomer"
-          ? "BONK! PISTE MACHINE"
-          : cause === "heli"
-            ? "THROWN CLEAR!"
-            : cause === "chair"
-              ? "SWEPT BY THE CHAIR!"
-              : cause === "net"
-                ? "INTO THE NETS!"
-                : cause === "stake"
-                  ? "YARD SALE! STAKE"
-                  : cause === "sled"
-                    ? "OFF THE SLED!"
-                    : cause === "tree"
-                      ? "YARD SALE! TREE"
-                      : cause === "skier"
-                        ? "YARD SALE! TAKEN OUT"
-                        : cause === "nose"
-                          ? "OVER THE TIPS"
-                          : cause === "roll"
-                            ? "YARD SALE"
-                            : cause === "landing"
-                              ? "CRASH LANDING"
-                              : "EDGE CAUGHT",
+    cause === "car"
+      ? TRAFFIC_STRINGS.newsCar
+      : cause === "balloon"
+        ? BALLOON_STRINGS.newsBalloonCrash
+        : cause === "maul"
+          ? "TAKEN BY THE GRIMBEAR"
+          : cause === "groomer"
+            ? "BONK! PISTE MACHINE"
+            : cause === "heli"
+              ? "THROWN CLEAR!"
+              : cause === "chair"
+                ? "SWEPT BY THE CHAIR!"
+                : cause === "net"
+                  ? "INTO THE NETS!"
+                  : cause === "stake"
+                    ? "YARD SALE! STAKE"
+                    : cause === "sled"
+                      ? "OFF THE SLED!"
+                      : cause === "tree"
+                        ? "YARD SALE! TREE"
+                        : cause === "skier"
+                          ? "YARD SALE! TAKEN OUT"
+                          : cause === "nose"
+                            ? "OVER THE TIPS"
+                            : cause === "roll"
+                              ? "YARD SALE"
+                              : cause === "landing"
+                                ? "CRASH LANDING"
+                                : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   newsWell: "TREE WELL! ROCK OUT OR RESET",
   /** Riding switch into loose snow on tails that do not ride over it
@@ -541,6 +546,8 @@ export const STRINGS = {
   optMedium: "MEDIUM",
   optHigh: "HIGH",
   optMax: "MAX",
+  /** A RESOLUTION stop: "70%". */
+  optShare: (percent: string): string => `${percent}%`,
   optShadowSkiers: "SKIERS",
   optCustom: "CUSTOM",
   optAuto: "AUTO",
@@ -617,6 +624,9 @@ export const STRINGS = {
     "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
   optSpray: "SPRAY",
   optSprayHint: "How much snow the skis throw.",
+  optLamps: "LAMPS",
+  optLampsHint:
+    "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",
   optAntialias: "SMOOTH EDGES",
   optAntialiasHint: "Antialiasing. Takes effect the next time the game is opened.",
 
@@ -744,6 +754,6 @@ export const STRINGS = {
   replayExit: "EXIT",
   replayNote: "C for the camera · ESC to leave",
 
-  /* ── THE CAMPAIGN (strings-campaign.ts, spread in) ─────────────────── */
-  ...CAMPAIGN_STRINGS,
+  /* ── THE PINNED MAPS (strings-maps.ts, spread in) ──────────────────── */
+  ...MAP_STRINGS,
 } as const;

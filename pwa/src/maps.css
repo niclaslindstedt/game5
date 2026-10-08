@@ -1,0 +1,171 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* ── THE MAP CARDS (menu-levels.tsx, menu-tricks.tsx, course-map.tsx) ──────
+   Map boxes in a grid. The BOX'S BORDER carries its state — lit and open,
+   grey and shut, ringed where the card would ride — because at a glance
+   across nine boxes the frame is what the eye counts; what is inside is only
+   what is specific to the map.
+
+   Its own sheet beside `styles.css`, imported after it (`main.tsx`), so the
+   map boxes' rules are one file to read and the card's shared furniture —
+   the head, the way on, the card itself — is the menu's own. */
+.menu-card-levels {
+  width: min(40rem, 100%);
+  text-align: left;
+}
+
+.menu-levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .menu-levels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.menu-level {
+  position: relative;
+  /* The piste drawn behind the box bleeds off its right edge on purpose, so
+     the box has to be the thing that clips it. */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-height: 5.5rem;
+  padding: 0.6rem 0.65rem;
+  border: 2px solid rgb(244 248 251 / 26%);
+  border-radius: 0.55rem;
+  background: rgb(44 92 140 / 55%);
+  color: var(--hud-ink);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+/* THE MAP'S OWN LOOP, drawn behind what the box says about it: hung to the
+   right and allowed to run off that edge, so the words keep a clean left
+   column; `currentColor` from the box, so an open box's ink and a shut box's
+   grey both arrive without a second palette. */
+.menu-level-route {
+  position: absolute;
+  top: 8%;
+  right: -6%;
+  bottom: 8%;
+  width: 58%;
+  z-index: 0;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+.menu-level-open:hover .menu-level-route,
+.menu-level-open:focus-visible .menu-level-route,
+.menu-level-open.nav-cursor .menu-level-route {
+  opacity: 0.38;
+}
+
+.menu-level-locked .menu-level-route {
+  opacity: 0.14;
+}
+
+.menu-level > :not(.menu-level-route) {
+  position: relative;
+  z-index: 1;
+}
+
+.menu-level-open {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.menu-level-open:hover,
+.menu-level-open:focus-visible,
+.menu-level-open.nav-cursor {
+  border-color: var(--flag);
+  background: rgb(44 92 140 / 80%);
+  outline: none;
+}
+
+/* The box the card would ride: ringed in the snow's white. */
+.menu-level-next {
+  border-color: var(--snow);
+  box-shadow: 0 0 0 2px rgb(232 65 44 / 55%);
+}
+
+.menu-level-locked {
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: rgb(13 34 51 / 45%);
+  color: rgb(244 248 251 / 45%);
+}
+
+.menu-level-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  font-size: 0.62rem;
+  opacity: 0.85;
+}
+
+.menu-level-mode {
+  width: 1.2em;
+  height: 1.2em;
+  color: var(--flag);
+}
+
+/* THE GRADE'S SIGN (R23, grade-mark.tsx): the green circle, the blue
+   square, the red rectangle, the black diamond — sized by the type it sits
+   in, so a box, a tab and a HUD chip each carry it at their own scale. */
+.grade-mark {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.2em;
+}
+
+.menu-level-grade {
+  width: 1.35em;
+  height: 1.35em;
+}
+
+.menu-level-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-wrap: balance;
+}
+
+.menu-level-day {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.menu-level-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.6rem;
+}
+
+.menu-level-mark-lit {
+  color: var(--snow);
+  font-weight: 700;
+}
+
+/* ── A CONTEST'S AWARD ON ITS PLATE (hud-bigair.tsx and the rest) ─────────
+   What the run paid — lit when it counted. */
+.hud-result-award {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.hud-result-award[data-cleared] {
+  color: var(--hud-ink);
+}

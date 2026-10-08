@@ -5,9 +5,8 @@
 // line until it lies under the station by a GLIDE's fall over the way to it
 // (`headBelow`), so a skier stood off any lift, a drag's as much as a
 // chair's, slides down to his run gathering speed and never climbs to it,
-// and near enough that a ramp comes down off the top to it (R26). A version from before (`startsAcrossTop`,
-// v4) looks along the line across the face through the top instead, at
-// whatever height that finds. The walk itself is `resort-build.ts`'s.
+// and near enough that a ramp comes down off the top to it (R26). The walk
+// itself is `resort-build.ts`'s.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
@@ -75,9 +74,6 @@ export type StartTop = {
   z: number;
   y: number;
   rim: number;
-  /** v5's starts (`looseTops`): on the top's contour `drop` m under it,
-   * at whatever distance. */
-  loose?: boolean;
 };
 
 /** A lift's top as the starts under it read it: its snow's height off
@@ -87,10 +83,9 @@ export function startTop(
   ground: Heightfield,
   lift: { kind: string; top: { x: number; z: number } },
   rim: number,
-  loose = false,
 ): StartTop {
   const y = sampleField(ground, lift.top.x, lift.top.z);
-  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim, loose };
+  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim };
 }
 
 /** The fall line a start is slid along, m a step and steps. */
@@ -104,7 +99,6 @@ const HEAD_SLIDES = 60;
  * down it. */
 function headBelow(top: StartTop, x: number, z: number): number {
   const K = RR.lift.top.ramp;
-  if (top.loose) return K.drop;
   return K.drop + K.fall * Math.max(0, hypot(x - top.x, z - top.z) - top.rim);
 }
 
@@ -123,7 +117,7 @@ export function headOnContour(
 ): number | null {
   const under = (z: number): boolean => sampleField(ground, x, z) <= top.y - headBelow(top, x, z);
   const near = (z: number): boolean =>
-    top.loose === true || hypot(x - top.x, z - top.z) <= RR.lift.top.ramp.far - REACH_SPARE;
+    hypot(x - top.x, z - top.z) <= RR.lift.top.ramp.far - REACH_SPARE;
   if (!under(z0)) {
     for (let k = 1; k <= HEAD_SLIDES; k++) {
       const z = z0 + k * HEAD_SLIDE;
@@ -152,9 +146,8 @@ const HEAD_DOWNS = [0, 12, 24, 36, 48];
  * the heading it leaves on: the first spot, out from the station on the
  * side the run leans to and then the other, a start of its colour can be
  * raced off — under it by a glide's fall (`headOnContour`), so a rider
- * off the lift slides down to it, never climbs; `top` null (a version
- * from before, `startsAcrossTop`) looks along the line across the face
- * through the top, at whatever height. Null where there is none within
+ * off the lift slides down to it, never climbs; `top` null (a run off no
+ * lift's top) looks along the line across the face, at whatever height. Null where there is none within
  * reach. */
 export function placeStart(
   ground: Heightfield,
@@ -168,7 +161,7 @@ export function placeStart(
   const mid = ((ground.cols - 1) * ground.cell) / 2;
   // Under a top, at half the step along the contour and a little further
   // down the fall line at each, for the ramp's room as much as the start's.
-  const close = top !== null && !top.loose;
+  const close = top !== null;
   const split = close ? 2 : 1;
   const downs = close ? HEAD_DOWNS : [0];
   for (let k = 0; k <= START_STEPS * split; k++) {

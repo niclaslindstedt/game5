@@ -65,12 +65,14 @@ export function rideTarget(lift: LiftRide | null): number {
   return lift?.phase === "ride" ? 1 : 0;
 }
 
-/** THE FADE through a station (`LiftRide.faded`): to black over the last
- * `out` m of his skate up to a gondola's door or a chair's load line, held
- * black `hold` s once he is in his carrier — the lens cut to it there
- * (`liftCut`) — and back in over `in` s on him sat in it as it leaves the
- * station — and the same in, held and out where the tuck held skips him up
- * the lift. A T-bar takes him in the open, unfaded. */
+/** THE FADE through a gondola's station (`LiftRide.faded`): to black
+ * over the last `out` m of his skate up to its door, or of his cabin's
+ * carrying into its top station; held black `hold` s once he is out on
+ * the platform, or out of the top station's door (`LiftRide.stand`) — the
+ * lens cut to him there (`liftCut`); and back in over `in` s on him
+ * waiting for his cabin, or walking out onto the pad. The tuck held skips
+ * him up any lift behind the same out, hold and in. A chair and a T-bar
+ * take him on and let him go in the open, unfaded. */
 export const LIFT_FADE = { out: 2.4, hold: 0.35, in: 0.9 };
 
 function ease(a: number, b: number, x: number): number {
@@ -78,15 +80,31 @@ function ease(a: number, b: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/** How black the picture is, 0 clear … 1 black, for the lift `lift`. */
-export function liftFade(lift: LiftRide | null): number {
+/** How black the picture is, 0 clear … 1 black, for the lift `lift` —
+ * `togo` m of carrying short of where it lets him go (a gondola's cabin
+ * comes into its top station behind the fade, and he is walked out of its
+ * door as it comes back in). */
+export function liftFade(lift: LiftRide | null, togo = Infinity): number {
   if (!lift) return 0;
+  if (lift.kind === "gondola" && lift.phase === "ride") {
+    if (lift.stand !== undefined)
+      return 1 - ease(LIFT_FADE.hold, LIFT_FADE.hold + LIFT_FADE.in, lift.stand);
+    if (togo < LIFT_FADE.out) return Math.max(ease(LIFT_FADE.out, 0.15, togo), inFade(lift));
+  }
   // Skipped up the lift (`TUNING.lift.skip`): out over its fade…
   if (lift.skip !== undefined) return ease(0, TUNING.lift.skip.fade, lift.skip);
-  if (lift.kind === "drag" && !lift.faded) return 0;
+  // A T-bar and a chair take him in the open, unfaded: only a gondola's
+  // door (and a ride skipped up) goes dark.
+  if (lift.kind !== "gondola" && !lift.faded) return 0;
   if (lift.phase === "board" && lift.walk !== undefined && lift.s !== undefined)
     return ease(LIFT_FADE.out, 0.15, lift.walk - lift.s);
-  if (lift.phase === "ride" && lift.faded)
+  return inFade(lift);
+}
+
+/** The fade back in on him sat in his carrier leaving a station, or
+ * waiting for his cabin (`faded`). */
+function inFade(lift: LiftRide): number {
+  if (lift.phase !== "board" && lift.faded)
     return 1 - ease(LIFT_FADE.hold, LIFT_FADE.hold + LIFT_FADE.in, lift.t);
   return 0;
 }
@@ -94,7 +112,8 @@ export function liftFade(lift: LiftRide | null): number {
 /** Whether the lens is cut, not flown, to the lift's look this frame: the
  * moment held black in a station (`LIFT_FADE.hold`). */
 export function liftCut(lift: LiftRide | null): boolean {
-  return !!lift?.faded && lift.phase === "ride" && lift.t < LIFT_FADE.hold;
+  if (lift?.kind === "gondola" && lift.stand !== undefined) return lift.stand < LIFT_FADE.hold;
+  return !!lift?.faded && lift.phase !== "board" && lift.t < LIFT_FADE.hold;
 }
 
 /** One frame of the lift's look, `dt` s after the last: the share eased

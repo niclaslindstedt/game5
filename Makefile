@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd audience lift-ride heli sled sled-land sled-turn grimbear gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: title-scene title world buildings lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
 
 build:
 	npm run build
@@ -53,12 +53,28 @@ world:
 # previews/world-free-stations.png (`docs/buildings.md`, the `buildings`
 # skill), then the slalom's start house and the finish arena —
 # previews/world-race-buildings.png, then the wind tunnels' fan house,
-# gallery and exit portal — previews/world-free-tunnels.png. ARGS=--hour=21
-# shows the panes lit after dark.
+# gallery and exit portal — previews/world-free-tunnels.png, then the ski
+# area's village and mountain buildings — previews/world-free-village.png
+# (and village-plaza, village-lift), and its streets — village-air (the
+# plan from the air), village-street (down the main street at eye
+# height), village-square and village-back. ARGS=--hour=21 shows the
+# panes and the street lamps lit after dark.
 buildings:
 	npm run world -- --free --views=stations $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --slalom --hour=12 --views=race-buildings $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --free --views=tunnels $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --views=village-plaza,village-lift,village,village-air,village-street,village-square,village-back $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE LIFTS LAB: the lifts' hardware as drawn (`lifts.ts`, `lift-shapes.ts`,
+# `docs/lifts.md`) through the game's own renderer — a chair's tower from
+# three sides and at chase range, a gondola's and a drag's tower, a chair
+# from three sides, a gondola cabin from two, a T-bar, the lines from a
+# skier's eye and a bullwheel — previews/world-free-lifts.png by day and
+# previews/world-free-h21-lifts.png after dark, then one part a frame
+# (world-free-lift-tower/-chair/-cabin/-tbar.png).
+lifts:
+	npm run world -- --free --hour=11 --views=lift-tower,lift-chair,lift-cabin,lift-tbar,lifts $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --hour=21 --views=lifts --skip-build $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:
@@ -239,12 +255,13 @@ lean:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the heli-ski helicopter,
+# The models the game ships: every pair of skis, the heli-ski helicopter
+# and its air ambulance,
 # the mountain snowmobile and the night's piste machine, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0). The skier
@@ -254,6 +271,7 @@ blender:
 models:
 	$(if $(filter all skis,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
 	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
+	$(if $(filter all rescue,$(or $(KIND),all)),npm run blender -- --kind rescue --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
@@ -399,6 +417,18 @@ crowd:
 audience:
 	npm run audience -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
+# THE CIVILIANS LAB: the free ride's people on foot — every body at every
+# pose its figure is morphed between (figures), each activity strobed as the
+# view blends it (moves), the things they hold and the deck chairs and
+# snowmen with the heads, the staff and the cuts (props), and SEED's ski area
+# through the game's renderer (resort: lift, terrace, yard, base, walker,
+# cocoa, kids, overview; terrace and base again at hour 21) —
+# previews/civilians/*.png. Its own one-off bundle from
+# pwa/civilians-preview.html (never deployed); needs a Chromium like `world`.
+# SEED=n; ARGS="--sheet=resort --views=terrace --night="; ARGS=--tag=round1.
+civilians:
+	npm run civilians -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
 # THE LIFT RIDE LAB: a free ride begun on the chairlift, carried to the
 # top, stood off down the unload ramp and its lane past the station house,
 # turned at the signs and led onto its run — ridden unbroken at sixty
@@ -409,6 +439,29 @@ audience:
 # like `world`. SEED=n REGION=id; ARGS="--camera=far --at=-3,0,1,2,4,8".
 lift-ride:
 	npm run lift-ride -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GETTING ON AND OFF LAB, as filmed: every way on and off a lift — a
+# chair's load and unload, a T-bar's pick-up and release, a gondola's
+# step-in and step-out (`pwa/src/tools/lift-stage.ts`) — ridden on the real
+# engine through the game's renderer and photographed frame by frame, a
+# row a lens (the lift line's flanks, from down the line, the game's own
+# chase), one sheet a stage, previews/lift-strip-<stage>-<seed>.png. The
+# lift-ride lab's bundle; needs a Chromium. STAGE=chair-load,…|all
+# SEED=n REGION=id; ARGS="--views=side,back,top,chase --frames=14".
+lift-board:
+	npm run lift-ride -- --strip=$(if $(STAGE),$(STAGE),all) $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GETTING ON AND OFF LAB, numbered (pure Node, seconds): each stage
+# ridden on the engine and posed at 60 fps as the view poses him, and the
+# hand-overs measured — the origin's fastest move, a joint's pop, the
+# heading's swivel, the boots' sink and float, the seconds faded black and
+# how long each part takes against the research's bands — with a strobe
+# from above and the side and its traces, previews/lift-flow.png.
+# STAGE= SEED= REGION=; ARGS="--json=previews/lift-flow-before.json" before
+# a change and ARGS="--compare=previews/lift-flow-before.json" after;
+# ARGS="--list" names each worst frame, "--dump=t0,t1 --joint=handsL" walks it.
+lift-flow:
+	npm run lift-flow -- $(if $(STAGE),--stage=$(STAGE),) $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE HELICOPTER LAB: the free ride's helicopter staged at every event it
 # has and photographed through the game's renderer — parked on its pad and
@@ -517,6 +570,16 @@ balloon:
 # Chromium like `world`. ARGS="--sheet=kill,moves", "--views=stride".
 grimbear:
 	npm run grimbear -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE RESCUE LAB: the air ambulance on the run after an injured one
+# (docs/rescue.md) — where it lands, the crew scooping him onto the
+# stretcher frame by frame (--sheet=scoop) and lifting it, the carry stride by stride, the loading through the door, the
+# lift-off and the wash, the next run skied past it, after dark — through
+# the game's own renderer. One contact sheet a group, previews/rescue-<group>.png,
+# and every frame alone. Its own one-off bundle from pwa/rescue-preview.html
+# (never deployed); needs a Chromium like `world`. ARGS="--sheet=carry,load", "--at=0.6".
+rescue:
+	npm run rescue -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE GORE LAB: a body torn apart on a run with the INJURIES switch on —
 # skied into a trunk, flown into one head first, thrown onto the snow, onto
@@ -771,22 +834,22 @@ analyze:
 
 # RATE generated maps — how HARD each one is and what KIND of hard, on the
 # eight axes of engine/rating/ folded into one index. `--stats` is the
-# population per axis; CAMPAIGN=1 audits the committed ladder (every map on
-# its own version and held to its digest, the bot's time, the climb).
-# `make rate` · `make rate COUNT=96 ARGS=--stats` · `make rate CAMPAIGN=1`
+# population per axis; RACE=<discipline> audits that discipline's nine race
+# maps (every map on its own version and held to its digest, the bot's time).
+# `make rate` · `make rate COUNT=96 ARGS=--stats` · `make rate RACE=superG`
 rate:
-	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(CAMPAIGN),--campaign,) $(if $(RACE),--race $(RACE),) $(ARGS)
+	npm run rate -- $(if $(SEED),--seed $(SEED),) $(if $(SEEDS),--seeds $(SEEDS),) $(if $(COUNT),--count $(COUNT),) $(if $(RACE),--race $(RACE),) $(ARGS)
 
 # THE DIFFICULTY SCHEMATIC: one map from above with what makes it hard drawn
 # over it — the corners, the climbs, the drifts, the walled woods — and the
-# eight axes beside it, to previews/difficulty-<seed>.png. CAMPAIGN=1 draws
-# one sheet per committed map.
-# `make difficulty SEED=38` · `make difficulty CAMPAIGN=1`
+# eight axes beside it, to previews/difficulty-<seed>.png. RACE=<discipline>
+# draws one sheet per race map of that discipline.
+# `make difficulty SEED=38` · `make difficulty RACE=downhill`
 difficulty:
-	npm run difficulty -- $(if $(SEED),--seed $(SEED),) $(if $(CAMPAIGN),--campaign,) $(ARGS)
+	npm run difficulty -- $(if $(SEED),--seed $(SEED),) $(if $(RACE),--race $(RACE),) $(ARGS)
 
-# THE CAMPAIGN'S ROUTES: every pinned map's loop written down as the line its
-# box on the card draws (pwa/src/game/campaign-routes.ts, generated).
+# THE MAP ROUTES: every pinned map's loop written down as the line its box
+# on the card draws (pwa/src/game/map-routes.ts, generated).
 # `make routes` · `make routes ARGS=--check`
 routes:
 	npm run routes -- $(ARGS)

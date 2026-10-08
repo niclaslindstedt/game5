@@ -28,7 +28,7 @@
 
 import { createGame, error, type GameMode, type GameState, type CreateGameOptions } from "@engine";
 
-import type { PinnedSkier } from "./campaign.ts";
+import type { PinnedSkier } from "./pinned.ts";
 import type { CameraRung, WorldRenderer } from "./renderer-api.ts";
 import {
   advanceLoad,

@@ -16,7 +16,7 @@
 // to what he can gather from the hut (`PAR.push`, then the pitch) and shed
 // before a bend (`PAR.brake`). The clock is that profile integrated, and
 // `PAR.scale` is the measured share of it the bot's own slalom takes over
-// the campaign's fourteen slaloms and seeds 1–16, every one within 5 % of
+// the slaloms it was fitted on and seeds 1–16, every one within 5 % of
 // it (the field's best is dealt about par, so par is a good
 // racer's clean run, and the bot one of the field).
 

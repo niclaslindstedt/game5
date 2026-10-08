@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// CLOUD SAVE — the skier's RECORD BOOK, their GHOSTS, their CAMPAIGN BOARD
-// and the settings that belong to the SKIER rather than to the machine,
+// CLOUD SAVE — the skier's RECORD BOOK, their GHOSTS and the settings that belong to the SKIER rather than to the machine,
 // carried between their own devices by the platform's cloud (iCloud
 // key-value storage in the store app; the seam in `../shell-host.ts` is
 // written so a second platform is a new native provider and no change here).
@@ -17,8 +16,6 @@
 //             whole store is a megabyte (`CLOUD_BUDGET`), so the smallest go
 //             first and a tape that does not fit stays on the device that
 //             rode it — its time still travels in the book.
-//   campaign  YES. A board half-ridden on one device and half on another is
-//             the case this whole file exists for.
 //   settings  THE SKIER'S HALF. The camera, the skis, the outfit, the sound and its
 //             faders, the keys, the help, damage, the poles, the
 //             level cards' maps, the trick map, the free ride's card, the
@@ -35,10 +32,6 @@
 //   records   BEST PER ROW, kept by `beats()` — the comparison a fresh run
 //             goes through, the mode read out of the row's own id.
 //   ghosts    THE FASTER TAPE PER ROW, the same rule the book keeps.
-//   campaign  FURTHEST PROGRESS. Per map: the better time (and the skis that
-//             set it, together), the HIGHER place, and the
-//             field's points from whichever afternoon placed the player
-//             higher — exactly what `recordRun` does for a local run.
 //   settings  THE LATER CHANGE. A preference has no "better", so this is the
 //             one half decided by a clock: each device stamps the moment its
 //             skier last moved one of the carried rows, and the newer stamp
@@ -48,17 +41,6 @@
 // above the storage line is PURE, so `tests/cloud_save_test.ts` holds it
 // without a browser.
 
-import {
-  EMPTY_PROGRESS,
-  PLAYER_ID,
-  PROGRESS_KEY,
-  findLevel,
-  loadProgress,
-  mergeProgress,
-  saveProgress,
-  type CampaignProgress,
-  type LevelResult,
-} from "./campaign.ts";
 import { loadGhosts, readsAsGhost, saveGhost, type GhostRun } from "./ghost.ts";
 import {
   beats,
@@ -99,13 +81,8 @@ export type SettingsStamp = { at: number; values: CarriedSettings };
 
 export type CloudSave = {
   v: typeof CLOUD_SAVE_VERSION;
-  /** THE LADDER the board was won on (`PROGRESS_KEY`): a board from a
-   * ladder this build has re-cut names its maps by ids that now mean
-   * other maps, so it is read only when this matches. */
-  ladder: string;
   records: RecordBook;
   ghosts: GhostRun[];
-  campaign: CampaignProgress;
   settings: SettingsStamp | null;
 };
 
@@ -143,46 +120,6 @@ export function mergeGhosts(mine: readonly GhostRun[], theirs: readonly GhostRun
   return [...out.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-/** FURTHEST PROGRESS. Per map, the better of the two rows, and the board from
- * whichever afternoon placed the player higher. A map this ladder does not
- * have is dropped: the ladder moved under it. */
-export function mergeBoards(mine: CampaignProgress, theirs: CampaignProgress): CampaignProgress {
-  const results: Record<string, LevelResult> = { ...mine.results };
-  for (const [id, row] of Object.entries(theirs.results)) {
-    if (!findLevel(id)) continue;
-    const standing = results[id];
-    if (standing === undefined) {
-      results[id] = row;
-      continue;
-    }
-    // The time and the skis are kept or replaced TOGETHER, as `recordRun`
-    // keeps them — a best time beside the wrong machine is a line the card
-    // would read out loud.
-    // A row with no time is one DEVELOPER ▸ UNLOCKS set by hand: any run's
-    // figure beats it.
-    const figure =
-      row.best !== undefined && (standing.best === undefined || row.best < standing.best)
-        ? { best: row.best, skis: row.skis }
-        : { best: standing.best, skis: standing.skis };
-    results[id] = {
-      ...figure,
-      place: Math.min(standing.place, row.place),
-    };
-  }
-  // THE BOARD FOLLOWS THE BETTER AFTERNOON: a map's points are the whole
-  // field's from one run, so they are taken or left together rather than
-  // blended into a table no afternoon produced.
-  const points = { ...mine.points };
-  for (const [id, board] of Object.entries(theirs.points)) {
-    if (!findLevel(id)) continue;
-    const standing = points[id];
-    if (standing === undefined || (board[PLAYER_ID] ?? 0) > (standing[PLAYER_ID] ?? 0)) {
-      points[id] = board;
-    }
-  }
-  return { results, points };
-}
-
 /** THE LATER CHANGE. The newer stamp wins whole; a tie, or a side that has
  * none, keeps mine. */
 export function mergeStamps(
@@ -198,10 +135,8 @@ export function mergeStamps(
 export function mergeSaves(mine: CloudSave, theirs: CloudSave): CloudSave {
   return {
     v: CLOUD_SAVE_VERSION,
-    ladder: PROGRESS_KEY,
     records: mergeBooks(mine.records, theirs.records),
     ghosts: mergeGhosts(mine.ghosts, theirs.ghosts),
-    campaign: mergeBoards(mine.campaign, theirs.campaign),
     settings: mergeStamps(mine.settings, theirs.settings),
   };
 }
@@ -225,10 +160,9 @@ export function packSave(save: CloudSave, budget = CLOUD_BUDGET): string {
 }
 
 /** A blob off the cloud, checked the way a stored blob is — every half
- * through the same validators local storage uses, so a save written by a
- * build that knew more maps than this one cannot put a row on a board this
- * ladder does not have. Null for nothing, or for something that is not a
- * save at all. */
+ * through the same validators local storage uses; anything an older build
+ * carried that this one does not know is left behind. Null for nothing, or
+ * for something that is not a save at all. */
 export function parseSave(text: string | null): CloudSave | null {
   if (!text) return null;
   let parsed: unknown;
@@ -249,15 +183,8 @@ export function parseSave(text: string | null): CloudSave | null {
   }
   return {
     v: CLOUD_SAVE_VERSION,
-    ladder: PROGRESS_KEY,
     records: mergeRecords(blob.records),
     ghosts: mergeGhosts([], ghosts),
-    // A board off another ladder — or written before boards carried one —
-    // is left behind, as local storage leaves it under its old key.
-    campaign:
-      blob.ladder === PROGRESS_KEY && blob.campaign !== undefined
-        ? mergeProgress(blob.campaign)
-        : EMPTY_PROGRESS,
     settings,
   };
 }
@@ -292,10 +219,8 @@ export function localSave(settings: Settings): CloudSave {
   const at = loadSettingsStamp();
   return {
     v: CLOUD_SAVE_VERSION,
-    ladder: PROGRESS_KEY,
     records: loadRecords(),
     ghosts: mergeGhosts([], loadGhosts()),
-    campaign: loadProgress(),
     settings: at > 0 ? { at, values: carriedSettings(settings) } : null,
   };
 }
@@ -305,7 +230,6 @@ export type CloudApplied = {
   /** What should now go up. */
   save: CloudSave;
   records: boolean;
-  campaign: boolean;
   /** The settings to hold now, or null when this device's stood. */
   settings: Settings | null;
 };
@@ -319,12 +243,10 @@ export type CloudApplied = {
  * them, and writes them down itself. */
 export function applyCloudSave(remote: CloudSave | null, settings: Settings): CloudApplied {
   const mine = localSave(settings);
-  if (remote === null) return { save: mine, records: false, campaign: false, settings: null };
+  if (remote === null) return { save: mine, records: false, settings: null };
   const save = mergeSaves(mine, remote);
   const records = JSON.stringify(save.records) !== JSON.stringify(mine.records);
-  const campaign = JSON.stringify(save.campaign) !== JSON.stringify(mine.campaign);
   if (records) saveRecords(save.records);
-  if (campaign) saveProgress(save.campaign);
   const held = new Map(mine.ghosts.map((run) => [run.id, run]));
   for (const run of save.ghosts) if (held.get(run.id) !== run) saveGhost(run);
   let adopted: Settings | null = null;
@@ -332,5 +254,5 @@ export function applyCloudSave(remote: CloudSave | null, settings: Settings): Cl
     saveSettingsStamp(save.settings.at);
     adopted = { ...settings, ...save.settings.values };
   }
-  return { save, records, campaign, settings: adopted };
+  return { save, records, settings: adopted };
 }

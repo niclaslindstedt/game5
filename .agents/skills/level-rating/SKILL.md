@@ -1,6 +1,6 @@
 ---
 name: level-rating
-description: "Use when judging whether a generated map is any GOOD and how HARD it is rather than merely correct — choosing or replacing a CAMPAIGN rung, reading a generator change as what it did to the whole seed population, or calibrating one of the rating's scales. Owns `engine/rating/` (the eight axes, the difficulty index, the ladder scorer), `make rate` (the table, `--sim`, `--stats`, `CAMPAIGN=1`) and `make difficulty` (the schematic). Three loops: calibrating a scale from a measured population, shortlisting a ladder, and reading a rules change as a distribution. Not whether a map is BROKEN (`make analyze`, `mapgen-improvement`), and not the campaign's own table and locks (`campaign`)."
+description: "Use when judging whether a generated map is any GOOD and how HARD it is rather than merely correct — choosing or replacing a pinned race map, reading a generator change as what it did to the whole seed population, or calibrating one of the rating's scales. Owns `engine/rating/` (the eight axes, the difficulty index, the ladder scorer), `make rate` (the table, `--sim`, `--stats`, `RACE=…`) and `make difficulty` (the schematic). Three loops: calibrating a scale from a measured population, shortlisting a ladder, and reading a rules change as a distribution. Not whether a map is BROKEN (`make analyze`, `mapgen-improvement`), and not the pinned maps' own curation and version contract (`pinned-maps`)."
 ---
 
 # Rating a map, and reading a ladder
@@ -14,7 +14,7 @@ this is how it is used.
 
 **Read this skill's lessons first** — `npx ogf-skill-lessons
 level-rating --list`. Load **`skill-reflection`** at both ends,
-**`write-code`** beside this one for any code change, **`campaign`** when a
+**`write-code`** beside this one for any code change, **`pinned-maps`** when a
 map is about to be pinned, **`mapgen-improvement`** when the answer turns
 out to be a change to the generator, and **`simulate-run`** whenever a map
 is about to move — the bot is the only thing that knows whether the ladder
@@ -28,9 +28,9 @@ make rate SEEDS=7,38 ARGS=--sim            ...with the bot's run as the time axi
 make rate COUNT=96                         a sweep to shortlist from (ARGS="--from 97" for the next hundred)
 make rate SEEDS=38 ARGS="--hour 20 --weather fog"   under a pinned sky
 make rate COUNT=96 ARGS=--stats            the POPULATION per axis: min, quartiles, max, the share pinned at 1 and at 0
-make rate CAMPAIGN=1                       the committed ladder audited as a set, with the bot's time on every rung
+make rate RACE=superG                      a discipline's nine race maps audited as a set, with the bot against par
 make difficulty SEED=38                    the schematic: the piste by its bends, the pitches, the drifts, the walled woods, the panel
-make difficulty CAMPAIGN=1                 one sheet per committed map
+make difficulty RACE=superG                one sheet per race map of that discipline
 ```
 
 **Eight axes, each 0..1, none better than another.** Seven are the MAP's
@@ -76,7 +76,7 @@ the weather's odds, not a scale to move.
 ## Loop B — shortlisting a ladder
 
 The failure this exists to prevent: sort the sweep by the index, keep the
-top six. Every one is a good map and the campaign is terrible, because they
+top nine. Every one is a good map and the set is terrible, because they
 score for the same reasons and are the same map six times.
 
 Hold a shortlist to a BRIEF instead, and read the index as a pass mark:
@@ -86,15 +86,13 @@ Hold a shortlist to a BRIEF instead, and read the index as a pass mark:
 - no two rungs the same map twice (`LADDER.apart`, on the closest PAIR)
 - every kind of ask led on somewhere: a bends rung, a steep rung, a woods
   rung, an air rung, a traverse rung, a powder rung, a dark one
-- the shelf's colour held: every map is built to its shelf's grade (R23),
-  and `make rate CAMPAIGN=1` says so with `!!` where one measures another
-- the disciplines interleaved: a slalom, a downhill on a black
+- the colour held: every map is built to the grade it is pinned to (R23)
 - no `make analyze` errors — the sweep prints them
 
 Then confirm in the game — the bot's time on the candidate — because a rung
 the index loves and the bot skis quicker than the one below it is not a
-harder rung. `make rate CAMPAIGN=1` reads the committed set and names the
-flat rung and the duplicate pair; `campaign` owns the rest of pinning it.
+harder rung. `make rate RACE=…` reads the committed set; `pinned-maps` owns the rest of
+pinning it.
 
 ## Loop C — reading a change to the generator
 
@@ -112,7 +110,7 @@ did. The population can.
 Read the DISTRIBUTION, not the mean: a median that moved is the change doing
 its job, a tail that grew is the interesting part, an axis that stopped
 varying is a rule that has become deterministic. And if the change moved a
-campaign map, `campaign`'s version contract is the next thing to read.
+pinned map, `pinned-maps`' version contract is the next thing to read.
 
 ## Where everything lives
 

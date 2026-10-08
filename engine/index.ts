@@ -600,6 +600,7 @@ export {
   stepBody,
 } from "./game/body.ts";
 export { bleedsOf, holdsHim, isDead, stepGore, type Bleed } from "./game/gore.ts";
+export { RESCUE, callRescue, disables, disablingOf, isInjured } from "./game/rescue.ts";
 export {
   GORE_OPEN,
   GORE_PIECES,
@@ -635,6 +636,18 @@ export {
   type Mechanism,
 } from "./game/defs/anatomy.ts";
 export { dampShare, harshShare, skiBite, skiPull, springShare, takeDamage } from "./game/damage.ts";
+export {
+  hurtDrive,
+  hurtEdge,
+  hurtGrip,
+  hurtLanding,
+  hurtOf,
+  hurtRate,
+  hurtTuck,
+  stepHurt,
+} from "./game/hurt.ts";
+export { HURT } from "./game/defs/hurt.ts";
+export type { Hurt } from "./game/hurt-state.ts";
 export {
   bearingToNext,
   finishRun,
@@ -707,7 +720,17 @@ export {
 } from "./game/snow-guns.ts";
 export { SNOW_GUN } from "./game/defs/snow-guns.ts";
 export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
-export { CABINS, CABIN_LAYOUT, type CabinDef, type CabinKind } from "./game/defs/cabins.ts";
+export {
+  CABINS,
+  CABIN_LAYOUT,
+  type CabinDef,
+  type CabinKind,
+  type LogKind,
+} from "./game/defs/cabins.ts";
+// THE SKI AREA'S BUILDINGS AND THE VILLAGE'S STREETS: where they stand, the
+// plan, what it carries, the questions asked of it.
+export * from "./game/village-api.ts";
+export * from "./game/traffic-api.ts";
 export {
   hashOf as rockHash,
   onAnyCliff,
@@ -825,6 +848,8 @@ export {
   carrierAt,
   carrierCount,
   carrierPassing,
+  carrierSpeedAt,
+  carrierGripAt,
   CHAIR_EXIT,
   chairLane,
   liftPlans,
@@ -854,9 +879,11 @@ export {
   type StationHouse,
   type Support,
 } from "./game/lift-line.ts";
+export { carrierSwingAt } from "./game/carrier-swing.ts";
 export {
   arriveByLift,
   arrivalOf,
+  cabinDoors,
   chairStrike,
   emptyChairAt,
   freeRunOf,
@@ -866,6 +893,7 @@ export {
   seatedShare,
   stepLift,
 } from "./game/lift-ride.ts";
+export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {
   airPointsPerSecond,
   landingGrade,

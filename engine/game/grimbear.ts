@@ -30,6 +30,7 @@ import { throwRider } from "./crash.ts";
 import { treesNear } from "./upright-grid.ts";
 import type { GrimbearPhase, GrimbearState } from "./grimbear-state.ts";
 import type { GameEvent, GameState } from "./state.ts";
+import { felledTrees } from "./village.ts";
 
 const K = GRIMBEAR;
 const dt = TUNING.dt;
@@ -101,11 +102,13 @@ function lieInWait(state: GameState, b: GrimbearState): boolean {
   const fx = c.vx / v;
   const fz = c.vz / v;
   const trees = state.level.trees;
+  const gone = felledTrees(state.level);
   let best = -1;
   let score = Infinity;
   for (let d = K.ahead[0]; d <= K.ahead[1]; d += K.search) {
     treesNear(state.level, c.x + fx * d, c.z + fz * d, K.search, near);
     for (const i of near) {
+      if (gone[i]) continue;
       const t = trees[i];
       const along = (t.x - c.x) * fx + (t.z - c.z) * fz;
       const side = Math.abs((t.x - c.x) * fz - (t.z - c.z) * fx);

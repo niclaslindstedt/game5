@@ -77,6 +77,8 @@ import { createCrossFlags } from "./cross-flags.ts";
 import { createCrossGate } from "./cross-gate.ts";
 import { bulgeAt, hasNets, netDents, type NetDent } from "./net-bulge.ts";
 import { createPisteLights } from "./piste-lights.ts";
+import { streetLampMasts } from "./street-furniture-build.ts";
+import { createVillageStreets } from "./streets-view.ts";
 import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
 import type { SkyLook } from "./sky.ts";
 import { createRunSigns } from "./run-signs.ts";
@@ -711,7 +713,11 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   group.add(signs.group);
 
   // THE PISTE LIGHTS: the floodlight masts down every run.
-  const lights = createPisteLights(level, haze);
+  // And THE VILLAGE'S STREETS on the snow, their lamps' light baked with
+  // the masts'.
+  const streets = createVillageStreets(level, haze);
+  if (streets) group.add(streets.group);
+  const lights = createPisteLights(level, haze, streetLampMasts(level));
   group.add(lights.group);
 
   // THE SNOW GUNS, in a thin season.
@@ -827,6 +833,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       bands.dispose();
       signs.dispose();
       lights.dispose();
+      streets?.dispose();
       guns?.dispose();
       slalomPoles?.dispose();
       house?.dispose();

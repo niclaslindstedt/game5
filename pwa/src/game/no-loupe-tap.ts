@@ -20,3 +20,23 @@ export function isSecondTap(last: number, now: number): boolean {
 export function isTap(x0: number, y0: number, x1: number, y1: number): boolean {
   return Math.hypot(x1 - x0, y1 - y0) <= TAP_SLOP_PX;
 }
+
+/** WHAT THE GUARD DOES WITH A TOUCH'S END: `leave` it to the browser, or
+ * `take` it — cancel the end (no zoom, no loupe) and click the pressed
+ * element itself. It is taken ONLY when both halves are sure: the end can
+ * be cancelled, and the touch is a tap on the element it began on. Anything
+ * less is left whole, because half a take is a broken press —
+ * - an end the browser will not let be cancelled (a scroll under way, a
+ *   main thread it judged busy) still makes its own click, and a click of
+ *   ours beside it steps a row TWICE;
+ * - a cancelled end that is then judged no tap (a finger that rolled past
+ *   the slop) has had its click taken and none given back, and the press
+ *   is LOST. */
+export function loupeAction(end: {
+  second: boolean;
+  cancelable: boolean;
+  editable: boolean;
+  tap: boolean;
+}): "leave" | "take" {
+  return end.second && end.cancelable && !end.editable && end.tap ? "take" : "leave";
+}

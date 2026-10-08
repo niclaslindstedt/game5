@@ -5,7 +5,7 @@ import { render } from "preact";
 import "./menu.css";
 import "./menu-pages.css";
 import "./styles.css";
-import "./campaign.css";
+import "./maps.css";
 import "./dev.css";
 import "./body.css";
 import "./wreck.css";

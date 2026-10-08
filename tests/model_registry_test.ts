@@ -57,7 +57,13 @@ describe("the model registry", () => {
 
   it("keeps only the skis and the machines as models — the skier is dressed in code, the rest built in it", () => {
     const modelled = MODEL_REGISTRY.filter((r) => r.source === "blender").map((r) => r.asset);
-    expect(modelled).toEqual(["Skis", "Helicopter", "Snowmobile", "Piste machine"]);
+    expect(modelled).toEqual([
+      "Skis",
+      "Helicopter",
+      "Air ambulance",
+      "Snowmobile",
+      "Piste machine",
+    ]);
   });
 
   it("is the table docs/models.md carries — `make model-registry` rewrites it", () => {

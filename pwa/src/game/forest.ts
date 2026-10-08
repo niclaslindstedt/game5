@@ -41,7 +41,7 @@
 // none of them is switched on by riding closer to its tree.
 
 import * as THREE from "three";
-import { regionOf, type Level, type Vec3 } from "@engine";
+import { felledTrees, regionOf, type Level, type Vec3 } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth } from "./terrain-shade.ts";
@@ -220,6 +220,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const up = new THREE.Vector3(0, 1, 0);
   const across = new THREE.Vector3();
   const ground: Vec3 = { x: 0, y: 1, z: 0 };
+  // The trees felled, by their number in the bin order.
+  const felled = felledTrees(level);
+  const gone = new Uint8Array(count);
+  for (let k = 0; k < count; k++) gone[rank[k]] = felled[k];
   for (let i = 0; i < count; i++) {
     const t = trees[i];
     const h = hash(t.x, t.z);
@@ -247,6 +251,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     // one by as much again as its flared foot rises on the side it leans
     // from.
     p.set(t.x, t.y - 0.3 - t.radius * 1.45 * Math.sin(tilt.angle), t.z);
+    // A tree felled for the village or a building's site (`felledTrees`)
+    // is drawn as nothing: its matrix squashed to its foot.
+    if (gone[i]) s.set(0, 0, 0);
     m.compose(p, q, s).toArray(matrices, i * 16);
     const tone = 0.9 + hash(t.z, t.x) * 0.2;
     colours[i * 3] = tone;

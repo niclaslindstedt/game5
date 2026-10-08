@@ -264,6 +264,7 @@ export function soundForEvent(
         shape: { gain: 1.1, pitch: 1, stretch: 1 },
       };
     case "death":
+    case "injured":
       return null;
 
     case "bump": {
@@ -430,6 +431,21 @@ export function soundForEvent(
       return {
         id: "sled_crash",
         shape: { ...heard, gain: heard.gain! * (0.6 + 0.6 * ramp(event.speed, 2, 15)) },
+      };
+    }
+
+    // THE VILLAGE'S TRAFFIC (`traffic.ts`): a skier met by a car, the bus
+    // or a bike — the bodywork's thud, as loud as he came in hard.
+    case "traffic": {
+      const heard = heardAt(
+        { x: event.x, y: contact.ear?.y ?? 0, z: event.z },
+        contact.ear,
+        HEARD_NEAR,
+      );
+      const base = event.vehicle === "bike" ? 0.35 : 0.5;
+      return {
+        id: "sled_crash",
+        shape: { ...heard, gain: heard.gain! * (base + 0.5 * ramp(event.speed, 2, 15)) },
       };
     }
 

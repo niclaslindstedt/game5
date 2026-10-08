@@ -207,7 +207,7 @@ export interface Level {
    * is skied under `CLEAR_WEATHER` — ask `weatherOf`, never this field. */
   weather?: Weather;
   /** WHICH GENERATOR built the map (`versions.ts`): the current rules unless
-   * a campaign map pinned an older row. */
+   * a pinned map named an older row. */
   version?: GeneratorVersion;
   /** The kind of snow country the map was built in (R21) — ask `regionOf`,
    * which reads a hand-built map without one as the alpine. */
@@ -774,7 +774,7 @@ export interface Lift {
   kind: "gondola" | "chair" | "drag";
   bottom: Vec3;
   top: Vec3;
-  /** THE RAMPS OFF ITS TOP (R26, generator v5 on): one down from its pad's
+  /** THE RAMPS OFF ITS TOP (R26): one down from its pad's
    * rim to the head of each run a rider skis onto from it. Absent on a drag
    * and on a map from before them. */
   ramps?: SummitRamp[];
@@ -789,10 +789,6 @@ export type SummitRamp = {
   from: Vec3;
   to: Vec3 & { s: number };
   width: number;
-  /** A ramp generator v5 laid (`looseTops`), which may roll over a LIP
-   * into a drop down to its run (`summit-ramps-v5.ts`); absent, it falls
-   * evenly all the way. */
-  lip?: boolean;
 };
 
 /** A course (R28): the line from a run's top station down the network to
@@ -850,8 +846,8 @@ export interface GenerateOptions {
    * R15 and R19 dealt (`withSky`). Applied AFTER the search accepts the
    * map, so it moves nothing the map builds. */
   sky?: SkyOverride;
-  /** The generator version to build by (`versions.ts`) — a campaign map's
-   * pinned row; the current rules when left out or unknown. */
+  /** The generator version to build by (`versions.ts`) — a pinned map's
+   * row; the current rules when left out or unknown. */
   version?: GeneratorVersion;
   /** Lay the TERRAIN PARK on the piste (R20) — a map for a tricks run. Left
    * out, the map carries none and is exactly the seed's race map. */

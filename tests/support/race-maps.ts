@@ -22,14 +22,14 @@ import {
   weatherOf,
   withSky,
 } from "@engine";
-import { buildCampaignLevel, campaignSky } from "../../pwa/src/game/campaign.ts";
-import { CAMPAIGN_ROUTES } from "../../pwa/src/game/campaign-routes.ts";
+import { buildPinnedLevel, pinnedSky } from "../../pwa/src/game/pinned.ts";
+import { MAP_ROUTES } from "../../pwa/src/game/map-routes.ts";
 import { RACE_MAPS, type RaceMap } from "../../pwa/src/game/race-maps.ts";
 import { routeOf } from "../../pwa/src/game/route-shape.ts";
 
 /** The run a race map is raced as, set over the map it builds. */
 function raced(map: RaceMap) {
-  const built = buildCampaignLevel(map);
+  const built = buildPinnedLevel(map);
   const state = createGame({ seed: map.seed, level: built, mode: map.mode, quiet: true });
   return { built, level: state.level };
 }
@@ -47,15 +47,13 @@ export function holdRaceMaps(
         expect(levelDigest(built), `${map.id}'s digest moved — read race-maps.ts's header`).toBe(
           map.digest,
         );
-        const sky = campaignSky(map);
+        const sky = pinnedSky(map);
         const day = sky ? withSky(built, sky) : built;
         expect(weatherOf(day).kind, `${map.id}'s box bills the wrong sky`).toBe(map.day.weather);
         expect(day.sun.hour, `${map.id}'s box bills the wrong hour`).toBeCloseTo(map.day.hour, 1);
         // A speed race's box draws its track — the final's, top to bottom.
         const drawn = discipline === "speedSki" ? setSpeedSki(built, 2) : built;
-        expect(CAMPAIGN_ROUTES[map.id], `${map.id}'s line — run \`make routes\``).toBe(
-          routeOf(drawn),
-        );
+        expect(MAP_ROUTES[map.id], `${map.id}'s line — run \`make routes\``).toBe(routeOf(drawn));
         if (discipline === "speedSki") {
           // The FINAL's track its box bills, its speed inside the band.
           const final = drawn.speedSki!;

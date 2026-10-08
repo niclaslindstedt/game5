@@ -11,6 +11,8 @@
 
 import type { BodyPart, DeathCause, InjuryKind } from "@engine";
 
+import type { AgainAt } from "./free-ride.ts";
+
 /** Which side a paired part is on, as the line says it: `LEFT ` / `RIGHT `
  * (with the space), and nothing for a part of the trunk. */
 export function sideWord(part: BodyPart): string {
@@ -173,5 +175,17 @@ export const BODY_STRINGS = {
     machine: "UNDER THE PISTE MACHINE",
     blast: "BLOWN APART",
   } satisfies Record<DeathCause, string>,
-  diedAgain: "A NEW RIDER AT THE TOP",
+  /** Where the next rider stands (`free-ride.ts`'s `againAt`). */
+  diedAgain: {
+    start: "A NEW RIDER AT THE START",
+    top: "A NEW RIDER AT THE TOP OF THE SLOPE",
+    pad: "A NEW RIDER AT THE HELIPAD",
+    sled: "A NEW RIDER ON THE SNOWMOBILE",
+    summit: "A NEW RIDER ON THE SUMMIT, UNDER THE WING",
+    basket: "A NEW RIDER IN THE BALLOON'S BASKET",
+  } satisfies Record<AgainAt, string>,
+  /** HURT TOO BADLY TO SKI ON (`rescue.ts`): the word and what comes next
+   * — what keeps him down is his worst such injury's own line. */
+  injuredWord: "INJURED",
+  injuredAgain: "THE AIR AMBULANCE IS ON ITS WAY",
 };

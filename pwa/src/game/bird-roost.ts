@@ -9,7 +9,7 @@
 // tallest spruce here, how far is the loop) and the model asks the clock.
 //
 // THE MAP IS NEVER MOVED BY IT. The generator's seeded stream is the
-// generator's (`subSeed`, a fixed order of draws, and a pinned campaign map
+// generator's (`subSeed`, a fixed order of draws, and a pinned map
 // holds a DIGEST of what came out); this draws on a generator of its OWN,
 // seeded off `level.seed` with a salt nothing in the engine uses, reads only
 // what the `Level` publishes, and writes nothing back. So a map with birds

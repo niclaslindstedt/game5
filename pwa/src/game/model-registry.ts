@@ -75,6 +75,23 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "the main rotor, the tail rotor); the code's stand-in is a cabin, a boom, the skids and the rotors",
   },
   {
+    asset: "Air ambulance",
+    ids: ["rescue"],
+    source: "blender",
+    code: ["pwa/src/game/heli-view.ts"],
+    drawnBy: "pwa/src/game/heli-view.ts",
+    blender: {
+      builder: "scripts/blender/rescue.py",
+      files: ["rescue.glb"],
+      pattern: "rescue.glb",
+      switch: "VITE_MODEL_HELI",
+    },
+    note:
+      "the mountain rescue helicopter that lands beside a skier too hurt to get up: the heli's " +
+      "airframe and nodes (its builder run whole) in signal yellow with an anthracite band, the " +
+      "blue star on white, a rescue hoist over the sliding door, a searchlight and wire cutters",
+  },
+  {
     asset: "Snowmobile",
     ids: ["sled"],
     source: "blender",
@@ -185,6 +202,21 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
     note:
       "procedural: the free ride's crowd — eight bodies at three levels of detail, posed " +
       "by morph targets solved from the player's own pose and dressed per instance",
+  },
+  {
+    asset: "People on foot",
+    ids: CROWD_BODIES.map((b) => `civilian-${b}`),
+    source: "code",
+    code: [
+      "pwa/src/game/civilian-shapes.ts",
+      "pwa/src/game/civilian-moves.ts",
+      "pwa/src/game/tree-mesh.ts",
+    ],
+    drawnBy: "pwa/src/game/civilians-view.ts",
+    note:
+      "procedural: the free ride's staff and guests off their skis — the crowd's eight bodies " +
+      "without skis at three levels of detail, posed by morph targets off the afterski's keys, " +
+      "their props, deck chairs and snowmen built in code",
   },
   {
     asset: "Spectators",

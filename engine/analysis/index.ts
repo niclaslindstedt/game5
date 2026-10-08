@@ -47,7 +47,6 @@ import { checkTrickField } from "./trick-field.ts";
 import { analyzeResort, nearestOtherRun, nearestRun } from "./resort.ts";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
 import { WIDEST, clearance } from "../mapgen/network.ts";
-import { generatorTraits } from "../mapgen/versions.ts";
 
 export type Severity = "error" | "warn";
 
@@ -274,11 +273,10 @@ export function analyzeLevel(level: Level, opts: { network?: boolean } = {}): Le
     if (Math.abs(M.summit.y - M.base.y - M.vertical) > 0.01) {
       add("R2", "error", "the summit does not stand the vertical over the base");
     }
-    // From v8 the floor stands by the sea and the tree line its share of
-    // the mountain over it (R25): the region's bands hold the low massif.
-    const low = !resort || generatorTraits(level.version).lowMassif;
+    // On a ski area the floor stands by the sea and the tree line its share
+    // of the mountain over it (R25): the region's bands hold the single piste.
     if (
-      low &&
+      !resort &&
       (!withinBand(M.altitude, region.altitude.base) ||
         !withinBand(M.treeLine, region.altitude.treeLine))
     ) {

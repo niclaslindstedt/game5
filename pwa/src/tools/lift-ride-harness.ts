@@ -21,12 +21,9 @@
 // and lays the tiles out on the page for the driver to photograph.
 
 import {
-  boardingRing,
   createGame,
   liftPlans,
   NEUTRAL_INPUT,
-  queueLane,
-  standSkier,
   step,
   TUNING,
   type GameState,
@@ -37,6 +34,14 @@ import {
 import type { Rung } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import {
+  atFoot as stageAt,
+  stageOf,
+  stageState,
+  stageWindow,
+  STAGES,
+  type StageId,
+} from "./lift-stage.ts";
 
 declare global {
   interface Window {
@@ -78,8 +83,21 @@ const VIEWS: Record<string, { x: number; y: number; z: number }> = {
   back: { x: 0.4, y: 0.6, z: -3 },
   front: { x: 0.3, y: 0.5, z: 3 },
 };
+/** How he rolls into the boarding ring: `lane` up the queue's lane from
+ * beyond the corral, facing in; `wrong` from the corral's side of the
+ * ring, facing away from it — the way he must turn round to go in; `side`
+ * across the lane, facing across it. */
+const approach = params.get("approach") ?? "lane";
 /** The lift whose foot is photographed boarding, by kind. */
 const board = (params.get("board") ?? "") as LiftKind | "";
+/** THE STRIPS (`?strip=`): one stage of getting on or off a lift
+ * (`lift-stage.ts`), filmed frame by frame — a row a lens (`?views=`), a
+ * column a moment, `?frames=` of them evenly over the stage's window. */
+const strip = (params.get("strip") ?? "") as StageId | "";
+const stripViews = (params.get("views") ?? "side,back,chase").split(",");
+const stripFrames = Number(params.get("frames") ?? 10);
+const stripBefore = Number(params.get("before") ?? 3);
+const stripAfter = Number(params.get("after") ?? 4);
 const width = Number(params.get("w") ?? 1280);
 const height = Number(params.get("h") ?? 720);
 const cols = Number(params.get("cols") ?? 3);
@@ -126,28 +144,9 @@ function unloadAt(): number {
 const FRAME = 1 / 60;
 const STEPS = Math.round(FRAME / TUNING.dt);
 
-/** A free ride stood at a lift's foot: just inside its boarding ring on the
- * queue's lane, rolling in from beyond the corral. */
+/** A free ride stood at a lift's foot (`lift-stage.ts`'s `atFoot`). */
 function atFoot(kind: LiftKind): GameState | null {
-  const state = createGame({ seed, region, mode: "free", quiet: true });
-  const plan = liftPlans(state.level).find((p) => p.lift.kind === kind);
-  if (!plan) return null;
-  const ring = boardingRing(plan);
-  const lane = queueLane(plan);
-  const a = lane[lane.length - 2];
-  const b = lane[lane.length - 1];
-  const len = Math.hypot(b.u - a.u, b.v - a.v) || 1;
-  // Outward along the lane's last leg, in the world.
-  const ou = (b.u - a.u) / len;
-  const ov = (b.v - a.v) / len;
-  const ox = plan.dx * ou + plan.dz * ov;
-  const oz = plan.dz * ou - plan.dx * ov;
-  const out = 7;
-  const heading = Math.atan2(-ox, -oz);
-  standSkier(state, ring.x + ox * out, ring.z + oz * out, heading);
-  state.skier.vx = -ox * 3.5;
-  state.skier.vz = -oz * 3.5;
-  return state;
+  return stageAt(seed, region, kind, approach);
 }
 
 async function boardSheet(kind: LiftKind): Promise<{ note: string; tiles: number }> {
@@ -206,7 +205,91 @@ async function boardSheet(kind: LiftKind): Promise<{ note: string; tiles: number
   };
 }
 
+/** A lens planted round the rider in the LIFT LINE's frame (`u` up the
+ * line, `v` right of it), for a strip: off the line's right side, from
+ * behind down the line, from ahead up it, or high over him. */
+const LINE_VIEWS: Record<string, { u: number; v: number; y: number; fov: number }> = {
+  side: { u: 2.5, v: 6, y: 0.6, fov: 50 },
+  lside: { u: 2.5, v: -6, y: 0.6, fov: 50 },
+  back: { u: -6, v: 1.2, y: 1.4, fov: 46 },
+  front: { u: 6, v: 1.2, y: 1.0, fov: 46 },
+  top: { u: -0.5, v: 0.4, y: 9, fov: 50 },
+};
+
+async function stripSheet(id: StageId): Promise<{ note: string; tiles: number }> {
+  if (!(STAGES as readonly string[]).includes(id)) return { note: `no stage ${id}`, tiles: 0 };
+  const win = stageWindow(id, seed, region, { before: stripBefore, after: stripAfter });
+  const state = stageState(id, seed, region);
+  if (!win || !state) return { note: `${id}: no such lift on this map`, tiles: 0 };
+  const plan = liftPlans(state.level).find((p) => p.lift.kind === stageOf(id).kind)!;
+  await renderer.load(state);
+  renderer.setCamera(rung, true);
+  const n = Math.max(2, stripFrames);
+  const times = Array.from({ length: n }, (_, i) => win.from + ((win.to - win.from) * i) / (n - 1));
+  const tw = Math.round(width * scale);
+  const th = Math.round(height * scale);
+  sheetEl.style.gridTemplateColumns = `repeat(${n}, ${tw}px)`;
+  sheetEl.replaceChildren();
+  const cells: HTMLElement[][] = stripViews.map(() => []);
+  let next = 0;
+  // Warmed up a second before the window, so every spring has settled.
+  const warm = Math.max(0, win.from - 1.5);
+  while (next < times.length) {
+    for (let i = 0; i < STEPS; i++) step(state, NEUTRAL_INPUT);
+    if (state.t < warm) continue;
+    renderer.setOverride(null);
+    const due = state.t >= times[next];
+    renderer.draw(state, 0, FRAME, false);
+    if (!due) continue;
+    const c = state.skier;
+    const ride = c.lift;
+    stripViews.forEach((v, row) => {
+      const lv = LINE_VIEWS[v];
+      if (lv) {
+        // The rider's place in the line's frame, and the lens off it.
+        const rx = c.x - plan.lift.bottom.x;
+        const rz = c.z - plan.lift.bottom.z;
+        const u = rx * plan.dx + rz * plan.dz + lv.u;
+        const side = rx * plan.dz - rz * plan.dx + lv.v;
+        const eye = {
+          x: plan.lift.bottom.x + plan.dx * u + plan.dz * side,
+          y: c.y + lv.y,
+          z: plan.lift.bottom.z + plan.dz * u - plan.dx * side,
+        };
+        renderer.setOverride({
+          eye,
+          target: { x: c.x, y: c.y - 0.3, z: c.z },
+          fov: lv.fov,
+          roll: 0,
+        });
+      } else renderer.setOverride(null);
+      renderer.draw(state, 0, 0, true);
+      const cell = document.createElement("figure");
+      const tile = document.createElement("canvas");
+      tile.width = tw;
+      tile.height = th;
+      tile.getContext("2d")?.drawImage(canvas, 0, 0, tw, th);
+      const caption = document.createElement("figcaption");
+      caption.textContent =
+        `${v}  ${state.t.toFixed(2)} s  ` +
+        `${ride ? `${ride.phase}${ride.faded ? "*" : ""}` : "skiing"}  ` +
+        `${(c.speed * 3.6).toFixed(0)} km/h`;
+      cell.append(tile, caption);
+      cells[row].push(cell);
+    });
+    renderer.setOverride(null);
+    next++;
+  }
+  for (const row of cells) sheetEl.append(...row);
+  canvas.style.display = "none";
+  return {
+    note: `seed ${seed}${region ? ` ${region}` : ""}, ${id}, ${stripViews.join("/")}, ${win.from.toFixed(1)}–${win.to.toFixed(1)} s (${win.events.map((e) => `${e.phase} ${e.t.toFixed(1)}`).join(", ")})`,
+    tiles: times.length * stripViews.length,
+  };
+}
+
 async function sheet(): Promise<{ note: string; tiles: number }> {
+  if (strip) return stripSheet(strip);
   if (board) return boardSheet(board);
   const off = unloadAt();
   if (!Number.isFinite(off)) return { note: "the chair never unloaded", tiles: 0 };

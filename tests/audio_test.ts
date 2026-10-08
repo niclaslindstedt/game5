@@ -125,6 +125,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   afterski: { kind: "afterski", t: 40, phase: "beer", beers: 1, buzz: 0.14 },
   fetch: { kind: "fetch", t: 40, phase: "ski", skis: 1 },
   groomer: { kind: "groomer", t: 40, phase: "strike", id: 0, x: 0, z: 0, speed: 5 },
+  traffic: { kind: "traffic", t: 40, phase: "strike", vehicle: "hatch", x: 0, z: 0, speed: 5 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },
   jump: { kind: "jump", t: 1, pop: 4, held: 1 },
   land: {
@@ -152,6 +153,14 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   injury: { kind: "injury", t: 1, part: "kneeL", injury: "tornAcl", ais: 2 },
   gore: { kind: "gore", t: 1, what: "torn", piece: "armL", x: 0, y: 0, z: 0 },
   death: { kind: "death", t: 1, cause: "bled" },
+  injured: {
+    kind: "injured",
+    t: 1,
+    injury: { part: "thighL", kind: "brokenFemur", ais: 3, t: 1 },
+    x: 0,
+    y: 0,
+    z: 0,
+  },
   trick: { kind: "trick", t: 1, trick: "backflip", spins: 1, points: 300, mult: 3 },
   combo: { kind: "combo", t: 1, points: 2000, base: 700, mult: 3, sketchy: false },
   bail: { kind: "bail", t: 1, lost: 2000, cause: "wipeout" },
@@ -168,8 +177,17 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * wind's moment — it comes up with the snow gone — not a one-shot's; a
  * skier bogged is the powder's hush, which the snow bed already is; and
  * what a blow bent or hurt is heard in the blow, as a save is in the landing, the
- * trunk or the edges' scrape that started it. */
-const SILENT_KINDS: GameEvent["kind"][] = ["air", "stuck", "damage", "save", "injury", "death"];
+ * trunk or the edges' scrape that started it — and a body found too hurt to
+ * get up has nothing more to say than the fall that did it. */
+const SILENT_KINDS: GameEvent["kind"][] = [
+  "air",
+  "stuck",
+  "damage",
+  "save",
+  "injury",
+  "death",
+  "injured",
+];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */
 const HEADSET = safeCutoff(1e9, 16000);

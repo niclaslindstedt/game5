@@ -6,7 +6,7 @@
 
 import type { CreateGameOptions, GameMode } from "@engine";
 
-import type { CampaignLevel } from "./campaign.ts";
+import type { PinnedLevel } from "./pinned.ts";
 import type { TrickMap } from "./trick-maps.ts";
 
 /** The presses the cards make, boxed so a card re-rendering is never a
@@ -20,8 +20,8 @@ export type Presses = {
     map: TrickMap,
     mode?: "tricks" | "bigAir" | "slopestyle" | "halfpipe" | "moguls" | "aerials",
   ) => void;
-  /** A pinned map: a campaign rung (`rung`), or a map off the level card. */
-  pinned: (pin: CampaignLevel, mode: CampaignLevel["mode"], rung: boolean) => void;
+  /** A pinned map off the level card. */
+  pinned: (pin: PinnedLevel, mode: PinnedLevel["mode"]) => void;
   restart: () => void;
   /** A slalom's SECOND RUN, off the first run's plate (`pinned-run.ts`). */
   second: () => void;

@@ -57,7 +57,9 @@
 //
 // IT IS A READOUT: nothing in the physics reads it, and it draws nothing
 // from the stream. A reset MENDS it (`mendBody`): the skier stood back up
-// on the piste is a sound one — only the run's hardest blow is kept.
+// on the piste is a sound one — only the run's hardest blow is kept. The
+// one exception is a run with the INJURIES switch on (`GameState.gore`):
+// there a reset keeps it, and `hurt.ts` reads what it leaves him.
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
@@ -82,6 +84,7 @@ import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
+import { TRAFFIC_STRIKE } from "./defs/traffic.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
@@ -532,7 +535,9 @@ function fall(c: SkierState, cause: string, speed: number): void {
     charge(sided("knee", s), "twist", speed * I.rollTwist);
     charge(sided("knee", -s), "twist", speed * I.rollTwist * 0.5);
   } else if (cause === "groomer") {
-    steel(speed);
+    steel(speed, GROOMER.strike, "groomer");
+  } else if (cause === "car") {
+    steel(speed, { least: TRAFFIC_STRIKE.least, hard: 1, give: TRAFFIC_STRIKE.give }, "car");
   } else if (cause === "nose") {
     for (const s of [-1, 1]) {
       charge(sided("shin", s), "bend", speed);
@@ -546,9 +551,13 @@ function fall(c: SkierState, cause: string, speed: number): void {
  * the hips, the legs and the head in its helmet — at `strike.least` m/s at
  * the least and `strike.hard` times over (twelve tonnes do not give),
  * against the blade's next to nothing; and three blows' worth of injuries
- * taken off it rather than one. */
-function steel(speed: number): void {
-  const S = GROOMER.strike;
+ * taken off it rather than one. KNOCKED DOWN BY A CAR (`traffic-contact.ts`)
+ * the same way, its bumper and bonnet giving `TRAFFIC_STRIKE.give`. */
+function steel(
+  speed: number,
+  S: { least: number; hard: number; give: number },
+  source: "groomer" | "car",
+): void {
   const v = Math.max(S.least, speed) * S.hard;
   const hit = (part: BodyPart, share: number, face: Facing | null): number => {
     const g = blow(part, v, S.give, true, share);
@@ -568,7 +577,7 @@ function steel(speed: number): void {
     hit(sided("shin", s), 0.7, null);
   }
   cap = I.perBlow * 3;
-  offer(g, "chest", "groomer");
+  offer(g, "chest", source);
 }
 
 /** READ THIS STEP'S DOSES against every part's ladder: the injuries taken,

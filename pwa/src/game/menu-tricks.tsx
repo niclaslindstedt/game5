@@ -25,7 +25,7 @@ import {
   type GameMode,
 } from "@engine";
 
-import { CourseMap } from "./menu-campaign.tsx";
+import { CourseMap } from "./course-map.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { MenuBody, MenuHead, StepRow } from "./menu-knobs.tsx";
 import { AERIAL_PICKS } from "./aerials-run.ts";
@@ -137,7 +137,7 @@ export function TrickMapsPage({
             data-menu="skis"
             onClick={() => onPick(pick)}
           >
-            <span class="menu-item-name">{STRINGS.campaignRide}</span>
+            <span class="menu-item-name">{STRINGS.mapRide}</span>
           </button>
         }
       />

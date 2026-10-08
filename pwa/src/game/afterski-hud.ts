@@ -24,6 +24,8 @@ export function afterskiOf(state: GameState): HudAfterski | null {
   if (c.thrown || c.lift || state.heli?.rider || state.sled?.rider) return null;
   let away = Infinity;
   for (const lodge of lodgesOf(state.level)) {
+    // The door he has just come out of is not called until he is away.
+    if (lodge.id === a.out) continue;
     const door = doorOf(lodge);
     away = Math.min(away, Math.hypot(door.x - c.x, door.z - c.z));
   }

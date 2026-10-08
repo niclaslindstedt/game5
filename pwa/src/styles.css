@@ -1890,6 +1890,13 @@ canvas {
   touch-action: none;
 }
 
+/* Carried up a lift a finger on the glass looks round (`lift-gaze.ts`):
+   the zones still take it, but neither pad is drawn under it. */
+.hud-touch[data-look] .hud-bar,
+.hud-touch[data-look] .hud-lever {
+  visibility: hidden;
+}
+
 .hud-zone-left {
   left: 0;
 }
@@ -3620,8 +3627,8 @@ canvas {
 }
 
 /* ── THE FREE RIDE: its start card, its chart ──────────────────────────────
-   (Its front-door tile is a `.menu-tile-wide`, unlit, like the race's:
-   exactly one lit control per card, and that is the CAMPAIGN.) */
+   (Its slab on PLAY's page is unlit: exactly one lit control per card,
+   and there that is the RACE.) */
 /* A PAGE'S WAY ON, STANDING IN ITS HEAD opposite the way back. `.menu-item`
    is a full-width row; here only its colour and weight are kept. */
 .menu-head-with-action {

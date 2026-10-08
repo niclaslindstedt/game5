@@ -32,8 +32,8 @@ menu-system --list`. Load **`skill-reflection`** at both ends,
 **`write-code`** beside this one, **`hud-and-menus`** for anything drawn over
 a RACE, and **`ui-review`** for the sweep at the reference viewports.
 
-**Built beside the five below:** the CAMPAIGN card and the LEVEL card
-(`campaign`), the TRICK MAP card (`menu-tricks.tsx`), the developer page
+**Built beside the five below:** the LEVEL card
+(`pinned-maps`), the TRICK MAP card (`menu-tricks.tsx`), the developer page
 behind the title's seven-second hold and the BENCHMARK card (`debug-tools`),
 the REPLAY (`replay` and `bench` are the two extra surfaces — `watching` and
 `appDraws` in `shell.ts`), and the GALLERY (`menu-gallery.tsx` over the
@@ -142,7 +142,7 @@ whether it is stepped at all.
   and Space already press it; `menu-nav.ts` is wired for directions and back
   only, or a row is pressed twice.
 - **Anything reachable from a card is reachable as a URL** (`?splash=1`,
-  `?menu=root|play|options|keys|skis|start|races|gallery|stats|dev`, `?start=slalom|free`, `?paused=1`, `?seed=`, `?region=`) — which is what makes a
+  `?menu=root|play|options|keys|skis|start|races|levels|gallery|stats|dev`, `?start=slalom|free`, `?paused=1`, `?seed=`, `?region=`) — which is what makes a
   frame handable to somebody else, and how `make screenshots` reaches it.
 
 ## The loop

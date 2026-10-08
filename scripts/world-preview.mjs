@@ -74,7 +74,19 @@
 // the note says so; and the tunnels as buildings (`tunnel-view.ts`):
 // tunnel-mouth (the fan house), tunnel-span (the gallery from beside it),
 // tunnel-exit (the exit portal) and tunnels (the sheet: each from three
-// sides, and a row from inside the lane).
+// sides, and a row from inside the lane); and the ski area's own buildings
+// (`village-view.ts`, on a free ride): village-plaza (the base from over the
+// hub), village-lift (from up the mountain), village-air (the village and
+// its streets from the air), village-street, village-square and
+// village-back (down its streets at a walker's eye), village-<kind> (one
+// kind close) and village (the sheet: every kind from three sides); and the
+// lifts' hardware (`lift-view.ts`, `make lifts`): lift-tower, lift-chair,
+// lift-cabin, lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
+// the cabins, the T-bars, the lines and a bullwheel); and the
+// village's traffic (`traffic-lab.ts`): village-traffic (a car coming down
+// the main street), village-junction, village-carpark, village-bus (the ski
+// bus at its stop), village-cyclist and vehicles (the sheet: every kind
+// from four sides) — `--hour=21` for them after dark.
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -180,6 +192,44 @@ const VIEWS = [
   "tunnel-span",
   "tunnel-exit",
   "tunnels",
+  "village-plaza",
+  "village-lift",
+  "village-air",
+  "village-street",
+  "village-square",
+  "village-back",
+  "village-restaurant",
+  "village-ticket",
+  "village-rental",
+  "village-school",
+  "village-firstAid",
+  "village-hotel",
+  "village-garage",
+  "village-pumpHouse",
+  "village-house",
+  "village-apartments",
+  "village-shop",
+  "village-church",
+  "village-mountainHut",
+  "village-patrol",
+  "village",
+  "lift-tower",
+  "lift-chair",
+  "lift-cabin",
+  "lift-tbar",
+  "lifts",
+  "village-traffic",
+  "village-junction",
+  "village-carpark",
+  "village-bus",
+  "village-cyclist",
+  "vehicles",
+  "vehicle-hatch",
+  "vehicle-estate",
+  "vehicle-suv",
+  "vehicle-van",
+  "vehicle-bus",
+  "vehicle-bike",
 ];
 
 const args = parseArgs(

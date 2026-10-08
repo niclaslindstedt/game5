@@ -123,7 +123,7 @@ pole, the legs, the retraction, the tuck — `pwa/src/game/technique-pose.ts`
 UNDER (`engine/game/defs/technique.ts`'s `Crossing`): his legs stand the
 skis on the new edge — up to 57° — before his body has come over, and draw
 them up under him as they swing across (`incline.ts`), so a 0.9 s rhythm
-makes every turn. The bot skis the campaign's slaloms and seeds 1–16 at
+makes every turn. The bot skis the slaloms of seeds 1–16 at
 ~33 km/h on the mean (~36 on seed 38) and ~50 at the most, its runs 43–79 s,
 a turn every ~1.0 s, ~48° of edge at a turn's peak on the mean (70° at the
 most), a tenth of its turns tighter than ~7.8 m, ~3.5 BW at the peak and the

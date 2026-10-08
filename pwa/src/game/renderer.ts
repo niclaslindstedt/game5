@@ -400,6 +400,7 @@ export function createWorldRenderer(
 
   /** The player's outfit: slot 0 wears it, the field its slots' own. */
   let outfit: Outfit = DEFAULT_OUTFIT;
+  const wearing = (): Outfit => outfit;
   /** The run's rivals, read for an enthusiast's own kit. */
   let field: readonly Rival[] = [];
   const dealtKits = new Map<string, SkierDress>();
@@ -556,7 +557,7 @@ export function createWorldRenderer(
       cloud.mesh.name = "snow-cloud";
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
-      machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow });
+      machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
       field = state.rivals;
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
@@ -596,10 +597,9 @@ export function createWorldRenderer(
       while (riders.length < runs.length) {
         riders.push(riderFor(riders.length, runs[riders.length].skier.spec));
       }
-      // A slot on another pair than the one it was drawn as — the player
-      // chose different skis for a race on the same map — is rebuilt.
       // THE DEAD LEFT LYING (a new run after a death), off the body as last drawn.
       if (state !== lastState) gore?.leave(riders[0].model);
+      // A slot drawn on another pair than its run's (the skis picked anew) is rebuilt.
       for (let i = 0; i < runs.length; i++) {
         const spec = runs[i].skier.spec;
         if (riders[i].spec === spec && riders[i].kit === kitOf(i)) continue;
@@ -800,17 +800,17 @@ export function createWorldRenderer(
         if (ride) seated.push({ ride, drawn: riders[i].drawn });
       }
       lifts?.update(
-        state.t,
+        state.t - (1 - alpha) * TUNING.dt,
         skier.lift,
         player.drawn,
-        skier.chairLeft,
         lens.camera.position,
         seated,
+        state.crowd?.amateurs,
       );
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);
-      const floods = machines?.lamps(look.lamps, lens.camera.position, gates?.floods ?? []);
-      dealLamps(env.haze, look.lamps, riders, floods ?? gates?.floods ?? [], lens.camera.position);
+      const floods = machines?.lamps(look.lamps, eye, gates?.floods ?? []) ?? gates?.floods;
+      dealLamps(env.haze, look.lamps, riders, floods ?? [], eye, video.lamps);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);

@@ -12,7 +12,7 @@
 // the plate comes back. A restart is a new run, and the cam is put down
 // with the old one.
 
-import type { GameState } from "@engine";
+import { disablingOf, type GameState } from "@engine";
 
 import type { KeyBindings } from "./settings-input.ts";
 
@@ -26,9 +26,15 @@ const STILL = 6;
 /** The keys whose presses count toward a skip: the skier's own. */
 const MOVES = ["tuck", "brake", "left", "right", "leanBack", "leanForward", "jump"] as const;
 
-/** Whether a run's skier is dying: only then may the death cam take him. */
+/** Whether a run's skier is dying — or down hurt too badly to ski on
+ * (`rescue.ts`): the INJURY CAM, the same lens, from the blow that keeps
+ * him down — only then may the death cam take him. */
 export const dying = (state: GameState): boolean =>
-  !!state.gore && (state.gore.mortal >= 0 || state.gore.dead >= 0);
+  !!state.gore &&
+  (state.gore.mortal >= 0 ||
+    state.gore.dead >= 0 ||
+    state.gore.injured >= 0 ||
+    (state.skier.thrown !== null && disablingOf(state.skier.body) !== null));
 
 /** The HUD's half of a look: the page's `xray-on` class (`body.css`). */
 export function xrayHud(look: XrayLook | null): void {

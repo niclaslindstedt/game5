@@ -82,11 +82,11 @@
 //   ?menu=root      open on the front door rather than the attract card;
 //   ?menu=options   ...on OPTIONS, and `keys` on OPTIONS ▸ KEYS; `skis` on
 //                   the skis card RACE opens; `start` on the free ride's
-//                   start card; `campaign` on the campaign card; `levels` on
+//                   start card; `levels` on
 //                   the level card a RACE picks its pinned map on (the
 //                   discipline `mode=` names); `gallery` on the pictures
 //                   kept; `dev` on the DEVELOPER page (let out, as the
-//                   title's hold lets it out), `unlocks` and `benchHistory` behind it.
+//                   title's hold lets it out), `benchHistory` behind it.
 //   ?bench=1        run DEVELOPER ▸ BENCHMARK the moment the app is up —
 //                   how a lab takes a score off the built site.
 //   ?gpu=<mode>     ...with the GPU's timer cutting each frame into its
@@ -108,11 +108,11 @@
 //   ?region=<id>    build a seed's mountain in this kind of snow country
 //                   (R21: alpine, fell, continental, maritime) — a free ride over the
 //                   start card's COUNTRY row, and a race a `?seed=` link
-//                   boots into; never a campaign map, which is pinned.
+//                   boots into; never a race map, which is pinned.
 //   ?grade=<id>     build a seed's piste to this grade (R23: green, blue,
 //                   red, black) instead of the one the seed deals — a free
 //                   ride over the start card's GRADE row, and a race a
-//                   `?seed=` link boots into; never a campaign map.
+//                   `?seed=` link boots into; never a race map.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
@@ -178,7 +178,7 @@ import { RUN_CAMERAS } from "./settings.ts";
 import { readPicture, TIERS, type Tier, type VideoSettings } from "./settings-video.ts";
 
 /** The developer's pages (`menu-dev.tsx`). */
-export type DevPage = "dev" | "unlocks" | "benchHistory";
+export type DevPage = "dev" | "benchHistory";
 
 /** The cards a link may open on. */
 export type MenuPage =
@@ -191,7 +191,6 @@ export type MenuPage =
   | "start"
   | "races"
   | "freestyle"
-  | "campaign"
   | "levels"
   | "tricks"
   | "gallery"
@@ -207,13 +206,11 @@ const MENU_PAGES: readonly MenuPage[] = [
   "start",
   "races",
   "freestyle",
-  "campaign",
   "levels",
   "tricks",
   "gallery",
   "stats",
   "dev",
-  "unlocks",
   "benchHistory",
 ];
 

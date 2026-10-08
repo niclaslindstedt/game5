@@ -15,6 +15,7 @@ import {
   createGame,
   doorOf,
   generateLevel,
+  isResortBuilding,
   levelDigest,
   lodgesOf,
   NEUTRAL_INPUT,
@@ -77,7 +78,9 @@ describe("the afterski lodges", () => {
 
   it("are placed after the cabins, so not one cabin moves for them", () => {
     for (const seed of SEEDS) {
-      const all = cabinsOf(levelFor(seed));
+      // The log buildings: the ski area's own come after every one of them
+      // (`tests/resort_buildings_test.ts`).
+      const all = cabinsOf(levelFor(seed)).filter((c) => !isResortBuilding(c.kind));
       const first = all.findIndex((c) => c.kind === "afterski");
       expect(first).toBeGreaterThan(-1);
       expect(all.slice(first).every((c) => c.kind === "afterski")).toBe(true);
@@ -177,6 +180,25 @@ describe("going in", () => {
     ride(state, 6);
     expect(state.skier.buzz!).toBeLessThan(buzz);
     expect(state.skier.buzz!).toBeGreaterThan(buzz - 0.05);
+  });
+  it("takes the door away as he comes out, until he has skied off and back", () => {
+    const state = atTheDoor();
+    ride(state, TUNING.dt, ENTER);
+    ride(state, 2);
+    ride(state, TUNING.dt, ENTER);
+    expect(state.afterski!.inside).toBeNull();
+    // Stood at the door he came out of: no press in, no call on the HUD.
+    expect(afterskiWithin(state)).toBe(false);
+    expect(afterskiOf(state)).toBeNull();
+    ride(state, 0.5, ENTER);
+    expect(state.afterski!.inside).toBeNull();
+    // Away past its reach and back: the door is his again.
+    const door = doorOf(lodgesOf(state.level)[0]);
+    standSkier(state, door.x + AFTERSKI.reach + 5, door.z, door.heading);
+    ride(state, TUNING.dt);
+    standSkier(state, door.x, door.z, door.heading);
+    expect(afterskiWithin(state)).toBe(true);
+    expect(afterskiOf(state)).toMatchObject({ kind: "call", near: true });
   });
 });
 

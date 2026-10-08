@@ -22,11 +22,14 @@ import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
 import type { GoreEvent, GoreState } from "./gore-state.ts";
+import type { DamagePart, Hurt, SkierDamage } from "./hurt-state.ts";
+export type { DamagePart, SkierDamage } from "./hurt-state.ts";
 import type { Stuff } from "./upright-grid.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
+import type { TrafficEvent } from "./traffic-contact.ts";
 import type { PisteDay } from "./piste-day.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
@@ -297,9 +300,11 @@ export type SkierState = {
   fetch?: Fetch | null;
   /** What the skis and the legs have taken (`damage.ts`). */
   damage: SkierDamage;
+  /** WHAT HIS INJURIES LEAVE HIM (`hurt.ts`); absent, he is sound. */
+  hurt?: Hurt;
   /** WHAT THE SKIER'S BODY HAS TAKEN (`body.ts`): every part's injuries,
-   * the last blow worth billing and the run's hardest. Read by nothing in
-   * the physics. */
+   * the last blow worth billing and the run's hardest. Read in the physics
+   * by `hurt.ts` alone. */
   body: BodyState;
   /** THE WIND TUNNEL he is being carried along (R30, `wind-tunnel.ts`),
    * or null. */
@@ -311,10 +316,11 @@ export type SkierState = {
   jib?: JibRide | null;
   /** THE CHAIR HE STOOD UP OFF, running on empty over the unload ramp to
    * the wheel at the terminal's speed (`lift-ride.ts`'s `emptyChairAt`):
-   * the lift, how far up its line it let him go, m, and when, s — null
+   * the lift, how far up its line it let him go, m, and when, s (and which
+   * of its carriers it is, `LiftRide.carrier`) — null
    * once it is round the wheel, or he never rode one. A skier stopped in
    * its way is knocked down by it. */
-  chairLeft: { index: number; u: number; t: number } | null;
+  chairLeft: { index: number; u: number; t: number; carrier?: number } | null;
   /** Seconds before another tree hit (or a bump) is reported. */
   hitCooldown: number;
   bumpCooldown: number;
@@ -358,7 +364,8 @@ export type Save = { kind: SaveKind; t: number; size: number; side: number; fore
  * part (its AIS rank, 0 sound … 5 critical, in `BODY_PARTS` order), every
  * injury in the order it was taken, the last blow worth billing on the g
  * meter, the run's hardest blow, g, and the hardest he FELL on — the one
- * the HUD bills. A reset mends it (`mendBody`), keeping the two peaks. */
+ * the HUD bills. A reset mends it (`mendBody`), keeping the two peaks —
+ * but not with the INJURIES switch on (`hurt.ts`). */
 export type BodyState = {
   worst: number[];
   injuries: Injury[];
@@ -391,7 +398,7 @@ export type Injury = {
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */
-export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli" | "groomer";
+export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether
@@ -408,18 +415,6 @@ export type Impact = {
   fall: boolean;
   rival: number;
   amateur: number;
-};
-
-/** A part `damage.ts` keeps a figure for. */
-export type DamagePart = "skiLeft" | "skiRight" | "legs";
-
-/** WHAT THE SKIS AND THE LEGS HAVE TAKEN (`damage.ts`), each 0 sound … 1
- * wrecked: the two skis' edges (left, right) and the legs. Kept only on a
- * run that asked for damage (`GameState.damage`); all zero, and read as
- * nothing, otherwise. A reset does not mend it. */
-export type SkierDamage = {
-  ski: [number, number];
-  legs: number;
 };
 
 /** WHAT A SKIER CAN BE PAID FOR (`tricks.ts`) — the engine names the
@@ -667,6 +662,7 @@ export type GameEvent =
   | GrimbearEvent
   | AfterskiEvent
   | GroomerEvent
+  | TrafficEvent
   | GoreEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number; well?: true }

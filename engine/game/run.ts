@@ -38,6 +38,7 @@ import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
 import { holdsHim, stepGore } from "./gore.ts";
+import { callRescue } from "./rescue.ts";
 import { poseInput, stepStrokes } from "./strokes.ts";
 import { aerialInput, stepAerial } from "./aerial-flight.ts";
 import { stepKicker } from "./aerial-kicker.ts";
@@ -50,10 +51,12 @@ import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { stepAfterski } from "./afterski.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
+import { trafficStrike } from "./traffic-contact.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
 import { forgetRun, noteSkied } from "./skied.ts";
+import { stepHurt } from "./hurt.ts";
 import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
 import { hockeyStop, stopMade } from "./hockey-stop.ts";
@@ -105,6 +108,9 @@ export function stepRun(
   player = false,
 ): void {
   const racing = run.phase === "racing";
+  // What his injuries leave him this step (`hurt.ts`), on a run that
+  // carries them.
+  if (player) stepHurt(run);
   // Carried by any of the machines below, the place he last left a run is
   // forgotten: a reset never sends him back to where he was before.
   // In a lodge he is stood at its door: the machine press is the lodge's
@@ -131,6 +137,8 @@ export function stepRun(
   if (paraPress(run, out, events)) return;
   // THE AFTERSKI (`afterski.ts`): in through a lodge's door, and out.
   if (stepAfterski(run, input, events)) return;
+  // Down too hurt to get up (`rescue.ts`): found so, and held.
+  if (player) callRescue(run, events);
   // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
   if (input.reset && racing && (!player || mayGetUp(run.skier.thrown)) && !holdsHim(run)) {
     standUp(run, events, false);
@@ -222,9 +230,12 @@ export function stepRun(
     const swept = chairStrike(run);
     // ...or a piste machine he rode into, or whose blade met him.
     const struck = swept ? null : groomerStrike(run, events);
-    const cause = swept || struck ? null : wipeoutCause(run, events, speed0);
+    // ...or a car, the ski bus or a bicycle in the village (`traffic-contact.ts`).
+    const hit = swept || struck ? null : trafficStrike(run, events);
+    const cause = swept || struck || hit ? null : wipeoutCause(run, events, speed0);
     if (swept) throwRider(run, "chair", { x: c.vx + swept.x, y: c.vy, z: c.vz + swept.z }, events);
     else if (struck) throwRider(run, "groomer", struck, events);
+    else if (hit) throwRider(run, "car", hit.v, events);
     else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);
   }
@@ -270,6 +281,9 @@ export function stepRun(
   if (run.rules.course) {
     stepCourse(run, x0, z0, events);
     stepTrap(run, x0, z0, events);
+    // Where he leaves the piste, for a reset that stands him back up hurt
+    // (`resetPose`) — only on a run that carries its injuries.
+    if (run.gore) noteSkied(run);
   }
   // A FREE RIDE remembers the runs it skies instead (`skied.ts`) — never
   // the ones flown over under the paramotor's wing.

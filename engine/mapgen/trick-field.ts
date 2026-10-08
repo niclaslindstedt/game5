@@ -58,15 +58,26 @@ import { LEVEL_RULES as R } from "./rules.ts";
 import { gateArcs, startGateArc } from "./spawn.ts";
 import type { Piste } from "./track.ts";
 import type { Cliff, Kicker, KickerShape, TrackPoint, TrickSize } from "./types.ts";
-import { GENERATOR_VERSIONS, type GeneratorVersion } from "./versions.ts";
+import { CURRENT_GENERATOR_VERSION, type GeneratorVersion } from "./versions.ts";
 
 /** The generator a map with a park on it is built by when none is named:
- * the newest that still lays ONE piste down a face — the park is laid on a
- * piste of its own, and a resort (R25) lays none — the one the trick maps
- * stand on. */
-export const PARK_VERSION: GeneratorVersion | undefined = [...GENERATOR_VERSIONS]
-  .reverse()
-  .find((v) => v.singlePiste)?.version;
+ * today's — a ski area lays its park down the course it is ridden on
+ * (`resort-park.ts`), the single piste down its one line. */
+export const PARK_VERSION: GeneratorVersion | undefined = CURRENT_GENERATOR_VERSION;
+
+/** The line a park is laid down: its stations every `track.step` metres and
+ * its length — a single piste's (`Piste`), or a resort course's. */
+export type ParkLine = Pick<Piste, "points" | "length">;
+
+/** What a park's line asks of it besides R20 (a ski area's course): the
+ * gates it keeps off (the single piste's evenly spaced ones when left out),
+ * stretches of the line it leaves alone (a drift, R17), and which gaps from
+ * one run-out's end to the next ramp's foot it allows. */
+export type ParkAsk = {
+  gates?: readonly number[];
+  avoid?: readonly [number, number][];
+  apart?: (gap: number) => boolean;
+};
 
 /** The arc a kicker covers, foot of the ramp to the end of its landing, m. */
 function footprint(k: { s?: number; ramp: number; landing: number }): [number, number] {
@@ -101,17 +112,20 @@ export type Corridor = { near: Int32Array; along: Float32Array; dist: Float32Arr
  * which the park keeps clear of. Nothing is stamped yet: the mountain is
  * finished first (`stampTrickField`). */
 export function planTrickField(
-  piste: Piste,
+  piste: ParkLine,
   taken: readonly Kicker[],
   drops: readonly Cliff[] = [],
+  ask: ParkAsk = {},
 ): Kicker[] | string {
   const F = R.trick;
   const n = piste.points.length;
   const busy = taken
     .filter((k) => k.onTrack)
     .map(footprint)
-    .concat(drops.map((d) => footprint({ s: d.s, ramp: d.shelf, landing: d.face + d.landing })));
-  const gates = gateArcs(piste.length);
+    .concat(drops.map((d) => footprint({ s: d.s, ramp: d.shelf, landing: d.face + d.landing })))
+    .concat(ask.avoid ?? []);
+  const gates = ask.gates ?? gateArcs(piste.length);
+  const apart = ask.apart ?? (() => true);
   const out: Kicker[] = [];
   let free = startGateArc() + F.lead;
   let i = 0;
@@ -126,7 +140,9 @@ export function planTrickField(
     for (let t = 0; t < F.order.length; t++) {
       const at = (turn + F.order.length - t) % F.order.length;
       if (t > 0 && F.sizes[F.order[at]].height > F.sizes[F.order[turn]].height) continue;
-      const hit = firstFit(piste, i, F.order[at], free, busy, gates);
+      const last = out[out.length - 1];
+      const ok = (from: number): boolean => !last || apart(from - ((last.s ?? 0) + last.landing));
+      const hit = firstFit(piste, i, F.order[at], free, busy, gates, ok);
       if (hit && (!pick || (hit.k.s ?? 0) + F.wait < (pick.k.s ?? 0))) pick = { ...hit, at };
     }
     if (!pick) break;
@@ -142,15 +158,16 @@ export function planTrickField(
 
 /** The first station from `i` on where a kicker of `size` stands, and it. */
 function firstFit(
-  piste: Piste,
+  piste: ParkLine,
   i: number,
   size: TrickSize,
   free: number,
   busy: readonly [number, number][],
   gates: readonly number[],
+  ok: (from: number) => boolean,
 ): { k: Kicker; index: number } | null {
   for (let j = i; j < piste.points.length; j++) {
-    const k = fits(piste, piste.points[j], size, free, busy, gates);
+    const k = fits(piste, piste.points[j], size, free, busy, gates, ok);
     if (k) return { k, index: j };
   }
   return null;
@@ -161,12 +178,13 @@ function firstFit(
  * either side), too near a gate (`trick.gateClear`) or without the run-in
  * from the gate before it (`trick.runIn`), on a bend or on a pitch. */
 function fits(
-  piste: Piste,
+  piste: ParkLine,
   p: TrackPoint,
   size: TrickSize,
   free: number,
   busy: readonly [number, number][],
   gates: readonly number[],
+  ok: (from: number) => boolean,
 ): Kicker | null {
   const F = R.trick;
   const pts = piste.points;
@@ -175,7 +193,7 @@ function fits(
   const built = trickKicker(size);
   const from = p.s - built.ramp;
   const to = p.s + built.landing;
-  if (from < free || to > piste.length - F.lead) return null;
+  if (from < free || to > piste.length - F.lead || !ok(from)) return null;
   if (busy.some(([a, b]) => from < b + F.gap && to > a - F.gap)) return null;
   if (gates.some((g) => g > from - F.gateClear.before && g < to + F.gateClear.after)) return null;
   // The run-in from the gate before: enough fall to reach the lip from it.
@@ -258,7 +276,7 @@ export function stampTrickField(
   ground: Heightfield,
   field: readonly Kicker[],
   { near, along, dist }: Corridor,
-  piste: Piste,
+  piste: ParkLine,
 ): void {
   const pts = piste.points;
   const n = pts.length;

@@ -529,9 +529,21 @@ describe("the terrain park (R20)", () => {
     expect(errors).toEqual([]);
   });
 
-  it("is what a tricks run is skied on", () => {
-    const state = createGame({ seed, mode: "tricks", quiet: true });
-    expect((state.level.kickers ?? []).filter((k) => k.trick)).toHaveLength(field.length);
+  it("is what a tricks run is skied on: the park down a ski area's course", () => {
+    // Today's generator lays it down the first of the seed's courses that
+    // carries one (`resort-park.ts`), the course's gates set round it.
+    const state = createGame({ seed: 18, mode: "tricks", quiet: true });
+    const park = (state.level.kickers ?? []).filter((k) => k.trick);
+    expect(state.level.resort).toBeDefined();
+    expect(park.length).toBeGreaterThanOrEqual(F.count.min);
+    expect(new Set(park.map((k) => k.size))).toEqual(new Set(F.order));
+    for (const k of park) {
+      const from = k.s! - k.ramp - F.gateClear.before;
+      const to = k.s! + k.landing + F.gateClear.after;
+      expect(state.level.checkpoints.some((c) => c.s > from + 1 && c.s < to - 1)).toBe(false);
+    }
+    const errors = analyzeLevel(state.level, { network: false }).findings;
+    expect(errors.filter((f) => f.severity === "error")).toEqual([]);
   });
 });
 

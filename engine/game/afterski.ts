@@ -56,7 +56,7 @@ export function doorOf(lodge: Cabin): { x: number; z: number; heading: number } 
 
 /** A run's afterski at the start: outside, nothing drunk. */
 export function freshAfterski(): AfterskiState {
-  return { inside: null, t: 0, beers: 0, total: 0, last: -1, sip: -1 };
+  return { inside: null, t: 0, beers: 0, total: 0, last: -1, sip: -1, out: null };
 }
 
 /** THE LODGE HE CAN GO INTO NOW, or null: on a run that opens the lodges,
@@ -72,10 +72,20 @@ export function afterskiNear(run: GameState): Cabin | null {
   if (run.para && run.para.mode !== "dropped") return null;
   if (hypot3(c.vx, c.vy, c.vz) > AFTERSKI.slowest) return null;
   for (const lodge of lodgesOf(run.level)) {
+    if (lodge.id === a.out) continue;
     const door = doorOf(lodge);
     if (hypot(c.x - door.x, c.z - door.z) <= AFTERSKI.reach) return lodge;
   }
   return null;
+}
+
+/** Clears `AfterskiState.out` once he is out of that door's reach. */
+function walkedAway(run: GameState, a: AfterskiState): void {
+  if (a.out === null) return;
+  const lodge = lodgesOf(run.level).find((l) => l.id === a.out);
+  const door = lodge ? doorOf(lodge) : null;
+  const c = run.skier;
+  if (!door || hypot(c.x - door.x, c.z - door.z) > AFTERSKI.reach) a.out = null;
 }
 
 /** Whether the machine press would take him into a lodge now. */
@@ -104,6 +114,7 @@ export function enterLodge(run: GameState, lodge: Cabin, events: GameEvent[]): v
   const door = doorOf(lodge);
   standSkier(run, door.x, door.z, door.heading);
   a.inside = lodge.id;
+  a.out = null;
   a.t = 0;
   a.beers = 0;
   a.last = -1;
@@ -116,6 +127,7 @@ export function stepAfterski(run: GameState, input: SkierInput, events: GameEven
   if (!a) return false;
   const c = run.skier;
   if (a.inside === null) {
+    walkedAway(run, a);
     if (!input.machine) return false;
     const lodge = afterskiNear(run);
     if (!lodge) return false;
@@ -128,6 +140,7 @@ export function stepAfterski(run: GameState, input: SkierInput, events: GameEven
     const lodge = insideOf(run);
     const door = lodge ? doorOf(lodge) : { x: c.x, z: c.z, heading: c.heading };
     standSkier(run, door.x, door.z, door.heading);
+    a.out = a.inside;
     a.inside = null;
     a.sip = -1;
     events.push({ kind: "afterski", t: run.t, phase: "out", beers: a.beers, buzz: c.buzz ?? 0 });

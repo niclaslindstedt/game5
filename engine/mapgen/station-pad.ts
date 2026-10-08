@@ -11,11 +11,10 @@
 // level, and from the deck it LEANS off to both sides (`lift.top`), so a
 // rider stood off the chair slides off it toward whichever run he picks,
 // gathering speed on the way rather than poling across a flat. A chair's pad
-// carries its UNLOAD RAMP: a mound of packed snow under the point a few
-// metres short of the bullwheel where the rider stands up, falling off
-// whichever way he turns, so he slides off the chair clear of it swinging
-// round the wheel. (Generator v4's pads are level and smaller,
-// `levelPads`.)
+// carries its UNLOAD RAMP: packed snow under the point a few metres short
+// of the bullwheel where the rider stands up, falling from it on up the
+// line, so he slides off the chair ahead of it and clear of it swinging
+// round the wheel.
 //
 // Pressed into the ground BEFORE the runs are walked, so the pistes start
 // off the pad's edges as the mountain now is (R12) and press their own
@@ -32,28 +31,18 @@ import type { Lift } from "./types.ts";
 
 /** What a pad is cut to: its radius, m; the half-width of its level deck
  * either side of the line, m; how fast it falls off the deck to its rim, m
- * per m; and whether a chair's unload is a MOUND falling every way (v4, v5)
- * rather than a ramp falling ahead of the rider, and where the cut under a
- * chair's way in starts, m short of its top. */
+ * per m. */
 export type PadShape = {
   r: number;
   deck: number;
   lean: number;
-  mound?: boolean;
-  approach?: number;
 };
 
-/** The pad a version cuts (`levelPads`: v4's, level and 30 m across;
- * `looseTops`: v5's, its unload a mound and its cut 11 m short of the top). */
-export function padShape(levelPads = false, looseTops = false): PadShape {
+/** The pad R26 cuts. */
+export function padShape(): PadShape {
   const L = RR.lift;
-  if (levelPads) return { r: L.pad / 2, deck: L.pad / 2, lean: 0, mound: true };
-  const shape = { r: L.top.pad / 2, deck: L.top.deck, lean: L.top.lean };
-  return looseTops ? { ...shape, mound: true, approach: V5_APPROACH } : shape;
+  return { r: L.top.pad / 2, deck: L.top.deck, lean: L.top.lean };
 }
-
-/** Where v5 started the cut under a chair's way in, m short of its top. */
-const V5_APPROACH = 11;
 
 /** A top station's pad: its middle (the top of the line), the level of its
  * deck, its shape, the way up the line (a unit vector), and — on a chair —
@@ -190,7 +179,7 @@ export function pressPads(
   return pads;
 }
 
-/** R26 — THE APPROACH to a top (v5): under the last
+/** R26 — THE APPROACH to a top: under the last
  * `lift.top.approach.length` metres of the line, from just past the unload
  * on back down it, the ground cut down below the rope's way in — a straight
  * line from the top's bullwheel (`approach.wheel` over the deck) to a tower
@@ -210,7 +199,7 @@ function cutApproach(
   const reach = Math.min(A.length, p.length / 2);
   const half = A.half[k];
   const far = half + A.blend;
-  const b0 = k === "chair" ? (p.approach ?? A.from.chair) : A.from.gondola;
+  const b0 = k === "chair" ? A.from.chair : A.from.gondola;
   const bx = p.x - p.dx * reach;
   const bz = p.z - p.dz * reach;
   // The rope's way in, wheel to tower, and what hangs under it.
@@ -286,15 +275,13 @@ function levelPad(
   }
 }
 
-/** A chair's UNLOAD RAMP at (x, z), a share of its height: on a level pad
- * (v4, v5) a mound falling off the unload point every way over
- * `lift.unload.reach`; on a leaning one a RAMP — whole under the chair and
+/** A chair's UNLOAD RAMP at (x, z), a share of its height: a RAMP — whole
+ * under the chair and
  * the lane beside it up to the unload point, and falling from it on up the
  * line over `lift.unload.reach`, so a rider stood up there slides on ahead
  * of the chair and never back into the cut under its way in. */
 function unloadRise(p: StationPad, at: { x: number; z: number }, x: number, z: number): number {
   const U = RR.lift.unload;
-  if (p.mound) return 1 - smoothstep(0, U.reach, hypot(x - at.x, z - at.z));
   const along = (x - at.x) * p.dx + (z - at.z) * p.dz;
   const across = Math.abs((x - at.x) * p.dz - (z - at.z) * p.dx);
   return (

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
-// `models/<id>.glb`, the heli-ski helicopter's as `models/heli.glb`, the
+// `models/<id>.glb`, the heli-ski helicopter's as `models/heli.glb` (and
+// its air ambulance's as `models/rescue.glb`, under the same switch), the
 // mountain snowmobile's as `models/sled.glb` and the night's piste machine's
 // as `models/groomer.glb`,
 // emitted into the
@@ -20,7 +21,7 @@
 //
 // A build switched back to the code-built skis (`VITE_MODEL_SKIS=0` —
 // `src/game/model-switch.ts`) packs none of them; `VITE_MODEL_HELI=0` packs
-// no helicopter (`src/game/heli-view.ts` draws its code-built stand-in) and
+// no helicopter and no air ambulance (`src/game/heli-view.ts` draws its code-built stand-in) and
 // `VITE_MODEL_SLED=0` no snowmobile (`src/game/sled-view.ts`'s stand-in)
 // and `VITE_MODEL_GROOMER=0` no piste machine (`src/game/groomer-build.ts`).
 
@@ -43,6 +44,11 @@ export const MODELS_DIR = "pwa/models";
 /** The helicopter's one file (`make blender KIND=heli`'s LOD0). */
 export const HELI_FILE = "heli.glb";
 
+/** The air ambulance's one file (`make blender KIND=rescue`'s LOD0): the
+ * heli's airframe in a mountain rescue service's dress, packed under the
+ * heli's switch. */
+export const RESCUE_FILE = "rescue.glb";
+
 /** The snowmobile's one file (`make blender KIND=sled`'s LOD0). */
 export const SLED_FILE = "sled.glb";
 
@@ -57,6 +63,7 @@ export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
   return [
     ...skis,
     ...(on.heli && (!half || half === "heli") ? [HELI_FILE] : []),
+    ...(on.heli && (!half || half === "rescue") ? [RESCUE_FILE] : []),
     ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
     ...(on.groomer && (!half || half === "groomer") ? [GROOMER_FILE] : []),
   ];
@@ -88,6 +95,17 @@ export const HELI_SOURCES = [
   "engine/game/defs/heli.ts",
 ];
 
+/** WHAT THE AIR AMBULANCE IS MADE FROM: the heli's sources (its builder is
+ * run whole) and the rescue builder and data module that dress it. */
+export const RESCUE_SOURCES = [
+  "scripts/blender.mjs",
+  "scripts/blender/kinds/rescue.mjs",
+  "scripts/blender/lib.py",
+  "scripts/blender/heli.py",
+  "scripts/blender/rescue.py",
+  "engine/game/defs/heli.ts",
+];
+
 /** WHAT THE SNOWMOBILE IS MADE FROM: its builder, its data module, the
  * shelf and the driver, `SLED` and the class's traced look. */
 export const SLED_SOURCES = [
@@ -112,11 +130,12 @@ export const GROOMER_SOURCES = [
 
 /** Every half's stamp in `sources.json`, and the sources it hashes: the
  * skis (`sources`, its name from when they were the only models), the
- * helicopter (`heli`), the snowmobile (`sled`) and the piste machine
+ * helicopter (`heli`), the air ambulance (`rescue`), the snowmobile (`sled`) and the piste machine
  * (`groomer`). */
 export const MODEL_HALVES = {
   sources: MODEL_SOURCES,
   heli: HELI_SOURCES,
+  rescue: RESCUE_SOURCES,
   sled: SLED_SOURCES,
   groomer: GROOMER_SOURCES,
 } as const;

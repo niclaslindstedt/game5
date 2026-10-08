@@ -19,7 +19,14 @@
 // windows burning from across the valley.
 
 import * as THREE from "three";
-import { CABINS, cabinsOf, type Cabin, type CabinKind, type Level } from "@engine";
+import {
+  CABINS,
+  cabinsOf,
+  isResortBuilding,
+  type Cabin,
+  type CabinKind,
+  type Level,
+} from "@engine";
 
 import { CABIN_PAINT } from "./cabin-parts.ts";
 
@@ -160,7 +167,9 @@ export type Cabins = {
 export function createCabins(level: Level, haze: HazeUniforms): Cabins {
   const group = new THREE.Group();
   group.name = "cabins";
-  const cabins = cabinsOf(level);
+  // The log buildings only: the ski area's own buildings (the village's and
+  // the mountain's, `isResortBuilding`) are not drawn here.
+  const cabins = cabinsOf(level).filter((c) => !isResortBuilding(c.kind));
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 }),
     haze,
@@ -192,7 +201,9 @@ export function createCabins(level: Level, haze: HazeUniforms): Cabins {
     });
     kinds.push({ list, cuts, band: new Int8Array(list.length).fill(-1) });
   }
-  const drifts = driftGeometry(level, cabins);
+  // The drift is banked round every building, the ski area's own too
+  // (`village-build.ts` draws those), so each sits down into the snow.
+  const drifts = driftGeometry(level, cabinsOf(level));
   geos.push(drifts);
   const drift = new THREE.Mesh(drifts, material);
   drift.receiveShadow = true;

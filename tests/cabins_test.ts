@@ -17,6 +17,7 @@ import {
   clearOfLifts,
   generateLevel,
   helipadOf,
+  isResortBuilding,
   levelDigest,
   sledSpotOf,
   solidsOf,
@@ -42,6 +43,13 @@ function footprint(c: Cabin): [number, number][] {
 
 const SEEDS = LEVEL_SEEDS.slice(0, 4);
 
+/** The LOG buildings of a map — the cabins, sheds and lodges — without the
+ * ski area's own buildings, which keep rules of their own
+ * (`tests/resort_buildings_test.ts`). */
+function logsOf(level: Parameters<typeof cabinsOf>[0]): Cabin[] {
+  return cabinsOf(level).filter((c) => !isResortBuilding(c.kind));
+}
+
 describe("cabins", () => {
   it("are the same list twice and on a fresh build of the same seed", () => {
     const level = levelFor(SEEDS[0]);
@@ -64,7 +72,7 @@ describe("cabins", () => {
   it("stand here and there: a sensible number, of known kinds", () => {
     let total = 0;
     for (const seed of SEEDS) {
-      const list = cabinsOf(levelFor(seed));
+      const list = logsOf(levelFor(seed));
       expect(list.length).toBeLessThanOrEqual(CABIN_LAYOUT.most);
       total += list.length;
       for (const c of list) expect(Object.keys(CABINS)).toContain(c.kind);
@@ -94,7 +102,7 @@ describe("cabins", () => {
   it("stand off every run's snow and clear of the lifts", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
-      for (const c of cabinsOf(level)) {
+      for (const c of logsOf(level)) {
         for (const [x, z] of footprint(c)) {
           expect(level.packedAt(x, z)).toBeLessThanOrEqual(0.25);
           expect(clearOfLifts(level, x, z)).toBe(true);
@@ -117,7 +125,7 @@ describe("cabins", () => {
       const cps = level.checkpoints;
       const finish = cps[cps.length - 1];
       const pads = [helipadOf(level), sledSpotOf(level)];
-      for (const c of cabinsOf(level)) {
+      for (const c of logsOf(level)) {
         for (const cp of cps) expect(Math.hypot(cp.x - c.x, cp.z - c.z)).toBeGreaterThan(C.gate);
         expect(Math.hypot(level.spawn.x - c.x, level.spawn.z - c.z)).toBeGreaterThan(C.start);
         expect(Math.hypot(finish.x - c.x, finish.z - c.z)).toBeGreaterThan(C.finish);
@@ -129,7 +137,7 @@ describe("cabins", () => {
   it("have no trunk inside the walls, and stand apart from one another", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
-      const list = cabinsOf(level);
+      const list = logsOf(level);
       for (const c of list) {
         const d = CABINS[c.kind];
         const fx = Math.sin(c.heading);
@@ -157,7 +165,7 @@ describe("cabins", () => {
     let checked = 0;
     for (const seed of SEEDS) {
       const level = levelFor(seed);
-      for (const c of cabinsOf(level)) {
+      for (const c of logsOf(level)) {
         const d = CABINS[c.kind];
         const fx = Math.sin(c.heading);
         const fz = Math.cos(c.heading);
@@ -213,7 +221,7 @@ describe("cabins", () => {
         expect(c.y - c.base).toBeGreaterThanOrEqual(P.least - 1e-6);
         for (const [x, z] of footprint(c)) {
           const g = level.groundAt(x, z);
-          expect(g).toBeLessThanOrEqual(c.y + P.cut + 0.3);
+          expect(g).toBeLessThanOrEqual(c.y + (CABINS[c.kind].cut ?? P.cut) + 0.3);
           expect(g).toBeGreaterThanOrEqual(c.base - 0.6);
         }
       }

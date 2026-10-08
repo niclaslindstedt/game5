@@ -12,7 +12,7 @@
 // sheet's ribs, a standing-seam roof's seams half a metre apart, a terminal
 // hood's composite panels, formwork concrete with its tie holes, a curtain
 // wall's aluminium frames over a sky-reflecting glass, a roller door's
-// slats. Every tile repeats seamlessly (its noise is periodic), and its
+// slats, a rough-coursed stone plinth, a trowelled render. Every tile repeats seamlessly (its noise is periodic), and its
 // size in metres is `FACADE_TILE`'s, so the builder hands it UVs in metres
 // over that and a board is 15 cm wide on every wall. A tile marked `once`
 // is laid once over its quad (a window, a door, a glazing band's height).
@@ -50,11 +50,15 @@ export const FACADE = {
   steel: 11,
   /** A machine room's louvred vent. */
   louvre: 12,
+  /** Rough-coursed stone: split blocks in courses, deep mortar joints. */
+  stone: 13,
+  /** Render (stucco) over masonry, off-white, tinted by the vertex colour. */
+  render: 14,
 } as const;
 export type FacadeLayer = (typeof FACADE)[keyof typeof FACADE];
 
 /** How many layers the stack holds, and each tile's side in pixels. */
-export const FACADE_LAYERS = 13;
+export const FACADE_LAYERS = 15;
 export const FACADE_SIZE = 256;
 
 /** Each layer's tile in metres, along (u) and up (v) — `once` where it is
@@ -74,6 +78,8 @@ export const FACADE_TILE: Readonly<Record<FacadeLayer, { u: number; v: number; o
     10: { u: 4, v: 4 },
     11: { u: 1, v: 1 },
     12: { u: 1, v: 0.6 },
+    13: { u: 2.4, v: 1.2 },
+    14: { u: 4, v: 4 },
   };
 
 /** A glazing band is laid once UP its height but repeated ALONG it, a pane
@@ -97,6 +103,8 @@ const RELIEF: Readonly<Record<FacadeLayer, number>> = {
   10: 1.2,
   11: 1,
   12: 5,
+  13: 4,
+  14: 0.8,
 };
 
 /** A pixel: its colour 0..1 (sRGB), its roughness and its height 0..1. */
@@ -304,6 +312,53 @@ export function paintPixel(layer: FacadeLayer, u: number, v: number): Px {
       // Each blade falls outward: lit on its face, dark in the slot under it.
       const h = s < 0.75 ? s / 0.75 : 0;
       return px(hex(0x5a6066), 0.55 + h * 0.55, 0.5, h);
+    }
+    case FACADE.stone: {
+      // Four courses of 30 cm up a 1.2 m tile, eight stones a course of
+      // 20–40 cm along it, each course's joints shifted; a split face
+      // bulging out of a 2 cm mortar joint, each stone its own grey.
+      const courses = 4;
+      const c = Math.floor(v * courses);
+      const sv = v * courses - c;
+      const per = 8;
+      // The joints along a course, jittered a share of a stone either way.
+      const x = u * per;
+      let k0 = Math.floor(x);
+      const jit = (k: number) => k + (hash(((k % per) + per) % per, c, 91) - 0.5) * 0.5;
+      if (x < jit(k0)) k0 -= 1;
+      else if (x >= jit(k0 + 1)) k0 += 1;
+      const a = jit(k0);
+      const b = jit(k0 + 1);
+      const su = (x - a) / (b - a);
+      const stone = ((k0 % per) + per) % per;
+      const edge = Math.min(su, 1 - su) * (b - a) * (2.4 / per);
+      const edgeV = Math.min(sv, 1 - sv) * (1.2 / courses);
+      const d = Math.min(edge, edgeV);
+      if (d < 0.018) return px(hex(0x6e6a64), 0.8 + noise(u, v, 64, 32, 93) * 0.15, 0.95, 0);
+      const tone = hash(stone, c, 95);
+      const warm = hash(stone, c, 97);
+      const base: [number, number, number] = [
+        mix(0.52, 0.6, warm),
+        mix(0.52, 0.56, warm),
+        mix(0.53, 0.5, warm),
+      ];
+      const face = fbm(u, v, 24, 12, 99 + stone, 3);
+      const bulge = smooth(0.018, 0.09, d);
+      return px(
+        base,
+        0.72 + tone * 0.3 + (face - 0.5) * 0.25,
+        0.9,
+        0.35 + bulge * 0.45 + face * 0.2,
+      );
+    }
+    case FACADE.render: {
+      // A trowelled render: a fine grain, soft cloudy patches, and faint
+      // streaks run down from the eaves.
+      const grain = noise(u, v, 160, 160, 101);
+      const cloud = fbm(u, v, 4, 4, 103, 4);
+      const streak = fbm(u, v, 48, 2, 105, 2);
+      const k = 0.86 + cloud * 0.1 + grain * 0.05 - smooth(0.55, 0.9, streak) * 0.08;
+      return px(hex(0xf2efe8), k, 0.9, 0.4 + grain * 0.3 + cloud * 0.2);
     }
     default:
       return { r: 1, g: 1, b: 1, rough: 0.6, h: 0.5 };

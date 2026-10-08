@@ -38,6 +38,9 @@ export type Stage = {
   level: Level;
   /** A free ride stood up in the basket, tethered on the valley floor. */
   fresh(): GameState;
+  /** Every run after flown in `sky`'s weather — the engine's air and the
+   * picture's — or the map's own again (null). */
+  fly(sky: SkyOverride | null): Promise<void>;
   /** Stepped and drawn every sixtieth of a second. */
   run(state: GameState, seconds: number, drive?: Drive): void;
   /** Stepped and not drawn — the long way up, then `run` a moment so the
@@ -291,6 +294,145 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
   },
 };
 
+/** A GALE for the engine and the picture: a fair sky with a strong wind,
+ * so the fire it lights can be seen. */
+const GALE: SkyOverride = { weather: { kind: "fair", wind: 13 } };
+
+/** Close on the burner and the mouth, from beside and a little under. */
+const burnerLens = around(3.0, 2.3, 3.8, 62, 3.9);
+/** Close on the pilot lights. */
+const pilotLens = around(0.75, 2.62, 0.95, 32, 2.42);
+
+/** Up off the tether on the bot's hands, then alight. */
+function alight(st: Stage, seconds = 110): GameState {
+  const s = aloft(st, seconds);
+  const b = ball(s);
+  b.scorch = 1;
+  b.burning = true;
+  return s;
+}
+
+export const FIRE_VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
+  // ── THE BURNER BY DAY: lit, its ignition and its tail ──────────────────
+  fire(st) {
+    const s = st.fresh();
+    st.run(s, 0.5, still);
+    st.shoot(s, "pilot-close", pilotLens);
+    let t = 0;
+    for (const at of [0.04, 0.1, 0.2, 0.4, 1.2]) {
+      st.run(s, at - t, ride({ tuck: 1 }));
+      t = at;
+      st.shoot(s, `ignite-${at}s`, burnerLens);
+    }
+    st.shoot(s, "burning-quarter", around(20, 4, 24, 50));
+    st.shoot(s, "burning-chase", "chase");
+    st.shoot(s, "up-into-mouth", upward(0.08, 85));
+    st.shoot(s, "up-front", upward(0.4, 75));
+    t = 0;
+    for (const at of [0.05, 0.12, 0.25, 0.45]) {
+      st.run(s, at - t, still);
+      t = at;
+      st.shoot(s, `tail-${at}s`, burnerLens);
+    }
+  },
+  // ── THE BURNER AFTER DARK ──────────────────────────────────────────────
+  async "fire-night"(st) {
+    await st.sky({ hour: 21 });
+    const s = st.fresh();
+    st.run(s, 0.5, still);
+    st.shoot(s, "pilot-night", pilotLens);
+    st.run(s, 1.5, ride({ tuck: 1 }));
+    st.shoot(s, "night-close", burnerLens);
+    st.shoot(s, "night-quarter", around(20, 4, 24, 50));
+    st.shoot(s, "night-low", around(22, 1.2, 26, 62, 13));
+    st.shoot(s, "night-up", upward(0.08, 85));
+    st.shoot(s, "night-chase", "chase");
+    await st.sky({ hour: 17.3 });
+    st.shoot(s, "dusk-quarter", around(20, 4, 24, 50));
+    await st.sky(null);
+  },
+  // ── THE FLAME LAID OVER BY THE AIR PAST IT ─────────────────────────────
+  "fire-wind"(st) {
+    const s = st.fresh();
+    st.run(s, 0.5, still);
+    st.run(s, 1.2, ride({ tuck: 1 }));
+    const b = ball(s);
+    for (const shear of [3, 7, 11]) {
+      b.shear = shear;
+      b.lean = shear * 0.025;
+      b.leanTo = b.heading + Math.PI / 2;
+      st.shoot(s, `bent-${shear}ms`, around(6, 3.2, 1, 62, 4.2));
+    }
+  },
+  // ── CATCHING IN A GALE, FRAME BY FRAME ─────────────────────────────────
+  async catch(st) {
+    await st.fly(GALE);
+    const s = st.fresh();
+    st.run(s, 0.5, still);
+    const burn = ride({ tuck: 1 });
+    const lens = (state: GameState): LensPose => {
+      // From the windward side and a little ahead, where it catches.
+      const bb = ball(state);
+      const from = bb.leanTo + Math.PI;
+      const ex = bb.x + Math.sin(from) * 16 + Math.cos(from) * 9;
+      const ez = bb.z + Math.cos(from) * 16 - Math.sin(from) * 9;
+      return {
+        eye: { x: ex, y: Math.max(state.level.groundAt(ex, ez) + 1.6, bb.y + 4), z: ez },
+        target: { x: bb.x, y: bb.y + 6, z: bb.z },
+        fov: 55,
+        roll: 0,
+      };
+    };
+    st.shoot(s, "gale-cold", lens);
+    for (const at of [0.3, 0.6, 0.9]) {
+      st.until(s, (x) => ball(x).scorch >= at || ball(x).burning, 30, burn);
+      st.shoot(s, `scorch-${at}`, lens);
+    }
+    st.until(s, (x) => ball(x).burning, 30, burn);
+    st.shoot(s, "alight", lens);
+    for (const at of [0.06, 0.15, 0.3, 0.5, 0.75]) {
+      st.until(s, (x) => ball(x).burnt >= at, 30, still);
+      st.shoot(s, `burnt-${at}`, around(26, 2, 30, 55, 8));
+    }
+    await st.fly(null);
+  },
+  // ── BURNING IN FLIGHT, FALLING, THE WRECK ──────────────────────────────
+  inferno(st) {
+    const s = alight(st);
+    st.run(s, 1.5, still);
+    st.shoot(s, "caught", around(26, 4, 32, 50, 10));
+    st.until(s, (x) => ball(x).burnt >= 0.25, 20, still);
+    st.shoot(s, "climbing-gores", around(26, 4, 32, 50, 10));
+    st.shoot(s, "from-basket-up", upward(0.1, 85));
+    st.once(s, { ...NEUTRAL_INPUT, machine: true });
+    st.until(s, (x) => ball(x).burnt >= 0.5, 20, still);
+    st.shoot(s, "engulfed", around(30, 6, 40, 50, 9));
+    st.until(s, (x) => ball(x).burnt >= 0.8, 20, still);
+    st.shoot(s, "falling", around(40, 10, 60, 50, 6));
+    st.shoot(s, "falling-from-snow", fromSnow(70, 50));
+    st.until(s, (x) => ball(x).mode === "down", 120, still);
+    st.run(s, 2, still);
+    st.shoot(s, "wreck-2s", around(18, 8, 24, 50, 1));
+    st.run(s, 13, still);
+    st.shoot(s, "wreck-15s", around(18, 8, 24, 50, 1));
+    st.skip(s, 45, still);
+    st.run(s, 2, still);
+    st.shoot(s, "wreck-smoulder", around(30, 10, 40, 50, 6));
+  },
+  // ── ALIGHT AFTER DARK ──────────────────────────────────────────────────
+  async "inferno-night"(st) {
+    await st.sky({ hour: 20.5 });
+    const s = alight(st);
+    st.until(s, (x) => ball(x).burnt >= 0.35, 30, still);
+    st.shoot(s, "night-burning", around(30, 5, 40, 50, 9));
+    st.until(s, (x) => ball(x).burnt >= 0.7, 30, still);
+    st.shoot(s, "night-falling", around(40, 10, 60, 50, 6));
+    await st.sky(null);
+  },
+};
+
+Object.assign(VIEWS, FIRE_VIEWS);
+
 export const GROUPS: Record<string, readonly string[]> = {
   tethered: ["tethered"],
   flight: ["flight"],
@@ -305,4 +447,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   turntable: ["turntable"],
   jump: ["jump"],
   lenses: ["lenses"],
+  fire: ["fire", "fire-night", "fire-wind"],
+  catch: ["catch"],
+  inferno: ["inferno", "inferno-night"],
 };

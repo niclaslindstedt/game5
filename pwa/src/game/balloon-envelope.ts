@@ -28,6 +28,7 @@ import {
   type Colourway,
   type Lay,
 } from "./balloon-look.ts";
+import { FIRE_GLSL } from "./balloon-fire-plan.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 
@@ -41,6 +42,12 @@ export type EnvelopeLook = {
   burnt: { value: number };
   scorch: { value: number };
   through: { value: THREE.Color };
+  /** THE FIRE'S SPREAD (`balloon-fire-plan.ts`): where on the cloth it
+   * caught (its own frame, m), the front's key, m (`fireFront`), and the
+   * clock its flames flicker by, s. */
+  catchAt: { value: THREE.Vector3 };
+  front: { value: number };
+  time: { value: number };
 };
 
 /** What the envelope's shape is worked from, a frame. */
@@ -88,6 +95,9 @@ uniform float uBalBurnt;
 uniform float uBalScorch;
 uniform vec3 uBalThrough;
 uniform vec3 uBalGlowColour;
+uniform vec3 uBalCatch;
+uniform float uBalFront;
+uniform float uBalTime;
 varying vec4 vPanel;
 varying float vWidth;
 varying vec3 vRest;
@@ -109,6 +119,7 @@ float bFbm(vec3 p) {
   return 0.55 * bNoise(p) + 0.3 * bNoise(p * 2.13) + 0.15 * bNoise(p * 4.37);
 }
 ${PAINT_GLSL}
+${FIRE_GLSL}
 `;
 
 export function createEnvelope(haze: HazeUniforms): Envelope {
@@ -136,6 +147,9 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
     burnt: { value: 0 },
     scorch: { value: 0 },
     through: { value: new THREE.Color(0.2, 0.2, 0.2) },
+    catchAt: { value: new THREE.Vector3(0, 3, E.diameter / 4) },
+    front: { value: 0 },
+    time: { value: 0 },
   };
   const palette = { value: Array.from({ length: 11 }, () => new THREE.Color()) };
   const scheme = { value: 0 };
@@ -155,6 +169,9 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
         uBalScorch: look.scorch,
         uBalThrough: look.through,
         uBalGlowColour: { value: GLOW },
+        uBalCatch: look.catchAt,
+        uBalFront: look.front,
+        uBalTime: look.time,
       });
       shader.vertexShader = shader.vertexShader
         .replace(
@@ -169,7 +186,7 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
       shader.fragmentShader = shader.fragmentShader
         .replace(
           "#include <common>",
-          `#include <common>\n${ENVELOPE_GLSL}\nvec3 bPaint;\nfloat bTape;`,
+          `#include <common>\n${ENVELOPE_GLSL}\nvec3 bPaint;\nfloat bTape;\nfloat bAlight;\nfloat bStreamer;`,
         )
         .replace(
           "#include <color_fragment>",
@@ -180,11 +197,16 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
   float v = vPanel.w;
   int slot = paintSlot(uBalScheme, vPanel.x, row, u, v);
   vec3 paint = uBalPalette[slot];
-  // THE BURN: holes eaten through the cloth, charred round their edges.
+  // THE BURN, spread from where it caught (balloon-fire-plan.ts):
+  // behind the front the cloth is gone but for its charred streamers.
   float n = bFbm(vRest * 0.42);
-  // Never all of it: what the flames leave hangs as charred streamers.
-  float eat = uBalBurnt * 0.78 - 0.08;
-  if (uBalBurnt > 0.0 && n < eat) discard;
+  float behind = uBalBurnt > 0.0 ? uBalFront - fireKey(vRest, n) : -99.0;
+  bAlight = 0.0;
+  bStreamer = 0.0;
+  if (behind > FIRE_EDGE) {
+    if (n < FIRE_STREAMER) discard;
+    bStreamer = 1.0;
+  }
   // THE TAPES: a load tape up every gore seam, a tape over every panel
   // seam, in metres; a stitch line down each.
   float across = min(u, 1.0 - u) * vWidth;
@@ -201,11 +223,18 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
   paint *= 1.0 - 0.25 * stitch;
   // The parachute's rim: its edge tape, darker.
   if (row > ${L.rows}.0 - 0.5) paint = mix(paint, uBalPalette[4], 1.0 - smoothstep(0.03, 0.05, v));
-  // THE SCORCH round the mouth, where the flame licks it.
-  float lick = uBalScorch * (1.0 - smoothstep(0.0, 7.0, vRest.y)) * smoothstep(0.25, 0.75, n);
-  paint = mix(paint, vec3(0.16, 0.08, 0.04), clamp(lick, 0.0, 0.9));
-  float char = uBalBurnt > 0.0 ? 1.0 - smoothstep(eat, eat + 0.09, n) : 0.0;
-  paint = mix(paint, vec3(0.05, 0.035, 0.03), char);
+  // THE SCORCH where the flame licks the cloth: browned round the point
+  // it is laid into, darkest at its heart.
+  float near = 1.0 - smoothstep(0.0, 5.5, length(vRest - uBalCatch));
+  float lick = uBalScorch * near * (0.55 + 0.45 * smoothstep(0.25, 0.75, n));
+  paint = mix(paint, vec3(0.16, 0.08, 0.04), clamp(lick * 1.2, 0.0, 0.92));
+  // Ahead of the front the heat browns it; at the front and behind it it
+  // is black; the band at the front itself is alight.
+  float heat = smoothstep(-FIRE_CHAR, 0.0, behind);
+  paint = mix(paint, vec3(0.22, 0.1, 0.04), heat * 0.6);
+  float char = max(smoothstep(-0.4, 0.15, behind), bStreamer);
+  paint = mix(paint, vec3(0.045, 0.032, 0.028), char);
+  bAlight = behind > -0.3 && behind < FIRE_EDGE ? fireFlicker(vRest, behind) : 0.0;
   bPaint = paint;
   diffuseColor.rgb = paint;
 }`,
@@ -227,6 +256,10 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
   totalEmissiveRadiance += lit * uBalGlowColour * uBalGlow * fall * inside * shade * 1.2;
   // THE DAYLIGHT THROUGH IT, seen from under the mouth: the cloth a lamp.
   if (!gl_FrontFacing) totalEmissiveRadiance += bPaint * uBalThrough;
+  // THE FIRE ON THE CLOTH: the front's flames, white-hot at their roots,
+  // and embers winking on the charred streamers.
+  totalEmissiveRadiance += fireGlow(bAlight);
+  if (bStreamer > 0.0) totalEmissiveRadiance += fireEmbers(vRest, uBalFront - fireKey(vRest, bFbm(vRest * 0.42)));
 }`,
         );
     },

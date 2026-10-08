@@ -60,8 +60,10 @@ export type Machines = {
    * its own rows (`camera-sled.ts`), `pose` moved onto the machine as drawn
    * this frame (so call it after `frame`); otherwise nothing, the pose left. */
   ladder(pose: RigPose, state: GameState): Ladder | undefined;
-  /** THE PISTE MACHINES' LAMPS lit at `lit` and seen from `eye`, ahead of
-   * `floods` — the list the lamp slots are dealt from (`dealLamps`). */
+  /** THE BALLOON'S BURNER AND FIRE and THE PISTE MACHINES' LAMPS lit at
+   * `lit` and seen from `eye`, ahead of `floods` — the list the lamp slots
+   * are dealt from (`dealLamps`); the balloon's fire is sorted for `eye`
+   * here, once the lens has settled. */
   lamps(lit: number, eye: THREE.Vector3, floods: readonly Flood[]): readonly Flood[];
   /** THE HOT AIR BALLOON as drawn (`balloon-scene.ts`), on a free ride —
    * what its burner's flame, its fire and its lens hang off. */
@@ -138,7 +140,7 @@ export function createMachines(
       sled?.frame(s, alpha, dt, simDt, player, sledFx);
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
       para?.frame(s, alpha);
-      balloon?.frame(s, alpha);
+      balloon?.frame(s, alpha, dt);
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       // In the cab he is out of sight: the machine is his figure now — and
@@ -150,9 +152,12 @@ export function createMachines(
       balloon?.light(look);
     },
     lamps(lit, eye, others) {
-      if (!groomers || !current.groomers) return others;
       floods.length = 0;
-      groomers.lamps(current, lit, eye, floods);
+      // The balloon's burner and its fire first: the nearest, brightest
+      // light a skier in its basket has.
+      balloon?.lamps(eye, floods);
+      if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
+      if (floods.length === 0) return others;
       floods.push(...others);
       return floods;
     },

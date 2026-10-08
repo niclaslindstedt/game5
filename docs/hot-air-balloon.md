@@ -2,7 +2,7 @@
 
 A free ride can start in the basket of a hot air balloon. Pick **BALLOON** on the start card's RUN row (after PARAMOTOR, before SNOWMOBILE), or follow a `?start=free&balloon=1` link. You start standing in the wicker basket on the valley floor, the envelope inflated over you and held down by its tether. Burn until it is light and the tether lets go; the day's wind carries you up the mountain. Land it softly and step out, or jump over the side.
 
-The engine side is `engine/game/balloon.ts` (the flight), `balloon-air.ts` (the air it flies in), `balloon-state.ts` (its state and events), `balloon-pilot.ts` (the bot's hands) and `defs/balloon.ts` (every number). The app side is the balloon as drawn (below: `balloon-look.ts`, `balloon-envelope.ts`, `balloon-basket.ts`, hung on the engine's state by `balloon-scene.ts`), `strings-balloon.ts` and the start card's RUN stop. The burner's flame, the fire as drawn, the cameras and the HUD are still to come.
+The engine side is `engine/game/balloon.ts` (the flight), `balloon-air.ts` (the air it flies in), `balloon-state.ts` (its state and events), `balloon-pilot.ts` (the bot's hands) and `defs/balloon.ts` (every number). The app side is the balloon as drawn (below: `balloon-look.ts`, `balloon-envelope.ts`, `balloon-basket.ts`, hung on the engine's state by `balloon-scene.ts`; its fire in `balloon-fire-plan.ts`, `balloon-flame.ts` and `balloon-fire.ts`), `strings-balloon.ts` and the start card's RUN stop. The cameras, the HUD and the sound are still to come.
 
 ## What it is
 
@@ -86,15 +86,48 @@ Everything is built in code off `BALLOON`, so the picture and the physics cannot
 - **The shape moves**: the envelope leans off the basket by the engine's `lean` toward the drift, dents on its windward side in a strong shear, and the valve pulls its crown down. Down, it tips over downwind and lays out flat on the snow, rucked, as `deflate` runs from 0 to 1.
 - **The rigging and the basket**: sixteen flying wires from the tapes at the mouth, four to each corner of the burner frame; the double burner — two coils, the jets, the blast valves with their red grips — on padded uprights; a wicker basket (a woven texture and its normal map, generated) with a suede rim roll, rope handles, ash runners and three quilted cylinders, their hoses to the burner. The skier stands in it with no poles, his skis lashed outside the long wall. Past 110 m a few boxes and a cylinder stand in for the basket.
 
+## The fire as drawn
+
+Decided in `pwa/src/game/balloon-fire-plan.ts` (three-free, held by `tests/balloon_fire_test.ts`), drawn by `balloon-flame.ts` and `balloon-fire.ts`, hung on the balloon by `balloon-scene.ts`. Presentation only: it reads `BalloonState` (`valve`, `flame`, `pilot`, `shear`, `leanTo`, `scorch`, `burning`, `burnt`, `mode`) and never writes it, and every flicker runs off the run's clock and every scatter off a stream of its own.
+
+What it was made to look like, from flight manuals, burner makers' descriptions, accident reports and photographs and film of burns by day and at night:
+
+- **The main burner** fires vaporised propane through its coil as a long, narrow "pencil" flame — over five metres at full blast, more than eight on the biggest ride-balloon burners. It leaves the jets blue and nearly clear, turns within half a metre into a bright yellow-white body with orange, turbulent tongues tearing off its top, and roars from a little over head height up into the mouth, so its upper half is inside the envelope. A whisper (liquid-fire) valve burns a softer golden flame at about two thirds of the power; the game's valve is the main burner.
+- **The pilot light** is a small, steady blue flame at each coil, lit for the whole flight.
+- **At dusk and after dark** a burn turns the envelope into a lantern and throws an orange light down on the basket, the pilot and the snow under it.
+- **Envelope fires** start where the flame meets the cloth: in wind shear the windward side of the mouth is pushed in over the burner (the reports' advice is to look up before every burn), or the envelope tips over onto a burning burner on the ground. The base panels are a heat-resistant aramid; the coated nylon above burns fast, the flames running up the gores far faster than down or round, the cloth melting and dropping burning, and the whole envelope can be engulfed in well under a minute.
+
+So:
+
+| Part | Value |
+| --- | --- |
+| The flame | 5.4 m at full blast (a quarter of it just lit or nearly out), widest 0.27 m a third of the way up each jet; a blue root of 0.4 m; tongues climbing at about 9 m/s |
+| Ignition | the flame 35 % bigger and brighter for a moment, dying away over 0.28 s |
+| The tail | the valve shut, the flame goes out from the coil first, its root climbing at 12 m/s, the last of it lifting into the mouth |
+| The bend | the top laid over the way the envelope leans by (air past ÷ 14 m/s) of its length, at most 0.85 |
+| The pilot | 0.2 m, 0.03 m across, blue with a yellow tip |
+| Its light | a lamp slot (`Flood`) a third of the way up the flame, warm orange, 0.9 of a flood at full flame and a glimmer for the pilot — lit with the dark, as every lamp is |
+| The spread | from where it caught (2.6 m up the cloth from the mouth on the windward side when the shear lit it, the crown when it cooked): a climb counted at 0.5 of its height, a descent at 1.9, the cloth's own noise ±1.6 m; the front sweeps the farthest cloth by `burnt` = 0.85 |
+| The front | the last 1.3 m of cloth behind it alight in the shader, 1.8 m ahead browned by the heat; behind it the cloth is gone but for the charred streamers |
+| What it throws | at a full front, 150 flames, 40 puffs of black smoke (3–6 m, climbing at 7 m/s and carried off on the wind), 45 embers, 36 burning drips and 1.6 shreds of cloth a second |
+| The wreck | burns down over about 25 s on the snow and smoulders for minutes |
+
+- **The flame** is one open tube a jet, shaped in the vertex shader (narrow at the coil, widest a third of the way up, wobbling more the higher it goes, its top bent) and burnt in the fragment shader: how much flame the eye looks through at each point (the most at the silhouette's middle, and the whole of it when looking up the axis from the basket), a warped noise streaming up it that tears the upper half into tongues, the blue root, a yellow heart, orange tongues and a dull red top. Its colours sit a little over one so the tone map keeps it burning against the snow. A halo round it after dark.
+- **The envelope glows** with the flame as drawn (the tail's last light included), flickering with it, the more after dark; and with the fire's own light as it burns.
+- **Scorching**, the cloth where the flame is laid into it browns and smokes, then catches in licks.
+- **Alight**, the envelope's shader eats the cloth behind the spread's front (`FIRE_GLSL`, the same key as `spreadKey`), blackens it and glows patchily along the front; flames stand on the front (billboards off the helicopter's billow strip, `explosion.ts`, in one sorted batch, `billboards.ts`), black smoke rolls off it and drifts downwind, embers and burning drips fall through the helicopter's spark pool (`sparks.ts`), shreds of cloth tear off burning and flutter down to lie charred on the snow. A falling balloon leaves its smoke standing in the sky.
+- **Cheap on purpose**: the flame is four small tubes and a halo (about 0.01 ms of the processor a frame); a burning envelope about 0.5 ms (its update and its sort), and nothing at all while it does not burn.
+
 ## The labs
 
 - `make balloon-flight`: scripted flights in pure Node on a generated map — the bot holding 120 m and 300 m over the snow ahead of it, a hop off the tether, the valve held, the burner held, a jump, a walk, a breeze and a gale. It prints the top, the climb and sink, the lag from the first burn to a climb, the envelope's hottest, the propane burnt, the way carried up the mountain, the fire and how each ended. Keep `ARGS=--json=previews/balloon-before.json` before a change and `ARGS=--compare=…` after; `ARGS="--trace=pilot"` prints a row's flight every 5 s.
-- `make balloon`: the balloon as drawn, through the game's own renderer on a generated map (the harness `pwa/balloon-preview.html` over `pwa/src/tools/balloon-harness.ts` and `balloon-scenes.ts`): tethered, in flight from six sides, the basket close, up into the mouth and the valve, leaning, dusk and night, burning, down on the snow, every colourway, the walk, a turntable, the jump and every camera rung. A contact sheet a group in `previews/balloon-<group>.png`; `ARGS=--sheet=colours,night` some.
+- `make balloon`: the balloon as drawn, through the game's own renderer on a generated map (the harness `pwa/balloon-preview.html` over `pwa/src/tools/balloon-harness.ts` and `balloon-scenes.ts`): tethered, in flight from six sides, the basket close, up into the mouth and the valve, leaning, dusk and night, burning, down on the snow, every colourway, the walk, a turntable, the jump and every camera rung — and the fire: `fire` (the pilot lights close, the ignition and the tail frame by frame, the burn from the basket up into the mouth, by day, at dusk and at night, the flame laid over by 3, 7 and 11 m/s), `catch` (the envelope scorching and catching on its tether in a 13 m/s wind, then burning, frame by frame) and `inferno` (alight in flight, the skier over the side, engulfed, falling, the wreck burning down and smouldering; and after dark). A contact sheet a group in `previews/balloon-<group>.png`; `ARGS=--sheet=colours,night` some.
+- `tests/balloon_fire_test.ts` holds the fire's plan: the flame's length against the class's, the burst, the tail, the bend, where it catches, the spread up and down the gores and the whole envelope swept before it is burnt through.
 - `tests/balloon_look_test.ts` holds the drawing to the engine: the volume, the shape and where it is widest, the panels, the lobes, the mesh, the wires, the burner, the cylinders, the wicker, the paint's rule and the envelope laid on the snow.
 - `tests/balloon_test.ts` holds it: the tether, the drift up the mountain, the lag, the valve, the crash of a cooled envelope and the restart, the fire in a gale, the jump, the walk, the step out, the reset, determinism, and the site.
 
 ## What is still open
 
-- The burner's flame and the fire as drawn (the glow and the burn are wired in; the flame, the smoke and the embers are not), and the envelope's cloth is a shape, not a cloth simulation: it does not billow as it lays down.
+- The envelope's cloth is a shape, not a cloth simulation: it does not billow as it lays down, nor stream as it burns beyond the shrink and the ripple. The flame has no heat shimmer (a refraction pass the renderer does not have), and the whisper burner's golden flame is not drawn (the game has one valve). The holes the fire eats are not cut out of the envelope's shadow.
 - A camera ladder of its own (the first-person rung in the basket looking down over the side), the HUD (altimeter, variometer, envelope temperature with its red line, fuel, wind) and the sound (the burner's roar, the pilot light, the fire).
 - On touch, a left d-pad to walk the basket both ways (the helicopter's `StickZone`).

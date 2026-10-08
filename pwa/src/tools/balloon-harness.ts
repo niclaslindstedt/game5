@@ -19,7 +19,9 @@ import {
   NEUTRAL_INPUT,
   step,
   TUNING,
+  withSky,
   type GameState,
+  type Level,
   type RegionId,
   type SkyOverride,
   type WeatherKind,
@@ -82,8 +84,21 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 /** The wall time a still is drawn over: nothing moves in it. */
 const STILL = 1e-4;
 
+/** The map a run is flown on: the generated one, or it under a weather
+ * of a lab's own (`Stage.fly`) — loaded into the renderer, which draws
+ * only the map it has loaded. */
+let flown: Level = level;
+
 function fresh(): GameState {
-  return createGame({ level, seed, region, mode: "free", balloon: true, crowd: 0, quiet: true });
+  return createGame({
+    level: flown,
+    seed,
+    region,
+    mode: "free",
+    balloon: true,
+    crowd: 0,
+    quiet: true,
+  });
 }
 
 const ready = (async () => {
@@ -164,6 +179,12 @@ const stage: Stage = {
   },
   paint(c) {
     paintEveryBalloon(c);
+  },
+  async fly(sky) {
+    flown = sky ? withSky(level, sky) : level;
+    await renderer.load(fresh());
+    renderer.setSky(sky ? { ...(baseSky ?? {}), ...sky } : baseSky);
+    await renderer.shadeSettled();
   },
   async sky(over) {
     const sky = over ? { ...(baseSky ?? {}), ...over } : baseSky;

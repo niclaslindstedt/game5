@@ -20,9 +20,20 @@
 // and scorch uniforms; the drawn basket and envelope frames.
 
 import * as THREE from "three";
-import { BALLOON, type BalloonState, type GameState, type Level } from "@engine";
+import { BALLOON, TUNING, type BalloonState, type GameState, type Level } from "@engine";
 
 import { createBasket } from "./balloon-basket.ts";
+import { createEnvelopeFire } from "./balloon-fire.ts";
+import {
+  FLAME,
+  catchPoint,
+  fireFront,
+  flameBend,
+  flameMemory,
+  stepFlame,
+  type FlameNow,
+} from "./balloon-fire-plan.ts";
+import { createBurnerFlame } from "./balloon-flame.ts";
 import { createEnvelope, MOUTH_OVER_FRAME, type EnvelopeLook } from "./balloon-envelope.ts";
 import {
   BURNER_LOOK,
@@ -34,6 +45,7 @@ import {
   type Colourway,
   type Lay,
 } from "./balloon-look.ts";
+import type { Flood } from "./headlamp.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import { lineLightOf, litLine, type LineLight } from "./para-motor.ts";
@@ -43,8 +55,18 @@ import { TOPSHEETS } from "./ski-topsheets.ts";
 export type BalloonScene = {
   group: THREE.Group;
   /** One frame: the balloon where the engine has it, `alpha` of the way to
-   * the next step — or hidden. */
-  frame(state: GameState, alpha: number): void;
+   * the next step, its burner's flame and its fire moved on `dt` s — or
+   * hidden. */
+  frame(state: GameState, alpha: number, dt: number): void;
+  /** THE FIRE'S LIGHTS and the eye it is drawn for: the burner's flame and
+   * a burning envelope each a lamp (`headlamp.ts`'s `Flood`), pushed onto
+   * `out`; the fire's smoke and flames sorted back to front from `eye`. */
+  lamps(eye: THREE.Vector3, out: Flood[]): void;
+  /** How hard the burner roars (0 out … over 1 at its ignition) and how
+   * much of the envelope is ablaze, 0..1, as drawn — what a sound or a
+   * lens may follow. */
+  roar(): number;
+  blaze(): number;
   /** The sky's light on the lines and through the cloth. */
   light(look: SkyLook): void;
   /** THE BURNER'S OUTLETS in the world, as last drawn: where each coil's
@@ -76,9 +98,17 @@ export function paintEveryBalloon(c: Colourway | null): void {
 }
 
 export function createBalloonScene(haze: HazeUniforms): BalloonScene {
+  // The whole drawing, in the world; the rig under it carried to the
+  // basket, the flame and the fire in the world beside it.
+  const root = new THREE.Group();
+  root.name = "balloon";
   const group = new THREE.Group();
-  group.name = "balloon";
+  group.name = "balloon-rig";
   group.visible = false;
+  root.add(group);
+  const burner = createBurnerFlame();
+  const fire = createEnvelopeFire();
+  root.add(burner.group, fire.group);
   const body = new THREE.Group();
   body.name = "balloon-basket-frame";
   const basket = createBasket(haze);
@@ -170,6 +200,28 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
     oz: 0,
   };
   let laidDown = false;
+
+  // THE FLAME AND THE FIRE: what the flame remembers, where the fire caught
+  // (the envelope's own frame) and how far its spread reaches.
+  const memory = flameMemory();
+  const now: FlameNow = { length: 0, cut: 0, burst: 0, bright: 0 };
+  const outs = [new THREE.Vector3(), new THREE.Vector3()];
+  const flameUp = new THREE.Vector3();
+  const bend = new THREE.Vector3();
+  const caught = [0, 0, 0];
+  let held = false;
+  let night = 0;
+  const burnerLamp: Flood = {
+    x: 0,
+    y: 0,
+    z: 0,
+    dx: 0,
+    dy: -1,
+    dz: 0,
+    colour: FLAME.light.colour,
+    beam: [-2, -1.5, -3, 0],
+    power: 0,
+  };
 
   function paint(c: Colourway): void {
     if (painted && painted.scheme === c.scheme && painted.palette === c.palette) return;
@@ -291,15 +343,73 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
     lineGeo.attributes.position.needsUpdate = true;
   }
 
+  /** WHERE THE FIRE CATCHES: while it scorches, the windward side of the
+   * mouth in a shear (or the crown, cooked); once alight, held there. */
+  function catchOf(b: BalloonState): void {
+    if (!b.burning && b.scorch <= 0) {
+      held = false;
+      return;
+    }
+    if (held) return;
+    const windward = b.shear > BALLOON.fire.shear * 0.9;
+    catchPoint(windward, b.leanTo + Math.PI - b.heading, caught);
+    if (b.burning) held = true;
+  }
+
+  /** The burner's flame and the fire, a frame. */
+  function burn(state: GameState, b: BalloonState, alpha: number, dt: number): void {
+    const t = state.t + alpha * TUNING.dt;
+    stepFlame(memory, b.valve, b.flame, dt, now);
+    root.updateMatrixWorld();
+    for (let i = 0; i < basket.outlets.length && i < outs.length; i++) {
+      outs[i].copy(basket.outlets[i]).applyMatrix4(body.matrixWorld);
+    }
+    flameUp.set(0, 1, 0).applyQuaternion(hang.quaternion);
+    // The air past the burner lays the flame over the way the envelope leans.
+    const lay = flameBend(b.shear) * now.length;
+    bend.set(Math.sin(b.leanTo) * lay, 0, Math.cos(b.leanTo) * lay);
+    const pilot = b.pilot && b.mode !== "down" && b.burnt < 0.9;
+    if (b.mode === "down") burner.hide();
+    else burner.draw(outs, flameUp, now, pilot, bend, t, night);
+    // The envelope a lantern: its glow follows the flame as drawn, the
+    // tail's last light included, flickering as the flame does — and the
+    // fire's own light inside it as it burns.
+    const flick = 0.93 + 0.07 * Math.sin(t * 29) * Math.sin(t * 11.3);
+    const lit = b.mode === "down" ? 0 : Math.min(1.2, Math.max(b.flame, now.bright * 0.8));
+    // After dark the eye is open to it, and the lantern is the brightest
+    // thing in the sky.
+    envelope.look.glow.value = (lit * flick + 0.6 * fire.blaze()) * (1 + 2.2 * night);
+    catchOf(b);
+    envelope.look.catchAt.value.set(caught[0], caught[1], caught[2]);
+    envelope.look.time.value = t;
+    mesh.updateMatrixWorld();
+    fire.update(b, mesh, layout.position, caught, dt, lay0);
+    envelope.look.front.value = fireFront(b.burnt, fire.reach());
+    // The burner's light: from a third of the way up the flame.
+    const mid = now.length * FLAME.light.at;
+    burnerLamp.x = (outs[0].x + outs[1].x) / 2 + flameUp.x * mid;
+    burnerLamp.y = (outs[0].y + outs[1].y) / 2 + flameUp.y * mid;
+    burnerLamp.z = (outs[0].z + outs[1].z) / 2 + flameUp.z * mid;
+    burnerLamp.power =
+      b.mode === "down"
+        ? 0
+        : FLAME.light.power * Math.min(1.3, now.bright) * flick + (pilot ? FLAME.light.pilot : 0);
+  }
+  const lay0 = (x: number, z: number): number => level?.groundAt(x, z) ?? 0;
+
   return {
-    group,
+    group: root,
     look: envelope.look,
     basket: body,
     envelope: mesh,
-    frame(state, alpha) {
+    frame(state, alpha, dt) {
       const b = state.balloon;
       group.visible = !!b;
-      if (!b) return;
+      fire.group.visible = !!b;
+      if (!b) {
+        burner.hide();
+        return;
+      }
       if (state.level !== level || state.level.seed !== seed) {
         level = state.level;
         seed = state.level.seed;
@@ -307,8 +417,17 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
       paint(labPaint ?? colourwayOf(seed));
       place(state, b, alpha);
       rig(b);
+      burn(state, b, alpha, dt);
     },
+    lamps(eye, out) {
+      if (!group.visible) return;
+      if ((burnerLamp.power ?? 0) > 0.001) out.push(burnerLamp);
+      fire.seen(eye, out);
+    },
+    roar: () => (memory.open ? now.bright : 0),
+    blaze: () => fire.blaze(),
     light(look) {
+      night = Math.max(look.night, look.lamps);
       lineLightOf(look, lineLight.value);
       envelope.light(look);
     },
@@ -321,6 +440,8 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
       if (up) up.set(0, 1, 0).applyQuaternion(hang.quaternion);
     },
     dispose() {
+      burner.dispose();
+      fire.dispose();
       basket.dispose();
       envelope.dispose();
       wireGeo.dispose();

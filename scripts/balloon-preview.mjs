@@ -26,6 +26,13 @@
 //   turntable  in flight from eight sides
 //   jump       over the side, the balloon flying on alone
 //   lenses     every rung of the game's camera in flight
+//   fire       the burner: the pilot lights, the ignition and the tail
+//              frame by frame, up into the mouth, by day, dusk and night,
+//              the flame laid over by the wind
+//   catch      the envelope scorching and catching in a gale, then
+//              burning, frame by frame
+//   inferno    alight in flight, over the side, engulfed, falling, the
+//              wreck burning down and smouldering; and after dark
 //
 // Each GROUP is one contact sheet, previews/balloon-<group>.png, and every
 // frame is also written alone, previews/balloon-<view>-<label>.png. The
@@ -61,7 +68,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (tethered, flight, basket, mouth, lean, night, burn, down, colours, walk, turntable, jump, lenses); every one when left out",
+      help: "which sheets, comma-separated (tethered, flight, basket, mouth, lean, night, burn, down, colours, walk, turntable, jump, lenses, fire, catch, inferno); every one when left out",
     },
     views: {
       kind: "string",

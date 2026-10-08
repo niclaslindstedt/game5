@@ -472,7 +472,9 @@ balloon-flight:
 # basket, burner and skirt close up, up into the mouth, the parachute
 # pulled, leant over in the wind, after dark with the burner lit, burning,
 # laid on the snow, every colourway, the walk, eight sides, over the side,
-# every camera rung — through the game's own renderer. One contact sheet a
+# every camera rung — and its fire: the burner lit and going out, the
+# envelope catching in a gale, burning, falling and the wreck smouldering
+# (`fire`, `catch`, `inferno`) — through the game's own renderer. One contact sheet a
 # group, previews/balloon-<group>.png, and every frame alone,
 # previews/balloon-<view>-<label>.png. Its own one-off bundle from
 # pwa/balloon-preview.html (never deployed); needs a Chromium like `world`.

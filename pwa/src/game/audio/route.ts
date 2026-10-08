@@ -477,7 +477,12 @@ export function soundForEvent(
 
     // THE HOT AIR BALLOON (`balloon.ts`): over the side and out onto the
     // snow heard as a push off a machine, the basket onto the snow as a
-    // set-down; its burner's roar and its fire are beds of their own to come.
+    // set-down. Its burner's roar and its fire are beds of their own to
+    // come, read off the state rather than an event: the roar while
+    // `BalloonState.valve` is open (its ignition the valve's opening, as
+    // `balloon-fire-plan.ts`'s burst draws it), the pilot's hiss off
+    // `.pilot`, the crackle off `.burning` / `.burnt` — and the drawing's own
+    // shares, `BalloonScene.roar()` and `.blaze()`, beside them.
     case "balloon": {
       const heard = heardAt(event, contact.ear, HEARD_NEAR);
       return event.phase === "jump" || event.phase === "step"

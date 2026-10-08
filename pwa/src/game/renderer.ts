@@ -105,8 +105,6 @@ import {
   DEFAULT_VIDEO,
   DISTANCE_LOOK,
   FOREST_LOOK,
-  LAMP_COUNT,
-  LAMP_GLINT,
   RESOLUTION_SHARE,
   SHADOW_LOOK,
   SPRAY_SHARE,
@@ -221,7 +219,6 @@ export function createWorldRenderer(
   const tv = createTvCamera();
   let shot: ReplayShot | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9);
-  env.haze.uLampGlint.value = LAMP_GLINT[video.lamps] ? 1 : 0;
   env.setDistance(video.distance);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);
@@ -813,7 +810,7 @@ export function createWorldRenderer(
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);
       const floods = machines?.lamps(look.lamps, eye, gates?.floods ?? []) ?? gates?.floods;
-      dealLamps(env.haze, look.lamps, riders, floods ?? [], eye, LAMP_COUNT[video.lamps]);
+      dealLamps(env.haze, look.lamps, riders, floods ?? [], eye, video.lamps);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);
@@ -950,7 +947,6 @@ export function createWorldRenderer(
       env.setShadow(shadowLook());
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
-      env.haze.uLampGlint.value = LAMP_GLINT[video.lamps] ? 1 : 0;
       spray?.setBudget(SPRAY_SHARE[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);
       lifts?.setBudget(SPRAY_SHARE[video.spray]);

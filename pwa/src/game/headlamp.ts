@@ -31,6 +31,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { glow } from "./glow-sprite.ts";
 import { LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
 import { helmetReach } from "./helmet-shape.ts";
+import { LAMP_COUNT, LAMP_GLINT, type Tier } from "./settings-video.ts";
 
 /** Where the lamp is strapped, on the shell (`helmet-shape.ts`): dead
  * ahead on the brow, `e` rad up — over the brim and its vents — on an
@@ -226,8 +227,9 @@ const waiting: Waiting[] = [];
 
 /**
  * THE NIGHT'S LIGHTS at `level` (0 off … 1, `SkyLook.lamps`): every
- * skier's headlamp lit and seen from `eye`, and `most` of the slots dealt
- * (the LAMPS row, `settings-video.ts`'s `LAMP_COUNT`) — the player's lamp
+ * skier's headlamp lit and seen from `eye`, and as many slots dealt as
+ * the LAMPS row's `tier` has (`settings-video.ts`'s `LAMP_COUNT`), the
+ * snow's glitter in them on or off (`LAMP_GLINT`) — the player's lamp
  * first (`skiers[0]`: it lights what he skis into), then the finish
  * arena's floods, then the field's lamps within reach of the lens, as far
  * as the slots go; with fewer slots than lamps, the NEAREST of the rest to
@@ -242,12 +244,13 @@ export function dealLamps(
   skiers: readonly { model: { lamp: Headlamp } }[],
   floods: readonly Flood[],
   eye: THREE.Vector3,
-  most: number = LAMP_SLOTS,
+  tier: Tier = "high",
 ): void {
   for (let i = 0; i < LAMP_SLOTS; i++) u.uLampOn.value[i] = 0;
+  u.uLampGlint.value = LAMP_GLINT[tier] ? 1 : 0;
   for (const s of skiers) s.model.lamp.setLit(level, eye);
   if (level <= 0) return;
-  const slots = Math.min(most, LAMP_SLOTS);
+  const slots = Math.min(LAMP_COUNT[tier], LAMP_SLOTS);
   let n = 0;
   const head = (lamp: Headlamp) =>
     fill(u, n++, lamp.at, lamp.way, level * POWER, HEADLAMP_COLOUR, HEADLAMP_BEAM);

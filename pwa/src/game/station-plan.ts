@@ -31,8 +31,10 @@
 // world here.
 
 import {
+  CABIN_HALF,
   CORRAL_TAIL,
   chairLane,
+  platformOf,
   queueLane,
   runsOffTop,
   stationHouses,
@@ -76,6 +78,10 @@ const BOOTH_OUT = 3.6;
 const BOOTH_LANE = 2.4;
 const BOOTH_BACK = 5;
 const LANE = 1.4;
+/** A gondola's platform roof stands its columns this far past the outer
+ * edge of the platform its rider waits on, m — so neither he nor the cabin
+ * coming round to him rides through one. */
+const CANOPY_CLEAR = 1.5;
 /** The map board at a gondola's top: m down the line from its wheel past
  * the door its rider is walked out of, and across it — off the cut under
  * the way in. */
@@ -118,9 +124,18 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
       corral(fence, p);
     } else if (p.lift.kind === "gondola") {
       const back = -(h.length + 1.5);
-      put("canopy", L - 1, 0, p.heading, g * 2 + 3, wheelY(L) + 0.6);
+      // THE PLATFORM ROOF over each wheel, as wide as the platform's far
+      // edge from the line (the rider stands there beside his cabin's way)
+      // and its clearance either side.
+      const stand = platformOf(p);
+      const edge = Math.max(
+        g + CABIN_HALF,
+        Math.abs((stand.x - p.lift.bottom.x) * p.dz - (stand.z - p.lift.bottom.z) * p.dx),
+      );
+      const roof = (edge + CANOPY_CLEAR) * 2;
+      put("canopy", L - 1, 0, p.heading, roof, wheelY(L) + 0.6);
       put("door", L + 1.5, 0, p.heading + Math.PI);
-      put("canopy", 1, 0, p.heading, g * 2 + 3, wheelY(0) + 0.6);
+      put("canopy", 1, 0, p.heading, roof, wheelY(0) + 0.6);
       put("door", back, 0, p.heading + Math.PI);
       corral(fence, p);
     } else {

@@ -35,6 +35,7 @@ import {
   groomerModelUrl,
   HELI_NODES,
   heliModelUrl,
+  rescueModelUrl,
   SLED_NODES,
   sledModelUrl,
 } from "../pwa/src/game/skier-models.ts";
@@ -51,17 +52,24 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter, the snowmobile and the piste machine", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile and the piste machine", () => {
     expect([...all].sort()).toEqual(
-      [...SKI_CATALOG.map((s) => `${s.id}.glb`), "heli.glb", "sled.glb", "groomer.glb"].sort(),
+      [
+        ...SKI_CATALOG.map((s) => `${s.id}.glb`),
+        "heli.glb",
+        "rescue.glb",
+        "sled.glb",
+        "groomer.glb",
+      ].sort(),
     );
     const none = { skis: false, heli: false, sled: false, groomer: false };
-    expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb"]);
+    expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
     expect(modelFiles({ ...none, sled: true })).toEqual(["sled.glb"]);
     expect(modelFiles({ ...none, groomer: true })).toEqual(["groomer.glb"]);
     expect(modelFiles({ ...none, skis: true })).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`));
     expect(modelFiles(none)).toEqual([]);
     expect(modelFiles(ALL_MODELS, "heli")).toEqual(["heli.glb"]);
+    expect(modelFiles(ALL_MODELS, "rescue")).toEqual(["rescue.glb"]);
     expect(modelFiles(ALL_MODELS, "sled")).toEqual(["sled.glb"]);
     expect(modelFiles(ALL_MODELS, "groomer")).toEqual(["groomer.glb"]);
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
@@ -75,7 +83,14 @@ describe("the models the game ships", () => {
     const stamp = JSON.parse(
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as object;
-    expect(Object.keys(stamp).sort()).toEqual(["blender", "groomer", "heli", "sled", "sources"]);
+    expect(Object.keys(stamp).sort()).toEqual([
+      "blender",
+      "groomer",
+      "heli",
+      "rescue",
+      "sled",
+      "sources",
+    ]);
   });
 
   it("are all committed, each within its budget", () => {
@@ -103,52 +118,67 @@ describe("the models the game ships", () => {
   });
 });
 
-describe("the helicopter model", () => {
-  const glb = readFileSync(join(root, MODELS_DIR, "heli.glb"));
-  // A GLB's first chunk is its JSON: the nodes, the meshes, the materials.
-  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
-    nodes: { name: string; translation?: number[]; mesh?: number; children?: number[] }[];
-    materials: { name: string }[];
-    meshes: { primitives: { indices: number }[] }[];
-    accessors: { count: number }[];
-  };
-  const node = (name: string) => gltf.nodes.find((n) => n.name === name);
-  const builder = readFileSync(join(root, "scripts", "blender", "heli.py"), "utf8");
+// The heli-ski machine and its air ambulance: one airframe, one builder
+// (`rescue.py` runs `heli.py` whole and dresses it), one drawer's nodes.
+for (const m of [
+  { file: "heli.glb", url: heliModelUrl, builders: ["heli.py"], what: "helicopter" },
+  {
+    file: "rescue.glb",
+    url: rescueModelUrl,
+    builders: ["heli.py", "rescue.py"],
+    what: "air ambulance",
+  },
+]) {
+  describe(`the ${m.what} model`, () => {
+    const glb = readFileSync(join(root, MODELS_DIR, m.file));
+    // A GLB's first chunk is its JSON: the nodes, the meshes, the materials.
+    const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+      nodes: { name: string; translation?: number[]; mesh?: number; children?: number[] }[];
+      materials: { name: string }[];
+      meshes: { primitives: { indices: number }[] }[];
+      accessors: { count: number }[];
+    };
+    const node = (name: string) => gltf.nodes.find((n) => n.name === name);
+    const builder = readFileSync(join(root, "scripts", "blender", "heli.py"), "utf8");
 
-  it("carries the three nodes its drawer is told of, each a rigid mesh", () => {
-    for (const name of Object.values(HELI_NODES)) {
-      expect(builder, `heli.py names ${name}`).toContain(`"${name}"`);
-      expect(node(name)?.mesh, name).toBeTypeOf("number");
-    }
-    expect(heliModelUrl()).toBe("/models/heli.glb");
-  });
+    it("carries the three nodes its drawer is told of, each a rigid mesh", () => {
+      for (const name of Object.values(HELI_NODES)) {
+        expect(builder, `heli.py names ${name}`).toContain(`"${name}"`);
+        expect(node(name)?.mesh, name).toBeTypeOf("number");
+      }
+      expect(m.url()).toBe(`/models/${m.file}`);
+    });
 
-  it("hangs each rotor at its hub, as HELI has it (glTF: y up, the nose on -z)", () => {
-    const v = (n: number[] | undefined) => (n ?? [0, 0, 0]).map((x) => Math.round(x * 1000) / 1000);
-    expect(v(node(HELI_NODES.body)?.translation)).toEqual([0, 0, 0]);
-    expect(v(node(HELI_NODES.rotor)?.translation)).toEqual(v([0, HELI.rotor.hub, -HELI.rotor.at]));
-    const t = HELI.tail.hub;
-    expect(v(node(HELI_NODES.tail)?.translation)).toEqual(v([t.x, t.y, -t.z]));
-  });
+    it("hangs each rotor at its hub, as HELI has it (glTF: y up, the nose on -z)", () => {
+      const v = (n: number[] | undefined) =>
+        (n ?? [0, 0, 0]).map((x) => Math.round(x * 1000) / 1000);
+      expect(v(node(HELI_NODES.body)?.translation)).toEqual([0, 0, 0]);
+      expect(v(node(HELI_NODES.rotor)?.translation)).toEqual(
+        v([0, HELI.rotor.hub, -HELI.rotor.at]),
+      );
+      const t = HELI.tail.hub;
+      expect(v(node(HELI_NODES.tail)?.translation)).toEqual(v([t.x, t.y, -t.z]));
+    });
 
-  it("names its materials as the builder does, the lamps among them", () => {
-    const named = new Set(matNames("heli.py"));
-    for (const n of ["paint", "trim", "glass", "metal", "dark", "rotor", "lamp", "lamp_green"]) {
-      expect(named.has(n), `heli.py names "${n}"`).toBe(true);
-    }
-    expect(new Set(gltf.materials.map((m) => m.name))).toEqual(named);
-  });
+    it("names its materials as the builder does, the lamps among them", () => {
+      const named = new Set(m.builders.flatMap(matNames));
+      for (const n of ["paint", "trim", "glass", "metal", "dark", "rotor", "lamp", "lamp_green"]) {
+        expect(named.has(n), `heli.py names "${n}"`).toBe(true);
+      }
+      expect(new Set(gltf.materials.map((x) => x.name))).toEqual(named);
+    });
 
-  it("stays inside the game's triangle budget", () => {
-    const tris = gltf.meshes
-      .flatMap((m) => m.primitives)
-      .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
-    // 16k: the class's own silhouette — the nose rounded over two metres,
-    // the boxy cowl, the conical boom, the round tubes of the skid gear at
-    // eight sides — costs about 14k; a model past 16k lost its game cut.
-    expect(tris).toBeLessThanOrEqual(16_000);
+    it("stays inside the game's triangle budget", () => {
+      const tris = gltf.meshes
+        .flatMap((x) => x.primitives)
+        .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
+      // 16k: the class's own silhouette — the nose rounded over two metres,
+      // the boxy cowl, the conical boom, the round tubes of the skid gear at
+      // eight sides — costs about 14k; a model past 16k lost its game cut.
+      expect(tris).toBeLessThanOrEqual(16_000);
+    });
   });
-});
+}
 
 describe("the model switches", () => {
   it("are on unless a build turns one back", () => {

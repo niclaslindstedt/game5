@@ -361,7 +361,12 @@ function padMarks(level: Level): {
   return { group, glow, lamps, sock: vane };
 }
 
-export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
+/** How a helicopter is drawn: with its PAD on the valley floor (the free
+ * ride's own) or alone, and off which model file (the air ambulance's,
+ * `rescue-view.ts`). */
+export type HeliLook = { pad?: boolean; url?: string | null };
+
+export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook = {}): HeliView {
   const group = new THREE.Group();
   group.name = "helicopter";
   const machine = new THREE.Group();
@@ -395,8 +400,8 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   });
   let mainBlades: THREE.Mesh[] = [];
   let tailBlades: THREE.Mesh[] = [];
-  const marks = padMarks(level);
-  group.add(marks.group);
+  const marks = look.pad === false ? null : padMarks(level);
+  if (marks) group.add(marks.group);
   // THE LIGHTS as haloes, in the model's own frame (the glTF's: x its
   // right, y up, z aft): the red anti-collision beacons on the fin's top and
   // the belly, the nav lights at the stabiliser's tips — red to port, green
@@ -488,7 +493,7 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
   };
   // The Blender model where the build packs it (`heliModelUrl`), the code's
   // stand-in where it is switched off or will not load.
-  const url = heliModelUrl();
+  const url = look.url === undefined ? heliModelUrl() : look.url;
   const ready = (url ? new GLTFLoader().loadAsync(url) : Promise.reject(new Error("no model")))
     .then((gltf) => {
       if (disposed) return;
@@ -626,10 +631,12 @@ export function createHeliView(level: Level, haze: HazeUniforms): HeliView {
       for (const m of lampMats) {
         m.emissiveIntensity = live ? (flash ? 1.2 : 0.4) : 0.1;
       }
-      marks.glow.opacity = waiting ? 0.25 + 0.5 * pulse : 0;
-      marks.lamps.color.setRGB(0.2, waiting ? 0.6 + 0.4 * pulse : 0.45, 0.3);
-      // The sock streams out down the wind.
-      marks.sock.rotation.y = Math.sin(clock * 0.3) * 0.4;
+      if (marks) {
+        marks.glow.opacity = waiting ? 0.25 + 0.5 * pulse : 0;
+        marks.lamps.color.setRGB(0.2, waiting ? 0.6 + 0.4 * pulse : 0.45, 0.3);
+        // The sock streams out down the wind.
+        marks.sock.rotation.y = Math.sin(clock * 0.3) * 0.4;
+      }
     },
     drawn() {
       return shown;

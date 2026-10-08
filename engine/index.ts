@@ -600,6 +600,7 @@ export {
   stepBody,
 } from "./game/body.ts";
 export { bleedsOf, holdsHim, isDead, stepGore, type Bleed } from "./game/gore.ts";
+export { RESCUE, callRescue, disables, disablingOf, isInjured } from "./game/rescue.ts";
 export {
   GORE_OPEN,
   GORE_PIECES,

@@ -106,6 +106,7 @@ works, and SEATS where it has them. Every place comes out of one list,
 | `terrace` | an afterski lodge's deck, its tables kept out of and their benches the seats | `lodgeSpots` |
 | `yard` | the snow before a lodge's terrace, past its racks and steps | `lodgeSpots` |
 | `porch` | the open yard before a hut's, a cabin's or a chalet's porch | `cabinSpots` |
+| `base` / `yard` | the snow before each of the ski area's own buildings, past its terrace, apron or porch — the village's a place of the base area (the ticket office's with its queue's head at its window), the mountain's a yard | `cabinSpots` |
 | `base` | open snow about the village on the valley floor (up to `BASE_PLACES.village`, five, 32 m apart) | `villageSpots` |
 
 A NEW KIND OF BUILDING (a ticket office, a restaurant, a ski school's hut, a
@@ -138,6 +139,7 @@ snow between two samples is clear too.
 | instructor + class | `base` | 1 + 3–5 children on an arc | talks, points; the class stands holding skis | skis (class) | a morning and an afternoon class |
 | guest desk | `base` | 1 | stands, talks, waves | — | 08:30–16:30 |
 | walker (+ children) | `base`, `yard`, `porch` | 1–2 (+1–2) | walks a leg to another place and back, pausing at each end | skis on a shoulder (six in ten), else nothing | daytime; the odd one at night |
+| queuer | `base` before the ticket office (`Spot.queue`) | 3–7 in a line | stands queued a step (0.95 m) behind the one before, facing the window, talking | skis on a shoulder | 08:24–16:18, the morning's rush longest |
 | stroller (+ children) | `base` | 2–4 (+1–2) | goes ROUND the base: through two to four other base places in turn and back, pausing at each | skis on a shoulder (six in ten), else nothing | daytime; the odd one at night |
 | base skier | `base` | 1–3 | SKATES on his skis along the valley floor from one lift's (or the village's) place to another's, 2.2–3.6 m/s, stopping at each | his skis, on his feet | the lifts' hours, a few after |
 | meetup | `base` | a ring of 3–5 | friends at a meeting point with their skis, talking, waving one over | skis | 08:30–17:30 |
@@ -153,11 +155,15 @@ snow between two samples is clear too.
 
 The bodies are the crowd's eight (`CROWD_BODIES`); the staff wear their
 uniforms (`STAFF_DRESS`), the guests their own colours dealt off `tint`.
-A map carries at most `CIVILIAN_MOST` (320); a five-lift map with two lodges
-and ten cabins deals about 230–300, about 220–280 of them out at midday —
-some 155–185 of those on the base (the village and the lifts' feet on the
-valley floor), 40–55 of them on the move at any moment. The night keeps
-13–17 there.
+A map carries at most `CIVILIAN_MOST` (360). The roles are dealt in order —
+the staff, the children at play, the ticket queue, then the guests — and the
+bulk of the guests (the walkers, strollers, skaters, meeting points, cocoa
+knots and resters) is held to a budget a role (`Role.most`), dealt over its
+places in an order of the map's own, so a village of many buildings spreads
+them over all of it and leaves room for the terraces. A five-lift map with
+its village deals about 310–360, about 290–340 of them out at midday — some
+135–185 of those on the base (the village and the lifts' feet on the valley
+floor), 35–55 of them on the move at any moment. The night keeps 8–20 there.
 
 ### Going round the base
 

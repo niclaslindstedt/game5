@@ -62,7 +62,7 @@ import { wildGround } from "./wild-ground.ts";
 export const CIVILIAN_SALT = 0x5c1a;
 
 /** How many civilians a map holds at the most. */
-export const CIVILIAN_MOST = 320;
+export const CIVILIAN_MOST = 360;
 
 /** The places, m and s: the least room between two people stood at one
  * place; the tries a person's spot gets; a walker's leg — the shortest and
@@ -110,6 +110,9 @@ const ALONGSIDE = 0.75;
 const ringRadius = (n: number): number => 0.55 + 0.22 * n;
 /** A snowball fight is thrown across a wider ring, m. */
 const THROW_RING = SNOWBALL.reach / 2;
+/** One guest behind the next in a queue, m: a body and a pair of skis on
+ * a shoulder. */
+const QUEUE_STEP = 0.95;
 /** A class stands on an arc this far before its instructor, m. */
 const CLASS_ARC = 2.6;
 
@@ -396,6 +399,16 @@ function dealRound(
   return routeOf(points, speed, pause);
 }
 
+/** `list` in an order dealt off `rng` (Fisher–Yates). */
+function shuffled<T>(rng: Rng, list: readonly T[]): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = rng.int(0, i);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 /** A boot's pace for a body, m/s: the old and the children at the slow end. */
 function paceOf(rng: Rng, body: CrowdBody): number {
   const [lo, hi] = BOOT_GAIT.speed;
@@ -519,8 +532,13 @@ export function planCivilians(level: Level): CivilianPlan {
   };
 
   for (const role of CIVILIAN_ROLES) {
-    for (const spot of spots) {
+    // A role with a budget is dealt over its places in an order of the
+    // map's own, so the budget is spread over all of them.
+    const order = role.most === undefined ? spots : shuffled(rng, spots);
+    const dealt = () => people.filter((c) => c.role === role.id).length;
+    for (const spot of order) {
       if (full()) break;
+      if (role.most !== undefined && dealt() >= role.most) break;
       if (!role.at.includes(spot.kind)) continue;
       if (!rng.chance(role.chance)) continue;
       const want = rng.int(role.count[0], role.count[1]);
@@ -535,6 +553,20 @@ export function planCivilians(level: Level): CivilianPlan {
           const p = n === 0 ? post : frameAt(post.x, post.z, post.heading, 1.4 * n, -0.4);
           add(role, spot, standAt(spot, p.x, p.z, post.heading), false, keen, null);
           continue;
+        }
+        if (role.moves === "line") {
+          // THE QUEUE: a step behind the one before, out from the head,
+          // each a little off the line and facing the window. Its first is
+          // always there while the window is open.
+          const q = spot.queue;
+          if (!q) break;
+          for (let k = 0; k < want && !full(); k++) {
+            const at = frameAt(q.x, q.z, q.heading, rng.range(-0.15, 0.15), k * QUEUE_STEP);
+            if (!civilianClear(level, at.x, at.z)) break;
+            const face = q.heading + Math.PI + rng.range(-0.25, 0.25);
+            add(role, spot, standAt(spot, at.x, at.z, face), false, k === 0 ? 0 : rng.next(), null);
+          }
+          break;
         }
         if (role.moves === "seat") {
           const free = spot.seats.filter((s) => !seatsUsed.has(s));

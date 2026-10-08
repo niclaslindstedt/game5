@@ -330,6 +330,26 @@ describe("the base area", () => {
     expect(acts.has("walk")).toBe(false);
   });
 
+  it("queues at the ticket office: a line out from its window, facing it, longest in the morning", () => {
+    const window = spotsOf(level).find((s) => s.queue);
+    expect(window).toBeDefined();
+    const q = window!.queue!;
+    const line = plan.people.map((c, i) => ({ c, i })).filter(({ c }) => c.role === "queuer");
+    expect(line.length).toBeGreaterThanOrEqual(3);
+    line.forEach(({ c }, k) => {
+      // A step behind the one before, straight out from the head.
+      const along = (c.home.x - q.x) * Math.sin(q.heading) + (c.home.z - q.z) * Math.cos(q.heading);
+      expect(along).toBeCloseTo(k * 0.95, 1);
+      expect(Math.cos(c.home.heading - q.heading)).toBeLessThan(-0.9);
+    });
+    const pose = freshCivilianPose();
+    const queued = (hour: number) =>
+      line.filter(({ i }) => civilianAt(plan, i, 10, hour, pose).shown).length;
+    expect(queued(9.5)).toBeGreaterThan(0);
+    expect(queued(9.5)).toBeGreaterThanOrEqual(queued(14));
+    expect(queued(NIGHT)).toBe(0);
+  });
+
   it("throws snowballs across the ring, in an arc, and only while thrown", () => {
     const pose = freshCivilianPose();
     const ball = { x: 0, y: 0, z: 0 };

@@ -80,6 +80,9 @@ export type Spot = {
   keepOut: readonly Rect[];
   /** Where a member of staff works, in the world, and the way he faces. */
   post?: { x: number; z: number; heading: number };
+  /** Where a QUEUE starts (its head, at a window or a door) and the way it
+   * runs out from there — a ticket office's line. */
+  queue?: { x: number; z: number; heading: number };
   seats: readonly Seat[];
   /** The building or lift the place belongs to. */
   of: string;
@@ -513,7 +516,10 @@ function cabinSpots(level: Level): Spot[] {
     const d = CABINS[c.kind];
     const z0 = d.depth / 2 + d.reach.front + 0.8;
     const own = isResortBuilding(c.kind);
+    // The ticket office's line runs straight out from its window.
+    const head = frameAt(c.x, c.z, c.heading, 0, z0);
     out.push({
+      ...(c.kind === "ticket" ? { queue: { ...head, heading: c.heading } } : {}),
       id: `${c.id}-${own ? "front" : "porch"}`,
       kind: own ? (isMountainBuilding(c.kind) ? "yard" : "base") : "porch",
       x: c.x,

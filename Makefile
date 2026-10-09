@@ -239,6 +239,9 @@ injuries:
 # slope) and the share that threw him, by how hard. Pure Node, a few
 # minutes. ARGS="--seeds 16", "--json" a baseline, "--compare FILE" beside
 # it, "--list" every fall with a --trace line to ski it step by step.
+# ARGS=--lean=-1 holds the lean forward in the air (a player MEANING to land
+# on his tips); ARGS=--attitudes the sweep of drops set down off true —
+# tips, tails, rolled, sideways — each cell ridden away or what threw him.
 landing:
 	npm run landing -- $(ARGS)
 

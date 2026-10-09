@@ -722,15 +722,16 @@ export const TUNING = {
      * they land on, rad — the tips down into it, the tails first, rolled
      * across it, and sideways to the way he is going — at a landing under
      * `clean` g, shrinking to `tight` of it at `buckle`. The bigger the
-     * landing, the more perfect it must be. */
+     * landing, the more perfect it must be; past it, `crash.crooked` of
+     * that throws him (`crash.ts`). */
     tipsDown: 0.5,
     tailsDown: 0.8,
     rolled: 0.6,
     sideways: 0.9,
-    tight: 0.2,
+    tight: 0.6,
     /** ...and under `clean` g more forgiving still, to `1 + slack` of it
      * at a hop that loads him no more than standing. */
-    slack: 1,
+    slack: 0.3,
     /** A STEEP FACE TAKES A FALL: the skis run on down it while the legs
      * fold, drawing the stop out. The first `over` m of the equivalent fall
      * height is stopped outright (a kicker's landing is judged as ever);

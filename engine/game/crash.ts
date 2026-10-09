@@ -4,7 +4,7 @@
 //
 // A PROFESSIONAL'S RESILIENCE: he goes down only when the body physically
 // cannot stay up — and everything short of that he rides out, the save
-// kept for the figure to play (`noteSave`, `SkierState.save`). EIGHT WAYS
+// kept for the figure to play (`noteSave`, `SkierState.save`). NINE WAYS
 // OFF, each a threshold on something the step has already measured, and
 // each well past anything a clean run meets (`TUNING.crash`):
 //   - a TRUNK met hard — the `hit` event's closing speed past `treeSpeed`
@@ -28,9 +28,11 @@
 //     reset's own clock (`reset.overFor`) standing him up as before;
 //   - THE LEGS FOLDED — a `land` whose load (`flight.ts`'s `landingLoad`:
 //     the equivalent fall height over the legs' stroke and the snow's give)
-//     is past `legsFold` g, more than legs can hold. How TRUE the skis came
-//     down is not judged here: a landing on the skis is the snow's and the
-//     legs' to sort out, and one that is not true enough ends on the body;
+//     is past `legsFold` g, more than legs can hold;
+//   - a CROOKED LANDING — a `land` with the skis further off true than its
+//     load forgives (`crookedOf`: `flight.ts`'s `landingFaults` against
+//     `landingTolerance` times `crooked`): the tips buried, the back seat,
+//     one edge or sideways to the way, which no body rides away;
 //   - a CAUGHT EDGE, the high-side — a ski stood well over on its edge
 //     (`catchEdge`) while the snow slides past across it faster than
 //     `catchSlip`: the edge bites all at once and the body is thrown over
@@ -78,7 +80,7 @@ import { envelopeOf } from "./defs/skis.ts";
 import { GRIMBEAR } from "./defs/grimbear.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { buzzLimit } from "./buzz.ts";
-import { carriedThrough } from "./flight.ts";
+import { carriedThrough, landingFaults, landingTolerance, type LandingFaults } from "./flight.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import { tailDug } from "./switch.ts";
@@ -124,6 +126,42 @@ function noseLimit(c: SkierState): number {
   return dig + (crashLimit(c, "noseAngle") - dig) * clamp(c.packed, 0, 1);
 }
 
+const faults: LandingFaults = { tips: 0, tails: 0, roll: 0, slide: 0 };
+
+/** THE CROOKED LANDING: how far off true the skis came down on this step
+ * (`flight.ts`'s `landingFaults`, each axis a share of what a clean landing
+ * forgives on it), against the room a landing of `g` leaves
+ * (`landingTolerance`) times the skier's own `crooked` — and what throws him
+ * if it is past it, by the axis furthest past: the TIPS buried, over them
+ * (`nose`); the TAILS first, the back seat sat down in (`landing`); ROLLED
+ * onto one edge or SIDEWAYS to the way, the edge biting and the body
+ * flung over it (`catch`). The slide counts only as fast as the snow comes
+ * across the skis (`crookedSlip` of it is the whole of it): a quarter turn
+ * set down at a crawl is a hockey stop. Null when he rides it away. */
+function crookedOf(state: GameState, g: number): CrashCause | null {
+  const c = state.skier;
+  const level = state.level;
+  snowNormal(level, c, n);
+  const f = landingFaults(
+    rotate(c.q, { x: 0, y: 0, z: 1 }),
+    rotate(c.q, { x: 1, y: 0, z: 0 }),
+    n,
+    c.vx,
+    c.vz,
+    state.rules.stunts,
+    level.normalNear ? c.vy : undefined,
+    faults,
+  );
+  const across =
+    hypot(c.vx, c.vz) * Math.sin(Math.min(Math.PI / 2, f.slide * TUNING.landing.sideways));
+  const slide = f.slide * clamp(across / K.crookedSlip, 0, 1);
+  const worst = Math.max(f.tips, f.tails, f.roll, slide);
+  if (worst < crashLimit(c, "crooked") * landingTolerance(g)) return null;
+  if (worst === f.tips) return "nose";
+  if (worst === f.tails) return "landing";
+  return "catch";
+}
+
 /** Where a trunk met this step stands against the skier — its side, −1
  * left, 1 right — and the closing speed that throws him off it: on the
  * tips (`treeSpeed`) when it is in front of the skis (the tips' circle,
@@ -149,6 +187,7 @@ export function wipeoutCause(
 ): CrashCause | null {
   const c = state.skier;
   let landed = false;
+  let landedG = -1;
   for (const e of events) {
     if (e.kind === "hit") {
       if (e.speed >= trunkAt(c, e.x, e.z).limit) return "tree";
@@ -167,12 +206,20 @@ export function wipeoutCause(
     if (e.airTime >= TUNING.landing.air && e.g >= crashLimit(c, "legsFold") && !overSnow(state)) {
       return "landing";
     }
+    if (e.airTime >= TUNING.landing.air) landedG = e.g;
   }
   // THE BODY DOWN: his hips, shoulders or helmet driven into the snow —
   // whatever the skis were doing, he is on the ground; a landing's, when
   // the skis touched down a moment before.
   if (c.bodyHit >= crashLimit(c, "bodySlam") && speed0 >= K.rollSpeed) {
     return landed || c.landing <= K.noseAir ? "landing" : "roll";
+  }
+  // A LANDING NO BODY RIDES AWAY: the skis come down further off true than
+  // the load leaves him room for (`crookedOf`) — judged once the body has
+  // had its say, so one who came down on his side is down on it.
+  if (landedG >= 0 && !overSnow(state)) {
+    const crooked = crookedOf(state, landedG);
+    if (crooked) return crooked;
   }
   // Over is over against the SNOW, not the sky — a skier on a steep face
   // stands well off vertical — and ON the snow: a skier turning over in the
@@ -240,6 +287,8 @@ export function noteSave(state: GameState, events: GameEvent[]): void {
           (e.g - K.saveLand) / (crashLimit(c, "legsFold") - K.saveLand),
           (Math.abs(tip) - K.saveTip) / (limit - K.saveTip),
           (roll - K.saveRoll) / (Math.PI / 2 - K.saveRoll),
+          // ...and off true, from half of what throws him (`crookedOf`).
+          2 * (e.off / (crashLimit(c, "crooked") * landingTolerance(e.g))) - 1,
         ),
         roll > K.saveRoll ? sideOf.side : 0,
         clamp(tip / limit, -1, 1),

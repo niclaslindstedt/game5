@@ -44,6 +44,17 @@ export const CRASH = {
    * came down is the snow's and the body's to settle: a landing on the
    * skis is ridden away, and one on the body is `bodySlam`'s. */
   legsFold: 18,
+  /** THE CROOKED LANDING (`crash.ts`'s `crookedOf`): the skis come down
+   * further off true than a landing of its load forgives (`flight.ts`'s
+   * `landingTolerance` times this) — the tips 29° into the slope, the tails
+   * 46° first, rolled 34° onto one edge or 52° sideways to the way at a
+   * clean landing's load (`TUNING.landing`), less under a harder one and a
+   * little more off a hop — and no body rides it away: the tips bury, he
+   * sits down in the back seat, or the edge bites and flings him. The
+   * slide counts whole only once the snow comes `crookedSlip` m/s across
+   * the skis (22 km/h); slower, it is a skid. */
+  crooked: 1,
+  crookedSlip: 6,
   /** A skier going over (`reset.overUp`) at this speed or more, m/s, is
    * thrown; slower, he sits down and the reset's own clock stands him up. */
   rollSpeed: 6,
@@ -76,7 +87,8 @@ export const CRASH = {
    * skier between is the blend (`crash.ts`'s `crashLimit`). A trunk on
    * the tips at 18 km/h and on the shoulder at 22, the tips digging at
    * 25° in loose snow and 32° on the groomer, down from a body drop of
-   * five centimetres, the legs folding at 10 g, a hand down held for an
+   * five centimetres, the legs folding at 10 g, a crooked landing at four
+   * fifths of what a professional rides away, a hand down held for an
    * eighth of a second, an edge caught at 40° and 22 km/h across it, a
    * stake run into at 32 km/h, a net driven into at 5 km/h across it. */
   club: {
@@ -86,6 +98,7 @@ export const CRASH = {
     noseDig: 0.44,
     bodySlam: 1,
     legsFold: 10,
+    crooked: 0.8,
     rollHold: 0.12,
     catchEdge: 0.7,
     catchSlip: 6,

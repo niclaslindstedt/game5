@@ -16,6 +16,14 @@
 //   make landing                        8 seeds, the table
 //   make landing ARGS="--seeds 16 --json"   a baseline to keep
 //   make landing ARGS="--compare previews/landing.json"
+//   make landing ARGS=--attitudes        the attitude sweep (below)
+//
+// THE ATTITUDE SWEEP (`--attitudes`, `lib/landing-attitudes.mjs`) is the
+// other half: what a player who MEANS to land badly gets. Drops staged on
+// the bench (the groomer, a 24° landing, powder) at three heights and two
+// speeds, the skis held off true — tips down, tails down, rolled, sideways —
+// with the air's hands off so the attitude set is the attitude that lands,
+// each cell whether he rode it away. `--json` / `--compare` keep a baseline.
 //
 // Pure Node: the engine at 120 Hz, no renderer.
 
@@ -40,7 +48,16 @@ const args = parseArgs(
     json: { kind: "flag", help: "write previews/landing.json (the baseline)" },
     compare: { kind: "string", help: "a baseline to print beside this run" },
     stand: { kind: "flag", help: "ski stood up instead of tucked (W never held)" },
+    lean: {
+      kind: "number",
+      default: 0,
+      help: "the lean held in the air, -1..1 (back positive, as the input): a player MEANING to land on his tips (-1) or his tails (1)",
+    },
     list: { kind: "flag", help: "print every landing that threw him" },
+    attitudes: {
+      kind: "flag",
+      help: "the ATTITUDE SWEEP: drops staged on the bench, the skis held off true (tips down, tails down, rolled, sideways) — which he rides away",
+    },
     trace: {
       kind: "string",
       help: "ski one start step by step: seed:x:z:heading:kmh:pop:piste (as --list prints it)",
@@ -65,7 +82,7 @@ function inputAt(t, pop, state, steered) {
     steer,
     tuck: args.stand ? 0 : 1,
     brake: 0,
-    lean: 0,
+    lean: state.skier.airborne ? args.lean : 0,
     reset: false,
     jump: pop && t >= 1 && t < 1.7,
   };
@@ -97,6 +114,12 @@ function startsOf(level) {
     }
   }
   return out;
+}
+
+if (args.attitudes) {
+  const { attitudeSweep } = await import("./lib/landing-attitudes.mjs");
+  attitudeSweep(E, await import(join(root, "tests/support/synthetic.ts")), args, root);
+  process.exit(0);
 }
 
 if (args.trace) {
@@ -170,12 +193,15 @@ for (let seed = 1; seed <= args.seeds; seed++) {
       const t0 = state.t;
       for (let i = 0; i < RUN * HZ; i++) {
         const t = state.t - t0;
+        // Down before the step: a landing that throws him on the step it
+        // touches down is still that landing's row.
+        const wasDown = c.thrown !== null;
         E.step(state, inputAt(t, pop, state, start.where === "piste"));
         // The pitch rate he left the snow with, rad/s, tips DOWN positive.
         if (c.airborne && !flying) rate = c.wx;
         flying = c.airborne;
         for (const e of state.events) {
-          if (e.kind === "land" && e.airTime >= E.TUNING.landing.air && c.thrown === null) {
+          if (e.kind === "land" && e.airTime >= E.TUNING.landing.air && !wasDown) {
             open = {
               seed,
               start: `${seed}:${start.x.toFixed(1)}:${start.z.toFixed(1)}:${start.heading.toFixed(3)}:${start.kmh}:${pop ? 1 : 0}:${start.where === "piste" ? 1 : 0}`,
@@ -218,7 +244,13 @@ function tableOf(list) {
     const down = band.filter((r) => r.thrown);
     const causes = {};
     for (const r of down) causes[r.thrown] = (causes[r.thrown] ?? 0) + 1;
-    return { label, n: band.length, down: down.length, causes };
+    // How far off true the landings of the band came down — the share of
+    // a clean landing's tolerance (`landingOff`), the 95th percentile and
+    // the worst — what a rule on the attitude must leave ridden.
+    const offs = band.map((r) => r.off).sort((a, b) => a - b);
+    const p95 = offs.length ? offs[Math.floor(0.95 * (offs.length - 1))] : 0;
+    const worst = offs.length ? offs[offs.length - 1] : 0;
+    return { label, n: band.length, down: down.length, causes, p95, worst };
   });
 }
 
@@ -262,7 +294,8 @@ for (const [name, table, old] of [
 ]) {
   console.log(`\n  ${name}`);
   console.log(
-    "    load        landings  thrown        causes" + (old ? "              before" : ""),
+    "    load        landings  thrown        causes              off p95/worst" +
+      (old ? "  before" : ""),
   );
   table.forEach((b, i) => {
     const causes = Object.entries(b.causes)
@@ -270,7 +303,7 @@ for (const [name, table, old] of [
       .join(", ");
     const was = old ? `${old[i].down}/${old[i].n} (${pct(old[i].down, old[i].n)})` : "";
     console.log(
-      `    ${b.label.padEnd(11)} ${String(b.n).padStart(8)}  ${`${b.down} (${pct(b.down, b.n)})`.padEnd(13)} ${causes.padEnd(19)} ${was}`,
+      `    ${b.label.padEnd(11)} ${String(b.n).padStart(8)}  ${`${b.down} (${pct(b.down, b.n)})`.padEnd(13)} ${causes.padEnd(19)} off ${b.p95.toFixed(2)}/${b.worst.toFixed(2)}  ${was}`,
     );
   });
 }

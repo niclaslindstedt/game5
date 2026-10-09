@@ -139,6 +139,14 @@ same everywhere. Inside an attempt the order is the dependency order:
 That is a single-piste map (v1's), built in about two seconds on Node, most seeds on the first
 attempt; a resort (v4) builds in its own order ([Resorts](#resorts-r25r30)) in four to six.
 
+**Progress.** `GenerateOptions.progress` is told how far the search has got, 0–1, at its landmarks
+(`progress.ts`: the mountain, the pads, the runs walked, graded and pressed, access, the features,
+the woods, the courses, the check), each weighted by its measured share of an attempt. A refused
+attempt never takes the bar back: each attempt fills a slice of what is left (two fifths of it), so
+the bar slows as the search runs long and reaches one only when a map is accepted. It draws nothing,
+so no digest can see it. The app builds a new map on a worker (`map-worker.ts`, the start card's
+`seed-preview-worker.ts`) and the loading card and the start card draw the bar from it.
+
 ## Regions (R21)
 
 A map is built in one REGION — a kind of snow country, never a place (`engine/mapgen/regions.ts`,

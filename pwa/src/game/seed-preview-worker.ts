@@ -132,7 +132,17 @@ export type PreviewReply =
     }
   | PreviewRefused;
 
-const post = (reply: PreviewReply, transfer: Transferable[] = []): void =>
+/** How far the map being built has got, 0–1 (`GenerateOptions.progress`),
+ * posted as the generator reaches its landmarks — the start card's bar and
+ * the loading card's, while a free ride waits on this map. */
+export type PreviewProgress = {
+  seed: number;
+  region: RegionId;
+  grade: PisteGrade | null;
+  share: number;
+};
+
+const post = (reply: PreviewReply | PreviewProgress, transfer: Transferable[] = []): void =>
   (self as unknown as Worker).postMessage(reply, transfer);
 
 /** Raw pixels as a finished picture where this worker has a canvas, as
@@ -175,7 +185,11 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
   try {
     const level = given
       ? boundLevel(given)
-      : generateLevel(seed, { region, grade: grade ?? undefined });
+      : generateLevel(seed, {
+          region,
+          grade: grade ?? undefined,
+          progress: (share) => post({ seed, region, grade, share }),
+        });
     const transfer: Transferable[] = [];
     let painted: PreviewPainted | null = null;
     if (paint) {

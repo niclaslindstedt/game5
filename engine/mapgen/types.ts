@@ -862,6 +862,9 @@ export interface GenerateOptions {
   /** R28 — the course a resort map is raced on, by id; one of `grade`'s (or
    * the seed's) when left out. */
   course?: string;
+  /** Told how far the search has got, 0–1, at its landmarks (`progress.ts`)
+   * — for a loading card's bar. Draws nothing and moves nothing it builds. */
+  progress?: (share: number) => void;
 }
 
 /** The answer to "where on the piste is this point nearest?" */

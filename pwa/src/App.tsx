@@ -70,6 +70,7 @@ import { onShellCommand, shellContent } from "./shell-host.ts";
 import { createRunAudio, setAudioVolumes } from "./game/audio/index.ts";
 import { watchCanvas } from "./game/app-canvas.ts";
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
+import { buildMap, gameOrder } from "./game/map-build.ts";
 import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
 import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
@@ -87,7 +88,7 @@ import {
   freeRestart,
   standingFor,
 } from "./game/free-ride.ts";
-import { freeAsk, freeRideLevel, quietSeedMaps } from "./game/seed-maps.ts";
+import { freeRideLevel } from "./game/seed-maps.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
@@ -494,7 +495,12 @@ export function App() {
 
     /* ── STANDING A RACE UP ────────────────────────────────────────────── */
     const loader = createLoader(
-      { renderer: view, adopt: (s) => adopt(s, ticketFor(s), true), current: () => state },
+      {
+        renderer: view,
+        adopt: (s) => adopt(s, ticketFor(s), true),
+        current: () => state,
+        buildMap,
+      },
       {
         phase: setLoadingPhase,
         start: () => {
@@ -563,15 +569,12 @@ export function App() {
       race: (seed, asked) => {
         mode = asked;
         pinned.clear();
+        const under = state.level.seed === seed && state.rules.course ? state.level : undefined;
         loader.begin({
-          // THE MAP UNDER THE MENU IS REUSED when it is the one asked for —
-          // the race the player presses RACE over is the race they ride.
-          // (Never a free ride's: that one is the seed's map on another day.)
-          build: () =>
-            playerGame(
-              state.level.seed === seed && state.rules.course ? state.level : undefined,
-              seed,
-            ),
+          // THE MAP UNDER THE MENU IS REUSED when it is the one asked for (never
+          // a free ride's, the seed's map on another day); else a worker builds it.
+          map: () => (under ? null : gameOrder({ seed, mode, ...linkWorld(params) })),
+          build: (level) => playerGame(level ?? under, seed),
           camera: settingsRef.current.camera,
           done: lift,
         });
@@ -579,16 +582,13 @@ export function App() {
       free: (options) => {
         mode = "free";
         pinned.clear();
-        // The map standing, or the one the start card's worker built — or
-        // is building — for this seed (`seed-maps.ts`); built here only
-        // where there is neither.
-        const made = freeRideLevel(freeAsk(options));
-        quietSeedMaps(freeAsk(options));
+        // The map standing, or the one the start card's worker built or is
+        // building (`seed-maps.ts`); else built on the card's own worker.
+        const made = freeRideLevel(options, () => standingFor(state.level, state.rules, options));
         loader.begin({
-          ready: made.ready,
-          build: () => {
-            const level = standingFor(state.level, state.rules, options) ?? made.level();
-            const game = createGame({ ...options, level });
+          ...made,
+          build: (built) => {
+            const game = createGame({ ...options, level: built ?? made.has() });
             freeAgain = freeAgainOptions(options, game.level);
             return game;
           },

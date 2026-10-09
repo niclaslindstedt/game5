@@ -80,6 +80,7 @@ import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./tra
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 import { chooseCourse } from "./course-gates.ts";
+import { attemptBegun, reached, reportingTo } from "./progress.ts";
 import { buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
 import { resortCached } from "./resort-cache.ts";
 import { analyzeResort } from "../analysis/resort.ts";
@@ -123,6 +124,7 @@ function attemptLevel(
   const rng = createRng(sub);
   const plan = planTerrain(rng, region, grade);
   const ground = bakeCountry(plan);
+  reached("mountain");
 
   const start = chooseStart(rng, ground, grade);
   if (typeof start === "string") return start;
@@ -147,6 +149,7 @@ function attemptLevel(
     piste = drawn;
   }
   if (!piste) return `no piste fits this mountain (last: ${why})`;
+  reached("walked");
 
   const trackDrops = layDrops(sub, piste, grade);
   if (trackDrops.length < grade.drops.min) {
@@ -155,6 +158,7 @@ function attemptLevel(
   const trackKickers = layTrackKickers(rng, piste, grade, trackDrops);
   const drops = publishDrops(piste, trackDrops);
   const { packed, near, along, dist } = stampCorridor(piste, ground);
+  reached("graded");
   const offKickers = layOffKickers(rng, plan, ground, piste);
   const cliffs = layCliffs(sub, plan, ground, trackOf(piste), offKickers, drops);
 
@@ -192,7 +196,9 @@ function attemptLevel(
 
   const treeLineY = base.y + (plan.treeLine - plan.altitude);
   const edges = drops.length > 0 ? drops.concat(cliffs) : cliffs;
+  reached("features");
   let trees = growForest(rng, plan, ground, trackOf(piste), kickers, edges, treeLineY);
+  reached("woods");
   const day = dealSun(rng, region.sun);
   const { weather, hour } = dealWeather(sub, day);
   // R15 — the one piste's face is due north (from before the face was
@@ -234,6 +240,10 @@ function attemptLevel(
 
 /** Generate the map for a seed: the first attempt the analysis passes. */
 export function generateLevel(seed: number, opts: GenerateOptions = {}): GeneratedLevel {
+  return reportingTo(opts.progress, () => searchLevel(seed, opts));
+}
+
+function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
   const attempts = opts.attempts ?? 16;
   const laps = opts.laps ?? R.race.laps;
   const traits = generatorTraits(opts.version);
@@ -243,6 +253,7 @@ export function generateLevel(seed: number, opts: GenerateOptions = {}): Generat
   const grade = UNGRADED;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
+    attemptBegun(a);
     const built = attemptLevel(seed, a, laps, version, opts.tricks === true, region, grade);
     if (typeof built === "string") {
       reasons.push(`#${a}: ${built}`);

@@ -57,6 +57,10 @@ import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "../game/state.ts";
 
+/** Squaring the skis to the way in a moguls air: the edge per radian off
+ * it, and per rad/s of yaw still turning. */
+const MOGUL_AIR = { square: 3, damp: 1.5 };
+
 export type BotProfile = {
   /** How far ahead along the piste the aim point stands, m, at rest, and
    * how many more metres per m/s of speed. */
@@ -736,6 +740,17 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     const pitchRate = -c.wx;
     input.lean = clamp(profile.airGain * (target - c.pitch) - profile.airDamp * pitchRate, -1, 1);
     input.tuck = 0.3;
+    // ...AND SQUARE TO THE WAY on a moguls course, where he leaves an air
+    // bump still turning off a mogul's shoulder: the edge swings the skis
+    // back onto the line he flies, or a skier who took off yawing lands
+    // across it — which no body rides away (`crash.ts`'s crooked landing).
+    if (level.moguls && hs > 3) {
+      input.steer = clamp(
+        MOGUL_AIR.square * angleDiff(c.heading, Math.atan2(c.vx, c.vz)) - MOGUL_AIR.damp * c.wy,
+        -1,
+        1,
+      );
+    }
     return input;
   }
 

@@ -94,14 +94,15 @@ describe("the landing's load", () => {
     expect(landingLoad(0, 0, 0)).toBe(1);
   });
 
-  it("forgives less the bigger it is, and nothing past the buckle", () => {
+  it("forgives less the bigger it is, down to its tightest at the buckle", () => {
     const L = TUNING.landing;
     expect(landingTolerance(1)).toBe(1 + L.slack);
     expect(landingTolerance(L.clean)).toBe(1);
     expect(landingTolerance((L.clean + L.buckle) / 2)).toBeLessThan(1);
     expect(landingTolerance(L.buckle - 1e-6)).toBeLessThan(landingTolerance(L.clean + 1));
     expect(landingTolerance(L.buckle - 1e-6)).toBeCloseTo(L.tight, 3);
-    expect(landingTolerance(L.buckle)).toBe(0);
+    expect(landingTolerance(L.buckle)).toBeCloseTo(L.tight, 9);
+    expect(landingTolerance(L.buckle * 2)).toBeCloseTo(L.tight, 9);
   });
 });
 
@@ -130,7 +131,13 @@ describe("a landing ridden away, or not", () => {
       expect(drop({ packed: 1, height, roll: 0.5 }).thrown, `${height} m`).toBeNull();
     }
     expect(drop({ packed: 1, height: 4, roll: 0.5 }).save).toBe("landing");
-    expect(drop({ packed: 1, height: 1.4, roll: 1 }).save).toBe("landing");
+  });
+
+  it("goes over one landed far off true — on one edge, the tips buried, sideways — even off a hop", () => {
+    // Rolled 57° onto one edge: no body stands on that, the edge bites.
+    expect(drop({ packed: 1, height: 1.4, roll: 1 }).thrown).toBe("catch");
+    // The tips 46° into the groomer off a drop: over them.
+    expect(drop({ packed: 1, height: 3, pitch: -0.8 }).thrown).toBe("nose");
   });
 
   it("bends deeper the harder he lands and is not sprung back off the snow", () => {

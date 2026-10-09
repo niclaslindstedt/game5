@@ -79,7 +79,8 @@ export const BUZZ = {
   /** THE THRESHOLDS HE FALLS AT, at full buzz (`crash.ts`'s `crashLimit`,
    * blended toward these by the buzz from whatever his resilience gives):
    * well below the club skier's — a trunk on the tips at 13 km/h, the legs
-   * folding at 7 g, the body down off a drop of a few centimetres, an edge
+   * folding at 7 g, a crooked landing at half what a sober professional
+   * rides away, the body down off a drop of a few centimetres, an edge
    * caught at 31° with the snow sliding 14 km/h across it, a hand put down
    * held for a twentieth of a second. */
   crash: {
@@ -89,6 +90,7 @@ export const BUZZ = {
     noseDig: 0.34,
     bodySlam: 0.7,
     legsFold: 7,
+    crooked: 0.55,
     rollHold: 0.06,
     catchEdge: 0.55,
     catchSlip: 4,

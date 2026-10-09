@@ -552,9 +552,11 @@ export {
   landingAhead,
   landingLoad,
   landingLoss,
+  landingFaults,
   landingOff,
   landingTolerance,
   type Landing,
+  type LandingFaults,
 } from "./game/flight.ts";
 export {
   bodyThrown,

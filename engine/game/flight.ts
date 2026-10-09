@@ -16,11 +16,13 @@
 // landing on the downslope of a kicker is fast and landing flat after
 // overshooting it is not.
 //
-// AND WHETHER HE RIDES IT AWAY AT ALL (`landingLoad`, `landingOff`): the
+// AND WHETHER HE RIDES IT AWAY AT ALL (`landingLoad`, `landingFaults`): the
 // speed into the slope read as an EQUIVALENT FALL HEIGHT and stopped over
 // the legs' stroke and the snow's give is the landing's load in g; the
-// bigger it is, the truer the skis have to come down to the slope, until
-// past `landing.buckle` nothing holds him (`crash.ts` throws him).
+// bigger it is, the truer the skis have to come down to the slope
+// (`landingTolerance`) — and a landing further off true than that, tips
+// buried, back seat, on one edge or sideways to the way, throws him
+// (`crash.ts`'s crooked landing), as does a load past what the legs hold.
 
 import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
@@ -199,21 +201,30 @@ export function landingLoad(
 
 /** How much of the clean landing's tolerance a load of `g` leaves: the
  * whole of it at `landing.clean` — and more under it, to `1 + slack` of it
- * for a hop that loads him no more than standing — `landing.tight` of it at
- * `landing.buckle`, nothing past it. */
+ * for a hop that loads him no more than standing — easing to
+ * `landing.tight` of it at `landing.buckle` and held there past it (past
+ * `crash.legsFold` the legs go whatever the skis did). */
 export function landingTolerance(g: number): number {
   if (g <= LD.clean) return 1 + (LD.slack * (LD.clean - Math.max(1, g))) / (LD.clean - 1);
-  if (g >= LD.buckle) return 0;
-  return 1 - ((1 - LD.tight) * (g - LD.clean)) / (LD.buckle - LD.clean);
+  return 1 - (1 - LD.tight) * Math.min(1, (g - LD.clean) / (LD.buckle - LD.clean));
 }
+
+/** HOW FAR OFF TRUE the skis come down, AXIS BY AXIS, each as a share of
+ * what a clean landing forgives on it (1 is the edge of it): `tips` the
+ * leading end into the slope (`landing.tipsDown`), `tails` the trailing end
+ * first (`landing.tailsDown`), `roll` across it (`landing.rolled`) and
+ * `slide` sideways to the way (`landing.sideways`, a backward landing a
+ * quarter turn more). */
+export type LandingFaults = { tips: number; tails: number; roll: number; slide: number };
 
 /** HOW FAR OFF TRUE the skis come down, as a share of what a clean landing
  * forgives (1 is the edge of it): the worst of the leading end into the
  * slope, the trailing end first, the roll across it and the slide sideways
- * to the way. The skis' `fwd` and `right` and the ground's `normal` in the
- * world frame, and the velocity. `switchOk` (`RunRules.stunts`) lets him
- * come down BACKWARD: the skis are then judged against the way he is
- * going tails first, the tails the end that must not dig. */
+ * to the way (`landingFaults`, axis by axis). The skis' `fwd` and `right`
+ * and the ground's `normal` in the world frame, and the velocity.
+ * `switchOk` (`RunRules.stunts`) lets him come down BACKWARD: the skis are
+ * then judged against the way he is going tails first, the tails the end
+ * that must not dig. */
 export function landingOff(
   fwd: { x: number; y: number; z: number },
   right: { x: number; y: number; z: number },
@@ -223,18 +234,42 @@ export function landingOff(
   switchOk = false,
   vy?: number,
 ): number {
+  const f = landingFaults(fwd, right, normal, vx, vz, switchOk, vy, faults);
+  return Math.max(f.tips, f.tails, f.roll, f.slide);
+}
+
+const faults: LandingFaults = { tips: 0, tails: 0, roll: 0, slide: 0 };
+
+/** `landingOff` axis by axis (`LandingFaults`), into `out`. */
+export function landingFaults(
+  fwd: { x: number; y: number; z: number },
+  right: { x: number; y: number; z: number },
+  normal: { x: number; y: number; z: number },
+  vx: number,
+  vz: number,
+  switchOk = false,
+  vy?: number,
+  out: LandingFaults = { tips: 0, tails: 0, roll: 0, slide: 0 },
+): LandingFaults {
   // On a wall (`vy` given), the slide is read in the snow's own plane: the
   // way across a wall at 80° has next to nothing level in it.
-  if (vy !== undefined) return wallOff(fwd, right, normal, vx, vy, vz, switchOk);
+  if (vy !== undefined) return wallOff(fwd, right, normal, vx, vy, vz, switchOk, out);
   const flat = hypot(vx, vz);
   const tailsFirst = flat > 1 && fwd.x * vx + fwd.z * vz < 0;
   const ends = switchOk && tailsFirst ? -1 : 1;
   const pitch = Math.asin(
     clamp(-(fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z) * ends, -1, 1),
   );
-  const roll = Math.asin(
+  // THE ROLL is judged against whichever is nearer of the snow's normal
+  // and the plumb: a skier stood plumb onto a sidehill meets it on his
+  // uphill edges, the stance he traverses it in, and one laid square onto
+  // it is as right; only a body rolled outside both — down the hill past
+  // plumb, or over past the slope's own tilt — has nothing under it.
+  const across = Math.asin(
     clamp(right.x * normal.x + right.y * normal.y + right.z * normal.z, -1, 1),
   );
+  const plumb = Math.asin(clamp(right.y, -1, 1));
+  const roll = across * plumb <= 0 ? 0 : Math.min(Math.abs(across), Math.abs(plumb));
   const slide =
     flat > 1
       ? Math.abs(
@@ -243,11 +278,15 @@ export function landingOff(
       : 0;
   // Landing backwards is landing sideways twice over — unless he may.
   const back = tailsFirst && ends > 0 ? Math.PI / 2 : 0;
-  return Math.max(
-    pitch > 0 ? pitch / LD.tipsDown : -pitch / LD.tailsDown,
-    Math.abs(roll) / LD.rolled,
-    (slide + back) / LD.sideways,
-  );
+  return faultsOf(pitch, roll, slide + back, out);
+}
+
+function faultsOf(pitch: number, roll: number, slide: number, out: LandingFaults): LandingFaults {
+  out.tips = Math.max(0, pitch) / LD.tipsDown;
+  out.tails = Math.max(0, -pitch) / LD.tailsDown;
+  out.roll = Math.abs(roll) / LD.rolled;
+  out.slide = slide / LD.sideways;
+  return out;
 }
 
 /** `landingOff` on a WALL: the way and the skis both laid into the snow's
@@ -260,7 +299,8 @@ function wallOff(
   vy: number,
   vz: number,
   switchOk: boolean,
-): number {
+  out: LandingFaults,
+): LandingFaults {
   const vn = vx * normal.x + vy * normal.y + vz * normal.z;
   const px = vx - vn * normal.x;
   const py = vy - vn * normal.y;
@@ -277,9 +317,5 @@ function wallOff(
   );
   const slide = way > 1 ? Math.acos(clamp(Math.abs(along) / way, 0, 1)) : 0;
   const back = tailsFirst && ends > 0 ? Math.PI / 2 : 0;
-  return Math.max(
-    pitch > 0 ? pitch / LD.tipsDown : -pitch / LD.tailsDown,
-    Math.abs(roll) / LD.rolled,
-    (slide + back) / LD.sideways,
-  );
+  return faultsOf(pitch, roll, slide + back, out);
 }

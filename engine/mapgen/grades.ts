@@ -13,6 +13,13 @@
 // black DIAMOND. The shapes are the app's (`grade-mark.tsx`); the engine
 // says only which colour a map is.
 //
+// PAST BLACK there is ORANGE — the colour a few ski areas sign their
+// "extremely difficult" runs with, and the Alpine countries their marked
+// SKI ROUTES: never groomed, on country steeper than a machine can work.
+// It is no row here, because nothing is built to it: a ski route is found
+// on the mountain as it lies (R42, `ski-routes.ts`) and signed orange with
+// a double diamond (`RunGrade`).
+//
 // THE BANDS are the northern convention's, the one that states a gradient
 // for every colour (the European one states a blue's and a red's ceiling
 // and leaves the green to judgement): a GREEN falls at most 16 % (9°) over
@@ -52,6 +59,26 @@ export const PISTE_GRADES: readonly PisteGrade[] = ["green", "blue", "red", "bla
 
 export function isPisteGrade(value: unknown): value is PisteGrade {
   return typeof value === "string" && (PISTE_GRADES as readonly string[]).includes(value);
+}
+
+/** THE COLOURS A RUN IS SIGNED WITH: a piste's four and, past black, the
+ * SKI ROUTE'S ORANGE (R42, `ski-routes.ts`) — the line down country no
+ * machine can work, marked and never groomed. No piste is built or graded
+ * to orange and no course is raced on one; it is a colour a run is FOUND
+ * to be, past R8's ceiling, and signed with. */
+export type RunGrade = PisteGrade | "orange";
+
+/** Every colour a run is signed with, gentlest first: what a card offers. */
+export const RUN_GRADES: readonly RunGrade[] = [...PISTE_GRADES, "orange"];
+
+export function isRunGrade(value: unknown): value is RunGrade {
+  return typeof value === "string" && (RUN_GRADES as readonly string[]).includes(value);
+}
+
+/** The piste colour a course is chosen by for a run grade: a route is
+ * never a course, so asking for orange races the hardest piste there is. */
+export function courseGrade(grade: RunGrade): PisteGrade {
+  return grade === "orange" ? "black" : grade;
 }
 
 /** The fall-line shape `mountain.profile` states (R2): a shoulder under the

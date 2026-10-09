@@ -16,7 +16,9 @@
 //
 //   the mountain  `generateLevel` and `createGame` — the map raised off its
 //                 seed, the piste laid and graded into it, the field stood
-//                 on the start line. One indivisible call.
+//                 on the start line. The map is generated on a worker
+//                 (`map-build.ts`) wherever it costs seconds, and the bar
+//                 follows the generator's own word on how far it has got.
 //   the forest    `WorldRenderer.load` — the terrain mesh, the trees, the
 //                 trail map, the checkpoints. ASYNCHRONOUS: the step kicks
 //                 it off and then says "more to do" every frame until the
@@ -26,7 +28,16 @@
 //                 driver compiles every shader in it — paid for under the
 //                 card rather than out of the player's first second.
 
-import { createGame, error, type GameMode, type GameState, type CreateGameOptions } from "@engine";
+import {
+  createGame,
+  error,
+  type GameMode,
+  type GameState,
+  type CreateGameOptions,
+  type Level,
+} from "@engine";
+
+import type { MapJob, MapOrder } from "./map-order.ts";
 
 import type { PinnedSkier } from "./pinned.ts";
 import type { CameraRung, WorldRenderer } from "./renderer-api.ts";
@@ -47,11 +58,18 @@ export type LoadPlan = {
   /** The race to stand up. THROWS on a seed the generator refuses, which is
    * what ends the load and puts the refusal on the card (`advanceLoad`) — a
    * race somebody asked for must never quietly fall back to another map. */
-  build: () => GameState;
+  build: (level?: Level) => GameState;
+  /** THE MAP `build` RIDES, where it has to be generated: built first, off
+   * the page's thread (`LoadWorld.buildMap`), and handed to `build` as
+   * `level`. Null where the map is standing already, and `build` is then
+   * called with none. */
+  map?: () => MapOrder | null;
   /** Whether `build` may run yet — false while the map it builds on is
    * still coming from elsewhere (a free ride's, from the start card's
    * worker: `seed-maps.ts`). Always, when left off. */
   ready?: () => boolean;
+  /** ...and how far that map has got meanwhile, 0–1. */
+  readyShare?: () => number;
   /** The rung the camera opens on once the card lifts. */
   camera: CameraRung;
   /** Run on the frame the card lifts. */
@@ -69,12 +87,18 @@ export type LoadWorld = {
   adopt: (state: GameState) => void;
   /** ...and read it back. */
   current: () => GameState;
+  /** Generate a map off the page's thread (`map-build.ts`'s `buildMap`). */
+  buildMap: (order: MapOrder) => MapJob;
 };
 
 /** THE THREE STEPS EVERY LOAD IS MADE OF. */
 export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
   const { renderer } = world;
   let built: GameState | null = null;
+  /** The map being generated for `build`, once one is asked for. */
+  let map: MapJob | null = null;
+  const waitingOnMap = (): boolean =>
+    map !== null && map.level() === undefined && map.failed() === null;
   /** The renderer's build in flight: pending, done, or the reason it threw. */
   let scene: "pending" | "done" | { failed: string } | null = null;
   return [
@@ -83,10 +107,25 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
       label: STRINGS.loadLevel,
       run: () => {
         if (plan.ready && !plan.ready()) return true;
-        built = plan.build();
+        if (map === null) {
+          const order = plan.map?.() ?? null;
+          if (order === null) {
+            built = plan.build();
+            return false;
+          }
+          map = world.buildMap(order);
+        }
+        const failed = map.failed();
+        if (failed !== null) throw new Error(failed);
+        const level = map.level();
+        if (level === undefined) return true;
+        built = plan.build(level);
         return false;
       },
-      waiting: () => plan.ready !== undefined && !plan.ready(),
+      // How far the generator says it has got: the map's own worker, or the
+      // one the plan is waiting on.
+      progress: () => (map !== null ? map.share() : (plan.readyShare?.() ?? 0)),
+      waiting: () => (plan.ready !== undefined && !plan.ready()) || waitingOnMap(),
     },
     {
       id: "scene",

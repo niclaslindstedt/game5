@@ -80,7 +80,9 @@ import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./tra
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 import { chooseCourse } from "./course-gates.ts";
+import { attemptBegun, reached, reportingTo } from "./progress.ts";
 import { buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { laySkiRoutes } from "./ski-routes.ts";
 import { resortCached } from "./resort-cache.ts";
 import { realFaceRegion } from "./real-face.ts";
 import { analyzeResort } from "../analysis/resort.ts";
@@ -124,6 +126,7 @@ function attemptLevel(
   const rng = createRng(sub);
   const plan = planTerrain(rng, region, grade);
   const ground = bakeCountry(plan);
+  reached("mountain");
 
   const start = chooseStart(rng, ground, grade);
   if (typeof start === "string") return start;
@@ -148,6 +151,7 @@ function attemptLevel(
     piste = drawn;
   }
   if (!piste) return `no piste fits this mountain (last: ${why})`;
+  reached("walked");
 
   const trackDrops = layDrops(sub, piste, grade);
   if (trackDrops.length < grade.drops.min) {
@@ -156,6 +160,7 @@ function attemptLevel(
   const trackKickers = layTrackKickers(rng, piste, grade, trackDrops);
   const drops = publishDrops(piste, trackDrops);
   const { packed, near, along, dist } = stampCorridor(piste, ground);
+  reached("graded");
   const offKickers = layOffKickers(rng, plan, ground, piste);
   const cliffs = layCliffs(sub, plan, ground, trackOf(piste), offKickers, drops);
 
@@ -193,7 +198,9 @@ function attemptLevel(
 
   const treeLineY = base.y + (plan.treeLine - plan.altitude);
   const edges = drops.length > 0 ? drops.concat(cliffs) : cliffs;
+  reached("features");
   let trees = growForest(rng, plan, ground, trackOf(piste), kickers, edges, treeLineY);
+  reached("woods");
   const day = dealSun(rng, region.sun);
   const { weather, hour } = dealWeather(sub, day);
   // R15 — the one piste's face is due north (from before the face was
@@ -235,6 +242,10 @@ function attemptLevel(
 
 /** Generate the map for a seed: the first attempt the analysis passes. */
 export function generateLevel(seed: number, opts: GenerateOptions = {}): GeneratedLevel {
+  return reportingTo(opts.progress, () => searchLevel(seed, opts));
+}
+
+function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
   const attempts = opts.attempts ?? 16;
   const laps = opts.laps ?? R.race.laps;
   const traits = generatorTraits(opts.version);
@@ -244,6 +255,7 @@ export function generateLevel(seed: number, opts: GenerateOptions = {}): Generat
   const grade = UNGRADED;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
+    attemptBegun(a);
     const built = attemptLevel(seed, a, laps, version, opts.tricks === true, region, grade);
     if (typeof built === "string") {
       reasons.push(`#${a}: ${built}`);
@@ -308,6 +320,9 @@ function generateResortLevel(
     return b.courses.length > 0 ? null : "no course down the network stands";
   };
   const built = buildResort(seed, opts.region, attempts, subSeed, accept, version, opts.face);
+  // R42 — the ski routes, found on the finished mountain; a version from
+  // before them marks none.
+  if (!generatorTraits(version).noRoutes) built.routes ??= layRoutes(built);
   const index = chooseCourse(built, {
     course: opts.course,
     grade: opts.grade,
@@ -316,6 +331,17 @@ function generateResortLevel(
   const level = opts.tricks ? parkedLevel(seed, built, index, laps, version, opts.course) : null;
   const raced = level ?? resortLevel(built, index, laps, version);
   return opts.sky ? withSky(raced, opts.sky) : raced;
+}
+
+/** R42 — the ski routes of a built ski area. */
+function layRoutes(b: BuiltResort) {
+  return laySkiRoutes({
+    ground: b.ground,
+    runs: b.runs.map((r) => r.run),
+    lifts: b.lifts,
+    trees: b.trees,
+    size: b.plan.size,
+  });
 }
 
 /** R20 on a ski area — the course with the terrain park laid down it: the

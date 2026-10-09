@@ -32,6 +32,7 @@ import {
   portableLevel,
   type Level,
   type PisteGrade,
+  type RunGrade,
   type PortableLevel,
   type RegionId,
 } from "@engine";
@@ -70,7 +71,7 @@ export type PreviewRequest = {
   seed: number;
   region: RegionId;
   face: string | null;
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   paint: boolean;
   /** The map itself, where the page already had it: painted, not built. */
   level?: PortableLevel;
@@ -81,7 +82,7 @@ export type PreviewPainted = {
   seed: number;
   region: RegionId;
   face: string | null;
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   ok: true;
   /** The plan's ground. */
   picture: PreviewPicture;
@@ -116,7 +117,7 @@ export type PreviewRefused = {
   seed: number;
   region: RegionId;
   face: string | null;
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   ok: false;
   error: string;
 };
@@ -128,7 +129,7 @@ export type PreviewReply =
       seed: number;
       region: RegionId;
       face: string | null;
-      grade: PisteGrade | null;
+      grade: RunGrade | null;
       ok: true;
       painted: PreviewPainted | null;
       /** Null where the page handed the map in. */
@@ -136,7 +137,18 @@ export type PreviewReply =
     }
   | PreviewRefused;
 
-const post = (reply: PreviewReply, transfer: Transferable[] = []): void =>
+/** How far the map being built has got, 0–1 (`GenerateOptions.progress`),
+ * posted as the generator reaches its landmarks — the start card's bar and
+ * the loading card's, while a free ride waits on this map. */
+export type PreviewProgress = {
+  seed: number;
+  region: RegionId;
+  face: string | null;
+  grade: RunGrade | null;
+  share: number;
+};
+
+const post = (reply: PreviewReply | PreviewProgress, transfer: Transferable[] = []): void =>
   (self as unknown as Worker).postMessage(reply, transfer);
 
 /** Raw pixels as a finished picture where this worker has a canvas, as
@@ -179,7 +191,12 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
   try {
     const level = given
       ? boundLevel(given)
-      : generateLevel(seed, { region, face: face ?? undefined, grade: grade ?? undefined });
+      : generateLevel(seed, {
+          region,
+          face: face ?? undefined,
+          grade: grade ?? undefined,
+          progress: (share) => post({ seed, region, face, grade, share }),
+        });
     const transfer: Transferable[] = [];
     let painted: PreviewPainted | null = null;
     if (paint) {

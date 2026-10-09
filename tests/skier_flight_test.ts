@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FALL, AS A PROFESSIONAL RIDES IT (`skier-flight.ts`): a kicker's air
-// and a flight low over a pitch ridden compact and secure; a drop spotted;
-// a cliff windmilled — the fists circled in front of him, forward over the
-// top, measured, never flung, the poles trailing back — and
-// wound home before the snow, the arms forward and the legs reached long
-// for it; nothing jumps on the way; and the snow is seen coming off the
-// flight's own ballistics.
+// and a flight low over a pitch ridden compact and secure; a drop and a
+// cliff spotted with the hands forward and STILL — never circled, flung or
+// swung — and the arms forward and the legs reached long for the snow;
+// nothing jumps on the way; and the snow is seen coming off the flight's
+// own ballistics.
 
 import { describe, expect, it } from "vitest";
 
@@ -35,7 +34,7 @@ const base = { hipRight: 0, hipAft: 0, lean: 0, steer: 0, crouch: 0, landing: 5 
  * frame's spring and pose. The legs' spring is handed no climb: a fall
  * this hard stopped dead in a step is not one the engine lets him ride
  * (`crash.ts`), and the landing's own kick is the legs' case. */
-function fall(height: number, after = 0.6, spin = 0, lean = 0) {
+function fall(height: number, after = 0.6, lean = 0) {
   const s = createSkierSpring();
   const frames: { s: SkierSpring; pose: SkierPose; read: FlightRead | null }[] = [];
   const c = { x: 0, y: height + 1, z: 0, vx: 0, vy: 0, vz: 12 };
@@ -44,7 +43,7 @@ function fall(height: number, after = 0.6, spin = 0, lean = 0) {
   for (; t < land + after; t += DT) {
     const airborne = t < land;
     const read = airborne ? flightRead(FLAT, c, 1, G) : null;
-    stepSkierSpring(s, 0, airborne, DT, 0, { ...RIDE, airTime: t, wx: spin, lean }, false, {
+    stepSkierSpring(s, 0, airborne, DT, 0, { ...RIDE, airTime: t, lean }, false, {
       read,
       gravity: G,
     });
@@ -52,7 +51,7 @@ function fall(height: number, after = 0.6, spin = 0, lean = 0) {
       ...base,
       airborne,
       air: s.air,
-      flight: flightShape(s.flight, s.clock, s.air),
+      flight: flightShape(s.flight, s.air),
       poles: true,
     });
     frames.push({ s: structuredClone(s), pose, read });
@@ -74,107 +73,74 @@ describe("the fall", () => {
     expect(r.ahead).toBeCloseTo(Math.sqrt((2 * 5) / G), 1);
   });
 
-  it("rides a kicker's air compact: no spot, no windmill, the hands forward", () => {
+  it("rides a kicker's air compact: no spot, the hands forward", () => {
     const { frames } = fall(1);
-    for (const f of frames) {
-      expect(f.s.flight.spot).toBeLessThan(0.15);
-      expect(f.s.flight.mill).toBe(0);
-    }
+    for (const f of frames) expect(f.s.flight.spot).toBeLessThan(0.15);
   });
 
   it("stays secure on a long flight low over the snow", () => {
     const f = createFlight();
     for (let t = 0; t < 2; t += DT) {
-      stepFlight(f, true, { clearance: 0.5, ahead: Number.POSITIVE_INFINITY }, t, 0, DT, G);
+      stepFlight(f, true, { clearance: 0.5, ahead: Number.POSITIVE_INFINITY }, t, DT, G);
     }
     expect(f.t).toBe(0);
     expect(f.spot).toBeLessThan(0.01);
-    expect(f.mill).toBeLessThan(0.01);
   });
 
-  it("spots a 3 m drop without windmilling, and reaches for the snow", () => {
+  it("spots a 3 m drop, and reaches for the snow", () => {
     const { frames, land } = fall(3);
     expect(Math.max(...frames.map((f) => f.s.flight.spot))).toBeGreaterThan(0.5);
-    expect(Math.max(...frames.map((f) => f.s.flight.mill))).toBeLessThan(0.1);
     expect(frames[land - 1].s.flight.reach).toBeGreaterThan(0.6);
   });
 
-  it("windmills a cliff forward over the top and winds it home before the snow", () => {
+  it("rides a cliff secure: the hands forward, still and alike, and reached for the snow", () => {
     const { frames, land } = fall(18);
-    const flight = frames.slice(0, land);
-    expect(Math.max(...flight.map((f) => f.s.flight.mill))).toBeGreaterThan(0.7);
-    // Forward over the top: the circle's phase (the arms' turning angle)
-    // turns DOWN through most of a circle at least, at a measured pace.
-    const turned = flight[0].s.flight.arm - Math.min(...flight.map((f) => f.s.flight.arm));
-    expect(turned).toBeGreaterThan(1.5 * Math.PI);
-    const fastest = Math.max(...flight.map((f) => Math.abs(f.s.flight.armRate)));
-    expect(fastest).toBeLessThan(2 * Math.PI * 1.3);
-    // At the snow: the windmill done, the arms forward of the shoulders and
-    // below them, the legs reached long.
+    const spotted = frames.slice(Math.round(0.5 / DT), land - Math.round(0.6 / DT));
+    expect(spotted.length).toBeGreaterThan(20);
+    for (const f of spotted) {
+      for (const i of [0, 1]) {
+        // Forward of the shoulders and never up over them.
+        expect(f.pose.hands[i].z).toBeGreaterThan(f.pose.shoulders[i].z + 0.2);
+        expect(f.pose.hands[i].y).toBeLessThan(f.pose.shoulders[i].y);
+      }
+      // Both arms alike: mirrored across him.
+      expect(Math.abs(f.pose.hands[0].x + f.pose.hands[1].x)).toBeLessThan(0.02);
+      expect(Math.abs(f.pose.hands[0].y - f.pose.hands[1].y)).toBeLessThan(0.02);
+    }
+    // Still: the fists hardly move against the shoulders while he spots.
+    const rel = (f: (typeof frames)[number], i: number) => ({
+      y: f.pose.hands[i].y - f.pose.shoulders[i].y,
+      z: f.pose.hands[i].z - f.pose.shoulders[i].z,
+    });
+    for (const i of [0, 1]) {
+      const ys = spotted.map((f) => rel(f, i).y);
+      const zs = spotted.map((f) => rel(f, i).z);
+      expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(0.05);
+      expect(Math.max(...zs) - Math.min(...zs)).toBeLessThan(0.05);
+    }
+    // At the snow: the arms forward of the shoulders and below them, the
+    // legs reached long.
     const last = frames[land - 1];
-    expect(last.s.flight.mill).toBeLessThan(0.25);
     expect(last.s.flight.reach).toBeGreaterThan(0.7);
     for (const i of [0, 1]) {
       expect(last.pose.hands[i].z).toBeGreaterThan(last.pose.shoulders[i].z + 0.2);
       expect(last.pose.hands[i].y).toBeLessThan(last.pose.shoulders[i].y);
     }
-    const spotted = frames[Math.round(0.5 / DT)].pose.hips.y;
-    expect(last.pose.hips.y).toBeGreaterThan(spotted + 0.08);
+    const mid = frames[Math.round(0.5 / DT)].pose.hips.y;
+    expect(last.pose.hips.y).toBeGreaterThan(mid + 0.08);
   });
 
-  it("never windmills a body he is turning on purpose", () => {
-    const { frames } = fall(18, 0.6, 4);
-    expect(Math.max(...frames.map((f) => f.s.flight.mill))).toBeLessThan(0.01);
-  });
-
-  it("never windmills a skier committed to a lean: the arms set forward and still", () => {
+  it("sets the arms forward and still for a skier committed to a lean", () => {
     for (const lean of [0.4, -0.4]) {
-      const { frames, land } = fall(18, 0.6, 0, lean);
-      const flight = frames.slice(0, land);
-      expect(Math.max(...flight.map((f) => f.s.flight.mill))).toBeLessThan(0.01);
-      const late = flight.slice(Math.round(0.8 / DT));
-      const arms = late.map((f) => f.s.flight.arm);
-      expect(Math.max(...arms) - Math.min(...arms)).toBeLessThan(0.4);
+      const { frames, land } = fall(18, 0.6, lean);
+      const late = frames.slice(Math.round(0.8 / DT), land);
+      expect(late.every((f) => f.s.flight.commit > 0.9)).toBe(true);
       for (const f of late) {
         for (const i of [0, 1]) {
           expect(f.pose.hands[i].z).toBeGreaterThan(f.pose.shoulders[i].z + 0.2);
         }
       }
     }
-  });
-
-  it("circles the fists in front of him and holds each pole back and out through the windmill", () => {
-    const { frames, land } = fall(18);
-    let worst = 0;
-    let wide = Infinity;
-    let ahead = -Infinity;
-    let behind = Infinity;
-    for (let i = 1; i < land; i++) {
-      for (const k of [0, 1]) {
-        const dir = (f: (typeof frames)[number]) => {
-          const h = f.pose.hands[k];
-          const t = f.pose.poles![k];
-          const d = Math.hypot(t.x - h.x, t.y - h.y, t.z - h.z);
-          return { x: (t.x - h.x) / d, y: (t.y - h.y) / d, z: (t.z - h.z) / d };
-        };
-        const [a, b] = [dir(frames[i - 1]), dir(frames[i])];
-        const turn = Math.acos(Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z));
-        worst = Math.max(worst, turn);
-        if (frames[i].s.flight.mill > 0.5) {
-          wide = Math.min(wide, (k ? 1 : -1) * b.x);
-          ahead = Math.max(ahead, b.z);
-          const p = frames[i].pose;
-          behind = Math.min(behind, p.hands[k].z - p.shoulders[k].z);
-        }
-      }
-    }
-    // Never a flip; always turned out from his body, clear of his skis, and
-    // trailing back — a hand cannot aim a pole further back than square to
-    // its forearm, so the fists stay ahead of the shoulders.
-    expect(worst).toBeLessThan(0.16);
-    expect(wide).toBeGreaterThan(0.2);
-    expect(ahead).toBeLessThan(0);
-    expect(behind).toBeGreaterThan(0.2);
   });
 
   it("moves every joint smoothly through the fall and the landing", () => {

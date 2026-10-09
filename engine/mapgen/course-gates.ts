@@ -7,7 +7,7 @@ import { LEVEL_RULES as R, bendFloor } from "./rules.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { startGateArc } from "./spawn.ts";
 import { trackPointAt } from "./query.ts";
-import type { PisteGrade } from "./grades.ts";
+import { courseGrade, type PisteGrade, type RunGrade } from "./grades.ts";
 import type { Checkpoint, Cliff, Kicker, TrackPoint } from "./types.ts";
 import type { BuiltResort } from "./resort-build.ts";
 
@@ -137,13 +137,13 @@ export function hashPick(seed: number, i: number): number {
  * the nearest colour there is), else the seed's. */
 export function chooseCourse(
   b: BuiltResort,
-  ask: { course?: string; grade?: PisteGrade; dealt: PisteGrade },
+  ask: { course?: string; grade?: RunGrade; dealt: PisteGrade },
 ): number {
   if (ask.course !== undefined) {
     const i = b.courses.findIndex((c) => c.course.id === ask.course);
     if (i >= 0) return i;
   }
-  const want = ask.grade ?? ask.dealt;
+  const want = courseGrade(ask.grade ?? ask.dealt);
   const order = ["green", "blue", "red", "black"] as const;
   const wi = order.indexOf(want);
   let best = 0;

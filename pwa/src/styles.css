@@ -3806,8 +3806,52 @@ canvas {
   justify-content: center;
 }
 
-.seed-preview-waiting {
+/* The chart on the plate and the reading under it fade while the next one
+   is raised; the bar over them does not. */
+.seed-preview-waiting .seed-preview-plate > :not(.seed-preview-raise),
+.seed-preview-waiting .seed-preview-read {
   opacity: 0.45;
+}
+
+/* The mountain being raised: a word and a thin bar on a dark slip over the
+   middle of the plate, its fill a transform so a slow phone draws it on
+   the compositor. */
+.seed-preview-raise {
+  position: absolute;
+  top: 50%;
+  right: 10%;
+  left: 10%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.4rem;
+  background: rgb(8 20 32 / 82%);
+  transform: translateY(-50%);
+}
+
+.seed-preview-raise-word {
+  text-align: center;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+}
+
+.seed-preview-bar {
+  height: 0.3rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.seed-preview-bar-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--flag);
+  transform-origin: left center;
+  transition: transform 200ms linear;
+  will-change: transform;
 }
 
 .seed-preview-map {
@@ -3947,6 +3991,14 @@ canvas {
 .pano-run-casing.pano-road {
   stroke-width: 1;
   opacity: 0.75;
+}
+
+/* A SKI ROUTE (R42) is the mountain as it lies, marked and never groomed:
+   a run's weight in its orange, broken into long dashes as a piste map
+   draws a route — never mistaken for a groomed run. */
+.pano-run.pano-route {
+  stroke-dasharray: 2 1.1;
+  stroke-linecap: butt;
 }
 
 .pano-lift-casing {

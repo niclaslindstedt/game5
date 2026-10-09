@@ -29,6 +29,7 @@
 import {
   TRICKS_RUN,
   generateLevel,
+  type GenerateOptions,
   type Assist,
   type CreateGameOptions,
   type GeneratorVersion,
@@ -154,7 +155,13 @@ export function isTrickMap(id: unknown): id is string {
 /** The ground a trick map is: its seed in its country on its generator,
  * with the park. */
 export function buildTrickMap(map: TrickMap): Level {
-  return generateLevel(map.seed, { tricks: true, version: map.version, region: map.region });
+  return generateLevel(map.seed, trickAsk(map));
+}
+
+/** What the generator is asked for a trick map — here, or on the loading
+ * card's worker (`map-build.ts`). */
+export function trickAsk(map: TrickMap): GenerateOptions {
+  return { tricks: true, version: map.version, region: map.region };
 }
 
 /** The sky a trick map is ridden under: its weather, and its hour where the

@@ -72,7 +72,8 @@ import {
   stepTee,
   toPlatform,
 } from "./lift-board.ts";
-import type { PisteGrade } from "../mapgen/grades.ts";
+import type { RunGrade } from "../mapgen/grades.ts";
+import { skiRoutesOf } from "../mapgen/ski-routes.ts";
 import { carrierSwingAt } from "./carrier-swing.ts";
 import { TOWN } from "./defs/town.ts";
 import { carryOut, doorIn, inRack, offForDoor, rackSkis, standOnFoot } from "./lift-skis.ts";
@@ -694,8 +695,8 @@ export function freeRuns(level: Level): Run[] {
  * (`chooseCourse`). The start card asks it of the runs its chart was sent,
  * the engine of the map. */
 export function pickFreeRun(
-  runs: readonly { id: string; grade: PisteGrade }[],
-  ask: { run?: string | null; grade?: PisteGrade | null },
+  runs: readonly { id: string; grade: RunGrade }[],
+  ask: { run?: string | null; grade?: RunGrade | null },
   fallback: string | undefined,
 ): string | undefined {
   if (ask.run != null && runs.some((r) => r.id === ask.run)) return ask.run;
@@ -705,12 +706,13 @@ export function pickFreeRun(
 /** {@link pickFreeRun} on `level`'s ski area; undefined off a resort. */
 export function freeRunOf(
   level: Level,
-  ask: { run?: string; grade?: PisteGrade },
+  ask: { run?: string; grade?: RunGrade },
 ): string | undefined {
   const resort = level.resort;
   if (!resort) return undefined;
   const course = resort.courses.find((c) => c.id === resort.course);
-  return pickFreeRun(freeRuns(level), ask, course?.runs[0]);
+  // The ski routes (R42) after the pistes: the ORANGE asked for is one.
+  return pickFreeRun([...freeRuns(level), ...skiRoutesOf(level)], ask, course?.runs[0]);
 }
 
 /** WHERE A FREE RIDE'S LIFT RIDE STARTS: `lift.arrive` s of carrying short
@@ -742,10 +744,18 @@ export function arrivalOf(plan: LiftPlan): { u: number; speed: number } {
 export function arriveByLift(run: GameState, x: number, z: number, pin?: string): string | null {
   const resort = run.level.resort;
   if (!resort) return null;
+  const plans = liftPlans(run.level);
+  // A SKI ROUTE (R42) asked for: up the lift whose top it leaves. Stood off
+  // there, he finds its head at the pad's rim himself, past its sign.
+  const route = skiRoutesOf(run.level).find((r) => r.id === pin);
+  const up = route ? plans.findIndex((p) => p.lift.id === route.from) : -1;
+  if (route && up >= 0) {
+    ride(run, plans[up], up);
+    return route.id;
+  }
   if (pin !== undefined && !resort.runs.some((r) => r.id === pin && r.kind === "piste")) {
     pin = undefined;
   }
-  const plans = liftPlans(run.level);
   const off = new Map(plans.map((p) => [p, new Set(runsOffTop(run.level, p).map((j) => j.run))]));
   let pick = -1;
   let lift = -1;
@@ -765,7 +775,12 @@ export function arriveByLift(run: GameState, x: number, z: number, pin?: string)
     }
   });
   if (pick < 0) return pin !== undefined ? arriveByLift(run, x, z) : null;
-  const plan = plans[lift];
+  ride(run, plans[lift], lift);
+  return resort.runs[pick].id;
+}
+
+/** The skier put on `plan`'s lift, the last of its ride to go (`arrivalOf`). */
+function ride(run: GameState, plan: LiftPlan, lift: number): void {
   const s = plan.supports;
   const { u, speed } = arrivalOf(plan);
   const c = run.skier;
@@ -790,7 +805,6 @@ export function arriveByLift(run: GameState, x: number, z: number, pin?: string)
     const p = along(plan, c.lift.u, upRope(plan) + K.tee);
     setOff(run, p.x, p.z, plan.heading, c.lift.speed);
   } else hold(run, plan, c.lift);
-  return resort.runs[pick].id;
 }
 
 /** HOW OPEN HIS CABIN'S DOORS ARE, 0 shut … 1 open, while a gondola has

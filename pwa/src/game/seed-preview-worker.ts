@@ -139,7 +139,7 @@ export type PreviewReply =
 export type PreviewProgress = {
   seed: number;
   region: RegionId;
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   share: number;
 };
 

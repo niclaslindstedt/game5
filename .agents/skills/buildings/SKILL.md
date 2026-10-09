@@ -70,6 +70,17 @@ into `building-shots.ts`, and its view names added to
 `VIEWS` in `scripts/world-preview.mjs` (a name missing there is silently
 skipped). `station-<kind>-<end>` is one frame at 1280 × 720 for a close look.
 
+THE ROOMS INSIDE have a lab of their own: `make interiors` draws every
+kind's furnished ground floor from its door, a front corner and the back
+(`previews/world-free-interiors.png`, `pwa/src/tools/interior-view.ts`) and
+`room-<kind>` / `room-<kind>-door` one room close. A room is a kind's row in
+`ROOMS` (`interior-plan.ts`: its raise, ceiling and linings) and a layout in
+`interior-layouts.ts`; a new building kind owes both, and its openings come
+off its own drawing (`FacadeKit.openings`), so a window moved outside moves
+inside too. Look from all three sides by day and at `--hour=21`: snow on a
+floor is the ground not cut (`room-cuts.ts`), a bright stripe is the sun,
+and an empty wall is a layout that put nothing there.
+
 ## Adding a material
 
 A new layer is a case in `paintPixel`, a row in `FACADE`, `FACADE_TILE` and

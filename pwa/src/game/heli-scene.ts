@@ -58,6 +58,8 @@ export type HeliScene = {
   /** The eye the frame is drawn from, settled: the cockpit shown while it
    * is in the cabin (`heli-cockpit.ts`). */
   seen(eye: Vec3): void;
+  /** The pace the run is shown at (`HeliView.setPace`). */
+  setPace(pace: number): void;
   /** THE LENS this frame, `ladder` the skier's own as framed under it: the
    * helicopter's, blended in from the ladder or out to it — or null once
    * the ladder has it whole (nobody rides it, or the orbit). */
@@ -270,6 +272,9 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       shown = shown ?? ladder;
       Object.assign(eyeWas, shown.eye);
       return out;
+    },
+    setPace(pace) {
+      view.setPace(pace);
     },
     seen(eye) {
       const at = view.drawn();

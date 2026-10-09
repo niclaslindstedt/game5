@@ -334,14 +334,15 @@ export const GRIMBEAR_ODDS = 1 / 3;
 export function freeGameOptions(
   ride: FreeRide,
   seed: number,
-  skier: { spec: SkiSpec; assist: Assist; poles?: boolean; gore?: boolean },
+  skier: { spec: SkiSpec; assist: Assist; poles?: boolean; gore?: boolean; sfw?: boolean },
   random: () => number = Math.random,
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
   const sled = sledOn(ride, seed);
   const para = paraOn(ride, seed);
   const balloon = balloonOn(ride, seed);
-  const party = afterskiOn(ride, seed);
+  // SAFE FOR WORK the lodges are shut: no ride begins at the party.
+  const party = !skier.sfw && afterskiOn(ride, seed);
   const vehicle = heli || sled || para || balloon || party;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
@@ -350,6 +351,7 @@ export function freeGameOptions(
     assist: skier.assist,
     poles: skier.poles ?? true,
     ...(skier.gore ? { gore: true } : {}),
+    ...(skier.sfw ? { sfw: true } : {}),
     mode: "free",
     region: ride.region,
     grade: ride.grade ?? undefined,

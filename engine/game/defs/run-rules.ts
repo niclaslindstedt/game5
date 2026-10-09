@@ -140,6 +140,13 @@ export type RunRules = {
    * the skis across the fall line on the brake and standing there, rather
    * than coasting on down the run-out. Left out, a finished run coasts. */
   hockeyStop?: boolean;
+  /** SAFE FOR WORK (the INJURIES switch off, `CreateGameOptions.sfw`):
+   * nobody collides with anybody — no skier, amateur or civilian is
+   * shouldered or knocked down (`contact` off) — the afterski's doors stay
+   * shut, the helicopter is flown through a steadying hand and cannot
+   * crash (`heli.ts`), and the hot air balloon never catches fire and
+   * cannot crash (`balloon.ts`). Left out, all of it is as it is. */
+  sfw?: boolean;
 };
 
 /** WHAT A RACE'S JURY RUNS IN — the weather a discipline is raced under,

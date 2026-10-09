@@ -4,11 +4,13 @@
 // (`race-buildings-view.ts`), the wind tunnels' (`tunnel-view.ts`) and the
 // ski area's own village and mountain buildings' (`village-view.ts`) and
 // the lifts' hardware (`lift-view.ts`) and the village's traffic
-// (`traffic-lab.ts`), one spread for the harness.
+// (`traffic-lab.ts`) and the rooms inside the buildings
+// (`interior-view.ts`), one spread for the harness.
 
 import type { GameState, Level } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { interiorShots } from "./interior-view.ts";
 import { liftShots } from "./lift-view.ts";
 import { raceBuildingShots } from "./race-buildings-view.ts";
 import { stationShots } from "./station-view.ts";
@@ -32,6 +34,7 @@ export function buildingShots(lab: Lab): Record<string, () => string> {
     ...raceBuildingShots(lab),
     ...tunnelShots(lab),
     ...villageShots(lab),
+    ...interiorShots(lab),
     ...liftShots(lab),
     ...(lab.state ? trafficShots({ ...lab, state: lab.state }) : {}),
   };

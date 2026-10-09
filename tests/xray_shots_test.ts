@@ -47,7 +47,15 @@ function run(d: ReturnType<typeof createXrayDirector>, s: Fake, wall: number) {
   return look;
 }
 
-const femur: Forecast = { in: 0.3, part: "thighL", bones: ["femurL"], gore: false, fatal: true };
+const femur: Forecast = {
+  in: 0.3,
+  part: "thighL",
+  bones: ["femurL"],
+  gore: false,
+  fatal: true,
+  mangled: false,
+  cause: null,
+};
 
 describe("the X-ray director", () => {
   it("idles until a blow is seen coming", () => {
@@ -193,10 +201,88 @@ describe("the X-ray director", () => {
     const s = fake();
     d.step(as(s));
     d.seen(
-      { in: 0.3, part: "thighL", bones: ["pelvis", "femurL"], gore: false, fatal: true },
+      {
+        in: 0.3,
+        part: "thighL",
+        bones: ["pelvis", "femurL"],
+        gore: false,
+        fatal: true,
+        mangled: false,
+        cause: null,
+      },
       as(s),
     );
     expect(run(d, s, 0.5).shot).toEqual({ kind: "bone", bone: "femurL" });
+  });
+});
+
+describe("the shred cam (a body taken apart by a machine)", () => {
+  const rotor: Forecast = {
+    ...femur,
+    gore: true,
+    bones: [],
+    part: "chest",
+    mangled: true,
+    cause: "rotor",
+  };
+
+  it("is shot from outside, slower, the skin never glass", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    s.skier.thrown = {};
+    d.step(as(s));
+    d.seen(rotor, as(s));
+    let look = d.frame(as(s), WALL);
+    expect(look).toMatchObject({ active: true, kind: "shred", shot: { kind: "shred" } });
+    look = run(d, s, XRAY.leadWall + 0.3);
+    expect(look.kind).toBe("shred");
+    expect(look.xray).toBe(0);
+    expect(look.rate).toBeLessThan(XRAY.slow);
+    expect(look.rate).toBeGreaterThanOrEqual(XRAY.shred.slow - 1e-9);
+  });
+
+  it("holds while pieces keep coming off him, then goes home", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    s.skier.thrown = {};
+    s.gore = { dead: -1, mortal: 0, cause: "machine" } as Fake["gore"];
+    d.step(as(s));
+    const tear = (piece: string) =>
+      s.events.push({ kind: "gore", t: s.t, what: "torn", piece, x: 0, y: 0, z: 0 });
+    // Begun off the run itself (no read ahead): a piece torn by the machine.
+    tear("armL");
+    d.step(as(s));
+    s.events = [];
+    let look = d.frame(as(s), WALL);
+    expect(look).toMatchObject({ active: true, kind: "shred" });
+    // A piece every second: never let go while they come, nor a bone shot.
+    for (const piece of ["legL", "armR", "head"]) {
+      look = run(d, s, 1);
+      expect(look.shot?.kind).toBe("shred");
+      s.events.push({ kind: "injury", t: s.t, part: "thighR", injury: "brokenFemur", ais: 3 });
+      tear(piece);
+    }
+    look = run(d, s, XRAY.shred.hold + 0.3);
+    expect(look.shot?.kind).toBe("body");
+    expect(look.xray).toBe(0);
+    look = run(d, s, XRAY.back + 2);
+    expect(look.active).toBe(false);
+  });
+
+  it("is held no longer than its most, however long the machine works", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    s.skier.thrown = {};
+    s.gore = { dead: -1, mortal: 0, cause: "machine" } as Fake["gore"];
+    s.events.push({ kind: "gore", t: 0, what: "torn", piece: "armL", x: 0, y: 0, z: 0 });
+    d.step(as(s));
+    s.events = [];
+    let look = d.frame(as(s), WALL);
+    for (let w = 0; w < XRAY.shred.most + 0.5; w += 0.5) {
+      look = run(d, s, 0.5);
+      s.events.push({ kind: "gore", t: s.t, what: "open", piece: "chest", x: 0, y: 0, z: 0 });
+    }
+    expect(look.shot?.kind).toBe("body");
   });
 });
 

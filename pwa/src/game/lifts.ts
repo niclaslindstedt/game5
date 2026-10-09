@@ -97,6 +97,7 @@ import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { buildResortBuildings } from "./village-build.ts";
+import { createInteriors } from "./interiors-view.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
@@ -187,6 +188,9 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   group.add(tunnels.group);
   const houses = createCabins(level, haze);
   group.add(houses.group);
+  // THE ROOMS inside the buildings near the lens (`interiors-view.ts`).
+  const rooms = createInteriors(level, haze);
+  group.add(rooms.group);
   // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
   // the village round the hub and the mountain's restaurant and patrol hut,
   // one mesh in the painted materials.
@@ -203,6 +207,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const dispose = () => {
     tunnels.dispose();
     houses.dispose();
+    rooms.dispose();
     disposeBoards();
     disposeRings();
     for (const g of geos) g.dispose();
@@ -213,7 +218,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     group,
     update: (t, _rider, _drawn, eye) => {
       tunnels.update(t);
-      if (eye) houses.update(eye);
+      if (eye) {
+        houses.update(eye);
+        rooms.update(eye);
+      }
     },
     setBudget: tunnels.setBudget,
     dispose,
@@ -720,7 +728,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const holds = new Map<number, Hold>();
   done.update = (t, rider, drawn, eye, others = [], crowd = []) => {
     tunnels.update(t);
-    if (eye) houses.update(eye);
+    if (eye) {
+      houses.update(eye);
+      rooms.update(eye);
+    }
     boarding?.update(t);
     const plan = rider ? plans[rider.index] : undefined;
     const togo = rider && plan ? plan.length - plan.look.off - rider.u : Infinity;

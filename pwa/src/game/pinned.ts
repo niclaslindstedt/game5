@@ -125,6 +125,10 @@ export type PinnedSkier = {
   /** The INJURIES switch on (`injuriesShown`): a blow past what a body
    * survives tears him apart and kills him (`CreateGameOptions.gore`). */
   gore?: boolean;
+  /** SAFE FOR WORK, the INJURIES switch off (`CreateGameOptions.sfw`):
+   * nobody collides, no afterski, a helicopter and a balloon that cannot
+   * crash or burn. */
+  sfw?: boolean;
 };
 
 /** A RUN ON THE PINNED MAP — the map's own snow under the map's own sky,
@@ -149,6 +153,7 @@ export function pinnedGameOptions(
     assist: skier.assist,
     damage: skier.damage,
     ...(skier.gore ? { gore: true } : {}),
+    ...(skier.sfw ? { sfw: true } : {}),
     poles: skier.poles,
   };
 }

@@ -11,7 +11,7 @@
 // instance (`aPart` on a vertex, `aKit` on the instance — the spectators'
 // trick, `spectator-shapes.ts`): a helmet with its goggles pushed up, a
 // beanie, his own hair; skis on his left shoulder, a mug, a beer, a shovel,
-// a broom; a snowball; the patrol's white cross. Every prop is built in
+// a broom; a snowball; a dog walker's bag; the patrol's white cross. Every prop is built in
 // every target where that target's hands and shoulders have it — the cup in
 // his right fist, the shovel's shaft from the grip down through the left
 // hand, the skis laid on his shoulder — so the blend that moves the arm
@@ -68,6 +68,7 @@ const PAINT = {
   bristle: new THREE.Color(0x7c5a32),
   snow: new THREE.Color(0xf4f7fb),
   binding: new THREE.Color(0x3a3d44),
+  bag: new THREE.Color(0x26302a),
 } as const;
 
 /** A box from `a` to `b`, `w` across along `side` and `h` thick along
@@ -459,6 +460,18 @@ function emitProps(
     const face = norm(sub(chest.f, mul(shaft, dot(chest.f, shaft))));
     box(fig, neck, foot, face, chest.r, 0.07, 0.34, PAINT.bristle);
   }
+  // A DOG'S PILE BAGGED, knotted and hung from the left hand.
+  fig.part(PART.bag);
+  fig.limb(
+    sub(P.handL, mul(world, 0.02)),
+    sub(P.handL, mul(world, 0.15)),
+    chest.r,
+    0.02,
+    0.045,
+    small ? 5 : 4,
+    PAINT.bag,
+    true,
+  );
   fig.part(PART.body);
 }
 

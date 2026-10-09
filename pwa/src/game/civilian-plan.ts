@@ -188,6 +188,8 @@ export type CivilianPose = {
   carry: Carry;
   seat: number | null;
   shown: boolean;
+  /** A dog walker's: a full bag in his left hand, a pile picked up. */
+  bag: boolean;
 };
 
 export function freshCivilianPose(): CivilianPose {
@@ -203,6 +205,7 @@ export function freshCivilianPose(): CivilianPose {
     carry: "none",
     seat: null,
     shown: false,
+    bag: false,
   };
 }
 
@@ -751,6 +754,7 @@ export function civilianAt(
   out.carry = held.carry;
   out.seat = c.home.seat;
   out.walked = 0;
+  out.bag = false;
   if (c.leg) {
     const at = routeAt(c.leg, u, ROUTE_AT);
     out.x = at.x;

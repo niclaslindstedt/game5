@@ -1,6 +1,6 @@
 ---
 name: crowd
-description: "Use when working on THE CROWD — the free ride's amateur skiers out on the ski area: who is out there and in what groups (families, friends, ski schools, the lot down from the hut), the knobs that make each one himself (skill, aggression, off-piste, turn style and width, wobble, the stopper, the jumper), how they ski the resort's runs and ride the lifts, how crowded each colour is, how the player meets them (the bump, the knock-down, the `skier` wipeout), and how they are DRAWN — eight procedural bodies at three cuts, posed by morph targets solved from the player's own pose, dressed per instance — and THE SPECTATORS who watch every run but a free ride: where a race's audience stands (the finish arena's grandstands, back terraces and slope, the jumps, the inside of the hard turns, the steep pitches, the lower corridor, the start), what each fan wears and carries, how he moves when a racer comes (the shader's), the finish arena's furniture (the fences, the finish circle's boards and exit gate, the leader's platform, the video wall). Owns `engine/game/crowd.ts`, `engine/game/defs/crowd.ts`, `pwa/src/game/crowd-rig.ts`, `crowd-shapes.ts`, `crowd-dress.ts`, `crowd-view.ts`, `spectator-plan.ts`, `spectator-shapes.ts`, `spectators.ts`, `finish-arena.ts`, `make crowd` and `make audience` — and THE CIVILIANS, the free ride's people on foot (`civilian-*.ts`, `civilians-view.ts`, `docs/civilians.md`, `make civilians`)."
+description: "Use when working on THE CROWD — the free ride's amateur skiers out on the ski area: who is out there and in what groups (families, friends, ski schools, the lot down from the hut), the knobs that make each one himself (skill, aggression, off-piste, turn style and width, wobble, the stopper, the jumper), how they ski the resort's runs and ride the lifts, how crowded each colour is, how the player meets them (the bump, the knock-down, the `skier` wipeout), and how they are DRAWN — eight procedural bodies at three cuts, posed by morph targets solved from the player's own pose, dressed per instance — and THE SPECTATORS who watch every run but a free ride: where a race's audience stands (the finish arena's grandstands, back terraces and slope, the jumps, the inside of the hard turns, the steep pitches, the lower corridor, the start), what each fan wears and carries, how he moves when a racer comes (the shader's), the finish arena's furniture (the fences, the finish circle's boards and exit gate, the leader's platform, the video wall). Owns `engine/game/crowd.ts`, `engine/game/defs/crowd.ts`, `pwa/src/game/crowd-rig.ts`, `crowd-shapes.ts`, `crowd-dress.ts`, `crowd-view.ts`, `spectator-plan.ts`, `spectator-shapes.ts`, `spectators.ts`, `finish-arena.ts`, `make crowd` and `make audience` — and THE CIVILIANS, the free ride's people on foot and the village's dog walkers (`civilian-*.ts`, `civilians-view.ts`, `dog-*.ts`, `dogs-view.ts`, `docs/civilians.md`, `make civilians`)."
 ---
 
 # The crowd: the free ride's amateurs
@@ -28,6 +28,7 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
 | The kit each is dealt | `pwa/src/game/crowd-dress.ts` (three-free) |
 | The instanced draw | `pwa/src/game/crowd-view.ts`, hung on `renderer.ts` |
 | THE CIVILIANS (people on foot): who and when (`civilian-roles.ts`: each role's routine and share by the hour), where (`civilian-spots.ts`, every foot held off the skiing by `civilianClear`), the plan and a moment of it (`civilian-plan.ts`), the poses as morph targets off the afterski's keys and the weights of a moment (`civilian-moves.ts`), the kit (`civilian-dress.ts`), the figure without skis and its props, deck chairs and snowmen (`civilian-shapes.ts`, sharing `crowd-shapes.ts`' legs, trunk and arms), the instanced draw (`civilians-view.ts`); `make civilians` | `pwa/src/game/civilian-*.ts`, `civilians-view.ts` |
+| THE DOG WALKERS: the village's households walking their dogs on the sidewalks — the kinds, coats, gaits and walk numbers (`dog-defs.ts`), the sidewalk network and crossings (`dog-walk-net.ts`, `dog-walk-route.ts`), the walks, stops, kerb waits on the traffic and the piles and patches left or bagged (`dog-walk.ts`), a moment of owner and dog (`dog-walk-pose.ts`), the dogs posed (`dog-pose.ts`), built (`dog-shapes.ts`) and drawn with leads, piles, patches and steam (`dogs-view.ts`); the lab sheet `pwa/src/tools/dogs-sheet.ts` | `pwa/src/game/dog-*.ts`, `dogs-view.ts` |
 
 ## The rules
 
@@ -128,9 +129,12 @@ Load **`skill-reflection`** at both ends and **`write-code`** beside this one.
 **The civilians' loop** — `make civilians` before and after (every sheet:
 `figures` every body at every target, `moves` each activity strobed — a
 dance faced square to the lens so its step to the side reads — `props` the
-held things, the heads, the staff and the cuts, `resort` the ski area by day
-and at hour 21, `--hour=` another hour), then
-`npx vitest run tests/civilians_test.ts tests/civilian_figure_test.ts`. A
+held things, the heads, the staff and the cuts, `dogs` every kind of dog, its
+gaits, its squat, its poses, the mess and the lead, `resort` the ski area by day
+and at hour 21 (its `dogs`, `dogpoop`, `piles` and `street` views the dog
+walkers in the village), `--hour=` another hour), then
+`npx vitest run tests/civilians_test.ts tests/civilian_figure_test.ts
+tests/dog_walkers_test.ts tests/dog_figure_test.ts`. A
 role's HOURS decide what a view at the map's hour shows: read the hour the
 resort sheet prints before judging a place empty. `docs/civilians.md` is the
 research and the roles' table; change it with the roles.

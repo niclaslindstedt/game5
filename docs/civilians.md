@@ -247,6 +247,143 @@ off the plan; the deck chairs and snowmen are one static mesh. The view is
 built only where `hasCivilians` says so — a free ride by day, and its lodges'
 terraces after dark — and goes with the map. `make civilians` is the lab.
 
+## Dogs on the sidewalks
+
+The village's streets have their own people on foot: its households walking
+their dogs. Like everything on this page they are presentation only. They are
+dealt off the map's seed on a salt of their own, and where every owner, dog
+and pile is at a moment is a pure function of the plan and the clock. No
+digest moves and nothing is drawn from `state.rng`.
+
+### What the research says
+
+- **The kinds.** Five common TYPES of dog stand in, never a registered breed:
+  - A retriever: 55–61 cm at the shoulder, 25–36 kg, dropped ears, a level
+    otter tail.
+  - A sled dog: 51–60 cm, 16–27 kg, pricked ears, a bushy tail in a sickle
+    over the back, a white face and underside.
+  - A shepherd: 55–65 cm, 22–40 kg, about 10 long to 8.5 tall, a tail
+    hanging low.
+  - A small terrier: 25–30 cm, square, its short tail straight up.
+  - A long, low dachshund type: 20–23 cm on legs a third of that, its body
+    twice as long as tall.
+  - The small, short-coated dogs are the ones most often walked in a coat.
+- **The gaits.**
+  - A dog's WALK is four-beat in lateral sequence: a hind foot, the fore on
+    the same side, then the other pair. Up to three feet are on the ground
+    at once.
+  - Its TROT is two-beat, a fore foot and the opposite hind together.
+  - Dogs of every size change from one to the other at about the same Froude
+    number, v² over g times the shoulder height (about 0.5). So beside one
+    owner's pace a big dog walks while a small one trots.
+  - A stride (all four feet once) is about 1.4 shoulder heights at a walk:
+    0.79 m for a 29 kg dog at 1.3–1.5 m/s. At a trot it is about 1.6.
+- **The walk.**
+  - A walk runs a few hundred metres to most of a kilometre at an adult's
+    1.0–1.35 m/s. A family with a child goes slower.
+  - The morning walk before work and the evening one are the busiest, with a
+    midday round, a late walk before bed and next to nobody in the small
+    hours.
+  - A standard lead is 1.2–1.8 m.
+  - A dog stops to sniff every few tens of metres.
+  - A grown male lifts a leg to mark a post or a bank one to four times a
+    walk. A female squats to pee.
+  - Most dogs defecate once a walk, after circling and sniffing for a spot.
+    In the squat:
+    - the hind feet come forward under the body and spread;
+    - the back hunches;
+    - the rump is let down without touching the ground;
+    - the tail is lifted clear.
+- **What is left.**
+  - Observed pick-up rates run from about a half to two in three of piles,
+    fewer after dark.
+  - A fresh pile steams in cold air for a minute or so.
+  - Urine leaves a yellow patch in snow.
+
+### The design
+
+- **Who.** `dog-walk.ts` deals `DOG_WALK.households` households, each with
+  one dog or two (`pair`), and sometimes a child alongside (`family`). Each
+  dog is dealt its kind (`DOG_SHARE`), coat, collar, sex, lead length and
+  whether it wears a dog coat.
+- **The walks.**
+  - Each household's walks are cut one after another off the household's own
+    sub-stream, from home and back, with a rest at home between.
+  - Asking for walk `k` builds only the walks before it, so any moment can be
+    asked in any order.
+  - Whether a household is out at all is the hour's share (`DOG_HOURS`) set
+    against the household's own draw.
+- **Where.**
+  - The owners walk a network of the village's SIDEWALKS (`dog-walk-net.ts`):
+    the walks either side of every street, joined at the corners, with paths
+    to the house doors.
+  - The only edges over a carriageway are the village's CROSSINGS.
+  - At a crossing the owner waits at the kerb (`kerb`), then until no car is
+    on the crossing or due on it within `headway` s, read off the traffic
+    plan itself (`vehicleAt`). The dog often sits beside him while he waits.
+- **What the dog does.**
+  - Each walk carries its STOPS, written down as the walk is cut: sniffing,
+    marking a lamp post or the snowbank, peeing, squatting and the owner's
+    chats.
+  - The dog runs `ahead` of the hand along the walk, never further than its
+    lead, and trots to catch up after a stop.
+  - A squat lays a POOP where the dog's rump was, on the sidewalk. A mark or
+    a pee lays a yellow PATCH.
+  - Each pile is BAGGED with the chance `pickUp` (`pickUpNight` after
+    dark). This is set well under the observed rates on purpose, so most
+    piles stay on the sidewalk for the eye.
+  - A bagged pile is gone once the owner has stooped over it (`stoop`); the
+    owner is drawn with a bag in hand after that.
+  - `messAt` returns the `kept` latest piles and patches lying at a moment.
+    Each pile steams for its first `steam` s.
+- **The pose handed to a view.**
+  - `dogWalkerAt` fills the owner's `CivilianPose`. It carries the lead
+    (`carry: "lead"`), the activity is `stoop` while he bags a pile, and
+    `bag` is set once he holds one.
+  - `dogAt` fills a `DogPose`: where the dog is, its heading, its act (walk,
+    stand, sit, sniff, mark, pee, poop), its clock into the act, its speed
+    and its trot share.
+
+### How they are drawn
+
+- **The figure.**
+  - Each kind is built in code in the wildlife's chunky, faceted look
+    (`dog-shapes.ts`) at a near and a far cut: a body lofted through seven
+    rings, a neck, a head with its muzzle, nose, eyes and ears (pricked or
+    dropped), four legs in three segments with paws, and a tail.
+  - A dog coat over the trunk and a collar are folded away in the shader
+    unless that dog wears them.
+  - The coat is painted per instance in four colours: the main coat, the
+    under colour, the back (a shepherd's saddle) and the muzzle (a
+    shepherd's mask, a sled dog's white face).
+- **The poses** are morph targets of that one mesh, each a skeleton solved
+  in `dog-pose.ts`:
+  - four walk keys and four trot keys a quarter stride apart;
+  - sat, its haunch on the snow on straight fore legs;
+  - the squat to poop;
+  - the leg lifted to mark, left and right;
+  - squatted to pee;
+  - the nose at the snow, sniffing;
+  - the tail wagged either way.
+  - Every leg keeps its length in every key. `dogDials` turns a `DogPose`
+    into the weights of a moment: the stride stepped off the distance
+    covered, the act eased in and out, the tail wagging at the walk and
+    still in the squat.
+- **The lead** is a line from the owner's left hand to the collar
+  (`leadCurve`). It hangs in a catenary-like sag as deep as its slack allows
+  and is never let into the snow, so it reads straight when taut.
+- **The owner** holds the lead in a pose of his own (`lead`) and stoops to
+  bag a pile (`stoop`).
+- **The mess.** `dogs-view.ts` draws the dogs, leads, piles, patches and
+  steam instanced, the dogs at two cuts (near to 30 m, far to 170 m) and
+  the piles and patches to 80 m.
+- **The lab.** `make civilians ARGS=--sheet=dogs` is the dog sheet: every
+  kind, the gaits strobed, the squat frame by frame, every pose, a pile, a
+  patch, the lead and the cuts. The resort sheet's `dogs`, `dogpoop`,
+  `piles` and `street` views photograph them in the village, by day and at
+  hour 21. `tests/dog_walkers_test.ts` and `tests/dog_figure_test.ts` hold
+  them.
+
 ## Sources
 
 - Lift attendant and operator job descriptions from several ski areas, and a
@@ -260,3 +397,7 @@ terraces after dark — and goes with the map. `make civilians` is the lab.
 - Ski area master development plans (comfortable carrying capacity, base
   area staging capacity, circulation from the car park to the lifts' feet,
   peak-day design standards).
+- Published breed standards' heights and weights (restated as the types'
+  bands), studies of quadruped gait (the walk–trot change at a common Froude
+  number, stride against size in dogs), and surveys of dog owners' pick-up
+  behaviour.

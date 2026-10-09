@@ -84,6 +84,8 @@ export const CIVILIAN_POSES = [
   "snowTalk",
   "lounge",
   "loungeSip",
+  "lead",
+  "stoop",
 ] as const;
 export type CivilianTarget = (typeof CIVILIAN_POSES)[number];
 
@@ -263,6 +265,22 @@ const MOVES: Readonly<Record<CivilianTarget, { key: Key } & Partial<Holding>>> =
   walk3: { key: walkKey(0.75) },
   // His skis on his left shoulder, the left hand up in front on them.
   carry: { key: at({ hands: [v(-0.15, 1.36, 0.3), STOOD_HANDS[1]] }) },
+  // A DOG'S LEAD in his right hand, the forearm forward, the hand at his
+  // hip's height a hand's width out in front — the right arm alone, so it
+  // rides every stood move as the skis on the shoulder do.
+  lead: { key: at({ hands: [STOOD_HANDS[0], v(0.24, 0.9, 0.3)] }) },
+  // BENT TO BAG A PILE: over from the hips with the knees in it, the left
+  // hand down at the snow before his feet, the lead's hand at his knee.
+  stoop: {
+    key: at({
+      hipY: 0.78,
+      hipZ: -0.12,
+      pitch: 0.95,
+      nod: -0.25,
+      feet: [v(-0.16, A, 0.12), v(0.16, A, -0.04)],
+      hands: [v(-0.1, 0.12, 0.5), v(0.22, 0.55, 0.32)],
+    }),
+  },
   drink: { key: sip(STOOD), tip: 1 },
   // A word, a hand going: two places the right hand swings between.
   talk0: {
@@ -531,6 +549,9 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
     return;
   }
   const carry = p.carry === "skis";
+  // Bent to bag a pile, and the lead held out over everything else.
+  const stoop = act === "stoop" ? swing(u, 0.3, 0.3) : 0;
+  if (p.carry === "lead") out[AT.lead] += 1 - stoop;
   switch (act) {
     case "walk": {
       // His stride off the ground he has covered: a key every half step.
@@ -603,6 +624,9 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
       out[AT.build1] += w * (1 - s);
       break;
     }
+    case "stoop":
+      out[AT.stoop] += stoop;
+      break;
     default: {
       // STOOD ("stand", "lounge" off a chair): alive, his weight swung from
       // one leg to the other on his own clock.
@@ -664,4 +688,32 @@ export function handReach(key: Key, right = true): number {
   const s = right ? R.shoulderR : R.shoulderL;
   const h = right ? R.handR : R.handL;
   return len(sub(v(p[3 * h], p[3 * h + 1], p[3 * h + 2]), v(p[3 * s], p[3 * s + 1], p[3 * s + 2])));
+}
+
+/** WHERE A DOG WALKER'S LEAD HAND IS in his own frame (x right, y up, z
+ * the way he faces), m: the lead target's right hand, bent down toward
+ * the stoop's by `stoop` (0..1) — what `dogs-view.ts` hangs the lead off.
+ * The walk's little arm swing is left out. */
+export function leadHand(
+  body: keyof typeof CROWD_LOOKS,
+  stoop: number,
+  out: Triple = [0, 0, 0],
+): Triple {
+  let hands = LEAD_HANDS.get(body);
+  if (!hands) {
+    hands = [civilianPosed(body, "lead").handR, civilianPosed(body, "stoop").handR];
+    LEAD_HANDS.set(body, hands);
+  }
+  const [a, b] = hands;
+  for (let k = 0; k < 3; k++) out[k] = a[k] + (b[k] - a[k]) * stoop;
+  return out;
+}
+type Triple = [number, number, number];
+const LEAD_HANDS = new Map<string, [Triple, Triple]>();
+
+/** How far bent to bag a pile a walker's pose is, 0..1 (`civilianDials`'
+ * own weight for it). */
+export function stoopOf(p: CivilianPose): number {
+  const u = p.span > 0 ? Math.max(0, Math.min(1, p.clock / p.span)) : 0;
+  return p.activity === "stoop" ? swing(u, 0.3, 0.3) : 0;
 }

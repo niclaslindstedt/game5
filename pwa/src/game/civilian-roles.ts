@@ -39,7 +39,9 @@ import type { SpotKind } from "./civilian-spots.ts";
  *   * `roll`: bent over pushing a snowball along the snow, the ball
  *     growing as it goes (a child's, to the snowman).
  *   * `skate`: on his skis, skating along the valley floor from one lift's
- *     foot to the next (drawn on the crowd's skiing figure). */
+ *     foot to the next (drawn on the crowd's skiing figure).
+ *   * `stoop`: bent down to the snow before him, a bag over his hand,
+ *     picking up after his dog (`dog-walk.ts`). */
 export type Activity =
   | "stand"
   | "talk"
@@ -55,12 +57,14 @@ export type Activity =
   | "throw"
   | "build"
   | "roll"
-  | "skate";
+  | "skate"
+  | "stoop";
 
 /** What a civilian has in his hands. `skis`: a pair on one shoulder, tips
  * forward and down, a hand in front on them, the bindings behind the
- * shoulder (the poles in the other hand). */
-export type Carry = "none" | "skis" | "mug" | "beer" | "shovel" | "broom";
+ * shoulder (the poles in the other hand). `lead`: a dog's lead in the
+ * right hand, held low in front (`dog-walk.ts`). */
+export type Carry = "none" | "skis" | "mug" | "beer" | "shovel" | "broom" | "lead";
 
 /** What he wears: a staff uniform (`STAFF_DRESS`) or a guest's own kit. */
 export type Dress = "lift" | "patrol" | "school" | "worker" | "host" | "guest";
@@ -87,7 +91,9 @@ export type RoleId =
   | "child"
   | "snowballer"
   | "builder"
-  | "roller";
+  | "roller"
+  | "dogWalker"
+  | "dogChild";
 
 /** One step of a routine: the activity, how long it is held (dealt between
  * the two, s), what is in his hands meanwhile (the role's own if unsaid). */
@@ -761,6 +767,36 @@ export const CIVILIAN_ROLES: readonly Role[] = [
     moves: "route",
     routine: [{ act: "build", seconds: [5, 9] }],
     hours: H.kids,
+    staff: false,
+  },
+  // OUT WITH THE DOG on the village's sidewalks, and the child who comes
+  // along: dealt by the dog walks (`dog-walk.ts`) off the village's doors,
+  // on their own budget and hours (`DOG_WALK`, `DOG_HOURS`), never at a
+  // place of this table.
+  {
+    id: "dogWalker",
+    at: [],
+    chance: 0,
+    count: [0, 0],
+    bodies: GUESTS,
+    dress: "guest",
+    carry: "lead",
+    moves: "route",
+    routine: [{ act: "walk", seconds: [1, 1] }],
+    hours: H.guests,
+    staff: false,
+  },
+  {
+    id: "dogChild",
+    at: [],
+    chance: 0,
+    count: [0, 0],
+    bodies: KIDS,
+    dress: "guest",
+    carry: "none",
+    moves: "route",
+    routine: [{ act: "walk", seconds: [1, 1] }],
+    hours: H.guests,
     staff: false,
   },
 ];

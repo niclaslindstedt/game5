@@ -5,9 +5,10 @@
 // uniforms after it, `STAFF_DRESS`), and which of the figure's folded
 // PARTS he shows — his head (a helmet with the goggles pushed up on it, a
 // beanie, or his own hair), what is in his hands (skis on a shoulder, a mug,
-// a beer, a shovel, a broom), a snowball, the patrol's cross. Three-free and
-// DOM-free; dealt off the person's own numbers in the plan, so it moves
-// nothing and is the same person every frame.
+// a beer, a shovel, a broom), a snowball or a dog walker's bag, the
+// patrol's cross. Three-free and DOM-free; dealt off the person's own
+// numbers in the plan, so it moves nothing and is the same person every
+// frame.
 
 import type { CrowdBody } from "@engine";
 
@@ -44,6 +45,7 @@ export const PART = {
   shovel: 14,
   broom: 15,
   snowball: 21,
+  bag: 22,
   cross: 31,
 } as const;
 export type Head = "helmet" | "beanie" | "hair";
@@ -102,6 +104,10 @@ function headOf(c: Civilian, h: number): Head {
       return pick(0, 0.5);
     case "walker":
       return pick(0.5, 0.35);
+    case "dogWalker":
+    case "dogChild":
+      // Out in the village with the dog, not skiing: a beanie or bare.
+      return pick(0, 0.62);
     case "partier":
       return pick(0.12, 0.33);
     case "terraceSitter":
@@ -171,6 +177,7 @@ const CARRY_PART: Readonly<Record<Carry, number>> = {
   beer: PART.beer,
   shovel: PART.shovel,
   broom: PART.broom,
+  lead: 0,
 };
 const HEAD_PART: Readonly<Record<Head, number>> = {
   helmet: PART.helmet,
@@ -183,7 +190,7 @@ const HEAD_PART: Readonly<Record<Head, number>> = {
 export function kitParts(kit: CivilianKit, pose: CivilianPose, out: number[]): number[] {
   out[0] = HEAD_PART[kit.head];
   out[1] = CARRY_PART[pose.carry];
-  out[2] = holdsSnowball(pose) ? PART.snowball : 0;
+  out[2] = holdsSnowball(pose) ? PART.snowball : pose.bag ? PART.bag : 0;
   out[3] = kit.mark;
   return out;
 }

@@ -12,9 +12,15 @@
 //   props     the skis on a shoulder, the mug, the beer, the shovel, the
 //             broom, the snowball, the heads, the staff, a deck chair, a
 //             snowman, the cuts                       → previews/civilians/props.png
+//   dogs      the village's dogs (`dog-pose.ts`, `dog-shapes.ts`): every
+//             kind in its coats, the walk and the trot strobed, the squat
+//             to poop frame by frame, every pose, a pile, a patch, a
+//             walker on a slack and a taut lead, the cuts
+//                                                     → previews/civilians/dogs.png
 //   resort    `--seed`'s free ride at `--views` (lift, terrace, yard, base,
 //             square, walker, skier, cocoa, kids, snowball, roller,
-//             overview) by day, and `--night` of them
+//             overview, and the dog walks' dogs, dogpoop, piles, street)
+//             by day, and `--night` of them
 //             at `--night-hour`                       → previews/civilians/resort-<seed>-<view>[-night].png
 //
 // The page does the drawing (`pwa/src/tools/civilians-harness.ts`); this
@@ -39,7 +45,7 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".civilians-preview");
 
-const SHEETS = ["figures", "moves", "props", "resort"];
+const SHEETS = ["figures", "moves", "props", "dogs", "resort"];
 const VIEWS = [
   "lift",
   "terrace",
@@ -53,6 +59,10 @@ const VIEWS = [
   "snowball",
   "roller",
   "overview",
+  "dogs",
+  "dogpoop",
+  "piles",
+  "street",
 ];
 
 const args = parseArgs(
@@ -92,7 +102,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,resort] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build]",
+  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,dogs,resort] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());

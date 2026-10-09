@@ -58,14 +58,22 @@ export type Forecast = {
   mangled: boolean;
   /** What he dies of, as the read ahead found it (null: he lives). */
   cause: DeathCause | null;
+  /** Whether it is the helicopter coming down with him on it: no cam of
+   * the director's at all — the crash's own lens (`camera-crash.ts`) holds
+   * on the machine going up and never goes after him. */
+  wrecked: boolean;
 };
 
 /** The deaths that TAKE A BODY APART rather than break it: under a piste
- * machine, blown off a helicopter's skid, into its rotor. */
-const MANGLING: readonly string[] = ["machine", "blast", "rotor"];
+ * machine, into a helicopter's rotor. (Blown off its skid is the crash's
+ * own lens's — `wrecked`.) */
+const MANGLING: readonly string[] = ["machine", "rotor"];
+
+/** Whether a run's helicopter has come down with its skier on it. */
+export const wrecked = (s: GameState): boolean => !!s.heli?.wreck?.aboard;
 
 /** Whether a run's skier is being taken apart by a machine — the piste
- * machine's belts and tiller, the helicopter's blast or its blades
+ * machine's belts and tiller or the helicopter's blades
  * (a blade through any point of him, `HeliState.taken`, whatever he
  * dies of). */
 export const mangled = (s: GameState): boolean =>
@@ -163,6 +171,7 @@ export function forecast(
         fatal: diesOf(run),
         mangled: mangled(run),
         cause: run.gore?.cause ?? null,
+        wrecked: wrecked(run),
       };
     }
     if (run.progress.finished) break;
@@ -192,7 +201,7 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
   let left = 0;
   /** The blow found, while the read goes on for whether it kills him, and
    * the step it lands on. */
-  let found: Omit<Forecast, "in" | "fatal" | "mangled" | "cause"> | null = null;
+  let found: Omit<Forecast, "in" | "fatal" | "mangled" | "cause" | "wrecked"> | null = null;
   let at = 0;
   const dies = diesOf;
   const verdict = (state: GameState, fatal: boolean): Forecast => {
@@ -202,6 +211,7 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
       fatal,
       mangled: !!run && mangled(run),
       cause: run?.gore?.cause ?? null,
+      wrecked: !!run && wrecked(run),
     };
     run = null;
     found = null;

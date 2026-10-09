@@ -59,6 +59,7 @@ import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createGoreView, type GoreView } from "./gore-view.ts";
 import { createLifts, type Lifts, type SeatedRider } from "./lifts.ts";
+import { createThrownLens, subjectPose } from "./camera-subject.ts";
 import { summitShare } from "./camera-summit.ts";
 import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGazeRig } from "./lift-gaze.ts";
@@ -322,6 +323,7 @@ export function createWorldRenderer(
   const lensDir = new THREE.Vector3();
   const rigPose: RigPose = freshRigPose();
   const rideMem = createRideMemory();
+  const thrownLens = createThrownLens();
   const gaze = createGazeRig(); // looking round from the lift (`lift-gaze.ts`)
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
@@ -687,21 +689,10 @@ export function createWorldRenderer(
       const player = riders[0];
       const skier = state.skier;
       const d = player.drawn;
-      rigPose.x = d.x;
-      rigPose.y = d.y - player.sink;
-      rigPose.z = d.z;
-      rigPose.q = d.q;
-      rigPose.heading = skier.heading;
-      rigPose.pitch = skier.pitch;
-      rigPose.roll = skier.roll;
-      rigPose.vx = skier.vx;
-      rigPose.vy = skier.vy;
-      rigPose.vz = skier.vz;
-      rigPose.speed = skier.speed;
-      rigPose.airborne = skier.airborne;
-      rigPose.switched = skier.switched;
-      rigPose.packed = skier.packed;
-      rigPose.summit = summitShare(level, d.x, d.z);
+      // THE LADDER'S SUBJECT (`camera-subject.ts`): him, and his body once he is thrown.
+      const body = sampleBody(player.body, alpha);
+      subjectPose(rigPose, skier, d, player.sink, body, level.groundAt, thrownLens);
+      rigPose.summit = summitShare(level, rigPose.x, rigPose.z);
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
@@ -716,7 +707,6 @@ export function createWorldRenderer(
       // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
       const allowed =
         !override && !watched && lens.rung() !== "orbit" && !state.heli?.wreck?.aboard;
-      const body = sampleBody(player.body, alpha);
       const dead = hurt.lens(
         allowed,
         body,

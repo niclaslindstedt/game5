@@ -304,7 +304,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s> and yard-<s> at any time)`,
+      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s>, yard-<s> and crash-<s> at any time; crash-net-<s> with --downhill)`,
     },
     quality: {
       kind: "string",
@@ -462,11 +462,18 @@ const falls = wanted.filter(isFall).sort((a, b) => Number(a.slice(5)) - Number(b
 // else, in the order of its clock: the frames of one crash into the nets.
 const isNet = (v) => /^net-\d+(\.\d+)?$/.test(v);
 const nets = wanted.filter(isNet).sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+// A crash view (`crash-0.4`, `crash-net-0.4`) is staged last, in the order
+// of its clock: the frames of one crash from the player's own chase lens.
+const isCrash = (v) => /^crash-(net-)?\d+(\.\d+)?$/.test(v);
+const crashes = wanted
+  .filter(isCrash)
+  .sort((a, b) => Number(a.split("-").at(-1)) - Number(b.split("-").at(-1)));
 const order = [
   ...VIEWS.flatMap((v) =>
     v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
   ),
   ...nets,
+  ...crashes,
 ];
 for (const view of order.filter((v) => wanted.includes(v))) {
   const t0 = Date.now();

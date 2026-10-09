@@ -43,6 +43,7 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { layCliffs } from "./cliffs.ts";
+import { attemptBegun, partway, reached } from "./progress.ts";
 import { composeCourse, courseArc, type CoursePlan } from "./courses.ts";
 import { dealDrifts } from "./drift.ts";
 import { layDrops, publishDrops } from "./drops.ts";
@@ -240,6 +241,7 @@ export function attemptResort(
   const traits = generatorTraits(version);
   const plan = planMassif(rng, region);
   const ground = bakeMassif(plan);
+  reached("mountain");
   const stepped = traits.steppedJunctions === true;
   const grade = (
     run: WalkedRun,
@@ -256,6 +258,7 @@ export function attemptResort(
   const chain = layChain(ground, raw, liftPlans, pressPads(ground, liftPlans, shape), shape);
   if (!chain) return "R26: no way off the gondola's top falls to the peak's chair's queue";
   let way: ChainWay | null = chain.way;
+  reached("pads");
   const pads = chain.pads;
   // The tops: runs started under them where a ramp has room (R26, R27).
   const tight = shape.lean > 0;
@@ -300,6 +303,7 @@ export function attemptResort(
   let placed: RampRoom | null = null;
   const startHit = netHit();
   for (const spec of specs) {
+    partway("walked", specs.indexOf(spec) / specs.length);
     let fair: RunSpec | null;
     placed = null;
     // Under its top by a glide's fall from the pad's rim (a drag's top,
@@ -510,6 +514,7 @@ export function attemptResort(
     return false;
   }
 
+  reached("walked");
   // ── 4. GRADED AND PRESSED, IN ORDER ──────────────────────────────────
   const cols = ground.cols;
   const packed = createHeightfield(0, 0, ground.cell, cols, ground.rows);
@@ -620,6 +625,7 @@ export function attemptResort(
   for (const w of kept)
     net.add(w.points, rankOf(w.spec), w.into?.run ?? -1, w.mergeStart, w.spec.kind === "road");
   const hit = netHit();
+  reached("graded");
   // ── 4a. THE RAMPS OFF THE TOPS (R26), off a run's snow and a station ──
   const runAt = (x: number, z: number, past = 0): boolean => net.covers(x, z, past, hit);
   const runIn = (x: number, z: number, past: number): number =>
@@ -699,6 +705,7 @@ export function attemptResort(
   for (const [id, off] of layRamps(ground, dragTops, runs, runIn, liftPlans)) ramps.set(id, off);
   const allRamps = [...ramps.values()].flat();
 
+  reached("access");
   // ── 5–6. THE MOUNTAIN'S OWN, CLEAR OF THE RUNS ───────────────────────
   const never = (): boolean => false;
   // Read as a race piste's distance from its line (R4, R22 keep off one
@@ -740,6 +747,7 @@ export function attemptResort(
   groomRamps(packed, ramps, [...pads, ...dragTops], runs, runIn, RAMP_GROOM);
   const tunnels = layTunnels(hubPlan, ground);
 
+  reached("features");
   // ── 7. THE WOODS ─────────────────────────────────────────────────────
   const lifts: Lift[] = liftPlans.map((l) => ({
     id: l.id,
@@ -768,6 +776,7 @@ export function attemptResort(
     tall: (y) => tallAtDepth(woods, lineY - y),
   });
 
+  reached("woods");
   // ── 8. THE DAY'S BEARINGS ────────────────────────────────────────────
   const day = dealSun(rng, region.sun);
   const facing = faceTheSun(sub, { ...day, hour: 12.5 });
@@ -801,6 +810,7 @@ export function attemptResort(
     });
   }
   if (courses.length === 0) return "no course runs down the network to the village";
+  reached("courses");
   return {
     seaY: seaLevelOf(plan, ground, village),
     seed,
@@ -844,6 +854,7 @@ export function buildResort(
   if (kept) return kept;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
+    attemptBegun(a);
     const built = attemptResort(seed, a, subSeed(seed, a), region, version);
     if (typeof built === "string") {
       debug(`resort ${seed}#${a}: refused — ${built}`);
@@ -856,6 +867,7 @@ export function buildResort(
       reasons.push(`#${a}: ${why}`);
       continue;
     }
+    reached("checked");
     keepResort(key, built);
     return built;
   }

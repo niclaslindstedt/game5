@@ -75,6 +75,13 @@ bundle, so no `make build`.) Three habits:
   one shot says "the map is empty" (a stamping bug) or "the map is right and
   the light is wrong" (a shader bug), where five tuning rounds guess.
 
+**A trail by how deep the snow is** has a lab of its own, `make trails`:
+the same scripted turns cut by the engine on the groomer, in settled powder
+and in a metre of fresh, each photographed from below, from above and close
+at a skier's knee (`bands`), under a low sun (`low`) and by the headlamp
+(`night`). Judge the three side by side — they must read as three different
+things, not one line at three strengths.
+
 Then the built app: `make build`, `make screenshots` at every viewport.
 `make profile` before and after anything that adds a pass, a texture read or a
 stamp — the trail map's stamping and the clipmap's fill are the dearest parts
@@ -104,6 +111,15 @@ of the frame.
 - **Snow is brighter than its paint.** `GLARE` pushes the tone past white so
   a low sun does not arrive grey; a change that clips the lit side to flat
   white has lost the sheen.
+- **A trail reads in THREE BANDS by its depth**, and the depth decides
+  which: a SCUFF (under a few centimetres — a groomer's or a crust's two
+  pencil lines, pressed to a cool polish), a TROUGH (a boot deep — soft and
+  rounded, its walls crumbled, the two grooves in its floor) and a TRENCH
+  (deep snow — its walls SLOUGHED back to about its own depth either side,
+  `sloughOf`, so both skis leave one track; broken into blocks; its floor
+  walled off from the sky and blue; clods thrown over its rim). A crust
+  holds a square wall and does not slough. The blue is light: the hollow's
+  indirect light and a low sun cut by how far down it is, never a dark paint.
 - **MAX blending, two maps, one decoder.** A new stamp source (a rival, a
   landing crater, an animal's print) goes through `stampsOf` and the same
   instanced quad; a second encoding of depth drifts from `trailAt`.

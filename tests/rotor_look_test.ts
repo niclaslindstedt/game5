@@ -129,3 +129,26 @@ describe("the eye", () => {
     }
   });
 });
+
+describe("in slow motion", () => {
+  it("shows a rotor at full rpm slowed far enough as its blades, turning forward", () => {
+    const eye = createRotorEye(MAIN);
+    const wall = 1 / 60;
+    // The shred cam's pace: a twentieth of the run's own.
+    const pace = 0.05;
+    let look = eye.step(1, wall * pace, pace);
+    const from = look.phase;
+    look = eye.step(1, wall * pace, pace);
+    expect(look.blades).toBeGreaterThan(0.99);
+    expect(look.disc).toBeLessThan(0.01);
+    expect(look.contrast).toBeGreaterThan(0.99);
+    // Forward, at the true turn times the pace, on the wall's clock.
+    expect((look.phase - from) / wall).toBeCloseTo(FULL * pace, 6);
+  });
+
+  it("is the same eye at the run's own pace", () => {
+    const a = createRotorEye(MAIN);
+    const b = createRotorEye(MAIN);
+    for (let k = 0; k < 30; k++) expect(a.step(1, 1 / 60, 1)).toEqual(b.step(1, 1 / 60));
+  });
+});

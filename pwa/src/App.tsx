@@ -698,6 +698,7 @@ export function App() {
       renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
       const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn);
       const dtRun = dtFrame * rate;
+      renderer.setPace(rate);
       const simAt = performance.now();
       if (shown) holdRide(state, () => renderer.draw(state, 0, 1 / 60, false));
       if (!frozen && !held && shown) {

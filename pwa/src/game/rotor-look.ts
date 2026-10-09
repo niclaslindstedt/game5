@@ -30,6 +30,11 @@
 //
 // The blades themselves (the model's meshes) are drawn while they are still
 // sharp and handed over to the drawn smear as they blur (`blades` / `disc`).
+//
+// IN SLOW MOTION (the replay's, the X-ray's, the shred cam's) the eye is a
+// high-speed camera: the rotor it sees turns at its true rate times the
+// PACE (game seconds a wall second), so slowed far enough the smear thins
+// to nothing and the blades come out one by one, sweeping round.
 
 /** How long one picture is gathered over, s. */
 export const EXPOSURE = 1 / 30;
@@ -104,19 +109,22 @@ export function lookAt(spec: RotorSpec, omega: number, phase: number): RotorLook
 }
 
 /** An eye on one rotor: stepped a frame at a time with the rotor's spool
- * (0..1 of full rpm), it carries the strobed pattern's turn. */
+ * (0..1 of full rpm), `dt` game seconds on at `pace` game seconds a wall
+ * second, it carries the strobed pattern's turn. */
 export function createRotorEye(spec: RotorSpec): {
-  step(spool: number, dt: number): RotorLook;
+  step(spool: number, dt: number, pace?: number): RotorLook;
 } {
   const full = (spec.rpm / 60) * 2 * Math.PI;
   const gap = (2 * Math.PI) / spec.blades;
   let phase = 0;
   return {
-    step(spool, dt) {
-      const omega = full * spool;
+    step(spool, dt, pace = 1) {
+      // The turn as the eye sees it, on the wall's clock.
+      const k = Math.max(1e-3, pace);
+      const omega = full * spool * k;
       // Kept within a blade-gap: the pattern repeats every gap, so this is
       // the same picture with no float lost to a long run.
-      phase = (phase + apparentRate(omega, spec.blades) * dt) % gap;
+      phase = (phase + apparentRate(omega, spec.blades) * (dt / k)) % gap;
       return lookAt(spec, omega, phase);
     },
   };

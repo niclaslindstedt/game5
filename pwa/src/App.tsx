@@ -681,8 +681,7 @@ export function App() {
       if (walk.walked()) nav.sync();
 
       // THE BACKDROP RACES ON: a race behind a card that the bot has taken
-      // to the flag is stood back up on the same map, so the front door is
-      // never over a skis coasting to a stop.
+      // to the flag is stood back up on the same map, never left coasting.
       const backdrop = !playerRides(shellRef.current) && !watching(shellRef.current);
       if (backdrop && shellRef.current !== "pause" && !loader.busy()) {
         if (state.progress.finished) {

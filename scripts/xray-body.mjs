@@ -9,11 +9,13 @@
 //   1. GATHER: every bone of `BONES` (the concepts `selectBone` names) and
 //      every organ of `ORGANS` (`ORGAN_SOURCES`), turned into the body frame
 //      the game poses in (x his right, y up, z forward, metres). The lungs,
-//      which this body has only as their airways and vessels, are the tree's
-//      CONVEX HULL;
-//   2. THIN: each piece clustered on a grid (every corner in a cell merged
-//      to their mean) until it is down to its budget of triangles — the
-//      faceted, chunky look the game's trees and figures share;
+//      which this body has only as their airways and vessels, are BUILT as
+//      the space they fill inside the ribs, over the diaphragm and round the
+//      heart (`xray-lungs.mjs`); every other organ, and the skull, is made
+//      one closed surface out of its many parts (`remesh`);
+//   2. THIN: each piece collapsed edge by edge, the least visible edge
+//      first, until it is down to its budget of triangles (`xray-thin.mjs`)
+//      — a rib stays a rounded bar, a skull stays closed;
 //   3. FIT: each piece handed to one rig bone (`HOME`), its corners read
 //      off landmarks of HIS (the hip, knee and ankle joints, the shoulder,
 //      elbow and wrist, the sacrum's plane, the seventh cervical vertebra,
@@ -24,7 +26,9 @@
 //      every triangle's corners as 16-bit indices, both base64.
 //
 // Prints a table (each piece's rig bone, its corners and triangles, its
-// extent) and writes `previews/xray-body.png`: the fitted skeleton and
+// extent), THE CLIPPING TABLE (how much of each organ a bone or another
+// organ runs through, bound as the rig is — every row should read nothing
+// but a few cm³ where organs touch) and writes `previews/xray-body.png`: the fitted skeleton and
 // organs from the front and the side inside the dressed skier's silhouette,
 // bound as the rig is. With --write it writes `pwa/src/game/xray-model.ts`
 // (GENERATED: never edit by hand — change this lab and write again).
@@ -49,6 +53,8 @@ import {
   loadObj,
   selectBone,
 } from "./lib/bodyparts3d.mjs";
+import { buildLungs, outward } from "./lib/xray-lungs.mjs";
+import { fill, gridOver, remesh } from "./lib/xray-voxels.mjs";
 import { thin } from "./lib/xray-thin.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -67,7 +73,6 @@ const { skierBones, STANDING } = await import("../pwa/src/game/skier-rig.ts");
 const { skierPose } = await import("../pwa/src/game/skier-pose.ts");
 const { dressOutfit } = await import("../pwa/src/game/dress.ts");
 const { DEFAULT_OUTFIT } = await import("../pwa/src/game/outfit.ts");
-const { THREE_HULL } = await import("./lib/xray-hull.mjs");
 
 const cache = ensureBodyParts3D(join(root, "previews", ".bodyparts3d"));
 const partNames = elementsByName(cache.table);
@@ -148,16 +153,68 @@ const boneMesh = new Map(
   BONES.map((b) => {
     const ms = meshesOf(selectBone(b));
     if (ms.length === 0) throw new Error(`no mesh for ${b}`);
+    // The skull's twenty-odd bones meet at sutures and the face's are thin
+    // plates: thinned apart they open seams the brain shows through, so the
+    // skull is first made one closed surface (`remesh`).
+    if (b === "skull")
+      return [
+        b,
+        outward(
+          remesh(
+            ms.map((m) => merged([m])),
+            0.002,
+            0.01,
+            0.002,
+          ),
+        ),
+      ];
     return [b, merged(ms)];
   }),
 );
+/** Each part of the concepts a test passes, on its own, in the game's frame. */
+const partsOf = (test, isa = false) => meshesOf(test, isa).map((m) => merged([m]));
+const exactly =
+  (...names) =>
+  (n) =>
+    names.includes(n);
+// THE LUNGS are built as the space they fill (`xray-lungs.mjs`).
+const LUNGS = buildLungs({
+  cage: [
+    ...partsOf(selectBone("ribs")),
+    ...partsOf(selectBone("sternum")),
+    ...partsOf(selectBone("thoracic")).map((m) => Object.assign(m, { spine: true })),
+  ],
+  diaphragm: partsOf(exactly("diaphragm")),
+  middle: partsOf(
+    exactly(
+      "heart",
+      "ascending aorta",
+      "arch of aorta",
+      "descending thoracic aorta",
+      "superior vena cava",
+      "inferior vena cava",
+      "trachea",
+      "esophagus",
+    ),
+  ),
+  tree: { lungL: [merged(named("left lung"))], lungR: [merged(named("right lung"))] },
+});
 const organMesh = new Map(
   ORGANS.map((o) => {
+    if (LUNGS[o]) return [o, LUNGS[o]];
     const src = ORGAN_SOURCES[o];
     const ms = src.names.flatMap((n) => meshesOf((k) => k === n, !!src.isa));
     if (ms.length === 0) throw new Error(`no mesh for ${o}`);
-    const m = merged(ms);
-    return [o, src.close ? THREE_HULL(m.v) : m];
+    // One closed surface out of however many parts (`remesh`).
+    return [
+      o,
+      outward(
+        remesh(
+          ms.map((m) => merged([m])),
+          o === "brain" ? 0.004 : 0.003,
+        ),
+      ),
+    ];
   }),
 );
 
@@ -345,12 +402,12 @@ function fit(p, f) {
 
 /** Triangles a piece is thinned to. */
 const BUDGET = {
-  skull: 1100,
+  skull: 1600,
   mandible: 240,
   cervical: 420,
-  thoracic: 900,
+  thoracic: 1200,
   lumbar: 420,
-  ribs: 1800,
+  ribs: 3200,
   sternum: 160,
   clavicle: 140,
   scapula: 260,
@@ -364,13 +421,13 @@ const BUDGET = {
   tibia: 300,
   fibula: 160,
   foot: 600,
-  brain: 500,
-  heart: 320,
-  lung: 360,
-  liver: 380,
+  brain: 900,
+  heart: 600,
+  lung: 700,
+  liver: 700,
   spleen: 160,
-  stomach: 260,
-  bowel: 700,
+  stomach: 400,
+  bowel: 1400,
   kidney: 180,
   bladder: 140,
 };
@@ -421,6 +478,63 @@ const rows = pieces.map((p) => {
 console.log(rows.join("\n"));
 const tris = pieces.reduce((a, p) => a + p.f.length / 3, 0);
 console.log(`\n${pieces.length} pieces, ${tris} triangles, scale ${SCALE.toFixed(3)}`);
+
+// THE CLIPPING TABLE: how much of each organ a bone runs through (and
+// another organ), the pieces filled into one grid over the trunk as they
+// are bound. Nothing should: an organ lies inside the bones round it.
+{
+  const H = 0.0025;
+  const worldOf = (p) => {
+    const fr = bind[p.bone];
+    const v = new Float64Array(p.v.length);
+    for (let i = 0; i < p.v.length; i += 3) {
+      const [x, y, z] = [p.v[i], p.v[i + 1], p.v[i + 2]];
+      v[i] = fr.head.x + fr.x.x * x + fr.y.x * y + fr.z.x * z;
+      v[i + 1] = fr.head.y + fr.x.y * x + fr.y.y * y + fr.z.y * z;
+      v[i + 2] = fr.head.z + fr.x.z * x + fr.y.z * y + fr.z.z * z;
+    }
+    return { v, f: p.f };
+  };
+  const organs = pieces.filter((p) => p.organ).map((p) => ({ p, w: worldOf(p) }));
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  for (const { w } of organs)
+    for (let i = 0; i < w.v.length; i += 3)
+      for (let k = 0; k < 3; k++) {
+        lo[k] = Math.min(lo[k], w.v[i + k] - 0.01);
+        hi[k] = Math.max(hi[k], w.v[i + k] + 0.01);
+      }
+  const filled = (w) => {
+    const g = gridOver(lo, hi, H);
+    fill(g, w);
+    const set = [];
+    for (let i = 0; i < g.data.length; i++) if (g.data[i] > 0.5) set.push(i);
+    return set;
+  };
+  const sets = organs.map(({ p, w }) => ({ name: p.name, cells: new Set(filled(w)), hits: [] }));
+  for (const p of pieces) {
+    const cells = filled(worldOf(p));
+    for (const o of sets) {
+      if (o.name === p.name) continue;
+      let n = 0;
+      for (const c of cells) if (o.cells.has(c)) n++;
+      if (n > 0) o.hits.push([p.name, n]);
+    }
+  }
+  const cc = (n) => (n * H ** 3 * 1e6).toFixed(0);
+  console.log("\nclipping (cm³ of the organ another piece runs through):");
+  let bones = 0;
+  for (const o of sets) {
+    o.hits.sort((a, b) => b[1] - a[1]);
+    const inBone = o.hits.filter(([n]) => !ORGANS.includes(n)).reduce((a, [, k]) => a + k, 0);
+    bones += inBone;
+    const list = o.hits.map(([n, k]) => `${n} ${cc(k)}`).join(", ");
+    console.log(
+      `${o.name.padEnd(10)} ${cc(o.cells.size).padStart(5)} cm³  in bone ${cc(inBone).padStart(4)}  ${list}`,
+    );
+  }
+  console.log(`organ volume inside bone, all organs: ${cc(bones)} cm³`);
+}
 
 // THE SHEET: front and side, the skin's silhouette and every piece in it.
 {

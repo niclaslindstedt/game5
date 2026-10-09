@@ -30,7 +30,7 @@ import { deathOver, diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
 import { createXrayRun, dying } from "../game/xray-run.ts";
-import type { XrayLook } from "../game/xray-shots.ts";
+import type { XrayLook, XrayShot } from "../game/xray-shots.ts";
 import {
   flatSpot,
   intoTree,
@@ -223,8 +223,59 @@ const lookLine = (l: XrayLook | null): string =>
     ? "x-ray off"
     : `${l.kind} · ${l.shot?.kind === "bone" ? `bone ${l.shot.bone}` : (l.shot?.kind ?? "-")} #${l.index} · rate ${l.rate.toFixed(2)} · glass ${l.xray.toFixed(2)}`;
 
+/** THE ANATOMY STILLS: no blow — he stands on his skis, the run held still,
+ * the glass all the way in and the lens on one bone after another, circling
+ * it, so the skeleton and the organs are seen whole from every side. */
+const ANATOMY: readonly XrayShot[] = [
+  { kind: "bone", bone: "ribs" },
+  { kind: "bone", bone: "thoracic" },
+  { kind: "bone", bone: "skull" },
+  { kind: "bone", bone: "pelvis" },
+  { kind: "body" },
+];
+
+async function anatomy(): Promise<Frame[]> {
+  const state = fresh();
+  const at = (wall: number, index: number): XrayLook => ({
+    active: true,
+    kind: "xray",
+    rate: 0,
+    xray: 1,
+    back: 0,
+    shot: ANATOMY[index],
+    age: wall,
+    index,
+  });
+  // A frame under the glass and a moment let by, so the skeleton's chunk is in.
+  renderer.setXray(at(0, 0));
+  renderer.draw(state, 1, 1 / 60);
+  await new Promise((r) => setTimeout(r, 600));
+  const frames: Frame[] = [];
+  const WALL = 1 / 60;
+  const per = most / ANATOMY.length;
+  let next = 0;
+  for (let wall = 0; wall < most; wall += WALL) {
+    const index = Math.min(ANATOMY.length - 1, Math.floor(wall / per));
+    const look = at(wall - index * per, index);
+    renderer.setXray(look);
+    const shoot = wall >= next && wall - index * per > 0.9;
+    renderer.draw(state, 1, WALL, shoot);
+    if (shoot) {
+      next = wall + every;
+      frames.push({
+        label: `${wall.toFixed(1)}s`,
+        caption: `anatomy wall ${wall.toFixed(2)} s\n${lookLine(look)}`,
+        png: canvas.toDataURL("image/png"),
+      });
+    }
+  }
+  renderer.setXray(null);
+  return frames;
+}
+
 async function sheet(name: string): Promise<{ frames: Frame[] }> {
   const note = await ready;
+  if (name === "anatomy") return lay(name, note, await anatomy());
   const make = SCENES[name];
   if (!make) throw new Error(`no scene "${name}"`);
   let { s: state, drive = still } = make();
@@ -282,6 +333,11 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
     if (started >= 0 && !l?.active && wall > started + 2 && diedOf(state) === null) break;
   }
   renderer.setXray(null);
+  return lay(name, note, frames);
+}
+
+/** The frames laid out as the page's sheet. */
+async function lay(name: string, note: string, frames: Frame[]): Promise<{ frames: Frame[] }> {
   const tw = Math.round(width * scale);
   const th = Math.round(height * scale);
   sheetEl.style.gridTemplateColumns = `repeat(${cols}, ${tw}px)`;
@@ -305,4 +361,4 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
   return { frames };
 }
 
-window.__xray = { ready, scenes: Object.keys(SCENES), sheet };
+window.__xray = { ready, scenes: [...Object.keys(SCENES), "anatomy"], sheet };

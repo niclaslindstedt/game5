@@ -7,18 +7,25 @@
 // everything else (`skier-pose.ts`).
 //
 //   * A HARD LANDING ridden out: sunk deep onto the legs, the trunk thrown
-//     over the tips (or back onto the tails, the arms reaching forward to
-//     haul him off them), rocked to the side it came down crooked on and
-//     WOBBLING from side to side over the skis as it dies away, both arms
-//     flung out and working for the balance — then stood back up.
+//     over the tips (or back onto the tails), rocked to the side it came
+//     down crooked on, the head ducked — and the hands BRACED, brought
+//     forward and a little wide where he can see them, held there while
+//     the legs take it — then stood back up.
 //   * A TRUNK TAKEN ON THE SHOULDER: that shoulder knocked back and the
 //     trunk turned round with it, the body rocked away from the tree and
-//     back on its heels, the head ducked, the far arm flung out to catch
-//     the balance.
+//     back on its heels, the head ducked, the far hand braced forward and
+//     the near one drawn in against the blow.
 //   * THE BODY DOWN AND BACK UP: leaned over to the side he went down on, a
-//     hand put down to the snow there and pushed off it, the other arm up.
-//   * AN EDGE THAT BIT: a wobble — the trunk thrown from side to side over
-//     the skis, dying away, the arms working against it, sat back.
+//     hand put down to the snow there and pushed off it.
+//   * AN EDGE THAT BIT: the trunk thrown toward the edge that caught and
+//     brought back over the skis, sat back a little, both hands braced
+//     forward.
+//
+// A professional rides these out SECURE: the arms are never flung up,
+// swung or wheeled about for the balance — a skier who throws his arms
+// about is a skier losing it. The hands go forward and stay quiet, the
+// legs and the hips do the work, and the body is rocked ONCE and brought
+// back, never wobbled from side to side.
 //
 // Each grows over `RISE` s and dies away over the rest of its own length,
 // sized by how near it came (`Save.size`).
@@ -38,9 +45,9 @@ export type Jolt = {
   twist: number;
   /** The hips sunk toward the boots, m. */
   sink: number;
-  /** Each arm flung out and up for the balance, 0..1 (left, right). */
-  flingL: number;
-  flingR: number;
+  /** Each hand braced forward and a little wide, 0..1 (left, right). */
+  braceL: number;
+  braceR: number;
   /** Each hand put down to the snow, 0..1 (left, right). */
   reachL: number;
   reachR: number;
@@ -53,8 +60,8 @@ export const NO_JOLT: Readonly<Jolt> = {
   sway: 0,
   twist: 0,
   sink: 0,
-  flingL: 0,
-  flingR: 0,
+  braceL: 0,
+  braceR: 0,
   reachL: 0,
   reachR: 0,
   duck: 0,
@@ -65,10 +72,6 @@ export const JOLT_KEYS = Object.keys(NO_JOLT) as (keyof Jolt)[];
 /** How long each save plays, s, and how long it takes to come on. */
 const LENGTH = { landing: 1, tree: 0.75, body: 0.85, edge: 0.9, stake: 0.9 };
 const RISE = 0.08;
-/** The edge's wobble: its period, s — and a hard landing's, slower: the
- * whole body rocking over the skis rather than the trunk over the hips. */
-const WOBBLE = 0.36;
-const LAND_WOBBLE = 0.45;
 
 /** How much of a save is showing `t` s into it, 0..1: on over `RISE`, off
  * smoothly by `length`. */
@@ -84,22 +87,19 @@ export function joltOf(save: Save | null | undefined): Jolt {
   const k = joltEnvelope(save.t, LENGTH[save.kind]) * Math.min(1, Math.max(0, save.size));
   if (k <= 0) return j;
   const side = Math.sign(save.side);
-  // The arm on the left (0) or the right (1) side of the body.
-  const fling = (left: number, right: number) => {
-    j.flingL = left * k;
-    j.flingR = right * k;
+  // The hand on the left (0) or the right (1) side of the body.
+  const brace = (left: number, right: number) => {
+    j.braceL = left * k;
+    j.braceR = right * k;
   };
   switch (save.kind) {
     case "landing": {
       const fore = Math.max(-1, Math.min(1, save.fore));
-      // The rocking grows in once the blow has thrown him down onto his legs.
-      const w =
-        Math.sin((2 * Math.PI * save.t) / LAND_WOBBLE) * smooth((save.t - 2 * RISE) / LAND_WOBBLE);
       j.sink = 0.16 * k;
       j.lurch = (0.15 + 0.35 * fore) * k;
-      j.sway = (0.3 * side + 0.22 * w) * k;
+      j.sway = 0.24 * side * k;
       j.duck = 0.3 * k;
-      fling(0.75 + 0.25 * w, 0.75 - 0.25 * w);
+      brace(1, 1);
       break;
     }
     case "tree":
@@ -108,42 +108,39 @@ export function joltOf(save: Save | null | undefined): Jolt {
       j.lurch = -0.22 * k;
       j.sink = 0.06 * k;
       j.duck = 0.7 * k;
-      // The far arm thrown out; the near one drawn in against the blow.
-      fling(side > 0 ? 1 : 0.2, side > 0 ? 0.2 : 1);
+      // The far hand braced; the near one drawn in against the blow.
+      brace(side > 0 ? 1 : 0.2, side > 0 ? 0.2 : 1);
       break;
     case "body":
       j.sway = 0.3 * side * k;
       j.sink = 0.1 * k;
       j.reachL = side < 0 ? k : 0;
       j.reachR = side > 0 ? k : 0;
-      fling(side > 0 ? 0.6 : 0, side < 0 ? 0.6 : 0);
       break;
     // A stake run through rocks him as an edge that bit does.
     case "stake":
-    case "edge": {
-      // Thrown toward the edge that bit, back over it and out again,
-      // dying away.
-      const w = Math.cos((2 * Math.PI * save.t) / WOBBLE);
-      j.sway = 0.34 * side * w * k;
-      j.lurch = -0.15 * k;
-      j.sink = 0.05 * k;
-      fling(0.55 + 0.3 * w * side, 0.55 - 0.3 * w * side);
+    case "edge":
+      // Thrown toward the edge that bit and brought back over the skis as
+      // the save dies away — once, never wobbled.
+      j.sway = 0.26 * side * k;
+      j.lurch = -0.12 * k;
+      j.sink = 0.06 * k;
+      brace(0.8, 0.8);
       break;
-    }
   }
   return j;
 }
 
-/** A fist moved by the save: flung out, up and a little ahead, or put
- * down to the snow beside the boots (`ground`, the snow's height in the
- * body frame). `side` is −1 for the left hand. */
+/** A fist moved by the save: braced forward and a little wide, at the
+ * height it rode at, or put down to the snow beside the boots (`ground`,
+ * the snow's height in the body frame). `side` is −1 for the left hand. */
 export function joltHand(hand: V3, side: number, j: Jolt, ground: number): V3 {
-  const fling = side < 0 ? j.flingL : j.flingR;
+  const brace = side < 0 ? j.braceL : j.braceR;
   const reach = side < 0 ? j.reachL : j.reachR;
   const out = {
-    x: hand.x + side * 0.42 * fling,
-    y: hand.y + 0.4 * fling,
-    z: hand.z + 0.1 * fling,
+    x: hand.x + side * 0.12 * brace,
+    y: hand.y + 0.04 * brace,
+    z: hand.z + 0.2 * brace,
   };
   return mix(out, { x: side * 0.62, y: ground + 0.12, z: 0.2 }, Math.min(1, reach));
 }

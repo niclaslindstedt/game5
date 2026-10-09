@@ -36,6 +36,7 @@ import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
 import { markView } from "./mark-view.ts";
 import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
+import { crashShot } from "./crash-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
 import { SIGN_VIEWS, namedSignView } from "./sign-view.ts";
@@ -965,13 +966,17 @@ window.__world = {
     const chase = /^chase-(\d+)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
     const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
-    const run = chase
-      ? () => chaseAt(Number(chase[1]))
-      : fall
-        ? () => fallAt(Number(fall[2]), fall[1] === "yard")
-        : net
-          ? () => netAt(Number(net[1]))
-          : shots[name];
+    const crash = /^crash-(net-)?(\d+(?:\.\d+)?)$/.exec(name);
+    const run = crash
+      ? () =>
+          crashShot(state, renderer, Number(crash[2]), crash[1] ? intoNet : intoTrunk, !crash[1])
+      : chase
+        ? () => chaseAt(Number(chase[1]))
+        : fall
+          ? () => fallAt(Number(fall[2]), fall[1] === "yard")
+          : net
+            ? () => netAt(Number(net[1]))
+            : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${region ? ` · ${region}` : ""} · ${note}`;

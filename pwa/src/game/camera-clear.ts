@@ -28,9 +28,12 @@
 import {
   CABINS,
   cabinsOf,
+  HELI,
+  heliPoint,
   liftPlans,
   stationHouses,
   treesNear,
+  type HeliState,
   type Level,
   type StationHouse,
 } from "@engine";
@@ -85,6 +88,27 @@ export type SolidBox = {
   base: number;
   top: number;
 };
+
+/** THE HELICOPTER'S CABIN as a box the lens keeps out of, into `out`: the
+ * X-ray cam's (`camera-xray.ts`) — a skier shed off the skid falls past it,
+ * and a lens a metre off his bones is a frame of the cabin's inside. Its
+ * middle is the cabin's, however the machine lies; the box stands upright
+ * round it, as tall as the cabin is long, so a machine turned over is
+ * still inside it. */
+export function heliBox(h: HeliState, out: SolidBox): SolidBox {
+  const b = HELI.body;
+  const mid = heliPoint(h, { x: 0, y: (b.floor + b.roof) / 2, z: (b.nose - 1.6) / 2 });
+  const half = (b.nose + 1.6) / 2;
+  out.x = mid.x;
+  out.z = mid.z;
+  out.dx = Math.sin(h.heading);
+  out.dz = Math.cos(h.heading);
+  out.halfLength = half;
+  out.halfWidth = b.width / 2;
+  out.base = mid.y - half;
+  out.top = mid.y + half - LENS_PAD;
+  return out;
+}
 
 const inBox = (h: SolidBox, x: number, y: number, z: number): boolean => {
   if (y < h.base || y > h.top + LENS_PAD) return false;

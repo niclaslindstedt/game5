@@ -185,6 +185,36 @@ export const HELI = {
   /** THE DROP: the push he leaves the skid with, out and up, m/s. */
   drop: { out: 1.6, up: 0.6 },
 
+  /** THE GRIP (`heli-grip.ts`): the skier on the skid is sat on its tube,
+   * his back to the cabin, holding on with his hands — nothing straps him
+   * in. The seat carries what presses him into it and the cabin's side what
+   * pushes him back against it, each holding `friction` of the load along
+   * them; the rest is HIS HANDS' — judged against his weight as gravity
+   * pulls it (an arcade rule: the rotor's own pull, which in a steady
+   * inverted push would press him into the seat, is left out, so a machine
+   * turned over sheds him). Up to `hold` of his weight he holds for as long
+   * as he likes (a firm two-handed hold on a tube); past it the hold drains,
+   * all of it in `endure` s at his whole weight hung off his hands (the
+   * dead hang of a gloved grip on a cold tube, rounded down for a body
+   * being shaken), slower under less, and comes back in `recover` s once
+   * the load is under `hold` again. A bank of 45° toward his side is
+   * held; turned over, or banked or pitched past some 60°, he goes.
+   * `middle` is how far his middle sits over the seat's origin, m — where
+   * his fall off it is read from. */
+  grip: { friction: 0.5, hold: 0.45, endure: 1.1, recover: 3, middle: 0.5 },
+  /** INTO THE ROTOR (`heli-grip.ts`): a skier let go of the skid falls in
+   * the MACHINE'S OWN FRAME — gravity alone, as though the airframe stood
+   * still under him — for `carry` s at most, while his fall runs through
+   * the disc (an arcade rule, so a machine turned over over him is what he
+   * falls into rather than what the rotor's pull hauls away from him). A
+   * point of his body crossing the disc between `mast` m and its radius of
+   * the mast with the rotor over `spool` of its rpm is struck by a blade:
+   * the blade's speed there (Ω·r: some 45 m/s a metre out, 220 at the
+   * tip), of which a piece torn off takes `fling` (at most `flingMost`
+   * m/s) and the body it leaves `kick`, along the blade's way, and the
+   * downwash's `wash` m/s down through the disc. */
+  blades: { carry: 1.6, mast: 0.3, spool: 0.4, fling: 0.3, flingMost: 34, kick: 0.04, wash: 9 },
+
   /** THE PAD on the valley floor (`heli-pad.ts`): the radius kept clear,
    * m, and the steepest snow it may stand on, rad. */
   pad: { radius: 14, slope: 0.08 },

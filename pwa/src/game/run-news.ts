@@ -180,6 +180,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
           tone: "good",
         };
       if (e.phase === "crash") return { text: STRINGS.newsHeliCrash, tone: "bad" };
+      // The blades through him: said once, on the first.
+      if (e.phase === "rotor")
+        return e.t === state.heli?.bladed ? { text: STRINGS.newsHeliRotor, tone: "bad" } : null;
       return e.phase === "restart" ? { text: STRINGS.newsHeliRestart, tone: "info" } : null;
     case "sled":
       // The snowmobile: taken, hopped off, the rider thrown, back on it.

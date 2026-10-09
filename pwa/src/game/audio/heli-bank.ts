@@ -205,6 +205,50 @@ export const HELI_BANK: SoundBank = {
     ],
   },
 
+  heli_chop: {
+    description:
+      "A rotor blade through a body (`heli-grip.ts`): a hard CRACK with no " +
+      "attack, a wet tearing smack swept DOWN under it, a low thud of the " +
+      "blade taking the load and the blade's own short ring after.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 22,
+        volume: 0.12,
+        color: "white",
+        filter: { type: "highpass", frequency: 1500 },
+      },
+      {
+        call: "noise",
+        durationMs: 140,
+        volume: 0.09,
+        color: "pink",
+        attackMs: 2,
+        filter: { type: "bandpass", frequency: 1600, to: 420, q: 1.2 },
+      },
+      {
+        call: "tone",
+        type: "sine",
+        from: 120,
+        to: 55,
+        durationMs: 160,
+        volume: 0.08,
+        drive: 0.5,
+        attackMs: 2,
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 1180,
+        to: 1120,
+        durationMs: 260,
+        volume: 0.012,
+        delayMs: 15,
+        filter: { type: "bandpass", frequency: 1150, q: 9 },
+      },
+    ],
+  },
+
   heli_crash: {
     description:
       "The helicopter blowing up: a hard white CRACK with no attack — the " +

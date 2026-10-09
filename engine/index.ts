@@ -774,6 +774,7 @@ export {
   thrustMost,
 } from "./game/heli.ts";
 export { pilotControls, pilotInput, type HeliAim } from "./game/heli-pilot.ts";
+export { bladeAt, fallsIntoRotor, gripLoad, rotorStrike } from "./game/heli-grip.ts";
 export { discQuat, heliMass, ROTOR_AREA, SEAT as HELI_SEAT } from "./game/heli-rotor.ts";
 export { helipadOf, type Helipad } from "./game/heli-pad.ts";
 export { inducedOf, washAt, type Wash } from "./game/heli-wash.ts";

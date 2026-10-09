@@ -45,6 +45,7 @@ import { stepKicker } from "./aerial-kicker.ts";
 import { chairStrike, stepLift } from "./lift-ride.ts";
 import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
+import { rotorStrike } from "./heli-grip.ts";
 import { stepSled } from "./sled.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
@@ -219,6 +220,8 @@ export function stepRun(
   stepNets(run, events);
   if (off) {
     stepThrown(run, off);
+    // ...and through a helicopter's turning rotor (`heli-grip.ts`).
+    if (player && run.heli) rotorStrike(run, off, events);
     // ...and what of him and his skis has gone into an A-net, held in it.
     catchInNets(run, off);
     followSkis(run, c, off.skis);

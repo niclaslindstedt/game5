@@ -53,6 +53,7 @@ const CAUSE_NAMES: Record<CrashCause, string> = {
   landing: "BAD LANDINGS",
   skier: "OTHER SKIERS",
   heli: "HELICOPTER",
+  grip: "LOST GRIPS",
   sled: "SNOWMOBILE",
   stake: "STAKES",
   chair: "CHAIRLIFTS",
@@ -75,6 +76,7 @@ const DEATH_NAMES: Record<DeathCause, string> = {
   maul: "THE GRIMBEAR",
   machine: "PISTE MACHINE",
   blast: "ROTOR BLAST",
+  rotor: "THE ROTOR",
 };
 
 export const STATS_STRINGS = {

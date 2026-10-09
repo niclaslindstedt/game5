@@ -134,4 +134,5 @@ export const INSTANT: readonly DeathCause[] = [
   "maul",
   "machine",
   "blast",
+  "rotor",
 ];

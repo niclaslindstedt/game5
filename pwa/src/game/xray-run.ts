@@ -100,7 +100,7 @@ export function createXrayRun(
       }
       running = true;
       const s = state.skier;
-      const moving = s.speed > STILL || s.airborne || s.thrown !== null;
+      const moving = s.speed > STILL || s.airborne || s.thrown !== null || !!state.heli?.rider;
       if (moving && state.gore.dead < 0) director.seen(ahead.frame(state, state.input), state);
       const look = director.frame(state, wall);
       active = look.active;

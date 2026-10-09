@@ -16,8 +16,10 @@
  *     right (clockwise) positive. */
 export type HeliControls = { collective: number; pitch: number; roll: number; pedal: number };
 
-/** What a `heli` event says (`heli.ts`). */
-export type HeliPhaseEvent = "board" | "liftoff" | "land" | "drop" | "home" | "crash" | "restart";
+/** What a `heli` event says (`heli.ts`) — and `slip`, the skier's grip
+ * on the skid given out (`heli-grip.ts`), and `rotor`, a blade through him. */
+export type HeliPhaseEvent =
+  "board" | "liftoff" | "land" | "drop" | "home" | "crash" | "restart" | "slip" | "rotor";
 
 /** WHAT THE HELICOPTER IS DOING (`heli.ts`): `parked` on its pad, the
  * rotor winding down or turning; `flown` by the player with the skier on
@@ -92,4 +94,19 @@ export type HeliState = {
   /** How far the seated skier's body origin stands over the skid's top, m
    * — up with his skis on the snow, down with them hanging in the air. */
   hang: number;
+  /** THE SKIER'S HOLD on the skid (`heli-grip.ts`): 1 a fresh grip, 0 gone
+   * — and he with it. */
+  grip: number;
+  /** Seconds since his grip went, while his fall is taken in the machine's
+   * frame toward its rotor (`HELI.blades.carry`); −1 otherwise. */
+  shed: number;
+  /** THE BLADES THROUGH HIM this step: a bit a point of his body in
+   * `RAGDOLL` order, and the fastest blade's speed among them, m/s — what
+   * `body.ts` and `gore.ts` read. And the run's clock the rotor first took
+   * him at, s; −1 never. */
+  cut: number;
+  cutSpeed: number;
+  bladed: number;
+  /** Every point of his body a blade has been through, a bit each. */
+  taken: number;
 };

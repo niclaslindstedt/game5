@@ -189,6 +189,8 @@ describe("the helicopter's moments (heli-bank.ts, route.ts)", () => {
       liftoff: "heli_liftoff",
       land: "heli_land",
       drop: "heli_drop",
+      slip: "heli_drop",
+      rotor: "heli_chop",
       crash: "heli_crash",
     } as const;
     for (const [phase, id] of Object.entries(want)) {

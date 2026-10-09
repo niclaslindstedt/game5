@@ -464,8 +464,17 @@ export function soundForEvent(
           return { id: "heli_liftoff", shape: heard };
         case "land":
           return { id: "heli_land", shape: heard };
+        // His grip gone (`slip`): the same clack off the tube and the rush
+        // of the fall out of the downwash.
         case "drop":
+        case "slip":
           return { id: "heli_drop", shape: heard };
+        // A blade through him, as loud as it is fast.
+        case "rotor":
+          return {
+            id: "heli_chop",
+            shape: { ...heard, gain: heard.gain! * (0.7 + 0.4 * ramp(event.speed, 40, 150)) },
+          };
         case "crash": {
           const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
           const big = CRASH_FLOOR + (1 - CRASH_FLOOR) * ramp(event.speed, 0, CRASH_FULL);

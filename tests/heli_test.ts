@@ -152,6 +152,9 @@ describe("the helicopter", () => {
       let was = s.heli!.disc[axis];
       let past = 0;
       for (let i = 0; i < 12 * 120 && Math.abs(turned) < 2 * Math.PI; i++) {
+        // The airframe's turn, with the skier's hold kept fresh: his hands
+        // giving out on it is `heli_grip_test.ts`'s.
+        s.heli!.grip = 1;
         step(s, hands({ collective: 0.8, ...cyclic }));
         turned += angleDiff(was, s.heli!.disc[axis]);
         was = s.heli!.disc[axis];

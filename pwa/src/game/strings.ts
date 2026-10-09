@@ -249,6 +249,7 @@ export const STRINGS = {
       | "landing"
       | "skier"
       | "heli"
+      | "grip"
       | "sled"
       | "stake"
       | "chair"
@@ -268,25 +269,27 @@ export const STRINGS = {
             ? "BONK! PISTE MACHINE"
             : cause === "heli"
               ? "THROWN CLEAR!"
-              : cause === "chair"
-                ? "SWEPT BY THE CHAIR!"
-                : cause === "net"
-                  ? "INTO THE NETS!"
-                  : cause === "stake"
-                    ? "YARD SALE! STAKE"
-                    : cause === "sled"
-                      ? "OFF THE SLED!"
-                      : cause === "tree"
-                        ? "YARD SALE! TREE"
-                        : cause === "skier"
-                          ? "YARD SALE! TAKEN OUT"
-                          : cause === "nose"
-                            ? "OVER THE TIPS"
-                            : cause === "roll"
-                              ? "YARD SALE"
-                              : cause === "landing"
-                                ? "CRASH LANDING"
-                                : "EDGE CAUGHT",
+              : cause === "grip"
+                ? "LOST HIS GRIP!"
+                : cause === "chair"
+                  ? "SWEPT BY THE CHAIR!"
+                  : cause === "net"
+                    ? "INTO THE NETS!"
+                    : cause === "stake"
+                      ? "YARD SALE! STAKE"
+                      : cause === "sled"
+                        ? "OFF THE SLED!"
+                        : cause === "tree"
+                          ? "YARD SALE! TREE"
+                          : cause === "skier"
+                            ? "YARD SALE! TAKEN OUT"
+                            : cause === "nose"
+                              ? "OVER THE TIPS"
+                              : cause === "roll"
+                                ? "YARD SALE"
+                                : cause === "landing"
+                                  ? "CRASH LANDING"
+                                  : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   newsWell: "TREE WELL! ROCK OUT OR RESET",
   /** Riding switch into loose snow on tails that do not ride over it
@@ -307,6 +310,7 @@ export const STRINGS = {
   newsHeliDrop: (metres: number): string => `DROPPED FROM ${Math.round(metres)} M!`,
   newsHeliCrash: "MAYDAY! SHE'S GONE DOWN",
   newsHeliRestart: "BACK ON THE PAD",
+  newsHeliRotor: "INTO THE ROTOR!",
   /** THE HELICOPTER'S HUD (`hud-heli.tsx`): the height its skids are over
    * the snow, its climb, how to jump off it, and the way to it. */
   heliHeight: "DROP",

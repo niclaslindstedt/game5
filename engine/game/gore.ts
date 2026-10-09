@@ -23,6 +23,9 @@
 //   - BLOWN APART: the skier on a helicopter's skid when it comes down —
 //     the limbs, the head or the lower half off as a hash deals them, the
 //     trunk opened, every piece flung off his middle by the blast;
+//   - INTO A ROTOR: the skier whose grip on a helicopter's skid gave out
+//     over its turning rotor — every point of him a blade passes through
+//     taken off with its piece and flung along the blade's way;
 //   - MORTAL: any of those, an injury of AIS 5, a severity score of 50, a
 //     body engulfed in a wreck's fire (the airway burnt) or the grimbear's
 //     catch. A mortal wound is never stood back up (`holdsHim`): he dies —
@@ -35,10 +38,14 @@
 // Nothing here draws from `state.rng`: a piece's dose is spread off a hash
 // of the map and the piece.
 
-import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { GORE, INSTANT } from "./defs/gore.ts";
 import { GROOMER } from "./defs/groomer.ts";
+import { HELI } from "./defs/heli.ts";
+import { bladeAt } from "./heli-grip.ts";
+import { heliQuat } from "./heli-rotor.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { doseOn, fracturesOf, FRACTURE_GRADE, severityOf } from "./body.ts";
 import { BONES, INJURIES, type InjuryDef } from "./defs/anatomy.ts";
@@ -150,14 +157,17 @@ export function stepGore(state: GameState, events: GameEvent[]): void {
   pending = null;
   if (g.dead < 0) {
     blast(state, g, events);
+    rotor(state, g, events);
     wound(state, g, events);
     impale(state, g, events);
     underMachine(state, g, events);
     mortality(state, g, events);
   } else {
     if (state.skier.thrown?.pin) slide(state, g, state.skier.thrown);
-    // A machine runs over the dead as it does the living.
+    // A machine runs over the dead as it does the living, and a rotor
+    // cuts them.
     underMachine(state, g, events);
+    rotor(state, g, events);
   }
   heart(state, g);
 }
@@ -352,6 +362,60 @@ function blast(state: GameState, g: GoreState, events: GameEvent[]): void {
   for (const part of GORE_OPEN)
     if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, b, part, events);
   mortalBy(state, g, "blast");
+}
+
+const blade = { x: 0, y: 0, z: 0 };
+
+/** INTO A TURNING ROTOR (`heli-grip.ts`): every point of him a blade went
+ * through this step (`HeliState.cut`) taken off with its piece and flung
+ * along the blade's way and down with its wash — the head off at the neck,
+ * an arm at the shoulder or the forearm at the elbow, a leg at the hip or
+ * the shin at the knee, the chest opened at the shoulders and the body cut
+ * in two at the hips. He falls through the disc a point at a time, so a
+ * body that goes all the way through it is taken apart all the way — the
+ * dead as well as the living. */
+function rotor(state: GameState, g: GoreState, events: GameEvent[]): void {
+  const h = state.heli;
+  const b = state.skier.thrown;
+  if (!h?.cut || !b) return;
+  const M = HELI.blades;
+  const down = rotate(heliQuat(h), { x: 0, y: -M.wash, z: 0 });
+  for (let i = 0; i < R.count; i++) {
+    if (!(h.cut & (1 << i))) continue;
+    const at = pointOf(b, i);
+    bladeAt(h, at.x, at.y, at.z, blade);
+    const s = hypot3(blade.x, blade.y, blade.z);
+    const f = s > 0 ? Math.min(M.flingMost, s * M.fling) / s : 0;
+    const own = velocityOf(b, [i]);
+    const v = {
+      x: own.x + blade.x * f + down.x,
+      y: own.y + blade.y * f + down.y,
+      z: own.z + blade.z * f + down.z,
+    };
+    const tear = (piece: GorePiece): void => {
+      if (g.lost & bit(piece)) return;
+      tearOff(state, g, b, piece, v, events);
+    };
+    const open = (part: GoreOpen): void => {
+      if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, b, part, events);
+    };
+    // The head or the trunk cut kills him there; a limb off, he bleeds.
+    let trunk = true;
+    if (i === R.head) {
+      if (g.crushed < 0) tear("head");
+    } else if (i === R.shoulderL || i === R.shoulderR) {
+      open("chest");
+      tear(i === R.shoulderL ? "armL" : "armR");
+    } else if (i === R.hipL || i === R.hipR) {
+      open("abdomen");
+      tear("lower");
+    } else {
+      const piece = PIECE_AT[i];
+      if (piece) tear(piece);
+      trunk = false;
+    }
+    mortalBy(state, g, trunk ? "rotor" : "bled");
+  }
 }
 
 /** The middle of his body: the ragdoll's points averaged. */

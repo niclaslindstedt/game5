@@ -28,6 +28,24 @@ import { NEUTRAL_INPUT, type GameState, type HeliControls, type SkierInput } fro
 const F = HELI.flight;
 const P = HELI.pilot;
 
+/** THE STEADYING HAND (`steadyControls`, SAFE FOR WORK): the speed over the
+ * snow at full cyclic, m/s; the rate of turn at full pedal, rad/s; the
+ * climb and the sink at the collective's ends, m/s, and the share of its
+ * travel about the middle that holds the height; the least height over the
+ * snow ahead it is flown at while it moves, m, and how far ahead it looks,
+ * s of its speed; the speed under which it counts as hovering, m/s. (Kept
+ * out of `HELI`, which the model is built off.) */
+export const STEADY = {
+  speed: 30,
+  turn: 0.6,
+  climb: 6,
+  sink: 3,
+  band: 0.15,
+  floor: 12,
+  look: 4,
+  still: 1.5,
+} as const;
+
 /** WHERE THE BOT FLIES: to (x, z), `height` m over the snow — and, with
  * `land`, down onto the snow there. */
 export type HeliAim = {
@@ -97,7 +115,7 @@ export function pilotControls(run: GameState, aim: HeliAim): HeliControls {
 export function steadyControls(run: GameState, stick: HeliControls): HeliControls {
   const h = run.heli!;
   const level = run.level;
-  const S = HELI.steady;
+  const S = STEADY;
   const fx = Math.sin(h.heading);
   const fz = Math.cos(h.heading);
   const ahead = clamp(stick.pitch, -1, 1) * S.speed;

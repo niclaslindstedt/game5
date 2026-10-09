@@ -32,6 +32,7 @@ import { stationHouses, type Level, type LiftPlan } from "@engine";
 import { FACADE } from "./facade-paint.ts";
 import { FacadeKit, type Tint } from "./facade-kit.ts";
 import type { Part, StationLayout } from "./station-plan.ts";
+import type { Span } from "./village-cuts.ts";
 
 /** The tints, sRGB: white leaves a layer as painted. */
 export const STATION_TINT = {
@@ -56,15 +57,22 @@ const TIMBER_FASCIA = { layer: FACADE.boards, tint: 0xb89a7a };
 /** How deep the snow lies on a roof, m. */
 const SNOW = { roof: 0.35, small: 0.22 };
 
-/** Build every station of the map into one kit. */
+/** Build every station of the map into one kit, leaving out triangles
+ * under `minArea` m² (a far cut, `village-cuts.ts`), and push onto `spans`
+ * the run of triangles each house took, at its place (the stations' own
+ * parts by each triangle's middle). */
 export function buildStationHouses(
   level: Level,
   plans: readonly LiftPlan[],
   layout: StationLayout,
+  minArea = 0,
+  spans?: Span[],
 ): FacadeKit {
   const kit = new FacadeKit();
+  kit.minArea = minArea;
   for (const p of plans) {
     stationHouses(level, p).forEach((h, end) => {
+      const from = kit.triangles;
       const top = end === 1;
       // The house's own frame: +z up the line (so a foot's front faces
       // its wheel and a top's back does), x across it.
@@ -89,9 +97,12 @@ export function buildStationHouses(
         if (top) chairTopHouse(kit, house);
         else chairDriveHouse(kit, house);
       } else dragHouse(kit, house);
+      spans?.push({ from, to: kit.triangles, at: [h.x, h.z] });
     });
   }
+  const from = kit.triangles;
   for (const part of layout.parts) piece(kit, level, part);
+  spans?.push({ from, to: kit.triangles, at: null });
   return kit;
 }
 

@@ -18,7 +18,8 @@
 // A building goes whole into the block its origin stands in, so no building
 // is ever drawn half at one cut and half at the other; the streets' edges
 // and furniture, which run through the village, go by each triangle's
-// middle.
+// middle. The lift stations' houses are cut the same way
+// (`createBlockBuildings`, over `station-build.ts`), a station a building.
 
 import * as THREE from "three";
 
@@ -51,7 +52,11 @@ export type VillageBlock = {
 
 /** A run of the kit's triangles and the point that says which block they
  * go in (null: each triangle by its own middle). */
-type Span = { from: number; to: number; at: [number, number] | null };
+export type Span = { from: number; to: number; at: [number, number] | null };
+
+/** Builds every building onto one kit with `minArea` its floor, with the
+ * spans that say where each went. */
+export type BuildCut = (minArea: number) => { kit: FacadeKit; spans: Span[] };
 
 /** Every building and the streets' edges and furniture built onto one kit,
  * `minArea` its floor, with the spans that say where each went. */
@@ -94,8 +99,13 @@ function copyTri(a: FacadeArrays, t: number, out: FacadeArrays): void {
 
 const keyOf = (x: number, z: number) => `${Math.floor(x / BLOCK)},${Math.floor(z / BLOCK)}`;
 
-/** THE BLOCKS of `level`'s buildings, both cuts each, in a fixed order. */
+/** THE BLOCKS of `level`'s village, both cuts each, in a fixed order. */
 export function villageBlocks(level: Level): VillageBlock[] {
+  return blocksOf((minArea) => buildCut(level, minArea));
+}
+
+/** THE BLOCKS of whatever `build` lays, both cuts each, in a fixed order. */
+export function blocksOf(build: BuildCut): VillageBlock[] {
   const blocks = new Map<string, VillageBlock>();
   const blockAt = (key: string) => {
     let b = blocks.get(key);
@@ -111,7 +121,7 @@ export function villageBlocks(level: Level): VillageBlock[] {
     return b;
   };
   for (const cut of ["near", "far"] as const) {
-    const { kit, spans } = buildCut(level, cut === "near" ? 0 : FAR_AREA);
+    const { kit, spans } = build(cut === "near" ? 0 : FAR_AREA);
     const a = kit.out;
     for (const s of spans) {
       for (let t = s.from; t < s.to; t++) {
@@ -174,24 +184,33 @@ export type VillageBuildings = {
 
 /** The ski area's buildings, at their cuts, in one group. */
 export function createVillageBuildings(level: Level, haze: HazeUniforms): VillageBuildings {
+  return createBlockBuildings(villageBlocks(level), haze, "village");
+}
+
+/** `blocks` at their cuts in one group named `name`, in the facade's
+ * paint. */
+export function createBlockBuildings(
+  blocks: readonly VillageBlock[],
+  haze: HazeUniforms,
+  name: string,
+): VillageBuildings {
   const group = new THREE.Group();
-  group.name = "village";
-  const material = facadeMaterial(haze, "village");
+  group.name = name;
+  const material = facadeMaterial(haze, name);
   const geos: THREE.BufferGeometry[] = [];
-  const meshOf = (a: FacadeArrays, name: string) => {
+  const meshOf = (a: FacadeArrays, cut: string) => {
     const geo = facadeGeometry(a);
     geos.push(geo);
     const mesh = new THREE.Mesh(geo, material);
-    mesh.name = name;
+    mesh.name = `${name}-${cut}`;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.visible = false;
     group.add(mesh);
     return mesh;
   };
-  const blocks = villageBlocks(level);
-  const cuts = blocks.map((b) => [meshOf(b.near, "village-near"), meshOf(b.far, "village-far")]);
-  const whole = meshOf(mergedFar(blocks), "village-whole");
+  const cuts = blocks.map((b) => [meshOf(b.near, "near"), meshOf(b.far, "far")]);
+  const whole = meshOf(mergedFar(blocks), "whole");
   // Until the first update, the whole village at its far cut.
   whole.visible = blocks.length > 0;
   const band = new Int8Array(blocks.length).fill(-1);

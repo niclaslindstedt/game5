@@ -48,6 +48,9 @@ export type GroomerView = {
   drawn(): { x: number; y: number; z: number; heading: number; pitch: number; roll: number };
   /** The beacon's beam's heading this frame, world. */
   beaconHeading(): number;
+  /** Drawn at the fleet's far cut (`groomer-far.ts`) instead: its own
+   * body hidden and left unposed, its glow still its own. */
+  setFar(far: boolean): void;
   dispose(): void;
 };
 
@@ -100,6 +103,7 @@ export function createGroomerView(
   let body: GroomerBody | null = null;
   let code: ReturnType<typeof buildGroomer> | null = null;
   let disposed = false;
+  let far = false;
 
   // The blade's and the tiller's pivots, which their halos ride.
   const bladeHold = new THREE.Group();
@@ -116,6 +120,7 @@ export function createGroomerView(
       code = buildGroomer(paint);
       body = code;
     }
+    body.root.visible = !far;
     group.add(body.root);
   });
 
@@ -208,7 +213,7 @@ export function createGroomerView(
       // The beacon turns a revolution a second and a bit, flashing round.
       beacon = (t * Math.PI * 2.2) % (Math.PI * 2);
       spin.rotation.y = beacon;
-      if (body) {
+      if (body && !far) {
         if (body.blade) body.blade.rotation.x = -bladeLift;
         if (body.tiller) body.tiller.rotation.x = tillerLift;
         if (body.heap) body.heap.visible = g.tiller && g.speed > 0.5;
@@ -236,6 +241,10 @@ export function createGroomerView(
     },
     drawn: () => drawn,
     beaconHeading: () => drawn.heading + beacon,
+    setFar(next) {
+      far = next;
+      if (body) body.root.visible = !far;
+    },
     dispose() {
       disposed = true;
       code?.dispose();

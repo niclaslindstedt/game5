@@ -4,7 +4,9 @@
 // handed to one or the other by its distance from the eye — so a
 // mountain's hundreds of chairs and towers cost their detail only where
 // it can be seen (`lifts.ts`). A part with no far cut is not drawn past
-// its reach (a ladder).
+// its reach (a ladder); one given a DISTANT cut (`Beyond`) takes a third,
+// lighter still, past a further reach — or, with no geometry for it, is
+// not drawn there at all (a chair's safety bar across the valley).
 
 import * as THREE from "three";
 
@@ -14,11 +16,17 @@ import type { ViewCull } from "./view-cull.ts";
  * shadow, m: past the tallest tower's rope. */
 const CARRIER_HEIGHT = 45;
 
+/** A third cut past `reach` m: drawn as `geo`, or not at all with none. */
+export type Beyond = { geo: THREE.BufferGeometry | null; reach: number };
+
 export class Cut {
   readonly near: THREE.InstancedMesh;
   readonly far: THREE.InstancedMesh | null;
+  readonly distant: THREE.InstancedMesh | null;
   private n = 0;
   private f = 0;
+  private d = 0;
+  private readonly beyond2: number;
   private eye: THREE.Vector3 | null = null;
   private cull: ViewCull | null = null;
   /** The parts' bound round an instance's origin, m. */
@@ -34,8 +42,10 @@ export class Cut {
     capacity: number,
     reach: number,
     shadow = true,
+    beyond?: Beyond,
   ) {
     this.reach2 = reach * reach;
+    this.beyond2 = beyond ? beyond.reach * beyond.reach : Infinity;
     const make = (g: THREE.BufferGeometry) => {
       const m = new THREE.InstancedMesh(g, mat, Math.max(1, capacity));
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -48,6 +58,7 @@ export class Cut {
     };
     this.near = make(near);
     this.far = far ? make(far) : null;
+    this.distant = beyond?.geo ? make(beyond.geo) : null;
     const bound = (g: THREE.BufferGeometry | null): number => {
       if (!g) return 0;
       if (!g.boundingSphere) g.computeBoundingSphere();
@@ -59,7 +70,7 @@ export class Cut {
 
   /** Every mesh it draws with, for the group and for disposal. */
   get meshes(): THREE.InstancedMesh[] {
-    return this.far ? [this.near, this.far] : [this.near];
+    return [this.near, this.far, this.distant].filter((m) => m !== null);
   }
 
   /** Start a fill from `eye` — or, with none, every instance far — leaving
@@ -69,12 +80,15 @@ export class Cut {
     this.cull = cull ?? null;
     this.n = 0;
     this.f = 0;
+    this.d = 0;
   }
 
   /** The next instance, placed by `m`. */
   add(m: THREE.Matrix4): void {
     this.at.setFromMatrixPosition(m);
-    const near = this.eye ? this.at.distanceToSquared(this.eye) < this.reach2 : !this.far;
+    const d2 = this.eye ? this.at.distanceToSquared(this.eye) : Infinity;
+    const near = this.eye ? d2 < this.reach2 : !this.far;
+    if (d2 >= this.beyond2 && this.eye && !this.distant) return;
     const c = this.cull;
     if (
       c &&
@@ -83,6 +97,7 @@ export class Cut {
     )
       return;
     if (near) this.near.setMatrixAt(this.n++, m);
+    else if (this.eye && this.distant && d2 >= this.beyond2) this.distant.setMatrixAt(this.d++, m);
     else if (this.far) this.far.setMatrixAt(this.f++, m);
   }
 
@@ -92,6 +107,10 @@ export class Cut {
     if (this.far) {
       this.far.count = this.f;
       this.far.instanceMatrix.needsUpdate = true;
+    }
+    if (this.distant) {
+      this.distant.count = this.d;
+      this.distant.instanceMatrix.needsUpdate = true;
     }
   }
 }

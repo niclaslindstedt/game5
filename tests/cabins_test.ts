@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CABINS,
+  BUILDING_WALLS,
   CABIN_LAYOUT,
   cabinWalls,
   cabinsOf,
@@ -236,7 +237,7 @@ describe("cabins", () => {
     const solids = solidsOf(level);
     for (const w of walls) expect(solids).toContain(w);
     // Every metre round each building's walls is within a post's reach.
-    const most = CABIN_LAYOUT.wall.gap / 2 + CABIN_LAYOUT.wall.radius + 0.05;
+    const most = BUILDING_WALLS.post.gap / 2 + BUILDING_WALLS.post.radius + 0.05;
     for (const c of list) {
       const d = CABINS[c.kind];
       const fx = Math.sin(c.heading);
@@ -255,7 +256,7 @@ describe("cabins", () => {
         const x = c.x + lx * fz + lz * fx;
         const z = c.z - lx * fx + lz * fz;
         const near = Math.min(...mine.map((w) => Math.hypot(w.x - x, w.z - z)));
-        expect(near).toBeLessThanOrEqual(most + CABIN_LAYOUT.wall.radius);
+        expect(near).toBeLessThanOrEqual(most + BUILDING_WALLS.post.radius);
       }
     }
   });

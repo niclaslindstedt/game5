@@ -31,7 +31,8 @@
 //     `wind-tunnels.ts`'s, held in this group and moved by `update`; THE
 //     CABINS beside the runs and lanes are `cabins-view.ts`'s, held here
 //     too and handed their cuts by `update`'s lens; the ski area's own
-//     village and mountain buildings are `village-build.ts`'s, one mesh.
+//     village and mountain buildings are `village-cuts.ts`'s, in blocks at
+//     two cuts, handed theirs the same way.
 //
 // THE DRAWS ARE FEW: every part of a kind is one INSTANCE of one mesh for
 // the whole resort, coloured per vertex where it is more than one paint —
@@ -77,7 +78,8 @@ import {
   towerHeadFarGeometry,
   towerHeadGeometry,
 } from "./lift-shapes.ts";
-import { Cut, StillCut } from "./lift-cuts.ts";
+import { Cut, StillCut, type Beyond } from "./lift-cuts.ts";
+import type { ViewCull } from "./view-cull.ts";
 import {
   CHAIR_BAR,
   bullwheelGeometry,
@@ -85,6 +87,7 @@ import {
   cabinGeometry,
   chairBarFarGeometry,
   chairBarGeometry,
+  chairDistantGeometry,
   chairFarGeometry,
   chairGeometry,
   springBoxFarGeometry,
@@ -95,8 +98,13 @@ import {
 import { buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
-import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
-import { buildResortBuildings } from "./village-build.ts";
+import {
+  blocksOf,
+  createBlockBuildings,
+  createVillageBuildings,
+  type Span,
+  type VillageBuildings,
+} from "./village-cuts.ts";
 import { createInteriors } from "./interiors-view.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
@@ -116,6 +124,9 @@ const CHAIR_REACH = 80;
 const CABIN_REACH = 110;
 const HEAD_REACH = 140;
 const TEE_REACH = 50;
+/** Past this a chair is its seat and back alone and its safety bar is not
+ * drawn, m. */
+const CHAIR_DISTANT = 320;
 
 /** The paints, sRGB: the towers' galvanised steel, the dark steel of the
  * grips and the sheaves, a gondola cabin's body and its glass, a chair's
@@ -177,8 +188,16 @@ function ropesOf(plan: LiftPlan): number[] {
 /** The resort's lifts — and its WIND TUNNELS along the valley floor
  * (`wind-tunnels.ts`), the horizontal lift — in one group the renderer
  * holds. `budget` is the SPRAY row's share; `rings` whether the run rides
- * the lifts (`RunRules.lifts`), and so whether its boarding rings show. */
-export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings = false): Lifts {
+ * the lifts (`RunRules.lifts`), and so whether its boarding rings show;
+ * `cull` (`view-cull.ts`, aimed by the renderer each frame) leaves out the
+ * moving carriers out of sight. */
+export function createLifts(
+  level: Level,
+  haze: HazeUniforms,
+  budget = 1,
+  rings = false,
+  cull?: ViewCull,
+): Lifts {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -193,20 +212,18 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   group.add(rooms.group);
   // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
   // the village round the hub and the mountain's restaurant and patrol hut,
-  // one mesh in the painted materials.
-  const villageMat = facadeMaterial(haze, "village");
-  mats.push(villageMat);
-  const villageGeo = facadeGeometry(buildResortBuildings(level).out);
-  geos.push(villageGeo);
-  const village = new THREE.Mesh(villageGeo, villageMat);
-  village.castShadow = true;
-  village.receiveShadow = true;
-  group.add(village);
+  // in blocks at a near and a far cut (`village-cuts.ts`).
+  const village = createVillageBuildings(level, haze);
+  /** The lift stations' houses, once the lifts are planned. */
+  let halls: VillageBuildings | null = null;
+  group.add(village.group);
   let disposeBoards = (): void => {};
   let disposeRings = (): void => {};
   const dispose = () => {
     tunnels.dispose();
     houses.dispose();
+    village.dispose();
+    halls?.dispose();
     rooms.dispose();
     disposeBoards();
     disposeRings();
@@ -220,6 +237,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       tunnels.update(t);
       if (eye) {
         houses.update(eye);
+        village.update(eye);
+        halls?.update(eye);
         rooms.update(eye);
       }
     },
@@ -416,15 +435,17 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   buildStations(layout, level.groundAt, painted, group, geos, meshes);
   // THE BUILDINGS (`station-build.ts`): every station's house, the
   // terminals, the booths, a gondola's platform roof and door, a drag's
-  // hut — one mesh in the painted materials (`facade-paint.ts`).
-  const facadeMat = facadeMaterial(haze, "stations");
-  mats.push(facadeMat);
-  const buildings = facadeGeometry(buildStationHouses(level, plans, layout).out);
-  geos.push(buildings);
-  const houses3d = new THREE.Mesh(buildings, facadeMat);
-  houses3d.castShadow = true;
-  houses3d.receiveShadow = true;
-  group.add(houses3d);
+  // hut — in the painted materials (`facade-paint.ts`), in blocks at a near
+  // and a far cut as the village's are (`village-cuts.ts`).
+  halls = createBlockBuildings(
+    blocksOf((minArea) => {
+      const spans: Span[] = [];
+      return { kit: buildStationHouses(level, plans, layout, minArea, spans), spans };
+    }),
+    haze,
+    "stations",
+  );
+  group.add(halls.group);
   // THE PISTE MAP BOARDS' FACES (`map-board.ts`), each marked at its top.
   const boards = createMapBoards(
     level,
@@ -513,10 +534,16 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     CABIN_REACH,
   );
   const chairN = carriers.chair.length;
-  const chairs = movingCut(chairGeometry(), chairFarGeometry(), chairN, CHAIR_REACH);
+  const chairs = movingCut(chairGeometry(), chairFarGeometry(), chairN, CHAIR_REACH, {
+    geo: chairDistantGeometry(),
+    reach: CHAIR_DISTANT,
+  });
   // Every chair's SAFETY BAR, swung down over the riders' laps once the
   // chair is clear of its load and up again before its unload (`BAR`).
-  const bars = movingCut(chairBarGeometry(), chairBarFarGeometry(), chairN, CHAIR_REACH);
+  const bars = movingCut(chairBarGeometry(), chairBarFarGeometry(), chairN, CHAIR_REACH, {
+    geo: null,
+    reach: CHAIR_DISTANT,
+  });
   // A DRAG'S T-BARS: the spring box at the rope, the cord down from it and
   // the bar across — the cord REELED UP into the box while nobody holds the
   // bar, paid out as one is pulled down and held, and reeled back in when
@@ -605,10 +632,12 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     far: THREE.BufferGeometry,
     count: number,
     reach: number,
+    beyond?: Beyond,
   ): Cut | null {
     geos.push(near, far);
+    if (beyond?.geo) geos.push(beyond.geo);
     if (count === 0) return null;
-    const cut = new Cut(near, far, painted, count, reach);
+    const cut = new Cut(near, far, painted, count, reach, true, beyond);
     for (const m of cut.meshes) {
       meshes.push(m);
       group.add(m);
@@ -658,9 +687,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     inCabin: readonly { index: number; u: number }[],
     holds: ReadonlyMap<number, Hold>,
     eye?: THREE.Vector3,
+    cull?: ViewCull,
   ): void {
     if (cabins) {
-      cabins.begin(eye);
+      cabins.begin(eye, cull);
       for (const c of carriers.gondola) {
         const { u, side, out } = carrierAt(c.p, c.k, t);
         const mine =
@@ -673,8 +703,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       cabins.end();
     }
     if (chairs && bars) {
-      chairs.begin(eye);
-      bars.begin(eye);
+      chairs.begin(eye, cull);
+      bars.begin(eye, cull);
       for (const c of carriers.chair) {
         const { u, side, out } = carrierAt(c.p, c.k, t);
         if (!out) continue;
@@ -693,8 +723,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     const dt = t - reeledAt;
     const snap = !(dt >= 0 && dt < 1);
     reeledAt = t;
-    springs.begin(eye);
-    tees.begin(eye);
+    springs.begin(eye, cull);
+    tees.begin(eye, cull);
     carriers.drag.forEach((c, n) => {
       const { u, side, out } = carrierAt(c.p, c.k, t);
       const y = ropeAt(c.p, u);
@@ -730,6 +760,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     tunnels.update(t);
     if (eye) {
       houses.update(eye);
+      village.update(eye);
+      halls?.update(eye);
       rooms.update(eye);
     }
     boarding?.update(t);
@@ -788,7 +820,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     }
     inCabin.length = 0;
     if (carried?.kind === "gondola" && carried.stand === undefined) inCabin.push(carried);
-    moveCarriers(t, inCabin, holds, eye);
+    moveCarriers(t, inCabin, holds, eye, cull);
     for (const c of still) c.update(eye);
     // His own cabin on a gondola: coming round the bottom wheel on the
     // station's rail to him on the platform, creeping on while he steps in

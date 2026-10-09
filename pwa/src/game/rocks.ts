@@ -12,10 +12,16 @@
 // view, not the trees': a far or high lens looks at the walls from across
 // the valley. Past it the snow shader's dark rock carries them to the rim.
 //
-// What it costs is the FOREST row's: under three quarters of its far
-// share the skin's lattice is the coarser `ROCKS.skin.cheap`, about half
-// the triangles in the same outline. The whole thing hangs off the forest
-// (`forest.ts`), which owns the woods' reach.
+// A TILE IS BUILT AT THE CUT ITS DISTANCE ASKS (`CUTS`): the full lattice
+// near the lens, the cheap one past `CUTS[0].out` and a coarse one past
+// `CUTS[1].out`, a face across the valley a ninth of its triangles in the
+// same outline. A tile owed a finer or coarser cut keeps the one it has on
+// screen until the new one is whole, and only swaps past a margin
+// (`HYSTERESIS`), so riding to and fro across a band never rebuilds it.
+//
+// What it costs near the lens is the FOREST row's: under three quarters of
+// its far share the near lattice is the cheap one too. The whole thing
+// hangs off the forest (`forest.ts`), which owns the woods' reach.
 
 import * as THREE from "three";
 import { ROCKS, cliffWalls, regionOf, rockHash, type CliffWall, type Level } from "@engine";
@@ -33,6 +39,27 @@ const SLICE = 1.5;
 const NOW = 110;
 /** How far past the reach a built tile is kept, m, before it is let go. */
 const KEEP = 2 * TILE;
+/** The lattice by distance from the lens to a tile's nearest corner: out
+ * to `out` m the cell is `cell` m (`near` for the FOREST row's own). */
+export const CUTS = [
+  { out: 300, cell: "near" },
+  { out: 700, cell: ROCKS.skin.cheap },
+  { out: Infinity, cell: 12 },
+] as const;
+/** How far past a band's edge a tile must be before it changes cut, m. */
+const HYSTERESIS = 30;
+
+/** The cut a tile `d` m off wants, given the one it has (`had`, or -1). */
+export function cutOf(d: number, had: number): number {
+  let k = CUTS.findIndex((c) => d < c.out);
+  if (had >= 0 && k !== had) {
+    // Only past the margin: a coarser cut once `HYSTERESIS` beyond the
+    // edge, a finer one once as far inside it.
+    const edge = k > had ? CUTS[had].out + HYSTERESIS : CUTS[k].out - HYSTERESIS;
+    if (k > had ? d < edge : d > edge) k = had;
+  }
+  return k;
+}
 
 export type Rocks = {
   readonly group: THREE.Group;
@@ -52,11 +79,14 @@ type Tile = {
   /** The cliffs' rock walls whose middle is on it, built first. */
   readonly walls: CliffWall[];
   /** The rows of its lattice its building has reached, and the triangles
-   * so far. */
+   * so far, at the cut `building`. */
   done: number;
   part: RockMesh | null;
+  building: number;
+  /** What is on screen, and its cut (-1 for none). */
   mesh: THREE.Mesh | null;
-  /** Built, and nothing stands on it. */
+  cut: number;
+  /** Built at `cut`, and nothing stands on it. */
   empty: boolean;
 };
 
@@ -83,7 +113,9 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
         walls: [],
         done: 0,
         part: null,
+        building: -1,
         mesh: null,
+        cut: -1,
         empty: false,
       });
     }
@@ -98,16 +130,22 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
   }
   /** The lattice rows a step builds before it looks at the clock. */
   const BATCH = 4;
-  const cellOf = (): number => (share < 0.75 ? ROCKS.skin.cheap : ROCKS.skin.cell);
+  const cellOf = (k: number): number => {
+    const c = CUTS[k].cell;
+    if (c !== "near") return c;
+    return share < 0.75 ? ROCKS.skin.cheap : ROCKS.skin.cell;
+  };
 
-  /** Build a few more rows of `t`; true when it is whole. */
-  const step = (t: Tile): boolean => {
-    if (!t.part) {
+  /** Build a few more rows of `t` at cut `k`; true when it is whole. */
+  const step = (t: Tile, k: number): boolean => {
+    if (!t.part || t.building !== k) {
       t.part = rockMesh();
+      t.building = k;
+      t.done = 0;
       for (const w of t.walls) buildWall(t.part, w, band!.tone);
     }
     const part = t.part;
-    const cell = cellOf();
+    const cell = cellOf(k);
     const n = Math.round(TILE / cell);
     const end = Math.min(n, t.done + BATCH);
     const i0 = t.i * n;
@@ -115,10 +153,17 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
     t.done = end;
     if (t.done < n) return false;
     t.part = null;
-    if (part.pos.length === 0) {
-      t.empty = true;
-      return true;
+    t.done = 0;
+    // The cut it replaces goes as the new one arrives.
+    const old = t.mesh;
+    if (old) {
+      group.remove(old);
+      old.geometry.dispose();
+      t.mesh = null;
     }
+    t.cut = k;
+    t.empty = part.pos.length === 0;
+    if (t.empty) return true;
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(part.pos, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(part.nrm, 3));
@@ -135,12 +180,13 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
     t.empty = false;
     t.done = 0;
     t.part = null;
+    t.building = -1;
+    t.cut = -1;
     if (!t.mesh) return;
     group.remove(t.mesh);
     t.mesh.geometry.dispose();
     t.mesh = null;
   };
-  const due = (t: Tile): boolean => !t.mesh && !t.empty;
 
   return {
     group,
@@ -149,16 +195,21 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
       // any of it is in reach.
       const half = TILE / 2;
       let next: Tile | null = null;
+      let nextK = 0;
       let nextD2 = Infinity;
       for (const t of tiles) {
         const dx = Math.max(0, Math.abs(eye.x - t.cx) - half);
         const dz = Math.max(0, Math.abs(eye.z - t.cz) - half);
         const d2 = dx * dx + dz * dz;
         const near = d2 < reach * reach;
-        if (near && due(t)) {
-          if (d2 < NOW * NOW) while (!step(t));
+        const k = near ? cutOf(Math.sqrt(d2), t.cut) : -1;
+        if (near && k !== t.cut) {
+          // A tile with nothing on screen yet, or one that close, is built
+          // whole now; one changing cut keeps its old one meanwhile.
+          if (d2 < NOW * NOW && (t.cut < 0 || k < t.cut)) while (!step(t, k));
           else if (d2 < nextD2) {
             next = t;
+            nextK = k;
             nextD2 = d2;
           }
         }
@@ -170,7 +221,7 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
       // The nearest tile still owed, a slice of a frame's worth of it.
       if (next) {
         const until = performance.now() + SLICE;
-        while (!step(next) && performance.now() < until);
+        while (!step(next, nextK) && performance.now() < until);
         if (next.mesh) next.mesh.visible = true;
       }
     },

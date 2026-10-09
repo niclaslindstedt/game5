@@ -72,6 +72,7 @@ import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
 import { SledReadout } from "./hud-sled.tsx";
 import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
+import { MachinePress } from "./hud-machine-press.tsx";
 import { GroomerReadout } from "./hud-groomer.tsx";
 import { ParaReadout } from "./hud-para.tsx";
 import { BalloonPad, BalloonReadout } from "./hud-balloon.tsx";
@@ -646,6 +647,19 @@ export function Hud({
           onDrink={input.requestJump}
         />
       )}
+      {/* A BUILDING'S DOOR (`door-hud.ts`): the press that opens or shuts
+          it, while no lodge's call is up. */}
+      {snap.door &&
+        !(snap.afterski?.kind === "call" && snap.afterski.near) &&
+        !sledFirst &&
+        !groomerFirst && (
+          <MachinePress
+            word={STRINGS.doorCall}
+            sub={STRINGS.doorTake(touch, machineKey, snap.door.shut)}
+            kind="door"
+            onBoard={input.requestMachine}
+          />
+        )}
       {snap.buzz > 0.005 && <BuzzMeter buzz={snap.buzz} />}
 
       {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is

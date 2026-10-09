@@ -124,6 +124,10 @@ export type Settings = {
    * the device says" (`injuriesShown`): shown, unless the store app reports
    * a content filter. */
   injuries: boolean | null;
+  /** Whether the X-RAY CAM takes a fatal fall (OPTIONS ▸ X-RAY CAM,
+   * `xray-run.ts`) — and with it the run's slow motion. Off unless asked
+   * for; it needs INJURIES shown too. */
+  xray: boolean;
   /** THE START CARD's answers: the free ride's mountain, day and snow
    * (`free-ride.ts`). */
   ride: FreeRide;
@@ -182,6 +186,7 @@ export function freshSettings(): Settings {
     assist: { steer: "full", air: "full" },
     damage: false,
     injuries: null,
+    xray: false,
     ride: freshRide(),
     raceMap: {},
     trickMap: null,
@@ -263,6 +268,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.assist.air = onLadder(assist.air, ASSIST_LEVELS, out.assist.air);
   if (typeof blob.damage === "boolean") out.damage = blob.damage;
   if (typeof blob.injuries === "boolean") out.injuries = blob.injuries;
+  if (typeof blob.xray === "boolean") out.xray = blob.xray;
   // A blob from before the time trial was retired carries its length
   // (`trialLaps`) and its level card's pick (`level`); both are left lying.
   out.ride = mergeRide(blob.ride);

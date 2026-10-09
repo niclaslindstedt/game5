@@ -155,8 +155,9 @@ function round(p: TunnelPoint, r: number, a: number): { at: V3; out: V3 } {
 }
 
 /** Build every tunnel of the map into one kit. */
-export function buildTunnels(level: Level, tunnels: readonly WindTunnel[]): FacadeKit {
+export function buildTunnels(level: Level, tunnels: readonly WindTunnel[], minArea = 0): FacadeKit {
   const kit = new FacadeKit();
+  kit.minArea = minArea;
   tunnels.forEach((tunnel, ti) => {
     if (tunnel.points.length < 2 || tunnel.length <= 0) return;
     kit.at(0, 0, 0, 0);

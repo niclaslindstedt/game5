@@ -533,7 +533,7 @@ export function createWorldRenderer(
       boomClear = createLineClear(lv, { trees: false, movers: () => machines?.solids() ?? [] });
       trunks = createTrunksNear(lv);
       scene.add(gates.group);
-      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts);
+      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts, env.cull);
       castInLight(lifts.group, env.haze);
       lifts.group.name = "lifts";
       scene.add(lifts.group);
@@ -545,7 +545,7 @@ export function createWorldRenderer(
       });
       wildlife.group.name = "wildlife";
       scene.add(wildlife.group);
-      crowd = createPeopleView(lv, env.haze, state.rules);
+      crowd = createPeopleView(lv, env.haze, state.rules, env.cull);
       scene.add(crowd.group);
       spray = createSpray(env.haze);
       spray.points.name = "spray";
@@ -555,7 +555,7 @@ export function createWorldRenderer(
       cloud.mesh.name = "snow-cloud";
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
-      machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow, wearing });
+      machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
       field = state.rivals;
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
@@ -762,7 +762,6 @@ export function createWorldRenderer(
         TRAIL_LOOK[video.trails].stamp ? stamps : null,
         { x: fine.uFineOrigin.value.x, z: fine.uFineOrigin.value.y, span: fine.uFineSpan.value },
       );
-      crowd?.update(state, lens.camera.position);
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
       // THE NEW SNOW: it settles into every trail and buries the groomer.
@@ -784,6 +783,7 @@ export function createWorldRenderer(
         x: -Math.sin(from) * carried,
         z: -Math.cos(from) * carried,
       });
+      crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {
         heroModels.length = 0;

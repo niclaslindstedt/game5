@@ -79,6 +79,7 @@ import { bulgeAt, hasNets, netDents, type NetDent } from "./net-bulge.ts";
 import { createPisteLights } from "./piste-lights.ts";
 import { streetLampMasts } from "./street-furniture-build.ts";
 import { createVillageStreets } from "./streets-view.ts";
+import { InstanceReach } from "./instance-reach.ts";
 import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
 import type { SkyLook } from "./sky.ts";
 import { createRunSigns } from "./run-signs.ts";
@@ -104,6 +105,8 @@ const WAND = { gap: 1.2, height: 0.45, post: 0.6 };
 /** THE FLOODLIGHTS: the masts' height, m, how far the lamp head is dipped
  * below level aiming up the piste, rad, and each lamp's glow at night, m
  * across. */
+/** How far off an edge pole is drawn, m. */
+const STAKE_REACH = 450;
 const FLOOD = { mast: 8, dip: 0.28, glow: 2.6, night: 4, day: 0.15 };
 
 /** One floodlight: where its lamp is and which way it shines, unit. */
@@ -664,12 +667,22 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   group.add(stakes, bands);
   const paint = new THREE.Color();
   const stakeAxis = new THREE.Vector3();
+  // Drawn only within `STAKE_REACH` of the lens (`instance-reach.ts`): a
+  // stake a few centimetres thick is under a pixel long before that, and
+  // a ski area has thousands. Built once everything is placed.
+  let stakesNear: InstanceReach | null = null;
+  let bandsNear: InstanceReach | null = null;
   /** Stand stake `i` at its foot, `tilt` rad over toward (dx, dz). */
   const placeStake = (i: number, tilt: number, dx: number, dz: number): void => {
     const p = plan.stakes[i];
     if (tilt === 0) q.identity();
     else q.setFromAxisAngle(stakeAxis.set(dz, 0, -dx).normalize(), tilt);
     m4.compose(at.set(p.x, p.y - 0.1, p.z), q, one);
+    if (stakesNear) {
+      stakesNear.place(stakes, i, m4);
+      if (bandOf[i] >= 0) bandsNear?.place(bands, bandOf[i], m4);
+      return;
+    }
     stakes.setMatrixAt(i, m4);
     if (bandOf[i] >= 0) bands.setMatrixAt(bandOf[i], m4);
   };
@@ -684,6 +697,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   stakes.instanceMatrix.needsUpdate = true;
   if (stakes.instanceColor) stakes.instanceColor.needsUpdate = true;
   bands.instanceMatrix.needsUpdate = true;
+  if (plan.count > 0) {
+    const stakeAt = Float32Array.from(plan.stakes.flatMap((p) => [p.x, p.y, p.z]));
+    const bandAt = Float32Array.from(
+      plan.stakes.flatMap((p, i) => (bandOf[i] >= 0 ? [p.x, p.y, p.z] : [])),
+    );
+    stakesNear = new InstanceReach([stakes], stakeAt, STAKE_REACH);
+    bandsNear = new InstanceReach([bands], bandAt, STAKE_REACH);
+  }
   /** The tilt each stake is drawn at, so a frame redraws only the ones
    * that moved — and stands them all back up for a run that has touched
    * none. */
@@ -702,7 +723,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       placeStake(i, tilt, own ? own.dirX[i] : 1, own ? own.dirZ[i] : 0);
       moved = true;
     }
-    if (moved) {
+    if (moved && !stakesNear) {
       stakes.instanceMatrix.needsUpdate = true;
       bands.instanceMatrix.needsUpdate = true;
     }
@@ -822,6 +843,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     },
     air(state, look, wind, eye, pixels) {
       guns?.update(state, look, wind, eye, pixels);
+      stakesNear?.update(eye);
+      bandsNear?.update(eye);
+      lights.near(eye);
     },
     guns,
     dispose() {

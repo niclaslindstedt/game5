@@ -28,7 +28,6 @@ import {
   type Wash,
 } from "@engine";
 
-import { createLineClear } from "./camera-clear.ts";
 import { frameCrash, startCrashCam, type CrashCam } from "./camera-crash.ts";
 import { createHeliCam, frameHeli, heliMiddleOf, orbitBlend } from "./camera-heli.ts";
 import { bodyOf, COCKPIT, inCabin } from "./cockpit-plan.ts";
@@ -133,9 +132,6 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   /** THE CRASH'S LENS: from the lens on screen the moment it goes up,
    * pulled back to see it whole, for as long as it burns. */
   let crash: CrashCam | null = null;
-  /** What the crash's tracking shot is drawn in against: the woods, the
-   * stations' houses and platform roofs, the cabins. */
-  const solid = createLineClear(level, { canopies: true });
   /** THE DROP'S LENS: the helicopter's last, held where it was for a beat
    * after he pushes off and turned down after him as he falls — the
    * ladder's boom, which framed him sat on the skid, would be inside the
@@ -232,8 +228,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
           w.aboard ? rider : null,
           step,
           groundAt,
-          (e, a) => treeBetween(state.level, e, a) || solid(a, e) < 1,
-          solid,
+          (e, a) => treeBetween(state.level, e, a),
         );
         cut = true;
         return;

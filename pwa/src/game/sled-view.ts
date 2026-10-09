@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { SLED, type GameState, type SledState } from "@engine";
 
+import { createFarSwap } from "./far-swap.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
@@ -61,6 +62,13 @@ export type SledView = {
   ready: Promise<void>;
   dispose(): void;
 };
+
+/** Past this from the lens a parked machine is drawn as the code's
+ * stand-in (`far-swap.ts`), m; nearer than `SLED_FAR - SLED_MARGIN`, as the
+ * model again. A few hundred triangles in place of some 10 000, where it is
+ * a handful of pixels long. */
+export const SLED_FAR = 120;
+export const SLED_MARGIN = 20;
 
 /** A code-built stand-in, should the model not load: a cowl, a tunnel, a
  * belt and two skis — so a missing file is still a sled to take. */
@@ -234,7 +242,9 @@ export function createSledView(haze: HazeUniforms): SledView {
   const spindleAxis = axisOf(SLED_LOOK.spindle[0], SLED_LOOK.spindle[1]);
   const postAxis = axisOf(SLED_LOOK.post, [SLED_LOOK.grip[0] + 0.023, SLED_LOOK.grip[1] - 0.045]);
 
-  const adopt = (root: THREE.Object3D): void => {
+  const swap = createFarSwap(SLED_FAR, SLED_MARGIN);
+  frame.add(swap.node);
+  const adopt = (root: THREE.Object3D, standing = false): void => {
     root.traverse((o) => {
       for (const [key, name] of Object.entries(SLED_NODES) as [keyof typeof SLED_NODES, string][]) {
         if (o.name === name) {
@@ -265,7 +275,18 @@ export function createSledView(haze: HazeUniforms): SledView {
       const node = nodes[key];
       if (node) mergeCasters(node, allMats);
     }
-    frame.add(root);
+    if (standing) frame.add(root);
+    else {
+      // THE FAR CUT: the stand-in, for a parked machine far off.
+      const far = standIn(haze);
+      far.rotation.y = Math.PI;
+      far.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        o.castShadow = true;
+        allMats.push(o.material as THREE.Material);
+      });
+      swap.hold(root, far);
+    }
     if (dressed) paintRack(dressed.body, dressed.trim);
   };
   const paintRack = (body: number, trim: number): void => {
@@ -284,7 +305,7 @@ export function createSledView(haze: HazeUniforms): SledView {
       if (!disposed) {
         const g = standIn(haze);
         g.rotation.y = Math.PI;
-        adopt(g);
+        adopt(g, true);
       }
     });
 
@@ -322,6 +343,7 @@ export function createSledView(haze: HazeUniforms): SledView {
       group.visible = !!s;
       if (!s) return;
       const close = inCockpit && s.rider;
+      swap.allow(!s.rider && Math.hypot(s.vx, s.vy, s.vz) < 0.5);
       clock += dt;
       observe(track, s, state.tick);
       sample(track, alpha, at);

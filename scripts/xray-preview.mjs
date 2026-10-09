@@ -12,6 +12,12 @@
 //   trunk-fast  skied at one at 108 km/h
 //   head        flown head first into one
 //   slam        thrown on his side onto the piste, sliding on
+//   fall        off a cliff 200 m onto the flat snow
+//   fall-high   off one 400 m: the skis land first and the body slams on
+//               down, each bone breaking as its part meets the snow
+//   anatomy     no blow: he stands still under the glass, the lens circling
+//               the ribs, the spine, the skull, the pelvis and the whole of
+//               him in turn — the skeleton and the organs judged at rest
 //
 // Each scene is one contact sheet, previews/xray-<scene>.png. The page
 // (`pwa/src/tools/xray-harness.ts`, its stagings the gore lab's) steps the
@@ -42,7 +48,7 @@ const args = parseArgs(
     scene: {
       kind: "string",
       default: "",
-      help: "which scenes, comma-separated (trunk-fast, head, slam, fall, spike, spike-post, groomer, maul, heli, rotor); every one when left out",
+      help: "which scenes, comma-separated (trunk-fast, head, slam, fall, fall-high, spike, spike-post, groomer, maul, heli, rotor, anatomy); every one when left out",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     every: { kind: "number", default: 0.5, help: "wall seconds between two frames shot" },

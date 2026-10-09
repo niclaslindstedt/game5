@@ -11,7 +11,8 @@
 // all round — a skirt cut for the building where it stands, off the
 // ground under it (`level.groundAt`), so the bank follows the slope that
 // one instanced shape cannot; low across the front, where the steps are.
-// All of them are one mesh for the map.
+// All of them are one mesh for the map, cut into tiles that are drawn only
+// near the lens (`DRIFT_REACH`).
 //
 // THE WINDOWS ARE LIT AT NIGHT: every pane carries a GLOW mark, and the
 // material adds a warm lamplight to it as the piste lights come on (the
@@ -35,6 +36,7 @@ import { lodgeYardGeometry } from "./lodge-yard.ts";
 import { FACADE } from "./facade-paint.ts";
 import { facadeMaterial } from "./facade-mesh.ts";
 import { PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
+import { splitByTile } from "./tile-split.ts";
 import { LUX_TO_LAMP } from "./piste-lights.ts";
 
 /** Where a building hands its near cut over to its far, m, and the band
@@ -68,6 +70,9 @@ export function graftGlow(shader: THREE.WebGLProgramParametersWithUniforms): voi
  * snow is banked over the ground at its foot, and how near the floor it
  * may come (the stone a course above it showing); across the front, how
  * far below the floor it stops, clear of the steps. */
+/** The drifts' tile, m, and how far off a tile of them is drawn. */
+const DRIFT_TILE = 192;
+const DRIFT_REACH = 350;
 const DRIFT = { reach: 0.9, bank: 0.3, belowFloor: 0.08, front: 0.52, step: 0.7 };
 
 /** The plinth's outline in the building's frame — the walls and, under a
@@ -210,11 +215,18 @@ export function createCabins(level: Level, haze: HazeUniforms): Cabins {
   }
   // The drift is banked round every building, the ski area's own too
   // (`village-build.ts` draws those), so each sits down into the snow.
+  // Cut into tiles, and a tile shown only within `DRIFT_REACH` of the
+  // lens: a bank a foot high is lost in the snow long before that.
   const drifts = driftGeometry(level, cabinsOf(level));
+  const driftTiles = splitByTile(drifts, DRIFT_TILE).map((g) => {
+    if (g !== drifts) geos.push(g);
+    else g.computeBoundingSphere();
+    const drift = new THREE.Mesh(g, material);
+    drift.receiveShadow = true;
+    group.add(drift);
+    return drift;
+  });
   geos.push(drifts);
-  const drift = new THREE.Mesh(drifts, material);
-  drift.receiveShadow = true;
-  group.add(drift);
   // The lodges' steps and ski racks, on the snow (`lodge-yard.ts`).
   const lodges = cabins.filter((c) => c.kind === "afterski");
   if (lodges.length) {
@@ -234,6 +246,10 @@ export function createCabins(level: Level, haze: HazeUniforms): Cabins {
   return {
     group,
     update(eye) {
+      for (const d of driftTiles) {
+        const b = d.geometry.boundingSphere!;
+        d.visible = b.center.distanceTo(eye) - b.radius < DRIFT_REACH;
+      }
       for (const k of kinds) {
         let moved = false;
         k.list.forEach((c, i) => {

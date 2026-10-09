@@ -21,6 +21,8 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { Injury, TrunkLoad } from "./injury-state.ts";
+export type { Injury, TrunkLoad } from "./injury-state.ts";
 import type { GoreEvent, GoreState } from "./gore-state.ts";
 import type { DamagePart, Hurt, SkierDamage } from "./hurt-state.ts";
 export type { DamagePart, SkierDamage } from "./hurt-state.ts";
@@ -380,22 +382,11 @@ export type BodyState = {
    * (kW/m²)^4/3 · s on bare skin — summed while it burns and judged once,
    * as it burns out (`body.ts`). */
   heat: number;
-};
-
-/** ONE INJURY: the part, which, its AIS rank, and the run clock it came at
- * (the engine's own, `GameState.t`) — and the ENERGY that did it, over the
- * energy of the injury's even chance (`body.ts`' `energyOver`; 1 when left
- * out), raised by every harder blow on the part after it: what grades a
- * break simple, wedge or shattered (`fracturesOf`). */
-export type Injury = {
-  part: BodyPart;
-  kind: InjuryKind;
-  ais: number;
-  t: number;
-  energy?: number;
-  /** THE SIDE of a paired organ it hurt (`InjuryDef.organs`: a lung, a
-   * kidney) — the side the blow came from, or one drawn off a hash. */
-  side?: "L" | "R";
+  /** A LANDING'S LOAD ON THE TRUNK not yet taken: one past what the legs
+   * could stop drives him on down into the snow, and the spine, the organs
+   * and the neck are hurt when his trunk gets there (`body.ts`). Absent
+   * otherwise. */
+  owed?: TrunkLoad & { t: number };
 };
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
@@ -745,7 +736,8 @@ export type GameEvent =
     }
   | SledEvent
   | import("./para-state.ts").ParaEvent
-  | import("./balloon-state.ts").BalloonEvent;
+  | import("./balloon-state.ts").BalloonEvent
+  | import("./door-state.ts").DoorEvent;
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
  * in a lift's QUEUE at its foot, skating to his place and standing in it;
@@ -978,15 +970,16 @@ export type GameState = ContestState & {
   sled?: SledState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;
-  /** THE AFTERSKI (`afterski.ts`) with its lodges, and THE GRIMBEAR
-   * (`grimbear.ts`) the app dealt: on a free ride. */
+  /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
-  /** THE PISTE MACHINES (`groomer.ts`), their snow (`groomed.ts`) and the
-   * snow guns' (`snow-guns.ts`, a thin season's): read, never written. */
+  /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
   machineSnow?: import("./snow-guns.ts").MachineSnow;
+  /** OPEN DOORS by building id (`setDoor`); the leaves and move (`doorway.ts`). */
+  doors?: string[];
+  doorway?: import("./door-state.ts").Doorway;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

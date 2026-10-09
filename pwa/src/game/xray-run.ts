@@ -3,8 +3,9 @@
 // (`impact-forecast.ts`), the director told what each step did
 // (`xray-shots.ts`), and every frame the rate the run is stepped at and the
 // look the renderer draws. Only while the player rides a run with the
-// INJURIES switch on (`GameState.gore`, dealt by `injuriesShown`): off,
-// nothing is read ahead, the run goes at its own pace and nothing is drawn.
+// INJURIES switch on (`GameState.gore`, dealt by `injuriesShown`) and the
+// X-RAY CAM switch on (`Settings.xray`, off by default): off, nothing is
+// read ahead, the run goes at its own pace and nothing is drawn.
 // DOM-free but for one class on the page (`xrayHud`), under which the body
 // plate and the g meter fade away while the X-ray has him, and the presses
 // that SKIP it: a tap on the screen, or the skier's own keys pressed again
@@ -60,7 +61,8 @@ export type XrayRun = {
 export function createXrayRun(
   show: (look: XrayLook | null) => void,
   hud: (look: XrayLook | null) => void = () => {},
-  keys?: () => KeyBindings,
+  /** The keys a skip counts and the X-RAY CAM switch (`Settings.xray`); none (a lab) is on. */
+  settings?: () => { keys: KeyBindings; xray: boolean },
 ): XrayRun {
   const ahead = createForecaster();
   const director = createXrayDirector();
@@ -73,13 +75,13 @@ export function createXrayRun(
   const count = createSkipCount();
   const onTap = (): void => skip();
   const onKey = (e: KeyboardEvent): void => {
-    if (!active || e.repeat || !keys) return;
-    const bound = keys();
+    if (!active || e.repeat || !settings) return;
+    const bound = settings().keys;
     if (!MOVES.some((m) => bound[m].includes(e.code))) return;
     if (count.press(performance.now() / 1000)) skip();
   };
   const opts = { capture: true, passive: true } as const;
-  if (keys && typeof document !== "undefined") {
+  if (settings && typeof document !== "undefined") {
     document.addEventListener("pointerdown", onTap, opts);
     document.addEventListener("keydown", onKey, opts);
   }
@@ -90,7 +92,7 @@ export function createXrayRun(
         ahead.drop();
         current = state;
       }
-      if (!on || !state.gore) {
+      if (!on || !state.gore || (settings && !settings().xray)) {
         active = false;
         if (running) {
           ahead.drop();

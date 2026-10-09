@@ -13,7 +13,7 @@
 //
 // Three-free: the arrays are made a mesh by `facade-mesh.ts`.
 
-import { CABINS, type Cabin, type CabinDef, type Level } from "@engine";
+import { CABINS, buildingHash, type Cabin, type CabinDef, type Level } from "@engine";
 
 import { FACADE, type FacadeLayer } from "./facade-paint.ts";
 import { FacadeKit, type Tint, type V3 } from "./facade-kit.ts";
@@ -24,11 +24,9 @@ export type Skin = { layer: FacadeLayer; tint: Tint };
  * building's own choices (a colourway, which panes are lit), never the
  * engine's stream. */
 export function idHash(id: string, salt: number): number {
-  let h = 2166136261 ^ salt;
-  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-  h = Math.imul(h ^ (h >>> 15), 2246822507);
-  h ^= h >>> 13;
-  return (h >>> 0) / 4294967296;
+  // The engine's own, which deals a house's door and woodpile to the same
+  // side its walls stand them (`building-walls.ts`).
+  return buildingHash(id, salt);
 }
 
 /** One building's site: the kit set down on its frame (x across its front,

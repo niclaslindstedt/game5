@@ -28,6 +28,7 @@ import { mistFor, type DistanceLevel, type ShadowLook } from "./settings-video.t
 import { aimShadow, SHADOW_MARGIN, shadowFade, type ShadowBox } from "./shadow-box.ts";
 import type { Dir, SkyLook } from "./sky.ts";
 import { createTerrainShade } from "./terrain-shade.ts";
+import { createViewCull, type ViewCull } from "./view-cull.ts";
 
 /** Where the key light is parked along the sun, m (it is directional; the
  * distance only has to clear anything that casts). */
@@ -44,6 +45,9 @@ export type Environment = {
   /** Where the shadow stands this frame, or null while the SHADOWS row is
    * off — what `forest.ts` picks its casters by. */
   shadow(): ShadowBox | null;
+  /** What the instanced views leave out of sight this frame (`view-cull.ts`):
+   * aimed by `update` at its camera and the shadow's box. */
+  cull: ViewCull;
   /** The SHADOWS row: the map's texels and its reach. */
   setShadow(look: ShadowLook): void;
   /** The DISTANCE row, whose mist is `mistFor`'s. */
@@ -221,6 +225,7 @@ export function createEnvironment(
   const look = new THREE.Vector3();
   const origin = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
+  const cull = createViewCull();
 
   return {
     haze,
@@ -258,7 +263,9 @@ export function createEnvironment(
       sun.target.updateMatrixWorld();
       terrain.update(sky.key, sun.castShadow);
       dome.follow(camera);
+      cull.aim(camera, sun.castShadow ? box : null);
     },
+    cull,
     shadow() {
       return sun.castShadow ? box : null;
     },

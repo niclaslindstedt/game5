@@ -14,7 +14,9 @@
 // anything — except PAUSE over the pause card, which is RESUME, because the
 // key that opened the card is the key a hand reaches for to close it; and
 // over a REPLAY, where nobody is riding, the camera walks the watching
-// ladder and PAUSE leaves the recording, the way Escape does. The SHUTTER
+// ladder and PAUSE leaves the recording, the way Escape does. The INSTANT
+// REPLAY answers over the run and over the pause card, which it hands the
+// run back to. The SHUTTER
 // and the HUD's switch are about the PICTURE and answer wherever a race is
 // on screen (`hudOver`): the held frame under the pause card — a menu-bar
 // row pressed there photographs the frozen race — and a replay, whose
@@ -43,6 +45,9 @@ export type RunActionWorld = {
   reset: () => void;
   /** Leave a recording being watched (`replay-run.ts`). */
   leave?: () => void;
+  /** The INSTANT REPLAY: the crash just taken, or the last few seconds,
+   * watched back and the run handed back (`replay-run.ts`). */
+  replay?: () => void;
   /** The shutter (`shot-request.ts`). */
   shoot: () => void;
   /** The readouts on or off — the same switch as OPTIONS ▸ HUD. */
@@ -70,6 +75,10 @@ export function createRunActions(world: RunActionWorld): (press: RunPress) => vo
     if (press === "pause") {
       if (shell === "run") world.pause();
       else if (shell === "pause") world.resume();
+      return;
+    }
+    if (press === "replay") {
+      if (shell === "run" || shell === "pause") world.replay?.();
       return;
     }
     if (shell !== "run") return;

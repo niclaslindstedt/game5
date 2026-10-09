@@ -4,7 +4,8 @@
 // paramotor's wing over a skier begun under it (`para-scene.ts`), the hot
 // air balloon a skier is begun in (`balloon-scene.ts`) and the
 // piste machines working the runs after dark (`groomer-scene.ts`), and the
-// village's cars, ski bus and bicycles (`traffic-view.ts`), held
+// village's cars, ski bus and bicycles (`traffic-view.ts`) and every
+// building's door (`doors-view.ts`), held
 // together so the renderer holds them by one hand: built per map with the
 // rest of the world (only where a run's rules carry them), the player's
 // figure seated on the skid or stood on the boards, each drawn every frame
@@ -35,6 +36,8 @@ import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
+import { createDoorsView, type DoorsView } from "./doors-view.ts";
+import type { ViewCull } from "./view-cull.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { Spray } from "./spray.ts";
@@ -75,7 +78,8 @@ export type Machines = {
   /** THE BALLOON'S BURNER AND FIRE and THE PISTE MACHINES' LAMPS lit at
    * `lit` and seen from `eye`, ahead of `floods` — the list the lamp slots
    * are dealt from (`dealLamps`); the balloon's fire is sorted for `eye`
-   * here, once the lens has settled. */
+   * here, once the lens has settled. The village's traffic is posed here
+   * too, only what the environment's cull leaves in sight. */
   lamps(lit: number, eye: THREE.Vector3, floods: readonly Flood[]): readonly Flood[];
   /** THE HOT AIR BALLOON as drawn (`balloon-scene.ts`), on a free ride —
    * what its burner's flame, its fire and its lens hang off. */
@@ -117,9 +121,10 @@ export type MachineSnow = {
 export function createMachines(
   level: Level,
   state: GameState,
-  haze: HazeUniforms,
+  env: { haze: HazeUniforms; cull?: ViewCull },
   fx: MachineSnow,
 ): Machines {
+  const haze = env.haze;
   const group = new THREE.Group();
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
@@ -158,6 +163,10 @@ export function createMachines(
   // a village: drawn where the engine has it, from the lens (`lamps`).
   const traffic: TrafficScene | null = createTrafficScene(level, haze);
   if (traffic) group.add(traffic.group);
+  // EVERY BUILDING'S DOOR (`doors-view.ts`), on every run whose map has a
+  // building: swung where the engine has it.
+  const doors: DoorsView | null = createDoorsView(level, haze);
+  if (doors) group.add(doors.group);
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
   let seated: SkisModel | null = null;
   let current: GameState = state;
@@ -224,6 +233,7 @@ export function createMachines(
       lastDt = dt;
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
+      doors?.update(s);
       if (s.gore && !rescue) {
         rescue = createRescueScene(level, haze);
         group.add(rescue.group);
@@ -248,7 +258,7 @@ export function createMachines(
       balloon?.lamps(eye, floods);
       rescue?.lamps(lit, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
-      traffic?.update(current, lit, eye, floods);
+      traffic?.update(current, lit, eye, floods, env.cull);
       if (floods.length === 0) return others;
       floods.push(...others);
       return floods;
@@ -296,6 +306,7 @@ export function createMachines(
       sled?.dispose();
       groomers?.dispose();
       traffic?.dispose();
+      doors?.dispose();
       para?.dispose();
       balloon?.dispose();
       rescue?.dispose();

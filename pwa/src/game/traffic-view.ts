@@ -4,7 +4,7 @@
 // (`traffic.ts`'s `vehicleAt`), and the cars parked in its bays: one
 // instanced mesh a kind and cut (`traffic-shapes.ts`: NEAR within
 // `TRAFFIC_CUTS.near` of the lens, with its arches, mirrors, plates and
-// wheels; FAR beyond it to `.far`), the snow, the roof boxes and the racks
+// wheels; FAR beyond it, DISTANT past `.distant` to `.far`), the snow, the roof boxes and the racks
 // instances of their own over the cars dealt them (`traffic-look.ts`), the
 // wheels one mesh turned by the ground they have rolled and steered by the
 // engine's turn, and the cyclists the crowd's own bodies in their winter
@@ -47,10 +47,15 @@ import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { lampLayout, lampLevels, vehicleLook, type VehicleLook } from "./traffic-look.ts";
 import { PEDAL_POSES, pedalDials, pedalTargets } from "./traffic-rider.ts";
 import { buildBikeWheel, buildVehicle, buildWheel, type TrafficCut } from "./traffic-shapes.ts";
+import type { ViewCull } from "./view-cull.ts";
 
 /** Where the cuts hand over, m from the lens: the near cut and its wheels
- * and riders, the far cut to the last; a bicycle past `bike` is not drawn. */
-export const TRAFFIC_CUTS = { near: 90, far: 900, bike: 260, rider: 40 };
+ * and riders, the far cut to `distant`, the distant cut to the last; a
+ * bicycle past `bike` is not drawn. */
+export const TRAFFIC_CUTS = { near: 90, distant: 240, far: 900, bike: 260, rider: 40 };
+/** The height of the cull's bound (`view-cull.ts`) over a vehicle's
+ * middle on the road, m: the bus's roof and a roof box's over a car's. */
+const VEHICLE_TOP = 3.6;
 
 /** How many cars' dipped beams are dealt lamp slots, and within how far of
  * the lens, m. */
@@ -70,7 +75,7 @@ export type TrafficScene = {
   /** Every vehicle where it is at the run's clock, seen from `eye` with
    * its lamps lit at `lit` (`SkyLook.lamps`), and THE NEAREST CARS'
    * DIPPED BEAMS pushed into `out`. */
-  update(state: GameState, lit: number, eye: THREE.Vector3, out: Flood[]): void;
+  update(state: GameState, lit: number, eye: THREE.Vector3, out: Flood[], cull?: ViewCull): void;
   /** Every vehicle near the lens as the box it keeps out of. */
   solids(): readonly SolidBox[];
   dispose(): void;
@@ -210,8 +215,8 @@ export function createTrafficScene(level: Level, haze: HazeUniforms): TrafficSce
   for (const kind of [...CAR_KINDS, "bike" as const]) {
     const n = count(kind);
     if (n === 0) continue;
-    for (const cut of ["near", "far"] as TrafficCut[]) {
-      if (kind === "bike" && cut === "far") continue;
+    for (const cut of ["near", "far", "distant"] as TrafficCut[]) {
+      if (kind === "bike" && cut !== "near") continue;
       const g = buildVehicle(kind, cut);
       bodies.set(`${kind}:${cut}`, slot(g.body, n, `traffic-${kind}-${cut}`, cut === "near"));
       if (cut === "near") {
@@ -423,7 +428,7 @@ export function createTrafficScene(level: Level, haze: HazeUniforms): TrafficSce
   const off: readonly number[] = [0, 0, 0, 0];
   return {
     group,
-    update(state, lit, eye, out) {
+    update(state, lit, eye, out, cull) {
       const t = state.t;
       dark = lit;
       used = 0;
@@ -446,12 +451,16 @@ export function createTrafficScene(level: Level, haze: HazeUniforms): TrafficSce
         if (dist > (bike ? TRAFFIC_CUTS.bike : TRAFFIC_CUTS.far)) return;
         const near = bike || dist < TRAFFIC_CUTS.near;
         drawn.push(d);
+        d.far = dist;
+        // Out of sight: still a solid and a beam, never posed or drawn.
+        const V = VEHICLES[d.kind];
+        if (cull && !cull.seen(d.x, d.y, d.z, V.length / 2 + 0.5, VEHICLE_TOP, near)) return;
         if (used === pool.length) pool.push(new THREE.Matrix4());
         const body = place(d, pool[used++]);
-        d.far = dist;
         if (d.pose) lampLevels(d.pose, dark, t + (i ?? 0) * 0.13, levels);
         const l = d.pose ? levels : off;
-        put(bodies.get(`${d.kind}:${near ? "near" : "far"}`), body, d.look.paint, l);
+        const cut = near ? "near" : dist < TRAFFIC_CUTS.distant ? "far" : "distant";
+        put(bodies.get(`${d.kind}:${cut}`), body, d.look.paint, l);
         if (d.pose && dark > 0.02) glowOf(d, body, l);
         if (!near) return;
         if (d.look.snow !== "none")

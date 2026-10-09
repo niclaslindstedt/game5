@@ -14,6 +14,7 @@
 // shell (§23.2), and there are none.
 
 import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
+import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import {
   airflowAt,
@@ -309,6 +310,8 @@ export type HudSnapshot = {
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
+  /** A BUILDING'S DOOR before him (`door-hud.ts`): the press opens or shuts it. */
+  door: HudDoor | null;
   /** THE BUZZ, 0 sober to 1 (`SkierState.buzz`): the meter shows over 0. */
   buzz: number;
   /** HOW FAR THE CHROME IS DIPPED, 0..1 — the HUD's NIGHT DRESSING, the
@@ -712,6 +715,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     para: paraOf(state),
     balloon: balloonOf(state),
     afterski: balloonAboard(state) ? null : afterskiOf(state),
+    door: balloonAboard(state) ? null : doorCallOf(state),
     buzz: c.buzz ?? 0,
     dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,
   };

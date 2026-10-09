@@ -47,6 +47,7 @@
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
+import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
@@ -208,6 +209,8 @@ const ny = new Float64Array(N);
 const nz = new Float64Array(N);
 const n: Vec3 = { x: 0, y: 1, z: 0 };
 const near: number[] = [];
+const wallAt = { x: 0, z: 0 };
+const wallHit = wallTouch();
 
 /** One step of the body: gravity, the joints, the snow, the trunks. Keeps
  * `b`'s centre, velocity, tumble, `touching` and `still` up to date. */
@@ -271,7 +274,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
       P[j + 2] = clamp(P[j + 2], lo, hi);
       for (const t of near) {
         const tree = solids[t];
-        if (P[j + 1] > tree.y + tree.height) continue;
+        // A building's wall is met as the wall, below — never its posts.
+        if (tree.wall || P[j + 1] > tree.y + tree.height) continue;
         const dx = P[j] - tree.x;
         const dz = P[j + 2] - tree.z;
         const d = hypot(dx, dz) || 1e-6;
@@ -289,6 +293,25 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
     }
   }
   if (b.pin) pinned(P, L, b.pin);
+  // THE WALLS (`building-walls.ts`): every point held out of every slab,
+  // the way it came this step asked too, so no throw carries him through.
+  for (let i = 0; i < N; i++) {
+    const j = 3 * i;
+    wallAt.x = P[j];
+    wallAt.z = P[j + 2];
+    holdOutOfWalls(state, L[j], L[j + 2], wallAt, P[j + 1], RADIUS[i], wallHit);
+    if (!wallHit.met) continue;
+    const closing = -((P[j] - L[j]) * wallHit.nx + (P[j + 2] - L[j + 2]) * wallHit.nz) / dt;
+    if (closing > struck[i]) struck[i] = closing;
+    P[j] = wallAt.x;
+    P[j + 2] = wallAt.z;
+    // The way into the wall gone, as the snow takes the way into it.
+    const into = (P[j] - L[j]) * wallHit.nx + (P[j + 2] - L[j + 2]) * wallHit.nz;
+    if (into < 0) {
+      L[j] += into * wallHit.nx;
+      L[j + 2] += into * wallHit.nz;
+    }
+  }
   // Along the snow: what every point on it loses of its way.
   let touching = false;
   let planted = 0;

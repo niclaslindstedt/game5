@@ -50,13 +50,33 @@
   pointer-events: auto;
 }
 
-.hud-afterski-word {
+/* A BUILDING'S DOOR (`door-hud.ts`): the press that opens or shuts it,
+   where the lodge's call stands. */
+.hud-door.hud-machine-press {
+  position: absolute;
+  bottom: 7%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-ink);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: auto;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-afterski-word,
+.hud-door-word {
   font-size: clamp(0.9rem, 3vmin, 1.4rem);
   font-weight: 800;
   letter-spacing: 0.1em;
 }
 
-.hud-afterski-sub {
+.hud-afterski-sub,
+.hud-door-sub {
   margin-top: 0.15rem;
   font-size: clamp(0.66rem, 2vmin, 0.9rem);
   font-weight: 700;

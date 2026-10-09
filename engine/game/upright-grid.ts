@@ -29,6 +29,13 @@ export type Upright = {
   height: number;
   radius: number;
   stuff?: Stuff;
+  /** One of a building's walls stood as a post (`building-walls.ts`'s
+   * `cabinWalls`): met by a skier and his thrown body as the wall itself,
+   * so they pass the post over. */
+  wall?: true;
+  /** The id of the building whose DOOR this post shuts: no solid while
+   * the run has that door open (`building-walls.ts`'s `standing`). */
+  door?: string;
 };
 
 type Grid = { cells: Map<number, number[]>; maxRadius: number };

@@ -41,8 +41,8 @@
 //
 // NOT THE HELICOPTER COMING DOWN WITH HIM ON IT (`wrecked`): there is
 // nothing inside him worth the look, and the crash's own lens
-// (`camera-crash.ts`) has the machine blowing up first and then him flung
-// out of it — the director leaves that fall alone.
+// (`camera-crash.ts`) holds on the machine blowing up and never goes after
+// him — the director leaves that fall alone.
 //
 // ONLY A FALL HE DIES OF is shot: the read ahead says whether the blow
 // (and the tumble after it) will be mortal, and a blow it missed starts the

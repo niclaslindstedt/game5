@@ -61,6 +61,10 @@ export type RunRules = {
    * to and stopped at, the machine press takes him in for a beer. Left
    * out, they are shut. */
   afterski?: boolean;
+  /** WHETHER A BUILDING'S DOOR OPENS ON THE MACHINE PRESS (`doorway.ts`):
+   * stopped at one, the skier reaches for its lever and goes through. On a
+   * FREE RIDE only; left out, every door stays shut. */
+  doors?: boolean;
   /** WHETHER THE PISTE MACHINES WORK THE RUNS AT NIGHT (`groomer.ts`):
    * driven into, one is the player's to drive. On a FREE RIDE only. */
   groomer: boolean;

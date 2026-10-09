@@ -283,6 +283,14 @@ export const RESORT_BUILDINGS: Readonly<Record<ResortKind, CabinDef>> = {
   },
 };
 
+/** THE CHURCH'S TOWER, m: its side (a square standing inside the front of
+ * the church's footprint, the nave behind it), its shaft to the belfry's
+ * sill, the belfry, the spire's point, all over the floor; and the stone
+ * plinth's top over the floor either side of it, before the nave. The
+ * drawing (`village-town.ts`) and the walls (`building-walls.ts`) both
+ * stand it so. */
+export const CHURCH_TOWER = { side: 5, shaft: 15, belfry: 19.5, spire: 30.5, plinth: 0.4 } as const;
+
 /** Where the ski area's buildings stand, m and shares (`resort-buildings.ts`).
  *   * `hotels`: how many hotel blocks a village is dealt, the least and the
  *     most.

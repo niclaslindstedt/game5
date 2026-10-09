@@ -191,6 +191,12 @@ describe("the piste-head signs (run-sign-plan.ts)", () => {
         expect(b.name).toBe(runName(level, run));
         expect(b.lane).toBe(run.kind === "road");
         expect(b.width).toBe(b.lane ? SIGN.lane.width : SIGN.board.width);
+        // A sign down on the runs is a plain plank, never an arrow.
+        expect(b.point).toBeUndefined();
+      }
+      // A lift top's are all arrows, pointing left or right.
+      for (const b of summitSigns(level).flatMap((p) => p.boards)) {
+        expect(["left", "right"]).toContain(b.point);
       }
       for (const p of posts) {
         expect(Number.isFinite(p.y)).toBe(true);

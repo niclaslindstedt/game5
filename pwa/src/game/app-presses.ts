@@ -7,7 +7,8 @@
 import type { CreateGameOptions, GameMode } from "@engine";
 
 import type { PinnedLevel } from "./pinned.ts";
-import type { TrickMap } from "./trick-maps.ts";
+import type { ReplayFrom } from "./replay.ts";
+import type { TrickMap, TrickRun } from "./trick-maps.ts";
 
 /** The presses the cards make, boxed so a card re-rendering is never a
  * reason to rebuild the loop that owns the race. */
@@ -16,10 +17,7 @@ export type Presses = {
   free: (options: CreateGameOptions) => void;
   /** A TRICKS run on a trick map (`trick-maps.ts`), or a BIG AIR contest
    * built over one. */
-  tricks: (
-    map: TrickMap,
-    mode?: "tricks" | "bigAir" | "slopestyle" | "halfpipe" | "moguls" | "aerials",
-  ) => void;
+  tricks: (map: TrickMap, mode?: TrickRun) => void;
   /** A pinned map off the level card. */
   pinned: (pin: PinnedLevel, mode: PinnedLevel["mode"]) => void;
   restart: () => void;
@@ -30,7 +28,9 @@ export type Presses = {
   toMenu: () => void;
   abandonLoad: () => void;
   camera: () => void;
-  watch: () => void;
+  /** Watch the run so far (`replay-run.ts`), and hand it back. */
+  watch: (from?: ReplayFrom) => void;
+  unwatch: () => void;
   shot: () => void;
 };
 
@@ -47,5 +47,6 @@ export const NO_PRESSES: Presses = {
   abandonLoad: () => {},
   camera: () => {},
   watch: () => {},
+  unwatch: () => {},
   shot: () => {},
 };

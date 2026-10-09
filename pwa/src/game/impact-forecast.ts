@@ -59,8 +59,8 @@ export type Forecast = {
   /** What he dies of, as the read ahead found it (null: he lives). */
   cause: DeathCause | null;
   /** Whether it is the helicopter coming down with him on it: no cam of
-   * the director's at all — the crash's own lens (`camera-crash.ts`) has
-   * the explosion first and then follows him flung out of it. */
+   * the director's at all — the crash's own lens (`camera-crash.ts`) holds
+   * on the machine going up and never goes after him. */
   wrecked: boolean;
 };
 

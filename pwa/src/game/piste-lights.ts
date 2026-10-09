@@ -27,6 +27,7 @@ import * as THREE from "three";
 import { PISTE_MAST, type Level } from "@engine";
 
 import { hazeMaterial, PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
+import { InstanceReach } from "./instance-reach.ts";
 import {
   bakePisteLight,
   planPisteLights,
@@ -57,8 +58,16 @@ export type PisteLights = {
   /** Light them at `dark` (0 off … 1 full night), with `pixels` the lens's
    * focal length in pixels. */
   setLamps(dark: number, pixels: number): void;
+  /** Draw the masts within reach of `eye` (`MAST_REACH`), and their lamp
+   * housings within the nearer `HEAD_REACH`; the haloes carry the lamps
+   * past that after dark. */
+  near(eye: THREE.Vector3): void;
   dispose(): void;
 };
+
+/** How far off a mast is drawn, and a lamp's housing and glass, m. */
+export const MAST_REACH = 1200;
+export const HEAD_REACH = 600;
 
 /** The halo's shader: a quad turned to the lens at each glass, at least
  * `uMinPx` wide, bright seen from in front of the lamp and nothing from
@@ -235,6 +244,18 @@ export function createPisteLights(
     mesh.computeBoundingSphere();
     group.add(mesh);
   }
+  const reaches = [
+    new InstanceReach(
+      [poles, arms],
+      Float32Array.from(masts.flatMap((m) => [m.x, m.y + m.height / 2, m.z])),
+      MAST_REACH,
+    ),
+    new InstanceReach(
+      [heads, glasses],
+      Float32Array.from(lamps.flatMap((l) => [l.x, l.y, l.z])),
+      HEAD_REACH,
+    ),
+  ];
 
   // THE HALOES: one quad a glass, turned to the lens in the shader.
   const quad = new THREE.PlaneGeometry(1, 1);
@@ -276,6 +297,9 @@ export function createPisteLights(
         texture = uploadLight(level, baked, haze);
       }
       haze.uPisteOn.value.x = texture ? on * LUX_TO_LAMP : 0;
+    },
+    near(eye) {
+      for (const r of reaches) r.update(eye);
     },
     dispose() {
       for (const g of geos) g.dispose();

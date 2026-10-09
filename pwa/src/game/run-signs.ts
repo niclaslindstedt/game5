@@ -8,13 +8,12 @@
 // its left — the grade's shape in its colour (`grade-look.ts`: the green
 // circle, the blue square, the red rectangle, the black diamond) with the
 // run's number in white on it, outlined with the iron — then the NAME burned
-// black in the country's own hand, measured to the board, and an ARROW
-// burned at the right the way the run goes from where the sign stands. A
-// lane's board is the same plank, smaller. The board has a thickness of end
-// grain round it and a bare back; the post is a square timber. A chair
-// top's board is CUT AS AN ARROW (`SignBoard.point`): the plank pointed at
-// one end and standing off its post that way, the board its own arrow, so
-// nothing is burned at its point.
+// black in the country's own hand, measured to the board — and no arrow:
+// a sign down on the runs is a plain plank. A lane's board is the same
+// plank, smaller. The board has a thickness of end grain round it and a
+// bare back; the post is a square timber. A lift top's board is CUT AS AN
+// ARROW (`SignBoard.point`): the plank pointed at one end and standing off
+// its post that way, the board itself the arrow, so nothing is burned on it.
 //
 // LIT AS WOOD IS LIT: nothing on a board glows. The print is the albedo and,
 // read again by its red channel, the BUMP — the burned letters and the grain
@@ -34,7 +33,7 @@ import type { Level } from "@engine";
 
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
-import { SIGN, signPlan, summitSigns, type SignArrow, type SignBoard } from "./run-sign-plan.ts";
+import { SIGN, signPlan, summitSigns, type SignBoard } from "./run-sign-plan.ts";
 import { SIGN_FALLBACK, signLookOf, type SignLook } from "./sign-look.ts";
 
 /** One board's cell in the atlas, px — the boards' own 4 : 1. */
@@ -47,15 +46,6 @@ const POST = { half: 0.055, over: 0.12 };
  * plank's thickness, m. */
 const FACE = 0.1;
 const THICK = 0.035;
-
-/** The arrow's angle on the board, rad from pointing up, clockwise. */
-const ARROW_ANGLE: Readonly<Record<SignArrow, number>> = {
-  ahead: 0,
-  aheadRight: Math.PI / 4,
-  right: Math.PI / 2,
-  aheadLeft: -Math.PI / 4,
-  left: -Math.PI / 2,
-};
 
 /** The burn: the char at the heart of a stroke, and the scorch it browns
  * the wood with round it. */
@@ -212,31 +202,6 @@ function plank(
   g.restore();
 }
 
-/** The arrow burned at (ax, ay), `s` its half-length, turned the run's way. */
-function arrow(
-  g: CanvasRenderingContext2D,
-  ax: number,
-  ay: number,
-  s: number,
-  way: SignArrow,
-): void {
-  burn(g, () => {
-    g.save();
-    g.translate(ax, ay);
-    g.rotate(ARROW_ANGLE[way]);
-    g.lineCap = g.lineJoin = "round";
-    g.lineWidth = s * 0.34;
-    g.beginPath();
-    g.moveTo(0.02 * s, s * 0.92);
-    g.quadraticCurveTo(-0.05 * s, 0.1 * s, 0, -s * 0.82);
-    g.moveTo(-s * 0.62, -s * 0.2);
-    g.lineTo(0, -s * 0.86);
-    g.lineTo(s * 0.6, -s * 0.24);
-    g.stroke();
-    g.restore();
-  });
-}
-
 /** One board's print into its cell at (x0, y0). */
 function printBoard(
   g: CanvasRenderingContext2D,
@@ -302,16 +267,10 @@ function printBoard(
   g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
   g.restore();
 
-  // THE ARROW at the right — the board's own point, on an arrow board.
-  const s = h * 0.3;
-  const ax = hi - pad - s * 0.9;
-  const ay = y0 + h / 2;
-  if (!b.point) arrow(g, ax, ay, s, b.arrow);
-
-  // THE NAME between them, as big as the room lets it be, centred on its
-  // own ink rather than on the face's em box — each hand sits differently.
+  // THE NAME after it, as big as the room lets it be, centred on its own
+  // ink rather than on the face's em box — each hand sits differently.
   const left = mx + box + 16;
-  const room = (b.point ? hi - pad : ax - s * 0.75 - 14) - left;
+  const room = hi - pad - left;
   const text = look.caps ? b.name.toUpperCase() : b.name;
   let size = h * 0.9;
   g.font = `${size}px ${font}`;

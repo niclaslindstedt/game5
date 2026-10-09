@@ -313,6 +313,15 @@ export function chairFarGeometry(): THREE.BufferGeometry {
   return s.geometry();
 }
 
+/** A CHAIR ACROSS THE VALLEY: its seat and back alone, the hanger too
+ * thin to see that far (`CHAIR_DISTANT` in `lifts.ts`). */
+export function chairDistantGeometry(): THREE.BufferGeometry {
+  const s = new Shape();
+  s.box(2.24, 0.12, 0.58, 0, CUSHION - 0.06, -0.07, P.cushion);
+  s.box(2.24, 0.62, 0.1, 0, CUSHION + 0.31, CHAIR_BACK - 0.05, P.seat);
+  return s.geometry();
+}
+
 /** A CABIN AT RANGE: the hanger and the lofted body with its window
  * band, nothing hung on it. */
 export function cabinFarGeometry(): THREE.BufferGeometry {

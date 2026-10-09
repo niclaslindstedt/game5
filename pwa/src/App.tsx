@@ -23,10 +23,10 @@
 // bot's race under a card is armed with nothing.
 //
 // THE PINNED MAPS (`pinned-run.ts`): a RACE rides a pinned map.
-// THE REPLAY (`replay-run.ts`): the same runs are recorded as the controls
-// that rode them, and WATCH REPLAY on the finish plate or the pause card
-// rebuilds the race and steps it off the tape under the `replay` surface —
-// on the broadcast camera, in slow motion where the director says so.
+// THE REPLAY (`replay-run.ts`): every run the player rides is recorded as the
+// controls that rode it, and WATCH REPLAY (the finish plate, the pause card,
+// the offer after a crash, V) stands a copy up under the `replay` surface,
+// sets the run aside and hands it back to the surface it was watched from.
 //
 // THE URL: every parameter the app reads is listed in `game/url-params.ts`.
 // A URL that names a race (`start`, `shot`, `paused`) boots into one;
@@ -67,14 +67,15 @@ import {
 
 import { connectOutput } from "./output-bridge.ts";
 import { onShellCommand, shellContent } from "./shell-host.ts";
-import { createRunAudio, setAudioVolumes, unlockAudio } from "./game/audio/index.ts";
+import { createRunAudio, setAudioVolumes } from "./game/audio/index.ts";
+import { watchCanvas } from "./game/app-canvas.ts";
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
 import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
 import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
 import { carriesPoles } from "./game/outfit.ts";
 import { mapPicks } from "./game/map-picks.ts";
-import { trickMapFor, tricksTile } from "./game/trick-maps.ts";
+import { isTrickRun, trickMapFor, tricksTile } from "./game/trick-maps.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
 import {
   FIRST_FREE_SEED,
@@ -98,8 +99,9 @@ import { deathOver } from "./game/hud-wreck.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
+import { ReplayOffer } from "./game/hud-replay-offer.tsx";
 import { createXrayRun, dying, xrayHud } from "./game/xray-run.ts";
-import { createReplayRun, type ReplayBarFacts } from "./game/replay-run.ts";
+import { createReplayRun, type ReplayBarFacts, type ReplayRun } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
 import { createInputManager, type InputManager } from "./game/input.ts";
 import { watchMachineTaps } from "./game/machine-tap.ts";
@@ -232,10 +234,12 @@ export function App() {
   const stats = useStats();
   useCloudSync({ settings, setSettings, book: bookRef, shell });
   const [input, setInput] = useState<InputManager | null>(null);
-  /** The bar over a recording, and whether there is one worth offering —
-   * both refreshed on the HUD's tick, never per frame. */
+  /** The bar over a recording, and whether one (or the crash just taken) is
+   * worth offering — refreshed on the HUD's tick, never per frame. */
   const [replayBar, setReplayBar] = useState<ReplayBarFacts | null>(null);
   const [canReplay, setCanReplay] = useState(false);
+  const [crashReplay, setCrashReplay] = useState(false);
+  const replayRef = useRef<ReplayRun | null>(null);
   const [touch] = useState(hasTouch);
   const [keys] = useState(
     () => typeof matchMedia === "undefined" || matchMedia("(pointer: fine)").matches,
@@ -283,12 +287,12 @@ export function App() {
     manager.onLook((dx, dy) => renderer.lookAround(dx, dy));
     const book = createRunBook({ show: (ghost) => renderer.setGhost(ghost) });
     bookRef.current = book;
-    const replays = createReplayRun({
+    const replays = (replayRef.current = createReplayRun({
       renderer,
-      adopt: (s) => adopt(s),
+      show: (s) => show(s),
       shell: () => shellRef.current,
-    });
-    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current.keys);
+    }));
+    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -399,20 +403,24 @@ export function App() {
       setShell(next);
       title.shellIs(next);
       renderer.setCamera(cameraFor(next, settingsRef.current.camera));
+      hudClock = HUD_TICK; // the readouts at once, never a tick late
     };
 
-    /** A new race has taken over the engine: everything that belonged to
-     * the one before it goes with it. */
-    const adopt = (next: GameState, ticket: RunTicket | null = null): void => {
+    /** A state on screen as the one the loop steps, nothing armed (a replay's). */
+    const show = (next: GameState): void => {
       state = next;
-      book.arm(next, ticket);
-      stats.rig.arm(next, mode);
-      replays.arm(next, ticket ? mode : null);
-      setMapSeed(next.seed);
       live.length = 0;
-      for (const k of Object.keys(tally)) delete tally[k];
       audio.reset();
       runRumble.reset();
+    };
+    /** A new race takes the engine, and all of the last one's goes with it. */
+    const adopt = (next: GameState, ticket: RunTicket | null = null, rides = false): void => {
+      show(next);
+      book.arm(next, ticket);
+      stats.rig.arm(next, mode);
+      replays.arm(next, rides ? mode : null);
+      setMapSeed(next.seed);
+      for (const k of Object.keys(tally)) delete tally[k];
     };
 
     /** What this step is ridden on: the player's hands on a run, and the BOT
@@ -442,7 +450,7 @@ export function App() {
       // ON THE TAPE'S GRID whoever is riding (`ghost.ts`), and written down.
       const input = snapInput(replays.input() ?? inputFor());
       step(state, input);
-      book.step(input, state.events);
+      if (!watching(shellRef.current)) book.step(input, state.events);
       replays.step(input, state);
       xray.step(state);
       for (const e of state.events) tally[e.kind] = (tally[e.kind] ?? 0) + 1;
@@ -464,7 +472,8 @@ export function App() {
     // the player waits for another), or the race a link names — already
     // `t` seconds in, ridden by the bot.
     // A link's race is the player's, and filed — unless the bot pre-rides it.
-    adopt(state, params.rides && params.t === 0 && !params.hold ? ticketFor(state) : null);
+    const linkTicket = params.rides && params.t === 0 && !params.hold ? ticketFor(state) : null;
+    adopt(state, linkTicket, params.rides);
     if (params.rides && params.t > 0) {
       preroll = true;
       const steps = Math.round(params.t * TUNING.physicsHz);
@@ -485,7 +494,7 @@ export function App() {
 
     /* ── STANDING A RACE UP ────────────────────────────────────────────── */
     const loader = createLoader(
-      { renderer: view, adopt: (s) => adopt(s, ticketFor(s)), current: () => state },
+      { renderer: view, adopt: (s) => adopt(s, ticketFor(s), true), current: () => state },
       {
         phase: setLoadingPhase,
         start: () => {
@@ -500,7 +509,6 @@ export function App() {
       setLoadLeaving(true);
       setShellNow("run");
       clock.resume();
-      hudClock = HUD_TICK;
       window.setTimeout(() => setLoadLeaving(false), LOAD_FADE_MS);
     };
 
@@ -515,11 +523,10 @@ export function App() {
       const next = free
         ? createGame(free)
         : (pinned.again() ?? playerGame(state.level, state.seed));
-      adopt(next, ticketFor(next));
+      adopt(next, ticketFor(next), true);
       frozen = false;
       clock.resume();
       setShellNow("run");
-      hudClock = HUD_TICK;
     };
 
     const pinned = createPinnedRuns({
@@ -595,14 +602,22 @@ export function App() {
       second: pinned.second,
       pause: () => {
         if (canPause(shellRef.current)) setShellNow("pause");
-        else if (watching(shellRef.current)) pressRef.current.toMenu();
+        else if (watching(shellRef.current)) pressRef.current.unwatch();
       },
-      watch: () => {
-        if (loader.busy() || !replays.watch()) return;
+      watch: (from = "start") => {
+        const back = shellRef.current === "pause" ? "pause" : "run";
+        if (loader.busy() || !replays.watch(from, state, back)) return;
+        renderer.setGhost(null);
         frozen = false;
         clock.resume();
         setShellNow("replay");
-        hudClock = HUD_TICK;
+      },
+      unwatch: () => {
+        const out = replays.leave();
+        if (!out) return;
+        show(out.state);
+        renderer.setGhost(book.ghost());
+        setShellNow(out.back);
       },
       resume: () => {
         if (shellRef.current === "pause") setShellNow("run");
@@ -642,7 +657,8 @@ export function App() {
       restart,
       camera: () => pressRef.current.camera(),
       reset: () => manager.requestReset(),
-      leave: () => pressRef.current.toMenu(),
+      leave: () => pressRef.current.unwatch(),
+      replay: () => pressRef.current.watch(replays.crash() ? "crash" : "recent"),
       shoot: shots.take,
       toggleHud: () => setSettings((s) => ({ ...s, hud: !s.hud })),
     });
@@ -701,18 +717,17 @@ export function App() {
       const simAt = performance.now();
       if (shown) holdRide(state, () => renderer.draw(state, 0, 1 / 60, false));
       if (!frozen && !held && shown) {
-        const steps = clock.frame(dtRun);
+        const steps = replays.cap(clock.frame(dtRun));
         for (let i = 0; i < steps; i++) stepOnce();
-        if (replays.over()) pressRef.current.toMenu();
         // DIED (`hud-wreck.ts`): a new rider (`againAt`) once the dark is down.
-        else if (playerRides(shellRef.current) && deathOver(state)) restart();
+        if (playerRides(shellRef.current) && deathOver(state)) restart();
       } else {
         // Held: the controls are still read, so a banked reset does not fire on the thaw.
         manager.sample(TUNING.dt);
       }
       devRig.frame(frameMs, dtFrame, performance.now() - simAt);
       if (!shown || !appDraws(shellRef.current)) return;
-      const still = frozen || held || clock.paused();
+      const still = frozen || held || clock.paused() || rate === 0;
       const quiet = !playerRides(shellRef.current) && !loader.busy() && !still && title.raced();
       const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet);
       const drawAt = performance.now();
@@ -755,6 +770,7 @@ export function App() {
         setFlashes(live.map(({ id, text, tone }) => ({ id, text, tone })));
         setReplayBar(replays.bar());
         setCanReplay(replays.offers());
+        setCrashReplay(replays.crash());
         devRig.tick();
         if (clock.paused() !== awayRef.current) {
           awayRef.current = clock.paused();
@@ -778,20 +794,7 @@ export function App() {
       setAway(awayRef.current);
     };
     document.addEventListener("visibilitychange", onVisibility);
-    // A browser makes no sound before the player has touched something, so the unlock
-    // hangs off real gestures only — captured, so a card cannot swallow it.
-    const unlockOpts = { capture: true, passive: true } as const;
-    document.addEventListener("pointerdown", unlockAudio, unlockOpts);
-    document.addEventListener("keydown", unlockAudio, unlockOpts);
-    // The canvas's size is the renderer's own business: it is handed the
-    // box it draws into and told again whenever the box changes.
-    const fit = (): void => {
-      const box = canvas.getBoundingClientRect();
-      renderer.resize(box.width, box.height, Math.min(2, devicePixelRatio || 1));
-    };
-    const observer = new ResizeObserver(fit);
-    observer.observe(canvas);
-    fit();
+    const stopCanvas = watchCanvas(canvas, renderer);
     // A tap on the snowmobile or the helicopter beside him gets him on.
     const stopTaps = watchMachineTaps(canvas, {
       ray: (x, y) => renderer.pickRay(x, y),
@@ -803,12 +806,10 @@ export function App() {
     return () => {
       cancelAnimationFrame(raf);
       audio.silence();
-      observer.disconnect();
+      stopCanvas();
       stopTaps();
       xray.dispose();
       document.removeEventListener("visibilitychange", onVisibility);
-      document.removeEventListener("pointerdown", unlockAudio, unlockOpts);
-      document.removeEventListener("keydown", unlockAudio, unlockOpts);
       walk.stop();
       devRig.dispose();
       stopShellCommands();
@@ -840,15 +841,7 @@ export function App() {
     // ...and a BIG AIR contest, a SLOPESTYLE run, a HALFPIPE, MOGULS or
     // AERIALS on the same card's map, its venue built over it.
     const m = modeRef.current;
-    if (
-      (m === "tricks" ||
-        m === "bigAir" ||
-        m === "slopestyle" ||
-        m === "halfpipe" ||
-        m === "moguls" ||
-        m === "aerials") &&
-      params.seed === null
-    ) {
+    if (isTrickRun(m) && params.seed === null) {
       return pressRef.current.tricks(trickMapFor(settings.trickMap), m);
     }
     // The tricks run is ridden on the map the menu stands over.
@@ -909,8 +902,15 @@ export function App() {
         <ReplayBar
           {...replayBar}
           touch={touch}
-          onCamera={() => pressRef.current.camera()}
-          onLeave={() => pressRef.current.toMenu()}
+          controls={replayRef.current!}
+          onLeave={() => pressRef.current.unwatch()}
+        />
+      )}
+      {shell === "run" && crashReplay && (
+        <ReplayOffer
+          touch={touch}
+          keyLabel={boundLabel(settings.keys.replay)}
+          onWatch={() => pressRef.current.watch("crash")}
         />
       )}
       <ResultPlate

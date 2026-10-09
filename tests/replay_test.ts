@@ -202,14 +202,20 @@ describe("the replay reaches the same flag", () => {
     expect(again.finish).toEqual(rec.ride.finish);
   });
 
-  it("keeps no tape of a free ride or of a run already under way", () => {
+  it("keeps a tape of a free ride, and none of a run armed for nobody", () => {
     const rig = createReplayRig();
-    rig.arm(createGame({ level, seed: 3, mode: "free", quiet: true }), "free");
-    expect(rig.offers()).toBe(false);
-    const late = createGame({ level, seed: 3, mode: "slalom", quiet: true });
-    step(late, botInput(late));
-    rig.arm(late, "slalom");
-    rig.step(botInput(late), late);
+    const free = createGame({ level, seed: 3, mode: "free", quiet: true });
+    rig.arm(free, "free");
+    for (let i = 0; i < HZ; i++) {
+      const input = botInput(free);
+      step(free, input);
+      rig.step(input, free);
+    }
+    expect(rig.offers()).toBe(true);
+    expect(rig.open()).not.toBeNull();
+    const idle = createGame({ level, seed: 3, mode: "slalom", quiet: true });
+    rig.arm(idle, null);
+    rig.step(botInput(idle), idle);
     expect(rig.offers()).toBe(false);
     expect(rig.open()).toBeNull();
   });

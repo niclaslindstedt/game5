@@ -78,6 +78,7 @@ import { envelopeOf } from "./defs/skis.ts";
 import { GRIMBEAR } from "./defs/grimbear.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { buzzLimit } from "./buzz.ts";
+import { carriedThrough } from "./flight.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import { tailDug } from "./switch.ts";
@@ -353,7 +354,11 @@ export function throwRider(
   // it.
   const side = fallSide(state, cause, heading, events);
   const own = rotate(c.q, { x: c.wx, y: c.wy, z: c.wz });
-  const thrown = throwOf(cause, c.q, c.x, c.y, c.z, v0, heading, side, own);
+  // A landing past what the legs can stop drives the body on down into the
+  // snow: the trunk and the head meet it themselves (`body.ts`).
+  const land = cause === "landing" ? events.find((ev) => ev.kind === "land") : undefined;
+  const sink = land && land.kind === "land" ? carriedThrough(land.impact, land.g) : 0;
+  const thrown = throwOf(cause, c.q, c.x, c.y, c.z, v0, heading, side, own, sink);
   if (cause === "nose") {
     // The tips dig and the skis go over them: a tips-down pitch rate is a
     // positive `wx`.
@@ -372,7 +377,8 @@ export function throwRider(
  * A BODY THROWN off its skis by `cause`: stood at `q` with its centre of
  * gravity at (`x`, `y`, `z`), going at `v0`, along `heading`, over onto
  * `side` (−1 left, 1 right), turning at `own` (world frame) — the turn it
- * goes over with read off `crash.over`. The player's (`throwRider`) and an
+ * goes over with read off `crash.over` — and coming on down at `sink` m/s
+ * where a landing's legs could not stop it (`carriedThrough`). The player's (`throwRider`) and an
  * amateur's of the crowd (`crowd.ts`) alike; no skis let go yet.
  */
 export function throwOf(
@@ -385,6 +391,7 @@ export function throwOf(
   heading: number,
   side: number,
   own: Vec3,
+  sink = 0,
 ): Thrown {
   const flat = hypot(v0.x, v0.z);
   const how = K.over[cause];
@@ -400,7 +407,8 @@ export function throwOf(
     y: own.y * K.carry,
     z: (-fx * pitch + fz * roll) * cap + own.z * K.carry,
   };
-  const v = { x: v0.x * K.keep, y: Math.max(0, v0.y) * K.keep + how.up, z: v0.z * K.keep };
+  const up = sink > 0 ? -sink : Math.max(0, v0.y) * K.keep + how.up;
+  const v = { x: v0.x * K.keep, y: up, z: v0.z * K.keep };
   return bodyThrown(cause, q, x, y, z, v, w, heading);
 }
 

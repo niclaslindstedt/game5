@@ -39,7 +39,6 @@ import {
 } from "@engine";
 
 import type { LineClear, Trunk, TrunksNear, Vec3 } from "./camera-rigs.ts";
-import { layStations } from "./station-plan.ts";
 import { ARCH, archPlan } from "./start-arch.ts";
 
 /** How far off any solid the lens is kept, m — a near plane's worth and a
@@ -74,11 +73,6 @@ export type LineClearOptions = {
    * frame (`groomer-scene.ts`), asked once per question: a lens is never
    * stood in a cab twelve tonnes of steel drives through. */
   movers?: () => readonly SolidBox[];
-  /** Whether a gondola station's platform roof over its wheel is solid
-   * (default false: a lens carried in a cabin rides in under it). The
-   * helicopter's crash lens, flying after a body flung over the stations,
-   * keeps out of it. */
-  canopies?: boolean;
 };
 
 /** A box standing on the snow: its middle, its long axis (a unit plan
@@ -203,24 +197,6 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
       top: c.y + d.ridge,
     });
   }
-  // ...and, asked for, every gondola station's platform roof
-  // (`station-build.ts`'s `platformRoof`: 6.5 m either way of its middle,
-  // 0.6 m wider either side than the part's size, a 1.3 m fascia under a
-  // roof and its snow).
-  if (opts.canopies)
-    for (const part of layStations(level, liftPlans(level)).parts) {
-      if (part.kind !== "canopy") continue;
-      houses.push({
-        x: part.x,
-        z: part.z,
-        dx: Math.sin(part.yaw),
-        dz: Math.cos(part.yaw),
-        halfLength: 6.5,
-        halfWidth: part.size / 2 + 0.6,
-        base: part.y - 0.1,
-        top: part.y + 1.9,
-      });
-    }
   let movers: readonly SolidBox[] = [];
 
   const near: number[] = [];

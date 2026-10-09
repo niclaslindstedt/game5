@@ -21,7 +21,7 @@
 
 import { fireballAt } from "@engine";
 
-import type { LensPose, LineClear, Vec3 } from "./camera-rigs.ts";
+import type { LensPose, Vec3 } from "./camera-rigs.ts";
 
 /** THE PULL-BACK: how long it takes, s; the least standoff it ends at, m,
  * and what each metre between the wreck and the thrown skier adds; how
@@ -176,9 +176,7 @@ export function startCrashCam(from: LensPose, wreck: Vec3): CrashCam {
 
 /** ONE FRAME OF THE CRASH'S LENS, `dt` s on: the wreck at `wreck`, the
  * thrown skier at `rider` (null when nobody was aboard), `blocked`
- * whether something solid stands between an eye and what it looks at, and
- * `clear` what the tracking shot is drawn in toward him against — a
- * station's house or a cabin he flies past is never a frame of roof. */
+ * whether something solid stands between an eye and what it looks at. */
 export function frameCrash(
   cam: CrashCam,
   wreck: Vec3,
@@ -186,7 +184,6 @@ export function frameCrash(
   dt: number,
   groundAt: (x: number, z: number) => number,
   blocked?: (eye: Vec3, target: Vec3) => boolean,
-  clear?: LineClear,
 ): LensPose {
   const C = CRASH_LOOK;
   cam.t += dt;
@@ -233,7 +230,7 @@ export function frameCrash(
   let fov = cam.from.fov + (C.fov - cam.from.fov) * k;
   let roll = cam.from.roll * (1 - k);
   if (rider) {
-    const near = closeIn(cam, eye, target, wreck, rider, dt, groundAt, blocked, clear);
+    const near = closeIn(cam, eye, target, wreck, rider, dt, groundAt, blocked);
     if (near) {
       fov += (near.fov - fov) * near.z;
       roll += (near.roll - roll) * near.z;
@@ -266,7 +263,6 @@ function closeIn(
   dt: number,
   groundAt: (x: number, z: number) => number,
   blocked?: (eye: Vec3, target: Vec3) => boolean,
-  clear?: LineClear,
 ): { fov: number; roll: number; z: number } | null {
   const C = CRASH_LOOK;
   const vx = rider.vx ?? 0;
@@ -326,7 +322,6 @@ function closeIn(
   if (blocked?.(near, l)) cam.nearLift = Math.min(C.climbMost, cam.nearLift + C.climb * dt);
   else cam.nearLift = Math.max(0, cam.nearLift - C.climb * 0.25 * dt);
   near.y += cam.nearLift;
-  if (clear) pullTo(near, l, clear);
   clearFire(near, wreck, cam.t);
   near.y = Math.max(near.y, groundAt(near.x, near.z) + C.clearance * 0.4);
   // Looking down his way, and after his fall.
@@ -338,8 +333,7 @@ function closeIn(
   eye.x += (near.x - eye.x) * z;
   eye.y += (near.y - eye.y) * z;
   eye.z += (near.z - eye.z) * z;
-  // The way in between kept out of what is solid and the fireball too, and over the snow.
-  if (clear) pullTo(eye, l, clear);
+  // The way in between kept out of the fireball too, and over the snow.
   clearFire(eye, wreck, cam.t);
   eye.y = Math.max(eye.y, groundAt(eye.x, eye.z) + C.clearance * 0.4);
   target.x += (look.x - target.x) * z;
@@ -352,16 +346,6 @@ function closeIn(
     roll: -cam.hand * C.dutch * fast,
     z,
   };
-}
-
-/** Draw `eye` in toward `at` to what is clear of the solids between. */
-function pullTo(eye: Vec3, at: Vec3, clear: LineClear): void {
-  const share = clear(at, eye);
-  if (share >= 1) return;
-  const s = Math.max(0.15, share * 0.9);
-  eye.x = at.x + (eye.x - at.x) * s;
-  eye.y = at.y + (eye.y - at.y) * s;
-  eye.z = at.z + (eye.z - at.z) * s;
 }
 
 /** OUT OF THE FIREBALL: an eye inside the wreck's ball at `t` s (and

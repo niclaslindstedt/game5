@@ -199,7 +199,7 @@ orange is not built: it is FOUND on the finished mountain (`ski-routes.ts`), a l
 gondola's top down country steeper than R8's 78 % (38°), the steepest a machine works, and no
 steeper than 110 % (48°) over a hundred metres, never over a cliff, open of trees, out from under the lifts' ropes, and down onto
 a piste or a lane. It moves no ground and packs no snow, so it is skied in whatever the sky left on
-it; it is marked by orange stakes every 40 m down both sides of a 14 m corridor, a sign at its
+it; it is marked by tall orange stakes every 15 m down both sides of a 14 m corridor, a sign at its
 head reading SKI ROUTE · NOT GROOMED and a dashed orange line on every piste map, and signed with an
 orange DOUBLE DIAMOND. Asked for (`?grade=orange`, the GRADE row's fifth stop), a free ride starts
 down the map's ski route, the course raced being the black's; a map with none starts on its black.

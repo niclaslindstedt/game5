@@ -32,8 +32,9 @@ const K = TUNING.stakes;
 
 /** Every stake of a map: its foot (x, z, the snow's y), its run's grade
  * (what it is painted), and whether it stands on the skier's right as the
- * picture shows him (the orange-banded side) — and a stake's measure, m:
- * its height, its radius and how deep that band is down from its top. */
+ * picture shows him (the orange-banded side) — and a piste stake's
+ * measure, m: its height, its radius and how deep that band is down from
+ * its top (a ski route's stand taller and thicker, each upright its own). */
 export type StakePlan = {
   count: number;
   stakes: Upright[];
@@ -114,7 +115,8 @@ export function stakePlan(level: Level): StakePlan {
           level.packedAt(x, z) > 0.5
         )
           continue;
-        stakes.push({ x, z, y: level.groundAt(x, z), height: K.height, radius: K.radius });
+        const m = run.route ? K.route : K;
+        stakes.push({ x, z, y: level.groundAt(x, z), height: m.height, radius: m.radius });
         grade.push(run.grade);
         // The skier's right going down AS DRAWN is the engine's left: the
         // renderer's frame mirrors the map (`input-model.ts`).
@@ -195,14 +197,15 @@ function knock(state: GameState, events: GameEvent[]): void {
   if (plan.count === 0) return;
   const c = state.skier;
   const half = envelopeOf(c.spec).length / 2;
-  const reach = TUNING.trees.bodyRadius + K.radius;
-  uprightsNear(plan.stakes, c.x, c.z, half + reach, near);
+  const most = TUNING.trees.bodyRadius + Math.max(K.radius, K.route.radius);
+  uprightsNear(plan.stakes, c.x, c.z, half + most, near);
   if (near.length === 0) return;
   const fx = Math.sin(c.heading);
   const fz = Math.cos(c.heading);
   for (const i of near) {
     const p = plan.stakes[i];
     if (c.y < p.y - 1 || c.y > p.y + p.height) continue;
+    const reach = TUNING.trees.bodyRadius + p.radius;
     const s = state.stakes;
     // Snapped, or already lying well over: ridden across.
     if (s && (s.broken[i] || Math.abs(s.tilt[i]) > 0.9)) continue;

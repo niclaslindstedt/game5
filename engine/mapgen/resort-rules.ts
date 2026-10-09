@@ -742,9 +742,10 @@ export const RESORT_RULES = {
     smooth: 4,
     station: 4,
     /** The marked corridor's width, m, and its stakes' spacing down both
-     * edges, m. */
+     * edges, m — close enough that the next stake down is always in
+     * sight over a roll. */
     width: 14,
-    every: 40,
+    every: 15,
   },
   /** R28 — the course. */
   course: {

@@ -24,6 +24,10 @@ export const STAKES = {
   height: 2.2,
   radius: 0.02,
   band: 0.45,
+  /** A SKI ROUTE'S STAKES (R42) stand thicker and taller than a piste's,
+   * m: the orange posts a skier picks his way down an ungroomed line by,
+   * each read from the last at a glance across a steep face. */
+  route: { height: 2.8, radius: 0.06 },
   /** THE STAKE BENT: its foot in the snow a hinge, the stake a damped
    * spring on its tilt — stiffness, 1/s² (a stake whipping back up at
    * about 1.7 Hz), and damping, 1/s — lying no further over than `most`

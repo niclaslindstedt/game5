@@ -206,6 +206,7 @@ export function App() {
     assist: assistOf(s.assist),
     damage: s.damage,
     gore: injuriesShown(s, shellContent()),
+    sfw: !injuriesShown(s, shellContent()), // SAFE FOR WORK (`RunRules.sfw`)
     poles: params.poles ?? carriesPoles(s.outfit),
   });
   /** The picture drawn: the stored one, or a lab's preset for this visit —

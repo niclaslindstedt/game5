@@ -54,7 +54,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { helipadOf } from "./heli-pad.ts";
 import { carryFall, fallsIntoRotor, hangFrame, stepGrip } from "./heli-grip.ts";
 import { HELI_BLADES } from "./defs/heli-grip.ts";
-import { pilotControls } from "./heli-pilot.ts";
+import { pilotControls, steadyControls } from "./heli-pilot.ts";
 import { SEAT, discQuat, heliMass, heliPoint, heliQuat, thrustMost } from "./heli-rotor.ts";
 import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
@@ -200,7 +200,10 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   }
   h.rotor = (h.rotor + OMEGA * h.spool * dt) % (2 * Math.PI);
   h.tailRotor = (h.tailRotor + TAIL_OMEGA * h.spool * dt) % (2 * Math.PI);
-  if (h.mode === "flown" || h.mode === "home") strike(run, h, events);
+  if (h.mode === "flown" || h.mode === "home") {
+    if (run.rules.sfw) fend(run, h);
+    else strike(run, h, events);
+  }
   if (!h.rider) return false;
   // THE DROP: the machine press pushes him off the skid — or, landed, he
   // steps off it onto the snow.
@@ -227,12 +230,14 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
 function controlsFor(run: GameState, h: HeliState, input: SkierInput): HeliControls {
   if (h.mode === "flown") {
     const c = input.heli ?? DOWN;
-    return {
+    const stick = {
       collective: clamp(c.collective, 0, 1),
       pitch: clamp(c.pitch, -1, 1),
       roll: clamp(c.roll, -1, 1),
       pedal: clamp(c.pedal, -1, 1),
     };
+    // SAFE FOR WORK: the stick is what he wants, flown by a steadying hand.
+    return run.rules.sfw ? steadyControls(run, stick) : stick;
   }
   if (h.mode === "home") {
     if (h.t < K.home.beat) return h.controls;
@@ -358,7 +363,12 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
     const sink = -h.vy;
     const slide = hypot(h.vx, h.vz);
     h.y = under;
-    if (!was && (h.mode === "flown" || h.mode === "home") && landedHard(run, h, sink, slide)) {
+    if (
+      !was &&
+      (h.mode === "flown" || h.mode === "home") &&
+      !run.rules.sfw &&
+      landedHard(run, h, sink, slide)
+    ) {
       crash(run, h, events, Math.max(sink, slide));
       return;
     }
@@ -458,6 +468,54 @@ function strike(run: GameState, h: HeliState, events: GameEvent[]): void {
     if (d < R + spread * 0.7 || (d < t.radius + 1.2 && h.y < top)) {
       crash(run, h, events, speed);
       return;
+    }
+  }
+}
+
+/** SAFE FOR WORK, NOTHING IS STRUCK (`RunRules.sfw`): the disc and the
+ * airframe are held off the snow — lifted out of it, their speed into it
+ * taken away — and off every crown, put back outside it, their speed toward
+ * the trunk taken away. Never a crash. */
+function fend(run: GameState, h: HeliState): void {
+  const level = run.level;
+  const q = heliQuat(h);
+  const R = K.rotor.radius;
+  const hub = heliPoint(h, { x: 0, y: K.rotor.hub, z: K.rotor.at });
+  // Sat on its skids it stands as the snow lies, and is held there.
+  let under = 0;
+  for (let i = 0; i < 12 && !h.grounded; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const tip = rotate(q, { x: Math.sin(a) * R, y: 0, z: Math.cos(a) * R });
+    const x = hub.x + tip.x;
+    const z = hub.z + tip.z;
+    under = Math.max(under, level.groundAt(x, z) + K.crash.clear - (hub.y + tip.y));
+  }
+  for (const p of h.grounded ? [] : K.body.strike) {
+    const w = heliPoint(h, p);
+    under = Math.max(under, level.groundAt(w.x, w.z) - 0.05 - w.y);
+  }
+  if (under > 0) {
+    h.y += under;
+    h.vy = Math.max(0, h.vy);
+  }
+  for (const i of treesNear(level, hub.x, hub.z, R + 6, trunks)) {
+    const t = level.trees[i];
+    const top = t.y + t.height;
+    if (hub.y > top) continue;
+    const dx = hub.x - t.x;
+    const dz = hub.z - t.z;
+    const d = hypot(dx, dz);
+    const spread = t.crown * Math.min(1, (top - hub.y) / Math.max(1, t.height * 0.8));
+    const keep = Math.max(R + spread * 0.7, h.y < top ? t.radius + 1.2 : 0);
+    if (d >= keep) continue;
+    const nx = d > 1e-3 ? dx / d : Math.sin(h.heading + Math.PI);
+    const nz = d > 1e-3 ? dz / d : Math.cos(h.heading + Math.PI);
+    h.x += nx * (keep - d);
+    h.z += nz * (keep - d);
+    const toward = h.vx * nx + h.vz * nz;
+    if (toward < 0) {
+      h.vx -= nx * toward;
+      h.vz -= nz * toward;
     }
   }
 }
@@ -596,7 +654,7 @@ function slip(run: GameState, h: HeliState, events: GameEvent[]): void {
   b.vz = v.z;
   const datum = heliPoint(h, { x: 0, y: 0, z: 0 });
   const middle = unrotate(heliQuat(h), { x: c.x - datum.x, y: c.y - datum.y, z: c.z - datum.z });
-  h.shed = fallsIntoRotor(h, middle) ? 0 : -1;
+  h.shed = !run.rules.sfw && fallsIntoRotor(h, middle) ? 0 : -1;
   say(run, events, "slip", hypot3(v.x, v.y, v.z));
 }
 

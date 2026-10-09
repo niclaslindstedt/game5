@@ -29,12 +29,14 @@ import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-frame
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { lodgesOf, enterLodge } from "./afterski.ts";
 import { buildingDoorOf, buildingDoors, setDoor, type BuildingDoor } from "./building-walls.ts";
+import { onFoot } from "./buzz.ts";
 import { standSkier } from "./course.ts";
 import { BUILDING_WALLS } from "./defs/building-walls.ts";
 import { DOOR } from "./defs/doors.ts";
 import { TUNING } from "./defs/tuning.ts";
 import type { DoorKey, DoorMove, DoorSwing } from "./door-state.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
+import { placeSkis } from "./town.ts";
 
 export type { DoorEvent, DoorKey, DoorMove, DoorSwing, Doorway } from "./door-state.ts";
 
@@ -175,6 +177,8 @@ export function doorNear(run: GameState): BuildingDoor | null {
   if (!run.rules.doors || run.doorway?.move) return null;
   const c = run.skier;
   if (c.thrown || c.fetch || c.lift || c.tunnel || c.jib) return null;
+  // On foot in town, only while he walks — not mid-way out of his skis.
+  if (c.town && c.town.phase !== "walk") return null;
   if (run.afterski?.inside || run.heli?.rider || run.sled?.rider) return null;
   if (run.para && run.para.mode !== "dropped") return null;
   if (run.balloon?.aboard) return null;
@@ -283,10 +287,18 @@ function stand(
   heading: number,
 ): void {
   const p = doorPoint(f, u, w);
-  standSkier(run, p.x, p.z, heading);
+  const c = run.skier;
+  if (c.town) {
+    // ON FOOT IN TOWN (`town.ts`): walked there, his pair kept on his
+    // shoulder and his stride counted on.
+    const vx = (p.x - c.x) / TUNING.dt;
+    const vz = (p.z - c.z) / TUNING.dt;
+    c.town.walked += hypot(p.x - c.x, p.z - c.z);
+    onFoot(run, p.x, p.z, heading, vx, vz);
+    placeSkis(run);
+  } else standSkier(run, p.x, p.z, heading);
   // Within the walls the floor is the building's, never the hill it is
   // dug into or the snow drifted against it.
-  const c = run.skier;
   const inside = -w - BUILDING_WALLS.wall / 2;
   if (inside > 0) {
     const k = clamp(inside / 0.4, 0, 1);

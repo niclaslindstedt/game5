@@ -34,8 +34,8 @@ import type { PisteDay } from "./piste-day.ts";
 import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { ContestState } from "./contest-state.ts";
-import type { AfterskiEvent, AfterskiState, Fetch, Wobble } from "./afterski-state.ts";
-export type { AfterskiEvent, AfterskiState, Fetch, Wobble } from "./afterski-state.ts";
+import type { AfterskiEvent, AfterskiState, Fetch, TownWalk, Wobble } from "./afterski-state.ts";
+export type { AfterskiEvent, AfterskiState, Fetch, TownWalk, Wobble } from "./afterski-state.ts";
 
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
@@ -294,10 +294,12 @@ export type SkierState = {
   thrown: Thrown | null;
   /** THE BUZZ, 0 sober..1 (`buzz.ts`): the afterski's beer in him, read by
    * the steer, the crash and the reset; the late hands it rides on; and ON
-   * FOOT fetching his skis after a fall, or null. Absent, he is sober. */
+   * FOOT fetching his skis after a fall, or null. Absent, he is sober. And
+   * IN TOWN ON FOOT, his skis on his shoulder (`town.ts`), or null. */
   buzz?: number;
   wobble?: Wobble;
   fetch?: Fetch | null;
+  town?: TownWalk | null;
   /** What the skis and the legs have taken (`damage.ts`). */
   damage: SkierDamage;
   /** WHAT HIS INJURIES LEAVE HIM (`hurt.ts`); absent, he is sound. */
@@ -980,13 +982,11 @@ export type GameState = ContestState & {
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
-  /** THE PISTE MACHINES (`groomer.ts`), their snow (`groomed.ts`) and the
-   * snow guns' (`snow-guns.ts`, a thin season's): read, never written. */
+  /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
   machineSnow?: import("./snow-guns.ts").MachineSnow;
-  /** THE DOORS STANDING OPEN, by building id, sorted (`setDoor`), and the
-   * leaves and the move in motion (`doorway.ts`): absent while all is shut. */
+  /** OPEN DOORS by building id (`setDoor`); the leaves and move (`doorway.ts`). */
   doors?: string[];
   doorway?: import("./door-state.ts").Doorway;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and

@@ -531,6 +531,13 @@ export function soundForEvent(
       return {
         id: event.phase === "up" ? "fetch_up" : event.phase === "ski" ? "fetch_ski" : "fetch_in",
       };
+    // THE SKIS OFF IN TOWN (`town-bank.ts`): the player's own, heard where
+    // he is. The stop is the ride's own scrape and the way off is the
+    // binding's snap already made, so neither adds a sound.
+    case "town":
+      return event.phase === "stop" || event.phase === "away"
+        ? null
+        : { id: `town_${event.phase}` };
 
     // A BUILDING'S DOOR (`door-bank.ts`): opened and shut, by what its leaf
     // is made of — heard at the door from the skier's head.

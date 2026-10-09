@@ -227,8 +227,9 @@ describe("boarding a lift from its ring", () => {
     expect(took.speed).toBeCloseTo(G.creep, 5);
     expect(cabinDoors(took)).toBeCloseTo(1, 5);
     expect(seatedShare(took)).toBeLessThan(0.1);
-    // He steps in and sits while it creeps on, its doors shut, and it is
-    // taken back onto the rope.
+    // He stands his skis in its rack, steps in and sits while it creeps
+    // on, its doors shut, and it is taken back onto the rope.
+    ride(run, 10, (r) => r.skier.lift!.rack === undefined);
     ride(run, G.stepIn, () => false);
     expect(seatedShare(run.skier.lift!)).toBeCloseTo(1, 5);
     expect(run.skier.lift!.speed).toBeCloseTo(G.creep, 5);

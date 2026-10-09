@@ -73,6 +73,10 @@ export type RunRules = {
    * (`traffic-contact.ts`), and are drawn. On a FREE RIDE only; left out,
    * the streets are empty. */
   traffic?: boolean;
+  /** WHETHER HIS SKIS COME OFF IN THE VILLAGE (`town.ts`): skied onto a
+   * street he stops, steps out of his bindings, shoulders the pair and
+   * walks; off the streets he steps back in. On a FREE RIDE only. */
+  town?: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times
@@ -140,6 +144,13 @@ export type RunRules = {
    * the skis across the fall line on the brake and standing there, rather
    * than coasting on down the run-out. Left out, a finished run coasts. */
   hockeyStop?: boolean;
+  /** SAFE FOR WORK (the INJURIES switch off, `CreateGameOptions.sfw`):
+   * nobody collides with anybody — no skier, amateur or civilian is
+   * shouldered or knocked down (`contact` off) — the afterski's doors stay
+   * shut, the helicopter is flown through a steadying hand and cannot
+   * crash (`heli.ts`), and the hot air balloon never catches fire and
+   * cannot crash (`balloon.ts`). Left out, all of it is as it is. */
+  sfw?: boolean;
 };
 
 /** WHAT A RACE'S JURY RUNS IN — the weather a discipline is raced under,

@@ -229,15 +229,17 @@ export function fallsIntoRotor(h: HeliState, seat: { x: number; y: number; z: nu
   return hypot(seat.x + g.x * k - HUB.x, seat.z + g.z * k - HUB.z) < R + 0.4;
 }
 
-/** HIS FALL IN THE MACHINE'S FRAME: every point of his body given the
- * airframe's own acceleration this step (`ax`, `ay`, `az`, m/s²) on top of
- * the gravity the ragdoll already falls by. */
-export function carryFall(b: Thrown, ax: number, ay: number, az: number): void {
+/** HIS FALL CARRIED ALONG WITH THE MACHINE: every point of his body given
+ * the airframe's LEVEL acceleration this step (`ax`, `az`, m/s² — its drag
+ * through the air), so he stays over the disc rather than streaming off it.
+ * Never its vertical: down he falls by the ragdoll's gravity alone, and a
+ * machine diving under thrust is never handed on to him as a fall faster
+ * than g. */
+export function carryFall(b: Thrown, ax: number, az: number): void {
   const dt2 = TUNING.dt * TUNING.dt;
   const P = b.points;
   for (let i = 0; i < RAGDOLL.count; i++) {
     P[3 * i] += ax * dt2;
-    P[3 * i + 1] += ay * dt2;
     P[3 * i + 2] += az * dt2;
   }
 }

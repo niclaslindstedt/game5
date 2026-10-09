@@ -9,12 +9,12 @@
 
 import * as THREE from "three";
 
-import type { GameState, Level, Thrown } from "@engine";
+import { GROOMER, type GameState, type Level, type Thrown } from "@engine";
 
 import { createLineClear, heliBox, type SolidBox } from "./camera-clear.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
-import type { LensPose, LineClear } from "./camera-rigs.ts";
-import { createXrayLens, frameXray } from "./camera-xray.ts";
+import type { LensPose, LineClear, Vec3 } from "./camera-rigs.ts";
+import { XRAY_LENS, createXrayLens, frameXray, type LensSide } from "./camera-xray.ts";
 import { createXrayView, type XraySkin } from "./xray-view.ts";
 import { IDLE_XRAY, type XrayLook } from "./xray-shots.ts";
 
@@ -46,6 +46,61 @@ export type HurtLens = {
   dispose(): void;
 };
 
+/** A SHRED UNDER A PISTE MACHINE, seen from outside: the working machine
+ * nearest `at` and the lens stood off behind it and to one side, up over
+ * it, looking at its tail — the tiller, and what it spits out — where `at`
+ * is moved to; or none, for the lens to circle him. */
+export function machineSide(state: GameState | null, at: Vec3): LensSide | undefined {
+  let best: { x: number; y: number; z: number; heading: number; speed: number } | undefined;
+  let near = MACHINE_SHOT.reach * MACHINE_SHOT.reach;
+  for (const m of state?.groomers ?? []) {
+    const d = (m.x - at.x) ** 2 + (m.z - at.z) ** 2;
+    if (d < near) {
+      near = d;
+      best = m;
+    }
+  }
+  if (!best) return undefined;
+  // Its tail is the way it goes's opposite (backing up, its blade).
+  const ahead = best.speed < 0 ? -1 : 1;
+  const tail = ahead > 0 ? GROOMER.back : GROOMER.front;
+  const fx = Math.sin(best.heading) * ahead;
+  const fz = Math.cos(best.heading) * ahead;
+  at.x = best.x - fx * tail;
+  at.z = best.z - fz * tail;
+  at.y = best.y + MACHINE_SHOT.over;
+  const back = Math.atan2(-fx, -fz);
+  return {
+    bearing: back - MACHINE_SHOT.turn,
+    arm: MACHINE_SHOT.arm,
+    height: MACHINE_SHOT.height,
+    fov: MACHINE_SHOT.fov,
+  };
+}
+
+/** A BLAST, seen from outside it: the skier still on (or blown off) the
+ * skid of a helicopter coming down — the lens stood well back off the
+ * fireball it makes, circling it. */
+const blownFrom = (state: GameState | null): boolean =>
+  !!state?.heli && (state.heli.rider || !!state.heli.wreck?.aboard);
+const BLAST_SHOT: LensSide = { arm: 15, height: 5, fov: 55 };
+/** The aim over the machine, m. */
+const BLAST_OVER = 1.5;
+
+/** INTO THE ROTOR, seen from outside: the lens on the far side of him
+ * from the machine, so its cabin is behind him and its blades sweep
+ * over him into the frame. */
+function rotorSide(state: GameState | null, at: Vec3): LensSide | undefined {
+  const h = state?.heli;
+  if (!h || h.mode === "wreck" || (h.shed < 0 && h.taken === 0)) return undefined;
+  return { ...XRAY_LENS.shred, bearing: Math.atan2(at.x - h.x, at.z - h.z) };
+}
+
+/** How near a piste machine must be to take a shred's lens, m; the aim
+ * over its tail, m; how far round from straight behind it the lens stands,
+ * rad; and its arm and height off the tail, m, and its zoom, degrees. */
+const MACHINE_SHOT = { reach: 12, over: 2, turn: 1.25, arm: 10, height: 5.5, fov: 54 } as const;
+
 export function createHurtLens(): HurtLens {
   const view = createXrayView();
   const xlens = createXrayLens();
@@ -62,6 +117,8 @@ export function createHurtLens(): HurtLens {
   let run: GameState | null = null;
   let builtFor: Level | null = null;
   let machine: LineClear | undefined;
+  let shredClear: LineClear | undefined;
+  let blasted = false;
   const cabin: SolidBox = {
     x: 0,
     z: 0,
@@ -89,6 +146,12 @@ export function createHurtLens(): HurtLens {
         machine = state.heli
           ? createLineClear(state.level, { trees: false, movers: cabins })
           : undefined;
+        // A shred's: the woods, and the helicopter's cabin while it flies
+        // (a wreck's is blown apart round its fireball, and the lens stands
+        // back off that by itself).
+        shredClear = createLineClear(state.level, {
+          movers: () => (run?.heli && run.heli.mode !== "wreck" ? cabins() : []),
+        });
       }
       const meshes: THREE.Mesh[] = [];
       skin.group.traverse((o) => {
@@ -127,8 +190,37 @@ export function createHurtLens(): HurtLens {
       prev = home;
       // Nothing hides him under the X-ray (`xray-view.ts`), so its lens is
       // pulled in by nothing that stands between but the helicopter he
-      // falls past (`machine`): a lens is never stood in its cabin.
-      const x = frameXray(xlens, shot, at, home ?? ladder, look?.back ?? 0, dt, groundAt, machine);
+      // falls past (`machine`): a lens is never stood in its cabin. A
+      // SHRED is seen from outside, stood back: the woods pull it in too,
+      // and under a piste machine it is held off the machine's side,
+      // behind its tiller, where what it spits out flies.
+      const shred = look?.kind === "shred";
+      // Under a piste machine the lens looks at the machine at work, its
+      // tiller and what flies out behind it: he is under it.
+      // A blast's lens stays stood back for the whole shot: the machine is a
+      // wreck and he is gone off its skid a frame after it took the shot.
+      // The way back from a shred keeps its framing: stood back, outside.
+      if (!shred) blasted = false;
+      else if (blownFrom(run)) blasted = true;
+      // ...looking at the machine going up, what is left of him flung out
+      // of it: never carried after him into its fireball.
+      if (blasted && at && run?.heli) at.set(run.heli.x, run.heli.y + BLAST_OVER, run.heli.z);
+      const side =
+        shred && at
+          ? (machineSide(run, at) ??
+            (blasted ? BLAST_SHOT : (rotorSide(run, at) ?? XRAY_LENS.shred)))
+          : undefined;
+      const x = frameXray(
+        xlens,
+        shot,
+        at,
+        home ?? ladder,
+        look?.back ?? 0,
+        dt,
+        groundAt,
+        shred ? (shredClear ?? machine) : machine,
+        side,
+      );
       return x ?? home;
     },
     active: () => !!look?.active,

@@ -78,6 +78,7 @@ import {
   towerHeadGeometry,
 } from "./lift-shapes.ts";
 import { Cut, StillCut } from "./lift-cuts.ts";
+import type { ViewCull } from "./view-cull.ts";
 import {
   CHAIR_BAR,
   bullwheelGeometry,
@@ -97,6 +98,8 @@ import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { buildResortBuildings } from "./village-build.ts";
+import { BUILDING_TILE, splitByTile } from "./tile-split.ts";
+import { createInteriors } from "./interiors-view.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
@@ -176,8 +179,16 @@ function ropesOf(plan: LiftPlan): number[] {
 /** The resort's lifts — and its WIND TUNNELS along the valley floor
  * (`wind-tunnels.ts`), the horizontal lift — in one group the renderer
  * holds. `budget` is the SPRAY row's share; `rings` whether the run rides
- * the lifts (`RunRules.lifts`), and so whether its boarding rings show. */
-export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings = false): Lifts {
+ * the lifts (`RunRules.lifts`), and so whether its boarding rings show;
+ * `cull` (`view-cull.ts`, aimed by the renderer each frame) leaves out the
+ * moving carriers out of sight. */
+export function createLifts(
+  level: Level,
+  haze: HazeUniforms,
+  budget = 1,
+  rings = false,
+  cull?: ViewCull,
+): Lifts {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -187,22 +198,32 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   group.add(tunnels.group);
   const houses = createCabins(level, haze);
   group.add(houses.group);
+  // THE ROOMS inside the buildings near the lens (`interiors-view.ts`).
+  const rooms = createInteriors(level, haze);
+  group.add(rooms.group);
   // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
   // the village round the hub and the mountain's restaurant and patrol hut,
-  // one mesh in the painted materials.
+  // in the painted materials, cut into tiles (`tile-split.ts`) so the ones
+  // behind the lens are culled rather than the whole village drawn.
   const villageMat = facadeMaterial(haze, "village");
   mats.push(villageMat);
-  const villageGeo = facadeGeometry(buildResortBuildings(level).out);
-  geos.push(villageGeo);
-  const village = new THREE.Mesh(villageGeo, villageMat);
-  village.castShadow = true;
-  village.receiveShadow = true;
-  group.add(village);
+  for (const villageGeo of splitByTile(
+    facadeGeometry(buildResortBuildings(level).out),
+    BUILDING_TILE,
+  )) {
+    geos.push(villageGeo);
+    const village = new THREE.Mesh(villageGeo, villageMat);
+    village.castShadow = true;
+    village.receiveShadow = true;
+    village.name = "village-buildings";
+    group.add(village);
+  }
   let disposeBoards = (): void => {};
   let disposeRings = (): void => {};
   const dispose = () => {
     tunnels.dispose();
     houses.dispose();
+    rooms.dispose();
     disposeBoards();
     disposeRings();
     for (const g of geos) g.dispose();
@@ -213,7 +234,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     group,
     update: (t, _rider, _drawn, eye) => {
       tunnels.update(t);
-      if (eye) houses.update(eye);
+      if (eye) {
+        houses.update(eye);
+        rooms.update(eye);
+      }
     },
     setBudget: tunnels.setBudget,
     dispose,
@@ -650,9 +674,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     inCabin: readonly { index: number; u: number }[],
     holds: ReadonlyMap<number, Hold>,
     eye?: THREE.Vector3,
+    cull?: ViewCull,
   ): void {
     if (cabins) {
-      cabins.begin(eye);
+      cabins.begin(eye, cull);
       for (const c of carriers.gondola) {
         const { u, side, out } = carrierAt(c.p, c.k, t);
         const mine =
@@ -665,8 +690,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       cabins.end();
     }
     if (chairs && bars) {
-      chairs.begin(eye);
-      bars.begin(eye);
+      chairs.begin(eye, cull);
+      bars.begin(eye, cull);
       for (const c of carriers.chair) {
         const { u, side, out } = carrierAt(c.p, c.k, t);
         if (!out) continue;
@@ -685,8 +710,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     const dt = t - reeledAt;
     const snap = !(dt >= 0 && dt < 1);
     reeledAt = t;
-    springs.begin(eye);
-    tees.begin(eye);
+    springs.begin(eye, cull);
+    tees.begin(eye, cull);
     carriers.drag.forEach((c, n) => {
       const { u, side, out } = carrierAt(c.p, c.k, t);
       const y = ropeAt(c.p, u);
@@ -720,7 +745,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const holds = new Map<number, Hold>();
   done.update = (t, rider, drawn, eye, others = [], crowd = []) => {
     tunnels.update(t);
-    if (eye) houses.update(eye);
+    if (eye) {
+      houses.update(eye);
+      rooms.update(eye);
+    }
     boarding?.update(t);
     const plan = rider ? plans[rider.index] : undefined;
     const togo = rider && plan ? plan.length - plan.look.off - rider.u : Infinity;
@@ -777,7 +805,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     }
     inCabin.length = 0;
     if (carried?.kind === "gondola" && carried.stand === undefined) inCabin.push(carried);
-    moveCarriers(t, inCabin, holds, eye);
+    moveCarriers(t, inCabin, holds, eye, cull);
     for (const c of still) c.update(eye);
     // His own cabin on a gondola: coming round the bottom wheel on the
     // station's rail to him on the platform, creeping on while he steps in
@@ -790,7 +818,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
         : null;
     cabin.visible = !!cab && (cab.phase === "wait" || !!drawn);
     if (cab) {
-      own.set(cabinDoors(cab), cab.phase === "ride");
+      own.set(cabinDoors(cab));
       if (cab.phase === "ride" && seatedShare(cab) >= 1 && drawn) {
         lift.set(0, TUNING.lift.cabin, TUNING.lift.cabinBack).applyQuaternion(riderQ);
         cabin.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);

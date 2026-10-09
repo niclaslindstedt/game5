@@ -42,8 +42,9 @@ export type SkierFigure = {
    * let go, every limb where the physics has it. The caller places and
    * turns the group. A body torn apart (`gore.ts`) is drawn with the
    * pieces it lost `lost` cut out of its skin and its skull crushed
-   * `crush` (`gore-cut.ts`). */
-  sprawl(pose: SkierPose, lost?: number, crush?: number): void;
+   * `crush` (`gore-cut.ts`). With `poles`, the pose's own poles are
+   * drawn — on his feet in town, the poles in his hands (`town-pose.ts`). */
+  sprawl(pose: SkierPose, lost?: number, crush?: number, poles?: boolean): void;
   /** The dressed skin itself — its bones' last frames and its cloth. */
   dressed: Dressed;
   dispose(): void;
@@ -193,7 +194,7 @@ export function createSkier(
         // A bent pole bows out from the body and back; a straight one
         // turns nowhere about its length.
         outward.set(i === 0 ? -1 : 1, 0, -0.4);
-        hang(poleMeshes[i], at, p.hands[i], outward);
+        hang(poleMeshes[i], at, p.grips?.[i] ?? p.hands[i], outward);
       }
     }
     // The head torn off (`GORE_PIECES[0]`) takes the lamp on its helmet.
@@ -213,8 +214,8 @@ export function createSkier(
       const p = seat ? seatedPose(input, seat) : skierPose(input);
       lay(after ? after(p) : p);
     },
-    sprawl(pose, lost = 0, crush = 0) {
-      lay(pose, true, lost, crush);
+    sprawl(pose, lost = 0, crush = 0, poles = false) {
+      lay(pose, !poles, lost, crush);
     },
     dressed,
     dispose() {

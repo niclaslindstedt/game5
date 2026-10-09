@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { BALLOON, type GameState, type Level } from "@engine";
 
 import type { Ladder } from "./camera.ts";
-import type { SolidBox } from "./camera-clear.ts";
+import { heliHull, type SolidBox } from "./camera-clear.ts";
 import type { LensPose, RigPose, Vec3 } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
@@ -37,6 +37,7 @@ import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
 import { createDoorsView, type DoorsView } from "./doors-view.ts";
+import type { ViewCull } from "./view-cull.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { Spray } from "./spray.ts";
@@ -77,7 +78,8 @@ export type Machines = {
   /** THE BALLOON'S BURNER AND FIRE and THE PISTE MACHINES' LAMPS lit at
    * `lit` and seen from `eye`, ahead of `floods` — the list the lamp slots
    * are dealt from (`dealLamps`); the balloon's fire is sorted for `eye`
-   * here, once the lens has settled. */
+   * here, once the lens has settled. The village's traffic is posed here
+   * too, only what the environment's cull leaves in sight. */
   lamps(lit: number, eye: THREE.Vector3, floods: readonly Flood[]): readonly Flood[];
   /** THE HOT AIR BALLOON as drawn (`balloon-scene.ts`), on a free ride —
    * what its burner's flame, its fire and its lens hang off. */
@@ -91,6 +93,9 @@ export type Machines = {
    * before it compiles the run's programs, so the rotor's smear and the
    * blades' fade are linked behind the loading card, not as he boards. */
   ready: Promise<void>;
+  /** The pace the run is shown at, game seconds a wall second: slow
+   * motion slows the eye on the rotors with it (`rotor-look.ts`). */
+  setPace(pace: number): void;
   dispose(): void;
 };
 
@@ -116,9 +121,10 @@ export type MachineSnow = {
 export function createMachines(
   level: Level,
   state: GameState,
-  haze: HazeUniforms,
+  env: { haze: HazeUniforms; cull?: ViewCull },
   fx: MachineSnow,
 ): Machines {
+  const haze = env.haze;
   const group = new THREE.Group();
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
@@ -135,6 +141,17 @@ export function createMachines(
   // The balloon's own ladder while he stands in its basket.
   const basketLens = balloon ? createBalloonLadder() : null;
   let lastDt = 1 / 60;
+  const hullBox: SolidBox = {
+    x: 0,
+    z: 0,
+    dx: 0,
+    dz: 1,
+    halfLength: 0,
+    halfWidth: 0,
+    base: 0,
+    top: 0,
+  };
+  let hull: SolidBox | null = null;
   // The screen's width to its height, as the last frame was framed for:
   // the cockpit's lens is widened on a tall one.
   let aspect = 16 / 9;
@@ -201,6 +218,9 @@ export function createMachines(
       }
     },
     frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
+      // The helicopter as a solid to the booms while nobody rides it.
+      const h = s.heli;
+      hull = h && !h.rider && h.mode !== "wreck" ? heliHull(h, hullBox) : null;
       sledFx.stamps = stamps;
       sled?.frame(s, alpha, dt, simDt, player, sledFx, {
         shown: rung === "helmet" && ridingSled(s.sled, !!s.skier.thrown),
@@ -238,7 +258,7 @@ export function createMachines(
       balloon?.lamps(eye, floods);
       rescue?.lamps(lit, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
-      traffic?.update(current, lit, eye, floods);
+      traffic?.update(current, lit, eye, floods, env.cull);
       if (floods.length === 0) return others;
       floods.push(...others);
       return floods;
@@ -275,7 +295,11 @@ export function createMachines(
     solids: () => {
       const g = groomers?.solids() ?? [];
       const t = traffic?.solids() ?? [];
-      return t.length === 0 ? g : g.length === 0 ? t : [...g, ...t];
+      const all = t.length === 0 ? g : g.length === 0 ? t : [...g, ...t];
+      return hull ? [...all, hull] : all;
+    },
+    setPace(pace) {
+      heli?.setPace(pace);
     },
     dispose() {
       heli?.dispose();

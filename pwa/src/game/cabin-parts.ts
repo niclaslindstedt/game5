@@ -544,15 +544,15 @@ export function windowIn(s: Shape, op: Opening, shutter: THREE.Color | null): vo
 /** A PLANK DOOR in its opening: its boards, ledges, brace and latch
  * painted on one face set back in the wall, the reveals and the casing
  * round it — or, `hung`, the doorway a walker goes in at: the room's dark
- * behind where its leaf hangs (`room`: a leaf that swings in, the dark
- * room laid behind the hole by `doors-view.ts`), the leaf itself hung and
- * swung there. */
+ * behind where its leaf hangs (`room`: a leaf that swings in, nothing —
+ * the furnished room behind the hole, `interiors-view.ts`, takes it), the
+ * leaf itself hung and swung by `doors-view.ts`. */
 export function doorIn(s: Shape, op: Opening, hung = false, room = false): void {
   const { wall: w, u0, u1, y0, y1 } = op;
   const P = CABIN_PAINT;
   const back = -0.06;
-  // A leaf that swings in has the dark room `doors-view.ts` lays behind
-  // the hole; one that swings out stands before a dark face here.
+  // A leaf that swings in swings into the room behind the hole; one that
+  // swings out stands before a dark face here.
   if (hung && !room) wallFace(s, w, u0, u1, y0, y1, back - 0.01, FACADE.matte, P.room);
   else if (!hung) wallFace(s, w, u0, u1, y0, y1, back, FACADE.plankDoor, P.white);
   surround(s, op, back, 0.1, P.door[1], true);

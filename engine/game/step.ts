@@ -183,6 +183,10 @@ export type CreateGameOptions = {
    * back up — the app's to end. Off when left out, and then nothing of it
    * runs: the INJURIES switch's (`settings.ts`). */
   gore?: boolean;
+  /** SAFE FOR WORK (`RunRules.sfw`): no collisions between skiers, no
+   * afterski, a helicopter and a balloon that cannot crash or burn. The
+   * app asks for it when the INJURIES switch is off. Off when left out. */
+  sfw?: boolean;
   /** How much the player can take before he goes down, 0 a club skier …
    * 1 a professional (`SkierState.resilience`); 1 when left out. The
    * field's is its own, dealt at the start line. */
@@ -302,7 +306,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
     countdown: options.countdown ?? base.countdown,
-    contact: options.contact ?? base.contact,
+    // SAFE FOR WORK: nobody shoulders anybody.
+    contact: options.sfw ? false : (options.contact ?? base.contact),
     course: base.course,
     tricks: base.tricks,
     stunts: base.stunts,
@@ -314,11 +319,13 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     lifts: base.lifts,
     heli: base.heli,
     sled: base.sled,
-    afterski: base.afterski,
+    afterski: options.sfw ? false : base.afterski,
     ...(base.doors ? { doors: true } : {}),
     groomer: base.groomer,
     // THE VILLAGE'S TRAFFIC met (`traffic-contact.ts`): the free ride's alone.
     ...(base.traffic ? { traffic: true } : {}),
+    // ...and its skis off in the village (`town.ts`): the free ride's alone.
+    ...(base.town ? { town: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -329,6 +336,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     spinMost: base.spinMost,
     flipMost: base.flipMost,
     inRun: base.inRun,
+    ...(options.sfw ? { sfw: true } : {}),
     aerials: base.aerials,
     hockeyStop: base.hockeyStop,
   };
@@ -485,7 +493,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const lifted =
     free &&
     options.byLift &&
-    !(options.inLodge && lodgesOf(level).length > 0) &&
+    !(options.inLodge && state.afterski && lodgesOf(level).length > 0) &&
     !para &&
     !balloon &&
     !(state.heli && options.heli) &&
@@ -540,7 +548,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (free && rules.groomer && snowGunsRun(level)) state.machineSnow = machineSnowOf(level);
   // A run begun with a buzz, or inside the valley's lodge.
   if (options.buzz) state.skier.buzz = Math.max(0, Math.min(1, options.buzz));
-  const lodge = free && options.inLodge ? lodgesOf(level)[0] : undefined;
+  const lodge = free && options.inLodge && state.afterski ? lodgesOf(level)[0] : undefined;
   if (lodge) enterLodge(state, lodge, []);
   if (!options.quiet) {
     status(

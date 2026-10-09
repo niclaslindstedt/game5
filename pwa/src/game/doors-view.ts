@@ -6,7 +6,8 @@
 // material. A leaf is moved only while it moves — the matrices of the
 // doors the run has open are written each frame, every other one once.
 // The building drew the doorway behind it dark, so an opened door shows
-// the room's darkness.
+// the room's darkness — or, where a log building cut a real hole for a
+// leaf that swings in, the furnished room itself (`interiors-view.ts`).
 
 import * as THREE from "three";
 import {
@@ -21,8 +22,7 @@ import {
   type Level,
 } from "@engine";
 
-import { doorLookOf, leafArrays, leafPose, roomArrays, type DoorLook } from "./door-looks.ts";
-import { FacadeKit } from "./facade-kit.ts";
+import { doorLookOf, leafArrays, leafPose, type DoorLook } from "./door-looks.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import type { HazeUniforms } from "./haze.ts";
 
@@ -106,22 +106,6 @@ export function createDoorsView(level: Level, haze: HazeUniforms): DoorsView | n
     s.mesh.setMatrixAt(s.i, m.compose(at, q, size));
     s.mesh.instanceMatrix.needsUpdate = true;
   };
-  // The dark rooms behind the holes a log building cut for a leaf that
-  // swings in: one static draw for the map.
-  const rooms = new FacadeKit();
-  for (const door of doors) {
-    const look = doorLookOf(door.kind)!;
-    if (!look.room) continue;
-    const f = doorFrame(door);
-    rooms.at(f.x, door.y, f.z, door.heading);
-    const span = Math.min(door.width, door.leaves * door.leaf);
-    roomArrays(rooms, span + 0.3, door.height + 0.2, door.leaf + 0.2);
-  }
-  let roomGeo: THREE.BufferGeometry | null = null;
-  if (rooms.triangles > 0) {
-    roomGeo = facadeGeometry(rooms.out);
-    group.add(new THREE.Mesh(roomGeo, material));
-  }
   for (const list of slots.values()) for (const s of list) lay(s, 0);
   for (const mesh of meshes) mesh.computeBoundingSphere();
   let seen: GameState | null = null;
@@ -142,7 +126,6 @@ export function createDoorsView(level: Level, haze: HazeUniforms): DoorsView | n
     },
     dispose() {
       for (const { geo } of kinds.values()) geo.dispose();
-      roomGeo?.dispose();
       for (const mesh of meshes) mesh.dispose();
       material.dispose();
     },

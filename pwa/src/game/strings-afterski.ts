@@ -50,6 +50,11 @@ export const AFTERSKI_STRINGS = {
   fetchHint: (touch: boolean, key: string): string =>
     touch ? "STEER TO WALK · OR LET HIM STAGGER" : `STEER TO WALK · ${key} TO RESET`,
 
+  /* ── IN TOWN, THE SKIS ON HIS SHOULDER ─────────────────────────────── */
+  townWord: "SKIS ON THE SHOULDER",
+  townBusy: "IN TOWN, ON FOOT",
+  townHint: "TUCK TO WALK · STEER TO TURN · OFF THE STREETS TO SKI",
+
   /* ── THE NEWS (run-news.ts) ────────────────────────────────────────── */
   newsAfterskiIn: "INTO THE AFTERSKI!",
   newsFirstBeer: "CHEERS! FIRST ONE DOWN",
@@ -58,4 +63,6 @@ export const AFTERSKI_STRINGS = {
   newsFetchUp: "UP YOU GET. WHERE ARE YOUR SKIS?",
   newsFetchSki: "GOT ONE",
   newsFetchIn: "CLICKED IN! SKI ON",
+  newsTownIn: "INTO TOWN. SKIS OFF",
+  newsTownOut: "SKIS ON. BACK TO THE SNOW",
 };

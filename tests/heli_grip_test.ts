@@ -89,7 +89,7 @@ describe("the rotor over him", () => {
     climb(s, 400);
     fly(s, 12, hands({ collective: 0.8, pitch: -1 }), () => !s.heli!.rider);
     expect(s.heli!.shed).toBeGreaterThanOrEqual(0);
-    const events = fly(s, 2, hands());
+    const events = fly(s, 3, hands());
     expect(said(events, "rotor")).toBe(true);
     expect(s.heli!.bladed).toBeGreaterThan(0);
     expect(s.heli!.taken).not.toBe(0);
@@ -99,11 +99,34 @@ describe("the rotor over him", () => {
     const s = ride(true);
     climb(s, 400);
     fly(s, 12, hands({ collective: 0.8, pitch: -1 }), () => !s.heli!.rider);
-    const events = fly(s, 2, hands());
+    const events = fly(s, 3, hands());
     const torn = events.filter((e) => e.kind === "gore");
     expect(torn.length).toBeGreaterThan(3);
     const death = events.find((e) => e.kind === "death");
     expect(death && death.kind === "death" ? death.cause : null).toBe("rotor");
+  });
+
+  it("drops him by gravity alone, never faster, however the machine dives", () => {
+    const s = ride();
+    climb(s, 400);
+    fly(s, 12, hands({ collective: 0.8, pitch: -1 }), () => !s.heli!.rider);
+    const middle = (): number => {
+      const P = s.skier.thrown!.points;
+      let y = 0;
+      for (let i = 1; i < P.length; i += 3) y += P[i];
+      return y / (P.length / 3);
+    };
+    // Over a tenth of a second at a time, until the blades reach him.
+    const ys: number[] = [];
+    for (let i = 0; i < 240 && s.heli!.taken === 0; i++) {
+      step(s, hands());
+      ys.push(middle());
+    }
+    const h = 12 / 120;
+    for (let i = 12; i + 12 < ys.length; i += 12) {
+      const a = (ys[i + 12] - 2 * ys[i] + ys[i - 12]) / (h * h);
+      expect(a).toBeGreaterThan(-1.1 * 9.81);
+    }
   });
 
   it("reads the fall into the disc off the machine's attitude", () => {

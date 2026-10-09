@@ -110,6 +110,25 @@ export function heliBox(h: HeliState, out: SolidBox): SolidBox {
   return out;
 }
 
+/** THE WHOLE HELICOPTER as a box the ladder's booms keep out of, into
+ * `out`, while nobody rides it (`machines.ts`'s `solids`): a skier who
+ * jumps or falls off the skid goes down past the airframe, and a chase
+ * boom behind him would stand in the boom or the cabin. Nose to tail fin,
+ * skids to the hub, about its heading. */
+export function heliHull(h: HeliState, out: SolidBox): SolidBox {
+  const b = HELI.body;
+  const mid = heliPoint(h, { x: 0, y: (b.floor + b.roof) / 2, z: (b.nose + b.tail) / 2 });
+  out.x = mid.x;
+  out.z = mid.z;
+  out.dx = Math.sin(h.heading);
+  out.dz = Math.cos(h.heading);
+  out.halfLength = (b.nose - b.tail) / 2;
+  out.halfWidth = b.width / 2;
+  out.base = mid.y - (b.floor + b.roof) / 2;
+  out.top = mid.y + (b.roof - b.floor) / 2 + 0.6 - LENS_PAD;
+  return out;
+}
+
 const inBox = (h: SolidBox, x: number, y: number, z: number): boolean => {
   if (y < h.base || y > h.top + LENS_PAD) return false;
   const ox = x - h.x;

@@ -135,6 +135,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
     y: 0,
     z: 0,
   },
+  town: { kind: "town", t: 40, phase: "shoulder" },
   groomer: { kind: "groomer", t: 40, phase: "strike", id: 0, x: 0, z: 0, speed: 5 },
   traffic: { kind: "traffic", t: 40, phase: "strike", vehicle: "hatch", x: 0, z: 0, speed: 5 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },

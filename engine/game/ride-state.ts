@@ -3,6 +3,8 @@
 // (`lift-ride.ts`) — beside `state.ts`, which re-exports both, so a reader
 // asks the one place he always has.
 
+import type { LoneSki } from "./thrown-state.ts";
+
 /** A skier carried along a WIND TUNNEL (`wind-tunnel.ts`): which (its
  * place among the resort's tunnels, and its id), where along it he is —
  * the arc, m; how far right of its line, m; the way it blows there, rad —
@@ -81,4 +83,12 @@ export type LiftRide = {
    * is, s (`skipUp`). */
   held?: number;
   skip?: number;
+  /** A GONDOLA WALKED ABOARD (`lift-skis.ts`): on foot to its door, the
+   * metres still to go (`board`); standing his pair in his cabin's rack,
+   * seconds into it (`ride`); and the pair itself once it stands there —
+   * placed in the rack every step, and taken out onto his shoulder at the
+   * top. */
+  foot?: number;
+  rack?: number;
+  skis?: LoneSki[];
 };

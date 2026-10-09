@@ -483,6 +483,7 @@ export function freeRules(laps: number): RunRules {
     doors: true,
     groomer: true,
     traffic: true,
+    town: true,
     start: "line",
     gates: "arcade",
     window: 0,

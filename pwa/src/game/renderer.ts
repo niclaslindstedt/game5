@@ -123,8 +123,7 @@ import { loadModels as loadSkierModels } from "./skier-models.ts";
 import { bodyStampOf, createPen, drawnDepth, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit is handed out
-// (`use-render-kit.ts`), when this build draws them. Everything else is
-// built in code.
+// (`use-render-kit.ts`), when this build draws them; the rest is code.
 export async function loadModels(): Promise<void> {
   await loadSkierModels();
 }
@@ -208,8 +207,7 @@ export function createWorldRenderer(
   };
 
   const scene = new THREE.Scene();
-  // THE REGION'S GRADE (R21, `region-picture.ts`): the frame straight onto
-  // the canvas, or through the region's grade; the samples go with it.
+  // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
   const picture = createRegionPicture(gl, video.antialias ? 4 : 0);
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
@@ -271,6 +269,7 @@ export function createWorldRenderer(
   let override: LensPose | null = null;
   /** THE DEATH CAM and THE X-RAY CAM (`xray-scene.ts`), and his skeleton. */
   const hurt = createHurtLens();
+  let pace = 1; // game seconds a wall second (`setPace`)
   scene.add(hurt.group);
   /** The box the canvas was last given, so a RESOLUTION press can re-apply
    * it at the new share. */
@@ -458,9 +457,8 @@ export function createWorldRenderer(
     for (const c of skier.contacts) {
       if (c.station !== "mid" || !c.touching) continue;
       const packed = level.packedAt(c.x, c.z);
-      // The drawn surface under the probe is the loose cover's height over
-      // the ground less the furrow; the physics has it at the ground less
-      // its own sink.
+      // The drawn surface under the probe is the loose cover over the ground
+      // less the furrow; the physics has it at the ground less its own sink.
       const snow = pack ? sampleSnow(c.x, c.z) : undefined;
       sum += drawnDepth(c, packed, 1, depth, snow) - c.sink - LOOSE * (1 - packed);
       n++;
@@ -535,7 +533,7 @@ export function createWorldRenderer(
       boomClear = createLineClear(lv, { trees: false, movers: () => machines?.solids() ?? [] });
       trunks = createTrunksNear(lv);
       scene.add(gates.group);
-      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts);
+      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts, env.cull);
       castInLight(lifts.group, env.haze);
       lifts.group.name = "lifts";
       scene.add(lifts.group);
@@ -547,7 +545,7 @@ export function createWorldRenderer(
       });
       wildlife.group.name = "wildlife";
       scene.add(wildlife.group);
-      crowd = createPeopleView(lv, env.haze, state.rules);
+      crowd = createPeopleView(lv, env.haze, state.rules, env.cull);
       scene.add(crowd.group);
       spray = createSpray(env.haze);
       spray.points.name = "spray";
@@ -557,7 +555,7 @@ export function createWorldRenderer(
       cloud.mesh.name = "snow-cloud";
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
-      machines = createMachines(lv, state, env.haze, { spray, cloud, snowAt: sampleSnow, wearing });
+      machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
       field = state.rivals;
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
@@ -631,7 +629,6 @@ export function createWorldRenderer(
       if (pack) pack.fresh = state.fresh;
       const stepped = lastTick < 0 ? 0 : Math.max(0, state.tick - lastTick);
       const simDt = Math.min(stepped * TUNING.dt, 0.25);
-
       stamps.length = 0;
       for (let i = 0; i < runs.length; i++) {
         const run = runs[i];
@@ -684,11 +681,11 @@ export function createWorldRenderer(
         gore = createGoreView(level, wrap);
         scene.add(gore.group);
       }
+      gore?.setPace(pace);
       gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);
-
       const player = riders[0];
       const skier = state.skier;
       const d = player.drawn;
@@ -710,7 +707,9 @@ export function createWorldRenderer(
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
+      lens.bail(!!state.heli?.rider, skier.airborne, skier.thrown !== null, Math.min(dt, 0.1));
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
+      machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state, lens.camera.aspect);
       player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
@@ -722,7 +721,7 @@ export function createWorldRenderer(
         allowed,
         sampleBody(player.body, alpha),
         ladder,
-        Math.min(dt, 0.1),
+        Math.min(dt / pace, 0.1), // its lens flies on the WALL clock
         level.groundAt,
         clear,
         () => lens.snap(),
@@ -763,7 +762,6 @@ export function createWorldRenderer(
         TRAIL_LOOK[video.trails].stamp ? stamps : null,
         { x: fine.uFineOrigin.value.x, z: fine.uFineOrigin.value.y, span: fine.uFineSpan.value },
       );
-      crowd?.update(state, lens.camera.position);
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
       // THE NEW SNOW: it settles into every trail and buries the groomer.
@@ -785,6 +783,7 @@ export function createWorldRenderer(
         x: -Math.sin(from) * carried,
         z: -Math.cos(from) * carried,
       });
+      crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {
         heroModels.length = 0;
@@ -816,8 +815,7 @@ export function createWorldRenderer(
       gates?.setLamps(look.lamps, pixels);
       spray.setScale(pixels);
       spray.update(Math.min(dt, 0.1), look, level);
-      // The ladder's lens looks through the player's own tail at him; a
-      // planted one (a replay's broadcast, a lab) sees the cloud whole.
+      // The ladder's lens looks through his own tail; a planted one sees it whole.
       cloud.setFocus(d.x, d.y + 0.6, d.z, planted ? 1 : CLOUD_VEIL);
       cloud.update(Math.min(dt, 0.1), look, level, wind, lens.camera.position);
       snowfall.setScale(pixels);
@@ -909,6 +907,7 @@ export function createWorldRenderer(
     setDeathCam: hurt.setDeathCam,
     clearBodies: () => gore?.clearRemains(),
     setXray: hurt.setXray,
+    setPace: (p) => void (pace = p > 0 ? p : 1),
 
     setShot(next) {
       if (!next) tv.drop();
@@ -929,7 +928,7 @@ export function createWorldRenderer(
     setCamera(rung: CameraRung, cut: boolean = false) {
       lens.set(rung, cut);
     },
-    camera: () => lens.rung(),
+    camera: () => lens.chosen(),
     pickRay: (x, y) => lensRay(lens.camera, x, y),
     resize(width, height, pixelRatio) {
       box = { width, height, pixelRatio };

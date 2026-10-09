@@ -28,6 +28,17 @@
 //      frame the two lenses meet — no cut. A blow seen coming that never
 //      lands goes the same way back.
 //
+// THE SHRED CAM — the same director, for a body TAKEN APART rather than
+// broken: under a piste machine's belts and tiller, blown off a
+// helicopter's skid, into its rotor (`impact-forecast.ts`'s `mangled`).
+// There are no bones to look for in a body coming to pieces, so the lens
+// stays OUTSIDE him — the skin never turns to glass — and stands back far
+// enough to hold the whole of him and the machine at work: the same lead
+// in, slowed further (`XRAY.shred.slow`, slow enough that the rotor's
+// blades are seen one by one — `rotor-look.ts` is handed the pace), one
+// shot held as long as pieces keep coming off him (`XRAY.shred.hold` after
+// the last, `.most` at the most), and the same way back.
+//
 // ONLY A FALL HE DIES OF is shot: the read ahead says whether the blow
 // (and the tumble after it) will be mortal, and a blow it missed starts the
 // cam only once the run itself knows he is dying. A run is slowed only once
@@ -44,7 +55,7 @@ import {
   type GorePiece,
 } from "@engine";
 
-import type { Forecast } from "./impact-forecast.ts";
+import { mangled, type Forecast } from "./impact-forecast.ts";
 
 /** The whole director, as numbers: seconds of the WALL clock unless named
  * game seconds; rates are game seconds per wall second. */
@@ -77,7 +88,16 @@ export const XRAY = {
   glassIn: 0.35,
   /** At most this many shots of bones and tears in one fall. */
   most: 6,
+  /** THE SHRED CAM: how slow it is shot, and the wall seconds its one shot
+   * is held after the last piece comes off him — and at the most. */
+  /** A piste machine is slow work: shot faster, so its belts and tiller
+   * are seen to go over him rather than a moment of it. */
+  shred: { slow: 0.05, machine: 0.14, hold: 2.2, most: 7 },
 } as const;
+
+/** Which cam has the fall: the X-RAY (a body broken, seen through the
+ * skin) or the SHRED (a body taken apart, seen from outside). */
+export type XrayKind = "xray" | "shred";
 
 /** THE BIG BONES — the ones worth a shot of their own after the first. */
 export const BIG_BONES: readonly BoneKind[] = [
@@ -98,11 +118,14 @@ export const boneKind = (b: Bone): BoneKind => b.replace(/[LR]$/, "") as BoneKin
 export type XrayShot =
   | { kind: "bone"; bone: Bone }
   | { kind: "tear"; piece: GorePiece | null; at: { x: number; y: number; z: number } }
+  | { kind: "shred" }
   | { kind: "body" };
 
 export type XrayLook = {
   /** Whether the cam has the run. */
   active: boolean;
+  /** Which cam: the skin never turns to glass on a shred. */
+  kind: XrayKind;
   /** Game seconds a wall second. */
   rate: number;
   /** How far the skin is glass, 0 … 1. */
@@ -144,6 +167,7 @@ const SKIP_HOLD = 4;
 
 export const IDLE_XRAY: XrayLook = {
   active: false,
+  kind: "xray",
   rate: 1,
   xray: 0,
   back: 0,
@@ -188,6 +212,9 @@ const partBone = (part: BodyPart | null): Bone => (part ? PART_BONE[part] : "rib
 export function createXrayDirector(): XrayDirector {
   let on = false;
   let spent = false;
+  let kind: XrayKind = "xray";
+  /** A shred's pieces: one came off him this step (the hold starts over). */
+  let tore = false;
   let rate = 1;
   let xray = 0;
   let queue: Pending[] = [];
@@ -212,6 +239,8 @@ export function createXrayDirector(): XrayDirector {
   const reset = (): void => {
     on = false;
     spent = false;
+    kind = "xray";
+    tore = false;
     rate = 1;
     xray = 0;
     queue = [];
@@ -230,7 +259,7 @@ export function createXrayDirector(): XrayDirector {
   };
 
   const keyOf = (s: XrayShot): string =>
-    s.kind === "bone" ? s.bone : s.kind === "tear" ? `tear:${s.piece ?? "?"}` : "body";
+    s.kind === "bone" ? s.bone : s.kind === "tear" ? `tear:${s.piece ?? "?"}` : s.kind;
 
   /** Queue a shot unless it has been shot (or is queued) this fall. */
   const want = (shot: XrayShot, at: number, landed: boolean): void => {
@@ -250,16 +279,33 @@ export function createXrayDirector(): XrayDirector {
     if (body) body = false;
   };
 
-  const begin = (): void => {
+  /** Whether a shred is a piste machine's. */
+  let machine = false;
+  const begin = (shred: boolean, cause: string | null = null): void => {
     on = true;
     spent = true;
+    kind = shred ? "shred" : "xray";
+    machine = cause === "machine";
   };
+  const slow = (): number =>
+    kind === "xray" ? XRAY.slow : machine ? XRAY.shred.machine : XRAY.shred.slow;
 
   return {
     seen(f, state) {
       if (!f || (spent && !on) || (body && !on) || state.t < heldTill) return;
       if (!on && (f.in > XRAY.lead || !f.fatal)) return;
       const at = state.t + f.in;
+      // A body coming apart is one shot, from outside: nothing more to
+      // look for once it is under way.
+      if (on && kind === "shred") return;
+      if (!on && f.mangled) {
+        begin(true, f.cause);
+        leading = true;
+        firstAt = at;
+        leadAge = 0;
+        want({ kind: "shred" }, at, false);
+        return;
+      }
       const bone = bestBone(f.bones);
       if (on && bone && !BIG_BONES.includes(boneKind(bone))) return;
       if (on && !bone && !f.gore) return;
@@ -271,7 +317,7 @@ export function createXrayDirector(): XrayDirector {
         look = f.bones.find((b) => boneKind(b) === boneKind(own)) ?? own;
       }
       if (!on) {
-        begin();
+        begin(false);
         leading = true;
         firstAt = at;
         leadAge = 0;
@@ -290,18 +336,26 @@ export function createXrayDirector(): XrayDirector {
       // A blow the read ahead missed starts the cam only if he is dying.
       const dying = !!state.gore && (state.gore.mortal >= 0 || state.gore.dead >= 0);
       for (const e of state.events as GameEvent[]) {
+        if (e.kind === "gore" && (on ? kind === "shred" : !spent && dying && mangled(state))) {
+          // A SHRED: every piece off him holds the shot on.
+          if (!on) begin(true, state.gore?.cause ?? null);
+          tore = true;
+          want({ kind: "shred" }, e.t, true);
+          continue;
+        }
+        if (on && kind === "shred") continue;
         if (e.kind === "injury") {
           const bones = bonesOf(e.injury, e.part);
           const bone = bestBone(bones);
           if (!bone) continue;
           const big = BIG_BONES.includes(boneKind(bone));
-          if (!on && !spent && dying) begin();
+          if (!on && !spent && dying) begin(false);
           else if (!on) continue;
           if (big || shots === 0) want({ kind: "bone", bone }, e.t, true);
           else
             for (const p of [current, ...queue]) if (p && keyOf(p.shot) === bone) p.landed = true;
         } else if (e.kind === "gore") {
-          if (!on && !spent && dying) begin();
+          if (!on && !spent && dying) begin(false);
           else if (!on) continue;
           const at = { x: e.x, y: e.y, z: e.z };
           if (e.what === "crush") want({ kind: "bone", bone: "skull" }, e.t, true);
@@ -327,9 +381,13 @@ export function createXrayDirector(): XrayDirector {
       // or when what was seen coming never came.
       if (current) {
         if (current.landed && state.t >= current.at) since += wall;
-        const held = current.shot.kind === "tear" ? XRAY.tear : XRAY.hold;
+        if (tore) since = 0;
+        tore = false;
+        const shred = current.shot.kind === "shred";
+        const held = shred ? XRAY.shred.hold : current.shot.kind === "tear" ? XRAY.tear : XRAY.hold;
         const late = !current.landed && state.t > current.at + XRAY.late;
-        if ((current.landed && since > held) || late) current = null;
+        const long = shred && age > XRAY.shred.most;
+        if ((current.landed && since > held) || late || long) current = null;
       }
       if (!current && queue.length) {
         current = queue.shift()!;
@@ -350,10 +408,10 @@ export function createXrayDirector(): XrayDirector {
         leadAge += wall;
         const gap = Math.max(0, firstAt - state.t);
         const left = Math.max(0.05, XRAY.leadWall - leadAge);
-        rate = Math.min(1, Math.max(XRAY.slow, (2 * gap) / left - XRAY.slow));
+        rate = Math.min(1, Math.max(slow(), (2 * gap) / left - slow()));
         const glass = (leadAge - XRAY.leadSolid) / (XRAY.leadWall - XRAY.leadSolid);
-        xray = Math.min(1, Math.max(0, glass));
-        return { active: true, rate, xray, back: 0, shot: current!.shot, age, index };
+        xray = kind === "shred" ? 0 : Math.min(1, Math.max(0, glass));
+        return { active: true, kind, rate, xray, back: 0, shot: current!.shot, age, index };
       }
       if (body) {
         home = Math.min(1, home + wall / XRAY.back);
@@ -362,8 +420,8 @@ export function createXrayDirector(): XrayDirector {
         xray = Math.min(xray, 1 - smooth(home));
       } else {
         home = Math.max(0, home - wall * XRAY.backIn);
-        want = XRAY.slow;
-        xray = Math.min(1, xray + wall / XRAY.glassIn);
+        want = slow();
+        xray = kind === "shred" ? 0 : Math.min(1, xray + wall / XRAY.glassIn);
       }
       rate += (want - rate) * (1 - Math.exp(-XRAY.ease * wall));
       // Home, solid and at its own pace: the game's camera has him already.
@@ -373,6 +431,7 @@ export function createXrayDirector(): XrayDirector {
       }
       return {
         active: true,
+        kind,
         rate,
         xray,
         back: smooth(home),

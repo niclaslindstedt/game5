@@ -221,7 +221,7 @@ const ready = (async () => {
 const lookLine = (l: XrayLook | null): string =>
   !l || !l.active
     ? "x-ray off"
-    : `${l.shot?.kind === "bone" ? `bone ${l.shot.bone}` : (l.shot?.kind ?? "-")} #${l.index} · rate ${l.rate.toFixed(2)} · glass ${l.xray.toFixed(2)}`;
+    : `${l.kind} · ${l.shot?.kind === "bone" ? `bone ${l.shot.bone}` : (l.shot?.kind ?? "-")} #${l.index} · rate ${l.rate.toFixed(2)} · glass ${l.xray.toFixed(2)}`;
 
 async function sheet(name: string): Promise<{ frames: Frame[] }> {
   const note = await ready;
@@ -252,6 +252,8 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
     }
     renderer.setDeathCam(dying(state));
     const rate = xray.frame(state, WALL, true);
+    // Drawn as the app draws it: on the run's time, at its pace.
+    renderer.setPace(rate);
     acc += WALL * rate;
     while (acc >= TUNING.dt) {
       acc -= TUNING.dt;
@@ -262,7 +264,7 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
     const l = look as XrayLook | null;
     if (started < 0 && l?.active) started = wall;
     const shoot = wall >= next;
-    renderer.draw(state, 1, WALL, shoot);
+    renderer.draw(state, 1, WALL * rate, shoot);
     if (shoot) {
       next += every;
       // Before the cam takes the run, a frame a second is plenty.

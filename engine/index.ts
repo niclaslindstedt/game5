@@ -432,6 +432,7 @@ export {
   type LoneSki,
   type AfterskiState,
   type Fetch,
+  type TownWalk,
   type Wobble,
   type GameEvent,
   type GamePhase,
@@ -565,7 +566,7 @@ export {
   wipeoutCause,
   type CrashLimit,
 } from "./game/crash.ts";
-export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
+export { RAGDOLL, centreOf, stepRagdoll } from "./game/ragdoll.ts";
 export { letGo } from "./game/lone-skis.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {
@@ -686,6 +687,7 @@ export {
   groomersOut,
   groomerStrike,
   groomerWithin,
+  onSkis,
   seatOf,
   stepGroomers,
   type GroomerAsk,
@@ -990,3 +992,5 @@ export {
   stepFetch,
 } from "./game/buzz.ts";
 export { AFTERSKI, BUZZ } from "./game/defs/afterski.ts";
+export { TOWN } from "./game/defs/town.ts";
+export { TOWN_KEYS, strideBob, stridePace, townEase, townShare } from "./game/town.ts";

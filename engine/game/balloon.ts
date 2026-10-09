@@ -39,6 +39,8 @@
 //     softly it settles, and with the envelope still pulling it is dragged,
 //     friction holding it back — dragged too fast, it goes over. A crown
 //     met slowly snags it; met fast, it is a crash too.
+//   * SAFE FOR WORK (`RunRules.sfw`): none of that — it never catches
+//     fire, and the snow and the crowns only stop it.
 //
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run with no balloon never comes in here.
@@ -326,8 +328,10 @@ function fly(
   const push = kh * rel * rel;
   b.lean = Math.atan2(push, Math.max(1, buoy));
   if (rel > 0.05) b.leanTo = Math.atan2(rx, rz);
-  // THE FIRE.
-  if (!b.burning) {
+  // THE FIRE — never, SAFE FOR WORK (`RunRules.sfw`).
+  const sfw = run.rules.sfw === true;
+  if (sfw) b.scorch = 0;
+  else if (!b.burning) {
     if (rel > B.fire.shear) b.scorch += (b.flame * (rel - B.fire.shear) * dt) / B.fire.scorch;
     if (b.temp > B.temp.fails) b.scorch += ((b.temp - B.temp.fails) * dt) / B.fire.cook;
     if (b.scorch >= 1) {
@@ -360,7 +364,7 @@ function fly(
   // THE CROWNS: a basket in a tree's crown, snagged — or, fast, a crash.
   if (snagged(level, b)) {
     const speed = hypot3(b.vx, b.vy, b.vz);
-    if (speed > B.land.tree) return crash(run, b, events, speed);
+    if (speed > B.land.tree && !sfw) return crash(run, b, events, speed);
     b.vx = 0;
     b.vz = 0;
   }
@@ -369,7 +373,7 @@ function fly(
   if (b.y <= ground) {
     level.normalAt(b.x, b.z, normal);
     const vn = b.vx * normal.x + b.vy * normal.y + b.vz * normal.z;
-    if (!b.grounded && -vn > B.land.hard) return crash(run, b, events, -vn);
+    if (!b.grounded && -vn > B.land.hard && !sfw) return crash(run, b, events, -vn);
     b.y = ground;
     if (vn < 0) {
       b.vx -= normal.x * vn;
@@ -395,7 +399,7 @@ function fly(
       }
     }
     b.dragging = slide > 0.3;
-    if (slide > B.land.dragMost) return crash(run, b, events, slide);
+    if (slide > B.land.dragMost && !sfw) return crash(run, b, events, slide);
   } else if (b.y > ground + CLEAR) {
     if (b.grounded) say(run, events, "liftoff", 0);
     b.grounded = false;

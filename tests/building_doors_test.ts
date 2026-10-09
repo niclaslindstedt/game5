@@ -218,4 +218,43 @@ describe("a door opened on the machine press", () => {
       for (const id of heard) expect(DOOR_BANK[id!], id).toBeDefined();
     }
   });
+
+  it("lets him through on foot in town, his skis kept on his shoulder", () => {
+    const { level, door } = cases.find((c) => c.door.kind !== "afterski")!;
+    const state = before(level, door, 2);
+    const c = state.skier;
+    const ski = (side: number) => ({
+      side,
+      held: 1,
+      mount: c.spec.mount,
+      ends: [0, 0, 0, 0, 0, 0],
+      last: [0, 0, 0, 0, 0, 0],
+      kick: [0, 0, 0, 0, 0, 0],
+      up: [0, 1, 0] as [number, number, number],
+      spin: 0,
+      touching: 0,
+      hooked: 0,
+      hook: [0, 0, 0, 0, 0, 0],
+      tried: 0,
+    });
+    c.town = {
+      phase: "walk",
+      phaseT: 0,
+      t: 0,
+      skis: [ski(-1), ski(1)],
+      at: { x: c.x, z: c.z, heading: c.heading },
+      walked: 0,
+    };
+    ride(state, TUNING.dt, true);
+    const move = state.doorway!.move!;
+    // Stepped until the move lets him go, on foot still.
+    for (let i = 0; i < (moveLength(move) + 1) * TUNING.physicsHz && state.doorway?.move; i++) {
+      step(state, NEUTRAL_INPUT);
+    }
+    expect(state.doorway?.move ?? null).toBeNull();
+    expect(c.town?.phase).toBe("walk");
+    expect(c.town!.walked).toBeGreaterThan(1.5);
+    const f = doorFrame(door);
+    expect((c.x - f.x) * f.nx + (c.z - f.z) * f.nz).toBeLessThan(-1);
+  });
 });

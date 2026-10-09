@@ -105,6 +105,8 @@ export type GoreView = {
    * blood flying and the bone out through his skin stand down — the X-ray
    * draws its own, and under its dark veil they read as black specks. */
   update(state: GameState, model: GoreModel, simDt: number, dt: number, veil?: number): void;
+  /** The pace the run is shown at (`Blood.setPace`). */
+  setPace(pace: number): void;
   /** A new run: everything gone, his clothes clean. */
   clear(model: GoreModel | null): void;
   /** A DEAD RIDER LEFT LYING: if the last run drawn ended in his death,
@@ -247,6 +249,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   const group = new THREE.Group();
   group.name = "gore";
   let blood = createBlood(wrap);
+  let pace = 1;
   group.add(blood.group);
   const dead = new THREE.Group();
   dead.name = "gore-remains";
@@ -289,8 +292,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   };
   const ribs = [0, 1, 2].map((i) => keep(ribGeometry(0.1 + 0.05 * i, i * 5.3)));
   const shards = [0, 1, 2].map((i) => keep(shardGeometry(0.09 + 0.03 * i, 0.016, i * 3.7)));
-  // An open fracture's end: a long bone's, thick and long enough to stand
-  // well out of the limb and its clothes.
+  // An open fracture's end: thick and long enough to stand well out of the limb.
   const breaks = [0, 1, 2].map((i) => keep(shardGeometry(0.22 + 0.04 * i, 0.024, i * 5.1 + 1)));
   const openings = {
     chest: keep(openingGeometry(0.12, true, 4.4)),
@@ -326,8 +328,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   let drips = 0;
   // Which cheek his face's blood runs over as he lies, and how far.
   const cheek: Cheek = { side: 1, lean: 0 };
-  // The body's way, smoothed: what a stream is carried along by — the
-  // ragdoll's own step-to-step jitter would break it into dashes.
+  // The body's way, smoothed, that a stream is carried along (raw, it jitters).
   const drift = new THREE.Vector3();
   /** The share of gravity the blood feels relative to him: 1 while the snow
    * holds him up, near 0 while he falls through the air with it — off his
@@ -551,8 +552,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
 
   const leave = (model: GoreModel) => {
     if (!last?.gore || last.gore.dead < 0) return;
-    // His body baked as the last frame drew it, its stumps and its open
-    // wounds on it, his clothes as soaked as they were.
+    // His body baked as the last frame drew it, stumps, wounds and soaked clothes.
     const body = bakeFigure(model.root, wrap);
     dead.add(body);
     blood.settle();
@@ -573,6 +573,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     guts = [];
     spike = null;
     blood = createBlood(wrap);
+    blood.setPace(pace);
     group.add(blood.group);
     clearAll(model);
     last = null;
@@ -587,6 +588,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     group,
     leave,
     clearRemains,
+    setPace: (k) => blood.setPace((pace = k)),
     update(state, model, simDt, dt, veil = 0) {
       const veiled = veil > 0.4;
       blood.group.visible = !veiled;
@@ -802,8 +804,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         felt += (1 - fallen - felt) * (1 - Math.exp(-simDt / 0.1));
         lastFall = carry.y;
       }
-      // A stream takes the body's way only when the body is really going —
-      // a body lying or hanging still jitters, and a stream off it falls.
+      // A stream takes the body's way only when it is really going (lying, it jitters).
       const going = drift.length();
       const along = new THREE.Vector3()
         .copy(drift)
@@ -886,8 +887,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       for (const w of wounds) {
         const q = g.out * (w.share / total);
         if (w.part) {
-          // Soaked into the clothes round the wound until they hold no
-          // more; then it runs out at the gap.
+          // Soaked into the clothes round the wound until full, then out at the gap.
           const had = soakedIn.get(w.part) ?? 0;
           soakedIn.set(w.part, had + q * simDt);
           if (had < HOLD) continue;

@@ -24,10 +24,8 @@ export type LeafStyle = "plank" | "glazed" | "steel" | "roll";
 
 /** A kind's leaf: its `style`, its tint (a steel or a plain leaf's paint),
  * its outer face `face` m out of the wall's outer face (negative: set back
- * in the opening, a log wall's), its foot `sill` m over the floor, and
- * `room` — the building cut a real hole for it (a log building's), so the
- * view lays a dark room behind the hole for a leaf to swing into. */
-export type DoorLook = { style: LeafStyle; tint: Tint; face: number; sill: number; room?: boolean };
+ * in the opening, a log wall's), and its foot `sill` m over the floor. */
+export type DoorLook = { style: LeafStyle; tint: Tint; face: number; sill: number };
 
 /** How thick a leaf is, m. */
 export const LEAF_THICK = 0.045;
@@ -39,9 +37,9 @@ export const DOOR_VOID: Tint = 0x15110d;
  * there before (`cabin-shapes.ts`'s holes, `village-build.ts`,
  * `village-town.ts` and `mountain-build.ts`'s insets). */
 export const DOOR_LOOKS: Readonly<Record<Exclude<CabinKind, "shed">, DoorLook>> = {
-  hut: { style: "plank", tint: 0xffffff, face: -0.02, sill: 0, room: true },
-  cabin: { style: "plank", tint: 0xffffff, face: -0.02, sill: 0, room: true },
-  chalet: { style: "plank", tint: 0xffffff, face: -0.02, sill: 0, room: true },
+  hut: { style: "plank", tint: 0xffffff, face: -0.02, sill: 0 },
+  cabin: { style: "plank", tint: 0xffffff, face: -0.02, sill: 0 },
+  chalet: { style: "plank", tint: 0xffffff, face: -0.02, sill: 0 },
   afterski: { style: "plank", tint: 0xffffff, face: -0.02, sill: 0 },
   restaurant: { style: "glazed", tint: 0xffffff, face: 0.055, sill: 0 },
   ticket: { style: "glazed", tint: 0xffffff, face: 0.045, sill: 0 },
@@ -219,22 +217,4 @@ export function leafArrays(look: DoorLook, w: number, h: number, dir: 1 | -1, ha
  * roller door's lift, m — off the engine's share of its opening. */
 export function leafPose(style: LeafStyle, share: number, height: number): number {
   return style === "roll" ? share * DOOR.leaf.roll * height : share * DOOR.leaf.open;
-}
-
-/** THE ROOM BEHIND A HOLE a leaf swings into (`DoorLook.room`): a dark box
- * from the wall's middle line `depth` m in, `w` m wide and `h` m tall about
- * the doorway's middle — its back, sides, floor and ceiling — in the door
- * frame (+z out of the wall), each face drawn both ways round. */
-export function roomArrays(kit: FacadeKit, w: number, h: number, depth: number): void {
-  const x = w / 2;
-  const z = -depth;
-  const both = (a: [number, number, number], b: typeof a, c: typeof a, d: typeof a): void => {
-    kit.quad(a, b, c, d, FACADE.plain, DOOR_VOID);
-    kit.quad(d, c, b, a, FACADE.plain, DOOR_VOID);
-  };
-  both([-x, 0, z], [x, 0, z], [x, h, z], [-x, h, z]);
-  both([-x, 0, 0], [-x, 0, z], [-x, h, z], [-x, h, 0]);
-  both([x, 0, z], [x, 0, 0], [x, h, 0], [x, h, z]);
-  both([-x, 0, 0], [x, 0, 0], [x, 0, z], [-x, 0, z]);
-  both([-x, h, z], [x, h, z], [x, h, 0], [-x, h, 0]);
 }

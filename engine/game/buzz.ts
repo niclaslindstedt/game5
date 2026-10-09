@@ -108,7 +108,14 @@ export function fetchesSkis(run: GameState): boolean {
 
 /** His body ON FOOT at (x, z) facing `heading`, walking at (vx, vz) m/s:
  * stood in his boots on the snow, nothing on his legs or his edges. */
-function onFoot(run: GameState, x: number, z: number, heading: number, vx: number, vz: number) {
+export function onFoot(
+  run: GameState,
+  x: number,
+  z: number,
+  heading: number,
+  vx: number,
+  vz: number,
+) {
   const c = run.skier;
   const level = run.level;
   c.x = x;
@@ -285,7 +292,7 @@ const BODY_R = 0.3;
 const clear = { x: 0, z: 0 };
 
 /** (x, z) pushed out of every trunk, post and wall it stands inside. */
-function clearOfSolids(run: GameState, x: number, z: number): { x: number; z: number } {
+export function clearOfSolids(run: GameState, x: number, z: number): { x: number; z: number } {
   const list = solidsOf(run.level);
   clear.x = x;
   clear.z = z;

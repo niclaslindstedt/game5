@@ -193,7 +193,10 @@ export function createMachines(
     },
     frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
       sledFx.stamps = stamps;
-      sled?.frame(s, alpha, dt, simDt, player, sledFx);
+      sled?.frame(s, alpha, dt, simDt, player, sledFx, {
+        shown: rung === "helmet" && ridingSled(s.sled, !!s.skier.thrown),
+        outfit: fx.wearing?.(),
+      });
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
       para?.frame(s, alpha);
       balloon?.frame(s, alpha, dt);

@@ -16,6 +16,7 @@ import * as THREE from "three";
 import { SLED, type GameState, type SledState } from "@engine";
 
 import type { HazeUniforms } from "./haze.ts";
+import type { Outfit } from "./outfit.ts";
 import { createSledView, type SledView } from "./sled-view.ts";
 import { SLED_LOOK, sledFrame } from "./sled-look.ts";
 import type { SledStand } from "./skis-body.ts";
@@ -40,6 +41,9 @@ export type SledScene = {
       snowAt: SnowSampler;
       stamps: Stamp[] | null;
     },
+    /** Whether the lens is his own eye over the bars (the cockpit drawn),
+     * and the kit his hands and sleeves are drawn in there. */
+    cockpit?: { shown: boolean; outfit?: Outfit },
   ): void;
   /** The skier stood on the boards (`SkisModel.setSled`), or null off it. */
   stand(state: GameState): SledStand | null;
@@ -137,10 +141,11 @@ export function createSledScene(haze: HazeUniforms): SledScene {
   return {
     group,
     ready: view.ready,
-    frame(state, alpha, dt, simDt, player, fx) {
+    frame(state, alpha, dt, simDt, player, fx, cockpit) {
       const s = state.sled;
       if (!s) return;
-      view.update(state, alpha, dt, player);
+      if (cockpit?.shown && cockpit.outfit) view.dressRider(cockpit.outfit);
+      view.update(state, alpha, dt, player, cockpit?.shown ?? false);
       if (simDt <= 0) return;
       const level = state.level;
       // ── THE TRACKS ────────────────────────────────────────────────────

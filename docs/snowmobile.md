@@ -22,6 +22,7 @@ It is reached two ways:
 | The machine as drawn (the model posed off the engine, the rack, the lamp, the halo) | `pwa/src/game/sled-view.ts` |
 | The tracks, the roost, the rider stood on the boards | `pwa/src/game/sled-scene.ts`, held with the helicopter by `machines.ts` |
 | The camera while he rides it: the ladder framed off the machine on rows of its own | `pwa/src/game/camera-sled.ts` (`SLED_RIGS`, `sledRigPose`) |
+| The cockpit on the HELMET rung: the bars and every control on them, the display, the rider's hands (where each stands and how it moves, what the display reads; as drawn) | `pwa/src/game/sled-cockpit-plan.ts` (three-free), `pwa/src/game/sled-cockpit.ts`; `tests/sled_cockpit_test.ts` |
 | The rider's stance over the bars | `pwa/src/game/skier-sled.ts` (`boardPose`), read through `skier-seat.ts` |
 | The HUD's tachometer and its call | `pwa/src/game/hud-sled.tsx`, `pwa/src/sled.css` |
 | The sound | `pwa/src/game/audio/sled-*.ts` (see `docs/audio.md`) |
@@ -117,11 +118,22 @@ The rider stands on the boards (`skier-sled.ts`'s `boardPose`): a boot on each b
 **The camera.** The camera ladder is built round a skier: the TIPS lens a hand's height off the snow ahead of his boots, the HELMET lens at his eyes, the booms a few metres behind his back. Stood on the boards of a machine three metres long, those rows put the tips lens inside its hood. So while he rides it the ladder is framed off the machine itself — its centre as drawn, its attitude, its way and its own flight — on rows of its own (`camera-sled.ts`'s `SLED_RIGS`), and the lens is flown across from one ladder to the other as he steps on and off (a ride begun on the boards cuts straight to it):
 
 - TIPS: the bumper — a lens bolted low ahead of the nose, the snow rushing at it and the lamp's pool on it;
-- HELMET: the rider's eye over the bars, tipped down so the bars and the hood stand at the foot of the frame;
+- HELMET: THE COCKPIT — the rider's own eye as he stands on the boards in a crouch over the bars, tipped down so his gloved hands, the bars and every control on them and the display fill the lower part of the frame under the snow ahead (below);
 - CHASE: behind and over his head, the whole machine and its roost in the frame;
 - FAR and HIGH: the same further out, and high over it.
 
 The booms keep everything the skier's have (the springs, the lean with the face, the stretch with speed, the trunks pushed off); only their sizes are the machine's. `tests/camera_sled_test.ts` holds every lens clear of the machine.
+
+**The cockpit.** The model's bars are built for a lens metres away; a metre off them they read as a grey bar. So on the HELMET rung the bars are drawn close in code instead (`sled-cockpit.ts`, built the first time the rung is taken, and the model's bars and its small hood gauge put away meanwhile), laid out as the class's operator's guides lay them out:
+
+- the RIGHT bar: the thumb throttle — a paddle ahead of the grip's inboard end, sprung out to idle and pushed back toward the grip as the throttle opens, the right thumb on it — on its housing, the red emergency stop button on top;
+- the LEFT bar: the brake lever ahead of the grip, pulled toward it by the brake, the index and middle fingers on it, off a master cylinder with its fluid's sight glass and the parking lock's tab; inboard of it the switch cluster — the hand and thumb warmers up and down, the display's MODE, the electric reverse, the headlamp's beam;
+- the MIDDLE: a tapered aluminium bar on a tall riser and its clamp, the mountain strap's loop and a padded crossbar, the post down into the hood, the brake hose and the throttle cable run down to it, the hand guards round both grips — all of it turned about the post with the skis, the model's own linkage, the rider's elbows and shoulders following the bars part of the way;
+- the DISPLAY on its bracket ahead of the clamp, turning with the bars as a mountain gauge does, read off the machine a dozen times a second (`gaugeOf`): the speed, the engine as a bar with its red line and in figures, the coolant warming to its running heat, the fuel the engine burns, the altitude over the sea, the clock, and the tell-tales (forward, the high beam after dark, low fuel, the engine hot, the warmers); the coolant and the tank are the display's own memory, which the engine keeps neither of;
+- a low smoked deflector on the hood ahead, and the safety tether clipped in beside the bars, its coiled cord running back to the rider;
+- his own gloved hands closed round the grips and his forearms back to his elbows, in his gloves' and his jacket's colours.
+
+`make sled ARGS=--sheet=cockpit` is its lab: the view at idle, flat out, in both turns and braking, in powder and at night, and close looks at both hands, the levers and the display.
 
 ## The sound
 

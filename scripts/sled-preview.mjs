@@ -27,6 +27,9 @@
 //   turntable  turntable (the parked machine from eight sides)
 //   lenses     lenses (every rung of the game's camera riding it on the
 //              groomer), lenses-powder (each through a powder turn)
+//   cockpit    cockpit (the HELMET rung's cockpit at idle, flat out, both
+//              turns and braking), cockpit-close (each hand, the levers and
+//              the display close), cockpit-powder, cockpit-night
 //
 // Each GROUP is one contact sheet, previews/sled-<group>.png, and every
 // frame is also written alone, previews/sled-<view>-<label>.png. The page
@@ -62,12 +65,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (park, board, groomer, powder, climb, tracks, hop, crash, night, turntable, lenses); every one when left out",
+      help: "which sheets, comma-separated (park, board, groomer, powder, climb, tracks, hop, crash, night, turntable, lenses, cockpit); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (park, call, board, rider, groomer, powder, roost, carve, climb, tracks, hop, crash, night, turntable, lenses, lenses-powder)",
+      help: "only these views, comma-separated (park, call, board, rider, groomer, powder, roost, carve, climb, tracks, hop, crash, night, turntable, lenses, lenses-powder, cockpit, cockpit-close, cockpit-powder, cockpit-night)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

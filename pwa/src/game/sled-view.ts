@@ -19,6 +19,8 @@ import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import { SLED_LOOK } from "./sled-look.ts";
+import { createSledCockpit } from "./sled-cockpit.ts";
+import type { Outfit } from "./outfit.ts";
 import { SLED_NODES, sledModelUrl } from "./skier-models.ts";
 
 /** How near the parked machine a skier is for its halo to call him, m. */
@@ -37,8 +39,18 @@ const RUN_FALLBACK = 0.152;
 export type SledView = {
   group: THREE.Group;
   /** Draw the machine at the state's last step, eased from the step before
-   * by `alpha`; `player` is where the skier is drawn (the halo's call). */
-  update(state: GameState, alpha: number, dt: number, player: { x: number; z: number }): void;
+   * by `alpha`; `player` is where the skier is drawn (the halo's call);
+   * `cockpit`, whether the lens is the rider's own eye over the bars — the
+   * cockpit drawn close in place of the model's bars (`sled-cockpit.ts`). */
+  update(
+    state: GameState,
+    alpha: number,
+    dt: number,
+    player: { x: number; z: number },
+    cockpit?: boolean,
+  ): void;
+  /** Dress the rider's hands and sleeves in the cockpit in his kit. */
+  dressRider(outfit: Outfit): void;
   /** Dress the racked pair in the rider's colours: the topsheet and its trim. */
   dressRack(body: number, trim: number): void;
   /** The machine as drawn this frame. */
@@ -180,6 +192,9 @@ export function createSledView(haze: HazeUniforms): SledView {
     trim: [],
   };
   const lampMats: THREE.MeshStandardMaterial[] = [];
+  // The model's own small gauge on the hood, put away while the cockpit's
+  // display stands in for it.
+  const gauges: THREE.Object3D[] = [];
   let dressed: { body: number; trim: number } | null = null;
   let disposed = false;
 
@@ -206,6 +221,9 @@ export function createSledView(haze: HazeUniforms): SledView {
     machine.add(s);
     return s;
   });
+  // THE COCKPIT, drawn close while the lens is his own eye over the bars.
+  const cockpit = createSledCockpit(haze);
+  machine.add(cockpit.group);
   const call = sprite(0x7fe0ff, 3.2);
   call.position.set(0, 1.5, 0);
   machine.add(call);
@@ -237,6 +255,7 @@ export function createSledView(haze: HazeUniforms): SledView {
             if (m.name === "rack_ski") rackMats.ski.push(m);
             if (m.name === "rack_trim") rackMats.trim.push(m);
             if (/lamp/i.test(m.name) && m.name !== "taillight") lampMats.push(m);
+            if (m.name === "gauge") gauges.push(o);
           }
           allMats.push(m);
         }
@@ -298,10 +317,11 @@ export function createSledView(haze: HazeUniforms): SledView {
   return {
     group,
     ready,
-    update(state, alpha, dt, player) {
+    update(state, alpha, dt, player, inCockpit = false) {
       const s: SledState | undefined = state.sled;
       group.visible = !!s;
       if (!s) return;
+      const close = inCockpit && s.rider;
       clock += dt;
       observe(track, s, state.tick);
       sample(track, alpha, at);
@@ -318,6 +338,9 @@ export function createSledView(haze: HazeUniforms): SledView {
       pose(nodes.skiL, s.skiComp[1] - SKI_REST, spindleAxis, s.skiAngle);
       pose(nodes.skiR, s.skiComp[0] - SKI_REST, spindleAxis, s.skiAngle);
       pose(nodes.bars, 0, postAxis, s.skiAngle * 0.8);
+      if (nodes.bars) nodes.bars.visible = !close;
+      for (const o of gauges) o.visible = !close;
+      cockpit.update(state, s, dt, close);
       // THE REAR SUSPENSION: swung up about the drive by the belt's
       // compression past its rest — the rear end rises toward the tunnel.
       pose(nodes.track, 0, null, 0);
@@ -345,11 +368,15 @@ export function createSledView(haze: HazeUniforms): SledView {
       dressed = { body, trim };
       paintRack(body, trim);
     },
+    dressRider(outfit) {
+      cockpit.dress(outfit);
+    },
     drawn() {
       return shown;
     },
     dispose() {
       disposed = true;
+      cockpit.dispose();
       group.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
         if (o instanceof THREE.Sprite) o.material.dispose();

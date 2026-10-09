@@ -13,8 +13,11 @@
 //           the snow coming straight at it and the lamp's pool on it —
 //           the bumper camera of a racer, the machine pitching and rolling
 //           it over every drift;
-//   HELMET  the RIDER'S EYE over the bars, tipped down far enough that the
-//           hood and the bars stand at the foot of the frame;
+//   HELMET  THE COCKPIT: the rider's own eye as he stands on the boards in
+//           a crouch over the bars, tipped down far enough that his gloved
+//           hands on the grips, every control on the bars and the display
+//           stand in the lower half of the frame under the snow ahead —
+//           drawn close for this rung alone (`sled-cockpit.ts`);
 //   CHASE   behind and over the rider's head, the whole machine and the
 //           roost off its belt in the frame;
 //   FAR, HIGH  the same further out, and high over it.
@@ -43,11 +46,11 @@ export const SLED_RIGS: Record<Rung, Rig> = {
   },
   helmet: {
     kind: "bolted",
-    eye: { x: 0, y: 1.38, z: 0.16 },
+    eye: { x: 0, y: 1.12, z: 0.14 },
     look: 30,
-    down: 0.22,
-    fov: 82,
-    fovPerSpeed: 0.2,
+    down: 0.5,
+    fov: 78,
+    fovPerSpeed: 0.12,
     rollShare: 0.6,
     tremor: 0.8,
   },

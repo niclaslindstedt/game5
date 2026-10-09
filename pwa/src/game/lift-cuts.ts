@@ -6,7 +6,10 @@
 // it can be seen (`lifts.ts`). A part with no far cut is not drawn past
 // its reach (a ladder); one given a DISTANT cut (`Beyond`) takes a third,
 // lighter still, past a further reach — or, with no geometry for it, is
-// not drawn there at all (a chair's safety bar across the valley).
+// not drawn there at all (a chair's safety bar across the valley). The
+// distant cut casts no shadow: past `NO_SHADOW` m nothing can reach the
+// sun's box (`shadow-box.ts`), so a casting part with a far cut and no
+// distant one of its own is handed to its far geometry, uncast, there.
 
 import * as THREE from "three";
 
@@ -15,6 +18,12 @@ import type { ViewCull } from "./view-cull.ts";
 /** How high over the snow a carrier can hang, for the length of its
  * shadow, m: past the tallest tower's rope. */
 const CARRIER_HEIGHT = 45;
+
+/** Past this from the eye a part's shadow cannot reach the sun's box, m:
+ * the circle runs 1.5 reaches ahead of the lens and a shadow is followed
+ * 1.5 reaches more (`SHADOW_AHEAD`, `SHADOW_TAIL`), at the high rung's
+ * 75 m reach some 225 m, with room. */
+export const NO_SHADOW = 300;
 
 /** A third cut past `reach` m: drawn as `geo`, or not at all with none. */
 export type Beyond = { geo: THREE.BufferGeometry | null; reach: number };
@@ -45,7 +54,9 @@ export class Cut {
     beyond?: Beyond,
   ) {
     this.reach2 = reach * reach;
-    this.beyond2 = beyond ? beyond.reach * beyond.reach : Infinity;
+    const distant = beyond ? beyond.geo : shadow ? far : null;
+    const out = beyond ? beyond.reach : shadow && far ? NO_SHADOW : Infinity;
+    this.beyond2 = out * out;
     const make = (g: THREE.BufferGeometry) => {
       const m = new THREE.InstancedMesh(g, mat, Math.max(1, capacity));
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -58,7 +69,8 @@ export class Cut {
     };
     this.near = make(near);
     this.far = far ? make(far) : null;
-    this.distant = beyond?.geo ? make(beyond.geo) : null;
+    this.distant = distant ? make(distant) : null;
+    if (this.distant) this.distant.castShadow = false;
     const bound = (g: THREE.BufferGeometry | null): number => {
       if (!g) return 0;
       if (!g.boundingSphere) g.computeBoundingSphere();

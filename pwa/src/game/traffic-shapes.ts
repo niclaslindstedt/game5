@@ -216,10 +216,16 @@ function emitBody(s: Shape, kind: Exclude<VehicleKind, "bike">, cut: TrafficCut)
   // The axles, back from the nose, and the arches over them.
   const axles = [V.front, V.front + V.wheelbase];
   const arch = V.wheel + (bus ? 0.1 : 0.07);
-  const backs = new Set<number>([0, 0.05, 0.14, 0.3, L - 0.3, L - 0.14, L - 0.05, L]);
+  const distant = cut === "distant";
+  const backs = new Set<number>(
+    distant ? [0, 0.3, L - 0.3, L] : [0, 0.05, 0.14, 0.3, L - 0.3, L - 0.14, L - 0.05, L],
+  );
   for (const [z] of p.top) backs.add(z);
   for (const z of [...p.screen, ...p.rear]) backs.add(z);
-  for (const [a, b] of p.windows) {
+  // The side windows' pillars, each its own ring, are past a distant
+  // car's pixels: its glass runs from the first window to the last.
+  const sideGlass: [number, number] = [p.windows[0][0], p.windows[p.windows.length - 1][1]];
+  for (const [a, b] of distant ? [sideGlass] : p.windows) {
     backs.add(a);
     backs.add(b);
   }
@@ -232,7 +238,7 @@ function emitBody(s: Shape, kind: Exclude<VehicleKind, "bike">, cut: TrafficCut)
   }
   const sorted = [...backs].filter((b) => b >= 0 && b <= L).sort((a, b) => a - b);
   const bottomAt = (back: number): number => {
-    if (cut === "far") return p.bottom;
+    if (cut !== "near") return p.bottom;
     let y = p.bottom;
     for (const a of axles) {
       const d = Math.abs(back - a);
@@ -259,13 +265,18 @@ function emitBody(s: Shape, kind: Exclude<VehicleKind, "bike">, cut: TrafficCut)
     const roofed = top > p.belt + 0.08;
     const rw = w * (roofed ? p.tumble : 0.9);
     const drop = bus ? 0.03 : roofed ? 0.06 : 0.04;
-    const pts: V3[] = [
-      [w * 0.93, bot, z],
-      [w * 0.98, sill, z],
-      [w, swage, z],
-      [w * 0.97, belt, z],
-    ];
-    const bands: Band[] = ["sill", "door", "upper", "green"];
+    const pts: V3[] = distant
+      ? [
+          [w * 0.95, bot, z],
+          [w * 0.97, belt, z],
+        ]
+      : [
+          [w * 0.93, bot, z],
+          [w * 0.98, sill, z],
+          [w, swage, z],
+          [w * 0.97, belt, z],
+        ];
+    const bands: Band[] = distant ? ["door", "green"] : ["sill", "door", "upper", "green"];
     if (p.eave !== undefined) {
       pts.push([w * 0.97, Math.min(p.eave, top - 0.04), z]);
       bands.push("eave");
@@ -287,6 +298,8 @@ function emitBody(s: Shape, kind: Exclude<VehicleKind, "bike">, cut: TrafficCut)
   const inSpan = (b: number, spans: readonly [number, number][]) =>
     spans.some(([a, c]) => b > a && b < c);
   const body = bus ? S.white : S.paint;
+  // A distant car's side glass is one strip from its first window to its last.
+  const glassSpans: readonly [number, number][] = distant ? [sideGlass] : p.windows;
   /** The surface of `band` between two rings at `back`. */
   const surfaceOf = (band: Band, back: number, roofed: boolean): Surface => {
     switch (band) {
@@ -296,7 +309,7 @@ function emitBody(s: Shape, kind: Exclude<VehicleKind, "bike">, cut: TrafficCut)
       case "upper":
         return S.paint;
       case "green":
-        return roofed && inSpan(back, p.windows) ? (bus ? S.busGlass : S.glass) : body;
+        return roofed && inSpan(back, glassSpans) ? (bus ? S.busGlass : S.glass) : body;
       case "edge":
       case "crown":
         return inSpan(back, [p.screen, p.rear]) ? S.glass : body;

@@ -46,6 +46,7 @@ import {
   poseCrowdFigure,
   type CrowdLod,
 } from "./crowd-shapes.ts";
+import { FIGURE, type ViewCull } from "./view-cull.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
 
@@ -70,8 +71,9 @@ type Slot = {
 
 export type CrowdView = {
   group: THREE.Group;
-  /** Pose and draw every amateur within sight of the lens at `eye`. */
-  update: (state: GameState, eye: THREE.Vector3) => void;
+  /** Pose and draw every amateur within sight of the lens at `eye` — and,
+   * handed `cull`, only those in its frustum or shadowing into view. */
+  update: (state: GameState, eye: THREE.Vector3, cull?: ViewCull) => void;
   dispose: () => void;
 };
 
@@ -180,7 +182,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     CROWD_BODIES.map((b) => [b, seatHeight(CROWD_LOOKS[b])]),
   ) as Record<CrowdBody, number>;
 
-  const update: CrowdView["update"] = (state, eye) => {
+  const update: CrowdView["update"] = (state, eye, cull) => {
     const crowd = state.crowd;
     if (!crowd) {
       for (const slot of slots.values()) slot.mesh.visible = false;
@@ -243,6 +245,14 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       if (d2 > reach2) continue;
       const far = Math.sqrt(d2 + (a.y - eye.y) ** 2);
       const lod: CrowdLod = far < CROWD_CUTS.near ? "near" : far < CROWD_CUTS.mid ? "mid" : "far";
+      // Out of the frustum and shadowing nothing in it: not posed at all.
+      const foot = seat > 0 ? a.y - 1 : a.y;
+      if (
+        cull &&
+        !a.thrown &&
+        !cull.seen(a.x, foot, a.z, FIGURE.radius, FIGURE.height, lod !== "far")
+      )
+        continue;
       // Stood on the snow's own slope, facing his heading — or, sat on a
       // chair, upright on its seat.
       if (seat > 0) normal.x = normal.z = 0;

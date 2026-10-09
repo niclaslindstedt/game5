@@ -28,6 +28,7 @@ export type { CrowdView };
 
 import { createFinishArena, type FinishArena } from "./finish-arena.ts";
 import type { HazeUniforms } from "./haze.ts";
+import type { ViewCull } from "./view-cull.ts";
 import { hasSpectators, planSpectators, type Fan, type SpectatorPlan } from "./spectator-plan.ts";
 import {
   buildFanFigure,
@@ -225,22 +226,30 @@ export function createSpectators(level: Level, haze: HazeUniforms): Spectators {
  * (`crowd-view.ts`) and its people on foot (`civilians-view.ts`, wherever
  * the ski area has its people — `hasCivilians`) and, on a run with
  * something to watch (`hasSpectators`), the crowd watching it — one view to
- * the renderer. */
-export function createPeopleView(level: Level, haze: HazeUniforms, rules: RunRules): CrowdView {
+ * the renderer, which leaves out what `cull` says is out of sight. */
+export function createPeopleView(
+  level: Level,
+  haze: HazeUniforms,
+  rules: RunRules,
+  cull?: ViewCull,
+): CrowdView {
   const views: CrowdView[] = [createCrowdView(level, haze)];
   if (hasCivilians(rules)) {
     views.push(createCiviliansView(level, haze));
     views.push(createDogsView(level, haze));
   }
   if (hasSpectators(rules)) views.push(createSpectators(level, haze));
-  if (views.length === 1) return views[0];
+  if (views.length === 1) {
+    const only = views[0];
+    return { ...only, update: (state, eye, c = cull) => only.update(state, eye, c) };
+  }
   const group = new THREE.Group();
   group.name = "crowd";
   for (const v of views) group.add(v.group);
   return {
     group,
-    update(state, eye) {
-      for (const v of views) v.update(state, eye);
+    update(state, eye, c = cull) {
+      for (const v of views) v.update(state, eye, c);
     },
     dispose() {
       for (const v of views) v.dispose();

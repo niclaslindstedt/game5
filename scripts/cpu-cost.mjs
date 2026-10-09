@@ -13,7 +13,11 @@
 //           a chase lens (the FOREST and DISTANCE rows' processor half), the
 //           LIFTS' carriers and the free ride's CROWD; the GROUND's cull to
 //           the lens (`terrain.ts`'s `follow`), with the triangles it leaves
-//           drawn beside the whole clipmap's; and the POSE — every
+//           drawn beside the whole clipmap's; the VALLEY — the lifts, the
+//           people on foot and the village's traffic seen from the middle
+//           of the village by a lens turning on the spot, culled to it
+//           (`view-cull.ts`) and not, with the triangles each leaves drawn;
+//           and the POSE — every
 //           rider of the benchmark race posed off his run, the renderer's
 //           `pose` phase (`skis-body.ts`'s `pose` and the merge it drives).
 //
@@ -47,7 +51,7 @@ import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 aliasEngine(root);
 
-const SUITES = ["engine", "pose", "forest", "terrain", "lifts", "crowd"];
+const SUITES = ["engine", "pose", "forest", "terrain", "lifts", "crowd", "valley"];
 const args = parseArgs(
   process.argv.slice(2),
   {
@@ -307,6 +311,40 @@ if (suites.includes("terrain")) {
   delete row.hash;
 }
 
+if (suites.some((s) => s === "lifts" || s === "valley")) {
+  // The piste map boards and the run signs paint onto a 2D canvas the lab
+  // has none of: a context that draws nothing stands in for it.
+  const ctx = new Proxy(
+    {},
+    {
+      get: (o, k) =>
+        k in o
+          ? o[k]
+          : k === "measureText"
+            ? () => ({ width: 10 })
+            : k === "getImageData" || k === "createImageData"
+              ? (w = 1, h = 1) => ({ data: new Uint8ClampedArray(4 * (w.width ?? w) * h) })
+              : k.startsWith?.("create")
+                ? () => ({ addColorStop() {} })
+                : () => {},
+      set: (o, k, v) => ((o[k] = v), true),
+    },
+  );
+  globalThis.document ??= {
+    createElement: () => ({ width: 1, height: 1, style: {}, getContext: () => ctx }),
+  };
+  globalThis.Path2D ??= class {
+    constructor() {
+      return new Proxy({}, { get: () => () => {} });
+    }
+  };
+  globalThis.ImageData ??= class {
+    constructor(data, width, height) {
+      Object.assign(this, { data, width, height });
+    }
+  };
+}
+
 if (suites.includes("lifts") || suites.includes("crowd")) {
   const state = E.createGame({ seed: 7, mode: "free", quiet: true });
   const eye = new THREE.Vector3();
@@ -320,6 +358,71 @@ if (suites.includes("lifts") || suites.includes("crowd")) {
     const { createCrowdView } = await import(join(root, "pwa/src/game/crowd-view.ts"));
     const crowd = createCrowdView(state.level, createHazeUniforms());
     viewRun("crowd", state, () => crowd.update(state, at()), crowd.group);
+  }
+}
+
+if (suites.includes("valley")) {
+  // THE FOOT OF THE MOUNTAIN: a lens 2 m over the middle of the village,
+  // turning once every eight seconds, a low sun's circle ahead of it.
+  const { createLifts } = await import(join(root, "pwa/src/game/lifts.ts"));
+  const { createPeopleView } = await import(join(root, "pwa/src/game/spectators.ts"));
+  const { createTrafficScene } = await import(join(root, "pwa/src/game/traffic-view.ts"));
+  const { createViewCull } = await import(join(root, "pwa/src/game/view-cull.ts"));
+  const { aimShadow } = await import(join(root, "pwa/src/game/shadow-box.ts"));
+  const sun = { x: 0, y: 0, z: 0, reach: 75, sx: 0.55, sy: 0.5, sz: 0.67 };
+  for (const culled of [false, true]) {
+    const state = E.createGame({ seed: 7, mode: "free", quiet: true });
+    const level = state.level;
+    const { centre } = E.villageOf(level);
+    const cull = culled ? createViewCull() : undefined;
+    const lifts = createLifts(level, createHazeUniforms(), 1, false, cull);
+    const people = createPeopleView(level, createHazeUniforms(), state.rules, cull);
+    const traffic = createTrafficScene(level, createHazeUniforms());
+    const group = new THREE.Group().add(lifts.group, people.group, traffic.group);
+    const cam = new THREE.PerspectiveCamera(65, 16 / 9, 0.1, 6000);
+    const y = level.groundAt(centre.x, centre.z) + 2;
+    const frustum = new THREE.Frustum();
+    const pv = new THREE.Matrix4();
+    const sphere = new THREE.Sphere();
+    let tris = 0;
+    let draws = 0;
+    let frames = 0;
+    viewRun(
+      `valley${culled ? "" : " (no cull)"}`,
+      state,
+      () => {
+        const a = (frameClock / 8000) * Math.PI * 2;
+        cam.position.set(centre.x, y, centre.z);
+        cam.lookAt(centre.x + Math.sin(a), y - 0.1, centre.z + Math.cos(a));
+        cam.updateMatrixWorld();
+        aimShadow(sun, centre.x, centre.z, Math.sin(a), Math.cos(a), sun.reach);
+        cull?.aim(cam, sun);
+        lifts.update(state.t, null, null, cam.position, [], state.crowd?.amateurs);
+        people.update(state, cam.position);
+        traffic.update(state, 0, cam.position, []);
+        // What three would draw: a culled mesh by its bound, every
+        // instance of an instanced one it holds.
+        group.updateMatrixWorld(true);
+        pv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(pv);
+        group.traverseVisible((o) => {
+          if (!o.isMesh || (o.isInstancedMesh && o.count === 0)) return;
+          if (o.frustumCulled) {
+            if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+            sphere.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
+            if (!frustum.intersectsSphere(sphere)) return;
+          }
+          const g = o.geometry;
+          const n = g.index ? g.index.count : g.attributes.position.count;
+          tris += (Math.min(n, g.drawRange.count) / 3) * (o.isInstancedMesh ? o.count : 1);
+          draws += 1;
+        });
+        frames += 1;
+      },
+      group,
+    );
+    const row = rows.at(-1);
+    row.name += `: ${Math.round(tris / frames / 1000)}k tris, ${Math.round(draws / frames)} draws`;
   }
 }
 

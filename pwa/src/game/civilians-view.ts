@@ -50,6 +50,7 @@ import { CROWD_POSES, dialsOf } from "./crowd-rig.ts";
 import { CROWD_LODS, buildCrowdFigure, crowdMaterial, type CrowdLod } from "./crowd-shapes.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth, shadeDepth } from "./terrain-shade.ts";
+import { FIGURE, type ViewCull } from "./view-cull.ts";
 
 /** Where the cuts hand over, m from the lens, and the furthest a person
  * is drawn: past it he is under a pixel. */
@@ -66,7 +67,7 @@ type Slot = {
 
 export type CiviliansView = {
   group: THREE.Group;
-  update: (state: GameState, eye: THREE.Vector3) => void;
+  update: (state: GameState, eye: THREE.Vector3, cull?: ViewCull) => void;
   dispose: () => void;
 };
 
@@ -302,7 +303,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   const parts = [0, 0, 0, 0];
   const reach2 = CIVILIAN_CUTS.far * CIVILIAN_CUTS.far;
 
-  const update: CiviliansView["update"] = (state, eye) => {
+  const update: CiviliansView["update"] = (state, eye, cull) => {
     for (const slot of slots.values()) slot.n = 0;
     for (const slot of skiSlots.values()) slot.n = 0;
     let nBalls = 0;
@@ -321,6 +322,8 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       const far = Math.sqrt(d2 + (pose.y - eye.y) ** 2);
       const lod: CrowdLod =
         far < CIVILIAN_CUTS.near ? "near" : far < CIVILIAN_CUTS.mid ? "mid" : "far";
+      if (cull && !cull.seen(pose.x, pose.y, pose.z, FIGURE.radius, FIGURE.height, lod !== "far"))
+        continue;
       if (far < CIVILIAN_CUTS.mid) {
         // A ball in the air or rolled, close enough to see.
         const b = rolledBall(plan, i, t, ball);
@@ -386,6 +389,8 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       if (far > CIVILIAN_CUTS.far) continue;
       const lod: CrowdLod =
         far < CIVILIAN_CUTS.near ? "near" : far < CIVILIAN_CUTS.mid ? "mid" : "far";
+      if (cull && !cull.seen(pose.x, pose.y, pose.z, FIGURE.radius, FIGURE.height, lod !== "far"))
+        continue;
       const slot = slots.get(`${w.body}:${lod}`);
       if (!slot) continue;
       const k = slot.n++;

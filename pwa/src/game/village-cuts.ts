@@ -9,10 +9,11 @@
 // and its far one past it; with every block far — the whole of a run down
 // the mountain — one mesh of every far cut is drawn instead, a single draw.
 //
-// One mesh of the whole village, as it was, drew some 60 000 triangles from
-// anywhere on the mountain and into the sun's map whenever any of it was in
-// the shadow's box; a block now goes to the sun's map, and through three's
-// own frustum test, alone.
+// One mesh of the whole village drew some 60 000 triangles from anywhere on
+// the mountain. The blocks are the culling's tiles (`tile-split.ts`), each
+// going to the sun's map, and through three's own frustum test, alone —
+// built here per building rather than per triangle, so each can carry two
+// cuts.
 //
 // A building goes whole into the block its origin stands in, so no building
 // is ever drawn half at one cut and half at the other; the streets' edges
@@ -29,9 +30,10 @@ import { buildResortBuilding } from "./village-build.ts";
 import { buildStreetEdges } from "./street-edges-build.ts";
 import { buildStreetFurniture } from "./street-furniture-build.ts";
 import type { HazeUniforms } from "./haze.ts";
+import { BUILDING_TILE } from "./tile-split.ts";
 
-/** A block's side, m. */
-export const BLOCK = 96;
+/** A block's side, m: the tile the culling cuts the village into. */
+export const BLOCK = BUILDING_TILE;
 /** The far cut's floor, m²: a triangle smaller is left out of it. */
 export const FAR_AREA = 0.3;
 /** Where a block hands its near cut over to its far, m off its box, and

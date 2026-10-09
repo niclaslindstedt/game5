@@ -79,6 +79,7 @@ import {
   towerHeadGeometry,
 } from "./lift-shapes.ts";
 import { Cut, StillCut } from "./lift-cuts.ts";
+import type { ViewCull } from "./view-cull.ts";
 import {
   CHAIR_BAR,
   bullwheelGeometry,
@@ -177,8 +178,16 @@ function ropesOf(plan: LiftPlan): number[] {
 /** The resort's lifts — and its WIND TUNNELS along the valley floor
  * (`wind-tunnels.ts`), the horizontal lift — in one group the renderer
  * holds. `budget` is the SPRAY row's share; `rings` whether the run rides
- * the lifts (`RunRules.lifts`), and so whether its boarding rings show. */
-export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings = false): Lifts {
+ * the lifts (`RunRules.lifts`), and so whether its boarding rings show;
+ * `cull` (`view-cull.ts`, aimed by the renderer each frame) leaves out the
+ * moving carriers out of sight. */
+export function createLifts(
+  level: Level,
+  haze: HazeUniforms,
+  budget = 1,
+  rings = false,
+  cull?: ViewCull,
+): Lifts {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -649,9 +658,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     inCabin: readonly { index: number; u: number }[],
     holds: ReadonlyMap<number, Hold>,
     eye?: THREE.Vector3,
+    cull?: ViewCull,
   ): void {
     if (cabins) {
-      cabins.begin(eye);
+      cabins.begin(eye, cull);
       for (const c of carriers.gondola) {
         const { u, side, out } = carrierAt(c.p, c.k, t);
         const mine =
@@ -664,8 +674,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
       cabins.end();
     }
     if (chairs && bars) {
-      chairs.begin(eye);
-      bars.begin(eye);
+      chairs.begin(eye, cull);
+      bars.begin(eye, cull);
       for (const c of carriers.chair) {
         const { u, side, out } = carrierAt(c.p, c.k, t);
         if (!out) continue;
@@ -684,8 +694,8 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     const dt = t - reeledAt;
     const snap = !(dt >= 0 && dt < 1);
     reeledAt = t;
-    springs.begin(eye);
-    tees.begin(eye);
+    springs.begin(eye, cull);
+    tees.begin(eye, cull);
     carriers.drag.forEach((c, n) => {
       const { u, side, out } = carrierAt(c.p, c.k, t);
       const y = ropeAt(c.p, u);
@@ -779,7 +789,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     }
     inCabin.length = 0;
     if (carried?.kind === "gondola" && carried.stand === undefined) inCabin.push(carried);
-    moveCarriers(t, inCabin, holds, eye);
+    moveCarriers(t, inCabin, holds, eye, cull);
     for (const c of still) c.update(eye);
     // His own cabin on a gondola: coming round the bottom wheel on the
     // station's rail to him on the platform, creeping on while he steps in

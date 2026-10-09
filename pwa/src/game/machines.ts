@@ -133,6 +133,9 @@ export function createMachines(
   // The balloon's own ladder while he stands in its basket.
   const basketLens = balloon ? createBalloonLadder() : null;
   let lastDt = 1 / 60;
+  // The screen's width to its height, as the last frame was framed for:
+  // the cockpit's lens is widened on a tall one.
+  let aspect = 16 / 9;
   // His steps about the basket, as last seen (`seat`).
   const walk = { x: Number.NaN, z: Number.NaN, face: 0, strides: 0, pace: 0 };
   const groomers: GroomerScene | null = state.rules.groomer ? createGroomerScene(haze) : null;
@@ -197,7 +200,7 @@ export function createMachines(
         shown: rung === "helmet" && ridingSled(s.sled, !!s.skier.thrown),
         outfit: fx.wearing?.(),
       });
-      heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt);
+      heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
       balloon?.frame(s, alpha, dt);
       hung = s.para?.flying ? hangIn(hung, dt) : 0;
@@ -219,6 +222,9 @@ export function createMachines(
       balloon?.light(look);
     },
     lamps(lit, eye, others) {
+      // The eye settled for this frame: the helicopter's cockpit shown
+      // while it is in the cabin.
+      heli?.seen(eye);
       floods.length = 0;
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
@@ -233,7 +239,8 @@ export function createMachines(
     lens(ladder, dt) {
       return heli?.lens(ladder, dt) ?? null;
     },
-    ladder(pose, s, aspect = 16 / 9) {
+    ladder(pose, s, screen = 16 / 9) {
+      aspect = screen;
       pose.lift = null;
       const g = drivenGroomer(s);
       if (g) {

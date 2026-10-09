@@ -29,6 +29,7 @@ import { createHeliCam, frameHeli, HELI_LOOK } from "../game/camera-heli.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import type { Hideable } from "../game/benchmark-report.ts";
+import { COCKPIT_GROUPS, COCKPIT_VIEWS } from "./heli-cockpit-scenes.ts";
 import { heliMiddle, outside, type Spot, type Spots } from "./heli-spots.ts";
 
 /** A lens for a frame: a rung of the game's own ladder (the helicopter's
@@ -402,10 +403,10 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
   eye(st) {
     const s = cruising(st, 45, 5);
     st.camera("helmet");
-    st.shoot(s, "cruise-helmet", "helmet");
-    st.shoot(s, "cruise-tips", "tips");
+    st.shoot(s, "cruise-cockpit", "helmet");
+    st.shoot(s, "cruise-nose", "tips");
     const o = hover(st, st.spots.steep, 25, 3);
-    st.shoot(o, "hover-steep-helmet", "helmet");
+    st.shoot(o, "hover-steep-nose", "tips");
     st.camera("chase");
   },
 
@@ -652,6 +653,7 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     h.spool = 0;
     st.hide([]);
   },
+  ...COCKPIT_VIEWS,
 };
 
 /** The sheets, each a group of views shot onto one page. */
@@ -666,4 +668,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   handover: ["handover"],
   night: ["night"],
   turntable: ["turntable"],
+  ...COCKPIT_GROUPS,
 };

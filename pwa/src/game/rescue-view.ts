@@ -270,6 +270,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   const heli: HeliView = createHeliView(level, haze, {
     pad: false,
     url: MODEL_URL(),
+    cockpit: false,
   });
   group.add(heli.group);
   const material = hazeMaterial(

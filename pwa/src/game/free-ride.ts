@@ -262,6 +262,14 @@ export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } |
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
 }
 
+/** The ride moved onto the map and country a paused free ride is skied on
+ * (the pause card's PISTE MAP): itself where it is already there, else the
+ * same day and snow with the run and the spot left to that map. */
+export function rideOnto(ride: FreeRide, seed: number, region: RegionId): FreeRide {
+  if (ride.seed === seed && ride.region === region) return ride;
+  return { ...ride, seed, region, run: null, spot: null };
+}
+
 /** The run picked on `seed` in the ride's country, or null for the first
  * of the GRADE row's colour. THE RUN BELONGS TO ITS MAP, as the spot does:
  * a run's id on one seed or country is another run, or none, on the next. */

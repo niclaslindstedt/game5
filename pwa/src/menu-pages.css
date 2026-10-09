@@ -260,6 +260,24 @@
   gap: clamp(0.34rem, 1.4vmin, 0.5rem);
 }
 
+/* OPTIONS and the PISTE MAP share the second row, half each; alone, OPTIONS
+   is the whole row. */
+.pause-pair,
+.pause-single {
+  display: grid;
+  gap: clamp(0.34rem, 1.4vmin, 0.5rem);
+}
+
+.pause-pair {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.pause-pair .menu-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Scoped to the ROWS: the pause card's OPTIONS panel wears
    `.menu-card-pause` too, and its group headings carry marks of their own. */
 .menu-card-pause .menu-item .menu-glyph {
@@ -373,4 +391,60 @@
    the subject. */
 .menu-card-pause-options .menu-title {
   font-size: clamp(0.95rem, 3.4vmin, 1.15rem);
+}
+
+/* THE PAUSE CARD'S PISTE MAP (`menu-pause-slopes.tsx`): the start card's
+   chart and RUN row on the pause card's plate. On a phone held upright the
+   chart stands over the row; wherever there is the width (a phone on its
+   side, a desktop) it takes the left of the body, as tall as the window
+   leaves it, and the row and its chip stand beside it. */
+.menu-card-pause-slopes {
+  text-align: left;
+  gap: 0.55rem;
+}
+
+.menu-card-pause-slopes .menu-title {
+  font-size: clamp(0.95rem, 3.4vmin, 1.15rem);
+}
+
+.pause-slopes,
+.pause-slopes-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.menu-card-pause-slopes .seed-preview-plate {
+  max-width: min(20rem, 46vh);
+}
+
+@media (min-width: 40rem), (orientation: landscape) and (max-height: 34rem) {
+  .menu-card-pause-slopes {
+    --chart: clamp(8rem, calc(100dvh - 10.5rem), 20rem);
+    width: min(40rem, 100%);
+  }
+
+  .pause-slopes {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .pause-slopes .seed-preview {
+    flex: none;
+    padding: 0.25rem;
+  }
+
+  .menu-card-pause-slopes .seed-preview-plate {
+    width: var(--chart);
+    max-width: none;
+  }
+
+  .pause-slopes-rows {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .menu-card-pause-slopes .knob-value {
+    width: 5.2rem;
+  }
 }

@@ -32,6 +32,7 @@ export const GLYPH_NAMES = [
   "flip",
   "replay",
   "chart",
+  "piste",
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -168,6 +169,15 @@ const GLYPHS: Record<GlyphName, JSX.Element> = {
       <rect x="5.4" y="12.5" width="3.4" height="8" rx="0.6" />
       <rect x="10.3" y="8" width="3.4" height="12.5" rx="0.6" />
       <rect x="15.2" y="3.5" width="3.4" height="17" rx="0.6" />
+    </>
+  ),
+  // A PISTE MAP FOLDED IN THREE, a run winding down it: another run on the
+  // mountain. The folds keep it from reading as the gauge or the display.
+  piste: (
+    <>
+      <path d="M3.5 5.5 9 3.5l6 2 5.5-2v15L15 20.5l-6-2-5.5 2Z" />
+      <path d="M9 3.5v15M15 5.5v15" opacity="0.45" />
+      <path d="M12 6.2c-3.4 1.6 3.4 3.8 0 5.6s3.4 3.9 0 5.8" stroke-dasharray="1.6 1.4" />
     </>
   ),
 };

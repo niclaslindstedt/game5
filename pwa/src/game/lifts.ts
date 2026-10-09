@@ -78,7 +78,7 @@ import {
   towerHeadFarGeometry,
   towerHeadGeometry,
 } from "./lift-shapes.ts";
-import { Cut, StillCut } from "./lift-cuts.ts";
+import { Cut, StillCut, type Beyond } from "./lift-cuts.ts";
 import type { ViewCull } from "./view-cull.ts";
 import {
   CHAIR_BAR,
@@ -87,6 +87,7 @@ import {
   cabinGeometry,
   chairBarFarGeometry,
   chairBarGeometry,
+  chairDistantGeometry,
   chairFarGeometry,
   chairGeometry,
   springBoxFarGeometry,
@@ -97,8 +98,13 @@ import {
 import { buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
-import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
-import { createVillageBuildings } from "./village-cuts.ts";
+import {
+  blocksOf,
+  createBlockBuildings,
+  createVillageBuildings,
+  type Span,
+  type VillageBuildings,
+} from "./village-cuts.ts";
 import { createInteriors } from "./interiors-view.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
@@ -118,6 +124,9 @@ const CHAIR_REACH = 80;
 const CABIN_REACH = 110;
 const HEAD_REACH = 140;
 const TEE_REACH = 50;
+/** Past this a chair is its seat and back alone and its safety bar is not
+ * drawn, m. */
+const CHAIR_DISTANT = 320;
 
 /** The paints, sRGB: the towers' galvanised steel, the dark steel of the
  * grips and the sheaves, a gondola cabin's body and its glass, a chair's
@@ -205,6 +214,8 @@ export function createLifts(
   // the village round the hub and the mountain's restaurant and patrol hut,
   // in blocks at a near and a far cut (`village-cuts.ts`).
   const village = createVillageBuildings(level, haze);
+  /** The lift stations' houses, once the lifts are planned. */
+  let halls: VillageBuildings | null = null;
   group.add(village.group);
   let disposeBoards = (): void => {};
   let disposeRings = (): void => {};
@@ -212,6 +223,7 @@ export function createLifts(
     tunnels.dispose();
     houses.dispose();
     village.dispose();
+    halls?.dispose();
     rooms.dispose();
     disposeBoards();
     disposeRings();
@@ -226,6 +238,7 @@ export function createLifts(
       if (eye) {
         houses.update(eye);
         village.update(eye);
+        halls?.update(eye);
         rooms.update(eye);
       }
     },
@@ -422,15 +435,17 @@ export function createLifts(
   buildStations(layout, level.groundAt, painted, group, geos, meshes);
   // THE BUILDINGS (`station-build.ts`): every station's house, the
   // terminals, the booths, a gondola's platform roof and door, a drag's
-  // hut — one mesh in the painted materials (`facade-paint.ts`).
-  const facadeMat = facadeMaterial(haze, "stations");
-  mats.push(facadeMat);
-  const buildings = facadeGeometry(buildStationHouses(level, plans, layout).out);
-  geos.push(buildings);
-  const houses3d = new THREE.Mesh(buildings, facadeMat);
-  houses3d.castShadow = true;
-  houses3d.receiveShadow = true;
-  group.add(houses3d);
+  // hut — in the painted materials (`facade-paint.ts`), in blocks at a near
+  // and a far cut as the village's are (`village-cuts.ts`).
+  halls = createBlockBuildings(
+    blocksOf((minArea) => {
+      const spans: Span[] = [];
+      return { kit: buildStationHouses(level, plans, layout, minArea, spans), spans };
+    }),
+    haze,
+    "stations",
+  );
+  group.add(halls.group);
   // THE PISTE MAP BOARDS' FACES (`map-board.ts`), each marked at its top.
   const boards = createMapBoards(
     level,
@@ -519,10 +534,16 @@ export function createLifts(
     CABIN_REACH,
   );
   const chairN = carriers.chair.length;
-  const chairs = movingCut(chairGeometry(), chairFarGeometry(), chairN, CHAIR_REACH);
+  const chairs = movingCut(chairGeometry(), chairFarGeometry(), chairN, CHAIR_REACH, {
+    geo: chairDistantGeometry(),
+    reach: CHAIR_DISTANT,
+  });
   // Every chair's SAFETY BAR, swung down over the riders' laps once the
   // chair is clear of its load and up again before its unload (`BAR`).
-  const bars = movingCut(chairBarGeometry(), chairBarFarGeometry(), chairN, CHAIR_REACH);
+  const bars = movingCut(chairBarGeometry(), chairBarFarGeometry(), chairN, CHAIR_REACH, {
+    geo: null,
+    reach: CHAIR_DISTANT,
+  });
   // A DRAG'S T-BARS: the spring box at the rope, the cord down from it and
   // the bar across — the cord REELED UP into the box while nobody holds the
   // bar, paid out as one is pulled down and held, and reeled back in when
@@ -611,10 +632,12 @@ export function createLifts(
     far: THREE.BufferGeometry,
     count: number,
     reach: number,
+    beyond?: Beyond,
   ): Cut | null {
     geos.push(near, far);
+    if (beyond?.geo) geos.push(beyond.geo);
     if (count === 0) return null;
-    const cut = new Cut(near, far, painted, count, reach);
+    const cut = new Cut(near, far, painted, count, reach, true, beyond);
     for (const m of cut.meshes) {
       meshes.push(m);
       group.add(m);
@@ -738,6 +761,7 @@ export function createLifts(
     if (eye) {
       houses.update(eye);
       village.update(eye);
+      halls?.update(eye);
       rooms.update(eye);
     }
     boarding?.update(t);

@@ -19,8 +19,12 @@
 //     lands, so the snow a skier ploughs into is the snow he sees.
 //
 // Every part is one instanced draw for the whole ski area, built in code
-// in the woods' chunky low-poly look. A gun stands where the engine stood
-// it and a skier meets it there (`posts.ts`).
+// in the woods' chunky low-poly look — and drawn only NEAR ENOUGH TO SEE
+// (`instance-reach.ts`): the small parts (the nozzle ring, the grille, the
+// wheels, the pit, the hose) within `DETAIL` m of the lens, the gun's
+// body (the drum and its yoke, the carriage, the column, the lance) within
+// `WHOLE` m, past which a gun is a speck. A gun stands where the engine
+// stood it and a skier meets it there (`posts.ts`).
 
 import * as THREE from "three";
 import {
@@ -34,12 +38,15 @@ import {
   type Wind,
 } from "@engine";
 
+import { InstanceReach } from "./instance-reach.ts";
 import { hazeMaterial, PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 import { createPlumes, type Plumes } from "./snow-gun-plume.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
 const F = SNOW_GUN.fan;
+/** How far off a gun's small parts are drawn, and its body, m. */
+export const GUN_REACH = { DETAIL: 220, WHOLE: 900 } as const;
 const L = SNOW_GUN.lance;
 
 /** The fan gun's parts in the drum's frame, m: the turntable this far
@@ -404,9 +411,18 @@ export function createSnowGuns(level: Level, haze: HazeUniforms): SnowGuns | nul
     drum.setColorAt(i, colour.set(paintOf(g)));
   });
 
-  // The drum, its yoke and turntable — turned to the sweep each frame.
+  // The drum, its yoke and turntable — turned to the sweep each frame;
+  // once the reaches keep them, placed through those.
+  const reaches: InstanceReach[] = [];
   const drawn = new Float32Array(fans.length).fill(Number.NaN);
   const pivot = new THREE.Vector3();
+  const place = (mesh: THREE.InstancedMesh, i: number): void => {
+    if (reaches.length === 0) set(mesh, i);
+    else {
+      m4.compose(at, q, one);
+      for (const r of reaches) r.place(mesh, i, m4);
+    }
+  };
   const placeDrums = (t: number, running: boolean): void => {
     let moved = false;
     fans.forEach((g, i) => {
@@ -417,11 +433,11 @@ export function createSnowGuns(level: Level, haze: HazeUniforms): SnowGuns | nul
       pivot.set(g.x, g.y + F.nozzle[g.mount === "tower" ? "tower" : "carriage"], g.z);
       at.copy(pivot);
       q.setFromEuler(e.set(-F.tilt, yaw, 0, "YXZ"));
-      for (const mesh of [drum, band, ring, throat, grille, motor]) set(mesh, i);
+      for (const mesh of [drum, band, ring, throat, grille, motor]) place(mesh, i);
       q.setFromEuler(e.set(0, yaw, 0, "YXZ"));
-      for (const mesh of [armL, armR, table, crossbar]) set(mesh, i);
+      for (const mesh of [armL, armR, table, crossbar]) place(mesh, i);
     });
-    if (moved) {
+    if (moved && reaches.length === 0) {
       for (const mesh of [drum, band, ring, throat, grille, motor, armL, armR, table, crossbar]) {
         mesh.instanceMatrix.needsUpdate = true;
       }
@@ -433,6 +449,25 @@ export function createSnowGuns(level: Level, haze: HazeUniforms): SnowGuns | nul
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
   }
+  // THE REACHES: each set of parts kept, and drawn out to its distance.
+  const placesOf = (list: readonly SnowGun[]): Float32Array =>
+    Float32Array.from(list.flatMap((g) => [g.x, g.y, g.z]));
+  const { DETAIL, WHOLE } = GUN_REACH;
+  const fanAt = placesOf(fans);
+  const carriageAt = placesOf(carriages);
+  const towerAt = placesOf(towers);
+  const lanceAt = placesOf(lances);
+  reaches.push(
+    new InstanceReach([band, ring, throat, grille, motor, table, crossbar, hose], fanAt, DETAIL),
+    new InstanceReach([drum, armL, armR], fanAt, WHOLE),
+    new InstanceReach([wheelL, wheelR, axle, bar], carriageAt, DETAIL),
+    new InstanceReach([frame, pedestal], carriageAt, WHOLE),
+    new InstanceReach([towerPad], towerAt, DETAIL),
+    new InstanceReach([column], towerAt, WHOLE),
+    new InstanceReach([head, lanceBand, lancePad, hinge], lanceAt, DETAIL),
+    new InstanceReach([tube], lanceAt, WHOLE),
+    new InstanceReach([pit, pole, poleTop], placesOf(guns), DETAIL),
+  );
 
   // THE WHALES and THE PLUMES, while the guns run.
   const whaleGeo = whaleGeometry(level, guns);
@@ -453,6 +488,7 @@ export function createSnowGuns(level: Level, haze: HazeUniforms): SnowGuns | nul
       whales.visible = running;
       plumes.mesh.visible = running;
       placeDrums(state.t, running);
+      for (const r of reaches) r.update(eye);
       if (running) plumes.update(state.t, look, wind, eye, pixels);
     },
     dispose() {

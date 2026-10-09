@@ -11,14 +11,17 @@
 // hung in the air the lamps light; THE LAMPS dealt to the slots the snow,
 // the woods, the falling snow and the snow cloud are lit by (the nearest
 // machine's roof bar, its rear bar and its turning beacon, the next one's
-// roof bar); and the skier hidden in the cab he drives. Built per map with
-// the rest of the world, on a free ride only.
+// roof bar); and the skier hidden in the cab he drives. A machine far from
+// the lens is drawn at the fleet's FAR CUT (`groomer-far.ts`), every far
+// one in one instanced draw a paint. Built per map with the rest of the
+// world, on a free ride only.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { GROOMER, type GameState, type GroomerState } from "@engine";
 
 import { groomerPaint, type GroomerPaint } from "./groomer-build.ts";
+import { createGroomerFar, farNow } from "./groomer-far.ts";
 import { GROOMER_LAMPS } from "./groomer-look.ts";
 import { createGroomerView, type GroomerView } from "./groomer-view.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -57,7 +60,8 @@ export type GroomerScene = {
    * thrown. */
   frame(state: GameState, dt: number, stamps: Stamp[] | null, cloud: SnowCloud | null): void;
   /** The lamps lit at `lit` (0 day … 1 night) and seen from `eye`, onto
-   * `out` nearest first — what the slots are dealt. */
+   * `out` nearest first — what the slots are dealt; and every machine
+   * handed the cut its distance from `eye` asks. */
   lamps(state: GameState, lit: number, eye: THREE.Vector3, out: Flood[]): void;
   /** The machine he drives as drawn, for the lens, or null. */
   drawn(g: GroomerState): ReturnType<GroomerView["drawn"]> | null;
@@ -137,6 +141,10 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
   const made: THREE.Material[] = [];
   const model = loadModel(haze, lit, made);
   const views: GroomerView[] = [];
+  /** Which views are drawn at the far cut. */
+  const isFar: boolean[] = [];
+  const far = createGroomerFar(paint, K.count.most);
+  group.add(far.group);
   const pens = new WeakMap<GroomerState, Pen>();
   let mist = 0;
   const boxes: SolidBox[] = [];
@@ -251,6 +259,15 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
         .filter((o) => o.d < REACH)
         .sort((a, b) => a.d - b.d);
       gs.forEach((_, i) => viewOf(i).light(dark, eye));
+      // THE CUTS: the nearest whole, the rest one instanced draw a paint.
+      far.begin();
+      gs.forEach((g, i) => {
+        const d = Math.hypot(g.x - eye.x, g.y - eye.y, g.z - eye.z);
+        const now = farNow(d, isFar[i] ?? false) && far.add(views[i].group.matrixWorld);
+        if (now !== (isFar[i] ?? false)) views[i].setFar(now);
+        isFar[i] = now;
+      });
+      far.end();
       order.forEach(({ i }, k) => {
         const v = views[i];
         const g = gs[i];
@@ -317,6 +334,7 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
     },
     dispose() {
       for (const v of views) v.dispose();
+      far.dispose();
       paint.dispose();
       for (const m of made) m.dispose();
       void model.then((scene) =>

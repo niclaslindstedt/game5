@@ -25,7 +25,7 @@ import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat
 import { standing } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { standSkier } from "./course.ts";
-import { throwRider } from "./crash.ts";
+import { liftOutOfSnow, throwRider } from "./crash.ts";
 import { SLED, SLED_PROBES, sledMass } from "./defs/sled.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -277,7 +277,7 @@ function drive(
   if (hit > K.tree) throwOff(run, s, events, v0, hit);
   else if (landing && landing.off > 1) throwOff(run, s, events, v0, landing.into);
   else if (stopped > K.wall) throwOff(run, s, events, v0, stopped);
-  else if (s.overFor > K.overFor) throwOff(run, s, events, v0, s.speed);
+  else if (s.overFor > K.overFor) throwOff(run, s, events, v0, s.speed, true);
 }
 
 const ground = { x: 0, y: 1, z: 0 };
@@ -444,14 +444,17 @@ function hop(run: GameState, s: SledState, events: GameEvent[]): void {
   say(run, events, "hop", s.speed);
 }
 
-/** THE RIDER THROWN: off over the bars or the side, with what the machine
- * was carrying; it goes on without him and lies where it comes to rest. */
+/** THE RIDER THROWN: over the bars when the machine is stopped under him,
+ * off its low side when it has `rolled` over (`crash.rolled`), with what
+ * it was carrying — his skis staying on its rack; it goes on without him
+ * and lies where it comes to rest. */
 function throwOff(
   run: GameState,
   s: SledState,
   events: GameEvent[],
   v0: { x: number; y: number; z: number },
   speed: number,
+  rolled = false,
 ): void {
   const c = run.skier;
   const at = riderFrame(run, s);
@@ -460,8 +463,19 @@ function throwOff(
   c.y = at.y;
   c.z = at.z;
   c.q = s.q;
+  // Going over with it, he takes its turn with him.
+  if (rolled) {
+    c.wx = s.wx;
+    c.wy = s.wy;
+    c.wz = s.wz;
+  }
   leave(run, s, events, speed);
-  throwRider(run, "sled", v0, events);
+  const b = throwRider(run, "sled", v0, events, {
+    how: rolled ? K.rolled : undefined,
+    keepSkis: true,
+  });
+  // Stood on a machine lying in the powder he is partly under its snow.
+  liftOutOfSnow(run, b);
 }
 
 /** The machine left to itself with its rider thrown: down, the controls

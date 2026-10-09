@@ -82,10 +82,11 @@ import { TUNING } from "./defs/tuning.ts";
 import { buzzLimit } from "./buzz.ts";
 import { carriedThrough, landingFaults, landingTolerance, type LandingFaults } from "./flight.ts";
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
-import { RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
+import { RADIUS, RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import { tailDug } from "./switch.ts";
 import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
+import { depthUnder, packedSnow } from "./snow.ts";
 
 const K = TUNING.crash;
 const dt = TUNING.dt;
@@ -383,6 +384,15 @@ function overSnow(state: GameState): boolean {
   return up.x * n.x + up.y * n.y + up.z * n.z < TUNING.reset.overUp;
 }
 
+/** How a body goes over (`crash.over`'s row): the share of his tumble
+ * head over heels and onto a side, and the way up he leaves with, m/s. */
+export type OverHow = { readonly pitch: number; readonly side: number; readonly up: number };
+
+/** What a throw may be told beyond its cause: another way over than the
+ * cause's own (`how`), and the skis kept where they are rather than let
+ * go — a snowmobile's rider, whose pair is on its rack (`keepSkis`). */
+export type ThrowOptions = { how?: OverHow; keepSkis?: boolean };
+
 /** Throw the skier: `v0` is his velocity before the blow, which is what
  * he carries on with. */
 export function throwRider(
@@ -390,6 +400,7 @@ export function throwRider(
   cause: CrashCause,
   v0: Vec3,
   events: GameEvent[],
+  opts: ThrowOptions = {},
 ): Thrown {
   const c = state.skier;
   const flat = hypot(v0.x, v0.z);
@@ -407,7 +418,7 @@ export function throwRider(
   // snow: the trunk and the head meet it themselves (`body.ts`).
   const land = cause === "landing" ? events.find((ev) => ev.kind === "land") : undefined;
   const sink = land && land.kind === "land" ? carriedThrough(land.impact, land.g) : 0;
-  const thrown = throwOf(cause, c.q, c.x, c.y, c.z, v0, heading, side, own, sink);
+  const thrown = throwOf(cause, c.q, c.x, c.y, c.z, v0, heading, side, own, sink, opts.how);
   if (cause === "nose") {
     // The tips dig and the skis go over them: a tips-down pitch rate is a
     // positive `wx`.
@@ -415,8 +426,9 @@ export function throwRider(
     const impact = e && e.kind === "land" ? e.impact : 0;
     c.wx += Math.min(K.skiKickMax, K.skiKick * impact);
   }
-  // ...and the bindings let go, each ski its own body from here.
-  thrown.skis = letGo(state, c, side, speed);
+  // ...and the bindings let go, each ski its own body from here — unless
+  // he was not standing in them.
+  if (!opts.keepSkis) thrown.skis = letGo(state, c, side, speed);
   c.thrown = thrown;
   events.push({ kind: "wipeout", t: state.t, cause, speed, x: c.x, z: c.z });
   return thrown;
@@ -427,7 +439,8 @@ export function throwRider(
  * gravity at (`x`, `y`, `z`), going at `v0`, along `heading`, over onto
  * `side` (−1 left, 1 right), turning at `own` (world frame) — the turn it
  * goes over with read off `crash.over` — and coming on down at `sink` m/s
- * where a landing's legs could not stop it (`carriedThrough`). The player's (`throwRider`) and an
+ * where a landing's legs could not stop it (`carriedThrough`), over by
+ * `how` (the cause's own row unless told). The player's (`throwRider`) and an
  * amateur's of the crowd (`crowd.ts`) alike; no skis let go yet.
  */
 export function throwOf(
@@ -441,9 +454,9 @@ export function throwOf(
   side: number,
   own: Vec3,
   sink = 0,
+  how: OverHow = K.over[cause],
 ): Thrown {
   const flat = hypot(v0.x, v0.z);
-  const how = K.over[cause];
   const spin = Math.min(K.maxSpin, (flat * K.keep) / K.tumbleRadius);
   const pitch = how.pitch * spin;
   const roll = -side * how.side * Math.max(K.topple, spin);
@@ -500,6 +513,29 @@ export function bodyThrown(
     skis: [],
   };
   return thrown;
+}
+
+/** A BODY THROWN FROM WHERE IT WAS SUNK — off a machine that lay in the
+ * powder, say: lifted whole, as it moves, until no point of it is under
+ * the snow it would be held on (`stepRagdoll`'s floor), so the snow does
+ * not shove it out in one step and fling it. */
+export function liftOutOfSnow(state: GameState, b: Thrown): void {
+  const P = b.points;
+  const depth = depthUnder(state.snowDepth, state.fresh);
+  let lift = 0;
+  for (let i = 0; i < RAGDOLL.count; i++) {
+    const x = P[3 * i];
+    const z = P[3 * i + 2];
+    const soft = (1 - packedSnow(state, x, z)) * depth;
+    const floor = state.level.groundAt(x, z) - K.sink * soft + RADIUS[i];
+    lift = Math.max(lift, floor - P[3 * i + 1]);
+  }
+  if (lift <= 0) return;
+  for (let i = 0; i < RAGDOLL.count; i++) {
+    P[3 * i + 1] += lift;
+    b.last[3 * i + 1] += lift;
+  }
+  b.y += lift;
 }
 
 /** One step of the skier's own body on the snow, and of the skis he left. */

@@ -255,17 +255,23 @@ export const SLED = {
    * the flight's gravity), or set down `tilt` rad off its belt any harder
    * than `tiltFrom` m/s; and the way it was going stopped `wall` m/s in a
    * step — a cliff band ridden into.
+   * HOW HE GOES OFF: over the bars (`crash.over.sled`) when a trunk, a
+   * wall or a landing stops the machine under him, and when it rolls
+   * over, `rolled` — he falls off its low side as it goes, turning with
+   * it (`TUNING.crash.carry` of its own turn), barely head over heels and
+   * not thrown up. Either way his skis stay on the rack.
    * Off, the machine lies where it came to rest until he rides back to it
    * (boarding stands it back on its belt). */
   crash: {
     tree: 7,
     over: 1.25,
-    overFor: 0.6,
+    overFor: 0.25,
     landing: 15,
     landingPowder: 19,
     tilt: 0.7,
     tiltFrom: 4,
     wall: 8,
+    rolled: { pitch: 0.1, side: 0.5, up: 0.3 },
   },
   /** THE BODY'S POINTS that meet the snow and the trunks when the springs
    * run out — the hull, nose to tunnel, belly to riser — body frame, m. */

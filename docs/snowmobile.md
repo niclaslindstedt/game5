@@ -101,10 +101,12 @@ Left with nobody on it, the machine is still a body: it settles where it stands 
 The rider is thrown (the `sled` crash cause, its tumble in `defs/crash.ts`) when the machine:
 
 - meets a trunk harder than `SLED.crash.tree` (7 m/s);
-- stands past `crash.over` (about 72°) of roll or pitch off the snow for `crash.overFor` (0.6 s): rolled or looped;
+- stands past `crash.over` (about 72°) of roll or pitch off the snow for `crash.overFor` (0.25 s): rolled or looped;
 - comes down into the snow, along the snow's normal, harder than `crash.landing` (15 m/s) on the groomer, up to `crash.landingPowder` (19 m/s) in deep powder — a drop of some 7.6 m and 12 m at the flight's gravity — so a kicker onto the flat, a ledge into powder or the edge of a face ridden over are ridden out, and a cliff is not;
 - comes down more than `crash.tilt` (40°) off its belt, on its side or its nose, any harder than `crash.tiltFrom` (4 m/s);
 - has the way it was going stopped `crash.wall` (8 m/s) in one step — a rock wall or a cliff band ridden into at speed. Ridden into at a crawl, it just stops.
+
+How he goes off depends on what put him off. Stopped under him by a trunk, a wall or a landing, he goes on over the bars (`crash.over.sled`). Rolled over, he falls off its low side as it goes: turning with it, barely head over heels and not thrown up (`crash.rolled`). A machine lying in deep powder has him partly under the snow, so his body is lifted onto it first (`liftOutOfSnow`) rather than shoved out of it and flung. Either way his skis stay strapped on the rack and he lies in his boots, and the rack stays drawn on the machine until he is stood back on it. The lab's `crash` sheet (`make sled ARGS=--sheet=crash`) shows both: a trunk at 55 km/h, and a stall across a steep face of deep powder that goes over.
 
 Nothing else on snow throws him. In the air the rider levels the roll with his body, but only so hard (`air.rollMost`): a lip tipped a little is levelled, one tipped hard comes down on its side. And the machine SETS ITS NOSE for the landing (`air.setStiff`, the run's `assist.air`): pitched toward the snow it will come down on, a little nose high, so a jump does not land on its tail or its nose — let go to the rider the moment he leans or brakes, so a nose he drops or throws back is his own. `make sled-land` rides every one of these as a table, and `tests/sled_landing_test.ts` holds it.
 

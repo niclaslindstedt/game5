@@ -3,7 +3,7 @@
 // (`replay.ts`): a run stood up from a copy taken on the way rides on to the
 // very state the run itself reached — a race's field and a free ride's crowd
 // with it — and a recording seeks back and forth to the same frames.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   NEUTRAL_INPUT,
@@ -17,6 +17,9 @@ import {
 import { snapInput } from "../pwa/src/game/ghost.ts";
 import { KEEP, createKeyframes, spacingAt } from "../pwa/src/game/replay-keep.ts";
 import { CRASH, createReplayRig } from "../pwa/src/game/replay.ts";
+import { TRANSPORT, createReplayRun } from "../pwa/src/game/replay-run.ts";
+import { diedOf } from "../pwa/src/game/hud-wreck.ts";
+import { stageTrial } from "./support/injury-stage.ts";
 import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
 
 const HZ = TUNING.physicsHz;
@@ -111,6 +114,56 @@ describe("a run stood up from a keyframe", () => {
     for (let i = 0; i < CRASH.offer * HZ; i++)
       rig.step({ ...NEUTRAL_INPUT }, (step(run, NEUTRAL_INPUT), run));
     expect(rig.crash()).toBeNull();
+  });
+});
+
+describe("an instant replay of a death", () => {
+  it("plays the fall from before it and hands the run back at its end", () => {
+    // Head first into a trunk at 90 km/h: dead on the first step.
+    const staged = stageTrial(
+      { stage: { how: "into", pose: "head", stuff: "trunk", speed: 25 }, ground: "groomed" },
+      0,
+      true,
+    );
+    const live = staged.state;
+    let clock = 0;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const shown: GameState[] = [];
+    let handed = 0;
+    const run = createReplayRun({
+      renderer: { setCamera: () => {}, setReplayCam: () => {} },
+      show: (s) => shown.push(s),
+      shell: () => "run",
+      done: () => {
+        handed++;
+        run.leave();
+      },
+    });
+    run.arm(live, "timeTrial");
+    for (let i = 0; i < 3 * HZ; i++) {
+      const input = snapInput(staged.input);
+      step(live, input);
+      run.step(input, live);
+    }
+    expect(diedOf(live)).not.toBeNull();
+    expect(run.crash()).toBe(true);
+    expect(run.watch("crash", live, "run")).toBe(true);
+    // The recording opens before he died, and plays through the death.
+    const replay = shown[shown.length - 1];
+    expect(replay).not.toBe(live);
+    expect(diedOf(replay)).toBeNull();
+    let frames = 0;
+    while (run.bar() !== null && frames++ < 10 * HZ) {
+      const rate = run.frame();
+      if (run.bar() === null) break;
+      for (let i = 0; i < run.cap(rate > 0 ? 4 : 0); i++) step(replay, run.input()!);
+      if (rate === 0) clock += 100;
+    }
+    expect(diedOf(replay)).not.toBeNull();
+    // Held a beat at its end, then the run is handed back.
+    expect(handed).toBe(1);
+    expect(clock).toBeGreaterThanOrEqual(TRANSPORT.handBack * 1000);
+    now.mockRestore();
   });
 });
 

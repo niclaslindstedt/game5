@@ -42,7 +42,7 @@
 //     the plate is a square the CARD sizes, so nothing moves under a press
 //     already aimed at a button.
 
-import type { PisteGrade, RegionId } from "@engine";
+import type { RunGrade, RegionId } from "@engine";
 import { useEffect, useState } from "preact/hooks";
 
 import type { FreeRunInfo } from "./free-ride.ts";
@@ -76,11 +76,7 @@ const SETTLE_MS = 220;
  * raising that seed's mountain — how far it has got, 0–1. */
 export type SeedChart = { shown: SeedAnswer | null; fresh: boolean; share: number | null };
 
-export function useSeedPreview(
-  seed: number,
-  region: RegionId,
-  grade: PisteGrade | null,
-): SeedChart {
+export function useSeedPreview(seed: number, region: RegionId, grade: RunGrade | null): SeedChart {
   const ask = { seed, region, grade };
   const key = askKey(ask);
   const [shown, setShown] = useState<SeedAnswer | null>(() => seedAnswer(ask));
@@ -221,7 +217,7 @@ function PanoramaLayers({
   entry: boolean;
 }) {
   const pano: PanoramaSchematic = drawn.panorama.schematic;
-  const stroke = (grade: PisteGrade): string => GRADE_LOOK[grade].paint;
+  const stroke = (grade: RunGrade): string => GRADE_LOOK[grade].paint;
   return (
     <>
       {drawn.panoUrl && (
@@ -246,7 +242,7 @@ function PanoramaLayers({
       {pano.runs.map((r) => (
         <path
           key={`c${r.id}`}
-          class={`pano-run-casing${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}`}
+          class={`pano-run-casing${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}${r.kind === "route" ? " pano-route" : ""}`}
           d={r.seen}
           fill="none"
         />
@@ -254,7 +250,7 @@ function PanoramaLayers({
       {pano.runs.map((r) => (
         <path
           key={`r${r.id}`}
-          class={`pano-run${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}`}
+          class={`pano-run${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}${r.kind === "route" ? " pano-route" : ""}`}
           d={r.seen}
           stroke={stroke(r.grade)}
           fill="none"
@@ -320,7 +316,7 @@ function PanoramaLayers({
 /** WHERE THE RIDE STARTS, marked so it cannot be missed: a dot in the
  * run's colour with rings beating out of it — at the spot tapped, or at
  * the head of the run the lift carries the skier to. */
-function EntryMark({ at, grade }: { at: [number, number]; grade: PisteGrade | null }) {
+function EntryMark({ at, grade }: { at: [number, number]; grade: RunGrade | null }) {
   const look = grade ? GRADE_LOOK[grade] : null;
   return (
     <g class="seed-preview-entry" transform={`translate(${at[0].toFixed(1)} ${at[1].toFixed(1)})`}>

@@ -506,7 +506,7 @@ const args = parseArgs(
     },
     grade: {
       kind: "string",
-      help: "build the seed's piste to this grade (green, blue, red, black)",
+      help: "build the seed's piste to this grade (green, blue, red, black, orange)",
     },
     hour: { kind: "number", help: "the race's solar start hour, 0–24" },
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },

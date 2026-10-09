@@ -82,6 +82,7 @@ import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 import { chooseCourse } from "./course-gates.ts";
 import { attemptBegun, reached, reportingTo } from "./progress.ts";
 import { buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { laySkiRoutes } from "./ski-routes.ts";
 import { resortCached } from "./resort-cache.ts";
 import { analyzeResort } from "../analysis/resort.ts";
 
@@ -311,6 +312,9 @@ function generateResortLevel(
     return b.courses.length > 0 ? null : "no course down the network stands";
   };
   const built = buildResort(seed, opts.region, attempts, subSeed, accept, version);
+  // R42 — the ski routes, found on the finished mountain; a version from
+  // before them marks none.
+  if (!generatorTraits(version).noRoutes) built.routes ??= layRoutes(built);
   const index = chooseCourse(built, {
     course: opts.course,
     grade: opts.grade,
@@ -319,6 +323,17 @@ function generateResortLevel(
   const level = opts.tricks ? parkedLevel(seed, built, index, laps, version, opts.course) : null;
   const raced = level ?? resortLevel(built, index, laps, version);
   return opts.sky ? withSky(raced, opts.sky) : raced;
+}
+
+/** R42 — the ski routes of a built ski area. */
+function layRoutes(b: BuiltResort) {
+  return laySkiRoutes({
+    ground: b.ground,
+    runs: b.runs.map((r) => r.run),
+    lifts: b.lifts,
+    trees: b.trees,
+    size: b.plan.size,
+  });
 }
 
 /** R20 on a ski area — the course with the terrain park laid down it: the

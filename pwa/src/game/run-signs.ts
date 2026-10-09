@@ -262,7 +262,9 @@ function printBoard(
   g.fillStyle = NUMBER;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  const numSize = Math.round(box * (grade.shape === "diamond" ? 0.4 : 0.52));
+  const numSize = Math.round(
+    box * (grade.shape === "double" ? 0.3 : grade.shape === "diamond" ? 0.4 : 0.52),
+  );
   g.font = `${numSize}px ${font}`;
   g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
   g.restore();

@@ -295,8 +295,11 @@ function paint(
     ctx.globalAlpha = r.road ? 1 : PAINT.runAlpha;
     ctx.strokeStyle = r.road ? PAINT.lane : r.paint;
     ctx.lineWidth = (r.road ? PAINT.laneWidth : PAINT.runWidth) * css;
+    // A ski route (R42) in long dashes: marked, never groomed.
+    ctx.setLineDash(r.route ? [PAINT.runWidth * css * 2.5, PAINT.runWidth * css * 1.5] : []);
     ctx.stroke(cut(r, r.d));
   }
+  ctx.setLineDash([]);
   ctx.globalAlpha = 1;
   const lift = dark > 0 ? dip(LIFT_DAY, NIGHT.lift, dark) : PAINT.lift;
   ctx.strokeStyle = lift;

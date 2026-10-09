@@ -89,6 +89,11 @@ export type GeneratorTraits = {
    * line stays on the other's surface and is filled down off it, and the
    * junction's corridor is levelled onto the other's surface as it falls. */
   steppedJunctions?: boolean;
+  /** BEFORE THE SKI ROUTES (v1–v8): a ski area marked no orange runs
+   * (R42) — every run on it was a groomed piste or a lane. From v9 the
+   * steepest line worth skiing off a top, past any black, is marked as a
+   * SKI ROUTE, never groomed; nothing else on the map moves. */
+  noRoutes?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -107,6 +112,7 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "piste on the ungraded rules with the face due north.",
     singlePiste: true,
     steppedJunctions: true,
+    noRoutes: true,
   },
   {
     version: 8,
@@ -126,7 +132,18 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "joins as that run falls — no lip where a lane branches, no wall where a wide run " +
       "comes in (R27). A map built for a tricks run carries its terrain park (R20) down " +
       "the course it is ridden on, the course's gates set round the park's kickers; the " +
-      "first course the seed's grade picks that carries one, or the next that does.",
+      "first course the seed's grade picks that carries one, or the next that does. " +
+      "v9 marks the SKI ROUTES (R42); this row marks none.",
+    noRoutes: true,
+  },
+  {
+    version: 9,
+    note:
+      "The ski routes: past black, the ORANGE grade (R42) — the steepest line worth skiing " +
+      "off a chair's or a gondola's top, found on the mountain as it lies between a black's " +
+      "38° and 48° over a hundred metres, never a cliff and never through the woods, down " +
+      "onto a piste or a lane; marked with orange stakes and signed at its head, and never " +
+      "groomed. Nothing else a seed builds moves: no ground, no snow and no tree.",
   },
 ];
 

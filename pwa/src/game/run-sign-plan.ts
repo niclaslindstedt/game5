@@ -56,12 +56,14 @@ import {
   trackPointAt,
   type Level,
   type LiftPlan,
-  type PisteGrade,
+  skiRoutesOf,
+  type RunGrade,
   type Run,
   type TrackPoint,
 } from "@engine";
 
 import { runName, runNumber } from "./run-names.ts";
+import { STRINGS } from "./strings.ts";
 import { NETS, netShape } from "./spectator-plan.ts";
 import { mapBoardOf, signsOf } from "./station-plan.ts";
 
@@ -102,7 +104,7 @@ export type SignBoard = {
   run: string;
   number: string;
   name: string;
-  grade: PisteGrade;
+  grade: RunGrade;
   lane: boolean;
   arrow: SignArrow;
   /** Its width and height, m, and its foot over the snow. */
@@ -299,7 +301,13 @@ export function onCourse(level: Level, x: number, z: number): boolean {
   return hit.distance < width / 2 + out + SIGN.clear;
 }
 
-const RANK: Readonly<Record<PisteGrade, number>> = { green: 0, blue: 1, red: 2, black: 3 };
+const RANK: Readonly<Record<RunGrade, number>> = {
+  green: 0,
+  blue: 1,
+  red: 2,
+  black: 3,
+  orange: 4,
+};
 
 /** The order boards stack in, top first: the pistes over the lanes, then
  * green to black, then by number. */
@@ -377,6 +385,34 @@ export function signPlan(level: Level): readonly SignPost[] {
     if (onCourse(level, x, z)) return [];
     return [{ x, z, y: level.groundAt(x, z), heading, boards: placed }];
   });
+  // A SKI ROUTE (R42) is signed where it leaves the pad: a post at the
+  // corridor's edge `SIGN.down` m down its line on the side away from the
+  // lift, turned to a skier at its head looking down it — the orange
+  // double diamond, its number and the warning, a plain plank.
+  for (const r of skiRoutesOf(level)) {
+    const at = trackPointAt({ track: { points: r.points, length: r.length } }, SIGN.down);
+    const lift = liftPlans(level).find((p) => p.lift.id === r.from)?.lift.top;
+    const side = lift ? -sideOf(at, lift.x, lift.z) : 1;
+    const { x, z } = beside(at, side * offOf(at));
+    posts.push({
+      x,
+      z,
+      y: level.groundAt(x, z),
+      heading: at.heading,
+      boards: [
+        {
+          run: r.id,
+          number: r.id,
+          name: STRINGS.skiRouteSign,
+          grade: r.grade,
+          lane: false,
+          arrow: "ahead",
+          ...SIGN.board,
+          y: SIGN.foot,
+        },
+      ],
+    });
+  }
   cache.set(level, posts);
   return posts;
 }

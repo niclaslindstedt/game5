@@ -125,6 +125,7 @@ import type {
   Kicker,
   Lift,
   Run,
+  SkiRoute,
   TrackPoint,
   TreeDef,
   Vec3,
@@ -166,6 +167,9 @@ export type BuiltResort = {
   facing: number;
   courses: { plan: CoursePlan; course: Course }[];
   cures: AccessCures;
+  /** R42 — the ski routes, laid on the finished area (`ski-routes.ts`);
+   * absent until then, and on a version from before them. */
+  routes?: SkiRoute[];
 };
 
 /** R29 — what the build did for access, piste by piste: walks turned away
@@ -985,6 +989,7 @@ export function resortLevel(
       village: b.village,
       hub: b.hub,
       tunnels: b.tunnels,
+      ...(b.routes && b.routes.length > 0 ? { routes: b.routes } : {}),
     },
   };
   return field.length > 0 ? stampPark(level, field) : level;

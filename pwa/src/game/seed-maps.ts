@@ -37,7 +37,7 @@ import {
   type CreateGameOptions,
   type GeneratedLevel,
   type Level,
-  type PisteGrade,
+  type RunGrade,
   type RegionId,
 } from "@engine";
 
@@ -57,7 +57,7 @@ import { readChart, writeChart } from "./seed-store.ts";
 
 /** One map the card can ask for: a seed, in a region (R21), to a grade
  * (R23) — null the seed's own. */
-export type SeedAsk = { seed: number; region: RegionId; grade: PisteGrade | null };
+export type SeedAsk = { seed: number; region: RegionId; grade: RunGrade | null };
 
 /** What names a map. */
 export const askKey = (a: SeedAsk): string => `${a.region}:${a.grade ?? "dealt"}:${a.seed}`;

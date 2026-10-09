@@ -24,6 +24,7 @@ import {
   TUNING,
   type BodyPart,
   type Bone,
+  type DeathCause,
   type GameState,
   type SkierInput,
 } from "@engine";
@@ -52,7 +53,24 @@ export type Forecast = {
   gore: boolean;
   /** Whether he dies of it: mortal by the blow or the tumble after it. */
   fatal: boolean;
+  /** Whether a machine takes him apart: the death the SHRED cam is shot
+   * for (`mangled`), not the X-ray. */
+  mangled: boolean;
+  /** What he dies of, as the read ahead found it (null: he lives). */
+  cause: DeathCause | null;
 };
+
+/** The deaths that TAKE A BODY APART rather than break it: under a piste
+ * machine, blown off a helicopter's skid, into its rotor. */
+const MANGLING: readonly string[] = ["machine", "blast", "rotor"];
+
+/** Whether a run's skier is being taken apart by a machine — the piste
+ * machine's belts and tiller, the helicopter's blast or its blades
+ * (a blade through any point of him, `HeliState.taken`, whatever he
+ * dies of). */
+export const mangled = (s: GameState): boolean =>
+  !!s.gore &&
+  ((s.gore.cause !== null && MANGLING.includes(s.gore.cause)) || (s.heli?.taken ?? 0) !== 0);
 
 const isRng = (o: Record<string, unknown>): boolean =>
   typeof o.next === "function" && typeof o.pick === "function" && typeof o.range === "function";
@@ -140,7 +158,12 @@ export function forecast(
       // On through the tumble for whether he dies of it.
       for (let j = 0; j < Math.round(FORECAST.after / TUNING.dt) && !diesOf(run); j++)
         step(run, input);
-      return { ...found, fatal: diesOf(run) };
+      return {
+        ...found,
+        fatal: diesOf(run),
+        mangled: mangled(run),
+        cause: run.gore?.cause ?? null,
+      };
     }
     if (run.progress.finished) break;
   }
@@ -169,11 +192,17 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
   let left = 0;
   /** The blow found, while the read goes on for whether it kills him, and
    * the step it lands on. */
-  let found: Omit<Forecast, "in" | "fatal"> | null = null;
+  let found: Omit<Forecast, "in" | "fatal" | "mangled" | "cause"> | null = null;
   let at = 0;
   const dies = diesOf;
   const verdict = (state: GameState, fatal: boolean): Forecast => {
-    const f = { ...found!, in: Math.max(0, (at - state.tick) * TUNING.dt), fatal };
+    const f = {
+      ...found!,
+      in: Math.max(0, (at - state.tick) * TUNING.dt),
+      fatal,
+      mangled: !!run && mangled(run),
+      cause: run?.gore?.cause ?? null,
+    };
     run = null;
     found = null;
     return f;

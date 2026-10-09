@@ -72,6 +72,10 @@ export type Blood = {
    * over `soak` m² of this snow; one that has moved on starts a new one. */
   pool(key: string, x: number, z: number, litres: number, soak: number): void;
   update(dt: number, ground: BloodGround): void;
+  /** The pace the run is shown at, game seconds a wall second: a drop's
+   * stretch is the blur of its way over a picture, so slow motion draws it
+   * round. */
+  setPace(pace: number): void;
   /** How many drops are flying. */
   flying(): number;
   /** The rider gone (`gore-view.ts`'s `leave`): nothing more flies and no
@@ -223,6 +227,7 @@ export function createBlood(wrap: Wrap): Blood {
   const vy = new Float32Array(DROPS);
   const vz = new Float32Array(DROPS);
   const size = new Float32Array(DROPS);
+  let pace = 1;
   let live = 0;
   let nextSplat = 0;
   let splatCount = 0;
@@ -514,13 +519,16 @@ export function createBlood(wrap: Wrap): Blood {
         const u = v.length();
         q.setFromUnitVectors(yUp, u > 1e-4 ? v.divideScalar(u) : yUp);
         // Stretched along its way the faster it goes.
-        s.set(size[i], size[i] * (1 + Math.min(5, u * 0.4)), size[i]);
+        s.set(size[i], size[i] * (1 + Math.min(5, u * 0.4 * pace)), size[i]);
         p.set(px[i], py[i], pz[i]);
         m.compose(p, q, s);
         drops.setMatrixAt(i, m);
       }
       drops.count = live;
       drops.instanceMatrix.needsUpdate = true;
+    },
+    setPace(k) {
+      pace = k;
     },
     flying: () => live,
     settle() {

@@ -36,10 +36,13 @@ export const dying = (state: GameState): boolean =>
     state.gore.injured >= 0 ||
     (state.skier.thrown !== null && disablingOf(state.skier.body) !== null));
 
-/** The HUD's half of a look: the page's `xray-on` class (`body.css`). */
+/** The HUD's half of a look: the page's `xray-on` class (`body.css`) —
+ * the body plate and the g meter faded under the glass, and for the whole
+ * of a shred. */
 export function xrayHud(look: XrayLook | null): void {
   if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("xray-on", !!look?.active && look.xray > 0.05);
+  const on = !!look?.active && (look.xray > 0.05 || look.kind === "shred");
+  document.documentElement.classList.toggle("xray-on", on);
 }
 
 export type XrayRun = {

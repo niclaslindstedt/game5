@@ -239,7 +239,9 @@ describe("riding a lift on a free ride", () => {
       let across = 0;
       ride(run, 60, (r) => {
         const c = r.skier;
-        if (c.lift?.phase === "board") {
+        // On foot (a gondola's rider walks aboard, stepping back out of
+        // his bindings first) he is walking, not skiing.
+        if (c.lift?.phase === "board" && !c.town) {
           fastest = Math.max(fastest, c.speed);
           if (c.speed > 0.3) {
             const way = Math.atan2(c.vx, c.vz);

@@ -44,6 +44,7 @@ import * as THREE from "three";
 import { rotate, type Level, type SkierState, type Wind } from "@engine";
 
 import { LAMP_GLSL, LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
+import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import { skiShares } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import {
@@ -196,6 +197,7 @@ void main() {
 
 const FRAGMENT = /* glsl */ `
 ${SKY_GLSL}
+${SHELTER_GLSL}
 uniform sampler2D uNoise;
 uniform vec3 uKey;
 uniform vec3 uKeyCol;
@@ -239,7 +241,8 @@ float density(vec2 uv, vec2 spin, vec2 o, float age) {
 
 void main() {
   float r2 = dot(vUv, vUv);
-  if (r2 > 1.0) discard;
+  // None of it inside the cabin the lens is in (\`shelter.ts\`).
+  if (r2 > 1.0 || sheltered(vWorld)) discard;
   float age = vLook.z;
   float seed = vLook.y;
   vec2 o = vec2(fract(seed * 7.13), fract(seed * 3.71));
@@ -419,6 +422,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       uNight: { value: 0 },
       uNear: { value: 2.2 },
       uFocus: { value: new THREE.Vector4(0, -1e5, 0, 1) },
+      ...SHELTER,
     },
     vertexShader: VERTEX,
     fragmentShader: FRAGMENT,

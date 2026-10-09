@@ -99,6 +99,7 @@ import { buildStationHouses } from "./station-build.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { buildResortBuildings } from "./village-build.ts";
 import { BUILDING_TILE, splitByTile } from "./tile-split.ts";
+import { createInteriors } from "./interiors-view.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
@@ -197,6 +198,9 @@ export function createLifts(
   group.add(tunnels.group);
   const houses = createCabins(level, haze);
   group.add(houses.group);
+  // THE ROOMS inside the buildings near the lens (`interiors-view.ts`).
+  const rooms = createInteriors(level, haze);
+  group.add(rooms.group);
   // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
   // the village round the hub and the mountain's restaurant and patrol hut,
   // in the painted materials, cut into tiles (`tile-split.ts`) so the ones
@@ -219,6 +223,7 @@ export function createLifts(
   const dispose = () => {
     tunnels.dispose();
     houses.dispose();
+    rooms.dispose();
     disposeBoards();
     disposeRings();
     for (const g of geos) g.dispose();
@@ -229,7 +234,10 @@ export function createLifts(
     group,
     update: (t, _rider, _drawn, eye) => {
       tunnels.update(t);
-      if (eye) houses.update(eye);
+      if (eye) {
+        houses.update(eye);
+        rooms.update(eye);
+      }
     },
     setBudget: tunnels.setBudget,
     dispose,
@@ -737,7 +745,10 @@ export function createLifts(
   const holds = new Map<number, Hold>();
   done.update = (t, rider, drawn, eye, others = [], crowd = []) => {
     tunnels.update(t);
-    if (eye) houses.update(eye);
+    if (eye) {
+      houses.update(eye);
+      rooms.update(eye);
+    }
     boarding?.update(t);
     const plan = rider ? plans[rider.index] : undefined;
     const togo = rider && plan ? plan.length - plan.look.off - rider.u : Infinity;
@@ -807,7 +818,7 @@ export function createLifts(
         : null;
     cabin.visible = !!cab && (cab.phase === "wait" || !!drawn);
     if (cab) {
-      own.set(cabinDoors(cab), cab.phase === "ride");
+      own.set(cabinDoors(cab));
       if (cab.phase === "ride" && seatedShare(cab) >= 1 && drawn) {
         lift.set(0, TUNING.lift.cabin, TUNING.lift.cabinBack).applyQuaternion(riderQ);
         cabin.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);

@@ -66,6 +66,7 @@
     "civilians": "node scripts/civilians-preview.mjs",
     "lift-ride": "node scripts/lift-ride-preview.mjs",
     "lift-flow": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-flow-lab.mjs",
+    "lift-path": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-path-lab.mjs",
     "heli": "node scripts/heli-preview.mjs",
     "sled": "node scripts/sled-preview.mjs",
     "sled-land": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-land-lab.mjs",
@@ -101,7 +102,8 @@
     "native:typecheck": "npm --prefix native run typecheck",
     "native:ios": "npm --prefix native run ios",
     "native:ios:device": "npm --prefix native run ios:device",
-    "native:android": "npm --prefix native run android"
+    "native:android": "npm --prefix native run android",
+    "town": "node scripts/town-preview.mjs"
   },
   "dependencies": {
     "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.1.3"

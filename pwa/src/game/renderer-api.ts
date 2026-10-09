@@ -60,6 +60,12 @@ export interface WorldRenderer {
   /** THE X-RAY CAM (`xray-shots.ts`): this frame's look — the skeleton drawn
    * inside him and the lens on the bone breaking — or null when it is off. */
   setXray(look: XrayLook | null): void;
+  /** THE PACE the next frames are drawn at, game seconds a wall second (1
+   * the run's own; under it slow motion — the replay's, the X-ray's, the
+   * shred cam's): the `dt` a frame is drawn on is the run's, and what is
+   * shot on the wall's clock (the hurt body's lens, the eye on a rotor)
+   * reads it back off this. */
+  setPace(pace: number): void;
   /** Wait for the GPU to finish everything asked of it, and say how long
    * that took, ms — what the first-visit probe times a frame with. */
   drain(): number;

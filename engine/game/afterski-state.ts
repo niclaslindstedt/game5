@@ -53,9 +53,39 @@ export type Fetch = {
   hands: number;
 };
 
+/** IN TOWN ON FOOT (`town.ts`): stopped on a street of the village, out of
+ * the bindings, the pair on his right shoulder and walking in his boots —
+ * and, off the streets again, the pair laid down and stepped back into.
+ *   * `phase`: stepping out of the bindings (`out`), picking the pair up
+ *     onto his shoulder (`pick`), walking (`walk`), taking it off and
+ *     laying it down (`drop`), back in (`clip`); `phaseT` s into it, `t`
+ *     s since he stopped.
+ *   * `skis`: the two skis where they are (`lone-skis.ts`'s shape, placed
+ *     by `town.ts` every step, never slid): at his feet, stood up in front
+ *     of him, on his shoulder.
+ *   * `at`: where the pair lay when he stepped out of it (x, z, heading),
+ *     and where he lays it to step back in.
+ *   * `walked`: how far he has walked, m — what his stride is drawn by. */
+export type TownWalk = {
+  phase: "out" | "pick" | "walk" | "drop" | "clip";
+  phaseT: number;
+  t: number;
+  skis: LoneSki[];
+  at: { x: number; z: number; heading: number };
+  walked: number;
+};
+
 /** What the afterski and the buzz report: in through the door, a beer
  * finished (`beers` this visit), out; and the fetch's beats — up off the
  * snow, a ski picked up (`skis` of two in hand), back in the bindings. */
 export type AfterskiEvent =
   | { kind: "afterski"; t: number; phase: "in" | "beer" | "out"; beers: number; buzz: number }
-  | { kind: "fetch"; t: number; phase: "up" | "ski" | "in"; skis: number };
+  | { kind: "fetch"; t: number; phase: "up" | "ski" | "in"; skis: number }
+  /** In town (`town.ts`): stopped on a street, a heel piece popped, the
+   * pair clapped together, on the shoulder, a boot's step, the pair laid
+   * on the snow, a binding snapped shut and away. */
+  | {
+      kind: "town";
+      t: number;
+      phase: "stop" | "heel" | "clap" | "shoulder" | "step" | "lay" | "snap" | "away";
+    };

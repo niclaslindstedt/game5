@@ -427,6 +427,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.save = null;
   c.thrown = null;
   if (c.fetch) c.fetch = null;
+  if (c.town) c.town = null;
   c.hitCooldown = 0;
   c.bumpCooldown = 0;
   for (const contact of c.contacts) {

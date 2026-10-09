@@ -41,6 +41,7 @@ import { LEVEL_RULES, bermProfile, regionOf, windFromOf, type Level } from "@eng
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
+import { ROOM_CUT_PARS, roomCutUniforms } from "./room-cuts.ts";
 import {
   SNOW_FRAGMENT_COLOUR,
   SNOW_FRAGMENT_LIGHT,
@@ -443,17 +444,18 @@ export function createTerrain(
       metalness: 0,
     });
     hazeMaterial(material, haze, "terrain", (shader) => {
-      Object.assign(shader.uniforms, shared, own, trail);
+      Object.assign(shader.uniforms, shared, own, trail, roomCutUniforms);
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", `#include <common>\n${SNOW_VERTEX_PARS}`)
         .replace("#include <beginnormal_vertex>", SNOW_VERTEX_PLACE)
         .replace("#include <begin_vertex>", SNOW_VERTEX_BEGIN);
       // The snow lights itself by the lamps, glitter and all.
       shader.fragmentShader = `#define OWN_LAMPS\n${shader.fragmentShader}`
-        .replace("#include <common>", `#include <common>\n${SNOW_FRAGMENT_PARS}`)
+        .replace("#include <common>", `#include <common>\n${SNOW_FRAGMENT_PARS}\n${ROOM_CUT_PARS}`)
+        // No snow inside a room that is built (`room-cuts.ts`).
         .replace(
           "#include <clipping_planes_fragment>",
-          `#include <clipping_planes_fragment>\n${SNOW_FRAGMENT_SAMPLE}`,
+          `#include <clipping_planes_fragment>\nif (inRoomCut(vSnowWorld.xz)) discard;\n${SNOW_FRAGMENT_SAMPLE}`,
         )
         .replace("#include <color_fragment>", `#include <color_fragment>\n${SNOW_FRAGMENT_COLOUR}`)
         .replace(

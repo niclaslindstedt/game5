@@ -23,6 +23,12 @@ export type V3 = [number, number, number];
 /** A colour, sRGB 0xRRGGBB, as the vertex tints the layer. */
 export type Tint = number;
 
+/** An opening stood on a wall (`inset`), recorded in world metres when a
+ * kit is asked to (`FacadeKit.openings`): its foot's two ends, the height
+ * it runs up from and to, and what it is (a pane, a door). The rooms read
+ * them to cut their linings (`interior-build.ts`). */
+export type Opening = { a: V3; b: V3; y0: number; y1: number; layer: FacadeLayer };
+
 /** What a kit has built, in world metres. */
 export type FacadeArrays = {
   pos: number[];
@@ -64,6 +70,8 @@ export class FacadeKit {
   private sin = 0;
   /** Whether what is pushed next lights at night (a pane). */
   glow = 0;
+  /** Every `inset` set down, when an array is handed in. */
+  openings: Opening[] | null = null;
 
   /** Set the frame down: the building's origin at (x, y, z), its +z turned
    * to `yaw`. */
@@ -557,6 +565,11 @@ export class FacadeKit {
     const l = Math.hypot(dx, dz) || 1;
     const nx = -dz / l;
     const nz = dx / l;
+    if (this.openings) {
+      const a = this.world([x0, y0, z0]);
+      const b = this.world([x1, y0, z1]);
+      this.openings.push({ a, b, y0: a[1], y1: a[1] + (y1 - y0), layer });
+    }
     const was = this.glow;
     this.glow = lit ? 1 : 0;
     this.wall(

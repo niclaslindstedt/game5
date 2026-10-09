@@ -86,7 +86,10 @@
 // village's traffic (`traffic-lab.ts`): village-traffic (a car coming down
 // the main street), village-junction, village-carpark, village-bus (the ski
 // bus at its stop), village-cyclist and vehicles (the sheet: every kind
-// from four sides) — `--hour=21` for them after dark.
+// from four sides) — `--hour=21` for them after dark; and the rooms inside
+// the buildings (`interior-view.ts`, `make interiors`): interiors (the
+// sheet: every kind from its door, a front corner and the back),
+// room-<kind> and room-<kind>-door (one room close).
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -213,6 +216,41 @@ const VIEWS = [
   "village-mountainHut",
   "village-patrol",
   "village",
+  "interiors",
+  "room-restaurant",
+  "room-restaurant-door",
+  "room-ticket",
+  "room-ticket-door",
+  "room-rental",
+  "room-rental-door",
+  "room-school",
+  "room-school-door",
+  "room-firstAid",
+  "room-firstAid-door",
+  "room-hotel",
+  "room-hotel-door",
+  "room-garage",
+  "room-garage-door",
+  "room-pumpHouse",
+  "room-pumpHouse-door",
+  "room-house",
+  "room-house-door",
+  "room-apartments",
+  "room-apartments-door",
+  "room-shop",
+  "room-shop-door",
+  "room-church",
+  "room-church-door",
+  "room-mountainHut",
+  "room-mountainHut-door",
+  "room-patrol",
+  "room-patrol-door",
+  "room-hut",
+  "room-hut-door",
+  "room-cabin",
+  "room-cabin-door",
+  "room-chalet",
+  "room-chalet-door",
   "lift-tower",
   "lift-chair",
   "lift-cabin",

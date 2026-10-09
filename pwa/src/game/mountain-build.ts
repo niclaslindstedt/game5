@@ -20,6 +20,7 @@
 
 import { TERRACES } from "@engine";
 import { FACADE } from "./facade-paint.ts";
+import { DOOR_VOID } from "./door-looks.ts";
 import {
   Site,
   backPitch,
@@ -61,7 +62,7 @@ function mountainHut(site: Site): void {
   const below = site.ground(0, hd + 0.5);
   if (below < -2.1) windows(site, "front", -hw + 1.5, hw - 1.5, 5, below + 0.6, -0.4, 1.2, 0.7, 9);
   // The face: two big windows either side of the door, lit.
-  kit.inset(-1, hd, 1, hd, 0, 2.3, 0.05, FACADE.door, 0xffffff, true);
+  kit.inset(-1, hd, 1, hd, 0, 2.3, 0.005, FACADE.plain, DOOR_VOID, false);
   windows(site, "front", -hw + 0.8, -1.6, 3, 0.7, 2.9, 2.2, 0.9, 1, FACADE.glazing);
   windows(site, "front", 1.6, hw - 0.8, 3, 0.7, 2.9, 2.2, 0.9, 2, FACADE.glazing);
   windows(site, "left", -hd + 1, hd - 1, 3, 1.0, 2.5, 1.2, 0.7, 3);
@@ -139,7 +140,7 @@ function patrolHut(site: Site): void {
   kit.inset(-hw + 0.5, hd, hw - 0.5, hd, 0.9, 2.5, 0.04, FACADE.glazing, 0xffffff, true);
   windows(site, "left", -hd + 0.5, hd - 0.5, 1, 1.1, 2.3, 1.4, 1, 1);
   // The door on the right flank, its landing and the stair down to the snow.
-  kit.inset(hw, 1.1, hw, -0.1, 0, 2.1, 0.04, FACADE.plain, 0x5a3c26, false);
+  kit.inset(hw, 1.1, hw, -0.1, 0, 2.1, 0.005, FACADE.plain, DOOR_VOID, false);
   const landing = { layer: FACADE.boards, tint: 0xa98d72 };
   solid(kit, hw, -0.25, -0.6, hw + 1.2, 0, 1.6, landing);
   const snow = site.ground(hw + 2.5, 0.5);

@@ -29,36 +29,225 @@ export type DoorSide = "front" | "back" | "left" | "right";
  *     the floor.
  *   * `dealt`: when given, the door stands at `at` or at `−at`, the side
  *     dealt off a hash of the building's id with this salt (a house's door
- *     at one end of its street front, as `village-town.ts` draws it). */
+ *     at one end of its street front, as `village-town.ts` draws it).
+ *   * HOW IT OPENS (`doorway.ts`, `docs/buildings.md` § Doors): `swing`
+ *     into the room (`in`, a home's door, clear of the snow piled against
+ *     it), out of it (`out`, a public building's, the way its crowd leaves)
+ *     or rolled up overhead (`roll`, a garage's); `leaves` one or a pair,
+ *     each `leaf` m wide, the rest of the doorway fixed side lights either
+ *     side of them; `hinge`, a single leaf's hinged jamb as seen from
+ *     outside (toward the nearer corner when left out, the left on a door
+ *     in the middle); `stuff` what the leaf is made of — what it sounds
+ *     like. */
 export type DoorDef = {
   side: DoorSide;
   at: number;
   width: number;
   height: number;
   dealt?: number;
+  swing: DoorSwingWay;
+  leaves: 1 | 2;
+  leaf: number;
+  hinge?: "left" | "right";
+  stuff: DoorStuff;
 };
 
+/** Which way a door opens: into the room, out of it, or rolled up. */
+export type DoorSwingWay = "in" | "out" | "roll";
+
+/** What a door's leaf is made of. */
+export type DoorStuff = "timber" | "glass" | "steel";
+
 export const BUILDING_DOORS: Readonly<Record<CabinKind, DoorDef | null>> = {
-  hut: { side: "front", at: 0, width: 0.9, height: 1.9 },
-  cabin: { side: "front", at: 0, width: 0.95, height: 2.0 },
-  chalet: { side: "front", at: -1.6, width: 0.95, height: 2.05 },
+  // THE LOG BUILDINGS' plank doors, into the room as a home's are.
+  hut: {
+    side: "front",
+    at: 0,
+    width: 0.9,
+    height: 1.9,
+    swing: "in",
+    leaves: 1,
+    leaf: 0.9,
+    stuff: "timber",
+  },
+  cabin: {
+    side: "front",
+    at: 0,
+    width: 0.95,
+    height: 2.0,
+    swing: "in",
+    leaves: 1,
+    leaf: 0.95,
+    stuff: "timber",
+  },
+  chalet: {
+    side: "front",
+    at: -1.6,
+    width: 0.95,
+    height: 2.05,
+    swing: "in",
+    leaves: 1,
+    leaf: 0.95,
+    stuff: "timber",
+  },
   shed: null,
-  // The double door: two leaves of 0.9 m either side of the middle.
-  afterski: { side: "front", at: 0, width: 1.86, height: 2.3 },
-  restaurant: { side: "front", at: 0, width: 4.8, height: 2.5 },
-  ticket: { side: "front", at: 3.75, width: 1.5, height: 2.3 },
-  rental: { side: "front", at: 6.1, width: 2.0, height: 2.5 },
-  school: { side: "front", at: 0, width: 1.6, height: 2.2 },
-  firstAid: { side: "front", at: 4.35, width: 1.1, height: 2.5 },
-  hotel: { side: "front", at: 0, width: 3.2, height: 2.6 },
-  garage: { side: "front", at: -0.05, width: 6.5, height: 5.2 },
-  pumpHouse: { side: "front", at: 0, width: 2.4, height: 2.6 },
-  house: { side: "front", at: 4, width: 1.1, height: 2.3, dealt: 5 },
-  apartments: { side: "front", at: 0, width: 2.4, height: 2.6 },
-  shop: { side: "front", at: 0, width: 2.0, height: 2.7 },
-  church: { side: "front", at: 0, width: 1.8, height: 3.4 },
-  mountainHut: { side: "front", at: 0, width: 2.0, height: 2.3 },
-  patrol: { side: "right", at: 0.5, width: 1.2, height: 2.1 },
+  // The double door: two leaves of 0.93 m either side of the middle, out
+  // the way a full room leaves.
+  afterski: {
+    side: "front",
+    at: 0,
+    width: 1.86,
+    height: 2.3,
+    swing: "out",
+    leaves: 2,
+    leaf: 0.93,
+    stuff: "timber",
+  },
+  // THE PUBLIC BUILDINGS' glazed doors, out: a pair in the middle of a
+  // glazed front, the rest of it side lights.
+  restaurant: {
+    side: "front",
+    at: 0,
+    width: 4.8,
+    height: 2.5,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.0,
+    stuff: "glass",
+  },
+  ticket: {
+    side: "front",
+    at: 3.75,
+    width: 1.5,
+    height: 2.3,
+    swing: "out",
+    leaves: 1,
+    leaf: 1.0,
+    stuff: "glass",
+  },
+  rental: {
+    side: "front",
+    at: 6.1,
+    width: 2.0,
+    height: 2.5,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.0,
+    stuff: "glass",
+  },
+  school: {
+    side: "front",
+    at: 0,
+    width: 1.6,
+    height: 2.2,
+    swing: "out",
+    leaves: 2,
+    leaf: 0.8,
+    stuff: "glass",
+  },
+  firstAid: {
+    side: "front",
+    at: 4.35,
+    width: 1.1,
+    height: 2.5,
+    swing: "out",
+    leaves: 1,
+    leaf: 1.1,
+    stuff: "glass",
+  },
+  hotel: {
+    side: "front",
+    at: 0,
+    width: 3.2,
+    height: 2.6,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.0,
+    stuff: "glass",
+  },
+  // The middle of the three roller doors, rolled up on its drum.
+  garage: {
+    side: "front",
+    at: -0.05,
+    width: 6.5,
+    height: 5.2,
+    swing: "roll",
+    leaves: 1,
+    leaf: 6.5,
+    stuff: "steel",
+  },
+  pumpHouse: {
+    side: "front",
+    at: 0,
+    width: 2.4,
+    height: 2.6,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.2,
+    stuff: "steel",
+  },
+  house: {
+    side: "front",
+    at: 4,
+    width: 1.1,
+    height: 2.3,
+    dealt: 5,
+    swing: "in",
+    leaves: 1,
+    leaf: 1.1,
+    stuff: "timber",
+  },
+  apartments: {
+    side: "front",
+    at: 0,
+    width: 2.4,
+    height: 2.6,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.0,
+    stuff: "glass",
+  },
+  shop: {
+    side: "front",
+    at: 0,
+    width: 2.0,
+    height: 2.7,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.0,
+    stuff: "glass",
+  },
+  // The church's tall plank pair, out.
+  church: {
+    side: "front",
+    at: 0,
+    width: 1.8,
+    height: 3.4,
+    swing: "out",
+    leaves: 2,
+    leaf: 0.9,
+    stuff: "timber",
+  },
+  mountainHut: {
+    side: "front",
+    at: 0,
+    width: 2.0,
+    height: 2.3,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.0,
+    stuff: "glass",
+  },
+  patrol: {
+    side: "right",
+    at: 0.5,
+    width: 1.2,
+    height: 2.1,
+    swing: "out",
+    leaves: 1,
+    leaf: 1.2,
+    stuff: "timber",
+  },
 };
 
 /** A TERRACE before a front: a deck from `from` m past the front wall to

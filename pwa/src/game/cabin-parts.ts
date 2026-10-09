@@ -53,6 +53,8 @@ export const CABIN_PAINT = {
   glass: colour(0x1f2a33),
   door: [colour(0x5e3d24), colour(0x4f3320)],
   iron: colour(0x2a2a2a),
+  /** The dark of a room seen through an open door. */
+  room: colour(0x15110d),
   /** Plank walls (a shed), and the render of a chalet's stone floor. */
   board: [colour(0x7a5a3c), colour(0x6a4c32)],
   render: colour(0xe6e0d3),
@@ -541,12 +543,18 @@ export function windowIn(s: Shape, op: Opening, shutter: THREE.Color | null): vo
 
 /** A PLANK DOOR in its opening: its boards, ledges, brace and latch
  * painted on one face set back in the wall, the reveals and the casing
- * round it. */
-export function doorIn(s: Shape, op: Opening): void {
+ * round it — or, `hung`, the doorway a walker goes in at: the room's dark
+ * behind where its leaf hangs (`room`: a leaf that swings in, the dark
+ * room laid behind the hole by `doors-view.ts`), the leaf itself hung and
+ * swung there. */
+export function doorIn(s: Shape, op: Opening, hung = false, room = false): void {
   const { wall: w, u0, u1, y0, y1 } = op;
   const P = CABIN_PAINT;
   const back = -0.06;
-  wallFace(s, w, u0, u1, y0, y1, back, FACADE.plankDoor, P.white);
+  // A leaf that swings in has the dark room `doors-view.ts` lays behind
+  // the hole; one that swings out stands before a dark face here.
+  if (hung && !room) wallFace(s, w, u0, u1, y0, y1, back - 0.01, FACADE.matte, P.room);
+  else if (!hung) wallFace(s, w, u0, u1, y0, y1, back, FACADE.plankDoor, P.white);
   surround(s, op, back, 0.1, P.door[1], true);
 }
 

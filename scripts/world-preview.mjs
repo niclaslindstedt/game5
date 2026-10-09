@@ -216,6 +216,8 @@ const VIEWS = [
   "village-patrol",
   "village",
   "walls",
+  "doors",
+  "door-walk",
   "lift-tower",
   "lift-chair",
   "lift-cabin",

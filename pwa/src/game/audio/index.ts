@@ -94,7 +94,8 @@ export function createRunAudio(): RunAudio {
           (event.kind === "heli" ||
             event.kind === "sled" ||
             event.kind === "para" ||
-            event.kind === "balloon") &&
+            event.kind === "balloon" ||
+            event.kind === "door") &&
           state
         ) {
           const c = state.skier;

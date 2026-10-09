@@ -743,7 +743,8 @@ export type GameEvent =
     }
   | SledEvent
   | import("./para-state.ts").ParaEvent
-  | import("./balloon-state.ts").BalloonEvent;
+  | import("./balloon-state.ts").BalloonEvent
+  | import("./door-state.ts").DoorEvent;
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
  * in a lift's QUEUE at its foot, skating to his place and standing in it;
@@ -976,8 +977,7 @@ export type GameState = ContestState & {
   sled?: SledState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;
-  /** THE AFTERSKI (`afterski.ts`) with its lodges, and THE GRIMBEAR
-   * (`grimbear.ts`) the app dealt: on a free ride. */
+  /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
   /** THE PISTE MACHINES (`groomer.ts`), their snow (`groomed.ts`) and the
@@ -985,9 +985,10 @@ export type GameState = ContestState & {
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
   machineSnow?: import("./snow-guns.ts").MachineSnow;
-  /** THE DOORS STANDING OPEN on this run, by their buildings' ids, sorted
-   * (`building-walls.ts`'s `setDoor`): absent while every door is shut. */
+  /** THE DOORS STANDING OPEN, by building id, sorted (`setDoor`), and the
+   * leaves and the move in motion (`doorway.ts`): absent while all is shut. */
   doors?: string[];
+  doorway?: import("./door-state.ts").Doorway;
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

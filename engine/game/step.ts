@@ -315,6 +315,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     heli: base.heli,
     sled: base.sled,
     afterski: base.afterski,
+    ...(base.doors ? { doors: true } : {}),
     groomer: base.groomer,
     // THE VILLAGE'S TRAFFIC met (`traffic-contact.ts`): the free ride's alone.
     ...(base.traffic ? { traffic: true } : {}),

@@ -31,7 +31,13 @@
 import { cellKey, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Level } from "../mapgen/types.ts";
 import { cabinsOf, type Cabin } from "./cabins.ts";
-import { BUILDING_DOORS, BUILDING_WALLS as B, TERRACES } from "./defs/building-walls.ts";
+import {
+  BUILDING_DOORS,
+  BUILDING_WALLS as B,
+  TERRACES,
+  type DoorStuff,
+  type DoorSwingWay,
+} from "./defs/building-walls.ts";
 import { CABINS, type CabinKind } from "./defs/cabins.ts";
 import { CHURCH_TOWER } from "./defs/resort-buildings.ts";
 import type { GameState } from "./state.ts";
@@ -72,7 +78,9 @@ export type WallSegment = {
  * face (x, z) at the floor (y), the heading OUT of it (the heading
  * convention: 0 = +z, clockwise), the doorway's clear width and the leaf's
  * height, m; and a point a metre OUTSIDE it and a metre INSIDE it, where a
- * walker stands to open it and where he stands once through. */
+ * walker stands to open it and where he stands once through; and how it
+ * opens (`DoorDef`): which way, its leaves and each one's width, the jamb a
+ * single leaf hangs on as seen from outside, what it is made of. */
 export type BuildingDoor = {
   id: string;
   cabin: number;
@@ -85,6 +93,25 @@ export type BuildingDoor = {
   height: number;
   outside: { x: number; z: number };
   inside: { x: number; z: number };
+  swing: DoorSwingWay;
+  leaves: 1 | 2;
+  leaf: number;
+  hinge: "left" | "right";
+  stuff: DoorStuff;
+};
+
+/** A door as `doorPlanOf` puts it on its building: its wall, its middle
+ * along it, its doorway and how it opens, the hinge resolved. */
+export type DoorPlan = {
+  side: "front" | "back" | "left" | "right";
+  at: number;
+  width: number;
+  height: number;
+  swing: DoorSwingWay;
+  leaves: 1 | 2;
+  leaf: number;
+  hinge: "left" | "right";
+  stuff: DoorStuff;
 };
 
 /** A building's frame put into the world: a point (lx across its front,
@@ -98,14 +125,28 @@ function toWorld(c: Cabin, lx: number, lz: number): { x: number; z: number } {
 
 /** Where `c`'s door is in its own frame: the wall, its middle along it (x
  * on the front or back, z on a flank), the doorway's width and the leaf's
- * height — or null for a building without one. */
-export function doorPlanOf(
-  c: Cabin,
-): { side: "front" | "back" | "left" | "right"; at: number; width: number; height: number } | null {
+ * height, and how it opens — a single leaf hung on the jamb nearer the
+ * corner it stands toward unless its row says — or null for a building
+ * without one. */
+export function doorPlanOf(c: Cabin): DoorPlan | null {
   const def = BUILDING_DOORS[c.kind];
   if (!def) return null;
   const at = def.dealt !== undefined && buildingHash(c.id, def.dealt) < 0.5 ? -def.at : def.at;
-  return { side: def.side, at, width: def.width, height: def.height };
+  // `at` runs along the frame's own axis (x on the front and back, z on a
+  // flank); a wall's `u` runs to the LEFT of one stood outside facing it.
+  const S = SIDES[def.side];
+  const right = at * (S.ux + S.uz) < 0;
+  return {
+    side: def.side,
+    at,
+    width: def.width,
+    height: def.height,
+    swing: def.swing,
+    leaves: def.leaves,
+    leaf: def.leaf,
+    hinge: def.hinge ?? (at === 0 ? "left" : right ? "right" : "left"),
+    stuff: def.stuff,
+  };
 }
 
 /** The outward normal and the along axis of a wall side, in the frame. */
@@ -312,7 +353,14 @@ function addBuilding(level: Level, c: Cabin, k: number, out: WallSegment[]): voi
     // its clear width is the door's.
     if (u0 - half > 0) push(ax, az, ...pt(u0 - half), half, c.base, top, null);
     if (u1 + half < len) push(...pt(u1 + half), bx, bz, half, c.base, top, null);
-    push(...pt(u0), ...pt(u1), half, c.base, top, c.id);
+    // The leaves across the middle, the fixed side lights either side of
+    // them as solid as the wall.
+    const span = Math.min(door.width, door.leaves * door.leaf) / 2;
+    if (span < door.width / 2 - 0.01) {
+      push(...pt(u0), ...pt(at - span), half, c.base, top, null);
+      push(...pt(at + span), ...pt(u1), half, c.base, top, null);
+    }
+    push(...pt(at - span), ...pt(at + span), half, c.base, top, c.id);
   }
   // THE CHURCH'S PLINTH before its nave, either side of the tower: a step
   // of stone the full footprint wide, to `plinth` over the floor.
@@ -405,6 +453,11 @@ export function buildingDoors(level: Level): readonly BuildingDoor[] {
       height: door.height,
       outside: out,
       inside: inn,
+      swing: door.swing,
+      leaves: door.leaves,
+      leaf: door.leaf,
+      hinge: door.hinge,
+      stuff: door.stuff,
     });
   }
   doors.set(level, list);

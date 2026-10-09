@@ -17,6 +17,7 @@ import { trafficShots } from "./traffic-lab.ts";
 import { tunnelShots } from "./tunnel-view.ts";
 import { villageShots } from "./village-view.ts";
 import { wallShots } from "./walls-view.ts";
+import { doorShots } from "./door-shots.ts";
 
 type Lab = {
   level: Level;
@@ -37,5 +38,6 @@ export function buildingShots(lab: Lab): Record<string, () => string> {
     ...wallShots(lab),
     ...liftShots(lab),
     ...(lab.state ? trafficShots({ ...lab, state: lab.state }) : {}),
+    ...(lab.state ? doorShots({ ...lab, state: lab.state }) : {}),
   };
 }

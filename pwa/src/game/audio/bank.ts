@@ -19,6 +19,7 @@
 // clean sine is a bell.
 
 import { AFTERSKI_BANK } from "./afterski-bank.ts";
+import { DOOR_BANK } from "./door-bank.ts";
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
 import { GORE_BANK } from "./gore-bank.ts";
@@ -710,5 +711,6 @@ export const RUN_BANK: SoundBank = {
   ...BALLOON_BANK,
   ...SLED_BANK,
   ...AFTERSKI_BANK,
+  ...DOOR_BANK,
   ...GORE_BANK,
 };

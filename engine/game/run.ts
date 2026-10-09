@@ -50,6 +50,7 @@ import { stepSled } from "./sled.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { stepAfterski } from "./afterski.ts";
+import { stepDoorLeaves, stepDoorway } from "./doorway.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
 import { trafficStrike } from "./traffic-contact.ts";
@@ -119,6 +120,8 @@ export function stepRun(
   // In a balloon's basket the press is the balloon's (over the side, or
   // out), never a machine's that happens to stand by its site.
   const out = run.afterski?.inside || balloonAboard(run) ? { ...input, machine: false } : input;
+  // THE DOORS' LEAVES (`doorway.ts`): swung, held, closed and latched.
+  if (run.doorway) stepDoorLeaves(run, events);
   // THE PISTE MACHINES (`groomer.ts`): at their work, left, or driven —
   // and while he drives one the step is its own.
   if (stepGroomers(run, out, events)) return forgetRun(run);
@@ -136,7 +139,10 @@ export function stepRun(
   // THE PARAMOTOR (`para.ts`): the rig released, or the ride begun again on
   // the summit — which takes the step.
   if (paraPress(run, out, events)) return;
-  // THE AFTERSKI (`afterski.ts`): in through a lodge's door, and out.
+  // A BUILDING'S DOOR (`doorway.ts`): the hand to its lever and through —
+  // a lodge's own door too, walked up to, which takes him in at its end.
+  if (stepDoorway(run, out, events)) return;
+  // THE AFTERSKI (`afterski.ts`): in from its door's spot, and out.
   if (stepAfterski(run, input, events)) return;
   // Down too hurt to get up (`rescue.ts`): found so, and held.
   if (player) callRescue(run, events);

@@ -532,6 +532,13 @@ export function soundForEvent(
         id: event.phase === "up" ? "fetch_up" : event.phase === "ski" ? "fetch_ski" : "fetch_in",
       };
 
+    // A BUILDING'S DOOR (`door-bank.ts`): opened and shut, by what its leaf
+    // is made of — heard at the door from the skier's head.
+    case "door": {
+      const leaf = event.swing === "roll" ? "roll" : event.stuff;
+      return { id: `door_${event.phase}_${leaf}`, shape: heardAt(event, contact.ear, HEARD_NEAR) };
+    }
+
     default:
       return null;
   }

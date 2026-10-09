@@ -247,6 +247,63 @@ off the plan; the deck chairs and snowmen are one static mesh. The view is
 built only where `hasCivilians` says so — a free ride by day, and its lodges'
 terraces after dark — and goes with the map. `make civilians` is the lab.
 
+## Knocked
+
+A person on foot is SOLID on a free ride. The skier (on his skis or thrown),
+the snowmobile, a piste machine, the village's cars, bus and bicycles, and a
+person already knocked all strike him (`civilian-hits.ts`), and what his body
+does about it is `civilian-knock.ts`'s, on the engine's own ragdoll. It is
+presentation only, like the rest of this page: the plan still says where he
+is, the knock is kept in the view and stepped on the engine's clock, and the
+skier is not slowed by him.
+
+### What the research says
+
+Push-recovery studies read a shove through an inverted pendulum. A standing
+adult's centre of mass sits about 0.95 m up in boots, and the CAPTURE POINT
+(the centre of mass plus its velocity over the pendulum's rate, √(g/h)) says
+whether he can stop over his feet. While it stays inside the base of support
+the ankles and hips hold it (a sway). Once it leaves, a quick step of about
+0.25–0.3 s is taken toward it with the foot that is free. A step reaches
+furthest ahead, less behind and to the side, and least crossed over, and a
+short step leaves the capture point outside and calls for another. People
+recover with one or two steps from pushes up to roughly 1–1.5 m/s at the
+pelvis, stagger through more, and fall once no step can reach it. Falling,
+the arms go forward and out to brace. A pedestrian struck by a vehicle front
+is WRAPPED: the legs are taken at the bumper's height, the trunk rotates over
+toward the vehicle, and the body is thrown forward at about the vehicle's
+speed (forward projection when the front is high and blunt). Getting up from
+the snow goes through a sit, a turn onto a hand and knee or a crouch, and up.
+
+### The design
+
+| Push, at the pelvis | What he does |
+| --- | --- |
+| under ~0.4 m/s | sways and keeps his feet |
+| 0.6–1.4 m/s forward, ~0.8 m/s back or to the side | one step |
+| ~2 m/s forward | staggers two or three steps |
+| ~1.2 m/s to the side, past ~3 m/s forward | falls |
+| past 3.2 m/s (a machine's front) | flown: swept below the blow, wrapped over it, lifted |
+
+He is an ACTIVE ragdoll while he has balance (`Knock.hold`): damped springs
+pull every point toward a stand pose with the hips over the pendulum, the
+trunk leaning with it and whipped by the blow, the swinging foot lifted, and
+the arms thrown out to the sides and forward. When the balance goes, the
+springs let go and the engine's brace reflex throws the hands out. A person
+sat on a bench, the snow or a deck chair cannot step and tips over in the
+shape of the seat. One on skis cannot step either: his skis run out from
+under him. He lies for 1.4–5 s by how hard he was struck, sits up facing his
+feet and rises through the afterski's own get-up, then walks back to where
+his routine has him. A blow's change of velocity is the hitter's momentum
+shared by mass, with a little bounce and a little friction across. A person
+knocked into another strikes her the same way and loses what he gives her.
+
+The lab is `make civilians ARGS=--sheet=knocks`: each row is a person met by
+a skier at a crawl and at speed from behind, the front and the side, a child
+sat on the snow, the snowmobile, a piste machine, a car and one person
+knocked into the next, strobed after the blow, then lying, getting up and
+the walk home. `tests/civilian_knock_test.ts` holds the ladder.
+
 ## Dogs on the sidewalks
 
 The village's streets have their own people on foot: its households walking

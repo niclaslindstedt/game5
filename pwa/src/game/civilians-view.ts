@@ -19,6 +19,13 @@
 // balls the children roll to their snowmen are one instanced ball
 // (`snowballAt`, `rolledBall`: pure functions of the clock).
 //
+// A PERSON KNOCKED (`civilian-hits.ts`: met by the skier, a machine, a car
+// or another person flying) is drawn on his RAGDOLL while he staggers, lies
+// and gets up — a mesh of his own off a small pool, rebuilt each frame in
+// his body's pose (`poseCivilianFigure`, or the crowd's `poseCrowdFigure`
+// for a skater), as an amateur down is — and walks back to his routine
+// drawn as everyone else is, at where he walks.
+//
 // Presentation, end to end: it reads the map, the plan and the engine's
 // clock and writes nothing. A free ride's only (`hasCivilians`).
 
@@ -26,6 +33,9 @@ import * as THREE from "three";
 import { CROWD_BODIES, type Amateur, type CrowdBody, type GameState, type Level } from "@engine";
 
 import { civilianKit, kitParts, type CivilianKit } from "./civilian-dress.ts";
+import { createKnocks, peopleOf, updateKnocks } from "./civilian-hits.ts";
+import { onRagdoll, type Knock } from "./civilian-knock.ts";
+import { knockedPose } from "./civilian-knock-pose.ts";
 import { CIVILIAN_POSES, civilianDials, snowballAt } from "./civilian-moves.ts";
 import {
   type Civilian,
@@ -42,12 +52,19 @@ import {
   buildCivilianProps,
   civilianDepth,
   civilianMaterial,
+  poseCivilianFigure,
 } from "./civilian-shapes.ts";
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
 import { dogPlanFor } from "./dog-walk.ts";
 import { dogWalkerAt } from "./dog-walk-pose.ts";
 import { CROWD_POSES, dialsOf } from "./crowd-rig.ts";
-import { CROWD_LODS, buildCrowdFigure, crowdMaterial, type CrowdLod } from "./crowd-shapes.ts";
+import {
+  CROWD_LODS,
+  buildCrowdFigure,
+  crowdMaterial,
+  poseCrowdFigure,
+  type CrowdLod,
+} from "./crowd-shapes.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth, shadeDepth } from "./terrain-shade.ts";
 
@@ -302,17 +319,117 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   const parts = [0, 0, 0, 0];
   const reach2 = CIVILIAN_CUTS.far * CIVILIAN_CUTS.far;
 
+  // THE KNOCKED (`civilian-hits.ts`): everyone on foot, the knocks kept,
+  // and the pool of meshes a person on his ragdoll is drawn with — by body,
+  // cut and whether he is on skis — and how many of each this frame takes.
+  const people = peopleOf(level, hour);
+  const knocks = createKnocks();
+  type Down = {
+    mesh: THREE.InstancedMesh;
+    dress: THREE.InstancedBufferAttribute;
+    dress2: THREE.InstancedBufferAttribute;
+    kit: THREE.InstancedBufferAttribute | null;
+  };
+  const downs = new Map<string, { meshes: Down[]; n: number }>();
+  const downMesh = (body: CrowdBody, lod: CrowdLod, skis: boolean): Down => {
+    const key = `${body}:${lod}:${skis ? "ski" : "foot"}`;
+    let pool = downs.get(key);
+    if (!pool) downs.set(key, (pool = { meshes: [], n: 0 }));
+    if (pool.n < pool.meshes.length) return pool.meshes[pool.n++];
+    const geometry = (skis ? buildCrowdFigure(body, lod) : buildCivilianFigure(body, lod)).clone();
+    geometry.morphAttributes = {};
+    const attr = () => new THREE.InstancedBufferAttribute(new Float32Array(4), 4);
+    const dress = attr();
+    const dress2 = attr();
+    const kit = skis ? null : attr();
+    geometry.setAttribute("aDress", dress);
+    geometry.setAttribute("aDress2", dress2);
+    if (kit) geometry.setAttribute("aKit", kit);
+    const mesh = new THREE.InstancedMesh(geometry, skis ? skiMaterial : material, 1);
+    mesh.castShadow = lod !== "far";
+    if (mesh.castShadow) mesh.customDepthMaterial = skis ? skiDepth : depth;
+    mesh.receiveShadow = lod === "near";
+    mesh.frustumCulled = false;
+    mesh.name = `civilian-down-${key}`;
+    group.add(mesh);
+    const d = { mesh, dress, dress2, kit };
+    pool.meshes.push(d);
+    pool.n++;
+    return d;
+  };
+  /** Nothing in his hands: what he held went flying. */
+  const bare = freshCivilianPose();
+  /** A PERSON ON HIS RAGDOLL, drawn in its pose: false when too far off. */
+  const drawKnocked = (
+    k: Knock,
+    body: CrowdBody,
+    skis: boolean,
+    eye: THREE.Vector3,
+    colours: ArrayLike<number>,
+    kit: CivilianKit | null,
+  ): void => {
+    const b = k.rag;
+    const far = Math.hypot(b.x - eye.x, b.y - eye.y, b.z - eye.z);
+    if (far > CIVILIAN_CUTS.far) return;
+    const lod: CrowdLod =
+      far < CIVILIAN_CUTS.near ? "near" : far < CIVILIAN_CUTS.mid ? "mid" : "far";
+    const d = downMesh(body, lod, skis);
+    const posed = knockedPose(b.points, body, [b.x, b.y, b.z]);
+    if (skis) poseCrowdFigure(body, lod, posed, d.mesh.geometry);
+    else poseCivilianFigure(body, lod, posed, d.mesh.geometry);
+    d.mesh.setMatrixAt(0, m.makeTranslation(b.x, b.y, b.z));
+    d.mesh.instanceMatrix.needsUpdate = true;
+    d.dress.setXYZW(0, colours[0], colours[1], colours[2], colours[3]);
+    d.dress2.setXYZW(0, colours[4], colours[5], colours[6], skis ? 0 : colours[7]);
+    d.dress.needsUpdate = true;
+    d.dress2.needsUpdate = true;
+    if (d.kit && kit) {
+      kitParts(kit, bare, parts);
+      d.kit.setXYZW(0, parts[0], parts[1], parts[2], parts[3]);
+      d.kit.needsUpdate = true;
+    }
+  };
+  /** Walking back to his routine: drawn walking where he walks. */
+  const walkBack = (k: Knock, out: typeof pose): void => {
+    out.x = k.bx;
+    out.z = k.bz;
+    out.y = level.groundAt(k.bx, k.bz);
+    out.heading = k.heading;
+    out.activity = "walk";
+    out.walked = k.walked;
+    out.clock = k.walked;
+    out.span = 1;
+    out.carry = "none";
+    out.seat = null;
+    out.bag = false;
+    out.shown = true;
+  };
+
   const update: CiviliansView["update"] = (state, eye) => {
     for (const slot of slots.values()) slot.n = 0;
     for (const slot of skiSlots.values()) slot.n = 0;
+    for (const pool of downs.values()) pool.n = 0;
+    updateKnocks(knocks, state, people);
     let nBalls = 0;
     const t = state.t;
     for (let i = 0; i < plan.people.length; i++) {
       const c = plan.people[i];
+      const knock = knocks.map.get(i);
+      if (knock && onRagdoll(knock)) {
+        const colours = c.skis ? outfits.get(i)! : kits[i].colours;
+        drawKnocked(knock, c.body, c.skis, eye, colours, c.skis ? null : kits[i]);
+        continue;
+      }
       // Cheap first: where he lives, before he is posed.
       const home = reachOf[i];
-      if (Math.hypot(home.x - eye.x, home.z - eye.z) - home.r > CIVILIAN_CUTS.far) continue;
+      if (!knock && Math.hypot(home.x - eye.x, home.z - eye.z) - home.r > CIVILIAN_CUTS.far) {
+        continue;
+      }
       civilianAt(plan, i, t, hour, pose);
+      if (knock) {
+        walkBack(knock, pose);
+        if (c.skis) pose.activity = "skate";
+      }
       if (!pose.shown) continue;
       const dx = pose.x - eye.x;
       const dz = pose.z - eye.z;
@@ -379,8 +496,15 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       kitParts(kits[i], pose, parts);
       slot.kit.setXYZW(k, parts[0], parts[1], parts[2], parts[3]);
     }
-    for (const w of walkers) {
+    for (let wi = 0; wi < walkers.length; wi++) {
+      const w = walkers[wi];
+      const knock = knocks.map.get(plan.people.length + wi);
+      if (knock && onRagdoll(knock)) {
+        drawKnocked(knock, w.body, false, eye, w.kit.colours, w.kit);
+        continue;
+      }
       dogWalkerAt(dogs!, w.h, w.member, t, hour, pose);
+      if (knock) walkBack(knock, pose);
       if (!pose.shown) continue;
       const far = Math.hypot(pose.x - eye.x, pose.y - eye.y, pose.z - eye.z);
       if (far > CIVILIAN_CUTS.far) continue;
@@ -413,6 +537,9 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       slot.dress2.needsUpdate = true;
       if ("kit" in slot) (slot as Slot).kit.needsUpdate = true;
     }
+    for (const pool of downs.values()) {
+      pool.meshes.forEach((d, k) => (d.mesh.visible = k < pool.n));
+    }
     balls.count = nBalls;
     balls.visible = nBalls > 0;
     if (nBalls > 0) balls.instanceMatrix.needsUpdate = true;
@@ -432,6 +559,13 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
         slot.mesh.dispose();
       }
       skiSlots.clear();
+      for (const pool of downs.values()) {
+        for (const d of pool.meshes) {
+          d.mesh.geometry.dispose();
+          d.mesh.dispose();
+        }
+      }
+      downs.clear();
       balls.geometry.dispose();
       (balls.material as THREE.Material).dispose();
       balls.dispose();

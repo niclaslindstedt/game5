@@ -60,11 +60,11 @@
 // one a `?start=free` link boots into are the same ride read the same way.
 
 import {
-  PISTE_GRADES,
+  RUN_GRADES,
   REGION_IDS,
   TIMES_OF_DAY,
   WEATHER_KINDS,
-  type PisteGrade,
+  type RunGrade,
   type WeatherKind,
 } from "@engine";
 import { useState } from "preact/hooks";
@@ -89,10 +89,11 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
 /** The COUNTRY row's stops: R21's regions. */
 const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
 
-/** The GRADE row's stops: the seed's own colour, then R23's four. */
-const GRADE_STOPS: { id: "dealt" | PisteGrade; label: string }[] = [
+/** The GRADE row's stops: the seed's own colour, then R23's four and the
+ * ski route's ORANGE past them (R42). */
+const GRADE_STOPS: { id: "dealt" | RunGrade; label: string }[] = [
   { id: "dealt", label: STRINGS.weatherDealt },
-  ...PISTE_GRADES.map((id) => ({ id, label: STRINGS.gradeNames[id] })),
+  ...RUN_GRADES.map((id) => ({ id, label: STRINGS.gradeNames[id] })),
 ];
 
 /** The SEASON row's stops: the map's own date, then the four. */

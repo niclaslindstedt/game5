@@ -112,7 +112,9 @@
 //   ?grade=<id>     build a seed's piste to this grade (R23: green, blue,
 //                   red, black) instead of the one the seed deals — a free
 //                   ride over the start card's GRADE row, and a race a
-//                   `?seed=` link boots into; never a race map.
+//                   `?seed=` link boots into; never a race map. `orange`
+//                   (R42) races the black and rides the lift up to the
+//                   map's SKI ROUTE.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
@@ -157,11 +159,11 @@
 import {
   WEATHER_KINDS,
   isAerialCode,
-  isPisteGrade,
+  isRunGrade,
   isRegionId,
   isSkiId,
   type CreateGameOptions,
-  type PisteGrade,
+  type RunGrade,
   type RegionId,
   type GameMode,
   type SkyOverride,
@@ -264,7 +266,7 @@ export type UrlParams = {
   /** The kind of snow country a seed's map is built in, over the card's. */
   region: RegionId | null;
   /** The piste grade a seed's map is built to, over the card's. */
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   /** The jump an AERIALS link's first jump declares (`?plan=bLF`), or null
    * for the contest's own. */
   plan: string | null;
@@ -411,7 +413,7 @@ export function readParams(search: string): UrlParams {
     probe: q.get("probe") !== "0",
     sky: skyOf(q),
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
-    grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
+    grade: isRunGrade(q.get("grade")) ? (q.get("grade") as RunGrade) : null,
     plan: isAerialCode(q.get("plan")) ? q.get("plan") : null,
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",

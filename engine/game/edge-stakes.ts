@@ -19,7 +19,9 @@
 // nothing here draws from any stream.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { gradeOf, type PisteGrade } from "../mapgen/grades.ts";
+import { gradeOf, type RunGrade } from "../mapgen/grades.ts";
+import { RESORT_RULES } from "../mapgen/resort-rules.ts";
+import { skiRoutesOf } from "../mapgen/ski-routes.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -35,7 +37,7 @@ const K = TUNING.stakes;
 export type StakePlan = {
   count: number;
   stakes: Upright[];
-  grade: PisteGrade[];
+  grade: RunGrade[];
   banded: Uint8Array;
   height: number;
   radius: number;
@@ -55,7 +57,13 @@ export type StakeState = {
   live: number[];
 };
 
-type Edged = { points: readonly TrackPoint[]; length: number; grade: PisteGrade; every?: number };
+type Edged = {
+  points: readonly TrackPoint[];
+  length: number;
+  grade: RunGrade;
+  every?: number;
+  route?: boolean;
+};
 
 const plans = new WeakMap<Level, StakePlan>();
 
@@ -65,16 +73,21 @@ const plans = new WeakMap<Level, StakePlan>();
  * run's groomed snow (a junction, a lane across a piste) is left out. A
  * SPEED TRACK's sides (R34) are its own: its launch marked in blue, its
  * timing zone in red every `zone` m, its run-out in blue again — the marks
- * a racer reads his speed off. Kept per map. */
+ * a racer reads his speed off. A SKI ROUTE (R42) is marked in orange down
+ * both sides of its corridor every `route.every` m, off the groomed snow it
+ * leaves and comes down onto. Kept per map. */
 export function stakePlan(level: Level): StakePlan {
   const known = plans.get(level);
   if (known) return known;
   const lines: Edged[] = level.resort
     ? [...level.resort.runs]
     : [{ points: level.track.points, length: level.track.length, grade: gradeOf(level) }];
+  for (const r of skiRoutesOf(level)) {
+    lines.push({ ...r, every: RESORT_RULES.route.every, route: true });
+  }
   const sk = level.speedSki;
   if (sk) {
-    const part = (from: number, to: number, grade: PisteGrade, every: number): Edged => {
+    const part = (from: number, to: number, grade: RunGrade, every: number): Edged => {
       const points = level.track.points.filter((p) => p.s >= from && p.s <= to);
       return { points, length: to - from, grade, every };
     };
@@ -85,7 +98,7 @@ export function stakePlan(level: Level): StakePlan {
     );
   }
   const stakes: Upright[] = [];
-  const grade: PisteGrade[] = [];
+  const grade: RunGrade[] = [];
   const banded: number[] = [];
   for (const run of lines) {
     let nextS = run.points[0]?.s ?? 0;
@@ -95,7 +108,12 @@ export function stakePlan(level: Level): StakePlan {
       for (const side of [-1, 1]) {
         const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + K.out);
         const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + K.out);
-        if (run.every === undefined && lines.length > 1 && level.packedAt(x, z) > 0.5) continue;
+        if (
+          (run.every === undefined || run.route) &&
+          lines.length > 1 &&
+          level.packedAt(x, z) > 0.5
+        )
+          continue;
         stakes.push({ x, z, y: level.groundAt(x, z), height: K.height, radius: K.radius });
         grade.push(run.grade);
         // The skier's right going down AS DRAWN is the engine's left: the

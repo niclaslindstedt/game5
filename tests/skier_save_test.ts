@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SAVE AS THE FIGURE MAKES IT (`skier-save.ts`, followed by
 // `skier-spring.ts`, laid on by `skier-pose.ts`): nothing at rest and
-// nothing once it has played; a hard landing sinks him and flings his arms
-// out; a trunk on the right knocks the right shoulder back and rocks him
+// nothing once it has played; a hard landing sinks him with his hands
+// braced forward, never flung up or swung; a trunk on the right knocks the right shoulder back and rocks him
 // left; the body down on the right puts the right hand to the snow; and
 // the whole of it comes on and goes as a motion, never a jump.
 
@@ -49,15 +49,36 @@ describe("the save as the figure makes it", () => {
     }
   });
 
-  it("sinks him onto his legs and flings both arms out for a hard landing", () => {
+  it("sinks him onto his legs with both hands braced forward for a hard landing", () => {
     const rest = skierPose(base);
     const hard = peak(save("landing", 0, 0, 1));
     expect(hard.hips.y).toBeLessThan(rest.hips.y - 0.08);
     // Thrown over the tips.
     expect(hard.pitch).toBeGreaterThan(rest.pitch + 0.3);
     for (const i of [0, 1]) {
-      expect(Math.abs(hard.hands[i].x)).toBeGreaterThan(Math.abs(rest.hands[i].x) + 0.15);
-      expect(hard.hands[i].y).toBeGreaterThan(rest.hands[i].y);
+      // Forward, no higher than the shoulders — never flung up or out wide.
+      expect(hard.hands[i].z).toBeGreaterThan(hard.shoulders[i].z + 0.2);
+      expect(hard.hands[i].y).toBeLessThan(hard.shoulders[i].y + 0.05);
+      expect(Math.abs(hard.hands[i].x)).toBeLessThan(Math.abs(rest.hands[i].x) + 0.2);
+    }
+  });
+
+  it("holds his arms still through a save: no wobble", () => {
+    for (const kind of ["landing", "edge"] as const) {
+      const s = createSkierSpring();
+      const ride = { edge: 0, speed: 15, crouch: 0, drive: 0, hipRight: 0, roll: 0 };
+      const dt = 1 / 120;
+      const xs: number[] = [];
+      for (let i = 0; i < 120; i++) {
+        stepSkierSpring(s, 0, false, dt, 0, { ...ride, save: save(kind, i * dt, 1, 0) });
+        xs.push(skierPose({ ...base, jolt: s.jolt }).hands[1].x);
+      }
+      // The hand goes out and comes back once: it never turns round twice.
+      let turns = 0;
+      for (let i = 2; i < xs.length; i++) {
+        if (Math.sign(xs[i] - xs[i - 1]) * Math.sign(xs[i - 1] - xs[i - 2]) < 0) turns++;
+      }
+      expect(turns, kind).toBeLessThanOrEqual(1);
     }
   });
 
@@ -67,8 +88,8 @@ describe("the save as the figure makes it", () => {
     // The right shoulder goes back past the left, and the trunk leans left.
     expect(right.shoulders[1].z).toBeLessThan(right.shoulders[0].z - 0.1);
     expect(right.roll).toBeLessThan(rest.roll - 0.15);
-    // The far arm is thrown out.
-    expect(right.hands[0].x).toBeLessThan(rest.hands[0].x - 0.2);
+    // The far hand braced forward.
+    expect(right.hands[0].z).toBeGreaterThan(rest.hands[0].z + 0.1);
     const left = peak(save("tree", 0, -1));
     expect(left.shoulders[0].z).toBeLessThan(left.shoulders[1].z - 0.1);
   });

@@ -25,7 +25,7 @@
 // in the plate's own space, because it is pinned to the rim however the
 // world is turned.
 
-import { angleDiff, type GameState, type Level, type TrackPoint } from "@engine";
+import { angleDiff, skiRoutesOf, type GameState, type Level, type TrackPoint } from "@engine";
 
 import { GRADE_LOOK } from "./grade-look.ts";
 import { tunnelPaint, tunnelPointAt, tunnelsOf } from "./wind-tunnel-plan.ts";
@@ -103,7 +103,14 @@ export type CheckpointMark = {
 /** ONE RUN OF THE RESORT (R27) under the raced course, cut once per map:
  * its centreline in world metres, a piste in its grade's paint (CSS) and a
  * transport lane as a light line with no grade to show. */
-export type RunMark = { id: string; d: string; road: boolean; paint: string };
+export type RunMark = {
+  id: string;
+  d: string;
+  road: boolean;
+  paint: string;
+  /** A SKI ROUTE (R42): drawn in long dashes, over the pistes. */
+  route?: boolean;
+};
 
 /** ONE LIFT (R26): its line from the bottom station to the top, world
  * metres — a lift is straight, so the two ends are the whole of it. */
@@ -289,7 +296,7 @@ function resortLines(level: Level): {
 } {
   if (resortOf?.level === level) return resortOf;
   const resort = level.resort;
-  const runs = (resort?.runs ?? [])
+  const runs: RunMark[] = (resort?.runs ?? [])
     .filter((r) => r.points.length > 1)
     .map((r) => ({
       id: r.id,
@@ -298,6 +305,15 @@ function resortLines(level: Level): {
       paint: GRADE_LOOK[r.grade].paint,
     }))
     .sort((a, b) => Number(b.road) - Number(a.road));
+  for (const r of skiRoutesOf(level)) {
+    runs.push({
+      id: r.id,
+      d: pathOf(r.points),
+      road: false,
+      paint: GRADE_LOOK[r.grade].paint,
+      route: true,
+    });
+  }
   const lifts = (resort?.lifts ?? []).map((l) => ({
     id: l.id,
     a: [l.bottom.x, l.bottom.z] as [number, number],

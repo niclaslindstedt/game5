@@ -35,7 +35,7 @@ import {
   withDay,
   withSky,
 } from "../mapgen/index.ts";
-import type { PisteGrade } from "../mapgen/grades.ts";
+import type { RunGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
 import type { Level, SkyOverride } from "../mapgen/types.ts";
@@ -98,8 +98,12 @@ export type CreateGameOptions = {
   /** The map's seed; ignored for the map when `level` is given, but still
    * the run's own random stream. Defaults to the level's seed, or 1. */
   seed?: number;
-  /** A map to ride instead of the one the seed generates (tests, labs). */
+  /** A map to ride instead of the one the seed generates (tests, labs, and
+   * a map built apart by `levelFor`). */
   level?: Level;
+  /** Told how far the generator has got building the seed's map, 0–1
+   * (`GenerateOptions.progress`). Never called when `level` is given. */
+  progress?: (share: number) => void;
   /** HOW THE SKIER WORKS THE SKI (`technique.ts`), over the mode's own —
    * so a lab can ski one course with every technique. */
   technique?: TechniqueId;
@@ -107,8 +111,9 @@ export type CreateGameOptions = {
    * when left out. Ignored when `level` is given. */
   region?: RegionId;
   /** The piste grade the seed's map is built to (R23); the one the seed
-   * deals when left out. Ignored when `level` is given. */
-  grade?: PisteGrade;
+   * deals when left out — ORANGE (R42) the hardest piste's, and a free
+   * ride by lift up to the map's ski route. Ignored when `level` is given. */
+  grade?: RunGrade;
   /** The mode whose rules the run is dealt (`MODE_RULES`); the field on
    * the start line (`fieldRules`) when left out. Each option below still
    * overrides its own rule. */
@@ -342,7 +347,14 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
   };
 }
 
-export function createGame(options: CreateGameOptions = {}): GameState {
+/** THE MAP A RUN IS SKIED ON, before any course is set over it: `level`
+ * where one is given, else the seed's — a tricks run's with its park, a
+ * slalom's built to a red, a speed race's on the ski area's course it is
+ * raced on. The whole of what `createGame` asks of the generator, so a page
+ * can pay for it apart from the run (on a worker, with `progress` told how
+ * far the search has got) and hand the map back in as `level`. */
+export function levelFor(options: CreateGameOptions = {}): Level {
+  if (options.level) return options.level;
   // A tricks run is ridden on the seed's map with its trick field laid (R20)
   // — a map of one piste (`PARK_VERSION`): a resort (R25) lays no park.
   const tricks = options.mode === "tricks";
@@ -358,15 +370,16 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     // the piste are what no slalom may cross.
     grade: options.grade ?? (options.mode === "slalom" ? "red" : undefined),
     version: tricks ? PARK_VERSION : undefined,
+    progress: options.progress,
   };
-  let built = options.level ?? generateLevel(options.seed ?? 1, ask);
+  const built = generateLevel(options.seed ?? 1, ask);
   // A DOWNHILL off a seed of its own is raced on the ski area's course with
   // the most vertical (R32) — the same resort, built once (`buildResort`).
   // A SUPER-G the same hill's, its start lowered into its band (R33), and
   // a GIANT SLALOM's into its own (R36); a SKI CROSS on the course a ski
   // cross is built on best (R35).
   const cross = options.mode === "skiCross";
-  if ((downhill || superG || giant || cross) && !options.level && options.grade === undefined) {
+  if ((downhill || superG || giant || cross) && options.grade === undefined) {
     const id = downhill
       ? downhillCourseOf(built)
       : superG
@@ -375,9 +388,17 @@ export function createGame(options: CreateGameOptions = {}): GameState {
           ? giantSlalomCourseOf(built)
           : skiCrossCourseOf(built);
     if (id !== null && id !== built.resort?.course) {
-      built = generateLevel(options.seed ?? 1, { ...ask, course: id });
+      return generateLevel(options.seed ?? 1, { ...ask, course: id });
     }
   }
+  return built;
+}
+
+export function createGame(options: CreateGameOptions = {}): GameState {
+  const downhill = options.mode === "downhill";
+  const superG = options.mode === "superG";
+  const giant = options.mode === "giantSlalom";
+  const built = levelFor(options);
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
   // lowered start (R33), a GIANT SLALOM from its own — either run's — (R36),

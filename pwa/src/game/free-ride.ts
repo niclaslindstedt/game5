@@ -25,11 +25,12 @@ import {
   DEFAULT_REGION,
   TIMES_OF_DAY,
   freeRuns,
-  isPisteGrade,
+  skiRoutesOf,
+  isRunGrade,
   pickFreeRun,
   isRegionId,
   snowCoverOf,
-  type PisteGrade,
+  type RunGrade,
   type RegionId,
   type TimeOfDay,
   type WeatherKind,
@@ -129,7 +130,7 @@ export type FreeRide = {
   region: RegionId;
   /** The piste grade the map is built to (R23); null is the one the seed
    * deals. */
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   /** The run of the ski area (R27, `Run.id`) the ride is carried to the top
    * of, on the seed and in the country it was picked on; null is the first
    * of the GRADE row's colour (`pickFreeRun`). */
@@ -179,7 +180,7 @@ export function mergeRide(blob: unknown): FreeRide {
     out.weather = b.weather as WeatherKind;
   }
   if (isRegionId(b.region)) out.region = b.region;
-  if (isPisteGrade(b.grade)) out.grade = b.grade;
+  if (isRunGrade(b.grade)) out.grade = b.grade;
   const run = b.run as Record<string, unknown> | null | undefined;
   if (
     run &&
@@ -285,7 +286,7 @@ export function runOn(ride: FreeRide, seed: number): string | null {
 export type FreeRunInfo = {
   id: string;
   number: string;
-  grade: PisteGrade;
+  grade: RunGrade;
   length: number;
   vertical: number;
   head: { x: number; y: number; z: number; heading: number };
@@ -308,6 +309,19 @@ export function freeRunList(level: Level): { runs: FreeRunInfo[]; fallback: stri
       head: { x: top.x, y: top.y, z: top.z, heading: top.heading },
     };
   });
+  // The SKI ROUTES (R42) after the pistes, by their own names: a ride up
+  // to one is a ride up the lift whose top it leaves.
+  for (const r of skiRoutesOf(level)) {
+    const top = r.points[0];
+    runs.push({
+      id: r.id,
+      number: r.id,
+      grade: r.grade,
+      length: r.length,
+      vertical: Math.max(0, top.y - r.points[r.points.length - 1].y),
+      head: { x: top.x, y: top.y, z: top.z, heading: top.heading },
+    });
+  }
   const resort = level.resort;
   const fallback = resort?.courses.find((c) => c.id === resort.course)?.runs[0] ?? null;
   return { runs, fallback };

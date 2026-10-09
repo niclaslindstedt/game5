@@ -39,6 +39,7 @@ import { intoNet, netLens } from "./net-view.ts";
 import { crashShot } from "./crash-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
+import { ROUTE_VIEWS, routeView } from "./route-view.ts";
 import { SIGN_VIEWS, namedSignView } from "./sign-view.ts";
 import { buildingShots } from "./building-shots.ts";
 import {
@@ -818,21 +819,25 @@ const shots: Record<string, () => string> = {
     return view.note;
   },
   ...Object.fromEntries(
-    (["gate", "hut", "finish", ...SITE_VIEWS, ...SIGN_VIEWS] as const).map((name) => [
-      name,
-      () => {
-        const view = SIGN_VIEWS.includes(name as never)
-          ? namedSignView(level, name)
-          : SITE_VIEWS.includes(name as never)
-            ? cabinView(level, name)
-            : markView(level, name as "gate");
-        if (!view) return "none on this map";
-        renderer.setOverride(view.pose);
-        still();
-        renderer.setOverride(null);
-        return view.note;
-      },
-    ]),
+    (["gate", "hut", "finish", ...SITE_VIEWS, ...SIGN_VIEWS, ...ROUTE_VIEWS] as const).map(
+      (name) => [
+        name,
+        () => {
+          const view = ROUTE_VIEWS.includes(name as never)
+            ? routeView(level, name)
+            : SIGN_VIEWS.includes(name as never)
+              ? namedSignView(level, name)
+              : SITE_VIEWS.includes(name as never)
+                ? cabinView(level, name)
+                : markView(level, name as "gate");
+          if (!view) return "none on this map";
+          renderer.setOverride(view.pose);
+          still();
+          renderer.setOverride(null);
+          return view.note;
+        },
+      ],
+    ),
   ),
   herd() {
     const view = herdView();

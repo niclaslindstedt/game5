@@ -5,12 +5,12 @@
 // tab, a loading card or a row of the start card says what colour of run it
 // is before a word has been read.
 
-import type { PisteGrade } from "@engine";
+import type { RunGrade } from "@engine";
 
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { STRINGS } from "./strings.ts";
 
-export function GradeMark({ grade, className }: { grade: PisteGrade; className?: string }) {
+export function GradeMark({ grade, className }: { grade: RunGrade; className?: string }) {
   const look = GRADE_LOOK[grade];
   const name = STRINGS.gradeRun(STRINGS.gradeNames[grade]);
   return (

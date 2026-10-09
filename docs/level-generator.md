@@ -139,6 +139,14 @@ same everywhere. Inside an attempt the order is the dependency order:
 That is a single-piste map (v1's), built in about two seconds on Node, most seeds on the first
 attempt; a resort (v4) builds in its own order ([Resorts](#resorts-r25r30)) in four to six.
 
+**Progress.** `GenerateOptions.progress` is told how far the search has got, 0–1, at its landmarks
+(`progress.ts`: the mountain, the pads, the runs walked, graded and pressed, access, the features,
+the woods, the courses, the check), each weighted by its measured share of an attempt. A refused
+attempt never takes the bar back: each attempt fills a slice of what is left (two fifths of it), so
+the bar slows as the search runs long and reaches one only when a map is accepted. It draws nothing,
+so no digest can see it. The app builds a new map on a worker (`map-worker.ts`, the start card's
+`seed-preview-worker.ts`) and the loading card and the start card draw the bar from it.
+
 ## Regions (R21)
 
 A map is built in one REGION — a kind of snow country, never a place (`engine/mapgen/regions.ts`,
@@ -183,6 +191,18 @@ the corridor and a face falling 1.8–3.2 m straight back onto the line, landed 
 It has no apron on purpose: off an edge taken along the line a skier falls the drop's height onto
 the slope — √(2·g·drop), 6–7.5 m/s — at any speed, under the 8 m/s a skier's legs take whole, where
 an apron built up over the line is height added to the fall for anyone fast enough to overfly it.
+
+ORANGE is the grade past black (R42), and it is never a piste. Where a ski area signs a run harder
+than its blacks it signs it orange — in the Alpine countries a marked SKI ROUTE, cleared of
+avalanche danger but never groomed or patrolled, while a black there is nearly always groomed. So an
+orange is not built: it is FOUND on the finished mountain (`ski-routes.ts`), a line off a chair's or
+gondola's top down country steeper than R8's 78 % (38°), the steepest a machine works, and no
+steeper than 110 % (48°) over a hundred metres, never over a cliff, open of trees, out from under the lifts' ropes, and down onto
+a piste or a lane. It moves no ground and packs no snow, so it is skied in whatever the sky left on
+it; it is marked by orange stakes every 40 m down both sides of a 14 m corridor, a sign at its
+head reading SKI ROUTE · NOT GROOMED and a dashed orange line on every piste map, and signed with an
+orange DOUBLE DIAMOND. Asked for (`?grade=orange`, the GRADE row's fifth stop), a free ride starts
+down the map's ski route, the course raced being the black's; a map with none starts on its black.
 
 ## Resorts (R25–R30)
 
@@ -312,7 +332,7 @@ Today there are two:
   `singlePiste` builds one piste down one face rather than a ski area, on the UNGRADED row of
   `grades.ts` — the rule book's own numbers — whatever grade it is asked for, with the fall line due
   north whatever the hour; its trait `steppedJunctions` is v8's smooth junctions left out.
-- **v8** is the current rules: every map a ski area on one massif (R25–R30), its lifts and the drag
+- **v8** is the rules every race map and trick map stands on: every map a ski area on one massif (R25–R30), its lifts and the drag
   lifts access asks for, its runs of every colour and its transport lanes merging down to the hub at
   the foot of the mountain, raced on one course down that network, the woods thick low down and
   thinning through the ecotone to the tree line. Every BOTTOM station stands beside the runs, never on
@@ -366,8 +386,13 @@ Today there are two:
   ceiling, up to 1.18 of it, where the surfaces it runs between lie further apart than the ceiling
   carries it, and the run left out past that — a merging run wider than the run it joins narrows to
   that run's width over its last stretch (`funnelInto`), and nothing is levelled past its last
-  station. `make junctions` finds the steps that are left. Every free ride, every race off a
-  link, every lab, every race map and every trick map builds on it.
+  station. `make junctions` finds the steps that are left. Every race map and every trick map
+  builds on it; it marks no ski route (its trait `noRoutes`).
+- **v9** is the current rules: v8's mountain, every seed's ground, snow and trees unmoved, with up
+  to two SKI ROUTES (R42) marked down it — the ORANGE grade, past black: a line off a chair's or
+  gondola's top that the generator finds on the mountain as it lies, steeper than a groomer works and
+  never groomed (`ski-routes.ts`, published as `Resort.routes`). Every free ride, every race off a
+  link and every lab builds on it.
 
 
 v2 — the graded generator of one piste down one face (R23, R24) — and v3 — the ski areas before
@@ -463,3 +488,4 @@ used twice.
 - **R39** THE HALFPIPE. A halfpipe is ridden in a U CUT DOWN THE SLOPE, on a line searched as R37's is (`halfpipe.search`, `halfpipe.fit`), `halfpipe.width` metres wide, graded, groomed and cleared. Its PROFILE is built against the horizontal, in order: a START PLATFORM level for `halfpipe.platform` metres; a roll of `halfpipe.roll` metres of radius onto the PIPE'S PITCH of `halfpipe.pitch` degrees, held for `halfpipe.lead` metres to the pipe's mouth, its `halfpipe.length` metres and its tail; a transition of `halfpipe.round` metres of radius onto a RUN-OUT falling at `halfpipe.outrun.grade` degrees for `halfpipe.outrun.length` metres. THE PIPE is cut into that pitch as an analytic surface, not the map's grid: across it, a FLAT BOTTOM, then each WALL a circular TRANSITION rising to `halfpipe.vert` degrees and a straight VERT at that angle to the COPING `halfpipe.height` metres over the flat, the copings `halfpipe.span` metres apart and the transition's radius whatever those leave (the vert's own height `halfpipe.vertHeight`); a DECK `halfpipe.deck` metres wide outside each coping at the pitch's own height. The walls grow from nothing to their height over the pipe's MOUTH (`halfpipe.mouth` metres) and shrink back over its TAIL (`halfpipe.tail` metres), so a skier drops in down its middle and rides out of its foot. The grid under it is cut to the same surface, never above it. Its gates are the START GATE at the platform's lip and the FINISH LINE `halfpipe.finish` metres into the run-out; it has no gate between.
 - **R40** THE MOGULS COURSE. A moguls course is BUILT as R37's jump is, straight down a built map's face on a line searched the same way (`moguls.search`, `moguls.fit`), `moguls.width` metres wide, graded, groomed and cleared. Its PROFILE is built against the horizontal, in order: a START PLATFORM level for `moguls.platform` metres; a roll of `moguls.roll` metres of radius onto the COURSE'S PITCH of `moguls.pitch` degrees, held until `moguls.course` metres down the slope from the start gate; a transition of `moguls.round` metres of radius onto a FINISH AREA falling at `moguls.outrun.grade` degrees for `moguls.outrun.length` metres. In the pitch stand TWO AIR BUMPS, their lips `moguls.air.at` of the course down it: each a KICKER curved up off the pitch to a take-off of `moguls.air.kick` degrees to the slope, its lip `moguls.air.height` metres over the pitch, falling back to the pitch at `moguls.air.back` degrees behind the lip. Down the course runs a MOGUL TRACK `moguls.track` metres wide on the venue's line: moguls every `moguls.bumps.spacing` metres down the slope, `moguls.bumps.height` metres from crest to trough, their crests snaking a quarter wave either way every `moguls.bumps.wave` metres across, from `moguls.bumps.first` metres below the start gate to the foot of the pitch, faded over `moguls.bumps.ease` metres at their ends, their edges and round each air bump — none in the last `moguls.air.runIn` metres before its lip nor the `moguls.air.landing` metres after it. The moguls and the air bumps are an analytic surface, not the map's grid, and the grid under them is cut to the same surface, never above it. Its gates are the START GATE at the platform's lip, `moguls.gates` CONTROL GATES `moguls.track` metres wide spaced evenly between it and the FINISH LINE at the course's foot, and the finish line.
 - **R41** THE AERIALS SITE. An aerials site is BUILT as R37's jump is, straight down a built map's face on a line searched the same way (`aerials.search`, `aerials.fit`), `aerials.width` metres wide, graded, groomed and cleared, with ONE KICKER of the three the rule names (`aerials.kickers`: the single, the double and the triple), the one the jump declared is assigned. Its PROFILE is built against the horizontal, in order: a START PLATFORM level for `aerials.platform` metres; an IN-RUN rolled over to `aerials.inRun` degrees within `aerials.roll` metres of radius and as long as brings the rule's skier (`aerials.skier`, tucked from the start gate) to the kicker's lip at its row's speed, brought round within `aerials.toFlat` metres onto the level TABLE; `aerials.flat` metres along it, the KICKER, curved up on its row's radius to its row's take-off, its back falling at `aerials.back` degrees to the table again; the table running on level to the KNOLL its row's `table` metres past the lip; the knoll rounded over on `aerials.knoll` metres of radius onto a LANDING HILL of `aerials.steepest` degrees held for `aerials.slope` metres; a transition of `aerials.round` metres of radius onto a level OUT-RUN falling at `aerials.outrun.grade` degrees for `aerials.outrun.length` metres. The site is an analytic surface, not the map's grid, and the grid under it is cut to the same surface, never above it. Its gates are the START GATE at the platform's lip and the FINISH LINE `aerials.finish` metres into the out-run.
+- **R42** SKI ROUTES. A generator from the routes on (`versions.ts`) marks up to `route.count` SKI ROUTES down the ski area — the ORANGE grade, past black — found on the finished mountain without moving its ground, packing its snow or felling a tree: a route is the mountain as it lies, never groomed. The face is read as squares `route.cell` metres on a side, a square open to a skier unless the fall line under it falls past `route.cliff` over `route.baseline` metres, a trunk stands within `route.open` metres of it or a lift's line runs within `route.lift` metres of it, and a route goes only downhill from square to square. It leaves the rim of a chair's or gondola's top station `route.rim` metres from its middle at one of `route.bearings` bearings round it, passes through at least one square whose `track.colourWindow` down the fall line is past R8's `track.maxGrade` (the steepest a machine grooms), and comes down onto a piste or a lane, where it ends. Its line, smoothed `route.smooth` times and laid at a station every `route.station` metres, holds that: its steepest `track.colourWindow` past R8's `track.maxGrade` and no more than `route.steepest`; no `route.pitchWindow` along it past `route.cliff`; no trunk within `route.open` metres of it; no more than `route.beside` metres of it within `route.clear` metres of another run's corridor; `route.edge` metres inside the map's edge; `route.length` long and `route.vertical` fallen at least. Each top keeps its best line, the most vertical fallen at a red's pitch or steeper first; the map keeps the best of those, each off a top of its own and `route.apart` metres from the others past their first `route.lead` metres; a mountain with no such line has none. Every route is marked by orange stakes down both sides of a `route.width` metre corridor every `route.every` metres and signed at its head.

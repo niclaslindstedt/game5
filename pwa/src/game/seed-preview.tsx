@@ -42,7 +42,7 @@
 //     the plate is a square the CARD sizes, so nothing moves under a press
 //     already aimed at a button.
 
-import type { PisteGrade, RegionId } from "@engine";
+import type { RunGrade, RegionId } from "@engine";
 import { useEffect, useState } from "preact/hooks";
 
 import type { FreeRunInfo } from "./free-ride.ts";
@@ -55,7 +55,14 @@ import {
   type PanoramaSchematic,
 } from "./panorama.ts";
 import { CHART_VIEW, degrees, fromChart, toChart, type ChartHouse } from "./seed-chart.ts";
-import { askKey, onSeedMaps, seedAnswer, wantSeed, type SeedAnswer } from "./seed-maps.ts";
+import {
+  askKey,
+  onSeedMaps,
+  seedAnswer,
+  seedShare,
+  wantSeed,
+  type SeedAnswer,
+} from "./seed-maps.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { STRINGS } from "./strings.ts";
 
@@ -64,23 +71,22 @@ export type { SeedAnswer } from "./seed-maps.ts";
 /** How long the arrows have to be still before a map is built, ms. */
 const SETTLE_MS = 220;
 
-/** The chart as the card holds it: the last answer that arrived, and
- * whether it is the answer for the seed on screen. */
-export type SeedChart = { shown: SeedAnswer | null; fresh: boolean };
+/** The chart as the card holds it: the last answer that arrived, whether
+ * it is the answer for the seed on screen, and — while the worker is
+ * raising that seed's mountain — how far it has got, 0–1. */
+export type SeedChart = { shown: SeedAnswer | null; fresh: boolean; share: number | null };
 
-export function useSeedPreview(
-  seed: number,
-  region: RegionId,
-  grade: PisteGrade | null,
-): SeedChart {
+export function useSeedPreview(seed: number, region: RegionId, grade: RunGrade | null): SeedChart {
   const ask = { seed, region, grade };
   const key = askKey(ask);
   const [shown, setShown] = useState<SeedAnswer | null>(() => seedAnswer(ask));
+  const [share, setShare] = useState<number | null>(() => seedShare(ask));
 
   useEffect(() => {
     const show = (): void => {
       const answer = seedAnswer({ seed, region, grade });
       if (answer) setShown(answer);
+      setShare(seedShare({ seed, region, grade }));
     };
     show();
     const off = onSeedMaps(show);
@@ -96,7 +102,8 @@ export function useSeedPreview(
     };
   }, [seed, region, grade]);
 
-  return { shown, fresh: shown !== null && askKey(shown) === key };
+  const fresh = shown !== null && askKey(shown) === key;
+  return { shown, fresh, share: fresh ? null : share };
 }
 
 /** A kicker's mark: a chevron pointing the way it throws, at its lip. */
@@ -210,7 +217,7 @@ function PanoramaLayers({
   entry: boolean;
 }) {
   const pano: PanoramaSchematic = drawn.panorama.schematic;
-  const stroke = (grade: PisteGrade): string => GRADE_LOOK[grade].paint;
+  const stroke = (grade: RunGrade): string => GRADE_LOOK[grade].paint;
   return (
     <>
       {drawn.panoUrl && (
@@ -235,7 +242,7 @@ function PanoramaLayers({
       {pano.runs.map((r) => (
         <path
           key={`c${r.id}`}
-          class={`pano-run-casing${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}`}
+          class={`pano-run-casing${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}${r.kind === "route" ? " pano-route" : ""}`}
           d={r.seen}
           fill="none"
         />
@@ -243,7 +250,7 @@ function PanoramaLayers({
       {pano.runs.map((r) => (
         <path
           key={`r${r.id}`}
-          class={`pano-run${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}`}
+          class={`pano-run${r.raced ? " pano-raced" : ""}${r.kind === "road" ? " pano-road" : ""}${r.kind === "route" ? " pano-route" : ""}`}
           d={r.seen}
           stroke={stroke(r.grade)}
           fill="none"
@@ -309,7 +316,7 @@ function PanoramaLayers({
 /** WHERE THE RIDE STARTS, marked so it cannot be missed: a dot in the
  * run's colour with rings beating out of it — at the spot tapped, or at
  * the head of the run the lift carries the skier to. */
-function EntryMark({ at, grade }: { at: [number, number]; grade: PisteGrade | null }) {
+function EntryMark({ at, grade }: { at: [number, number]; grade: RunGrade | null }) {
   const look = grade ? GRADE_LOOK[grade] : null;
   return (
     <g class="seed-preview-entry" transform={`translate(${at[0].toFixed(1)} ${at[1].toFixed(1)})`}>
@@ -345,7 +352,7 @@ export function SeedPreview({
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;
 }) {
-  const { shown, fresh } = chart;
+  const { shown, fresh, share } = chart;
   const [view, setView] = useState<SeedView>("panorama");
   const drawn = shown !== null && shown.ok ? shown : null;
   const pick = (e: MouseEvent): void => {
@@ -410,10 +417,28 @@ export function SeedPreview({
               head && <EntryMark at={head} grade={machine ? null : (entry?.grade ?? null)} />
             )}
           </svg>
-        ) : (
+        ) : shown === null && share !== null ? null : (
           <p class="seed-preview-word">
             {shown === null ? STRINGS.seedReading : STRINGS.seedRefused}
           </p>
+        )}
+        {/* HOW FAR THE MOUNTAIN ON THE ARROWS HAS GOT, while the worker
+            raises it — the generator's own word (`GenerateOptions.progress`),
+            over whatever chart is still standing. */}
+        {share !== null && (
+          <div class="seed-preview-raise">
+            <span class="seed-preview-raise-word">{STRINGS.seedReading}</span>
+            <div
+              class="seed-preview-bar"
+              role="progressbar"
+              aria-label={STRINGS.seedReading}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(share * 100)}
+            >
+              <div class="seed-preview-bar-fill" style={{ transform: `scaleX(${share})` }} />
+            </div>
+          </div>
         )}
         {drawn && (
           <button

@@ -20,7 +20,7 @@
 // walked in their published order and the first of two equal answers kept;
 // nothing here draws from the stream.
 
-import { nearestTrackPoint, nearestWithin, trackPointAt } from "../mapgen/index.ts";
+import { nearestTrackPoint, nearestWithin, skiRoutesOf, trackPointAt } from "../mapgen/index.ts";
 import type { Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import type { GameState } from "./state.ts";
 
@@ -51,7 +51,9 @@ type FreeLine = { id: string; lane: boolean; track: { points: TrackPoint[]; leng
 const lines = new WeakMap<Level, FreeLine[]>();
 
 /** Every run of `level` a free ride can ski, in their published order: the
- * ski area's pistes and lanes, or the map's one piste off a ski area. */
+ * ski area's pistes and lanes and then its ski routes (R42) — a route is
+ * skied, reset onto and started again at its head as a piste is — or the
+ * map's one piste off a ski area. */
 function linesOf(level: Level): FreeLine[] {
   let out = lines.get(level);
   if (out) return out;
@@ -64,6 +66,9 @@ function linesOf(level: Level): FreeLine[] {
           track: { points: r.points, length: r.length },
         }))
       : [{ id: TRACK_RUN, lane: false, track: level.track }];
+  for (const r of skiRoutesOf(level)) {
+    out.push({ id: r.id, lane: false, track: { points: r.points, length: r.length } });
+  }
   lines.set(level, out);
   return out;
 }

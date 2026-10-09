@@ -19,6 +19,7 @@ import {
   lodgesOf,
   NEUTRAL_INPUT,
   SNOW_DIAL,
+  skiRoutesOf,
   slalomRules,
   snowCoverOf,
   standSkier,
@@ -104,9 +105,10 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(mergeRide("nonsense")).toEqual(freshRide());
     expect(mergeRide({ weather: "snow" }).weather).toBe("snow");
     expect(mergeRide({ weather: "hail" }).weather).toBeNull();
-    // THE GRADE (R23): one of the four, or the seed's own.
+    // THE GRADE (R23, R42): one of the five, or the seed's own.
     expect(mergeRide({ grade: "black" }).grade).toBe("black");
-    expect(mergeRide({ grade: "orange" }).grade).toBeNull();
+    expect(mergeRide({ grade: "orange" }).grade).toBe("orange");
+    expect(mergeRide({ grade: "purple" }).grade).toBeNull();
   });
 
   it("reads the faders' blob onto the nearest snow and hands the day back to the map", () => {
@@ -132,13 +134,18 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
   it("marks the run the engine rides: the one picked, else the first of the colour, else the map's", () => {
     const level = generateLevel(1);
     const list = freeRunList(level);
-    expect(list.runs.map((r) => r.id)).toEqual(freeRuns(level).map((r) => r.id));
+    // The runs, then the ski routes (R42), each by the number on its sign.
+    const routes = skiRoutesOf(level);
+    expect(list.runs.map((r) => r.id)).toEqual([
+      ...freeRuns(level).map((r) => r.id),
+      ...routes.map((r) => r.id),
+    ]);
     for (const r of list.runs) {
       expect(r.vertical).toBeGreaterThan(0);
-      expect(r.number).toMatch(/^\d+$/);
+      expect(r.number).toMatch(r.grade === "orange" ? /^SR\d+$/ : /^\d+$/);
     }
     const ride = freshRide();
-    for (const grade of [null, "green", "blue", "red", "black"] as const) {
+    for (const grade of [null, "green", "blue", "red", "black", "orange"] as const) {
       const marked = markedRun({ ...ride, grade }, 1, list);
       expect(marked?.id).toBe(freeRunOf(level, { grade: grade ?? undefined }));
     }

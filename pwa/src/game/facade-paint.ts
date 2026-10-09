@@ -83,11 +83,25 @@ export const FACADE = {
   quoins: 24,
   /** Sawn timber: a post, a rail, a fascia — the grain alone. */
   timber: 25,
+  // THE ROOMS' MATERIALS (`interior-build.ts`): what a building is lined
+  // and furnished with inside.
+  /** Glazed ceramic tiles on a grid of 15 cm, their grout (tinted: a
+   * stove's green, a floor's terracotta, a kitchen's white). */
+  tile: 26,
+  /** A shelf's front of packed goods: boxes, tins and bottles of every
+   * colour shoulder to shoulder under the shelf above (in their own
+   * colours). */
+  goods: 27,
+  /** Woven upholstery and rug cloth, a fine twill (tinted). */
+  fabric: 28,
+  /** Tongue-and-groove pine panelling, the boards' V-joints and knots: a
+   * parlour's walls and ceiling. */
+  panelling: 29,
 } as const;
 export type FacadeLayer = (typeof FACADE)[keyof typeof FACADE];
 
 /** How many layers the stack holds, and each tile's side in pixels. */
-export const FACADE_LAYERS = 26;
+export const FACADE_LAYERS = 30;
 export const FACADE_SIZE = 256;
 
 /** Each layer's tile in metres, along (u) and up (v) — `once` where it is
@@ -120,6 +134,10 @@ export const FACADE_TILE: Readonly<Record<FacadeLayer, { u: number; v: number; o
     23: { u: 2.4, v: 2.4 },
     24: { u: 0.6, v: 0.84, once: true },
     25: { u: 1.2, v: 1.2 },
+    26: { u: 0.6, v: 0.6 },
+    27: { u: 1.2, v: 0.4 },
+    28: { u: 0.5, v: 0.5 },
+    29: { u: 1.2, v: 2.4 },
   };
 
 /** A glazing band is laid once UP its height but repeated ALONG it, a pane
@@ -156,6 +174,10 @@ const RELIEF: Readonly<Record<FacadeLayer, number>> = {
   23: 0.8,
   24: 3,
   25: 1.2,
+  26: 3,
+  27: 2.5,
+  28: 1.5,
+  29: 2.5,
 };
 
 /** A pixel: its colour 0..1 (sRGB), its roughness and its height 0..1. */
@@ -579,6 +601,69 @@ function paintCabin(layer: FacadeLayer, u: number, v: number): Px {
     case FACADE.timber: {
       const grain = fbm(u, v, 4, 28, 221, 3);
       return px([1, 0.97, 0.92], 0.84 + grain * 0.24, 0.85, 0.5 + (grain - 0.5) * 0.5);
+    }
+    default:
+      return paintRoom(layer, u, v);
+  }
+}
+
+/** The rooms' layers (`FACADE.tile` on). */
+function paintRoom(layer: FacadeLayer, u: number, v: number): Px {
+  switch (layer) {
+    case FACADE.tile: {
+      // Four tiles of 15 cm each way, a 4 mm grout, each glaze its own.
+      const n = 4;
+      const i = Math.floor(u * n);
+      const j = Math.floor(v * n);
+      const su = u * n - i;
+      const sv = v * n - j;
+      const g = 0.03;
+      if (su < g || sv < g) return px([0.62, 0.6, 0.57], 1, 0.9, 0);
+      const e = Math.min(su - g, 1 - su, sv - g, 1 - sv);
+      const bevel = smooth(0, 0.08, e);
+      const tone = 0.9 + hash(i, j, 231) * 0.12;
+      const glaze = noise(u, v, 16, 16, 233) * 0.05;
+      return px([1, 1, 1], (tone + glaze) * (0.86 + 0.14 * bevel), 0.22, 0.6 + 0.4 * bevel);
+    }
+    case FACADE.goods: {
+      // A shelf's run of goods: the shelf's lip at the foot, the dark
+      // above the packs, each pack its own width, height and colour.
+      if (v < 0.07) return px([0.86, 0.84, 0.8], 1, 0.5, 1);
+      const packs = 9;
+      const p = Math.floor(u * packs);
+      const s = u * packs - p;
+      const tall = 0.45 + hash(p, 0, 241) * 0.45;
+      const gap = s < 0.06 || s > 0.94;
+      if (gap || v > 0.07 + tall * 0.9) return px([0.11, 0.1, 0.1], 1, 0.9, 0.05);
+      const colours = [
+        0xc0392b, 0x2e6da4, 0xf2c14e, 0x3c8d5a, 0xe8e2d4, 0x7a4b8c, 0xe07b39, 0x26323b,
+      ];
+      const c = hex(colours[Math.floor(hash(p, 1, 243) * colours.length)]);
+      // A label band across each pack, lighter.
+      const t = (v - 0.07) / (tall * 0.9);
+      const label = Math.abs(t - 0.55) < 0.14 && s > 0.18 && s < 0.82;
+      const shade = 0.8 + 0.2 * Math.sin(s * Math.PI);
+      return label ? px([0.95, 0.94, 0.9], shade, 0.5, 0.9) : px(c, shade, 0.45, 0.85);
+    }
+    case FACADE.fabric: {
+      // A twill: diagonal ribs of thread, 40 a tile, a slub here and there.
+      const d = ((u + v) * 40) % 1;
+      const rib = 0.5 + 0.5 * Math.sin(d * Math.PI * 2);
+      const slub = noise(u, v, 32, 32, 251) * 0.12;
+      return px([1, 1, 1], 0.8 + rib * 0.14 + slub, 0.95, rib);
+    }
+    case FACADE.panelling: {
+      // Twelve boards of 10 cm across the tile, V-jointed, pine.
+      const n = 12;
+      const b = Math.floor(u * n);
+      const s = u * n - b;
+      const v0 = s < 0.05 ? s / 0.05 : s > 0.95 ? (1 - s) / 0.05 : 1;
+      const grain = fbm(u, v, 12, 30, 261, 3);
+      const tone = 0.9 + hash(b, 0, 263) * 0.14;
+      const knot = Math.exp(-(((s - 0.5) / 0.12) ** 2 + ((v - hash(b, 1, 265)) / 0.03) ** 2));
+      const base = hex(0xd8a868);
+      const k = tone * (0.85 + grain * 0.25) * (1 - knot * 0.45) * (0.55 + 0.45 * v0);
+      return px(base, k, 0.6, v0 * (0.6 + grain * 0.3));
     }
     default:
       return { r: 1, g: 1, b: 1, rough: 0.6, h: 0.5 };

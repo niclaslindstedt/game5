@@ -173,13 +173,16 @@ export class Shape {
    * with its corners cut by `cut` — at height `y`, each band between two
    * rings coloured by `colourOf(band, face)` (face 0 the +x flat, then on
    * round: the even faces flats, the odd ones the cut corners), the top
-   * and the bottom shut. */
+   * and the bottom shut. A colour below zero leaves its face out; `inward`
+   * turns every face in, for a skin seen from inside it. */
   loft(
     rings: readonly { y: number; hw: number; hl: number; cut: number }[],
     colourOf: (band: number, face: number) => number,
     top: number,
     bottom: number,
+    inward = false,
   ): this {
+    const turn = inward ? -1 : 1;
     const ring = (r: { y: number; hw: number; hl: number; cut: number }): V[] => {
       const { y, hw, hl, cut } = r;
       return [
@@ -199,11 +202,15 @@ export class Shape {
       const hi = all[b + 1];
       for (let f = 0; f < 8; f++) {
         const g = (f + 1) % 8;
+        const colour = colourOf(b, f);
+        if (colour < 0) continue;
         const mid = lo[f].clone().add(lo[g]).add(hi[f]).add(hi[g]).multiplyScalar(0.25);
-        this.quad(lo[f], lo[g], hi[g], hi[f], colourOf(b, f), v3(mid.x, 0, mid.z));
+        this.quad(lo[f], lo[g], hi[g], hi[f], colour, v3(mid.x * turn, 0, mid.z * turn));
       }
     }
     const cap = (pts: V[], colour: number, out: V) => {
+      if (colour < 0) return;
+      out.multiplyScalar(turn);
       for (let i = 1; i + 1 < pts.length; i++) this.tri(pts[0], pts[i], pts[i + 1], colour, out);
     };
     cap(all[all.length - 1], top, v3(0, 1, 0));

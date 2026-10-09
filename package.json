@@ -66,6 +66,7 @@
     "civilians": "node scripts/civilians-preview.mjs",
     "lift-ride": "node scripts/lift-ride-preview.mjs",
     "lift-flow": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-flow-lab.mjs",
+    "lift-path": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-path-lab.mjs",
     "heli": "node scripts/heli-preview.mjs",
     "sled": "node scripts/sled-preview.mjs",
     "sled-land": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-land-lab.mjs",

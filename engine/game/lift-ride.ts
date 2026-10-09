@@ -62,6 +62,7 @@ import {
 } from "./lift-line.ts";
 import {
   along,
+  CABIN_HALF,
   carrierNear,
   gondolaGrip,
   setOff,
@@ -73,9 +74,18 @@ import {
 } from "./lift-board.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
 import { carrierSwingAt } from "./carrier-swing.ts";
+import { TOWN } from "./defs/town.ts";
+import { carryOut, doorIn, inRack, offForDoor, rackSkis, standOnFoot } from "./lift-skis.ts";
+import { stepTown } from "./town.ts";
 import type { Level, Run, SummitRamp } from "../mapgen/types.ts";
 import { derive } from "./skier.ts";
-import { type GameEvent, type GameState, type LiftRide, type SkierInput } from "./state.ts";
+import {
+  NEUTRAL_INPUT,
+  type GameEvent,
+  type GameState,
+  type LiftRide,
+  type SkierInput,
+} from "./state.ts";
 
 const K = TUNING.lift;
 
@@ -114,6 +124,14 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
     delete ride.faded;
     delete ride.carrier;
     delete ride.stand;
+    delete ride.foot;
+    delete ride.rack;
+    // On foot through a gondola's station, the pair goes into his cabin's
+    // rack with him.
+    if (c.town) {
+      ride.skis = c.town.skis;
+      c.town = null;
+    }
   }
   if (input.machine) {
     letGo(run, plan, ride, events);
@@ -121,7 +139,13 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
   }
   if (ride.phase === "ride") skipUp(run, plan, ride, input);
   if (ride.phase === "board") {
-    if (stepBoard(run, plan, ride)) boarded(run, plan, ride);
+    // A gondola's last metres to its door walked, the pair on his shoulder.
+    if (plan.lift.kind === "gondola" && c.town) {
+      if (walkToDoor(run, plan, ride, events)) boarded(run, plan, ride);
+    } else if (stepBoard(run, plan, ride)) {
+      if (plan.lift.kind === "gondola") offForDoor(run);
+      else boarded(run, plan, ride);
+    }
     return true;
   }
   if (ride.phase === "wait") {
@@ -147,7 +171,8 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
 function letGo(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent[]): void {
   const c = run.skier;
   c.lift = null;
-  if (ride.phase !== "ride") return;
+  // On foot on the platform (racking his pair) he simply walks off.
+  if (ride.phase !== "ride" || c.town) return;
   events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "off" });
   if (plan.lift.kind === "gondola") {
     // Out of the door, clear of the cabin's side.
@@ -198,10 +223,12 @@ function skipUp(run: GameState, plan: LiftPlan, ride: LiftRide, input: SkierInpu
  * into a boarding ring, slow enough and facing any way. */
 function boardLift(run: GameState, events: GameEvent[]): void {
   const c = run.skier;
-  if (c.thrown || c.airborne || c.tunnel) return;
+  if (c.thrown || c.airborne || c.tunnel || c.fetch) return;
   const plans = liftPlans(run.level);
   for (let i = 0; i < plans.length; i++) {
     const plan = plans[i];
+    // On foot, the pair on his shoulder, only a gondola's door takes him.
+    if (c.town && (plan.lift.kind !== "gondola" || c.town.phase !== "walk")) continue;
     const e = plan.look.entry;
     const rx = c.x - plan.lift.bottom.x;
     const rz = c.z - plan.lift.bottom.z;
@@ -298,7 +325,39 @@ function taken(
   if (k >= 0) ride.carrier = k;
   if (kind === "chair") onChair(plan, ride, k, run.t);
   events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "take" });
-  if (kind !== "drag") hold(run, plan, ride);
+  // On foot beside his cabin, the pair goes into its rack first.
+  if (kind === "gondola" && c.town) ride.rack = 0;
+  else if (kind !== "drag") hold(run, plan, ride);
+}
+
+/** ON FOOT TO A GONDOLA'S DOOR, a step of it: out of the bindings and the
+ * pair shouldered where he stopped (`lift-skis.ts`), then walked on to the
+ * door, `ride.foot` m still to go. True once he is there. */
+function walkToDoor(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent[]): boolean {
+  const c = run.skier;
+  const to = doorIn(plan);
+  const dx = to.x - c.x;
+  const dz = to.z - c.z;
+  const d = hypot(dx, dz);
+  const heading = d > 0.05 ? Math.atan2(dx, dz) : plan.heading;
+  const walking = c.town?.phase === "walk";
+  const square = Math.max(0, Math.cos(angleDiff(c.heading, heading)));
+  const pace = walking ? Math.min(TOWN.walk, d / TUNING.dt) * square : 0;
+  stepTown(run, NEUTRAL_INPUT, events, { heading, pace });
+  ride.foot = hypot(to.x - c.x, to.z - c.z);
+  return walking && ride.foot < 0.05;
+}
+
+/** THE PAIR INTO HIS CABIN'S RACK, a step of it (`lift-skis.ts`), the
+ * cabin creeping on beside him; once it is there he steps in (`hold`). */
+function racking(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent[]): void {
+  const c = run.skier;
+  const swing = carrierSwingAt(plan, ride.u, 0);
+  const grip = { ...along(plan, ride.u, upRope(plan)), y: gondolaGrip(plan, ride.u) };
+  if (!rackSkis(run, plan, ride, grip, swing, cabinDoors(ride), events)) return;
+  ride.t = 0;
+  ride.from = { x: c.x, y: c.y, z: c.z, heading: c.heading };
+  hold(run, plan, ride);
 }
 
 /** Carried: the grip up the rope at the rope's speed — slowed through the
@@ -349,7 +408,8 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     // Pulled up the track on his skis, sat back on his bar's right arm.
     const p = along(plan, ride.u, upRope(plan) + K.tee);
     setOff(run, p.x, p.z, plan.heading, ride.speed);
-  } else hold(run, plan, ride);
+  } else if (ride.rack !== undefined) racking(run, plan, ride, events);
+  else hold(run, plan, ride);
   if (ride.u < off) return;
   // AT THE TOP.
   events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "off" });
@@ -357,8 +417,10 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     // Through the top station's hall — a cut, behind the picture's fade —
     // and out of its front door onto the pad, facing down the line,
     // walking out under the lift's hand (`standUp`).
+    // ...the pair off the rack and on his shoulder (`lift-skis.ts`).
     const p = letGoOf("gondola", plan.lift.bottom, plan.lift.top);
-    setOff(run, p.x, p.z, p.heading, K.walkOut);
+    carryOut(run, ride);
+    standOnFoot(run, p.x, p.z, p.heading, TOWN.walk);
     ride.stand = 0;
     return;
   } else if (plan.lift.kind === "chair") {
@@ -389,14 +451,13 @@ function standUp(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   const dt = TUNING.dt;
   ride.stand = (ride.stand ?? 0) + dt;
   if (plan.lift.kind === "gondola") {
-    // Out of a gondola's door, walked on out onto the pad.
-    setOff(
-      run,
-      c.x + Math.sin(c.heading) * K.walkOut * dt,
-      c.z + Math.cos(c.heading) * K.walkOut * dt,
-      c.heading,
-      K.walkOut,
-    );
+    // Out of a gondola's door, walked on out onto the pad — on foot, the
+    // pair on his shoulder (`lift-skis.ts`), to lay it down and step in.
+    const way = c.town ? TOWN.walk : K.walkOut;
+    const x = c.x + Math.sin(c.heading) * way * dt;
+    const z = c.z + Math.cos(c.heading) * way * dt;
+    if (c.town) standOnFoot(run, x, z, c.heading, way);
+    else setOff(run, x, z, c.heading, way);
     if (ride.stand >= K.gondola.out) c.lift = null;
     return;
   }
@@ -514,6 +575,11 @@ function rampOf(plan: LiftPlan, run: string): SummitRamp | undefined {
 /** The rider where his carrier holds him: on a chair's seat, in a cabin —
  * the body's origin `seat` (or `cabin`) m down the hanger from the grip,
  * the hanger swung `swing` about the rope, the body pitched with it. */
+/** STEPPING INTO A GONDOLA'S CABIN through the door in its flank: out of
+ * the flank to its mouth and in past it, m, and the shares of the step-in
+ * he is at each by. */
+const DOOR_STEP = { mouth: 0.35, inside: 0.2, at: [0.35, 0.6] as const };
+
 function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   const c = run.skier;
   // Hung as the clock hangs every carrier (`carrierSwingAt`).
@@ -540,14 +606,36 @@ function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   // half way in and round to sit facing up the line.
   const k = seatedShare(ride);
   let heading = plan.heading;
-  if (k < 1) {
-    // Off the platform his step leads the sit.
-    const w = gondola ? smoothstep(0, 0.7, k) : k;
-    x = ride.from.x + (x - ride.from.x) * w;
-    z = ride.from.z + (z - ride.from.z) * w;
+  if (k < 1 && gondola) {
+    // Off the platform IN THROUGH THE DOOR in the middle of the cabin's
+    // flank, as it creeps on: to its mouth, in, and back onto the bench,
+    // turned from facing it round to sit facing up the line.
+    // The door as the cabin hangs, swung on its hanger.
+    const side = upRope(plan);
+    const door = ride.u + drop * sn;
+    const mouth = along(plan, door, side + CABIN_HALF + DOOR_STEP.mouth);
+    const inside = along(plan, door, side + DOOR_STEP.inside);
+    const [a, b, w] =
+      k < DOOR_STEP.at[0]
+        ? [ride.from, mouth, smoothstep(0, DOOR_STEP.at[0], k)]
+        : k < DOOR_STEP.at[1]
+          ? [mouth, inside, smoothstep(DOOR_STEP.at[0], DOOR_STEP.at[1], k)]
+          : [inside, { x, z }, smoothstep(DOOR_STEP.at[1], 1, k)];
+    x = a.x + (b.x - a.x) * w;
+    z = a.z + (b.z - a.z) * w;
+    y = ride.from.y + (y - ride.from.y) * smoothstep(DOOR_STEP.at[1], 1, k);
+    heading =
+      ride.from.heading +
+      angleDiff(ride.from.heading, plan.heading) * smoothstep(DOOR_STEP.at[1], 1, k);
+  } else if (k < 1) {
+    // Off the load line his step leads the sit.
+    x = ride.from.x + (x - ride.from.x) * k;
+    z = ride.from.z + (z - ride.from.z) * k;
     y = ride.from.y + (y - ride.from.y) * k;
-    if (gondola) heading -= (Math.PI / 2) * Math.sin(Math.PI * k);
   }
+  // His pair in the rack on the cabin's door (`lift-skis.ts`).
+  if (gondola)
+    inRack(run, plan, ride, { x: grip.x, y: gy, z: grip.z }, ride.swing, cabinDoors(ride));
   const dt = TUNING.dt;
   const fresh = ride.phase === "ride" && ride.t <= dt && k >= 1;
   c.vx = fresh ? plan.dx * ride.speed : (x - c.x) / dt;
@@ -578,7 +666,7 @@ function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
  * carrier, and a ride not boarded from the snow, has him at once. The pose
  * reads it. */
 export function seatedShare(ride: LiftRide): number {
-  if (ride.phase !== "ride") return 0;
+  if (ride.phase !== "ride" || ride.rack !== undefined) return 0;
   if (ride.stand !== undefined)
     return ride.kind === "chair" ? 1 - smoothstep(0, 1, Math.min(1, ride.stand / K.rise)) : 0;
   if (!Number.isFinite(ride.from.y)) return 1;

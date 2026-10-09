@@ -110,7 +110,7 @@ export function townBrake(run: GameState, input: SkierInput): SkierInput {
 }
 
 /** A ski laid nowhere yet, to be placed. */
-function blankSki(side: number, mount: number): LoneSki {
+export function blankSki(side: number, mount: number): LoneSki {
   return {
     side,
     held: 0,
@@ -163,8 +163,19 @@ export function stridePace(speed: number): number {
   return Math.min(1, speed / T.walk + 0.2 * Math.min(1, speed * 4));
 }
 
-/** ONE STEP IN TOWN: the beat he is in, his walk, and the pair placed. */
-export function stepTown(run: GameState, input: SkierInput, events: GameEvent[]): void {
+/** Where a lift leads him on foot (`lift-skis.ts`): the way, rad, and the
+ * pace, m/s — the walk is the lift's, not the player's, and the streets
+ * are not asked where he is. */
+export type TownLead = { heading: number; pace: number };
+
+/** ONE STEP IN TOWN: the beat he is in, his walk, and the pair placed —
+ * or, `lead` by a lift, his walk where it takes him. */
+export function stepTown(
+  run: GameState,
+  input: SkierInput,
+  events: GameEvent[],
+  lead?: TownLead,
+): void {
   const c = run.skier;
   const w = c.town!;
   const was = w.phaseT;
@@ -205,8 +216,9 @@ export function stepTown(run: GameState, input: SkierInput, events: GameEvent[])
     heading += clamp(turn, -T.turn * dt, T.turn * dt);
     if (w.phaseT >= L) next(w, "clip");
   } else {
-    heading += clamp(input.steer, -1, 1) * T.turn * dt;
-    const go = input.brake > 0.15 ? 0 : clamp(input.tuck * 2, 0, 1);
+    const steer = lead ? clamp(angleDiff(heading, lead.heading) * 4, -1, 1) : input.steer;
+    heading += clamp(steer, -1, 1) * T.turn * dt;
+    const go = lead ? lead.pace / T.walk : input.brake > 0.15 ? 0 : clamp(input.tuck * 2, 0, 1);
     const gx = Math.sin(heading);
     const gz = Math.cos(heading);
     const rise = (level.groundAt(c.x + gx, c.z + gz) - level.groundAt(c.x - gx, c.z - gz)) / 2;
@@ -219,7 +231,7 @@ export function stepTown(run: GameState, input: SkierInput, events: GameEvent[])
     }
     w.walked += pace * dt;
     // OFF THE STREETS: past the village's felled margin, the pair comes off.
-    if (streetMaskAt(level, c.x, c.z) < MASK.felled) leaveTown(run, w, heading);
+    if (!lead && streetMaskAt(level, c.x, c.z) < MASK.felled) leaveTown(run, w, heading);
   }
   const at = clearOfSolids(run, c.x + vx * dt, c.z + vz * dt);
   const lo = TUNING.bounds.margin;
@@ -250,12 +262,12 @@ function leaveTown(run: GameState, w: TownWalk, heading: number): void {
 
 /** A place for a ski: where its boot's middle is on its base (`b`), the
  * way its tip points (`d`) and out of its topsheet (`u`), world frame. */
-type Place = { b: number[]; d: number[]; u: number[] };
+export type Place = { b: number[]; d: number[]; u: number[] };
 const places: Place[][] = [0, 1, 2].map(() =>
   [0, 1].map(() => ({ b: [0, 0, 0], d: [0, 0, 1], u: [0, 1, 0] })),
 );
 
-function unit(v: number[]): number[] {
+export function unit(v: number[]): number[] {
   const n = hypot3(v[0], v[1], v[2]) || 1;
   v[0] /= n;
   v[1] /= n;
@@ -292,7 +304,7 @@ function lying(run: GameState, at: TownWalk["at"], out: Place[]): void {
 }
 
 /** The pair STOOD ON ITS TAILS in front of him, base to base, on his right. */
-function upright(run: GameState, out: Place[]): void {
+export function upright(run: GameState, out: Place[]): void {
   const c = run.skier;
   const U = T.upright;
   const fx = Math.sin(c.heading);
@@ -316,7 +328,7 @@ function upright(run: GameState, out: Place[]): void {
 
 /** The pair ON HIS RIGHT SHOULDER, the right ski under (its topsheet on the
  * shoulder), the left on it base to base; `bob` his stride's dip, m. */
-function shouldered(run: GameState, bob: number, out: Place[]): void {
+export function shouldered(run: GameState, bob: number, out: Place[]): void {
   const c = run.skier;
   const K = T.carry;
   const fx = Math.sin(c.heading);
@@ -351,7 +363,7 @@ function shouldered(run: GameState, bob: number, out: Place[]): void {
 }
 
 /** `out` = `a` toward `b` by `k`, the directions kept unit and square. */
-function mixPlace(a: Place, b: Place, k: number, out: Place): void {
+export function mixPlace(a: Place, b: Place, k: number, out: Place): void {
   for (let j = 0; j < 3; j++) {
     out.b[j] = a.b[j] + (b.b[j] - a.b[j]) * k;
     out.d[j] = a.d[j] + (b.d[j] - a.d[j]) * k;
@@ -364,7 +376,7 @@ function mixPlace(a: Place, b: Place, k: number, out: Place): void {
 }
 
 /** The ski laid at its place. */
-function setSki(ski: LoneSki, p: Place, length: number, onSnow: boolean): void {
+export function setSki(ski: LoneSki, p: Place, length: number, onSnow: boolean): void {
   const fore = length * (1 - ski.mount);
   const aft = length * ski.mount;
   const E = ski.ends;

@@ -487,6 +487,8 @@ export function createSkisModel(
   // cover on powder, none on the groomer — for the skis let go to lie on.
   const cover = (x: number, z: number): number =>
     fall?.ground.packedAt ? LOOSE * (1 - fall.ground.packedAt(x, z)) : 0;
+  // ...and over nothing at all, stood in a cabin's rack.
+  const noCover = (): number => 0;
   // ...and in town, how far the figure and the pair he carries are stood
   // up onto the drawn street (`townLift`, `streetOver`).
   let townCover = 0;
@@ -720,10 +722,12 @@ export function createSkisModel(
       // Hanging off a skid the skis are neither pivoted nor edged.
       const hung = perch !== null && !off && !afoot;
       const boarded = sled !== null && !off && !afoot;
-      // IN A GONDOLA'S CABIN his skis ride in the rack on its door.
-      const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride";
+      // IN A GONDOLA'S CABIN his skis ride in the rack on its door — the
+      // pair itself, placed there (`lift-skis.ts`), or out of sight.
+      const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride" && !afoot;
+      const racked = cabin ? (skier.lift?.skis ?? null) : null;
       const inBasket = basket && !off && !afoot;
-      rack(boarded || cabin || inBasket);
+      rack(boarded || (cabin && !racked) || inBasket);
       unboot(town !== null);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);
@@ -877,7 +881,13 @@ export function createSkisModel(
       // THE SKIS LET GO (`lone-skis.ts`): each laid where its own body
       // lies, no longer a pair under him.
       const loose =
-        off && off.skis.length === 2 ? off.skis : afoot?.skis.length === 2 ? afoot.skis : null;
+        off && off.skis.length === 2
+          ? off.skis
+          : afoot?.skis.length === 2
+            ? afoot.skis
+            : racked?.length === 2
+              ? racked
+              : null;
       if (loose) {
         root.updateWorldMatrix(true, false);
         toLocal.copy(root.matrixWorld).invert();
@@ -886,7 +896,11 @@ export function createSkisModel(
           loneSkiFrame(
             loose[i],
             lies[i],
-            town && run ? () => skiLift(loose[i], run!.level, townCover, townFigure) : cover,
+            town && run
+              ? () => skiLift(loose[i], run!.level, townCover, townFigure)
+              : racked
+                ? noCover
+                : cover,
           );
           const g = gear.skis[i];
           const keep = g.scale.clone();

@@ -801,7 +801,7 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
         : null;
     cabin.visible = !!cab && (cab.phase === "wait" || !!drawn);
     if (cab) {
-      own.set(cabinDoors(cab), cab.phase === "ride");
+      own.set(cabinDoors(cab));
       if (cab.phase === "ride" && seatedShare(cab) >= 1 && drawn) {
         lift.set(0, TUNING.lift.cabin, TUNING.lift.cabinBack).applyQuaternion(riderQ);
         cabin.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);

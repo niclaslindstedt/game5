@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -471,6 +471,17 @@ lift-board:
 # ARGS="--list" names each worst frame, "--dump=t0,t1 --joint=handsL" walks it.
 lift-flow:
 	npm run lift-flow -- $(if $(STAGE),--stage=$(STAGE),) $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE LIFT PATH LAB (pure Node, seconds): a gondola's rider traced in plan
+# through both stations — every approach to the foot station's door, the
+# platform, his cabin and the walk out at the top — with the houses, the
+# rail, his cabin's box and his skis drawn every quarter second, and the
+# seconds anything of him shows through a wall, previews/lift-path.png.
+# SEED= REGION=; ARGS="--json=previews/lift-path-before.json" before a
+# change and ARGS="--compare=previews/lift-path-before.json" after;
+# ARGS="--list" names every frame through a wall.
+lift-path:
+	npm run lift-path -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE HELICOPTER LAB: the free ride's helicopter staged at every event it
 # has and photographed through the game's renderer — parked on its pad and

@@ -70,6 +70,7 @@ describe("the fade through a station", () => {
     ...ride("board", 0, kind),
     walk: 20,
     s: 20 - togo,
+    foot: togo,
   });
   const faded = (t: number): LiftRide => ({ ...ride("ride", t, "gondola"), faded: true });
 

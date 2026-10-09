@@ -35,6 +35,7 @@ import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
+import type { ViewCull } from "./view-cull.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { Spray } from "./spray.ts";
@@ -75,7 +76,8 @@ export type Machines = {
   /** THE BALLOON'S BURNER AND FIRE and THE PISTE MACHINES' LAMPS lit at
    * `lit` and seen from `eye`, ahead of `floods` — the list the lamp slots
    * are dealt from (`dealLamps`); the balloon's fire is sorted for `eye`
-   * here, once the lens has settled. */
+   * here, once the lens has settled. The village's traffic is posed here
+   * too, only what the environment's cull leaves in sight. */
   lamps(lit: number, eye: THREE.Vector3, floods: readonly Flood[]): readonly Flood[];
   /** THE HOT AIR BALLOON as drawn (`balloon-scene.ts`), on a free ride —
    * what its burner's flame, its fire and its lens hang off. */
@@ -117,9 +119,10 @@ export type MachineSnow = {
 export function createMachines(
   level: Level,
   state: GameState,
-  haze: HazeUniforms,
+  env: { haze: HazeUniforms; cull?: ViewCull },
   fx: MachineSnow,
 ): Machines {
+  const haze = env.haze;
   const group = new THREE.Group();
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
@@ -248,7 +251,7 @@ export function createMachines(
       balloon?.lamps(eye, floods);
       rescue?.lamps(lit, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
-      traffic?.update(current, lit, eye, floods);
+      traffic?.update(current, lit, eye, floods, env.cull);
       if (floods.length === 0) return others;
       floods.push(...others);
       return floods;

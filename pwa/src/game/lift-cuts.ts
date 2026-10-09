@@ -8,12 +8,21 @@
 
 import * as THREE from "three";
 
+import type { ViewCull } from "./view-cull.ts";
+
+/** How high over the snow a carrier can hang, for the length of its
+ * shadow, m: past the tallest tower's rope. */
+const CARRIER_HEIGHT = 45;
+
 export class Cut {
   readonly near: THREE.InstancedMesh;
   readonly far: THREE.InstancedMesh | null;
   private n = 0;
   private f = 0;
   private eye: THREE.Vector3 | null = null;
+  private cull: ViewCull | null = null;
+  /** The parts' bound round an instance's origin, m. */
+  private readonly radius: number;
   private readonly reach2: number;
   private readonly at = new THREE.Vector3();
 
@@ -39,6 +48,13 @@ export class Cut {
     };
     this.near = make(near);
     this.far = far ? make(far) : null;
+    const bound = (g: THREE.BufferGeometry | null): number => {
+      if (!g) return 0;
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const s = g.boundingSphere!;
+      return s.center.length() + s.radius;
+    };
+    this.radius = Math.max(bound(near), bound(far));
   }
 
   /** Every mesh it draws with, for the group and for disposal. */
@@ -46,9 +62,11 @@ export class Cut {
     return this.far ? [this.near, this.far] : [this.near];
   }
 
-  /** Start a fill from `eye` — or, with none, every instance far. */
-  begin(eye: THREE.Vector3 | null | undefined): void {
+  /** Start a fill from `eye` — or, with none, every instance far — leaving
+   * out what `cull` says is out of sight and shadows nothing in it. */
+  begin(eye: THREE.Vector3 | null | undefined, cull?: ViewCull): void {
     this.eye = eye ?? null;
+    this.cull = cull ?? null;
     this.n = 0;
     this.f = 0;
   }
@@ -57,6 +75,13 @@ export class Cut {
   add(m: THREE.Matrix4): void {
     this.at.setFromMatrixPosition(m);
     const near = this.eye ? this.at.distanceToSquared(this.eye) < this.reach2 : !this.far;
+    const c = this.cull;
+    if (
+      c &&
+      !c.inView(this.at.x, this.at.y, this.at.z, this.radius) &&
+      !(this.near.castShadow && c.shadows(this.at.x, this.at.z, CARRIER_HEIGHT, this.radius))
+    )
+      return;
     if (near) this.near.setMatrixAt(this.n++, m);
     else if (this.far) this.far.setMatrixAt(this.f++, m);
   }

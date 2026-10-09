@@ -31,10 +31,13 @@ import { dogPlanFor, messAt, type Mess } from "./dog-walk.ts";
 import { dogAt, dogWalkerAt, freshDogPose } from "./dog-walk-pose.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
+import type { ViewCull } from "./view-cull.ts";
 
 /** Where the dogs' cuts hand over, the furthest a dog is drawn, and the
  * furthest what it left is, m from the lens. */
 export const DOG_CUTS = { near: 30, far: 170, mess: 80 };
+/** A dog's bound for the cull (`view-cull.ts`), m, round and tall. */
+const DOG_BOUND = 1.2;
 
 /** The points a lead is hung through. */
 const LEAD_POINTS = 12;
@@ -52,7 +55,7 @@ type Slot = {
 
 export type DogsView = {
   group: THREE.Group;
-  update: (state: GameState, eye: THREE.Vector3) => void;
+  update: (state: GameState, eye: THREE.Vector3, cull?: ViewCull) => void;
   dispose: () => void;
 };
 
@@ -305,7 +308,7 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
    * sight or not out). */
   const hands = new Float32Array(plan.households.length * 3);
 
-  const update: DogsView["update"] = (state, eye) => {
+  const update: DogsView["update"] = (state, eye, cull) => {
     const t = state.t;
     for (const slot of slots.values()) slot.n = 0;
     // The owners' hands first.
@@ -330,6 +333,9 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
       const dist = Math.hypot(pose.x - eye.x, pose.y - eye.y, pose.z - eye.z);
       if (dist > DOG_CUTS.far) continue;
       const lod: DogLod = dist < DOG_CUTS.near ? "near" : "far";
+      // A dog out of sight takes its lead with it; the owner keeps his hand.
+      if (cull && !cull.seen(pose.x, pose.y, pose.z, DOG_BOUND, DOG_BOUND, lod === "near"))
+        continue;
       const slot = slots.get(`${dog.kind}:${lod}`)!;
       const k = slot.n++;
       quat.setFromAxisAngle(yAxis, pose.heading);

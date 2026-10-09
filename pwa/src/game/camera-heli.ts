@@ -11,12 +11,16 @@
 //          in the frame;
 //   FAR    the same further out and higher, the mountain round it;
 //   HIGH   high over it looking down, the snow under it and the drop;
-//   TIPS   THE NOSE: a lens bolted under the chin, ahead of the airframe,
-//          looking out along the nose — it pitches, rolls and shakes with
-//          the machine, the slope coming up at it in a dive;
-//   HELMET THE NOSE LOOKING DOWN: the same place on a level mount, turned
-//          only with the heading and tipped down at the snow ahead — the
-//          lens a landing or a drop is aimed with.
+//   TIPS   THE NOSE LOOKING DOWN: a lens under the chin, ahead of the
+//          airframe, on a level mount turned only with the heading and
+//          tipped down at the snow ahead — the lens a landing or a drop is
+//          aimed with;
+//   HELMET THE COCKPIT: the pilot's own eyes in the right seat
+//          (`cockpit-plan.ts`), bolted to the airframe — it pitches, rolls
+//          and loops with the machine — the panel, the controls and the
+//          windscreen in front of him (`heli-cockpit.ts`), the head
+//          looking out ahead in cruise, down out of the chin windows at
+//          the hover, and a little into a turn.
 //
 // A change of rung is FLOWN, never cut: for `HANDOVER` s both rungs are
 // framed and the lens is flown from the one to the other, as the skier's
@@ -25,9 +29,10 @@
 // straight line runs through the cabin. Every lens is kept clear of the
 // snow, and none is ever inside the disc.
 
-import { HELI, rotate, type HeliState, type Quat } from "@engine";
+import { HELI, heliQuat, rotate, type HeliState, type Quat } from "@engine";
 
 import { blendLens, HANDOVER, type LensPose } from "./camera-rigs.ts";
+import { bodyOf, COCKPIT, cockpitFov, headOf } from "./cockpit-plan.ts";
 import type { CameraRung } from "./renderer-api.ts";
 
 /** Per rung: the standoff behind the machine, m, and what each m/s of
@@ -38,16 +43,9 @@ export const HELI_LOOK = {
   far: { dist: 46, distPerSpeed: 0.2, height: 15, ahead: 14, fov: 58 },
   high: { dist: 10, distPerSpeed: 0.1, height: 42, ahead: 4, fov: 64 },
   /** The nose lens, in the body frame (y up from the skid datum, z
-   * forward): `out` m ahead of the nose's tip at height `up`; how
-   * far down it looks, rad, and its fov, deg — `bolted` the chin camera
-   * that turns with the whole machine, `level` the look-down one turned
-   * only with its heading. */
-  nose: {
-    up: 1.02,
-    out: 0.35,
-    bolted: { down: 0.14, fov: 74 },
-    level: { down: 0.62, fov: 70 },
-  },
+   * forward): `out` m ahead of the nose's tip at height `up`, turned only
+   * with the heading; how far down it looks, rad, and its fov, deg. */
+  nose: { up: 1.02, out: 0.35, down: 0.62, fov: 70 },
   /** How briskly the boom swings after the heading, 1/s, and the share of
    * the way it is going it leans toward at speed. */
   yaw: 2.2,
@@ -140,40 +138,65 @@ function stepYaw(cam: HeliCam, h: HeliState, at: HeliAt, dt: number): void {
   }
 }
 
-/** THE NOSE LENS: bolted under the chin (`tips`) or level and looking
- * down (`helmet`). */
-function noseLens(
-  h: HeliState,
-  at: HeliAt,
-  bolted: boolean,
-  groundAt: (x: number, z: number) => number,
-): LensPose {
+/** THE NOSE LENS: under the chin on a level mount, looking down at the
+ * snow ahead. */
+function noseLens(at: HeliAt, groundAt: (x: number, z: number) => number): LensPose {
   const N = HELI_LOOK.nose;
-  const z = HELI.body.nose + N.out;
-  const L = bolted ? N.bolted : N.level;
-  const q = at.q;
-  let eye: { x: number; y: number; z: number };
-  let look: { x: number; y: number; z: number };
-  const ahead = { x: 0, y: -Math.sin(L.down), z: Math.cos(L.down) };
-  if (bolted && q) {
-    const off = rotate(q, { x: 0, y: N.up, z });
-    eye = { x: at.x + off.x, y: at.y + off.y, z: at.z + off.z };
-    look = rotate(q, ahead);
-  } else {
-    const off = flat(at.heading, 0, z);
-    eye = { x: at.x + off.x, y: at.y + N.up, z: at.z + off.z };
-    const f = flat(at.heading, 0, ahead.z);
-    look = { x: f.x, y: ahead.y, z: f.z };
-  }
+  const off = flat(at.heading, 0, HELI.body.nose + N.out);
+  const eye = { x: at.x + off.x, y: at.y + N.up, z: at.z + off.z };
   eye.y = Math.max(eye.y, groundAt(eye.x, eye.z) + HELI_LOOK.noseClearance);
+  const f = flat(at.heading, 0, Math.cos(N.down));
   const reach = 30;
   return {
     eye,
+    target: {
+      x: eye.x + f.x * reach,
+      y: eye.y - Math.sin(N.down) * reach,
+      z: eye.z + f.z * reach,
+    },
+    fov: N.fov,
+    roll: 0,
+  };
+}
+
+/** THE ROLL that stands a lens looking along `f` (unit, world) the right
+ * way up for `up` (world), as `aimLens` lays it on: the angle from the
+ * up a level lens would have to `up`, about the look. */
+export function rollFor(f: Vec, up: Vec): number {
+  // A level lens's right is the look crossed with the world's up, and its
+  // up the right crossed with the look.
+  let rx = -f.z;
+  let rz = f.x;
+  const rl = Math.hypot(rx, rz);
+  if (rl < 1e-6) return 0;
+  rx /= rl;
+  rz /= rl;
+  const ux = -rz * f.y;
+  const uy = rz * f.x - rx * f.z;
+  const uz = rx * f.y;
+  return Math.atan2(up.x * rx + up.z * rz, up.x * ux + up.y * uy + up.z * uz);
+}
+
+type Vec = { x: number; y: number; z: number };
+
+/** THE COCKPIT LENS: the pilot's eyes in the right seat, bolted to the
+ * airframe, the head looking out or down and into a turn (`headOf`). */
+export function cockpitLens(h: HeliState, at: HeliAt, aspect = 16 / 9): LensPose {
+  const q = at.q ?? heliQuat(h);
+  const off = rotate(q, bodyOf(COCKPIT.eye));
+  const eye = { x: at.x + off.x, y: at.y + off.y, z: at.z + off.z };
+  const head = headOf(h);
+  const look = rotate(q, {
+    x: Math.sin(head.turn) * Math.cos(head.down),
+    y: -Math.sin(head.down),
+    z: Math.cos(head.turn) * Math.cos(head.down),
+  });
+  const reach = 20;
+  return {
+    eye,
     target: { x: eye.x + look.x * reach, y: eye.y + look.y * reach, z: eye.z + look.z * reach },
-    fov: L.fov,
-    // The bolted lens's roll is in its attitude already when it has one;
-    // the level mount keeps the horizon level.
-    roll: bolted && !q ? h.roll : 0,
+    fov: cockpitFov(aspect),
+    roll: rollFor(look, rotate(q, { x: 0, y: 1, z: 0 })),
   };
 }
 
@@ -185,8 +208,10 @@ export function heliLens(
   at: HeliAt,
   rung: CameraRung,
   groundAt: (x: number, z: number) => number,
+  aspect = 16 / 9,
 ): LensPose {
-  if (rung === "tips" || rung === "helmet") return noseLens(h, at, rung === "tips", groundAt);
+  if (rung === "tips") return noseLens(at, groundAt);
+  if (rung === "helmet") return cockpitLens(h, at, aspect);
   const L = rung === "far" ? HELI_LOOK.far : rung === "high" ? HELI_LOOK.high : HELI_LOOK.chase;
   const speed = Math.hypot(h.vx, h.vz);
   const centre = { x: at.x, y: at.y + HELI.cog + 0.6, z: at.z };
@@ -217,6 +242,7 @@ export function frameHeli(
   rung: CameraRung,
   dt: number,
   groundAt: (x: number, z: number) => number,
+  aspect = 16 / 9,
 ): LensPose {
   stepYaw(cam, h, at, dt);
   if (cam.fresh || (cam.cut && cam.rung !== rung)) {
@@ -231,13 +257,13 @@ export function frameHeli(
   cam.fresh = false;
   cam.cut = false;
   cam.rung = rung;
-  const lens = heliLens(cam, h, at, rung, groundAt);
+  const lens = heliLens(cam, h, at, rung, groundAt, aspect);
   if (cam.from === null || cam.since >= HANDOVER) {
     cam.from = null;
     return lens;
   }
   cam.since += dt;
-  const from = heliLens(cam, h, at, cam.from, groundAt);
+  const from = heliLens(cam, h, at, cam.from, groundAt, aspect);
   const out = orbitBlend(from, lens, cam.since / HANDOVER, heliMiddleOf(at));
   out.eye.y = Math.max(out.eye.y, groundAt(out.eye.x, out.eye.z) + HELI_LOOK.noseClearance);
   return out;

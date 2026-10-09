@@ -122,6 +122,17 @@ const flying =
   (collective: number): Drive =>
   () => ({ ...NEUTRAL_INPUT, heli: { collective, pitch: 0, roll: 0, pedal: 0 } });
 
+/** Off a cliff on his skis, `height` m over the flat snow at 15 m/s, and
+ * let fall to 40 m over it. */
+function dropped(height: number): Scene {
+  const s = fresh();
+  const p = flatSpot(level);
+  placeRun(s, { x: p.x, z: p.z, heading: p.heading, speed: 15, height, vy: 0 });
+  const over = (q: GameState) => q.skier.y - level.groundAt(q.skier.x, q.skier.z);
+  roll(s, (q) => over(q) < 40, 20);
+  return { s };
+}
+
 /** THE SCENES: a run stood at the moment before a blow — every one a fall
  * he dies of, the only kind the cam is shot for. */
 const SCENES: Record<string, () => Scene> = {
@@ -134,14 +145,10 @@ const SCENES: Record<string, () => Scene> = {
   slam: () => ({ s: ontoSnow(stage, "left", 28, 8).s }),
   /** FALLEN 200 M: off a cliff on his skis, 200 m over the snow at 15 m/s,
    * and let fall (some 60 m/s when he meets it). */
-  fall: () => {
-    const s = fresh();
-    const p = flatSpot(level);
-    placeRun(s, { x: p.x, z: p.z, heading: p.heading, speed: 15, height: 200, vy: 0 });
-    const over = (q: GameState) => q.skier.y - level.groundAt(q.skier.x, q.skier.z);
-    roll(s, (q) => over(q) < 40, 10);
-    return { s };
-  },
+  fall: () => dropped(200),
+  /** FALLEN 400 M: the same off twice the height, at the terminal speed of
+   * a body in the air (some 52 m/s). */
+  "fall-high": () => dropped(400),
   /** RUN THROUGH: fallen on his back onto a tree's bare top. */
   spike: () => {
     const t = loneTree(level, 6);

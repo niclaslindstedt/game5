@@ -66,18 +66,13 @@ import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import {
   BODY_PARTS,
-  BONES,
   INJURIES,
-  ORGANS,
-  pairedBone,
   pairedOrgan,
   type BodyPart,
-  type Bone,
   type Facing,
   type InjuryDef,
   type InjuryKind,
   type Mechanism,
-  type Organ,
 } from "./defs/anatomy.ts";
 import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
@@ -87,6 +82,7 @@ import { GROOMER } from "./defs/groomer.ts";
 import { TRAFFIC_STRIKE } from "./defs/traffic.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
+import { carriedThrough } from "./flight.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
@@ -95,11 +91,21 @@ import type {
   GameEvent,
   GameState,
   ImpactSource,
-  Injury,
   SkierState,
   Thrown,
+  TrunkLoad,
 } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
+export {
+  FRACTURE_GRADE,
+  bonesOf,
+  fractureEnergyOf,
+  fracturesOf,
+  organsOf,
+  organsOfInjury,
+  saidOf,
+  severityOf,
+} from "./body-bones.ts";
 import { axialOf, facingOf, legAxialOf, torsoOf } from "./body-torso.ts";
 import type { Stuff } from "./upright-grid.ts";
 
@@ -155,6 +161,7 @@ export function mendBody(body: BodyState): void {
   body.worst.fill(0);
   body.injuries.length = 0;
   body.heat = 0;
+  delete body.owed;
 }
 
 /** THE BLOW, g: the peak deceleration of a part met at `v` m/s and
@@ -491,8 +498,10 @@ function rollOf(state: GameState): number {
  * neck whipped — the spine handed more when the legs folded under it
  * (`legsFold`). A landing that came down on the body (`bodyHit`) is the
  * body's: its blow is struck below, and the legs carried only `onBody` of
- * the load. */
-function landing(state: GameState, g: number, airTime: number): void {
+ * the load. One the legs could not stop (`carriedThrough`) breaks the legs
+ * and the hips here, and the rest of him — the spine, the organs, the neck
+ * — as it meets the snow itself (`ragdollBlows`), the moment it does. */
+function landing(state: GameState, g: number, airTime: number, impact: number): void {
   const L = TUNING.landing;
   const c = state.skier;
   const folded = g >= crashLimit(c, "legsFold");
@@ -503,7 +512,6 @@ function landing(state: GameState, g: number, airTime: number): void {
   const drawer = g * (I.square + I.backSeat * back + I.crooked * crooked);
   charge("kneeL", "drawer", drawer);
   charge("kneeR", "drawer", drawer);
-  charge("back", "load", folded ? g * I.folded : g);
   // UP THE LEGS: each carries half his weight's stop — the heel, the
   // pilon, the plateau, the femur and the hip socket loaded at once, a
   // heavier skier harder for the same g.
@@ -515,12 +523,35 @@ function landing(state: GameState, g: number, airTime: number): void {
     charge(sided("thigh", s), "load", leg);
   }
   charge("pelvis", "load", leg);
-  // THE ORGANS stopped with him: the trunk's deceleration, the landing's g.
-  charge("chest", "load", g);
-  charge("abdomen", "load", g);
   if (g >= TUNING.landing.buckle) cap = PARTS;
-  strike("neck", (g - 1) * I.neck);
   if (airTime >= L.air && g >= I.landingShown) offer(g, "back", "landing");
+  // THE SPINE, THE ORGANS AND THE NECK stopped with him — owed, past what
+  // the legs could stop, until his trunk is in the snow.
+  const trunk = { back: folded ? g * I.folded : g, chest: g, abdomen: g, neck: (g - 1) * I.neck };
+  if (carriedThrough(impact, g) > 0) c.body.owed = { ...trunk, t: state.t };
+  else chargeTrunk(trunk);
+}
+
+/** A landing's load on the trunk, the neck and the organs in it. */
+function chargeTrunk(d: TrunkLoad): void {
+  charge("back", "load", d.back);
+  charge("chest", "load", d.chest);
+  charge("abdomen", "load", d.abdomen);
+  strike("neck", d.neck);
+}
+
+/** A LANDING'S LOAD OWED TO THE TRUNK (`BodyState.owed`) paid the step his
+ * hips, shoulders or head meet the snow — or `owedMost` s on, wherever he
+ * is — with every part's injuries open to it, as the landing's are. */
+function payOwed(state: GameState, b: Thrown): void {
+  const owed = state.skier.body.owed;
+  if (!owed) return;
+  let met = state.t - owed.t >= I.owedMost;
+  for (let i = 0; i <= RAGDOLL.head && !met; i++) met = b.impacts[i] > I.touch;
+  if (!met) return;
+  chargeTrunk(owed);
+  cap = PARTS;
+  delete state.skier.body.owed;
 }
 
 /** THE FALLS THAT TWIST AND LEVER: a caught edge, a fall at speed, a fall
@@ -700,12 +731,19 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   const c = state.skier;
   if (c.body.impact) c.body.impact.t += dt;
   clear();
-  if (off) ragdollBlows(state, off);
-  else {
+  if (off) {
+    ragdollBlows(state, off);
+    payOwed(state, off);
+  } else {
     for (const e of events) {
       if (e.kind === "hit") trunkOnSkis(c, e.speed, e.x, e.z, e.stuff, e.radius);
-      else if (e.kind === "land") landing(state, e.g, e.airTime);
+      else if (e.kind === "land") landing(state, e.g, e.airTime, e.impact);
       else if (e.kind === "wipeout") fall(c, e.cause, e.speed);
+    }
+    // Still on his skis after it, nothing carries him down: paid now.
+    if (c.body.owed && !c.thrown) {
+      chargeTrunk(c.body.owed);
+      delete c.body.owed;
     }
     // The hips, the shoulders or the helmet into the snow.
     if (c.bodyHit > I.touch) {
@@ -895,104 +933,4 @@ export function markFall(state: GameState): void {
   b.fall = true;
   b.t = 0;
   if (b.g > body.fallPeak) body.fallPeak = b.g;
-}
-
-/** The ISS's regions, by part: the head and neck, the chest (the thoracic
- * spine with it), the abdomen, and the limbs with the pelvis. */
-const REGION: number[] = BODY_PARTS.map((p) =>
-  p === "head" || p === "neck" ? 0 : p === "chest" || p === "back" ? 1 : p === "abdomen" ? 2 : 3,
-);
-
-/** THE BONES an injury cracks or breaks — on a paired part, its side of
- * each — or none. */
-export function bonesOf(kind: InjuryKind, part: BodyPart): Bone[] {
-  const def = INJURIES[kind] as InjuryDef;
-  if (!def.bones) return [];
-  const side = part.endsWith("L") ? "L" : part.endsWith("R") ? "R" : "";
-  return def.bones.map((b) => (pairedBone(b) ? `${b}${side}` : b) as Bone);
-}
-
-/** Whether an injury is SAID in words: anything but a bone's fracture,
- * which the body drawn shows on the bone — the spinal cord, more than its
- * vertebra, is said. */
-export function saidOf(kind: InjuryKind): boolean {
-  const def = INJURIES[kind] as InjuryDef;
-  return !def.fracture || def.said === true;
-}
-
-/** THE ORGANS an injury hurts — a paired one on its side — or none. */
-export function organsOfInjury(h: Injury): Organ[] {
-  const def = INJURIES[h.kind] as InjuryDef;
-  if (!def.organs) return [];
-  return def.organs.map((o) => (pairedOrgan(o) ? `${o}${h.side ?? "L"}` : o) as Organ);
-}
-
-/** EVERY ORGAN'S STATE, in `ORGANS` order: the worst AIS any injury on the
- * body did to it, 0 sound. */
-export function organsOf(body: BodyState): number[] {
-  const worst = new Array<number>(ORGANS.length).fill(0);
-  for (const h of body.injuries)
-    for (const o of organsOfInjury(h)) {
-      const i = ORGANS.indexOf(o);
-      if (h.ais > worst[i]) worst[i] = h.ais;
-    }
-  return worst;
-}
-
-/** WHAT A FRACTURE SHOWS on its bone: sound, a HAIRLINE crack, a SIMPLE
- * break, a WEDGE (a butterfly fragment knocked out) or SHATTERED
- * (multifragmentary) — the last three a break graded by the energy that
- * did it (`injury.comminute`). */
-export const FRACTURE_GRADE = { sound: 0, hairline: 1, simple: 2, wedge: 3, shatter: 4 } as const;
-
-/** One injury's grade on its bones. */
-function gradeOf(def: InjuryDef, energy: number): number {
-  if (def.fracture !== "break") return FRACTURE_GRADE.hairline;
-  const C = I.comminute;
-  if (energy >= C.shatter) return FRACTURE_GRADE.shatter;
-  return energy >= C.wedge ? FRACTURE_GRADE.wedge : FRACTURE_GRADE.simple;
-}
-
-/** Every bone's grade and the energy of the fracture behind it. */
-function boneFractures(body: BodyState): { grade: number[]; energy: number[] } {
-  const grade = new Array<number>(BONES.length).fill(0);
-  const energy = new Array<number>(BONES.length).fill(0);
-  for (const h of body.injuries) {
-    const def = INJURIES[h.kind] as InjuryDef;
-    if (!def.fracture) continue;
-    const e = h.energy ?? 1;
-    const g = gradeOf(def, e);
-    for (const b of bonesOf(h.kind, h.part)) {
-      const i = BONES.indexOf(b);
-      if (g > grade[i] || (g === grade[i] && e > energy[i])) {
-        grade[i] = g;
-        energy[i] = e;
-      }
-    }
-  }
-  return { grade, energy };
-}
-
-/** EVERY BONE'S STATE, in `BONES` order (`FRACTURE_GRADE`): 0 sound, 1 a
- * hairline crack, 2 a simple break, 3 a wedge, 4 shattered — the worst any
- * injury on the body did to it. */
-export function fracturesOf(body: BodyState): number[] {
-  return boneFractures(body).grade;
-}
-
-/** EVERY BONE'S FRACTURE ENERGY, in `BONES` order: the energy of the
- * fracture it shows over that fracture's even chance (0 sound) — how far
- * the drawing throws its pieces apart. */
-export function fractureEnergyOf(body: BodyState): number[] {
-  return boneFractures(body).energy;
-}
-
-/** THE INJURY SEVERITY SCORE: the squares of the worst AIS in each of the
- * three worst-hurt regions, summed — 0 unhurt, 16 and up major trauma, 75
- * the scale's top. */
-export function severityOf(body: BodyState): number {
-  const top = [0, 0, 0, 0];
-  for (let p = 0; p < PARTS; p++) top[REGION[p]] = Math.max(top[REGION[p]], body.worst[p]);
-  top.sort((a, b) => b - a);
-  return top[0] * top[0] + top[1] * top[1] + top[2] * top[2];
 }

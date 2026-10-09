@@ -16,6 +16,7 @@ import {
   NEUTRAL_INPUT,
   ORGANS,
   ORGAN_KINDS,
+  RAGDOLL,
   SKI_CATALOG,
   TUNING,
   FRACTURE_GRADE,
@@ -359,6 +360,50 @@ describe("the body on the snow", () => {
     // the liver or the spleen torn on what holds them.
     expect(big.legs).toContain("bruisedLungFall");
     expect(big.legs.some((k) => k === "tornLiverFall" || k === "tornSpleenFall")).toBe(true);
+  });
+
+  it("a fall the legs cannot stop hurts the trunk when it meets the snow, not at the skis' touch", () => {
+    // Off 120 m onto the flat: the skis land at nearly 50 m/s.
+    const state = staged(flatLevel({ packed: 1 }), {
+      x: 1500,
+      z: 200,
+      heading: 0,
+      speed: 3,
+      height: 120,
+    });
+    const TRUNK = new Set(["back", "chest", "abdomen", "neck"]);
+    let landed = -1;
+    let trunkAt = -1;
+    let lowest = Infinity;
+    for (let i = 0; i < 8 * TUNING.physicsHz && trunkAt < 0; i++) {
+      step(state, NEUTRAL_INPUT);
+      if (landed < 0 && state.events.some((e) => e.kind === "land")) {
+        landed = state.tick;
+        // The legs break where the skis meet the snow...
+        const now = state.events.filter((e) => e.kind === "injury").map((e) => e.part);
+        expect(now).toContain("footL");
+        expect(now.filter((p) => TRUNK.has(p))).toEqual([]);
+        // ...and the body comes on down into it, never back up off it.
+        expect(state.skier.thrown!.vy).toBeLessThan(-20);
+      }
+      if (landed < 0) continue;
+      const hurt = state.events.some((e) => e.kind === "injury" && TRUNK.has(e.part));
+      if (!hurt) continue;
+      trunkAt = state.tick;
+      const P = state.skier.thrown!.points;
+      for (const i of [
+        RAGDOLL.hipL,
+        RAGDOLL.hipR,
+        RAGDOLL.shoulderL,
+        RAGDOLL.shoulderR,
+        RAGDOLL.head,
+      ])
+        lowest = Math.min(lowest, P[3 * i + 1] - state.level.groundAt(P[3 * i], P[3 * i + 2]));
+    }
+    // The spine and the organs go a few steps on, with the trunk in the snow.
+    expect(trunkAt).toBeGreaterThan(landed);
+    expect((trunkAt - landed) * TUNING.dt).toBeLessThanOrEqual(I.owedMost + TUNING.dt);
+    expect(lowest).toBeLessThan(0.3);
   });
 
   it("a trunk at speed is a blow of a hundred g and more, and hurts him", () => {

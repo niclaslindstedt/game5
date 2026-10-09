@@ -934,6 +934,10 @@ export const INJURY = {
   /** A point's way into the snow under this is lying on it, not meeting
    * it, m/s. */
   touch: 0.8,
+  /** THE LANDING THE LEGS COULD NOT STOP (`flight.ts`' `carriedThrough`):
+   * the spine, the organs and the neck are hurt the step his trunk meets
+   * the snow, or this many s after the skis did at the latest. */
+  owedMost: 0.2,
   /** THE G METER: a blow is billed from `shown` g (a landing from
    * `landingShown`, since an ordinary one is two or three), and held
    * `hold` s — a harder one in that time takes its place, a softer one

@@ -162,6 +162,16 @@ export function fallHeight(impact: number): number {
   return (impact * impact) / (2 * TUNING.g);
 }
 
+/** WHAT THE LEGS COULD NOT STOP, m/s: a landing that loads them past
+ * `landing.buckle` g folds them, and the body comes on down into the snow
+ * with the speed left of `impact` once their whole stroke is spent at the
+ * buckle. The fall height goes as the speed squared, so the legs stop
+ * (buckle − 1) / (g − 1) of it; at or under the buckle, nothing is left. */
+export function carriedThrough(impact: number, g: number): number {
+  if (g <= LD.buckle) return 0;
+  return impact * Math.sqrt(1 - (LD.buckle - 1) / (g - 1));
+}
+
 /** THE LOAD A LANDING PUTS ON HIM, g: the equivalent fall height stopped
  * over the legs' stroke — less what a tuck (`crouch` 0..1) has already
  * folded out of them, and as much of it as his legs stop his weight over

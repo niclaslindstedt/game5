@@ -90,7 +90,7 @@ function rotorSide(state: GameState | null, at: Vec3): LensSide | undefined {
 /** How near a piste machine must be to take a shred's lens, m; the aim
  * over its tail, m; how far round from straight behind it the lens stands,
  * rad; and its arm and height off the tail, m, and its zoom, degrees. */
-const MACHINE_SHOT = { reach: 12, over: 2, turn: 1.25, arm: 10, height: 5.5, fov: 54 } as const;
+const MACHINE_SHOT = { reach: 12, over: 1.2, turn: 1.3, arm: 7, height: 3.2, fov: 52 } as const;
 
 export function createHurtLens(): HurtLens {
   const view = createXrayView();

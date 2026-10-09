@@ -99,6 +99,7 @@ import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { createVillageBuildings } from "./village-cuts.ts";
+import { createInteriors } from "./interiors-view.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
@@ -197,6 +198,9 @@ export function createLifts(
   group.add(tunnels.group);
   const houses = createCabins(level, haze);
   group.add(houses.group);
+  // THE ROOMS inside the buildings near the lens (`interiors-view.ts`).
+  const rooms = createInteriors(level, haze);
+  group.add(rooms.group);
   // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
   // the village round the hub and the mountain's restaurant and patrol hut,
   // in blocks at a near and a far cut (`village-cuts.ts`).
@@ -208,6 +212,7 @@ export function createLifts(
     tunnels.dispose();
     houses.dispose();
     village.dispose();
+    rooms.dispose();
     disposeBoards();
     disposeRings();
     for (const g of geos) g.dispose();
@@ -221,6 +226,7 @@ export function createLifts(
       if (eye) {
         houses.update(eye);
         village.update(eye);
+        rooms.update(eye);
       }
     },
     setBudget: tunnels.setBudget,
@@ -732,6 +738,7 @@ export function createLifts(
     if (eye) {
       houses.update(eye);
       village.update(eye);
+      rooms.update(eye);
     }
     boarding?.update(t);
     const plan = rider ? plans[rider.index] : undefined;
@@ -802,7 +809,7 @@ export function createLifts(
         : null;
     cabin.visible = !!cab && (cab.phase === "wait" || !!drawn);
     if (cab) {
-      own.set(cabinDoors(cab), cab.phase === "ride");
+      own.set(cabinDoors(cab));
       if (cab.phase === "ride" && seatedShare(cab) >= 1 && drawn) {
         lift.set(0, TUNING.lift.cabin, TUNING.lift.cabinBack).applyQuaternion(riderQ);
         cabin.position.set(drawn.x + lift.x, drawn.y + lift.y, drawn.z + lift.z);

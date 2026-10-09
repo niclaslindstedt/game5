@@ -506,7 +506,7 @@ function planOf(kind: CabinKind): Plan {
 }
 
 /** Every window and door of a kind. */
-function planHoles(kind: CabinKind): Hole[] {
+export function planHoles(kind: CabinKind): Hole[] {
   return planOf(kind).holes;
 }
 

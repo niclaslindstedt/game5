@@ -561,6 +561,34 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     crashFrames(st, s, "tips", [0, 0.15, 0.5, 1, 2, 4]);
   },
 
+  // DYING FROM THE COCKPIT: the machine flown into the snow, and the
+  // skier pushed off 40 m up, both ridden on the HELMET rung (the pilot's
+  // eyes) — the crash's lens and the death cam must find the wreck and him.
+  "cockpit-crash"(st) {
+    const s = crashed(st, "helmet");
+    crashFrames(st, s, "helmet", [0, 0.3, 1, 2, 4]);
+  },
+
+  "cockpit-fall"(st) {
+    st.camera("helmet");
+    const s = hover(st, st.spots.meadow, 40, 3);
+    st.shoot(s, "hover", "helmet");
+    push(st, s, { x: st.spots.meadow.x, z: st.spots.meadow.z, height: 40 });
+    let off = 0;
+    for (const at of [0.1, 0.3, 0.6, 1]) {
+      st.run(s, at - off, still);
+      off = at;
+      st.shoot(s, `off-${at}s`, "helmet");
+    }
+    st.until(s, (q) => !q.skier.airborne || !!q.skier.thrown, 10, still);
+    let t = 0;
+    for (const at of [0, 0.4, 1.2, 3]) {
+      st.run(s, at - t, still);
+      t = at;
+      st.shoot(s, `down-${at}s`, "helmet");
+    }
+  },
+
   "crash-fast"(st) {
     const s = crashed(st, "far", 32, -6, 5);
     crashFrames(st, s, "far", [0, 0.3, 0.8, 1.5, 3, 6]);
@@ -749,5 +777,6 @@ export const GROUPS: Record<string, readonly string[]> = {
   turntable: ["turntable"],
   perch: ["react"],
   hang: ["loop", "roll"],
+  "cockpit-death": ["cockpit-crash", "cockpit-fall"],
   ...COCKPIT_GROUPS,
 };

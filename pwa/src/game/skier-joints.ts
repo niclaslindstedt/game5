@@ -40,6 +40,10 @@ export type SkierPose = {
   /** Each pole's basket end, or null with the poles gone (a thrown skier
    * has let go of them). */
   poles: [V3, V3] | null;
+  /** Where each pole's GRIP is when it is not in its own hand — both held
+   * in one fist, walking the village with his skis on his shoulder
+   * (`town-pose.ts`). Left out, each pole hangs from its own hand. */
+  grips?: [V3, V3];
   /** A pole DROPPED by a hand that cannot hold it — an arm broken
    * (`skier-broken.ts`): that side's pole is not drawn, and its hand holds
    * nothing. Left out, he holds both he has. */

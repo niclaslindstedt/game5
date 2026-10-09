@@ -124,6 +124,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   grimbear: { kind: "grimbear", t: 40, phase: "burst", x: 0, z: 0 },
   afterski: { kind: "afterski", t: 40, phase: "beer", beers: 1, buzz: 0.14 },
   fetch: { kind: "fetch", t: 40, phase: "ski", skis: 1 },
+  town: { kind: "town", t: 40, phase: "shoulder" },
   groomer: { kind: "groomer", t: 40, phase: "strike", id: 0, x: 0, z: 0, speed: 5 },
   traffic: { kind: "traffic", t: 40, phase: "strike", vehicle: "hatch", x: 0, z: 0, speed: 5 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },

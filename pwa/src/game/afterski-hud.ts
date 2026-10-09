@@ -3,22 +3,29 @@
 // the way to the nearest lodge's door while one is near him on a free ride
 // (`near` once he stands where the machine press takes him in), the room
 // while he is in it, and — after a buzzed fall — the skis he has still to
-// fetch. The BUZZ itself is the snapshot's own `buzz`.
+// fetch — and, in town, the skis on his shoulder (`town.ts`). The BUZZ
+// itself is the snapshot's own `buzz`.
 
 import { AFTERSKI, afterskiWithin, doorOf, lodgesOf, type GameState } from "@engine";
 
 export type HudAfterski =
   | { kind: "call"; away: number; near: boolean }
   | { kind: "inside"; beers: number; total: number; drinking: boolean }
-  | { kind: "fetch"; left: number };
+  | { kind: "fetch"; left: number }
+  /** In town on foot: `walking` once the pair is on his shoulder, false
+   * while it is coming off his feet or going back on. */
+  | { kind: "town"; walking: boolean };
 
 /** How far from a lodge's door the HUD calls it, m. */
 const CALL = 45;
 
 export function afterskiOf(state: GameState): HudAfterski | null {
+  const c = state.skier;
+  // In town on foot — but not walked aboard a gondola, where the lift has
+  // him (`lift-skis.ts`).
+  if (c.town && !c.lift) return { kind: "town", walking: c.town.phase === "walk" };
   const a = state.afterski;
   if (!a) return null;
-  const c = state.skier;
   if (c.fetch) return { kind: "fetch", left: c.fetch.carried.filter((k) => !k).length };
   if (a.inside) return { kind: "inside", beers: a.beers, total: a.total, drinking: a.sip >= 0 };
   if (c.thrown || c.lift || state.heli?.rider || state.sled?.rider) return null;

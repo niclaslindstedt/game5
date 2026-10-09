@@ -77,6 +77,10 @@ export type HeliView = {
     player: { x: number; z: number },
     hooks: ShatterHooks,
   ): void;
+  /** THE PACE the run is shown at, game seconds a wall second (1 its own;
+   * slow motion under it): the eye on the rotors is a high-speed camera
+   * slowed with it (`rotor-look.ts`). */
+  setPace(pace: number): void;
   /** The machine as drawn this frame — what the lens frames. */
   drawn(): { x: number; y: number; z: number; heading: number; q: THREE.Quaternion } | null;
   /** The way it was going before it went down, m/s (the engine stops a
@@ -403,6 +407,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
   tailDisc.rotation.y = Math.PI / 2;
   // The eye on each rotor: a blade's width as read two thirds of the way
   // out, where the eye reads a rotor's turn.
+  let pace = 1;
   const mainEye = createRotorEye({
     blades: HELI.rotor.blades,
     rpm: HELI.rotor.rpm,
@@ -630,8 +635,8 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
       // blur. The pattern is the eye's, so it is stepped on the frame's
       // time, and stands still behind the pause card.
       const s = wreck ? 0 : h.spool;
-      const main = mainEye.step(s, dt);
-      const back = tailEye.step(s, dt);
+      const main = mainEye.step(s, dt, pace);
+      const back = tailEye.step(s, dt, pace);
       if (rotor) rotor.rotation.y = -main.phase;
       if (tail) tail.rotation.x = back.phase;
       // A wreck's blades are broken pieces (`heli-shatter.ts` shares their
@@ -664,6 +669,9 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
         // The sock streams out down the wind.
         marks.sock.rotation.y = Math.sin(clock * 0.3) * 0.4;
       }
+    },
+    setPace(p) {
+      pace = p;
     },
     drawn() {
       return shown;

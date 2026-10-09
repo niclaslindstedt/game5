@@ -610,11 +610,15 @@ function paintMap(
   const step = 8;
   if (height) {
     const me = { x: x + w / 2, y: y + h * 0.7 };
+    // Near the snow the alerting is relaxed, as a helicopter's terrain
+    // page is at the hover and on the pad: the ground it stands on is not
+    // a warning — the bands lifted by as much as it is under 60 m up.
+    const lift = Math.max(0, 60 - (over - height(0, 0)));
     for (let py0 = y; py0 < y + h; py0 += step) {
       for (let px0 = x; px0 < x + w; px0 += step) {
         const f = ((me.y - (py0 + step / 2)) / w) * range;
         const r = ((px0 + step / 2 - me.x) / w) * range;
-        const d = height(f, r) - over;
+        const d = height(f, r) - over - lift;
         c.fillStyle = d > -15 ? "#c0261c" : d > -30 ? "#d89a1a" : d > -150 ? "#1d6b2a" : "#0b2412";
         c.fillRect(px0, py0, step, step);
       }

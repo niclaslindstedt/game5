@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Town preview harness</title>
+    <!-- Tooling page for scripts/town-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It stands a
+         free ride up and draws the skier taking his skis off in the village
+         and putting them back on, through the game's own renderer. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b1116;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      :root {
+        --hud-ink: #fff;
+        font-family: system-ui, sans-serif;
+      }
+      #hud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #sheet {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: none;
+      }
+      #label {
+        position: absolute;
+        left: 10px;
+        top: 8px;
+        color: #fff;
+        font: 12px/1.3 monospace;
+        letter-spacing: 0.08em;
+        text-shadow: 0 1px 3px rgb(0 0 0 / 85%);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div id="label"></div>
+    <div id="hud"></div>
+    <canvas id="sheet"></canvas>
+    <script type="module" src="/src/tools/town-harness.ts"></script>
+  </body>
+</html>

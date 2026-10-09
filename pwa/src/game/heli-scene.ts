@@ -17,6 +17,7 @@ import * as THREE from "three";
 import {
   HANG_AIR,
   HANG_GROUND,
+  HELI,
   TUNING,
   airAt,
   treesNear,
@@ -31,6 +32,7 @@ import { frameCrash, startCrashCam, type CrashCam } from "./camera-crash.ts";
 import { createHeliCam, frameHeli, heliMiddleOf, orbitBlend } from "./camera-heli.ts";
 import { bodyOf, COCKPIT, inCabin } from "./cockpit-plan.ts";
 import { blendLens, type LensPose, type Vec3 } from "./camera-rigs.ts";
+import { shelterAt, shelterOff } from "./shelter.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
@@ -58,6 +60,8 @@ export type HeliScene = {
   /** The eye the frame is drawn from, settled: the cockpit shown while it
    * is in the cabin (`heli-cockpit.ts`). */
   seen(eye: Vec3): void;
+  /** The pace the run is shown at (`HeliView.setPace`). */
+  setPace(pace: number): void;
   /** THE LENS this frame, `ladder` the skier's own as framed under it: the
    * helicopter's, blended in from the ladder or out to it — or null once
    * the ladder has it whole (nobody rides it, or the orbit). */
@@ -100,6 +104,17 @@ const HAND_OUT = 1.3;
 /** How quickly the seat's acceleration is followed, s — the steps'
  * difference of its velocity smoothed of their jitter. */
 const ACCEL_LAG = 0.06;
+/** THE CABIN no snow falls in, in the machine's frame, m: floor to roof,
+ * side to side inside the doors, the rear bench to the windscreen. */
+const CABIN = (() => {
+  const B = HELI.body;
+  const lo = { y: B.floor - 0.15, z: -0.2 };
+  const hi = { y: B.roof, z: B.nose - 0.25 };
+  return {
+    centre: { x: 0, y: (lo.y + hi.y) / 2, z: (lo.z + hi.z) / 2 },
+    half: { x: B.width / 2 - 0.04, y: (hi.y - lo.y) / 2, z: (hi.z - lo.z) / 2 },
+  };
+})();
 /** How far under his body origin his boots hang, m, where the air is read,
  * and the height over the snow his skis rest at below which they are laid
  * down on it rather than dangled, m. */
@@ -122,6 +137,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
    * ladder's boom, which framed him sat on the skid, would be inside the
    * airframe — and the seconds since the push. */
   let lastLens: LensPose | null = null;
+  let worn = false;
   let since = Infinity;
   /** THE HAND-OVER: what the helicopter wants on screen this frame (null:
    * the ladder), whether it is cut to rather than flown, the share of it
@@ -220,7 +236,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       const at = view.drawn();
       if (!h.rider || !at || rung === "orbit") {
         cam.fresh = true;
-        if (lastLens && h.mode === "home" && since < DROP_HOLD && rung !== "orbit") {
+        if (lastLens && h.mode === "home" && since < DROP_HOLD && rung !== "orbit" && !worn) {
           // THE DROP: held where it was, its look coming round onto him as
           // he falls away.
           since += dt;
@@ -239,10 +255,16 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
           };
           return;
         }
+        // Out of the cockpit, let go at once: the ladder flies out from his head.
+        if (worn && lastLens) cut = true;
         lastLens = null;
         return;
       }
       since = 0;
+      // From the cockpit or the nose the drop is not held: the lens is in
+      // the airframe and would look at him through it — the camera's own
+      // stand-in (`camera.ts`'s `bail`) flies it out to the chase.
+      worn = rung === "tips" || rung === "helmet";
       lastLens = frameHeli(cam, h, at, rung, step, groundAt, aspect);
       own = lastLens;
     },
@@ -271,11 +293,15 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       Object.assign(eyeWas, shown.eye);
       return out;
     },
+    setPace(pace) {
+      view.setPace(pace);
+    },
     seen(eye) {
       const at = view.drawn();
       const h = lastState?.heli;
       if (!at || !h || h.mode === "wreck") {
         view.inside(false, false);
+        shelterOff();
         return;
       }
       const local = new THREE.Vector3(eye.x - at.x, eye.y - at.y, eye.z - at.z).applyQuaternion(
@@ -283,7 +309,11 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       );
       const pilot = bodyOf(COCKPIT.eye);
       const own = Math.hypot(local.x - pilot.x, local.y - pilot.y, local.z - pilot.z) < 0.05;
-      view.inside(inCabin(local), own);
+      const inside = inCabin(local);
+      view.inside(inside, own);
+      // No snow falls inside the cabin the lens is in (`shelter.ts`).
+      if (inside) shelterAt(at, CABIN.centre, CABIN.half);
+      else shelterOff();
     },
     perch(state) {
       const h = state.heli;

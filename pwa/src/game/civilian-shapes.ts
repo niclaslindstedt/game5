@@ -548,6 +548,32 @@ export function buildPosedFigure(
   return base;
 }
 
+/** ONE CIVILIAN BODY AT ONE CUT IN ANY POSE — the same mesh as
+ * `buildCivilianFigure`, triangle for triangle, its positions and normals
+ * written into `into`'s (a clone of that geometry): what a person knocked
+ * is drawn with, his pose his ragdoll's (`civilian-knock-pose.ts`) rather
+ * than a blend of targets. */
+export function poseCivilianFigure(
+  body: CrowdBody,
+  lod: CrowdLod,
+  pose: Posed,
+  into: THREE.BufferGeometry,
+  holding: Holding = moveOf("stand").holding,
+): void {
+  const fig = new Figure(true);
+  emit(fig, pose, CROWD_LOOKS[body], lod, holding);
+  const g = fig.s.geometry();
+  for (const name of ["position", "normal"] as const) {
+    const to = into.getAttribute(name) as THREE.BufferAttribute;
+    const from = g.getAttribute(name).array as Float32Array;
+    if (from.length !== to.array.length)
+      throw new Error(`civilian ${body}:${lod}: a pose changed the mesh`);
+    (to.array as Float32Array).set(from);
+    to.needsUpdate = true;
+  }
+  g.dispose();
+}
+
 /** How many triangles a civilian body's cut is, folded parts and all. */
 export function civilianTriangles(body: CrowdBody, lod: CrowdLod): number {
   return buildCivilianFigure(body, lod).getAttribute("position").count / 3;

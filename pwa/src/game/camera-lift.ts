@@ -93,6 +93,10 @@ export function liftFade(lift: LiftRide | null, togo = Infinity): number {
   }
   // Skipped up the lift (`TUNING.lift.skip`): out over its fade…
   if (lift.skip !== undefined) return ease(0, TUNING.lift.skip.fade, lift.skip);
+  // On foot to a gondola's door, out as he comes to it (`lift-skis.ts`);
+  // skating up to where he steps out of his skis, never.
+  if (lift.kind === "gondola" && lift.phase === "board")
+    return lift.foot === undefined ? 0 : ease(LIFT_FADE.out, 0.15, lift.foot);
   // A T-bar and a chair take him in the open, unfaded: only a gondola's
   // door (and a ride skipped up) goes dark.
   if (lift.kind !== "gondola" && !lift.faded) return 0;

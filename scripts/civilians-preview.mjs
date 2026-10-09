@@ -17,6 +17,13 @@
 //             to poop frame by frame, every pose, a pile, a patch, a
 //             walker on a slack and a taut lead, the cuts
 //                                                     → previews/civilians/dogs.png
+//   knocks    a person knocked (`civilian-knock.ts`, `civilian-hits.ts`):
+//             a skier at a crawl and at speed from behind, the front and
+//             the side, a child sat on the snow, the snowmobile, a piste
+//             machine, a car and one person knocked into the next — the
+//             blow strobed, the steps or the fall or the flight, the body
+//             lying, the get-up and the walk home
+//                                                     → previews/civilians/knocks.png
 //   resort    `--seed`'s free ride at `--views` (lift, terrace, yard, base,
 //             square, walker, skier, cocoa, kids, snowball, roller,
 //             overview, and the dog walks' dogs, dogpoop, piles, street)
@@ -45,7 +52,7 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".civilians-preview");
 
-const SHEETS = ["figures", "moves", "props", "dogs", "resort"];
+const SHEETS = ["figures", "moves", "props", "dogs", "knocks", "resort"];
 const VIEWS = [
   "lift",
   "terrace",
@@ -102,7 +109,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,dogs,resort] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build]",
+  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,dogs,knocks,resort] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());

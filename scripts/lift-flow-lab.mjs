@@ -33,8 +33,9 @@
 //           his skis off the lift, cm
 //   dark    how long the picture is faded black (`liftFade`), s — the
 //           moment hidden instead of shown
-//   wait / sit / stand / out  how long each part takes, s, against the
-//           bands the research gives (`docs/lifts.md`)
+//   wait / rack / sit / stand / out  how long each part takes, s, against
+//           the bands the research gives (`docs/lifts.md`); `rack` is a
+//           gondola's rider standing his pair in his cabin's rack
 //
 // A picture (previews/lift-flow.png): a row a stage — the line he rides
 // from above with his figure strobed every quarter second (feet, hips,
@@ -102,6 +103,7 @@ const stages = args.stage ? args.stage.split(",") : STAGE.STAGES;
 /** The research's bands, s (`docs/lifts.md`): how long each part may take. */
 const BANDS = {
   wait: [0, 12],
+  rack: [0.5, 4],
   sit: [0.4, 3],
   stand: [0.3, 2],
   out: [1, 20],
@@ -116,7 +118,9 @@ function rideStage(id) {
     crowd: 0,
     whole: true,
     before: 2,
-    after: 5,
+    // Out of a gondola he walks off with the pair on his shoulder, lays it
+    // down and clicks in before he skis.
+    after: id === "gondola-out" ? 16 : 5,
   });
   const state = STAGE.stageState(id, args.seed, region, 0);
   if (!win || !state) return null;
@@ -129,8 +133,13 @@ function rideStage(id) {
   const gravity = E.flightGravity(state.rules);
   // The body's spring settled a moment before the first frame is read.
   const from = Math.max(0.6, win.from - 0.5);
+  // Walked out of a gondola, he clicks back in standing on the level pad:
+  // from there the hands skate him off (the tuck), as a player's would.
+  const skate = { ...E.NEUTRAL_INPUT, tuck: 1 };
+  let walked = false;
   for (let i = 0; state.t < win.to; i++) {
-    E.step(state, E.NEUTRAL_INPUT);
+    if (c.town) walked = true;
+    E.step(state, walked && !c.town && !c.lift ? skate : E.NEUTRAL_INPUT);
     if (i % 2 === 0) continue;
     const dt = lastT === null ? 0 : state.t - lastT;
     P.stepSkierSpring(
@@ -300,8 +309,15 @@ function measure(r) {
     const waitFrom = f.find((x) => x.lift?.phase === "wait")?.t;
     const take = tOf("take");
     parts.wait = waitFrom !== undefined && take !== undefined ? take - waitFrom : 0;
-    // From the carrier's take to sat (or towed) in full.
-    const t0 = take ?? f[0].t;
+    // A gondola's rider, walked aboard, stands his pair in the cabin's
+    // rack first: from the take to the rack let go.
+    const racks = f.some((x) => x.t >= (take ?? 0) && x.lift?.rack !== undefined);
+    const racked = racks
+      ? f.find((x) => x.t >= take && x.lift && x.lift.rack === undefined)?.t
+      : undefined;
+    if (racks) parts.rack = racked !== undefined ? racked - take : NaN;
+    // From the carrier's take (or the rack) to sat (or towed) in full.
+    const t0 = racked ?? take ?? f[0].t;
     const sat = f.find((x) => x.t >= t0 && Math.max(x.seated, x.towing) >= 0.99)?.t;
     parts.sit = sat !== undefined ? sat - t0 : NaN;
   } else {

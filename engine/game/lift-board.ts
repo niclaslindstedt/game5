@@ -41,6 +41,7 @@ import {
   upRope,
   type LiftPlan,
 } from "./lift-line.ts";
+import { standOnFoot } from "./lift-skis.ts";
 import { pivotSteps, strideRate } from "./poles.ts";
 import { derive } from "./skier.ts";
 import type { GameState, LiftRide } from "./state.ts";
@@ -97,10 +98,11 @@ export function setOff(
 
 /** Where boarding takes him: out onto a chair's load line under its up
  * rope, onto a drag's track on its bar's right arm (`lift.tee` right of
- * the rope), or in at a gondola station's door. */
+ * the rope), or `gondola.walkIn` m short of a gondola station's door,
+ * where he steps out of his skis to walk in (`lift-skis.ts`). */
 export function boardAt(plan: LiftPlan): { x: number; z: number } {
   const e = plan.look.entry;
-  if (plan.lift.kind === "gondola") return along(plan, e.at, 0);
+  if (plan.lift.kind === "gondola") return along(plan, e.at - G.walkIn, 0);
   if (plan.lift.kind === "drag") return along(plan, e.at, upRope(plan) + K.tee);
   return along(plan, e.at, upRope(plan));
 }
@@ -156,8 +158,18 @@ function walkOf(
   const front = at(lane[0], lane[1], 1.5);
   const nf = normal(lane[0], lane[1]);
   way.push(along(plan, front.u + nf.u * off, front.v + nf.v * off));
+  // A gondola's way stops short of its door: none of it on past there.
+  if (plan.lift.kind === "gondola") {
+    const stop = plan.look.entry.at - G.walkIn;
+    while (way.length > 1 && upLine(plan, way[way.length - 1]) > stop - 0.5) way.pop();
+  }
   way.push(boardAt(plan));
   return way;
+}
+
+/** How far up a lift's line a point stands, m from its bottom wheel. */
+function upLine(plan: LiftPlan, p: { x: number; z: number }): number {
+  return (p.x - plan.lift.bottom.x) * plan.dx + (p.z - plan.lift.bottom.z) * plan.dz;
 }
 
 /** The way's length, m. */
@@ -461,7 +473,9 @@ export const CABIN_HALF = 0.98;
  * it, slowing to the station's crawl. True once it is alongside. */
 export function stepGondola(run: GameState, plan: LiftPlan, ride: LiftRide): boolean {
   const p = platformOf(plan);
-  setOff(run, p.x, p.z, plan.heading, 0);
+  // In his boots, the pair on his shoulder (`lift-skis.ts`).
+  if (run.skier.town) standOnFoot(run, p.x, p.z, plan.heading, 0);
+  else setOff(run, p.x, p.z, plan.heading, 0);
   const togo = Math.max(0, G.load - ride.u);
   ride.speed = Math.max(G.creep, Math.sqrt(G.creep ** 2 + 2 * G.come * togo));
   ride.u = Math.min(G.load, ride.u + ride.speed * TUNING.dt);
@@ -476,6 +490,8 @@ export function toPlatform(run: GameState, plan: LiftPlan, ride: LiftRide): void
   ride.faded = true;
   ride.u = -G.from;
   ride.speed = Math.sqrt(G.creep ** 2 + 2 * G.come * (G.load + G.from));
+  delete ride.foot;
   const p = platformOf(plan);
-  setOff(run, p.x, p.z, plan.heading, 0);
+  if (run.skier.town) standOnFoot(run, p.x, p.z, plan.heading, 0);
+  else setOff(run, p.x, p.z, plan.heading, 0);
 }

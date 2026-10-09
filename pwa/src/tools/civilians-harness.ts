@@ -62,6 +62,7 @@ import { createHazeUniforms } from "../game/haze.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
 import { dogCells, dogShots } from "./dogs-sheet.ts";
+import { KNOCK_COLS, knockCells } from "./knocks-sheet.ts";
 
 declare global {
   interface Window {
@@ -988,6 +989,8 @@ async function resort(): Promise<void> {
 
 if (sheet === "resort") {
   void resort();
+} else if (sheet === "knocks") {
+  drawSheet(knockCells(haze, seed), KNOCK_COLS);
 } else {
   const pick = { moves: moveCells, props: propCells, dogs: () => dogCells(haze, stage) };
   const cells = (pick[sheet as keyof typeof pick] ?? figureCells)();

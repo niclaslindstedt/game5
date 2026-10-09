@@ -565,7 +565,7 @@ export {
   wipeoutCause,
   type CrashLimit,
 } from "./game/crash.ts";
-export { RAGDOLL, centreOf } from "./game/ragdoll.ts";
+export { RAGDOLL, centreOf, stepRagdoll } from "./game/ragdoll.ts";
 export { letGo } from "./game/lone-skis.ts";
 export { trenched, trenchGrip } from "./game/trench.ts";
 export {
@@ -686,6 +686,7 @@ export {
   groomersOut,
   groomerStrike,
   groomerWithin,
+  onSkis,
   seatOf,
   stepGroomers,
   type GroomerAsk,

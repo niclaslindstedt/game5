@@ -40,8 +40,8 @@
 import * as THREE from "three";
 import type { Level } from "@engine";
 
-import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { blocksOf, createBlockBuildings } from "./village-cuts.ts";
 import { ARCH_FEET, FAN_HOUSE, buildTunnels, fanOf } from "./tunnel-build.ts";
 import {
   TUNNEL_LOOK,
@@ -329,7 +329,9 @@ export function createWindTunnels(level: Level, haze: HazeUniforms, budget = 1):
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
   const meshes: THREE.Mesh[] = [];
+  const disposers: (() => void)[] = [];
   const dispose = () => {
+    for (const d of disposers) d();
     for (const g of geos) g.dispose();
     for (const m of mats) m.dispose();
     for (const m of meshes) if (m instanceof THREE.InstancedMesh) m.dispose();
@@ -488,14 +490,18 @@ export function createWindTunnels(level: Level, haze: HazeUniforms, budget = 1):
   // THE BUILDINGS (`tunnel-build.ts`): the footings, the snow on the
   // crowns, the portals and the fan houses with their sign gantries — one
   // mesh in the painted materials (`facade-paint.ts`) for every tunnel.
-  const built = facadeGeometry(buildTunnels(level, tunnels).out);
-  const facade = facadeMaterial(haze, "tunnels");
-  mats.push(facade);
-  geos.push(built);
-  const buildings = new THREE.Mesh(built, facade);
-  buildings.castShadow = true;
-  buildings.receiveShadow = true;
-  group.add(buildings);
+  // Cut into blocks at two cuts as the village is (`village-cuts.ts`), so
+  // the lot is neither drawn whole nor shadowed from across the mountain.
+  const buildings = createBlockBuildings(
+    blocksOf((minArea) => {
+      const kit = buildTunnels(level, tunnels, minArea);
+      return { kit, spans: [{ from: 0, to: kit.triangles, at: null }] };
+    }),
+    haze,
+    "tunnels",
+  );
+  group.add(buildings.group);
+  disposers.push(() => buildings.dispose());
 
   // THE FANS: the lit lip on each drum's mouth and the sign's arrows (one
   // draw) and the blades, `fanBack` m and the drum's depth before each
@@ -565,6 +571,7 @@ export function createWindTunnels(level: Level, haze: HazeUniforms, budget = 1):
     view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(view);
     camera.getWorldPosition(eye);
+    buildings.update(eye);
     const reach = tunnelReach(haze.uMist.value);
     const close = reach.near * TUNNEL_LOD.marks;
     const t = clock;

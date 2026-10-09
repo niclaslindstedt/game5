@@ -2,7 +2,7 @@
 // THE DISTANCE CUTS: what is drawn lighter, or not at all, far from the
 // lens — the small instanced parts kept in reach (`instance-reach.ts`), the
 // rock's lattice by distance (`rocks.ts`), the piste machines' far cut
-// (`groomer-far.ts`).
+// (`groomer-far.ts`), a parked machine's stand-in (`far-swap.ts`).
 
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
@@ -17,7 +17,8 @@ import {
 } from "../pwa/src/game/groomer-far.ts";
 import { groomerPaint } from "../pwa/src/game/groomer-build.ts";
 import { createHazeUniforms } from "../pwa/src/game/haze.ts";
-import { Cut } from "../pwa/src/game/lift-cuts.ts";
+import { Cut, NO_SHADOW } from "../pwa/src/game/lift-cuts.ts";
+import { beyond, createFarSwap } from "../pwa/src/game/far-swap.ts";
 
 /** `n` things in a row along x, `gap` m apart, one instanced part each
  * coloured by its index. */
@@ -154,5 +155,67 @@ describe("a lift part's distant cut", () => {
     for (const x of [10, 150, 350, 900]) cut.add(at(x));
     cut.end();
     expect(cut.far!.count).toBe(4);
+  });
+});
+
+describe("a lift part's shadow far off", () => {
+  it("hands a casting part to its far geometry, uncast, past the shadow's reach", () => {
+    const far = new THREE.BoxGeometry();
+    const cut = new Cut(new THREE.BoxGeometry(), far, new THREE.MeshBasicMaterial(), 8, 100);
+    cut.begin(new THREE.Vector3());
+    for (const x of [10, 150, NO_SHADOW + 50])
+      cut.add(new THREE.Matrix4().makeTranslation(x, 0, 0));
+    cut.end();
+    expect([cut.near.count, cut.far!.count, cut.distant!.count]).toEqual([1, 1, 1]);
+    expect(cut.distant!.geometry).toBe(far);
+    expect(cut.far!.castShadow).toBe(true);
+    expect(cut.distant!.castShadow).toBe(false);
+  });
+
+  it("keeps a part that casts nothing at two cuts", () => {
+    const cut = new Cut(
+      new THREE.BoxGeometry(),
+      new THREE.BoxGeometry(),
+      new THREE.MeshBasicMaterial(),
+      8,
+      100,
+      false,
+    );
+    expect(cut.distant).toBeNull();
+  });
+});
+
+describe("a parked machine's far cut", () => {
+  const camera = (z: number) => {
+    const c = new THREE.PerspectiveCamera();
+    c.position.set(0, 0, z);
+    c.updateMatrixWorld();
+    return c;
+  };
+
+  it("hands over past the far line and back inside the margin", () => {
+    expect(beyond(99, false, 100, 20)).toBe(false);
+    expect(beyond(101, false, 100, 20)).toBe(true);
+    expect(beyond(90, true, 100, 20)).toBe(true);
+    expect(beyond(79, true, 100, 20)).toBe(false);
+  });
+
+  it("shows the stand-in far off, the model near, and only the model when held", () => {
+    const swap = createFarSwap(100, 20);
+    const model = new THREE.Group();
+    const stand = new THREE.Group();
+    swap.hold(model, stand);
+    swap.node.updateMatrixWorld();
+    swap.node.update(camera(150));
+    expect([model.visible, stand.visible, swap.far]).toEqual([false, true, true]);
+    swap.node.update(camera(90));
+    expect(swap.far).toBe(true);
+    swap.node.update(camera(50));
+    expect([model.visible, stand.visible]).toEqual([true, false]);
+    swap.node.update(camera(150));
+    swap.allow(false);
+    expect([model.visible, stand.visible]).toEqual([true, false]);
+    swap.node.update(camera(500));
+    expect(swap.far).toBe(false);
   });
 });

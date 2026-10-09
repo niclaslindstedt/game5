@@ -32,6 +32,7 @@ import {
 } from "@engine";
 
 import { glow } from "./glow-sprite.ts";
+import { createFarSwap } from "./far-swap.ts";
 import { createCockpit, type Cockpit } from "./heli-cockpit.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShatter, type ShatterHooks } from "./heli-shatter.ts";
@@ -45,6 +46,12 @@ const TR = HELI.tail.radius;
 const ROTOR_OMEGA = (HELI.rotor.rpm / 60) * 2 * Math.PI;
 /** How near the parked machine a skier has to be for it to light up, m. */
 const LIGHT_UP = 90;
+/** Past this from the lens a parked machine is drawn as the code's
+ * stand-in (`far-swap.ts`), m; nearer than `HELI_FAR - HELI_MARGIN`, as the
+ * model again. Some 900 triangles in place of some 15 000, where it is a
+ * few dozen pixels long. */
+export const HELI_FAR = 250;
+export const HELI_MARGIN = 30;
 /** The wash's puffs a second at full thrust over loose snow, under the
  * hover; the radius band they rise in, rotor radii. */
 const WASH_RATE = 70;
@@ -104,7 +111,7 @@ export type HeliView = {
 function standIn(haze: HazeUniforms): THREE.Group {
   const g = new THREE.Group();
   const paint = hazeMaterial(
-    new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.4 }),
+    new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.4, name: "livery" }),
     haze,
     "heli",
   );
@@ -157,6 +164,39 @@ function standIn(haze: HazeUniforms): THREE.Group {
   turned.rotation.y = Math.PI;
   g.add(turned);
   return g;
+}
+
+/** The colour a model's body reads as from afar: its opaque paints mixed
+ * by the area each covers, the glass and the lamps left out. */
+function toneOf(root: THREE.Object3D): THREE.Color | null {
+  const sum = new THREE.Color(0, 0, 0);
+  let area = 0;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh) || Array.isArray(o.material)) return;
+    const m = o.material;
+    if (!(m instanceof THREE.MeshStandardMaterial) || m.transparent) return;
+    if (/glass|lamp|rotor/i.test(m.name)) return;
+    const g = o.geometry as THREE.BufferGeometry;
+    const pos = g.getAttribute("position");
+    const index = g.getIndex();
+    const n = index ? index.count : pos.count;
+    let here = 0;
+    for (let i = 0; i + 2 < n; i += 3) {
+      const at = (k: number) => (index ? index.getX(i + k) : i + k);
+      a.fromBufferAttribute(pos, at(0));
+      b.fromBufferAttribute(pos, at(1)).sub(a);
+      c.fromBufferAttribute(pos, at(2)).sub(a);
+      here += b.cross(c).length() / 2;
+    }
+    sum.r += m.color.r * here;
+    sum.g += m.color.g * here;
+    sum.b += m.color.b * here;
+    area += here;
+  });
+  return area > 0 ? sum.multiplyScalar(1 / area) : null;
 }
 
 /** A rotor's blades as the shader draws them, in the rotor's own frame. */
@@ -481,7 +521,9 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
     return out;
   };
 
-  const adopt = (root: THREE.Object3D): void => {
+  const swap = createFarSwap(HELI_FAR, HELI_MARGIN);
+  machine.add(swap.node);
+  const adopt = (root: THREE.Object3D, standing = false): void => {
     root.traverse((o) => {
       if (o.name === "heli_rotor") {
         mainBlades = bladesOf(o);
@@ -508,7 +550,24 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
         }
       }
     });
-    machine.add(root);
+    // The free ride's own machine only: the air ambulance is only ever seen
+    // landing beside the lens.
+    if (standing || look.pad === false) machine.add(root);
+    else {
+      // THE FAR CUT: the stand-in, for a parked machine far off, its body
+      // in the model's own colour as it reads from afar — its paints mixed
+      // by how much of the skin each covers.
+      const far = standIn(haze);
+      const tone = toneOf(root);
+      far.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        o.castShadow = true;
+        const m = o.material as THREE.MeshStandardMaterial;
+        if (tone && m.name === "livery") m.color.copy(tone);
+        allMats.push(m);
+      });
+      swap.hold(root, far);
+    }
     model = root;
     // THE COCKPIT, off the model's own skin, in the machine's frame.
     let body: THREE.Object3D | null = null;
@@ -533,7 +592,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
       adopt(gltf.scene);
     })
     .catch(() => {
-      if (!disposed) adopt(standIn(haze));
+      if (!disposed) adopt(standIn(haze), true);
     });
 
   const q = new THREE.Quaternion();
@@ -609,6 +668,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
       // Charring as it burns.
       if (wreck) blacken(Math.min(1, h.t / CHAR));
       machine.visible = !wreck || !model;
+      swap.allow(!wreck && h.mode === "parked" && !h.rider && h.spool < 0.02);
       shatter.update(dt, (px, pz) => level.groundAt(px, pz), hooks);
       observe(track, { x: h.x, y: h.y, z: h.z, q: heliQuat(h) }, state.tick);
       sample(track, alpha, at);

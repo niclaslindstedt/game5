@@ -291,7 +291,7 @@ export function App() {
       show: (s) => show(s),
       shell: () => shellRef.current,
     }));
-    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current.keys);
+    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();

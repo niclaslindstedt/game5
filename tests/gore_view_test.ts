@@ -2,11 +2,13 @@
 // THE GORE AS DRAWN, in its three-free and DOM-free halves: where the
 // skin is cut for a piece torn off (`gore-cut.ts`), how what flies off a
 // body comes to rest on the snow (`gore-gibs.ts`), where blood under his
-// clothes runs out of them (`gore-leaks.ts`), and the HUD taking his blows
-// and his death (`hud-wreck.ts`).
+// clothes runs out of them (`gore-leaks.ts`), a piste machine's tiller
+// spitting him out (`gore-tiller.ts`), and the HUD taking his blows and his
+// death (`hud-wreck.ts`).
 
 import { describe, expect, it } from "vitest";
-import { BODY_PARTS, GORE_PIECES, type GorePiece } from "@engine";
+import { BODY_PARTS, GORE_PIECES, GROOMER, RAGDOLL, type GameState, type GorePiece } from "@engine";
+import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
 import {
   PIECE_BONES,
@@ -23,6 +25,7 @@ import {
   streamPath,
   type GibGround,
 } from "../pwa/src/game/gore-gibs.ts";
+import { tillerSpray, type TillerBlood } from "../pwa/src/game/gore-tiller.ts";
 import { GAPS, gapAt, lowestGap, partAt, soakPath } from "../pwa/src/game/gore-leaks.ts";
 import { bindPose } from "../pwa/src/game/dress-loft.ts";
 import { DEATH, HUD_FADE, hudFade, wreckOf } from "../pwa/src/game/hud-wreck.ts";
@@ -257,5 +260,72 @@ describe("blood under the clothes", () => {
     const all = soakPath(from, to, 1, 0.1);
     expect(all[all.length - 1].at.y).toBeCloseTo(-1);
     expect(all[all.length - 1].r).toBeLessThan(all[0].r);
+  });
+});
+
+describe("under a piste machine, as drawn (`gore-tiller.ts`)", () => {
+  const stage = (z: number, speed = 3) => {
+    const points = new Array(RAGDOLL.count * 3).fill(0);
+    for (let i = 0; i < RAGDOLL.count; i++) {
+      points[3 * i] = 0.3;
+      points[3 * i + 1] = 0.15;
+      points[3 * i + 2] = z;
+    }
+    return {
+      groomers: [{ x: 0, y: 0, z: 0, heading: 0, speed, rider: false }],
+      skier: { thrown: { points } },
+    } as unknown as GameState;
+  };
+  const record = () => {
+    const out = { drops: 0, ways: [] as number[], splats: 0, flung: 0 };
+    const blood = {
+      emit: (_at: unknown, way: { z: number }, _s: number, n: number) => {
+        out.drops += n;
+        out.ways.push(way.z);
+      },
+      splat: () => void out.splats++,
+    } as unknown as TillerBlood;
+    return { out, blood };
+  };
+
+  it("spits him out of the back of the tiller while he lies under it", () => {
+    const { out, blood } = record();
+    const rng = createRng(7);
+    for (let k = 0; k < 120; k++)
+      tillerSpray(
+        stage(1),
+        1 / 120,
+        blood,
+        rng,
+        () => 0,
+        () => void out.flung++,
+      );
+    expect(out.drops).toBeGreaterThan(500);
+    // Out behind it: the machine goes +z, the blood goes −z.
+    expect(Math.max(...out.ways)).toBeLessThan(0);
+    expect(out.splats).toBeGreaterThan(0);
+    expect(out.flung).toBeGreaterThan(0);
+  });
+
+  it("throws nothing ahead of the blade, or off a machine standing still", () => {
+    const { out, blood } = record();
+    const rng = createRng(7);
+    tillerSpray(
+      stage(GROOMER.front + 3),
+      1 / 60,
+      blood,
+      rng,
+      () => 0,
+      () => {},
+    );
+    tillerSpray(
+      stage(1, 0),
+      1 / 60,
+      blood,
+      rng,
+      () => 0,
+      () => {},
+    );
+    expect(out.drops).toBe(0);
   });
 });

@@ -78,15 +78,6 @@ export function machineSide(state: GameState | null, at: Vec3): LensSide | undef
   };
 }
 
-/** A BLAST, seen from outside it: the skier still on (or blown off) the
- * skid of a helicopter coming down — the lens stood well back off the
- * fireball it makes, circling it. */
-const blownFrom = (state: GameState | null): boolean =>
-  !!state?.heli && (state.heli.rider || !!state.heli.wreck?.aboard);
-const BLAST_SHOT: LensSide = { arm: 15, height: 5, fov: 55 };
-/** The aim over the machine, m. */
-const BLAST_OVER = 1.5;
-
 /** INTO THE ROTOR, seen from outside: the lens on the far side of him
  * from the machine, so its cabin is behind him and its blades sweep
  * over him into the frame. */
@@ -99,7 +90,7 @@ function rotorSide(state: GameState | null, at: Vec3): LensSide | undefined {
 /** How near a piste machine must be to take a shred's lens, m; the aim
  * over its tail, m; how far round from straight behind it the lens stands,
  * rad; and its arm and height off the tail, m, and its zoom, degrees. */
-const MACHINE_SHOT = { reach: 12, over: 2, turn: 1.25, arm: 10, height: 5.5, fov: 54 } as const;
+const MACHINE_SHOT = { reach: 12, over: 1.2, turn: 1.3, arm: 7, height: 3.2, fov: 52 } as const;
 
 export function createHurtLens(): HurtLens {
   const view = createXrayView();
@@ -118,7 +109,6 @@ export function createHurtLens(): HurtLens {
   let builtFor: Level | null = null;
   let machine: LineClear | undefined;
   let shredClear: LineClear | undefined;
-  let blasted = false;
   const cabin: SolidBox = {
     x: 0,
     z: 0,
@@ -196,20 +186,10 @@ export function createHurtLens(): HurtLens {
       // behind its tiller, where what it spits out flies.
       const shred = look?.kind === "shred";
       // Under a piste machine the lens looks at the machine at work, its
-      // tiller and what flies out behind it: he is under it.
-      // A blast's lens stays stood back for the whole shot: the machine is a
-      // wreck and he is gone off its skid a frame after it took the shot.
-      // The way back from a shred keeps its framing: stood back, outside.
-      if (!shred) blasted = false;
-      else if (blownFrom(run)) blasted = true;
-      // ...looking at the machine going up, what is left of him flung out
-      // of it: never carried after him into its fireball.
-      if (blasted && at && run?.heli) at.set(run.heli.x, run.heli.y + BLAST_OVER, run.heli.z);
+      // tiller and what flies out behind it: he is under it. The way back
+      // from a shred keeps its framing: stood back, outside.
       const side =
-        shred && at
-          ? (machineSide(run, at) ??
-            (blasted ? BLAST_SHOT : (rotorSide(run, at) ?? XRAY_LENS.shred)))
-          : undefined;
+        shred && at ? (machineSide(run, at) ?? rotorSide(run, at) ?? XRAY_LENS.shred) : undefined;
       const x = frameXray(
         xlens,
         shot,

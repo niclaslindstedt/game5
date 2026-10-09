@@ -712,9 +712,10 @@ export function createWorldRenderer(
       const own = machines?.ladder(rigPose, state, lens.camera.aspect);
       player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
-      // THE LENS ON A HURT BODY (`xray-scene.ts`): the X-ray cam, else the death cam.
       hurt.update(state, player.model.skin());
-      const allowed = !override && !watched && lens.rung() !== "orbit";
+      // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
+      const allowed =
+        !override && !watched && lens.rung() !== "orbit" && !state.heli?.wreck?.aboard;
       const body = sampleBody(player.body, alpha);
       const dead = hurt.lens(
         allowed,

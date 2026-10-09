@@ -137,14 +137,19 @@ pad the skier lets go of the bar onto; no booth, a hut at most.
   down the ramp and through the parting. Straight ahead, 14 m past the wheel
   and facing him, stands the PISTE MAP BOARD (below).
 - **The run signs (`summitSigns`, `run-sign-plan.ts`)** — every run a rider
-  let go on a top can ski onto has its sign at the HEAD OF ITS RAMP: on the
-  pad 3 m in from the rim, at the ramp's right-hand edge, read looking down
-  the ramp — the piste signs' own weathered plank with the run's mark, its
-  number and its name burned in and an arrow down the ramp. So the sign
-  stands LOWER than he came off the lift, down the pad's lean in front of
-  him, and he follows the one he wants straight down its ramp onto its run.
-  Nobody picks a run on the unload ramp. (A map from before the ramps keeps
-  one post at a chair's parting, an arrow board a run.)
+  let go on a chair's or a gondola's top can ski onto is signed BESIDE THE
+  PISTE MAP BOARD, turned to him where he comes off: the runs whose ramps
+  leave to his left on a post at the board's left, those to his right on a
+  post at its right, two or more leaving one way stacked on that side's
+  post. Every board there IS AN ARROW — the piste signs' own weathered
+  plank with the run's mark, its number and its name burned in, cut to a
+  point at one end and standing off its post that way, out from the map
+  toward its slope; nothing is burned on it but the mark and the name. At a
+  drag's top, with no board, an arrow board stands at the head of each
+  ramp, pointing the way the ramp falls away. Down on the runs the signs
+  are plain planks with no arrow. Nobody picks a run on the unload ramp. (A
+  map from before the ramps keeps one post at a chair's parting, an arrow
+  board a run.)
 - **The piste map board (`map-board.ts`)** — at every chair's and gondola's
   top, facing where the rider is let go: a stout timber frame and roof round
   a face painted as the free ride's start card paints the ski area — the

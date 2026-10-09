@@ -38,7 +38,7 @@ import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
-import { signView } from "./sign-view.ts";
+import { SIGN_VIEWS, namedSignView } from "./sign-view.ts";
 import { buildingShots } from "./building-shots.ts";
 import {
   DEFAULT_VIDEO,
@@ -817,25 +817,14 @@ const shots: Record<string, () => string> = {
     return view.note;
   },
   ...Object.fromEntries(
-    (["sign", "sign-tree"] as const).map((name) => [
+    (["gate", "hut", "finish", ...SITE_VIEWS, ...SIGN_VIEWS] as const).map((name) => [
       name,
       () => {
-        const view = signView(level, name === "sign-tree");
-        if (!view) return "no sign on this map";
-        renderer.setOverride(view.pose);
-        still();
-        renderer.setOverride(null);
-        return view.note;
-      },
-    ]),
-  ),
-  ...Object.fromEntries(
-    (["gate", "hut", "finish", ...SITE_VIEWS] as const).map((name) => [
-      name,
-      () => {
-        const view = SITE_VIEWS.includes(name as never)
-          ? cabinView(level, name)
-          : markView(level, name as "gate");
+        const view = SIGN_VIEWS.includes(name as never)
+          ? namedSignView(level, name)
+          : SITE_VIEWS.includes(name as never)
+            ? cabinView(level, name)
+            : markView(level, name as "gate");
         if (!view) return "none on this map";
         renderer.setOverride(view.pose);
         still();

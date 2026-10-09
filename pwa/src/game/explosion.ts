@@ -22,7 +22,7 @@
 import * as THREE from "three";
 
 import { createBillboards } from "./billboards.ts";
-import { BALL, createBall, fireballOf, fireColour, lightBall, stepBall } from "./fireball.ts";
+import { BALL, createBall, fireballOf, lightBall, stepBall } from "./fireball.ts";
 import { createSparks } from "./sparks.ts";
 
 /** THE WRECK BURNING: the pool of spilled fuel, its radius, m (a pool
@@ -43,7 +43,7 @@ export const POOL = {
 
 /** A BURNING PIECE's trail: the flames, smoke puffs and embers it throws a
  * second at full heat. */
-export const TRAIL = { flames: 14, smoke: 3, embers: 4 } as const;
+export const TRAIL = { flames: 14, smoke: 10, embers: 4 } as const;
 
 /** THE SCORCH: the snow round the wreck melted to a dark wet ring and
  * speckled with soot — its radius, m, how long it takes to darken, s, and
@@ -57,9 +57,6 @@ const SMOKE = 700;
 const SHARDS = 40;
 const BALLS = 1 + BALL.spray.length;
 const BATCH = FIRE + SMOKE + BALLS * BALL.lobes;
-/** The two cells of the billow strip. */
-const FLAME_CELL = 0;
-const SMOKE_CELL = 1;
 
 type Puff = {
   x: number;
@@ -72,9 +69,15 @@ type Puff = {
   life: number;
   size0: number;
   size1: number;
+  /** A flame's heat as it leaves, 0..1. */
+  heat: number;
   rot: number;
-  /** Smoke's own shade. */
+  /** Smoke's own shade, and how bright the fire under it lights it at
+   * first, 0..1. */
   shade: number;
+  glow: number;
+  /** How thick it is, 0..1: a burning piece's trail is a thin wisp. */
+  thick: number;
 };
 
 type Shard = {
@@ -240,8 +243,11 @@ export function createExplosion(): Explosion {
     life: 0,
     size0: 0,
     size1: 0,
+    heat: 0,
     rot: 0,
     shade: 0,
+    glow: 0,
+    thick: 1,
   });
   const fire: Puff[] = Array.from({ length: FIRE }, puff);
   const smoke: Puff[] = Array.from({ length: SMOKE }, puff);
@@ -290,7 +296,6 @@ export function createExplosion(): Explosion {
   let burn: { x: number; y: number; z: number } | null = null;
   const debt = { flame: 0, smoke: 0, ember: 0 };
   let clock = 0;
-  const rgb = [0, 0, 0];
   const full = fireballOf(BALL.fuel * BALL.share);
 
   function spawn(list: Puff[], at: number, p: Partial<Puff>): number {
@@ -307,8 +312,10 @@ export function createExplosion(): Explosion {
     big: number,
     rise: number,
     life = 0.45 + random() * 0.5,
+    heat = 0.9,
   ): void {
     nextFire = spawn(fire, nextFire, {
+      heat: heat * (0.85 + 0.3 * random()),
       x,
       y,
       z,
@@ -331,8 +338,12 @@ export function createExplosion(): Explosion {
     vx = 0,
     vz = 0,
     life = 9,
+    glow = 0.5,
+    thick = 1,
   ): void {
     nextSmoke = spawn(smoke, nextSmoke, {
+      glow,
+      thick,
       x,
       y,
       z,
@@ -366,14 +377,18 @@ export function createExplosion(): Explosion {
     }
   }
 
+  /** The soot a flame cools to at its rim, linear. */
+  const SOOT_RGB = [0.05, 0.04, 0.035] as const;
+
   function draw(eye: { x: number; y: number; z: number }): void {
     batch.begin();
     halos.begin();
+    const [sr, sg, sb] = SOOT_RGB;
     for (const b of balls) {
       if (!b.live || b.age < 0) continue;
       for (const l of b.lobes) {
         if (!l.done)
-          batch.push(l.x, l.y, l.z, l.w, l.w, l.rot, l.rgb[0], l.rgb[1], l.rgb[2], l.a, FLAME_CELL);
+          batch.push(l.x, l.y, l.z, l.w, l.w, l.rot, sr, sg, sb, l.a, 0, 1, l.heat * 0.88, l.seed);
       }
       const h = b.halo;
       halos.push(h.x, h.y, h.z, h.size, h.size, 0, 1.1, 0.5, 0.16, h.a, 0);
@@ -382,22 +397,39 @@ export function createExplosion(): Explosion {
       if (p.age >= p.life) continue;
       const k = p.age / p.life;
       const size = p.size0 + (p.size1 - p.size0) * k;
-      fireColour(0.82 - k * 0.6, rgb);
-      const a = k < 0.15 ? k / 0.15 : (1 - k) / 0.85;
+      const a = k < 0.12 ? k / 0.12 : Math.min(1, (1 - k) / 0.5);
       // Tongues: taller than they are wide, never turned far off upright.
-      const lean = 0.25 * Math.sin(p.rot);
-      batch.push(p.x, p.y, p.z, size, size * 1.8, lean, rgb[0], rgb[1], rgb[2], a, FLAME_CELL);
+      const lean = 0.18 * Math.sin(p.rot);
+      const heat = p.heat * (1 - k * 0.8);
+      batch.push(p.x, p.y, p.z, size, size * 1.7, lean, sr, sg, sb, a, 0, 1, heat, p.rot * 1.3);
     }
     for (const p of smoke) {
       if (p.age >= p.life) continue;
       const k = p.age / p.life;
       const size = p.size0 + (p.size1 - p.size0) * Math.sqrt(k);
       // Thick black-brown going a little greyer as it thins.
-      const g = p.shade + 0.08 * k;
-      const a = 0.9 * Math.min(1, k * 10) * (1 - k) ** 1.2;
-      batch.push(p.x, p.y, p.z, size, size, p.rot, g, g * 0.93, g * 0.86, a, SMOKE_CELL);
+      const g = p.shade + 0.1 * k;
+      const a = 0.95 * p.thick * Math.min(1, k * 8) * (1 - k) ** 1.1;
+      const glow = p.glow * Math.exp(-p.age * 1.1);
+      batch.push(
+        p.x,
+        p.y,
+        p.z,
+        size,
+        size,
+        p.rot,
+        g,
+        g * 0.94,
+        g * 0.88,
+        a,
+        0,
+        2,
+        0,
+        p.rot * 1.3,
+        glow,
+      );
     }
-    batch.end(eye);
+    batch.end(eye, clock);
     halos.end(eye);
   }
 
@@ -468,7 +500,8 @@ export function createExplosion(): Explosion {
       debt.flame += dt * TRAIL.flames * heat;
       for (; debt.flame >= 1; debt.flame--) flameAt(x, y + 0.2, z, 1.2 + 1.6 * heat, 2.5);
       debt.smoke += dt * TRAIL.smoke * heat;
-      for (; debt.smoke >= 1; debt.smoke--) smokeAt(x, y + 0.8, z, 1 + heat, 3, 0, 0, 5);
+      for (; debt.smoke >= 1; debt.smoke--)
+        smokeAt(x, y + 0.6, z, 0.6 + 0.6 * heat, 2.5, 0, 0, 3, 0.6, 0.45);
       debt.ember += dt * TRAIL.embers * heat;
       for (; debt.ember >= 1; debt.ember--) {
         const vx = (random() - 0.5) * 2;
@@ -515,8 +548,8 @@ export function createExplosion(): Explosion {
         const R = POOL.radius;
         const pulse = 0.5 + 0.5 * Math.sin(clock * POOL.puff * Math.PI * 2);
         const flick = (0.7 + 0.3 * pulse) * (0.9 + 0.1 * Math.sin(clock * 23));
-        flash.position.set(burn.x, burn.y + 4, burn.z);
-        flash.intensity = Math.max(flash.intensity, 380 * flick);
+        flash.position.set(burn.x, burn.y + 5, burn.z);
+        flash.intensity = Math.max(flash.intensity, 160 * flick);
         const rise = POOL.flame * (0.85 + 0.45 * pulse);
         for (let n = POOL.flames * (0.6 + 0.6 * pulse) * dt + random(); n >= 1; n--) {
           const a = random() * Math.PI * 2;
@@ -525,9 +558,10 @@ export function createExplosion(): Explosion {
             burn.x + Math.sin(a) * d,
             burn.y + 0.4,
             burn.z + Math.cos(a) * d,
-            (3 + 3 * random() * (1 - d / R)) * (0.85 + 0.3 * pulse),
+            (2.2 + 2.6 * random() * (1 - d / R)) * (0.85 + 0.3 * pulse),
             rise * (1 - 0.5 * (d / R)),
             0.7 + 0.6 * random(),
+            0.58 - 0.2 * (d / R),
           );
         }
         for (let n = POOL.smoke * dt + random(); n >= 1; n--) {
@@ -540,6 +574,7 @@ export function createExplosion(): Explosion {
             0,
             0,
             12,
+            0.9,
           );
         }
         for (let n = POOL.embers * dt + random(); n >= 1; n--) {

@@ -77,6 +77,9 @@ type Lobe = {
   depth: number;
   pocket: boolean;
   jitter: number;
+  /** Its own noise in the shader, and its heat this frame, 0..1. */
+  seed: number;
+  heat: number;
   done: boolean;
   /** As drawn this frame: its place, size, colour and opacity. */
   x: number;
@@ -139,6 +142,8 @@ export function createBall(): Ball {
       depth: 0,
       pocket: false,
       jitter: 0,
+      seed: 0,
+      heat: 0,
       done: true,
       x: 0,
       y: 0,
@@ -209,6 +214,7 @@ export function lightBall(
     l.spin = (random() - 0.5) * 0.8;
     l.rot = random() * Math.PI * 2;
     l.phase = random() * Math.PI * 2;
+    l.seed = random() * 9;
     l.done = false;
     l.a = 0;
   }
@@ -268,7 +274,8 @@ export function stepBall(
     // a little hotter or cooler than the next.
     const white = Math.max(0, 1 - ball.age / 0.35) * (1 - l.depth * 0.6);
     const glow = lh * 0.9 + white * 0.35 + (1 - l.depth) * 0.12 + l.jitter * lh;
-    fireColour(Math.max(0, Math.min(1, glow)), l.rgb);
+    l.heat = Math.max(0, Math.min(1, glow));
+    fireColour(l.heat, l.rgb);
     l.a = Math.min(1, lh * 3) * (0.9 + 0.1 * white);
   }
   if (left === 0) {

@@ -320,7 +320,8 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
     }
     wall += WALL;
     const l = look as XrayLook | null;
-    if (started < 0 && l?.active) started = wall;
+    // The helicopter coming down with him on it is the crash's own lens's.
+    if (started < 0 && (l?.active || state.heli?.mode === "wreck")) started = wall;
     const shoot = wall >= next;
     renderer.draw(state, 1, WALL * rate, shoot);
     if (shoot) {
@@ -337,7 +338,8 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
       });
     }
     // Long after the cam let go, nothing more to see.
-    if (started >= 0 && !l?.active && wall > started + 2 && diedOf(state) === null) break;
+    const wreck = state.heli?.mode === "wreck";
+    if (started >= 0 && !l?.active && !wreck && wall > started + 2 && diedOf(state) === null) break;
   }
   renderer.setXray(null);
   return lay(name, note, frames);

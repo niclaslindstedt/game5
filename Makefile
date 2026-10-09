@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore xray xray-body replay-cam groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -675,6 +675,17 @@ snowguns:
 # SEED=, REGION=, SNOW= (the dial) and ARGS= (--sheet=look, --views=below).
 tree-wells:
 	npm run tree-wells -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(if $(SNOW),--snow=$(SNOW),) $(ARGS)
+
+# THE TRAILS LAB: the furrow a skier cuts in three depths of snow — the
+# groomer's pencil lines, settled powder's trough and a metre of fresh's
+# trench — each cut by the engine under the same scripted turns and
+# photographed through the game's own renderer from below, from above and
+# close (bands), under a low sun (low) and by the headlamp (night). One
+# contact sheet a group, previews/trails-<group>.png, and every frame alone.
+# Its own one-off bundle from pwa/trails-preview.html (never deployed);
+# needs a Chromium. SEED=, REGION= and ARGS= (--sheet=bands, --low=16).
+trails:
+	npm run trails -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE PISTE THROUGH THE DAY LAB: one spot of a free ride's piste under a
 # sky at the hours of a day — the night's corduroy at the first chair, the

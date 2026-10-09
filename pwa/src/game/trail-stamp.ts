@@ -33,6 +33,16 @@
 // wet spring snow crisp walls and a real berm beside them; the groomer a
 // scuff. Left unsaid, a probe is in settled powder over the packed field —
 // the picture the game had before it knew one snow from another.
+//
+// THE DEEPER THE CUT, THE MORE THE WALLS SLOUGH (`slough`). A ski is a hand
+// wide, but loose snow cannot stand in a wall a hand apart and a thigh
+// deep: it slumps back to its angle of repose, so a furrow in deep powder
+// is a TRENCH as wide as it is deep, its sides fallen in round a ski cut
+// still showing in its floor — and the two skis' trenches run together into
+// the one wide track a skier leaves in bottomless snow. A crust holds a
+// square wall, and a groomer's scuff is too shallow to slump at all. So the
+// snow's depth reads in three bands of its own: a groomer's two pencil
+// lines, powder's soft trough a boot deep, and deep snow's trench.
 
 import { RAGDOLL, type SnowContact } from "@engine";
 
@@ -91,6 +101,15 @@ export const TRAIL = {
   wall: 0.25,
   wallSoft: 2,
   wallHard: 10,
+  /** THE SLOUGHED WALLS: how far out a cut's walls fall, as a share of its
+   * depth, in snow with no wall at all (`wall` 0 — a square wall, 1, stands
+   * where it was cut); a cut shallower than `sloughFrom` m stands, and one
+   * past `sloughFull` slumps all the way. The trench they leave is
+   * `sloughDeep` of the cut's depth, its walls falling away as `u³`. */
+  slough: 1.4,
+  sloughFrom: 0.03,
+  sloughFull: 0.09,
+  sloughDeep: 0.88,
 };
 
 /** One capsule of trail: from (ax, az) to (bx, bz), `half` wide either side
@@ -106,6 +125,10 @@ export type Stamp = {
   /** How its walls stand, 0 sloughed … 1 square (`SnowProps.wall`);
    * settled powder's (`TRAIL.wall`) when left out. */
   wall?: number;
+  /** THE SLOUGHED TRENCH round the cut, m either side of the line
+   * (`sloughOf`): its walls fallen back to that half-width, `sloughDeep` of
+   * the cut deep. None — or no wider than `half` — is the cut alone. */
+  slough?: number;
   /** A PISTE MACHINE'S SWATH (`groomer.ts`), not a furrow: everything under
    * it is wiped back to the snow's own surface and marked groomed, the comb
    * running along it (`trail-map.ts`'s groom pass). `depth` and `berm` are
@@ -209,15 +232,18 @@ export function stampsOf(
       TRAIL.maxDepth,
       drawnDepth(c, packedAt(c.x, c.z), load, depth, snow) * shape.depth,
     );
+    const half = c.width * 0.5 * shape.width;
+    const wall = snow ? snow.wall : TRAIL.wall;
     out.push({
       ax,
       az,
       bx: c.x,
       bz: c.z,
-      half: c.width * 0.5 * shape.width,
+      half,
       depth: drawn,
       berm: Math.min(TRAIL.maxBerm, drawn * (snow ? snow.berm : TRAIL.bermShare)),
-      wall: snow ? snow.wall : TRAIL.wall,
+      wall,
+      slough: sloughOf(half, drawn, wall),
     });
   }
 }
@@ -291,6 +317,18 @@ const BONES: readonly (readonly [number, number, number])[] = [
   [R.elbowR, R.handR, 0.08],
 ];
 
+/** THE TRENCH'S HALF-WIDTH round a cut `half` m either side and `depth` m
+ * deep, in snow whose walls stand `wall` (0 sloughed … 1 square): the cut
+ * itself where it is too shallow to slump or the wall holds. */
+export function sloughOf(half: number, depth: number, wall: number): number {
+  const t = Math.min(
+    1,
+    Math.max(0, (depth - TRAIL.sloughFrom) / (TRAIL.sloughFull - TRAIL.sloughFrom)),
+  );
+  const slump = t * t * (3 - 2 * t) * TRAIL.slough * (1 - Math.min(1, Math.max(0, wall)));
+  return half + depth * slump;
+}
+
 /** The power a furrow's cross-section falls away with for walls `wall`
  * (0 sloughed … 1 square). */
 export function wallPower(wall: number): number {
@@ -300,16 +338,24 @@ export function wallPower(wall: number): number {
 /** The cross-section of one furrow at `d` m from its centreline: how far
  * the snow is pressed (0..1 of the stamp's depth) and how much berm stands
  * there (0..1 of its berm), for walls `wall` (settled powder's when left
- * out). The GLSL in `trail-map.ts` is this, verbatim. */
+ * out) and a sloughed trench `slough` m either side (none when left out) —
+ * the cut, or the trench's `sloughDeep` round it, whichever is the deeper,
+ * the berm thrown up past the trench's edge. The GLSL in `trail-map.ts` is
+ * this, verbatim. */
 export function furrowProfile(
   d: number,
   half: number,
   wall = TRAIL.wall,
+  slough = half,
 ): { press: number; berm: number } {
   const u = d / Math.max(half, 1e-6);
-  const press = u < 1 ? 1 - u ** wallPower(wall) : 0;
+  const outer = Math.max(half, slough);
+  const w = d / outer;
+  const cut = u < 1 ? 1 - u ** wallPower(wall) : 0;
+  const bowl = outer > half && w < 1 ? TRAIL.sloughDeep * (1 - w * w * w) : 0;
+  const press = Math.max(cut, bowl);
   const reach = TRAIL.bermReach;
-  const v = (u - 0.8) / reach;
+  const v = (w - 0.8) / reach;
   const berm = v > 0 && v < 1 ? Math.sin(Math.PI * v) : 0;
   return { press, berm };
 }

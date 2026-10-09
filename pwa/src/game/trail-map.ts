@@ -21,7 +21,10 @@
 //
 // A STAMP is a capsule (`trail-stamp.ts` decides every number) drawn as one
 // instanced quad into both maps with MAX blending: a furrow ridden twice is
-// as deep as the deeper of the two, and a berm never fills a trough. The
+// as deep as the deeper of the two, and a berm never fills a trough. A stamp
+// in loose snow carries the TRENCH its walls slough into (`Stamp.slough`):
+// the quad reaches that far, and the cross-section is the cut or the trench
+// round it, whichever is the deeper (`furrowProfile`). The
 // red channel is the depth over `TRAIL.maxDepth`, the green the berm over
 // `TRAIL.maxBerm`; the terrain decodes both through `trailAt` (below).
 //
@@ -154,17 +157,22 @@ function target(size: number): THREE.WebGLRenderTarget {
 const STAMP_VERTEX = /* glsl */ `
 attribute vec4 iSeg;
 attribute vec4 iShape;
+attribute float iSlough;
 uniform vec2 uOrigin;
 uniform float uSpan;
 uniform float uMinHalf;
 varying vec2 vP;
 varying vec4 vSeg;
 varying vec4 vShape;
+varying float vSlough;
 void main() {
   float hw = max(iShape.x, uMinHalf);
   // A stamp widened to the texel floor keeps its volume, not its depth.
   float thin = iShape.x / hw;
-  float reach = hw * (1.0 + ${TRAIL.bermReach.toFixed(2)}) + uMinHalf;
+  float sw = max(iSlough, hw);
+  // A trench widened to it keeps its own depth: it is wide already.
+  vSlough = sw;
+  float reach = sw * (1.0 + ${TRAIL.bermReach.toFixed(2)}) + uMinHalf;
   vec2 a = iSeg.xy;
   vec2 b = iSeg.zw;
   vec2 d = b - a;
@@ -185,6 +193,7 @@ const STAMP_FRAGMENT = /* glsl */ `
 varying vec2 vP;
 varying vec4 vSeg;
 varying vec4 vShape;
+varying float vSlough;
 void main() {
   vec2 a = vSeg.xy;
   vec2 ab = vSeg.zw - a;
@@ -192,8 +201,13 @@ void main() {
   float d = length(vP - a - ab * h);
   float u = d / vShape.x;
   float k = ${TRAIL.wallSoft.toFixed(1)} + ${(TRAIL.wallHard - TRAIL.wallSoft).toFixed(1)} * clamp(vShape.w, 0.0, 1.0);
-  float press = u < 1.0 ? 1.0 - pow(u, k) : 0.0;
-  float v = (u - 0.8) / ${TRAIL.bermReach.toFixed(2)};
+  float outer = max(vShape.x, vSlough);
+  float w = d / outer;
+  float cut = u < 1.0 ? 1.0 - pow(u, k) : 0.0;
+  // The walls fallen in round it: the trench, \`sloughDeep\` of the cut.
+  float bowl = (outer > vShape.x && w < 1.0) ? ${TRAIL.sloughDeep.toFixed(2)} * (1.0 - w * w * w) : 0.0;
+  float press = max(cut, bowl);
+  float v = (w - 0.8) / ${TRAIL.bermReach.toFixed(2)};
   float berm = (v > 0.0 && v < 1.0) ? sin(3.14159265 * v) : 0.0;
   gl_FragColor = vec4(press * vShape.y, berm * vShape.z, 0.0, 0.0);
 }
@@ -263,10 +277,13 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
   quad.setIndex([0, 1, 2, 0, 2, 3]);
   const seg = new THREE.InstancedBufferAttribute(new Float32Array(BATCH * 4), 4);
   const shape = new THREE.InstancedBufferAttribute(new Float32Array(BATCH * 4), 4);
+  const slough = new THREE.InstancedBufferAttribute(new Float32Array(BATCH), 1);
   seg.setUsage(THREE.DynamicDrawUsage);
   shape.setUsage(THREE.DynamicDrawUsage);
+  slough.setUsage(THREE.DynamicDrawUsage);
   quad.setAttribute("iSeg", seg);
   quad.setAttribute("iShape", shape);
+  quad.setAttribute("iSlough", slough);
   const stampMaterial = new THREE.ShaderMaterial({
     uniforms: {
       uOrigin: { value: new THREE.Vector2() },
@@ -420,6 +437,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
       const n = Math.min(BATCH, list.length - from);
       const sa = seg.array as Float32Array;
       const sh = shape.array as Float32Array;
+      const sl = slough.array as Float32Array;
       for (let i = 0; i < n; i++) {
         const s = list[from + i];
         sa[i * 4] = s.ax;
@@ -430,9 +448,11 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
         sh[i * 4 + 1] = s.depth / TRAIL.maxDepth;
         sh[i * 4 + 2] = s.berm / TRAIL.maxBerm;
         sh[i * 4 + 3] = s.wall ?? TRAIL.wall;
+        sl[i] = s.slough ?? 0;
       }
       seg.needsUpdate = true;
       shape.needsUpdate = true;
+      slough.needsUpdate = true;
       drawStamps(renderer, coarse, 0, 0, mapSize, coarseTexel * 0.75, n);
       drawStamps(renderer, fine, o.x, o.y, span, fineTexel * 0.75, n);
     }

@@ -25,6 +25,7 @@ import {
   createPen,
   drawnDepth,
   furrowProfile,
+  sloughOf,
   stampsOf,
   wallPower,
   type Stamp,
@@ -188,6 +189,43 @@ describe("what the snow does to a track", () => {
     expect(s.berm).toBeCloseTo(Math.min(TRAIL.maxBerm, s.depth * SNOW.wet.berm), 6);
     // Square walls stay deep further out than sloughed ones.
     expect(furrowProfile(0.08, 0.1, 1).press).toBeGreaterThan(furrowProfile(0.08, 0.1, 0).press);
+  });
+
+  it("reads a trail in three depths: a scuff, a trough, a trench", () => {
+    const half = 0.06;
+    // A groomer's scuff is too shallow to slump: the cut alone.
+    expect(sloughOf(half, 0.012, SNOW.groomed.wall)).toBe(half);
+    // Powder's trough a boot deep slumps to a soft bowl round the cut...
+    const trough = sloughOf(half, 0.12, SNOW.soft.wall);
+    expect(trough).toBeGreaterThan(half * 2);
+    // ...deep snow's trench to about its own depth either side, and the two
+    // skis' trenches a stance apart run together into one track.
+    const trench = sloughOf(half, 0.4, SNOW.new.wall);
+    expect(trench).toBeGreaterThan(0.4);
+    expect(furrowProfile(0.13, trench, SNOW.new.wall, trench).press).toBeGreaterThan(0.5);
+    // A crust holds its wall where it was cut.
+    expect(sloughOf(half, 0.4, 1)).toBe(half);
+    // In the trench the ski's cut still shows in a floor the walls fell onto.
+    const floor = furrowProfile(0, half, SNOW.new.wall, trench).press;
+    const beside = furrowProfile(half * 1.5, half, SNOW.new.wall, trench).press;
+    expect(floor).toBe(1);
+    expect(beside).toBeCloseTo(TRAIL.sloughDeep * (1 - ((half * 1.5) / trench) ** 3), 6);
+    // The berm is thrown up past the trench's edge, not the cut's.
+    expect(furrowProfile(trench * 1.2, half, SNOW.new.wall, trench).berm).toBeGreaterThan(0);
+    expect(furrowProfile(half * 1.5, half, SNOW.new.wall, trench).berm).toBe(0);
+    // Every stamp in deep powder carries its trench.
+    const out: Stamp[] = [];
+    const pen = createPen(1);
+    stampsOf(
+      [contact()],
+      pen,
+      () => 0,
+      400,
+      out,
+      1,
+      () => ({ ...SNOW.new, give: 3 }),
+    );
+    expect(out[0].slough).toBeGreaterThan(out[0].half * 3);
   });
 
   it("carries a fox over a crust that a moose goes through", () => {

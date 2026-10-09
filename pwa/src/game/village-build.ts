@@ -40,10 +40,11 @@
 // of it, y up from the floor (`Site`). Three-free: the arrays are made a
 // mesh by `facade-mesh.ts`.
 
-import { resortBuildingsOf, cabinsOf, type Cabin, type Level } from "@engine";
+import { TERRACES, resortBuildingsOf, cabinsOf, type Cabin, type Level } from "@engine";
 
 import { FACADE } from "./facade-paint.ts";
 import { FacadeKit } from "./facade-kit.ts";
+import { DOOR_VOID } from "./door-looks.ts";
 import { buildMountainBuilding } from "./mountain-build.ts";
 import { apartments, church, house, shop } from "./village-town.ts";
 import { buildStreetEdges } from "./street-edges-build.ts";
@@ -143,7 +144,11 @@ function lodge(site: Site): void {
   // A string course of timber between the storeys.
   solid(kit, -hw - 0.12, g - 0.1, -hd - 0.12, hw + 0.12, g + 0.15, hd + 0.12, S.timberFascia);
   // The ground floor: the entrance's doors in the middle, windows either side.
-  kit.inset(-2.4, hd, 2.4, hd, 0, 2.5, 0.05, FACADE.door, 0xffffff, true);
+  // The doors hung in the middle (`doors-view.ts`), the room dark behind
+  // them, glazed side lights either side.
+  kit.inset(-1, hd, 1, hd, 0, 2.5, 0.005, FACADE.plain, DOOR_VOID, false);
+  kit.inset(-2.4, hd, -1, hd, 0, 2.5, 0.05, FACADE.glazing, 0xffffff, true);
+  kit.inset(1, hd, 2.4, hd, 0, 2.5, 0.05, FACADE.glazing, 0xffffff, true);
   windows(site, "front", -hw + 1, -4, 5, 0.8, 2.6, 1.6, 0.8, 1);
   windows(site, "front", 4, hw - 1, 5, 0.8, 2.6, 1.6, 0.8, 2);
   // The dining hall: glazed along the whole face, lit at night.
@@ -163,9 +168,11 @@ function lodge(site: Site): void {
   windows(site, "right", -hd + 1, hd - 1, 5, g + 0.6, d.walls - 0.6, 1.8, 0.9, 4);
   windows(site, "back", -hw + 2, hw - 2, 9, g + 0.8, d.walls - 0.8, 1.4, 0.6, 5);
   windows(site, "back", -hw + 2, hw - 2, 7, 0.8, 2.4, 1.4, 0.3, 6);
-  // The glulam columns down the face, carrying the eaves.
+  // The glulam columns down the face, carrying the eaves — none before the
+  // doors (`building-walls.ts` stands the same ones).
   for (let i = 0; i <= 6; i++) {
     const x = -hw + 0.3 + ((2 * hw - 0.6) * i) / 6;
+    if (Math.abs(x) < 2.6) continue;
     solid(kit, x - 0.16, 0, hd + 0.05, x + 0.16, d.walls, hd + 0.3, S.timberFascia);
   }
   // The roof: the broad gable along the front, a cross-gable over the door.
@@ -201,23 +208,25 @@ function lodge(site: Site): void {
   );
   chimney(kit, hw * 0.55, -hd * 0.35, d.walls, d.ridge + 1.3, 1.2);
   // THE TERRACE: boards across the whole front on a stone skirt, a rail.
-  const t0 = hd + 0.3;
-  const t1 = hd + d.reach.front - 0.2;
-  const tw = hw + d.reach.side - 0.3;
-  const deck = -0.25;
+  // Measured in the engine, which rings it with its rail (`TERRACES`).
+  const T = TERRACES.restaurant!;
+  const t0 = hd + T.from;
+  const t1 = hd + T.out;
+  const tw = hw + T.end;
+  const deck = T.deck;
   const foot = Math.min(deck - 0.3, site.lowest(-tw, t0, tw, t1)) - 0.5;
   solid(kit, -tw, foot, t0, tw, deck, t1, S.stone, { layer: FACADE.boards, tint: 0xc9a988 });
   const rail = { layer: FACADE.boards, tint: 0x9a7b60 };
-  solid(kit, -tw, deck, t1 - 0.08, -2, deck + 1.0, t1, rail);
-  solid(kit, 2, deck, t1 - 0.08, tw, deck + 1.0, t1, rail);
-  solid(kit, -tw, deck, t0, -tw + 0.08, deck + 1.0, t1, rail);
-  solid(kit, tw - 0.08, deck, t0, tw, deck + 1.0, t1, rail);
+  solid(kit, -tw, deck, t1 - 0.08, -T.gap, deck + T.rail, t1, rail);
+  solid(kit, T.gap, deck, t1 - 0.08, tw, deck + T.rail, t1, rail);
+  solid(kit, -tw, deck, t0, -tw + 0.08, deck + T.rail, t1, rail);
+  solid(kit, tw - 0.08, deck, t0, tw, deck + T.rail, t1, rail);
   // The steps down off the terrace in the middle of its rail.
   const snow = site.ground(0, t1 + 1.5);
   const steps = Math.max(1, Math.round((deck - snow) / 0.18));
   for (let i = 0; i < steps; i++) {
     const y = deck - ((i + 1) * (deck - snow)) / steps;
-    solid(kit, -2, foot, t1 + i * 0.3, 2, y + 0.18, t1 + (i + 1) * 0.3, S.stone, {
+    solid(kit, -T.gap, foot, t1 + i * 0.3, T.gap, y + 0.18, t1 + (i + 1) * 0.3, S.stone, {
       layer: FACADE.boards,
       tint: 0xc9a988,
     });
@@ -247,7 +256,10 @@ function ticket(site: Site): void {
     kit.inset(x, hd, x + 1.3, hd, 0.95, 2.3, 0.04, FACADE.window, 0xffffff, true);
     solid(kit, x - 0.05, 0.85, hd, x + 1.35, 0.95, hd + 0.35, S.steel);
   }
-  kit.inset(hw - 2.0, hd, hw - 0.5, hd, 0, 2.3, 0.04, FACADE.door, 0xffffff, true);
+  // Its door hung apart (`doors-view.ts`), a narrow side light either side.
+  kit.inset(hw - 1.75, hd, hw - 0.75, hd, 0, 2.3, 0.005, FACADE.plain, DOOR_VOID, false);
+  kit.inset(hw - 2.0, hd, hw - 1.75, hd, 0, 2.3, 0.04, FACADE.glazing, 0xffffff, true);
+  kit.inset(hw - 0.75, hd, hw - 0.5, hd, 0, 2.3, 0.04, FACADE.glazing, 0xffffff, true);
   windows(site, "left", -hd + 0.8, hd - 0.8, 1, 1, 2.2, 1.4, 0.5, 1);
   windows(site, "back", -hw + 1, hw - 1, 2, 1.2, 2.2, 1.0, 0.2, 2);
   // The roof: a mono-pitch falling to the back, and the sign band round
@@ -309,7 +321,7 @@ function rental(site: Site): void {
   storey(site, g, d.walls, S.boards);
   // The shop front: glass the whole width, the door in it, lit.
   kit.inset(-hw + 0.4, hd, hw - 3.2, hd, 0.15, g - 0.25, 0.05, FACADE.glazing, 0xffffff, true);
-  kit.inset(hw - 2.9, hd, hw - 0.9, hd, 0, 2.5, 0.05, FACADE.door, 0xffffff, true);
+  kit.inset(hw - 2.9, hd, hw - 0.9, hd, 0, 2.5, 0.005, FACADE.plain, DOOR_VOID, false);
   windows(site, "front", -hw + 1, hw - 1, 5, g + 0.7, d.walls - 0.6, 1.3, 0.5, 1);
   windows(site, "left", -hd + 1, hd - 1, 3, g + 0.7, d.walls - 0.6, 1.2, 0.4, 2);
   windows(site, "right", -hd + 1, hd - 1, 3, g + 0.7, d.walls - 0.6, 1.2, 0.4, 3);
@@ -364,7 +376,7 @@ function school(site: Site): void {
     for (const z of [-hd, hd])
       solid(kit, x - 0.12, 0, z - 0.12, x + 0.12, d.walls, z + 0.12, S.white);
   solid(kit, -hw - 0.1, d.walls - 0.2, hd, hw + 0.1, d.walls, hd + 0.1, S.white);
-  kit.inset(-0.8, hd, 0.8, hd, 0, 2.2, 0.04, FACADE.door, 0xffffff, true);
+  kit.inset(-0.8, hd, 0.8, hd, 0, 2.2, 0.005, FACADE.plain, DOOR_VOID, false);
   windows(site, "front", -hw + 0.6, -1.2, 2, 0.9, 2.3, 1.3, 0.8, 1);
   windows(site, "front", 1.2, hw - 0.6, 2, 0.9, 2.3, 1.3, 0.8, 2);
   windows(site, "left", -hd + 0.8, hd - 0.8, 2, 0.9, 2.3, 1.1, 0.5, 3);
@@ -434,7 +446,7 @@ function firstAid(site: Site): void {
   kit.inset(-1.6, hd, 1.6, hd, 0.3, 2.9, 0.05, FACADE.shutter, 0xffffff, false);
   solid(kit, -1.85, 0.3, hd, -1.6, 3.1, hd + 0.08, { layer: FACADE.plain, tint: 0xc81e1e });
   solid(kit, 1.6, 0.3, hd, 1.85, 3.1, hd + 0.08, { layer: FACADE.plain, tint: 0xc81e1e });
-  kit.inset(hw - 2.2, hd, hw - 1.1, hd, 0.3, 2.5, 0.04, FACADE.door, 0xffffff, true);
+  kit.inset(hw - 2.2, hd, hw - 1.1, hd, 0.3, 2.5, 0.005, FACADE.plain, DOOR_VOID, false);
   windows(site, "front", -hw + 0.6, -2.4, 2, 1.1, 2.5, 1.3, 0.9, 1);
   windows(site, "left", -hd + 0.8, hd - 0.8, 2, 1.1, 2.5, 1.2, 0.9, 2);
   windows(site, "right", -hd + 0.8, hd - 0.8, 2, 1.1, 2.5, 1.2, 0.9, 3);
@@ -482,7 +494,9 @@ function hotel(site: Site): void {
   storey(site, g, timberTop ? g + 2 * fl : d.walls, render);
   if (timberTop) storey(site, g + 2 * fl, d.walls, S.boards);
   // The ground floor: the entrance, its canopy, windows.
-  kit.inset(-1.6, hd, 1.6, hd, 0, 2.6, 0.05, FACADE.door, 0xffffff, true);
+  kit.inset(-1, hd, 1, hd, 0, 2.6, 0.005, FACADE.plain, DOOR_VOID, false);
+  kit.inset(-1.6, hd, -1, hd, 0, 2.6, 0.05, FACADE.glazing, 0xffffff, true);
+  kit.inset(1, hd, 1.6, hd, 0, 2.6, 0.05, FACADE.glazing, 0xffffff, true);
   solid(kit, -2.4, 2.8, hd, 2.4, 3.0, hd + 1.8, S.dark, S.roof);
   windows(site, "front", -hw + 0.8, -2.4, 3, 0.9, 2.6, 1.5, 0.8, 1);
   windows(site, "front", 2.4, hw - 0.8, 3, 0.9, 2.6, 1.5, 0.8, 2);
@@ -571,7 +585,9 @@ function garage(site: Site): void {
   const door = 6.5;
   for (let i = 0; i < 3; i++) {
     const x = -hw + 2 + i * (door + 1.2);
-    kit.inset(x, hd, x + door, hd, 0, 5.2, 0.06, FACADE.shutter, 0xffffff, false);
+    // The middle one is the door a walker opens, rolled by `doors-view.ts`.
+    if (i === 1) kit.inset(x, hd, x + door, hd, 0, 5.2, 0.005, FACADE.plain, DOOR_VOID, false);
+    else kit.inset(x, hd, x + door, hd, 0, 5.2, 0.06, FACADE.shutter, 0xffffff, false);
     const jamb = { layer: FACADE.plain, tint: 0xe0a21a };
     solid(kit, x - 0.3, 0, hd, x, 5.5, hd + 0.15, jamb);
     solid(kit, x + door, 0, hd, x + door + 0.3, 5.5, hd + 0.15, jamb);
@@ -630,8 +646,7 @@ function pumpHouse(site: Site): void {
   solid(kit, -hw - 0.15, d.walls + 0.35, -hd - 0.15, hw + 0.15, d.ridge, -hd + 0.1, S.concrete);
   solid(kit, -hw - 0.15, d.walls + 0.35, hd - 0.1, hw + 0.15, d.ridge, hd + 0.15, S.concrete);
   // The steel double door, louvres either side, the sign band.
-  kit.inset(-1.2, hd, 1.2, hd, 0, 2.6, 0.05, FACADE.plain, 0x6c747b, false);
-  solid(kit, -0.02, 0, hd, 0.02, 2.6, hd + 0.08, S.dark);
+  kit.inset(-1.2, hd, 1.2, hd, 0, 2.6, 0.005, FACADE.plain, DOOR_VOID, false);
   kit.inset(-hw + 0.8, hd, -2.2, hd, 1.2, 3.6, 0.05, FACADE.louvre, 0xffffff, false);
   kit.inset(2.2, hd, hw - 0.8, hd, 1.2, 3.6, 0.05, FACADE.louvre, 0xffffff, false);
   kit.inset(-hw + 1, -hd, hw - 1, -hd, 2.4, 3.8, 0.05, FACADE.louvre, 0xffffff, false);

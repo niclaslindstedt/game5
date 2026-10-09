@@ -30,6 +30,7 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { fromEuler, rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
+import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
@@ -127,6 +128,8 @@ export function letGo(state: GameState, c: SkierState, fall: number, speed: numb
 
 const n: Vec3 = { x: 0, y: 1, z: 0 };
 const near: number[] = [];
+const endAt = { x: 0, z: 0 };
+const endHit = wallTouch();
 const floor = [0, 0];
 const soft = [0, 0];
 const packed = [0, 0];
@@ -232,7 +235,7 @@ function stepSki(state: GameState, b: Thrown | null, ski: LoneSki): void {
     P[j + 2] = clamp(P[j + 2], lo, hi);
     for (const t of near) {
       const tree = solids[t];
-      if (P[j + 1] > tree.y + tree.height) continue;
+      if (tree.wall || P[j + 1] > tree.y + tree.height) continue;
       const dx = P[j] - tree.x;
       const dz = P[j + 2] - tree.z;
       const d = hypot(dx, dz) || 1e-6;
@@ -248,6 +251,20 @@ function stepSki(state: GameState, b: Thrown | null, ski: LoneSki): void {
       if (into < 0) {
         L[j] += into * ux;
         L[j + 2] += into * uz;
+      }
+    }
+    // A building's walls (`building-walls.ts`): out of the slab, the way
+    // it came this step asked too, and the way into it gone.
+    endAt.x = P[j];
+    endAt.z = P[j + 2];
+    holdOutOfWalls(state, L[j], L[j + 2], endAt, P[j + 1], END, endHit);
+    if (endHit.met) {
+      P[j] = endAt.x;
+      P[j + 2] = endAt.z;
+      const into = (P[j] - L[j]) * endHit.nx + (P[j + 2] - L[j + 2]) * endHit.nz;
+      if (into < 0) {
+        L[j] += into * endHit.nx;
+        L[j + 2] += into * endHit.nz;
       }
     }
   }

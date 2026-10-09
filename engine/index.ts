@@ -721,7 +721,13 @@ export {
   type Whale,
 } from "./game/snow-guns.ts";
 export { SNOW_GUN } from "./game/defs/snow-guns.ts";
-export { cabinWalls, cabinsOf, type Cabin } from "./game/cabins.ts";
+export { cabinsOf, type Cabin } from "./game/cabins.ts";
+// A building's walls, its doorway and its door (`building-walls.ts`).
+export * from "./game/building-walls.ts";
+export * from "./game/defs/building-walls.ts";
+// A door opened: the leaves, the skier's move through it (`doorway.ts`).
+export * from "./game/doorway.ts";
+export { DOOR } from "./game/defs/doors.ts";
 export {
   CABINS,
   CABIN_LAYOUT,

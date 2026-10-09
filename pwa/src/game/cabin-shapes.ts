@@ -36,7 +36,7 @@
 
 import * as THREE from "three";
 
-import { CABINS, type CabinKind } from "@engine";
+import { BUILDING_DOORS, CABINS, type CabinKind } from "@engine";
 
 import {
   CABIN_PAINT as P,
@@ -799,8 +799,12 @@ export function buildCabin(kind: CabinKind, lod: CabinLod = 0): THREE.BufferGeom
           y0: h.y0,
           y1: h.y1,
         };
-        if (h.door) doorIn(s, op);
-        else windowIn(s, op, plan.shutter);
+        // The door a walker goes in at is hung apart (`doors-view.ts`).
+        if (h.door) {
+          const hung = BUILDING_DOORS[kind];
+          const its = h.y0 === 0 && h.wall === hung?.side;
+          doorIn(s, op, its, its && hung?.swing === "in");
+        } else windowIn(s, op, plan.shutter);
       }
     } else {
       farWalls(s, kind, plan);

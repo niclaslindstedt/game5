@@ -64,6 +64,7 @@ export {
   resortBuildingsOf,
 } from "./resort-buildings.ts";
 export {
+  CHURCH_TOWER,
   MOUNTAIN_KINDS,
   RESORT_BUILDINGS,
   RESORT_LAYOUT,

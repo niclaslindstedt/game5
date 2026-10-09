@@ -157,9 +157,7 @@ export const CABINS: Readonly<Record<CabinKind, CabinDef>> = {
  *     on the steepest site taken; `cut` how far the uphill side is dug in
  *     under the floor (the snow banked up the back wall), so a cabin sits
  *     IN its slope rather than up on a pedestal; `door` how far the floor
- *     stands over the snow before the porch, so no doorstep is buried.
- *   * `wall`: the posts a wall is met as by a skier (`cabinWalls`): their
- *     radius and the most gap between two. */
+ *     stands over the snow before the porch, so no doorstep is buried. */
 export const CABIN_LAYOUT = {
   every: 105,
   head: 70,
@@ -188,5 +186,4 @@ export const CABIN_LAYOUT = {
     roof: 2.5,
   },
   plinth: { least: 0.3, most: 1.0, cut: 0.45, door: 0.3 },
-  wall: { radius: 0.45, gap: 0.6 },
 } as const;

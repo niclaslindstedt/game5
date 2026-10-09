@@ -18,7 +18,9 @@
 // The frame is the engine's (`Site`: x across the front, +z out of it, y
 // up from the floor). Three-free.
 
+import { TERRACES } from "@engine";
 import { FACADE } from "./facade-paint.ts";
+import { DOOR_VOID } from "./door-looks.ts";
 import {
   Site,
   backPitch,
@@ -60,7 +62,7 @@ function mountainHut(site: Site): void {
   const below = site.ground(0, hd + 0.5);
   if (below < -2.1) windows(site, "front", -hw + 1.5, hw - 1.5, 5, below + 0.6, -0.4, 1.2, 0.7, 9);
   // The face: two big windows either side of the door, lit.
-  kit.inset(-1, hd, 1, hd, 0, 2.3, 0.05, FACADE.door, 0xffffff, true);
+  kit.inset(-1, hd, 1, hd, 0, 2.3, 0.005, FACADE.plain, DOOR_VOID, false);
   windows(site, "front", -hw + 0.8, -1.6, 3, 0.7, 2.9, 2.2, 0.9, 1, FACADE.glazing);
   windows(site, "front", 1.6, hw - 0.8, 3, 0.7, 2.9, 2.2, 0.9, 2, FACADE.glazing);
   windows(site, "left", -hd + 1, hd - 1, 3, 1.0, 2.5, 1.2, 0.7, 3);
@@ -82,18 +84,20 @@ function mountainHut(site: Site): void {
   signBoard(kit, -4, 4, d.walls - 0.75, d.walls - 0.1, hd + 0.05, 0x234a3a, 0xf3efe2, c.id);
   chimney(kit, -hw * 0.45, -hd * 0.3, d.walls, d.ridge + 1.2, 1.1);
   // THE DECK across the front, on a stone skirt, its rail round the ends.
-  const t0 = hd;
-  const t1 = hd + 5;
-  const tw = hw + 0.5;
-  const deck = -0.2;
+  // Measured in the engine, which rings it with its rail (`TERRACES`).
+  const T = TERRACES.mountainHut!;
+  const t0 = hd + T.from;
+  const t1 = hd + T.out;
+  const tw = hw + T.end;
+  const deck = T.deck;
   const foot = Math.min(deck - 0.3, site.lowest(-tw, t0, tw, t1)) - 0.5;
   solid(kit, -tw, foot, t0, tw, deck, t1, DARK_STONE, DECK);
-  solid(kit, -tw, deck + 0.95, t0, -tw + 0.06, deck + 1.02, t1, RAIL);
-  solid(kit, tw - 0.06, deck + 0.95, t0, tw, deck + 1.02, t1, RAIL);
-  solid(kit, -tw, deck + 0.95, t1 - 0.06, -3, deck + 1.02, t1, RAIL);
-  solid(kit, 3, deck + 0.95, t1 - 0.06, tw, deck + 1.02, t1, RAIL);
-  for (const x of [-tw, -tw / 2, -3, 3, tw / 2, tw])
-    solid(kit, x - 0.04, deck, t1 - 0.06, x + 0.04, deck + 1.02, t1, RAIL);
+  solid(kit, -tw, deck + T.rail - 0.07, t0, -tw + 0.06, deck + T.rail, t1, RAIL);
+  solid(kit, tw - 0.06, deck + T.rail - 0.07, t0, tw, deck + T.rail, t1, RAIL);
+  solid(kit, -tw, deck + T.rail - 0.07, t1 - 0.06, -T.gap, deck + T.rail, t1, RAIL);
+  solid(kit, T.gap, deck + T.rail - 0.07, t1 - 0.06, tw, deck + T.rail, t1, RAIL);
+  for (const x of [-tw, -tw / 2, -T.gap, T.gap, tw / 2, tw])
+    solid(kit, x - 0.04, deck, t1 - 0.06, x + 0.04, deck + T.rail, t1, RAIL);
   for (let i = 0; i < 4; i++) {
     const x = -tw + 2.8 + ((2 * tw - 5.6) * i) / 3;
     picnicTable(kit, x, t0 + 2.6, deck, true);
@@ -136,7 +140,7 @@ function patrolHut(site: Site): void {
   kit.inset(-hw + 0.5, hd, hw - 0.5, hd, 0.9, 2.5, 0.04, FACADE.glazing, 0xffffff, true);
   windows(site, "left", -hd + 0.5, hd - 0.5, 1, 1.1, 2.3, 1.4, 1, 1);
   // The door on the right flank, its landing and the stair down to the snow.
-  kit.inset(hw, 1.1, hw, -0.1, 0, 2.1, 0.04, FACADE.plain, 0x5a3c26, false);
+  kit.inset(hw, 1.1, hw, -0.1, 0, 2.1, 0.005, FACADE.plain, DOOR_VOID, false);
   const landing = { layer: FACADE.boards, tint: 0xa98d72 };
   solid(kit, hw, -0.25, -0.6, hw + 1.2, 0, 1.6, landing);
   const snow = site.ground(hw + 2.5, 0.5);

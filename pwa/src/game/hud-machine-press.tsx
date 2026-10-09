@@ -20,7 +20,7 @@ export function MachinePress({
   word: string;
   sub: string;
   /** Which machine: the class its readout is styled by. */
-  kind: "sled" | "heli" | "afterski";
+  kind: "sled" | "heli" | "afterski" | "door";
   onBoard: () => void;
 }) {
   const press = useMemo(createHudPress, []);

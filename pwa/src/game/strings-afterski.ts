@@ -21,6 +21,14 @@ export const AFTERSKI_STRINGS = {
   afterskiTake: (touch: boolean, key: string): string =>
     touch ? "TAP TO GO IN" : `${key} OR CLICK TO GO IN`,
 
+  /** A building's door before him (`door-hud.ts`): what the machine press
+   * does to it. */
+  doorCall: "DOOR",
+  doorTake: (touch: boolean, key: string, shut: boolean): string => {
+    const verb = shut ? "SHUT" : "OPEN";
+    return touch ? `TAP TO ${verb}` : `${key} OR CLICK TO ${verb}`;
+  },
+
   /* ── INSIDE ─────────────────────────────────────────────────────────── */
   afterskiInside: "AFTERSKI",
   afterskiBeers: (n: number): string => (n === 1 ? "1 BEER" : `${n} BEERS`),

@@ -15,7 +15,7 @@
 
 import {
   BONES,
-  CABIN_LAYOUT,
+  BUILDING_WALLS,
   FRACTURE_GRADE,
   NEUTRAL_INPUT,
   RAGDOLL,
@@ -119,7 +119,7 @@ function benchOf(s: Staging): Level {
   const trees: TreeDef[] = [];
   if (solid) {
     const stuff = solid.stuff;
-    const wall = CABIN_LAYOUT.wall;
+    const wall = BUILDING_WALLS.post;
     const radius =
       solid.radius ?? (stuff === "log" ? wall.radius : stuff === "padded" ? 0.45 : 0.22);
     const z = AT.z + (st.how === "spike" ? 0 : AHEAD);

@@ -4,7 +4,8 @@
 // paramotor's wing over a skier begun under it (`para-scene.ts`), the hot
 // air balloon a skier is begun in (`balloon-scene.ts`) and the
 // piste machines working the runs after dark (`groomer-scene.ts`), and the
-// village's cars, ski bus and bicycles (`traffic-view.ts`), held
+// village's cars, ski bus and bicycles (`traffic-view.ts`) and every
+// building's door (`doors-view.ts`), held
 // together so the renderer holds them by one hand: built per map with the
 // rest of the world (only where a run's rules carry them), the player's
 // figure seated on the skid or stood on the boards, each drawn every frame
@@ -35,6 +36,7 @@ import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
+import { createDoorsView, type DoorsView } from "./doors-view.ts";
 import type { ViewCull } from "./view-cull.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
@@ -161,6 +163,10 @@ export function createMachines(
   // a village: drawn where the engine has it, from the lens (`lamps`).
   const traffic: TrafficScene | null = createTrafficScene(level, haze);
   if (traffic) group.add(traffic.group);
+  // EVERY BUILDING'S DOOR (`doors-view.ts`), on every run whose map has a
+  // building: swung where the engine has it.
+  const doors: DoorsView | null = createDoorsView(level, haze);
+  if (doors) group.add(doors.group);
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
   let seated: SkisModel | null = null;
   let current: GameState = state;
@@ -227,6 +233,7 @@ export function createMachines(
       lastDt = dt;
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
+      doors?.update(s);
       if (s.gore && !rescue) {
         rescue = createRescueScene(level, haze);
         group.add(rescue.group);
@@ -299,6 +306,7 @@ export function createMachines(
       sled?.dispose();
       groomers?.dispose();
       traffic?.dispose();
+      doors?.dispose();
       para?.dispose();
       balloon?.dispose();
       rescue?.dispose();

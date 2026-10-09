@@ -61,6 +61,7 @@ import { outfitKey } from "./dress.ts";
 import { DEFAULT_OUTFIT, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
 import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.ts";
+import { doorReach, reachPose } from "./door-reach.ts";
 import { launchGait } from "./skier-gait.ts";
 import { kickStand, slalomStart } from "./slalom-start.ts";
 import { attachModels } from "./skier-models.ts";
@@ -642,6 +643,7 @@ export function createSkisModel(
   let lastV: { x: number; y: number; z: number } | null = null;
   const feltBody = new THREE.Vector3();
   const toBody = new THREE.Quaternion();
+  const reachAt = new THREE.Vector3();
   // Whether his legs' spring has been set back to rest since he was thrown.
   let rested = false;
 
@@ -864,7 +866,17 @@ export function createSkisModel(
           resetDangle(dangle);
           resetPerchReact(react);
         }
-        figure.pose(input, seat, breaks[0] || breaks[1] ? broken(skier, breaks, dt) : undefined);
+        const arms = breaks[0] || breaks[1] ? broken(skier, breaks, dt) : undefined;
+        // A hand on a door (`door-reach.ts`), in his body's frame.
+        const door = run && run.skier === skier ? doorReach(run) : null;
+        if (door) {
+          reachAt
+            .set(door.x, door.y, door.z)
+            .sub(root.position)
+            .applyQuaternion(toBody.copy(root.quaternion).invert());
+          const at = { x: reachAt.x, y: reachAt.y, z: reachAt.z };
+          figure.pose(input, seat, (p) => reachPose(arms ? arms(p) : p, at, door.weight));
+        } else figure.pose(input, seat, arms);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.

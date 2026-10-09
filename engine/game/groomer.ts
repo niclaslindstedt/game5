@@ -37,6 +37,7 @@ import { GROOMER } from "./defs/groomer.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { freshGroomed, groomSegment } from "./groomed.ts";
 import type { GroomerState } from "./groomer-state.ts";
+import { standing } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { derive } from "./skier.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
@@ -321,6 +322,7 @@ function trees(state: GameState, g: GroomerState): void {
   const fz = Math.cos(g.heading);
   for (const i of near) {
     const t = solids[i];
+    if (!standing(state, t)) continue;
     const f = footprintOf(g, t.x, t.z);
     if (f.out >= t.radius) continue;
     // Out along whichever face is nearest, and the way into it stopped.

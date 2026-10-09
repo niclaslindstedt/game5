@@ -22,6 +22,7 @@
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { standing } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
@@ -317,7 +318,7 @@ function trees(run: GameState, s: SledState): number {
   let worst = 0;
   for (const i of near) {
     const t = solids[i];
-    if (s.y < t.y - 1 || s.y > t.y + t.height) continue;
+    if (s.y < t.y - 1 || s.y > t.y + t.height || !standing(run, t)) continue;
     // The nearest point on the machine's spine to the trunk.
     const rx = t.x - s.x;
     const rz = t.z - s.z;

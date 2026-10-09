@@ -25,7 +25,10 @@
 // The frame is the engine's (`defs/cabins.ts`): x across the front, +z out
 // of it (toward the street), y up from the floor (`Site`). Three-free.
 
+import { CHURCH_TOWER } from "@engine";
+
 import { FACADE } from "./facade-paint.ts";
+import { DOOR_VOID } from "./door-looks.ts";
 import {
   Site,
   chimney,
@@ -160,7 +163,8 @@ export function house(site: Site): void {
   storey(site, g, d.walls, { layer: FACADE.boards, tint: timber });
   // The door at one side of the street front, its little roof over it.
   const door = idHash(c.id, 5) < 0.5 ? -hw + 2 : hw - 2;
-  kit.inset(door - 0.55, hd, door + 0.55, hd, 0.2, 2.3, 0.05, FACADE.plankDoor, 0xffffff, false);
+  // Its leaf hung apart (`doors-view.ts`), the hall dark behind it.
+  kit.inset(door - 0.55, hd, door + 0.55, hd, 0.2, 2.3, 0.005, FACADE.plain, DOOR_VOID, false);
   solid(kit, door - 0.9, 2.35, hd, door + 0.9, 2.5, hd + 0.9, FASCIA, ROOF);
   shuttered(
     site,
@@ -233,7 +237,9 @@ export function apartments(site: Site): void {
   storey(site, g + 2 * fl, d.walls, { layer: FACADE.boards, tint: timber });
   // The entrance in the middle under its canopy; the ski room's door and
   // the garage's beside it.
-  kit.inset(-1.2, hd, 1.2, hd, 0.3, 2.6, 0.05, FACADE.door, 0xffffff, true);
+  kit.inset(-1, hd, 1, hd, 0.3, 2.6, 0.005, FACADE.plain, DOOR_VOID, false);
+  kit.inset(-1.2, hd, -1, hd, 0.3, 2.6, 0.05, FACADE.glazing, 0xffffff, true);
+  kit.inset(1, hd, 1.2, hd, 0.3, 2.6, 0.05, FACADE.glazing, 0xffffff, true);
   solid(kit, -2, 2.75, hd, 2, 2.95, hd + 1.4, { layer: FACADE.plain, tint: 0x3a3d42 }, ROOF);
   kit.inset(-hw + 1.2, hd, -hw + 3.8, hd, 0.3, 2.6, 0.05, FACADE.shutter, 0xffffff, false);
   kit.inset(hw - 3.4, hd, hw - 2.2, hd, 0.3, 2.4, 0.05, FACADE.plankDoor, 0xffffff, false);
@@ -347,7 +353,7 @@ export function shop(site: Site): void {
     0xffffff,
     true,
   );
-  kit.inset(-door, hd, door, hd, 0.15, 2.7, 0.05, FACADE.door, 0xffffff, true);
+  kit.inset(-door, hd, door, hd, 0.15, 2.7, 0.005, FACADE.plain, DOOR_VOID, false);
   // The goods in the windows: a few shapes on a shelf behind the glass.
   for (const s of [-1, 1]) {
     for (let i = 0; i < 3; i++) {
@@ -423,8 +429,9 @@ export function shop(site: Site): void {
 // ---------------------------------------------------------------- church
 
 /** The church's tower: its side, its shaft to the belfry's sill, the
- * belfry, the spire's foot and its point, m over the floor. */
-export const TOWER = { side: 5, shaft: 15, belfry: 19.5, spire: 30.5 } as const;
+ * belfry, the spire's foot and its point, m over the floor — the engine's,
+ * whose walls stand it the same (`CHURCH_TOWER`). */
+export const TOWER = CHURCH_TOWER;
 
 export function church(site: Site): void {
   const { kit, hw, hd, d } = site;
@@ -435,7 +442,7 @@ export function church(site: Site): void {
   const naveFront = hd - T.side;
   const nz = (naveFront - hd) / 2;
   const nhd = (naveFront + hd) / 2;
-  plinth(site, STONE, 0.4);
+  plinth(site, STONE, T.plinth);
   site.kit.box(-hw, 0, -hd, hw, d.walls, naveFront, white.layer, white.tint, null);
   // Tall round-headed windows down both flanks, lit for evensong.
   for (const side of ["left", "right"] as const) {
@@ -461,7 +468,7 @@ export function church(site: Site): void {
   site.kit.box(-th, T.shaft + 0.35, t0, th, T.belfry, hd, white.layer, white.tint, null);
   solid(kit, -th - 0.2, T.belfry, t0 - 0.2, th + 0.2, T.belfry + 0.3, hd + 0.2, STONE);
   // The door into the tower, the porch's steps.
-  kit.inset(-0.9, hd, 0.9, hd, 0.4, 3.4, 0.05, FACADE.plankDoor, 0xffffff, false);
+  kit.inset(-0.9, hd, 0.9, hd, 0.4, 3.4, 0.005, FACADE.plain, DOOR_VOID, false);
   solid(kit, -1.4, 3.4, hd, 1.4, 3.7, hd + 0.3, STONE);
   // The tower's windows up the shaft.
   for (const y of [6, 10.5])

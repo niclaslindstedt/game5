@@ -365,8 +365,7 @@ export const MOVES = [
   },
   {
     id: "cliff",
-    title:
-      "a 12 m cliff at 40 km/h onto a 35° apron: spotted, the hands forward and still, reached for",
+    title: "a 12 m cliff at 40 km/h onto a 35° apron: spotted, windmilled, reached for",
     level: (S) => S.flatLevel({ packed: 1, grade: CLIFF, slopeFrom: 200, size: 4000 }),
     place: () => ({ x: 2000, z: 600, heading: 0, speed: 40 / 3.6, height: 13 }),
     // To the snow: a drop this big buckles his legs there (`crash.ts`).
@@ -376,7 +375,7 @@ export const MOVES = [
   },
   {
     id: "cliff-lean",
-    title: "the same 12 m cliff ridden committed — a forward lean held: the arms set",
+    title: "the same 12 m cliff ridden committed — a forward lean held: the arms set, no windmill",
     level: (S) => S.flatLevel({ packed: 1, grade: CLIFF, slopeFrom: 200, size: 4000 }),
     place: () => ({ x: 2000, z: 600, heading: 0, speed: 40 / 3.6, height: 13 }),
     seconds: 1.95,
@@ -426,7 +425,7 @@ export const MOMENTS = [
   },
   { id: "stopping", move: "hockey", t: 0.95, say: "a hockey stop at its hardest" },
   { id: "spot", move: "ledge", t: 0.7, say: "spotting the landing off a 3 m drop" },
-  { id: "cliff", move: "cliff", t: 1.35, say: "spotting down a 12 m cliff" },
+  { id: "windmill", move: "cliff", t: 1.35, say: "windmilling down a 12 m cliff" },
   { id: "committed", move: "cliff-lean", t: 1.35, say: "committed down a 12 m cliff, a lean held" },
   { id: "reach", move: "cliff", t: 1.75, say: "reaching for the snow at the foot of a cliff" },
   { id: "thrown", move: "wipeout", t: 2.4, say: "thrown off his skis" },

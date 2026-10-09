@@ -45,7 +45,7 @@ export function PauseSlopes({
   const seed = snap.seed;
   // The ride the panel starts from: the stored one, moved onto the map and
   // country the paused ride is skied on (a link may have named either).
-  const ride = rideOnto(settings.ride, seed, snap.region);
+  const ride = rideOnto(settings.ride, seed, snap.region, snap.face);
   const here: Settings = ride === settings.ride ? settings : { ...settings, ride };
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...here, ride: { ...ride, ...patch } });
@@ -94,7 +94,9 @@ export function PauseSlopes({
               stops={pick.stops}
               value={pick.value}
               extra={STRINGS.startRunWaiting}
-              onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
+              onPick={(id) =>
+                setRide({ run: { seed, region: ride.region, face: ride.face, id }, spot: null })
+              }
               onHint={setHint}
             />
           </div>

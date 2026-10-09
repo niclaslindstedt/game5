@@ -17,8 +17,9 @@ export function resortKey(
   regionId: RegionId | undefined,
   attempts: number,
   version: GeneratorVersion,
+  face?: string,
 ): string {
-  return `${seed}:${regionRow(regionId).id}:${attempts}:${version}`;
+  return `${seed}:${regionRow(regionId).id}:${attempts}:${version}${face ? `:${face}` : ""}`;
 }
 
 /** The resort kept under `key`, or null. */
@@ -38,8 +39,9 @@ export function resortCached(
   regionId: RegionId | undefined,
   attempts: number,
   version: GeneratorVersion,
+  face?: string,
 ): boolean {
-  return cachedResort(resortKey(seed, regionId, attempts, version)) !== null;
+  return cachedResort(resortKey(seed, regionId, attempts, version, face)) !== null;
 }
 
 /** The last resort built, for a lab that reads what its build did. */

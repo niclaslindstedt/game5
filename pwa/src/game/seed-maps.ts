@@ -55,12 +55,19 @@ import type {
 } from "./seed-preview-worker.ts";
 import { readChart, writeChart } from "./seed-store.ts";
 
-/** One map the card can ask for: a seed, in a region (R21), to a grade
- * (R23) — null the seed's own. */
-export type SeedAsk = { seed: number; region: RegionId; grade: RunGrade | null };
+/** One map the card can ask for: a seed, in a region (R21), on a real
+ * face (R25) — null or absent the dealt massif — to a grade (R23) — null
+ * the seed's own. */
+export type SeedAsk = {
+  seed: number;
+  region: RegionId;
+  face?: string | null;
+  grade: RunGrade | null;
+};
 
 /** What names a map. */
-export const askKey = (a: SeedAsk): string => `${a.region}:${a.grade ?? "dealt"}:${a.seed}`;
+export const askKey = (a: SeedAsk): string =>
+  `${a.face ?? a.region}:${a.grade ?? "dealt"}:${a.seed}`;
 
 /** A chart as the card draws it: its two pictures as URLs an `<image>`
  * takes, or the seed's refusal. */
@@ -116,7 +123,14 @@ export function wantSeed(ask: SeedAsk): void {
   // is looking at any more: it gives way. One on this mountain in another
   // grade is let finish — the ski area it is raising is this one's too,
   // and the worker keeps it (`buildResort`'s cache).
-  if (busy && (busy.seed !== ask.seed || busy.region !== ask.region)) stop();
+  if (
+    busy &&
+    (busy.seed !== ask.seed ||
+      busy.region !== ask.region ||
+      (busy.face ?? null) !== (ask.face ?? null))
+  ) {
+    stop();
+  }
   pump();
 }
 
@@ -215,8 +229,12 @@ function run(job: Job): void {
   // never built twice: it is stood up here and handed over to be painted.
   const own =
     levels.get(job.key) ??
-    (levelIsCached(job.seed, { region: job.region })
-      ? generateLevel(job.seed, { region: job.region, grade: job.grade ?? undefined })
+    (levelIsCached(job.seed, { region: job.region, face: job.face ?? undefined })
+      ? generateLevel(job.seed, {
+          region: job.region,
+          face: job.face ?? undefined,
+          grade: job.grade ?? undefined,
+        })
       : null);
   if (own) holdLevel(job.key, own);
   if (own && !job.paint) {
@@ -228,6 +246,7 @@ function run(job: Job): void {
   const ask: PreviewRequest = {
     seed: job.seed,
     region: job.region,
+    face: job.face ?? null,
     grade: job.grade,
     paint: job.paint,
     ...(own ? { level: portableLevel(own) } : {}),
@@ -269,7 +288,8 @@ function spawn(): Worker {
     stop();
     if (job) {
       const { seed, region, grade, key } = job;
-      void keep(key, { seed, region, grade, ok: false, error: "the worker failed" });
+      const face = job.face ?? null;
+      void keep(key, { seed, region, face, grade, ok: false, error: "the worker failed" });
     }
     notify();
   };
@@ -381,6 +401,7 @@ export function freeAsk(options: CreateGameOptions): SeedAsk {
   return {
     seed: options.seed ?? 1,
     region: options.region ?? DEFAULT_REGION,
+    face: options.face ?? null,
     grade: options.grade ?? null,
   };
 }

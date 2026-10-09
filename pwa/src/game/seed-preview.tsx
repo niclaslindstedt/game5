@@ -76,15 +76,20 @@ const SETTLE_MS = 220;
  * raising that seed's mountain — how far it has got, 0–1. */
 export type SeedChart = { shown: SeedAnswer | null; fresh: boolean; share: number | null };
 
-export function useSeedPreview(seed: number, region: RegionId, grade: RunGrade | null): SeedChart {
-  const ask = { seed, region, grade };
+export function useSeedPreview(
+  seed: number,
+  region: RegionId,
+  grade: RunGrade | null,
+  face: string | null = null,
+): SeedChart {
+  const ask = { seed, region, face, grade };
   const key = askKey(ask);
   const [shown, setShown] = useState<SeedAnswer | null>(() => seedAnswer(ask));
   const [share, setShare] = useState<number | null>(() => seedShare(ask));
 
   useEffect(() => {
     const show = (): void => {
-      const answer = seedAnswer({ seed, region, grade });
+      const answer = seedAnswer({ seed, region, face, grade });
       if (answer) setShown(answer);
       setShare(seedShare({ seed, region, grade }));
     };
@@ -93,14 +98,14 @@ export function useSeedPreview(seed: number, region: RegionId, grade: RunGrade |
     // A chart already kept is shown at once and its map asked for at once;
     // anything else once the arrows have been still for a moment.
     const timer = window.setTimeout(
-      () => wantSeed({ seed, region, grade }),
-      seedAnswer({ seed, region, grade }) ? 0 : SETTLE_MS,
+      () => wantSeed({ seed, region, face, grade }),
+      seedAnswer({ seed, region, face, grade }) ? 0 : SETTLE_MS,
     );
     return () => {
       off();
       window.clearTimeout(timer);
     };
-  }, [seed, region, grade]);
+  }, [seed, region, face, grade]);
 
   const fresh = shown !== null && askKey(shown) === key;
   return { shown, fresh, share: fresh ? null : share };

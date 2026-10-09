@@ -44,13 +44,17 @@ export type RunPick = {
 
 export function useRunPick(settings: Settings, seed: number): RunPick {
   const ride: FreeRide = settings.ride;
-  const chart = useSeedPreview(seed, ride.region, ride.grade);
+  const chart = useSeedPreview(seed, ride.region, ride.grade, ride.face);
   // THE RUNS ON THIS MAP: a ski area's runs are the seed's and the
   // country's, whatever colour is asked of it, so the answer for another
   // grade still names them while the fresh one is drawn.
   const shown = chart.shown;
   const list =
-    shown !== null && shown.ok && shown.seed === seed && shown.region === ride.region
+    shown !== null &&
+    shown.ok &&
+    shown.seed === seed &&
+    shown.region === ride.region &&
+    (shown.face ?? null) === ride.face
       ? shown
       : null;
   // SAFE FOR WORK (the INJURIES switch off) the lodges are shut.

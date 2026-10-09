@@ -332,6 +332,35 @@ export const RESORT_RULES = {
      * eases toward the floor, and the least share it eases to): the steep
      * sector's falls hardest just under the ridge, the gentle one's is
      * rounded over the top and runs out long. */
+    /** R25 — A REAL FACE (`real-face.ts`): the share of R3's hills and
+     * spurs laid over it (the face carries its own at the scale the 30 m
+     * model sees; the folds add what lies under it), how far either side
+     * of the middle its ridge and floor are read, m, and the least drop a
+     * face is stretched off, m. */
+    real: {
+      folds: 0.35,
+      /** The face's RELIEF — its height less its own profile: the spurs,
+       * gullies and bowls, the lean of the face — laid over the skiing face
+       * at this root mean square, m (or its own, where that is less). A
+       * real face stands 70–320 m off its profile; the lifts' stations and
+       * the runs' grading hold at about 30 (a sweep of the twenty faces). */
+      relief: 30,
+      /** The share of `relief` given up each attempt after the first, and
+       * the least of it ever laid: a face too rugged for one attempt's
+       * lifts and runs is laid gentler on the next. */
+      calming: 0.06,
+      calmest: 0.3,
+      /** The attempts the real peak, shoulder and valley are built on;
+       * after them, the dealt ones (a seed's lifts will not take every
+       * face's: a sweep of three seeds over the twenty). */
+      placed: 8,
+      /** How far behind the summit ridge the whole relief is reached, m,
+       * and the descent (u) over which it fades out onto the valley floor. */
+      behind: 200,
+      floor: { min: 0.82, max: 0.98 } as Band,
+      reach: 1300,
+      leastDrop: 300,
+    },
     steepProfile: { shoulder: 0.55, shoulderRun: 0.07, ease: 1.35, runout: 0.12 },
     gentleProfile: { shoulder: 0.35, shoulderRun: 0.32, ease: 0.55, runout: 0.32 },
     bench: {

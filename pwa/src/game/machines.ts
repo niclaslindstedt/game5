@@ -89,6 +89,9 @@ export type Machines = {
    * before it compiles the run's programs, so the rotor's smear and the
    * blades' fade are linked behind the loading card, not as he boards. */
   ready: Promise<void>;
+  /** The pace the run is shown at, game seconds a wall second: slow
+   * motion slows the eye on the rotors with it (`rotor-look.ts`). */
+  setPace(pace: number): void;
   dispose(): void;
 };
 
@@ -269,6 +272,9 @@ export function createMachines(
       const g = groomers?.solids() ?? [];
       const t = traffic?.solids() ?? [];
       return t.length === 0 ? g : g.length === 0 ? t : [...g, ...t];
+    },
+    setPace(pace) {
+      heli?.setPace(pace);
     },
     dispose() {
       heli?.dispose();

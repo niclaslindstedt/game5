@@ -681,8 +681,7 @@ export function App() {
       if (walk.walked()) nav.sync();
 
       // THE BACKDROP RACES ON: a race behind a card that the bot has taken
-      // to the flag is stood back up on the same map, so the front door is
-      // never over a skis coasting to a stop.
+      // to the flag is stood back up on the same map, never left coasting.
       const backdrop = !playerRides(shellRef.current) && !watching(shellRef.current);
       if (backdrop && shellRef.current !== "pause" && !loader.busy()) {
         if (state.progress.finished) {
@@ -698,6 +697,7 @@ export function App() {
       renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
       const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn);
       const dtRun = dtFrame * rate;
+      renderer.setPace(rate);
       const simAt = performance.now();
       if (shown) holdRide(state, () => renderer.draw(state, 0, 1 / 60, false));
       if (!frozen && !held && shown) {

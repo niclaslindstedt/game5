@@ -123,8 +123,7 @@ import { loadModels as loadSkierModels } from "./skier-models.ts";
 import { bodyStampOf, createPen, drawnDepth, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit is handed out
-// (`use-render-kit.ts`), when this build draws them. Everything else is
-// built in code.
+// (`use-render-kit.ts`), when this build draws them; the rest is code.
 export async function loadModels(): Promise<void> {
   await loadSkierModels();
 }
@@ -208,8 +207,7 @@ export function createWorldRenderer(
   };
 
   const scene = new THREE.Scene();
-  // THE REGION'S GRADE (R21, `region-picture.ts`): the frame straight onto
-  // the canvas, or through the region's grade; the samples go with it.
+  // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
   const picture = createRegionPicture(gl, video.antialias ? 4 : 0);
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
@@ -271,6 +269,7 @@ export function createWorldRenderer(
   let override: LensPose | null = null;
   /** THE DEATH CAM and THE X-RAY CAM (`xray-scene.ts`), and his skeleton. */
   const hurt = createHurtLens();
+  let pace = 1; // game seconds a wall second (`setPace`)
   scene.add(hurt.group);
   /** The box the canvas was last given, so a RESOLUTION press can re-apply
    * it at the new share. */
@@ -458,9 +457,8 @@ export function createWorldRenderer(
     for (const c of skier.contacts) {
       if (c.station !== "mid" || !c.touching) continue;
       const packed = level.packedAt(c.x, c.z);
-      // The drawn surface under the probe is the loose cover's height over
-      // the ground less the furrow; the physics has it at the ground less
-      // its own sink.
+      // The drawn surface under the probe is the loose cover over the ground
+      // less the furrow; the physics has it at the ground less its own sink.
       const snow = pack ? sampleSnow(c.x, c.z) : undefined;
       sum += drawnDepth(c, packed, 1, depth, snow) - c.sink - LOOSE * (1 - packed);
       n++;
@@ -684,6 +682,7 @@ export function createWorldRenderer(
         gore = createGoreView(level, wrap);
         scene.add(gore.group);
       }
+      gore?.setPace(pace);
       gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
@@ -711,6 +710,7 @@ export function createWorldRenderer(
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
+      machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state, lens.camera.aspect);
       player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
@@ -722,7 +722,7 @@ export function createWorldRenderer(
         allowed,
         sampleBody(player.body, alpha),
         ladder,
-        Math.min(dt, 0.1),
+        Math.min(dt / pace, 0.1), // its lens flies on the WALL clock
         level.groundAt,
         clear,
         () => lens.snap(),
@@ -816,8 +816,7 @@ export function createWorldRenderer(
       gates?.setLamps(look.lamps, pixels);
       spray.setScale(pixels);
       spray.update(Math.min(dt, 0.1), look, level);
-      // The ladder's lens looks through the player's own tail at him; a
-      // planted one (a replay's broadcast, a lab) sees the cloud whole.
+      // The ladder's lens looks through his own tail; a planted one sees it whole.
       cloud.setFocus(d.x, d.y + 0.6, d.z, planted ? 1 : CLOUD_VEIL);
       cloud.update(Math.min(dt, 0.1), look, level, wind, lens.camera.position);
       snowfall.setScale(pixels);
@@ -909,6 +908,7 @@ export function createWorldRenderer(
     setDeathCam: hurt.setDeathCam,
     clearBodies: () => gore?.clearRemains(),
     setXray: hurt.setXray,
+    setPace: (p) => void (pace = p > 0 ? p : 1),
 
     setShot(next) {
       if (!next) tv.drop();

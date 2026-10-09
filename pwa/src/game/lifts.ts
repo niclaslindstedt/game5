@@ -31,7 +31,8 @@
 //     `wind-tunnels.ts`'s, held in this group and moved by `update`; THE
 //     CABINS beside the runs and lanes are `cabins-view.ts`'s, held here
 //     too and handed their cuts by `update`'s lens; the ski area's own
-//     village and mountain buildings are `village-build.ts`'s, one mesh.
+//     village and mountain buildings are `village-cuts.ts`'s, in blocks at
+//     two cuts, handed theirs the same way.
 //
 // THE DRAWS ARE FEW: every part of a kind is one INSTANCE of one mesh for
 // the whole resort, coloured per vertex where it is more than one paint —
@@ -96,7 +97,7 @@ import { buildStations, merged } from "./station-parts.ts";
 import { layStations } from "./station-plan.ts";
 import { buildStationHouses } from "./station-build.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
-import { buildResortBuildings } from "./village-build.ts";
+import { createVillageBuildings } from "./village-cuts.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
@@ -189,20 +190,15 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   group.add(houses.group);
   // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
   // the village round the hub and the mountain's restaurant and patrol hut,
-  // one mesh in the painted materials.
-  const villageMat = facadeMaterial(haze, "village");
-  mats.push(villageMat);
-  const villageGeo = facadeGeometry(buildResortBuildings(level).out);
-  geos.push(villageGeo);
-  const village = new THREE.Mesh(villageGeo, villageMat);
-  village.castShadow = true;
-  village.receiveShadow = true;
-  group.add(village);
+  // in blocks at a near and a far cut (`village-cuts.ts`).
+  const village = createVillageBuildings(level, haze);
+  group.add(village.group);
   let disposeBoards = (): void => {};
   let disposeRings = (): void => {};
   const dispose = () => {
     tunnels.dispose();
     houses.dispose();
+    village.dispose();
     disposeBoards();
     disposeRings();
     for (const g of geos) g.dispose();
@@ -213,7 +209,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
     group,
     update: (t, _rider, _drawn, eye) => {
       tunnels.update(t);
-      if (eye) houses.update(eye);
+      if (eye) {
+        houses.update(eye);
+        village.update(eye);
+      }
     },
     setBudget: tunnels.setBudget,
     dispose,
@@ -720,7 +719,10 @@ export function createLifts(level: Level, haze: HazeUniforms, budget = 1, rings 
   const holds = new Map<number, Hold>();
   done.update = (t, rider, drawn, eye, others = [], crowd = []) => {
     tunnels.update(t);
-    if (eye) houses.update(eye);
+    if (eye) {
+      houses.update(eye);
+      village.update(eye);
+    }
     boarding?.update(t);
     const plan = rider ? plans[rider.index] : undefined;
     const togo = rider && plan ? plan.length - plan.look.off - rider.u : Infinity;

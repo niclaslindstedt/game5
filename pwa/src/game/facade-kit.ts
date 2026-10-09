@@ -55,6 +55,9 @@ function linear(c: number): [number, number, number] {
   return [f((c >> 16) & 255), f((c >> 8) & 255), f(c & 255)];
 }
 
+/** A far cut keeps a small triangle with an edge this long, m. */
+const LONG = 2;
+
 export class FacadeKit {
   readonly out: FacadeArrays = { pos: [], nrm: [], col: [], uv: [], layer: [], glow: [] };
   private ox = 0;
@@ -64,6 +67,12 @@ export class FacadeKit {
   private sin = 0;
   /** Whether what is pushed next lights at night (a pane). */
   glow = 0;
+  /** A FAR CUT's floor, m²: a triangle smaller than this is left out
+   * (the frames, balusters, slats and props a building's near cut
+   * carries), unless it is a pane that lights — the windows stay lit across
+   * the valley — or a long thin one (`LONG`). 0, the near cut, keeps every
+   * triangle. */
+  minArea = 0;
 
   /** Set the frame down: the building's origin at (x, y, z), its +z turned
    * to `yaw`. */
@@ -91,6 +100,14 @@ export class FacadeKit {
     return this.out.pos.length / 9;
   }
 
+  /** Whether a triangle has an edge as long as `LONG` — a post, a rail, a
+   * ridge's trim: thin, but a line across the far cut's picture. */
+  private long(a: V3, b: V3, c: V3): boolean {
+    const l2 = LONG * LONG;
+    const d2 = (p: V3, q: V3) => (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
+    return d2(a, b) >= l2 || d2(b, c) >= l2 || d2(c, a) >= l2;
+  }
+
   /** One triangle, its corners' UVs in the layer's tile, flat-lit. */
   tri(
     a: V3,
@@ -108,6 +125,7 @@ export class FacadeKit {
     const n = cross(sub(wb, wa), sub(wc, wa));
     const l = len(n);
     if (l < 1e-9) return;
+    if (l < this.minArea * 2 && this.glow === 0 && !this.long(wa, wb, wc)) return;
     const col = linear(tint);
     for (const [p, uv] of [
       [wa, ua],

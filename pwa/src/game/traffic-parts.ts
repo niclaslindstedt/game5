@@ -14,9 +14,10 @@ import { Shape, type V3 } from "./tree-mesh.ts";
 /** The marks every vehicle vertex carries, and their sizes. */
 export const MARKS = { aPaint: 1, aLamp: 4, aRough: 1, aFold: 1, aGlass: 1 } as const;
 
-/** The two cuts: NEAR has the arches, the mirrors, the lenses and the
- * plates; FAR is the body, its glass and its lamps alone. */
-export type TrafficCut = "near" | "far";
+/** The three cuts: NEAR has the arches, the mirrors, the lenses and the
+ * plates; FAR is the body, its glass and its lamps alone; DISTANT is FAR
+ * lofted through fewer rings of fewer points, its corners squarer. */
+export type TrafficCut = "near" | "far" | "distant";
 
 export const col = (r: number, g = r, b = r): THREE.Color => new THREE.Color(r, g, b);
 /** Linear colours of what is the same on every vehicle. */

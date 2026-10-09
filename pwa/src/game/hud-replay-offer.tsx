@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE OFFER AFTER A CRASH — one press, for a few seconds after the skier goes
 // down (a wipeout, an injury, a death), that watches the crash again: the
-// recording opened a few seconds before it on the broadcast camera, the
+// recording opened ten seconds before it on the broadcast camera, the
 // director running the fall slow, and the run handed back where it was
 // (`replay-run.ts`, `replay.ts`'s `CRASH`).
 //

@@ -18,7 +18,7 @@
 // with them.
 //
 // FROM ANY MOMENT: the run is copied as it goes (`replay-keep.ts`), so a
-// recording opens on the start, or a few seconds before the crash just
+// recording opens on the start, or ten seconds before the crash just
 // taken, and seeks anywhere in it — the nearest copy at or before the mark,
 // stepped forward to it off the tape. The first copy is the run as it stood
 // when it was armed, so nothing about the afternoon has to be read off the
@@ -74,12 +74,12 @@ const HZ = TUNING.physicsHz;
 export const REPLAY_TAIL = 2.5;
 
 /** THE CRASH JUST TAKEN, as the recording offers it: how far before the
- * moment the instant replay opens, s — the skier arriving into it, as a
- * broadcast cuts back to the turn before the fall — and how long after the
+ * moment the instant replay opens, s — the last ten seconds he skied into
+ * it, so the fall is seen coming and not only landed — and how long after the
  * moment the offer stands, s. A wipeout, an injury and a death within
  * `merge` seconds of each other are one moment. With no crash to offer,
  * the instant replay is the last `recent` seconds. */
-export const CRASH = { lead: 4, offer: 9, merge: 3, recent: 10 } as const;
+export const CRASH = { lead: 10, offer: 9, merge: 3, recent: 10 } as const;
 
 /** WHAT NAMES THE AFTERNOON: how `createGame` stands this run up again, read
  * off the run at its first step. The mode is the app's (a name the rules
@@ -316,7 +316,7 @@ export type ReplayRig = {
    * null. */
   crash: () => number | null;
   /** Cut the recording where it stands and stand it up — on its first step,
-   * a few seconds before the crash just taken, or the last few seconds.
+   * ten seconds before the crash just taken, or the last few seconds.
    * Null where there is nothing to watch. Never touches the run it was cut
    * from. */
   open: (from?: ReplayFrom) => Replay | null;

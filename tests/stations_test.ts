@@ -169,6 +169,10 @@ describe("the way off a chair's top", () => {
         expect(Math.sign(right(post!.x, post!.z))).toBe(
           right(ramp.from.x, ramp.from.z) >= 0 ? 1 : -1,
         );
+        // Every board on it IS an arrow, cut to point out from the map its
+        // post's way, toward the slope.
+        const way = right(post!.x, post!.z) > 0 ? "right" : "left";
+        for (const b of post!.boards) expect(b.point).toBe(way);
         // Turned to him where he comes off the chair, at the lane's parting:
         // read as he stands up, never edge on.
         const seen = Math.atan2(post!.x - board.off.x, post!.z - board.off.z);

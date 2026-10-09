@@ -38,7 +38,7 @@ import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
-import { signView } from "./sign-view.ts";
+import { signView, summitSignView } from "./sign-view.ts";
 import { buildingShots } from "./building-shots.ts";
 import {
   DEFAULT_VIDEO,
@@ -816,6 +816,19 @@ const shots: Record<string, () => string> = {
     renderer.setOverride(null);
     return view.note;
   },
+  ...Object.fromEntries(
+    (["sign-summit", "sign-summit-2", "sign-summit-3"] as const).map((name, pick) => [
+      name,
+      () => {
+        const view = summitSignView(level, pick);
+        if (!view) return "no map board on this map";
+        renderer.setOverride(view.pose);
+        still();
+        renderer.setOverride(null);
+        return view.note;
+      },
+    ]),
+  ),
   ...Object.fromEntries(
     (["sign", "sign-tree"] as const).map((name) => [
       name,

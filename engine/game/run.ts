@@ -155,6 +155,15 @@ export function stepRun(
   // IN TOWN ON FOOT, his skis on his shoulder (`town.ts`).
   if (c.town) {
     stepTown(run, input, events);
+    // ...where a car on the street knocks him down as it would on skis, the
+    // pair off his shoulder thrown with him.
+    const hit = c.town ? trafficStrike(run, events) : null;
+    if (hit) {
+      const skis = c.town!.skis;
+      for (const ski of skis) ski.held = 0;
+      c.town = null;
+      throwRider(run, "car", hit.v, events).skis = skis;
+    }
     return;
   }
   const drunk = buzzOf(c) > 0;

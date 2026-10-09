@@ -32,6 +32,7 @@ import {
 } from "@engine";
 
 import { glow } from "./glow-sprite.ts";
+import { createCockpit, type Cockpit } from "./heli-cockpit.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShatter, type ShatterHooks } from "./heli-shatter.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
@@ -81,6 +82,9 @@ export type HeliView = {
   /** The way it was going before it went down, m/s (the engine stops a
    * wreck dead). */
   way(): THREE.Vector3;
+  /** THE COCKPIT (`heli-cockpit.ts`) shown while the eye is in the cabin,
+   * `pilotEye` the pilot's own (his head left out). */
+  inside(on: boolean, pilotEye: boolean): void;
   /** Throw this frame's wash into the snow cloud. */
   blow(state: GameState, dt: number, puff: WashPuff, loose: (x: number, z: number) => number): void;
   /** Resolved once the model is in the group (or the stand-in, should it
@@ -374,7 +378,7 @@ function padMarks(level: Level): {
 /** How a helicopter is drawn: with its PAD on the valley floor (the free
  * ride's own) or alone, and off which model file (the air ambulance's,
  * `rescue-view.ts`). */
-export type HeliLook = { pad?: boolean; url?: string | null };
+export type HeliLook = { pad?: boolean; url?: string | null; cockpit?: boolean };
 
 export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook = {}): HeliView {
   const group = new THREE.Group();
@@ -384,6 +388,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
   let rotor: THREE.Object3D | null = null;
   let tail: THREE.Object3D | null = null;
   let model: THREE.Object3D | null = null;
+  let cockpit: Cockpit | null = null;
   const shatter = createShatter();
   group.add(shatter.group);
   let lampMats: THREE.MeshStandardMaterial[] = [];
@@ -500,6 +505,17 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
     });
     machine.add(root);
     model = root;
+    // THE COCKPIT, off the model's own skin, in the machine's frame.
+    let body: THREE.Object3D | null = null;
+    root.traverse((o) => {
+      if (o.name === "heli_body") body = o;
+    });
+    if (body && look.cockpit !== false) {
+      machine.updateMatrixWorld(true);
+      const back = machine.matrixWorld.clone().invert();
+      cockpit = createCockpit(body, (mesh) => back.clone().multiply(mesh.matrixWorld), haze);
+      machine.add(cockpit.group);
+    }
   };
   // The Blender model where the build packs it (`heliModelUrl`), the code's
   // stand-in where it is switched off or will not load.
@@ -620,6 +636,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
       if (tail) tail.rotation.x = back.phase;
       // A wreck's blades are broken pieces (`heli-shatter.ts` shares their
       // materials), never a smear: drawn solid.
+      if (!wreck) cockpit?.update(h, level, state.t, dt);
       fadeBlades(mainBlades, wreck ? { ...main, blades: 1 } : main);
       fadeBlades(tailBlades, wreck ? { ...back, blades: 1 } : back);
       lookDisc(disc, main, !wreck, h.bladed >= 0 ? BLOODIED : 0);
@@ -650,6 +667,9 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
     },
     drawn() {
       return shown;
+    },
+    inside(on, pilotEye) {
+      cockpit?.show(on, pilotEye);
     },
     way() {
       return vel;
@@ -695,6 +715,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
       });
       for (const m of allMats) m.dispose();
       shatter.dispose();
+      cockpit?.dispose();
       (disc.material as THREE.Material).dispose();
       (tailDisc.material as THREE.Material).dispose();
       lampMats = [];

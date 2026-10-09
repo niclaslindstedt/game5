@@ -42,6 +42,7 @@ import {
   heliOn,
   markedRun,
   mergeRide,
+  rideOnto,
   runOn,
   SLED_RUN,
   sledOn,
@@ -522,5 +523,25 @@ describe("the RUN row's afterski stop: the party in the lodge (free-ride.ts)", (
     step(s, { ...NEUTRAL_INPUT, machine: true });
     expect(s.afterski?.inside).toBeNull();
     expect(s.skier.buzz).toBeCloseTo(buzz, 6);
+  });
+
+  it("moves the stored ride onto the paused ride's map for the pause card's PISTE MAP", () => {
+    const ride = {
+      ...mergeRide({}),
+      seed: 7,
+      snow: "deep" as const,
+      run: { seed: 7, region: "alpine" as const, id: "3" },
+      spot: { seed: 7, x: 1, z: 2 },
+    };
+    // Already there: the very ride, its run and spot kept.
+    expect(rideOnto(ride, 7, "alpine")).toBe(ride);
+    // Another map or country: the day and the snow carried over, the run
+    // and the spot left to that map.
+    for (const moved of [rideOnto(ride, 38, "alpine"), rideOnto(ride, 7, "fell")]) {
+      expect(moved.snow).toBe("deep");
+      expect(moved.run).toBeNull();
+      expect(moved.spot).toBeNull();
+    }
+    expect(rideOnto(ride, 38, "fell")).toMatchObject({ seed: 38, region: "fell" });
   });
 });

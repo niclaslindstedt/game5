@@ -73,6 +73,7 @@ import { createLoader, raceOrFallback } from "./game/app-load.ts";
 import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
 import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
+import { raceMapsOf } from "./game/race-maps.ts";
 import { carriesPoles } from "./game/outfit.ts";
 import { mapPicks } from "./game/map-picks.ts";
 import { isTrickRun, trickMapFor, tricksTile } from "./game/trick-maps.ts";
@@ -854,13 +855,14 @@ export function App() {
   /** The map on the start card: the one it stored, or the first of the
    * free ride's own mountains (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
-  /** Onto the snow on a FREE RIDE: the start card's map, day and snow, on
-   * the pair the ski card holds. */
-  const freeRide = (): void => {
+  /** Onto the snow on a FREE RIDE: the start card's map, day and snow (or the
+   * pause card's PISTE MAP's), on the pair the ski card holds. */
+  const freeRide = (ride = settings.ride): void => {
     setPage("root");
-    pressRef.current.free(freeGameOptions(settings.ride, startSeed, skierOf(settings)));
+    pressRef.current.free(freeGameOptions(ride, ride.seed ?? startSeed, skierOf(settings)));
   };
-
+  /** Out of the run to the level card a pinned map is picked on. */
+  const toLevels = (): void => (pressRef.current.toMenu(), setPage("levels"));
   // A freestyle contest's plate takes the screen from the run's HUD.
   const plated = shell === "run" && !away && contestPlateUp(snap);
   const hudUp = hudOver(shell) && snap !== null && input !== null && !plated;
@@ -917,11 +919,7 @@ export function App() {
         snap={shell === "run" && !away ? snap : null}
         touch={touch}
         onAgain={() => pressRef.current.restart()}
-        onNew={() => {
-          if (!pinnedFor(settings, modeRef.current, params.seed)) return race();
-          pressRef.current.toMenu();
-          setPage("levels");
-        }}
+        onNew={() => (pinnedFor(settings, modeRef.current, params.seed) ? toLevels() : race())}
         onMenu={() => pressRef.current.toMenu()}
         onReplay={canReplay ? () => pressRef.current.watch() : null}
         onSecond={() => pressRef.current.second()}
@@ -939,6 +937,8 @@ export function App() {
           onRestart={() => pressRef.current.restart()}
           onMainMenu={() => pressRef.current.toMenu()}
           onReplay={canReplay ? () => pressRef.current.watch() : null}
+          onSlopes={modeRef.current === "free" ? freeRide : null}
+          onMaps={raceMapsOf(modeRef.current) && params.seed === null ? toLevels : null}
         />
       )}
       {shell === "menu" && (page === "root" || page === "play") && (
@@ -977,7 +977,7 @@ export function App() {
           touch={touch}
           onLinkSkis={() => setLinkSkis(null)}
           onRide={race}
-          onFreeRide={freeRide}
+          onFreeRide={() => freeRide()}
           stats={stats.book}
           onResetStats={stats.rig.reset}
         />

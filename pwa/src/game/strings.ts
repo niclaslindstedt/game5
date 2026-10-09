@@ -699,6 +699,16 @@ export const STRINGS = {
   pauseRestartFree: "START AGAIN",
   pauseOptions: "OPTIONS",
   pauseMainMenu: "MAIN MENU",
+  /** THE PISTE MAP off the pause card's foot: another run on this mountain
+   * on a free ride (`menu-pause-slopes.tsx`), the race's level card over a
+   * race. */
+  pauseSlopes: "PISTE MAP",
+  pauseSlopesRide: "RIDE",
+  /** The panel's RUN row: the start card's hint, cut to fit its caption. */
+  pauseSlopesRunHint:
+    "Which run to ski next: the lift carries you up to its head. The last stops are the machines waiting at the bottom.",
+  pauseSlopesCaption:
+    "Pick a run, or tap the chart to start anywhere on this mountain · RIDE takes you there",
   /** The card BEHIND the pause card's own options panel, named on the way
    * back to it. */
   pauseBack: "PAUSED",

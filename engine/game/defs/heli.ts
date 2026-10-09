@@ -199,9 +199,34 @@ export const HELI = {
    * being shaken), slower under less, and comes back in `recover` s once
    * the load is under `hold` again. A bank of 45° toward his side is
    * held; turned over, or banked or pitched past some 60°, he goes.
-   * `middle` is how far his middle sits over the seat's origin, m — where
-   * his fall off it is read from. */
-  grip: { friction: 0.5, hold: 0.45, endure: 1.1, recover: 3, middle: 0.5 },
+   *
+   * THE HANG: as his hands take more of him he comes off the seat and
+   * hangs from them on the tube — all of him at `hang.full` of his weight
+   * on them, none under `hang.from` — slid off it in `hang.on` s and
+   * pulled back onto it in `hang.off` s. Hung, he is a PENDULUM: his
+   * middle (the body's origin) `hang.reach` m under his hands, his arms
+   * up over his head, swung by gravity and the airframe's every move and
+   * damped by `hang.damp` /s against its way (his arms and the air);
+   * slid off forward, his middle starts out `hang.slid` (out, down) of the
+   * tube, and the cabin keeps him out of it — his middle `hang.clear` m
+   * off its side and its floor, so he hangs down its side, or in under its
+   * belly between the skids. */
+  grip: {
+    friction: 0.5,
+    hold: 0.45,
+    endure: 2.2,
+    recover: 3,
+    hang: {
+      from: 0.3,
+      full: 0.6,
+      on: 0.4,
+      off: 0.8,
+      reach: 1.1,
+      damp: 1.2,
+      slid: { out: 0.5, down: 0.87 },
+      clear: 0.15,
+    },
+  },
   /** INTO THE ROTOR (`heli-grip.ts`): a skier let go of the skid falls in
    * the MACHINE'S OWN FRAME — gravity alone, as though the airframe stood
    * still under him — for `carry` s at most, while his fall runs through

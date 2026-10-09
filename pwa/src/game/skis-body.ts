@@ -99,6 +99,7 @@ import {
   swingOf,
   type Perch,
 } from "./skier-dangle.ts";
+import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./skier-perch.ts";
 import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 
 /** How long the acceleration a broken arm feels is eased over, s — the
@@ -591,6 +592,7 @@ export function createSkisModel(
   let basketWalk: BasketWalk | null = null;
   let lastPerch: number | null = null;
   const dangle = createDangle();
+  const react = createPerchReact();
   // HIS BROKEN ARMS swinging from their breaks (`skier-broken.ts`), and the
   // acceleration they feel his body's, eased — the velocity it was taken
   // off a frame ago.
@@ -791,6 +793,10 @@ export function createSkisModel(
           // on the stand both the code's skis and the model's stand on.
           stepDangle(dangle, perch!, dt);
           const swing = swingOf(dangle, perch!);
+          // ...and above them, swaying, bracing and hung (`skier-perch.ts`).
+          const feel = feelOf(perch!);
+          stepPerchReact(react, feel, dt);
+          seat.held = { react, feel };
           const { skis } = swingLegs(seatedPose(input, seat), swing, mounts);
           seat.legs = swing;
           for (let i = 0; i < 2; i++) {
@@ -800,7 +806,10 @@ export function createSkisModel(
             stand.pitch[i] += skis[i].pitch;
             stand.rock[i] += skis[i].rock;
           }
-        } else resetDangle(dangle);
+        } else {
+          resetDangle(dangle);
+          resetPerchReact(react);
+        }
         figure.pose(input, seat, breaks[0] || breaks[1] ? broken(skier, breaks, dt) : undefined);
       }
       // The skis drawn on the skid's pivot as his body carries it — the

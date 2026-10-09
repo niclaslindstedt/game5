@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest";
 import {
   HELI,
   NEUTRAL_INPUT,
+  HELI_SEAT as SEAT,
+  heliPoint,
   createGame,
   fallsIntoRotor,
   gripLoad,
@@ -18,7 +20,7 @@ import {
   type HeliControls,
   type SkierInput,
 } from "@engine";
-import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 
 import { levelFor } from "./support/levels.ts";
 
@@ -120,5 +122,31 @@ describe("the rotor over him", () => {
       return `${s.heli!.taken} ${s.heli!.bladed} ${s.skier.thrown?.x}`;
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe("hung off his hands", () => {
+  it("sits on the seat through hard flying, and comes off it onto his hands as it turns over", () => {
+    const s = ride();
+    climb(s, 120);
+    fly(s, 3, hands({ collective: 0.6, roll: 0.4 }));
+    expect(s.heli!.hung).toBe(0);
+    climb(s, 400);
+    fly(s, 12, hands({ collective: 0.8, roll: -1 }), () => s.heli!.hung >= 1);
+    expect(s.heli!.rider).toBe(true);
+    // As the hang comes on he is UNDER the tube, never stood on his head
+    // (later the inverted machine dives faster than he falls, and he
+    // trails above it, as a pendulum on a falling pivot does).
+    expect(s.skier.y).toBeLessThan(heliPoint(s.heli!, SEAT).y);
+    // A beat on, hung straight off the tube: his hands over his head.
+    fly(s, 0.4, hands({ collective: 0.8, roll: -1 }));
+    const h = s.heli!;
+    const c = s.skier;
+    const up = rotate(c.q, { x: 0, y: 1, z: 0 });
+    const grip = heliPoint(h, SEAT);
+    const toGrip = { x: grip.x - c.x, y: grip.y - c.y, z: grip.z - c.z };
+    const n = Math.hypot(toGrip.x, toGrip.y, toGrip.z);
+    expect(n).toBeCloseTo(HELI.grip.hang.reach, 2);
+    expect((up.x * toGrip.x + up.y * toGrip.y + up.z * toGrip.z) / n).toBeGreaterThan(0.99);
   });
 });

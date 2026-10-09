@@ -52,7 +52,7 @@ import { HELI } from "./defs/heli.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { helipadOf } from "./heli-pad.ts";
-import { carryFall, fallsIntoRotor, stepGrip } from "./heli-grip.ts";
+import { carryFall, fallsIntoRotor, hangFrame, stepGrip } from "./heli-grip.ts";
 import { pilotControls } from "./heli-pilot.ts";
 import { SEAT, discQuat, heliMass, heliPoint, heliQuat, thrustMost } from "./heli-rotor.ts";
 import { mendBody } from "./body.ts";
@@ -119,6 +119,9 @@ export function freshHeli(state: GameState): HeliState {
     wreck: null,
     hang: HANG_GROUND,
     grip: 1,
+    load: 0,
+    hung: 0,
+    sway: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 },
     shed: -1,
     cut: 0,
     cutSpeed: 0,
@@ -204,9 +207,13 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
     drop(run, h, events);
     return false;
   }
+  // THE GRIP: turned too far over for his hands, he hangs from them —
+  // and lets go.
+  const aloft = h.mode === "flown" && !h.grounded;
+  const gone = aloft && stepGrip(h, seatFrame(h).q);
+  if (!aloft) h.load = h.hung = 0;
   hold(run, h);
-  // THE GRIP: turned too far over for his hands, he lets go.
-  if (h.mode === "flown" && !h.grounded && stepGrip(h, run.skier.q)) {
+  if (gone) {
     slip(run, h, events);
     return false;
   }
@@ -516,7 +523,7 @@ function park(run: GameState, h: HeliState, events: GameEvent[]): void {
  * moving with it — and off the snow, which is not under his skis. */
 function hold(run: GameState, h: HeliState): void {
   const c = run.skier;
-  const s = seatFrame(h);
+  const s = hangFrame(h, seatFrame(h));
   const dt = TUNING.dt;
   c.vx = h.t <= dt ? h.vx : (s.x - c.x) / dt;
   c.vy = h.t <= dt ? h.vy : (s.y - c.y) / dt;
@@ -586,8 +593,9 @@ function slip(run: GameState, h: HeliState, events: GameEvent[]): void {
   b.vx = v.x;
   b.vy = v.y;
   b.vz = v.z;
-  const seat = { x: SEAT.x, y: SEAT.y + h.hang + K.grip.middle, z: SEAT.z };
-  h.shed = fallsIntoRotor(h, seat) ? 0 : -1;
+  const datum = heliPoint(h, { x: 0, y: 0, z: 0 });
+  const middle = unrotate(heliQuat(h), { x: c.x - datum.x, y: c.y - datum.y, z: c.z - datum.z });
+  h.shed = fallsIntoRotor(h, middle) ? 0 : -1;
   say(run, events, "slip", hypot3(v.x, v.y, v.z));
 }
 
@@ -630,6 +638,7 @@ function board(run: GameState, events: GameEvent[]): void {
   h.t = 0;
   h.hang = HANG_GROUND;
   h.grip = 1;
+  h.hung = 0;
   say(run, events, "board");
 }
 

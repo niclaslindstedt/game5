@@ -95,8 +95,14 @@ export type HeliState = {
    * — up with his skis on the snow, down with them hanging in the air. */
   hang: number;
   /** THE SKIER'S HOLD on the skid (`heli-grip.ts`): 1 a fresh grip, 0 gone
-   * — and he with it. */
+   * — and he with it; and the share of his weight his hands carry. */
   grip: number;
+  load: number;
+  /** HOW FAR HE HANGS off the tube by his hands, 0 (sat) … 1, and his
+   * middle swung under them as a pendulum, world frame: where, m, and its
+   * way, m/s. */
+  hung: number;
+  sway: { x: number; y: number; z: number; vx: number; vy: number; vz: number };
   /** Seconds since his grip went, while his fall is taken in the machine's
    * frame toward its rotor (`HELI.blades.carry`); −1 otherwise. */
   shed: number;

@@ -654,6 +654,85 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
   },
 };
 
+/** A LENS ON THE RIDER, held off him in the world: `dist` m off along his
+ * facing turned by `yaw`, `up` m over his middle, looking at it. */
+const onRider =
+  (dist: number, yaw: number, up: number, fov = 45) =>
+  (s: GameState): LensPose => {
+    const c = s.skier;
+    const b = c.heading + yaw;
+    const at = { x: c.x, y: c.y + 0.2, z: c.z };
+    return {
+      eye: { x: at.x + Math.sin(b) * dist, y: at.y + up, z: at.z + Math.cos(b) * dist },
+      target: at,
+      fov,
+      roll: 0,
+    };
+  };
+
+/** The four controls by hand. */
+const hands =
+  (o: Partial<{ collective: number; pitch: number; roll: number; pedal: number }>): Drive =>
+  () => ({ ...NEUTRAL_INPUT, heli: { collective: 0.62, pitch: 0, roll: 0, pedal: 0, ...o } });
+
+/** Turned over by hand `cyc` from a hover `height` m up, shot through
+ * `lens` every `every` s from when his hands start to take him until the
+ * rotor has been through him (or he has fallen clear), labelled `name`. */
+function overturn(st: Stage, name: string, cyc: Drive, lens: Lens, every = 0.3): void {
+  const { meadow } = st.spots;
+  const s = hover(st, meadow, 160, 3);
+  st.shoot(s, `${name}-hover`, lens);
+  st.until(s, (q) => q.heli!.load > 0.2, 6, cyc);
+  for (let k = 0; k < 14 && s.heli!.rider; k++) {
+    const h = s.heli!;
+    st.shoot(s, `${name}-${k}-hung${h.hung.toFixed(1)}-grip${h.grip.toFixed(1)}`, lens);
+    st.run(s, every, cyc);
+  }
+  st.shoot(s, `${name}-let-go`, lens);
+  for (let k = 0; k < 6; k++) {
+    st.run(s, 0.12, cyc);
+    st.shoot(s, `${name}-fall-${k}${s.heli!.bladed >= 0 ? "-rotor" : ""}`, lens);
+  }
+}
+
+const PERCH_SCENES: Record<string, (st: Stage) => void> = {
+  // SAT ON THE SKID, flown by hand: level, banked both ways, pitched
+  // forward into a run and flared back — the trunk swaying, the head
+  // righted, the hands to the tube.
+  react(st) {
+    st.camera("chase");
+    const front = onRider(3.2, 0, 0.3, 50);
+    const s = hover(st, st.spots.meadow, 60, 3);
+    st.shoot(s, "level", front);
+    st.shoot(s, "level-side", onRider(3.2, Math.PI / 2, 0.4, 50));
+    st.run(s, 0.8, hands({ roll: -0.7 }));
+    st.shoot(s, "bank-away", front);
+    st.run(s, 1.2, hands({ roll: 0.7 }));
+    st.shoot(s, "bank-toward", front);
+    st.run(s, 0.6, hands({ roll: 0 }));
+    st.shoot(s, "bank-toward-0.6s", front);
+    const t = hover(st, st.spots.meadow, 60, 3);
+    st.run(t, 0.9, hands({ pitch: 0.9, collective: 0.7 }));
+    st.shoot(t, "nose-down", front);
+    st.run(t, 1.2, hands({ pitch: -0.9, collective: 0.5 }));
+    st.shoot(t, "flare", front);
+    st.run(t, 0.5, hands({ collective: 0.15 }));
+    st.shoot(t, "drop-light", front);
+  },
+  // TURNED OVER: his hands taking him, hung off the tube, kicking, let go —
+  // into the rotor on a loop, clear of it on a roll toward him.
+  loop(st) {
+    st.camera("chase");
+    overturn(st, "loop", hands({ collective: 0.8, pitch: -1 }), onRider(7, 0, 1, 55));
+  },
+  roll(st) {
+    st.camera("chase");
+    overturn(st, "roll", hands({ collective: 0.8, roll: -1 }), onRider(7, 0.4, 1.5, 55));
+  },
+};
+
+Object.assign(VIEWS, PERCH_SCENES);
+
 /** The sheets, each a group of views shot onto one page. */
 export const GROUPS: Record<string, readonly string[]> = {
   pad: ["pad", "call"],
@@ -666,4 +745,6 @@ export const GROUPS: Record<string, readonly string[]> = {
   handover: ["handover"],
   night: ["night"],
   turntable: ["turntable"],
+  perch: ["react"],
+  hang: ["loop", "roll"],
 };

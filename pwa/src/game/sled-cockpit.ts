@@ -282,8 +282,8 @@ export function createSledCockpit(haze: HazeUniforms): SledCockpit {
     glass: std(0xc98a1a, 0.15, 0, { transparent: true, opacity: 0.85 }),
     foam: std(0x1b1c1f, 0.95),
     glove: std(0x17191d, 0.55),
-    glove2: std(0x2c2f35, 0.5),
-    sleeve: std(0xc92a1c, 0.6),
+    glove2: std(0x2c2f35, 0.5, 0, { side: THREE.DoubleSide }),
+    sleeve: std(0xc92a1c, 0.6, 0, { side: THREE.DoubleSide }),
     smoke: std(0x10141a, 0.05, 0, {
       transparent: true,
       opacity: 0.42,
@@ -359,6 +359,9 @@ export function createSledCockpit(haze: HazeUniforms): SledCockpit {
     fore: THREE.Mesh;
     upper: THREE.Mesh;
     cuff: THREE.Mesh;
+    /** The balls that close the joints: the wrist's and the elbow's. */
+    wristBall: THREE.Mesh;
+    elbowBall: THREE.Mesh;
   }[] = [];
   let screen: { ctx: CanvasRenderingContext2D; tex: THREE.CanvasTexture } | null = null;
 
@@ -609,11 +612,23 @@ export function createSledCockpit(haze: HazeUniforms): SledCockpit {
           10,
         );
       }
-      // The wrist, behind the back of the hand.
-      const wrist = at(hand - 0.016, 0.012, -0.078);
+      // The wrist, just behind the back of the hand, and the glove's back
+      // run into it so the hand and the forearm are one piece.
+      const wrist = at(hand - 0.006, 0.01, -0.046);
+      const palm = at(hand, 0.008, -0.012);
+      const back = wrist.clone().sub(palm);
+      const heel = mesh(new THREE.CylinderGeometry(0.03, 0.034, 1, 16), mats.glove);
+      heel.position.copy(inBars(palm.clone().addScaledVector(back, 0.5)));
+      heel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), back.clone().normalize());
+      heel.scale.set(1.25, back.length(), 0.75);
       const elbow = v(B.elbow);
       elbow.x *= sx;
       const shoulder = new THREE.Vector3(sx * 0.21, B.elbow.y + 0.38, B.elbow.z - 0.25);
+      const ball = (r: number, m: THREE.Material) => {
+        const o = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 10), m);
+        group.add(o);
+        return o;
+      };
       const unit = (r1: number, r2: number, m: THREE.Material) => {
         const o = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, 1, 16, 1, true), m);
         group.add(o);
@@ -623,9 +638,12 @@ export function createSledCockpit(haze: HazeUniforms): SledCockpit {
         wrist,
         elbow,
         shoulder,
-        cuff: unit(0.033, 0.043, mats.glove2),
-        fore: unit(0.044, 0.056, mats.sleeve),
+        // The gauntlet flares over the sleeve's end, which runs on inside it.
+        cuff: unit(0.034, 0.05, mats.glove2),
+        fore: unit(0.041, 0.056, mats.sleeve),
         upper: unit(0.056, 0.064, mats.sleeve),
+        wristBall: ball(0.034, mats.glove2),
+        elbowBall: ball(0.057, mats.sleeve),
       });
     }
     // The right thumb on the paddle; two fingers of the left on the lever.
@@ -793,6 +811,7 @@ export function createSledCockpit(haze: HazeUniforms): SledCockpit {
       // The forearms from the turned wrists back to the elbows.
       const wrist = new THREE.Vector3();
       const cuffEnd = new THREE.Vector3();
+      const sleeveEnd = new THREE.Vector3();
       const elbow = new THREE.Vector3();
       const shoulder = new THREE.Vector3();
       const body = new THREE.Quaternion();
@@ -803,10 +822,14 @@ export function createSledCockpit(haze: HazeUniforms): SledCockpit {
         onBars(arm.wrist, wrist);
         elbow.copy(arm.elbow).sub(riser).applyQuaternion(body).add(riser);
         shoulder.copy(arm.shoulder).sub(riser).applyQuaternion(body).add(riser);
-        cuffEnd.copy(elbow).sub(wrist).setLength(0.06).add(wrist);
+        cuffEnd.copy(elbow).sub(wrist).setLength(0.09).add(wrist);
         span(arm.cuff, wrist, cuffEnd);
-        span(arm.fore, cuffEnd, elbow);
+        // The sleeve starts inside the gauntlet, so no seam shows between.
+        sleeveEnd.copy(elbow).sub(wrist).setLength(0.05).add(wrist);
+        span(arm.fore, sleeveEnd, elbow);
         span(arm.upper, elbow, shoulder);
+        arm.wristBall.position.copy(wrist);
+        arm.elbowBall.position.copy(elbow);
       }
       // The display, a few times a second.
       since += dt;

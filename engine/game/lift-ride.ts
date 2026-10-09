@@ -597,8 +597,10 @@ function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   const cs = Math.cos(ride.swing);
   const sn = Math.sin(ride.swing);
   const ahead = -back * cs + drop * sn;
-  let x = grip.x + plan.dx * ahead;
-  let z = grip.z + plan.dz * ahead;
+  // On a chair he takes the seat beside the hanger, outboard of it.
+  const seat = plan.lift.kind === "chair" ? K.chairSeat : 0;
+  let x = grip.x + plan.dx * ahead + plan.dz * seat;
+  let z = grip.z + plan.dz * ahead - plan.dx * seat;
   let y = gy - back * sn - drop * cs;
   // Coming down to the ramp a chair carries him on the snow, never in it.
   if (plan.lift.kind === "chair") y = Math.max(y, run.level.groundAt(x, z) + K.sit);

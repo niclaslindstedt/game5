@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore bones xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -614,6 +614,17 @@ rescue:
 # `world`. ARGS="--sheet=trunk,blood", "--views=spray".
 gore:
 	npm run gore -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE BONES LAB: every long bone that can break out through the skin
+# (`gore-bones.ts`), built by the game's own builder on a limb of the game's
+# measure — a row a bone, a column a grade (simple, wedge, shattered) and
+# the simple break from the side, above, behind and far — close, under a
+# winter sun. previews/bones.png. Its own one-off bundle from
+# pwa/bones-preview.html (never deployed); needs a Chromium like `world`.
+# ARGS="--bones=humerusL,tibiaL". The bones on the skier are the gore
+# lab's `--sheet=bones`.
+bones:
+	npm run bones -- $(ARGS)
 
 # THE X-RAY LAB: a hard blow on a run with the INJURIES switch on, run the
 # way the app runs it — the read ahead, the run slowed, the lens closing on

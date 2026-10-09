@@ -69,6 +69,10 @@ export type RunRules = {
    * (`traffic-contact.ts`), and are drawn. On a FREE RIDE only; left out,
    * the streets are empty. */
   traffic?: boolean;
+  /** WHETHER HIS SKIS COME OFF IN THE VILLAGE (`town.ts`): skied onto a
+   * street he stops, steps out of his bindings, shoulders the pair and
+   * walks; off the streets he steps back in. On a FREE RIDE only. */
+  town?: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times

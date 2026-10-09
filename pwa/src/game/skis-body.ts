@@ -79,6 +79,8 @@ import {
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 import { fetchMove, movePose } from "./party-pose.ts";
+import { bootOn, buildWalkBoots } from "./town-boots.ts";
+import { skiLift, streetOver, townLift, townMove, townPose } from "./town-pose.ts";
 import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
 import {
@@ -485,6 +487,10 @@ export function createSkisModel(
   // cover on powder, none on the groomer — for the skis let go to lie on.
   const cover = (x: number, z: number): number =>
     fall?.ground.packedAt ? LOOSE * (1 - fall.ground.packedAt(x, z)) : 0;
+  // ...and in town, how far the figure and the pair he carries are stood
+  // up onto the drawn street (`townLift`, `streetOver`).
+  let townCover = 0;
+  let townFigure = 0;
 
   // THE WHOLE PAIR AND ITS SKIER AS ONE DRAW (`posed-merge.ts`): every
   // opaque part keeps its place in the tree for the posing and is drawn
@@ -539,6 +545,39 @@ export function createSkisModel(
     if (on === racked) return;
     racked = on;
     for (const m of skiParts) m.visible = !on;
+  };
+  // IN TOWN (`town.ts`) the boots are on his feet and the pair on his
+  // shoulder without them: the shells out of the skis' bindings (the
+  // code's, out of the merged draw, or the model's), and a pair of boots
+  // of their own on the figure's feet (`walkBoots`).
+  const bootParts: THREE.Mesh[] = [];
+  if (models?.skis) {
+    for (const m of models.meshes) {
+      const named = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => x.name);
+      // The buckles share the aluminium with the brakes and the lever, so
+      // the metal goes too: at the shoulder those are the least missed.
+      if (named.includes("boot") || named.includes("aluminium")) bootParts.push(m);
+    }
+  } else {
+    for (const g of gear.skis) {
+      g.traverse((o) => {
+        if (o instanceof THREE.Mesh && (o.material === boot || o.material === alloy)) {
+          bootParts.push(o);
+        }
+      });
+    }
+  }
+  const walkBoots = buildWalkBoots(look, boot, alloy, (g) => {
+    geos.push(g);
+    return g;
+  });
+  for (const b of walkBoots) figure.group.add(b);
+  let unbooted = false;
+  const unboot = (on: boolean): void => {
+    if (on === unbooted) return;
+    unbooted = on;
+    for (const m of bootParts) m.visible = !on;
+    for (const b of walkBoots) b.visible = on;
   };
   // Hung after the merge, so it stays out of the one draw: a lamp of its
   // own, on whichever helmet he wears.
@@ -645,7 +684,9 @@ export function createSkisModel(
       const off = body === undefined ? skier.thrown : body;
       // ON HIS FEET after a buzzed fall (`buzz.ts`'s fetch): up, walking to
       // his skis, picking them up and back into the bindings.
-      const afoot = off ? null : (skier.fetch ?? null);
+      // ...or IN TOWN, his skis on his shoulder (`town.ts`).
+      const town = off ? null : (skier.town ?? null);
+      const afoot = off ? null : (skier.fetch ?? town);
       // His legs' spring first: how far he stands on the snow is its own —
       // and thrown, they carry nothing, so he is stood back up on them at
       // rest.
@@ -683,6 +724,7 @@ export function createSkisModel(
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride";
       const inBasket = basket && !off && !afoot;
       rack(boarded || cabin || inBasket);
+      unboot(town !== null);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);
       // ON HIS PLATFORMS across a steep face, stood over the hill: the body
@@ -736,8 +778,15 @@ export function createSkisModel(
       } else if (afoot) {
         // Laid in the root's own frame (stood upright, facing the way he
         // walks), the snow under his boots.
-        const snow = fall ? fall.ground.groundAt(at.x, at.z) - root.position.y : -spec.cogHeight;
-        const p = movePose(fetchMove(afoot, skier), snow, frame);
+        // In town, stood on the street as it is drawn (`townLift`).
+        const lifted = town && run ? townLift(town, run.level, at.x, at.z) : 0;
+        townCover = town && run ? streetOver(run.level, at.x, at.z) : 0;
+        townFigure = lifted;
+        const snow =
+          (fall ? fall.ground.groundAt(at.x, at.z) - root.position.y : -spec.cogHeight) + lifted;
+        const p = town
+          ? townPose(townMove(town, skier), snow, frame, mounts.pole)
+          : movePose(fetchMove(skier.fetch!, skier), snow, frame);
         figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
         trunk.makeBasis(
           axis.x.set(frame.x.x, frame.x.y, frame.x.z),
@@ -745,7 +794,8 @@ export function createSkisModel(
           axis.z.set(frame.z.x, frame.z.y, frame.z.z),
         );
         figure.group.quaternion.setFromRotationMatrix(trunk);
-        figure.sprawl(p);
+        figure.sprawl(p, 0, 0, town !== null);
+        if (town) for (let i = 0; i < 2; i++) bootOn(walkBoots[i], p.feet[i], p.boots[i]);
       } else {
         if (bound.radius !== BOUND) {
           figure.group.position.set(0, 0, 0);
@@ -833,7 +883,11 @@ export function createSkisModel(
         toLocal.copy(root.matrixWorld).invert();
         let reach = 0;
         for (let i = 0; i < 2; i++) {
-          loneSkiFrame(loose[i], lies[i], cover);
+          loneSkiFrame(
+            loose[i],
+            lies[i],
+            town && run ? () => skiLift(loose[i], run!.level, townCover, townFigure) : cover,
+          );
           const g = gear.skis[i];
           const keep = g.scale.clone();
           laid.multiplyMatrices(toLocal, lies[i]).decompose(g.position, g.quaternion, g.scale);

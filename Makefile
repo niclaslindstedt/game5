@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow heli sled sled-land sled-turn grimbear rescue gore xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -704,6 +704,16 @@ cabins:
 # like `world`. SEED=n another map; ARGS="--views=inside-4,eyes-0.6".
 afterski:
 	npm run afterski -- --seed=$(or $(SEED),38) $(ARGS)
+
+# THE TOWN LAB: a free ride skied into the village and the skis taken off
+# (engine/game/town.ts) — the stop, out of the bindings (out), the pair up
+# onto the shoulder (pick, pick-side), walking with it (carry, carry-side,
+# carry-back, chase), off the shoulder and back in off the streets (drop,
+# clip) — each previews/town-<sheet>.png. Its own one-off bundle from
+# pwa/town-preview.html (never deployed); needs a Chromium like `world`.
+# SEED=n another map; ARGS="--sheets=pick,carry --tile=360".
+town:
+	npm run town -- --seed=$(or $(SEED),38) $(ARGS)
 
 # THE FOREST LAB: what it is like to be IN a map's woods, from the engine
 # and the tree table alone (pure Node, seconds): the trees and their kinds,

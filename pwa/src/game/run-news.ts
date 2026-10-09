@@ -203,6 +203,11 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "up") return { text: STRINGS.newsFetchUp, tone: "bad" };
       if (e.phase === "ski") return { text: STRINGS.newsFetchSki, tone: "info" };
       return { text: STRINGS.newsFetchIn, tone: "good" };
+    case "town":
+      // Into the village and out of it: the skis off, and back on.
+      if (e.phase === "stop") return { text: STRINGS.newsTownIn, tone: "info" };
+      if (e.phase === "away") return { text: STRINGS.newsTownOut, tone: "good" };
+      return null;
     case "para":
       // The paramotor: off the summit, in the air, skiing under it, the rig
       // folded by rough air, dropped or cut away, the ride begun again.

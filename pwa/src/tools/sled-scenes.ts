@@ -11,6 +11,7 @@
 
 import {
   NEUTRAL_INPUT,
+  rotate,
   SLED,
   treesNear,
   standSkier,
@@ -98,6 +99,27 @@ function around(
     return {
       eye: { x: ex, y: ey, z: ez },
       target: { x: k.x + fx * ahead, y: ground + over, z: k.z + fz * ahead },
+      fov,
+      roll: 0,
+    };
+  };
+}
+
+/** A lens planted in the machine's own frame (x right, y up, z forward,
+ * the origin at its centre of gravity): an eye and a point looked at,
+ * both carried with it as it stands — a close look at its cockpit. */
+function onMachine(
+  eye: { x: number; y: number; z: number },
+  at: { x: number; y: number; z: number },
+  fov = 40,
+): (s: GameState) => LensPose {
+  return (state) => {
+    const k = state.sled!;
+    const e = rotate(k.q, eye);
+    const t = rotate(k.q, at);
+    return {
+      eye: { x: k.x + e.x, y: k.y + e.y, z: k.z + e.z },
+      target: { x: k.x + t.x, y: k.y + t.y, z: k.z + t.z },
       fov,
       roll: 0,
     };
@@ -297,6 +319,91 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     }
     st.camera("chase");
   },
+  // ── THE COCKPIT (the HELMET rung's own eye over the bars) ───────────────
+  cockpit(st) {
+    st.camera("helmet");
+    const s = st.fresh(true);
+    st.run(s, 0.8, still);
+    st.shoot(s, "idle", "helmet");
+    st.run(s, 2.4, ride({ tuck: 1 }));
+    st.shoot(s, "throttle", "helmet");
+    // The engine's steer is the screen's mirrored (`SCREEN_TO_ENGINE`):
+    // its +1 turns the machine to the picture's left.
+    st.run(s, 0.5, ride({ tuck: 1, steer: 1 }));
+    st.shoot(s, "left", "helmet");
+    st.run(s, 0.8, ride({ tuck: 1, steer: -1 }));
+    st.shoot(s, "right", "helmet");
+    st.run(s, 0.4, ride({ brake: 1 }));
+    st.shoot(s, "brake", "helmet");
+    st.camera("chase");
+  },
+  "cockpit-close"(st) {
+    st.camera("helmet");
+    const s = st.fresh(true);
+    st.run(s, 1.5, ride({ tuck: 0.6 }));
+    st.hide(["field"]);
+    st.shoot(
+      s,
+      "right-hand",
+      onMachine({ x: -0.5, y: 0.66, z: 0.3 }, { x: -0.3, y: 0.48, z: 0.55 }, 30),
+    );
+    st.shoot(
+      s,
+      "left-hand",
+      onMachine({ x: 0.5, y: 0.66, z: 0.3 }, { x: 0.3, y: 0.48, z: 0.55 }, 30),
+    );
+    st.shoot(
+      s,
+      "right-inboard",
+      onMachine({ x: -0.1, y: 0.6, z: 0.4 }, { x: -0.29, y: 0.47, z: 0.57 }, 30),
+    );
+    st.shoot(
+      s,
+      "right-front",
+      onMachine({ x: -0.42, y: 0.62, z: 0.85 }, { x: -0.3, y: 0.48, z: 0.55 }, 30),
+    );
+    st.shoot(
+      s,
+      "left-front",
+      onMachine({ x: 0.42, y: 0.62, z: 0.85 }, { x: 0.3, y: 0.48, z: 0.55 }, 30),
+    );
+    st.run(s, 0.3, ride({ brake: 1 }));
+    st.shoot(
+      s,
+      "left-brake",
+      onMachine({ x: 0.5, y: 0.66, z: 0.3 }, { x: 0.3, y: 0.48, z: 0.55 }, 30),
+    );
+    st.shoot(
+      s,
+      "display",
+      onMachine({ x: -0.05, y: 0.82, z: 0.42 }, { x: 0, y: 0.45, z: 0.82 }, 34),
+    );
+    st.shoot(s, "over", onMachine({ x: 0, y: 1.12, z: 0.05 }, { x: 0, y: 0.25, z: 0.75 }, 75));
+    st.shoot(s, "front", onMachine({ x: -0.3, y: 0.95, z: 1.6 }, { x: 0, y: 0.5, z: 0.6 }, 40));
+    st.hide([]);
+    st.camera("chase");
+  },
+  "cockpit-powder"(st) {
+    const m = st.spots.meadow;
+    const h = openWay(st.level, m);
+    st.camera("helmet");
+    const s = st.fresh(true);
+    place(s, behind(m, h, 60), h, 8);
+    st.run(s, 1.5, ride({ tuck: 1 }));
+    st.shoot(s, "powder", "helmet");
+    st.run(s, 1.2, ride({ tuck: 0.8, steer: 0.8 }));
+    st.shoot(s, "powder-turn", "helmet");
+    st.camera("chase");
+  },
+  async "cockpit-night"(st) {
+    await st.sky({ hour: 21 });
+    st.camera("helmet");
+    const s = st.fresh(true);
+    st.run(s, 2, ride({ tuck: 0.8 }));
+    st.shoot(s, "night", "helmet");
+    st.camera("chase");
+    await st.sky(null);
+  },
   // ── IN POWDER ──────────────────────────────────────────────────────────
   powder(st) {
     const s = st.fresh(true);
@@ -424,4 +531,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   night: ["night"],
   turntable: ["turntable"],
   lenses: ["lenses", "lenses-powder"],
+  cockpit: ["cockpit", "cockpit-close", "cockpit-powder", "cockpit-night"],
 };

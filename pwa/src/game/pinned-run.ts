@@ -31,11 +31,20 @@
 // he may race, `downhill-run.ts`), and the plate over it — home or out —
 // stands up its RACE through the same press.
 
-import { TUNING, botInput, createGame, step, type GameMode, type GameState } from "@engine";
+import {
+  TUNING,
+  botInput,
+  createGame,
+  step,
+  type GameMode,
+  type GameState,
+  type Level,
+} from "@engine";
 
 import type { Loader } from "./app-load.ts";
 import {
   isPinnedMap,
+  pinnedAsk,
   NO_PICKS,
   pinnedFor,
   pinnedGameOptions,
@@ -47,7 +56,7 @@ import type { Settings } from "./settings.ts";
 import { trainingOf } from "./downhill-run.ts";
 import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
 import { nextBracket } from "./ski-cross-run.ts";
-import { trickGameOptions, type TrickMap, type TrickRun } from "./trick-maps.ts";
+import { trickAsk, trickGameOptions, type TrickMap, type TrickRun } from "./trick-maps.ts";
 import { nextContest } from "./big-air-run.ts";
 import { nextSlopeContest } from "./slopestyle-run.ts";
 import { nextPipeContest } from "./halfpipe-run.ts";
@@ -99,12 +108,23 @@ export function createPinnedRuns(world: {
       world.setMode(mode);
       const s = world.settings();
       const skier = world.skier(s);
+      const standing = (): Level | undefined => {
+        const now = world.current();
+        return now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
+      };
       world.loader.begin({
-        build: () => {
+        // Generated on the card's worker unless it is standing already.
+        map: () =>
+          standing()
+            ? null
+            : {
+                seed: pin.seed,
+                generate: pinnedAsk(pin),
+              },
+        build: (level) => {
           // A downhill stands up as its training.
           const training = mode === "downhill";
-          const now = world.current();
-          const built = now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
+          const built = level ?? standing();
           const opts = { ...pinnedGameOptions(pin, mode, skier, built), training };
           const game = createGame(opts);
           last = { ...opts, level: game.level };
@@ -119,12 +139,22 @@ export function createPinnedRuns(world: {
       last = null;
       const s = world.settings();
       const skier = world.skier(s);
+      const standing = (): Level | undefined => {
+        const now = world.current();
+        const same =
+          now.rules.tricks && now.level.seed === map.seed && now.level.version === map.version;
+        return same ? now.level : undefined;
+      };
       world.loader.begin({
-        build: () => {
-          const now = world.current();
-          const same =
-            now.rules.tricks && now.level.seed === map.seed && now.level.version === map.version;
-          const opts = trickGameOptions(map, skier, same ? now.level : undefined);
+        map: () =>
+          standing()
+            ? null
+            : {
+                seed: map.seed,
+                generate: trickAsk(map),
+              },
+        build: (level) => {
+          const opts = trickGameOptions(map, skier, level ?? standing());
           // An aerials contest's first jump declares the jump the card picked.
           const plan = mode === "aerials" ? s.aerialPlan : undefined;
           return createGame(mode === "tricks" ? opts : { ...opts, mode, plan });

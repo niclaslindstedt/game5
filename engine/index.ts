@@ -200,6 +200,7 @@ export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
+export { levelFor } from "./game/step.ts";
 export {
   FULL_ASSIST,
   GAME_MODES,

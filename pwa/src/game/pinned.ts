@@ -16,6 +16,7 @@
 import {
   LEVEL_RULES,
   generateLevel,
+  type GenerateOptions,
   regionOf,
   type Assist,
   type CreateGameOptions,
@@ -38,12 +39,18 @@ export type { PinnedLevel, PinnedMode } from "./pinned-levels.ts";
  * the run (`pinnedGameOptions`), and the same map under a different sky is
  * the same map, with the same digest. */
 export function buildPinnedLevel(level: PinnedLevel): Level {
-  return generateLevel(level.seed, {
+  return generateLevel(level.seed, pinnedAsk(level));
+}
+
+/** What the generator is asked for a pinned map — here, or on the loading
+ * card's worker (`map-build.ts`). */
+export function pinnedAsk(level: PinnedLevel): GenerateOptions {
+  return {
     version: level.version,
     region: level.region,
     grade: level.grade,
     course: level.course,
-  });
+  };
 }
 
 /** THE SKY the map is ridden under, where the row pins one over the day its

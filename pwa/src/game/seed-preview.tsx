@@ -55,7 +55,14 @@ import {
   type PanoramaSchematic,
 } from "./panorama.ts";
 import { CHART_VIEW, degrees, fromChart, toChart, type ChartHouse } from "./seed-chart.ts";
-import { askKey, onSeedMaps, seedAnswer, wantSeed, type SeedAnswer } from "./seed-maps.ts";
+import {
+  askKey,
+  onSeedMaps,
+  seedAnswer,
+  seedShare,
+  wantSeed,
+  type SeedAnswer,
+} from "./seed-maps.ts";
 import { GradeMark } from "./grade-mark.tsx";
 import { STRINGS } from "./strings.ts";
 
@@ -64,9 +71,10 @@ export type { SeedAnswer } from "./seed-maps.ts";
 /** How long the arrows have to be still before a map is built, ms. */
 const SETTLE_MS = 220;
 
-/** The chart as the card holds it: the last answer that arrived, and
- * whether it is the answer for the seed on screen. */
-export type SeedChart = { shown: SeedAnswer | null; fresh: boolean };
+/** The chart as the card holds it: the last answer that arrived, whether
+ * it is the answer for the seed on screen, and — while the worker is
+ * raising that seed's mountain — how far it has got, 0–1. */
+export type SeedChart = { shown: SeedAnswer | null; fresh: boolean; share: number | null };
 
 export function useSeedPreview(
   seed: number,
@@ -76,11 +84,13 @@ export function useSeedPreview(
   const ask = { seed, region, grade };
   const key = askKey(ask);
   const [shown, setShown] = useState<SeedAnswer | null>(() => seedAnswer(ask));
+  const [share, setShare] = useState<number | null>(() => seedShare(ask));
 
   useEffect(() => {
     const show = (): void => {
       const answer = seedAnswer({ seed, region, grade });
       if (answer) setShown(answer);
+      setShare(seedShare({ seed, region, grade }));
     };
     show();
     const off = onSeedMaps(show);
@@ -96,7 +106,8 @@ export function useSeedPreview(
     };
   }, [seed, region, grade]);
 
-  return { shown, fresh: shown !== null && askKey(shown) === key };
+  const fresh = shown !== null && askKey(shown) === key;
+  return { shown, fresh, share: fresh ? null : share };
 }
 
 /** A kicker's mark: a chevron pointing the way it throws, at its lip. */
@@ -345,7 +356,7 @@ export function SeedPreview({
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;
 }) {
-  const { shown, fresh } = chart;
+  const { shown, fresh, share } = chart;
   const [view, setView] = useState<SeedView>("panorama");
   const drawn = shown !== null && shown.ok ? shown : null;
   const pick = (e: MouseEvent): void => {
@@ -410,10 +421,28 @@ export function SeedPreview({
               head && <EntryMark at={head} grade={machine ? null : (entry?.grade ?? null)} />
             )}
           </svg>
-        ) : (
+        ) : shown === null && share !== null ? null : (
           <p class="seed-preview-word">
             {shown === null ? STRINGS.seedReading : STRINGS.seedRefused}
           </p>
+        )}
+        {/* HOW FAR THE MOUNTAIN ON THE ARROWS HAS GOT, while the worker
+            raises it — the generator's own word (`GenerateOptions.progress`),
+            over whatever chart is still standing. */}
+        {share !== null && (
+          <div class="seed-preview-raise">
+            <span class="seed-preview-raise-word">{STRINGS.seedReading}</span>
+            <div
+              class="seed-preview-bar"
+              role="progressbar"
+              aria-label={STRINGS.seedReading}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(share * 100)}
+            >
+              <div class="seed-preview-bar-fill" style={{ transform: `scaleX(${share})` }} />
+            </div>
+          </div>
         )}
         {drawn && (
           <button

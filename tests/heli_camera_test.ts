@@ -2,12 +2,12 @@
 // THE HELICOPTER'S LENSES (`camera-heli.ts`, `camera-crash.ts`) and THE
 // FIREBALL's numbers (`fireball.ts`): a change of rung flown round the
 // machine rather than cut or through it, the nose lens ahead of the
-// airframe, the crash's lens taking over from the lens on screen to the
-// figure and pulling back from it — and a fireball the size and life the
-// correlations give for the fuel it burns.
+// airframe, the crash's lens cutting to a lens planted back off the wreck
+// and holding on it — never after the skier — and a fireball the size and
+// life the correlations give for the fuel it burns.
 
 import { describe, expect, it } from "vitest";
-import { HELI, type HeliState } from "@engine";
+import { HELI, fireballAt, type HeliState } from "@engine";
 
 import {
   createHeliCam,
@@ -102,102 +102,81 @@ describe("the crash's lens", () => {
     fov: 60,
     roll: 0.1,
   };
-  const wreck = { x: 0, y: 2, z: 0 };
+  const wreck = { x: 0, y: 0, z: 0 };
+  const ball = fireballOf(BALL.fuel * BALL.share);
 
-  it("takes over from the lens on screen without a jump, and pulls back from it", () => {
-    const cam = startCrashCam(from, wreck);
-    const first = frameCrash(cam, wreck, null, 1 / 60, flat);
-    expect(gap(first.eye, from.eye)).toBeLessThan(0.6);
-    let lens = first;
-    for (let t = 0; t < CRASH_LOOK.pull + 1; t += 1 / 60) {
-      lens = frameCrash(cam, wreck, null, 1 / 60, flat);
-    }
-    expect(gap(lens.eye, wreck)).toBeGreaterThan(CRASH_LOOK.dist * 0.9);
-    // Settled looking at the crash, from over the snow.
-    expect(gap(lens.target, wreck)).toBeLessThan(CRASH_LOOK.overMost + 1);
-    expect(lens.eye.y).toBeGreaterThan(wreck.y);
-    expect(lens.roll).toBeCloseTo(0, 6);
-  });
-
-  it("draws further back the further the blast threw the skier", () => {
-    const near = startCrashCam(from, wreck);
-    const far = startCrashCam(from, wreck);
-    let a = frameCrash(near, wreck, { x: 5, y: 1, z: 0 }, 1 / 60, flat);
-    let b = frameCrash(far, wreck, { x: 45, y: 1, z: 0 }, 1 / 60, flat);
-    // Up to the close-in on him, which takes over from the pull-back.
-    for (let t = 0; t < CRASH_LOOK.zoomLate - 0.1; t += 1 / 60) {
-      a = frameCrash(near, wreck, { x: 5, y: 1, z: 0, vy: 9 }, 1 / 60, flat);
-      b = frameCrash(far, wreck, { x: 45, y: 1, z: 0, vy: 9 }, 1 / 60, flat);
-    }
-    expect(gap(b.eye, b.target)).toBeGreaterThan(gap(a.eye, a.target) + 10);
-  });
-
-  it("closes in on the skier near his apex and rides his path down", () => {
-    const cam = startCrashCam(from, wreck);
-    const dt = 1 / 60;
-    // Flung up at 12 m/s and out along +x at 14 m/s off the wreck.
-    const at = (t: number) => ({
-      x: 14 * t,
-      y: 2 + 12 * t - 4.9 * t * t,
-      z: 0,
-      vx: 14,
-      vy: 12 - 9.81 * t,
-      vz: 0,
-    });
-    const apex = 12 / 9.81;
-    let lens = from;
-    let wide = Infinity;
-    const fovs: number[] = [];
-    for (let t = dt; t <= 2.3; t += dt) {
-      lens = frameCrash(cam, wreck, at(t), dt, flat);
-      if (t < CRASH_LOOK.zoomFrom) expect(cam.zoomAt).toBeNull();
-      if (Math.abs(t - 0.5) < dt / 2) wide = gap(lens.eye, at(t));
-      if (Math.abs(t - apex) < dt / 2) {
-        // Begun before the apex, and nearer him at it.
-        expect(cam.zoomAt).not.toBeNull();
-        expect(cam.zoomAt!).toBeLessThan(apex);
-        expect(gap(lens.eye, at(t))).toBeLessThan(wide);
-      }
-      if (t > 1.6) fovs.push(lens.fov);
-    }
-    // A tracking shot: close behind him along his way, off to his side,
-    // looking ahead of him down it — carried with him, a little behind.
-    const end = at(2.3);
-    expect(lens.eye.x).toBeLessThan(end.x);
-    expect(end.x - lens.eye.x).toBeLessThan(CRASH_LOOK.back * 2.5);
-    expect(Math.abs(lens.eye.z)).toBeGreaterThan(CRASH_LOOK.side * 0.5);
-    expect(lens.target.x).toBeGreaterThan(end.x);
-    expect(gap(lens.eye, end)).toBeLessThan(15);
-    expect(lens.eye.y).toBeGreaterThan(flat());
-    // Wider and tilted the faster he falls.
-    expect(fovs[fovs.length - 1]).toBeGreaterThan(fovs[0]);
-    expect(fovs[fovs.length - 1]).toBeGreaterThan(CRASH_LOOK.fov);
-    expect(Math.abs(lens.roll)).toBeGreaterThan(0.05);
-  });
-
-  it("throws a lens at the impact itself back out of the fireball at once", () => {
-    const nose: LensPose = {
-      eye: { x: 0, y: 3, z: 1 },
-      target: { x: 0, y: -2, z: 31 },
-      fov: 74,
-      roll: 0,
-    };
-    const cam = startCrashCam(nose, wreck);
-    let lens = nose;
-    for (let t = 0; t < CRASH_LOOK.flinchFor; t += 1 / 60) {
-      lens = frameCrash(cam, wreck, null, 1 / 60, flat);
-    }
-    expect(gap(lens.eye, wreck)).toBeGreaterThan(CRASH_LOOK.flinch * 0.8);
-    // Back the way it was looking from.
+  it("cuts on the impact to a lens planted on the side it was on, the whole fire in frame", () => {
+    const cam = startCrashCam(from, wreck, flat);
+    const lens = frameCrash(cam, wreck, 1 / 60, flat);
+    // Back off the wreck far enough to hold the ball and the column.
+    const off = Math.hypot(lens.eye.x - wreck.x, lens.eye.z - wreck.z);
+    expect(off).toBeGreaterThan(ball.diameter * 1.2);
+    expect(off).toBeGreaterThanOrEqual(CRASH_LOOK.least - 1);
+    // On the side the lens on screen stood, low over the snow.
     expect(lens.eye.z).toBeLessThan(0);
+    expect(lens.eye.y).toBeGreaterThan(0);
+    expect(lens.eye.y).toBeLessThan(CRASH_LOOK.height + 1);
+    expect(lens.roll).toBe(0);
+    // Looking at the fire.
+    expect(Math.hypot(lens.target.x - wreck.x, lens.target.z - wreck.z)).toBeLessThan(2);
+  });
+
+  it("holds on the wreck whatever the skier does: a slow push, the look rising with the smoke", () => {
+    const cam = startCrashCam(from, wreck, flat);
+    const first = frameCrash(cam, wreck, 1 / 60, flat);
+    let lens = first;
+    for (let t = 0; t < 7; t += 1 / 60) lens = frameCrash(cam, wreck, 1 / 60, flat);
+    expect(gap(lens.eye, wreck)).toBeLessThan(gap(first.eye, wreck));
+    expect(gap(lens.eye, wreck)).toBeGreaterThan(CRASH_LOOK.nearest - 1);
+    expect(lens.target.y).toBeGreaterThan(first.target.y + 8);
+    expect(Math.hypot(lens.target.x - wreck.x, lens.target.z - wreck.z)).toBeLessThan(2);
+  });
+
+  it("is never inside the fireball", () => {
+    const cam = startCrashCam(from, wreck, flat);
+    for (let t = 0; t < 7; t += 1 / 60) {
+      const lens = frameCrash(cam, wreck, 1 / 60, flat);
+      const b = fireballAt(cam.t);
+      expect(gap(lens.eye, { x: wreck.x, y: wreck.y + b.height, z: wreck.z })).toBeGreaterThan(
+        b.radius + 4,
+      );
+    }
+  });
+
+  it("turns round off a trunk in the way, and rises over a rise of the snow", () => {
+    // Trees everywhere on the lens's own side (z < 0).
+    const woods = (eye: { x: number; z: number }) => eye.z < 0;
+    const cam = startCrashCam(from, wreck, flat, woods);
+    const lens = frameCrash(cam, wreck, 1 / 60, flat);
+    expect(lens.eye.z).toBeGreaterThan(0);
+    // A ridge between the side it was on and the wreck.
+    const ridge = (x: number, z: number) => (Math.abs(z + 20) < 6 ? 12 : 0) + x * 0;
+    const over = startCrashCam(from, wreck, ridge, () => false);
+    expect(over.lift + over.bearing * 0).toBeGreaterThanOrEqual(CRASH_LOOK.height);
+    const l2 = frameCrash(over, wreck, 1 / 60, ridge);
+    // It sees: the snow nowhere over the line to the fire.
+    for (let k = 0.05; k < 0.95; k += 0.05) {
+      const x = l2.eye.x + (wreck.x - l2.eye.x) * k;
+      const z = l2.eye.z + (wreck.z - l2.eye.z) * k;
+      const y = l2.eye.y + (wreck.y + CRASH_LOOK.lookLow - l2.eye.y) * k;
+      expect(y).toBeGreaterThan(ridge(x, z));
+    }
+  });
+
+  it("is thrown about by the shock as it arrives, then settles", () => {
+    const cam = startCrashCam(from, wreck, flat);
+    const still = { ...cam };
+    const a = frameCrash(cam, wreck, cam.shock + 0.05, flat);
+    const b = frameCrash({ ...still }, wreck, cam.shock - 0.01, flat);
+    expect(a.fov).toBeGreaterThan(b.fov);
   });
 
   it("never stands under the snow", () => {
     const hill = (x: number) => 60 + x * 0.5;
-    const cam = startCrashCam(from, wreck);
+    const cam = startCrashCam(from, wreck, hill);
     for (let t = 0; t < 5; t += 1 / 60) {
-      const lens = frameCrash(cam, wreck, null, 1 / 60, hill);
-      if (t > 0.5) expect(lens.eye.y).toBeGreaterThan(hill(lens.eye.x));
+      const lens = frameCrash(cam, wreck, 1 / 60, hill);
+      expect(lens.eye.y).toBeGreaterThan(hill(lens.eye.x));
     }
   });
 });

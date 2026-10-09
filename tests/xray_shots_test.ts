@@ -55,6 +55,7 @@ const femur: Forecast = {
   fatal: true,
   mangled: false,
   cause: null,
+  wrecked: false,
 };
 
 describe("the X-ray director", () => {
@@ -209,6 +210,7 @@ describe("the X-ray director", () => {
         fatal: true,
         mangled: false,
         cause: null,
+        wrecked: false,
       },
       as(s),
     );
@@ -225,6 +227,22 @@ describe("the shred cam (a body taken apart by a machine)", () => {
     mangled: true,
     cause: "rotor",
   };
+
+  it("leaves the helicopter coming down with him on it to the crash's own lens", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    s.skier.thrown = {};
+    d.step(as(s));
+    d.seen({ ...femur, gore: true, cause: "blast", wrecked: true }, as(s));
+    expect(run(d, s, 0.5).active).toBe(false);
+    // Nor off the run itself, once the wreck is down and he is dying of it.
+    (s as unknown as { heli: unknown }).heli = { wreck: { aboard: true } };
+    s.gore = { dead: -1, mortal: 0, cause: "blast" } as Fake["gore"];
+    s.events.push({ kind: "gore", t: s.t, what: "torn", piece: "armL", x: 0, y: 0, z: 0 });
+    d.step(as(s));
+    s.events = [];
+    expect(d.frame(as(s), WALL).active).toBe(false);
+  });
 
   it("is shot from outside, slower, the skin never glass", () => {
     const d = createXrayDirector();

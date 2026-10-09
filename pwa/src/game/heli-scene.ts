@@ -93,6 +93,18 @@ function treeBetween(level: Level, eye: Vec3, at: Vec3): boolean {
   return false;
 }
 
+/** WHETHER THE CRASH'S LENS WOULD BE WOODED IN at `eye`: a trunk between
+ * it and the fire, or a tree near enough the eye to fill the frame. */
+function wooded(level: Level, eye: Vec3, at: Vec3): boolean {
+  if (treeBetween(level, eye, at)) return true;
+  for (let t = 0; t < 0.35; t += 0.05) {
+    const px = eye.x + (at.x - eye.x) * t;
+    const pz = eye.z + (at.z - eye.z) * t;
+    if (treesNear(level, px, pz, 4 + 22 * t, trunks).length > 0) return true;
+  }
+  return false;
+}
+
 /** How long the drop's lens is held after the push, s, and how long its
  * look takes to come round onto him; how long the lens takes to fly onto
  * the helicopter as he sits on the skid, and back to the ladder after the
@@ -201,7 +213,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
         }
         crash =
           h.wreck.aboard && shown && rung !== "orbit"
-            ? startCrashCam(shown, { x, y: y + 2, z })
+            ? startCrashCam(shown, { x, y, z }, groundAt, (e, a) => wooded(state.level, e, a))
             : null;
       }
       if (!wreck && wasWreck) {
@@ -217,19 +229,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       const step = Math.min(dt, 0.1);
       if (wreck && crash && h.wreck && rung !== "orbit") {
         const w = h.wreck;
-        const c = state.skier;
-        const t = c.thrown;
-        const rider = t
-          ? { x: t.x, y: t.y, z: t.z, vy: t.vy }
-          : { x: c.x, y: c.y, z: c.z, vy: c.vy };
-        own = frameCrash(
-          crash,
-          { x: w.x, y: w.y, z: w.z },
-          w.aboard ? rider : null,
-          step,
-          groundAt,
-          (e, a) => treeBetween(state.level, e, a),
-        );
+        own = frameCrash(crash, { x: w.x, y: w.y, z: w.z }, step, groundAt);
         cut = true;
         return;
       }

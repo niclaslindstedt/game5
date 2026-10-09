@@ -41,6 +41,7 @@ import * as THREE from "three";
 import { createRng, type Level, type Wind } from "@engine";
 
 import { LAMP_GLSL, LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
+import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import type { SkyLook } from "./sky.ts";
 import {
   BOX,
@@ -154,6 +155,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       uPisteBox: haze.uPisteBox,
       uPisteOn: haze.uPisteOn,
       uPisteCol: haze.uPisteCol,
+      ...SHELTER,
     },
     vertexShader: /* glsl */ `
       attribute vec4 aSeed;
@@ -173,12 +175,13 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       varying float vLen;
       varying float vRad;
       ${FLAKE_AT}
+      ${SHELTER_GLSL}
       void main() {
         vec3 head = flakeAt(aSeed);
         mat4 vp = projectionMatrix * viewMatrix;
         vec4 ch = vp * vec4(head, 1.0);
-        if (ch.w < 0.05) {
-          // Behind the lens: nothing to draw.
+        // Behind the lens, or inside the cabin it is in: nothing to draw.
+        if (ch.w < 0.05 || sheltered(head)) {
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           vAlpha = 0.0;
           return;
@@ -264,12 +267,18 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
   driftGeo.setAttribute("position", gPosAttr);
   driftGeo.setAttribute("aAlpha", gAlphaAttr);
   const driftMat = new THREE.ShaderMaterial({
-    uniforms: { uScale: own.uScale, uLit: own.uLit },
+    uniforms: { uScale: own.uScale, uLit: own.uLit, ...SHELTER },
     vertexShader: /* glsl */ `
       attribute float aAlpha;
       uniform float uScale;
       varying float vAlpha;
+      ${SHELTER_GLSL}
       void main() {
+        if (sheltered((modelMatrix * vec4(position, 1.0)).xyz)) {
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          vAlpha = 0.0;
+          return;
+        }
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float px = 0.22 * uScale / max(-mv.z, 0.1);
         gl_PointSize = clamp(px, 1.0, 64.0);

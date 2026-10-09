@@ -629,7 +629,6 @@ export function createWorldRenderer(
       if (pack) pack.fresh = state.fresh;
       const stepped = lastTick < 0 ? 0 : Math.max(0, state.tick - lastTick);
       const simDt = Math.min(stepped * TUNING.dt, 0.25);
-
       stamps.length = 0;
       for (let i = 0; i < runs.length; i++) {
         const run = runs[i];
@@ -687,7 +686,6 @@ export function createWorldRenderer(
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);
-
       const player = riders[0];
       const skier = state.skier;
       const d = player.drawn;
@@ -709,6 +707,7 @@ export function createWorldRenderer(
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
+      lens.bail(!!state.heli?.rider, skier.airborne, skier.thrown !== null, Math.min(dt, 0.1));
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
@@ -929,7 +928,7 @@ export function createWorldRenderer(
     setCamera(rung: CameraRung, cut: boolean = false) {
       lens.set(rung, cut);
     },
-    camera: () => lens.rung(),
+    camera: () => lens.chosen(),
     pickRay: (x, y) => lensRay(lens.camera, x, y),
     resize(width, height, pixelRatio) {
       box = { width, height, pixelRatio };

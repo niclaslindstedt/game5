@@ -187,9 +187,21 @@ the ride is built to:
   at a reel's rates — paid out as a rider's weight comes on, reeled in
   after he lets go — so a bar is never cut from long to short; one coming
   round to a waiting rider is pulled down to him before it takes him.
-- **The gondola.** The step-in is slower (`gondola.stepIn`), and at the
-  top he walks out of the door for `gondola.out` s with the picture
-  coming back in on him on the platform.
+- **The gondola.** He WALKS ABOARD with his skis (`lift-skis.ts`): he
+  stops short of the foot station's door, steps out of his bindings and
+  shoulders the pair as he does in town (`town.ts`), walks in through
+  the door and the hall to the platform in his boots, and when his cabin
+  comes alongside turns to it, takes the pair off his shoulder and stands
+  it in the rack on its back door leaf (`gondola.rack` s), then steps in
+  on foot (`gondola.stepIn`). The pair rides in the rack, placed where
+  the leaf has it every step as the doors shut and the cabin swings. At
+  the top he takes it back onto his shoulder behind the fade, walks out
+  of the door onto the pad for `gondola.out` s, and once the lift lets
+  him go lays it down and clicks back in. Nothing of him, and no ski,
+  passes through a station's wall or his cabin's while the picture shows
+  him. His own cabin is the clock's cabin lofted band for band
+  (`own-cabin.ts`), opened on its right flank for the door, its glass
+  clear and its inside lined, floored and benched.
 
 ### The labs
 
@@ -202,4 +214,9 @@ the snow and how long the picture is dark, with how long each part
 (the wait, the sit, the stand, the walk out) lasts. Keep a `--json=FILE`
 before and a `--compare=FILE` after. `make lift-board` photographs the
 same six moments as filmstrips through the game's renderer, from
-several lenses (`previews/lift-strip-<stage>-<seed>.png`).
+several lenses (`previews/lift-strip-<stage>-<seed>.png`). `make
+lift-path` is pure Node too: it traces a gondola's rider in plan through
+both stations from every approach — the houses, the furniture, the rail,
+his cabin's box and his skis every quarter second — and counts the
+seconds any of him shows through a station's wall or his cabin's
+(`previews/lift-path.png`; `--json` before, `--compare` after).

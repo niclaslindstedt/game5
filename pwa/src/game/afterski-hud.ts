@@ -21,7 +21,9 @@ const CALL = 45;
 
 export function afterskiOf(state: GameState): HudAfterski | null {
   const c = state.skier;
-  if (c.town) return { kind: "town", walking: c.town.phase === "walk" };
+  // In town on foot — but not walked aboard a gondola, where the lift has
+  // him (`lift-skis.ts`).
+  if (c.town && !c.lift) return { kind: "town", walking: c.town.phase === "walk" };
   const a = state.afterski;
   if (!a) return null;
   if (c.fetch) return { kind: "fetch", left: c.fetch.carried.filter((k) => !k).length };

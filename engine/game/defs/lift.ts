@@ -51,21 +51,28 @@
  * and turned less than that he SKATES ROUND to it, a stride's step turned
  * in each push, at `arc` rad/s.
  *
- * A GONDOLA BOARDED (`gondola`): through the door at the back of the hall
- * he comes out onto the platform beside the bullwheel, `platform` m out
- * from the side of his cabin's way, `load` m up the line from the wheel
- * on its up side, and waits there on his skis. His cabin comes round the
+ * A GONDOLA BOARDED (`gondola`): skated up the lane, he stops `walkIn` m
+ * short of the door at the back of the hall, steps out of his skis and
+ * shoulders them (`town.ts`'s beats), and walks the rest on foot — the
+ * picture black `inset` m short of the wall, before the pair's tips are at
+ * its glass. Through the hall he comes out onto the platform beside the
+ * bullwheel, `platform` m out from the side of his cabin's way, `load` m up
+ * the line from the wheel on its up side, and waits there in his boots,
+ * the pair on his shoulder. His cabin comes round the
  * wheel to him on the station's rail from `from` m back along it,
  * slowing at `come` m/s² to the station's crawl of `creep` m/s — detached
  * from the rope, the doors sliding open — and as it comes alongside he
- * racks his skis on its door and steps in, turned to sit on the bench
+ * turns to it and stands the pair in the rack on its back door leaf over
+ * `rack` s, then steps in through the door, turned to sit on the bench
  * along its back wall, over `stepIn` s, while it creeps on; its doors
  * shut over `shut` s and it is taken back onto the rope and away. Through
  * the station its grip runs on a RAIL, `rail` m over the wheel's foot (the
  * cabin's floor at the platform's), and climbs to the rope over `climb` m
- * once out of it. At the top he is let out of its door and walks on out
- * onto the pad under the lift's hand for `out` s — the picture coming back
- * in on him there, the station's hall a cut behind its fade.
+ * once out of it. At the top he is let out of its door, the pair off the
+ * rack and on his shoulder, and walks on out onto the pad under the lift's
+ * hand for `out` s — the picture coming back in on him there, the
+ * station's hall a cut behind its fade — where he lays the pair down and
+ * steps back into it.
  *
  * A CHAIR'S BOTTOM TERMINAL (`chair`, `lift-line.ts`'s `gripAt`): its grip
  * runs on the station's rail `rail` m over the bottom wheel's foot — the
@@ -101,6 +108,9 @@ export const LIFT = {
     from: 2,
     come: 0.55,
     creep: 0.3,
+    walkIn: 4.5,
+    inset: 1.1,
+    rack: 2,
     stepIn: 2.4,
     shut: 1.2,
     out: 1.25,

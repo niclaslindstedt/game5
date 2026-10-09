@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import {
   HELI,
+  HELI_GRIP,
   NEUTRAL_INPUT,
   HELI_SEAT as SEAT,
   heliPoint,
@@ -58,7 +59,7 @@ describe("the skier's hold on the skid", () => {
     expect(gripLoad(fromEuler(0, 0, 0))).toBe(0);
     expect(gripLoad(fromEuler(0, 0, Math.PI))).toBeCloseTo(1, 5);
     // A bank the seat's friction carries most of.
-    expect(gripLoad(fromEuler(0, 0, 0.5))).toBeLessThan(HELI.grip.hold);
+    expect(gripLoad(fromEuler(0, 0, 0.5))).toBeLessThan(HELI_GRIP.hold);
   });
 
   it("holds on through hard flying, and never lets go on the pad", () => {
@@ -146,7 +147,7 @@ describe("hung off his hands", () => {
     const grip = heliPoint(h, SEAT);
     const toGrip = { x: grip.x - c.x, y: grip.y - c.y, z: grip.z - c.z };
     const n = Math.hypot(toGrip.x, toGrip.y, toGrip.z);
-    expect(n).toBeCloseTo(HELI.grip.hang.reach, 2);
+    expect(n).toBeCloseTo(HELI_GRIP.hang.reach, 2);
     expect((up.x * toGrip.x + up.y * toGrip.y + up.z * toGrip.z) / n).toBeGreaterThan(0.99);
   });
 });

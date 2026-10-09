@@ -43,7 +43,7 @@ import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { GORE, INSTANT } from "./defs/gore.ts";
 import { GROOMER } from "./defs/groomer.ts";
-import { HELI } from "./defs/heli.ts";
+import { HELI_BLADES } from "./defs/heli-grip.ts";
 import { bladeAt } from "./heli-grip.ts";
 import { heliQuat } from "./heli-rotor.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -378,7 +378,7 @@ function rotor(state: GameState, g: GoreState, events: GameEvent[]): void {
   const h = state.heli;
   const b = state.skier.thrown;
   if (!h?.cut || !b) return;
-  const M = HELI.blades;
+  const M = HELI_BLADES;
   const down = rotate(heliQuat(h), { x: 0, y: -M.wash, z: 0 });
   for (let i = 0; i < R.count; i++) {
     if (!(h.cut & (1 << i))) continue;

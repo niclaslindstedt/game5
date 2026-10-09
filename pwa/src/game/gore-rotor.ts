@@ -6,7 +6,7 @@
 
 import * as THREE from "three";
 
-import { HELI, RAGDOLL, bladeAt, type GameState } from "@engine";
+import { HELI_BLADES, RAGDOLL, bladeAt, type GameState } from "@engine";
 
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
@@ -16,7 +16,7 @@ import type { Blood } from "./gore-blood.ts";
  * along the blade and a slower, wider half as many. */
 const MIST = 70;
 
-const B = HELI.blades;
+const B = HELI_BLADES;
 const edge = { x: 0, y: 0, z: 0 };
 const at = new THREE.Vector3();
 const way = new THREE.Vector3();

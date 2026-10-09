@@ -53,6 +53,7 @@ import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { helipadOf } from "./heli-pad.ts";
 import { carryFall, fallsIntoRotor, hangFrame, stepGrip } from "./heli-grip.ts";
+import { HELI_BLADES } from "./defs/heli-grip.ts";
 import { pilotControls } from "./heli-pilot.ts";
 import { SEAT, discQuat, heliMass, heliPoint, heliQuat, thrustMost } from "./heli-rotor.ts";
 import { mendBody } from "./body.ts";
@@ -194,7 +195,7 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   if (h.shed >= 0) {
     const b = run.skier.thrown;
     h.shed += dt;
-    if (!b || h.shed > K.blades.carry || h.wreck) h.shed = -1;
+    if (!b || h.shed > HELI_BLADES.carry || h.wreck) h.shed = -1;
     else carryFall(b, (h.vx - vx0) / dt, (h.vy - vy0) / dt, (h.vz - vz0) / dt);
   }
   h.rotor = (h.rotor + OMEGA * h.spool * dt) % (2 * Math.PI);

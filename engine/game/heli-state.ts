@@ -104,7 +104,7 @@ export type HeliState = {
   hung: number;
   sway: { x: number; y: number; z: number; vx: number; vy: number; vz: number };
   /** Seconds since his grip went, while his fall is taken in the machine's
-   * frame toward its rotor (`HELI.blades.carry`); −1 otherwise. */
+   * frame toward its rotor (`HELI_BLADES.carry`); −1 otherwise. */
   shed: number;
   /** THE BLADES THROUGH HIM this step: a bit a point of his body in
    * `RAGDOLL` order, and the fastest blade's speed among them, m/s — what

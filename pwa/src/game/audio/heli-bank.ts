@@ -214,14 +214,14 @@ export const HELI_BANK: SoundBank = {
       {
         call: "noise",
         durationMs: 22,
-        volume: 0.12,
+        volume: 0.08,
         color: "white",
         filter: { type: "highpass", frequency: 1500 },
       },
       {
         call: "noise",
         durationMs: 140,
-        volume: 0.09,
+        volume: 0.08,
         color: "pink",
         attackMs: 2,
         filter: { type: "bandpass", frequency: 1600, to: 420, q: 1.2 },

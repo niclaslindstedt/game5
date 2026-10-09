@@ -63,6 +63,9 @@ function crashedAt(roll: number, pitch: number) {
     h.roll = roll;
     h.pitch = pitch;
     h.rollRate = h.pitchRate = 0;
+    // Held over that far he would lose his grip on the way down
+    // (`heli-grip.ts`); these measure the wreck, so his hold is kept fresh.
+    h.grip = 1;
     step(s, hands(0.1));
   }
   expect(s.heli!.mode).toBe("wreck");

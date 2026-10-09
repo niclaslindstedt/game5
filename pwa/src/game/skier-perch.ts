@@ -69,7 +69,7 @@ export const REACT = {
    * m: out from his middle, over the tube, and fore-aft off his hips. */
   tube: { x: 0.3, y: 0.03, z: 0.0 },
   /** HUNG: his hands over his head on the tube (the engine's
-   * `HELI.grip.hang.reach` over his middle), m apart; the shoulders hauled
+   * `HELI_GRIP.hang.reach` over his middle), m apart; the shoulders hauled
    * up, m; the trunk's lean, rad; the knees bent forward, m off the
    * straight line; and the poles flung out off their straps. */
   hang: { reach: 1.1, grip: 0.42, shrug: 0.07, lean: 0.06, knee: 0.08, poleOut: 0.45 },

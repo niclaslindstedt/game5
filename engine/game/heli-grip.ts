@@ -2,9 +2,9 @@
 // THE SKIER'S HOLD ON THE SKID, AND THE ROTOR OVER HIM (`heli.ts`). Sat on
 // the right skid's tube with his back to the cabin, nothing straps him in:
 // the seat and the cabin's side carry what presses him into them and his
-// HANDS the rest (`HELI.grip`). Rolled or looped past what they hold, the
+// HANDS the rest (`HELI_GRIP`). Rolled or looped past what they hold, the
 // hold drains and he lets go — and a machine turned over him has its rotor
-// under him: his fall is taken in its own frame (`HELI.blades.carry`) so it
+// under him: his fall is taken in its own frame (`HELI_BLADES.carry`) so it
 // runs down through the disc, and every point of his body a blade passes
 // through is struck there — kicked along the blade's way and, on a run that
 // carries its wounds, torn off (`gore.ts`'s `rotor`).
@@ -21,13 +21,14 @@ import {
   type Vec3,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { HELI } from "./defs/heli.ts";
+import { HELI_BLADES, HELI_GRIP } from "./defs/heli-grip.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { SEAT, heliPoint, heliQuat } from "./heli-rotor.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import type { GameEvent, GameState, HeliState, Thrown } from "./state.ts";
 
-const G = HELI.grip;
-const B = HELI.blades;
+const G = HELI_GRIP;
+const B = HELI_BLADES;
 const R = HELI.rotor.radius;
 /** The rotor's turn a second at full rpm, rad/s. */
 const OMEGA = (HELI.rotor.rpm / 60) * 2 * Math.PI;
@@ -63,7 +64,7 @@ export function stepGrip(h: HeliState, q: Quat): boolean {
 }
 
 /** The fuselage's side and floor off the tube he hangs from, m, his body's
- * half thickness kept off them (`HELI.grip.hang.clear`). */
+ * half thickness kept off them (`HELI_GRIP.hang.clear`). */
 const CABIN_SIDE = Math.abs(SEAT.x) - HELI.body.width / 2 - G.hang.clear;
 const CABIN_FLOOR = HELI.body.floor - SEAT.y - G.hang.clear;
 
@@ -76,7 +77,7 @@ const smooth = (a: number, b: number, x: number): number => {
  * orientation. */
 type Frame = { x: number; y: number; z: number; q: Quat };
 
-/** HUNG FROM HIS HANDS (`HELI.grip.hang`): the seat's frame `s` carried
+/** HUNG FROM HIS HANDS (`HELI_GRIP.hang`): the seat's frame `s` carried
  * over to his body swung under his grip on the tube by `HeliState.hung`,
  * which this steps (once a step, off `HeliState.load`) — and the
  * pendulum with it. Sat, `s` itself. */

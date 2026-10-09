@@ -334,13 +334,63 @@ type Piece = {
   slot: number;
 };
 
-/** A piece's corners and triangles, flat-shaded, with the attributes the
- * fracture is drawn by: each triangle's centre, where along the bone's
- * long axis it lies (0 … 1), round it, and its shard's number. */
+/** Each triangle corner's normal: the area-weighted mean of the faces round
+ * its corner that lie within `crease` of its own face, so a rib or a lung
+ * reads round and a bone's sharp edge (a crest, a joint's rim) stays sharp. */
+function smoothNormals(v: Float32Array, idx: Uint16Array, crease: number): Float32Array {
+  const nt = idx.length / 3;
+  const face = new Float32Array(nt * 3);
+  const round: number[][] = Array.from({ length: v.length / 3 }, () => []);
+  for (let t = 0; t < nt; t++) {
+    const a = idx[t * 3] * 3;
+    const b = idx[t * 3 + 1] * 3;
+    const c = idx[t * 3 + 2] * 3;
+    const ux = v[b] - v[a];
+    const uy = v[b + 1] - v[a + 1];
+    const uz = v[b + 2] - v[a + 2];
+    const wx = v[c] - v[a];
+    const wy = v[c + 1] - v[a + 1];
+    const wz = v[c + 2] - v[a + 2];
+    // Twice the area along the normal: the weight comes with it.
+    face[t * 3] = uy * wz - uz * wy;
+    face[t * 3 + 1] = uz * wx - ux * wz;
+    face[t * 3 + 2] = ux * wy - uy * wx;
+    for (let k = 0; k < 3; k++) round[idx[t * 3 + k]].push(t);
+  }
+  const cos = Math.cos(crease);
+  const unitOf = (t: number): [number, number, number] => {
+    const l = Math.hypot(face[t * 3], face[t * 3 + 1], face[t * 3 + 2]) || 1;
+    return [face[t * 3] / l, face[t * 3 + 1] / l, face[t * 3 + 2] / l];
+  };
+  const out = new Float32Array(nt * 9);
+  for (let t = 0; t < nt; t++) {
+    const own = unitOf(t);
+    for (let k = 0; k < 3; k++) {
+      let x = 0;
+      let y = 0;
+      let z = 0;
+      for (const q of round[idx[t * 3 + k]]) {
+        const u = unitOf(q);
+        if (u[0] * own[0] + u[1] * own[1] + u[2] * own[2] < cos) continue;
+        x += face[q * 3];
+        y += face[q * 3 + 1];
+        z += face[q * 3 + 2];
+      }
+      const l = Math.hypot(x, y, z) || 1;
+      out.set([x / l, y / l, z / l], t * 9 + k * 3);
+    }
+  }
+  return out;
+}
+
+/** A piece's corners and triangles, smooth-shaded inside a crease, with the
+ * attributes the fracture is drawn by: the middle of its shard, where along
+ * the bone's long axis it lies (0 … 1), round it, and its shard's number. */
 function pieceGeometry(
   pos: Int16Array,
   idx: Uint16Array,
   unit: number,
+  crease: number,
 ): {
   geo: THREE.BufferGeometry;
   axis: THREE.Vector3;
@@ -416,13 +466,29 @@ function pieceGeometry(
       cell[t * 3 + k] = id;
     }
   }
+  // A shard is its CELL turned whole about the cell's middle, never each
+  // triangle about its own — at a few thousand triangles a bone that would
+  // throw confetti rather than pieces of bone.
+  const sums = new Map<number, [number, number, number, number]>();
+  for (let t = 0; t < nt; t++) {
+    const q = sums.get(cell[t * 3]) ?? [0, 0, 0, 0];
+    q[0] += centre[t * 9];
+    q[1] += centre[t * 9 + 1];
+    q[2] += centre[t * 9 + 2];
+    q[3]++;
+    sums.set(cell[t * 3], q);
+  }
+  for (let t = 0; t < nt; t++) {
+    const q = sums.get(cell[t * 3])!;
+    for (let k = 0; k < 3; k++) centre.set([q[0] / q[3], q[1] / q[3], q[2] / q[3]], t * 9 + k * 3);
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(position, 3));
   geo.setAttribute("aCentre", new THREE.BufferAttribute(centre, 3));
   geo.setAttribute("aAlong", new THREE.BufferAttribute(along, 1));
   geo.setAttribute("aAround", new THREE.BufferAttribute(around, 1));
   geo.setAttribute("aCell", new THREE.BufferAttribute(cell, 1));
-  geo.computeVertexNormals();
+  geo.setAttribute("normal", new THREE.BufferAttribute(smoothNormals(v, idx, crease), 3));
   geo.computeBoundingSphere();
   return { geo, axis, perp, centre: m, lo, span };
 }
@@ -510,7 +576,8 @@ export function createXrayView(): XrayView {
       ) => {
         const pos = new Int16Array(decode(p.pos).buffer);
         const idx = new Uint16Array(decode(p.idx).buffer);
-        const g = pieceGeometry(pos, idx, m.XRAY_UNIT);
+        // An organ is soft all over; a bone keeps its crests.
+        const g = pieceGeometry(pos, idx, m.XRAY_UNIT, organ ? 1.4 : 0.85);
         geos.push(g.geo);
         const slot = organ ? ORGANS.indexOf(p.name as Organ) : BONES.indexOf(p.name as Bone);
         const kind = p.name.replace(/[LR]$/, "");

@@ -47,11 +47,13 @@ export const HELI_GRIP = {
   },
 };
 
-/** INTO THE ROTOR (`heli-grip.ts`): a skier let go of the skid falls in
- * the MACHINE'S OWN FRAME — gravity alone, as though the airframe stood
- * still under him — for `carry` s at most, while his fall runs through
- * the disc (an arcade rule, so a machine turned over over him is what he
- * falls into rather than what the rotor's pull hauls away from him). A
+/** INTO THE ROTOR (`heli-grip.ts`): a skier let go of the skid over the
+ * disc falls by gravity alone — never faster — and for `carry` s at most,
+ * while his fall runs through the disc, the machine is flown with its
+ * collective dumped and its cyclic centred (an inverted rotor under thrust
+ * drives the airframe down faster than he falls, away from him) and he is
+ * carried along with its level way, so the disc it slows onto under the
+ * air's drag is what he falls into. A
  * point of his body crossing the disc between `mast` m and its radius of
  * the mast with the rotor over `spool` of its rpm is struck by a blade:
  * the blade's speed there (Ω·r: some 45 m/s a metre out, 220 at the
@@ -59,7 +61,7 @@ export const HELI_GRIP = {
  * m/s) and the body it leaves `kick`, along the blade's way, and the
  * downwash's `wash` m/s down through the disc. */
 export const HELI_BLADES = {
-  carry: 1.6,
+  carry: 3,
   mast: 0.3,
   spool: 0.4,
   fling: 0.3,

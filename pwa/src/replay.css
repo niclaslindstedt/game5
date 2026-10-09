@@ -1,0 +1,420 @@
+/* THE REPLAY (hud-replay.tsx, hud-replay-offer.tsx): the transport over a
+   recording being watched, and the offer after a crash.
+
+   THE BAR IS A VIDEO PLAYER'S, cut from the HUD's own glass: bottom centre,
+   where the thumbs would be on a run somebody is riding, the scrubber the
+   width of the card and the transport under it. While it plays untouched it
+   steps down out of the picture and leaves a hairline of progress along the
+   bottom edge. */
+
+.hud-replay-layer {
+  z-index: 2;
+}
+
+.hud-replay {
+  position: absolute;
+  left: 50%;
+  bottom: max(0.8rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(40rem, calc(100% - 1.6rem));
+  box-sizing: border-box;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.65rem 0.9rem 0.6rem;
+  backdrop-filter: blur(6px);
+  transition:
+    transform 380ms cubic-bezier(0.3, 0.7, 0.2, 1),
+    opacity 380ms ease;
+}
+
+.hud-replay-layer.is-idle .hud-replay {
+  transform: translate(-50%, calc(100% + 1.2rem));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* THE HAIRLINE: the progress, along the very bottom of the screen, that
+   stays when the bar steps out. */
+.hud-replay-hairline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--flag);
+  transform-origin: left center;
+  opacity: 0;
+  transition: opacity 380ms ease;
+}
+
+.hud-replay-layer.is-idle .hud-replay-hairline {
+  opacity: 0.9;
+}
+
+/* THE HEAD: what is being watched, on one line — the word and its state
+   on the left, the run's billing after it. */
+.hud-replay-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+  min-width: 0;
+}
+
+.hud-replay-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: clamp(0.66rem, 1.8vmin, 0.82rem);
+  font-weight: 700;
+  letter-spacing: 0.28em;
+}
+
+/* The broadcast's own red dot, beating slowly: this is a recording. */
+.hud-replay-dot {
+  width: 0.62em;
+  height: 0.62em;
+  border-radius: 50%;
+  background: var(--flag);
+  box-shadow: 0 0 6px rgb(224 51 43 / 70%);
+  animation: hud-replay-beat 1.6s ease-in-out infinite;
+}
+
+@keyframes hud-replay-beat {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.hud-replay-tag {
+  padding: 0.05em 0.45em;
+  border-radius: 0.25rem;
+  background: rgb(255 255 255 / 88%);
+  color: rgb(var(--hud-plate));
+  font-size: clamp(0.6rem, 1.6vmin, 0.75rem);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.hud-replay-title {
+  margin-left: auto;
+  min-width: 0;
+  font-size: clamp(0.72rem, 2vmin, 0.92rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-replay-line {
+  font-weight: 400;
+  color: var(--hud-info);
+}
+
+/* THE SCRUBBER: the time either side of a track the full width of the
+   card. The track's box is taller than its rail, so a thumb finds it. */
+.hud-replay-scrub {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hud-replay-time {
+  flex: none;
+  min-width: 3.4em;
+  font-size: clamp(0.7rem, 1.9vmin, 0.88rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.hud-replay-time.is-end {
+  text-align: right;
+  color: var(--hud-info);
+}
+
+.hud-replay-track {
+  position: relative;
+  flex: 1;
+  height: 1.6rem;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.hud-replay-rail,
+.hud-replay-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0.3rem;
+  margin-top: -0.15rem;
+  border-radius: 0.2rem;
+}
+
+.hud-replay-rail {
+  background: rgb(255 255 255 / 22%);
+}
+
+/* The gauge is a TRANSFORM, so the fill never lays the page out again. */
+.hud-replay-fill {
+  background: var(--flag);
+  transform-origin: left center;
+}
+
+.hud-replay-track:hover .hud-replay-rail,
+.hud-replay-track.is-dragging .hud-replay-rail {
+  background: rgb(255 255 255 / 32%);
+}
+
+/* THE MARKS: what the run wrote down as worth a camera, each a short
+   upright stroke through the rail in its own colour. */
+.hud-replay-mark {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 0.85rem;
+  margin: -0.425rem 0 0 -1.5px;
+  border-radius: 2px;
+  background: var(--hud-info);
+  pointer-events: none;
+}
+
+.hud-replay-mark.is-air {
+  background: var(--ice);
+}
+
+.hud-replay-mark.is-pass {
+  background: var(--hud-ahead);
+}
+
+.hud-replay-mark.is-bump,
+.hud-replay-mark.is-hit {
+  background: var(--alpenglow);
+}
+
+.hud-replay-mark.is-wipeout {
+  background: var(--hud-bad);
+}
+
+.hud-replay-mark.is-finish {
+  width: 5px;
+  margin-left: -2.5px;
+  background: repeating-linear-gradient(#fff 0 3px, #111 3px 6px);
+}
+
+/* The crash the recording was opened on: a diamond over the rail. */
+.hud-replay-mark.is-moment {
+  width: 0.62rem;
+  height: 0.62rem;
+  margin: -0.31rem 0 0 -0.31rem;
+  border-radius: 1px;
+  background: var(--hud-bad);
+  box-shadow: 0 0 0 2px rgb(var(--hud-plate) / 80%);
+  transform: rotate(45deg);
+}
+
+/* THE PLAYHEAD: a white disc riding the end of the fill. */
+.hud-replay-head-knob {
+  position: absolute;
+  top: 50%;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: -0.475rem 0 0 -0.475rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 2px rgb(var(--hud-plate) / 85%),
+    0 1px 4px rgb(0 0 0 / 50%);
+  pointer-events: none;
+  transition: transform 120ms ease;
+}
+
+.hud-replay-track:hover .hud-replay-head-knob,
+.hud-replay-track.is-dragging .hud-replay-head-knob {
+  transform: scale(1.25);
+}
+
+/* THE TRANSPORT and THE WAYS: the player's keys on the left, the camera
+   and the way back on the right; on a narrow screen the two rows stack. */
+.hud-replay-acts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hud-replay-transport,
+.hud-replay-ways {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hud-replay-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.hud-replay-key.is-main {
+  width: 2.8rem;
+  height: 2.8rem;
+  background: var(--hud-ink);
+  color: rgb(var(--hud-plate));
+  border-color: var(--hud-ink);
+}
+
+.hud-replay-icon {
+  width: 52%;
+  height: 52%;
+  fill: currentColor;
+}
+
+.hud-replay-key.is-main .hud-replay-icon {
+  width: 46%;
+  height: 46%;
+}
+
+.hud-replay-speed {
+  min-width: 3rem;
+  height: 2.3rem;
+  padding: 0 0.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-replay-act {
+  height: 2.3rem;
+  padding: 0 0.9rem;
+  font-size: clamp(0.7rem, 2vmin, 0.9rem);
+  font-weight: 700;
+}
+
+.hud-replay-act.is-back {
+  background: var(--flag);
+  border-color: var(--flag);
+}
+
+.hud-replay-key:hover,
+.hud-replay-speed:hover,
+.hud-replay-act:hover,
+.hud-replay button:focus-visible {
+  outline: none;
+  border-color: var(--hud-ink);
+  filter: brightness(1.12);
+}
+
+.hud-replay-note {
+  align-self: center;
+  font-size: clamp(0.6rem, 1.6vmin, 0.78rem);
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+/* A PHONE ON ITS SIDE: the bar kept between the speed in the corner and
+   the news on the right, and the transport cut down to fit under it. */
+@media (max-height: 30rem) {
+  .hud-replay-note {
+    display: none;
+  }
+
+  .hud-replay {
+    left: calc(50% + 4rem);
+    width: min(32rem, calc(100% - 17rem));
+    gap: 0.3rem;
+    padding: 0.45rem 0.8rem;
+  }
+
+  .hud-replay-key,
+  .hud-replay-speed,
+  .hud-replay-act {
+    height: 2rem;
+  }
+
+  .hud-replay-key {
+    width: 2rem;
+  }
+
+  .hud-replay-key.is-main {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+}
+
+@media (max-width: 34rem) {
+  .hud-replay-title {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .hud-replay-acts {
+    justify-content: center;
+  }
+}
+
+/* THE OFFER AFTER A CRASH: low in the middle, clear of both thumbs, a
+   pill that slides up and beats once to be seen. */
+.hud-replay-offer-layer {
+  z-index: 3;
+}
+
+.hud-replay-offer {
+  position: absolute;
+  left: 50%;
+  bottom: max(15%, calc(env(safe-area-inset-bottom) + 6rem));
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1.1rem 0.5rem 0.7rem;
+  border-radius: 999px;
+  background: rgb(var(--hud-plate) / 80%);
+  backdrop-filter: blur(6px);
+  transform: translateX(-50%);
+  animation: hud-replay-offer-in 420ms cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+@keyframes hud-replay-offer-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.8rem) scale(0.9);
+  }
+}
+
+.hud-replay-offer-glyph {
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0.3rem;
+  border-radius: 50%;
+  background: var(--flag);
+  color: #fff;
+}
+
+.hud-replay-offer-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+}
+
+.hud-replay-offer-word {
+  font-size: clamp(0.78rem, 2.2vmin, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.hud-replay-offer-key {
+  font-size: clamp(0.6rem, 1.6vmin, 0.74rem);
+  letter-spacing: 0.1em;
+  color: var(--hud-info);
+}
+
+.hud-replay-offer:hover {
+  border-color: var(--hud-ink);
+}

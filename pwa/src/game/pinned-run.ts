@@ -47,7 +47,7 @@ import type { Settings } from "./settings.ts";
 import { trainingOf } from "./downhill-run.ts";
 import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
 import { nextBracket } from "./ski-cross-run.ts";
-import { trickGameOptions, type TrickMap } from "./trick-maps.ts";
+import { trickGameOptions, type TrickMap, type TrickRun } from "./trick-maps.ts";
 import { nextContest } from "./big-air-run.ts";
 import { nextSlopeContest } from "./slopestyle-run.ts";
 import { nextPipeContest } from "./halfpipe-run.ts";
@@ -64,10 +64,7 @@ export type PinnedRuns = {
    * course (R38), as `halfpipe`, a HALFPIPE contest's first run down its
    * pipe (R39), as `moguls`, a MOGULS contest's qualification run (R40),
    * or as `aerials`, an AERIALS contest's qualification jump (R41). */
-  tricks: (
-    map: TrickMap,
-    mode?: "tricks" | "bigAir" | "slopestyle" | "halfpipe" | "moguls" | "aerials",
-  ) => void;
+  tricks: (map: TrickMap, mode?: TrickRun) => void;
   /** The last pinned run stood up, again from the start line — or a
    * slalom's second run again, its heat kept; null where the run on the
    * snow is neither. */

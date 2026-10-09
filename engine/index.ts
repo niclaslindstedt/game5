@@ -432,6 +432,7 @@ export {
   type LoneSki,
   type AfterskiState,
   type Fetch,
+  type TownWalk,
   type Wobble,
   type GameEvent,
   type GamePhase,
@@ -984,3 +985,5 @@ export {
   stepFetch,
 } from "./game/buzz.ts";
 export { AFTERSKI, BUZZ } from "./game/defs/afterski.ts";
+export { TOWN } from "./game/defs/town.ts";
+export { TOWN_KEYS, strideBob, stridePace, townEase, townShare } from "./game/town.ts";

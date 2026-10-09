@@ -318,6 +318,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     groomer: base.groomer,
     // THE VILLAGE'S TRAFFIC met (`traffic-contact.ts`): the free ride's alone.
     ...(base.traffic ? { traffic: true } : {}),
+    // ...and its skis off in the village (`town.ts`): the free ride's alone.
+    ...(base.town ? { town: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,

@@ -51,6 +51,7 @@ import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { stepAfterski } from "./afterski.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
+import { intoTown, stepTown, townBrake } from "./town.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
 import { trafficStrike } from "./traffic-contact.ts";
 import { stepGatePoles } from "./gate-poles.ts";
@@ -151,6 +152,11 @@ export function stepRun(
     stepFetch(run, input, events);
     return;
   }
+  // IN TOWN ON FOOT, his skis on his shoulder (`town.ts`).
+  if (c.town) {
+    stepTown(run, input, events);
+    return;
+  }
   const drunk = buzzOf(c) > 0;
   if (drunk) soberUp(c);
   const x0 = c.x;
@@ -188,7 +194,9 @@ export function stepRun(
   if (!off && !railed) {
     // THE BUZZ (`buzz.ts`): the hands late and wrong.
     const ridden = drunk && !rigged ? drunkInput(run, held) : held;
-    stepSkier(run, stunts ? poseInput(run, ridden) : ridden, events);
+    // ...and on a street of the village, stood on his edges to a stop.
+    const braked = player ? townBrake(run, ridden) : ridden;
+    stepSkier(run, stunts && braked === ridden ? poseInput(run, ridden) : braked, events);
   }
   // IN THE GATE: under the lights his poles are planted over the wand and
   // hold him where he stands, however steep the pitch below the hut — only
@@ -241,6 +249,8 @@ export function stepRun(
     else if (hit) throwRider(run, "car", hit.v, events);
     else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);
+    // Stopped on a street of the village: out of his skis (`town.ts`).
+    if (player && !c.thrown) intoTown(run, events);
   }
   takeDamage(run, events);
   // THE BODY (`body.ts`): what the blows of this step did to him.

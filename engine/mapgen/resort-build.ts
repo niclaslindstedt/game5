@@ -860,13 +860,8 @@ export function buildResort(
   for (let a = 0; a < attempts; a++) {
     attemptBegun(a);
     const built = attemptResort(seed, a, subSeed(seed, a), region, version, face);
-    if (typeof built === "string") {
-      debug(`resort ${seed}#${a}: refused — ${built}`);
-      reasons.push(`#${a}: ${built}`);
-      continue;
-    }
-    const why = accept(built);
-    if (why) {
+    const why = typeof built === "string" ? built : accept(built);
+    if (typeof built === "string" || why) {
       debug(`resort ${seed}#${a}: refused — ${why}`);
       reasons.push(`#${a}: ${why}`);
       continue;

@@ -282,7 +282,7 @@ export function ReplayBar(props: ReplayBarProps) {
             <button
               type="button"
               class="hud-mini hud-replay-speed"
-              aria-label={STRINGS.replayFaster}
+              aria-label={STRINGS.replaySpeedNext}
               onClick={() => controls.faster("cycle")}
             >
               {STRINGS.replaySpeed(speed)}

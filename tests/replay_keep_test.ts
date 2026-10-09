@@ -86,7 +86,7 @@ describe("a run stood up from a keyframe", () => {
     expect(rig.open()!.end).toBe(24 * HZ + 1);
   });
 
-  it("opens an instant replay a few seconds before the crash just taken", () => {
+  it("opens an instant replay ten seconds before the crash just taken", () => {
     // Tucked straight at the lone trunk, a long way up the slope from it.
     const run = createGame({ level, seed: 5, rivals: 0, countdown: 0, quiet: true });
     placeRun(run, { x: LONE_TREE.x + 0.3, z: LONE_TREE.z - 120, heading: 0, speed: 50 / 3.6 });
@@ -99,11 +99,14 @@ describe("a run stood up from a keyframe", () => {
       rig.step(input, run);
       if (run.events.some((e) => e.kind === "wipeout")) fell = i;
     }
-    expect(fell).toBeGreaterThan(CRASH.lead * HZ);
+    // The last ten seconds he skied into it — here the whole run, which is shorter.
+    expect(CRASH.lead).toBe(10);
+    expect(fell).toBeGreaterThan(2 * HZ);
+    expect(fell).toBeLessThan(CRASH.lead * HZ);
     expect(rig.crash()).toBe(fell);
     const replay = rig.open("crash")!;
     expect(replay.moment).toBe(fell);
-    expect(replay.at()).toBe(fell! - CRASH.lead * HZ);
+    expect(replay.at()).toBe(0);
     // The offer stands a while, then lapses.
     for (let i = 0; i < CRASH.offer * HZ; i++)
       rig.step({ ...NEUTRAL_INPUT }, (step(run, NEUTRAL_INPUT), run));

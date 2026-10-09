@@ -9,7 +9,7 @@
 // WHAT HAPPENS WHEN A RECORDING IS WATCHED, in order: the tape is CUT where
 // the run stands (never sealed, so a run nobody finished is as watchable as
 // one that was); a copy of the run is stood up from the recording's keyframes
-// on its first step — or a few seconds before the crash just taken — and put
+// on its first step — or ten seconds before the crash just taken — and put
 // on screen; the RUN ITSELF is set aside untouched with the surface it was
 // watched from, and handed back to that surface when the recording is left
 // (`leave`). A fresh state is also what tells the renderer to clear the trail

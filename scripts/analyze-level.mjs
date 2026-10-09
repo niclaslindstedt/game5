@@ -30,6 +30,10 @@ const args = parseArgs(
     seed: { kind: "number", help: "analyze this one seed only" },
     from: { kind: "number", default: 1, help: "first seed of the sweep" },
     count: { kind: "number", default: 20, help: "how many seeds to sweep" },
+    face: {
+      kind: "string",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+    },
     region: {
       kind: "string",
       default: "alpine",
@@ -58,7 +62,7 @@ for (const seed of seeds) {
   const t0 = performance.now();
   let level;
   try {
-    level = generateLevel(seed, { region: args.region, grade: args.grade });
+    level = generateLevel(seed, { region: args.region, face: args.face, grade: args.grade });
   } catch (e) {
     broken++;
     console.log(`${String(seed).padStart(4)}  FAILED  ${String(e.message ?? e).slice(0, 300)}`);

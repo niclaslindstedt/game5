@@ -69,6 +69,7 @@ export type PreviewPanorama = {
 export type PreviewRequest = {
   seed: number;
   region: RegionId;
+  face: string | null;
   grade: PisteGrade | null;
   paint: boolean;
   /** The map itself, where the page already had it: painted, not built. */
@@ -79,6 +80,7 @@ export type PreviewRequest = {
 export type PreviewPainted = {
   seed: number;
   region: RegionId;
+  face: string | null;
   grade: PisteGrade | null;
   ok: true;
   /** The plan's ground. */
@@ -113,6 +115,7 @@ export type PreviewPainted = {
 export type PreviewRefused = {
   seed: number;
   region: RegionId;
+  face: string | null;
   grade: PisteGrade | null;
   ok: false;
   error: string;
@@ -124,6 +127,7 @@ export type PreviewReply =
   | {
       seed: number;
       region: RegionId;
+      face: string | null;
       grade: PisteGrade | null;
       ok: true;
       painted: PreviewPainted | null;
@@ -171,11 +175,11 @@ const lodgeDoorOf = (level: Level) => {
 };
 
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
-  const { seed, region, grade, paint, level: given } = e.data;
+  const { seed, region, face, grade, paint, level: given } = e.data;
   try {
     const level = given
       ? boundLevel(given)
-      : generateLevel(seed, { region, grade: grade ?? undefined });
+      : generateLevel(seed, { region, face: face ?? undefined, grade: grade ?? undefined });
     const transfer: Transferable[] = [];
     let painted: PreviewPainted | null = null;
     if (paint) {
@@ -198,6 +202,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
       painted = {
         seed,
         region,
+        face,
         grade,
         ok: true,
         picture,
@@ -221,13 +226,22 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     // (`buildResort`'s cache) holds the very same grids, and a grade
     // stepped on this seed is built off them.
     post(
-      { seed, region, grade, ok: true, painted, level: given ? null : portableLevel(level) },
+      {
+        seed,
+        region,
+        face,
+        grade,
+        ok: true,
+        painted,
+        level: given ? null : portableLevel(level),
+      },
       transfer,
     );
   } catch (err) {
     post({
       seed,
       region,
+      face,
       grade,
       ok: false,
       error: err instanceof Error ? err.message : String(err),

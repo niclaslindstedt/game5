@@ -73,6 +73,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       spot: null,
       weather: null,
       region: "alpine",
+      face: null,
       grade: null,
       run: null,
     });
@@ -167,6 +168,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       spot: { seed: 9, x: 400, z: 200 },
       weather: "fog" as const,
       region: "fell" as const,
+      face: null,
       grade: "black" as const,
       run: { seed: 9, region: "fell" as const, id: "4" },
     };

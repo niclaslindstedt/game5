@@ -44,6 +44,10 @@ const args = parseArgs(
     out: { kind: "string", help: "file name under previews/ (no extension)" },
     json: { kind: "flag", help: "also print the listing as JSON" },
     tricks: { kind: "flag", help: "build the map a tricks run skis: its terrain park laid (R20)" },
+    face: {
+      kind: "string",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+    },
     region: {
       kind: "string",
       default: "alpine",
@@ -62,6 +66,7 @@ const t0 = performance.now();
 const level = generateLevel(args.seed, {
   tricks: args.tricks,
   region: args.region,
+  face: args.face,
   grade: args.grade,
   // The park is laid on a map of one piste (R20).
   version: args.tricks ? PARK_VERSION : undefined,
@@ -189,7 +194,7 @@ const dir = join(root, "previews");
 mkdirSync(dir, { recursive: true });
 const name =
   args.out ??
-  `level-${level.seed}${args.region !== "alpine" ? `-${args.region}` : ""}${args.grade ? `-${args.grade}` : ""}${args.tricks ? "-tricks" : ""}`;
+  `level-${level.seed}${args.face ? `-${args.face}` : args.region !== "alpine" ? `-${args.region}` : ""}${args.grade ? `-${args.grade}` : ""}${args.tricks ? "-tricks" : ""}`;
 writeFileSync(join(dir, `${name}.png`), canvas.toPng());
 writeFileSync(join(dir, `${name}.txt`), text + "\n");
 console.log(`\nwrote previews/${name}.png and previews/${name}.txt`);

@@ -85,6 +85,7 @@ import { trimDrifts } from "./drift-trim.ts";
 import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.ts";
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
 import { bakeMassif, planMassif } from "./massif.ts";
+import { realFace, type RealFace } from "./real-face.ts";
 import {
   BENCH,
   NetIndex,
@@ -231,10 +232,11 @@ export function attemptResort(
   sub: number,
   region: Region,
   version: GeneratorVersion,
+  face: RealFace | null = null,
 ): BuiltResort | string {
   const rng = createRng(sub);
   const traits = generatorTraits(version);
-  const plan = planMassif(rng, region);
+  const plan = planMassif(rng, region, face, attempt);
   const ground = bakeMassif(plan);
   const stepped = traits.steppedJunctions === true;
   const grade = (
@@ -833,14 +835,16 @@ export function buildResort(
   subSeed: (seed: number, attempt: number) => number,
   accept: (built: BuiltResort) => string | null,
   version: GeneratorVersion,
+  faceId?: string,
 ): BuiltResort {
-  const region = regionRow(regionId);
-  const key = resortKey(seed, regionId, attempts, version);
+  const face = faceId ? realFace(faceId) : null;
+  const region = regionRow(face ? face.region : regionId);
+  const key = resortKey(seed, region.id, attempts, version, face?.id);
   const kept = cachedResort(key);
   if (kept) return kept;
   const reasons: string[] = [];
   for (let a = 0; a < attempts; a++) {
-    const built = attemptResort(seed, a, subSeed(seed, a), region, version);
+    const built = attemptResort(seed, a, subSeed(seed, a), region, version, face);
     if (typeof built === "string") {
       debug(`resort ${seed}#${a}: refused — ${built}`);
       reasons.push(`#${a}: ${built}`);
@@ -962,6 +966,7 @@ export function resortLevel(
       weather,
       version,
       region: b.region.id,
+      ...(b.plan.face ? { face: b.plan.face.grid.id } : {}),
       grade: course.grade,
       crust: b.crust,
     }),

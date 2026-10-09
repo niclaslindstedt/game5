@@ -28,6 +28,10 @@
 //   COUNTRY the kind of snow country the map is built in (R21): the same seed
 //           raised as the alpine, a fell, a continental range or a maritime one.
 //
+//   SHAPE   the massif's shape: the seed's own, or one of the real faces
+//           of that country (`real-face.ts`) — a real mountainside's
+//           ridge, spurs and gullies under the seed's lifts and runs.
+//
 //   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
 //           green, a blue, a red or a black built to its band — and the RUN
 //           row brought to the first run of that colour.
@@ -61,10 +65,13 @@
 
 import {
   PISTE_GRADES,
+  REAL_FACE_IDS,
   REGION_IDS,
   TIMES_OF_DAY,
   WEATHER_KINDS,
+  realFaceRegion,
   type PisteGrade,
+  type RegionId,
   type WeatherKind,
 } from "@engine";
 import { useState } from "preact/hooks";
@@ -88,6 +95,16 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
 
 /** The COUNTRY row's stops: R21's regions. */
 const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
+
+/** The SHAPE row's stops: the seed's own massif, then the real faces of
+ * the country on the card, numbered in it — never named (R25). */
+function faceStops(region: RegionId): { id: string; label: string }[] {
+  const faces = REAL_FACE_IDS.filter((id) => realFaceRegion(id) === region);
+  return [
+    { id: "dealt", label: STRINGS.weatherDealt },
+    ...faces.map((id, i) => ({ id, label: STRINGS.faceName(i + 1) })),
+  ];
+}
 
 /** The GRADE row's stops: the seed's own colour, then R23's four. */
 const GRADE_STOPS: { id: "dealt" | PisteGrade; label: string }[] = [
@@ -176,7 +193,17 @@ export function StartPage({
                 hint={STRINGS.startRegionHint}
                 stops={REGION_STOPS}
                 value={ride.region}
-                onPick={(region) => setRide({ region, spot: null })}
+                onPick={(region) => setRide({ region, face: null, spot: null, run: null })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startFace}
+                hint={STRINGS.startFaceHint}
+                stops={faceStops(ride.region)}
+                value={ride.face ?? "dealt"}
+                onPick={(id) =>
+                  setRide({ face: id === "dealt" ? null : id, spot: null, run: null })
+                }
                 onHint={setHint}
               />
               <StepRow
@@ -195,7 +222,9 @@ export function StartPage({
                 stops={pick.stops}
                 value={pick.value}
                 extra={STRINGS.startRunWaiting}
-                onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
+                onPick={(id) =>
+                  setRide({ run: { seed, region: ride.region, face: ride.face, id }, spot: null })
+                }
                 onHint={setHint}
               />
             </div>

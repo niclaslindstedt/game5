@@ -470,6 +470,11 @@ export const STRINGS = {
     continental: "CONTINENTAL",
     maritime: "MARITIME",
   },
+  startFace: "SHAPE",
+  startFaceHint:
+    "The mountain's shape: the seed's own, or one of this country's real mountainsides, read off a satellite survey — its ridge, spurs and gullies, with the seed's lifts and runs laid down it.",
+  /** A real face on the SHAPE row: numbered in its country, never named. */
+  faceName: (n: number): string => `REAL ${n}`,
   startGrade: "GRADE",
   startGradeHint:
     "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %) or black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it. The mountain's own, or one of the four.",

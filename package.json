@@ -30,6 +30,7 @@
     "rate": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/rate-level.mjs",
     "difficulty": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/difficulty-preview.mjs",
     "routes": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/map-routes.mjs",
+    "real-faces": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/real-faces.mjs",
     "model-registry": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/model-registry.mjs",
     "ride": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/ride-lab.mjs",
     "audition": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/audition.mjs",

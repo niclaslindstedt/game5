@@ -48,6 +48,8 @@ export type LevelParts = {
   weather: GeneratedLevel["weather"];
   version: GeneratedLevel["version"];
   region: GeneratedLevel["region"];
+  /** The real face the mountain was read off (R25), where it was. */
+  face?: string;
   /** The grade the map was built to (R23); null on the ungraded row. */
   grade: PisteGrade | null;
   /** The region's own snow (R21), where it lays any. */
@@ -123,6 +125,7 @@ export function compileLevel(parts: LevelParts): GeneratedLevel {
     version: parts.version,
     weather: parts.weather,
     region: parts.region,
+    ...(parts.face ? { face: parts.face } : {}),
     ...(parts.grade ? { grade: parts.grade } : {}),
     ...(parts.crust ? { crust: parts.crust } : {}),
   };

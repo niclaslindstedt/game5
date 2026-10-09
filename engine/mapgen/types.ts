@@ -212,6 +212,9 @@ export interface Level {
   /** The kind of snow country the map was built in (R21) — ask `regionOf`,
    * which reads a hand-built map without one as the alpine. */
   region?: RegionId;
+  /** THE REAL FACE the map's mountain was read off (R25, `real-face.ts`) —
+   * absent on a dealt massif. */
+  face?: string;
   /** THE PISTE GRADE the map was BUILT to (R23) — absent on a map from a
    * generator before the grades, or a hand-built one. Ask `gradeOf` for the
    * colour on its signs, which measures one where none was built to. */
@@ -855,6 +858,10 @@ export interface GenerateOptions {
   /** The kind of snow country to build in (R21, `regions.ts`); the alpine
    * when left out. */
   region?: RegionId;
+  /** R25 — raise the resort on a REAL face (`real-face.ts`'s ids) rather
+   * than a dealt massif; its region is the face's own, whatever `region`
+   * says. Left out (or an id no face has), the massif the seed deals. */
+  face?: string;
   /** The PISTE GRADE to build to (R23, `grades.ts`); the one the seed deals
    * when left out. A version from before the grades builds none either way.
    * On a resort (R28): the colour of the course raced. */

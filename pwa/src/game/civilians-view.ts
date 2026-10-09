@@ -28,6 +28,7 @@ import { CROWD_BODIES, type Amateur, type CrowdBody, type GameState, type Level 
 import { civilianKit, kitParts, type CivilianKit } from "./civilian-dress.ts";
 import { CIVILIAN_POSES, civilianDials, snowballAt } from "./civilian-moves.ts";
 import {
+  type Civilian,
   civilianAt,
   rolledBall,
   type Ball,
@@ -43,6 +44,8 @@ import {
   civilianMaterial,
 } from "./civilian-shapes.ts";
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
+import { dogPlanFor } from "./dog-walk.ts";
+import { dogWalkerAt } from "./dog-walk-pose.ts";
 import { CROWD_POSES, dialsOf } from "./crowd-rig.ts";
 import { CROWD_LODS, buildCrowdFigure, crowdMaterial, type CrowdLod } from "./crowd-shapes.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -123,6 +126,28 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
     number
   >;
   for (const c of plan.people) (c.skis ? skiCounts : counts)[c.body] += 1;
+  // THE DOG WALKERS (`dog-walk.ts`): each household's owner with the lead
+  // and the child who comes along, dressed as guests off a stand-in each.
+  const dogs = dogPlanFor(level);
+  const walkers = (dogs?.households ?? []).flatMap((hh) => {
+    const out: { h: number; member: 0 | 1; body: CrowdBody; kit: CivilianKit }[] = [];
+    const members: [0 | 1, CrowdBody | null][] = [
+      [0, hh.walker],
+      [1, hh.child],
+    ];
+    for (const [member, body] of members) {
+      if (!body) continue;
+      const stand = {
+        role: member === 0 ? "dogWalker" : "dogChild",
+        body,
+        dress: "guest",
+        tint: ((hh.id * 7919 + member * 104729) % 1000) / 1000,
+      } as Civilian;
+      out.push({ h: hh.id, member, body, kit: civilianKit(stand, level.seed + 0xd09) });
+      counts[body] += 1;
+    }
+    return out;
+  });
   /** Where each person lives, for the cheap cull: the middle of his route
    * (or his home) and how far it reaches from there. */
   const reachOf = plan.people.map((c) => {
@@ -352,6 +377,30 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       slot.dress.setXYZW(k, o[0], o[1], o[2], o[3]);
       slot.dress2.setXYZW(k, o[4], o[5], o[6], o[7]);
       kitParts(kits[i], pose, parts);
+      slot.kit.setXYZW(k, parts[0], parts[1], parts[2], parts[3]);
+    }
+    for (const w of walkers) {
+      dogWalkerAt(dogs!, w.h, w.member, t, hour, pose);
+      if (!pose.shown) continue;
+      const far = Math.hypot(pose.x - eye.x, pose.y - eye.y, pose.z - eye.z);
+      if (far > CIVILIAN_CUTS.far) continue;
+      const lod: CrowdLod =
+        far < CIVILIAN_CUTS.near ? "near" : far < CIVILIAN_CUTS.mid ? "mid" : "far";
+      const slot = slots.get(`${w.body}:${lod}`);
+      if (!slot) continue;
+      const k = slot.n++;
+      quat.setFromAxisAngle(yAxis, pose.heading);
+      m.compose(pos.set(pose.x, pose.y, pose.z), quat, one);
+      slot.mesh.setMatrixAt(k, m);
+      civilianDials(pose, t, 9000 + w.h * 2 + w.member, dials);
+      const wt = slot.weights;
+      const at = k * (TARGETS + 1);
+      wt[at] = 1;
+      for (let j = 0; j < TARGETS; j++) wt[at + 1 + j] = dials[j];
+      const o = w.kit.colours;
+      slot.dress.setXYZW(k, o[0], o[1], o[2], o[3]);
+      slot.dress2.setXYZW(k, o[4], o[5], o[6], o[7]);
+      kitParts(w.kit, pose, parts);
       slot.kit.setXYZW(k, parts[0], parts[1], parts[2], parts[3]);
     }
     for (const slot of [...slots.values(), ...skiSlots.values()]) {

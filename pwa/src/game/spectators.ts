@@ -21,6 +21,7 @@ import type { GameState, Level, RunRules, SkierState } from "@engine";
 
 import { hasCivilians } from "./civilian-plan.ts";
 import { createCiviliansView } from "./civilians-view.ts";
+import { createDogsView } from "./dogs-view.ts";
 import { createCrowdView, type CrowdView } from "./crowd-view.ts";
 
 export type { CrowdView };
@@ -227,7 +228,10 @@ export function createSpectators(level: Level, haze: HazeUniforms): Spectators {
  * the renderer. */
 export function createPeopleView(level: Level, haze: HazeUniforms, rules: RunRules): CrowdView {
   const views: CrowdView[] = [createCrowdView(level, haze)];
-  if (hasCivilians(rules)) views.push(createCiviliansView(level, haze));
+  if (hasCivilians(rules)) {
+    views.push(createCiviliansView(level, haze));
+    views.push(createDogsView(level, haze));
+  }
   if (hasSpectators(rules)) views.push(createSpectators(level, haze));
   if (views.length === 1) return views[0];
   const group = new THREE.Group();

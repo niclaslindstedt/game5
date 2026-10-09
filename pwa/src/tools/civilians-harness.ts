@@ -61,6 +61,7 @@ import { CROWD_LODS, type CrowdLod } from "../game/crowd-shapes.ts";
 import { createHazeUniforms } from "../game/haze.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
+import { dogCells, dogShots } from "./dogs-sheet.ts";
 
 declare global {
   interface Window {
@@ -802,6 +803,7 @@ async function resort(): Promise<void> {
     return undefined;
   };
   const shots: Record<string, () => string> = {
+    ...dogShots({ state, hour, from, until }),
     lift() {
       const crew = out().find((q) => plan.people[q.i].role === "liftAttendant");
       if (!crew) return "no lift crew out";
@@ -987,7 +989,8 @@ async function resort(): Promise<void> {
 if (sheet === "resort") {
   void resort();
 } else {
-  const cells = sheet === "moves" ? moveCells() : sheet === "props" ? propCells() : figureCells();
-  const cols = sheet === "moves" ? FRAMES : sheet === "props" ? 7 : CIVILIAN_POSES.length + 1;
+  const pick = { moves: moveCells, props: propCells, dogs: () => dogCells(haze, stage) };
+  const cells = (pick[sheet as keyof typeof pick] ?? figureCells)();
+  const cols = sheet === "moves" ? FRAMES : sheet === "props" || sheet === "dogs" ? 8 : TARGETS + 1;
   drawSheet(cells, cols);
 }

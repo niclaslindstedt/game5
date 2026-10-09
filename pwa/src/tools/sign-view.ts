@@ -109,3 +109,17 @@ export function summitSignView(level: Level, pick = 0): { pose: LensPose; note: 
     note: `${top.plan.lift.id}'s top: ${near.map(said).join(" | ")}`,
   };
 }
+
+/** The world lab's sign views, by name. */
+export const SIGN_VIEWS = [
+  "sign",
+  "sign-tree",
+  "sign-summit",
+  "sign-summit-2",
+  "sign-summit-3",
+] as const;
+
+export function namedSignView(level: Level, name: string): { pose: LensPose; note: string } | null {
+  if (name === "sign" || name === "sign-tree") return signView(level, name === "sign-tree");
+  return summitSignView(level, Number(name.split("-")[2] ?? 1) - 1);
+}

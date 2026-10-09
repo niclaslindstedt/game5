@@ -19,7 +19,8 @@
 //              and 30 m over deep powder, the snow cloud built up for 3 s,
 //              from the chase lens and from the snow 40 m off)
 //   flight     cruise (chase, far, high), turn (banked into a turn), eye (the
-//              rider's eye in cruise and over a steep face)
+//              cockpit and the nose lens in cruise, the nose over a steep
+//              face)
 //   land       land (flown in and set down on the highest summit flat),
 //              landed (the rotor turning there; the skier stepping off)
 //   drop       drop (pushed off over a face too steep to land on: 0, 0.5, 1,
@@ -40,6 +41,13 @@
 //              cruising — under the stars at 21:00)
 //   turntable  turntable (the model alone: 8 angles close, 8 at chase
 //              range, and the rotor at speed from the side and above)
+//   cockpit    cockpit (the cockpit lens on the pad as the rotor spools up,
+//              at the hover over the pad and over a steep face, in cruise
+//              and banked into a turn), cockpit-night (cruising at 21:00),
+//              cockpit-controls (lenses planted in the cabin: the panel
+//              near enough to read, the pilot and his controls from the
+//              guide's seat, the pedals, the overhead, the cabin from the
+//              rear bench, the controls thrown to their stops)
 //
 // Each GROUP is one contact sheet, previews/heli-<group>.png, and every
 // frame is also written alone, previews/heli-<view>-<label>.png. The page
@@ -76,12 +84,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (pad, board, lift, flight, land, drop, crash, handover, night, turntable); every one when left out",
+      help: "which sheets, comma-separated (pad, board, lift, flight, land, drop, crash, handover, night, turntable, cockpit); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (pad, call, board, spool, liftoff, wash, cruise, turn, eye, land, landed, drop, plunge, fall, impact, home, crash, thrown, crash-nose, crash-fast, wreck, restart, handover, night, turntable)",
+      help: "only these views, comma-separated (pad, call, board, spool, liftoff, wash, cruise, turn, eye, land, landed, drop, plunge, fall, impact, home, crash, thrown, crash-nose, crash-fast, wreck, restart, handover, night, turntable, cockpit, cockpit-night, cockpit-controls)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

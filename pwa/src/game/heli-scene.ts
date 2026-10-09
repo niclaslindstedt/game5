@@ -29,6 +29,7 @@ import {
 
 import { frameCrash, startCrashCam, type CrashCam } from "./camera-crash.ts";
 import { createHeliCam, frameHeli, heliMiddleOf, orbitBlend } from "./camera-heli.ts";
+import { bodyOf, COCKPIT, inCabin } from "./cockpit-plan.ts";
 import { blendLens, type LensPose, type Vec3 } from "./camera-rigs.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -52,7 +53,11 @@ export type HeliScene = {
     flying: boolean,
     cloud: SnowCloud | null,
     snowAt: (x: number, z: number) => SnowProps,
+    aspect?: number,
   ): void;
+  /** The eye the frame is drawn from, settled: the cockpit shown while it
+   * is in the cabin (`heli-cockpit.ts`). */
+  seen(eye: Vec3): void;
   /** THE LENS this frame, `ladder` the skier's own as framed under it: the
    * helicopter's, blended in from the ladder or out to it — or null once
    * the ladder has it whole (nobody rides it, or the orbit). */
@@ -149,7 +154,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   return {
     group,
     ready: view.ready,
-    frame(state, alpha, dt, player, rung, flying, cloud, snowAt) {
+    frame(state, alpha, dt, player, rung, flying, cloud, snowAt, aspect = 16 / 9) {
       const h = state.heli;
       cam.cut = !flying;
       own = null;
@@ -238,7 +243,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
         return;
       }
       since = 0;
-      lastLens = frameHeli(cam, h, at, rung, step, groundAt);
+      lastLens = frameHeli(cam, h, at, rung, step, groundAt, aspect);
       own = lastLens;
     },
     lens(ladder, dt) {
@@ -265,6 +270,20 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       shown = shown ?? ladder;
       Object.assign(eyeWas, shown.eye);
       return out;
+    },
+    seen(eye) {
+      const at = view.drawn();
+      const h = lastState?.heli;
+      if (!at || !h || h.mode === "wreck") {
+        view.inside(false, false);
+        return;
+      }
+      const local = new THREE.Vector3(eye.x - at.x, eye.y - at.y, eye.z - at.z).applyQuaternion(
+        new THREE.Quaternion().copy(at.q).invert(),
+      );
+      const pilot = bodyOf(COCKPIT.eye);
+      const own = Math.hypot(local.x - pilot.x, local.y - pilot.y, local.z - pilot.z) < 0.05;
+      view.inside(inCabin(local), own);
     },
     perch(state) {
       const h = state.heli;

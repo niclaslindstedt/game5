@@ -30,19 +30,21 @@ const gap = (a: { x: number; y: number; z: number }, b: { x: number; y: number; 
   Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
 describe("the helicopter's lens", () => {
-  it("puts the nose lens ahead of the airframe, looking on along the nose", () => {
+  it("puts the nose lens on TIPS, ahead of the airframe and looking down", () => {
     const cam = createHeliCam();
-    for (const rung of ["tips", "helmet"] as const) {
-      const l = heliLens(cam, heli, at, rung, flat);
-      expect(l.eye.z).toBeGreaterThan(HELI.body.nose);
-      expect(l.target.z).toBeGreaterThan(l.eye.z);
-      expect(l.target.y).toBeLessThan(l.eye.y);
-    }
-    // The look-down lens looks further down than the bolted one.
-    const tips = heliLens(cam, heli, at, "tips", flat);
-    const helmet = heliLens(cam, heli, at, "helmet", flat);
-    const down = (l: LensPose) => (l.eye.y - l.target.y) / gap(l.eye, l.target);
-    expect(down(helmet)).toBeGreaterThan(down(tips));
+    const l = heliLens(cam, heli, at, "tips", flat);
+    expect(l.eye.z).toBeGreaterThan(HELI.body.nose);
+    expect(l.target.z).toBeGreaterThan(l.eye.z);
+    expect(l.target.y).toBeLessThan(l.eye.y);
+    const down = (p: LensPose) => (p.eye.y - p.target.y) / gap(p.eye, p.target);
+    expect(down(l)).toBeGreaterThan(0.4);
+  });
+
+  it("sits the HELMET lens in the cockpit, behind the nose", () => {
+    const h = { ...heli, heading: 0, pitch: 0, yawRate: 0 } as HeliState;
+    const l = heliLens(createHeliCam(), h, at, "helmet", flat);
+    expect(l.eye.z).toBeLessThan(HELI.body.nose);
+    expect(l.target.z).toBeGreaterThan(l.eye.z);
   });
 
   it("flies a change of rung over HANDOVER s, never cutting, never through the machine", () => {

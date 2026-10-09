@@ -207,6 +207,7 @@ export function raceOrFallback(
           spec: skier.spec,
           damage: skier.damage,
           ...(skier.gore ? { gore: true } : {}),
+          ...(skier.sfw ? { sfw: true } : {}),
           poles: skier.poles,
           mode: skier.mode,
           // A downhill is stood up as its training run (`downhill-run.ts`).

@@ -146,6 +146,24 @@ export const HELI = {
     settle: 0.8,
   },
 
+  /** THE STEADYING HAND (`heli-pilot.ts`'s `steadyControls`, SAFE FOR
+   * WORK): the speed over the snow at full cyclic, m/s; the rate of turn at
+   * full pedal, rad/s; the climb and the sink at the collective's ends,
+   * m/s, and the share of its travel about the middle that holds the
+   * height; the least height over the snow ahead it is flown at while it
+   * moves, m, and how far ahead it looks, s of its speed; the speed under
+   * which it counts as hovering, m/s. */
+  steady: {
+    speed: 30,
+    turn: 0.6,
+    climb: 6,
+    sink: 3,
+    band: 0.15,
+    floor: 12,
+    look: 4,
+    still: 1.5,
+  },
+
   /** THE ROTOR SPOOLED UP and down, its share of the full rpm a second. */
   spool: 0.22,
 

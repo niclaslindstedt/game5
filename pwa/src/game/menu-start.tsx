@@ -88,7 +88,8 @@ import {
 } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { SeedPreview, useSeedPreview } from "./seed-preview.tsx";
-import type { Settings } from "./settings.ts";
+import { injuriesShown, type Settings } from "./settings.ts";
+import { shellContent } from "../shell-host.ts";
 import { STRINGS } from "./strings.ts";
 
 /** The seeds the MAP row walks. Seed 0 is not a map; a link may name any
@@ -161,7 +162,9 @@ export function StartPage({
   const sled = sledOn(ride, seed);
   const para = paraOn(ride, seed);
   const balloon = balloonOn(ride, seed);
-  const party = afterskiOn(ride, seed);
+  // SAFE FOR WORK (the INJURIES switch off) the lodges are shut.
+  const sfw = !injuriesShown(settings, shellContent());
+  const party = !sfw && afterskiOn(ride, seed);
   const vehicle = heli || sled || para || balloon || party;
   const marked = list && !vehicle ? markedRun(ride, seed, list) : null;
   // The RUN row walks the runs of the GRADE row's colour — every run where
@@ -179,7 +182,7 @@ export function StartPage({
           { id: SLED_RUN, label: STRINGS.startRunSled },
           { id: HELI_RUN, label: STRINGS.startRunHeli },
           // ...and the party in the valley's lodge, where the map has one.
-          ...(list.machines.afterski
+          ...(list.machines.afterski && !sfw
             ? [{ id: AFTERSKI_RUN, label: STRINGS.startRunAfterski }]
             : []),
         ]

@@ -82,6 +82,7 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     assist: { ...state.assist },
     damage: state.damage,
     gore: state.gore !== undefined,
+    sfw: state.rules.sfw === true,
     poles: state.skier.poles,
     snowDepth: state.snowDepth,
     // A slalom's second run: the first run carried in again, so the course

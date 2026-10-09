@@ -46,7 +46,6 @@ const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 export function pilotControls(run: GameState, aim: HeliAim): HeliControls {
   const h = run.heli!;
   const level = run.level;
-  const g = TUNING.g;
   const dx = aim.x - h.x;
   const dz = aim.z - h.z;
   const d = hypot(dx, dz);
@@ -61,6 +60,89 @@ export function pilotControls(run: GameState, aim: HeliAim): HeliControls {
   );
   const vxw = d > 0.5 ? (dx / d) * speed : 0;
   const vzw = d > 0.5 ? (dz / d) * speed : 0;
+  // THE PEDALS: the nose the way it is going (or held, at the hover).
+  const going = hypot(h.vx, h.vz) > 6 ? Math.atan2(h.vx, h.vz) : h.heading;
+  const yawTo =
+    d > 15 && !aim.land
+      ? Math.atan2(dx, dz)
+      : aim.land && aim.face !== undefined && d < 40
+        ? aim.face
+        : going;
+  const turn = clamp(angleDiff(h.heading, yawTo) * 1.2, -0.6, 0.6);
+  // THE HEIGHT over the snow along the way, and the climb to it.
+  let ground = level.groundAt(h.x, h.z);
+  const look = Math.min(d, 300);
+  for (let s = 30; s <= look; s += 30) {
+    ground = Math.max(ground, level.groundAt(h.x + (dx / d) * s, h.z + (dz / d) * s));
+  }
+  const over = h.y - level.groundAt(h.x, h.z);
+  const flat = hypot(h.vx, h.vz);
+  const sinkMost = flat > 15 ? P.sink : P.sinkSlow;
+  let climb = clamp(0.4 * (ground + aim.height - h.y), -sinkMost, P.climb);
+  if (aim.land && d < 5 && flat < 2.5) {
+    climb = -clamp(over * 0.25, P.settle, P.sinkSlow);
+    if (h.grounded) return { collective: 0, pitch: 0, roll: 0, pedal: 0 };
+  }
+  return handsFor(run, vxw, vzw, turn, climb);
+}
+
+/** THE STEADYING HAND (`RunRules.sfw`): the player's controls read as what
+ * he wants rather than what the rotor does — the cyclic a speed over the
+ * snow in the machine's own frame (`steady.speed` at full stick), the
+ * pedals a rate of turn (`steady.turn`), the collective a climb (held level
+ * at the middle, `steady.climb` at either end) — and flown there by the
+ * bot's own hands, never lower than `steady.floor` over the snow ahead
+ * while it is moving. Let down with the collective, it settles onto the
+ * snow and sits. */
+export function steadyControls(run: GameState, stick: HeliControls): HeliControls {
+  const h = run.heli!;
+  const level = run.level;
+  const S = HELI.steady;
+  const fx = Math.sin(h.heading);
+  const fz = Math.cos(h.heading);
+  const ahead = clamp(stick.pitch, -1, 1) * S.speed;
+  const aside = clamp(stick.roll, -1, 1) * S.speed;
+  const vxw = fx * ahead + fz * aside;
+  const vzw = fz * ahead - fx * aside;
+  const turn = clamp(stick.pedal, -1, 1) * S.turn;
+  // The lever: below the middle a sink, above it a climb, a band about the
+  // middle that holds the height.
+  const lever = (clamp(stick.collective, 0, 1) - 0.5) * 2;
+  const held = Math.abs(lever) < S.band ? 0 : lever - Math.sign(lever) * S.band;
+  let climb = (held / (1 - S.band)) * (held > 0 ? S.climb : S.sink);
+  // The snow ahead, along the way it is going, kept under it.
+  const flat = hypot(h.vx, h.vz);
+  let ground = level.groundAt(h.x, h.z);
+  if (flat > 1) {
+    for (let s = 10; s <= Math.min(250, flat * S.look); s += 10) {
+      ground = Math.max(ground, level.groundAt(h.x + (h.vx / flat) * s, h.z + (h.vz / flat) * s));
+    }
+  }
+  const over = h.y - level.groundAt(h.x, h.z);
+  const moving = flat > S.still || hypot(vxw, vzw) > S.still;
+  if (moving) climb = Math.max(climb, clamp(0.5 * (ground + S.floor - h.y), -P.sink, P.climb));
+  // Coming down at the hover: slowed to a settle over the last few metres.
+  if (climb < 0 && !moving) climb = Math.max(climb, -clamp(over * 0.25, P.settle, P.sinkSlow));
+  if (h.grounded && climb <= 0) return { collective: 0, pitch: 0, roll: 0, pedal: 0 };
+  return handsFor(run, vxw, vzw, turn, climb);
+}
+
+/** THE HANDS: the four controls that fly the machine at the velocity
+ * (`vxw`, `vzw`) over the snow, turning at `turn` rad/s and climbing at
+ * `climb` m/s — the disc's tilt for the acceleration that wants (the drag
+ * at speed leant into), the cyclic that tilts it there against its damping
+ * and flapback, the pedals against the torque and the fin, the collective
+ * through what the rotor can give. */
+function handsFor(
+  run: GameState,
+  vxw: number,
+  vzw: number,
+  turn: number,
+  climb: number,
+): HeliControls {
+  const h = run.heli!;
+  const level = run.level;
+  const g = TUNING.g;
   const tiltMost = Math.tan(P.tilt) * g;
   let axw = 0.8 * (vxw - h.vx);
   let azw = 0.8 * (vzw - h.vz);
@@ -103,39 +185,17 @@ export function pilotControls(run: GameState, aim: HeliAim): HeliControls {
     -1,
     1,
   );
-  // THE PEDALS: the nose the way it is going (or held, at the hover),
-  // the torque and the weathervane paid for.
-  const going = hypot(h.vx, h.vz) > 6 ? Math.atan2(h.vx, h.vz) : h.heading;
-  const yawTo =
-    d > 15 && !aim.land
-      ? Math.atan2(dx, dz)
-      : aim.land && aim.face !== undefined && d < 40
-        ? aim.face
-        : going;
-  const rWant = clamp(angleDiff(h.heading, yawTo) * 1.2, -0.6, 0.6);
+  // THE PEDALS: the turn, the torque and the weathervane paid for.
   const hover = m * g;
   const torque = F.torque * (h.thrust / hover - 1);
   const vane = HELI.vane * airS * Math.min(40, Math.abs(airF) + Math.abs(airS));
   const pedal = clamp(
-    (3 * (rWant - h.yawRate) + F.yawDamping * h.yawRate + torque - vane) / F.pedal,
+    (3 * (turn - h.yawRate) + F.yawDamping * h.yawRate + torque - vane) / F.pedal,
     -1,
     1,
   );
-  // THE COLLECTIVE: the height over the snow along the way, the climb to it,
-  // the thrust that climbs so, as a share of what the rotor gives.
-  let ground = level.groundAt(h.x, h.z);
-  const look = Math.min(d, 300);
-  for (let s = 30; s <= look; s += 30) {
-    ground = Math.max(ground, level.groundAt(h.x + (dx / d) * s, h.z + (dz / d) * s));
-  }
-  const over = h.y - level.groundAt(h.x, h.z);
-  const flat = hypot(h.vx, h.vz);
-  const sinkMost = flat > 15 ? P.sink : P.sinkSlow;
-  let climb = clamp(0.4 * (ground + aim.height - h.y), -sinkMost, P.climb);
-  if (aim.land && d < 5 && flat < 2.5) {
-    climb = -clamp(over * 0.25, P.settle, P.sinkSlow);
-    if (h.grounded) return { collective: 0, pitch: 0, roll: 0, pedal: 0 };
-  }
+  // THE COLLECTIVE: the thrust that climbs so, as a share of what the rotor
+  // gives.
   const up = rotate(discQuat(h), { x: 0, y: 1, z: 0 });
   const want = (m * (g + P.hold * (climb - h.vy))) / Math.max(0.5, up.y);
   const along = hypot(airF, airS);

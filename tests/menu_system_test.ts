@@ -288,6 +288,12 @@ describe("what the game remembers (settings.ts)", () => {
     expect(mergeSettings({ damage: "yes" }).damage).toBe(false);
   });
 
+  it("keeps the X-ray cam off unless it was asked for, and only as a switch", () => {
+    expect(freshSettings().xray).toBe(false);
+    expect(mergeSettings({ xray: true }).xray).toBe(true);
+    expect(mergeSettings({ xray: "yes" }).xray).toBe(false);
+  });
+
   it("draws the injuries as the player or the device says", () => {
     const fresh = freshSettings();
     expect(fresh.injuries).toBe(null);

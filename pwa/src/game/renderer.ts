@@ -49,7 +49,7 @@ import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { figureShown } from "./camera-para.ts";
-import { createTvCamera } from "./camera-tv.ts";
+import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
@@ -80,7 +80,6 @@ import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
 import { runsOf, SLICE_OF_GROUP, type Rider } from "./renderer-rider.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
-import type { ReplayShot } from "./replay-shots.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import type { SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
@@ -212,10 +211,9 @@ export function createWorldRenderer(
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
-  /** THE BROADCAST (`camera-tv.ts`): the moment a replay is cut to, or null
-   * for the ladder's own rung. */
-  const tv = createTvCamera();
-  let shot: ReplayShot | null = null;
+  /** THE REPLAY'S LENSES (`camera-replay.ts`), or null for the ladder's own rung. */
+  const replayCam = createReplayCamera(() => (level && clear ? { level, clear } : null));
+  let watched: ReplayView | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9);
   env.setDistance(video.distance);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
@@ -716,10 +714,12 @@ export function createWorldRenderer(
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
       hurt.update(state, player.model.skin());
       // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
-      const allowed = !override && !shot && lens.rung() !== "orbit" && !state.heli?.wreck?.aboard;
+      const allowed =
+        !override && !watched && lens.rung() !== "orbit" && !state.heli?.wreck?.aboard;
+      const body = sampleBody(player.body, alpha);
       const dead = hurt.lens(
         allowed,
-        sampleBody(player.body, alpha),
+        body,
         ladder,
         Math.min(dt / pace, 0.1), // its lens flies on the WALL clock
         level.groundAt,
@@ -729,7 +729,7 @@ export function createWorldRenderer(
       // The ladder is framed underneath either way: a planted lens hands back to a boom in place.
       const planted =
         override ??
-        (shot && clear ? tv.update(shot, rigPose, level, clear, Math.min(dt, 0.1)) : null) ??
+        (watched ? replayCam.update(watched, rigPose, body, state.t, dt) : null) ??
         (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??
         dead ??
@@ -909,9 +909,9 @@ export function createWorldRenderer(
     setXray: hurt.setXray,
     setPace: (p) => void (pace = p > 0 ? p : 1),
 
-    setShot(next) {
-      if (!next) tv.drop();
-      shot = next;
+    setReplayCam(next) {
+      if (!next) replayCam.drop();
+      watched = next;
     },
 
     setSky(sky) {

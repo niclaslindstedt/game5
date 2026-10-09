@@ -9,7 +9,7 @@ import type { FrameCost, GpuMode, GpuTotals, Hideable, SceneShare } from "./benc
 import type { LensPose } from "./camera-rigs.ts";
 import type { PickRay } from "./machine-pick.ts";
 import type { Outfit } from "./outfit.ts";
-import type { ReplayShot } from "./replay-shots.ts";
+import type { ReplayView } from "./camera-replay.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import type { XrayLook } from "./xray-shots.ts";
 
@@ -42,10 +42,10 @@ export interface WorldRenderer {
   /** The player's outfit (`Settings.outfit`): the skier in slot 0 wears
    * it, rebuilt when it changes; the field wears its slots' own. */
   dress(outfit: Outfit): void;
-  /** THE BROADCAST (`camera-tv.ts`): the moment a replay is cut to, framed
-   * from a lens planted beside it — or null for the camera ladder. Only a
-   * replay ever sets one (`replay-run.ts`). */
-  setShot(shot: ReplayShot | null): void;
+  /** THE REPLAY'S LENSES (`camera-replay.ts`): the angle a recording is
+   * watched on and the moment the broadcast is cut to — or null for the
+   * camera ladder. Only a replay ever sets one (`replay-run.ts`). */
+  setReplayCam(view: ReplayView | null): void;
   /** LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): a drag of `dx`, `dy`
    * CSS px over the picture, taken while the lift carries the player. */
   lookAround(dx: number, dy: number): void;

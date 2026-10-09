@@ -55,7 +55,7 @@ DIFFERENT tricks. Won on rotation, amplitude and a clean landing.
 - The start house and the television start (`start-house*.ts`,
   `camera-start.ts`) — a drop-in platform with a start of its own.
 - The replay's broadcast camera and a flight filed back-dated to its
-  take-off (`replay-shots.ts`, `camera-tv.ts`).
+  take-off (`replay-shots.ts`, `camera-replay.ts`).
 - The audience, the finish arena (`finish-arena.ts`) — a big air's crowd is
   one arena round the landing.
 

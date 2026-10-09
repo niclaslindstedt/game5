@@ -399,7 +399,7 @@ export function poseInputOf(
     // THE TRUNK HELD while the skis rock under him over a bump.
     pitchHeld: pitchHeld(legs, skier.pitch),
     // THE FALL his body is riding, by how far it is.
-    flight: flightShape(legs.flight, legs.clock, legs.air),
+    flight: flightShape(legs.flight, legs.air),
     trick,
     // ...with his poles, or with nothing in his hands (the hard mode).
     poles: skier.poles,

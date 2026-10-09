@@ -141,7 +141,7 @@ export type SkierSpring = {
   keep: number;
   keepRate: number;
   /** THE FALL as his body rides it (`skier-flight.ts`): secure off a
-   * kicker, spotting a drop, windmilling a cliff, reaching for the snow. */
+   * kicker, spotting a drop or a cliff, reaching for the snow. */
   flight: Flight;
   /** LOOKING BACK OVER A SHOULDER while he rides switch: how far into it
    * his body is, 0..1, its rate, and the shoulder (the side the hips hang to for a positive `hipRight`) — the
@@ -195,9 +195,6 @@ export type SpringRide = {
   sidestep?: number;
   /** Riding tails first (`SkierState.switched`). */
   switched?: boolean;
-  wx?: number;
-  wy?: number;
-  wz?: number;
 };
 /** How quickly his body is thrown into a save and fights back out of it,
  * rad/s — a tenth of a second to most of the way: a flung arm moves at
@@ -562,16 +559,7 @@ export function stepSkierSpring(
     stepBody(s, ride, airborne, dt);
     work = stepPoled(s, ride, airborne, dt);
   }
-  stepFlight(
-    s.flight,
-    airborne,
-    fall?.read,
-    ride?.airTime ?? 0,
-    Math.hypot(ride?.wx ?? 0, ride?.wy ?? 0, ride?.wz ?? 0),
-    dt,
-    fall?.gravity,
-    ride?.lean,
-  );
+  stepFlight(s.flight, airborne, fall?.read, ride?.airTime ?? 0, dt, fall?.gravity, ride?.lean);
   // A HOP is not a flight (`flying`): he goes compact only once he is
   // really flying.
   const into = flying({ airborne, airTime: ride?.airTime, popped: ride?.popped }) ? 1 : 0;

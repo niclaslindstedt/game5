@@ -15,6 +15,7 @@ import type { TrickKind, TrickPart } from "@engine";
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { BODY_STRINGS } from "./strings-body.ts";
 import { MAP_STRINGS } from "./strings-maps.ts";
+import { REPLAY_STRINGS } from "./strings-replay.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
@@ -736,27 +737,8 @@ export const STRINGS = {
   /** The news line at the finish of a run with nobody else on it. */
   newsFinishAlone: (seconds: number): string => `FINISH  ${formatTime(seconds)}`,
 
-  /* ── THE REPLAY (hud-replay.tsx, hud-result.tsx, menu-pause.tsx) ─────── */
-  replayWatch: "WATCH REPLAY",
-  /** Under the pause card's row: taken mid-run, the run is over. */
-  replayWatchNote: "ends this run",
-  replayLabel: "REPLAY",
-  /** Said while the picture runs slow, so it is not read as dropped frames. */
-  replaySlow: "SLOW",
-  replayTitle: (seed: number, mode: string): string =>
-    `SEED ${seed} · ${mode === "tricks" ? "TRICKS" : mode === "bigAir" ? "BIG AIR" : mode === "slopestyle" ? "SLOPESTYLE" : mode === "halfpipe" ? "HALFPIPE" : mode === "moguls" ? "MOGULS" : "RACE"}`,
-  replayLine: (skis: string, time: number | null, place: number | null): string =>
-    `${skis.toUpperCase()} · ${
-      time === null
-        ? "UNFINISHED"
-        : place === null
-          ? formatTime(time)
-          : `${ordinal(place)} · ${formatTime(time)}`
-    }`,
-  /** The rung the recording is watched from. */
-  replayCamera: (rung: string): string => (rung === "tv" ? "BROADCAST" : rung.toUpperCase()),
-  replayExit: "EXIT",
-  replayNote: "C for the camera · ESC to leave",
+  /* ── THE REPLAY (strings-replay.ts, spread in) ──────────────────────── */
+  ...REPLAY_STRINGS,
 
   /* ── THE PINNED MAPS (strings-maps.ts, spread in) ──────────────────── */
   ...MAP_STRINGS,

@@ -21,7 +21,7 @@ export type HeldAction = keyof KeysHeld;
  * edge that is not here: it reaches the engine as an input flag on the step
  * it arrives in, which is the whole difference between standing the skier
  * back on the piste and changing the camera. */
-export type InputAction = "restart" | "camera" | "pause" | "shot" | "hud";
+export type InputAction = "restart" | "camera" | "pause" | "shot" | "hud" | "replay";
 
 /** An action taken on the PRESS, not held. `machine` reaches the engine as
  * `reset` does (`SkierInput.machine`): on to the snowmobile or the
@@ -51,6 +51,7 @@ export const KEY_ACTIONS: readonly { id: KeyAction; label: string }[] = [
   { id: "camera", label: STRINGS.keyCamera },
   { id: "hud", label: STRINGS.keyHud },
   { id: "shot", label: STRINGS.keyShot },
+  { id: "replay", label: STRINGS.keyReplay },
   { id: "pause", label: STRINGS.keyPause },
 ];
 
@@ -133,6 +134,9 @@ export const DEFAULT_KEYS: KeyBindings = {
   // P FOR PICTURE, THE SHUTTER (`screenshots.ts`): a press the right hand
   // reaches without leaving the keyboard, and on no machine's key table.
   shot: ["KeyP"],
+  // V FOR VIEW AGAIN, THE INSTANT REPLAY (`replay-run.ts`): the crash just
+  // taken, or the last few seconds, watched back and the run handed back.
+  replay: ["KeyV"],
   pause: ["Escape"],
 };
 

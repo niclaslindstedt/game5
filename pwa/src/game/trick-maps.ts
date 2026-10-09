@@ -123,6 +123,23 @@ export const TRICK_MAPS: readonly TrickMap[] = [
   },
 ];
 
+/** The modes stood up on a trick map: the park run and every freestyle
+ * contest built over one. */
+export const TRICK_RUNS = [
+  "tricks",
+  "bigAir",
+  "slopestyle",
+  "halfpipe",
+  "moguls",
+  "aerials",
+] as const;
+export type TrickRun = (typeof TRICK_RUNS)[number];
+
+/** Whether `mode` is stood up on a trick map. */
+export function isTrickRun(mode: string): mode is TrickRun {
+  return (TRICK_RUNS as readonly string[]).includes(mode);
+}
+
 /** The trick map named by an id, or the first where the id is no map (a
  * fresh app, or a stale stored id). */
 export function trickMapFor(id: string | null): TrickMap {

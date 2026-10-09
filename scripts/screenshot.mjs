@@ -122,8 +122,9 @@ const SCENES = {
 /** THE CARDS, and how to photograph each one. A card is not a race's frame,
  * so these do not wait on `__SH_READY__` — what says a card is up is the
  * card being in the DOM. `settle` is the beat after it the card's arrival
- * animation needs. `press` is a button pressed on the way in, for the one
- * surface reached by a press rather than by a URL; `prime` is a race stood
+ * animation needs. `press` is a button pressed on the way in, for a surface
+ * reached by a press rather than by a URL, and `keys` are keys pressed once
+ * the card is up; `prime` is a race stood
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
 const SURFACES = {
@@ -151,6 +152,45 @@ const SURFACES = {
     settle: 60,
   },
   pause: { params: { paused: "1", t: "14" }, wait: ".menu-card-pause", settle: 700 },
+  // THE REPLAY of the run so far, off the pause card's WATCH REPLAY: the bar
+  // as it opens, held still by SPACE (the bar never steps out while paused),
+  // and stepped out of the picture while it plays untouched (the hairline).
+  replay: {
+    params: { paused: "1", t: "20" },
+    press: ".pause-replay",
+    pressAfter: 700,
+    wait: ".hud-replay",
+    settle: 1500,
+  },
+  "replay-paused": {
+    params: { paused: "1", t: "20" },
+    press: ".pause-replay",
+    pressAfter: 700,
+    wait: ".hud-replay",
+    keys: ["ArrowRight", "ArrowRight", "Space"],
+    settle: 8000,
+  },
+  // THE OFFER AFTER A CRASH: seed 38's slalom held through a turn at
+  // 140 km/h until it throws him (`?hold=`), and the instant replay the
+  // offer opens.
+  "replay-offer": {
+    params: { start: "race", t: "8", hold: "140,turn,6" },
+    wait: ".hud-replay-offer",
+    settle: 1200,
+  },
+  "replay-crash": {
+    params: { start: "race", t: "8", hold: "140,turn,6" },
+    press: ".hud-replay-offer",
+    wait: ".hud-replay",
+    settle: 6000,
+  },
+  "replay-idle": {
+    params: { paused: "1", t: "20" },
+    press: ".pause-replay",
+    pressAfter: 700,
+    wait: ".hud-replay-layer.is-idle",
+    settle: 3000,
+  },
   // THE LEVEL CARD a RACE picks its pinned map on, straight off the URL
   // (`?menu=levels`).
   levels: { params: { menu: "levels" }, wait: ".menu-card-levels", settle: 900 },
@@ -575,6 +615,7 @@ async function capture(name, params, viewportName, surface) {
         );
       }
       await page.waitForSelector(surface.wait, { timeout: args.timeout * 1000 });
+      for (const key of surface.keys ?? []) await page.keyboard.press(key);
       await page.waitForTimeout(surface.settle);
     } else {
       await page.waitForFunction("window.__SH_READY__ === true", null, {

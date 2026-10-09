@@ -230,7 +230,7 @@ export function PauseMenu({
               </span>
             </button>
             {onReplay && (
-              <button type="button" class="pause-foot-item" onClick={onReplay}>
+              <button type="button" class="pause-foot-item pause-replay" onClick={onReplay}>
                 <Glyph name="replay" />
                 <span class="pause-foot-name">{STRINGS.replayLabel}</span>
                 <span class="pause-foot-note">{STRINGS.replayWatchNote}</span>

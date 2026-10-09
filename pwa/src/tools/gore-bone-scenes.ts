@@ -82,11 +82,26 @@ function skiing(st: Stage, breaks: Injury[]): void {
   const s = standing(st, breaks);
   st.run(s, 4, bot);
   st.shoot(s, "chase", "chase");
-  st.shoot(s, "behind", onSkier(Math.PI, 1.8, 0.4, 0.2, 0, 35));
-  st.shoot(s, "left", onSkier(-1.7, 0.8, 0.15, 0.15, -0.15, 35));
-  st.shoot(s, "right", onSkier(1.7, 0.8, 0.0, 0.0, 0.15, 35));
-  st.shoot(s, "left-back", onSkier(-2.4, 0.8, 0.3, 0.15, -0.15, 35));
-  st.shoot(s, "right-back", onSkier(2.4, 0.8, 0.1, 0.0, 0.15, 35));
+  for (const [name, yaw] of [
+    ["left", -1.6],
+    ["left-front", -0.8],
+    ["left-back", -2.4],
+    ["right", 1.6],
+    ["right-front", 0.8],
+    ["right-back", 2.4],
+  ] as const)
+    st.shoot(s, name, onSkier(yaw, 1.4, 0.25, 0.1, 0, 32));
+  // Close on each arm as it hangs, from its own side, ahead and behind.
+  for (const [side, k] of [
+    ["l", -1],
+    ["r", 1],
+  ] as const)
+    for (const [name, yaw] of [
+      ["side", 1.6],
+      ["front", 0.7],
+      ["back", 2.5],
+    ] as const)
+      st.shoot(s, `arm-${side}-${name}`, onSkier(k * yaw, 0.95, 0.05, -0.25, k * 0.25, 32));
 }
 
 /** A femur broken out in a wedge and a tibia simply. */

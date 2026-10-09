@@ -56,8 +56,9 @@ const mirror = (o: OpenBone, on: SkierBone): OpenBone => ({
 });
 // Where each comes out (the left's; the right's mirrored): the humerus out
 // of the upper arm's outside and back, the radius out of the forearm's
-// thumb side and the ulna out of its border underneath, where both lie
-// under the skin; the femur out of the thigh's front and outside, the
+// thumb side and back and the ulna out of its back toward the little
+// finger, where both lie under the skin and face up off a pole held ahead
+// (the faces underneath, toward the knees in a crouch, are buried); the femur out of the thigh's front and outside, the
 // tibia out of the shin's front and inside, the face it has no muscle on.
 const HUMERUS: OpenBone = {
   on: "upperarm_l",
@@ -70,14 +71,14 @@ const RADIUS: OpenBone = {
   on: "forearm_l",
   r: 0.008,
   out: 0.05,
-  face: { x: -1, y: 0.7, z: 0 },
+  face: { x: -0.3, y: 1, z: 0 },
   at: 0.5,
 };
 const ULNA: OpenBone = {
   on: "forearm_l",
   r: 0.007,
   out: 0.04,
-  face: { x: 0.2, y: -1, z: 0 },
+  face: { x: 0.6, y: 1, z: 0 },
   at: 0.45,
 };
 const FEMUR: OpenBone = {

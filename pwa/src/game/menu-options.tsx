@@ -335,6 +335,16 @@ export function OptionsPage({
                 onPick={(id) => onSettings({ ...settings, injuries: id === "on" })}
                 onHint={setHint}
               />
+              {/* THE X-RAY CAM and its slow motion: off unless asked for, and
+                only ever on a run that shows the injuries. */}
+              <StepRow
+                label={STRINGS.optXray}
+                hint={STRINGS.optXrayHint}
+                stops={childLock ? OFF_ONLY : ON_OFF}
+                value={onOff(settings.xray && injuriesShown(settings, content))}
+                onPick={(id) => onSettings({ ...settings, xray: id === "on" })}
+                onHint={setHint}
+              />
               <StepRow
                 label={STRINGS.optPreset}
                 hint={STRINGS.optPresetHint}

@@ -18,6 +18,7 @@
 // The frame is the engine's (`Site`: x across the front, +z out of it, y
 // up from the floor). Three-free.
 
+import { TERRACES } from "@engine";
 import { FACADE } from "./facade-paint.ts";
 import {
   Site,
@@ -82,18 +83,20 @@ function mountainHut(site: Site): void {
   signBoard(kit, -4, 4, d.walls - 0.75, d.walls - 0.1, hd + 0.05, 0x234a3a, 0xf3efe2, c.id);
   chimney(kit, -hw * 0.45, -hd * 0.3, d.walls, d.ridge + 1.2, 1.1);
   // THE DECK across the front, on a stone skirt, its rail round the ends.
-  const t0 = hd;
-  const t1 = hd + 5;
-  const tw = hw + 0.5;
-  const deck = -0.2;
+  // Measured in the engine, which rings it with its rail (`TERRACES`).
+  const T = TERRACES.mountainHut!;
+  const t0 = hd + T.from;
+  const t1 = hd + T.out;
+  const tw = hw + T.end;
+  const deck = T.deck;
   const foot = Math.min(deck - 0.3, site.lowest(-tw, t0, tw, t1)) - 0.5;
   solid(kit, -tw, foot, t0, tw, deck, t1, DARK_STONE, DECK);
-  solid(kit, -tw, deck + 0.95, t0, -tw + 0.06, deck + 1.02, t1, RAIL);
-  solid(kit, tw - 0.06, deck + 0.95, t0, tw, deck + 1.02, t1, RAIL);
-  solid(kit, -tw, deck + 0.95, t1 - 0.06, -3, deck + 1.02, t1, RAIL);
-  solid(kit, 3, deck + 0.95, t1 - 0.06, tw, deck + 1.02, t1, RAIL);
-  for (const x of [-tw, -tw / 2, -3, 3, tw / 2, tw])
-    solid(kit, x - 0.04, deck, t1 - 0.06, x + 0.04, deck + 1.02, t1, RAIL);
+  solid(kit, -tw, deck + T.rail - 0.07, t0, -tw + 0.06, deck + T.rail, t1, RAIL);
+  solid(kit, tw - 0.06, deck + T.rail - 0.07, t0, tw, deck + T.rail, t1, RAIL);
+  solid(kit, -tw, deck + T.rail - 0.07, t1 - 0.06, -T.gap, deck + T.rail, t1, RAIL);
+  solid(kit, T.gap, deck + T.rail - 0.07, t1 - 0.06, tw, deck + T.rail, t1, RAIL);
+  for (const x of [-tw, -tw / 2, -T.gap, T.gap, tw / 2, tw])
+    solid(kit, x - 0.04, deck, t1 - 0.06, x + 0.04, deck + T.rail, t1, RAIL);
   for (let i = 0; i < 4; i++) {
     const x = -tw + 2.8 + ((2 * tw - 5.6) * i) / 3;
     picnicTable(kit, x, t0 + 2.6, deck, true);

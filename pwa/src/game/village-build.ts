@@ -40,7 +40,7 @@
 // of it, y up from the floor (`Site`). Three-free: the arrays are made a
 // mesh by `facade-mesh.ts`.
 
-import { resortBuildingsOf, cabinsOf, type Cabin, type Level } from "@engine";
+import { TERRACES, resortBuildingsOf, cabinsOf, type Cabin, type Level } from "@engine";
 
 import { FACADE } from "./facade-paint.ts";
 import { FacadeKit } from "./facade-kit.ts";
@@ -163,9 +163,11 @@ function lodge(site: Site): void {
   windows(site, "right", -hd + 1, hd - 1, 5, g + 0.6, d.walls - 0.6, 1.8, 0.9, 4);
   windows(site, "back", -hw + 2, hw - 2, 9, g + 0.8, d.walls - 0.8, 1.4, 0.6, 5);
   windows(site, "back", -hw + 2, hw - 2, 7, 0.8, 2.4, 1.4, 0.3, 6);
-  // The glulam columns down the face, carrying the eaves.
+  // The glulam columns down the face, carrying the eaves — none before the
+  // doors (`building-walls.ts` stands the same ones).
   for (let i = 0; i <= 6; i++) {
     const x = -hw + 0.3 + ((2 * hw - 0.6) * i) / 6;
+    if (Math.abs(x) < 2.6) continue;
     solid(kit, x - 0.16, 0, hd + 0.05, x + 0.16, d.walls, hd + 0.3, S.timberFascia);
   }
   // The roof: the broad gable along the front, a cross-gable over the door.
@@ -201,23 +203,25 @@ function lodge(site: Site): void {
   );
   chimney(kit, hw * 0.55, -hd * 0.35, d.walls, d.ridge + 1.3, 1.2);
   // THE TERRACE: boards across the whole front on a stone skirt, a rail.
-  const t0 = hd + 0.3;
-  const t1 = hd + d.reach.front - 0.2;
-  const tw = hw + d.reach.side - 0.3;
-  const deck = -0.25;
+  // Measured in the engine, which rings it with its rail (`TERRACES`).
+  const T = TERRACES.restaurant!;
+  const t0 = hd + T.from;
+  const t1 = hd + T.out;
+  const tw = hw + T.end;
+  const deck = T.deck;
   const foot = Math.min(deck - 0.3, site.lowest(-tw, t0, tw, t1)) - 0.5;
   solid(kit, -tw, foot, t0, tw, deck, t1, S.stone, { layer: FACADE.boards, tint: 0xc9a988 });
   const rail = { layer: FACADE.boards, tint: 0x9a7b60 };
-  solid(kit, -tw, deck, t1 - 0.08, -2, deck + 1.0, t1, rail);
-  solid(kit, 2, deck, t1 - 0.08, tw, deck + 1.0, t1, rail);
-  solid(kit, -tw, deck, t0, -tw + 0.08, deck + 1.0, t1, rail);
-  solid(kit, tw - 0.08, deck, t0, tw, deck + 1.0, t1, rail);
+  solid(kit, -tw, deck, t1 - 0.08, -T.gap, deck + T.rail, t1, rail);
+  solid(kit, T.gap, deck, t1 - 0.08, tw, deck + T.rail, t1, rail);
+  solid(kit, -tw, deck, t0, -tw + 0.08, deck + T.rail, t1, rail);
+  solid(kit, tw - 0.08, deck, t0, tw, deck + T.rail, t1, rail);
   // The steps down off the terrace in the middle of its rail.
   const snow = site.ground(0, t1 + 1.5);
   const steps = Math.max(1, Math.round((deck - snow) / 0.18));
   for (let i = 0; i < steps; i++) {
     const y = deck - ((i + 1) * (deck - snow)) / steps;
-    solid(kit, -2, foot, t1 + i * 0.3, 2, y + 0.18, t1 + (i + 1) * 0.3, S.stone, {
+    solid(kit, -T.gap, foot, t1 + i * 0.3, T.gap, y + 0.18, t1 + (i + 1) * 0.3, S.stone, {
       layer: FACADE.boards,
       tint: 0xc9a988,
     });

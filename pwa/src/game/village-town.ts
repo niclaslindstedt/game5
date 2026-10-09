@@ -25,6 +25,8 @@
 // The frame is the engine's (`defs/cabins.ts`): x across the front, +z out
 // of it (toward the street), y up from the floor (`Site`). Three-free.
 
+import { CHURCH_TOWER } from "@engine";
+
 import { FACADE } from "./facade-paint.ts";
 import {
   Site,
@@ -423,8 +425,9 @@ export function shop(site: Site): void {
 // ---------------------------------------------------------------- church
 
 /** The church's tower: its side, its shaft to the belfry's sill, the
- * belfry, the spire's foot and its point, m over the floor. */
-export const TOWER = { side: 5, shaft: 15, belfry: 19.5, spire: 30.5 } as const;
+ * belfry, the spire's foot and its point, m over the floor — the engine's,
+ * whose walls stand it the same (`CHURCH_TOWER`). */
+export const TOWER = CHURCH_TOWER;
 
 export function church(site: Site): void {
   const { kit, hw, hd, d } = site;
@@ -435,7 +438,7 @@ export function church(site: Site): void {
   const naveFront = hd - T.side;
   const nz = (naveFront - hd) / 2;
   const nhd = (naveFront + hd) / 2;
-  plinth(site, STONE, 0.4);
+  plinth(site, STONE, T.plinth);
   site.kit.box(-hw, 0, -hd, hw, d.walls, naveFront, white.layer, white.tint, null);
   // Tall round-headed windows down both flanks, lit for evensong.
   for (const side of ["left", "right"] as const) {

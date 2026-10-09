@@ -19,8 +19,7 @@
 //
 // A REAL THING THE MAP KNOWS, not a decoration: a position, a heading, a
 // footprint and a kind, kept per map and read by the drawing, the minimap
-// and the collision alike (a skier meets its walls, `cabinWalls`, as he
-// meets a trunk). A pure function of the map, off hashes of its seed and
+// and the collision alike (a skier meets its walls — `building-walls.ts`). A pure function of the map, off hashes of its seed and
 // nothing else — never the stream, never the generator's order — so no
 // map's digest and no run's moves for it.
 
@@ -33,7 +32,7 @@ import { helipadOf } from "./heli-pad.ts";
 import { clearOfLifts } from "./lift-line.ts";
 import { pisteMasts } from "./piste-masts.ts";
 import { sledSpotOf } from "./sled-pad.ts";
-import { treesNear, type Upright } from "./upright-grid.ts";
+import { treesNear } from "./upright-grid.ts";
 import {
   downhillOf,
   pick,
@@ -621,54 +620,4 @@ function placeLodges(
     }
   }
   tryAt(mid, valley);
-}
-
-const walls = new WeakMap<Level, Upright[]>();
-
-/**
- * EVERY CABIN'S WALLS as a skier meets them: a row of posts round each
- * footprint, set in by their radius so their outer face is the wall's, no
- * further apart than `wall.gap` — solid to a skier, his thrown body and
- * his skis as a trunk is (`posts.ts`), from the lowest ground under the
- * building to its eaves. Kept per map.
- */
-export function cabinWalls(level: Level): readonly Upright[] {
-  let list = walls.get(level);
-  if (list) return list;
-  list = [];
-  const r = L.wall.radius;
-  for (const c of cabinsOf(level)) {
-    const d = CABINS[c.kind];
-    const hx = d.width / 2 - r;
-    const hz = d.depth / 2 - r;
-    const fx = Math.sin(c.heading);
-    const fz = Math.cos(c.heading);
-    const height = c.y - c.base + d.walls;
-    const corners: [number, number][] = [
-      [-hx, -hz],
-      [hx, -hz],
-      [hx, hz],
-      [-hx, hz],
-    ];
-    for (let e = 0; e < 4; e++) {
-      const [ax, az] = corners[e];
-      const [bx, bz] = corners[(e + 1) % 4];
-      const len = hypot(bx - ax, bz - az);
-      const n = Math.max(1, Math.ceil(len / L.wall.gap));
-      for (let i = 0; i < n; i++) {
-        const lx = ax + ((bx - ax) * i) / n;
-        const lz = az + ((bz - az) * i) / n;
-        list.push({
-          x: c.x + lx * fz + lz * fx,
-          z: c.z - lx * fx + lz * fz,
-          y: c.base,
-          height,
-          radius: r,
-          stuff: "log",
-        });
-      }
-    }
-  }
-  walls.set(level, list);
-  return list;
 }

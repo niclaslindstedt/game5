@@ -985,6 +985,9 @@ export type GameState = ContestState & {
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
   machineSnow?: import("./snow-guns.ts").MachineSnow;
+  /** THE DOORS STANDING OPEN on this run, by their buildings' ids, sorted
+   * (`building-walls.ts`'s `setDoor`): absent while every door is shut. */
+  doors?: string[];
   /** THE SCORE (`tricks.ts`): kept on every run — the sim reads it — and
    * worked for (`strokes.ts`) only on one whose rules count tricks. */
   tricks: TrickState;

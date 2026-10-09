@@ -210,7 +210,7 @@ export function stepRun(
   if (run.aerial) stepAerial(run, input);
   // OFF A PIPE'S WALL (`pipe-air.ts`): the lip's push and the turn round.
   if (!off && !railed) stepPipeAir(run, flightGravity(run.rules));
-  if (!off) collideTrees(run, events);
+  if (!off) collideTrees(run, events, x0, z0);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);
   // THE EDGE STAKES (`edge-stakes.ts`): bent over, snapped, whipping back.

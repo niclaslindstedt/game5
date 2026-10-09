@@ -83,9 +83,8 @@ export const REPLAY_STRINGS = {
   replayScrub: "SEEK",
   replayMark: (kind: ShotKind): string => MARK_WORDS[kind],
   replayNote: "SPACE play · ← → 5 s · , . frame · ↑ ↓ speed · C camera · H readouts · ESC back",
-  /** The offer after a crash, and the key that takes it. */
+  /** The offer after a crash (its key printed beside it as bound). */
   replayOffer: "WATCH THAT AGAIN",
   /** OPTIONS ▸ KEYS' row. */
   keyReplay: "REPLAY",
-  replayOfferKey: (key: string): string => `${key} · INSTANT REPLAY`,
 } as const;

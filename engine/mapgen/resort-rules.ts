@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE RESORT'S RULE BOOK — R25 onward, the rules a generator from the
+// THE RESORT'S RULE BOOK — R25 to R30 and R42, the rules a generator from the
 // resorts on (`versions.ts`) builds a whole ski area to, stated beside the
 // rule book (`rules.ts`) and read with it: every map is still R1–R24's, and
 // these say what a RESORT adds — one mountain shaped for a ski area, the
@@ -33,6 +33,18 @@
 //                                village: a kilometre and more off a short
 //                                lift, a downhill course's 3–4.5 km off the
 //                                top
+//   route (R42)                  the grade past black: ORANGE, the colour a
+//                                ski area signs an "extremely difficult"
+//                                run with where it has one — in the
+//                                Alpine countries a marked SKI ROUTE,
+//                                never groomed or patrolled, cleared of
+//                                avalanche danger and marked with orange
+//                                stakes; a black is nearly always groomed
+//                                there, so what no machine can work is a
+//                                route. Its line is chosen, not built:
+//                                steeper than a groomer's ceiling (R8's
+//                                38°) and no steeper than an expert
+//                                couloir's 48° over a hundred metres
 //   network.colours              a resort's piste kilometres split roughly
 //                                a fifth green, two fifths blue, a third red
 //                                and a tenth black — the steep country more
@@ -228,6 +240,35 @@
 //       m/s. A skier who stands into the wind inside one is blown along it
 //       to its speed and on past it, with no ceiling (TUNING.tunnel), and
 //       let go at its exit, his way kept.
+//   R42 SKI ROUTES. A generator from the routes on (`versions.ts`) marks
+//       up to `route.count` SKI ROUTES down the ski area — the ORANGE grade,
+//       past black — found on the finished mountain without moving its
+//       ground, packing its snow or felling a tree: a route is the mountain
+//       as it lies, never groomed. The face is read as squares `route.cell`
+//       metres on a side, a square open to a skier unless the fall line
+//       under it falls past `route.cliff` over `route.baseline` metres, a
+//       trunk stands within `route.open` metres of it or a lift's line runs
+//       within `route.lift` metres of it, and a route goes
+//       only downhill from square to square. It leaves the rim of a chair's
+//       or gondola's top station `route.rim` metres from its middle at one
+//       of `route.bearings` bearings round it, passes through at least one
+//       square whose `track.colourWindow` down the fall line is past R8's
+//       `track.maxGrade` (the steepest a machine grooms), and comes down
+//       onto a piste or a lane, where it ends. Its line, smoothed
+//       `route.smooth` times and laid at a station every `route.station`
+//       metres, holds that: its steepest `track.colourWindow` past R8's
+//       `track.maxGrade` and no more than `route.steepest`; no
+//       `route.pitchWindow` along it past `route.cliff`; no trunk within
+//       `route.open` metres of it; no more than `route.beside` metres of it
+//       within `route.clear` metres of another run's corridor; `route.edge`
+//       metres inside the map's edge; `route.length` long and
+//       `route.vertical` fallen at least. Each top keeps its best line, the
+//       most vertical fallen at a red's pitch or steeper first; the map
+//       keeps the best of those, each off a top of its own and
+//       `route.apart` metres from the others past their first `route.lead`
+//       metres; a mountain with no such line has none. Every route is
+//       marked by orange stakes down both sides of a `route.width` metre
+//       corridor every `route.every` metres and signed at its head.
 
 import type { Band } from "./rules.ts";
 import type { PisteGrade } from "./grades.ts";
@@ -629,6 +670,52 @@ export const RESORT_RULES = {
     /** How near its entrance and its exit stand to a bottom station or a
      * finish, m. */
     reach: 160,
+  },
+  /** R42 — the ski routes. */
+  route: {
+    /** How many a map marks at most, each off a top of its own. */
+    count: { min: 0, max: 2 } as Band,
+    /** The squares the mountain is searched over, m on a side. */
+    cell: 10,
+    /** How far from a top station's middle a route leaves its pad, m (the
+     * pad's rim, `lift.top.pad` across, and a few metres past it), and at
+     * how many bearings round it. */
+    rim: 30,
+    bearings: 24,
+    /** The most its steepest `track.colourWindow` may fall, m per m (1.1,
+     * 48°): an expert couloir's, never a face only a rope skis. */
+    steepest: 1.1,
+    /** The pitch past which the ground is a CLIFF, m per m (1.3, 52°),
+     * read over `pitchWindow` m along the line and over `baseline` m down
+     * the fall line under it. */
+    cliff: 1.3,
+    pitchWindow: 20,
+    baseline: 10,
+    /** The least clear ground between the line and a trunk's bark, m — a
+     * glade is skied, a wood is not. */
+    open: 1.5,
+    /** How near a lift's line, bottom to top, it may come, m: never down
+     * under the rope, where the towers stand. */
+    lift: 16,
+    /** How near another run's corridor the line may run, m, and for how
+     * far at most, m, before it ends on one. */
+    clear: 14,
+    beside: 60,
+    /** How far inside the map's edge it keeps, m. */
+    edge: 60,
+    /** Its length, m, and its least vertical, m. */
+    length: { min: 400, max: 3000 } as Band,
+    vertical: 250,
+    /** How far apart two routes keep past their first `lead` m, m. */
+    lead: 120,
+    apart: 60,
+    /** The line's smoothing passes, and its stations' spacing, m. */
+    smooth: 4,
+    station: 4,
+    /** The marked corridor's width, m, and its stakes' spacing down both
+     * edges, m. */
+    width: 14,
+    every: 40,
   },
   /** R28 — the course. */
   course: {

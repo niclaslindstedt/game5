@@ -32,6 +32,7 @@ import {
   portableLevel,
   type Level,
   type PisteGrade,
+  type RunGrade,
   type PortableLevel,
   type RegionId,
 } from "@engine";
@@ -69,7 +70,7 @@ export type PreviewPanorama = {
 export type PreviewRequest = {
   seed: number;
   region: RegionId;
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   paint: boolean;
   /** The map itself, where the page already had it: painted, not built. */
   level?: PortableLevel;
@@ -79,7 +80,7 @@ export type PreviewRequest = {
 export type PreviewPainted = {
   seed: number;
   region: RegionId;
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   ok: true;
   /** The plan's ground. */
   picture: PreviewPicture;
@@ -113,7 +114,7 @@ export type PreviewPainted = {
 export type PreviewRefused = {
   seed: number;
   region: RegionId;
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   ok: false;
   error: string;
 };
@@ -124,7 +125,7 @@ export type PreviewReply =
   | {
       seed: number;
       region: RegionId;
-      grade: PisteGrade | null;
+      grade: RunGrade | null;
       ok: true;
       painted: PreviewPainted | null;
       /** Null where the page handed the map in. */

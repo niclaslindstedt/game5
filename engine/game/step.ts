@@ -35,7 +35,7 @@ import {
   withDay,
   withSky,
 } from "../mapgen/index.ts";
-import type { PisteGrade } from "../mapgen/grades.ts";
+import type { RunGrade } from "../mapgen/grades.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
 import type { Level, SkyOverride } from "../mapgen/types.ts";
@@ -107,8 +107,9 @@ export type CreateGameOptions = {
    * when left out. Ignored when `level` is given. */
   region?: RegionId;
   /** The piste grade the seed's map is built to (R23); the one the seed
-   * deals when left out. Ignored when `level` is given. */
-  grade?: PisteGrade;
+   * deals when left out — ORANGE (R42) the hardest piste's, and a free
+   * ride by lift up to the map's ski route. Ignored when `level` is given. */
+  grade?: RunGrade;
   /** The mode whose rules the run is dealt (`MODE_RULES`); the field on
    * the start line (`fieldRules`) when left out. Each option below still
    * overrides its own rule. */

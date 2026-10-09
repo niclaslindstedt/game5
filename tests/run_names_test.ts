@@ -14,6 +14,7 @@ import {
   liftPlans,
   nearestTrackPoint,
   raceCourseOf,
+  skiRoutesOf,
   type GameState,
   type Level,
   type RegionId,
@@ -183,7 +184,13 @@ describe("the piste-head signs (run-sign-plan.ts)", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
       const posts = signPlan(level);
-      const boards = posts.flatMap((p) => p.boards);
+      // A ski route's (R42) board is its own, at the head of its route.
+      const routes = skiRoutesOf(level);
+      const isRoute = (id: string) => routes.some((r) => r.id === id);
+      const routeBoards = posts.flatMap((p) => p.boards).filter((b) => isRoute(b.run));
+      expect(routeBoards.map((b) => b.run).sort()).toEqual(routes.map((r) => r.id).sort());
+      for (const b of routeBoards) expect(b.grade).toBe("orange");
+      const boards = posts.flatMap((p) => p.boards).filter((b) => !isRoute(b.run));
       const runs = resortOf(level).runs;
       expect(boards.map((b) => b.run).sort()).toEqual(runs.map((r) => r.id).sort());
       for (const b of boards) {
@@ -215,7 +222,8 @@ describe("the piste-head signs (run-sign-plan.ts)", () => {
       const runs = resortOf(level).runs;
       for (const post of signPlan(level)) {
         for (const b of post.boards) {
-          const run = runById(level, b.run)!;
+          const run = runById(level, b.run);
+          if (!run) continue; // a ski route's (R42), held by ski_routes_test
           const parent = run.branch ? runById(level, run.branch.run) : undefined;
           const near = (r: Run) =>
             Math.min(...r.points.map((p) => Math.hypot(p.x - post.x, p.z - post.z)));
@@ -240,7 +248,8 @@ describe("the piste-head signs stand at the edge, on the lift's side", () => {
       let ramps = 0;
       for (const post of signPlan(level)) {
         if (post.boards.length !== 1) continue;
-        const run = runById(level, post.boards[0].run)!;
+        const run = runById(level, post.boards[0].run);
+        if (!run) continue; // a ski route's (R42)
         const line = run.branch ? runById(level, run.branch.run)! : run;
         const hit = nearestTrackPoint({ track: line }, post.x, post.z);
         const p = line.points[hit.index];

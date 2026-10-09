@@ -49,10 +49,12 @@ import {
   gradeOf,
   sampleField,
   sampleFieldGradient,
+  skiRoutesOf,
   type GeneratedLevel,
-  type PisteGrade,
+  type RunGrade,
   type RunKind,
   type Level,
+  type TrackPoint,
 } from "@engine";
 
 import { runNumbers } from "./run-names.ts";
@@ -648,8 +650,9 @@ export type PanoramaRun = {
   id: string;
   /** The number it is signed with (`runNumber`) — what its badge reads. */
   number: string;
-  kind: RunKind;
-  grade: PisteGrade;
+  /** A piste, a lane, or a SKI ROUTE (R42). */
+  kind: RunKind | "route";
+  grade: RunGrade;
   /** One of the runs the course this map is raced on follows. */
   raced: boolean;
   seen: string;
@@ -732,9 +735,13 @@ export function panoramaSchematic(
 ): PanoramaSchematic {
   const resort = level.resort;
   const raced = new Set(resort?.courses.find((c) => c.id === resort.course)?.runs ?? []);
-  const lines = resort
-    ? resort.runs.map((r) => ({ id: r.id, kind: r.kind, grade: r.grade, points: r.points }))
-    : [{ id: "1", kind: "piste" as const, grade: gradeOf(level), points: level.track.points }];
+  const lines: { id: string; kind: RunKind | "route"; grade: RunGrade; points: TrackPoint[] }[] =
+    resort
+      ? resort.runs.map((r) => ({ id: r.id, kind: r.kind, grade: r.grade, points: r.points }))
+      : [{ id: "1", kind: "piste", grade: gradeOf(level), points: level.track.points }];
+  for (const r of skiRoutesOf(level)) {
+    lines.push({ id: r.id, kind: "route", grade: r.grade, points: r.points });
+  }
   const badges: [number, number][] = [];
   const numbers = runNumbers(level as Level);
   const runs = lines.map((run): PanoramaRun => {
@@ -751,7 +758,7 @@ export function panoramaSchematic(
     // clear of any number already placed.
     let badge: [number, number] | null = null;
     const length = pts.at(-1)?.s ?? 0;
-    for (let k = 0; k < at.length && run.kind === "piste"; k++) {
+    for (let k = 0; k < at.length && run.kind !== "road"; k++) {
       if (!is[k] || pts[picked[k]].s < 0.1 * length) continue;
       if (badges.some((b) => Math.hypot(b[0] - at[k][0], b[1] - at[k][1]) < 6)) continue;
       badge = at[k];

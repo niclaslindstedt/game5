@@ -3949,6 +3949,14 @@ canvas {
   opacity: 0.75;
 }
 
+/* A SKI ROUTE (R42) is the mountain as it lies, marked and never groomed:
+   a run's weight in its orange, broken into long dashes as a piste map
+   draws a route — never mistaken for a groomed run. */
+.pano-run.pano-route {
+  stroke-dasharray: 2 1.1;
+  stroke-linecap: butt;
+}
+
 .pano-lift-casing {
   stroke: #fff;
   stroke-width: 1;

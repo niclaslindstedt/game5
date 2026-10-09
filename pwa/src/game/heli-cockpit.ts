@@ -24,6 +24,7 @@
 // cabin. Presentation only: it reads `GameState.heli` and writes nothing.
 
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { HELI, type HeliState, type Level } from "@engine";
 
@@ -47,12 +48,18 @@ import {
   paintPanelLive,
   paintPedestal,
 } from "./cockpit-paint.ts";
+import {
+  bulkheadOf,
+  cabinOf,
+  coamingGeometry,
+  glassFoot,
+  sealGeometry,
+  shroudGeometry,
+} from "./cockpit-shroud.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 
 /** How often the panel's faces are painted again, Hz. */
 const PAINT_HZ = 20;
-/** How far the skin's copy stands in from it, m. */
-const LINER_IN = 0.022;
 
 export type Cockpit = {
   group: THREE.Group;
@@ -70,162 +77,18 @@ type V3 = { x: number; y: number; z: number };
 
 const up = new THREE.Vector3(0, 1, 0);
 
-/** Each vertex colour of the cabin's inside, by which way the skin faces
- * there: the floor's mat, the walls' trim, the headliner. */
-const FLOOR_MAT = new THREE.Color(0.12, 0.123, 0.13);
-const WALL = new THREE.Color(0.34, 0.345, 0.355);
-const LINER = new THREE.Color(0.56, 0.56, 0.54);
-
-/** THE SKIN'S OPAQUE PANELS INSIDE THE CABIN, copied in from it, as one
- * geometry in the machine's frame (`toMachine` each mesh's own matrix into
- * it), and the glass's copy. */
-function cabinOf(
-  body: THREE.Object3D,
-  toMachine: (m: THREE.Mesh) => THREE.Matrix4,
-): { liner: THREE.BufferGeometry | null; glass: THREE.BufferGeometry | null } {
-  const liner: number[] = [];
-  const linerN: number[] = [];
-  const linerC: number[] = [];
-  const glass: number[] = [];
-  const glassN: number[] = [];
-  const p = new THREE.Vector3();
-  const n = new THREE.Vector3();
-  const tri: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-  const nor: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-  body.traverse((o) => {
-    if (!(o instanceof THREE.Mesh) || Array.isArray(o.material)) return;
-    const name = (o.material as THREE.Material).name;
-    const isGlass = /^glass/i.test(name);
-    if (!isGlass && !/^(trim|paint|stripe|dark)/i.test(name)) return;
-    const geo = o.geometry as THREE.BufferGeometry;
-    const pos = geo.getAttribute("position");
-    const norm = geo.getAttribute("normal");
-    if (!pos || !norm) return;
-    const m = toMachine(o);
-    const nm = new THREE.Matrix3().getNormalMatrix(m);
-    const index = geo.getIndex();
-    const count = index ? index.count : pos.count;
-    for (let i = 0; i < count; i += 3) {
-      let cz = 0;
-      let cy = 0;
-      let cx = 0;
-      for (let k = 0; k < 3; k++) {
-        const v = index ? index.getX(i + k) : i + k;
-        tri[k].fromBufferAttribute(pos, v).applyMatrix4(m);
-        nor[k].fromBufferAttribute(norm, v).applyMatrix3(nm).normalize();
-        cx += tri[k].x / 3;
-        cy += tri[k].y / 3;
-        cz += tri[k].z / 3;
-      }
-      if (cz < COCKPIT.bulkhead - 0.02 || cy > HELI.body.roof + 0.05 || Math.abs(cx) > 1.0) {
-        continue;
-      }
-      for (let k = 0; k < 3; k++) {
-        p.copy(tri[k]);
-        n.copy(nor[k]);
-        if (isGlass) {
-          p.addScaledVector(n, -0.005);
-          glass.push(p.x, p.y, p.z);
-          glassN.push(n.x, n.y, n.z);
-          continue;
-        }
-        p.addScaledVector(n, -LINER_IN);
-        liner.push(p.x, p.y, p.z);
-        linerN.push(n.x, n.y, n.z);
-        const c = n.y < -0.55 ? FLOOR_MAT : n.y > 0.6 ? LINER : WALL;
-        linerC.push(c.r, c.g, c.b);
-      }
-    }
-  });
-  const make = (v: number[], nv: number[], c?: number[]): THREE.BufferGeometry | null => {
-    if (!v.length) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
-    g.setAttribute("normal", new THREE.Float32BufferAttribute(nv, 3));
-    if (c) g.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
-    return g;
-  };
-  return { liner: make(liner, linerN, linerC), glass: make(glass, glassN) };
-}
-
-/** THE WALL AT THE BACK OF THE CABIN: the skin's section at the bulkhead
- * (its hull, drawn in a little), facing forward. */
-function bulkheadOf(
-  body: THREE.Object3D,
-  toMachine: (m: THREE.Mesh) => THREE.Matrix4,
-): THREE.BufferGeometry | null {
-  const z0 = COCKPIT.bulkhead;
-  const pts: [number, number][] = [];
-  const p = new THREE.Vector3();
-  body.traverse((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
-    const name = (o.material as THREE.Material).name ?? "";
-    if (!/^(trim|paint|stripe|dark)/i.test(name)) return;
-    const pos = (o.geometry as THREE.BufferGeometry).getAttribute("position");
-    const m = toMachine(o);
-    for (let i = 0; i < pos.count; i++) {
-      p.fromBufferAttribute(pos, i).applyMatrix4(m);
-      if (Math.abs(p.z - z0) < 0.12 && p.y < HELI.body.roof + 0.02 && Math.abs(p.x) < 1.0)
-        pts.push([p.x, p.y]);
-    }
-  });
-  if (pts.length < 3) return null;
-  // The convex hull (monotone chain).
-  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const cross = (o: number[], a: number[], b: number[]) =>
-    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lower: [number, number][] = [];
-  for (const q of pts) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0)
-      lower.pop();
-    lower.push(q);
-  }
-  const upper: [number, number][] = [];
-  for (let i = pts.length - 1; i >= 0; i--) {
-    const q = pts[i];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0)
-      upper.pop();
-    upper.push(q);
-  }
-  const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
-  let cx = 0;
-  let cy = 0;
-  for (const [x, y] of hull) {
-    cx += x / hull.length;
-    cy += y / hull.length;
-  }
-  const v: number[] = [];
-  const shrink = (x: number, y: number): [number, number] => {
-    const d = Math.hypot(x - cx, y - cy) || 1;
-    const k = Math.max(0, d - LINER_IN * 1.5) / d;
-    return [cx + (x - cx) * k, cy + (y - cy) * k];
-  };
-  for (let i = 0; i < hull.length; i++) {
-    const a = shrink(...hull[i]);
-    const b = shrink(...hull[(i + 1) % hull.length]);
-    v.push(cx, cy, z0, b[0], b[1], z0, a[0], a[1], z0);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
-  g.computeVertexNormals();
-  // Facing forward, whichever way round the hull ran.
-  const nz = g.getAttribute("normal").getZ(0);
-  if (nz < 0) {
-    const pos = g.getAttribute("position");
-    for (let i = 0; i < pos.count; i += 3) {
-      const x = pos.getX(i + 1);
-      const y = pos.getY(i + 1);
-      pos.setXY(i + 1, pos.getX(i + 2), pos.getY(i + 2));
-      pos.setXY(i + 2, x, y);
-    }
-    g.computeVertexNormals();
-  }
-  return g;
-}
-
 /** A box `w` × `h` × `d` m at (x, y, z), turned `rx` about x. */
 function box(w: number, h: number, d: number, x: number, y: number, z: number, rx = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
+  if (rx) g.rotateX(rx);
+  g.translate(x, y, z);
+  return g;
+}
+
+/** A box `w` × `h` × `d` m at (x, y, z), turned `rx` about x, its edges
+ * rounded to `r` m — upholstery and mouldings. */
+function soft(w: number, h: number, d: number, x: number, y: number, z: number, rx = 0, r = 0.03) {
+  const g = new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2.2, h / 2.2, d / 2.2));
   if (rx) g.rotateX(rx);
   g.translate(x, y, z);
   return g;
@@ -293,6 +156,48 @@ function canvasTexture(
   return { canvas, ctx, texture };
 }
 
+/** A fine crinkle finish's grain, for a moulding's roughness and bump. */
+function crinkleTexture(): THREE.CanvasTexture {
+  const N = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = N;
+  const ctx = canvas.getContext("2d")!;
+  const img = ctx.createImageData(N, N);
+  // A seeded hash, so every build of the cockpit has the same grain.
+  let h = 2166136261;
+  const rnd = () => {
+    h ^= h << 13;
+    h ^= h >>> 17;
+    h ^= h << 5;
+    return ((h >>> 0) % 1000) / 1000;
+  };
+  const base = new Float32Array(N * N);
+  for (let i = 0; i < base.length; i++) base[i] = rnd();
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      // A little blur: the grain is a texture, not a speckle.
+      let v = 0;
+      for (const [dx, dy] of [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+        [0, -1],
+      ])
+        v += base[((y + dy + N) % N) * N + ((x + dx + N) % N)];
+      const c = Math.round(150 + (v / 5 - 0.5) * 120);
+      const i = (y * N + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = c;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(canvas);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(10, 3);
+  return t;
+}
+
 export function createCockpit(
   body: THREE.Object3D | null,
   toMachine: (m: THREE.Mesh) => THREE.Matrix4,
@@ -317,9 +222,10 @@ export function createCockpit(
   };
   const black = std({ color: 0x141517, roughness: 0.85 });
   const satin = std({ color: 0x2a2c30, roughness: 0.55, metalness: 0.35 });
+  const shell = std({ color: 0x55585e, roughness: 0.6, metalness: 0.1 });
   const steel = std({ color: 0x8d9096, roughness: 0.35, metalness: 0.8 });
   const rubber = std({ color: 0x0b0b0c, roughness: 0.75 });
-  const fabric = std({ color: 0x3c4556, roughness: 0.95 });
+  const fabric = std({ color: 0x44474e, roughness: 0.97 });
   const strap = std({ color: 0x3b3f46, roughness: 0.8 });
   const suit = std({ color: 0x2f3a2c, roughness: 0.9 });
   const glove = std({ color: 0x17130f, roughness: 0.6 });
@@ -330,12 +236,33 @@ export function createCockpit(
 
   // THE CABIN'S INSIDE off the model's skin; the glass from in here.
   const outsideGlass: THREE.Mesh[] = [];
+  // The moulding the panel sits in and the deck to the glass: matte
+  // charcoal with a fine crinkle in its finish.
+  const crinkle = crinkleTexture();
+  textures.push(crinkle);
+  const moulding = std({
+    color: 0x2b2d31,
+    roughness: 0.82,
+    roughnessMap: crinkle,
+    bumpMap: crinkle,
+    bumpScale: 0.6,
+    side: THREE.DoubleSide,
+  });
+  let foot: ((x: number) => { x: number; y: number; z: number }) | null = null;
   if (body) {
     body.traverse((o) => {
       if (o instanceof THREE.Mesh && /^glass/i.test((o.material as THREE.Material).name ?? ""))
         outsideGlass.push(o);
     });
     const cabin = cabinOf(body, toMachine);
+    foot = glassFoot(cabin.glass);
+    const seals = sealGeometry(cabin.glass);
+    if (seals) {
+      group.add(
+        new THREE.Mesh(seals, std({ color: 0x1c1d20, roughness: 0.7, side: THREE.DoubleSide })),
+      );
+      geos.push(seals);
+    }
     if (cabin.liner) {
       const m = std({ vertexColors: true, roughness: 0.92, side: THREE.BackSide });
       const mesh = new THREE.Mesh(cabin.liner, m);
@@ -405,19 +332,9 @@ export function createCockpit(
   room.add(faceMesh);
   geos.push(face);
 
-  const G = C.glare;
   const housing: THREE.BufferGeometry[] = [
     // The housing behind the face, down to the floor's curve in the nose.
     box(P.half * 2, rise + 0.02, 0.2, 0, (P.top + P.bottom) / 2, (P.z + zTop) / 2 + 0.11, P.lean),
-    // The glareshield: its lip over the face and its top run forward and
-    // down to the windscreen's foot.
-    box(P.half * 2 + 0.02, G.lip, G.over + 0.02, 0, P.top + G.lip / 2, zTop - G.over / 2),
-    quad(
-      { x: P.half + 0.01, y: P.top + G.lip, z: zTop - G.over },
-      { x: -P.half - 0.01, y: P.top + G.lip, z: zTop - G.over },
-      { x: -P.half + 0.05, y: G.foot.y, z: G.foot.z },
-      { x: P.half - 0.05, y: G.foot.y, z: G.foot.z },
-    ),
   ];
   // THE PEDESTAL: its sloping radio face and its sides, then the floor
   // console on aft between the seats.
@@ -507,6 +424,17 @@ export function createCockpit(
     box(0.012, 0.05, 0.05, 0, C.compass.y + 0.06, C.compass.z + 0.02),
   );
   room.add(merged(housing, black));
+  // THE SHROUD the face sits in, and the coaming forward to the glass.
+  const shroud = shroudGeometry();
+  const glareFoot = foot ?? ((x: number) => ({ x, y: C.glare.foot.y, z: C.glare.foot.z }));
+  const deck = coamingGeometry(shroud.back, glareFoot);
+  for (const g of [shroud.shroud, deck]) {
+    const mesh = new THREE.Mesh(g, moulding);
+    mesh.receiveShadow = true;
+    mesh.castShadow = true;
+    room.add(mesh);
+    geos.push(g);
+  }
   const compassCard = new THREE.Mesh(
     box(0.05, 0.02, 0.005, 0, C.compass.y + 0.004, C.compass.z - 0.031),
     std({ color: 0xe8e6da, roughness: 0.5, emissive: 0x302e28 }),
@@ -547,29 +475,47 @@ export function createCockpit(
   const S = C.seat;
   const seatParts: THREE.BufferGeometry[] = [];
   const seatFrame: THREE.BufferGeometry[] = [];
+  const seatShell: THREE.BufferGeometry[] = [];
   for (const side of [-1, 1]) {
     const x = side * S.x;
     const depth = S.front - S.back;
-    seatParts.push(box(S.width, 0.1, depth, x, S.top - 0.05, (S.front + S.back) / 2, -0.06));
-    // The back, leant aft, and its headrest.
+    // The cushion and the back, upholstered (rounded), the back's hard
+    // shell behind it; the headrest; the bucket's side bolsters.
+    seatParts.push(soft(S.width, 0.1, depth, x, S.top - 0.05, (S.front + S.back) / 2, -0.06));
     const lean = S.lean;
     const mid = { y: S.top + S.tall / 2, z: S.back - Math.sin(lean) * (S.tall / 2) };
-    seatParts.push(box(S.width, S.tall, 0.1, x, mid.y, mid.z - 0.04, -lean));
+    seatParts.push(soft(S.width - 0.04, S.tall, 0.09, x, mid.y, mid.z - 0.035, -lean));
+    seatShell.push(soft(S.width, S.tall + 0.04, 0.035, x, mid.y, mid.z - 0.1, -lean, 0.015));
     seatParts.push(
-      box(
-        S.width * 0.55,
-        0.16,
-        0.08,
+      soft(
+        S.width * 0.5,
+        0.15,
+        0.09,
         x,
-        S.top + S.tall + 0.06,
-        S.back - Math.sin(lean) * (S.tall + 0.06) - 0.04,
+        S.top + S.tall + 0.07,
+        S.back - Math.sin(lean) * (S.tall + 0.07) - 0.045,
         -lean,
       ),
     );
-    // The bucket's side bolsters.
     for (const b of [-1, 1]) {
       seatParts.push(
-        box(0.05, 0.08, depth, x + (b * S.width) / 2, S.top + 0.01, (S.front + S.back) / 2),
+        soft(
+          0.06,
+          0.1,
+          depth - 0.04,
+          x + (b * (S.width - 0.06)) / 2,
+          S.top + 0.02,
+          (S.front + S.back) / 2,
+        ),
+        soft(
+          0.07,
+          S.tall * 0.62,
+          0.11,
+          x + (b * (S.width - 0.07)) / 2,
+          S.top + S.tall * 0.33,
+          S.back - Math.sin(lean) * S.tall * 0.33 - 0.02,
+          -lean,
+        ),
       );
     }
     // The frame and its legs to the floor.
@@ -588,10 +534,10 @@ export function createCockpit(
   }
   const B = C.bench;
   seatParts.push(
-    box(1.56, 0.11, B.front - B.back, 0, B.top - 0.055, (B.front + B.back) / 2),
-    box(1.56, 0.6, 0.1, 0, B.top + 0.3, B.back - 0.02, -0.12),
+    soft(1.56, 0.11, B.front - B.back, 0, B.top - 0.055, (B.front + B.back) / 2),
+    soft(1.56, 0.6, 0.1, 0, B.top + 0.3, B.back - 0.02, -0.12),
   );
-  room.add(merged(seatParts, fabric), merged(seatFrame, steel));
+  room.add(merged(seatParts, fabric), merged(seatFrame, steel), merged(seatShell, shell));
   // The guide's harness lying on his seat, and the belts on the bench.
   {
     const x = -S.x;
@@ -606,6 +552,50 @@ export function createCockpit(
     }
     room.add(merged(straps, strap));
     room.add(merged([box(0.07, 0.012, 0.06, x, S.top + 0.012, S.back + 0.3)], steel));
+  }
+
+  // THE FLOOR MATS in the front footwells (ribbed rubber), and the fire
+  // extinguisher strapped to the guide's seat frame.
+  {
+    const rib = document.createElement("canvas");
+    rib.width = 16;
+    rib.height = 64;
+    const rc = rib.getContext("2d")!;
+    rc.fillStyle = "#161718";
+    rc.fillRect(0, 0, 16, 64);
+    rc.fillStyle = "#26282a";
+    for (let k = 0; k < 64; k += 8) rc.fillRect(0, k, 16, 3);
+    const ribs = new THREE.CanvasTexture(rib);
+    ribs.wrapS = ribs.wrapT = THREE.RepeatWrapping;
+    ribs.repeat.set(1, 7);
+    textures.push(ribs);
+    const mat = std({ map: ribs, roughness: 0.9 });
+    for (const side of [-1, 1]) {
+      const x = side * S.x;
+      const g = quad(
+        { x: x - 0.24, y: floor + 0.006, z: S.front - 0.02 },
+        { x: x + 0.24, y: floor + 0.006, z: S.front - 0.02 },
+        { x: x + 0.24, y: floor + 0.006, z: C.pedals.z - 0.08 },
+        { x: x - 0.24, y: floor + 0.006, z: C.pedals.z - 0.08 },
+      );
+      g.setIndex([0, 2, 1, 0, 3, 2]);
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat);
+      m.receiveShadow = true;
+      room.add(m);
+      geos.push(g);
+    }
+    const ex = { x: -S.x - S.width / 2 - 0.05, y: floor + 0.24, z: S.back + 0.1 };
+    room.add(
+      merged([tube({ ...ex, y: ex.y - 0.17 }, { ...ex, y: ex.y + 0.13 }, 0.045, 0.045, 12)], red),
+      merged(
+        [
+          tube({ ...ex, y: ex.y + 0.13 }, { ...ex, y: ex.y + 0.19 }, 0.02, 0.012, 8),
+          box(0.1, 0.02, 0.03, ex.x, ex.y + 0.19, ex.z + 0.02),
+        ],
+        black,
+      ),
+    );
   }
 
   // THE CONTROLS. The cyclic: its boot, the stick, its grip and buttons.

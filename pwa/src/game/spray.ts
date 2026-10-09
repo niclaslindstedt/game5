@@ -35,6 +35,7 @@ import * as THREE from "three";
 import { rotate, type Level, type SkierState } from "@engine";
 
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
+import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import { skiShares } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import type { SnowProps } from "./snowpack.ts";
@@ -135,6 +136,7 @@ export function createSpray(haze: HazeUniforms): Spray {
       uLit: { value: new THREE.Color(1, 1, 1) },
       uShade: { value: new THREE.Color(0.6, 0.7, 0.9) },
       uScale: { value: 600 },
+      ...SHELTER,
     },
     vertexShader: /* glsl */ `
       attribute float aSize;
@@ -155,6 +157,7 @@ export function createSpray(haze: HazeUniforms): Spray {
     `,
     fragmentShader: /* glsl */ `
       ${SKY_GLSL}
+      ${SHELTER_GLSL}
       uniform vec3 uLit;
       uniform vec3 uShade;
       varying float vAlpha;
@@ -163,7 +166,7 @@ export function createSpray(haze: HazeUniforms): Spray {
       void main() {
         vec2 c = gl_PointCoord * 2.0 - 1.0;
         float r = dot(c, c);
-        if (r > 1.0) discard;
+        if (r > 1.0 || sheltered(vWorld)) discard;
         // A grain puff is soft to its rim; a clump is a lump with an edge.
         float soft = mix((1.0 - r) * (1.0 - r), smoothstep(1.0, 0.55, r), vHard);
         // The sunward side of a puff is brighter than its underside, and a

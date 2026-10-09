@@ -72,7 +72,16 @@ export const COCKPIT_VIEWS: Record<string, (st: Stage) => Promise<void> | void> 
     st.run(s, 1.5);
     st.shoot(s, "pad-spool", "helmet");
     const { pad, steep } = st.spots;
-    st.run(s, 6, flyTo({ x: pad.x, z: pad.z, height: 8 }));
+    // Lifting off in its own wash: none of the snow it throws up is in the
+    // cabin (`shelter.ts`) — seen from the seat and from the rear bench.
+    st.run(s, 2, flyTo({ x: pad.x, z: pad.z, height: 8 }));
+    st.shoot(s, "liftoff-wash", "helmet");
+    st.shoot(
+      s,
+      "liftoff-cabin",
+      cabinLens(s, { x: 0, y: 1.75, z: 0.65 }, { x: 0.1, y: 1.4, z: 2.6 }, 70),
+    );
+    st.run(s, 4, flyTo({ x: pad.x, z: pad.z, height: 8 }));
     st.shoot(s, "hover-pad", "helmet");
     // At the hover over a steep face, looking out of the chin.
     const o = st.fresh(true);

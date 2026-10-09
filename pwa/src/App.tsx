@@ -99,7 +99,6 @@ import { deathOver } from "./game/hud-wreck.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
-import { ReplayOffer } from "./game/hud-replay-offer.tsx";
 import { createXrayRun, dying, xrayHud } from "./game/xray-run.ts";
 import { createReplayRun, type ReplayBarFacts, type ReplayRun } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
@@ -887,6 +886,14 @@ export function App() {
           jumpKey={boundLabel(settings.keys.jump)}
           injuries={injuriesShown(settings, shellContent())}
           again={again}
+          offer={
+            shell === "run" && crashReplay
+              ? {
+                  keyLabel: boundLabel(settings.keys.replay),
+                  onWatch: () => pressRef.current.watch("crash"),
+                }
+              : null
+          }
         />
       )}
       {/* THE NEW-BUILD NOTICE over the front door: a deploy most often lands
@@ -904,13 +911,6 @@ export function App() {
           touch={touch}
           controls={replayRef.current!}
           onLeave={() => pressRef.current.unwatch()}
-        />
-      )}
-      {shell === "run" && crashReplay && (
-        <ReplayOffer
-          touch={touch}
-          keyLabel={boundLabel(settings.keys.replay)}
-          onWatch={() => pressRef.current.watch("crash")}
         />
       )}
       <ResultPlate

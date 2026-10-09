@@ -8,7 +8,7 @@
 // those controls from the same state gives the run back EXACTLY: the same
 // kicker, the same trunk, the same rival passed on the same berm, the same
 // figure on the clock. That is why it can be watched from any camera, the
-// broadcast included (`camera-tv.ts`), instead of only the one it was ridden
+// broadcast included (`camera-replay.ts`), instead of only the one it was ridden
 // through.
 //
 // THE FIELD COMES WITH IT. A race's rivals, a free ride's crowd, its

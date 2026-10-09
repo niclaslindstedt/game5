@@ -3,7 +3,7 @@
 // and the director that cuts to them while the recording plays back.
 //
 // A LIVE CAMERA CANNOT DO THIS AND A REPLAY'S CAN, which is the whole reason
-// the TV camera is replay-only (`camera-tv.ts`). A broadcast cuts to the
+// the TV camera is replay-only (`camera-replay.ts`). A broadcast cuts to the
 // lens in the trees beside a kicker BEFORE the jump, because the shot is the
 // skier arriving into a frame that is already standing there waiting for
 // him — and a camera watching a run for the first time has no way of knowing
@@ -37,7 +37,7 @@
 // rate, every furrow and every sound with it.
 //
 // Three-free and DOM-free: this decides WHICH moment and WHEN,
-// `camera-tv.ts` decides where the lens stands, and `tests/replay_test.ts`
+// `camera-replay.ts` decides where the lens stands, and `tests/replay_test.ts`
 // holds both without a browser.
 
 import { racePlace, TUNING, type GameState } from "@engine";

@@ -213,6 +213,7 @@ function rotorDisc(d: DiscSpec): THREE.Mesh {
       uContrast: { value: 1 },
       uBlade: { value: new THREE.Color(0.05, 0.052, 0.056) },
       uTip: { value: new THREE.Color(0.5, 0.05, 0.06) },
+      uBlood: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec2 vAt;
@@ -227,6 +228,7 @@ function rotorDisc(d: DiscSpec): THREE.Mesh {
       uniform float uContrast;
       uniform vec3 uBlade;
       uniform vec3 uTip;
+      uniform float uBlood;
       varying vec2 vAt;
       const float GAP = ${f((2 * Math.PI) / d.blades)};
       void main() {
@@ -259,7 +261,9 @@ function rotorDisc(d: DiscSpec): THREE.Mesh {
         // snow: a blade's share of a picture lifted and eased, so the haze
         // at speed is a grey sheet and its ghost wedges still show.
         float alpha = uOpacity * rim * pow(clamp(2.5 * cover, 0.0, 1.0), 0.6);
-        gl_FragColor = vec4(r > ${f(d.band)} ? uTip : uBlade, alpha);
+        // Through a body, the blades come out of it red (heli-grip.ts).
+        vec3 ink = mix(r > ${f(d.band)} ? uTip : uBlade, vec3(0.32, 0.015, 0.02), uBlood);
+        gl_FragColor = vec4(ink, alpha + 0.25 * uBlood * alpha);
         #include <colorspace_fragment>
       }
     `,
@@ -273,9 +277,15 @@ function rotorDisc(d: DiscSpec): THREE.Mesh {
   return disc;
 }
 
-/** Sets a disc to this frame's look. */
-function lookDisc(disc: THREE.Mesh, look: RotorLook, on: boolean): void {
+/** How red a rotor's disc is drawn once its blades have been through a
+ * body (`HeliState.bladed`): a strike leaves them smeared. */
+const BLOODIED = 0.7;
+
+/** Sets a disc to this frame's look — `blood` the share its blades are red
+ * with a body they went through. */
+function lookDisc(disc: THREE.Mesh, look: RotorLook, on: boolean, blood = 0): void {
   const u = (disc.material as THREE.ShaderMaterial).uniforms;
+  u.uBlood.value = blood;
   u.uOpacity.value = look.disc;
   u.uSmear.value = Math.min(look.smear, 9);
   u.uContrast.value = look.contrast;
@@ -629,7 +639,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
       if (!wreck) cockpit?.update(h, level, state.t, dt);
       fadeBlades(mainBlades, wreck ? { ...main, blades: 1 } : main);
       fadeBlades(tailBlades, wreck ? { ...back, blades: 1 } : back);
-      lookDisc(disc, main, !wreck);
+      lookDisc(disc, main, !wreck, h.bladed >= 0 ? BLOODIED : 0);
       lookDisc(tailDisc, back, !wreck);
       // THE LIGHTS: the beacon flashing while the rotor turns — and the
       // machine and its pad lit up for a skier near it with no rider on.

@@ -16,6 +16,7 @@ import {
   createGame,
   generateLevel,
   NEUTRAL_INPUT,
+  pilotInput,
   placeRun,
   solidsOf,
   step,
@@ -188,6 +189,24 @@ const SCENES: Record<string, () => Scene> = {
     roll(s, () => false, 6, flying(0.95));
     roll(s, (q) => !!q.heli && q.heli.y - level.groundAt(q.heli.x, q.heli.z) < 12, 40, flying(0.1));
     return { s, drive: flying(0.1) };
+  },
+  /** INTO THE ROTOR: on the skid, flown up and looped over the top until
+   * his grip goes over the disc. */
+  rotor: () => {
+    const s = fresh({ heli: true });
+    const aim = { x: s.heli!.x, z: s.heli!.z, height: 150 };
+    roll(
+      s,
+      () => false,
+      30,
+      (q) => pilotInput(q, aim),
+    );
+    const loop: Drive = () => ({
+      ...NEUTRAL_INPUT,
+      heli: { collective: 0.8, pitch: -1, roll: 0, pedal: 0 },
+    });
+    roll(s, (q) => (q.heli?.grip ?? 1) < 0.5, 12, loop);
+    return { s, drive: loop };
   },
 };
 

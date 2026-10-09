@@ -760,6 +760,7 @@ export {
 } from "./game/rivals.ts";
 export { stepRun } from "./game/run.ts";
 export { HELI } from "./game/defs/heli.ts";
+export { HELI_BLADES, HELI_GRIP } from "./game/defs/heli-grip.ts";
 export { WRECK, fireFlux, fireballAt, fireballGrowth, fireballOf } from "./game/defs/heli-wreck.ts";
 export {
   HANG_AIR,
@@ -774,6 +775,7 @@ export {
   thrustMost,
 } from "./game/heli.ts";
 export { pilotControls, pilotInput, type HeliAim } from "./game/heli-pilot.ts";
+export { bladeAt, fallsIntoRotor, gripLoad, rotorStrike } from "./game/heli-grip.ts";
 export { discQuat, heliMass, ROTOR_AREA, SEAT as HELI_SEAT } from "./game/heli-rotor.ts";
 export { helipadOf, type Helipad } from "./game/heli-pad.ts";
 export { inducedOf, washAt, type Wash } from "./game/heli-wash.ts";

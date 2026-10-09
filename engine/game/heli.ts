@@ -52,6 +52,8 @@ import { HELI } from "./defs/heli.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { helipadOf } from "./heli-pad.ts";
+import { carryFall, fallsIntoRotor, hangFrame, stepGrip } from "./heli-grip.ts";
+import { HELI_BLADES } from "./defs/heli-grip.ts";
 import { pilotControls } from "./heli-pilot.ts";
 import { SEAT, discQuat, heliMass, heliPoint, heliQuat, thrustMost } from "./heli-rotor.ts";
 import { mendBody } from "./body.ts";
@@ -117,6 +119,15 @@ export function freshHeli(state: GameState): HeliState {
     t: 0,
     wreck: null,
     hang: HANG_GROUND,
+    grip: 1,
+    load: 0,
+    hung: 0,
+    sway: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 },
+    shed: -1,
+    cut: 0,
+    cutSpeed: 0,
+    bladed: -1,
+    taken: 0,
   };
 }
 
@@ -175,7 +186,18 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   const spoolTo = h.rider || h.mode === "home" ? 1 : 0;
   h.spool = clamp(h.spool + Math.sign(spoolTo - h.spool) * K.spool * dt, 0, 1);
   h.controls = controlsFor(run, h, input);
+  const vx0 = h.vx;
+  const vy0 = h.vy;
+  const vz0 = h.vz;
   fly(run, h, h.controls, events);
+  // LET GO OVER ITS ROTOR, his fall is taken in the machine's own frame
+  // (`heli-grip.ts`): the airframe's acceleration given to him too.
+  if (h.shed >= 0) {
+    const b = run.skier.thrown;
+    h.shed += dt;
+    if (!b || h.shed > HELI_BLADES.carry || h.wreck) h.shed = -1;
+    else carryFall(b, (h.vx - vx0) / dt, (h.vy - vy0) / dt, (h.vz - vz0) / dt);
+  }
   h.rotor = (h.rotor + OMEGA * h.spool * dt) % (2 * Math.PI);
   h.tailRotor = (h.tailRotor + TAIL_OMEGA * h.spool * dt) % (2 * Math.PI);
   if (h.mode === "flown" || h.mode === "home") strike(run, h, events);
@@ -186,7 +208,16 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
     drop(run, h, events);
     return false;
   }
+  // THE GRIP: turned too far over for his hands, he hangs from them —
+  // and lets go.
+  const aloft = h.mode === "flown" && !h.grounded;
+  const gone = aloft && stepGrip(h, seatFrame(h).q);
+  if (!aloft) h.load = h.hung = 0;
   hold(run, h);
+  if (gone) {
+    slip(run, h, events);
+    return false;
+  }
   return true;
 }
 
@@ -493,7 +524,7 @@ function park(run: GameState, h: HeliState, events: GameEvent[]): void {
  * moving with it — and off the snow, which is not under his skis. */
 function hold(run: GameState, h: HeliState): void {
   const c = run.skier;
-  const s = seatFrame(h);
+  const s = hangFrame(h, seatFrame(h));
   const dt = TUNING.dt;
   c.vx = h.t <= dt ? h.vx : (s.x - c.x) / dt;
   c.vy = h.t <= dt ? h.vy : (s.y - c.y) / dt;
@@ -538,6 +569,37 @@ function release(run: GameState, h: HeliState, out: number, up: number): void {
   h.rider = false;
 }
 
+/** THE GRIP GONE: he is off the skid with the seat's own way, tumbling —
+ * over its rotor if the machine is turned over him (`fallsIntoRotor`) —
+ * and the machine, lighter on its right side, flown home by its pilot. */
+function slip(run: GameState, h: HeliState, events: GameEvent[]): void {
+  const c = run.skier;
+  const v = { x: c.vx, y: c.vy, z: c.vz };
+  h.rider = false;
+  h.mode = "home";
+  h.t = 0;
+  h.grip = 0;
+  const b = throwRider(run, "grip", v, events);
+  // The throw keeps a share of a skier's way along the snow; off a skid in
+  // the air he keeps all of it.
+  const dt = TUNING.dt;
+  const dx = (v.x - b.vx) * dt;
+  const dy = (v.y - b.vy) * dt;
+  const dz = (v.z - b.vz) * dt;
+  for (let i = 0; i < b.last.length; i += 3) {
+    b.last[i] -= dx;
+    b.last[i + 1] -= dy;
+    b.last[i + 2] -= dz;
+  }
+  b.vx = v.x;
+  b.vy = v.y;
+  b.vz = v.z;
+  const datum = heliPoint(h, { x: 0, y: 0, z: 0 });
+  const middle = unrotate(heliQuat(h), { x: c.x - datum.x, y: c.y - datum.y, z: c.z - datum.z });
+  h.shed = fallsIntoRotor(h, middle) ? 0 : -1;
+  say(run, events, "slip", hypot3(v.x, v.y, v.z));
+}
+
 /** THE DROP: pushed off the skid; the machine, a skier lighter on its right
  * side, is flown home by its pilot. */
 function drop(run: GameState, h: HeliState, events: GameEvent[]): void {
@@ -576,6 +638,8 @@ function board(run: GameState, events: GameEvent[]): void {
   h.mode = "flown";
   h.t = 0;
   h.hang = HANG_GROUND;
+  h.grip = 1;
+  h.hung = 0;
   say(run, events, "board");
 }
 

@@ -840,6 +840,9 @@ export const INJURY = {
    * little less than a living trunk; a crag's ROCK nothing at all but the
    * frost and the lichen on it. */
   solid: { trunk: 0.01, steel: 0.003, padded: 0.15, log: 0.006, rock: 0.002 },
+  /** The most of a rotor blade's speed a blow off one is judged at, m/s —
+   * past it every ladder is long since at its top. */
+  blade: 60,
   helmet: 0.012,
   /** THE SNOW'S GIVE, m: bare ice, the groomer (the study's hard snow),
    * and loose snow — `soft` of it at once and `deep` more for every unit of

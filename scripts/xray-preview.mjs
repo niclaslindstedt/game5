@@ -42,7 +42,7 @@ const args = parseArgs(
     scene: {
       kind: "string",
       default: "",
-      help: "which scenes, comma-separated (trunk-fast, head, slam, fall, spike, spike-post, groomer, maul, heli); every one when left out",
+      help: "which scenes, comma-separated (trunk-fast, head, slam, fall, spike, spike-post, groomer, maul, heli, rotor); every one when left out",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     every: { kind: "number", default: 0.5, help: "wall seconds between two frames shot" },

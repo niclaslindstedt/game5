@@ -330,6 +330,9 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
         rotor: h.rotor,
         hanging: Math.max(0, Math.min(1, hang, near)),
         t: state.t,
+        up: unrotate(c.q, { x: 0, y: 1, z: 0 }),
+        hung: h.hung,
+        load: h.load,
       };
     },
     dispose() {

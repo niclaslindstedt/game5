@@ -50,6 +50,15 @@ function machine(over: Partial<HeliState> = {}): HeliState {
     t: 0,
     wreck: null,
     hang: 0,
+    grip: 1,
+    load: 0,
+    hung: 0,
+    sway: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 },
+    shed: -1,
+    cut: 0,
+    cutSpeed: 0,
+    bladed: -1,
+    taken: 0,
     ...over,
   };
 }

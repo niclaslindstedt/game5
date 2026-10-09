@@ -281,6 +281,7 @@ const outside = (side: number): Facing => (side < 0 ? "left" : "right");
 
 const n: Vec3 = { x: 0, y: 1, z: 0 };
 const way: Vec3 = { x: 0, y: 0, z: 1 };
+const UP: Vec3 = { x: 0, y: 1, z: 0 };
 const near: number[] = [];
 
 /** THE TRUNK'S SHARE of a blow on a shoulder or a hip, by which way he
@@ -306,10 +307,10 @@ function pointBlow(
   face: Facing,
   n: Vec3,
   points: readonly number[],
+  source: ImpactSource = tree ? "tree" : "snow",
 ): void {
   const R = RAGDOLL;
   const S = I.share;
-  const source: ImpactSource = tree ? "tree" : "snow";
   const side =
     i === R.hipL ||
     i === R.shoulderL ||
@@ -381,6 +382,7 @@ function pointBlow(
 function ragdollBlows(state: GameState, b: Thrown): void {
   const P = b.points;
   torsoOf(P);
+  rotorBlows(state, b);
   const level = state.level;
   for (let i = 0; i < RAGDOLL.count; i++) {
     const x = P[3 * i];
@@ -731,6 +733,16 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   wreckSeat(state, events);
   judge(state, events, cap);
   wreckFire(state, events);
+}
+
+/** THE ROTOR'S BLADES through the points of him they passed this step
+ * (`HeliState.cut`, `heli-grip.ts`): steel at the blade's speed, met square. */
+function rotorBlows(state: GameState, b: Thrown): void {
+  const h = state.heli;
+  const v = Math.min(h?.cutSpeed ?? 0, I.blade);
+  for (let i = 0; h?.cut && i < RAGDOLL.count; i++) {
+    if (h.cut & (1 << i)) pointBlow(i, v, I.solid.steel, true, "front", UP, b.points, "heli");
+  }
 }
 
 /** THE CRASH ON THE SKID, on the step a helicopter he sat on went down:

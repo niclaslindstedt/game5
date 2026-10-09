@@ -142,6 +142,10 @@ export const CRASH = {
     // Flung off a crashing helicopter's skid by the blast: head over heels
     // and over onto a side, and up.
     heli: { pitch: 0.8, side: 0.6, up: 3 },
+    // His grip on a helicopter's skid given out (`heli-grip.ts`): he lets
+    // go and falls off it as it turns over, tumbling a little, never
+    // thrown up.
+    grip: { pitch: 0.3, side: 0.4, up: 0 },
     // Thrown off a snowmobile: over the bars and off the side.
     sled: { pitch: 0.7, side: 0.7, up: 1.4 },
     // A stake caught on a ski: the leg snatched back, pitched forward and

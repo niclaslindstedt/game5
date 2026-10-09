@@ -28,6 +28,7 @@ import {
   type SkierPoseInput,
 } from "./skier-pose.ts";
 import { swingLegs, type LegSwing } from "./skier-dangle.ts";
+import { perchPose, type PerchFeel, type PerchReact } from "./skier-perch.ts";
 import { boardPose, type Board } from "./skier-sled.ts";
 import { solveLimb } from "./skier-limbs.ts";
 import type { Mounts } from "./skier-mounts.ts";
@@ -113,6 +114,9 @@ export type Seat = {
   /** TOWED BY A T-BAR instead (`towPose`): the bar under his seat, `share`
    * how far he has sat back onto it. */
   tow?: boolean;
+  /** HELD ON A HELICOPTER'S SKID (`skier-perch.ts`): the upper body's
+   * sway, brace and hang, and what he feels. */
+  held?: { react: PerchReact; feel: PerchFeel };
 };
 
 /** A T-BAR'S RIDER, in the body frame, m: where his hips go sat back onto
@@ -315,6 +319,7 @@ export function seatedPose(input: SkierPoseInput, seat: Seat | null): SkierPose 
   const M = input.mounts ?? MOUNTS;
   if (seat.board) return boardPose(p, seat.board, M, seat.share);
   if (seat.tow) return towPose(p, seat.share, M, TUNING.lift.tee);
-  const sat = seatPose(p, seat, M);
+  const seated = seatPose(p, seat, M);
+  const sat = seat.held ? perchPose(seated, p, seat.held.react, seat.held.feel, seat.y, M) : seated;
   return seat.legs ? swingLegs(sat, seat.legs, M).pose : sat;
 }

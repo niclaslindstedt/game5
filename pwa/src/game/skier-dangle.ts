@@ -87,6 +87,12 @@ export type Perch = {
   hanging: number;
   /** The engine's clock, s. */
   t: number;
+  /** THE UPPER BODY'S (`skier-perch.ts`): the world's up in his body
+   * frame, how far he hangs off the tube by his hands, 0..1, and the share
+   * of his weight they carry — left out where nothing hangs him. */
+  up?: V3;
+  hung?: number;
+  load?: number;
 };
 
 /** THE LEGS AS DRAWN, per leg: the shin's angles off his body's down, rad
@@ -155,6 +161,10 @@ export const DANGLE = {
    * share of slots with one, how long it lasts, s, and its torque, N m. */
   idle: { period: 3.1, torque: 3.2, idleWind: 18 },
   kick: { slot: 3.4, chance: 0.4, length: 0.45, torque: 15 },
+  /** HUNG OFF HIS HANDS (`Perch.hung`), the legs STRUGGLE: his own torque
+   * raised by `torque` times over and his idle and kicks run `pace` times
+   * faster — kicking for a skid he cannot reach. */
+  struggle: { torque: 4, pace: 2.5 },
   /** THE ROTOR'S SHAKE at full spool, rad: the blade passage in the leg
    * and in the ski about its binding, and the once-a-turn beat in the leg;
    * how far translational lift's buffet (around `buffetAt` m/s) adds. */
@@ -275,7 +285,10 @@ function stepLeg(L: Leg, i: number, p: Perch, t: number, h: number): void {
   qp += D.press * (fx * px + fy * py + fz * pz);
   let qs = w * (p.gravity.x * sx + p.gravity.y * sy);
   qs += D.press * (fx * sx + fy * sy);
-  qp += idleTorque(t, i, flow) - D.stiffness * L.pitch - D.damping * L.vp;
+  // Hung off his hands, he kicks for the skid (`DANGLE.struggle`).
+  const fight = 1 + D.struggle.torque * (p.hung ?? 0);
+  qp += idleTorque(t * (1 + D.struggle.pace * (p.hung ?? 0)), i, flow) * fight;
+  qp += -D.stiffness * L.pitch - D.damping * L.vp;
   qs += -D.stiffness * L.side - D.damping * L.vs;
   // The stops.
   const S = D.stop;

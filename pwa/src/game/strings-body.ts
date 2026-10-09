@@ -174,6 +174,7 @@ export const BODY_STRINGS = {
     maul: "TORN IN TWO BY THE GRIMBEAR",
     machine: "UNDER THE PISTE MACHINE",
     blast: "BLOWN APART",
+    rotor: "SHREDDED BY THE ROTOR",
   } satisfies Record<DeathCause, string>,
   /** Where the next rider stands (`free-ride.ts`'s `againAt`). */
   diedAgain: {

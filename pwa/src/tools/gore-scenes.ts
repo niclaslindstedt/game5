@@ -10,13 +10,16 @@
 // sheet is the same sheet twice.
 
 import {
+  HELI,
   NEUTRAL_INPUT,
   RAGDOLL,
   TUNING,
   bodyThrown,
   botInput,
   centreOf,
+  heliPoint,
   letGo,
+  pilotInput,
   placeRun,
   solidsOf,
   treesNear,
@@ -233,6 +236,37 @@ function onBody(yaw: number, dist: number, up: number, fov = 45): Lens {
     const c = b ? centreOf(b.points) : { x: s.skier.x, y: s.skier.y, z: s.skier.z };
     return around(s.level, c, yaw, dist, up, fov, 0);
   };
+}
+
+/** A lens on a helicopter's hub: `dist` m out at `yaw` (world), `up` m
+ * over it. */
+function onHeli(yaw: number, dist: number, up: number, fov = 50): Lens {
+  return (s) => {
+    const h = s.heli!;
+    const hub = heliPoint(h, { x: 0, y: HELI.rotor.hub - 1, z: HELI.rotor.at });
+    const ex = hub.x + Math.sin(yaw) * dist;
+    const ez = hub.z + Math.cos(yaw) * dist;
+    return { eye: { x: ex, y: hub.y + up, z: ez }, target: hub, fov, roll: 0 };
+  };
+}
+
+/** The helicopter looped forward over the top, the collective held. */
+const loop: Drive = () => ({
+  ...NEUTRAL_INPUT,
+  heli: { collective: 0.8, pitch: -1, roll: 0, pedal: 0 },
+});
+
+/** A free ride on the helicopter's skid, flown 150 m up and looped until
+ * his grip gives out over the rotor — stood at the step it goes. */
+function rotorRun(st: Stage): GameState | null {
+  const s = st.fresh({ heli: true });
+  const aim = { x: s.heli!.x, z: s.heli!.z, height: 150 };
+  st.run(s, 30, (q) => pilotInput(q, aim));
+  if (!st.until(s, (q) => !q.heli?.rider, 12, loop)) {
+    st.shoot(s, "held-on", "chase");
+    return null;
+  }
+  return s;
 }
 
 /** Shoot `s` at each of `times`, s after now, from `lens`. */
@@ -527,6 +561,25 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     const side = s.heli!.heading + Math.PI / 2;
     strobe(st, s, [0.6, 0.8, 1.0, 1.15, 1.3, 1.45, 1.6, 1.8, 2.4], onBody(side, 3.2, 0.6, 50));
   },
+  /** INTO THE ROTOR: flown up and looped until his grip on the skid gives
+   * out over the disc, then frame by frame as he falls down through it —
+   * from beside the machine, level with its hub, and from under it. */
+  rotor(st) {
+    const s = rotorRun(st);
+    if (!s) return;
+    const yaw = s.heli!.heading + Math.PI / 2;
+    st.shoot(s, "slip", onHeli(yaw, 16, 1, 55));
+    strobe(st, s, [0.45, 0.55, 0.62, 0.68, 0.75, 0.85, 1.0, 1.3], onHeli(yaw, 16, -4, 55), loop);
+    st.shoot(s, "under", onHeli(yaw + 0.6, 12, -8, 70));
+    st.shoot(s, "behind", "chase");
+  },
+  /** The same fall, close: his body in the disc, from beside it. */
+  "rotor-close"(st) {
+    const s = rotorRun(st);
+    if (!s) return;
+    const yaw = s.heli!.heading + Math.PI / 2;
+    strobe(st, s, [0.55, 0.6, 0.64, 0.68, 0.72, 0.8], onHeli(yaw + 0.4, 9, -3, 60), loop);
+  },
   // ── THE BLOOD ──────────────────────────────────────────────────────────
   /** The spurt on the heartbeat: a stump close, frame by frame over two
    * beats. */
@@ -726,6 +779,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   spike: ["spike-tree", "spike-post"],
   maul: ["maul"],
   machines: ["groomer", "heli", "heli-fly"],
+  rotor: ["rotor", "rotor-close"],
   blood: ["spray", "snow"],
   leak: ["leak", "leak-face", "got-up", "got-up-powder"],
   pools: ["pool-piste", "pool-powder"],

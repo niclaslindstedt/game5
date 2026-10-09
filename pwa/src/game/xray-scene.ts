@@ -9,8 +9,9 @@
 
 import * as THREE from "three";
 
-import type { GameState, Thrown } from "@engine";
+import type { GameState, Level, Thrown } from "@engine";
 
+import { createLineClear, heliBox, type SolidBox } from "./camera-clear.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import type { LensPose, LineClear } from "./camera-rigs.ts";
 import { createXrayLens, frameXray } from "./camera-xray.ts";
@@ -55,6 +56,23 @@ export function createHurtLens(): HurtLens {
   /** The lens the game's own camera drew last frame (the death cam's or
    * the ladder's), what the death cam flies on from. */
   let prev: LensPose | null = null;
+  /** THE HELICOPTER'S CABIN the lens keeps out of (`heliBox`): a skier shed
+   * off its skid falls past it, a bone's width from the glass. Built once a
+   * map, on a run with a helicopter only. */
+  let run: GameState | null = null;
+  let builtFor: Level | null = null;
+  let machine: LineClear | undefined;
+  const cabin: SolidBox = {
+    x: 0,
+    z: 0,
+    dx: 0,
+    dz: 1,
+    halfLength: 0,
+    halfWidth: 0,
+    base: 0,
+    top: 0,
+  };
+  const cabins = (): readonly SolidBox[] => (run?.heli ? [heliBox(run.heli, cabin)] : []);
 
   return {
     group: view.group,
@@ -65,6 +83,13 @@ export function createHurtLens(): HurtLens {
       look = next;
     },
     update(state, skin) {
+      run = state;
+      if (builtFor !== state.level) {
+        builtFor = state.level;
+        machine = state.heli
+          ? createLineClear(state.level, { trees: false, movers: cabins })
+          : undefined;
+      }
       const meshes: THREE.Mesh[] = [];
       skin.group.traverse((o) => {
         if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.Mesh);
@@ -101,8 +126,9 @@ export function createHurtLens(): HurtLens {
       } else if (death.active) dropDeathCam(death);
       prev = home;
       // Nothing hides him under the X-ray (`xray-view.ts`), so its lens is
-      // never pulled in by what stands between.
-      const x = frameXray(xlens, shot, at, home ?? ladder, look?.back ?? 0, dt, groundAt);
+      // pulled in by nothing that stands between but the helicopter he
+      // falls past (`machine`): a lens is never stood in its cabin.
+      const x = frameXray(xlens, shot, at, home ?? ladder, look?.back ?? 0, dt, groundAt, machine);
       return x ?? home;
     },
     active: () => !!look?.active,

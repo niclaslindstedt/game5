@@ -50,6 +50,7 @@ import { bindPose } from "./dress-loft.ts";
 import { createBlood, type Blood } from "./gore-blood.ts";
 import { DRIPS, faceRuns, hardLeaks, pourOf, type Cheek, type Leak } from "./gore-flow.ts";
 import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
+import { rotorStruck } from "./gore-rotor.ts";
 import { createSoak } from "./gore-soak.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
 import { bakeFigure, disposeFigure } from "./gore-remains.ts";
@@ -312,6 +313,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   let guts: Gut[] = [];
   let opened = 0;
   let crushed = false;
+  let bladed = 0; // the points of him the rotor's blades went through, drawn
   let spike: THREE.Mesh | null = null;
   const bodyStumps = new Map<GorePiece, THREE.Mesh>();
   const openMeshes = new Map<number, THREE.Mesh>();
@@ -526,6 +528,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     spike = null;
     opened = 0;
     crushed = false;
+    bladed = 0;
     soakedIn.clear();
     drips = 0;
     drift.set(0, 0, 0);
@@ -664,6 +667,11 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         );
         blood.emit(at, dir, 1.4, 90, 0.9, carry, () => rng.next());
       }
+      // THROUGH THE ROTOR (`gore-rotor.ts`): a fan off every point a blade went through.
+      bladed = rotorStruck(state, bladed, blood, carry, rng, (at, way, fling) => {
+        throwOut(["gobbet", "gobbet", "gobbet", "gobbet"], at, way, carry, fling * 0.8);
+        throwBones(2, at, way, carry);
+      });
       // THE SPIKE through him.
       if (g.impaled && !spike) {
         spike = meshOf(spikeGeo);

@@ -186,17 +186,20 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   const spoolTo = h.rider || h.mode === "home" ? 1 : 0;
   h.spool = clamp(h.spool + Math.sign(spoolTo - h.spool) * K.spool * dt, 0, 1);
   h.controls = controlsFor(run, h, input);
+  // LET GO OVER ITS ROTOR: the collective dumped and the cyclic centred
+  // while he falls (`heli-grip.ts`), so an inverted machine stops driving
+  // itself down at the snow faster than he falls and the disc waits for him.
+  if (h.shed >= 0) h.controls = { ...h.controls, collective: 0, pitch: 0, roll: 0 };
   const vx0 = h.vx;
-  const vy0 = h.vy;
   const vz0 = h.vz;
   fly(run, h, h.controls, events);
-  // LET GO OVER ITS ROTOR, his fall is taken in the machine's own frame
-  // (`heli-grip.ts`): the airframe's acceleration given to him too.
+  // ...and his fall carried along with the airframe's level way, never its
+  // dive: down, he falls by gravity alone.
   if (h.shed >= 0) {
     const b = run.skier.thrown;
     h.shed += dt;
     if (!b || h.shed > HELI_BLADES.carry || h.wreck) h.shed = -1;
-    else carryFall(b, (h.vx - vx0) / dt, (h.vy - vy0) / dt, (h.vz - vz0) / dt);
+    else carryFall(b, (h.vx - vx0) / dt, (h.vz - vz0) / dt);
   }
   h.rotor = (h.rotor + OMEGA * h.spool * dt) % (2 * Math.PI);
   h.tailRotor = (h.tailRotor + TAIL_OMEGA * h.spool * dt) % (2 * Math.PI);

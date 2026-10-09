@@ -124,6 +124,12 @@ export const SLED = {
     cohesion: 450,
     slipRef: 1.6,
     sideRef: 0.5,
+    /** THE SIDEWAYS HOLD stops growing past this multiple of a probe's
+     * rest load: under a landing's load the groomer's crust shears and the
+     * belt and skis slide, rather than trip the machine over its low side
+     * (a sideways hold of 0.8 under a 3 g landing is 2.4 g at the snow,
+     * 0.66 m under the CoG — far past the 0.69 g its stance can stand). */
+    sideLoad: 2.5,
     /** BARE ICE leaves this share of each. */
     ice: 0.35,
   },
@@ -170,25 +176,40 @@ export const SLED = {
   /** THE LEAN INTO A TURN, and RIDE IT LIKE A BIKE in powder (the sibling
    * game's model): the roll the chassis settles at with the bars over —
    * small on the groomer, and in powder the whole of how a mountain sled
-   * turns; the righting the rider and the springs hold it with, N·m per
-   * rad, its damping, N·m·s, and the most, N·m — past which it goes over;
-   * THE CARVE, a share of the belt's load per radian of roll that pulls a
-   * sled rolled onto its edge toward its low side once it has `carveSpeed`
-   * m/s on; and in deep snow the hold the buried skis lose (`deepHold`),
-   * the SOFT SIDE GIVING as a share of the weight at the CoG per radian
-   * (`deepTip`) — what makes a sidehill the rider's balance — and the share
-   * left planing on top. */
+   * turns — taken there no faster than `leanRate` rad/s (a rider rolls a
+   * sled from one edge to the other in about a second); the righting the
+   * rider and the springs hold it with, N·m per rad, its damping past the
+   * lean's own rate, N·m·s, and the most of each, N·m; THE CARVE, a share
+   * of the belt's load per radian of roll that pulls a sled rolled onto
+   * its edge toward its low side once it has `carveSpeed` m/s on; in deep
+   * snow the hold the buried skis lose (`deepHold`), the SOFT SIDE GIVING
+   * as a share of the weight at the CoG per radian (`deepTip`) and the
+   * share left planing on top — and the rider's BALANCE against that give,
+   * N·m (the bars countered and his weight hung uphill: `balanceCrawl` of
+   * it at a standstill, all of it from `balanceSpeed` m/s). THE TIP: past
+   * the angle its CoG passes over the low edge of what it stands on — the
+   * skis' 0.91 m stance on firm snow (about 35° off the way its weight and
+   * the turn's pull hang), the 0.41 m belt as the low ski sinks into loose
+   * (about 17°) — and `hang` rad more for the rider hung off the high
+   * side, the righting fades out over `tipBand` rad and the weight takes
+   * it over (`docs/snowmobile.md` § Rollover). */
   roll: {
     packed: 0.1,
     powder: 0.5,
     stiff: 7000,
-    damp: 620,
+    damp: 1200,
     most: 2700,
     carve: 1.6,
     carveSpeed: 5,
     deepHold: 0.75,
     deepTip: 2.2,
     deepPlaning: 0.5,
+    leanRate: 1,
+    hang: 0.35,
+    tipBand: 0.35,
+    balance: 3000,
+    balanceCrawl: 0.25,
+    balanceSpeed: 8,
   },
   /** THE AIR: the lean's pitch, N·m at full lean (back is nose up); the
    * belt's gyro — the throttle lifting the nose, the brake dropping it,

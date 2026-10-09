@@ -82,6 +82,7 @@ function parkedAt(state: GameState, x: number, z: number, heading: number): Sled
     skiAngle: 0,
     riderRight: 0,
     riderAft: 0,
+    rollAim: 0,
     rpm: 0,
     treadSpeed: 0,
     running: false,
@@ -140,6 +141,7 @@ export function standSled(
   s.wx = s.wy = s.wz = 0;
   s.treadSpeed = 0;
   s.skiAngle = 0;
+  s.rollAim = 0;
   s.airborne = false;
   s.airTime = 0;
   s.overFor = 0;

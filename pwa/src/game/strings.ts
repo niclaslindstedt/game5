@@ -123,6 +123,13 @@ export const STRINGS = {
   /** His height over the sea, under the speed (`HudSnapshot.altitude`). */
   altitude: (m: number): string => `ALT ${Math.round(m)} M`,
   altitudeSaid: "Height above sea level",
+  /** Beside it, smaller: how far he stands over the ski area's BASE — the
+   * valley station of its lowest lift (`HudSnapshot.overBase`). */
+  overBase: (m: number): string => {
+    const r = Math.round(m);
+    return `BASE ${r < 0 ? "\u2212" : "+"}${Math.abs(r)} M`;
+  },
+  overBaseSaid: "Height above the base station",
   /** The EDGE bar's caption (`hud-dial.tsx`) and the skid's word on it. */
   edge: "EDGE",
   brake: "SKID",

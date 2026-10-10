@@ -337,6 +337,8 @@ export const STRINGS = {
   newsLift: (kind: "gondola" | "chair" | "drag"): string =>
     kind === "gondola" ? "GONDOLA UP" : kind === "chair" ? "CHAIR UP" : "T-BAR UP",
   newsLiftTaken: "HOLD TUCK TO SKIP UP · ENTER OR DOUBLE TAP TO JUMP OFF",
+  /** Under the ring the tuck fills while held to skip up a lift. */
+  liftSkip: "SKIPPING UP",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
   newsFinish: (place: number, of: number, seconds: number): string =>

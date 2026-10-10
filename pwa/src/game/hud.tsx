@@ -586,6 +586,21 @@ export function Hud({
         </div>
       )}
 
+      {/* SKIPPING UP THE LIFT: the tuck held while carried fills a ring
+          round the word, so he sees how long is left to hold — and that
+          letting go starts it over. */}
+      {(snap.skip ?? 0) > 0 && (
+        <div
+          class="hud-skip"
+          role="status"
+          style={{ "--skip": (snap.skip ?? 0).toFixed(3) }}
+          data-full={(snap.skip ?? 0) >= 1 ? "1" : undefined}
+        >
+          <span class="hud-skip-ring" />
+          <span class="hud-skip-word">{STRINGS.liftSkip}</span>
+        </div>
+      )}
+
       {/* THE STARTER'S WORD on a slalom, small at the top centre: the
           start clock in the house carries the count, and the television
           shot of the start is not to be covered. Keyed on the word, so GO

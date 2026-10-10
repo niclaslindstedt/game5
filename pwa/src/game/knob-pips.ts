@@ -5,7 +5,7 @@
 // its value, so the row keeps its width however many stops it has.
 
 /** The most pips a row draws. */
-export const MOST_PIPS = 13;
+export const MOST_PIPS = 10;
 
 /** Which stops' pips a ladder of `n` draws with stop `at` lit (−1 for
  * none): all of them, or the MOST_PIPS round `at`, held inside the ladder. */

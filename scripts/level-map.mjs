@@ -46,7 +46,7 @@ const args = parseArgs(
     tricks: { kind: "flag", help: "build the map a tricks run skis: its terrain park laid (R20)" },
     face: {
       kind: "string",
-      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1, fell-3, …; its region is the face's",
     },
     region: {
       kind: "string",

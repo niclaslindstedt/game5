@@ -251,7 +251,8 @@ describe("the start card's COUNTRY row and the link", () => {
 
 describe("a region is a kind of country, never a place", () => {
   /** The source and the docs, minus what may name a place: the spec (a copy
-   * of the sibling's), the changelog, the licence, and this file. */
+   * of the sibling's), the changelog, the licence, this file, and the one
+   * table a real face's COUNTRY is named in (`strings-countries.ts`). */
   function sources(dir: string, out: string[] = []): string[] {
     for (const name of readdirSync(dir)) {
       if (name.startsWith(".") || name === "node_modules" || name === "dist") continue;
@@ -261,7 +262,7 @@ describe("a region is a kind of country, never a place", () => {
         sources(path, out);
       } else if (
         /\.(ts|tsx|mjs|md)$/.test(name) &&
-        !/CHANGELOG|OSS_GAME_SPEC|LICENSE|region_test|identity_test/.test(name)
+        !/CHANGELOG|OSS_GAME_SPEC|LICENSE|region_test|identity_test|strings-countries/.test(name)
       ) {
         out.push(path);
       }

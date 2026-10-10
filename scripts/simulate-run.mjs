@@ -70,7 +70,7 @@ const args = parseArgs(
     "no-poles": { kind: "flag", help: "the bot skis without poles (the player's hard mode)" },
     face: {
       kind: "string",
-      help: "raise each seed's resort on this REAL face (R25: alpine-1 … fell-2)",
+      help: "raise each seed's resort on this REAL face (R25: alpine-1, fell-3, …)",
     },
     region: {
       kind: "string",

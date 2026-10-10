@@ -32,7 +32,7 @@ const args = parseArgs(
     count: { kind: "number", default: 20, help: "how many seeds to sweep" },
     face: {
       kind: "string",
-      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1, fell-3, …; its region is the face's",
     },
     region: {
       kind: "string",

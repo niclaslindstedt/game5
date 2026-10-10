@@ -25,12 +25,16 @@
 //   SNOW    thin, medium, thick or very deep (`SNOW_STOPS`), read as how
 //           deep the loose snow lies — up to a metre of fresh snow.
 //
-//   COUNTRY the kind of snow country the map is built in (R21): the same seed
+//   CLIMATE the kind of snow country the map is built in (R21): the same seed
 //           raised as the alpine, a fell, a continental range or a maritime one.
 //
-//   SHAPE   the massif's shape: the seed's own, or one of the real faces
-//           of that country (`real-face.ts`) — a real mountainside's
-//           ridge, spurs and gullies under the seed's lifts and runs.
+//   SHAPE   the massif's shape: the seed's own, or the COUNTRY a real face
+//           lies in (`face-picks.ts`) — only the countries with a face whose
+//           real ski area signs the GRADE asked for.
+//
+//   PEAK    which of that country's real faces (`real-face.ts`) — a real
+//           mountainside's ridge, spurs and gullies under the seed's lifts
+//           and runs, numbered in its country and never named.
 //
 //   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
 //           green, a blue, a red or a black built to its band — and the RUN
@@ -93,7 +97,7 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
   ...WEATHER_KINDS.map((kind) => ({ id: kind, label: STRINGS.weatherNames[kind] })),
 ];
 
-/** The COUNTRY row's stops: R21's regions. */
+/** The CLIMATE row's stops: R21's regions. */
 const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
 
 /** The SHAPE row's stops: the seed's own massif, then every country with

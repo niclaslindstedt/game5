@@ -1,8 +1,16 @@
 # The real faces
 
-A free ride's resort can be raised on a REAL mountainside instead of the massif R25 deals. There are twenty of them: eleven in the alpine, four continental, three maritime and two on the fells. Each one is a 4×4 km stretch of a real ski mountain, from its summit ridge down to its valley floor, turned so its fall line runs down the map. The start card's SHAPE row picks one (after COUNTRY, which lists that country's faces as REAL 1, REAL 2, …), and so does a `?face=` link (`docs/configuration.md`).
+A free ride's resort can be raised on a REAL mountainside instead of the massif R25 deals. There are twenty of them: eleven in the alpine, four continental, three maritime and two on the fells. Each one is a 4×4 km stretch of a real ski mountain, from its summit ridge down to its valley floor, turned so its fall line runs down the map. The start card's SHAPE row picks the COUNTRY a face lies in and its PEAK row one of that country's faces (REAL 1, REAL 2, …, numbered in the country); picking one sets the CLIMATE row to the face's own region. A `?face=` link picks one too (`docs/configuration.md`).
 
-A face is named by its region and a number and nothing else (`alpine-1` … `fell-2`). The repository names no real place, so a face is a position on the globe and a crop, never the name of the resort it was taken from.
+The GRADE row filters them: a face whose real ski area signs no piste of the colour asked for is left off the PEAK row (and a country with none off the SHAPE row), and a face on the card that loses its colour gives way to one of its country's that has it, or to the seed's own massif (`pwa/src/game/face-picks.ts`). ORANGE leaves every face on, because the game lays its own ski routes on every face (R42).
+
+A face is named by its region and a number and nothing else (`alpine-1`, `fell-3`, …). The repository names no real place, so a face is a position on the globe and a crop, never the name of the resort it was taken from. The one thing filed beside it is its COUNTRY, an ISO code in its crop row, which the start card shows by name (`strings-countries.ts`) — never anything finer.
+
+## Fetched when picked
+
+Every face is a pair of generated files of its own: its heights (`engine/mapgen/real-faces/face-<id>.ts`) and its hints (`engine/mapgen/real-hints/hints-<id>.ts`). Two small generated indexes list them: `real-faces-index.ts` (each face's region and country) and `real-hints-index.ts` (the grades each face's real pistes are signed). Only the indexes are in the bundle, about 150 bytes a face. A face's files are a chunk of their own, fetched when a map is raised on it (`loadRealFace`), and the service worker keeps each one once fetched, so a face ridden once rides offline. They are never precached.
+
+Every host awaits `loadRealFace` before it raises or reads a face's map: the loading card's worker and the start card's, the load itself (`LoadPlan.face`, for the run's real houses), the boot (`main.tsx`, for a link's face or the stored ride's), and every lab that takes `--face`. Reading a face that is listed but not loaded throws, so a path that forgot to load one fails loudly rather than raising a different mountain.
 
 ## What a face is, and what it is not
 
@@ -38,10 +46,10 @@ The hints are used only on a face's first eight attempts (`real.hinted`), the sa
 The bake works like the heights' bake:
 
 - `make real-hints ARGS=--fetch` reads each face's crop off the OpenStreetMap editing API, a few tiles a face, once, into the gitignored `previews/.osm/`.
-- `ARGS=--write` turns them onto the face's map with the crop the heights were baked on (`scripts/lib/real-face-crops.mjs`) and writes them into the GENERATED `engine/mapgen/real-hints-data.ts`. Lift ends and piste bends are kept to 2 m, a piste's width to 2 m, and a house's middle and size to 1 m. That is about 7 KB a face, 145 KB for all twenty.
+- `ARGS="--only <id> --write"` turns them onto the face's map with the crop the heights were baked on (`scripts/lib/real-face-crops.mjs`) and writes them into the face's GENERATED file, `engine/mapgen/real-hints/hints-<id>.ts`, and its grades into the index. Every other face's file is kept as it is. Lift ends and piste bends are kept to 2 m, a piste's width to 2 m, and a house's middle and size to 1 m. That is about 7 KB a face.
 - `make resort SEED=1 ARGS="--face=alpine-1 --hints"` draws the hints over the generator's plan: the real pistes thin in their grade's colour, the real lifts in magenta and the real houses as grey ticks.
 
-The map data is © OpenStreetMap contributors, available under the [Open Database Licence](https://opendatacommons.org/licenses/odbl/1-0/). The baked hints are a derived database and are offered under the same licence: `real-hints-data.ts` says so in its header.
+The map data is © OpenStreetMap contributors, available under the [Open Database Licence](https://opendatacommons.org/licenses/odbl/1-0/). The baked hints are a derived database and are offered under the same licence: every file under `engine/mapgen/real-hints/` and `real-hints-index.ts` says so in its header.
 
 ## The data
 
@@ -54,11 +62,11 @@ The bake works face by face:
 - `make real-faces ARGS=--fetch` downloads the 1°×1° tiles the faces lie in, once, into the gitignored `previews/.dem/`. No tile is committed.
 - Each face is cropped and turned onto the map's square, then smoothed with a Gaussian of 1.2 cells. The canopy and the roofs come out of the surface model; the spurs and gullies stay.
 - It is kept on a 126×126 grid 32 m apart, as fine as a 30 m model honestly is, in steps of 0.5 m over its lowest point. That grid is encoded as second differences in zigzag varints, in base64.
-- `ARGS=--write` writes them all into the GENERATED `engine/mapgen/real-faces-data.ts`, about 16 KB a face (21 KB as base64) and 414 KB for all twenty (much less once the site is served compressed). That file is never edited by hand.
+- `ARGS="--only <id> --write"` writes the faces named into their GENERATED files, `engine/mapgen/real-faces/face-<id>.ts`, about 16 KB a face (21 KB as base64, about 8 KB served compressed), and rewrites the index. Every other face's file is kept as it is, so a new face never moves one already shipped. None of them is edited by hand.
 
 At run time, `real-face.ts` decodes a face once and samples it bicubically, so the 2 m grid it is baked onto has no creases at 32 m.
 
-Where each crop sits was searched once, offline. The search tried every bearing, offset and scale around a face's middle and scored each on how much of the playable face falls down the map and how far the ridge stands over the floor. The winners are the table in `scripts/real-faces.mjs`.
+Where each crop sits was searched once, offline: `ARGS="--fetch --search --only <id>"` tries every bearing (10° apart), offset (450 m apart, the middle kept well inside the window) and scale (0.9, 1, 1.1) around a face's middle, scores each on how much of the playable face falls down the map and how far the ridge stands over the floor, and prints the best rows. The winners are the table in `scripts/lib/real-face-crops.mjs`.
 
 ## What it costs
 

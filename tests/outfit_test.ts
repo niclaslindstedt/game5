@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { dressOutfit } from "../pwa/src/game/dress.ts";
 import { bindPose, createLoom, linear, type DressPart } from "../pwa/src/game/dress-loft.ts";
 import { cutClothes } from "../pwa/src/game/dress-garments.ts";
+import { lensShades } from "../pwa/src/game/dress-head.ts";
 import {
   BODIES,
   coloursOf,
@@ -102,7 +103,7 @@ function palette(o: Outfit): Set<string> {
     for (const c of [g.main, g.second, g.third]) out.add(c);
   }
   const h = gearOf("helmet", o.helmet);
-  for (const c of [h.shell, h.trim, h.lens]) out.add(c);
+  for (const c of [h.shell, h.trim, h.lens, ...lensShades(h.lens)]) out.add(c);
   return new Set(
     [...out].map((c) =>
       linear(c)

@@ -126,7 +126,7 @@ const JACKET_CUT: Record<JacketId, JacketCut> = {
     square: 2.3,
     sleeve: 0.034,
     drape: 1,
-    quilt: { pitch: 0.1, depth: 0.01 },
+    quilt: { pitch: 0.075, depth: 0.014 },
   },
   shell: {
     hem: -0.24,
@@ -176,6 +176,24 @@ const HIP_IN = 0.05;
  * the power strap and the top buckle, as a gaitered leg hangs over a boot. */
 const HEM_DOWN = 0.11;
 
+/** A jacket's hem, m: the band turned under (`in` drawn in at the edge,
+ * `proud` standing out over the cord `width` above it). */
+const HEM_ROLL = { in: 0.014, proud: 0.004, width: 0.02 };
+/** A jacket's hem band, as a share of the trunk's levels: 7 cm of cuff
+ * standing out in its own colour above the roll. */
+const HEM_BAND = 0.14;
+/** How far forward the trunk's line is leaned under a jacket's hem, m — the
+ * hem's rings tilted, its back dropped below its front. */
+const HEM_DROP = 0.06;
+/** How far the back's flanks are eased off below the ribs, m: a squared
+ * section stands out at the back's corners over the seat. */
+const BACK_EASE = 0.014;
+/** How far a woman's sleeves' tops are drawn in, m: the survey's
+ * deltoids are 3.2 cm narrower a side than a man's, on the same joints. */
+const SHOULDER_IN = 0.018;
+/** A race shell's side panel's half width round the trunk, rad. */
+const SIDE_PANEL = 0.3;
+
 /** The pants' seat at a level: the body's section eased, and wide enough to
  * take both thighs' tops — what the jacket must hang clear of. */
 function seatAt(
@@ -200,6 +218,18 @@ function seatAt(
 const seatFrom = (m: BodyMeasure, pc: PantsCut) => m.crotch - 0.05 - pc.drop;
 const seatTo = (m: BodyMeasure) => m.waist + 0.04;
 
+/** The point `s` m along a polyline. */
+function alongPath(path: V3[], s: number): V3 {
+  let left = s;
+  for (let i = 1; i < path.length; i++) {
+    const d = sub(path[i], path[i - 1]);
+    const l = Math.sqrt(dot(d, d));
+    if (left <= l || i === path.length - 1) return add(path[i - 1], mul(d, left / (l || 1)));
+    left -= l;
+  }
+  return path[0];
+}
+
 /** A quilt's baffle: the cloth bulging between two seams sewn `pitch`
  * apart, pinched at each. */
 const baffle = (s: number, pitch: number, depth: number) =>
@@ -215,18 +245,30 @@ function seams(a: number, b: number, pitch: number): number[] {
 // ---------------------------------------------------------------- jackets
 
 /** A jacket's colour on the trunk at `level`, `t` round, `p` in the body. */
-function jacketTrunkColour(id: JacketId, cut: JacketCut, level: number, t: number, p: V3): number {
+function jacketTrunkColour(
+  id: JacketId,
+  cut: JacketCut,
+  level: number,
+  t: number,
+  p: V3,
+  female: boolean,
+): number {
   const j = gearOf("jacket", id);
   const front = gap(t, FRONT);
   const zip = front < 0.045;
   switch (id) {
     case "race":
       if (level > 0.8) return j.second;
-      if (level < cut.hem + 0.05) return j.second;
+      if (level < cut.hem + HEM_BAND) return j.second;
       if (zip) return j.third;
+      // Side panels down the flanks; a woman's run the full height, so the
+      // waist reads taken in between them.
+      if ((gap(t, 0) < SIDE_PANEL || gap(t, Math.PI) < SIDE_PANEL) && (female || level < 0.62)) {
+        return j.second;
+      }
       return j.main;
     case "puffer":
-      if (level < cut.hem + 0.04) return j.second;
+      if (level < cut.hem + HEM_BAND) return j.second;
       if (zip && level > 0.1) return j.second;
       return j.main;
     case "shell":
@@ -240,7 +282,7 @@ function jacketTrunkColour(id: JacketId, cut: JacketCut, level: number, t: numbe
       // The kangaroo pocket across the chest and the half zip over it.
       if (level > 0.44 && level < 0.66 && front < 0.75) return j.second;
       if (level > 0.68 && front < 0.04) return j.third;
-      if (level < cut.hem + 0.04) return j.third;
+      if (level < cut.hem + HEM_BAND) return j.third;
       return j.main;
     case "retro":
       return retroColour(p, level < cut.hem + 0.06);
@@ -300,7 +342,10 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   // hips, where a man's hangs straight.
   const female = gearOf("body", o.body).female;
   const tailor = (level: number) =>
-    female ? -0.018 * Math.max(0, 1 - Math.abs(level - (m.waist + 0.08)) / 0.22) : 0;
+    female
+      ? -0.026 * Math.max(0, 1 - Math.abs(level - (m.waist + 0.08)) / 0.22) +
+        0.01 * Math.max(0, 1 - Math.abs(level - 0.02) / 0.14)
+      : 0;
   const sections = trunkSections(
     m,
     from,
@@ -313,27 +358,65 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     const t = tailor(level);
     if (t) q = { ...q, w: q.w + t, f: q.f + t * 0.4, b: q.b + t * 0.6 };
     if (level > seatTo(m) + 0.06) return q;
-    const seat = seatAt(m, pc, Math.max(level, seatFrom(m, pc)), seatFrom(m, pc));
+    // The hem's rings are tilted (`HEM_DROP`): the back of a ring lies
+    // over the seat a little lower down, so clear the seat there too.
+    const sf = seatFrom(m, pc);
+    const seat = seatAt(m, pc, Math.max(level, sf), sf);
+    const lower = seatAt(m, pc, Math.max(level - 0.1, sf), sf);
     return {
       ...q,
-      w: Math.max(q.w, seat.w + 0.016),
+      w: Math.max(q.w, seat.w + 0.016, lower.w + 0.012),
       f: Math.max(q.f, seat.f + 0.02),
-      b: Math.max(q.b, seat.b + 0.016),
+      b: Math.max(q.b, seat.b + 0.016, lower.b + 0.016),
     };
   });
   drape(sections, line.L, m.waist, cut.drape * (female ? 0.55 : 1));
-  const cuts = [line.S(cut.hem + 0.05), line.S(cut.hem + 0.04), line.S(0.8), line.S(0.7)];
+  // THE HEM: the cloth turned under and drawn in by its cord, so its edge
+  // rolls in over the pants rather than ending in an open ring — and the
+  // whole hem DROPPED AT THE BACK, the rings below the hips tilted (the
+  // trunk's line leaned forward under them, its middle put back), as a
+  // jacket is cut longer behind to cover the seat in a crouch.
+  const hem = sections[0];
+  const next = sections[1];
+  const u = HEM_ROLL.width / (next.s - hem.s);
+  sections.splice(1, 0, {
+    s: hem.s + HEM_ROLL.width,
+    w: hem.w + (next.w - hem.w) * u + HEM_ROLL.proud,
+    f: hem.f + (next.f - hem.f) * u + HEM_ROLL.proud,
+    b: hem.b + (next.b - hem.b) * u + HEM_ROLL.proud,
+  });
+  hem.w -= HEM_ROLL.in;
+  hem.f -= HEM_ROLL.in;
+  hem.b -= HEM_ROLL.in;
+  const lean = (s: number) => HEM_DROP * Math.max(0, 1 - s / BELOW);
+  for (const q of sections) q.z = -lean(q.s);
+  const path = [add(line.path[0], mul(F.pelvis.z, HEM_DROP)), ...line.path.slice(1)];
+  // The yoke's line, the same height on the trunk and over the sleeves.
+  const yokeY = alongPath(line.path, line.S(0.8)).y;
+  const cuts = [line.S(cut.hem + HEM_BAND), line.S(0.8), line.S(0.7)];
   cuts.push(line.S(0.6), line.S(0.44), line.S(0.66), line.S(0.68), line.S(cut.hem + 0.06));
   if (quilt) cuts.push(...seams(line.S(from), line.S(to), quilt.pitch));
+  // The race shell's side panels, under the arms from the hem band to the
+  // yoke.
+  const panels =
+    id === "race" ? [-SIDE_PANEL, SIDE_PANEL, Math.PI - SIDE_PANEL, Math.PI + SIDE_PANEL] : [];
   loom.tube({
-    path: line.path,
+    path,
     face: line.face,
     round: 0.08,
     sections,
-    step: quilt ? quilt.pitch / 3 : 0.05,
+    step: quilt ? quilt.pitch / 2.5 : 0.05,
     cuts,
     segments: 16,
-    angles: [FRONT - 0.045, FRONT + 0.045, FRONT - 0.04, FRONT + 0.04, FRONT - 0.75, FRONT + 0.75],
+    angles: [
+      FRONT - 0.045,
+      FRONT + 0.045,
+      FRONT - 0.04,
+      FRONT + 0.04,
+      FRONT - 0.75,
+      FRONT + 0.75,
+      ...panels,
+    ],
     square: cut.square,
     fold: (s, t) => {
       const level = line.L(s);
@@ -348,9 +431,13 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
         Math.max(0, -Math.sin(t)) ** 2 *
         Math.sin(5 * t + level * 6) *
         (level < 0.4 ? 1 : 0);
+      // The back's corners eased off below the ribs: a squared section
+      // stands out at the back's flanks over the seat.
+      const low = Math.max(0, Math.min(1, (m.waist + 0.18 - level) / 0.16));
+      f -= BACK_EASE * low * Math.sin(2 * t) ** 2 * (Math.sin(t) < 0 ? 1 : 0);
       return f;
     },
-    colour: (s, t, p) => jacketTrunkColour(id, cut, line.L(s), t, p),
+    colour: (s, t, p) => jacketTrunkColour(id, cut, line.L(s), t, p, female),
     cap: [false, true],
     // Below the chest the jacket rides the trunk alone: an arm's share,
     // however small, swings the hem as the arm comes forward.
@@ -389,7 +476,9 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     step: 0.03,
     segments: 14,
     square: 2.2,
-    colour: () => (id === "shell" ? j.second : id === "retro" ? j.third : j.main),
+    // The collar in the yoke's colour where there is one, so it stands out
+    // of the yoke without a seam showing round its foot.
+    colour: () => (id === "shell" || id === "race" ? j.second : id === "retro" ? j.third : j.main),
     cap: [false, true],
     among: ["spine", "head"],
   });
@@ -452,21 +541,34 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     const ringZ = norm(sub(ua.z, mul(ua.y, dot(ua.z, ua.y))));
     const ringX = cross(ua.y, ringZ);
     const tOut = Math.atan2(dot(out, ringZ), dot(out, ringX));
+    // A woman's shoulders are narrower on the same bones: her sleeves' tops
+    // are drawn in toward her, let out again by the elbow.
+    if (female) {
+      const inward = -Math.sign(dot(ringX, out)) * SHOULDER_IN;
+      for (const q of sections)
+        q.x = inward * Math.max(0, Math.min(1, (L1 * 0.6 - q.s) / (L1 * 0.6 - 0.11)));
+    }
     const cuffAt = L2 - 0.045;
+    // Where the sleeve's line crosses the yoke's height: above it the
+    // sleeve's top is the yoke, on one line with the trunk's.
+    const drop = start.y - P.elbows[i].y;
+    const yokeAt = drop > 0 ? Math.max(0, ((start.y - yokeY) / drop) * L1) : 0;
     const stripe = id === "race" ? 0.22 : 0;
     loom.tube({
       path,
       face: [ua.z, ua.z, fa.z, fa.z],
       round: 0.07,
       sections,
-      step: quilt ? 0.028 : 0.05,
-      cuts: [cuffAt, 0.07, L1 * 0.5, ...(quilt ? seams(0.06, L2, 0.085) : [])],
+      step: quilt ? 0.03 : 0.05,
+      cuts: [cuffAt, yokeAt, L1 * 0.5, ...(quilt ? seams(0.06, L2, quilt.pitch) : [])].filter(
+        (c) => c > 0,
+      ),
       segments: 10,
       angles: stripe ? [tOut - stripe, tOut + stripe] : [],
       square: 2.3,
       fold: (sl, t) => {
         let k = 0;
-        if (quilt) k += baffle(sl - 0.06, 0.085, quilt.depth * 0.8) * (sl > 0.06 ? 1 : 0);
+        if (quilt) k += baffle(sl - 0.06, quilt.pitch, quilt.depth * 0.8) * (sl > 0.06 ? 1 : 0);
         // The cloth gathered in the crook of the elbow and bunched above
         // the cuff.
         const crook = Math.max(0, -Math.sin(t)) * Math.max(0, 1 - Math.abs(sl - L1) / 0.09);
@@ -478,7 +580,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
       colour: (sl, t, p) => {
         if (id === "retro") return retroColour(p, sl > cuffAt);
         const cuff = sl > cuffAt;
-        const top = sl < 0.07;
+        const top = sl < yokeAt;
         switch (id) {
           case "race":
             if (top) return j.second;
@@ -525,6 +627,9 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
     step: 0.04,
     segments: 14,
     square: 2.5,
+    // Eased off at the back's flanks as the jacket over it is, so the two
+    // keep their gap there.
+    fold: (_s, t) => -BACK_EASE * Math.sin(2 * t) ** 2 * (Math.sin(t) < 0 ? 1 : 0),
     colour: () => pd.main,
     // The seat rides the pelvis as the jacket over it does, so neither
     // pierces the other as the hips fold; the legs carry the thighs.

@@ -57,6 +57,53 @@ const toV = (p: [number, number, number]): V3 => v(p[0], p[1], p[2]);
 
 /** The goggles and their strap — what a visor helmet has instead. */
 const GOGGLE_PARTS: HelmetMaterial[] = ["frame", "foam", "lens", "strap", "band"];
+/** How many shades a mirrored lens is graded in. */
+const LENS_STEPS = 8;
+
+/** A MIRRORED LENS'S SHADES, bottom to top: the tint itself low on the
+ * cheeks, the sky's bright band across its upper middle, the coating
+ * darkest under the brow. */
+export function lensShades(lens: number): number[] {
+  const keys: [number, number][] = [
+    [0, lens],
+    [0.4, lens],
+    [0.68, mix(lens, 0xffffff, 0.45)],
+    [1, mix(lens, 0x0c0d10, 0.6)],
+  ];
+  return Array.from({ length: LENS_STEPS }, (_, k) => {
+    const u = k / (LENS_STEPS - 1);
+    let i = 0;
+    while (i < keys.length - 2 && keys[i + 1][0] < u) i++;
+    const [a, ca] = keys[i];
+    const [b, cb] = keys[i + 1];
+    return mix(ca, cb, smoothstep((u - a) / (b - a)));
+  });
+}
+
+/** The lens's colour a triangle, graded by its height (`lensShades`). */
+function mirrored(position: number[], index: number[], lens: number): (tri: number) => number {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 1; i < position.length; i += 3) {
+    lo = Math.min(lo, position[i]);
+    hi = Math.max(hi, position[i]);
+  }
+  const shades = lensShades(lens);
+  return (tri) => {
+    let y = 0;
+    for (let k = 0; k < 3; k++) y += position[index[tri * 3 + k] * 3 + 1] / 3;
+    const u = Math.max(0, Math.min(1, (y - lo) / (hi - lo || 1)));
+    return shades[Math.round(u * (LENS_STEPS - 1))];
+  };
+}
+
+/** Two sRGB hex colours mixed, `k` of the way from `a` to `b`. */
+function mix(a: number, b: number, k: number): number {
+  const ch = (c: number, s: number) => (c >> s) & 0xff;
+  const m = (s: number) => Math.round(ch(a, s) + (ch(b, s) - ch(a, s)) * k);
+  return (m(16) << 16) | (m(8) << 8) | m(0);
+}
+
 /** What shines: the shell and its stripe, the goggles' frame and lens. */
 const HARD: HelmetMaterial[] = ["shell", "stripe", "frame", "lens"];
 
@@ -100,7 +147,9 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
     shell: h.shell,
     stripe: h.trim,
     frame: h.trim,
-    band: h.trim,
+    // The strap printed in the lens's colour: a bright band round the
+    // shell's back, what a skier's helmet reads by from behind.
+    band: h.lens,
     trim: DARK,
     strap: DARK,
     foam: DARK,
@@ -113,7 +162,11 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
     if (o.helmet === "visor" && GOGGLE_PARTS.includes(part.material)) continue;
     // A freeride helmet carries no stripe: its shell is all the one white.
     const colour =
-      o.helmet === "freeride" && part.material === "stripe" ? h.shell : paint[part.material];
+      part.material === "lens"
+        ? mirrored(part.position, part.index, h.lens)
+        : o.helmet === "freeride" && part.material === "stripe"
+          ? h.shell
+          : paint[part.material];
     loom.rigid(
       "head",
       part.position,

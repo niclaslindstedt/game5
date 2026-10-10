@@ -1,6 +1,6 @@
 ---
 name: add-real-face
-description: "Use when a REAL MOUNTAIN is to be imported — 'add a real face', 'import more real mountains', a face's crop moved, or its heights or ski-area hints re-baked. The whole of what a real face is in this repo, as one checklist in order: the crop (a row in `scripts/lib/real-face-crops.mjs`, keyed region-N and named by its range, area and part), the heights' bake off the 30 m elevation model, the hints' bake off OpenStreetMap (lifts, pistes with their signed colour and width, buildings, and the woods by height — the real tree line and cover), the suite, the resort lab that shows the hints under the generator's plan, the measured numbers a PR owes (attempts, build time, how near the runs lie to the real pistes, the colour match), and the promise that no dealt map moves. Owns the order and the measurement; how the relief is laid and how the stations and runs lean on the hints is `mapgen-improvement`'s."
+description: "Use when a REAL MOUNTAIN is to be imported — 'add a real face', 'import more real mountains', a face's crop moved, or its heights or ski-area hints re-baked. The whole of what a real face is in this repo, as one checklist in order: the crop (a row in `scripts/lib/real-face-crops.mjs`, keyed region-N and named by its range, area and part), the heights' bake off the 30 m elevation model, the hints' bake off OpenStreetMap (lifts, pistes with their signed colour and width, buildings, the town's streets roughly, and the woods by height — the real tree line and cover), the suite, the resort lab that shows the hints under the generator's plan, the measured numbers a PR owes (attempts, build time, how near the runs lie to the real pistes, the colour match), and the promise that no dealt map moves. Owns the order and the measurement; how the relief is laid and how the stations and runs lean on the hints is `mapgen-improvement`'s."
 ---
 
 # Adding a real face: a real mountainside, named by its place
@@ -156,7 +156,13 @@ downhill piste's signed colour (orange for a freeride or extreme one, which
 is kept but never laid — the game's own ski routes, R42, are laid on every
 face whether the real area marks one or not), its line thinned to bends,
 and its width at each bend where the map draws the piste's area; every
-building's middle, size and bearing. Beside them, in the index, the WOODS
+building's middle, size and bearing; and THE TOWN at the face's foot,
+roughly (`scripts/lib/real-face-streets.mjs`: its car roads as a main road
+or a street, joined where one street is mapped as many ways, thinned to
+3 m, the most central first up to 90 streets or 1.8 KB, and its middle and
+radius) — read the table's `streets` and `town b` columns: a face whose
+town is a handful of streets is a crop with little town, which is fine; a
+face at the 1.8 KB cap is a big town cut to its middle. Beside them, in the index, the WOODS
 BY HEIGHT (`scripts/lib/real-face-forest.mjs`, `HINT_TREES`): the forest
 the map draws rasterised onto the face's height grid, its cover in eight
 bands and its tree line — read the table's `wooded`, `line m` and `bands`
@@ -177,7 +183,13 @@ woods to the relief, the RANGE, AREA and PART rows and the GRADE row's
 filter; move its count, never loosen a bound. Then:
 `npx vitest run tests/real_faces_test.ts tests/real_houses_test.ts
 tests/resort_test.ts tests/region_test.ts tests/imports_test.ts
-tests/file_size_test.ts`.
+tests/file_size_test.ts` (and `tests/village_streets_test.ts
+tests/traffic_test.ts` when the town's streets move). Look at the village
+with `make resort ARGS="--face=<id> --hints --village"` (its
+`-village.png`: the village's streets in dark grey under the real town's in
+orange) and in the game's renderer with `make buildings
+ARGS="--face=<id>"` or `npm run world -- --free --face <id>
+--views=village-air`.
 
 ### 5. Measure it, before and after
 
@@ -223,5 +235,6 @@ face). The README and `AGENTS.md` only if a count they state moved.
 | Where the plan uses them | `engine/mapgen/resort.ts` (`planResort`), `network.ts` (`RunSpec.widthAt`, `.signed`), `resort-build.ts` (the signed colour, the fewest runs) |
 | The rules a face is held to | `engine/mapgen/resort-rules.ts`'s `RR.massif.real` (`.least` the relaxed ones), read by `engine/analysis/resort.ts` |
 | The real houses stood | `engine/game/real-houses.ts` |
+| The town's streets → the village laid along them (its centre, main, back and cross streets, road out, the town streets) | `scripts/lib/real-face-streets.mjs` → `HintStreet`, `HintTown`; `engine/game/real-streets.ts`, read by `village-streets.ts` |
 | Where a face is fetched | `loadRealFace`, awaited by the map and preview workers, the load (`app-load.ts`'s `LoadPlan.face`), the boot (`main.tsx`) and every lab that takes `--face` |
 | The picker | the start card's RANGE, AREA and PART rows, filtered by GRADE (`pwa/src/game/face-picks.ts` — nothing to add but a new range's name in `strings-ranges.ts`), `?face=` |

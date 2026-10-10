@@ -9,7 +9,7 @@
 // circle, the blue square, the red rectangle, the black diamond) with the
 // run's number in white on it, outlined with the iron — then the NAME burned
 // black in the country's own hand, measured to the board and ringed with a
-// painted white outline so it reads off the dark wood at a glance — and no arrow:
+// thin, weather-worn stroke of white paint so it reads off the dark wood — and no arrow:
 // a sign down on the runs is a plain plank. A ski route's WARNING board
 // (R42) has a yellow warning triangle with a burned "!" for its mark. A lane's board is the same
 // plank, smaller. The board has a thickness of end grain round it and a
@@ -54,10 +54,15 @@ const THICK = 0.035;
 const CHAR = "#120a05";
 const SCORCH = "rgba(62, 26, 6, 0.85)";
 
-/** The lettering's painted outline: its white and its width, a share of
- * the letters' size (`lettered`). */
+/** The lettering's painted outline (`lettered`): its white, its width as a
+ * share of the letters' size (and the fewest px), how much of the paint
+ * the weather has left at best and worst, and how many worn patches and
+ * flakes it has lost a board. */
 const OUTLINE = "#f4efe4";
-const RING = 0.16;
+const RING = 0.09;
+const RING_MIN = 2.5;
+const PAINT = { most: 1, least: 0.7 };
+const WEAR = { patches: 7, flakes: 60 };
 
 /** How far the wood's tone soaks through the grade's paint, 0..1, and the
  * number's paint — an old white, never the enamel's. */
@@ -92,23 +97,84 @@ function loadFace(look: SignLook): Promise<boolean> {
   return p;
 }
 
+/** The board-sized sheet a worn outline is painted on before it is laid
+ * onto the atlas. */
+let sheet: CanvasRenderingContext2D | null = null;
+
 /** LETTERING that reads at a glance: `text` at (x, y) in the char, ringed
- * with a painted white outline `ring` of its size wide so it stands off
- * the dark wood — no scorch round it, which would brown the white. The
- * font, alignment and baseline are the caller's. */
+ * with a THIN painted white outline — brushed on by hand and left out in
+ * the weather, so it is thinner and thicker as the brush went, faded in
+ * places and worn through in patches and flakes (`WEAR`), each board's
+ * own off `rng`. No scorch round the letters, which would brown the
+ * paint. The font, alignment and baseline are the caller's; (x0, y0) is
+ * the board's cell. */
 function lettered(
   g: CanvasRenderingContext2D,
   text: string,
   x: number,
   y: number,
   size: number,
+  rng: Rng,
+  x0: number,
+  y0: number,
 ): void {
+  const { w, h } = CELL;
+  if (!sheet) {
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    sheet = c.getContext("2d")!;
+  }
+  const p = sheet;
+  p.save();
+  p.globalCompositeOperation = "source-over";
+  p.clearRect(0, 0, w, h);
+  p.font = g.font;
+  p.textAlign = g.textAlign;
+  p.textBaseline = g.textBaseline;
+  p.lineJoin = "round";
+  p.strokeStyle = OUTLINE;
+  // Two passes a hair apart, a little off each other: the brush's line is
+  // never one width all round.
+  const width = Math.max(RING_MIN, size * RING);
+  p.lineWidth = width;
+  p.strokeText(text, x - x0, y - y0);
+  p.globalAlpha = 0.6;
+  p.lineWidth = width * rng.range(0.6, 1.3);
+  p.strokeText(text, x - x0 + rng.range(-0.8, 0.8), y - y0 + rng.range(-0.8, 0.8));
+  // The weather: soft worn patches faded or gone, and flakes chipped out.
+  p.globalCompositeOperation = "destination-out";
+  for (let k = 0; k < WEAR.patches; k++) {
+    p.globalAlpha = rng.range(0.35, 1);
+    const r = rng.range(size * 0.15, size * 0.5);
+    const cx = rng.range(0, w);
+    const cy = rng.range(0, h);
+    const fade = p.createRadialGradient(cx, cy, 0, cx, cy, r);
+    fade.addColorStop(0, "#000");
+    fade.addColorStop(1, "rgba(0,0,0,0)");
+    p.fillStyle = fade;
+    p.fillRect(cx - r, cy - r, r * 2, r * 2);
+  }
+  p.fillStyle = "#000";
+  for (let k = 0; k < WEAR.flakes; k++) {
+    p.globalAlpha = rng.range(0.6, 1);
+    p.beginPath();
+    p.ellipse(
+      rng.range(0, w),
+      rng.range(0, h),
+      rng.range(0.6, 2.4),
+      rng.range(0.4, 1.4),
+      rng.range(0, Math.PI),
+      0,
+      Math.PI * 2,
+    );
+    p.fill();
+  }
+  p.restore();
   g.save();
-  g.lineJoin = "round";
-  g.miterLimit = 2;
-  g.strokeStyle = OUTLINE;
-  g.lineWidth = Math.max(3, size * RING);
-  g.strokeText(text, x, y);
+  g.globalAlpha = rng.range(PAINT.least, PAINT.most);
+  g.drawImage(p.canvas, x0, y0);
+  g.globalAlpha = 1;
   g.fillStyle = CHAR;
   g.fillText(text, x, y);
   g.restore();
@@ -250,6 +316,7 @@ function printBoard(
 ): void {
   const { w, h } = CELL;
   plank(g, look, createRng(seed), b, x0, y0);
+  const worn = createRng(seed ^ 0x9a17);
   // An arrow board's print keeps off its point.
   const t = tipPx(b);
   const lo = x0 + (b.point === "left" ? t * 0.75 : 0);
@@ -301,7 +368,7 @@ function printBoard(
     g.textAlign = "center";
     g.textBaseline = "middle";
     g.font = `bold ${bang}px ${font}`;
-    lettered(g, "!", mx + box / 2, my + box * 0.62, bang);
+    lettered(g, "!", mx + box / 2, my + box * 0.62, bang, worn, x0, y0);
     g.restore();
   }
   g.save();
@@ -336,7 +403,7 @@ function printBoard(
   g.textAlign = "left";
   g.textBaseline = "alphabetic";
   g.font = `${size}px ${font}`;
-  lettered(g, text, left + Math.max(0, (room - m.width) / 2), cy, size);
+  lettered(g, text, left + Math.max(0, (room - m.width) / 2), cy, size, worn, x0, y0);
   g.restore();
 }
 

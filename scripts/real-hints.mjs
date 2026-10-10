@@ -136,7 +136,8 @@ async function fetchFace(face) {
 }
 
 /** Read one file of the API's XML into `into`: nodes as [lat, lon], ways
- * as their node ids and tags, relations as their members and tags. The
+ * as their node ids and tags, relations as their member ways (and each
+ * one's role) and tags. The
  * XML is the API's own, read by its fixed shape. */
 function readXml(xml, into) {
   for (const m of xml.matchAll(/<node id="(\d+)"[^>]*?lat="([-\d.]+)" lon="([-\d.]+)"/g)) {
@@ -154,10 +155,10 @@ function readXml(xml, into) {
   }
   for (const m of xml.matchAll(/<relation id="(\d+)"[^>]*>([\s\S]*?)<\/relation>/g)) {
     if (into.relations.has(m[1])) continue;
-    const members = [...m[2].matchAll(/<member type="way" ref="(\d+)" role="([^"]*)"/g)].map(
-      (r) => r[1],
-    );
-    into.relations.set(m[1], { members, tags: tagsOf(m[2]) });
+    const ways = [...m[2].matchAll(/<member type="way" ref="(\d+)" role="([^"]*)"/g)];
+    const members = ways.map((r) => r[1]);
+    const roles = ways.map((r) => r[2]);
+    into.relations.set(m[1], { members, roles, tags: tagsOf(m[2]) });
   }
   return into;
 }
@@ -338,6 +339,58 @@ function widthsOf(points, areas) {
   });
 }
 
+/** A building's ring on the map (its corners, not closed) as a house:
+ * its middle, its size (the side of a square of half its area) and its
+ * longest wall's bearing folded into half a turn — or null where its
+ * middle is off the map or it has no area. */
+function houseOf(ring) {
+  let area = 0;
+  let cx = 0;
+  let cz = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [x0, z0] = ring[i];
+    const [x1, z1] = ring[(i + 1) % ring.length];
+    const k = x0 * z1 - x1 * z0;
+    area += k;
+    cx += (x0 + x1) * k;
+    cz += (z0 + z1) * k;
+  }
+  if (Math.abs(area) < 1e-6) return null;
+  const mid = [cx / (3 * area), cz / (3 * area)];
+  if (!inMap(mid)) return null;
+  let long = 0;
+  let bearing = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [x0, z0] = ring[i];
+    const [x1, z1] = ring[(i + 1) % ring.length];
+    const l = Math.hypot(x1 - x0, z1 - z0);
+    if (l > long) [long, bearing] = [l, Math.atan2(x1 - x0, z1 - z0)];
+  }
+  const turn = ((bearing % Math.PI) + Math.PI) % Math.PI;
+  return { mid, size: Math.sqrt(Math.abs(area) / 2), turn };
+}
+
+/** The closed rings a multipolygon's member ways (their node ids, each
+ * possibly a piece of a ring) join into, end to end; none where a member
+ * is missing from the tiles. */
+function ringsOf(lines) {
+  if (lines.some((l) => !l)) return [];
+  const open = lines.map((l) => l.slice());
+  const rings = [];
+  while (open.length > 0) {
+    let ring = open.shift();
+    while (ring[0] !== ring.at(-1)) {
+      const end = ring.at(-1);
+      const i = open.findIndex((l) => l[0] === end || l.at(-1) === end);
+      if (i < 0) break;
+      const [l] = open.splice(i, 1);
+      ring = ring.concat((l[0] === end ? l : l.slice().reverse()).slice(1));
+    }
+    if (ring[0] === ring.at(-1) && ring.length >= 4) rings.push(ring);
+  }
+  return rings;
+}
+
 /** A face's hints on its map: lifts bottom to top, pistes down their line,
  * houses by their middle, size and bearing. `height` reads the face's own
  * baked heights, so a lift's bottom is the lower of its ends. */
@@ -382,32 +435,21 @@ function hintsOf(face, data, height) {
       continue;
     }
     if (w.tags.building && closed && pts.length >= 4) {
-      const ring = pts.slice(0, -1);
-      let area = 0;
-      let cx = 0;
-      let cz = 0;
-      for (let i = 0; i < ring.length; i++) {
-        const [x0, z0] = ring[i];
-        const [x1, z1] = ring[(i + 1) % ring.length];
-        const k = x0 * z1 - x1 * z0;
-        area += k;
-        cx += (x0 + x1) * k;
-        cz += (z0 + z1) * k;
-      }
-      if (Math.abs(area) < 1e-6) continue;
-      const mid = [cx / (3 * area), cz / (3 * area)];
-      if (!inMap(mid)) continue;
-      // The longest wall's bearing, folded into half a turn.
-      let long = 0;
-      let bearing = 0;
-      for (let i = 0; i < ring.length; i++) {
-        const [x0, z0] = ring[i];
-        const [x1, z1] = ring[(i + 1) % ring.length];
-        const l = Math.hypot(x1 - x0, z1 - z0);
-        if (l > long) [long, bearing] = [l, Math.atan2(x1 - x0, z1 - z0)];
-      }
-      const turn = ((bearing % Math.PI) + Math.PI) % Math.PI;
-      houses.push({ mid, size: Math.sqrt(Math.abs(area) / 2), turn });
+      const house = houseOf(pts.slice(0, -1));
+      if (house) houses.push(house);
+    }
+  }
+  // A building mapped as a MULTIPOLYGON (a hotel round a courtyard, a
+  // block of wings): each outer ring a building of its own, where every
+  // member and node of it is in the tiles.
+  for (const r of data.relations.values()) {
+    if (!r.tags.building) continue;
+    const outer = r.members.filter((_, i) => r.roles[i] !== "inner").map((m) => ways.get(m)?.refs);
+    for (const ring of ringsOf(outer)) {
+      const pts = ring.map((id) => nodes.get(id));
+      if (pts.some((g) => !g)) continue;
+      const house = houseOf(pts.slice(0, -1).map((g) => mapAt(face, ...g)));
+      if (house) houses.push(house);
     }
   }
   const kept = houses

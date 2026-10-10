@@ -33,15 +33,19 @@ import { bodyTile, type BodyTile } from "../game/body-tile.ts";
 import { diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { BONE_GROUPS, BONE_VIEWS } from "./gore-bone-scenes.ts";
 import {
-  GROUPS,
+  GROUPS as SCENE_GROUPS,
   HUD_GROUPS,
-  VIEWS,
+  VIEWS as SCENE_VIEWS,
   type Drive,
   type Fresh,
   type Lens,
   type Stage,
 } from "./gore-scenes.ts";
+
+const VIEWS = { ...SCENE_VIEWS, ...BONE_VIEWS };
+const GROUPS = { ...SCENE_GROUPS, ...BONE_GROUPS };
 
 type Frame = { view: string; label: string; caption: string; png: string };
 

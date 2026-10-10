@@ -80,6 +80,7 @@
     "grimbear": "node scripts/grimbear-preview.mjs",
     "rescue": "node scripts/rescue-preview.mjs",
     "gore": "node scripts/gore-preview.mjs",
+    "bones": "node scripts/bones-preview.mjs",
     "replay-cam": "node scripts/replaycam-preview.mjs",
     "xray": "node scripts/xray-preview.mjs",
     "xray-body": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/xray-body.mjs",

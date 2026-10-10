@@ -31,7 +31,6 @@
 import * as THREE from "three";
 import {
   BONES,
-  FRACTURE_GRADE,
   GORE,
   GORE_OPEN,
   GORE_PIECES,
@@ -46,6 +45,14 @@ import {
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
 import { bindPose } from "./dress-loft.ts";
+import {
+  OPEN_BONES,
+  breakAlong,
+  limbAt,
+  openBreakGeometry,
+  openBreaksOf,
+  placeBreak,
+} from "./gore-bones.ts";
 import { createBlood, type Blood } from "./gore-blood.ts";
 import { DRIPS, faceRuns, hardLeaks, pourOf, type Cheek, type Leak } from "./gore-flow.ts";
 import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
@@ -77,6 +84,7 @@ import {
   tubeGeometry,
   type OrganKind,
 } from "./gore-shapes.ts";
+import { armBreaks } from "./skier-broken.ts";
 import { createDressed, type Dressed, type SkierDress } from "./skier-dress.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
@@ -167,21 +175,6 @@ function farEnd(piece: GorePiece, f: Record<SkierBone, BoneFrame>): V3 {
     }
   }
 }
-
-/** The long bones an open fracture stands out of, and the skin's bone it
- * stands out through. */
-const OPEN_BONES: Partial<Record<string, SkierBone>> = {
-  femurL: "thigh_l",
-  femurR: "thigh_r",
-  tibiaL: "shin_l",
-  tibiaR: "shin_r",
-  humerusL: "upperarm_l",
-  humerusR: "upperarm_r",
-  radiusL: "forearm_l",
-  radiusR: "forearm_r",
-  ulnaL: "forearm_l",
-  ulnaR: "forearm_r",
-};
 
 /** The ragdoll's points (`RAGDOLL`) as the skin's bones nearest them. */
 const POINT_BONE: SkierBone[] = [
@@ -292,8 +285,19 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   };
   const ribs = [0, 1, 2].map((i) => keep(ribGeometry(0.1 + 0.05 * i, i * 5.3)));
   const shards = [0, 1, 2].map((i) => keep(shardGeometry(0.09 + 0.03 * i, 0.016, i * 3.7)));
-  // An open fracture's end: thick and long enough to stand well out of the limb.
-  const breaks = [0, 1, 2].map((i) => keep(shardGeometry(0.22 + 0.04 * i, 0.024, i * 5.1 + 1)));
+  // An open fracture's end, a bone's and grade's own at the limb it is in.
+  const breakGeos = new Map<string, THREE.BufferGeometry>();
+  const breakOf = (bone: string, grade: number, limb: number) => {
+    const key = `${bone}:${grade}:${limb.toFixed(3)}`;
+    let g = breakGeos.get(key);
+    if (!g) {
+      const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
+      const seed = BONES.indexOf(bone as (typeof BONES)[number]) * 5.1 + 1;
+      g = keep(openBreakGeometry({ r: o.r, out: o.out, limb, grade, seed }));
+      breakGeos.set(key, g);
+    }
+    return g;
+  };
   const openings = {
     chest: keep(openingGeometry(0.12, true, 4.4)),
     abdomen: keep(openingGeometry(0.11, false, 9.1)),
@@ -716,40 +720,30 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         const o = openAt(bit, f);
         placeOn(mesh, o.at, o.out);
       });
-      // THE OPEN FRACTURES: a long bone broken in pieces out through the skin.
+      // THE OPEN FRACTURES: a long bone broken through, its end out of the skin.
       const grades = fracturesOf(state.skier.body);
       const hidden = bodyHides(g.lost);
-      BONES.forEach((bone, k) => {
-        const on = OPEN_BONES[bone];
-        if (!on || grades[k] < FRACTURE_GRADE.simple || hidden.has(on)) {
-          const m = fractures.get(bone);
-          if (m) {
-            m.parent?.remove(m);
-            fractures.delete(bone);
-          }
-          return;
-        }
+      const open = openBreaksOf(grades, hidden);
+      const arms = armBreaks(state.skier.body.injuries);
+      for (const [bone, m] of fractures) {
+        if (open.has(bone)) continue;
+        m.parent?.remove(m);
+        fractures.delete(bone);
+      }
+      for (const [bone, grade] of open) {
+        const limb = limbAt(skin.cloth, bone);
+        const geo = breakOf(bone, grade, limb);
         let mesh = fractures.get(bone);
         if (!mesh) {
-          mesh = meshOf(breaks[k % breaks.length]);
+          mesh = meshOf(geo);
           skin.group.add(mesh);
           fractures.set(bone, mesh);
         }
-        const b = f[on];
-        const side = bone.startsWith("ulna") ? -1 : 1;
-        const at = {
-          x: b.head.x + b.y.x * b.length * 0.5,
-          y: b.head.y + b.y.y * b.length * 0.5,
-          z: b.head.z + b.y.z * b.length * 0.5,
-        };
-        // Out through the front of the limb, its splintered end along it.
-        const out = {
-          x: b.z.x * 0.8 + b.y.x * 0.45 * side + b.x.x * 0.2 * side,
-          y: b.z.y * 0.8 + b.y.y * 0.45 * side + b.x.y * 0.2 * side,
-          z: b.z.z * 0.8 + b.y.z * 0.45 * side + b.x.z * 0.2 * side,
-        };
-        placeOn(mesh, at, out);
-      });
+        mesh.geometry = geo;
+        const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
+        const arm = arms[bone.endsWith("L") ? 0 : 1];
+        placeBreak(mesh, o, f[o.on], breakAlong(bone, f[o.on], arm), limb);
+      }
 
       // THE PIECES AND THE GIBS FLOWN.
       const fly = Math.min(dt, 1 / 30);
@@ -951,20 +945,19 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         });
         if (g.crushed >= 0) at.push({ at: bind.head.head, r: reach + 0.1 });
         if (g.impaled) at.push({ at: bind[POINT_BONE[g.impaled.point]].head, r: reach + 0.1 });
-        BONES.forEach((bone, k) => {
-          const on = OPEN_BONES[bone];
-          if (on && grades[k] >= FRACTURE_GRADE.simple && !hidden.has(on)) {
-            const b = bind[on];
-            at.push({
-              at: {
-                x: b.head.x + b.y.x * b.length * 0.5,
-                y: b.head.y + b.y.y * b.length * 0.5,
-                z: b.head.z + b.y.z * b.length * 0.5,
-              },
-              r: 0.08 + reach * 0.4,
-            });
-          }
-        });
+        for (const bone of open.keys()) {
+          const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
+          const b = bind[o.on];
+          const along = breakAlong(bone, b, null);
+          at.push({
+            at: {
+              x: b.head.x + b.y.x * along,
+              y: b.head.y + b.y.y * along,
+              z: b.head.z + b.y.z * along,
+            },
+            r: 0.08 + reach * 0.4,
+          });
+        }
         for (const h of hard) {
           if (h.part === "head") {
             at.push(...faceRuns(bind, cheek));

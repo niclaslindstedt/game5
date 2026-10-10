@@ -21,6 +21,9 @@
 //   blood    spray (a stump close over two heartbeats: the spurt and the
 //            lull), snow (the snow red under him, pooled, splashed, smeared)
 //   close    closeup (the wounds and what was thrown out, from six sides)
+//   bones    open-arms, open-arms-hard (stood with the arms broken out
+//            through the skin, at each grade, close from six sides),
+//            open-arms-ski (skiing on with them), open-legs (the legs')
 //   hud      wreck (the HUD over a fatal crash: the jolt,
 //            the readouts fading away, DIED and the dark — each frame
 //            an iframe of `pwa/gore-hud.html` at the frame's own size)
@@ -56,12 +59,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, leak, pools, close, hud, remains); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, leak, pools, close, bones, hud, remains); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, wreck)",
+      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, open-arms, open-arms-hard, open-arms-ski, open-legs, wreck)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {

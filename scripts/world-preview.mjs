@@ -302,6 +302,10 @@ const args = parseArgs(
       default: "alpine",
       help: "the kind of snow country (R21): alpine, fell, continental, maritime",
     },
+    face: {
+      kind: "string",
+      help: "raise the map on a REAL face (R25: alpine-1, fell-3, …), its region the face's",
+    },
     hour: {
       kind: "number",
       default: -1,
@@ -362,7 +366,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -441,6 +445,7 @@ page.setDefaultTimeout(args.timeout * 1000);
 const query = new URLSearchParams({
   seed: String(args.seed),
   region: args.region,
+  ...(args.face ? { face: args.face } : {}),
   ...(args.grade ? { grade: args.grade } : {}),
   quality: args.quality,
   ...(args.shadows ? { shadows: args.shadows } : {}),
@@ -496,7 +501,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

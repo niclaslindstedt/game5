@@ -133,7 +133,9 @@ function treeGrid(level, cell) {
   };
 }
 
-/** THE PLAN: the ski area from above, summit up. Returns the drawing. */
+/** THE PLAN: the ski area from above, summit up — the whole map, or the
+ * square `view` ({ x, z, size }, m: its corner nearest the summit's left
+ * and its side) of it. Returns the drawing. */
 export function renderResortPlan({
   level,
   scale = 0.4,
@@ -144,22 +146,26 @@ export function renderResortPlan({
   failing = new Set(),
   cabins = [],
   hints = null,
+  village = null,
+  view = null,
 }) {
-  const size = level.size;
+  const size = view ? view.size : level.size;
+  const vx = view ? view.x : 0;
+  const vz = view ? view.z : 0;
   const W = Math.ceil(size * scale);
   const TITLE = 40;
   const canvas = createDrawing(W + 24, W + TITLE + 12, PAPER);
   const ox = 12;
   const oy = TITLE;
   // Summit up: the map's z = 0 (the ridge) at the top of the page.
-  const px = (x) => ox + x * scale;
-  const py = (z) => oy + z * scale;
+  const px = (x) => ox + (x - vx) * scale;
+  const py = (z) => oy + (z - vz) * scale;
   let lo = Infinity;
   let hi = -Infinity;
   const hs = new Float32Array(W * W);
   for (let j = 0; j < W; j++) {
     for (let i = 0; i < W; i++) {
-      const h = level.groundAt((i + 0.5) / scale, (j + 0.5) / scale);
+      const h = level.groundAt(vx + (i + 0.5) / scale, vz + (j + 0.5) / scale);
       hs[j * W + i] = h;
       lo = Math.min(lo, h);
       hi = Math.max(hi, h);
@@ -173,8 +179,8 @@ export function renderResortPlan({
   const hub = hubAt ? level.resort?.hub : null;
   for (let j = 0; j < W; j++) {
     for (let i = 0; i < W; i++) {
-      const x = (i + 0.5) / scale;
-      const z = (j + 0.5) / scale;
+      const x = vx + (i + 0.5) / scale;
+      const z = vz + (j + 0.5) / scale;
       level.normalAt(x, z, nrm);
       const lit = Math.max(0, (nrm.x * L.x + nrm.y * L.y + nrm.z * L.z) / ll);
       const h = hs[j * W + i];
@@ -322,6 +328,17 @@ export function renderResortPlan({
     canvas.disk(px(p.x), py(p.z), 7, ink);
     canvas.text(run.id, px(p.x) - (run.id.length > 1 ? 5 : 2), py(p.z) - 3, WHITE, 1);
   }
+  // The village's streets (`villageOf`): each to its carriageway's width
+  // in dark grey, the square and the car park as outlines.
+  if (village) {
+    for (const st of village.streets) {
+      const w = Math.max(1.5, st.section.lane * 2 * scale);
+      for (let i = 0; i + 1 < st.points.length; i++) {
+        const [a, b] = [st.points[i], st.points[i + 1]];
+        canvas.line(px(a.x), py(a.z), px(b.x), py(b.z), [70, 66, 62], w);
+      }
+    }
+  }
   // Every cabin (`cabinsOf`): a timber-brown square on a white ground, the
   // first of each group with its id.
   for (const c of cabins) {
@@ -332,7 +349,9 @@ export function renderResortPlan({
   }
   // A real face's hints (`real-hints.ts`) over it all, thin: the real
   // pistes in their grade's colour, the real lifts in magenta from a ring
-  // at the bottom to a dot at the top, the real houses as grey ticks.
+  // at the bottom to a dot at the top, the real houses as grey ticks, the
+  // real town's streets in orange (main roads thicker) inside a dotted
+  // ring of its radius.
   if (hints) {
     const HINT_GRADE = {
       green: [40, 150, 60],
@@ -352,6 +371,22 @@ export function renderResortPlan({
         [90, 90, 90],
         2,
       );
+    }
+    // The real town's streets (main roads thicker), and its radius.
+    for (const st of hints.streets ?? []) {
+      for (let i = 0; i + 1 < st.points.length; i++) {
+        const [a, b] = [st.points[i], st.points[i + 1]];
+        canvas.line(px(a.x), py(a.z), px(b.x), py(b.z), [230, 120, 20], st.main ? 2 : 1);
+      }
+    }
+    if (hints.town) {
+      const t = hints.town;
+      for (let k = 0; k < 96; k++) {
+        const a = (k / 96) * 2 * Math.PI;
+        const x = px(t.x + Math.sin(a) * t.r);
+        const z = py(t.z + Math.cos(a) * t.r);
+        canvas.disk(x, z, 1, [230, 120, 20]);
+      }
     }
     for (const p of hints.pistes) {
       const ink = [...HINT_GRADE[p.grade], 200];

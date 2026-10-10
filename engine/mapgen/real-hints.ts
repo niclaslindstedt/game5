@@ -13,6 +13,7 @@
 // and the village's buildings toward them where its own rules allow, and
 // builds what they cannot fit as it would on any massif.
 
+import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { RunGrade } from "./grades.ts";
 import { HINT_DATA, HINT_GRAIN, type HintData } from "./real-hints-data.ts";
 import { base64 } from "./real-face.ts";
@@ -139,7 +140,7 @@ export function leanStation(
   for (const l of hints.lifts) {
     if (used.has(l)) continue;
     const p = l[end];
-    const d = Math.hypot(p.x - at.x, p.z - at.z);
+    const d = hypot(p.x - at.x, p.z - at.z);
     if (d < bestD && Math.abs(p.z - at.z) <= r.rise * 2) {
       best = l;
       bestD = d;
@@ -173,7 +174,7 @@ export function pisteVia(
     const top = p.points[0];
     const fall = p.points[p.points.length - 1].z - top.z;
     if (fall < drop * 0.4) continue;
-    const d = Math.hypot(top.x - start.x, top.z - start.z) - (p.grade === grade ? r.same : 0);
+    const d = hypot(top.x - start.x, top.z - start.z) - (p.grade === grade ? r.same : 0);
     if (d < bestD) {
       best = p;
       bestD = d;
@@ -216,10 +217,8 @@ export function leanLift(
     if (used.has(l) || !kinds.includes(l.kind)) continue;
     const xb = keep.bottom ? along(l, bottom.z) : l.bottom.x;
     if (xb === null) continue;
-    const db = keep.bottom
-      ? Math.abs(xb - bottom.x)
-      : Math.hypot(xb - bottom.x, l.bottom.z - bottom.z);
-    const dt = Math.hypot(l.top.x - top.x, l.top.z - top.z);
+    const db = keep.bottom ? Math.abs(xb - bottom.x) : hypot(xb - bottom.x, l.bottom.z - bottom.z);
+    const dt = hypot(l.top.x - top.x, l.top.z - top.z);
     if (db < r.reach && dt < r.reach && db + dt < bestD) {
       best = { l, xb };
       bestD = db + dt;

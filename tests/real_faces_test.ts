@@ -11,11 +11,14 @@ import {
   REGION_IDS,
   faceHeight,
   generateLevel,
+  leanLift,
+  pisteAhead,
+  realHints,
+  type RealHints,
   realFace,
   realFaceRegion,
 } from "@engine";
 
-import { leanLift, pisteAhead, realHints, type RealHints } from "../engine/mapgen/real-hints.ts";
 import { freshRide, mergeRide } from "../pwa/src/game/free-ride.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
 

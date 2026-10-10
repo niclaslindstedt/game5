@@ -228,7 +228,14 @@ function strand(a: THREE.Vector3, b: THREE.Vector3, r: number): THREE.BufferGeom
   return g;
 }
 
-export function createGates(level: Level, haze: HazeUniforms): Gates {
+export function createGates(
+  level: Level,
+  haze: HazeUniforms,
+  /** Whether the run counts its course: a free ride's does not, and is
+   * given no wand to start through — a lone bar at the knee across the
+   * run head where a restart stands him reads as a fence on the slope. */
+  counted = true,
+): Gates {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -391,6 +398,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       group.add(hut);
     }
     // The wand: two posts a racer's shins go between, the bar at the knee.
+    if (!counted) return;
     for (const side of [-1, 1]) {
       const px = cp.x + rx * side * (WAND.gap / 2);
       const pz = cp.z + rz * side * (WAND.gap / 2);

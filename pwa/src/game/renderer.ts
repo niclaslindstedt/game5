@@ -527,7 +527,7 @@ export function createWorldRenderer(
       forest = createForest(lv, env.haze, forestOptions());
       forest.group.name = "forest";
       scene.add(forest.group);
-      gates = createGates(lv, env.haze);
+      gates = createGates(lv, env.haze, state.rules.course);
       castInLight(gates.group, env.haze);
       gates.group.name = "checkpoints";
       clear = createLineClear(lv, { movers: () => machines?.solids() ?? [] });

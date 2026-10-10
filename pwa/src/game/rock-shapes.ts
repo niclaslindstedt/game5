@@ -52,11 +52,18 @@ export function rockTone(tone: Tone): Tone {
 const SNOW: Tone = [0.86, 0.89, 0.94];
 
 /** The triangles a run of outcrops makes: positions, flat normals and
- * colours, three floats a vertex, three vertices a triangle. */
+ * colours, three floats a vertex, three vertices a triangle — and the
+ * same rock CALMED for the distance (`soft`, `calm`): the smooth normal of
+ * the ground under each corner and the colour a facet of the rock's mean
+ * shade would wear facing that way. Far out a facet is a few pixels and
+ * its own shade and lighting only twinkle as the lens moves, so the draw
+ * eases each corner over to its calm pair with distance (`rocks.ts`). */
 export type RockMesh = {
   readonly pos: number[];
   readonly nrm: number[];
   readonly col: number[];
+  readonly soft: number[];
+  readonly calm: number[];
 };
 
 type P = [number, number, number];
@@ -70,6 +77,7 @@ function tri(
   inside: P,
   paint: (ny: number) => Tone,
   shadeAt: (p: P) => number,
+  calmOf: (p: P, n: P) => { n: P; col: Tone },
 ): void {
   const ex = b[0] - a[0];
   const ey = b[1] - a[1];
@@ -99,9 +107,12 @@ function tri(
   const col = paint(ny);
   for (const p of [a, q, r]) {
     const k = shadeAt(p);
+    const calm = calmOf(p, [nx, ny, nz]);
     m.pos.push(p[0], p[1], p[2]);
     m.nrm.push(nx, ny, nz);
     m.col.push(col[0] * k, col[1] * k, col[2] * k);
+    m.soft.push(calm.n[0], calm.n[1], calm.n[2]);
+    m.calm.push(calm.col[0] * k, calm.col[1] * k, calm.col[2] * k);
   }
 }
 
@@ -149,6 +160,14 @@ export function buildSkin(
     return c;
   };
   const shadeAt = (p: P): number => (p[1] < level.groundAt(p[0], p[2]) ? FOOT + 0.2 : 1);
+  // Calm: the ground's own normal under the corner, snow on it as a facet
+  // facing that way would hold it.
+  const calm = calmPaint(stone, SKIN_HOLDS);
+  const g = { x: 0, y: 1, z: 0 };
+  const calmOf = (p: P): { n: P; col: Tone } => {
+    level.normalAt(p[0], p[2], g);
+    return { n: [g.x, g.y, g.z], col: calm(g.y) };
+  };
   for (let j = j0; j < j1; j++) {
     for (let i = i0; i < i1; i++) {
       const a = cornerAt(i, j);
@@ -162,11 +181,11 @@ export function buildSkin(
       // Under the ground at the cell's middle: inside the hill.
       const inside: P = [mx, level.groundAt(mx, mz) - 3, mz];
       if (unit(h, 0) < 0.5) {
-        tri(m, a.p, b.p, c.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt);
-        tri(m, a.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt);
+        tri(m, a.p, b.p, c.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
+        tri(m, a.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
       } else {
-        tri(m, a.p, b.p, d.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt);
-        tri(m, b.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt);
+        tri(m, a.p, b.p, d.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
+        tri(m, b.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
       }
     }
   }
@@ -175,11 +194,22 @@ export function buildSkin(
 /** A facet's paint off hash `h`'s draws from `n`: its own shade of the
  * rock `stone`, snow over it by how much it faces the sky. */
 function paintOf(stone: Tone, h: number, n: number, holds = SNOW_HOLDS): (ny: number) => Tone {
+  const f = 0.72 + 0.5 * unit(h, n);
+  const warm = (unit(h, n + 1) - 0.5) * 0.05;
+  return snowOver(holds, [stone[0] * f * (1 + warm), stone[1] * f, stone[2] * f * (1 - warm)]);
+}
+
+/** The paint of a facet of the rock's MEAN shade (`paintOf`'s middle draw,
+ * no warmth): what the calmed rock wears. */
+function calmPaint(stone: Tone, holds = SNOW_HOLDS): (ny: number) => Tone {
+  const f = 0.72 + 0.5 * 0.5;
+  return snowOver(holds, [stone[0] * f, stone[1] * f, stone[2] * f]);
+}
+
+/** `rock` with snow over it by the up share `ny`, whole past `holds`. */
+function snowOver(holds: number, rock: Tone): (ny: number) => Tone {
   const slides = holds - (SNOW_HOLDS - SNOW_SLIDES);
   return (ny) => {
-    const f = 0.72 + 0.5 * unit(h, n);
-    const warm = (unit(h, n + 1) - 0.5) * 0.05;
-    const rock: Tone = [stone[0] * f * (1 + warm), stone[1] * f, stone[2] * f * (1 - warm)];
     const snow = Math.max(0, Math.min(1, (ny - slides) / (holds - slides)));
     return [
       rock[0] + (SNOW[0] - rock[0]) * snow,
@@ -206,6 +236,10 @@ export function buildWall(m: RockMesh, w: CliffWall, tone: Tone): void {
   };
   // Darker toward the foot: the sky hidden from the bottom of the wall.
   const lipY = (j: number): number => corner(1, j)[1];
+  // Calm: a wall has no ground under it to borrow a normal from, so its
+  // facets keep their own and wear the rock's mean shade.
+  const calm = calmPaint(stone);
+  const calmOf = (_p: P, n: P): { n: P; col: Tone } => ({ n, col: calm(n[1]) });
   const footY = (j: number): number => corner(rows - 1, j)[1];
   for (let r = 0; r < rows - 1; r++) {
     for (let j = 0; j < cols - 1; j++) {
@@ -224,15 +258,15 @@ export function buildWall(m: RockMesh, w: CliffWall, tone: Tone): void {
       const shadeAt = (p: P): number =>
         FOOT + (1 - FOOT) * Math.min(1, Math.max(0, (p[1] - bottom) / Math.max(0.5, top - bottom)));
       if (unit(h, 0) < 0.5) {
-        tri(m, a, b, c, inside, paintOf(stone, h, 1), shadeAt);
-        tri(m, a, c, d, inside, paintOf(stone, h, 3), shadeAt);
+        tri(m, a, b, c, inside, paintOf(stone, h, 1), shadeAt, calmOf);
+        tri(m, a, c, d, inside, paintOf(stone, h, 3), shadeAt, calmOf);
       } else {
-        tri(m, a, b, d, inside, paintOf(stone, h, 1), shadeAt);
-        tri(m, b, c, d, inside, paintOf(stone, h, 3), shadeAt);
+        tri(m, a, b, d, inside, paintOf(stone, h, 1), shadeAt, calmOf);
+        tri(m, b, c, d, inside, paintOf(stone, h, 3), shadeAt, calmOf);
       }
     }
   }
 }
 
 /** A fresh, empty mesh. */
-export const rockMesh = (): RockMesh => ({ pos: [], nrm: [], col: [] });
+export const rockMesh = (): RockMesh => ({ pos: [], nrm: [], col: [], soft: [], calm: [] });

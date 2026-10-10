@@ -72,7 +72,8 @@ stations the leant lifts end in). Load **`write-code`** beside them and
   thousand parts is about 0.4 MB of index in the bundle and
   30 MB in the tree. If a new face's hints are far over the others', it is
   a crop holding a town — check the houses' count first (`real-houses.ts`
-  stands at most 120 anyway).
+  stands at most 200 up the mountain, 140 in the town and 80 in the rest of
+  the valley anyway).
 - **THE NEXT ONE IS THE NEXT ONE OVER.** The card lists a range's areas as
   a WALK (`face-picks.ts`'s `walk`): the most northerly area first, then
   always the nearest not yet listed, by the middle of its parts; an area's
@@ -189,7 +190,11 @@ with `make resort ARGS="--face=<id> --hints --village"` (its
 `-village.png`: the village's streets in dark grey under the real town's in
 orange) and in the game's renderer with `make buildings
 ARGS="--face=<id>"` or `npm run world -- --free --face <id>
---views=village-air`.
+--views=village-air,village-street,real-house,real-air` — `real-house` the
+real building stood highest up the mountain, close, and `real-air` those
+stood 60 m or more over the valley from the air: a face whose real huts
+and hotels up the slope are missing from it is a placer refusing them
+(`placeRealHouses`), not a bake.
 
 ### 5. Measure it, before and after
 
@@ -206,7 +211,14 @@ touches how hints are used), on seed 1 and a few more:
   with debug on (`@niclaslindstedt/oss-game-framework/core/output`) in a
   throwaway Node script under `scripts/` (run with `node
   --experimental-strip-types`, listed in `.git/info/exclude`, deleted when
-  done) and count the `refused` lines by reason.
+  done) and count the `refused` lines by reason;
+- **the town and the buildings** (when the village's place or the real
+  houses move): the village's centre and the valley lift's foot against
+  the real town's middle (`villageOf(level).centre`, `realHints(id).town`),
+  and the share of the real buildings stood at their spot (a building
+  within 8 m) in each of `realHouseTier`'s tiers — the mountain's, the
+  town's and the valley's apart, since a town of a thousand houses hides
+  a mountain whose dozen huts are all missing.
 
 Keep the before table, change one thing, re-measure. A rule that refuses
 the real mountain over and over (a real face's pads are rougher, it has
@@ -234,7 +246,8 @@ face). The README and `AGENTS.md` only if a count they state moved.
 | The hints read (lifts leant, a run laid on a piste, its width) | `engine/mapgen/real-hints.ts` (`leanLift`, `leanStation`, `pisteFor`, `alongPiste`, `pisteAhead`, `pisteVia`, `pisteWidth`) |
 | Where the plan uses them | `engine/mapgen/resort.ts` (`planResort`), `network.ts` (`RunSpec.widthAt`, `.signed`), `resort-build.ts` (the signed colour, the fewest runs) |
 | The rules a face is held to | `engine/mapgen/resort-rules.ts`'s `RR.massif.real` (`.least` the relaxed ones), read by `engine/analysis/resort.ts` |
-| The real houses stood | `engine/game/real-houses.ts` |
+| The real houses stood (by tier: the mountain's, the town's, the valley's; nudged off what they would block) | `engine/game/real-houses.ts`, through `cabins.ts`'s placer |
+| The village below the real town | `massif.ts`'s `readFace` (`RR.massif.real.town`), `village-streets.ts` (the hub's mountain side when the town is up the slope) |
 | The town's streets → the village laid along them (its centre, main, back and cross streets, road out, the town streets) | `scripts/lib/real-face-streets.mjs` → `HintStreet`, `HintTown`; `engine/game/real-streets.ts`, read by `village-streets.ts` |
 | Where a face is fetched | `loadRealFace`, awaited by the map and preview workers, the load (`app-load.ts`'s `LoadPlan.face`), the boot (`main.tsx`) and every lab that takes `--face` |
 | The picker | the start card's RANGE (by name, GENERATED its last stop), AREA and PART rows, filtered by GRADE (`pwa/src/game/face-picks.ts` — nothing to add but a new range's name in `strings-ranges.ts`), `?face=` |

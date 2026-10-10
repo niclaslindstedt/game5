@@ -36,6 +36,7 @@ import {
   paraRigged,
   balloonAboard,
   sledWithin,
+  skipShare,
   groomerWithin,
   trenched,
   type GameState,
@@ -218,6 +219,9 @@ export type HudSnapshot = {
   /** CARRIED UP A LIFT (`lift-gaze.ts`'s `gazeAllowed`): a finger on the
    * glass looks round rather than skis, so the thumbs' pads are not drawn. */
   carried?: boolean;
+  /** SKIPPING UP THE LIFT: how far the tuck has been held toward the skip,
+   * 0..1 (`skipShare`) — the HUD's ring, drawn only above 0. */
+  skip?: number;
   /** The run's longest flight so far, s — 0 until one has lasted
    * `AIR_SHOWN`. */
   bestAir: number;
@@ -679,6 +683,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
         : null,
     free: !state.rules.course,
     carried: gazeAllowed(c.lift),
+    skip: skipShare(state),
     bestAir: p.bestAir > AIR_SHOWN ? p.bestAir : 0,
     distance: p.distance,
     result:

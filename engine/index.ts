@@ -902,6 +902,7 @@ export {
   pickFreeRun,
   runsOffTop,
   seatedShare,
+  skipShare,
   stepLift,
 } from "./game/lift-ride.ts";
 export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";

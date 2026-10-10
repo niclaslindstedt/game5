@@ -213,6 +213,9 @@ the ride is built to:
 - **The safety bar** is a part of its own (`lift-carriers.ts`'s
   `chairBarGeometry`), turned about its pivot on every chair by where the
   chair is: down 8–16 m past the load, up 26–34 m before the unload.
+  Raised, it stops short of the hanger curving over the riders' heads
+  (`CHAIR_BAR.up` against `CHAIR_HANGER`), as a real bar comes up against
+  its stop, with the footrests out ahead over them.
 - **The stand-up.** At the unload the chair lets go of him over
   `TUNING.lift.rise` s (`LiftRide.stand`): the seat share eases out while
   he slides on ahead of it down the ramp, turned off the chair's way, the

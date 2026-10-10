@@ -110,6 +110,10 @@ export type CreateGameOptions = {
   /** The kind of snow country the seed's map is built in (R21); the boreal
    * when left out. Ignored when `level` is given. */
   region?: RegionId;
+  /** The REAL FACE the seed's resort is raised on (R25, `real-face.ts`):
+   * its region the face's own. A dealt massif when left out. Ignored when
+   * `level` is given. */
+  face?: string;
   /** The piste grade the seed's map is built to (R23); the one the seed
    * deals when left out — ORANGE (R42) the hardest piste's, and a free
    * ride by lift up to the map's ski route. Ignored when `level` is given. */
@@ -316,6 +320,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     course: base.course,
     tricks: base.tricks,
     stunts: base.stunts,
+    ...(base.revert ? { revert: true } : {}),
     limit: base.limit,
     airGravity: base.airGravity,
     // AFTER DARK the crowd has gone in (`enthusiasts.ts`); asked for, it
@@ -364,6 +369,7 @@ export function levelFor(options: CreateGameOptions = {}): Level {
   const ask = {
     tricks,
     region: options.region,
+    face: options.face,
     // A slalom is never set on an easy hill: a seed of its own is built
     // to a RED piste unless a grade is asked for — a red's steepest
     // pitch (R23) is a slalom hill's 33–45 %, and a black's drops across

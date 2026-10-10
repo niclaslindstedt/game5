@@ -23,10 +23,9 @@
 // bot's race under a card is armed with nothing.
 //
 // THE PINNED MAPS (`pinned-run.ts`): a RACE rides a pinned map.
-// THE REPLAY (`replay-run.ts`): every run the player rides is recorded as the
-// controls that rode it, and WATCH REPLAY (the finish plate, the pause card,
-// the offer after a crash, V) stands a copy up under the `replay` surface,
-// sets the run aside and hands it back to the surface it was watched from.
+// THE REPLAY (`replay-run.ts`): every run the player rides is recorded, and WATCH REPLAY stands
+// a copy up under the `replay` surface, setting the run aside and handing it back to the surface
+// it was watched from (on the bar's way out, or at the end of the crash an instant replay shows).
 //
 // THE URL: every parameter the app reads is listed in `game/url-params.ts`.
 // A URL that names a race (`start`, `shot`, `paused`) boots into one;
@@ -38,10 +37,9 @@
 // state once per frame; the HUD is refreshed from a snapshot at ~12 Hz. A
 // hidden tab pauses the clock (§37.3) and the HUD says so.
 //
-// THE RENDERER IS FETCHED, NOT BUNDLED (`use-render-kit.ts`):
-// `game/renderer.ts` is the one import that reaches three.js, so it arrives
-// as its own chunk behind the attract card, and everything this file asks of
-// it is `renderer-api.ts`'s — it draws a `GameState` and never writes one.
+// THE RENDERER IS FETCHED, NOT BUNDLED (`use-render-kit.ts`): `game/renderer.ts` is the one
+// import that reaches three.js, so it arrives as its own chunk behind the attract card, and all
+// this file asks of it is `renderer-api.ts`'s — it draws a `GameState` and never writes one.
 //
 // THE SOUND AND THE MOTOR FOLLOW THE SAME RULE AS THE SNOW: fed every frame
 // the engine steps — the beds ducked under a card, where the bot's race is
@@ -292,6 +290,7 @@ export function App() {
       renderer,
       show: (s) => show(s),
       shell: () => shellRef.current,
+      done: () => pressRef.current.unwatch(),
     }));
     const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current);
     const audio = createRunAudio();
@@ -874,6 +873,7 @@ export function App() {
           snap={snap!}
           flashes={flashes}
           touch={touch && !watching(shell)}
+          replaying={watching(shell)}
           input={input!}
           live={hudLive}
           feel={settings.touch}

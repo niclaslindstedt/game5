@@ -28,7 +28,8 @@
 // gondola station's door), lift-ring (a chair's boarding ring from up the
 // hill — lit on a `--free` run alone), cliff, cliff-edge,
 // sign (the head of the course raced, its piste-head sign beside it),
-// sign-tree (the post carrying the most boards), route-head, route-in,
+// sign-tree (the post carrying the most boards), route-head, route-amateur,
+// route-amateur-close (the locals' sign pointing at it), route-warn, route-fallen, route-in,
 // route-steep, route-side, route-air (the map's SKI ROUTE, R42: its sign,
 // down it at a skier's eye, its steepest pitch, across the face and from
 // over it), gate, hut, finish (the
@@ -87,7 +88,8 @@
 // the skier skied into its flank and stopped there); and the
 // lifts' hardware (`lift-view.ts`, `make lifts`): lift-tower, lift-chair,
 // lift-cabin, lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
-// the cabins, the T-bars, the lines and a bullwheel); and the
+// the cabins, the T-bars, the lines and a bullwheel) and lift-turns (every
+// station's wheel with its carriers coming round it, frame by frame); and the
 // village's traffic (`traffic-lab.ts`): village-traffic (a car coming down
 // the main street), village-junction, village-carpark, village-bus (the ski
 // bus at its stop), village-cyclist and vehicles (the sheet: every kind
@@ -165,6 +167,10 @@ const VIEWS = [
   "sign-summit-2",
   "sign-summit-3",
   "route-head",
+  "route-amateur",
+  "route-amateur-close",
+  "route-warn",
+  "route-fallen",
   "route-in",
   "route-steep",
   "route-side",
@@ -272,6 +278,7 @@ const VIEWS = [
   "lift-cabin",
   "lift-tbar",
   "lifts",
+  "lift-turns",
   "village-traffic",
   "village-junction",
   "village-carpark",

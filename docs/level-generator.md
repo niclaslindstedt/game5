@@ -199,7 +199,7 @@ orange is not built: it is FOUND on the finished mountain (`ski-routes.ts`), a l
 gondola's top down country steeper than R8's 78 % (38°), the steepest a machine works, and no
 steeper than 110 % (48°) over a hundred metres, never over a cliff, open of trees, out from under the lifts' ropes, and down onto
 a piste or a lane. It moves no ground and packs no snow, so it is skied in whatever the sky left on
-it; it is marked by orange stakes every 40 m down both sides of a 14 m corridor, a sign at its
+it; it is marked by tall orange stakes every 15 m down both sides of a 14 m corridor, a sign at its
 head reading SKI ROUTE · NOT GROOMED and a dashed orange line on every piste map, and signed with an
 orange DOUBLE DIAMOND. Asked for (`?grade=orange`, the GRADE row's fifth stop), a free ride starts
 down the map's ski route, the course raced being the black's; a map with none starts on its black.
@@ -222,7 +222,14 @@ an attempt is built in and `engine/analysis/resort.ts` (`analyzeResort`, with `a
   gentler one, blended across a sector; a BENCH part-way down where the fall eases and the
   mid-station stands; the headwalls on the steep sector; the village on the valley floor. Every
   profile falls from the ridge to the floor, so any blend of them does and the ground never climbs
-  down the fall line under R3's folds.
+  down the fall line under R3's folds. Asked for a REAL FACE (`GenerateOptions.face`, `real-face.ts`,
+  [real-faces.md](real-faces.md)), the massif's shape is read off a real mountainside instead: the
+  peak, the shoulder and the village where the real ones stand (inside their bands), the face's own
+  profile stretched to the dealt vertical, and its relief laid whole beside the ski area and behind
+  the ridge, calmed to `massif.real.relief` over the skiing face and faded out onto the valley floor
+  (`readFace`, `faceLift`); each refused attempt calms it further, and after `massif.real.placed`
+  attempts the dealt peak, shoulder and village stand in for the real ones. Every draw is made as before and the face read after them, so a map with
+  no face is unchanged and owes no version.
 - **The lifts** (`resort.ts`, R26) — straight lines from a bottom station to a top one: a gondola
   (`G1`) from the village to the mid-station on the bench, a chair (`C1`) on to the peak, a chair
   (`C2`) from the floor to the shoulder, a drag (`D1`) to the top of the nursery and, where the face

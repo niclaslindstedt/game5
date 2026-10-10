@@ -22,8 +22,9 @@
 //     turning under it.
 //   * A DRAG'S FOOT: a timber drive hut behind the wheel, a pitched roof.
 //   * THE TERMINAL over a chair's wheel: the long white composite hood with
-//     its chamfered ends and red band, on two columns at its far end, the
-//     wheel under it, a lightning rod on its back.
+//     its back a half circle round the wheel and its red band, the rail the
+//     chairs creep round the wheel on under it, on a pedestal under the
+//     wheel and two struts at its back, a lightning rod on its back.
 //
 // Three-free: the arrays are made a mesh by `facade-mesh.ts`.
 
@@ -53,6 +54,11 @@ const ROOF = { layer: FACADE.roof, tint: T.as };
 const BOARDS = { layer: FACADE.boards, tint: T.as };
 const FASCIA = { layer: FACADE.plain, tint: 0x3a3d42 };
 const TIMBER_FASCIA = { layer: FACADE.boards, tint: 0xb89a7a };
+
+/** How far in from a hood's edge its rail runs, m — `station-plan.ts`'s
+ * hood is the ropes' gauge, a chair's half-width and its clearances wide, so
+ * this lays the rail over the ropes' way. */
+const RAIL_IN = 2.5;
 
 /** How deep the snow lies on a roof, m. */
 const SNOW = { roof: 0.35, small: 0.22 };
@@ -297,11 +303,13 @@ function piece(kit: FacadeKit, level: Level, part: Part): void {
   };
   switch (part.kind) {
     case "hood":
-      return terminal(kit, part.size, ground);
+      return terminal(kit, part.size, part.length ?? 6, ground);
     case "booth":
       return booth(kit, ground);
     case "canopy":
-      return platformRoof(kit, part.size, ground);
+      platformRoof(kit, part.size, ground);
+      if (part.rail) turnRail(kit, part.rail.radius, -1, 5.5, -part.rail.drop, 0);
+      return;
     case "door":
       return hallDoor(kit);
     case "hut":
@@ -311,72 +319,150 @@ function piece(kit: FacadeKit, level: Level, part: Part): void {
   }
 }
 
-/** The plan of a hood: `w` wide, from `z0` to `z1` along, its corners cut
- * back `c`. */
-function chamfered(w: number, z0: number, z1: number, c: number): [number, number][] {
+/** The plan of a hood round its wheel: `w` wide, its back end a half
+ * circle about the wheel (at the origin) — the way the chairs turn under it
+ * — and its front end at `z1` with its corners cut back `c`. Counter-
+ * clockwise, `n` pieces round the back. */
+function horseshoe(w: number, z1: number, c: number, n = 10): [number, number][] {
   const x = w / 2;
-  return [
-    [-x + c, z0],
-    [x - c, z0],
-    [x, z0 + c],
-    [x, z1 - c],
-    [x - c, z1],
-    [-x + c, z1],
-    [-x, z1 - c],
-    [-x, z0 + c],
-  ];
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = Math.PI + (Math.PI * i) / n;
+    pts.push([x * Math.cos(a), x * Math.sin(a)]);
+  }
+  pts.push([x, z1 - c], [x - c, z1], [-x + c, z1], [-x, z1 - c]);
+  return pts;
 }
 
-/** A DETACHABLE TERMINAL'S HOOD over the wheel: its frame is the part's —
- * its underside at y 0, +z up the line, the wheel near z 0 — `w` wide and
- * 14 m long, from 4 m past the wheel back over the rail; standing on two
- * columns at its far end. */
-function terminal(kit: FacadeKit, w: number, ground: (x: number, z: number) => number): void {
-  const z0 = -10;
-  const z1 = 4;
+/** A DETACHABLE TERMINAL over a chair's wheel, in the part's frame — the
+ * wheel at the origin, its underside at y 0 just over the chairs' grips, +z
+ * out along the rail toward the line: the long white composite HOOD, its
+ * back a half circle round the wheel where the chairs come round, its front
+ * `reach` m out over the load or the unload, its red band and crown; under
+ * it the station's RAIL the chairs' grips run on once let go of the rope —
+ * up one side, round the wheel, back down the other — hung off the hood;
+ * the hood carried on the terminal's central PEDESTAL under the wheel (the
+ * chairs run round outside it) and two struts at its back corners, out
+ * past where the chairs swing. */
+function terminal(
+  kit: FacadeKit,
+  w: number,
+  reach: number,
+  ground: (x: number, z: number) => number,
+): void {
   const body = 1.0;
   const cap = 0.7;
   const c = Math.min(1.6, w * 0.22);
-  kit.prism(chamfered(w, z0, z1, c), 0, body, FACADE.panel, T.as);
+  kit.prism(horseshoe(w, reach, c), 0, body, FACADE.panel, T.as);
   // The band round it, standing proud.
-  kit.prism(chamfered(w + 0.04, z0 - 0.02, z1 + 0.02, c), 0.32, 0.56, FACADE.plain, T.stripe);
+  kit.prism(horseshoe(w + 0.04, reach + 0.02, c), 0.32, 0.56, FACADE.plain, T.stripe);
   // The cap: the hood's shoulders drawn in to its crown.
   const i = Math.min(1.1, w * 0.16);
-  kit.frustum(
-    chamfered(w, z0, z1, c),
-    chamfered(w - i * 2, z0 + i, z1 - i, Math.max(0.2, c - i * 0.6)),
-    body,
-    body + cap,
-    FACADE.panel,
-    T.as,
-    { layer: FACADE.panel, tint: 0xe6e8e9 },
-  );
+  const crown = (d: number) => horseshoe(w - 2 * d, reach - d, Math.max(0.2, c - d * 0.6));
+  kit.frustum(horseshoe(w, reach, c), crown(i), body, body + cap, FACADE.panel, T.as, {
+    layer: FACADE.panel,
+    tint: 0xe6e8e9,
+  });
   // Snow on the crown, and its underside.
   const s = SNOW.small;
   kit.frustum(
-    chamfered(w - i * 2 - 0.1, z0 + i + 0.05, z1 - i - 0.05, Math.max(0.2, c - i * 0.6)),
-    chamfered(
-      w - i * 2 - 0.1 - s * 2,
-      z0 + i + 0.05 + s,
-      z1 - i - 0.05 - s,
-      Math.max(0.1, c - i * 0.6 - s),
-    ),
+    crown(i + 0.05),
+    crown(i + 0.05 + s),
     body + cap,
     body + cap + s,
     FACADE.snow,
     0xeef3f8,
-    { layer: FACADE.snow, tint: 0xffffff },
+    {
+      layer: FACADE.snow,
+      tint: 0xffffff,
+    },
   );
-  kit.cap(chamfered(w, z0, z1, c), 0, FACADE.plain, T.under, true);
-  // The two columns at its far end, a lightning rod on its back.
+  kit.cap(horseshoe(w, reach, c), 0, FACADE.plain, T.under, true);
+  // THE RAIL: a steel beam over the grips' way, on hangers off the hood.
+  turnRail(kit, w / 2 - RAIL_IN, 0, reach - 0.4, -0.2, 0);
+  // THE PEDESTAL under the wheel, and the struts at the back corners.
+  kit.column(0, 0, ground(0, 0) - 0.4, 0, 0.36, FACADE.steel, T.as, 10);
   for (const sx of [-1, 1]) {
-    // `station-plan.ts`'s HOOD_INSET: the hood is sized so the chairs run
-    // between these.
+    // `station-plan.ts`'s HOOD_INSET: past where the chairs swing round.
     const x = sx * (w / 2 - 0.7);
-    const z = z0 + 1.2;
+    const z = -1.6;
     kit.box(x - 0.2, ground(x, z) - 0.4, z - 0.2, x + 0.2, 0, z + 0.2, FACADE.steel, T.as, null);
   }
-  kit.column(0, z0 + 2, body + cap, body + cap + 3.2, 0.03, FACADE.steel, T.dark, 4);
+  kit.column(0, -w / 2 + 1.4, body + cap, body + cap + 3.2, 0.03, FACADE.steel, T.dark, 4);
+}
+
+/** A STATION'S RAIL, in a part's frame: the steel the carriers' grips run
+ * on once let go of the rope — up one side `r` m off the middle from the
+ * wheel at `z0` out to `z1`, round the wheel's back in a half circle and
+ * back down the other — its foot at `y` and hung on hangers up to `roof`,
+ * with the tyres that drive the grips along it on its inside. */
+function turnRail(
+  kit: FacadeKit,
+  r: number,
+  z0: number,
+  z1: number,
+  y: number,
+  roof: number,
+): void {
+  const beam = 0.09;
+  const hi = y + 0.18;
+  const tyre = (x: number, z: number) =>
+    kit.box(
+      x - 0.06,
+      y - 0.12,
+      z - 0.17,
+      x + 0.06,
+      y + 0.06,
+      z + 0.17,
+      FACADE.steel,
+      0x1c1e21,
+      null,
+    );
+  for (const sx of [-1, 1]) {
+    kit.box(sx * r - beam, y, z0, sx * r + beam, hi, z1, FACADE.steel, T.dark, null);
+    for (let z = z0 + 0.5; z < z1; z += 0.55) tyre(sx * (r - beam - 0.08), z);
+    for (let z = z0 + 1; z < z1; z += 2.5)
+      kit.box(
+        sx * r - 0.04,
+        hi,
+        z - 0.04,
+        sx * r + 0.04,
+        roof,
+        z + 0.04,
+        FACADE.steel,
+        T.dark,
+        null,
+      );
+  }
+  const n = 12;
+  const at = (rr: number, a: number): [number, number] => [rr * Math.cos(a), z0 + rr * Math.sin(a)];
+  for (let k = 0; k < n; k++) {
+    const a0 = Math.PI + (Math.PI * k) / n;
+    const a1 = Math.PI + (Math.PI * (k + 1)) / n;
+    kit.prism(
+      [at(r - beam, a0), at(r + beam, a0), at(r + beam, a1), at(r - beam, a1)],
+      y,
+      hi,
+      FACADE.steel,
+      T.dark,
+    );
+    const m = at(r - beam - 0.08, (a0 + a1) / 2);
+    tyre(m[0], m[1]);
+  }
+  for (const a of [Math.PI * 1.25, Math.PI * 1.5, Math.PI * 1.75]) {
+    const h = at(r, a);
+    kit.box(
+      h[0] - 0.04,
+      hi,
+      h[1] - 0.04,
+      h[0] + 0.04,
+      roof,
+      h[1] + 0.04,
+      FACADE.steel,
+      T.dark,
+      null,
+    );
+  }
 }
 
 /** THE OPERATOR'S BOOTH: a red ribbed base, glass all round over it, a flat

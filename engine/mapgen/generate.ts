@@ -84,6 +84,7 @@ import { attemptBegun, reached, reportingTo } from "./progress.ts";
 import { buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
 import { laySkiRoutes } from "./ski-routes.ts";
 import { resortCached } from "./resort-cache.ts";
+import { realFaceRegion } from "./real-face.ts";
 import { analyzeResort } from "../analysis/resort.ts";
 
 /** How many pistes an attempt walks before it gives up on its mountain. */
@@ -278,7 +279,14 @@ function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
 export function levelIsCached(seed: number, opts: GenerateOptions = {}): boolean {
   const traits = generatorTraits(opts.version);
   if (traits.singlePiste) return false;
-  return resortCached(seed, opts.region, opts.attempts ?? 16, traits.version);
+  const face = opts.face ? realFaceRegion(opts.face) : null;
+  return resortCached(
+    seed,
+    face ?? opts.region,
+    opts.attempts ?? 16,
+    traits.version,
+    face ? opts.face : undefined,
+  );
 }
 
 /** R25–R28 — a map of a resort: the ski area the seed builds (the first
@@ -311,7 +319,7 @@ function generateResortLevel(
     });
     return b.courses.length > 0 ? null : "no course down the network stands";
   };
-  const built = buildResort(seed, opts.region, attempts, subSeed, accept, version);
+  const built = buildResort(seed, opts.region, attempts, subSeed, accept, version, opts.face);
   // R42 — the ski routes, found on the finished mountain; a version from
   // before them marks none.
   if (!generatorTraits(version).noRoutes) built.routes ??= layRoutes(built);

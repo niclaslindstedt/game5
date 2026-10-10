@@ -23,12 +23,13 @@ export type BoardPicture = {
 export function boardKey(level: {
   seed: number;
   region?: string;
+  face?: string;
   grade?: string;
   version?: number;
   track: { length: number };
 }): string {
   const length = level.track.length.toFixed(1);
-  return `${level.seed}:${level.region ?? "alpine"}:${level.grade ?? "-"}:${level.version ?? 0}:${length}`;
+  return `${level.seed}:${level.face ?? level.region ?? "alpine"}:${level.grade ?? "-"}:${level.version ?? 0}:${length}`;
 }
 
 /** The pictures kept, newest last: a skier walks tens of seeds on the

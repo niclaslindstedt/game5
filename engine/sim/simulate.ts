@@ -45,6 +45,9 @@ export type SimOptions = {
   /** Ski the seed's map as built in this kind of snow country (R21); the
    * alpine when left out. Ignored when `level` is given. */
   region?: RegionId;
+  /** Ski the seed's resort as raised on this REAL FACE (R25). Ignored when
+   * `level` is given. */
+  face?: string;
   /** Ski the seed's map as built to this piste grade (R23); the one the
    * seed deals when left out. Ignored when `level` is given. */
   grade?: PisteGrade;
@@ -162,13 +165,15 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     seed,
     mode: race,
     region: race ? options.region : undefined,
+    face: race ? options.face : undefined,
     grade: race ? options.grade : undefined,
     level:
       options.level ??
-      (!race && (options.tricks || options.region || options.grade)
+      (!race && (options.tricks || options.region || options.face || options.grade)
         ? generateLevel(seed, {
             tricks: options.tricks,
             region: options.region,
+            face: options.face,
             grade: options.grade,
             // The park is laid on a map of one piste (R20).
             version: options.tricks ? PARK_VERSION : undefined,

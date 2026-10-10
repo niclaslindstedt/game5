@@ -4,6 +4,13 @@
 //
 //   * route-head — its sign at the pad's rim, from a step back up the line
 //     at a skier's eye, looking past it down the route;
+//   * route-amateur, route-amateur-close — the locals' homemade sign
+//     pointing at it (`route-sign-plan.ts`), from where a rider comes to it
+//     off the lift, and a step from it;
+//   * route-warn — its wooden WARNING board before the slope, from up on
+//     the pad at a skier's eye;
+//   * route-fallen — the first of its stakes planted lying on the snow,
+//     with the hard-leaning ones round it, close at a skier's eye;
 //   * route-in — a quarter of the way down, at his eye, down the fall line:
 //     how steep the steepest country a lift serves is, and its stakes;
 //   * route-steep — at its steepest hundred metres, the same;
@@ -14,13 +21,25 @@
 //
 // A map with none answers "no ski route on this map".
 
-import { LEVEL_RULES, skiRoutesOf, trackPointAt, type Level, type SkiRoute } from "@engine";
+import {
+  LEVEL_RULES,
+  skiRoutesOf,
+  stakePlan,
+  trackPointAt,
+  type Level,
+  type SkiRoute,
+} from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { amateurSigns } from "../game/route-sign-plan.ts";
 import { signPlan } from "../game/run-sign-plan.ts";
 
 export const ROUTE_VIEWS = [
   "route-head",
+  "route-amateur",
+  "route-amateur-close",
+  "route-warn",
+  "route-fallen",
   "route-in",
   "route-steep",
   "route-side",
@@ -76,7 +95,7 @@ export function routeView(level: Level, name: string): { pose: LensPose; note: s
     case "route-head": {
       // From the pad's rim, a few metres up and aside of the sign, looking
       // past it down the first stretch of the route.
-      const post = signPlan(level).find((p) => p.boards.some((b) => b.run === r.id));
+      const post = signPlan(level).find((p) => p.boards.some((b) => b.run === r.id && !b.warning));
       const head = r.points[0];
       const on = trackPointAt(asTrack(r), 30);
       const d = Math.hypot(on.x - head.x, on.z - head.z) || 1;
@@ -95,6 +114,83 @@ export function routeView(level: Level, name: string): { pose: LensPose; note: s
           roll: 0,
         },
         note: `the head of ${said}`,
+      };
+    }
+    case "route-amateur":
+    case "route-amateur-close": {
+      // From where the rider it is turned to comes to it, at his eye, a
+      // little to the side so the point and the route beyond both show.
+      const sign = amateurSigns(level).find((a) => a.route === r.id);
+      if (!sign) return null;
+      const close = name === "route-amateur-close";
+      const back = close ? 2.2 : 5.5;
+      const fx = Math.sin(sign.heading);
+      const fz = Math.cos(sign.heading);
+      const aside = sign.point === "right" ? -1 : 1;
+      const x = sign.x - fx * back - fz * aside * (close ? 0.5 : 1.2);
+      const z = sign.z - fz * back + fx * aside * (close ? 0.5 : 1.2);
+      // The board's middle: off the stick toward its point.
+      const k = sign.point === "right" ? 1 : -1;
+      const tx = sign.x - fz * k * 0.35;
+      const tz = sign.z + fx * k * 0.35;
+      return {
+        pose: {
+          eye: { x, y: level.groundAt(x, z) + 1.65, z },
+          target: { x: tx, y: sign.y + sign.boardY, z: tz },
+          fov: close ? 40 : 55,
+          roll: 0,
+        },
+        note: `the locals' sign pointing ${sign.point} at ${said}`,
+      };
+    }
+    case "route-warn": {
+      // From up on the pad behind the route's head, a step aside, looking
+      // at the warning board a skier passes before the slope.
+      const post = signPlan(level).find((p) => p.boards.some((b) => b.run === r.id && b.warning));
+      if (!post) return null;
+      const fx = Math.sin(post.heading);
+      const fz = Math.cos(post.heading);
+      const x = post.x - fx * 7 - fz * 2;
+      const z = post.z - fz * 7 + fx * 2;
+      return {
+        pose: {
+          eye: { x, y: level.groundAt(x, z) + 1.7, z },
+          target: { x: post.x, y: post.y + 1.6, z: post.z },
+          fov: 50,
+          roll: 0,
+        },
+        note: `the warning before ${said}`,
+      };
+    }
+    case "route-fallen": {
+      // The first orange stake that lies on the snow, from a few metres
+      // up the slope and aside of it.
+      const plan = stakePlan(level);
+      let i = -1;
+      for (let k = 0; k < plan.count; k++) {
+        if (plan.grade[k] === "orange" && Math.hypot(plan.leanX[k], plan.leanZ[k]) > 0.9) {
+          i = k;
+          break;
+        }
+      }
+      if (i < 0) return null;
+      // From the side it fell to, so its length lies across the frame.
+      const p = plan.stakes[i];
+      const lean = Math.hypot(plan.leanX[i], plan.leanZ[i]);
+      const dx = plan.leanX[i] / lean;
+      const dz = plan.leanZ[i] / lean;
+      const mx = p.x + dx * 1.4;
+      const mz = p.z + dz * 1.4;
+      const x = mx + dz * 5;
+      const z = mz - dx * 5;
+      return {
+        pose: {
+          eye: { x, y: level.groundAt(x, z) + 1.5, z },
+          target: { x: mx, y: level.groundAt(mx, mz) + 0.2, z: mz },
+          fov: 55,
+          roll: 0,
+        },
+        note: `a fallen stake on ${said}`,
       };
     }
     case "route-in":

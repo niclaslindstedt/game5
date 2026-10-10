@@ -85,6 +85,26 @@ ropeway standards' summaries; no maker, model or ski area is named.
   a gondola (inside the terminal's hood there), smaller and in the open
   on a drag: a lined rim, spokes and a hub on a vertical shaft.
 
+### The turn round the wheel
+
+- **A detachable chair or gondola** lets go of the rope as it comes into
+  a terminal and is carried on the station's RAIL by rows of tyres, slowed
+  from the rope's 5–6 m/s to a creep (about 1 m/s for a chair, a walk or
+  less for a gondola's cabin). The rail runs on in a HORSESHOE round the
+  back of the bullwheel, so the chairs come round it nose to tail, a few
+  metres apart, at that creep, and are taken back up to speed and onto
+  the rope on the other side. Under a chair's hood the rail, the tyres and
+  the wheel are hidden in its skirt; the hood's back end is rounded round
+  the wheel, and the whole terminal stands on a central steel pedestal
+  inside the horseshoe, the chairs running round outside it. A hung
+  carrier leans OUT of the turn (`atan(v²/(g·r))`, a few degrees at a
+  creep).
+- **A fixed grip** — a drag's — never lets go: its bars go round the wheel
+  on the rope at the rope's speed, flung out on their cords. A T-bar's
+  bottom wheel stands flat on a central post, the rope going up one side
+  of the line and the empty bars coming back down the other, on towers
+  that are a T with a sheave train at each end of the arm.
+
 ## As drawn
 
 All of it is built in code, faceted and coloured per vertex, one
@@ -94,7 +114,7 @@ instanced mesh a part for the whole resort (`pwa/src/game/lifts.ts`):
 | --- | --- | --- |
 | Column | `lift-shapes.ts`'s `columnGeometry` | a 12-sided tapered tube, scaled to the plan's girth (`LiftLook.column`, which a skier meets) and height |
 | Ladder | `ladderGeometry` | rails and rungs up the downhill face, leant with the taper, its foot in the snow; drawn near the lens only |
-| Tower head | `towerHeadGeometry` | the crossarm and its saddle, a sheave train at each rope (6 wheels on a chair, 8 on a gondola, 4 on a drag's single arm) on bogies inboard, brackets, the catwalk and its railing, lifting frames, the lightning rod and the number plate |
+| Tower head | `towerHeadGeometry` | the crossarm and its saddle, a sheave train at each rope (6 wheels on a chair, 8 on a gondola, 4 at each end of a drag's T) on bogies inboard, brackets, the catwalk and its railing, lifting frames, the lightning rod and the number plate |
 | Chair | `lift-carriers.ts`'s `chairGeometry` | the grip and carriage, the swept hanger, the frames, four seat cushions and four backrests, armrests, the lowered safety bar and two footrests — built round `CHAIR_SEAT` and `CHAIR_BACK`, where the seated rider's pose sits |
 | Cabin | `cabinGeometry` | the grip, hanger and roof frame; the body lofted through rounded rings (`CABIN_Y`, `CABIN_HALF`), its window band with pillars, mullions and a sky-lit upper half, the door's seams on the right flank, a ski rack on each end; the rider's own cabin (`own-cabin.ts`) wears the same grip, hanger and roof |
 | T-bar | `springBoxGeometry`, `teeGeometry` | the grip and the spring box's housing, the padded bar on its stem |
@@ -108,13 +128,28 @@ out again only once the lens has moved ten metres. The detail is paid
 only within a few dozen metres, so the whole set costs fewer triangles a
 frame than the plain boxes it replaced.
 
+**Round the wheels.** Every carrier's loop is up the line, half a circle
+round the top wheel, back down and half a circle round the bottom one
+(`lift-line.ts`'s `carrierLoop`, `carrierPlace`) — the circle's radius is
+half the ropes' gauge, so the rope drawn round the wheel and the carriers
+on it are one curve. A detachable's carriers creep round at the
+terminal's speed on the station's rail (`station-build.ts`'s `turnRail`,
+under a chair's hood and a gondola's platform roof), a drag's bars at the
+rope's speed; each leans out of the turn (`carrier-swing.ts`'s
+`carrierRollAt`, eased in and out over the first and last quarter of the
+half circle), and the house behind a wheel stands past where they swing
+(`HOUSE_CLEAR`).
+
 ## The lab
 
 `make lifts` (`pwa/src/tools/lift-view.ts`, through the world lab's
 renderer) draws the sheet by day and at hour 21 —
 `previews/world-free-h11-lifts.png`, `previews/world-free-h21-lifts.png` —
 and one part a frame (`world-free-h11-lift-tower.png`, `-chair`, `-cabin`,
-`-tbar`): a chair's tower from three sides and at chase range, a
+`-tbar`) and the TURNS (`world-free-h11-lift-turns.png`, drawn at 1920 × 1080): every station's wheel from beside it
+under the hood at two moments two seconds apart and from a skier's eye —
+a chair's foot and top, a drag's foot and top, a gondola's foot; and the
+parts: a chair's tower from three sides and at chase range, a
 gondola's and a drag's towers, a chair from three sides, a cabin from
 two, a T-bar on its rope, both lines from a skier's eye, a drag's
 bullwheel and the far cuts through a long lens. `SEED=` and `REGION=`

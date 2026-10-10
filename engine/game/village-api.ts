@@ -73,3 +73,12 @@ export {
   type ResortKind,
   type VillageKind,
 } from "./defs/resort-buildings.ts";
+export {
+  REAL_HOUSES,
+  REAL_RUN,
+  bearingsOf,
+  kindOfSize,
+  realHouseNear,
+  realHousesOf,
+  turnOff,
+} from "./real-houses.ts";

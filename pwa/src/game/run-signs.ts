@@ -3,13 +3,15 @@
 // the head of every run and at every junction a lane leaves by, built for
 // `gates.ts`, which carries them with the rest of the course's furniture.
 //
-// A BOARD IS A PLANK WITH ITS WORDS BURNED IN: the grain of the country's
+// A BOARD IS A PLANK WITH ITS WORDS BURNED IN, RINGED IN WHITE: the grain of the country's
 // wood (`sign-look.ts`), its edges scorched dark, the run's MARK painted at
 // its left — the grade's shape in its colour (`grade-look.ts`: the green
 // circle, the blue square, the red rectangle, the black diamond) with the
 // run's number in white on it, outlined with the iron — then the NAME burned
-// black in the country's own hand, measured to the board — and no arrow:
-// a sign down on the runs is a plain plank. A lane's board is the same
+// black in the country's own hand, measured to the board and ringed with a
+// thin, weather-worn stroke of white paint so it reads off the dark wood — and no arrow:
+// a sign down on the runs is a plain plank. A ski route's WARNING board
+// (R42) has a yellow warning triangle with a burned "!" for its mark. A lane's board is the same
 // plank, smaller. The board has a thickness of end grain round it and a
 // bare back; the post is a square timber. A lift top's board is CUT AS AN
 // ARROW (`SignBoard.point`): the plank pointed at one end and standing off
@@ -52,10 +54,27 @@ const THICK = 0.035;
 const CHAR = "#120a05";
 const SCORCH = "rgba(62, 26, 6, 0.85)";
 
+/** The lettering's painted outline (`lettered`): its white, its width as a
+ * share of the letters' size (and the fewest px), how much of the paint
+ * the weather has left at best and worst, and how many worn patches and
+ * flakes it has lost a board. */
+const OUTLINE = "#f4efe4";
+const RING = 0.09;
+const RING_MIN = 2.5;
+const PAINT = { most: 1, least: 0.7 };
+const WEAR = { patches: 7, flakes: 60 };
+
 /** How far the wood's tone soaks through the grade's paint, 0..1, and the
  * number's paint — an old white, never the enamel's. */
 const SOAK = 0.75;
 const NUMBER = "#ddd0b6";
+
+/** A WARNING board's mark (R42): a triangle on its 24-unit box, painted a
+ * sign-shop yellow that soaks into the wood less than a mark, so it reads
+ * from up the pad, its "!" burned in. */
+const WARN_PATH = "M12 2.5 L23 21.5 L1 21.5 Z";
+const WARN_PAINT = "#f2c21e";
+const WARN_SOAK = 0.3;
 
 /** The faces loaded on this page, by family. */
 const loaded = new Map<string, Promise<boolean>>();
@@ -76,6 +95,89 @@ function loadFace(look: SignLook): Promise<boolean> {
     loaded.set(look.family, p);
   }
   return p;
+}
+
+/** The board-sized sheet a worn outline is painted on before it is laid
+ * onto the atlas. */
+let sheet: CanvasRenderingContext2D | null = null;
+
+/** LETTERING that reads at a glance: `text` at (x, y) in the char, ringed
+ * with a THIN painted white outline — brushed on by hand and left out in
+ * the weather, so it is thinner and thicker as the brush went, faded in
+ * places and worn through in patches and flakes (`WEAR`), each board's
+ * own off `rng`. No scorch round the letters, which would brown the
+ * paint. The font, alignment and baseline are the caller's; (x0, y0) is
+ * the board's cell. */
+function lettered(
+  g: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  rng: Rng,
+  x0: number,
+  y0: number,
+): void {
+  const { w, h } = CELL;
+  if (!sheet) {
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    sheet = c.getContext("2d")!;
+  }
+  const p = sheet;
+  p.save();
+  p.globalCompositeOperation = "source-over";
+  p.clearRect(0, 0, w, h);
+  p.font = g.font;
+  p.textAlign = g.textAlign;
+  p.textBaseline = g.textBaseline;
+  p.lineJoin = "round";
+  p.strokeStyle = OUTLINE;
+  // Two passes a hair apart, a little off each other: the brush's line is
+  // never one width all round.
+  const width = Math.max(RING_MIN, size * RING);
+  p.lineWidth = width;
+  p.strokeText(text, x - x0, y - y0);
+  p.globalAlpha = 0.6;
+  p.lineWidth = width * rng.range(0.6, 1.3);
+  p.strokeText(text, x - x0 + rng.range(-0.8, 0.8), y - y0 + rng.range(-0.8, 0.8));
+  // The weather: soft worn patches faded or gone, and flakes chipped out.
+  p.globalCompositeOperation = "destination-out";
+  for (let k = 0; k < WEAR.patches; k++) {
+    p.globalAlpha = rng.range(0.35, 1);
+    const r = rng.range(size * 0.15, size * 0.5);
+    const cx = rng.range(0, w);
+    const cy = rng.range(0, h);
+    const fade = p.createRadialGradient(cx, cy, 0, cx, cy, r);
+    fade.addColorStop(0, "#000");
+    fade.addColorStop(1, "rgba(0,0,0,0)");
+    p.fillStyle = fade;
+    p.fillRect(cx - r, cy - r, r * 2, r * 2);
+  }
+  p.fillStyle = "#000";
+  for (let k = 0; k < WEAR.flakes; k++) {
+    p.globalAlpha = rng.range(0.6, 1);
+    p.beginPath();
+    p.ellipse(
+      rng.range(0, w),
+      rng.range(0, h),
+      rng.range(0.6, 2.4),
+      rng.range(0.4, 1.4),
+      rng.range(0, Math.PI),
+      0,
+      Math.PI * 2,
+    );
+    p.fill();
+  }
+  p.restore();
+  g.save();
+  g.globalAlpha = rng.range(PAINT.least, PAINT.most);
+  g.drawImage(p.canvas, x0, y0);
+  g.globalAlpha = 1;
+  g.fillStyle = CHAR;
+  g.fillText(text, x, y);
+  g.restore();
 }
 
 /** Draw `shape` burned into the wood: a soft scorch round it, the char on it. */
@@ -214,6 +316,7 @@ function printBoard(
 ): void {
   const { w, h } = CELL;
   plank(g, look, createRng(seed), b, x0, y0);
+  const worn = createRng(seed ^ 0x9a17);
   // An arrow board's print keeps off its point.
   const t = tipPx(b);
   const lo = x0 + (b.point === "left" ? t * 0.75 : 0);
@@ -226,7 +329,7 @@ function printBoard(
   const box = h - pad * 2;
   const mx = lo + pad + 2;
   const my = y0 + pad;
-  const path = new Path2D(gradePath(grade.shape));
+  const path = new Path2D(b.warning ? WARN_PATH : gradePath(grade.shape));
   const onMark = (draw: () => void): void => {
     g.save();
     g.translate(mx, my);
@@ -238,10 +341,10 @@ function printBoard(
   // through it darkens and warms it, and the grain shows through.
   onMark(() => {
     g.clip(path);
-    g.fillStyle = grade.paint;
+    g.fillStyle = b.warning ? WARN_PAINT : grade.paint;
     g.fillRect(0, 0, 24, 24);
     g.globalCompositeOperation = "multiply";
-    g.globalAlpha = SOAK;
+    g.globalAlpha = b.warning ? WARN_SOAK : SOAK;
     g.fillStyle = look.wood;
     g.fillRect(0, 0, 24, 24);
   });
@@ -258,6 +361,16 @@ function printBoard(
       g.stroke(path);
     }),
   );
+  if (b.warning) {
+    // The "!" burned black into the yellow, low in the triangle.
+    const bang = Math.round(box * 0.55);
+    g.save();
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.font = `bold ${bang}px ${font}`;
+    lettered(g, "!", mx + box / 2, my + box * 0.62, bang, worn, x0, y0);
+    g.restore();
+  }
   g.save();
   g.fillStyle = NUMBER;
   g.textAlign = "center";
@@ -266,7 +379,7 @@ function printBoard(
     box * (grade.shape === "double" ? 0.3 : grade.shape === "diamond" ? 0.4 : 0.52),
   );
   g.font = `${numSize}px ${font}`;
-  g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
+  if (!b.warning) g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
   g.restore();
 
   // THE NAME after it, as big as the room lets it be, centred on its own
@@ -286,12 +399,12 @@ function printBoard(
   g.font = `${size}px ${font}`;
   m = g.measureText(text);
   const cy = y0 + h / 2 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
-  burn(g, () => {
-    g.textAlign = "left";
-    g.textBaseline = "alphabetic";
-    g.font = `${size}px ${font}`;
-    g.fillText(text, left + Math.max(0, (room - m.width) / 2), cy);
-  });
+  g.save();
+  g.textAlign = "left";
+  g.textBaseline = "alphabetic";
+  g.font = `${size}px ${font}`;
+  lettered(g, text, left + Math.max(0, (room - m.width) / 2), cy, size, worn, x0, y0);
+  g.restore();
 }
 
 export type RunSigns = { group: THREE.Group; dispose(): void };

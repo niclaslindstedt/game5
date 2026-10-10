@@ -28,7 +28,10 @@
  * the ramps the run's nearest point `drop` m or more under the top
  * within `joinFar` m), a metres-off-the-spot penalty `noJoin` on any
  * other. Stood off it, the skis are his: nothing leads him off a top.
- * A cabin's rider sits `cabinBack` m behind its grip, on the bench along
+ * A chair's rider sits on the seat `chairSeat` m outboard of its middle —
+ * the one beside the hanger, never astride it and the gap between two
+ * cushions and two footrests (`lift-carriers.ts`'s quad: seats every
+ * 0.545 m about the hanger). A cabin's rider sits `cabinBack` m behind its grip, on the bench along
  * its back wall; a T-bar's stands `tee` m right of the bar's stem, on
  * its right arm. BOARDING (`board`): taken by a lift's load zone or its
  * boarding ring he SKATES to the carrier — up the queue's lane, `past`
@@ -120,6 +123,7 @@ export const LIFT = {
   decel: 0.8,
   accel: 1.2,
   seat: 1.85,
+  chairSeat: 0.27,
   cabin: 3.2,
   chairHang: 2.4,
   cabinHang: 4.0,

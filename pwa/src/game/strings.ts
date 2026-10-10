@@ -470,6 +470,11 @@ export const STRINGS = {
     continental: "CONTINENTAL",
     maritime: "MARITIME",
   },
+  startFace: "SHAPE",
+  startFaceHint:
+    "The mountain's shape: the seed's own, or one of this country's real mountainsides, read off a satellite survey — its ridge, spurs and gullies, with the seed's lifts and runs laid down it.",
+  /** A real face on the SHAPE row: numbered in its country, never named. */
+  faceName: (n: number): string => `REAL ${n}`,
   startGrade: "GRADE",
   startGradeHint:
     "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %), black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it — or orange: a ski route past any black, 38° to 48°, never groomed, marked down the mountain as it lies. The mountain's own, or one of the five.",
@@ -483,6 +488,10 @@ export const STRINGS = {
   mapBoardHere: "YOU ARE HERE",
   /** The word on a SKI ROUTE's sign at its head (R42), under its number. */
   skiRouteSign: "SKI ROUTE · NOT GROOMED",
+  /** The WARNING board before a ski route's head (R42), beside its triangle. */
+  skiRouteWarning: "DANGER · EXPERTS ONLY",
+  /** The locals' homemade board pointing at a ski route (`route-sign.ts`). */
+  skiRouteAmateur: "STEEP & DEEP",
   /** A grade as a run: `BLACK RUN`. */
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",

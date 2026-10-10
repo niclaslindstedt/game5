@@ -184,11 +184,15 @@ describe("the piste-head signs (run-sign-plan.ts)", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
       const posts = signPlan(level);
-      // A ski route's (R42) board is its own, at the head of its route.
       const routes = skiRoutesOf(level);
       const isRoute = (id: string) => routes.some((r) => r.id === id);
+      // A ski route's (R42) board is its own, at the head of its route, and
+      // a warning board stands before it.
       const routeBoards = posts.flatMap((p) => p.boards).filter((b) => isRoute(b.run));
-      expect(routeBoards.map((b) => b.run).sort()).toEqual(routes.map((r) => r.id).sort());
+      const named = routeBoards.filter((b) => !b.warning);
+      const warned = routeBoards.filter((b) => b.warning);
+      expect(named.map((b) => b.run).sort()).toEqual(routes.map((r) => r.id).sort());
+      expect(warned.map((b) => b.run).sort()).toEqual(routes.map((r) => r.id).sort());
       for (const b of routeBoards) expect(b.grade).toBe("orange");
       const boards = posts.flatMap((p) => p.boards).filter((b) => !isRoute(b.run));
       const runs = resortOf(level).runs;

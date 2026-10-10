@@ -72,6 +72,7 @@ type Edged = {
 };
 
 const plans = new WeakMap<Level, StakePlan>();
+const n = { x: 0, y: 1, z: 0 };
 
 /** WHERE THE STAKES STAND on `level`: every `every` m down both edges of
  * every run, `out` past its edge — on a map of a ski area every run is
@@ -133,8 +134,19 @@ export function stakePlan(level: Level): StakePlan {
         // The skier's right going down AS DRAWN is the engine's left: the
         // renderer's frame mirrors the map (`input-model.ts`).
         banded.push(side < 0 ? 1 : 0);
-        const lean = run.route ? Math.sqrt(unit(h, 1)) * R.lean : 0;
-        const way = unit(h, 2) * 2 * Math.PI;
+        // Mostly a little off plumb; a few leaning hard, and a few lying
+        // down the fall line on the snow (a knocked-over stake nobody
+        // stood back up).
+        const pick = unit(h, 3);
+        let lean = run.route ? Math.sqrt(unit(h, 1)) * R.lean : 0;
+        let way = unit(h, 2) * 2 * Math.PI;
+        if (run.route && pick < R.fallen) {
+          level.normalAt(x, z, n);
+          way = Math.atan2(n.x, n.z);
+          lean = Math.PI / 2 + Math.acos(Math.min(1, n.y)) - 0.06;
+        } else if (run.route && pick < R.fallen + R.tipped) {
+          lean = R.lean + unit(h, 4) * (R.tipMost - R.lean);
+        }
         leanX.push(lean * Math.sin(way));
         leanZ.push(lean * Math.cos(way));
       }
@@ -225,8 +237,9 @@ function knock(state: GameState, events: GameEvent[]): void {
     if (c.y < p.y - 1 || c.y > p.y + p.height) continue;
     const reach = TUNING.trees.bodyRadius + p.radius;
     const s = state.stakes;
-    // Snapped, or already lying well over: ridden across.
+    // Snapped, or already lying well over (or planted fallen): ridden across.
     if (s && (s.broken[i] || Math.abs(s.tilt[i]) > 0.9)) continue;
+    if (hypot(plan.leanX[i], plan.leanZ[i]) > 0.9) continue;
     for (const share of CIRCLES) {
       const ox = fx * share * half;
       const oz = fz * share * half;

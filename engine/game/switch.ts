@@ -74,9 +74,9 @@ export function revertHold(c: SkierState): number {
 }
 
 /** Whether a skier riding switch turns round this step: the rules let him,
- * he is on his own skis, on nothing that carries him, and slower than
- * `below` m/s. */
-function revertDue(state: GameState, below: number): boolean {
+ * he is on his own skis, on nothing that carries him, and between `least`
+ * and `below` m/s. */
+function revertDue(state: GameState, below: number, least = 0): boolean {
   const c = state.skier;
   return (
     state.rules.revert === true &&
@@ -88,7 +88,8 @@ function revertDue(state: GameState, below: number): boolean {
     c.jib == null &&
     c.sidestep === 0 &&
     c.trench === 0 &&
-    c.speed < below
+    c.speed < below &&
+    c.speed > least
   );
 }
 
@@ -126,7 +127,7 @@ export function switchSteer(state: GameState, input: SkierInput): number {
     else if (c.way > SW.from) c.switched = false;
   }
   // (Loading a jump, he is about to hop round instead.)
-  if (!c.airborne && c.jumpLoad === 0 && revertDue(state, RV.below)) {
+  if (!c.airborne && c.jumpLoad === 0 && revertDue(state, RV.below, RV.least)) {
     // The steer as he means it, read the way he is going (tails first).
     c.revert = { u: 0, turn: revertTurn(c, -input.steer), time: RV.time };
     return 0;

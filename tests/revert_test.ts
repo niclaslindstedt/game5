@@ -90,6 +90,12 @@ describe("the revert", () => {
     expect(state.skier.switched).toBe(true);
   });
 
+  it("leaves a skier knocked or crept back at a walk standing where he stops", () => {
+    const state = switched(TUNING.switch.revert.least - 0.5);
+    expect(ride(state, 2).reverted).toBe(false);
+    expect(state.skier.speed).toBeLessThan(0.5);
+  });
+
   it("turns round on a tricks run too, and never where the rules keep him switch", () => {
     expect(ride(switched(BELOW - 1, "tricks"), 1).reverted).toBe(true);
     const held = switched(BELOW - 1);

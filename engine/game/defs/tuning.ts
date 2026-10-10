@@ -840,8 +840,18 @@ export const TUNING = {
      * hockey stop, not a slide-out). A JUMP popped riding switch under
      * `hopBelow` m/s (40 km/h) turns him round the same way in the air off
      * it, over `hopTime` s — inside the shortest flight a pop on the flat
-     * gives (`jump.popMin` up and down again, 0.45 s). */
-    revert: { below: 15 / 3.6, time: 0.65, unweight: 0.85, hopBelow: 40 / 3.6, hopTime: 0.4 },
+     * gives (`jump.popMin` up and down again, 0.45 s). On the snow he must
+     * be going backward faster than `least` m/s: a skier knocked back off
+     * a wall or creeping back after a stall is not riding switch, and is
+     * left standing where he stops rather than turned round and skated off. */
+    revert: {
+      below: 15 / 3.6,
+      least: 2,
+      time: 0.65,
+      unweight: 0.85,
+      hopBelow: 40 / 3.6,
+      hopTime: 0.4,
+    },
   },
 
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */

@@ -10,7 +10,7 @@
 //     balanced beam the rope rides over, cantilevered so a passing grip
 //     clears it — a catwalk with its railing along the crossarm, a
 //     lifting frame over it, a lightning rod and the tower's number plate;
-//     a drag's single arm with its one short train.
+//     a drag's T with a short train at each end, the up rope and the return.
 //   * THE CHAIR (a detachable quad): the grip and its carriage on the
 //     rope, the hanger curving down behind the back, the seat frame, four
 //     padded seat cushions and four backrests, the armrests, and the
@@ -293,8 +293,8 @@ function train(s: Shape, x: number, n: number, r: number, inward: number): numbe
 /** A TOWER'S HEAD in its own frame — the rope at y = 0, x across the line,
  * z up it — over a column of half-width `column` at its foot, tapered to
  * `taper` of it: the crossarm and the sheave trains for a chair or a
- * gondola (`gauge` m between the ropes), a drag's single arm out to its
- * rope at `arm`. The column's head is 0.9 m under the rope. */
+ * gondola (`gauge` m between the ropes), a drag's T out to its up and its
+ * return rope `arm` either side. The column's head is 0.9 m under the rope. */
 export function towerHeadGeometry(
   kind: HeadKind,
   gauge: number,
@@ -305,12 +305,18 @@ export function towerHeadGeometry(
   const s = new Shape();
   const head = column * taper;
   if (kind === "drag") {
+    // A T: the crossarm out to both ropes — the up rope the skiers are
+    // towed under and the return rope its empty bars ride back down —
+    // each on a short train, braced to the column.
     const arm = dragArm;
-    const beam = train(s, arm, 4, 0.15, -1);
+    let beam = 0;
+    for (const side of [1, -1]) {
+      beam = train(s, side * arm, 4, 0.15, -side);
+      s.tube([v3(0, -1.55, 0), v3(side * arm * 0.75, beam - 0.18, 0)], 0.04, P.galv);
+      s.box(0.12, 0.3, 0.12, side * arm, beam - 0.02, 0, P.dark);
+    }
     s.tube([v3(0, -1.0, 0), v3(0, beam - 0.1, 0)], head * 0.8, P.galv, 8);
-    s.box(arm + 0.2, 0.16, 0.16, arm / 2 + 0.02, beam - 0.12, 0, P.galv);
-    s.tube([v3(0, -1.55, 0), v3(arm * 0.75, beam - 0.18, 0)], 0.04, P.galv);
-    s.box(0.12, 0.3, 0.12, arm, beam - 0.02, 0, P.dark);
+    s.box(2 * arm + 0.4, 0.16, 0.16, 0, beam - 0.12, 0, P.galv);
     s.tube([v3(0, beam - 0.1, 0), v3(0, 0.9, 0)], 0.018, P.galv, 4);
     s.box(0.3, 0.22, 0.02, 0, -1.6, head + 0.03, P.plate);
     return s.geometry();
@@ -388,8 +394,8 @@ export function towerHeadFarGeometry(
   const head = column * taper;
   if (kind === "drag") {
     s.box(0.2, 0.9, 0.2, 0, -0.75, 0, P.galv);
-    s.box(dragArm + 0.2, 0.16, 0.16, dragArm / 2, -0.6, 0, P.galv);
-    s.box(0.14, 0.32, 0.8, dragArm, -0.22, 0, P.dark);
+    s.box(2 * dragArm + 0.4, 0.16, 0.16, 0, -0.6, 0, P.galv);
+    for (const side of [1, -1]) s.box(0.14, 0.32, 0.8, side * dragArm, -0.22, 0, P.dark);
     return s.geometry();
   }
   const g = gauge / 2;

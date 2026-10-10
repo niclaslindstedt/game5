@@ -127,7 +127,7 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     hang: 4.3,
     under: 3,
     every: 70,
-    house: { length: 16, width: 6, height: 8 },
+    house: { length: 12.8, width: 6, height: 8 },
     speed: 6,
     slow: 0.4,
     entry: { at: -17.5, along: 4, side: 0, across: 1.3, fastest: 6, turned: 1.4, board: 2 },
@@ -147,7 +147,7 @@ export const LIFT_LOOK: Readonly<Record<LiftKind, LiftLook>> = {
     hang: 2.9,
     under: 2.5,
     every: 24,
-    house: { length: 11, width: 5, height: 5.5 },
+    house: { length: 7.2, width: 5, height: 5.5 },
     speed: 5,
     slow: 1.2,
     entry: { at: 5, along: 5, side: 2.5, across: 2.4, fastest: 7, turned: 1.2, board: 1.2 },
@@ -542,6 +542,17 @@ export type StationHouse = {
   wheel: Support;
 };
 
+/** How far behind its wheel a station's house stands, m: past where the
+ * carriers swing round the wheel (`turnRadius` and a carrier's half-width
+ * out from its centre) — a chair's 2.5 m turn and its 1.2 m seat with room
+ * to walk round it, a gondola's 3 m turn and its cabin under the platform
+ * roof in front of its hall, a drag's bars round their post. */
+export const HOUSE_CLEAR: Readonly<Record<LiftKind, number>> = {
+  chair: 5.3,
+  gondola: 4.7,
+  drag: 2,
+};
+
 export function stationHouses(level: Level, plan: LiftPlan): StationHouse[] {
   const h = plan.look.house;
   const halfLength = h.length / 2;
@@ -550,7 +561,9 @@ export function stationHouses(level: Level, plan: LiftPlan): StationHouse[] {
     const beside = top && plan.lift.kind === "chair";
     const halfWidth = beside ? h.width / 2 : (h.width + plan.look.gauge) / 2;
     // Along the line from the wheel, and across it.
-    const along = beside ? CHAIR_EXIT.exit - 0.5 - halfLength : (top ? 1 : -1) * (halfLength + 1.5);
+    const along = beside
+      ? CHAIR_EXIT.exit - 0.5 - halfLength
+      : (top ? 1 : -1) * (halfLength + HOUSE_CLEAR[plan.lift.kind]);
     const across = beside ? chairLane(plan).v + CHAIR_EXIT.house + halfWidth : 0;
     const x = s.x + plan.dx * along + plan.dz * across;
     const z = s.z + plan.dz * along - plan.dx * across;
@@ -601,7 +614,7 @@ export function clearOfLifts(level: Level, x: number, z: number): boolean {
     const v = Math.abs((x - lift.bottom.x) * dz - (z - lift.bottom.z) * dx);
     if (u > -LIFT_CLEAR.line && u < len + LIFT_CLEAR.line && v < look.gauge / 2 + LIFT_CLEAR.line)
       return false;
-    const reach = look.house.length + 1.5 + LIFT_CLEAR.house;
+    const reach = look.house.length + HOUSE_CLEAR[lift.kind] + LIFT_CLEAR.house;
     const across = (look.house.width + look.gauge) / 2 + LIFT_CLEAR.house;
     if (v < across && ((u <= 0 && u > -reach) || (u >= len && u < len + reach))) return false;
   }
@@ -657,6 +670,83 @@ export function carrierCount(plan: LiftPlan): number {
   return Math.max(1, Math.floor((2 * plan.length) / plan.look.every));
 }
 
+/** THE TURN ROUND EACH BULLWHEEL: its radius, m — the rope wraps the wheel
+ * from one side's rope to the other's, so half the ropes' gauge (a drag's
+ * up rope on its arm and its return rope on the other) — and the length
+ * of rope (or a detachable's station rail) round it, half a circle. */
+export function turnRadius(plan: LiftPlan): number {
+  return upRope(plan);
+}
+function turnLength(plan: LiftPlan): number {
+  return Math.PI * turnRadius(plan);
+}
+
+/** A lift's whole loop, m: up the line, round the top wheel, back down and
+ * round the bottom one. */
+export function carrierLoop(plan: LiftPlan): number {
+  return 2 * plan.length + 2 * turnLength(plan);
+}
+
+/** Where `w` m round a lift's loop (0 the bottom wheel's tangent on the up
+ * rope) is: `u` m up the line on `side`, or — round a wheel — `turn` rad of
+ * the half circle gone (0 where it came off its rope, π where it leaves
+ * onto the other), at the wheel's `u`. */
+function loopSpot(plan: LiftPlan, w: number): { u: number; side: 0 | 1; turn?: number } {
+  const L = plan.length;
+  const T = turnLength(plan);
+  const r = turnRadius(plan);
+  if (w < L) return { u: Math.max(0, w), side: 0 };
+  if (w < L + T) {
+    const turn = (w - L) / r;
+    return { u: L, side: turn < Math.PI / 2 ? 0 : 1, turn };
+  }
+  if (w < 2 * L + T) return { u: L - (w - L - T), side: 1 };
+  const turn = Math.min(Math.PI, (w - 2 * L - T) / r);
+  return { u: 0, side: turn < Math.PI / 2 ? 1 : 0, turn };
+}
+
+/** A CARRIER ON ITS LOOP, PLACED: `along` m up the line and `v` m right
+ * of it (in the line's frame), where in the world, and the way it runs
+ * there (`heading`, 0 is +z, clockwise from above) — on its rope's side up
+ * or down the line, or round a wheel on the half circle about its centre,
+ * its way the circle's tangent. And `bend`: the turn's curvature, 1/m,
+ * positive turning right, 0 on a straight. */
+export function carrierPlace(
+  plan: LiftPlan,
+  c: { u: number; side: 0 | 1; turn?: number },
+): { along: number; v: number; x: number; z: number; heading: number; bend: number } {
+  const r = turnRadius(plan);
+  let along = c.u;
+  let v = c.side === 0 ? r : -r;
+  let tu = c.side === 0 ? 1 : -1;
+  let tv = 0;
+  let bend = 0;
+  if (c.turn !== undefined) {
+    const a = c.turn;
+    if (c.u > 0) {
+      // Round the top wheel, from the up rope behind it to the down rope.
+      along = plan.length + r * Math.sin(a);
+      v = r * Math.cos(a);
+      tu = Math.cos(a);
+      tv = -Math.sin(a);
+    } else {
+      // Round the bottom wheel, from the down rope behind it to the up.
+      along = -r * Math.sin(a);
+      v = -r * Math.cos(a);
+      tu = -Math.cos(a);
+      tv = Math.sin(a);
+    }
+    // Both turns run round their wheel to the left: the up rope is right
+    // of the line and the loop comes back down on its left.
+    bend = -1 / Math.max(1e-6, r);
+  }
+  const x = plan.lift.bottom.x + plan.dx * along + plan.dz * v;
+  const z = plan.lift.bottom.z + plan.dz * along - plan.dx * v;
+  const wx = plan.dx * tu + plan.dz * tv;
+  const wz = plan.dz * tu - plan.dx * tv;
+  return { along, v, x, z, heading: Math.atan2(wx, wz), bend };
+}
+
 /** THE LIFTS ALWAYS RUN: where carrier `k` of a lift is at the engine's
  * clock `t` — `u` m of plan up the line, on the up rope (`side` 0) or the
  * down (1), and whether it is out on the line rather than turning in a
@@ -671,21 +761,24 @@ export function carrierCount(plan: LiftPlan): number {
  * the load line at the terminal's speed, and taken up to the rope's after
  * it — so they bunch in a station and spread out on the line, as a real
  * one's do. They are evenly spaced in the loop's TIME (`carrierClock`), the
- * rope's speed `t` seconds on; a drag's, on a fixed grip, in its length. */
+ * rope's speed `t` seconds on; a drag's, on a fixed grip, in its length.
+ *
+ * ROUND EACH WHEEL every carrier runs the half circle about its centre
+ * (`turn`, placed by `carrierPlace`) — a detachable's on the station's rail
+ * at its creep, a drag's on the rope at the rope's speed — never cut across
+ * from one rope to the other. */
 export function carrierAt(
   plan: LiftPlan,
   k: number,
   t: number,
-): { u: number; side: 0 | 1; out: boolean } {
-  const loop = 2 * plan.length;
+): { u: number; side: 0 | 1; out: boolean; turn?: number } {
   const clock = carrierClock(plan);
-  const span = clock ? clock.span : loop;
+  const span = clock ? clock.span : carrierLoop(plan);
   const s = ((((k * span) / carrierCount(plan) + plan.look.speed * t) % span) + span) % span;
-  const at = clock ? loopAt(clock, s) : s;
-  const side = at < plan.length ? 0 : 1;
-  const u = side === 0 ? at : loop - at;
+  const spot = loopSpot(plan, clock ? loopAt(clock, s) : s);
   const clear = plan.lift.kind === "gondola" ? GONDOLA_IN_STATION : 2;
-  return { u, side, out: u > clear && u < plan.length - clear };
+  const out = spot.turn === undefined && spot.u > clear && spot.u < plan.length - clear;
+  return { ...spot, out };
 }
 
 /** WHERE A CARRIER'S GRIP RUNS, m over the sea, `u` m up the line: on the
@@ -751,7 +844,8 @@ export function carrierSpeedAt(plan: LiftPlan, u: number, side: 0 | 1): number {
 }
 
 /** A DETACHABLE LIFT'S LOOP IN TIME: the loop's length `w` (m, round from
- * the bottom wheel up the line and back down it) against the rope-speed
+ * the bottom wheel up the line, round the top wheel, back down it and
+ * round the bottom one — `carrierLoop`) against the rope-speed
  * metres `s` a carrier's clock has run to reach it — `s` grows faster than
  * `w` where the carrier creeps — tabled every `STEP` m, and the loop's
  * whole `span` in those metres. Null for a lift that never slows. */
@@ -764,13 +858,14 @@ export function carrierClock(plan: LiftPlan): CarrierClock | null {
   if (had !== undefined) return had;
   let clock: CarrierClock | null = null;
   if (plan.look.slow < plan.look.speed) {
-    const loop = 2 * plan.length;
+    const loop = carrierLoop(plan);
     const n = Math.ceil(loop / CLOCK_STEP);
     const step = loop / n;
     const s = new Float64Array(n + 1);
     const rate = (w: number) => {
-      const side = w < plan.length ? 0 : 1;
-      return plan.look.speed / carrierSpeedAt(plan, side === 0 ? w : loop - w, side);
+      const at = loopSpot(plan, w);
+      if (at.turn !== undefined) return plan.look.speed / plan.look.slow;
+      return plan.look.speed / carrierSpeedAt(plan, at.u, at.side);
     };
     for (let i = 1; i <= n; i++)
       s[i] = s[i - 1] + ((rate((i - 1) * step) + rate(i * step)) / 2) * step;
@@ -957,7 +1052,7 @@ export function queueSpot(plan: LiftPlan, i: number): { x: number; z: number; he
 export function carrierPassing(plan: LiftPlan, u: number, t: number, dt: number): number {
   const n = carrierCount(plan);
   const clock = carrierClock(plan);
-  const gap = (clock ? clock.span : 2 * plan.length) / n;
+  const gap = (clock ? clock.span : carrierLoop(plan)) / n;
   const v = plan.look.speed;
   // Carrier k is at (k·gap + v·t) mod the loop on its clock; it crosses
   // `u` when that comes to `u`'s place on the clock + m·loop.

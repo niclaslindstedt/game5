@@ -87,7 +87,8 @@
 // the skier skied into its flank and stopped there); and the
 // lifts' hardware (`lift-view.ts`, `make lifts`): lift-tower, lift-chair,
 // lift-cabin, lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
-// the cabins, the T-bars, the lines and a bullwheel); and the
+// the cabins, the T-bars, the lines and a bullwheel) and lift-turns (every
+// station's wheel with its carriers coming round it, frame by frame); and the
 // village's traffic (`traffic-lab.ts`): village-traffic (a car coming down
 // the main street), village-junction, village-carpark, village-bus (the ski
 // bus at its stop), village-cyclist and vehicles (the sheet: every kind
@@ -274,6 +275,7 @@ const VIEWS = [
   "lift-cabin",
   "lift-tbar",
   "lifts",
+  "lift-turns",
   "village-traffic",
   "village-junction",
   "village-carpark",

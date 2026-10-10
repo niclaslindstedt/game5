@@ -59,7 +59,7 @@ describe("the lifts' hardware as built", () => {
       tee: [teeGeometry(), teeFarGeometry(), 120, 24],
       chairHead: [head("chair"), head("chair", true), 1500, 160],
       gondolaHead: [head("gondola"), head("gondola", true), 1800, 160],
-      dragHead: [head("drag"), head("drag", true), 450, 40],
+      dragHead: [head("drag"), head("drag", true), 760, 60],
       column: [columnGeometry(COLUMN_TAPER), null, 40, 0],
       ladder: [ladderGeometry(), null, 500, 0],
       bullwheel: [bullwheelGeometry(), null, 300, 0],

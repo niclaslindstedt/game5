@@ -859,6 +859,10 @@ export {
   DRAG_ARM,
   LIFT_LOOK,
   carrierAt,
+  carrierLoop,
+  HOUSE_CLEAR,
+  carrierPlace,
+  turnRadius,
   carrierCount,
   carrierPassing,
   carrierSpeedAt,
@@ -892,7 +896,7 @@ export {
   type StationHouse,
   type Support,
 } from "./game/lift-line.ts";
-export { carrierSwingAt } from "./game/carrier-swing.ts";
+export { carrierRollAt, carrierSwingAt } from "./game/carrier-swing.ts";
 export {
   arriveByLift,
   arrivalOf,

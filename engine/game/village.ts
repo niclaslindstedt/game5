@@ -25,6 +25,7 @@ import { CABINS } from "./defs/cabins.ts";
 import { VILLAGE_LOTS as L, STREET_FURNITURE as F, sideReach } from "./defs/village-streets.ts";
 import { cabinsOf, type Cabin } from "./cabins.ts";
 import { pick } from "./cabin-site.ts";
+import { REAL_RUN } from "./real-houses.ts";
 import { fellsTree, isResortBuilding } from "./resort-buildings.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { Upright } from "./upright-grid.ts";
@@ -273,7 +274,9 @@ export function felledTrees(level: Level): Uint8Array {
   // The village's own lots are the mask's; the rest of the ski area's
   // buildings fell what stands inside their walls.
   const own = new Set(villageBuildingsOf(level));
-  const all = cabinsOf(level).filter((c) => isResortBuilding(c.kind) && !own.has(c));
+  const all = cabinsOf(level).filter(
+    (c) => (isResortBuilding(c.kind) || c.run === REAL_RUN) && !own.has(c),
+  );
   const seed = level.seed >>> 0;
   const m = maskOf(level);
   for (let i = 0; i < level.trees.length; i++) {

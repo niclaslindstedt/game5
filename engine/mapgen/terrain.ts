@@ -124,6 +124,9 @@ export type TerrainPlan = {
     readonly rows: Float64Array;
     /** The share of the face's relief laid over the profile. */
     readonly relief: number;
+    /** The real ski area's lifts, pistes and houses (`real-hints.ts`),
+     * on the attempts that lean on them (`RR.massif.real.hinted`). */
+    readonly hints?: import("./real-hints.ts").RealHints | null;
   };
   readonly seeds: {
     readonly warp: number;

@@ -45,6 +45,7 @@ import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
 import { FACE_GRID } from "./real-faces-data.ts";
 import { faceExtreme, faceHeight, faceMean, type RealFace } from "./real-face.ts";
+import { realHints } from "./real-hints.ts";
 import { scaleBand, scaleCount, type Region } from "./regions.ts";
 import { TREE_LINE_MASSIF, RESORT_RULES as RR } from "./resort-rules.ts";
 import { LEVEL_RULES as R, inBand, type Band } from "./rules.ts";
@@ -294,7 +295,14 @@ export function planMassif(
     massif,
     flankBand,
     seeds,
-    ...(real ? { face: real.face } : {}),
+    ...(real
+      ? {
+          face: {
+            ...real.face,
+            hints: attempt < RR.massif.real.hinted ? realHints(real.face.grid.id) : null,
+          },
+        }
+      : {}),
   };
 }
 

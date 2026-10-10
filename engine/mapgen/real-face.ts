@@ -81,7 +81,7 @@ function decode(f: FaceData): Float32Array {
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /** Base64 to bytes, with no host's decoder (the engine imports nothing). */
-function base64(s: string): Uint8Array {
+export function base64(s: string): Uint8Array {
   const value = new Int16Array(128).fill(-1);
   for (let i = 0; i < B64.length; i++) value[B64.charCodeAt(i)] = i;
   const clean = s.replace(/=+$/, "");

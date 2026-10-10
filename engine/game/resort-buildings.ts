@@ -45,7 +45,8 @@ import {
   type VillageKind,
 } from "./defs/resort-buildings.ts";
 import { liftPlans, queueLane } from "./lift-line.ts";
-import { placeOnStreets } from "./village-place.ts";
+import { REAL_RUN, inRealYard, placeRealHouses } from "./real-houses.ts";
+import { placeOnStreets, streetHit } from "./village-place.ts";
 import { planVillageStreets, rememberStreets } from "./village-streets.ts";
 
 /** What a ski area building keeps clear of (`RESORT_LAYOUT.fit`'s numbers,
@@ -64,6 +65,9 @@ export type Fit = {
   /** A point its roof may not reach (a street, an open place), when given:
    * false where it may not. */
   keep?: (x: number, z: number) => boolean;
+  /** How far past its roof a building's yard is cleared of trunks, m — a
+   * real house's (`real-houses.ts`), felled for it (`fellsTree`). */
+  clearing?: number;
 };
 
 /** Stand a kind at a place facing a heading, beside a run at an arc, in a
@@ -135,9 +139,10 @@ export function buildingFront(
 /** Whether a tree's trunk at (x, z) stands inside the walls of one of the
  * ski area's buildings of `cabins` — its site cleared for it, so the tree
  * is not drawn (the walls keep a skier from it as they keep him from the
- * room). */
+ * room) — or in a real house's yard (`real-houses.ts`). */
 export function fellsTree(cabins: readonly Cabin[], x: number, z: number): boolean {
   for (const c of cabins) {
+    if (c.run === REAL_RUN && inRealYard(c, x, z)) return true;
     if (!isResortBuilding(c.kind)) continue;
     const d = CABINS[c.kind];
     const dx = x - c.x;
@@ -184,6 +189,9 @@ export function placeResortBuildings(
     fell: true,
     deck: true,
   });
+  // A REAL FACE's houses, last, so nothing above moves for them.
+  const hit = streets ? streetHit(streets) : null;
+  placeRealHouses(level, stand, hit ? { ...fit, keep: (x, z) => !hit(x, z, 1) } : fit);
 }
 
 /** How many hotel blocks the village is dealt. */

@@ -143,6 +143,7 @@ export function renderResortPlan({
   hubAt = null,
   failing = new Set(),
   cabins = [],
+  hints = null,
 }) {
   const size = level.size;
   const W = Math.ceil(size * scale);
@@ -328,6 +329,43 @@ export function renderResortPlan({
     canvas.fillRect(px(c.x) - 3, py(c.z) - 3, 7, 7, CABIN);
     if (cabins.find((o) => o.group === c.group) === c)
       halo(canvas, px(c.x) + 7, py(c.z) + 4, c.id, CABIN, 1);
+  }
+  // A real face's hints (`real-hints.ts`) over it all, thin: the real
+  // pistes in their grade's colour, the real lifts in magenta from a ring
+  // at the bottom to a dot at the top, the real houses as grey ticks.
+  if (hints) {
+    const HINT_GRADE = {
+      green: [40, 150, 60],
+      blue: [40, 90, 200],
+      red: [200, 40, 40],
+      black: [20, 20, 20],
+      orange: [240, 130, 20],
+    };
+    for (const h of hints.houses) {
+      const [dx, dz] = [Math.sin(h.turn), Math.cos(h.turn)];
+      const r = Math.max(1, (h.size * scale) / 2);
+      canvas.line(
+        px(h.x) - dx * r,
+        py(h.z) - dz * r,
+        px(h.x) + dx * r,
+        py(h.z) + dz * r,
+        [90, 90, 90],
+        2,
+      );
+    }
+    for (const p of hints.pistes) {
+      const ink = [...HINT_GRADE[p.grade], 200];
+      for (let i = 0; i + 1 < p.points.length; i++) {
+        const [a, b] = [p.points[i], p.points[i + 1]];
+        canvas.line(px(a.x), py(a.z), px(b.x), py(b.z), ink, 1);
+      }
+    }
+    for (const l of hints.lifts) {
+      canvas.line(px(l.bottom.x), py(l.bottom.z), px(l.top.x), py(l.top.z), [200, 0, 200], 1);
+      canvas.disk(px(l.bottom.x), py(l.bottom.z), 4, [200, 0, 200]);
+      canvas.disk(px(l.bottom.x), py(l.bottom.z), 2.5, WHITE);
+      canvas.disk(px(l.top.x), py(l.top.z), 3, [200, 0, 200]);
+    }
   }
   const v = level.resort?.village;
   if (v) {

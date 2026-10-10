@@ -13,7 +13,7 @@
 // resort on any error.
 
 import { angleDiff, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { PisteGrade } from "../mapgen/grades.ts";
+import { PISTE_GRADES, type PisteGrade } from "../mapgen/grades.ts";
 import { BENCH, NetIndex, WIDEST, clearance, netHit, runColour } from "../mapgen/network.ts";
 import { regionOf } from "../mapgen/regions.ts";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
@@ -288,7 +288,7 @@ export function analyzeResort(level: Level): ResortAnalysis {
     for (const l of resort.lifts) {
       const pad = padReading(level, l);
       if (!pad) continue;
-      if (pad.spread > PAD_TOLERANCE)
+      if (pad.spread > (level.face ? RR.massif.real.least.pad : PAD_TOLERANCE))
         add("R26", "error", `${l.id}'s top pad stands ${pad.spread.toFixed(2)} m off its cut`);
       if (pad.ramp !== null && pad.ramp < RR.lift.unload.height * 0.8)
         add("R26", "error", `${l.id}'s unload ramp stands only ${pad.ramp.toFixed(2)} m`);
@@ -298,7 +298,7 @@ export function analyzeResort(level: Level): ResortAnalysis {
     // ground is held to it, so the towers the game draws move no map.
     for (const plan of ruledLiftPlans(level)) {
       const short = ropeShortfall(level, plan);
-      if (short.lack > ROPE_SLACK)
+      if (short.lack > (level.face ? RR.massif.real.least.rope : ROPE_SLACK))
         add(
           "R26",
           "error",
@@ -389,7 +389,10 @@ export function analyzeResort(level: Level): ResortAnalysis {
     const road = run.kind === "road";
     const onto = run.into ? (byId.get(run.into.run)?.points ?? null) : null;
     const measured = road ? "green" : runColour(run.points, onto);
-    if (!road && measured !== run.grade) {
+    // On a REAL face a run may be billed the colour its real piste is
+    // signed, within `least.signed` colours of what it measures.
+    const off = Math.abs(PISTE_GRADES.indexOf(measured) - PISTE_GRADES.indexOf(run.grade));
+    if (!road && off > (level.face ? RR.massif.real.least.signed : 0)) {
       add("R27", "error", `run ${run.id} is billed ${run.grade} and measures ${measured}`);
     }
     if (road) km.road += run.length / 1000;
@@ -548,7 +551,8 @@ export function analyzeResort(level: Level): ResortAnalysis {
     if (colours[c] < mix[c]) add("R27", "warn", `no ${c} run on the mountain`);
   }
   const pistes = runs.filter((r) => r.kind === "piste").length;
-  if (pistes < RR.network.runs.min) add("R27", "error", `only ${pistes} pistes`);
+  if (pistes < (level.face ? RR.massif.real.least.runs : RR.network.runs.min))
+    add("R27", "error", `only ${pistes} pistes`);
 
   // R28 — the courses.
   for (const c of resort.courses) {

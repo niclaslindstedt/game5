@@ -87,6 +87,7 @@ import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
 import { bakeMassif, planMassif } from "./massif.ts";
 import { realFace, type RealFace } from "./real-face.ts";
+import { billedColour } from "./real-hints.ts";
 import {
   BENCH,
   NetIndex,
@@ -424,10 +425,9 @@ export function attemptResort(
     }
     if (laid && placed) rooms.push(placed);
   }
+  const fewest = face ? RR.massif.real.least.runs : RR.network.runs.min;
   const pistes = walked.filter((w) => w.spec.kind === "piste").length;
-  if (pistes < RR.network.runs.min) {
-    return `only ${pistes} piste(s) could be walked down the mountain`;
-  }
+  if (pistes < fewest) return `only ${pistes} piste(s) could be walked down the mountain`;
   // ── 3b. THE LANES BETWEEN THE RUNS ───────────────────────────────────
   let nextId = specs.reduce((m, sp) => Math.max(m, Number(sp.id)), 0);
   // A station on the valley floor stands in the hub (R29).
@@ -470,8 +470,10 @@ export function attemptResort(
     const spec = fair;
     const why: string[] = [];
     const tries = fair.kind === "road" ? RR.road.tries : RR.network.tries;
+    const plain = { ...fair, via: undefined, follow: undefined }; // a real piste's bends, on all but the last tries
+    const viaFor = tries - RR.massif.real.via.last;
     for (let t = 0; t < tries; t++) {
-      const run = walkRun(rng, plan, ground, fair, walking, shared);
+      const run = walkRun(rng, plan, ground, t < viaFor ? fair : plain, walking, shared);
       if (typeof run === "string") {
         why.push(run);
         continue;
@@ -607,13 +609,11 @@ export function attemptResort(
     for (const d of b.drops) d.y = sampleField(ground, d.x, d.z);
     if (b.run.kind === "piste") {
       const onto = b.walked.into ? walked[b.walked.into.run].points : null;
-      b.run.grade = runColour(b.run.points, onto);
+      b.run.grade = billedColour(b.walked.spec.signed, runColour(b.run.points, onto));
     }
   }
   const graded = built.filter((b) => b.run.kind === "piste").length;
-  if (graded < RR.network.runs.min) {
-    return `only ${graded} piste(s) could be graded into the mountain`;
-  }
+  if (graded < fewest) return `only ${graded} piste(s) could be graded into the mountain`;
   // The runs that stand, renumbered: a merge names the run it joins by its
   // place among them, and the index the woods and the mountain's own
   // features keep clear of holds only them.

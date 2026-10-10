@@ -83,6 +83,17 @@ export {
   type TreeKind,
 } from "./regions.ts";
 export { REAL_FACE_IDS, faceHeight, realFace, realFaceRegion, type RealFace } from "./real-face.ts";
+export {
+  leanLift,
+  leanStation,
+  pisteAhead,
+  pisteVia,
+  realHints,
+  type HintHouse,
+  type HintLift,
+  type HintPiste,
+  type RealHints,
+} from "./real-hints.ts";
 // The scoreboard the search gates on, re-exported here so the one surface
 // that carries the generator carries its verdict too.
 export {

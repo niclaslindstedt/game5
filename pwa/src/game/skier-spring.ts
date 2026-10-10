@@ -552,7 +552,7 @@ export function stepSkierSpring(
   // body comes round under it (`revertLook`) — swung across through the
   // middle when he turns to the other side than the shoulder he had.
   const revert = ride?.revert;
-  if (revert && !airborne) {
+  if (revert) {
     const to = revertLook(revert.u, revert.turn, revertShare);
     const at = s.back * s.backSide;
     const look = at + (to - at) * Math.min(1, REVERT_SWING * dt);

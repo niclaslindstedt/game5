@@ -114,13 +114,14 @@ skier:
 
 # THE REVERT LAB: a skier riding switch slowed under 15 km/h turning round
 # to ride forward (`engine/game/switch.ts`), on the skier lab — the revert
-# as he slides out of it, the same with the edge held, and what follows it
+# as he slides out of it, the same with the edge held, hopped round off a
+# jump under 40 km/h, and what follows it
 # (the poles and the skate) frame by frame from behind, the side, the front,
 # straight down and the chase lens (previews/skier-revert*.png), where it
 # takes him (previews/skier-path-revert*.png) and close up at its moments
 # (previews/skier-closeup.png). ARGS as the skier lab's.
 revert:
-	npm run skier -- --move revert,revert-steer,revert-away --sheet moves,path,closeup --moment switch,revert-in,revert-mid,revert-out --views back,side,front,top,chase $(ARGS)
+	npm run skier -- --move revert,revert-steer,revert-hop,revert-away --sheet moves,path,closeup --moment switch,revert-in,revert-mid,revert-hop,revert-out --views back,side,front,top,chase $(ARGS)
 
 # THE POLELESS LAB: what a skier WITHOUT POLES (the hard mode) does with his
 # hands — every poleless move of the skier lab skied by the real engine and

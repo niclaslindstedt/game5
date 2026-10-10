@@ -97,6 +97,38 @@ describe("the revert", () => {
     expect(ride(held, 1).reverted).toBe(false);
   });
 
+  it("hops a switch skier round off a jump under 40 km/h, and lands him forward", () => {
+    for (const steer of [0, 1]) {
+      const state = switched(8);
+      let inAir = false;
+      const events: GameEvent[] = [];
+      for (let i = 0; i < 2 * TUNING.physicsHz; i++) {
+        step(state, { ...NEUTRAL_INPUT, steer, jump: i < 12 });
+        events.push(...state.events);
+        if (state.skier.revert && state.skier.airborne) inAir = true;
+      }
+      const c = state.skier;
+      expect(inAir, `steer ${steer}`).toBe(true);
+      expect(
+        events.filter((e) => e.kind === "wipeout"),
+        `steer ${steer}`,
+      ).toHaveLength(0);
+      expect(c.switched, `steer ${steer}`).toBe(false);
+      expect(c.way, `steer ${steer}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("leaves a jump popped switch over 40 km/h a jump", () => {
+    const state = switched(TUNING.switch.revert.hopBelow + 1, "free", 0.25);
+    let reverted = false;
+    for (let i = 0; i < TUNING.physicsHz; i++) {
+      step(state, { ...NEUTRAL_INPUT, jump: i < 12 });
+      if (state.skier.revert) reverted = true;
+    }
+    expect(reverted).toBe(false);
+    expect(state.skier.switched).toBe(true);
+  });
+
   it("is drawn with the look held on the line and the legs light", () => {
     expect(revertShare(0)).toBe(0);
     expect(revertShare(1)).toBe(1);

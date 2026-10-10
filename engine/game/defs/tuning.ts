@@ -837,8 +837,11 @@ export const TUNING = {
      * and set the skis down) — their hold across the snow let go by
      * `unweight` of itself at the middle of it, where they are light and
      * across the way (a ski swung across a groomer it is pressed into is a
-     * hockey stop, not a slide-out). */
-    revert: { below: 15 / 3.6, time: 0.65, unweight: 0.85 },
+     * hockey stop, not a slide-out). A JUMP popped riding switch under
+     * `hopBelow` m/s (40 km/h) turns him round the same way in the air off
+     * it, over `hopTime` s — inside the shortest flight a pop on the flat
+     * gives (`jump.popMin` up and down again, 0.45 s). */
+    revert: { below: 15 / 3.6, time: 0.65, unweight: 0.85, hopBelow: 40 / 3.6, hopTime: 0.4 },
   },
 
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */

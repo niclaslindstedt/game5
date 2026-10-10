@@ -203,6 +203,17 @@ export const MOVES = [
     mode: "tricks",
   },
   {
+    id: "revert-hop",
+    title:
+      "riding SWITCH across the flat at 30 km/h, a jump popped: hopped round in the air off it",
+    level: (S) => S.flatLevel({ packed: 1, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, speed: -8.3 }),
+    seconds: 2.5,
+    window: [0.3, 1.3],
+    input: (t) => ({ ...IDLE, jump: t >= 0.3 && t < 0.4 }),
+    mode: "tricks",
+  },
+  {
     id: "revert-away",
     title: "the revert and what follows it: turned round, then the double pole and the skate",
     level: (S) => S.flatLevel({ packed: 1, size: 3000 }),
@@ -480,6 +491,7 @@ export const MOMENTS = [
     t: REVERT_AT + 0.33,
     say: "the revert half way: the skis across the way, flat",
   },
+  { id: "revert-hop", move: "revert-hop", t: 0.65, say: "hopped round off a jump, half way" },
   {
     id: "revert-out",
     move: "revert",

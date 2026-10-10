@@ -30,7 +30,9 @@
 //     a switch landing: the skis laid flat, unweighted and pivoted round
 //     on their bases the way he is looking (the steer held, or the shorter
 //     way onto his line), his way over the snow carried on through it.
-//     Faced down his line again he poles and skates (`poles.ts`).
+//     Faced down his line again he poles and skates (`poles.ts`). Under
+//     `revert.hopBelow` a JUMP popped switch turns him round the same way
+//     in the air off it (`hopRevert`) — a hop round, quicker.
 //
 // Decided ON THE SNOW, off the way he was making, with a margin either
 // side of a standstill (`TUNING.switch.from`) so a skier slid to a stop
@@ -53,9 +55,9 @@ const SW = TUNING.switch;
 const RV = SW.revert;
 
 /** THE REVERT under way (`SkierState.revert`): how far through it he is,
- * 0..1 of `switch.revert.time`, and the yaw it turns him by in all, rad,
+ * 0..1 of `time` s (`switch.revert.time`, or `.hopTime` off a jump), and the yaw it turns him by in all, rad,
  * right (clockwise) positive — the side he looks over and turns to. */
-export type Revert = { u: number; turn: number };
+export type Revert = { u: number; turn: number; time: number };
 
 /** How far round a revert has turned him at `u` of it, 0..1: eased in and
  * out — the skis unweighted, swung and set down. */
@@ -72,14 +74,13 @@ export function revertHold(c: SkierState): number {
 }
 
 /** Whether a skier riding switch turns round this step: the rules let him,
- * he is on the snow on his own skis, on nothing that carries him, and
- * slower than `revert.below`. */
-function revertDue(state: GameState): boolean {
+ * he is on his own skis, on nothing that carries him, and slower than
+ * `below` m/s. */
+function revertDue(state: GameState, below: number): boolean {
   const c = state.skier;
   return (
     state.rules.revert === true &&
     c.switched &&
-    !c.airborne &&
     c.revert == null &&
     c.thrown === null &&
     c.lift === null &&
@@ -87,8 +88,18 @@ function revertDue(state: GameState): boolean {
     c.jib == null &&
     c.sidestep === 0 &&
     c.trench === 0 &&
-    c.speed < RV.below
+    c.speed < below
   );
+}
+
+/** THE HOP ROUND: a skier riding switch slower than `revert.hopBelow` who
+ * pops a jump (`skier.ts`'s pop, the step it is sprung) turns round in the
+ * air off it — the same revert, quicker (`revert.hopTime`), so he is round
+ * before the snow comes back. `steer` is the input's. */
+export function hopRevert(state: GameState, steer: number): void {
+  const c = state.skier;
+  if (!revertDue(state, RV.hopBelow)) return;
+  c.revert = { u: 0, turn: revertTurn(c, -steer), time: RV.hopTime };
 }
 
 /** THE TURN A REVERT TAKES, rad: round onto the line he is travelling,
@@ -114,9 +125,10 @@ export function switchSteer(state: GameState, input: SkierInput): number {
     if (c.way < -SW.from) c.switched = true;
     else if (c.way > SW.from) c.switched = false;
   }
-  if (revertDue(state)) {
+  // (Loading a jump, he is about to hop round instead.)
+  if (!c.airborne && c.jumpLoad === 0 && revertDue(state, RV.below)) {
     // The steer as he means it, read the way he is going (tails first).
-    c.revert = { u: 0, turn: revertTurn(c, -input.steer) };
+    c.revert = { u: 0, turn: revertTurn(c, -input.steer), time: RV.time };
     return 0;
   }
   return clamp(c.switched && !c.airborne ? -input.steer : input.steer, -1, 1);
@@ -133,7 +145,7 @@ export function stepRevert(c: SkierState, n: Vec3, dt: number): void {
     c.revert = null;
     return;
   }
-  const u = Math.min(1, r.u + dt / RV.time);
+  const u = Math.min(1, r.u + dt / r.time);
   const yaw = r.turn * (revertShare(u) - revertShare(r.u));
   c.q = normalize(multiply(fromAxisAngle(n.x, n.y, n.z, yaw), c.q));
   r.u = u;

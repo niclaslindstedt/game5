@@ -107,7 +107,7 @@
 //                   stand a race in the dark.
 //   ?region=<id>    build a seed's mountain in this kind of snow country
 //                   (R21: alpine, fell, continental, maritime) — a free ride over the
-//                   start card's CLIMATE row, and a race a `?seed=` link
+//                   start card's AREA row under GENERATED, and a race a `?seed=` link
 //                   boots into; never a race map, which is pinned.
 //   ?face=<id>      raise a seed's resort on this REAL face (R25: alpine-1,
 //                   fell-3, … — `real-face.ts`), its region the face's own —

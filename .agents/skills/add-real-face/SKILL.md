@@ -237,4 +237,4 @@ face). The README and `AGENTS.md` only if a count they state moved.
 | The real houses stood | `engine/game/real-houses.ts` |
 | The town's streets → the village laid along them (its centre, main, back and cross streets, road out, the town streets) | `scripts/lib/real-face-streets.mjs` → `HintStreet`, `HintTown`; `engine/game/real-streets.ts`, read by `village-streets.ts` |
 | Where a face is fetched | `loadRealFace`, awaited by the map and preview workers, the load (`app-load.ts`'s `LoadPlan.face`), the boot (`main.tsx`) and every lab that takes `--face` |
-| The picker | the start card's RANGE, AREA and PART rows, filtered by GRADE (`pwa/src/game/face-picks.ts` — nothing to add but a new range's name in `strings-ranges.ts`), `?face=` |
+| The picker | the start card's RANGE (by name, GENERATED its last stop), AREA and PART rows, filtered by GRADE (`pwa/src/game/face-picks.ts` — nothing to add but a new range's name in `strings-ranges.ts`), `?face=` |

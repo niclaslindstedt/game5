@@ -4,11 +4,11 @@ A free ride's resort can be raised on a REAL mountainside instead of the massif 
 
 The start card names a face by PLACE, in three rows (`pwa/src/game/face-picks.ts`):
 
-- **RANGE** — where it lies: a country where the range's ski areas all lie in one, or a range across borders. The Nordic ranges come first, then the rest by name. The first stop is the seed's own massif, AS DEALT.
+- **RANGE** — where it lies: a country where the range's ski areas all lie in one, or a range across borders. The ranges are listed by name. The last stop is GENERATED, the seed's own massif: under it the AREA row is the four kinds of snow country and the third row the mountain's number, its seed.
 - **AREA** — the town or mountain its ski area is known by. A range's areas are listed as a walk across it: the most northerly first, then always the nearest one not yet listed, so stepping the row moves to a neighbour. An area's parts are listed the same way.
-- **PART** — the part of that area it is, shown only where the area has more than one part. Picking one sets the CLIMATE row to the face's own region.
+- **PART** — the part of that area it is, shown only where the area has more than one part. A face brings its own region (R21).
 
-The GRADE row filters them: a part whose real ski area signs no piste of the colour asked for is left off, then an area with no part left, then a range with no area left. A face on the card that loses its colour gives way to a part of its own area that has it, then to one of its range's, or to the seed's own massif. ORANGE leaves every face on, because the game lays its own ski routes on every face (R42).
+The GRADE row filters them: a part whose real ski area signs no piste of the colour asked for is left off, then an area with no part left, then a range with no area left. A face on the card that loses its colour gives way to a part of its own area that has it, then to one of its range's, or to a GENERATED mountain in its country. ORANGE leaves every face on, because the game lays its own ski routes on every face (R42).
 
 A face's id is its region and a number (`alpine-1`, `fell-3`, …), a key that never moves. Its place — the range (a key, named in `strings-ranges.ts`), the area and the part — is written in its crop row (`scripts/lib/real-face-crops.mjs`) as the map writes the place, and baked into the face index. These three files are the only ones that name a real place. No brand, operator, lift, piste or race is named anywhere, and the bakes read no lift's or piste's name.
 

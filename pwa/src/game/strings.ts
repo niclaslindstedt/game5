@@ -459,11 +459,12 @@ export const STRINGS = {
   startTitle: "FREE RIDE",
   startNext: "NEXT",
   startMap: "MOUNTAIN",
-  startMapHint: "Which mountain: every seed is another face. Type one, or step through them.",
+  startMapHint:
+    "Which generated mountain: every number is another one, its face, lifts and runs its own. Type one, or step through them.",
   startReroll: "ANOTHER MOUNTAIN",
-  startRegion: "CLIMATE",
+  /** The AREA row's hint under GENERATED: the four kinds of country. */
   startRegionHint:
-    "What kind of snow country the mountain is raised in (a real mountainside brings its own): the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",
+    "What kind of snow country the generated mountain is raised in: the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",
   /** The REGION row's stops (R21) — a kind of country, never a place. */
   regionNames: {
     alpine: "ALPINE",
@@ -472,11 +473,13 @@ export const STRINGS = {
     maritime: "MARITIME",
   },
   startRange: "RANGE",
+  /** The RANGE row's first stop: a mountain the generator raises. */
+  rangeGenerated: "GENERATED",
   startRangeHint:
-    "The mountain's shape: the seed's own, or a real mountainside in one of these ranges, read off a satellite survey — its ridge, spurs and gullies and its real tree line, with the real ski area's lifts and runs laid down it as near as the seed's own allow. Only the ranges with a run of the GRADE row's colour are listed.",
+    "The mountain: a real mountainside in one of these ranges, read off a satellite survey — its ridge, spurs and gullies and its real tree line, with the real ski area's lifts and runs laid down it as near as the seed's own allow. Only the ranges with a run of the GRADE row's colour are listed — and last, GENERATED: a mountain raised off its number.",
   startArea: "AREA",
   startAreaHint:
-    "Which of the range's ski areas, by the place it is known by. Its climate is its own: picking one sets the CLIMATE row.",
+    "Which of the range's ski areas, by the place it is known by. Its snow country is its own.",
   startPart: "PART",
   startPartHint: "Which part of the ski area: each is a mountainside of its own.",
   /** A real face's range on the RANGE row (its key to its name), the key

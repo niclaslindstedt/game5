@@ -33,14 +33,20 @@ import {
 } from "@engine";
 
 import {
+  areaIds,
+  areaOf,
   areaParts,
   faceForGrade,
   faceHasGrade,
   faceRanges,
   firstFace,
+  GENERATED,
   kmBetween,
   rangeAreas,
+  rangeIds,
+  rangeOf,
   walk,
+  wherePicked,
 } from "../pwa/src/game/face-picks.ts";
 import { MOST_PIPS, pipWindow } from "../pwa/src/game/knob-pips.ts";
 import { freshRide, mergeRide } from "../pwa/src/game/free-ride.ts";
@@ -192,9 +198,45 @@ describe("the real faces", () => {
 });
 
 describe("the real faces on the start card", () => {
-  it("are filed by range, the Nordic ones first, then by area and part", () => {
+  it("end RANGE on GENERATED: its country on AREA and its number on the third row", () => {
+    expect(rangeIds(null)).toEqual([...faceRanges(null), GENERATED]);
+    expect(rangeIds("black")).toEqual([...faceRanges("black"), GENERATED]);
+    expect(areaIds(GENERATED, null)).toEqual([...REGION_IDS]);
+    // A ride stored by an older build (no face) reads as GENERATED in its
+    // own country; a real one as its range and area.
+    const old = mergeRide({ seed: 42, region: "fell" });
+    expect(rangeOf(old.face)).toBe(GENERATED);
+    expect(areaOf(old.face, old.region)).toBe("fell");
+    const id = REAL_FACE_IDS[0];
+    const place = realFacePlace(id)!;
+    expect(rangeOf(id)).toBe(place.range);
+    expect(areaOf(id, "maritime")).toBe(place.area);
+    expect(areaIds(place.range, null)).toEqual(rangeAreas(place.range, null));
+    // GENERATED keeps the ride's country, or takes the one picked.
+    expect(wherePicked(GENERATED, null, "continental")).toEqual({
+      face: null,
+      region: "continental",
+    });
+    expect(wherePicked(GENERATED, "red", "alpine", "maritime")).toEqual({
+      face: null,
+      region: "maritime",
+    });
+    // A real range lands on its first face of the grade, in its country.
+    for (const grade of [null, "green", "black"] as const) {
+      for (const r of faceRanges(grade)) {
+        const at = wherePicked(r, grade, "alpine")!;
+        expect(at.face).toBe(firstFace(r, grade));
+        expect(at.region).toBe(realFaceRegion(at.face!));
+        const a = rangeAreas(r, grade).at(-1)!;
+        expect(wherePicked(r, grade, "alpine", a)!.face).toBe(firstFace(r, grade, a));
+      }
+    }
+  });
+
+  it("are filed by range, by name, then by area and part", () => {
     const ranges = faceRanges(null);
-    expect(ranges.slice(0, 3)).toEqual(["SE", "NO", "FI"]);
+    const names = ranges.map((r) => STRINGS.rangeName(r).replace(/^THE /, ""));
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     for (const r of ranges) expect(STRINGS.rangeName(r)).not.toBe(r);
     const listed = ranges.flatMap((r) =>
       rangeAreas(r, null).flatMap((a) => areaParts(r, a, null).map((p) => p.id)),

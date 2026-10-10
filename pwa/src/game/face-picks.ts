@@ -4,7 +4,7 @@
 // place its ski area is known by, and the part of that area it is — and
 // only the faces whose real ski area signs a piste of the GRADE asked for.
 // DOM-free: the card's RANGE, AREA and PART rows read it, and so does the
-// suite.
+// suite. RANGE's last stop is GENERATED, the seed's own mountain (below).
 //
 // The GRADE row hides a part whose ski area has no piste of its colour,
 // then an area with no part left, then a range with no area left. ORANGE
@@ -20,6 +20,7 @@
 
 import {
   REAL_FACE_IDS,
+  REGION_IDS,
   realFaceGrades,
   realFacePlace,
   realFaceRegion,
@@ -28,10 +29,6 @@ import {
 } from "@engine";
 
 import { STRINGS } from "./strings.ts";
-
-/** The ranges listed first, in this order — the Nordic ones; the rest
- * follow by name. */
-const FIRST: readonly string[] = ["SE", "NO", "FI"];
 
 /** One part on the PART row: its face and its place. */
 export type FacePart = { id: string; part: string; region: RegionId };
@@ -55,17 +52,11 @@ function placed(
 const byName = (a: string, b: string): number =>
   a.replace(/^THE /, "").localeCompare(b.replace(/^THE /, ""));
 
-/** Every range with a face of `grade`: the Nordic ones first, the rest by
- * name. */
+/** Every range with a face of `grade`, in the order of the names the
+ * card shows them by. */
 export function faceRanges(grade: RunGrade | null): string[] {
   const out = [...new Set(placed(grade).map((f) => f.range))];
-  const rank = (r: string): number => {
-    const i = FIRST.indexOf(r);
-    return i < 0 ? FIRST.length : i;
-  };
-  return out.sort(
-    (a, b) => rank(a) - rank(b) || byName(STRINGS.rangeName(a), STRINGS.rangeName(b)),
-  );
+  return out.sort((a, b) => byName(STRINGS.rangeName(a), STRINGS.rangeName(b)));
 }
 
 /** A point on the globe, °. */
@@ -155,4 +146,56 @@ export function faceForGrade(face: string | null, grade: RunGrade | null): strin
   const place = realFacePlace(face);
   if (!place) return null;
   return firstFace(place.range, grade, place.area) ?? firstFace(place.range, grade);
+}
+
+// THE START CARD'S WHERE, AS THREE ROWS. The real ranges come first, by
+// name, and RANGE's LAST stop is GENERATED — a mountain the generator
+// raises off the seed. AREA is, under GENERATED, the kind of snow country it is raised
+// in (R21's four regions), and under a real range its ski areas. The third
+// row is, under GENERATED, the mountain's NUMBER (the seed itself), and
+// under a real area its parts. A ride keeps no row of its own for any of
+// it: `face` null is GENERATED, `region` its country and `seed` its number,
+// so a ride stored by an older build reads straight back.
+
+/** The RANGE row's last stop: the seed's own mountain. */
+export const GENERATED = "generated";
+
+/** The RANGE row's stops: every range with a face of `grade`, then
+ * GENERATED. */
+export function rangeIds(grade: RunGrade | null): string[] {
+  return [...faceRanges(grade), GENERATED];
+}
+
+/** The range a ride's face lies in, GENERATED for none. */
+export function rangeOf(face: string | null): string {
+  return (face && realFacePlace(face)?.range) || GENERATED;
+}
+
+/** The AREA row's stops under `range`: the four countries under
+ * GENERATED, the range's ski areas of `grade` under a real one. */
+export function areaIds(range: string, grade: RunGrade | null): string[] {
+  return range === GENERATED ? [...REGION_IDS] : rangeAreas(range, grade);
+}
+
+/** The AREA row's reading: a generated ride's country, a real one's area. */
+export function areaOf(face: string | null, region: RegionId): string {
+  return (face && realFacePlace(face)?.area) || region;
+}
+
+/** Where a ride stands once RANGE (and AREA) are picked: GENERATED keeps
+ * the ride's country (or takes the one picked); a real range lands on the
+ * first part of its first area of `grade` (or of the area picked), the
+ * face's own country with it. Null where nothing of `grade` is there. */
+export function wherePicked(
+  range: string,
+  grade: RunGrade | null,
+  region: RegionId,
+  area?: string,
+): { face: string | null; region: RegionId } | null {
+  if (range === GENERATED) {
+    const picked = (REGION_IDS as readonly string[]).includes(area ?? "");
+    return { face: null, region: picked ? (area as RegionId) : region };
+  }
+  const face = firstFace(range, grade, area);
+  return face === null ? null : { face, region: realFaceRegion(face)! };
 }

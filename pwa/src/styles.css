@@ -2302,6 +2302,20 @@ canvas {
   gap: 0.26rem;
 }
 
+/* A long ladder's window fades its pips out at an end with more beyond it:
+   the right end at the start, both in the middle, the left at the end. */
+.knob-pips-before {
+  mask-image: linear-gradient(to right, transparent, #000 32%);
+}
+
+.knob-pips-after {
+  mask-image: linear-gradient(to left, transparent, #000 32%);
+}
+
+.knob-pips-before.knob-pips-after {
+  mask-image: linear-gradient(to right, transparent, #000 28%, #000 72%, transparent);
+}
+
 .knob-pip {
   width: 0.36rem;
   height: 0.36rem;

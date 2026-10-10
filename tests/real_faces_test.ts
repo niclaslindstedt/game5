@@ -48,7 +48,7 @@ import {
   walk,
   wherePicked,
 } from "../pwa/src/game/face-picks.ts";
-import { MOST_PIPS, pipWindow } from "../pwa/src/game/knob-pips.ts";
+import { MOST_PIPS, pipWindow, pipsHidden } from "../pwa/src/game/knob-pips.ts";
 import { freshRide, mergeRide } from "../pwa/src/game/free-ride.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
@@ -329,6 +329,13 @@ describe("the real faces on the start card", () => {
         if (at >= 0) expect(shown).toContain(at);
       }
     }
+  });
+
+  it("fade a long row's pips at whichever end hides more stops", () => {
+    expect(pipsHidden(5, pipWindow(5, 2))).toEqual({ before: false, after: false });
+    expect(pipsHidden(30, pipWindow(30, 0))).toEqual({ before: false, after: true });
+    expect(pipsHidden(30, pipWindow(30, 15))).toEqual({ before: true, after: true });
+    expect(pipsHidden(30, pipWindow(30, 29))).toEqual({ before: true, after: false });
   });
 
   it("give way to one of the area's or the range's with the grade, or the dealt massif", () => {

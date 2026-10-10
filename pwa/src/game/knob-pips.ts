@@ -14,3 +14,9 @@ export function pipWindow(n: number, at: number): number[] {
   const from = Math.max(0, Math.min(n - count, Math.max(0, at) - (count >> 1)));
   return Array.from({ length: count }, (_, i) => from + i);
 }
+
+/** Whether a window cut out of a longer ladder hides stops before its first
+ * pip and after its last, so the row fades its pips out at that end. */
+export function pipsHidden(n: number, shown: number[]): { before: boolean; after: boolean } {
+  return { before: (shown[0] ?? 0) > 0, after: (shown[shown.length - 1] ?? n - 1) < n - 1 };
+}

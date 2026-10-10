@@ -29,7 +29,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
-import { pipWindow } from "./knob-pips.ts";
+import { pipWindow, pipsHidden } from "./knob-pips.ts";
 import { Glyph, type GlyphName } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
 
@@ -145,6 +145,7 @@ export function StepRow<T extends string>({
 }) {
   const at = stops.findIndex((stop) => stop.id === value);
   const current = at < 0 ? null : stops[at];
+  const shown = pipWindow(stops.length, at);
   const describe = (): void => onHint?.(says(label, hint));
   const step = (dir: 1 | -1): void => {
     // A ladder with no stops yet (one waiting on what it can offer) steps
@@ -177,8 +178,8 @@ export function StepRow<T extends string>({
         </button>
         <span class="knob-value">
           <span class="knob-word">{current?.label ?? extra ?? STRINGS.optUnset}</span>
-          <span class="knob-pips" aria-hidden="true">
-            {pipWindow(stops.length, at).map((i) => (
+          <span class={pipsClass(stops.length, shown)} aria-hidden="true">
+            {shown.map((i) => (
               <i key={stops[i].id} class={`knob-pip${i === at ? " knob-pip-on" : ""}`} />
             ))}
           </span>
@@ -560,4 +561,10 @@ export function Caption({ hint, fallback }: { hint: Hint | null; fallback: strin
       ))}
     </div>
   );
+}
+
+/** The pips' row, faded out at an end that hides more stops beyond it. */
+function pipsClass(n: number, shown: number[]): string {
+  const hidden = pipsHidden(n, shown);
+  return `knob-pips${hidden.before ? " knob-pips-before" : ""}${hidden.after ? " knob-pips-after" : ""}`;
 }

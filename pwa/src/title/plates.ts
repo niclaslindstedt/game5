@@ -25,16 +25,17 @@ export const TITLE_PLATES = {
 } as const;
 
 /** Every file the plates are made from, from the repository's root: the
- * lab's driver and shelf, the scene's builder and its kind, the skier's
- * builder and rig, the carve he is posed from, the palette, the kit, the
- * mark cut into the snow, the woods, and the committed pair he rides. A
+ * lab's driver and shelf, the scene's builder and its kind, the skier as
+ * the game dresses him (the exporter, the loom and every piece cut on it,
+ * the kit, the body, the helmet) and his rig, the carve he is posed from,
+ * the palette, the mark cut into the snow, the woods, and the committed
+ * pair he rides. A
  * change to any of them leaves the stamp stale until the scene is
  * rendered again. */
 export const TITLE_SOURCES = [
   "scripts/blender.mjs",
   "scripts/blender/lib.py",
-  "scripts/blender/skier.py",
-  "scripts/blender/kinds/skier.mjs",
+  "scripts/dressed-skier.mjs",
   "scripts/blender/kinds/title.mjs",
   "scripts/blender/title.py",
   "scripts/blender/title_world.py",
@@ -45,6 +46,13 @@ export const TITLE_SOURCES = [
   "scripts/lib/skier-trace.mjs",
   "pwa/src/identity.ts",
   "pwa/src/game/outfit.ts",
+  "pwa/src/game/dress.ts",
+  "pwa/src/game/dress-loft.ts",
+  "pwa/src/game/dress-garments.ts",
+  "pwa/src/game/dress-head.ts",
+  "pwa/src/game/dress-body.ts",
+  "pwa/src/game/helmet-shape.ts",
+  "pwa/src/game/skier-pose.ts",
   "pwa/src/game/skier-rig.ts",
   "pwa/src/game/app-mark.ts",
   "pwa/src/game/tree-variants.ts",

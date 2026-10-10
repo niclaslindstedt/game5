@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-# THE TITLE SCENE'S SKIER: the game's own modelled skier (`skier.py`,
-# `previews/blender/skier0-lod0.glb`) on the reference pair's model
+# THE TITLE SCENE'S SKIER: the game's own dressed skier — the very skin the
+# game draws him in, cut by its loom and written skinned by
+# `scripts/dressed-skier.mjs` (`previews/blender/dressed-skier.glb`, its
+# colours on its vertices) — on the reference pair's model
 # (`pwa/models/<pair>.glb`), posed bone for bone at the frame of a carve the
 # engine skied (`kinds/title.mjs`), each pole run through its fist (the
 # grip in the glove, a basket above the tip).
@@ -75,6 +77,27 @@ def _pose(arm, moves):
         bpy.context.view_layer.update()
 
 
+def _dress(meshes):
+    """The dressed skin's materials for Cycles: each reads the mesh's own
+    vertex colours (linear, as the game's loom writes them) as its base
+    colour; the cloth stays matte, the hard parts (the helmet, the goggles,
+    the boots' liners) take a clear coat."""
+    for o in meshes:
+        attr = o.data.color_attributes[0].name if o.data.color_attributes else None
+        for m in o.data.materials:
+            nt = m.node_tree
+            bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+            if attr and not bsdf.inputs["Base Color"].is_linked:
+                col = nt.nodes.new("ShaderNodeVertexColor")
+                col.layer_name = attr
+                nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
+            if m.name.startswith("hard"):
+                bsdf.inputs["Coat Weight"].default_value = 0.6
+                bsdf.inputs["Coat Roughness"].default_value = 0.1
+            else:
+                bsdf.inputs["Sheen Weight"].default_value = 0.2
+
+
 def _hexlin(h):
     return tuple(((c / 255 + 0.055) / 1.055) ** 2.4 for c in ((h >> 16) & 255, (h >> 8) & 255, h & 255))
 
@@ -84,6 +107,7 @@ def build_rider(data, skier_glb, pair_glb):
     in the body frame laid as Blender's; returns it and the meshes."""
     pose = data["pose"]
     sroot, sarm, smesh = _import(skier_glb)
+    _dress([o for o in sarm.children if o.type == "MESH"])
     proot, parm, pmesh = _import(pair_glb)
     # Under him: along by the trace's tail, down by the CoG's height.
     proot.location = Vector((0, data["pair"]["tail"], -data["pair"]["cog"]))

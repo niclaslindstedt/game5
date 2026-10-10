@@ -34,10 +34,13 @@ import type { RunSpec } from "./network.ts";
 import type { RegionId } from "./regions.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 import {
+  alongPiste,
   leanLift,
   leanStation,
   pisteAhead,
+  pisteFor,
   pisteVia,
+  pisteWidth,
   type HintLift,
   type HintPiste,
 } from "./real-hints.ts";
@@ -345,6 +348,7 @@ export function planResort(
   const tops = new Map(lifts.map((l) => [l.id, l.top]));
   const hints = plan.face?.hints;
   const pistes = new Set<HintPiste>();
+  const widths = hints ? pisteWidth(hints, RR.massif.real.width) : null;
   const specs: RunSpec[] = [];
   for (const slot of SLOTS) {
     const top = tops.get(slot.from);
@@ -352,20 +356,33 @@ export function planResort(
     // missing outer top moves nothing after it.
     const laid = rng.chance(slot.odds);
     if (!top || !laid) continue;
-    const aim =
-      slot.kind === "road" ? "green" : tilted(slot, plan.region.id, plan.sea !== undefined);
-    const row = slot.kind === "road" ? ROAD_ROW : GRADES[aim];
     const x = top.x + slot.offset * stations.side;
     const target = slot.target(stations);
     const toward = Math.atan2(target.x - x, Math.max(200, target.z - top.z));
-    // A REAL FACE's pistes: the run steered through the bends of the real
-    // one leaving nearest its start.
-    const via =
+    // A REAL FACE's pistes: a piste slot laid on the real piste leaving
+    // nearest its start takes that piste's colour and follows its line,
+    // the run's width its real one; with none near, it is steered through
+    // the bends of a real one of its own grade.
+    const real =
       hints && slot.kind === "piste"
+        ? pisteFor(hints, pistes, { x, z: top.z }, target, RR.massif.real.along)
+        : null;
+    const aim: PisteGrade = real
+      ? (real.grade as PisteGrade)
+      : slot.kind === "road"
+        ? "green"
+        : tilted(slot, plan.region.id, plan.sea !== undefined);
+    const row = slot.kind === "road" ? ROAD_ROW : GRADES[aim];
+    const margin = RR.massif.real.via.margin;
+    const along = real ? alongPiste(real, RR.massif.real.along) : null;
+    const via = real
+      ? real.points.filter((q, i) => i > 0 && q.z > top.z + margin && q.z < target.z - margin)
+      : hints && slot.kind === "piste"
         ? pisteVia(hints, pistes, { x, z: top.z }, target, aim, RR.massif.real.via)
         : null;
-    const follow =
+    const any =
       hints && slot.kind === "piste" ? pisteAhead(hints, aim, RR.massif.real.follow) : null;
+    const follow = along && any ? (fx: number, fz: number) => along(fx, fz) ?? any(fx, fz) : any;
     specs.push({
       id: String(specs.length + 1),
       from: slot.from,
@@ -378,8 +395,10 @@ export function planResort(
       // A run following a real piste swings less of its own.
       amplitude: via || follow ? slot.amplitude * RR.massif.real.via.swing : slot.amplitude,
       lean: slot.lean * stations.side,
-      ...(via ? { via } : {}),
+      ...(via && via.length > 0 ? { via } : {}),
       ...(follow ? { follow } : {}),
+      ...(real && widths ? { widthAt: widths } : {}),
+      ...(real ? { signed: aim } : {}),
     });
   }
   // The pistes the gentlest first, each colour in slot order: a piste

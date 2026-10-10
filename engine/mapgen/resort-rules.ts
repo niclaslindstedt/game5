@@ -376,6 +376,25 @@ export const RESORT_RULES = {
        * piste `follow.ahead` m down the face and at most `follow.aside` m
        * across (one of its own grade `follow.same` m nearer). */
       follow: { ahead: { min: 80, max: 260 }, aside: 260, same: 80 },
+      /** A piste slot laid ON a real piste (the one whose top is nearest
+       * within `along.reach` m and that falls `along.fall` of the way to
+       * the slot's target — a real piste is often mapped in pieces) takes
+       * its colour and steers for the point of
+       * its line `along.ahead` m further down the face, at most
+       * `along.aside` m across — closer than `follow`, so the run keeps to
+       * that one piste — and is as wide as the real piste's area is at its
+       * nearest bend within `width` m, held to its colour's band. */
+      along: { reach: 650, fall: 0.25, ahead: { min: 40, max: 140 }, aside: 160 },
+      width: 30,
+      /** What a REAL face holds a ski area to where it is not a dealt
+       * massif's: the real one has the runs, the stations and the ropes
+       * its mountain gives it. At least `runs` pistes (a real ski area's
+       * stretch of 4×4 km carries four or five on the steepest faces); a
+       * top's pad level to `pad` m across its cut; a rope `rope` m into
+       * its clearance; a run billed the colour the real piste is signed
+       * where it measures within `signed` colours of it (a real ski area
+       * signs a run by more than its steepest pitch). */
+      least: { runs: 4, pad: 0.6, rope: 1, signed: 1 },
       /** How far behind the summit ridge the whole relief is reached, m,
        * and the descent (u) over which it fades out onto the valley floor. */
       behind: 200,

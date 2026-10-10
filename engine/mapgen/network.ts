@@ -79,6 +79,12 @@ export type RunSpec = {
    * between them, the point on a real piste ahead it steers for. */
   readonly via?: readonly { readonly x: number; readonly z: number }[];
   readonly follow?: (x: number, z: number) => { readonly x: number; readonly z: number } | null;
+  /** …and the real piste's width at a point, m (0 where the map gives
+   * none): the run's width there, held to its colour's band. */
+  readonly widthAt?: (x: number, z: number) => number;
+  /** …and the colour the real piste is signed, which the run is billed
+   * where it measures within `RR.massif.real.least.signed` of it. */
+  readonly signed?: PisteGrade;
   /** A LANE's route (`lanes.ts`): the line it follows down to its join. */
   readonly route?: readonly { readonly x: number; readonly z: number }[];
   /** Which way across the fall line it leans off its top (−1 … 1), the
@@ -405,6 +411,8 @@ function walk(
     const v = valueNoise(p.s, 0, T.widthScale, widthSeed);
     let wide = W.min + (W.max - W.min) * smoothstep(0.15, 0.85, v);
     if (road) return wide;
+    const real = spec.widthAt?.(p.x, p.z) ?? 0;
+    if (real > 0) wide = Math.max(W.min, Math.min(W.max, real));
     const y = sampleField(ground, p.x, p.z);
     wide = Math.min(
       RR.piste.most,

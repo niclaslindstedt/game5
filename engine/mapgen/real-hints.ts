@@ -14,9 +14,10 @@
 // builds what they cannot fit as it would on any massif.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { RunGrade } from "./grades.ts";
+import { PISTE_GRADES, type PisteGrade, type RunGrade } from "./grades.ts";
 import { HINT_DATA, HINT_GRAIN, type HintData } from "./real-hints-data.ts";
 import { base64 } from "./real-face.ts";
+import { RESORT_RULES as RR } from "./resort-rules.ts";
 
 /** A real lift: its kind and its ends, the bottom the lower. */
 export type HintLift = {
@@ -25,10 +26,12 @@ export type HintLift = {
   readonly top: Point;
 };
 
-/** A real piste: its grade and its bends, top first. */
+/** A real piste: its grade and its bends, top first, with its width at
+ * each bend (m, 0 where the map gives none). */
 export type HintPiste = {
   readonly grade: RunGrade;
   readonly points: readonly Point[];
+  readonly widths: readonly number[];
 };
 
 /** A real house: its middle, its size (the side of a square of its
@@ -81,7 +84,7 @@ function decode(h: HintData): RealHints {
     } while (b & 0x80);
     return z % 2 ? -(z + 1) / 2 : z / 2;
   };
-  const { coarse, fine, size, bearings } = HINT_GRAIN;
+  const { coarse, fine, size, width, bearings } = HINT_GRAIN;
   const lifts: HintLift[] = [];
   for (let i = get(); i > 0; i--) {
     const kind = KINDS[get()];
@@ -93,13 +96,15 @@ function decode(h: HintData): RealHints {
   for (let i = get(); i > 0; i--) {
     const grade = GRADES[get()];
     const points: Point[] = [];
+    const widths: number[] = [];
     let [x, z] = [0, 0];
     for (let k = get(); k > 0; k--) {
       x += get();
       z += get();
       points.push({ x: x * coarse, z: z * coarse });
+      widths.push(get() * width);
     }
-    pistes.push({ grade, points });
+    pistes.push({ grade, points, widths });
   }
   const houses: HintHouse[] = [];
   let [x, z] = [0, 0];
@@ -294,4 +299,89 @@ export function pisteAhead(
     }
     return best;
   };
+}
+
+/** The real piste a run leaving `start` for `target` is laid on, whatever
+ * its colour (the run takes the real one's): the one whose top is nearest
+ * within `reach` and which falls `fall` of the way to the target's row, that
+ * no other run took. A ski route (orange) is never one — the game finds
+ * its own. Null where none is near. */
+export function pisteFor(
+  hints: RealHints,
+  used: Set<HintPiste>,
+  start: Point,
+  target: Point,
+  r: { readonly reach: number; readonly fall: number },
+): HintPiste | null {
+  let best: HintPiste | null = null;
+  let bestD = r.reach;
+  const drop = target.z - start.z;
+  for (const p of hints.pistes) {
+    if (used.has(p) || p.grade === "orange" || p.points.length < 3) continue;
+    const top = p.points[0];
+    if (p.points[p.points.length - 1].z - top.z < drop * r.fall) continue;
+    const d = hypot(top.x - start.x, top.z - start.z);
+    if (d < bestD) {
+      best = p;
+      bestD = d;
+    }
+  }
+  if (best) used.add(best);
+  return best;
+}
+
+/** Where a run at (`x`, `z`) steers to stay on ONE real piste: the
+ * nearest point of its line `ahead` m further down the face, no more than
+ * `aside` m across — `pisteAhead` read on that piste alone. */
+export function alongPiste(
+  piste: HintPiste,
+  r: { readonly ahead: { readonly min: number; readonly max: number }; readonly aside: number },
+): (x: number, z: number) => Point | null {
+  return pisteAhead({ lifts: [], pistes: [piste], houses: [] }, piste.grade, { ...r, same: 0 });
+}
+
+/** The real width of the pistes at (`x`, `z`), m: the width the map gives
+ * at the nearest bend within `near` m, 0 where none is given. */
+export function pisteWidth(hints: RealHints, near: number): (x: number, z: number) => number {
+  const CELL = 50;
+  const cells = new Map<number, { x: number; z: number; w: number }[]>();
+  const key = (i: number, j: number): number => i * 4096 + j;
+  for (const p of hints.pistes) {
+    p.points.forEach((q, i) => {
+      const w = p.widths[i];
+      if (w <= 0) return;
+      const k = key(Math.floor(q.x / CELL), Math.floor(q.z / CELL));
+      const cell = cells.get(k) ?? [];
+      cell.push({ x: q.x, z: q.z, w });
+      cells.set(k, cell);
+    });
+  }
+  return (x, z) => {
+    const ci = Math.floor(x / CELL);
+    const cj = Math.floor(z / CELL);
+    let best = 0;
+    let bestD = near;
+    for (let i = ci - 1; i <= ci + 1; i++) {
+      for (let j = cj - 1; j <= cj + 1; j++) {
+        for (const q of cells.get(key(i, j)) ?? []) {
+          const d = hypot(q.x - x, q.z - z);
+          if (d < bestD) {
+            best = q.w;
+            bestD = d;
+          }
+        }
+      }
+    }
+    return best;
+  };
+}
+
+/** The colour a run is BILLED: the colour of the real piste it was laid on
+ * where it measures within `RR.massif.real.least.signed` colours of it (a
+ * real ski area signs a run by more than its steepest pitch), else the
+ * colour it measures. A run on no real piste is billed what it measures. */
+export function billedColour(signed: PisteGrade | undefined, measured: PisteGrade): PisteGrade {
+  if (!signed) return measured;
+  const off = Math.abs(PISTE_GRADES.indexOf(signed) - PISTE_GRADES.indexOf(measured));
+  return off <= RR.massif.real.least.signed ? signed : measured;
 }

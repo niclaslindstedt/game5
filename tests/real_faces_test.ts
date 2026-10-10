@@ -114,6 +114,7 @@ describe("a real face's hints", () => {
           { x: 1300, z: 2200 },
           { x: 1600, z: 3000 },
         ],
+        widths: [0, 0, 0],
       },
     ],
     houses: [],

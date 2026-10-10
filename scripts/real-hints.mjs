@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE REAL FACES' HINTS — where the real ski area on each of the twenty
-// real faces has its lifts, its pistes and its houses, coarsely, so a ski
-// area raised on a face can be laid the way the real one is.
+// real faces has its lifts, its pistes and its houses, so a ski area
+// raised on a face can be laid the way the real one is.
 //
 // The offline half: it reads the map data of each face's crop off
 // OpenStreetMap (the editing API's bounding-box call, a few tiles a face,
 // kept in `previews/.osm/` once fetched), keeps only what a generator can
 // lean on — every lift's two ends and its kind, every downhill piste as a
-// short line of a few bends and its grade, every building's middle, size
+// line of bends with its grade and its width at each (off the piste's
+// mapped area, where there is one), every building's middle, size
 // and bearing — turns them onto the face's map with the same crop the
 // heights were baked on (`scripts/lib/real-face-crops.mjs`), and writes
-// them coarsely into `engine/mapgen/real-hints-data.ts`, a GENERATED file
+// them into `engine/mapgen/real-hints-data.ts`, a GENERATED file
 // that `real-hints.ts` decodes at run time.
 //
 // Nothing is kept by name: no lift, piste or place name is read.
@@ -159,7 +160,11 @@ const COARSE = 2;
 const FINE = 1;
 const STRAY = 6;
 const SHORTEST = 60;
+/** A piste area wider than this across its line is a whole bowl mapped as
+ * one, and tells nothing of the piste's own width, m. */
+const WIDEST = 160;
 const SIZE_STEP = 1;
+const WIDTH_STEP = 2;
 const BEARINGS = 32;
 /** The houses kept: none smaller than `HOUSE_LEAST` m a side (a shed, a
  * garage), and no more than `HOUSES_MOST` a face, the largest first. */
@@ -202,6 +207,65 @@ function onMap(pts) {
 const lengthOf = (pts) =>
   pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
 
+/** A piste AREA (a groomed slope mapped as its outline): its ring and
+ * its bounds. */
+function areaOf(ring) {
+  const xs = ring.map((p) => p[0]);
+  const zs = ring.map((p) => p[1]);
+  return {
+    ring,
+    x0: Math.min(...xs),
+    x1: Math.max(...xs),
+    z0: Math.min(...zs),
+    z1: Math.max(...zs),
+  };
+}
+
+function inside(ring, x, z) {
+  let odd = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, zi] = ring[i];
+    const [xj, zj] = ring[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) odd = !odd;
+  }
+  return odd;
+}
+
+/** How far from (`x`, `z`) along (`dx`, `dz`) a ring's edge is, m. */
+function reachTo(ring, x, z, dx, dz) {
+  let best = Infinity;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [ax, az] = ring[j];
+    const ex = ring[i][0] - ax;
+    const ez = ring[i][1] - az;
+    const den = dx * ez - dz * ex;
+    if (Math.abs(den) < 1e-9) continue;
+    const t = ((ax - x) * ez - (az - z) * ex) / den;
+    const u = ((ax - x) * dz - (az - z) * dx) / den;
+    if (t > 0 && u >= 0 && u <= 1) best = Math.min(best, t);
+  }
+  return best;
+}
+
+/** The real width of a piste at each of its bends, m: straight across its
+ * line to the edges of the narrowest piste area it lies in — 0 where it
+ * lies in none (a piste mapped as a line alone). */
+function widthsOf(points, areas) {
+  return points.map(([x, z], i) => {
+    const [ax, az] = points[Math.max(0, i - 1)];
+    const [bx, bz] = points[Math.min(points.length - 1, i + 1)];
+    const l = Math.hypot(bx - ax, bz - az) || 1;
+    const [nx, nz] = [-(bz - az) / l, (bx - ax) / l];
+    let best = 0;
+    for (const a of areas) {
+      if (x < a.x0 || x > a.x1 || z < a.z0 || z > a.z1 || !inside(a.ring, x, z)) continue;
+      const w = reachTo(a.ring, x, z, nx, nz) + reachTo(a.ring, x, z, -nx, -nz);
+      if (w < WIDEST && (best === 0 || w < best)) best = w;
+    }
+    return best;
+  });
+}
+
 /** A face's hints on its map: lifts bottom to top, pistes down their line,
  * houses by their middle, size and bearing. `height` reads the face's own
  * baked heights, so a lift's bottom is the lower of its ends. */
@@ -210,6 +274,17 @@ function hintsOf(face, height) {
   const lifts = [];
   const pistes = [];
   const houses = [];
+  const areas = [];
+  for (const w of ways.values()) {
+    const closed = w.refs[0] === w.refs.at(-1);
+    if (w.tags["piste:type"] !== "downhill" || !closed || w.refs.length < 4) continue;
+    const ring = w.refs
+      .slice(0, -1)
+      .map((r) => nodes.get(r))
+      .filter(Boolean)
+      .map((g) => mapAt(face, ...g));
+    if (ring.length >= 3) areas.push(areaOf(ring));
+  }
   for (const w of ways.values()) {
     const pts = w.refs
       .map((r) => nodes.get(r))
@@ -230,7 +305,8 @@ function hintsOf(face, height) {
       if (lengthOf(line) < SHORTEST) continue;
       // Down the hill, top first.
       if (height(...line[0]) < height(...line.at(-1))) line = line.reverse();
-      pistes.push({ grade: gradeOf(face, w.tags), points: thin(line, STRAY) });
+      const points = thin(line, STRAY);
+      pistes.push({ grade: gradeOf(face, w.tags), points, widths: widthsOf(points, areas) });
       continue;
     }
     if (w.tags.building && closed && pts.length >= 4) {
@@ -292,11 +368,12 @@ function encode(h) {
     put(p.grade);
     put(p.points.length);
     let [px, pz] = [0, 0];
-    for (const [x, z] of p.points) {
+    p.points.forEach(([x, z], i) => {
       put(q(x, COARSE) - px);
       put(q(z, COARSE) - pz);
+      put(q(p.widths[i], WIDTH_STEP));
       [px, pz] = [q(x, COARSE), q(z, COARSE)];
-    }
+    });
   }
   const houses = h.houses
     .map((o) => ({
@@ -355,10 +432,11 @@ if (args.write) {
     "  readonly data: string;",
     "};",
     "",
-    "/** A lift's ends and a piste's bends are kept in steps of `coarse` m, a",
+    "/** A lift's ends and a piste's bends are kept in steps of `coarse` m and",
+    " * the piste's width at each bend in steps of `width` m (0 unknown), a",
     " * house's middle in steps of `fine` m and its size in steps of `size` m,",
     " * its bearing in `bearings` steps round half a turn. */",
-    `export const HINT_GRAIN = { coarse: ${COARSE}, fine: ${FINE}, size: ${SIZE_STEP}, bearings: ${BEARINGS} } as const;`,
+    `export const HINT_GRAIN = { coarse: ${COARSE}, fine: ${FINE}, size: ${SIZE_STEP}, width: ${WIDTH_STEP}, bearings: ${BEARINGS} } as const;`,
     "",
     "export const HINT_DATA: readonly HintData[] = [",
     ...baked.flatMap((b) => ["  {", `    id: "${b.id}",`, `    data: "${b.data}",`, "  },"]),

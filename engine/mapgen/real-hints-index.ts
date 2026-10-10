@@ -18,7 +18,8 @@ export type HintData = {
  * the piste's width at each bend in steps of `width` m (0 unknown), a
  * house's middle in steps of `fine` m and its size in steps of `size` m,
  * its bearing in `bearings` steps round half a turn; a street's bends and
- * the town's middle in steps of `coarse` m, its radius of `town` m. */
+ * the town's middle in steps of `coarse` m, its radius of `town` m; a
+ * water body's rings and a stream's line in steps of `water` m. */
 export const HINT_GRAIN = {
   coarse: 2,
   fine: 1,
@@ -26,6 +27,7 @@ export const HINT_GRAIN = {
   width: 2,
   bearings: 32,
   town: 10,
+  water: 2,
 } as const;
 
 /** The grades of the real pistes on each face that has hints. */

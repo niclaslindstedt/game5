@@ -29,6 +29,11 @@
 import { createDrawing } from "@niclaslindstedt/oss-game-framework/tooling/draw";
 
 const PAPER = [246, 244, 238];
+/** A real face's water (`real-water.ts`): a body as drawn (frozen, pale
+ * blue ice under a skin of snow), its shore, and a stream's line. */
+const ICE = [188, 214, 236];
+const SHORE = [70, 120, 170];
+const STREAM = [60, 120, 190];
 const INK = [24, 24, 28];
 const WHITE = [255, 255, 255];
 
@@ -177,6 +182,7 @@ export function renderResortPlan({
   const ll = Math.hypot(L.x, L.y, L.z);
   const runs = runGrid(level, 2);
   const hub = hubAt ? level.resort?.hub : null;
+  const wet = waterMask(level.water ?? [], W, vx, vz, scale);
   for (let j = 0; j < W; j++) {
     for (let i = 0; i < W; i++) {
       const x = vx + (i + 0.5) / scale;
@@ -190,6 +196,7 @@ export function renderResortPlan({
         const t = Math.min(1, (0.7 - nrm.y) / 0.12);
         c = c.map((v, k) => v + (ROCK[k] * (0.6 + 0.5 * lit) - v) * t);
       }
+      if (wet[j * W + i]) c = c.map((v, k) => v + (ICE[k] * (0.75 + 0.3 * lit) - v) * 0.85);
       const ink = runs.at(x, z);
       const packed = level.packedAt(x, z);
       if (ink && packed > 0.3) c = c.map((v, k) => v + (ink[k] - v) * 0.38 * packed);
@@ -208,6 +215,31 @@ export function renderResortPlan({
       if (b(h) !== b(hs[j * W + i + 1]) || b(h) !== b(hs[(j + 1) * W + i])) {
         canvas.set(ox + i, oy + j, [70, 90, 120, 60]);
       }
+    }
+  }
+  // A real face's water: each body's shore, then the streams, widening
+  // downstream.
+  for (const b of level.water ?? []) {
+    for (const r of b.rings) {
+      for (let i = 0; i < r.length; i += 2) {
+        const k = (i + 2) % r.length;
+        canvas.line(px(r[i]), py(r[i + 1]), px(r[k]), py(r[k + 1]), [...SHORE, 200], 1);
+      }
+    }
+  }
+  for (const st of level.streams ?? []) {
+    const l = st.line;
+    const n = l.length / 2;
+    for (let i = 0; i + 1 < n; i++) {
+      const w = Math.max(1, st.width * scale * (0.6 + (0.4 * i) / n));
+      canvas.line(
+        px(l[2 * i]),
+        py(l[2 * i + 1]),
+        px(l[2 * i + 2]),
+        py(l[2 * i + 3]),
+        [...STREAM, 220],
+        w,
+      );
     }
   }
   for (const t of level.trees) {
@@ -606,4 +638,32 @@ function coursePoints(level, course) {
     from = run.into ? run.into.s : 0;
   }
   return out;
+}
+
+/** Which pixels of a W×W page (its corner at `vx`, `vz`, `scale` px a
+ * metre) lie in a body of `water` — even-odd over each body's rings, a
+ * row at a time. */
+function waterMask(water, W, vx, vz, scale) {
+  const wet = new Uint8Array(W * W);
+  for (const b of water) {
+    for (let j = 0; j < W; j++) {
+      const z = vz + (j + 0.5) / scale;
+      const xs = [];
+      for (const r of b.rings) {
+        for (let i = 0; i < r.length; i += 2) {
+          const k = (i + 2) % r.length;
+          const [az, bz] = [r[i + 1], r[k + 1]];
+          if (az > z === bz > z) continue;
+          xs.push(r[i] + ((r[k] - r[i]) * (z - az)) / (bz - az));
+        }
+      }
+      xs.sort((a, c) => a - c);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        const i0 = Math.max(0, Math.ceil((xs[k] - vx) * scale - 0.5));
+        const i1 = Math.min(W - 1, Math.floor((xs[k + 1] - vx) * scale - 0.5));
+        for (let i = i0; i <= i1; i++) wet[j * W + i] = 1;
+      }
+    }
+  }
+  return wet;
 }

@@ -111,8 +111,12 @@ export {
   type HintPiste,
   type HintStreet,
   type HintTown,
+  type HintStream,
+  type HintWater,
   type RealHints,
+  ringArea,
 } from "./real-hints.ts";
+export { WATER, inWater, layWater, waterWithin, type FaceWater } from "./real-water.ts";
 // The scoreboard the search gates on, re-exported here so the one surface
 // that carries the generator carries its verdict too.
 export {

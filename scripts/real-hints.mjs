@@ -20,7 +20,10 @@
 // signed and its woods by height (`scripts/lib/real-face-forest.mjs`: the
 // forest the map draws, read onto the face's height grid — the tree line
 // and the cover in eight bands), that `real-hints.ts` and `real-face.ts`
-// read at run time.
+// read at run time. After the town, each file carries the face's WATER
+// (`scripts/lib/real-face-water.mjs`: its lakes, ponds, reservoirs and
+// rivers mapped as areas, and its rivers and streams mapped as lines),
+// which `real-water.ts` lays onto the map.
 //
 // Nothing is kept by name: no lift, piste or place name is read.
 //
@@ -49,6 +52,7 @@ import {
 } from "./lib/real-face-files.mjs";
 import { encodeTrees, forestPolygons, rasterise, woodsByHeight } from "./lib/real-face-forest.mjs";
 import { townOf } from "./lib/real-face-streets.mjs";
+import { GRAIN as WATER_GRAIN, putWater, waterOf } from "./lib/real-face-water.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = join(root, "previews", ".osm");
@@ -504,8 +508,16 @@ function townBytes(streets) {
   return w.bytes.length;
 }
 
+/** How many bytes a face's water takes as baked. */
+function waterBytes(water) {
+  const w = varints();
+  putWater(w.put, water);
+  return w.bytes.length;
+}
+
 /** The hints as bytes: zig-zag varints, every coordinate a step of its own
- * grain and each told as its step from the one before; the town last. */
+ * grain and each told as its step from the one before; the town, then the
+ * water (`real-face-water.mjs`), last. */
 function encode(h) {
   const { bytes, put } = varints();
   put(h.lifts.length);
@@ -542,6 +554,7 @@ function encode(h) {
     [hx, hz] = [o.x, o.z];
   }
   putTown(put, h.town, h.streets);
+  putWater(put, h.water);
   return Buffer.from(bytes).toString("base64");
 }
 
@@ -557,13 +570,16 @@ if (args.fetch) {
 }
 const baked = [];
 console.log(
-  "face            lifts  pistes  houses  streets  town b   bytes  wooded  line m  missing  bands",
+  "face            lifts  pistes  houses  streets  town b  lakes  streams  water b  biggest m2   bytes  wooded  line m  missing  bands",
 );
 for (const face of faces) {
   if (!(await loadRealFace(face.id))) throw new Error(`${face.id}: bake its heights first`);
   const grid = realFace(face.id);
   const data = readFace(face);
-  const h = hintsOf(face, data, (x, z) => faceHeight(grid, x, z));
+  const height = (x, z) => faceHeight(grid, x, z);
+  const h = hintsOf(face, data, height);
+  const water = await waterOf(face, data, height, relationFull, readXml);
+  h.water = water;
   const { polys, missing } = await forestPolygons(face, data, relationFull, readXml);
   const woods = woodsByHeight(rasterise(polys, FACE_GRID.n, FACE_GRID.cell), grid.heights);
   const trees = woods.trees ? encodeTrees(woods.trees) : null;
@@ -577,7 +593,7 @@ for (const face of faces) {
   const line = woods.trees ? (woods.lo + woods.trees.line * (woods.hi - woods.lo)).toFixed(0) : "-";
   const bands = woods.trees ? woods.trees.bands.map((b) => b.toFixed(2)).join(" ") : "";
   console.log(
-    `${face.id.padEnd(16)}${String(h.lifts.length).padStart(5)}${String(h.pistes.length).padStart(8)}${String(h.houses.length).padStart(8)}${String(h.streets.length).padStart(9)}${String(townBytes(h.streets)).padStart(8)}${String(Math.round((encoded.length * 3) / 4)).padStart(8)}${woods.share.toFixed(2).padStart(8)}${line.padStart(8)}${String(missing).padStart(9)}  ${bands}`,
+    `${face.id.padEnd(16)}${String(h.lifts.length).padStart(5)}${String(h.pistes.length).padStart(8)}${String(h.houses.length).padStart(8)}${String(h.streets.length).padStart(9)}${String(townBytes(h.streets)).padStart(8)}${String(water.bodies.length).padStart(7)}${String(water.streams.length).padStart(9)}${String(waterBytes(water)).padStart(9)}${String(Math.round(water.bodies[0]?.area ?? 0)).padStart(12)}${String(Math.round((encoded.length * 3) / 4)).padStart(8)}${woods.share.toFixed(2).padStart(8)}${line.padStart(8)}${String(missing + water.missing).padStart(9)}  ${bands}`,
   );
 }
 const total = baked.reduce((s, b) => s + b.data.length, 0);
@@ -608,6 +624,7 @@ if (args.write) {
       width: WIDTH_STEP,
       bearings: BEARINGS,
       town: TOWN_STEP,
+      water: WATER_GRAIN,
     },
   );
   console.log(`wrote ${HINT_INDEX}`);

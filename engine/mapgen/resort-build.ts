@@ -7,7 +7,7 @@
 //
 // THE ORDER inside an attempt, all off the attempt's stream unless named:
 //
-//   1. the massif (R25), baked once onto the grid
+//   1. the massif (R25), baked once onto the grid, and a real face's water
 //   2. the stations and the lifts (R26), and the run slots (R27)
 //   3. every run WALKED, in slot order, onto the untouched mountain — each
 //      walked again up to `network.tries` times before its slot is left
@@ -87,6 +87,7 @@ import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
 import { bakeMassif, planMassif } from "./massif.ts";
 import { realFace, type RealFace } from "./real-face.ts";
+import { inWater, layWater, type FaceWater } from "./real-water.ts";
 import { billedColour } from "./real-hints.ts";
 import {
   BENCH,
@@ -172,6 +173,8 @@ export type BuiltResort = {
   /** R42 — the ski routes, laid on the finished area (`ski-routes.ts`);
    * absent until then, and on a version from before them. */
   routes?: SkiRoute[];
+  /** A real face's water (`real-water.ts`); null on a dealt massif. */
+  water: FaceWater | null;
 };
 
 /** R29 — what the build did for access, piste by piste: walks turned away
@@ -244,6 +247,7 @@ export function attemptResort(
   const traits = generatorTraits(version);
   const plan = planMassif(rng, region, face, attempt);
   const ground = bakeMassif(plan);
+  const water = layWater(plan, ground); // a real face's, its ground flattened under it
   reached("mountain");
   const stepped = traits.steppedJunctions === true;
   const grade = (
@@ -458,8 +462,7 @@ export function attemptResort(
       );
     },
   };
-  // R29 first: every piste brought back to its top, every lift reached;
-  // then the lanes between the sectors.
+  // R29 first (every piste back to its top, every lift reached), then the lanes between sectors.
   const laid = layAccess(links, () => String(++nextId));
   const lost = laid.lost;
   layLinks(links, () => String(++nextId));
@@ -594,8 +597,7 @@ export function attemptResort(
       drifts,
     });
   }
-  // The station pads at their levels again, over the runs pressed off them
-  // (R26).
+  // The station pads at their levels again, over the runs pressed off them (R26).
   relevelPads(
     ground,
     pads,
@@ -615,8 +617,7 @@ export function attemptResort(
   const graded = built.filter((b) => b.run.kind === "piste").length;
   if (graded < fewest) return `only ${graded} piste(s) could be graded into the mountain`;
   // The runs that stand, renumbered: a merge names the run it joins by its
-  // place among them, and the index the woods and the mountain's own
-  // features keep clear of holds only them.
+  // place among them, and the index the woods and features keep off holds them.
   const place = new Map<number, number>();
   walked.forEach((_, i) => {
     if (!dropped.has(i)) place.set(i, place.size);
@@ -740,8 +741,7 @@ export function attemptResort(
   const unhubbed = packed.data.slice();
   groomHub(hubPlan.hub, packed);
   // A drift the hub's grooming reaches into is groomed over there, the run's
-  // whole width, and the drift cut back to the fresh snow left of it (R17,
-  // R29) — the hub laid round where the stations now stand.
+  // whole width, and cut back to the fresh snow left of it (R17, R29).
   for (const b of built) trimDrifts(b, packed, unhubbed);
   // A drag's top too, the ground its rider is let go on (R26).
   groomPads([...pads, ...dragTops], packed, runAt);
@@ -763,7 +763,7 @@ export function attemptResort(
   const lineY = baseY + (plan.treeLine - plan.altitude);
   const woods = WOODS[region.id];
   const clear = (x: number, z: number): boolean => {
-    if (hubClear(hubPlan.hub, sub, x, z)) return true;
+    if (hubClear(hubPlan.hub, sub, x, z) || inWater(water?.water, x, z)) return true;
     for (const l of lifts) if (nearLine(l, x, z) < RR.lift.clear) return true;
     for (const p of pads) if (hypot(x - p.x, z - p.z) < p.r + RR.lift.clear) return true;
     for (const r of allRamps) if (offRamp(r, x, z) < 0) return true;
@@ -787,8 +787,7 @@ export function attemptResort(
   const courses: { plan: CoursePlan; course: Course }[] = [];
   for (let i = 0; i < built.length; i++) {
     const w = built[i].walked;
-    // A course starts at a top station on a piste: a lane is a way across
-    // the mountain, not a run down it.
+    // A course starts at a top station on a piste: a lane is no run down it.
     if (w.spec.kind === "road") continue;
     const plan = composeCourse(kept, i);
     if (typeof plan === "string") continue;
@@ -835,6 +834,7 @@ export function attemptResort(
     facing,
     courses,
     cures,
+    water,
   };
 }
 
@@ -977,7 +977,7 @@ export function resortLevel(
       weather,
       version,
       region: b.region.id,
-      ...(b.plan.face ? { face: b.plan.face.grid.id } : {}),
+      ...(b.plan.face ? { face: b.plan.face.grid.id, ...b.water } : {}),
       grade: course.grade,
       crust: b.crust,
     }),

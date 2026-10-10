@@ -23,6 +23,7 @@
 // nothing else — never the stream, never the generator's order — so no
 // map's digest and no run's moves for it.
 
+import { inWater } from "../mapgen/real-water.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { hubAt, nearestWithin, outsideHub } from "../mapgen/query.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
@@ -192,6 +193,7 @@ function placeCabins(level: Level): Cabin[] {
     for (const [px, pz] of rectPoints(kind, x, z, heading, !deck, 2, 3)) {
       if (groomed(px, pz)) return null;
       if ((level.iceAt?.(px, pz) ?? 0) > 0) return null;
+      if (inWater(level.water, px, pz)) return null;
       if (near.length > 0 && !clearOfLifts(level, px, pz, near)) return null;
     }
     // A building judged on its rectangle is held off its neighbours'

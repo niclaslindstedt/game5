@@ -215,6 +215,14 @@ export interface Level {
   /** THE REAL FACE the map's mountain was read off (R25, `real-face.ts`) —
    * absent on a dealt massif. */
   face?: string;
+  /** A REAL FACE'S WATER (`real-water.ts`): its lakes, ponds, reservoirs and
+   * rivers mapped as areas, each on ground flattened to its surface, and
+   * its streams and rivers mapped as lines — present only on a map raised
+   * on a real face (empty where the face has none), absent on a dealt
+   * massif. Nothing in the physics reads them: a frozen lake is the snow
+   * on its flat ground. */
+  water?: WaterBody[];
+  streams?: WaterStream[];
   /** THE PISTE GRADE the map was BUILT to (R23) — absent on a map from a
    * generator before the grades, or a hand-built one. Ask `gradeOf` for the
    * colour on its signs, which measures one where none was built to. */
@@ -890,6 +898,33 @@ export interface GenerateOptions {
   /** Told how far the search has got, 0–1, at its landmarks (`progress.ts`)
    * — for a loading card's bar. Draws nothing and moves nothing it builds. */
   progress?: (share: number) => void;
+}
+
+/** A body of water on a real face (`real-water.ts`), on the map. */
+export interface WaterBody {
+  kind: "lake" | "pond" | "reservoir" | "river";
+  /** Its rings as x, z pairs, m: `rings[0]` the outer, counter-clockwise (a
+   * positive area in x, z), the holes (its islands) after it, clockwise. */
+  rings: Float32Array[];
+  /** Its surface on the map, m: the ground under the ring is flattened to
+   * exactly this, and eased into the shore round it. */
+  y: number;
+  /** Its surface on the real face, m over the sea: the lowest its shore
+   * stands on the real heights — what a freeze is judged at. */
+  realLevel: number;
+  /** Its area, m² (the outer less its holes). */
+  area: number;
+  /** Whether the map's edge cut it: the rest of it lies off the map. */
+  clipped: boolean;
+}
+
+/** A river or stream on a real face too thin to be mapped as an area. */
+export interface WaterStream {
+  kind: "river" | "stream";
+  /** Its line as x, z pairs, m, DOWNSTREAM: its first point the uphill one. */
+  line: Float32Array;
+  /** Its width, m. */
+  width: number;
 }
 
 /** The answer to "where on the piste is this point nearest?" */

@@ -82,6 +82,19 @@ On a map raised on a face with woods (and only then), the generator:
 
 Measured over the forty, the real tree lines come out where the mountains' own are: 1,730–2,310 m in the alpine faces, 2,750–3,570 m in the continental range, 600–1,670 m in the maritime ones (the lowest on a fjord in the far north) and 480–1,180 m on the fells (the far north's lowest). Three faces have no woods of their own: two high alpine faces whose valley floors lie at or above the tree line, and a fell in the far north whose map draws no forest. The bake's table prints every face's wooded share, tree line and bands.
 
+## The real water
+
+A face also carries its REAL WATER, read off the same map data by the hints' bake (`scripts/lib/real-face-water.mjs`): every lake, pond, reservoir and river mapped as an AREA (`natural=water`, `landuse=reservoir`, `waterway=riverbank`, a closed way or a multipolygon relation's rings, its islands kept as holes; a relation the map call leaves members of out is fetched whole once), and every river and stream mapped as a LINE (`waterway=river|stream`). Each is clipped to the face's window (a body that runs off it is marked `clipped`), thinned to about 4 m and kept to 2 m. A body keeps its kind, its rings (the outer one counter-clockwise, its holes after it, clockwise) and the lowest the real face stands along its shore (`realLevel`); a stream keeps its kind, its line ordered downstream by the real heights, and its width (the map's own where it gives one, else 12 m for a river and 3 m for a stream). Bodies under 400 m² are dropped, and a face keeps its 40 largest bodies and 30 longest streams. That is 0.3–2.1 KB a face, appended to the face's hint file after the town.
+
+On a map raised on a face (and only then), the generator lays the water on the ground it has just baked, before anything is stood on it (`real-water.ts`'s `layWater`), and publishes it as `Level.water` (`WaterBody`) and `Level.streams` (`WaterStream`):
+
+- **The surface is the map's, not the real level.** The map's ground is the dealt massif with the real relief laid over it, tamed, so the bench a real tarn lies on is not always there. A body's surface `y` is the median of the map's ground under it, so it is dug into the slope above as far as it is banked below, and a body that would need more than 15 m either way is left off the map rather than set in a crater. The real shore's height stays on the body as `realLevel`.
+- **The ground under a body is flattened to exactly `y`**, with no bowl, and eased into the shore round it over 10–20 m (more the further the ground stood off). A frozen lake is a flat field of snow; the water itself is the renderer's.
+- **The valley floor stays dry.** The rows the hub, the bottom stations, the finishes and the wind tunnels stand on (150 m above the foot of the face to 190 m below it) are cut out of a body reaching onto them, and what lies past them is kept and marked `clipped`: a valley lake the real town stands above lies below the map's village.
+- **Nothing stands in the water** (`inWater`, `waterWithin`): no tree, no lift tower or station, no cabin or real house, no pad. A run may cross a body, and its grading and a station's pad cut still move the ground under it there.
+
+Measured over the forty on seed 1: 224 bodies are laid (114 on the mountain, more than 60 m over the village, and 110 down on the valley floor and below the town) on 38 faces, and 843 streams; the largest laid is 0.66 km², a valley lake cut along the floor's rows. The attempts and the build time are those of the maps without water to within a few per cent (88 attempts against 90, 582 s against 586 s). With the guard off, about 13,000 trees and one lift tower would stand in the water; none does.
+
 ## The data
 
 The heights come from the **Copernicus DEM GLO-30**, a global 30 m surface model. It is free to use and redistribute with this notice:

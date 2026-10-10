@@ -1,6 +1,6 @@
 ---
 name: add-real-face
-description: "Use when a REAL MOUNTAIN is to be imported — 'add a real face', 'import more real mountains', a face's crop moved, or its heights or ski-area hints re-baked. The whole of what a real face is in this repo, as one checklist in order: the crop (a row in `scripts/lib/real-face-crops.mjs`, keyed region-N and named by its range, area and part), the heights' bake off the 30 m elevation model, the hints' bake off OpenStreetMap (lifts, pistes with their signed colour and width, buildings, the town's streets roughly, and the woods by height — the real tree line and cover), the suite, the resort lab that shows the hints under the generator's plan, the measured numbers a PR owes (attempts, build time, how near the runs lie to the real pistes, the colour match), and the promise that no dealt map moves. Owns the order and the measurement; how the relief is laid and how the stations and runs lean on the hints is `mapgen-improvement`'s."
+description: "Use when a REAL MOUNTAIN is to be imported — 'add a real face', 'import more real mountains', a face's crop moved, or its heights or ski-area hints re-baked. The whole of what a real face is in this repo, as one checklist in order: the crop (a row in `scripts/lib/real-face-crops.mjs`, keyed region-N and named by its range, area and part), the heights' bake off the 30 m elevation model, the hints' bake off OpenStreetMap (lifts, pistes with their signed colour and width, buildings, the town's streets roughly, the woods by height — the real tree line and cover — and the water: lakes, ponds, reservoirs, rivers and streams), the suite, the resort lab that shows the hints under the generator's plan, the measured numbers a PR owes (attempts, build time, how near the runs lie to the real pistes, the colour match), and the promise that no dealt map moves. Owns the order and the measurement; how the relief is laid and how the stations and runs lean on the hints is `mapgen-improvement`'s."
 ---
 
 # Adding a real face: a real mountainside, named by its place
@@ -181,6 +181,16 @@ leaves out a forest relation's members that lie outside the box; `--fetch`
 fetches such a relation whole, once. The cache in `previews/.osm/` is
 keyed by the face's id AND its crop, so a face re-cropped fetches afresh.
 `--write --trees` writes the woods alone and keeps every hint file.
+After the town, each hint file carries THE WATER
+(`scripts/lib/real-face-water.mjs`): every lake, pond, reservoir and river
+mapped as an area (a closed way or a multipolygon's rings, its islands as
+holes, clipped to the window), thinned to 4 m on a 2 m grain, with the
+lowest its real shore stands, at least 400 m² and the 40 largest; and the
+30 longest rivers and streams mapped as lines, cut out of the bodies and
+ordered downstream. Read the table's `lakes`, `streams`, `water b` and
+`biggest m2` columns: a face is 0.1–2.1 KB of water, and a body of square
+kilometres is a valley lake the window cut. A water relation the map call
+left members of out is fetched whole with `--fetch`, as a forest's is.
 
 ### 4. The suite
 
@@ -219,6 +229,11 @@ touches how hints are used), on seed 1 and a few more:
   throwaway Node script under `scripts/` (run with `node
   --experimental-strip-types`, listed in `.git/info/exclude`, deleted when
   done) and count the `refused` lines by reason;
+- **the water** (when the bake's water or how it is laid moves): the
+  bodies and streams kept and their bytes, the largest body, how many lie
+  on the mountain (60 m or more over the village) and how many below it,
+  the bodies left out for want of flat ground, and the trees, towers,
+  buildings and pads that stand in water with the guard off and on;
 - **the town and the buildings** (when the village's place or the real
   houses move): the village's centre and the valley lift's foot against
   the real town's middle (`villageOf(level).centre`, `realHints(id).town`),
@@ -253,6 +268,7 @@ face). The README and `AGENTS.md` only if a count they state moved.
 | The woods by height → the tree line and the woods | `scripts/lib/real-face-forest.mjs` → `HINT_TREES` in `real-hints-index.ts`; `massif.ts` (the tree line), `resort-woods.ts`'s `faceWoods` (the cover) |
 | The relief laid onto the massif | `engine/mapgen/massif.ts` (`readFace`, `faceLift`) |
 | The hints' bake → the generated hints | `scripts/real-hints.mjs` → `engine/mapgen/real-hints/hints-<id>.ts`, `real-hints-index.ts` |
+| The water's bake → the bodies and streams on a face's map (laid by its median, cut off the valley floor's rows, left out where the ground under it is too far off flat; the ground flattened; trees, towers, buildings and pads kept off it) | `scripts/lib/real-face-water.mjs` → `HintWater`, `HintStream`; `engine/mapgen/real-water.ts` (`layWater`, `inWater`, `WATER`), `Level.water` / `.streams` |
 | The hints read (lifts leant, a run laid on a piste, its width) | `engine/mapgen/real-hints.ts` (`leanLift`, `leanStation`, `pisteFor`, `alongPiste`, `pisteAhead`, `pisteVia`, `pisteWidth`) |
 | Where the plan uses them | `engine/mapgen/resort.ts` (`planResort`), `network.ts` (`RunSpec.widthAt`, `.signed`), `resort-build.ts` (the signed colour, the fewest runs) |
 | The rules a face is held to | `engine/mapgen/resort-rules.ts`'s `RR.massif.real` (`.least` the relaxed ones), read by `engine/analysis/resort.ts` |

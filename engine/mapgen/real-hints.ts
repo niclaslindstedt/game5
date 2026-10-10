@@ -58,6 +58,28 @@ export type HintStreet = {
  * radius that holds most of its streets, m. */
 export type HintTown = { readonly x: number; readonly z: number; readonly r: number };
 
+/** A real body of water (`scripts/lib/real-face-water.mjs`): its kind,
+ * its rings on the map as x, z pairs — `rings[0]` the outer,
+ * counter-clockwise (a positive area in x, z), the holes (its islands)
+ * clockwise — the lowest its shore stands on the real face, m over the
+ * sea, its area, m², and whether the map's window cut it. */
+export type HintWater = {
+  readonly kind: "lake" | "pond" | "reservoir" | "river";
+  readonly rings: readonly Float32Array[];
+  readonly level: number;
+  readonly area: number;
+  readonly clipped: boolean;
+};
+
+/** A real river or stream too thin to be mapped as an area: its line on
+ * the map as x, z pairs, DOWNSTREAM (its first point the uphill one), and
+ * its width, m. */
+export type HintStream = {
+  readonly kind: "river" | "stream";
+  readonly line: Float32Array;
+  readonly width: number;
+};
+
 export type RealHints = {
   readonly lifts: readonly HintLift[];
   readonly pistes: readonly HintPiste[];
@@ -66,6 +88,10 @@ export type RealHints = {
    * no town), and the town itself (null then). */
   readonly streets: readonly HintStreet[];
   readonly town: HintTown | null;
+  /** The lakes, ponds, reservoirs and rivers mapped as areas, the largest
+   * first, and the streams and rivers mapped as lines, the longest first. */
+  readonly water: readonly HintWater[];
+  readonly streams: readonly HintStream[];
 };
 
 /** A point on the map, m. */
@@ -73,6 +99,8 @@ export type Point = { readonly x: number; readonly z: number };
 
 const KINDS = ["chair", "gondola", "drag"] as const;
 const GRADES: readonly RunGrade[] = ["green", "blue", "red", "black", "orange"];
+const WATER_KINDS = ["lake", "pond", "reservoir", "river"] as const;
+const STREAM_KINDS = ["river", "stream"] as const;
 
 const loaded = new Map<string, HintData>();
 const decoded = new Map<string, RealHints>();
@@ -176,7 +204,45 @@ function decode(h: HintData): RealHints {
       streets.push({ main, points });
     }
   }
-  return { lifts, pistes, houses, streets, town };
+  const { water: grain } = HINT_GRAIN;
+  let [wx, wz] = [0, 0];
+  const pointsOf = (): Float32Array => {
+    const out = new Float32Array(get() * 2);
+    for (let k = 0; k < out.length; k += 2) {
+      wx += get();
+      wz += get();
+      out[k] = wx * grain;
+      out[k + 1] = wz * grain;
+    }
+    return out;
+  };
+  const water: HintWater[] = [];
+  for (let i = at < bytes.length ? get() : 0; i > 0; i--) {
+    const v = get();
+    const level = get();
+    const rings: Float32Array[] = [];
+    for (let k = get(); k > 0; k--) rings.push(pointsOf());
+    const area = rings.reduce((s, r) => s + ringArea(r), 0);
+    water.push({ kind: WATER_KINDS[v >> 1], rings, level, area, clipped: (v & 1) === 1 });
+  }
+  const streams: HintStream[] = [];
+  for (let i = at < bytes.length ? get() : 0; i > 0; i--) {
+    const kind = STREAM_KINDS[get()];
+    const width = get();
+    streams.push({ kind, width, line: pointsOf() });
+  }
+  return { lifts, pistes, houses, streets, town, water, streams };
+}
+
+/** A ring's signed area, m² (x, z pairs): positive counter-clockwise. */
+export function ringArea(ring: Float32Array): number {
+  let a = 0;
+  const n = ring.length;
+  for (let i = 0; i < n; i += 2) {
+    const j = (i + 2) % n;
+    a += ring[i] * ring[j + 1] - ring[j] * ring[i + 1];
+  }
+  return a / 2;
 }
 
 // ── Leaning on them ─────────────────────────────────────────────────────
@@ -395,7 +461,7 @@ export function alongPiste(
   r: { readonly ahead: { readonly min: number; readonly max: number }; readonly aside: number },
 ): (x: number, z: number) => Point | null {
   return pisteAhead(
-    { lifts: [], pistes: [piste], houses: [], streets: [], town: null },
+    { lifts: [], pistes: [piste], houses: [], streets: [], town: null, water: [], streams: [] },
     piste.grade,
     { ...r, same: 0 },
   );

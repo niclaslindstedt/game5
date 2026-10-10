@@ -17,6 +17,12 @@ import {
   faceHeight,
   faceWoods,
   generateLevel,
+  cabinsOf,
+  helipadOf,
+  inWater,
+  liftPlans,
+  ringArea,
+  sledSpotOf,
   loadAllRealFaces,
   loadRealFace,
   leanLift,
@@ -173,6 +179,9 @@ describe("the real faces", () => {
     const dealt = generateLevel(1, { region: "fell" });
     expect(dealt.face).toBeUndefined();
     expect(dealt.groundAt(2000, 1500)).not.toBeCloseTo(level.groundAt(2000, 1500), 0);
+    // …and carries no water: only a face's map does (`real-water.ts`).
+    expect(dealt.water).toBeUndefined();
+    expect(dealt.streams).toBeUndefined();
     const M = level.mountain!;
     const D = dealt.mountain!;
     const share = (m: typeof M): number => (m.treeLine - m.altitude) / m.vertical;
@@ -443,6 +452,8 @@ describe("a real face's hints", () => {
     houses: [],
     streets: [],
     town: null,
+    water: [],
+    streams: [],
   };
 
   it("lean a lift along the real one's line, its floor station carried down to its row", () => {
@@ -484,5 +495,106 @@ describe("a real face's hints", () => {
     expect(p.z).toBeLessThanOrEqual(2060);
     // Nothing that far across.
     expect(ahead(3500, 1800)).toBeNull();
+  });
+});
+
+describe("a real face's water", () => {
+  beforeAll(loadAllRealFaces);
+  const on = (x: number, z: number): boolean => x >= 0 && x <= 4000 && z >= 0 && z <= 4000;
+
+  it("decodes onto the face's map: rings turned, streams downstream, within its budget", () => {
+    let bodies = 0;
+    for (const id of REAL_FACE_IDS) {
+      const h = realHints(id)!;
+      // At most 40 bodies and 30 streams a face, largest and longest first.
+      expect(h.water.length, id).toBeLessThanOrEqual(40);
+      expect(h.streams.length, id).toBeLessThanOrEqual(30);
+      let points = 0;
+      h.water.forEach((b, i) => {
+        expect(["lake", "pond", "reservoir", "river"], id).toContain(b.kind);
+        expect(b.area, id).toBeGreaterThanOrEqual(400);
+        if (i > 0) expect(b.area, id).toBeLessThanOrEqual(h.water[i - 1].area);
+        expect(Number.isFinite(b.level), id).toBe(true);
+        // The outer ring counter-clockwise in x, z, its holes clockwise,
+        // every point on the map at the 2 m grain.
+        expect(ringArea(b.rings[0]), id).toBeGreaterThan(0);
+        for (const hole of b.rings.slice(1)) expect(ringArea(hole), id).toBeLessThan(0);
+        for (const r of b.rings) {
+          expect(r.length % 2 === 0 && r.length >= 6, id).toBe(true);
+          for (let k = 0; k < r.length; k += 2) {
+            expect(on(r[k], r[k + 1]), id).toBe(true);
+            expect(r[k] % 2 === 0 && r[k + 1] % 2 === 0, id).toBe(true);
+          }
+          points += r.length / 2;
+        }
+      });
+      for (const s of h.streams) {
+        expect(["river", "stream"], id).toContain(s.kind);
+        expect(s.width, id).toBeGreaterThanOrEqual(s.kind === "river" ? 8 : 2);
+        expect(s.width, id).toBeLessThanOrEqual(s.kind === "river" ? 30 : 4);
+        expect(s.line.length, id).toBeGreaterThanOrEqual(4);
+        for (let k = 0; k < s.line.length; k += 2)
+          expect(on(s.line[k], s.line[k + 1]), id).toBe(true);
+        points += s.line.length / 2;
+        // Downstream: never ending more than the bake's tolerance above
+        // where it starts on the real face.
+        const n = s.line.length;
+        const face = realFace(id)!;
+        expect(faceHeight(face, s.line[n - 2], s.line[n - 1]), id).toBeLessThanOrEqual(
+          faceHeight(face, s.line[0], s.line[1]) + 2.01,
+        );
+      }
+      // About 1–3 KB a face: a few hundred points, never thousands.
+      expect(points, id).toBeLessThanOrEqual(1400);
+      bodies += h.water.length;
+    }
+    // The fells are lake country.
+    expect(bodies).toBeGreaterThan(200);
+    expect(realHints("fell-1")!.water[0].area).toBeGreaterThan(1e6);
+  });
+
+  it("is laid on a face's map: flat under each body, nothing standing in it", () => {
+    const level = generateLevel(1, { face: "fell-2" });
+    const water = level.water!;
+    expect(water.length).toBeGreaterThan(0);
+    expect(level.streams!.length).toBeGreaterThan(0);
+    const { runs, lifts } = level.resort!;
+    // A run graded across a body, and a station's pad and the cut of its
+    // way in, are left as they are graded.
+    const onRun = (x: number, z: number): boolean =>
+      runs.some((r) => r.points.some((p) => Math.hypot(p.x - x, p.z - z) < p.width / 2 + 30)) ||
+      lifts.some((l) => [l.bottom, l.top].some((e) => Math.hypot(e.x - x, e.z - z) < 80));
+    let cells = 0;
+    for (const b of water) {
+      expect(ringArea(b.rings[0])).toBeGreaterThan(0);
+      for (let k = 0; k < b.rings[0].length; k += 2) {
+        expect(on(b.rings[0][k], b.rings[0][k + 1])).toBe(true);
+      }
+      expect(Number.isFinite(b.y) && Number.isFinite(b.realLevel)).toBe(true);
+      // The ground under it is its surface.
+      const r = b.rings[0];
+      let [x0, x1, z0, z1] = [Infinity, -Infinity, Infinity, -Infinity];
+      for (let k = 0; k < r.length; k += 2) {
+        [x0, x1] = [Math.min(x0, r[k]), Math.max(x1, r[k])];
+        [z0, z1] = [Math.min(z0, r[k + 1]), Math.max(z1, r[k + 1])];
+      }
+      const step = Math.max(2, Math.ceil(Math.sqrt(((x1 - x0) * (z1 - z0)) / 4000) / 2) * 2);
+      for (let z = Math.ceil(z0 / step) * step; z <= z1; z += step) {
+        for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) {
+          if (!inWater([b], x, z) || onRun(x, z)) continue;
+          expect(level.groundAt(x, z)).toBeCloseTo(b.y, 3);
+          cells++;
+        }
+      }
+    }
+    expect(cells).toBeGreaterThan(100);
+    // No tree, lift tower or station, building or pad stands in it.
+    for (const t of level.trees) expect(inWater(water, t.x, t.z)).toBe(false);
+    for (const p of liftPlans(level)) {
+      for (const s of p.supports) expect(inWater(water, s.x, s.z), p.lift.id).toBe(false);
+    }
+    for (const c of cabinsOf(level)) expect(inWater(water, c.x, c.z), c.kind).toBe(false);
+    for (const p of [helipadOf(level), sledSpotOf(level)])
+      expect(inWater(water, p.x, p.z)).toBe(false);
   });
 });

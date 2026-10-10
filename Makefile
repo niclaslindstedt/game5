@@ -87,6 +87,7 @@ interiors:
 lifts:
 	npm run world -- --free --hour=11 --views=lift-tower,lift-chair,lift-cabin,lift-tbar,lifts $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --free --hour=21 --views=lifts --skip-build $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --hour=11 --views=lift-turns --width 1920 --height 1080 --skip-build $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:

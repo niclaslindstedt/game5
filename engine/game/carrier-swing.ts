@@ -24,7 +24,7 @@
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
-import { carrierSpeedAt, ropeAt, type LiftPlan } from "./lift-line.ts";
+import { carrierSpeedAt, ropeAt, turnRadius, type LiftPlan } from "./lift-line.ts";
 
 const K = TUNING.lift;
 /** How many towers back a lurch is still summed. */
@@ -60,4 +60,25 @@ export function carrierSwingAt(plan: LiftPlan, u: number, side: 0 | 1): number {
     swing += (kick / omega) * Math.exp((-K.damp * tau) / 2) * Math.sin(omega * tau);
   }
   return clamp(swing, -K.swingMost, K.swingMost);
+}
+
+/** How far round a wheel a carrier's outward swing is eased in, and out
+ * again before it leaves, rad of the turn: its hanger takes up the lean as
+ * the rail's or the rope's bend comes on, never in one step. */
+const TURN_EASE = 0.45;
+
+/** HOW FAR A CARRIER LEANS OUT OF A TURN ROUND A WHEEL, rad, RIGHT SIDE
+ * DOWN positive: the hanger's foot thrown out by the turn's pull,
+ * `atan(v² κ / g)`, at the carrier's speed round it — a detachable's creep
+ * on the station's rail, a drag's rope speed — and eased in and out of the
+ * half circle (`TURN_EASE`). Both turns run to the left, so a carrier leans
+ * its top in toward the wheel. 0 off a wheel; a drag's bar on its cord
+ * swings out too. */
+export function carrierRollAt(plan: LiftPlan, turn: number | undefined): number {
+  if (turn === undefined) return 0;
+  const v = plan.look.slow < plan.look.speed ? plan.look.slow : plan.look.speed;
+  const r = turnRadius(plan);
+  const lean = Math.atan2((v * v) / Math.max(0.1, r), TUNING.g);
+  const k = Math.min(1, turn / TURN_EASE, (Math.PI - turn) / TURN_EASE);
+  return -lean * k * k * (3 - 2 * k);
 }

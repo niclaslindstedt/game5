@@ -64,12 +64,13 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 import * as SKIER from "./lib/skier-moves.mjs";
+import { HOP_SWITCH_MOMENTS, HOP_SWITCH_MOVES } from "./lib/hop-switch-moves.mjs";
 import { REVERT_MOMENTS, REVERT_MOVES } from "./lib/revert-moves.mjs";
 
 // The skier lab's moves and the revert lab's (`make revert`) beside them.
-const MOVES = [...SKIER.MOVES, ...REVERT_MOVES];
+const MOVES = [...SKIER.MOVES, ...REVERT_MOVES, ...HOP_SWITCH_MOVES];
 const MOVE_IDS = MOVES.map((m) => m.id);
-const MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS];
+const MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS, ...HOP_SWITCH_MOMENTS];
 const MOMENT_IDS = MOMENTS.map((m) => m.id);
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");

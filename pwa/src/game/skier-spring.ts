@@ -5,8 +5,8 @@
 // air and out of it, a jump loaded and sprung. Stepped with the frame's
 // `dt` (`skis-body.ts`); `skier-pose.ts` reads it. Three-free.
 
-import { revertShare, stepQuick, strideRate, type Save, type SkierState } from "@engine";
-import { revertLook } from "./skier-switch.ts";
+import { revertShare, stepQuick, strideRate, TUNING, type Save, type SkierState } from "@engine";
+import { hopLook, revertLook, WIND_UP } from "./skier-switch.ts";
 
 import { flying, gaitOf } from "./skier-gait.ts";
 
@@ -151,6 +151,11 @@ export type SkierSpring = {
   back: number;
   backRate: number;
   backSide: -1 | 1;
+  /** THE WIND-UP before a hop into switch (`skier-switch.ts`'s `WIND_UP`):
+   * −1..1, signed to the side he means to turn to — the shoulders wound the
+   * other way — and its rate. */
+  wind: number;
+  windRate: number;
 };
 
 /** What the plant reads of the run, when the caller hands it in: the
@@ -198,6 +203,10 @@ export type SpringRide = {
   switched?: boolean;
   /** Turning round out of it (`SkierState.revert`), or none. */
   revert?: SkierState["revert"];
+  /** The jump being loaded, s (`SkierState.jumpLoad`). */
+  jumpLoad?: number;
+  /** Hopped into switch a moment ago (`SkierState.hopHeld`). */
+  hopHeld?: number;
 };
 /** How quickly his body is thrown into a save and fights back out of it,
  * rad/s — a tenth of a second to most of the way: a flung arm moves at
@@ -304,6 +313,9 @@ const BACK_FOLLOW = 7;
 /** How fast the look follows a revert's, 1/s — a head held on the line,
  * and a quick swing across when the turn is to the other shoulder. */
 const REVERT_SWING = 14;
+/** How quickly he winds up against a hop into switch as the legs load,
+ * and unwinds out of it at the pop, rad/s — the unwinding is the throw. */
+const WIND = { in: 10, out: 30 };
 /** How quickly a step turn on the spot takes him out of his idle stance
  * and lets him back into it, 1/s — a third of a second to most of it. */
 const STEP_FOLLOW = 6;
@@ -374,6 +386,8 @@ export function createSkierSpring(offset = 0): SkierSpring {
     back: 0,
     backRate: 0,
     backSide: 1,
+    wind: 0,
+    windRate: 0,
   };
 }
 
@@ -543,7 +557,8 @@ export function stepSkierSpring(
   // LOOKING BACK, on the snow: a 180 is landed before he turns his head
   // to see where he is going. The shoulder is picked as he starts turning
   // round — the side his hips hang to, if he is in a turn — and kept.
-  const back = ride?.switched && !airborne ? 1 : 0;
+  // (Round off a hop into switch, he holds the look through its landing.)
+  const back = ride?.switched && (!airborne || (ride.hopHeld ?? 0) > 0) ? 1 : 0;
   if (back > 0 && s.back < 0.15 && ride && Math.abs(ride.hipRight) > 0.05)
     s.backSide = ride.hipRight > 0 ? 1 : -1;
   [s.back, s.backRate] = follow(s.back, s.backRate, back, dt, BACK_FOLLOW);
@@ -552,8 +567,19 @@ export function stepSkierSpring(
   // body comes round under it (`revertLook`) — swung across through the
   // middle when he turns to the other side than the shoulder he had.
   const revert = ride?.revert;
+  // WOUND UP for a hop into switch while the legs load with the edge held
+  // — and unwound hard as the pop turns him (`hopLook` takes the head).
+  const steer = ride?.steer ?? 0;
+  const winding =
+    ride && !airborne && !ride.switched && !revert && Math.abs(steer) >= TUNING.switch.hop.steer
+      ? Math.sign(steer) * Math.max(0, Math.min(1, (ride.jumpLoad ?? 0) / WIND_UP.full))
+      : 0;
+  [s.wind, s.windRate] = follow(s.wind, s.windRate, winding, dt, winding ? WIND.in : WIND.out);
   if (revert) {
-    const to = revertLook(revert.u, revert.turn, revertShare);
+    const to =
+      revert.to === "switch"
+        ? hopLook(revert.u, revert.turn, revertShare)
+        : revertLook(revert.u, revert.turn, revertShare);
     const at = s.back * s.backSide;
     const look = at + (to - at) * Math.min(1, REVERT_SWING * dt);
     s.back = Math.min(1, Math.abs(look));

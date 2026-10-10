@@ -112,7 +112,7 @@ import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.t
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
-import { heldSlip, hopRevert, revertHold, stepRevert, switchSteer } from "./switch.ts";
+import { heldSlip, hopRevert, hopSwitch, revertHold, stepRevert, switchSteer } from "./switch.ts";
 import { laySkis, sidestepEdge, slideOver, stepSide } from "./sidestep.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
@@ -894,7 +894,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     c.vz += pop * normal.z;
     c.popped = 0;
     events.push({ kind: "jump", t: state.t, pop, held: loaded });
-    hopRevert(state, input.steer);
+    if (c.switched) hopRevert(state, input.steer);
+    else hopSwitch(state, input.steer);
+  } else if (c.airborne && c.popped <= TUNING.switch.hop.late) {
+    // ...or the edge pressed just after it, off the snow already.
+    hopSwitch(state, input.steer);
   }
 
   // ── Air and landing ───────────────────────────────────────────────────

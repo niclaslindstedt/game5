@@ -10,8 +10,10 @@
 //     place and lets it spring back, the harder the further (`jolt`).
 //   * HIS DEATH CLEARS IT: when he dies the readouts fade slowly away where
 //     they stand, gone before anything else happens; then the word DIED
-//     comes up over the picture and the picture goes dark; then the run starts again from the top, a new rider and a
-//     new try (`DEATH.again`, read by `App.tsx`).
+//     comes up over the picture and the picture goes dark; then the run
+//     starts again from the top, a new rider and a new try — after the
+//     player's OPTIONS ▸ RESTART AFTER (`DEATH.again` the default, the
+//     timeline fitted into it by `timelineOf`, read by `App.tsx`).
 //   * HURT TOO BADLY TO SKI ON (`rescue.ts`) it clears the same way, on the
 //     same timeline: the word INJURED and what keeps him down come up, the
 //     picture goes WHITE rather than dark, and the run starts again from
@@ -56,6 +58,22 @@ export type Wreck = {
   white: boolean;
 };
 
+/** THE TIMELINE FITTED TO A RESTART `again` s after he went down: the word
+ * comes up early, and the dark comes down just before the restart, both
+ * squeezed in proportion when the wait is shorter than the default and
+ * the word kept early when it is longer. */
+export function timelineOf(again: number = DEATH.again) {
+  const k = Math.min(1, again / DEATH.again);
+  const fade = DEATH.fade * k;
+  return {
+    word: DEATH.word * k,
+    rise: DEATH.rise * k,
+    dark: again - (DEATH.again - DEATH.dark) * k,
+    fade,
+    again,
+  };
+}
+
 const ramp = (t: number, from: number, over: number): number =>
   Math.max(0, Math.min(1, (t - from) / over));
 
@@ -78,7 +96,9 @@ export function wreckOf(
   blow: { g: number; id: number; age: number } | null,
   died: number | null,
   injured: number | null = null,
+  again: number = DEATH.again,
 ): Wreck {
+  const line = timelineOf(again);
   const jolt =
     blow && blow.age < JOLT_FOR ? Math.min(1, blow.g / JOLT_G) * (1 - blow.age / JOLT_FOR) : 0;
   const since = died ?? injured;
@@ -87,8 +107,8 @@ export function wreckOf(
     jolt,
     joltId: blow?.id ?? 0,
     fade: over ? hudFade(since - DEATH.clear) : 0,
-    word: over ? ramp(since, DEATH.word, DEATH.rise) : 0,
-    dark: over ? ramp(since, DEATH.dark, DEATH.fade) : 0,
+    word: over ? ramp(since, line.word, line.rise) : 0,
+    dark: over ? ramp(since, line.dark, line.fade) : 0,
     white: died === null && injured !== null,
   };
 }
@@ -109,8 +129,8 @@ export function injuredOf(state: GameState): number | null {
 }
 
 /** Whether a death — or a run ended INJURED — has run its course and the
- * run starts again. */
-export function deathOver(state: GameState): boolean {
+ * run starts again, `again` s after it (OPTIONS ▸ RESTART AFTER). */
+export function deathOver(state: GameState, again: number = DEATH.again): boolean {
   const d = diedOf(state) ?? injuredOf(state);
-  return d !== null && d >= DEATH.again;
+  return d !== null && d >= again;
 }

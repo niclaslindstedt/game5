@@ -28,7 +28,7 @@ import {
 import { tillerSpray, type TillerBlood } from "../pwa/src/game/gore-tiller.ts";
 import { GAPS, gapAt, lowestGap, partAt, soakPath } from "../pwa/src/game/gore-leaks.ts";
 import { bindPose } from "../pwa/src/game/dress-loft.ts";
-import { DEATH, HUD_FADE, hudFade, wreckOf } from "../pwa/src/game/hud-wreck.ts";
+import { DEATH, HUD_FADE, hudFade, timelineOf, wreckOf } from "../pwa/src/game/hud-wreck.ts";
 import type { BoneFrame, SkierBone } from "../pwa/src/game/skier-rig.ts";
 
 const bit = (p: GorePiece): number => 1 << GORE_PIECES.indexOf(p);
@@ -226,6 +226,17 @@ describe("the HUD taking his blows", () => {
     expect(at(DEATH.dark - 0.01).dark).toBe(0);
     expect(at(DEATH.dark + DEATH.fade).dark).toBe(1);
     expect(DEATH.dark + DEATH.fade).toBeLessThanOrEqual(DEATH.again);
+  });
+
+  it("fits the card into every RESTART AFTER, the word before the dark before the restart", () => {
+    expect(timelineOf()).toMatchObject({ word: DEATH.word, dark: DEATH.dark, fade: DEATH.fade });
+    for (let again = 2; again <= 10; again++) {
+      const line = timelineOf(again);
+      expect(line.word + line.rise).toBeLessThanOrEqual(line.dark + 1e-9);
+      expect(line.dark + line.fade).toBeLessThanOrEqual(again);
+      const done = wreckOf(null, again, null, again);
+      expect(done).toMatchObject({ word: 1, dark: 1 });
+    }
   });
 });
 

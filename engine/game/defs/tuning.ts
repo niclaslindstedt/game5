@@ -17,6 +17,7 @@ import { CRASH } from "./crash.ts";
 import { FLEX, START_PUSH } from "./race.ts";
 import { LANDING_ABSORB } from "./absorb.ts";
 import { SIDESTEP } from "./sidestep.ts";
+import { STOP_HAND } from "./stop-hand.ts";
 import { STAKES } from "./stakes.ts";
 import { LIFT } from "./lift.ts";
 
@@ -950,6 +951,8 @@ export const TUNING = {
   tricks: TRICKS,
   /** THE SIDESTEP up a steep slope (`defs/sidestep.ts`). */
   sidestep: SIDESTEP,
+  /** THE ONE-KEY BRAKE AND THE CLIMB (`defs/stop-hand.ts`). */
+  hand: STOP_HAND,
 
   /** THE BODY AND WHAT HURTS IT (`defs/anatomy.ts`, `body.ts`). */
   injury: INJURY,

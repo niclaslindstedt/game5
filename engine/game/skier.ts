@@ -861,7 +861,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // hold the slope's pull — along his skis' line, the ledge they stand on
   // taking it across them — is held: his way over the snow taken out, the
   // legs left to settle along its normal — and on his platforms, however
-  // steep (`sidestep.ts`).
+  // steep (`sidestep.ts`), or stepping round on the spot (`poles.ts`).
   if (
     grounded &&
     c.thrown === null &&
@@ -872,7 +872,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   ) {
     snowNormal(level, c, normal);
     const vn = c.vx * normal.x + c.vy * normal.y + c.vz * normal.z;
-    const held = strain <= strained || c.sidestep !== 0;
+    // ...and so is one STEPPING ROUND on the spot (`stepRound`): each ski
+    // set down on its edge as it comes round, a pair at a time.
+    const held = strain <= strained || c.sidestep !== 0 || c.pivot !== 0;
     if (slideOver(c, normal) < G.stillSpeed && strained > 0 && held) {
       c.vx = vn * normal.x;
       c.vy = vn * normal.y;

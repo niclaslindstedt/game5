@@ -36,6 +36,7 @@ import {
   clothWeights,
   dirInBone,
   inBone,
+  len,
   mul,
   norm,
   rides,
@@ -253,31 +254,79 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
   braid(loom, body);
 }
 
-/** A WOMAN'S BRAID, out from under the helmet's nape and down her back. */
-function braid(loom: Loom, body: { female: boolean; hair: number }): void {
+/** A WOMAN'S BRAID: out from under the helmet's nape, over the collar and
+ * down between her shoulder blades — three strands plaited (the lobes
+ * alternating side to side), a tie and a short tuft at its end. Its top
+ * rides the head; down the back it is handed to the chest, so it lies on
+ * the jacket when she bends and swings with her head where it leaves it. */
+function braid(loom: Loom, body: { female: boolean; hair: number; plait: number }): void {
   if (!body.female) return;
-  const path = [H(0, -0.06, -0.118), H(0, -0.11, -0.142), H(0, -0.2, -0.142), H(0, -0.27, -0.128)];
+  const { frames: F, pose: P } = bindPose();
+  const up = F.chest.y;
+  const back = mul(F.chest.z, -1);
+  const at = (b: number, u: number) => add(P.neck, add(mul(back, b), mul(up, u)));
+  const path = [
+    H(0, -0.045, -0.112),
+    H(0, -0.09, -0.13),
+    at(0.125, 0.0),
+    at(0.142, -0.1),
+    at(0.148, -0.2),
+  ];
+  const top = path[0];
+  const L = 0.36;
+  const tieAt = L - 0.05;
+  const hair = body.hair;
   loom.tube({
     path,
-    face: [HD(0, 0, -1), HD(0, 0, -1), HD(0, 0, -1), HD(0, 0, -1)],
-    round: 0.04,
+    face: [HD(0, 0, -1), HD(0, 0, -1), back, back, back],
+    round: 0.03,
     sections: [
-      { s: 0, w: 0.03, f: 0.026, b: 0.026 },
-      { s: 0.06, w: 0.027, f: 0.024, b: 0.024 },
-      { s: 0.17, w: 0.021, f: 0.019, b: 0.019 },
-      { s: 0.22, w: 0.016, f: 0.014, b: 0.014 },
-      { s: 0.235, w: 0.005, f: 0.005, b: 0.005 },
+      { s: 0, w: 0.032, f: 0.026, b: 0.026 },
+      { s: 0.05, w: 0.03, f: 0.022, b: 0.022 },
+      { s: 0.2, w: 0.024, f: 0.017, b: 0.017 },
+      { s: tieAt - 0.01, w: 0.018, f: 0.013, b: 0.013 },
+      { s: tieAt, w: 0.011, f: 0.009, b: 0.009 },
+      { s: tieAt + 0.012, w: 0.012, f: 0.009, b: 0.009 },
+      { s: L - 0.012, w: 0.02, f: 0.012, b: 0.012 },
+      { s: L, w: 0.008, f: 0.005, b: 0.005 },
     ],
-    step: 0.012,
-    segments: 8,
-    fold: (s, t) => 0.004 * Math.sin((s / 0.024) * Math.PI * 2 + t),
-    colour: () => body.hair,
-    weights: () => rides("head"),
+    step: 0.009,
+    cuts: [tieAt - 0.006, tieAt + 0.006],
+    segments: 10,
+    // The plait: lobes 3 cm long, each leaning to the other side.
+    fold: (sl, t) =>
+      sl < tieAt - 0.01
+        ? 0.0045 *
+          Math.cos(t - Math.sign(Math.sin((sl / 0.03) * Math.PI)) * 0.9) *
+          Math.abs(Math.sin((sl / 0.03) * Math.PI)) ** 0.6
+        : 0,
+    colour: (sl, t) => {
+      if (sl > tieAt - 0.006 && sl < tieAt + 0.006) return DARK;
+      // The strands' shadowed partings.
+      return Math.abs(Math.sin((sl / 0.03) * Math.PI)) < 0.25 && Math.cos(t) > 0
+        ? body.plait
+        : hair;
+    },
+    weights: (p) => {
+      const k = smoothstep((len(sub(p, top)) - 0.05) / 0.08);
+      if (k <= 0) return rides("head");
+      if (k >= 1) return rides("chest");
+      return [
+        { ...rides("head")[0], w: 1 - k },
+        { ...rides("chest")[0], w: k },
+      ];
+    },
   });
 }
 
 /** THE GLOVES: a fist round each grip riding the hand, its cuff the
- * forearm, shared across the wrist. */
+ * forearm, shared across the wrist. A fist is a ROUNDED BOX, not a tube:
+ * the back of the hand flat from the wrist to the knuckles, the four
+ * fingers curled round the grip and stacked up it (a groove between each
+ * across the front), the THUMB laid over the grip's top — and a strap
+ * cinched round the wrist. A mitten is the same fist with no fingers and
+ * a fat thumb; the race glove carries hard plates over the knuckles and
+ * the fingers' backs. */
 export function cutGloves(loom: Loom, o: Outfit): void {
   const g = gearOf("gloves", o.gloves);
   const { frames: F, pose: P } = bindPose();
@@ -288,8 +337,15 @@ export function cutGloves(loom: Loom, o: Outfit): void {
     const d = fa.y;
     const fist = P.hands[i];
     // The fist's +z up the pole (from the basket to the fist), squared to
-    // the forearm.
+    // the forearm; its +x across the knuckles.
     const up = norm(sub(hand.z, mul(d, hand.z.x * d.x + hand.z.y * d.y + hand.z.z * d.z)));
+    const across = norm({
+      x: d.y * up.z - d.z * up.y,
+      y: d.z * up.x - d.x * up.z,
+      z: d.x * up.y - d.y * up.x,
+    });
+    // Toward his middle: the side the thumb wraps from.
+    const inward = across.x * (i === 0 ? 1 : -1) > 0 ? 1 : -1;
     const wristS = 0.075;
     const weights = (p: V3): Influence[] => {
       const along = (p.x - fist.x) * d.x + (p.y - fist.y) * d.y + (p.z - fist.z) * d.z;
@@ -300,51 +356,101 @@ export function cutGloves(loom: Loom, o: Outfit): void {
       return [...cuff.map((c) => ({ ...c, w: c.w * (1 - k) })), { ...rides(`hand_${s}`)[0], w: k }];
     };
     const mitten = o.gloves === "mitten";
-    const cuffLen = o.gloves === "undercuff" ? 0.07 : 0.15;
-    const flare = o.gloves === "undercuff" ? 0.046 : mitten ? 0.08 : 0.088;
-    const fw = mitten ? 0.056 : 0.05;
-    const fd = mitten ? 0.064 : 0.058;
-    const back = o.gloves === "race";
+    const race = o.gloves === "race";
+    const under = o.gloves === "undercuff";
+    const cuffLen = under ? 0.075 : 0.155;
+    const flare = under ? 0.044 : mitten ? 0.078 : 0.084;
+    // The fist's half breadths: across the knuckles, up the grip (toward
+    // the thumb) and down it (the little finger).
+    const fw = mitten ? 0.05 : 0.045;
+    const fu = mitten ? 0.055 : 0.05;
+    const C = cuffLen;
+    const end = mitten ? 0.085 : 0.075;
+    const strap = [C - 0.058, C - 0.036];
+    const sections = [
+      { s: 0, w: flare * 0.96, f: flare * 0.96, b: flare * 0.96 },
+      { s: 0.012, w: flare + 0.003, f: flare + 0.003, b: flare + 0.003 },
+      ...(under
+        ? []
+        : [
+            { s: 0.05, w: flare * 0.88, f: flare * 0.86, b: flare * 0.88 },
+            { s: C - 0.075, w: 0.06, f: 0.056, b: 0.058 },
+          ]),
+      { s: C - 0.05, w: 0.043, f: 0.042, b: 0.044 },
+      { s: C - 0.025, w: fw * 0.98, f: fu * 0.9, b: fu * 0.88 },
+      { s: C + 0.005, w: fw, f: fu, b: fu * 0.96 },
+      { s: C + 0.035, w: fw, f: fu * 0.98, b: fu * 0.94 },
+      { s: C + end - 0.022, w: fw * 0.92, f: fu * 0.88, b: fu * 0.84 },
+      { s: C + end - 0.008, w: fw * 0.72, f: fu * 0.66, b: fu * 0.62 },
+      { s: C + end, w: fw * 0.38, f: fu * 0.34, b: fu * 0.32 },
+    ];
+    // The knuckles' line and the fingers' grooves, up the front of the fist.
+    const knuckle = C + 0.012;
+    const fingers = (sl: number, t: number): number => {
+      if (mitten || sl < knuckle) return 0;
+      const zUp = Math.sin(t);
+      const front = Math.max(0, Math.cos(t) * 0) + 1;
+      let k = 0;
+      for (const at of [-0.5, 0, 0.5]) {
+        k -= 0.0035 * front * Math.max(0, 1 - Math.abs(zUp - at) / 0.12);
+      }
+      return k * smoothstep((sl - knuckle) / 0.02);
+    };
     loom.tube({
-      path: [add(fist, mul(d, -cuffLen)), add(fist, mul(d, mitten ? 0.075 : 0.062))],
+      path: [add(fist, mul(d, -C)), add(fist, mul(d, end))],
       face: [up, up],
-      sections: [
-        { s: 0, w: flare, f: flare, b: flare },
-        { s: 0.02, w: flare + 0.003, f: flare + 0.003, b: flare + 0.003 },
-        { s: cuffLen - 0.07, w: 0.055, f: 0.05, b: 0.05 },
-        { s: cuffLen - 0.04, w: 0.047, f: 0.05, b: 0.05 },
-        { s: cuffLen, w: fw, f: fd, b: fd * 0.95 },
-        { s: cuffLen + 0.04, w: fw * 0.98, f: fd, b: fd * 0.95 },
-        { s: cuffLen + (mitten ? 0.075 : 0.062), w: mitten ? 0.03 : 0.034, f: 0.035, b: 0.035 },
-      ],
-      step: 0.025,
-      cuts: [cuffLen - 0.05, cuffLen + 0.01, cuffLen + 0.035],
-      segments: 8,
-      square: 2.4,
-      fold: (sl, t) =>
-        back && sl > cuffLen + 0.01 && sl < cuffLen + 0.035 ? 0.008 * Math.max(0, Math.cos(t)) : 0,
+      sections,
+      step: 0.012,
+      cuts: [strap[0], strap[1], knuckle, C + 0.03],
+      segments: 14,
+      square: mitten ? 2.5 : 3.0,
+      fold: (sl, t) => {
+        let k = fingers(sl, t);
+        if (sl > strap[0] && sl < strap[1]) k += 0.004;
+        // The race glove's plates: proud over the knuckles and the backs of
+        // the fingers (the side away from the body's middle).
+        if (race && sl > knuckle - 0.012 && sl < C + 0.05 && Math.cos(t) * -inward > 0.25) {
+          k += 0.007;
+        }
+        // The gauntlet's cuff gathered by its drawcord just above the wrist.
+        if (!under && sl > 0.03 && sl < C - 0.08) k += 0.003 * Math.sin((sl / 0.02) * Math.PI * 2);
+        return k;
+      },
       colour: (sl, t) => {
-        if (back && sl > cuffLen + 0.01 && sl < cuffLen + 0.035 && Math.cos(t) > 0) return g.second;
-        if (sl < cuffLen - 0.05 && o.gloves !== "undercuff") return mitten ? g.third : g.second;
+        if (sl > strap[0] && sl < strap[1]) return g.second;
+        if (race && sl > knuckle - 0.012 && sl < C + 0.05 && Math.cos(t) * -inward > 0.25) {
+          return g.second;
+        }
+        if (sl < 0.03 && !under) return mitten ? g.third : g.second;
+        if (sl < C - 0.075 && !under) return mitten ? g.third : g.main;
         return g.main;
       },
+      cap: [true, false],
       weights,
     });
-    if (mitten) {
-      // The thumb, over the top of the grip.
-      const base = add(fist, add(mul(up, 0.045), mul(d, -0.01)));
-      loom.tube({
-        path: [base, add(base, add(mul(up, 0.02), mul(d, 0.035)))],
-        face: [d, d],
-        sections: [
-          { s: 0, w: 0.018, f: 0.018, b: 0.018 },
-          { s: 0.04, w: 0.014, f: 0.014, b: 0.014 },
-        ],
-        step: 0.02,
-        segments: 8,
-        colour: () => g.main,
-        weights: () => rides(`hand_${s}`),
-      });
-    }
+    // THE THUMB: off the inside of the fist and over the top of the grip,
+    // laid along it toward the knuckles.
+    const base = add(
+      fist,
+      add(mul(up, fu * 0.7), add(mul(across, inward * fw * 0.6), mul(d, -0.022))),
+    );
+    const mid = add(base, add(mul(up, 0.014), add(mul(across, -inward * 0.012), mul(d, 0.03))));
+    const tip = add(mid, add(mul(up, 0.004), add(mul(across, -inward * 0.012), mul(d, 0.022))));
+    const tw = mitten ? 0.021 : 0.016;
+    loom.tube({
+      path: [base, mid, tip],
+      face: [d, up, up],
+      round: 0.012,
+      sections: [
+        { s: 0, w: tw * 1.15, f: tw * 1.1, b: tw * 1.1 },
+        { s: 0.03, w: tw, f: tw * 0.95, b: tw * 0.95 },
+        { s: 0.05, w: tw * 0.85, f: tw * 0.8, b: tw * 0.8 },
+        { s: 0.058, w: tw * 0.4, f: tw * 0.4, b: tw * 0.4 },
+      ],
+      step: 0.012,
+      segments: 8,
+      colour: () => g.main,
+      weights: () => rides(`hand_${s}`),
+    });
   }
 }

@@ -95,6 +95,7 @@ function palette(o: Outfit): Set<string> {
     0x101114,
     gearOf("body", o.body).skin,
     gearOf("body", o.body).hair,
+    gearOf("body", o.body).plait,
   ]);
   for (const slot of ["jacket", "pants", "gloves"] as const) {
     const g = gearOf(slot, o[slot]);

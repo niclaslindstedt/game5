@@ -101,24 +101,60 @@ type JacketCut = {
   collar: number;
   square: number;
   sleeve: number;
+  /** How straight it hangs from the chest to the hips (`drape`): a puffer
+   * or a shell wholly, a fitted race shell much less. */
+  drape: number;
   /** A quilt's baffles: their pitch, m along the cloth, and their bulge. */
   quilt?: { pitch: number; depth: number };
 };
 
 const JACKET_CUT: Record<JacketId, JacketCut> = {
-  race: { hem: -0.13, ease: 0.024, hemFlare: 0.004, collar: 0.075, square: 2.5, sleeve: 0.02 },
+  race: {
+    hem: -0.13,
+    ease: 0.024,
+    hemFlare: 0.004,
+    collar: 0.1,
+    square: 2.5,
+    sleeve: 0.02,
+    drape: 0.35,
+  },
   puffer: {
     hem: -0.07,
     ease: 0.04,
     hemFlare: -0.004,
-    collar: 0.085,
+    collar: 0.11,
     square: 2.3,
     sleeve: 0.034,
+    drape: 1,
     quilt: { pitch: 0.1, depth: 0.01 },
   },
-  shell: { hem: -0.24, ease: 0.036, hemFlare: 0.022, collar: 0.09, square: 2.4, sleeve: 0.03 },
-  anorak: { hem: -0.17, ease: 0.04, hemFlare: 0.016, collar: 0.07, square: 2.3, sleeve: 0.032 },
-  retro: { hem: -0.02, ease: 0.03, hemFlare: -0.012, collar: 0.065, square: 2.6, sleeve: 0.026 },
+  shell: {
+    hem: -0.24,
+    ease: 0.036,
+    hemFlare: 0.022,
+    collar: 0.115,
+    square: 2.4,
+    sleeve: 0.03,
+    drape: 1,
+  },
+  anorak: {
+    hem: -0.17,
+    ease: 0.04,
+    hemFlare: 0.016,
+    collar: 0.09,
+    square: 2.3,
+    sleeve: 0.032,
+    drape: 1,
+  },
+  retro: {
+    hem: -0.02,
+    ease: 0.03,
+    hemFlare: -0.012,
+    collar: 0.08,
+    square: 2.6,
+    sleeve: 0.026,
+    drape: 0.8,
+  },
 };
 
 /** The cut of a pair of pants: the ease over the thigh and at the hem, the
@@ -134,7 +170,7 @@ const PANTS_CUT: Record<PantsId, PantsCut> = {
 /** How far the thighs' tops are drawn in toward the middle under the seat,
  * m: the rig's hip joints stand a stance apart (`BODY.hip`), wider than a
  * body's, and a thigh lofted round them would bulge out past the hips. */
-const HIP_IN = 0.03;
+const HIP_IN = 0.05;
 
 /** The pants' seat at a level: the body's section eased, and wide enough to
  * take both thighs' tops — what the jacket must hang clear of. */
@@ -146,7 +182,7 @@ function seatAt(
 ): { w: number; f: number; b: number } {
   const { pose: P } = bindPose();
   const t = trunkAt(m, level);
-  const span = Math.abs(P.hipJoints[0].x) - HIP_IN + m.thigh * 0.85 + pc.ease;
+  const span = Math.abs(P.hipJoints[0].x) - HIP_IN + m.thigh * 0.78 + pc.ease;
   const low = Math.max(0, Math.min(1, (level - from) / 0.12));
   // Wide only over the thighs' tops: above the hip joints the seat closes
   // in to the waist, which is the body's own (a woman's narrower).
@@ -154,7 +190,7 @@ function seatAt(
   return {
     w: Math.max(t.w + pc.ease, span * (0.55 + 0.45 * low) * high),
     f: t.f + pc.ease,
-    b: t.b + pc.ease + 0.004,
+    b: t.b * 0.9 + pc.ease + 0.004,
   };
 }
 const seatFrom = (m: BodyMeasure, pc: PantsCut) => m.crotch - 0.05 - pc.drop;
@@ -219,6 +255,27 @@ function retroColour(p: V3, band: boolean): number {
   return j.main;
 }
 
+/** A JACKET HANGS: cloth is not skin, and from the chest down it falls
+ * straight to whatever is widest under it (the seat, the hips) rather than
+ * following the body in at the waist and the small of the back — the
+ * straight-sided box a ski jacket reads as from behind. `share` 1 hangs
+ * wholly straight; a tailored cut (a woman's) keeps some of the waist. */
+function drape(sections: Section[], L: (s: number) => number, waist: number, share: number) {
+  const below = sections.filter((q) => L(q.s) <= waist);
+  const above = sections.filter((q) => L(q.s) > waist && L(q.s) < 0.8);
+  if (!below.length || !above.length) return;
+  for (const k of ["w", "f", "b"] as const) {
+    const lo = below.reduce((a, q) => (q[k] > a[k] ? q : a));
+    const hi = above.reduce((a, q) => (q[k] > a[k] ? q : a));
+    for (const q of sections) {
+      if (q.s <= lo.s || q.s >= hi.s) continue;
+      const u = (q.s - lo.s) / (hi.s - lo.s);
+      const hang = lo[k] + (hi[k] - lo[k]) * u;
+      if (hang > q[k]) q[k] += (hang - q[k]) * share;
+    }
+  }
+}
+
 function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.jacket;
   const cut = JACKET_CUT[id];
@@ -255,11 +312,12 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     const seat = seatAt(m, pc, Math.max(level, seatFrom(m, pc)), seatFrom(m, pc));
     return {
       ...q,
-      w: Math.max(q.w, seat.w + 0.03),
+      w: Math.max(q.w, seat.w + 0.016),
       f: Math.max(q.f, seat.f + 0.02),
-      b: Math.max(q.b, seat.b + 0.024),
+      b: Math.max(q.b, seat.b + 0.016),
     };
   });
+  drape(sections, line.L, m.waist, cut.drape * (female ? 0.55 : 1));
   const cuts = [line.S(cut.hem + 0.05), line.S(cut.hem + 0.04), line.S(0.8), line.S(0.7)];
   cuts.push(line.S(0.6), line.S(0.44), line.S(0.66), line.S(0.68), line.S(cut.hem + 0.06));
   if (quilt) cuts.push(...seams(line.S(from), line.S(to), quilt.pitch));
@@ -327,7 +385,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     step: 0.03,
     segments: 14,
     square: 2.2,
-    colour: () => (id === "race" || id === "shell" ? j.second : id === "retro" ? j.third : j.main),
+    colour: () => (id === "shell" ? j.second : id === "retro" ? j.third : j.main),
     cap: [false, true],
     among: ["spine", "head"],
   });
@@ -517,7 +575,7 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
     const out = { x: side, y: 0, z: 0 };
     // The thigh's top drawn in under the seat, let out by mid-thigh.
     const inward = -Math.sign(dot(ringX, out)) * HIP_IN;
-    for (const q of sections) q.x = inward * Math.max(0, 1 - q.s / 0.2);
+    for (const q of sections) q.x = inward * Math.max(0, 1 - q.s / 0.26);
     const tOut = Math.atan2(dot(out, ringZ), dot(out, ringX));
     const tIn = tOut + Math.PI;
     const pocket = id === "cargo" ? { a: 0.1, b: 0.27, half: 0.55 } : null;

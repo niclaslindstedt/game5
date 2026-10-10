@@ -315,15 +315,16 @@ models:
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender
-# (the skier built at game quality, then `scripts/blender/title.py` over
-# `kinds/title.mjs`) and published into the COMMITTED pwa/src/title/ with a
+# (`scripts/blender/title.py` over `kinds/title.mjs`, which writes the game's
+# own dressed skier into previews/blender/ — `scripts/dressed-skier.mjs`, the
+# player's DEFAULT_OUTFIT off the game's loom — for the scene to pose) and
+# published into the COMMITTED pwa/src/title/ with a
 # stamp of their sources (tests/title_scene_test.ts holds it). A full
 # render is a long one (an hour and more on a CPU); a draft is
 # `TITLE_SIZE=768 make blender KIND=title ARGS=--samples=32`.
 #   make title-scene                      the plates, 256 samples
 #   make title-scene SAMPLES=128          fewer samples
 title-scene:
-	npm run blender -- --kind skier --id skier0 --quality=game --views=none
 	npm run blender -- --kind title --quality=render --samples=$(or $(SAMPLES),256)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/title-plates.mjs
 

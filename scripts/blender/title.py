@@ -116,7 +116,7 @@ bvh = S.bvh_of(mountain)
 
 # ---------------------------------------------------------------- the skier
 rider, rider_meshes = R.build_rider(
-    DATA, os.path.join(OUT, "skier0-lod0.glb"), os.path.join(ROOT, "pwa", "models", f"{DATA['pair']['id']}.glb"))
+    DATA, DATA["skier"], os.path.join(ROOT, "pwa", "models", f"{DATA['pair']['id']}.glb"))
 hit, normal = S.drape(bvh, foot.x, foot.y)
 fall = Vector((normal.x, normal.y, 0)).normalized()
 fall = (fall - normal * fall.dot(normal)).normalized()

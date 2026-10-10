@@ -20,6 +20,7 @@ import {
   type GameState,
   type SkierInput,
 } from "@engine";
+import { afterskiOf } from "../pwa/src/game/afterski-hud.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
@@ -84,6 +85,9 @@ describe("walking aboard a gondola with the skis", () => {
     const run = atRing();
     ride(run, 90, (r) => r.skier.lift?.phase === "ride" && seatedShare(r.skier.lift) >= 1);
     let shouldered = false;
+    // On foot through the station and out onto the pad is no town: the
+    // HUD never calls one over it.
+    let townCalled = false;
     // The tuck held skips him up the line.
     ride(
       run,
@@ -92,9 +96,11 @@ describe("walking aboard a gondola with the skis", () => {
       { ...NEUTRAL_INPUT, tuck: 1 },
       (r) => {
         if (r.skier.town?.phase === "walk") shouldered = true;
+        if (afterskiOf(r)?.kind === "town") townCalled = true;
       },
     );
     expect(shouldered).toBe(true);
+    expect(townCalled).toBe(false);
     expect(run.skier.lift).toBeNull();
     expect(run.skier.town ?? null).toBeNull();
   });

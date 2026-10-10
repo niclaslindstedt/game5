@@ -161,16 +161,20 @@ const JACKET_CUT: Record<JacketId, JacketCut> = {
  * hem's radius over the boot, how far the seat drops. */
 type PantsCut = { ease: number; knee: number; hem: number; drop: number; square: number };
 const PANTS_CUT: Record<PantsId, PantsCut> = {
-  insulated: { ease: 0.024, knee: 0.022, hem: 0.1, drop: 0, square: 2.3 },
-  race: { ease: 0.012, knee: 0.01, hem: 0.088, drop: 0, square: 2.2 },
-  baggy: { ease: 0.05, knee: 0.05, hem: 0.122, drop: 0.06, square: 2.2 },
-  cargo: { ease: 0.034, knee: 0.032, hem: 0.108, drop: 0.02, square: 2.3 },
+  insulated: { ease: 0.024, knee: 0.022, hem: 0.088, drop: 0, square: 2.3 },
+  race: { ease: 0.012, knee: 0.01, hem: 0.08, drop: 0, square: 2.2 },
+  baggy: { ease: 0.05, knee: 0.05, hem: 0.11, drop: 0.06, square: 2.2 },
+  cargo: { ease: 0.034, knee: 0.032, hem: 0.096, drop: 0.02, square: 2.3 },
 };
 
 /** How far the thighs' tops are drawn in toward the middle under the seat,
  * m: the rig's hip joints stand a stance apart (`BODY.hip`), wider than a
  * body's, and a thigh lofted round them would bulge out past the hips. */
 const HIP_IN = 0.05;
+
+/** How far down past the boot's cuff top the pants' hem reaches, m: over
+ * the power strap and the top buckle, as a gaitered leg hangs over a boot. */
+const HEM_DOWN = 0.11;
 
 /** The pants' seat at a level: the body's section eased, and wide enough to
  * take both thighs' tops — what the jacket must hang clear of. */
@@ -537,11 +541,11 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
     // From the hip joint itself: a thigh's top lofted above it swings out
     // through the seat as the hips fold into a tuck.
     const top = P.hipJoints[i];
-    const end = add(P.feet[i], mul(sh.y, 0.075));
+    const end = add(P.feet[i], mul(sh.y, HEM_DOWN));
     const path = [top, P.knees[i], P.feet[i], end];
     const K = th.length;
     const C = K + sh.length;
-    const E = C + 0.075;
+    const E = C + HEM_DOWN;
     const e = cut.ease;
     const ek = cut.knee;
     const baggy = id === "baggy";
@@ -558,9 +562,9 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
       { s: K + 0.1, w: m.calf * 0.9 + ek, f: m.calf * 0.8 + ek, b: m.calf * 1.12 + ek },
       {
         s: C - 0.06,
-        w: Math.max(m.calf * 0.85 + ek, cut.hem - 0.01),
-        f: Math.max(m.calf * 0.8 + ek, cut.hem - 0.012),
-        b: Math.max(m.calf + ek, cut.hem - 0.006),
+        w: Math.max(m.calf * 0.85 + ek, cut.hem - 0.006),
+        f: Math.max(m.calf * 0.8 + ek, cut.hem - 0.008),
+        b: Math.max(m.calf + ek, cut.hem - 0.004),
       },
       { s: C, w: cut.hem, f: cut.hem, b: cut.hem + 0.004 },
       {

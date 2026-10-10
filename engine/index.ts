@@ -196,6 +196,16 @@ export {
 } from "./game/defs/aerial-jumps.ts";
 export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
+export {
+  airOn,
+  bodyState,
+  frostNeeded,
+  streamState,
+  waterOn,
+  type WaterPhase,
+  type WaterState,
+} from "./game/lake-ice.ts";
+export { LAKE_ICE } from "./game/defs/lake-ice.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";

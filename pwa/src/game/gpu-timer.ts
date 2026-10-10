@@ -60,6 +60,7 @@ const SCENE_SLICES: ReadonlySet<GpuSlice> = new Set<GpuSlice>([
   "scene",
   "sky",
   "terrain",
+  "water",
   "forest",
   "field",
   "checkpoints",

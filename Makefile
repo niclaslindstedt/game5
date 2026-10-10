@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -710,6 +710,17 @@ groomer:
 # `world`. ARGS="--sheet=plume", "--day=70 --hour=8" (a late season).
 snowguns:
 	npm run snowguns -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE WATER LAB: the lakes and the streams through the game's own renderer,
+# on a map with placeholder water laid on it — the valley lake and the tarn
+# through the seasons, open water still and in a wind, the shore ice, black
+# ice, scoured snow, rotten ice and its moat, the light, and the game's own
+# views. One contact sheet a group, previews/water-<group>.png, and every
+# frame alone. Its own one-off bundle from pwa/water-preview.html (never
+# deployed); needs a Chromium like `world`. FACE=fell-1 a real face;
+# ARGS="--sheet=states".
+water:
+	npm run water -- $(if $(SEED),--seed=$(SEED),) $(if $(FACE),--face=$(FACE),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE TREE WELL LAB: the hollows round the trunks in deep powder photographed
 # through the game's own renderer — one well from every side and at the

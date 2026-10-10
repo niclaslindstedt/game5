@@ -82,6 +82,7 @@ import { createVillageStreets } from "./streets-view.ts";
 import { InstanceReach } from "./instance-reach.ts";
 import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
 import type { SkyLook } from "./sky.ts";
+import { createRouteSigns } from "./route-sign.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
 import { netShape, netStretch, NETS } from "./spectator-plan.ts";
@@ -742,6 +743,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   // THE SIGNS at the head of every run and where a lane leaves one.
   const signs = createRunSigns(level, haze);
   group.add(signs.group);
+  // And THE LOCALS' SIGN pointing at every ski route (R42).
+  const routeSigns = createRouteSigns(level, haze);
+  if (routeSigns) group.add(routeSigns.group);
 
   // THE PISTE LIGHTS: the floodlight masts down every run.
   // And THE VILLAGE'S STREETS on the snow, their lamps' light baked with
@@ -866,6 +870,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       stakes.dispose();
       bands.dispose();
       signs.dispose();
+      routeSigns?.dispose();
       lights.dispose();
       streets?.dispose();
       guns?.dispose();

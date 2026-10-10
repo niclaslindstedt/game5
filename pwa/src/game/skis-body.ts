@@ -104,6 +104,7 @@ import {
 } from "./skier-dangle.ts";
 import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./skier-perch.ts";
 import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
+import { revertRise } from "./skier-switch.ts";
 
 /** How long the acceleration a broken arm feels is eased over, s — the
  * engine's steps' jitter taken out of its swing. */
@@ -374,7 +375,8 @@ export function poseInputOf(
     switched: legs.back * legs.backSide + lookBack(skier.lift),
     airborne: skier.airborne,
     landing: skier.landing,
-    bump: legs.bump,
+    // ...lengthened a little through a revert, the skis light (`skier-switch.ts`).
+    bump: legs.bump - (skier.revert ? revertRise(skier.revert.u) : 0),
     // THE POLE PLANT the view times on his turns (`skier-spring.ts`).
     plantAt:
       legs.plantT < legs.plantLength

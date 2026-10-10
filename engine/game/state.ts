@@ -43,6 +43,7 @@ export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-s
 export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { JibRecord, JibRide } from "./jib-state.ts";
+import type { Revert } from "./switch.ts";
 export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord, PipeHit } from "./flight-record.ts";
@@ -165,6 +166,8 @@ export type SkierState = {
    * The steer is read the way he is GOING while he is (`skier.ts`), and the
    * lens stands behind the way he is going (`camera-rigs.ts`). */
   switched: boolean;
+  /** TURNING ROUND out of switch (`switch.ts`'s `Revert`), or none. */
+  revert?: Revert | null;
   /** The inputs as the body has them, after their lags: the tuck 0..1, the
    * brake 0..1, the edge -1..1 and the lean -1..1. */
   tuck: number;

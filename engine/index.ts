@@ -378,7 +378,8 @@ export {
   type LegSpec,
 } from "./game/defs/skis.ts";
 export { TAIL_RISE, tailRiseOf } from "./game/defs/tails.ts";
-export { heldSlip, switchSteer, tailDug } from "./game/switch.ts";
+export { heldSlip, revertShare, switchSteer, tailDug } from "./game/switch.ts";
+export type { Revert } from "./game/switch.ts";
 export {
   RIDERS,
   MEDIUM_RIDER,
@@ -856,9 +857,9 @@ export {
   upValley,
 } from "./game/balloon-air.ts";
 export {
-  DRAG_ARM,
   LIFT_LOOK,
   carrierAt,
+  HOUSE_CLEAR,
   carrierCount,
   carrierPassing,
   carrierSpeedAt,
@@ -885,14 +886,14 @@ export {
   TOWER_PAD,
   TOWER_SITE,
   ropeAt,
-  upRope,
   type LiftKind,
   type LiftLook,
   type LiftPlan,
   type StationHouse,
   type Support,
 } from "./game/lift-line.ts";
-export { carrierSwingAt } from "./game/carrier-swing.ts";
+export * from "./game/lift-loop.ts";
+export { carrierRollAt, carrierSwingAt } from "./game/carrier-swing.ts";
 export {
   arriveByLift,
   arrivalOf,

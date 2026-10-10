@@ -33,7 +33,10 @@
 import {
   CABIN_HALF,
   CORRAL_TAIL,
+  HOUSE_CLEAR,
+  carrierGripAt,
   chairLane,
+  gondolaGrip,
   platformOf,
   queueLane,
   runsOffTop,
@@ -54,6 +57,11 @@ export type Part = {
   z: number;
   yaw: number;
   size: number;
+  /** A hood's reach ahead of its wheel over the rail, m. */
+  length?: number;
+  /** A platform roof's RAIL the cabins creep round the wheel on: how far
+   * under the roof it hangs and the half circle's radius, m. */
+  rail?: { drop: number; radius: number };
 };
 
 /** A run's arrow on a top's signs: its grade, and which way it points off
@@ -89,6 +97,10 @@ const CANOPY_CLEAR = 1.5;
 const CHAIR_HALF = 1.2;
 const HOOD_CLEAR = 0.6;
 const HOOD_INSET = 0.7;
+/** A hood's underside over the chairs' grips, m, and how far it reaches past
+ * the load line or the unload point, m. */
+const HOOD_OVER = 0.2;
+const HOOD_PAST = 2;
 /** The map board at a gondola's top: m down the line from its wheel past
  * the door its rider is walked out of, and across it — off the cut under
  * the way in. */
@@ -109,9 +121,19 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
       x: p.lift.bottom.x + p.dx * u + p.dz * v,
       z: p.lift.bottom.z + p.dz * u - p.dx * v,
     });
-    const put = (kind: PartKind, u: number, v: number, yaw: number, size = 1, y?: number) => {
+    const put = (
+      kind: PartKind,
+      u: number,
+      v: number,
+      yaw: number,
+      size = 1,
+      y?: number,
+      length?: number,
+    ) => {
       const at = up(u, v);
-      parts.push({ kind, x: at.x, y: y ?? level.groundAt(at.x, at.z), z: at.z, yaw, size });
+      const part: Part = { kind, x: at.x, y: y ?? level.groundAt(at.x, at.z), z: at.z, yaw, size };
+      if (length !== undefined) part.length = length;
+      parts.push(part);
     };
     const fence = (kind: Fence["kind"], u0: number, v0: number, u1: number, v1: number) =>
       fences.push({ kind, a: up(u0, v0), b: up(u1, v1) });
@@ -121,17 +143,23 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
       const off = L - p.look.off;
       // THE TOP: the way off down the lane, the house beside it.
       const lane = chairLane(p);
+      // Each TERMINAL'S HOOD is centred on its wheel, turned to face down
+      // its rail (+z out along the line), its underside just over the
+      // chairs' grips there (`carrierGripAt`), reaching from round the back
+      // of the wheel, where the chairs turn, out past the unload at the top
+      // and the load line at the foot.
       const hood = (g + CHAIR_HALF + HOOD_CLEAR + HOOD_INSET) * 2;
-      put("hood", L - 1, 0, p.heading, hood, wheelY(L) + 0.35);
+      const e = p.look.entry;
+      const grip = (u: number) => carrierGripAt(p, u) + HOOD_OVER;
+      put("hood", L, 0, p.heading + Math.PI, hood, grip(L), p.look.off + HOOD_PAST);
       put("booth", off - BOOTH_BACK, lane.v + BOOTH_LANE, side + Math.PI);
       // THE FOOT.
-      const e = p.look.entry;
-      put("hood", 1, 0, p.heading, hood, wheelY(0) + 0.35);
+      put("hood", 0, 0, p.heading, hood, grip(0), e.at + HOOD_PAST);
       put("booth", e.at + 1, g + BOOTH_OUT, side + Math.PI);
       put("load", e.at, e.side, p.heading, e.across * 2);
       corral(fence, p);
     } else if (p.lift.kind === "gondola") {
-      const back = -(h.length + 1.5);
+      const back = -(h.length + HOUSE_CLEAR.gondola);
       // THE PLATFORM ROOF over each wheel, as wide as the platform's far
       // edge from the line (the rider stands there beside his cabin's way)
       // and its clearance either side.
@@ -141,9 +169,16 @@ export function layStations(level: Level, plans: readonly LiftPlan[]): StationLa
         Math.abs((stand.x - p.lift.bottom.x) * p.dz - (stand.z - p.lift.bottom.z) * p.dx),
       );
       const roof = (edge + CANOPY_CLEAR) * 2;
-      put("canopy", L - 1, 0, p.heading, roof, wheelY(L) + 0.6);
-      put("door", L + 1.5, 0, p.heading + Math.PI);
-      put("canopy", 1, 0, p.heading, roof, wheelY(0) + 0.6);
+      // Each turned to face out along its rail (+z), the wheel 1 m behind
+      // its middle; under it the RAIL the cabins run round the wheel on at
+      // their grips' height (`gondolaGrip`).
+      const canopy = (u: number, yaw: number, roofY: number, gripY: number) => {
+        put("canopy", u, 0, yaw, roof, roofY);
+        parts[parts.length - 1].rail = { drop: roofY - gripY, radius: g };
+      };
+      canopy(L - 1, p.heading + Math.PI, wheelY(L) + 0.6, gondolaGrip(p, L));
+      put("door", L + HOUSE_CLEAR.gondola, 0, p.heading + Math.PI);
+      canopy(1, p.heading, wheelY(0) + 0.6, gondolaGrip(p, 0));
       put("door", back, 0, p.heading + Math.PI);
       corral(fence, p);
     } else {

@@ -6,11 +6,13 @@
 //   * THE TOWERS: a round tapered steel column on the snow under each
 //     support with a ladder up its downhill face, and at its head a
 //     crossarm with a sheave train at each end the rope rides over, a
-//     catwalk, lifting frames and a lightning rod — one arm to one side
-//     for a drag's single rope (`lift-shapes.ts`, `docs/lifts.md`).
+//     catwalk, lifting frames and a lightning rod — a T for a drag, its up
+//     rope on one arm and its return on the other (`lift-shapes.ts`,
+//     `docs/lifts.md`).
 //   * THE STATIONS: at each end a house behind the bullwheel, the wheel
 //     itself flat at the rope's height on a column of its own, and the
-//     rope turned round it.
+//     rope turned round it in a half circle — the way every carrier comes
+//     round (`carrierPlace`).
 //   * THE ROPE: the up and the down rope, straight between two supports
 //     save for their sag, drawn as LINES — a rope is a few centimetres
 //     thick, a pixel wide at any distance a skier sees it from, and a
@@ -56,7 +58,10 @@ import {
   carrierAt,
   carrierCount,
   carrierGripAt,
+  carrierPlace,
+  carrierRollAt,
   carrierSwingAt,
+  turnRadius,
   gondolaGrip,
   railAt,
   seatedShare,
@@ -107,6 +112,12 @@ import {
 } from "./village-cuts.ts";
 import { createInteriors } from "./interiors-view.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
+
+/** How near the rider's own cabin a clock's cabin is left out, m. */
+const OWN_CLEAR = 2.5;
+
+/** How many straight pieces a rope's half circle round a wheel is drawn in. */
+const TURN_STEPS = 12;
 
 /** How far a tower's column is sunk into the snow, m, so a slope never
  * shows its base. Its girth is the plan's (`LiftLook.column`, which a
@@ -182,7 +193,8 @@ export type RiderPose = {
 
 /** The ropes' offsets right of the line, m: up and down, or a drag's one. */
 function ropesOf(plan: LiftPlan): number[] {
-  return plan.lift.kind === "drag" ? [DRAG_ARM] : [plan.look.gauge / 2, -plan.look.gauge / 2];
+  const r = turnRadius(plan);
+  return [r, -r];
 }
 
 /** The resort's lifts — and its WIND TUNNELS along the valley floor
@@ -418,14 +430,10 @@ export function createLifts(
   );
   instanced(wheelGeo, painted, ends, (set) => {
     for (const e of stations) {
-      const r = Math.max(0.6, e.p.look.gauge / 2 + 0.25);
-      set(
-        e.wheelX + (e.p.lift.kind === "drag" ? (e.p.dz * DRAG_ARM) / 2 : 0),
-        e.wheelY - 0.15,
-        e.wheelZ - (e.p.lift.kind === "drag" ? (e.p.dx * DRAG_ARM) / 2 : 0),
-        e.p.heading,
-        size.set(r, 0.35, r),
-      );
+      // The rope runs in the rim's groove, round the turn every carrier
+      // follows (`turnRadius`).
+      const r = turnRadius(e.p) + 0.12;
+      set(e.wheelX, e.wheelY - 0.15, e.wheelZ, e.p.heading, size.set(r, 0.35, r));
     }
   });
 
@@ -463,8 +471,8 @@ export function createLifts(
   }
 
   // THE ROPES, every lift's as one set of line segments: a vertex every few
-  // metres down each span (the sag is a curve), and the turn round each
-  // wheel straight across it.
+  // metres down each span (the sag is a curve), and the half circle round
+  // each wheel.
   const rope: number[] = [];
   for (const p of plans) {
     const rx = p.dz;
@@ -486,17 +494,21 @@ export function createLifts(
         }
       }
     }
-    if (offs.length === 2) {
-      for (const s of [p.supports[0], p.supports[p.supports.length - 1]]) {
-        const y = s.ground + s.rope;
-        rope.push(
-          s.x + rx * offs[0],
-          y,
-          s.z + rz * offs[0],
-          s.x + rx * offs[1],
-          y,
-          s.z + rz * offs[1],
-        );
+    // Round each wheel, the half circle every carrier follows.
+    for (const [s, top] of [
+      [p.supports[0], false],
+      [p.supports[p.supports.length - 1], true],
+    ] as const) {
+      const y = s.ground + s.rope;
+      let last: number[] | null = null;
+      for (let k = 0; k <= TURN_STEPS; k++) {
+        const w = carrierPlace(p, {
+          u: top ? p.length : 0,
+          side: 0,
+          turn: (Math.PI * k) / TURN_STEPS,
+        });
+        if (last) rope.push(...last, w.x, y, w.z);
+        last = [w.x, y, w.z];
       }
     }
   }
@@ -625,6 +637,7 @@ export function createLifts(
   const down = new THREE.Vector3(0, -1, 0);
   const pivot = new THREE.Matrix4();
   const swung = new THREE.Matrix4();
+  const flung = new THREE.Quaternion();
 
   /** A part whose instances move, at two cuts: filled every frame. */
   function movingCut(
@@ -667,10 +680,21 @@ export function createLifts(
     return mesh;
   }
 
-  /** The carrier's turn: up its side's way, swung `swing` off plumb. */
-  const hung = (p: LiftPlan, side: 0 | 1, swing: number): THREE.Quaternion => {
-    const e = fromEuler(side === 0 ? p.heading : p.heading + Math.PI, swing, 0);
-    return q.set(e.x, e.y, e.z, e.w);
+  /** A carrier where the clock has it on its loop — up or down its rope, or
+   * round a wheel (`carrierPlace`) — its grip at `y`: its place (`at`) and
+   * its turn (`q`), its way along the loop, swung `swing` off plumb on its
+   * hanger and leant `roll` out of a wheel's turn. */
+  const hang = (
+    p: LiftPlan,
+    c: { u: number; side: 0 | 1; turn?: number },
+    y: number,
+    swing: number,
+    roll: number,
+  ): void => {
+    const where = carrierPlace(p, c);
+    at.set(where.x, y, where.z);
+    const e = fromEuler(where.heading, swing, roll);
+    q.set(e.x, e.y, e.z, e.w);
   };
   /** Where carrier `u` m up line `p` is on rope `side`, in the world. */
   const onRope = (p: LiftPlan, u: number, side: 0 | 1, y: number): THREE.Vector3 => {
@@ -688,17 +712,25 @@ export function createLifts(
     holds: ReadonlyMap<number, Hold>,
     eye?: THREE.Vector3,
     cull?: ViewCull,
+    ownAt?: THREE.Vector3 | null,
   ): void {
     if (cabins) {
       cabins.begin(eye, cull);
       for (const c of carriers.gondola) {
-        const { u, side, out } = carrierAt(c.p, c.k, t);
+        // Every cabin, through the stations too: in at the rope's speed,
+        // let down onto the station's rail (`gondolaGrip`) and creeping
+        // round the wheel under the platform roof. The rider's own is his
+        // (`own-cabin.ts`): the clock's beside it is left out.
+        const g = carrierAt(c.p, c.k, t);
         const mine =
-          side === 0 &&
-          inCabin.some((r) => r.index === c.i && Math.abs(u - r.u) < c.p.look.every / 2);
-        if (!out || mine) continue;
-        hung(c.p, side, carrierSwingAt(c.p, u, side));
-        cabins.add(m4.compose(onRope(c.p, u, side, ropeAt(c.p, u)), q, one));
+          g.side === 0 &&
+          g.turn === undefined &&
+          inCabin.some((r) => r.index === c.i && Math.abs(g.u - r.u) < c.p.look.every / 2);
+        if (mine) continue;
+        const swing = g.turn === undefined ? carrierSwingAt(c.p, g.u, g.side) : 0;
+        hang(c.p, g, gondolaGrip(c.p, g.u), swing, carrierRollAt(c.p, g.turn));
+        if (ownAt && at.distanceToSquared(ownAt) < OWN_CLEAR * OWN_CLEAR) continue;
+        cabins.add(m4.compose(at, q, one));
       }
       cabins.end();
     }
@@ -706,12 +738,14 @@ export function createLifts(
       chairs.begin(eye, cull);
       bars.begin(eye, cull);
       for (const c of carriers.chair) {
-        const { u, side, out } = carrierAt(c.p, c.k, t);
-        if (!out) continue;
-        hung(c.p, side, carrierSwingAt(c.p, u, side));
-        m4.compose(onRope(c.p, u, side, carrierGripAt(c.p, u)), q, one);
+        // Every chair, round the wheels and through the stations too: it
+        // creeps round each wheel on the terminal's rail under the hood.
+        const g = carrierAt(c.p, c.k, t);
+        const swing = g.turn === undefined ? carrierSwingAt(c.p, g.u, g.side) : 0;
+        hang(c.p, g, carrierGripAt(c.p, g.u), swing, carrierRollAt(c.p, g.turn));
+        m4.compose(at, q, one);
         chairs.add(m4);
-        const lowered = side === 0 ? barDown(c.p, u) : 0;
+        const lowered = g.side === 0 && g.turn === undefined ? barDown(c.p, g.u) : 0;
         pivot.makeTranslation(0, CHAIR_BAR.y, CHAIR_BAR.z);
         swung.makeRotationX(CHAIR_BAR.up * (1 - lowered));
         bars.add(pivot.premultiply(m4).multiply(swung));
@@ -726,7 +760,8 @@ export function createLifts(
     springs.begin(eye, cull);
     tees.begin(eye, cull);
     carriers.drag.forEach((c, n) => {
-      const { u, side, out } = carrierAt(c.p, c.k, t);
+      const g = carrierAt(c.p, c.k, t);
+      const { u } = g;
       const y = ropeAt(c.p, u);
       const held = holds.get(barKey(c.i, c.k));
       const p = onRope(c.p, u, 0, y);
@@ -738,15 +773,20 @@ export function createLifts(
       else if (want > cord) cord = Math.min(want, cord + REEL.out * dt);
       else cord = Math.max(want, cord - REEL.in * dt);
       cordOf[n] = cord;
-      if (!out || held?.hide) {
+      if (held?.hide) {
         cords.setMatrixAt(n, hide);
         return;
       }
-      onRope(c.p, u, side, y);
-      q.setFromAxisAngle(up, side === 0 ? c.p.heading : c.p.heading + Math.PI);
+      // The box on the rope, its way along the loop — round the wheels too
+      // — and the cord and bar under it flung out of a wheel's turn.
+      hang(c.p, g, y, 0, 0);
       springs.add(m4.compose(at, q, one));
-      cords.setMatrixAt(n, m4.compose(at.setY(y - 0.58), q, size.set(1, cord, 1)));
-      tees.add(m4.compose(at.setY(y - 0.58 - cord - 0.6), q, one));
+      const e = fromEuler(carrierPlace(c.p, g).heading, 0, carrierRollAt(c.p, g.turn));
+      flung.set(e.x, e.y, e.z, e.w);
+      at.setY(y - 0.58);
+      cords.setMatrixAt(n, m4.compose(at, flung, size.set(1, cord, 1)));
+      lift.set(0, -cord - 0.6, 0).applyQuaternion(flung);
+      tees.add(m4.compose(at.add(lift), flung, one));
     });
     springs.end();
     tees.end();
@@ -820,8 +860,6 @@ export function createLifts(
     }
     inCabin.length = 0;
     if (carried?.kind === "gondola" && carried.stand === undefined) inCabin.push(carried);
-    moveCarriers(t, inCabin, holds, eye, cull);
-    for (const c of still) c.update(eye);
     // His own cabin on a gondola: coming round the bottom wheel on the
     // station's rail to him on the platform, creeping on while he steps in
     // — both where the engine has its grip — and once he is sat in it hung
@@ -844,6 +882,8 @@ export function createLifts(
         cabin.quaternion.setFromAxisAngle(up, r.heading);
       }
     }
+    moveCarriers(t, inCabin, holds, eye, cull, cabin.visible ? cabin.position : null);
+    for (const c of still) c.update(eye);
   };
 
   return done;

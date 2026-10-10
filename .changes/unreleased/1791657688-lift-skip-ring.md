@@ -7,3 +7,5 @@ Holding the tuck to skip up a lift now fills a ring on screen so you can see how
 Walking out of a gondola's top station with the skis on the shoulder no longer calls it "in town, on foot".
 
 Stepping into a gondola cabin at the bottom station goes through its door and onto its bench instead of through its walls.
+
+A chairlift's safety bar raised stops short of the hanger instead of swinging through it.

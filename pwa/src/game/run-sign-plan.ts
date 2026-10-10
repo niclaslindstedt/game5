@@ -77,6 +77,8 @@ import { mapBoardOf, signsOf } from "./station-plan.ts";
 export const SIGN = {
   down: 10,
   lip: 12,
+  /** How far down a ski route (R42) its warning board stands, m. */
+  warn: 2,
   edge: 0.5,
   inner: 2,
   junction: 20,
@@ -115,6 +117,9 @@ export type SignBoard = {
    * top's, its point `SIGN.tip` of its width), the board itself the arrow;
    * absent on a plain plank — a sign down on the runs. */
   point?: "left" | "right";
+  /** A WARNING board (a ski route's, R42): a warning triangle painted where
+   * a run's mark would be, the warning burned beside it. */
+  warning?: true;
 };
 
 /** One post and the boards on it. `heading` is the way the skier reading
@@ -388,12 +393,36 @@ export function signPlan(level: Level): readonly SignPost[] {
   // A SKI ROUTE (R42) is signed where it leaves the pad: a post at the
   // corridor's edge `SIGN.down` m down its line on the side away from the
   // lift, turned to a skier at its head looking down it — the orange
-  // double diamond, its number and the warning, a plain plank.
+  // double diamond, its number and the warning, a plain plank — and
+  // before it, `SIGN.warn` m down on the same side, the WARNING board a
+  // skier passes before the slope drops away.
   for (const r of skiRoutesOf(level)) {
-    const at = trackPointAt({ track: { points: r.points, length: r.length } }, SIGN.down);
+    const route = { track: { points: r.points, length: r.length } };
+    const at = trackPointAt(route, SIGN.down);
     const lift = liftPlans(level).find((p) => p.lift.id === r.from)?.lift.top;
     const side = lift ? -sideOf(at, lift.x, lift.z) : 1;
     const { x, z } = beside(at, side * offOf(at));
+    const warnAt = trackPointAt(route, SIGN.warn);
+    const warn = beside(warnAt, side * offOf(warnAt));
+    posts.push({
+      x: warn.x,
+      z: warn.z,
+      y: level.groundAt(warn.x, warn.z),
+      heading: warnAt.heading,
+      boards: [
+        {
+          run: r.id,
+          number: "!",
+          name: STRINGS.skiRouteWarning,
+          grade: r.grade,
+          lane: false,
+          arrow: "ahead",
+          ...SIGN.board,
+          y: SIGN.foot,
+          warning: true,
+        },
+      ],
+    });
     posts.push({
       x,
       z,

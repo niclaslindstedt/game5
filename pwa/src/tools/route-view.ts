@@ -4,6 +4,8 @@
 //
 //   * route-head — its sign at the pad's rim, from a step back up the line
 //     at a skier's eye, looking past it down the route;
+//   * route-warn — its wooden WARNING board before the slope, from up on
+//     the pad at a skier's eye;
 //   * route-in — a quarter of the way down, at his eye, down the fall line:
 //     how steep the steepest country a lift serves is, and its stakes;
 //   * route-steep — at its steepest hundred metres, the same;
@@ -21,6 +23,7 @@ import { signPlan } from "../game/run-sign-plan.ts";
 
 export const ROUTE_VIEWS = [
   "route-head",
+  "route-warn",
   "route-in",
   "route-steep",
   "route-side",
@@ -76,7 +79,7 @@ export function routeView(level: Level, name: string): { pose: LensPose; note: s
     case "route-head": {
       // From the pad's rim, a few metres up and aside of the sign, looking
       // past it down the first stretch of the route.
-      const post = signPlan(level).find((p) => p.boards.some((b) => b.run === r.id));
+      const post = signPlan(level).find((p) => p.boards.some((b) => b.run === r.id && !b.warning));
       const head = r.points[0];
       const on = trackPointAt(asTrack(r), 30);
       const d = Math.hypot(on.x - head.x, on.z - head.z) || 1;
@@ -95,6 +98,25 @@ export function routeView(level: Level, name: string): { pose: LensPose; note: s
           roll: 0,
         },
         note: `the head of ${said}`,
+      };
+    }
+    case "route-warn": {
+      // From up on the pad behind the route's head, a step aside, looking
+      // at the warning board a skier passes before the slope.
+      const post = signPlan(level).find((p) => p.boards.some((b) => b.run === r.id && b.warning));
+      if (!post) return null;
+      const fx = Math.sin(post.heading);
+      const fz = Math.cos(post.heading);
+      const x = post.x - fx * 7 - fz * 2;
+      const z = post.z - fz * 7 + fx * 2;
+      return {
+        pose: {
+          eye: { x, y: level.groundAt(x, z) + 1.7, z },
+          target: { x: post.x, y: post.y + 1.6, z: post.z },
+          fov: 50,
+          roll: 0,
+        },
+        note: `the warning before ${said}`,
       };
     }
     case "route-in":

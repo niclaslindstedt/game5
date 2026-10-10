@@ -45,9 +45,12 @@ import {
   mergeRide,
   rideOnto,
   runOn,
+  runPicked,
+  SKIS_START,
   SLED_RUN,
   sledOn,
   spotOn,
+  startPicked,
 } from "../pwa/src/game/free-ride.ts";
 import {
   CHART_VIEW,
@@ -106,9 +109,9 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(mergeRide("nonsense")).toEqual(freshRide());
     expect(mergeRide({ weather: "snow" }).weather).toBe("snow");
     expect(mergeRide({ weather: "hail" }).weather).toBeNull();
-    // THE GRADE (R23, R42): one of the five, or the seed's own.
-    expect(mergeRide({ grade: "black" }).grade).toBe("black");
-    expect(mergeRide({ grade: "orange" }).grade).toBe("orange");
+    // THE GRADE (R23, R42): no row asks it any more, so a stored one —
+    // an older build's — is dropped and the mountain is the seed's own.
+    expect(mergeRide({ grade: "black" }).grade).toBeNull();
     expect(mergeRide({ grade: "purple" }).grade).toBeNull();
   });
 
@@ -181,8 +184,8 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     };
     const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.mode).toBe("free");
-    // The GRADE row's colour (R23), and the seed's own where it stands on
-    // AS DEALT.
+    // A grade asked of the map (only a link's `?grade=` asks one now, R23),
+    // and the seed's own where none is.
     expect(opts.grade).toBe("black");
     expect(
       freeGameOptions({ ...ride, grade: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
@@ -413,7 +416,34 @@ describe("the HUD over a free ride (snapshot.ts, minimap-view.ts)", () => {
   });
 });
 
-describe("the RUN row's last stop: the helicopter (free-ride.ts)", () => {
+describe("the START row and the RUN row (free-ride.ts)", () => {
+  const region = freshRide().region;
+
+  it("puts a machine on the START row, kept as a run id of its map", () => {
+    const ride = { ...freshRide(), run: { seed: 7, region, id: "3" } };
+    const onHeli = { ...ride, ...startPicked(ride, 7, HELI_RUN) };
+    expect(heliOn(onHeli, 7)).toBe(true);
+    expect(runOn(onHeli, 7)).toBe(HELI_RUN);
+  });
+
+  it("hands the ride back to the map's own run ON SKIS", () => {
+    const onHeli = { ...freshRide(), run: { seed: 7, region, id: HELI_RUN } };
+    const onSkis = { ...onHeli, ...startPicked(onHeli, 7, SKIS_START) };
+    expect(heliOn(onSkis, 7)).toBe(false);
+    expect(runOn(onSkis, 7)).toBeNull();
+  });
+
+  it("skis any run picked, off a machine and whatever its colour", () => {
+    const onSled = { ...freshRide(), run: { seed: 7, region, id: SLED_RUN } };
+    const picked = { ...onSled, ...runPicked(onSled, 7, "5") };
+    expect(sledOn(picked, 7)).toBe(false);
+    expect(runOn(picked, 7)).toBe("5");
+    expect(picked.spot).toBeNull();
+    expect(freeGameOptions(picked, 7, { spec: SKIS, assist: { yaw: 1, air: 1 } }).run).toBe("5");
+  });
+});
+
+describe("the START row's helicopter (free-ride.ts)", () => {
   it("stands the ride up on the helicopter, never by lift or at a spot", () => {
     const ride = {
       ...freshRide(),
@@ -450,7 +480,7 @@ describe("the RUN row's last stop: the helicopter (free-ride.ts)", () => {
   });
 });
 
-describe("the RUN row's other machine: the snowmobile (free-ride.ts)", () => {
+describe("the START row's other machine: the snowmobile (free-ride.ts)", () => {
   it("stands the ride up on the snowmobile, never by lift or at a spot", () => {
     const ride = {
       ...freshRide(),
@@ -501,7 +531,7 @@ describe("the RUN row's other machine: the snowmobile (free-ride.ts)", () => {
   });
 });
 
-describe("the RUN row's afterski stop: the party in the lodge (free-ride.ts)", () => {
+describe("the START row's afterski stop: the party in the lodge (free-ride.ts)", () => {
   it("stands the ride up inside the lodge, never at a spot or on a machine", () => {
     const ride = {
       ...freshRide(),

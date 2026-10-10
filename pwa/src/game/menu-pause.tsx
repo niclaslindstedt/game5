@@ -11,12 +11,13 @@
 //   RESTART       the run again from the start line, on the same map — the B
 //                 key's own line. Over a free ride, START AGAIN: the same
 //                 ride from where it started.
-//   PISTE MAP     beside OPTIONS, half its row: another run on THIS
-//                 mountain, on a free ride — the start
-//                 card's RUN row and chart on a panel of their own
-//                 (`menu-pause-slopes.tsx`), and RIDE stands the ride up
-//                 there. Over a race, the level card of the race's own
-//                 discipline, a piste drawn on every map — which leaves it.
+//   PISTE MAP     on a free ride, a LIT ROW of its own under RESUME: any
+//                 run on THIS mountain or a ride up on a machine — the
+//                 start card's START and RUN rows and chart on a panel of
+//                 their own (`menu-pause-slopes.tsx`), and GO stands the
+//                 ride up there. Over a race, beside OPTIONS, half its
+//                 row: the level card of the race's own discipline, a
+//                 piste drawn on every map — which leaves it.
 //   WATCH REPLAY  the race so far, from the outside (`replay-run.ts`) —
 //                 which ENDS it, and the press says so.
 //   MAIN MENU     out of the race and back to the front door. Nothing is
@@ -237,21 +238,32 @@ export function PauseMenu({
               <Glyph name="play" />
               <span class="menu-item-name">{STRINGS.pauseResume}</span>
             </button>
-            {/* Second, so a thumb aiming for the snow cannot land on a press
-                that ends the race. */}
-            {/* ...with the PISTE MAP beside it where there is one: half a row
-                each, so the card is no taller for it. */}
-            <div class={onSlopes || onMaps ? "pause-pair" : "pause-single"}>
+            {/* ON A FREE RIDE THE PISTE MAP IS A ROW OF ITS OWN, second and
+                lit: going on somewhere else on the mountain — any run, or a
+                ride up on a machine — is what a free ride's pause is for. */}
+            {onSlopes && (
+              <button
+                type="button"
+                class="menu-item pause-slopes-press pause-slopes-lit"
+                data-menu="slopes"
+                onClick={() => setPanel("slopes")}
+              >
+                <Glyph name="piste" />
+                <span class="menu-item-name">{STRINGS.pauseSlopes}</span>
+                <span class="pause-slopes-note">{STRINGS.pauseSlopesNote}</span>
+              </button>
+            )}
+            {/* Then OPTIONS, so a thumb aiming for the snow cannot land on a
+                press that ends the race — with a race's level card beside it
+                where there is one: half a row each, so the card is no taller
+                for it. */}
+            <div class={!onSlopes && onMaps ? "pause-pair" : "pause-single"}>
               <button type="button" class="menu-item" onClick={() => setPanel("options")}>
                 <Glyph name="sliders" />
                 <span class="menu-item-name">{STRINGS.pauseOptions}</span>
               </button>
-              {(onSlopes || onMaps) && (
-                <button
-                  type="button"
-                  class="menu-item pause-slopes-press"
-                  onClick={onSlopes ? () => setPanel("slopes") : (onMaps ?? undefined)}
-                >
+              {!onSlopes && onMaps && (
+                <button type="button" class="menu-item pause-slopes-press" onClick={onMaps}>
                   <Glyph name="piste" />
                   <span class="menu-item-name">{STRINGS.pauseSlopes}</span>
                 </button>

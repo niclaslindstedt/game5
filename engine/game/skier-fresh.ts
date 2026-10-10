@@ -86,7 +86,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     bodySide: 0,
     save: null,
     resilience: 1,
-    poles: true,
+    poles: spec.board === undefined,
     launch: -1,
     thrown: null,
     damage: { ski: [0, 0], legs: 0 },

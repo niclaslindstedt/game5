@@ -239,7 +239,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // with his hands off stays standing), and not while he is braking,
   // loading a jump, riding switch, in the air or off his skis; the stride's
   // phase runs only while he is working.
-  const going = !c.switched && (c.way > DRIVE_FROM || c.tuck > 0.05);
+  // A BOARD rides FAKIE as forward (`switch.ts`): it drives the way it goes.
+  const fakie = c.switched && spec.board !== undefined;
+  const going = (!c.switched || fakie) && ((fakie ? -c.way : c.way) > DRIVE_FROM || c.tuck > 0.05);
   // ...and, once rolling, on a straight: the skis stood on edge in a bend
   // take it away — but not from a skier who can step his skis round it
   // (`stepWork`: the skate and the walk), who pushes all the way through.
@@ -478,7 +480,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const bent = comp;
     contact.compression = Math.max(0, comp);
     if (bent <= 0) c.comps[i] = 0;
-    if (p.side < 0) skiL = Math.max(skiL, Math.max(0, comp));
+    if (p.leg === 0) skiL = Math.max(skiL, Math.max(0, comp));
     else skiR = Math.max(skiR, Math.max(0, comp));
     if (bent <= 0) continue;
     level.normalAt(cx, cz, normal);
@@ -658,10 +660,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const ds = (ice * ps) / Math.max(1e-9, hold * load);
     strain += load * hypot(da, ds);
     strained += load;
-    // THE DRIVE pushes along the skis, under the boots, at a crawl.
+    // THE DRIVE pushes along the skis, under the boots, at a crawl (a
+    // board ridden fakie, tail first).
     if (p.station === "mid")
       along +=
-        (bite *
+        ((fakie ? -bite : bite) *
           poleForce(spec, speed0, packed, c.drive, c.stride, c.poles, c.step) *
           hurtDrive(c)) /
         2;

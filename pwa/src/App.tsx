@@ -964,7 +964,7 @@ export function App() {
           mode={modeRef.current}
           settings={settings}
           setSettings={setSettings}
-          skis={specOf(settings).id}
+          skis={linkSkisRef.current ?? settings.skis}
           picks={picks}
           standing={(key) => bookRef.current?.standing(key) ?? null}
           linkSeed={params.seed}

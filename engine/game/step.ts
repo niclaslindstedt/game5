@@ -474,7 +474,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     skier: {
       ...freshSkier(options.spec ?? SKIS),
       resilience: clampResilience(options.resilience),
-      poles: options.poles ?? true,
+      // A board's rider carries no poles, whatever is asked.
+      poles: (options.poles ?? true) && options.spec?.board === undefined,
     },
     input: { ...NEUTRAL_INPUT },
     progress: freshProgress(level),

@@ -41,7 +41,7 @@ import {
   type GameMode,
   type GameState,
   type RiderId,
-  type SkiId,
+  type PairId,
   type SkiSpec,
 } from "@engine";
 import {
@@ -59,7 +59,7 @@ import {
 export type RecordKey = {
   seed: number;
   course?: string;
-  skis: SkiId;
+  skis: PairId;
   /** The skier's build (`Outfit.weight`): a heavier skier is faster
    * downhill, so each build keeps its own book. Absent is the medium
    * build, whose rows keep the ids they had before a build could be
@@ -78,7 +78,7 @@ export type RecordKey = {
  * first crossing first (`Progress.passed` less one indexes it). */
 export type RunRecord = {
   value: number;
-  skis: SkiId;
+  skis: PairId;
   at: number;
   splits: number[];
 };

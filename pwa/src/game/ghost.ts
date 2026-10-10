@@ -43,7 +43,7 @@ import {
   type GameMode,
   type Level,
   type RiderId,
-  type SkiId,
+  type PairId,
   type SkierInput,
 } from "@engine";
 
@@ -141,7 +141,7 @@ export type GhostRun = GhostStage &
   ControlTape & {
     format: number;
     seed: number;
-    skis: SkiId;
+    skis: PairId;
     /** The skier's build it was ridden at — absent on a medium build's run
      * (and on every run kept before a build could be chosen). */
     rider?: RiderId;

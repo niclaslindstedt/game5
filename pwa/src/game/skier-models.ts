@@ -41,7 +41,7 @@ import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine"
 
 import { modelSwitch } from "./model-switch.ts";
 import { mergeModel } from "./model-merge.ts";
-import { lookFrame } from "./ski-looks.ts";
+import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
 import type { Stand } from "./ski-stand.ts";
 
@@ -258,7 +258,7 @@ export function attachModels(o: {
   skis: SkisStyle;
   wrap: Wrap;
 }): ModelParts | null {
-  const skisGltf = MODELS.skis ? loaded.skis.get(o.spec.id) : undefined;
+  const skisGltf = MODELS.skis ? loaded.skis.get(drawnAs(o.spec)) : undefined;
   if (!skisGltf) return null;
   const mats: THREE.Material[] = [];
 

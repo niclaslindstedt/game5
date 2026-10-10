@@ -68,9 +68,9 @@ export type Footprint = {
 };
 
 /** The skis' ground pressure at rest, Pa: the whole weight over the two
- * skis' length by their waist. */
+ * skis' length by their waist — or over a board's one deck. */
 export function pressureOf(spec: SkiSpec): number {
-  return (totalMass(spec) * TUNING.g) / (2 * spec.length * spec.waist);
+  return (totalMass(spec) * TUNING.g) / ((spec.board ? 1 : 2) * spec.length * spec.waist);
 }
 
 const cache = new WeakMap<SkiSpec, Footprint>();

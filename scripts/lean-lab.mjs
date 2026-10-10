@@ -177,7 +177,7 @@ if (!(args.technique in TP.TECHNIQUE_POSES)) {
   );
   process.exit(2);
 }
-const spec = E.SKI_CATALOG.find((s) => s.id === args.skis);
+const spec = E.isPairId(args.skis) ? E.pairById(args.skis) : null;
 if (!spec) {
   console.error(`unknown skis "${args.skis}" (${E.SKI_CATALOG.map((s) => s.id).join(", ")})`);
   process.exit(2);

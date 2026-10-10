@@ -101,7 +101,7 @@ export type SnowContact = {
   kind: "ski";
   /** Which station of the ski. */
   station: "tip" | "mid" | "tail";
-  /** -1 the left ski, +1 the right. */
+  /** -1 the left ski, +1 the right; 0 a board's one column. */
   side: number;
   /** The footprint, world frame, m: on the SNOW SURFACE (`level.groundAt`)
    * under the probe — the top of the trough it cuts, not its floor. */
@@ -241,10 +241,11 @@ export type SkierState = {
    * physics: the grip it costs is `chatterOf`'s own. */
   chatter: number;
   /** Every probe (`SnowContact`): the left ski's tip, mid and tail, then
-   * the right ski's. */
+   * the right ski's — on a board, its one column: the nose, the front
+   * foot, the back foot, the tail (`suspension.ts`). */
   contacts: SnowContact[];
   /** The legs' compression per ski, m (left, right) — the renderer's knee
-   * bend. */
+   * bend; on a board, per foot (front, back). */
   skiCompression: [number, number];
   /** True while nothing is touching the snow; `airTime` is the seconds
    * since it left, 0 when grounded. */

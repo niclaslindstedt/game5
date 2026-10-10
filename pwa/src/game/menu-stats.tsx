@@ -21,7 +21,7 @@
 import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 
-import { skisById, type DeathCause, type GameMode, type SkiId } from "@engine";
+import { pairById, type DeathCause, type GameMode, type PairId } from "@engine";
 
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import {
@@ -37,9 +37,9 @@ import {
 } from "./stats.ts";
 import { STRINGS, comboLine } from "./strings.ts";
 
-const skiName = (id: SkiId): string => {
+const skiName = (id: PairId): string => {
   try {
-    return skisById(id).name;
+    return pairById(id).name;
   } catch {
     return id;
   }

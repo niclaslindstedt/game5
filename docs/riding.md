@@ -51,6 +51,46 @@ The skier picks his BUILD on the DRESS card (`Outfit.weight`): **LIGHT** 60 kg, 
 
 AGAINST ANOTHER SKIER the exchange is shared by the riders' weights (`shoulderShare`): two skiers of the field shoulder each other by their `skierMass` (half each, to the bit, between two of one build — the field is always medium), and the crowd's knock-down, the player's own throw off an amateur and the body's blow from a shoulder are stated against the medium rider and scaled by his share — a heavy rider knocks an amateur down at a lower closing speed and is jolted less himself.
 
+## The board (`defs/boards.ts`)
+
+A SNOWBOARD is a pair to the engine: a sidecut on the snow under a rider whose legs are the only suspension, read by the skis' own model. What makes it a board is `SkiSpec.board` (`BoardFit`), and `isBoard` / `pairById` / `BOARD_CATALOG` beside the skis. It is ridden only where a run asks for one by its id (the labs and the suite), because it has no figure yet: it is not in `SKI_CATALOG`, so it is on no card, in no field and among no models, and `isSkiId` still says no to it.
+
+THE LYNX is the one board. It is an all-mountain twin, each number inside its class's band:
+
+- **Length and width:** 1.56 m long, 25 cm under the feet, 29.5 cm at the nose and the tail.
+- **Sidecut:** 7.8 m.
+- **Edge:** at most 55°.
+- **Kit:** 6.7 kg of board, bindings and soft boots, and no poles.
+- **Drag area:** 0.55 m² stood up and 0.5 m² in his crouch. A snowboarder's wind-tunnel band is 0.35–0.55 m². He crouches side-on and cannot fold his shoulders out of the wind as a skier does.
+- **Stance:** regular, duck at +15°/−15°, 53 cm between the bindings' centres.
+
+THE STATIONS (`probesOf`) are one column down the deck's centreline at the board's whole width (`SnowContact.side` 0), in this order:
+
+- the nose, 0.35 of the length ahead of the middle, carrying 0.3 of the front foot's load;
+- the front foot;
+- the back foot;
+- the tail, carrying 0.3 of the back foot's load.
+
+`Probe.leg` says which foot each station hangs from, so `skiCompression[0]` and `[1]` are the front and back foot. The hull's knees, hips and shoulders stand across the board toward the rider's toe edge (the board's right for a regular rider). The pressure in `footprint.ts` is the whole rider on one deck. The board therefore sinks less and planes sooner in powder, comes onto its edge slower than a ski, and holds its base stronger in powder.
+
+FAKIE: a twin is the same board either way round, so a rider riding backward never turns round out of it. There is no revert and no hop round (`switch.ts`'s `revertDue`). His drive pushes the way he is going rather than being cut. His step turn at a crawl is read the way he is going, as the carve's steer is, and he never V-skates (`poles.ts`).
+
+`make ride ARGS="--skis lynx"` rides the whole bench on it, and its own scenarios are `board-straight`, `board-carve`, `board-carve-fast`, `board-fakie`, `board-kicker` and `board-powder` (`scripts/lib/ride-board.mjs`). The `landing`, `sag` and `lean` labs take `--skis lynx` too. `tests/board_test.ts` holds it. It measures:
+
+- **Top speed:** 113 km/h flat out down the reference pitch, against the Chamois's 117.
+- **Powder:** a rest sink of 0.18 m against 0.22, planing at about 24 km/h against 28.
+- **Carve at 60 km/h on 0.6 of the edge:** a 36 m arc at 0.71 g, against the Chamois's 47 m at 0.63 g.
+- **The hard cut at 80 km/h:** the board CATCHES. Its 7.8 m sidecut asks far more than the edge holds at that speed.
+
+Still to come:
+
+- a heelside turn weaker than a toeside one;
+- a technique row and the bot;
+- a side area for the crosswind;
+- the board and the rider apart in a wipeout;
+- the one-foot skate;
+- the figure.
+
 ## Where the skis meet the snow, and the legs (`suspension.ts`)
 
 SIX STATIONS: each ski's tip, its middle under the boot and its tail (`STATIONS`, at 0.38 of the length ahead of the boot, 0 and 0.32 behind, bearing a quarter, a half and a quarter of the ski's load). Each station is a spring-damper — THE LEG — cast down THE SNOW'S OWN NORMAL from under the hips: along the ski's line by its station (the body's forward axis, so a body pitched over its tips loads them), across the snow by half the stance (the ground's own across, square to the skis), and down from the CoG — the raycast vehicle, whose contact is wherever that ray meets the snow's SUPPORT (`snow.ts`), found by Newton's method along the ray. **The stance stands on the snow and the leg reaches from the hips**: a skier's legs are two, and his skis stay on the snow whatever his body does above them, so the body's roll is its INCLINATION into a turn and never a ski lifted. Cast from a point rolled over with the body along its own axis — the sibling games' sled — a 0.3 m stance under a body laid 30° over was one ski 0.15 m off the snow, and every turn-in a skier falling over his inside ski.

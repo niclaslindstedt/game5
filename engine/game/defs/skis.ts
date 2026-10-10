@@ -97,8 +97,29 @@ export type SkiId =
   | "ibex"
   | "kestrel";
 
+/** The snowboards (`boards.ts`), named as the skis are. */
+export type BoardId = "lynx";
+
+/** Any pair this game is ridden on: a pair of skis or a board. */
+export type PairId = SkiId | BoardId;
+
+/** A SNOWBOARD'S OWN SETUP (`boards.ts`) — what a board has and a pair of
+ * skis does not: both feet on one deck, one behind the other along it. */
+export type BoardFit = {
+  /** Binding centre to binding centre ALONG the deck, m (about 0.30–0.32
+   * of the rider's height). */
+  stance: number;
+  /** The bindings' angles off the line across the board, rad, positive
+   * toward the nose: the front foot's and the back foot's. */
+  front: number;
+  back: number;
+  /** Which foot leads at the nose: "regular" the left (the rider facing the
+   * board's right, his toe edge on +x), "goofy" the right. */
+  lead: "regular" | "goofy";
+};
+
 export type SkiSpec = {
-  id: SkiId;
+  id: PairId;
   /** The pair's own name — an animal that moves the way it skis. */
   name: string;
   /** The class of ski, as the ski card bills it. */
@@ -168,14 +189,23 @@ export type SkiSpec = {
    * pitch (`TOP_SPEED_PITCH`, a red piste's steep pitch), once the drag
    * holds it. */
   topSpeed: number;
+  /** A SNOWBOARD's setup — present on a board alone (`boards.ts`): its
+   * stations stand in one column down the deck at its whole width
+   * (`suspension.ts`), its rider carries no poles and never turns round
+   * out of riding fakie (`switch.ts`). A pair of skis has none. */
+  board?: BoardFit;
 };
+
+/** A PAIR OF SKIS — a spec that is one of the catalog's skis, never a
+ * board: what the ski card, the models and the topsheets are keyed on. */
+export type SkisSpec = SkiSpec & { id: SkiId };
 
 /** THE CHAMOIS — the ALL-MOUNTAIN ski, the reference pair, and the one
  * every shared number in `TUNING` was tuned on: at home on the piste and
  * off it, the middle of every band and best at nothing. A 178 cm ski with
  * an 88 mm waist (the class runs 85–95), a 130 mm tip, an 18 m sidecut,
  * medium flex, a little tip rocker, under an 80 kg skier in his kit. */
-export const SKIS: SkiSpec = {
+export const SKIS: SkisSpec = {
   id: "chamois",
   name: "Chamois",
   kind: "All-mountain",
@@ -212,7 +242,7 @@ export const SKIS: SkiSpec = {
  * 11–13), stiff underfoot, no rocker: it goes edge to edge faster than
  * anything here and bites a groomed bend a longer ski runs wide in — and at
  * speed it chatters, and in powder its narrow waist sinks. */
-export const SWIFT: SkiSpec = {
+export const SWIFT: SkisSpec = {
   ...SKIS,
   id: "swift",
   name: "Swift",
@@ -241,7 +271,7 @@ export const SWIFT: SkiSpec = {
  * rocker: it holds an edge on ice the slalom ski skids off and carries its
  * speed through a long bend, and it wants a bend that long — a tight one
  * it has to be skidded round. */
-export const CHOUGH: SkiSpec = {
+export const CHOUGH: SkisSpec = {
   ...SKIS,
   id: "chough",
   name: "Chough",
@@ -277,7 +307,7 @@ export const CHOUGH: SkiSpec = {
  * downhill ski's longer one never asks enough to use its edge. Slower than
  * the downhill ski flat out, slower than the giant slalom ski edge to
  * edge. */
-export const FALCON: SkiSpec = {
+export const FALCON: SkisSpec = {
   ...SKIS,
   id: "falcon",
   name: "Falcon",
@@ -308,7 +338,7 @@ export const FALCON: SkiSpec = {
  * (0.35 m² of drag): on a long schuss it outruns everything and lands a
  * downhill's jumps on its length — and it hates a bend, hangs its tips in
  * powder and takes its time onto an edge. */
-export const EAGLE: SkiSpec = {
+export const EAGLE: SkisSpec = {
   ...SKIS,
   id: "eagle",
   name: "Eagle",
@@ -343,7 +373,7 @@ export const EAGLE: SkiSpec = {
  * berm taken at 60 km/h and a landing taken without a bobble: it turns
  * tighter than the giant slalom ski, holds more at speed than the slalom
  * ski, and lands what a stiffer race ski folds on. */
-export const WOLVERINE: SkiSpec = {
+export const WOLVERINE: SkisSpec = {
   ...SKIS,
   id: "wolverine",
   name: "Wolverine",
@@ -380,7 +410,7 @@ export const WOLVERINE: SkiSpec = {
  * (`riders.ts`), some 140 kg with the kit. Straight down a
  * fall line nothing comes near it; it carves no bend, chatters on nothing,
  * and in powder its weight sinks it. */
-export const PEREGRINE: SkiSpec = {
+export const PEREGRINE: SkisSpec = {
   ...SKIS,
   id: "peregrine",
   name: "Peregrine",
@@ -411,7 +441,7 @@ export const PEREGRINE: SkiSpec = {
  * a soft, lifted tip: it floats up out of powder the others sink in and
  * turns there off its base — and on the groomer the wide waist is slow onto
  * its edge, vague once there, and the soft tip wanders at speed. */
-export const MARMOT: SkiSpec = {
+export const MARMOT: SkisSpec = {
   ...SKIS,
   id: "marmot",
   name: "Marmot",
@@ -437,7 +467,7 @@ export const MARMOT: SkiSpec = {
  * with a little rocker at both ends: it spins the easiest, lands anything
  * without a jolt (the soft ski and a low harsh speed's worth of give), and
  * it is slow in a tuck, loose on an edge and buried in deep powder. */
-export const HARE: SkiSpec = {
+export const HARE: SkisSpec = {
   ...SKIS,
   id: "hare",
   name: "Hare",
@@ -474,7 +504,7 @@ export const HARE: SkiSpec = {
  * a 1440 put down on the landing without a bobble: it holds the in-run
  * straighter than the Hare, lands what the Hare folds on, and still spins
  * as a park ski does. */
-export const RAVEN: SkiSpec = {
+export const RAVEN: SkisSpec = {
   ...SKIS,
   id: "raven",
   name: "Raven",
@@ -511,7 +541,7 @@ export const RAVEN: SkiSpec = {
  * answer is a mogul line taken at 35 km/h: it turns on a crest the others
  * have to be skidded off, and it is slow in a tuck, chatters at speed and
  * sinks in powder. */
-export const IBEX: SkiSpec = {
+export const IBEX: SkisSpec = {
   ...SKIS,
   id: "ibex",
   name: "Ibex",
@@ -549,7 +579,7 @@ export const IBEX: SkiSpec = {
  * on the card (`ski-stats.ts`'s `spinOf`). Its answer is the straight
  * line into a 71° kicker at 55 km/h and the twist about its own length in
  * the air; it is slow in a tuck, vague on an edge and sinks in powder. */
-export const KESTREL: SkiSpec = {
+export const KESTREL: SkisSpec = {
   ...SKIS,
   id: "kestrel",
   name: "Kestrel",
@@ -578,7 +608,7 @@ export const KESTREL: SkiSpec = {
  * downhill), the ski-cross ski, the speed ski, the powder ski and the park
  * ski, the big-air ski, the mogul ski and the aerials ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
-export const SKI_CATALOG: readonly SkiSpec[] = [
+export const SKI_CATALOG: readonly SkisSpec[] = [
   SKIS,
   SWIFT,
   CHOUGH,
@@ -594,8 +624,9 @@ export const SKI_CATALOG: readonly SkiSpec[] = [
 ];
 
 /** The pair with this id, or the all-mountain ski for one this build does
- * not carry (a stored pick from another version, or a hand-typed link). */
-export function skisById(id: string): SkiSpec {
+ * not carry (a stored pick from another version, or a hand-typed link).
+ * The skis alone: a board is `boards.ts`'s `pairById`. */
+export function skisById(id: string): SkisSpec {
   return SKI_CATALOG.find((s) => s.id === id) ?? SKIS;
 }
 

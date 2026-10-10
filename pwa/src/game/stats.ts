@@ -34,7 +34,7 @@
 // The sums are folded from the share and the bests from the whole, so a run
 // folded three times is counted once.
 
-import type { CrashCause, DeathCause, GameMode, GameState, SkiId, TrickKind } from "@engine";
+import type { CrashCause, DeathCause, GameMode, GameState, PairId, TrickKind } from "@engine";
 import { TUNING, bonesOf, severityOf } from "@engine";
 
 /** Seconds of riding before a run is a run. */
@@ -83,7 +83,7 @@ export type RunTally = RunSums & {
   at: number;
   mode: GameMode;
   seed: number;
-  skis: SkiId;
+  skis: PairId;
   /** The fastest, m/s; the longest flight, s; the hardest landing ridden
    * away, g; the biggest combo banked; the worst injury severity score. */
   top: number;
@@ -152,7 +152,7 @@ export type SeedRow = {
 export const SEED_ROWS = 60;
 
 /** A best in the book, and the run that set it. */
-export type Best = { value: number; mode: GameMode; seed: number; skis: SkiId; at: number };
+export type Best = { value: number; mode: GameMode; seed: number; skis: PairId; at: number };
 
 /** What the book keeps per mode and per pair. */
 export type ShareRow = { runs: number; time: number; distance: number };
@@ -180,7 +180,7 @@ export type StatsBook = {
   causes: Partial<Record<CrashCause, number>>;
   killed: Partial<Record<DeathCause, number>>;
   modes: Partial<Record<GameMode, ShareRow>>;
-  skis: Partial<Record<SkiId, ShareRow>>;
+  skis: Partial<Record<PairId, ShareRow>>;
   /** Every trick element won, on every map, by `trickKey`. */
   tricks: Record<string, number>;
   /** Each map's own book, by its seed. */
@@ -574,8 +574,8 @@ export function modesByTime(book: StatsBook): [GameMode, ShareRow][] {
 }
 
 /** The pairs ridden, most distance first. */
-export function skisByDistance(book: StatsBook): [SkiId, ShareRow][] {
-  return (Object.entries(book.skis) as [SkiId, ShareRow][])
+export function skisByDistance(book: StatsBook): [PairId, ShareRow][] {
+  return (Object.entries(book.skis) as [PairId, ShareRow][])
     .filter(([, row]) => row.runs > 0)
     .sort((a, b) => b[1].distance - a[1].distance);
 }
@@ -631,7 +631,7 @@ function bestOf(v: unknown): Best | null {
     value,
     mode: r.mode as GameMode,
     seed: num(r.seed),
-    skis: r.skis as SkiId,
+    skis: r.skis as PairId,
     at: num(r.at),
   };
 }
@@ -679,7 +679,7 @@ function tallyOf(v: unknown): RunTally | null {
     at: num(r.at),
     mode: r.mode as GameMode,
     seed: num(r.seed),
-    skis: r.skis as SkiId,
+    skis: r.skis as PairId,
     top: num(r.top),
     longest: num(r.longest),
     landing: num(r.landing),

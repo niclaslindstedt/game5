@@ -35,6 +35,7 @@ import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
+import { drawnAs } from "./ski-looks.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
 import { createDoorsView, type DoorsView } from "./doors-view.ts";
 import type { ViewCull } from "./view-cull.ts";
@@ -176,7 +177,7 @@ export function createMachines(
   if (sled) {
     group.add(sled.group);
     // The rider's own pair on the rack, in its topsheet's colours.
-    const top = TOPSHEETS[state.skier.spec.id];
+    const top = TOPSHEETS[drawnAs(state.skier.spec)];
     sled.dressRack(top.body, top.trim);
   }
   // THE AIR AMBULANCE on the run after an injured one (`rescue-view.ts`),

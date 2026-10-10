@@ -202,7 +202,7 @@ if (args.technique && !(args.technique in TP.TECHNIQUE_POSES)) {
   );
   process.exit(2);
 }
-const spec = E.skisById(args.skis);
+const spec = E.pairById(args.skis);
 const mounts = G.mountsOf(spec);
 
 const moments =

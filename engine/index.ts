@@ -387,6 +387,8 @@ export {
   type SkiSpec,
   type LegSpec,
 } from "./game/defs/skis.ts";
+export type { BoardId, PairId, BoardFit, SkisSpec } from "./game/defs/skis.ts";
+export { LYNX, BOARD_CATALOG, isBoard, isBoardId, isPairId, pairById } from "./game/defs/boards.ts";
 export { TAIL_RISE, tailRiseOf } from "./game/defs/tails.ts";
 export { heldSlip, revertShare, switchSteer, switchTurn, tailDug } from "./game/switch.ts";
 export type { Revert } from "./game/switch.ts";

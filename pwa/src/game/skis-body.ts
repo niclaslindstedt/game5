@@ -305,6 +305,12 @@ function isUnder(o: THREE.Object3D, group: THREE.Object3D): boolean {
   return false;
 }
 
+/** Coming down off a hop into switch (`SkierState.hopHeld`): still in its
+ * little flight, round already — the look back held for the landing. */
+export function hopLanding(skier: SkierState): boolean {
+  return skier.airborne && (skier.hopHeld ?? 0) > 0;
+}
+
 /** How far he stands on the snow as drawn, 0..1: the view's eased air, or
  * the engine's flag before the spring has read a ride. */
 export function groundOf(skier: SkierState, legs: ReturnType<typeof createSkierSpring>): number {
@@ -373,6 +379,8 @@ export function poseInputOf(
     // RIDING SWITCH: looking back over the shoulder his body has turned to
     // — or, waiting for a chair or a T-bar, over his inside one for it.
     switched: legs.back * legs.backSide + lookBack(skier.lift),
+    windUp: legs.wind,
+    turningRound: skier.revert != null || hopLanding(skier),
     airborne: skier.airborne,
     landing: skier.landing,
     // ...lengthened a little through a revert, the skis light (`skier-switch.ts`).

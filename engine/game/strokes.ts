@@ -103,8 +103,9 @@ export function poseInput(state: GameState, input: SkierInput): SkierInput {
 }
 
 /** Whether the skier stands on the ramp of a kicker (R4, R9, R20) — where
- * a lean held across the gate is a trick being set up. */
-function onRamp(state: GameState): boolean {
+ * a lean held across the gate is a trick being set up — or no further than
+ * `past` m beyond its lip. */
+export function onRamp(state: GameState, past = 1): boolean {
   const kickers = state.level.kickers;
   if (!kickers) return false;
   const c = state.skier;
@@ -114,7 +115,7 @@ function onRamp(state: GameState): boolean {
     const dx = c.x - k.x;
     const dz = c.z - k.z;
     const u = dx * fx + dz * fz;
-    if (u < -k.ramp || u > 1) continue;
+    if (u < -k.ramp || u > past) continue;
     if (Math.abs(dx * fz - dz * fx) <= k.width / 2) return true;
   }
   return false;

@@ -30,6 +30,16 @@
 // round under it, the twist and the look unwound together; the legs
 // lengthen a little through the middle, where the skis are light and
 // across the way, and his hands come back up in front of him.
+//
+// HOPPING INTO SWITCH ON PURPOSE (the engine's `hopSwitch`), as a
+// freestyler is coached through a hop 180 on the flat: as the legs load
+// for the pop he WINDS UP — the shoulders turned against the way he means
+// to go, most of the 45° a coach asks for, the head with them —
+// and at the pop UNWINDS hard: the HEAD LEADS the turn, coming round to
+// look over the shoulder he turns to before the skis are half way, the
+// trunk following it, the body kept compact, landed centred and looking
+// back down the hill over that shoulder — the shoulder he then rides
+// switch on.
 
 /** The look back at its fullest: the head turned in the body's frame,
  * rad (the trunk's turn and the neck's together — the chin over the
@@ -75,6 +85,24 @@ export function revertLook(u: number, turn: number, share: (u: number) => number
   return Math.sign(turn) * Math.min(1, left / SWITCH_LOOK.head);
 }
 
+/** THE HOP INTO SWITCH'S LOOK (`Revert.to` "switch", `u` of it turning
+ * him by `turn` rad): the head LEADS — round over the shoulder he turns to
+ * by `HOP_LEAD` of the turn, the body coming round after it — signed to
+ * that shoulder, 0..1. */
+export function hopLook(u: number, turn: number, share: (u: number) => number): number {
+  return Math.sign(turn) * share(Math.max(0, Math.min(1, u / HOP_LEAD)));
+}
+
+/** How far through the hop into switch the head is all the way round. */
+export const HOP_LEAD = 0.55;
+
+/** THE WIND-UP before a hop into switch: the shoulders' turn against the
+ * way he means to go, rad (some 35° — most of the coach's 45°, the head
+ * taking the rest), the head's own on top of it, as a share of the look's
+ * `look` units (`switchShape`), and the seconds of the jump's load he is
+ * all the way wound up by (a quick dip, never the whole of a held jump). */
+export const WIND_UP = { twist: 0.6, look: 0.5, full: 0.3 } as const;
+
 /** How far the legs are lengthened at `u` of a revert, m. */
 export function revertRise(u: number): number {
   return REVERT_RISE * Math.sin(Math.PI * Math.max(0, Math.min(1, u)));
@@ -96,14 +124,22 @@ export type SwitchShape = {
  * into it, signed to the shoulder: positive toward the body frame's +x,
  * the side the hips hang to for a positive `hipRight` — how far he is in
  * the air (0..1): a flight is ridden square, the head coming back round —
- * and the tuck he is in. */
-export function switchShape(switched: number | undefined, air: number, crouch = 0): SwitchShape {
+ * the tuck he is in, and how far he is WOUND UP against a hop into switch
+ * (−1..1, signed to the side he means to turn to: the shoulders and the
+ * head turned the other way, `WIND_UP`). */
+export function switchShape(
+  switched: number | undefined,
+  air: number,
+  crouch = 0,
+  windUp = 0,
+): SwitchShape {
   const k = Math.max(-1, Math.min(1, switched ?? 0)) * (1 - air);
   const w = Math.abs(k);
+  const wind = Math.max(-1, Math.min(1, windUp));
   return {
     w,
-    look: 2 * SWITCH_LOOK.head * k,
-    twist: SWITCH_LOOK.twist * k,
+    look: 2 * SWITCH_LOOK.head * k - WIND_UP.look * wind,
+    twist: SWITCH_LOOK.twist * k - WIND_UP.twist * wind,
     hips: SWITCH_LOOK.hips * k,
     sink: SWITCH_LOOK.sink * w,
     crouch,

@@ -853,6 +853,29 @@ export const TUNING = {
       hopBelow: 40 / 3.6,
       hopTime: 0.4,
     },
+    /** THE HOP INTO SWITCH (`switch.ts`'s `hopSwitch`, `RunRules.revert`):
+     * the revert's other way round — a skier riding forward slower than
+     * `below` m/s (40 km/h, the hop round's own ceiling) who pops a jump
+     * with the edge held past `steer` of its travel, off no kicker's ramp,
+     * is turned half round in the air off it the way the edge is held, over
+     * `time` s — inside the flight a quick tap of the jump gives on the
+     * flat (some 0.33 s), so he is round before the snow — and lands riding
+     * switch. The edge may come a moment late, up to `late` s after the
+     * pop with his skis already off the snow — a player presses the jump
+     * and then the side. It is the freestyler's flat-ground
+     * hop 180: the shoulders wound up the other way as the legs load, then
+     * unwound hard at the pop, the head leading round to look over the
+     * shoulder he turns to, the body kept compact, landed centred. Landed,
+     * the revert (`switch.revert.below`) leaves him switch for `hold` s
+     * however slow he is — he asked to ride it — and only then turns him
+     * back round if he is still crawling. */
+    hop: {
+      below: 40 / 3.6,
+      steer: 0.5,
+      time: 0.3,
+      late: 0.1,
+      hold: 2,
+    },
   },
 
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */

@@ -58,6 +58,13 @@ export type SkierPoseInput = {
    * how far into it, signed to the shoulder he looks over (`skier-switch.ts`),
    * −1..1; none when left out. */
   switched?: number;
+  /** WOUND UP for a hop into switch (`SkierSpring.wind`), −1..1, signed to
+   * the side he means to turn to; none when left out. */
+  windUp?: number;
+  /** TURNING ROUND (a revert, or the hop into switch — `SkierState.revert`):
+   * the look is the turn's, and held through the hop's little flight
+   * rather than squared up for it. */
+  turningRound?: boolean;
   airborne: boolean;
   /** Seconds since the last landing — a fresh landing folds the knees when
    * no `bump` is handed in. */

@@ -32,7 +32,7 @@ export type Section = {
 };
 
 /** The kinds of street a village has. */
-export type StreetKind = "main" | "back" | "cross" | "road" | "aisle";
+export type StreetKind = "main" | "back" | "cross" | "road" | "aisle" | "town";
 
 /** THE SECTIONS, by kind of street.
  *   * MAIN — the village's main street along the hub, its shops and the
@@ -46,7 +46,10 @@ export type StreetKind = "main" | "back" | "cross" | "road" | "aisle";
  *     parking.
  *   * ROAD — the valley road out: two lanes of 3.25 m, no sidewalks, the
  *     plough's banks a metre tall either side and the snow poles in them.
- *   * AISLE — the car park's aisles: 6 m between the bays, no banks. */
+ *   * AISLE — the car park's aisles: 6 m between the bays, no banks.
+ *   * TOWN — a real face's other town streets (`real-streets.ts`), laid
+ *     along the real town's: two lanes of 2.75 m, a sidewalk on one side,
+ *     the windrows either side, no parking. */
 export const SECTIONS: Readonly<Record<StreetKind, Section>> = {
   main: {
     lane: 3.5,
@@ -81,6 +84,13 @@ export const SECTIONS: Readonly<Record<StreetKind, Section>> = {
     sides: [
       { park: 0, bank: 0, heap: 0, walk: 0 },
       { park: 0, bank: 0, heap: 0, walk: 0 },
+    ],
+  },
+  town: {
+    lane: 2.75,
+    sides: [
+      { park: 0, bank: 0.9, heap: 0.6, walk: 1.5 },
+      { park: 0, bank: 1.2, heap: 0.8, walk: 0 },
     ],
   },
 };

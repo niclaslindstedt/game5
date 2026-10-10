@@ -73,6 +73,7 @@ const ROAD_TINT: Record<Street["kind"], [number, number, number]> = {
   cross: [0.98, 0.98, 0.99],
   road: [1.02, 1.02, 1.03],
   aisle: [0.97, 0.97, 0.98],
+  town: [1, 1, 1],
 };
 
 function geo(): StreetGeo {

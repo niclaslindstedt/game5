@@ -37,7 +37,9 @@
 // moves for it.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { sampleField } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { hubAt, nearestWithin, outsideHub } from "../mapgen/query.ts";
+import { regionOf } from "../mapgen/regions.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import type { Cabin } from "./cabins.ts";
 import { pick, toSegment } from "./cabin-site.ts";
@@ -54,6 +56,17 @@ import { helipadOf } from "./heli-pad.ts";
 import { clearOfLifts, liftPlans, queueLane } from "./lift-line.ts";
 import { pisteMasts } from "./piste-masts.ts";
 import { REAL_HOUSES, realHousesOf } from "./real-houses.ts";
+import {
+  REAL_STREETS,
+  inFrame,
+  realCrosses,
+  realExit,
+  realProfile,
+  realTownOf,
+  realWeight,
+  townLines,
+  type FrameSeg,
+} from "./real-streets.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 
 /** A point of a street's centreline (or a lane's, a sidewalk's): in the
@@ -231,6 +244,15 @@ function clearanceOf(level: Level, avoid: readonly Cabin[]): Clear {
   const cps = level.checkpoints;
   const finish = cps.length > 0 ? cps[cps.length - 1] : null;
   const hit = { index: 0, s: 0, distance: Infinity, lateral: 0, x: 0, z: 0 };
+  // On a real face, a wind crust folded into the packed field (R21) is
+  // not a piste: the packed snow a street keeps off is the groomer's,
+  // above what the crust alone packs.
+  const crust = level.face ? (level.crust ?? null) : null;
+  const support = crust ? (regionOf(level).crust?.packed ?? 0) : 0;
+  const groomed = (x: number, z: number) => {
+    const p = level.packedAt(x, z);
+    return p > 0.25 && (!crust || p > sampleField(crust, x, z) * support + 0.05);
+  };
   const houses = avoid.map((c) => {
     const d = CABINS[c.kind];
     return {
@@ -242,7 +264,7 @@ function clearanceOf(level: Level, avoid: readonly Cabin[]): Clear {
   });
   return (x, z, hubPad = C.hub) => {
     if (x < 0 || z < 0 || x > level.size || z > level.size) return false;
-    if (hubPad >= C.hub && level.packedAt(x, z) > 0.25) return false;
+    if (hubPad >= C.hub && groomed(x, z)) return false;
     if ((level.iceAt?.(x, z) ?? 0) > 0) return false;
     if (!clearOfLifts(level, x, z)) return false;
     if (hub && outsideHub(hub, x, z) < hubPad) return false;
@@ -358,7 +380,7 @@ export function planVillageStreets(level: Level, avoid: readonly Cabin[]): Villa
   if (!mid) return null;
   // The valley's side of the hub: away from the summit.
   const summitZ = level.mountain?.summit.z ?? 0;
-  const sV: 1 | -1 = summitZ < (mid.top + mid.bottom) / 2 ? 1 : -1;
+  const valley: 1 | -1 = summitZ < (mid.top + mid.bottom) / 2 ? 1 : -1;
   const clear = clearanceOf(level, avoid);
   const village = resort.village;
   // The main lift: of the lifts leaving the hub, the one whose bottom
@@ -385,55 +407,118 @@ export function planVillageStreets(level: Level, avoid: readonly Cabin[]): Villa
   const twoRoads = deal(8) < V.roads;
   const parkSide: -1 | 1 = deal(9) < 0.5 ? -1 : 1;
 
-  const centres = realCentres(level, village.x, span0, mid, sV, vBack);
-  for (const spanShare of V.tries.span) {
-    const span = span0 * spanShare;
-    for (const off of centres) {
-      const cx = village.x + off;
-      const xa = Math.round(cx - span / 2);
-      const xb = Math.round(cx + span / 2);
-      if (xa < hx0 + 10 || xb > hx1 - 10) continue;
-      // The hub's valley edge furthest out along the village, so no street
-      // reaches into it.
-      let z0 = sV > 0 ? -Infinity : Infinity;
-      for (let x = xa - 40; x <= xb + 40; x += 10) {
-        const e = hubAt(hub, Math.min(hx1, Math.max(hx0, x)));
-        if (!e) continue;
-        z0 = sV > 0 ? Math.max(z0, e.bottom) : Math.min(z0, e.top);
+  const town = realTownOf(level);
+  // The valley's side first; on a real face with a town whose village
+  // has no room there, the hub's mountain side, where a real town often
+  // stands above a valley floor of water, and with no road out.
+  const onSide = (sV: 1 | -1, roads: boolean): VillageStreets | null => {
+    const centres = realCentres(level, village.x, span0, mid, sV, vBack, town?.streets ?? []);
+    for (const spanShare of V.tries.span) {
+      const span = span0 * spanShare;
+      for (const off of centres) {
+        const cx = village.x + off;
+        const xa = Math.round(cx - span / 2);
+        const xb = Math.round(cx + span / 2);
+        if (xa < hx0 + 10 || xb > hx1 - 10) continue;
+        // The hub's valley edge furthest out along the village, so no street
+        // reaches into it.
+        let z0 = sV > 0 ? -Infinity : Infinity;
+        for (let x = xa - 40; x <= xb + 40; x += 10) {
+          const e = hubAt(hub, Math.min(hx1, Math.max(hx0, x)));
+          if (!e) continue;
+          z0 = sV > 0 ? Math.max(z0, e.bottom) : Math.min(z0, e.top);
+        }
+        if (!Number.isFinite(z0)) continue;
+        const vMax = sV > 0 ? level.size - z0 : z0;
+        if (vMax < vBack + 20) continue;
+        const bow = (a: number, x: number, ph: number) =>
+          a * Math.sin(Math.PI * ((x - xa) / (xb - xa)) + ph);
+        const mainV = (x: number) => vMain + bow(bendM, x, 0);
+        const backV = (x: number) => vBack + bow(bendB, x, 0.4 * Math.PI);
+        // On a real face with a town, the real streets' lines first.
+        const segs = town ? inFrame(town.streets, z0, sV) : [];
+        const exit = segs.length > 0 ? realExit(segs, xa, xb, vMax) : null;
+        for (const [m, b] of realLines(segs, xa, xb, vMax, mainV, backV, vBack - vMain)) {
+          const draft = layDraft(level, clear, {
+            xa,
+            xb,
+            z0,
+            sV,
+            mainV: m,
+            backV: b,
+            vMax,
+            liftX,
+            nCross,
+            roadEnd: exit ? exit.end : roadEnd,
+            twoRoads,
+            parkSide,
+            deal,
+            segs,
+            exit,
+            roads,
+          });
+          if (!draft) continue;
+          const plan = build(level, draft);
+          if (town) layTownStreets(level, plan, clear, town);
+          return plan;
+        }
       }
-      if (!Number.isFinite(z0)) continue;
-      const vMax = sV > 0 ? level.size - z0 : z0;
-      if (vMax < vBack + 20) continue;
-      const bow = (a: number, x: number, ph: number) =>
-        a * Math.sin(Math.PI * ((x - xa) / (xb - xa)) + ph);
-      const mainV = (x: number) => vMain + bow(bendM, x, 0);
-      const backV = (x: number) => vBack + bow(bendB, x, 0.4 * Math.PI);
-      const draft = layDraft(level, clear, {
+    }
+    return null;
+  };
+  const plan = onSide(valley, true);
+  return plan || !town ? plan : onSide(-valley as 1 | -1, false);
+}
+
+/** The main and back streets' lines tried for one village: on a real face
+ * with a town (`segs` its streets in the village's frame), the real main
+ * street's with the real back street's, then with the dealt back street
+ * carried behind it; last (and alone on any other map) the dealt pair. */
+function realLines(
+  segs: readonly FrameSeg[],
+  xa: number,
+  xb: number,
+  vMax: number,
+  mainV: (x: number) => number,
+  backV: (x: number) => number,
+  gap: number,
+): [(x: number) => number, (x: number) => number][] {
+  const out: [(x: number) => number, (x: number) => number][] = [];
+  if (segs.length > 0) {
+    const R = REAL_STREETS;
+    const room = vMax - gap - 20;
+    const m = realProfile(
+      segs,
+      xa,
+      xb,
+      () => R.main.band[0],
+      () => Math.max(R.main.band[0], Math.min(R.main.band[1], room)),
+      R.main.cover,
+    );
+    if (m) {
+      const b = realProfile(
+        segs,
         xa,
         xb,
-        z0,
-        sV,
-        mainV,
-        backV,
-        vMax,
-        liftX,
-        nCross,
-        roadEnd,
-        twoRoads,
-        parkSide,
-        deal,
-      });
-      if (draft) return build(level, draft);
+        (x) => m(x) + R.back.gap[0],
+        (x) => Math.max(m(x) + R.back.gap[0], Math.min(m(x) + R.back.gap[1], vMax - 20)),
+        R.main.cover,
+      );
+      if (b) out.push([m, b]);
+      const behind = (x: number) => m(x) + backV(x) - mainV(x);
+      out.push([m, behind]);
     }
   }
-  return null;
+  out.push([mainV, backV]);
+  return out;
 }
 
 /** The centres the village is tried at, off its point (`tries.centre`) —
- * on a REAL FACE (`real-houses.ts`) with enough of its houses on the
- * village's ground, the one most of them stand round added (inside the
- * reach the list already searches) and every centre tried in order of how
- * many stand under its streets, the most first. */
+ * on a REAL FACE (`real-houses.ts`, `real-streets.ts`) with enough of its
+ * houses and its town's streets on the village's ground, the one most of
+ * them stand round added (inside the reach the list already searches) and
+ * every centre tried in order of how many stand under its streets, the
+ * most first. */
 function realCentres(
   level: Level,
   vx: number,
@@ -441,9 +526,10 @@ function realCentres(
   mid: { top: number; bottom: number },
   sV: 1 | -1,
   depth: number,
+  streets: Parameters<typeof inFrame>[0],
 ): readonly number[] {
   const houses = realHousesOf(level);
-  if (houses.length === 0) return V.tries.centre;
+  if (houses.length === 0 && streets.length === 0) return V.tries.centre;
   const reach = Math.max(...V.tries.centre.map(Math.abs));
   // The houses on the valley's side of the hub, within the village's depth.
   const edge = sV > 0 ? mid.bottom : mid.top;
@@ -453,7 +539,13 @@ function realCentres(
       return v > 0 && v < depth + REAL_HOUSES.near;
     })
     .map((h) => h.x);
-  const under = (off: number) => xs.filter((x) => Math.abs(x - (vx + off)) < span / 2).length;
+  // …and the real town's streets there, a real house to every
+  // `REAL_STREETS.house` m of them.
+  const segs = inFrame(streets, edge, sV);
+  const under = (off: number) =>
+    xs.filter((x) => Math.abs(x - (vx + off)) < span / 2).length +
+    realWeight(segs, vx + off - span / 2, vx + off + span / 2, depth + REAL_HOUSES.near) /
+      REAL_STREETS.house;
   let peak = 0;
   for (let off = -reach; off <= reach; off += 10) if (under(off) > under(peak)) peak = off;
   const tried: readonly number[] = V.tries.centre;
@@ -480,6 +572,12 @@ type DraftAsk = {
   twoRoads: boolean;
   parkSide: -1 | 1;
   deal: (salt: number, k?: number) => number;
+  /** A real face's town in the village's frame, and where a real road
+   * leaves down the valley (`real-streets.ts`). */
+  segs: readonly FrameSeg[];
+  exit: { end: 0 | 1; x: number } | null;
+  /** Whether a road out must be laid (else none is tried). */
+  roads: boolean;
 };
 
 /** Try one centre and span: the main street, the back street and the two
@@ -555,15 +653,25 @@ function layDraft(level: Level, clear: Clear, a: DraftAsk): Draft | null {
   // THE MIDDLE CROSS STREETS: dealt along, clear of the ends, of each other,
   // of the square (the church stands across from it) and the car park.
   const crosses: number[] = [];
-  for (let i = 0; i < a.nCross; i++) {
+  const crossFree = (x: number) => {
+    const taken = [xa, xb, ...crosses];
+    if (taken.some((o) => Math.abs(o - x) < V.crosses.apart)) return false;
+    if (Math.abs(x - square) < sq + 30) return false;
+    if (carpark && x > carpark.p0 - 20 && x < carpark.p1 + 20) return false;
+    return lineOk(crossLine(x), "cross") !== null;
+  };
+  // A real town's cross streets first, where they fit.
+  if (a.segs.length > 0) {
+    for (const x of realCrosses(a.segs, xa, xb, mainV, backV)) {
+      if (crosses.length >= REAL_STREETS.crosses) break;
+      if (crossFree(x)) crosses.push(x);
+    }
+  }
+  for (let i = crosses.length; i < a.nCross; i++) {
     for (let t = 0; t < 8; t++) {
       const u = xa + (xb - xa) * ((i + 0.5 + (deal(20 + i, t) - 0.5) * 0.7) / a.nCross);
       const x = Math.round(u);
-      const taken = [xa, xb, ...crosses];
-      if (taken.some((o) => Math.abs(o - x) < V.crosses.apart)) continue;
-      if (Math.abs(x - square) < sq + 30) continue;
-      if (carpark && x > carpark.p0 - 20 && x < carpark.p1 + 20) continue;
-      if (!lineOk(crossLine(x), "cross")) continue;
+      if (!crossFree(x)) continue;
       crosses.push(x);
       break;
     }
@@ -576,7 +684,10 @@ function layDraft(level: Level, clear: Clear, a: DraftAsk): Draft | null {
     const x0 = end === 0 ? xa : xb;
     const v0 = backV(x0);
     const vEnd = a.vMax - 0.5;
-    const drift = (deal(30 + end, k) * 2 - 1) * 30;
+    const real = a.exit && a.exit.end === end && k === 0 ? a.exit.x - x0 : null;
+    const wander = REAL_STREETS.exit.wander;
+    const drift =
+      real !== null ? Math.max(-wander, Math.min(wander, real)) : (deal(30 + end, k) * 2 - 1) * 30;
     const pts: { x: number; z: number }[] = [];
     const n = Math.max(2, Math.ceil((vEnd - v0) / 10));
     for (let i = 0; i <= n; i++) {
@@ -586,7 +697,12 @@ function layDraft(level: Level, clear: Clear, a: DraftAsk): Draft | null {
     }
     return pts;
   };
-  for (const end of a.twoRoads ? [a.roadEnd, (1 - a.roadEnd) as 0 | 1] : [a.roadEnd]) {
+  const ends: (0 | 1)[] = !a.roads
+    ? []
+    : a.twoRoads
+      ? [a.roadEnd, (1 - a.roadEnd) as 0 | 1]
+      : [a.roadEnd];
+  for (const end of ends) {
     for (let k = 0; k < 4; k++) {
       const pts = roadAt(end, k);
       if (lineOk(pts, "road")) {
@@ -595,14 +711,14 @@ function layDraft(level: Level, clear: Clear, a: DraftAsk): Draft | null {
       }
     }
   }
-  if (roads.length === 0) {
+  if (roads.length === 0 && a.roads) {
     const other = (1 - a.roadEnd) as 0 | 1;
     for (let k = 0; k < 4 && roads.length === 0; k++) {
       const pts = roadAt(other, k);
       if (lineOk(pts, "road")) roads.push({ end: other, pts });
     }
   }
-  if (roads.length === 0) return null;
+  if (roads.length === 0 && a.roads) return null;
   return { xa, xb, z0, sV, mainV, backV, crosses, roads, square, carpark };
 }
 
@@ -777,4 +893,102 @@ function build(level: Level, d: Draft): VillageStreets {
     square: d.square,
     carparkSide: cp ? cp.side : 0,
   };
+}
+
+/** A real face's TOWN STREETS (`real-streets.ts`'s `townLines`) laid onto
+ * `plan`: every stretch of the town's real streets near the village that
+ * is clear (`clear`), off the plan's streets and open places and those
+ * laid before it, and no steeper than a town street — each a street of
+ * its own (`T1`, `T2`, …) with a junction at either end. */
+function layTownStreets(
+  level: Level,
+  plan: VillageStreets,
+  clear: Clear,
+  town: NonNullable<ReturnType<typeof realTownOf>>,
+): void {
+  const T = REAL_STREETS.town;
+  const section = SECTIONS.town;
+  const r0 = sideReach(section, 0);
+  const r1 = sideReach(section, 1);
+  const own = Math.max(r0, r1);
+  // The laid streets' points, bucketed, each with its reach.
+  const CELL = 20;
+  const grid = new Map<number, { x: number; z: number; r: number }[]>();
+  const key = (i: number, j: number) => i * 4096 + j;
+  const keep = (st: Street) => {
+    const r = Math.max(reachOf(st, 0), reachOf(st, 1));
+    for (const p of st.points) {
+      const k = key(Math.floor(p.x / CELL), Math.floor(p.z / CELL));
+      const cell = grid.get(k) ?? [];
+      cell.push({ x: p.x, z: p.z, r });
+      grid.set(k, cell);
+    }
+  };
+  for (const st of plan.streets) keep(st);
+  const offStreets = (x: number, z: number) => {
+    const ci = Math.floor(x / CELL);
+    const cj = Math.floor(z / CELL);
+    for (let i = ci - 1; i <= ci + 1; i++) {
+      for (let j = cj - 1; j <= cj + 1; j++) {
+        for (const q of grid.get(key(i, j)) ?? []) {
+          if (hypot(q.x - x, q.z - z) < q.r + T.apart) return false;
+        }
+      }
+    }
+    for (const a of plan.areas) {
+      const fx = Math.sin(a.heading);
+      const fz = Math.cos(a.heading);
+      const dx = x - a.x;
+      const dz = z - a.z;
+      if (
+        Math.abs(dx * fz - dz * fx) < a.half + T.apart &&
+        Math.abs(dx * fx + dz * fz) < a.depth + T.apart
+      ) {
+        return false;
+      }
+    }
+    return true;
+  };
+  const n = { x: 0, y: 1, z: 0 };
+  const ok = (x: number, z: number, dx: number, dz: number) => {
+    level.normalAt(x, z, n);
+    const gx = -n.x / Math.max(1e-6, n.y);
+    const gz = -n.z / Math.max(1e-6, n.y);
+    if (Math.abs(gx * dx + gz * dz) > T.grade.along) return false;
+    if (Math.abs(gx * dz - gz * dx) > T.grade.across) return false;
+    // Across it, to the back of each side: right of its way is (dz, −dx).
+    for (const lat of [-r0, 0, r1]) {
+      const qx = x + dz * lat;
+      const qz = z - dx * lat;
+      if (!clear(qx, qz) || !offStreets(qx, qz)) return false;
+    }
+    return offStreets(x, z) || own === 0;
+  };
+  const node = (p: StreetPoint): number => {
+    const id = plan.junctions.length;
+    plan.junctions.push({ id, x: p.x, y: p.y, z: p.z, streets: [], exit: false });
+    return id;
+  };
+  let count = 0;
+  townLines(town, plan.centre, V.step, ok, (_main, pts) => {
+    const points = resample(level, pts);
+    if (points.length < 2) return false;
+    const from = node(points[0]);
+    const to = node(points[points.length - 1]);
+    const st: Street = {
+      id: `T${++count}`,
+      kind: "town",
+      section,
+      points,
+      length: points[points.length - 1].s,
+      from,
+      to,
+      exit: false,
+    };
+    plan.streets.push(st);
+    plan.junctions[from].streets.push(st.id);
+    plan.junctions[to].streets.push(st.id);
+    keep(st);
+    return true;
+  });
 }

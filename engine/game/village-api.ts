@@ -4,7 +4,8 @@
 // streets carry for traffic and walkers (`village-furniture.ts`), the
 // village as the map knows it (`village.ts`) and the numbers it is laid
 // by (`defs/village-streets.ts`) — and the ski area's own buildings
-// (`resort-buildings.ts`) it stands on lots of.
+// (`resort-buildings.ts`) it stands on lots of, and on a real face the
+// real town it leans on (`real-houses.ts`, `real-streets.ts`).
 
 export {
   MASK as STREET_MASK,
@@ -82,3 +83,14 @@ export {
   realHousesOf,
   turnOff,
 } from "./real-houses.ts";
+export {
+  REAL_STREETS,
+  inFrame,
+  realCrosses,
+  realExit,
+  realProfile,
+  realTownOf,
+  realWeight,
+  townLines,
+  type FrameSeg,
+} from "./real-streets.ts";

@@ -20,6 +20,7 @@ import {
   type GameState,
   type SkierInput,
 } from "@engine";
+import { afterskiOf } from "../pwa/src/game/afterski-hud.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
@@ -80,10 +81,51 @@ describe("walking aboard a gondola with the skis", () => {
     }
   });
 
+  it("steps him in through the door of a cabin hanging plumb, never through its walls", () => {
+    const run = atRing();
+    const side = plan.look.gauge / 2;
+    // The cabin's shell about its grip, m (`lift-carriers.ts`'s
+    // `CABIN_HALF`, `own-cabin.ts`'s door): half its width across the line
+    // and half its length along it, and half the door's opening; a body's
+    // half depth.
+    const wall = { across: 1.0, along: 1.08, door: 0.5, body: 0.2 };
+    let stepped = false;
+    ride(
+      run,
+      90,
+      (r) => r.skier.lift?.phase === "ride" && seatedShare(r.skier.lift) >= 1,
+      NEUTRAL_INPUT,
+      (r) => {
+        const l = r.skier.lift;
+        if (l?.phase !== "ride" || l.rack !== undefined) return;
+        const k = seatedShare(l);
+        if (k <= 0 || k >= 1) return;
+        stepped = true;
+        const c = r.skier;
+        const gx = plan.lift.bottom.x + plan.dx * l.u + plan.dz * side;
+        const gz = plan.lift.bottom.z + plan.dz * l.u - plan.dx * side;
+        const along = (c.x - gx) * plan.dx + (c.z - gz) * plan.dz;
+        const across = (c.x - gx) * plan.dz - (c.z - gz) * plan.dx;
+        // Through the flank only where the door is open…
+        if (Math.abs(across - wall.across) < wall.body)
+          expect(Math.abs(along)).toBeLessThan(wall.door - wall.body + 1e-6);
+        // …and inside, clear of its back and front walls.
+        if (across < wall.across) expect(Math.abs(along)).toBeLessThan(wall.along - wall.body);
+        // Plumb while he steps in: the cabin drawn on its rail is where the
+        // engine has it.
+        expect(Math.abs(l.swing)).toBeLessThan(1e-9);
+      },
+    );
+    expect(stepped).toBe(true);
+  });
+
   it("takes the pair back out at the top and clicks back into it off the pad", () => {
     const run = atRing();
     ride(run, 90, (r) => r.skier.lift?.phase === "ride" && seatedShare(r.skier.lift) >= 1);
     let shouldered = false;
+    // On foot through the station and out onto the pad is no town: the
+    // HUD never calls one over it.
+    let townCalled = false;
     // The tuck held skips him up the line.
     ride(
       run,
@@ -92,9 +134,11 @@ describe("walking aboard a gondola with the skis", () => {
       { ...NEUTRAL_INPUT, tuck: 1 },
       (r) => {
         if (r.skier.town?.phase === "walk") shouldered = true;
+        if (afterskiOf(r)?.kind === "town") townCalled = true;
       },
     );
     expect(shouldered).toBe(true);
+    expect(townCalled).toBe(false);
     expect(run.skier.lift).toBeNull();
     expect(run.skier.town ?? null).toBeNull();
   });

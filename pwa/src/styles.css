@@ -1388,6 +1388,52 @@ canvas {
   }
 }
 
+/* SKIPPING UP A LIFT (`hud.tsx`): a ring filled clockwise by how long the
+   tuck has been held (`--skip`, 0..1), over the word, in the upper third so
+   the rider on his carrier stays clear. Full, it glows as the picture fades
+   him up the line. */
+.hud-skip {
+  position: absolute;
+  top: 26%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  pointer-events: none;
+  animation: hud-air-in 200ms ease-out backwards;
+}
+
+.hud-skip-ring {
+  position: relative;
+  width: clamp(2.8rem, 9vmin, 4.2rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--hud-good) calc(var(--skip) * 360deg),
+    rgb(var(--hud-plate) / 60%) calc(var(--skip) * 360deg)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent 68%, #000 70%);
+  mask: radial-gradient(farthest-side, transparent 68%, #000 70%);
+  filter: drop-shadow(0 0 2px var(--hud-shadow));
+}
+
+.hud-skip[data-full] .hud-skip-ring {
+  filter: drop-shadow(0 0 6px #fff);
+}
+
+.hud-skip-word {
+  padding: 0.15rem 0.8rem;
+  border-radius: 999px;
+  background: rgb(var(--hud-plate) / 70%);
+  border: 1px solid var(--hud-edge);
+  font-size: clamp(0.75rem, 2.2vmin, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #fff;
+}
+
 /* THE RESULT PLATE — the tab-away card's plate with the finish's own lines on
    it and a row of presses under them (hud-result.tsx), and a gold rim on the
    day the book gains a row.

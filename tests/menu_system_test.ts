@@ -254,6 +254,18 @@ describe("what the game remembers (settings.ts)", () => {
     expect(mergeSettings({ camera: "helicopter" }).camera).toBe(DEFAULT_CAMERA);
   });
 
+  it("keeps the damage HUD off and the restart at five seconds unless asked, on 2–10 s", () => {
+    expect(freshSettings()).toMatchObject({ bodyHud: false, restartAfter: 5 });
+    expect(mergeSettings({ bodyHud: true, restartAfter: 8 })).toMatchObject({
+      bodyHud: true,
+      restartAfter: 8,
+    });
+    expect(mergeSettings({ restartAfter: 1 }).restartAfter).toBe(2);
+    expect(mergeSettings({ restartAfter: 30 }).restartAfter).toBe(10);
+    expect(mergeSettings({ restartAfter: 6.4 }).restartAfter).toBe(6);
+    expect(mergeSettings({ restartAfter: "soon" }).restartAfter).toBe(5);
+  });
+
   it("puts every stored fader, thumb and hand back on its own grid", () => {
     const s = mergeSettings({
       audio: { master: 0.43, engine: 7, effects: "loud" },

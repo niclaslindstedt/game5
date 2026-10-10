@@ -11,6 +11,7 @@ import {
   BALLOON_RUN,
   HELI_RUN,
   PARA_RUN,
+  SKIS_START,
   SLED_RUN,
   afterskiOn,
   balloonOn,
@@ -31,10 +32,15 @@ export type RunMachine = "heli" | "sled" | "para" | "balloon" | "afterski";
 
 export type RunPick = {
   chart: SeedChart;
-  /** The RUN row's stops: the GRADE's colour's runs, then the machines. */
+  /** The RUN row's stops: every run of the map, pistes and ski routes. */
   stops: { id: string; label: string }[];
-  /** The stop the row stands on ("" while the chart is still coming). */
+  /** The run the RUN row stands on ("" while the chart is still coming,
+   * and on a machine, which starts at no run). */
   value: string;
+  /** The START row's stops: ON SKIS, then the machines and the lodge. */
+  starts: { id: string; label: string }[];
+  /** The stop the START row stands on ("" while the chart is coming). */
+  start: string;
   /** The run the ride starts down, or null on a machine or before the chart. */
   marked: FreeRunInfo | null;
   machine: RunMachine | null;
@@ -71,16 +77,19 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
             ? "afterski"
             : null;
   const marked = list && machine === null ? markedRun(ride, seed, list) : null;
-  // The RUN row walks the runs of the GRADE row's colour — every run where
-  // it stands on AS DEALT, or where the map has none of the colour.
-  const graded = list?.runs.filter((r) => r.grade === ride.grade) ?? [];
-  const walked = graded.length > 0 ? graded : (list?.runs ?? []);
-  // ...and, LAST, the ways up with no lift: the paramotor on the summit,
-  // the snowmobile parked beside the village and the helicopter on its pad.
-  const stops = [
-    ...walked.map((r) => ({ id: r.id, label: STRINGS.startRunWord(r.number) })),
+  // The RUN row walks EVERY run of the map, whatever its colour: a slope
+  // is all it ever names.
+  const stops = (list?.runs ?? []).map((r) => ({
+    id: r.id,
+    label: STRINGS.startRunWord(r.number),
+  }));
+  // THE START ROW: on skis, by the lift to the run picked — or one of the
+  // ways up with no lift: the paramotor on the summit, the balloon and the
+  // snowmobile on the valley floor and the helicopter on its pad.
+  const starts = [
     ...(list
       ? [
+          { id: SKIS_START, label: STRINGS.startOnSkis },
           { id: PARA_RUN, label: STRINGS.startRunPara },
           { id: BALLOON_RUN, label: STRINGS.startRunBalloon },
           { id: SLED_RUN, label: STRINGS.startRunSled },
@@ -92,11 +101,14 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
         ]
       : []),
   ];
-  const value = machine === null ? (marked?.id ?? "") : MACHINE_RUN[machine];
+  const value = marked?.id ?? "";
+  const start = list === null ? "" : machine === null ? SKIS_START : MACHINE_RUN[machine];
   return {
     chart,
     stops,
     value,
+    starts,
+    start,
     marked,
     machine,
     spot: machine === null ? spotOn(ride, seed) : null,

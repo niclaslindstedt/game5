@@ -128,6 +128,14 @@ export type Settings = {
    * `xray-run.ts`) — and with it the run's slow motion. Off unless asked
    * for; it needs INJURIES shown too. */
   xray: boolean;
+  /** Whether the DAMAGE HUD — the anatomy plate and the g meter — is drawn
+   * over a run (OPTIONS ▸ DAMAGE HUD). Off unless asked for; it needs
+   * INJURIES shown too, and the injuries are kept whether it is drawn or not. */
+  bodyHud: boolean;
+  /** How long after a fall he will not get up from — dead, or too hurt to
+   * ski on — the run starts again, s (OPTIONS ▸ RESTART AFTER,
+   * `RESTART_AFTER`; `hud-wreck.ts` fits its card's timeline into it). */
+  restartAfter: number;
   /** THE START CARD's answers: the free ride's mountain, day and snow
    * (`free-ride.ts`). */
   ride: FreeRide;
@@ -151,6 +159,9 @@ export type Settings = {
   /** The developer page's switches (`menu-dev.tsx`). */
   dev: DevSettings;
 };
+
+/** OPTIONS ▸ RESTART AFTER's travel, whole seconds. */
+export const RESTART_AFTER = { min: 2, max: 10, start: 5 } as const;
 
 /** How long the front door's title is held to let the developer page out,
  * ms: long enough that no thumb resting on it does it by accident. */
@@ -187,6 +198,8 @@ export function freshSettings(): Settings {
     damage: false,
     injuries: null,
     xray: false,
+    bodyHud: false,
+    restartAfter: RESTART_AFTER.start,
     ride: freshRide(),
     raceMap: {},
     trickMap: null,
@@ -269,6 +282,9 @@ export function mergeSettings(parsed: unknown): Settings {
   if (typeof blob.damage === "boolean") out.damage = blob.damage;
   if (typeof blob.injuries === "boolean") out.injuries = blob.injuries;
   if (typeof blob.xray === "boolean") out.xray = blob.xray;
+  if (typeof blob.bodyHud === "boolean") out.bodyHud = blob.bodyHud;
+  const R = RESTART_AFTER;
+  out.restartAfter = onTravel(blob.restartAfter, R.min, R.max, 1, R.start);
   // A blob from before the time trial was retired carries its length
   // (`trialLaps`) and its level card's pick (`level`); both are left lying.
   out.ride = mergeRide(blob.ride);

@@ -22,6 +22,7 @@
 
 import { hypot, smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import { faceHeight } from "./real-face.ts";
 import { realHints, ringArea } from "./real-hints.ts";
 import type { TerrainPlan } from "./terrain.ts";
 import type { WaterBody, WaterStream } from "./types.ts";
@@ -88,6 +89,7 @@ export function layWater(plan: TerrainPlan, ground: Heightfield): FaceWater | nu
     kind: s.kind,
     line: s.line.slice(),
     width: s.width,
+    realLevel: faceHeight(face.grid, s.line[0], s.line[1]),
   }));
   return { water, streams };
 }

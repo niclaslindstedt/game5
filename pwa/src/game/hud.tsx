@@ -119,6 +119,8 @@ export function Hud({
   tuckKey,
   jumpKey = "SPACE",
   injuries = true,
+  bodyHud = true,
+  restartAfter,
   again = "start",
   offer = null,
   replaying = false,
@@ -155,6 +157,12 @@ export function Hud({
   /** Whether the body's injuries are drawn (`settings.ts`'s
    * `injuriesShown`): off, neither the anatomy plate nor the g meter. */
   injuries?: boolean;
+  /** Whether the DAMAGE HUD is drawn (OPTIONS ▸ DAMAGE HUD): the anatomy
+   * plate and the g meter, over a run whose injuries are shown. The glass
+   * still takes the blows and the death card still comes without it. */
+  bodyHud?: boolean;
+  /** OPTIONS ▸ RESTART AFTER, s: the death card's timeline is fitted to it. */
+  restartAfter?: number;
   /** Where the next rider stands if this one dies (`againAt`). */
   again?: AgainAt;
   /** The crash just taken, offered to be watched again — or null. */
@@ -222,7 +230,7 @@ export function Hud({
   const died = replaying ? null : snap.died;
   const injured = replaying ? null : snap.injured;
   const wreck = injuries
-    ? wreckOf(snap.body.blow, died?.since ?? null, injured?.since ?? null)
+    ? wreckOf(snap.body.blow, died?.since ?? null, injured?.since ?? null, restartAfter)
     : null;
   // THE CRASH OFFERED AGAIN (`hud-replay-offer.tsx`): small print under a
   // card's words, else a chip in the corner under the presses.
@@ -591,6 +599,21 @@ export function Hud({
         </div>
       )}
 
+      {/* SKIPPING UP THE LIFT: the tuck held while carried fills a ring
+          round the word, so he sees how long is left to hold — and that
+          letting go starts it over. */}
+      {(snap.skip ?? 0) > 0 && (
+        <div
+          class="hud-skip"
+          role="status"
+          style={{ "--skip": (snap.skip ?? 0).toFixed(3) }}
+          data-full={(snap.skip ?? 0) >= 1 ? "1" : undefined}
+        >
+          <span class="hud-skip-ring" />
+          <span class="hud-skip-word">{STRINGS.liftSkip}</span>
+        </div>
+      )}
+
       {/* THE STARTER'S WORD on a slalom, small at the top centre: the
           start clock in the house carries the count, and the television
           shot of the start is not to be covered. Keyed on the word, so GO
@@ -712,8 +735,8 @@ export function Hud({
       {/* THE BODY at the left edge, and THE G METER over the skier the
           moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`) — neither
           where OPTIONS ▸ INJURIES or the device's content setting says no. */}
-      {injuries && !indoors && <BodyPanel tile={snap.body} />}
-      {injuries && snap.body.blow && <GForce blow={snap.body.blow} />}
+      {injuries && bodyHud && !indoors && <BodyPanel tile={snap.body} />}
+      {injuries && bodyHud && snap.body.blow && <GForce blow={snap.body.blow} />}
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}
       {snap.tricks && <ComboTile tile={snap.tricks} />}

@@ -16,6 +16,7 @@ import {
   cabinFarGeometry,
   cabinGeometry,
   CHAIR_BAR,
+  CHAIR_HANGER,
   chairBarFarGeometry,
   chairBarGeometry,
   chairFarGeometry,
@@ -102,12 +103,56 @@ describe("the lifts' hardware as built", () => {
     expect(lowered.min.y).toBeGreaterThan(-CHAIR_SEAT - 0.6);
     expect(lowered.min.y).toBeLessThan(-CHAIR_SEAT - 0.3);
     expect(lowered.max.z).toBeGreaterThan(0.4);
-    // Raised, it stands over the riders' heads, clear of the seat ahead.
+    // Raised, it stands over the riders' heads.
     const up = bounds(
       chairBarGeometry().rotateX(CHAIR_BAR.up).translate(0, CHAIR_BAR.y, CHAIR_BAR.z),
     );
     expect(up.min.y).toBeGreaterThan(CHAIR_BAR.y - 0.1);
-    expect(up.max.z).toBeLessThan(CHAIR_BAR.z + 0.4);
+  });
+
+  it("swings the safety bar up to its stop short of the hanger, never through it", () => {
+    // Every face of the bar sampled a few centimetres apart, swung from
+    // lowered to raised, held clear of the hanger's tube all the way.
+    const g = chairBarGeometry().toNonIndexed();
+    const pos = g.getAttribute("position");
+    const pts: THREE.Vector3[] = [];
+    const [a, b, c] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    for (let i = 0; i < pos.count; i += 3) {
+      a.fromBufferAttribute(pos, i);
+      b.fromBufferAttribute(pos, i + 1);
+      c.fromBufferAttribute(pos, i + 2);
+      const n = Math.ceil(Math.max(a.distanceTo(b), a.distanceTo(c)) / 0.05);
+      for (let u = 0; u <= n; u++)
+        for (let v = 0; u + v <= n; v++) {
+          const w = 1 - (u + v) / n;
+          pts.push(
+            new THREE.Vector3()
+              .addScaledVector(a, w)
+              .addScaledVector(b, u / n)
+              .addScaledVector(c, v / n),
+          );
+        }
+    }
+    const line = CHAIR_HANGER.line.map(([x, y, z]) => new THREE.Vector3(x, y, z));
+    const seg = new THREE.Line3();
+    const near = new THREE.Vector3();
+    const q = new THREE.Vector3();
+    const m = new THREE.Matrix4();
+    const turn = new THREE.Matrix4();
+    let least = Infinity;
+    for (let k = 0; k <= 12; k++) {
+      m.makeTranslation(0, CHAIR_BAR.y, CHAIR_BAR.z).multiply(
+        turn.makeRotationX((CHAIR_BAR.up * k) / 12),
+      );
+      for (const p of pts) {
+        q.copy(p).applyMatrix4(m);
+        for (let i = 0; i + 1 < line.length; i++) {
+          seg.set(line[i], line[i + 1]).closestPointToPoint(q, true, near);
+          least = Math.min(least, near.distanceTo(q) - CHAIR_HANGER.r);
+        }
+      }
+    }
+    expect(least).toBeGreaterThan(0.03);
   });
 
   it("builds the cabin to its bands", () => {

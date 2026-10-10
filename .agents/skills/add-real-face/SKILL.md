@@ -197,7 +197,7 @@ left members of out is fetched whole with `--fetch`, as a forest's is.
 `tests/real_faces_test.ts` counts the faces (`REAL_FACE_IDS` has the new
 length), holds every face to a mountain and its hints to the map, every
 face to a place (no two the same part) and every range to a name, the
-woods to the relief, the RANGE, AREA and PART rows and the GRADE row's
+woods to the relief, the RANGE, AREA and PART rows and the grade's
 filter; move its count, never loosen a bound. Then:
 `npx vitest run tests/real_faces_test.ts tests/real_houses_test.ts
 tests/resort_test.ts tests/region_test.ts tests/imports_test.ts

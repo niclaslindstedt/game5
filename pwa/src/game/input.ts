@@ -26,7 +26,14 @@
 // which: the skis's six are held and ramped, the four around a race happen
 // once however long the key is down.
 
-import type { LiftRide, SkierInput } from "@engine";
+import {
+  TUNING,
+  createStopHand,
+  stopHand,
+  type GameState,
+  type LiftRide,
+  type SkierInput,
+} from "@engine";
 
 import {
   DEFAULT_KEYS,
@@ -73,6 +80,13 @@ export type InputManager = {
     lift?: LiftRide | null,
     basket?: boolean,
   ) => SkierInput;
+  /** The player's input for a step of `state`: `sample` read off the run,
+   * then THE ONE-KEY BRAKE AND THE CLIMB (`stop-hand.ts`) made of its back
+   * key (down in its brake meaning) and its tuck — before a tape records
+   * it. */
+  ride: (state: GameState) => SkierInput;
+  /** A new run: the one-key brake let go of the last one's. */
+  freshHand: () => void;
   /** The thumb zones write here at pointer rate (screen-space). */
   touch: TouchChannel;
   /** Queue a reset — the HUD button, the R key and the shell's menu row all
@@ -236,7 +250,8 @@ export function createInputManager(
   target.addEventListener("pointerdown", onPointerDown, true);
   target.document.addEventListener("visibilitychange", onBlur);
 
-  return {
+  const hand = createStopHand();
+  const manager: InputManager = {
     sample: (dt, airborne = false, flying = false, down = false, lift = null, basket = false) => {
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
@@ -260,6 +275,22 @@ export function createInputManager(
       jumped = false;
       touch.tap2 = false;
       return input;
+    },
+    ride: (state) => {
+      const c = state.skier;
+      const input = manager.sample(
+        TUNING.dt,
+        c.airborne,
+        !!state.heli?.rider,
+        c.thrown !== null,
+        c.lift,
+        !!state.balloon?.aboard,
+      );
+      const go = keys.tuck || (touch.lever && touch.tuck > 0.5);
+      return stopHand(hand, state, { back: model.back === "brake", go }, input);
+    },
+    freshHand: () => {
+      Object.assign(hand, createStopHand());
     },
     touch,
     requestReset: () => {
@@ -291,4 +322,5 @@ export function createInputManager(
       target.document.removeEventListener("visibilitychange", onBlur);
     },
   };
+  return manager;
 }

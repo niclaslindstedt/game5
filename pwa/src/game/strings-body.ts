@@ -136,11 +136,21 @@ export const BODY_STRINGS = {
   /** OPTIONS ▸ INJURIES: the switch over the body plate and the g meter. */
   optInjuries: "INJURIES",
   optInjuriesHint:
-    "The body plate and the g meter: what a fall hurts, bone by bone. Off for a younger player — the crashes stay, the injuries go.",
+    "What a fall does to the body: the bones it breaks, the blood, a fall you die of. Off for a younger player — the crashes stay, the injuries go.",
   /** OPTIONS ▸ X-RAY CAM: the switch over the X-ray cam and its slow motion. */
   optXray: "X-RAY CAM",
   optXrayHint:
     "A fall you will die of seen coming: the run slowed almost to a stop, the lens on the bones as they break. Needs INJURIES on.",
+  /** OPTIONS ▸ DAMAGE HUD: the switch over the body plate and the g meter. */
+  optBodyHud: "DAMAGE HUD",
+  optBodyHudHint:
+    "The body plate and the g meter over the run: what a fall hurts, bone by bone. The injuries count with it off. Needs INJURIES on.",
+  /** OPTIONS ▸ RESTART AFTER: how long a fatal fall holds before the run starts again. */
+  optRestartAfter: "RESTART AFTER",
+  optRestartAfterHint:
+    "How long a fall you will not get up from holds before the run starts again from the top.",
+  /** A whole number of seconds, as the RESTART AFTER row reads it. */
+  seconds: (n: number): string => `${n} S`,
   optInjuriesLocked:
     "Off: this device's content restrictions for a child's account hide the body plate and the g meter.",
   /** One injury's line. */

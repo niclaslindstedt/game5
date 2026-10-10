@@ -166,8 +166,11 @@ export type SkierState = {
    * The steer is read the way he is GOING while he is (`skier.ts`), and the
    * lens stands behind the way he is going (`camera-rigs.ts`). */
   switched: boolean;
-  /** TURNING ROUND out of switch (`switch.ts`'s `Revert`), or none. */
+  /** TURNING ROUND out of switch, or hopped into it, (`switch.ts`'s `Revert`), or none. */
   revert?: Revert | null;
+  /** HOPPED INTO SWITCH (`switch.ts`'s `hopSwitch`): seconds on the snow
+   * left before the revert may turn him back round (`switch.hop.hold`). */
+  hopHeld?: number;
   /** The inputs as the body has them, after their lags: the tuck 0..1, the
    * brake 0..1, the edge -1..1 and the lean -1..1. */
   tuck: number;

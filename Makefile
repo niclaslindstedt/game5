@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -123,6 +123,17 @@ skier:
 # (previews/skier-closeup.png). ARGS as the skier lab's.
 revert:
 	npm run skier -- --move revert,revert-steer,revert-hop,revert-away --sheet moves,path,closeup --moment switch,revert-in,revert-mid,revert-hop,revert-out --views back,side,front,top,chase $(ARGS)
+
+# THE HOP INTO SWITCH LAB: a skier riding forward who loads a jump with the
+# edge held, winds up against it, pops and is hopped half round in the air
+# off it to land riding switch (`engine/game/switch.ts`'s `hopSwitch`), on
+# the skier lab — to the right, to the left, off a quick tap, the edge
+# pressed just after the pop, and riding switch away after it — frame by frame from behind, the side, the front,
+# straight down and the chase lens (previews/skier-hop-switch*.png), where
+# it takes him (previews/skier-path-hop-switch*.png) and close up at its
+# moments (previews/skier-closeup.png). ARGS as the skier lab's.
+hop-switch:
+	npm run skier -- --move hop-switch,hop-switch-left,hop-switch-tap,hop-switch-late,hop-switch-away --sheet moves,path,closeup --moment hop-wind,hop-lead,hop-half,hop-landed --views back,side,front,top,chase $(ARGS)
 
 # THE POLELESS LAB: what a skier WITHOUT POLES (the hard mode) does with his
 # hands — every poleless move of the skier lab skied by the real engine and
@@ -364,6 +375,18 @@ cloud:
 snowfall:
 	npm run snowfall -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
+# THE SHIMMER LAB: how much of the far mountain FLICKERS as the lens moves —
+# a lens slid a few centimetres a frame across the rockiest face (or, with
+# --along, toward it) from several ranges, every frame read back and each
+# pixel's mean second difference of brightness taken, with the share of the
+# crags the snow blinks over, as a contact sheet
+# (previews/shimmer-<seed>-<grade>.png: each first frame, its heat map and
+# its crags) and a table. Its own one-off bundle from
+# pwa/shimmer-preview.html (never deployed); needs a Chromium like `world`.
+# SEED=n; ARGS="--face=alpine-1 --along --step=0.5 --frames=16 --json".
+shimmer:
+	npm run shimmer -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
 # THE CLOUD METRICS LAB: how MUCH snow cloud a skier raises — each kind of
 # snow × move × speed skied by the engine in pure Node and every frame read
 # as snow-cloud.ts reads it: the puffs a second, the cloud alive behind him
@@ -550,6 +573,17 @@ sled-land:
 sled-turn:
 	npm run sled-turn -- $(ARGS)
 
+# THE SNOWMOBILE ROLLOVER LAB: every ride of tests/support/sled-tips.ts —
+# full lock held, flicked, a slalom of locks and full throttle at full lock
+# on the flat, and a traverse into or off a 20° and a 30° face — on the
+# groomer and in powder from a thin cover to bottomless, a crawl to 80 km/h,
+# ridden by the real engine: one row a ride, thrown or not against what a
+# rider expects, the most it rolled, the way on. Pure Node; exits non-zero
+# on a row that is not as expected. ARGS="--json=a.json" before,
+# "--compare=a.json" after; ARGS=--surface=deep one snow.
+sled-tip:
+	npm run sled-tip -- $(ARGS)
+
 # THE PARAMOTOR LAB: the free ride's paramotor staged at every moment it has
 # — on the summit under the held wing, the launch, in the air, a turn and
 # the brakes, the landing and speed riding, the rig dropped and lying on the
@@ -630,6 +664,17 @@ rescue:
 gore:
 	npm run gore -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE BONES LAB: every long bone that can break out through the skin
+# (`gore-bones.ts`), built by the game's own builder on a limb of the game's
+# measure — a row a bone, a column a grade (simple, wedge, shattered) and
+# the simple break from the side, above, behind and far — close, under a
+# winter sun. previews/bones.png. Its own one-off bundle from
+# pwa/bones-preview.html (never deployed); needs a Chromium like `world`.
+# ARGS="--bones=humerusL,tibiaL". The bones on the skier are the gore
+# lab's `--sheet=bones`.
+bones:
+	npm run bones -- $(ARGS)
+
 # THE X-RAY LAB: a hard blow on a run with the INJURIES switch on, run the
 # way the app runs it — the read ahead, the run slowed, the lens closing on
 # the bone that breaks, the pans to the next one and the limb torn, the
@@ -677,6 +722,17 @@ groomer:
 # `world`. ARGS="--sheet=plume", "--day=70 --hour=8" (a late season).
 snowguns:
 	npm run snowguns -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE WATER LAB: the lakes and the streams through the game's own renderer,
+# on a map with placeholder water laid on it — the valley lake and the tarn
+# through the seasons, open water still and in a wind, the shore ice, black
+# ice, scoured snow, rotten ice and its moat, the light, and the game's own
+# views. One contact sheet a group, previews/water-<group>.png, and every
+# frame alone. Its own one-off bundle from pwa/water-preview.html (never
+# deployed); needs a Chromium like `world`. FACE=fell-1 a real face;
+# ARGS="--sheet=states".
+water:
+	npm run water -- $(if $(SEED),--seed=$(SEED),) $(if $(FACE),--face=$(FACE),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE TREE WELL LAB: the hollows round the trunks in deep powder photographed
 # through the game's own renderer — one well from every side and at the

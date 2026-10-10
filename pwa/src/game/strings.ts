@@ -345,6 +345,8 @@ export const STRINGS = {
   newsLift: (kind: "gondola" | "chair" | "drag"): string =>
     kind === "gondola" ? "GONDOLA UP" : kind === "chair" ? "CHAIR UP" : "T-BAR UP",
   newsLiftTaken: "HOLD TUCK TO SKIP UP · ENTER OR DOUBLE TAP TO JUMP OFF",
+  /** Under the ring the tuck fills while held to skip up a lift. */
+  liftSkip: "SKIPPING UP",
   newsDamage: (part: "skiLeft" | "skiRight" | "legs"): string =>
     part === "legs" ? "KNEE HURT" : part === "skiLeft" ? "LEFT EDGE DULLED" : "RIGHT EDGE DULLED",
   newsFinish: (place: number, of: number, seconds: number): string =>
@@ -483,7 +485,7 @@ export const STRINGS = {
   /** The RANGE row's first stop: a mountain the generator raises. */
   rangeGenerated: "GENERATED",
   startRangeHint:
-    "The mountain: a real mountainside in one of these ranges, read off a satellite survey — its ridge, spurs and gullies and its real tree line, with the real ski area's lifts and runs laid down it as near as the seed's own allow. Only the ranges with a run of the GRADE row's colour are listed — and last, GENERATED: a mountain raised off its number.",
+    "The mountain: a real mountainside in one of these ranges, read off a satellite survey — its ridge, spurs and gullies and its real tree line, with the real ski area's lifts and runs laid down it as near as the seed's own allow — and last, GENERATED: a mountain raised off its number.",
   startArea: "AREA",
   startAreaHint:
     "Which of the range's ski areas, by the place it is known by. Its snow country is its own.",
@@ -495,12 +497,8 @@ export const STRINGS = {
   /** A real face's area or part on the AREA and PART rows: the place as the
    * map writes it, set in the card's capitals. */
   placeName: (name: string): string => name.toLocaleUpperCase(),
-  startGrade: "GRADE",
-  startGradeHint:
-    "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %), black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it — or orange: a ski route past any black, 38° to 48°, never groomed, marked down the mountain as it lies. The mountain's own, or one of the five.",
   /** THE PISTE GRADES (R23) and the ski route's past them (R42), as a sign
-   * names them: the GRADE row's stops, the mark's name, the loading card's
-   * line. */
+   * names them: the mark's name, the loading card's line. */
   gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK", orange: "ORANGE" },
   /** The piste map board at a lift's top (`map-board.ts`): its header, and
    * the mark at the top it stands on. */
@@ -548,9 +546,19 @@ export const STRINGS = {
     "How deep the powder lies off the piste: thin 20 cm, medium 40 cm (the snow a race is skied on), thick 70 cm, very deep 100 cm. Past medium it is bottomless — stop and you sink to the knees, so keep the speed up and lean back to float the tips; a wide pair floats where a narrow one bogs.",
   /** The SNOW row's stops (`SNOW_STOPS`; the hint above reads their depths). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
+  /** THE START ROW: how the ride begins — on skis, or a way up with no
+   * lift (`free-ride.ts`'s `startPicked`). */
+  startStart: "START",
+  startStartHint:
+    "How the ride begins. ON SKIS: the lift carries you up to the RUN row's run. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off. And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
+  /** The START row's first stop. */
+  startOnSkis: "ON SKIS",
   startRun: "RUN",
   startRunHint:
-    "Which run to ski: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. The GRADE row brings up the first run of its colour; step through the others of that colour here. The last two stops are machines waiting at the bottom: the SNOWMOBILE — start stood on its boards with your skis racked, ride it anywhere on the mountain and press the jump twice to ski off — and the HELICOPTER: start sat on its skid on the pad in the valley, fly it anywhere on the mountain and jump off. And last of all the AFTERSKI: start inside the valley's lodge with the party under way — the beers come round on their own, and JUMP orders another — then head out with the machine key and ski off with whatever buzz you drank.",
+    "Which run to ski, of every run on the mountain whatever its colour: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. Picking one puts you back ON SKIS.",
+  /** The RUN row while the START row stands on a machine, which starts at
+   * no run. */
+  startRunOff: "—",
   /** The RUN row's last stop: the ride begun on the helicopter (`heli.ts`). */
   startRunHeli: "HELICOPTER",
   /** A RUN row's stop: the number the piste map signs it with. */
@@ -735,12 +743,18 @@ export const STRINGS = {
    * on a free ride (`menu-pause-slopes.tsx`), the race's level card over a
    * race. */
   pauseSlopes: "PISTE MAP",
-  pauseSlopesRide: "RIDE",
-  /** The panel's RUN row: the start card's hint, cut to fit its caption. */
+  /** The panel's way on — GO, so it is never mistaken for a row. */
+  pauseSlopesRide: "GO",
+  /** Under the PISTE MAP press on a free ride's pause card: what it is for. */
+  pauseSlopesNote: "ANY RUN · ANY RIDE",
+  /** The panel's RUN and START rows: the start card's hints, cut to fit its
+   * caption. */
   pauseSlopesRunHint:
-    "Which run to ski next: the lift carries you up to its head. The last stops are the machines waiting at the bottom.",
+    "Which run to ski next, of every run on the mountain: the lift carries you up to its head.",
+  pauseSlopesStartHint:
+    "How to go on: on skis down the run picked, or the paramotor on the summit, the balloon, the snowmobile or the helicopter in the valley, or the afterski.",
   pauseSlopesCaption:
-    "Pick a run, or tap the chart to start anywhere on this mountain · RIDE takes you there",
+    "Pick a run or a ride, or tap the chart to start anywhere on this mountain · GO takes you there",
   /** The card BEHIND the pause card's own options panel, named on the way
    * back to it. */
   pauseBack: "PAUSED",

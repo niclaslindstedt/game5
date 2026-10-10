@@ -139,6 +139,7 @@ export type GpuSlice =
   | "scene"
   | "sky"
   | "terrain"
+  | "water"
   | "forest"
   | "field"
   | "checkpoints"
@@ -157,6 +158,7 @@ export const GPU_SLICES: readonly { slice: GpuSlice; what: string }[] = [
   { slice: "scene", what: "the picture's own pass (under SPLIT, what no subsystem claimed)" },
   { slice: "sky", what: "the dome: the sky, its cloud, the stars" },
   { slice: "terrain", what: "the ground: the snow shader over the clipmap" },
+  { slice: "water", what: "the lakes and the streams, open or iced" },
   { slice: "forest", what: "the woods, both bands" },
   { slice: "field", what: "the skis and their skiers, the ghost" },
   { slice: "checkpoints", what: "the poles, the flags, the arch" },
@@ -191,6 +193,7 @@ export const GPU_MODES: readonly GpuMode[] = ["off", "passes", "split"];
 export type Hideable =
   | "sky"
   | "terrain"
+  | "water"
   | "forest"
   | "field"
   | "checkpoints"
@@ -204,6 +207,7 @@ export type Hideable =
 export const HIDEABLE: readonly Hideable[] = [
   "sky",
   "terrain",
+  "water",
   "forest",
   "field",
   "checkpoints",

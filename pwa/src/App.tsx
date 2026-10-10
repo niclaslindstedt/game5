@@ -416,6 +416,7 @@ export function App() {
     /** A new race takes the engine, and all of the last one's goes with it. */
     const adopt = (next: GameState, ticket: RunTicket | null = null, rides = false): void => {
       show(next);
+      manager.freshHand();
       book.arm(next, ticket);
       stats.rig.arm(next, mode);
       replays.arm(next, rides ? mode : null);
@@ -429,14 +430,7 @@ export function App() {
     const inputFor = () =>
       preroll || params.bot || !playerRides(shellRef.current)
         ? botInput(state)
-        : manager.sample(
-            TUNING.dt,
-            state.skier.airborne,
-            !!state.heli?.rider,
-            state.skier.thrown !== null,
-            state.skier.lift,
-            !!state.balloon?.aboard,
-          );
+        : manager.ride(state);
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {
@@ -719,7 +713,8 @@ export function App() {
         const steps = replays.cap(clock.frame(dtRun));
         for (let i = 0; i < steps; i++) stepOnce();
         // DIED (`hud-wreck.ts`): a new rider (`againAt`) once the dark is down.
-        if (playerRides(shellRef.current) && deathOver(state)) restart();
+        if (playerRides(shellRef.current) && deathOver(state, settingsRef.current.restartAfter))
+          restart();
       } else {
         // Held: the controls are still read, so a banked reset does not fire on the thaw.
         manager.sample(TUNING.dt);
@@ -887,6 +882,8 @@ export function App() {
           tuckKey={boundLabel(settings.keys.tuck)}
           jumpKey={boundLabel(settings.keys.jump)}
           injuries={injuriesShown(settings, shellContent())}
+          bodyHud={settings.bodyHud}
+          restartAfter={settings.restartAfter}
           again={again}
           offer={
             shell === "run" && crashReplay

@@ -343,7 +343,7 @@ export function rideSled(
       beltReaction += f;
       slipSum += slip;
       along += f;
-      acrossF -= hold * load * sy * share;
+      acrossF -= hold * Math.min(load, G.sideLoad * rest) * sy * share;
       // THE CARVE: a belt rolled onto its edge in powder bites toward its
       // low side, once there is way on to carve with.
       acrossF +=
@@ -354,7 +354,7 @@ export function rideSled(
         clamp(Math.abs(vf) / R.carveSpeed, 0, 1);
     } else {
       const hold = (G.skiPacked * packed + G.skiPowder * (1 - packed)) * iced;
-      acrossF -= hold * load * Math.tanh(vl / G.sideRef);
+      acrossF -= hold * Math.min(load, G.sideLoad * rest) * Math.tanh(vl / G.sideRef);
     }
     // Only the belt's FRONT cuts fresh snow: the middle and the rear run in
     // the trench it has cut, and pay the compaction alone.
@@ -413,7 +413,18 @@ export function rideSled(
   const tb = unrotate(q, torque);
   if (grounded) {
     const packed = c.packed;
-    const target = k.steer * (R.packed * packed + R.powder * (1 - packed));
+    // The lean the rider takes it to, rolled from one edge to the other no
+    // faster than a rider rolls a sled under him (`roll.rate`).
+    const aimWas = c.rollAim;
+    c.rollAim = approach(
+      c.rollAim,
+      k.steer * (R.packed * packed + R.powder * (1 - packed)),
+      R.leanRate * dt,
+    );
+    const target = c.rollAim;
+    // The roll rate that keeps up with it (a roll toward the right side
+    // down is a negative `wz`): the damping checks what is past it.
+    const aimRate = -(c.rollAim - aimWas) / dt;
     const hold = clamp((1.3 - Math.abs(rollRel)) / 0.4, 0, 1);
     // RIDE IT LIKE A BIKE: in deep powder the buried skis hold nothing and
     // the soft side gives — a sled rolled off the snow's plane sinks on its
@@ -424,12 +435,44 @@ export function rideSled(
       Math.max(deep, 0.35) *
       (1 - packed) *
       (R.deepPlaning + (1 - R.deepPlaning) * clamp(treadSink / Math.max(1e-6, restTread), 0, 1));
-    const firm = 1 - R.deepHold * loose;
+    // THE TIP: how far it leans off the way its weight and the turn's pull
+    // together hang (a sled leant into a turn as a bicycle is, is upright
+    // to it), against the angle its CoG passes over the low edge of what
+    // it stands on — the skis' stance on firm snow, narrowing to the belt
+    // as the low ski sinks into loose — and a little past it where the
+    // rider hangs off the high side. Past that the righting the rider and
+    // the springs lend fades out: what is past it is the weight's, and it
+    // goes over.
+    const pullX = w.y * c.vz;
+    const pullZ = -w.y * c.vx;
+    const hangL = hypot3(pullX, g, pullZ);
+    const lean = Math.asin(
+      clamp(-(right.x * pullX + right.y * g + right.z * pullZ) / hangL, -1, 1),
+    );
+    const edge = SLED.skiStance / 2 + (SLED.treadWidth / 2 - SLED.skiStance / 2) * loose;
+    const tipAt = Math.atan(edge / SLED.cogHeight) + R.hang;
+    const upright = clamp((tipAt + R.tipBand - Math.abs(lean)) / R.tipBand, 0, 1);
+    const firm = (1 - R.deepHold * loose) * upright;
     const moving = clamp((speed0 - 1.5) / 2.5, 0, 1);
     if (loose > 0 && moving > 0) {
-      tb.z -= R.deepTip * loose * moving * m * g * SLED.cogHeight * Math.sin(rollRel) * hold;
+      // ...and the rider BALANCES it: the bars countered and his weight
+      // hung off the high side take up the soft side's lever as far as
+      // they reach (`balance`, the more with the way on to counter-steer
+      // with) — it goes over only where the snow asks more than that.
+      const give = R.deepTip * loose * moving * m * g * SLED.cogHeight * Math.sin(rollRel) * hold;
+      const reach =
+        R.balance *
+        (R.balanceCrawl + (1 - R.balanceCrawl) * clamp(Math.abs(c.way) / R.balanceSpeed, 0, 1));
+      tb.z -= Math.sign(give) * Math.max(0, Math.abs(give) - reach);
     }
-    tb.z += clamp(R.stiff * (rollRel - target) - R.damp * c.wz, -R.most, R.most) * hold * firm;
+    // The righting and its damping each held to the most the rider and the
+    // springs have: a sled swung hard toward its lean is still checked
+    // there, not let fly past it.
+    tb.z +=
+      (clamp(R.stiff * (rollRel - target), -R.most, R.most) -
+        clamp(R.damp * (c.wz - aimRate), -R.most, R.most)) *
+      hold *
+      firm;
     // THE YAW HELD (the arcade's hand): toward the rate the skis ask, no
     // faster than the grip turns the way, and the nose to the way it goes.
     const way = c.way;

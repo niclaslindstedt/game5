@@ -55,9 +55,12 @@ export function subjectPose(
   pose.q = drawn.q;
   // TURNING ROUND out of switch (`switch.ts`'s revert), the boom is told
   // the nose he had and has again — the line he travels — not the body
-  // swung half round under it, which would swing the lens with it.
+  // swung half round under it, which would swing the lens with it; and
+  // HOPPING INTO it, the nose he had, the line he goes on travelling.
   const r = skier.revert;
-  pose.heading = r ? skier.heading - r.turn * revertShare(r.u) + Math.PI : skier.heading;
+  pose.heading = r
+    ? skier.heading - r.turn * revertShare(r.u) + (r.to === "switch" ? 0 : Math.PI)
+    : skier.heading;
   pose.pitch = skier.pitch;
   pose.roll = skier.roll;
   pose.vx = skier.vx;

@@ -24,6 +24,7 @@ import { RESORT_RULES } from "../mapgen/resort-rules.ts";
 import { skiRoutesOf } from "../mapgen/ski-routes.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { envelopeOf } from "./defs/skis.ts";
+import { hashOf, unit } from "./rocks.ts";
 import { TUNING } from "./defs/tuning.ts";
 import type { GameEvent, GameState } from "./state.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
@@ -34,12 +35,16 @@ const K = TUNING.stakes;
  * (what it is painted), and whether it stands on the skier's right as the
  * picture shows him (the orange-banded side) — and a piste stake's
  * measure, m: its height, its radius and how deep that band is down from
- * its top (a ski route's stand taller and thicker, each upright its own). */
+ * its top (a ski route's stand taller and thicker, each upright its own) —
+ * and the way each stands off plumb as planted, its lean in rad toward +x
+ * and +z (a ski route's, untrimmed; a piste's stand straight). */
 export type StakePlan = {
   count: number;
   stakes: Upright[];
   grade: RunGrade[];
   banded: Uint8Array;
+  leanX: Float32Array;
+  leanZ: Float32Array;
   height: number;
   radius: number;
   band: number;
@@ -101,14 +106,21 @@ export function stakePlan(level: Level): StakePlan {
   const stakes: Upright[] = [];
   const grade: RunGrade[] = [];
   const banded: number[] = [];
+  const leanX: number[] = [];
+  const leanZ: number[] = [];
+  const R = K.route;
   for (const run of lines) {
     let nextS = run.points[0]?.s ?? 0;
     for (const p of run.points) {
       if (p.s < nextS) continue;
       nextS += run.every ?? K.every;
       for (const side of [-1, 1]) {
-        const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + K.out);
-        const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + K.out);
+        // A ski route's stake stands a little in or out of its edge, off
+        // a hash of the map and the stake (never the stream).
+        const h = run.route ? hashOf(level.seed, stakes.length) : 0;
+        const off = run.route ? (unit(h, 0) * 2 - 1) * R.shift : 0;
+        const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + K.out + off);
+        const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + K.out + off);
         if (
           (run.every === undefined || run.route) &&
           lines.length > 1 &&
@@ -121,6 +133,10 @@ export function stakePlan(level: Level): StakePlan {
         // The skier's right going down AS DRAWN is the engine's left: the
         // renderer's frame mirrors the map (`input-model.ts`).
         banded.push(side < 0 ? 1 : 0);
+        const lean = run.route ? Math.sqrt(unit(h, 1)) * R.lean : 0;
+        const way = unit(h, 2) * 2 * Math.PI;
+        leanX.push(lean * Math.sin(way));
+        leanZ.push(lean * Math.cos(way));
       }
     }
   }
@@ -129,6 +145,8 @@ export function stakePlan(level: Level): StakePlan {
     stakes,
     grade,
     banded: Uint8Array.from(banded),
+    leanX: Float32Array.from(leanX),
+    leanZ: Float32Array.from(leanZ),
     height: K.height,
     radius: K.radius,
     band: K.band,

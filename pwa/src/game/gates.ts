@@ -668,6 +668,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const paint = new THREE.Color();
   const stakeAxis = new THREE.Vector3();
   const grow = new THREE.Vector3();
+  const knocked = new THREE.Quaternion();
   // Drawn only within `STAKE_REACH` of the lens (`instance-reach.ts`): a
   // stake a few centimetres thick is under a pixel long before that, and
   // a ski area has thousands. Built once everything is placed.
@@ -676,8 +677,14 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   /** Stand stake `i` at its foot, `tilt` rad over toward (dx, dz). */
   const placeStake = (i: number, tilt: number, dx: number, dz: number): void => {
     const p = plan.stakes[i];
-    if (tilt === 0) q.identity();
-    else q.setFromAxisAngle(stakeAxis.set(dz, 0, -dx).normalize(), tilt);
+    // As planted: a ski route's stakes lean a little off plumb.
+    const lx = plan.leanX[i];
+    const lz = plan.leanZ[i];
+    const lean = Math.hypot(lx, lz);
+    if (lean === 0) q.identity();
+    else q.setFromAxisAngle(stakeAxis.set(lz, 0, -lx).divideScalar(lean), lean);
+    if (tilt !== 0)
+      q.premultiply(knocked.setFromAxisAngle(stakeAxis.set(dz, 0, -dx).normalize(), tilt));
     // A ski route's stakes stand thicker and taller (`STAKES.route`).
     grow.set(p.radius / plan.radius, p.height / plan.height, p.radius / plan.radius);
     m4.compose(at.set(p.x, p.y - 0.1, p.z), q, grow);

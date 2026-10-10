@@ -488,6 +488,8 @@ export const STRINGS = {
   mapBoardHere: "YOU ARE HERE",
   /** The word on a SKI ROUTE's sign at its head (R42), under its number. */
   skiRouteSign: "SKI ROUTE · NOT GROOMED",
+  /** The WARNING board before a ski route's head (R42), beside its triangle. */
+  skiRouteWarning: "DANGER · EXPERTS ONLY",
   /** A grade as a run: `BLACK RUN`. */
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",

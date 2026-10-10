@@ -9,7 +9,8 @@
 // circle, the blue square, the red rectangle, the black diamond) with the
 // run's number in white on it, outlined with the iron — then the NAME burned
 // black in the country's own hand, measured to the board — and no arrow:
-// a sign down on the runs is a plain plank. A lane's board is the same
+// a sign down on the runs is a plain plank. A ski route's WARNING board
+// (R42) has a yellow warning triangle with a burned "!" for its mark. A lane's board is the same
 // plank, smaller. The board has a thickness of end grain round it and a
 // bare back; the post is a square timber. A lift top's board is CUT AS AN
 // ARROW (`SignBoard.point`): the plank pointed at one end and standing off
@@ -56,6 +57,13 @@ const SCORCH = "rgba(62, 26, 6, 0.85)";
  * number's paint — an old white, never the enamel's. */
 const SOAK = 0.75;
 const NUMBER = "#ddd0b6";
+
+/** A WARNING board's mark (R42): a triangle on its 24-unit box, painted a
+ * sign-shop yellow that soaks into the wood less than a mark, so it reads
+ * from up the pad, its "!" burned in. */
+const WARN_PATH = "M12 2.5 L23 21.5 L1 21.5 Z";
+const WARN_PAINT = "#f2c21e";
+const WARN_SOAK = 0.3;
 
 /** The faces loaded on this page, by family. */
 const loaded = new Map<string, Promise<boolean>>();
@@ -226,7 +234,7 @@ function printBoard(
   const box = h - pad * 2;
   const mx = lo + pad + 2;
   const my = y0 + pad;
-  const path = new Path2D(gradePath(grade.shape));
+  const path = new Path2D(b.warning ? WARN_PATH : gradePath(grade.shape));
   const onMark = (draw: () => void): void => {
     g.save();
     g.translate(mx, my);
@@ -238,10 +246,10 @@ function printBoard(
   // through it darkens and warms it, and the grain shows through.
   onMark(() => {
     g.clip(path);
-    g.fillStyle = grade.paint;
+    g.fillStyle = b.warning ? WARN_PAINT : grade.paint;
     g.fillRect(0, 0, 24, 24);
     g.globalCompositeOperation = "multiply";
-    g.globalAlpha = SOAK;
+    g.globalAlpha = b.warning ? WARN_SOAK : SOAK;
     g.fillStyle = look.wood;
     g.fillRect(0, 0, 24, 24);
   });
@@ -258,6 +266,16 @@ function printBoard(
       g.stroke(path);
     }),
   );
+  if (b.warning) {
+    // The "!" burned black into the yellow, low in the triangle.
+    const bang = Math.round(box * 0.55);
+    burn(g, () => {
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.font = `bold ${bang}px ${font}`;
+      g.fillText("!", mx + box / 2, my + box * 0.62);
+    });
+  }
   g.save();
   g.fillStyle = NUMBER;
   g.textAlign = "center";
@@ -266,7 +284,7 @@ function printBoard(
     box * (grade.shape === "double" ? 0.3 : grade.shape === "diamond" ? 0.4 : 0.52),
   );
   g.font = `${numSize}px ${font}`;
-  g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
+  if (!b.warning) g.fillText(b.number, mx + box / 2, my + box / 2 + numSize * 0.04, box * 0.62);
   g.restore();
 
   // THE NAME after it, as big as the room lets it be, centred on its own

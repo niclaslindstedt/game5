@@ -341,7 +341,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     knock: base.knock,
     gates: base.gates,
     window: base.window,
-    technique: options.technique ?? base.technique,
+    // A BOARD is ridden as a board whatever the run (`BOARD_TECHNIQUE`).
+    technique: options.spec?.board ? "board" : (options.technique ?? base.technique),
     jury: base.jury,
     spinMost: base.spinMost,
     flipMost: base.flipMost,

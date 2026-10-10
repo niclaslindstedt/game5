@@ -52,6 +52,7 @@ describe("the technique a run is skied with", () => {
     expect(techniqueOf(forced.rules)).toBe(SLALOM_TECHNIQUE);
     // The other disciplines' rows are data no mode deals yet.
     expect(Object.keys(TECHNIQUES).sort()).toEqual([
+      "board",
       "downhill",
       "free",
       "giantSlalom",

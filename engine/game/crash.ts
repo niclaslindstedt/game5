@@ -115,9 +115,24 @@ export type CrashLimit = keyof typeof TUNING.crash.club;
  * catch a lurch on. */
 export function crashLimit(c: SkierState, key: CrashLimit): number {
   const pro = K[key];
-  const steady = c.poles ? c.resilience : c.resilience * TUNING.poles.bare.balance;
+  // A snowboarder never had poles to lose: his balance is the board under
+  // both feet, and he is no less steady for empty hands.
+  const bare = !c.poles && c.spec.board === undefined;
+  const steady = bare ? c.resilience * TUNING.poles.bare.balance : c.resilience;
   // ...and the afterski's beer in him (`buzz.ts`) lowers it further.
   return buzzLimit(c, key, pro - (pro - K.club[key]) * (1 - steady));
+}
+
+/** WHETHER THE EDGE STANDS TO CATCH, at `share` of the threshold: a ski
+ * stood well over (`catchEdge`) — the high-side, its edge biting all at
+ * once into a slide across it. A SNOWBOARD's edge that catches is the one
+ * LEADING the slide, stood down into it past `boardDig`. Slid across with
+ * its leading edge raised it is in a sideslip, whatever the speed. */
+function edgeCatching(c: SkierState, share: number): boolean {
+  if (c.spec.board === undefined) return Math.abs(c.edge) >= share * crashLimit(c, "catchEdge");
+  // The slide across the board, toward its right (`edge`'s right) positive.
+  const across = c.vx * Math.cos(c.heading) - c.vz * Math.sin(c.heading);
+  return c.edge * Math.sign(across) > K.boardDig * share;
 }
 
 /** How far down the tips may come into a landing before they dig, rad:
@@ -232,13 +247,14 @@ export function wipeoutCause(
   const over = overSnow(state);
   c.rolledFor = !over ? 0 : c.airborne ? c.rolledFor : c.rolledFor + dt;
   if (c.rolledFor >= crashLimit(c, "rollHold") && speed0 >= K.rollSpeed) return "roll";
-  // THE CAUGHT EDGE: on the snow, the ski well over, sliding across it fast
-  // — and not in a SKID, which is a slide the skier asked for: a hockey
-  // stop is the skis thrown across the way and slid on their edges.
+  // THE CAUGHT EDGE: on the snow, the ski well over (a board's leading
+  // edge down — `edgeCatching`), sliding across it fast — and not in a
+  // SKID, which is a slide the skier asked for: a hockey stop is the skis
+  // thrown across the way and slid on their edges.
   if (
     !c.airborne &&
     c.skid < K.catchSkid &&
-    Math.abs(c.edge) >= crashLimit(c, "catchEdge") &&
+    edgeCatching(c, 1) &&
     c.sideSlip >= crashLimit(c, "catchSlip")
   )
     return "catch";
@@ -312,7 +328,7 @@ export function noteSave(state: GameState, events: GameEvent[]): void {
   if (
     !c.airborne &&
     c.skid < K.catchSkid &&
-    Math.abs(c.edge) >= K.saveEdge * crashLimit(c, "catchEdge") &&
+    edgeCatching(c, K.saveEdge) &&
     c.sideSlip >= K.saveSlip * slip
   ) {
     const from = K.saveSlip * slip;

@@ -53,15 +53,16 @@ AGAINST ANOTHER SKIER the exchange is shared by the riders' weights (`shoulderSh
 
 ## The board (`defs/boards.ts`)
 
-A SNOWBOARD is a pair to the engine: a sidecut on the snow under a rider whose legs are the only suspension, read by the skis' own model. What makes it a board is `SkiSpec.board` (`BoardFit`), and `isBoard` / `pairById` / `BOARD_CATALOG` beside the skis. It is ridden only where a run asks for one by its id (the labs and the suite), because it has no figure yet: it is not in `SKI_CATALOG`, so it is on no card, in no field and among no models, and `isSkiId` still says no to it.
+A SNOWBOARD is a pair to the engine: a sidecut on the snow under a rider whose legs are the only suspension, read by the skis' own model. What makes it a board is `SkiSpec.board` (`BoardFit`), and `isBoard` / `pairById` / `BOARD_CATALOG` beside the skis. It is ridden only where a run asks for one by its id (the labs and the suite), because it has no figure yet: it is not in `SKI_CATALOG`, so it is on no card, in no field and among no models, and `isSkiId` still says no to it. The record book and the ghosts read a pair's id with `isPairId`, so a board's run is kept like any other.
 
 THE LYNX is the one board. It is an all-mountain twin, each number inside its class's band:
 
 - **Length and width:** 1.56 m long, 25 cm under the feet, 29.5 cm at the nose and the tail.
 - **Sidecut:** 7.8 m.
-- **Edge:** at most 55°.
+- **Edge:** at most 55° on the toes and 47° on the heels (`BoardFit.heel`), and he angulates onto his heels 0.6 as far as onto his toes.
 - **Kit:** 6.7 kg of board, bindings and soft boots, and no poles.
 - **Drag area:** 0.55 m² stood up and 0.5 m² in his crouch. A snowboarder's wind-tunnel band is 0.35–0.55 m². He crouches side-on and cannot fold his shoulders out of the wind as a skier does.
+- **Side area (`BoardFit.across`):** 0.84 m² stood up and 0.6 m² crouched — a wind across the board's line meets his chest, so a board rider's two areas trade places with a skier's (`air.ts`'s `sideAreaOf`).
 - **Stance:** regular, duck at +15°/−15°, 53 cm between the bindings' centres.
 
 THE STATIONS (`probesOf`) are one column down the deck's centreline at the board's whole width (`SnowContact.side` 0), in this order:
@@ -71,24 +72,39 @@ THE STATIONS (`probesOf`) are one column down the deck's centreline at the board
 - the back foot;
 - the tail, carrying 0.3 of the back foot's load.
 
-`Probe.leg` says which foot each station hangs from, so `skiCompression[0]` and `[1]` are the front and back foot. The hull's knees, hips and shoulders stand across the board toward the rider's toe edge (the board's right for a regular rider). The pressure in `footprint.ts` is the whole rider on one deck. The board therefore sinks less and planes sooner in powder, comes onto its edge slower than a ski, and holds its base stronger in powder.
+`Probe.leg` says which foot each station hangs from, so `skiCompression[0]` and `[1]` are the front and back foot. The hull's knees, hips and shoulders stand across the board toward the rider's toe edge (the board's right for a regular rider). The pressure in `footprint.ts` is the whole rider on one deck, and the base's float is read off the board's ONE deck against a pair's TWO waists (`widthOf`): 1.3 times the reference pair's, where reading its 25 cm as one ski's waist had made it 2.3. The board therefore sinks less and planes sooner in powder, comes onto its edge slower than a ski, and holds its base stronger in powder.
 
 FAKIE: a twin is the same board either way round, so a rider riding backward never turns round out of it. There is no revert and no hop round (`switch.ts`'s `revertDue`). His drive pushes the way he is going rather than being cut. His step turn at a crawl is read the way he is going, as the carve's steer is, and he never V-skates (`poles.ts`).
 
-`make ride ARGS="--skis lynx"` rides the whole bench on it, and its own scenarios are `board-straight`, `board-carve`, `board-carve-fast`, `board-fakie`, `board-kicker` and `board-powder` (`scripts/lib/ride-board.mjs`). The `landing`, `sag` and `lean` labs take `--skis lynx` too. `tests/board_test.ts` holds it. It measures:
+THE TWO EDGES. A rider stands on his toes on one edge and on his heels on the other, and the heel edge is the weaker: the ankle tips it less, the hips reach less far over it, and its turn is the wider and the less loaded. `edgeSideOf(spec, side)` says which edge a side is — the toe edge is the board's right for a regular rider and its left for a goofy one, in the board's own frame, so riding fakie changes nothing. `limits.ts` reads every ceiling by that side (`edgeMostOf`, `edgeLockAt`, `edgeAskedAt`, `tipLimit`, `carveSpeedOf`, `cornerGrip`), and `incline.ts` angulates by it (`angulationOf`). The physics and the bot read the same numbers; a bot that does not know which way it turns plans on the heel.
+
+THE CAUGHT EDGE. A board's catch is not a skier's high-side. A board slid sideways falls when the edge LEADING the slide is stood into the snow: the deck trips over it (`crash.ts`'s `edgeCatching`, past `TUNING.crash.boardDig`, 17°). A slide led by the raised edge is a SIDESLIP, and it is ridden. A pair of skis keeps its own rule, a slip past what an edge that far over can hold. A board rider is also no less steady for having no poles: the bare-handed skier's lost balance (`poles.bare.balance`) is a skier's who has dropped his poles, and a board is ridden without them by design.
+
+THE TECHNIQUE. A board is ridden as a board whatever the run asks (`BOARD_TECHNIQUE`, dealt by `step.ts`'s `rulesFor`): the edge rolled on at the board's own rate with no fade and a softer platform, the turn's incline taken nearly whole. The pose stands him as the free skier until the board has a figure of its own.
+
+`make ride ARGS="--skis lynx"` rides the whole bench on it. Its own scenarios (`scripts/lib/ride-board.mjs`) are:
+
+- `board-straight`, `board-carve`, `board-carve-fast`, `board-fakie`, `board-kicker` and `board-powder`;
+- `board-toe` and `board-heel`, full edge each way at 50 km/h;
+- `board-toe-cut` and `board-heel-cut`, full edge each way at 80 km/h, cut hard;
+- `board-catch` and `board-sideslip`, slid sideways at 45 km/h with the leading edge stood down and raised.
+
+The `landing`, `sag` and `lean` labs and `make sim` take `--skis lynx` too (the lean lab's course row is the open piste on a board, not the slalom), and `make technique ARGS=--techniques=board` rides the board's row. `tests/board_test.ts` holds it. It measures:
 
 - **Top speed:** 113 km/h flat out down the reference pitch, against the Chamois's 117.
-- **Powder:** a rest sink of 0.18 m against 0.22, planing at about 24 km/h against 28.
-- **Carve at 60 km/h on 0.6 of the edge:** a 36 m arc at 0.71 g, against the Chamois's 47 m at 0.63 g.
-- **The hard cut at 80 km/h:** the board CATCHES. Its 7.8 m sidecut asks far more than the edge holds at that speed.
+- **Powder:** a rest sink of 0.18 m against 0.22, planing at about 24 km/h against 28; 0.74 g turned in powder on the card against the Chamois's 0.56.
+- **Carve at 60 km/h on 0.6 of the edge:** a 44 m arc at 0.44 g.
+- **Full edge at 50 km/h:** 0.83 g on 44° of edge on the toes, 0.77 g on 37° on the heels.
+- **The hard cut at 80 km/h:** about 1.0 g on 55° of edge on the toes and 47° on the heels, NOT thrown. A slide of about 10 m/s under an overloaded sidecut is a carve that skids, not a fall.
+- **Landings (`make landing ARGS="--skis lynx"`):** 3.6% thrown over 4028 landings against the skis' 3.5%; 6.8% between 9 and 14 g, and 29% between 14 and 20 g against the skis' 39%.
+- **The bot (`make sim ARGS="--skis lynx"`):** eight seeds of eight home, no wipeout, one gate missed (seed 6's gate 16, run wide on a long heelside turn), a mean of 47 km/h.
 
 Still to come:
 
-- a heelside turn weaker than a toeside one;
-- a technique row and the bot;
-- a side area for the crosswind;
-- the board and the rider apart in a wipeout;
 - the one-foot skate;
+- the sideslip and the falling leaf ridden on purpose;
+- the downhill edge slammed down in a slide as a wipeout of its own;
+- the board kept on the rider's feet in a wipeout;
 - the figure.
 
 ## Where the skis meet the snow, and the legs (`suspension.ts`)

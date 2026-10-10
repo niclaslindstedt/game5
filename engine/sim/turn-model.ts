@@ -45,14 +45,7 @@ import { FREE, techniqueOf, type Technique } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { footprintOf } from "../game/footprint.ts";
 import { crossGate, edgeReach, leanMostOf } from "../game/incline.ts";
-import {
-  carveCurvature,
-  carveMost,
-  cornerGrip,
-  edgeLockAt,
-  edgeMostOf,
-  skidAngleAt,
-} from "../game/limits.ts";
+import { carveCurvature, carveMost, cornerGrip, edgeAskedAt, skidAngleAt } from "../game/limits.ts";
 import { dragAreaOf } from "../game/air.ts";
 import { totalMass } from "../game/defs/skis.ts";
 import type { GameState } from "../game/state.ts";
@@ -164,10 +157,7 @@ export function readTurnModel(state: GameState, s: number, brake: number, m: Tur
   m.speed = speed;
   m.packed = c.packed;
   m.rate = S.edgeRate * footprintOf(spec).edgeRate * T.edgeRate;
-  m.held = Math.max(
-    0.2,
-    Math.min(edgeMostOf(spec, T), edgeLockAt(spec, speed, T) * (1 + CV.edge * c.carve)),
-  );
+  m.held = Math.max(0.2, edgeAskedAt(spec, speed, T, c.carve));
   m.leanMost = leanMostOf(T);
   m.technique = T;
   m.brake = brake;

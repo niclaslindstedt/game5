@@ -36,7 +36,7 @@
 
 import {
   isGameMode,
-  isSkiId,
+  isPairId,
   riderOf,
   type GameMode,
   type GameState,
@@ -163,13 +163,13 @@ export function splitGap(record: RunRecord | null, index: number, time: number):
 
 /** A stored blob as a book, one row at a time — every row checked, and any
  * that is not a row a run could have set dropped: a time that is not
- * positive and finite, a skis the catalog no longer has. The same rule
- * `mergeSettings` applies, for the same reason. */
+ * positive and finite, a pair (skis or a board) this build no longer has.
+ * The same rule `mergeSettings` applies, for the same reason. */
 export function mergeRecords(parsed: unknown): RecordBook {
   return readBook<RunRecord>(
     parsed,
     (raw, row) =>
-      typeof raw.skis === "string" && isSkiId(raw.skis)
+      typeof raw.skis === "string" && isPairId(raw.skis)
         ? { value: row.value, skis: raw.skis, at: row.at, splits: row.splits ?? [] }
         : null,
     { splits: true },

@@ -12,10 +12,10 @@
 // The body frame is the skis' own: z along the board, nose forward, x to
 // its right. The rider stands across it — a REGULAR rider (the left foot at
 // the nose) faces the board's right, so his toe edge is its right edge and
-// his heel edge its left; a GOOFY one the other way round. The engine reads
-// no difference between the two yet: the heel and the toe edge are still
-// each other's mirror (a heelside turn weaker than a toeside one is the next
-// step, with the board's own technique row and the bot).
+// his heel edge its left; a GOOFY one the other way round. The two edges
+// are not each other's mirror: the heelside is the weaker (`BoardFit.heel`,
+// read through `limits.ts`'s `edgeSideOf`), and the board is ridden with
+// its own technique (`defs/technique.ts`'s `BOARD_TECHNIQUE`).
 //
 // The numbers are a real class's — an ALL-MOUNTAIN TWIN, the board most
 // riders ride — kept as the BAND each sits in, never a make. Sources are
@@ -101,6 +101,18 @@ export const LYNX: SkiSpec = {
     back: (-15 * Math.PI) / 180,
     // REGULAR, the left foot forward — some 70 % of riders.
     lead: "regular",
+    // THE HEELSIDE IS THE WEAKER EDGE. On his toes his knees drive forward
+    // and down into the slope and his ankles flex the boots' tongues; on
+    // his heels he sits back over the edge on the highbacks, which stop
+    // his shins at their forward lean (12–20° for a carver), so his ankles
+    // add next to nothing and his hips go back rather than in. So the
+    // heel edge stands at ~47° where the toe edge stands at 55°, and what
+    // he angulates past his lean is three fifths of it (est.).
+    heel: { edge: 0.85, angulate: 0.6 },
+    // Across the board the wind meets his front: an upright figure's drag
+    // area is ~0.84 m², a skier's folded racing tuck ~0.46; crouched over
+    // his knees, his chest still square to that wind, he is between (est.).
+    across: { upright: 0.84, crouch: 0.6 },
   },
 };
 

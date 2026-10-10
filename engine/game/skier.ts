@@ -88,7 +88,7 @@ import {
   chatterHold,
   chatterOf,
   cornerGrip,
-  edgeLockAt,
+  edgeAskedAt,
   edgeMostOf,
   flightGravity,
   harshSpeedOf,
@@ -188,14 +188,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // dulled edge (`damage.ts`) pulls the line toward its side, and a long
   // stiff ski takes longer to tip over (`Footprint.edgeRate`).
   // CUTTING HARDER (`TUNING.carve`) stands the skis further over than the
-  // speed's own lock, never past the spec's own most.
+  // speed's own lock, never past the spec's own most — a board's heel edge less.
   // STEPPING ROUND A TURN at a crawl (`step`, below) he stands on far less
   // edge: the step turns him, not the sidecut (`poles.turn.edge`) — by how
   // much he can step, not the step itself, which passes through nothing
   // from one side to the other and would stand the skis up on the full
   // lock for a moment at every change of turn.
   const lock =
-    Math.min(edgeMostOf(spec, T), edgeLockAt(spec, speed0, T) * (1 + CV.edge * c.carve)) *
+    edgeAskedAt(spec, speed0, T, c.carve, Math.sign(c.steer)) *
     (1 - P.turn.edge * stepWork(c.drive, speed0, c.poles));
   // STOOD STILL, a steer is no edge: it steps him round on the spot — or up
   // a steep slope, his skis set into the hill (`sidestep.ts`).

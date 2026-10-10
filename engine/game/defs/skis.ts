@@ -116,6 +116,16 @@ export type BoardFit = {
   /** Which foot leads at the nose: "regular" the left (the rider facing the
    * board's right, his toe edge on +x), "goofy" the right. */
   lead: "regular" | "goofy";
+  /** THE HEEL EDGE against the toe edge (`limits.ts`'s `edgeSideOf`): the
+   * share of the most edge he stands the board on (`edge`) and of the
+   * angulation his ankles, knees and hips add past his inclination
+   * (`angulate`) on his heels — the toe side is the whole of both. */
+  heel: { edge: number; angulate: number };
+  /** HIS DRAG AREA TO A WIND ACROSS THE BOARD, m², stood up and in his
+   * crouch: he faces across it, so the air across it meets his chest or
+   * his back (`air.ts`'s `sideAreaOf`) — the skier's FRONTAL area, as the
+   * board's own `cdAUpright` / `cdATuck` are the skier's side. */
+  across: { upright: number; crouch: number };
 };
 
 export type SkiSpec = {

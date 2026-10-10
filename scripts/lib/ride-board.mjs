@@ -6,7 +6,12 @@
 // the sidecut's own geometry, R·cos edge, which nothing carves tighter
 // than), riding FAKIE down a groomer and steered (a board never turns round
 // out of it — `switch.ts`), the slope's kicker, and powder, where one wide
-// deck floats a rider a pair of skis sinks. Listed in `ride-scenarios.mjs`;
+// deck floats a rider a pair of skis sinks; the TOE EDGE against the HEEL
+// EDGE, the same full edge held either way at 50 km/h (the heel edge the
+// weaker — `BoardFit.heel`) and cut hard at 80; and the EDGE CAUGHT — slid
+// sideways with its leading edge stood down — beside the SIDESLIP, the
+// same slide led by the raised edge, which a rider rides
+// (`crash.ts`'s `edgeCatching`). Listed in `ride-scenarios.mjs`;
 // `--skis lynx` rides every other scenario on it too.
 
 import {
@@ -20,6 +25,8 @@ import {
   onPitch,
   atKicker,
   TOP,
+  turn,
+  wipeout,
 } from "./ride-helpers.mjs";
 
 /** The board every scenario here is ridden on. */
@@ -54,6 +61,56 @@ function carved(run, spec) {
     ["worst slip m/s", fmt(Math.max(...fs.map((f) => f.sideSlip)), 2)],
     ["thrown", run.frames.some((f) => f.thrown) ? "yes" : "no"],
   ];
+}
+
+/** THE TOE EDGE is the board's right under its regular rider: steered
+ * right he stands on his toes, left on his heels. */
+const TOE = 1;
+
+/** A carve on one edge: full edge held (cut hard where `cut`) at `kmh`
+ * down the 20° pitch, toward the toes (`side` 1) or the heels (-1). */
+function edgeCarve(id, side, kmh, cut) {
+  const which = side === TOE ? "toe" : "heel";
+  return {
+    id,
+    title: `full edge on the ${which}s at ${kmh} km/h down the 20° pitch${cut ? ", cut hard" : ""}`,
+    skis: BOARD,
+    level: (S) => schussStrip(S),
+    place: () => onPitch(kmh),
+    seconds: 3,
+    view: "plan",
+    input: (t, st) => ({ ...TUCK, steer: side, carve: cut, ...hold(st, kmh) }),
+    measure: (run) => [
+      ...turn(run),
+      ["worst slip m/s", fmt(Math.max(...run.frames.map((f) => f.sideSlip)), 1)],
+      ["thrown", run.frames.some((f) => f.thrown) ? "yes" : "no"],
+    ],
+  };
+}
+
+/** Slid sideways across the flat at 45 km/h, the board stood `edge` rad
+ * over (right side down positive): facing +x and sliding +z, toward the
+ * rider's left, so a NEGATIVE edge has the leading edge down. */
+function slidAcross(id, title, edge) {
+  return {
+    id,
+    title,
+    skis: BOARD,
+    level: (S) => S.flatLevel({ packed: 1 }),
+    place: () => ({ x: 1500, z: 300, heading: Math.PI / 2, speed: 0 }),
+    prepare: (st) => {
+      st.skier.vx = 0;
+      st.skier.vz = 45 / 3.6;
+      st.skier.edge = edge;
+    },
+    seconds: 4,
+    view: "plan",
+    input: () => ({ ...IDLE, steer: Math.sign(edge) }),
+    measure: (run) => [
+      ["worst side slip m/s", fmt(Math.max(...run.frames.map((f) => f.sideSlip)), 1)],
+      ...wipeout(run),
+    ],
+  };
 }
 
 /** The board scenarios, in the ride lab's order. */
@@ -127,6 +184,20 @@ export const BOARD_SCENARIOS = [
     input: (t, st) => ({ ...TUCK, ...hold(st, 60) }),
     measure: flight,
   },
+  edgeCarve("board-toe", TOE, 50, false),
+  edgeCarve("board-heel", -TOE, 50, false),
+  edgeCarve("board-toe-cut", TOE, 80, true),
+  edgeCarve("board-heel-cut", -TOE, 80, true),
+  slidAcross(
+    "board-catch",
+    "slid sideways at 45 km/h on the flat, the leading edge down: caught",
+    -1,
+  ),
+  slidAcross(
+    "board-sideslip",
+    "slid sideways at 45 km/h on the flat, the leading edge raised: the sideslip",
+    1,
+  ),
   {
     id: "board-powder",
     title: "the board straight-lined down the 20° pitch in powder",

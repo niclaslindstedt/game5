@@ -19,7 +19,8 @@
 // crosswind on a tucked skier — whose profile is long — pushes harder than
 // the same wind on him stood up, and why the drag barely moves at a small
 // yaw while the side force climbs with it, as wind-tunnel work on skiers
-// finds.
+// finds. A SNOWBOARDER rides side-on, so his two areas trade places: the
+// air along the board meets his side and the air across it his front.
 //
 // WHERE IT ACTS. On the CoG: a standing body's side area centres within a
 // hand's breadth of its centre of gravity, so a crosswind's roll moment is
@@ -46,9 +47,14 @@ export function dragAreaOf(spec: SkiSpec, crouch: number): number {
 }
 
 /** The body's SIDE-ON drag area at `crouch` 0..1, m² — the frontal at the
- * same crouch times the side's share of it (`TUNING.wind`). */
+ * same crouch times the side's share of it (`TUNING.wind`). A snowboarder
+ * stands across his board, so the wind across it meets his chest or his
+ * back: his own area to it (`BoardFit.across`), as his frontal one is his
+ * side silhouette. */
 export function sideAreaOf(spec: SkiSpec, crouch: number): number {
   const k = Math.min(1, Math.max(0, crouch));
+  const across = spec.board?.across;
+  if (across) return across.upright + (across.crouch - across.upright) * k;
   const W = TUNING.wind;
   return dragAreaOf(spec, k) * (W.sideUpright + (W.sideTuck - W.sideUpright) * k);
 }

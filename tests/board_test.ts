@@ -4,26 +4,43 @@
 // (`suspension.ts`), no poles — read by the skis' own model. Held here on
 // the synthetic slope: it carves the arc its sidecut and edge ask for, tops
 // out in its band, floats higher in powder than a pair of skis, rides fakie
-// without ever turning round, and lands the slope's kicker.
+// without ever turning round, and lands the slope's kicker. Its TWO EDGES
+// are not each other's mirror — the heel edge the weaker (`BoardFit.heel`,
+// `limits.ts`'s `edgeSideOf`) — it carves hard at 80 km/h on either, its
+// caught edge is the one leading a slide (`crash.ts`), it is ridden with
+// its own technique, the wind across it meets the rider's front, and the
+// bot rides it down a piste.
 
 import { describe, expect, it } from "vitest";
 
 import {
   BOARD_CATALOG,
+  BOARD_TECHNIQUE,
+  FREE,
   LYNX,
   NEUTRAL_INPUT,
   SKI_CATALOG,
   SKIS,
   TOP_SPEED_PITCH,
   TUNING,
+  angulationOf,
   carveCurvature,
+  cornerGrip,
+  crashLimit,
   createGame,
+  dragAreaOf,
+  edgeAskedAt,
+  edgeMostOf,
+  edgeSideOf,
+  footprintOf,
   isBoardId,
   isPairId,
   isSkiId,
   pairById,
   placeRun,
   probesOf,
+  sideAreaOf,
+  simulateRun,
   step,
   terminalSpeed,
   type GameEvent,
@@ -46,7 +63,7 @@ const PITCH = flatLevel({
 function stage(
   spec: SkiSpec,
   level: Level,
-  at: { x: number; z: number; heading: number; speed?: number; pitch?: number },
+  at: Parameters<typeof placeRun>[1],
   mode?: "free",
 ): GameState {
   const state = createGame({ level, spec, mode, rivals: 0, countdown: 0, quiet: true });
@@ -215,5 +232,165 @@ describe("the board on the snow", () => {
     expect(flew).toBe(true);
     expect(events.filter((e) => e.kind === "wipeout")).toHaveLength(0);
     expect(state.skier.thrown).toBeNull();
+  });
+});
+
+/** The board with its rider's other foot forward: GOOFY. */
+const GOOFY: SkiSpec = { ...LYNX, board: { ...LYNX.board!, lead: "goofy" } };
+
+/** Full edge held toward `side` (1 the board's right) at `kmh` down the 20°
+ * pitch, cut hard where asked: the edge he stood on and the lateral g of
+ * his path over the second after he has laid in, and whether he was thrown. */
+function fullEdge(
+  spec: SkiSpec,
+  side: number,
+  kmh: number,
+  cut: boolean,
+): { edge: number; g: number; thrown: boolean } {
+  const state = stage(spec, PITCH, { x: 2000, z: 600, heading: 0, speed: kmh / 3.6 });
+  const c = state.skier;
+  let edge = 0;
+  let lateral = 0;
+  let n = 0;
+  let thrown = false;
+  ride(
+    state,
+    2,
+    (_, s) => ({ ...TUCK, steer: side, carve: cut, ...hold(s, kmh) }),
+    (t) => {
+      thrown ||= c.thrown !== null;
+      if (t < 0.5 || t > 1.5 || thrown) return;
+      edge = Math.max(edge, Math.abs(c.edge));
+      // The path's bend, off the way's turn rate.
+      const v = Math.hypot(c.vx, c.vz);
+      lateral += Math.abs(c.wy) * v;
+      n++;
+    },
+  );
+  return { edge, g: lateral / n / TUNING.g, thrown };
+}
+
+describe("the board's two edges", () => {
+  it("knows its toe edge from its heel edge by the rider's stance, the same riding fakie", () => {
+    // Regular: the left foot at the nose, facing the board's right.
+    expect(edgeSideOf(LYNX, 1)).toBe("toe");
+    expect(edgeSideOf(LYNX, -1)).toBe("heel");
+    expect(edgeSideOf(GOOFY, 1)).toBe("heel");
+    expect(edgeSideOf(GOOFY, -1)).toBe("toe");
+    // An edge not yet chosen is planned on the weaker one.
+    expect(edgeSideOf(LYNX, 0)).toBe("heel");
+    // A pair of skis has no toe or heel edge: each is the other's mirror.
+    expect(edgeSideOf(SKIS, 1)).toBeNull();
+    expect(edgeMostOf(SKIS, FREE, 1)).toBe(edgeMostOf(SKIS, FREE, -1));
+    expect(angulationOf(SKIS, -1)).toBe(TUNING.skier.angulateMost);
+  });
+
+  it("stands the heel edge on less and angulates onto it less than the toe edge", () => {
+    expect(edgeMostOf(LYNX, BOARD_TECHNIQUE, -1)).toBeLessThan(
+      edgeMostOf(LYNX, BOARD_TECHNIQUE, 1),
+    );
+    expect(edgeMostOf(LYNX, BOARD_TECHNIQUE, 1)).toBe(LYNX.edgeMax);
+    expect(angulationOf(LYNX, -1)).toBeLessThan(angulationOf(LYNX, 1));
+    expect(edgeAskedAt(LYNX, 14, BOARD_TECHNIQUE, 0, -1)).toBeLessThan(
+      edgeAskedAt(LYNX, 14, BOARD_TECHNIQUE, 0, 1),
+    );
+    // Goofy, the mirror.
+    expect(edgeMostOf(GOOFY, BOARD_TECHNIQUE, 1)).toBe(edgeMostOf(LYNX, BOARD_TECHNIQUE, -1));
+  });
+
+  it("carves a weaker heelside turn than toeside on the snow", () => {
+    const toe = fullEdge(LYNX, 1, 50, false);
+    const heel = fullEdge(LYNX, -1, 50, false);
+    expect(toe.thrown || heel.thrown).toBe(false);
+    expect(heel.edge).toBeLessThan(toe.edge - 0.05);
+    expect(heel.g).toBeLessThan(toe.g);
+    // Goofy is the mirror: his toes are the board's left.
+    const goofyToe = fullEdge(GOOFY, -1, 50, false);
+    expect(goofyToe.edge).toBeCloseTo(toe.edge, 2);
+  });
+
+  it("carves hard at 80 km/h on either edge, cut hard, without being thrown", () => {
+    for (const side of [1, -1]) {
+      const hard = fullEdge(LYNX, side, 80, true);
+      expect(hard.thrown).toBe(false);
+      expect(hard.g).toBeGreaterThan(0.8);
+    }
+  });
+});
+
+/** Slid sideways across the flat at 45 km/h, facing +x and sliding +z (to
+ * his left), the board stood `edge` rad over: whether it threw him. */
+function slidAcross(edge: number): string | null {
+  const state = stage(LYNX, flatLevel({ packed: 1 }), { x: 1500, z: 300, heading: Math.PI / 2 });
+  state.skier.vz = 45 / 3.6;
+  state.skier.edge = edge;
+  const events = ride(state, 2, () => ({ steer: Math.sign(edge) }));
+  const out = events.find((e) => e.kind === "wipeout");
+  return out && out.kind === "wipeout" ? out.cause : null;
+}
+
+describe("the board's caught edge", () => {
+  it("catches the edge leading a slide when it is stood down, and rides a sideslip led by the raised one", () => {
+    // Sliding to his left: the board's left edge leads.
+    expect(slidAcross(-1)).toBe("catch");
+    expect(slidAcross(1)).toBeNull();
+  });
+
+  it("is no less steady for having no poles: a board lands a drop a pair of skis lands", () => {
+    for (const roll of [0, 0.35]) {
+      for (const height of [2.5, 4]) {
+        const state = stage(LYNX, flatLevel({ packed: 1 }), {
+          x: 1500,
+          z: 200,
+          heading: 0,
+          speed: 70 / 3.6,
+          height,
+          roll,
+          pitch: 0,
+        });
+        const events = ride(state, 3, () => TUCK);
+        expect(events.filter((e) => e.kind === "wipeout")).toHaveLength(0);
+      }
+    }
+    // A board is ridden without poles by design: its rider's limits are a
+    // poled skier's, never the bare-handed skier's halved resilience.
+    const level = flatLevel({ packed: 1 });
+    const at = { x: 1500, z: 200, heading: 0, speed: 20 };
+    const board = stage(LYNX, level, at).skier;
+    const skis = stage(SKIS, level, at).skier;
+    for (const key of ["legsFold", "crooked", "treeSpeed", "bodySlam"] as const) {
+      expect(crashLimit(board, key)).toBeCloseTo(crashLimit(skis, key), 9);
+    }
+  });
+});
+
+describe("the board as ridden", () => {
+  it("is ridden with the board's own technique, whatever the run asks", () => {
+    const board = createGame({ seed: 3, spec: LYNX, quiet: true });
+    expect(board.rules.technique).toBe("board");
+    const asked = createGame({ seed: 3, spec: LYNX, technique: "slalom", quiet: true });
+    expect(asked.rules.technique).toBe("board");
+    expect(createGame({ seed: 3, quiet: true }).rules.technique).toBeUndefined();
+  });
+
+  it("meets a wind across it with the rider's front, and one along it with his side", () => {
+    for (const k of [0, 1]) {
+      expect(sideAreaOf(LYNX, k)).toBeGreaterThan(dragAreaOf(LYNX, k));
+    }
+    expect(sideAreaOf(LYNX, 0)).toBe(LYNX.board!.across.upright);
+    expect(sideAreaOf(LYNX, 1)).toBe(LYNX.board!.across.crouch);
+  });
+
+  it("turns on its one deck in powder, wider than a pair of skis' two bases but not three skis wide", () => {
+    const base = footprintOf(LYNX).base;
+    expect(base).toBeGreaterThan(1);
+    expect(base).toBeLessThan(1.6);
+    expect(cornerGrip(LYNX, 0, 14)).toBeGreaterThan(cornerGrip(SKIS, 0, 14));
+  });
+
+  it("is ridden down a piste by the bot, start to finish, without a fall", () => {
+    const report = simulateRun(3, { spec: LYNX });
+    expect(report.finished).toBe(true);
+    expect(report.wipeouts).toBe(0);
   });
 });

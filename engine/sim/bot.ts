@@ -20,6 +20,8 @@
 
 import { pilotInput } from "../game/heli.ts";
 import { planeInput } from "../game/plane-pilot.ts";
+import { chuteActive } from "../game/chute.ts";
+import { chutePilot } from "../game/chute-pilot.ts";
 import { sledPilot } from "../game/sled-pilot.ts";
 import { paraPilot } from "../game/para-pilot.ts";
 import { balloonPilot } from "../game/balloon-pilot.ts";
@@ -627,6 +629,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // ...and one in the jump plane's door flies it up to the jump run
   // (`plane-pilot.ts`) and never jumps.
   if (state.plane?.rider) return planeInput(state);
+  // ...but one out of its door (the player jumped, or a lab) flies the
+  // skydive (`chute-pilot.ts`): the pull, the canopy and the flare.
+  if (chuteActive(state) && !c.thrown) return chutePilot(state);
   // ...and one stood on the snowmobile's boards rides it up the mountain
   // (`sled-pilot.ts`) and never hops off.
   if (state.sled?.rider) return sledPilot(state);

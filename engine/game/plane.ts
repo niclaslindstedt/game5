@@ -334,7 +334,7 @@ function controlsFor(run: GameState, p: PlaneState, input: SkierInput): PlaneCon
   if (p.bounds > 0 && !p.grounded && p.mode === "flown") {
     // Only flown on toward the edge: along it or back in, it is let be.
     const out = Math.cos(angleDiff(p.heading, bounds.heading + Math.PI));
-    const w = clamp(p.bounds * 2, 0, 1) * clamp(out + 1, 0, 1);
+    const w = clamp(p.bounds * 6, 0, 1) * clamp(out + 1, 0, 1);
     const hand = boundsHand(p, bounds.heading);
     c.roll += (hand.roll - c.roll) * w;
     c.yaw += (hand.yaw - c.yaw) * w;

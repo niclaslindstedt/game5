@@ -14,6 +14,7 @@ import {
   STRIP_LENGTH,
   TUNING,
   airstripOf,
+  chutePilot,
   createGame,
   onStrip,
   planeAloft,
@@ -272,8 +273,10 @@ describe("the pilot flying it home", () => {
     expect(s.plane!.mode).toBe("home");
     let home: PlaneEvent | undefined;
     let crash = false;
+    // The jumper flies his own skydive down (a freefall into the snow would
+    // begin the ride again in the door, the plane with it).
     for (let i = 0; i < Math.round(300 / dt) && !home; i++) {
-      step(s, NEUTRAL_INPUT);
+      step(s, chutePilot(s));
       for (const e of s.events) {
         if (e.kind !== "plane") continue;
         if (e.phase === "home") home = e;

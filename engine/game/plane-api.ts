@@ -2,7 +2,10 @@
 // THE JUMP PLANE, as the engine's public surface re-exports it
 // (`engine/index.ts`): its numbers (`defs/plane.ts`), its state, its flight
 // (`plane.ts`, the air on it `plane-aero.ts`), its strip (`airstrip.ts`)
-// and the bot's hands on it (`plane-pilot.ts`).
+// and the bot's hands on it (`plane-pilot.ts`) — and THE SKYDIVE out of its
+// door: its numbers (`defs/chute.ts`), its state, its flight (`chute.ts`,
+// the wing maths it shares with the paramotor `canopy.ts`) and the bot's
+// hands on it (`chute-pilot.ts`).
 
 export { PLANE, planeMass } from "./defs/plane.ts";
 export { AIR_BOUNDS } from "./defs/air-bounds.ts";
@@ -37,3 +40,25 @@ export {
   type PlaneWant,
 } from "./plane-pilot.ts";
 export { airBounds, airBoundsAt, type AirBounds } from "./collision.ts";
+export { CHUTE, jumperMass, type DeployStage } from "./defs/chute.ts";
+export type {
+  ChuteControls,
+  ChuteDeploy,
+  ChuteEvent,
+  ChuteMode,
+  ChutePhaseEvent,
+  ChutePiece,
+  ChutePoint,
+  ChuteSnag,
+  ChuteState,
+} from "./chute-state.ts";
+export {
+  chuteActive,
+  chuteControls,
+  chuteDown,
+  chuteRigged,
+  flyChute,
+  skydiveAt,
+  stepChute,
+} from "./chute.ts";
+export { chutePilot, landingSpotOf, skydiveInput } from "./chute-pilot.ts";

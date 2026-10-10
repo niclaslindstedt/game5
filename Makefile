@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skydive-flight balloon afterski town
 
 build:
 	npm run build
@@ -612,6 +612,14 @@ balloon-flight:
 # --compare=FILE after; SEED= flies the roll on a generated map's strip).
 plane-flight:
 	npm run plane-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE SKYDIVE'S FLIGHT LAB: the exit, the freefall's terminal speeds, the
+# staged opening, the canopy's polar, turns and flare, the landing, the
+# cut-away, the snags and the map's edge, beside the class's bands — pure
+# Node (`scripts/skydive-flight-lab.mjs`; ARGS=--json=FILE before,
+# --compare=FILE after; SEED= the whole jump and the lift snag's map).
+skydive-flight:
+	npm run skydive-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
 # THE BALLOON LAB: the free ride's hot air balloon staged at every moment it
 # has — tethered on the valley floor, in flight over the mountain, the

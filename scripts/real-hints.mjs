@@ -155,16 +155,16 @@ function gradeOf(face, tags) {
  * house's middle; how far a piste's line may stray from its bends, m; the
  * shortest piste kept, m; a house's size step, m, and its bearing's steps
  * round half a turn. */
-const COARSE = 8;
-const FINE = 4;
-const STRAY = 30;
-const SHORTEST = 150;
-const SIZE_STEP = 2;
-const BEARINGS = 16;
+const COARSE = 2;
+const FINE = 1;
+const STRAY = 6;
+const SHORTEST = 60;
+const SIZE_STEP = 1;
+const BEARINGS = 32;
 /** The houses kept: none smaller than `HOUSE_LEAST` m a side (a shed, a
  * garage), and no more than `HOUSES_MOST` a face, the largest first. */
-const HOUSE_LEAST = 5;
-const HOUSES_MOST = 600;
+const HOUSE_LEAST = 3;
+const HOUSES_MOST = 4000;
 
 const inMap = ([x, z]) => x >= 0 && x <= SIZE && z >= 0 && z <= SIZE;
 

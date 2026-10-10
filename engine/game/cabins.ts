@@ -334,6 +334,16 @@ function placeCabins(level: Level): Cabin[] {
       const lx = dx * fz - dz * fx;
       const lz = dx * fx + dz * fz;
       if (fit?.fell && insideWalls(def.width, def.depth, lx, lz)) continue;
+      // A yard cleared round the roof (a real house's) fells what stands in it.
+      const c = fit?.clearing;
+      if (
+        c !== undefined &&
+        Math.abs(lx) < def.width / 2 + r.side + c &&
+        lz > -def.depth / 2 - r.back - c &&
+        lz < def.depth / 2 + r.front + c
+      ) {
+        continue;
+      }
       const m = Math.max(t.crown * C.crown + 0.5, C.trunk);
       if (
         lx > -def.width / 2 - r.side - m &&

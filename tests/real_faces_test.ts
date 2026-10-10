@@ -89,9 +89,9 @@ describe("a real face's hints", () => {
         expect(p.points.length, id).toBeGreaterThanOrEqual(2);
         expect(["green", "blue", "red", "black", "orange"]).toContain(p.grade);
       }
-      expect(h.houses.length, id).toBeLessThanOrEqual(600);
+      expect(h.houses.length, id).toBeLessThanOrEqual(4000);
       for (const o of h.houses) {
-        expect(on(o) && o.size >= 4 && o.turn >= 0 && o.turn < Math.PI, id).toBe(true);
+        expect(on(o) && o.size >= 3 && o.turn >= 0 && o.turn < Math.PI, id).toBe(true);
       }
     }
     // A face with a ski area on it carries it.

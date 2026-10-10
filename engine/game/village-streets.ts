@@ -53,6 +53,7 @@ import {
 import { helipadOf } from "./heli-pad.ts";
 import { clearOfLifts, liftPlans, queueLane } from "./lift-line.ts";
 import { pisteMasts } from "./piste-masts.ts";
+import { REAL_HOUSES, realHousesOf } from "./real-houses.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 
 /** A point of a street's centreline (or a lane's, a sidewalk's): in the
@@ -384,9 +385,10 @@ export function planVillageStreets(level: Level, avoid: readonly Cabin[]): Villa
   const twoRoads = deal(8) < V.roads;
   const parkSide: -1 | 1 = deal(9) < 0.5 ? -1 : 1;
 
+  const centres = realCentres(level, village.x, span0, mid, sV, vBack);
   for (const spanShare of V.tries.span) {
     const span = span0 * spanShare;
-    for (const off of V.tries.centre) {
+    for (const off of centres) {
       const cx = village.x + off;
       const xa = Math.round(cx - span / 2);
       const xb = Math.round(cx + span / 2);
@@ -425,6 +427,43 @@ export function planVillageStreets(level: Level, avoid: readonly Cabin[]): Villa
     }
   }
   return null;
+}
+
+/** The centres the village is tried at, off its point (`tries.centre`) —
+ * on a REAL FACE (`real-houses.ts`) with enough of its houses on the
+ * village's ground, the one most of them stand round added (inside the
+ * reach the list already searches) and every centre tried in order of how
+ * many stand under its streets, the most first. */
+function realCentres(
+  level: Level,
+  vx: number,
+  span: number,
+  mid: { top: number; bottom: number },
+  sV: 1 | -1,
+  depth: number,
+): readonly number[] {
+  const houses = realHousesOf(level);
+  if (houses.length === 0) return V.tries.centre;
+  const reach = Math.max(...V.tries.centre.map(Math.abs));
+  // The houses on the valley's side of the hub, within the village's depth.
+  const edge = sV > 0 ? mid.bottom : mid.top;
+  const xs = houses
+    .filter((h) => {
+      const v = (h.z - edge) * sV;
+      return v > 0 && v < depth + REAL_HOUSES.near;
+    })
+    .map((h) => h.x);
+  const under = (off: number) => xs.filter((x) => Math.abs(x - (vx + off)) < span / 2).length;
+  let peak = 0;
+  for (let off = -reach; off <= reach; off += 10) if (under(off) > under(peak)) peak = off;
+  const tried: readonly number[] = V.tries.centre;
+  const list = [...tried, ...(tried.includes(peak) ? [] : [peak])];
+  const counts = new Map(list.map((o) => [o, under(o)]));
+  if (counts.get(peak)! < REAL_HOUSES.village) return V.tries.centre;
+  return list
+    .map((o, i) => ({ o, i, n: counts.get(o)! }))
+    .sort((a, b) => b.n - a.n || a.i - b.i)
+    .map((c) => c.o);
 }
 
 type DraftAsk = {

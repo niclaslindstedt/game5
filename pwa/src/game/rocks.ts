@@ -49,6 +49,55 @@ export const CUTS = [
 /** How far past a band's edge a tile must be before it changes cut, m. */
 const HYSTERESIS = 30;
 
+/** THE ROCK CALMED WITH DISTANCE: from `CALM_FROM` m to `CALM_TO` m off
+ * the lens every corner eases from its facet's flat normal and own shade
+ * to the ground's smooth normal and the rock's mean paint (`RockMesh`'s
+ * `soft` and `calm`). A facet is a few metres; far out it is a few
+ * pixels, and a field of them each lit and shaded its own way, snow on one
+ * and bare stone on the next, twinkles as the lens moves — the far crags
+ * flicker. Calmed, the face keeps its shape and its snow and loses only
+ * the detail no pixel can hold. Close in nothing changes. */
+const CALM_FROM = 80;
+const CALM_TO = 350;
+const CALM_HEAD = /* glsl */ `
+attribute vec3 soft;
+attribute vec3 calm;
+`;
+// Three's vertex shader colours before it reads the normal, so the share
+// is reckoned with the colour.
+const CALM_COLOUR = /* glsl */ `
+#include <color_vertex>
+float rockCalm = smoothstep(${CALM_FROM.toFixed(1)}, ${CALM_TO.toFixed(1)},
+  distance((modelMatrix * vec4(position, 1.0)).xyz, cameraPosition));
+vColor.xyz = mix(color.xyz, calm, rockCalm);
+`;
+const CALM_NORMAL = /* glsl */ `
+vec3 objectNormal = normalize(mix(normal, soft, rockCalm));
+#ifdef USE_TANGENT
+  vec3 objectTangent = vec3(tangent.xyz);
+#endif
+`;
+
+/** AND PULLED TOWARD THE LENS, IN DEPTH ALONE: `PULL` m for every metre
+ * past `PULL_FROM` it stands off, out to `PULL_MOST` m. The skin stands a
+ * hand proud of the snow, but the depth buffer tells two surfaces apart
+ * ever more coarsely the further they are (a step is about d² over the
+ * near plane's 2²⁴: half a metre at a kilometre) and the snow under it is
+ * drawn coarser too, so far out the two fight over the same pixels. Moved
+ * along the ray to the eye, a corner stays on its pixel; only the depth
+ * test changes, and the rock wins it against snow that close behind. */
+const PULL = 0.004;
+const PULL_FROM = 30;
+const PULL_MOST = 12;
+const PULL_GLSL = /* glsl */ `
+#include <project_vertex>
+{
+  float rockD = length(mvPosition.xyz);
+  float rockPull = clamp((rockD - ${PULL_FROM.toFixed(1)}) * ${PULL.toFixed(4)}, 0.0, ${PULL_MOST.toFixed(1)});
+  gl_Position = projectionMatrix * vec4(mvPosition.xyz * (1.0 - rockPull / max(rockD, 1.0)), 1.0);
+}
+`;
+
 /** The cut a tile `d` m off wants, given the one it has (`had`, or -1). */
 export function cutOf(d: number, had: number): number {
   let k = CUTS.findIndex((c) => d < c.out);
@@ -98,7 +147,13 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
     "rock",
-    PAST_THE_WALL,
+    (shader) => {
+      PAST_THE_WALL(shader);
+      shader.vertexShader = (CALM_HEAD + shader.vertexShader)
+        .replace("#include <beginnormal_vertex>", CALM_NORMAL)
+        .replace("#include <color_vertex>", CALM_COLOUR)
+        .replace("#include <project_vertex>", PULL_GLSL);
+    },
   );
   let share = initial;
   const cols = band ? Math.ceil(level.size / TILE) : 0;
@@ -168,6 +223,8 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
     g.setAttribute("position", new THREE.Float32BufferAttribute(part.pos, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(part.nrm, 3));
     g.setAttribute("color", new THREE.Float32BufferAttribute(part.col, 3));
+    g.setAttribute("soft", new THREE.Float32BufferAttribute(part.soft, 3));
+    g.setAttribute("calm", new THREE.Float32BufferAttribute(part.calm, 3));
     g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, material);
     mesh.matrixAutoUpdate = false;

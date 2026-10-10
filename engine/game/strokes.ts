@@ -214,7 +214,8 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
       }
     }
     // THE TWIRL, half a turn the way the edge went.
-    if (spin === 0) k.spinCrossed = 0;
+    // (A revert under way turns him round itself: no twirl is read on top.)
+    if (spin === 0 || c.revert != null) k.spinCrossed = spin;
     else if (spin !== k.spinCrossed) {
       k.spinCrossed = spin;
       const goal = k.spinGoal + spin * T.spinStep;

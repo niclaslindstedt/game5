@@ -320,6 +320,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     course: base.course,
     tricks: base.tricks,
     stunts: base.stunts,
+    ...(base.revert ? { revert: true } : {}),
     limit: base.limit,
     airGravity: base.airGravity,
     // AFTER DARK the crowd has gone in (`enthusiasts.ts`); asked for, it

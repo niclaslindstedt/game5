@@ -32,25 +32,26 @@
 //           of that country (`real-face.ts`) — a real mountainside's
 //           ridge, spurs and gullies under the seed's lifts and runs.
 //
-//   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
-//           green, a blue, a red or a black built to its band — and the RUN
-//           row brought to the first run of that colour.
+//   START   how the ride begins: ON SKIS, carried by the lift to the RUN
+//           row's run — or a way up with no lift: the PARAMOTOR (the
+//           ride begun on the summit, the wing over him, skied off and
+//           flown — `para.ts`), the HOT AIR BALLOON (begun in its basket
+//           on the valley floor and flown up the mountain on the day's
+//           wind — `balloon.ts`), the SNOWMOBILE (stood on its boards, the
+//           skis racked — `sled.ts`), the HELICOPTER (sat on the skid on
+//           its pad — `heli.ts`), or the AFTERSKI (inside the valley's
+//           lodge at the party — `afterski.ts`). A machine is kept as a
+//           run id of its map, as it always was (`startPicked`).
 //
 //   RUN     which run of the ski area the ride starts down, by the number
-//           the piste map signs it with: the GRADE row's colour's runs
-//           stepped through (`markedRun`, the engine's `pickFreeRun`). The
-//           lift up to its top carries the skier the last few seconds, and
-//           the chart marks its head with a pulse; the line under the chart
-//           bills it. Its LAST three stops are no run but a way up with no
-//           lift: the PARAMOTOR — the ride begun on the summit, the wing
-//           over him, skied off and flown (`para.ts`) — the HOT AIR
-//           BALLOON, the ride begun in its basket on the valley floor and
-//           flown up the mountain on the day's wind (`balloon.ts`) — the AFTERSKI, the ride
-//           begun inside the valley's lodge at the party (`afterski.ts`) — the SNOWMOBILE — the ride begun stood on its boards, the
-//           skis racked, ridden up the mountain and hopped off (`sled.ts`) —
-//           and the HELICOPTER: the ride begun sat on the skid of the
-//           helicopter on its pad on the valley floor, flown up the mountain
-//           and pushed off (`heli.ts`).
+//           the piste map signs it with — EVERY run of the map, of any
+//           colour, and nothing that is not a run (`markedRun`, the
+//           engine's `pickFreeRun`). The lift up to its top carries the
+//           skier the last few seconds, and the chart marks its head with
+//           a pulse; the line under the chart bills it. Picking one puts
+//           the START row back ON SKIS (`runPicked`). There is NO GRADE
+//           row: the mountain is the seed's own, and the slope is chosen
+//           here, whatever its colour.
 //
 //   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
@@ -65,18 +66,16 @@
 
 import {
   REAL_FACE_IDS,
-  RUN_GRADES,
   REGION_IDS,
   TIMES_OF_DAY,
   WEATHER_KINDS,
   realFaceRegion,
   type RegionId,
-  type RunGrade,
   type WeatherKind,
 } from "@engine";
 import { useState } from "preact/hooks";
 
-import { SEASONS, SNOW_STOPS, spotOn, type FreeRide } from "./free-ride.ts";
+import { SEASONS, SNOW_STOPS, runPicked, spotOn, startPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
@@ -105,13 +104,6 @@ function faceStops(region: RegionId): { id: string; label: string }[] {
     ...faces.map((id, i) => ({ id, label: STRINGS.faceName(i + 1) })),
   ];
 }
-
-/** The GRADE row's stops: the seed's own colour, then R23's four and the
- * ski route's ORANGE past them (R42). */
-const GRADE_STOPS: { id: "dealt" | RunGrade; label: string }[] = [
-  { id: "dealt", label: STRINGS.weatherDealt },
-  ...RUN_GRADES.map((id) => ({ id, label: STRINGS.gradeNames[id] })),
-];
 
 /** The SEASON row's stops: the map's own date, then the four. */
 const SEASON_STOPS = [
@@ -208,13 +200,12 @@ export function StartPage({
                 onHint={setHint}
               />
               <StepRow
-                label={STRINGS.startGrade}
-                hint={STRINGS.startGradeHint}
-                stops={GRADE_STOPS}
-                value={ride.grade ?? "dealt"}
-                onPick={(id) =>
-                  setRide({ grade: id === "dealt" ? null : id, spot: null, run: null })
-                }
+                label={STRINGS.startStart}
+                hint={STRINGS.startStartHint}
+                stops={pick.starts}
+                value={pick.start}
+                extra={STRINGS.startRunWaiting}
+                onPick={(id) => setRide(startPicked(ride, seed, id))}
                 onHint={setHint}
               />
               <StepRow
@@ -222,10 +213,8 @@ export function StartPage({
                 hint={STRINGS.startRunHint}
                 stops={pick.stops}
                 value={pick.value}
-                extra={STRINGS.startRunWaiting}
-                onPick={(id) =>
-                  setRide({ run: { seed, region: ride.region, face: ride.face, id }, spot: null })
-                }
+                extra={pick.machine ? STRINGS.startRunOff : STRINGS.startRunWaiting}
+                onPick={(id) => setRide(runPicked(ride, seed, id))}
                 onHint={setHint}
               />
             </div>

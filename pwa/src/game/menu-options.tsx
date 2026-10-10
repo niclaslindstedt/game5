@@ -49,6 +49,7 @@ import {
   TOUCH_SENSITIVITY,
   freshSettings,
   injuriesShown,
+  RESTART_AFTER,
   type AssistLevel,
   type AudioLevels,
   type LeverSide,
@@ -89,6 +90,14 @@ const stopsOf = <T extends Tier | "off" | "max">(ladder: readonly T[]): Stop<T>[
 const TIER_STOPS = stopsOf(TIERS);
 /** PRESET: AUTO first — the fit to this machine (`video-probe.ts`) — then
  * the whole pictures. */
+/** OPTIONS ▸ RESTART AFTER: every whole second of its travel. */
+const RESTART_STOPS: Stop<string>[] = Array.from(
+  { length: RESTART_AFTER.max - RESTART_AFTER.min + 1 },
+  (_, i) => {
+    const n = RESTART_AFTER.min + i;
+    return { id: String(n), label: STRINGS.seconds(n) };
+  },
+);
 const PRESET_STOPS: Stop<Tier | "auto">[] = [{ id: "auto", label: STRINGS.optAuto }, ...TIER_STOPS];
 const DISTANCE_STOPS = stopsOf<DistanceLevel>(DISTANCE_LEVELS);
 /** RESOLUTION reads as the share it is: 50% … 100%. */
@@ -343,6 +352,25 @@ export function OptionsPage({
                 stops={childLock ? OFF_ONLY : ON_OFF}
                 value={onOff(settings.xray && injuriesShown(settings, content))}
                 onPick={(id) => onSettings({ ...settings, xray: id === "on" })}
+                onHint={setHint}
+              />
+              {/* THE DAMAGE HUD — the body plate and the g meter — off unless
+                asked for, and only ever over a run that shows the injuries. */}
+              <StepRow
+                label={STRINGS.optBodyHud}
+                hint={STRINGS.optBodyHudHint}
+                stops={childLock ? OFF_ONLY : ON_OFF}
+                value={onOff(settings.bodyHud && injuriesShown(settings, content))}
+                onPick={(id) => onSettings({ ...settings, bodyHud: id === "on" })}
+                onHint={setHint}
+              />
+              {/* How long a fall he will not get up from holds before the run starts again. */}
+              <StepRow
+                label={STRINGS.optRestartAfter}
+                hint={STRINGS.optRestartAfterHint}
+                stops={RESTART_STOPS}
+                value={String(settings.restartAfter)}
+                onPick={(id) => onSettings({ ...settings, restartAfter: Number(id) })}
                 onHint={setHint}
               />
               <StepRow

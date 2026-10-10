@@ -85,6 +85,9 @@ export type SledState = {
   /** The rider's weight moved across (right, m) and back (m). */
   riderRight: number;
   riderAft: number;
+  /** The roll the rider is taking it to off the snow's plane, rad (right
+   * side down positive): what the bars ask, eased at `SLED.roll.rate`. */
+  rollAim: number;
   /** THE ENGINE AND THE BELT (`sled-drive.ts`): rpm; the belt's speed and
    * its slip over the snow, m/s — a spinning belt digs and throws the
    * roost. */

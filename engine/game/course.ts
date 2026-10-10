@@ -389,6 +389,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.vx = c.vy = c.vz = 0;
   c.switched = false;
   c.revert = null;
+  if (c.hopHeld) c.hopHeld = 0;
   c.q = fromEuler(heading, pitch, roll);
   c.wx = c.wy = c.wz = 0;
   c.tuck = 0;

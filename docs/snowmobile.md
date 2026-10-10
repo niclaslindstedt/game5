@@ -66,6 +66,19 @@ What it does, held by `tests/sled_test.ts`:
 
 Pinned from a crawl in powder, the belt spins far faster than the machine goes. That slip is what throws the roost and what the churn and the belt's whine say.
 
+## Rollover
+
+A mountain sled is built narrow — a 0.91 m (36-inch) ski stance under a CoG some 0.66 m up with a standing rider — so it can be rolled onto its belt's edge and steered with the body. Its static stability factor (half the stance over the CoG's height) is about 0.69: on level, firm snow it tips onto its outside ski at some 0.7 g of sideways pull, or leant about 35° off the way its weight hangs. In loose snow the low ski sinks and the machine stands on little more than its 0.41 m belt, which it passes over at about 17°. Mountain riders hold it there by hanging off the high side and countering the bars, and the throttle keeps the belt on top; the sidehill fall — stalled across a steep deep face with nobody on the uphill side — is the one every rider learns on.
+
+The game's machine does the same (`SLED.roll`, `sled-body.ts`):
+
+- **The rider takes it to its lean** no faster than about a radian a second, and the damping checks what is past the lean's own rate, so a flick of the bars rolls it from one edge to the other without throwing it off a crest mid-roll.
+- **The soft side gives** in deep snow, and the rider **balances** against it with the bars and his weight (`roll.balance`) — the more with the way on to counter-steer with. It goes over only where the snow asks more of him than that.
+- **The tip.** How far it leans is read against the way its weight and the turn's pull hang together (a sled leant into a turn as a bicycle is, is upright to it). Past the angle its CoG passes over the low edge of what it stands on — the skis' stance on firm snow, narrowing to the belt as the low ski sinks into loose — and a little more for the rider hung off the high side, the righting the rider and the springs lend fades out (`roll.tipBand`) and the weight takes it over.
+- **The sideways hold stops growing** past two and a half times a probe's rest load (`grip.sideLoad`): under a landing's load the groomer's crust shears and the machine slides, rather than being tripped over its low side.
+
+So on the flat it never goes over — any turn, held, flicked or linked, on the groomer and in powder from a thin cover to bottomless — and it holds a traverse into the hill; stalled across a 35° face of bottomless powder it goes over. `make sled-tip` rides the bench (every turn on the flat at 10–120 km/h, five snows, and seven ways across a 20°, 30° and 35° face) as a table, and `tests/sled_tips_test.ts` holds it.
+
 ## The controls
 
 There is no key table of its own: the skier's keys ride it (`sled.ts`'s `sledControls`).
@@ -88,10 +101,12 @@ Left with nobody on it, the machine is still a body: it settles where it stands 
 The rider is thrown (the `sled` crash cause, its tumble in `defs/crash.ts`) when the machine:
 
 - meets a trunk harder than `SLED.crash.tree` (7 m/s);
-- stands past `crash.over` (about 72°) of roll or pitch off the snow for `crash.overFor` (0.6 s): rolled or looped;
+- stands past `crash.over` (about 72°) of roll or pitch off the snow for `crash.overFor` (0.25 s): rolled or looped;
 - comes down into the snow, along the snow's normal, harder than `crash.landing` (15 m/s) on the groomer, up to `crash.landingPowder` (19 m/s) in deep powder — a drop of some 7.6 m and 12 m at the flight's gravity — so a kicker onto the flat, a ledge into powder or the edge of a face ridden over are ridden out, and a cliff is not;
 - comes down more than `crash.tilt` (40°) off its belt, on its side or its nose, any harder than `crash.tiltFrom` (4 m/s);
 - has the way it was going stopped `crash.wall` (8 m/s) in one step — a rock wall or a cliff band ridden into at speed. Ridden into at a crawl, it just stops.
+
+How he goes off depends on what put him off. Stopped under him by a trunk, a wall or a landing, he goes on over the bars (`crash.over.sled`). Rolled over, he falls off its low side as it goes: turning with it, barely head over heels and not thrown up (`crash.rolled`). A machine lying in deep powder has him partly under the snow, so his body is lifted onto it first (`liftOutOfSnow`) rather than shoved out of it and flung. Either way his skis stay strapped on the rack and he lies in his boots, and the rack stays drawn on the machine until he is stood back on it. The lab's `crash` sheet (`make sled ARGS=--sheet=crash`) shows both: a trunk at 55 km/h, and a stall across a steep face of deep powder that goes over.
 
 Nothing else on snow throws him. In the air the rider levels the roll with his body, but only so hard (`air.rollMost`): a lip tipped a little is levelled, one tipped hard comes down on its side. And the machine SETS ITS NOSE for the landing (`air.setStiff`, the run's `assist.air`): pitched toward the snow it will come down on, a little nose high, so a jump does not land on its tail or its nose — let go to the rider the moment he leans or brakes, so a nose he drops or throws back is his own. `make sled-land` rides every one of these as a table, and `tests/sled_landing_test.ts` holds it.
 
@@ -150,6 +165,7 @@ It is heard from the skier: under him on the boards, and going away down the sno
 ## Measuring it
 
 - `make sled-land` and `npx vitest run tests/sled_landing_test.ts`: rollers, whoops, hard turns, a sidehill, kickers, drops, a cliff, a bank and a wall, each ridden out or thrown as a rider expects.
+- `make sled-tip` and `npx vitest run tests/sled_tips_test.ts`: every turn on the flat at 10–120 km/h in five snows, and traverses across 20°, 30° and 35° faces — thrown or not against what a rider of the class expects.
 - `make sled-turn` and `npx vitest run tests/sled_turn_test.ts`: full lock on the flat, groomer and powder, at a crawl and at 25, 40 and 60 km/h, both ways round — the circle it settles on held to a band. A mountain sled at a crawl on the hardpack turns on some 7.5–11 m (measured on two of the class's machines, the long belt fighting the skis); the game's is a little tighter, so it is easy to place: about 5.5 m at 21 km/h, 11 m at 33 and 32 m at 56 on the groomer (a turn at full lock slows it), 8, 20 and 46 m at 25, 40 and 60 in powder.
 - `npx vitest run tests/sled_test.ts tests/sled_audio_test.ts`: the drive, the top speed, the sink and the float, the climb and the high-mark, the carve's roll, the parking, getting on and off on the machine press, the crash and the remount, determinism, and the voice.
 - `make sled`: the lab — parked, boarded, on the groomer, in powder (sunk, the launch, the roost, the carve), climbing, the tracks, the hop, the crash, at night, the model alone, and every camera rung riding it (`ARGS=--sheet=lenses`), on contact sheets.

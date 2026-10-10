@@ -2,10 +2,11 @@
 // THE PAUSE CARD'S PISTE MAP — another run on THIS mountain, picked without
 // leaving the ride for the front door. A free ride paused opens it from the
 // card's foot: the start card's own RUN row and chart (`run-pick.ts`), on the
-// map the ride is skied on, and RIDE stands the ride up again there — by the
-// lift up to the run's head, at a spot pressed on the chart, or on a machine.
+// map the ride is skied on, and GO stands the ride up again there — by the
+// lift up to the run's head (ANY run of the mountain, whatever its colour),
+// at a spot pressed on the chart, or on a machine off the START row.
 //
-// ONLY THE RUN IS ASKED. The mountain, its country and its grade are the
+// ONLY THE RUN AND THE START ARE ASKED. The mountain, its country and its grade are the
 // ride's own (a different one is a different map, and that is the start
 // card's question), and the day and the snow stay as they were: the ride goes
 // on, somewhere else on the hill. What the panel picks is written to
@@ -13,13 +14,13 @@
 // card both remember it.
 //
 // It is a panel of the pause card, as OPTIONS is: its head's ‹ goes back to
-// the card, and the backdrop does the same. RIDE stands in the head opposite
+// the card, and the backdrop does the same. GO stands in the head opposite
 // it, where the start card keeps its way on, so the chart never pushes it
 // below the fold of a phone on its side.
 
 import { useState } from "preact/hooks";
 
-import { rideOnto, type FreeRide } from "./free-ride.ts";
+import { rideOnto, runPicked, startPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, StepRow, type Hint } from "./menu-knobs.tsx";
 import { useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
@@ -68,7 +69,7 @@ export function PauseSlopes({
             data-menu="ride"
             data-nav-next
             data-nav-focus
-            disabled={pick.value === ""}
+            disabled={pick.start === ""}
             onClick={() => {
               if (ride !== settings.ride) onSettings(here);
               onRide(ride);
@@ -89,14 +90,21 @@ export function PauseSlopes({
         <div class="pause-slopes-rows">
           <div class="knob-rows">
             <StepRow
+              label={STRINGS.startStart}
+              hint={STRINGS.pauseSlopesStartHint}
+              stops={pick.starts}
+              value={pick.start}
+              extra={STRINGS.startRunWaiting}
+              onPick={(id) => setRide(startPicked(ride, seed, id))}
+              onHint={setHint}
+            />
+            <StepRow
               label={STRINGS.startRun}
               hint={STRINGS.pauseSlopesRunHint}
               stops={pick.stops}
               value={pick.value}
-              extra={STRINGS.startRunWaiting}
-              onPick={(id) =>
-                setRide({ run: { seed, region: ride.region, face: ride.face, id }, spot: null })
-              }
+              extra={pick.machine ? STRINGS.startRunOff : STRINGS.startRunWaiting}
+              onPick={(id) => setRide(runPicked(ride, seed, id))}
               onHint={setHint}
             />
           </div>

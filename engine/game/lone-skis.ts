@@ -449,8 +449,15 @@ function turnAbout(up: number[], fx: number, fy: number, fz: number, angle: numb
  * off them: his centre over the mid of the two, his way theirs, nothing
  * asked of his legs or edges, and the six stations each ski's tip, middle
  * and tail where it lies — so the trail the renderer stamps is where the
- * skis slid, and whatever follows the skier's state follows his skis. */
-export function followSkis(state: GameState, c: SkierState, skis: readonly LoneSki[]): void {
+ * skis slid, and whatever follows the skier's state follows his skis.
+ * Thrown with no skis let go (a snowmobile's rider, his pair on its rack)
+ * it is his body that is followed, and no station touches the snow. */
+export function followSkis(
+  state: GameState,
+  c: SkierState,
+  skis: readonly LoneSki[],
+  body: Thrown,
+): void {
   let x = 0;
   let y = 0;
   let z = 0;
@@ -472,12 +479,14 @@ export function followSkis(state: GameState, c: SkierState, skis: readonly LoneS
     if (ski.touching) any = true;
   }
   const k = 1 / skis.length;
-  c.x = x * k;
-  c.y = y * k + c.spec.cogHeight;
-  c.z = z * k;
-  c.vx = vx * k;
-  c.vy = vy * k;
-  c.vz = vz * k;
+  const bare = skis.length === 0;
+  c.x = bare ? body.x : x * k;
+  c.y = bare ? body.y : y * k + c.spec.cogHeight;
+  c.z = bare ? body.z : z * k;
+  c.vx = bare ? body.vx : vx * k;
+  c.vy = bare ? body.vy : vy * k;
+  c.vz = bare ? body.vz : vz * k;
+  if (bare) any = body.touching;
   c.wx = 0;
   c.wy = 0;
   c.wz = 0;
@@ -499,6 +508,10 @@ export function followSkis(state: GameState, c: SkierState, skis: readonly LoneS
   c.sideSlip = 0;
   c.drive = 0;
   for (const contact of c.contacts) {
+    if (bare) {
+      contact.touching = false;
+      continue;
+    }
     const ski = skis[contact.side < 0 ? 0 : 1];
     const P = ski.ends;
     const s = contact.station === "tip" ? 0.95 : contact.station === "tail" ? 0.05 : ski.mount;

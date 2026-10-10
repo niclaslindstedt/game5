@@ -105,6 +105,30 @@ function around(
   };
 }
 
+/** A lens on the RIDER where he is — his thrown body once he is off it,
+ * else his own place — planted as `around` plants one, along the
+ * machine's heading: `right` m to the screen's right, `up` m over the
+ * snow, `back` m behind him. */
+function onRider(right: number, up: number, back: number, fov = 50): (s: GameState) => LensPose {
+  return (state) => {
+    const c = state.skier;
+    const at = c.thrown ?? c;
+    const h = state.sled!.heading;
+    const fx = Math.sin(h);
+    const fz = Math.cos(h);
+    const ex = at.x - fz * right - fx * back;
+    const ez = at.z + fx * right - fz * back;
+    const ground = state.level.groundAt(at.x, at.z);
+    const ey = Math.max(state.level.groundAt(ex, ez) + 0.4, ground + up);
+    return {
+      eye: { x: ex, y: ey, z: ez },
+      target: { x: at.x, y: Math.max(at.y, ground + 0.3), z: at.z },
+      fov,
+      roll: 0,
+    };
+  };
+}
+
 /** A lens planted in the machine's own frame (x right, y up, z forward,
  * the origin at its centre of gravity): an eye and a point looked at,
  * both carried with it as it stands — a close look at its cockpit. */
@@ -489,9 +513,42 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     st.shoot(s, "closing", around(5, 2, 4, 50, 2, 0.8));
     st.until(s, (q) => !!q.skier.thrown, 3, ride({ tuck: 1 }));
     st.run(s, 0.15, still);
-    st.shoot(s, "thrown", around(7, 2.5, 3, 50, 1, 0.8));
+    st.shoot(s, "thrown", onRider(7, 2.5, 3));
     st.run(s, 1.5, still);
-    st.shoot(s, "down", around(7, 2.5, 3, 50, 1, 0.4));
+    st.shoot(s, "down", onRider(4, 2, 3));
+    st.shoot(s, "machine", around(5, 2, 4, 50, 0, 0.4));
+  },
+  // Stalled across a steep face of deep powder, hung off its
+  // downhill side: the low ski sinks and it goes over onto its side, the
+  // rider off the low side and his skis left on the rack.
+  rollover(st) {
+    const s = st.fresh(true);
+    s.snowDepth = 1.75;
+    const face = climbOf(st.level, st.spots.steep);
+    const at = face?.at ?? st.spots.steep;
+    const across = uphill(st.level, at) + Math.PI / 2;
+    // Stood across the face, its low ski sunk, and tipped toward the
+    // valley as it goes when it stalls there (the bench's `stall` row
+    // goes over so on a 35° face; this one is 22–29°, so it is given the
+    // turn it would have).
+    const tip = (sign: number): void => {
+      place(s, at, across, 1);
+      st.run(s, 0.4, still);
+      const k = s.sled!;
+      const right = rotate(k.q, { x: 1, y: 0, z: 0 });
+      const fall = st.level.groundAt(at.x + right.x * 4, at.z + right.z * 4) < at.y ? 1 : -1;
+      k.wz = -sign * fall * 2.2;
+    };
+    tip(1);
+    st.run(s, 0.25, ride({ steer: 1 }));
+    st.shoot(s, "tipping", around(7, 2, 3, 50, 0, 0.6));
+    st.until(s, (q) => !!q.skier.thrown, 4, ride({ steer: 1 }));
+    st.shoot(s, "going", onRider(3.5, 1.4, 2.5));
+    st.run(s, 0.4, still);
+    st.shoot(s, "off", onRider(3.5, 1.6, 2.5));
+    st.run(s, 1.5, still);
+    st.shoot(s, "lying", onRider(-4, 2.2, -3));
+    st.shoot(s, "machine", around(4, 2, 4, 50, 0, 0.3));
   },
   // ── AFTER DARK ─────────────────────────────────────────────────────────
   async night(st) {
@@ -527,7 +584,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   climb: ["climb"],
   tracks: ["tracks"],
   hop: ["hop"],
-  crash: ["crash"],
+  crash: ["crash", "rollover"],
   night: ["night"],
   turntable: ["turntable"],
   lenses: ["lenses", "lenses-powder"],

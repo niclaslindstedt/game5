@@ -46,13 +46,13 @@ const colour = (c: GoreColour): THREE.Color => new THREE.Color().setHex(GORE_COL
 
 /** A small hash in 0 … 1 of three numbers — the raggedness of a rim, the
  * lumps of an organ; the same every build. */
-function noise(x: number, y: number, z: number): number {
+export function noise(x: number, y: number, z: number): number {
   const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
   return s - Math.floor(s);
 }
 
 /** Smooth value noise over a lattice of `noise`. */
-function lumpy(x: number, y: number, z: number): number {
+export function lumpy(x: number, y: number, z: number): number {
   const ix = Math.floor(x);
   const iy = Math.floor(y);
   const iz = Math.floor(z);
@@ -72,7 +72,7 @@ function lumpy(x: number, y: number, z: number): number {
 }
 
 /** Paint a geometry a colour a vertex by `paint(position, normal)`. */
-function painted(
+export function painted(
   g: THREE.BufferGeometry,
   paint: (p: THREE.Vector3, n: THREE.Vector3) => THREE.Color,
 ): THREE.BufferGeometry {

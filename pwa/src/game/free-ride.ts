@@ -26,7 +26,6 @@ import {
   TIMES_OF_DAY,
   freeRuns,
   skiRoutesOf,
-  isRunGrade,
   pickFreeRun,
   isRegionId,
   snowCoverOf,
@@ -133,11 +132,13 @@ export type FreeRide = {
    * `REAL_FACE_IDS`); null is the massif the seed deals. */
   face: string | null;
   /** The piste grade the map is built to (R23); null is the one the seed
-   * deals. */
+   * deals. No row of the card writes it (a slope of any colour is picked
+   * on the RUN row) and a stored one is dropped, so it is always null. */
   grade: RunGrade | null;
   /** The run of the ski area (R27, `Run.id`) the ride is carried to the top
-   * of, on the seed and in the country it was picked on; null is the first
-   * of the GRADE row's colour (`pickFreeRun`). */
+   * of, on the seed and in the country it was picked on — or a START row's
+   * machine (`SKIS_START`'s neighbours); null is the map's own first run
+   * (`pickFreeRun`). */
   run: { seed: number; region: RegionId; face?: string | null; id: string } | null;
 };
 
@@ -188,7 +189,8 @@ export function mergeRide(blob: unknown): FreeRide {
   // A face is kept only in its own country: a face stored under another
   // region (or one this build has not baked) is the dealt massif.
   if (typeof b.face === "string" && realFaceRegion(b.face) === out.region) out.face = b.face;
-  if (isRunGrade(b.grade)) out.grade = b.grade;
+  // No row asks a grade any more: the mountain is the seed's own, and a
+  // grade stored by an older build is dropped with the row.
   const run = b.run as Record<string, unknown> | null | undefined;
   if (
     run &&
@@ -269,6 +271,25 @@ export const AFTERSKI_RUN = "afterski";
 /** Whether the ride on `seed` begins inside the afterski lodge. */
 export function afterskiOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === AFTERSKI_RUN;
+}
+
+/** THE START ROW'S FIRST STOP: on skis, carried by the lift to the RUN
+ * row's run — no run id of its own: it is the run picked, or none. */
+export const SKIS_START = "skis";
+
+/** What the START row writes when `id` is picked on `seed`: ON SKIS hands
+ * the ride back to the RUN row's first run, anything else is its machine
+ * (or the lodge), kept as a run id of the map as before. */
+export function startPicked(ride: FreeRide, seed: number, id: string): Partial<FreeRide> {
+  return id === SKIS_START
+    ? { run: null }
+    : { run: { seed, region: ride.region, face: ride.face, id } };
+}
+
+/** What the RUN row writes when run `id` is picked on `seed`: that run, ON
+ * SKIS — a slope picked is a slope to ski, whatever the START row said. */
+export function runPicked(ride: FreeRide, seed: number, id: string): Partial<FreeRide> {
+  return { run: { seed, region: ride.region, face: ride.face, id }, spot: null };
 }
 
 /** The spot to start at on `seed`, or null for the start line. */

@@ -9,6 +9,15 @@
 // and its far one past it; with every block far — the whole of a run down
 // the mountain — one mesh of every far cut is drawn instead, a single draw.
 //
+// The blocks are gathered into DISTRICTS of `DISTRICT` × `DISTRICT` blocks,
+// each with one mesh of its blocks' far cuts and one of a DISTANT cut (the
+// far cut without the triangles under `DISTANT_AREA`, the lit panes and the
+// long thin ones kept): a district with no block near the lens is one draw,
+// at its far cut inside `DISTANT` metres and its distant one past it, so a
+// real face's few thousand buildings spread over the mountain cost a draw a
+// district rather than one a block; with every district distant, one mesh
+// of every distant cut is drawn instead.
+//
 // One mesh of the whole village drew some 60 000 triangles from anywhere on
 // the mountain. The blocks are the culling's tiles (`tile-split.ts`), each
 // going to the sun's map, and through three's own frustum test, alone —
@@ -25,7 +34,7 @@ import * as THREE from "three";
 
 import { cabinsOf, resortBuildingsOf, type Level } from "@engine";
 
-import { FacadeKit, type FacadeArrays } from "./facade-kit.ts";
+import { FacadeKit, keepsTriangle, type FacadeArrays } from "./facade-kit.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import { buildResortBuilding } from "./village-build.ts";
 import { buildStreetEdges } from "./street-edges-build.ts";
@@ -41,11 +50,29 @@ export const FAR_AREA = 0.3;
  * the band either side of it it keeps the cut it has. */
 export const NEAR = 120;
 const HYSTERESIS = 15;
+/** A district's side, in blocks. */
+export const DISTRICT = 4;
+/** The distant cut's floor, m²: past `DISTANT` m a triangle smaller than
+ * this is left out too (a window's reveal, a frame's bar). */
+export const DISTANT_AREA = 1;
+/** Where a district hands its far cut over to its distant one, m off its
+ * box (with `HYSTERESIS` either side). */
+export const DISTANT = 600;
 
-/** One block: both cuts' arrays and the box round them. */
+/** One block: both cuts' arrays, the box round them and its district. */
 export type VillageBlock = {
   near: FacadeArrays;
   far: FacadeArrays;
+  min: [number, number, number];
+  max: [number, number, number];
+  district: string;
+};
+
+/** One district: the far and distant cuts of its blocks as one, and the
+ * box round them. */
+export type VillageDistrict = {
+  far: FacadeArrays;
+  distant: FacadeArrays;
   min: [number, number, number];
   max: [number, number, number];
 };
@@ -99,6 +126,12 @@ function copyTri(a: FacadeArrays, t: number, out: FacadeArrays): void {
 
 const keyOf = (x: number, z: number) => `${Math.floor(x / BLOCK)},${Math.floor(z / BLOCK)}`;
 
+/** The district a block's key is in. */
+function districtOf(key: string): string {
+  const [i, j] = key.split(",").map(Number);
+  return `${Math.floor(i / DISTRICT)},${Math.floor(j / DISTRICT)}`;
+}
+
 /** THE BLOCKS of `level`'s village, both cuts each, in a fixed order. */
 export function villageBlocks(level: Level): VillageBlock[] {
   return blocksOf((minArea) => buildCut(level, minArea));
@@ -115,6 +148,7 @@ export function blocksOf(build: BuildCut): VillageBlock[] {
         far: emptyArrays(),
         min: [Infinity, Infinity, Infinity],
         max: [-Infinity, -Infinity, -Infinity],
+        district: "",
       };
       blocks.set(key, b);
     }
@@ -133,6 +167,7 @@ export function blocksOf(build: BuildCut): VillageBlock[] {
               (a.pos[p + 2] + a.pos[p + 5] + a.pos[p + 8]) / 3,
             );
         const b = blockAt(key);
+        b.district = districtOf(key);
         copyTri(a, t, b[cut]);
         if (cut === "near") {
           for (let k = 0; k < 9; k++) {
@@ -148,19 +183,52 @@ export function blocksOf(build: BuildCut): VillageBlock[] {
   return [...blocks.keys()].sort().map((k) => blocks.get(k)!);
 }
 
-/** The arrays of every block's far cut as one. */
-function mergedFar(blocks: readonly VillageBlock[]): FacadeArrays {
+/** The arrays of `list` as one. */
+function merged(list: readonly FacadeArrays[]): FacadeArrays {
   const out = emptyArrays();
-  for (const b of blocks) {
+  for (const a of list) {
     for (const k of Object.keys(out) as (keyof FacadeArrays)[]) {
-      for (const v of b.far[k]) out[k].push(v);
+      for (const v of a[k]) out[k].push(v);
     }
   }
   return out;
 }
 
-/** How far `eye` is from a block's box, m (0 inside it). */
-export function blockDistance(b: VillageBlock, eye: { x: number; y: number; z: number }): number {
+/** `a` without the triangles under `minArea` (`keepsTriangle`). */
+function thinned(a: FacadeArrays, minArea: number): FacadeArrays {
+  const out = emptyArrays();
+  for (let t = 0; t < a.pos.length / 9; t++)
+    if (keepsTriangle(a.pos, a.glow, t, minArea)) copyTri(a, t, out);
+  return out;
+}
+
+/** THE DISTRICTS of `blocks` (`VillageBlock.district`), in a fixed order. */
+export function districtsOf(blocks: readonly VillageBlock[]): Map<string, VillageDistrict> {
+  const keys = [...new Set(blocks.map((b) => b.district))].sort();
+  return new Map(
+    keys.map((key) => {
+      const own = blocks.filter((b) => b.district === key);
+      const far = merged(own.map((b) => b.far));
+      const min = [0, 1, 2].map((k) => Math.min(...own.map((b) => b.min[k])));
+      const max = [0, 1, 2].map((k) => Math.max(...own.map((b) => b.max[k])));
+      return [
+        key,
+        {
+          far,
+          distant: thinned(far, DISTANT_AREA),
+          min: min as [number, number, number],
+          max: max as [number, number, number],
+        },
+      ];
+    }),
+  );
+}
+
+/** How far `eye` is from a block's or a district's box, m (0 inside it). */
+export function blockDistance(
+  b: { min: readonly number[]; max: readonly number[] },
+  eye: { x: number; y: number; z: number },
+): number {
   const dx = Math.max(b.min[0] - eye.x, 0, eye.x - b.max[0]);
   const dy = Math.max(b.min[1] - eye.y, 0, eye.y - b.max[1]);
   const dz = Math.max(b.min[2] - eye.z, 0, eye.z - b.max[2]);
@@ -168,11 +236,12 @@ export function blockDistance(b: VillageBlock, eye: { x: number; y: number; z: n
 }
 
 /** Which cut a block takes at distance `d`, having had `was` (0 near, 1
- * far, −1 none yet). */
-export function cutAt(d: number, was: number): 0 | 1 {
-  if (was === 0) return d > NEAR + HYSTERESIS ? 1 : 0;
-  if (was === 1) return d < NEAR - HYSTERESIS ? 0 : 1;
-  return d < NEAR ? 0 : 1;
+ * far, −1 none yet) — a district too, its far and distant cuts handed
+ * over at `at` (`DISTANT`). */
+export function cutAt(d: number, was: number, at = NEAR): 0 | 1 {
+  if (was === 0) return d > at + HYSTERESIS ? 1 : 0;
+  if (was === 1) return d < at - HYSTERESIS ? 0 : 1;
+  return d < at ? 0 : 1;
 }
 
 export type VillageBuildings = {
@@ -210,22 +279,37 @@ export function createBlockBuildings(
     return mesh;
   };
   const cuts = blocks.map((b) => [meshOf(b.near, "near"), meshOf(b.far, "far")]);
-  const whole = meshOf(mergedFar(blocks), "whole");
-  // Until the first update, the whole village at its far cut.
+  const districts = districtsOf(blocks);
+  const keys = [...districts.keys()];
+  const own = keys.map((k) => blocks.flatMap((b, i) => (b.district === k ? [i] : [])));
+  const areas = keys.map((k) => districts.get(k)!);
+  const dcuts = areas.map((d) => [meshOf(d.far, "district"), meshOf(d.distant, "distant")]);
+  const whole = meshOf(merged(areas.map((d) => d.distant)), "whole");
+  // Until the first update, the whole village at its distant cut.
   whole.visible = blocks.length > 0;
   const band = new Int8Array(blocks.length).fill(-1);
+  const dband = new Int8Array(keys.length).fill(-1);
   return {
     group,
     update(eye) {
-      let near = false;
       blocks.forEach((b, i) => {
         band[i] = cutAt(blockDistance(b, eye), band[i]);
-        if (band[i] === 0) near = true;
       });
-      whole.visible = !near && blocks.length > 0;
-      cuts.forEach(([n, f], i) => {
-        n.visible = near && band[i] === 0;
-        f.visible = near && band[i] === 1;
+      let distant = true;
+      areas.forEach((d, k) => {
+        dband[k] = cutAt(blockDistance(d, eye), dband[k], DISTANT);
+        if (dband[k] === 0) distant = false;
+      });
+      whole.visible = distant && blocks.length > 0;
+      own.forEach((list, k) => {
+        // A district with a block near the lens is drawn a block at a time.
+        const split = !distant && list.some((i) => band[i] === 0);
+        for (const i of list) {
+          cuts[i][0].visible = split && band[i] === 0;
+          cuts[i][1].visible = split && band[i] === 1;
+        }
+        dcuts[k][0].visible = !distant && !split && dband[k] === 0;
+        dcuts[k][1].visible = !distant && !split && dband[k] === 1;
       });
     },
     dispose() {

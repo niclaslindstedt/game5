@@ -16,6 +16,7 @@ import {
   createGame,
   isPisteGrade,
   isRegionId,
+  loadRealFace,
   NEUTRAL_INPUT,
   placeRun,
   step,
@@ -70,20 +71,20 @@ const params = new URLSearchParams(location.search);
 const seed = Number(params.get("seed") ?? 38);
 /** The kind of snow country (R21); the alpine unless named. */
 const region = isRegionId(params.get("region")) ? (params.get("region") as RegionId) : undefined;
+/** A REAL FACE the map is raised on (`?face=`), fetched first. */
+const face = params.get("face") ?? undefined;
+if (face && !(await loadRealFace(face))) throw new Error(`no real face ${face}`);
 /** The piste grade (R23); the seed's own unless named. */
 const grade = isPisteGrade(params.get("grade")) ? (params.get("grade") as PisteGrade) : undefined;
 /** The picture, a preset at a time (`settings-video.ts`); HIGH unless named. */
-const tier = (TIERS as readonly string[]).includes(params.get("quality") ?? "")
-  ? (params.get("quality") as Tier)
-  : "high";
-/** Picture rows laid over the preset (`?picture=distance:max`, the app's own
- * `readPicture`): how the vista is photographed to the valley floor, past
- * the DISTANCE row's mist wall at HIGH. */
+const quality = params.get("quality") ?? "";
+const tier = (TIERS as readonly string[]).includes(quality) ? (quality as Tier) : "high";
+/** Picture rows over the preset (`?picture=distance:max`, `readPicture`):
+ * the vista photographed past the DISTANCE row's mist wall at HIGH. */
 const picture = readPicture(params.get("picture"));
 /** The SHADOWS row over the preset, when one is named. */
-const shadows = (SHADOW_LEVELS as readonly string[]).includes(params.get("shadows") ?? "")
-  ? (params.get("shadows") as ShadowLevel)
-  : null;
+const shade = params.get("shadows") as ShadowLevel;
+const shadows = SHADOW_LEVELS.includes(shade) ? shade : null;
 const width = Number(params.get("w") ?? 1280);
 const height = Number(params.get("h") ?? 720);
 
@@ -101,8 +102,7 @@ const renderer = createWorldRenderer(canvas, {
 renderer.resize(width, height, 1);
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
-/** The run's mode: a DOWNHILL (`?downhill=1`, its A-nets), a FREE RIDE
- * (`?free=1`: `lift-ring`, `keen-`) or a SLALOM (`?slalom=1`). */
+/** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */
 const [downhill, free, slalom] = ["downhill", "free", "slalom"].map((m) => params.get(m) === "1");
 /** The sun's solar hour (`withSky`), the map's own unless named. */
 const hour = Number(params.get("hour") ?? Number.NaN);
@@ -110,6 +110,7 @@ const state: GameState = createGame({
   seed,
   region,
   grade,
+  ...(face ? { face } : {}),
   ...(downhill ? { mode: "downhill" as const, rivals: 0 } : {}),
   ...(free || slalom ? { mode: free ? ("free" as const) : ("slalom" as const) } : {}),
   ...(params.get("grimbear") === "1" ? { grimbear: "hunt" as const } : {}),
@@ -984,7 +985,7 @@ window.__world = {
             : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
-    label.textContent = `${name.toUpperCase()} · seed ${seed}${region ? ` · ${region}` : ""} · ${note}`;
+    label.textContent = `${name.toUpperCase()} · seed ${seed}${face ? ` · ${face}` : region ? ` · ${region}` : ""} · ${note}`;
     return { name, note };
   },
   async frameMs(frames) {

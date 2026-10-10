@@ -39,6 +39,7 @@
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { nearestWithin } from "../mapgen/query.ts";
+import { waterWithin } from "../mapgen/real-water.ts";
 import { RESORT_RULES as RR } from "../mapgen/resort-rules.ts";
 import type { Level, Lift, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -215,6 +216,9 @@ export type LiftPlan = {
   ramp?: number;
 };
 
+/** How far "outside a run" a tower in water is read, m: further in than any
+ * run's snow, so a slide finds dry ground before a run's edge. */
+const WET = 1000;
 /** How far a tower may be slid along the line off a piste, m. */
 const SLIDE = 24;
 /** How far short of a chair's unload point its ramp's crest is read, m. */
@@ -360,8 +364,13 @@ export function planLift(
   // column stands `TOWER_SITE.clear` m outside every run's edge, or where
   // it stands furthest out (`sited`) — or, as R26's rope check was ruled on
   // (`RULED`), the nearest slide onto snow no run is packed on.
-  const gapAt = (v: number): number =>
-    pisteGap(level, lift.bottom.x + dx * v, lift.bottom.z + dz * v) - look.column;
+  // A real face's water is kept off as a run is, and further: no tower
+  // stands in a lake (`inWater`), whatever a run's edge allows.
+  const gapAt = (v: number): number => {
+    const [x, z] = [lift.bottom.x + dx * v, lift.bottom.z + dz * v];
+    if (waterWithin(level.water, x, z, look.column)) return -WET;
+    return pisteGap(level, x, z) - look.column;
+  };
   const offPiste = (u: number, lo: number, hi: number): number => {
     if (!sited) {
       for (let d = 0; d <= SLIDE; d += 4) {
@@ -387,6 +396,7 @@ export function planLift(
     }
     return best;
   };
+  const wayInWet = (): boolean => gapAt(length - look.in.back) === -WET; // spanned
   const supports: Support[] = [at(0, true)];
   const n = Math.max(0, Math.round(length / look.spacing) - 1);
   for (let i = 1; i <= n; i++) {
@@ -400,9 +410,8 @@ export function planLift(
     // hangs (`TOWER_SITE.span` of its own).
     const prev = supports[supports.length - 1].u;
     const next = ((i + 1) * length) / (n + 1);
-    if (sited && gapAt(v) < TOWER_SITE.clear && next - prev <= look.spacing * TOWER_SITE.span) {
-      continue;
-    }
+    const span = next - prev <= look.spacing * TOWER_SITE.span;
+    if ((sited && gapAt(v) < TOWER_SITE.clear && span) || gapAt(v) === -WET) continue;
     supports.push(at(v));
   }
   supports.push(at(length, true));
@@ -412,7 +421,7 @@ export function planLift(
   // into the terminal — tall where the mountain climbs to the top, and
   // raised further below if the span still meets a shoulder.
   const into = look.in.back;
-  if (into > 0 && length - into - SLIDE > look.minSpan) {
+  if (into > 0 && length - into - SLIDE > look.minSpan && !(sited && wayInWet())) {
     let u = length - into;
     let most = -Infinity;
     for (let d = 0; d <= SLIDE; d += 2) {
@@ -470,7 +479,8 @@ export function planLift(
       const v = offPiste(u, a.u + look.minSpan, b.u - look.minSpan);
       // Over a run, its towers are raised before one is stood on its snow.
       const raise = [a, b].filter((s) => !s.station && s.rope < look.towerMax);
-      if (!sited || gapAt(v) >= TOWER_SITE.clear || raise.length === 0) {
+      const wet = gapAt(v) === -WET; // a lake's towers are raised instead
+      if (raise.length === 0 || (!wet && (!sited || gapAt(v) >= TOWER_SITE.clear))) {
         supports.splice(span + 1, 0, at(v));
         continue;
       }
@@ -598,14 +608,19 @@ export function stationHouses(level: Level, plan: LiftPlan): StationHouse[] {
 /** What a thing stood beside a lift keeps clear of, m: past a station
  * house's walls, and either side of the line (its ropes, its towers, its
  * drag track). */
-const LIFT_CLEAR = { house: 3, line: 3.5 };
+export const LIFT_CLEAR = { house: 3, line: 3.5 };
 
 /** Whether (x, z) stands clear of every lift of the area — its two station
  * houses (behind each wheel, along the line, as `LIFT_LOOK` measures them)
  * and the line from wheel to wheel. What a sign, a light mast and a lens
- * are stood by. */
-export function clearOfLifts(level: Level, x: number, z: number): boolean {
-  for (const lift of level.resort?.lifts ?? []) {
+ * are stood by. `lifts` narrows it to some of them (`liftsNear`). */
+export function clearOfLifts(
+  level: Level,
+  x: number,
+  z: number,
+  lifts: readonly Lift[] = level.resort?.lifts ?? [],
+): boolean {
+  for (const lift of lifts) {
     const look = LIFT_LOOK[lift.kind];
     const ex = lift.top.x - lift.bottom.x;
     const ez = lift.top.z - lift.bottom.z;

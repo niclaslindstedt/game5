@@ -82,7 +82,24 @@ export {
   type RegionId,
   type TreeKind,
 } from "./regions.ts";
-export { REAL_FACE_IDS, faceHeight, realFace, realFaceRegion, type RealFace } from "./real-face.ts";
+export {
+  REAL_FACE_IDS,
+  faceHeight,
+  loadAllRealFaces,
+  loadRealFace,
+  faceCoverAt,
+  realFace,
+  realFaceGrades,
+  realFaceLoaded,
+  realFacePlace,
+  realFaceRegion,
+  realFaceTrees,
+  type FaceTrees,
+  type RealFace,
+} from "./real-face.ts";
+export { HINT_TREES_BANDS } from "./real-hints-index.ts";
+export { faceWoods } from "./resort-woods.ts";
+export type { TerrainPlan } from "./terrain.ts";
 export {
   leanLift,
   leanStation,
@@ -92,8 +109,14 @@ export {
   type HintHouse,
   type HintLift,
   type HintPiste,
+  type HintStreet,
+  type HintTown,
+  type HintStream,
+  type HintWater,
   type RealHints,
+  ringArea,
 } from "./real-hints.ts";
+export { WATER, inWater, layWater, waterWithin, type FaceWater } from "./real-water.ts";
 // The scoreboard the search gates on, re-exported here so the one surface
 // that carries the generator carries its verdict too.
 export {

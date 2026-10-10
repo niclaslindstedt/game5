@@ -10,6 +10,7 @@
 // A pure function of the map, worked out once and kept per map; nothing
 // here draws from the stream, so no digest can see it.
 
+import { waterWithin } from "../mapgen/real-water.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { treesNear } from "./collision.ts";
 import { HELI } from "./defs/heli.ts";
@@ -63,6 +64,7 @@ function leanOver(level: Level, x: number, z: number, r: number): number {
 
 function clearAt(level: Level, x: number, z: number): boolean {
   const room = SLED.pad.radius;
+  if (waterWithin(level.water, x, z, room)) return false;
   if (treesNear(level, x, z, room + 2, near).length > 0) return false;
   for (const p of liftPlans(level)) {
     const rx = x - p.lift.bottom.x;

@@ -978,19 +978,20 @@ difficulty:
 routes:
 	npm run routes -- $(ARGS)
 
-# THE REAL FACES: twenty real mountainsides off the 30 m elevation model,
-# cropped, smoothed and baked into engine/mapgen/real-faces-data.ts
-# (generated; docs/real-faces.md). The tiles are fetched once into
-# previews/.dem/.
-# `make real-faces ARGS=--fetch` · `make real-faces ARGS="--fetch --write"`
+# THE REAL FACES: real mountainsides off the 30 m elevation model, cropped,
+# smoothed and baked into engine/mapgen/real-faces/face-<id>.ts, a file a
+# face, and the index beside them (generated; docs/real-faces.md). The tiles
+# are fetched once into previews/.dem/. `--search` finds a new face's crop.
+# `make real-faces ARGS="--fetch --search --only id"` · `ARGS="--only id --write"`
 real-faces:
 	npm run real-faces -- $(ARGS)
 
 # The real faces' HINTS: the real ski area's lifts, pistes and houses on
 # each face, read off OpenStreetMap and baked coarsely into
-# engine/mapgen/real-hints-data.ts (generated, ODbL; docs/real-faces.md).
-# The map data is fetched once into previews/.osm/.
-# `make real-hints ARGS=--fetch` · `make real-hints ARGS="--fetch --write"`
+# engine/mapgen/real-hints/hints-<id>.ts and the index beside them
+# (generated, ODbL; docs/real-faces.md). The map data is fetched once into
+# previews/.osm/.
+# `make real-hints ARGS="--fetch --only id"` · `ARGS="--only id --write"`
 real-hints:
 	npm run real-hints -- $(ARGS)
 

@@ -39,6 +39,7 @@ const { analyzeLevel } = await import(join(root, "engine/analysis/index.ts"));
 const { analyzeResort, accessReport } = await import(join(root, "engine/analysis/resort.ts"));
 const { lastResort } = await import(join(root, "engine/mapgen/resort-build.ts"));
 const { cabinsOf } = await import(join(root, "engine/game/cabins.ts"));
+const { villageOf } = await import(join(root, "engine/game/village.ts"));
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -48,11 +49,11 @@ const args = parseArgs(
     count: { kind: "number", help: "sweep this many seeds instead of drawing one" },
     face: {
       kind: "string",
-      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1, fell-3, …; its region is the face's",
     },
     hints: {
       kind: "flag",
-      help: "draw a real face's hints over the plan (real-hints.ts): its real lifts, pistes and houses",
+      help: "draw a real face's hints over the plan (real-hints.ts): its real lifts, pistes, houses and town's streets",
     },
     region: {
       kind: "string",
@@ -69,9 +70,15 @@ const args = parseArgs(
     out: { kind: "string", help: "file stem under previews/ (no extension)" },
     debug: { kind: "flag", help: "print why every run slot that failed to walk failed" },
     walks: { kind: "flag", help: "draw every walk the accepted attempt refused, and why" },
+    village: {
+      kind: "flag",
+      help: "also write <stem>-village.png: the village and its streets close (a real face's town beside it with --hints)",
+    },
   },
   "usage: npm run resort -- (--seed n | --count k [--from n]) [--region id] [--course id | --grade id]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/mapgen/index.ts"))).loadRealFace(args.face);
 
 if (args.debug) {
   const out = await import("@niclaslindstedt/oss-game-framework/core/output");
@@ -296,8 +303,42 @@ writeFileSync(
     failing: new Set([...access.values()].filter((a) => !a.ok).map((a) => a.id)),
     cabins: cabinsOf(level),
     hints: args.hints && level.face ? realHints(level.face) : null,
+    village: villageOf(level),
   }).toPng(),
 );
+if (args.village) {
+  // The village close: round its streets, and a real town's middle too
+  // where --hints draws one.
+  const vil = villageOf(level);
+  const town = args.hints && level.face ? realHints(level.face)?.town : null;
+  const pts = [];
+  if (vil) for (const st of vil.streets) pts.push(...st.points);
+  if (town) pts.push({ x: town.x, z: town.z });
+  if (pts.length === 0) pts.push(level.resort.village);
+  const xs = pts.map((p) => p.x);
+  const zs = pts.map((p) => p.z);
+  const side = Math.min(
+    level.size,
+    Math.max(900, Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) + 200,
+  );
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
+  const cz = (Math.max(...zs) + Math.min(...zs)) / 2;
+  const clampTo = (v) => Math.max(0, Math.min(level.size - side, v - side / 2));
+  writeFileSync(
+    join(dir, `${stem}-village.png`),
+    renderResortPlan({
+      level,
+      scale: 1400 / side,
+      title: `${title}  VILLAGE`,
+      hubAt,
+      cabins: cabinsOf(level),
+      hints: args.hints && level.face ? realHints(level.face) : null,
+      village: vil,
+      view: { x: clampTo(cx), z: clampTo(cz), size: side },
+    }).toPng(),
+  );
+  console.log(`wrote previews/${stem}-village.png`);
+}
 if (refused.length > 0) {
   const tally = new Map();
   for (const r of refused)

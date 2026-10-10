@@ -6,6 +6,8 @@
 //     at a skier's eye, looking past it down the route;
 //   * route-warn — its wooden WARNING board before the slope, from up on
 //     the pad at a skier's eye;
+//   * route-fallen — the first of its stakes planted lying on the snow,
+//     with the hard-leaning ones round it, close at a skier's eye;
 //   * route-in — a quarter of the way down, at his eye, down the fall line:
 //     how steep the steepest country a lift serves is, and its stakes;
 //   * route-steep — at its steepest hundred metres, the same;
@@ -16,7 +18,14 @@
 //
 // A map with none answers "no ski route on this map".
 
-import { LEVEL_RULES, skiRoutesOf, trackPointAt, type Level, type SkiRoute } from "@engine";
+import {
+  LEVEL_RULES,
+  skiRoutesOf,
+  stakePlan,
+  trackPointAt,
+  type Level,
+  type SkiRoute,
+} from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { signPlan } from "../game/run-sign-plan.ts";
@@ -24,6 +33,7 @@ import { signPlan } from "../game/run-sign-plan.ts";
 export const ROUTE_VIEWS = [
   "route-head",
   "route-warn",
+  "route-fallen",
   "route-in",
   "route-steep",
   "route-side",
@@ -117,6 +127,37 @@ export function routeView(level: Level, name: string): { pose: LensPose; note: s
           roll: 0,
         },
         note: `the warning before ${said}`,
+      };
+    }
+    case "route-fallen": {
+      // The first orange stake that lies on the snow, from a few metres
+      // up the slope and aside of it.
+      const plan = stakePlan(level);
+      let i = -1;
+      for (let k = 0; k < plan.count; k++) {
+        if (plan.grade[k] === "orange" && Math.hypot(plan.leanX[k], plan.leanZ[k]) > 0.9) {
+          i = k;
+          break;
+        }
+      }
+      if (i < 0) return null;
+      // From the side it fell to, so its length lies across the frame.
+      const p = plan.stakes[i];
+      const lean = Math.hypot(plan.leanX[i], plan.leanZ[i]);
+      const dx = plan.leanX[i] / lean;
+      const dz = plan.leanZ[i] / lean;
+      const mx = p.x + dx * 1.4;
+      const mz = p.z + dz * 1.4;
+      const x = mx + dz * 5;
+      const z = mz - dx * 5;
+      return {
+        pose: {
+          eye: { x, y: level.groundAt(x, z) + 1.5, z },
+          target: { x: mx, y: level.groundAt(mx, mz) + 0.2, z: mz },
+          fov: 55,
+          roll: 0,
+        },
+        note: `a fallen stake on ${said}`,
       };
     }
     case "route-in":

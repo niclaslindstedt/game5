@@ -3,12 +3,13 @@
 // the head of every run and at every junction a lane leaves by, built for
 // `gates.ts`, which carries them with the rest of the course's furniture.
 //
-// A BOARD IS A PLANK WITH ITS WORDS BURNED IN: the grain of the country's
+// A BOARD IS A PLANK WITH ITS WORDS BURNED IN, RINGED IN WHITE: the grain of the country's
 // wood (`sign-look.ts`), its edges scorched dark, the run's MARK painted at
 // its left — the grade's shape in its colour (`grade-look.ts`: the green
 // circle, the blue square, the red rectangle, the black diamond) with the
 // run's number in white on it, outlined with the iron — then the NAME burned
-// black in the country's own hand, measured to the board — and no arrow:
+// black in the country's own hand, measured to the board and ringed with a
+// painted white outline so it reads off the dark wood at a glance — and no arrow:
 // a sign down on the runs is a plain plank. A ski route's WARNING board
 // (R42) has a yellow warning triangle with a burned "!" for its mark. A lane's board is the same
 // plank, smaller. The board has a thickness of end grain round it and a
@@ -53,6 +54,11 @@ const THICK = 0.035;
 const CHAR = "#120a05";
 const SCORCH = "rgba(62, 26, 6, 0.85)";
 
+/** The lettering's painted outline: its white and its width, a share of
+ * the letters' size (`lettered`). */
+const OUTLINE = "#f4efe4";
+const RING = 0.16;
+
 /** How far the wood's tone soaks through the grade's paint, 0..1, and the
  * number's paint — an old white, never the enamel's. */
 const SOAK = 0.75;
@@ -84,6 +90,28 @@ function loadFace(look: SignLook): Promise<boolean> {
     loaded.set(look.family, p);
   }
   return p;
+}
+
+/** LETTERING that reads at a glance: `text` at (x, y) in the char, ringed
+ * with a painted white outline `ring` of its size wide so it stands off
+ * the dark wood — no scorch round it, which would brown the white. The
+ * font, alignment and baseline are the caller's. */
+function lettered(
+  g: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  g.save();
+  g.lineJoin = "round";
+  g.miterLimit = 2;
+  g.strokeStyle = OUTLINE;
+  g.lineWidth = Math.max(3, size * RING);
+  g.strokeText(text, x, y);
+  g.fillStyle = CHAR;
+  g.fillText(text, x, y);
+  g.restore();
 }
 
 /** Draw `shape` burned into the wood: a soft scorch round it, the char on it. */
@@ -269,12 +297,12 @@ function printBoard(
   if (b.warning) {
     // The "!" burned black into the yellow, low in the triangle.
     const bang = Math.round(box * 0.55);
-    burn(g, () => {
-      g.textAlign = "center";
-      g.textBaseline = "middle";
-      g.font = `bold ${bang}px ${font}`;
-      g.fillText("!", mx + box / 2, my + box * 0.62);
-    });
+    g.save();
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.font = `bold ${bang}px ${font}`;
+    lettered(g, "!", mx + box / 2, my + box * 0.62, bang);
+    g.restore();
   }
   g.save();
   g.fillStyle = NUMBER;
@@ -304,12 +332,12 @@ function printBoard(
   g.font = `${size}px ${font}`;
   m = g.measureText(text);
   const cy = y0 + h / 2 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
-  burn(g, () => {
-    g.textAlign = "left";
-    g.textBaseline = "alphabetic";
-    g.font = `${size}px ${font}`;
-    g.fillText(text, left + Math.max(0, (room - m.width) / 2), cy);
-  });
+  g.save();
+  g.textAlign = "left";
+  g.textBaseline = "alphabetic";
+  g.font = `${size}px ${font}`;
+  lettered(g, text, left + Math.max(0, (room - m.width) / 2), cy, size);
+  g.restore();
 }
 
 export type RunSigns = { group: THREE.Group; dispose(): void };

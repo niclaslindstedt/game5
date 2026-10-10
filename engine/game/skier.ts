@@ -112,7 +112,7 @@ import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.t
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
-import { heldSlip, switchSteer } from "./switch.ts";
+import { heldSlip, revertHold, stepRevert, switchSteer } from "./switch.ts";
 import { laySkis, sidestepEdge, slideOver, stepSide } from "./sidestep.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
@@ -260,6 +260,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   snowNormal(level, c, normal);
   const stepping = stepSide(c, level, normal, stoodStill(c, slide) && c.pivot === 0, dt);
   stepRound(c, normal, still && !stepping, dt);
+  // ...or, too slow to ride switch, turned round to ride forward (`switch.ts`).
+  stepRevert(c, normal, dt);
   // THE CROUCH follows the tuck — or, deeper the longer it is held, the
   // jump being loaded: a body takes a moment to fold.
   const crouch0 = c.crouch;
@@ -569,6 +571,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       (edgeHold + grip.base) *
       ARC.sideGrip *
       pressed *
+      revertHold(c) *
       (1 - c.skid * (1 - G.skidHold) * clamp(speed0 / G.skidBite, 0, 1));
     let across = -hold * load * Math.tanh(vl / G.sideRef);
     // ...of which THE TURN'S is the grip the way and the yaw ask for: the

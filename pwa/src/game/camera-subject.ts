@@ -15,6 +15,7 @@
 //
 // Three-free, so the suite reads it (`tests/camera_subject_test.ts`).
 
+import { revertShare } from "@engine";
 import type { SkierState, Thrown } from "@engine";
 import type { Quat } from "@niclaslindstedt/oss-game-framework/core/quat";
 
@@ -52,7 +53,11 @@ export function subjectPose(
   pose.y = drawn.y - sink;
   pose.z = drawn.z;
   pose.q = drawn.q;
-  pose.heading = skier.heading;
+  // TURNING ROUND out of switch (`switch.ts`'s revert), the boom is told
+  // the nose he had and has again — the line he travels — not the body
+  // swung half round under it, which would swing the lens with it.
+  const r = skier.revert;
+  pose.heading = r ? skier.heading - r.turn * revertShare(r.u) + Math.PI : skier.heading;
   pose.pitch = skier.pitch;
   pose.roll = skier.roll;
   pose.vx = skier.vx;
@@ -60,7 +65,7 @@ export function subjectPose(
   pose.vz = skier.vz;
   pose.speed = skier.speed;
   pose.airborne = skier.airborne;
-  pose.switched = skier.switched;
+  pose.switched = r ? false : skier.switched;
   pose.packed = skier.packed;
   return onBody(pose, body, groundAt, mem);
 }

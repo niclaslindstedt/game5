@@ -829,6 +829,16 @@ export const TUNING = {
      * all-mountain's little kick, 12 the powder ski's. */
     tailDig: 0.06,
     digSpeed: 5,
+    /** THE REVERT (`switch.ts`, `RunRules.revert`): below `below` m/s on
+     * the snow — 15 km/h, where a skier riding switch has nothing left to
+     * carry him and wants his poles — he turns round to ride forward,
+     * pivoting his flat, unweighted skis on their bases over `time` s (a
+     * freestyler's slide-out of a switch landing: a beat to look, swing
+     * and set the skis down) — their hold across the snow let go by
+     * `unweight` of itself at the middle of it, where they are light and
+     * across the way (a ski swung across a groomer it is pressed into is a
+     * hockey stop, not a slide-out). */
+    revert: { below: 15 / 3.6, time: 0.65, unweight: 0.85 },
   },
 
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */

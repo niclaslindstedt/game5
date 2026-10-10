@@ -22,6 +22,9 @@ const PITCH = Math.tan(Math.PI / 9);
 const CLIFF = Math.tan((35 * Math.PI) / 180);
 /** A face pitched `deg` degrees falling along +z: the sidestep's. */
 const FACE = (deg) => Math.tan((deg * Math.PI) / 180);
+/** When the revert moves' skier has slowed under 15 km/h and starts to
+ * turn round, s (`engine/game/switch.ts`). */
+const REVERT_AT = 0.95;
 
 export const MOVES = [
   {
@@ -175,6 +178,38 @@ export const MOVES = [
     window: [0.0, 2.0],
     input: () => ({ ...IDLE, tuck: 1 }),
     // The tricks run rides switch with the free ride's rules, and no crowd.
+    mode: "tricks",
+  },
+  {
+    id: "revert",
+    title:
+      "riding SWITCH across the flat at 17 km/h: under 15 km/h he turns round (the revert) and poles away",
+    level: (S) => S.flatLevel({ packed: 1, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, speed: -4.6 }),
+    seconds: 4,
+    window: [REVERT_AT - 0.1, REVERT_AT + 0.8],
+    input: () => IDLE,
+    // The tricks run rides switch with the free ride's rules, and no crowd.
+    mode: "tricks",
+  },
+  {
+    id: "revert-steer",
+    title: "the revert with the edge held to the right: turned round the way it asks",
+    level: (S) => S.flatLevel({ packed: 1, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, speed: -4.6 }),
+    seconds: 4,
+    window: [REVERT_AT - 0.1, REVERT_AT + 0.8],
+    input: (t) => ({ ...IDLE, steer: t > REVERT_AT - 0.3 ? 1 : 0 }),
+    mode: "tricks",
+  },
+  {
+    id: "revert-away",
+    title: "the revert and what follows it: turned round, then the double pole and the skate",
+    level: (S) => S.flatLevel({ packed: 1, size: 3000 }),
+    place: () => ({ x: 1500, z: 200, heading: Math.PI, speed: -4.6 }),
+    seconds: 6,
+    window: [REVERT_AT - 0.2, REVERT_AT + 4],
+    input: () => IDLE,
     mode: "tricks",
   },
   {
@@ -433,6 +468,24 @@ export const MOMENTS = [
   { id: "switch", move: "switch", t: 1.5, say: "riding switch, looking back over a shoulder" },
   { id: "switch-turn", move: "switch-turns", t: 2.6, say: "a turn ridden switch" },
   { id: "switch-tuck", move: "switch-tuck", t: 1.5, say: "tucked switch at 90 km/h" },
+  {
+    id: "revert-in",
+    move: "revert",
+    t: REVERT_AT + 0.15,
+    say: "the revert begun: the skis light, the head on the line",
+  },
+  {
+    id: "revert-mid",
+    move: "revert",
+    t: REVERT_AT + 0.33,
+    say: "the revert half way: the skis across the way, flat",
+  },
+  {
+    id: "revert-out",
+    move: "revert",
+    t: REVERT_AT + 0.55,
+    say: "the revert ending: faced down the line again",
+  },
 ];
 
 export const MOMENT_IDS = MOMENTS.map((m) => m.id);

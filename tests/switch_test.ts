@@ -68,7 +68,9 @@ const wipeouts = (events: GameEvent[]) => events.filter((e) => e.kind === "wipeo
 describe("riding switch", () => {
   it("runs backward down the groomer on every pair, tails first and held to his line", () => {
     for (const spec of SKI_CATALOG) {
+      // Held switch however slow (a free ride turns him round, `revert`).
       const state = backward(spec, 1);
+      state.rules = { ...state.rules, revert: false };
       const events = ride(state, 4, () => ({}));
       expect(wipeouts(events), spec.id).toHaveLength(0);
       expect(state.skier.switched, spec.id).toBe(true);

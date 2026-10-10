@@ -28,7 +28,8 @@
 // gondola station's door), lift-ring (a chair's boarding ring from up the
 // hill — lit on a `--free` run alone), cliff, cliff-edge,
 // sign (the head of the course raced, its piste-head sign beside it),
-// sign-tree (the post carrying the most boards), route-head, route-warn, route-fallen, route-in,
+// sign-tree (the post carrying the most boards), route-head, route-amateur,
+// route-amateur-close (the locals' sign pointing at it), route-warn, route-fallen, route-in,
 // route-steep, route-side, route-air (the map's SKI ROUTE, R42: its sign,
 // down it at a skier's eye, its steepest pitch, across the face and from
 // over it), gate, hut, finish (the
@@ -165,6 +166,8 @@ const VIEWS = [
   "sign-summit-2",
   "sign-summit-3",
   "route-head",
+  "route-amateur",
+  "route-amateur-close",
   "route-warn",
   "route-fallen",
   "route-in",

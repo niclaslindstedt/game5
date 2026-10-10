@@ -56,7 +56,7 @@ describe("the real faces", () => {
   beforeAll(loadAllRealFaces);
 
   it("are listed, each named by its region and a number", () => {
-    expect(REAL_FACE_IDS).toHaveLength(20);
+    expect(REAL_FACE_IDS).toHaveLength(40);
     for (const id of REAL_FACE_IDS) {
       const region = realFaceRegion(id);
       expect(region && REGION_IDS.includes(region)).toBe(true);
@@ -160,7 +160,7 @@ describe("a real face asked for", () => {
 
   it("is read off a link only when there is one", () => {
     expect(readParams("?start=free&face=fell-2").face).toBe("fell-2");
-    expect(readParams("?start=free&face=fell-9").face).toBeNull();
+    expect(readParams("?start=free&face=fell-99").face).toBeNull();
     expect(readParams("?start=free").face).toBeNull();
   });
 });

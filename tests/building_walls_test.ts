@@ -145,7 +145,7 @@ describe("the buildings' walls", () => {
       const solids = new Set(solidsOf(level));
       for (const w of cabinWalls(level)) expect(solids.has(w)).toBe(true);
       // Indexed once: a real face's town stands thousands of buildings.
-      const byCabin = new Map<number, ReturnType<typeof wallSegmentsOf>>();
+      const byCabin = new Map<number, ReturnType<typeof wallSegmentsOf>[number][]>();
       for (const s of wallSegmentsOf(level)) {
         const list = byCabin.get(s.cabin) ?? [];
         list.push(s);

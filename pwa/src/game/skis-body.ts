@@ -731,7 +731,10 @@ export function createSkisModel(
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride" && !afoot;
       const racked = cabin ? (skier.lift?.skis ?? null) : null;
       const inBasket = basket && !off && !afoot;
-      rack(boarded || (cabin && !racked) || inBasket);
+      // Thrown with no skis let go (off a snowmobile) his pair is on its
+      // rack, and he lies in his boots.
+      const bare = off !== null && off.skis.length === 0;
+      rack(boarded || (cabin && !racked) || inBasket || bare);
       unboot(town !== null);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);

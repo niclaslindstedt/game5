@@ -91,7 +91,7 @@ const MASS: number[] = [
 MASS.push(M.elbow, M.elbow, M.hand, M.hand);
 const W = MASS.map((m) => 1 / m);
 const TOTAL = MASS.reduce((a, m) => a + m, 0);
-const RADIUS: number[] = [K.radius, K.radius, K.radius, K.radius, B.head];
+export const RADIUS: number[] = [K.radius, K.radius, K.radius, K.radius, B.head];
 for (let i = 5; i < N; i++) RADIUS.push(B.limb);
 
 /** The torso and the head in the torso's own frame (x right, y up the

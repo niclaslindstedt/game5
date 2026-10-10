@@ -22,7 +22,9 @@
 //              from below)
 //   tracks     tracks (a weaving line through the meadow, looked back over)
 //   hop        hop (the jump pressed twice: stepped off, the skis on)
-//   crash      crash (flung over on a hard turn: going over, down)
+//   crash      crash (into a trunk: closing, thrown, down), rollover
+//              (stalled across a steep face of deep powder: tipping,
+//              going, off, lying)
 //   night      night (riding at 21:00, the lamp from the front)
 //   turntable  turntable (the parked machine from eight sides)
 //   lenses     lenses (every rung of the game's camera riding it on the
@@ -70,7 +72,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (park, call, board, rider, groomer, powder, roost, carve, climb, tracks, hop, crash, night, turntable, lenses, lenses-powder, cockpit, cockpit-close, cockpit-powder, cockpit-night)",
+      help: "only these views, comma-separated (park, call, board, rider, groomer, powder, roost, carve, climb, tracks, hop, crash, rollover, night, turntable, lenses, lenses-powder, cockpit, cockpit-close, cockpit-powder, cockpit-night)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

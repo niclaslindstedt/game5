@@ -247,7 +247,7 @@ export function stepRun(
     if (player && run.heli) rotorStrike(run, off, events);
     // ...and what of him and his skis has gone into an A-net, held in it.
     catchInNets(run, off);
-    followSkis(run, c, off.skis);
+    followSkis(run, c, off.skis, off);
     derive(c, run.level);
     quietClocks(c);
   } else if (!railed) {

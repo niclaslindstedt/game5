@@ -375,8 +375,9 @@ export function createSledView(haze: HazeUniforms): SledView {
       if (lugs?.morphTargetInfluences) {
         lugs.morphTargetInfluences[0] = (((belt / run) % 1) + 1) % 1;
       }
-      // THE RACK: the rider's pair on it while he rides.
-      if (nodes.rack) nodes.rack.visible = s.rider;
+      // THE RACK: the rider's pair on it while he rides — and while he lies
+      // where it threw him, the pair still strapped on.
+      if (nodes.rack) nodes.rack.visible = s.rider || s.thrown;
       // THE LAMP while the engine runs; the call while it waits near him.
       const running = s.rider || s.rpm > 100;
       for (const l of lampGlow) l.visible = running;

@@ -251,8 +251,11 @@ describe("the start card's COUNTRY row and the link", () => {
 
 describe("a region is a kind of country, never a place", () => {
   /** The source and the docs, minus what may name a place: the spec (a copy
-   * of the sibling's), the changelog, the licence, this file, and the one
-   * table a real face's COUNTRY is named in (`strings-countries.ts`). */
+   * of the sibling's), the changelog, the licence, this file, and the three
+   * that name a real face's range, area and part — its crop rows
+   * (`real-face-crops.mjs`), the face index the bake writes off them
+   * (`real-faces-index.ts`) and the table its range is named in
+   * (`strings-ranges.ts`). */
   function sources(dir: string, out: string[] = []): string[] {
     for (const name of readdirSync(dir)) {
       if (name.startsWith(".") || name === "node_modules" || name === "dist") continue;
@@ -262,7 +265,9 @@ describe("a region is a kind of country, never a place", () => {
         sources(path, out);
       } else if (
         /\.(ts|tsx|mjs|md)$/.test(name) &&
-        !/CHANGELOG|OSS_GAME_SPEC|LICENSE|region_test|identity_test|strings-countries/.test(name)
+        !/CHANGELOG|OSS_GAME_SPEC|LICENSE|region_test|identity_test|real-face-crops\.mjs|real-faces-index\.ts|strings-ranges\.ts/.test(
+          name,
+        )
       ) {
         out.push(path);
       }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE REAL FACES — twenty real mountainsides baked into the generator.
+// THE REAL FACES — real mountainsides baked into the generator.
 //
 // A free ride can be raised on a REAL face instead of the massif R25 deals:
 // one 4×4 km stretch of a real ski mountain, from its summit ridge down to
@@ -13,9 +13,9 @@
 // face, a few kilobytes, listed in `real-faces-index.ts`, which
 // `real-face.ts` loads and decodes at run time.
 //
-// The faces are NAMED BY NOTHING BUT THEIR REGION AND A NUMBER: the rule
-// book of this repository names no real place, so a face is a position on
-// the globe and a crop, never the name of the resort it was taken from.
+// A face's id is its region and a number, a key that never moves; the
+// start card names it by PLACE off its crop row — its range, its area and
+// the part of the area — and never by a brand, a lift or a piste.
 //
 // Where each crop sits was searched once (every bearing, offset and scale
 // round a face's middle, scored on how much of the playable face falls
@@ -68,12 +68,16 @@ const args = parseArgs(
       kind: "flag",
       help: "search each --only face's crop (bearing, offset, scale) and print the best rows",
     },
+    index: {
+      kind: "flag",
+      help: "write the index alone (each face's region and place off its crop row), baking nothing",
+    },
     only: {
       kind: "string",
       help: "comma-separated face ids to bake (--write writes those and keeps the rest)",
     },
   },
-  "usage: npm run real-faces -- [--fetch] [--write] [--search] [--only id,id]",
+  "usage: npm run real-faces -- [--fetch] [--write] [--index] [--search] [--only id,id]",
 );
 
 // ── The tiles ───────────────────────────────────────────────────────────
@@ -362,6 +366,21 @@ function search(face) {
 
 // ── Run ─────────────────────────────────────────────────────────────────
 
+/** The index written: every face's row, its heights' file already baked. */
+function writeIndex() {
+  const missing = FACES.filter((f) => !existsSync(join(FACE_DIR, `face-${f.id}.ts`)));
+  if (missing.length > 0) {
+    throw new Error(`no heights baked for ${missing.map((f) => f.id).join(", ")}: bake them`);
+  }
+  writeFaceIndex(FACES, { n: N, cell: CELL, step: STEP });
+  console.log(`wrote ${FACE_INDEX}`);
+}
+
+if (args.index) {
+  writeIndex();
+  process.exit(0);
+}
+
 const only = args.only ? new Set(args.only.split(",")) : null;
 const faces = FACES.filter((f) => !only || only.has(f.id));
 if (args.fetch) {
@@ -398,10 +417,5 @@ if (args.write) {
   // The faces baked are written; every other face's file is kept as it is,
   // so adding a face never moves one already shipped.
   for (const b of baked) console.log(`wrote ${writeFaceFile(b)}`);
-  const missing = FACES.filter((f) => !existsSync(join(FACE_DIR, `face-${f.id}.ts`)));
-  if (missing.length > 0) {
-    throw new Error(`no heights baked for ${missing.map((f) => f.id).join(", ")}: bake them`);
-  }
-  writeFaceIndex(FACES, { n: N, cell: CELL, step: STEP });
-  console.log(`wrote ${FACE_INDEX}`);
+  writeIndex();
 }

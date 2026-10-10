@@ -29,6 +29,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
+import { pipWindow } from "./knob-pips.ts";
 import { Glyph, type GlyphName } from "./menu-glyphs.tsx";
 import { STRINGS } from "./strings.ts";
 
@@ -177,8 +178,8 @@ export function StepRow<T extends string>({
         <span class="knob-value">
           <span class="knob-word">{current?.label ?? extra ?? STRINGS.optUnset}</span>
           <span class="knob-pips" aria-hidden="true">
-            {stops.map((stop, i) => (
-              <i key={stop.id} class={`knob-pip${i === at ? " knob-pip-on" : ""}`} />
+            {pipWindow(stops.length, at).map((i) => (
+              <i key={stops[i].id} class={`knob-pip${i === at ? " knob-pip-on" : ""}`} />
             ))}
           </span>
         </span>

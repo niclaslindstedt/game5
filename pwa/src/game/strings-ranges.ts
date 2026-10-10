@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE COUNTRIES A REAL FACE IS FILED UNDER on the start card's SHAPE row,
-// by their ISO 3166-1 alpha-2 code (`real-face-crops.mjs`'s `country`). A
-// country is as fine as a real face is ever named: never a range, a
-// valley, a mountain or a ski area.
+// THE RANGES A REAL FACE IS FILED UNDER on the start card's RANGE row, by
+// the key its crop row carries (`real-face-crops.mjs`'s `range`): a
+// country's ISO 3166-1 alpha-2 code where a range's ski areas lie in one
+// country, or a key of its own for a range across borders. One of the few
+// files that names real places (the crop rows and the generated face index
+// are the others) — a range, an area and a part of it, never a brand, a
+// lift, a piste or a race.
 
-export const COUNTRY_NAMES: Readonly<Record<string, string>> = {
+export const RANGE_NAMES: Readonly<Record<string, string>> = {
+  ALPS: "THE ALPS",
   AD: "ANDORRA",
   AR: "ARGENTINA",
   AT: "AUSTRIA",
@@ -39,5 +43,5 @@ export const COUNTRY_NAMES: Readonly<Record<string, string>> = {
   SI: "SLOVENIA",
   SK: "SLOVAKIA",
   TR: "TURKEY",
-  US: "UNITED STATES",
+  US: "USA",
 };

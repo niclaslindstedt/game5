@@ -28,13 +28,17 @@
 //   CLIMATE the kind of snow country the map is built in (R21): the same seed
 //           raised as the alpine, a fell, a continental range or a maritime one.
 //
-//   SHAPE   the massif's shape: the seed's own, or the COUNTRY a real face
-//           lies in (`face-picks.ts`) — only the countries with a face whose
-//           real ski area signs the GRADE asked for.
+//   RANGE   the massif's shape: the seed's own, or the RANGE a real face
+//           lies in (`face-picks.ts`: a country, or a range across borders)
+//           — only the ranges with a face whose real ski area signs the
+//           GRADE asked for.
 //
-//   PEAK    which of that country's real faces (`real-face.ts`) — a real
-//           mountainside's ridge, spurs and gullies under the seed's lifts
-//           and runs, numbered in its country and never named.
+//   AREA    which of that range's ski areas, by the place it is known by.
+//
+//   PART    which part of that area (`real-face.ts`) — a real
+//           mountainside's ridge, spurs, gullies and tree line under the
+//           seed's lifts and runs; shown only where the area has more
+//           than one.
 //
 //   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
 //           green, a blue, a red or a black built to its band — and the RUN
@@ -72,14 +76,14 @@ import {
   REGION_IDS,
   TIMES_OF_DAY,
   WEATHER_KINDS,
-  realFaceCountry,
+  realFacePlace,
   realFaceRegion,
   type RunGrade,
   type WeatherKind,
 } from "@engine";
 import { useState } from "preact/hooks";
 
-import { countryFaces, faceCountries, faceForGrade } from "./face-picks.ts";
+import { areaParts, faceForGrade, faceRanges, firstFace, rangeAreas } from "./face-picks.ts";
 import { SEASONS, SNOW_STOPS, spotOn, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { useRunPick } from "./run-pick.ts";
@@ -100,19 +104,30 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
 /** The CLIMATE row's stops: R21's regions. */
 const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
 
-/** The SHAPE row's stops: the seed's own massif, then every country with
- * a real face whose ski area signs the GRADE row's colour (R25). */
-function shapeStops(grade: RunGrade | null): { id: string; label: string }[] {
+/** The RANGE row's stops: the seed's own massif, then every range with a
+ * real face whose ski area signs the GRADE row's colour (R25). */
+function rangeStops(grade: RunGrade | null): { id: string; label: string }[] {
   return [
     { id: "dealt", label: STRINGS.weatherDealt },
-    ...faceCountries(grade).map((id) => ({ id, label: STRINGS.countryName(id) })),
+    ...faceRanges(grade).map((id) => ({ id, label: STRINGS.rangeName(id) })),
   ];
 }
 
-/** The PEAK row's stops: a country's real faces of the GRADE row's colour,
- * numbered in the country — never named. */
-function peakStops(country: string, grade: RunGrade | null): { id: string; label: string }[] {
-  return countryFaces(country, grade).map(({ id, n }) => ({ id, label: STRINGS.faceName(n) }));
+/** The AREA row's stops: a range's ski areas of the GRADE row's colour. */
+function areaStops(range: string, grade: RunGrade | null): { id: string; label: string }[] {
+  return rangeAreas(range, grade).map((id) => ({ id, label: STRINGS.placeName(id) }));
+}
+
+/** The PART row's stops: an area's parts of the GRADE row's colour. */
+function partStops(
+  range: string,
+  area: string,
+  grade: RunGrade | null,
+): { id: string; label: string }[] {
+  return areaParts(range, area, grade).map(({ id, part }) => ({
+    id,
+    label: STRINGS.placeName(part),
+  }));
 }
 
 /** The GRADE row's stops: the seed's own colour, then R23's four and the
@@ -168,8 +183,9 @@ export function StartPage({
       spot: null,
       run: null,
     });
-  /** The country of the face on the card, if any. */
-  const country = ride.face ? realFaceCountry(ride.face) : null;
+  /** Where the face on the card is, if any. */
+  const place = ride.face ? realFacePlace(ride.face) : null;
+  const parts = place ? partStops(place.range, place.area, ride.grade) : [];
 
   // THE RUN ROW AND ITS CHART, as the pause card's PISTE MAP asks them too.
   const pick = useRunPick(settings, seed);
@@ -218,20 +234,28 @@ export function StartPage({
                 onHint={setHint}
               />
               <StepRow
-                label={STRINGS.startFace}
-                hint={STRINGS.startFaceHint}
-                stops={shapeStops(ride.grade)}
-                value={country ?? "dealt"}
-                onPick={(id) =>
-                  pickFace(id === "dealt" ? null : countryFaces(id, ride.grade)[0].id)
-                }
+                label={STRINGS.startRange}
+                hint={STRINGS.startRangeHint}
+                stops={rangeStops(ride.grade)}
+                value={place?.range ?? "dealt"}
+                onPick={(id) => pickFace(id === "dealt" ? null : firstFace(id, ride.grade))}
                 onHint={setHint}
               />
-              {country !== null && (
+              {place !== null && (
                 <StepRow
-                  label={STRINGS.startPeak}
-                  hint={STRINGS.startPeakHint}
-                  stops={peakStops(country, ride.grade)}
+                  label={STRINGS.startArea}
+                  hint={STRINGS.startAreaHint}
+                  stops={areaStops(place.range, ride.grade)}
+                  value={place.area}
+                  onPick={(area) => pickFace(firstFace(place.range, ride.grade, area))}
+                  onHint={setHint}
+                />
+              )}
+              {parts.length > 1 && (
+                <StepRow
+                  label={STRINGS.startPart}
+                  hint={STRINGS.startPartHint}
+                  stops={parts}
                   value={ride.face ?? ""}
                   onPick={pickFace}
                   onHint={setHint}
@@ -245,8 +269,8 @@ export function StartPage({
                 onPick={(id) => {
                   const grade = id === "dealt" ? null : id;
                   // A face whose real ski area has no piste of the colour
-                  // gives way to one of its country's that has, or to the
-                  // seed's own massif.
+                  // gives way to one of its area's or its range's that has,
+                  // or to the seed's own massif.
                   const face = faceForGrade(ride.face, grade);
                   setRide({
                     grade,

@@ -19,7 +19,7 @@ import { REPLAY_STRINGS } from "./strings-replay.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
-import { COUNTRY_NAMES } from "./strings-countries.ts";
+import { RANGE_NAMES } from "./strings-ranges.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
 import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
@@ -471,17 +471,20 @@ export const STRINGS = {
     continental: "CONTINENTAL",
     maritime: "MARITIME",
   },
-  startFace: "SHAPE",
-  startFaceHint:
-    "The mountain's shape: the seed's own, or a real mountainside in one of these countries, read off a satellite survey — its ridge, spurs and gullies, with the real ski area's lifts and runs laid down it as near as the seed's own allow. Only the countries with a run of the GRADE row's colour are listed.",
-  startPeak: "PEAK",
-  startPeakHint:
-    "Which of the country's real mountainsides. Its climate is its own: picking one sets the CLIMATE row.",
-  /** A real face on the PEAK row: numbered in its country, never named. */
-  faceName: (n: number): string => `REAL ${n}`,
-  /** A real face's country on the SHAPE row (ISO 3166-1 alpha-2 to its
-   * name), the code itself for one this table lacks. */
-  countryName: (code: string): string => COUNTRY_NAMES[code] ?? code,
+  startRange: "RANGE",
+  startRangeHint:
+    "The mountain's shape: the seed's own, or a real mountainside in one of these ranges, read off a satellite survey — its ridge, spurs and gullies and its real tree line, with the real ski area's lifts and runs laid down it as near as the seed's own allow. Only the ranges with a run of the GRADE row's colour are listed.",
+  startArea: "AREA",
+  startAreaHint:
+    "Which of the range's ski areas, by the place it is known by. Its climate is its own: picking one sets the CLIMATE row.",
+  startPart: "PART",
+  startPartHint: "Which part of the ski area: each is a mountainside of its own.",
+  /** A real face's range on the RANGE row (its key to its name), the key
+   * itself for one this table lacks. */
+  rangeName: (key: string): string => RANGE_NAMES[key] ?? key,
+  /** A real face's area or part on the AREA and PART rows: the place as the
+   * map writes it, set in the card's capitals. */
+  placeName: (name: string): string => name.toLocaleUpperCase(),
   startGrade: "GRADE",
   startGradeHint:
     "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %), black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it — or orange: a ski route past any black, 38° to 48°, never groomed, marked down the mountain as it lies. The mountain's own, or one of the five.",

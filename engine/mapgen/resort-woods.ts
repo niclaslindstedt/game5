@@ -25,7 +25,9 @@
 // upper as islands of trees on open snow. The numbers are a region's row.
 
 import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
+import { faceCoverAt } from "./real-face.ts";
 import type { RegionId } from "./regions.ts";
+import type { TerrainPlan } from "./terrain.ts";
 
 /** One region's woods by height (R14, R21): the ecotone's midpoint and
  * steepness under the tree line (m), how far under the line the glades
@@ -63,4 +65,35 @@ export function woodsAtDepth(row: WoodsRow, d: number): { keep: number; close: n
 export function tallAtDepth(row: WoodsRow, d: number): number {
   if (d <= 0) return 0;
   return 1 - Math.exp(-d / row.reach) * 0.92;
+}
+
+/** How much of the face's woods a REAL FACE's own cover keeps at its
+ * thinnest: a band the real map draws bare is thinned to this share of
+ * R14's curve, never emptied, so it reads as a wood thinned out rather
+ * than a raster of the map's polygons. */
+const FACE_THINNEST = 0.2;
+
+/** R14 on a REAL FACE (R25) — the woods by height, `cover` (R14's curve)
+ * scaled by how wooded the real face is at the same height, off its own
+ * bands (`realFaceTrees`): the densest band keeps the whole curve, a bare
+ * one `FACE_THINNEST` of it. A ground `y` m high stands at `floor` m plus
+ * its height over the base (`baseY`) unstretched, as the face is laid.
+ * Any other map — a dealt massif, or a face whose map draws no forest —
+ * gets `cover` itself. */
+export function faceWoods(
+  plan: TerrainPlan,
+  baseY: number,
+  cover: (y: number) => { keep: number; close: number },
+): (y: number) => { keep: number; close: number } {
+  const face = plan.face;
+  const trees = face?.trees;
+  if (!face || !trees) return cover;
+  const peak = Math.max(...trees.bands);
+  if (peak <= 0) return cover;
+  return (y) => {
+    const c = cover(y);
+    const real = face.floor + (y - baseY) / face.stretch;
+    const share = Math.min(1, faceCoverAt(trees, real) / peak);
+    return { keep: c.keep * (FACE_THINNEST + (1 - FACE_THINNEST) * share), close: c.close * share };
+  };
 }

@@ -87,13 +87,19 @@ export {
   faceHeight,
   loadAllRealFaces,
   loadRealFace,
+  faceCoverAt,
   realFace,
-  realFaceCountry,
   realFaceGrades,
   realFaceLoaded,
+  realFacePlace,
   realFaceRegion,
+  realFaceTrees,
+  type FaceTrees,
   type RealFace,
 } from "./real-face.ts";
+export { HINT_TREES_BANDS } from "./real-hints-index.ts";
+export { faceWoods } from "./resort-woods.ts";
+export type { TerrainPlan } from "./terrain.ts";
 export {
   leanLift,
   leanStation,

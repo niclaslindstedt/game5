@@ -2285,8 +2285,16 @@ canvas {
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--snow);
+  /* One line, unless a word is wider than the row (a long place name on
+     the start card): then it breaks between its words. */
+  max-width: 100%;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.knob-value .knob-word {
+  white-space: normal;
+  text-align: center;
 }
 
 .knob-pips {

@@ -64,6 +64,52 @@ export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {
   "maritime-4": ["green", "blue", "red", "black"],
 };
 
+/** Each wooded face's woods by height, read off the forest the map draws:
+ * the tree line's share of the face's relief (its lowest sample to its
+ * highest), then each of `bands` bands' share wooded, bottom first, a
+ * byte each (0..255), as hex. A face with none takes its region's row. */
+export const HINT_TREES_BANDS = 8;
+
+export const HINT_TREES: Readonly<Record<string, string>> = {
+  "alpine-2": "65c2683a0300000000",
+  "alpine-4": "70407c721000000000",
+  "alpine-5": "aac0bcbd923d090000",
+  "alpine-6": "2b6f09050200000000",
+  "alpine-7": "7a58b5db6c00000000",
+  "alpine-8": "d540be9aa0a5882500",
+  "alpine-9": "6a4c94790b00000000",
+  "alpine-10": "8571d2e08705000000",
+  "alpine-11": "7a50e1d06500000000",
+  "continental-1": "ff1c647962767d634e",
+  "continental-2": "9f85cbc19345030000",
+  "continental-3": "ff1ebabab1ac9c9cac",
+  "continental-4": "ff23586f543d4b5459",
+  "maritime-1": "ff51c3e1cbc1bdbcbe",
+  "maritime-2": "ff7ec1d1dabba7b56a",
+  "maritime-3": "ff6dc2dbeeddbebda1",
+  "fell-1": "8f1fc2b8bb1e000000",
+  "fell-2": "bf7edbc2b5ae360400",
+  "fell-3": "aa71a0cd982c070000",
+  "fell-4": "d5dfeae5dec6951f00",
+  "fell-5": "caf2b687d5edb10d00",
+  "fell-6": "ff3fc0d8e4edd5d7aa",
+  "fell-7": "102d00000000000000",
+  "fell-8": "aa8cc7c09b2c0b0000",
+  "fell-9": "6a8ec15d0f00000000",
+  "fell-10": "d5c1f6b45d668d3000",
+  "fell-11": "a55d7dcbbf6a070000",
+  "fell-12": "a54d6acc9b44060000",
+  "fell-13": "fa7be3ede3e2f2cb6d",
+  "fell-14": "506b9e190000000000",
+  "fell-15": "a535d9eec35b050000",
+  "fell-17": "cf8a97a6a4bd8c1400",
+  "fell-18": "ff2d33789fbc6e826f",
+  "fell-19": "fa2ac2b1dbdfccd034",
+  "fell-20": "9fba2da0be61010000",
+  "fell-21": "80b4cacd4601000000",
+  "maritime-4": "9540afb18128010000",
+};
+
 /** Each face's hints, fetched when a map is raised on it. */
 export const HINT_LOADERS: Readonly<Record<string, () => Promise<{ HINTS: HintData }>>> = {
   "alpine-1": () => import("./real-hints/hints-alpine-1.ts"),

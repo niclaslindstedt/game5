@@ -1,22 +1,34 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE REAL FACES' CROPS — where each real face sits on the globe
-// and how a map point is turned to a globe point and back. Shared by the
-// elevation bake (`scripts/real-faces.mjs`) and the hints bake
-// (`scripts/real-hints.mjs`), which must read one crop the same way.
+// THE REAL FACES' CROPS — where each real face sits on the globe, what
+// the place is called, and how a map point is turned to a globe point and
+// back. Shared by the elevation bake (`scripts/real-faces.mjs`) and the
+// hints bake (`scripts/real-hints.mjs`), which must read one crop the same
+// way.
+//
+// One of the few files that names real places (the generated face index
+// and `strings-ranges.ts` are the others): a face's range, area and part,
+// written as the map writes them — never a brand, a lift, a piste or a
+// race.
 
 /** The map's side, m. */
 export const SIZE = 4000;
 
-/** Every face: its region (R21), the country it lies in (ISO 3166-1
- * alpha-2 — the start card files a face under it, nothing finer), the middle it was searched round (°),
- * and the crop the search kept — the window's middle east and north of it
- * (m), the bearing its fall line runs down the map on (° clockwise from
- * north) and how many real metres a metre of the map is. */
+/** Every face: its id (its region and a number, a key that never moves),
+ * its region (R21), its PLACE — the `range` it lies in (a country's ISO
+ * 3166-1 alpha-2 code where the range's ski areas are in one country, a
+ * key of its own across borders; `strings-ranges.ts` names it), the `area`
+ * (the town or mountain its ski area is known by) and the `part` of that
+ * area (the area itself where it is one) — the middle it was searched
+ * round (°), and the crop the search kept: the window's middle east and
+ * north of it (m), the bearing its fall line runs down the map on (°
+ * clockwise from north) and how many real metres a metre of the map is. */
 export const FACES = [
   {
     id: "alpine-1",
     region: "alpine",
-    country: "FR",
+    range: "ALPS",
+    area: "Val Thorens",
+    part: "Val Thorens",
     lat: 45.297,
     lon: 6.585,
     east: -1200,
@@ -27,7 +39,9 @@ export const FACES = [
   {
     id: "alpine-2",
     region: "alpine",
-    country: "FR",
+    range: "ALPS",
+    area: "Courchevel",
+    part: "Courchevel",
     lat: 45.4,
     lon: 6.618,
     east: 450,
@@ -38,7 +52,9 @@ export const FACES = [
   {
     id: "alpine-3",
     region: "alpine",
-    country: "FR",
+    range: "ALPS",
+    area: "Tignes",
+    part: "Val-Claret",
     lat: 45.452,
     lon: 6.9,
     east: -450,
@@ -49,7 +65,9 @@ export const FACES = [
   {
     id: "alpine-4",
     region: "alpine",
-    country: "FR",
+    range: "ALPS",
+    area: "Val d'Isère",
+    part: "La Daille",
     lat: 45.442,
     lon: 6.965,
     east: -1800,
@@ -60,7 +78,9 @@ export const FACES = [
   {
     id: "alpine-5",
     region: "alpine",
-    country: "FR",
+    range: "ALPS",
+    area: "La Plagne",
+    part: "Plagne Centre",
     lat: 45.5,
     lon: 6.68,
     east: -1500,
@@ -71,7 +91,9 @@ export const FACES = [
   {
     id: "alpine-6",
     region: "alpine",
-    country: "FR",
+    range: "ALPS",
+    area: "L'Alpe d'Huez",
+    part: "L'Alpe d'Huez",
     lat: 45.105,
     lon: 6.085,
     east: 450,
@@ -82,7 +104,9 @@ export const FACES = [
   {
     id: "alpine-7",
     region: "alpine",
-    country: "CH",
+    range: "ALPS",
+    area: "Zermatt",
+    part: "Zermatt",
     lat: 46.015,
     lon: 7.77,
     east: 750,
@@ -93,7 +117,9 @@ export const FACES = [
   {
     id: "alpine-8",
     region: "alpine",
-    country: "CH",
+    range: "ALPS",
+    area: "Verbier",
+    part: "La Chaux",
     lat: 46.093,
     lon: 7.245,
     east: 0,
@@ -104,7 +130,9 @@ export const FACES = [
   {
     id: "alpine-9",
     region: "alpine",
-    country: "AT",
+    range: "ALPS",
+    area: "St. Anton am Arlberg",
+    part: "St. Anton am Arlberg",
     lat: 47.14,
     lon: 10.24,
     east: 750,
@@ -115,7 +143,9 @@ export const FACES = [
   {
     id: "alpine-10",
     region: "alpine",
-    country: "AT",
+    range: "ALPS",
+    area: "Ischgl",
+    part: "Ischgl",
     lat: 46.995,
     lon: 10.305,
     east: 1500,
@@ -126,7 +156,9 @@ export const FACES = [
   {
     id: "alpine-11",
     region: "alpine",
-    country: "AT",
+    range: "ALPS",
+    area: "Sölden",
+    part: "Sölden",
     lat: 46.958,
     lon: 10.985,
     east: 0,
@@ -137,7 +169,9 @@ export const FACES = [
   {
     id: "continental-1",
     region: "continental",
-    country: "US",
+    range: "US",
+    area: "Vail",
+    part: "Vail",
     lat: 39.62,
     lon: -106.365,
     east: -300,
@@ -148,7 +182,9 @@ export const FACES = [
   {
     id: "continental-2",
     region: "continental",
-    country: "US",
+    range: "US",
+    area: "Breckenridge",
+    part: "Breckenridge",
     lat: 39.475,
     lon: -106.075,
     east: -1050,
@@ -159,7 +195,9 @@ export const FACES = [
   {
     id: "continental-3",
     region: "continental",
-    country: "US",
+    range: "US",
+    area: "Park City",
+    part: "Park City",
     lat: 40.64,
     lon: -111.53,
     east: 450,
@@ -170,7 +208,9 @@ export const FACES = [
   {
     id: "continental-4",
     region: "continental",
-    country: "US",
+    range: "US",
+    area: "Aspen",
+    part: "Aspen",
     lat: 39.17,
     lon: -106.82,
     east: 1050,
@@ -181,7 +221,9 @@ export const FACES = [
   {
     id: "maritime-1",
     region: "maritime",
-    country: "CA",
+    range: "CA",
+    area: "Whistler",
+    part: "Whistler Creekside",
     lat: 50.085,
     lon: -122.95,
     east: -1800,
@@ -192,7 +234,9 @@ export const FACES = [
   {
     id: "maritime-2",
     region: "maritime",
-    country: "JP",
+    range: "JP",
+    area: "Niseko",
+    part: "Hirafu",
     lat: 42.865,
     lon: 140.68,
     east: 0,
@@ -203,7 +247,9 @@ export const FACES = [
   {
     id: "maritime-3",
     region: "maritime",
-    country: "JP",
+    range: "JP",
+    area: "Hakuba",
+    part: "Happo-one",
     lat: 36.7,
     lon: 137.815,
     east: 1800,
@@ -214,7 +260,9 @@ export const FACES = [
   {
     id: "fell-1",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Åre",
+    part: "Åre by",
     lat: 63.418,
     lon: 13.085,
     east: -450,
@@ -225,7 +273,9 @@ export const FACES = [
   {
     id: "fell-2",
     region: "fell",
-    country: "NO",
+    range: "NO",
+    area: "Hemsedal",
+    part: "Hemsedal",
     lat: 60.86,
     lon: 8.45,
     east: 1500,
@@ -236,7 +286,9 @@ export const FACES = [
   {
     id: "fell-3",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Åre",
+    part: "Duved",
     lat: 63.401,
     lon: 12.938,
     east: 450,
@@ -247,7 +299,9 @@ export const FACES = [
   {
     id: "fell-4",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Vemdalsskalet",
+    part: "Vemdalsskalet",
     lat: 62.483,
     lon: 13.961,
     east: -1350,
@@ -258,7 +312,9 @@ export const FACES = [
   {
     id: "fell-5",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Björnrike",
+    part: "Björnrike",
     lat: 62.418,
     lon: 13.964,
     east: 0,
@@ -269,7 +325,9 @@ export const FACES = [
   {
     id: "fell-6",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Klövsjö",
+    part: "Klövsjö",
     lat: 62.501,
     lon: 14.171,
     east: -900,
@@ -280,7 +338,9 @@ export const FACES = [
   {
     id: "fell-7",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Kittelfjäll",
+    part: "Kittelfjäll",
     lat: 65.255,
     lon: 15.489,
     east: 600,
@@ -291,7 +351,9 @@ export const FACES = [
   {
     id: "fell-8",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Ramundberget",
+    part: "Ramundberget",
     lat: 62.696,
     lon: 12.384,
     east: 150,
@@ -302,7 +364,9 @@ export const FACES = [
   {
     id: "fell-9",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Björkliden",
+    part: "Björkliden",
     lat: 68.397,
     lon: 18.664,
     east: 150,
@@ -313,7 +377,9 @@ export const FACES = [
   {
     id: "fell-10",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Sälen",
+    part: "Lindvallen",
     lat: 61.156,
     lon: 13.186,
     east: 1350,
@@ -324,7 +390,9 @@ export const FACES = [
   {
     id: "fell-11",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Sälen",
+    part: "Tandådalen",
     lat: 61.174,
     lon: 13.002,
     east: -900,
@@ -335,7 +403,9 @@ export const FACES = [
   {
     id: "fell-12",
     region: "fell",
-    country: "NO",
+    range: "NO",
+    area: "Geilo",
+    part: "Geilo",
     lat: 60.53,
     lon: 8.2,
     east: -1500,
@@ -346,7 +416,9 @@ export const FACES = [
   {
     id: "fell-13",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Branäs",
+    part: "Branäs",
     lat: 60.652,
     lon: 12.951,
     east: 900,
@@ -357,7 +429,9 @@ export const FACES = [
   {
     id: "fell-14",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Hemavan",
+    part: "Hemavan",
     lat: 65.828,
     lon: 15.098,
     east: 0,
@@ -368,7 +442,9 @@ export const FACES = [
   {
     id: "fell-15",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Tärnaby",
+    part: "Tärnaby",
     lat: 65.719,
     lon: 15.274,
     east: 600,
@@ -379,7 +455,9 @@ export const FACES = [
   {
     id: "fell-16",
     region: "fell",
-    country: "SE",
+    range: "SE",
+    area: "Riksgränsen",
+    part: "Riksgränsen",
     lat: 68.418,
     lon: 18.116,
     east: 450,
@@ -390,7 +468,9 @@ export const FACES = [
   {
     id: "fell-17",
     region: "fell",
-    country: "NO",
+    range: "NO",
+    area: "Trysil",
+    part: "Trysil",
     lat: 61.313,
     lon: 12.209,
     east: 450,
@@ -401,7 +481,9 @@ export const FACES = [
   {
     id: "fell-18",
     region: "fell",
-    country: "NO",
+    range: "NO",
+    area: "Hafjell",
+    part: "Hafjell",
     lat: 61.236,
     lon: 10.485,
     east: -300,
@@ -412,7 +494,9 @@ export const FACES = [
   {
     id: "fell-19",
     region: "fell",
-    country: "NO",
+    range: "NO",
+    area: "Kvitfjell",
+    part: "Kvitfjell",
     lat: 61.461,
     lon: 10.125,
     east: 1350,
@@ -423,7 +507,9 @@ export const FACES = [
   {
     id: "fell-20",
     region: "fell",
-    country: "NO",
+    range: "NO",
+    area: "Oppdal",
+    part: "Vangslia",
     lat: 62.612,
     lon: 9.645,
     east: -750,
@@ -434,7 +520,9 @@ export const FACES = [
   {
     id: "fell-21",
     region: "fell",
-    country: "FI",
+    range: "FI",
+    area: "Ylläs",
+    part: "Ylläsjärvi",
     lat: 67.565,
     lon: 24.226,
     east: 750,
@@ -445,7 +533,9 @@ export const FACES = [
   {
     id: "maritime-4",
     region: "maritime",
-    country: "NO",
+    range: "NO",
+    area: "Narvik",
+    part: "Narvik",
     lat: 68.428,
     lon: 17.454,
     east: 300,

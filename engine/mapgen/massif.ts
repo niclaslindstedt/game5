@@ -44,7 +44,7 @@ import { sampleNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
 import { FACE_GRID } from "./real-faces-index.ts";
-import { faceExtreme, faceHeight, faceMean, type RealFace } from "./real-face.ts";
+import { faceExtreme, faceHeight, faceMean, realFaceTrees, type RealFace } from "./real-face.ts";
 import { realHints } from "./real-hints.ts";
 import { scaleBand, scaleCount, type Region } from "./regions.ts";
 import { TREE_LINE_MASSIF, RESORT_RULES as RR } from "./resort-rules.ts";
@@ -269,7 +269,14 @@ export function planMassif(
   const altitude = sea;
   const regionVertical =
     ((TREE_LINE_MASSIF.vertical.min + TREE_LINE_MASSIF.vertical.max) / 2) * K.vertical;
-  const treeLine = altitude + (above * vertical) / regionVertical;
+  // On a real face whose map draws its woods, its REAL tree line, stood
+  // over the floor as far as the face is stretched (`readFace`): the line
+  // lies on the map's vertical at the share of the real relief it stands
+  // at. A face with none keeps the region's.
+  const trees = real?.face.trees;
+  const treeLine = trees
+    ? altitude + Math.max(0, (trees.line - real.face.floor) * real.face.stretch)
+    : altitude + (above * vertical) / regionVertical;
   return {
     vertical,
     altitude,
@@ -369,7 +376,8 @@ function readFace(
   }
   const calm = Math.max(M.real.calmest, 1 - attempt * M.real.calming);
   const relief = Math.min(1, (M.real.relief * calm) / Math.max(1, Math.sqrt(sum / count)));
-  return { side, peakX, shoulderX, villageX, face: { grid, floor, stretch, rows, relief } };
+  const trees = realFaceTrees(grid);
+  return { side, peakX, shoulderX, villageX, face: { grid, floor, stretch, rows, relief, trees } };
 }
 
 /** The massif of a plan, or a thrown error: everything below is only ever

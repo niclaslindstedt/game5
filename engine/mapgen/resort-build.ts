@@ -107,7 +107,7 @@ import { regionRow, type Region, type RegionId } from "./regions.ts";
 import { ROAD_ROW, planResort } from "./resort.ts";
 import { cachedResort, keepResort, resortKey } from "./resort-cache.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
-import { WOODS, tallAtDepth, woodsAtDepth } from "./resort-woods.ts";
+import { WOODS, faceWoods, tallAtDepth, woodsAtDepth } from "./resort-woods.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
 import { gridOnTrack } from "./spawn.ts";
 import { courseDay } from "./course-day.ts";
@@ -774,7 +774,7 @@ export function attemptResort(
   const allKickers = built.flatMap((b) => b.kickers).concat(offKickers);
   const trees = growForest(rng, plan, ground, noTrack, allKickers, allDrops.concat(cliffs), lineY, {
     clear,
-    cover: (y) => woodsAtDepth(woods, lineY - y),
+    cover: faceWoods(plan, baseY, (y) => woodsAtDepth(woods, lineY - y)),
     tall: (y) => tallAtDepth(woods, lineY - y),
   });
 

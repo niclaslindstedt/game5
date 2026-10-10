@@ -16,9 +16,10 @@
 // runs walked and graded, the woods, the courses — is built onto it as onto
 // any massif, by the same rules and the same analysis.
 //
-// A face is named by its region and a number, never by a place: the rule
-// book names no real one. The start card files it under its COUNTRY and
-// nothing finer.
+// A face's id is its region and a number, a key that never moves. The
+// start card names it by PLACE — the RANGE it lies in, the AREA its ski
+// area is known by and the PART of that area — off the index the bake
+// writes; never by a brand, a lift or a piste.
 //
 // A FACE IS LOADED BEFORE IT IS READ. Its heights and its hints are a
 // chunk of their own, fetched only when a map is raised on it
@@ -31,7 +32,7 @@ import { base64 } from "./base64.ts";
 import { RUN_GRADES, type RunGrade } from "./grades.ts";
 import { FACE_GRID, FACE_INDEX, FACE_LOADERS, type FaceData } from "./real-faces-index.ts";
 import { faceHasHints, loadRealHints, realHintsLoaded } from "./real-hints.ts";
-import { HINT_GRADES } from "./real-hints-index.ts";
+import { HINT_GRADES, HINT_TREES } from "./real-hints-index.ts";
 import type { RegionId } from "./regions.ts";
 
 /** One face decoded: real heights over the map's square, m, row 0 the
@@ -50,10 +51,56 @@ export function realFaceRegion(id: string): RegionId | null {
   return FACE_INDEX.find((f) => f.id === id)?.region ?? null;
 }
 
-/** The country a face lies in (ISO 3166-1 alpha-2), or null for an id no
- * face has. */
-export function realFaceCountry(id: string): string | null {
-  return FACE_INDEX.find((f) => f.id === id)?.country ?? null;
+/** Where a face is: its RANGE (a key the start card names — a country's
+ * code, or a range across borders), its AREA (the place its ski area is
+ * known by), the PART of the area it is, and its latitude and longitude
+ * (°). Null for an id no face has. */
+export function realFacePlace(
+  id: string,
+): { range: string; area: string; part: string; lat: number; lon: number } | null {
+  const f = FACE_INDEX.find((e) => e.id === id);
+  return f ? { range: f.range, area: f.area, part: f.part, lat: f.lat, lon: f.lon } : null;
+}
+
+/** A face's WOODS BY HEIGHT, read off the forest the real map draws: the
+ * tree line and each band's share wooded, in the face's own real metres
+ * (`lo` its lowest sample, `hi` its highest; the bands split the span
+ * evenly, bottom first). */
+export type FaceTrees = {
+  readonly lo: number;
+  readonly hi: number;
+  readonly line: number;
+  readonly bands: readonly number[];
+};
+
+/** A face's woods (`FaceTrees`), or null for a face whose map draws no
+ * forest — its region's row stands in. Reads the face's heights, so it is
+ * loaded first. */
+export function realFaceTrees(face: RealFace): FaceTrees | null {
+  const hex = HINT_TREES[face.id];
+  if (!hex) return null;
+  const bytes = Array.from(
+    { length: hex.length / 2 },
+    (_, i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16) / 255,
+  );
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const h of face.heights) {
+    lo = Math.min(lo, h);
+    hi = Math.max(hi, h);
+  }
+  return { lo, hi, line: lo + bytes[0] * (hi - lo), bands: bytes.slice(1) };
+}
+
+/** How much of a face's ground `h` m up (real metres) is wooded, 0..1:
+ * between the middles of its bands, linearly. */
+export function faceCoverAt(trees: FaceTrees, h: number): number {
+  const n = trees.bands.length;
+  const t = ((h - trees.lo) / Math.max(1, trees.hi - trees.lo)) * n - 0.5;
+  const i = Math.min(n - 1, Math.max(0, Math.floor(t)));
+  const j = Math.min(n - 1, i + 1);
+  const f = Math.min(1, Math.max(0, t - i));
+  return trees.bands[i] + (trees.bands[j] - trees.bands[i]) * f;
 }
 
 /** The piste grades a face's real ski area signs — every one of R23's

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE REAL FACES' HINTS — where the real ski area on each of the twenty
-// real faces has its lifts, its pistes and its houses, so a ski area
-// raised on a face can be laid the way the real one is.
+// THE REAL FACES' HINTS — where the real ski area on each real face has
+// its lifts, its pistes and its houses, so a ski area raised on a face can
+// be laid the way the real one is, and how wooded each height of it is.
 //
 // The offline half: it reads the map data of each face's crop off
 // OpenStreetMap (the editing API's bounding-box call, a few tiles a face,
@@ -14,7 +14,10 @@
 // heights were baked on (`scripts/lib/real-face-crops.mjs`), and writes
 // them into `engine/mapgen/real-hints/hints-<id>.ts`, a GENERATED file a
 // face listed in `real-hints-index.ts` with the grades its pistes are
-// signed, that `real-hints.ts` loads and decodes at run time.
+// signed and its woods by height (`scripts/lib/real-face-forest.mjs`: the
+// forest the map draws, read onto the face's height grid — the tree line
+// and the cover in eight bands), that `real-hints.ts` and `real-face.ts`
+// read at run time.
 //
 // Nothing is kept by name: no lift, piste or place name is read.
 //
@@ -34,7 +37,14 @@ import process from "node:process";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 
 import { FACES, SIZE, globeAt, mapAt } from "./lib/real-face-crops.mjs";
-import { HINT_INDEX, keptGrades, writeHintFile, writeHintIndex } from "./lib/real-face-files.mjs";
+import {
+  HINT_INDEX,
+  keptGrades,
+  keptTrees,
+  writeHintFile,
+  writeHintIndex,
+} from "./lib/real-face-files.mjs";
+import { encodeTrees, forestPolygons, rasterise, woodsByHeight } from "./lib/real-face-forest.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = join(root, "previews", ".osm");
@@ -53,12 +63,16 @@ const args = parseArgs(
       kind: "flag",
       help: "write the faces baked (engine/mapgen/real-hints/) and the index",
     },
+    trees: {
+      kind: "flag",
+      help: "with --write, write only the woods into the index and keep every hint file",
+    },
     only: {
       kind: "string",
       help: "comma-separated face ids to bake (--write writes those and keeps the rest)",
     },
   },
-  "usage: npm run real-hints -- [--fetch] [--write] [--only id,id]",
+  "usage: npm run real-hints -- [--fetch] [--write [--trees]] [--only id,id]",
 );
 
 // ── The map data ────────────────────────────────────────────────────────
@@ -74,8 +88,20 @@ function boxOf(face) {
   return [Math.min(...lats), Math.min(...lons), Math.max(...lats), Math.max(...lons)];
 }
 
-/** The cached file of one tile of a face's box. */
-const tileFile = (face, i, j) => join(CACHE, `${face.id}-${i}${j}.osm`);
+/** A short key of a face's crop (FNV-1a over its numbers), so a face
+ * cropped afresh reads tiles fetched for the new crop, never the old. */
+function cropKey(face) {
+  let h = 0x811c9dc5;
+  for (const ch of [face.lat, face.lon, face.east, face.north, face.bearing, face.scale].join(
+    ",",
+  )) {
+    h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+/** The cached file of one tile of a face's box, keyed by its crop. */
+const tileFile = (face, i, j) => join(CACHE, `${face.id}-${cropKey(face)}-${i}${j}.osm`);
 
 async function fetchFace(face) {
   const [s, w, n, e] = boxOf(face);
@@ -105,27 +131,60 @@ async function fetchFace(face) {
   }
 }
 
-/** Every node and way of a face's tiles: nodes as [lat, lon], ways as their
- * node ids and tags. The XML is the API's own, read by its fixed shape. */
-function readFace(face) {
-  const nodes = new Map();
-  const ways = new Map();
-  for (let i = 0; i < TILES; i++) {
-    for (let j = 0; j < TILES; j++) {
-      const xml = readFileSync(tileFile(face, i, j), "utf8");
-      for (const m of xml.matchAll(/<node id="(\d+)"[^>]*?lat="([-\d.]+)" lon="([-\d.]+)"/g)) {
-        nodes.set(m[1], [Number(m[2]), Number(m[3])]);
-      }
-      for (const m of xml.matchAll(/<way id="(\d+)"[^>]*>([\s\S]*?)<\/way>/g)) {
-        if (ways.has(m[1])) continue;
-        const refs = [...m[2].matchAll(/<nd ref="(\d+)"/g)].map((r) => r[1]);
-        const tags = {};
-        for (const t of m[2].matchAll(/<tag k="([^"]*)" v="([^"]*)"/g)) tags[t[1]] = t[2];
-        ways.set(m[1], { refs, tags });
-      }
-    }
+/** Read one file of the API's XML into `into`: nodes as [lat, lon], ways
+ * as their node ids and tags, relations as their members and tags. The
+ * XML is the API's own, read by its fixed shape. */
+function readXml(xml, into) {
+  for (const m of xml.matchAll(/<node id="(\d+)"[^>]*?lat="([-\d.]+)" lon="([-\d.]+)"/g)) {
+    into.nodes.set(m[1], [Number(m[2]), Number(m[3])]);
   }
-  return { nodes, ways };
+  const tagsOf = (body) => {
+    const tags = {};
+    for (const t of body.matchAll(/<tag k="([^"]*)" v="([^"]*)"/g)) tags[t[1]] = t[2];
+    return tags;
+  };
+  for (const m of xml.matchAll(/<way id="(\d+)"[^>]*>([\s\S]*?)<\/way>/g)) {
+    if (into.ways.has(m[1])) continue;
+    const refs = [...m[2].matchAll(/<nd ref="(\d+)"/g)].map((r) => r[1]);
+    into.ways.set(m[1], { refs, tags: tagsOf(m[2]) });
+  }
+  for (const m of xml.matchAll(/<relation id="(\d+)"[^>]*>([\s\S]*?)<\/relation>/g)) {
+    if (into.relations.has(m[1])) continue;
+    const members = [...m[2].matchAll(/<member type="way" ref="(\d+)" role="([^"]*)"/g)].map(
+      (r) => r[1],
+    );
+    into.relations.set(m[1], { members, tags: tagsOf(m[2]) });
+  }
+  return into;
+}
+
+/** Every node, way and relation of a face's tiles. */
+function readFace(face) {
+  const into = { nodes: new Map(), ways: new Map(), relations: new Map() };
+  for (let i = 0; i < TILES; i++) {
+    for (let j = 0; j < TILES; j++) readXml(readFileSync(tileFile(face, i, j), "utf8"), into);
+  }
+  return into;
+}
+
+/** A relation's whole self — every member way and its nodes — kept in
+ * `previews/.osm/` once fetched (the box call leaves out the members that
+ * lie wholly outside the box, and a forest's ring is not whole without
+ * them). Null when it is not kept and `--fetch` was not asked. */
+async function relationFull(id) {
+  const file = join(CACHE, `relation-${id}.osm`);
+  if (!existsSync(file)) {
+    if (!args.fetch) return null;
+    process.stdout.write(`fetching relation ${id}… `);
+    const res = await fetch(`${API.replace(/map$/, "")}relation/${id}/full`, {
+      headers: { "User-Agent": "fall-line-bake/1.0 (offline terrain bake, run by hand)" },
+    });
+    if (!res.ok) throw new Error(`relation ${id}: ${res.status} ${await res.text()}`);
+    writeFileSync(file, await res.text());
+    console.log("kept");
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return readFileSync(file, "utf8");
 }
 
 // ── What is kept ────────────────────────────────────────────────────────
@@ -276,8 +335,8 @@ function widthsOf(points, areas) {
 /** A face's hints on its map: lifts bottom to top, pistes down their line,
  * houses by their middle, size and bearing. `height` reads the face's own
  * baked heights, so a lift's bottom is the lower of its ends. */
-function hintsOf(face, height) {
-  const { nodes, ways } = readFace(face);
+function hintsOf(face, data, height) {
+  const { nodes, ways } = data;
   const lifts = [];
   const pistes = [];
   const houses = [];
@@ -404,6 +463,7 @@ function encode(h) {
 // ── Run ─────────────────────────────────────────────────────────────────
 
 const { faceHeight, loadRealFace, realFace } = await import("../engine/mapgen/real-face.ts");
+const { FACE_GRID } = await import("../engine/mapgen/real-faces-index.ts");
 
 const only = args.only ? new Set(args.only.split(",")) : null;
 const faces = FACES.filter((f) => !only || only.has(f.id));
@@ -411,31 +471,49 @@ if (args.fetch) {
   for (const face of faces) await fetchFace(face);
 }
 const baked = [];
-console.log("face            lifts  pistes  houses   bytes");
+console.log("face            lifts  pistes  houses   bytes  wooded  line m  missing  bands");
 for (const face of faces) {
   if (!(await loadRealFace(face.id))) throw new Error(`${face.id}: bake its heights first`);
   const grid = realFace(face.id);
-  const h = hintsOf(face, (x, z) => faceHeight(grid, x, z));
-  const data = encode(h);
-  baked.push({ id: face.id, data, grades: h.pistes.map((p) => GRADE_NAMES[p.grade]) });
+  const data = readFace(face);
+  const h = hintsOf(face, data, (x, z) => faceHeight(grid, x, z));
+  const { polys, missing } = await forestPolygons(face, data, relationFull, readXml);
+  const woods = woodsByHeight(rasterise(polys, FACE_GRID.n, FACE_GRID.cell), grid.heights);
+  const trees = woods.trees ? encodeTrees(woods.trees) : null;
+  const encoded = encode(h);
+  baked.push({
+    id: face.id,
+    data: encoded,
+    grades: h.pistes.map((p) => GRADE_NAMES[p.grade]),
+    trees,
+  });
+  const line = woods.trees ? (woods.lo + woods.trees.line * (woods.hi - woods.lo)).toFixed(0) : "-";
+  const bands = woods.trees ? woods.trees.bands.map((b) => b.toFixed(2)).join(" ") : "";
   console.log(
-    `${face.id.padEnd(16)}${String(h.lifts.length).padStart(5)}${String(h.pistes.length).padStart(8)}${String(h.houses.length).padStart(8)}${String(Math.round((data.length * 3) / 4)).padStart(8)}`,
+    `${face.id.padEnd(16)}${String(h.lifts.length).padStart(5)}${String(h.pistes.length).padStart(8)}${String(h.houses.length).padStart(8)}${String(Math.round((encoded.length * 3) / 4)).padStart(8)}${woods.share.toFixed(2).padStart(8)}${line.padStart(8)}${String(missing).padStart(9)}  ${bands}`,
   );
 }
 const total = baked.reduce((s, b) => s + b.data.length, 0);
 console.log(`${baked.length} faces, ${(total / 1024).toFixed(1)} KB of base64`);
 
 if (args.write) {
-  // The faces baked are written; every other face's file and grades are
-  // kept as they are, so adding a face never moves one already shipped.
+  // The faces baked are written; every other face's file, grades and woods
+  // are kept as they are, so adding a face never moves one already shipped.
+  // With --trees only the woods are written, every hint file kept.
   const grades = keptGrades();
+  const trees = keptTrees();
   for (const b of baked) {
-    console.log(`wrote ${writeHintFile(b)}`);
-    grades.set(b.id, b.grades);
+    if (!args.trees) {
+      console.log(`wrote ${writeHintFile(b)}`);
+      grades.set(b.id, b.grades);
+    }
+    if (b.trees) trees.set(b.id, b.trees);
+    else trees.delete(b.id);
   }
   writeHintIndex(
     FACES.map((f) => f.id),
     grades,
+    trees,
     { coarse: COARSE, fine: FINE, size: SIZE_STEP, width: WIDTH_STEP, bearings: BEARINGS },
   );
   console.log(`wrote ${HINT_INDEX}`);

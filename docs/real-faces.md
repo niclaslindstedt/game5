@@ -1,14 +1,20 @@
 # The real faces
 
-A free ride's resort can be raised on a REAL mountainside instead of the massif R25 deals. There are twenty of them: eleven in the alpine, four continental, three maritime and two on the fells. Each one is a 4×4 km stretch of a real ski mountain, from its summit ridge down to its valley floor, turned so its fall line runs down the map. The start card's SHAPE row picks the COUNTRY a face lies in and its PEAK row one of that country's faces (REAL 1, REAL 2, …, numbered in the country); picking one sets the CLIMATE row to the face's own region. A `?face=` link picks one too (`docs/configuration.md`).
+A free ride's resort can be raised on a REAL mountainside instead of the massif R25 deals. There are forty of them: twenty-one on the fells, eleven in the alpine, four continental and four maritime. By range, fourteen, seven and one lie in the three Nordic countries, eleven in the range across borders in the middle of Europe, and four, two and one in the three ranges overseas. Each one is a 4×4 km stretch of a real ski mountain, from its summit ridge down to its valley floor, turned so its fall line runs down the map. A `?face=` link picks one too (`docs/configuration.md`).
 
-The GRADE row filters them: a face whose real ski area signs no piste of the colour asked for is left off the PEAK row (and a country with none off the SHAPE row), and a face on the card that loses its colour gives way to one of its country's that has it, or to the seed's own massif (`pwa/src/game/face-picks.ts`). ORANGE leaves every face on, because the game lays its own ski routes on every face (R42).
+The start card names a face by PLACE, in three rows (`pwa/src/game/face-picks.ts`):
 
-A face is named by its region and a number and nothing else (`alpine-1`, `fell-3`, …). The repository names no real place, so a face is a position on the globe and a crop, never the name of the resort it was taken from. The one thing filed beside it is its COUNTRY, an ISO code in its crop row, which the start card shows by name (`strings-countries.ts`) — never anything finer.
+- **RANGE** — where it lies: a country where the range's ski areas all lie in one, or a range across borders. The Nordic ranges come first, then the rest by name. The first stop is the seed's own massif, AS DEALT.
+- **AREA** — the town or mountain its ski area is known by. A range's areas are listed as a walk across it: the most northerly first, then always the nearest one not yet listed, so stepping the row moves to a neighbour. An area's parts are listed the same way.
+- **PART** — the part of that area it is, shown only where the area has more than one part. Picking one sets the CLIMATE row to the face's own region.
+
+The GRADE row filters them: a part whose real ski area signs no piste of the colour asked for is left off, then an area with no part left, then a range with no area left. A face on the card that loses its colour gives way to a part of its own area that has it, then to one of its range's, or to the seed's own massif. ORANGE leaves every face on, because the game lays its own ski routes on every face (R42).
+
+A face's id is its region and a number (`alpine-1`, `fell-3`, …), a key that never moves. Its place — the range (a key, named in `strings-ranges.ts`), the area and the part — is written in its crop row (`scripts/lib/real-face-crops.mjs`) as the map writes the place, and baked into the face index. These three files are the only ones that name a real place. No brand, operator, lift, piste or race is named anywhere, and the bakes read no lift's or piste's name.
 
 ## Fetched when picked
 
-Every face is a pair of generated files of its own: its heights (`engine/mapgen/real-faces/face-<id>.ts`) and its hints (`engine/mapgen/real-hints/hints-<id>.ts`). Two small generated indexes list them: `real-faces-index.ts` (each face's region and country) and `real-hints-index.ts` (the grades each face's real pistes are signed). Only the indexes are in the bundle, about 150 bytes a face. A face's files are a chunk of their own, fetched when a map is raised on it (`loadRealFace`), and the service worker keeps each one once fetched, so a face ridden once rides offline. They are never precached.
+Every face is a pair of generated files of its own: its heights (`engine/mapgen/real-faces/face-<id>.ts`) and its hints (`engine/mapgen/real-hints/hints-<id>.ts`). Two small generated indexes list them: `real-faces-index.ts` (each face's region and place) and `real-hints-index.ts` (the grades each face's real pistes are signed, and its woods by height). Only the indexes are in the bundle, under 400 bytes of source a face (under 100 compressed). A face's files are a chunk of their own, fetched when a map is raised on it (`loadRealFace`), and the service worker keeps each one once fetched, so a face ridden once rides offline. They are never precached.
 
 Every host awaits `loadRealFace` before it raises or reads a face's map: the loading card's worker and the start card's, the load itself (`LoadPlan.face`, for the run's real houses), the boot (`main.tsx`, for a link's face or the stored ride's), and every lab that takes `--face`. Reading a face that is listed but not loaded throws, so a path that forgot to load one fails loudly rather than raising a different mountain.
 
@@ -17,7 +23,8 @@ Every host awaits `loadRealFace` before it raises or reads a face's map: the loa
 A face replaces the massif's SHAPE and nothing else.
 
 - **Kept from the real mountain.** The summit ridge and where its peak stands, the spurs and gullies, the shoulder and the lowest point of the valley (the village goes there), and the ground beside the ski area and behind the ridge, which the panorama and the far view show.
-- **Still dealt off the seed.** The vertical, kept in R25's band. The face is stretched to it, so its grades are the game's. The lifts, the runs walked and graded down it, the woods, the courses, the weather and the day are dealt too, all built onto the face as onto any massif, by the same rules and checked by the same analysis.
+- **Kept from the real woods.** Its tree line, and how wooded each height of it is (below).
+- **Still dealt off the seed.** The vertical, kept in R25's band. The face is stretched to it, so its grades are the game's. The lifts, the runs walked and graded down it, where each tree stands, the courses, the weather and the day are dealt too, all built onto the face as onto any massif, by the same rules and checked by the same analysis.
 - **Not taken from the real resort.** Its pistes and its lifts. The piste network is the generator's own.
 
 A real mountainside is far more rugged across its skiing face than the generator's lift and run planner can build on. Measured against each face's own mean profile, the faces stand 70–320 m RMS off it. So `massif.ts`'s `faceLift` lays the real relief in three ways:
@@ -41,15 +48,32 @@ A face also carries HINTS of the real ski area on it, read off OpenStreetMap. Th
 
 A real face holds its ski area to REALITY where a dealt massif is held to the rule book (`RR.massif.real.least`): it may carry four pistes rather than six, a top's pad may stand 0.6 m off its cut and a rope 1 m into its clearance (a real face is rougher than a dealt one), and a run laid on a real piste is billed the colour the piste is SIGNED where it measures within one colour of it, because a real ski area signs a run by more than its steepest pitch. Every other rule holds as on any map.
 
-The hints are used only on a face's first eight attempts (`real.hinted`), the same attempts the face's peak and village are read on. After that, the stations and runs are dealt as on any face. Measured on seed 1 over the twenty faces, a face took 4 attempts and 16 s to build before the runs were laid on real pistes and the rules gave way, and 1.45 attempts and 8 s after; a run's colour matched the real sign on 33 % of runs, up from 27 %. Nothing is kept by name: no lift, piste or place name is read. A map with no face reads no hint, so no dealt map moves.
+The hints are used only on a face's first eight attempts (`real.hinted`), the same attempts the face's peak and village are read on. After that, the stations and runs are dealt as on any face. Measured on seed 1 over the first twenty faces, a face took 4 attempts and 16 s to build before the runs were laid on real pistes and the rules gave way, and 1.45 attempts and 8 s after; a run's colour matched the real sign on 33 % of runs, up from 27 %. Nothing is kept by name: no lift, piste or place name is read. A map with no face reads no hint, so no dealt map moves.
 
 The bake works like the heights' bake:
 
-- `make real-hints ARGS=--fetch` reads each face's crop off the OpenStreetMap editing API, a few tiles a face, once, into the gitignored `previews/.osm/`.
+- `make real-hints ARGS=--fetch` reads each face's crop off the OpenStreetMap editing API, a few tiles a face, once, into the gitignored `previews/.osm/`. The tiles are kept under the face's id AND a key of its crop, so a face cropped afresh fetches its new tiles rather than reading the old crop's. A forest relation with members outside the tiles is fetched whole, once, beside them.
 - `ARGS="--only <id> --write"` turns them onto the face's map with the crop the heights were baked on (`scripts/lib/real-face-crops.mjs`) and writes them into the face's GENERATED file, `engine/mapgen/real-hints/hints-<id>.ts`, and its grades into the index. Every other face's file is kept as it is. Lift ends and piste bends are kept to 2 m, a piste's width to 2 m, and a house's middle and size to 1 m. That is about 7 KB a face.
+- `ARGS="--write --trees"` writes only the woods into the index, keeping every face's hint file as it is.
 - `make resort SEED=1 ARGS="--face=alpine-1 --hints"` draws the hints over the generator's plan: the real pistes thin in their grade's colour, the real lifts in magenta and the real houses as grey ticks.
 
 The map data is © OpenStreetMap contributors, available under the [Open Database Licence](https://opendatacommons.org/licenses/odbl/1-0/). The baked hints are a derived database and are offered under the same licence: every file under `engine/mapgen/real-hints/` and `real-hints-index.ts` says so in its header.
+
+## The real woods
+
+A face also carries its WOODS BY HEIGHT, read off the forest the real map draws (`landuse=forest` and `natural=wood`, as a closed way or a multipolygon relation's rings; a relation the map call leaves members of out is fetched whole once). The bake (`scripts/lib/real-face-forest.mjs`) rasterises that forest onto the face's own 126×126 height grid, every cell's middle in a wood or not (even-odd over the rings, so a clearing cut out as an inner ring is open), and bins the cells by height between the face's lowest and highest sample:
+
+- **The cover** in eight bands, bottom first: the share of each band's cells that is wooded.
+- **The tree line**: the top of the highest of 48 fine bins (of 12 cells or more) still wooded past 5 %, as a share of that relief.
+
+That is nine bytes a face, kept as hex in the always-loaded hint index (`HINT_TREES`), so no face's hint file had to change for it, and read by `realFaceTrees`. A face whose window is under 1 % wooded is kept as none: its map draws no forest (a bare high face, or one whose forest is not mapped), and its region's row stands in.
+
+On a map raised on a face with woods (and only then), the generator:
+
+- **Stands the tree line where the real one is.** The real line's height over the face's valley floor is stretched as the face is (`massif.ts`), so it lies on the map's vertical at the share of the real face's drop it stands at, instead of the region's share.
+- **Thins the woods by the real cover.** R14's logistic curve under the tree line is kept and scaled by how wooded the real face is at the same height, against its densest band (`resort-woods.ts`'s `faceWoods`): the densest band keeps the whole curve, a bare one a fifth of it, so a cleared valley floor or a bare upper slope reads as a wood thinned out, never a raster of the map's polygons.
+
+Measured over the forty, the real tree lines come out where the mountains' own are: 1,730–2,310 m in the alpine faces, 2,750–3,570 m in the continental range, 600–1,670 m in the maritime ones (the lowest on a fjord in the far north) and 480–1,180 m on the fells (the far north's lowest). Three faces have no woods of their own: two high alpine faces whose valley floors lie at or above the tree line, and a fell in the far north whose map draws no forest. The bake's table prints every face's wooded share, tree line and bands.
 
 ## The data
 

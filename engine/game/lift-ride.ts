@@ -606,10 +606,18 @@ const DOOR_STEP = { mouth: 0.35, inside: 0.2, at: [0.35, 0.6] as const };
 
 function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   const c = run.skier;
-  // Hung as the clock hangs every carrier (`carrierSwingAt`).
-  ride.swing = carrierSwingAt(plan, ride.u, 0);
-  const grip = along(plan, ride.u, upRope(plan));
   const gondola = plan.lift.kind === "gondola";
+  // Hung as the clock hangs every carrier (`carrierSwingAt`) — but a cabin
+  // he steps into off its platform hangs plumb, creeping on its rail, until
+  // he is in and its doors are shutting: the clock's pick-up off the load
+  // is not his cabin's yet, and a cabin swung under him as he walks in
+  // would put its door and back wall where the drawn one is not.
+  const plumb =
+    gondola && Number.isFinite(ride.from.y)
+      ? smoothstep(K.gondola.stepIn, K.gondola.stepIn + K.gondola.shut, ride.t)
+      : 1;
+  ride.swing = carrierSwingAt(plan, ride.u, 0) * plumb;
+  const grip = along(plan, ride.u, upRope(plan));
   // A cabin's grip runs on the station's rail through it (`gondolaGrip`).
   // ...and a chair's on its station's rail through the bottom terminal.
   const gy = gondola ? gondolaGrip(plan, ride.u) : carrierGripAt(plan, ride.u);

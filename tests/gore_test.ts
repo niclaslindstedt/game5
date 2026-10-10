@@ -11,6 +11,7 @@ import {
   GORE_PIECES,
   TUNING,
   bleedsOf,
+  woundFlow,
   lostPiece,
   mendBody,
   step,
@@ -115,6 +116,19 @@ describe("mortal wounds", () => {
     const g = s.gore!;
     expect(g.blood).toBeGreaterThan(0.2);
     expect(g.blood).toBeLessThanOrEqual(GORE.blood.volume);
+  });
+
+  it("close a torn artery in its spasm: a spurt at first, then an ooze that clots", () => {
+    const fresh = woundFlow(0);
+    expect(fresh.spurt).toBeGreaterThan(0.9);
+    // A few seconds on, the spurt is mostly gone; ten on, it is nothing.
+    expect(woundFlow(3).spurt).toBeLessThan(0.5);
+    expect(woundFlow(10).spurt).toBeLessThan(0.1);
+    // What wells out is a few per cent of the artery's flow, and clots too.
+    expect(fresh.ooze).toBeLessThan(0.1);
+    expect(woundFlow(30).ooze).toBeLessThan(fresh.ooze * 0.2);
+    // A bone end only oozes: nothing in it pumps.
+    expect(woundFlow(0, false).spurt).toBe(0);
   });
 
   it("bleed out of a part hit hard enough to split its skin, and inside out of a torn organ", () => {

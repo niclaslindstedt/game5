@@ -18,8 +18,8 @@
 //     bowel, which hangs out of him on its mesentery and drags; a crushed
 //     skull throws brain and pieces of its vault. A long bone broken into
 //     pieces stands out through the skin (an open fracture).
-//   * THE BLOOD (`gore-blood.ts`). Every wound spurts on the heart's beat —
-//     the jet thrown far on the pulse and dribbling between — and pools
+//   * THE BLOOD (`gore-blood.ts`). A torn artery spurts on the beat until
+//     its spasm closes it; anything slower wells out, in drops — and pools
 //     under a body lying still; his clothes soak red round every wound.
 //   * THE SPIKE. Run through on a tree's top, the bloodied point stands out of him.
 //   * THE DEAD LEFT LYING (`leave`). A rider who died is not tidied away
@@ -36,7 +36,9 @@ import {
   GORE_PIECES,
   TUNING,
   bleedsOf,
+  brokeAt,
   fracturesOf,
+  woundFlow,
   type BodyPart,
   type GameState,
   type GorePiece,
@@ -54,7 +56,8 @@ import {
   placeBreak,
 } from "./gore-bones.ts";
 import { createBlood, type Blood } from "./gore-blood.ts";
-import { DRIPS, faceRuns, hardLeaks, pourOf, type Cheek, type Leak } from "./gore-flow.ts";
+import { arterial, createDrips, faceRuns, hardLeaks, pourOf, STREAM } from "./gore-flow.ts";
+import type { Cheek, Leak } from "./gore-flow.ts";
 import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
 import { rotorStruck } from "./gore-rotor.ts";
 import { tillerSpray } from "./gore-tiller.ts";
@@ -194,8 +197,8 @@ const POINT_BONE: SkierBone[] = [
 ];
 
 /** The litres his clothes hold round a wound before it runs out at a
- * gap: a jacket's and its layers' worth of a cupful. */
-const HOLD = 0.1;
+ * gap: the cloth round it soaked through, a tablespoon or so. */
+const HOLD = 0.015;
 const G = 9.81;
 
 type Piece = {
@@ -328,7 +331,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   let poolClock = 0;
   // The litres each part hit hard bled into his clothes; run under each gap since the pools grew.
   const soakedIn = new Map<BodyPart, number>();
-  let drips = 0;
+  const drips = createDrips();
   const cheek: Cheek = { side: 1, lean: 0 }; // the cheek his face's blood runs over, how far
   const drift = new THREE.Vector3(); // his way smoothed, a stream carried along (raw, it jitters)
   /** The share of gravity the blood feels relative to him: 1 while the snow
@@ -532,7 +535,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
     crushed = false;
     bladed = 0;
     soakedIn.clear();
-    drips = 0;
+    drips.clear();
     drift.set(0, 0, 0);
     felt = 1;
     lastFall = 0;
@@ -788,9 +791,10 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       }
 
       // THE BLOOD. A torn wound has no cloth over it: it pours out where
-      // it is, pumped on the beat. Every part hit hard bleeds under his
-      // clothes until they hold no more, then runs out of the lowest gap
-      // in them (`gore-leaks.ts`). What reaches the snow pools under him.
+      // it is, pumped on the beat until its artery closes. Every part hit
+      // hard bleeds under his clothes until they hold no more, then runs
+      // out of the lowest gap in them (`gore-leaks.ts`) — a slow bleed in
+      // drops, not a stream (`gore-flow.ts`). What reaches the snow pools.
       const beat = g.rate > 0 ? g.pulse : 0;
       drift.lerp(carry, 1 - Math.exp(-dt / 0.2));
       if (simDt > 0) {
@@ -806,12 +810,9 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
       const wounds: Leak[] = [];
       for (const piece of cuts) {
         const c = cutOf(piece, f);
-        wounds.push({
-          at: world(c.at, M),
-          dir: worldDir(c.out, M),
-          share: GORE.blood.flow[PIECE_LOOK[piece].flow],
-          key: piece,
-        });
+        const torn = g.torn.find((p) => p.piece === piece)?.t ?? g.mortal;
+        const flow = arterial(GORE.blood.flow[PIECE_LOOK[piece].flow], state.t - torn);
+        wounds.push({ at: world(c.at, M), dir: worldDir(c.out, M), ...flow, key: piece });
       }
       GORE_OPEN.forEach((name, bit) => {
         if (!(g.open & (1 << bit))) return;
@@ -819,7 +820,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         wounds.push({
           at: world(o.at, M),
           dir: worldDir(o.out, M),
-          share: GORE.blood.flow[name],
+          ...arterial(GORE.blood.flow[name], state.t - g.mortal),
           key: name,
         });
       });
@@ -827,7 +828,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         wounds.push({
           at: world(f.head.head, M),
           dir: worldDir(f.head.y, M),
-          share: GORE.blood.flow.crush,
+          ...arterial(GORE.blood.flow.crush, state.t - g.crushed),
           key: "skull",
         });
       }
@@ -836,7 +837,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         wounds.push({
           at: new THREE.Vector3(i.x, i.y - i.sunk, i.z),
           dir: new THREE.Vector3(0, 1, 0),
-          share: GORE.blood.flow.impaled,
+          ...arterial(GORE.blood.flow.impaled, state.t - i.t),
           key: "spike",
         });
       }
@@ -847,7 +848,7 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           dir: new THREE.Vector3(0, 1, 0).applyQuaternion(
             mesh.getWorldQuaternion(new THREE.Quaternion()),
           ),
-          share: GORE.blood.flow.fracture,
+          share: GORE.blood.flow.fracture * woundFlow(state.t - brokeAt(state, bone), false).ooze,
           key: bone,
         });
       }
@@ -887,16 +888,12 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
           if (had < HOLD) continue;
         }
         const speed = pourOf(w, beat, g.rate);
-        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead, felt);
-        if (w.lead) {
-          // And it drips off the face, the more the faster it runs.
-          drips += simDt * Math.min(DRIPS, 4 + q * 600);
-          const n = Math.floor(drips);
-          if (n > 0) {
-            drips -= n;
-            blood.emit(w.at, w.dir, 0.5 + beat, n, 0.6, along, () => rng.next());
-          }
-        }
+        // A torn artery spurting streams whatever it pours; anything else
+        // streams only fast enough, and lets go as drops below that.
+        if (q >= STREAM || (w.spurt ?? 0) > 0.5)
+          blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead, felt);
+        const n = drips.count(w.key, w.lead || q < STREAM ? q : 0, simDt);
+        if (n > 0) blood.emit(w.at, w.dir, speed, n, 0.25, along, () => rng.next());
         // What reaches the snow under a gap lying on it pools there; a
         // share runs on under him, into the one pool round his body.
         if (w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {

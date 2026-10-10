@@ -79,6 +79,9 @@ const P = CHUTE.polar;
 const STAGES = CHUTE.deploy.stages;
 const IDLE: ChuteControls = { brake: 0, steer: 0, riser: 0 };
 const HANGING: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
+/** How quickly the jumper in the harness is turned after his canopy, s: on
+ * lines of four metres to a pair of risers, he faces where it flies. */
+const HARNESS = 0.06;
 const air: ParaAir = { x: 0, y: 0, z: 0, mean: 0, lift: 0, rough: 0, lee: 0 };
 const edge: AirBounds = { depth: 0, wx: 0, wz: 0, heading: 0 };
 const U = { x: 0, y: 1, z: 0 };
@@ -566,7 +569,7 @@ export function flyChute(state: GameState, input: SkierInput, events: GameEvent[
   if (c.airborne) {
     const lean = -ch.controls.riser * 0.2;
     const Fl = CHUTE.flare;
-    hangUnder(state, ch.canopyHeading, ch.bank, ch.agl, lean, Fl.stand, Fl.square);
+    hangUnder(state, ch.canopyHeading, ch.bank, ch.agl, lean, Fl.stand, Fl.square, HARNESS);
   } else {
     // DOWN ON HIS SKIS under it: let go of, and he skis on.
     cutAway(ch);

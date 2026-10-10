@@ -22,7 +22,8 @@
 //
 // WHAT IS COUNTED ON SKIS and what is not: the distance and the vertical
 // are the skier's own, on his skis and on his feet — never on a lift, in a
-// helicopter, on a snowmobile, under a wing, in a piste machine's cab, in
+// helicopter or the jump plane, falling from it or under its canopy, on a
+// snowmobile, under a wing, in a piste machine's cab, in
 // the lodge, or thrown off his skis tumbling down the hill. The machines
 // keep columns of their own.
 //
@@ -257,6 +258,11 @@ export function onSkis(s: GameState): boolean {
   const k = s.skier;
   if (k.thrown || k.lift) return false;
   if (s.heli?.rider) return false;
+  if (s.plane?.rider) return false;
+  // Falling from the plane or hung under the canopy: on his skis again once
+  // he is down on them, or cut away.
+  const ch = s.chute;
+  if (ch && !ch.done && ch.mode !== "landed" && ch.mode !== "released") return false;
   if (s.sled?.mode === "ridden") return false;
   if (s.para && s.para.mode !== "dropped") return false;
   if (s.afterski?.inside) return false;

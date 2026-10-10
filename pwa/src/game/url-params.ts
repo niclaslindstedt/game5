@@ -284,6 +284,12 @@ export type UrlParams = {
   balloon: boolean;
   /** A free ride begun on the snowmobile, over the card's RUN row. */
   sled: boolean;
+  /** A free ride begun in the jump plane's door, over the card's START row. */
+  plane: boolean;
+  /** A free ride begun IN FREEFALL this many metres over the snow under the
+   * plane's jump run (`?chute=<m>`, a lab's and a screenshot's way into the
+   * skydive), or null. */
+  chute: number | null;
   /** A free ride the grimbear hunts (true) or never shows on (false), over
    * the odds; null when the link names neither. */
   grimbear: boolean | null;
@@ -426,6 +432,8 @@ export function readParams(search: string): UrlParams {
     para: q.get("para") === "1",
     balloon: q.get("balloon") === "1",
     sled: q.get("sled") === "1",
+    plane: q.get("plane") === "1",
+    chute: chuteOf(q.get("chute")),
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
     afterski: q.get("afterski") === "1",
@@ -451,16 +459,25 @@ export function linkWorld(
 }
 
 /** A free ride's options with a link's sky, region, grade, helicopter,
- * snowmobile, paramotor and balloon laid over the card's. */
+ * snowmobile, paramotor, balloon, jump plane and skydive laid over the
+ * card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
-  // A link naming a machine is the start, whatever the card picked.
-  const named = params.heli || params.sled || params.para || params.balloon;
+  // A link naming a machine is the start, whatever the card picked — and
+  // names that one alone.
+  const sky = params.chute !== null;
+  const plane = params.plane || sky;
+  const named = params.heli || params.sled || params.para || params.balloon || plane;
+  const only = (mine: boolean, card: boolean | undefined): boolean =>
+    named ? mine : (card ?? false);
   return {
     ...ride,
-    heli: !params.para && !params.balloon && (params.heli || ride.heli),
-    sled: !params.para && !params.heli && !params.balloon && (params.sled || ride.sled),
-    para: !params.balloon && (params.para || (!params.heli && !params.sled && ride.para)),
-    balloon: params.balloon || (!named && ride.balloon),
+    heli: only(params.heli && !params.para && !params.balloon && !plane, ride.heli),
+    sled: only(params.sled && !params.para && !params.heli && !params.balloon && !plane, ride.sled),
+    para: only(params.para && !params.balloon, ride.para),
+    balloon: only(params.balloon, ride.balloon),
+    plane: only(plane && !params.para && !params.balloon, ride.plane),
+    chute: params.chute ?? ride.chute,
+    byLift: named ? false : ride.byLift,
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
     // A link's face is its own country's, whatever the card's: a link
@@ -472,6 +489,12 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     inLodge: params.afterski || ride.inLodge,
     buzz: params.buzz ?? ride.buzz,
   };
+}
+
+/** A link's skydive height: 30–6000 m over the snow, or null. */
+function chuteOf(raw: string | null): number | null {
+  const m = raw === null || raw.trim() === "" ? NaN : Number(raw);
+  return Number.isFinite(m) && m > 0 ? Math.min(6000, Math.max(30, m)) : null;
 }
 
 /** A frozen title time a link may name: 0–600 s. */

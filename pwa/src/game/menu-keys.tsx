@@ -24,7 +24,8 @@
 // THE HELICOPTER HAS A TABLE OF ITS OWN (`settings-heli-keys.ts`), its rows
 // under their own heading: flying it is another game on the same keyboard,
 // read only while he sits on the skid, so a key may serve the skier and the
-// helicopter both without a clash.
+// helicopter both without a clash. So has THE JUMP PLANE
+// (`settings-plane-keys.ts`), read only while he stands in its door.
 //
 // A KEY MAY SERVE TWO ACTIONS, and the manager applies every action a code
 // carries — but a key quietly doing two jobs is the one thing this page must
@@ -50,14 +51,26 @@ import {
   heliClashesWith,
   type HeliAction,
 } from "./settings-heli-keys.ts";
+import {
+  PLANE_KEY_ACTIONS,
+  bindPlaneKey,
+  freshPlaneKeys,
+  planeClashesWith,
+  type PlaneAction,
+} from "./settings-plane-keys.ts";
 import { STRINGS } from "./strings.ts";
 
 /** What each action is called, for the note on a row that shares its key. */
 const LABELS = new Map(KEY_ACTIONS.map((entry) => [entry.id, entry.label]));
 const HELI_LABELS = new Map(HELI_KEY_ACTIONS.map((entry) => [entry.id, entry.label]));
+const PLANE_LABELS = new Map(PLANE_KEY_ACTIONS.map((entry) => [entry.id, entry.label]));
 
-/** The row listening for its key: one of the skier's, or the helicopter's. */
-type Listening = { table: "ski"; id: KeyAction } | { table: "heli"; id: HeliAction };
+/** The row listening for its key: one of the skier's, the helicopter's or
+ * the plane's. */
+type Listening =
+  | { table: "ski"; id: KeyAction }
+  | { table: "heli"; id: HeliAction }
+  | { table: "plane"; id: PlaneAction };
 
 export function KeysPage({
   settings,
@@ -88,6 +101,11 @@ export function KeysPage({
       if (e.code === "Escape") return;
       if (listening.table === "ski")
         onSettings({ ...settings, keys: bindKey(settings.keys, listening.id, e.code) });
+      else if (listening.table === "plane")
+        onSettings({
+          ...settings,
+          planeKeys: bindPlaneKey(settings.planeKeys, listening.id, e.code),
+        });
       else
         onSettings({
           ...settings,
@@ -159,6 +177,34 @@ export function KeysPage({
             );
           })}
         </div>
+        {/* THE JUMP PLANE has a table of its own, as the helicopter has. */}
+        <h3 class="knob-section">{STRINGS.keysPlaneTitle}</h3>
+        <div class="knob-binds">
+          {PLANE_KEY_ACTIONS.map((entry) => {
+            const clash = planeClashesWith(settings.planeKeys, entry.id);
+            const others = clash.map((id) => PLANE_LABELS.get(id) ?? id).join(", ");
+            const on = listening?.table === "plane" && listening.id === entry.id;
+            return (
+              <BindRow
+                key={entry.id}
+                label={entry.label}
+                bound={boundLabel(settings.planeKeys[entry.id])}
+                listening={on}
+                clash={clash.length > 0 ? `${STRINGS.keysClash} ${others}` : null}
+                hint={
+                  clash.length > 0
+                    ? STRINGS.keysClashHint(entry.label, others)
+                    : STRINGS.keysRowHint(entry.label)
+                }
+                onListen={() => setListening(on ? null : { table: "plane", id: entry.id })}
+                onHint={setHint}
+              />
+            );
+          })}
+        </div>
+        {/* ...and out of its door the skier's own keys fly the skydive. */}
+        <h3 class="knob-section">{STRINGS.keysChuteTitle}</h3>
+        <p class="knob-note">{STRINGS.chuteKeysNote}</p>
         {/* THE SNOWMOBILE has no table of its own: the skier's keys ride it. */}
         <h3 class="knob-section">{STRINGS.keysSledTitle}</h3>
         <p class="knob-note">{STRINGS.sledKeysNote}</p>
@@ -173,7 +219,14 @@ export function KeysPage({
         <button
           type="button"
           class="opt-reset"
-          onClick={() => onSettings({ ...settings, keys: freshKeys(), heliKeys: freshHeliKeys() })}
+          onClick={() =>
+            onSettings({
+              ...settings,
+              keys: freshKeys(),
+              heliKeys: freshHeliKeys(),
+              planeKeys: freshPlaneKeys(),
+            })
+          }
         >
           {STRINGS.keysRestore}
         </button>

@@ -11,7 +11,11 @@
 // the RIGHT. About 2.8 t at its maximum, 1.3 t empty; it lifts off a few
 // hundred metres of packed snow and climbs about 5 m/s.
 //
-// THE FRAME is the skier's: x to the right, y up, z forward (the nose). The
+// THE FRAME is the skier's: x to the right, y up, z forward (the nose) —
+// the engine's right, which the picture shows MIRRORED (three.js's view from
+// behind mirrors the map, as `cockpit-plan.ts` says of the helicopter): so
+// the jump door, on the plane's right as a pilot in it sees it, and the
+// pilot's left seat are stated at the engine's −x and +x. The
 // origin is THE GROUND DATUM: the snow under the middle of the two main
 // skis with the fuselage held LEVEL (its reference line horizontal) — so a
 // plane in level flight attitude resting on its main skis stands at
@@ -133,18 +137,19 @@ export const PLANE = {
   /** THE CABIN behind the pilot: the floor's height, its front and back
    * along z, its width and height, m. [est.] */
   cabin: { floor: 1.0, front: 1.2, back: -2.3, width: 1.16, height: 1.3 },
-  /** THE JUMP DOOR on the RIGHT, slid open aft along the outside: its
-   * plane (x), its front and back edges along z and its sill and lintel,
+  /** THE JUMP DOOR on the RIGHT as seen from the seat (the engine's −x —
+   * see THE FRAME), slid open aft along the outside: its plane (x), its front and back edges along z and its sill and lintel,
    * m — a 1.58 m double door under the wing's trailing edge, aft of the
    * strut's foot. [class sheet: 1.58 m combined width] */
-  door: { x: 0.62, front: -0.12, back: -1.7, bottom: 1.05, top: 2.15 },
+  door: { x: -0.62, front: -0.12, back: -1.7, bottom: 1.05, top: 2.15 },
   /** WHERE THE SKIER STANDS in the door, body frame, m: the floor under
    * his skis on the sill, crouched under the lintel facing forward along
    * the fuselage (the poised exit), and how high his body's origin stands
    * over that floor crouched. */
-  jumper: { x: 0.4, y: 1.0, z: -0.92, height: 0.62 },
-  /** THE PILOT'S EYE in the left seat, body frame, m. */
-  pilotEye: { x: -0.3, y: 2.22, z: 0.72 },
+  jumper: { x: -0.4, y: 1.0, z: -0.92, height: 0.62 },
+  /** THE PILOT'S EYE in the left seat as he sees it (the engine's +x),
+   * body frame, m. */
+  pilotEye: { x: 0.3, y: 2.22, z: 0.72 },
 
   /** THE AIR ON IT (`plane.ts`'s per-surface model):
    *   * `lift` the 3D lift slope a rad of each surface (Helmbold off its
@@ -315,9 +320,13 @@ export const PLANE = {
    * airborne bounds' height), m, the
    * height it flares at, m, how far short of the threshold the glide path
    * meets the snow (the flare floats it on past), m, and the jump run's
-   * height over the summit, m. On the take-off
-   * roll: the speed the tail is let fly at, m/s, the pitch it is held at
-   * tail up and lifted off at, rad, and the most forward stick it takes. */
+   * height over the summit, m — 2,000 m puts the exit 2,500–2,800 m over
+   * the snow under the door, a sport jump's 40–50 s of freefall to the
+   * pull, about ten and a half minutes of climb off the strip (`make
+   * skydive-flight`; 500 m gave a 1,200 m hop and 1,500 m about 2,000 m).
+   * On the take-off roll: the speed the tail is let fly at, m/s, the
+   * pitch it is held at tail up and lifted off at, rad, and the most
+   * forward stick it takes. */
   pilot: {
     rotate: 28,
     tailUp: 15,
@@ -338,7 +347,7 @@ export const PLANE = {
     edge: 150,
     flare: 5,
     aim: 80,
-    jumpHeight: 500,
+    jumpHeight: 2000,
   },
 
   /** THE PILOT FLYING HOME after the jump: the beat the controls stay

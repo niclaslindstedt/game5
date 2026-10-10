@@ -14,6 +14,7 @@ import "./sled.css";
 import "./afterski.css";
 import "./para.css";
 import "./balloon.css";
+import "./plane.css";
 import "./stats.css";
 import "./replay.css";
 import "./title.css";

@@ -27,6 +27,7 @@
 // once however long the key is down.
 
 import {
+  PLANE,
   TUNING,
   createStopHand,
   stopHand,
@@ -56,6 +57,15 @@ import {
   type TouchChannel,
 } from "./input-model.ts";
 import { DEFAULT_HELI_KEYS, type HeliAction, type HeliBindings } from "./settings-heli-keys.ts";
+import {
+  NO_PLANE_KEYS,
+  createPlaneModel,
+  nudgeFlaps,
+  samplePlane,
+  seatPlaneModel,
+  type PlaneKeysHeld,
+} from "./input-plane.ts";
+import { DEFAULT_PLANE_KEYS, type PlaneAction, type PlaneBindings } from "./settings-plane-keys.ts";
 import { watchGazeDrags } from "./lift-gaze-watch.ts";
 import { gazeAllowed } from "./lift-gaze.ts";
 
@@ -71,7 +81,9 @@ export type InputManager = {
    * he is on, where a drag looks round rather than holds the tuck while it
    * carries him (`lift-gaze.ts`); `basket` whether he stands in the
    * balloon's basket, where the walking pad (`hud-balloon.tsx`) walks him
-   * across and along it. */
+   * across and along it; `plane` the jump plane he stands in the door of,
+   * flying it (`input-plane.ts`) — its airspeed, m/s, and the levers it
+   * was boarded with — or null. */
   sample: (
     dt: number,
     airborne?: boolean,
@@ -79,6 +91,7 @@ export type InputManager = {
     down?: boolean,
     lift?: LiftRide | null,
     basket?: boolean,
+    plane?: PlaneHand | null,
   ) => SkierInput;
   /** The player's input for a step of `state`: `sample` read off the run,
    * then THE ONE-KEY BRAKE AND THE CLIMB (`stop-hand.ts`) made of its back
@@ -99,16 +112,28 @@ export type InputManager = {
   /** Queue one JUMP press, as a tap of the jump key — the afterski room's
    * tap on the picture, which orders another round, lands here. */
   requestJump: () => void;
+  /** The plane's flap lever moved a notch (`dir` +1 down, −1 up) — the
+   * HUD's flap press on touch (`hud-plane.tsx`). */
+  requestFlaps: (dir: number) => void;
   /** Hear the drags that look round from the lift, CSS px. */
   onLook: (handler: (dx: number, dy: number) => void) => void;
   /** Hear the app-level presses. */
   onAction: (handler: (action: InputAction) => void) => void;
   /** Ride on a new keyboard (OPTIONS ▸ KEYS) — the skier's table and the
-   * helicopter's (`settings-heli-keys.ts`). Every held key is let go: a key
-   * down under the old layout has no keyup under the new one. */
-  setBindings: (bindings: { keys: KeyBindings; heliKeys?: HeliBindings }) => void;
+   * helicopter's (`settings-heli-keys.ts`) and the plane's
+   * (`settings-plane-keys.ts`). Every held key is let go: a key down under
+   * the old layout has no keyup under the new one. */
+  setBindings: (bindings: {
+    keys: KeyBindings;
+    heliKeys?: HeliBindings;
+    planeKeys?: PlaneBindings;
+  }) => void;
   dispose: () => void;
 };
+
+/** The jump plane as the hand flying it needs it: its airspeed, m/s, and
+ * the levers as they stand on it (what the hand is seated to as he boards). */
+export type PlaneHand = { airspeed: number; throttle: number; flaps: number };
 
 /**
  * `claiming` says whether a RACE is being ridden right now. The listeners
@@ -139,6 +164,19 @@ export function createInputManager(
     }
   };
   indexHeli(DEFAULT_HELI_KEYS);
+  // THE PLANE'S HAND, the same way: its own table, read only while he
+  // stands in its door, and its levers seated to the plane's as he boards.
+  const plane = createPlaneModel();
+  let aboard = false;
+  const planeKeys: PlaneKeysHeld = { ...NO_PLANE_KEYS };
+  const planeByCode = new Map<string, PlaneAction[]>();
+  const indexPlane = (next: PlaneBindings): void => {
+    planeByCode.clear();
+    for (const [action, codes] of Object.entries(next) as [PlaneAction, string[]][]) {
+      for (const code of codes) planeByCode.set(code, [...(planeByCode.get(code) ?? []), action]);
+    }
+  };
+  indexPlane(DEFAULT_PLANE_KEYS);
   const touch = neutralTouch();
   let reset = false;
   /** THE MACHINE PRESS (ENTER), kept until a step has seen it. */
@@ -184,6 +222,11 @@ export function createInputManager(
       heliKeys[action] = true;
       took = true;
     }
+    for (const action of planeByCode.get(e.code) ?? []) {
+      if (!claiming()) continue;
+      planeKeys[action] = true;
+      took = true;
+    }
     const actions = byCode.get(e.code);
     if (!actions) {
       if (took) e.preventDefault();
@@ -221,6 +264,7 @@ export function createInputManager(
       if (isHeldAction(action)) keys[action] = false;
     }
     for (const action of heliByCode.get(e.code) ?? []) heliKeys[action] = false;
+    for (const action of planeByCode.get(e.code) ?? []) planeKeys[action] = false;
   };
   // A TAP ANYWHERE — on the glass, the thumb zones included, taken on the
   // way down before a zone keeps it — but never on one of the HUD's own
@@ -233,6 +277,7 @@ export function createInputManager(
   const onBlur = (): void => {
     for (const k of Object.keys(keys) as (keyof KeysHeld)[]) keys[k] = false;
     for (const k of Object.keys(heliKeys) as HeliAction[]) heliKeys[k] = false;
+    for (const k of Object.keys(planeKeys) as PlaneAction[]) planeKeys[k] = false;
   };
 
   // LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): every drag on a run, which
@@ -252,10 +297,18 @@ export function createInputManager(
 
   const hand = createStopHand();
   const manager: InputManager = {
-    sample: (dt, airborne = false, flying = false, down = false, lift = null, basket = false) => {
+    sample: (
+      dt,
+      airborne = false,
+      flying = false,
+      down = false,
+      lift = null,
+      basket = false,
+      inPlane = null,
+    ) => {
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
-      const input = sampleInput(model, held, touch, dt, reset, airborne, flying);
+      const input = sampleInput(model, held, touch, dt, reset, airborne, flying || !!inPlane);
       // A thumb dragged to look round from the lift is no tuck held to skip it.
       carriedNow = gazeAllowed(lift);
       if (carriedNow && gaze.dragging()) input.tuck = 0;
@@ -263,6 +316,13 @@ export function createInputManager(
       // controls.
       if (flying) input.heli = sampleHeli(heli, heliKeys, touch, dt);
       else heli.collective = 0;
+      // In the plane's door its table is the hand: the stick, the pedals,
+      // the power and the flaps — seated to the plane's own as he boards.
+      if (inPlane) {
+        if (!aboard) seatPlaneModel(plane, inPlane);
+        aboard = true;
+        input.plane = samplePlane(plane, planeKeys, touch, dt, inPlane.airspeed);
+      } else aboard = false;
       // In the balloon's basket the walking pad owns both ways he walks.
       if (basket && touch.stick) walkPad(input, touch);
       // On or off a machine: ENTER, or the double tap on touch.
@@ -278,6 +338,7 @@ export function createInputManager(
     },
     ride: (state) => {
       const c = state.skier;
+      const p = state.plane;
       const input = manager.sample(
         TUNING.dt,
         c.airborne,
@@ -285,6 +346,16 @@ export function createInputManager(
         c.thrown !== null,
         c.lift,
         !!state.balloon?.aboard,
+        p?.rider
+          ? {
+              airspeed: p.airspeed,
+              throttle: p.controls.throttle,
+              // Boarded on the snow, the lever on the take-off flap.
+              flaps: p.grounded
+                ? Math.max(p.controls.flaps, PLANE.pilot.flapsOff)
+                : p.controls.flaps,
+            }
+          : null,
       );
       const go = keys.tuck || (touch.lever && touch.tuck > 0.5);
       return stopHand(hand, state, { back: model.back === "brake", go }, input);
@@ -302,6 +373,9 @@ export function createInputManager(
     requestJump: () => {
       jumped = true;
     },
+    requestFlaps: (dir) => {
+      nudgeFlaps(plane, dir);
+    },
     onLook: (handler) => {
       onLook = handler;
     },
@@ -312,6 +386,7 @@ export function createInputManager(
       onBlur();
       index(next.keys);
       indexHeli(next.heliKeys ?? DEFAULT_HELI_KEYS);
+      indexPlane(next.planeKeys ?? DEFAULT_PLANE_KEYS);
     },
     dispose: () => {
       gaze.stop();

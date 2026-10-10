@@ -4043,6 +4043,16 @@ canvas {
   pointer-events: none;
 }
 
+/* THE JUMP PLANE'S STRIP under the pulse at its middle: a runway's white
+   line on a dark casing. */
+.seed-preview-strip {
+  pointer-events: none;
+  stroke: var(--snow);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 0.6px rgb(0 0 0 / 0.9));
+}
+
 .seed-preview-entry-ring {
   fill: rgb(0 0 0 / 0.35);
   stroke: var(--snow);

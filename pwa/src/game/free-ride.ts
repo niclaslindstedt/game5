@@ -261,6 +261,17 @@ export function balloonOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === BALLOON_RUN;
 }
 
+/** THE START ROW'S PLANE STOP: the JUMP PLANE on its strip below the
+ * village (`plane.ts`, `airstrip.ts`) — the ride begun stood in its open
+ * door on his skis, the rig on his back, the engine running and the plane
+ * his to fly. A run id of its own, as the machines' are. */
+export const PLANE_RUN = "plane";
+
+/** Whether the ride on `seed` begins in the jump plane's door. */
+export function planeOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === PLANE_RUN;
+}
+
 /** THE RUN ROW'S AFTERSKI STOP: no run and no machine, but INSIDE the
  * valley's afterski lodge (`afterski.ts`) — the ride begun at the party,
  * his skis in the rack, the beers coming round, and the machine press the
@@ -405,9 +416,10 @@ export function freeGameOptions(
   const sled = sledOn(ride, seed);
   const para = paraOn(ride, seed);
   const balloon = balloonOn(ride, seed);
+  const plane = planeOn(ride, seed);
   // SAFE FOR WORK the lodges are shut: no ride begins at the party.
   const party = !skier.sfw && afterskiOn(ride, seed);
-  const vehicle = heli || sled || para || balloon || party;
+  const vehicle = heli || sled || para || balloon || plane || party;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
@@ -429,6 +441,8 @@ export function freeGameOptions(
     para,
     // THE HOT AIR BALLOON: in its basket on the valley floor, tethered.
     balloon,
+    // THE JUMP PLANE: stood in its door on the strip, the engine running.
+    plane,
     // THE AFTERSKI: inside the valley's lodge, the party under way.
     inLodge: party,
     snowDepth: depthOf(ride.snow),
@@ -448,7 +462,7 @@ export function freeGameOptions(
     // whose run passes nearest the start line, led off its top onto that run.
     // (The afterski asks for the chair too: a map with no lodge — which
     // the card never offers it on — comes onto the mountain by lift.)
-    byLift: spot === null && !(heli || sled || para || balloon),
+    byLift: spot === null && !(heli || sled || para || balloon || plane),
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
@@ -500,14 +514,16 @@ export function freeRestart(
 /** WHERE THE NEXT RIDER STANDS once this one is dead: the start of a race
  * or a tricks run; on a free ride, wherever the restart's options `next`
  * (`freeTopOptions`) put him, read in the order `createGame` reads them —
- * the balloon's basket, the paramotor's summit, the helicopter's pad, the
- * snowmobile, then the top of the last piste skied, else the start line. */
-export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket";
+ * the balloon's basket, the paramotor's summit, the plane's door on its
+ * strip, the helicopter's pad, the snowmobile, then the top of the last piste
+ * skied, else the start line. */
+export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip";
 
 export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainAt {
   if (rules.course || rules.tricks || !next) return "start";
   if (next.balloon && !next.inLodge) return "basket";
   if (next.para) return "summit";
+  if (next.plane && !next.inLodge) return "strip";
   if (rules.heli && next.heli) return "pad";
   if (rules.sled && next.sled) return "sled";
   return next.run !== undefined ? "top" : "start";

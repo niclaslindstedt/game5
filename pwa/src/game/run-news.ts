@@ -231,6 +231,35 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "restart") return { text: STRINGS.newsBalloonRestart, tone: "info" };
       if (e.phase === "crash") return { text: STRINGS.newsBalloonCrash, tone: "bad" };
       return null;
+    case "plane":
+      // The jump plane: aboard at its door, off the strip and down on it,
+      // the stall horn, out of the door (from how high over the snow), off
+      // it on the snow, its pilot home, flown into the mountain, begun again.
+      if (e.phase === "board") return { text: STRINGS.newsPlaneBoard, tone: "info" };
+      if (e.phase === "liftoff") return { text: STRINGS.newsPlaneLiftoff, tone: "good" };
+      if (e.phase === "land") return { text: STRINGS.newsPlaneLand, tone: "info" };
+      if (e.phase === "stall") return { text: STRINGS.newsPlaneStall, tone: "bad" };
+      if (e.phase === "jump")
+        return {
+          text: STRINGS.newsPlaneJump(e.y - state.level.groundAt(e.x, e.z)),
+          tone: "good",
+        };
+      if (e.phase === "stepoff") return { text: STRINGS.newsPlaneStepoff, tone: "info" };
+      if (e.phase === "home") return { text: STRINGS.newsPlaneHome, tone: "info" };
+      if (e.phase === "crash") return { text: STRINGS.newsPlaneCrash, tone: "bad" };
+      return { text: STRINGS.newsPlaneRestart, tone: "info" };
+    case "chute":
+      // The skydive: out, the pilot chute thrown, line stretch, open (at
+      // the opening's load), cut away, down on the skis, caught, again.
+      if (e.phase === "exit") return { text: STRINGS.newsChuteExit, tone: "good" };
+      if (e.phase === "open-start") return { text: STRINGS.newsChuteThrow, tone: "info" };
+      if (e.phase === "line-stretch") return { text: STRINGS.newsChuteLines, tone: "info" };
+      if (e.phase === "open") return { text: STRINGS.newsChuteOpen(e.g ?? 0), tone: "good" };
+      if (e.phase === "release") return { text: STRINGS.newsChuteRelease, tone: "bad" };
+      if (e.phase === "land") return { text: STRINGS.newsChuteLand, tone: "good" };
+      if (e.phase === "snag")
+        return { text: STRINGS.newsChuteSnag(state.chute?.snag?.on === "tree"), tone: "bad" };
+      return { text: STRINGS.newsChuteRestart, tone: "info" };
     default:
       return null;
   }

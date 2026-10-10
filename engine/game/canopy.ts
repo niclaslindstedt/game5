@@ -238,7 +238,8 @@ const BANK_MOST = 1.15;
 /** THE PILOT IN THE HARNESS, off the snow `agl` m: turned to the wing's
  * `heading`, hung under its `bank`, leant `lean` rad (forward negative) —
  * and, near the snow (from `stand` m over it, fully by `square` m), stood
- * up with his skis squared to the slope under him to land. */
+ * up with his skis squared to the slope under him to land; swung after the
+ * wing over `swing` s. */
 export function hangUnder(
   state: GameState,
   heading: number,
@@ -247,6 +248,7 @@ export function hangUnder(
   lean: number,
   stand: number,
   square: number,
+  swing: number = SWING,
 ): void {
   const c = state.skier;
   const level = state.level;
@@ -266,7 +268,7 @@ export function hangUnder(
   const b = clamp(bank, -BANK_MOST, BANK_MOST);
   const wantPitch = slopePitch * sq + lean * (1 - sq);
   const wantRoll = b * (1 - sq) + slopeRoll * sq;
-  const k = 1 - Math.exp(-dt / SWING);
+  const k = 1 - Math.exp(-dt / swing);
   let dh = heading - c.heading;
   dh = Math.atan2(Math.sin(dh), Math.cos(dh));
   const h = c.heading + dh * k;

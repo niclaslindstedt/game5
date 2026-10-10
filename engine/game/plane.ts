@@ -659,7 +659,7 @@ function release(run: GameState, p: PlaneState, out: number, up: number): void {
   const omega = rotate(p.q, { x: p.wx, y: p.wy, z: p.wz });
   const cog = rotate(p.q, COG);
   const r = { x: s.x - (p.x + cog.x), y: s.y - (p.y + cog.y), z: s.z - (p.z + cog.z) };
-  const side = rotate(p.q, { x: 1, y: 0, z: 0 });
+  const side = rotate(p.q, { x: Math.sign(K.door.x), y: 0, z: 0 });
   const lift = rotate(p.q, { x: 0, y: 1, z: 0 });
   const flat = hypot(p.vx, p.vz);
   const heading = flat > 4 ? Math.atan2(p.vx, p.vz) : p.heading;
@@ -689,7 +689,7 @@ function jump(run: GameState, p: PlaneState, events: GameEvent[]): void {
  * plane, which the pilot shuts down where it stands. */
 function stepOff(run: GameState, p: PlaneState, events: GameEvent[]): void {
   const s = doorFrame(p);
-  const side = rotate(p.q, { x: 1, y: 0, z: 0 });
+  const side = rotate(p.q, { x: Math.sign(K.door.x), y: 0, z: 0 });
   const out = 1.6;
   p.rider = false;
   standSkier(run, s.x + side.x * out, s.z + side.z * out, p.heading);

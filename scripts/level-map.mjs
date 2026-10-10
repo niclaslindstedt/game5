@@ -60,6 +60,8 @@ const args = parseArgs(
   },
   "usage: npm run level -- --seed n [--scale px/m] [--out name] [--json] [--tricks] [--region id] [--grade id]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/mapgen/index.ts"))).loadRealFace(args.face);
 
 // ── Build it ────────────────────────────────────────────────────────────
 const t0 = performance.now();

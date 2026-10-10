@@ -2,8 +2,9 @@
 // R25 — A REAL FACE'S HINTS: where the real ski area on a real face has
 // its lifts, its pistes and its houses, coarsely.
 //
-// Baked offline off OpenStreetMap by `scripts/real-hints.mjs` into
-// `real-hints-data.ts` (generated, under the Open Database Licence) on the
+// Baked offline off OpenStreetMap by `scripts/real-hints.mjs` into a
+// generated file a face (`real-hints/hints-<id>.ts`, under the Open
+// Database Licence, listed in `real-hints-index.ts`) on the
 // same crop as the face's heights, so a hint stands on the map where the
 // real lift, piste or house stands on the face. Nothing is named: a lift
 // is its two ends and its kind, a piste its grade and a few bends down its
@@ -15,8 +16,8 @@
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { PISTE_GRADES, type PisteGrade, type RunGrade } from "./grades.ts";
-import { HINT_DATA, HINT_GRAIN, type HintData } from "./real-hints-data.ts";
-import { base64 } from "./real-face.ts";
+import { base64 } from "./base64.ts";
+import { HINT_GRAIN, HINT_LOADERS, type HintData } from "./real-hints-index.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 
 /** A real lift: its kind and its ends, the bottom the lower. */
@@ -56,14 +57,36 @@ export type Point = { readonly x: number; readonly z: number };
 const KINDS = ["chair", "gondola", "drag"] as const;
 const GRADES: readonly RunGrade[] = ["green", "blue", "red", "black", "orange"];
 
+const loaded = new Map<string, HintData>();
 const decoded = new Map<string, RealHints>();
 
-/** A face's hints by its id, decoded once; null for a face with none. */
+/** Whether a face has hints at all. */
+export function faceHasHints(id: string): boolean {
+  return HINT_LOADERS[id] !== undefined;
+}
+
+/** Fetch a face's hints, once — `loadRealFace`'s half; true for a face
+ * with none. */
+export async function loadRealHints(id: string): Promise<boolean> {
+  const load = HINT_LOADERS[id];
+  if (!load) return true;
+  if (!loaded.has(id)) loaded.set(id, (await load()).HINTS);
+  return true;
+}
+
+/** Whether a face's hints are in hand. */
+export function realHintsLoaded(id: string): boolean {
+  return loaded.has(id);
+}
+
+/** A face's hints by its id, decoded once; null for a face with none.
+ * Throws for a face whose hints are not loaded (`loadRealFace`). */
 export function realHints(id: string): RealHints | null {
   const kept = decoded.get(id);
   if (kept) return kept;
-  const data = HINT_DATA.find((h) => h.id === id);
-  if (!data) return null;
+  if (!faceHasHints(id)) return null;
+  const data = loaded.get(id);
+  if (!data) throw new Error(`real face ${id} is not loaded (loadRealFace)`);
   const hints = decode(data);
   decoded.set(id, hints);
   return hints;

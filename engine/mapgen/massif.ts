@@ -43,7 +43,7 @@ import {
 import { sampleNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
-import { FACE_GRID } from "./real-faces-data.ts";
+import { FACE_GRID } from "./real-faces-index.ts";
 import { faceExtreme, faceHeight, faceMean, type RealFace } from "./real-face.ts";
 import { realHints } from "./real-hints.ts";
 import { scaleBand, scaleCount, type Region } from "./regions.ts";

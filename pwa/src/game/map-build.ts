@@ -9,18 +9,27 @@
 // this thread can already stand up in milliseconds — off the ski area it
 // built last (`levelIsCached`) — is never sent: it is built here, at once.
 
-import { boundLevel, generateLevel, levelFor, levelIsCached, type Level } from "@engine";
+import {
+  boundLevel,
+  generateLevel,
+  levelFor,
+  levelIsCached,
+  realFaceLoaded,
+  type Level,
+} from "@engine";
 
-import type { MapJob, MapOrder, MapWorkerReply } from "./map-order.ts";
+import { faceOfOrder, type MapJob, type MapOrder, type MapWorkerReply } from "./map-order.ts";
 
 export { gameOrder } from "./map-order.ts";
 
 /** Whether this thread would stand the map up off the ski area it built
  * last — a park's map is never a ski area's. */
 function cachedHere(order: MapOrder): boolean {
+  const face = faceOfOrder(order);
+  if (face && !realFaceLoaded(face)) return false;
   if ("generate" in order) return levelIsCached(order.seed, order.generate);
   if (order.game.mode === "tricks") return false;
-  return levelIsCached(order.seed, { region: order.game.region });
+  return levelIsCached(order.seed, { region: order.game.region, face: order.game.face });
 }
 
 /** A job already answered. */

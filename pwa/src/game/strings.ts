@@ -19,6 +19,7 @@ import { REPLAY_STRINGS } from "./strings-replay.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
+import { COUNTRY_NAMES } from "./strings-countries.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
 import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
@@ -460,9 +461,9 @@ export const STRINGS = {
   startMap: "MOUNTAIN",
   startMapHint: "Which mountain: every seed is another face. Type one, or step through them.",
   startReroll: "ANOTHER MOUNTAIN",
-  startRegion: "COUNTRY",
+  startRegion: "CLIMATE",
   startRegionHint:
-    "What kind of snow country the mountain is raised in: the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",
+    "What kind of snow country the mountain is raised in (a real mountainside brings its own): the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",
   /** The REGION row's stops (R21) — a kind of country, never a place. */
   regionNames: {
     alpine: "ALPINE",
@@ -472,9 +473,15 @@ export const STRINGS = {
   },
   startFace: "SHAPE",
   startFaceHint:
-    "The mountain's shape: the seed's own, or one of this country's real mountainsides, read off a satellite survey — its ridge, spurs and gullies, with the seed's lifts and runs laid down it.",
-  /** A real face on the SHAPE row: numbered in its country, never named. */
+    "The mountain's shape: the seed's own, or a real mountainside in one of these countries, read off a satellite survey — its ridge, spurs and gullies, with the real ski area's lifts and runs laid down it as near as the seed's own allow. Only the countries with a run of the GRADE row's colour are listed.",
+  startPeak: "PEAK",
+  startPeakHint:
+    "Which of the country's real mountainsides. Its climate is its own: picking one sets the CLIMATE row.",
+  /** A real face on the PEAK row: numbered in its country, never named. */
   faceName: (n: number): string => `REAL ${n}`,
+  /** A real face's country on the SHAPE row (ISO 3166-1 alpha-2 to its
+   * name), the code itself for one this table lacks. */
+  countryName: (code: string): string => COUNTRY_NAMES[code] ?? code,
   startGrade: "GRADE",
   startGradeHint:
     "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %), black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it — or orange: a ski route past any black, 38° to 48°, never groomed, marked down the mountain as it lies. The mountain's own, or one of the five.",

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // R25 — A REAL FACE: the massif's shape read off a real mountainside.
 //
-// A resort can be raised on one of twenty REAL faces instead of the massif
+// A resort can be raised on one of the REAL faces instead of the massif
 // `massif.ts` deals: a 4×4 km stretch of a real ski mountain, its summit
 // ridge along the map's top and its valley floor along the bottom, baked
-// offline off the 30 m elevation model by `scripts/real-faces.mjs` into
-// `real-faces-data.ts` (generated). What the face replaces is the massif's
+// offline off the 30 m elevation model by `scripts/real-faces.mjs` into a
+// generated file a face (`real-faces/face-<id>.ts`), listed in
+// `real-faces-index.ts`. What the face replaces is the massif's
 // SHAPE — the ridge, the profile, the bench, the folds a dealt mountain is
 // given — and nothing else: the vertical is still dealt in R25's band (the
 // face stretched to it, so its grades are the game's), the peak, the
@@ -16,9 +17,21 @@
 // any massif, by the same rules and the same analysis.
 //
 // A face is named by its region and a number, never by a place: the rule
-// book names no real one.
+// book names no real one. The start card files it under its COUNTRY and
+// nothing finer.
+//
+// A FACE IS LOADED BEFORE IT IS READ. Its heights and its hints are a
+// chunk of their own, fetched only when a map is raised on it
+// (`loadRealFace`), so the bundle carries the index alone however many
+// faces there are. Reading a face that is listed but not loaded THROWS —
+// a host that raised a map on it without loading it first would otherwise
+// build a different mountain without a word.
 
-import { FACE_DATA, FACE_GRID, type FaceData } from "./real-faces-data.ts";
+import { base64 } from "./base64.ts";
+import { RUN_GRADES, type RunGrade } from "./grades.ts";
+import { FACE_GRID, FACE_INDEX, FACE_LOADERS, type FaceData } from "./real-faces-index.ts";
+import { faceHasHints, loadRealHints, realHintsLoaded } from "./real-hints.ts";
+import { HINT_GRADES } from "./real-hints-index.ts";
 import type { RegionId } from "./regions.ts";
 
 /** One face decoded: real heights over the map's square, m, row 0 the
@@ -29,22 +42,69 @@ export type RealFace = {
   readonly heights: Float32Array;
 };
 
-/** Every face there is, in the order the start card lists them. */
-export const REAL_FACE_IDS: readonly string[] = FACE_DATA.map((f) => f.id);
+/** Every face there is, in the order the bake lists them. */
+export const REAL_FACE_IDS: readonly string[] = FACE_INDEX.map((f) => f.id);
 
 /** The region a face lies in, or null for an id no face has. */
 export function realFaceRegion(id: string): RegionId | null {
-  return FACE_DATA.find((f) => f.id === id)?.region ?? null;
+  return FACE_INDEX.find((f) => f.id === id)?.region ?? null;
 }
 
+/** The country a face lies in (ISO 3166-1 alpha-2), or null for an id no
+ * face has. */
+export function realFaceCountry(id: string): string | null {
+  return FACE_INDEX.find((f) => f.id === id)?.country ?? null;
+}
+
+/** The piste grades a face's real ski area signs — every one of R23's
+ * four it has a piste of, and ORANGE always, since the game finds its own
+ * ski routes on every face (R42). Empty for an id no face has. */
+export function realFaceGrades(id: string): readonly RunGrade[] {
+  if (!FACE_INDEX.some((f) => f.id === id)) return [];
+  const signed = HINT_GRADES[id] ?? [];
+  return RUN_GRADES.filter((g) => g === "orange" || signed.includes(g));
+}
+
+const loaded = new Map<string, FaceData>();
+const loading = new Map<string, Promise<boolean>>();
 const decoded = new Map<string, RealFace>();
 
-/** A face by its id, decoded once; null for an id no face has. */
+/** Fetch a face's heights and hints, once; false for an id no face has.
+ * Every host that raises a map on a face awaits this first. */
+export function loadRealFace(id: string): Promise<boolean> {
+  const load = FACE_LOADERS[id];
+  if (!load) return Promise.resolve(false);
+  if (realFaceLoaded(id)) return Promise.resolve(true);
+  let pending = loading.get(id);
+  if (!pending) {
+    pending = Promise.all([load(), loadRealHints(id)]).then(([{ FACE }]) => {
+      loaded.set(id, FACE);
+      loading.delete(id);
+      return true;
+    });
+    loading.set(id, pending);
+  }
+  return pending;
+}
+
+/** Every face loaded — a lab's or the suite's, never the app's. */
+export async function loadAllRealFaces(): Promise<void> {
+  await Promise.all(REAL_FACE_IDS.map(loadRealFace));
+}
+
+/** Whether a face's heights and hints are in hand. */
+export function realFaceLoaded(id: string): boolean {
+  return loaded.has(id) && (!faceHasHints(id) || realHintsLoaded(id));
+}
+
+/** A face by its id, decoded once; null for an id no face has. Throws for
+ * a face that is listed but not loaded (`loadRealFace`). */
 export function realFace(id: string): RealFace | null {
   const kept = decoded.get(id);
   if (kept) return kept;
-  const data = FACE_DATA.find((f) => f.id === id);
-  if (!data) return null;
+  if (!FACE_LOADERS[id]) return null;
+  const data = loaded.get(id);
+  if (!data) throw new Error(`real face ${id} is not loaded (loadRealFace)`);
   const face = { id, region: data.region, heights: decode(data) };
   decoded.set(id, face);
   return face;
@@ -75,28 +135,6 @@ function decode(f: FaceData): Float32Array {
   }
   const out = new Float32Array(n * n);
   for (let i = 0; i < n * n; i++) out[i] = f.floor + q[i] * step;
-  return out;
-}
-
-const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-/** Base64 to bytes, with no host's decoder (the engine imports nothing). */
-export function base64(s: string): Uint8Array {
-  const value = new Int16Array(128).fill(-1);
-  for (let i = 0; i < B64.length; i++) value[B64.charCodeAt(i)] = i;
-  const clean = s.replace(/=+$/, "");
-  const out = new Uint8Array(Math.floor((clean.length * 3) / 4));
-  let bits = 0;
-  let acc = 0;
-  let o = 0;
-  for (let i = 0; i < clean.length; i++) {
-    acc = (acc << 6) | value[clean.charCodeAt(i)];
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      out[o++] = (acc >> bits) & 0xff;
-    }
-  }
   return out;
 }
 

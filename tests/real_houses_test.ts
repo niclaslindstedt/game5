@@ -5,7 +5,7 @@
 // dealt map places exactly what it placed before.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import {
   REAL_HOUSES,
@@ -15,6 +15,7 @@ import {
   felledTrees,
   generateLevel,
   kindOfSize,
+  loadRealFace,
   nearestWithin,
   outsideHub,
   realHouseNear,
@@ -28,6 +29,8 @@ let fell: Level | undefined;
 const fellLevel = (): Level => (fell ??= generateLevel(1, { face: "fell-2" }));
 
 describe("a real face's houses", () => {
+  beforeAll(() => loadRealFace("fell-2"));
+
   it("are stood at real houses, turned along them, off every run and the hub", () => {
     const level = fellLevel();
     const real = cabinsOf(level).filter((c) => c.run === REAL_RUN);

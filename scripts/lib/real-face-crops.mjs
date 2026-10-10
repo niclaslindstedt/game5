@@ -7,7 +7,8 @@
 /** The map's side, m. */
 export const SIZE = 4000;
 
-/** Every face: its region (R21), the middle it was searched round (°),
+/** Every face: its region (R21), the country it lies in (ISO 3166-1
+ * alpha-2 — the start card files a face under it, nothing finer), the middle it was searched round (°),
  * and the crop the search kept — the window's middle east and north of it
  * (m), the bearing its fall line runs down the map on (° clockwise from
  * north) and how many real metres a metre of the map is. */
@@ -15,6 +16,7 @@ export const FACES = [
   {
     id: "alpine-1",
     region: "alpine",
+    country: "FR",
     lat: 45.297,
     lon: 6.585,
     east: -1200,
@@ -25,6 +27,7 @@ export const FACES = [
   {
     id: "alpine-2",
     region: "alpine",
+    country: "FR",
     lat: 45.4,
     lon: 6.618,
     east: 450,
@@ -35,6 +38,7 @@ export const FACES = [
   {
     id: "alpine-3",
     region: "alpine",
+    country: "FR",
     lat: 45.452,
     lon: 6.9,
     east: -450,
@@ -45,6 +49,7 @@ export const FACES = [
   {
     id: "alpine-4",
     region: "alpine",
+    country: "FR",
     lat: 45.442,
     lon: 6.965,
     east: -1800,
@@ -55,6 +60,7 @@ export const FACES = [
   {
     id: "alpine-5",
     region: "alpine",
+    country: "FR",
     lat: 45.5,
     lon: 6.68,
     east: -1500,
@@ -65,6 +71,7 @@ export const FACES = [
   {
     id: "alpine-6",
     region: "alpine",
+    country: "FR",
     lat: 45.105,
     lon: 6.085,
     east: 450,
@@ -75,6 +82,7 @@ export const FACES = [
   {
     id: "alpine-7",
     region: "alpine",
+    country: "CH",
     lat: 46.015,
     lon: 7.77,
     east: 750,
@@ -85,6 +93,7 @@ export const FACES = [
   {
     id: "alpine-8",
     region: "alpine",
+    country: "CH",
     lat: 46.093,
     lon: 7.245,
     east: 0,
@@ -95,6 +104,7 @@ export const FACES = [
   {
     id: "alpine-9",
     region: "alpine",
+    country: "AT",
     lat: 47.14,
     lon: 10.24,
     east: 750,
@@ -105,6 +115,7 @@ export const FACES = [
   {
     id: "alpine-10",
     region: "alpine",
+    country: "AT",
     lat: 46.995,
     lon: 10.305,
     east: 1500,
@@ -115,6 +126,7 @@ export const FACES = [
   {
     id: "alpine-11",
     region: "alpine",
+    country: "AT",
     lat: 46.958,
     lon: 10.985,
     east: 0,
@@ -125,6 +137,7 @@ export const FACES = [
   {
     id: "continental-1",
     region: "continental",
+    country: "US",
     lat: 39.62,
     lon: -106.365,
     east: -300,
@@ -135,6 +148,7 @@ export const FACES = [
   {
     id: "continental-2",
     region: "continental",
+    country: "US",
     lat: 39.475,
     lon: -106.075,
     east: -1050,
@@ -145,6 +159,7 @@ export const FACES = [
   {
     id: "continental-3",
     region: "continental",
+    country: "US",
     lat: 40.64,
     lon: -111.53,
     east: 450,
@@ -155,6 +170,7 @@ export const FACES = [
   {
     id: "continental-4",
     region: "continental",
+    country: "US",
     lat: 39.17,
     lon: -106.82,
     east: 1050,
@@ -165,6 +181,7 @@ export const FACES = [
   {
     id: "maritime-1",
     region: "maritime",
+    country: "CA",
     lat: 50.085,
     lon: -122.95,
     east: -1800,
@@ -175,6 +192,7 @@ export const FACES = [
   {
     id: "maritime-2",
     region: "maritime",
+    country: "JP",
     lat: 42.865,
     lon: 140.68,
     east: 0,
@@ -185,6 +203,7 @@ export const FACES = [
   {
     id: "maritime-3",
     region: "maritime",
+    country: "JP",
     lat: 36.7,
     lon: 137.815,
     east: 1800,
@@ -195,6 +214,7 @@ export const FACES = [
   {
     id: "fell-1",
     region: "fell",
+    country: "SE",
     lat: 63.418,
     lon: 13.085,
     east: -450,
@@ -205,6 +225,7 @@ export const FACES = [
   {
     id: "fell-2",
     region: "fell",
+    country: "NO",
     lat: 60.86,
     lon: 8.45,
     east: 1500,

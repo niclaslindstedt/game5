@@ -72,6 +72,8 @@ const args = parseArgs(
   },
   "usage: npm run resort -- (--seed n | --count k [--from n]) [--region id] [--course id | --grade id]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/mapgen/index.ts"))).loadRealFace(args.face);
 
 if (args.debug) {
   const out = await import("@niclaslindstedt/oss-game-framework/core/output");

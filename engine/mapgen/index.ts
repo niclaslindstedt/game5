@@ -82,7 +82,18 @@ export {
   type RegionId,
   type TreeKind,
 } from "./regions.ts";
-export { REAL_FACE_IDS, faceHeight, realFace, realFaceRegion, type RealFace } from "./real-face.ts";
+export {
+  REAL_FACE_IDS,
+  faceHeight,
+  loadAllRealFaces,
+  loadRealFace,
+  realFace,
+  realFaceCountry,
+  realFaceGrades,
+  realFaceLoaded,
+  realFaceRegion,
+  type RealFace,
+} from "./real-face.ts";
 export {
   leanLift,
   leanStation,

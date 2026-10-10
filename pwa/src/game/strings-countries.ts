@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE COUNTRIES A REAL FACE IS FILED UNDER on the start card's SHAPE row,
+// by their ISO 3166-1 alpha-2 code (`real-face-crops.mjs`'s `country`). A
+// country is as fine as a real face is ever named: never a range, a
+// valley, a mountain or a ski area.
+
+export const COUNTRY_NAMES: Readonly<Record<string, string>> = {
+  AD: "ANDORRA",
+  AR: "ARGENTINA",
+  AT: "AUSTRIA",
+  AU: "AUSTRALIA",
+  BA: "BOSNIA",
+  BG: "BULGARIA",
+  CA: "CANADA",
+  CH: "SWITZERLAND",
+  CL: "CHILE",
+  CN: "CHINA",
+  CZ: "CZECHIA",
+  DE: "GERMANY",
+  ES: "SPAIN",
+  FI: "FINLAND",
+  FR: "FRANCE",
+  GB: "BRITAIN",
+  GE: "GEORGIA",
+  GR: "GREECE",
+  IN: "INDIA",
+  IS: "ICELAND",
+  IT: "ITALY",
+  JP: "JAPAN",
+  KR: "KOREA",
+  LI: "LIECHTENSTEIN",
+  NO: "NORWAY",
+  NZ: "NEW ZEALAND",
+  PL: "POLAND",
+  RO: "ROMANIA",
+  RS: "SERBIA",
+  RU: "RUSSIA",
+  SE: "SWEDEN",
+  SI: "SLOVENIA",
+  SK: "SLOVAKIA",
+  TR: "TURKEY",
+  US: "UNITED STATES",
+};

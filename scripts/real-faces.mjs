@@ -9,8 +9,9 @@
 // model (one 1°×1° GeoTIFF tile a face, kept in `previews/.dem/` once
 // fetched), crops each face to the map's square, smooths the forest canopy
 // and the buildings the surface model carries out of it, and writes the
-// grids into `engine/mapgen/real-faces-data.ts` — a GENERATED file, a few
-// kilobytes a face, which `real-face.ts` decodes at run time.
+// grids into `engine/mapgen/real-faces/face-<id>.ts` — a GENERATED file a
+// face, a few kilobytes, listed in `real-faces-index.ts`, which
+// `real-face.ts` loads and decodes at run time.
 //
 // The faces are NAMED BY NOTHING BUT THEIR REGION AND A NUMBER: the rule
 // book of this repository names no real place, so a face is a position on
@@ -23,7 +24,7 @@
 //
 //   make real-faces ARGS=--fetch      # fetch the tiles (once), then bake
 //   make real-faces                   # bake from the kept tiles, print the table
-//   make real-faces ARGS=--write      # …and write real-faces-data.ts
+//   make real-faces ARGS=--write      # …and write the faces baked and the index
 //
 // The elevation data: Copernicus DEM GLO-30, © DLR e.V. 2010–2014 and ©
 // Airbus Defence and Space GmbH 2014–2018, provided under COPERNICUS by the
@@ -39,10 +40,10 @@ import process from "node:process";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 
 import { FACES, SIZE, globeAt } from "./lib/real-face-crops.mjs";
+import { FACE_DIR, FACE_INDEX, writeFaceFile, writeFaceIndex } from "./lib/real-face-files.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = join(root, "previews", ".dem");
-const OUT = join(root, "engine", "mapgen", "real-faces-data.ts");
 const BUCKET = "https://copernicus-dem-30m.s3.amazonaws.com";
 
 /** The grid a face is kept on: 126 samples 32 m
@@ -59,13 +60,20 @@ const args = parseArgs(
   process.argv.slice(2),
   {
     fetch: { kind: "flag", help: "download the elevation tiles not yet kept in previews/.dem/" },
-    write: { kind: "flag", help: "write engine/mapgen/real-faces-data.ts" },
+    write: {
+      kind: "flag",
+      help: "write the faces baked (engine/mapgen/real-faces/) and the index",
+    },
+    search: {
+      kind: "flag",
+      help: "search each --only face's crop (bearing, offset, scale) and print the best rows",
+    },
     only: {
       kind: "string",
-      help: "comma-separated face ids to bake (the table only; --write needs all)",
+      help: "comma-separated face ids to bake (--write writes those and keeps the rest)",
     },
   },
-  "usage: npm run real-faces -- [--fetch] [--write] [--only id,id]",
+  "usage: npm run real-faces -- [--fetch] [--write] [--search] [--only id,id]",
 );
 
 // ── The tiles ───────────────────────────────────────────────────────────
@@ -285,12 +293,93 @@ function measure(q) {
   return { drop, falls: falls / all };
 }
 
+// ── The search ──────────────────────────────────────────────────────────
+
+/** A crop's score, read coarsely (every 125 m, unsmoothed) the way
+ * `measure` reads a baked one: the ridge row over the valley floor and the
+ * share of the playable face falling down the map. */
+function roughMeasure(face) {
+  const step = 125;
+  const n = SIZE / step + 1;
+  const g = new Float64Array(n * n);
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) g[r * n + c] = heightAt(...globeAt(face, c * step, r * step));
+  }
+  const h = (r, c) => g[r * n + c];
+  const band = (z0, z1) => {
+    let sum = 0;
+    let k = 0;
+    for (let r = Math.round(z0 / step); r <= Math.round(z1 / step); r++) {
+      for (let c = Math.round(700 / step); c <= Math.round(3300 / step); c++) {
+        sum += h(r, c);
+        k++;
+      }
+    }
+    return sum / k;
+  };
+  const drop = band(250, 420) - band(3450, SIZE);
+  let falls = 0;
+  let all = 0;
+  for (let r = Math.round(400 / step); r < Math.round(3500 / step) - 1; r++) {
+    for (let c = Math.round(700 / step); c <= Math.round(3300 / step); c++) {
+      all++;
+      if (h(r + 1, c) < h(r, c)) falls++;
+    }
+  }
+  return { drop, falls: falls / all };
+}
+
+/** What a crop is worth: a face that falls down the map, standing tall. */
+const worth = (m) => m.falls * m.falls * Math.min(m.drop, 1200);
+
+/** Every bearing, offset and scale round a face's middle (the middle kept
+ * well inside the window, so the ski area stays on the map), the best few
+ * re-read on the baked grid; prints them best first as crop rows. */
+function search(face) {
+  const tried = [];
+  for (let bearing = -180; bearing < 180; bearing += 10) {
+    for (let east = -1350; east <= 1350; east += 450) {
+      for (let north = -1350; north <= 1350; north += 450) {
+        for (const scale of [0.9, 1.0, 1.1]) {
+          const row = { ...face, east, north, bearing, scale };
+          tried.push({ row, m: roughMeasure(row) });
+        }
+      }
+    }
+  }
+  tried.sort((a, b) => worth(b.m) - worth(a.m));
+  const best = tried
+    .slice(0, 8)
+    .map(({ row }) => ({ row, m: measure(encode(crop(row)).quantised) }));
+  best.sort((a, b) => worth(b.m) - worth(a.m));
+  console.log(`${face.id}: best of ${tried.length}`);
+  for (const { row, m } of best.slice(0, 4)) {
+    console.log(
+      `  drop ${m.drop.toFixed(0).padStart(5)}  falls ${m.falls.toFixed(2)}   east: ${row.east}, north: ${row.north}, bearing: ${row.bearing}, scale: ${row.scale}`,
+    );
+  }
+}
+
 // ── Run ─────────────────────────────────────────────────────────────────
 
 const only = args.only ? new Set(args.only.split(",")) : null;
 const faces = FACES.filter((f) => !only || only.has(f.id));
 if (args.fetch) {
-  for (const name of new Set(faces.flatMap(tilesOf))) await fetchTile(name);
+  // A search reaches every crop round the middle: the tiles within 5 km.
+  const near = (f) =>
+    [-0.05, 0, 0.05].flatMap((dl) =>
+      [-0.09, 0, 0.09].map((dn) => tileName(f.lat + dl, f.lon + dn).name),
+    );
+  for (const name of new Set(
+    faces.flatMap((f) => [...tilesOf(f), ...(args.search ? near(f) : [])]),
+  )) {
+    await fetchTile(name);
+  }
+}
+if (args.search) {
+  if (!only) throw new Error("--search needs --only");
+  for (const face of faces) search(face);
+  process.exit(0);
 }
 const baked = [];
 console.log("face            region        drop m  falls  bytes");
@@ -306,42 +395,13 @@ const total = baked.reduce((s, b) => s + b.data.length, 0);
 console.log(`${baked.length} faces, ${(total / 1024).toFixed(0)} KB of base64`);
 
 if (args.write) {
-  if (only) throw new Error("--write bakes every face: drop --only");
-  const lines = [
-    "// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0",
-    "// GENERATED by `make real-faces ARGS=--write` (scripts/real-faces.mjs) —",
-    "// never edit by hand. The heights are off the Copernicus DEM GLO-30, ©",
-    "// DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018,",
-    "// provided under COPERNICUS by the European Union and ESA",
-    "// (docs/real-faces.md); `real-face.ts` reads them.",
-    "",
-    'import type { RegionId } from "./regions.ts";',
-    "",
-    "/** One face as baked: its region, the lowest height (m) and the grid. */",
-    "export type FaceData = {",
-    "  readonly id: string;",
-    "  readonly region: RegionId;",
-    "  readonly floor: number;",
-    "  readonly data: string;",
-    "};",
-    "",
-    `/** The grid's samples a side and their spacing, m, and a height's step, m. */`,
-    `export const FACE_GRID = { n: ${N}, cell: ${CELL}, step: ${STEP} } as const;`,
-    "",
-    "export const FACE_DATA: readonly FaceData[] = [",
-    // One field a line, as the formatter would lay it, so `make fmt`
-    // leaves the generated file alone.
-    ...baked.flatMap((b) => [
-      "  {",
-      `    id: "${b.id}",`,
-      `    region: "${b.region}",`,
-      `    floor: ${b.floor},`,
-      `    data: "${b.data}",`,
-      "  },",
-    ]),
-    "];",
-    "",
-  ];
-  writeFileSync(OUT, lines.join("\n"));
-  console.log(`wrote ${OUT}`);
+  // The faces baked are written; every other face's file is kept as it is,
+  // so adding a face never moves one already shipped.
+  for (const b of baked) console.log(`wrote ${writeFaceFile(b)}`);
+  const missing = FACES.filter((f) => !existsSync(join(FACE_DIR, `face-${f.id}.ts`)));
+  if (missing.length > 0) {
+    throw new Error(`no heights baked for ${missing.map((f) => f.id).join(", ")}: bake them`);
+  }
+  writeFaceIndex(FACES, { n: N, cell: CELL, step: STEP });
+  console.log(`wrote ${FACE_INDEX}`);
 }

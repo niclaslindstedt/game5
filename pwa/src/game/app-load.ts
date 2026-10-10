@@ -31,6 +31,8 @@
 import {
   createGame,
   error,
+  loadRealFace,
+  realFaceLoaded,
   type GameMode,
   type GameState,
   type CreateGameOptions,
@@ -70,6 +72,10 @@ export type LoadPlan = {
   ready?: () => boolean;
   /** ...and how far that map has got meanwhile, 0–1. */
   readyShare?: () => number;
+  /** The REAL FACE the map stands on, if any: its heights and hints are a
+   * chunk of their own, fetched on this thread before the race is stood
+   * up (the run reads its real houses). */
+  face?: string;
   /** The rung the camera opens on once the card lifts. */
   camera: CameraRung;
   /** Run on the frame the card lifts. */
@@ -101,11 +107,32 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
     map !== null && map.level() === undefined && map.failed() === null;
   /** The renderer's build in flight: pending, done, or the reason it threw. */
   let scene: "pending" | "done" | { failed: string } | null = null;
+  /** The real face's fetch: in flight, or the reason it failed. */
+  let face: "pending" | { failed: string } | null = null;
+  /** Whether the plan's real face is still being fetched; THROWS if the
+   * fetch failed. */
+  const fetchingFace = (): boolean => {
+    if (!plan.face || realFaceLoaded(plan.face)) return false;
+    if (face === null) {
+      face = "pending";
+      loadRealFace(plan.face).then(
+        (known) => {
+          face = known ? null : { failed: `no real face ${plan.face}` };
+        },
+        (why: unknown) => {
+          face = { failed: why instanceof Error ? why.message : String(why) };
+        },
+      );
+    }
+    if (typeof face === "object") throw new Error(face.failed);
+    return true;
+  };
   return [
     {
       id: "level",
       label: STRINGS.loadLevel,
       run: () => {
+        if (fetchingFace()) return true;
         if (plan.ready && !plan.ready()) return true;
         if (map === null) {
           const order = plan.map?.() ?? null;
@@ -125,7 +152,8 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
       // How far the generator says it has got: the map's own worker, or the
       // one the plan is waiting on.
       progress: () => (map !== null ? map.share() : (plan.readyShare?.() ?? 0)),
-      waiting: () => (plan.ready !== undefined && !plan.ready()) || waitingOnMap(),
+      waiting: () =>
+        face === "pending" || (plan.ready !== undefined && !plan.ready()) || waitingOnMap(),
     },
     {
       id: "scene",

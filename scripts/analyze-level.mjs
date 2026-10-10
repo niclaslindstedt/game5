@@ -46,6 +46,8 @@ const args = parseArgs(
   },
   "usage: npm run analyze -- [--seed n | --from n --count k] [--region id] [--grade id]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/mapgen/index.ts"))).loadRealFace(args.face);
 
 const seeds =
   args.seed !== undefined

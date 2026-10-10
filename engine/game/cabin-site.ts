@@ -7,6 +7,8 @@
 // pure functions of their arguments.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { sampleField } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import { regionOf } from "../mapgen/regions.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { CABINS, type CabinKind } from "./defs/cabins.ts";
 
@@ -114,6 +116,21 @@ export function roofsMeet(a: Placed, b: Placed, gap: number): boolean {
     }
   }
   return true;
+}
+
+/** Whether (x, z) is a groomer's snow a building or a street keeps off:
+ * packed past a quarter — but on a REAL FACE (`Level.face`), a wind crust
+ * folded into the packed field (R21) is not a piste, so only what is
+ * packed past what the crust alone packs counts there. A map with no face
+ * reads the packed field alone, as it always has. */
+export function groomedAt(level: Level): (x: number, z: number) => boolean {
+  const crust = level.face ? (level.crust ?? null) : null;
+  if (!crust) return (x, z) => level.packedAt(x, z) > 0.25;
+  const support = regionOf(level).crust?.packed ?? 0;
+  return (x, z) => {
+    const p = level.packedAt(x, z);
+    return p > 0.25 && p > sampleField(crust, x, z) * support + 0.05;
+  };
 }
 
 /** The heading straight down the ground's fall line at (x, z). */

@@ -37,7 +37,9 @@
 // hut, the finish arch from up the last straight), cabin, cabin-2,
 // cabin-3 (a group of log cabins from the run it stands by, a skier's eye
 // up the run), cabin-near (the first close, at three quarters from its
-// front) and cabins-air (the first from high over its run), tower-pad,
+// front) and cabins-air (the first from high over its run), real-house
+// and real-air (on a real face, the real building stood highest up the
+// mountain close, and those stood up it from the air), tower-pad,
 // tower-edge, tower-span (the lift towers where they meet the runs: the
 // padded one nearest a run, a bare one off its edge, a span across one),
 // rocks, rocks-cliff, rocks-near, rocks-run, rocks-air (the crags on the
@@ -183,6 +185,8 @@ const VIEWS = [
   "cabin-3",
   "cabin-near",
   "cabins-air",
+  "real-house",
+  "real-air",
   "tower-pad",
   "tower-edge",
   "tower-span",

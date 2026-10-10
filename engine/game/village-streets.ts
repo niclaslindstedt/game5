@@ -37,12 +37,10 @@
 // moves for it.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { sampleField } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { hubAt, nearestWithin, outsideHub } from "../mapgen/query.ts";
-import { regionOf } from "../mapgen/regions.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import type { Cabin } from "./cabins.ts";
-import { pick, toSegment } from "./cabin-site.ts";
+import { groomedAt, pick, toSegment } from "./cabin-site.ts";
 import { CABINS } from "./defs/cabins.ts";
 import {
   SECTIONS,
@@ -244,15 +242,8 @@ function clearanceOf(level: Level, avoid: readonly Cabin[]): Clear {
   const cps = level.checkpoints;
   const finish = cps.length > 0 ? cps[cps.length - 1] : null;
   const hit = { index: 0, s: 0, distance: Infinity, lateral: 0, x: 0, z: 0 };
-  // On a real face, a wind crust folded into the packed field (R21) is
-  // not a piste: the packed snow a street keeps off is the groomer's,
-  // above what the crust alone packs.
-  const crust = level.face ? (level.crust ?? null) : null;
-  const support = crust ? (regionOf(level).crust?.packed ?? 0) : 0;
-  const groomed = (x: number, z: number) => {
-    const p = level.packedAt(x, z);
-    return p > 0.25 && (!crust || p > sampleField(crust, x, z) * support + 0.05);
-  };
+  // The groomer's snow (on a real face, not the fell's wind crust).
+  const groomed = groomedAt(level);
   const houses = avoid.map((c) => {
     const d = CABINS[c.kind];
     return {
@@ -409,8 +400,9 @@ export function planVillageStreets(level: Level, avoid: readonly Cabin[]): Villa
 
   const town = realTownOf(level);
   // The valley's side first; on a real face with a town whose village
-  // has no room there, the hub's mountain side, where a real town often
-  // stands above a valley floor of water, and with no road out.
+  // has no room there — or whose town stands up the mountain's side of
+  // the hub — the hub's mountain side, where a real town often stands
+  // above a valley floor of water, and with no road out.
   const onSide = (sV: 1 | -1, roads: boolean): VillageStreets | null => {
     const centres = realCentres(level, village.x, span0, mid, sV, vBack, town?.streets ?? []);
     for (const spanShare of V.tries.span) {
@@ -466,6 +458,11 @@ export function planVillageStreets(level: Level, avoid: readonly Cabin[]): Villa
     }
     return null;
   };
+  // A real town that stands up the mountain's side of the hub (above its
+  // upper edge where it is nearest) has its village tried there first.
+  const at = town ? hubAt(hub, Math.min(hx1, Math.max(hx0, town.town.x))) : null;
+  const up = !!at && (town!.town.z - (valley > 0 ? at.top : at.bottom)) * valley < 0;
+  if (up) return onSide(-valley as 1 | -1, false) ?? onSide(valley, true);
   const plan = onSide(valley, true);
   return plan || !town ? plan : onSide(-valley as 1 | -1, false);
 }

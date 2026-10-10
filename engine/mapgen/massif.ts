@@ -182,7 +182,8 @@ export function planMassif(
   const benchWidth = inBand(rng, M.bench.width);
   const benchDepth = inBand(rng, M.bench.depth);
   const villageX = cx - side * inBand(rng, across(M.village.across));
-  const benchX = villageX + (peakX - villageX) * inBand(rng, M.bench.toward);
+  const benchToward = inBand(rng, M.bench.toward);
+  const benchX = villageX + (peakX - villageX) * benchToward;
   const benchSpread = inBand(rng, across(M.bench.spread));
   const flankBand = { inner: M.flank.inner * wide, outer: M.flank.outer * wide };
   const Q = M.relief;
@@ -246,7 +247,9 @@ export function planMassif(
     benchU,
     benchWidth,
     benchDepth,
-    benchX,
+    // The bench (and the gondola's top on it) between the village and the
+    // peak, wherever a real face stands them.
+    benchX: placed ? placed.villageX + (placed.peakX - placed.villageX) * benchToward : benchX,
     benchSpread,
     villageX: placed?.villageX ?? villageX,
     tables: [
@@ -344,11 +347,21 @@ function readFace(
     across(M.shoulder.across),
     -side,
   );
-  const villageX = keep(
+  // The valley's lowest point, in the dealt band…
+  const lowest = keep(
     faceExtreme(grid, other[0], other[1], baseZ - 60, size, true),
     across(M.village.across),
     -side,
   );
+  // …or, on a face with a town, straight below the town's middle on the
+  // valley floor (as near as `town.across` allows), given back toward the
+  // lowest point a share each attempt the last one refused (`town.yield`).
+  const town = attempt < M.real.hinted ? realHints(grid.id)?.town : null;
+  const toTown = Math.max(0, 1 - attempt * M.real.town.yield);
+  const townX = town
+    ? cx + Math.max(-M.real.town.across, Math.min(M.real.town.across, town.x - cx))
+    : lowest;
+  const villageX = lowest + (townX - lowest) * toTown;
   const drop = Math.max(M.real.leastDrop, ridge - floor);
   const stretch = vertical / drop;
   // The face's own profile: its mean height across the playable face, a

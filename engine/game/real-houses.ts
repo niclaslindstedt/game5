@@ -13,11 +13,15 @@
 //     turned to its bearing.
 //   * EVERY OTHER REAL HOUSE that fits (`placeRealHouses`) is stood as the
 //     existing kind nearest its size — a hut, a cabin or a chalet of logs,
-//     a town house or an apartment chalet — at its middle (or a few metres
-//     off it), turned to its bearing, by the ski area's own placer and
-//     clearances (`cabins.ts`'s `stand`): off every run, lift, queue,
-//     street, ramp, the hub and the pads, on ground it can be terraced
-//     into, its yard cleared of the trunks round it.
+//     a town house or an apartment chalet — at its middle (or the nearest
+//     spot a few metres off it that fits), turned to its bearing, by the
+//     ski area's own placer and clearances (`cabins.ts`'s `stand`): off
+//     every run, lift, queue, street, ramp, the hub and the pads, on ground
+//     it can be terraced into (a walk-out storey under it on a slope), its
+//     yard cleared of the trunks round it. The ones UP THE MOUNTAIN are
+//     tried first (the hotels, huts and chalets beside the pistes), then
+//     the town's, then the rest of the valley's (`realHouseTier`), so a
+//     big town never squeezes the mountain's out.
 //
 // A pure function of the map and its face's baked hints — no stream, no
 // hash — so a map with no face, or a face with no hints, places exactly
@@ -29,16 +33,24 @@ import type { Level } from "../mapgen/types.ts";
 import type { Cabin } from "./cabins.ts";
 import { downhillOf, toward } from "./cabin-site.ts";
 import { CABINS, type CabinKind } from "./defs/cabins.ts";
+import { REAL_STREETS } from "./real-streets.ts";
 import type { Fit, StandAt } from "./resort-buildings.ts";
 
 /** How the real houses are stood, m and counts.
- *   * `most`: the most stood off the village's streets on one map. A face
- *     carries up to 600; 120 is three villages' worth on top of the
- *     village's own 40 lots and the 32 dealt cabins — enough for every
- *     hamlet and farm a face's valley shows (the largest first), while the
- *     placer's work (every site tried against every run, lift and roof),
- *     the walls a skier is checked against and the drawn blocks stay
- *     within a few times what a dealt map carries.
+ *   * `tiers`: the most stood off the village's streets on one map, by
+ *     where they stand (`realHouseTier`), tried in this order, each tier's
+ *     the largest first: UP THE MOUNTAIN (`mountain`: `up` m or more over
+ *     the valley floor and outside the real town's radius — the hotels,
+ *     huts, restaurants, lift-top houses and chalets beside the pistes,
+ *     few on any face and what makes it read as its own, so never
+ *     squeezed out by a town), THE TOWN (`town`: inside the real town's
+ *     circle grown as its streets are read, `REAL_STREETS.town.grow`) and
+ *     THE REST OF THE VALLEY (`valley`: the hamlets and farms off the
+ *     town). A face carries every building its map draws (up to a few
+ *     thousand); these are a few villages' worth on top of the village's
+ *     own 40 lots and the 32 dealt cabins — the placer's work, the walls a
+ *     skier is checked against and the drawn blocks within a few times
+ *     what a dealt map carries.
  *   * `biggest`: a real building wider than this is not a house (a lift's
  *     hall, a barn, a hotel's wing) and is left to the generator.
  *   * `sizes`: the kind stood for a real house of each size (the side of a
@@ -47,15 +59,21 @@ import type { Fit, StandAt } from "./resort-buildings.ts";
  *   * `clearing`: the trunks within this of a real house's roof are felled
  *     for its yard (`fellsTree`), as a house in the woods stands in its
  *     own clearing.
+ *   * `up`: how far over the valley floor a house stands up the mountain, m.
+ *   * `steep`: the multiple on a kind's terrace, plinth and cut a real
+ *     house is stood with (`Fit.steep`): a house on its real slope has a
+ *     walk-out storey of stone under its floor.
  *   * `nudge`: the spots tried round a real house's middle when its own
- *     does not fit, m.
+ *     does not fit, m — nearest first, so a house in the way of a run, a
+ *     lift or a pad is moved the least it takes rather than dropped.
  *   * `near`: how near a real house a village lot's middle must be to be
  *     beside one; `snap` how near to take its bearing, and `turn` the most
  *     the bearing may turn a lot's building off its street, rad.
  *   * `village`: how many real houses the village's ground must hold before
  *     its town keeps to them. */
 export const REAL_HOUSES = {
-  most: 120,
+  tiers: { mountain: 200, town: 140, valley: 80 },
+  up: 60,
   biggest: 45,
   sizes: [
     [5.8, "hut"],
@@ -65,6 +83,7 @@ export const REAL_HOUSES = {
     [45, "apartments"],
   ] as const satisfies readonly (readonly [number, CabinKind])[],
   clearing: 5,
+  steep: 2.5,
   nudge: [
     [0, 0],
     [4, 0],
@@ -75,6 +94,14 @@ export const REAL_HOUSES = {
     [-6, -6],
     [6, -6],
     [-6, 6],
+    [10, 0],
+    [-10, 0],
+    [0, 10],
+    [0, -10],
+    [14, 0],
+    [-14, 0],
+    [0, 14],
+    [0, -14],
   ] as const,
   near: 30,
   snap: 16,
@@ -171,19 +198,52 @@ export function inRealYard(c: Cabin, x: number, z: number): boolean {
   );
 }
 
+/** Where a real house stands, as `REAL_HOUSES.tiers` ranks it: up the
+ * mountain, in the real town, or elsewhere down the valley. */
+export type RealTier = keyof typeof REAL_HOUSES.tiers;
+
+/** Which tier a real house of `level`'s face stands in: in the TOWN
+ * inside its circle grown as its streets are read; UP THE MOUNTAIN where
+ * it stands `REAL_HOUSES.up` m or more over the valley floor and outside
+ * the town's own radius; the VALLEY's otherwise. */
+export function realHouseTier(level: Level, h: HintHouse): RealTier {
+  const town = level.face ? realHints(level.face)?.town : null;
+  const d = town ? hypot(h.x - town.x, h.z - town.z) : Infinity;
+  const floor = level.mountain?.base.y ?? 0;
+  if (level.groundAt(h.x, h.z) - floor >= REAL_HOUSES.up && (!town || d > town.r)) {
+    return "mountain";
+  }
+  return town && d < town.r * REAL_STREETS.town.grow ? "town" : "valley";
+}
+
+/** The real houses of `level`'s face in the order they are tried, each
+ * with its tier: up the mountain, then the town, then the valley, each
+ * the largest first — none too big to be a house. */
+export function realHouseOrder(level: Level): { house: HintHouse; tier: RealTier }[] {
+  const rank: Record<RealTier, number> = { mountain: 0, town: 1, valley: 2 };
+  return realHousesOf(level)
+    .filter((h) => h.size < REAL_HOUSES.biggest && kindOfSize(h.size))
+    .map((house) => ({ house, tier: realHouseTier(level, house) }))
+    .sort(
+      (a, b) =>
+        rank[a.tier] - rank[b.tier] ||
+        b.house.size - a.house.size ||
+        a.house.z - b.house.z ||
+        a.house.x - b.house.x,
+    );
+}
+
 /** STAND THE REAL HOUSES of `level`'s face that fit with `stand` (the ski
- * area's placer), the largest first, `fit` the village's clearances. */
+ * area's placer) in `realHouseOrder` — up the mountain, then the town,
+ * then the valley, each up to its tier's most — each at its middle or the
+ * nearest nudge off it that fits, `fit` the village's clearances. */
 export function placeRealHouses(level: Level, stand: StandAt, fit: Fit): Cabin[] {
   const out: Cabin[] = [];
-  const houses = realHousesOf(level)
-    .filter((h) => h.size < REAL_HOUSES.biggest)
-    .slice()
-    .sort((a, b) => b.size - a.size || a.z - b.z || a.x - b.x);
-  const yard: Fit = { ...fit, clearing: REAL_HOUSES.clearing };
-  for (const h of houses) {
-    if (out.length >= REAL_HOUSES.most) break;
-    const kind = kindOfSize(h.size);
-    if (!kind) continue;
+  const yard: Fit = { ...fit, clearing: REAL_HOUSES.clearing, steep: REAL_HOUSES.steep };
+  const stood: Record<RealTier, number> = { mountain: 0, town: 0, valley: 0 };
+  for (const { house: h, tier } of realHouseOrder(level)) {
+    if (stood[tier] >= REAL_HOUSES.tiers[tier]) continue;
+    const kind = kindOfSize(h.size)!;
     const headings = bearingsOf(kind, h, downhillOf(level, h.x, h.z));
     let c: Cabin | null = null;
     for (const [dx, dz] of REAL_HOUSES.nudge) {
@@ -196,6 +256,7 @@ export function placeRealHouses(level: Level, stand: StandAt, fit: Fit): Cabin[]
     if (!c) continue;
     c.id = `R${out.length + 1}`;
     out.push(c);
+    stood[tier]++;
   }
   return out;
 }

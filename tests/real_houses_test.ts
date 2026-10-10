@@ -16,6 +16,7 @@ import {
   cabinsOf,
   felledTrees,
   generateLevel,
+  groomedAt,
   inFrame,
   kindOfSize,
   loadRealFace,
@@ -24,6 +25,8 @@ import {
   realCrosses,
   realExit,
   realHouseNear,
+  realHouseOrder,
+  realHouseTier,
   realHousesOf,
   realProfile,
   realTownOf,
@@ -45,22 +48,25 @@ describe("a real face's houses", () => {
     const level = fellLevel();
     const real = cabinsOf(level).filter((c) => c.run === REAL_RUN);
     expect(real.length).toBeGreaterThan(20);
-    expect(real.length).toBeLessThanOrEqual(REAL_HOUSES.most);
     const hit = { index: 0, s: 0, distance: Infinity, lateral: 0, x: 0, z: 0 };
     const hub = level.resort!.hub!;
+    const groomed = groomedAt(level);
+    // The furthest nudge off a real house's middle, and a metre.
+    const reach = Math.max(...REAL_HOUSES.nudge.map(([x, z]) => hypot(x, z))) + 1;
     for (const c of real) {
       // At a real house: on its middle or a nudge off it, turned along it.
       // (Its own house is within a nudge; a neighbour may stand nearer.)
-      expect(realHouseNear(level, c.x, c.z, 9), c.id).not.toBeNull();
+      expect(realHouseNear(level, c.x, c.z, reach), c.id).not.toBeNull();
       const own = realHousesOf(level).filter(
         (h) =>
-          hypot(h.x - c.x, h.z - c.z) < 9 &&
+          hypot(h.x - c.x, h.z - c.z) < reach &&
           kindOfSize(h.size) === c.kind &&
           bearingsOf(c.kind, h, c.heading).some((b) => turnOff(b, c.heading) < 1e-6),
       );
       expect(own.length, c.id).toBeGreaterThan(0);
-      // Off every run's snow and line, and out of the hub.
-      expect(level.packedAt(c.x, c.z), c.id).toBeLessThan(0.25);
+      // Off every run's snow (the groomer's, not the fell's wind crust)
+      // and line, and out of the hub.
+      expect(groomed(c.x, c.z), c.id).toBe(false);
       for (const r of level.resort!.runs) {
         nearestWithin({ track: r }, c.x, c.z, 60, hit);
         if (hit.distance === Infinity) continue;
@@ -77,6 +83,33 @@ describe("a real face's houses", () => {
         throw new Error(`a trunk stands in ${c.id}`);
       }
     }
+  });
+
+  it("stand the mountain's first, then the town's, so a hut up the slope is never squeezed out", () => {
+    const level = fellLevel();
+    const order = realHouseOrder(level);
+    const rank = { mountain: 0, town: 1, valley: 2 } as const;
+    expect(order.some((o) => o.tier === "mountain")).toBe(true);
+    expect(order.some((o) => o.tier === "town")).toBe(true);
+    // Up the mountain, then the town, then the valley; each the largest first.
+    for (let i = 1; i < order.length; i++) {
+      const [a, b] = [order[i - 1], order[i]];
+      expect(rank[a.tier], `${i}`).toBeLessThanOrEqual(rank[b.tier]);
+      if (a.tier === b.tier) expect(b.house.size).toBeLessThanOrEqual(a.house.size);
+      expect(realHouseTier(level, b.house)).toBe(b.tier);
+    }
+    // Most of the mountain's stand (at their spot or a nudge off it),
+    // however big the town; the town's and the valley's up to their most.
+    const real = cabinsOf(level).filter((c) => c.run === REAL_RUN);
+    const stood = (h: { x: number; z: number }) =>
+      real.some((c) => hypot(c.x - h.x, c.z - h.z) <= 15);
+    const up = order.filter((o) => o.tier === "mountain");
+    const kept = up.filter((o) => stood(o.house)).length;
+    expect(kept / Math.min(up.length, REAL_HOUSES.tiers.mountain)).toBeGreaterThan(0.4);
+    expect(real.length).toBeLessThanOrEqual(
+      REAL_HOUSES.tiers.mountain + REAL_HOUSES.tiers.town + REAL_HOUSES.tiers.valley,
+    );
+    expect(order.filter((o) => o.tier === "town" && stood(o.house)).length).toBeGreaterThan(20);
   });
 
   it("leave a dealt map's buildings as they were", () => {

@@ -30,6 +30,7 @@ import {
   realFaceRegion,
   realFaceTrees,
   type TerrainPlan,
+  villageOf,
 } from "@engine";
 
 import {
@@ -162,6 +163,11 @@ describe("the real faces", () => {
     expect(level.face).toBe("fell-2");
     expect(level.region).toBe("fell");
     expect(level.resort?.runs.length).toBeGreaterThan(5);
+    // The village stands below the real town (`massif.ts`'s `real.town`),
+    // along the valley floor within a few hundred metres of it: fell-2's
+    // town is at x 2700, the dealt village on this seed 460 m off it.
+    const town = realHints("fell-2")!.town!;
+    expect(Math.abs(villageOf(level)!.centre.x - town.x)).toBeLessThan(300);
     // The dealt massif on the same seed is another mountain, with the
     // region's tree line rather than the face's.
     const dealt = generateLevel(1, { region: "fell" });

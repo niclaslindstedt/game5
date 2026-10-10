@@ -35,6 +35,7 @@ import { sledSpotOf } from "./sled-pad.ts";
 import { treesNear } from "./upright-grid.ts";
 import {
   downhillOf,
+  groomedAt,
   pick,
   pointAt,
   rectPoints,
@@ -150,6 +151,9 @@ function placeCabins(level: Level): Cabin[] {
   const base = level.mountain ? level.mountain.base.y : 0;
   const hit = { index: 0, s: 0, distance: Infinity, lateral: 0, x: 0, z: 0 };
   const course = { track: level.track };
+  // The groomer's snow a building keeps off (on a real face, not the
+  // fell's wind crust folded into the packed field).
+  const groomed = groomedAt(level);
 
   /** Whether the building fits here, and its floor and lowest ground —
    * judged as a cabin is, or with a `fit` on its roof's rectangle and that
@@ -170,7 +174,7 @@ function placeCabins(level: Level): Cabin[] {
     // may stand out over packed snow; its walls may not.)
     const deck = kind === "afterski" || !!fit?.deck;
     for (const [px, pz] of rectPoints(kind, x, z, heading, !deck, 2, 3)) {
-      if (level.packedAt(px, pz) > 0.25) return null;
+      if (groomed(px, pz)) return null;
       if ((level.iceAt?.(px, pz) ?? 0) > 0) return null;
       if (!clearOfLifts(level, px, pz)) return null;
     }
@@ -365,7 +369,10 @@ function placeCabins(level: Level): Cabin[] {
       if (g > hi) hi = g;
       if (g < lo) lo = g;
     }
-    if (hi - lo > def.terrace) return null;
+    // A real house on its real slope (`fit.steep`) stands a walk-out
+    // storey of stone under its floor, as a chalet built into a hill does.
+    const steep = fit?.steep ?? 1;
+    if (hi - lo > def.terrace * steep) return null;
     // Never dug in at the front: the porch's deck and the doorstep stand
     // clear of the snow before them.
     let front = -Infinity;
@@ -374,8 +381,8 @@ function placeCabins(level: Level): Cabin[] {
       front = Math.max(front, level.groundAt(x + lx * fz + lz * fx, z - lx * fx + lz * fz));
     }
     const P = L.plinth;
-    const y = Math.max(lo + P.least, hi - (def.cut ?? P.cut), front + P.door);
-    if (y - lo > (def.plinth ?? P.most) + 1e-9) return null;
+    const y = Math.max(lo + P.least, hi - (def.cut ?? P.cut) * steep, front + P.door);
+    if (y - lo > (def.plinth ?? P.most) * steep + 1e-9) return null;
     return { y, base: lo };
   };
 

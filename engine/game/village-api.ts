@@ -80,9 +80,13 @@ export {
   bearingsOf,
   kindOfSize,
   realHouseNear,
+  realHouseOrder,
+  realHouseTier,
   realHousesOf,
   turnOff,
+  type RealTier,
 } from "./real-houses.ts";
+export { groomedAt } from "./cabin-site.ts";
 export {
   REAL_STREETS,
   inFrame,

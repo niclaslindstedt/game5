@@ -85,6 +85,8 @@ export type BodyDef = {
   female: boolean;
   skin: number;
   hair: number;
+  /** The shadowed partings between a braid's strands. */
+  plait: number;
 };
 
 /** A garment's colours: the MAIN body of it, its SECOND colour (a yoke, a
@@ -115,8 +117,8 @@ export type PoleDef = {
 };
 
 export const BODIES: readonly BodyDef[] = [
-  { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e },
-  { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232 },
+  { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e, plait: 0x241910 },
+  { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232, plait: 0x6a4020 },
 ];
 
 const WEIGHT_LOOK: Record<RiderId, { name: string; belly: number; chest: number }> = {

@@ -46,7 +46,7 @@ import { FACADE } from "./facade-paint.ts";
 import { FacadeKit } from "./facade-kit.ts";
 import { DOOR_VOID } from "./door-looks.ts";
 import { buildMountainBuilding } from "./mountain-build.ts";
-import { apartments, church, house, shop } from "./village-town.ts";
+import { apartments, church, hall, house, shop } from "./village-town.ts";
 import { buildStreetEdges } from "./street-edges-build.ts";
 import { buildStreetFurniture } from "./street-furniture-build.ts";
 import {
@@ -124,6 +124,8 @@ export function buildResortBuilding(kit: FacadeKit, level: Level, c: Cabin): voi
       return house(site);
     case "apartments":
       return apartments(site);
+    case "hall":
+      return hall(site);
     case "shop":
       return shop(site);
     case "church":

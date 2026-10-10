@@ -10,14 +10,19 @@ import type { CreateGameOptions, GenerateOptions, Level, PortableLevel } from "@
  * trick map's row), or the map a run of a mode is skied on (`levelFor`). */
 export type MapOrder =
   | { seed: number; generate: Omit<GenerateOptions, "progress"> }
-  | { seed: number; game: Pick<CreateGameOptions, "mode" | "region" | "grade"> };
+  | { seed: number; game: Pick<CreateGameOptions, "mode" | "region" | "face" | "grade"> };
 
 /** The order for the map a run with these options is skied on — only what
  * picks the map is posted, so nothing a worker cannot take is. */
 export const gameOrder = (o: CreateGameOptions): MapOrder => ({
   seed: o.seed ?? 1,
-  game: { mode: o.mode, region: o.region, grade: o.grade },
+  game: { mode: o.mode, region: o.region, face: o.face, grade: o.grade },
 });
+
+/** The real face an order raises its map on, if any — fetched before the
+ * map is built (`loadRealFace`). */
+export const faceOfOrder = (order: MapOrder): string | undefined =>
+  "generate" in order ? order.generate.face : order.game.face;
 
 /** A map being built. */
 export type MapJob = {

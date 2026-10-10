@@ -42,6 +42,13 @@ type AppPwaOptions = {
 // 404 the install fetch on `/preview/` and `/branch/`.
 const PUBLIC_SKIP = new Set(["robots.txt", "CNAME"]);
 
+// THE REAL FACES' CHUNKS stay out of the precache: one a face's heights and
+// one its hints (`engine/mapgen/real-faces/`, `real-hints/`), a hundred
+// faces' worth that a player fetches one at a time when a map is raised on
+// it. The worker keeps each one it serves (`ON_DEMAND` below), so a face
+// ridden once rides offline.
+export const ON_DEMAND = /\/assets\/(face|hints)-[a-z]+-\d+-[\w-]+\.js$/;
+
 /** Per-deploy-slot install name so a parked preview installs as its own tile. */
 function channelName(base: string): { name: string; short_name: string } {
   if (base === "/preview/")
@@ -110,6 +117,7 @@ const CACHE = ${JSON.stringify(cacheName)};
 const BASE = ${JSON.stringify(base)};
 const INDEX = ${JSON.stringify(`${base}index.html`)};
 const IGNORE = ${JSON.stringify(ignorePaths)};
+const ON_DEMAND = ${ON_DEMAND.toString()};
 const PRECACHE = ${JSON.stringify(precache)};
 const PRECACHE_PATHS = new Set(
   PRECACHE.map((u) => new URL(u, self.location.href).pathname),
@@ -186,6 +194,21 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         const cache = await caches.open(CACHE);
         return (await cache.match(req)) || fetch(req);
+      })(),
+    );
+    return;
+  }
+
+  // A real face's chunk: kept the first time it is fetched.
+  if (url.pathname.startsWith(BASE) && ON_DEMAND.test(url.pathname)) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE);
+        const kept = await cache.match(req);
+        if (kept) return kept;
+        const fresh = await fetch(req);
+        if (fresh.ok) await cache.put(req, fresh.clone());
+        return fresh;
       })(),
     );
   }
@@ -277,7 +300,7 @@ export function appPwa({ base, version, ignorePaths = [] }: AppPwaOptions): Plug
             : typeof output.source === "string"
               ? Buffer.byteLength(output.source)
               : output.source.byteLength;
-        add(`${base}${fileName}`, bytes);
+        if (!ON_DEMAND.test(`/${fileName}`)) add(`${base}${fileName}`, bytes);
       }
 
       const publicDir = config.publicDir;

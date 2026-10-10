@@ -554,6 +554,11 @@ export function Hud({
           {snap.altitude !== null && !snap.balloon && (
             <span class="hud-chip-sub hud-altitude" title={STRINGS.altitudeSaid}>
               {STRINGS.altitude(snap.altitude)}
+              {snap.overBase !== null && (
+                <span class="hud-over-base" title={STRINGS.overBaseSaid}>
+                  {STRINGS.overBase(snap.overBase)}
+                </span>
+              )}
             </span>
           )}
         </div>

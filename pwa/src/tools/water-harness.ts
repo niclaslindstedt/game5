@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WATER LAB's page (`scripts/water-preview.mjs`): the lakes and the
 // streams (`water-view.ts`, `water-glsl.ts`, decided by `water-plan.ts`
-// off `lake-ice.ts`) through the game's OWN renderer, on a map with the
-// lab's placeholder water laid on it (`water-placeholder.ts`) until a real
-// face's own comes in:
+// off `lake-ice.ts`) through the game's OWN renderer, on a real face's own
+// water (`FACE=`) or, on a map with none, the lab's placeholder water
+// (`water-placeholder.ts`):
 //
 //   * SEASONS — the valley lake and the tarn on the free ride's four
 //     season stops and on two days past them (the ice going out, open);
@@ -24,6 +24,7 @@
 import {
   createGame,
   generateLevel,
+  loadRealFace,
   placeRun,
   waterOn,
   withDay,
@@ -87,6 +88,7 @@ const renderer = createWorldRenderer(canvas, {
 });
 renderer.resize(width, height, 1);
 
+if (face) await loadRealFace(face); // a face is fetched before it is read
 const placed = withPlaceholderWater(generateLevel(seed, { region, face }), size);
 const base = placed.level;
 const valley = placed.valley;

@@ -70,7 +70,7 @@ const args = parseArgs(
     "no-poles": { kind: "flag", help: "the bot skis without poles (the player's hard mode)" },
     face: {
       kind: "string",
-      help: "raise each seed's resort on this REAL face (R25: alpine-1 … fell-2)",
+      help: "raise each seed's resort on this REAL face (R25: alpine-1, fell-3, …)",
     },
     region: {
       kind: "string",
@@ -101,6 +101,8 @@ const args = parseArgs(
   },
   "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--face id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|slopestyle|halfpipe|moguls|aerials] [--heat] [--plan code] [--json path]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/index.ts"))).loadRealFace(args.face);
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
   console.error(`unknown grade "${args.grade}" (${PISTE_GRADES.join(", ")})`);

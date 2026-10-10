@@ -315,15 +315,16 @@ models:
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender
-# (the skier built at game quality, then `scripts/blender/title.py` over
-# `kinds/title.mjs`) and published into the COMMITTED pwa/src/title/ with a
+# (`scripts/blender/title.py` over `kinds/title.mjs`, which writes the game's
+# own dressed skier into previews/blender/ — `scripts/dressed-skier.mjs`, the
+# player's DEFAULT_OUTFIT off the game's loom — for the scene to pose) and
+# published into the COMMITTED pwa/src/title/ with a
 # stamp of their sources (tests/title_scene_test.ts holds it). A full
 # render is a long one (an hour and more on a CPU); a draft is
 # `TITLE_SIZE=768 make blender KIND=title ARGS=--samples=32`.
 #   make title-scene                      the plates, 256 samples
 #   make title-scene SAMPLES=128          fewer samples
 title-scene:
-	npm run blender -- --kind skier --id skier0 --quality=game --views=none
 	npm run blender -- --kind title --quality=render --samples=$(or $(SAMPLES),256)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/title-plates.mjs
 
@@ -978,19 +979,20 @@ difficulty:
 routes:
 	npm run routes -- $(ARGS)
 
-# THE REAL FACES: twenty real mountainsides off the 30 m elevation model,
-# cropped, smoothed and baked into engine/mapgen/real-faces-data.ts
-# (generated; docs/real-faces.md). The tiles are fetched once into
-# previews/.dem/.
-# `make real-faces ARGS=--fetch` · `make real-faces ARGS="--fetch --write"`
+# THE REAL FACES: real mountainsides off the 30 m elevation model, cropped,
+# smoothed and baked into engine/mapgen/real-faces/face-<id>.ts, a file a
+# face, and the index beside them (generated; docs/real-faces.md). The tiles
+# are fetched once into previews/.dem/. `--search` finds a new face's crop.
+# `make real-faces ARGS="--fetch --search --only id"` · `ARGS="--only id --write"`
 real-faces:
 	npm run real-faces -- $(ARGS)
 
 # The real faces' HINTS: the real ski area's lifts, pistes and houses on
 # each face, read off OpenStreetMap and baked coarsely into
-# engine/mapgen/real-hints-data.ts (generated, ODbL; docs/real-faces.md).
-# The map data is fetched once into previews/.osm/.
-# `make real-hints ARGS=--fetch` · `make real-hints ARGS="--fetch --write"`
+# engine/mapgen/real-hints/hints-<id>.ts and the index beside them
+# (generated, ODbL; docs/real-faces.md). The map data is fetched once into
+# previews/.osm/.
+# `make real-hints ARGS="--fetch --only id"` · `ARGS="--only id --write"`
 real-hints:
 	npm run real-hints -- $(ARGS)
 

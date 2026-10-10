@@ -19,6 +19,7 @@ import { REPLAY_STRINGS } from "./strings-replay.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
+import { RANGE_NAMES } from "./strings-ranges.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
 import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
@@ -122,6 +123,13 @@ export const STRINGS = {
   /** His height over the sea, under the speed (`HudSnapshot.altitude`). */
   altitude: (m: number): string => `ALT ${Math.round(m)} M`,
   altitudeSaid: "Height above sea level",
+  /** Beside it, smaller: how far he stands over the ski area's BASE — the
+   * valley station of its lowest lift (`HudSnapshot.overBase`). */
+  overBase: (m: number): string => {
+    const r = Math.round(m);
+    return `BASE ${r < 0 ? "\u2212" : "+"}${Math.abs(r)} M`;
+  },
+  overBaseSaid: "Height above the base station",
   /** The EDGE bar's caption (`hud-dial.tsx`) and the skid's word on it. */
   edge: "EDGE",
   brake: "SKID",
@@ -460,11 +468,12 @@ export const STRINGS = {
   startTitle: "FREE RIDE",
   startNext: "NEXT",
   startMap: "MOUNTAIN",
-  startMapHint: "Which mountain: every seed is another face. Type one, or step through them.",
+  startMapHint:
+    "Which generated mountain: every number is another one, its face, lifts and runs its own. Type one, or step through them.",
   startReroll: "ANOTHER MOUNTAIN",
-  startRegion: "COUNTRY",
+  /** The AREA row's hint under GENERATED: the four kinds of country. */
   startRegionHint:
-    "What kind of snow country the mountain is raised in: the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",
+    "What kind of snow country the generated mountain is raised in: the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",
   /** The REGION row's stops (R21) — a kind of country, never a place. */
   regionNames: {
     alpine: "ALPINE",
@@ -472,11 +481,22 @@ export const STRINGS = {
     continental: "CONTINENTAL",
     maritime: "MARITIME",
   },
-  startFace: "SHAPE",
-  startFaceHint:
-    "The mountain's shape: the seed's own, or one of this country's real mountainsides, read off a satellite survey — its ridge, spurs and gullies, with the seed's lifts and runs laid down it.",
-  /** A real face on the SHAPE row: numbered in its country, never named. */
-  faceName: (n: number): string => `REAL ${n}`,
+  startRange: "RANGE",
+  /** The RANGE row's first stop: a mountain the generator raises. */
+  rangeGenerated: "GENERATED",
+  startRangeHint:
+    "The mountain: a real mountainside in one of these ranges, read off a satellite survey — its ridge, spurs and gullies and its real tree line, with the real ski area's lifts and runs laid down it as near as the seed's own allow — and last, GENERATED: a mountain raised off its number.",
+  startArea: "AREA",
+  startAreaHint:
+    "Which of the range's ski areas, by the place it is known by. Its snow country is its own.",
+  startPart: "PART",
+  startPartHint: "Which part of the ski area: each is a mountainside of its own.",
+  /** A real face's range on the RANGE row (its key to its name), the key
+   * itself for one this table lacks. */
+  rangeName: (key: string): string => RANGE_NAMES[key] ?? key,
+  /** A real face's area or part on the AREA and PART rows: the place as the
+   * map writes it, set in the card's capitals. */
+  placeName: (name: string): string => name.toLocaleUpperCase(),
   /** THE PISTE GRADES (R23) and the ski route's past them (R42), as a sign
    * names them: the mark's name, the loading card's line. */
   gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK", orange: "ORANGE" },

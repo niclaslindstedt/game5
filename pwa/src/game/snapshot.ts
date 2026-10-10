@@ -14,6 +14,7 @@
 // shell (§23.2), and there are none.
 
 import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
+import { altitudeAt, overBase } from "./altitude.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import {
@@ -154,9 +155,12 @@ export type RaceHud = {
 
 export type HudSnapshot = {
   speedKmh: number;
-  /** HOW HIGH HE IS over the sea, m (`Mountain.sea`) — null on a map that
-   * publishes no mountain. */
+  /** HOW HIGH HE IS over the sea, m — the real altitude on a real face
+   * (`altitude.ts`) — null on a map that publishes no mountain. */
   altitude: number | null;
+  /** How far he stands over the ski area's BASE (its lowest lift's valley
+   * station), m, negative under it — null on a map with no lifts. */
+  overBase: number | null;
   /** THE EDGE the skis stand on, as a share of the pair's full edge at a
    * standstill, -1..1 — SCREEN-space, so positive is the skis tipped to
    * the player's right. */
@@ -650,10 +654,10 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   // cross's heat has the start gate's commands and no count at all.
   const cross = crossOf(state);
   const lights = state.rules.countdown > 0 && !race && !state.cross;
-  const mountain = state.level.mountain;
   return {
     speedKmh: c.speed * 3.6,
-    altitude: mountain ? c.y - mountain.sea : null,
+    altitude: altitudeAt(state.level, c.x, c.y, c.z),
+    overBase: overBase(state.level, c.x, c.y, c.z),
     // Against the most edge he can use — a slalom racer's past the ski's own.
     edge: (c.edge / edgeMostOf(c.spec, techniqueOf(state.rules))) * SCREEN_TO_ENGINE,
     tuck: c.crouch,

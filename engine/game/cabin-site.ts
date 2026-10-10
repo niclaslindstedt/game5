@@ -7,8 +7,11 @@
 // pure functions of their arguments.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { Level, TrackPoint } from "../mapgen/types.ts";
+import { sampleField } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import { regionOf } from "../mapgen/regions.ts";
+import type { Level, Lift, TrackPoint } from "../mapgen/types.ts";
 import { CABINS, type CabinKind } from "./defs/cabins.ts";
+import { HOUSE_CLEAR, LIFT_CLEAR, LIFT_LOOK } from "./lift-line.ts";
 
 /** A line a building may stand beside: a run, a lane, or the one piste. */
 export type Line = { id: string; road: boolean; track: { points: TrackPoint[]; length: number } };
@@ -75,6 +78,16 @@ export function wallRadius(kind: CabinKind): number {
 /** A building as its roof stands in plan: its kind, middle and heading. */
 type Placed = { kind: CabinKind; x: number; z: number; heading: number };
 
+/** How far from a building's middle its roof, grown by `gap` / 2 all
+ * round, can reach, m — two whose middles stand further apart than the sum
+ * of theirs never meet (`roofsMeet`). */
+export function roofReach(kind: CabinKind, gap: number): number {
+  const d = CABINS[kind];
+  const hw = d.width / 2 + d.reach.side + gap / 2;
+  const hd = d.depth / 2 + (d.reach.front + d.reach.back) / 2 + gap / 2;
+  return hypot(hw, hd) + Math.abs(d.reach.front - d.reach.back) / 2;
+}
+
 /** Whether the roofs of two buildings (their reach included) come nearer
  * than `gap` m — the two rectangles held apart along all four of their
  * axes (the separating-axis test). */
@@ -114,6 +127,21 @@ export function roofsMeet(a: Placed, b: Placed, gap: number): boolean {
     }
   }
   return true;
+}
+
+/** Whether (x, z) is a groomer's snow a building or a street keeps off:
+ * packed past a quarter — but on a REAL FACE (`Level.face`), a wind crust
+ * folded into the packed field (R21) is not a piste, so only what is
+ * packed past what the crust alone packs counts there. A map with no face
+ * reads the packed field alone, as it always has. */
+export function groomedAt(level: Level): (x: number, z: number) => boolean {
+  const crust = level.face ? (level.crust ?? null) : null;
+  if (!crust) return (x, z) => level.packedAt(x, z) > 0.25;
+  const support = regionOf(level).crust?.packed ?? 0;
+  return (x, z) => {
+    const p = level.packedAt(x, z);
+    return p > 0.25 && p > sampleField(crust, x, z) * support + 0.05;
+  };
 }
 
 /** The heading straight down the ground's fall line at (x, z). */
@@ -162,4 +190,36 @@ export function pointAt(points: TrackPoint[], length: number, s: number, out: Tr
   out.s = u;
   out.heading = t < 0.5 ? a.heading : b.heading;
   out.width = a.width + (b.width - a.width) * t;
+}
+
+/** The lifts of `level` whose clearances (`clearOfLifts`: the line and the
+ * two station houses) could reach a point within `r` m of (x, z) — every
+ * other lift is clear of all of them. */
+export function liftsNear(level: Level, x: number, z: number, r: number): Lift[] {
+  const out: Lift[] = [];
+  for (const lift of level.resort?.lifts ?? []) {
+    const look = LIFT_LOOK[lift.kind];
+    const ext = Math.max(
+      LIFT_CLEAR.line,
+      look.house.length + HOUSE_CLEAR[lift.kind] + LIFT_CLEAR.house,
+    );
+    const wide = Math.max(
+      look.gauge / 2 + LIFT_CLEAR.line,
+      (look.house.width + look.gauge) / 2 + LIFT_CLEAR.house,
+    );
+    const ex = lift.top.x - lift.bottom.x;
+    const ez = lift.top.z - lift.bottom.z;
+    const len = Math.max(1, hypot(ex, ez));
+    const [dx, dz] = [ex / len, ez / len];
+    const d = toSegment(
+      x,
+      z,
+      lift.bottom.x - dx * ext,
+      lift.bottom.z - dz * ext,
+      lift.top.x + dx * ext,
+      lift.top.z + dz * ext,
+    );
+    if (d < wide + r + 1) out.push(lift);
+  }
+  return out;
 }

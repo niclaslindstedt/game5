@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// PLACEHOLDER WATER for the water lab (`water-harness.ts`): until a real
-// face's lakes and streams come off its OpenStreetMap hints, a lab lays a
-// few of its own on any map, in the shape `Level.water` and
-// `Level.streams` will have — a VALLEY LAKE on the valley floor away from
+// PLACEHOLDER WATER for the water lab (`water-harness.ts`): on a map with
+// none of its own (a dealt one, or a face without water), a lab lays a
+// few, in the shape of `Level.water` and `Level.streams` — a VALLEY LAKE on the valley floor away from
 // the village, a TARN in the flattest bowl high on the face, and the
 // STREAM that runs out of the tarn down the fall line — and does to the
-// ground what the generator will: flattens it to each surface, feathered
+// ground what the generator does: flattens it to each surface, feathered
 // into the shore, and clears the trees off the water. Lab-only: nothing in
 // the game reads this file.
 
@@ -121,6 +120,9 @@ export type Placeholder = {
  * (1: about 600 × 340 m, a valley lake a ski village stands by).
  */
 export function withPlaceholderWater(level: Level, scale = 1): Placeholder {
+  // A real face's own water, where it has any: its largest
+  // body on the valley floor the valley lake, the highest the tarn.
+  if (level.water && level.water.length > 0) return ownWater(level);
   const size = level.size;
   const region = level.region ?? "alpine";
   const base = level.mountain?.base.y ?? level.groundAt(size / 2, size * 0.95);
@@ -222,6 +224,22 @@ export function withPlaceholderWater(level: Level, scale = 1): Placeholder {
     tarn,
     stream,
   };
+}
+
+/** A real face's own water in the lab's shape (`Level.water`, laid by the
+ * generator, `real-water.ts`): its largest body on the valley floor the
+ * valley lake, its highest body the tarn, the stream nearest the tarn. */
+function ownWater(level: Level): Placeholder {
+  const water = level.water!;
+  const floor = Math.min(...water.map((b) => b.y)) + 60;
+  const valley = water.filter((b) => b.y <= floor).reduce((a, b) => (b.area > a.area ? b : a));
+  const high = water.reduce((a, b) => (b.y > a.y ? b : a));
+  const tarn = high === valley ? null : high;
+  const streams = level.streams ?? [];
+  const near = (s: WaterStream): number =>
+    tarn ? Math.hypot(s.line[0] - tarn.rings[0][0], s.line[1] - tarn.rings[0][1]) : 0;
+  const stream = streams.length ? streams.reduce((a, b) => (near(b) < near(a) ? b : a)) : null;
+  return { level, valley, tarn, stream };
 }
 
 export { inside as insideRing };

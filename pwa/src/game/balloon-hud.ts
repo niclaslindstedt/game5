@@ -9,6 +9,7 @@
 
 import { BALLOON, type BalloonState, type GameState } from "@engine";
 
+import { altitudeAt } from "./altitude.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
 
 /** WHAT THE MOMENT ASKS OF HIM, the most urgent first:
@@ -71,7 +72,7 @@ export function balloonCall(b: BalloonState): BalloonCall {
 export function balloonOf(state: GameState): HudBalloon | null {
   const b = state.balloon;
   if (!b || !b.aboard || state.skier.thrown) return null;
-  const sea = state.level.mountain ? b.y - state.level.mountain.sea : null;
+  const sea = altitudeAt(state.level, b.x, b.y, b.z);
   // The wind's way in the basket's own frame, onto the screen through the
   // one flip the input model owns.
   const way = Math.atan2(b.windX, b.windZ) - b.heading;

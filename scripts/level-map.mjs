@@ -46,7 +46,7 @@ const args = parseArgs(
     tricks: { kind: "flag", help: "build the map a tricks run skis: its terrain park laid (R20)" },
     face: {
       kind: "string",
-      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1, fell-3, …; its region is the face's",
     },
     region: {
       kind: "string",
@@ -60,6 +60,8 @@ const args = parseArgs(
   },
   "usage: npm run level -- --seed n [--scale px/m] [--out name] [--json] [--tricks] [--region id] [--grade id]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/mapgen/index.ts"))).loadRealFace(args.face);
 
 // ── Build it ────────────────────────────────────────────────────────────
 const t0 = performance.now();

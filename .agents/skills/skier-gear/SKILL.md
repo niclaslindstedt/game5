@@ -47,6 +47,7 @@ card's chrome.
 | `pwa/src/game/skier-figure.ts` | The figure: the dressed skin, the outfit's POLES (alloy, carbon, the downhill racer's bent shaft, the powder basket's petals) and the head's frame the lamp hangs on |
 | `pwa/src/game/menu-dress.tsx` | THE DRESS CARD (and `SkisCards`, how the shell routes it with the ski card): six `StepRow`s and the skier on the ski card's stand framed on him |
 | `scripts/gear-preview.mjs`, `pwa/src/tools/gear-harness.ts`, `pwa/gear-preview.html` | THE GEAR LAB (`make gear`) |
+| `scripts/dressed-skier.mjs` | THE DRESSED SKIER AS A glTF: `DEFAULT_OUTFIT` cut on the loom and written skinned for Blender — the TITLE SCENE poses this one (`title_rider.py`), so a change to any dress module stales the title's stamp (`plates.ts`'s `TITLE_SOURCES`) and owes `make title-scene` |
 | `tests/outfit_test.ts` | The catalog, the pick kept, and every outfit's skin: whole weights on the rig's bones, colours its pieces' own, the triangle budget, a woman's waist, and the jacket over the pants through a full tuck |
 
 ## The loop

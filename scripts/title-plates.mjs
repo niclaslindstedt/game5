@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE TITLE SCENE'S PLATES, published: the last step of `make title-scene`
-// (which first builds the skier at game quality and renders the scene,
-// `scripts/blender.mjs --kind=title`). Copies the colour plate, the aux
+// (which renders the scene, `scripts/blender.mjs --kind=title`, the game's
+// dressed skier written for it by `scripts/dressed-skier.mjs`). Copies the colour plate, the aux
 // plate and the frame's JSON out of the gitignored `previews/blender/` into
 // the committed `pwa/src/title/`, checks each against its budget
 // (`TITLE_PLATES`), and writes `pwa/src/title/sources.json` — the hash of

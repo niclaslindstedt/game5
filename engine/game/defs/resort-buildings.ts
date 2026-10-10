@@ -52,6 +52,10 @@
 //   * CHURCH — the village church: a rendered nave under a steep roof, its
 //     gable to the square, and its BELL TOWER at the front with a pointed
 //     spire over the belfry. Across the main street from the square.
+//   * HALL — a long block of three storeys under a broad low gable along
+//     its front: a hotel's wing, a sports hall, a barn. Never dealt — it
+//     stands only where a REAL FACE's building is too big for a house
+//     (`real-houses.ts`).
 // THE MOUNTAIN:
 //   * MOUNTAIN HUT — the mountain restaurant beside a top station: one
 //     storey over a storey dug into the slope, a broad low gable heavy with
@@ -65,7 +69,7 @@ import type { CabinDef } from "./cabins.ts";
 /** The ski area's buildings by kind: the village's and the mountain's. */
 export type BaseKind =
   "restaurant" | "ticket" | "rental" | "school" | "firstAid" | "hotel" | "garage" | "pumpHouse";
-export type TownKind = "house" | "apartments" | "shop" | "church";
+export type TownKind = "house" | "apartments" | "shop" | "church" | "hall";
 export type VillageKind = BaseKind | TownKind;
 export type MountainKind = "mountainHut" | "patrol";
 export type ResortKind = VillageKind | MountainKind;
@@ -84,7 +88,7 @@ export const BASE_KINDS: readonly BaseKind[] = [
 ];
 
 /** The town's kinds, which stand only on the village's streets. */
-export const TOWN_KINDS: readonly TownKind[] = ["house", "apartments", "shop", "church"];
+export const TOWN_KINDS: readonly TownKind[] = ["house", "apartments", "shop", "church", "hall"];
 
 /** Every one of the village's kinds. */
 export const VILLAGE_KINDS: readonly VillageKind[] = [...BASE_KINDS, ...TOWN_KINDS];
@@ -221,6 +225,20 @@ export const RESORT_BUILDINGS: Readonly<Record<ResortKind, CabinDef>> = {
     ridge: 14.6,
     reach: { side: 1.8, back: 1.6, front: 2.2 },
     terrace: 2.6,
+    share: 0,
+    plinth: 2,
+    cut: 2,
+  },
+  // 40 × 20 m: a 3.4 m stone ground floor and two rendered storeys of 3 m
+  // to the eaves at 9.4 m, a 22° gable along the front to 13.4 m on 1.2 m
+  // eaves, the entrance's canopy 1.6 m out.
+  hall: {
+    width: 40,
+    depth: 20,
+    walls: 9.4,
+    ridge: 13.4,
+    reach: { side: 1.2, back: 1.2, front: 1.6 },
+    terrace: 3,
     share: 0,
     plinth: 2,
     cut: 2,

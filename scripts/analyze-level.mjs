@@ -32,7 +32,7 @@ const args = parseArgs(
     count: { kind: "number", default: 20, help: "how many seeds to sweep" },
     face: {
       kind: "string",
-      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1, fell-3, …; its region is the face's",
     },
     region: {
       kind: "string",
@@ -46,6 +46,8 @@ const args = parseArgs(
   },
   "usage: npm run analyze -- [--seed n | --from n --count k] [--region id] [--grade id]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/mapgen/index.ts"))).loadRealFace(args.face);
 
 const seeds =
   args.seed !== undefined

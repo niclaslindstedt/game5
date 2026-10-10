@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Public entry point for the game engine. The engine is framework-free and
-// renderer-free: the browser app under `pwa/` consumes this module via the
-// `@engine` alias, drives `step()` from its render loop at a fixed timestep,
-// and reads the returned state to draw. The headless simulator and the tests
-// consume the very same surface. See docs/architecture.md.
+// Public entry point for the game engine: framework-free and renderer-free.
+// The browser app under `pwa/` consumes it via the `@engine` alias, steps it
+// at a fixed timestep and draws the state it returns; the simulator and the
+// tests consume the very same surface. See docs/architecture.md.
 
 export { engineVersion } from "./version.ts";
 export {
@@ -341,6 +340,7 @@ export {
   type BigAirRow,
 } from "./game/big-air-contest.ts";
 export { inRunInput } from "./game/in-run.ts";
+export * from "./game/stop-hand.ts";
 export {
   JUDGING,
   difficultyOf,

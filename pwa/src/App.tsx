@@ -416,6 +416,7 @@ export function App() {
     /** A new race takes the engine, and all of the last one's goes with it. */
     const adopt = (next: GameState, ticket: RunTicket | null = null, rides = false): void => {
       show(next);
+      manager.freshHand();
       book.arm(next, ticket);
       stats.rig.arm(next, mode);
       replays.arm(next, rides ? mode : null);
@@ -429,14 +430,7 @@ export function App() {
     const inputFor = () =>
       preroll || params.bot || !playerRides(shellRef.current)
         ? botInput(state)
-        : manager.sample(
-            TUNING.dt,
-            state.skier.airborne,
-            !!state.heli?.rider,
-            state.skier.thrown !== null,
-            state.skier.lift,
-            !!state.balloon?.aboard,
-          );
+        : manager.ride(state);
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {

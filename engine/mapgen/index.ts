@@ -109,6 +109,8 @@ export {
   type HintHouse,
   type HintLift,
   type HintPiste,
+  type HintStreet,
+  type HintTown,
   type RealHints,
 } from "./real-hints.ts";
 // The scoreboard the search gates on, re-exported here so the one surface

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE REAL FACES' HINTS — where the real ski area on each real face has
-// its lifts, its pistes and its houses, so a ski area raised on a face can
-// be laid the way the real one is, and how wooded each height of it is.
+// its lifts, its pistes and its houses, where the town at its foot runs its
+// streets, so a ski area raised on a face can be laid the way the real one
+// is, and how wooded each height of it is.
 //
 // The offline half: it reads the map data of each face's crop off
 // OpenStreetMap (the editing API's bounding-box call, a few tiles a face,
@@ -10,7 +11,9 @@
 // lean on — every lift's two ends and its kind, every downhill piste as a
 // line of bends with its grade and its width at each (off the piste's
 // mapped area, where there is one), every building's middle, size
-// and bearing — turns them onto the face's map with the same crop the
+// and bearing, and the town's streets roughly — its car roads as a few
+// bends each, the most central first, and its middle and radius
+// (`scripts/lib/real-face-streets.mjs`) — turns them onto the face's map with the same crop the
 // heights were baked on (`scripts/lib/real-face-crops.mjs`), and writes
 // them into `engine/mapgen/real-hints/hints-<id>.ts`, a GENERATED file a
 // face listed in `real-hints-index.ts` with the grades its pistes are
@@ -45,6 +48,7 @@ import {
   writeHintIndex,
 } from "./lib/real-face-files.mjs";
 import { encodeTrees, forestPolygons, rasterise, woodsByHeight } from "./lib/real-face-forest.mjs";
+import { townOf } from "./lib/real-face-streets.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = join(root, "previews", ".osm");
@@ -230,6 +234,8 @@ const SHORTEST = 60;
  * one, and tells nothing of the piste's own width, m. */
 const WIDEST = 160;
 const SIZE_STEP = 1;
+/** A town's radius step, m. */
+const TOWN_STEP = 10;
 const WIDTH_STEP = 2;
 const BEARINGS = 32;
 /** The houses kept: none smaller than `HOUSE_LEAST` m a side (a shed, a
@@ -408,12 +414,11 @@ function hintsOf(face, data, height) {
     .filter((o) => o.size >= HOUSE_LEAST)
     .sort((a, b) => b.size - a.size)
     .slice(0, HOUSES_MOST);
-  return { lifts, pistes, houses: kept };
+  return { lifts, pistes, houses: kept, ...townOf(face, data, thin, townBytes) };
 }
 
-/** The hints as bytes: zig-zag varints, every coordinate a step of its own
- * grain and each told as its step from the one before. */
-function encode(h) {
+/** A writer of zig-zag varints: `put` a whole number, `bytes` so far. */
+function varints() {
   const bytes = [];
   const put = (v) => {
     let z = v >= 0 ? v * 2 : -v * 2 - 1;
@@ -423,7 +428,44 @@ function encode(h) {
     }
     bytes.push(z);
   };
-  const q = (v, grain) => Math.round(v / grain);
+  return { bytes, put };
+}
+
+const q = (v, grain) => Math.round(v / grain);
+
+/** A town (`real-face-streets.mjs`'s `townOf`) onto `put`: how many
+ * streets, then — where there are any — the town's middle (`COARSE`) and
+ * radius (`TOWN_STEP`), and each street's class, its bends' count and its
+ * bends, each told as its step from the one before. */
+function putTown(put, town, streets) {
+  put(streets.length);
+  if (streets.length === 0) return;
+  put(q(town.x, COARSE));
+  put(q(town.z, COARSE));
+  put(q(town.r, TOWN_STEP));
+  let [px, pz] = [0, 0];
+  for (const s of streets) {
+    put(s.cls);
+    put(s.points.length);
+    for (const [x, z] of s.points) {
+      put(q(x, COARSE) - px);
+      put(q(z, COARSE) - pz);
+      [px, pz] = [q(x, COARSE), q(z, COARSE)];
+    }
+  }
+}
+
+/** How many bytes a town's streets take as baked. */
+function townBytes(streets) {
+  const w = varints();
+  putTown(w.put, { x: 0, z: 0, r: 0 }, streets);
+  return w.bytes.length;
+}
+
+/** The hints as bytes: zig-zag varints, every coordinate a step of its own
+ * grain and each told as its step from the one before; the town last. */
+function encode(h) {
+  const { bytes, put } = varints();
   put(h.lifts.length);
   for (const l of h.lifts) {
     put(l.kind);
@@ -457,6 +499,7 @@ function encode(h) {
     put(o.size * BEARINGS + o.turn);
     [hx, hz] = [o.x, o.z];
   }
+  putTown(put, h.town, h.streets);
   return Buffer.from(bytes).toString("base64");
 }
 
@@ -471,7 +514,9 @@ if (args.fetch) {
   for (const face of faces) await fetchFace(face);
 }
 const baked = [];
-console.log("face            lifts  pistes  houses   bytes  wooded  line m  missing  bands");
+console.log(
+  "face            lifts  pistes  houses  streets  town b   bytes  wooded  line m  missing  bands",
+);
 for (const face of faces) {
   if (!(await loadRealFace(face.id))) throw new Error(`${face.id}: bake its heights first`);
   const grid = realFace(face.id);
@@ -490,7 +535,7 @@ for (const face of faces) {
   const line = woods.trees ? (woods.lo + woods.trees.line * (woods.hi - woods.lo)).toFixed(0) : "-";
   const bands = woods.trees ? woods.trees.bands.map((b) => b.toFixed(2)).join(" ") : "";
   console.log(
-    `${face.id.padEnd(16)}${String(h.lifts.length).padStart(5)}${String(h.pistes.length).padStart(8)}${String(h.houses.length).padStart(8)}${String(Math.round((encoded.length * 3) / 4)).padStart(8)}${woods.share.toFixed(2).padStart(8)}${line.padStart(8)}${String(missing).padStart(9)}  ${bands}`,
+    `${face.id.padEnd(16)}${String(h.lifts.length).padStart(5)}${String(h.pistes.length).padStart(8)}${String(h.houses.length).padStart(8)}${String(h.streets.length).padStart(9)}${String(townBytes(h.streets)).padStart(8)}${String(Math.round((encoded.length * 3) / 4)).padStart(8)}${woods.share.toFixed(2).padStart(8)}${line.padStart(8)}${String(missing).padStart(9)}  ${bands}`,
   );
 }
 const total = baked.reduce((s, b) => s + b.data.length, 0);
@@ -514,7 +559,14 @@ if (args.write) {
     FACES.map((f) => f.id),
     grades,
     trees,
-    { coarse: COARSE, fine: FINE, size: SIZE_STEP, width: WIDTH_STEP, bearings: BEARINGS },
+    {
+      coarse: COARSE,
+      fine: FINE,
+      size: SIZE_STEP,
+      width: WIDTH_STEP,
+      bearings: BEARINGS,
+      town: TOWN_STEP,
+    },
   );
   console.log(`wrote ${HINT_INDEX}`);
 }

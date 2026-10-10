@@ -17,8 +17,16 @@ export type HintData = {
 /** A lift's ends and a piste's bends are kept in steps of `coarse` m and
  * the piste's width at each bend in steps of `width` m (0 unknown), a
  * house's middle in steps of `fine` m and its size in steps of `size` m,
- * its bearing in `bearings` steps round half a turn. */
-export const HINT_GRAIN = { coarse: 2, fine: 1, size: 1, width: 2, bearings: 32 } as const;
+ * its bearing in `bearings` steps round half a turn; a street's bends and
+ * the town's middle in steps of `coarse` m, its radius of `town` m. */
+export const HINT_GRAIN = {
+  coarse: 2,
+  fine: 1,
+  size: 1,
+  width: 2,
+  bearings: 32,
+  town: 10,
+} as const;
 
 /** The grades of the real pistes on each face that has hints. */
 export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {

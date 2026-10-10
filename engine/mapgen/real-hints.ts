@@ -8,7 +8,9 @@
 // same crop as the face's heights, so a hint stands on the map where the
 // real lift, piste or house stands on the face. Nothing is named: a lift
 // is its two ends and its kind, a piste its grade and a few bends down its
-// line, a house its middle, its size and its bearing.
+// line, a house its middle, its size and its bearing, a street of the town
+// at the foot its class (a main road or a street) and a few bends, the
+// town its middle and radius.
 //
 // They are HINTS, not a plan: the generator leans its stations, its runs
 // and the village's buildings toward them where its own rules allow, and
@@ -45,10 +47,25 @@ export type HintHouse = {
   readonly turn: number;
 };
 
+/** A real street of the town at the face's foot, roughly: whether it is a
+ * MAIN road (a through road) or a street, and its bends to a few metres. */
+export type HintStreet = {
+  readonly main: boolean;
+  readonly points: readonly Point[];
+};
+
+/** The real town, roughly: its middle (where the most street lies) and the
+ * radius that holds most of its streets, m. */
+export type HintTown = { readonly x: number; readonly z: number; readonly r: number };
+
 export type RealHints = {
   readonly lifts: readonly HintLift[];
   readonly pistes: readonly HintPiste[];
   readonly houses: readonly HintHouse[];
+  /** The town's streets, the most central first (none where the face has
+   * no town), and the town itself (null then). */
+  readonly streets: readonly HintStreet[];
+  readonly town: HintTown | null;
 };
 
 /** A point on the map, m. */
@@ -107,7 +124,7 @@ function decode(h: HintData): RealHints {
     } while (b & 0x80);
     return z % 2 ? -(z + 1) / 2 : z / 2;
   };
-  const { coarse, fine, size, width, bearings } = HINT_GRAIN;
+  const { coarse, fine, size, width, bearings, town: townStep } = HINT_GRAIN;
   const lifts: HintLift[] = [];
   for (let i = get(); i > 0; i--) {
     const kind = KINDS[get()];
@@ -142,7 +159,24 @@ function decode(h: HintData): RealHints {
       turn: ((v % bearings) / bearings) * Math.PI,
     });
   }
-  return { lifts, pistes, houses };
+  const streets: HintStreet[] = [];
+  let town: HintTown | null = null;
+  const nStreets = at < bytes.length ? get() : 0;
+  if (nStreets > 0) {
+    town = { x: get() * coarse, z: get() * coarse, r: get() * townStep };
+    let [x, z] = [0, 0];
+    for (let i = nStreets; i > 0; i--) {
+      const main = get() === 0;
+      const points: Point[] = [];
+      for (let k = get(); k > 0; k--) {
+        x += get();
+        z += get();
+        points.push({ x: x * coarse, z: z * coarse });
+      }
+      streets.push({ main, points });
+    }
+  }
+  return { lifts, pistes, houses, streets, town };
 }
 
 // ── Leaning on them ─────────────────────────────────────────────────────
@@ -360,7 +394,11 @@ export function alongPiste(
   piste: HintPiste,
   r: { readonly ahead: { readonly min: number; readonly max: number }; readonly aside: number },
 ): (x: number, z: number) => Point | null {
-  return pisteAhead({ lifts: [], pistes: [piste], houses: [] }, piste.grade, { ...r, same: 0 });
+  return pisteAhead(
+    { lifts: [], pistes: [piste], houses: [], streets: [], town: null },
+    piste.grade,
+    { ...r, same: 0 },
+  );
 }
 
 /** The real width of the pistes at (`x`, `z`), m: the width the map gives

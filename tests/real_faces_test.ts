@@ -340,6 +340,35 @@ describe("a real face's hints", () => {
     expect(realHints("nowhere-1")).toBeNull();
   });
 
+  it("carry the town roughly: its streets on the map, a middle and a radius, a few KB at most", () => {
+    for (const id of REAL_FACE_IDS) {
+      const h = realHints(id)!;
+      const on = (p: { x: number; z: number }): boolean =>
+        p.x >= -1 && p.x <= 4001 && p.z >= -1 && p.z <= 4001;
+      // Every face has a town by the bake's measure, kept to its budget.
+      expect(h.streets.length, id).toBeGreaterThan(0);
+      expect(h.streets.length, id).toBeLessThanOrEqual(90);
+      expect(h.town, id).not.toBeNull();
+      expect(on(h.town!) && h.town!.r > 0 && h.town!.r <= 4000, id).toBe(true);
+      // About 1.8 KB of varints: a few hundred points, never thousands.
+      const points = h.streets.reduce((n, s) => n + s.points.length, 0);
+      expect(points, id).toBeLessThanOrEqual(1000);
+      for (const s of h.streets) {
+        expect(s.points.length, id).toBeGreaterThanOrEqual(2);
+        for (const p of s.points) expect(on(p), id).toBe(true);
+        // Kept at 2 m, never under the bake's shortest.
+        let length = 0;
+        for (let i = 1; i < s.points.length; i++) {
+          length += Math.hypot(
+            s.points[i].x - s.points[i - 1].x,
+            s.points[i].z - s.points[i - 1].z,
+          );
+        }
+        expect(length, id).toBeGreaterThan(35);
+      }
+    }
+  });
+
   const hints: RealHints = {
     lifts: [
       { kind: "chair", bottom: { x: 1500, z: 2600 }, top: { x: 1700, z: 1600 } },
@@ -357,6 +386,8 @@ describe("a real face's hints", () => {
       },
     ],
     houses: [],
+    streets: [],
+    town: null,
   };
 
   it("lean a lift along the real one's line, its floor station carried down to its row", () => {

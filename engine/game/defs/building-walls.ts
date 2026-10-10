@@ -207,6 +207,16 @@ export const BUILDING_DOORS: Readonly<Record<CabinKind, DoorDef | null>> = {
     leaf: 1.0,
     stuff: "glass",
   },
+  hall: {
+    side: "front",
+    at: 0,
+    width: 2.4,
+    height: 2.8,
+    swing: "out",
+    leaves: 2,
+    leaf: 1.0,
+    stuff: "glass",
+  },
   shop: {
     side: "front",
     at: 0,

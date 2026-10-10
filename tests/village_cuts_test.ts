@@ -3,7 +3,8 @@
 // near cuts are every triangle the village is built of, once; each far cut
 // is the same block lighter, its lit panes all kept; a block takes its cut
 // by its distance with a band either side, and the whole village is one
-// draw from the mountain — and the distant cars are lighter than the far.
+// draw from the mountain, a district a draw between — and the distant cars
+// are lighter than the far.
 
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
@@ -11,10 +12,12 @@ import * as THREE from "three";
 import { cabinsOf, resortBuildingsOf } from "@engine";
 import { buildResortBuildings } from "../pwa/src/game/village-build.ts";
 import {
+  DISTANT_AREA,
   NEAR,
   blockDistance,
   createVillageBuildings,
   cutAt,
+  districtsOf,
   villageBlocks,
 } from "../pwa/src/game/village-cuts.ts";
 import { createHazeUniforms } from "../pwa/src/game/haze.ts";
@@ -74,8 +77,19 @@ describe("the ski area's buildings at two cuts", () => {
     const now = shown();
     expect(now).not.toContain("village-whole");
     expect(now).toContain("village-near");
-    expect(now.length).toBe(blocks.length);
+    // Its district a block at a time, every other district one draw.
+    const districts = districtsOf(blocks);
+    const own = blocks.filter((o) => o.district === b.district).length;
+    expect(now.length).toBe(own + districts.size - 1);
     view.dispose();
+  });
+
+  it("cuts each district's distant cut lighter still, every lit pane kept", () => {
+    for (const d of districtsOf(blocks).values()) {
+      expect(d.distant.pos.length).toBeLessThanOrEqual(d.far.pos.length);
+      expect(lit(d.distant.glow)).toBe(lit(d.far.glow));
+    }
+    expect(DISTANT_AREA).toBeGreaterThan(0.3);
   });
 
   it("draws a distant car lighter than a far one", () => {

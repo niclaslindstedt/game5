@@ -252,6 +252,7 @@ export function createMachines(
       // The eye settled for this frame: the helicopter's cockpit shown
       // while it is in the cabin.
       heli?.seen(eye);
+      doors?.seen(eye);
       floods.length = 0;
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.

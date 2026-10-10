@@ -9,7 +9,7 @@ import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
-  REAL_HOUSES,
+  NUDGES,
   REAL_RUN,
   REAL_STREETS,
   bearingsOf,
@@ -52,7 +52,7 @@ describe("a real face's houses", () => {
     const hub = level.resort!.hub!;
     const groomed = groomedAt(level);
     // The furthest nudge off a real house's middle, and a metre.
-    const reach = Math.max(...REAL_HOUSES.nudge.map(([x, z]) => hypot(x, z))) + 1;
+    const reach = Math.max(...NUDGES.map(([x, z]) => hypot(x, z))) + 1;
     for (const c of real) {
       // At a real house: on its middle or a nudge off it, turned along it.
       // (Its own house is within a nudge; a neighbour may stand nearer.)
@@ -99,17 +99,17 @@ describe("a real face's houses", () => {
       expect(realHouseTier(level, b.house)).toBe(b.tier);
     }
     // Most of the mountain's stand (at their spot or a nudge off it),
-    // however big the town; the town's and the valley's up to their most.
+    // however big the town, and no tier is capped: more of the town's
+    // stand than the old cap of 140.
     const real = cabinsOf(level).filter((c) => c.run === REAL_RUN);
     const stood = (h: { x: number; z: number }) =>
       real.some((c) => hypot(c.x - h.x, c.z - h.z) <= 15);
     const up = order.filter((o) => o.tier === "mountain");
     const kept = up.filter((o) => stood(o.house)).length;
-    expect(kept / Math.min(up.length, REAL_HOUSES.tiers.mountain)).toBeGreaterThan(0.4);
-    expect(real.length).toBeLessThanOrEqual(
-      REAL_HOUSES.tiers.mountain + REAL_HOUSES.tiers.town + REAL_HOUSES.tiers.valley,
-    );
-    expect(order.filter((o) => o.tier === "town" && stood(o.house)).length).toBeGreaterThan(20);
+    expect(kept / up.length).toBeGreaterThan(0.4);
+    expect(order.filter((o) => o.tier === "town" && stood(o.house)).length).toBeGreaterThan(140);
+    // The big ones stand too, as halls.
+    expect(real.some((c) => c.kind === "hall")).toBe(true);
   });
 
   it("leave a dealt map's buildings as they were", () => {

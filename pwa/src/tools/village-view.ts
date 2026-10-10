@@ -48,6 +48,7 @@ const KINDS: readonly CabinKind[] = [
   "pumpHouse",
   "house",
   "apartments",
+  "hall",
   "shop",
   "church",
   "mountainHut",

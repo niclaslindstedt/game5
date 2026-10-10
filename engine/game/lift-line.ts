@@ -598,14 +598,19 @@ export function stationHouses(level: Level, plan: LiftPlan): StationHouse[] {
 /** What a thing stood beside a lift keeps clear of, m: past a station
  * house's walls, and either side of the line (its ropes, its towers, its
  * drag track). */
-const LIFT_CLEAR = { house: 3, line: 3.5 };
+export const LIFT_CLEAR = { house: 3, line: 3.5 };
 
 /** Whether (x, z) stands clear of every lift of the area — its two station
  * houses (behind each wheel, along the line, as `LIFT_LOOK` measures them)
  * and the line from wheel to wheel. What a sign, a light mast and a lens
- * are stood by. */
-export function clearOfLifts(level: Level, x: number, z: number): boolean {
-  for (const lift of level.resort?.lifts ?? []) {
+ * are stood by. `lifts` narrows it to some of them (`liftsNear`). */
+export function clearOfLifts(
+  level: Level,
+  x: number,
+  z: number,
+  lifts: readonly Lift[] = level.resort?.lifts ?? [],
+): boolean {
+  for (const lift of lifts) {
     const look = LIFT_LOOK[lift.kind];
     const ex = lift.top.x - lift.bottom.x;
     const ez = lift.top.z - lift.bottom.z;

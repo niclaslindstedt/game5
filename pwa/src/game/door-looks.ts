@@ -51,6 +51,7 @@ export const DOOR_LOOKS: Readonly<Record<Exclude<CabinKind, "shed">, DoorLook>> 
   pumpHouse: { style: "steel", tint: 0x6c747b, face: 0.055, sill: 0 },
   house: { style: "plank", tint: 0xffffff, face: 0.055, sill: 0.2 },
   apartments: { style: "glazed", tint: 0xffffff, face: 0.055, sill: 0.3 },
+  hall: { style: "glazed", tint: 0xffffff, face: 0.055, sill: 0.3 },
   shop: { style: "glazed", tint: 0xffffff, face: 0.055, sill: 0.15 },
   church: { style: "plank", tint: 0xffffff, face: 0.055, sill: 0.4 },
   mountainHut: { style: "glazed", tint: 0xffffff, face: 0.055, sill: 0 },

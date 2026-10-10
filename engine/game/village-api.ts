@@ -79,6 +79,7 @@ export {
   REAL_RUN,
   bearingsOf,
   kindOfSize,
+  NUDGES,
   realHouseNear,
   realHouseOrder,
   realHouseTier,

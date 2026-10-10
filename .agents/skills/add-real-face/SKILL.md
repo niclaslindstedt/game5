@@ -77,9 +77,10 @@ stations the leant lifts end in). Load **`write-code`** beside them and
   player downloads the index and the parts he picks, nothing more. A
   thousand parts is about 0.4 MB of index in the bundle and
   30 MB in the tree. If a new face's hints are far over the others', it is
-  a crop holding a town — check the houses' count first (`real-houses.ts`
-  stands at most 200 up the mountain, 140 in the town and 80 in the rest of
-  the valley anyway).
+  a crop holding a town — check the houses' count first: `real-houses.ts`
+  stands EVERY one that fits (no tier is capped), so a big town is
+  thousands of buildings, a few seconds of the placer's time and a valley
+  of geometry the renderer must hold (measure them, below).
 - **THE NEXT ONE IS THE NEXT ONE OVER.** The card lists a range's areas as
   a WALK (`face-picks.ts`'s `walk`): the most northerly area first, then
   always the nearest not yet listed, by the middle of its parts; an area's
@@ -224,7 +225,10 @@ touches how hints are used), on seed 1 and a few more:
   and the share of the real buildings stood at their spot (a building
   within 8 m) in each of `realHouseTier`'s tiers — the mountain's, the
   town's and the valley's apart, since a town of a thousand houses hides
-  a mountain whose dozen huts are all missing.
+  a mountain whose dozen huts are all missing — and what standing them
+  costs: `cabinsOf`'s seconds a face, the buildings and the walls' posts
+  a map, and the world lab's draw calls and triangles (`npm run world --
+  --free --face <id> --views=village-air --frames=10`) before and after.
 
 Keep the before table, change one thing, re-measure. A rule that refuses
 the real mountain over and over (a real face's pads are rougher, it has

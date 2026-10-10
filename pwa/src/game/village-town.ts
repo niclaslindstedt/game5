@@ -21,6 +21,8 @@
 //     TOWER — a square shaft, its belfry's louvred openings and a clock
 //     face on each side — under a SPIRE some thirty metres over the street
 //     with its cross.
+//   * THE HALL (`hall`): a long block of three storeys under a broad low
+//     gable — stood only at a real face's building too big for a house.
 //
 // The frame is the engine's (`defs/cabins.ts`): x across the front, +z out
 // of it (toward the street), y up from the floor (`Site`). Three-free.
@@ -310,6 +312,51 @@ export function apartments(site: Site): void {
   );
   chimney(kit, -hw * 0.45, -hd * 0.25, d.walls, d.ridge + 0.6);
   chimney(kit, hw * 0.45, -hd * 0.25, d.walls, d.ridge + 0.6);
+}
+
+// ------------------------------------------------------------------ hall
+
+/** THE HALL: a long block — a hotel's wing, a sports hall, a barn — of a
+ * stone ground floor and two rendered storeys under a broad low gable
+ * along its front, rows of windows on both long faces, the entrance in the
+ * middle under its canopy. Plainer than the flats (no balconies), since a
+ * real face may stand a few dozen of them. */
+export function hall(site: Site): void {
+  const { kit, hw, hd, d, c } = site;
+  const g = 3.4;
+  const fl = (d.walls - g) / 2;
+  const render: Skin = { layer: FACADE.render, tint: of(RENDERS, c.id, 1) };
+  const timber = of(TIMBERS, c.id, 2);
+  plinth(site, STONE, 0.3);
+  storey(site, 0, g, STONE);
+  storey(site, g, d.walls, render);
+  kit.inset(-1.2, hd, 1.2, hd, 0.3, 2.8, 0.005, FACADE.plain, DOOR_VOID, false);
+  solid(kit, -2.4, 2.95, hd, 2.4, 3.15, hd + 1.6, FASCIA, ROOF);
+  const bays = Math.max(6, Math.round((2 * hw) / 3.4));
+  windows(site, "front", 2, hw - 0.8, Math.floor(bays / 2) - 1, 0.9, 2.5, 1.3, 0.6, 1);
+  windows(site, "front", -hw + 0.8, -2, Math.floor(bays / 2) - 1, 0.9, 2.5, 1.3, 0.6, 2);
+  windows(site, "back", -hw + 0.8, hw - 0.8, bays, 0.9, 2.5, 1.1, 0.4, 3);
+  for (let f = 0; f < 2; f++) {
+    const y0 = g + f * fl;
+    windows(site, "front", -hw + 0.8, hw - 0.8, bays, y0 + 0.6, y0 + 2.3, 1.2, 0.65, 10 + f);
+    windows(site, "back", -hw + 0.8, hw - 0.8, bays, y0 + 0.6, y0 + 2.3, 1.1, 0.5, 20 + f);
+    windows(site, "left", -hd + 1.5, hd - 1.5, 4, y0 + 0.6, y0 + 2.3, 1.1, 0.5, 30 + f);
+    windows(site, "right", -hd + 1.5, hd - 1.5, 4, y0 + 0.6, y0 + 2.3, 1.1, 0.5, 40 + f);
+  }
+  frontGable(
+    site,
+    hw,
+    hd,
+    d.walls,
+    d.ridge,
+    1.2,
+    idHash(c.id, 9) < 0.5 ? ROOF : DARK_ROOF,
+    { layer: FACADE.boards, tint: timber },
+    FASCIA,
+    SNOW,
+  );
+  chimney(kit, -hw * 0.5, -hd * 0.3, d.walls, d.ridge + 0.6);
+  chimney(kit, hw * 0.5, -hd * 0.3, d.walls, d.ridge + 0.6);
 }
 
 // ------------------------------------------------------------------ shop

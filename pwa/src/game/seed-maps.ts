@@ -36,28 +36,38 @@ import {
   portableLevel,
   type CreateGameOptions,
   type GeneratedLevel,
-  type PisteGrade,
+  type Level,
+  type RunGrade,
   type RegionId,
 } from "@engine";
 
 import { nextFreeSeed } from "./free-ride.ts";
+import { gameOrder, type MapOrder } from "./map-order.ts";
 import { rememberBoard } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
 import type {
   PreviewPainted,
   PreviewPicture,
+  PreviewProgress,
   PreviewRefused,
   PreviewReply,
   PreviewRequest,
 } from "./seed-preview-worker.ts";
 import { readChart, writeChart } from "./seed-store.ts";
 
-/** One map the card can ask for: a seed, in a region (R21), to a grade
- * (R23) — null the seed's own. */
-export type SeedAsk = { seed: number; region: RegionId; grade: PisteGrade | null };
+/** One map the card can ask for: a seed, in a region (R21), on a real
+ * face (R25) — null or absent the dealt massif — to a grade (R23) — null
+ * the seed's own. */
+export type SeedAsk = {
+  seed: number;
+  region: RegionId;
+  face?: string | null;
+  grade: RunGrade | null;
+};
 
 /** What names a map. */
-export const askKey = (a: SeedAsk): string => `${a.region}:${a.grade ?? "dealt"}:${a.seed}`;
+export const askKey = (a: SeedAsk): string =>
+  `${a.face ?? a.region}:${a.grade ?? "dealt"}:${a.seed}`;
 
 /** A chart as the card draws it: its two pictures as URLs an `<image>`
  * takes, or the seed's refusal. */
@@ -81,6 +91,8 @@ let idle = 0;
 let wanted: SeedAsk | null = null;
 const answers = new Map<string, SeedAnswer>();
 const levels = new Map<string, GeneratedLevel>();
+/** How far the map being built has got, 0–1, by key — the job in hand's. */
+const shares = new Map<string, number>();
 /** Keys whose kept chart has been looked for, and those being read. */
 const looked = new Set<string>();
 const reading = new Set<string>();
@@ -111,8 +123,21 @@ export function wantSeed(ask: SeedAsk): void {
   // is looking at any more: it gives way. One on this mountain in another
   // grade is let finish — the ski area it is raising is this one's too,
   // and the worker keeps it (`buildResort`'s cache).
-  if (busy && (busy.seed !== ask.seed || busy.region !== ask.region)) stop();
+  if (
+    busy &&
+    (busy.seed !== ask.seed ||
+      busy.region !== ask.region ||
+      (busy.face ?? null) !== (ask.face ?? null))
+  ) {
+    stop();
+  }
   pump();
+}
+
+/** How far the worker has got building the map for `ask`, 0–1, or null
+ * while it is not building it. */
+export function seedShare(ask: SeedAsk): number | null {
+  return shares.get(askKey(ask)) ?? null;
 }
 
 /** The map built for `ask`, if one is held. */
@@ -154,6 +179,7 @@ function settle(key: string, level: GeneratedLevel | null): void {
 function stop(): void {
   worker?.terminate();
   worker = null;
+  shares.clear();
   if (busy) settle(busy.key, null);
   busy = null;
 }
@@ -203,8 +229,12 @@ function run(job: Job): void {
   // never built twice: it is stood up here and handed over to be painted.
   const own =
     levels.get(job.key) ??
-    (levelIsCached(job.seed, { region: job.region })
-      ? generateLevel(job.seed, { region: job.region, grade: job.grade ?? undefined })
+    (levelIsCached(job.seed, { region: job.region, face: job.face ?? undefined })
+      ? generateLevel(job.seed, {
+          region: job.region,
+          face: job.face ?? undefined,
+          grade: job.grade ?? undefined,
+        })
       : null);
   if (own) holdLevel(job.key, own);
   if (own && !job.paint) {
@@ -216,6 +246,7 @@ function run(job: Job): void {
   const ask: PreviewRequest = {
     seed: job.seed,
     region: job.region,
+    face: job.face ?? null,
     grade: job.grade,
     paint: job.paint,
     ...(own ? { level: portableLevel(own) } : {}),
@@ -225,10 +256,16 @@ function run(job: Job): void {
 
 function spawn(): Worker {
   const w = new Worker(new URL("./seed-preview-worker.ts", import.meta.url), { type: "module" });
-  w.onmessage = (e: MessageEvent<PreviewReply>) => {
+  w.onmessage = (e: MessageEvent<PreviewReply | PreviewProgress>) => {
     if (w !== worker) return;
     const reply = e.data;
     const key = askKey(reply);
+    if ("share" in reply) {
+      shares.set(key, reply.share);
+      notify();
+      return;
+    }
+    shares.delete(key);
     busy = null;
     if (!reply.ok) {
       void keep(key, reply);
@@ -251,7 +288,8 @@ function spawn(): Worker {
     stop();
     if (job) {
       const { seed, region, grade, key } = job;
-      void keep(key, { seed, region, grade, ok: false, error: "the worker failed" });
+      const face = job.face ?? null;
+      void keep(key, { seed, region, face, grade, ok: false, error: "the worker failed" });
     }
     notify();
   };
@@ -326,21 +364,36 @@ function asUrl(picture: PreviewPicture): Promise<string | null> {
   });
 }
 
-/** THE MAP A FREE RIDE IS STOOD UP ON, from what this module holds: the one
- * the worker built for its seed, or — while the worker is building that
- * very map — that one once it comes (`ready` says when). Undefined where
- * there is none, and the ride builds its own. */
-export function freeRideLevel(ask: SeedAsk): {
+/** THE MAP A FREE RIDE IS STOOD UP ON, as the pieces of its load
+ * (`LoadPlan`): the map `standing` already, or the one the worker built
+ * for its seed, or — while the worker is building that very map — that one
+ * once it comes (`ready` says when, `readyShare` how far it has got). Where
+ * there is none, the load orders it built on the card's own worker (`map`).
+ * Nothing more is built ahead from here on (`quietSeedMaps`). */
+export function freeRideLevel(
+  options: CreateGameOptions,
+  standing: () => Level | undefined,
+): {
   ready: () => boolean;
-  level: () => GeneratedLevel | undefined;
+  readyShare: () => number;
+  map: () => MapOrder | null;
+  /** The map in hand, if any. */
+  has: () => Level | undefined;
 } {
+  const ask = freeAsk(options);
   const held = heldLevel(ask);
-  if (held) return { ready: () => true, level: () => held };
-  let came: GeneratedLevel | null | undefined;
-  const building = buildingLevel(ask);
-  if (!building) return { ready: () => true, level: () => undefined };
-  void building.then((level) => (came = level));
-  return { ready: () => came !== undefined, level: () => came ?? undefined };
+  let came: GeneratedLevel | null | undefined = held ?? undefined;
+  const building = held ? null : buildingLevel(ask);
+  if (building) void building.then((level) => (came = level));
+  else came ??= null;
+  quietSeedMaps(ask);
+  const has = (): Level | undefined => standing() ?? came ?? undefined;
+  return {
+    ready: () => came !== undefined,
+    readyShare: () => (came !== undefined ? 1 : (seedShare(ask) ?? 0)),
+    map: () => (has() ? null : gameOrder(options)),
+    has,
+  };
 }
 
 /** The map a free ride's options ask for. */
@@ -348,6 +401,7 @@ export function freeAsk(options: CreateGameOptions): SeedAsk {
   return {
     seed: options.seed ?? 1,
     region: options.region ?? DEFAULT_REGION,
+    face: options.face ?? null,
     grade: options.grade ?? null,
   };
 }

@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE AIRFRAME TORN APART — a crashed helicopter (`heli.ts`'s `crash`) as
 // drawn: the machine's own meshes (the Blender model, or the code's
-// stand-in) cut once into the pieces an airframe comes apart in — the
-// cabin's shell crushed into panels, the nose, the engine deck, the tail
-// boom whole with its fin (a boom most often comes off in one piece), the
-// skids and their cross tubes, the
-// tail rotor, and each main-rotor blade broken at its root and again
-// along its span — and, the moment it goes down, every piece flung from
-// where it was drawn: off the blast at the fuel cells, with the way the
-// machine was going, the blades slung on along their own turn. They
-// tumble, strike the snow (a puff of it, and sparks off the metal),
-// skid and come to rest, the ones that burn trailing fire as they fly.
+// stand-in) cut once into the pieces an airframe comes apart in, and
+// thrown about the way accident sites show them. A light helicopter's
+// fuel DEFLAGRATES rather than detonates, so the fire does not blow the
+// airframe apart — the impact does. The CABIN stays where it struck, a
+// crumpled HULK rolled onto its side (the commonest way a helicopter
+// comes to rest), its panels buckled and the skids splayed out from under
+// it; the TAIL BOOM snaps off at the cabin and is thrown a few metres
+// (it most often survives in one piece); the ROOF's panels are thrown up
+// off the blast; and the MAIN ROTOR's blades, which strike the snow still
+// turning at some 210 m/s at the tip, break at the root and along their
+// span and are slung tens of metres on along their own turn. The flung
+// pieces tumble, strike the snow (a puff of it, and sparks off the
+// metal), skid and come to rest, the ones that burn trailing fire.
 //
 // The pieces share the machine's own materials, so they char as it does
 // (`heli-view.ts`). Built once per model and reused; nothing allocates
@@ -59,6 +62,38 @@ export const FLING = {
   burnFor: [3, 9] as const,
 } as const;
 
+/** THE HULK: how long the cabin takes to go over, s; how far onto its
+ * side it rolls, rad (a band either way), how far it pitches, rad; the
+ * share of its way along the snow it slides on, s, and at most, m; how
+ * far its panels are buckled out of true, m and rad; and how far the
+ * skids are splayed out from under it, m. */
+export const HULK = {
+  settle: 0.7,
+  roll: [0.95, 1.45] as const,
+  pitch: 0.3,
+  slide: 0.35,
+  slideMost: 6,
+  dent: 0.22,
+  twist: 0.28,
+  splay: 0.7,
+} as const;
+
+/** What a piece is to the crash: part of the HULK that stays, the BOOM
+ * snapped off, a ROOF panel thrown up, a BLADE section slung, or the hub
+ * and tail rotor thrown. */
+type Role = "hulk" | "boom" | "roof" | "blade" | "rotor";
+
+const roleOf = (key: string): Role =>
+  key.startsWith("blade")
+    ? "blade"
+    : key === "boom"
+      ? "boom"
+      : key === "hub" || key === "tail-rotor"
+        ? "rotor"
+        : key.endsWith("-top")
+          ? "roof"
+          : "hulk";
+
 /** What a piece hands back for the fire and the snow: where a burning one
  * is, and where one has just struck the snow, how hard. */
 export type ShatterHooks = {
@@ -93,6 +128,13 @@ type Piece = {
   centre: THREE.Vector3;
   size: number;
   blade: boolean;
+  role: Role;
+  /** A hulk piece: where it stood off the hulk's pivot as it struck, its
+   * turn then, and the dent it is buckled by. */
+  rel: THREE.Vector3;
+  q0: THREE.Quaternion;
+  dent: THREE.Vector3;
+  bend: THREE.Quaternion;
   /** Its distance from the mast, m (a blade's sling). */
   radius: number;
   pos: THREE.Vector3;
@@ -234,6 +276,11 @@ function pieceOf(key: string, cell: Map<THREE.Material, number[]>): Piece {
     centre,
     size,
     blade: key.startsWith("blade"),
+    role: roleOf(key),
+    rel: new THREE.Vector3(),
+    q0: new THREE.Quaternion(),
+    dent: new THREE.Vector3(),
+    bend: new THREE.Quaternion(),
     radius: Math.hypot(centre.x, centre.z - HELI.rotor.at),
     pos: new THREE.Vector3(),
     vel: new THREE.Vector3(),
@@ -256,6 +303,19 @@ export function createShatter(): Shatter {
   const blast = new THREE.Vector3();
   const mast = new THREE.Vector3();
   const along = new THREE.Vector3();
+  // THE HULK: the point it goes over about, its slide along the snow, the
+  // turn it ends at, how long it has been going over, and how far it is
+  // let down to lie on the snow (worked out on its first step).
+  const pivot = new THREE.Vector3();
+  const slide = new THREE.Vector3();
+  const over = new THREE.Quaternion();
+  const turnNow = new THREE.Quaternion();
+  const bendNow = new THREE.Quaternion();
+  const unit = new THREE.Quaternion();
+  const at = new THREE.Vector3();
+  let hulkAge = -1;
+  let sink: number | null = null;
+  let landed = false;
 
   function build(machine: THREE.Object3D, model: THREE.Object3D): void {
     for (const p of pieces) {
@@ -265,6 +325,51 @@ export function createShatter(): Shatter {
     pieces = [...cut(machine, model)].map(([key, cell]) => pieceOf(key, cell));
     for (const p of pieces) group.add(p.mesh);
     builtFor = model;
+  }
+
+  /** THE HULK GOING OVER: `k` of the way, gravity's tip — slow off its
+   * skid, fast onto its side — the slide along the snow eased out. */
+  function placeHulk(k: number, groundAt: (x: number, z: number) => number): void {
+    const tip = k * k;
+    const out = 1 - (1 - k) * (1 - k);
+    turnNow.slerpQuaternions(unit, over, tip);
+    for (const p of pieces) {
+      if (p.role !== "hulk") continue;
+      at.copy(p.rel).applyQuaternion(turnNow).add(pivot).addScaledVector(slide, out);
+      at.addScaledVector(p.dent, Math.min(1, k * 1.5));
+      if (sink !== null) at.y -= sink * tip;
+      p.pos.copy(at);
+      p.mesh.position.copy(at);
+      bendNow.slerpQuaternions(unit, p.bend, Math.min(1, k * 1.5));
+      p.mesh.quaternion.copy(turnNow).multiply(p.q0).multiply(bendNow);
+    }
+    // Let down onto the snow: worked out once, where it will lie.
+    if (sink === null) {
+      turnNow.copy(over);
+      let low = Infinity;
+      for (const p of pieces) {
+        if (p.role !== "hulk") continue;
+        at.copy(p.rel).applyQuaternion(over).add(pivot).add(slide).add(p.dent);
+        low = Math.min(low, at.y - p.size * 0.18 - groundAt(at.x, at.z));
+      }
+      sink = Number.isFinite(low) ? low : 0;
+    }
+  }
+
+  function stepHulk(
+    dt: number,
+    groundAt: (x: number, z: number) => number,
+    hooks: ShatterHooks,
+  ): void {
+    if (hulkAge > HULK.settle) return;
+    hulkAge += dt;
+    const k = Math.min(1, hulkAge / HULK.settle);
+    placeHulk(k, groundAt);
+    if (k >= 1 && !landed) {
+      // Down on its side: a slam of snow and sparks off the metal.
+      landed = true;
+      hooks.strike(pivot.x + slide.x, groundAt(pivot.x, pivot.z), pivot.z + slide.z, 12);
+    }
   }
 
   return {
@@ -277,12 +382,63 @@ export function createShatter(): Shatter {
       // the cabin; the mast the blades turn about.
       blast.set(0, 0.9, -0.6).applyMatrix4(machine.matrixWorld);
       mast.set(0, HELI.rotor.hub, HELI.rotor.at).applyMatrix4(machine.matrixWorld);
+      // The hulk goes over about its skid on the side it rolls to, sliding
+      // on a little along its way, nose up or down a touch.
+      const side = random() < 0.5 ? -1 : 1;
+      pivot.set(side * 1.1, 0, 0.3).applyMatrix4(machine.matrixWorld);
+      const flatWay = Math.hypot(v.x, v.z);
+      const far = Math.min(HULK.slideMost, flatWay * HULK.slide);
+      slide.set(
+        flatWay > 0.1 ? (v.x / flatWay) * far : 0,
+        0,
+        flatWay > 0.1 ? (v.z / flatWay) * far : 0,
+      );
+      const roll = side * (HULK.roll[0] + (HULK.roll[1] - HULK.roll[0]) * random());
+      const pitch = (random() - 0.5) * 2 * HULK.pitch;
+      const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+      over
+        .setFromAxisAngle(fwd, -roll)
+        .multiply(new THREE.Quaternion().setFromAxisAngle(right, pitch));
+      hulkAge = 0;
+      sink = null;
+      landed = false;
       for (const p of pieces) {
         p.pos.copy(p.centre).applyMatrix4(machine.matrixWorld);
         p.mesh.quaternion.copy(q);
         p.mesh.position.copy(p.pos);
         p.mesh.visible = true;
         p.rest = false;
+        p.burn = 0;
+        if (p.role === "hulk") {
+          // Stays: buckled out of true, the skids splayed from under it.
+          p.rel.copy(p.pos).sub(pivot);
+          p.q0.copy(q);
+          const d = HULK.dent;
+          p.dent.set((random() - 0.5) * 2 * d, (random() - 0.6) * d, (random() - 0.5) * 2 * d);
+          if (p.mesh.name.startsWith("piece-skid")) {
+            along.set(p.centre.x < 0 ? -1 : 1, 0, 0).applyQuaternion(q);
+            p.dent.addScaledVector(along, HULK.splay * (0.5 + random()));
+          }
+          axis.set(random() - 0.5, random() - 0.5, random() - 0.5).normalize();
+          p.bend.setFromAxisAngle(axis, HULK.twist * random());
+          p.rest = true;
+          continue;
+        }
+        if (p.role === "boom") {
+          // Snapped off at the cabin and thrown back off it, end over end.
+          along
+            .set((random() - 0.5) * 0.6, 0.35, -1)
+            .applyQuaternion(q)
+            .normalize();
+          const sp = 4 + 3 * random();
+          p.vel.set(v.x * 0.4 + along.x * sp, 3 + 2 * random(), v.z * 0.4 + along.z * sp);
+          // Slewed round as it goes, never stood on end: it lands lying.
+          p.spin.set((random() - 0.5) * 0.3, (random() - 0.5) * 2.5, (random() - 0.5) * 0.3);
+          p.burn = 0.5;
+          p.burnLeft = FLING.burnFor[1];
+          continue;
+        }
         // Off the blast, the smaller the faster.
         along.copy(p.pos).sub(blast);
         along.y = Math.max(0, along.y) + 0.3;
@@ -307,12 +463,14 @@ export function createShatter(): Shatter {
         }
         const s = p.blade ? FLING.bladeSpin : FLING.spin * light;
         p.spin.set((random() - 0.5) * 2 * s, (random() - 0.5) * 2 * s, (random() - 0.5) * 2 * s);
+        if (p.role === "roof") p.vel.y += 4;
         p.burn = !p.blade && random() < FLING.burns ? 0.5 + 0.5 * random() : 0;
         p.burnLeft = FLING.burnFor[0] + (FLING.burnFor[1] - FLING.burnFor[0]) * random();
       }
     },
     update(dt, groundAt, hooks) {
       if (dt <= 0) return;
+      if (hulkAge >= 0) stepHulk(dt, groundAt, hooks);
       for (const p of pieces) {
         if (!p.mesh.visible) continue;
         if (p.burn > 0 && p.burnLeft > 0) {
@@ -322,7 +480,7 @@ export function createShatter(): Shatter {
           const heat = p.burn * Math.min(1, p.burnLeft / 2) * (p.rest ? 0.6 : 1);
           if (heat > 0.02) hooks.flame(p.pos.x, p.pos.y, p.pos.z, heat, dt);
         }
-        if (p.rest) continue;
+        if (p.rest || p.role === "hulk") continue;
         p.vel.y -= 9.81 * dt;
         // The air's drag on a tumbling panel, and on a blade's section.
         p.vel.multiplyScalar(Math.exp(-(p.blade ? FLING.bladeDrag : 0.05) * dt));
@@ -356,6 +514,7 @@ export function createShatter(): Shatter {
       return pieces.some((p) => p.mesh.visible && !p.rest);
     },
     clear() {
+      hulkAge = -1;
       for (const p of pieces) {
         p.mesh.visible = false;
         p.rest = true;

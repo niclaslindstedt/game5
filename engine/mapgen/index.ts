@@ -4,12 +4,17 @@
 
 export * from "./types.ts";
 export { generateLevel, levelIsCached, subSeed } from "./generate.ts";
+export { laySkiRoutes, skiRoutesOf, steepestAlong } from "./ski-routes.ts";
 export { boundLevel, portableLevel, type PortableLevel } from "./compile.ts";
 export { LEVEL_RULES, bendFloor, inBand, withinBand, type Band } from "./rules.ts";
 export { bermCrest, bermProfile } from "./berm.ts";
 export {
   GRADES,
   PISTE_GRADES,
+  RUN_GRADES,
+  courseGrade,
+  isRunGrade,
+  type RunGrade,
   UNGRADED,
   dealGrade,
   gradeOf,
@@ -77,6 +82,18 @@ export {
   type RegionId,
   type TreeKind,
 } from "./regions.ts";
+export { REAL_FACE_IDS, faceHeight, realFace, realFaceRegion, type RealFace } from "./real-face.ts";
+export {
+  leanLift,
+  leanStation,
+  pisteAhead,
+  pisteVia,
+  realHints,
+  type HintHouse,
+  type HintLift,
+  type HintPiste,
+  type RealHints,
+} from "./real-hints.ts";
 // The scoreboard the search gates on, re-exported here so the one surface
 // that carries the generator carries its verdict too.
 export {

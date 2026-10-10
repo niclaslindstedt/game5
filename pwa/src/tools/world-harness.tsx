@@ -36,9 +36,11 @@ import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
 import { markView } from "./mark-view.ts";
 import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
+import { crashShot } from "./crash-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
-import { signView } from "./sign-view.ts";
+import { ROUTE_VIEWS, routeView } from "./route-view.ts";
+import { SIGN_VIEWS, namedSignView } from "./sign-view.ts";
 import { buildingShots } from "./building-shots.ts";
 import {
   DEFAULT_VIDEO,
@@ -817,32 +819,25 @@ const shots: Record<string, () => string> = {
     return view.note;
   },
   ...Object.fromEntries(
-    (["sign", "sign-tree"] as const).map((name) => [
-      name,
-      () => {
-        const view = signView(level, name === "sign-tree");
-        if (!view) return "no sign on this map";
-        renderer.setOverride(view.pose);
-        still();
-        renderer.setOverride(null);
-        return view.note;
-      },
-    ]),
-  ),
-  ...Object.fromEntries(
-    (["gate", "hut", "finish", ...SITE_VIEWS] as const).map((name) => [
-      name,
-      () => {
-        const view = SITE_VIEWS.includes(name as never)
-          ? cabinView(level, name)
-          : markView(level, name as "gate");
-        if (!view) return "none on this map";
-        renderer.setOverride(view.pose);
-        still();
-        renderer.setOverride(null);
-        return view.note;
-      },
-    ]),
+    (["gate", "hut", "finish", ...SITE_VIEWS, ...SIGN_VIEWS, ...ROUTE_VIEWS] as const).map(
+      (name) => [
+        name,
+        () => {
+          const view = ROUTE_VIEWS.includes(name as never)
+            ? routeView(level, name)
+            : SIGN_VIEWS.includes(name as never)
+              ? namedSignView(level, name)
+              : SITE_VIEWS.includes(name as never)
+                ? cabinView(level, name)
+                : markView(level, name as "gate");
+          if (!view) return "none on this map";
+          renderer.setOverride(view.pose);
+          still();
+          renderer.setOverride(null);
+          return view.note;
+        },
+      ],
+    ),
   ),
   herd() {
     const view = herdView();
@@ -976,13 +971,17 @@ window.__world = {
     const chase = /^chase-(\d+)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
     const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
-    const run = chase
-      ? () => chaseAt(Number(chase[1]))
-      : fall
-        ? () => fallAt(Number(fall[2]), fall[1] === "yard")
-        : net
-          ? () => netAt(Number(net[1]))
-          : shots[name];
+    const crash = /^crash-(net-)?(\d+(?:\.\d+)?)$/.exec(name);
+    const run = crash
+      ? () =>
+          crashShot(state, renderer, Number(crash[2]), crash[1] ? intoNet : intoTrunk, !crash[1])
+      : chase
+        ? () => chaseAt(Number(chase[1]))
+        : fall
+          ? () => fallAt(Number(fall[2]), fall[1] === "yard")
+          : net
+            ? () => netAt(Number(net[1]))
+            : shots[name];
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${region ? ` · ${region}` : ""} · ${note}`;

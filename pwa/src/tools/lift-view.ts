@@ -7,6 +7,11 @@
 //
 //   * lift-tower, lift-chair, lift-cabin, lift-tbar — one part close, as
 //     a 1280 × 720 frame;
+//   * lift-turns — THE TURNS: every station's wheel with its carriers
+//     coming round it — a chair's foot and top, a drag's foot and top, a
+//     gondola's foot — a row a station: from behind the wheel, low under
+//     the hood's edge, at three moments a second and a half apart (the
+//     motion, strobed), and from a skier's eye three quarters on;
 //   * lifts — THE SHEET: a chair's tower from three sides and at chase
 //     range, a gondola's and a drag's tower heads, a chair from three
 //     sides, a cabin from two, a T-bar on its rope, the lines from a
@@ -19,7 +24,9 @@
 import {
   DRAG_ARM,
   carrierAt,
+  carrierGripAt,
   carrierCount,
+  turnRadius,
   planLift,
   ropeAt,
   stationHouses,
@@ -32,7 +39,14 @@ import {
 import type { LensPose } from "../game/camera-rigs.ts";
 
 /** The views this module answers for the world lab. */
-export const LIFT_VIEWS = ["lifts", "lift-tower", "lift-chair", "lift-cabin", "lift-tbar"] as const;
+export const LIFT_VIEWS = [
+  "lifts",
+  "lift-turns",
+  "lift-tower",
+  "lift-chair",
+  "lift-cabin",
+  "lift-tbar",
+] as const;
 
 type Lab = {
   level: Level;
@@ -208,6 +222,7 @@ export function liftShots(lab: Lab): Record<string, () => string> {
       return v.name;
     };
   }
+  shots["lift-turns"] = () => turnSheet(lab);
   shots.lifts = () => {
     const cols = 3;
     const cellW = 426;
@@ -243,4 +258,100 @@ export function liftShots(lab: Lab): Record<string, () => string> {
     return "the lifts' hardware, part by part";
   };
   return shots;
+}
+
+/** The stations the turns sheet shows, a row each. */
+const TURNS: readonly { kind: LiftKind; top: boolean }[] = [
+  { kind: "chair", top: false },
+  { kind: "chair", top: true },
+  { kind: "drag", top: false },
+  { kind: "drag", top: true },
+  { kind: "gondola", top: false },
+];
+
+/** The sheet's columns: seconds after the row's moment, and the lens —
+ * from behind the wheel under the hood's edge, or three quarters on at a
+ * skier's eye. */
+const TURN_COLS: readonly { dt: number; lens: "back" | "eye" }[] = [
+  { dt: 0, lens: "back" },
+  { dt: 2, lens: "back" },
+  { dt: 1, lens: "eye" },
+];
+
+/** A moment after `t0` when a carrier of `p` is half way round the wheel
+ * at its `top` or foot. */
+function turnMoment(p: LiftPlan, top: boolean, t0: number): number {
+  for (let t = t0; t < t0 + 240; t += 0.05) {
+    for (let k = 0; k < carrierCount(p); k++) {
+      const c = carrierAt(p, k, t);
+      if (c.turn !== undefined && c.u > 0 === top && Math.abs(c.turn - Math.PI / 2) < 0.08)
+        return t - 0.75;
+    }
+  }
+  return t0;
+}
+
+/** A lens on a station's wheel. */
+function turnLens(level: Level, p: LiftPlan, top: boolean, lens: "back" | "eye"): LensPose {
+  const u = top ? p.length : 0;
+  const out = top ? -1 : 1;
+  const wx = p.lift.bottom.x + p.dx * u;
+  const wz = p.lift.bottom.z + p.dz * u;
+  const grip = carrierGripAt(p, u);
+  const at = { x: wx + p.dx * out * 1.5, y: grip - 1.4, z: wz + p.dz * out * 1.5 };
+  // Beside the wheel, low, looking in under the hood at the carriers
+  // coming round; or out along the line, three quarters on, at a skier's
+  // eye — a foot's from the up rope's side, a top's from the other, clear
+  // of its house and booth.
+  const back = lens === "back";
+  const along = back ? -turnRadius(p) : 14;
+  const across = (top ? -1 : 1) * (back ? turnRadius(p) + 8 : 9);
+  const ex = wx + p.dx * out * along + p.dz * across;
+  const ez = wz + p.dz * out * along - p.dx * across;
+  const y = level.groundAt(ex, ez) + (back ? 1.3 : 1.7);
+  return { eye: { x: ex, y, z: ez }, target: at, fov: 60, roll: 0 };
+}
+
+/** THE TURNS SHEET (`lift-turns`). */
+function turnSheet(lab: Lab): string {
+  const state = lab.state;
+  if (!state) return "no run";
+  const cellW = 640;
+  const cellH = 360;
+  const sheet = document.createElement("canvas");
+  sheet.width = cellW * TURN_COLS.length;
+  sheet.height = cellH * TURNS.length;
+  const g = sheet.getContext("2d") as CanvasRenderingContext2D;
+  g.fillStyle = "#0b1116";
+  g.fillRect(0, 0, sheet.width, sheet.height);
+  g.font = "13px monospace";
+  const was = state.t;
+  TURNS.forEach((row, j) => {
+    const p = longest(lab.level, row.kind);
+    const t0 = p ? turnMoment(p, row.top, was) : was;
+    TURN_COLS.forEach((col, i) => {
+      const x = i * cellW;
+      const y = j * cellH;
+      if (p) {
+        state.t = t0 + col.dt;
+        lab.setOverride(turnLens(lab.level, p, row.top, col.lens));
+        lab.still();
+        g.drawImage(lab.canvas, x, y, cellW, cellH);
+      }
+      g.fillStyle = "rgba(0,0,0,0.55)";
+      g.fillRect(x, y, cellW, 20);
+      g.fillStyle = "#fff";
+      const name = `${row.kind} ${row.top ? "top" : "foot"} · ${col.lens} · +${col.dt}s`;
+      g.fillText(`${name}${p ? "" : " · none on this map"}`, x + 6, y + 14);
+    });
+  });
+  state.t = was;
+  lab.setOverride(null);
+  lab.canvas.style.display = "none";
+  sheet.id = "sheet";
+  document.body.prepend(sheet);
+  document.body.style.overflow = "visible";
+  document.documentElement.style.height = "auto";
+  document.body.style.height = "auto";
+  return "every station's wheel and its carriers coming round it";
 }

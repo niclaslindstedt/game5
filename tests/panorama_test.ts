@@ -118,7 +118,10 @@ describe("the schematic (panoramaSchematic)", () => {
   it.each(SEEDS)("draws seed %i's runs falling down the picture", (seed) => {
     const { level, view, schematic } = paintedFor(seed);
     const runs = level.resort?.runs ?? [];
-    expect(schematic.runs).toHaveLength(runs.length);
+    // Every run, then the ski routes (R42) after them.
+    const routes = level.resort?.routes ?? [];
+    expect(schematic.runs).toHaveLength(runs.length + routes.length);
+    expect(schematic.runs.filter((r) => r.kind === "route")).toHaveLength(routes.length);
     for (const run of runs) {
       const top = run.points[0];
       const foot = run.points[run.points.length - 1];

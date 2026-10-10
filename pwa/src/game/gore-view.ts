@@ -21,8 +21,7 @@
 //   * THE BLOOD (`gore-blood.ts`). Every wound spurts on the heart's beat —
 //     the jet thrown far on the pulse and dribbling between — and pools
 //     under a body lying still; his clothes soak red round every wound.
-//   * THE SPIKE. Run through on a tree's top, the bloodied point stands out
-//     of him.
+//   * THE SPIKE. Run through on a tree's top, the bloodied point stands out of him.
 //   * THE DEAD LEFT LYING (`leave`). A rider who died is not tidied away
 //     when the next one is stood up on the same mountain: his body as it
 //     was last drawn (`gore-remains.ts`), the pieces, the guts, the spike
@@ -58,6 +57,7 @@ import { createBlood, type Blood } from "./gore-blood.ts";
 import { DRIPS, faceRuns, hardLeaks, pourOf, type Cheek, type Leak } from "./gore-flow.ts";
 import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
 import { rotorStruck } from "./gore-rotor.ts";
+import { tillerSpray } from "./gore-tiller.ts";
 import { createSoak } from "./gore-soak.ts";
 import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
 import { bakeFigure, disposeFigure } from "./gore-remains.ts";
@@ -326,14 +326,11 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
   const fractures = new Map<string, THREE.Mesh>();
   let soakClock = 0;
   let poolClock = 0;
-  // The litres each part hit hard has bled into his clothes, and the
-  // litres run onto the snow under each gap since the pools last grew.
+  // The litres each part hit hard bled into his clothes; run under each gap since the pools grew.
   const soakedIn = new Map<BodyPart, number>();
   let drips = 0;
-  // Which cheek his face's blood runs over as he lies, and how far.
-  const cheek: Cheek = { side: 1, lean: 0 };
-  // The body's way, smoothed, that a stream is carried along (raw, it jitters).
-  const drift = new THREE.Vector3();
+  const cheek: Cheek = { side: 1, lean: 0 }; // the cheek his face's blood runs over, how far
+  const drift = new THREE.Vector3(); // his way smoothed, a stream carried along (raw, it jitters)
   /** The share of gravity the blood feels relative to him: 1 while the snow
    * holds him up, near 0 while he falls through the air with it — off his
    * body's own fall, `lastFall` the way down he had a frame ago. */
@@ -673,11 +670,14 @@ export function createGoreView(level: Level, wrap: Wrap): GoreView {
         );
         blood.emit(at, dir, 1.4, 90, 0.9, carry, () => rng.next());
       }
-      // THROUGH THE ROTOR (`gore-rotor.ts`): a fan off every point a blade went through.
-      bladed = rotorStruck(state, bladed, blood, carry, rng, (at, way, fling) => {
-        throwOut(["gobbet", "gobbet", "gobbet", "gobbet"], at, way, carry, fling * 0.8);
+      // THROUGH THE ROTOR (`gore-rotor.ts`), a fan off every point a blade went through,
+      // and UNDER A PISTE MACHINE (`gore-tiller.ts`), spat out of the back of its tiller.
+      const fling = (at: THREE.Vector3, way: THREE.Vector3, k: number) => {
+        throwOut(["gobbet", "gobbet", "gobbet", "gobbet"], at, way, carry, k * 0.8);
         throwBones(2, at, way, carry);
-      });
+      };
+      bladed = rotorStruck(state, bladed, blood, carry, rng, fling);
+      tillerSpray(state, simDt, blood, rng, level.groundAt, fling);
       // THE SPIKE through him.
       if (g.impaled && !spike) {
         spike = meshOf(spikeGeo);

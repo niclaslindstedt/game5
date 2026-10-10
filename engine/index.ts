@@ -200,6 +200,7 @@ export { snowNormal, uprightOn } from "./game/snow-normal.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
+export { levelFor } from "./game/step.ts";
 export {
   FULL_ASSIST,
   GAME_MODES,
@@ -377,7 +378,8 @@ export {
   type LegSpec,
 } from "./game/defs/skis.ts";
 export { TAIL_RISE, tailRiseOf } from "./game/defs/tails.ts";
-export { heldSlip, switchSteer, tailDug } from "./game/switch.ts";
+export { heldSlip, revertShare, switchSteer, tailDug } from "./game/switch.ts";
+export type { Revert } from "./game/switch.ts";
 export {
   RIDERS,
   MEDIUM_RIDER,
@@ -552,9 +554,11 @@ export {
   landingAhead,
   landingLoad,
   landingLoss,
+  landingFaults,
   landingOff,
   landingTolerance,
   type Landing,
+  type LandingFaults,
 } from "./game/flight.ts";
 export {
   bodyThrown,
@@ -853,9 +857,9 @@ export {
   upValley,
 } from "./game/balloon-air.ts";
 export {
-  DRAG_ARM,
   LIFT_LOOK,
   carrierAt,
+  HOUSE_CLEAR,
   carrierCount,
   carrierPassing,
   carrierSpeedAt,
@@ -882,14 +886,14 @@ export {
   TOWER_PAD,
   TOWER_SITE,
   ropeAt,
-  upRope,
   type LiftKind,
   type LiftLook,
   type LiftPlan,
   type StationHouse,
   type Support,
 } from "./game/lift-line.ts";
-export { carrierSwingAt } from "./game/carrier-swing.ts";
+export * from "./game/lift-loop.ts";
+export { carrierRollAt, carrierSwingAt } from "./game/carrier-swing.ts";
 export {
   arriveByLift,
   arrivalOf,

@@ -111,6 +111,23 @@ export type TerrainPlan = {
    * the map's middle: the rule book's `mountain.flank` when absent — a
    * resort's face is wider (R25). */
   readonly flankBand?: { readonly inner: number; readonly outer: number };
+  /** R25 — A REAL FACE the massif's shape is read off (`real-face.ts`):
+   * its grid, its valley floor's real height (m) and the stretch that
+   * stands its ridge row the plan's vertical over that floor. Absent on a
+   * dealt massif. */
+  readonly face?: {
+    readonly grid: import("./real-face.ts").RealFace;
+    readonly floor: number;
+    readonly stretch: number;
+    /** The face's own profile, its mean height a grid row at a time over
+     * the floor, stretched, m. */
+    readonly rows: Float64Array;
+    /** The share of the face's relief laid over the profile. */
+    readonly relief: number;
+    /** The real ski area's lifts, pistes and houses (`real-hints.ts`),
+     * on the attempts that lean on them (`RR.massif.real.hinted`). */
+    readonly hints?: import("./real-hints.ts").RealHints | null;
+  };
   readonly seeds: {
     readonly warp: number;
     readonly flank: number;

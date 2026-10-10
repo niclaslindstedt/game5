@@ -307,13 +307,15 @@ describe("the wipeout", () => {
     const nose = wipeouts(drop(-1));
     expect(nose).toHaveLength(1);
     expect(nose[0].kind === "wipeout" && nose[0].cause).toBe("nose");
-    // Forty degrees over the tips: they slap down on the groomer, and he
-    // saves it thrown over them — but in loose snow they dig.
-    const slap = drop(-0.7);
+    // Forty degrees over the tips is past what a body rides away, on the
+    // groomer and in loose snow alike (`crash.crooked`); at twenty-six they slap
+    // down, and he saves it thrown over them.
+    expect(wipeouts(drop(-0.7))).toHaveLength(1);
+    expect(wipeouts(drop(-0.7, 0))).toHaveLength(1);
+    const slap = drop(-0.45);
     expect(wipeouts(slap)).toHaveLength(0);
     const saved = slap.find((e) => e.kind === "save");
     expect(saved?.kind === "save" && saved.save).toBe("landing");
-    expect(wipeouts(drop(-0.7, 0))).toHaveLength(1);
     const flat = drop(0);
     expect(flat.some((e) => e.kind === "land")).toBe(true);
     expect(wipeouts(flat)).toHaveLength(0);
@@ -403,7 +405,7 @@ describe("the wipeout", () => {
         ride(
           staged(
             undefined,
-            { x: 1500, z: 200, heading: 0, speed: 60 / 3.6, height: 2.5, vy: -3, pitch: -0.7 },
+            { x: 1500, z: 200, heading: 0, speed: 60 / 3.6, height: 2.5, vy: -3, pitch: -0.5 },
             false,
             resilience,
           ),

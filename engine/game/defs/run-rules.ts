@@ -144,6 +144,10 @@ export type RunRules = {
    * the skis across the fall line on the brake and standing there, rather
    * than coasting on down the run-out. Left out, a finished run coasts. */
   hockeyStop?: boolean;
+  /** THE REVERT (`switch.ts`): a skier riding switch too slow to carry on
+   * (`switch.revert.below`) turns round to ride forward and pole. On the
+   * free ride and the tricks run; left out, he stays switch. */
+  revert?: boolean;
   /** SAFE FOR WORK (the INJURIES switch off, `CreateGameOptions.sfw`):
    * nobody collides with anybody — no skier, amateur or civilian is
    * shouldered or knocked down (`contact` off) — the afterski's doors stay

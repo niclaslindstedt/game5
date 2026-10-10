@@ -101,7 +101,7 @@ function paintFace(
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.fillText(STRINGS.mapBoardTitle, PX.w / 2, PX.head / 2 + 2);
-  // The legend: the four signs and their colours' names along the foot.
+  // The legend: the five signs and their colours' names along the foot.
   const grades = Object.keys(GRADE_LOOK) as (keyof typeof GRADE_LOOK)[];
   grades.forEach((grade, i) => {
     const x = (PX.w / grades.length) * (i + 0.5) - 26;
@@ -136,7 +136,8 @@ function paintFace(
       r.seen,
       GRADE_LOOK[r.grade].paint,
       road ? 0.45 : r.raced ? 1.35 : 0.8,
-      road ? [0.9, 0.7] : [],
+      // A ski route (R42) in long dashes, as `.pano-route` draws it.
+      road ? [0.9, 0.7] : r.kind === "route" ? [2, 1.1] : [],
     );
   }
   for (const l of schematic.lifts) {

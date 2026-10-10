@@ -109,10 +109,15 @@
 //                   (R21: alpine, fell, continental, maritime) — a free ride over the
 //                   start card's COUNTRY row, and a race a `?seed=` link
 //                   boots into; never a race map, which is pinned.
+//   ?face=<id>      raise a seed's resort on this REAL face (R25: alpine-1 …
+//                   fell-2, `real-face.ts`), its region the face's own — a
+//                   free ride over the start card's SHAPE row.
 //   ?grade=<id>     build a seed's piste to this grade (R23: green, blue,
 //                   red, black) instead of the one the seed deals — a free
 //                   ride over the start card's GRADE row, and a race a
-//                   `?seed=` link boots into; never a race map.
+//                   `?seed=` link boots into; never a race map. `orange`
+//                   (R42) races the black and rides the lift up to the
+//                   map's SKI ROUTE.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
@@ -157,11 +162,12 @@
 import {
   WEATHER_KINDS,
   isAerialCode,
-  isPisteGrade,
+  isRunGrade,
   isRegionId,
+  realFaceRegion,
   isSkiId,
   type CreateGameOptions,
-  type PisteGrade,
+  type RunGrade,
   type RegionId,
   type GameMode,
   type SkyOverride,
@@ -263,8 +269,10 @@ export type UrlParams = {
   sky: SkyOverride | null;
   /** The kind of snow country a seed's map is built in, over the card's. */
   region: RegionId | null;
+  /** The real face a seed's resort is raised on, over the card's. */
+  face: string | null;
   /** The piste grade a seed's map is built to, over the card's. */
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   /** The jump an AERIALS link's first jump declares (`?plan=bLF`), or null
    * for the contest's own. */
   plan: string | null;
@@ -411,7 +419,8 @@ export function readParams(search: string): UrlParams {
     probe: q.get("probe") !== "0",
     sky: skyOf(q),
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
-    grade: isPisteGrade(q.get("grade")) ? (q.get("grade") as PisteGrade) : null,
+    face: realFaceRegion(q.get("face") ?? "") ? q.get("face") : null,
+    grade: isRunGrade(q.get("grade")) ? (q.get("grade") as RunGrade) : null,
     plan: isAerialCode(q.get("plan")) ? q.get("plan") : null,
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
@@ -430,10 +439,11 @@ export function readParams(search: string): UrlParams {
  * names none. */
 export function linkWorld(
   params: UrlParams,
-): Pick<CreateGameOptions, "sky" | "region" | "grade" | "plan"> {
+): Pick<CreateGameOptions, "sky" | "region" | "face" | "grade" | "plan"> {
   return {
     sky: params.sky ?? undefined,
     region: params.region ?? undefined,
+    face: params.face ?? undefined,
     grade: params.grade ?? undefined,
     // An aerials link's declared jump (the other modes declare none).
     plan: params.plan ?? undefined,
@@ -453,6 +463,9 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     balloon: params.balloon || (!named && ride.balloon),
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,
+    // A link's face is its own country's, whatever the card's: a link
+    // naming a region raises the dealt massif there, the card's face dropped.
+    face: params.face ?? (params.region ? undefined : ride.face),
     grade: params.grade ?? ride.grade,
     grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
     groomer: params.groomer === null ? ride.groomer : params.groomer ? "on" : "off",

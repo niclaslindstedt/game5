@@ -137,6 +137,10 @@ export const BODY_STRINGS = {
   optInjuries: "INJURIES",
   optInjuriesHint:
     "The body plate and the g meter: what a fall hurts, bone by bone. Off for a younger player — the crashes stay, the injuries go.",
+  /** OPTIONS ▸ X-RAY CAM: the switch over the X-ray cam and its slow motion. */
+  optXray: "X-RAY CAM",
+  optXrayHint:
+    "A fall you will die of seen coming: the run slowed almost to a stop, the lens on the bones as they break. Needs INJURIES on.",
   optInjuriesLocked:
     "Off: this device's content restrictions for a child's account hide the body plate and the g meter.",
   /** One injury's line. */

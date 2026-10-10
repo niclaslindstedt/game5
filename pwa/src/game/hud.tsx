@@ -48,6 +48,7 @@
 import { REPO_URL } from "../identity.ts";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { HudActions } from "./hud-actions.tsx";
+import { ReplayOffer, type CrashOffer } from "./hud-replay-offer.tsx";
 import { ComboTile, TricksChips } from "./hud-combo.tsx";
 import { BodyPanel } from "./hud-body.tsx";
 import { DamageGauge } from "./hud-damage.tsx";
@@ -119,6 +120,8 @@ export function Hud({
   jumpKey = "SPACE",
   injuries = true,
   again = "start",
+  offer = null,
+  replaying = false,
 }: {
   snap: HudSnapshot;
   flashes: HudFlash[];
@@ -154,6 +157,11 @@ export function Hud({
   injuries?: boolean;
   /** Where the next rider stands if this one dies (`againAt`). */
   again?: AgainAt;
+  /** The crash just taken, offered to be watched again — or null. */
+  offer?: CrashOffer | null;
+  /** A RECORDING is on screen: its fall is shown, never the card and the
+   * dark a death or an ended run brings down over the live one. */
+  replaying?: boolean;
 }) {
   const lit = snap.missed !== null || snap.getUp;
   // A free ride is leisure; a tricks run is scored like a contest.
@@ -211,15 +219,24 @@ export function Hud({
   // THE GLASS TAKING HIS BLOWS, and his death or the run he ends INJURED
   // (`hud-wreck.ts`): only
   // where his injuries are drawn at all.
+  const died = replaying ? null : snap.died;
+  const injured = replaying ? null : snap.injured;
   const wreck = injuries
-    ? wreckOf(snap.body.blow, snap.died?.since ?? null, snap.injured?.since ?? null)
+    ? wreckOf(snap.body.blow, died?.since ?? null, injured?.since ?? null)
     : null;
+  // THE CRASH OFFERED AGAIN (`hud-replay-offer.tsx`): small print under a
+  // card's words, else a chip in the corner under the presses.
+  const onCard = wreck !== null && (died !== null || injured !== null);
+  const replay = offer && (
+    <ReplayOffer {...offer} touch={touch} place={onCard ? "card" : "corner"} />
+  );
   const card =
-    wreck && snap.died ? (
-      <DeathCard wreck={wreck} cause={snap.died.cause} again={again} />
-    ) : wreck && snap.injured ? (
-      <InjuredCard wreck={wreck} injury={snap.injured} />
+    wreck && died ? (
+      <DeathCard wreck={wreck} cause={died.cause} again={again} offer={replay} />
+    ) : wreck && injured ? (
+      <InjuredCard wreck={wreck} injury={injured} offer={replay} />
     ) : null;
+  const cornerOffer = !onCard && replay;
   // The readouts faded off the glass (`hudFade`): any other reason to clear
   // it folds in here with `Math.max`.
   const fade = wreck?.fade ?? 0;
@@ -228,6 +245,7 @@ export function Hud({
       <div class="hud" data-bare="1" data-touch={touch ? "1" : undefined}>
         <div class="hud-topright">
           <HudActions onPause={onPause} onReset={onReset} onCamera={onCamera} lit={lit} />
+          {cornerOffer}
         </div>
         {card}
         {thumbs}
@@ -487,6 +505,7 @@ export function Hud({
       <div class="hud-topright">
         <Minimap map={snap.minimap} dark={snap.dark} onPause={onPause} />
         <HudActions onReset={onReset} onCamera={onCamera} lit={lit} />
+        {cornerOffer}
       </div>
 
       {/* THE MISSED GATE, centred in the upper quarter where the eye can

@@ -28,6 +28,10 @@
 //   COUNTRY the kind of snow country the map is built in (R21): the same seed
 //           raised as the alpine, a fell, a continental range or a maritime one.
 //
+//   SHAPE   the massif's shape: the seed's own, or one of the real faces
+//           of that country (`real-face.ts`) — a real mountainside's
+//           ridge, spurs and gullies under the seed's lifts and runs.
+//
 //   GRADE   the colour of the piste (R23): the seed's own (AS DEALT), or a
 //           green, a blue, a red or a black built to its band — and the RUN
 //           row brought to the first run of that colour.
@@ -60,36 +64,23 @@
 // one a `?start=free` link boots into are the same ride read the same way.
 
 import {
-  PISTE_GRADES,
+  REAL_FACE_IDS,
+  RUN_GRADES,
   REGION_IDS,
   TIMES_OF_DAY,
   WEATHER_KINDS,
-  type PisteGrade,
+  realFaceRegion,
+  type RegionId,
+  type RunGrade,
   type WeatherKind,
 } from "@engine";
 import { useState } from "preact/hooks";
 
-import {
-  HELI_RUN,
-  PARA_RUN,
-  BALLOON_RUN,
-  SLED_RUN,
-  SEASONS,
-  SNOW_STOPS,
-  heliOn,
-  paraOn,
-  balloonOn,
-  afterskiOn,
-  AFTERSKI_RUN,
-  sledOn,
-  markedRun,
-  spotOn,
-  type FreeRide,
-} from "./free-ride.ts";
+import { SEASONS, SNOW_STOPS, spotOn, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
-import { SeedPreview, useSeedPreview } from "./seed-preview.tsx";
-import { injuriesShown, type Settings } from "./settings.ts";
-import { shellContent } from "../shell-host.ts";
+import { useRunPick } from "./run-pick.ts";
+import { SeedPreview } from "./seed-preview.tsx";
+import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
 
 /** The seeds the MAP row walks. Seed 0 is not a map; a link may name any
@@ -105,10 +96,21 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
 /** The COUNTRY row's stops: R21's regions. */
 const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
 
-/** The GRADE row's stops: the seed's own colour, then R23's four. */
-const GRADE_STOPS: { id: "dealt" | PisteGrade; label: string }[] = [
+/** The SHAPE row's stops: the seed's own massif, then the real faces of
+ * the country on the card, numbered in it — never named (R25). */
+function faceStops(region: RegionId): { id: string; label: string }[] {
+  const faces = REAL_FACE_IDS.filter((id) => realFaceRegion(id) === region);
+  return [
+    { id: "dealt", label: STRINGS.weatherDealt },
+    ...faces.map((id, i) => ({ id, label: STRINGS.faceName(i + 1) })),
+  ];
+}
+
+/** The GRADE row's stops: the seed's own colour, then R23's four and the
+ * ski route's ORANGE past them (R42). */
+const GRADE_STOPS: { id: "dealt" | RunGrade; label: string }[] = [
   { id: "dealt", label: STRINGS.weatherDealt },
-  ...PISTE_GRADES.map((id) => ({ id, label: STRINGS.gradeNames[id] })),
+  ...RUN_GRADES.map((id) => ({ id, label: STRINGS.gradeNames[id] })),
 ];
 
 /** The SEASON row's stops: the map's own date, then the four. */
@@ -149,45 +151,8 @@ export function StartPage({
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...settings, ride: { ...ride, ...patch } });
 
-  const chart = useSeedPreview(seed, ride.region, ride.grade);
-  // THE RUNS ON THIS MAP: a ski area's runs are the seed's and the
-  // country's, whatever colour is asked of it, so the answer for another
-  // grade still names them while the fresh one is drawn.
-  const shown = chart.shown;
-  const list =
-    shown !== null && shown.ok && shown.seed === seed && shown.region === ride.region
-      ? shown
-      : null;
-  const heli = heliOn(ride, seed);
-  const sled = sledOn(ride, seed);
-  const para = paraOn(ride, seed);
-  const balloon = balloonOn(ride, seed);
-  // SAFE FOR WORK (the INJURIES switch off) the lodges are shut.
-  const sfw = !injuriesShown(settings, shellContent());
-  const party = !sfw && afterskiOn(ride, seed);
-  const vehicle = heli || sled || para || balloon || party;
-  const marked = list && !vehicle ? markedRun(ride, seed, list) : null;
-  // The RUN row walks the runs of the GRADE row's colour — every run where
-  // it stands on AS DEALT, or where the map has none of the colour.
-  const graded = list?.runs.filter((r) => r.grade === ride.grade) ?? [];
-  const walked = graded.length > 0 ? graded : (list?.runs ?? []);
-  // ...and, LAST, the ways up with no lift: the paramotor on the summit,
-  // the snowmobile parked beside the village and the helicopter on its pad.
-  const runStops = [
-    ...walked.map((r) => ({ id: r.id, label: STRINGS.startRunWord(r.number) })),
-    ...(list
-      ? [
-          { id: PARA_RUN, label: STRINGS.startRunPara },
-          { id: BALLOON_RUN, label: STRINGS.startRunBalloon },
-          { id: SLED_RUN, label: STRINGS.startRunSled },
-          { id: HELI_RUN, label: STRINGS.startRunHeli },
-          // ...and the party in the valley's lodge, where the map has one.
-          ...(list.machines.afterski && !sfw
-            ? [{ id: AFTERSKI_RUN, label: STRINGS.startRunAfterski }]
-            : []),
-        ]
-      : []),
-  ];
+  // THE RUN ROW AND ITS CHART, as the pause card's PISTE MAP asks them too.
+  const pick = useRunPick(settings, seed);
 
   return (
     <div class="menu-card menu-card-start" onPointerLeave={() => setHint(null)}>
@@ -229,7 +194,17 @@ export function StartPage({
                 hint={STRINGS.startRegionHint}
                 stops={REGION_STOPS}
                 value={ride.region}
-                onPick={(region) => setRide({ region, spot: null })}
+                onPick={(region) => setRide({ region, face: null, spot: null, run: null })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startFace}
+                hint={STRINGS.startFaceHint}
+                stops={faceStops(ride.region)}
+                value={ride.face ?? "dealt"}
+                onPick={(id) =>
+                  setRide({ face: id === "dealt" ? null : id, spot: null, run: null })
+                }
                 onHint={setHint}
               />
               <StepRow
@@ -245,42 +220,20 @@ export function StartPage({
               <StepRow
                 label={STRINGS.startRun}
                 hint={STRINGS.startRunHint}
-                stops={runStops}
-                value={
-                  heli
-                    ? HELI_RUN
-                    : sled
-                      ? SLED_RUN
-                      : para
-                        ? PARA_RUN
-                        : balloon
-                          ? BALLOON_RUN
-                          : party
-                            ? AFTERSKI_RUN
-                            : (marked?.id ?? "")
-                }
+                stops={pick.stops}
+                value={pick.value}
                 extra={STRINGS.startRunWaiting}
-                onPick={(id) => setRide({ run: { seed, region: ride.region, id }, spot: null })}
+                onPick={(id) =>
+                  setRide({ run: { seed, region: ride.region, face: ride.face, id }, spot: null })
+                }
                 onHint={setHint}
               />
             </div>
             <SeedPreview
-              chart={chart}
-              entry={marked}
-              machine={
-                heli
-                  ? "heli"
-                  : sled
-                    ? "sled"
-                    : para
-                      ? "para"
-                      : balloon
-                        ? "balloon"
-                        : party
-                          ? "afterski"
-                          : null
-              }
-              spot={vehicle ? null : spotOn(ride, seed)}
+              chart={pick.chart}
+              entry={pick.marked}
+              machine={pick.machine}
+              spot={pick.spot}
               onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
             />
           </div>

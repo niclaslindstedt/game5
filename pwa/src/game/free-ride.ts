@@ -25,11 +25,12 @@ import {
   DEFAULT_REGION,
   TIMES_OF_DAY,
   freeRuns,
-  isPisteGrade,
+  skiRoutesOf,
+  isRunGrade,
   pickFreeRun,
   isRegionId,
   snowCoverOf,
-  type PisteGrade,
+  type RunGrade,
   type RegionId,
   type TimeOfDay,
   type WeatherKind,
@@ -44,6 +45,7 @@ import {
   type RunRules,
   type SkiSpec,
   regionOf,
+  realFaceRegion,
 } from "@engine";
 
 import { runNumbers } from "./run-names.ts";
@@ -127,13 +129,16 @@ export type FreeRide = {
   weather: WeatherKind | null;
   /** The kind of snow country the map is built in (R21). */
   region: RegionId;
+  /** The REAL FACE the mountain is raised on (R25, one of the region's —
+   * `REAL_FACE_IDS`); null is the massif the seed deals. */
+  face: string | null;
   /** The piste grade the map is built to (R23); null is the one the seed
    * deals. */
-  grade: PisteGrade | null;
+  grade: RunGrade | null;
   /** The run of the ski area (R27, `Run.id`) the ride is carried to the top
    * of, on the seed and in the country it was picked on; null is the first
    * of the GRADE row's colour (`pickFreeRun`). */
-  run: { seed: number; region: RegionId; id: string } | null;
+  run: { seed: number; region: RegionId; face?: string | null; id: string } | null;
 };
 
 export function freshRide(): FreeRide {
@@ -145,6 +150,7 @@ export function freshRide(): FreeRide {
     spot: null,
     weather: null,
     region: DEFAULT_REGION,
+    face: null,
     grade: null,
     run: null,
   };
@@ -179,7 +185,10 @@ export function mergeRide(blob: unknown): FreeRide {
     out.weather = b.weather as WeatherKind;
   }
   if (isRegionId(b.region)) out.region = b.region;
-  if (isPisteGrade(b.grade)) out.grade = b.grade;
+  // A face is kept only in its own country: a face stored under another
+  // region (or one this build has not baked) is the dealt massif.
+  if (typeof b.face === "string" && realFaceRegion(b.face) === out.region) out.face = b.face;
+  if (isRunGrade(b.grade)) out.grade = b.grade;
   const run = b.run as Record<string, unknown> | null | undefined;
   if (
     run &&
@@ -188,7 +197,12 @@ export function mergeRide(blob: unknown): FreeRide {
     isRegionId(run.region) &&
     typeof run.id === "string"
   ) {
-    out.run = { seed: run.seed, region: run.region, id: run.id };
+    out.run = {
+      seed: run.seed,
+      region: run.region,
+      ...(typeof run.face === "string" ? { face: run.face } : {}),
+      id: run.id,
+    };
   }
   const spot = b.spot as Record<string, unknown> | null | undefined;
   if (
@@ -262,11 +276,27 @@ export function spotOn(ride: FreeRide, seed: number): { x: number; z: number } |
   return ride.spot !== null && ride.spot.seed === seed ? { x: ride.spot.x, z: ride.spot.z } : null;
 }
 
+/** The ride moved onto the map and country a paused free ride is skied on
+ * (the pause card's PISTE MAP): itself where it is already there, else the
+ * same day and snow with the run and the spot left to that map. */
+export function rideOnto(
+  ride: FreeRide,
+  seed: number,
+  region: RegionId,
+  face: string | null = null,
+): FreeRide {
+  if (ride.seed === seed && ride.region === region && ride.face === face) return ride;
+  return { ...ride, seed, region, face, run: null, spot: null };
+}
+
 /** The run picked on `seed` in the ride's country, or null for the first
  * of the GRADE row's colour. THE RUN BELONGS TO ITS MAP, as the spot does:
  * a run's id on one seed or country is another run, or none, on the next. */
 export function runOn(ride: FreeRide, seed: number): string | null {
-  return ride.run !== null && ride.run.seed === seed && ride.run.region === ride.region
+  return ride.run !== null &&
+    ride.run.seed === seed &&
+    ride.run.region === ride.region &&
+    (ride.run.face ?? null) === ride.face
     ? ride.run.id
     : null;
 }
@@ -277,7 +307,7 @@ export function runOn(ride: FreeRide, seed: number): string | null {
 export type FreeRunInfo = {
   id: string;
   number: string;
-  grade: PisteGrade;
+  grade: RunGrade;
   length: number;
   vertical: number;
   head: { x: number; y: number; z: number; heading: number };
@@ -300,6 +330,19 @@ export function freeRunList(level: Level): { runs: FreeRunInfo[]; fallback: stri
       head: { x: top.x, y: top.y, z: top.z, heading: top.heading },
     };
   });
+  // The SKI ROUTES (R42) after the pistes, by their own names: a ride up
+  // to one is a ride up the lift whose top it leaves.
+  for (const r of skiRoutesOf(level)) {
+    const top = r.points[0];
+    runs.push({
+      id: r.id,
+      number: r.id,
+      grade: r.grade,
+      length: r.length,
+      vertical: Math.max(0, top.y - r.points[r.points.length - 1].y),
+      head: { x: top.x, y: top.y, z: top.z, heading: top.heading },
+    });
+  }
   const resort = level.resort;
   const fallback = resort?.courses.find((c) => c.id === resort.course)?.runs[0] ?? null;
   return { runs, fallback };
@@ -354,6 +397,7 @@ export function freeGameOptions(
     ...(skier.sfw ? { sfw: true } : {}),
     mode: "free",
     region: ride.region,
+    face: ride.face ?? undefined,
     grade: ride.grade ?? undefined,
     run: vehicle ? undefined : (runOn(ride, seed) ?? undefined),
     // THE HELICOPTER: sat on its skid on the pad, the rotor turning.
@@ -469,6 +513,7 @@ export function standingFor(
     level.seed === options.seed &&
     level.version === CURRENT_GENERATOR_VERSION &&
     regionOf(level).id === (options.region ?? DEFAULT_REGION) &&
+    (level.face ?? null) === (options.face ?? null) &&
     options.grade === undefined &&
     rules.course &&
     rules.jury === undefined &&

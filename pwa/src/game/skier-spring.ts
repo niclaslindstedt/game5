@@ -5,7 +5,8 @@
 // air and out of it, a jump loaded and sprung. Stepped with the frame's
 // `dt` (`skis-body.ts`); `skier-pose.ts` reads it. Three-free.
 
-import { stepQuick, strideRate, type Save, type SkierState } from "@engine";
+import { revertShare, stepQuick, strideRate, type Save, type SkierState } from "@engine";
+import { revertLook } from "./skier-switch.ts";
 
 import { flying, gaitOf } from "./skier-gait.ts";
 
@@ -141,7 +142,7 @@ export type SkierSpring = {
   keep: number;
   keepRate: number;
   /** THE FALL as his body rides it (`skier-flight.ts`): secure off a
-   * kicker, spotting a drop, windmilling a cliff, reaching for the snow. */
+   * kicker, spotting a drop or a cliff, reaching for the snow. */
   flight: Flight;
   /** LOOKING BACK OVER A SHOULDER while he rides switch: how far into it
    * his body is, 0..1, its rate, and the shoulder (the side the hips hang to for a positive `hipRight`) — the
@@ -195,9 +196,8 @@ export type SpringRide = {
   sidestep?: number;
   /** Riding tails first (`SkierState.switched`). */
   switched?: boolean;
-  wx?: number;
-  wy?: number;
-  wz?: number;
+  /** Turning round out of it (`SkierState.revert`), or none. */
+  revert?: SkierState["revert"];
 };
 /** How quickly his body is thrown into a save and fights back out of it,
  * rad/s — a tenth of a second to most of the way: a flung arm moves at
@@ -301,6 +301,9 @@ const READY = { in: 9, out: 20 };
  * and back round once he faces his skis' way again, rad/s — some third of
  * a second: a deliberate turn of the head and shoulders, never a flick. */
 const BACK_FOLLOW = 7;
+/** How fast the look follows a revert's, 1/s — a head held on the line,
+ * and a quick swing across when the turn is to the other shoulder. */
+const REVERT_SWING = 14;
 /** How quickly a step turn on the spot takes him out of his idle stance
  * and lets him back into it, 1/s — a third of a second to most of it. */
 const STEP_FOLLOW = 6;
@@ -545,6 +548,18 @@ export function stepSkierSpring(
     s.backSide = ride.hipRight > 0 ? 1 : -1;
   [s.back, s.backRate] = follow(s.back, s.backRate, back, dt, BACK_FOLLOW);
   s.back = Math.max(0, Math.min(1, s.back));
+  // ...and TURNING ROUND (the revert), the look held on his line as the
+  // body comes round under it (`revertLook`) — swung across through the
+  // middle when he turns to the other side than the shoulder he had.
+  const revert = ride?.revert;
+  if (revert) {
+    const to = revertLook(revert.u, revert.turn, revertShare);
+    const at = s.back * s.backSide;
+    const look = at + (to - at) * Math.min(1, REVERT_SWING * dt);
+    s.back = Math.min(1, Math.abs(look));
+    if (look !== 0) s.backSide = look > 0 ? 1 : -1;
+    s.backRate = 0;
+  }
   let work = 0;
   if (ride) {
     const climbing = ride.sidestep && ride.stride !== undefined && ride.stride % 1 > 1e-6 ? 1 : 0;
@@ -562,16 +577,7 @@ export function stepSkierSpring(
     stepBody(s, ride, airborne, dt);
     work = stepPoled(s, ride, airborne, dt);
   }
-  stepFlight(
-    s.flight,
-    airborne,
-    fall?.read,
-    ride?.airTime ?? 0,
-    Math.hypot(ride?.wx ?? 0, ride?.wy ?? 0, ride?.wz ?? 0),
-    dt,
-    fall?.gravity,
-    ride?.lean,
-  );
+  stepFlight(s.flight, airborne, fall?.read, ride?.airTime ?? 0, dt, fall?.gravity, ride?.lean);
   // A HOP is not a flight (`flying`): he goes compact only once he is
   // really flying.
   const into = flying({ airborne, airTime: ride?.airTime, popped: ride?.popped }) ? 1 : 0;

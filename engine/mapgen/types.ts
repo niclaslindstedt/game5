@@ -5,7 +5,7 @@
 import type { PipeFrame } from "./pipe.ts";
 import type { MogulField } from "./mogul-field.ts";
 import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
-import type { PisteGrade } from "./grades.ts";
+import type { PisteGrade, RunGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
 import type { GeneratorVersion } from "./versions.ts";
 
@@ -212,6 +212,9 @@ export interface Level {
   /** The kind of snow country the map was built in (R21) — ask `regionOf`,
    * which reads a hand-built map without one as the alpine. */
   region?: RegionId;
+  /** THE REAL FACE the map's mountain was read off (R25, `real-face.ts`) —
+   * absent on a dealt massif. */
+  face?: string;
   /** THE PISTE GRADE the map was BUILT to (R23) — absent on a map from a
    * generator before the grades, or a hand-built one. Ask `gradeOf` for the
    * colour on its signs, which measures one where none was built to. */
@@ -768,6 +771,21 @@ export interface Run {
   drifts: Drift[];
 }
 
+/** R42 — A SKI ROUTE (`ski-routes.ts`): an ORANGE run, marked down the
+ * mountain as it lies and never groomed — its line off a top station's rim
+ * (`TrackPoint`s, arc from the rim, `width` the marked corridor), the lift
+ * it leaves the top of, the run it comes down onto and at what arc of that
+ * one, and its steepest `track.colourWindow`, m per m — past any black's. */
+export interface SkiRoute {
+  id: string;
+  grade: "orange";
+  points: TrackPoint[];
+  length: number;
+  from: string;
+  into: { run: string; s: number };
+  steepest: number;
+}
+
 /** A lift (R26): a straight line from its bottom station to its top. */
 export interface Lift {
   id: string;
@@ -834,6 +852,8 @@ export interface Resort {
   hub?: Hub;
   /** R30 — the wind tunnels along the hub, "W1" and "W2". */
   tunnels?: WindTunnel[];
+  /** R42 — the ski routes, "SR1"…; absent on a map from before them. */
+  routes?: SkiRoute[];
 }
 
 /** What a caller may ask of the generator beyond the seed. */
@@ -855,13 +875,21 @@ export interface GenerateOptions {
   /** The kind of snow country to build in (R21, `regions.ts`); the alpine
    * when left out. */
   region?: RegionId;
+  /** R25 — raise the resort on a REAL face (`real-face.ts`'s ids) rather
+   * than a dealt massif; its region is the face's own, whatever `region`
+   * says. Left out (or an id no face has), the massif the seed deals. */
+  face?: string;
   /** The PISTE GRADE to build to (R23, `grades.ts`); the one the seed deals
    * when left out. A version from before the grades builds none either way.
-   * On a resort (R28): the colour of the course raced. */
-  grade?: PisteGrade;
+   * On a resort (R28): the colour of the course raced — ORANGE (R42), a
+   * ski route's, the hardest piste's, as no course is a route. */
+  grade?: RunGrade;
   /** R28 — the course a resort map is raced on, by id; one of `grade`'s (or
    * the seed's) when left out. */
   course?: string;
+  /** Told how far the search has got, 0–1, at its landmarks (`progress.ts`)
+   * — for a loading card's bar. Draws nothing and moves nothing it builds. */
+  progress?: (share: number) => void;
 }
 
 /** The answer to "where on the piste is this point nearest?" */

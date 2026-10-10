@@ -290,6 +290,8 @@ export type HudSnapshot = {
   /** THE COUNTRY the mountain is raised in (R21) — with the seed and the
    * grade, what the free ride's start card needs to raise it again. */
   region: RegionId;
+  /** THE REAL FACE it was raised on (R25), or null on a dealt massif. */
+  face: string | null;
   /** THE WIND METER beside the speed (`windOf`). */
   wind: HudWind;
   /** THE HELICOPTER (`heliOf`): its readouts while he rides it, the way to
@@ -707,6 +709,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     tricks: comboTile(state),
     grade: gradeOfLevel(state.level),
     region: regionOf(state.level).id,
+    face: state.level.face ?? null,
     wind: windOf(state),
     // In a balloon's basket no machine on the snow calls him.
     heli: balloonAboard(state) ? null : heliOf(state),

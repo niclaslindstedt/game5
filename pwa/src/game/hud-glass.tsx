@@ -3,7 +3,7 @@
 // picture going dark — or INJURED over one going white. Only with the INJURIES switch on; `hud.tsx` leaves it
 // out otherwise.
 
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import type { BodyPart, DeathCause, InjuryKind } from "@engine";
 
 import type { AgainAt } from "./free-ride.ts";
@@ -16,10 +16,13 @@ export function DeathCard({
   wreck,
   cause,
   again,
+  offer,
 }: {
   wreck: Wreck;
   cause: DeathCause;
   again: AgainAt;
+  /** The crash's replay, offered in small print under the words. */
+  offer?: ComponentChildren;
 }): JSX.Element {
   return (
     <WreckCard
@@ -27,6 +30,7 @@ export function DeathCard({
       word={STRINGS.died}
       line={STRINGS.diedOf[cause]}
       again={STRINGS.diedAgain[again]}
+      offer={offer}
     />
   );
 }
@@ -36,9 +40,11 @@ export function DeathCard({
 export function InjuredCard({
   wreck,
   injury,
+  offer,
 }: {
   wreck: Wreck;
   injury: { kind: InjuryKind; part: BodyPart };
+  offer?: ComponentChildren;
 }): JSX.Element {
   return (
     <WreckCard
@@ -46,6 +52,7 @@ export function InjuredCard({
       word={STRINGS.injuredWord}
       line={STRINGS.injury(injury.kind, injury.part)}
       again={STRINGS.injuredAgain}
+      offer={offer}
     />
   );
 }
@@ -55,11 +62,13 @@ function WreckCard({
   word,
   line,
   again,
+  offer,
 }: {
   wreck: Wreck;
   word: string;
   line: string;
   again: string;
+  offer?: ComponentChildren;
 }): JSX.Element {
   return (
     <div
@@ -72,6 +81,7 @@ function WreckCard({
         <span class="hud-death-word">{word}</span>
         <span class="hud-death-cause">{line}</span>
         <span class="hud-death-again">{again}</span>
+        {offer}
       </div>
     </div>
   );

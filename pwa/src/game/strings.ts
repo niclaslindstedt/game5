@@ -470,16 +470,28 @@ export const STRINGS = {
     continental: "CONTINENTAL",
     maritime: "MARITIME",
   },
+  startFace: "SHAPE",
+  startFaceHint:
+    "The mountain's shape: the seed's own, or one of this country's real mountainsides, read off a satellite survey — its ridge, spurs and gullies, with the seed's lifts and runs laid down it.",
+  /** A real face on the SHAPE row: numbered in its country, never named. */
+  faceName: (n: number): string => `REAL ${n}`,
   startGrade: "GRADE",
   startGradeHint:
-    "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %) or black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it. The mountain's own, or one of the four.",
-  /** THE PISTE GRADES (R23), as a sign names them: the GRADE row's stops,
-   * the mark's name, the loading card's line. */
-  gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK" },
+    "The colour of the run, as the signs grade it by its steepest stretch: green (gentle and wide, the whole of it under 16 %), blue (under 27 %), red (under 47 %), black — steep off the start hut, cliff bands to drop across the piste, the most kickers and cliffs beside it — or orange: a ski route past any black, 38° to 48°, never groomed, marked down the mountain as it lies. The mountain's own, or one of the five.",
+  /** THE PISTE GRADES (R23) and the ski route's past them (R42), as a sign
+   * names them: the GRADE row's stops, the mark's name, the loading card's
+   * line. */
+  gradeNames: { green: "GREEN", blue: "BLUE", red: "RED", black: "BLACK", orange: "ORANGE" },
   /** The piste map board at a lift's top (`map-board.ts`): its header, and
    * the mark at the top it stands on. */
   mapBoardTitle: "PISTE MAP",
   mapBoardHere: "YOU ARE HERE",
+  /** The word on a SKI ROUTE's sign at its head (R42), under its number. */
+  skiRouteSign: "SKI ROUTE · NOT GROOMED",
+  /** The WARNING board before a ski route's head (R42), beside its triangle. */
+  skiRouteWarning: "DANGER · EXPERTS ONLY",
+  /** The locals' homemade board pointing at a ski route (`route-sign.ts`). */
+  skiRouteAmateur: "STEEP & DEEP",
   /** A grade as a run: `BLACK RUN`. */
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",
@@ -699,6 +711,16 @@ export const STRINGS = {
   pauseRestartFree: "START AGAIN",
   pauseOptions: "OPTIONS",
   pauseMainMenu: "MAIN MENU",
+  /** THE PISTE MAP off the pause card's foot: another run on this mountain
+   * on a free ride (`menu-pause-slopes.tsx`), the race's level card over a
+   * race. */
+  pauseSlopes: "PISTE MAP",
+  pauseSlopesRide: "RIDE",
+  /** The panel's RUN row: the start card's hint, cut to fit its caption. */
+  pauseSlopesRunHint:
+    "Which run to ski next: the lift carries you up to its head. The last stops are the machines waiting at the bottom.",
+  pauseSlopesCaption:
+    "Pick a run, or tap the chart to start anywhere on this mountain · RIDE takes you there",
   /** The card BEHIND the pause card's own options panel, named on the way
    * back to it. */
   pauseBack: "PAUSED",

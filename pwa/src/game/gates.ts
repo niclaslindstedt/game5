@@ -82,6 +82,7 @@ import { createVillageStreets } from "./streets-view.ts";
 import { InstanceReach } from "./instance-reach.ts";
 import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
 import type { SkyLook } from "./sky.ts";
+import { createRouteSigns } from "./route-sign.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
 import { netShape, netStretch, NETS } from "./spectator-plan.ts";
@@ -667,6 +668,8 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   group.add(stakes, bands);
   const paint = new THREE.Color();
   const stakeAxis = new THREE.Vector3();
+  const grow = new THREE.Vector3();
+  const knocked = new THREE.Quaternion();
   // Drawn only within `STAKE_REACH` of the lens (`instance-reach.ts`): a
   // stake a few centimetres thick is under a pixel long before that, and
   // a ski area has thousands. Built once everything is placed.
@@ -675,9 +678,17 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   /** Stand stake `i` at its foot, `tilt` rad over toward (dx, dz). */
   const placeStake = (i: number, tilt: number, dx: number, dz: number): void => {
     const p = plan.stakes[i];
-    if (tilt === 0) q.identity();
-    else q.setFromAxisAngle(stakeAxis.set(dz, 0, -dx).normalize(), tilt);
-    m4.compose(at.set(p.x, p.y - 0.1, p.z), q, one);
+    // As planted: a ski route's stakes lean a little off plumb.
+    const lx = plan.leanX[i];
+    const lz = plan.leanZ[i];
+    const lean = Math.hypot(lx, lz);
+    if (lean === 0) q.identity();
+    else q.setFromAxisAngle(stakeAxis.set(lz, 0, -lx).divideScalar(lean), lean);
+    if (tilt !== 0)
+      q.premultiply(knocked.setFromAxisAngle(stakeAxis.set(dz, 0, -dx).normalize(), tilt));
+    // A ski route's stakes stand thicker and taller (`STAKES.route`).
+    grow.set(p.radius / plan.radius, p.height / plan.height, p.radius / plan.radius);
+    m4.compose(at.set(p.x, p.y - 0.1, p.z), q, grow);
     if (stakesNear) {
       stakesNear.place(stakes, i, m4);
       if (bandOf[i] >= 0) bandsNear?.place(bands, bandOf[i], m4);
@@ -732,6 +743,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   // THE SIGNS at the head of every run and where a lane leaves one.
   const signs = createRunSigns(level, haze);
   group.add(signs.group);
+  // And THE LOCALS' SIGN pointing at every ski route (R42).
+  const routeSigns = createRouteSigns(level, haze);
+  if (routeSigns) group.add(routeSigns.group);
 
   // THE PISTE LIGHTS: the floodlight masts down every run.
   // And THE VILLAGE'S STREETS on the snow, their lamps' light baked with
@@ -856,6 +870,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       stakes.dispose();
       bands.dispose();
       signs.dispose();
+      routeSigns?.dispose();
       lights.dispose();
       streets?.dispose();
       guns?.dispose();

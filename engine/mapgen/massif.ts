@@ -43,6 +43,9 @@ import {
 import { sampleNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
+import { FACE_GRID } from "./real-faces-data.ts";
+import { faceExtreme, faceHeight, faceMean, type RealFace } from "./real-face.ts";
+import { realHints } from "./real-hints.ts";
 import { scaleBand, scaleCount, type Region } from "./regions.ts";
 import { TREE_LINE_MASSIF, RESORT_RULES as RR } from "./resort-rules.ts";
 import { LEVEL_RULES as R, inBand, type Band } from "./rules.ts";
@@ -146,7 +149,12 @@ function sample(table: Float64Array, u: number): number {
 /** R25 — deal the resort's mountain off the attempt's stream, in `region`
  * (R21): the vertical, the peak and the shoulder, the bench, the village,
  * and the folds R3 lays over it. */
-export function planMassif(rng: Rng, region: Region): TerrainPlan {
+export function planMassif(
+  rng: Rng,
+  region: Region,
+  face: RealFace | null = null,
+  attempt = 0,
+): TerrainPlan {
   const M = RR.massif;
   // R1 — a resort's square is wider than the rule book's, so its tall
   // mountain falls as far over each metre down the face as a mountain of
@@ -220,11 +228,19 @@ export function planMassif(rng: Rng, region: Region): TerrainPlan {
     headwalls: seed(),
   };
   const bench = { u: benchU, w: benchWidth, depth: benchDepth };
+  // A REAL FACE: every draw above is made all the same, so the stream the
+  // rest of the resort is dealt off runs on as it would; what the face
+  // stands in for is then read off it (`readFace`).
+  const real = face ? readFace(face, size, summitZ, baseZ, vertical, across, attempt) : null;
+  // Where the real peak, shoulder and valley stand is kept for the first
+  // `real.placed` attempts; a face whose stations will not take them is
+  // given the dealt ones after that, its relief laid over them all the same.
+  const placed = real && attempt < RR.massif.real.placed ? real : null;
   const massif: Massif = {
-    side,
-    peakX,
+    side: placed?.side ?? side,
+    peakX: placed?.peakX ?? peakX,
     peakSpread,
-    shoulderX,
+    shoulderX: placed?.shoulderX ?? shoulderX,
     shoulderShare,
     steepSpread,
     benchU,
@@ -232,7 +248,7 @@ export function planMassif(rng: Rng, region: Region): TerrainPlan {
     benchDepth,
     benchX,
     benchSpread,
-    villageX,
+    villageX: placed?.villageX ?? villageX,
     tables: [
       tabulate(M.gentleProfile, null),
       tabulate(M.steepProfile, null),
@@ -263,20 +279,97 @@ export function planMassif(rng: Rng, region: Region): TerrainPlan {
     sea,
     summitZ,
     baseZ,
-    flank,
+    // On a real face the side ridges, the bowls and the headwalls are the
+    // face's own, and the hills and the spurs and gullies are laid only
+    // under the scale the model sees (`RR.massif.real.folds`).
+    flank: real ? 0 : flank,
     crests: R.mountain.crests * K.crests,
-    hills,
-    ridges,
+    hills: real ? hills * RR.massif.real.folds : hills,
+    ridges: real ? ridges * RR.massif.real.folds : ridges,
     rollers: F.rollers.amplitude * K.rollers * Q.rollers,
-    bowls,
-    headwalls,
+    bowls: real ? [] : bowls,
+    headwalls: real ? [] : headwalls,
     profile: massif.tables[0],
     region,
     grade: UNGRADED,
     massif,
     flankBand,
     seeds,
+    ...(real
+      ? {
+          face: {
+            ...real.face,
+            hints: attempt < RR.massif.real.hinted ? realHints(real.face.grid.id) : null,
+          },
+        }
+      : {}),
   };
+}
+
+/** R25 — what a real face stands in for: where its peak, its shoulder and
+ * its village are (each kept in the band a dealt massif's is, on the side
+ * the real one stands), and the stretch that stands its ridge row
+ * `vertical` over its valley floor. */
+function readFace(
+  grid: RealFace,
+  size: number,
+  summitZ: number,
+  baseZ: number,
+  vertical: number,
+  across: (band: Band) => Band,
+  attempt: number,
+) {
+  const M = RR.massif;
+  const cx = size / 2;
+  const reach = M.real.reach;
+  const ridge = faceMean(grid, cx - reach, cx + reach, summitZ - 60, summitZ + 120);
+  const floor = faceMean(grid, cx - reach, cx + reach, baseZ - 60, size);
+  const realPeak = faceExtreme(grid, cx - reach, cx + reach, summitZ - 60, summitZ + 120);
+  const side = realPeak >= cx ? 1 : -1;
+  const keep = (x: number, band: Band, s: number): number => {
+    const d = Math.min(band.max, Math.max(band.min, (x - cx) * s));
+    return cx + d * s;
+  };
+  const peakX = keep(realPeak, across(M.peak.across), side);
+  const other = side > 0 ? [cx - reach, cx] : [cx, cx + reach];
+  const shoulderX = keep(
+    faceExtreme(grid, other[0], other[1], summitZ - 60, summitZ + 120),
+    across(M.shoulder.across),
+    -side,
+  );
+  const villageX = keep(
+    faceExtreme(grid, other[0], other[1], baseZ - 60, size, true),
+    across(M.village.across),
+    -side,
+  );
+  const drop = Math.max(M.real.leastDrop, ridge - floor);
+  const stretch = vertical / drop;
+  // The face's own profile: its mean height across the playable face, a
+  // row at a time, stretched as the face is — what its relief is read
+  // against (`faceLift`).
+  const { n, cell } = FACE_GRID;
+  const rows = new Float64Array(n);
+  for (let r = 0; r < n; r++) {
+    rows[r] = (faceMean(grid, cx - reach, cx + reach, r * cell, r * cell) - floor) * stretch;
+  }
+  // How far the face stands off its own profile, the root mean square
+  // over the playable face, m — the relief is laid at the share that
+  // brings it to `real.relief` m, calmed a little each attempt the last
+  // one refused (`real.calming`, down to `real.calmest` of it), so a face
+  // too rugged for the lifts and the runs on one try is laid gentler on
+  // the next rather than refused.
+  let sum = 0;
+  let count = 0;
+  for (let r = Math.ceil(summitZ / cell); r <= Math.floor(baseZ / cell); r++) {
+    for (let x = cx - reach; x <= cx + reach; x += cell) {
+      const d = (faceHeight(grid, x, r * cell) - floor) * stretch - rows[r];
+      sum += d * d;
+      count++;
+    }
+  }
+  const calm = Math.max(M.real.calmest, 1 - attempt * M.real.calming);
+  const relief = Math.min(1, (M.real.relief * calm) / Math.max(1, Math.sqrt(sum / count)));
+  return { side, peakX, shoulderX, villageX, face: { grid, floor, stretch, rows, relief } };
 }
 
 /** The massif of a plan, or a thrown error: everything below is only ever
@@ -419,6 +512,8 @@ function heightAt(
   const plain = row.g * (1 - st) + row.s * st;
   const benched = row.gb * (1 - st) + row.sb * st;
   let h = (plan.vertical * share - drops) * (plain * (1 - bn) + benched * bn);
+  const real = plan.face;
+  if (real) h = faceLift(plan, real, h, x, row);
   for (let i = 0; i < plan.headwalls.length; i++) {
     const w = plan.headwalls[i];
     const drop = walls ? walls[wallsAt + i] : wallDrop(w, x, st);
@@ -431,7 +526,7 @@ function heightAt(
     const wander = (sampleNoise(f.headwalls[i], x, 0) * 2 - 1) * F.headwalls.wander;
     h += drop * (1 - smoothstep(-w.run / 2, w.run / 2, dz + wander));
   }
-  if (row.behind) h -= row.back;
+  if (row.behind && !real) h -= row.back;
   const wx = x + (sampleNoise(f.warpX, x, z) * 2 - 1) * 70;
   const wz = z + (sampleNoise(f.warpZ, x, z) * 2 - 1) * 70;
   const flank = flankAcross(plan, sampleNoise(f.flank, x, z), x, row.open);
@@ -460,6 +555,36 @@ function heightAt(
     h += plan.flank * flank * Math.sqrt(flank) + crests * Math.max(flank, ridge);
   }
   return h;
+}
+
+/** R25 — the massif's height `h` at (`x`, `z`) with a real face laid in:
+ * the dealt descent — the profile the lifts and the runs are laid to —
+ * and over it the face's RELIEF, its height less its own profile: the
+ * spurs, gullies, bowls and the lean across the real mountain. */
+function faceLift(
+  plan: TerrainPlan,
+  real: NonNullable<TerrainPlan["face"]>,
+  h: number,
+  x: number,
+  at: MassifRow,
+): number {
+  const K = RR.massif.real;
+  const z = at.z;
+  const { n, cell } = FACE_GRID;
+  const t = Math.min(n - 1, Math.max(0, z / cell));
+  const r = Math.min(n - 2, Math.floor(t));
+  const row = real.rows[r] + (real.rows[r + 1] - real.rows[r]) * (t - r);
+  const lifted = (faceHeight(real.grid, x, z) - real.floor) * real.stretch;
+  // The face's whole relief where nothing is laid — up the sides past the
+  // side ridges' band and behind the summit ridge — and its tamed share
+  // on the skiing face between; none of it on the valley floor, where the
+  // village and the hub stand level.
+  const band = plan.flankBand ?? R.mountain.flank;
+  const aside = smoothstep(band.inner, band.outer, Math.abs(x - plan.size / 2));
+  const behind = 1 - smoothstep(plan.summitZ - K.behind, plan.summitZ, z);
+  const share = real.relief + (1 - real.relief) * Math.max(aside, behind);
+  const floor = 1 - smoothstep(K.floor.min, K.floor.max, descentAt(plan, z));
+  return h + (lifted - row) * share * floor;
 }
 
 /** How much of a headwall's drop the face at `x` takes: the steep

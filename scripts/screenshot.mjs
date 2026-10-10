@@ -152,6 +152,21 @@ const SURFACES = {
     settle: 60,
   },
   pause: { params: { paused: "1", t: "14" }, wait: ".menu-card-pause", settle: 700 },
+  // ...over a FREE RIDE, and its PISTE MAP: another run on the same mountain.
+  "pause-free": {
+    params: { start: "free", t: "20" },
+    open: ["Escape"],
+    wait: ".menu-card-pause",
+    settle: 700,
+  },
+  "pause-slopes": {
+    params: { start: "free", t: "20" },
+    open: ["Escape"],
+    press: ".pause-slopes-press",
+    pressAfter: 700,
+    wait: ".menu-card-pause-slopes .seed-preview-map image",
+    settle: 1200,
+  },
   // THE REPLAY of the run so far, off the pause card's WATCH REPLAY: the bar
   // as it opens, held still by SPACE (the bar never steps out while paused),
   // and stepped out of the picture while it plays untouched (the hairline).
@@ -491,7 +506,7 @@ const args = parseArgs(
     },
     grade: {
       kind: "string",
-      help: "build the seed's piste to this grade (green, blue, red, black)",
+      help: "build the seed's piste to this grade (green, blue, red, black, orange)",
     },
     hour: { kind: "number", help: "the race's solar start hour, 0–24" },
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
@@ -604,6 +619,23 @@ async function capture(name, params, viewportName, surface) {
     }
     await page.goto(url, { waitUntil: "load" });
     if (surface) {
+      // A surface reached by keys pressed once the run's HUD is up (`open`): the
+      // pause card over a free ride, which `?paused=` does not stand up.
+      if (surface.open) {
+        // ...once the loading card has gone (Escape on it backs out of the
+        // load), and pressed again until they take: the HUD is up a moment
+        // before the run listens for its keys.
+        await page.waitForFunction(
+          "!!document.querySelector('.hud-seed') && !document.querySelector('.loading-card')",
+          null,
+          { timeout: args.timeout * 1000 },
+        );
+        const until = surface.press ?? surface.wait;
+        for (let tries = 0; tries < 30 && !(await page.$(until)); tries++) {
+          for (const key of surface.open) await page.keyboard.press(key);
+          await page.waitForTimeout(800);
+        }
+      }
       if (surface.press) {
         await page.waitForSelector(surface.press, { timeout: args.timeout * 1000 });
         await page.waitForTimeout(surface.pressAfter ?? 0);

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE REPLAY (`pwa/src/game/replay.ts`, `replay-shots.ts`, `camera-tv.ts`):
+// THE REPLAY (`pwa/src/game/replay.ts`, `replay-shots.ts`, `camera-replay.ts`):
 // a race recorded as the controls that rode it and rebuilt — the field
 // included — reaches the same flag on the same step, every rival with it;
 // the director cuts to a flight BEFORE its take-off and runs it slow; and
-// the broadcast's lenses stand at the edge of the wood, never in it.
+// every lens the recording is watched through keeps the skier in the\n// picture, close, over the snow and with nothing between.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,13 +12,19 @@ import {
   TUNING,
   botInput,
   createGame,
-  nearestTrackPoint,
   step,
   type GameState,
   type SkierInput,
 } from "@engine";
 import { createLineClear } from "../pwa/src/game/camera-clear.ts";
-import { standFor, TV } from "../pwa/src/game/camera-tv.ts";
+import {
+  createReplayCamera,
+  REPLAY_ANGLES,
+  REPLAY_LENS,
+  snowBetween,
+  standFor,
+} from "../pwa/src/game/camera-replay.ts";
+import { freshRigPose } from "../pwa/src/game/camera-rigs.ts";
 import { snapInput } from "../pwa/src/game/ghost.ts";
 import { createReplayRig, recipeOf, startPrint, type Replay } from "../pwa/src/game/replay.ts";
 import { WATCHING_CAMERAS } from "../pwa/src/game/replay-run.ts";
@@ -270,13 +276,16 @@ describe("the running order (replay-shots.ts)", () => {
   });
 });
 
-describe("the broadcast (camera-tv.ts)", () => {
-  it("is reached only on the watching ladder", () => {
+describe("the replay's lenses (camera-replay.ts)", () => {
+  it("opens on the broadcast, and the ride's own ladder never offers one", () => {
     expect(WATCHING_CAMERAS[0]).toBe("tv");
-    expect(RUN_CAMERAS as readonly string[]).not.toContain("tv");
+    for (const a of REPLAY_ANGLES) {
+      expect(WATCHING_CAMERAS).toContain(a);
+      expect(RUN_CAMERAS as readonly string[]).not.toContain(a);
+    }
   });
 
-  it("stands a lens beside every kicker, off the track and clear of every trunk", () => {
+  it("plants a lens a few metres beside every kicker's landing, with the line to the lip open", () => {
     for (const seed of LEVEL_SEEDS.slice(0, 4)) {
       const level = levelFor(seed);
       const clear = createLineClear(level);
@@ -295,21 +304,28 @@ describe("the broadcast (camera-tv.ts)", () => {
           speed: 20,
         };
         const stand = standFor(take, level, clear);
-        expect(stand, `${seed} ${k.id}`).not.toBeNull();
-        const hit = nearestTrackPoint(level, stand!.x, stand!.z);
-        expect(hit.distance).toBeGreaterThan(level.track.points[hit.index].width / 2);
-        expect(stand!.y).toBeCloseTo(level.groundAt(stand!.x, stand!.z) + TV.lift, 6);
+        if (!stand) continue; // the moment keeps the follow lens
+        expect(stand.y).toBeCloseTo(level.groundAt(stand.x, stand.z) + REPLAY_LENS.plantLift, 6);
+        // CLOSE: never further off his line than the last push.
+        const P = REPLAY_LENS.plant;
+        const landing = {
+          x: k.x + fx * k.landing * P.landingShare,
+          z: k.z + fz * k.landing * P.landingShare,
+        };
+        expect(Math.hypot(stand.x - landing.x, stand.z - landing.z)).toBeLessThanOrEqual(
+          P.side + P.pushes * P.pushOut + 1e-6,
+        );
         for (const t of level.trees) {
-          expect(Math.hypot(t.x - stand!.x, t.z - stand!.z)).toBeGreaterThan(t.radius);
+          expect(Math.hypot(t.x - stand.x, t.z - stand.z)).toBeGreaterThan(t.radius);
         }
-        // The sightline from the lip to the lens is open all the way.
-        const lip = { x: k.x, y: level.groundAt(k.x, k.z) + TV.aimUp, z: k.z };
-        expect(clear(lip, stand!)).toBe(1);
+        const lip = { x: k.x, y: level.groundAt(k.x, k.z) + REPLAY_LENS.hips, z: k.z };
+        expect(clear(lip, stand)).toBe(1);
+        expect(snowBetween(level, lip, stand)).toBe(false);
       }
     }
   });
 
-  it("frames the finish from beside the arch", () => {
+  it("frames the finish from just past the line", () => {
     const level = levelFor(LEVEL_SEEDS[0]);
     const line = level.checkpoints[level.checkpoints.length - 1];
     const flag: ReplayShot = {
@@ -325,6 +341,50 @@ describe("the broadcast (camera-tv.ts)", () => {
     };
     const stand = standFor(flag, level, createLineClear(level));
     expect(stand).not.toBeNull();
-    expect(Math.hypot(stand!.x - line.x, stand!.z - line.z)).toBeLessThan(60);
+    expect(Math.hypot(stand!.x - line.x, stand!.z - line.z)).toBeLessThan(20);
+  });
+
+  it("keeps him in the picture on every lens: close, over the snow and nothing between", () => {
+    const level = syntheticLevel();
+    const clear = createLineClear(level);
+    const pts = level.track.points;
+    for (const angle of REPLAY_ANGLES) {
+      const cam = createReplayCamera(() => ({ level, clear }));
+      for (let i = 20; i < pts.length - 20; i += 7) {
+        const p = pts[i];
+        const rig = freshRigPose();
+        rig.x = p.x;
+        rig.y = level.groundAt(p.x, p.z);
+        rig.z = p.z;
+        rig.heading = p.heading;
+        rig.vx = Math.sin(p.heading) * 18;
+        rig.vz = Math.cos(p.heading) * 18;
+        const pose = cam.update({ angle, shot: null }, rig, null, i * 0.1, 1 / 60)!;
+        const hips = { x: rig.x, y: rig.y + REPLAY_LENS.hips, z: rig.z };
+        const range = Math.hypot(pose.eye.x - hips.x, pose.eye.y - hips.y, pose.eye.z - hips.z);
+        expect(range, `${angle} at ${p.s}`).toBeLessThan(
+          angle === "aerial" || angle === "tv" ? 16 : 9,
+        );
+        expect(pose.eye.y).toBeGreaterThan(level.groundAt(pose.eye.x, pose.eye.z));
+        expect(snowBetween(level, hips, pose.eye), `${angle} at ${p.s}`).toBe(false);
+        // AIMED AT HIM: the look passes within a couple of metres of his hips.
+        expect(Math.hypot(pose.target.x - hips.x, pose.target.z - hips.z)).toBeLessThan(3.5);
+      }
+    }
+  });
+
+  it("follows his BODY once he is thrown, not the skis sliding on", () => {
+    const level = syntheticLevel();
+    const clear = createLineClear(level);
+    const p = level.track.points[60];
+    const cam = createReplayCamera(() => ({ level, clear }));
+    const rig = freshRigPose();
+    rig.x = p.x;
+    rig.y = level.groundAt(p.x, p.z);
+    rig.z = p.z;
+    const body = { x: p.x + 12, y: level.groundAt(p.x + 12, p.z) + 0.3, z: p.z, vx: 0, vz: 0 };
+    const pose = cam.update({ angle: "close", shot: null }, rig, body, 3, 1 / 60)!;
+    expect(Math.hypot(pose.target.x - body.x, pose.target.z - body.z)).toBeLessThan(3.5);
+    expect(Math.hypot(pose.eye.x - body.x, pose.eye.z - body.z)).toBeLessThan(9);
   });
 });

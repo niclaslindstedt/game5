@@ -28,6 +28,7 @@ import { pick } from "./cabin-site.ts";
 import { CABINS, type CabinKind } from "./defs/cabins.ts";
 import type { VillageKind } from "./defs/resort-buildings.ts";
 import { VILLAGE_AREAS as A, VILLAGE_LOTS as L, sideReach } from "./defs/village-streets.ts";
+import { REAL_HOUSES, realHouseNear, realHousesOf, snappedHeading } from "./real-houses.ts";
 import type { Fit, StandAt } from "./resort-buildings.ts";
 import {
   besidePoint,
@@ -116,6 +117,13 @@ export function placeOnStreets(
     keep: (x, z) => !hit(x, z, 0.3),
   };
   const byId = new Map(plan.streets.map((s) => [s.id, s]));
+  // A REAL FACE's houses (`real-houses.ts`): once the village's ground
+  // holds enough of them, its houses, apartments and shops stand only
+  // beside one.
+  const real = realHousesOf(level).length > 0;
+  const dense = real && realHousesIn(level, plan) >= REAL_HOUSES.village;
+  const keepsToReal = (kind: CabinKind) =>
+    dense && (kind === "house" || kind === "apartments" || kind === "shop");
   const line = (ids: readonly string[]): Frontage["points"] => {
     const out: Frontage["points"] = [];
     let s0 = 0;
@@ -245,7 +253,13 @@ export function placeOnStreets(
     const q = besidePoint(at, sign * off);
     const toward = Math.atan2(at.x - q.x, at.z - q.z);
     const heading = f.faceIn ? toward : toward + Math.PI;
-    const c = stand(kind, q.x, q.z, heading, piece.id, s, 0, fit);
+    // On a real face, the town keeps to where real houses stand, and a
+    // building beside one is turned to its bearing where it can be.
+    if (keepsToReal(kind) && !realHouseNear(level, q.x, q.z, REAL_HOUSES.near)) return null;
+    const turned = real ? snappedHeading(level, kind, q.x, q.z, heading) : heading;
+    const c =
+      (turned !== heading ? stand(kind, q.x, q.z, turned, piece.id, s, 0, fit) : null) ??
+      stand(kind, q.x, q.z, heading, piece.id, s, 0, fit);
     if (c) c.id = `V${n + 1}`;
     return c;
   };
@@ -367,4 +381,23 @@ export function placeOnStreets(
   const southKinds: CabinKind[] = [...hotelsLeft, ...townKinds(false, 14)];
   lay(backSouth, southKinds, 0, 1, backEnd, true);
   lay(backNorth, townKinds(false, 14), 0, 1, backEnd, true);
+}
+
+/** How many of a real face's houses stand on the village's ground — within
+ * `REAL_HOUSES.near` of its streets' bounds. */
+function realHousesIn(level: Level, plan: VillageStreets): number {
+  let [x0, z0, x1, z1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const st of plan.streets) {
+    if (st.exit) continue;
+    for (const p of st.points) {
+      x0 = Math.min(x0, p.x);
+      z0 = Math.min(z0, p.z);
+      x1 = Math.max(x1, p.x);
+      z1 = Math.max(z1, p.z);
+    }
+  }
+  const m = REAL_HOUSES.near;
+  return realHousesOf(level).filter(
+    (h) => h.x > x0 - m && h.x < x1 + m && h.z > z0 - m && h.z < z1 + m,
+  ).length;
 }

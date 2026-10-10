@@ -9,7 +9,7 @@
 // WHAT HAPPENS WHEN A RECORDING IS WATCHED, in order: the tape is CUT where
 // the run stands (never sealed, so a run nobody finished is as watchable as
 // one that was); a copy of the run is stood up from the recording's keyframes
-// on its first step — or a few seconds before the crash just taken — and put
+// on its first step — or ten seconds before the crash just taken — and put
 // on screen; the RUN ITSELF is set aside untouched with the surface it was
 // watched from, and handed back to that surface when the recording is left
 // (`leave`). A fresh state is also what tells the renderer to clear the trail
@@ -18,40 +18,44 @@
 // THE TRANSPORT is a video player's, because that is the instrument every
 // player already knows: PLAY and PAUSE (and the end of the tape pauses, never
 // leaves), a SCRUBBER with the run's moments marked along it, BACK and
-// FORWARD five seconds, a FRAME at a time while paused, and four SPEEDS. A
+// FORWARD five seconds, a FRAME at a time while paused, and four SPEEDS — save
+// that an INSTANT REPLAY of a crash, played to its end untouched, hands the run
+// back a beat later (`TRANSPORT.handBack`), as a broadcast cuts back live. A
 // seek is a keyframe stood up and stepped forward to the mark; the stepping
 // is paid out over frames (`SEEK_BUDGET_MS`) rather than in one, so a long
 // way back holds the picture for a moment rather than the tab.
 //
 // THEN, ONCE A FRAME, one question is asked of the director and two answers
 // come back (`replay-shots.ts`): which moment holds the frame — which the
-// renderer is told, on the broadcast rung — and how fast the picture runs,
-// which the app's accumulator is told, times the player's own speed. Slow
-// motion is fewer steps per frame and nothing else.
+// renderer is told, on the broadcast — and how fast the picture runs, which
+// the app's accumulator is told, times the player's own speed, on every one
+// of the replay's own lenses. Slow motion is fewer steps per frame and
+// nothing else.
 //
-// THE WATCHING LADDER is the run's own camera ladder with the broadcast at
-// its head (`WATCHING_CAMERAS`): a replay opens on `tv`, and the camera key
-// walks the rest of the rungs and back. Between two moments the broadcast IS
-// the chase boom. DOM-free: the renderer is reached through `renderer-api.ts`
-// alone.
+// THE WATCHING LADDER is the replay's own lenses (`camera-replay.ts`: the
+// broadcast, which directs, then CLOSE, SIDE, FRONT and AERIAL) and the
+// skier's own eye last (`WATCHING_CAMERAS`): a replay opens on the
+// broadcast, and the camera key walks the rest and back. DOM-free: the
+// renderer is reached through `renderer-api.ts` alone.
 
 import { TUNING, type GameMode, type GameState, type SkierInput } from "@engine";
 
+import { isReplayAngle, REPLAY_ANGLES, type ReplayAngle } from "./camera-replay.ts";
 import type { CameraRung, WorldRenderer } from "./renderer-api.ts";
 import { createReplayRig, type Replay, type ReplayBill, type ReplayFrom } from "./replay.ts";
 import type { ShotKind } from "./replay-shots.ts";
-import { RUN_CAMERAS } from "./settings.ts";
 import { hudOver, watching, type Shell } from "./shell.ts";
 
 const HZ = TUNING.physicsHz;
 
-/** A rung a recording may be watched from: the broadcast, or any rung a
- * skier could ride from. */
-export type WatchRung = "tv" | CameraRung;
+/** A rung a recording may be watched from: one of the replay's own lenses,
+ * or a rung a skier could ride from. */
+export type WatchRung = ReplayAngle | CameraRung;
 
-/** The ladder a RECORDING is watched on: the run's own, opened on the
- * broadcast. Stated beside the play ladder so the two never come apart. */
-export const WATCHING_CAMERAS: readonly WatchRung[] = ["tv", ...RUN_CAMERAS];
+/** The ladder a RECORDING is watched on: the replay's own lenses, opened on
+ * the broadcast, and the skier's own eye — the one rung of the ride's
+ * ladder a replay has a reason to offer. */
+export const WATCHING_CAMERAS: readonly WatchRung[] = [...REPLAY_ANGLES, "helmet"];
 
 /** The speeds a recording plays at, share of real time. */
 export const REPLAY_SPEEDS = [0.25, 0.5, 1, 2] as const;
@@ -65,6 +69,9 @@ export const TRANSPORT = {
   frame: 1 / 30,
   /** Milliseconds of each frame a seek may spend stepping. */
   budgetMs: 12,
+  /** How long the end of an instant replay holds before the run is handed
+   * back, s. */
+  handBack: 1.5,
 } as const;
 
 /** One mark along the scrubber: where, and what. */
@@ -93,11 +100,14 @@ export type ReplayBarFacts = {
 };
 
 export type ReplayRunWorld = {
-  renderer: Pick<WorldRenderer, "setCamera" | "setShot">;
+  renderer: Pick<WorldRenderer, "setCamera" | "setReplayCam">;
   /** Put a state on screen as the engine state the loop steps — the
    * recording, or the run handed back. Never re-arms anything. */
   show: (state: GameState) => void;
   shell: () => Shell;
+  /** Leave the recording the way the bar's way out does: an instant replay
+   * played to its end. */
+  done?: () => void;
 };
 
 /** Where the app goes when a recording is left: the run as it was set
@@ -166,6 +176,9 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
   let rate = 1;
   let playing = true;
   let speed = 1;
+  /** When an instant replay ran off its end playing, ms — the hand-back's
+   * clock — or null. */
+  let ended: number | null = null;
 
   /** A seek stands a new state up: put it on screen in the old one's place. */
   const showNew = (w: Watched): void => {
@@ -175,6 +188,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
   };
   const seek = (to: number): void => {
     if (!watched) return;
+    ended = null;
     watched.replay.seek(to);
     showNew(watched);
   };
@@ -200,11 +214,20 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
         const until = performance.now() + TRANSPORT.budgetMs;
         replay.pump(() => performance.now() < until);
       }
-      if (replay.over()) playing = false;
+      if (replay.over()) {
+        if (playing && replay.moment !== null) ended ??= performance.now();
+        playing = false;
+      }
+      if (ended !== null && performance.now() - ended >= TRANSPORT.handBack * 1000) {
+        ended = null;
+        world.done?.();
+        if (!watched) return (rate = 1);
+      }
       const call = replay.call();
-      world.renderer.setCamera(rung === "tv" ? "chase" : rung);
-      world.renderer.setShot(rung === "tv" ? call.shot : null);
-      const director = rung === "tv" ? call.rate : 1;
+      const own = isReplayAngle(rung) ? rung : null;
+      world.renderer.setCamera(own ? "chase" : (rung as CameraRung));
+      world.renderer.setReplayCam(own && { angle: own, shot: own === "tv" ? call.shot : null });
+      const director = own ? call.rate : 1;
       rate = playing && replay.seeking() === null ? speed * director : 0;
       return rate;
     },
@@ -215,6 +238,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
       watched = { replay, live, back, shown: replay.state, marks };
       rung = "tv";
       rate = 1;
+      ended = null;
       playing = true;
       speed = 1;
       world.show(replay.state);
@@ -223,12 +247,14 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
     leave: () => {
       const w = watched;
       watched = null;
+      ended = null;
       rate = 1;
-      world.renderer.setShot(null);
+      world.renderer.setReplayCam(null);
       return w && { state: w.live, back: w.back };
     },
     toggle: () => {
       if (!watched) return;
+      ended = null;
       if (watched.replay.over()) {
         seek(watched.replay.first);
         playing = true;
@@ -259,9 +285,10 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
     },
     clear: () => {
       watched = null;
+      ended = null;
       rate = 1;
       rig.clear();
-      world.renderer.setShot(null);
+      world.renderer.setReplayCam(null);
     },
     bar: () => {
       if (!watched) return null;
@@ -274,7 +301,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
         at: target ?? replay.at(),
         playing: playing && !replay.over(),
         speed,
-        slow: rung === "tv" && replay.call().rate < 0.999,
+        slow: isReplayAngle(rung) && replay.call().rate < 0.999,
         seeking: target !== null,
         rung,
         marks: watched.marks,

@@ -46,6 +46,14 @@ const args = parseArgs(
     seed: { kind: "number", help: "draw and list this one seed's resort" },
     from: { kind: "number", default: 1, help: "first seed of a sweep" },
     count: { kind: "number", help: "sweep this many seeds instead of drawing one" },
+    face: {
+      kind: "string",
+      help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
+    },
+    hints: {
+      kind: "flag",
+      help: "draw a real face's hints over the plan (real-hints.ts): its real lifts, pistes and houses",
+    },
     region: {
       kind: "string",
       default: "alpine",
@@ -78,6 +86,7 @@ function build(seed) {
   const t0 = performance.now();
   const level = generateLevel(seed, {
     region: args.region,
+    face: args.face,
     course: args.course,
     grade: args.grade,
     ...(args.version === undefined ? {} : { version: args.version }),
@@ -182,6 +191,7 @@ if (args.walks) {
   const { attemptResort } = await import(join(root, "engine/mapgen/resort-build.ts"));
   const { subSeed } = await import(join(root, "engine/mapgen/generate.ts"));
   const { regionRow } = await import(join(root, "engine/mapgen/regions.ts"));
+  const { realFace } = await import(join(root, "engine/mapgen/real-face.ts"));
   traceWalks((spec, points, why) =>
     refused.push({ spec, points: points.map((p) => ({ x: p.x, z: p.z })), why }),
   );
@@ -189,11 +199,13 @@ if (args.walks) {
     seed,
     level.attempt,
     subSeed(seed, level.attempt),
-    regionRow(args.region),
+    regionRow(level.region),
     level.version,
+    args.face ? realFace(args.face) : null,
   );
   traceWalks(null);
 }
+const { realHints } = await import(join(root, "engine/mapgen/real-hints.ts"));
 const R = level.resort;
 const access = new Map(accessReport(level).runs.map((a) => [a.id, a]));
 const out = [];
@@ -267,10 +279,12 @@ out.push(
 const text = out.join("\n");
 console.log(text);
 
-const stem = args.out ?? `resort-${seed}${args.region === "alpine" ? "" : `-${args.region}`}`;
+const stem =
+  args.out ??
+  `resort-${seed}${args.face ? `-${args.face}` : args.region === "alpine" ? "" : `-${args.region}`}`;
 const dir = join(root, "previews");
 mkdirSync(dir, { recursive: true });
-const title = `RESORT ${seed} ${args.region.toUpperCase()}  ${R.runs.length} RUNS  ${R.lifts.length} LIFTS  ${R.courses.length} COURSES  COURSE ${R.course} (${level.grade.toUpperCase()})`;
+const title = `RESORT ${seed} ${(args.face ?? args.region).toUpperCase()}  ${R.runs.length} RUNS  ${R.lifts.length} LIFTS  ${R.courses.length} COURSES  COURSE ${R.course} (${level.grade.toUpperCase()})`;
 writeFileSync(
   join(dir, `${stem}.png`),
   renderResortPlan({
@@ -281,6 +295,7 @@ writeFileSync(
     hubAt,
     failing: new Set([...access.values()].filter((a) => !a.ok).map((a) => a.id)),
     cabins: cabinsOf(level),
+    hints: args.hints && level.face ? realHints(level.face) : null,
   }).toPng(),
 );
 if (refused.length > 0) {

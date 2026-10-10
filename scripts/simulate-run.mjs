@@ -68,6 +68,10 @@ const args = parseArgs(
     },
     tricks: { kind: "flag", help: "ride each seed's map with its trick field laid (R20)" },
     "no-poles": { kind: "flag", help: "the bot skis without poles (the player's hard mode)" },
+    face: {
+      kind: "string",
+      help: "raise each seed's resort on this REAL face (R25: alpine-1 … fell-2)",
+    },
     region: {
       kind: "string",
       default: "alpine",
@@ -95,7 +99,7 @@ const args = parseArgs(
     },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|slopestyle|halfpipe|moguls|aerials] [--heat] [--plan code] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--face id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|slopestyle|halfpipe|moguls|aerials] [--heat] [--plan code] [--json path]",
 );
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
@@ -170,6 +174,7 @@ console.log(
     (args.tricks ? " · trick field" : "") +
     (args["no-poles"] ? " · no poles" : "") +
     (args.region !== "alpine" ? ` · ${args.region}` : "") +
+    (args.face ? ` · face ${args.face}` : "") +
     (args.grade ? ` · ${args.grade}` : "") +
     (args.weather ? ` · ${args.weather}` : "") +
     (args.mode ? ` · ${args.mode}` : ""),
@@ -214,6 +219,7 @@ for (const spec of roster) {
       tricks: args.tricks,
       poles: !args["no-poles"],
       region: args.region === "alpine" ? undefined : args.region,
+      face: args.face,
       grade: args.grade,
       weather: args.weather,
       mode: args.mode,

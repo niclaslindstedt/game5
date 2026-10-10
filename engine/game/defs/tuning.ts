@@ -722,15 +722,16 @@ export const TUNING = {
      * they land on, rad — the tips down into it, the tails first, rolled
      * across it, and sideways to the way he is going — at a landing under
      * `clean` g, shrinking to `tight` of it at `buckle`. The bigger the
-     * landing, the more perfect it must be. */
+     * landing, the more perfect it must be; past it, `crash.crooked` of
+     * that throws him (`crash.ts`). */
     tipsDown: 0.5,
     tailsDown: 0.8,
     rolled: 0.6,
     sideways: 0.9,
-    tight: 0.2,
+    tight: 0.6,
     /** ...and under `clean` g more forgiving still, to `1 + slack` of it
      * at a hop that loads him no more than standing. */
-    slack: 1,
+    slack: 0.3,
     /** A STEEP FACE TAKES A FALL: the skis run on down it while the legs
      * fold, drawing the stop out. The first `over` m of the equivalent fall
      * height is stopped outright (a kicker's landing is judged as ever);
@@ -828,6 +829,29 @@ export const TUNING = {
      * all-mountain's little kick, 12 the powder ski's. */
     tailDig: 0.06,
     digSpeed: 5,
+    /** THE REVERT (`switch.ts`, `RunRules.revert`): below `below` m/s on
+     * the snow — 15 km/h, where a skier riding switch has nothing left to
+     * carry him and wants his poles — he turns round to ride forward,
+     * pivoting his flat, unweighted skis on their bases over `time` s (a
+     * freestyler's slide-out of a switch landing: a beat to look, swing
+     * and set the skis down) — their hold across the snow let go by
+     * `unweight` of itself at the middle of it, where they are light and
+     * across the way (a ski swung across a groomer it is pressed into is a
+     * hockey stop, not a slide-out). A JUMP popped riding switch under
+     * `hopBelow` m/s (40 km/h) turns him round the same way in the air off
+     * it, over `hopTime` s — inside the shortest flight a pop on the flat
+     * gives (`jump.popMin` up and down again, 0.45 s). On the snow he must
+     * be going backward faster than `least` m/s: a skier knocked back off
+     * a wall or creeping back after a stall is not riding switch, and is
+     * left standing where he stops rather than turned round and skated off. */
+    revert: {
+      below: 15 / 3.6,
+      least: 2,
+      time: 0.65,
+      unweight: 0.85,
+      hopBelow: 40 / 3.6,
+      hopTime: 0.4,
+    },
   },
 
   /** THE WIPEOUT (`crash.ts`), stated next door (`defs/crash.ts`). */

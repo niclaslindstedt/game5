@@ -28,7 +28,11 @@
 // gondola station's door), lift-ring (a chair's boarding ring from up the
 // hill — lit on a `--free` run alone), cliff, cliff-edge,
 // sign (the head of the course raced, its piste-head sign beside it),
-// sign-tree (the post carrying the most boards), gate, hut, finish (the
+// sign-tree (the post carrying the most boards), route-head, route-amateur,
+// route-amateur-close (the locals' sign pointing at it), route-warn, route-fallen, route-in,
+// route-steep, route-side, route-air (the map's SKI ROUTE, R42: its sign,
+// down it at a skier's eye, its steepest pitch, across the face and from
+// over it), gate, hut, finish (the
 // course's marks close to: the panel gate at the middle gate, the start
 // hut, the finish arch from up the last straight), cabin, cabin-2,
 // cabin-3 (a group of log cabins from the run it stands by, a skier's eye
@@ -84,7 +88,8 @@
 // the skier skied into its flank and stopped there); and the
 // lifts' hardware (`lift-view.ts`, `make lifts`): lift-tower, lift-chair,
 // lift-cabin, lift-tbar (one part close) and lifts (the sheet: the towers, the chairs,
-// the cabins, the T-bars, the lines and a bullwheel); and the
+// the cabins, the T-bars, the lines and a bullwheel) and lift-turns (every
+// station's wheel with its carriers coming round it, frame by frame); and the
 // village's traffic (`traffic-lab.ts`): village-traffic (a car coming down
 // the main street), village-junction, village-carpark, village-bus (the ski
 // bus at its stop), village-cyclist and vehicles (the sheet: every kind
@@ -158,6 +163,18 @@ const VIEWS = [
   "cliff-edge",
   "sign",
   "sign-tree",
+  "sign-summit",
+  "sign-summit-2",
+  "sign-summit-3",
+  "route-head",
+  "route-amateur",
+  "route-amateur-close",
+  "route-warn",
+  "route-fallen",
+  "route-in",
+  "route-steep",
+  "route-side",
+  "route-air",
   "gate",
   "hut",
   "finish",
@@ -261,6 +278,7 @@ const VIEWS = [
   "lift-cabin",
   "lift-tbar",
   "lifts",
+  "lift-turns",
   "village-traffic",
   "village-junction",
   "village-carpark",
@@ -301,7 +319,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s> and yard-<s> at any time)`,
+      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s>, yard-<s> and crash-<s> at any time; crash-net-<s> with --downhill)`,
     },
     quality: {
       kind: "string",
@@ -459,11 +477,18 @@ const falls = wanted.filter(isFall).sort((a, b) => Number(a.slice(5)) - Number(b
 // else, in the order of its clock: the frames of one crash into the nets.
 const isNet = (v) => /^net-\d+(\.\d+)?$/.test(v);
 const nets = wanted.filter(isNet).sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+// A crash view (`crash-0.4`, `crash-net-0.4`) is staged last, in the order
+// of its clock: the frames of one crash from the player's own chase lens.
+const isCrash = (v) => /^crash-(net-)?\d+(\.\d+)?$/.test(v);
+const crashes = wanted
+  .filter(isCrash)
+  .sort((a, b) => Number(a.split("-").at(-1)) - Number(b.split("-").at(-1)));
 const order = [
   ...VIEWS.flatMap((v) =>
     v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
   ),
   ...nets,
+  ...crashes,
 ];
 for (const view of order.filter((v) => wanted.includes(v))) {
   const t0 = Date.now();

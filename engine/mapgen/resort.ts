@@ -33,6 +33,17 @@ import { GRADES, PISTE_GRADES, type GradeRow, type PisteGrade } from "./grades.t
 import type { RunSpec } from "./network.ts";
 import type { RegionId } from "./regions.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
+import {
+  alongPiste,
+  leanLift,
+  leanStation,
+  pisteAhead,
+  pisteFor,
+  pisteVia,
+  pisteWidth,
+  type HintLift,
+  type HintPiste,
+} from "./real-hints.ts";
 import { inBand } from "./rules.ts";
 import type { TerrainPlan } from "./terrain.ts";
 import type { Lift, RunKind } from "./types.ts";
@@ -244,24 +255,48 @@ function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts
   const span = plan.baseZ - plan.summitZ;
   const at = (u: number): number => plan.summitZ + span * u;
   const side = m.side;
-  const village = { x: m.villageX, z: plan.baseZ + 60 };
-  const mid = { x: m.benchX, z: at(m.benchU) - 20 };
-  const peak = { x: m.peakX - side * 40, z: plan.summitZ + L.below };
-  const shoulder = { x: m.shoulderX, z: plan.summitZ + L.below + 10 };
-  const shoulderFoot = { x: (m.shoulderX + m.villageX) / 2 - side * 60, z: plan.baseZ + 40 };
+  let village = { x: m.villageX, z: plan.baseZ + 60 };
+  let mid = { x: m.benchX, z: at(m.benchU) - 20 };
+  let peak = { x: m.peakX - side * 40, z: plan.summitZ + L.below };
+  let shoulder = { x: m.shoulderX, z: plan.summitZ + L.below + 10 };
+  let shoulderFoot = { x: (m.shoulderX + m.villageX) / 2 - side * 60, z: plan.baseZ + 40 };
   // The nursery's top as far up from the floor as on the rule book's
   // square, however wide the massif's is: a beginner's slope stays short.
   const nurseryX = m.villageX - side * inBand(rng, L.nursery.across);
   const nurseryU = inBand(rng, L.nursery.at);
-  const nursery = {
+  let nursery = {
     x: nurseryX,
     z: m.wide === 1 ? at(nurseryU) : at(1 - (1 - nurseryU) / m.wide),
   };
   const outerX = m.peakX + side * inBand(rng, L.outer.across) * m.wide;
   const outerU = inBand(rng, L.outer.at);
   const room = Math.abs(outerX - size / 2) < (plan.flankBand ?? RR.massif.flank).inner - 220;
-  const outer = room ? { x: outerX, z: at(outerU) } : null;
-  const outerFoot = room ? { x: outerX - side * 80, z: plan.baseZ + 40 } : null;
+  let outer = room ? { x: outerX, z: at(outerU) } : null;
+  let outerFoot = room ? { x: outerX - side * 80, z: plan.baseZ + 40 } : null;
+  // A REAL FACE's lifts (`real-hints.ts`): every station leant onto the
+  // nearest end of a real lift, the village's first (the gondola leaves
+  // it), the tops on the summit ridge kept on their row — after every
+  // draw, so the stream runs on as it would.
+  let dragBottom = { x: nursery.x + side * 60, z: village.z - 10 };
+  const hints = plan.face?.hints;
+  if (hints) {
+    const used = new Set<HintLift>();
+    const P = RR.massif.real.lift;
+    const S = RR.massif.real.station;
+    const ride = ["gondola", "chair"] as const;
+    const floorTop = { bottom: true, top: false };
+    const g1 = leanLift(hints, used, village, mid, ride, P, floorTop);
+    if (g1) [village, mid] = [g1.bottom, g1.top];
+    peak = leanStation(hints, used, peak, "top", S, true);
+    const c2 = leanLift(hints, used, shoulderFoot, shoulder, ride, P, { bottom: true, top: true });
+    if (c2) [shoulderFoot, shoulder] = [c2.bottom, c2.top];
+    if (outer && outerFoot) {
+      const c3 = leanLift(hints, used, outerFoot, outer, ride, P, floorTop);
+      if (c3) [outerFoot, outer] = [c3.bottom, c3.top];
+    }
+    const d1 = leanLift(hints, used, dragBottom, nursery, ["drag"], P, floorTop);
+    if (d1) [dragBottom, nursery] = [d1.bottom, d1.top];
+  }
   const stations: Stations = {
     side,
     village,
@@ -295,7 +330,7 @@ function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts
     {
       id: "D1",
       kind: "drag",
-      bottom: { x: nursery.x + side * 60, z: village.z - 10 },
+      bottom: dragBottom,
       top: nursery,
     },
   ];
@@ -311,6 +346,9 @@ export function planResort(
 ): { lifts: LiftPlan[]; specs: RunSpec[]; village: Point } {
   const { stations, lifts } = placeStations(rng, plan);
   const tops = new Map(lifts.map((l) => [l.id, l.top]));
+  const hints = plan.face?.hints;
+  const pistes = new Set<HintPiste>();
+  const widths = hints ? pisteWidth(hints, RR.massif.real.width) : null;
   const specs: RunSpec[] = [];
   for (const slot of SLOTS) {
     const top = tops.get(slot.from);
@@ -318,12 +356,33 @@ export function planResort(
     // missing outer top moves nothing after it.
     const laid = rng.chance(slot.odds);
     if (!top || !laid) continue;
-    const aim =
-      slot.kind === "road" ? "green" : tilted(slot, plan.region.id, plan.sea !== undefined);
-    const row = slot.kind === "road" ? ROAD_ROW : GRADES[aim];
     const x = top.x + slot.offset * stations.side;
     const target = slot.target(stations);
     const toward = Math.atan2(target.x - x, Math.max(200, target.z - top.z));
+    // A REAL FACE's pistes: a piste slot laid on the real piste leaving
+    // nearest its start takes that piste's colour and follows its line,
+    // the run's width its real one; with none near, it is steered through
+    // the bends of a real one of its own grade.
+    const real =
+      hints && slot.kind === "piste"
+        ? pisteFor(hints, pistes, { x, z: top.z }, target, RR.massif.real.along)
+        : null;
+    const aim: PisteGrade = real
+      ? (real.grade as PisteGrade)
+      : slot.kind === "road"
+        ? "green"
+        : tilted(slot, plan.region.id, plan.sea !== undefined);
+    const row = slot.kind === "road" ? ROAD_ROW : GRADES[aim];
+    const margin = RR.massif.real.via.margin;
+    const along = real ? alongPiste(real, RR.massif.real.along) : null;
+    const via = real
+      ? real.points.filter((q, i) => i > 0 && q.z > top.z + margin && q.z < target.z - margin)
+      : hints && slot.kind === "piste"
+        ? pisteVia(hints, pistes, { x, z: top.z }, target, aim, RR.massif.real.via)
+        : null;
+    const any =
+      hints && slot.kind === "piste" ? pisteAhead(hints, aim, RR.massif.real.follow) : null;
+    const follow = along && any ? (fx: number, fz: number) => along(fx, fz) ?? any(fx, fz) : any;
     specs.push({
       id: String(specs.length + 1),
       from: slot.from,
@@ -333,8 +392,13 @@ export function planResort(
       z: top.z,
       heading: Math.max(-1, Math.min(1, toward + slot.lean * stations.side * 0.6)),
       target,
-      amplitude: slot.amplitude,
+      // A run following a real piste swings less of its own.
+      amplitude: via || follow ? slot.amplitude * RR.massif.real.via.swing : slot.amplitude,
       lean: slot.lean * stations.side,
+      ...(via && via.length > 0 ? { via } : {}),
+      ...(follow ? { follow } : {}),
+      ...(real && widths ? { widthAt: widths } : {}),
+      ...(real ? { signed: aim } : {}),
     });
   }
   // The pistes the gentlest first, each colour in slot order: a piste

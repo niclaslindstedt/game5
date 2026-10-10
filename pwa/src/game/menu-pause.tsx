@@ -11,6 +11,12 @@
 //   RESTART       the run again from the start line, on the same map — the B
 //                 key's own line. Over a free ride, START AGAIN: the same
 //                 ride from where it started.
+//   PISTE MAP     beside OPTIONS, half its row: another run on THIS
+//                 mountain, on a free ride — the start
+//                 card's RUN row and chart on a panel of their own
+//                 (`menu-pause-slopes.tsx`), and RIDE stands the ride up
+//                 there. Over a race, the level card of the race's own
+//                 discipline, a piste drawn on every map — which leaves it.
 //   WATCH REPLAY  the race so far, from the outside (`replay-run.ts`) —
 //                 which ENDS it, and the press says so.
 //   MAIN MENU     out of the race and back to the front door. Nothing is
@@ -51,6 +57,8 @@
 
 import { useState } from "preact/hooks";
 
+import type { FreeRide } from "./free-ride.ts";
+
 import { Glyph } from "./menu-glyphs.tsx";
 import {
   Caption,
@@ -62,6 +70,7 @@ import {
   type Stop,
 } from "./menu-knobs.tsx";
 import { SoundRows } from "./menu-options.tsx";
+import { PauseSlopes } from "./menu-pause-slopes.tsx";
 import { pauseStats } from "./pause-stats.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { RUN_CAMERAS, type Settings } from "./settings.ts";
@@ -128,6 +137,8 @@ export function PauseMenu({
   onRestart,
   onMainMenu,
   onReplay = null,
+  onSlopes = null,
+  onMaps = null,
 }: {
   /** THE HELD RACE, as the HUD behind this card reads it — which is what the
    * card bills it by, the figures chosen from it by rule (`pause-stats.ts`). */
@@ -142,25 +153,39 @@ export function PauseMenu({
   onMainMenu: () => void;
   /** Watch the race so far, or null where there is no recording of it. */
   onReplay?: (() => void) | null;
+  /** A free ride stood up again on another run of this mountain, or null
+   * where the run is no free ride. */
+  onSlopes?: ((ride: FreeRide) => void) | null;
+  /** Out to the race's level card, or null where the run is no race. */
+  onMaps?: (() => void) | null;
 }) {
-  // Which of the card's two faces is up. Local, and dropped the moment the
+  // Which of the card's faces is up. Local, and dropped the moment the
   // card is: coming back to a held race costs the same one press every time.
-  const [options, setOptions] = useState(false);
+  const [panel, setPanel] = useState<"card" | "options" | "slopes">("card");
+  const back = (): void => setPanel("card");
   const stats = pauseStats(snap);
   return (
     <div
       class="menu"
       // The backdrop presses whatever the card's own way out is: one step
-      // back off the panel, and off the card back to the snow.
-      onPointerDown={() => (options ? setOptions(false) : onResume())}
+      // back off a panel, and off the card back to the snow.
+      onPointerDown={() => (panel === "card" ? onResume() : back())}
       role="presentation"
     >
-      {options ? (
+      {panel === "options" ? (
         <PauseOptions
           settings={settings}
           onSettings={onSettings}
           onCamera={onCamera}
-          onBack={() => setOptions(false)}
+          onBack={back}
+        />
+      ) : panel === "slopes" && onSlopes ? (
+        <PauseSlopes
+          snap={snap}
+          settings={settings}
+          onSettings={onSettings}
+          onRide={onSlopes}
+          onBack={back}
         />
       ) : (
         <div
@@ -214,10 +239,24 @@ export function PauseMenu({
             </button>
             {/* Second, so a thumb aiming for the snow cannot land on a press
                 that ends the race. */}
-            <button type="button" class="menu-item" onClick={() => setOptions(true)}>
-              <Glyph name="sliders" />
-              <span class="menu-item-name">{STRINGS.pauseOptions}</span>
-            </button>
+            {/* ...with the PISTE MAP beside it where there is one: half a row
+                each, so the card is no taller for it. */}
+            <div class={onSlopes || onMaps ? "pause-pair" : "pause-single"}>
+              <button type="button" class="menu-item" onClick={() => setPanel("options")}>
+                <Glyph name="sliders" />
+                <span class="menu-item-name">{STRINGS.pauseOptions}</span>
+              </button>
+              {(onSlopes || onMaps) && (
+                <button
+                  type="button"
+                  class="menu-item pause-slopes-press"
+                  onClick={onSlopes ? () => setPanel("slopes") : (onMaps ?? undefined)}
+                >
+                  <Glyph name="piste" />
+                  <span class="menu-item-name">{STRINGS.pauseSlopes}</span>
+                </button>
+              )}
+            </div>
           </div>
           {/* THE THREE THAT END THE RACE, side by side in one quiet strip:
               a mark over a word, no fill until a finger or the cursor is on

@@ -23,10 +23,9 @@
 // bot's race under a card is armed with nothing.
 //
 // THE PINNED MAPS (`pinned-run.ts`): a RACE rides a pinned map.
-// THE REPLAY (`replay-run.ts`): every run the player rides is recorded as the
-// controls that rode it, and WATCH REPLAY (the finish plate, the pause card,
-// the offer after a crash, V) stands a copy up under the `replay` surface,
-// sets the run aside and hands it back to the surface it was watched from.
+// THE REPLAY (`replay-run.ts`): every run the player rides is recorded, and WATCH REPLAY stands
+// a copy up under the `replay` surface, setting the run aside and handing it back to the surface
+// it was watched from (on the bar's way out, or at the end of the crash an instant replay shows).
 //
 // THE URL: every parameter the app reads is listed in `game/url-params.ts`.
 // A URL that names a race (`start`, `shot`, `paused`) boots into one;
@@ -38,10 +37,9 @@
 // state once per frame; the HUD is refreshed from a snapshot at ~12 Hz. A
 // hidden tab pauses the clock (§37.3) and the HUD says so.
 //
-// THE RENDERER IS FETCHED, NOT BUNDLED (`use-render-kit.ts`):
-// `game/renderer.ts` is the one import that reaches three.js, so it arrives
-// as its own chunk behind the attract card, and everything this file asks of
-// it is `renderer-api.ts`'s — it draws a `GameState` and never writes one.
+// THE RENDERER IS FETCHED, NOT BUNDLED (`use-render-kit.ts`): `game/renderer.ts` is the one
+// import that reaches three.js, so it arrives as its own chunk behind the attract card, and all
+// this file asks of it is `renderer-api.ts`'s — it draws a `GameState` and never writes one.
 //
 // THE SOUND AND THE MOTOR FOLLOW THE SAME RULE AS THE SNOW: fed every frame
 // the engine steps — the beds ducked under a card, where the bot's race is
@@ -70,9 +68,11 @@ import { onShellCommand, shellContent } from "./shell-host.ts";
 import { createRunAudio, setAudioVolumes } from "./game/audio/index.ts";
 import { watchCanvas } from "./game/app-canvas.ts";
 import { createLoader, raceOrFallback } from "./game/app-load.ts";
+import { buildMap, gameOrder } from "./game/map-build.ts";
 import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
 import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
+import { raceMapsOf } from "./game/race-maps.ts";
 import { carriesPoles } from "./game/outfit.ts";
 import { mapPicks } from "./game/map-picks.ts";
 import { isTrickRun, trickMapFor, tricksTile } from "./game/trick-maps.ts";
@@ -86,7 +86,7 @@ import {
   freeRestart,
   standingFor,
 } from "./game/free-ride.ts";
-import { freeAsk, freeRideLevel, quietSeedMaps } from "./game/seed-maps.ts";
+import { freeRideLevel } from "./game/seed-maps.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
@@ -99,7 +99,6 @@ import { deathOver } from "./game/hud-wreck.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
-import { ReplayOffer } from "./game/hud-replay-offer.tsx";
 import { createXrayRun, dying, xrayHud } from "./game/xray-run.ts";
 import { createReplayRun, type ReplayBarFacts, type ReplayRun } from "./game/replay-run.ts";
 import { prepareMinimap } from "./game/minimap.tsx";
@@ -291,8 +290,9 @@ export function App() {
       renderer,
       show: (s) => show(s),
       shell: () => shellRef.current,
+      done: () => pressRef.current.unwatch(),
     }));
-    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current.keys);
+    const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -494,7 +494,12 @@ export function App() {
 
     /* ── STANDING A RACE UP ────────────────────────────────────────────── */
     const loader = createLoader(
-      { renderer: view, adopt: (s) => adopt(s, ticketFor(s), true), current: () => state },
+      {
+        renderer: view,
+        adopt: (s) => adopt(s, ticketFor(s), true),
+        current: () => state,
+        buildMap,
+      },
       {
         phase: setLoadingPhase,
         start: () => {
@@ -563,15 +568,12 @@ export function App() {
       race: (seed, asked) => {
         mode = asked;
         pinned.clear();
+        const under = state.level.seed === seed && state.rules.course ? state.level : undefined;
         loader.begin({
-          // THE MAP UNDER THE MENU IS REUSED when it is the one asked for —
-          // the race the player presses RACE over is the race they ride.
-          // (Never a free ride's: that one is the seed's map on another day.)
-          build: () =>
-            playerGame(
-              state.level.seed === seed && state.rules.course ? state.level : undefined,
-              seed,
-            ),
+          // THE MAP UNDER THE MENU IS REUSED when it is the one asked for (never
+          // a free ride's, the seed's map on another day); else a worker builds it.
+          map: () => (under ? null : gameOrder({ seed, mode, ...linkWorld(params) })),
+          build: (level) => playerGame(level ?? under, seed),
           camera: settingsRef.current.camera,
           done: lift,
         });
@@ -579,16 +581,13 @@ export function App() {
       free: (options) => {
         mode = "free";
         pinned.clear();
-        // The map standing, or the one the start card's worker built — or
-        // is building — for this seed (`seed-maps.ts`); built here only
-        // where there is neither.
-        const made = freeRideLevel(freeAsk(options));
-        quietSeedMaps(freeAsk(options));
+        // The map standing, or the one the start card's worker built or is
+        // building (`seed-maps.ts`); else built on the card's own worker.
+        const made = freeRideLevel(options, () => standingFor(state.level, state.rules, options));
         loader.begin({
-          ready: made.ready,
-          build: () => {
-            const level = standingFor(state.level, state.rules, options) ?? made.level();
-            const game = createGame({ ...options, level });
+          ...made,
+          build: (built) => {
+            const game = createGame({ ...options, level: built ?? made.has() });
             freeAgain = freeAgainOptions(options, game.level);
             return game;
           },
@@ -854,13 +853,14 @@ export function App() {
   /** The map on the start card: the one it stored, or the first of the
    * free ride's own mountains (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
-  /** Onto the snow on a FREE RIDE: the start card's map, day and snow, on
-   * the pair the ski card holds. */
-  const freeRide = (): void => {
+  /** Onto the snow on a FREE RIDE: the start card's map, day and snow (or the
+   * pause card's PISTE MAP's), on the pair the ski card holds. */
+  const freeRide = (ride = settings.ride): void => {
     setPage("root");
-    pressRef.current.free(freeGameOptions(settings.ride, startSeed, skierOf(settings)));
+    pressRef.current.free(freeGameOptions(ride, ride.seed ?? startSeed, skierOf(settings)));
   };
-
+  /** Out of the run to the level card a pinned map is picked on. */
+  const toLevels = (): void => (pressRef.current.toMenu(), setPage("levels"));
   // A freestyle contest's plate takes the screen from the run's HUD.
   const plated = shell === "run" && !away && contestPlateUp(snap);
   const hudUp = hudOver(shell) && snap !== null && input !== null && !plated;
@@ -873,6 +873,7 @@ export function App() {
           snap={snap!}
           flashes={flashes}
           touch={touch && !watching(shell)}
+          replaying={watching(shell)}
           input={input!}
           live={hudLive}
           feel={settings.touch}
@@ -887,6 +888,14 @@ export function App() {
           jumpKey={boundLabel(settings.keys.jump)}
           injuries={injuriesShown(settings, shellContent())}
           again={again}
+          offer={
+            shell === "run" && crashReplay
+              ? {
+                  keyLabel: boundLabel(settings.keys.replay),
+                  onWatch: () => pressRef.current.watch("crash"),
+                }
+              : null
+          }
         />
       )}
       {/* THE NEW-BUILD NOTICE over the front door: a deploy most often lands
@@ -906,22 +915,11 @@ export function App() {
           onLeave={() => pressRef.current.unwatch()}
         />
       )}
-      {shell === "run" && crashReplay && (
-        <ReplayOffer
-          touch={touch}
-          keyLabel={boundLabel(settings.keys.replay)}
-          onWatch={() => pressRef.current.watch("crash")}
-        />
-      )}
       <ResultPlate
         snap={shell === "run" && !away ? snap : null}
         touch={touch}
         onAgain={() => pressRef.current.restart()}
-        onNew={() => {
-          if (!pinnedFor(settings, modeRef.current, params.seed)) return race();
-          pressRef.current.toMenu();
-          setPage("levels");
-        }}
+        onNew={() => (pinnedFor(settings, modeRef.current, params.seed) ? toLevels() : race())}
         onMenu={() => pressRef.current.toMenu()}
         onReplay={canReplay ? () => pressRef.current.watch() : null}
         onSecond={() => pressRef.current.second()}
@@ -939,6 +937,8 @@ export function App() {
           onRestart={() => pressRef.current.restart()}
           onMainMenu={() => pressRef.current.toMenu()}
           onReplay={canReplay ? () => pressRef.current.watch() : null}
+          onSlopes={modeRef.current === "free" ? freeRide : null}
+          onMaps={raceMapsOf(modeRef.current) && params.seed === null ? toLevels : null}
         />
       )}
       {shell === "menu" && (page === "root" || page === "play") && (
@@ -977,7 +977,7 @@ export function App() {
           touch={touch}
           onLinkSkis={() => setLinkSkis(null)}
           onRide={race}
-          onFreeRide={freeRide}
+          onFreeRide={() => freeRide()}
           stats={stats.book}
           onResetStats={stats.rig.reset}
         />

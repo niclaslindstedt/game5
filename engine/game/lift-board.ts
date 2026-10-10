@@ -34,6 +34,7 @@ import {
   GONDOLA_IN_STATION,
   carrierAt,
   carrierClock,
+  carrierLoop,
   carrierCount,
   carrierPassing,
   queueLane,
@@ -400,7 +401,7 @@ export function stepChairWait(run: GameState, plan: LiftPlan): number {
 export function nextCarrierIn(plan: LiftPlan, u: number, t: number): number {
   const clock = carrierClock(plan);
   const n = carrierCount(plan);
-  const span = clock ? clock.span : 2 * plan.length;
+  const span = clock ? clock.span : carrierLoop(plan);
   const gap = span / n;
   const v = plan.look.speed;
   // Carrier k's clock reads k·gap + v·t; the next to reach u's reading.

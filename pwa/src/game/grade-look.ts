@@ -5,7 +5,10 @@
 //
 // THE SCHEME is the European colours with the northern signs' SHAPES: a
 // GREEN CIRCLE, a BLUE SQUARE, a RED RECTANGLE (lying down) and a BLACK
-// DIAMOND. The colour is what every skier reads first; the shape is there
+// DIAMOND — and past black, the SKI ROUTE (R42) an ORANGE DOUBLE DIAMOND:
+// orange the colour a ski area signs its extremely difficult, ungroomed
+// runs with, and the doubled diamond the expert's-only mark every skier
+// reads as "harder than black". The colour is what every skier reads first; the shape is there
 // so a skier who cannot tell the red from the green still reads the grade,
 // and a black diamond is the one mark every skier already knows. The shapes
 // are generic signs, the same ones a ski area paints on its piste map.
@@ -18,9 +21,9 @@
 //
 // DOM-free and three-free, so the suite reads it.
 
-import type { PisteGrade } from "@engine";
+import type { RunGrade } from "@engine";
 
-export type GradeShape = "circle" | "square" | "rectangle" | "diamond";
+export type GradeShape = "circle" | "square" | "rectangle" | "diamond" | "double";
 
 export type GradeLook = {
   /** The shape on the sign. */
@@ -34,17 +37,19 @@ export type GradeLook = {
   stake: number;
 };
 
-export const GRADE_LOOK: Readonly<Record<PisteGrade, GradeLook>> = {
+export const GRADE_LOOK: Readonly<Record<RunGrade, GradeLook>> = {
   green: { shape: "circle", paint: "#1f9a4e", rim: "#f4f8fb", stake: 0x1f9a4e },
   blue: { shape: "square", paint: "#1f63d0", rim: "#f4f8fb", stake: 0x1f63d0 },
   red: { shape: "rectangle", paint: "#d42a2f", rim: "#f4f8fb", stake: 0xd42a2f },
   black: { shape: "diamond", paint: "#121417", rim: "#f4f8fb", stake: 0x16181b },
+  orange: { shape: "double", paint: "#f2780c", rim: "#f4f8fb", stake: 0xf2780c },
 };
 
-/** The sign's outline in a 24 × 24 box, as an SVG path — the four shapes
- * sized so each reads as big as the others: the diamond's corners reach
- * the box, the circle and the square sit a little inside it, and the
- * rectangle lies down across it. */
+/** The sign's outline in a 24 × 24 box, as an SVG path — the shapes sized
+ * so each reads as big as the others: the diamond's corners reach the box,
+ * the circle and the square sit a little inside it, the rectangle lies down
+ * across it, and the double diamond is two smaller diamonds side by side,
+ * touching at the middle. */
 export function gradePath(shape: GradeShape): string {
   switch (shape) {
     case "circle":
@@ -55,5 +60,7 @@ export function gradePath(shape: GradeShape): string {
       return "M2.5 6.5h19v11h-19z";
     case "diamond":
       return "M12 1.5L22.5 12L12 22.5L1.5 12z";
+    case "double":
+      return "M6.2 5.8L12 12L6.2 18.2L0.4 12zM17.8 5.8L23.6 12L17.8 18.2L12 12z";
   }
 }

@@ -47,8 +47,8 @@
 //     compact, the knees bent and the skis under him, and he goes into the
 //     air and comes out of it as motions (the view's eased `air`) — and
 //     rides a FALL by how far it is (`flight`, `skier-flight.ts`): secure
-//     off a kicker, spotting a drop, windmilling a cliff, reaching for the
-//     snow;
+//     off a kicker, spotting a drop or a cliff with his hands forward and
+//     still, reaching for the snow;
 //   * STOOD STILL (`idle`) he breathes, shifts his weight, looks about and
 //     works the grips — on his own clock, so a start line of four is not
 //     in step;
@@ -89,7 +89,7 @@ import {
 } from "./skier-stroke.ts";
 import { joltHand, NO_JOLT } from "./skier-save.ts";
 import { bareRest, placeBare } from "./skier-bare.ts";
-import { flightHands, flightPole } from "./skier-flight.ts";
+import { flightHands } from "./skier-flight.ts";
 import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
   bootFrame,
@@ -976,7 +976,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       const was = norm(sub(tip, hands[i]));
       tip = add(hands[i], scale(toward(was, hands[i], baskets[i], climbW), M.pole));
     }
-    return F ? flightPole(F, i, hands[i], tip, M.pole) : tip;
+    return tip;
   }) as [V3, V3];
   return {
     hips,

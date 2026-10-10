@@ -29,8 +29,8 @@
 //      lands goes the same way back.
 //
 // THE SHRED CAM — the same director, for a body TAKEN APART rather than
-// broken: under a piste machine's belts and tiller, blown off a
-// helicopter's skid, into its rotor (`impact-forecast.ts`'s `mangled`).
+// broken: under a piste machine's belts and tiller, into a helicopter's
+// rotor (`impact-forecast.ts`'s `mangled`).
 // There are no bones to look for in a body coming to pieces, so the lens
 // stays OUTSIDE him — the skin never turns to glass — and stands back far
 // enough to hold the whole of him and the machine at work: the same lead
@@ -38,6 +38,11 @@
 // blades are seen one by one — `rotor-look.ts` is handed the pace), one
 // shot held as long as pieces keep coming off him (`XRAY.shred.hold` after
 // the last, `.most` at the most), and the same way back.
+//
+// NOT THE HELICOPTER COMING DOWN WITH HIM ON IT (`wrecked`): there is
+// nothing inside him worth the look, and the crash's own lens
+// (`camera-crash.ts`) holds on the machine blowing up and never goes after
+// him — the director leaves that fall alone.
 //
 // ONLY A FALL HE DIES OF is shot: the read ahead says whether the blow
 // (and the tumble after it) will be mortal, and a blow it missed starts the
@@ -55,7 +60,7 @@ import {
   type GorePiece,
 } from "@engine";
 
-import { mangled, type Forecast } from "./impact-forecast.ts";
+import { mangled, wrecked, type Forecast } from "./impact-forecast.ts";
 
 /** The whole director, as numbers: seconds of the WALL clock unless named
  * game seconds; rates are game seconds per wall second. */
@@ -293,7 +298,7 @@ export function createXrayDirector(): XrayDirector {
   return {
     seen(f, state) {
       if (!f || (spent && !on) || (body && !on) || state.t < heldTill) return;
-      if (!on && (f.in > XRAY.lead || !f.fatal)) return;
+      if (!on && (f.in > XRAY.lead || !f.fatal || f.wrecked || wrecked(state))) return;
       const at = state.t + f.in;
       // A body coming apart is one shot, from outside: nothing more to
       // look for once it is under way.
@@ -334,7 +339,8 @@ export function createXrayDirector(): XrayDirector {
       const down = !!state.skier.thrown || !!(state.gore && state.gore.dead >= 0);
       if (spent && !on && !down && state.t >= heldTill) reset();
       // A blow the read ahead missed starts the cam only if he is dying.
-      const dying = !!state.gore && (state.gore.mortal >= 0 || state.gore.dead >= 0);
+      const dying =
+        !!state.gore && (state.gore.mortal >= 0 || state.gore.dead >= 0) && !wrecked(state);
       for (const e of state.events as GameEvent[]) {
         if (e.kind === "gore" && (on ? kind === "shred" : !spent && dying && mangled(state))) {
           // A SHRED: every piece off him holds the shot on.

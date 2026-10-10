@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore bones xray xray-body groomer snowguns tree-wells piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore bones xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -87,6 +87,7 @@ interiors:
 lifts:
 	npm run world -- --free --hour=11 --views=lift-tower,lift-chair,lift-cabin,lift-tbar,lifts $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 	npm run world -- --free --hour=21 --views=lifts --skip-build $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+	npm run world -- --free --hour=11 --views=lift-turns --width 1920 --height 1080 --skip-build $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE SKIS LAB: every pair and its skier built with the game's own
 # builder and drawn on labelled contact sheets — previews/skis-<sheet>.png:
@@ -111,6 +112,17 @@ skis:
 # MOVE=skate,jump a subset; ARGS="--code" the code's figure.
 skier:
 	npm run skier -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE REVERT LAB: a skier riding switch slowed under 15 km/h turning round
+# to ride forward (`engine/game/switch.ts`), on the skier lab — the revert
+# as he slides out of it, the same with the edge held, hopped round off a
+# jump under 40 km/h, and what follows it
+# (the poles and the skate) frame by frame from behind, the side, the front,
+# straight down and the chase lens (previews/skier-revert*.png), where it
+# takes him (previews/skier-path-revert*.png) and close up at its moments
+# (previews/skier-closeup.png). ARGS as the skier lab's.
+revert:
+	npm run skier -- --move revert,revert-steer,revert-hop,revert-away --sheet moves,path,closeup --moment switch,revert-in,revert-mid,revert-hop,revert-out --views back,side,front,top,chase $(ARGS)
 
 # THE POLELESS LAB: what a skier WITHOUT POLES (the hard mode) does with his
 # hands — every poleless move of the skier lab skied by the real engine and
@@ -239,6 +251,9 @@ injuries:
 # slope) and the share that threw him, by how hard. Pure Node, a few
 # minutes. ARGS="--seeds 16", "--json" a baseline, "--compare FILE" beside
 # it, "--list" every fall with a --trace line to ski it step by step.
+# ARGS=--lean=-1 holds the lean forward in the air (a player MEANING to land
+# on his tips); ARGS=--attitudes the sweep of drops set down off true —
+# tips, tails, rolled, sideways — each cell ridden away or what threw him.
 landing:
 	npm run landing -- $(ARGS)
 
@@ -643,6 +658,15 @@ xray:
 xray-body:
 	npm run xray-body -- $(ARGS)
 
+
+# THE REPLAY CAMERA LAB: a run recorded as the app records one and watched
+# back through its own transport on each rung of the watching ladder,
+# photographed and measured against the skier:
+# previews/replaycam-<scene>-<rung>.png. Its own one-off bundle from
+# pwa/replaycam-preview.html; needs a Chromium like `world`.
+replay-cam:
+	npm run replay-cam -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
 # THE PISTE MACHINE LAB: the free ride's night groomers photographed
 # through the game's own renderer — the figure from eight sides and up
 # close, at work by day, at dusk, after dark with every lamp lit, in the
@@ -674,6 +698,17 @@ snowguns:
 # SEED=, REGION=, SNOW= (the dial) and ARGS= (--sheet=look, --views=below).
 tree-wells:
 	npm run tree-wells -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(if $(SNOW),--snow=$(SNOW),) $(ARGS)
+
+# THE TRAILS LAB: the furrow a skier cuts in three depths of snow — the
+# groomer's pencil lines, settled powder's trough and a metre of fresh's
+# trench — each cut by the engine under the same scripted turns and
+# photographed through the game's own renderer from below, from above and
+# close (bands), under a low sun (low) and by the headlamp (night). One
+# contact sheet a group, previews/trails-<group>.png, and every frame alone.
+# Its own one-off bundle from pwa/trails-preview.html (never deployed);
+# needs a Chromium. SEED=, REGION= and ARGS= (--sheet=bands, --low=16).
+trails:
+	npm run trails -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE PISTE THROUGH THE DAY LAB: one spot of a free ride's piste under a
 # sky at the hours of a day — the night's corduroy at the first chair, the
@@ -897,6 +932,22 @@ difficulty:
 # `make routes` · `make routes ARGS=--check`
 routes:
 	npm run routes -- $(ARGS)
+
+# THE REAL FACES: twenty real mountainsides off the 30 m elevation model,
+# cropped, smoothed and baked into engine/mapgen/real-faces-data.ts
+# (generated; docs/real-faces.md). The tiles are fetched once into
+# previews/.dem/.
+# `make real-faces ARGS=--fetch` · `make real-faces ARGS="--fetch --write"`
+real-faces:
+	npm run real-faces -- $(ARGS)
+
+# The real faces' HINTS: the real ski area's lifts, pistes and houses on
+# each face, read off OpenStreetMap and baked coarsely into
+# engine/mapgen/real-hints-data.ts (generated, ODbL; docs/real-faces.md).
+# The map data is fetched once into previews/.osm/.
+# `make real-hints ARGS=--fetch` · `make real-hints ARGS="--fetch --write"`
+real-hints:
+	npm run real-hints -- $(ARGS)
 
 # THE MODEL REGISTRY: which assets are Blender models and which the code
 # generates, written into docs/models.md from pwa/src/game/model-registry.ts.

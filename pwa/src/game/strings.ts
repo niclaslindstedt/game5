@@ -490,6 +490,8 @@ export const STRINGS = {
   skiRouteSign: "SKI ROUTE · NOT GROOMED",
   /** The WARNING board before a ski route's head (R42), beside its triangle. */
   skiRouteWarning: "DANGER · EXPERTS ONLY",
+  /** The locals' homemade board pointing at a ski route (`route-sign.ts`). */
+  skiRouteAmateur: "STEEP & DEEP",
   /** A grade as a run: `BLACK RUN`. */
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",

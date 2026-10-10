@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn grimbear rescue gore xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -112,6 +112,17 @@ skis:
 # MOVE=skate,jump a subset; ARGS="--code" the code's figure.
 skier:
 	npm run skier -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE REVERT LAB: a skier riding switch slowed under 15 km/h turning round
+# to ride forward (`engine/game/switch.ts`), on the skier lab — the revert
+# as he slides out of it, the same with the edge held, hopped round off a
+# jump under 40 km/h, and what follows it
+# (the poles and the skate) frame by frame from behind, the side, the front,
+# straight down and the chase lens (previews/skier-revert*.png), where it
+# takes him (previews/skier-path-revert*.png) and close up at its moments
+# (previews/skier-closeup.png). ARGS as the skier lab's.
+revert:
+	npm run skier -- --move revert,revert-steer,revert-hop,revert-away --sheet moves,path,closeup --moment switch,revert-in,revert-mid,revert-hop,revert-out --views back,side,front,top,chase $(ARGS)
 
 # THE POLELESS LAB: what a skier WITHOUT POLES (the hard mode) does with his
 # hands — every poleless move of the skier lab skied by the real engine and

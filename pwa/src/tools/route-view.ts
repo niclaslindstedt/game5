@@ -4,6 +4,9 @@
 //
 //   * route-head — its sign at the pad's rim, from a step back up the line
 //     at a skier's eye, looking past it down the route;
+//   * route-amateur, route-amateur-close — the locals' homemade sign
+//     pointing at it (`route-sign-plan.ts`), from where a rider comes to it
+//     off the lift, and a step from it;
 //   * route-warn — its wooden WARNING board before the slope, from up on
 //     the pad at a skier's eye;
 //   * route-fallen — the first of its stakes planted lying on the snow,
@@ -28,10 +31,13 @@ import {
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { amateurSigns } from "../game/route-sign-plan.ts";
 import { signPlan } from "../game/run-sign-plan.ts";
 
 export const ROUTE_VIEWS = [
   "route-head",
+  "route-amateur",
+  "route-amateur-close",
   "route-warn",
   "route-fallen",
   "route-in",
@@ -108,6 +114,33 @@ export function routeView(level: Level, name: string): { pose: LensPose; note: s
           roll: 0,
         },
         note: `the head of ${said}`,
+      };
+    }
+    case "route-amateur":
+    case "route-amateur-close": {
+      // From where the rider it is turned to comes to it, at his eye, a
+      // little to the side so the point and the route beyond both show.
+      const sign = amateurSigns(level).find((a) => a.route === r.id);
+      if (!sign) return null;
+      const close = name === "route-amateur-close";
+      const back = close ? 2.2 : 5.5;
+      const fx = Math.sin(sign.heading);
+      const fz = Math.cos(sign.heading);
+      const aside = sign.point === "right" ? -1 : 1;
+      const x = sign.x - fx * back - fz * aside * (close ? 0.5 : 1.2);
+      const z = sign.z - fz * back + fx * aside * (close ? 0.5 : 1.2);
+      // The board's middle: off the stick toward its point.
+      const k = sign.point === "right" ? 1 : -1;
+      const tx = sign.x - fz * k * 0.35;
+      const tz = sign.z + fx * k * 0.35;
+      return {
+        pose: {
+          eye: { x, y: level.groundAt(x, z) + 1.65, z },
+          target: { x: tx, y: sign.y + sign.boardY, z: tz },
+          fov: close ? 40 : 55,
+          roll: 0,
+        },
+        note: `the locals' sign pointing ${sign.point} at ${said}`,
       };
     }
     case "route-warn": {

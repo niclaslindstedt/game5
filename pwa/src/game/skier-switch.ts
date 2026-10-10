@@ -21,6 +21,15 @@
 //     front at the steering wheel's quarter to three, and never a tuck's
 //     fists ahead of his face: tucked switch, his chest is over his tips and
 //     the way he goes is behind him.
+//
+// TURNING ROUND, too slow to ride switch (the engine's REVERT): a
+// freestyler slides out of it — the skis laid flat, unloaded a little and
+// pivoted round on their bases under a body that keeps travelling, no edge
+// caught. The look leads it: his head is already on the line he travels,
+// and it STAYS there while the skis, the hips and then the shoulders come
+// round under it, the twist and the look unwound together; the legs
+// lengthen a little through the middle, where the skis are light and
+// across the way, and his hands come back up in front of him.
 
 /** The look back at its fullest: the head turned in the body's frame,
  * rad (the trunk's turn and the neck's together — the chin over the
@@ -51,6 +60,25 @@ export const SWITCH_CARRY = {
   lean: 1.15,
   splay: 0.12,
 } as const;
+
+/** The legs lengthened through the middle of a revert, m — the skis
+ * unloaded as they pivot across the way. */
+export const REVERT_RISE = 0.04;
+
+/** THE LOOK THROUGH A REVERT (`SkierState.revert`, `u` of it turning him
+ * by `turn` rad, right positive): how far into the look back he still is,
+ * 0..1 — the head held on the line he travels as the body comes round under
+ * it, once what is left of the turn is within the neck's reach — signed to
+ * the side he turns to. */
+export function revertLook(u: number, turn: number, share: (u: number) => number): number {
+  const left = Math.abs(turn) * (1 - share(u));
+  return Math.sign(turn) * Math.min(1, left / SWITCH_LOOK.head);
+}
+
+/** How far the legs are lengthened at `u` of a revert, m. */
+export function revertRise(u: number): number {
+  return REVERT_RISE * Math.sin(Math.PI * Math.max(0, Math.min(1, u)));
+}
 
 export type SwitchShape = {
   /** How far into the look back he is, 0..1. */

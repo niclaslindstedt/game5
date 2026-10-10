@@ -63,7 +63,14 @@ import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
-import { MOMENTS, MOMENT_IDS, MOVES, MOVE_IDS } from "./lib/skier-moves.mjs";
+import * as SKIER from "./lib/skier-moves.mjs";
+import { REVERT_MOMENTS, REVERT_MOVES } from "./lib/revert-moves.mjs";
+
+// The skier lab's moves and the revert lab's (`make revert`) beside them.
+const MOVES = [...SKIER.MOVES, ...REVERT_MOVES];
+const MOVE_IDS = MOVES.map((m) => m.id);
+const MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS];
+const MOMENT_IDS = MOMENTS.map((m) => m.id);
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".skier-preview");

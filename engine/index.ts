@@ -378,7 +378,8 @@ export {
   type LegSpec,
 } from "./game/defs/skis.ts";
 export { TAIL_RISE, tailRiseOf } from "./game/defs/tails.ts";
-export { heldSlip, switchSteer, tailDug } from "./game/switch.ts";
+export { heldSlip, revertShare, switchSteer, tailDug } from "./game/switch.ts";
+export type { Revert } from "./game/switch.ts";
 export {
   RIDERS,
   MEDIUM_RIDER,

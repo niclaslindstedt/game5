@@ -3,10 +3,13 @@
 // `gore-view.ts`. Under his clothes it runs out at the lowest gap in them
 // (`gore-leaks.ts`); a head split open has nothing over its face, so it
 // runs down the bare skin from under the nose and off the chin or the
-// cheek he lies on, in a stream and drops.
+// cheek he lies on, in a stream and drops. And WHETHER it streams at all:
+// a torn artery spurts on the beat only until its spasm closes it
+// (`woundFlow`), and blood welling out slower than a couple of millilitres
+// a second leaves him as drops, never as a stream.
 
 import * as THREE from "three";
-import type { Bleed, BodyPart } from "@engine";
+import { woundFlow, type Bleed, type BodyPart } from "@engine";
 
 import { cheekAt, gapAt, lowestGap, noseAt, partAt, soakPath } from "./gore-leaks.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
@@ -25,6 +28,8 @@ export type Leak = {
   part?: BodyPart;
   /** Out of his bare face, run over it from these points: no cloth holds it. */
   lead?: THREE.Vector3[];
+  /** The share of its flow a torn artery still pumps out on the beat. */
+  spurt?: number;
 };
 
 /** Which cheek his face's blood runs over as he lies (−1 left, 1 right),
@@ -32,9 +37,16 @@ export type Leak = {
 export type Cheek = { side: number; lean: number };
 
 /** How fast blood leaves a torn artery at a beat's crest over its pour
- * between, m/s — out of a stump it pumps, never far. */
+ * between, m/s — out of a stump it pumps, never far — and how fast it
+ * wells out once the artery has closed. */
 const JET = 1.3;
 const POUR = 0.3;
+const WELL = 0.06;
+/** THE DRIP: below this flow, L/s, blood leaves a wound or a gap as drops
+ * rather than a stream — the drip's turn into a jet, some 2 ml/s out of a
+ * few millimetres' opening — each drop `DROP` L (a passive drop's 0.05 ml). */
+export const STREAM = 0.002;
+const DROP = 0.00005;
 /** How fast it runs out of a gap in his clothes, m/s. */
 const SEEP = 0.12;
 /** How fast it runs off his bare face, m/s. */
@@ -49,9 +61,37 @@ const ON_SKIN: Rgb = [0.32, 0.01, 0.008];
 /** How fast a leak pours, m/s, on the beat (`beat` 0 … 1) of a heart at
  * `rate` a minute. */
 export function pourOf(w: Leak, beat: number, rate: number): number {
-  if (w.lead) return FACE * (1 + beat);
-  if (w.part) return SEEP * (1 + beat);
-  return rate > 0 ? POUR + JET * beat : POUR * 0.5;
+  if (w.lead) return FACE;
+  if (w.part) return SEEP;
+  const spurt = w.spurt ?? 0;
+  return WELL + spurt * (rate > 0 ? POUR + JET * beat : POUR * 0.5);
+}
+
+/** A torn wound of `q` L/s at the full pressure, opened `since` s ago: its
+ * share of the flow now and how much of that still spurts. */
+export function arterial(q: number, since: number): { share: number; spurt: number } {
+  const w = woundFlow(since);
+  const share = q * (w.spurt + w.ooze);
+  return { share, spurt: share > 0 ? (q * w.spurt) / share : 0 };
+}
+
+/** The drops each leak lets go, kept between frames: `count` the whole
+ * drops a leak of `q` L/s lets go over `dt` s — off a face as well, a few
+ * more the faster it runs. */
+export function createDrips(): {
+  count(key: string, q: number, dt: number): number;
+  clear(): void;
+} {
+  const owed = new Map<string, number>();
+  return {
+    count(key, q, dt) {
+      const had = (owed.get(key) ?? 0) + Math.min(DRIPS, q / DROP) * dt;
+      const n = Math.floor(had);
+      owed.set(key, had - n);
+      return n;
+    },
+    clear: () => owed.clear(),
+  };
 }
 
 /** Every part hit hard, as a leak where it leaves him on frames `f` drawn

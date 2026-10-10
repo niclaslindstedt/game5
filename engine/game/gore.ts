@@ -33,7 +33,8 @@
 //     chest opened; of the rest when the blood that kills is gone or he has
 //     lain still a moment — and the run is the app's to end.
 // THE HEART beats on through it (`GoreState.beats`, `.rate`, `.pulse`):
-// what pumps the blood out of an artery in spurts, and stops at death.
+// what pumps the blood out of a torn artery in spurts until the artery's
+// spasm closes it (`woundFlow`), and stops at death.
 //
 // Nothing here draws from `state.rng`: a piece's dose is spread off a hash
 // of the map and the piece.
@@ -47,7 +48,7 @@ import { HELI_BLADES } from "./defs/heli-grip.ts";
 import { bladeAt } from "./heli-grip.ts";
 import { heliQuat } from "./heli-rotor.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { doseOn, fracturesOf, FRACTURE_GRADE, severityOf } from "./body.ts";
+import { bonesOf, doseOn, fracturesOf, FRACTURE_GRADE, severityOf } from "./body.ts";
 import { BONES, INJURIES, type InjuryDef } from "./defs/anatomy.ts";
 import { throwRider } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll.ts";
@@ -580,11 +581,31 @@ export function bleedsOf(state: GameState): Bleed[] {
   return out;
 }
 
+/** A WOUND'S FLOW `since` s after it was opened, as shares of its flow at
+ * the full pressure: `spurt` what still pumps out on the beat (a torn
+ * artery, closing in its spasm), `ooze` what wells out without one and
+ * clots (`GORE.blood.spasm`). `artery` false is a wound with no artery in
+ * it to pump — an open fracture's bone end — which only oozes. */
+export function woundFlow(since: number, artery = true): { spurt: number; ooze: number } {
+  const S = GORE.blood.spasm;
+  const t = Math.max(0, since);
+  const ooze = (artery ? S.ooze : 1) * 0.5 ** (t / S.clot);
+  return { spurt: artery ? (1 - S.ooze) * 0.5 ** (t / S.halve) : 0, ooze };
+}
+
 /** The litres a second every mortal wound bleeds at the full pressure —
- * all of it out through the skin. */
-function flowOf(g: GoreState, state: GameState): number {
+ * all of it out through the skin — split into what spurts on the beat
+ * and what wells out without one. */
+function flowOf(g: GoreState, state: GameState): { spurt: number; ooze: number } {
   const F = GORE.blood.flow;
-  let q = 0;
+  let spurt = 0;
+  let ooze = 0;
+  const add = (q: number, since: number, artery = true) => {
+    const w = woundFlow(since, artery);
+    spurt += q * w.spurt;
+    ooze += q * w.ooze;
+  };
+  const opened = g.mortal >= 0 ? g.mortal : state.t;
   for (const piece of GORE_PIECES) {
     if (!(g.lost & bit(piece))) continue;
     // A forearm gone inside a whole arm gone bleeds as the arm.
@@ -598,26 +619,41 @@ function flowOf(g: GoreState, state: GameState): number {
     // Torn in two, the legs' own arteries went with the hips.
     if (g.lost & bit("lower") && piece !== "lower" && (LOWER as readonly string[]).includes(piece))
       continue;
-    q += F[TEAR[piece].row];
+    const torn = g.torn.find((p) => p.piece === piece);
+    add(F[TEAR[piece].row], state.t - (torn ? torn.t : opened));
   }
-  for (let k = 0; k < GORE_OPEN.length; k++) if (g.open & (1 << k)) q += F[GORE_OPEN[k]];
-  if (g.impaled) q += F.impaled;
-  if (g.crushed >= 0) q += F.crush;
-  // A long bone broken out through the skin bleeds where it stands out.
+  for (let k = 0; k < GORE_OPEN.length; k++)
+    if (g.open & (1 << k)) add(F[GORE_OPEN[k]], state.t - opened);
+  if (g.impaled) add(F.impaled, state.t - g.impaled.t);
+  if (g.crushed >= 0) add(F.crush, state.t - g.crushed);
+  // A long bone broken out through the skin oozes where it stands out.
   const grades = fracturesOf(state.skier.body);
   for (let k = 0; k < BONES.length; k++)
-    if (grades[k] >= FRACTURE_GRADE.simple && OPEN_BONE.test(BONES[k])) q += F.fracture;
-  return q;
+    if (grades[k] >= FRACTURE_GRADE.simple && OPEN_BONE.test(BONES[k]))
+      add(F.fracture, state.t - brokeAt(state, BONES[k]), false);
+  return { spurt, ooze };
+}
+
+/** When `bone` was first broken, run clock (now if no injury names it). */
+export function brokeAt(state: GameState, bone: string): number {
+  let t = state.t;
+  for (const h of state.skier.body.injuries)
+    if (h.t < t && (bonesOf(h.kind, h.part) as readonly string[]).includes(bone)) t = h.t;
+  return t;
 }
 
 /** THE HEART: racing as the blood goes, pumping it out in spurts, and
  * stopped at death — the wounds then only drain. */
 function heart(state: GameState, g: GoreState): void {
-  let qOut = flowOf(g, state);
+  const wounds = flowOf(g, state);
+  let qOut = wounds.spurt + wounds.ooze;
+  // What wells out without a beat: the wounds' ooze, a split skin, inside.
+  let qStill = wounds.ooze;
   let qIn = 0;
   for (const b of bleedsOf(state)) {
     qOut += b.out;
     qIn += b.inside;
+    qStill += b.out + b.inside;
   }
   const q = qOut + qIn;
   if (q <= 1e-5 && g.mortal < 0) {
@@ -641,7 +677,8 @@ function heart(state: GameState, g: GoreState): void {
     g.pulse = phase < 0.34 ? Math.sin((Math.PI * phase) / 0.34) ** 2 : 0;
     // The pressure falls as the blood goes, and as the heart fails.
     const pressure = Math.max(0.15, 1 - 0.8 * lost) * (1 - 0.75 * after);
-    g.flow = q * pressure * (0.35 + 1.3 * g.pulse);
+    // Only a torn artery still open spurts; the rest wells out steadily.
+    g.flow = pressure * (qStill + wounds.spurt * (0.35 + 1.3 * g.pulse));
   } else {
     g.rate = 0;
     g.pulse = 0;

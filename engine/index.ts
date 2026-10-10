@@ -604,21 +604,8 @@ export {
   snowGive,
   stepBody,
 } from "./game/body.ts";
-export { bleedsOf, holdsHim, isDead, stepGore, type Bleed } from "./game/gore.ts";
 export { RESCUE, callRescue, disables, disablingOf, isInjured } from "./game/rescue.ts";
-export {
-  GORE_OPEN,
-  GORE_PIECES,
-  freshGore,
-  lostPiece,
-  type DeathCause,
-  type GoreOpen,
-  type GorePiece,
-  type GoreState,
-  type Impaled,
-  type TornPiece,
-} from "./game/gore-state.ts";
-export { GORE } from "./game/defs/gore.ts";
+export * from "./game/gore-api.ts";
 export {
   BODY_PARTS,
   BONES,

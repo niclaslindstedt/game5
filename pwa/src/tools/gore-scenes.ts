@@ -731,6 +731,38 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.clearBodies();
     st.shoot(next, "cleared", around(st.level, at, 1.0, 1.5, 9, 55, 0));
   },
+  /** A torn limb's artery closing: the stump spurting on the beat at
+   * first, then — its spasm shutting it — welling, and dripping. */
+  spasm(st) {
+    const { s } = ontoSnow(st, "left", 28, 2);
+    st.until(s, (q) => (q.gore?.lost ?? 0) !== 0, 1, still);
+    const t0 = s.t;
+    const lens = onBody(1.9, 2.4, 1.1, 45);
+    for (const t of [0.3, 1, 2.5, 5, 9, 15]) {
+      st.run(s, t - (s.t - t0), still);
+      st.shoot(s, `+${t}s ${((s.gore?.out ?? 0) * 1000).toFixed(1)} ml/s`, lens);
+    }
+  },
+  /** Stood on his skis with an arm hit hard enough to split the skin
+   * under the sleeve: it soaks, then drips off the cuff — never a stream. */
+  "stand-drip"(st) {
+    const s = st.fresh();
+    st.run(s, 0.5, still);
+    s.skier.body.injuries.push({
+      part: "armL",
+      kind: "dislocatedElbow",
+      ais: 3,
+      t: s.t,
+      energy: 2.5,
+    });
+    const t0 = s.t;
+    const on = (yaw: number, dist: number): Lens => onBody(yaw + s.skier.heading, dist, 1.0, 40);
+    for (const t of [3, 8, 15, 25]) {
+      st.run(s, t - (s.t - t0), still);
+      st.shoot(s, `+${t}s ${((s.gore?.out ?? 0) * 1000).toFixed(1)} ml/s`, on(1.6, 2.2));
+    }
+    st.shoot(s, "+25s-behind", on(Math.PI, 2.4));
+  },
   /** A hard fall he survives, then stood back up and skied away: nothing
    * of him is left where he lay but his blood. */
   "got-up"(st) {
@@ -780,7 +812,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   maul: ["maul"],
   machines: ["groomer", "heli", "heli-fly"],
   rotor: ["rotor", "rotor-close"],
-  blood: ["spray", "snow"],
+  blood: ["spray", "snow", "spasm", "stand-drip"],
   leak: ["leak", "leak-face", "got-up", "got-up-powder"],
   pools: ["pool-piste", "pool-powder"],
   close: ["closeup"],

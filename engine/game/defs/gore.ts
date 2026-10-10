@@ -22,6 +22,20 @@
 // The heart races as the blood goes (the shock's tachycardia, 120 rising
 // to 170 a minute) and the pressure falls with it; once it stops, the
 // wounds only drain.
+//
+// HOW REAL BLEEDING STOPS. A body's own haemostasis works in three steps:
+// the cut vessel's wall goes into SPASM at once, a plug of platelets forms
+// in it within a minute or so, and the clot sets over it in minutes. An
+// artery CUT CLEAN THROUGH (a limb torn off) does it best — its ends
+// retract into the flesh and clamp down, so a torn limb spurts on the beat
+// at first and then slows to an ooze; it is the artery cut part way that
+// cannot close and keeps on. Blood from the veins and the skin's small
+// vessels never spurts: it wells and runs, and once its flow is down to a
+// millilitre or two a second it leaves a wound — or the hem of a sodden
+// sleeve — as DROPS (a passive drop is some 0.05 ml), not a stream. On
+// the shortened clock the spasm halves a torn artery's spurt in a couple
+// of seconds and leaves a few per cent of its flow oozing, which clots in
+// its turn.
 
 import type { DeathCause } from "../gore-state.ts";
 
@@ -75,28 +89,35 @@ export const GORE = {
       impaled: 0.2,
       fracture: 0.03,
     },
+    /** A TORN ARTERY CLOSING: the share of a wound's flow that spurts
+     * halves every `halve` s off the moment it was torn (the spasm and the
+     * retraction); `ooze` of it is left welling out without a beat, and
+     * that clots by half every `clot` s. An open fracture's bone end only
+     * oozes, clotting the same. */
+    spasm: { halve: 2.5, ooze: 0.04, clot: 10 },
     /** A PART HIT HARD bleeds without a mortal wound (`bleedsOf`). A blunt
      * blow at `split` times an injury's even-chance energy splits the skin
      * under the clothes, and the part bleeds OUT at `out[ais]` L/s (the
      * scalp and the face `head` times that); any other injury of AIS 3 or
      * more bleeds INSIDE — a torn organ at `organ[ais]`, a closed break
      * (a femur's or the pelvis's takes litres) at `bone[ais]` — counted
-     * among the litres lost and never seen. A split clots by half in
+     * among the litres lost and never seen. A split's blood is the skin's
+     * and the veins', welling and never on the beat. A split clots by half in
      * `clot` s, a bleed inside in `seal` s. */
     bleed: {
       split: 1.8,
-      out: [0, 0, 0.012, 0.025, 0.04, 0.06],
+      out: [0, 0, 0.0015, 0.003, 0.005, 0.008],
       head: 2,
       organ: [0, 0, 0, 0.03, 0.05, 0.08],
       bone: [0, 0, 0, 0.02, 0.03, 0.04],
-      clot: 20,
+      clot: 8,
       seal: 60,
     },
     /** With the heart stopped: what still drains out of the wounds under
      * its own weight, as a share of the flow, and the seconds it halves in
-     * — a body torn open empties onto the snow over the next half minute. */
-    drain: 0.3,
-    halve: 12,
+     * — a body torn open seeps onto the snow over the next half minute. */
+    drain: 0.2,
+    halve: 8,
   },
   /** THE HEART: its rate on the first wound and as all the blood that
    * kills is gone, beats a minute — and the seconds it beats on after

@@ -37,6 +37,12 @@ Each refused attempt lays the relief a little gentler on the next one (`real.cal
 
 Nothing changes for a map with no face. Every draw off the stream is made in the same order and the face is read only after them, so no dealt seed and no pinned map moves, and no generator version is owed.
 
+## The real altitude
+
+The map's own heights are the face stretched to R25's vertical, its relief calmed over the skiing face, standing over a valley floor 10–20 m above the sea, so the map's height over the sea would read a made-up mountain. On a face, every height above the sea the player reads is the REAL altitude instead (`pwa/src/game/altitude.ts`'s `altitudeAt`): the elevation model's height at that point of the face (`faceHeight`; the map's square is the face's window, so a map point is the real point), plus however far he stands over the snow there. The HUD's **ALT**, the balloon's height over the sea and the snowmobile's display all read it. A run's vertical, the start card's and the statistics' metres stay as skied.
+
+Beside it the HUD reads **BASE +N M**: how far he stands over the ski area's base, the valley station of its lowest lift, read the same way (`baseAltitude`). The lifts are laid along the real lifts, so the base lands within a few tens of metres of the real ski area's lowest valley station (`tests/altitude_test.ts`). A dealt mountain reads its own heights over the sea as before, and BASE over its own lowest lift; a map with no lifts shows no BASE. All of it is presentation: it reads the map and the loaded face and moves no digest.
+
 ## The real ski area's hints
 
 A face also carries HINTS of the real ski area on it, read off OpenStreetMap. The generator leans its own ski area toward them, so a face's resort is laid roughly where the real one is. They are hints, not a plan: the generator builds and checks its stations, runs and village by its own rules, and keeps a hint only where those rules allow it.

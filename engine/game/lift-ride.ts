@@ -186,6 +186,20 @@ function letGo(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent
   derive(c, run.level);
 }
 
+/** HOW FAR HE IS INTO SKIPPING UP THE LIFT he rides, 0..1: the tuck held
+ * so far over `skip.hold` (1 once the fade has begun), and 0 off a lift,
+ * not yet carried, or past where a skip would put him (`arrivalOf`) —
+ * what the HUD's ring fills by. */
+export function skipShare(run: GameState): number {
+  const ride = run.skier.lift;
+  if (!ride || ride.phase !== "ride") return 0;
+  if (ride.skip !== undefined) return 1;
+  const held = ride.held ?? 0;
+  if (held <= 0) return 0;
+  if (arrivalOf(liftPlans(run.level)[ride.index]).u <= ride.u) return 0;
+  return Math.min(1, held / K.skip.hold);
+}
+
 /** HELD TUCKED FOR `skip.hold` s while carried, the lift goes by in a
  * moment: the picture fades out over `skip.fade` s, and he is put where a
  * free ride begun on this lift starts (`arrivalOf`: the top close ahead),
@@ -208,11 +222,9 @@ function skipUp(run: GameState, plan: LiftPlan, ride: LiftRide, input: SkierInpu
   ride.speed = there.speed;
   delete ride.carrier;
   if (plan.lift.kind === "chair") onChair(plan, ride, carrierNear(plan, there.u, run.t), run.t);
+  if (plan.lift.kind === "drag") onTee(plan, ride, carrierNear(plan, there.u, run.t), run.t);
   ride.swing = 0;
-  ride.tower = Math.max(
-    1,
-    plan.supports.findIndex((p) => p.u > there.u),
-  );
+  ride.tower = towerPast(plan, ride.u);
   ride.t = 0;
   ride.faded = true;
   ride.from = { ...ride.from, y: Number.NaN };
@@ -287,6 +299,17 @@ function onChair(plan: LiftPlan, ride: LiftRide, k: number, t: number): void {
   ride.carrier = k;
   ride.u = at.side === 0 ? at.u : plan.length;
   ride.speed = carrierSpeedAt(plan, Math.min(ride.u, plan.length), 0);
+  ride.tower = towerPast(plan, ride.u);
+}
+
+/** ON A T-BAR OF THE LIFT'S OWN, `k`, where nothing took him from the
+ * track (a free ride's arrival, the lift skipped up): held to it as a
+ * rider it picked up is — never ahead of its grip, so the bar he is drawn
+ * on (`lifts.ts`) is the one pulling him, behind his thighs. */
+function onTee(plan: LiftPlan, ride: LiftRide, k: number, t: number): void {
+  const at = carrierAt(plan, k, t);
+  ride.carrier = k;
+  if (at.side === 0) ride.u = Math.min(ride.u, at.u);
   ride.tower = towerPast(plan, ride.u);
 }
 
@@ -583,10 +606,18 @@ const DOOR_STEP = { mouth: 0.35, inside: 0.2, at: [0.35, 0.6] as const };
 
 function hold(run: GameState, plan: LiftPlan, ride: LiftRide): void {
   const c = run.skier;
-  // Hung as the clock hangs every carrier (`carrierSwingAt`).
-  ride.swing = carrierSwingAt(plan, ride.u, 0);
-  const grip = along(plan, ride.u, upRope(plan));
   const gondola = plan.lift.kind === "gondola";
+  // Hung as the clock hangs every carrier (`carrierSwingAt`) — but a cabin
+  // he steps into off its platform hangs plumb, creeping on its rail, until
+  // he is in and its doors are shutting: the clock's pick-up off the load
+  // is not his cabin's yet, and a cabin swung under him as he walks in
+  // would put its door and back wall where the drawn one is not.
+  const plumb =
+    gondola && Number.isFinite(ride.from.y)
+      ? smoothstep(K.gondola.stepIn, K.gondola.stepIn + K.gondola.shut, ride.t)
+      : 1;
+  ride.swing = carrierSwingAt(plan, ride.u, 0) * plumb;
+  const grip = along(plan, ride.u, upRope(plan));
   // A cabin's grip runs on the station's rail through it (`gondolaGrip`).
   // ...and a chair's on its station's rail through the bottom terminal.
   const gy = gondola ? gondolaGrip(plan, ride.u) : carrierGripAt(plan, ride.u);
@@ -803,6 +834,7 @@ function ride(run: GameState, plan: LiftPlan, lift: number): void {
   };
   if (plan.lift.kind === "chair") onChair(plan, c.lift, carrierNear(plan, u, run.t), run.t);
   if (plan.lift.kind === "drag") {
+    onTee(plan, c.lift, carrierNear(plan, u, run.t), run.t);
     // On a drag he is pulled up the track on his skis.
     const p = along(plan, c.lift.u, upRope(plan) + K.tee);
     setOff(run, p.x, p.z, plan.heading, c.lift.speed);

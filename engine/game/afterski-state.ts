@@ -65,7 +65,9 @@ export type Fetch = {
  *     of him, on his shoulder.
  *   * `at`: where the pair lay when he stepped out of it (x, z, heading),
  *     and where he lays it to step back in.
- *   * `walked`: how far he has walked, m — what his stride is drawn by. */
+ *   * `walked`: how far he has walked, m — what his stride is drawn by.
+ *   * `station`: the walk is a gondola station's (`lift-skis.ts`), not the
+ *     town's — the HUD calls no town over it. */
 export type TownWalk = {
   phase: "out" | "pick" | "walk" | "drop" | "clip";
   phaseT: number;
@@ -73,6 +75,7 @@ export type TownWalk = {
   skis: LoneSki[];
   at: { x: number; z: number; heading: number };
   walked: number;
+  station?: boolean;
 };
 
 /** What the afterski and the buzz report: in through the door, a beer

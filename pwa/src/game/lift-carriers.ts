@@ -37,24 +37,35 @@ const CUSHION = 0.11 - CHAIR_SEAT;
  * its own (`chairBarGeometry`), swung down and up about its pivot. Its
  * seat's top and its backrest's face stand where the rider's pose is
  * built to sit (`CHAIR_SEAT`, `CHAIR_BACK`). */
+/** THE CHAIR'S HANGER, in its grip's frame, m: its line down from the
+ * grip, swept back over the riders' heads and down behind the backrest to
+ * the seat's beam, and its tube's radius — what the safety bar is raised
+ * short of (`CHAIR_BAR.up`). */
+const SEAT_Y = CUSHION - 0.05;
+const BEAM = SEAT_Y - 0.09;
+export const CHAIR_HANGER = {
+  line: [
+    [0.18, -0.2, 0],
+    [0.16, -0.7, -0.03],
+    [0.02, -1.15, -0.3],
+    [0, -1.5, CHAIR_BACK - 0.17],
+    [0, BEAM + 0.05, CHAIR_BACK - 0.17],
+    [0, BEAM, -0.12],
+  ] as const,
+  r: 0.055,
+};
+
 export function chairGeometry(): THREE.BufferGeometry {
   const s = new Shape();
   const root = grip(s);
-  const seatY = CUSHION - 0.05;
+  const seatY = SEAT_Y;
   const back = CHAIR_BACK - 0.1;
-  const beam = seatY - 0.09;
+  const beam = BEAM;
   // THE HANGER: down from the grip, swept back over the riders' heads and
   // down behind the backrest to the seat's beam.
   s.tube(
-    [
-      root,
-      v3(0.16, -0.7, -0.03),
-      v3(0.02, -1.15, -0.3),
-      v3(0, -1.5, back - 0.07),
-      v3(0, beam + 0.05, back - 0.07),
-      v3(0, beam, -0.12),
-    ],
-    0.055,
+    [root, ...CHAIR_HANGER.line.slice(1).map(([x, y, z]) => v3(x, y, z))],
+    CHAIR_HANGER.r,
     P.galv,
     8,
   );
@@ -85,9 +96,10 @@ export function chairGeometry(): THREE.BufferGeometry {
 /** THE SAFETY BAR'S PIVOT on a chair, in its grip's frame, m: at the
  * backrest's top rail, each end — what the bar swings about. And how far
  * it swings up off the riders' laps to stand clear over their heads, rad
- * (about +x: negative lifts it). */
+ * (about +x: negative lifts it): to its stop just short of the hanger
+ * curving over them (`CHAIR_HANGER`), never on through it. */
 const BAR_HALF = 1.13 + 0.04;
-export const CHAIR_BAR = { y: CUSHION + 0.57, z: CHAIR_BACK - 0.1, up: -2.2 } as const;
+export const CHAIR_BAR = { y: CUSHION + 0.57, z: CHAIR_BACK - 0.1, up: -1.2 } as const;
 
 /** A CHAIR'S SAFETY BAR, lowered, about its pivot (`CHAIR_BAR` at the
  * origin): its arms off the back's top at each end, over and down to the

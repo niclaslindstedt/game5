@@ -41,6 +41,7 @@ export type Rider = {
 export const SLICE_OF_GROUP: Readonly<Record<string, GpuSlice & Hideable>> = {
   sky: "sky",
   terrain: "terrain",
+  water: "water",
   forest: "forest",
   field: "field",
   ghost: "field",

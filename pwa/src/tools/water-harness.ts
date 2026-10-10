@@ -268,12 +268,12 @@ async function cost(label: string, lens: () => LensPose): Promise<void> {
   const real = realFor(56, (s) => s.phase === "open");
   await stand(mapOn(56, real), "overcast");
   const l = lens();
-  frameMs(l, 10, true);
+  frameMs(l, 3, true);
   const on: number[] = [];
   const off: number[] = [];
-  for (let k = 0; k < 6; k++) {
-    on.push(...frameMs(l, 8, true));
-    off.push(...frameMs(l, 8, false));
+  for (let k = 0; k < 4; k++) {
+    on.push(...frameMs(l, 5, true));
+    off.push(...frameMs(l, 5, false));
   }
   const a = median(on);
   const b = median(off);

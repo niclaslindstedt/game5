@@ -50,6 +50,10 @@ const args = parseArgs(
       kind: "string",
       help: "raise the mountain on a REAL face (R25, real-face.ts): alpine-1 … fell-2; its region is the face's",
     },
+    hints: {
+      kind: "flag",
+      help: "draw a real face's hints over the plan (real-hints.ts): its real lifts, pistes and houses",
+    },
     region: {
       kind: "string",
       default: "alpine",
@@ -201,6 +205,7 @@ if (args.walks) {
   );
   traceWalks(null);
 }
+const { realHints } = await import(join(root, "engine/mapgen/real-hints.ts"));
 const R = level.resort;
 const access = new Map(accessReport(level).runs.map((a) => [a.id, a]));
 const out = [];
@@ -290,6 +295,7 @@ writeFileSync(
     hubAt,
     failing: new Set([...access.values()].filter((a) => !a.ok).map((a) => a.id)),
     cabins: cabinsOf(level),
+    hints: args.hints && level.face ? realHints(level.face) : null,
   }).toPng(),
 );
 if (refused.length > 0) {

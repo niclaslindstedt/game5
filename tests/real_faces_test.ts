@@ -15,6 +15,7 @@ import {
   realFaceRegion,
 } from "@engine";
 
+import { leanLift, pisteAhead, realHints, type RealHints } from "../engine/mapgen/real-hints.ts";
 import { freshRide, mergeRide } from "../pwa/src/game/free-ride.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
 
@@ -70,5 +71,89 @@ describe("a real face asked for", () => {
     expect(readParams("?start=free&face=fell-2").face).toBe("fell-2");
     expect(readParams("?start=free&face=fell-9").face).toBeNull();
     expect(readParams("?start=free").face).toBeNull();
+  });
+});
+
+describe("a real face's hints", () => {
+  it("decode onto the face's map: lifts, pistes and houses", () => {
+    for (const id of REAL_FACE_IDS) {
+      const h = realHints(id)!;
+      expect(h, id).not.toBeNull();
+      const on = (p: { x: number; z: number }): boolean =>
+        p.x >= 0 && p.x <= 4000 && p.z >= 0 && p.z <= 4000;
+      for (const l of h.lifts) expect(on(l.bottom) && on(l.top), id).toBe(true);
+      for (const p of h.pistes) {
+        expect(p.points.length, id).toBeGreaterThanOrEqual(2);
+        expect(["green", "blue", "red", "black", "orange"]).toContain(p.grade);
+      }
+      expect(h.houses.length, id).toBeLessThanOrEqual(600);
+      for (const o of h.houses) {
+        expect(on(o) && o.size >= 4 && o.turn >= 0 && o.turn < Math.PI, id).toBe(true);
+      }
+    }
+    // A face with a ski area on it carries it.
+    const one = realHints("alpine-1")!;
+    expect(one.lifts.length).toBeGreaterThan(10);
+    expect(one.pistes.length).toBeGreaterThan(40);
+    expect(realHints("nowhere-1")).toBeNull();
+  });
+
+  const hints: RealHints = {
+    lifts: [
+      { kind: "chair", bottom: { x: 1500, z: 2600 }, top: { x: 1700, z: 1600 } },
+      { kind: "drag", bottom: { x: 1100, z: 3500 }, top: { x: 1150, z: 3200 } },
+    ],
+    pistes: [
+      {
+        grade: "red",
+        points: [
+          { x: 1700, z: 1600 },
+          { x: 1300, z: 2200 },
+          { x: 1600, z: 3000 },
+        ],
+      },
+    ],
+    houses: [],
+  };
+
+  it("lean a lift along the real one's line, its floor station carried down to its row", () => {
+    const r = { reach: 700, rise: 300, carry: 1600 };
+    const leant = leanLift(
+      hints,
+      new Set(),
+      { x: 1400, z: 3600 },
+      { x: 1800, z: 1700 },
+      ["chair", "gondola"],
+      r,
+      { bottom: true, top: false },
+    )!;
+    // The top onto the real top; the bottom kept on the floor row, on the
+    // real line carried down to it (x = 1700 − 200 × 2000/1000).
+    expect(leant.top).toEqual({ x: 1700, z: 1600 });
+    expect(leant.bottom.z).toBe(3600);
+    expect(leant.bottom.x).toBeCloseTo(1300, 6);
+    // A chair never takes a drag's line, and nothing is near a far lift.
+    const far = leanLift(
+      hints,
+      new Set(),
+      { x: 3500, z: 3600 },
+      { x: 3500, z: 1700 },
+      ["chair"],
+      r,
+      {
+        bottom: true,
+        top: false,
+      },
+    );
+    expect(far).toBeNull();
+  });
+
+  it("steer a run for the real piste ahead of it", () => {
+    const ahead = pisteAhead(hints, "red", { ahead: { min: 80, max: 260 }, aside: 260, same: 80 });
+    const p = ahead(1500, 1800)!;
+    expect(p.z).toBeGreaterThanOrEqual(1880);
+    expect(p.z).toBeLessThanOrEqual(2060);
+    // Nothing that far across.
+    expect(ahead(3500, 1800)).toBeNull();
   });
 });

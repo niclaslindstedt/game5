@@ -74,6 +74,11 @@ export type RunSpec = {
   /** A LANE's destination (R27): the run (its index in the walk) it is laid
    * to join, at its target — every other run it meets it crosses. */
   readonly join?: number;
+  /** A REAL FACE's pistes (`real-hints.ts`): the bends of the real one the
+   * run steers its centre through, top first, before its target — and,
+   * between them, the point on a real piste ahead it steers for. */
+  readonly via?: readonly { readonly x: number; readonly z: number }[];
+  readonly follow?: (x: number, z: number) => { readonly x: number; readonly z: number } | null;
   /** A LANE's route (`lanes.ts`): the line it follows down to its join. */
   readonly route?: readonly { readonly x: number; readonly z: number }[];
   /** Which way across the fall line it leans off its top (−1 … 1), the
@@ -576,10 +581,12 @@ function walk(
       // Away from a run it may not merge into.
       if (repel.until > s) bend += repel.side * REPEL_TURN;
       // THE CENTRE: the bearing to the target, then the fall line below it.
-      const tz = Math.max(spec.target.z, z + 60);
+      // A real piste's next bend ahead first, where the run follows one.
+      const aim = spec.follow?.(x, z) ?? spec.via?.find((p) => p.z > z + 40) ?? spec.target;
+      const tz = Math.max(aim.z, z + 60);
       const level = road ? 0 : smoothstep(spec.target.z - 120, spec.target.z, z);
       const off = road ? RR.road.swing : N.centre;
-      const centre = clamp(Math.atan2(spec.target.x - x, tz - z), -off, off) * (1 - level);
+      const centre = clamp(Math.atan2(aim.x - x, tz - z), -off, off) * (1 - level);
       bend += centre;
       // THE FINISH: turned to the fall line for the village.
       bend *= 1 - smoothstep(zEnd - T.finishTurn, zEnd - 20, z);

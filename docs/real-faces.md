@@ -22,6 +22,24 @@ Each refused attempt lays the relief a little gentler on the next one (`real.cal
 
 Nothing changes for a map with no face. Every draw off the stream is made in the same order and the face is read only after them, so no dealt seed and no pinned map moves, and no generator version is owed.
 
+## The real ski area's hints
+
+A face also carries coarse HINTS of the real ski area on it, read off OpenStreetMap. The generator leans its own ski area toward them, so a face's resort is laid roughly where the real one is. They are hints, not a plan: the generator builds and checks its stations, runs and village by its own rules, and keeps a hint only where those rules allow it.
+
+- **Lifts.** Each real lift is kept as its two ends and its kind: a chair, a gondola (or a cable car) or a drag. Its bottom is the lower end on the face's own heights. Each of the generator's lifts is matched to the nearest unused real lift of a kind it may be (a chair is never laid on a drag), if that lift's top is within 700 m (`RR.massif.real.lift`). The lift's top moves onto the real top, at most 300 m up or down the face unless the row is the generator's to keep. Its bottom keeps its row, because the generator's lifts leave from the valley floor and most real ones leave from part way up, and moves across onto the real lift's line carried down to that row, if the carry is at most 1600 m. The peak's top station, which no lift of its own is matched to, moves onto the nearest real top within 450 m and keeps its row (`RR.massif.real.station`). The village's lift goes first, because the gondola leaves from it.
+- **Pistes.** Each real downhill piste is kept as its grade and a few bends, top first, thinned so the line strays at most 30 m from them. A run is steered toward the real piste of its grade ahead of it: at every step it aims at the nearest point of one 80 to 260 m further down the face and at most 260 m across (`RR.massif.real.follow`), and where none is near, through the bends of the real piste whose top is nearest its start (`RR.massif.real.via`). Its swing is halved while it follows one. Its grade, its no-climbing rule and its width stay the generator's, and a run's last two tries are walked without the hints, so a face whose real pistes do not fit still gets its runs.
+- **Houses.** Each real building is kept as its middle, its size and the bearing of its longest wall (`real-hints.ts`'s `HintHouse`).
+
+The hints are used only on a face's first eight attempts (`real.hinted`), the same attempts the face's peak and village are read on. After that, the stations and runs are dealt as on any face. Over the twenty faces on seed 1, fourteen are built on an attempt with the hints, and a face takes 4.35 attempts on average against 3.00 without them. Nothing is kept by name: no lift, piste or place name is read. A map with no face reads no hint, so no dealt map moves.
+
+The bake works like the heights' bake:
+
+- `make real-hints ARGS=--fetch` reads each face's crop off the OpenStreetMap editing API, a few tiles a face, once, into the gitignored `previews/.osm/`.
+- `ARGS=--write` turns them onto the face's map with the crop the heights were baked on (`scripts/lib/real-face-crops.mjs`) and writes them coarsely into the GENERATED `engine/mapgen/real-hints-data.ts`. Lift ends and piste bends are kept to 8 m, and a house's middle to 4 m. That is about 3 KB a face.
+- `make resort SEED=1 ARGS="--face=alpine-1 --hints"` draws the hints over the generator's plan: the real pistes thin in their grade's colour, the real lifts in magenta and the real houses as grey ticks.
+
+The map data is © OpenStreetMap contributors, available under the [Open Database Licence](https://opendatacommons.org/licenses/odbl/1-0/). The baked hints are a derived database and are offered under the same licence: `real-hints-data.ts` says so in its header.
+
 ## The data
 
 The heights come from the **Copernicus DEM GLO-30**, a global 30 m surface model. It is free to use and redistribute with this notice:

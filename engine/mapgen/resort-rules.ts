@@ -354,6 +354,28 @@ export const RESORT_RULES = {
        * after them, the dealt ones (a seed's lifts will not take every
        * face's: a sweep of three seeds over the twenty). */
       placed: 8,
+      /** THE HINTS (`real-hints.ts`): the attempts the real ski area's
+       * lifts and pistes are leant on (within `placed`); a station moved
+       * onto a real lift's end within `station.reach` m, at most
+       * `station.rise` m up or down the face; a run steered through the
+       * bends of the real piste whose top is within `via.reach` m of its
+       * start (one of its own grade `via.same` m nearer), a bend kept only
+       * `via.margin` m clear of the start's and the target's rows, on all
+       * but the last `via.last` tries of its walk. */
+      hinted: 8,
+      station: { reach: 450, rise: 150 },
+      /** A lift leant onto the real lift whose line passes each of its
+       * ends within `lift.reach` m, its top moved at most `lift.rise` m up
+       * or down the face, a bottom on the valley floor put on the real
+       * line carried down to it at most `lift.carry` m. */
+      lift: { reach: 700, rise: 300, carry: 1600 },
+      /** …and a run following a real piste swings `via.swing` of its own
+       * wave about it. */
+      via: { reach: 350, same: 120, margin: 60, swing: 0.5, last: 2 },
+      /** …steering, between the bends, for the nearest point on any real
+       * piste `follow.ahead` m down the face and at most `follow.aside` m
+       * across (one of its own grade `follow.same` m nearer). */
+      follow: { ahead: { min: 80, max: 260 }, aside: 260, same: 80 },
       /** How far behind the summit ridge the whole relief is reached, m,
        * and the descent (u) over which it fades out onto the valley floor. */
       behind: 200,

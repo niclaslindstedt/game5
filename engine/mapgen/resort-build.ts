@@ -470,8 +470,10 @@ export function attemptResort(
     const spec = fair;
     const why: string[] = [];
     const tries = fair.kind === "road" ? RR.road.tries : RR.network.tries;
+    const plain = { ...fair, via: undefined, follow: undefined }; // a real piste's bends, on all but the last tries
+    const viaFor = tries - RR.massif.real.via.last;
     for (let t = 0; t < tries; t++) {
-      const run = walkRun(rng, plan, ground, fair, walking, shared);
+      const run = walkRun(rng, plan, ground, t < viaFor ? fair : plain, walking, shared);
       if (typeof run === "string") {
         why.push(run);
         continue;

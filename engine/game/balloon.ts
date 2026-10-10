@@ -71,6 +71,7 @@ import { helipadOf, openSpotNear, type Helipad } from "./heli-pad.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { derive } from "./skier.ts";
 import { treesNear } from "./upright-grid.ts";
+import { airBoundsAt, type AirBounds } from "./collision.ts";
 import type { Wind } from "./wind.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { BalloonPhaseEvent, BalloonState, GameEvent, GameState, SkierInput } from "./state.ts";
@@ -290,6 +291,11 @@ function fly(
   const rhoI = airDensity(p, Ti);
   b.density = rhoI / rhoA;
   balloonWindAt(level, run.t, b.x, b.y + BALLOON_CENTRE, b.z, wind);
+  // Near the map's edge aloft, the bounds' wind carries it back in (the
+  // balloon's only steering is the air it rides — `airBoundsAt`).
+  airBoundsAt(level, b.x, b.z, b.agl, TUNING.bounds.air.balloon, edge);
+  wind.x += edge.wx;
+  wind.z += edge.wz;
   b.windX = wind.x;
   b.windZ = wind.z;
   b.wind = wind.speed;
@@ -411,7 +417,10 @@ function fly(
   tilt(run, b);
 }
 
-/** Inside the map's edge: the wind leans it on the edge and no further. */
+const edge: AirBounds = { depth: 0, wx: 0, wz: 0, heading: 0 };
+
+/** Inside the map's edge, the last stop under the bounds' wind: leant on
+ * the edge and no further. */
 function keepOnMap(level: Level, b: BalloonState): void {
   const m = 20;
   const hi = level.size - m;

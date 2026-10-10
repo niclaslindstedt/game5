@@ -20,6 +20,7 @@ import { SIDESTEP } from "./sidestep.ts";
 import { STOP_HAND } from "./stop-hand.ts";
 import { STAKES } from "./stakes.ts";
 import { LIFT } from "./lift.ts";
+import { AIR_BOUNDS } from "./air-bounds.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -784,8 +785,9 @@ export const TUNING = {
   stakes: STAKES,
 
   /** THE MAP'S EDGE: the skier is turned back this far inside it, m, by a
-   * push that grows over `soft` m. */
-  bounds: { margin: 6, soft: 20, push: 12 },
+   * push that grows over `soft` m; an AIRBORNE craft by its own rule
+   * (`air`, stated next door in `defs/air-bounds.ts`). */
+  bounds: { margin: 6, soft: 20, push: 12, air: AIR_BOUNDS },
 
   /** THE COURSE. */
   course: {

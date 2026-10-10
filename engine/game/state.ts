@@ -85,8 +85,9 @@ export type SkierInput = {
   /** THE HELICOPTER'S CONTROLS (`heli.ts`) while he flies it; left out,
    * where they were let go — the collective down, the rest centred. */
   heli?: HeliControls;
-  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the machine he stands beside (a piste
-   * machine's cab too), off the one he rides, or the paramotor's rig released. */
+  /** THE JUMP PLANE'S CONTROLS (`plane.ts`) while he flies it from its door. */
+  plane?: import("./plane-state.ts").PlaneControls;
+  /** EDGE-TRIGGERED: THE MACHINE PRESS — on or off a machine, a rig released, a jump. */
   machine?: boolean;
 };
 
@@ -743,6 +744,7 @@ export type GameEvent =
   | SledEvent
   | import("./para-state.ts").ParaEvent
   | import("./balloon-state.ts").BalloonEvent
+  | import("./plane-state.ts").PlaneEvent
   | import("./door-state.ts").DoorEvent;
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
@@ -971,11 +973,12 @@ export type GameState = ContestState & {
   /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
   /** THE HELICOPTER (`heli.ts`), THE SNOWMOBILE (`sled.ts`): on a free ride;
-   * THE PARAMOTOR (`para.ts`), THE BALLOON (`balloon.ts`): begun on one. */
+   * THE PARAMOTOR, THE BALLOON, THE JUMP PLANE (`plane.ts`): begun on one. */
   heli?: HeliState;
   sled?: SledState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;
+  plane?: import("./plane-state.ts").PlaneState;
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;

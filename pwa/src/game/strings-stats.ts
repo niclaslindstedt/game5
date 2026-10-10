@@ -62,6 +62,7 @@ const CAUSE_NAMES: Record<CrashCause, string> = {
   groomer: "PISTE MACHINES",
   car: "TRAFFIC",
   balloon: "BALLOON CRASHES",
+  plane: "PLANE CRASHES",
 };
 
 const DEATH_NAMES: Record<DeathCause, string> = {

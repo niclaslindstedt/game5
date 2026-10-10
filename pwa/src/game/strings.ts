@@ -258,7 +258,8 @@ export const STRINGS = {
       | "maul"
       | "groomer"
       | "car"
-      | "balloon",
+      | "balloon"
+      | "plane",
   ): string =>
     cause === "car"
       ? TRAFFIC_STRINGS.newsCar
@@ -268,7 +269,7 @@ export const STRINGS = {
           ? "TAKEN BY THE GRIMBEAR"
           : cause === "groomer"
             ? "BONK! PISTE MACHINE"
-            : cause === "heli"
+            : cause === "heli" || cause === "plane"
               ? "THROWN CLEAR!"
               : cause === "grip"
                 ? "LOST HIS GRIP!"

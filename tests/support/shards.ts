@@ -90,6 +90,9 @@ export const SHARD_WEIGHTS: Readonly<Record<string, number>> = {
   "tests/enthusiasts_test.ts": 7,
   "tests/rivals_test.ts": 2,
   "tests/hud_test.ts": 2,
+  "tests/plane_test.ts": 22,
+  "tests/airstrip_test.ts": 18,
+  "tests/air_bounds_test.ts": 14,
 };
 
 /** What a file the table does not name is taken to cost: the import alone

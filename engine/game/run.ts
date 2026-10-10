@@ -49,6 +49,7 @@ import { rotorStrike } from "./heli-grip.ts";
 import { stepSled } from "./sled.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
+import { planeAboard, planeDown, stepPlane } from "./plane.ts";
 import { stepAfterski } from "./afterski.ts";
 import { stepDoorLeaves, stepDoorway } from "./doorway.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
@@ -120,7 +121,11 @@ export function stepRun(
   // (out again), never a machine's that happens to pass it.
   // In a balloon's basket the press is the balloon's (over the side, or
   // out), never a machine's that happens to stand by its site.
-  const out = run.afterski?.inside || balloonAboard(run) ? { ...input, machine: false } : input;
+  // In a jump plane's door the press is the plane's (the jump, or out).
+  const out =
+    run.afterski?.inside || balloonAboard(run) || planeAboard(run)
+      ? { ...input, machine: false }
+      : input;
   // THE DOORS' LEAVES (`doorway.ts`): swung, held, closed and latched.
   if (run.doorway) stepDoorLeaves(run, events);
   // THE PISTE MACHINES (`groomer.ts`): at their work, left, or driven —
@@ -129,6 +134,9 @@ export function stepRun(
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
   if (stepHeli(run, out, events)) return forgetRun(run);
+  // THE JUMP PLANE (`plane.ts`): flown from its door, flying home or
+  // burning — and while he crouches in its door the step is its own.
+  if (stepPlane(run, input, events)) return forgetRun(run);
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
   if (stepSled(run, out, events)) return forgetRun(run);
@@ -300,7 +308,8 @@ export function stepRun(
     // burning, which stands him up on its pad when it is done (`heli.ts`).
     // Buzzed on a free ride, he gets up where he lies and fetches his skis
     // instead (`buzz.ts`).
-    if (crashOver(off, player) && !heliDown(run) && !balloonDown(run) && !holdsHim(run)) {
+    const down = heliDown(run) || balloonDown(run) || planeDown(run);
+    if (crashOver(off, player) && !down && !holdsHim(run)) {
       if (player && fetchesSkis(run)) getUp(run, off, events);
       else standUp(run, events, true);
     }

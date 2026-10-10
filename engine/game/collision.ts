@@ -30,7 +30,7 @@
 // THE EDGE is a soft push back toward the middle over the last `bounds.soft`
 // metres and a hard wall `bounds.margin` inside the map's own edge.
 
-import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { envelopeOf, inertiaOf, totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
@@ -198,4 +198,56 @@ export function keepInBounds(state: GameState): void {
     c.z = hi;
     if (c.vz > 0) c.vz = 0;
   }
+}
+
+/** WHERE AN AIRBORNE CRAFT STANDS TO THE MAP'S EDGE (`TUNING.bounds.air`):
+ * `depth` how far into a band `band` m wide inside the edge it is (0 short
+ * of it, 1 at the edge, more past it); the WIND blowing it back in there,
+ * m/s, world frame (`wind` at the edge, as the square of the depth, each
+ * axis on its own — straight in off a side, diagonally in off a corner);
+ * and the `heading` from it to the map's middle, the way its pilot's hand
+ * is turned. Shared by every craft in the air — the plane, the helicopter,
+ * the paramotor, the balloon, the skydiver's canopy — and never the skier
+ * on the snow, whose edge is `keepInBounds`. Pure: nothing here moves. */
+export type AirBounds = { depth: number; wx: number; wz: number; heading: number };
+
+export function airBounds(
+  level: { size: number },
+  x: number,
+  z: number,
+  band: number,
+  out: AirBounds,
+): AirBounds {
+  const size = level.size;
+  const into = (lo: number, hi: number): number =>
+    Math.max(0, (band - lo) / band) - Math.max(0, (band - hi) / band);
+  const ax = clamp(into(x, size - x), -2, 2);
+  const az = clamp(into(z, size - z), -2, 2);
+  const W = TUNING.bounds.air.wind;
+  out.depth = Math.max(Math.abs(ax), Math.abs(az));
+  out.wx = W * ax * Math.abs(ax);
+  out.wz = W * az * Math.abs(az);
+  out.heading = Math.atan2(size / 2 - x, size / 2 - z);
+  return out;
+}
+
+/** THE AIRBORNE BOUNDS for a craft `agl` m over the snow: `airBounds`, its
+ * depth and its wind faded in between `bounds.air.low` and `.high` over the
+ * snow — never felt taking off, landing or skimming the snow, where the
+ * pilot's own hands must have the whole say. */
+export function airBoundsAt(
+  level: { size: number },
+  x: number,
+  z: number,
+  agl: number,
+  band: number,
+  out: AirBounds,
+): AirBounds {
+  airBounds(level, x, z, band, out);
+  const B = TUNING.bounds.air;
+  const high = clamp((agl - B.low) / (B.high - B.low), 0, 1);
+  out.depth *= high;
+  out.wx *= high;
+  out.wz *= high;
+  return out;
 }

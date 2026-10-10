@@ -37,7 +37,8 @@
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run with no paramotor never comes in here.
 
-import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { airBoundsAt, type AirBounds } from "./collision.ts";
 import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { standSkier } from "./course.ts";
 import { PARA, pilotMass } from "./defs/para.ts";
@@ -208,6 +209,14 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
   const M = pilotMass(totalMass(c.spec));
   // THE HANDS: the toggles and the throttle follow them.
   const want = paraControls(input);
+  // NEAR THE MAP'S EDGE in the air (`airBoundsAt`): the toggles turned
+  // toward its middle, by how deep into the band it is.
+  if (p.flying) {
+    airBoundsAt(level, p.x, p.z, p.agl, TUNING.bounds.air.para, edge);
+    const w = clamp(edge.depth * 1.5, 0, 1);
+    const back = clamp(1.5 * angleDiff(p.heading, edge.heading), -1, 1);
+    want.steer += (back - want.steer) * w;
+  }
   const k = 1 - Math.exp(-dt / HANDS);
   const ctl = p.controls;
   ctl.throttle += (want.throttle - ctl.throttle) * k;
@@ -469,9 +478,15 @@ function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): vo
   derive(c, level);
 }
 
+const edge: AirBounds = { depth: 0, wx: 0, wz: 0, heading: 0 };
+
 /** The air at the wing into `air`, and what the rig reads of it. */
 function readAir(state: GameState, p: ParaState): void {
   paraAirAt(state.level, state.t, p.x, p.y, p.z, air);
+  // ...and near the map's edge, the bounds' wind blowing it back in.
+  airBoundsAt(state.level, p.x, p.z, p.agl, TUNING.bounds.air.para, edge);
+  air.x += edge.wx;
+  air.z += edge.wz;
   p.wind = air.mean;
   p.lift = air.lift;
   p.rough = air.rough;

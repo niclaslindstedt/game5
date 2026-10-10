@@ -730,6 +730,7 @@ export {
 // plan, what it carries, the questions asked of it.
 export * from "./game/village-api.ts";
 export * from "./game/traffic-api.ts";
+export * from "./game/plane-api.ts";
 export {
   hashOf as rockHash,
   onAnyCliff,

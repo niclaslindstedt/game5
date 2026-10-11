@@ -333,6 +333,15 @@ export const STRINGS = {
   newsGrimbear: "SOMETHING IN THE TREES!",
   newsGrimbearMiss: "IT MISSED YOU!",
   newsGrimbearHalt: "IT LET YOU GO… THIS TIME",
+  /** THE AVALANCHE (`avalanche.ts`): a slab breaking, the flow taking him,
+   * put down under its debris or with his head out, outskied, and his air
+   * run out under it. */
+  newsAvalanche: "AVALANCHE!",
+  newsAvalancheCaught: "CAUGHT IN THE SLIDE!",
+  newsAvalancheBuried: (metres: number): string => `BURIED ${metres.toFixed(1)} M DOWN!`,
+  newsAvalancheSurfaced: "HEAD OUT OF THE DEBRIS!",
+  newsAvalancheEscaped: "OUTSKIED IT!",
+  newsAvalancheLost: "OUT OF AIR UNDER THE SNOW",
   /** THE HELICOPTER (`heli.ts`): sat on its skid, pushed off it, the
    * machine flown into the mountain, and the ride begun again. */
   newsHeliBoard: "ON THE SKID! FLY HER UP",

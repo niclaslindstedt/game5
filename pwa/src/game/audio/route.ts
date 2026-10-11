@@ -332,6 +332,22 @@ export function soundForEvent(
             },
           };
 
+    // AN AVALANCHE (`avalanche.ts`): the slab's whumpf, crack and rumble,
+    // heard from where it broke; what comes of the skier after is the
+    // wipeout's and the news line's.
+    case "avalanche":
+      return event.phase === "release"
+        ? {
+            id: "slab",
+            shape: heardAt(
+              { x: event.x, y: contact.ear?.y ?? 0, z: event.z },
+              contact.ear,
+              60,
+              0.3,
+            ),
+          }
+        : null;
+
     // INTO THE A-NETS (R32): the mesh taking him, bigger the harder.
     case "net": {
       const hard = ramp(event.speed, 1, 12);

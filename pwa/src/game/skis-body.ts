@@ -40,6 +40,7 @@ import * as THREE from "three";
 import {
   TUNING,
   flightGravity,
+  isBoard,
   type GameState,
   type SkiSpec,
   type SkierState,
@@ -47,6 +48,7 @@ import {
   type TrickPose,
 } from "@engine";
 
+import { createBoardModel } from "./board-model.ts";
 import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
 import type { SkierPose } from "./skier-joints.ts";
 import { armBreaks, breakArms, createArmSwing, SWING, type ArmBreak } from "./skier-broken.ts";
@@ -106,13 +108,8 @@ import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./ski
 import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 import { revertRise } from "./skier-switch.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
-import {
-  pitchPast,
-  skydivePose,
-  squareSkis,
-  squareStand,
-  type SkydiveShape,
-} from "./skier-skydive.ts";
+import { pitchPast, skydivePose, squareSkis, squareStand } from "./skier-skydive.ts";
+import type { SkydiveShape } from "./skier-skydive.ts";
 
 /** How long the acceleration a broken arm feels is eased over, s — the
  * engine's steps' jitter taken out of its swing. */
@@ -439,6 +436,7 @@ export function createSkisModel(
   style: SkiStyle,
   wrap: <M extends THREE.Material>(m: M, name: string) => M,
 ): SkisModel {
+  if (isBoard(spec)) return createBoardModel(spec, style, wrap);
   const root = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];

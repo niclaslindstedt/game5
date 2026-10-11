@@ -21,10 +21,15 @@
 // a `?skis=` link boots into read the same pair the same way. A pair is
 // sold in one topsheet, so there is nothing to paint here; what the skier
 // on it WEARS is a press away, on the DRESS card (`menu-dress.tsx`).
+//
+// THE SNOWBOARD is on the same rack, after the skis, wherever a run lets a
+// free choice of pair (`boards`): the card is then the SNOWBOARD card, its
+// figures the board's own (the stance and the bindings' angles beside the
+// length, the waist and the sidecut) and its press RIDE.
 
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { riderById, skisById, withRider, type SkiId } from "@engine";
+import { pairById, riderById, withRider, type PairId } from "@engine";
 
 import { COUNT_SECONDS, countAt } from "@niclaslindstedt/oss-game-framework/hud/count";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
@@ -68,11 +73,11 @@ function Figure({ fact }: { fact: SkisFact }) {
 /** THE WAY TO THE DRESS CARD: the skier on the pair is the player, and
  * what he wears is picked on a card of its own (`menu-dress.tsx`) — a
  * press here, so the ski card stays the decision it is. */
-function DressButton({ onDress }: { onDress: () => void }) {
+function DressButton({ onDress, board = false }: { onDress: () => void; board?: boolean }) {
   return (
     <div class="skis-dress-row">
       <button type="button" class="menu-item skis-dress" data-menu="dress" onClick={onDress}>
-        <span class="menu-item-name">{STRINGS.skisDress}</span>
+        <span class="menu-item-name">{board ? STRINGS.boardDress : STRINGS.skisDress}</span>
       </button>
     </div>
   );
@@ -86,11 +91,11 @@ function SkisReadings({
   outfit,
   children,
 }: {
-  skis: SkiId;
+  skis: PairId;
   outfit: Outfit;
   children?: ComponentChildren;
 }) {
-  const spec = skisById(skis);
+  const spec = pairById(skis);
   return (
     <div class="skis-spec">
       <div class="skis-figures">
@@ -116,15 +121,18 @@ function SkisReadings({
 export function SkisPage({
   skis,
   outfit,
+  boards = false,
   onPick,
   onDress,
   onBack,
   onRide,
 }: {
-  skis: SkiId;
+  skis: PairId;
   /** What the skier on the pair wears (`Settings.outfit`). */
   outfit: Outfit;
-  onPick: (id: SkiId) => void;
+  /** Whether the snowboard is on the rack (`settings.ts`'s `boardAllowed`). */
+  boards?: boolean;
+  onPick: (id: PairId) => void;
   /** To the DRESS card. */
   onDress: () => void;
   /** Back to the front door, which is the way in. */
@@ -132,13 +140,14 @@ export function SkisPage({
   /** The press that stands the race up — this card is the end of the flow. */
   onRide: () => void;
 }) {
-  const spec = skisById(skis);
+  const spec = pairById(skis);
+  const board = spec.board !== undefined;
   return (
     <div class="menu-card menu-card-skis">
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
-        title={STRINGS.skisTitle}
+        title={board ? STRINGS.boardTitle : STRINGS.skisTitle}
         /* The press that rides stands in the head opposite the way back, as
            on every card a run is picked on, wearing the way-on's weight and
            marked as this surface's `next` — so START from anywhere on the
@@ -151,7 +160,7 @@ export function SkisPage({
             data-nav-next
             onClick={onRide}
           >
-            <span class="menu-item-name">{STRINGS.skisRide}</span>
+            <span class="menu-item-name">{board ? STRINGS.boardRide : STRINGS.skisRide}</span>
           </button>
         }
       />
@@ -160,11 +169,11 @@ export function SkisPage({
           {/* THE SKIS takes the room: it is the only thing on this card that
             cannot be said in words. */}
           <div class="skis-stage-col">
-            <SkisPicker skis={skis} outfit={outfit} onPick={onPick} />
+            <SkisPicker skis={skis} outfit={outfit} boards={boards} onPick={onPick} />
             <p class="skis-blurb">{spec.blurb}</p>
           </div>
           <SkisReadings skis={skis} outfit={outfit}>
-            <DressButton onDress={onDress} />
+            <DressButton onDress={onDress} board={board} />
           </SkisReadings>
         </div>
       </MenuBody>

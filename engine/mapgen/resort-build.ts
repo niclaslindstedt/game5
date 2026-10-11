@@ -24,9 +24,9 @@
 //      stream of their own), clear of every run
 //   6. the wind crust (R21, off a stream of its own), folded in clear of
 //      every run; the HUB laid along the valley floor round every finish
-//      and bottom station and groomed, and its two WIND TUNNELS (R29, R30)
-//   7. the woods (R14, by height on a resort), clear of every run, every
-//      lift and the hub
+//      and bottom station and groomed, its two WIND TUNNELS (R29, R30),
+//      and a real face's water laid again over all the grading before it
+//   7. the woods (R14, by height on a resort), clear of runs, lifts and hub
 //   8. the latitude and the face's bearing (R15)
 //   9. the courses (R28), each run's top station down to the village
 //
@@ -87,7 +87,7 @@ import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
 import { bakeMassif, planMassif } from "./massif.ts";
 import { realFace, type RealFace } from "./real-face.ts";
-import { inWater, layWater, type FaceWater } from "./real-water.ts";
+import { inWater, layWater, relayWater, type FaceWater } from "./real-water.ts";
 import { billedColour } from "./real-hints.ts";
 import {
   BENCH,
@@ -748,7 +748,7 @@ export function attemptResort(
   if (way) groomWay(way, packed, runAt);
   groomRamps(packed, ramps, [...pads, ...dragTops], runs, runIn, RAMP_GROOM);
   const tunnels = layTunnels(hubPlan, ground);
-
+  relayWater(ground, water, built, { pads: [...pads, ...dragTops], ramps: allRamps, way });
   reached("features");
   // ── 7. THE WOODS ─────────────────────────────────────────────────────
   const lifts: Lift[] = liftPlans.map((l) => ({

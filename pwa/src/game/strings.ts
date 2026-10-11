@@ -10,10 +10,11 @@
 // from the START GATE to the FINISH; the equipment is a PAIR of SKIS; the
 // body on them is THE SKIER. Nothing here is a lap, a vehicle or a machine.
 
-import type { TrickKind, TrickPart } from "@engine";
+import type { SpinTag, TrickKind, TrickPart } from "@engine";
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { BODY_STRINGS } from "./strings-body.ts";
+import { BOARD_GRAB_WORDS, boardSpinWord } from "./strings-board-tricks.ts";
 import { MAP_STRINGS } from "./strings-maps.ts";
 import { REPLAY_STRINGS } from "./strings-replay.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
@@ -53,15 +54,18 @@ export const TRICK_WORDS: Readonly<Record<TrickKind, string>> = {
   daffy: "DAFFY",
   spread: "SPREAD EAGLE",
   grab: "MUTE GRAB",
+  ...BOARD_GRAB_WORDS,
 };
 
 /** How a revolution's count reads in front of a flip. */
 const TIMES = ["", "", "DOUBLE ", "TRIPLE "];
 
 /** One element as read: a flip by its count, a spin by its degrees (and
- * the half turn landed over it, `half`), a landing by its tier. */
-function trickWord(kind: TrickKind, spins: number, half = false): string {
-  if (kind === "spin") return String(360 * spins + (half ? 180 : 0));
+ * the half turn landed over it, `half`) — a board's by its side too
+ * (`boardSpinWord`) — a landing by its tier. */
+function trickWord(kind: TrickKind, spins: number, half = false, tag: SpinTag = {}): string {
+  if (kind === "spin") return boardSpinWord(360 * spins + (half ? 180 : 0), tag);
+  if (kind === "half") return boardSpinWord(180, tag);
   if (kind === "landing" && spins > 1) return "PERFECT LANDING";
   if (kind === "backflip" || kind === "frontflip") {
     return `${TIMES[spins] ?? `${spins}× `}${TRICK_WORDS[kind]}`;
@@ -74,7 +78,7 @@ function trickWord(kind: TrickKind, spins: number, half = false): string {
  * twice in one flight is one DOUBLE BACKFLIP, not two words), and a half
  * turn landed over a flight's 360s read into them (a 540, not 360 + 180). */
 export function comboLine(parts: readonly TrickPart[]): string {
-  const merged: { kind: TrickKind; spins: number; flight: number; half: boolean }[] = [];
+  const merged: (TrickPart & { half: boolean })[] = [];
   for (const p of parts) {
     const spun =
       p.kind === "half" && merged.find((m) => m.kind === "spin" && m.flight === p.flight);
@@ -86,7 +90,7 @@ export function comboLine(parts: readonly TrickPart[]): string {
     if (same) same.spins = Math.max(same.spins, p.spins);
     else merged.push({ ...p, half: false });
   }
-  return merged.map((m) => trickWord(m.kind, m.spins, m.half)).join(" + ");
+  return merged.map((m) => trickWord(m.kind, m.spins, m.half, m)).join(" + ");
 }
 
 /** Metres of vertical, as the HUD and the cards print them. */
@@ -312,6 +316,9 @@ export const STRINGS = {
                                     : cause === "faceplant"
                                       ? "FACEPLANT! TOE EDGE"
                                       : "EDGE CAUGHT",
+  /** A snowboarder's skis-off word: nothing comes off a board, so a
+   * YARD SALE is a WIPEOUT. */
+  newsBoardDown: "WIPEOUT",
   newsStuck: "BOGGED! POLE OUT",
   newsWell: "TREE WELL! ROCK OUT OR RESET",
   /** Riding switch into loose snow on tails that do not ride over it
@@ -441,9 +448,13 @@ export const STRINGS = {
   /* ── THE SKI CARD (menu-skis.tsx, ski-picker.tsx, ski-stats.ts) ────── */
   skisTitle: "SKIS",
   skisRide: "SKI",
+  /** ...the same card turning the snowboard (`BOARD_CATALOG`). */
+  boardTitle: "SNOWBOARD",
+  boardRide: "RIDE",
   skisPrev: "Previous pair",
   skisNext: "Next pair",
   skisDress: "CUSTOMIZE SKIER",
+  boardDress: "CUSTOMIZE RIDER",
   skisOf: (at: number, of: number): string => `${at} / ${of}`,
 
   /* ── THE DRESS CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
@@ -469,7 +480,19 @@ export const STRINGS = {
     weight: "PAIR",
     top: "TOP SPEED",
   },
-  skisUnits: { cm: "CM", mm: "MM", metres: "M", kg: "KG", speed: "KM/H" },
+  skisUnits: { cm: "CM", mm: "MM", metres: "M", kg: "KG", speed: "KM/H", degrees: "°" },
+  /** ...a snowboard's: its own numbers, its stance and the bindings'
+   * angles in place of a pair's — and no pole reach, as it has no poles. */
+  boardFacts: {
+    length: "LENGTH",
+    waist: "WAIST",
+    sidecut: "SIDECUT",
+    stance: "STANCE",
+    front: "FRONT",
+    back: "BACK",
+    weight: "SETUP",
+    top: "TOP SPEED",
+  },
   /** ...and the three bars: fast on the groomer, turning on it, and off it. */
   skisBars: {
     speed: "SPEED",

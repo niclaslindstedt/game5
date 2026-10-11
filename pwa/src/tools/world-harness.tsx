@@ -34,6 +34,7 @@ import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
+import { labPairOption } from "./lab-pair.ts";
 import { markView } from "./mark-view.ts";
 import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
@@ -85,12 +86,10 @@ const picture = readPicture(params.get("picture"));
 /** The SHADOWS row over the preset, when one is named. */
 const shade = params.get("shadows") as ShadowLevel;
 const shadows = SHADOW_LEVELS.includes(shade) ? shade : null;
-const width = Number(params.get("w") ?? 1280);
-const height = Number(params.get("h") ?? 720);
+const [width, height] = [Number(params.get("w") ?? 1280), Number(params.get("h") ?? 720)];
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
-canvas.style.width = `${width}px`;
-canvas.style.height = `${height}px`;
+Object.assign(canvas.style, { width: `${width}px`, height: `${height}px` });
 const label = document.getElementById("label") as HTMLDivElement;
 
 // The models the game draws (the lab copied them beside the page).
@@ -114,6 +113,7 @@ const state: GameState = createGame({
   ...(downhill ? { mode: "downhill" as const, rivals: 0 } : {}),
   ...(free || slalom ? { mode: free ? ("free" as const) : ("slalom" as const) } : {}),
   ...(params.get("grimbear") === "1" ? { grimbear: "hunt" as const } : {}),
+  ...labPairOption(params), // `?skis=lynx`: the snowboard
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
   // A free ride's crowd is the hour's (`enthusiasts.ts`).
   ...(free && Number.isFinite(hour) ? { sky: { hour } } : {}),

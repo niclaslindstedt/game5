@@ -49,8 +49,10 @@
 //   ?camera=<rung>  the run's camera (tips, helmet, chase, far, high).
 //   ?skis=<id>      the player's pair for this visit (chamois, swift,
 //                   chough, falcon, eagle, wolverine, peregrine, marmot,
-//                   hare), over the stored one and never written back —
-//                   how a lab photographs a pair it did not pick.
+//                   hare, raven, ibex, kestrel — or lynx, the snowboard,
+//                   which a race rides on its own skis in place of), over
+//                   the stored one and never written back — how a lab
+//                   photographs a pair it did not pick.
 //   ?mode=tricks    the run a link boots into (or the next one pressed) is
 //                   a TRICKS run on the seed's trick field rather than a
 //                   slalom; ?mode=downhill, a DOWNHILL;
@@ -165,13 +167,13 @@ import {
   isRunGrade,
   isRegionId,
   realFaceRegion,
-  isSkiId,
+  isPairId,
   type CreateGameOptions,
   type RunGrade,
   type RegionId,
   type GameMode,
   type SkyOverride,
-  type SkiId,
+  type PairId,
   type WeatherKind,
 } from "@engine";
 
@@ -244,7 +246,7 @@ export type UrlParams = {
   paused: boolean;
   camera: CameraRung | null;
   /** The player's pair for this visit. */
-  skis: SkiId | null;
+  skis: PairId | null;
   /** The mode a booted run is ridden in. */
   mode: GameMode;
   /** The bot rides the player's skis for the whole run. */
@@ -387,7 +389,7 @@ export function readParams(search: string): UrlParams {
     paused,
     camera:
       camera !== null && RUN_CAMERAS.includes(camera as CameraRung) ? (camera as CameraRung) : null,
-    skis: skis !== null && isSkiId(skis) ? skis : null,
+    skis: skis !== null && isPairId(skis) ? skis : null,
     mode:
       start === "free"
         ? "free"

@@ -5,7 +5,7 @@
 // component so `App.tsx` routes both pages with one branch: which card is up
 // is the page, and what a pick does is the app's.
 
-import { LEVEL_RULES, skisById, type GameMode, type SkiId } from "@engine";
+import { LEVEL_RULES, pairById, type GameMode, type PairId } from "@engine";
 
 import { LevelsPage } from "./menu-levels.tsx";
 import type { PinnedLevel } from "./pinned.ts";
@@ -33,7 +33,7 @@ export function PinnedCards({
   /** The maps the level cards last picked (`Settings.raceMap`). */
   settings: Settings;
   /** The machine the skis card holds — a record book row is one skis's. */
-  skis: SkiId;
+  skis: PairId;
   /** The record book's row under a key (`ghost-run.ts`'s `standing`). */
   standing: (key: RecordKey) => RunRecord | null;
   onBack: () => void;
@@ -65,7 +65,7 @@ export function PinnedCards({
       chosen={pick === null ? null : (settings.raceMap[pick] ?? null)}
       best={(level) => {
         const row = standing({ seed: level.seed, course: level.course, skis, mode, laps });
-        return row ? STRINGS.levelsBest(row.value, skisById(row.skis).name) : null;
+        return row ? STRINGS.levelsBest(row.value, pairById(row.skis).name) : null;
       }}
       onBack={onBack}
       onPick={onChoose}

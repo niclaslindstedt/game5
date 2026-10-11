@@ -39,7 +39,7 @@
 // has started dropping frames, and it is one word to say otherwise.
 
 import { useEffect, useRef, useState } from "preact/hooks";
-import { TUNING, isSkiId, skisById } from "@engine";
+import { TUNING, isPairId, pairById } from "@engine";
 
 import { holdNav } from "./menu-nav.ts";
 import type { ReplayBarFacts, ReplayRun } from "./replay-run.ts";
@@ -125,7 +125,7 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
 export function ReplayBar(props: ReplayBarProps) {
   const { bill, first, end, at, playing, speed, slow, seeking, rung, marks, moment, back } = props;
   const { controls, onLeave, touch } = props;
-  const skis = isSkiId(bill.skis) ? skisById(bill.skis).name : bill.skis;
+  const skis = isPairId(bill.skis) ? pairById(bill.skis).name : bill.skis;
   const span = Math.max(1, end - first);
   const share = (step: number): number => Math.min(1, Math.max(0, (step - first) / span));
 

@@ -52,6 +52,7 @@ export const AFTERSKI_STRINGS = {
 
   /* ── IN TOWN, THE SKIS ON HIS SHOULDER ─────────────────────────────── */
   townWord: "SKIS ON THE SHOULDER",
+  townBoardWord: "BOARD UNDER THE ARM",
   townBusy: "IN TOWN, ON FOOT",
   townHint: "TUCK TO WALK · STEER TO TURN · OFF THE STREETS TO SKI",
 

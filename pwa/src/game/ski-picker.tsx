@@ -9,35 +9,44 @@
 // Until the chunk lands the pane is the backdrop it will be drawn on, which
 // is why the name and the arrows are markup rather than anything the canvas
 // paints.
+//
+// THE SNOWBOARD stands at the end of the rack where a run lets a free
+// choice of pair (`boards` — the free ride and the park run): the board on
+// the stand with its bindings and soft boots, the rider stood across it.
 
 import { useEffect, useRef } from "preact/hooks";
-import { SKI_CATALOG, skisById, type SkiId } from "@engine";
+import { pairById, type PairId } from "@engine";
 
 import type { Outfit } from "./outfit.ts";
+import { rackOf } from "./ski-stats.ts";
 import type { SkisTurntable } from "./ski-turntable.ts";
 import { STRINGS } from "./strings.ts";
 
 export function SkisPicker({
   skis,
   outfit,
+  boards = false,
   onPick,
 }: {
-  skis: SkiId;
+  skis: PairId;
   /** What the skier stood on it wears (`Settings.outfit`). */
   outfit: Outfit;
-  onPick: (id: SkiId) => void;
+  /** Whether the snowboard is on the rack (`settings.ts`'s `boardAllowed`). */
+  boards?: boolean;
+  onPick: (id: PairId) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const standRef = useRef<SkisTurntable | null>(null);
   // The outfit rides beside the stand too, for one that lands late.
   const outfitRef = useRef(outfit);
-  const spec = skisById(skis);
+  const spec = pairById(skis);
+  const rack = rackOf(boards);
   const index = Math.max(
     0,
-    SKI_CATALOG.findIndex((s) => s.id === spec.id),
+    rack.findIndex((s) => s.id === spec.id),
   );
   const step = (by: number): void =>
-    onPick(SKI_CATALOG[(index + by + SKI_CATALOG.length) % SKI_CATALOG.length].id);
+    onPick(rack[(index + by + rack.length) % rack.length].id as PairId);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,7 +58,7 @@ export function SkisPicker({
       await loadModels();
       if (disposed) return;
       standRef.current = createSkisTurntable(canvas);
-      standRef.current.setSkis(skisById(canvas.dataset.skis ?? spec.id), outfitRef.current);
+      standRef.current.setSkis(pairById(canvas.dataset.skis ?? spec.id), outfitRef.current);
     });
     const onResize = (): void => standRef.current?.resize();
     window.addEventListener("resize", onResize);
@@ -109,7 +118,7 @@ export function SkisPicker({
       <div class="skis-pick-id">
         <span class="skis-pick-name">{spec.name.toUpperCase()}</span>
         <span class="skis-pick-kind">{spec.kind.toUpperCase()}</span>
-        <span class="skis-pick-count">{STRINGS.skisOf(index + 1, SKI_CATALOG.length)}</span>
+        <span class="skis-pick-count">{STRINGS.skisOf(index + 1, rack.length)}</span>
       </div>
     </div>
   );

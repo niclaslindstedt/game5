@@ -36,7 +36,7 @@ import { rotate, type Level, type SkierState } from "@engine";
 
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
-import { skiShares } from "./ski-stand.ts";
+import { skiShares, stationOf } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import type { SnowProps } from "./snowpack.ts";
 
@@ -250,9 +250,9 @@ export function createSpray(haze: HazeUniforms): Spray {
       // THE EDGE'S SHEET, off the boot and the tail of each ski, by its
       // share of the load — the two together throwing what the pair does.
       for (let k = 0; k < 2; k++) {
-        const mid = skier.contacts[k * 3 + 1];
-        const tail = skier.contacts[k * 3 + 2];
-        if (!mid || !mid.touching) continue;
+        const mid = stationOf(skier.contacts, k, 1);
+        const tail = stationOf(skier.contacts, k, 2);
+        if (!mid || !tail || !mid.touching) continue;
         const rate =
           (edge * (1 - skid) * skier.speed * 9 + skier.speed * 0.6) *
           (0.15 * base + powder) *
@@ -289,8 +289,8 @@ export function createSpray(haze: HazeUniforms): Spray {
           owed[2] -= 1;
           // Off the ski that carries him, as often as it does.
           const k = random() < shares[0] ? 0 : 1;
-          const c = skier.contacts[k * 3 + Math.floor(random() * 3)];
-          if (!c.touching) continue;
+          const c = stationOf(skier.contacts, k, Math.floor(random() * 3) as 0 | 1 | 2);
+          if (!c?.touching) continue;
           const kick = rotate(skier.q, {
             x: outSide * (1.5 + random() * 3 + skid * 2),
             y: 0.6 + random() * 2.4,
@@ -310,14 +310,16 @@ export function createSpray(haze: HazeUniforms): Spray {
         }
       }
       // THE POWDER OVER THE SHOULDER, off the tips running deep.
-      const deep = Math.max(skier.contacts[0]?.sink ?? 0, skier.contacts[3]?.sink ?? 0);
+      const tips = [stationOf(skier.contacts, 0, 0), stationOf(skier.contacts, 1, 0)];
+      const deep = Math.max(tips[0]?.sink ?? 0, tips[1]?.sink ?? 0);
       if (deep > 0.06 && skier.speed > 4) {
         const rate =
           Math.min(1, deep / 0.35) * Math.min(1, skier.speed / 15) * 380 * powder * share;
         owed[3] += rate * dt;
         while (owed[3] >= 1) {
           owed[3] -= 1;
-          const c = skier.contacts[random() < 0.5 ? 0 : 3];
+          const c = tips[random() < 0.5 ? 0 : 1];
+          if (!c) continue;
           const kick = rotate(skier.q, {
             x: (random() - 0.5) * 2,
             y: 2 + random() * 3,

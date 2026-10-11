@@ -498,6 +498,39 @@ describe("a real face's hints", () => {
   });
 });
 
+/** Every grid cell inside every body of `level`'s water stands at its
+ * surface, or a little under it so the water overlaps the bank — never
+ * above it (a cell on the shore another body shares is that body's).
+ * Returns how many cells were read. */
+function levelWater(level: ReturnType<typeof generateLevel>): number {
+  const water = level.water!;
+  const g = level.ground;
+  let cells = 0;
+  for (const b of water) {
+    const others = water.filter((o) => o !== b);
+    const r = b.rings[0];
+    let [x0, x1, z0, z1] = [Infinity, -Infinity, Infinity, -Infinity];
+    for (let k = 0; k < r.length; k += 2) {
+      [x0, x1] = [Math.min(x0, r[k]), Math.max(x1, r[k])];
+      [z0, z1] = [Math.min(z0, r[k + 1]), Math.max(z1, r[k + 1])];
+    }
+    const r0 = Math.max(0, Math.ceil(z0 / g.cell));
+    const c0 = Math.max(0, Math.ceil(x0 / g.cell));
+    for (let row = r0; row <= Math.min(g.rows - 1, Math.floor(z1 / g.cell)); row++) {
+      for (let c = c0; c <= Math.min(g.cols - 1, Math.floor(x1 / g.cell)); c++) {
+        const [x, z] = [c * g.cell, row * g.cell];
+        if (!inWater([b], x, z)) continue;
+        if (others.some((o) => inWater([o], x + 1, z) || inWater([o], x - 1, z))) continue;
+        const d = g.data[row * g.cols + c] - b.y;
+        expect(d, `${b.kind} at ${x}, ${z}`).toBeGreaterThanOrEqual(-0.3);
+        expect(d, `${b.kind} at ${x}, ${z}`).toBeLessThanOrEqual(0.05);
+        cells++;
+      }
+    }
+  }
+  return cells;
+}
+
 describe("a real face's water", () => {
   beforeAll(loadAllRealFaces);
   const on = (x: number, z: number): boolean => x >= 0 && x <= 4000 && z >= 0 && z <= 4000;
@@ -558,36 +591,19 @@ describe("a real face's water", () => {
     const water = level.water!;
     expect(water.length).toBeGreaterThan(0);
     expect(level.streams!.length).toBeGreaterThan(0);
-    const { runs, lifts } = level.resort!;
-    // A run graded across a body, and a station's pad and the cut of its
-    // way in, are left as they are graded.
-    const onRun = (x: number, z: number): boolean =>
-      runs.some((r) => r.points.some((p) => Math.hypot(p.x - x, p.z - z) < p.width / 2 + 30)) ||
-      lifts.some((l) => [l.bottom, l.top].some((e) => Math.hypot(e.x - x, e.z - z) < 80));
-    let cells = 0;
     for (const b of water) {
       expect(ringArea(b.rings[0])).toBeGreaterThan(0);
       for (let k = 0; k < b.rings[0].length; k += 2) {
         expect(on(b.rings[0][k], b.rings[0][k + 1])).toBe(true);
       }
       expect(Number.isFinite(b.y) && Number.isFinite(b.realLevel)).toBe(true);
-      // The ground under it is its surface.
-      const r = b.rings[0];
-      let [x0, x1, z0, z1] = [Infinity, -Infinity, Infinity, -Infinity];
-      for (let k = 0; k < r.length; k += 2) {
-        [x0, x1] = [Math.min(x0, r[k]), Math.max(x1, r[k])];
-        [z0, z1] = [Math.min(z0, r[k + 1]), Math.max(z1, r[k + 1])];
-      }
-      const step = Math.max(2, Math.ceil(Math.sqrt(((x1 - x0) * (z1 - z0)) / 4000) / 2) * 2);
-      for (let z = Math.ceil(z0 / step) * step; z <= z1; z += step) {
-        for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) {
-          if (!inWater([b], x, z) || onRun(x, z)) continue;
-          expect(level.groundAt(x, z)).toBeCloseTo(b.y, 3);
-          cells++;
-        }
-      }
     }
-    expect(cells).toBeGreaterThan(100);
+    // The ground under it is its surface, runs and pads graded after it too.
+    expect(levelWater(level)).toBeGreaterThan(100);
+    // No street of the village, nor its square or car park, is in it.
+    for (const st of villageOf(level)?.streets ?? []) {
+      for (const p of st.points) expect(inWater(water, p.x, p.z), st.id).toBe(false);
+    }
     // No tree, lift tower or station, building or pad stands in it.
     for (const t of level.trees) expect(inWater(water, t.x, t.z)).toBe(false);
     for (const p of liftPlans(level)) {
@@ -596,5 +612,13 @@ describe("a real face's water", () => {
     for (const c of cabinsOf(level)) expect(inWater(water, c.x, c.z), c.kind).toBe(false);
     for (const p of [helipadOf(level), sledSpotOf(level)])
       expect(inWater(water, p.x, p.z)).toBe(false);
+  });
+
+  it("is laid again over what was graded after it: a face whose station stood by a lake", () => {
+    // A run pressed across a body and a station's pad beside one moved the
+    // ground under the water up to 20 m on this face; laid again, or left
+    // off where it would move the pad.
+    const level = generateLevel(1, { face: "fell-8" });
+    expect(levelWater(level)).toBeGreaterThan(100);
   });
 });

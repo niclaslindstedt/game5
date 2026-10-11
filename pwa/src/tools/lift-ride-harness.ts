@@ -40,8 +40,10 @@ import {
   stageState,
   stageWindow,
   STAGES,
+  setStagePair,
   type StageId,
 } from "./lift-stage.ts";
+import { labPair } from "./lab-pair.ts";
 
 declare global {
   interface Window {
@@ -102,6 +104,10 @@ const width = Number(params.get("w") ?? 1280);
 const height = Number(params.get("h") ?? 720);
 const cols = Number(params.get("cols") ?? 3);
 const scale = Number(params.get("scale") ?? 0.5);
+/** The pair he rides (`?skis=`, `isPairId` — `lynx` the snowboard), the
+ * reference skis when left out. */
+const pair = labPair(params);
+setStagePair(pair);
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 canvas.style.width = `${width}px`;
@@ -123,6 +129,7 @@ function standUp(): GameState {
     byLift: true,
     run,
     quiet: true,
+    ...(pair ? { spec: pair } : {}),
     ...(spot.length === 2 && spot.every(Number.isFinite)
       ? { spawn: { x: spot[0], z: spot[1] } }
       : {}),

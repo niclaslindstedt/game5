@@ -4,15 +4,17 @@
 // (`gore-view.ts` hands it where the blood leaves him and how much).
 //
 //   * A STREAM is blood POURING out of a gap in his clothes or a torn
-//     wound, not thrown: one unbroken tube through where the blood let go
-//     there over the last moment has got to (`gore-gibs.ts`'s
-//     `streamPath`: the arc off its way out under gravity to the snow from
-//     a body at rest; streamed out BEHIND a body thrown through the air,
-//     held back by the air while he flies on, and broken into drops a
-//     couple of metres back), thicker the more flows and thinning as it
-//     speeds up, laid again every frame from where the wound is now — and
-//     where it meets the snow it spatters. A gout (a piece torn off) is a short burst of
-//     drops that falls within a metre or so.
+//     wound, not thrown. A jet of a few millimetres holds together only a
+//     hand's breadth before surface tension pinches it into drops (the
+//     Rayleigh–Plateau break-up: drops about twice the jet across), and
+//     the air past a body going fast breaks it sooner — which is why an
+//     arterial spurt leaves a line of separate stains, never a smear. So
+//     the stream is drawn as a short unbroken tube out of the wound
+//     (`JET`, along `gore-gibs.ts`'s `streamPath`), thicker the more flows,
+//     and past its end as DROPS thrown on along the way it was going, as
+//     many a second as the flow fills; the drops spatter the snow where
+//     they meet it. A gout (a piece torn off) is a short burst of drops
+//     that falls within a metre or so.
 //   * A DROP meets the snow and leaves a SPLAT the size its volume soaks.
 //   * A POOL is a blot that grows under a gap that lies still, its area
 //     the litres run into it times how far a litre spreads on that snow
@@ -101,15 +103,22 @@ const AIR = 0.15;
 const STREAMS = 48;
 const RINGS = 14;
 const SIDES = 5;
-/** How far behind a body going fast a stream holds together before the
- * wind has torn it into drops, m — and the speed it is at its shortest.
- * Slower, it holds together further, to a pour at rest's whole fall. */
-const BREAK = 0.5;
-const BREAK_SPEED = 8;
-/** The drops a second a stream torn by the wind throws on behind him at a
- * full pour (`FULL` L/s), thinning with what flows. */
-const SPRAY = 70;
-const FULL = 0.05;
+/** How far a stream holds together out of the wound before it breaks
+ * into drops, m: a few millimetres' jet at a metre or two a second pinches
+ * off within about 10–15 cm (break-up length ≈ 13·v·√(ρd³/σ) for blood,
+ * ρ 1050 kg/m³, σ 0.055 N/m, d 3 mm), and on a body moving through the air
+ * the wind breaks it within a few centimetres (`JET_FAST`, at `JET_SPEED`
+ * m/s and over). */
+const JET = 0.12;
+const JET_FAST = 0.04;
+const JET_SPEED = 4;
+/** The blood a drawn drop stands for, L: a drop pinched off a 3 mm jet is
+ * about 6 mm across, ≈ 0.1 ml — drawn a little fuller, so a slow pour
+ * reads as drops a few at a time rather than a mist. */
+const DROP_L = 0.00015;
+/** The most drops a second one stream throws: a spurt of a few hundred
+ * millilitres a second is drawn as this many, each standing for more. */
+const DROPS_S = 220;
 /** The blots a second a stream spatters where it meets the snow. */
 const SPATTER = 6;
 /** How far over the snow a blot lies, m — the drawn surface under it. */
@@ -284,17 +293,14 @@ export function createBlood(wrap: Wrap): Blood {
   const fallTime = (o: (typeof asked)[number]): number => {
     if (!ground) return 0.5;
     const speed = Math.hypot(o.carry.x, o.carry.y, o.carry.z);
-    const reach =
-      speed < 2
-        ? Infinity
-        : BREAK + 6 * BREAK * Math.max(0, (BREAK_SPEED - speed) / (BREAK_SPEED - 2));
+    const reach = JET + (JET_FAST - JET) * Math.min(1, speed / JET_SPEED);
     let t = 0;
     let lx = 0;
     let ly = 0;
     let lz = 0;
     let run = 0;
     torn = false;
-    for (; t < 1.6; t += 0.02) {
+    for (; t < 1.6; t += 0.005) {
       streamPath(o.out, o.carry, o.fall, t, rel, relWay);
       run += Math.hypot(rel.x - lx, rel.y - ly, rel.z - lz);
       lx = rel.x;
@@ -429,38 +435,39 @@ export function createBlood(wrap: Wrap): Blood {
         ...(lead ? { lead: lead.slice(0, RINGS - 4) } : {}),
       });
       const o = asked[asked.length - 1];
-      // Torn by the wind, it flies on behind him as drops, going as the
-      // stream was where it tore.
+      // Where the jet breaks it goes on as drops, each going as the stream
+      // was there, as many as the flow fills (`DROP_L`).
       if (ground && dt > 0) {
         const t = fallTime(o);
-        if (torn) {
-          let n = SPRAY * Math.min(1, q / FULL) * dt;
-          const mark = { x: 0, y: 0, z: 0 };
-          streamPath(o.out, o.carry, o.fall, t, rel, relWay);
-          mark.x = o.x + rel.x;
-          mark.y = o.y + rel.y;
-          mark.z = o.z + rel.z;
+        streamPath(o.out, o.carry, o.fall, t, rel, relWay);
+        const mx = o.x + rel.x;
+        const my = o.y + rel.y;
+        const mz = o.z + rel.z;
+        if (!torn) {
+          // Met the snow inside its jet: it spatters there.
+          if (next() < SPATTER * dt) {
+            const x = mx + (next() - 0.5) * 0.06;
+            const z = mz + (next() - 0.5) * 0.06;
+            lay(splats, take(), x, z, r * (2 + 2 * next()), 1, next() * 6.28);
+          }
+        } else {
+          // The jet's own wobble scatters them a little, more the faster.
+          const jig = 0.15 + 0.12 * Math.hypot(o.out.x, o.out.y, o.out.z);
+          let n = Math.min(DROPS_S, q / DROP_L) * dt;
           for (; n > 0 && live < DROPS; n--) {
             if (n < 1 && next() > n) break;
             const i = live++;
-            px[i] = mark.x + (next() - 0.5) * 0.05;
-            py[i] = mark.y + (next() - 0.5) * 0.05;
-            pz[i] = mark.z + (next() - 0.5) * 0.05;
-            vx[i] = o.carry.x + relWay.x + (next() - 0.5) * 0.8;
-            vy[i] = o.carry.y + relWay.y + (next() - 0.5) * 0.8;
-            vz[i] = o.carry.z + relWay.z + (next() - 0.5) * 0.8;
-            size[i] = 0.003 + 0.006 * next() ** 2;
+            // Strung along the last bit of the way it went this frame.
+            const back = next() * dt;
+            px[i] = mx - relWay.x * back + (next() - 0.5) * 0.01;
+            py[i] = my - relWay.y * back + (next() - 0.5) * 0.01;
+            pz[i] = mz - relWay.z * back + (next() - 0.5) * 0.01;
+            vx[i] = o.carry.x + relWay.x + (next() - 0.5) * jig;
+            vy[i] = o.carry.y + relWay.y + (next() - 0.5) * jig;
+            vz[i] = o.carry.z + relWay.z + (next() - 0.5) * jig;
+            size[i] = 0.0025 + 0.004 * next() ** 2;
           }
         }
-      }
-      // Where it meets the snow, it spatters.
-      if (ground && dt > 0 && next() < SPATTER * dt) {
-        streamPath(o.out, o.carry, o.fall, fallTime(o), rel, relWay);
-        const x = o.x + rel.x + (next() - 0.5) * 0.06;
-        const z = o.z + rel.z + (next() - 0.5) * 0.06;
-        // Only where it reaches the snow — not where the wind tore it.
-        if (o.y + rel.y - ground.heightAt(x, z) < 0.2)
-          lay(splats, take(), x, z, r * (2 + 2 * next()), 1, next() * 6.28);
       }
     },
     splat(x, z, r, shade, turn) {
@@ -518,8 +525,10 @@ export function createBlood(wrap: Wrap): Blood {
         v.set(vx[i], vy[i], vz[i]);
         const u = v.length();
         q.setFromUnitVectors(yUp, u > 1e-4 ? v.divideScalar(u) : yUp);
-        // Stretched along its way the faster it goes.
-        s.set(size[i], size[i] * (1 + Math.min(5, u * 0.4 * pace)), size[i]);
+        // A falling drop stays near round (surface tension holds a few
+        // millimetres against the air it meets); drawn a touch long along
+        // its way, never a thread.
+        s.set(size[i], size[i] * (1 + Math.min(0.8, u * 0.08 * pace)), size[i]);
         p.set(px[i], py[i], pz[i]);
         m.compose(p, q, s);
         drops.setMatrixAt(i, m);

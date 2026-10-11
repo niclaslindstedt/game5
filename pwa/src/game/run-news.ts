@@ -17,7 +17,7 @@
 // place — is not news, and neither is a landing the skis simply rode away
 // from.
 
-import { TUNING, type GameEvent, type GameState } from "@engine";
+import { isBoard, TUNING, type GameEvent, type GameState } from "@engine";
 
 import { gapAt, timingGates } from "./slalom-board.ts";
 import { gatesTaken } from "./snapshot.ts";
@@ -94,7 +94,13 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
           by === "bus" ? STRINGS.newsBus : by === "bike" ? STRINGS.newsBike : STRINGS.newsCar;
         return { text, tone: "bad" };
       }
-      return { text: STRINGS.newsWipeout(e.cause), tone: "bad" };
+      // Nothing comes off a board: a snowboarder's yard sale is a wipeout.
+      return {
+        text: isBoard(state.skier.spec)
+          ? STRINGS.newsWipeout(e.cause).replace("YARD SALE", STRINGS.newsBoardDown)
+          : STRINGS.newsWipeout(e.cause),
+        tone: "bad",
+      };
     case "stuck":
       return { text: e.well ? STRINGS.newsWell : STRINGS.newsStuck, tone: "bad" };
     case "grimbear":

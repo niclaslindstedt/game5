@@ -80,11 +80,16 @@ const args = parseArgs(
       default: "head",
       help: "the joint --dump follows (head, hips, handsL, feetR…)",
     },
+    skis: {
+      kind: "string",
+      default: "",
+      help: "the pair he rides by its id (lynx: the snowboard, posed as `board-model.ts` poses it); the reference skis when left out",
+    },
     out: { kind: "string", default: "previews/lift-flow.png", help: "the picture" },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
     compare: { kind: "string", default: "", help: "a JSON table to print the change against" },
   },
-  "usage: node scripts/lift-flow-lab.mjs [--seed=n] [--region=id] [--stage=a,b] [--list] [--json=file] [--compare=file]",
+  "usage: node scripts/lift-flow-lab.mjs [--seed=n] [--region=id] [--stage=a,b] [--list] [--skis=id] [--json=file] [--compare=file]",
 );
 
 aliasEngine(root);
@@ -96,6 +101,16 @@ const FL = await import(join(root, "pwa/src/game/skier-flight.ts"));
 const SEAT = await import(join(root, "pwa/src/game/skier-seat.ts"));
 const CAM = await import(join(root, "pwa/src/game/camera-lift.ts"));
 const STAGE = await import(join(root, "pwa/src/tools/lift-stage.ts"));
+const BI = await import(join(root, "pwa/src/game/board-input.ts"));
+const BL = await import(join(root, "pwa/src/game/board-lift.ts"));
+const BP = await import(join(root, "pwa/src/game/board-pose.ts"));
+
+if (args.skis && !E.isPairId(args.skis)) {
+  console.error(`no pair "${args.skis}"`);
+  process.exit(2);
+}
+const pair = args.skis ? E.pairById(args.skis) : undefined;
+STAGE.setStagePair(pair);
 
 const region = args.region || undefined;
 const stages = args.stage ? args.stage.split(",") : STAGE.STAGES;
@@ -128,6 +143,7 @@ function rideStage(id) {
   const mounts = G.mountsOf(c.spec);
   const legs = P.createSkierSpring();
   const seatEase = SEAT.createSeatEase();
+  let freeShare = 0;
   const frames = [];
   let lastT = null;
   const gravity = E.flightGravity(state.rules);
@@ -178,7 +194,22 @@ function rideStage(id) {
         : seatEase.towing > 0
           ? { share: seatEase.towing, y: 0, tow: true }
           : null;
-    const pose = SEAT.seatedPose(input, seat);
+    // A snowboarder off the town's walk is posed as the board's model poses
+    // him (`board-lift.ts`): sat on a chair with the board hung off his
+    // front foot, on a cabin's bench, towed side-on — his walk is the
+    // skier's own keys.
+    let pose;
+    if (c.spec.board && !c.town) {
+      const bi = BI.boardInputOf(c, legs, c.q).input;
+      freeShare = BP.easeFree(freeShare, bi.free, dt);
+      bi.freeShare = freeShare;
+      pose = BL.boardLiftPose(bi, {
+        seated: seatEase.seated,
+        towing: seatEase.towing,
+        y: BL.BOARD_SEAT_Y,
+        cabin,
+      }).pose;
+    } else pose = SEAT.seatedPose(input, seat);
     // The drawn origin: the pair's pivot under him turned with him.
     const pv = rot(c.q, { x: stand.pivot.x, y: stand.pivot.y, z: 0 });
     const at = { ...c, x: c.x + pv.x, y: c.y + pv.y, z: c.z + pv.z, q: { ...c.q } };

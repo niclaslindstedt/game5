@@ -112,6 +112,11 @@ const args = parseArgs(
       default: "lane",
       help: "with --board, how he rolls into the ring: lane (facing in), wrong (from the corral's side, facing away), side (across)",
     },
+    skis: {
+      kind: "string",
+      default: "",
+      help: "the pair he rides by its id (lynx: the snowboard); the reference skis when left out",
+    },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
     height: { kind: "number", default: 720, help: "a frame's height, px" },
@@ -121,7 +126,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--run=id] [--board=kind | --strip=stage,…] [--camera=rung] [--at=s,…] [--skip-build]",
+  "usage: node scripts/lift-ride-preview.mjs [--seed=n] [--region=id] [--spot=x,z] [--run=id] [--board=kind | --strip=stage,…] [--camera=rung] [--at=s,…] [--skis=id] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -227,6 +232,7 @@ for (const strip of strips) {
     scale: String(strip ? Math.min(args.scale, 0.3) : args.scale),
     ...(args.spot ? { spot: args.spot } : {}),
     ...(args.run ? { run: args.run } : {}),
+    ...(args.skis ? { skis: args.skis } : {}),
   }).toString();
   await page.goto(`${server.url}lift-ride-preview.html?${query}`);
   await page.waitForFunction("window.__liftRide !== undefined");
@@ -234,7 +240,8 @@ for (const strip of strips) {
   const t0 = Date.now();
   const shot = await page.evaluate(() => globalThis.__liftRide.sheet());
   if (crashed) process.exit(1);
-  const region = args.region === "alpine" ? "" : `-${args.region}`;
+  const region =
+    (args.region === "alpine" ? "" : `-${args.region}`) + (args.skis ? `-${args.skis}` : "");
   const stem = strip
     ? `lift-strip-${strip}-${args.seed}${region}`
     : args.out ||

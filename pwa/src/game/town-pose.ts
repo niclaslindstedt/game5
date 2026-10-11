@@ -356,3 +356,76 @@ export function townPose(m: TownMove, ground: number, frame: BodyFrame, pole: nu
   p.grips = [local(grips[0]), local(grips[1])];
   return p;
 }
+
+/** How far the pair has come up into the carry, 0 on the snow or in his
+ * hands … 1 carried: swung up after the pick, carried walking, and swung
+ * down again in the drop. */
+export function carryShare(m: TownMove): number {
+  if (m.phase === "pick") return span(m.k, TOWN_KEYS.swing[0], 1);
+  if (m.phase === "drop") return 1 - span(m.k, TOWN_KEYS.unswing[0], TOWN_KEYS.unswing[1]);
+  return m.phase === "out" || m.phase === "clip" ? 0 : 1;
+}
+
+/** A deck as a frame — its base's middle, its nose's way, out of its top
+ * and to its right (`board-pose.ts`'s `BoardFrame`, restated here so the
+ * town needs nothing of the board's look). */
+export type CarriedDeck = { centre: V3; along: V3; normal: V3; right: V3; bend: number };
+
+const crossV = (a: V3, b: V3): V3 =>
+  v(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+
+/** THE SNOWBOARDER IN TOWN (or through a gondola's station): the town's
+ * beats with empty hands — the board where the engine lays the pair (the
+ * two skis' middle: on the snow, in his hands) and, carried, UNDER HIS ARM
+ * on his rear-foot side (`arm`, in the on-foot frame), the hand on that
+ * side round its lower edge (`hand`). The pose and the deck are written in
+ * the frame its trunk makes (`frame`), as `townPose`'s are. `laid` lifts
+ * the deck lying on the street onto its drawn crown, m over where the
+ * figure stands (`skiLift`'s laid height less `townLift`'s). */
+export function boardTownPose(
+  m: TownMove,
+  ground: number,
+  frame: BodyFrame,
+  arm: CarriedDeck,
+  hand: { i: 0 | 1; at: V3 },
+  laid = 0,
+): { pose: SkierPose; deck: CarriedDeck } {
+  const { key } = townKey(m, 1.2);
+  const carry = carryShare(m);
+  const [a, b] = m.skis;
+  const laidAlong = norm(add(a.d, b.d));
+  let laidUp = add(a.u, b.u);
+  laidUp = norm(sub(laidUp, scale(laidAlong, dot(laidUp, laidAlong))));
+  const along = norm(mix(laidAlong, arm.along, carry));
+  let normal = mix(laidUp, arm.normal, carry);
+  normal = norm(sub(normal, scale(along, dot(normal, along))));
+  const deck: CarriedDeck = {
+    centre: add(mix(mix(a.b, b.b, 0.5), arm.centre, carry), v(0, laid * (1 - carry), 0)),
+    along,
+    normal,
+    right: norm(crossV(normal, along)),
+    bend: 0,
+  };
+  // The carrying hand round the deck's edge; the other hangs free.
+  key.hands = [...key.hands] as [V3, V3];
+  key.hands[hand.i] = mix(key.hands[hand.i], hand.at, carry);
+  const o = (1 - hand.i) as 0 | 1;
+  key.hands[o] = mix(key.hands[o], v(o ? 0.3 : -0.3, 0.88, 0.12), carry);
+  const p = ragdollPose(keyPoints(key, ground), frame);
+  const local = (q: V3): V3 => {
+    const d = sub(v(q.x, q.y + ground, q.z), frame.origin);
+    return v(dot(d, frame.x), dot(d, frame.y), dot(d, frame.z));
+  };
+  const turn = (d: V3): V3 => v(dot(d, frame.x), dot(d, frame.y), dot(d, frame.z));
+  p.poles = null;
+  return {
+    pose: p,
+    deck: {
+      centre: local(deck.centre),
+      along: turn(deck.along),
+      normal: turn(deck.normal),
+      right: turn(deck.right),
+      bend: 0,
+    },
+  };
+}

@@ -41,7 +41,7 @@
 
 import {
   createGame,
-  skisById,
+  pairById,
   riderById,
   withRider,
   step,
@@ -196,7 +196,7 @@ export function createRunBook(world: GhostWorld): RunBook {
         seed: state.seed,
         mode: saved.mode,
         laps: saved.laps,
-        spec: withRider(skisById(saved.skis), riderById(saved.rider ?? "medium")),
+        spec: withRider(pairById(saved.skis), riderById(saved.rider ?? "medium")),
         assist: saved.assist,
         poles: saved.poles ?? true,
         quiet: true,

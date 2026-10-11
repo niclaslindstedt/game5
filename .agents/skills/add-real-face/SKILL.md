@@ -76,7 +76,9 @@ stations the leant lifts end in). Load **`write-code`** beside them and
   loaders; under 100 bytes compressed). There is NO CAP on the count: the
   player downloads the index and the parts he picks, nothing more. A
   thousand parts is about 0.4 MB of index in the bundle and
-  30 MB in the tree. If a new face's hints are far over the others', it is
+  30 MB in the tree. The generated real-face data may take AT LEAST
+  2 MB in the tree (the owner's budget); measure the total after a batch
+  and raise it with the owner before going past it. If a new face's hints are far over the others', it is
   a crop holding a town — check the houses' count first: `real-houses.ts`
   stands EVERY one that fits (no tier is capped), so a big town is
   thousands of buildings, a few seconds of the placer's time and a valley

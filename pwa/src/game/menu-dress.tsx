@@ -18,11 +18,11 @@
 // more than a look, so the card says what it costs under the rows.
 
 import { useEffect, useRef } from "preact/hooks";
-import { skisById, type SkiId } from "@engine";
+import { SKIS, isBoardId, pairById, raceSkisOf, type GameMode, type PairId } from "@engine";
 
 import { MenuBody, MenuHead, StepRow, type Stop } from "./menu-knobs.tsx";
 import { SkisPage } from "./menu-skis.tsx";
-import type { Settings } from "./settings.ts";
+import { boardAllowed, type Settings } from "./settings.ts";
 import { carriesPoles, GEAR, GEAR_SLOTS, type GearSlot, type Outfit } from "./outfit.ts";
 import type { SkisTurntable } from "./ski-turntable.ts";
 import { STRINGS } from "./strings.ts";
@@ -40,7 +40,7 @@ const STOPS = Object.fromEntries(
 
 /** THE SKIER ON HIS STAND, framed on him. Its three.js is a chunk of its
  * own, pulled in as the ski card's is. */
-function DressStand({ skis, outfit }: { skis: SkiId; outfit: Outfit }) {
+function DressStand({ skis, outfit }: { skis: PairId; outfit: Outfit }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const standRef = useRef<SkisTurntable | null>(null);
   const wanted = useRef({ skis, outfit });
@@ -53,7 +53,7 @@ function DressStand({ skis, outfit }: { skis: SkiId; outfit: Outfit }) {
       await loadModels();
       if (disposed) return;
       standRef.current = createSkisTurntable(canvas, "skier");
-      standRef.current.setSkis(skisById(wanted.current.skis), wanted.current.outfit);
+      standRef.current.setSkis(pairById(wanted.current.skis), wanted.current.outfit);
     });
     const onResize = (): void => standRef.current?.resize();
     window.addEventListener("resize", onResize);
@@ -64,7 +64,7 @@ function DressStand({ skis, outfit }: { skis: SkiId; outfit: Outfit }) {
       standRef.current = null;
     };
   }, []);
-  useEffect(() => standRef.current?.setSkis(skisById(skis), outfit), [skis, outfit]);
+  useEffect(() => standRef.current?.setSkis(pairById(skis), outfit), [skis, outfit]);
   return (
     <div class="dress-stage" role="presentation">
       <canvas ref={canvasRef} class="skis-pick-canvas" />
@@ -78,12 +78,13 @@ export function DressPage({
   onOutfit,
   onBack,
 }: {
-  skis: SkiId;
+  skis: PairId;
   outfit: Outfit;
   onOutfit: (outfit: Outfit) => void;
   /** Back to the ski card, which is the way in. */
   onBack: () => void;
 }) {
+  const board = isBoardId(skis);
   return (
     <div class="menu-card menu-card-dress">
       <MenuHead
@@ -106,7 +107,8 @@ export function DressPage({
         <div class="dress-body">
           <DressStand skis={skis} outfit={outfit} />
           <div class="dress-rows">
-            {GEAR_SLOTS.map((slot) => (
+            {/* A snowboard is ridden with empty hands: no POLES row. */}
+            {GEAR_SLOTS.filter((slot) => slot !== "poles" || !board).map((slot) => (
               <StepRow
                 key={slot}
                 label={STRINGS.dressSlots[slot]}
@@ -115,7 +117,7 @@ export function DressPage({
                 onPick={(id) => onOutfit({ ...outfit, [slot]: id })}
               />
             ))}
-            {!carriesPoles(outfit) && (
+            {!carriesPoles(outfit) && !board && (
               <p class="dress-note" role="note" data-menu="dress-no-poles">
                 {STRINGS.dressNoPoles}
               </p>
@@ -129,10 +131,13 @@ export function DressPage({
 
 /** THE SKI CARD AND THE DRESS CARD behind it, as the shell routes them: the
  * pair is `settings.skis` (`onLink` drops a link's pair once one is
- * picked), the kit `settings.outfit`. */
+ * picked), the kit `settings.outfit`. The snowboard is offered only for a
+ * mode with a free choice of pair (`boardAllowed`); a race or a contest
+ * opened over a board picked for a free ride shows its own pair. */
 export function SkisCards(p: {
   page: "skis" | "dress";
-  skis: SkiId;
+  mode: GameMode;
+  skis: PairId;
   settings: Settings;
   onSettings: (f: (s: Settings) => Settings) => void;
   onLink: () => void;
@@ -140,10 +145,12 @@ export function SkisCards(p: {
   onBack: () => void;
   onRide: () => void;
 }) {
+  const boards = boardAllowed(p.mode);
+  const skis = !boards && isBoardId(p.skis) ? (raceSkisOf(p.mode) ?? SKIS.id) : p.skis;
   if (p.page === "dress") {
     return (
       <DressPage
-        skis={p.skis}
+        skis={skis}
         outfit={p.settings.outfit}
         onOutfit={(outfit) => p.onSettings((s) => ({ ...s, outfit }))}
         onBack={() => p.onPage("skis")}
@@ -152,7 +159,8 @@ export function SkisCards(p: {
   }
   return (
     <SkisPage
-      skis={p.skis}
+      skis={skis}
+      boards={boards}
       outfit={p.settings.outfit}
       onPick={(skis) => {
         p.onLink();

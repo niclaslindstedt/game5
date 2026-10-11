@@ -198,12 +198,12 @@ export function App() {
   const [linkSkis, setLinkSkis] = useState(params.skis);
   const linkSkisRef = useRef(linkSkis);
   linkSkisRef.current = linkSkis;
-  /** The pair the player skis, under his build (`specFor`). */
-  const specOf = (s: Settings): SkiSpec => specFor(s, linkSkisRef.current);
+  /** The pair the player skis under his build (`specFor`); `mode` may refuse a board. */
+  const specOf = (s: Settings, mode?: GameMode): SkiSpec => specFor(s, linkSkisRef.current, mode);
   /** Who skis the player's runs, and with what: the pair, the help, the
    * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
-  const skierOf = (s: Settings): PinnedSkier => ({
-    spec: specOf(s),
+  const skierOf = (s: Settings, mode?: GameMode): PinnedSkier => ({
+    spec: specOf(s, mode),
     assist: assistOf(s.assist),
     damage: s.damage,
     gore: injuriesShown(s, shellContent()),
@@ -334,7 +334,7 @@ export function App() {
     const freeBoot = (): GameState => {
       const s = settingsRef.current;
       const seed = params.seed ?? s.ride.seed ?? FIRST_FREE_SEED;
-      const ride = freeGameOptions(s.ride, seed, skierOf(s));
+      const ride = freeGameOptions(s.ride, seed, skierOf(s, "free"));
       // A link's sky (`?weather=` / `?hour=`) and region over the card's.
       const opts = overLink(ride, params);
       try {
@@ -343,7 +343,7 @@ export function App() {
         return game;
       } catch (e) {
         error(`seed ${seed} would not build (${e instanceof Error ? e.message : String(e)})`);
-        return raceOrFallback(1, { ...skierOf(s), mode: "slalom" });
+        return raceOrFallback(1, { ...skierOf(s, "slalom"), mode: "slalom" });
       }
     };
     // A race a link boots into is the player's, with the player's help; the
@@ -352,7 +352,7 @@ export function App() {
       ? freeBoot()
       : raceOrFallback(
           raceSeed,
-          params.rides ? { ...skierOf(settingsRef.current), mode: params.mode } : null,
+          params.rides ? { ...skierOf(settingsRef.current, params.mode), mode: params.mode } : null,
           linkWorld(params),
         );
     // A link's SECOND RUN (`?run=2`): the first skied by the bot to its flag.
@@ -369,7 +369,7 @@ export function App() {
         ...linkWorld(params),
         mode,
         training: mode === "downhill" ? true : undefined,
-        ...skierOf(settingsRef.current),
+        ...skierOf(settingsRef.current, mode),
       });
     /** What a player's run is filed under — nothing for a run the bot rides
      * from the line (`?bot=1`), which is nobody's time, nothing for a mode
@@ -855,7 +855,7 @@ export function App() {
    * pause card's PISTE MAP's), on the pair the ski card holds. */
   const freeRide = (ride = settings.ride): void => {
     setPage("root");
-    pressRef.current.free(freeGameOptions(ride, ride.seed ?? startSeed, skierOf(settings)));
+    pressRef.current.free(freeGameOptions(ride, ride.seed ?? startSeed, skierOf(settings, "free")));
   };
   /** Out of the run to the level card a pinned map is picked on. */
   const toLevels = (): void => (pressRef.current.toMenu(), setPage("levels"));

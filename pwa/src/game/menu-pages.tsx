@@ -6,7 +6,7 @@
 // `App.tsx` routes them with one element: which card is up is the page, and
 // what each press does is the app's, handed in.
 
-import type { GameMode, SkiId } from "@engine";
+import type { GameMode, PairId } from "@engine";
 
 import type { DevApp } from "./dev-app.tsx";
 import { DevPages } from "./menu-dev.tsx";
@@ -36,7 +36,7 @@ export function MenuPages(p: {
   mode: GameMode;
   settings: Settings;
   setSettings: (next: Settings | ((s: Settings) => Settings)) => void;
-  skis: SkiId;
+  skis: PairId;
   picks: MapPicks;
   standing: (key: RecordKey) => RunRecord | null;
   /** The seed a link pinned, or null. */
@@ -118,6 +118,7 @@ export function MenuPages(p: {
       ) : page === "skis" || page === "dress" ? (
         <SkisCards
           page={page}
+          mode={p.mode}
           skis={p.skis}
           settings={settings}
           onSettings={setSettings}

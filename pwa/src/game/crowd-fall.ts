@@ -21,6 +21,8 @@
 import { CROWD, type Amateur } from "@engine";
 
 import { CROWD_LOOKS, fromPlayer, mapPosed, poseCrowd, type Posed, type V3 } from "./crowd-rig.ts";
+import { boardUnderFeet } from "./board-pose.ts";
+import { boardPosed, CROWD_BOARD, poseBoard } from "./crowd-board.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { MOUNTS } from "./skier-pose.ts";
 import { smooth } from "./skier-stroke.ts";
@@ -74,10 +76,19 @@ const frame: BodyFrame = {
 
 /** THE BODY AS IT LIES: the ragdoll's `points` (world frame) read as the
  * crowd's joints of `body`, in the world frame less `anchor`. */
-export function lyingPose(points: readonly number[], body: Amateur["body"], anchor: V3): Posed {
+export function lyingPose(
+  points: readonly number[],
+  body: Amateur["body"],
+  anchor: V3,
+  board = false,
+): Posed {
   const look = CROWD_LOOKS[body];
   const pose = ragdollPose(points, frame);
-  const local = fromPlayer(pose, look);
+  // A rider's board stays on: laid along his feet, its top square to his
+  // shins (`boardUnderFeet`, the player's own).
+  const local = board
+    ? boardPosed(pose, boardUnderFeet(pose, CROWD_BOARD), look)
+    : fromPlayer(pose, look);
   const k = look.height / REFERENCE_HEIGHT;
   const lift = MOUNTS.ground * k;
   const o = frame.origin;
@@ -95,7 +106,7 @@ export function lyingPose(points: readonly number[], body: Amateur["body"], anch
       oz + X.z * p[0] + Y.z * y + Z.z * p[2],
     ];
   });
-  return laidSkis(world);
+  return board ? world : laidSkis(world);
 }
 
 /**
@@ -241,17 +252,26 @@ function blendPosed(a: Posed, b: Posed, t: number): Posed {
  * frame less `anchor`. Null when he is on his skis.
  */
 export function fallenPose(
-  a: Pick<Amateur, "body" | "thrown" | "rise">,
+  a: Pick<Amateur, "body" | "thrown" | "rise" | "board">,
   stand: StandFrame,
   anchor: V3,
 ): Posed | null {
   if (!a.thrown) return null;
-  const lying = lyingPose(a.thrown.points, a.body, anchor);
+  const board = a.board !== null;
+  const lying = lyingPose(a.thrown.points, a.body, anchor, board);
   if (a.rise <= 0) return lying;
   const look = CROWD_LOOKS[a.body];
   const u = Math.min(1, a.rise / CROWD.fall.rise);
-  const crouched = placed(poseCrowd(look, { crouch: 1 }), stand, anchor);
+  // A rider gathers onto his board as one on skis onto his skis — a goofy
+  // one mirrored, as he is drawn.
+  const side = a.board === "goofy" ? -1 : 1;
+  const mirrored = (p: Posed): Posed => (side > 0 ? p : mapPosed(p, (q) => [-q[0], q[1], q[2]]));
+  const shape = (crouch: boolean): Posed =>
+    board
+      ? mirrored(poseBoard(look, crouch ? { crouch: 1 } : {}))
+      : poseCrowd(look, crouch ? { crouch: 1 } : {});
+  const crouched = placed(shape(true), stand, anchor);
   if (u < RISE.gather) return blendPosed(lying, crouched, smooth(u / RISE.gather));
-  const stood = placed(poseCrowd(look), stand, anchor);
+  const stood = placed(shape(false), stand, anchor);
   return blendPosed(crouched, stood, smooth((u - RISE.gather) / (1 - RISE.gather)));
 }

@@ -35,6 +35,7 @@ import {
   type Posed,
   type V3,
 } from "./crowd-rig.ts";
+import { boardTargets } from "./crowd-board.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape } from "./tree-mesh.ts";
 
@@ -206,6 +207,46 @@ export class Figure {
     this.s.quad(add(tl, down), tl, pl, add(pl, down), SHADE, norm(mul(r, -1)));
     this.s.quad(tr, add(tr, down), add(pr, down), pr, SHADE, norm(r));
   }
+  /** A SNOWBOARD (`crowd-board.ts`): one plank as wide as `sk.side` says,
+   * its top in the board's colour, its nose and tail both kicked up — a
+   * twin — and its edges a shade under on the near cut. */
+  board(sk: { tail: V3; tip: V3; mid: V3; side: V3 }, lod: CrowdLod): void {
+    const f = norm(sub(sk.tip, sk.tail));
+    const r = sub(sk.side, sk.mid);
+    const n = norm(cross(f, norm(r)));
+    const lift = mul(n, 0.025);
+    const half = Math.hypot(...sub(sk.tip, sk.mid));
+    // The kick starts this far in from each end.
+    const kick = mul(f, half * 0.16);
+    const nr = mul(r, 0.82);
+    const tl = add(sub(add(sk.tail, kick), r), lift);
+    const tr = add(add(add(sk.tail, kick), r), lift);
+    const pl = add(sub(sub(sk.tip, kick), r), lift);
+    const pr = add(add(sub(sk.tip, kick), r), lift);
+    this.slot(DRESS_SLOT.skis);
+    this.s.quad(tl, tr, pr, pl, FULL, n);
+    const rise = mul(n, 0.07);
+    if (lod === "far") {
+      this.s.quad(
+        pl,
+        pr,
+        add(add(pr, kick), rise),
+        add(add(pl, kick), rise),
+        FULL,
+        norm(sub(n, f)),
+      );
+      return;
+    }
+    // The nose and the tail turned up, narrowing to their rounded ends.
+    const nose = add(add(sk.tip, lift), rise);
+    const tail = add(sub(sk.tail, mul(f, 0)), add(lift, rise));
+    this.s.quad(pl, pr, add(nose, nr), sub(nose, nr), FULL, norm(sub(n, f)));
+    this.s.quad(sub(tail, nr), add(tail, nr), tr, tl, FULL, norm(add(n, f)));
+    if (lod !== "near") return;
+    const down = mul(n, -0.025);
+    this.s.quad(add(tl, down), tl, pl, add(pl, down), SHADE, norm(mul(r, -1)));
+    this.s.quad(tr, add(tr, down), add(pr, down), pr, SHADE, norm(r));
+  }
 }
 
 /** A posed body's two frames: its hips' and its chest's. */
@@ -347,17 +388,39 @@ export function cutOf(lod: CrowdLod): (typeof CUT)[CrowdLod] {
 
 /** Build one pose of a body at a cut. The same calls in the same order
  * for every pose: what differs is where the joints are. */
-function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
-  const cut = CUT[lod];
-  const H = look.height;
-  const k = H / 1.8;
+function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod, board = false): void {
+  const k = look.height / 1.8;
   const { hips, chest } = bodyFrames(P);
-  const own = DRESS_SLOT.own;
 
-  // ── The skis and the boots ─────────────────────────────────────────────
+  // ── The board and its soft boots, or the skis and theirs ──────────────
+  if (board) emitBoard(fig, P, k, lod, hips);
+  else emitSkis(fig, P, k, lod, hips);
+  emitLegs(fig, P, look, lod, hips);
+  emitTrunk(fig, P, look, lod, hips, chest);
+  emitArms(fig, P, look, lod, chest, look.poles && !board);
+  emitHead(fig, P, look, lod, chest);
+}
+
+/** A rider's board and his two soft boots, stood in its bindings: each
+ * boot from the cuff down to the deck under it, bulkier than a ski boot. */
+function emitBoard(fig: Figure, P: Posed, k: number, lod: CrowdLod, hips: Frame): void {
+  fig.board(P.skiL, lod);
+  if (lod === "far") return;
+  const sk = P.skiL;
+  const n = norm(cross(norm(sub(sk.tip, sk.tail)), norm(sub(sk.side, sk.mid))));
+  fig.slot(DRESS_SLOT.own);
+  for (const ankle of [P.ankleL, P.ankleR]) {
+    // The sole on the deck: the cuff dropped onto the board's plane.
+    const drop = dot(sub(ankle, sk.mid), n) - 0.03;
+    fig.limb(ankle, sub(ankle, mul(n, drop)), hips.r, 0.066 * k, 0.08 * k, 4, BOOT);
+  }
+}
+
+/** The two skis and the boots on them. */
+function emitSkis(fig: Figure, P: Posed, k: number, lod: CrowdLod, hips: Frame): void {
   fig.ski(P.skiL, lod);
   fig.ski(P.skiR, lod);
-  fig.slot(own);
+  fig.slot(DRESS_SLOT.own);
   for (const [ankle, sk] of lod === "far"
     ? []
     : ([
@@ -375,11 +438,12 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
       BOOT,
     );
   }
-  emitLegs(fig, P, look, lod, hips);
-  emitTrunk(fig, P, look, lod, hips, chest);
-  emitArms(fig, P, look, lod, chest, look.poles);
+}
 
-  // ── The head, and what is on it ───────────────────────────────────────
+/** The head, and what is on it. */
+function emitHead(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod, chest: Frame): void {
+  const cut = CUT[lod];
+  const own = DRESS_SLOT.own;
   const r = look.head;
   const head = frameOf(chest.r, sub(P.head, P.neck));
   const at = (u: number, f = 0): V3 => add(add(P.head, mul(head.u, u * r)), mul(head.f, f * r));
@@ -457,18 +521,23 @@ function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod): void {
 
 const built = new Map<string, THREE.BufferGeometry>();
 
-/** ONE BODY AT ONE CUT, standing, with every pose of `CROWD_POSES` as a
+/** ONE BODY AT ONE CUT, standing — on skis, or on a board (`board`, its
+ * targets `BOARD_POSES`) — with every pose of `CROWD_POSES` as a
  * relative morph target (positions and normals), and `aSlot` on every
  * vertex. Built once a session and shared; the caller adds the instance
  * attributes to a clone. */
-export function buildCrowdFigure(body: CrowdBody, lod: CrowdLod): THREE.BufferGeometry {
-  const key = `${body}:${lod}`;
+export function buildCrowdFigure(
+  body: CrowdBody,
+  lod: CrowdLod,
+  board = false,
+): THREE.BufferGeometry {
+  const key = `${body}:${lod}${board ? ":board" : ""}`;
   const cached = built.get(key);
   if (cached) return cached;
   const look = CROWD_LOOKS[body];
-  const shapes = crowdTargets(look).map((pose) => {
+  const shapes = (board ? boardTargets(look) : crowdTargets(look)).map((pose) => {
     const fig = new Figure();
-    emit(fig, pose, look, lod);
+    emit(fig, pose, look, lod, board);
     return fig.s.geometry();
   });
   const base = shapes[0];
@@ -503,9 +572,10 @@ export function poseCrowdFigure(
   lod: CrowdLod,
   pose: Posed,
   into: THREE.BufferGeometry,
+  board = false,
 ): void {
   const fig = new Figure();
-  emit(fig, pose, CROWD_LOOKS[body], lod);
+  emit(fig, pose, CROWD_LOOKS[body], lod, board);
   const g = fig.s.geometry();
   for (const name of ["position", "normal"] as const) {
     const to = into.getAttribute(name) as THREE.BufferAttribute;
@@ -519,8 +589,8 @@ export function poseCrowdFigure(
 }
 
 /** How many triangles a body's cut is. */
-export function crowdTriangles(body: CrowdBody, lod: CrowdLod): number {
-  return buildCrowdFigure(body, lod).getAttribute("position").count / 3;
+export function crowdTriangles(body: CrowdBody, lod: CrowdLod, board = false): number {
+  return buildCrowdFigure(body, lod, board).getAttribute("position").count / 3;
 }
 
 /** THE CROWD'S MATERIAL: Lambert, vertex-coloured, in the haze, every

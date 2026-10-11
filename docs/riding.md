@@ -53,7 +53,7 @@ AGAINST ANOTHER SKIER the exchange is shared by the riders' weights (`shoulderSh
 
 ## The board (`defs/boards.ts`)
 
-A SNOWBOARD is a pair to the engine: a sidecut on the snow under a rider whose legs are the only suspension, read by the skis' own model. What makes it a board is `SkiSpec.board` (`BoardFit`), and `isBoard` / `pairById` / `BOARD_CATALOG` beside the skis. It is ridden only where a run asks for one by its id (the labs and the suite), because it has no figure yet: it is not in `SKI_CATALOG`, so it is on no card, in no field and among no models, and `isSkiId` still says no to it. The record book and the ghosts read a pair's id with `isPairId`, so a board's run is kept like any other.
+A SNOWBOARD is a pair to the engine: a sidecut on the snow under a rider whose legs are the only suspension, read by the skis' own model. What makes it a board is `SkiSpec.board` (`BoardFit`), and `isBoard` / `pairById` / `BOARD_CATALOG` beside the skis. It is not in `SKI_CATALOG`, so it is in no field and among no models, and `isSkiId` still says no to it; the player picks it on the ski card where a run lets a free pick of pair — the free ride and the park run (the app's `boardAllowed`: a run whose mode has no pair of its own, `raceSkisOf`) — and a race or a contest rides its own pair whatever is picked (`specFor`). Settings and links read a pair's id with `isPairId`, and so do the record book and the ghosts, so a board's run is kept like any other. ON A LIFT the engine keeps the rear foot out of its binding (`SkierState.board.free`) from the load zone to the top, and the one-foot glide straps it back in once he is going again (`board-moves.ts`); everything else of the ride is the skis' (`lift-ride.ts`), and the drawing poses him (`board-lift.ts`): sat on a chair with the board hung off the strapped-in front foot, its tail down and turned some 45° off the line by the binding's angle, the free rear foot resting on the deck by the rear binding; towed side-on by a T-bar with the bar behind the front thigh (`BOARD_TOW`); on a cabin's bench with the board in the rack the engine stands the pair in; and on foot — through a gondola's station and in town — with the board under his arm on his rear-foot side (`underArmFrame`). The rear foot comes out and goes back in over a quarter of a second as drawn (`easeFree`).
 
 THE LYNX is the one board. It is an all-mountain twin, each number inside its class's band:
 
@@ -129,9 +129,46 @@ The ride lab's scenarios for these (`scripts/lib/ride-board-moves.mjs`, ridden o
 
 THE BOT AND SEED 6. The bot plans every turn on the heel already — `cornerGrip`, `carveSpeedOf` and `tipLimit` read side 0 as the heel — so planning a heelside turn on the heel's weaker grip changes nothing: scaling its grip and braking further by the heel's share of the edge still misses seed 6's gate 16, and slower. The miss is the bot near the piste's edge on a 25–30° pitch skidding on full brake on its heel edge, the pitch outrunning the brake, turning too late and passing about 3 m outside the gate's end. It is a steering and braking matter, left open. Out of the start the bot pushes with the one-foot skate like any rider.
 
+### The snowboarder as drawn (`board-look.ts`, `board-body.ts`, `board-pose.ts`, `board-model.ts`)
+
+A board in the catalog (`isBoard`) is drawn by `board-model.ts` in place of the skis — `createSkisModel` hands it over on its first line, so no pair of skis moves. THE BOARD is built in code: a lofted deck off the spec's outline (the sidecut, the kicked nose and tail, the camber), its topsheet, base and sidewall painted into one small texture (`board-look.ts`'s `LYNX_SHEET`), tipped by the engine's edge and BOWED by the carve (`boardBend`: the edge over the sidecut, by the load); two STRAP BINDINGS set at the stance's angles (a baseplate on its disc, the heel cup, a highback leaned forward, a ratcheted ankle strap and a toe strap); SOFT BOOTS in them (a broad sole, a padded cuff, the tongue and laces). The parts are merged per colour; the deck is one mesh of its own. The engine's stations stand a centimetre or two into even the groomer, which would hide a deck lying flat; the deck is drawn on the snow's surface (`board-input.ts` lifts it by the stations' mean sink), and the trail map's groove under it carries the sink. A board's fall is a WIPEOUT in the news, never a YARD SALE: nothing comes off a board.
+
+THE RIDER is posed by the three-free `board-pose.ts` off what `board-input.ts` reads of the engine (the edge, the inclination, the legs' spring, the tuck, the air, a hit, the skid, the travel, fakie, the free foot) into the same `SkierPose` the skier's figure is drawn from, his poles put away:
+
+- the ATHLETIC STANCE across the board: the knees bent about 50°, the hips over the deck and square to it, the shoulders opened a little toward the nose, the eyes along his travel;
+- A CARVE IS CARRIED BY THE INCLINATION: the figure's root is already rolled onto the line the engine inclines him along, so the body stays one long line from the edge, tall-ish, and is never folded at the waist or put down on his knees. TOESIDE: the knees and ankles driven into the hill, the hips over the toes, the chest facing up the slope, both arms forward at waist height. HEELSIDE: the hips low over the heel edge as on a chair (the knees 70–100°), the chest open down the hill, the front arm pointing down the turn and the rear hand trailing low. Only on a turn cut hard does a hand go toward the snow (the front one toeside, the rear one heelside), and never both. The hips are set across the board as the DECK lies, not as the inclined column does, so where the engine's inclination and edge differ he stands over the edge instead of sitting down behind it;
+- the TUCK down over the front knee; the AIR with the knees drawn up and the arms out; a LANDING folded into the legs; the HOP lifting him off the snow;
+- the ONE-FOOT SKATE with the rear foot out of its binding pushing beside the board, the PIVOT, the SIDESLIP and the FALLING LEAF on the edge, FAKIE looking over the other shoulder;
+- THROWN, the ragdoll's pose with the board kept on his feet (`boardUnderFeet`: the deck laid along his feet, its bindings under his boots).
+
+`make board-metrics` rides each moment in Node and measures it against bands from the snowboarding research:
+
+- the knees: 30–80° riding, 50–95° on a heelside carve and 60–105° on one cut hard, deeper in a tuck and a landing;
+- the hips' line within ~20° of the board, the shoulders' within ~30°;
+- the eyes within ~45° of his travel;
+- the spine within ~30° of the line he inclines along;
+- the hips' height over the deck at least 0.6 of their height on straight legs;
+- the hands on the snow: none, and at most one in a turn cut hard;
+- the lower hand's height, and the hips over the working edge.
+
+Every moment is inside its bands. `make board` draws the gear sheet; `make skier ARGS=--skis=lynx` the rider through every move. `tests/board_pose_test.ts` holds the pose.
+
 Still to come:
 
-- the figure (the free foot, the skate's push, the sideslip's stance, the leaf, the slam and the faceplant drawn), and the app's words for a board's fall into a trunk — it still says YARD SALE.
+- at the engine's inclination (about 45–50° in a hard carve) the heelside rear hand cannot reach the snow from a body kept on its inclined line; it trails some 0.35 m over it.
+
+### A snowboarder's tricks (`board-tricks.ts`, `board-grab.ts`)
+
+A board rides the same strokes and is paid by the same score as a pair of skis (below); only the NAMES and the figure are its own, and nothing of it is read on skis, so no ski run's score, words or digest move.
+
+- **THE GRABS** (`boardGrabOf`): with the trick button held in the air, the lean picks the hand — forward a front-hand grab, back a rear-hand one — and the edge picks the edge, toward his toes or his heels (a regular rider faces his board's right; a goofy one and a rider riding switch face the other way, so the toes are the other way of the steer). The button alone is the INDY (the rear hand on the toe edge between the feet); the edge to the toes is the MUTE (the front hand there); to the heels the MELON (the front hand on the heel edge), with the lean back the STALEFISH (the rear hand round behind the rear leg) and with it forward the METHOD (the front hand on the heel edge, the board kicked up behind him); the lean alone is the NOSE or the TAIL grab. Each is paid as a skier's pose (150 and a step, held `poseHold` = 0.35 s, once a flight) and must be let go before the snow.
+- **THE SPINS** keep their strokes and are named by the way he faces (`spinSide`): FRONTSIDE when the turn opens his chest to the way he is going first, BACKSIDE when it turns his back to it — so a regular rider spins frontside anticlockwise from above, a goofy one clockwise, and a flight taken off riding switch swaps them and is a SWITCH spin. The side, the switch and the pop ride on the combo's part (`SpinTag`) and the words read them: BACKSIDE 360, SWITCH FRONTSIDE 540, NOLLIE BACKSIDE 180.
+- **THE OLLIE AND THE NOLLIE**: the jump's pop is the board's own, and the lean held as it springs says which end it came off (`popOf`: forward, the nose — a nollie; otherwise the tail); a flight popped off the nose names its spin NOLLIE. As drawn, a loaded pop sits him over that end and pitches the deck onto it.
+- **THE PRESS**: on the snow, the lean held past half at a crawl or a cruise on a flat base pitches the deck onto its nose or its tail as drawn (`pressOf`), the hips over that end. It moves nothing in the engine; a butter (a press pivoted round on the snow) is still to come.
+
+AS DRAWN (`board-grab.ts`'s `GRAB_LOOKS`): in the air the knees draw the board up under the hips, each grab TWEAKS it (the method's heel edge rolled up some 70°, the nose and tail grabs pitched onto the hand), the trunk folds toward the grab and the hand goes DOWN TO THE BOARD at the grab's place (the snowboard grab chart's), a fist's thickness off the edge; only where the arm cannot reach do the knees draw the board the rest of the way up (at most 0.3 m). The free arm is thrown out and up. A spin is wound up against its way while the jump is loaded and led by the head and the shoulders in the air. The grab is drawn in and let go over a fifth of a second (`easeGrab`).
+
+`make board ARGS=--sheet=grabs` draws every grab, the two loads, a spin and both presses from four sides (`previews/board-grabs.png`); `make board-metrics` measures each grab's hand to the board (every one 1.7–2.1 cm from the edge or end it closes on); `make ride` rides `board-indy` … `board-tail`, `board-bs360`, `board-fs360`, `board-switch-360` and `board-bs360-indy` and prints the combo as the HUD reads it. `tests/board_tricks_test.ts` holds the names and the pay.
 
 ## Where the skis meet the snow, and the legs (`suspension.ts`)
 

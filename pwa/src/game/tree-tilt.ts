@@ -103,3 +103,11 @@ export function treeTilt(
       : hash(x, z, 7) * 2 * Math.PI;
   return { angle, dx: Math.sin(heading), dz: Math.cos(heading) };
 }
+
+/** How far a trunk is turned about its own axis, radians — a hash of where
+ * it stands. `forest.ts` turns the tree by it and `tree-wells.ts` turns the
+ * stub under it the same, so the two meet face to face. */
+export function trunkYaw(x: number, z: number): number {
+  const s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+  return (s - Math.floor(s)) * Math.PI * 2;
+}

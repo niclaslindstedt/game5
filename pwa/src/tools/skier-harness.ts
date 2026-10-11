@@ -33,7 +33,7 @@
 // behind him whichever way the run took him.
 
 import * as THREE from "three";
-import { skisById, type SkierState, type TrickPose } from "@engine";
+import { pairById, type SkierState, type TrickPose } from "@engine";
 
 import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
@@ -143,7 +143,7 @@ async function load(): Promise<void> {
   ]);
   data = frames;
   const plain = <M extends THREE.Material>(m: M): M => m;
-  const spec = skisById(data.skis);
+  const spec = pairById(data.skis);
   model = createSkisModel(spec, pairStyle(spec, SLOT_DRESS[data.slot % SLOT_DRESS.length]), plain);
   model.root.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = true;

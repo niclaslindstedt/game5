@@ -21,11 +21,253 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 
 | Format | Kind | Built on | State |
 | --- | --- | --- | --- |
+| Ski jumping | distance + style ± wind and gate, two rounds | a jumping hill of its own | researched — spec `SKI_JUMPING.md`; replaces big air on the tricks card |
 | Halfpipe | judged runs, best run counts | a pipe of its own | BUILT in part (R39) — spec `HALFPIPE.md` |
 | Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R38) — spec `SLOPESTYLE.md` |
-| Big air | judged jumps, best two different | one jump | researched — spec `BIG_AIR.md` |
+| Big air | judged jumps, best two different | one jump | BUILT in part (R37), to be RETIRED for ski jumping — spec `BIG_AIR.md` |
 | Aerials | scored jumps × degree of difficulty | a jump site of its own | researched — spec `AERIALS.md` |
 | Moguls | turns + air + speed, one run | a mogul course | BUILT in part (R40) — spec `MOGULS.md` |
+
+## Ski jumping
+
+A skier rides a steep IN-RUN in two cut tracks, springs off a short
+downward-sloping TABLE at about 90 km/h and FLIES the slope below — a
+hundred metres and more, three or four metres over the snow, for four to
+five seconds — on the lift his body and his skis make spread in a V, and
+lands in a TELEMARK. Scored on the DISTANCE he flew, measured to the half
+metre, and the STYLE five judges see, with points given or taken for the
+wind he flew in and the gate he started from. Not a park format and not
+an impression: a formula over a measured hill.
+
+**The hills** [70, 71]. A hill is named by its HILL SIZE, HS — the distance
+from the edge of the take-off to the end of the landing area, the point L —
+and built round its CONSTRUCTION POINT K, at a distance w down the slope:
+
+| Class | HS | w (to K) |
+| --- | --- | --- |
+| Small | up to 49 m | up to 44 m |
+| Medium | 50–84 m | 45–74 m |
+| Normal | 85–109 m | 75–99 m |
+| Large | 110–149 m (the norm's band ends at 145) | 99–130 m |
+| Giant (new) | 150–184 m | — |
+| Flying | 185 m and over | 166 m and over |
+
+A large hill may drop no more than 88 m from the take-off to the lowest
+point of its out-run; that and the 1.8 g the transition may load a jumper
+with cap a large hill near w ≈ 130 m, HS ≈ 145 m [71]. A normal and a large
+hill built side by side differ by at least 25 m of HS [70]. The top series
+and the championships jump a normal hill of ~HS 106 (K 95) and a large hill
+of ~HS 140 (K 125); flying hills reach HS 240 and more.
+
+**The profile** [71, 72] — every element, and how the norm derives it (all
+lengths in m, speeds in m/s, angles in degrees). The two free choices are w
+and the hill's STEEPNESS, the ratio h/n of the height h and the horizontal
+distance n from the take-off to K; the TABLE ANGLE α then fixes the speed
+v₀ a good jumper needs to reach K in calm air, and the slope at K, β,
+follows from the landing impact allowed there.
+
+| Element | Rule or approximation |
+| --- | --- |
+| HS against w | HS = w / 0.9 (2018); HS = w + l₂, w ≈ 0.885·HS + 1.5 (2012) |
+| In-run angle γ | at most 37°, 35° recommended; at least 30° for w ≥ 90, 25° below; a straight part, a cubic-parabola transition, the table |
+| Table angle α | w/30 + 6.9 ≤ α ≤ w/30 + 7.9 (the design value w/30 + 7.4); a flatter table flies higher — ±0.5° moves an HS 145 flight's height between 3.3 and 3.7 m |
+| Transition radius at the table, r₁ | 0.14·(v₀ + 0.95)²; the load there at most 0.7 g over the weight |
+| Table length t | 0.25·(v₀ + 0.95) |
+| Table height over the knoll, s | 0.025·w, at least 0.70 m, never past w/40 |
+| In-run length, top gate A to the edge, e₁ | ≈ 92.3 − 1.517·γ + 0.426·HS — enough to reach K in a 3 m/s tail wind on a fast ice track |
+| Lowest gate B to the edge, e₂ | ≈ 67.3 − 0.944·γ + 0.331·HS — short enough that a good jumper stays short of L in a 4 m/s head wind |
+| The gates | numbered from 1 at the bottom, equally spaced, no more than 0.40 m of height apart |
+| Steepness h/n | w/800 + 0.400 ≤ h/n ≤ w/1000 + 0.480 |
+| h, n | h = w·sin(atan(h/n))/1.005, n = w·cos(atan(h/n))/1.005 (a distance is 1.005 × the chord) |
+| Speed landing at K, v_K | ≈ 0.68·v₀ + 12.44 |
+| Landing radius r_L (P to L, an arc open upward) | v_K²·w/380, at least v_K²/8, to ten metres |
+| Slope at P (the steepest point), β_P | β + 0.5·α − 2.5, never past 37° |
+| Slope at the knoll's foot, β₀ | β_P / 6 |
+| Slope at L, β_L | β − (1.4/v_K)·(180/π); typically 32° on a normal hill, 31° on a large one, 28° on a flying hill at HS [84] |
+| Length P–K, l₁; K–L, l₂ | l₁ = r_L·(β_P − β)·π/180; l₂ = 1.4·r_L/v_K |
+| The knoll, the take-off's foot to P | a cubic parabola, so the flight to K peaks about half way |
+| The transition L to U | a parabola, its radius r₂L at L and r₂ at U free between r_L and v∥²/(18 − 10·cos β_L); the load at most 1.8 g |
+| Out-run length a (level) | ≈ 18.9 + 1.113·w − 0.00482·w², at least 45 m (a second's run, 4.8 m/s² down to 18 m/s, a 20 m stop) |
+| Widths | in-run 2.5 m between its rails (w > 100); at the knoll's foot 0.06·w, at K 0.20·w, at U 0.22·w |
+| Judges' tower | 0.6–0.8·w along the axis from the edge, 0.25–0.5·w out from it |
+| The tracks' friction | an angle of 1° on ice or ceramic tracks, 3° on snow |
+
+The worked normal hill the 2012 standards give [72]: HS 100, w = 90,
+h/n = 0.55, α = 10.5°, γ = 35°: v₀ = 24.25 m/s, β = 33.0°, β_P = 35.5°,
+β_L = 30.2°, r₁ = 89 m, t = 6.3 m, r_L = 200 m, h = 43.2 m, n = 78.5 m,
+v_K = 29.0 m/s, l₁ = 8.7 m, l₂ = 9.7 m, e₁ = 84 m, e₂ = 71 m, a = 79 m, the
+landing 18 m wide at K. Two hills of the classes the top series jumps, off
+their published certificates [75]:
+
+| | Normal, HS 106 / K 95 | Large, HS 142 / K 125 |
+| --- | --- | --- |
+| In-run (longest) | 87.3 m at 35° | 96 m at 35° |
+| Table | 6.1 m at 11°, 2.38 m high | 6.9 m at 11°, 3.2 m high |
+| Slope at K | 34° | 34.7° |
+| Speed at the take-off | 88.6 km/h | 94.3 km/h |
+
+**What a ski jumping hill IS on the ground** [70, 72, 84]. A START TOWER
+(often a steel or concrete tower over the top of the in-run, with a lift
+or stairs) holds the START GATES: a numbered row of crossbars over the
+track — the jumper sits on the bar (the STARTING BAR), feet in the tracks,
+and pushes off when the light goes green. The IN-RUN is a narrow ramp with
+50 cm guard rails, its two TRACKS cut in ice or laid in ceramic (porcelain)
+profiles, refrigerated on the big hills; the in-run speed is measured by two
+photocells 8 m apart, the second 10 m before the edge, 0.2 m over the
+snow. The TABLE ends at the EDGE; beneath it the KNOLL falls away. The
+LANDING HILL is groomed snow (on mats in summer) between guard rails at
+least 70 cm high from 0.1·w down to U, the DISTANCE MARKINGS on both sides
+every metre from 0.5·w to 5 m past HS, the P POINT marked by a BLUE line
+down each side and the K POINT by a RED one, the HS point marked again;
+coloured lines and spruce branches laid across the slope give the
+jumpers and the measurers a scale *(the colours of the cross lines vary by
+hill)*. The broadcast lays a virtual line across the slope at the leader's
+distance [81]. Wind instruments stand beside the slope at flight height at
+the take-off, at about half of K and at about K, and at least EIGHT WIND
+FLAGS or socks down each side [70]. The JUDGES' TOWER stands beside the
+landing hill, its five cabins stepped to follow the flight. Two COACHES'
+PLATFORMS stand at least 12 m off the axis, one over the take-off and one
+over the landing (twenty coaches each, forty at the top events) — the
+coach there waves the jumper off with a flag. The OUT-RUN levels into an
+ARENA closed by 1 m boards, with the leader's box, the stands and the
+crowd round it; a chairlift takes the jumpers back up; floodlights for an
+evening contest.
+
+**The jump** [76, 77, 85, 86]: about 25 m/s (90 km/h) at the take-off of a
+normal hill, 26–26.5 m/s (94–95 km/h) on a large one and ~28.5 m/s
+(100–105 km/h) on a flying hill. The in-run is ridden in a deep crouch;
+the TAKE-OFF is an explosive extension of the legs on the last metres of
+the table lasting about 0.25–0.3 s, with a peak ground force near 1,200 N,
+which adds 2–3 m/s at right angles to the table (2.5 m/s representative)
+and sets the forward rotation the body needs to lean out over the skis —
+too early and the push is spent on the table, too late and it is lost off
+the edge. The skis are drawn up into the V within about half a second and
+the flight settles: the skis at 20–45° to the air (about 30° most of the
+flight, ~40° at the landing), the body 0–20° above the skis, the hips near
+160°, the V opened 25–35° *(est. 30°)*, arms back along the body. The
+lift-to-drag ratio rises from about 0.7 at the take-off to about 1.2 from
+one second on [77]; a simulated 134 m large-hill jump carried ~80 N of lift
+and of drag off the table and ~430 N of lift and ~360 N of drag at the
+landing, at 32 m/s [77] — at sea-level air, LIFT AREAS of ~0.7 m² and DRAG
+AREAS of ~0.6 m² late in the flight *(our arithmetic from those figures)*,
+~0.2 m² of drag area in the in-run crouch. Of the aerodynamic force about
+60 % acts on the body and 40 % on the skis; an isolated ski's best V is
+about 30°, a full model's best lift-to-drag (1.55) at 22.5° of V with the
+ankles at 20° [80]. The flight peaks ~3–4 m over the slope about half way
+to K [71]; a K-point jump on a large hill takes about 4.5–5 s, a normal
+hill's about 4 s, a flying hill's 7–8 s *(est.)*. He lands at ~29–32 m/s
+with a normal velocity of 3–4 m/s (7 m/s at most [86]) — an EQUIVALENT
+FALL HEIGHT under a metre at K [85], growing to the limit the norm sets at
+L; the landing loads him 1.5–3 times his weight [77].
+
+**The landing** [70]: from a stable flight he raises the head and trunk,
+brings the arms forward and the skis parallel, and just before the tails
+touch SPLITS THE LEGS AND BENDS THE KNEES — the TELEMARK: one foot about a
+foot's length ahead of the other, the back knee bent deeper, the skis
+parallel no more than two ski widths apart with equal pressure on both,
+the arms out forward; held for 10–15 m before he rises and runs out
+through the transition past the FALL LINE. The distance is measured from
+the edge to the point between his feet when both are fully on the snow, to
+the HALF METRE (by measurers along the slope, or a video system); in a fall
+to where his body first touches.
+
+**The score** [70, 74]: DISTANCE POINTS — 60 at K (120 on a flying hill),
+plus or less the METRE VALUE for every metre past or short of it:
+
+| K | Metre value |
+| --- | --- |
+| 80–99 m | 2.0 points |
+| 100–134 m | 1.8 points |
+| 135–164 m | 1.6 points (the newest edition's band) |
+| 170 m and over (flying) | 1.2 points |
+
+STYLE POINTS — five judges each mark 20 in half points, taking off for
+three groups of faults: the FLIGHT (at most 5: an unsteady or asymmetric
+position, legs not stretched), the LANDING (at most 5; NO TELEMARK, feet
+parallel, at least 2 by itself *(the edition read marks the minimum
+between 2 and 3)*) and the OUT-RUN to the fall line (at most 7: unsteady
+0.5–3, a hand back on the snow 4–5, a FALL before the fall line 7). The
+highest and the lowest mark are dropped and three summed: 60 at most. A
+clean telemark at K on a large hill: 60 + 3 × 18.5 = 115.5 points.
+
+COMPENSATION (the wind and gate system) [70, 71, 74, 83]: the jury may move
+the start gate during a round; a jumper started from a LOWER gate gets
+points for every metre of in-run lost, a higher gate costs them (and a
+coach who lowers his own jumper's gate gets them only past 95 % of HS). The
+wind measured along the flight, its component along the hill averaged, is
+compensated: a HEAD WIND (lift) costs points, a TAIL WIND earns them, the
+tail's factor 1.21 × the head's. Each factor is the hill's own, defined at
+the winner's distance (w + HS)/2: the gate factor a third of the distance
+3 m of in-run buys, the wind factors a third of what ±3 m/s buys, × the
+metre value. Off published sheets [74]:
+
+| | Metre value | Gate factor | Head wind | Tail wind |
+| --- | --- | --- | --- | --- |
+| Normal hill | 2.0 | 7.00 points/m | 8.00 points per m/s | 9.68 |
+| Large hill | 1.8 | 7.67 points/m | 10.80 points per m/s | 13.07 |
+
+— 4.0 and 6.0 m of distance per m/s of head wind; the jury holds a
+jumper on the bar until the wind is inside its window and may restart a
+round from a lower gate when jumps pass 95 % of HS. A jump's score is
+distance + style + gate + wind, never below zero; the competition's is
+the sum of its jumps; a tie is a tie, the places shared.
+
+**The format** [70]: two scored rounds and an optional TRIAL round before
+them. At the championships and the top series a QUALIFICATION round cuts
+the field to 50; the FIRST ROUND is jumped by all 50 (the order by the
+standings, the best last); the best 30 jump the FINAL ROUND in REVERSE
+order of their first-round score, the leader last; the total of the two
+jumps wins. A jumper who falls past 95 % of the round's longest
+(compensated) jump goes through anyway. The jumper has 10 s (10–15 s on a
+two-phase light) to leave the bar after the green light; the start
+interval is about 45–50 s [81]. A ski flying weekend jumps four rounds; a
+team event four jumpers a team.
+
+**The equipment** [73]:
+
+- SKIS: at most 145 % of the jumper's height, at a BMI of 21 or more
+  (weighed in underwear); below it the length falls 0.5 % for every
+  0.125 of BMI (BMI 20.5 → 143 %). Running surface 95–105 mm wide at the
+  balance point, tip and tail within 5 mm of each other, the sidecut
+  straight lines — a nearly parallel ski, with no steel edges, its flat
+  base grooved (grooves at most half its width, each at most 10 mm) to
+  track; the tip turned up at least 40 mm, the tail at most 10 mm; each
+  ski at least its length in cm as hundredths of a kilo plus 0.2 kg for
+  the binding (a 2.55 m ski 2.75 kg). No fins, no aerodynamic covers.
+- BINDINGS: mounted so that at most 57 % of the ski lies ahead of the
+  boot's toe — the boot well back of the middle; the HEEL FREE to rise,
+  held by a rear unit (curved rods or angled clips) that limits how far
+  the ski hangs off the boot in the air, and a safety strap; a heel wedge
+  of up to 20 mm, the sole and wedge 50 mm at most.
+- BOOTS: soft, low and flexible, the shaft's forward lean never under 65°,
+  the sole at most 40 mm.
+- SUIT: nine panels cut to the body, 4–6 mm thick, at least 40 l/m²/s of
+  air through it, 2–4 cm over the body's circumference (2–5 cm in the
+  legs), the crotch no lower than the body's; a helmet, goggles, gloves.
+
+**The jumpers** [78, 79, 82]: LIGHT. The top 50 of a recent season
+averaged 178 cm and 65–66.5 kg, a BMI of 20.5–20.9 (29 of 50 under 21 all
+season, only 8 on the longest skis); mean BMIs were 19.4–19.8 in the early
+2000s, four units under 1970's, some as low as 16.4 — the reason the ski
+length is tied to BMI. The rule cut the advantage of being light but did
+not end it: in simulation, 1 % of BMI is worth about 2 % of ski area. The
+flight models use 72 kg with the equipment [76].
+
+**The camera** [81]: ten to twelve cameras. At the bar, a close-up with
+the jumper seated; beside the TAKE-OFF, 5–7 m off it on a platform over it,
+a long lens following him down the in-run and through the push in full
+profile; the MAIN camera about two thirds of the way from the edge to K,
+12–20 m off the slope, its lens at the height of his flight (3–4 m),
+square to it, panning from the take-off to the landing so every marking on
+the snow shows — the jump every viewer judges; a crane in the out-run for
+the landing and the reaction; super slow motion beside the take-off and
+low on the landing hill for the last third of the flight; a 60–80 m crane
+BEHIND the tower (20 m over it) or opposite it for the flight from behind
+or the front; rail and cable cameras ("fly-cams") and in-run speed cameras
+by arrangement; mini cameras in the in-run's tracks. The inserts: the
+athlete with the countdown at the bar, the in-run speed after the take-off,
+the distance two or three seconds after the landing — none on a slow
+motion.
 
 ## What every judged park format shares (halfpipe, slopestyle, big air)
 
@@ -273,6 +515,10 @@ best twelve of thirty to a final of three runs, the best counting; the
 field is dealt.
 
 ## Big air
+
+*To be retired: ski jumping replaces big air on the tricks card
+(`docs/specs/SKI_JUMPING.md`). The research stays — slopestyle's jumps
+and the straight venue cite it.*
 
 ONE jump — a big kicker over a table onto a steep landing — one trick an
 attempt, the best scores counting.
@@ -774,4 +1020,40 @@ dimensions, cores) · [63] sports science studies of national aerials squads
 (height and mass by sex) · [64] a biomechanics study of the landing load on
 aerials triples · [65] coaching and venue accounts of the aerials landing
 hill (the drop, the snow chopped and loosened) · [66] a national team's
-account of the radar speed check on the in-run.
+account of the radar speed check on the in-run. · [70] the
+international competition rules for ski jumping, 2024 edition with its
+changes marked (the hill classes, the measuring devices, the competition,
+the judging, the measuring of distance, the scoring table, the formats) ·
+[71] the governing body's jumping-hill construction norm, 2018 edition
+(the classes, the table angle, the h/n limits, HS against w, the slope at
+P, the compensation factors defined, the out-run, the judges' tower) ·
+[72] its 2012 predecessor, the standards for the construction of jumping
+hills (the approximation formulas, the worked normal hill, the widths, the
+rails, the platforms) · [73] the specifications for the Nordic
+disciplines' competition equipment, 2025–26 with its changes marked (the
+skis, bindings, boots and suits) · [74] published official result sheets
+of top-series men's events, 2017–20 (metre values, gate and wind factors)
+· [75] a ski-jumping-hill database's certificate data for a normal hill
+of HS 106 and a large hill of HS 142 · [76] Jung, Staat and Müller, a
+2014 computational-mechanics conference paper on optimising the flight on
+normal, large and flying hills (in-run speeds, the take-off's 2–3 m/s, the
+mass and air density the models use, the angle ranges measured) · [77] a
+2025 review of the biomechanics of jump distance classified by hill size
+(after Komi and Virmavirta 1997, Schmölzer and Müller 2005, Gardan et al.
+2017, Virmavirta 2017, Virmavirta and Komi 2000 and 2010: the take-off's
+length and force, the lift-to-drag ratio through the flight, a simulated
+large-hill jump's forces and speeds, the landing's load) · [78] a 2013
+biomechanics congress poster on BMI and ski length in the top series (the
+top 50's height, mass and BMI) · [79] a 2006 sports-medicine study of
+jumpers' BMI at top events · [80] Virmavirta and Kivekäs 2019, a
+technical note on the aerodynamics of an isolated jumping ski (the V angle,
+the body's and the skis' shares) · [81] the governing body's broadcaster
+manual for the ski jumping part of the Nordic combined, 2021–22 (the
+cameras, the inserts, the start interval) · [82] Virmavirta and Kivekäs,
+a parametric simulation of whether it still pays to be light (BMI against
+ski area) · [83] a 2022 biomechanics study of the effect of wind on
+distance (the fixed factors, the tail wind's extra 21 %) · [84] a
+ski-jumping glossary (the P and K lines) and a hill dictionary (the slope
+at HS by class) · [85] a classroom study hosted by a space agency of the
+equivalent fall height of a landing · [86] a mechanics paper on the ski
+jump (the landing's normal velocity).

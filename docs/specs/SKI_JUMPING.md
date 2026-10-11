@@ -1,0 +1,599 @@
+# Ski jumping — draft spec
+
+**Researched, nothing built.** Ski jumping REPLACES BIG AIR as the first
+format on the tricks card, and is to be the game's most important mode
+beside the free ride: a real jumping hill cut into the mountain, an in-run
+ridden in its tracks at 94 km/h, a take-off timed to a fraction of a
+second, four to five seconds of flight held on the air the body and a V of
+skis make, a telemark into a full arena — scored to the half metre with the
+wind and the gate compensated, a field of fifty, the best thirty jumping
+again in reverse order. "Realistic and epic" is the bar: every number below
+comes from the research or is marked *(est.)*, and the hill as drawn is as
+much the feature as the flight. Delete this file when ski jumping is
+finished (`README.md`); the shared trick pieces are `TRICK_MODES.md`'s, but
+ski jumping uses few of them (no strokes, no grabs, no impression panel).
+
+## Start here
+
+1. Follow `README.md`'s *Starting a discipline in a new session*, then read
+   `TRICK_MODES.md` and — the closest thing built — `AERIALS.md`: a site
+   cut straight down the face (`engine/mapgen/aerials.ts` over
+   `straight-venue.ts`), an analytic surface laid over the grid
+   (`withMoguls` with no mogul line), a curve RIDDEN AS A WIRE
+   (`engine/game/aerial-kicker.ts`), a FLIGHT OF ITS OWN
+   (`aerial-flight.ts`), a FORMAL SCORER (`aerials-judge.ts`) and a
+   CONTEST dealt off a stream of its own (`aerials-contest.ts`,
+   `contest-state.ts`), the app's `aerials-run.ts` and `hud-aerials.tsx`.
+   Ski jumping is that pattern again, with a jumping hill's numbers.
+2. The research is `docs/freestyle.md` § *Ski jumping*: the hill classes,
+   the construction norm's formulas element by element, two real hills'
+   certificates, the jump's speeds and forces, the aerodynamics, the
+   landing, the scoring tables (metre values, style deductions, gate and
+   wind factors), the format, the equipment rules, the jumpers' build and
+   the broadcast's cameras. Nothing below restates a number it does not
+   need.
+3. The course rule is **R43** (R42 is the ski routes, `resort-rules.ts`):
+   stated in `engine/mapgen/trick-rules.ts` beside R37–R41 and mirrored in
+   `docs/level-generator.md` (`tests/docs_rules_test.ts`).
+4. Build the measuring tool FIRST (`make skijump-flight`, below) and hold
+   every phase to it, before and after — the lesson every discipline has
+   relearned.
+
+## Watch out
+
+- **The flight is the mode, and a point mass with fixed areas cannot fly
+  it.** A quick point-mass study on the HS 140 profile below (72 kg, sea
+  air ×1.15, v⊥ 2.5 m/s) reached K at the norm's 26.2 m/s only with a
+  lift area near 0.8 m² and a drag area near 0.6 m² (L/D ≈ 1.3) — and
+  with FIXED areas a head wind SHORTENED the jump, where the published
+  factors say a head wind is worth 4 m a m/s on a normal hill and 6 on a
+  large one. The areas must be functions of the ANGLE OF ATTACK the body
+  and skis meet the air at (the polar), so a head wind — faster, steeper
+  air — is lift; and the jumper's attitude must be held against the air's
+  pitching moment, not set. Fit the polar in the flight lab to the norm's
+  own checks (K reached at v₀ in calm air, the flight's peak 3–4 m over the
+  slope about half way, ~4.5–5 s to K on a large hill, the gate and wind
+  factors measured the norm's way) before any picture is drawn.
+- **The in-run is a guided curve, not the snow's step.** The tracks hold
+  the skis; the transition (r₁ ≈ 100 m) loads 0.7 g at most; the springs
+  of `suspension.ts` tuned for a piste must not ride it, nor the hull's
+  friction scrub it (`aerial-kicker.ts`'s lesson). Ride it as a bead on a
+  wire from the gate to the edge: gravity, the tracks' friction angle (1°
+  ice or ceramic, 3° snow) and the crouch's drag in the air where he is.
+- **The take-off decides the jump.** +1 m/s at the edge is worth ~16 m and
+  +0.5 m/s of push ~10 m on the large hill *(the same study)*; the push
+  lasts ~0.3 s, which at 26 m/s is the whole 6.8 m table. The press must
+  be TIMED to the edge, read to the fraction of a step
+  (`course.ts`'s `crossingShare` is the precedent), and its window wide
+  enough to hit at 60 Hz on a phone.
+- **The surface is analytic and finer than the grid.** The edge, the knoll
+  (a cubic parabola) and the r_L arc must be the profile itself inside the
+  hill's width, the grid cut below it — as the aerials site does.
+- **A digest must not move.** The hill is set over a built map
+  (`setSkiJump`, its rule in `trick-rules.ts`), pure, drawing nothing from
+  any stream; the field is dealt off a stream of the contest's own; no
+  draw is added to `step`. `make sim` (every other mode) before and after.
+- **A jump must not cost a skier's body.** A K-point landing is under a
+  metre of equivalent fall height; the landing load is 1.5–3 g. If the
+  engine's `landingLoad`, the legs and the body (`body.ts`) read a clean
+  telemark as a blow, the injuries and the HUD's plate will light up on
+  every jump. Land it on the profile's true slope, and hold `make injuries`
+  unmoved for a clean jump.
+- **No real hill, venue, maker or person is named** — not a hill by its
+  town, not a jumper by his record. A hill is named for what it is like.
+
+## What it is
+
+One jumper at a time on a jumping hill: sat on the starting bar at the gate
+the jury set, he waits for the light and the wind, pushes off, crouches in
+the tracks down a 35° in-run, springs off the 11° table at the edge, lays
+out over his skis spread in a V and flies the landing hill for 4–5 s, 3–4 m
+over the snow, and lands in a telemark at ~30 m/s. His score is DISTANCE
+(60 at K, the metre value a metre either way) + STYLE (five judges' marks
+out of 20, the high and low dropped) + the GATE and WIND compensation. A
+TRIAL round (optional, counting nothing), a FIRST ROUND of 50, the best 30
+to the FINAL ROUND in reverse order, the total of both jumps winning.
+
+## Decided (the defaults this spec builds; open questions at the foot)
+
+### The hills (R43)
+
+Two hills of the norm, the same rule a row each, the LARGE hill first:
+
+| | LARGE (built first) | NORMAL (second) |
+| --- | --- | --- |
+| HS / w (K) | 140 / 126 | 106 / 95.4 (K 95) |
+| In-run γ | 35° | 35° |
+| Table α (the norm's band) | 11.2° (11.1–12.1) — the low end, the higher flight | 10.6° (10.1–11.1) |
+| h/n (band) | 0.58 (0.557–0.606) | 0.55 (0.519–0.575) |
+| h, n | 62.9 m, 108.5 m | 45.7 m, 83.2 m |
+| v₀ at the edge, calm (design) | 26.2 m/s (94 km/h) | 24.6 m/s (88.6 km/h) |
+| r₁, t, s | 103 m, 6.8 m, 3.15 m | 91 m, 6.4 m, 2.4 m |
+| In-run e₁ (top gate), e₂ (gate 1) | 98.8 m, 80.6 m | 84.4 m, 69.3 m |
+| Gates | ~26, 0.40 m of height apart (0.70 m along) | ~22 |
+| β (at K), β_P, β₀, β_L | 33.9°, 37.0°, 6.2°, 31.3° | 34.0°, 36.8°, 6.1°, 31.3° |
+| r_L, v_K | 300 m, 30.3 m/s | 210 m, 29.2 m/s |
+| P, K, L (HS) along the slope | ~110, 126, 140 m | ~85, 95, 106 m |
+| r₂ (L→U) | 100–150 m (r₂L,min 93 m) | 90–140 m (86 m) |
+| Out-run a (level) | 83 m (at least 45) | 81 m |
+| Widths: in-run, knoll's foot, K, U | 2.5, 7.6, 25, 28 m | 2.5, 5.7, 19, 21 m |
+| Take-off to U | ≤ 88 m of drop | — |
+| Judges' tower | 76–101 m along, 32–63 m off the axis | 57–76 m, 24–48 m |
+| Metre value; gate; wind head / tail | 1.8; 7.67 pts/m; 10.80 / 13.07 pts per m/s (est. until measured) | 2.0; 7.00; 8.00 / 9.68 |
+
+*(Our arithmetic off the norm's formulas, `docs/freestyle.md`; the
+compensation factors are the published sheets' until the flight lab
+measures this hill's own, the norm's way — then the measured ones.)* A
+FLYING hill (HS 200+, 120 points at K, 1.2 a metre) is open.
+
+- **The profile** is DESIGNED off the norm's formulas (the in-run's straight
+  part, the cubic-parabola transition to r₁, the table; the knoll's cubic
+  parabola from s under the edge to P; the r_L arc P→K→L; the parabolic
+  transition L→U; the level out-run) — a pure function of the rule, the
+  same on every map — then FITTED: dropped onto the face where it cuts and
+  fills least (`straight-venue.ts`'s line search and `gradeVenue`), as the
+  aerials site is. Where the in-run stands more than ~3 m over the ground
+  *(est.)* it is a STRUCTURE — the in-run bridge on trestles up to a START
+  TOWER — drawn, not filled; the engine reads the profile either way.
+- **Published as `Level.skiJump`** (`SkiJumpHill`): the hill's class, the
+  profile (`yAt` along the axis), the gates' positions along the in-run,
+  the edge, the knoll, P, K, L, U, the fall line, the out-run's end, the
+  widths, the judges' tower's and the coaches' platforms' places, the wind
+  stations; `distanceAt(x)` (the distance a landing point is credited —
+  along the profile from the edge, the way the markings are taped); its
+  checkpoints the start gate and the finish (the fall line, past which the
+  style is no longer judged); its spawn the bar of the jury's gate.
+- **The analytic surface** inside the hill's width (the aerials site's
+  field with no mogul line), the grid cut beneath it; the tracks are not
+  geometry the engine reads (the wire holds him), only drawn.
+- **The site search** prefers a face whose own fall matches the landing
+  hill's 30–37° and whose top can carry the in-run; it is held by the
+  analyzer like R41's (the drop to U, the widths clear of trees, lifts and
+  runs, the arena's level ground).
+
+### The ski and the build
+
+- **A new pair, the ALBATROSS** *(name open)* — the jumping ski, built to
+  the class's rule: 2.55 m (145 % of the rule's 1.78 m jumper, less 2 %
+  for a BMI of 20.5), 105 / 100 / 102 mm (tip and tail within 5 mm, the
+  sidecut straight lines — a sidecut radius past any turn, *est.* 400 m),
+  no steel edges (it tracks on its grooves: `edgeMax` near nothing), the
+  boot's toe 57 % back from the tip (`mount` ≈ 0.37 from the tail), stiff,
+  heavy (2.75 kg a ski with its binding), the tip turned up 40 mm, a flat
+  tail; the HEEL FREE in the binding (the drawing hinges the boot at the
+  toe; the rear unit's rods limit the ski's hang). Its in-run crouch's drag
+  area ~0.20–0.25 m² *(derived)*, held by the in-run lab to v₀. It skis
+  badly anywhere else and is offered only by the mode (`RACE_SKIS`).
+- **The build: LIGHT** (`RACE_RIDERS`) — the field's measured mean is
+  178 cm and ~66 kg, BMI ~20.5; the light build (60 kg in kit) is the
+  nearest of the four, and the format pays lightness (a 1 % lighter BMI is
+  worth ~2 % of ski area). The flight's lift and drag areas are fitted at
+  the build the mode rides, so the K point is reached at v₀ on it.
+- **The suit**: a jumping suit cut to the body (nine panels, the crotch at
+  the body's), a helmet and goggles, soft low boots — an outfit row of its
+  own (`outfit.ts`), the race's colour on the bib.
+
+### The in-run and the take-off
+
+- **On the bar.** The run starts SEATED on the bar of the jury's gate,
+  facing down the tracks, the coach's platform beside the table; a start
+  LIGHT (red, then green and a 10 s window to leave — `RunRules.window`);
+  the jury HOLDS him on red while the wind is outside its window (below).
+  The press to leave is the tuck (or the jump key); leaving late is a no
+  start.
+- **Down the tracks as a wire** (`engine/game/jump-inrun.ts`): the skis in
+  the tracks from the gate to the edge, his speed the energy's — the drop,
+  the tracks' friction angle (1° ice/ceramic, 3° snow; the hill's tracks are
+  ice), the crouch's drag in the air where he is (`airAt`) — the crouch held
+  for him (`RunRules.inRun`); the edge and steer mean nothing in the tracks;
+  standing up out of the crouch costs speed (the drag area grows) *(est.:
+  ~1 km/h a second stood)*. The speed at the edge is read through the
+  photocells' 8 m, ending 10 m before the edge, and shown.
+- **The TAKE-OFF is the JUMP key, TIMED.** The push lasts ~0.28 s *(est.,
+  in the research's 0.25–0.30)*; the press STARTS it. Ended at the edge,
+  it adds the full v⊥ (2.5 m/s at the build's strength; `RiderSpec.strength`
+  scales it, *est.* 2.2–2.9 across the builds) at right angles to the table
+  and the forward rotation the body needs to lie out over the skis. EARLY,
+  the push is spent on the table: v⊥ ×(the share of the push done in the
+  last 0.28 s), and the rotation too little — he flies sat up, slow into
+  the V. LATE, the share left on the table only, and the rotation too much
+  — the tips drop. NO PRESS: he rolls off the edge with nothing (~25–30 m
+  short *(est.)*). A sweet spot of ±0.03 s *(est.)* is a perfect take-off;
+  the HUD's take-off rating names it (perfect / early / late by tenths).
+  The edge is crossed at the fraction of a step; the release is along the
+  table's tangent at the edge's own height.
+
+### The flight (`engine/game/jump-flight.ts`, a flight of its own)
+
+- **The state**: the body's PITCH (the skis' angle of attack to the air,
+  the body's angle over the skis), the V's opening, the ROLL, the yaw;
+  the centre of mass's position and velocity; the take-off's angular
+  momentum decaying into the attitude the jumper holds.
+- **The forces**: gravity at the real g; LIFT and DRAG off the relative air
+  (the map's wind at the hill, `airAt` — never a new draw) through areas
+  that are functions of the angle of attack, the body-ski angle and the V
+  (the polar: a smooth fit with its best L/D near 25–30° of attack, a body
+  angle of 0–20°, a V of ~30° *(the studies)*; lift 0.2 → ~0.75 m² and
+  drag ~0.22 → ~0.6 m² over the first ~0.6 s as he lays out and the V
+  opens, the late-flight L/D ~1.2–1.3 *(fitted in the lab)*), the
+  aerodynamic PITCHING MOMENT that stabilises a good attitude and turns a
+  bad one over; the GROUND EFFECT is open.
+- **The controls** (the skier's own keys, read as a jumper's hands; the
+  phone's thumbs the same axes):
+  - the LEAN: forward lies him out flatter over the skis (more lift, less
+    drag, toward the stall's other side — too far and the tips go down
+    and he is turned over: a fall), back sits him up (more drag, sinks);
+    the ideal moves through the flight (steeper early, flatter late);
+  - the TUCK key held: the V OPEN (released, the skis close toward
+    parallel — less lift; the V opened late costs distance, early
+    nothing);
+  - the EDGE: the ROLL held level against the gusts (a crosswind and
+    asymmetric skis roll him; an asymmetric V is a flight deduction);
+  - the ASSIST (`GameState.assist`) holds the roll level and eases the
+    pitch toward the polar's best — every hand on by default, as the field.
+- **The LANDING** (the trick key, which means nothing else here, is the
+  TELEMARK): pressed in the last ~0.5 s *(est.)* before the snow, the legs
+  split and the knees bend as the tails touch — a telemark; held through
+  10–15 m of the out-run. Not pressed, a two-footed landing (≥ 2 points
+  off a judge); too late, a telemark set on the snow (a landing fault);
+  the skis not parallel, the arms not out — faults. A fall: a landing past
+  the e.LH the legs take (`landingLoad` against the profile's true slope),
+  the tips caught nose down, the body turned over in the air, a hand on
+  the snow (a touch), a fall before the fall line. Past HS the slope
+  flattens and the landing grows hard — the jury lowers the gate (below).
+- **The DISTANCE**: where both feet are on the snow (the middle between
+  them), along the profile from the edge (`distanceAt`), to the HALF METRE
+  *(est.: the mark the feet have reached, read down)*; in a fall, where the
+  body first touched.
+- **The flight is filed** (a `JumpRecord`: the gate, the in-run speed, the
+  take-off's timing and v⊥, the wind measured, the peak height, the flight
+  time, the distance, the landing's kind and load, every fault) for the
+  judges, the HUD, the replay and the sim.
+
+### The wind and the gate
+
+- **The wind is the map's** (`windAt`, `airAt` at the hill), never a new
+  draw: its component along the hill's axis measured at five stations
+  along the flight (the edge, ~25, 50, 75 and ~100 % of K *(est.)*) as he
+  passes them and averaged — what the scoreboard shows as head (+) or
+  tail (−) and what is compensated: head × the hill's head factor off,
+  tail × the tail factor (1.21 × the head's) on.
+- **The jury** (`JURY`-like row of its own): holds a jumper on the bar while
+  the wind at the edge is outside its window *(est.: tail past 3 m/s, a
+  gust past 40 km/h)*, and, before a round, picks the GATE that brings the
+  dealt field's best to about 0.95·HS in the day's wind (its par measured
+  in the lab); a round whose jumps pass HS is restarted from a lower gate
+  *(open: in the game, one gate a round)*. The gate's compensation: the
+  factor × the metres of in-run below the round's reference gate on, above
+  it off.
+- **A jury's day** like the races' (`juryDay`): a storm or a whiteout eased
+  to what a jumping contest is held in *(est.: no more than a steady fall)*.
+
+### The scorer (`engine/game/jump-judge.ts`, pure)
+
+- DISTANCE points: 60 + metre value × (distance − K), never below zero.
+- STYLE: five judges, each 20 less his deductions in half points — the
+  FLIGHT (up to 5: the take-off's error, an unstable or asymmetric flight,
+  the V late or uneven, the legs bent, read off the flight's record), the
+  LANDING (up to 5; no telemark at least 2; a stiff or deep landing, the
+  skis apart or not parallel), the OUT-RUN to the fall line (up to 7:
+  unsteady 0.5–3, a hand on the snow 4–5, a fall 7) — each judge's EYE a
+  half point either way dealt off a hash of the contest's seed and the
+  jump; the high and the low dropped, the three summed.
+- GATE and WIND points as above, each to one decimal *(est.)*.
+- The jump's points = distance + style + gate + wind, ≥ 0; held to worked
+  examples in its test (a 126 m clean telemark on the large hill at the
+  reference gate in calm air: 60 + 3 × 18.5 = 115.5).
+
+### The contest (`engine/game/jump-contest.ts`, pure; `ContestState.skiJump`)
+
+- A TRIAL round the player may jump or skip (it counts nothing); the FIRST
+  ROUND of 50 (the player and 49 dealt), the start order the field's level
+  *(the best last; the player's place in it dealt by his book)*; the best 30
+  to the FINAL ROUND in reverse order of the first round's points, the
+  leader last; the total of both; a tie shared (places displaced). The 95 %
+  rule (a faller past 95 % of the round's longest goes through) is kept.
+- THE FIELD is dealt, never jumped, off a stream of its own: each rival's
+  level about the bot's PAR (the par jumper's distance at the round's gate
+  in its wind, measured once per hill), his distance, his style, his wind
+  (the day's own at his moment — the field jumps in the same wind field
+  the player does, at its own clock times) and his fall (a few in a
+  hundred *(est.)*), revealed as far as the player has jumped.
+- The contest rides the runs as `ContestState.skiJump`
+  (`CreateGameOptions.skiJump`), as aerials' does.
+
+### The mode
+
+- `GameMode` "skiJump", `SKI_JUMP` and `skiJumpRules` in
+  `engine/game/defs/ski-jump.ts` (re-exported by `modes.ts`): one jumper,
+  no course gates but the start and the fall line, the strict finish (a
+  fall is a fall, never stood up mid-jump), the real g, no strokes or grabs
+  (`stunts: false`), `inRun: true`, a new `RunRules.skiJump` (the wire and
+  the flight), the start window, the jury. `FREESTYLE`'s first row
+  (`defs/formats.ts`): `{ id: "skiJump", mode: "skiJump" }`, so the tricks
+  card lists it first.
+
+### The bot (`engine/sim/ski-jump-steer.ts`)
+
+Takes off with a timing error and a strength dealt to its skill (the
+player's stand-in: ±0.04 s *(est.)*), holds the polar's best attitude with
+a hand's lag, opens the V on time, holds the roll, telemarks. Its clean
+jump at a gate is the PAR the field is dealt about. `make sim ARGS="--mode
+skiJump --skis albatross --rider light --count 16"`: every seed's hill
+jumped, every jump landed, none past HS at the jury's gate, the `dist`,
+`style` and `points` columns.
+
+### The app
+
+- **The tricks card** (`menu-freestyle.tsx`): SKI JUMPING first, billed
+  with its field and finalists; big air's box gone. The trick map card
+  carries a HILL row (LARGE, NORMAL) for it *(and later its own hills)*.
+- **The HUD** (`hud-skijump.tsx` over the DOM-free `ski-jump-run.ts`): on
+  the bar the gate, the wind (an arrow and m/s, green head, red tail, as the
+  broadcast shows it), the light and its countdown; in the in-run nothing
+  but the speed; after the take-off the in-run SPEED and the take-off's
+  rating; in flight a small ATTITUDE gauge (the body's angle against the
+  ideal band, the V) *(assist-dependent; open)*; 2–3 s after the landing
+  the DISTANCE. The LEADER'S LINE — a green line across the landing hill at
+  the distance to lead — drawn in the world, as the broadcast lays it.
+- **The plate**: the distance and its points, the five style marks with the
+  high and low struck through, the gate and wind points, the jump's total,
+  the rank; the BOARD (50, then the final 30) with every jumper's two
+  distances; the next round's press.
+- **Words**: `strings-skijump.ts` — the take-off ratings, the faults, the
+  board's columns, a jump called as a commentator calls it (a distance, a
+  telemark, a hill record).
+- **The URL**: `?start=skijump` boots onto the bar of the first round;
+  `?hill=normal`; `?round=2`.
+- **Records**: the book keeps the longest jump and the best total per hill
+  and seed (`recordId` with the hill).
+- **The replay** (`replay-shots.ts`): the take-off filed as the moment, the
+  flight slowed, the landing; the broadcast plan below.
+
+### The cameras (`pwa/src/game/camera-skijump.ts`, three-free, its own rows)
+
+As a balloon ride swaps the ladder for its own (`camera-balloon.ts`), a
+jump has its own, and the default rung is the broadcast's SIDE:
+
+| Rung | On a jump |
+| --- | --- |
+| TIPS | his own eye: the tips and the V in front, the in-run's tracks rushing, the landing hill opening below |
+| HELMET | over his shoulder, the skis' V and the slope beneath |
+| CHASE | behind and above, the crane behind the tower: the in-run, the edge, the whole flight and the landing |
+| FAR (default) | THE MAIN SIDE-ON CAMERA: ~2/3 of the way to K, 12–20 m off the slope, the lens at his flight's height, panning from the take-off to the landing with every marking on the snow in frame |
+| HIGH | the crane 20 m over the tower, the hill laid out ahead |
+| ORBIT | round him in flight, slow |
+
+The start: a close-up on the bar (the `camera-start.ts` pattern), the
+coach's flag, the light; down the in-run the PROFILE camera beside the
+table (5–7 m off it, over it) holding him in full profile through the
+push, cutting to the rung at the edge. The replay's broadcast: the
+take-off profile in slow motion, the side-on main, a low camera on the
+landing hill for the last third, the out-run crane for the reaction; a
+CABLE camera flying down the hill beside him *(a replay lens)*.
+
+### The hill as drawn (a later visual phase models every piece)
+
+`ski-jump-plan.ts` (three-free: where every piece stands, off
+`Level.skiJump`) and its builders, low-poly and faceted, in the facade kit
+(`buildings`):
+
+- THE START TOWER over the in-run's top (a steel or concrete tower, its
+  stair and lift, the warming room at the top), the numbered GATES — a
+  crossbar each over the tracks, the STARTING BAR the jumper sits on, the
+  start LIGHT (red, yellow, green) and the countdown;
+- THE IN-RUN: the ramp or the trestle bridge, its 50 cm guard rails, the two
+  ICE TRACKS (grooves glazed blue-white, or ceramic profiles) and the snow
+  between, the photocells, the TABLE and its EDGE (a sharp line), a
+  pole-mounted camera;
+- THE LANDING HILL: the groomed snow, the knoll falling from under the
+  edge, the GUARD RAILS (70 cm) down both sides from 0.1·w, the DISTANCE
+  BOARDS every metre from 0.5·w to HS + 5 with their numbers *(est.: every
+  5 m large)*, the BLUE P line, the RED K line, the HS line, the coloured
+  lines and spruce branches across the slope, banners in the arena's
+  colours, the WIND FLAGS (eight a side at flight height on
+  poles) and the three wind instruments, the leader's green line;
+- THE JUDGES' TOWER beside the landing hill (five cabins stepped to follow
+  the flight, the jury's room), the two COACHES' PLATFORMS (one over the
+  take-off, one over the landing, coaches on them), the TV crane;
+- THE OUT-RUN and the ARENA: the 1 m boards, the fall line, the exit gate,
+  the leader's box, the stands and terraces round the out-run (the
+  audience's plan — `spectator-plan.ts` grows a jumping arena: the crowd
+  thickest at the out-run, lining the landing hill's rails, flags, horns,
+  cowbells), the video wall with the distance;
+- THE LIGHTS: floodlight masts down both sides of the in-run and the
+  landing hill and round the arena for an evening contest (the piste lights'
+  design, `piste-light-plan.ts`, retyped for a hill); the hill lit like a
+  stage in the night;
+- THE CHAIRLIFT up beside the hill (a lift of the ski area's own kind,
+  `lift-shapes.ts`).
+
+### The jumper as drawn (poses, `skier`)
+
+A technique row "skiJump" (`technique-pose.ts`) and the flight's own pose
+off the engine's attitude: SEATED on the bar; the IN-RUN CROUCH (the
+trunk flat on the thighs, the arms back along the body, the knees deep);
+the TAKE-OFF extension frame by frame; the V-STYLE (the body laid over the
+skis at the flight's angle, the hips ~160°, the arms back, the skis spread
+in a V from the heels, the heels lifted off them, the tips up); the
+landing preparation; the TELEMARK (one foot forward a foot's length, the
+back knee deep, the arms out forward); the fall. The skis hinge at the toe
+(the heel free); the suit is tight; the helmet and goggles. The skier
+lab's moves and `skier-metrics` bands grow rows for each.
+
+### The sound (`sound-effects`)
+
+The bar's clack and the push off; the in-run's tracks — a rising hiss and
+the ice's hum, the clatter over the track's joints *(est.)*; the take-off's
+snap; in flight the wind's roar rising with the air speed and the suit and
+skis' flutter, a gust's buffet; the landing's slap and the telemark's
+carve; the crowd — a hush on the bar, a rising roar as he passes K, the
+horns and cowbells, the arena's chime with the distance; the coach's
+whistle *(est.)*. Synthesized, as everything is.
+
+### The labs
+
+- **`make skijump-flight`** (pure Node, `scripts/skijump-flight-lab.mjs`,
+  `--json` / `--compare`): every hill's profile table (the norm's elements
+  against the designed ones); rows of jumps — the gate × the wind (−3 … +4
+  m/s) × the take-off's timing (−0.15 … +0.15 s) × the attitude held (the
+  bot's, a sat-up one, a flat one) — each the speed at the edge, v⊥, the
+  peak height and where, the flight time, the distance, the landing speed
+  and normal velocity, the e.LH against the norm's comfortable and limit
+  values, the fault the engine read; and the hill's own GATE and WIND
+  FACTORS measured the norm's way (3 m of in-run, ±3 m/s at (w + HS)/2),
+  beside the published ones. THE loop for the in-run, the take-off, the
+  polar and the landing: run before and after every change.
+- **`make skijump`** (the picture lab, `pwa/skijump-preview.html`): sheets
+  `hill` (side-on, from the out-run, from the tower, from the air, by day
+  and at hour 21), `parts` (the tower and bar, the tracks, the table and
+  edge, the knoll, the boards and lines, the judges' tower, the flags, the
+  platforms, the arena, the masts), `poses` (every pose from front, side,
+  top and behind), `flight` (a jump strobed on the side-on main camera over
+  the profile, the leader's line), `lenses` (every rung and the broadcast's
+  shots at the take-off, the peak, the landing), `crowd`, `night`.
+- `make sim ARGS="--mode skiJump …"`, `screenshots ARGS="--skijump --t 6"`
+  (the bar at `--t 1`, the edge, the flight, the plate), `level`/`analyze`
+  for R43, `injuries` (a clean jump hurts no one), `audition`.
+
+## What the game already has to reuse
+
+- The straight venue (`straight-venue.ts`: the pen, the line search, the fit,
+  the grading, `jumpHeightAt`, the landing shaped to an equivalent fall
+  height) and `lipSpeed`'s way of sizing an in-run with the engine's loss.
+- The aerials site's analytic surface, its wire up the kicker, its flight of
+  its own, its formal scorer, its contest and its dealt field, its app
+  modules — the pattern, not the code.
+- The real g in flight; the wind as a pure field (`windAt`, `airAt`) and the
+  jury (`jury.ts`); `crossingShare` for the edge read inside a step.
+- The landing graded (`landingLoad`, `landingGrade`), the ragdoll and the
+  body (`crash.ts`, `body.ts`) for the falls.
+- The start house's television start (`camera-start.ts`), the replay's
+  broadcast (`replay-shots.ts`, `camera-replay.ts`), the audience and the
+  finish arena (`spectator-plan.ts`, `finish-arena.ts`), the piste lights.
+
+## Big air leaves the tricks card
+
+The owner's decision: ski jumping REPLACES big air. Big air's MODE is
+retired; what slopestyle, the halfpipe, moguls and aerials share stays.
+
+**Stays (moved where needed):**
+
+- `straight-venue.ts` whole; `lipSpeed`, `JumpProfile`, `jumpHeightAt` and
+  `JumpRule`/`VenueRule` move out of `big-air.ts` into it (aerials imports
+  `lipSpeed` from `big-air.ts` today).
+- `judge.ts` whole (`readTrick`, `trickKind`, `impressionOf`, `panelScore`,
+  `difficultyOf` — slopestyle, the halfpipe and moguls read them).
+- `in-run.ts` (aerials' in-run, and ski jumping's); the RAVEN (slopestyle
+  and the halfpipe ride it — its "big-air ski" words change); the six trick
+  maps; `RunRules.spinMost` / `.flipMost` (slopestyle's).
+- **R37** — slopestyle (R38), moguls (R40) and aerials (R41) are each
+  written "BUILT as R37's jump is": R37 is REWRITTEN as the rule of the
+  straight venue they share (the line searched, the fit, the grading, the
+  landing shaped to its fall height, the in-run sized to its speed), its
+  big-air jump's own profile leaving with the mode, so the R-numbers stay
+  contiguous and every cite still reads; R43 says "built as R37 states".
+
+**Removed:**
+
+- Engine: `GameMode` "bigAir", `BIG_AIR`, `bigAirRules` and their rows in
+  `MODE_RULES`, `RACE_SKIS`, `RACE_RIDERS` and `FREESTYLE`;
+  `engine/mapgen/big-air.ts`'s `setBigAir` and `jumpProfile` (after the
+  move), `TRICK_RULES.bigAir`'s jump numbers, `Level.bigAir` /
+  `BigAirCourse` and their readers (`straight-venue.ts`, `cabins.ts`,
+  `enthusiasts.ts`, `in-run.ts`, `speed-ski-steer.ts`, `step.ts`);
+  `big-air-contest.ts`, `ContestState.bigAir`, the `index.ts` exports.
+- App: `big-air-run.ts`, `hud-bigair.tsx`, `strings-bigair.ts` and the
+  big-air branches of `snapshot.ts`, `hud.tsx`, `hud-result.tsx`,
+  `contest-board.ts`, `pinned-run.ts`, `menu-pages.tsx`, `menu-tricks.tsx`,
+  `menu-freestyle.tsx`, `records.ts`, `replay.ts`, `url-params.ts`
+  (`?start=bigair` dropped), `slopestyle-run.ts`'s comment,
+  `strings.ts`, `strings-replay.ts`, `strings-stats.ts`, `ski-topsheets.ts`'s
+  words. A stored pick or record naming the retired mode is dropped on the
+  way in (`mergeSettings`, the book's checker), never a crash.
+- Tools and tests: `simulate-run.mjs`'s `bigAir` mode; `tests/big_air_hud_test.ts`;
+  `tests/big_air_test.ts`'s venue cases moved to a straight-venue test, the
+  rest removed; the big-air rows of `catalog_test`, `race_riders_test`,
+  `race_skis_test`, `records_test`, `ski_card_test`, `tricks_test`,
+  `hockey_stop_test`, `halfpipe_hud_test`, `slopestyle_*_test`.
+- Docs: `docs/specs/BIG_AIR.md` (its open boxes folded into ski jumping's or
+  dropped); `CLAUDE.md`'s big air paragraph and labs row (replaced by ski
+  jumping's); `docs/architecture.md`, `getting-started.md`,
+  `level-generator.md`, `simulation.md`; `docs/freestyle.md`'s big air
+  section KEPT as research (slopestyle's jumps cite it), its row marked
+  retired.
+
+## Build phases
+
+Each phase lands green and with its lab's before and after in the PR.
+
+- [x] **0. Research and this spec** (`docs/freestyle.md` § *Ski jumping*).
+- [ ] **1. The hill (R43)**: `SKI_JUMP_RULE` (both classes), the profile off
+      the norm (`skiJumpProfile`), `setSkiJump` over the straight venue,
+      the analytic surface, `Level.skiJump` and `distanceAt`, the analyzer's
+      hold, the rule's mirror; `tests/ski_jump_test.ts` (every element
+      against the norm's formulas, the hill on the first 24 seeds, no
+      digest moved); `make skijump-flight`'s profile table; `make level`
+      draws the hill.
+- [ ] **2. The in-run and the take-off**: the bar and the light, the wire
+      (`jump-inrun.ts`), the gates, the speed at the edge against v₀, the
+      timed press and v⊥; the lab's in-run and take-off rows.
+- [ ] **3. The flight and the landing**: `jump-flight.ts` — the polar fitted
+      in the lab to the norm's checks, the pitch, the V, the roll, the
+      assist; the telemark, the faults, the falls; the distance to the half
+      metre; the `JumpRecord`; `make injuries` unmoved for a clean jump.
+- [ ] **4. The ski, the build, the mode**: the ALBATROSS row, `SKI_JUMP`,
+      `skiJumpRules`, `RunRules.skiJump`, the `FREESTYLE` row first,
+      `RACE_SKIS`/`RACE_RIDERS`, `createGame`'s options.
+- [ ] **5. The wind, the jury, the scorer, the contest, the field, the par,
+      the bot**: the stations, the compensation, `jump-judge.ts`,
+      `jump-contest.ts`, `ski-jump-steer.ts`, `make sim --mode skiJump`.
+- [ ] **6. Big air retired** (the list above), R37 rewritten.
+- [ ] **7. The app**: the tricks card, the hill row, the HUD, the plate and
+      the board, the words, the URL, the records, the replay recipe;
+      `tests/ski_jump_hud_test.ts`; `screenshots --surface freestyle`.
+- [ ] **8. The hill as drawn**: every piece above; `make skijump`'s
+      `hill`, `parts` and `night` sheets.
+- [ ] **9. The jumper as drawn**: the poses, the suit, the skis and the free
+      heel; `make skijump`'s `poses`, `skier-metrics`.
+- [ ] **10. The cameras and the replay**: the rows, the start, the profile
+      camera, the broadcast; `lenses`.
+- [ ] **11. The audience, the arena, the floodlights**: `crowd`, `night`.
+- [ ] **12. The sound**: `audition` and `--meter`.
+- [ ] **13. Its hills**: the trick maps first; then its own pinned hills
+      (`RACE_MAPS.md`'s pattern) chosen for the hill they cut; docs,
+      `CLAUDE.md`'s paragraph and labs rows, the changelog; delete this
+      spec.
+
+## Research to-do
+
+- [x] The hill classes, the norm's profile formulas and limits, two real
+      hills' certificates, the measuring devices, the platforms and tower.
+- [x] The scoring: metre values, style deductions, compensation and its
+      definition, published factors; the format; the equipment; the build.
+- [x] The jump's speeds, the take-off, the flight's angles and L/D, the
+      landing's speed and load, the broadcast's cameras.
+- [ ] The polar itself as a table (lift and drag areas against the angle of
+      attack, the body angle and the V) from a wind-tunnel source — the
+      flight lab fits one meanwhile, marked *(est.)*.
+- [ ] The current wind-window and gate practice (how often the jury moves
+      the gate; the wind limits a jury holds a jumper for).
+- [ ] The flying hill's numbers (the air's density matters; the norm leaves
+      it out), if a flying hill is wanted.
+- [ ] The cross lines' and the HS line's colours, the distance boards'
+      numbering, the start light's phases on a modern hill.
+
+## Open questions for the user
+
+- The NORMAL hill as well as the large (default: yes, the large first), and
+  a FLYING hill later?
+- The flight's input: the lean, the V on the tuck and the roll on the edge,
+  with the assist on by default (as proposed) — or fewer hands (the V and
+  the roll automatic, the lean and the timing the player's)?
+- The telemark on the trick key (proposed) or automatic with a timing
+  window on the jump key?
+- A fifth, jumper's BUILD (~66 kg, BMI 20.5) instead of the light one?
+- The trial round and a qualification (the championship's 50 out of a
+  larger entry), or round 1 and the final only?
+- The pair's name (ALBATROSS proposed).
+- Team events (four jumpers a team) — later or never?

@@ -11,7 +11,8 @@ each format's own spec keeps its own open boxes.
 | --- | --- | --- |
 | [HALFPIPE.md](HALFPIPE.md) | Halfpipe | judged runs in a pipe, the best run counting |
 | [SLOPESTYLE.md](SLOPESTYLE.md) | Slopestyle | judged runs down rails and jumps, the best run counting |
-| [BIG_AIR.md](BIG_AIR.md) | Big air | judged jumps off one kicker, the best two different counting |
+| [SKI_JUMPING.md](SKI_JUMPING.md) | Ski jumping | distance + style ± wind and gate on a jumping hill, two rounds — replaces big air |
+| [BIG_AIR.md](BIG_AIR.md) | Big air | judged jumps off one kicker, the best two different counting | (to be retired)
 | [AERIALS.md](AERIALS.md) | Aerials | declared jumps, air + form + landing × degree of difficulty |
 | [MOGULS.md](MOGULS.md) | Moguls | one run: turns + air + speed |
 

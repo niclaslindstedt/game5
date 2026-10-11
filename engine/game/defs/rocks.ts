@@ -70,4 +70,11 @@ export const ROCKS = {
    * wider than `widest` m, none lower than `least` m. */
   widest: 1.2,
   least: 0.5,
+  /** A SNOWMOBILE driven into a wall's bare rock (`sled.ts`, over
+   * `rock-ground.ts`' `rockStrike`, read `reach` m past its nose): a step of
+   * stone at `strike` m/s, or up a face of it steeper than `climb` rad (40°)
+   * as fast, throws its rider — the paddles have nothing to bite and the
+   * skis stop on it. (Kept here, not in `SLED`, which the machine's model is
+   * stamped off.) */
+  sled: { strike: 7, reach: 0.3, climb: 0.7 },
 } as const;

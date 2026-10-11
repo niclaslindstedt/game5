@@ -27,6 +27,7 @@ import { solidsNear, solidsOf } from "./posts.ts";
 import { standSkier } from "./course.ts";
 import { liftOutOfSnow, throwRider } from "./crash.ts";
 import { rockStrike } from "./rock-ground.ts";
+import { ROCKS } from "./defs/rocks.ts";
 import { SLED, SLED_PROBES, sledMass } from "./defs/sled.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -284,11 +285,11 @@ function drive(
     s.vx,
     s.vy,
     s.vz,
-    SLED.length / 2 + K.rockReach,
-    K.rockClimb,
+    SLED.length / 2 + ROCKS.sled.reach,
+    ROCKS.sled.climb,
   );
   if (hit > K.tree) throwOff(run, s, events, v0, hit);
-  else if (rock > K.rock) throwOff(run, s, events, v0, rock);
+  else if (rock > ROCKS.sled.strike) throwOff(run, s, events, v0, rock);
   else if (landing && landing.off > 1) throwOff(run, s, events, v0, landing.into);
   else if (stopped > K.wall) throwOff(run, s, events, v0, stopped);
   else if (s.overFor > K.overFor) throwOff(run, s, events, v0, s.speed, true);

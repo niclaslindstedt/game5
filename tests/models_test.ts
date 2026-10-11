@@ -19,7 +19,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { GROOMER, HELI, SKI_CATALOG } from "@engine";
+import { GROOMER, HELI, PLANE, SKI_CATALOG } from "@engine";
 
 import {
   ALL_MODELS,
@@ -35,6 +35,8 @@ import {
   groomerModelUrl,
   HELI_NODES,
   heliModelUrl,
+  PLANE_NODES,
+  planeModelUrl,
   rescueModelUrl,
   SLED_NODES,
   sledModelUrl,
@@ -52,7 +54,7 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile and the piste machine", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine and the jump plane", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
@@ -60,9 +62,12 @@ describe("the models the game ships", () => {
         "rescue.glb",
         "sled.glb",
         "groomer.glb",
+        "plane.glb",
       ].sort(),
     );
-    const none = { skis: false, heli: false, sled: false, groomer: false };
+    const none = { skis: false, heli: false, sled: false, groomer: false, plane: false };
+    expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
+    expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
     expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
     expect(modelFiles({ ...none, sled: true })).toEqual(["sled.glb"]);
     expect(modelFiles({ ...none, groomer: true })).toEqual(["groomer.glb"]);
@@ -87,6 +92,7 @@ describe("the models the game ships", () => {
       "blender",
       "groomer",
       "heli",
+      "plane",
       "rescue",
       "sled",
       "sources",
@@ -340,5 +346,75 @@ describe("the piste machine model", () => {
     // cab's glass and pillars, the hood, the blade's guard and the
     // tiller's ribbed mat.
     expect(tris).toBeLessThan(26_000);
+  });
+});
+
+describe("the jump plane model", () => {
+  const glb = readFileSync(join(root, MODELS_DIR, "plane.glb"));
+  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+    nodes: {
+      name: string;
+      mesh?: number;
+      translation?: number[];
+      rotation?: number[];
+      extras?: Record<string, unknown>;
+    }[];
+    materials: { name: string }[];
+    meshes: { primitives: { indices: number; attributes: { POSITION: number } }[] }[];
+    accessors: { count: number; min?: number[]; max?: number[] }[];
+  };
+  const node = (name: string) => gltf.nodes.find((n) => n.name === name);
+  const builder = readFileSync(join(root, "scripts", "blender", "plane.py"), "utf8");
+  const v = (n: number[] | undefined) => (n ?? [0, 0, 0]).map((x) => Math.round(x * 1000) / 1000);
+
+  it("carries every node its drawer is told of, each a rigid mesh, the hinged ones marked", () => {
+    for (const name of Object.values(PLANE_NODES)) {
+      expect(builder, `plane.py names ${name}`).toContain(`"${name}"`);
+      expect(node(name)?.mesh, name).toBeTypeOf("number");
+    }
+    for (const k of ["elevator", "rudder", "aileronL", "aileronR", "flapL", "flapR"] as const) {
+      expect(node(PLANE_NODES[k])?.extras?.hinge, k).toBe("x");
+    }
+    expect(planeModelUrl()).toBe("/models/plane.glb");
+  });
+
+  it("turns its propeller about the engine's hub (glTF-turned: the nose on −z)", () => {
+    expect(v(node(PLANE_NODES.prop)?.translation)).toEqual(
+      v([0, PLANE.prop.hub.y, -PLANE.prop.hub.z]),
+    );
+    expect(v(node(PLANE_NODES.body)?.translation)).toEqual([0, 0, 0]);
+  });
+
+  it("spans the wing and stands on its skis where the engine has them", () => {
+    const min = [Infinity, Infinity, Infinity];
+    const max = [-Infinity, -Infinity, -Infinity];
+    for (const p of gltf.meshes[node(PLANE_NODES.body)!.mesh!].primitives) {
+      const a = gltf.accessors[p.attributes.POSITION];
+      for (let k = 0; k < 3; k++) {
+        min[k] = Math.min(min[k], a.min![k]);
+        max[k] = Math.max(max[k], a.max![k]);
+      }
+    }
+    expect(max[0] - min[0]).toBeCloseTo(PLANE.wing.span, 0);
+    expect(min[1]).toBeGreaterThan(-0.05);
+    expect(min[1]).toBeLessThan(0.05);
+    expect(max[1]).toBeCloseTo(PLANE.fin.tip.y, 0);
+  });
+
+  it("names its materials as the builder does, the lit ones among them", () => {
+    const named = new Set(matNames("plane.py"));
+    for (const n of ["paint", "glass", "cabin", "lamp", "lamp_green", "lamp_white"]) {
+      expect(named.has(n), `plane.py names "${n}"`).toBe(true);
+    }
+    for (const m of gltf.materials) expect(named.has(m.name), m.name).toBe(true);
+  });
+
+  it("stays inside the game's triangle budget", () => {
+    const tris = gltf.meshes
+      .flatMap((m) => m.primitives)
+      .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
+    // 20k: the traced skin with its windows and livery, the cabin behind
+    // the open door, the wing and tail, the gear on its skis.
+    expect(tris).toBeLessThan(20_000);
   });
 });

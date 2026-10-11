@@ -265,8 +265,11 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  const { keys: skiKeys, heliKeys } = settings;
-  useEffect(() => input?.setBindings({ keys: skiKeys, heliKeys }), [input, skiKeys, heliKeys]);
+  const { keys: skiKeys, heliKeys, planeKeys } = settings;
+  useEffect(
+    () => input?.setBindings({ keys: skiKeys, heliKeys, planeKeys }),
+    [input, skiKeys, heliKeys, planeKeys],
+  );
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
   const renderKit = useRenderKit();

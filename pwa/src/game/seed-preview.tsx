@@ -352,7 +352,7 @@ export function SeedPreview({
   /** The machine the ride begins on, when the RUN row picked one: marked
    * where it waits on the valley floor (the paramotor on the summit)
    * rather than at any run's head; the afterski at its lodge's door. */
-  machine?: "heli" | "sled" | "para" | "balloon" | "afterski" | null;
+  machine?: "heli" | "sled" | "para" | "balloon" | "plane" | "afterski" | null;
   /** The picked start, m on the snow; null is the start line. */
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;
@@ -391,6 +391,20 @@ export function SeedPreview({
         ? toChart(drawn.schematic.size, start.x, start.z)
         : toPanorama(drawn.panorama.view, start.x, start.y, start.z)
       : null;
+  // THE JUMP PLANE'S STRIP drawn as the line it is, under the pulse at its
+  // middle (a chart from a build without it draws only the pulse).
+  const stripEnds =
+    drawn && machine === "plane" && drawn.strip
+      ? view === "plan"
+        ? [
+            toChart(drawn.schematic.size, drawn.strip.a.x, drawn.strip.a.z),
+            toChart(drawn.schematic.size, drawn.strip.b.x, drawn.strip.b.z),
+          ]
+        : [
+            toPanorama(drawn.panorama.view, drawn.strip.a.x, drawn.strip.a.y, drawn.strip.a.z),
+            toPanorama(drawn.panorama.view, drawn.strip.b.x, drawn.strip.b.y, drawn.strip.b.z),
+          ]
+      : null;
   const label = drawn
     ? view === "plan"
       ? STRINGS.seedChart(drawn.seed, drawn.schematic.kickers.length)
@@ -415,6 +429,15 @@ export function SeedPreview({
               <PlanLayers drawn={drawn} at={at} entry={head !== null} />
             ) : (
               <PanoramaLayers drawn={drawn} at={at} entry={head !== null} />
+            )}
+            {!at && stripEnds?.[0] && stripEnds[1] && (
+              <line
+                class="seed-preview-strip"
+                x1={stripEnds[0][0].toFixed(1)}
+                y1={stripEnds[0][1].toFixed(1)}
+                x2={stripEnds[1][0].toFixed(1)}
+                y2={stripEnds[1][1].toFixed(1)}
+              />
             )}
             {at ? (
               <EntryMark at={at} grade={null} />

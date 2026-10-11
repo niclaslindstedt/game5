@@ -651,7 +651,9 @@ export function createWorldRenderer(
           run.tricks.pose,
           dt,
           sampleBody(r.body, alpha),
-          inStartGate(run),
+          // In the jump plane's door he stands poised for the exit, crouched
+          // under its lintel as a racer in the start gate is.
+          run.plane?.rider ? true : inStartGate(run),
         );
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp) {
           stampsOf(
@@ -698,7 +700,12 @@ export function createWorldRenderer(
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
-      lens.bail(!!state.heli?.rider, skier.airborne, skier.thrown !== null, Math.min(dt, 0.1));
+      lens.bail(
+        !!(state.heli?.rider || state.plane?.rider),
+        skier.airborne,
+        skier.thrown !== null,
+        Math.min(dt, 0.1),
+      );
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);

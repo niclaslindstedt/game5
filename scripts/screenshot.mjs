@@ -41,6 +41,11 @@
 //   ?skis=<id>       the player's pair for the run (--skis).
 //   ?heli=1          a free ride begun on the helicopter (--surface heli*).
 //   ?sled=1          a free ride begun on the snowmobile (--surface sled*).
+//   ?plane=1         a free ride begun in the jump plane's door (--surface
+//                    plane*), flown up by the pre-roll's pilot.
+//   ?chute=<m>       a free ride begun in freefall this high over the snow
+//                    (--surface chute*), the pre-roll's jumper pulling at
+//                    1,000 m.
 //   ?afterski=1      a free ride begun inside the valley's afterski lodge
 //                    (--surface afterski).
 //   ?buzz=<0..1>     a free ride begun with a buzz (--surface buzzed).
@@ -421,6 +426,40 @@ const SURFACES = {
   balloon: {
     params: { start: "free", balloon: "1", t: "60", shot: "1" },
     wait: ".hud-seed",
+    settle: 1500,
+  },
+  // THE FREE RIDE'S JUMP PLANE (`plane.ts`, `?plane=1`): in its door on the
+  // strip, climbing out over the valley on the pre-roll's pilot, and the
+  // look down out of the door; and THE SKYDIVE (`chute.ts`, `?chute=`): in
+  // freefall, the canopy opening, and flying it.
+  "plane-strip": {
+    params: { start: "free", plane: "1", t: "3", shot: "1" },
+    wait: ".hud-seed",
+    settle: 1500,
+  },
+  plane: {
+    params: { start: "free", plane: "1", t: "45", shot: "1" },
+    wait: ".hud-plane",
+    settle: 1500,
+  },
+  "plane-door": {
+    params: { start: "free", plane: "1", t: "60", camera: "tips", shot: "1" },
+    wait: ".hud-plane",
+    settle: 1500,
+  },
+  "chute-free": {
+    params: { start: "free", chute: "1500", t: "4", shot: "1" },
+    wait: ".hud-chute",
+    settle: 1500,
+  },
+  "chute-open": {
+    params: { start: "free", chute: "1100", t: "7", shot: "1" },
+    wait: ".hud-chute",
+    settle: 1500,
+  },
+  chute: {
+    params: { start: "free", chute: "1500", t: "30", shot: "1" },
+    wait: ".hud-chute",
     settle: 1500,
   },
   // THE GALLERY as a fresh visit finds it: the roll lives in IndexedDB and a

@@ -2,7 +2,8 @@
 // THE FREE RIDE'S MACHINES IN THE RENDERER — the helicopter on its pad
 // (`heli-scene.ts`), the snowmobile at the bottom (`sled-scene.ts`) and the
 // paramotor's wing over a skier begun under it (`para-scene.ts`), the hot
-// air balloon a skier is begun in (`balloon-scene.ts`) and the
+// air balloon a skier is begun in (`balloon-scene.ts`), the jump plane and
+// the skydive out of its door (`plane-scene.ts`, `chute-scene.ts`) and the
 // piste machines working the runs after dark (`groomer-scene.ts`), and the
 // village's cars, ski bus and bicycles (`traffic-view.ts`) and every
 // building's door (`doors-view.ts`), held
@@ -10,8 +11,8 @@
 // rest of the world (only where a run's rules carry them), the player's
 // figure seated on the skid or stood on the boards, each drawn every frame
 // — the snowmobile's tracks stamped with the skiers' furrows and its roost
-// thrown, the helicopter's wash blown — and the helicopter's lens while he
-// rides it, flown onto it and off it.
+// thrown, the helicopter's wash blown — and the helicopter's and the
+// plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
 import { BALLOON, type GameState, type Level } from "@engine";
@@ -25,7 +26,17 @@ import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
-import { hangIn, PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
+import {
+  CHUTE_RIGS,
+  hangIn,
+  PARA_RIGS,
+  paraRigPose,
+  CHUTE_LIFT,
+  underCanopy,
+  underWing,
+} from "./camera-para.ts";
+import { createChuteScene, type ChuteScene } from "./chute-scene.ts";
+import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { Outfit } from "./outfit.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
@@ -136,6 +147,12 @@ export function createMachines(
   // ...and the hot air balloon, drawn while a run carries one
   // (`GameState.balloon`).
   const balloon: BalloonScene | null = state.rules.heli ? createBalloonScene(haze) : null;
+  // ...and the jump plane and the skydive out of its door, drawn while a
+  // run carries them (`GameState.plane`, `.chute`).
+  const plane: PlaneScene | null = state.rules.heli ? createPlaneScene(haze) : null;
+  const chute: ChuteScene | null = state.rules.heli ? createChuteScene(haze) : null;
+  if (plane) group.add(plane.group);
+  if (chute) group.add(chute.group);
   if (heli) group.add(heli.group);
   if (para) group.add(para.group);
   if (balloon) group.add(balloon.group);
@@ -189,7 +206,7 @@ export function createMachines(
     group,
     balloon,
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready, groomers?.ready]).then(() => undefined),
+      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
@@ -229,6 +246,8 @@ export function createMachines(
       });
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
+      plane?.frame(s, alpha, dt, rung, flying, aspect);
+      chute?.frame(s, alpha, chute && (s.chute || s.plane?.rider) ? seated?.skin() : null);
       balloon?.frame(s, alpha, dt);
       hung = s.para?.flying ? hangIn(hung, dt) : 0;
       lastDt = dt;
@@ -250,15 +269,17 @@ export function createMachines(
       balloon?.light(look);
     },
     lamps(lit, eye, others) {
-      // The eye settled for this frame: the helicopter's cockpit shown
-      // while it is in the cabin.
+      // The eye settled for this frame: the helicopter's and the jump
+      // plane's cockpits shown while it is in their cabins.
       heli?.seen(eye);
+      plane?.seen(eye);
       doors?.seen(eye);
       floods.length = 0;
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
       rescue?.lamps(lit, floods);
+      plane?.lamps(lit, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
       traffic?.update(current, lit, eye, floods, env.cull);
       if (floods.length === 0) return others;
@@ -266,7 +287,10 @@ export function createMachines(
       return floods;
     },
     lens(ladder, dt) {
-      return heli?.lens(ladder, dt) ?? null;
+      // Both asked every frame, so each hands its own lens in and out.
+      const h = heli?.lens(ladder, dt) ?? null;
+      const p = plane?.lens(ladder, dt) ?? null;
+      return h ?? p;
     },
     ladder(pose, s, screen = 16 / 9) {
       aspect = screen;
@@ -285,6 +309,10 @@ export function createMachines(
       if (para && underWing(s)) {
         paraRigPose(pose, para.wing(), hung);
         return PARA_RIGS;
+      }
+      if (chute && underCanopy(s)) {
+        paraRigPose(pose, chute.canopy(), 1, CHUTE_LIFT);
+        return CHUTE_RIGS;
       }
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;
       sledRigPose(pose, s.sled, sled?.drawn() ?? null, s.skier.spec.cogHeight);
@@ -310,6 +338,8 @@ export function createMachines(
       traffic?.dispose();
       doors?.dispose();
       para?.dispose();
+      plane?.dispose();
+      chute?.dispose();
       balloon?.dispose();
       rescue?.dispose();
     },

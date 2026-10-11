@@ -76,6 +76,7 @@ import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
 import { MachinePress } from "./hud-machine-press.tsx";
 import { GroomerReadout } from "./hud-groomer.tsx";
 import { ParaReadout } from "./hud-para.tsx";
+import { ChuteReadout, PlaneReadout } from "./hud-plane.tsx";
 import { BalloonPad, BalloonReadout } from "./hud-balloon.tsx";
 
 export type { HudFlash };
@@ -174,7 +175,8 @@ export function Hud({
   const lit = snap.missed !== null || snap.getUp;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
-  const flown = snap.heli?.kind === "flown" ? snap.heli : null;
+  // The helicopter and the plane are flown on the same two pads.
+  const flown = snap.heli?.kind === "flown" || snap.plane?.kind === "flown";
   // The snowmobile's readout over the helicopter's call: ridden, or stood
   // beside it, it is the one the machine key is about.
   // A piste machine's over both: driven, or stood beside it.
@@ -185,7 +187,8 @@ export function Hud({
     !groomerFirst && snap.sled !== null && (snap.sled.kind === "ridden" || snap.sled.near);
   const barSide: ZoneSide = lever === "left" ? "right" : "left";
   // FLYING THE HELICOPTER the thumbs are two pads: the edge thumb's glass
-  // the cyclic, the lever's the collective and the pedals.
+  // the cyclic, the lever's the collective and the pedals — and flying the
+  // plane the stick, and the power and the rudder.
   // IN THE BALLOON'S BASKET the edge thumb's glass is the walking pad and
   // the lever's the burner, the vent and the jump (`hud-balloon.tsx`).
   const basket = snap.balloon;
@@ -534,7 +537,7 @@ export function Hud({
           the edge, his own wind and the height are the strip's. */}
       {!indoors && (
         <div class="hud-speed">
-          {!snap.balloon && (
+          {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && (
             <div class="hud-revs-row">
               <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
               <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
@@ -547,7 +550,9 @@ export function Hud({
               {Math.round(snap.balloon ? snap.balloon.groundKmh : snap.speedKmh)}
             </span>
             <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
-            {!snap.balloon && <WindMeter wind={snap.wind} />}
+            {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && (
+              <WindMeter wind={snap.wind} />
+            )}
             {snap.damage && <DamageGauge damage={snap.damage} />}
           </div>
           {snap.balloon && <span class="hud-chip-sub">{STRINGS.balloonGround}</span>}
@@ -712,6 +717,21 @@ export function Hud({
       {/* THE PARAMOTOR (`hud-para.tsx`): the flight strip while the rig is
           on him — in the air clock's place, which a flight never shows. */}
       {snap.para && <ParaReadout para={snap.para} touch={touch} machineKey={machineKey} />}
+      {/* THE JUMP PLANE AND THE SKYDIVE (`hud-plane.tsx`): the panel while he
+          flies it, its call parked near him when nothing else calls, and
+          the altimeter from the door to the snow. */}
+      {snap.plane &&
+        (snap.plane.kind === "flown" || (!snap.heli && !snap.sled && !snap.groomer)) && (
+          <PlaneReadout
+            plane={snap.plane}
+            live={live}
+            touch={touch}
+            machineKey={machineKey}
+            onBoard={input.requestMachine}
+            onFlaps={input.requestFlaps}
+          />
+        )}
+      {snap.chute && <ChuteReadout chute={snap.chute} touch={touch} machineKey={machineKey} />}
       {/* THE HOT AIR BALLOON (`hud-balloon.tsx`): its instruments and the
           call while he stands in the basket, in the same place. */}
       {snap.balloon && (

@@ -45,7 +45,7 @@ import {
   rotate,
   unrotate,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { treesNear } from "./collision.ts";
+import { airBoundsAt, treesNear, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
 import { mayGetUp, throwRider } from "./crash.ts";
 import { HELI } from "./defs/heli.ts";
@@ -240,7 +240,7 @@ function controlsFor(run: GameState, h: HeliState, input: SkierInput): HeliContr
       pedal: clamp(c.pedal, -1, 1),
     };
     // SAFE FOR WORK: the stick is what he wants, flown by a steadying hand.
-    return run.rules.sfw ? steadyControls(run, stick) : stick;
+    return turnedBack(run, h, run.rules.sfw ? steadyControls(run, stick) : stick);
   }
   if (h.mode === "home") {
     if (h.t < K.home.beat) return h.controls;
@@ -257,6 +257,40 @@ function controlsFor(run: GameState, h: HeliState, input: SkierInput): HeliContr
 }
 
 const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
+const edge: AirBounds = { depth: 0, wx: 0, wz: 0, heading: 0 };
+
+/** The band along the map's edge a helicopter is met over, m: the
+ * helicopter's own, and wider by the seconds it takes to come round at the
+ * speed it is carried out at — a hover or a loop in place meets only the
+ * narrow band, a machine flown flat out at the edge the wide one. */
+function bandOf(level: { size: number }, h: HeliState): number {
+  const home = Math.atan2(level.size / 2 - h.x, level.size / 2 - h.z);
+  const out = -(h.vx * Math.sin(home) + h.vz * Math.cos(home));
+  return TUNING.bounds.air.heli + TUNING.bounds.air.heliTurn * Math.max(0, out);
+}
+
+/** NEAR THE MAP'S EDGE in the air (`airBoundsAt`), the player's controls
+ * blended toward the bot's flying it back toward the middle at its height,
+ * by how deep into the band it is. */
+function turnedBack(run: GameState, h: HeliState, c: HeliControls): HeliControls {
+  if (h.grounded) return c;
+  const level = run.level;
+  airBoundsAt(level, h.x, h.z, h.agl, bandOf(level, h), edge);
+  if (edge.depth <= 0) return c;
+  const w = clamp(edge.depth * 3, 0, 1);
+  const home = pilotControls(run, {
+    x: level.size / 2,
+    z: level.size / 2,
+    height: Math.max(h.agl, TUNING.bounds.air.high),
+  });
+  const mix = (a: number, b: number): number => a + (b - a) * w;
+  return {
+    collective: mix(c.collective, home.collective),
+    pitch: mix(c.pitch, home.pitch),
+    roll: mix(c.roll, home.roll),
+    pedal: mix(c.pedal, home.pedal),
+  };
+}
 
 /** ONE STEP OF FLIGHT on `c`: the thrust off the collective along the disc,
  * the air, the disc tilted by the cyclic, the fuselage swung under it, the
@@ -277,9 +311,11 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
   // THE AIR it flies through: the weather's wind brought to its height.
   windAt(level, run.t, wind);
   const lift = profileAt(clamp(h.y - ground + K.cog, 1, 300));
-  const ax = h.vx - wind.x * lift;
+  // ...and near the map's edge, the bounds' wind blowing it back in.
+  airBoundsAt(level, h.x, h.z, h.agl, bandOf(level, h), edge);
+  const ax = h.vx - wind.x * lift - edge.wx;
   const ay = h.vy;
-  const az = h.vz - wind.z * lift;
+  const az = h.vz - wind.z * lift - edge.wz;
   const af = ax * fwd.x + ay * fwd.y + az * fwd.z;
   const as = ax * right.x + ay * right.y + az * right.z;
   const au = ax * up.x + ay * up.y + az * up.z;

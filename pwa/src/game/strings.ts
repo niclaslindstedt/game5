@@ -29,6 +29,8 @@ import { SLED_STRINGS } from "./strings-sled.ts";
 import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
+import { PLANE_STRINGS } from "./strings-plane.ts";
+import { CHUTE_STRINGS } from "./strings-chute.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
@@ -110,6 +112,8 @@ export const STRINGS = {
   ...AFTERSKI_STRINGS,
   ...PARA_STRINGS,
   ...BALLOON_STRINGS,
+  ...PLANE_STRINGS,
+  ...CHUTE_STRINGS,
   ...GROOMER_STRINGS,
   ...TRAFFIC_STRINGS,
   ...BIG_AIR_STRINGS,
@@ -270,7 +274,8 @@ export const STRINGS = {
       | "maul"
       | "groomer"
       | "car"
-      | "balloon",
+      | "balloon"
+      | "plane",
   ): string =>
     cause === "car"
       ? TRAFFIC_STRINGS.newsCar
@@ -280,7 +285,7 @@ export const STRINGS = {
           ? "TAKEN BY THE GRIMBEAR"
           : cause === "groomer"
             ? "BONK! PISTE MACHINE"
-            : cause === "heli"
+            : cause === "heli" || cause === "plane"
               ? "THROWN CLEAR!"
               : cause === "grip"
                 ? "LOST HIS GRIP!"
@@ -558,7 +563,7 @@ export const STRINGS = {
    * lift (`free-ride.ts`'s `startPicked`). */
   startStart: "START",
   startStartHint:
-    "How the ride begins. ON SKIS: the lift carries you up to the RUN row's run. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off. And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
+    "How the ride begins. ON SKIS: the lift carries you up to the RUN row's run. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off; the PLANE: stood in its open door on the strip below the village, fly it up as high as you dare, jump, open the canopy and fly it down. And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
   /** The START row's first stop. */
   startOnSkis: "ON SKIS",
   startRun: "RUN",
@@ -760,7 +765,7 @@ export const STRINGS = {
   pauseSlopesRunHint:
     "Which run to ski next, of every run on the mountain: the lift carries you up to its head.",
   pauseSlopesStartHint:
-    "How to go on: on skis down the run picked, or the paramotor on the summit, the balloon, the snowmobile or the helicopter in the valley, or the afterski.",
+    "How to go on: on skis down the run picked, or the paramotor on the summit, the balloon, the snowmobile, the helicopter or the jump plane in the valley, or the afterski.",
   pauseSlopesCaption:
     "Pick a run or a ride, or tap the chart to start anywhere on this mountain · GO takes you there",
   /** The card BEHIND the pause card's own options panel, named on the way

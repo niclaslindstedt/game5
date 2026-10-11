@@ -17,6 +17,7 @@ import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
 import { altitudeAt, overBase } from "./altitude.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
+import { aloftInPlane, chuteOf, planeOf, type HudChute, type HudPlane } from "./plane-hud.ts";
 import {
   airflowAt,
   bearingToNext,
@@ -317,6 +318,12 @@ export type HudSnapshot = {
   /** THE HOT AIR BALLOON (`balloon-hud.ts`): its instruments and the call
    * while he stands in its basket, or null. */
   balloon: HudBalloon | null;
+  /** THE JUMP PLANE (`plane-hud.ts`): its instruments while he flies it
+   * from the door, its call while it stands parked near him, or null. */
+  plane: HudPlane | null;
+  /** THE SKYDIVE (`plane-hud.ts`): the altimeter and the next press from
+   * the door to the snow, or null. */
+  chute: HudChute | null;
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
@@ -638,8 +645,12 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   const n = state.level.checkpoints.length;
   const last = p.lastCheckpoint;
   const lastAt = last >= 0 ? p.splits[last] : Number.NaN;
-  // Hung under a paramotor's wing he is flying, not jumping.
-  const airTime = c.airborne && c.airTime > AIR_SHOWN && !paraRigged(state) ? c.airTime : 0;
+  // Hung under a paramotor's wing, in the plane's door or falling from it,
+  // he is flying, not jumping.
+  const airTime =
+    c.airborne && c.airTime > AIR_SHOWN && !paraRigged(state) && !aloftInPlane(state)
+      ? c.airTime
+      : 0;
   // A slalom is timed at its intermediates (`slalom.timing`), never gate by
   // gate — its gates come a second apart.
   const split =
@@ -654,6 +665,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   // cross's heat has the start gate's commands and no count at all.
   const cross = crossOf(state);
   const lights = state.rules.countdown > 0 && !race && !state.cross;
+  const aloft = balloonAboard(state) || aloftInPlane(state);
   return {
     speedKmh: c.speed * 3.6,
     altitude: altitudeAt(state.level, c.x, c.y, c.z),
@@ -720,14 +732,17 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     region: regionOf(state.level).id,
     face: state.level.face ?? null,
     wind: windOf(state),
-    // In a balloon's basket no machine on the snow calls him.
-    heli: balloonAboard(state) ? null : heliOf(state),
-    sled: balloonAboard(state) ? null : sledOf(state),
-    groomer: balloonAboard(state) ? null : groomerOf(state),
+    // In a balloon's basket, the plane's door or the sky under it, no
+    // machine on the snow calls him.
+    heli: aloft ? null : heliOf(state),
+    sled: aloft ? null : sledOf(state),
+    groomer: aloft ? null : groomerOf(state),
     para: paraOf(state),
     balloon: balloonOf(state),
-    afterski: balloonAboard(state) ? null : afterskiOf(state),
-    door: balloonAboard(state) ? null : doorCallOf(state),
+    plane: balloonAboard(state) ? null : planeOf(state),
+    chute: chuteOf(state),
+    afterski: aloft ? null : afterskiOf(state),
+    door: aloft ? null : doorCallOf(state),
     buzz: c.buzz ?? 0,
     dark: Math.round(skyLookAt(state.level, state.t).lamps * 100) / 100,
   };

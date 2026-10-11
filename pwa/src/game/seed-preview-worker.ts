@@ -25,6 +25,7 @@ import {
   generateLevel,
   gradeOf,
   helipadOf,
+  airstripOf,
   balloonSiteOf,
   loadRealFace,
   lodgesOf,
@@ -106,10 +107,16 @@ export type PreviewPainted = {
    * (`sledSpotOf`) — and the summit the paramotor starts on
    * (`paraStartOf`) and the balloon's site (`balloonSiteOf`): the place the card marks when one is picked — and the
    * door of the valley's afterski lodge (`lodgesOf`), null on a map with
-   * none, where the RUN row offers no afterski. */
-  machines: Record<"heli" | "sled" | "para" | "balloon", { x: number; y: number; z: number }> & {
+   * none, where the RUN row offers no afterski — and the jump plane's strip
+   * (`airstripOf`): its middle, and its two ends the chart draws it
+   * between. */
+  machines: Record<
+    "heli" | "sled" | "para" | "balloon" | "plane",
+    { x: number; y: number; z: number }
+  > & {
     afterski: { x: number; y: number; z: number } | null;
   };
+  strip: { a: { x: number; y: number; z: number }; b: { x: number; y: number; z: number } };
 };
 
 /** A seed the generator refuses is an answer too: the card says so rather
@@ -239,8 +246,10 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
           sled: placeOf(sledSpotOf(level)),
           para: summitOf(level),
           balloon: placeOf(balloonSiteOf(level)),
+          plane: placeOf(airstripOf(level)),
           afterski: lodgeDoorOf(level),
         },
+        strip: { a: placeOf(airstripOf(level).start), b: placeOf(airstripOf(level).end) },
       };
     }
     // The map is copied, not transferred: this worker's own last resort

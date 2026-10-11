@@ -32,7 +32,8 @@
 // wire cutters) carries the same `HELI_NODES` and is packed under the same
 // switch, fetched from `rescueModelUrl()`. So are the snowmobile
 // (`sledModelUrl`, `VITE_MODEL_SLED`) and the night's piste machine
-// (`groomerModelUrl`, `VITE_MODEL_GROOMER`), each fetched by its drawer.
+// (`groomerModelUrl`, `VITE_MODEL_GROOMER`) and the jump plane
+// (`planeModelUrl`, `VITE_MODEL_PLANE`), each fetched by its drawer.
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -56,6 +57,7 @@ export const MODELS = {
   heli: modelSwitch(ENV.VITE_MODEL_HELI),
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
+  plane: modelSwitch(ENV.VITE_MODEL_PLANE),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -103,6 +105,31 @@ export const GROOMER_NODES = {
   tiller: "groomer_tiller",
   beacon: "groomer_beacon",
 } as const;
+
+/** The jump plane model's nodes, as `scripts/blender/plane.py` names them
+ * (glTF-turned: the nose on −z): the airframe with its cabin (its origin
+ * the ground datum); the propeller (its origin the hub, turning about its
+ * local z); and the hinged surfaces and the jump door, each with its
+ * origin on its hinge and its local x along it, a positive turn about it
+ * lowering the trailing edge (the rudder's: swinging it to the door's
+ * side). */
+export const PLANE_NODES = {
+  body: "plane_body",
+  prop: "plane_prop",
+  elevator: "plane_elevator",
+  rudder: "plane_rudder",
+  aileronL: "plane_aileron_l",
+  aileronR: "plane_aileron_r",
+  flapL: "plane_flap_l",
+  flapR: "plane_flap_r",
+  door: "plane_door",
+} as const;
+
+/** Where this build serves the jump plane's glTF, or `null` when it is
+ * switched off (`VITE_MODEL_PLANE=0`) and the build packs none. */
+export function planeModelUrl(): string | null {
+  return MODELS.plane ? `${String(ENV.BASE_URL ?? "/")}models/plane.glb` : null;
+}
 
 /** Where this build serves the piste machine's glTF, or `null` when it is
  * switched off (`VITE_MODEL_GROOMER=0`) and the build packs none. */

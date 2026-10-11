@@ -23,7 +23,7 @@
 // the helmet his arms and legs are what a pilot's own camera sees.
 // Handed back the moment the rig is let go.
 
-import { PARA, paraRigged, type GameState } from "@engine";
+import { CHUTE, PARA, chuteActive, paraRigged, type GameState } from "@engine";
 import { fromAxisAngle, multiply } from "@niclaslindstedt/oss-game-framework/core/quat";
 
 import {
@@ -90,6 +90,20 @@ export const PARA_RIGS: Record<Rung, Rig> = {
   orbit: { kind: "orbit", radius: 17, height: 3, spin: 0.12, fov: 56 },
 };
 
+/** How far up his lines the booms under a skydiver's canopy are framed
+ * from, m: lower than the wing's, so he stays in a short frame under it. */
+export const CHUTE_LIFT = 1.4;
+
+/** THE LADDER UNDER A SKYDIVER'S CANOPY (`chute.ts`): the wing's, framed
+ * a little closer for a smaller canopy on shorter lines, the canopy cam
+ * hung under its middle at the main's own line length. */
+export const CHUTE_RIGS: Record<Rung, Rig> = {
+  ...PARA_RIGS,
+  chase: boom(PARA_RIGS.chase, { dist: 9, height: 1.2 }),
+  far: boom(PARA_RIGS.far, { dist: 18, height: 3 }),
+  high: bolted(PARA_RIGS.high, { eye: { x: 0, y: CHUTE.canopy.lines - 1.3, z: -1.2 } }),
+};
+
 /** How far the bolted rungs look up on the snow, before he flies, rad. */
 const GROUND_UP = 0.6;
 /** How long the eyes take to come down over the drop once he flies, s. */
@@ -106,7 +120,7 @@ export function hangIn(hung: number, dt: number): number {
  * under the wing they see his arms and legs, as a pilot's camera does. */
 export function figureShown(rung: Rung, ladder: unknown, airborne: boolean): boolean {
   if (rung !== "tips" && rung !== "helmet") return true;
-  return ladder === PARA_RIGS && airborne;
+  return (ladder === PARA_RIGS || ladder === CHUTE_RIGS) && airborne;
 }
 
 /** Whether the lens is the wing's this frame: the rig on him. */
@@ -114,14 +128,27 @@ export function underWing(state: GameState): boolean {
   return paraRigged(state) && state.skier.thrown === null;
 }
 
+/** Whether the lens is a skydiver's canopy's this frame: one open (or
+ * caught) over him and he not thrown. */
+export function underCanopy(state: GameState): boolean {
+  const ch = state.chute;
+  return (
+    !!ch &&
+    (ch.mode === "open" || ch.mode === "snagged") &&
+    chuteActive(state) &&
+    state.skier.thrown === null
+  );
+}
+
 /** THE POSE THE LADDER FRAMES UNDER THE WING, written over `pose` (the
- * pilot's): lifted `LIFT` m along his lines toward the drawn wing (`wing`),
+ * pilot's): lifted `up` m (`LIFT`) along his lines toward the drawn wing (`wing`),
  * so the booms frame the whole rig, the lift kept as `RigPose.lift` for the
  * bolted rungs to take back off. */
 export function paraRigPose(
   pose: RigPose,
   wing: { x: number; y: number; z: number } | null,
   hung = 1,
+  up = LIFT,
 ): RigPose {
   // On the snow, skiing off under the wing, his eyes are up on the slope
   // ahead and the horizon; lifted off, they come down to the bolted rungs'
@@ -137,7 +164,7 @@ export function paraRigPose(
   const dz = wing.z - pose.z;
   const d = Math.hypot(dx, dy, dz);
   if (d < 1e-3) return pose;
-  const lift = { x: (dx / d) * LIFT, y: (dy / d) * LIFT, z: (dz / d) * LIFT };
+  const lift = { x: (dx / d) * up, y: (dy / d) * up, z: (dz / d) * up };
   pose.x += lift.x;
   pose.y += lift.y;
   pose.z += lift.z;

@@ -33,7 +33,6 @@ import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
 import type { PisteDay } from "./piste-day.ts";
-import type { StakeState } from "./edge-stakes.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { ContestState } from "./contest-state.ts";
 import type { AfterskiEvent, AfterskiState, Fetch, TownWalk, Wobble } from "./afterski-state.ts";
@@ -81,11 +80,11 @@ export type SkierInput = {
    * held on the snow, and springs off them the step it is let go, the
    * higher the longer it was held (`TUNING.jump`). Left out, it is off. */
   jump?: boolean;
-  /** THE HELICOPTER'S CONTROLS (`heli.ts`) while he flies it; left out,
-   * where they were let go — the collective down, the rest centred. */
+  /** THE HELICOPTER'S (`heli.ts`) and THE JUMP PLANE'S (`plane.ts`) CONTROLS
+   * while he flies one; left out, let go (the collective down, the rest centred). */
   heli?: HeliControls;
-  /** EDGE-TRIGGERED: THE MACHINE PRESS — on to the machine he stands beside (a piste
-   * machine's cab too), off the one he rides, or the paramotor's rig released. */
+  plane?: import("./plane-state.ts").PlaneControls;
+  /** EDGE-TRIGGERED: THE MACHINE PRESS — on or off a machine, a rig released, a jump. */
   machine?: boolean;
 };
 
@@ -738,13 +737,14 @@ export type GameEvent =
       x: number;
       y: number;
       z: number;
-      /** How hard: the closing speed into the snow or a crown, m/s (a
-       * crash), the helicopter's speed (a drop), 0 otherwise. */
+      /** How hard, m/s: the closing speed (a crash), its speed (a drop), else 0. */
       speed: number;
     }
   | SledEvent
   | import("./para-state.ts").ParaEvent
   | import("./balloon-state.ts").BalloonEvent
+  | import("./plane-state.ts").PlaneEvent
+  | import("./chute-state.ts").ChuteEvent
   | import("./door-state.ts").DoorEvent;
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
@@ -969,15 +969,16 @@ export type GameState = ContestState & {
    * knocked them — on a map with pole gates; absent everywhere else. */
   gatePoles?: GamePoles;
   /** THE EDGE STAKES (`edge-stakes.ts`) knocked; absent until one is. */
-  stakes?: StakeState;
+  stakes?: import("./edge-stakes.ts").StakeState;
   /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
-  /** THE HELICOPTER (`heli.ts`), THE SNOWMOBILE (`sled.ts`): on a free ride;
-   * THE PARAMOTOR (`para.ts`), THE BALLOON (`balloon.ts`): begun on one. */
+  /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
   heli?: HeliState;
   sled?: SledState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;
+  plane?: import("./plane-state.ts").PlaneState;
+  chute?: import("./chute-state.ts").ChuteState;
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;

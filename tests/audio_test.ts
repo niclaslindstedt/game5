@@ -182,6 +182,8 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   sled: { kind: "sled", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
   para: { kind: "para", t: 1, phase: "drop", x: 0, y: 0, z: 0, speed: 14 },
   balloon: { kind: "balloon", t: 1, phase: "jump", x: 0, y: 0, z: 0, speed: 3 },
+  plane: { kind: "plane", t: 1, phase: "jump", x: 0, y: 0, z: 0, speed: 37 },
+  chute: { kind: "chute", t: 1, phase: "open", x: 0, y: 0, z: 0, speed: 14, g: 4 },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
 };
 
@@ -190,9 +192,13 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * skier bogged is the powder's hush, which the snow bed already is; and
  * what a blow bent or hurt is heard in the blow, as a save is in the landing, the
  * trunk or the edges' scrape that started it — and a body found too hurt to
- * get up has nothing more to say than the fall that did it. */
+ * get up has nothing more to say than the fall that did it. The jump
+ * plane's and the skydive's moments are silent until their own sound lands
+ * (their audio is a later piece of the plane's work, beside its renderer). */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
+  "plane",
+  "chute",
   "stuck",
   "damage",
   "save",

@@ -177,38 +177,38 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
     return { x, z, r: Math.max(...c.leg.points.map((p) => Math.hypot(p.x - x, p.z - z))) + 2 };
   });
   const slots = new Map<string, Slot>();
-  for (const body of CROWD_BODIES) {
+  const makeSlot = (body: CrowdBody, lod: CrowdLod): Slot | undefined => {
     const capacity = counts[body];
-    if (capacity === 0) continue;
-    for (const lod of CROWD_LODS) {
-      const geometry = buildCivilianFigure(body, lod).clone();
-      const attr = () => {
-        const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
-        a.setUsage(THREE.DynamicDrawUsage);
-        return a;
-      };
-      const dress = attr();
-      const dress2 = attr();
-      const kit = attr();
-      geometry.setAttribute("aDress", dress);
-      geometry.setAttribute("aDress2", dress2);
-      geometry.setAttribute("aKit", kit);
-      const mesh = new THREE.InstancedMesh(geometry, material, capacity);
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      mesh.morphTargetInfluences = new Array<number>(TARGETS).fill(0);
-      mesh.setMorphAt(0, mesh);
-      mesh.castShadow = lod !== "far";
-      if (mesh.castShadow) mesh.customDepthMaterial = depth;
-      mesh.receiveShadow = lod === "near";
-      mesh.frustumCulled = false;
-      mesh.count = 0;
-      mesh.visible = false;
-      mesh.name = `civilians-${body}-${lod}`;
-      group.add(mesh);
-      const weights = mesh.morphTexture!.image.data as unknown as Float32Array;
-      slots.set(`${body}:${lod}`, { mesh, dress, dress2, kit, weights, n: 0 });
-    }
-  }
+    if (capacity === 0) return undefined;
+    const geometry = buildCivilianFigure(body, lod).clone();
+    const attr = () => {
+      const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+      a.setUsage(THREE.DynamicDrawUsage);
+      return a;
+    };
+    const dress = attr();
+    const dress2 = attr();
+    const kit = attr();
+    geometry.setAttribute("aDress", dress);
+    geometry.setAttribute("aDress2", dress2);
+    geometry.setAttribute("aKit", kit);
+    const mesh = new THREE.InstancedMesh(geometry, material, capacity);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.morphTargetInfluences = new Array<number>(TARGETS).fill(0);
+    mesh.setMorphAt(0, mesh);
+    mesh.castShadow = lod !== "far";
+    if (mesh.castShadow) mesh.customDepthMaterial = depth;
+    mesh.receiveShadow = lod === "near";
+    mesh.frustumCulled = false;
+    mesh.count = 0;
+    mesh.visible = false;
+    mesh.name = `civilians-${body}-${lod}`;
+    group.add(mesh);
+    const weights = mesh.morphTexture!.image.data as unknown as Float32Array;
+    const slot = { mesh, dress, dress2, kit, weights, n: 0 };
+    slots.set(`${body}:${lod}`, slot);
+    return slot;
+  };
 
   // The deck chairs and the snowmen, one mesh about the first of them.
   let props: THREE.Mesh | null = null;
@@ -234,36 +234,67 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   const skiDepth = shadeDepth(haze);
   type SkiSlot = Omit<Slot, "kit">;
   const skiSlots = new Map<string, SkiSlot>();
-  for (const body of CROWD_BODIES) {
+  const makeSkiSlot = (body: CrowdBody, lod: CrowdLod): SkiSlot | undefined => {
     const capacity = skiCounts[body];
-    if (capacity === 0) continue;
+    if (capacity === 0) return undefined;
+    const geometry = buildCrowdFigure(body, lod).clone();
+    const attr = () => {
+      const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+      a.setUsage(THREE.DynamicDrawUsage);
+      return a;
+    };
+    const dress = attr();
+    const dress2 = attr();
+    geometry.setAttribute("aDress", dress);
+    geometry.setAttribute("aDress2", dress2);
+    const mesh = new THREE.InstancedMesh(geometry, skiMaterial, capacity);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.morphTargetInfluences = new Array<number>(SKI_TARGETS).fill(0);
+    mesh.setMorphAt(0, mesh);
+    mesh.castShadow = lod !== "far";
+    if (mesh.castShadow) mesh.customDepthMaterial = skiDepth;
+    mesh.receiveShadow = lod === "near";
+    mesh.frustumCulled = false;
+    mesh.count = 0;
+    mesh.visible = false;
+    mesh.name = `civilians-ski-${body}-${lod}`;
+    group.add(mesh);
+    const weights = mesh.morphTexture!.image.data as unknown as Float32Array;
+    const slot = { mesh, dress, dress2, weights, n: 0 };
+    skiSlots.set(`${body}:${lod}`, slot);
+    return slot;
+  };
+  // THE MID AND NEAR CUTS' MESHES ARE MADE WHEN FIRST NEEDED. They are
+  // nearly as heavy as each other (a body's morph texture of 2–3 MB, on the
+  // GPU and again on the page) and a ride that keeps to the mountain never
+  // comes near most of the bodies, so each is made the first time someone
+  // of that body comes that close
+  // (`slotOf`, `skiSlotOf`). Up front: every body's far cut, and the mid
+  // and near cuts of the body most dealt — the same programs every other
+  // body's cut is drawn with (one material, one count of targets; a near
+  // cut receives shadows and a mid one casts them), so the load still
+  // links them all and a cut built later links nothing.
+  const most = (n: Record<CrowdBody, number>): CrowdBody =>
+    CROWD_BODIES.reduce((a, b) => (n[b] > n[a] ? b : a));
+  for (const body of CROWD_BODIES) {
+    makeSlot(body, "far");
+    makeSkiSlot(body, "far");
+    // Every cut's figure is still built now (each is cached), so the first
+    // man to come close costs a mesh and its upload, never a figure built
+    // mid-ride.
     for (const lod of CROWD_LODS) {
-      const geometry = buildCrowdFigure(body, lod).clone();
-      const attr = () => {
-        const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
-        a.setUsage(THREE.DynamicDrawUsage);
-        return a;
-      };
-      const dress = attr();
-      const dress2 = attr();
-      geometry.setAttribute("aDress", dress);
-      geometry.setAttribute("aDress2", dress2);
-      const mesh = new THREE.InstancedMesh(geometry, skiMaterial, capacity);
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      mesh.morphTargetInfluences = new Array<number>(SKI_TARGETS).fill(0);
-      mesh.setMorphAt(0, mesh);
-      mesh.castShadow = lod !== "far";
-      if (mesh.castShadow) mesh.customDepthMaterial = skiDepth;
-      mesh.receiveShadow = lod === "near";
-      mesh.frustumCulled = false;
-      mesh.count = 0;
-      mesh.visible = false;
-      mesh.name = `civilians-ski-${body}-${lod}`;
-      group.add(mesh);
-      const weights = mesh.morphTexture!.image.data as unknown as Float32Array;
-      skiSlots.set(`${body}:${lod}`, { mesh, dress, dress2, weights, n: 0 });
+      if (counts[body] > 0) buildCivilianFigure(body, lod);
+      if (skiCounts[body] > 0) buildCrowdFigure(body, lod);
     }
   }
+  for (const lod of CROWD_LODS) {
+    makeSlot(most(counts), lod);
+    makeSkiSlot(most(skiCounts), lod);
+  }
+  const slotOf = (body: CrowdBody, lod: CrowdLod): Slot | undefined =>
+    slots.get(`${body}:${lod}`) ?? makeSlot(body, lod);
+  const skiSlotOf = (body: CrowdBody, lod: CrowdLod): SkiSlot | undefined =>
+    skiSlots.get(`${body}:${lod}`) ?? makeSkiSlot(body, lod);
 
   // The balls: a snowball in the air, a ball rolled to a snowman.
   const throwers = plan.people.filter((c) => c.role === "snowballer" || c.role === "roller");
@@ -454,7 +485,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       }
       if (c.skis) {
         // ON HIS SKIS: the crowd's figure, stood on the snow's slope.
-        const slot = skiSlots.get(`${c.body}:${lod}`);
+        const slot = skiSlotOf(c.body, lod);
         if (!slot) continue;
         const moving = pose.activity === "skate";
         skater.id = 50000 + i;
@@ -482,7 +513,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
         slot.dress2.setXYZW(k, o[4], o[5], o[6], 0);
         continue;
       }
-      const slot = slots.get(`${c.body}:${lod}`);
+      const slot = slotOf(c.body, lod);
       if (!slot) continue;
       const k = slot.n++;
       quat.setFromAxisAngle(yAxis, pose.heading);
@@ -515,7 +546,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
         far < CIVILIAN_CUTS.near ? "near" : far < CIVILIAN_CUTS.mid ? "mid" : "far";
       if (cull && !cull.seen(pose.x, pose.y, pose.z, FIGURE.radius, FIGURE.height, lod !== "far"))
         continue;
-      const slot = slots.get(`${w.body}:${lod}`);
+      const slot = slotOf(w.body, lod);
       if (!slot) continue;
       const k = slot.n++;
       quat.setFromAxisAngle(yAxis, pose.heading);

@@ -607,6 +607,14 @@ export function Hud({
         </div>
       )}
 
+      {/* STOOD STILL ON A BOARD: the skate and the hop, how he gets going. */}
+      {snap.crawl && snap.missed === null && !snap.getUp && (
+        <div class="hud-missed hud-stuck hud-crawl" role="status">
+          <span class="hud-missed-title">{STRINGS.crawl}</span>
+          <span class="hud-missed-distance">{STRINGS.crawlHow(touch, tuckKey, jumpKey)}</span>
+        </div>
+      )}
+
       {/* THE LIGHTS, dead centre and as big as the frame allows: the one
           moment the whole screen is about one number. Keyed on the count,
           so each light lands with its own beat; GO is the same element with

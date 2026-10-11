@@ -92,7 +92,7 @@ export function boardDrive(spec: SkiSpec, way: number, packed: number, effort: n
   if (effort <= 0) return 0;
   const reach = skateReach(way);
   if (reach <= 0) return 0;
-  const power = P.power * riderOf(spec).strength;
+  const power = K.power * riderOf(spec).strength;
   const force = K.legs * Math.min(spec.polePush, power / Math.max(0.5, Math.abs(way)));
   const hop = hopShare(packed);
   return force * reach * (1 - hop + hop * K.hop) * effort;
@@ -166,6 +166,42 @@ export function strideOn(c: SkierState, speed: number, dt: number): number {
     c.z += front * turn * Math.sin(c.heading);
   }
   return stepped;
+}
+
+/** THE HOP FORWARD (`skate.ahead`): the jump sprung on a board at a crawl
+ * throws him forward along the board — the way he rides it, tail first
+ * fakie — in the snow's plane under him (`n`), less the faster he already
+ * goes. A pair of skis is left as it was. */
+export function hopAhead(c: SkierState, n: Vec3): void {
+  if (!c.board || c.thrown !== null) return;
+  const gain = K.ahead * (1 - clamp(Math.abs(c.way) / K.aheadTo, 0, 1));
+  if (gain <= 0) return;
+  const f = rotate(c.q, NOSE);
+  const along = f.x * n.x + f.y * n.y + f.z * n.z;
+  const tx = f.x - along * n.x;
+  const ty = f.y - along * n.y;
+  const tz = f.z - along * n.z;
+  const l = hypot(hypot(tx, ty), tz);
+  if (l < 1e-6) return;
+  const k = ((c.switched ? -1 : 1) * gain) / l;
+  c.vx += tx * k;
+  c.vy += ty * k;
+  c.vz += tz * k;
+}
+
+/** WHETHER HE KEEPS WORKING THROUGH A HOP: a board at a crawl (the
+ * one-foot push still reaching, `skateReach`) loading a jump or in its air
+ * goes on working for his speed — the skate takes up again the moment he
+ * lands, the hop's kick added to it, and the tuck held is read as going,
+ * not as folding up in the air — where a skier's drive (and a board's at
+ * speed) is let go for the jump. Never on skis. */
+export function hopHeld(c: SkierState, speed: number): boolean {
+  return (
+    c.board !== undefined &&
+    c.thrown === null &&
+    (c.jumpLoad > 0 || c.airborne) &&
+    skateReach(speed) > 0
+  );
 }
 
 /** STOOD STILL (`poles.ts`'s `stoodStill`) — and on a board stood across a

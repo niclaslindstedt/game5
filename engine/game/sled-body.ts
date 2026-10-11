@@ -359,7 +359,9 @@ export function rideSled(
     // Only the belt's FRONT cuts fresh snow: the middle and the rear run in
     // the trench it has cut, and pay the compaction alone.
     const cuts = !tread || p.station === "front" ? p.width : 0;
-    const drag = snowDrag(packed, sink, cuts, load, vf, (tread ? SLED.sink.drag : 1) * depth);
+    // Bare rock (`rock-ground.ts`) grinds the skis and the belt's sliders.
+    const bare = level.bareRockAt ? level.bareRockAt(ax, az) : 0;
+    const drag = snowDrag(packed, sink, cuts, load, vf, (tread ? SLED.sink.drag : 1) * depth, bare);
     along -= drag * Math.tanh(vf / DRAG_FADE);
     push(
       cx,

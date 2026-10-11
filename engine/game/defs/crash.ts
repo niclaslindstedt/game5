@@ -90,6 +90,17 @@ export const CRASH = {
    * goes over them into it. A racer who leaves the course into the nets
    * goes down in them; only a brush is held on it and skied out. */
   netSpeed: 2.5,
+  /** A WALL'S BARE ROCK struck (`rock-ground.ts`): the snow-going skis
+   * run into a facet of stone rising against them at this closing speed
+   * or more, m/s (22 km/h — a 15° step of rock at 80 km/h): the tips stop
+   * on it and he does not. Slower, he rides the rock, scraping. */
+  rockSpeed: 6,
+  /** ...read this far ahead of the tips along his way, m: the rock the
+   * skis are about to come onto. */
+  rockReach: 0.3,
+  /** ...and the steepest face of it the skis are driven up and ride,
+   * rad (35°): steeper, his speed into the climb past it is the strike. */
+  rockClimb: 0.61,
   /** THE CLUB SKIER: the same thresholds for a skier of resilience 0
    * (`SkierState.resilience`) — the professional's above are 1, and a
    * skier between is the blend (`crash.ts`'s `crashLimit`). A trunk on
@@ -112,6 +123,7 @@ export const CRASH = {
     catchSlip: 6,
     stakeSpeed: 9,
     netSpeed: 1.5,
+    rockSpeed: 4,
   },
   /** THE SAVE (`SkierState.save`): how near a thing came to throwing him
    * is a share of its threshold, and a save is kept from `saveFrom` of
@@ -155,6 +167,9 @@ export const CRASH = {
   over: {
     tree: { pitch: 1, side: 0.25, up: 1.8 },
     nose: { pitch: 1, side: 0, up: 1.8 },
+    // The tips stopped on a facet of a wall's rock: over them, as off a
+    // trunk, but straight on.
+    rock: { pitch: 1, side: 0.15, up: 1.5 },
     catch: { pitch: 1, side: 0.2, up: 1.2 },
     // A SNOWBOARD'S DOWNHILL EDGE CAUGHT (`board-crash.ts`): off the heel
     // edge SLAMMED onto his back, off the toe edge thrown onto his face —
@@ -188,6 +203,9 @@ export const CRASH = {
     // Taken by the grimbear (`grimbear.ts`): knocked back off his feet
     // and down on a side.
     maul: { pitch: -0.5, side: 0.7, up: 0.6 },
+    // Taken by an avalanche's flow (`avalanche.ts`): swept off his feet,
+    // tumbled over and over onto a side, and lifted into it.
+    avalanche: { pitch: 0.7, side: 0.8, up: 0.8 },
     // Ridden into a piste machine (`groomer.ts`), or met by its blade:
     // knocked flat on his back off the steel, and over onto a side.
     groomer: { pitch: -0.7, side: 0.6, up: 0.8 },

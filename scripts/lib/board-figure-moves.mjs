@@ -161,9 +161,15 @@ export const BOARD_MOVES = [
 export const BOARD_MOMENTS = [
   { id: "stance", move: "straight", t: 1.0, say: "stood across the board at 40 km/h" },
   { id: "toe", move: "toe", t: 1.0, say: "a toeside carve" },
-  { id: "toe-cut", move: "toe", t: 2.1, say: "a toeside carve cut hard: laid over" },
+  { id: "toe-cut", move: "toe", t: 2.1, from: 1.2, say: "a toeside carve cut hard: laid over" },
   { id: "heel", move: "heel", t: 1.0, say: "a heelside carve" },
-  { id: "heel-cut", move: "heel", t: 2.1, say: "a heelside carve cut hard: sat over the heels" },
+  {
+    id: "heel-cut",
+    move: "heel",
+    t: 2.1,
+    from: 1.2,
+    say: "a heelside carve cut hard: sat over the heels",
+  },
   { id: "tuck", move: "tuck", t: 1.3, say: "the tuck, side-on" },
   { id: "skate", move: "skate", t: 2.0, say: "the one-foot skate's push" },
   { id: "wait", move: "wait", t: 3.0, say: "stood still, strapped in" },

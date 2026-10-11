@@ -53,6 +53,11 @@ const SHEETS = {
   drop: { lens: "front", frames: strip("leave", 0, 2.4, 0.3) },
   // Back into the bindings and away.
   clip: { lens: "front", frames: strip("leave", 2.4, 4.0, 0.2) },
+  // The hand-overs frame by frame: off the snow into the town's beats (his
+  // town begins some 1.6 s into the run), and out of them back onto the
+  // snow (a board's rider turns from side-on and back).
+  step: { lens: "front", frames: strip("ride", 1.46, 2.12, 0.06) },
+  away: { lens: "front", frames: strip("leave", 3.6, 4.02, 0.06) },
 };
 
 const args = parseArgs(

@@ -44,6 +44,7 @@ type Frame = {
   t: number;
   skier: SkierState;
   trick: TrickPose | null;
+  flip?: { flipGoal: number; flipDone: number } | null;
   /** The snow under him: its height and its normal. */
   ground: [number, number, number, number];
   /** In the start gate under the lights. */
@@ -165,7 +166,7 @@ function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number 
     },
     data.gravity,
   );
-  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting);
+  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting, f.flip);
   const off = c.thrown;
   const cx = off ? off.x : c.x;
   const cz = off ? off.z : c.z;

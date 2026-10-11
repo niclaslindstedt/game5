@@ -44,10 +44,13 @@ import {
   type BoardPose,
 } from "./board-pose.ts";
 import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
+import { createTuck } from "./skier-somersault.ts";
 import {
   BOARD_SEAT_Y,
   boardLiftPose,
   chairBoardPose,
+  mixDeck,
+  mixPose,
   underArmFrame,
   underArmHand,
 } from "./board-lift.ts";
@@ -61,7 +64,7 @@ import {
 import { pitchPast, type SkydiveShape } from "./skier-skydive.ts";
 import type { Perch } from "./skier-dangle.ts";
 import type { SkierPoseInput } from "./skier-pose.ts";
-import { boardTownPose, streetOver, townLift, townMove } from "./town-pose.ts";
+import { boardTownPose, rideLift, streetOver, townLift, townMove } from "./town-pose.ts";
 import { buildHeadlamp } from "./headlamp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
@@ -74,6 +77,14 @@ import { flightRead } from "./skier-flight.ts";
 import type { SkisModel, SkiStyle, SledStand, SnowGround } from "./skis-body.ts";
 import type { V3 } from "./skier-vec.ts";
 
+/** How long the figure takes to step from the riding pose into the town's,
+ * or back, s — about a beat of the town's own steps. */
+const AFOOT_EASE = 0.4;
+
+/** How fast the riding board is eased up onto a drawn street or down off
+ * it, m/s. */
+const ROAD_RATE = 0.6;
+const smooth = (k: number): number => k * k * (3 - 2 * k);
 const ACROSS = new THREE.Vector3(1, 0, 0);
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -191,6 +202,7 @@ export function createBoardModel(
   // How far the rear foot is drawn out of its binding (`easeFree`).
   let freeShare = 0;
   let grabEase: GrabEase = { grab: null, share: 0 };
+  const tuck = createTuck();
   // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
   // basket and the helicopter's skid he is on, if any; the run he rides.
   const seatEase = createSeatEase();
@@ -198,6 +210,25 @@ export function createBoardModel(
   let basket = false;
   let perch: Perch | null = null;
   let run: GameState | null = null;
+  // How far the riding board is stood up onto a drawn street (`rideLift`),
+  // eased at `ROAD_RATE` m/s so a kerb or the street's edge is no step.
+  let roadLift = 0;
+  // ON FOOT AND BACK: how far he is drawn into the town's pose (0 riding ..
+  // 1 on foot), eased over `AFOOT_EASE` s each way, and the last pose of the
+  // side he left — the riding one held while he steps into the town's, the
+  // town's (with the frame it stood in) while he rides off — so neither the
+  // stop nor the click-in snaps the figure round.
+  let onFoot = 0;
+  let lastRide: { pose: BoardPose["pose"]; deck: BoardFrame } | null = null;
+  let lastTown: {
+    pose: BoardPose["pose"];
+    deck: BoardFrame;
+    at: THREE.Vector3;
+    q: THREE.Quaternion;
+  } | null = null;
+  const townAt = new THREE.Vector3();
+  const townQ = new THREE.Quaternion();
+  const still0 = new THREE.Quaternion();
   // The skydive's stage (`skier-skydive.ts`), and the mounts a square stand
   // for it is laid on.
   let sky: SkydiveShape | null = null;
@@ -283,7 +314,7 @@ export function createBoardModel(
       out.radius = bound.radius;
       return out;
     },
-    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
+    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // ON FOOT with the board — through a gondola's station, or in town.
@@ -330,15 +361,29 @@ export function createBoardModel(
       input.freeShare = freeShare;
       // The grab held in the air drawn in, and let go, over a moment.
       grabEase = easeGrab(grabEase, isBoardGrab(trick) ? trick : null, dt);
-      input.grab = grabEase.grab;
-      input.grabShare = grabEase.share;
+      // ...and a LOOP the lean has thrown turned tucked, a hand on the board
+      // (`skier-somersault.ts`): an indy backward, a mute forward.
+      tuck.step(off || town ? null : flip, dt);
+      const fs = grabEase.share > 0 ? undefined : tuck.shape();
+      input.grab = fs ? (fs.dir < 0 ? "mute" : "indy") : grabEase.grab;
+      input.grabShare = fs ? fs.tuck : grabEase.share;
       const r = still ? 0 : lean;
       const reach = spec.cogHeight - (lift[0] + lift[1]) / 2 - spec.crouchDrop * skier.crouch;
       pivot.set(reach * Math.sin(r), reach * (1 - Math.cos(r)), 0).applyQuaternion(root.quaternion);
       const hang = boarded ? sled!.board.hang : null;
       if (hang) v.set(-hang.x, 0, -hang.z).applyQuaternion(root.quaternion);
       else v.set(0, 0, 0);
-      root.position.set(at.x + pivot.x + v.x, at.y - sink + pivot.y, at.z + pivot.z + v.z);
+      // (in town too: the riding pose held as he steps off is laid on it,
+      // and the town's own is placed in the world whatever the root's lift).
+      const road =
+        run && !off && !boarded && !inBasket && !hung ? rideLift(run.level, at.x, at.z) : 0;
+      const easeBy = ROAD_RATE * Math.max(0, dt);
+      roadLift = dt > 0 ? roadLift + Math.max(-easeBy, Math.min(easeBy, road - roadLift)) : road;
+      root.position.set(
+        at.x + pivot.x + v.x,
+        at.y - sink + pivot.y + roadLift,
+        at.z + pivot.z + v.z,
+      );
       // The board out of sight: racked on the snowmobile's tunnel, lashed to
       // the basket, or in a cabin with no rack placed.
       const racked = cabin ? (skier.lift?.skis ?? null) : null;
@@ -377,15 +422,24 @@ export function createBoardModel(
           underArmHand(board.lead),
           (over > 0 ? over + 0.04 : 0) - lifted,
         );
-        figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
+        townAt.set(frame.origin.x, frame.origin.y, frame.origin.z);
         trunk.makeBasis(
           axis.x.set(frame.x.x, frame.x.y, frame.x.z),
           axis.y.set(frame.y.x, frame.y.y, frame.y.z),
           axis.z.set(frame.z.x, frame.z.y, frame.z.z),
         );
-        figure.group.quaternion.setFromRotationMatrix(trunk);
-        figure.sprawl(p, 0, 0);
-        layBoard(d, p.feet, p.boots, null, true);
+        townQ.setFromRotationMatrix(trunk);
+        // Stepped into from the riding pose over a moment: the frame and
+        // the pose each carried from where he rode to where he stands.
+        onFoot = dt > 0 && lastRide ? Math.min(1, onFoot + dt / AFOOT_EASE) : 1;
+        const k = smooth(onFoot);
+        const pose = k < 1 && lastRide ? mixPose(lastRide.pose, p, k) : p;
+        const deckNow = k < 1 && lastRide ? mixDeck(lastRide.deck, d, k) : d;
+        figure.group.position.copy(townAt).multiplyScalar(k);
+        figure.group.quaternion.slerpQuaternions(still0, townQ, k);
+        figure.sprawl(pose, 0, 0);
+        layBoard(deckNow, pose.feet, pose.boots, null, true);
+        lastTown = { pose: p, deck: d, at: townAt.clone(), q: townQ.clone() };
         bound.radius = BOUND + 1;
       } else if (skydive) {
         // OUT OF THE DOOR AND UNDER THE CANOPY (`board-skydive.ts`): laid
@@ -425,6 +479,16 @@ export function createBoardModel(
         // A hop lifts all of him, the board with him, off the snow.
         v.set(-Math.sin(r), Math.cos(r), 0).multiplyScalar(bp.rise);
         figure.group.position.copy(v);
+        lastRide = { pose: bp.pose, deck: bp.board };
+        // Ridden off from the town's pose over a moment.
+        onFoot = dt > 0 && lastTown ? Math.max(0, onFoot - dt / AFOOT_EASE) : 0;
+        const k = smooth(onFoot);
+        if (k > 0 && lastTown) {
+          bp = { ...bp, pose: mixPose(bp.pose, lastTown.pose, k) };
+          if (!racked) bp.board = mixDeck(bp.board, lastTown.deck, k);
+          figure.group.position.lerp(lastTown.at, k);
+          figure.group.quaternion.slerpQuaternions(still0, lastTown.q, k);
+        }
         figure.sprawl(bp.pose, 0, 0);
         const deckAt = racked ? rackedDeck(racked) : bp.board;
         layBoard(deckAt, bp.pose.feet, bp.pose.boots, bp.free, boarded || inBasket || cabin);

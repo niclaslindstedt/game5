@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SKI_CATALOG,
+  bedrockOf,
   createGame,
   fieldOrder,
   NEUTRAL_INPUT,
@@ -30,7 +31,7 @@ describe("the start line", () => {
       expect(s.z).toBeCloseTo(level.grid[i].z, 6);
     });
     for (const r of state.rivals) {
-      expect(r.run.level).toBe(level);
+      expect(bedrockOf(r.run.level)).toBe(level);
       expect(r.pace).toBeGreaterThanOrEqual(RACE.paceBand.min);
       expect(r.pace).toBeLessThanOrEqual(RACE.paceBand.max);
       expect(SKI_CATALOG).toContain(r.run.skier.spec);

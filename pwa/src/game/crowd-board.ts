@@ -86,7 +86,7 @@ export const CROWD_BOARD: BoardPoseInput["board"] = {
 /** The inclination a turn and a carve are drawn at, rad, toe and heel —
  * the heel edge stood the less (`BoardFit.heel`) — and the lean the crowd
  * reads as the turn's whole, past which it carves (`Amateur.lean`). */
-const TURN = { toe: 0.32, heel: 0.28, carveToe: 0.58, carveHeel: 0.5 };
+const TURN = { toe: 0.26, heel: 0.28, carveToe: 0.36, carveHeel: 0.5 };
 const LEAN = { turn: 0.4, carve: 0.75 };
 /** The heelside skid's pivot, rad: the board thrown across his way, so he
  * faces down it on his heel edge. */

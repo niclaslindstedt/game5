@@ -193,12 +193,24 @@ describe("the hill graded into a built map", () => {
       const z0 = level.track.points[0].z;
       for (const d of [hill.from, hill.edge - 1, hill.k, hill.u, hill.to]) {
         expect(level.groundAt(x0 + fx * d, z0 + fz * d)).toBeCloseTo(hill.yAt(d), 4);
-        // ...and a few metres off the axis too.
-        expect(level.groundAt(x0 + fx * d + fz * 8, z0 + fz * d - fx * 8)).toBeCloseTo(
-          hill.yAt(d),
-          4,
-        );
+        const off = level.groundAt(x0 + fx * d + fz * 8, z0 + fz * d - fx * 8);
+        if (d < hill.edge) {
+          // THE RAISED IN-RUN: the deck is the surface on the line, and a few
+          // metres off it the ground lies under the structure, the further
+          // under the higher up — never less than the table stands proud.
+          expect(hill.yAt(d) - off).toBeGreaterThan(hill.lip - 0.5);
+          if (d === hill.from) expect(hill.yAt(d) - off).toBeGreaterThan(25);
+        } else {
+          // ...and the landing hill is the profile a few metres off it too.
+          expect(off).toBeCloseTo(hill.yAt(d), 4);
+        }
       }
+      // Beside the deck the engine's ground is the ground's, not the deck's.
+      const side = level.groundAt(
+        x0 + fx * hill.from + fz * (hill.deck + 0.5),
+        z0 + fz * hill.from - fx * (hill.deck + 0.5),
+      );
+      expect(side).toBeLessThan(hill.yAt(hill.from) - 10);
       // The spawn stands on the top gate; no tree stands on the hill.
       expect(level.spawn.x).toBeCloseTo(x0 + fx * hill.from, 6);
       for (const t of level.trees) {

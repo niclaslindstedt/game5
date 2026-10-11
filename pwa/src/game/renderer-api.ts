@@ -23,8 +23,10 @@ export interface WorldRenderer {
   /** Draw one frame of `state`. `alpha` is the accumulator's leftover share of
    * a step (0..1) for interpolation; `dt` is wall seconds since the last frame. */
   draw(state: GameState, alpha: number, dt: number): void;
-  /** Which camera a RUN is seen through; menus use "orbit". */
-  setCamera(rung: CameraRung): void;
+  /** Which camera a RUN is seen through; menus use "orbit". `cut` skips
+   * the flown hand-over; `chosen` says the player picked it (a ski jump's
+   * broadcast director gives way to his pick until the run begins again). */
+  setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean): void;
   camera(): CameraRung;
   /** The ray through a point of the picture, normalized device coordinates
    * (−1..1 right and up) — what a tap on a machine is tested along

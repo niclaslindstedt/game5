@@ -41,8 +41,19 @@ const RAD = Math.PI / 180;
 export type VenueRule = Pick<JumpRule, "width" | "ease" | "margin" | "search" | "fit" | "arena">;
 
 /** A PROFILE: its height every `dx` m of plan from the platform's back,
- * where its finish line stands and where it ends, m of plan. */
-export type VenueProfile = { dx: number; y: Float64Array; finish: number; end: number };
+ * where its finish line stands and where it ends, m of plan — and, for a
+ * venue whose top stands on a STRUCTURE over the ground (a ski jump's
+ * raised in-run, R43), the ground UNDER it (`under`: a height every `dx`
+ * as `y` is, never over it), how wide the cut that lowers the ground
+ * there banks out, m across a metre of depth, and the structure's own
+ * half-width, m (packed as the snow it carries is). */
+export type VenueProfile = {
+  dx: number;
+  y: Float64Array;
+  finish: number;
+  end: number;
+  under?: { y: Float64Array; bank: number; half: number };
+};
 
 /** A PROFILE WITH AN IN-RUN: where its start gate and its lip (the edge an
  * in-run ends at) stand, m of plan. */
@@ -297,17 +308,33 @@ export function gradeVenue(
     });
   }
   const length = points[points.length - 1].s;
-  // THE GROUND graded to the profile across the venue, eased out past it.
+  // THE GROUND graded to the profile across the venue, eased out past it —
+  // and under a raised stretch LOWERED to the ground under the structure
+  // (never raised to it: ground already lower is left), the cut banked out
+  // the wider the deeper it is.
   const half = R.width / 2;
   const field = original.ground;
   const ground: Heightfield = { ...field, data: new Float32Array(field.data) };
   const packedField = original.packed;
   const packed = packedField ? { ...packedField, data: new Float32Array(packedField.data) } : null;
   const fade = LEVEL_RULES.track.shoulder.packed;
-  const reach = half + Math.max(R.ease, fade) + 2;
+  const under = p.under;
+  const gapAt = under
+    ? (d: number): number => {
+        const q = clamp(d / p.dx, 0, under.y.length - 1);
+        const i = Math.min(under.y.length - 2, Math.floor(q));
+        const u = under.y[i] + (under.y[i + 1] - under.y[i]) * (q - i);
+        return Math.max(0, jumpHeightAt(p, d) - u);
+      }
+    : () => 0;
+  let deepest = 0;
+  if (under) for (let d = 0; d <= p.end; d += 1) deepest = Math.max(deepest, gapAt(d));
+  const bank = under?.bank ?? 0;
+  const top = R.ease + bank * gapAt(0);
+  const reach = half + Math.max(R.ease + bank * deepest, fade) + 2;
   const corners = [
-    [-R.ease, -reach],
-    [-R.ease, reach],
+    [-top, -reach],
+    [-top, reach],
     [length + R.ease, -reach],
     [length + R.ease, reach],
   ].map(([a, c]) => ({ x: fit.x + fx * a + rx * c, z: fit.z + fz * a + rz * c }));
@@ -325,13 +352,21 @@ export function gradeVenue(
       const dz = z - fit.z;
       const along = dx * fx + dz * fz;
       const across = Math.abs(dx * rx + dz * rz);
-      const ends = smoothstep(-R.ease, 0, along) * (1 - smoothstep(length, length + R.ease, along));
+      const ends = smoothstep(-top, 0, along) * (1 - smoothstep(length, length + R.ease, along));
       if (ends <= 0) continue;
       const i = r * field.cols + c;
-      const w = (1 - smoothstep(half, half + R.ease, across)) * ends;
-      if (w > 0) ground.data[i] += w * (yAt(clamp(along, 0, length)) - ground.data[i]);
+      const at = clamp(along, 0, length);
+      const gap = gapAt(at);
+      const ease = R.ease + bank * gap;
+      const w = (1 - smoothstep(half, half + ease, across)) * ends;
+      const want = yAt(at) - gap;
+      const to = gap > 0 ? Math.min(ground.data[i], want) : want;
+      if (w > 0) ground.data[i] += w * (to - ground.data[i]);
       if (packed) {
-        const firm = (1 - smoothstep(half, half + fade, across)) * ends;
+        // Under a structure the lowered ground is no piste; its deck is.
+        const deck = under ? 1 - smoothstep(under.half, under.half + 1, across) : 1;
+        const kept = Math.max(deck, 1 - smoothstep(0.5, 2, gap));
+        const firm = (1 - smoothstep(half, half + fade, across)) * ends * kept;
         if (firm > packed.data[i]) packed.data[i] = firm;
       }
     }

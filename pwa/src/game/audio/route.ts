@@ -21,7 +21,7 @@
 // is the groomer's and every trunk a middling living one — the sound the
 // bank had before it knew.
 
-import type { GameEvent, Level } from "@engine";
+import type { GameEvent, JumpLanding, Level } from "@engine";
 
 import type { PlayShape } from "@niclaslindstedt/oss-game-framework/audio/types";
 
@@ -44,6 +44,9 @@ export type Contact = {
   /** What a skydive's canopy came down on (`ChuteSnag.on`) — the boughs of
    * a crown crack, a lift's steel twangs. */
   caught?: "tree" | "rope" | "tower" | "carrier";
+  /** ON A SKI JUMP (`GameState.jump`): how the jumper came down, null not
+   * yet — the touch's slap is a telemark's or a plain one. */
+  jump?: { landing: JumpLanding | null };
 };
 
 export type Trunk = { radius: number; snag: boolean };
@@ -160,11 +163,66 @@ function ramp(value: number, lo: number, hi: number): number {
   return Math.min(1, Math.max(0, (value - lo) / (hi - lo)));
 }
 
+/** The take-off's speed off a large hill's edge, m/s, and the landing's
+ * at the knoll's foot — what a jump's one-shots are scaled to. */
+const JUMP_EDGE = 26;
+const JUMP_TOUCH = 30;
+/** A take-off timed inside this, s, is crisp — the push all into the edge. */
+const JUMP_CRISP = 0.04;
+
+/** WHAT A SKI JUMP'S MOMENT SOUNDS LIKE, or undefined for the event's own
+ * sound. On a jump the jury's light is the start: its signal and no count;
+ * the bar, the take-off and the touch are the jump's own (`jump-bank.ts`);
+ * the engine's landing under the touch, the trick score and the course's
+ * chimes at the fall line are not a jump's — the crowd's roar is
+ * (`jump-voice.ts`). */
+function jumpSound(
+  event: GameEvent,
+  jump: NonNullable<Contact["jump"]>,
+): { id: string; shape?: PlayShape } | null | undefined {
+  switch (event.kind) {
+    case "count":
+      return null;
+    case "go":
+      return { id: "sj_signal" };
+    case "skiJump": {
+      if (event.stage === "go") return { id: "sj_bar" };
+      if (event.stage === "takeOff") {
+        const fast = ramp(event.speed, 0.6 * JUMP_EDGE, JUMP_EDGE);
+        const off = event.timing == null ? 1 : ramp(Math.abs(event.timing), JUMP_CRISP, 0.2);
+        return {
+          id: "sj_takeoff",
+          shape: { gain: (0.6 + 0.5 * fast) * (1 - 0.35 * off), pitch: 1.05 - 0.15 * off },
+        };
+      }
+      const hard = ramp(event.speed, 0.6 * JUMP_TOUCH, JUMP_TOUCH);
+      const tele = jump.landing === "telemark" || jump.landing === "late";
+      return {
+        id: tele ? "sj_telemark" : "sj_land",
+        shape: { gain: 0.7 + 0.45 * hard, pitch: 1.08 - 0.16 * hard, stretch: 0.9 + 0.25 * hard },
+      };
+    }
+    case "land":
+    case "trick":
+    case "combo":
+    case "checkpoint":
+    case "lap":
+    case "finish":
+      return null;
+    default:
+      return undefined;
+  }
+}
+
 /** What one event sounds like. Null means the event is silent. */
 export function soundForEvent(
   event: GameEvent,
   contact: Contact = {},
 ): { id: string; shape?: PlayShape } | null {
+  if (contact.jump) {
+    const jumped = jumpSound(event, contact.jump);
+    if (jumped !== undefined) return jumped;
+  }
   const ground = contact.ground;
   switch (event.kind) {
     // A LANDING is the legs taking it — and what they take it ON: a harsh

@@ -654,7 +654,10 @@ Each phase lands green and with its lab's before and after in the PR.
       the out-run, its crowd and its masts (see *Settled (phase 11)*);
       `make skijump`'s `arena` sheet by day and at hour 21,
       `tests/ski_jump_arena_test.ts`.
-- [ ] **12. The sound**: `audition` and `--meter`.
+- [x] **12. The sound**: the tracks, the flight's wind, the take-off, the
+      slap and the telemark, the start signal and the crowd's roar with
+      the distance (see *Settled (phase 12)*); `audition` and `--meter`,
+      `tests/jump_audio_test.ts`.
 - [ ] **13. Its hills**: the trick maps first; then its own pinned hills
       (`RACE_MAPS.md`'s pattern) chosen for the hill they cut; docs,
       `CLAUDE.md`'s paragraph and labs rows, the changelog; delete this
@@ -1198,6 +1201,88 @@ sims' digests unmoved.
   in a hollow where the hillside rises on the left; the crowd's roar with
   the distance is the sound's (phase 12), its animation the shader's
   existing mood.
+
+## Settled (phase 12)
+
+- **What a jump sounds like, researched** (restated in `jump-voice.ts`'s
+  and `jump-bank.ts`'s headers): the in-run's skis run in grooves cut in
+  ice or in a cooled track, so they are heard as a narrow, steady hiss
+  climbing in pitch with the speed, a low rumble of the tracks and a thin
+  ring of the edges, nothing like a piste's hiss; the take-off is a short
+  dull thump of the push with the tails' crack off the edge, and then
+  only the air; in flight the wind round a body laid over its skis swells
+  with the speed and opens as the V spreads, the tails fluttering in it;
+  the landing is a loud flat SLAP of two broad skis set onto a steep
+  slope, a telemark's split in two; the start is the jury's light turning
+  green with a short tone; and the stadium's crowd murmurs while the
+  jumper is on the bar, rises as he flies past the middle of the landing
+  hill and roars when he lands — the longer the louder, a fall a groan.
+- **The beds** (`jump-voice.ts`, pure; scheduled by `jump-bed.ts`, built
+  only on a run with `state.jump`): GROOVE, RUMBLE and WHIR on the tracks
+  (through the seat's snow), RUSH, FLUTTER and WHISTLE in the air (through
+  its wind; the rush ∝ the speed squared and opened by the V, the whistle
+  off the V alone), and the crowd's MURMUR, ROAR and BODY (through its
+  events, heard from the jumper by his distance to the stadium's middle,
+  `crowdNear`). The crowd's roar is `crowdRoar`: rising in the air from
+  P toward HS (to 0.45), then at the touch a swell over 0.4 s, held 1.6 s
+  and falling away over 3.2 s, its size `jumpExcitement` — 0.3 short of
+  0.8 K, 0.65 at K, 1 at HS and past it — and a fall 0.55 of it as a groan.
+  The ride bed gives its skis and its wind to the jump bed on the bar, the
+  tracks and in the air (`rideShares`) and has them back in the out-run,
+  which is the ride bed's skis on the snow under the crowd.
+- **The one-shots** (`jump-bank.ts`, routed by `route.ts`'s `jumpSound`
+  off `Contact.jump`): `sj_signal` on the `go` (the light gone green; no
+  countdown beeps on a jump), `sj_bar` off the bar, `sj_takeoff` at the
+  edge (louder and brighter the faster and the better timed), `sj_land`
+  and `sj_telemark` at the touch (a telemark or a late one split in two).
+  On a jump the engine's own `land` under the touch, the trick score's
+  chimes and the course's checkpoint, lap and finish horn say nothing.
+- **The meter** (`make audition ARGS=--meter`, the chase seat):
+
+  ```text
+  THE BEDS (mean / peak)
+    jump: on the bar            -59.3 dBFS    -57.6 dBFS
+    jump: the tracks, 15 m/s    -36.8 dBFS    -34.2 dBFS
+    jump: the tracks, at the edge  -31.1 dBFS    -28.7 dBFS
+    jump: off the edge, skis together  -41.1 dBFS    -40.5 dBFS
+    jump: flying the V          -35.6 dBFS    -34.9 dBFS
+    jump: flying past K         -33.8 dBFS    -33.2 dBFS
+    jump: landed short of K     -35.8 dBFS    -34.4 dBFS
+    jump: landed at K           -32.9 dBFS    -31.2 dBFS
+    jump: landed past HS        -29.4 dBFS    -27.4 dBFS
+    jump: a fall at K           -39.2 dBFS    -36.7 dBFS
+  THE BANK (peak)
+    sj_signal                   -30.3 dBFS
+    sj_bar                      -35.2 dBFS
+    sj_takeoff                  -32.8 dBFS
+    sj_land                     -26.2 dBFS
+    sj_telemark                 -31.6 dBFS
+  beside them (the same run)
+    flat out in a tuck          -32.5 dBFS    -30.8 dBFS
+    in the air                  -38.9 dBFS    -37.6 dBFS
+    on the skid, hovering       -22.1 dBFS    -20.3 dBFS
+    land_soft                   -27.4 dBFS
+    land_hard                   -24.5 dBFS
+    go                          -29.6 dBFS
+    finish                      -29.0 dBFS
+  ```
+
+  The tracks at the edge sit with a flat-out tuck on the piste, the V
+  between the air and the tuck, the crowd's ladder rising 3 dB from a
+  jump short of K to K and 3.5 dB more past HS (at a soft landing's
+  level, under a hard one), a fall's groan under them all; the slap is
+  the loudest of the jump's sounds, under `land_hard`, and the telemark's
+  split slap a softer one.
+
+- **Tests**: `tests/jump_audio_test.ts` (the route on and off a jump, the
+  beds' rise with the speed and the V, the crowd louder past K and loudest
+  past HS, every cutoff under a headset's Nyquist, and a real jump on seed
+  1 handing the skis and the wind between the beds and roaring at the
+  touch).
+- **Left for later**: the clatter over the tracks' joints and a gust's
+  buffet in flight; the horns and cowbells and a chime with the distance
+  on the video wall; the coach's whistle; the crowd heard from the
+  broadcast's own lenses rather than from the jumper.
 
 ## Open questions for the user
 

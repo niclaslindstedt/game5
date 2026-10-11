@@ -28,6 +28,7 @@ import { createParaBed, type ParaBed } from "./para-bed.ts";
 import { createBalloonBed, type BalloonBed } from "./balloon-bed.ts";
 import { createPlaneBed, type PlaneBed } from "./plane-bed.ts";
 import { createChuteBed, type ChuteBed } from "./chute-bed.ts";
+import { createJumpBed, type JumpBed } from "./jump-bed.ts";
 import { createAfterskiBed, type AfterskiBed } from "./afterski-bed.ts";
 import { createRescueBed, type RescueBed } from "./rescue-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
@@ -80,6 +81,9 @@ export function createRunAudio(): RunAudio {
   // and the canopy's quiet.
   const plane: PlaneBed = createPlaneBed(sfx);
   const chute: ChuteBed = createChuteBed(sfx);
+  // A SKI JUMP (`jump-bed.ts`): the skis in the tracks, the flight's wind
+  // and the stadium's crowd.
+  const jump: JumpBed = createJumpBed(sfx);
   // THE AFTERSKI LODGE'S ROOM (`afterski-bed.ts`): while he is in, the
   // ride's beds fall silent under it.
   const room: AfterskiBed = createAfterskiBed(sfx);
@@ -99,6 +103,11 @@ export function createRunAudio(): RunAudio {
       // the snow the bed last read under the skis, and a hit's own trunk.
       const level: Level | undefined = state?.level;
       const contactOf = (event: GameEvent): Contact => {
+        const c = contactAt(event);
+        // On a ski jump its moments are the jump's own (`route.ts`).
+        return state?.jump ? { ...c, jump: { landing: state.jump.record.landing } } : c;
+      };
+      const contactAt = (event: GameEvent): Contact => {
         const ground = bed.ground();
         // The helicopter is somewhere else on the mountain: heard from the
         // skier's head.
@@ -154,6 +163,7 @@ export function createRunAudio(): RunAudio {
       balloon.update(state, dt, outside);
       plane.update(state, dt, outside);
       chute.update(state, dt, outside);
+      jump.update(state, dt, outside);
     },
 
     setView(view) {
@@ -166,6 +176,7 @@ export function createRunAudio(): RunAudio {
       balloon.setView(view);
       plane.setView(view);
       chute.setView(view);
+      jump.setView(view);
     },
 
     silence() {
@@ -177,6 +188,7 @@ export function createRunAudio(): RunAudio {
       balloon.silence();
       plane.silence();
       chute.silence();
+      jump.silence();
       room.silence();
     },
 
@@ -189,6 +201,7 @@ export function createRunAudio(): RunAudio {
       balloon.reset();
       plane.reset();
       chute.reset();
+      jump.reset();
       room.reset();
       rescue.reset();
     },

@@ -61,9 +61,16 @@ export function creakAt(slot: number): { size: number; pitch: number } | null {
 }
 
 /** HOW MUCH OF THE RIDE BED IS HIS: the skier's own wind and his skis on
- * the snow, 0..1 each. */
+ * the snow, 0..1 each — what a machine, a skydive or a ski jump's own bed
+ * owns instead. */
 export function rideShares(state: GameState): { air: number; snow: number } {
   if (state.plane?.rider) return { air: 0, snow: 0 };
+  // On a ski jump's bar and tracks the skis are in the tracks' grooves and
+  // in its air the wind is the flight's — both the jump bed's
+  // (`jump-bed.ts`); down in the out-run they are his again.
+  const js = state.jump?.stage;
+  if (js === "bar" || js === "tracks") return { air: 1, snow: 0 };
+  if (js === "air") return { air: 0, snow: 0 };
   const m = state.chute?.mode;
   if (m === "exit" || m === "freefall" || m === "deploying") return { air: 0, snow: 1 };
   return { air: 1, snow: 1 };

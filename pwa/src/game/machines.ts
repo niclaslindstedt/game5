@@ -205,7 +205,7 @@ export function createMachines(
     group,
     balloon,
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready, groomers?.ready]).then(() => undefined),
+      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
@@ -276,6 +276,7 @@ export function createMachines(
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
       rescue?.lamps(lit, floods);
+      plane?.lamps(lit, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
       traffic?.update(current, lit, eye, floods, env.cull);
       if (floods.length === 0) return others;

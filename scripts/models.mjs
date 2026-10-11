@@ -39,7 +39,7 @@ const args = parseArgs(
     kind: {
       kind: "string",
       default: "all",
-      help: "publish only this kind (skis, heli, rescue, sled, groomer) — the others' files and stamps are kept",
+      help: "publish only this kind (skis, heli, rescue, sled, groomer, plane) — the others' files and stamps are kept",
     },
     from: {
       kind: "string",
@@ -47,7 +47,7 @@ const args = parseArgs(
       help: "where make blender left the glTFs",
     },
   },
-  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|rescue|sled|groomer] [--from=previews/blender]",
+  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|rescue|sled|groomer|plane] [--from=previews/blender]",
 );
 
 const out = join(root, MODELS_DIR);
@@ -72,6 +72,7 @@ const HALF_OF = {
   rescue: "rescue",
   sled: "sled",
   groomer: "groomer",
+  plane: "plane",
 };
 if (args.kind !== "all" && !HALF_OF[args.kind]) {
   console.error(`unknown kind "${args.kind}" (all, ${Object.keys(HALF_OF).join(", ")})`);

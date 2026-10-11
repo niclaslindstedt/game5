@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE JUMP PLANE IN THE RENDERER — the one hand the renderer holds it by
 // (through `machines.ts`): the airframe drawn off the engine's plane
-// (`plane-standin.ts`, built off `PLANE`), its propeller turned, its blur
-// disc faded in with the spin, its surfaces on their hinges where the
-// engine has them, charred where it came down; and the lens it takes while
-// the skier stands in its door (`camera-plane.ts`).
+// (`plane-view.ts`: the Blender model, or the code's stand-in), its
+// propeller turned, its blur disc faded in with the spin, its surfaces on
+// their hinges where the engine has them, its lamps lit, charred where it
+// came down; and the lens it takes while the skier stands in its door
+// (`camera-plane.ts`).
 //
 // Drawn between two steps on the RIDER'S own line (`interp.ts`), so the
 // door he stands in never parts from under him between frames. The lens is
@@ -14,14 +15,15 @@
 // the wing — and then handed back to the ladder.
 
 import * as THREE from "three";
-import { PLANE, type GameState } from "@engine";
+import type { GameState } from "@engine";
 
 import { blendLens, type LensPose } from "./camera-rigs.ts";
 import { orbitBlend } from "./camera-heli.ts";
 import { createPlaneCam, framePlane, planeMiddleOf, type PlaneAt } from "./camera-plane.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
-import { createPlaneStandIn } from "./plane-standin.ts";
+import type { Flood } from "./headlamp.ts";
+import { createPlaneLook } from "./plane-view.ts";
 import type { CameraRung } from "./renderer-api.ts";
 
 export type PlaneScene = {
@@ -43,6 +45,10 @@ export type PlaneScene = {
   lens(ladder: LensPose, dt: number): LensPose | null;
   /** The plane as drawn this frame, or null with none. */
   drawn(): PlaneAt | null;
+  /** After dark (`lit` > 0), its landing light into `out`. */
+  lamps(lit: number, out: Flood[]): void;
+  /** Settled once the model is in (or the stand-in is kept). */
+  ready: Promise<void>;
   dispose(): void;
 };
 
@@ -53,25 +59,22 @@ const DROP_HOLD = 1.6;
 const DROP_TURN = 0.5;
 const HAND_IN = 1.1;
 const HAND_OUT = 1.3;
-/** The blur disc's opacity at the propeller's full spin. */
-const DISC = 0.45;
 /** How far the wreck is charred, 0..1, and how long the charring takes, s. */
 const CHAR = 0.85;
 const CHAR_TIME = 3;
 
 export function createPlaneScene(haze: HazeUniforms): PlaneScene {
-  const look = createPlaneStandIn(haze);
+  const look = createPlaneLook(haze);
   const group = new THREE.Group();
   group.name = "plane";
   group.add(look.group);
   group.visible = false;
-  const colours = look.materials.map((m) => m.color.clone());
   const track = createTrack();
   const at: Pose = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
   let shown: PlaneAt | null = null;
   const cam = createPlaneCam();
-  let charred = 0;
   let wrecked = false;
+  let clock = 0;
   // THE HAND-OVER: what the plane wants on screen this frame (null: the
   // ladder), whether it is cut to, the share of it on screen and the last
   // lens it asked for (flown out from once it stops).
@@ -83,12 +86,6 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
   let worn = false;
   let since = Infinity;
   let lastState: GameState | null = null;
-
-  function char(k: number): void {
-    if (k === charred) return;
-    look.materials.forEach((m, i) => m.color.copy(colours[i]).multiplyScalar(1 - k));
-    charred = k;
-  }
 
   return {
     group,
@@ -108,7 +105,7 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
         wrecked = wreck;
         track.tick = -1;
       }
-      char(wreck ? CHAR * Math.min(1, p.t / CHAR_TIME) : 0);
+      look.char(wreck ? CHAR * Math.min(1, p.t / CHAR_TIME) : 0);
       observe(track, { x: p.x, y: p.y, z: p.z, q: p.q }, state.tick);
       sample(track, alpha, at);
       look.group.position.set(at.x, at.y, at.z);
@@ -116,15 +113,8 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
       shown = { x: at.x, y: at.y, z: at.z, q: { ...at.q } };
       // The propeller turned clockwise seen from the cockpit, its blur
       // faded in as it spins up; the surfaces where the engine has them.
-      look.prop.rotation.z = -p.prop;
-      look.disc.material.opacity = DISC * Math.max(0, Math.min(1, (p.spin - 0.2) / 0.6));
-      look.elevator.rotation.x = -p.surfaces.elevator;
-      look.rudder.rotation.y = -p.surfaces.rudder;
-      look.ailerons[0].rotation.x = -p.surfaces.aileron;
-      look.ailerons[1].rotation.x = p.surfaces.aileron;
-      const flap = -p.surfaces.flaps * PLANE.controls.flaps;
-      look.flaps[0].rotation.x = flap;
-      look.flaps[1].rotation.x = flap;
+      clock += dt;
+      look.pose(p, clock);
 
       const groundAt = (x: number, z: number) => state.level.groundAt(x, z);
       const step = Math.min(dt, 0.1);
@@ -183,12 +173,13 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
       return out;
     },
     drawn: () => shown,
+    lamps(lit, out) {
+      const p = lastState?.plane;
+      if (p && shown) look.lamps(p, shown, lit, out);
+    },
+    ready: look.ready,
     dispose() {
-      look.group.traverse((o) => {
-        if (o instanceof THREE.Mesh) o.geometry.dispose();
-      });
-      for (const m of look.materials) m.dispose();
-      look.disc.material.dispose();
+      look.dispose();
     },
   };
 }

@@ -58,10 +58,10 @@ export const PLANE = {
    * the rudder post. 10.9 m overall. [class sheet; est. sections] */
   fuselage: {
     stations: [
-      { z: 3.45, bottom: 1.9, top: 2.0, half: 0.05 },
-      { z: 3.2, bottom: 1.58, top: 2.28, half: 0.4 },
-      { z: 2.3, bottom: 1.3, top: 2.38, half: 0.52 },
-      { z: 1.3, bottom: 1.05, top: 2.46, half: 0.6 },
+      { z: 3.45, bottom: 1.82, top: 1.94, half: 0.05 },
+      { z: 3.2, bottom: 1.6, top: 2.12, half: 0.36 },
+      { z: 2.3, bottom: 1.36, top: 2.17, half: 0.46 },
+      { z: 1.3, bottom: 1.08, top: 2.2, half: 0.56 },
       { z: 0.4, bottom: 0.95, top: 2.68, half: 0.63 },
       { z: -1.9, bottom: 0.98, top: 2.68, half: 0.62 },
       { z: -3.0, bottom: 1.2, top: 2.56, half: 0.52 },
@@ -117,7 +117,7 @@ export const PLANE = {
   /** THE PROPELLER: diameter, m; blades; the hub's height and place along
    * z, m; the spinner's diameter, m; and its rpm at full power. Turning
    * clockwise seen from the cockpit. [class sheet: 3 blades, 2.56–2.67 m] */
-  prop: { diameter: 2.56, blades: 3, hub: { y: 1.95, z: 3.25 }, spinner: 0.42, rpm: 2200 },
+  prop: { diameter: 2.56, blades: 3, hub: { y: 1.88, z: 3.25 }, spinner: 0.42, rpm: 2200 },
 
   /** THE GEAR: the main legs from the fuselage to the axles, the track,
    * the wheels' radius, and the main SKIS under them (length, width, how
@@ -149,7 +149,7 @@ export const PLANE = {
   jumper: { x: -0.4, y: 1.0, z: -0.92, height: 0.62 },
   /** THE PILOT'S EYE in the left seat as he sees it (the engine's +x),
    * body frame, m. */
-  pilotEye: { x: 0.3, y: 2.22, z: 0.72 },
+  pilotEye: { x: 0.3, y: 2.3, z: 0.72 },
 
   /** THE AIR ON IT (`plane.ts`'s per-surface model):
    *   * `lift` the 3D lift slope a rad of each surface (Helmbold off its

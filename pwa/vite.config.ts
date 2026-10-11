@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => {
     heli: modelSwitch(env.VITE_MODEL_HELI),
     sled: modelSwitch(env.VITE_MODEL_SLED),
     groomer: modelSwitch(env.VITE_MODEL_GROOMER),
+    plane: modelSwitch(env.VITE_MODEL_PLANE),
   };
   return {
     base,

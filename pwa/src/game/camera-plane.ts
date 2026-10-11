@@ -15,8 +15,10 @@
 //   ORBIT  swung slowly round it, level;
 //   TIPS   OUT OF THE DOOR: a lens held just outside the jump door (on the
 //          right as a pilot sees it, `PLANE.door`), under the wing, bolted
-//          to the airframe and looking down and forward past the strut at
-//          the snow going by — the jumper's own look before the exit;
+//          to the airframe and looking out, down and a little aft of the
+//          strut and the gear at the snow going by — the jumper's own look
+//          before the exit, nothing of the airframe across it but the strut
+//          at its edge and his skis on the step;
 //   HELMET THE COCKPIT: the pilot's eye in the left seat (`PLANE.pilotEye`),
 //          bolted to the airframe — it pitches, rolls and loops with it.
 //
@@ -44,13 +46,14 @@ export const PLANE_LOOK = {
    * and its fov, deg. */
   orbit: { radius: 30, height: 6, spin: 0.16, fov: 56 },
   /** The door lens, body frame (y up from the ground datum, z forward):
-   * just outside the door's aft edge at a head's height; how far it
-   * is turned out of the door and down, rad, and its fov, deg. */
+   * outside the door, a head leaned out of it under the wing; how far it
+   * is turned out of the door (past square: a little aft) and down, rad,
+   * and its fov, deg. */
   door: {
-    eye: { x: PLANE.door.x + Math.sign(PLANE.door.x) * 0.3, y: 2.0, z: PLANE.door.back + 0.45 },
-    out: 1.05,
-    down: 0.45,
-    fov: 84,
+    eye: { x: PLANE.door.x + Math.sign(PLANE.door.x) * 0.45, y: 2.25, z: PLANE.door.back + 0.6 },
+    out: 1.85,
+    down: 0.75,
+    fov: 80,
   },
   /** The cockpit lens: how far down the look is tipped off the fuselage
    * line, rad (over the long nose), and its fov, deg. */

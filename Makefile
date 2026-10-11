@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skydive-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight balloon afterski town
 
 build:
 	npm run build
@@ -295,14 +295,14 @@ blender:
 
 # The models the game ships: every pair of skis, the heli-ski helicopter
 # and its air ambulance,
-# the mountain snowmobile and the night's piste machine, game quality (no
+# the mountain snowmobile, the night's piste machine and the jump plane, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled or KIND=groomer makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer or KIND=plane makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
-# VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0). The skier
+# VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0). The skier
 # (dressed in code, `make gear`), the trees, the wildlife and the course's
 # marks are built in code and have no models; `make blender KIND=skier`
 # still models the skier for the labs.
@@ -312,6 +312,7 @@ models:
 	$(if $(filter all rescue,$(or $(KIND),all)),npm run blender -- --kind rescue --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
+	$(if $(filter all plane,$(or $(KIND),all)),npm run blender -- --kind plane --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender
@@ -612,6 +613,18 @@ balloon-flight:
 # --compare=FILE after; SEED= flies the roll on a generated map's strip).
 plane-flight:
 	npm run plane-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE JUMP PLANE LAB: the free ride's jump plane — the Blender model where
+# the build packs it (`make models KIND=plane`), the code's stand-in where it
+# does not — parked on its strip from eight sides by day and after dark, the
+# take-off roll, in the air, its surfaces held over, the skier in its door,
+# every camera rung, what the pilot's eye sees and the wreck, through the
+# game's own renderer. One contact sheet a group, previews/plane-<group>.png,
+# and every frame alone, previews/plane-<view>-<label>.png. Its own one-off
+# bundle from pwa/plane-preview.html (never deployed); needs a Chromium like
+# `world`. ARGS="--sheet=model,door" a few sheets.
+plane:
+	npm run plane -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE SKYDIVE'S FLIGHT LAB: the exit, the freefall's terminal speeds, the
 # staged opening, the canopy's polar, turns and flare, the landing, the

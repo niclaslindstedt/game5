@@ -66,7 +66,7 @@ describe("the plane's lenses", () => {
     expect(Number.isFinite(lens.eye.x)).toBe(true);
   });
 
-  it("holds the door lens just outside the door, looking out and down", () => {
+  it("holds the door lens just outside the door, looking out, down and a little aft", () => {
     const { s, at } = flying();
     const lens = planeLens(createPlaneCam(), s.plane!, at, "tips", ground);
     const eye = body(at, lens.eye);
@@ -79,7 +79,9 @@ describe("the plane's lenses", () => {
     });
     expect(look.y).toBeLessThan(0);
     expect(Math.sign(look.x)).toBe(Math.sign(PLANE.door.x));
-    expect(look.z).toBeGreaterThan(0);
+    // a little aft — clear of the strut and the gear ahead of the door
+    expect(look.z).toBeLessThan(0);
+    expect(Math.abs(look.x)).toBeGreaterThan(Math.abs(look.z));
   });
 
   it("puts the cockpit lens at the pilot's eye, looking forward", () => {

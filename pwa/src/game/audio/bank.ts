@@ -21,6 +21,7 @@
 import { AFTERSKI_BANK } from "./afterski-bank.ts";
 import { DOOR_BANK } from "./door-bank.ts";
 import { TOWN_BANK } from "./town-bank.ts";
+import { RESCUE_BANK } from "./rescue-bank.ts";
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
 import { GORE_BANK } from "./gore-bank.ts";
@@ -762,5 +763,8 @@ export const RUN_BANK: SoundBank = {
   // THE SKIS OFF IN TOWN (`town-bank.ts`): out, clapped, shouldered, the
   // boots on the street, laid down and snapped back in.
   ...TOWN_BANK,
+  // THE SEARCH AFTER AN AVALANCHE (`rescue-bank.ts`): the transceiver's
+  // beep, the probe's stroke and its strike, the shovel's bite.
+  ...RESCUE_BANK,
   ...GORE_BANK,
 };

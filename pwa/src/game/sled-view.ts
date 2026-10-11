@@ -23,6 +23,7 @@ import type { RackLoad } from "./board-rack.ts";
 import { SLED_LOOK } from "./sled-look.ts";
 import { createSledRack, type SledRack } from "./sled-rack.ts";
 import { createSledCockpit } from "./sled-cockpit.ts";
+import { mergeParts } from "./model-merge.ts";
 import type { Outfit } from "./outfit.ts";
 import { SLED_NODES, sledModelUrl } from "./skier-models.ts";
 
@@ -273,7 +274,10 @@ export function createSledView(haze: HazeUniforms): SledView {
       const node = nodes[key];
       // The rack keeps its primitives' own shadows: what it carries is
       // shown and hidden a primitive at a time (`sled-rack.ts`).
-      if (node && key !== "rack") mergeCasters(node, allMats);
+      if (!node || key === "rack") continue;
+      // Its plain primitives one draw in the picture (`mergeParts`), then one in the sun's map.
+      mergeParts(node, (m) => hazeMaterial(m, haze, "sled"), allMats);
+      mergeCasters(node, allMats);
     }
     if (nodes.rack && !rack) rack = createSledRack(nodes.rack, (m, n) => hazeMaterial(m, haze, n));
     if (standing) frame.add(root);

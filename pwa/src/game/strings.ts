@@ -22,6 +22,7 @@ import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
 import { CHALLENGE_STRINGS } from "./strings-challenges.ts";
 import { RANGE_NAMES } from "./strings-ranges.ts";
+import { WHERE_STRINGS } from "./strings-where.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
 import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
@@ -31,6 +32,7 @@ import { SLED_STRINGS } from "./strings-sled.ts";
 import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
+import { AVALANCHE_STRINGS } from "./strings-avalanche.ts";
 import { PLANE_STRINGS } from "./strings-plane.ts";
 import { CHUTE_STRINGS } from "./strings-chute.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
@@ -118,7 +120,9 @@ export const STRINGS = {
   ...SLED_STRINGS,
   ...AFTERSKI_STRINGS,
   ...PARA_STRINGS,
+  ...WHERE_STRINGS,
   ...BALLOON_STRINGS,
+  ...AVALANCHE_STRINGS,
   ...PLANE_STRINGS,
   ...CHUTE_STRINGS,
   ...GROOMER_STRINGS,

@@ -180,6 +180,20 @@ function underOf(s: Skin, x: number, z: number): Under {
   const cell = ROCKS.skin.cell;
   const i0 = Math.floor(x / cell) - 1;
   const j0 = Math.floor(z / cell) - 1;
+  // The 4 × 4 corners lie in one to four tiles: none of them holding a
+  // bare corner, no rock is near.
+  const ti0 = Math.floor(i0 / TILE);
+  const ti1 = Math.floor((i0 + 3) / TILE);
+  const tj0 = Math.floor(j0 / TILE);
+  const tj1 = Math.floor((j0 + 3) / TILE);
+  if (
+    tileOf(s, ti0, tj0) === EMPTY &&
+    tileOf(s, ti1, tj0) === EMPTY &&
+    tileOf(s, ti0, tj1) === EMPTY &&
+    tileOf(s, ti1, tj1) === EMPTY
+  ) {
+    return u;
+  }
   let any = false;
   for (let b = 0; b < 4; b++) {
     for (let a = 0; a < 4; a++) {

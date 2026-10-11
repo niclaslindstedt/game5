@@ -19,7 +19,8 @@
 //
 // Where each crop sits was searched once (every bearing and offset round a
 // face's middle, at a scale of 1 — a face is laid 1:1 — scored on how much of the playable face falls
-// down the map and how far the ridge row stands over the valley floor) and
+// down the map, how far the ridge row stands over the valley floor and,
+// where its real lifts were fetched, how many of them the window holds) and
 // the winners are written below; every run prints the table.
 //
 //   make real-faces ARGS=--fetch      # fetch the tiles (once), then bake
@@ -39,12 +40,16 @@ import process from "node:process";
 
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 
-import { FACES, SIZE, globeAt } from "./lib/real-face-crops.mjs";
+import { FACES, SIZE, globeAt, mapAt } from "./lib/real-face-crops.mjs";
 import { FACE_DIR, FACE_INDEX, writeFaceFile, writeFaceIndex } from "./lib/real-face-files.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = join(root, "previews", ".dem");
 const BUCKET = "https://copernicus-dem-30m.s3.amazonaws.com";
+/** Where the search keeps each face's real lifts' ends (off the map data,
+ * fetched with `--fetch --search`), and the API it reads them from. */
+const LIFTS = join(root, "previews", ".osm");
+const MAP_API = "https://api.openstreetmap.org/api/0.6/map";
 
 /** The grid a face is kept on: 126 samples 32 m
  * apart, as fine as the 30 m model honestly is. */
@@ -66,7 +71,7 @@ const args = parseArgs(
     },
     search: {
       kind: "flag",
-      help: "search each --only face's crop (bearing, offset, scale) and print the best rows",
+      help: "search each --only face's crop (bearing, offset, scale) and print the best rows (with --fetch, weighing the real lifts round its middle)",
     },
     index: {
       kind: "flag",
@@ -333,33 +338,107 @@ function roughMeasure(face) {
   return { drop, falls: falls / all };
 }
 
-/** What a crop is worth: a face that falls down the map, standing tall. */
-const worth = (m) => m.falls * m.falls * Math.min(m.drop, 1200);
+/** What a crop is worth: a face that falls down the map, standing tall —
+ * and, where the real lifts are known, holding them all, bottoms low. */
+const worth = (m) =>
+  m.falls *
+  m.falls *
+  Math.min(m.drop, 1200) *
+  (m.lifts ? m.lifts.on ** 3 * (0.5 + 0.5 * m.lifts.low) : 1);
+
+// ── The real lifts ──────────────────────────────────────────────────────
+
+/** The file a face's lift ends are kept in, keyed by its middle. */
+const liftsFile = (face) => join(LIFTS, `lifts-${face.id}-${face.lat},${face.lon}.json`);
+
+/** The ends of every lift within about 2 km of a face's middle, off the
+ * map data — a smaller box where the area is too busy for one call — kept
+ * as [[lat, lon], [lat, lon]] a lift. No name is read. */
+async function fetchLifts(face) {
+  const file = liftsFile(face);
+  if (existsSync(file)) return;
+  for (const reach of [2200, 1500, 1000]) {
+    const dl = reach / 111320;
+    const dn = dl / Math.cos((face.lat * Math.PI) / 180);
+    const box = [face.lon - dn, face.lat - dl, face.lon + dn, face.lat + dl].map((v) =>
+      v.toFixed(5),
+    );
+    const res = await fetch(`${MAP_API}?bbox=${box.join(",")}`, {
+      headers: { "User-Agent": "game5-real-faces (offline bake)" },
+    });
+    if (res.status === 400) continue;
+    if (!res.ok) throw new Error(`lifts for ${face.id}: ${res.status}`);
+    const xml = await res.text();
+    const nodes = new Map();
+    for (const m of xml.matchAll(/<node id="(\d+)"[^>]*lat="([-\d.]+)" lon="([-\d.]+)"/g))
+      nodes.set(m[1], [Number(m[2]), Number(m[3])]);
+    const ends = [];
+    for (const [way] of xml.matchAll(/<way [\s\S]*?<\/way>/g)) {
+      if (
+        !/k="aerialway" v="(chair_lift|gondola|cable_car|mixed_lift|drag_lift|t-bar|j-bar|platter)"/.test(
+          way,
+        )
+      )
+        continue;
+      const refs = [...way.matchAll(/<nd ref="(\d+)"/g)]
+        .map((m) => nodes.get(m[1]))
+        .filter(Boolean);
+      if (refs.length >= 2) ends.push([refs[0], refs.at(-1)]);
+    }
+    mkdirSync(LIFTS, { recursive: true });
+    writeFileSync(file, JSON.stringify(ends));
+    console.log(`${face.id}: ${ends.length} lifts kept`);
+    return;
+  }
+  throw new Error(`lifts for ${face.id}: the area is too busy for the map API`);
+}
+
+/** How a crop holds the real lifts: the share of their ends on the map
+ * (150 m in from its edge) and the share of lifts whose bottom stands in
+ * the map's lower half — the generator's lifts leave from the valley floor.
+ * Null where none are kept. */
+function liftsOn(face, ends) {
+  if (!ends || ends.length === 0) return null;
+  const inside = ([x, z]) => x > 150 && x < SIZE - 150 && z > 150 && z < SIZE - 150;
+  let on = 0;
+  let low = 0;
+  for (const [a, b] of ends) {
+    const [lo, hi] = heightAt(...a) < heightAt(...b) ? [a, b] : [b, a];
+    const [pl, ph] = [mapAt(face, ...lo), mapAt(face, ...hi)];
+    on += (inside(pl) ? 1 : 0) + (inside(ph) ? 1 : 0);
+    if (pl[1] > SIZE / 2) low++;
+  }
+  return { on: on / (2 * ends.length), low: low / ends.length, n: ends.length };
+}
 
 /** Every bearing, offset and scale round a face's middle (the middle kept
  * well inside the window, so the ski area stays on the map), the best few
  * re-read on the baked grid; prints them best first as crop rows. */
 function search(face) {
+  const ends = existsSync(liftsFile(face))
+    ? JSON.parse(readFileSync(liftsFile(face), "utf8"))
+    : null;
   const tried = [];
   for (let bearing = -180; bearing < 180; bearing += 10) {
     for (let east = -1350; east <= 1350; east += 450) {
       for (let north = -1350; north <= 1350; north += 450) {
         for (const scale of [1]) {
           const row = { ...face, east, north, bearing, scale };
-          tried.push({ row, m: roughMeasure(row) });
+          tried.push({ row, m: { ...roughMeasure(row), lifts: liftsOn(row, ends) } });
         }
       }
     }
   }
   tried.sort((a, b) => worth(b.m) - worth(a.m));
-  const best = tried
-    .slice(0, 8)
-    .map(({ row }) => ({ row, m: measure(encode(crop(row)).quantised) }));
+  const best = tried.slice(0, 8).map(({ row, m: rough }) => ({
+    row,
+    m: { ...measure(encode(crop(row)).quantised), lifts: rough.lifts },
+  }));
   best.sort((a, b) => worth(b.m) - worth(a.m));
   console.log(`${face.id}: best of ${tried.length}`);
   for (const { row, m } of best.slice(0, 4)) {
     console.log(
-      `  drop ${m.drop.toFixed(0).padStart(5)}  falls ${m.falls.toFixed(2)}   east: ${row.east}, north: ${row.north}, bearing: ${row.bearing}, scale: ${row.scale}`,
+      `  drop ${m.drop.toFixed(0).padStart(5)}  falls ${m.falls.toFixed(2)}  ${m.lifts ? `lifts on ${m.lifts.on.toFixed(2)} low ${m.lifts.low.toFixed(2)}` : "no lifts kept"}   east: ${row.east}, north: ${row.north}, bearing: ${row.bearing}, scale: ${row.scale}`,
     );
   }
 }
@@ -397,6 +476,7 @@ if (args.fetch) {
 }
 if (args.search) {
   if (!only) throw new Error("--search needs --only");
+  if (args.fetch) for (const face of faces) await fetchLifts(face);
   for (const face of faces) search(face);
   process.exit(0);
 }

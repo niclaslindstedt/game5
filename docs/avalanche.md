@@ -2,7 +2,7 @@
 
 On a **free ride** the snow off the groomed runs can slide. A skier crossing a loaded slope in the release band can set a **slab** off. It breaks, runs down the mountain as a dense flow, and takes him if he does not get out of its way. Caught, he is thrown onto his own ragdoll and carried. Where the flow round him stops, he is put down in the debris: his head out, or **buried**, with a dealt time to live off the survival curve.
 
-This is the ENGINE half (part A): the hazard, the trigger, the slab, the flow, the catch, the burial and the clock. Nothing is drawn yet beyond what the skier's own ragdoll already draws. The slab, the flow, the powder cloud and the debris as pictures are part B; the transceiver search and the patrol are part C.
+The ENGINE half (part A) is the hazard, the trigger, the slab, the flow, the catch, the burial and the clock. The slab, the flow, the powder cloud and the debris as pictures are part B (§ As drawn). The others a slide takes, the player's transceiver search, the probe, the shovel and the ski patrol are part C (§ The search and the patrol).
 
 - `engine/game/avalanche.ts` is the model.
 - `engine/game/avalanche-state.ts` holds its state and its event.
@@ -251,9 +251,118 @@ The terrain's shader pays a few branches a pixel everywhere (`uSlideOn`), and th
 
 Each frame's draw time, draw calls and triangles are printed under its sheet.
 
+## The search and the patrol
+
+A slide that buries somebody starts a search. The player can search for others with his transceiver, a probe and a shovel; the ski patrol comes for the player himself, and for anybody nobody else digs out.
+
+- `engine/game/avalanche-rescue.ts` is the model: the others caught, the player's transceiver, probe and shovel, and the patrol. Its state (`Burial`, `Beacon`, `Patrol`) is in `avalanche-state.ts`.
+- `engine/game/defs/avalanche-rescue.ts` (`AVALANCHE_RESCUE`) holds every number, with its unit and its source.
+- `pwa/src/game/beacon-read.ts` is what the HUD reads (DOM-free). `hud-beacon.tsx` draws the transceiver and the veil over a buried player.
+- `patrol-view.ts` and `patrol-crew.ts` draw the patrol. `dig-pit.ts` shapes the hole. `camera-buried.ts` is the lens under the snow.
+- `audio/rescue-bank.ts` and `audio/rescue-bed.ts` are the sound.
+- `tests/avalanche_rescue_test.ts` and `tests/dig_pit_test.ts` hold it.
+
+### What a real rescue does
+
+- **The transceiver.** Every member of a party wears one, sending on 457 kHz. To search, a rescuer switches it to receive.
+- **The signal search.** Nothing heard yet: the searcher sweeps the debris quickly in strips 20–40 m wide, from the last-seen point down the flow line.
+- **The coarse search.** A digital unit picks a signal up at about 40–70 m. It then gives a distance and an arrow. The arrow follows the curved **flux line** of the buried unit's dipole field, so the searcher's path curves in. He slows down at about **10 m**.
+- **The fine search.** Within about **3 m**, the unit is held low on the snow and moved in a cross ("bracketing") to find the lowest number. The lowest number stands over the body.
+- **The probe.** A collapsible pole of 2.4–3.2 m is pushed in a spiral out from the lowest number, about 25 cm apart. A strike is a soft give, unlike the hard bed. The probe is left in as the marker.
+- **The dig.** Strategic shovelling starts **downhill** of the probe, about 1–1.5 × the burial depth away, and cuts in from the side. Shovelling clears 13–25 cm of depth a minute. A lone rescuer reaches 1.5 m in about 18 minutes; a team on a conveyor works at the top of the range.
+- **The patrol.** A team of two reaches a slide inside the ski area in about **10–20 minutes**. A practised searcher finds a single burial in under four minutes; digging out a metre-deep victim takes most of the time.
+
+### In the model
+
+- **The others caught.** A running parcel takes any amateur of the crowd standing in its way, and any of the night's keen skiers. They are thrown onto the same ragdoll the player is, carried, put down, and buried or surfaced by the same rules.
+  - Each burial is dealt its own air off the survival curve. The draws come off the avalanche's own stream, never `state.rng`.
+  - Up to **8** burials are kept (`burials`).
+  - Nobody is shouldered by the player while buried, so a searcher can stand over him.
+  - Left past his air, he is dug out dead.
+- **The transceiver** (`stepBeacon`, read by `beaconRead`).
+  - **It switches itself.** It sends by default. When somebody is buried within **220 m** of the player (`watch`), it switches itself to search. **T** (or the BEACON press on touch) switches it either way.
+  - **The reading.** A burial is heard within **50 m** (`range`). The number is the field's strength read as if on the aerial's axis: the straight distance × ∛(2 / √(1 + 3 cos² θ)), where θ is the angle to the aerial. It is longer across the aerial (up to 1.26 ×) and shortens as the flux line swings in.
+  - **The arrow** points along the flux line, the way in. Followed, it takes him in on a curve.
+  - **The jitter.** Both jitter about three times a second, off a hash of the clock: a few per cent on the number and a few degrees on the arrow. Past three fifths of the range it gets worse, and the signal drops out now and then.
+  - **The fine search.** Under **3 m** of straight distance (the depth included), the arrow goes out and only the number is left.
+  - **The beep** quickens as the number falls: from about once a second to eight a second. The unit shows how many burials it hears.
+  - **The prompts:** SLOW DOWN under 10 m; STOP on the lowest number; PROBE stopped over it; DIG once struck.
+- **The probe.** A press of **G** (the PROBE press on touch), stopped (under **1.5 m/s**) with somebody under, pushes a probe in where he stands.
+  - **A strike** is within **0.6 m** of the body (`reach`, a dial for a spiral of a few strokes) and no deeper than the probe's **3 m**.
+  - **The pace.** The next stroke comes **0.6 s** later. The last **24** holes are kept.
+- **The dig.** **G** held within **3 m** of a struck body digs, at **0.05 m a second** of play — the lone rescuer's 8 cm a minute at the clock's 30 ×.
+  - A man digging stands in his hole: the slope does not slide him off it.
+  - A metre-deep burial takes about 20 s, two metres about 40.
+  - Dug out, he comes out alive or dead by his own clock.
+- **The patrol** (`stepPatrol`; where each patroller is at a moment is `patrolMan`, a pure function of the patrol's state).
+  - **The call.** It is called the moment a burial is seen. A team of two arrives **13–27 s** later, dealt off the avalanche's stream. That is the real 10–20 minutes at 30 ×, cut by a further 1.5 × for play, so the whole rescue lands where the survival curve is falling: most come out alive, and one buried deep or unlucky dies.
+  - **The run in.** It skis in from **160 m** up the slope off the slab's flank, at **11 m/s**, to **14 m** short of the burial.
+  - **The work.** It searches on foot for **6 s** (three minutes), probes for **3 s** (a minute and a half), and digs at the team's **0.1 m/s** from downhill. It stands by **25 s**, then goes on to the next burial or skis off.
+  - **Who first.** The player comes first, then the oldest still under.
+- **The player buried.**
+  - **What he sees.** The picture is his own: dark and close, the veil over it with his air draining, how deep he lies and what the patrol is doing (called, coming, searching, probing, digging). The world outside is muffled to almost nothing.
+  - **As they reach him.** When the shovels reach him, the lens pulls up out of the hole, the veil lifts and the sound comes back.
+  - **Dug out in time,** he is stood up and skis on.
+  - **Too late,** with INJURIES on, he dies of the run's own death flow (`death`, the `smothered` cause). With it off, part A's lost-and-reset takes him.
+  - **No new slab** releases while anybody is still under.
+- **The events.** The `avalanche` event gains a `who` (`player`, `amateur` or `keen`) and the phases `beacon` (the unit switched; `alive` carries search or send), `probe`, `strike`, `dug` (`alive` how he came out) and `patrol` (the team arriving). The news line reads them (`run-news.ts`). The sound bank answers `probe` and a `strike` (`probe_in`, `probe_strike`).
+
+### As drawn and heard
+
+- **The transceiver** is drawn as a rugged orange unit low in the middle of the picture, with a monochrome display:
+  - a fan of five direction segments and an arrow behind for a turn round;
+  - signal bars and the count of burials heard;
+  - the search pattern with no signal;
+  - the number, with brackets round it in the fine search;
+  - a strike mark and the dig's progress bar;
+  - a lamp that flashes with the beep.
+  - The next step is written under it. On touch, it has two presses: BEACON (a tap) and PROBE / DIG (a tap probes, a hold digs).
+- **The patrol** is two patrollers on the civilians' bodies, in the patrol's red with a white cross and helmets. They are posed by morph weights (`patrol-crew.ts`): skiing in on their skis, walking, searching with the unit low, probing with a 2.6 m probe in both hands, and digging with a shovel.
+- **The marks.** A probe is left standing with a red flag over every body struck. It goes down with the hole's floor.
+- **The hole** (`dig-pit.ts`) is a slot **1.5 m** wide:
+  - a steep wall **0.7 m** uphill of the body;
+  - a level floor **0.5 m** past it;
+  - a ramp running out downhill as the dig goes down (about 30°).
+  - It goes down through the drawn debris by the share dug, to where the body lies once he is out.
+  - Its walls and floor are drawn in snow's own shade, the deeper the bluer. The ground's shader cuts the snow out of the same rectangle (`room-cuts.ts`'s `setHoleCuts`, sharing the rooms' eight slots).
+- **The spoil heap** beside the ramp grows with the snow dug out: a lumpy ball, flattened onto the slope.
+- **The buried player's lens** (`camera-buried.ts`) starts **0.25 m** over the debris above his head. It rises to **3.2 m** and backs **3.4 m** uphill as the hole goes down, looking down into it at him and the diggers.
+- **The sound.** The unit's beep (a short square pip at 2.35 kHz, pitched up in the fine search, every `beep` seconds), the probe's rasp and the tap of the hard bed or the soft thud of a strike, and the shovel's bite. Buried, he hears the outside at **6 %** at first; the patrol's shovels grow louder as they dig down to him.
+
+### The keys
+
+- **T** — the transceiver, send or search (`beacon`).
+- **G** — the probe; held beside a strike, the shovel (`rescue`).
+- Both are rebindable on OPTIONS ▸ KEYS.
+
+### What it costs
+
+| What | Cost |
+| --- | --- |
+| A run with avalanches off | nothing: no state, no view, no sound |
+| The engine's step, the patrol at work and the slide at rest | **≈ 5 µs** (Node, this container) |
+| The HUD's read | **0.1–0.5 µs** a frame (`beaconRead`, `buriedRead`) |
+| Draw calls, the patrol at work | **+2 to +8** over the same lens: a figure each (its bare or its shovel copy), their skis and probe, a marker's pole and flag, a heap and a pit a burial |
+| Triangles | **+6–9 k**: about 700 a figure, 20 a pit, 320 a heap |
+| Memory, the patrol | about **1.4 MB**: the two figures' geometry, built the first time a patrol shows or a body is struck (2,061 and 2,097 vertices with twelve morph targets, about 670 KB each). Each dressed copy shares that geometry and adds only its colours |
+| Memory, the marks | eight pits of 60 vertices, eight heaps sharing one 320-face ball, eight markers |
+| Before the first patrol or strike | nothing: the view is built lazily |
+
+### The lab (`make avalanche`, the rescue sheets)
+
+`pwa/src/tools/avalanche-rescue-lab.ts` adds four sheets to the avalanche lab. Each frame's cost is printed as the others are.
+
+- **search:** the transceiver at every phase over the game's own frame, with the HUD drawn in: sending, the signal search, the coarse search at 30 m and at 8 m, the fine search over him, a strike and the dig. Then a probe that misses, one that strikes, and the probe left in.
+- **hole:** the hole dug to an amateur at a third, two thirds and out.
+- **patrol:** skiing in, searching, bracketing, the probe spiral, digging from downhill, almost down to him, and standing by.
+- **buried:** the player under the snow from the call to being stood up, the lens pulled up out of the hole as they dig.
+
+The amateur is placed in the slide's way and buried; the player is stood and held where each frame wants him; the clock runs headless between frames.
+
 ## Not yet built
 
-- **The hole dug** in the debris (part C's), and the debris drawn round trees: the flow's pile on a trunk's uphill side and its eddy behind.
-- **The search (part C):** the transceiver search, the probe, the shovel and the patrol's response.
-- **Amateurs caught.**
+- **The debris drawn round trees:** the flow's pile on a trunk's uphill side and its eddy behind.
 - **The woods' ξ.** The flow does not yet lower ξ to the woods' **400** as it runs through trees (`xiForest` is stated, unused).
+- **The player's own pose while searching:** he stands on his skis while he probes and digs. The patrol's figures probe and dig; his do not.
+- **Control work at dawn:** the patrol's hand charges and ski cutting on the slopes before the lifts open.
+- **The evacuation:** the casualty taken out by toboggan, or by the air ambulance `docs/rescue.md` already draws.

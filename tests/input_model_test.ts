@@ -247,7 +247,7 @@ describe("the key table (settings-input.ts)", () => {
     expect(DEFAULT_KEYS.right).toEqual(expect.arrayContaining(["KeyD", "ArrowRight"]));
     expect(DEFAULT_KEYS.reset).toEqual(["KeyR"]);
     expect(DEFAULT_KEYS.restart).toEqual(["KeyB", "Tab"]);
-    expect(DEFAULT_KEYS.firstPerson).toEqual(["KeyG"]);
+    expect(DEFAULT_KEYS.firstPerson).toEqual(["Digit1"]);
     expect(DEFAULT_KEYS.camera).toEqual(["KeyC"]);
     expect(DEFAULT_KEYS.pause).toEqual(["Escape"]);
     for (const codes of Object.values(DEFAULT_KEYS)) {

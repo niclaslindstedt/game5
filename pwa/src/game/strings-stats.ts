@@ -82,6 +82,7 @@ const DEATH_NAMES: Record<DeathCause, string> = {
   machine: "PISTE MACHINE",
   blast: "ROTOR BLAST",
   rotor: "THE ROTOR",
+  smothered: "AVALANCHE",
 };
 
 export const STATS_STRINGS = {

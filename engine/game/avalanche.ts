@@ -56,6 +56,8 @@ import { throwRider } from "./crash.ts";
 import { treesNear } from "./upright-grid.ts";
 import { windFromOf } from "./wind.ts";
 import { RAGDOLL } from "./ragdoll.ts";
+import { smother } from "./gore.ts";
+import { addBurial, catchOthers, freshBeacon, stepRescue } from "./avalanche-rescue.ts";
 import {
   CELL,
   type AvalancheState,
@@ -63,7 +65,7 @@ import {
   type SlabFrame,
   type Slide,
 } from "./avalanche-state.ts";
-import type { GameEvent, GameState } from "./state.ts";
+import type { GameEvent, GameState, SkierInput } from "./state.ts";
 
 const K = AVALANCHE;
 const dt = TUNING.dt;
@@ -86,6 +88,10 @@ export function freshAvalanche(state: GameState): AvalancheState {
     beds: [],
     victim: null,
     count: 0,
+    burials: [],
+    ids: 0,
+    beacon: freshBeacon(),
+    patrol: null,
   };
 }
 
@@ -195,8 +201,9 @@ function loading(state: GameState): { x: number; z: number; speed: number; weigh
   return { x: c.x, z: c.z, speed: c.speed, weight: 1 };
 }
 
-/** One step of the avalanches, after the skier's own. */
-export function stepAvalanche(state: GameState, events: GameEvent[]): void {
+/** One step of the avalanches, after the skier's own — `input` the
+ * player's, for his transceiver, probe and shovel (`avalanche-rescue.ts`). */
+export function stepAvalanche(state: GameState, events: GameEvent[], input?: SkierInput): void {
   const a = state.avalanche;
   if (!a) return;
   a.load = loadOf(state);
@@ -210,12 +217,16 @@ export function stepAvalanche(state: GameState, events: GameEvent[]): void {
   if (slide?.running) {
     stepFlow(state, slide);
     meetFlow(state, a, slide, events);
+    // ...and the crowd and the keen skiers in its way (`avalanche-rescue.ts`).
+    if (slide.running) catchOthers(state, a, slide, events);
     if (!slide.running) {
       push(state, events, "stopped", slide, slide.slab.x, slide.slab.z, 0);
       if (slide.involved && !slide.caught && !slide.escaped) escape(state, slide, events);
     }
   }
   if (a.victim) stepVictim(state, a, a.victim, events);
+  // THE SEARCH AND THE PATROL (`avalanche-rescue.ts`).
+  stepRescue(state, a, input, events);
   if (a.quiet > 0) a.quiet = Math.max(0, a.quiet - dt);
   if (state.phase === "racing") trigger(state, a, events);
 }
@@ -225,6 +236,8 @@ function trigger(state: GameState, a: AvalancheState, events: GameEvent[]): void
   const on = loading(state);
   if (!on) return;
   if (a.quiet > 0 || a.slide?.running) return;
+  // Nor while anybody is still under the last one's debris.
+  for (const b of a.burials) if (b.phase !== "out") return;
   const T = K.trigger;
   let chance = 0;
   a.travel += on.speed * dt;
@@ -494,7 +507,8 @@ function meetFlow(state: GameState, a: AvalancheState, s: Slide, events: GameEve
     // ahead of it as fast as it comes, he stays ahead of it.
     const along = (c.vx * vx + c.vz * vz) / sp;
     if (sp - along < K.catchSpeed) continue;
-    if (state.sled?.mode === "ridden") continue;
+    // Riding the snowmobile, he is thrown off it as off his skis — the
+    // machine left where the flow took him off it (`sled.ts`).
     catchSkier(state, a, s, k / S, events);
     return;
   }
@@ -576,7 +590,7 @@ function stepVictim(
     if (s && s.cells[k + CELL.run] === 1) {
       const c = s.cells;
       v.clear = 0;
-      carry(
+      carryBody(
         b.points,
         b.last,
         c[k + CELL.vx] + (c[k + CELL.x] - b.x) * K.hold,
@@ -590,17 +604,19 @@ function stepVictim(
     return;
   }
   // Held where he lies under the snow.
-  hold(b.points, b.last);
+  holdBody(b.points, b.last);
   if (v.phase === "buried" && v.t >= v.air) {
     v.phase = "lost";
     v.t = 0;
     push(state, events, "lost", s, v.x, v.z, v.depth);
+    // On a run that carries its injuries he dies of it (`gore.ts`).
+    smother(state, events);
   }
 }
 
 /** Every point of the body taken toward the flow's velocity, and held up
  * in it (Verlet: a point's step is `points − last`). */
-function carry(points: number[], last: number[], vx: number, vz: number): void {
+export function carryBody(points: number[], last: number[], vx: number, vz: number): void {
   const k = 1 - Math.exp(-K.drag * dt);
   for (let i = 0; i < RAGDOLL.count; i++) {
     const j = 3 * i;
@@ -617,7 +633,7 @@ function carry(points: number[], last: number[], vx: number, vz: number): void {
 }
 
 /** Every point of the body stilled where it is. */
-function hold(points: number[], last: number[]): void {
+export function holdBody(points: number[], last: number[]): void {
   for (let i = 0; i < 3 * RAGDOLL.count; i++) last[i] = points[i];
 }
 
@@ -636,6 +652,13 @@ function bury(state: GameState, a: AvalancheState, v: AvalancheVictim, events: G
   v.t = 0;
   v.depth = depth;
   v.air = (survivalMinutes(a.rng.next(), depth) * 60) / K.timeScale;
+  // On the list the patrol works from (`avalanche-rescue.ts`).
+  const b = addBurial(a, "player", -1, s, v.parcel, v.x, v.z);
+  if (b) {
+    b.phase = "buried";
+    b.depth = depth;
+    b.air = v.air;
+  }
   push(state, events, "buried", s, v.x, v.z, depth);
 }
 

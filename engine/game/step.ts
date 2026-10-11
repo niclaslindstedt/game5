@@ -705,7 +705,7 @@ export function step(state: GameState, input: SkierInput): GameState {
   // THE GRIMBEAR (`grimbear.ts`), on a free ride he was dealt to.
   if (state.grimbear) stepGrimbear(state, events);
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
-  if (state.avalanche) stepAvalanche(state, events);
+  if (state.avalanche) stepAvalanche(state, events, input);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.
   if (state.rules.contact) feelBumps(state, events);
   // THE G METER bills a blow only once someone went down on it.

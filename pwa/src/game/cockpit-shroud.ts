@@ -82,6 +82,23 @@ export function glassFoot(glass: THREE.BufferGeometry | null): ((x: number) => V
   };
 }
 
+/** THE WINDSCREEN'S CENTRE POST at height `y`: how far forward the glass
+ * either side of it stands there (the machine's frame) — the panes'
+ * points within a hand of the middle and of `y`, the nearest-aft of them.
+ * Null when the model has no windscreen there. */
+export function postAt(glass: THREE.BufferGeometry | null, y: number): number | null {
+  if (!glass) return null;
+  const pos = glass.getAttribute("position");
+  let best: number | null = null;
+  for (let i = 0; i < pos.count; i++) {
+    if (Math.abs(pos.getX(i)) > 0.09 || Math.abs(pos.getY(i) - y) > 0.1) continue;
+    const z = pos.getZ(i);
+    if (z < COCKPIT.panel.z) continue;
+    if (best === null || z < best) best = z;
+  }
+  return best;
+}
+
 /** A grid of points (rows × cols) as a mesh's geometry, its uv the grid's. */
 function loft(rows: V3[][]): THREE.BufferGeometry {
   const n = rows.length;

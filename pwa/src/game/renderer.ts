@@ -779,10 +779,10 @@ export function createWorldRenderer(
       // The cloud goes with the MEAN wind — its gusts are the air down here.
       const carried = (weatherOf(sky).wind * state.t) / CLOUD_HEIGHT;
       const from = windFromOf(sky);
-      env.update(look, lens.camera, d.y, {
-        x: -Math.sin(from) * carried,
-        z: -Math.cos(from) * carried,
-      });
+      const drift = { x: -Math.sin(from) * carried, z: -Math.cos(from) * carried };
+      // The sun's map may stand a frame while only he moves under the lens (`sunDue`).
+      const lone = !hidden.has("hero") && !own && !planted && !skier.thrown;
+      env.update(look, lens.camera, d.y, drift, lone);
       crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {

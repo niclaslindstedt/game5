@@ -282,13 +282,15 @@ export async function waterOf(face, data, height, relationFull, readXml) {
       : kind === 0
         ? 12
         : 3;
-    for (let piece of pieces) {
+    for (const piece of pieces) {
       const length = piece
         .slice(1)
         .reduce((s, p, i) => s + Math.hypot(p[0] - piece[i][0], p[1] - piece[i][1]), 0);
       if (length < SHORTEST) continue;
-      if (height(...piece.at(-1)) > height(...piece[0]) + TURN) piece = piece.slice().reverse();
-      const line = grained(thin(piece, STRAY));
+      // Turned downstream off the line as kept: thinning and the grain move
+      // its ends, and the order must hold for the ends the map reads.
+      let line = grained(thin(piece, STRAY));
+      if (height(...line.at(-1)) > height(...line[0]) + TURN) line = line.reverse();
       if (line.length >= 2) streams.push({ kind, line, width: Math.round(width), length });
     }
   }

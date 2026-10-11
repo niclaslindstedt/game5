@@ -21,14 +21,12 @@
 //   - THE DRIVE, which is gravity, and at a crawl the POLES (`poles.ts`);
 //   - THE SKIER: his hips moved inside the turn and fore and aft, and the
 //     INCLINATION he and his legs settle at into a carve, which in powder is
-//     the whole turn — a ski rolled over in powder turns toward the low
-//     side;
+//     the whole turn — a ski rolled over in powder turns toward the low side;
 //   - THE AIR, against the body's drag area — standing tall, or folded into
 //     a tuck; and in flight the skier's levers (`flight.ts`);
 //   - THE HULL: points on the body and the skis' ends that meet the snow
 //     when the legs have run out, which is how a skier goes down on his hip
-//     and how he tumbles — resolved as impulses after the forces
-//     (`chassis.ts`);
+//     and how he tumbles — resolved as impulses after the forces (`chassis.ts`);
 //   - GRAVITY.
 // The trees and the map's edge are `collision.ts`'s and are applied after.
 //

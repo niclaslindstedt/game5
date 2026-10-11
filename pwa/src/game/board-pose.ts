@@ -47,13 +47,10 @@
 //     IN THE AIR the knees come up (the board drawn up under the hips),
 //     the board levelled and the arms out.
 //   * THE ONE-FOOT SKATE: the rear foot out of its binding pushing beside
-//     the HEEL edge, behind his back, never ahead of the front binding,
-//     the board pointed along his travel; the body stays SIDE-ON over it —
-//     the shoulders opened only part way to the nose, the head looking
-//     forward over the front shoulder — so from behind he reads as a
-//     rider, never as a runner squared to his way; between pushes the foot
-//     rests on the stomp pad by the rear binding. HOPPING, both feet in, the knees fold and spring on the
-//     stride's phase.
+//     the HEEL edge, behind his back, the board pointed along his travel
+//     and the body SIDE-ON over it (the shoulders part way open, the head
+//     over the front shoulder) — a rider, never a runner squared to his way.
+//     HOPPING, both feet in, the knees fold and spring on the stride's phase.
 //   * NO POLES: the hands are empty, after the skier's poleless carriage
 //     (`skier-bare.ts`): soft elbows, the fists eased inside the arm's
 //     reach.
@@ -167,8 +164,7 @@ export const STANCE = { knee: 0.9, hipsBack: 0.05, lean: 0.24, open: 0.18, hips:
 export const TOESIDE = { knee: 0.4, hips: 0.1, lean: -0.35, cutLean: 0.25, open: 0.05 };
 export const HEELSIDE = { knee: 0.5, hips: -0.08, lean: 0.12, open: 0.3 };
 
-/** THE TUCK at full crouch: the knees' extra flexion, the trunk's lean and
- * its opening toward the nose — the chest over the front knee. */
+/** THE TUCK at full crouch: the knees' extra flexion, the trunk's lean and opening, rad. */
 export const TUCK = { knee: 0.75, lean: 0.6, open: 0.2 };
 
 /** How far past it the knees may fold, rad, and the shin's least and most
@@ -176,13 +172,11 @@ export const TUCK = { knee: 0.75, lean: 0.6, open: 0.2 };
  * boot's full flex. */
 export const KNEE_MOST = 2.1;
 
-/** THE ONE-FOOT SKATE: the free foot behind him beside the heel edge, its
- * toes kept pointing ahead along his way, PRESSED OUT SIDEWAYS to drive the
- * board on — where along the deck it stands (m, back from the board's
- * middle) at the plant and at the end of the press, how far out past the
- * heel edge at each (m), its lift on the way back, the share of the stride
- * it presses for, the torso's turn to the nose, rad — part way, the body
- * kept side-on — and the hips' shift toward the toes, m. */
+/** THE ONE-FOOT SKATE: the free foot behind him by the heel edge, toes ahead,
+ * PRESSED OUT SIDEWAYS — along the deck (m back of its middle) and out past
+ * the heel edge (m) at the plant and the press's end, its lift back, the
+ * stride's share pressed, the torso's turn to the nose (rad), the hips'
+ * shift to the toes (m). */
 export const SKATE = {
   from: -0.12,
   to: -0.26,

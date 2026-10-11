@@ -240,6 +240,23 @@ describe("riding it", () => {
     expect(s.sled!.rider).toBe(true);
   });
 
+  it("puts a rider thrown off it straight back on at the reset, with no wait", () => {
+    const s = createGame({ level, mode: "free", sled: true, crowd: 0, quiet: true });
+    const tree = level.trees[Math.floor(level.trees.length / 2)];
+    const heading = 0.3;
+    standSled(s, s.sled!, tree.x - Math.sin(heading) * 8, tree.z - Math.cos(heading) * 8, heading);
+    const k = s.sled!;
+    k.vx = Math.sin(heading) * 16;
+    k.vz = Math.cos(heading) * 16;
+    k.treadSpeed = 16;
+    for (let i = 0; i < 1.5 * 120 && !s.skier.thrown; i++) step(s, ask({ tuck: 1 }));
+    expect(s.skier.thrown).not.toBe(null);
+    step(s, ask({ reset: true }));
+    ride(s, 0.5, ask());
+    expect(s.skier.thrown).toBe(null);
+    expect(s.sled!.rider).toBe(true);
+  });
+
   it("is left by a rider an amateur throws off it, and he is stood back on it", () => {
     const lv = levelFor(38);
     const s = createGame({ level: lv, mode: "free", sled: true, crowd: 40, quiet: true });

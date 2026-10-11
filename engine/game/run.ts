@@ -25,15 +25,7 @@ import { outRun, resetSkier, standSkier, stepCourse } from "./course.ts";
 import { derive, stepSkier } from "./skier.ts";
 import { stepPipeAir } from "./pipe-air.ts";
 import { flightGravity } from "./limits.ts";
-import {
-  crashOver,
-  mayGetUp,
-  noteSave,
-  quietClocks,
-  stepThrown,
-  throwRider,
-  wipeoutCause,
-} from "./crash.ts";
+import { crashOver, noteSave, quietClocks, stepThrown, throwRider, wipeoutCause } from "./crash.ts";
 import { takeDamage } from "./damage.ts";
 import { followSkis } from "./lone-skis.ts";
 import { stepBody } from "./body.ts";
@@ -159,9 +151,11 @@ export function stepRun(
   // THE AFTERSKI (`afterski.ts`): in from its door's spot, and out.
   if (stepAfterski(run, input, events)) return;
   // Down too hurt to get up (`rescue.ts`): found so, and held.
-  if (player) callRescue(run, events);
-  // Thrown, the player's own press waits out `crash.getUp` (`mayGetUp`).
-  if (input.reset && racing && (!player || mayGetUp(run.skier.thrown)) && !holdsHim(run)) {
+  // The reset pressed finds him so at once, rather than standing him up.
+  if (player) callRescue(run, events, input.reset && racing);
+  // Thrown, the press answers at once: a fall he is off his skis in is one
+  // nobody rides on from, and it is never made to wait.
+  if (input.reset && racing && !holdsHim(run)) {
     standUp(run, events, false);
     return;
   }

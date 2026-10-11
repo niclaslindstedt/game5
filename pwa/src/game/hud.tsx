@@ -172,7 +172,7 @@ export function Hud({
    * dark a death or an ended run brings down over the live one. */
   replaying?: boolean;
 }) {
-  const lit = snap.missed !== null || snap.getUp;
+  const lit = snap.missed !== null || snap.over;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
   // The helicopter and the plane are flown on the same two pads.

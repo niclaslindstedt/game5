@@ -21,8 +21,11 @@ const SHOULDER_INTO_TRUNK: Staging = {
 function ride(s: Staging, seconds: number, gore = true) {
   const { state, input } = stageTrial(s, 0, gore);
   const events: GameEvent[] = [];
+  // The reset pressed every step once the fall has hurt him: answered at
+  // once, it finds him so or stands him up.
   for (let i = 0; i < Math.round(seconds / TUNING.dt); i++) {
-    step(state, { ...input, reset: true });
+    const hurtNow = state.skier.body.injuries.length > 0;
+    step(state, { ...input, reset: hurtNow });
     events.push(...state.events);
   }
   return { state, events };
@@ -55,7 +58,8 @@ describe("hurt too badly to ski on", () => {
     const { state, events } = ride(FEET_FIRST, 10);
     const g = state.gore!;
     expect(g.dead).toBe(-1);
-    expect(g.injured).toBeGreaterThanOrEqual(TUNING.crash.getUp - TUNING.dt);
+    // Found so the first press he lies through: a reset never waits.
+    expect(g.injured).toBeGreaterThanOrEqual(0);
     expect(g.injury).not.toBeNull();
     expect(disables(g.injury!)).toBe(true);
     // Pressed to get up every step, and past the time the engine would

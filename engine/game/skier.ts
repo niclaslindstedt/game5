@@ -72,7 +72,7 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
-  onIce,
+  onRock,
   pisteIce,
   platformOf,
   packedSnow,
@@ -454,6 +454,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const az = c.z + fwd.z * p.bz + acrossZ * p.bx + dz * -(p.by + drop);
     const packed = packedSnow(state, ax, az);
     let ice = level.iceAt ? level.iceAt(ax, az) : 0;
+    const bare = level.bareRockAt ? level.bareRockAt(ax, az) : 0;
     // ...and an evening's refrozen groomer (`piste-day.ts`).
     if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed));
     // In a TREE WELL the snow is loose to the bottom (`tree-well.ts`).
@@ -560,7 +561,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const vl = pvx * side.x + pvy * side.y + pvz * side.z;
     if (Math.abs(vl) > slipWorst) slipWorst = Math.abs(vl);
     gripAt(packed, grip, fit);
-    if (ice > 0) onIce(grip, ice);
+    if (ice > 0 || bare > 0) onRock(grip, bare, ice);
     // THE EDGE holds sideways, as much as it is stood on; the BASE holds
     // in powder whatever the edge is doing; either lets go progressively.
     // A ski pivoted into a skid scrapes on its edge rather than biting
@@ -630,7 +631,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // low side, once there is way on to carve with.
     across +=
       load * K.carve * (1 - packed) * Math.sin(rollRel) * clamp(Math.abs(vf) / K.carveSpeed, 0, 1);
-    const drag = snowDrag(packed, sink, p.ploughs ? p.width : 0, load, vf, p.sinkScale * depth);
+    const ploughs = p.ploughs ? p.width : 0;
+    const drag = snowDrag(packed, sink, ploughs, load, vf, p.sinkScale * depth, bare);
     // THE SKID pays for the snow it shoves sideways, over and above what
     // the pivoted edge scrubs.
     let along = -(drag + S.skidDrag * c.skid * load) * Math.tanh(vf / DRAG_FADE);

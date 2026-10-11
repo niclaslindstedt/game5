@@ -72,7 +72,7 @@ import {
   stepTee,
   toPlatform,
 } from "./lift-board.ts";
-import type { RunGrade } from "../mapgen/grades.ts";
+import { RUN_GRADES, type RunGrade } from "../mapgen/grades.ts";
 import { skiRoutesOf } from "../mapgen/ski-routes.ts";
 import { carrierSwingAt } from "./carrier-swing.ts";
 import { TOWN } from "./defs/town.ts";
@@ -727,7 +727,9 @@ export function freeRuns(level: Level): Run[] {
 
 /** WHICH RUN A FREE RIDE BY LIFT STARTS DOWN, by id, of `runs` (the ski
  * area's {@link freeRuns}, or any list in their order): `run` where it is
- * one of them; else the first of them in `grade`, where any is; else
+ * one of them; else the first of them in `grade`, where one is asked; else,
+ * with nothing asked, the MOST DIFFICULT of them — the first of the
+ * hardest colour (`RUN_GRADES`' order, a ski route past a black); else
  * `fallback` — the first run of the course the map is raced on (R28). A
  * colour asked for is a run of that colour even where no course of it
  * reaches the valley — the map's own course is only the nearest colour
@@ -739,7 +741,11 @@ export function pickFreeRun(
   fallback: string | undefined,
 ): string | undefined {
   if (ask.run != null && runs.some((r) => r.id === ask.run)) return ask.run;
-  return runs.find((r) => r.grade === ask.grade)?.id ?? fallback;
+  if (ask.grade != null) return runs.find((r) => r.grade === ask.grade)?.id ?? fallback;
+  let hardest: { id: string; grade: RunGrade } | undefined;
+  for (const r of runs)
+    if (!hardest || RUN_GRADES.indexOf(r.grade) > RUN_GRADES.indexOf(hardest.grade)) hardest = r;
+  return hardest?.id ?? fallback;
 }
 
 /** {@link pickFreeRun} on `level`'s ski area; undefined off a resort. */

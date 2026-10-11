@@ -20,6 +20,7 @@ import { REPLAY_STRINGS } from "./strings-replay.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
+import { CHALLENGE_STRINGS } from "./strings-challenges.ts";
 import { RANGE_NAMES } from "./strings-ranges.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
@@ -101,6 +102,7 @@ export const STRINGS = {
   ...GALLERY_STRINGS,
   /* ── THE STATISTICS — stated in strings-stats.ts ──────────────────── */
   ...STATS_STRINGS,
+  ...CHALLENGE_STRINGS,
   /* ── THE DEVELOPER PAGE — stated in strings-dev.ts ─────────────────── */
   ...DEV_STRINGS,
   /* ── THE BODY AND THE G METER — stated in strings-body.ts ──────────── */
@@ -195,6 +197,11 @@ export const STRINGS = {
    * him up — a tap anywhere, or the tuck key as bound. */
   getUp: (touch: boolean, key: string): string =>
     touch ? "TAP TO GET UP" : `PRESS ${key} TO GET UP`,
+  /** STOOD STILL ON A BOARD: how he gets going — the rear foot out to
+   * skate on the tuck, or both feet in and hopped along on the jump. */
+  crawl: "GET GOING",
+  crawlHow: (touch: boolean, tuck: string, jump: string): string =>
+    touch ? "HOLD TUCK TO SKATE · TAP JUMP TO HOP" : `HOLD ${tuck} TO SKATE · TAP ${jump} TO HOP`,
   /** THE DAMAGE INSTRUMENT: its caption, and what each part is called. */
   damageLabel: "DAMAGE",
   damageSkiLeft: "Left edge",
@@ -258,7 +265,7 @@ export const STRINGS = {
    * stake hit fast,
    * the empty chair off a lift run into his legs, a downhill's A-nets
    * driven into, the grimbear, a piste machine ridden into, a balloon's
-   * basket gone over. */
+   * basket gone over, a wall's rock struck head on. */
   newsWipeout: (
     cause:
       | "tree"
@@ -279,43 +286,46 @@ export const STRINGS = {
       | "groomer"
       | "car"
       | "balloon"
-      | "plane",
+      | "plane"
+      | "rock",
   ): string =>
-    cause === "car"
-      ? TRAFFIC_STRINGS.newsCar
-      : cause === "balloon"
-        ? BALLOON_STRINGS.newsBalloonCrash
-        : cause === "maul"
-          ? "TAKEN BY THE GRIMBEAR"
-          : cause === "groomer"
-            ? "BONK! PISTE MACHINE"
-            : cause === "heli" || cause === "plane"
-              ? "THROWN CLEAR!"
-              : cause === "grip"
-                ? "LOST HIS GRIP!"
-                : cause === "chair"
-                  ? "SWEPT BY THE CHAIR!"
-                  : cause === "net"
-                    ? "INTO THE NETS!"
-                    : cause === "stake"
-                      ? "YARD SALE! STAKE"
-                      : cause === "sled"
-                        ? "OFF THE SLED!"
-                        : cause === "tree"
-                          ? "YARD SALE! TREE"
-                          : cause === "skier"
-                            ? "YARD SALE! TAKEN OUT"
-                            : cause === "nose"
-                              ? "OVER THE TIPS"
-                              : cause === "roll"
-                                ? "YARD SALE"
-                                : cause === "landing"
-                                  ? "CRASH LANDING"
-                                  : cause === "slam"
-                                    ? "SLAMMED! HEEL EDGE"
-                                    : cause === "faceplant"
-                                      ? "FACEPLANT! TOE EDGE"
-                                      : "EDGE CAUGHT",
+    cause === "rock"
+      ? "YARD SALE! ROCK"
+      : cause === "car"
+        ? TRAFFIC_STRINGS.newsCar
+        : cause === "balloon"
+          ? BALLOON_STRINGS.newsBalloonCrash
+          : cause === "maul"
+            ? "TAKEN BY THE GRIMBEAR"
+            : cause === "groomer"
+              ? "BONK! PISTE MACHINE"
+              : cause === "heli" || cause === "plane"
+                ? "THROWN CLEAR!"
+                : cause === "grip"
+                  ? "LOST HIS GRIP!"
+                  : cause === "chair"
+                    ? "SWEPT BY THE CHAIR!"
+                    : cause === "net"
+                      ? "INTO THE NETS!"
+                      : cause === "stake"
+                        ? "YARD SALE! STAKE"
+                        : cause === "sled"
+                          ? "OFF THE SLED!"
+                          : cause === "tree"
+                            ? "YARD SALE! TREE"
+                            : cause === "skier"
+                              ? "YARD SALE! TAKEN OUT"
+                              : cause === "nose"
+                                ? "OVER THE TIPS"
+                                : cause === "roll"
+                                  ? "YARD SALE"
+                                  : cause === "landing"
+                                    ? "CRASH LANDING"
+                                    : cause === "slam"
+                                      ? "SLAMMED! HEEL EDGE"
+                                      : cause === "faceplant"
+                                        ? "FACEPLANT! TOE EDGE"
+                                        : "EDGE CAUGHT",
   /** A snowboarder's skis-off word: nothing comes off a board, so a
    * YARD SALE is a WIPEOUT. */
   newsBoardDown: "WIPEOUT",
@@ -455,21 +465,24 @@ export const STRINGS = {
   menuOptions: "OPTIONS",
   menuBack: "BACK",
 
-  /* ── THE SKI CARD (menu-skis.tsx, ski-picker.tsx, ski-stats.ts) ────── */
+  /* ── THE GEAR CARD (menu-skis.tsx, ski-picker.tsx, ski-stats.ts) ───── */
   skisTitle: "SKIS",
   skisRide: "SKI",
-  /** ...the same card turning the snowboard (`BOARD_CATALOG`). */
+  /** ...the same card turning the snowboards (`BOARD_CATALOG`). */
   boardTitle: "SNOWBOARD",
   boardRide: "RIDE",
+  /** ...where a run lets a free choice of pair: the card's title, and the
+   * switch at its head between the two racks. */
+  gearTitle: "GEAR",
+  gearKinds: { skis: "SKIS", board: "SNOWBOARD" },
   skisPrev: "Previous pair",
   skisNext: "Next pair",
-  skisDress: "CUSTOMIZE SKIER",
-  boardDress: "CUSTOMIZE RIDER",
   skisOf: (at: number, of: number): string => `${at} / ${of}`,
 
-  /* ── THE DRESS CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
-  dressTitle: "DRESS",
-  dressDone: "DONE",
+  /* ── THE RIDER CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
+  dressTitle: "RIDER",
+  /** Its way on: to the gear card. */
+  dressDone: "NEXT",
   dressSlots: {
     body: "BODY",
     weight: "WEIGHT",
@@ -590,15 +603,20 @@ export const STRINGS = {
   startSnow: "SNOW",
   startSnowHint:
     "How deep the powder lies off the piste: thin 20 cm, medium 40 cm (the snow a race is skied on), thick 70 cm, very deep 100 cm. Past medium it is bottomless — stop and you sink to the knees, so keep the speed up and lean back to float the tips; a wide pair floats where a narrow one bogs.",
+  /** THE AVALANCHES row (`free-ride.ts`'s `avalanche`). */
+  startAvalanche: "AVALANCHES",
+  startAvalancheHint:
+    "Whether the loaded slopes off the groomed runs can slide. ON: a steep, open lee face under new snow or a wind-blown slab may break as you cross it — the crown cracks, the slab runs and the debris stays where it stops for the rest of the ride. OFF: the snow holds wherever you ski.",
   /** The SNOW row's stops (`SNOW_STOPS`; the hint above reads their depths). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   /** THE START ROW: how the ride begins — on skis, or a way up with no
    * lift (`free-ride.ts`'s `startPicked`). */
   startStart: "START",
   startStartHint:
-    "How the ride begins. ON SKIS: the lift carries you up to the RUN row's run. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off; the PLANE: stood in its open door on the strip below the village, fly it up as high as you dare, jump, open the canopy and fly it down. And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
-  /** The START row's first stop. */
+    "How the ride begins. ON SKIS or ON A SNOWBOARD: the lift carries you up to the RUN row's run, on the pair or the board the GEAR card picks. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off; the PLANE: stood in its open door on the strip below the village, fly it up as high as you dare, jump, open the canopy and fly it down. And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
+  /** The START row's first two stops: the skis, or a board. */
   startOnSkis: "ON SKIS",
+  startOnBoard: "ON A SNOWBOARD",
   startRun: "RUN",
   startRunHint:
     "Which run to ski, of every run on the mountain whatever its colour: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. Picking one puts you back ON SKIS.",

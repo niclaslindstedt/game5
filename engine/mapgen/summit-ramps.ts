@@ -112,6 +112,7 @@ export function planRamps(
   cover: RunCover,
   station: (x: number, z: number, run: string) => boolean,
   head: (x: number, z: number) => boolean = () => false,
+  fit: RampFit = RAMP_FIT,
 ): Map<string, SummitRamp[]> {
   const out = new Map<string, SummitRamp[]>();
   for (const p of pads) {
@@ -139,7 +140,7 @@ export function planRamps(
           const grade = (ramp.from.y - ramp.to.y) / length;
           // Steeper than its lip's drop all the way down is no ramp, and
           // nor is one a rider let go at a crawl would not glide down.
-          if (grade > steepest(r.row) || grade < K.fall) continue;
+          if (grade > steepest(r.row, fit) || grade < fit.glide) continue;
           const fits = grade <= K.grade;
           const better = !best
             ? true
@@ -182,9 +183,16 @@ const RIM_RISE = 0.2;
  * green or a blue no more than `grade`, to a red or a black `steep` — a
  * rider headed for one never meets a pitch harder than it, and never a lip
  * to be thrown off. */
-function steepest(row: { steepest: { max: number } } | undefined): number {
-  return row && row.steepest.max <= BLUE ? K.grade : K.steep;
+function steepest(row: { steepest: { max: number } } | undefined, fit: RampFit): number {
+  return row && row.steepest.max <= BLUE ? fit.gentle : K.steep;
 }
+
+/** How a ramp off a top may fall (R26): at the least (`glide`, m per m),
+ * and at the most down to a green's or a blue's run (`gentle`) — a real
+ * face's own (`RR.massif.real.least.ramp`) where its tops are gentler and
+ * its faces steeper than a dealt massif's. */
+export type RampFit = { readonly glide: number; readonly gentle: number };
+const RAMP_FIT: RampFit = { glide: K.fall, gentle: K.grade };
 const BLUE = GRADES.blue.steepest.max;
 
 /** Every how many of a run's points a ramp is aimed at, and how many points
@@ -353,6 +361,7 @@ export function rampRoom(
   row: { steepest: { max: number } },
   height: (x: number, z: number) => number,
   blocked: (x: number, z: number) => boolean,
+  fit: RampFit = RAMP_FIT,
 ): RampRoom | null {
   for (let a = 0; a < RIM; a++) {
     const ang = (a / RIM) * Math.PI * 2;
@@ -369,8 +378,8 @@ export function rampRoom(
     // cuts its edge down to it).
     const rim = height(fx, fz);
     const edge = height(fx + ((x - fx) * length) / d, fz + ((z - fz) * length) / d);
-    if ((rim - edge) / length < K.fall * ROOM_SPARE) continue;
-    if ((rim - height(x, z)) / length > steepest(row) * ROOM_STEEP) continue;
+    if ((rim - edge) / length < fit.glide * ROOM_SPARE) continue;
+    if ((rim - height(x, z)) / length > steepest(row, fit) * ROOM_STEEP) continue;
     let clear = true;
     for (let u = 0; clear && u <= length; u += ROOM_STEP) {
       const k = u / (length + half);
@@ -498,6 +507,7 @@ export function layRamps(
     top: { x: number; z: number };
   }[],
   way: (x: number, z: number) => number = () => Infinity,
+  fit: RampFit = RAMP_FIT,
 ): Map<string, SummitRamp[]> {
   // A station's footprint, every run's first `head` metres (its start,
   // its windrows) — but the run a ramp comes down onto, whose head it is
@@ -533,6 +543,7 @@ export function layRamps(
       inApproach(pads, x, z) ||
       way(x, z) < K.width / 2 + margin,
     (x, z) => inApproach(pads, x, z, APPROACH_HEAD),
+    fit,
   );
   // Under a lift's line a ramp only ever cuts: never up into the rope — a
   // drag's own track aside, which it leaves on the snow.

@@ -18,7 +18,7 @@ export type ChuteControls = { brake: number; steer: number; riser: number };
  * or the reserve — open and flying (`open`), cut away by the press
  * (`release`), landed
  * under on his skis and let go (`land`), caught in a crown or on a lift
- * (`snag`), the jump begun again in the plane's door (`restart`) — and a
+ * (`snag`), the jump begun again in the craft he left (`restart`) — and a
  * main opened with a dealt malfunction (`malfunction`, `mishaps.ts`), its
  * line twists come out (`untwist`). */
 export type ChutePhaseEvent =
@@ -61,6 +61,11 @@ export type ChuteMode =
 /** A MAIN'S MALFUNCTION (`mishaps.ts`): its lines twisted, a line over the
  * canopy, or a hard opening. */
 export type ChuteMalfunction = "twist" | "lineover" | "hard";
+
+/** WHAT HE JUMPED FROM — the craft a restart puts him back in: the jump
+ * plane's door, the helicopter's skid, the balloon's basket or the
+ * paramotor's harness (`craftFreefall`). */
+export type ChuteCraft = "plane" | "heli" | "balloon" | "para";
 
 /** A point the drawing hangs a piece on, world frame, m. */
 export type ChutePoint = { x: number; y: number; z: number };
@@ -107,12 +112,16 @@ export type ChuteSnag = {
 };
 
 /** THE FREE RIDE'S SKYDIVE (`chute.ts`) — on a ride whose jumper has left
- * the plane's door (or a lab's, `skydiveAt`), absent everywhere else. The
+ * the plane's door, the helicopter's skid, the balloon's basket or the
+ * paramotor's harness high enough to open (or a lab's, `skydiveAt`),
+ * absent everywhere else. The
  * jumper is the skier himself (`GameState.skier`); this is what is over him
  * and how he flies. Drawn off this, heard off this; nothing in it draws from
  * the stream. */
 export type ChuteState = {
   mode: ChuteMode;
+  /** The craft he jumped from, and is begun again in. */
+  from: ChuteCraft;
   /** Seconds in this mode; seconds since the exit. */
   t: number;
   since: number;
@@ -168,8 +177,8 @@ export type ChuteState = {
   /** What the canopy is caught on, while it is. */
   snag: ChuteSnag | null;
   /** THROWN out of the skydive (a freefall or a canopy brought into the
-   * snow too fast): the jump begins again in the plane's door once he has
-   * lain (`chuteDown`). */
+   * snow too fast): the ride begins again in the craft he left once he
+   * has lain (`chuteDown`). */
   fell: boolean;
   /** Seconds on the snow on his skis, unthrown, with no canopy over him (a
    * cut-away come down): past `CHUTE.settle` he skis on. */

@@ -53,6 +53,8 @@ import type { SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import * as Poles from "./poles.ts";
 import * as Side from "./sidestep.ts";
+import * as Switch from "./switch.ts";
+import { pressAsked, pressFlat, pressPitch, stepPress } from "./board-press.ts";
 import type { SkierState } from "./state.ts";
 
 const P = TUNING.poles;
@@ -138,15 +140,17 @@ export function turnWork(c: SkierState, speed: number, drive = c.drive): number 
 export function strideOn(c: SkierState, speed: number, dt: number): number {
   const m = c.board;
   if (!m) return Poles.strideOn(c, speed, dt);
-  // Stood across a slope on his edge (`stepSide`) he is not pushing.
-  if (c.sidestep !== 0) c.drive = 0;
+  // Stood across a slope on his edge (`stepSide`), or pressed onto an end
+  // (`board-press.ts`, both feet in), he is not pushing.
+  const pressing = Math.abs(pressAsked(c.lean, speed)) > 0.2;
+  if (c.sidestep !== 0 || pressing) c.drive = 0;
   const reach = skateReach(speed);
   if (c.drive > 0 && reach > 0) c.stride += pushRate(speed) * c.drive * dt;
   const onSnow = !c.airborne && c.thrown === null;
   m.hop = c.drive > STILL_DRIVE ? hopShare(c.packed) : 0;
   // THE FOOT: out to push at a crawl on firm snow, back in once going.
   m.free = m.free
-    ? onSnow && speed < K.strap && c.sidestep === 0
+    ? onSnow && speed < K.strap && c.sidestep === 0 && !pressing
     : onSnow && c.drive > K.drive && speed < K.free && m.hop < 0.5;
   // THE STEP TURN, the way he goes (a board ridden fakie steers mirrored).
   const side = c.switched ? -c.steer : c.steer;
@@ -168,6 +172,42 @@ export function strideOn(c: SkierState, speed: number, dt: number): number {
   return stepped;
 }
 
+/** THE HOP FORWARD (`skate.ahead`): the jump sprung on a board at a crawl
+ * throws him forward along the board — the way he rides it, tail first
+ * fakie — in the snow's plane under him (`n`), less the faster he already
+ * goes. A pair of skis is left as it was. */
+export function hopAhead(c: SkierState, n: Vec3): void {
+  if (!c.board || c.thrown !== null) return;
+  const gain = K.ahead * (1 - clamp(Math.abs(c.way) / K.aheadTo, 0, 1));
+  if (gain <= 0) return;
+  const f = rotate(c.q, NOSE);
+  const along = f.x * n.x + f.y * n.y + f.z * n.z;
+  const tx = f.x - along * n.x;
+  const ty = f.y - along * n.y;
+  const tz = f.z - along * n.z;
+  const l = hypot(hypot(tx, ty), tz);
+  if (l < 1e-6) return;
+  const k = ((c.switched ? -1 : 1) * gain) / l;
+  c.vx += tx * k;
+  c.vy += ty * k;
+  c.vz += tz * k;
+}
+
+/** WHETHER HE KEEPS WORKING THROUGH A HOP: a board at a crawl (the
+ * one-foot push still reaching, `skateReach`) loading a jump or in its air
+ * goes on working for his speed — the skate takes up again the moment he
+ * lands, the hop's kick added to it, and the tuck held is read as going,
+ * not as folding up in the air — where a skier's drive (and a board's at
+ * speed) is let go for the jump. Never on skis. */
+export function hopHeld(c: SkierState, speed: number): boolean {
+  return (
+    c.board !== undefined &&
+    c.thrown === null &&
+    (c.jumpLoad > 0 || c.airborne) &&
+    skateReach(speed) > 0
+  );
+}
+
 /** STOOD STILL (`poles.ts`'s `stoodStill`) — and on a board stood across a
  * slope on his edge (`SkierState.sidestep`), as long as he barely slides. */
 export function stoodStill(c: SkierState, speed: number): boolean {
@@ -176,18 +216,27 @@ export function stoodStill(c: SkierState, speed: number): boolean {
 }
 
 /** Whether a rider may stand across a slope on his edge: on the snow, not
- * asked to go (the tuck) or loading a jump, both feet in. */
+ * asked to go (the tuck) or loading a jump, both feet in, not pressed onto
+ * an end (`board-press.ts` — a butter swung across the hill is no sideslip). */
 function slipReady(c: SkierState): boolean {
-  return !c.airborne && c.thrown === null && c.tuck <= 0.05 && c.jumpLoad === 0 && !c.board?.free;
+  return (
+    !c.airborne &&
+    c.thrown === null &&
+    c.tuck <= 0.05 &&
+    c.jumpLoad === 0 &&
+    !c.board?.free &&
+    Math.abs(c.board?.press ?? 0) < 0.2
+  );
 }
 
 /** THE STEP ROUND ON THE SPOT (`poles.ts`'s `stepRound`) — on a board the
  * free foot scooting the tail round, the board pivoting about its front
- * foot. */
+ * foot; never while he presses an end, when the steer is a butter. */
 export function stepRound(c: SkierState, n: Vec3, still: boolean, dt: number): void {
   if (!c.board) return Poles.stepRound(c, n, still, dt);
   const before = rotate(c.q, NOSE);
-  Poles.stepRound(c, n, still, dt);
+  // Pressed onto an end, the steer butters him round instead (`board-press.ts`).
+  Poles.stepRound(c, n, still && Math.abs(pressAsked(c.lean, c.speed)) <= 0.2, dt);
   if (c.pivot === 0) return;
   c.board.free = true;
   const after = rotate(c.q, NOSE);
@@ -271,4 +320,27 @@ export function laySkis(c: SkierState, level: Level): void {
 export function holdsStill(c: SkierState, strain: number, strained: number): boolean {
   if (c.board && c.sidestep !== 0) return c.board.slip < L.hold;
   return strain <= strained || c.sidestep !== 0 || c.pivot !== 0;
+}
+
+/** THE SHARE OF THE EDGE'S LOCK HE STANDS ON at `speed` m/s
+ * (`skier.ts`): less by as much as he steps round a turn
+ * (`poles.turn.edge`, `turnWork`), and on a board less again by a press
+ * (`pressFlat`, ridden on its base). */
+export function lockShare(c: SkierState, speed: number): number {
+  return (1 - P.turn.edge * turnWork(c, speed)) * pressFlat(c);
+}
+
+/** THE PITCH HE HOLDS ON THE SNOW, rad tips up (`skier.ts`): the lean's own
+ * fore-aft balance (`skier.leanPitch`), and on a board a press's on top
+ * (`pressPitch`). */
+export function pitchAsked(c: SkierState): number {
+  return TUNING.skier.leanPitch * c.lean + pressPitch(c);
+}
+
+/** THE REVERT TURNED for a step (`switch.ts`'s `stepRevert`) — and on a
+ * board after it the press and the butter (`board-press.ts`), the board
+ * pivoted on its pressed end. */
+export function stepRevert(c: SkierState, n: Vec3, dt: number): void {
+  Switch.stepRevert(c, n, dt);
+  stepPress(c, n, dt);
 }

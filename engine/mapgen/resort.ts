@@ -275,8 +275,8 @@ function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts
   let outerFoot = room ? { x: outerX - side * 80, z: plan.baseZ + 40 } : null;
   // A REAL FACE's lifts (`real-hints.ts`): every station leant onto the
   // nearest end of a real lift, the village's first (the gondola leaves
-  // it), the tops on the summit ridge kept on their row — after every
-  // draw, so the stream runs on as it would.
+  // it), each top as near the real one as it may move — after every draw,
+  // so the stream runs on as it would.
   let dragBottom = { x: nursery.x + side * 60, z: village.z - 10 };
   const hints = plan.face?.hints;
   if (hints) {
@@ -287,8 +287,10 @@ function placeStations(rng: Rng, plan: TerrainPlan): { stations: Stations; lifts
     const floorTop = { bottom: true, top: false };
     const g1 = leanLift(hints, used, village, mid, ride, P, floorTop);
     if (g1) [village, mid] = [g1.bottom, g1.top];
-    peak = leanStation(hints, used, peak, "top", S, true);
-    const c2 = leanLift(hints, used, shoulderFoot, shoulder, ride, P, { bottom: true, top: true });
+    // Laid 1:1, a real top stands where the real one does, up or down the
+    // face as far as `rise` lets it.
+    peak = leanStation(hints, used, peak, "top", S);
+    const c2 = leanLift(hints, used, shoulderFoot, shoulder, ride, P, { bottom: true, top: false });
     if (c2) [shoulderFoot, shoulder] = [c2.bottom, c2.top];
     if (outer && outerFoot) {
       const c3 = leanLift(hints, used, outerFoot, outer, ride, P, floorTop);

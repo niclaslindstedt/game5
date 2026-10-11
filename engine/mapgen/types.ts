@@ -148,7 +148,8 @@ export interface WaterBody {
   /** The surface's height on the map, m (the ground is flattened to it). */
   readonly y: number;
   /** The surface's REAL height over the sea, m — what its climate is read
-   * off, since a real face is stretched to the game's vertical. Absent: `y`. */
+   * off: the real shore's, where `y` is the map's ground under it. Absent:
+   * `y`. */
   readonly realLevel?: number;
   /** Its area, m². */
   readonly area: number;
@@ -264,6 +265,16 @@ export interface Level {
    * reader that asks keeps the physics' answer to ice honest. */
   ice?: Heightfield;
   iceAt?(x: number, z: number): number;
+  /** THE ROCK UNDERFOOT (`engine/game/rock-ground.ts`' `withRock`): the
+   * share of the surface at (x, z) that is a wall's rock skin, 0..1 —
+   * hard, never sunk into — and of that how much is BARE rock (a facet
+   * facing the sky holds snow). Absent where no rock is laid; `groundAt`
+   * and `normalAt` answer off the skin where these are. */
+  rockAt?(x: number, z: number): number;
+  bareRockAt?(x: number, z: number): number;
+  /** The map under its rock skin (`withRock`): what the rock is laid off,
+   * and what the drawing reads. Absent on a map with no skin. */
+  bedrock?: Level;
   /** THE SKI AREA (R25–R28) on a map built by a generator from the resorts
    * on: every run, lift and course, and which course `track` is. */
   resort?: Resort;

@@ -9,6 +9,12 @@
 //
 // Only for a mesh that never writes the figure's own vertices — a body
 // posed on the CPU (a fallen amateur) still owns a clone.
+//
+// A shared geometry is let go with `releaseShared`, never `dispose()`: a
+// dispose frees the GL buffers of every attribute the geometry holds,
+// the figure's included, while another mesh (the next map's) still draws
+// them. `releaseShared` frees what is the mesh's own (its per-instance
+// attributes, its morph texture, its vertex arrays) and leaves the rest.
 
 import * as THREE from "three";
 
@@ -16,6 +22,7 @@ import * as THREE from "three";
  * a copy of them. */
 export function sharing(base: THREE.BufferGeometry): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
+  shared.set(geometry, base);
   geometry.name = base.name;
   geometry.setIndex(base.index);
   for (const [name, attribute] of Object.entries(base.attributes)) {
@@ -34,4 +41,21 @@ export function sharing(base: THREE.BufferGeometry): THREE.BufferGeometry {
   if (base.boundingSphere) geometry.boundingSphere = base.boundingSphere.clone();
   geometry.userData = { ...base.userData };
   return geometry;
+}
+
+/** The figure each shared geometry draws. */
+const shared = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+
+/** Free a geometry made by `sharing`: what it added of its own, never
+ * its figure's buffers. Anything else is simply disposed. */
+export function releaseShared(geometry: THREE.BufferGeometry): void {
+  const base = shared.get(geometry);
+  if (base) {
+    if (geometry.index === base.index) geometry.setIndex(null);
+    for (const [name, attribute] of Object.entries(geometry.attributes)) {
+      if (base.attributes[name] === attribute) geometry.deleteAttribute(name);
+    }
+    shared.delete(geometry);
+  }
+  geometry.dispose();
 }

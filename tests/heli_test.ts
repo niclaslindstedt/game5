@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  CHUTE,
   HELI,
   NEUTRAL_INPUT,
   angleDiff,
@@ -223,6 +224,8 @@ describe("the helicopter", () => {
     expect(h.rider).toBe(false);
     expect(h.mode).toBe("home");
     expect(s.skier.airborne).toBe(true);
+    // Under the skydive's least height: a skier's drop, never the skydive.
+    expect(s.chute).toBeUndefined();
     expect(Math.hypot(s.skier.vx - v.x, s.skier.vz - v.z)).toBeLessThan(HELI.drop.out + 0.5);
     // The skier falls; the machine, his weight gone from under a collective
     // still lifting it, lurches up and swings back off his side.
@@ -233,6 +236,28 @@ describe("the helicopter", () => {
     expect(h.vy).toBeGreaterThan(vy0 + 0.05);
     expect(h.roll - h.disc.roll).toBeGreaterThan(hang0);
     expect(s.skier.vy).toBeLessThan(fall0 - 1);
+  });
+
+  it("pushes him off high into the skydive: freefall, the canopy on the press, back on the skid after", () => {
+    const s = ride();
+    pilot(s, 25, { x: s.heli!.x, z: s.heli!.z - 300, height: 220 });
+    expect(height(s)).toBeGreaterThan(CHUTE.craft.least + 20);
+    fly(s, 1 / 120, { ...pilotInput(s), machine: true });
+    expect(s.heli!.rider).toBe(false);
+    expect(s.chute?.from).toBe("heli");
+    expect(s.chute?.mode).toBe("exit");
+    // The press in its first moment does nothing; clear of the skid it opens.
+    fly(s, 0.3, ask({ machine: true }));
+    expect(s.chute!.mode).toBe("exit");
+    fly(s, CHUTE.craft.clear, ask());
+    fly(s, 1 / 120, ask({ machine: true }));
+    expect(s.chute!.mode).toBe("deploying");
+    // ...and the restart is the helicopter's: on its skid on the pad.
+    const events = fly(s, 1 / 120, ask({ reset: true }));
+    expect(events.some((e) => e.kind === "heli" && e.phase === "restart")).toBe(true);
+    expect(s.chute).toBeUndefined();
+    expect(s.heli!.rider).toBe(true);
+    expect(s.plane).toBeUndefined();
   });
 
   it("is flown home and set down on its pad by its pilot", () => {

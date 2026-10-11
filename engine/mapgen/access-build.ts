@@ -75,8 +75,13 @@ function nearestOn(run: PlanRun, p: Point): { s: number; d: number } {
   return { s, d };
 }
 
-/** R29 — reckon the area's access off its plan. */
-export function reckonAccess(runs: readonly PlanRun[], lifts: readonly PlanLift[]): PlanAccess {
+/** R29 — reckon the area's access off its plan; on a real face the way
+ * back from a piste's foot may run `slack` colours harder than it. */
+export function reckonAccess(
+  runs: readonly PlanRun[],
+  lifts: readonly PlanLift[],
+  slack = 0,
+): PlanAccess {
   const skate = RR.access.skate;
   const liftIndex = new Map(lifts.map((l, i) => [l.id, i]));
   const exits: Exit[][] = runs.map((run) => {
@@ -211,7 +216,8 @@ export function reckonAccess(runs: readonly PlanRun[], lifts: readonly PlanLift[
       return;
     }
     // THE WAY OUT AND BACK: down it, on from its foot, and up to it again.
-    if (reach([{ at: 0, run: i, s: 0 }], may, i).back) {
+    const back = (r: number): boolean => runs[r].rank <= run.rank + slack;
+    if (reach([{ at: 0, run: i, s: 0 }], back, i).back) {
       ok.push(true);
       why.push("");
       // The way home is measured off a lift whose bottom stands up the

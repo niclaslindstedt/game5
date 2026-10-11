@@ -5,11 +5,13 @@
 // world's up in his body frame. Three-free, so the model (`board-model.ts`),
 // the metrics lab (`make board-metrics`) and the suite build it alike.
 
-import { popLoad, pressOf } from "./board-grab.ts";
-import { unrotate, type SkiSpec, type SkierState } from "@engine";
+import { popLoad } from "./board-grab.ts";
+import { rotate, unrotate, type Level, type SkiSpec, type SkierState } from "@engine";
 
+import { profileOf } from "./board-look.ts";
 import type { BoardPoseInput } from "./board-pose.ts";
 import { gearLift } from "./ski-gear.ts";
+import { boardCut, LOOSE, type SnowSampler } from "./trail-stamp.ts";
 import { inclineAt } from "./ski-stand.ts";
 import { drawnSkiAngle, type SkierSpring } from "./skier-pose.ts";
 
@@ -22,6 +24,10 @@ export function boardOf(spec: SkiSpec): BoardPoseInput["board"] {
     tipWidth: spec.tipWidth,
     tailWidth: spec.tailWidth,
     sidecut: spec.sidecut,
+    // Its middle ahead of the stance's on a set-back board (the engine's
+    // own `bootOffset`, `suspension.ts`), and its class's profile.
+    setback: (0.5 - spec.mount) * spec.length,
+    profile: profileOf(spec.id),
     stance: b.stance,
     front: b.front,
     back: b.back,
@@ -46,6 +52,43 @@ export function boardLift(skier: SkierState): [number, number] {
     Math.max(raw[0], top - 0.03, -0.01) + sink,
     Math.max(free ? raw[0] : raw[1], top - 0.03, -0.01) + sink,
   ];
+}
+
+/** THE BOARD AT THE SNOW'S SURFACE: how far below the engine's own place
+ * the snowboarder's figure is drawn, m (up negative) — the deck stood on
+ * the floor of the shallow cut it draws (`boardCut`) under the drawn snow
+ * (the ground and its loose cover, `LOOSE`), so in deep powder, where the
+ * physics sinks the stations tens of centimetres, the board still floats
+ * on the snow it rides rather than vanishing into it. HOPPED along at a
+ * crawl (`BoardMoves.hop`), the stations off the snow, the deck is kept out
+ * of it all the same — read off the body, never let under the surface.
+ * `cut` is whether the trails are drawn at all (none, and the deck stands
+ * on the surface); `snowAt` the run's snowpack, as the stamps read it. */
+export function boardRideSink(
+  skier: SkierState,
+  level: Pick<Level, "groundAt" | "packedAt">,
+  depth: number,
+  cut: boolean,
+  snowAt?: SnowSampler,
+): number {
+  let sum = 0;
+  let n = 0;
+  for (const c of skier.contacts) {
+    if (!c.touching) continue;
+    const p = Math.min(1, Math.max(0, level.packedAt(c.x, c.z)));
+    const floor = cut ? boardCut(c, p, 1, depth, snowAt?.(c.x, c.z), skier.speed) : 0;
+    sum += floor - c.sink - LOOSE * (1 - p);
+    n++;
+  }
+  // `boardLift` already raised the deck by the stations' sink, to a cap.
+  if (n > 0) return sum / n + sinkOf(skier);
+  if (!skier.board || skier.board.hop <= 0 || skier.thrown || skier.lift || skier.town) return 0;
+  // The deck under the body, where the body is now, against the snow.
+  const lift = boardLift(skier);
+  const up = rotate(skier.q, { x: 0, y: 1, z: 0 });
+  const deck = skier.y + up.y * ((lift[0] + lift[1]) / 2 - skier.spec.cogHeight);
+  const p = Math.min(1, Math.max(0, level.packedAt(skier.x, skier.z)));
+  return Math.min(0, deck - level.groundAt(skier.x, skier.z) - LOOSE * (1 - p));
 }
 
 /** The engine's stations' mean sink into the snow while they touch it, m. */
@@ -109,13 +152,24 @@ export function boardInputOf(
       drive: skier.drive,
       stride: skier.stride,
       idle: { t: legs.clock, still },
-      // THE TRICKS' READINGS (`board-grab.ts`): a press held on the lean, the
-      // load before a pop, the steer that winds up a spin and the spin.
-      press:
-        legs.load > 0 || feet?.free ? 0 : pressOf(skier.lean, skier.edge, skier.speed) * onSnow,
+      // THE TRICKS' READINGS (`board-grab.ts`): the engine's press (`board-press.ts`),
+      // the load before a pop, the steer that winds up a spin and the spin —
+      // in the air, or a BUTTER's pivot on the snow, which the shoulders lead.
+      press: legs.load > 0 ? 0 : (skier.board?.press ?? 0) * onSnow,
       pop: popLoad(legs.load, skier.lean) * onSnow,
       windup: skier.steer,
-      spin: skier.airborne ? skier.wy : 0,
+      spin: skier.airborne || Math.abs(skier.board?.press ?? 0) > 0.2 ? skier.wy : 0,
     },
   };
+}
+
+/** How fast the drawing draws the rear foot out of its binding or back
+ * in, a share a second (about a quarter of a second each way). */
+const FREE_RATE = 4;
+
+/** `share` eased `dt` s toward the rear foot out (`free`) or in. */
+export function easeFree(share: number, free: boolean, dt: number): number {
+  const to = free ? 1 : 0;
+  const step = FREE_RATE * Math.max(0, dt);
+  return share < to ? Math.min(to, share + step) : Math.max(to, share - step);
 }

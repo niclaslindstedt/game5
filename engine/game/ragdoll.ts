@@ -50,6 +50,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { ragdollOutOfStrip } from "./airstrip-solids.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
+import { liftedOnRock } from "./rock-ground.ts";
 import { holdStance } from "./board-crash.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
@@ -290,6 +291,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         P[j + 2] = tree.z + (dz / d) * reach;
       }
       if (P[j + 1] < floor[i]) {
+        liftedOnRock(level, P[j], P[j + 2], floor[i] - P[j + 1], L, j);
         pushed[i] += floor[i] - P[j + 1];
         P[j + 1] = floor[i];
       }

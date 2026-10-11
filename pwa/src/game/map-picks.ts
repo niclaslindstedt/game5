@@ -20,10 +20,10 @@ export type MapPicks = {
   /** A front-door tile: the mode its cards are for. */
   openCard: (mode: GameMode, page: MenuPage) => void;
   /** A map picked off a level card — kept as the one its discipline rides —
-   * on to the skis card. */
+   * on to the rider card, then the gear card. */
   choose: (level: PinnedLevel) => void;
   /** A trick map picked on the trick map card, kept as the one the TRICKS
-   * run rides, on to the skis card. */
+   * run rides, on to the rider card, then the gear card. */
   chooseTrick: (map: TrickMap) => void;
 };
 
@@ -54,11 +54,11 @@ export function mapPicks(world: {
       if (discipline) {
         world.setSettings((s) => ({ ...s, raceMap: { ...s.raceMap, [discipline]: level.id } }));
       }
-      world.setPage("skis");
+      world.setPage("dress");
     },
     chooseTrick: (map) => {
       world.setSettings((s) => ({ ...s, trickMap: map.id }));
-      world.setPage("skis");
+      world.setPage("dress");
     },
   };
 }

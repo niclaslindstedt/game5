@@ -24,7 +24,15 @@
 // hangs off the forest (`forest.ts`), which owns the woods' reach.
 
 import * as THREE from "three";
-import { ROCKS, cliffWalls, regionOf, rockHash, type CliffWall, type Level } from "@engine";
+import {
+  ROCKS,
+  SKIN_SALT,
+  cliffWalls,
+  regionOf,
+  rockHash,
+  type CliffWall,
+  type Level,
+} from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
@@ -175,7 +183,7 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
       });
     }
   }
-  const seed = rockHash(level.seed, 0x534b494e);
+  const seed = rockHash(level.seed, SKIN_SALT);
   if (band) {
     for (const w of cliffWalls(level)) {
       const i = Math.min(cols - 1, Math.max(0, Math.floor(w.x / TILE)));

@@ -28,28 +28,24 @@
 //   * THE HEAD is turned to look ALONG HIS TRAVEL over his front shoulder
 //     — over the other one riding fakie, and wherever a sideslip drifts —
 //     his eyes held toward the horizon, never on the board (`headOf`).
-//   * A CARVE IS CARRIED BY THE INCLINATION: the root is already rolled
-//     onto the line he leans along, so the body stays one long line from
-//     the edge — tall-ish, never folded at the waist or down on his knees.
-//   * TOESIDE (his toe edge down): the knees and ankles driven forward
-//     into the hill, the hips over the toes, the trunk tall along the
-//     inclined line, the chest facing up the slope, both arms forward at
-//     waist height; cut hard, the front hand reaches toward the snow.
-//   * HEELSIDE: the hips low over the heel edge as on a chair (the knees
-//     ~70–100°), the trunk leaning back along the line, the chest open down
-//     the hill, the front arm pointing down the turn and the rear hand
-//     trailing low — brushing the snow only when the turn is cut hard. One
-//     hand at most is ever on the snow.
+//   * A CARVE IS CARRIED BY THE INCLINATION and ridden COMPACT on its
+//     edge (`board-carve.ts`, the legs solved shin first). TOESIDE: both
+//     ankles flexed over the toe edge, both knees bent ~80–100° down it
+//     (the rear one driven toward the front binding), the hips low, the
+//     arms forward; cut hard, folded down over the knees, the front hand at
+//     the snow. HEELSIDE: the shins held by the highbacks, sat low as on a
+//     chair (~85–100°), the front arm down the turn, the rear hand trailing
+//     — at the snow cut hard. One hand at most is ever on the snow.
 //   * THE TUCK side-on: the knees folded deep, the chest low over the
 //     front knee, the hands in front of it, the head down along the nose.
 //   * A LANDING folds the knees on the view's spring, the arms forward;
-//     IN THE AIR the knees come up (the board drawn up under the hips),
-//     the board levelled and the arms out.
+//     IN THE AIR the legs absorb: the knees pulled up past ~100° (the
+//     board drawn up under the hips), the board levelled, the arms out.
 //   * THE ONE-FOOT SKATE: the rear foot out of its binding pushing beside
-//     the heel edge, never ahead of the front binding, the torso turned to
-//     face the nose; between pushes it rests on the stomp pad by the rear
-//     binding. HOPPING, both feet in, the knees fold and spring on the
-//     stride's phase.
+//     the HEEL edge, behind his back, the board pointed along his travel
+//     and the body SIDE-ON over it (the shoulders part way open, the head
+//     over the front shoulder) — a rider, never a runner squared to his way.
+//     HOPPING, both feet in, the knees fold and spring on the stride's phase.
 //   * NO POLES: the hands are empty, after the skier's poleless carriage
 //     (`skier-bare.ts`): soft elbows, the fists eased inside the arm's
 //     reach.
@@ -69,7 +65,17 @@ import {
 } from "./board-look.ts";
 import type { BoardGrab } from "@engine";
 import { CONTACT, boardHalfWidth } from "./board-look.ts";
-import { END_IN, FIST, GRAB_LOOKS, POP, PRESS, type GrabLook } from "./board-grab.ts";
+import {
+  END_IN,
+  FIST,
+  GRAB_LOOKS,
+  POP,
+  PRESS,
+  SPIN,
+  spinTwist,
+  type GrabLook,
+} from "./board-grab.ts";
+import { onEdge } from "./board-carve.ts";
 
 /** What the pose is handed: the board's own numbers and one frame's
  * readings, each the engine's (eased by the view's spring where it says). */
@@ -156,33 +162,63 @@ export type BoardPose = {
  * hips opened half as far. */
 export const STANCE = { knee: 0.9, hipsBack: 0.05, lean: 0.24, open: 0.18, hips: 0.5 };
 
-/** TOESIDE and HEELSIDE at a full turn: the knees' extra flexion, the hips'
- * shift toward the toes (positive) or back over the heels, the trunk's
- * extra lean and opening, rad, m. */
-export const TOESIDE = { knee: 0.12, hips: 0.1, lean: -0.08, open: 0.05 };
-export const HEELSIDE = { knee: 0.32, hips: -0.08, lean: -0.12, open: 0.3 };
+/** TOESIDE and HEELSIDE at a full turn: the knees' extra flexion (the
+ * toeside's legs are `board-carve.ts`'s), the hips' shift toward the toes
+ * (positive) or back over the heels, the trunk's extra lean toward the toes
+ * — and how much more cut hard (`cutLean`: toeside folded forward down
+ * over the knees toward the snow, heelside laid back toward it) — and its
+ * opening, rad, m. */
+export const TOESIDE = { knee: 0.4, hips: 0.1, lean: -0.25, cutLean: 0.7, open: 0.05 };
+export const HEELSIDE = { knee: 0.65, hips: -0.08, lean: 0.12, cutLean: -0.4, open: 0.3 };
 
-/** THE TUCK at full crouch: the knees' extra flexion, the trunk's lean and
- * its opening toward the nose — the chest over the front knee. */
-export const TUCK = { knee: 1.0, lean: 0.75, open: 0.2 };
+/** IN THE AIR: the knees' extra flexion (rad — pulled up to ~100–115°, the
+ * legs absorbing, never hung stiff under him; in a grab its own fold takes
+ * over from `grab`), how far the board is drawn
+ * up toward him for it (m), and the trunk's lean over the knees (rad). */
+export const AIR = { knee: 1.0, grab: 0.7, lift: 0.28, lean: 0.25 };
+
+/** THE TUCK at full crouch: the knees' extra flexion, the trunk's lean and opening, rad. */
+export const TUCK = { knee: 0.75, lean: 0.6, open: 0.2 };
 
 /** How far past it the knees may fold, rad, and the shin's least and most
  * forward lean in a soft boot — the highback's lean (~14°) to a soft
  * boot's full flex. */
 export const KNEE_MOST = 2.1;
 
-/** THE ONE-FOOT SKATE: the free foot's push along the deck (m, from just
- * behind the front binding back past the rear one), out beside the heel
- * edge, its lift on the way back, the share of the stride it pushes for,
- * and the torso's turn to the nose, rad. */
+/** THE ONE-FOOT SKATE: the free foot behind him by the heel edge, toes ahead,
+ * PRESSED OUT SIDEWAYS — along the deck (m back of its middle) and out past
+ * the heel edge (m) at the plant and the press's end, its lift back, the
+ * stride's share pressed, the torso's turn to the nose (rad), the hips'
+ * shift to the toes (m). */
 export const SKATE = {
-  from: 0.12,
-  to: -0.42,
-  out: 0.1,
+  from: -0.12,
+  to: -0.26,
+  out: 0.06,
+  outTo: 0.3,
   lift: 0.07,
   push: 0.55,
-  open: 1.0,
+  open: 0.35,
+  toes: 0.05,
 };
+
+/** WHERE THE KNEES POINT: over the toes (`toes`), to the way he faces
+ * (`face`), and along the deck toward the nose — the front knee a little
+ * (`front`), the rear one driven in toward it (`rear`). */
+export const KNEES = { toes: 0.6, face: 0.2, front: 0.2, rear: 0.5 };
+
+/** NEVER KNEELING: the most a shin ever needs to the snow (~17°), the least
+ * (~6°, an edge laid past what the ankle's flex leaves — `ANKLE`), each
+ * try's straightening of the knees, the tries, and the least flexion they
+ * are straightened to (~29°: never stiff-legged at speed), rad. */
+export const SHIN = { least: 0.3, floor: 0.1, straighten: 0.04, tries: 40, flexLeast: 0.5 };
+
+/** THE ANKLE IN A SOFT BOOT on the toe edge: the most a shin stands forward
+ * of the deck's normal, rad (~28°), the most the hips go back to keep it
+ * there and the least they keep over the deck's middle toward the toes, m;
+ * the most any shin leans off the deck's normal (rad, ~47°: the highback's
+ * lean and the soft boot's whole give), and how far back the hips may sit
+ * for it, m. */
+export const ANKLE = { most: 0.49, back: 0.25, over: 0.005, deck: 0.82, seat: 0.3 };
 
 /** THE HOP's height at its top, m. */
 export const HOP = 0.11;
@@ -191,7 +227,7 @@ export const HOP = 0.11;
  * on a turn cut hard, rad; how close the brushing hand is held over it and
  * the least height any other hand keeps, m; how far the toeside front
  * hand reaches down toward it, m. */
-export const LOW = { from: 0.5, to: 0.8, gap: 0.03, clear: 0.18, reach: 0.22 };
+export const LOW = { from: 0.5, to: 0.8, gap: 0.03, clear: 0.18, reach: 0.34 };
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 const smooth = (a: number, b: number, x: number): number => {
@@ -265,7 +301,7 @@ export function boardFrame(input: BoardPoseInput): BoardFrame {
   const edge = input.edge * (1 - 0.75 * ground);
   const r = input.incline;
   const [lf, lb] = input.lift;
-  const lifted = (lf + lb) / 2 + input.air * 0.16;
+  const lifted = (lf + lb) / 2 + input.air * AIR.lift;
   // A PRESS or the load before a pop bends the deck onto one end (nose up
   // positive), its low end kept on the snow.
   const tilt = (PRESS.most * (input.press ?? 0) + POP.most * (input.pop ?? 0)) * (1 - ground);
@@ -407,7 +443,8 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   const hopLoad = Math.max(0, -Math.sin(2 * Math.PI * phase));
   const rise = hop * HOP * hopUp;
 
-  // THE FREE FOOT: pushing beside the heel edge, or on the stomp pad.
+  // THE FREE FOOT: pushing behind him beside the heel edge, or on the
+  // stomp pad.
   let freeSole: V3 | null = null;
   let freeBoot: Boot | null = null;
   if (free) {
@@ -418,11 +455,12 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     const along = SKATE.from + (SKATE.to - SKATE.from) * (0.5 - 0.5 * Math.cos(Math.PI * p));
     const up = phase < SKATE.push ? 0 : SKATE.lift * Math.sin(Math.PI * (1 - p));
     const snow = rz(UP, input.incline);
+    const wide = SKATE.out + (SKATE.outTo - SKATE.out) * (0.5 - 0.5 * Math.cos(Math.PI * p));
     const base = add(
-      add(add(deck.centre, scale(nose, along)), scale(F, -(b.waist / 2 + SKATE.out))),
+      add(add(deck.centre, scale(nose, along)), scale(F, -(b.waist / 2 + wide))),
       scale(snow, up + SOFT_BOOT.sole * 0.2),
     );
-    const pushF = norm(add(nose, scale(F, 0.45)));
+    const pushF = nose;
     const padF = norm(add(scale(F, 0.8), scale(deck.along, 0.55)));
     freeSole = mix(sole[ri], mix(padAt, base, pushing), freeK);
     const fr = norm(mix(padF, pushF, pushing));
@@ -472,11 +510,10 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       TUCK.knee * crouch +
       0.4 * fold +
       0.55 * clamp(input.load, 0, 1) +
-      0.7 * air +
+      (look ? AIR.knee + (AIR.grab - AIR.knee) * smooth(0, 0.3, g) : AIR.knee) * air +
       (look?.knee ?? 0) * g +
       0.5 * hop * hopLoad -
-      0.15 * still -
-      0.12 * pushing * freeK,
+      0.15 * still,
     0.3,
     KNEE_MOST,
   );
@@ -497,34 +534,39 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   const openAll = openUpper + ((look?.open ?? 0) * g - twist * face) * openSign;
   const hipFace = turn(F, UP, -face * openSign * openAll * STANCE.hips);
   const pelvis = cross(UP, hipFace); // left to right
-  // Height: each leg's hip joint over its cuff at the flexion asked for.
-  const span = Math.sqrt(
-    BODY.thigh * BODY.thigh +
-      SHIN_ABOVE_CUFF * SHIN_ABOVE_CUFF +
-      2 * BODY.thigh * SHIN_ABOVE_CUFF * Math.cos(flex),
-  );
   // ACROSS AS THE DECK LIES: where the engine's inclination and the deck's
   // edge differ, the column he is rolled onto stands off the deck's normal,
   // and hips set across the column would hang off the edge (a heelside
   // rider sat down behind it). Each metre up the column carries them
   // `UP·right` across the deck; taken back out, they stand over the edge.
   const tilt = dot(UP, deck.right) * face;
-  const hipsXZ = add(add(mid, scale(F, across - (span + 0.12) * tilt)), scale(nose, fore));
-  let hipY = 0;
-  for (let i = 0; i < 2; i++) {
-    const j = add(hipsXZ, scale(pelvis, (i === 0 ? -1 : 1) * BODY.hip));
-    const dx = j.x - feet[i].x;
-    const dz = j.z - feet[i].z;
-    hipY += feet[i].y + Math.sqrt(Math.max(0.01, span * span - dx * dx - dz * dz));
-  }
-  hipY /= 2;
-  // Stood still he breathes on his legs.
-  hipY += still * 0.008 * Math.sin(clock * 1.7);
-  const hips: V3 = { x: hipsXZ.x, y: hipY, z: hipsXZ.z };
-  const hipJoints = [add(hips, scale(pelvis, -BODY.hip)), add(hips, scale(pelvis, BODY.hip))] as [
-    V3,
-    V3,
-  ];
+  let hips: V3 = V0();
+  const hipJoints = [V0(), V0()] as [V3, V3];
+  // Height: each leg's hip joint over its cuff at the flexion asked for.
+  const setHips = (flexNow: number, acrossNow: number): void => {
+    const span = Math.sqrt(
+      BODY.thigh * BODY.thigh +
+        SHIN_ABOVE_CUFF * SHIN_ABOVE_CUFF +
+        2 * BODY.thigh * SHIN_ABOVE_CUFF * Math.cos(flexNow),
+    );
+    const hipsXZ = add(add(mid, scale(F, acrossNow - (span + 0.12) * tilt)), scale(nose, fore));
+    // (While the rear foot is out the front leg carries him: its height
+    // counts the most, so the free foot's reach back never folds it.)
+    let hipY = 0;
+    for (let i = 0; i < 2; i++) {
+      const j = add(hipsXZ, scale(pelvis, (i === 0 ? -1 : 1) * BODY.hip));
+      const dx = j.x - feet[i].x;
+      const dz = j.z - feet[i].z;
+      const w = 0.5 + (i === fi ? 0.3 : -0.3) * freeK;
+      hipY += w * (feet[i].y + Math.sqrt(Math.max(0.01, span * span - dx * dx - dz * dz)));
+    }
+    // Stood still he breathes on his legs.
+    hipY += still * 0.008 * Math.sin(clock * 1.7);
+    hips = { x: hipsXZ.x, y: hipY, z: hipsXZ.z };
+    hipJoints[0] = add(hips, scale(pelvis, -BODY.hip));
+    hipJoints[1] = add(hips, scale(pelvis, BODY.hip));
+  };
+  setHips(flex, across);
   // THE KNEES, solved over the toes (each shin forward of its boot).
   // THE GRAB'S BOARD: drawn up by the knees under the hips (and kicked
   // behind him in a method), tweaked, the feet in its bindings — the hips
@@ -542,26 +584,122 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   if (look && g > 0) standOn(tweakDeck(deck, look, g, face, F));
   const knees = [V0(), V0()] as [V3, V3];
   const solveKnees = (): void => {
+    // Each knee over its toes, and both drawn toward the nose — the front
+    // one over the front foot, the rear one driven in toward it — never
+    // splayed apart, and never laid toward the snow on the toe edge.
     for (let i = 0; i < 2; i++) {
-      const toward = norm(add(add(boots[i].f, scale(boots[i].n, 0.15)), scale(F, 0.3)));
-      knees[i] = solveLimb(hipJoints[i], feet[i], BODY.thigh, SHIN_ABOVE_CUFF, toward);
+      // The free foot's knee bends over its own toes, straight down its
+      // line of push, never in across the front leg.
+      const out = i === ri ? freeK : 0;
+      const inward = i === fi ? KNEES.front : KNEES.rear * (1 - out);
+      const toward = norm(
+        add(
+          add(add(scale(boots[i].f, KNEES.toes), scale(boots[i].n, 0.15)), scale(F, KNEES.face)),
+          scale(ridden.along, inward),
+        ),
+      );
+      // A method's knees driven forward under him, the board kicked behind.
+      const fore = look?.knees ? look.knees * g : 0;
+      const pole = fore > 0 ? norm(mix(toward, norm(add(F, scale(UP, -0.35))), fore)) : toward;
+      knees[i] = solveLimb(hipJoints[i], feet[i], BODY.thigh, SHIN_ABOVE_CUFF, pole);
     }
   };
   solveKnees();
+  // NEVER KNEELING, THE BEND KEPT IN THE ANKLES: no shin on the snow lies
+  // flatter than a soft boot's ankle leaves at this edge (`90° − edge −
+  // ANKLE.most`, held between `SHIN.floor` and `SHIN.least`). Where it
+  // would, the hips go BACK first — the knees kept bent — as far as they
+  // stay over the toe edge; only then are the legs straightened.
+  if (onSnow > 0.5) {
+    const n = rz(UP, input.incline);
+    const lowest = (): number =>
+      Math.min(...[0, 1].map((i) => Math.asin(clamp(dot(norm(sub(knees[i], feet[i])), n), -1, 1))));
+    const least = clamp(Math.PI / 2 - Math.abs(input.edge) - ANKLE.most, SHIN.floor, SHIN.least);
+    const try_ = (flexNow: number, acrossNow: number): number => {
+      setHips(flexNow, acrossNow);
+      solveKnees();
+      return lowest();
+    };
+    let flexNow = flex;
+    let acrossNow = across;
+    if (lowest() < least && toeK > 0) {
+      const over = (): number => dot(sub(hips, deck.centre), deck.right) * face;
+      const per = Math.max(0.3, dot(F, deck.right) * face);
+      // How far back the hips may go: while they stay over the toe edge.
+      const floor = Math.max(across - ANKLE.back, across - (over() - ANKLE.over) / per);
+      if (floor < across) {
+        // The least way back that stands the shins up, else all the way.
+        let lo = floor;
+        let hi = across;
+        if (try_(flexNow, floor) >= least)
+          for (let k = 0; k < 12; k++) {
+            const m = (lo + hi) / 2;
+            if (try_(flexNow, m) >= least) lo = m;
+            else hi = m;
+          }
+        acrossNow = lo;
+        try_(flexNow, acrossNow);
+      }
+    }
+    for (let k = 0; k < SHIN.tries && lowest() < least; k++) {
+      flexNow = Math.max(SHIN.flexLeast, flexNow - SHIN.straighten);
+      try_(flexNow, acrossNow);
+    }
+    // THE SOFT BOOT'S REACH: no shin leans further over the deck than the
+    // boot flexes (`ANKLE.deck`) — deep knees on a flat base (the tuck, a
+    // jump loaded) sit the hips back over the heels for it.
+    const deckLow = (): number =>
+      Math.min(...[0, 1].map((i) => dot(norm(sub(knees[i], feet[i])), deck.normal)));
+    const most = Math.cos(ANKLE.deck);
+    if (!free && deckLow() < most) {
+      let lo = acrossNow - ANKLE.seat;
+      let hi = acrossNow;
+      for (let k = 0; k < 12; k++) {
+        const m = (lo + hi) / 2;
+        setHips(flexNow, m);
+        solveKnees();
+        if (deckLow() >= most) lo = m;
+        else hi = m;
+      }
+      setHips(flexNow, lo);
+      solveKnees();
+    }
+  }
+
+  // THE LEGS ON AN EDGE, solved shin first (`board-carve.ts`): on the toe
+  // edge the ankles flexed over it, both knees bent down it, the hips low.
+  // On the heel edge, the shins held by the highbacks and sat down.
+  const edgeLeg = Math.max(toeK, heelK) * (onSnow > 0.5 ? 1 : 0) * (1 - freeK);
+  if (edgeLeg > 0) {
+    const legs = { hips, hipJoints, knees };
+    onEdge(legs, edgeLeg, {
+      toe: toeK > 0,
+      cuffs: feet,
+      deck,
+      face,
+      front: fi,
+      edge: input.edge,
+      pelvis,
+      bend: clamp(input.carve, 0, 1),
+      more: 0.3 * fold + TUCK.knee * crouch,
+      speed: input.speed,
+    });
+    hips = legs.hips;
+  }
 
   // THE TRUNK: leaning toward his toes (and down over the front knee in a
   // tuck), the shoulders opened to the nose.
   const chestFace = turn(F, UP, -face * openSign * openAll);
   const lean = clamp(
     STANCE.lean +
-      TOESIDE.lean * toeK +
-      HEELSIDE.lean * heelK +
+      (TOESIDE.lean + TOESIDE.cutLean * clamp(input.carve, 0, 1)) * toeK +
+      (HEELSIDE.lean + HEELSIDE.cutLean * clamp(input.carve, 0, 1)) * heelK +
       TUCK.lean * crouch +
       0.35 * fold +
       0.3 * clamp(input.load, 0, 1) +
-      0.1 * air +
+      AIR.lean * air +
       (look?.lean ?? 0) * g +
-      0.12 * freeK,
+      0.04 * freeK,
     -0.2,
     1.25,
   );
@@ -636,8 +774,8 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   );
   // The tuck: both hands in front of the front knee.
   const kf = knees[fi];
-  const tuckF = add(add(kf, scale(F, 0.14)), scale(UP, 0.06));
-  const tuckR = add(add(mix(knees[0], knees[1], 0.5), scale(F, 0.2)), scale(UP, 0.14));
+  const tuckF = add(add(kf, scale(F, 0.08)), scale(UP, 0.02));
+  const tuckR = add(add(mix(knees[0], knees[1], 0.6), scale(F, 0.1)), scale(UP, 0.06));
   handF = mix(handF, tuckF, crouch * 0.9);
   handR = mix(handR, tuckR, crouch * 0.9);
   // The air: the arms out wide for balance.
@@ -695,7 +833,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   handF = above(handF, LOW.clear * onSnow + LOW.gap);
   handR = above(handR, LOW.clear * onSnow + LOW.gap);
   if (brush > 0) {
-    if (toe > 0) handF = add(handF, scale(plane.normal, -LOW.reach * brush));
+    if (toe > 0) handF = toSnow(add(handF, scale(lead2, LOW.reach * brush)), sF);
     else handR = toSnow(add(handR, scale(lead2, -0.08 * brush)), sR);
   }
   // ...and none is ever drawn into it.
@@ -780,30 +918,6 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   };
 }
 
-/** How fast the drawing draws the rear foot out of its binding or back
- * in, a share a second (about a quarter of a second each way). */
-const FREE_RATE = 4;
-
-/** `share` eased `dt` s toward the rear foot out (`free`) or in. */
-export function easeFree(share: number, free: boolean, dt: number): number {
-  const to = free ? 1 : 0;
-  const step = FREE_RATE * Math.max(0, dt);
-  return share < to ? Math.min(to, share + step) : Math.max(to, share - step);
-}
-
-/** THE SPIN as the body leads it: the wind-up's turn against it, rad at a
- * full one, how far ahead the head and the shoulders turn per rad/s of the
- * spin, and the most either turns. */
-export const SPIN = { wind: 0.55, head: 0.09, shoulders: 0.035, most: 0.8 };
-
-/** The shoulders' turn for a spin, rad, clockwise from above +: wound
- * against it while the jump is loaded, led into it in the air. */
-export function spinTwist(input: BoardPoseInput): number {
-  const wound = -SPIN.wind * clamp(input.windup ?? 0, -1, 1) * clamp(input.load, 0, 1);
-  const led = clamp(SPIN.shoulders * (input.spin ?? 0), -SPIN.most, SPIN.most) * input.air;
-  return wound + led;
-}
-
 /** The most the board is drawn up to a hand that cannot reach it, m. */
 export const REACH_MOST = 0.3;
 
@@ -881,38 +995,4 @@ export function kneeFlex(p: SkierPose, i: 0 | 1): number {
   const a = sub(p.hipJoints[i], p.knees[i]);
   const b = sub(p.feet[i], p.knees[i]);
   return Math.PI - Math.acos(clamp(dot(norm(a), norm(b)), -1, 1));
-}
-
-/**
- * THE BOARD UNDER A THROWN RIDER'S FEET (`board-crash.ts` keeps it on):
- * the deck laid along the line from his back foot to his front one, its
- * top square to his shins, the soles in its bindings — and his boots turned
- * to the bindings' angles, so the figure's feet stand in them. Made over
- * in place: `pose.boots` and `pose.feet` are the bindings'.
- */
-export function boardUnderFeet(pose: SkierPose, board: BoardPoseInput["board"]): BoardFrame {
-  const fi = frontIndex(board.lead);
-  const ri = 1 - fi;
-  const along0 = sub(pose.feet[fi], pose.feet[ri]);
-  const along = len(along0) > 1e-4 ? norm(along0) : { x: 0, y: 0, z: 1 };
-  // The shins' mean up, squared to the board's length.
-  const shin = (i: number) => norm(sub(pose.knees[i], pose.feet[i]));
-  let up = add(shin(0), shin(1));
-  up = sub(up, scale(along, dot(up, along)));
-  const normal = len(up) > 1e-4 ? norm(up) : norm(cross(along, { x: 1, y: 0, z: 0 }));
-  const right = norm(cross(normal, along));
-  const frame: BoardFrame = { centre: { x: 0, y: 0, z: 0 }, along, normal, right, bend: 0 };
-  const { sole, boot } = bindingsOf(frame, { board });
-  // The deck's middle under the feet' middle, the soles' height under the
-  // cuffs.
-  const mid = mix(pose.feet[0], pose.feet[1], 0.5);
-  const soleMid = mix(sole[0], sole[1], 0.5);
-  const cuffMid = mix(cuffOver(sole[0], boot[0]), cuffOver(sole[1], boot[1]), 0.5);
-  frame.centre = add(sub(mid, cuffMid), soleMid);
-  const placed = bindingsOf(frame, { board });
-  for (let i = 0; i < 2; i++) {
-    pose.boots[i] = placed.boot[i];
-    pose.feet[i] = cuffOver(placed.sole[i], placed.boot[i]);
-  }
-  return frame;
 }

@@ -88,6 +88,8 @@ const scratch: Vec3 = { x: 0, y: 1, z: 0 };
  * on packed snow or on a cliff. The caller has asked the region
  * (`Region.rock`). */
 export function rockShare(level: Level, x: number, z: number): number {
+  // Laid off the map under its skin (`rock-ground.ts`), never the skin.
+  level = level.bedrock ?? level;
   if (level.packedAt(x, z) > ROCKS.packed) return 0;
   level.normalAt(x, z, scratch);
   const bare = wallOf(scratch);

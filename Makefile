@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
 
 build:
 	npm run build
@@ -233,7 +233,9 @@ skier-metrics:
 # binding alone and a boot in it from four sides — one contact sheet,
 # previews/board.png, and the triangles. Its own one-off bundle from
 # pwa/board-preview.html; needs a Chromium like `world`. The rider on it
-# is the skier lab's: `make skier ARGS=--skis=lynx`.
+# is the skier lab's: `make skier ARGS=--skis=lynx`. ARGS=--board=<id> another
+# board; ARGS=--sheet=range every board a row at one scale
+# (previews/board-range.png).
 board:
 	npm run board -- $(ARGS)
 
@@ -246,6 +248,16 @@ board:
 # "--compare=a.json" a before and after.
 board-metrics:
 	npm run board-metrics -- $(ARGS)
+
+# THE BOARD MOTION LAB: the snowboarder's pose as MOTION — each board move
+# ridden by the engine in pure Node and the pose plotted over its whole time
+# (the knees, the hips and the shoulders against the board, the head's yaw
+# off his travel, the shins against the snow) against the metrics' bands:
+# previews/board-motion.png and a table of each move's frames out of band.
+# ARGS="--move=skate,toe"; "--json=a.json" / "--compare=a.json" a before and
+# after; "--film" the moves' filmstrips too (chase and side, the skier lab).
+board-motion:
+	npm run board-motion -- $(ARGS)
 
 # THE SAG LAB: the body PULLED DOWN onto his legs — landings, a pitch run
 # out onto the flat, a stop down a pitch, rollers, a tuck, and generated
@@ -617,6 +629,19 @@ sled-tip:
 # "--compare=a.json" after; ARGS="--wind=6 --fall=0" another day.
 avalanche-flow:
 	npm run avalanche-flow -- $(ARGS)
+
+# THE AVALANCHE AS DRAWN: a slab let go on a generated free ride's loaded
+# lee face and photographed through the game's own renderer (avalanche-
+# view.ts, avalanche-glsl.ts) — the crown cracking and the slab breaking
+# into blocks (release), the front and its powder cloud from beside and
+# below (flow), the deposit and the bed (debris), a skier crossing it when
+# it goes (caught) and the flow and debris under the headlamp (night). One
+# contact sheet a group, previews/avalanche-<group>.png, every frame alone,
+# and what each frame cost (ms, draw calls, triangles). Its own one-off
+# bundle from pwa/avalanche-preview.html (never deployed); needs a Chromium.
+# SEED=, REGION=, SNOW= (the dial) and ARGS= (--sheet=flow, --at=x,z).
+avalanche:
+	npm run avalanche -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(if $(SNOW),--snow=$(SNOW),) $(ARGS)
 
 # THE PARAMOTOR LAB: the free ride's paramotor staged at every moment it has
 # — on the summit under the held wing, the launch, in the air, a turn and
@@ -1004,6 +1029,16 @@ level:
 # `make lift-tops SEED=2 REGION=maritime ARGS="--weather storm"`
 lift-tops:
 	npm run lift-tops -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE CHALLENGES LAB: what a free ride map deals (the timed lines, the trick
+# goals, the hidden spots, the summits) and every timed line skied by the
+# bot, judged by the challenges' own judge — one row a line: its run and
+# colour, length, drop, par, the three medal times, the bot's time and
+# medal. The table the medals are calibrated by. Pure Node over the engine.
+# `make challenges-table SEED=38` · `make challenges-table COUNT=8` ·
+# `make challenges-table FACE=alpine-1` · `ARGS=--no-ski` the deal alone
+challenges-table:
+	npm run challenges-table -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(if $(FACE),--face $(FACE),) $(ARGS)
 
 # THE JUNCTIONS LAB: where the groomed snow BREAKS — a lip, a step or a
 # wall where a lane leaves a piste, a run merges into another, or anywhere

@@ -200,17 +200,18 @@ export type SkisBar = {
   value: number;
 };
 
-/** Where every bar of one pair sits against the rest of the roster. A
- * snowboard is read against the skis with itself among them, so it is
- * billed on the skis' own scale and no pair of skis' bar moves for it. */
-/** THE RACK the ski card's arrows step through the arrows step through: the skis, and the boards after them
- * when they are offered (`settings.ts`'s `boardAllowed`). */
-export function rackOf(boards: boolean): readonly SkiSpec[] {
-  return boards ? [...SKI_CATALOG, ...BOARD_CATALOG] : SKI_CATALOG;
+/** THE RACK the gear card's arrows step through: the skis, or — on its
+ * SNOWBOARD side, where a run offers boards (`settings.ts`'s
+ * `boardAllowed`) — the boards. */
+export function rackOf(board: boolean): readonly SkiSpec[] {
+  return board ? BOARD_CATALOG : SKI_CATALOG;
 }
 
+/** Where every bar of one pair sits against the rest of ITS rack: a pair
+ * of skis against the skis, a snowboard against the boards — the two
+ * racks are two shops, and no pair of skis' bar moves for a board. */
 export function skisBars(spec: SkiSpec): SkisBar[] {
-  const roster = isBoard(spec) ? [...SKI_CATALOG, spec] : SKI_CATALOG;
+  const roster = isBoard(spec) ? BOARD_CATALOG : SKI_CATALOG;
   const at = roster.findIndex((s) => s.id === spec.id);
   return BARS.map((bar) => {
     const per = bar.axes.map((axis) => ranks(roster.map(axis)));
@@ -235,7 +236,25 @@ export type SkisFact = {
   /** How many decimals it is read to. */
   places: number;
   unit: string;
+  /** Read with its sign, as a rider writes a binding's angle: "+15°",
+   * "−15°" (the minus sign, never a hyphen), "0°". */
+  signed?: boolean;
+  /** The unit set against the figure with no gap — the degree sign. */
+  tight?: boolean;
 };
+
+/** THE FIGURE AS READ at `shown` (the count's value on its way to the
+ * fact's): its decimals, and on a signed fact its sign — a plus on the
+ * positive side, a true minus sign on the negative, none on a zero, never a
+ * "-0" off a count passing through it. */
+export function factNumber(fact: SkisFact, shown: number): string {
+  const k = 10 ** fact.places;
+  const v = Math.round(shown * k) / k;
+  const digits = Math.abs(v).toFixed(fact.places);
+  if (v === 0) return digits;
+  if (v < 0) return `\u2212${digits}`;
+  return fact.signed ? `+${digits}` : digits;
+}
 
 /** The hard numbers, as figures rather than bars — what a skier reads off a
  * pair in the shop: the length in cm, the waist in mm, the sidecut radius in
@@ -256,7 +275,8 @@ export function skisFacts(spec: SkiSpec): SkisFact[] {
 
 /** A SNOWBOARD'S hard numbers: the length, the waist, the sidecut, the
  * stance (binding centre to centre), each binding's angle off the line
- * across the board (positive toward the nose), the board, bindings and
+ * across the board (positive toward the nose, read signed as a rider sets
+ * it: "+15°" in front, "−15°" behind), the board, bindings and
  * boots' weight and its top speed — no pole reach, as there are no poles. */
 function boardFacts(spec: SkiSpec): SkisFact[] {
   const b = spec.board!;
@@ -268,8 +288,24 @@ function boardFacts(spec: SkiSpec): SkisFact[] {
     { key: "waist", label: F.waist, value: spec.waist * 1000, places: 0, unit: U.mm },
     { key: "sidecut", label: F.sidecut, value: spec.sidecut, places: 1, unit: U.metres },
     { key: "stance", label: F.stance, value: b.stance * 100, places: 0, unit: U.cm },
-    { key: "front", label: F.front, value: deg(b.front), places: 0, unit: U.degrees },
-    { key: "back", label: F.back, value: deg(b.back), places: 0, unit: U.degrees },
+    {
+      key: "front",
+      label: F.front,
+      value: deg(b.front),
+      places: 0,
+      unit: U.degrees,
+      signed: true,
+      tight: true,
+    },
+    {
+      key: "back",
+      label: F.back,
+      value: deg(b.back),
+      places: 0,
+      unit: U.degrees,
+      signed: true,
+      tight: true,
+    },
     { key: "weight", label: F.weight, value: spec.gearMass, places: 1, unit: U.kg },
     { key: "top", label: F.top, value: spec.topSpeed, places: 0, unit: U.speed },
   ];

@@ -17,8 +17,11 @@
 //     stomp pad — the board pointed up the line, nose first, gliding
 //     straight — blended to the chair's by how seated he is.
 //   * A T-BAR is ridden SIDE-ON as he rides, the board up the track, the
-//     rear foot free on the pad, the bar behind his front thigh
-//     (`BOARD_TOW`: `lifts.ts` hangs it there).
+//     rear foot free on the pad, and — alone on it — the bar's middle
+//     BETWEEN HIS LEGS, the bar across behind his front thigh pulling him
+//     by it, its stem leaning up the track in front of his front hip to the
+//     cord, the rope over him (`BOARD_TOW`: `lifts.ts` hangs it there, the
+//     engine's `teeSide` stands him under the rope).
 //   * IN A GONDOLA'S CABIN he sits on the bench with both feet on its floor,
 //     the board standing in the rack on the door (`cabinBoardPose`).
 //   * CARRIED, the board is held UNDER HIS ARM on his rear-foot side, on
@@ -53,11 +56,27 @@ type Board = BoardPoseInput["board"];
  * pad by the rear binding). */
 export const CHAIR_BOARD = { turnIn: 0.5, roll: 0.75, shin: 0.3, rest: -0.22 };
 
-/** A T-BAR'S BAR UNDER A BOARD RIDER, in his body frame, m: the bar across
- * the line behind his FRONT thigh, between his legs (the board points up
- * the track, so the front leg is up it, `z` positive), at the height of
- * the back of that thigh; its stem `TUNING.lift.tee` to the line's left. */
-export const BOARD_TOW = { y: -0.28, z: 0.12 };
+/** A T-BAR'S BAR UNDER A BOARD RIDER, in his body frame, m: the bar's
+ * middle between his legs (x 0) behind his FRONT thigh (the board points
+ * up the track, so the front leg is up it, `z` positive), at the height of
+ * the back of that thigh, the bar across the line; its stem leaning `lean`
+ * rad up the track off plumb, toward the cord pulling it. */
+export const BOARD_TOW = { y: -0.28, z: 0.12, lean: 0.6 };
+
+/** The point `up` m up a board rider's T-bar stem from the bar, in his
+ * body frame (`BOARD_TOW`). */
+export function boardStem(up: number): V3 {
+  return {
+    x: 0,
+    y: BOARD_TOW.y + up * Math.cos(BOARD_TOW.lean),
+    z: BOARD_TOW.z + up * Math.sin(BOARD_TOW.lean),
+  };
+}
+
+/** THE HAND ON THE T-BAR'S STEM, m: how far up the stem from the bar the
+ * fist closes round it (`lifts.ts` stands the stem 0.6 m up from the bar,
+ * its eye at the top), and the elbow's pole — out from the body and down. */
+export const TOW_GRIP = { up: 0.4, elbowOut: 1, elbowDown: -0.7 };
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 const UP: V3 = { x: 0, y: 1, z: 0 };
@@ -232,7 +251,7 @@ export const BOARD_SEAT_Y = TUNING.lift.seat - CHAIR_SEAT;
  * Towed by a T-bar he rides side-on as he rides, the riding pose itself. */
 export function boardLiftPose(input: BoardPoseInput, seat: BoardSeat): BoardPose {
   const ride = boardPose(input);
-  if (seat.seated <= 0) return ride;
+  if (seat.seated <= 0) return seat.towing > 0 ? towedBoardPose(ride, seat.towing) : ride;
   if (seat.cabin) {
     return { ...ride, pose: mixPose(ride.pose, cabinBoardPose(seat.y), seat.seated), free: null };
   }
@@ -243,6 +262,35 @@ export function boardLiftPose(input: BoardPoseInput, seat: BoardSeat): BoardPose
     free: chair.free,
     rise: ride.rise * (1 - seat.seated),
   };
+}
+
+/** TOWED BY A T-BAR, by `share` (0..1): the riding pose with the hand
+ * nearer the stem (`lifts.ts` hangs it between his legs, the bar behind
+ * his front thigh, `boardStem`) closed round it `TOW_GRIP.up` up it,
+ * its elbow solved again out from the body; the other hand left where the
+ * riding pose has it. */
+export function towedBoardPose(ride: BoardPose, share: number): BoardPose {
+  const k = clamp(share, 0, 1);
+  if (k <= 0) return ride;
+  const p = ride.pose;
+  const stem = boardStem(TOW_GRIP.up);
+  const i = len(sub(p.shoulders[0], stem)) <= len(sub(p.shoulders[1], stem)) ? 0 : 1;
+  const hands = [p.hands[0], p.hands[1]] as [V3, V3];
+  const elbows = [p.elbows[0], p.elbows[1]] as [V3, V3];
+  const reach = BODY.upperArm + BODY.forearm;
+  // Short of the stem the fist reaches as far toward it as the arm goes.
+  const to = sub(stem, p.shoulders[i]);
+  const far = len(to);
+  const grip = far > reach * 0.98 ? add(p.shoulders[i], scale(to, (reach * 0.98) / far)) : stem;
+  hands[i] = mix(p.hands[i], grip, k);
+  const out = norm({ x: Math.sign(grip.x - p.hips.x) || -1, y: 0, z: 0 });
+  const pole = norm(add(scale(out, TOW_GRIP.elbowOut), { x: 0, y: TOW_GRIP.elbowDown, z: 0 }));
+  elbows[i] = mix(
+    p.elbows[i],
+    solveLimb(p.shoulders[i], hands[i], BODY.upperArm, BODY.forearm, pole),
+    k,
+  );
+  return { ...ride, pose: { ...p, hands, elbows } };
 }
 
 /** UNDER HIS ARM, in the frame of a rider stood on foot (x his right, y up

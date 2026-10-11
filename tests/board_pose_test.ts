@@ -25,9 +25,9 @@ import { flatLevel } from "./support/synthetic.ts";
 import { boardInputOf } from "../pwa/src/game/board-input.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
+import { boardUnderFeet } from "../pwa/src/game/board-thrown.ts";
 import {
   boardPose,
-  boardUnderFeet,
   headForward,
   kneeFlex,
   snowPlane,
@@ -206,31 +206,63 @@ describe("the snowboarder's pose", () => {
     }
   });
 
-  it("carves a toeside turn forward over his toes and a heelside one sat back", () => {
+  it("carves a toeside turn low over his toes and a heelside one sat behind his heels", () => {
     const toe = at("toe");
     const heel = at("heel");
     expect(toeShare(toe.input.edge, toe.input.board.lead)).toBeGreaterThan(0.3);
     expect(toeShare(heel.input.edge, heel.input.board.lead)).toBeLessThan(-0.3);
     const face = (r: Rode): number => (r.input.board.lead === "regular" ? 1 : -1);
-    const across = (r: Rode): number =>
-      dot(sub(r.bp.pose.hips, r.bp.board.centre), r.bp.board.right) * face(r);
-    expect(across(toe)).toBeGreaterThan(across(heel) + 0.15);
-    // ...and the heelside sits deeper on his knees.
-    expect(kneeFlex(heel.bp.pose, 0)).toBeGreaterThan(kneeFlex(toe.bp.pose, 0));
+    // The hips across the board as seen from above the snow.
+    const across = (r: Rode): number => {
+      const n = snowPlane(r.input, r.bp.board).normal;
+      const k = dot(r.bp.board.right, n);
+      const right = unit(sub(r.bp.board.right, { x: n.x * k, y: n.y * k, z: n.z * k }));
+      return dot(sub(r.bp.pose.hips, r.bp.board.centre), right) * face(r);
+    };
+    expect(across(toe)).toBeGreaterThan(0.1);
+    expect(across(heel)).toBeLessThan(-0.1);
+    // On the toe edge BOTH knees bend deep down it — the rear one never
+    // left straight behind — and deeper cut hard.
+    for (const id of ["toe", "toeCut"] as const) {
+      const k = [0, 1].map((i) => deg(kneeFlex(at(id).bp.pose, i as 0 | 1)));
+      expect(Math.min(...k), id).toBeGreaterThan(65);
+      expect(Math.abs(k[0] - k[1]), id).toBeLessThan(20);
+    }
+    expect(kneeFlex(at("toeCut").bp.pose, 0)).toBeGreaterThan(kneeFlex(toe.bp.pose, 0));
+    // On the heels he sits lower over the snow than on his toes.
+    const hipsOver = (r: Rode): number => {
+      const plane = snowPlane(r.input, r.bp.board);
+      return dot(sub(r.bp.pose.hips, plane.point), plane.normal);
+    };
+    expect(hipsOver(heel)).toBeLessThan(hipsOver(toe));
+    // No shin leans further off the deck than a soft boot lets it: a shin
+    // laid toward the deck is a rider kneeling on his board.
+    for (const id of ["toe", "toeCut", "heel", "heelCut", "tuck"] as const) {
+      const { bp } = at(id);
+      for (const i of [0, 1]) {
+        const shin = unit(sub(bp.pose.knees[i], bp.pose.feet[i]));
+        expect(deg(Math.asin(dot(shin, bp.board.normal))), id).toBeGreaterThan(40);
+      }
+    }
   });
 
-  it("carries a carve on the inclination: tall along the line, the hands off the snow", () => {
+  it("carves compact: low on bent legs, folded over his toes cut hard, a hand at the snow", () => {
     for (const id of ["toe", "heel", "toeCut", "heelCut"] as const) {
       const { input, bp } = at(id);
       expect(Math.abs(input.incline), id).toBeGreaterThan(0.6);
       const p = bp.pose;
       // The spine within ~30° of the line he is rolled onto (the body
-      // frame's up), never folded down at the waist.
-      const spine = unit(sub(p.neck, p.hips));
-      expect(deg(Math.acos(spine.y)), id).toBeLessThan(30);
-      // The hips well up off the deck: no kneeling, no sitting on the snow.
+      // frame's up) — but cut hard on his toes he folds down over his
+      // knees toward the snow.
+      const spine = deg(Math.acos(unit(sub(p.neck, p.hips)).y));
+      if (id === "toeCut") {
+        expect(spine, id).toBeGreaterThan(25);
+        expect(spine, id).toBeLessThan(60);
+      } else expect(spine, id).toBeLessThan(30);
+      // The hips low, yet up off the deck: no sitting on the snow.
       const hipsUp = dot(sub(p.hips, bp.board.centre), bp.board.normal);
-      expect(hipsUp, id).toBeGreaterThan(0.6);
+      expect(hipsUp, id).toBeGreaterThan(0.3);
+      expect(hipsUp, id).toBeLessThan(0.85);
       const plane = snowPlane(input, bp.board);
       const over = (q: V3): number => dot(sub(q, plane.point), plane.normal);
       const down = p.hands.filter((h) => over(h) < 0.08).length;
@@ -238,13 +270,15 @@ describe("the snowboarder's pose", () => {
       expect(down, id).toBeLessThanOrEqual(id === "toe" || id === "heel" ? 0 : 1);
       for (const h of p.hands) expect(over(h), id).toBeGreaterThan(0);
     }
-    // Cut hard toeside, the front hand reaches down toward the snow.
-    const cut = at("toeCut");
-    const plane = snowPlane(cut.input, cut.bp.board);
-    const lowest = Math.min(
-      ...cut.bp.pose.hands.map((h) => dot(sub(h, plane.point), plane.normal)),
-    );
-    expect(lowest).toBeLessThan(0.25);
+    // Cut hard, the lower hand comes to the snow.
+    for (const id of ["toeCut", "heelCut"] as const) {
+      const cut = at(id);
+      const plane = snowPlane(cut.input, cut.bp.board);
+      const lowest = Math.min(
+        ...cut.bp.pose.hands.map((h) => dot(sub(h, plane.point), plane.normal)),
+      );
+      expect(lowest, id).toBeLessThan(id === "toeCut" ? 0.15 : 0.25);
+    }
   });
 
   it("folds the knees into the tuck, and stands taller waiting than riding", () => {

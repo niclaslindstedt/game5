@@ -1,6 +1,6 @@
 # The hot air balloon
 
-A free ride can start in the basket of a hot air balloon. Pick **BALLOON** on the start card's RUN row (after PARAMOTOR, before SNOWMOBILE), or follow a `?start=free&balloon=1` link. You start standing in the wicker basket on the valley floor, the envelope inflated over you and held down by its tether. Burn until it is light and the tether lets go; the day's wind carries you up the mountain. Land it softly and step out, or jump over the side.
+A free ride can start in the basket of a hot air balloon. Pick **BALLOON** on the start card's RUN row (after PARAMOTOR, before SNOWMOBILE), or follow a `?start=free&balloon=1` link. You start standing in the wicker basket on the valley floor, the envelope inflated over you and held down by its tether. Burn until it is light and the tether lets go; the day's wind carries you up the mountain. Land it softly and step out, or jump over the side — with a parachute on your back: over the side 100 m or more over the snow is a [skydive](skydive.md).
 
 The engine side is `engine/game/balloon.ts` (the flight), `balloon-air.ts` (the air it flies in), `balloon-state.ts` (its state and events), `balloon-pilot.ts` (the bot's hands) and `defs/balloon.ts` (every number). The app side is the balloon as drawn (below: `balloon-look.ts`, `balloon-envelope.ts`, `balloon-basket.ts`, hung on the engine's state by `balloon-scene.ts`; its fire in `balloon-fire-plan.ts`, `balloon-flame.ts` and `balloon-fire.ts`), `strings-balloon.ts` and the start card's RUN stop; the cameras (`camera-balloon.ts`), the HUD (`balloon-hud.ts`, `hud-balloon.tsx`) and the sound (`audio/balloon-*.ts`) are below. `make balloon` photographs all of it (`--sheet=flame` a burn by day, `--sheet=lenses` every rung and the hand-overs between them caught half way).
 
@@ -69,6 +69,8 @@ The skier's own keys:
 | Edge (← →) and lean | WALK about the basket at a shuffle (0.9 m/s), never through the wicker; he turns to face the way he walks, and his boots step as he goes (a stride of 0.7 m, a step for every quarter-metre turned on the spot — `machines.ts`, `skis-body.ts`'s `stepBoots`) |
 | Machine (Enter, a double tap) | OVER THE SIDE — or, the basket still on the snow, STEP OUT |
 | Reset (R) | start again in the basket on the valley floor |
+
+**Over the side with a parachute.** He wears a skydiver's harness-container in the basket (drawn on him, `chute-scene.ts`'s `rigWorn`). Over the side at least `CHUTE.craft.least` (100 m) over the snow, he is in the skydive's freefall (`chute.ts`'s `craftFreefall`, the one entry every craft shares): the press opens the main a second out, the canopy is flown down and let go of on his skis, and the balloon flies on adrift. A restart out of the skydive — a cut-away with no reserve pulled, a fatal fall, a snag — stands him in the basket at its tether again, never in a plane's door. Lower, he falls as a skier, as before.
 
 **On touch** the basket has a layout of its own (`hud-balloon.tsx`'s `BalloonPad`, `hud.tsx`): the LEFT thumb is a WALKING PAD (the helicopter's `StickZone` on `role="walk"`, resting faint low on the left until a thumb lands — up walks him toward the way the basket faces, across walks him across it, through `input-model.ts`'s `walkPad`); the RIGHT thumb has three presses — BURN held (the blast valve), VENT held (the parachute's cord) and JUMP (STEP OUT once the basket stands still on the snow); a double tap anywhere is the machine press too. The KEYS page says the same under the free ride's rows.
 
@@ -164,7 +166,7 @@ So:
 - `tests/balloon_look_test.ts` holds the drawing to the engine: the volume, the shape and where it is widest, the panels, the lobes, the mesh, the wires, the burner, the cylinders, the wicker, the paint's rule and the envelope laid on the snow.
 - `tests/camera_balloon_test.ts` holds the lens: the leaning eye on the wall and off the corners, both eyes in the basket and clear of the rods, the look down over the rim, the eye walking and turning with him, the booms holding the whole balloon.
 - `tests/audio_test.ts` holds the sound: its routes, the roar following the flame, the pilot between burns, the vent and the fire, the fall-off with distance and the valve's clack.
-- `tests/balloon_test.ts` holds it: the tether, the drift up the mountain, the lag, the valve, the crash of a cooled envelope and the restart, the fire in a gale, the jump, the walk, the step out, the reset, determinism, and the site.
+- `tests/balloon_test.ts` holds it: the tether, the drift up the mountain, the lag, the valve, the crash of a cooled envelope and the restart, the fire in a gale, the jump (and the jump high into the skydive, its press, its canopy and the restart in the basket), the walk, the step out, the reset, determinism, and the site.
 
 ## What is still open
 

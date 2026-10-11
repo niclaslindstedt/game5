@@ -7,6 +7,7 @@
 
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { MISHAPS, type MishapRate } from "./defs/mishaps.ts";
+import type { ChuteWing } from "./defs/chute.ts";
 import type { GameState } from "./state.ts";
 
 // The numbers, read through here by the engine's public surface.
@@ -103,3 +104,23 @@ export function coughOf(t: number): number {
   const a = Math.sin(t * 7.3) * Math.sin(t * 2.9 + 1.1);
   return Math.min(1, Math.max(0.05, 0.55 + 0.6 * a));
 }
+
+/** THE OPENING'S STAGES as this one goes: the wing's own, or — a HARD
+ * opening — the snivel and the inflation cut short (`MISHAPS.hard`), the
+ * slider slammed down. */
+export function stagesOf(W: ChuteWing, hard: boolean): ChuteWing["deploy"]["stages"] {
+  if (!hard) return W.deploy.stages;
+  const cut = HARD.get(W);
+  if (cut) return cut;
+  const H = MISHAPS.hard;
+  const S = W.deploy.stages;
+  let end = 0;
+  const out = S.map((st, i) => {
+    const was = st.end - (i === 0 ? 0 : S[i - 1].end);
+    end += was * (st.id === "snivel" ? H.snivel : st.id === "inflate" ? H.inflate : 1);
+    return { ...st, end };
+  });
+  HARD.set(W, out);
+  return out;
+}
+const HARD = new Map<ChuteWing, ChuteWing["deploy"]["stages"]>();

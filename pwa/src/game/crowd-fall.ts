@@ -21,7 +21,7 @@
 import { CROWD, type Amateur } from "@engine";
 
 import { CROWD_LOOKS, fromPlayer, mapPosed, poseCrowd, type Posed, type V3 } from "./crowd-rig.ts";
-import { boardUnderFeet } from "./board-pose.ts";
+import { boardUnderFeet } from "./board-thrown.ts";
 import { boardPosed, CROWD_BOARD, poseBoard } from "./crowd-board.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { MOUNTS } from "./skier-pose.ts";

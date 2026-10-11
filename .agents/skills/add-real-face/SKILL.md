@@ -51,9 +51,11 @@ stations the leant lifts end in). Load **`write-code`** beside them and
   data's winter-sports area and the nearest village round the crop's
   middle) and written into the row. `tests/region_test.ts` scans every
   other file for place names.
-- **A FACE READS ITS REAL ALTITUDE.** The map's heights are the face
-  stretched to R25's vertical; every height above the sea the player reads
-  is the elevation model's at that point instead (`pwa/src/game/altitude.ts`,
+- **A FACE IS LAID 1:1 AND READS ITS REAL ALTITUDE.** The map's heights
+  are the real heights less the face's floor, its vertical and relief the
+  real ones (`readFace`, `faceLift`), and the map's sea stands the floor's
+  real altitude below it; every height above the sea the player reads
+  is the elevation model's at that point (`pwa/src/game/altitude.ts`,
   BASE over the lowest lift's foot beside it). A face added needs nothing
   for it — the heights it is baked off are what is read — but a change to
   the face's window or its grid must keep a map point the real point.
@@ -128,8 +130,8 @@ area's spelling exactly; the start card groups by it) — the middle it is searc
 in degrees, the skiing face's middle — the lifts' middle, read off the map
 data), and the crop: `east` / `north` (m, the window's middle off that
 point), `bearing` (° clockwise from north the fall line runs down the map
-on) and `scale` (real metres a map metre; 0.8–1.2 — under 1 the real face
-is stretched, which steepens it). Keep a new face's middle 4 km or more
+on) and `scale`, which is 1 on every face (a real metre a map metre: the
+face is laid 1:1, so a crop is never stretched or squeezed to fit). Keep a new face's middle 4 km or more
 from every other's, or it is the same mountain twice.
 
 Pick the bearing so the summit ridge is the map's TOP edge (z = 0) and the
@@ -137,7 +139,7 @@ valley floor its bottom, the lifts' bottoms near the bottom row: the
 generator's village and lifts leave from the valley floor.
 `make real-faces ARGS="--fetch --search --only <id>"` tries every bearing
 (10° apart), offset (450 m apart, the middle kept well inside the window)
-and scale (0.9, 1, 1.1) round the middle and prints the best four rows by
+round the middle, at a scale of 1, and prints the best four rows by
 `drop` and `falls`; take the best whose window keeps the ski area on the
 map (step 3's lifts and pistes say whether it does).
 

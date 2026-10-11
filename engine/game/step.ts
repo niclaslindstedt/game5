@@ -90,6 +90,7 @@ import { skydiveAt } from "./chute.ts";
 import { jumpSpotOf } from "./plane-pilot.ts";
 import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
+import { bedrockOf, withRock } from "./rock-ground.ts";
 import { stepRun } from "./run.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
@@ -434,7 +435,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const downhill = options.mode === "downhill";
   const superG = options.mode === "superG";
   const giant = options.mode === "giantSlalom";
-  const built = levelFor(options);
+  // (A map handed back off a run is taken under its rock skin, laid again below.)
+  const built = bedrockOf(levelFor(options));
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
   // lowered start (R33), a GIANT SLALOM from its own — either run's — (R36),
@@ -488,7 +490,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const judged = rules.jury ? juryDay(skied, rules.jury) : skied;
   // THE TREE WELLS the run's powder has left round the trunks
   // (`tree-well.ts`): none at the ordinary snow, where this is the map.
-  const level = withWells(judged, wellShareOf(clampSnowDepth(options.snowDepth)));
+  // ...and THE ROCK on its walls the surface a body meets (`rock-ground.ts`).
+  const level = withRock(withWells(judged, wellShareOf(clampSnowDepth(options.snowDepth))));
   const seed = options.seed ?? level.seed;
   // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
   // machines work its runs, the runs are as the hour and the sky have left

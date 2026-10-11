@@ -20,7 +20,7 @@
 //
 // Three-free, so the suite reads it.
 
-import { TOWN, TOWN_KEYS, strideBob, stridePace, townEase, townShare } from "@engine";
+import { TOWN, TOWN_KEYS, onStreet, strideBob, stridePace, townEase, townShare } from "@engine";
 import type { LoneSki, SkierState, TownWalk } from "@engine";
 
 import type { Level } from "@engine";
@@ -71,6 +71,19 @@ export function streetOver(level: Level, x: number, z: number): number {
   return Math.max(0, footY(level, x, z) - level.groundAt(x, z));
 }
 
+/** How far the lanes' crown stands over their edges as drawn, at the
+ * most, m (`street-plan.ts`). */
+const CROWN = 0.04;
+
+/** HOW FAR A BOARD RIDDEN ON A STREET IS STOOD UP ONTO IT, m: the engine
+ * rides it on its own ground, and the street is drawn over that ground
+ * (`streetOver`) and cambered up to its crown — so the deck, thin as it
+ * is, would be drawn under the road. Off the streets, nothing: the loose
+ * cover there is snow a board sinks into. */
+export function rideLift(level: Level, x: number, z: number): number {
+  return onStreet(level, x, z) ? streetOver(level, x, z) + CROWN : 0;
+}
+
 /** How far a ski of the pair is lifted onto the drawn street: laid on
  * it, onto its CROWN — the lanes are drawn cambered up to 4 cm over their
  * edges (`street-plan.ts`), and all of it from the first moment; in his
@@ -80,7 +93,7 @@ export function streetOver(level: Level, x: number, z: number): number {
 export function skiLift(ski: LoneSki, level: Level, street: number, figure: number): number {
   const E = ski.ends;
   const low = Math.min(E[1] - level.groundAt(E[0], E[2]), E[4] - level.groundAt(E[3], E[5]));
-  const laid = street > 0 ? street + 0.04 : 0;
+  const laid = street > 0 ? street + CROWN : 0;
   const held = Math.min(1, Math.max(0, low / 0.3));
   return laid + (figure - laid) * held;
 }

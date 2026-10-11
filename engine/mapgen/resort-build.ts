@@ -108,22 +108,15 @@ import { regionRow, type Region, type RegionId } from "./regions.ts";
 import { ROAD_ROW, planResort } from "./resort.ts";
 import { cachedResort, keepResort, resortKey } from "./resort-cache.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
-import { WOODS, faceWoods, tallAtDepth, woodsAtDepth } from "./resort-woods.ts";
+import { WOODS, faceWoods, tallAtDepth, thinTrees, woodsAtDepth } from "./resort-woods.ts";
 import { LEVEL_RULES as R } from "./rules.ts";
-import { gridOnTrack } from "./spawn.ts";
-import { courseDay } from "./course-day.ts";
 import { dealSun, faceTheSun } from "./sun.ts";
 import { foldSurface, layCrust } from "./surface.ts";
 import { seaLevelOf, type TerrainPlan } from "./terrain.ts";
-import { compileLevel } from "./compile.ts";
-import { courseGates } from "./course-gates.ts";
-import { parkCourse, stampPark } from "./resort-park.ts";
-import { nearestTrackPoint, trackPointAt } from "./query.ts";
 import type {
   Cliff,
   Course,
   Drift,
-  GeneratedLevel,
   Hub,
   Kicker,
   Lift,
@@ -194,6 +187,13 @@ export type AccessCures = {
 /** The salt for a run's own streams. */
 const RUN_SALT = 0x2b1d5e7;
 
+/** How a run on a real face is graded (`RR.massif.real.least`): the least
+ * it falls, m per m, and the deepest it is cut or filled, m. */
+const FACE_GRADE = { fall: RR.massif.real.least.fall, cut: RR.massif.real.least.cut, head: true };
+
+/** The most earthworks the way off a real face's gondola top may ask. */
+const FACE_CHAIN = RR.massif.real.least.chain;
+
 /** How far down its heading a start must be clear of every run but its
  * top's (R12, R27), m, and by how much more than the clearance: a run that
  * began beside another would merge into it off the gate. */
@@ -246,6 +246,10 @@ export function attemptResort(
   const rng = createRng(sub);
   const traits = generatorTraits(version);
   const plan = planMassif(rng, region, face, attempt);
+  /** How a ramp off a top may fall (R26), a real face's own. */
+  const FIT = plan.face
+    ? RR.massif.real.least.ramp
+    : { glide: RR.lift.top.ramp.fall, gentle: RR.lift.top.ramp.grade };
   const ground = bakeMassif(plan);
   const water = layWater(plan, ground); // a real face's, its ground flattened under it
   reached("mountain");
@@ -255,14 +259,19 @@ export function attemptResort(
     row: GradeRow,
     onto: WalkedRun | null,
     pinned?: (x: number, z: number) => boolean,
-  ) => gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto, pinned, stepped);
+  ) =>
+    plan.face
+      ? gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto, pinned, stepped, FACE_GRADE)
+      : gradeRun(run, ground, row.track.maxGrade, colourCap(run), onto, pinned, stepped);
   const { lifts: liftPlans, specs, village: v } = planResort(rng, plan);
   // ── 2b. THE STATION PADS (R26), before a run is walked off one ───────
   const shape = padShape();
   const raw = ground.data.slice();
   // The peak's chair's queue ahead of a rider out of the gondola, at the
   // first aim whose way the pressed snow carries him down (R26).
-  const chain = layChain(ground, raw, liftPlans, pressPads(ground, liftPlans, shape), shape);
+  const chain = plan.face
+    ? layChain(ground, raw, liftPlans, pressPads(ground, liftPlans, shape), shape, FACE_CHAIN)
+    : layChain(ground, raw, liftPlans, pressPads(ground, liftPlans, shape), shape);
   if (!chain) return "R26: no way off the gondola's top falls to the peak's chair's queue";
   let way: ChainWay | null = chain.way;
   reached("pads");
@@ -316,7 +325,7 @@ export function attemptResort(
     // Under its top by a glide's fall from the pad's rim (a drag's top,
     // from the top itself), R27.
     const lift = liftPlans.find((l) => l.id === spec.from);
-    const top = lift ? startTop(ground, lift, shape.r) : null;
+    const top = lift ? startTop(ground, lift, shape.r, FIT.glide) : null;
     if (spec.kind === "road") {
       // The lane's route to the cheapest join on a piste off another top —
       // from under its own top, slid down the fall line (R27).
@@ -386,10 +395,21 @@ export function attemptResort(
         // A ramp off its top's leaning pad has room to come down to it
         // (R26): it starts where a rider let go there slides to.
         if (!rampPad) return true;
-        room = rampRoom(rampPad, pads, liftPlans, x, z, wide / 2, spec.row, height, rampBlocked);
+        room = rampRoom(
+          rampPad,
+          pads,
+          liftPlans,
+          x,
+          z,
+          wide / 2,
+          spec.row,
+          height,
+          rampBlocked,
+          FIT,
+        );
         return room !== null;
       };
-      fair = placeStart(ground, spec, spec.lean, siblings, clear, top);
+      fair = placeStart(ground, spec, spec.lean, siblings, clear, top, plan.face !== undefined);
       // Never over a drag lift's line (R26): its track is ridden on the snow.
       // The runs off a drag's own top, which leave beside it and would
       // otherwise wander across it all the way down.
@@ -432,14 +452,22 @@ export function attemptResort(
   const fewest = face ? RR.massif.real.least.runs : RR.network.runs.min;
   const pistes = walked.filter((w) => w.spec.kind === "piste").length;
   if (pistes < fewest) return `only ${pistes} piste(s) could be walked down the mountain`;
+  // On a real face, a nursery's drag no run could be walked off (a valley
+  // floor with no slope beside the village) is not laid.
+  if (face && !walked.some((w) => w.spec.from === "D1")) {
+    const k = liftPlans.findIndex((l) => l.id === "D1");
+    if (k >= 0) liftPlans.splice(k, 1);
+  }
   // ── 3b. THE LANES BETWEEN THE RUNS ───────────────────────────────────
   let nextId = specs.reduce((m, sp) => Math.max(m, Number(sp.id)), 0);
   // A station on the valley floor stands in the hub (R29).
   const floor = (p: { z: number }): boolean => p.z >= plan.baseZ - 1;
+  const slack = face ? RR.massif.real.least.harder : 0;
   const links: LinkBuilder = {
     walked,
     lifts: liftPlans,
     floor,
+    slack,
     route: (x, z, side, may, ask) =>
       routeLane(ground, walking, x, z, side, may, {
         ...ask,
@@ -634,8 +662,14 @@ export function attemptResort(
   const runIn = (x: number, z: number, past: number): number =>
     net.covers(x, z, past, hit) ? hit.run : -1;
   const runs = shape.lean > 0 ? kept.map((w) => ({ ...w.spec, points: w.points })) : [];
-  const ramps = layRamps(ground, pads, runs, runIn, liftPlans, (x, z) =>
-    way ? offQueue(way, x, z) : Infinity,
+  const ramps = layRamps(
+    ground,
+    pads,
+    runs,
+    runIn,
+    liftPlans,
+    (x, z) => (way ? offQueue(way, x, z) : Infinity),
+    FIT,
   );
 
   // ── 4b. ACCESS, AS THE RUNS MEASURE ──────────────────────────────────
@@ -652,6 +686,7 @@ export function attemptResort(
   );
   const pressedGround: DragGround = {
     floor,
+    slack,
     height: (x, z) => sampleField(ground, x, z),
     piste: (x, z) => {
       net.nearest(x, z, WIDEST, (r) => kept[r].spec.kind === "road", hit);
@@ -692,20 +727,24 @@ export function attemptResort(
         built
           .filter((b) => b.run.to === id)
           .map((b) => b.walked.points[b.walked.points.length - 1]),
+      level: face ? RR.massif.real.least.level : undefined,
     };
     const stuck = clearStations(beside, liftPlans, (ls) => {
-      const v = reckonAccess(measured, planLifts(pressedGround, ls));
-      return v.ok.every(Boolean) && v.orphans.length === 0 && (!way || keepsChain(ls, height));
+      const v = reckonAccess(measured, planLifts(pressedGround, ls), pressedGround.slack);
+      return (
+        v.ok.every(Boolean) && v.orphans.length === 0 && (!way || keepsChain(ls, height, !face))
+      );
     });
     if (stuck) return `R26: ${stuck} stands on a run wherever its station is moved`;
     if (way) {
       way = chainOf(liftPlans);
-      regradeLeg(ground, liftPlans, pads, ramps);
+      regradeLeg(ground, liftPlans, pads, ramps, !!face);
     }
   }
   // ── 4d. THE RAMPS OFF THE DRAGS' TOPS (R26), where they settled ──────
   const dragTops = tight ? dragTopsOf(liftPlans, runs, height) : [];
-  for (const [id, off] of layRamps(ground, dragTops, runs, runIn, liftPlans)) ramps.set(id, off);
+  for (const [id, off] of layRamps(ground, dragTops, runs, runIn, liftPlans, undefined, FIT))
+    ramps.set(id, off);
   const allRamps = [...ramps.values()].flat();
 
   reached("access");
@@ -760,7 +799,8 @@ export function attemptResort(
   }));
   const village: Vec3 = { x: v.x, z: v.z, y: sampleField(ground, v.x, v.z) };
   const baseY = village.y;
-  const lineY = baseY + (plan.treeLine - plan.altitude);
+  // On a real face the floor's real height is the map's nought (`massif.ts`).
+  const lineY = plan.face ? plan.treeLine - plan.altitude : baseY + (plan.treeLine - plan.altitude);
   const woods = WOODS[region.id];
   const clear = (x: number, z: number): boolean => {
     if (hubClear(hubPlan.hub, sub, x, z) || inWater(water?.water, x, z)) return true;
@@ -772,11 +812,12 @@ export function attemptResort(
     return net.covers(x, z, R.forest.corridor, hit);
   };
   const allKickers = built.flatMap((b) => b.kickers).concat(offKickers);
-  const trees = growForest(rng, plan, ground, noTrack, allKickers, allDrops.concat(cliffs), lineY, {
+  const grown = growForest(rng, plan, ground, noTrack, allKickers, allDrops.concat(cliffs), lineY, {
     clear,
-    cover: faceWoods(plan, baseY, (y) => woodsAtDepth(woods, lineY - y)),
+    cover: faceWoods(plan, (y) => woodsAtDepth(woods, lineY - y)),
     tall: (y) => tallAtDepth(woods, lineY - y),
   });
+  const trees = plan.face ? thinTrees(grown, RR.massif.real.trees) : grown;
 
   reached("woods");
   // ── 8. THE DAY'S BEARINGS ────────────────────────────────────────────
@@ -857,11 +898,15 @@ export function buildResort(
   const kept = cachedResort(key);
   if (kept) return kept;
   const reasons: string[] = [];
+  // Held outside the loop and let go on a refusal, so a refused attempt's
+  // grids are not kept alive through the next one's build.
+  let built: BuiltResort | string | null = null;
   for (let a = 0; a < attempts; a++) {
     attemptBegun(a);
-    const built = attemptResort(seed, a, subSeed(seed, a), region, version, face);
+    built = attemptResort(seed, a, subSeed(seed, a), region, version, face);
     const why = typeof built === "string" ? built : accept(built);
     if (typeof built === "string" || why) {
+      built = null;
       debug(`resort ${seed}#${a}: refused — ${why}`);
       reasons.push(`#${a}: ${why}`);
       continue;
@@ -875,124 +920,6 @@ export function buildResort(
   );
 }
 
-/** R28 — the map of a resort raced on one of its courses. */
-export function resortLevel(
-  b: BuiltResort,
-  index: number,
-  laps: number,
-  version: GeneratorVersion,
-  park = false,
-): GeneratedLevel {
-  const { plan: cp, course } = b.courses[index];
-  const points: TrackPoint[] = cp.points.map((p) => ({ ...p, y: sampleField(b.ground, p.x, p.z) }));
-  const track = { track: { points, length: cp.length } };
-  // The kickers and drops on the course by its arc; every other run's are
-  // the mountain's, named by their run.
-  const kickers: Kicker[] = [];
-  const onCourse: Kicker[] = [];
-  const cliffs: Cliff[] = [];
-  const drops: Cliff[] = [];
-  const drifts: Drift[] = [];
-  b.runs.forEach((r, i) => {
-    r.kickers.forEach((k, n) => {
-      const s = courseArc(cp, i, k.s ?? 0) === null ? null : nearestTrackPoint(track, k.x, k.z).s;
-      if (s !== null) onCourse.push({ ...k, s, onTrack: true });
-      else
-        kickers.push({
-          ...k,
-          id: `${r.run.id}K${n + 1}`,
-          onTrack: false,
-          s: undefined,
-          run: r.run.id,
-        });
-    });
-    r.drops.forEach((d, n) => {
-      const s = courseArc(cp, i, d.s ?? 0) === null ? null : nearestTrackPoint(track, d.x, d.z).s;
-      if (s !== null) drops.push({ ...d, s, onTrack: true });
-      else
-        cliffs.push({
-          ...d,
-          id: `${r.run.id}D${n + 1}`,
-          onTrack: false,
-          s: undefined,
-          run: r.run.id,
-        });
-    });
-    for (const d of r.drifts) {
-      if (courseArc(cp, i, d.from) === null || courseArc(cp, i, d.to) === null) continue;
-      const at = (s: number): number => {
-        const p = trackPointAt({ track: { points: r.walked.points, length: r.walked.length } }, s);
-        return nearestTrackPoint(track, p.x, p.z).s;
-      };
-      drifts.push({ from: at(d.from), to: at(d.to) });
-    }
-  });
-  onCourse.sort((a, c) => (a.s ?? 0) - (c.s ?? 0)).forEach((k, n) => (k.id = `K${n + 1}`));
-  drops.sort((a, c) => (a.s ?? 0) - (c.s ?? 0)).forEach((d, n) => (d.id = `D${n + 1}`));
-  drifts.sort((a, c) => a.from - c.from);
-  const last = points[points.length - 1];
-  const base: Vec3 = { x: last.x, z: last.z, y: last.y };
-  const { sun, weather } = courseDay(b, course.id);
-  // R20 — the park down the course, where one is asked for and fits, and
-  // the gates set round it.
-  const gatesFor = (field: readonly Kicker[]) =>
-    courseGates(
-      track,
-      drops,
-      onCourse,
-      course.grade,
-      b.sub ^ Math.imul(Number(course.id), 0x51a1e),
-      field,
-    );
-  const { field, checkpoints } = park
-    ? parkCourse({ points, length: cp.length }, onCourse, drops, drifts, gatesFor)
-    : { field: [], checkpoints: gatesFor([]) };
-  const level: GeneratedLevel = {
-    ...compileLevel({
-      seed: b.seed,
-      size: b.plan.size,
-      ground: b.ground,
-      packed: b.packed,
-      points,
-      length: cp.length,
-      checkpoints,
-      ...gridOnTrack(track),
-      trees: b.trees,
-      kickers: onCourse.concat(field, kickers, b.offKickers),
-      cliffs: drops.concat(cliffs, b.cliffs),
-      sun,
-      laps,
-      mountain: {
-        summit: { x: b.plan.massif?.peakX ?? 0, z: b.plan.summitZ, y: base.y + b.plan.vertical },
-        base,
-        vertical: b.plan.vertical,
-        // The village's altitude over the sea, and the tree line the plan's
-        // height over the floor above it (R21).
-        altitude: b.village.y - b.seaY,
-        treeLine: b.village.y - b.seaY + (b.plan.treeLine - b.plan.altitude),
-        sea: b.seaY,
-      },
-      attempt: b.attempt,
-      drifts,
-      weather,
-      version,
-      region: b.region.id,
-      ...(b.plan.face ? { face: b.plan.face.grid.id, ...b.water } : {}),
-      grade: course.grade,
-      crust: b.crust,
-    }),
-    resort: {
-      runs: b.runs.map((r) => r.run),
-      lifts: b.lifts,
-      courses: b.courses.map((c) => c.course),
-      course: course.id,
-      village: b.village,
-      hub: b.hub,
-      tunnels: b.tunnels,
-      ...(b.routes && b.routes.length > 0 ? { routes: b.routes } : {}),
-    },
-  };
-  return field.length > 0 ? stampPark(level, field) : level;
-}
+export { resortLevel } from "./resort-level.ts";
 
 export { BENCH, GRADES };

@@ -55,6 +55,7 @@ import { LAMP_SLOTS } from "./haze.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
+import { SLIDE_ALBEDO, SLIDE_GLSL, SLIDE_LUMPS, SLIDE_NORMAL } from "./avalanche-glsl.ts";
 
 /** How much brighter than white snow's albedo is painted. */
 export const GLARE = 1.12;
@@ -84,6 +85,7 @@ varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
 ${WELL_GLSL}
+${SLIDE_GLSL}
 
 float snowHash1(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -174,7 +176,9 @@ float snowRelief;
 float snowPackedV = textureLod(uGround, (snowXZ - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell), 0.0).b;
 // THE TREE WELLS (\`tree-wells.ts\`): the hollows round the trunks in deep
 // powder, off the engine's own wells.
-float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ);
+float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ)
+  // THE AVALANCHE (\`avalanche-glsl.ts\`): its bed below, its debris above.
+  + slideAt(snowXZ);
 float snowE = max(uSpacing, uCell);
 vec3 objectNormal = normalize(vec3(
   groundHeight(snowXZ - vec2(snowE, 0.0)) - groundHeight(snowXZ + vec2(snowE, 0.0)),
@@ -213,6 +217,7 @@ varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
 ${WELL_GLSL}
+${SLIDE_GLSL}
 
 vec3 snowHash3(vec3 p) {
   p = fract(p * vec3(0.1031, 0.1030, 0.0973));
@@ -237,6 +242,7 @@ vec2 snowNoiseGrad(vec2 p, float e) {
   return vec2(snowNoise(p + vec2(e, 0.0)) - snowNoise(p - vec2(e, 0.0)),
               snowNoise(p + vec2(0.0, e)) - snowNoise(p - vec2(0.0, e))) / (2.0 * e);
 }
+${SLIDE_LUMPS}
 
 // ONE LAYER OF CRYSTALS: a cell of world space holds at most one, at a
 // random place in it with a random facet; it flares when that facet lines
@@ -280,6 +286,10 @@ float snowCombed;    // 0 .. 1 the night's corduroy still whole (the day's morni
 float snowLane;      // -1 .. 1 the night's passes: this one's shade, by its strength
 float snowCord;      // -1 .. 1 the comb's ridge (+) or furrow (−) here, by its strength
 float snowWell;      // m: how deep a tree well lowers the snow here
+float snowSlide;     // m: the avalanche's bed (−) or debris (+) off the old surface
+float snowBed;       // 0 .. 1 the bed surface a slab slid off
+float snowDebris;    // m: the avalanche's debris lying here
+float snowSlideWall; // 0 .. 1 on the crown's or a flank's wall
 float snowScuff;     // 0 .. 1 THE SHALLOW BAND: a groomer's or a crust's pressed line
 float snowTrough;    // 0 .. 1 THE MIDDLE BAND: powder's soft trough a boot deep
 float snowTrench;    // 0 .. 1 THE DEEP BAND: a trench in deep snow
@@ -454,6 +464,8 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
                    wellDepth(p + vec2(0.0, we)) - wellDepth(p - vec2(0.0, we))) / (2.0 * we);
     grad -= wg;
   }
+  // THE AVALANCHE: its bed, its walls and its debris (\`avalanche-glsl.ts\`).
+${SLIDE_NORMAL}
 
   // THE MICRO-RELIEF: wind-packed swells a few metres long, and a finer
   // grain, both faded out before they alias.
@@ -648,6 +660,7 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
     float needle = smoothstep(0.7, 0.95, snowNoise(p * 23.0 + 7.0));
     alb = mix(alb, vec3(0.3, 0.25, 0.19), (clot * 0.5 + needle * 0.35) * floorK);
   }
+${SLIDE_ALBEDO}
   // The berm is snow turned over by the plough: back to fresh white, with
   // the shade of its clods in it.
   if (snowBerm > 0.0) {

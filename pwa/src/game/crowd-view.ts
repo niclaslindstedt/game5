@@ -53,7 +53,7 @@ import {
   type CrowdLod,
 } from "./crowd-shapes.ts";
 import { FIGURE, type ViewCull } from "./view-cull.ts";
-import { sharing } from "./geometry-share.ts";
+import { releaseShared, sharing } from "./geometry-share.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
 
@@ -112,6 +112,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   const clear = (): void => {
     for (const slot of slots.values()) {
       group.remove(slot.mesh);
+      releaseShared(slot.mesh.geometry);
       slot.mesh.dispose();
     }
     slots.clear();

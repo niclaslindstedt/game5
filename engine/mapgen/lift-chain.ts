@@ -176,7 +176,9 @@ const DIG_READ = 2;
 /** R26 — LAY THE WAY to the peak's chair's queue off the gondola's top, on
  * ground the pads are pressed into: the chair's bottom station moved to the
  * first of `lift.chain.aims` whose way and station ask no more than
- * `lift.chain.dig` of cut or fill and stand off every pad — the pads
+ * `lift.chain.dig` of cut or fill (`most`: a real face's own,
+ * `RR.massif.real.least.chain`, which keeps the station a skate from the
+ * gondola's top) and stand off every pad — the pads
  * pressed again where it moved (its line, and so its top's pad, turns with
  * it) — and the way GRADED into the mountain (`pressWay`). The way and the
  * pads, or null where no aim will do. `raw` is the ground before any pad
@@ -187,6 +189,7 @@ export function layChain(
   lifts: readonly LiftPlan[],
   pads: StationPad[],
   shape: PadShape,
+  most: { readonly fill: number; readonly dig: number; readonly skate?: boolean } = RR.lift.chain,
 ): { way: ChainWay; pads: StationPad[] } | null {
   const upper = lifts.find((l) => l.id === UPPER);
   const lower = lifts.find((l) => l.id === LOWER);
@@ -201,9 +204,13 @@ export function layChain(
     const ends = { kind: lower.kind, bottom, top: lower.top };
     const way = chainWay(upper, ends);
     if (!offPads(bottom)) continue;
+    // A real face's way may ask more earthworks of a further aim: its
+    // station is still kept a skate from the gondola's top (R29).
+    if (most.skate && hypot(bottom.x - upper.top.x, bottom.z - upper.top.z) >= RR.access.skate)
+      continue;
     const works = earthworks(ground, way, ends);
     const C = RR.lift.chain;
-    if (works.fill > C.fill || works.cut > C.dig || works.dig > C.dig) continue;
+    if (works.fill > most.fill || works.cut > most.dig || works.dig > most.dig) continue;
     if (i > 0) {
       // Pressed again with the chair where it now stands.
       lower.bottom = bottom;
@@ -340,12 +347,16 @@ function pressWay(
  * to it and eased into the snow round it over `lift.chain.blend` m, never
  * under a ramp's own even fall where one crosses it — and
  * filled up to it for the first `lift.chain.lip` m off the pad, wherever
- * no ramp crosses it — the pad itself left as it was pressed. */
+ * no ramp crosses it — the pad itself left as it was pressed. On a real
+ * face (`hold`) a ramp off its gentler top may cross the leg above its
+ * line: the line is then held up to the ramp from the pad's edge on and
+ * filled to it, so the way never climbs onto the ramp. */
 export function regradeLeg(
   ground: Heightfield,
   lifts: readonly LiftPlan[],
   pads: readonly StationPad[],
   ramps: ReadonlyMap<string, readonly SummitRamp[]>,
+  hold = false,
 ): void {
   const way = chainOf(lifts);
   const upper = lifts.find((l) => l.id === UPPER);
@@ -354,9 +365,11 @@ export function regradeLeg(
   const pad = pads.find((p) => p.lift === UPPER);
   // Off the pad's own edge: its height read just inside it, its cells
   // left as they were pressed.
-  const keep = pad ? pad.r : 0;
-  const from = pad ? leaves(way, pad, keep) : way.from;
-  const edge = pad ? leaves(way, pad, pad.r - ground.cell) : way.from;
+  // On a real face the leaning pad may stand higher at its edge than where
+  // he is let go, so the leg is cut from the let-go point itself.
+  const keep = pad && !hold ? pad.r : 0;
+  const from = pad && !hold ? leaves(way, pad, keep) : way.from;
+  const edge = pad && !hold ? leaves(way, pad, pad.r - ground.cell) : way.from;
   const leg = { ...way, from };
   const y0 = sampleField(ground, edge.x, edge.z);
   const yRing = sampleField(ground, way.ring.x, way.ring.z);
@@ -376,15 +389,29 @@ export function regradeLeg(
     }
     return floor;
   };
+  // The highest any ramp stands over the leg's line from each share of it
+  // on, so the line held up to it falls all the way.
+  const HOLD = 64;
+  const held = new Float64Array(HOLD + 1).fill(-Infinity);
+  if (hold) {
+    for (let i = HOLD; i >= 0; i--) {
+      const k = i / HOLD;
+      const f = rampFloor(from.x + (way.ring.x - from.x) * k, from.z + (way.ring.z - from.z) * k);
+      held[i] = Math.max(f, i < HOLD ? held[i + 1] : -Infinity);
+    }
+  }
   pressBox(ground, [from, way.ring], C.half + C.blend, (x, z, y) => {
     if (pad && hypot(x - pad.x, z - pad.z) < keep) return y;
     const at = segAt(leg.from, leg.ring, x, z);
     const out = Math.max(0, at.d - C.half);
     if (out >= C.blend) return y;
     const w = 1 - smoothstep(0, C.blend, out);
-    const to = y + (y0 + (yRing - y0) * at.k - y) * w;
+    const line = y0 + (yRing - y0) * at.k;
+    const up = Math.min(y0, held[Math.round(at.k * HOLD)]);
+    const to = y + (Math.max(line, up) - y) * w;
     const floor = rampFloor(x, z);
     if (to < y) return Math.max(to, Math.min(y, floor));
+    if (up > line && floor === -Infinity) return to;
     // Filled only off the pad's edge, fading over `lift.chain.lip` m, so
     // the way leaves the pad without a step down onto it — and never on a
     // ramp, left falling as it was pressed.
@@ -447,10 +474,14 @@ function pressBox(
 /** Whether the peak's chair, where `lifts` stand it, still has its queue
  * ahead of a rider out of the gondola — within `lift.chain.bearing` and
  * `lift.chain.reach` of him — on a way the snow carries him down: what a
- * station slid off a run must keep (`station-clear.ts`). */
+ * station slid off a run must keep (`station-clear.ts`). On a real face the
+ * snow is not asked (`snow` false): the runs graded through its knolls may
+ * have cut the way, which is graded again once the stations stand
+ * (`regradeLeg`) and held by the analysis. */
 export function keepsChain(
   lifts: readonly LiftPlan[],
   height: (x: number, z: number) => number,
+  snow = true,
 ): boolean {
   const way = chainOf(lifts);
   if (!way) return true;
@@ -463,7 +494,9 @@ export function keepsChain(
   // To his right: the side the corral leaves its line on, the station
   // beyond the ring rather than between him and it.
   const bearing = angleDiff(off.heading, Math.atan2(dx, dz));
-  return withinBand(bearing, C.bearing) && withinBand(reach, C.reach) && wayFalls(way, height);
+  return (
+    withinBand(bearing, C.bearing) && withinBand(reach, C.reach) && (!snow || wayFalls(way, height))
+  );
 }
 
 /** The way off the gondola's top to the peak's chair's queue where `lifts`

@@ -1,47 +1,39 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE CAMERA LADDER, as data and as arithmetic. Where each lens stands
-// against the skier, how heavy it is, and how it frames the snow ahead — one
-// row per rung, because the difference between two cameras IS the row.
-// `camera.ts` puts the answer on a three.js camera; this module is
-// three-free so the suite reads it (`tests/world_render_test.ts`).
+// THE CAMERA LADDER, as data and as arithmetic. Where each lens stands against the skier, how heavy
+// it is, and how it frames the snow ahead — one row per rung, because the difference between two
+// cameras IS the row. `camera.ts` puts the answer on a three.js camera; this module is three-free
+// so the suite reads it (`tests/world_render_test.ts`).
 //
-// Two kinds of rung. `tips` and `helmet` are WORN: the lens is a point in
-// the skier's own body frame, and it pitches and rolls with him — which is
-// the whole sensation of those views, the tips nodding over every roller
-// and the horizon tipping into every carve. The rest are BOOMS: a lens that
-// stands behind the skier on a yaw that FOLLOWS the heading rather than
-// copying it, and a height that is sprung rather than bolted, so a mogul
-// under the skis is not a mogul under the lens. `orbit` is the menus'
-// drone, flown slowly round the skier.
+// Two kinds of rung. `tips` and `helmet` are WORN: the lens is a point in the skier's own body
+// frame, and it pitches and rolls with him — which is the whole sensation of those views, the tips
+// nodding over every roller and the horizon tipping into every carve. The rest are BOOMS: a lens
+// that stands behind the skier on a yaw that FOLLOWS the heading rather than copying it, and a
+// height that is sprung rather than bolted, so a mogul under the skis is not a mogul under the
+// lens. `orbit` is the menus' drone, flown slowly round the skier.
 //
-// A BOOM HAS WEIGHT. Every reading it chases — the yaw, the height, the
-// fall line, the pitch of the look — is a second-order spring
-// (`camera-spring.ts`) whose poles the row places: a lens that has to be
-// accelerated into a move and settles out of it, rather than one that
-// jumps at its fastest the instant the target does.
+// A BOOM HAS WEIGHT. Every reading it chases — the yaw, the height, the fall line, the pitch of the
+// look — is a second-order spring (`camera-spring.ts`) whose poles the row places: a lens that has
+// to be accelerated into a move and settles out of it, rather than one that jumps at its fastest
+// the instant the target does.
 //
-// A BOOM LEANS WITH THE MOUNTAIN, and composes the skier. It reads the
-// fall line down its own bearing from just behind the skier to where he
-// will be in a moment (`ahead`), so it starts to tip before a face drops
-// away; swings its arm up the slope behind him by `incline` of that pitch,
-// so the lens keeps its height over the snow; and pitches the look to
-// stand him at `place` of the half-fov under the middle of the frame —
-// the same place on a green's 9° and a black's 38°. A lens that aimed
-// level whatever the snow did stood the skier at the foot of the frame on
-// a steep face under half a picture of sky; one that tipped all the way
-// with the face would read it as flat. Leaning most of the way keeps the
-// horizon riding high in the frame and the drop under it, which is how a
-// steep face is FELT.
+// A BOOM LEANS WITH THE MOUNTAIN, and composes the skier. It reads the fall line down its own
+// bearing from just behind the skier to where he will be in a moment (`ahead`), so it starts to tip
+// before a face drops away; swings its arm up the slope behind him by `incline` of that pitch, so
+// the lens keeps its height over the snow; and pitches the look to stand him at `place` of the
+// half-fov under the middle of the frame — the same place on a green's 9° and a black's 38°. A lens
+// that aimed level whatever the snow did stood the skier at the foot of the frame on a steep face
+// under half a picture of sky; one that tipped all the way with the face would read it as flat.
+// Leaning most of the way keeps the horizon riding high in the frame and the drop under it, which
+// is how a steep face is FELT.
 //
-// THE SNOW IS THE DIFFERENCE FROM THE WATER GAME. A skier rides on ground
-// that does not move, so the booms follow the TERRAIN'S height under the
-// skis rather than a mean water line, and the chase row sits lower than a
-// jet ski's: the two tracks the edges cut are the thing a player looks back
+// THE SNOW IS THE DIFFERENCE FROM THE WATER GAME. A skier rides on ground that does not move, so
+// the booms follow the TERRAIN'S height under the skis rather than a mean water line, and the chase
+// row sits lower than a jet ski's: the two tracks the edges cut are the thing a player looks back
 // down, and a lens two metres up at five metres back is where they read.
 //
-// THE SENSE OF SPEED (`PACE`). A lens that only frames reads 100 km/h over
-// open snow as half that, so three readings of pace are folded in on top of
-// the framing, each small enough to go unnoticed until it is gone:
+// THE SENSE OF SPEED (`PACE`). A lens that only frames reads 100 km/h over open snow as half that,
+// so three readings of pace are folded in on top of the framing, each small enough to go unnoticed
+// until it is gone:
 //
 //   * THE STRETCH. The fov widens with speed while the boom pulls in along
 //     its own line (`hold`), so the skier keeps his size in the frame and
@@ -57,27 +49,23 @@
 //     half of what makes it air. A few incommensurate oscillators under
 //     8 Hz on an eased envelope, never a fresh random offset per frame.
 //
-// THE SKIER STAYS IN THE PICTURE. The boom's height is sprung, and slowly
-// in the air, which is what makes a flight hang — but a skier dropping off
-// a cliff band falls faster than any spring follows, and a lens that
-// trailed him by its whole lag (and aimed from that lagged height) lost him
-// out of the bottom of the frame. Two things answer it, neither felt on the
-// snow: the lag is let run only to `lagMax` metres, easing into it rather
-// than hitting it, and the look TILTS — the aim is pitched down (or up)
-// just far enough that the skier stays inside `frame` of the half-fov, the
-// way an operator tips the head to follow a drop.
+// THE SKIER STAYS IN THE PICTURE. The boom's height is sprung, and slowly in the air, which is what
+// makes a flight hang — but a skier dropping off a cliff band falls faster than any spring follows,
+// and a lens that trailed him by its whole lag (and aimed from that lagged height) lost him out of
+// the bottom of the frame. Two things answer it, neither felt on the snow: the lag is let run only
+// to `lagMax` metres, easing into it rather than hitting it, and the look TILTS — the aim is
+// pitched down (or up) just far enough that the skier stays inside `frame` of the half-fov, the way
+// an operator tips the head to follow a drop.
 //
-// THE BOOM IS PUSHED OFF THE TRUNKS. Off the piste the woods close in, and
-// a lens that pulled its arm in for every trunk jolted at the skier, while
-// one that swung its whole arm round every crown that came near its line
-// wheeled the picture about for trees the skier had long since cleared. So
-// the lens answers a trunk the way a magnet answers its like pole: nothing
-// at all until it comes within `MAGNET.gap + MAGNET.soft` of the bark, then
-// eased sideways off it — more the nearer it is — and never let closer than
-// `MAGNET.gap` (`repel`). A skier who just makes it past a tree has the
-// lens come by after him and give it a metre, and no more. The look still
-// runs through the skier. The boughs are left in the frame: the forest
-// takes a tree the lens has passed into out of the picture (`forest.ts`).
+// THE BOOM IS PUSHED OFF THE TRUNKS. Off the piste the woods close in, and a lens that pulled its
+// arm in for every trunk jolted at the skier, while one that swung its whole arm round every crown
+// that came near its line wheeled the picture about for trees the skier had long since cleared. So
+// the lens answers a trunk the way a magnet answers its like pole: nothing at all until it comes
+// within `MAGNET.gap + MAGNET.soft` of the bark, then eased sideways off it — more the nearer it is
+// — and never let closer than `MAGNET.gap` (`repel`). A skier who just makes it past a tree has the
+// lens come by after him and give it a metre, and no more. The look still runs through the skier.
+// The boughs are left in the frame: the forest takes a tree the lens has passed into out of the
+// picture (`forest.ts`).
 
 import { rotate, type Quat } from "@engine";
 
@@ -121,6 +109,9 @@ export type RigPose = {
    * from his front, skiing backward at the lens. Decided on the snow and
    * held through a flight, so a 360 does not swing the boom round twice. */
   switched?: boolean;
+  /** On a snowboard his toes' side (+1 right of the nose, regular; −1
+   * goofy), 0 or none on skis: a worn rung rides `BoltedRig.board`. */
+  board?: number;
   /** The packed share under the skis, 0 powder .. 1 groomed. */
   packed: number;
   /** Body → world (the framework's `core/quat` convention). */
@@ -135,6 +126,8 @@ export type RigPose = {
    * frames its booms up his lines): the bolted rungs take it back off and
    * stay on him. */
   lift?: Vec3 | null;
+  /** The ground shaking under him, 0..1 (`avalanche-view.ts`'s quake). */
+  quake?: number;
 };
 
 /** A pose at rest at the origin — what the renderer fills every frame. */
@@ -182,6 +175,8 @@ export type BoltedRig = {
    * he is rolled to, per rad of roll — a pilot under a wing turns his head
    * to where he is going. */
   turn?: number;
+  /** On a snowboard (`RigPose.board`) `eye` and `down`, `x` to his toes. */
+  board?: { eye: Vec3; down: number };
 };
 
 export type BoomRig = {
@@ -269,6 +264,9 @@ export const RIGS: Record<Rung, Rig> = {
     rollShare: 0.85,
     tremor: 1,
     fallDown: 0.35,
+    // On a board: out over his toe edge at his knees, looking down past the
+    // front boot to the nose (one deck, the rider stood across it).
+    board: { eye: { x: 0.3, y: -0.3, z: 0 }, down: 0.4 },
   },
   // THE HELMET CAM: the skier's own eyes, at the height of a standing head
   // over the body's origin (the tuck folds the body and the lens with it,
@@ -464,6 +462,7 @@ export const PACE = {
      * falls away, back a beat after a landing. */
     rise: 5,
     fall: 16,
+    quake: 3.5, // the ground's quake at 1, in the speed's wholes
   },
   surge: {
     /** Metres of standoff per m/s² along the way, and the most either way:
@@ -487,7 +486,8 @@ function tremorAt(
   const T = PACE.tremor;
   const pace = Math.max(0, Math.min(1, (pose.speed - T.from) / (T.full - T.from)));
   const ground = T.powder + (1 - T.powder) * Math.max(0, Math.min(1, pose.packed));
-  const want = pose.airborne ? 0 : pace * pace * ground * share;
+  const shake = (pose.quake ?? 0) * T.quake;
+  const want = (pose.airborne ? 0 : pace * pace * ground * share) + shake * share;
   const rate = want > st.buzz ? T.rise : T.fall;
   st.buzz = st.fresh ? want : st.buzz + (want - st.buzz) * (1 - Math.exp(-rate * dt));
   st.clock += dt;
@@ -558,7 +558,8 @@ export function frameRig(
   trunks?: TrunksNear,
 ): LensPose {
   if (rig.kind === "bolted") {
-    const off = rotate(pose.q, rig.eye);
+    const worn = pose.board && rig.board ? rig.board : null;
+    const off = rotate(pose.q, worn ? { ...worn.eye, x: worn.eye.x * pose.board! } : rig.eye);
     const lift = pose.lift;
     const eye = lift
       ? { x: pose.x - lift.x + off.x, y: pose.y - lift.y + off.y, z: pose.z - lift.z + off.z }
@@ -570,7 +571,7 @@ export function frameRig(
     const spot = rig.fallDown
       ? fallEase(stepFall(st.fallen, pose, groundAt, dt, st.fresh)) * rig.fallDown
       : 0;
-    const dip = rig.look * Math.tan((rig.down ?? 0) + spot);
+    const dip = rig.look * Math.tan((worn ? worn.down : (rig.down ?? 0)) + spot);
     const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing - dip, z: rig.look });
     if (rig.turn) {
       const a = pose.roll * rig.turn;

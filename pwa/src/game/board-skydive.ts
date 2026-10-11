@@ -33,7 +33,8 @@
 // limbs keep their lengths and the boots never leave the bindings.
 
 import type { BoardFrame, BoardPoseInput } from "./board-pose.ts";
-import { bindingsOf, boardUnderFeet, cuffOver } from "./board-pose.ts";
+import { bindingsOf, cuffOver } from "./board-pose.ts";
+import { boardUnderFeet } from "./board-thrown.ts";
 import type { SkierPose } from "./skier-joints.ts";
 import { BODY, SHIN_ABOVE_CUFF, mountsFor, type Mounts } from "./skier-mounts.ts";
 import { solveLimb } from "./skier-limbs.ts";

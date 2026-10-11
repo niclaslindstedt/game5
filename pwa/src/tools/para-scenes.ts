@@ -10,6 +10,7 @@
 
 import {
   NEUTRAL_INPUT,
+  chutePilot,
   paraPilot,
   type GameState,
   type Level,
@@ -325,8 +326,11 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "motor-down", overPiece("motor", 1.5, 1.2, 2.5));
   },
   // A LONG FALL: the rig let go high over the mountain (the bot's flight
-  // for 24 s), and the skier watched down onto the snow by the fall look
-  // (`camera-fall.ts`) — the chase, the far lens and his own eye.
+  // for 24 s) — the motor and the wing falling away on their own and the
+  // skier out into a skydive's freefall (`chute.ts`'s `craftFreefall`) on
+  // the rig he wore under the motor — watched by the chase, the far lens
+  // and his own eye, then the main pulled and flown down on the bot's
+  // pattern (`chutePilot`) onto his skis.
   "drop-high"(st) {
     const s = airborne(st);
     const high = (q: GameState) => q.skier.y - q.level.groundAt(q.skier.x, q.skier.z);
@@ -340,7 +344,16 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     }
     st.shoot(s, `${t}s-far`, "far");
     st.shoot(s, `${t}s-eye`, "helmet");
-    st.until(s, (q) => !q.skier.airborne || q.skier.thrown !== null, 15, still);
+    st.shoot(s, `${t}s-motor`, overPiece("motor", 3, 2, 5));
+    const pilot: Drive = (q) => chutePilot(q);
+    st.until(s, (q) => q.chute?.mode === "open" || !q.chute, 12, pilot);
+    st.run(s, 1.5, pilot);
+    st.shoot(s, `canopy-${high(s).toFixed(0)}m`, "chase");
+    // The main glides down the face (a sink of some 4 m/s over a slope that
+    // falls away under it), so the long way down is stepped undrawn.
+    const down = (q: GameState) => !q.skier.airborne || q.skier.thrown !== null || !q.chute;
+    for (let k = 0; k < 40 && !down(s) && (s.chute?.agl ?? 0) > 40; k++) st.skip(s, 10, pilot);
+    st.until(s, down, 30, pilot);
     st.shoot(s, "touchdown", "chase");
     st.run(s, 1, still);
     st.shoot(s, "after-1s", "chase");

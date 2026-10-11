@@ -99,6 +99,15 @@ export type ChuteScene = {
 /** His eyes: the point, his face's way and his head's up, the world's frame. */
 export type Eyes = { at: THREE.Vector3; face: THREE.Vector3; up: THREE.Vector3 };
 
+/** WHETHER HE WEARS THE RIG: in the skydive, and on every ride in the air
+ * he could jump from with it (`craftFreefall`) — in the plane's door, on
+ * the helicopter's skid, a balloon ride and a paramotor ride whole. */
+export function rigWorn(state: GameState): boolean {
+  return (
+    !!state.chute || !!state.plane?.rider || !!state.heli?.rider || !!state.balloon || !!state.para
+  );
+}
+
 /** His eyes off the head bone's root, m: up the skull and out of the face. */
 const EYES = { up: 0.11, out: 0.12 };
 
@@ -775,7 +784,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     frame(state, alpha, wearer = null) {
       const ch = state.chute;
       const p = state.plane;
-      const worn = !!ch || !!p?.rider;
+      const worn = rigWorn(state);
       group.visible = worn;
       over = farthest = null;
       if (!worn) return;

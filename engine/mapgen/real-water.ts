@@ -13,19 +13,27 @@
 // a frozen lake is a flat field of snow and the renderer lays its water at
 // the surface. A body the ground would have to be moved further than
 // `WATER.spread` for is left off, and a body reaching onto the valley
-// floor's rows is cut along them (`clipped`). Done once, on the ground
-// just baked, before anything is stood on it; a run may cross a lake, but
-// no tree, tower, station or building stands in one (`inWater`).
+// floor's rows is cut along them (`clipped`). Done on the ground just
+// baked, before anything is stood on it, and again once every run, pad and
+// ramp is graded (`relayWater`); a run may cross a lake, but no tree,
+// tower, station or building stands in one (`inWater`).
 //
 // A pure function of the face and the ground: no stream is drawn, and a
 // map with no face carries no water and moves nothing.
 
 import { hypot, smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import {
+  sampleField,
+  type Heightfield,
+} from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import { offWay, type ChainWay } from "./lift-chain.ts";
 import { faceHeight } from "./real-face.ts";
 import { realHints, ringArea } from "./real-hints.ts";
+import { RESORT_RULES as RR } from "./resort-rules.ts";
+import { LEVEL_RULES } from "./rules.ts";
+import { offRamp } from "./summit-ramps.ts";
 import type { TerrainPlan } from "./terrain.ts";
-import type { WaterBody, WaterStream } from "./types.ts";
+import type { SummitRamp, WaterBody, WaterStream } from "./types.ts";
 
 /** How a real face's water is laid on the map.
  *   * `feather`: how far round a body its ground is eased from the surface
@@ -37,6 +45,9 @@ import type { WaterBody, WaterStream } from "./types.ts";
  *     tarn's bench is not always there: a body the map's ground would have
  *     to be dug or banked further than this for is left off the map rather
  *     than set in a crater.
+ *   * `settled`: how far the ground under a body may have been moved off
+ *     its surface by the grading after it was laid before it is laid
+ *     again (`relayWater`), m.
  *   * `floor`: the valley floor's rows kept dry, m above and below the foot
  *     of the face (`TerrainPlan.baseZ`) — where the hub, the bottom
  *     stations, the finishes and the wind tunnels stand (R29, R30). A body
@@ -45,6 +56,7 @@ import type { WaterBody, WaterStream } from "./types.ts";
 export const WATER = {
   feather: { min: 10, max: 20, per: 1.5 },
   spread: 15,
+  settled: 0.01,
   floor: { above: 150, below: 190 },
 } as const;
 
@@ -171,7 +183,7 @@ function cellsIn(ground: Heightfield, body: WaterBody): number[] {
  * surface by the distance to its rings, never a cell in water; then every
  * cell in water set to its body's surface exactly. */
 function flatten(ground: Heightfield, pieces: readonly WaterBody[]): WaterBody[] {
-  const { cols, rows, cell, data } = ground;
+  const { cols, rows, data } = ground;
   const wet = new Uint8Array(cols * rows);
   const F = WATER.feather;
   const water: WaterBody[] = [];
@@ -188,7 +200,29 @@ function flatten(ground: Heightfield, pieces: readonly WaterBody[]): WaterBody[]
     feathers.push(Math.min(F.max, Math.max(F.min, spread * F.per)));
     for (const i of cells) wet[i] = water.length;
   }
-  for (let b = 0; b < water.length; b++) {
+  settle(
+    ground,
+    water,
+    wet,
+    feathers,
+    water.map((_, b) => b),
+  );
+  return water;
+}
+
+/** The shore round each body of `only` eased toward its surface by the
+ * distance to its rings over its feather, never a cell in water, then
+ * every cell in water (`wet`: its body's place in `water`, plus one) set
+ * to its body's surface exactly. */
+function settle(
+  ground: Heightfield,
+  water: readonly WaterBody[],
+  wet: Uint8Array,
+  feathers: readonly number[],
+  only: readonly number[],
+): void {
+  const { cols, rows, cell, data } = ground;
+  for (const b of only) {
     const body = water[b];
     const feather = feathers[b];
     const box = boxOf(body);
@@ -230,10 +264,143 @@ function flatten(ground: Heightfield, pieces: readonly WaterBody[]): WaterBody[]
       }
     }
   }
-  for (let i = 0; i < wet.length; i++) if (wet[i] !== 0) data[i] = water[wet[i] - 1].y;
-  return water;
+  const picked = new Uint8Array(water.length + 1);
+  for (const b of only) picked[b + 1] = 1;
+  for (let i = 0; i < wet.length; i++) if (picked[wet[i]] !== 0) data[i] = water[wet[i] - 1].y;
 }
 
+/** What the water laid again keeps its hands off: the stations' pads
+ * (and the drags' tops), the ramps off them and the way cut to the next
+ * lift's queue — each graded to a level a rider is let go on. */
+export type WaterKeep = {
+  pads: readonly { x: number; z: number; r: number }[];
+  ramps: readonly SummitRamp[];
+  way: ChainWay | null;
+};
+
+/** THE WATER LAID AGAIN once everything else is graded (`ground` changed
+ * in place): a run pressed across a body, a station's pad, its ramps and
+ * the way cut to the next queue leave the ground under it off its
+ * surface, and the renderer would draw the water floating over the snow
+ * or the snow through it. Every body whose ground stands further off
+ * its surface than `WATER.settled` is flattened to it once more and eased
+ * into the shore round it as it was first laid — a run across it carried
+ * down onto it and off it again, never a step at the shore — its feather
+ * grown with how far its ground had moved. A body that would move the
+ * ground of anything in `keep` is left off the map instead, its ground as
+ * graded. The cells of a body nothing moved are left alone, so a face
+ * whose water nothing touched builds as before. Every run's line, its
+ * kickers and drops (`runs`) and every ramp's ends are read off the ground
+ * again. */
+export function relayWater(
+  ground: Heightfield,
+  laid: FaceWater | null,
+  runs: readonly RelaidRun[],
+  keep: WaterKeep,
+): void {
+  const water = laid?.water;
+  if (!laid || !water || water.length === 0) return;
+  const { cols, rows, cell, data } = ground;
+  const wet = new Uint8Array(cols * rows);
+  const F = WATER.feather;
+  const off = new Float64Array(water.length);
+  water.forEach((body, b) => {
+    for (const i of cellsIn(ground, body)) {
+      if (wet[i] !== 0) continue;
+      wet[i] = b + 1;
+      off[b] = Math.max(off[b], Math.abs(data[i] - body.y));
+    }
+  });
+  const kept = (x: number, z: number): boolean =>
+    keep.pads.some((p) => hypot(x - p.x, z - p.z) < p.r + RR.lift.padBlend) ||
+    keep.ramps.some((r) => offRamp(r, x, z) < 0) ||
+    (!!keep.way && offWay(keep.way, x, z) < RR.lift.padBlend);
+  // Every run's line as the ground stands: the water laid again may
+  // leave it no steeper than its kind allows, or than it was, and climbing
+  // nowhere it did not (R27).
+  const lines = runs.map((run) => {
+    const pts = run.walked.points;
+    const ys = Float64Array.from(pts, (p) => sampleField(ground, p.x, p.z));
+    const most = run.walked.spec.kind === "road" ? RR.road.grade : LEVEL_RULES.track.maxGrade;
+    return { pts, ys, most };
+  });
+  /** Whether the ground as it now stands leaves a run steeper, or
+   * climbing more, anywhere in the box than it was (R27). */
+  const harder = (box: Box): boolean =>
+    lines.some(({ pts, ys, most }) => {
+      const out = (a: { x: number; z: number }) =>
+        a.x < box.x0 || a.x > box.x1 || a.z < box.z0 || a.z > box.z1;
+      for (let i = 0; i + WINDOW < pts.length; i++) {
+        const [p, q] = [pts[i], pts[i + WINDOW]];
+        if (out(p) && out(q)) continue;
+        const span = spanOf(pts, i);
+        const rate = (sampleField(ground, p.x, p.z) - sampleField(ground, q.x, q.z)) / span;
+        const was = (ys[i] - ys[i + WINDOW]) / span;
+        if (rate > Math.max(most, was) || -rate > Math.max(0, -was) + SLACK) return true;
+      }
+      return false;
+    });
+  const dropped = new Set<number>();
+  for (let b = 0; b < water.length; b++) {
+    if (off[b] <= WATER.settled) continue;
+    const feather = Math.min(F.max, Math.max(F.min, off[b] * F.per));
+    const box = boxOf(water[b]);
+    const c0 = Math.max(0, Math.floor((box.x0 - feather) / cell));
+    const c1 = Math.min(cols - 1, Math.ceil((box.x1 + feather) / cell));
+    const r0 = Math.max(0, Math.floor((box.z0 - feather) / cell));
+    const r1 = Math.min(rows - 1, Math.ceil((box.z1 + feather) / cell));
+    const w = c1 - c0 + 1;
+    const was = new Float32Array(w * (r1 - r0 + 1));
+    for (let r = r0; r <= r1; r++)
+      was.set(data.subarray(r * cols + c0, r * cols + c1 + 1), (r - r0) * w);
+    const feathers = water.map(() => feather);
+    settle(ground, water, wet, feathers, [b]);
+    let touched = harder({ x0: c0 * cell, x1: c1 * cell, z0: r0 * cell, z1: r1 * cell });
+    for (let r = r0; r <= r1 && !touched; r++) {
+      for (let c = c0; c <= c1 && !touched; c++) {
+        const moved = Math.abs(data[r * cols + c] - was[(r - r0) * w + (c - c0)]) > MOVED;
+        touched = moved && kept(c * cell, r * cell);
+      }
+    }
+    if (!touched) continue;
+    for (let r = r0; r <= r1; r++)
+      data.set(was.subarray((r - r0) * w, (r - r0 + 1) * w), r * cols + c0);
+    dropped.add(b);
+  }
+  if (dropped.size > 0) laid.water = water.filter((_, b) => !dropped.has(b));
+  for (const run of runs) {
+    for (const set of [run.walked.points, run.kickers, run.drops])
+      for (const p of set) p.y = sampleField(ground, p.x, p.z);
+  }
+  for (const r of keep.ramps) {
+    r.from.y = sampleField(ground, r.from.x, r.from.z);
+    r.to.y = sampleField(ground, r.to.x, r.to.z);
+  }
+}
+
+/** How far a cell may move and count as unmoved, m. */
+const MOVED = 1e-3;
+
+/** A run's line read over `WINDOW` of its points (about 10 m), and how
+ * much more it may climb than it did there once the water is laid again,
+ * rise over run. */
+const WINDOW = 5;
+const SLACK = 0.002;
+
+/** The ground distance over a window of a run's line from point `i`. */
+function spanOf(pts: readonly { x: number; z: number }[], i: number): number {
+  const [p, q] = [pts[i], pts[i + WINDOW]];
+  return Math.max(1e-6, hypot(q.x - p.x, q.z - p.z));
+}
+
+/** A run as the water laid again reads it: its line, kickers and drops,
+ * each read off the ground again afterwards. */
+type Point3 = { x: number; y: number; z: number };
+export type RelaidRun = {
+  walked: { points: Point3[]; spec: { kind: string } };
+  kickers: Point3[];
+  drops: Point3[];
+};
 const boxes = new WeakMap<WaterBody, Box>();
 
 /** Whether (x, z) lies in a body of `water` (in its outer ring and out of

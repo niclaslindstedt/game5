@@ -78,6 +78,16 @@ export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {
   "fell-25": ["green", "red", "black"],
   "fell-26": ["green", "blue", "red", "black"],
   "fell-27": ["green", "blue", "red", "black"],
+  "fell-28": ["green", "blue", "red", "black"],
+  "fell-29": ["green", "blue", "red"],
+  "fell-30": ["green", "blue", "red", "black", "orange"],
+  "fell-31": ["green", "blue", "red", "black"],
+  "fell-32": ["green", "blue", "red", "black"],
+  "maritime-5": ["green", "blue", "red", "black", "orange"],
+  "maritime-6": ["green", "blue", "red", "black", "orange"],
+  "maritime-7": ["green", "blue", "red", "black", "orange"],
+  "maritime-8": ["green", "blue", "red", "black"],
+  "maritime-9": ["green", "blue", "red", "black"],
 };
 
 /** Each wooded face's woods by height, read off the forest the map draws:
@@ -130,6 +140,16 @@ export const HINT_TREES: Readonly<Record<string, string>> = {
   "fell-25": "bfb2f7d3756a2f0500",
   "fell-26": "d5c9d384aeac600e00",
   "fell-27": "ff72f0fdfffffffcef",
+  "fell-28": "da76f5f4daa9ad5300",
+  "fell-29": "daa989b2a9876a1802",
+  "fell-30": "af9e74662f19110000",
+  "fell-31": "9a5b78939524030000",
+  "fell-32": "dfadecd8bebb922601",
+  "maritime-5": "6a568c530800000000",
+  "maritime-6": "9527c3c7b421000000",
+  "maritime-7": "8573c19f6f06000000",
+  "maritime-8": "7a4586611f01000000",
+  "maritime-9": "9ab1bf979c27000000",
 };
 
 /** Each face's hints, fetched when a map is raised on it. */
@@ -180,4 +200,14 @@ export const HINT_LOADERS: Readonly<Record<string, () => Promise<{ HINTS: HintDa
   "fell-25": () => import("./real-hints/hints-fell-25.ts"),
   "fell-26": () => import("./real-hints/hints-fell-26.ts"),
   "fell-27": () => import("./real-hints/hints-fell-27.ts"),
+  "fell-28": () => import("./real-hints/hints-fell-28.ts"),
+  "fell-29": () => import("./real-hints/hints-fell-29.ts"),
+  "fell-30": () => import("./real-hints/hints-fell-30.ts"),
+  "fell-31": () => import("./real-hints/hints-fell-31.ts"),
+  "fell-32": () => import("./real-hints/hints-fell-32.ts"),
+  "maritime-5": () => import("./real-hints/hints-maritime-5.ts"),
+  "maritime-6": () => import("./real-hints/hints-maritime-6.ts"),
+  "maritime-7": () => import("./real-hints/hints-maritime-7.ts"),
+  "maritime-8": () => import("./real-hints/hints-maritime-8.ts"),
+  "maritime-9": () => import("./real-hints/hints-maritime-9.ts"),
 };

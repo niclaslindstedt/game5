@@ -1,6 +1,6 @@
 # The paramotor
 
-A free ride can start under a powered wing. Pick **PARAMOTOR** on the start card's RUN row (the stop before the balloon and the snowmobile), or follow a `?start=free&para=1` link. You start on the summit with your skis on, a small ram-air wing held up over you on its lines and a motor on your back. Ski off until the wing flies, fly it anywhere on the mountain, land on your skis, and drop the whole rig to ski on.
+A free ride can start under a powered wing. Pick **PARAMOTOR** on the start card's RUN row (the stop before the balloon and the snowmobile), or follow a `?start=free&para=1` link. You start on the summit with your skis on, a small ram-air wing held up over you on its lines and a motor on your back. Ski off until the wing flies, fly it anywhere on the mountain, land on your skis, and drop the whole rig to ski on — or, high, to skydive down: you wear a parachute under the motor.
 
 The engine side is `engine/game/para.ts` (the flight), `para-state.ts` (its state and events), `para-pilot.ts` (the bot's hands) and `defs/para.ts` (every number). The app side is `pwa/src/game/para-canopy.ts` (the wing's shape, its paint and its line plan, three-free), `para-motor.ts` (the motor unit as built), `para-scene.ts` (the two hung on the engine's bodies, the lines drawn, the downed wing laid on the snow, and the pilot sat in the harness), `camera-para.ts` (the camera rows under the wing), `hud-para.tsx` (the strip), `audio/para-bed.ts` (the motor's sound) and `strings-para.ts`.
 
@@ -48,7 +48,7 @@ Some behaviour comes out of the model with no special case:
 
 **Under the wing on the snow** is speed riding: the skis on the slope, the wing still flying and taking some of the weight. Near the snow the pilot stands up out of the seat, and his skis meet the slope square from 6 m above it, fully by 1.5 m.
 
-**The drop.** The machine press (**Enter**, or a double tap on touch) releases the whole rig. The canopy streams down as cloth, the motor falls on its own, and both lie where they land. The skier goes on as a skier. Drop it low: a pilot who lets go of the wing 100 m up falls 100 m. The lens follows him down from over his back, looking at the snow he will land on (`camera-fall.ts`), and a steep face takes a long fall far better than the flat (`landing.steep`, `docs/riding.md`).
+**The drop.** The machine press (**Enter**, or a double tap on touch) releases the whole rig. The canopy streams down as cloth, the motor is shoved back off him (`PARA.dropped.shove`, 2.5 m/s, and a lift of 0.8 m/s) and falls on its own, and both lie where they land; before the shove the motor left his back at his own speed and fell beside him all the way down, reading as still strapped on. Low, the skier goes on as a skier. **High, he has a parachute:** he flies in a skydiver's harness-container under the motor (drawn on him, `chute-scene.ts`'s `rigWorn`), and a drop at least `CHUTE.craft.least` (100 m) over the snow is a [skydive](skydive.md)'s freefall (`chute.ts`'s `craftFreefall`, the one entry every craft shares) — the press opens the main a second out, and its canopy is flown down and let go of on his skis. A restart out of the skydive stands him under the wing on the summit again, never in a plane's door. The lens follows him down from over his back, looking at the snow he will land on (`camera-fall.ts`), and a steep face takes a long fall far better than the flat (`landing.steep`, `docs/riding.md`).
 
 ## Diving, swinging up and looping
 
@@ -97,7 +97,7 @@ The look is built from how real speed wings and foot-launch paramotors are made,
 | `lean` | The lean held level, forward and back, from the side and behind. |
 | `acro` | The dive, the pull up and round in a loop from a lens planted beside it, the swing up from a cruise, and a pull without the speed for it falling into the wing. |
 | `landing` | The final approach, the flare, and speed riding on the snow under it. |
-| `drop` | The rig released, skiing on, and the canopy and the motor lying on the snow. |
+| `drop` | The rig released, skiing on, and the canopy and the motor lying on the snow; then let go 230 m up — the motor falling away on its own, the freefall, the main open and flown down onto his skis. |
 | `gear` | The motor, the harness and the risers close up, and the canopy's underside. |
 | `turntable` | The rig in the air from eight sides. |
 | `lenses` | Every rung of the camera ladder in flight. |
@@ -139,5 +139,5 @@ Nothing in the paramotor draws from `state.rng`. The wind it flies in is the wea
 - `make para-wind`: what the weather does to a flight, in pure Node. Each of R19's weathers and a sweep of the wind's strength down the face and across it are flown on the bot's hands. It prints the wind at the wing, the ridge lift and the lee's sink, how rough the air was, the folds, the stall, the share of the flight flown backwards, the lowest height and how it ended. Keep `ARGS=--json=previews/para-wind-before.json` before a change and `ARGS=--compare=…` after.
 - `npx vitest run tests/para_wind_test.ts`: ridge lift up a flank and sink off one, the lee rougher, the lift dying with height and the wind growing, still air, the eddies with the wind, the calm flight clean, the storm folding the wing, the tailwind launch, determinism.
 - `npx vitest run tests/para_acro_test.ts`: the dive, the safe lean back from a cruise, the loop off a big dive, falling into the wing off a small one, the cut-away, the tangled fall to the snow, determinism.
-- `npx vitest run tests/para_test.ts`: the launch, the climb and the glide, the turn, the stall and its recovery, the drop and skiing on, the restart, determinism, the start card and the HUD.
+- `npx vitest run tests/para_test.ts`: the launch, the climb and the glide, the turn, the stall and its recovery, the drop and skiing on, the motor falling away from him, a high drop into the skydive and its restart on the summit, the restart, determinism, the start card and the HUD.
 - `make build`, then `make screenshots ARGS="--surface para-ready,para-go,para"`: on the summit under the held wing, skiing off as it flies, and in the air on the bot's hands.

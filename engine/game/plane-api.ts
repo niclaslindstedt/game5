@@ -70,6 +70,7 @@ export {
 export { airBounds, airBoundsAt, type AirBounds } from "./collision.ts";
 export {
   CHUTE,
+  exitClear,
   jumperMass,
   MAIN_WING,
   wingOf,
@@ -78,6 +79,7 @@ export {
 } from "./defs/chute.ts";
 export type {
   ChuteControls,
+  ChuteCraft,
   ChuteDeploy,
   ChuteEvent,
   ChuteMode,
@@ -92,6 +94,7 @@ export {
   chuteControls,
   chuteDown,
   chuteRigged,
+  craftFreefall,
   flyChute,
   skydiveAt,
   stepChute,

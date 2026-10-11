@@ -58,7 +58,11 @@ const PIN_REACH = 14;
  * other's width. Writes `y`, `raw` and `cross`; returns a reason on a line
  * that cannot be graded inside `track.maxCut`. `stepped` grades the stretch
  * on the other's surface as generator v7 and before did (`GeneratorTraits`'
- * `steppedJunctions`). */
+ * `steppedJunctions`). `face` is how a real face bends R8 (R25): the
+ * least it falls, m per m, where its valley floor is flatter, and the
+ * deepest it is cut or filled, m, where its real knolls stand in its way;
+ * and (`head`) its start cut through them rather than filled over them, so
+ * it stays under the top it leaves. */
 export function gradeRun(
   run: WalkedRun,
   ground: Heightfield,
@@ -67,6 +71,10 @@ export function gradeRun(
   onto: WalkedRun | null,
   pinned?: (x: number, z: number) => boolean,
   stepped = false,
+  face: { readonly fall: number; readonly cut: number; readonly head?: boolean } = {
+    fall: R.track.minGrade,
+    cut: R.track.maxCut,
+  },
 ): string | null {
   const T = R.track;
   const pts = run.points;
@@ -74,7 +82,7 @@ export function gradeRun(
   const step = run.length / (n - 1);
   const raw = run.raw;
   for (let i = 0; i < n; i++) raw[i] = sampleField(ground, pts[i].x, pts[i].z);
-  const least = T.minGrade * 1.1 * step;
+  const least = face.fall * 1.1 * step;
   const most = maxGrade * 0.95 * step;
   const cut = Float64Array.from(raw);
   for (let i = 1; i < n; i++) cut[i] = Math.min(raw[i], cut[i - 1] - least);
@@ -88,6 +96,12 @@ export function gradeRun(
   // colour's start, held over the stretch a race's start line, its gate
   // and the run out of it stand on, and the blur's reach past that.
   const startN = Math.round((startGateArc() + R.spawn.run + T.gradeWindow + START_BLUR) / step);
+  if (face.head) {
+    for (let i = 0; i <= Math.min(startN, n - 1); i++) {
+      const w = startN > 0 ? i / startN : 1;
+      y[i] = cut[i] + (y[i] - cut[i]) * w;
+    }
+  }
   const startMost = Math.min(
     most,
     (run.startSlope ?? run.spec.row.spawn.maxSlope) * START_MARGIN * step,
@@ -183,7 +197,7 @@ export function gradeRun(
     // above it) and never falling onto it steeper than its own ceiling or
     // its colour's (cut down over as long a stretch as that takes, where
     // the other lies far below it).
-    const least = T.minGrade * step;
+    const least = face.fall * step;
     const back = (ceiling: number): void => {
       if (fixed(n - 1)) y[n - 1] = target(n - 1);
       for (let i = n - 2; i >= 0; i--) {
@@ -247,7 +261,7 @@ export function gradeRun(
     pts[i].y = y[i];
     deepest = Math.max(deepest, Math.abs(y[i] - raw[i]));
   }
-  if (deepest > T.maxCut) return `a run has to be cut ${deepest.toFixed(1)} m into the mountain`;
+  if (deepest > face.cut) return `a run has to be cut ${deepest.toFixed(1)} m into the mountain`;
   // R6 on the graded line: a junction's descent can steepen a bend past
   // what the walk read off the mountain for it.
   const bend = tightestBend(run, (i) => pts[i].y);

@@ -318,14 +318,21 @@ const SURFACES = {
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
-  // ...and on the snowboard, the rack's last pair where a run lets a free
-  // pick of pair (the park run here, as the free ride).
+  // ...and on its SNOWBOARD side, where a run lets a free pick of pair (the
+  // park run here, as the free ride): the all-mountain twin...
   "skis-board": {
     params: { menu: "skis", mode: "tricks", skis: "lynx" },
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
-  // THE DRESS CARD: the skier on the same stand, framed on him.
+  // ...and the alpine carver, the range's far end.
+  "skis-carver": {
+    params: { menu: "skis", mode: "tricks", skis: "goshawk" },
+    wait: ".skis-pick-canvas",
+    settle: 1800,
+  },
+  // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
+  // him — the first card after a map is picked, the gear card after it.
   dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
@@ -603,7 +610,7 @@ const args = parseArgs(
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
     skis: {
       kind: "string",
-      help: "the player's pair for the run (?skis=: chamois, swift, chough, falcon, eagle, wolverine, peregrine, marmot, hare)",
+      help: "the player's pair for the run (?skis=: chamois, swift, chough, falcon, eagle, wolverine, peregrine, marmot, hare; a snowboard: lynx, pika, stoat, ptarmigan, wolf, goshawk)",
     },
     downhill: {
       kind: "flag",

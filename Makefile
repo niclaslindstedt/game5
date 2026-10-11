@@ -233,7 +233,9 @@ skier-metrics:
 # binding alone and a boot in it from four sides — one contact sheet,
 # previews/board.png, and the triangles. Its own one-off bundle from
 # pwa/board-preview.html; needs a Chromium like `world`. The rider on it
-# is the skier lab's: `make skier ARGS=--skis=lynx`.
+# is the skier lab's: `make skier ARGS=--skis=lynx`. ARGS=--board=<id> another
+# board; ARGS=--sheet=range every board a row at one scale
+# (previews/board-range.png).
 board:
 	npm run board -- $(ARGS)
 

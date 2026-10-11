@@ -200,17 +200,18 @@ export type SkisBar = {
   value: number;
 };
 
-/** Where every bar of one pair sits against the rest of the roster. A
- * snowboard is read against the skis with itself among them, so it is
- * billed on the skis' own scale and no pair of skis' bar moves for it. */
-/** THE RACK the ski card's arrows step through the arrows step through: the skis, and the boards after them
- * when they are offered (`settings.ts`'s `boardAllowed`). */
-export function rackOf(boards: boolean): readonly SkiSpec[] {
-  return boards ? [...SKI_CATALOG, ...BOARD_CATALOG] : SKI_CATALOG;
+/** THE RACK the gear card's arrows step through: the skis, or — on its
+ * SNOWBOARD side, where a run offers boards (`settings.ts`'s
+ * `boardAllowed`) — the boards. */
+export function rackOf(board: boolean): readonly SkiSpec[] {
+  return board ? BOARD_CATALOG : SKI_CATALOG;
 }
 
+/** Where every bar of one pair sits against the rest of ITS rack: a pair
+ * of skis against the skis, a snowboard against the boards — the two
+ * racks are two shops, and no pair of skis' bar moves for a board. */
 export function skisBars(spec: SkiSpec): SkisBar[] {
-  const roster = isBoard(spec) ? [...SKI_CATALOG, spec] : SKI_CATALOG;
+  const roster = isBoard(spec) ? BOARD_CATALOG : SKI_CATALOG;
   const at = roster.findIndex((s) => s.id === spec.id);
   return BARS.map((bar) => {
     const per = bar.axes.map((axis) => ranks(roster.map(axis)));

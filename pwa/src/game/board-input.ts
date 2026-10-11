@@ -5,9 +5,10 @@
 // world's up in his body frame. Three-free, so the model (`board-model.ts`),
 // the metrics lab (`make board-metrics`) and the suite build it alike.
 
-import { popLoad, pressOf } from "./board-grab.ts";
+import { popLoad } from "./board-grab.ts";
 import { unrotate, type SkiSpec, type SkierState } from "@engine";
 
+import { profileOf } from "./board-look.ts";
 import type { BoardPoseInput } from "./board-pose.ts";
 import { gearLift } from "./ski-gear.ts";
 import { inclineAt } from "./ski-stand.ts";
@@ -22,6 +23,10 @@ export function boardOf(spec: SkiSpec): BoardPoseInput["board"] {
     tipWidth: spec.tipWidth,
     tailWidth: spec.tailWidth,
     sidecut: spec.sidecut,
+    // Its middle ahead of the stance's on a set-back board (the engine's
+    // own `bootOffset`, `suspension.ts`), and its class's profile.
+    setback: (0.5 - spec.mount) * spec.length,
+    profile: profileOf(spec.id),
     stance: b.stance,
     front: b.front,
     back: b.back,
@@ -109,13 +114,13 @@ export function boardInputOf(
       drive: skier.drive,
       stride: skier.stride,
       idle: { t: legs.clock, still },
-      // THE TRICKS' READINGS (`board-grab.ts`): a press held on the lean, the
-      // load before a pop, the steer that winds up a spin and the spin.
-      press:
-        legs.load > 0 || feet?.free ? 0 : pressOf(skier.lean, skier.edge, skier.speed) * onSnow,
+      // THE TRICKS' READINGS (`board-grab.ts`): the engine's press (`board-press.ts`),
+      // the load before a pop, the steer that winds up a spin and the spin —
+      // in the air, or a BUTTER's pivot on the snow, which the shoulders lead.
+      press: legs.load > 0 ? 0 : (skier.board?.press ?? 0) * onSnow,
       pop: popLoad(legs.load, skier.lean) * onSnow,
       windup: skier.steer,
-      spin: skier.airborne ? skier.wy : 0,
+      spin: skier.airborne || Math.abs(skier.board?.press ?? 0) > 0.2 ? skier.wy : 0,
     },
   };
 }

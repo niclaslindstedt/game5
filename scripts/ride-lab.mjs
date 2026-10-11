@@ -122,7 +122,9 @@ const hurts = (args.hurt ?? "")
 /** Ski a scenario and keep a frame every step. */
 function record(scenario, asked) {
   // A scenario of a discipline's own pair skis it whatever the lab asked.
-  const spec = scenario.skis ? E.pairById(scenario.skis) : asked;
+  // A board scenario rides the board asked for when one is (`--skis stoat`).
+  const own = scenario.skis ? E.pairById(scenario.skis) : null;
+  const spec = own && !(E.isBoard(own) && E.isBoard(asked)) ? own : asked;
   const level = scenario.level(S);
   const state = E.createGame({
     level,

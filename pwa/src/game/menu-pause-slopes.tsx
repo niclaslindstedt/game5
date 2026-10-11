@@ -21,9 +21,9 @@
 import { useState } from "preact/hooks";
 
 import { useBusyPress } from "./busy-press.ts";
-import { rideOnto, runPicked, startPicked, type FreeRide } from "./free-ride.ts";
+import { rideOnto, runPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, StepRow, type Hint } from "./menu-knobs.tsx";
-import { useRunPick } from "./run-pick.ts";
+import { startChosen, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import type { HudSnapshot } from "./snapshot.ts";
@@ -100,7 +100,7 @@ export function PauseSlopes({
               stops={pick.starts}
               value={pick.start}
               extra={STRINGS.startRunWaiting}
-              onPick={(id) => setRide(startPicked(ride, seed, id))}
+              onPick={(id) => onSettings(startChosen(here, seed, id))}
               onHint={setHint}
             />
             <StepRow

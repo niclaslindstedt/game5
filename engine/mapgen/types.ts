@@ -148,7 +148,8 @@ export interface WaterBody {
   /** The surface's height on the map, m (the ground is flattened to it). */
   readonly y: number;
   /** The surface's REAL height over the sea, m — what its climate is read
-   * off, since a real face is stretched to the game's vertical. Absent: `y`. */
+   * off: the real shore's, where `y` is the map's ground under it. Absent:
+   * `y`. */
   readonly realLevel?: number;
   /** Its area, m². */
   readonly area: number;

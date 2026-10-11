@@ -71,6 +71,8 @@
 // delivers it, `tests/skier_test.ts` holds it to it, and the bot reads it
 // (`limits.ts`) to know what flat out is.
 
+import type { BoardId } from "./board-ids.ts";
+
 export type LegSpec = {
   /** The legs as a spring, N/m PER SKI (the three stations of one ski share
    * it): a skier's stance settles a few centimetres under his weight. */
@@ -97,8 +99,8 @@ export type SkiId =
   | "ibex"
   | "kestrel";
 
-/** The snowboards (`boards.ts`), named as the skis are. */
-export type BoardId = "lynx";
+/** The snowboards (`boards.ts`), named as the skis are (`board-ids.ts`). */
+export type { BoardId };
 
 /** Any pair this game is ridden on: a pair of skis or a board. */
 export type PairId = SkiId | BoardId;

@@ -34,7 +34,7 @@ export const FACES = [
     east: -1200,
     north: -1800,
     bearing: -4,
-    scale: 1.0,
+    scale: 1,
   },
   {
     id: "alpine-2",
@@ -47,7 +47,7 @@ export const FACES = [
     east: 450,
     north: -300,
     bearing: 42,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "alpine-3",
@@ -60,7 +60,7 @@ export const FACES = [
     east: -450,
     north: -1500,
     bearing: 28,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "alpine-4",
@@ -73,7 +73,7 @@ export const FACES = [
     east: -1800,
     north: 1800,
     bearing: 68,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "alpine-5",
@@ -86,7 +86,7 @@ export const FACES = [
     east: -1500,
     north: 1050,
     bearing: 6,
-    scale: 1.1,
+    scale: 1,
   },
   {
     id: "alpine-6",
@@ -99,7 +99,7 @@ export const FACES = [
     east: 450,
     north: -1050,
     bearing: 226,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "alpine-7",
@@ -112,7 +112,7 @@ export const FACES = [
     east: 750,
     north: 1800,
     bearing: 288,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "alpine-8",
@@ -125,7 +125,7 @@ export const FACES = [
     east: 0,
     north: -1800,
     bearing: 226,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "alpine-9",
@@ -138,7 +138,7 @@ export const FACES = [
     east: 750,
     north: 0,
     bearing: 148,
-    scale: 1.0,
+    scale: 1,
   },
   {
     id: "alpine-10",
@@ -151,7 +151,7 @@ export const FACES = [
     east: 1500,
     north: 1800,
     bearing: 270,
-    scale: 1.1,
+    scale: 1,
   },
   {
     id: "alpine-11",
@@ -164,7 +164,7 @@ export const FACES = [
     east: 0,
     north: -300,
     bearing: 52,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "continental-1",
@@ -177,7 +177,7 @@ export const FACES = [
     east: -300,
     north: 750,
     bearing: -6,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "continental-2",
@@ -190,7 +190,7 @@ export const FACES = [
     east: -1050,
     north: 1500,
     bearing: 70,
-    scale: 1.12,
+    scale: 1,
   },
   {
     id: "continental-3",
@@ -203,7 +203,7 @@ export const FACES = [
     east: 450,
     north: 1050,
     bearing: 28,
-    scale: 1.0,
+    scale: 1,
   },
   {
     id: "continental-4",
@@ -216,7 +216,7 @@ export const FACES = [
     east: 1050,
     north: -750,
     bearing: 32,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "maritime-1",
@@ -229,7 +229,7 @@ export const FACES = [
     east: -1800,
     north: 450,
     bearing: 316,
-    scale: 1.0,
+    scale: 1,
   },
   {
     id: "maritime-2",
@@ -242,7 +242,7 @@ export const FACES = [
     east: 0,
     north: -1500,
     bearing: 148,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "maritime-3",
@@ -255,7 +255,7 @@ export const FACES = [
     east: 1800,
     north: -300,
     bearing: 94,
-    scale: 1.0,
+    scale: 1,
   },
   {
     id: "fell-1",
@@ -268,7 +268,7 @@ export const FACES = [
     east: -450,
     north: -750,
     bearing: 192,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-2",
@@ -281,7 +281,7 @@ export const FACES = [
     east: 1500,
     north: 300,
     bearing: 60,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-3",
@@ -294,7 +294,7 @@ export const FACES = [
     east: 450,
     north: 450,
     bearing: -180,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-4",
@@ -307,7 +307,7 @@ export const FACES = [
     east: -1350,
     north: -1350,
     bearing: -50,
-    scale: 1.1,
+    scale: 1,
   },
   {
     id: "fell-5",
@@ -320,7 +320,7 @@ export const FACES = [
     east: 0,
     north: -450,
     bearing: -110,
-    scale: 1.1,
+    scale: 1,
   },
   {
     id: "fell-6",
@@ -333,7 +333,7 @@ export const FACES = [
     east: -900,
     north: 900,
     bearing: 30,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-7",
@@ -346,7 +346,7 @@ export const FACES = [
     east: 600,
     north: 150,
     bearing: 135,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-8",
@@ -359,7 +359,7 @@ export const FACES = [
     east: 150,
     north: -1350,
     bearing: 25,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-9",
@@ -372,7 +372,7 @@ export const FACES = [
     east: 150,
     north: -300,
     bearing: 65,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-10",
@@ -385,7 +385,7 @@ export const FACES = [
     east: 1350,
     north: 0,
     bearing: 60,
-    scale: 1.1,
+    scale: 1,
   },
   {
     id: "fell-11",
@@ -396,9 +396,9 @@ export const FACES = [
     lat: 61.174,
     lon: 13.002,
     east: -900,
-    north: -1050,
+    north: -950,
     bearing: -10,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-12",
@@ -411,7 +411,7 @@ export const FACES = [
     east: -1500,
     north: 1200,
     bearing: 165,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-13",
@@ -424,7 +424,7 @@ export const FACES = [
     east: 900,
     north: -1350,
     bearing: 70,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-14",
@@ -437,7 +437,7 @@ export const FACES = [
     east: 0,
     north: 900,
     bearing: -120,
-    scale: 1.1,
+    scale: 1,
   },
   {
     id: "fell-15",
@@ -450,7 +450,7 @@ export const FACES = [
     east: 600,
     north: -300,
     bearing: 145,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-16",
@@ -463,7 +463,7 @@ export const FACES = [
     east: 450,
     north: 450,
     bearing: 60,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-17",
@@ -476,7 +476,7 @@ export const FACES = [
     east: 450,
     north: 450,
     bearing: 80,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-18",
@@ -489,7 +489,7 @@ export const FACES = [
     east: -300,
     north: -300,
     bearing: -85,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-19",
@@ -502,7 +502,7 @@ export const FACES = [
     east: 1350,
     north: 900,
     bearing: 60,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-20",
@@ -515,7 +515,7 @@ export const FACES = [
     east: -750,
     north: 300,
     bearing: -175,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "fell-21",
@@ -528,7 +528,7 @@ export const FACES = [
     east: 750,
     north: -750,
     bearing: 140,
-    scale: 0.9,
+    scale: 1,
   },
   {
     id: "maritime-4",
@@ -541,7 +541,7 @@ export const FACES = [
     east: 300,
     north: 600,
     bearing: -45,
-    scale: 0.9,
+    scale: 1,
   },
 ];
 

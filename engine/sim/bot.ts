@@ -170,6 +170,11 @@ export type BotProfile = {
    * for rather than an edge giving way (just over `crash.catchSkid`): the
    * edge is stood down out of a fast slide only under it. */
   slalomSkidHeld: number;
+  /** ON A SNOWBOARD: the most of the brake he skids on while steering,
+   * `1 − boardSkidPer·|steer|` and never under `boardSkid` — a turn is
+   * slowed by its tail sliding, never by the whole board stood across it. */
+  boardSkid: number;
+  boardSkidPer: number;
 };
 
 export const RIDER_BOT: BotProfile = {
@@ -213,6 +218,8 @@ export const RIDER_BOT: BotProfile = {
   slalomStance: 0.3,
   slalomSkid: 0.4,
   slalomSkidHeld: 0.55,
+  boardSkid: 0.5,
+  boardSkidPer: 1,
 };
 
 const hit: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
@@ -879,6 +886,16 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // that held a slalom racer's edge under the shelf it cuts
   // (`grip.platform`) all down a steep course — the turn the planner chose
   // was never the one he skied, and he ran wide of gate after gate.
+  // ON A BOARD a skid TURNS the one deck across his way (the hockey stop's
+  // pivot, `skier.ts`), and a rider turning hard on a full one is stood
+  // across his line, sliding down the fall line on his edge while his nose
+  // points where he meant to go. A rider sheds speed through a turn by
+  // letting the tail slide — a skidded turn — and stops dead across the
+  // hill only on a straight: the harder he steers, the less of the brake.
+  if (c.board) {
+    const most = Math.max(profile.boardSkid, 1 - profile.boardSkidPer * Math.abs(input.steer));
+    input.brake = Math.min(input.brake, most);
+  }
   const capped =
     racing || downhillLine
       ? c.sideSlip > K.slipSpeed && c.skid < profile.slalomSkidHeld

@@ -74,7 +74,7 @@ export function MenuPages(p: {
           }}
           chosen={p.mode}
           onBack={toPlay}
-          onPick={(mode) => picks.openCard(mode, p.linkSeed === null ? "levels" : "skis")}
+          onPick={(mode) => picks.openCard(mode, p.linkSeed === null ? "levels" : "dress")}
         />
       </div>
     );
@@ -85,7 +85,7 @@ export function MenuPages(p: {
         <FreestylePage
           chosen={p.mode}
           onBack={toPlay}
-          onPick={(mode) => picks.openCard(mode, p.linkSeed === null ? "tricks" : "skis")}
+          onPick={(mode) => picks.openCard(mode, p.linkSeed === null ? "tricks" : "dress")}
         />
       </div>
     );
@@ -149,7 +149,7 @@ export function MenuPages(p: {
             }))
           }
           onBack={toPlay}
-          onNext={() => setPage("skis")}
+          onNext={() => setPage("dress")}
         />
       ) : page === "gallery" ? (
         <GalleryPage onBack={back} />

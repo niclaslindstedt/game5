@@ -180,8 +180,8 @@ export const KNEE_MOST = 2.1;
  * the torso's turn to the nose, rad — part way, the body kept side-on —
  * and the hips' shift toward the toes over the pushing foot, m. */
 export const SKATE = {
-  from: 0.1,
-  to: -0.38,
+  from: -0.06,
+  to: -0.46,
   out: 0.08,
   lift: 0.07,
   push: 0.55,
@@ -492,8 +492,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       0.7 * air +
       (look?.knee ?? 0) * g +
       0.5 * hop * hopLoad -
-      0.15 * still -
-      0.12 * pushing * freeK,
+      0.15 * still,
     0.3,
     KNEE_MOST,
   );
@@ -530,14 +529,16 @@ export function boardPose(input: BoardPoseInput): BoardPose {
         2 * BODY.thigh * SHIN_ABOVE_CUFF * Math.cos(flexNow),
     );
     const hipsXZ = add(add(mid, scale(F, acrossNow - (span + 0.12) * tilt)), scale(nose, fore));
+    // (While the rear foot is out the front leg carries him: its height
+    // counts the most, so the free foot's reach back never folds it.)
     let hipY = 0;
     for (let i = 0; i < 2; i++) {
       const j = add(hipsXZ, scale(pelvis, (i === 0 ? -1 : 1) * BODY.hip));
       const dx = j.x - feet[i].x;
       const dz = j.z - feet[i].z;
-      hipY += feet[i].y + Math.sqrt(Math.max(0.01, span * span - dx * dx - dz * dz));
+      const w = 0.5 + (i === fi ? 0.3 : -0.3) * freeK;
+      hipY += w * (feet[i].y + Math.sqrt(Math.max(0.01, span * span - dx * dx - dz * dz)));
     }
-    hipY /= 2;
     // Stood still he breathes on his legs.
     hipY += still * 0.008 * Math.sin(clock * 1.7);
     hips = { x: hipsXZ.x, y: hipY, z: hipsXZ.z };
@@ -566,7 +567,10 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     // one over the front foot, the rear one driven in toward it — never
     // splayed apart, and never laid toward the snow on the toe edge.
     for (let i = 0; i < 2; i++) {
-      const inward = i === fi ? KNEES.front : KNEES.rear;
+      // The free foot's knee bends over its own toes, straight down its
+      // line of push, never in across the front leg.
+      const out = i === ri ? freeK : 0;
+      const inward = i === fi ? KNEES.front : KNEES.rear * (1 - out);
       const toward = norm(
         add(
           add(add(scale(boots[i].f, KNEES.toes), scale(boots[i].n, 0.15)), scale(F, KNEES.face)),

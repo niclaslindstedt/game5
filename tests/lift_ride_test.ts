@@ -17,6 +17,9 @@ import {
   LIFT_LOOK,
   boardingRing,
   PISTE_GRADES,
+  RUN_GRADES,
+  skiRoutesOf,
+  type RunGrade,
   generateLevel,
   NEUTRAL_INPUT,
   TUNING,
@@ -420,14 +423,20 @@ describe("a free ride begun on a lift", () => {
 
 describe("a free ride begun on a lift with no spot", () => {
   // Seed 1 serves its green off a drag, its blue off the gondola and its
-  // black off a chair: the colour asked for is the run arrived at, on
+  // black off a chair: the run asked for is the run arrived at, on
   // whatever lift leaves its top.
   for (const grade of PISTE_GRADES) {
     it(`rides up to the top of the ${grade} course's first run`, () => {
       const map = generateLevel(1, { grade });
       const resort = map.resort!;
       const course = resort.courses.find((c) => c.id === resort.course)!;
-      const run = createGame({ level: map, mode: "free", byLift: true, quiet: true });
+      const run = createGame({
+        level: map,
+        mode: "free",
+        byLift: true,
+        run: course.runs[0],
+        quiet: true,
+      });
       const lift = run.skier.lift!;
       expect(lift.phase).toBe("ride");
       const first = resort.runs.find((r) => r.id === course.runs[0])!;
@@ -480,10 +489,11 @@ describe("which run a free ride by lift starts down", () => {
     expect(run.progress.skied.at(-1)).toBe(runs[1].id);
   });
 
-  it("is the course's first run where nothing is asked", () => {
-    const resort = map.resort!;
-    const course = resort.courses.find((c) => c.id === resort.course)!;
-    expect(freeRunOf(map, {})).toBe(course.runs[0]);
+  it("is the most difficult run where nothing is asked", () => {
+    const runs = [...freeRuns(map), ...skiRoutesOf(map)];
+    const rank = (g: RunGrade): number => RUN_GRADES.indexOf(g);
+    const top = Math.max(...runs.map((r) => rank(r.grade)));
+    expect(freeRunOf(map, {})).toBe(runs.find((r) => rank(r.grade) === top)!.id);
   });
 });
 

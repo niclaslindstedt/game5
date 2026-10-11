@@ -278,16 +278,18 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     // A SLOPESTYLE run's is the judges' (`slopestyle-judge.ts`), a
     // HALFPIPE's the panel's for the run (`halfpipe-judge.ts`), MOGULS'
     // the formal score (`moguls-judge.ts`), AERIALS' the jump's (`aerials-
-    // judge.ts`).
-    score: state.moguls
-      ? (judgeMogulsRun(state)?.score ?? 0)
-      : state.aerials
-        ? (judgeAerialRun(state)?.score ?? 0)
-        : state.slopestyle
-          ? (judgeSlopeRun(state)?.score ?? 0)
-          : state.halfpipe
-            ? (judgePipeRun(state)?.score ?? 0)
-            : state.tricks.score,
+    // judge.ts`), a SKI JUMP's the distance credited, m (`jump-flight.ts`).
+    score: state.jump
+      ? state.jump.record.distance
+      : state.moguls
+        ? (judgeMogulsRun(state)?.score ?? 0)
+        : state.aerials
+          ? (judgeAerialRun(state)?.score ?? 0)
+          : state.slopestyle
+            ? (judgeSlopeRun(state)?.score ?? 0)
+            : state.halfpipe
+              ? (judgePipeRun(state)?.score ?? 0)
+              : state.tricks.score,
     events,
     digest: hash.toString(16).padStart(8, "0"),
   };

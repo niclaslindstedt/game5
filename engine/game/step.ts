@@ -68,6 +68,7 @@ import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
 import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
 import { freshAerials, type AerialsContest } from "./aerials-contest.ts";
 import { freshAerial } from "./aerial-flight.ts";
+import { freshJump, seatOnBar } from "./jump-inrun.ts";
 import { AERIALS } from "./defs/aerials.ts";
 import { SKI_JUMP } from "./defs/ski-jump.ts";
 import { isAerialCode, kickerOf } from "./defs/aerial-jumps.ts";
@@ -167,6 +168,10 @@ export type CreateGameOptions = {
   /** THE SKI JUMPING HILL a ski jump is jumped on (R43): the large hill
    * when left out. */
   hill?: SkiJumpHillId;
+  /** THE GATE a ski jumper sits on (an index into `Level.skiJump.gates`, 0
+   * the lowest): the jury's — the lowest that brings him to the edge at
+   * the hill's design speed in calm air — when left out. */
+  gate?: number;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -370,6 +375,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     inRun: base.inRun,
     ...(options.sfw ? { sfw: true } : {}),
     aerials: base.aerials,
+    ...(base.skiJump ? { skiJump: true } : {}),
     hockeyStop: base.hockeyStop,
   };
 }
@@ -596,6 +602,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (level.aerials) {
     state.aerials = { ...(options.aerials ?? freshAerials(state.seed)), plan: planOf(options) };
     state.aerial = freshAerial(planOf(options));
+  }
+  // A SKI JUMP (R43): sat on the bar of his gate.
+  if (level.skiJump && rules.skiJump) {
+    state.jump = freshJump(state, options.gate);
+    seatOnBar(state);
   }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   // ...and the few keen skiers still lapping the lit runs instead.

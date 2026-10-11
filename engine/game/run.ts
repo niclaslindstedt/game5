@@ -59,6 +59,7 @@ import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
 import { hockeyStop, stopMade } from "./hockey-stop.ts";
 import { stepJib } from "./jib.ts";
+import { afterSkiJump, stepSkiJump } from "./ski-jump.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { DISCIPLINE_RULES } from "../mapgen/index.ts";
@@ -215,7 +216,9 @@ export function stepRun(
   stepStartPush(run, input);
   // ON A JIB (`jib.ts`): a bead on a wire, and the snow's step is not his.
   // ...or up an aerials kicker, a bead on a wire too (`aerial-kicker.ts`).
-  const railed = !off && (stepJib(run, held, events) || stepKicker(run));
+  // ...or on a ski jump's bar, down its tracks or in its air (`ski-jump.ts`).
+  const railed =
+    !off && (stepJib(run, held, events) || stepKicker(run) || stepSkiJump(run, asked, events));
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
   if (!off && !railed) {
@@ -288,6 +291,8 @@ export function stepRun(
   stepBody(run, events, off);
   // ...and on a run that asked for them, the wounds it does not survive.
   if (player) stepGore(run, events);
+  // A SKI JUMP's record, off what the legs made of the landing.
+  if (run.jump) afterSkiJump(run, asked, events);
   // THE RUN'S AIR RECORD, off the landing the skier has just reported.
   for (let i = 0; i < events.length; i++) {
     const e = events[i];
@@ -326,6 +331,8 @@ export function stepRun(
   if (run.rules.course) {
     stepCourse(run, x0, z0, events);
     stepTrap(run, x0, z0, events);
+    // ...a ski jump ridden out to the fall line clean on this very step.
+    if (run.jump && p.finished) afterSkiJump(run, asked, events);
     // Where he leaves the piste, for a reset that stands him back up hurt
     // (`resetPose`) — only on a run that carries its injuries.
     if (run.gore) noteSkied(run);

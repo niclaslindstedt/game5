@@ -120,6 +120,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   pole: { kind: "pole", t: 9, gate: 3, speed: 2 },
   stake: { kind: "stake", t: 9, speed: 6, broke: false, x: 0, z: 0 },
   trap: { kind: "trap", t: 40, speed: 36 },
+  skiJump: { kind: "skiJump", t: 40, stage: "touch", speed: 29, distance: 126 },
   net: { kind: "net", t: 40, speed: 8, x: 0, z: 0 },
   grimbear: { kind: "grimbear", t: 40, phase: "burst", x: 0, z: 0 },
   afterski: { kind: "afterski", t: 40, phase: "beer", beers: 1, buzz: 0.14 },
@@ -192,7 +193,9 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * skier bogged is the powder's hush, which the snow bed already is; and
  * what a blow bent or hurt is heard in the blow, as a save is in the landing, the
  * trunk or the edges' scrape that started it — and a body found too hurt to
- * get up has nothing more to say than the fall that did it. */
+ * get up has nothing more to say than the fall that did it; a ski jump's
+ * moments are heard in the events beside them (the take-off's `air`, the
+ * touch's `land`). */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
   "stuck",
@@ -201,6 +204,7 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "injury",
   "death",
   "injured",
+  "skiJump",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */

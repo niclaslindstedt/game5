@@ -542,13 +542,45 @@ Each phase lands green and with its lab's before and after in the PR.
       hold them). **Left:** `make skijump-flight`'s profile table (phase 2
       builds the lab), `make level` drawing the hill, the structure (the
       in-run on trestles where it stands over the ground).
-- [ ] **2. The in-run and the take-off**: the bar and the light, the wire
-      (`jump-inrun.ts`), the gates, the speed at the edge against v₀, the
-      timed press and v⊥; the lab's in-run and take-off rows.
-- [ ] **3. The flight and the landing**: `jump-flight.ts` — the polar fitted
-      in the lab to the norm's checks, the pitch, the V, the roll, the
-      assist; the telemark, the faults, the falls; the distance to the half
-      metre; the `JumpRecord`; `make injuries` unmoved for a clean jump.
+- [x] **2. The in-run and the take-off**: the BAR (`seatOnBar`: sat on
+      the jury's gate, `juryGate` — the lowest reaching the design speed
+      at the hill's own density, `hillDensity`; left on the tuck or the
+      jump key once racing, a shove of 1.2 m/s, `startStrict` starting the
+      clock — the `dsq start@0` is gone), the WIRE (`jump-inrun.ts`'s
+      `stepTracks`: guided along the profile under gravity, the tracks'
+      friction 0.007 and the crouch's 0.15 m² — `SKI_JUMP_RULE.skier`, the
+      same sum the generator's `edgeSpeed` does), the photocells, the
+      timed press (`pushShare`: a half-sine push of 0.28 s, 2.5 m/s at
+      right angles to the table at the light build, the share kept falling
+      as (1 + cos(πΔ/0.28))/2; `record.timing`, `.share`, `.push`) and the
+      edge crossed within the step. **Left:** the start light's phases
+      (the app's), the jury moving the gate (phase 5).
+- [x] **3. The flight and the landing**: `jump-flight.ts` — lift and drag
+      AREAS off a polar against the angle of attack to the air
+      (`JUMP.polar`, its shape the V-style studies', its size fitted), the
+      air the hill's density and the wind along the hill FOLLOWING ITS
+      SLOPE (a head wind's updraft up the landing hill, a tail wind's
+      downdraft); the transition (laid out in 0.55 s, the V opened over
+      0.35 s on the tuck or the assist), the attitude (a sat-up trim of
+      44°, the assist easing it to the ideal 30→38°, the lean ±12° under
+      the hand and ±26° without; under 6° the moment turns him over, past
+      the polar's peak the lift goes), the roll on the edge and the
+      crosswind; the telemark on the trick key (the assist's at 2.2 m),
+      two-footed, late, the falls (over, rolled past 0.4 rad, sat back
+      past 56°: `faceplant`, `roll`, `slam`); the distance to the half
+      metre (`measuredDistance`) and the `JumpRecord`; handed to the
+      engine's skier just over the snow, its legs taking the load
+      (`land`), ridden to the fall line. The bot (`sim/ski-jump-steer.ts`:
+      presses the push at a timing dealt ±0.04 s off its seed, flies on
+      the assist, steers the out-run). `make skijump-flight`;
+      `tests/ski_jump_flight_test.ts`. No injury on a clean jump (the
+      design gate, the top gate, the top gate in a 3 m/s head wind).
+      **Left:** the tail wind's factor is the head wind's (the physics is
+      near symmetric; the norm's tail factor 1.21× is a rule of
+      compensation, phase 5's); the polar's drag is under the studies'
+      (see below); the "excellent" jump is the top gate's (139.5 m) — at
+      the jury's gate the ideal flown on time IS the best (127 m), the
+      lean's optimum being within a metre of the assist's.
 - [x] **4. The ski, the build, the mode**: the ALBATROSS row
       (`defs/skis.ts`, off the card's rack: `MODE_SKIS`, `ALL_SKIS` — no
       Blender model yet, drawn by the code off a first-cut `SKI_LOOKS`
@@ -645,6 +677,102 @@ v₀ 24.6 is near what its e₁ carries — the in-run lab should look at it.
   `dsq start@0`: the strict gates judge the start gate at the spawn before
   any push or take-off exists. Phases 2 and 5 own the start (the bar, the
   push, the window) and the bot.
+
+## Settled (phases 2 and 3)
+
+- The in-run's numbers are the hill rule's (`SKI_JUMP_RULE.skier`): 67.5 kg
+  (the light build and the jumping kit), a 0.15 m² crouch — at the low end
+  of the measures; any more and the normal hill's top gate falls short of
+  its v₀ — tracks' friction 0.007, air 1.24 kg/m³. The large hill's design
+  gate is now gate 22–23 of 28; the normal hill's is still its top gate.
+- THE POLAR as fitted (`JUMP.polar`): at 38° 0.55 m² of lift and 0.32 m²
+  of drag, L/D ~1.7 — the studies' lift, under their drag (0.4–0.6 m²).
+  With the studies' drag the design gate's jump falls 15 m short of K: a
+  point mass with no pitch through the flight loses what a real body's
+  attitude gains. A source's table (Research to-do) should replace it and
+  move the attitude with it.
+- THE WIND is read LEVEL along the hill's line, as the stations read it,
+  and the air keeps that speed over the plan while following the slope:
+  head wind +5.5 m a m/s, tail −5.5 (the lab's head and tail rows). Held
+  against the air (not the slope) a head wind SHORTENED the jump. The
+  map's own wind is always down the mountain (`downhillFrom`), so a
+  played jump meets a tail wind; the labs and tests stage one
+  (`SkiJumpState.staged`).
+- The jumper holds his attitude against his path over the snow
+  (`attitude.wind` 1); against the air it makes no measurable difference
+  near the slope.
+- Never pressed, he clears no more than the knoll (39 m): a take-off is
+  the jump. 0.1 s off, 105–114 m; 0.2 s early, 55 m.
+
+### The flight lab (`make skijump-flight`, seed 38, the large hill, the light build, ρ 1.243)
+
+```
+THE IN-RUN — the speed over the edge in calm air, km/h
+1: 85.6  4: 86.9  7: 88.2  10: 89.5  13: 90.8  16: 92.0  19: 93.2  22: 94.4  25: 95.6  28: 96.7
+the jury's gate 22 (design 94.3 km/h); the generator's 23
+
+row          gate timing  wind   edge  cells  push  time  peak     @    dist   land  into  load  how       end      err
+design         22   0.00   0.0   94.4   92.3  2.50  4.28   4.3   56.2  127.0  127.6  4.64  2.77  telemark  clean     0.4
+top            28   0.00   0.0   96.7   94.8  2.50  4.60   5.2   77.3  139.5  130.7  6.11  4.20  telemark  clean     0.4
+low             1   0.00   0.0   85.5   82.8  2.50  2.52   3.8    5.3   63.5  105.4  2.58  1.56  telemark  clean     0.7
+gate+4         26   0.01   0.0   96.0   94.0  2.49  4.50   4.9   70.7  135.5  129.9  5.66  3.62  telemark  clean     0.4
+gate-4         18   0.01   0.0   92.8   90.6  2.50  4.01   3.9   39.5  116.0  124.5  3.31  1.92  telemark  clean     0.4
+early-.05      22  -0.05   0.0   94.4   92.3  2.33  4.19   4.0   51.0  123.5  126.7  4.17  2.44  telemark  clean     0.3
+early-.1       22  -0.09   0.0   94.4   92.3  1.94  3.91   3.7    0.3  114.0  124.0  2.76  1.64  telemark  clean     0.3
+early-.2       22  -0.19   0.0   94.4   92.3  0.61  2.06   3.7    0.3   55.5  106.1  1.57  1.22  telemark  clean     0.0
+late+.05       22   0.05   0.0   94.4   92.3  2.28  4.14   3.8   47.2  122.0  126.6  3.93  2.28  telemark  clean     0.6
+late+.1        22   0.10   0.0   94.4   92.3  1.75  3.61   3.7    0.3  105.0  122.1  1.78  1.25  telemark  clean     0.9
+none           22      -   0.0   94.4   92.3  0.00  1.47   3.7    0.3   39.0  101.9  1.98  1.36  telemark  clean     0.0
+tail-3         22   0.01  -3.0   96.2   93.8  2.49  3.69   4.0   40.6  110.5  129.8  3.17  1.85  telemark  clean     0.5
+tail-2         22   0.00  -2.0   95.6   93.3  2.50  3.88   4.1   45.2  116.0  129.3  3.76  2.18  telemark  clean     0.5
+tail-1         22   0.00  -1.0   95.0   92.8  2.50  4.08   4.1   50.1  121.5  128.6  4.23  2.48  telemark  clean     0.4
+head+1         22   0.01   1.0   93.7   91.8  2.49  4.50   4.5   62.9  132.0  126.3  4.99  3.05  telemark  clean     0.4
+head+2         22   0.01   2.0   93.1   91.2  2.50  4.73   4.7   71.7  138.0  124.9  5.34  3.34  telemark  clean     0.4
+head+3         22   0.01   3.0   92.4   90.6  2.49  4.98   5.1   82.0  143.5  123.2  6.29  4.39  telemark  clean     0.4
+flat           22   0.00   0.0   94.4   92.3  2.50  3.86   3.8   30.9  115.5  128.4  2.87  1.70  telemark  clean     5.5
+flatter        22   0.00   0.0   94.4   92.3  2.50  3.41   3.8   11.4  100.5  125.2  1.77  1.25  telemark  clean     7.9
+steep          22   0.00   0.0   94.4   92.3  2.50  3.97   4.4   49.3  112.5  120.0  3.51  2.02  telemark  clean     5.4
+bare           22   0.00   0.0   94.4   92.3  2.50  4.00   4.4   48.9  113.5  119.8  3.65  2.11  twoFooted clean     6.0
+bare-flat      22   0.00   0.0   94.4   92.3  2.50  2.59   3.8   10.9   74.0  123.0  3.40  1.95  twoFooted clean    19.9
+bare-back      22   0.00   0.0   94.4   92.3  2.50  2.23   3.9   17.2   57.0   99.0  4.40  0.00  fall      fall     31.8
+top-head+3     28   0.01   3.0   94.6   93.0  2.50  5.23   6.7  104.3  153.0  124.8  8.95  7.68  telemark  clean     0.4
+bot            22  -0.02   0.0   94.4   92.3  2.46  4.27   4.2   55.2  126.0  127.4  4.54  2.70  telemark  clean     0.4
+bot-map        22  -0.02  -1.9   95.3   93.1  2.46  3.87   4.0   44.3  115.5  128.8  3.65  2.11  telemark  clean     0.5
+
+THE FACTORS — points; the hill's sheets beside them
+  gate  6.49  (7.67 a metre of in-run)
+  head  9.90  (10.8 a m/s)
+  tail  9.90  (13.07 a m/s)
+```
+
+`make sim ARGS="--mode skiJump --skis albatross --rider light --count 8"`:
+8/8 finished, none out (was 0/8, `dsq start@0`), 105–126.5 m in the map's
+own tail wind, 3.5–4.3 s of air, no wipeout; the default and the aerials
+sims' digests unmoved.
+
+### What the next phases must know (phases 2 and 3)
+
+- `GameState.jump` (`SkiJumpState`, `ski-jump-state.ts`): `stage`
+  (`bar | tracks | air | down`), `gate` (an index, 0 the lowest),
+  `density`, the hill frame's `along`/`across`/`y`, the tracks' `speed`
+  and `left`, the air's `va`/`vw`/`vy`, `aoa`, `lay`, `vee`, `roll`,
+  `prepAt`, and `record` (`JumpRecord`: gate, inRunSpeed, edgeSpeed,
+  timing, share, push, flightTime, peak, peakAt, wind, attitude, roll,
+  veeAt, lost, distance, reach, landingSpeed, into, load, landing,
+  outcome). `staged` stands a wind for the labs; a played run never
+  sets it.
+- The `skiJump` event: `stage` `go` (off the bar), `takeOff` (with the
+  `timing`), `touch` (with the `distance`); the take-off also pushes the
+  engine's `air`, the landing its `land` (the audio's).
+- `createGame`'s `gate` (an index; the jury's when left out); `juryGate`,
+  `gateSpeed`, `hillDensity`, `timeToEdge` (`ski-jump-api.ts`);
+  `startStrict` (`strict.ts`) starts a strict run's clock off the bar.
+- The record's `outcome` settles at the fall line (`clean`), on a hand
+  down (`touch`) or a fall; the phase 5 scorer reads it with `landing`
+  for the style marks, `wind` and `gate` for the compensation.
+- The bot's timing is `ski-jump-steer.ts`'s `botTiming(seed)`; a field's
+  jumpers dealt later should deal theirs the same way, off a stream of
+  their own.
 
 ## Open questions for the user
 

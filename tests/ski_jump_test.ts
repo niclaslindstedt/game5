@@ -244,14 +244,15 @@ describe("the pair, the build and the mode", () => {
     expect(r.window).toBe(SKI_JUMP.window);
   });
 
-  it("stands the jumper on the top gate of the in-run", () => {
+  it("sits the jumper on the bar of the jury's gate", () => {
     const state = createGame({ level: levelFor(1), mode: "skiJump", spec: ALBATROSS });
     const hill = state.level.skiJump!;
     expect(hill).toBeDefined();
-    const top = hill.gates[hill.gates.length - 1];
+    expect(state.jump!.stage).toBe("bar");
+    const gate = hill.gates[state.jump!.gate];
     const p = state.level.track.points[0];
     const along =
       (state.skier.x - p.x) * Math.sin(p.heading) + (state.skier.z - p.z) * Math.cos(p.heading);
-    expect(along).toBeCloseTo(top.x, 1);
+    expect(Math.abs(along - gate.x)).toBeLessThan(1);
   });
 });

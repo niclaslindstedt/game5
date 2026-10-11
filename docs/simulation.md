@@ -45,6 +45,7 @@ npm run sim -- --mode slopestyle --skis raven   # a SLOPESTYLE run (R38): the ra
 npm run sim -- --mode halfpipe --skis raven  # a HALFPIPE run (R39): wall to wall down the pipe, a trick a hit; `score` is the panel's mark for the run
 npm run sim -- --mode moguls --skis ibex     # a MOGULS run (R40): a turn a mogul, a trick an air bump; `score` is the formal score out of 100
 npm run sim -- --mode aerials --skis kestrel --rider light   # an AERIALS qualification jump (R41), `--plan bLFF` for another jump; `score` the formal score × DD, `hrsh` 1 on a landing past what the legs take whole (a triple's, as a real one's)
+npm run sim -- --mode skiJump --skis albatross --rider light   # a SKI JUMP (R43): off the bar, the take-off pressed by the bot's own timing, flown and telemarked in the map's own air (on every map a wind down the mountain, a tail wind on the hill); `score` the distance credited, m, `air` the flight's time
 npm run sim -- --json out.json
 ```
 

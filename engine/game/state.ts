@@ -659,6 +659,17 @@ export type GameEvent =
     }
   /** A SAVE (`crash.ts`): a near throw ridden out — which, how near, 0..1. */
   | { kind: "save"; t: number; save: SaveKind; size: number }
+  /** A SKI JUMP'S MOMENTS (`ski-jump.ts`): off the bar (`go`), off the edge
+   * (`takeOff`, the timing against perfect, s, null never pressed) and the
+   * feet on the snow (`touch`, the distance credited, m). */
+  | {
+      kind: "skiJump";
+      t: number;
+      stage: "go" | "takeOff" | "touch";
+      speed: number;
+      timing?: number | null;
+      distance?: number;
+    }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   | GrimbearEvent

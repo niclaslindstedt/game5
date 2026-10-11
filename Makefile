@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skydive-flight skydive balloon afterski town
 
 build:
 	npm run build
@@ -646,6 +646,15 @@ balloon-flight:
 # --compare=FILE after; SEED= flies the roll on a generated map's strip).
 plane-flight:
 	npm run plane-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE SKI JUMP'S FLIGHT LAB: the in-run's speed over the edge at every few
+# gates, then jumps off the ski jumping hill (R43) jumped by the real engine —
+# the take-off early, late and never, the wind along the hill, the lean, the
+# assist off, the bot — and the hill's gate and wind factors beside its
+# sheets, in pure Node (`scripts/skijump-flight-lab.mjs`; ARGS=--json=FILE
+# before, --compare=FILE after; SEED= another map's hill).
+skijump-flight:
+	npm run skijump-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
 # THE JUMP PLANE LAB: the free ride's jump plane — the Blender model where
 # the build packs it (`make models KIND=plane`), the code's stand-in where it

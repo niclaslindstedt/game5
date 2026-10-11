@@ -6,3 +6,22 @@
 
 export { ALBATROSS, ALL_SKIS, MODE_SKIS } from "./defs/skis.ts";
 export { SKI_JUMP, skiJumpRules } from "./defs/ski-jump.ts";
+export { JUMP } from "./defs/ski-jump-flight.ts";
+export { stepSkiJump } from "./ski-jump.ts";
+export {
+  freshJump,
+  gateSpeed,
+  hillDensity,
+  juryGate,
+  pushShare,
+  slopeAt,
+  timeToEdge,
+} from "./jump-inrun.ts";
+export { idealAoa, jumpFlying, polarAt } from "./jump-flight.ts";
+export type {
+  JumpLanding,
+  JumpOutcome,
+  JumpRecord,
+  JumpStage,
+  SkiJumpState,
+} from "./ski-jump-state.ts";

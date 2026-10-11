@@ -54,6 +54,7 @@ import { speedSkiInput } from "./speed-ski-steer.ts";
 import { slopestyleInput } from "./slopestyle-steer.ts";
 import { halfpipeInput } from "./halfpipe-steer.ts";
 import { mogulsInput } from "./moguls-steer.ts";
+import { skiJumpInput } from "./ski-jump-steer.ts";
 import { packedUnder } from "../game/snow.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
 import { TUNING } from "../game/defs/tuning.ts";
@@ -639,6 +640,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   if (state.para && state.para.mode !== "dropped" && !c.thrown) return paraPilot(state);
   // ...and in a hot air balloon's basket, the bot flies it (`balloon-pilot.ts`).
   if (state.balloon?.aboard) return balloonPilot(state);
+  // ...and on a ski jumping hill, the jump (`ski-jump-steer.ts`).
+  const jumped = skiJumpInput(state);
+  if (jumped) return jumped;
   // GIVE UP on a stretch that has gone nowhere for too long.
   // (A free ride has no gate to wait for; its only way back is the
   // engine's own, off his back or bogged.)

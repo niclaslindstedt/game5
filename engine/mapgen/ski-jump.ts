@@ -365,7 +365,7 @@ export function measuredDistance(d: number): number {
 export function edgeSpeed(p: SkiJumpProfile, gate: number, head = 0): number {
   const el = p.elements;
   const S = R.skier;
-  const mu = Math.tan(R.tracks * RAD);
+  const mu = S.friction;
   const k = (0.5 * S.air * S.crouch) / S.mass;
   const top = el.e1 + R.above;
   let e = p.gates[Math.max(0, Math.min(p.gates.length - 1, gate))].e;

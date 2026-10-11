@@ -20,7 +20,9 @@ import type { GameState, SkierInput } from "./state.ts";
  * centred on a big air in-run. */
 export function inRunInput(run: GameState, held: SkierInput): SkierInput {
   // A SKI JUMP'S IN-RUN (R43): the crouch held in the tracks, straight and
-  // unbraked, to the edge — the jump key the jumper's own.
+  // unbraked, to the edge — the jump key the jumper's own. The tracks
+  // themselves are the wire's (`jump-inrun.ts`, on the controls as asked);
+  // this is what the engine's skier reads meanwhile.
   const hill = run.level.skiJump;
   if (hill && run.rules.inRun) {
     const c = run.skier;

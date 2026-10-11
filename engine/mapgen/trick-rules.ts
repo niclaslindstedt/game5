@@ -798,14 +798,21 @@ export const SKI_JUMP_RULE = {
    * (the norm); the hill's tracks are ice. */
   tracks: 1,
   /** The jumper the in-run's speeds are worked for, a point mass from the
-   * gate: his mass with his kit, kg (the flight models' 72 kg), his
-   * crouch's drag area, m², and the air's density at a hill on a mountain,
-   * kg/m³ (est., ~1500 m). The crouch's ~0.2 m² read off a simulated
-   * large-hill jump's forces leaves the norm's top gate short of the
-   * design speed on ice tracks; 0.15 m² (est.) puts the design gate in the
-   * upper half of the gates, as a jury runs a contest — the in-run lab
-   * fits it to the engine's own. */
-  skier: { mass: 72, crouch: 0.15, air: 1.0 },
+   * gate — and the engine's own in-run (`jump-inrun.ts`) rides these same
+   * numbers: his mass with his kit, kg (the light build the mode rides, 60
+   * kg, and the jumping skis, boots and suit, 7.5 kg — the field's ~66 kg
+   * mean); his CROUCH's drag area, m² (the in-run position's measures run
+   * about 0.15–0.25 m², a simulated large-hill jump's forces reading ~0.2;
+   * an elite crouch, the arms back along the body, at the low end, est. —
+   * any more and the normal hill's top gate falls short of its design
+   * speed); the TRACKS' FRICTION coefficient (refrigerated ice tracks at
+   * speed: 0.005–0.02 for a base on cold ice, est.; the norm designs a hill
+   * on 1°, `tracks`, as an allowance); and the air's density at a hill a
+   * few hundred metres over the sea on a winter day, kg/m³ (the standard
+   * atmosphere off −3 °C at the sea, ~600 m; the engine reads its own
+   * hill's height). Fitted in `make skijump-flight` so the design gate
+   * stands in the upper half of the gates, as a jury runs a contest. */
+  skier: { mass: 67.5, crouch: 0.15, air: 1.24, friction: 0.007 },
   /** The fall line, m of plan past U (est.), and the level out-run past the
    * norm's length, m (the arena's room). */
   fallLine: 20,

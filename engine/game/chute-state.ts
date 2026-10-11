@@ -3,7 +3,10 @@
 // freefall, the canopy opening and flying, cut away, landed or caught —
 // beside `state.ts`, which carries it as `GameState.chute`.
 
-import type { DeployStage } from "./defs/chute.ts";
+import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { CHUTE, type DeployStage } from "./defs/chute.ts";
+import { TUNING } from "./defs/tuning.ts";
+import type { GameState } from "./state.ts";
 
 /** THE CANOPY'S CONTROLS as the jumper works them, read off his own input
  * (`chuteControls`): both toggles down 0..1 (the back key — slow flight and
@@ -43,7 +46,8 @@ export type ChuteEvent = {
   g?: number;
 };
 
-/** WHAT THE SKYDIVE IS DOING: `exit` — out of the door into the plane's
+/** WHAT THE SKYDIVE IS DOING: `ready` — in a wingsuit, stood on a cliff's
+ * edge, the press the jump; `exit` — out of the door into the plane's
  * slipstream, the air turning from along his way to up at him; `freefall`
  * — falling on his body's own drag; `deploying` — the pilot chute thrown
  * and the canopy coming out of its bag and opening (`ChuteDeploy`); `open`
@@ -52,7 +56,37 @@ export type ChuteEvent = {
  * of it; `snagged` — the canopy caught in a crown or on a lift, he hanging
  * under it until a restart. */
 export type ChuteMode =
-  "exit" | "freefall" | "deploying" | "open" | "released" | "landed" | "snagged";
+  "ready" | "exit" | "freefall" | "deploying" | "open" | "released" | "landed" | "snagged";
+
+/** WHAT HE JUMPS IN: a sport skydiver's rig over his ski clothes and his
+ * skis on (`box` — belly to earth, a main and a reserve), or a WINGSUIT over
+ * a one-canopy BASE rig and no skis (`wingsuit`, `wingsuit.ts`). */
+export type ChuteSuit = "box" | "wingsuit";
+
+/** THE WINGSUIT IN FLIGHT (`wingsuit.ts`), read by the drawing, the HUD
+ * and the lab: the suit's angle of attack and its pitch rate, rad and
+ * rad/s; the body's pitch to the horizon (nose up positive), the path's
+ * angle (up positive) and the bank (right side down positive), rad; the
+ * hands after their lag — the lean −1 (dive) … 1 (flare), the arms swept
+ * back 0..1 (the tuck), the wings spread full 0..1 (the back key); how
+ * full of air the suit is 0..1; the lift and the drag on it, N; the glide
+ * it is flying (across over down, through the air); and whether it is
+ * stalled. */
+export type WingsuitFlight = {
+  alpha: number;
+  q: number;
+  pitch: number;
+  path: number;
+  bank: number;
+  lean: number;
+  sweep: number;
+  spread: number;
+  pressure: number;
+  lift: number;
+  drag: number;
+  glide: number;
+  stalled: boolean;
+};
 
 /** A point the drawing hangs a piece on, world frame, m. */
 export type ChutePoint = { x: number; y: number; z: number };
@@ -105,6 +139,14 @@ export type ChuteSnag = {
  * the stream. */
 export type ChuteState = {
   mode: ChuteMode;
+  /** What he jumps in. In a WINGSUIT `ready` is stood on a cliff's edge
+   * before the jump, `exit` the start arc off it (or off the door), and
+   * `freefall` the suit FLYING (`wing`); his canopy is the BASE rig's one
+   * (`CHUTE.base`, no reserve and nothing to cut away), he lands on his
+   * boots and `landed` is him ON FOOT; he wears NO SKIS throughout. */
+  suit: ChuteSuit;
+  /** THE WINGSUIT'S FLIGHT, in a wingsuit (absent in the box). */
+  wing?: WingsuitFlight;
   /** Seconds in this mode; seconds since the exit. */
   t: number;
   since: number;
@@ -170,3 +212,47 @@ export type ChuteState = {
    * lies where it came down. */
   done: boolean;
 };
+
+/** A skydive begun where the skier is, in `mode`, in `suit`. */
+export function freshChute(state: GameState, mode: ChuteMode, suit: ChuteSuit = "box"): ChuteState {
+  const c = state.skier;
+  const flat = hypot(c.vx, c.vz);
+  return {
+    mode,
+    suit,
+    t: 0,
+    since: 0,
+    attitude: mode === "exit" ? CHUTE.exit.poise : Math.PI / 2,
+    track: 0,
+    slide: 0,
+    heading: flat > 2 ? Math.atan2(c.vx, c.vz) : c.heading,
+    turn: 0,
+    airspeed: c.speed,
+    density: TUNING.airDensity,
+    agl: 0,
+    fall: -c.vy,
+    g: 0,
+    peak: 0,
+    deploy: null,
+    reserve: false,
+    x: c.x,
+    y: c.y,
+    z: c.z,
+    vx: c.vx,
+    vy: c.vy,
+    vz: c.vz,
+    canopyHeading: c.heading,
+    bank: 0,
+    pitch: 0,
+    alpha: 0,
+    stalled: false,
+    tension: 0,
+    controls: { brake: 0, steer: 0, riser: 0 },
+    piece: null,
+    sparePiece: null,
+    snag: null,
+    fell: false,
+    settle: 0,
+    done: false,
+  };
+}

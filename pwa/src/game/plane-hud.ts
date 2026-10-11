@@ -92,7 +92,7 @@ export function planeOf(state: GameState): HudPlane | null {
 
 /** THE SKYDIVE as the HUD reads it. */
 export type HudChute = {
-  mode: Exclude<ChuteMode, "landed">;
+  mode: Exclude<ChuteMode, "landed" | "ready">;
   /** His height over the snow, m; his fall, m/s (down positive); the air
    * through him or the canopy, m/s. */
   height: number;
@@ -113,7 +113,10 @@ export type HudChute = {
  * snow, and caught; gone once he is down on his skis or thrown. */
 export function chuteOf(state: GameState): HudChute | null {
   const ch = state.chute;
-  if (!ch || ch.done || ch.fell || ch.mode === "landed" || state.skier.thrown) return null;
+  if (!ch || ch.done || ch.fell || ch.mode === "landed" || ch.mode === "ready") return null;
+  if (state.skier.thrown) return null;
+  // A wingsuit's BASE rig has one canopy: nothing to cut away, no reserve.
+  const spare = ch.suit !== "wingsuit" && !ch.reserve;
   const falling = ch.mode === "exit" || ch.mode === "freefall";
   return {
     mode: ch.mode,
@@ -126,9 +129,9 @@ export function chuteOf(state: GameState): HudChute | null {
     press:
       (ch.mode === "exit" && ch.since >= CHUTE.exit.clear) || ch.mode === "freefall"
         ? "open"
-        : ch.mode === "open" && !ch.reserve
+        : ch.mode === "open" && spare
           ? "release"
-          : ch.mode === "released" && !ch.reserve && ch.agl > CHUTE.handover
+          : ch.mode === "released" && spare && ch.agl > CHUTE.handover
             ? "reserve"
             : null,
   };

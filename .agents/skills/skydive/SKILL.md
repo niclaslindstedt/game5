@@ -38,7 +38,8 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The lenses | `pwa/src/game/camera-skydive.ts` (the freefall's flyer, the opening), `camera-para.ts`'s `CHUTE_RIGS` (under the canopy) |
 | The HUD, the words | `plane-hud.ts`'s `chuteOf`, `hud-plane.tsx`, `strings-chute.ts`, `run-news.ts` |
 | The sound | `audio/chute-voice.ts`, `chute-bed.ts` (`rideShares`: the ride bed silent while he falls), `chute-bank.ts` |
-| The labs | `scripts/skydive-flight-lab.mjs`; `scripts/skydive-preview.mjs` over `pwa/skydive-preview.html`, `pwa/src/tools/skydive-harness.ts`, `skydive-scenes.ts` |
+| THE WINGSUIT on the same step (`ChuteState.suit` `"wingsuit"`, no skis, no reserve): the flight, the exit and its hover, the BASE canopy (`CHUTE.base`), the landing on his boots, the bot | `engine/game/wingsuit.ts`, `wingsuit-start.ts`, `wingsuit-pilot.ts`, `defs/wingsuit.ts`; `docs/wingsuit.md`; `tests/wingsuit_test.ts` |
+| The labs | `scripts/skydive-flight-lab.mjs`, `scripts/wingsuit-flight-lab.mjs`; `scripts/skydive-preview.mjs` over `pwa/skydive-preview.html`, `pwa/src/tools/skydive-harness.ts`, `skydive-scenes.ts` |
 
 ## The numbers it is held to
 
@@ -58,6 +59,10 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The reserve: height from the cut-away to full / its peak near terminal | < 90 m / 3–6 g | `reserve-lost`, `reserve-g` |
 | The reserve hands off: forward / sink / glide / landed flared | 11–14 m/s / 4.5–5.5 m/s / 2.2–2.8 / < 2.5 m/s | `reserve-fwd`, `-sink`, `-glide`, `-land` |
 | Nearest the edge tracking / under a canopy | > 0 m | `edge-track`, `edge-canopy` |
+| THE WINGSUIT: glide / across / sink | 3.0–3.5 / 150–190 km/h / 10–14 m/s | `wingsuit-flight`'s `glide-ratio`, `-across`, `-sink` |
+| The wingsuit's dive / flare | ≥ 250 km/h / a climb of 10–40 m | `dive-top`, `flare-gain`, `flare-sink` |
+| The wingsuit's exit: drop / time to flying | 60–120 m / 4–7 s | `exit-drop`, `exit-time` |
+| The BASE canopy: full / height / forward / sink | 3–5 s / 60–150 m / 8–10 m/s / 3.5–5 m/s | `pull-full`, `pull-lost`, `canopy-fwd`, `canopy-sink` |
 
 ## The labs
 
@@ -68,6 +73,9 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   bot's whole jump on seed 38: the exit height, the pull, how far from its
   spot it lands). A change to `canopy.ts` also owes `make para-wind`
   `--compare` (the paramotor unmoved) and `tests/para_test.ts`.
+- **`make wingsuit-flight`** (pure Node, seconds) — the same before and
+  after every change to `WINGSUIT`, `CHUTE.base`, `wingsuit*.ts` or the
+  chute step the suit rides on; a change to the chute step owes both labs.
 - **`make skydive`** (browser, its own bundle) — every sheet before and
   after a change to the look: `gear`, `exit`, `freefall`, `deploy` (the
   opening frame by frame, off his side and on the chase lens), `shape` (the

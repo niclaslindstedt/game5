@@ -86,6 +86,7 @@ import { startPara } from "./para.ts";
 import { startBalloon } from "./balloon.ts";
 import { freshPlane, startPlane } from "./plane.ts";
 import { skydiveAt } from "./chute.ts";
+import { standOnExit } from "./wingsuit-start.ts";
 import { jumpSpotOf } from "./plane-pilot.ts";
 import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
@@ -257,6 +258,13 @@ export type CreateGameOptions = {
    * without the climb. Ignored where the balloon, the paramotor or the
    * lodge start, and by every mode but the free ride. */
   chute?: number;
+  /** A FREE RIDE IN A WINGSUIT (`wingsuit.ts`): every jump of it in the
+   * suit over a one-canopy BASE rig, NO SKIS on — with `plane`, crouched in
+   * the plane's door; with `chute`, flying the suit's glide that high; else
+   * STOOD ON THE CLIFF EXIT high on the mountain (`wingsuitExitOf`), facing
+   * out over the drop, the press the jump. Ignored where the balloon, the
+   * paramotor or the lodge start, and by every mode but the free ride. */
+  wingsuit?: boolean;
   /** A FREE RIDE begun INSIDE the valley's afterski lodge (`afterski.ts`),
    * the party under way and his skis in the rack. Wins over every other
    * start. Ignored by every mode without lodges. */
@@ -539,19 +547,21 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     free && options.chute !== undefined && !balloon && !para && !options.inLodge
       ? options.chute
       : -1;
-  const other = para || balloon || plane || chute >= 0;
+  const wingsuit = free && options.wingsuit === true && !balloon && !para && !options.inLodge;
+  const other = para || balloon || plane || chute >= 0 || wingsuit;
   if (state.heli && options.heli && !other) startAgain(state, []);
   if (state.sled && options.sled && !(state.heli && options.heli) && !other) {
     startSled(state, []);
   }
+  if (wingsuit) state.wingsuit = { from: plane || chute >= 0 ? "plane" : "cliff" };
   if (para) startPara(state, []);
   if (plane) startPlane(state, []);
   if (balloon) startBalloon(state, []);
   if (chute >= 0) {
     if (!state.plane) state.plane = freshPlane(state);
     const spot = jumpSpotOf(state);
-    skydiveAt(state, { x: spot.x, z: spot.z, agl: chute });
-  }
+    skydiveAt(state, { x: spot.x, z: spot.z, agl: chute, suit: wingsuit ? "wingsuit" : "box" });
+  } else if (wingsuit && !plane) standOnExit(state, []);
   // Up a lift: to the chair whose run passes nearest the spot, or with no
   // spot to the top of the run picked — the one the start card marks —
   // whatever kind of lift serves it.

@@ -859,6 +859,10 @@ export type GameState = ContestState & {
   balloon?: import("./balloon-state.ts").BalloonState;
   plane?: import("./plane-state.ts").PlaneState;
   chute?: import("./chute-state.ts").ChuteState;
+  /** A WINGSUIT RIDE (`wingsuit-start.ts`): every jump of it in the suit,
+   * begun again where it began — on the cliff exit, in the plane's door, or
+   * (off another craft) on the cliff exit. Absent, he jumps in the box. */
+  wingsuit?: { from: "cliff" | "plane" | "air"; hover?: number };
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;

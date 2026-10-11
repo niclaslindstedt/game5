@@ -204,6 +204,10 @@ export const CRASH = {
     // Flung out of a crashing jump plane's door (`plane.ts`): out and over
     // head first, tumbling onto a side.
     plane: { pitch: 0.9, side: 0.6, up: 2 },
+    // Flown into the snow in a wingsuit (`wingsuit.ts`): at the speed he
+    // flies, head over heels along the way he went and over onto a side,
+    // barely off the snow he skims.
+    wingsuit: { pitch: 1, side: 0.4, up: 0.4 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

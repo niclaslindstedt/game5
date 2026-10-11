@@ -1,0 +1,135 @@
+# The wingsuit
+
+A free ride can be flown in a WINGSUIT: a large three-wing suit (two arm wings and a leg wing, ram-air, the arms and legs its spars) over a BASE rig with one canopy and **no reserve**. **He wears no skis**: he jumps on his boots and lands on them. The engine takes it with `CreateGameOptions.wingsuit`:
+
+- **On its own** (`wingsuit: true`), he stands at the CLIFF EXIT high on the mountain, facing out over the drop.
+- **With `plane`** (or `chute`), he goes out of the jump plane's door in the suit ([the jump plane](airplane.md)).
+- **Out of any other craft**, a hook (`wingsuitOut`) takes him out at the craft's position and velocity. The helicopter, the balloon and the paramotor do not call it yet.
+
+The engine side:
+
+| File | What it holds |
+| --- | --- |
+| `engine/game/wingsuit.ts` | The flight, the ledge and the jump, the snow met, the landing and the walk |
+| `wingsuit-start.ts` | The exit searched on a map, stood on it, the hook out of a craft |
+| `wingsuit-pilot.ts` | The bot's hands |
+| `defs/wingsuit.ts` | `WINGSUIT`: every number, with its source |
+
+It rides on the skydive's step (`chute.ts`, [the skydive](skydive.md)): `ChuteState.suit` is `"wingsuit"`, its flight `ChuteState.wing` (`WingsuitFlight`), and the canopy `CHUTE.base` on `canopy.ts`'s maths. `GameState.wingsuit` says where the ride began (`from`: `"cliff"`, `"plane"` or `"air"`) and, on a cliff exit, the hover he is held at (`hover`, below). Nothing draws from the stream, and a ride with no wingsuit never comes in here, so no digest moves.
+
+## The press
+
+The machine press (**Enter**, a double tap on touch):
+
+1. **On the exit: JUMP.** The tuck pressed past half does the same.
+2. **Flying: PULL**, from a second after the jump.
+
+Under the canopy the press does nothing: there is nothing to cut away to. On the snow, on his boots, the press begins the jump again at its exit, and so does the reset.
+
+## The air on the suit
+
+The model is the one fitted to a flight-test logger worn by a flyer in a large glide suit. The lift and the drag are *factors* that fold the half, the coefficient and the area into square metres:
+
+  L = ρV²·cL(α),  D = cp·ρV² + L²/(ci·ρV²)
+
+The best glide is ½·√(ci/cp) whatever the density or the mass, which move only the speeds. The paper's suit was of an older generation, with a best glide near 2.7. A large modern suit is scaled from it as the research does: a larger induced factor for the longer, wider wing.
+
+The lift factor rises 1.3 m² a radian from −0.14 rad of attack and tops out at the stall, 0.6 rad. Past it, it falls gently and the drag grows: he mushes.
+
+The suit **pressurises** with the air through it. It is empty below 8 m/s and full by 18 m/s, over half a second. Before then it is a body with little lift.
+
+| The hands | Key | What it does |
+| --- | --- | --- |
+| Pitch | The lean | Forward toward the dive's trim (0.05 rad), back toward the flare's (0.42 rad) |
+| Roll | The edge | Rolls him to 1.15 rad of bank in 0.35 s. The tilted lift turns him; a turn is pulled a little higher and sinks |
+| Sweep | The tuck | The arms swept back to the hips: the delta dive, with less lift, less drag and a lower trim |
+| Spread | The back key | The wings full and pushed forward: more lift and drag, and a higher trim. With the lean back, it is **the flare** |
+
+**The attack is its own short period.** The pitching moment pulls the attack toward its trim and the pitch rate is damped (0.20 m³ a radian, 16 kg·m²). It rings near 0.9 Hz and settles in about a second and a half. The path is turned by the lift and by gravity across it. Nothing else is written in: the **phugoid** (the speed's long swing) comes out of it at about 24 s.
+
+**The air** is the paramotor's (`para-air.ts`): the map's wind, the ridge lift and the lee. The density is the standard atmosphere's for the height. At the map's edge it is the airborne edge's band (`AIR_BOUNDS.wingsuit`, 600 m), blowing him back in and turning his hand to the middle, as every craft in the air.
+
+## The exits
+
+**The cliff exit** (`wingsuitExitOf`, memoized per map) is searched over the top 55 % of the mountain's vertical, every 12 m, on the fall line and 0.35 rad either side. The 48 likeliest spots are kept: the drop over 30 m, plus three tenths of the drop over 100 m, plus a tenth of each metre the spot stands above the band's foot. Off each one the **start arc** is flown: the suit's own lift and drag on a point mass, from a running push of 4.5 m/s out and 0.8 m/s up. The highest spot whose arc clears the snow by 10 m is taken.
+
+A real exit point is a wall near sheer for its first hundred metres. A generated mountain has no such wall: its faces top out near 45°, and the arc off the best of them meets the snow 60–80 m down. So on every generated map the exit is a **HOVER**. He stands on the skid of a helicopter held still over the highest of those edges, at the least height (100–800 m, in 25 m steps) whose arc from rest clears the snow. He steps off at 1 m/s. On seed 38 that is 175 m, and on the others tried, 150–175 m. `WingsuitExit.hover` says which kind it is, and so does `GameState.wingsuit.hover`.
+
+**The exit's attack**: he leads with his body into the air coming up at him, at 0.55 rad of attack, just short of the stall, where the suit's lift is greatest. It is held there until the air reaches 15 m/s. The hands are his from a second after the jump. He is **flying** once his path's glide reaches 1 (as fast across as down), or after 14 s. On seed 38 that is 114 m and 5.8 s after the jump.
+
+**Out of the plane's door** he leaves at the jump run's speed. The suit is full and flying 1.5 s later, 4 m lower.
+
+## The pull and the canopy
+
+The pull starts the skydive's staged opening on the **BASE rig** (`CHUTE.base`):
+
+- **The canopy**: a single 7-cell canopy of 24.2 m², 6.6 m across, on 4.6 m of lines.
+- **The slider**: up.
+- **The pilot chute**: a 1.0 m hand-thrown pilot chute on a 2.7 m bridle.
+
+| Stage | Ends, s after the throw | Drag area, m² |
+| --- | --- | --- |
+| The pilot chute | 0.6 | 0.4 |
+| The bag | 1.1 | 0.75 |
+| Line stretch | 1.7 | 1.8 |
+| The snivel | 3.5 | 4.6 |
+| Full | 4.3 | 17 |
+
+The suit's own drag area is 0.15 m², and its lift is carried through the opening until line stretch. Thrown from the glide, it is full in about 4.3 s, 67 m lower, at a peak of about 2 g.
+
+Hands off, the canopy flies 9.1 m/s forward and 3.6 m/s down: a large, docile BASE canopy. It is flown on the skydive's keys:
+
+- **The edge** is the toggles.
+- **The back key** is both brakes and the flare.
+- **The lean** is the risers.
+
+## The snow and the landing
+
+**The snow met in flight** throws him. This is the snow under him (or where he will be next step) within the body's 0.3 m half thickness, or a crown within 0.2 m. The cause is `wingsuit`, or `tree` for a crown. Once he has lain, the jump begins again at its exit: the cliff (or hover), the plane's door, or for a craft's drop, the cliff exit.
+
+**Landed under the canopy**, the canopy is let go and he is **on his boots**:
+
+- **Too hard**: from 6 m/s of sink, or 9 m/s across the snow, he is thrown (`landing`).
+- **Otherwise**: he runs it out at 5 m/s² and walks at 1.4 m/s at most, turning at 1.6 rad/s.
+
+## The bot
+
+`wingsuitPilot` flies the suit and `wingsuitInput` is the whole ride: the press on the exit, then the suit, then the skydive's own pattern (`chutePilot`).
+
+- **The line**: it flies hands off down the fall line.
+- **The snow ahead**: it looks 2 and 4 s along its way. It turns down the fall line harder where the snow ahead comes within 40 m, and leans back and spreads (a flare) where it comes within 15 m.
+- **The pull**: it slows from 450 m over the valley floor and pulls at 350 m. It never pulls in the start arc. Flying, it also pulls when the snow ahead is closer than it can lift him off and he is within 40 m of it.
+
+On seed 38 it flies 3.7 km in the suit, pulls 337 m over the snow and lands on its boots 3.4 km from the exit.
+
+## The lab
+
+`make wingsuit-flight` (pure Node, seconds; the flat map, plus seed 38 for the exit and the whole flight). Each row sits beside its band:
+
+| Row | Value | Band |
+| --- | --- | --- |
+| `glide-ratio` | 3.2 | 3.0–3.5 |
+| `glide-across` | 152 km/h | 150–190 |
+| `glide-sink` | 13.1 m/s | 10–14 |
+| `dive-top` | 359 km/h | ≥250 |
+| `flare-gain` | 20.7 m | 10–40 |
+| `flare-sink` | −8.0 m/s (climbing for 4 s) | <0 |
+| `flare-held` | 10.4 m/s | >10 |
+| `short` | 0.9 Hz | 0.6–1.0 |
+| `phugoid` | 24 s | 10–30 |
+| `turn-rate` | 17.8 °/s | 15–35 |
+| `turn-sink` | 21.4 m/s | 12–25 |
+| `exit-drop` | 114 m | 60–120 |
+| `exit-time` | 5.8 s | 4–7 |
+| `plane-time` | 1.5 s | 1–4 |
+| `plane-lost` | 3.9 m | <100 |
+| `pull-full` | 4.3 s | 3–5 |
+| `pull-lost` | 67 m | 60–150 |
+| `pull-g` | 2.1 g | 2–5 |
+| `canopy-fwd` | 9.1 m/s | 8–10 |
+| `canopy-sink` | 3.6 m/s | 3.5–5 |
+| `land` | 2.1 m/s | <3 |
+| `edge` | 256 m | >0 |
+| `flight` | 3.7 km | — |
+
+Write the table with `ARGS=--json=FILE` before a change and compare against it with `--compare=FILE` after. `SEED=` flies another map. `tests/wingsuit_test.ts` holds the bands that matter.

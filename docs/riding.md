@@ -129,9 +129,33 @@ The ride lab's scenarios for these (`scripts/lib/ride-board-moves.mjs`, ridden o
 
 THE BOT AND SEED 6. The bot plans every turn on the heel already — `cornerGrip`, `carveSpeedOf` and `tipLimit` read side 0 as the heel — so planning a heelside turn on the heel's weaker grip changes nothing: scaling its grip and braking further by the heel's share of the edge still misses seed 6's gate 16, and slower. The miss is the bot near the piste's edge on a 25–30° pitch skidding on full brake on its heel edge, the pitch outrunning the brake, turning too late and passing about 3 m outside the gate's end. It is a steering and braking matter, left open. Out of the start the bot pushes with the one-foot skate like any rider.
 
+### The snowboarder as drawn (`board-look.ts`, `board-body.ts`, `board-pose.ts`, `board-model.ts`)
+
+A board in the catalog (`isBoard`) is drawn by `board-model.ts` in place of the skis — `createSkisModel` hands it over on its first line, so no pair of skis moves. THE BOARD is built in code: a lofted deck off the spec's outline (the sidecut, the kicked nose and tail, the camber), its topsheet, base and sidewall painted into one small texture (`board-look.ts`'s `LYNX_SHEET`), tipped by the engine's edge and BOWED by the carve (`boardBend`: the edge over the sidecut, by the load); two STRAP BINDINGS set at the stance's angles (a baseplate on its disc, the heel cup, a highback leaned forward, a ratcheted ankle strap and a toe strap); SOFT BOOTS in them (a broad sole, a padded cuff, the tongue and laces). The parts are merged per colour; the deck is one mesh of its own. The engine's stations stand a centimetre or two into even the groomer, which would hide a deck lying flat; the deck is drawn on the snow's surface (`board-input.ts` lifts it by the stations' mean sink), and the trail map's groove under it carries the sink. A board's fall is a WIPEOUT in the news, never a YARD SALE: nothing comes off a board.
+
+THE RIDER is posed by the three-free `board-pose.ts` off what `board-input.ts` reads of the engine (the edge, the inclination, the legs' spring, the tuck, the air, a hit, the skid, the travel, fakie, the free foot) into the same `SkierPose` the skier's figure is drawn from, his poles put away:
+
+- the ATHLETIC STANCE across the board: the knees bent about 50°, the hips over the deck and square to it, the shoulders opened a little toward the nose, the eyes along his travel;
+- A CARVE IS CARRIED BY THE INCLINATION: the figure's root is already rolled onto the line the engine inclines him along, so the body stays one long line from the edge, tall-ish, and is never folded at the waist or put down on his knees. TOESIDE: the knees and ankles driven into the hill, the hips over the toes, the chest facing up the slope, both arms forward at waist height. HEELSIDE: the hips low over the heel edge as on a chair (the knees 70–100°), the chest open down the hill, the front arm pointing down the turn and the rear hand trailing low. Only on a turn cut hard does a hand go toward the snow (the front one toeside, the rear one heelside), and never both. The hips are set across the board as the DECK lies, not as the inclined column does, so where the engine's inclination and edge differ he stands over the edge instead of sitting down behind it;
+- the TUCK down over the front knee; the AIR with the knees drawn up and the arms out; a LANDING folded into the legs; the HOP lifting him off the snow;
+- the ONE-FOOT SKATE with the rear foot out of its binding pushing beside the board, the PIVOT, the SIDESLIP and the FALLING LEAF on the edge, FAKIE looking over the other shoulder;
+- THROWN, the ragdoll's pose with the board kept on his feet (`boardUnderFeet`: the deck laid along his feet, its bindings under his boots).
+
+`make board-metrics` rides each moment in Node and measures it against bands from the snowboarding research:
+
+- the knees: 30–80° riding, 50–95° on a heelside carve and 60–105° on one cut hard, deeper in a tuck and a landing;
+- the hips' line within ~20° of the board, the shoulders' within ~30°;
+- the eyes within ~45° of his travel;
+- the spine within ~30° of the line he inclines along;
+- the hips' height over the deck at least 0.6 of their height on straight legs;
+- the hands on the snow: none, and at most one in a turn cut hard;
+- the lower hand's height, and the hips over the working edge.
+
+Every moment is inside its bands. `make board` draws the gear sheet; `make skier ARGS=--skis=lynx` the rider through every move. `tests/board_pose_test.ts` holds the pose.
+
 Still to come:
 
-- the figure (the free foot, the skate's push, the sideslip's stance, the leaf, the slam and the faceplant drawn), and the app's words for a board's fall into a trunk — it still says YARD SALE.
+- at the engine's inclination (about 45–50° in a hard carve) the heelside rear hand cannot reach the snow from a body kept on its inclined line; it trails some 0.35 m over it.
 
 ## Where the skis meet the snow, and the legs (`suspension.ts`)
 

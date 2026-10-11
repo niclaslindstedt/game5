@@ -46,6 +46,8 @@
     "damage": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/damage-preview.mjs",
     "hud-body": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/hud-body.mjs",
     "gear": "node scripts/gear-preview.mjs",
+    "board": "node scripts/board-preview.mjs",
+    "board-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/board-metrics.mjs",
     "skier": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-preview.mjs",
     "skier-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-metrics.mjs",
     "sag": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sag-lab.mjs",

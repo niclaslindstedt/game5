@@ -66,12 +66,13 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 import * as SKIER from "./lib/skier-moves.mjs";
 import { HOP_SWITCH_MOMENTS, HOP_SWITCH_MOVES } from "./lib/hop-switch-moves.mjs";
 import { REVERT_MOMENTS, REVERT_MOVES } from "./lib/revert-moves.mjs";
+import { BOARD_MOMENTS, BOARD_MOVES } from "./lib/board-figure-moves.mjs";
 
 // The skier lab's moves and the revert lab's (`make revert`) beside them.
-const MOVES = [...SKIER.MOVES, ...REVERT_MOVES, ...HOP_SWITCH_MOVES];
-const MOVE_IDS = MOVES.map((m) => m.id);
-const MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS, ...HOP_SWITCH_MOMENTS];
-const MOMENT_IDS = MOMENTS.map((m) => m.id);
+const SKI_MOVES = [...SKIER.MOVES, ...REVERT_MOVES, ...HOP_SWITCH_MOVES];
+const MOVE_IDS = SKI_MOVES.map((m) => m.id);
+const SKI_MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS, ...HOP_SWITCH_MOMENTS];
+const MOMENT_IDS = SKI_MOMENTS.map((m) => m.id);
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".skier-preview");
@@ -122,11 +123,19 @@ const args = parseArgs(
   "usage: node scripts/skier-preview.mjs [--move=a,b] [--sheet=moves|path|turntable|closeup|detail|game|stretch] [--moment=a,b] [--code] [--frames=n] [--views=a,b]",
 );
 
+// ON A BOARD (`--skis=lynx`) the rider's own moves and moments
+// (`board-figure-moves.mjs`).
+aliasEngine(root);
+const E = await import(join(root, "engine/index.ts"));
+const spec = E.pairById(args.skis);
+const onBoard = E.isBoard(spec);
+const MOVES = onBoard ? BOARD_MOVES : SKI_MOVES;
+const MOMENTS = onBoard ? BOARD_MOMENTS : SKI_MOMENTS;
 const moves = args.move
   ? args.move.split(",").map((id) => {
       const m = MOVES.find((x) => x.id === id);
       if (!m) {
-        console.error(`unknown move "${id}" (${MOVE_IDS.join(", ")})`);
+        console.error(`unknown move "${id}" (${MOVES.map((x) => x.id).join(", ")})`);
         process.exit(2);
       }
       return m;
@@ -137,7 +146,7 @@ const moments = args.moment
   ? args.moment.split(",").map((id) => {
       const m = MOMENTS.find((x) => x.id === id);
       if (!m) {
-        console.error(`unknown moment "${id}" (${MOMENT_IDS.join(", ")})`);
+        console.error(`unknown moment "${id}" (${MOMENTS.map((x) => x.id).join(", ")})`);
         process.exit(2);
       }
       return m;
@@ -170,11 +179,8 @@ const injuries = brokenWords.flatMap((w, i) =>
 const tag = args.broken ? `-broken-${brokenWords.join("-")}` : "";
 
 // ── Ski every move through the real engine ────────────────────────────────
-aliasEngine(root);
-const E = await import(join(root, "engine/index.ts"));
 const S = await import(join(root, "tests/support/synthetic.ts"));
 const SPRING = await import(join(root, "pwa/src/game/skier-spring.ts"));
-const spec = E.skisById(args.skis);
 const n = { x: 0, y: 1, z: 0 };
 
 /** One step's record: the whole skier as the engine left him, and the

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight balloon afterski town
 
 build:
 	npm run build
@@ -226,6 +226,26 @@ gear:
 # ARGS="--json=a.json" / "--compare=a.json" a before and after.
 skier-metrics:
 	npm run skier-metrics -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE BOARD LAB: the snowboard as the game draws it (`board-body.ts`) — the
+# deck's top, base and profile and bowed by a carve, the deck dressed with
+# its strap bindings and soft boots from four sides and at chase range, a
+# binding alone and a boot in it from four sides — one contact sheet,
+# previews/board.png, and the triangles. Its own one-off bundle from
+# pwa/board-preview.html; needs a Chromium like `world`. The rider on it
+# is the skier lab's: `make skier ARGS=--skis=lynx`.
+board:
+	npm run board -- $(ARGS)
+
+# THE BOARD METRICS LAB: is the snowboarder's pose a real rider's? The
+# skier lab's board moments ridden by the engine in pure Node and the pose
+# (`board-pose.ts`) measured — the knees, the hips and shoulders against
+# the board, the head against his travel, the low carve's hand over the
+# snow, the hips over the working edge — against bands off the research.
+# Seconds, no browser. ARGS="--moment=toe,heel"; ARGS="--json=a.json" /
+# "--compare=a.json" a before and after.
+board-metrics:
+	npm run board-metrics -- $(ARGS)
 
 # THE SAG LAB: the body PULLED DOWN onto his legs — landings, a pitch run
 # out onto the flat, a stop down a pitch, rollers, a tuck, and generated

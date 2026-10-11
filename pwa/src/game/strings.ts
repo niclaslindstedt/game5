@@ -35,7 +35,8 @@ import { CHUTE_STRINGS } from "./strings-chute.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
-import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
+import { FREESTYLE_STRINGS } from "./strings-freestyle.ts";
+import { SKI_JUMP_STRINGS } from "./strings-skijump.ts";
 import { SLOPESTYLE_STRINGS } from "./strings-slopestyle.ts";
 import { HALFPIPE_STRINGS } from "./strings-halfpipe.ts";
 import { MOGULS_STRINGS } from "./strings-moguls.ts";
@@ -120,7 +121,8 @@ export const STRINGS = {
   ...CHUTE_STRINGS,
   ...GROOMER_STRINGS,
   ...TRAFFIC_STRINGS,
-  ...BIG_AIR_STRINGS,
+  ...FREESTYLE_STRINGS,
+  ...SKI_JUMP_STRINGS,
   ...SLOPESTYLE_STRINGS,
   ...HALFPIPE_STRINGS,
   ...MOGULS_STRINGS,
@@ -453,7 +455,7 @@ export const STRINGS = {
   comboBanked: (points: number): string => `+${points.toLocaleString("en-US")}`,
   comboSketchy: "SKETCHY",
   comboBailed: (points: number): string => `BAILED −${points.toLocaleString("en-US")}`,
-  keyTrick: "GRAB",
+  keyTrick: "GRAB · TELEMARK",
   newsTricksFinish: (points: number): string => `TIME! ${points.toLocaleString("en-US")} PTS`,
   resultTricksTitle: "TRICKS",
   pauseSubTricks: (seed: number, points: number): string =>

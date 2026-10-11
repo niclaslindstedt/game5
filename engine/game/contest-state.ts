@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREESTYLE CONTESTS A RUN IS PART OF: what `GameState` carries between
-// a contest's runs (big air, slopestyle, the halfpipe, moguls, aerials).
+// a contest's runs (slopestyle, the halfpipe, moguls, aerials, ski jumping).
 // Stated apart so the run's own state stays under its line cap;
 // `GameState` is this and the run.
 
-import type { BigAirContest } from "./big-air-contest.ts";
 import type { SlopeContest } from "./slopestyle-contest.ts";
 import type { PipeContest } from "./halfpipe-contest.ts";
 import type { MogulsContest } from "./moguls-contest.ts";
@@ -15,12 +14,8 @@ import type { SkiJumpState } from "./ski-jump-state.ts";
 import type { SkiJumpContest } from "./ski-jump-contest.ts";
 
 export type ContestState = {
-  /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`), before this
-   * run's jump — carried for the judges and the app; never read by a
-   * step. */
-  bigAir?: BigAirContest;
-  /** A SLOPESTYLE CONTEST so far (R38, `slopestyle-contest.ts`), carried
-   * between its runs as big air's is. */
+  /** A SLOPESTYLE CONTEST so far (R38, `slopestyle-contest.ts`), before
+   * this run — carried for the judges and the app; never read by a step. */
   slopestyle?: SlopeContest;
   /** A HALFPIPE CONTEST so far (R39, `halfpipe-contest.ts`), carried
    * between its runs as slopestyle's is. */

@@ -610,8 +610,8 @@ Each phase lands green and with its lab's before and after in the PR.
       the player's book (`SkiJumpContest.level`, 0.5 today), a round
       restarted when it passes HS, the normal hill's par re-measured once
       its design gate is under its top gate.
-- [ ] **6. Big air retired** (the list above), R37 rewritten.
-- [ ] **7. The app**: the tricks card, the hill row, the HUD, the plate and
+- [x] **6. Big air retired** (the list above), R37 rewritten.
+- [x] **7. The app**: the tricks card, the hill row, the HUD, the plate and
       the board, the words, the URL, the records, the replay recipe;
       `tests/ski_jump_hud_test.ts`; `screenshots --surface freestyle`.
 - [ ] **8. The hill as drawn**: every piece above; `make skijump`'s
@@ -853,6 +853,36 @@ sims' digests unmoved.
   `style`, `gatePoints`, `wind`, `windPoints`, `points`).
 - The wind the HUD shows on the bar: `windAlong(state, state.jump!, 0)`;
   the stations' readings `record.stations`, their mean `record.measured`.
+
+## Settled (phases 6 and 7)
+
+- **Big air is gone** as the list above has it: its mode, contest, app
+  side, words, link, sim mode, tests and spec. `lipSpeed`, `JumpProfile`
+  and `jumpHeightAt` live in `straight-venue.ts` (held by
+  `tests/straight_venue_test.ts`); the judges' cases are
+  `tests/judge_test.ts`; R37 is the straight venue's rule. A stored book
+  row or a statistics figure naming a mode this build does not offer is
+  dropped on the way in (`records.ts`'s `mergeRecords`, `stats.ts`). Of
+  `BIG_AIR.md`'s open boxes only the kicker's take-off angle still applies
+  — it moved to `SLOPESTYLE.md`'s research; the rest left with the mode.
+- **The app** (`ski-jump-run.ts`, `hud-skijump.tsx`, `strings-skijump.ts`,
+  `skijump.css`; `tests/ski_jump_hud_test.ts`): the contest is stood up on
+  the APP side (`withJumpContest`, off the run's seed), so no engine
+  digest moves. The leader is the best jumper before the player in the
+  round's start order (in the final, on the total); the distance TO BEAT
+  is read back off the distance points at the leader's margin, rounded UP
+  to the half metre. The board is the top ten and the player; the final
+  board is the ranking off the standings. The take-off's word holds
+  1.4 s after the edge, then the attitude cue (`ATTITUDE_HELD`, 5° either
+  way of `idealAoa`) takes over. Touch is a JUMP press (leave the bar, the
+  push), a TELEMARK press (`TouchChannel.trick`) and the lean on the
+  thumb. The book keeps no row for a contest (as every freestyle mode);
+  the replay's recipe carries the contest, the hill and the gate.
+- **Links**: `?start=skijump` (the trial), `round=1`, `run=2` (the next
+  round off the bot's jump), `gate=<n>`, `hill=normal`. NOT BUILT: the
+  trick map card's HILL row (the link only), the leader's green line drawn
+  across the landing hill, the commentator's words and the hill records —
+  phase 8 (the hill as drawn) and 13 (its hills) are where they land.
 
 ## Open questions for the user
 

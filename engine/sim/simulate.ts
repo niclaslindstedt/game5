@@ -81,7 +81,6 @@ export type SimOptions = {
     | "superG"
     | "speedSki"
     | "skiCross"
-    | "bigAir"
     | "slopestyle"
     | "halfpipe"
     | "moguls"

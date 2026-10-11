@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE TRICKS CARD — what the front door's TRICKS tile opens: the PARK RUN
-// (two minutes on a trick map's terrain park, scored combo by combo) and
-// every FREESTYLE FORMAT the game names (`FREESTYLE`), the built ones a box
-// each that goes on to the trick map card, the rest named and dimmed as
-// coming. The race card's shape (`menu-races.tsx`) for the same reason: the
+// (two minutes on a trick map's terrain park, scored combo by combo) after
+// every FREESTYLE FORMAT the game names (`FREESTYLE`, ski jumping first),
+// the built ones a box each that goes on to the trick map card, the rest
+// named and dimmed as coming. The race card's shape (`menu-races.tsx`) for the same reason: the
 // formats are one choice — which contest — before the map.
 
 import {
   AERIALS,
-  BIG_AIR,
   FREESTYLE,
   HALFPIPE,
   MOGULS,
@@ -32,7 +31,6 @@ function formatOf(mode: GameMode): string {
       SKI_JUMP.final,
     );
   }
-  if (mode === "bigAir") return STRINGS.freestyleBigAir(BIG_AIR.field + 1, BIG_AIR.finalists);
   if (mode === "slopestyle") {
     return STRINGS.freestyleSlopestyle(SLOPESTYLE.field + 1, SLOPESTYLE.finalists);
   }
@@ -59,9 +57,11 @@ export function FreestylePage({
   /** On to the trick map card. */
   onPick: (mode: GameMode) => void;
 }) {
+  // SKI JUMPING heads the card and is lit where nothing was opened yet;
+  // the park run follows the formats.
   const built: GameMode[] = [
-    "tricks",
     ...FREESTYLE.flatMap((f) => (f.mode === null ? [] : [f.mode])),
+    "tricks",
   ];
   const landing = built.includes(chosen) ? chosen : built[0];
   const box = (mode: GameMode, name: string) => (
@@ -86,7 +86,6 @@ export function FreestylePage({
       <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.freestyleTitle} />
       <MenuBody>
         <div class="menu-levels menu-races">
-          {box("tricks", STRINGS.freestylePark)}
           {FREESTYLE.map(({ id, mode }) =>
             mode === null ? (
               <div
@@ -101,6 +100,7 @@ export function FreestylePage({
               box(mode, STRINGS.freestyle[id])
             ),
           )}
+          {box("tricks", STRINGS.freestylePark)}
         </div>
       </MenuBody>
     </div>

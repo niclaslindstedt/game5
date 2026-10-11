@@ -42,6 +42,7 @@ import {
 import type { MapJob, MapOrder } from "./map-order.ts";
 
 import type { PinnedSkier } from "./pinned.ts";
+import { withJumpContest } from "./ski-jump-run.ts";
 import type { CameraRung, WorldRenderer } from "./renderer-api.ts";
 import {
   advanceLoad,
@@ -258,6 +259,8 @@ export function createLoader(
   };
 }
 
+export { withJumpContest };
+
 /** A whole race on `seed` — or, where the generator refuses it, the map the
  * game falls back on, so the page ALWAYS mounts over something. `skier` is
  * the player's help, pair and switches for a race a link boots into; the race under
@@ -265,8 +268,9 @@ export function createLoader(
 export function raceOrFallback(
   seed: number,
   skier: (PinnedSkier & { mode: GameMode }) | null,
-  world: Pick<CreateGameOptions, "sky" | "region" | "grade"> = {},
+  world: Pick<CreateGameOptions, "sky" | "region" | "grade"> & { round?: "first" } = {},
 ): GameState {
+  const { round, ...asked } = world;
   const help = {
     ...(skier
       ? {
@@ -281,12 +285,13 @@ export function raceOrFallback(
           training: skier.mode === "downhill" ? true : undefined,
         }
       : {}),
-    ...world,
+    ...asked,
   };
+  // A SKI JUMP is a contest's jump: dealt on the hill set over the map.
   try {
-    return createGame({ seed, ...help });
+    return createGame(withJumpContest({ seed, ...help }, round));
   } catch (e) {
     error(`seed ${seed} would not build (${e instanceof Error ? e.message : String(e)})`);
-    return createGame({ seed: 1, ...help });
+    return createGame(withJumpContest({ seed: 1, ...help }, round));
   }
 }

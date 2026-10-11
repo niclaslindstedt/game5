@@ -2,7 +2,7 @@
 // THE WORDS OF MOGULS (R40) — a block of the one strings table
 // (`strings.ts`, §39.1), stated next door and spread into `STRINGS` under
 // the same names: the freestyle card's row, the trick map card's billing,
-// the run on the HUD and the plate. A jump's trick is called by big air's
+// the run on the HUD and the plate. A jump's trick is called by the freestyle words'
 // `trickName`, with its degree of difficulty beside it.
 
 import { ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";

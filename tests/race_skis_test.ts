@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 import {
   AERIALS,
   DISCIPLINES,
-  BIG_AIR,
   HALFPIPE,
   MOGULS,
   DOWNHILL,
@@ -33,12 +32,11 @@ const CLASS = {
   downhill: "Downhill",
   skiCross: "Ski cross",
   speedSki: "Speed ski",
-  bigAir: "Big air",
-  // Slopestyle rides the same stiff competition twin-tip as big air.
-  slopestyle: "Big air",
+  // Slopestyle rides the stiff competition twin-tip.
+  slopestyle: "Slopestyle",
   // The halfpipe rides the stiff competition twin-tip too: a pipe ski is
   // firm and about 85–90 mm underfoot.
-  halfpipe: "Big air",
+  halfpipe: "Slopestyle",
   // Moguls ride the mogul ski: short, narrow, straight, soft at the tip.
   moguls: "Moguls",
   // Aerials ride the aerials ski: short, narrow, light and straight.
@@ -65,7 +63,6 @@ describe("a race's own pair", () => {
     expect(raceSkisOf("downhill")).toBe(DOWNHILL.skis);
     expect(raceSkisOf("skiCross")).toBe(SKI_CROSS.skis);
     expect(raceSkisOf("speedSki")).toBe(SPEED_SKI.skis);
-    expect(raceSkisOf("bigAir")).toBe(BIG_AIR.skis);
     expect(raceSkisOf("slopestyle")).toBe(SLOPESTYLE.skis);
     expect(raceSkisOf("halfpipe")).toBe(HALFPIPE.skis);
     expect(raceSkisOf("moguls")).toBe(MOGULS.skis);

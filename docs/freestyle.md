@@ -21,10 +21,10 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 
 | Format | Kind | Built on | State |
 | --- | --- | --- | --- |
-| Ski jumping | distance + style ± wind and gate, two rounds | a jumping hill of its own | researched — spec `SKI_JUMPING.md`; replaces big air on the tricks card |
+| Ski jumping | distance + style ± wind and gate, two rounds | a jumping hill of its own | BUILT (R43) — spec `SKI_JUMPING.md`; first and lit on the tricks card |
 | Halfpipe | judged runs, best run counts | a pipe of its own | BUILT in part (R39) — spec `HALFPIPE.md` |
 | Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R38) — spec `SLOPESTYLE.md` |
-| Big air | judged jumps, best two different | one jump | BUILT in part (R37), to be RETIRED for ski jumping — spec `BIG_AIR.md` |
+| Big air | judged jumps, best two different | one jump | RETIRED for ski jumping; its straight venue (R37) stays under slopestyle, the halfpipe, moguls and aerials |
 | Aerials | scored jumps × degree of difficulty | a jump site of its own | researched — spec `AERIALS.md` |
 | Moguls | turns + air + speed, one run | a mogul course | BUILT in part (R40) — spec `MOGULS.md` |
 
@@ -516,9 +516,9 @@ field is dealt.
 
 ## Big air
 
-*To be retired: ski jumping replaces big air on the tricks card
-(`docs/specs/SKI_JUMPING.md`). The research stays — slopestyle's jumps
-and the straight venue cite it.*
+*Retired: ski jumping replaced big air on the tricks card
+(`docs/specs/SKI_JUMPING.md`). The research stays — slopestyle's jumps,
+the judges' trick reader (`judge.ts`) and the straight venue cite it.*
 
 ONE jump — a big kicker over a table onto a steep landing — one trick an
 attempt, the best scores counting.

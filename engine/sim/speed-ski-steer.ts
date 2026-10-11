@@ -9,12 +9,9 @@
 // and past it the run-out's stand-up and skid are the engine's
 // (`run.ts`), as they are for every racer home.
 //
-// A BIG AIR JUMP (R37) is skied the same way: its line is straight down the
-// face too, and a skier drops in tucked and straight to carry the jump's
-// design speed off the lip — never checking it, which would knuckle him on
-// the table.
-//
-// An AERIALS SITE (R41) too, its in-run and its out-run; in the air the
+// An AERIALS SITE (R41) is skied the same way, its in-run and its out-run:
+// its line is straight down the face too, and a skier drops in tucked and
+// straight to carry the kicker's design speed off the lip; in the air the
 // jump declared is `aerials-steer.ts`'s.
 
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -35,11 +32,11 @@ export const SPEED_SKI_STEER = {
   yawLead: 0.3,
 } as const;
 
-/** The input that skis `state`'s skier down the speed track or the big air
- * jump, or null on a map with neither. `on` is where he stands on it. */
+/** The input that skis `state`'s skier down the speed track or the aerials
+ * in-run, or null on a map with neither. `on` is where he stands on it. */
 export function speedSkiInput(state: GameState, on: TrackHit): SkierInput | null {
   const level = state.level;
-  if (!level.speedSki && !level.bigAir && !level.aerials) return null;
+  if (!level.speedSki && !level.aerials) return null;
   if (!state.rules.course) return null;
   const c = state.skier;
   const K = SPEED_SKI_STEER;
@@ -55,13 +52,6 @@ export function speedSkiInput(state: GameState, on: TrackHit): SkierInput | null
   const T = techniqueOf(state.rules);
   const lock = Math.max(0.05, Math.min(edgeMostOf(spec, T), edgeLockAt(spec, c.speed, T)));
   const edge = Math.sign(want) * Math.atan(Math.abs(want) * spec.sidecut);
-  // OFF A BIG AIR KICKER, a 360: two taps of the edge early in the flight
-  // (`strokes.ts`), the hands off it after.
-  if (level.bigAir && c.airborne && state.rules.stunts) {
-    const t = c.airTime;
-    const tap = (t > 0.2 && t < 0.3) || (t > 0.45 && t < 0.55);
-    return { ...NEUTRAL_INPUT, steer: tap ? 1 : 0, tuck: 0 };
-  }
   // OFF AN AERIALS KICKER, the jump declared (`aerials-steer.ts`).
   const flown = aerialsAirInput(state);
   if (flown) return flown;

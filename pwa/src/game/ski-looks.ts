@@ -171,7 +171,7 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.15, basket: 0.045, bent: false },
   },
-  // THE BIG-AIR SKI: the park ski's twin tips, a little longer and lower,
+  // THE FREESTYLE CONTEST SKI (the Raven): the park ski's twin tips, a little longer and lower,
   // thicker under the boot for its stiffness, a touch more camber to pop
   // off the lip, on a recreational binding with the park's short poles.
   raven: {

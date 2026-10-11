@@ -57,7 +57,7 @@ import { trainingOf } from "./downhill-run.ts";
 import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
 import { nextBracket } from "./ski-cross-run.ts";
 import { trickAsk, trickGameOptions, type TrickMap, type TrickRun } from "./trick-maps.ts";
-import { nextContest } from "./big-air-run.ts";
+import { nextSkiJumpContest, withJumpContest } from "./ski-jump-run.ts";
 import { nextSlopeContest } from "./slopestyle-run.ts";
 import { nextPipeContest } from "./halfpipe-run.ts";
 import { nextMogulsContest } from "./moguls-run.ts";
@@ -68,8 +68,8 @@ export type PinnedRuns = {
   /** Stand `pin` up as `mode`. */
   press: (pin: PinnedLevel, mode: PinnedLevel["mode"]) => void;
   /** Stand a TRICKS run up on a trick map (`trick-maps.ts`) — or, as
-   * `bigAir`, a BIG AIR contest's first jump with its jump built over it
-   * (R37), as `slopestyle`, a SLOPESTYLE contest's first run on its
+   * `skiJump`, a SKI JUMPING contest's first jump off the hill built over
+   * it (R43), as `slopestyle`, a SLOPESTYLE contest's first run on its
    * course (R38), as `halfpipe`, a HALFPIPE contest's first run down its
    * pipe (R39), as `moguls`, a MOGULS contest's qualification run (R40),
    * or as `aerials`, an AERIALS contest's qualification jump (R41). */
@@ -157,7 +157,8 @@ export function createPinnedRuns(world: {
           const opts = trickGameOptions(map, skier, level ?? standing());
           // An aerials contest's first jump declares the jump the card picked.
           const plan = mode === "aerials" ? s.aerialPlan : undefined;
-          return createGame(mode === "tricks" ? opts : { ...opts, mode, plan });
+          // A ski jump's contest is dealt on the hill set over the map.
+          return createGame(mode === "tricks" ? opts : withJumpContest({ ...opts, mode, plan }));
         },
         camera: s.camera,
         done: world.done,
@@ -166,9 +167,9 @@ export function createPinnedRuns(world: {
     again: () => {
       const now = world.current();
       if (heatOf(now)) return secondRunAgain(now);
-      // A big air jump again: the same jump of the same contest.
-      if (now.bigAir) {
-        return createGame(recipeOf(now, "bigAir"));
+      // A ski jump again: the same jump of the same contest.
+      if (now.skiJumpContest) {
+        return createGame(recipeOf(now, "skiJump"));
       }
       // A slopestyle run again: the same run of the same contest.
       if (now.slopestyle) {
@@ -210,13 +211,17 @@ export function createPinnedRuns(world: {
         });
         return;
       }
-      // A BIG AIR contest's next jump, off the contest as this one left it.
-      const contest = nextContest(now);
+      // A SKI JUMPING contest's next round, off the contest as this jump left it.
+      const contest = nextSkiJumpContest(now);
       if (contest) {
-        world.setMode("bigAir");
+        world.setMode("skiJump");
         world.loader.begin({
           build: () => {
-            return createGame({ ...recipeOf(now, "bigAir"), bigAir: contest });
+            return createGame({
+              ...recipeOf(now, "skiJump"),
+              gate: undefined,
+              skiJumpContest: contest,
+            });
           },
           camera: world.settings().camera,
           done: world.done,
@@ -320,20 +325,22 @@ const FIRST_RUN_CAP = 600;
  * in place, then the second run off it — or `first` as it stands where the
  * bot went out of it and there is no second run to stand up. On a
  * downhill, its RACE off its training; on a ski cross, its first HEAT off
- * its qualification; on a big air contest, its next jump. */
+ * its qualification; on a ski jumping contest, its next round. */
 export function secondRunOff(first: GameState): GameState {
   // A downhill's: its race, off its training — nothing skied first.
   if (trainingOf(first) === true) {
     return createGame({ ...recipeOf(first, "downhill"), training: false });
   }
-  // A BIG AIR contest's next jump, off the first jumped by the bot.
-  if (first.bigAir) {
+  // A SKI JUMPING contest's next round, off the jump the bot jumped.
+  if (first.skiJumpContest) {
     for (let i = 0; i < FIRST_RUN_CAP * TUNING.physicsHz; i++) {
-      if (first.progress.finished || first.progress.out) break;
+      if (first.progress.finished || first.progress.out || nextSkiJumpContest(first)) break;
       step(first, botInput(first));
     }
-    const contest = nextContest(first);
-    return contest ? createGame({ ...recipeOf(first, "bigAir"), bigAir: contest }) : first;
+    const contest = nextSkiJumpContest(first);
+    return contest
+      ? createGame({ ...recipeOf(first, "skiJump"), gate: undefined, skiJumpContest: contest })
+      : first;
   }
   // A SLOPESTYLE contest's next run, off the first skied by the bot.
   if (first.slopestyle) {
@@ -403,7 +410,7 @@ export function secondRunAgain(state: GameState): GameState | null {
  * where a link pinned a seed instead. */
 export function skisBack(mode: GameMode, linkSeed: number | null): MenuPage {
   if (mode === "free") return "start";
-  if (mode === "tricks" || mode === "bigAir" || mode === "slopestyle")
+  if (mode === "tricks" || mode === "skiJump" || mode === "slopestyle")
     return linkSeed === null ? "tricks" : "root";
   return pinnedFor(NO_PICKS, mode, linkSeed) ? "levels" : "root";
 }

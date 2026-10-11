@@ -28,7 +28,6 @@ import {
   setSkiCross,
   setSpeedSki,
   setSlalom,
-  setBigAir,
   setHalfpipe,
   setMoguls,
   setAerials,
@@ -63,7 +62,6 @@ import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { createField, type Heat } from "./field.ts";
 import { nextHeat, type Bracket, type CrossHeat } from "./cross-bracket.ts";
-import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
 import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
 import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
@@ -149,10 +147,6 @@ export type CreateGameOptions = {
    * of one race, its heat the player's next (`nextHeat`) where `cross` asks
    * for none. The engine never reads it otherwise. */
   bracket?: Bracket;
-  /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`): the jumps the
-   * player has taken, carried between the runs of one contest — a fresh
-   * one off the seed when a big air run leaves it out. */
-  bigAir?: BigAirContest;
   /** A SLOPESTYLE CONTEST so far (R38, `slopestyle-contest.ts`): the runs
    * the player has skied, carried between the runs of one contest — a
    * fresh one off the seed when a slopestyle run leaves it out. */
@@ -464,7 +458,6 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.giantSlalom?.base ??
     built.speedSki?.base ??
     built.skiCross?.base ??
-    built.bigAir?.base ??
     built.slopestyle?.base ??
     built.halfpipe?.base ??
     built.moguls?.base ??
@@ -472,7 +465,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.skiJump?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
-  // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
+  // qualification's, or the final's; a FREESTYLE VENUE builds one of its own (R37).
   const course =
     options.mode === "slalom"
       ? setSlalom(built, options.heat?.run ?? 1)
@@ -486,19 +479,17 @@ export function createGame(options: CreateGameOptions = {}): GameState {
               ? setSpeedSki(built, options.heat?.run ?? 1)
               : options.mode === "skiCross"
                 ? setSkiCross(built)
-                : options.mode === "bigAir"
-                  ? setBigAir(built)
-                  : options.mode === "slopestyle"
-                    ? setSlopestyle(built)
-                    : options.mode === "halfpipe"
-                      ? setHalfpipe(built)
-                      : options.mode === "moguls"
-                        ? setMoguls(built)
-                        : options.mode === "aerials"
-                          ? setAerials(built, kickerOf(planOf(options)))
-                          : options.mode === "skiJump"
-                            ? setSkiJump(built, options.hill ?? SKI_JUMP.hill)
-                            : original;
+                : options.mode === "slopestyle"
+                  ? setSlopestyle(built)
+                  : options.mode === "halfpipe"
+                    ? setHalfpipe(built)
+                    : options.mode === "moguls"
+                      ? setMoguls(built)
+                      : options.mode === "aerials"
+                        ? setAerials(built, kickerOf(planOf(options)))
+                        : options.mode === "skiJump"
+                          ? setSkiJump(built, options.hill ?? SKI_JUMP.hill)
+                          : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
@@ -611,7 +602,6 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     else createRivals(state, rules.rivals);
   }
   if (options.bracket) state.bracket = options.bracket;
-  if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
   if (level.moguls) {

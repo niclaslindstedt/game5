@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// R41 — AN AERIALS SITE BUILT OVER A BUILT MAP. As R37's big air jump is
+// R41 — AN AERIALS SITE BUILT OVER A BUILT MAP. As R37 states a venue is
 // pushed up out of a mountain's side, an aerials site is shaped STRAIGHT
 // down the face: a start platform, an in-run at 23°, a level TABLE with
 // ONE steep KICKER on it — the single, the double or the triple, the one
 // the declared jump is assigned — the KNOLL at the table's end, a 37°
 // LANDING HILL and a level out-run.
 //
-// THE PROFILE IS DESIGNED, then FITTED, as the big air jump's: drawn
+// THE PROFILE IS DESIGNED, then FITTED, as every straight venue's (R37): drawn
 // against the horizontal with the venue pen (`straight-venue.ts`), its
 // in-run as long as brings a tucked skier to the kicker's lip at its row's
 // speed (`lipSpeed`, down the profile itself), then dropped onto the line
@@ -24,8 +24,7 @@
 // stands on the very site it left.
 
 import { AERIALS_RULE } from "./trick-rules.ts";
-import { lipSpeed } from "./big-air.ts";
-import { createPen, gradeVenue, jumpHeightAt, originalOf } from "./straight-venue.ts";
+import { createPen, gradeVenue, jumpHeightAt, lipSpeed, originalOf } from "./straight-venue.ts";
 import { withMoguls, type MogulField } from "./mogul-field.ts";
 import type { AerialKicker, AerialsCourse, Checkpoint, Kicker, Level, Spawn } from "./types.ts";
 

@@ -36,7 +36,7 @@
 //           where the others sink, vague and slow on the groomer.
 //   HARE    a PARK ski — a soft twin-tip: spins, lands anything softly,
 //           slow in a tuck and loose on an edge.
-//   RAVEN   a BIG-AIR ski — the competition park twin-tip: longer and
+//   RAVEN   a FREESTYLE CONTEST ski — the competition park twin-tip: longer and
 //           stiffer than the Hare, damp for a landing from ten metres up,
 //           still mounted near its centre to spin and ride away switch.
 //   IBEX    a MOGUL ski — short, narrow and straight, soft in the forebody:
@@ -506,9 +506,10 @@ export const HARE: SkisSpec = {
   topSpeed: 106,
 };
 
-/** THE RAVEN — a BIG-AIR ski (named for the bird that rolls and tumbles in
- * the air for the joy of it): the competition park twin-tip a big air jump
- * is ridden on (`docs/freestyle.md` § *Big air*, "The skis"). The freestyle
+/** THE RAVEN — a COMPETITION PARK ski (named for the bird that rolls and
+ * tumbles in the air for the joy of it): the twin-tip a slopestyle course
+ * and a halfpipe are ridden on (`docs/freestyle.md` § *Big air*, "The
+ * skis" — the research its jumps were sized off). The freestyle
  * rules set no length, width or sidecut, so the class is what the
  * athletes ride: a twin-tip of some 1.78–1.84 m on an 85–96 mm waist and a
  * 17–20 m arc, built STIFF and damp for the take-off and a landing from ten
@@ -525,7 +526,7 @@ export const RAVEN: SkisSpec = {
   ...SKIS,
   id: "raven",
   name: "Raven",
-  kind: "Big air",
+  kind: "Slopestyle",
   blurb:
     "A stiff competition twin-tip: straight down the in-run, round three times, and down clean.",
   gearMass: 8.5,
@@ -664,7 +665,7 @@ export const ALBATROSS: SkisSpec = {
  * most of him last: the all-mountain ski that refuses nothing, the alpine
  * race skis from the shortest to the longest (slalom, giant slalom, super-G,
  * downhill), the ski-cross ski, the speed ski, the powder ski and the park
- * ski, the big-air ski, the mogul ski and the aerials ski. (`make sim ARGS="--skis
+ * ski, the competition park ski, the mogul ski and the aerials ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
 export const SKI_CATALOG: readonly SkisSpec[] = [
   SKIS,

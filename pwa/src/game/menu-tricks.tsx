@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE TRICK MAP CARD — which of the six trick maps (`trick-maps.ts`) a
-// TRICKS run or a BIG AIR contest is ridden on, opened off the tricks card
-// (`menu-freestyle.tsx`) before the skis card. A big air contest builds its
-// jump over the map (R37); the map gives it its mountain, its day and its
-// sky.
+// TRICKS run or a freestyle contest is ridden on, opened off the tricks card
+// (`menu-freestyle.tsx`) before the skis card. A contest builds its venue
+// over the map (R37, R43's hill); the map gives it its mountain, its day
+// and its sky.
 //
 // It wears the level card's silhouette and classes — the boxes, the piste
 // behind each — because a map should look like itself wherever it is
@@ -17,9 +17,10 @@
 
 import {
   AERIALS,
-  BIG_AIR,
   aerialJump,
   HALFPIPE,
+  SKI_JUMP,
+  SKI_JUMP_RULE,
   SLOPESTYLE,
   TRICKS_RUN,
   type GameMode,
@@ -84,7 +85,7 @@ export function TrickMapsPage({
   onPick,
 }: {
   /** The format the card picks a map for: the park run, or a freestyle
-   * contest (BIG AIR — its jump built over the map, R37; a SLOPESTYLE
+   * contest (SKI JUMPING — its hill built over the map, R43; a SLOPESTYLE
    * run — its course built over it, R38; the others likewise). */
   mode: GameMode;
   /** The map the settings already stand on, if any. */
@@ -97,13 +98,13 @@ export function TrickMapsPage({
   onPick: (map: TrickMap) => void;
 }) {
   const pick = trickMapFor(chosen);
-  const bigAir = mode === "bigAir";
+  const jump = mode === "skiJump";
   const slope = mode === "slopestyle";
   const pipe = mode === "halfpipe";
   const bumps = mode === "moguls";
   const aerials = mode === "aerials";
-  const billing = bigAir
-    ? STRINGS.bigAirBilling(BIG_AIR.qualification, BIG_AIR.final)
+  const billing = jump
+    ? STRINGS.skiJumpBilling(SKI_JUMP_RULE.hills[SKI_JUMP.hill].hs, SKI_JUMP.trial)
     : slope
       ? STRINGS.slopestyleBilling(SLOPESTYLE.qualification, SLOPESTYLE.final)
       : pipe
@@ -113,8 +114,8 @@ export function TrickMapsPage({
           : aerials
             ? STRINGS.aerialsBilling
             : STRINGS.tricksBilling(TRICKS_RUN.limit);
-  const title = bigAir
-    ? STRINGS.bigAirOn
+  const title = jump
+    ? STRINGS.skiJumpOn
     : slope
       ? STRINGS.slopestyleOn
       : pipe

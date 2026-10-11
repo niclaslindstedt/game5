@@ -233,8 +233,6 @@ export {
   giantSlalomRules,
   SPEED_SKI,
   speedSkiRules,
-  BIG_AIR,
-  bigAirRules,
   HALFPIPE,
   halfpipeRules,
   MOGULS,
@@ -332,23 +330,6 @@ export {
   type CrossResult,
   type CrossRound,
 } from "./game/cross-bracket.ts";
-export {
-  BIG_AIR_FIELD,
-  boardOf,
-  contestAfter,
-  freshBigAir,
-  judgeRun,
-  jumpOf,
-  jumpsIn,
-  nextPhase,
-  placeOf,
-  rivalJump,
-  totalOf,
-  type BigAirContest,
-  type BigAirJump,
-  type BigAirPhase,
-  type BigAirRow,
-} from "./game/big-air-contest.ts";
 export { inRunInput } from "./game/in-run.ts";
 export * from "./game/stop-hand.ts";
 export {

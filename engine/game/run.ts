@@ -220,7 +220,7 @@ export function stepRun(
       : input;
   const rigged = paraRigged(run) || chuteRigged(run);
   const stunts = run.rules.stunts && asked === input && !rigged;
-  // THE IN-RUN (`in-run.ts`): a big air jump's ridden tucked to the lip;
+  // THE IN-RUN (`in-run.ts`): an aerials in-run ridden tucked to the lip;
   // hung under a paramotor's wing, his skis do nothing (`para.ts`).
   // ...and off an aerials kicker the body is the flight's (`aerial-flight.ts`).
   const held = off

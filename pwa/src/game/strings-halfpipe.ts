@@ -2,7 +2,7 @@
 // THE WORDS OF THE HALFPIPE (R39) — a block of the one strings table
 // (`strings.ts`, §39.1), stated next door and spread into `STRINGS` under
 // the same names: the freestyle card's row, the trick map card's billing,
-// the run on the HUD and the plate. A hit's trick is called by big air's
+// the run on the HUD and the plate. A hit's trick is called by the freestyle words'
 // `trickName`, with the pipe's own word in front of an uphill spin.
 
 import { ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";

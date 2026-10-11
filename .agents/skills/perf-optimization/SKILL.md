@@ -192,6 +192,8 @@ SwiftShader's time.
 | 8 | THE PARAMOTOR AND THE BALLOON (built on every free ride for the one that might carry them) | built only on a ride that carries one, when it does | `machines.ts` builds each the first time the state holds one (`carried`), so a ride on skis never builds the wing, the motor, the envelope or the basket, nor holds their buffers. |
 | 8 | THE BODY'S JUDGE (every step, every skier) | ~50 KB a step of garbage → none | `body.injuries.some(...)` with a closure per part and kind, in a loop over every part; a plain loop instead (`hasInjury`). |
 | 9 | THE PEOPLE ON FOOT IN THE VILLAGE (`make cpu-cost`'s `valley`, the people view alone in a scratch probe) | valley 2.37 → 1.73 ms p50, people 1.3 → 0.7 ms; same hashes, sim digests unmoved | `collide` posed every person a hitter neared once per hitter, and every dog walker (bounded by `Infinity`) for every moving car: each person is now posed once a frame (`poseAt`), the broad phase tests a box before `Math.hypot`, `personOf` is worked out once a body, `roleOf` reads a map and `shareAt` keeps each table's last hour. The rock skin's `underOf` asks the one to four tiles under its 4 × 4 corners before the sixteen corners, so a point with no rock near costs four map reads, not sixteen. |
+| 10 | THE SUN'S MAP UNDER SHADOWS HIGH (every lit frame) | drawn every frame → every other frame while he skis: the benchmark race at HIGH (`make profile`, a short window) 339 → 321 draws and 1.13M → 1.10M triangles a frame on average | Under HIGH the riders cast into their own map, so the sun's holds what stands still and a few small movers. `shadow-box.ts`'s `sunDue` sets `sun.shadow.autoUpdate` from `environment.ts`: the map stands a frame (its matrix stands with it, so every shadow of what stands still is exactly where it was) unless the lens is on a machine or planted, he is thrown, the box drifted `SUN_DRIFT` or the sun turned. Owes a GPU A/B. |
+| 10 | THE SNOWMOBILE AND THE PISTE MACHINES IN THE PICTURE | the sled 39 → 15 draws; a piste machine 28 → 13 (a night's fleet of six, 168 → 78); `sled` and `groomer` labs pixel-identical but for the snow cloud's own randomness | `model-merge.ts`'s `mergeParts`: a node's plain primitives (no glow, no sheen, no map, no morph) merged into one mesh, the look on the vertices through `mergedLook`, the graft the skis' merge uses. The groomer's is done once on the template every machine clones. |
 
 ## Open leads, ranked
 
@@ -215,16 +217,9 @@ Each is a real cost found in a round and not taken, with why:
   multisampling is fixed when it is made, so the fix is a context without it
   and the alpine drawn through the pass too — dearer for the alpine, cheaper
   for the rest. Needs the GPU A/B on both kinds of map before anyone decides.
-- **The sun's shadow map under SHADOWS HIGH** holds only what does not move
-  much (the woods, the lifts' chairs, the animals, the gates' poles) and is
-  redrawn every frame because its box follows the lens. Redrawn every other
-  frame it would keep its shadows exactly where they are (the receivers read
-  the map with the matrix it was drawn with), the movers a frame late. Not
-  under MEDIUM, where the skiers are in it. Needs the GPU A/B and a look.
-- **The sun's map is three's PCF-soft over RGBA-packed depth** — sixteen
-  reads a pixel inside the shadow's reach — on every lit material. A
-  comparing sampler would do it in four, but it is three's shadow system,
-  not ours: a change there is a graft as big as the haze's.
+- **The sun's map's filter** is no longer a lead: three (0.186) reads it
+  through a comparing sampler, five hardware taps a pixel — the sixteen
+  RGBA reads this lead was written against are gone.
 - **Map generation, what is left of it** (round 2 took a third off, below).
   A free ride's map is ~3 s in Node, nearly all of it the ski area: the
   massif's bake (~0.55 s, fifteen noise reads a cell over 2.25 M cells),
@@ -246,11 +241,10 @@ Each is a real cost found in a round and not taken, with why:
   What would cut it is fewer of those pixels: a lighter recipe for the
   roost, or a veil that drops what it thins. Either changes the look, so it
   is a design call, not a speed-up.
-- **The sled's 39 primitives in the picture.** The shadow pass is merged
-  (round 3); the picture still draws a primitive per material per node.
-  Merging needs the materials folded into vertex data (colour, roughness,
-  metalness, the lamp's emissive), and the rack's dress repainted into it —
-  `model-merge.ts` (round 5) does it for the skis, minus the emissive.
+- **The helicopter, the jump plane and the rescue machine** have 15, 28
+  and 19 primitives; `mergeParts` would take them, but each changes
+  materials at run time by name (the livery, the faded blades, the glass),
+  so a merge needs those kept out by `keep` first.
 - **Three's own scene walk** (`updateMatrixWorld` ~0.45 ms, `projectObject`
   ~1.3 ms of the no-draw frame) and the uniforms it sends per draw are
   most of what is left of `submit`; static groups could be frozen

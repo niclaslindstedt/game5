@@ -25,7 +25,14 @@ import type { Heightfield } from "@engine";
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
 import { mistFor, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
-import { aimShadow, SHADOW_MARGIN, shadowFade, type ShadowBox } from "./shadow-box.ts";
+import {
+  aimShadow,
+  createSunCadence,
+  SHADOW_MARGIN,
+  shadowFade,
+  sunDue,
+  type ShadowBox,
+} from "./shadow-box.ts";
 import type { Dir, SkyLook } from "./sky.ts";
 import { createTerrainShade } from "./terrain-shade.ts";
 import { createViewCull, type ViewCull } from "./view-cull.ts";
@@ -40,8 +47,15 @@ export type Environment = {
   dome: SkyDome;
   /** Apply a look, and aim the shadow ahead of `camera`, its box standing
    * at height `y` (the skier's: what the depth range is centred on);
-   * `drift` is how far the wind has carried the cloud (`sky-dome.ts`). */
-  update(look: SkyLook, camera: THREE.Camera, y: number, drift?: { x: number; z: number }): void;
+   * `drift` is how far the wind has carried the cloud (`sky-dome.ts`);
+   * `steady`, that the sun's map may stand a frame (`sunDue`). */
+  update(
+    look: SkyLook,
+    camera: THREE.Camera,
+    y: number,
+    drift?: { x: number; z: number },
+    steady?: boolean,
+  ): void;
   /** Where the shadow stands this frame, or null while the SHADOWS row is
    * off — what `forest.ts` picks its casters by. */
   shadow(): ShadowBox | null;
@@ -103,6 +117,7 @@ function warmShadows(
   scene.updateMatrixWorld();
   const wanted = gl.shadowMap.needsUpdate;
   gl.shadowMap.needsUpdate = true;
+  sun.shadow.needsUpdate = true; // whatever the cadence (`sunDue`) last said
   gl.shadowMap.render([sun], scene, cam);
   gl.shadowMap.needsUpdate = wanted;
   Object.assign(cam, { left, right, top, bottom, near, far });
@@ -192,8 +207,10 @@ export function createEnvironment(
   /** The box's centre snaps to this, so shadow edges do not crawl. */
   let texel = 1;
   const box: ShadowBox = { x: 0, y: 0, z: 0, reach: 0, sx: 0, sy: 1, sz: 0 };
-  const setShadow = ({ size, reach }: ShadowLook): void => {
+  let hero = false;
+  const setShadow = ({ size, reach, hero: own }: ShadowLook): void => {
     sun.castShadow = size > 0;
+    hero = own > 0; // the riders in a map of their own: the sun's may stand (`sunDue`)
     box.reach = reach;
     const half = reach + SHADOW_MARGIN;
     cam.left = -half;
@@ -226,12 +243,13 @@ export function createEnvironment(
   const origin = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   const cull = createViewCull();
+  const cadence = createSunCadence();
 
   return {
     haze,
     sun,
     dome,
-    update(sky, camera, y, drift) {
+    update(sky, camera, y, drift, steady = false) {
       writeHaze(haze, sky);
       dome.update(sky, drift?.x ?? 0, drift?.z ?? 0);
       // The key is the sun by day and the moon by night (`sky.ts`).
@@ -249,6 +267,8 @@ export function createEnvironment(
       box.sx = dir.x;
       box.sy = dir.y;
       box.sz = dir.z;
+      // Drawn every other frame while it can stand (`sunDue`): its matrix stands with it.
+      sun.shadow.autoUpdate = !sun.castShadow || sunDue(cadence, box, steady && hero);
       haze.uShadowFade.value.x = box.x;
       haze.uShadowFade.value.y = box.z;
       // Snap the box's centre to whole texels in the light's own frame.

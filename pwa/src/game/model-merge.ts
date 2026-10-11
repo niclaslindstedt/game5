@@ -93,12 +93,16 @@ function mergeable(parts: THREE.SkinnedMesh[]): boolean {
   });
 }
 
-/** One part's geometry with its material's look laid on its vertices. */
-function painted(p: THREE.SkinnedMesh): THREE.BufferGeometry {
-  const m = p.material as Lit;
-  const g = p.geometry.clone();
+/** One part's geometry with its material's look laid on its vertices, and
+ * nothing else of it but `keep`. */
+function painted(
+  geometry: THREE.BufferGeometry,
+  m: Lit,
+  keep: readonly string[],
+): THREE.BufferGeometry {
+  const g = geometry.clone();
   for (const name of Object.keys(g.attributes)) {
-    if (!["position", "normal", "skinIndex", "skinWeight"].includes(name)) g.deleteAttribute(name);
+    if (!keep.includes(name)) g.deleteAttribute(name);
   }
   const n = g.getAttribute("position").count;
   const colour = new Float32Array(n * 3);
@@ -117,25 +121,10 @@ function painted(p: THREE.SkinnedMesh): THREE.BufferGeometry {
   return g;
 }
 
-/** THE MODEL'S MESHES with every one but those `keep` names merged into one
- * draw where they can be; the meshes now drawn, and what to dispose. */
-export function mergeModel(
-  meshes: THREE.Mesh[],
-  keep: (material: THREE.Material) => boolean,
-  wrap: Wrap,
-): { meshes: THREE.Mesh[]; dispose(): void } {
-  const parts = meshes.filter(
-    (m): m is THREE.SkinnedMesh =>
-      m instanceof THREE.SkinnedMesh && !Array.isArray(m.material) && !keep(m.material),
-  );
-  if (parts.length < 2 || !mergeable(parts)) return { meshes, dispose() {} };
-  const geos = parts.map(painted);
-  const geometry = mergeGeometries(geos);
-  for (const g of geos) g.dispose();
-  if (!geometry) return { meshes, dispose() {} };
-
-  const first = parts[0];
-  const look = (first.material as Lit).clone();
+/** The one material a merge draws with: `first` cloned, its colour, its
+ * metalness, its roughness and its clearcoat read off the vertices. */
+function mergedLook(first: Lit, wrap: Wrap): Lit {
+  const look = first.clone();
   look.vertexColors = true;
   look.color.setRGB(1, 1, 1);
   look.metalness = 1;
@@ -177,6 +166,30 @@ export function mergeModel(
         ),
       );
   };
+  return material;
+}
+
+/** THE MODEL'S MESHES with every one but those `keep` names merged into one
+ * draw where they can be; the meshes now drawn, and what to dispose. */
+export function mergeModel(
+  meshes: THREE.Mesh[],
+  keep: (material: THREE.Material) => boolean,
+  wrap: Wrap,
+): { meshes: THREE.Mesh[]; dispose(): void } {
+  const parts = meshes.filter(
+    (m): m is THREE.SkinnedMesh =>
+      m instanceof THREE.SkinnedMesh && !Array.isArray(m.material) && !keep(m.material),
+  );
+  if (parts.length < 2 || !mergeable(parts)) return { meshes, dispose() {} };
+  const geos = parts.map((p) =>
+    painted(p.geometry, p.material as Lit, ["position", "normal", "skinIndex", "skinWeight"]),
+  );
+  const geometry = mergeGeometries(geos);
+  for (const g of geos) g.dispose();
+  if (!geometry) return { meshes, dispose() {} };
+
+  const first = parts[0];
+  const material = mergedLook(first.material as Lit, wrap);
 
   const mesh = new THREE.SkinnedMesh(geometry, material);
   mesh.name = "model-merged";
@@ -202,4 +215,70 @@ export function mergeModel(
       material.dispose();
     },
   };
+}
+
+/**
+ * A MODELLED MACHINE'S PART AS ONE DRAW. A glTF node with a primitive per
+ * material is a mesh a material under the node, each a draw in the picture
+ * (the snowmobile's seven moving nodes were 39). The node's plain
+ * primitives — lit only by the light, with no map, no sheen, no morph and
+ * nothing but their colour, metalness, roughness and clearcoat told apart
+ * (`SHARED`) — are merged here into one mesh on the node with the look laid
+ * on its vertices, as `mergeModel` does for a pair of skis: every pixel lit
+ * as its own material lit it. A primitive that glows (a lamp, a gauge), a
+ * sheened one and one `keep` names stay meshes of their own, so whatever
+ * moves or lights them still finds them. The meshes merged are taken off
+ * the node; the new materials are pushed onto `made` for the caller to
+ * dispose.
+ */
+export function mergeParts(
+  node: THREE.Object3D,
+  wrap: Wrap,
+  made: THREE.Material[],
+  keep: (material: THREE.Material) => boolean = () => false,
+): void {
+  node.updateMatrix();
+  const groups = new Map<string, THREE.Mesh[]>();
+  for (const o of node.children) {
+    if (!(o instanceof THREE.Mesh) || o instanceof THREE.SkinnedMesh) continue;
+    if (Array.isArray(o.material) || !(o.material instanceof THREE.MeshStandardMaterial)) continue;
+    const m = o.material as Lit;
+    const g = o.geometry as THREE.BufferGeometry;
+    if (keep(m) || m.transparent || m.alphaTest > 0 || MAPS.some((k) => m[k])) continue;
+    if (m.emissive.getHex() !== 0 || (m.sheen ?? 0) > 0 || o.morphTargetInfluences?.length)
+      continue;
+    if (!g.index || g.drawRange.start !== 0 || g.drawRange.count !== Infinity) continue;
+    const key = [...SHARED.map((k) => String(m[k])), o.castShadow, o.receiveShadow].join("|");
+    groups.set(key, [...(groups.get(key) ?? []), o]);
+  }
+  for (const parts of groups.values()) {
+    if (parts.length < 2) continue;
+    const keepAttrs = ["position", "normal"];
+    if (!parts.every((p) => keepAttrs.every((a) => p.geometry.getAttribute(a)))) continue;
+    const geos = parts.map((p) => {
+      p.updateMatrix();
+      return painted(p.geometry, p.material as Lit, keepAttrs).applyMatrix4(p.matrix);
+    });
+    const geometry = mergeGeometries(geos);
+    for (const g of geos) g.dispose();
+    if (!geometry) continue;
+    geometry.computeBoundingSphere();
+    geometry.computeBoundingBox();
+    const material = mergedLook(parts[0].material as Lit, wrap);
+    made.push(material);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = `${node.name}-merged`;
+    mesh.castShadow = parts[0].castShadow;
+    mesh.receiveShadow = parts[0].receiveShadow;
+    // Where the first of them stood among the node's children, so a merged
+    // part is drawn where it was in three's order of a tie.
+    const at = node.children.indexOf(parts[0]);
+    for (const p of parts) {
+      node.remove(p);
+      p.geometry.dispose();
+    }
+    node.add(mesh);
+    node.children.splice(node.children.length - 1, 1);
+    node.children.splice(Math.min(at, node.children.length), 0, mesh);
+  }
 }

@@ -309,11 +309,11 @@ export function App() {
        loop asks before it steps or draws. */
     let standing: Level | null = null;
     let wanted: Level | null = null;
-    const build = (s: GameState): Promise<void> => {
+    const build = (s: GameState, again = false): Promise<void> => {
       const level = s.level;
       // A new race on the map already standing needs nothing built: the
       // renderer sees a fresh state and starts its trails and spray clean.
-      if (standing === level) return Promise.resolve();
+      if (standing === level && !again) return Promise.resolve();
       wanted = level;
       standing = null;
       prepareMinimap(level, s.rules.heli); // the airstrip on a free ride's
@@ -791,7 +791,7 @@ export function App() {
       setAway(awayRef.current);
     };
     document.addEventListener("visibilitychange", onVisibility);
-    const stopCanvas = watchCanvas(canvas, renderer);
+    const stopCanvas = watchCanvas(canvas, renderer, () => standing && void build(state, true));
     // A tap on the snowmobile or the helicopter beside him gets him on.
     const stopTaps = watchMachineTaps(canvas, {
       ray: (x, y) => renderer.pickRay(x, y),

@@ -332,6 +332,22 @@ export function soundForEvent(
             },
           };
 
+    // AN AVALANCHE (`avalanche.ts`): the slab's whumpf, crack and rumble,
+    // heard from where it broke; what comes of the skier after is the
+    // wipeout's and the news line's.
+    case "avalanche":
+      return event.phase === "release"
+        ? {
+            id: "slab",
+            shape: heardAt(
+              { x: event.x, y: contact.ear?.y ?? 0, z: event.z },
+              contact.ear,
+              60,
+              0.3,
+            ),
+          }
+        : null;
+
     // INTO THE A-NETS (R32): the mesh taking him, bigger the harder.
     case "net": {
       const hard = ramp(event.speed, 1, 12);
@@ -500,9 +516,10 @@ export function soundForEvent(
 
     // THE JUMP PLANE (`plane-bank.ts`), heard from where the ear is: aboard
     // and the turbine lit, off the strip and onto it, the wing let go, out
-    // of the door and off it — and the CRASH, the helicopter's blast with
-    // the airframe tearing over it, a plane's tanks heavier and its strike
-    // faster, so a size up and a shade lower. Its pilot home and the ride
+    // of the door and off it, a wingtip scraped and a wing torn off — and
+    // the CRASH: alight, the helicopter's blast with the airframe tearing
+    // over it, a plane's tanks heavier and its strike faster, so a size up
+    // and a shade lower; cold, only the crunch and the tearing. Its pilot home and the ride
     // begun again say nothing: the bed winds the engine down and up.
     case "plane": {
       const heard = heardAt(event, contact.ear, HEARD_NEAR);
@@ -524,11 +541,20 @@ export function soundForEvent(
           return { id: "plane_jump", shape: heard };
         case "stepoff":
           return { id: "plane_stepoff", shape: heard };
+        case "scrape":
+          return {
+            id: "plane_scrape",
+            shape: { ...heard, gain: heard.gain! * (0.5 + 0.5 * ramp(event.speed, 0, 20)) },
+          };
+        case "tear":
+          return { id: "plane_tear", shape: heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR) };
         case "crash": {
           const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
           const big = CRASH_FLOOR + (1 - CRASH_FLOOR) * ramp(event.speed, 0, 2 * CRASH_FULL);
           return {
-            id: "plane_crash",
+            // Unlit (`PlaneEvent.lit`), the airframe's crunch and tearing
+            // with no blast after it.
+            id: event.lit === false ? "plane_wreck" : "plane_crash",
             shape: {
               gain: blast.gain! * (0.95 + 0.45 * big),
               pitch: blast.pitch! * (1.02 - 0.14 * big),

@@ -83,6 +83,30 @@ function around(
   };
 }
 
+/** A lens planted where `right` m off his side and `up` m over him would
+ * stand NOW, kept there and turned to follow him — so a loop or a fall is
+ * watched from one place, as a camera on the ground would. */
+function planted(state: GameState, right: number, up: number, fov = 50): Lens {
+  const c = state.skier;
+  const h = state.para?.heading ?? c.heading;
+  const eye = { x: c.x - Math.cos(h) * right, y: c.y + up, z: c.z + Math.sin(h) * right };
+  return (q) => ({
+    eye,
+    target: { x: q.skier.x, y: q.skier.y + 2.5, z: q.skier.z },
+    fov,
+    roll: 0,
+  });
+}
+
+/** High over the mountain on the throttle alone, with the height a dive
+ * and a loop spend. */
+function aloft(st: Stage, seconds = 40): GameState {
+  const s = st.fresh();
+  st.skip(s, seconds, ride({ tuck: 1 }));
+  st.run(s, 0.6, ride({}));
+  return s;
+}
+
 /** A lens planted off a released piece lying on the snow. */
 function overPiece(
   which: "canopy" | "motor",
@@ -189,6 +213,49 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.run(s, 3, ride({ tuck: 0.7, lean: 1 }));
     st.shoot(s, "back-side", around(9, 0, 0, 50, 0, 1.5));
     st.shoot(s, "back-chase", "chase");
+  },
+  // ── THE DIVE, THE SWING UP AND THE LOOP (`para-acro.ts`) ──────────────
+  // The lean forward held five seconds pitches the wing over into a dive;
+  // the lean back then swings him out in front and up and round over the
+  // top, watched from a lens planted beside where he pulled.
+  loop(st) {
+    const s = aloft(st);
+    st.run(s, 2.5, ride({ lean: -1 }));
+    st.shoot(s, "dive-side", around(10, 0, 0, 55, 0, 2));
+    st.shoot(s, "dive-chase", "chase");
+    st.run(s, 2.5, ride({ lean: -1 }));
+    const lens = planted(s, 28, 4, 60);
+    st.shoot(s, "pull-0.0s", lens);
+    for (const at of [0.6, 1.2, 1.8, 2.4, 3.0]) {
+      st.run(s, 0.6, ride({ lean: 1 }));
+      st.shoot(s, `pull-${at.toFixed(1)}s`, lens);
+    }
+    st.shoot(s, "over-chase", "chase");
+    st.run(s, 2, ride({}));
+    st.shoot(s, "after", lens);
+  },
+  // ── THE SWING UP FROM A CRUISE ─────────────────────────────────────────
+  swing(st) {
+    const s = aloft(st);
+    const lens = planted(s, 20, 2, 55);
+    let t = 0;
+    for (const at of [0.5, 1, 1.5, 2.5]) {
+      st.run(s, at - t, ride({ lean: 1 }));
+      t = at;
+      st.shoot(s, `back-${at}s`, lens);
+    }
+  },
+  // ── INTO THE WING: the pull without the speed for it ───────────────────
+  tangle(st) {
+    const s = aloft(st);
+    st.run(s, 2, ride({ lean: -1 }));
+    const lens = planted(s, 16, 2, 55);
+    st.until(s, (q) => q.para!.mode === "tangled", 6, ride({ lean: 1 }));
+    st.shoot(s, "fallen-in", lens);
+    st.run(s, 1, still);
+    st.shoot(s, "falling", lens);
+    st.shoot(s, "falling-chase", "chase");
+    st.shoot(s, "falling-close", around(5, 2, 4, 55, 0, 1));
   },
   // ── DOWN ON THE SNOW UNDER IT, AND THE LANDING ─────────────────────────
   landing(st) {
@@ -359,6 +426,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   flight: ["flight"],
   turn: ["turn"],
   lean: ["lean"],
+  acro: ["loop", "swing", "tangle"],
   landing: ["landing"],
   fold: ["fold"],
   mishap: ["mishap"],

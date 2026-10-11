@@ -44,6 +44,7 @@ import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { planeAboard, planeDown, stepPlane } from "./plane.ts";
 import { chuteActive, chuteDown, chuteHeld, chuteRigged, flyChute, stepChute } from "./chute.ts";
 import { stepAfterski } from "./afterski.ts";
+import { avalancheHolds } from "./avalanche.ts";
 import { stepDoorLeaves, stepDoorway } from "./doorway.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
 import { intoTown, stepTown, townBrake } from "./town.ts";
@@ -316,7 +317,10 @@ export function stepRun(
     // burning, which stands him up on its pad when it is done (`heli.ts`).
     // Buzzed on a free ride, he gets up where he lies and fetches his skis
     // instead (`buzz.ts`).
-    const down = heliDown(run) || balloonDown(run) || planeDown(run) || chuteDown(run);
+    // ...nor while an avalanche carries him or holds him buried
+    // (`avalanche.ts`).
+    const down =
+      heliDown(run) || balloonDown(run) || planeDown(run) || chuteDown(run) || avalancheHolds(run);
     if (crashOver(off, player) && !down && !holdsHim(run)) {
       if (player && fetchesSkis(run)) getUp(run, off, events);
       else standUp(run, events, true);

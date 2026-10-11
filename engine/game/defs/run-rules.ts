@@ -77,6 +77,11 @@ export type RunRules = {
    * street he stops, steps out of his bindings, shoulders the pair and
    * walks; off the streets he steps back in. On a FREE RIDE only. */
   town?: boolean;
+  /** WHETHER THE MOUNTAIN'S SLOPES CAN AVALANCHE (`avalanche.ts`): a loaded
+   * slope off the groomed runs crossed may release a slab that takes the
+   * skier. On a FREE RIDE only, and there only when the run asks for them
+   * (`CreateGameOptions.avalanche`); left out, nothing slides. */
+  avalanche?: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times

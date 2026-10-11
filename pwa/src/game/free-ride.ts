@@ -476,6 +476,8 @@ export function freeGameOptions(
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
     groomer: "night",
+    // THE AVALANCHES: the loaded slopes off the groomed runs may slide.
+    avalanche: true,
     // THINGS GO WRONG (`mishaps.ts`): a canopy's malfunction, an engine
     // stopping — dealt off a stream of their own, salted by the app.
     ...(skier.mishapRate && skier.mishapRate !== "off"

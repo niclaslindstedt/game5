@@ -62,12 +62,12 @@ describe("the drive (poles.ts)", () => {
     expect(sum / n).toBeCloseTo(1, 2);
   });
 
-  it("carries a skier with his hands off up to a skater's pace across the flat", () => {
+  it("carries a skier with his hands off up to a double-poler's pace across the flat", () => {
     const state = stage(PACKED, 4);
     ride(state, 10);
     const kmh = state.skier.speed * 3.6;
-    expect(kmh).toBeGreaterThan(18);
-    expect(kmh).toBeLessThan(32);
+    expect(kmh).toBeGreaterThan(26);
+    expect(kmh).toBeLessThan(42);
     expect(state.skier.drive).toBeGreaterThan(0.9);
     expect(state.skier.stride).toBeGreaterThan(5);
   });

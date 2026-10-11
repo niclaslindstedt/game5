@@ -172,6 +172,13 @@ emit = np.array(outside - travel * 0.25 + normal * 0.02)
 n_grains = 90000 if SAMPLES >= 128 else 30000
 pos, rad, age = S.spray_points(emit, np.array(travel), np.array(out_dir), np.array(normal),
                                DATA["pose"]["speed"] * 0.55, n_grains, rng)
+# The inside ski carves too and throws its own thinner sheet, out of the
+# turn the same way, lower and shorter: it carries about a third of him.
+inside = min(skis, key=lambda p: abs((p - cog).dot(side)))
+emit_in = np.array(inside - travel * 0.25 + normal * 0.02)
+pos_in, rad_in, age_in = S.spray_points(emit_in, np.array(travel), np.array(out_dir), np.array(normal),
+                                        DATA["pose"]["speed"] * 0.55, n_grains // 2, rng, strength=0.7)
+pos, rad, age = np.concatenate([pos, pos_in]), np.concatenate([rad, rad_in * 0.85]), np.concatenate([age, age_in])
 grains = S.point_object("spray", pos, rad, S.grain_material(W.aov))
 mist_pick = rng.uniform(0, 1, len(pos)) < 0.05
 mist = S.point_object("mist", pos[mist_pick], 0.12 + 0.25 * age[mist_pick], S.mist_material(),

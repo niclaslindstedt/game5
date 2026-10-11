@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE JUMP PLANE, as the engine's public surface re-exports it
 // (`engine/index.ts`): its numbers (`defs/plane.ts`), its state, its flight
-// (`plane.ts`, the air on it `plane-aero.ts`), its strip (`airstrip.ts`)
+// (`plane.ts`, the air on it `plane-aero.ts`, its wings `plane-wings.ts`), its strip (`airstrip.ts`)
 // and the bot's hands on it (`plane-pilot.ts`) — and THE SKYDIVE out of its
 // door: its numbers (`defs/chute.ts`), its state, its flight (`chute.ts`,
 // the wing maths it shares with the paramotor `canopy.ts`) and the bot's
@@ -14,6 +14,7 @@ export {
   planeFireOf,
   planeFireballAt,
   poolHeat,
+  wreckIgnites,
   wreckKindOf,
   type PlaneFire,
   type WreckKind,
@@ -24,8 +25,12 @@ export type {
   PlaneMode,
   PlanePhaseEvent,
   PlaneState,
+  PlaneWing,
   PlaneWreck,
+  TornWing,
 } from "./plane-state.ts";
+export { PLANE_WINGS, TAKEOFF_HAND } from "./defs/plane-wings.ts";
+export { wingMiddle } from "./plane-wings.ts";
 export {
   THREE_POINT,
   freshPlane,

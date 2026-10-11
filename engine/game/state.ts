@@ -31,6 +31,7 @@ import type { Stuff } from "./upright-grid.ts";
 import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
+import type { AvalancheEvent, AvalancheState } from "./avalanche-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
 import type { PisteDay } from "./piste-day.ts";
@@ -662,6 +663,7 @@ export type GameEvent =
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   | GrimbearEvent
+  | AvalancheEvent
   | AfterskiEvent
   | GroomerEvent
   | TrafficEvent
@@ -860,6 +862,8 @@ export type GameState = ContestState & {
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
+  /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
+  avalanche?: AvalancheState;
   /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose
    * player asked for them. */
   mishaps?: import("./mishaps.ts").MishapState;

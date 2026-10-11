@@ -11,7 +11,8 @@
 // (`tricks.ts`); every rival's run by the same function; then every skier
 // against every other; then the crowd on a free ride (`crowd.ts`) — its
 // amateurs down their runs, and the player against them — and the
-// grimbear, on a free ride he was dealt to (`grimbear.ts`).
+// grimbear, on a free ride he was dealt to (`grimbear.ts`), and the
+// avalanches, on one that asked for them (`avalanche.ts`).
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
@@ -76,6 +77,7 @@ import { dealEnthusiasts, nightOver, stepEnthusiasts } from "./enthusiasts.ts";
 import { ENTHUSIASTS } from "./defs/enthusiasts.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
+import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
 import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
@@ -307,6 +309,10 @@ export type CreateGameOptions = {
    * (`night`, the app's ask), whatever the hour (`on`), or never (`off`).
    * None when left out. Ignored by every other mode. */
   groomer?: GroomerAsk;
+  /** THE AVALANCHES (`avalanche.ts`) on a FREE RIDE: its loaded slopes off
+   * the groomed runs may slide under the skier. None when left out.
+   * Ignored by every other mode. */
+  avalanche?: boolean;
 };
 
 /** The ski-cross heat a run asks for: named, or its bracket's next. */
@@ -356,6 +362,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     ...(base.traffic ? { traffic: true } : {}),
     // ...and its skis off in the village (`town.ts`): the free ride's alone.
     ...(base.town ? { town: true } : {}),
+    // ...and its slopes' avalanches (`avalanche.ts`): the free ride's alone,
+    // and only when asked for.
+    ...(base.avalanche && options.avalanche ? { avalanche: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -600,6 +609,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     (free && options.crowd === undefined && nightOver(level) ? ENTHUSIASTS.count : 0);
   if (free && keen > 0) dealEnthusiasts(state, keen);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
+  // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
+  if (rules.avalanche) state.avalanche = freshAvalanche(state);
   if (free && options.mishaps) state.mishaps = freshMishaps(seed, options.mishaps);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
@@ -670,6 +681,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   }
   // THE GRIMBEAR (`grimbear.ts`), on a free ride he was dealt to.
   if (state.grimbear) stepGrimbear(state, events);
+  // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
+  if (state.avalanche) stepAvalanche(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.
   if (state.rules.contact) feelBumps(state, events);
   // THE G METER bills a blow only once someone went down on it.

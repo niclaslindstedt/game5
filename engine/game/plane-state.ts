@@ -35,8 +35,10 @@ export type PlaneControls = {
  * door, off the snow, onto it, out of the door in the air (`jump`) or onto
  * the snow from a plane stopped (`stepoff`), the pilot home on the strip,
  * the machine crashed (where it burns), the ride started again on the
- * strip — `stall`, a wing let go of its air — and its dealt stoppage
- * (`mishaps.ts`): the engine coughing (`cough`) and stopped (`engine`). */
+ * strip — `stall`, a wing let go of its air, `scrape` a wingtip touched
+ * on the snow or battered in a crown and flown on, and `tear` a wing torn
+ * off (`plane-wings.ts`) — and its dealt stoppage (`mishaps.ts`): the
+ * engine coughing (`cough`) and stopped (`engine`). */
 export type PlanePhaseEvent =
   | "board"
   | "liftoff"
@@ -47,11 +49,14 @@ export type PlanePhaseEvent =
   | "crash"
   | "restart"
   | "stall"
+  | "scrape"
+  | "tear"
   | "cough"
   | "engine";
 
 /** THE PLANE'S EVENT. `speed` is how hard: the closing speed into the snow
- * or a crown, m/s (a crash, a landing), the airspeed (a jump), 0 else. */
+ * or a crown, m/s (a crash, a landing, a scrape, a wing torn off), the
+ * airspeed (a jump), 0 else; `lit` on a crash, whether it caught fire. */
 export type PlaneEvent = {
   kind: "plane";
   t: number;
@@ -60,6 +65,7 @@ export type PlaneEvent = {
   y: number;
   z: number;
   speed: number;
+  lit?: boolean;
 };
 
 /** WHAT THE PLANE IS DOING: `parked` on the strip, the propeller winding
@@ -140,6 +146,45 @@ export type PlaneState = {
   /** Where the wreck came down, how hard, m/s, and whether the skier was
    * aboard (`plane` crash) — then the ride starts again on the strip. */
   wreck: PlaneWreck | null;
+  /** THE WINGS, the left (the engine's +x) and the right (`plane-wings.ts`). */
+  wings: [PlaneWing, PlaneWing];
+  /** THE TAKE-OFF HAND's heading held on the roll, rad (`plane-hand.ts`). */
+  hold: number;
+};
+
+/** ONE WING: its health, 1 sound … 0 torn off, battered by scrapes on the
+ * snow and twigs in a crown; the force on its tip this step, N (the snow's
+ * on it); whether its tip is on the snow; and once torn off, the piece's
+ * own flight. */
+export type PlaneWing = {
+  health: number;
+  force: number;
+  touching: boolean;
+  torn: TornWing | null;
+};
+
+/** A WING TORN OFF (`plane-wings.ts`'s `tearWing`): what tore it (a tip
+ * dug into the snow, a trunk or a crown's limbs, the air past its ultimate
+ * load), the run's clock as it went, the fuel its tank spilt, kg — and the
+ * piece's flight since: its middle in the world, m, its velocity, m/s, its
+ * orientation (the airframe's frame), its rates, rad/s, world frame, and
+ * whether it has come to rest. Drawn off this; nothing in it draws from the
+ * stream. */
+export type TornWing = {
+  cause: "tip" | "tree" | "load";
+  t: number;
+  fuel: number;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  q: Quat;
+  wx: number;
+  wy: number;
+  wz: number;
+  rest: boolean;
 };
 
 /** A CRASHED PLANE as it struck (`plane.ts`'s `crash`): where, how hard,
@@ -148,8 +193,11 @@ export type PlaneState = {
  * engine's +x, +1 the right, 0 neither); the way it was going, m/s, its
  * attitude and its body rates, rad/s, as it struck (the engine leaves it
  * at rest there — the drawing breaks it up off these); its engine's power
- * share (the blades bent back at idle, curled forward under power); and
- * the fuel it had left, kg. Nothing in it draws from the stream. */
+ * share (the blades bent back at idle, curled forward under power); the
+ * fuel it had left in the tanks still on it, kg; whether that fuel caught
+ * (`wreckIgnites`: a tank torn open and the hot engine reached) — most
+ * crashes do not burn; and which wings it had lost before it struck. Nothing
+ * in it draws from the stream. */
 export type PlaneWreck = {
   x: number;
   y: number;
@@ -167,4 +215,6 @@ export type PlaneWreck = {
   wz: number;
   power: number;
   fuel: number;
+  fire: boolean;
+  torn: [boolean, boolean];
 };

@@ -11,7 +11,9 @@
 // lit — the red and green navs at the wing tips while the engine runs, the
 // red beacons flashing, the white strobes' double flash in the air — and
 // after dark the landing light in the left wing's leading edge thrown onto
-// the snow ahead (`lamps`). Charred where it came down (`char`).
+// the snow ahead (`lamps`). Charred where it came down (`char`). A wing the
+// engine has torn off is put away, its lamps with it, and drawn as a loose
+// piece where the engine flies it (`plane-wing-cut.ts`, `debris`).
 //
 // THE COCKPIT (`plane-cockpit.ts`) is built off the model's own glass when
 // it arrives and shown while the eye is in it — the outside's glass put
@@ -30,6 +32,7 @@ import type { Flood } from "./headlamp.ts";
 import { createPlaneCockpit, type PlaneCockpit } from "./plane-cockpit.ts";
 import type { WreckParts } from "./plane-shatter.ts";
 import { createPlaneStandIn } from "./plane-standin.ts";
+import { cutWings, type WingCut } from "./plane-wing-cut.ts";
 import { fadeBlades, lookDisc, rotorDisc, shadeDisc, type DiscSpec } from "./rotor-disc.ts";
 import { createRotorEye } from "./rotor-look.ts";
 import { PLANE_NODES, planeModelUrl } from "./skier-models.ts";
@@ -38,6 +41,11 @@ export type PlaneLook = {
   /** The airframe in the engine's body frame (x right, y up, z forward,
    * the origin the ground datum). */
   group: THREE.Group;
+  /** The torn wings, world frame: added beside the airframe, never under it
+   * — held where they lay while `holdDebris` (a wreck still drawn after the
+   * ride is begun again). */
+  debris: THREE.Group;
+  holdDebris(on: boolean): void;
   /** Settled once the model is in, or the stand-in is kept. */
   ready: Promise<void>;
   /** One frame's pose off the engine's plane, `clock` s into the run —
@@ -227,6 +235,11 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
   const standIn = createPlaneStandIn(haze);
   group.add(standIn.group);
   let parts = standInParts(standIn);
+  const debris = new THREE.Group();
+  debris.name = "plane_debris";
+  let wings: WingCut = cutWings(standIn.group, group);
+  let held = false;
+  debris.add(wings.debris);
   let colours = parts.materials.map((m) => (m as THREE.MeshStandardMaterial).color.clone());
   let charred = 0;
   let disposed = false;
@@ -301,6 +314,10 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
         cockpit = createPlaneCockpit(body, (mesh) => back.clone().multiply(mesh.matrixWorld), haze);
         group.add(cockpit.group);
       }
+      // The wings cut out last, the cockpit having read the glass it needs.
+      wings.dispose();
+      wings = cutWings(gltf.scene, group);
+      debris.add(wings.debris);
       colours = parts.materials.map((m) => (m as THREE.MeshStandardMaterial).color.clone());
       lampMats = parts.materials.filter(
         (m): m is THREE.MeshStandardMaterial =>
@@ -316,6 +333,8 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
   const q = new THREE.Quaternion();
   return {
     group,
+    debris,
+    holdDebris: (on) => (held = on),
     ready,
     pose(p, clock, level, dt = 0) {
       // THE PROPELLER as the eye sees it: turned to its strobed pattern
@@ -326,6 +345,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       const look = propEye.step(wreck ? 0 : p.spin, dt);
       seen.prop = wreck ? p.prop : look.phase;
       parts.pose(Object.assign(seen, p, { prop: seen.prop }));
+      wings.pose(p, held);
       if (cockpit && level) cockpit.update(p, level, clock, dt);
       disc.rotation.z = -look.phase;
       lookDisc(disc, look, !wreck);
@@ -333,10 +353,11 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       const live = !wreck && p.spin > 0.05;
       const flash = clock % 1 < 0.1;
       const beat = clock % 1.3;
-      for (const n of navs) n.visible = live;
+      const on = (i: number) => !p.wings?.[i]?.torn;
+      navs.forEach((n, i) => (n.visible = live && on(i)));
       for (const b of beacons) b.visible = live && flash;
       const strobe = live && !p.grounded && (beat < 0.05 || (beat > 0.14 && beat < 0.19));
-      for (const s of strobes) s.visible = strobe;
+      strobes.forEach((s, i) => (s.visible = strobe && on(i)));
       for (const m of lampMats) m.emissiveIntensity = live ? (flash ? 1.2 : 0.6) : 0.1;
     },
     char(k) {
@@ -354,7 +375,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
     lamps(p, at, lit, out) {
       cockpit?.night(lit);
       shadeDisc(disc, 1 - 0.85 * lit);
-      if (lit <= 0 || p.mode === "wreck" || p.spin < 0.05) return;
+      if (lit <= 0 || p.mode === "wreck" || p.spin < 0.05 || p.wings?.[0]?.torn) return;
       q.set(at.q.x, at.q.y, at.q.z, at.q.w);
       v.set(LIGHTS.landing.x, LIGHTS.landing.y, LIGHTS.landing.z).applyQuaternion(q);
       d.set(0, -0.18, 1).normalize().applyQuaternion(q);
@@ -372,6 +393,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
     dispose() {
       disposed = true;
       cockpit?.dispose();
+      wings.dispose();
       group.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
       });

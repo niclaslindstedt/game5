@@ -68,6 +68,10 @@ const SAT = 0.48;
  * the share of its span it keeps bunched. */
 const BUNCH = 0.35;
 const BUNCHED = 0.8;
+/** A wing FALLEN INTO, as drawn: how far up his lines the balled cloth
+ * hangs, m, its share of the span, the rise and the chord, how fast it turns
+ * over, rad/s, and the twist it is balled with, rad. */
+const TANGLE = { reach: 1.4, span: 0.22, rise: 0.3, chord: 0.3, turn: 2.4, twist: 1.1 };
 /** The risers' slots: A, B, C, the brake's pulley. */
 const SLOTS = { A: 0, B: 1, C: 2, brake: 3 } as const;
 
@@ -311,10 +315,13 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
         observe(wingTrack, { x: p.x, y: p.y, z: p.z, q: pilot.q }, state.tick);
         sample(wingTrack, alpha, wingAt);
         shown = true;
-        // The canopy turned up its lines and along its heading, its nose
-        // pitched by the swing.
+        // The canopy turned up its lines and along its way — which holds
+        // through a dive and over the top of a loop, where a heading would
+        // flip — its nose pitched by the swing.
         up.set(wingAt.x - pilot.x, wingAt.y - pilot.y, wingAt.z - pilot.z).normalize();
-        fwd.set(Math.sin(p.heading), 0, Math.cos(p.heading));
+        fwd.set(p.way.x, p.way.y, p.way.z);
+        fwd.addScaledVector(up, -fwd.dot(up));
+        if (fwd.lengthSq() < 1e-6) fwd.set(Math.sin(p.heading), 0, Math.cos(p.heading));
         fwd.addScaledVector(up, -fwd.dot(up)).normalize();
         right.crossVectors(up, fwd);
         basis.makeBasis(right, up, fwd);
@@ -325,6 +332,14 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
         const step = lastT < 0 ? 0 : Math.max(0, state.t - lastT);
         bunch += ((p.stalled ? 1 : 0) - bunch) * (1 - Math.exp(-step / BUNCH));
         canopy.scale.set(1 - (1 - BUNCHED) * bunch, 1 + 0.15 * bunch, 1 - 0.1 * bunch);
+        // FALLEN INTO: the cloth balled up in its lines close over him,
+        // wrapped and turning over as he falls with it.
+        if (p.mode === "tangled") {
+          canopy.position.set(pilot.x, pilot.y, pilot.z).addScaledVector(up, TANGLE.reach);
+          canopy.quaternion.multiply(turn.setFromAxisAngle(up, state.t * TANGLE.turn));
+          canopy.quaternion.multiply(turn.setFromAxisAngle(tmp.set(0, 0, 1), TANGLE.twist));
+          canopy.scale.set(TANGLE.span, TANGLE.rise, TANGLE.chord);
+        }
         if (draped) {
           // A ride begun again: the wing flown again from the untouched shape.
           draped = false;

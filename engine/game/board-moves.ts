@@ -92,7 +92,7 @@ export function boardDrive(spec: SkiSpec, way: number, packed: number, effort: n
   if (effort <= 0) return 0;
   const reach = skateReach(way);
   if (reach <= 0) return 0;
-  const power = P.power * riderOf(spec).strength;
+  const power = K.power * riderOf(spec).strength;
   const force = K.legs * Math.min(spec.polePush, power / Math.max(0.5, Math.abs(way)));
   const hop = hopShare(packed);
   return force * reach * (1 - hop + hop * K.hop) * effort;

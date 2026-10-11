@@ -122,6 +122,16 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   trap: { kind: "trap", t: 40, speed: 36 },
   net: { kind: "net", t: 40, speed: 8, x: 0, z: 0 },
   grimbear: { kind: "grimbear", t: 40, phase: "burst", x: 0, z: 0 },
+  avalanche: {
+    kind: "avalanche",
+    t: 40,
+    phase: "release",
+    id: 1,
+    x: 0,
+    z: 0,
+    size: 900,
+    depth: 0.5,
+  },
   afterski: { kind: "afterski", t: 40, phase: "beer", beers: 1, buzz: 0.14 },
   fetch: { kind: "fetch", t: 40, phase: "ski", skis: 1 },
   door: {
@@ -751,14 +761,23 @@ describe("the ride bed (ride-bed.ts)", () => {
   });
 
   it("plants nothing while the arms have given the poles up, working or not", () => {
-    // A way under the push's fade but past where a stroke keeps up with
-    // the snow: he is still driving, and the figure has stopped poling.
-    const keepAt = (w: number) =>
-      gaitOf({ drive: 1, stride: 0.1, speed: w, way: w, airborne: false, thrown: null, pitch: 0 })
-        .keep;
-    let way = 1;
-    while (keepAt(way) > 0.001 && way < TUNING.poles.fade) way += 0.05;
-    expect(way).toBeLessThan(TUNING.poles.fade - 0.1);
+    // A way past where a stroke keeps up with the snow — the arms' cadence
+    // or the double pole's own fade: the figure has stopped poling.
+    const keepAt = (w: number) => {
+      const g = gaitOf({
+        drive: 1,
+        stride: 0.1,
+        speed: w,
+        way: w,
+        airborne: false,
+        thrown: null,
+        pitch: 0,
+      });
+      return g.pole > 0.01 ? g.keep : 0;
+    };
+    let way = TUNING.poles.skateTo;
+    while (keepAt(way) > 0.001 && way < TUNING.poles.fade + 5) way += 0.05;
+    expect(way).toBeLessThan(TUNING.poles.fade + 0.1);
     const rec = recorder();
     const bed = createRideBed(rec);
     const state = going(way);

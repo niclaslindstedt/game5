@@ -133,9 +133,16 @@ export type InputManager = {
 };
 
 /** The jump plane as the hand flying it needs it: its airspeed, m/s, the
- * share of its wing stalled (the buffet the stick is felt through), and the
- * levers as they stand on it (what the hand is seated to as he boards). */
-export type PlaneHand = { airspeed: number; stalled?: number; throttle: number; flaps: number };
+ * share of its wing stalled (the buffet the stick is felt through), its load
+ * factor (the strain on the wings, felt in the seat), and the levers as they
+ * stand on it (what the hand is seated to as he boards). */
+export type PlaneHand = {
+  airspeed: number;
+  stalled?: number;
+  load?: number;
+  throttle: number;
+  flaps: number;
+};
 
 /**
  * `claiming` says whether a RACE is being ridden right now. The listeners
@@ -330,6 +337,7 @@ export function createInputManager(
           dt,
           inPlane.airspeed,
           inPlane.stalled ?? 0,
+          inPlane.load ?? 1,
         );
       } else aboard = false;
       // In the balloon's basket the walking pad owns both ways he walks.
@@ -362,6 +370,7 @@ export function createInputManager(
           ? {
               airspeed: p.airspeed,
               stalled: p.stalled,
+              load: p.load,
               throttle: p.controls.throttle,
               // Boarded on the snow, the lever on the take-off flap.
               flaps: p.grounded

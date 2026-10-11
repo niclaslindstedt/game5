@@ -3,7 +3,8 @@
 // crash): the fuel the flight burns, the kind of crash an attitude and a
 // way make (nose-in, cartwheel, belly, spin, trees), the fireball sized off
 // the fuel by the helicopter's law and only at an impact hard enough to
-// mist jet fuel, the pool fire's life and its flames, and the crash's lens
+// mist jet fuel, WHETHER IT BURNS AT ALL (a tank torn open onto the hot
+// engine — most crashes do not, and a wing torn off alone never does), the pool fire's life and its flames, and the crash's lens
 // planted off the wreck (`camera-crash.ts`) — held on the fire, out of the
 // fireball, clear of the trunks and the snow.
 
@@ -19,7 +20,9 @@ import {
   planeFireballAt,
   poolHeat,
   step,
+  wreckIgnites,
   wreckKindOf,
+  type GameEvent,
   type GameState,
   type Level,
   type PlaneControls,
@@ -28,7 +31,7 @@ import {
 
 import { CRASH_LOOK, frameCrash, startCrashCam } from "../pwa/src/game/camera-crash.ts";
 import type { LensPose } from "../pwa/src/game/camera-rigs.ts";
-import { flatLevel } from "./support/synthetic.ts";
+import { flatLevel, shapedLevel } from "./support/synthetic.ts";
 
 const flat = flatLevel({ size: 4000 });
 const dt = TUNING.dt;
@@ -102,9 +105,12 @@ describe("the plane's wreck", () => {
       { pitch: -1, yaw: 1 },
     );
     expect(spin.plane!.wreck?.kind).toBe("spin");
+    // The cartwheel's wing went first, its tank with it: half the fuel.
+    expect(cart.plane!.wreck!.torn.some((t) => t)).toBe(true);
+    expect(cart.plane!.wreck!.fuel).toBeLessThan(PLANE.fuel / 2 + 1);
     for (const s of [nose, belly, cart, spin]) {
       const w = s.plane!.wreck!;
-      expect(w.fuel).toBeGreaterThan(PLANE.fuel - 2);
+      expect(w.fuel).toBeGreaterThan((s === cart ? PLANE.fuel / 2 : PLANE.fuel) - 2);
       expect(w.speed).toBeGreaterThan(5);
       expect(Math.hypot(w.q.x, w.q.y, w.q.z, w.q.w)).toBeCloseTo(1, 6);
     }
@@ -159,6 +165,67 @@ describe("the plane's wreck", () => {
     // A fuel-dry tank burns nothing.
     expect(planeFireOf(0, 50).out).toBeGreaterThan(0);
     expect(planeFireOf(0, 50).burns).toBe(0);
+  });
+});
+
+describe("whether a wreck burns", () => {
+  it("lights only when a tank is torn open onto the hot engine", () => {
+    // A slow nose-in holds its tanks; a hard one burns.
+    expect(wreckIgnites("nose", 15, 200, 1)).toBe(false);
+    expect(wreckIgnites("nose", 50, 200, 1)).toBe(true);
+    // A belly slide at a landing's speed holds them; far faster it tears one.
+    expect(wreckIgnites("belly", 30, 200, 1)).toBe(false);
+    expect(wreckIgnites("belly", 50, 200, 1)).toBe(true);
+    // No heat, no fire; no fuel, no fire.
+    expect(wreckIgnites("nose", 50, 200, 0)).toBe(false);
+    expect(wreckIgnites("nose", 50, 0, 1)).toBe(false);
+    // Unlit, there is nothing to burn: no ball, no pool, no flames.
+    const cold = planeFireOf(200, 50, "nose", false);
+    expect(cold.ball).toBe(0);
+    expect(cold.diameter).toBe(0);
+    expect(cold.pool).toBe(0);
+    expect(cold.burns).toBe(0);
+    expect(cold.flame).toBe(0);
+    expect(poolHeat(cold, 1)).toBe(0);
+    expect(cold.out).toBeGreaterThan(0);
+  });
+
+  it("burns a hard nose-in and leaves a slow belly slide cold", () => {
+    const nose = crashOf({ y: 120, speed: 50, pitch: -1.1, power: 1 }, { throttle: 1 });
+    expect(nose.plane!.wreck!.fire).toBe(true);
+    const slow = crashOf({ y: 3, speed: 30, pitch: 0.05, power: 0 }, { pitch: 1 });
+    expect(slow.plane!.wreck?.fire).toBe(false);
+  });
+
+  it("tears a wing off on a trunk without a fire", () => {
+    const level = shapedLevel(() => 0, {
+      size: 2000,
+      cell: 2,
+      trees: [{ x: 1007.9, z: 1060, y: 0, height: 14, radius: 0.3, crown: 3 }],
+    });
+    const s = createGame({ level, mode: "free", plane: true, crowd: 0, quiet: true });
+    planeAloft(s, { x: 1000, z: 1000, heading: 0, y: 4, speed: 40, power: 0.8 });
+    let tear: GameEvent | null = null;
+    for (let i = 0; i < 4 / dt && !tear; i++) {
+      step(s, hands({ throttle: 0.8 }));
+      tear =
+        (s.events as GameEvent[]).find((e) => e.kind === "plane" && e.phase === "tear") ?? null;
+    }
+    expect(tear).not.toBeNull();
+    const p = s.plane!;
+    // The left wing (the engine's +x) is off, its tank spilt with it, and
+    // nothing is alight: the plane is still flying when it lets go.
+    expect(p.wings[0].torn?.cause).toBe("tree");
+    expect(p.wings[1].torn).toBeNull();
+    expect(p.mode).toBe("flown");
+    expect(p.wreck).toBeNull();
+    expect(p.fuel).toBeLessThan(PLANE.fuel / 2 + 1);
+  });
+
+  it("calls a ground loop's slew a belly, never a spin", () => {
+    const base = { tip: 0, tree: false, vx: 0, vy: -1, vz: 30, pitch: 0, roll: 0.2 };
+    expect(wreckKindOf({ ...base, yawRate: 1.2, stalled: 0.8 })).toBe("spin");
+    expect(wreckKindOf({ ...base, yawRate: 1.2, stalled: 0.8, gear: true })).toBe("belly");
   });
 });
 

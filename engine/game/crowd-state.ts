@@ -103,6 +103,12 @@ export type Amateur = {
   /** DOWN (`crowd-down.ts`): his ragdoll (null on skis); s spent getting up. */
   thrown: Thrown | null;
   rise: number;
+  /** TAKEN BY AN AVALANCHE (`avalanche-rescue.ts`): the burial that holds
+   * him — carried in its flow, then under its debris until he is dug out —
+   * and, dug out too late, lying DEAD where he was found. Absent on every
+   * run without avalanches. */
+  buried?: number;
+  dead?: boolean;
   /** ON A SNOWBOARD (`CROWD.board`): the foot he rides with forward, or
    * null on skis. Stood, he SITS in the snow: how far down, 0..1, and
    * whether this stop is sat (`crowd-board.ts`). */

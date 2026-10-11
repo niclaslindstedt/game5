@@ -15,6 +15,10 @@ import {
   SHADOW_TAIL,
   shadowFade,
   shadowLength,
+  createSunCadence,
+  SUN_DRIFT,
+  SUN_EVERY,
+  sunDue,
   type ShadowBox,
 } from "../pwa/src/game/shadow-box.ts";
 import { SHADOW_LEVELS, SHADOW_LOOK } from "../pwa/src/game/settings-video.ts";
@@ -126,5 +130,34 @@ describe("the shadow's fade, grafted into every world material (haze.ts)", () =>
     expect(chunk).toContain("? min( terrainLit( vHazeWorld ), heroShadowed(");
     expect(chunk).toContain(") : terrainLit( vHazeWorld );");
     expect(chunk.match(/terrainLit\(/g)?.length).toBe(2);
+  });
+});
+
+describe("the sun's map at half rate", () => {
+  it("is drawn once in SUN_EVERY frames while it can stand", () => {
+    const c = createSunCadence();
+    const box = boxAt(0.5);
+    const drawn = Array.from({ length: 8 }, () => sunDue(c, box, true));
+    expect(drawn.filter(Boolean).length).toBe(8 / SUN_EVERY);
+    expect(drawn[0]).toBe(true);
+  });
+
+  it("is drawn every frame when it may not stand", () => {
+    const c = createSunCadence();
+    const box = boxAt(0.5);
+    for (let i = 0; i < 6; i++) expect(sunDue(c, box, false)).toBe(true);
+  });
+
+  it("is drawn at once after the box jumps or the sun turns", () => {
+    const c = createSunCadence();
+    const box = boxAt(0.5);
+    sunDue(c, box, true);
+    expect(sunDue(c, { ...box, x: SUN_DRIFT * 0.5 }, true)).toBe(false);
+    expect(sunDue(c, { ...box, x: SUN_DRIFT * 1.5 }, true)).toBe(true);
+    expect(sunDue(c, { ...boxAt(0.7), x: SUN_DRIFT * 1.5 }, true)).toBe(true);
+  });
+
+  it("covers the circle from a map drawn SUN_DRIFT away", () => {
+    expect(SUN_DRIFT).toBeLessThan(SHADOW_MARGIN);
   });
 });

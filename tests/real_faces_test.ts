@@ -43,8 +43,6 @@ import {
   areaIds,
   areaOf,
   areaParts,
-  faceForGrade,
-  faceHasGrade,
   faceRanges,
   firstFace,
   GENERATED,
@@ -81,7 +79,7 @@ describe("the real faces", () => {
   beforeAll(loadAllRealFaces);
 
   it("are listed, each keyed by its region and a number", () => {
-    expect(REAL_FACE_IDS).toHaveLength(40);
+    expect(REAL_FACE_IDS).toHaveLength(65);
     for (const id of REAL_FACE_IDS) {
       const region = realFaceRegion(id);
       expect(region && REGION_IDS.includes(region)).toBe(true);
@@ -215,9 +213,8 @@ describe("the real faces", () => {
 
 describe("the real faces on the start card", () => {
   it("end RANGE on GENERATED: its country on AREA and its number on the third row", () => {
-    expect(rangeIds(null)).toEqual([...faceRanges(null), GENERATED]);
-    expect(rangeIds("black")).toEqual([...faceRanges("black"), GENERATED]);
-    expect(areaIds(GENERATED, null)).toEqual([...REGION_IDS]);
+    expect(rangeIds()).toEqual([...faceRanges(), GENERATED]);
+    expect(areaIds(GENERATED)).toEqual([...REGION_IDS]);
     // A ride stored by an older build (no face) reads as GENERATED in its
     // own country; a real one as its range and area.
     const old = mergeRide({ seed: 42, region: "fell" });
@@ -227,78 +224,48 @@ describe("the real faces on the start card", () => {
     const place = realFacePlace(id)!;
     expect(rangeOf(id)).toBe(place.range);
     expect(areaOf(id, "maritime")).toBe(place.area);
-    expect(areaIds(place.range, null)).toEqual(rangeAreas(place.range, null));
+    expect(areaIds(place.range)).toEqual(rangeAreas(place.range));
     // GENERATED keeps the ride's country, or takes the one picked.
-    expect(wherePicked(GENERATED, null, "continental")).toEqual({
+    expect(wherePicked(GENERATED, "continental")).toEqual({
       face: null,
       region: "continental",
     });
-    expect(wherePicked(GENERATED, "red", "alpine", "maritime")).toEqual({
+    expect(wherePicked(GENERATED, "alpine", "maritime")).toEqual({
       face: null,
       region: "maritime",
     });
-    // A real range lands on its first face of the grade, in its country.
-    for (const grade of [null, "green", "black"] as const) {
-      for (const r of faceRanges(grade)) {
-        const at = wherePicked(r, grade, "alpine")!;
-        expect(at.face).toBe(firstFace(r, grade));
-        expect(at.region).toBe(realFaceRegion(at.face!));
-        const a = rangeAreas(r, grade).at(-1)!;
-        expect(wherePicked(r, grade, "alpine", a)!.face).toBe(firstFace(r, grade, a));
-      }
+    // A real range lands on its first face, in its country.
+    for (const r of faceRanges()) {
+      const at = wherePicked(r, "alpine")!;
+      expect(at.face).toBe(firstFace(r));
+      expect(at.region).toBe(realFaceRegion(at.face!));
+      const a = rangeAreas(r).at(-1)!;
+      expect(wherePicked(r, "alpine", a)!.face).toBe(firstFace(r, a));
     }
   });
 
   it("are filed by range, by name, then by area and part", () => {
-    const ranges = faceRanges(null);
+    const ranges = faceRanges();
     const names = ranges.map((r) => STRINGS.rangeName(r).replace(/^THE /, ""));
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     for (const r of ranges) expect(STRINGS.rangeName(r)).not.toBe(r);
     const listed = ranges.flatMap((r) =>
-      rangeAreas(r, null).flatMap((a) => areaParts(r, a, null).map((p) => p.id)),
+      rangeAreas(r).flatMap((a) => areaParts(r, a).map((p) => p.id)),
     );
     expect([...listed].sort()).toEqual([...REAL_FACE_IDS].sort());
     // Some areas have more than one part: the PART row is shown for them.
-    const many = ranges.flatMap((r) =>
-      rangeAreas(r, null).filter((a) => areaParts(r, a, null).length > 1),
-    );
+    const many = ranges.flatMap((r) => rangeAreas(r).filter((a) => areaParts(r, a).length > 1));
     expect(many.length).toBeGreaterThan(0);
     // A range's first face is its first area's first part.
     for (const r of ranges) {
-      const a = rangeAreas(r, null)[0];
-      expect(firstFace(r, null)).toBe(areaParts(r, a, null)[0].id);
+      const a = rangeAreas(r)[0];
+      expect(firstFace(r)).toBe(areaParts(r, a)[0].id);
     }
-  });
-
-  it("are filtered by the GRADE row: parts, then areas, then ranges", () => {
-    for (const grade of RUN_GRADES) {
-      for (const r of faceRanges(null)) {
-        const areas = rangeAreas(r, grade);
-        for (const a of rangeAreas(r, null)) {
-          const kept = areaParts(r, a, grade);
-          for (const p of kept) expect(faceHasGrade(p.id, grade)).toBe(true);
-          const whole = areaParts(r, a, null);
-          expect(kept.length).toBe(whole.filter((p) => faceHasGrade(p.id, grade)).length);
-          expect(areas.includes(a)).toBe(kept.length > 0);
-        }
-        expect(faceRanges(grade).includes(r)).toBe(areas.length > 0);
-      }
-    }
-    // Orange takes nothing away: every face carries the game's ski routes.
-    expect(faceRanges("orange")).toEqual(faceRanges(null));
-    // Some grade does take something away.
-    expect(
-      RUN_GRADES.some(
-        (g) =>
-          faceRanges(g).length < faceRanges(null).length ||
-          faceRanges(g).some((r) => rangeAreas(r, g).length < rangeAreas(r, null).length),
-      ),
-    ).toBe(true);
   });
 
   it("walk a range's areas neighbour after neighbour, never back and forth", () => {
     const at = (r: string, a: string) => {
-      const ps = areaParts(r, a, null).map((p) => realFacePlace(p.id)!);
+      const ps = areaParts(r, a).map((p) => realFacePlace(p.id)!);
       return {
         name: a,
         lat: ps.reduce((s, p) => s + p.lat, 0) / ps.length,
@@ -313,8 +280,8 @@ describe("the real faces on the start card", () => {
     ];
     expect(walk(pts).map((p) => p.name)).toEqual(["a", "b", "c"]);
     expect(kmBetween(pts[1], pts[2])).toBeCloseTo(114, -1);
-    for (const r of faceRanges(null)) {
-      const areas = rangeAreas(r, null).map((a) => at(r, a));
+    for (const r of faceRanges()) {
+      const areas = rangeAreas(r).map((a) => at(r, a));
       for (let i = 0; i + 1 < areas.length; i++) {
         const hop = kmBetween(areas[i], areas[i + 1]);
         for (const later of areas.slice(i + 1)) {
@@ -326,11 +293,6 @@ describe("the real faces on the start card", () => {
         xs.slice(1).reduce((s, x, i) => s + kmBetween(xs[i], x), 0);
       const byName = [...areas].sort((a, b) => a.name.localeCompare(b.name));
       expect(length(areas)).toBeLessThanOrEqual(length(byName) + 1e-6);
-      // Hiding some faces never reorders the rest.
-      for (const grade of RUN_GRADES) {
-        const kept = rangeAreas(r, grade);
-        expect(kept).toEqual(areas.map((a) => a.name).filter((a) => kept.includes(a)));
-      }
     }
   });
 
@@ -352,17 +314,6 @@ describe("the real faces on the start card", () => {
     expect(pipsHidden(30, pipWindow(30, 0))).toEqual({ before: false, after: true });
     expect(pipsHidden(30, pipWindow(30, 15))).toEqual({ before: true, after: true });
     expect(pipsHidden(30, pipWindow(30, 29))).toEqual({ before: true, after: false });
-  });
-
-  it("give way to one of the area's or the range's with the grade, or the dealt massif", () => {
-    const lacking = REAL_FACE_IDS.find((id) => !faceHasGrade(id, "green"))!;
-    const moved = faceForGrade(lacking, "green");
-    if (moved !== null) {
-      expect(faceHasGrade(moved, "green")).toBe(true);
-      expect(realFacePlace(moved)!.range).toBe(realFacePlace(lacking)!.range);
-    }
-    expect(faceForGrade(lacking, null)).toBe(lacking);
-    expect(faceForGrade(null, "green")).toBeNull();
   });
 });
 

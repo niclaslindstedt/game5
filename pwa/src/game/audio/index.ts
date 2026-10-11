@@ -29,6 +29,7 @@ import { createBalloonBed, type BalloonBed } from "./balloon-bed.ts";
 import { createPlaneBed, type PlaneBed } from "./plane-bed.ts";
 import { createChuteBed, type ChuteBed } from "./chute-bed.ts";
 import { createAfterskiBed, type AfterskiBed } from "./afterski-bed.ts";
+import { createRescueBed, type RescueBed } from "./rescue-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
 import { createRideBed, type RideBed } from "./ride-bed.ts";
@@ -82,6 +83,10 @@ export function createRunAudio(): RunAudio {
   // THE AFTERSKI LODGE'S ROOM (`afterski-bed.ts`): while he is in, the
   // ride's beds fall silent under it.
   const room: AfterskiBed = createAfterskiBed(sfx);
+  // THE SEARCH AFTER AN AVALANCHE (`rescue-bed.ts`): the transceiver's
+  // beep, the shovels — and, buried, the world outside muffled to nearly
+  // nothing under the snow.
+  const rescue: RescueBed = createRescueBed(sfx);
   let ear: Listener = listenerFor("chase");
   // HIS OWN HEART as he bleeds (`engine/game/gore.ts`'s beat): the beat
   // counted last heard, and the run it was counted on.
@@ -103,7 +108,8 @@ export function createRunAudio(): RunAudio {
             event.kind === "para" ||
             event.kind === "balloon" ||
             event.kind === "plane" ||
-            event.kind === "door") &&
+            event.kind === "door" ||
+            event.kind === "avalanche") &&
           state
         ) {
           const c = state.skier;
@@ -138,7 +144,8 @@ export function createRunAudio(): RunAudio {
         playSound(sfx, RUN_BANK, "heartbeat", { gain: duck * Math.min(1.4, 0.6 + g.blood / 1.5) });
       }
       room.update(state, dt, duck);
-      const outside = state.afterski?.inside ? 0 : duck;
+      rescue.update(state, dt, duck);
+      const outside = (state.afterski?.inside ? 0 : duck) * rescue.under(state);
       bed.update(state, dt, outside);
       birds.update(state, dt, outside);
       heli.update(state, dt, outside);
@@ -183,6 +190,7 @@ export function createRunAudio(): RunAudio {
       plane.reset();
       chute.reset();
       room.reset();
+      rescue.reset();
     },
   };
 }

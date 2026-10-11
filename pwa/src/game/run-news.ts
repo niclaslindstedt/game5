@@ -116,21 +116,7 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
             ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
             : null;
     case "avalanche":
-      // A slab breaking, and what it did with him; the flow at rest and
-      // a reset out of it are not news.
-      return e.phase === "release"
-        ? { text: STRINGS.newsAvalanche, tone: "bad" }
-        : e.phase === "caught"
-          ? { text: STRINGS.newsAvalancheCaught, tone: "bad" }
-          : e.phase === "buried"
-            ? { text: STRINGS.newsAvalancheBuried(e.depth), tone: "bad" }
-            : e.phase === "surfaced"
-              ? { text: STRINGS.newsAvalancheSurfaced, tone: "info" }
-              : e.phase === "escaped"
-                ? { text: STRINGS.newsAvalancheEscaped, tone: "good" }
-                : e.phase === "lost"
-                  ? { text: STRINGS.newsAvalancheLost, tone: "bad" }
-                  : null;
+      return avalancheNews(e);
     case "groomer":
       // Into its cab and out of it; ridden into, it is the wipeout's word.
       return e.phase === "board"
@@ -334,4 +320,43 @@ export function shotLabel(state: GameState): string {
     kmh: state.skier.speed * 3.6,
     skis: state.skier.spec.name,
   });
+}
+
+/** A slab breaking, what it did with him and with the others, the search
+ * and the patrol (`avalanche-rescue.ts`); the flow at rest and a reset out
+ * of it are not news. */
+function avalancheNews(e: Extract<GameEvent, { kind: "avalanche" }>): NewsLine | null {
+  const other = e.who !== undefined;
+  switch (e.phase) {
+    case "release":
+      return { text: STRINGS.newsAvalanche, tone: "bad" };
+    case "caught":
+      return { text: other ? STRINGS.newsOtherCaught : STRINGS.newsAvalancheCaught, tone: "bad" };
+    case "buried":
+      return other
+        ? { text: STRINGS.newsOtherBuried, tone: "bad" }
+        : { text: STRINGS.newsAvalancheBuried(e.depth), tone: "bad" };
+    case "surfaced":
+      return {
+        text: other ? STRINGS.newsOtherSurfaced : STRINGS.newsAvalancheSurfaced,
+        tone: "info",
+      };
+    case "escaped":
+      return { text: STRINGS.newsAvalancheEscaped, tone: "good" };
+    case "lost":
+      return { text: STRINGS.newsAvalancheLost, tone: "bad" };
+    case "beacon":
+      return { text: e.alive ? STRINGS.newsBeaconSearch : STRINGS.newsBeaconSend, tone: "info" };
+    case "strike":
+      return { text: STRINGS.newsStrike, tone: "good" };
+    case "dug":
+      if (!other) return e.alive ? { text: STRINGS.newsPatrolYou, tone: "good" } : null;
+      return e.alive
+        ? { text: STRINGS.newsDugAlive, tone: "good" }
+        : { text: STRINGS.newsDugDead, tone: "bad" };
+    case "patrol":
+      return { text: STRINGS.newsPatrol, tone: "info" };
+    default:
+      return null;
+  }
 }

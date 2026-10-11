@@ -53,9 +53,11 @@ import {
   cabinOf,
   coamingGeometry,
   glassFoot,
+  postAt,
   sealGeometry,
   shroudGeometry,
 } from "./cockpit-shroud.ts";
+import { COMPASS_PX, paintCompass } from "./cockpit-compass.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 
 /** How often the panel's faces are painted again, Hz. */
@@ -249,6 +251,7 @@ export function createCockpit(
     side: THREE.DoubleSide,
   });
   let foot: ((x: number) => { x: number; y: number; z: number }) | null = null;
+  let post: number | null = null;
   if (body) {
     body.traverse((o) => {
       if (o instanceof THREE.Mesh && /^glass/i.test((o.material as THREE.Material).name ?? ""))
@@ -256,6 +259,7 @@ export function createCockpit(
     });
     const cabin = cabinOf(body, toMachine);
     foot = glassFoot(cabin.glass);
+    post = postAt(cabin.glass, C.compass.y);
     const seals = sealGeometry(cabin.glass);
     if (seals) {
       group.add(
@@ -418,10 +422,18 @@ export function createCockpit(
   );
   room.add(overMesh);
   geos.push(overFace);
-  // The wet compass on the windscreen's centre strip, and the strip.
+  // THE WET COMPASS on its bracket off the windscreen's centre post, its
+  // face turned down toward the pilot's eyes.
+  const K = C.compass;
+  const kz = (post ?? K.z + 0.06) - K.back;
+  const tilt = Math.atan2(C.eye.y - K.y, kz - C.eye.z);
+  const caseGeo = soft(K.size, K.size, K.depth, 0, 0, 0, 0, 0.012);
+  caseGeo.rotateX(tilt);
+  caseGeo.translate(0, K.y, kz);
+  room.add(merged([caseGeo], satin));
   housing.push(
-    box(0.07, 0.06, 0.06, 0, C.compass.y, C.compass.z),
-    box(0.012, 0.05, 0.05, 0, C.compass.y + 0.06, C.compass.z + 0.02),
+    tube({ x: 0, y: K.y + 0.01, z: kz }, { x: 0, y: K.y + 0.03, z: kz + K.back + 0.01 }, 0.009),
+    box(0.03, 0.06, 0.006, 0, K.y + 0.03, kz + K.back + 0.01),
   );
   room.add(merged(housing, black));
   // THE SHROUD the face sits in, and the coaming forward to the glass.
@@ -435,11 +447,36 @@ export function createCockpit(
     room.add(mesh);
     geos.push(g);
   }
-  const compassCard = new THREE.Mesh(
-    box(0.05, 0.02, 0.005, 0, C.compass.y + 0.004, C.compass.z - 0.031),
-    std({ color: 0xe8e6da, roughness: 0.5, emissive: 0x302e28 }),
-  );
-  room.add(compassCard);
+  const compassCanvas = canvasTexture(COMPASS_PX, COMPASS_PX);
+  textures.push(compassCanvas.texture);
+  {
+    // The face a hair proud of the case's front, turned with it.
+    const half = K.size * 0.46;
+    const n = { y: Math.sin(tilt), z: -Math.cos(tilt) };
+    const upv = { y: Math.cos(tilt), z: Math.sin(tilt) };
+    const f = K.depth / 2 + 0.001;
+    const at = (x: number, v: number): V3 => ({
+      x,
+      y: K.y + n.y * f + upv.y * v,
+      z: kz + n.z * f + upv.z * v,
+    });
+    const face = quad(at(-half, -half), at(half, -half), at(half, half), at(-half, half));
+    room.add(
+      new THREE.Mesh(
+        face,
+        std({
+          map: compassCanvas.texture,
+          roughness: 0.25,
+          emissiveMap: compassCanvas.texture,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.15,
+          side: THREE.DoubleSide,
+        }),
+      ),
+    );
+    geos.push(face);
+  }
+  let compassAt: number | null = null;
 
   // THE TWO LEVERS off the overhead: the rotor brake (red) and the fuel
   // shut-off (yellow), hanging forward of it.
@@ -839,6 +876,11 @@ export function createCockpit(
         level.sun.hour + t / 3600,
       );
       panelCanvas.texture.needsUpdate = true;
+      if (compassAt === null || Math.abs(compassAt - g.heading) > 0.25) {
+        compassAt = g.heading;
+        paintCompass(compassCanvas.ctx, g.heading);
+        compassCanvas.texture.needsUpdate = true;
+      }
       if (pedLive !== g.live) {
         pedLive = g.live;
         paintPedestal(pedCanvas.ctx, g.live);

@@ -31,18 +31,42 @@ export type RoomCut = { x: number; z: number; heading: number; hw: number; hd: n
 /** How far inside the walls' outer faces the cut stays, m. */
 const SHORT = 0.08;
 
+/** What is kept out now: the rooms built, and the holes dug into an
+ * avalanche's debris (`patrol-view.ts` draws their walls and floor in the
+ * snow's place) — rooms first, the slots shared. */
+let rooms: readonly RoomCut[] = [];
+let holes: readonly RoomCut[] = [];
+
 /** Hand the ground the rooms built now, nearest first. */
 export function setRoomCuts(list: readonly RoomCut[]): void {
-  const n = Math.min(ROOM_CUTS, list.length);
-  for (let i = 0; i < n; i++) {
-    const r = list[i];
-    roomCutUniforms.uRoomCutA.value[i].set(r.x, r.z, Math.sin(r.heading), Math.cos(r.heading));
-    roomCutUniforms.uRoomCutB.value[i].set(
-      Math.max(0, r.hw - SHORT),
-      Math.max(0, r.hd - SHORT),
-      0,
-      0,
-    );
+  rooms = list;
+  flush();
+}
+
+/** Hand the ground the holes dug now: each cut to its own walls exactly
+ * (the pit is drawn to meet the snow at its rim). */
+export function setHoleCuts(list: readonly RoomCut[]): void {
+  holes = list;
+  flush();
+}
+
+function flush(): void {
+  let n = 0;
+  for (const [list, short] of [
+    [rooms, SHORT],
+    [holes, 0],
+  ] as const) {
+    for (const r of list) {
+      if (n >= ROOM_CUTS) break;
+      roomCutUniforms.uRoomCutA.value[n].set(r.x, r.z, Math.sin(r.heading), Math.cos(r.heading));
+      roomCutUniforms.uRoomCutB.value[n].set(
+        Math.max(0, r.hw - short),
+        Math.max(0, r.hd - short),
+        0,
+        0,
+      );
+      n++;
+    }
   }
   roomCutUniforms.uRoomCuts.value = n;
 }

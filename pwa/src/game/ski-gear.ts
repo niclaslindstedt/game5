@@ -311,6 +311,7 @@ export function buildGear(
     cuff.rotation.x = 0.22;
     for (let k = 0; k < 3; k++) {
       const buckle = add(new THREE.BoxGeometry(0.06, 0.012, 0.02), alloy, group);
+      buckle.name = "buckle";
       buckle.position.set(0, sole + 0.05 + k * 0.06, 0.05 - k * 0.012);
     }
     skis.push(group);

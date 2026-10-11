@@ -21,11 +21,19 @@ export {
   stepAvalanche,
   survivalMinutes,
 } from "./avalanche.ts";
+export { AVALANCHE_RESCUE } from "./defs/avalanche-rescue.ts";
+export { burialOf, patrolMan, patrolReach, type PatrolMan } from "./avalanche-rescue.ts";
 export {
   CELL as AVALANCHE_CELL,
   type AvalancheEvent,
   type AvalancheState,
   type AvalancheVictim,
+  type Beacon,
+  type Burial,
+  type BuriedWho,
+  type Patrol,
+  type PatrolAct,
+  type ProbeHole,
   type SlabFrame,
   type Slide,
 } from "./avalanche-state.ts";

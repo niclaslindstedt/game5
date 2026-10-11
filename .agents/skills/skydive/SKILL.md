@@ -81,7 +81,9 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   after every change to `WINGSUIT`, `CHUTE.base`, `wingsuit*.ts` or the
   chute step the suit rides on; a change to the chute step owes both labs.
 - **`make skydive`** (browser, its own bundle) — every sheet before and
-  after a change to the look: `gear`, `exit`, `freefall`, `deploy` (the
+  after a change to the look: `gear`, `worn` (the rig close from every side
+  on the snow after a landing, riding on, under the canopy and in freefall —
+  the sheet for any change to `chute-gear.ts`, on the skis AND `--skis=lynx`), `exit`, `freefall`, `deploy` (the
   opening frame by frame, off his side and on the chase lens), `shape` (the
   main from behind, the side, below, the front, the top skin with the
   bridle, bag and pilot chute, in a turn), `canopy` (hands off, the toggles,
@@ -175,6 +177,14 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 - **The rig rides the bridle off the top centre.** At full canopy the bag and
   pilot chute floated at the trailing edge; they now sit over the top skin's
   middle and settle aft as a real one does.
+- **The rig is laid in the CHEST bone's frame, which starts at the WAIST.**
+  The neck's base is only 0.275 m up it and the shoulders' line 0.215; the
+  first rig took the origin for mid-chest and stood its shoulder webs 0.5 m
+  up, a frame floating beside the helmet. Size anything worn on the trunk
+  off `dress-body.ts` (the back some 0.15 m behind the spine through the
+  jacket), and hold it in `tests/chute_gear_test.ts`. An extrusion laid onto
+  the back by a z map that reverses its depth is a reflection: mirror x too,
+  or every face renders inside out.
 - **Nothing is heard twice.** The ride bed's wind is zero aboard the plane and
   through the exit, freefall and deployment; the chute's own roar carries it.
 

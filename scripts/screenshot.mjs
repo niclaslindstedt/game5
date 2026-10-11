@@ -341,6 +341,28 @@ const SURFACES = {
     wait: ".dress-stage canvas",
     settle: 1800,
   },
+  // THE FREE RIDE'S WHERE STEPS: the world map flown onto a range (its
+  // outline a download of its own, waited on), and an area's mountains.
+  where: {
+    params: { menu: "world", face: "fell-3" },
+    wait: ".where-land",
+    settle: 1400,
+  },
+  "where-alps": {
+    params: { menu: "world", face: "alpine-4" },
+    wait: ".where-land",
+    settle: 1400,
+  },
+  "where-generated": {
+    params: { menu: "world", region: "alpine" },
+    wait: ".where-land",
+    settle: 1400,
+  },
+  "where-area": {
+    params: { menu: "area", face: "fell-3" },
+    wait: ".where-land",
+    settle: 1400,
+  },
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map
   // generated in a worker — has landed on it.
   start: { params: { menu: "start" }, wait: ".seed-preview-map image", settle: 700 },

@@ -614,8 +614,10 @@ Each phase lands green and with its lab's before and after in the PR.
 - [x] **7. The app**: the tricks card, the hill row, the HUD, the plate and
       the board, the words, the URL, the records, the replay recipe;
       `tests/ski_jump_hud_test.ts`; `screenshots --surface freestyle`.
-- [ ] **8. The hill as drawn**: every piece above; `make skijump`'s
-      `hill`, `parts` and `night` sheets.
+- [x] **8. The hill as drawn**: every piece above but the chairlift, the
+      TV crane, the photocells and the warming room's lift (see *Settled
+      (phase 8)*); `make skijump`'s `hill` (with `night`), `inrun`,
+      `flight` and `landing` sheets.
 - [ ] **9. The jumper as drawn**: the poses, the suit, the skis and the free
       heel; `make skijump`'s `poses`, `skier-metrics`.
 - [ ] **10. The cameras and the replay**: the rows, the start, the profile
@@ -883,6 +885,69 @@ sims' digests unmoved.
   trick map card's HILL row (the link only), the leader's green line drawn
   across the landing hill, the commentator's words and the hill records —
   phase 8 (the hill as drawn) and 13 (its hills) are where they land.
+
+## Settled (phase 8)
+
+- **Where everything stands** is `pwa/src/game/ski-jump-plan.ts`
+  (three-free, `tests/ski_jump_look_test.ts`), every place read off
+  `Level.skiJump` in the hill's own frame (`ski-jump-frame.ts`: `d` m of
+  plan down the line from the deck, `a` m across): the in-run trough (the
+  norm's in-run width, the TRACKS the Albatross's stance apart, a groove a
+  little wider than its tip), the gates, the start tower, the distance
+  BOARDS every metre from 0.5·w to HS + 5 (numbered on the fives, ticks
+  between, each at the plan its distance is credited at — `planOfDistance`
+  inverts `distanceAt`), the P, K, HS and fall lines, the dyed lines on the
+  fives and branch lines on the tens across the knoll, the side bands blue
+  P–K and red K–L, eight wind flags a side from the edge to K, three wind
+  meters, five judges' cabins stepped over 0.7·w on the left 0.25·w out,
+  two coaches' platforms, and floodlight masts every 40 m both sides
+  (26 m, three lamps thrown well across and down, fed to the piste
+  lights' bake as other masts are).
+- **Built** in the facade kit (`ski-jump-build.ts`, one mesh) and drawn by
+  `ski-jump-view.ts` (hung by `gates.ts`): the in-run is an ON-GRADE
+  concrete TROUGH — the graded strip and the grid cut 0.1 m under the
+  profile leave no room for a raised trestle without an engine change, so
+  none was made and no digest moved; its walls, guard rails, stair, lamp
+  posts and a steel crossbar a gate; the start tower (a concrete storey,
+  a glazed blue warming room, the roof over the top gates); the edge as a
+  sharp face and a dark lip; the board walls (white inside under a
+  coloured band, bare wood outside); the ice tracks a glazed strip with
+  raised lips; the boards one atlas, one draw; the flags streaming with
+  `windAt` along and across; the START LIGHT (red on the bar in the
+  countdown, green while he goes); the green TO-BEAT line across the hill
+  at the leader's distance. A ski jump gets none of the race course's
+  arch, start hut, wand, nets or markers.
+- **Cost** (seed 38, the large hill, HIGH, 1280×720, SwiftShader; the
+  same lens before the hill was drawn and after): from the out-run 336 →
+  297 draw calls and 1.21 → 1.22 M triangles, down the in-run 317 → 294
+  and 1.11 → 1.12 M, the aerial 278 → 282 and 0.80 → 0.84 M, the bar's
+  chase 299 → 298 and 1.07 → 1.12 M. The hill's own draws (the facade
+  mesh, the tracks, the dye, the boards, the flags, the start light, the
+  to-beat line) are fewer than the race course's arch, hut and markers
+  it replaces; it adds at most some 50 k triangles.
+- **The lab rounds** (`make skijump`):
+  1. Round 1, the hill first drawn: it reads as a jumping hill from the
+     out-run and the air. The night masts left pools at their feet, the
+     judges' lens stood inside a cabin and the K-line lens behind a mast.
+  2. Round 2: the masts raised to 26 m with the lamps thrown across the
+     axis (an even wash at night); the lenses moved. The in-run reads well
+     on every lens (bar, gates, tracks under the skis, stair, rails).
+  3. Round 3: the judges' cabins dark against the snow (cladding lightened
+     to a pale grey), the flight's side lenses moved off the tower to the
+     right.
+  4. Round 4: the boards' faces were wood (now white), the boards on one
+     side read mirrored (the text's way fixed for three's right-handed
+     world), the early side lens out of the trees.
+  5. Round 5: a board seen from outside the wall showed its number
+     mirrored through it; the boards are drawn one-sided now with a bare
+     back, and the late side lens moved out of the trees.
+- **Left for later**: the in-run as a raised trestle or ramp over the knoll
+  (an engine change: the grid and the graded strip); the chairlift beside
+  the hill, the TV crane, the photocells and a pole camera; banners in the
+  arena's colours on the board walls; the jumping arena itself (phase 11 —
+  the generic finish arena's stands and video wall stand meanwhile); the
+  piste masts the engine stands along the hill's own line (solid to a
+  skier, so left standing) still pool their light beside it at night.
 
 ## Open questions for the user
 

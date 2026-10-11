@@ -23,6 +23,7 @@
 // Drawn between two steps on the jumper's own line (`interp.ts`).
 
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import {
   CHUTE,
   liftPlans,
@@ -199,10 +200,11 @@ export function createChuteScene(
       }
     : null;
   if (baseColours) paintBase(baseColours, suit ?? colourwayOf(0));
+  const webMat = std(0x2a2d33, 0.8);
   const gear = createGear(
     std(0x1d2128, 0.75),
     std(base ? 0x7a7f86 : 0x3a6fb4, 0.65),
-    std(0x2a2d33, 0.8),
+    webMat,
     std,
     base,
     baseColours,
@@ -225,7 +227,8 @@ export function createChuteScene(
   pilot.add(new THREE.Mesh(dome, domeMat), new THREE.Mesh(skirt, meshMat));
   // THE BAG the canopy is packed in.
   const B = CHUTE.bag;
-  const bagGeo = new THREE.BoxGeometry(B.width, B.height, B.depth);
+  // A soft cloth bag, its corners rounded by the canopy packed in it.
+  const bagGeo = new RoundedBoxGeometry(B.width, B.height, B.depth, 3, 0.05);
   const bag = new THREE.Mesh(bagGeo, std(0x2e3238, 0.8));
   group.add(pilot, bag);
 
@@ -337,7 +340,6 @@ export function createChuteScene(
   const bridle = new THREE.Line(bridleGeo, bridleMat);
   bridle.frustumCulled = false;
   group.add(bridle);
-  const webMat = gear.legs[0].material as THREE.Material;
   const riserGeo = new THREE.BoxGeometry(0.035, 1, 0.006);
   riserGeo.translate(0, 0.5, 0);
   const risers = [0, 1, 2, 3].map(() => {
@@ -404,7 +406,7 @@ export function createChuteScene(
     gear.legs[0].visible = gear.legs[1].visible = !!wearing && !ownEyes;
     gear.body.updateMatrixWorld();
     for (const s of [0, 1])
-      onChest((s ? 1 : -1) * GEAR.webs, 0.43, GEAR.front + 0.01, shoulders[s]);
+      onChest((s ? 1 : -1) * GEAR.riser.x, GEAR.riser.y, GEAR.riser.z, shoulders[s]);
   }
 
   /** The canopy's frame: up its lines from his shoulders, along its
@@ -764,7 +766,7 @@ export function createChuteScene(
   ): void {
     const t = d.t;
     const R = CHUTE.reserve;
-    const tray = onChest(0, GEAR.back.up + CHUTE.container.height * 0.4, GEAR.back.out, v3());
+    const tray = onChest(0, GEAR.reserveTray.y, GEAR.reserveTray.z, v3());
     const atBag = v3().set(d.bag.x, d.bag.y, d.bag.z);
     const atPilot = v3().set(d.pilot.x, d.pilot.y, d.pilot.z);
     // Sprung out of the tray over the first tenth of a second.
@@ -839,7 +841,7 @@ export function createChuteScene(
       hideAll();
       const shape = base ? null : skydiveShapeOf(ch ?? null, !!p?.rider);
       // The red pad punched out is carried off in his right hand.
-      gear.pad.position.set(GEAR.webs + 0.012, GEAR.pads, GEAR.front + 0.014);
+      gear.pad.position.set(GEAR.webs + 0.012, GEAR.pads, GEAR.front + 0.016);
       gear.pad.visible = !base;
       if (shape && shape.punch > 0.5)
         gear.pad.position.copy(gear.body.worldToLocal(tmp.copy(hands[1])));
@@ -849,7 +851,7 @@ export function createChuteScene(
       // The reserve's handle in his left fist as he pulls it, then let go;
       // its tray's flap thrown open by the spring and left hanging open.
       const pulled = !!ch?.reserve;
-      gear.reserveHandle.position.set(-GEAR.webs - 0.012, GEAR.pads, GEAR.front + 0.012);
+      gear.reserveHandle.position.set(-GEAR.webs - 0.01, GEAR.pads, GEAR.front + 0.012);
       gear.reserveHandle.visible = !base && (!pulled || (!!shape && shape.reserve > 0.3));
       if (pulled && gear.reserveHandle.visible)
         gear.reserveHandle.position.copy(gear.body.worldToLocal(tmp.copy(hands[0])));
@@ -877,7 +879,7 @@ export function createChuteScene(
       if (ch.mode !== "deploying" && ch.mode !== "open") return;
       observe(canopyTrack, { x: ch.x, y: ch.y, z: ch.z, q: jumper.q }, state.tick);
       sample(canopyTrack, alpha, canopyAt);
-      const box = onChest(0, GEAR.back.up + 0.05, GEAR.back.out, v3());
+      const box = onChest(0, GEAR.mainTray.y, GEAR.mainTray.z, v3());
       const toggles = base
         ? (wingsuitShapeOf(ch, false)?.hang ?? 0) > 0.5
         : !!shape && shape.hang > 0.5;

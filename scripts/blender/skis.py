@@ -53,6 +53,9 @@ PANEL = mat("panel", (0.018, 0.018, 0.02), rough=0.55, coat=0.2)
 BASE = mat("base", (0.008, 0.008, 0.01), rough=0.4, metal=0.2)
 BOOT = mat("boot", (0.012, 0.012, 0.014), rough=0.5, coat=0.3)
 ALU = mat("aluminium", (0.82, 0.82, 0.84), metal=1.0, rough=0.28)
+# The boot's own metal, apart from the binding's: a binding lets the boot
+# out and the boot's buckles go with it, the brake and the lever stay.
+BUCKLE = mat("buckle", (0.82, 0.82, 0.84), metal=1.0, rough=0.28)
 
 
 def h_at(y):
@@ -200,17 +203,17 @@ def ski(side):
         cuff.append(ring)
     loft("cuff", cuff, [BOOT])
     strap = c0 + up * (cuff_h - 0.02)
-    box("strap", (strap.x, strap.y, strap.z), (0.128, 0.142, 0.03), PANEL, rot=(-tilt, 0, 0), bevel=0.004)
+    box("strap", (strap.x, strap.y, strap.z), (0.128, 0.142, 0.03), BOOT, rot=(-tilt, 0, 0), bevel=0.004)
     out = 1 if x0 > 0 else -1
     for k, (f, d) in enumerate([(0.35, 0.05), (0.62, 0.035), (0.2, None), (0.62, None)]):
         if d is None:
             # Down the cuff's outside.
             p = c0 + up * (f * cuff_h) + Vector((out * 0.058, 0.02, 0))
-            box("buckle", (p.x, p.y, p.z), (0.012, 0.045, 0.014), ALU, rot=(-tilt, 0, 0), bevel=0)
+            box("buckle", (p.x, p.y, p.z), (0.012, 0.045, 0.014), BUCKLE, rot=(-tilt, 0, 0), bevel=0)
         else:
             # Over the instep.
             y = BOOT_Y - L / 2 + f * L
-            box("buckle", (x0 + out * 0.03, y, sole + 0.12 - d), (0.03, 0.012, 0.014), ALU, rot=(0.6, 0, 0), bevel=0)
+            box("buckle", (x0 + out * 0.03, y, sole + 0.12 - d), (0.03, 0.012, 0.014), BUCKLE, rot=(0.6, 0, 0), bevel=0)
 
 
 for side in (-1, 1):

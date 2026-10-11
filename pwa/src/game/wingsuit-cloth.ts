@@ -297,17 +297,27 @@ export function armWing(p: SkierPose, i: number, unzip = 0): Wing {
 /** THE LEG WING between the legs, off the pose. */
 export function legWing(p: SkierPose): Wing {
   const L = SUIT_CUT.leg;
-  // Each leg from the crotch's height down to past the heel.
+  // Each leg from the crotch's height down the shin to the ankle, then
+  // along the BOOTIE to past the toes — the foot as the pose points it (a
+  // flyer's toes pointed nearly in line with the shin, a stood one's down
+  // the shin), so the leg wing's trailing corners are two feet.
   const lines = [0, 1].map((i) => {
     const hip = p.hipJoints[i];
     const knee = p.knees[i];
     const cuff = p.feet[i];
     const shin = norm(sub(cuff, knee));
-    const heel = add(cuff, scale(shin, BODY.cuffOverAnkle + 0.06));
+    const ankle = add(cuff, scale(shin, BODY.cuffOverAnkle));
+    const f = p.boots[i].f;
+    const foot = norm(mix(shin, f, Math.max(0, dot(f, shin))));
     const start = add(hip, scale(norm(sub(knee, hip)), L.crotch));
-    return [start, knee, cuff, heel, add(heel, scale(shin, L.past))];
+    return [start, knee, cuff, ankle, add(ankle, scale(foot, 0.06 + L.past))];
   });
-  const r = (v: number) => 0.092 - 0.035 * v;
+  // The sleeve round each leg: tapering down the thigh and the shin, its
+  // knee and its heel standing out of it, so from the side the legs read
+  // as legs in a sleeve rather than one cone.
+  const bump = (v: number, at: number, w: number) => Math.exp(-(((v - at) / w) ** 2));
+  const r = (v: number) =>
+    0.092 - 0.035 * v + 0.014 * bump(v, 0.34, 0.06) + 0.012 * bump(v, 0.8, 0.05);
   const legAt = (i: number, v: number): V3 => along(lines[i], v);
   const sideOf =
     (i: number) =>

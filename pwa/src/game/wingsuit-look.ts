@@ -193,7 +193,7 @@ vec3 suitPaint(vec4 w) {
     vec3 c = ${vec(c.under)};
     if (arm && v < 0.1) c = ${vec(c.edge)};
     if (v > 0.95) c = ${vec(c.dark)};
-    if (!arm && (u < 0.17 || u > 0.83) && v > 0.7) c = ${vec(c.dark)};
+    if (!arm && (u < 0.17 || u > 0.83) && v > 0.74) c = ${vec(c.dark)};
     return c * (rib ? 0.8 : 0.92);
   }
   vec3 c = ${vec(c.base)};
@@ -202,7 +202,7 @@ vec3 suitPaint(vec4 w) {
   if (arm ? v < 0.13 : (u < 0.07 || u > 0.93)) c = ${vec(c.edge)};
   if (v > 0.955) c = ${vec(c.dark)};
   // The booties: the leg wing's sleeves round the feet.
-  if (!arm && (u < 0.17 || u > 0.83) && v > 0.7) c = ${vec(c.dark)};
+  if (!arm && (u < 0.17 || u > 0.83) && v > 0.74) c = ${vec(c.dark)};
   if (rib) c *= 0.7;
   return c;
 }

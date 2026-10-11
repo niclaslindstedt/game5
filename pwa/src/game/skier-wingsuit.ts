@@ -355,8 +355,8 @@ export function wingsuitPose(p: SkierPose, s: WingsuitShape): SkierPose {
   const waist = add(p.waist, scale(shift, 0.5));
   // The neck stretched and the head carried up off his back flying, so the
   // helmet stands over the line of the container.
-  const lift = { x: 0, y: 0.03 * s.fly * (1 - s.hang), z: -0.05 * s.fly * (1 - s.hang) };
-  const neck = add(add(p.neck, roll), scale(lift, 0.5));
+  const lift = { x: 0, y: 0.07 * s.fly * (1 - s.hang), z: -0.16 * s.fly * (1 - s.hang) };
+  const neck = add(add(p.neck, roll), scale(lift, 0.25));
   const head = add(add(p.head, roll), lift);
   const plan = handsOf({ ...p, hips, shoulders }, s);
   const hands = [...p.hands] as [V3, V3];

@@ -49,9 +49,10 @@ export type HazeUniforms = {
   /** HOW FAR ALOFT the lens is, 0..1 — 0 on the snow and on every ride but
    * a wingsuit's, whose lens high over the snow (`machines.ts`) sets it: the
    * mist is then measured across the ground rather than through the air
-   * down to it, and closes only over its last part, at the ground's own
-   * edge — so a flyer hundreds of metres up sees the mountain under him
-   * and not a wall of mist. At 0 the mist is exactly the DISTANCE row's. */
+   * down to it, thin under him and thickening out to close a little
+   * inside its wall — so a flyer hundreds of metres up sees the mountain
+   * under him melt into the haze, with no rim where the ground or the
+   * woods end. At 0 the mist is exactly the DISTANCE row's. */
   uMistAloft: { value: number };
   /** Where the sun's shadow stands (`shadow-box.ts`): the circle's centre
    * in plan, and the plan distances the fade runs between. Written by
@@ -247,11 +248,13 @@ float hazeAmount(float dist, float rise) {
   float thin = exp(-max(rise, 0.0) / uHazeLift);
   float air = 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
   if (uMist <= 0.0) return air;
-  // Aloft (\`uMistAloft\`), across the ground and only over its last part.
+  // Aloft (\`uMistAloft\`), across the ground, melting it into the haze
+  // over most of the way out and whole a little inside the wall — where
+  // the woods stop — so neither the woods nor the ground ends on a rim.
   float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
   float m = across / uMist;
   float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
-  mist = mix(mist, smoothstep(0.6, 1.0, m), uMistAloft);
+  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
   return max(air, mist);
 }
 

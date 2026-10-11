@@ -10,8 +10,13 @@
 // him OUT OF THE DOOR into the air with the plane's own way and a push; its
 // pilot then flies it home and lands it on the strip. On the snow, stopped,
 // the same press steps him off. Flown into the snow, a crown or a slope, it
-// CRASHES: it burns where it came down, the skier in its door is thrown,
-// and the ride starts again on the strip once it has burnt.
+// CRASHES: it comes apart where it came down — and BURNS only when a tank
+// is torn open and its fuel reaches the hot engine (`wreckIgnites`) — the
+// skier in its door is thrown, and the ride starts again on the strip. A
+// wing dropped onto the snow scrapes; dug in, met by a trunk or loaded past
+// its ultimate in the air it is TORN OFF (`plane-wings.ts`) and the plane
+// flies on without it. Near the snow the TAKE-OFF HAND (`plane-hand.ts`)
+// keeps a player's "full power and pull" flying off the strip.
 //
 // THE FLIGHT is a rigid body in six degrees of freedom at the engine's
 // 120 Hz: the air and the propeller off `plane-aero.ts` (four wing
@@ -43,12 +48,14 @@ import { airBoundsAt, treesNear, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
 import { PLANE, planeMass } from "./defs/plane.ts";
-import { PLANE_WRECK, wreckKindOf } from "./defs/plane-wreck.ts";
+import { PLANE_WRECK, wreckIgnites, wreckKindOf } from "./defs/plane-wreck.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { airstripOf, onStrip } from "./airstrip.ts";
 import { COG, planeAir, type PlaneAir } from "./plane-aero.ts";
+import { takeoffHand } from "./plane-hand.ts";
 import { boundsHand, homeControls } from "./plane-pilot.ts";
+import { freshWing, judgeWings, stepLooseWings, tipContacts } from "./plane-wings.ts";
 import { derive } from "./skier.ts";
 import { profileAt, windAt, type Wind } from "./wind.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
@@ -77,13 +84,9 @@ const PROP_RIM: readonly Vec3[] = Array.from({ length: 8 }, (_, i) => {
   const r = K.prop.diameter / 2;
   return { x: Math.sin(a) * r, y: K.prop.hub.y + Math.cos(a) * r - COG.y, z: K.prop.hub.z - COG.z };
 });
-/** The airframe's points the trees are asked about, from the CoG. */
+/** The fuselage's points the trees are asked about, from the CoG (the
+ * wings' are `plane-wings.ts`'s: a wing in a tree is torn off, not a crash). */
 const TREE_POINTS: readonly Vec3[] = [
-  ...[-7.9, -5.5, -3.2, 3.2, 5.5, 7.9].map((x) => ({
-    x,
-    y: K.wing.root.y + Math.abs(x) * Math.tan(K.wing.dihedral) - COG.y,
-    z: K.wing.root.le - K.wing.chord / 2 - COG.z,
-  })),
   { x: 0, y: 1.9 - COG.y, z: 3.3 - COG.z },
   { x: 0, y: 1.8 - COG.y, z: 0 - COG.z },
   { x: 0, y: 1.9 - COG.y, z: -4 - COG.z },
@@ -152,6 +155,8 @@ export function freshPlane(state: GameState): PlaneState {
     t: 0,
     fuel: PLANE.fuel,
     wreck: null,
+    wings: [freshWing(), freshWing()],
+    hold: strip.heading,
   };
   restOn(state, p, at.x, at.z, strip.heading);
   return p;
@@ -183,9 +188,15 @@ function restOn(state: GameState, p: PlaneState, x: number, z: number, heading: 
   p.agl = 0;
 }
 
-const say = (run: GameState, events: GameEvent[], phase: PlanePhaseEvent, speed = 0): void => {
+const say = (
+  run: GameState,
+  events: GameEvent[],
+  phase: PlanePhaseEvent,
+  speed = 0,
+  lit?: boolean,
+): void => {
   const p = run.plane!;
-  events.push({ kind: "plane", t: run.t, phase, x: p.x, y: p.y, z: p.z, speed });
+  events.push({ kind: "plane", t: run.t, phase, x: p.x, y: p.y, z: p.z, speed, lit });
 };
 
 /** BEGIN THE RIDE (again): a plane on the strip's start, the engine running
@@ -280,6 +291,7 @@ export function stepPlane(run: GameState, input: SkierInput, events: GameEvent[]
   const p = run.plane;
   if (!p) return false;
   p.t += dt;
+  stepLooseWings(run, p);
   if (p.mode === "wreck") {
     const up = !!p.wreck?.aboard && input.reset && !!run.skier.thrown;
     if (p.t < K.crash.wreck && !up) return false;
@@ -337,6 +349,7 @@ function controlsFor(run: GameState, p: PlaneState, input: SkierInput): PlaneCon
       brake: clamp(s.brake ?? 0, 0, 1),
       ...(s.trim !== undefined ? { trim: clamp(s.trim, -1, 1) } : {}),
     };
+    takeoffHand(run, p, c);
   } else if (p.mode === "home") {
     c = p.t < K.home.beat ? { ...p.controls } : homeControls(run, p);
   } else c = { ...IDLE, brake: 1 };
@@ -380,6 +393,8 @@ const air: PlaneAir = {
   stalled: 0,
   lift: 0,
   thrust: 0,
+  liftL: 0,
+  liftR: 0,
 };
 const normal = { x: 0, y: 1, z: 0 };
 
@@ -503,6 +518,14 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
     p.legs[i] = Math.max(1e-6, depth);
     if (main) side = Math.max(side, Math.abs(vl));
   }
+  // THE WINGTIPS on the snow, held up and dragged by it (`plane-wings.ts`).
+  tipContacts(level, p, cx, cy, cz, omega, tips);
+  Fx += tips.fx;
+  Fy += tips.fy;
+  Fz += tips.fz;
+  tx += tips.tx;
+  ty += tips.ty;
+  tz += tips.tz;
   // THE BODY MOVED: the CoG's velocity and the rates, then the place and
   // the attitude.
   p.vx += (Fx / m) * dt;
@@ -545,6 +568,8 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
   if (!onSnow && aglWas <= 1 && p.agl > 1 && p.vy > 0) say(run, events, "liftoff", p.airspeed);
   if (p.mode !== "flown" && p.mode !== "home") return;
   if (run.rules.sfw) return fend(run, p);
+  // A wing scraped, battered or torn off — never a crash on its own.
+  judgeWings(run, p, air, events);
   const fell =
     hardest > K.crash.sink || side > K.crash.slide || p.legs.some((l) => l > K.crash.travel);
   const hit = fell ? HIT_GEAR : struck(run, p);
@@ -558,10 +583,12 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
 }
 
 const trunks: number[] = [];
+const tips = { fx: 0, fy: 0, fz: 0, tx: 0, ty: 0, tz: 0 };
 
 /** What met the mountain first: nothing, the gear (folded or sliding
- * out), an airframe point (the index into `K.crash.strike` — the first
- * four the wing tips), the propeller, or a tree. */
+ * out), an airframe point (the index into `K.crash.strike` — past the
+ * first four, the wing tips, which `plane-wings.ts` holds on the snow),
+ * the propeller, or a tree. */
 const HIT_NONE = -1;
 const HIT_GEAR = -2;
 const HIT_PROP = -3;
@@ -580,7 +607,7 @@ function struck(run: GameState, p: PlaneState): number {
     const r = rotate(p.q, b);
     return cy + r.y < level.groundAt(cx + r.x, cz + r.z) - give;
   };
-  for (let i = 0; i < STRIKES.length; i++) if (inSnow(STRIKES[i], 0.05)) return i;
+  for (let i = 4; i < STRIKES.length; i++) if (inSnow(STRIKES[i], 0.05)) return i;
   for (const s of PROP_RIM) if (inSnow(s, 0.02)) return HIT_PROP;
   if (p.agl > 60) return HIT_NONE;
   for (const i of treesNear(level, cx, cz, 14, trunks)) {
@@ -598,6 +625,21 @@ function struck(run: GameState, p: PlaneState): number {
   return HIT_NONE;
 }
 
+/** The wing last torn off by its tip or a trunk in the last seconds, as a
+ * crash's struck tip (−1 the left, the engine's +x; +1 the right; 0 none). */
+function tornTip(run: GameState, p: PlaneState): number {
+  let tip = 0;
+  let last = -Infinity;
+  p.wings.forEach((w, s) => {
+    const t = w.torn;
+    if (t && t.cause !== "load" && t.t > last && run.t - t.t < 3) {
+      last = t.t;
+      tip = s === 0 ? -1 : 1;
+    }
+  });
+  return tip;
+}
+
 /** SAFE FOR WORK (`RunRules.sfw`): nothing is struck; an airframe pushed
  * into the snow is lifted out of it and its speed into it taken away. */
 function fend(run: GameState, p: PlaneState): void {
@@ -613,7 +655,7 @@ function fend(run: GameState, p: PlaneState): void {
   }
 }
 
-/** THE CRASH: the plane burns where it came down, and the skier in its
+/** THE CRASH: the plane comes apart where it came down, and the skier in its
  * door is thrown — flung out by the impact. What it struck first and how
  * it was flying say what KIND of crash it was (`wreckKindOf`); the wreck
  * keeps its way, attitude and rates as it struck for the drawing to break
@@ -627,11 +669,12 @@ function crash(
 ): void {
   p.mode = "wreck";
   p.t = 0;
-  // The wing tips are the first four strike points: +x the left (`PLANE`).
-  const tip = hit >= 0 && hit < 4 ? (STRIKES[hit].x > 0 ? -1 : 1) : 0;
+  // A wing its tip or a trunk tore off just before: the cartwheel's side.
+  const tip = tornTip(run, p);
   const kind = wreckKindOf({
     tip,
     tree: hit === HIT_TREE,
+    gear: hit === HIT_GEAR,
     vx: p.vx,
     vy: p.vy,
     vz: p.vz,
@@ -657,8 +700,12 @@ function crash(
     wz: p.wz,
     power: p.power,
     fuel: p.fuel,
+    // It burns only when a tank still on it is torn open and the spill
+    // reaches the hot engine (`defs/plane-wreck.ts`): most crashes do not.
+    fire: wreckIgnites(kind, speed, p.fuel, p.spin),
+    torn: [!!p.wings[0].torn, !!p.wings[1].torn],
   };
-  say(run, events, "crash", speed);
+  say(run, events, "crash", speed, p.wreck.fire);
   if (p.rider) {
     release(run, p, K.crash.blast.out, K.crash.blast.up);
     const c = run.skier;

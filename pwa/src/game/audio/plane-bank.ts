@@ -5,7 +5,7 @@
 // the fuel catches — the bed's whine and thrum run up from there), the skis
 // unloading off the snow and thumping back onto it, the wing letting go
 // (the airframe's buffet under the bed's horn), out of the door, off it
-// onto the snow, and the CRASH.
+// onto the snow, a wingtip SCRAPED, a wing TORN OFF, and the CRASH.
 //
 // The gear and the door are metal and keep their edges; the touch-down is
 // snow and swallows its own. The crash is the helicopter's explosion
@@ -13,7 +13,9 @@
 // adds to it: a heavier fireball off the tanks in its wings — a second,
 // later roar — and the airframe TEARING as it slides on: a long driven
 // scrape of skin on snow, the propeller's blades clattering off the cowl,
-// and a wing folding with a deep wrenching groan.
+// and a wing folding with a deep wrenching groan. A crash that does not
+// catch fire — most do not — is the crunch and the tearing alone
+// (`plane_wreck`).
 
 import type { SoundBank, SoundVoice } from "@niclaslindstedt/oss-game-framework/audio/types";
 
@@ -28,6 +30,44 @@ const BLADES: readonly { at: number; hz: number }[] = [
   { at: 40, hz: 820 },
   { at: 120, hz: 640 },
   { at: 230, hz: 910 },
+];
+
+/** THE AIRFRAME TEARING as it slides on, the crash's whether it burns or
+ * not: the blades clattering off the cowl, a long driven scrape of skin on
+ * snow sweeping down, and a wing folding with a deep wrenching groan. */
+const TEARING: readonly SoundVoice[] = [
+  ...BLADES.map((b): SoundVoice => ({
+    call: "tone",
+    type: "triangle",
+    from: b.hz,
+    to: b.hz * 0.8,
+    durationMs: 120,
+    volume: 0.03,
+    drive: 0.6,
+    delayMs: b.at,
+    filter: { type: "bandpass", frequency: b.hz, q: 6 },
+  })),
+  {
+    call: "noise",
+    durationMs: 1800,
+    volume: 0.05,
+    color: "white",
+    attackMs: 30,
+    delayMs: 80,
+    filter: { type: "bandpass", frequency: 2400, to: 700, q: 1.4 },
+  },
+  {
+    call: "tone",
+    type: "sawtooth",
+    from: 95,
+    to: 55,
+    durationMs: 900,
+    volume: 0.035,
+    drive: 0.7,
+    attackMs: 60,
+    delayMs: 450,
+    filter: { type: "bandpass", frequency: 260, q: 3 },
+  },
 ];
 
 export const PLANE_BANK: SoundBank = {
@@ -255,38 +295,7 @@ export const PLANE_BANK: SoundBank = {
       "going up in a second, later roar.",
     voices: [
       ...HELI_BANK.heli_crash.voices,
-      ...BLADES.map((b): SoundVoice => ({
-        call: "tone",
-        type: "triangle",
-        from: b.hz,
-        to: b.hz * 0.8,
-        durationMs: 120,
-        volume: 0.03,
-        drive: 0.6,
-        delayMs: b.at,
-        filter: { type: "bandpass", frequency: b.hz, q: 6 },
-      })),
-      {
-        call: "noise",
-        durationMs: 1800,
-        volume: 0.05,
-        color: "white",
-        attackMs: 30,
-        delayMs: 80,
-        filter: { type: "bandpass", frequency: 2400, to: 700, q: 1.4 },
-      },
-      {
-        call: "tone",
-        type: "sawtooth",
-        from: 95,
-        to: 55,
-        durationMs: 900,
-        volume: 0.035,
-        drive: 0.7,
-        attackMs: 60,
-        delayMs: 450,
-        filter: { type: "bandpass", frequency: 260, q: 3 },
-      },
+      ...TEARING,
       {
         call: "noise",
         durationMs: 2200,
@@ -298,6 +307,121 @@ export const PLANE_BANK: SoundBank = {
         filter: { type: "lowpass", frequency: 1800, to: 220 },
         echo: 0.35,
       },
+    ],
+  },
+  plane_scrape: {
+    description:
+      "A wingtip touched down on the roll and lifted again: a short GRIND of " +
+      "the tip's fairing dragged over packed snow — a bright scuff with a " +
+      "hollow knock of the wing's skin ringing over it — and the nav light's " +
+      "lens cracking.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 420,
+        volume: 0.045,
+        color: "white",
+        attackMs: 10,
+        filter: { type: "bandpass", frequency: 2600, to: 1400, q: 1.8 },
+      },
+      {
+        call: "tone",
+        type: "triangle",
+        from: 310,
+        to: 260,
+        durationMs: 260,
+        volume: 0.03,
+        drive: 0.4,
+        attackMs: 4,
+        filter: { type: "bandpass", frequency: 320, q: 4 },
+      },
+      {
+        call: "tone",
+        type: "square",
+        from: 2400,
+        to: 1900,
+        durationMs: 40,
+        volume: 0.012,
+        delayMs: 60,
+        filter: { type: "highpass", frequency: 1500 },
+      },
+    ],
+  },
+
+  plane_tear: {
+    description:
+      "A wing torn off: the strut's fitting letting go with a CRACK, the spar " +
+      "and the skin RIPPING apart in a tearing sweep down, and the tank's " +
+      "fuel gushing out in a brief hiss — no flame, no blast.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 90,
+        volume: 0.08,
+        color: "white",
+        attackMs: 1,
+        filter: { type: "highpass", frequency: 1200 },
+      },
+      {
+        call: "tone",
+        type: "sawtooth",
+        from: 180,
+        to: 60,
+        durationMs: 700,
+        volume: 0.04,
+        drive: 0.8,
+        attackMs: 20,
+        delayMs: 30,
+        filter: { type: "bandpass", frequency: 420, to: 160, q: 2.5 },
+      },
+      {
+        call: "noise",
+        durationMs: 650,
+        volume: 0.05,
+        color: "pink",
+        attackMs: 15,
+        delayMs: 40,
+        filter: { type: "bandpass", frequency: 3200, to: 900, q: 1.2 },
+      },
+      {
+        call: "noise",
+        durationMs: 900,
+        volume: 0.025,
+        color: "white",
+        attackMs: 80,
+        delayMs: 250,
+        filter: { type: "bandpass", frequency: 5000, q: 2 },
+      },
+    ],
+  },
+
+  plane_wreck: {
+    description:
+      "The plane flown into the mountain and NOT catching fire — as most " +
+      "crashes do not: the impact's deep crunching THUD of the airframe " +
+      "folding, then the airframe tearing as it slides on — the blades " +
+      "clattering off, a long scrape of skin on snow, a wing groaning — " +
+      "and no fireball after it.",
+    voices: [
+      {
+        call: "tone",
+        type: "sine",
+        from: 70,
+        to: 34,
+        durationMs: 520,
+        volume: 0.08,
+        drive: 0.6,
+        attackMs: 3,
+      },
+      {
+        call: "noise",
+        durationMs: 600,
+        volume: 0.08,
+        color: "brown",
+        attackMs: 4,
+        filter: { type: "lowpass", frequency: 900, to: 180 },
+      },
+      ...TEARING,
     ],
   },
 };

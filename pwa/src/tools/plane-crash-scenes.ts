@@ -35,6 +35,8 @@ type Kind = "nose" | "cart" | "belly" | "spin" | "tree";
  * entry (the suite's, `plane_wreck_test.ts`) flown on its own hands. */
 function staged(st: Stage, kind: Kind): GameState {
   const s = st.fresh();
+  // Off the hand that helps a take-off: each is flown in as staged.
+  s.assist = { yaw: 0, air: 0 };
   const strip = airstripOf(st.level);
   const p = s.plane!;
   const h = strip ? strip.heading : p.heading;

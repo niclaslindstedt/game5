@@ -1,6 +1,6 @@
 ---
 name: airplane
-description: "Use when working on THE JUMP PLANE — the free ride's single-turboprop, strut-braced high-wing utility plane on wheel-skis that the player flies by hand from its strip below the village, the skier stood in its open door: its design and its model in Blender (`make blender KIND=plane`, `make models KIND=plane`, `pwa/models/plane.glb`), the six-degree-of-freedom flight model and its tuning (the sections and their stall, the trim, the rigging against the propeller, the player's stick reach and the pull to the buffet), the aerobatics `make plane-flight` holds (loops, rolls, the hammerhead, inverted flight, the spin), the pilot's hands (take-off, the climb, the jump run, the way home and the landing), the cockpit and the camera ladder (TIPS the cockpit, HELMET his eyes in the door), the AIRSTRIP (its search, its obstacle corridor, its site and solids — and why nothing else may avoid it: the digest trap), the crash and the burning wreck, the sound, the `make plane` lab's sheets, and the AIRBORNE EDGE every craft in the air shares (`airBounds`, `AIR_BOUNDS`). Not the skydive out of its door (`skydive`), not the helicopter (`engine-system`, `blender-assets`)."
+description: "Use when working on THE JUMP PLANE — the free ride's single-turboprop, strut-braced high-wing utility plane on wheel-skis that the player flies by hand from its strip below the village, the skier stood in its open door: its design and its model in Blender (`make blender KIND=plane`, `make models KIND=plane`, `pwa/models/plane.glb`), the six-degree-of-freedom flight model and its tuning (the sections and their stall, the trim, the rigging against the propeller, the player's stick reach and the pull to the buffet), the aerobatics `make plane-flight` holds (loops, rolls, the hammerhead, inverted flight, the spin), the pilot's hands (take-off, the climb, the jump run, the way home and the landing), the cockpit and the camera ladder (TIPS the cockpit, HELMET his eyes in the door), the AIRSTRIP (its search, its obstacle corridor, its site and solids — and why nothing else may avoid it: the digest trap), the wings (scraped, battered, torn off by a tip, a trunk or overload, flown on with one, the torn one drawn loose) and the take-off hand, the crash and whether the wreck burns (a tank torn open onto the hot engine — most crashes do not), the sound, the `make plane` lab's sheets, and the AIRBORNE EDGE every craft in the air shares (`airBounds`, `AIR_BOUNDS`). Not the skydive out of its door (`skydive`), not the helicopter (`engine-system`, `blender-assets`)."
 ---
 
 # The jump plane
@@ -28,7 +28,9 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The air on every surface: the sections' lift curves through the stall, the tail, the fin, the body's drag, the propeller's thrust (`thrustAt`), the rigging as section camber, the air at a moment (`planeAir`) | `engine/game/plane-aero.ts` |
 | The bot's hands: `planeInput` in the door (never jumps), `homeControls` after the jump, `planeHold` for the labs | `engine/game/plane-pilot.ts`, hooked into `engine/sim/bot.ts` |
 | The strip: the search (`airstripOf`, `onStrip`), its corridor (`airstrip-corridor.ts`), its markers and buildings (`stripSiteOf`), its solids (`meetStrip`, `ragdollOutOfStrip`, `planeBoxes`) | `engine/game/airstrip.ts`, `airstrip-corridor.ts`, `airstrip-site.ts`, `airstrip-solids.ts` |
-| The fire: fuel burn, the fireball, the pool fire, the kinds | `engine/game/defs/plane-wreck.ts` (`PLANE_WRECK`) |
+| The wings: the tips on the snow, the scrape, the tear (tip, trunk, overload), the torn wing's flight | `engine/game/plane-wings.ts`, `defs/plane-wings.ts` (`PLANE_WINGS`) |
+| The take-off hand on the player's controls (the heading, the wings, the nose-over and stall guards) | `engine/game/plane-hand.ts`, `defs/plane-wings.ts` (`TAKEOFF_HAND`) |
+| Whether a wreck burns (`wreckIgnites`), fuel burn, the fireball, the pool fire, the kinds | `engine/game/defs/plane-wreck.ts` (`PLANE_WRECK`) |
 | THE AIRBORNE EDGE every craft shares | `engine/game/defs/air-bounds.ts` (`AIR_BOUNDS`), `collision.ts`'s `airBounds` / `airBoundsAt`, `TUNING.bounds.air` |
 | The exports | `engine/game/plane-api.ts` (into `engine/index.ts`, which is at its cap) |
 | The player's hands and keys: the eased stick, its reach with the airspeed, the pull to the buffet, the lever, the flaps | `pwa/src/game/input-plane.ts` (`samplePlane`), `settings-plane-keys.ts`, `input.ts`'s `PlaneHand` |
@@ -37,12 +39,13 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | Hung on the rider's line, the wreck and the crash lens wired, the inside decided | `pwa/src/game/plane-scene.ts`, through `machines.ts` |
 | The cockpit | `plane-cockpit-plan.ts` (three-free: the layout, `planeGaugesOf`, `planeHeadOf`), `plane-cockpit.ts`, `-glass.ts`, `-paint.ts`, `-shroud.ts`, `-parts.ts`, `-pilot.ts` |
 | The camera ladder | `pwa/src/game/camera-plane.ts` (three-free) |
+| A torn wing as drawn (cut out of the airframe, drawn loose where it lies) | `pwa/src/game/plane-wing-cut.ts` |
 | The crash as drawn | `plane-shatter.ts` (the cut and the break plan `BREAK`), `plane-wreck-view.ts`, `explosion.ts` (`ExplosionLook`), `fireball.ts`, `camera-crash.ts` |
 | The strip as drawn | `strip-ground.ts` (three-free: the packed, combed ground stamp), `strip-build.ts`, `strip-view.ts`; `terrain.ts`'s `layGround`; the minimap's and the chart's strip |
 | The HUD, the words | `plane-hud.ts` (DOM-free), `hud-plane.tsx`, `plane.css`, `strings-plane.ts`, `run-news.ts` |
 | The sound | `audio/plane-voice.ts`, `plane-bed.ts`, `plane-bank.ts`; the listener's `cabin` and `doorway` columns |
 | The start | `free-ride.ts`'s `PLANE_RUN`, `run-pick.ts`, `url-params.ts` (`?plane=1`) |
-| The labs | `scripts/plane-flight-lab.mjs`; `scripts/plane-preview.mjs` over `pwa/plane-preview.html`, `pwa/src/tools/plane-harness.ts`, `plane-scenes.ts`, `plane-cockpit-scenes.ts`, `plane-crash-scenes.ts`, `plane-strip-scenes.ts` |
+| The labs | `scripts/plane-flight-lab.mjs`; `scripts/plane-preview.mjs` over `pwa/plane-preview.html`, `pwa/src/tools/plane-harness.ts`, `plane-scenes.ts`, `plane-cockpit-scenes.ts`, `plane-crash-scenes.ts`, `plane-wing-scenes.ts`, `plane-strip-scenes.ts` |
 
 ## The labs
 
@@ -63,7 +66,9 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   overhead, pedals, controls thrown, the pilot from outside), `crash` (the
   fireball, the wreck at 5/30/90 s, day and night), `crash-kinds` (nose,
   cart, belly, spin, tree frame by frame — `--cols=4`; one sheet of 60-odd
-  frames loses the WebGL context) and `airstrip` (approach, overhead,
+  frames loses the WebGL context), `wings` (a tip scuffed and flown off,
+  a wing torn off by a trunk and landing, one wing in the air, the torn
+  wing on the snow, a cold crash beside a burning one) and `airstrip` (approach, overhead,
   village, down the runway, apron, buildings, sock, day and night;
   `--face=<id>` raises a real face). `ARGS=--sheet=…`, `--views=…`,
   `--hour=`, `--weather=`, `SEED=`, `REGION=`. Prefix with
@@ -114,6 +119,16 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   digest. The strip is searched last, round the world as dealt, and every
   bearing is scored against its corridor (lift ropes, the helipad); a seed
   with no clear room keeps the least-bad strip, never moves the world.
+- **A WING IS NOT A CRASH.** The tips are `plane-wings.ts`'s: held up by the
+  snow, scraped, worn and torn off there — `struck()` starts past them. A
+  torn wing never lights a fire; a wreck burns only by `wreckIgnites` (a
+  tank torn open onto the hot engine), and an unlit one draws and sounds
+  cold. Realism is the rule: most crashes do not burn.
+- **The take-off hand is the player's school, not an autopilot.** It holds
+  the heading and the wings on the snow, keeps the nose from going over and
+  short of the stall, fades out by 40 m (the stall guard by 150 m) and is
+  scaled by `Assist`. A lab or a test that stages a crash turns `assist`
+  off (`plane-crash-scenes.ts`), or the hand flies it out.
 - **Free ride only.** The strip's solids are gated on `rules.heli`; the plane
   and the wreck draw nothing from `state.rng`. `make sim` before and after.
 - **THE AIRBORNE EDGE IS ONE RULE.** `airBounds` / `airBoundsAt` and the
@@ -158,6 +173,16 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   (as the helicopter's TIPS is its nose lens) so HELMET stays his own eyes
   from the door through the freefall to the canopy.
 
+- **Every naive take-off cartwheeled.** Full power and the stick held back
+  lifted a tailwheel single off at the stall in its three-point attitude; it
+  over-rotated, dropped a wing and caught a tip at about 30 m/s. The fix was
+  the take-off hand, held by the `p-takeoff` rows — not a weaker wing.
+- **A rich wing lets go in a loop.** With tear at the bare ultimate (2.28 g
+  down) a held push over a loop's top folded a wing; the tear stands a
+  quarter past the ultimate and the key's hand eases off at 5 g / −1.9 g.
+- **A frame is several steps.** A lab waiting on an event must watch every
+  step's events (`plane-wing-scenes.ts`'s `untilSaid`), not the last.
+
 ## Known gaps
 
 - The spin is steep and fast (about 130 kt at α ≈ 20°): a spiral more than a
@@ -169,6 +194,8 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   machines pass through the strip's solids.
 - The cockpit's coaming is flat-shaded low poly; the planted nose-in crash
   shots show the sky's blue in the shadows.
+- A torn wing is cut on a straight line and is not solid to a skier; the
+  ignition thresholds and tree-strike speeds are our own fit.
 
 ## Skill self-improvement
 

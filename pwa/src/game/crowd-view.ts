@@ -53,6 +53,7 @@ import {
   type CrowdLod,
 } from "./crowd-shapes.ts";
 import { FIGURE, type ViewCull } from "./view-cull.ts";
+import { sharing } from "./geometry-share.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
 
@@ -156,7 +157,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       const [body, gear] = figure.split(":") as [CrowdBody, Gear];
       const targets = gear === "board" ? BOARD_TARGETS : TARGETS;
       for (const lod of CROWD_LODS) {
-        const geometry = buildCrowdFigure(body, lod, gear === "board").clone();
+        const geometry = sharing(buildCrowdFigure(body, lod, gear === "board"));
         const dress = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
         const dress2 = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
         dress.setUsage(THREE.DynamicDrawUsage);

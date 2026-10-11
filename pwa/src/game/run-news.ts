@@ -81,6 +81,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // A near fall ridden out is worth a word only when it was near.
       return e.size >= SAVE_SAID ? { text: STRINGS.newsSave(e.save), tone: "good" } : null;
     case "wipeout":
+      // Taken by an avalanche: the avalanche's own word says so.
+      if (e.cause === "avalanche") return null;
       // Over the leading end riding switch is over the TAILS (`switch.ts`).
       if (e.cause === "nose" && state.skier.switched)
         return { text: STRINGS.newsTailDug, tone: "bad" };
@@ -113,6 +115,22 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
           : e.phase === "halt"
             ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
             : null;
+    case "avalanche":
+      // A slab breaking, and what it did with him; the flow at rest and
+      // a reset out of it are not news.
+      return e.phase === "release"
+        ? { text: STRINGS.newsAvalanche, tone: "bad" }
+        : e.phase === "caught"
+          ? { text: STRINGS.newsAvalancheCaught, tone: "bad" }
+          : e.phase === "buried"
+            ? { text: STRINGS.newsAvalancheBuried(e.depth), tone: "bad" }
+            : e.phase === "surfaced"
+              ? { text: STRINGS.newsAvalancheSurfaced, tone: "info" }
+              : e.phase === "escaped"
+                ? { text: STRINGS.newsAvalancheEscaped, tone: "good" }
+                : e.phase === "lost"
+                  ? { text: STRINGS.newsAvalancheLost, tone: "bad" }
+                  : null;
     case "groomer":
       // Into its cab and out of it; ridden into, it is the wipeout's word.
       return e.phase === "board"
@@ -216,13 +234,16 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       return null;
     case "para":
       // The paramotor: off the summit, in the air, skiing under it, the rig
-      // folded by rough air, dropped or cut away, the ride begun again.
+      // folded by rough air, looped, fallen into, dropped or cut away, the ride
+      // begun again.
       if (e.phase === "launch") return { text: STRINGS.newsParaLaunch, tone: "info" };
       if (e.phase === "takeoff") return { text: STRINGS.newsParaTakeoff, tone: "good" };
       if (e.phase === "touch") return { text: STRINGS.newsParaTouch, tone: "info" };
       if (e.phase === "drop") return { text: STRINGS.newsParaDrop, tone: "good" };
       if (e.phase === "collapse") return { text: STRINGS.newsParaCollapse, tone: "bad" };
       if (e.phase === "fold") return { text: STRINGS.newsParaFold, tone: "bad" };
+      if (e.phase === "loop") return { text: STRINGS.newsParaLoop, tone: "good" };
+      if (e.phase === "tangle") return { text: STRINGS.newsParaTangle, tone: "bad" };
       return { text: STRINGS.newsParaRestart, tone: "info" };
     case "balloon":
       // The balloon: let go, off and onto the snow, too hot, alight, over

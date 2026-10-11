@@ -99,7 +99,7 @@ import { hullOf, probesOf } from "./suspension.ts";
 import { snowNormal, uprightOn } from "./snow-normal.ts";
 import { castLeg } from "./leg-ray.ts";
 import { riddenLevel } from "./mogul-ride.ts";
-import { climbShare } from "./poles.ts";
+import { climbShare, driveForce, hillPull, slopeShare } from "./poles.ts";
 import { holdsStill, laySkis, poleForce, pushReachOf, sidestepEdge } from "./board-moves.ts";
 import { stepRound, stepSide, stoodStill, strideOn, turnWork } from "./board-moves.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
@@ -244,9 +244,13 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // ...and never out of a start house (`start-push.ts`): one push, then
   // he skis.
   const housed = state.rules.start === "interval" && state.rules.course;
+  // ...and only while the poles are worth it: down a pitch pulling him on
+  // harder than they push (`slopeShare`), he tucks. A board's is its own.
+  const poled = c.board ? 0 : driveForce(spec, speed0, c.packed, 1, c.poles, c.step) / m;
+  const hill = c.board ? 1 : slopeShare(hillPull(level, c.x, c.z, c.heading, c.way), poled);
   const working =
     going && !c.airborne && c.thrown === null && c.jumpLoad === 0 && !housed
-      ? (1 - c.brake) * straight
+      ? (1 - c.brake) * straight * hill
       : 0;
   c.drive = approach(c.drive, working, P.rate * dt);
   // The strides, the step turn and the line he glides on (`strideOn`), and

@@ -201,6 +201,7 @@ export function dealEnthusiasts(state: GameState, count: number): void {
     run.para = undefined;
     run.afterski = undefined;
     run.grimbear = undefined;
+    run.avalanche = undefined;
     state.rivals.push({
       id: state.rivals.length,
       run,

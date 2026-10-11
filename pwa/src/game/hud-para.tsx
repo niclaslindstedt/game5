@@ -4,9 +4,10 @@
 // under him, THE VARIO (his climb, the bar up green or down red), THE AIR
 // through the wing (the speed that flies it — the HUD's own speedo is his
 // way over the snow), THE WIND at the wing and THE THROTTLE with the
-// engine's rpm. A STALL lit red when the wing is past it, a COLLAPSE when
+// engine's rpm, and THE G he hangs on. A STALL lit red when the wing is past it, a COLLAPSE when
 // rough air has folded it (which side), and ROUGH AIR when the eddies are
-// strong enough to. Under it, the way out of the harness —
+// strong enough to; IN THE WING when he has fallen into it, and how to cut
+// it away. Under it, the way out of the harness —
 // and on the summit, how to go. Every figure is the snapshot's (`paraOf`).
 
 import type { HudPara } from "./snapshot.ts";
@@ -16,6 +17,8 @@ import { STRINGS } from "./strings.ts";
 const VARIO_FULL = 5;
 /** The eddies' sigma the air reads rough at, m/s — where folds begin. */
 const ROUGH = 1.3;
+/** The pull the G reads hard at, g — a spiral's, a loop's. */
+const HARD = 3;
 /** The share of the wing folded the HUD calls a collapse. */
 const FOLDED = 0.08;
 
@@ -35,6 +38,14 @@ export function ParaReadout({
         <span class="hud-para-word">{STRINGS.startRunPara}</span>
         <span class="hud-para-hint">{STRINGS.paraReady(touch)}</span>
         <span class="hud-para-hint">{STRINGS.paraDrop(touch, machineKey)}</span>
+      </div>
+    );
+  }
+  if (para.kind === "tangled") {
+    return (
+      <div class="hud-para" role="status">
+        <span class="hud-para-stall">{STRINGS.paraTangled}</span>
+        <span class="hud-para-hint">{STRINGS.paraCut(touch, machineKey)}</span>
       </div>
     );
   }
@@ -59,6 +70,10 @@ export function ParaReadout({
         <span class="hud-para-cell">
           <span class="hud-para-num">{STRINGS.paraAirValue(para.air)}</span>
           <span class="hud-para-sub">{STRINGS.paraAir}</span>
+        </span>
+        <span class={`hud-para-cell${para.g >= HARD ? " hud-para-gusty" : ""}`}>
+          <span class="hud-para-num">{STRINGS.paraGValue(para.g)}</span>
+          <span class="hud-para-sub">{STRINGS.paraG}</span>
         </span>
         <span class={`hud-para-cell${para.rough >= ROUGH ? " hud-para-gusty" : ""}`}>
           <span class="hud-para-num">{STRINGS.paraWindValue(para.wind)}</span>

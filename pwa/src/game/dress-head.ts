@@ -46,6 +46,7 @@ import {
   type Loom,
   type V3,
 } from "./dress-loft.ts";
+import { cutFace } from "./dress-face.ts";
 import { gearOf, type Outfit } from "./outfit.ts";
 
 const DARK = 0x101114;
@@ -158,7 +159,11 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
     lens: h.lens,
     skin,
   };
+  // His face is cut on its own (`dress-face.ts`), in place of the
+  // helmet's plain egg and wedge of a nose.
+  cutFace(loom, skin, body.female);
   for (const part of helmetParts()) {
+    if (part.material === "skin") continue;
     if (o.helmet === "visor" && GOGGLE_PARTS.includes(part.material)) continue;
     // A freeride helmet carries no stripe: its shell is all the one white.
     const colour =

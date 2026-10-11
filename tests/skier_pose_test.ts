@@ -120,7 +120,9 @@ describe("the body on its legs", () => {
     // walk turning to a skate, the skate, the skate turning to a double
     // pole and the double pole. A hand at its fastest covers about a
     // centimetre a sample; the weight thrown from ski to ski or a pole
-    // snapped from the snow to the hand would cover tens.
+    // snapped from the snow to the hand would cover tens. A basket swung
+    // into its plant on a hard double pole, at the end of a 1.3 m lever,
+    // covers about three.
     const at = (p: SkierPose) => [p.hips, p.neck, ...p.hands, ...p.elbows, ...p.knees, ...p.poles!];
     for (const [speed, pitch] of [
       [1, 0.12],
@@ -151,7 +153,7 @@ describe("the body on its legs", () => {
         }
         prev = pose;
       }
-      expect(worst, `at ${speed} m/s, pitched ${pitch}`).toBeLessThan(0.03);
+      expect(worst, `at ${speed} m/s, pitched ${pitch}`).toBeLessThan(0.035);
     }
   });
 

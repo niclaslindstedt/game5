@@ -108,7 +108,9 @@ export function createSledScene(haze: HazeUniforms): SledScene {
     return v;
   };
 
-  /** One stamp line from where its pen was to (x, z). */
+  /** One stamp line from where its pen was to (x, z): the belt's (`belt`
+   * — packed, square-walled, printed with the paddles) or a ski's, with the
+   * keel's narrow groove down its middle. */
   const line = (
     i: number,
     x: number,
@@ -117,6 +119,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
     depth: number,
     snow: SnowProps,
     out: Stamp[],
+    belt: boolean,
   ): void => {
     const pen = pens[i];
     const ax = pen.down ? pen.x : x;
@@ -134,8 +137,13 @@ export function createSledScene(haze: HazeUniforms): SledScene {
       half,
       depth: d,
       berm: Math.min(TRAIL.maxBerm, d * snow.berm * 1.4),
-      wall: snow.wall,
+      wall: belt ? Math.max(snow.wall, TRAIL.belt.wall) : snow.wall,
+      belt: belt || undefined,
     });
+    if (!belt) {
+      const k = Math.min(TRAIL.maxDepth, d + TRAIL.keel.deep);
+      out.push({ ax, az, bx: x, bz: z, half: TRAIL.keel.half, depth: k, berm: 0, wall: 1 });
+    }
   };
 
   return {
@@ -178,6 +186,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
             Math.max(sink, chewed, TRAIL.packedDepth),
             snow,
             fx.stamps,
+            true,
           );
         } else pens[0].down = false;
         // The skis: each its own groove.
@@ -188,7 +197,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
           else {
             const snow = fx.snowAt(c.x, c.z);
             const drawn = Math.max(c.sink, TRAIL.powderSki * snow.give, TRAIL.packedDepth);
-            line(k, c.x, c.z, SLED.skiWidth / 2, drawn, snow, fx.stamps);
+            line(k, c.x, c.z, SLED.skiWidth / 2, drawn, snow, fx.stamps, false);
           }
           k++;
         }

@@ -60,9 +60,9 @@ const MODEL_URL = (): string | null => rescueModelUrl();
 
 /** The crew's colours, by slot (`CIVILIAN_SLOT`): the flight crew's suit,
  * a reflective yoke, a white helmet; the patrol's red with the white cross. */
-const SKIN = [0xe2b494, 0xc68863, 0xd9a07a, 0xa8714f];
-const HAIR = [0x3a2a1e, 0x6b4a2c, 0x2a211a, 0x9a6232];
-const DRESS: Record<
+export const SKIN = [0xe2b494, 0xc68863, 0xd9a07a, 0xa8714f];
+export const HAIR = [0x3a2a1e, 0x6b4a2c, 0x2a211a, 0x9a6232];
+export const DRESS: Record<
   "crew" | "patrol",
   { jacket: number; pants: number; head: number; accent: number }
 > = {
@@ -113,7 +113,7 @@ function bodyOf(body: CrowdBody): THREE.BufferGeometry {
  * `colours`, times the shade the builder painted) and its own index, which
  * leaves out every part he does not wear; the positions and the poses are
  * the body's, shared. */
-function dressed(
+export function dressed(
   base: THREE.BufferGeometry,
   colours: Partial<Record<keyof typeof SLOT, number>>,
   parts: readonly number[],

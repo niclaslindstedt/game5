@@ -140,8 +140,11 @@ generator's village and lifts leave from the valley floor.
 `make real-faces ARGS="--fetch --search --only <id>"` tries every bearing
 (10° apart), offset (450 m apart, the middle kept well inside the window)
 round the middle, at a scale of 1, and prints the best four rows by
-`drop` and `falls`; take the best whose window keeps the ski area on the
-map (step 3's lifts and pistes say whether it does).
+`drop` and `falls` weighed by the real LIFTS: their ends are fetched off
+the map API once (`previews/.osm/lifts-*.json`) and a row is scored by the
+share of ends on the map (cubed) and of bottoms in its lower half (`lifts
+on`, `low`). Take the best whose window keeps the ski area on the map
+(step 3's lifts and pistes say whether it does).
 
 ### 2. The heights
 

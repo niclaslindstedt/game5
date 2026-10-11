@@ -16,8 +16,9 @@
 // of a branch left on it.
 //
 // LIT AS WOOD IS LIT: nothing glows. The print is the albedo and, read
-// again as data, the bump, so the paint stands a hair proud of the grain
-// and the checks sink into it under a raking sun or a headlamp.
+// again off the same texture as data, the bump (`storedBump`), so the paint
+// stands a hair proud of the grain and the checks sink into it under a
+// raking sun or a headlamp.
 
 import * as THREE from "three";
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
@@ -25,6 +26,7 @@ import type { Level } from "@engine";
 
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { storedBump } from "./print-bump.ts";
 import { AMATEUR, amateurSigns, type AmateurSign } from "./route-sign-plan.ts";
 import { SIGN_FALLBACK, SIGN_LOOKS } from "./sign-look.ts";
 import { STRINGS } from "./strings.ts";
@@ -481,13 +483,12 @@ export function createRouteSigns(level: Level, haze: HazeUniforms): RouteSigns |
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
-  const bump = new THREE.CanvasTexture(canvas);
-  bump.colorSpace = THREE.NoColorSpace;
 
   const faceMat = hazeMaterial(
-    new THREE.MeshStandardMaterial({ map: tex, bumpMap: bump, bumpScale: 0.6, roughness: 0.92 }),
+    new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.6, roughness: 0.92 }),
     haze,
     "route-sign-face",
+    storedBump,
   );
   const woodMat = hazeMaterial(
     new THREE.MeshStandardMaterial({ color: WOOD.edge, roughness: 0.95 }),
@@ -499,7 +500,7 @@ export function createRouteSigns(level: Level, haze: HazeUniforms): RouteSigns |
     haze,
     "route-sign-bark",
   );
-  const disposables: { dispose(): void }[] = [tex, bump, faceMat, woodMat, barkMat];
+  const disposables: { dispose(): void }[] = [tex, faceMat, woodMat, barkMat];
 
   signs.forEach((s, i) => {
     const c = cells[i];
@@ -575,7 +576,7 @@ export function createRouteSigns(level: Level, haze: HazeUniforms): RouteSigns |
   void loadHand().then((ok) => {
     if (!ok || disposed) return;
     print(`"${HAND.family}", ${SIGN_FALLBACK}`);
-    tex.needsUpdate = bump.needsUpdate = true;
+    tex.needsUpdate = true;
   });
 
   return {

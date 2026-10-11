@@ -110,6 +110,12 @@ export type InputManager = {
    * helicopter tapped while he stands beside it (`hud-sled.tsx`,
    * `hud-heli.tsx`) lands here, as ENTER does. */
   requestMachine: () => void;
+  /** Queue the TRANSCEIVER's switch (`SkierInput.beacon`) — the HUD's
+   * BEACON press on touch lands here, as T does. */
+  requestBeacon: () => void;
+  /** The PROBE / DIG press held (true) or let go (false) — the HUD's press
+   * on touch (`hud-beacon.tsx`); a press is a probe, held it digs. */
+  holdRescue: (down: boolean) => void;
   /** Queue one JUMP press, as a tap of the jump key — the afterski room's
    * tap on the picture, which orders another round, lands here. */
   requestJump: () => void;
@@ -190,6 +196,12 @@ export function createInputManager(
   let reset = false;
   /** THE MACHINE PRESS (ENTER), kept until a step has seen it. */
   let machine = false;
+  /** THE TRANSCEIVER'S SWITCH, kept until a step has seen it; the PROBE /
+   * DIG key held (and a press shorter than a step kept until one sees it). */
+  let beacon = false;
+  let rescueKey = false;
+  let rescueTouch = false;
+  let rescueTap = false;
   let onAction: (action: InputAction) => void = () => {};
 
   /** The index every keystroke is answered from: one code, the actions on
@@ -254,10 +266,20 @@ export function createInputManager(
         // here (and its default prevented) is the focused button never
         // pressed.
         if (action !== "pause" && !claiming() && onControl(e.target)) continue;
-        if (action === "reset" || action === "machine") {
+        if (
+          action === "reset" ||
+          action === "machine" ||
+          action === "beacon" ||
+          action === "rescue"
+        ) {
           if (!claiming()) continue;
           if (action === "reset") reset = true;
-          else machine = true;
+          else if (action === "machine") machine = true;
+          else if (action === "beacon") beacon = true;
+          else {
+            rescueKey = true;
+            rescueTap = true;
+          }
         } else onAction(action);
         took = true;
       }
@@ -271,6 +293,7 @@ export function createInputManager(
   const onKeyUp = (e: KeyboardEvent): void => {
     for (const action of byCode.get(e.code) ?? []) {
       if (isHeldAction(action)) keys[action] = false;
+      if (action === "rescue") rescueKey = false;
     }
     for (const action of heliByCode.get(e.code) ?? []) heliKeys[action] = false;
     for (const action of planeByCode.get(e.code) ?? []) planeKeys[action] = false;
@@ -287,6 +310,8 @@ export function createInputManager(
     for (const k of Object.keys(keys) as (keyof KeysHeld)[]) keys[k] = false;
     for (const k of Object.keys(heliKeys) as HeliAction[]) heliKeys[k] = false;
     for (const k of Object.keys(planeKeys) as PlaneAction[]) planeKeys[k] = false;
+    rescueKey = false;
+    rescueTouch = false;
   };
 
   // LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): every drag on a run, which
@@ -344,11 +369,16 @@ export function createInputManager(
       if (basket && touch.stick) walkPad(input, touch);
       // On or off a machine: ENTER, or the double tap on touch.
       if (machine || touch.tap2) input.machine = true;
+      // After an avalanche: the transceiver's switch, the probe and shovel.
+      if (beacon) input.beacon = true;
+      if (rescueKey || rescueTouch || rescueTap) input.dig = true;
       // Down off his skis, the get-up press is the reset.
       if (down && rise) input.reset = true;
       reset = false;
       rise = false;
       machine = false;
+      beacon = false;
+      rescueTap = false;
       jumped = false;
       touch.tap2 = false;
       return input;
@@ -391,6 +421,13 @@ export function createInputManager(
     },
     requestMachine: () => {
       machine = true;
+    },
+    requestBeacon: () => {
+      beacon = true;
+    },
+    holdRescue: (down) => {
+      rescueTouch = down;
+      if (down) rescueTap = true;
     },
     requestJump: () => {
       jumped = true;

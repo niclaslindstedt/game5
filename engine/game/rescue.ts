@@ -19,6 +19,7 @@
 import { RAGDOLL as R } from "./ragdoll.ts";
 import { INJURIES, type BodyPart } from "./defs/anatomy.ts";
 import { mayGetUp, throwRider } from "./crash.ts";
+import { holdsHim } from "./gore.ts";
 import type { GameEvent, GameState, Injury, BodyState } from "./state.ts";
 
 /** WHAT KEEPS A SKIER DOWN. The parts a BROKEN bone keeps him down on (a
@@ -62,6 +63,16 @@ export function disablingOf(body: BodyState): Injury | null {
   let worst: Injury | null = null;
   for (const h of body.injuries) if (disables(h) && (!worst || h.ais > worst.ais)) worst = h;
   return worst;
+}
+
+/** WHETHER A CRASHED MACHINE MUST LEAVE HIM LYING (the plane's, the
+ * helicopter's, the balloon's): dying or found too hurt to ski on
+ * (`holdsHim`) — or, on a run that carries its injuries, carrying what will
+ * find him so (`disablingOf`), which `callRescue` does once he has lain long
+ * enough or at once on the reset. Begun again in the craft, he would be
+ * mended and stood back on the strip, and the rescue would come there. */
+export function keptDown(state: GameState): boolean {
+  return holdsHim(state) || (!!state.gore && !!disablingOf(state.skier.body));
 }
 
 /** Whether he lies hurt too badly to ski on. */

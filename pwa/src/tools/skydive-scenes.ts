@@ -170,6 +170,31 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(d, "door close", around(-1.8, 0.6, 1.6, 36, 0.2));
     st.shoot(d, "door back", around(-0.4, 1, 1.8, 36, 0.2));
   },
+  // ── THE RIG WORN CLOSE: on the snow after a landing, riding on, and
+  // under the canopy — where it is seen longest, from every side ────────
+  worn(st) {
+    // Landed low over the open piste on the bot's hands, the canopy let go.
+    const s = dive(st, 12, "open");
+    st.until(s, (x) => x.chute?.mode === "landed" || !x.skier.airborne, 30, bot);
+    st.run(s, 3, still);
+    const o = 0.35;
+    st.shoot(s, "back", around(0, 0.5, 1.9, 34, o));
+    st.shoot(s, "back left", around(-1.3, 0.4, 1.4, 34, o));
+    st.shoot(s, "back right", around(1.3, 0.4, 1.4, 34, o));
+    st.shoot(s, "side left", around(-1.9, 0.2, 0, 34, o));
+    st.shoot(s, "side right", around(1.9, 0.2, 0, 34, o));
+    st.shoot(s, "front", around(0.5, 0.3, -1.9, 34, o));
+    st.shoot(s, "above", around(0.2, 1.6, 0.8, 34, o));
+    st.shoot(s, "chase", "chase");
+    st.run(s, 1.2, keys({ tuck: 0.5 }));
+    st.shoot(s, "riding", around(0.5, 0.9, 3, 36, o));
+    st.shoot(s, "riding chase", "chase");
+    const c = dive(st, 600, "open");
+    st.run(c, 1.5, still);
+    st.shoot(c, "canopy back", around(0.4, 0.4, 2.2, 36, 0.2));
+    const f = dive(st, 1800);
+    st.shoot(f, "freefall above", around(1.0, 2.4, 0.2, 36));
+  },
   // ── THE DOOR AND THE EXIT, frame by frame ─────────────────────────────
   exit(st) {
     // Climbed to the jump run on the pilot's hands, held in the door the
@@ -589,6 +614,7 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
 /** The sheets and the views each is made of. */
 export const GROUPS: Record<string, readonly string[]> = {
   gear: ["gear"],
+  worn: ["worn"],
   exit: ["exit"],
   freefall: ["freefall"],
   deploy: ["deploy", "deploy-game"],

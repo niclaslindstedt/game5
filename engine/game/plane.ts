@@ -32,6 +32,7 @@
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run that never asked for a plane never comes in here.
 
+import { keptDown } from "./rescue.ts";
 import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
   fromEuler,
@@ -297,6 +298,9 @@ export function stepPlane(run: GameState, input: SkierInput, events: GameEvent[]
   p.t += dt;
   stepLooseWings(run, p);
   if (p.mode === "wreck") {
+    // Killed or hurt too badly to ski on (`keptDown`), he lies where it
+    // threw him: the run is the app's to end, and the rescue comes there.
+    if (p.wreck?.aboard && keptDown(run)) return false;
     const up = !!p.wreck?.aboard && input.reset && !!run.skier.thrown;
     if (p.t < K.crash.wreck && !up) return false;
     if (p.wreck?.aboard) startPlane(run, events);

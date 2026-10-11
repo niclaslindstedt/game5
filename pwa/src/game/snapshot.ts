@@ -17,6 +17,7 @@ import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
 import { altitudeAt, overBase } from "./altitude.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
+import { beaconRead, buriedRead, type BeaconRead, type BuriedRead } from "./beacon-read.ts";
 import { aloftInPlane, chuteOf, planeOf, type HudChute, type HudPlane } from "./plane-hud.ts";
 import {
   airflowAt,
@@ -337,6 +338,12 @@ export type HudSnapshot = {
   /** THE HOT AIR BALLOON (`balloon-hud.ts`): its instruments and the call
    * while he stands in its basket, or null. */
   balloon: HudBalloon | null;
+  /** THE AVALANCHE TRANSCEIVER (`beacon-read.ts`): its face while somebody
+   * is under the snow or it is switched to search, or null. */
+  beacon: BeaconRead | null;
+  /** UNDER THE SNOW HIMSELF (`beacon-read.ts`): his air, his depth and the
+   * patrol's progress while he lies buried, or null. */
+  buried: BuriedRead | null;
   /** THE JUMP PLANE (`plane-hud.ts`): its instruments while he flies it
    * from the door, its call while it stands parked near him, or null. */
   plane: HudPlane | null;
@@ -798,6 +805,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     groomer: aloft ? null : groomerOf(state),
     para: paraOf(state),
     balloon: balloonOf(state),
+    beacon: aloft ? null : beaconRead(state, state.t),
+    buried: buriedRead(state),
     plane: balloonAboard(state) ? null : planeOf(state),
     chute: chuteOf(state),
     afterski: aloft ? null : afterskiOf(state),

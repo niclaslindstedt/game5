@@ -14,7 +14,7 @@
 // the anti-torque PEDALS under the panel, seen through the chin windows;
 // the OVERHEAD console with its switches and breakers, the rotor brake and
 // the fuel shut-off hanging off it; a wet compass on the windscreen's
-// centre strip. The left front seat is the guide's, empty here.
+// centre post. The left front seat is the guide's, empty here.
 //
 // THE FRAME is the helicopter's body frame (`HELI`: y up from the skid
 // datum, z forward) AS THE PICTURE SHOWS IT: x to the right as seen from
@@ -78,8 +78,10 @@ export const COCKPIT = {
   /** THE OVERHEAD CONSOLE: its half-width, its face's height, from and to
    * along z; the two levers hanging from it. */
   overhead: { half: 0.17, y: HELI.body.roof - 0.13, from: 1.3, to: 2.22 },
-  /** The wet compass on the windscreen's centre strip. */
-  compass: { y: 2.12, z: 2.66 },
+  /** THE WET COMPASS on the windscreen's centre post: its middle's
+   * height, how far aft of the post its middle stands on its bracket, its
+   * case's size and depth; `z` where the post is when the model has none. */
+  compass: { y: 2.08, z: 2.6, back: 0.07, size: 0.075, depth: 0.06 },
 
   /** THE PILOT (whose eyes the lens is): where his shoulders and hips
    * are, half their spread, the limbs' lengths. */
@@ -228,7 +230,7 @@ export type Gauges = {
   fuel: number;
   oat: number;
   /** The caution lights: the rotor's rpm low, the engine's first limit
-   * reached, a skier on the skid. */
+   * reached, a skier out on the skid (the cabin's door open). */
   lowRotor: boolean;
   limit: boolean;
   skid: boolean;

@@ -335,6 +335,8 @@ export function soundForEvent(
     // AN AVALANCHE (`avalanche.ts`): the slab's whumpf, crack and rumble,
     // heard from where it broke; what comes of the skier after is the
     // wipeout's and the news line's.
+    // The probe's stroke and its strike are the searcher's own, at his
+    // hand (`rescue-bank.ts`).
     case "avalanche":
       return event.phase === "release"
         ? {
@@ -346,7 +348,14 @@ export function soundForEvent(
               0.3,
             ),
           }
-        : null;
+        : event.phase === "probe"
+          ? { id: "probe_in" }
+          : event.phase === "strike" && event.who !== undefined
+            ? {
+                id: "probe_strike",
+                shape: heardAt({ x: event.x, y: contact.ear?.y ?? 0, z: event.z }, contact.ear, 8),
+              }
+            : null;
 
     // INTO THE A-NETS (R32): the mesh taking him, bigger the harder.
     case "net": {

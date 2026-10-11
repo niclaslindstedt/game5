@@ -801,15 +801,36 @@ export const CIVILIAN_ROLES: readonly Role[] = [
   },
 ];
 
+let rolesById: Map<RoleId, Role> | null = null;
+
 /** A role by its id. */
 export function roleOf(id: RoleId): Role {
-  const role = CIVILIAN_ROLES.find((r) => r.id === id);
+  if (!rolesById) {
+    rolesById = new Map();
+    for (const r of CIVILIAN_ROLES) if (!rolesById.has(r.id)) rolesById.set(r.id, r);
+  }
+  const role = rolesById.get(id);
   if (!role) throw new Error(`no civilian role ${id}`);
   return role;
 }
 
+/** The last hour each table of hours was asked at, and its share: a role's
+ * share is asked of every one of its people every frame at one hour. */
+const shares = new WeakMap<Hours, { hour: number; share: number }>();
+
 /** The share of a role out at `hour` (0..24, wrapped). */
 export function shareAt(hours: Hours, hour: number): number {
+  const had = shares.get(hours);
+  if (had && had.hour === hour) return had.share;
+  const share = shareOf(hours, hour);
+  if (had) {
+    had.hour = hour;
+    had.share = share;
+  } else shares.set(hours, { hour, share });
+  return share;
+}
+
+function shareOf(hours: Hours, hour: number): number {
   const h = ((hour % 24) + 24) % 24;
   for (let k = 0; k + 1 < hours.length; k++) {
     const [h0, s0] = hours[k];

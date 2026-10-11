@@ -184,7 +184,7 @@ export function App() {
    * what the attract card waits on before it will take a press. */
   const [warm, setWarm] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
-    const s = loadSettings();
+    const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
     if (params.page === "dev") s.developer = true;
     return params.camera ? { ...s, camera: params.camera } : s;
   });
@@ -221,8 +221,8 @@ export function App() {
   /** THE MAP THE MENU IS STANDING OVER — what a tricks run a link pinned rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
-  // (A link to the start card is a free ride on its way to the skis card.)
-  const modeRef = useRef<GameMode>(params.page === "start" ? "free" : params.mode);
+  // (A link to a free ride's card is a free ride on its way: `readParams`.)
+  const modeRef = useRef<GameMode>(params.mode);
   /** The presses that route a card to the skis card (`map-picks.ts`). */
   const picks = mapPicks({ mode: modeRef, setPage, setSettings });
   const dev = useDevApp();
@@ -883,7 +883,7 @@ export function App() {
           bare={!settings.hud}
           machineKey={boundLabel(settings.keys.machine)}
           tuckKey={boundLabel(settings.keys.tuck)}
-          jumpKey={boundLabel(settings.keys.jump)}
+          keys={settings.keys}
           injuries={injuriesShown(settings, shellContent())}
           bodyHud={settings.bodyHud}
           restartAfter={settings.restartAfter}
@@ -948,7 +948,7 @@ export function App() {
           seed={nextSeed}
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
-          onFree={() => picks.openCard("free", "start")}
+          onFree={() => picks.openCard("free", "world")}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

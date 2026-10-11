@@ -120,6 +120,18 @@ export function holdsHim(state: GameState): boolean {
   return !!g && (g.mortal >= 0 || g.injured >= 0);
 }
 
+/** SMOTHERED under an avalanche's debris (`avalanche.ts`): his air run out
+ * before anyone dug him out — dead at once, on a run that carries its
+ * injuries; without them the run takes him back as from any fall. */
+export function smother(state: GameState, events: GameEvent[]): void {
+  const g = state.gore;
+  if (!g || g.dead >= 0) return;
+  if (g.mortal < 0) g.mortal = state.t;
+  g.dead = state.t;
+  g.cause = "smothered";
+  events.push({ kind: "death", t: state.t, cause: "smothered" });
+}
+
 /** Whether he is dead. */
 export function isDead(state: GameState): boolean {
   return (state.gore?.dead ?? -1) >= 0;

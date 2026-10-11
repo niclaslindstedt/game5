@@ -300,7 +300,9 @@ if (suites.includes("terrain")) {
       chaseLens(cam, state.skier);
       ground.follow(cam.position.x, cam.position.z, cam);
       for (const m of ground.group.children) {
-        if (m.visible) drawn += Math.min(m.geometry.drawRange.count, m.geometry.index.count) / 3;
+        // Tree wells hang a group of their own off the ground's.
+        if (m.visible && m.geometry?.index)
+          drawn += Math.min(m.geometry.drawRange.count, m.geometry.index.count) / 3;
       }
       frames += 1;
     },

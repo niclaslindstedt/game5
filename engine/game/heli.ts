@@ -37,6 +37,7 @@
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run whose rules carry no helicopter never comes in here.
 
+import { keptDown } from "./rescue.ts";
 import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
   fromAxisAngle,
@@ -171,6 +172,9 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   const dt = TUNING.dt;
   h.t += dt;
   if (h.mode === "wreck") {
+    // Killed or hurt too badly to ski on (`keptDown`), he lies where it
+    // threw him: the run is the app's to end, and the rescue comes there.
+    if (h.wreck?.aboard && keptDown(run)) return false;
     // The player's own press starts the ride again at once rather than
     // standing him by the fire.
     const up = !!h.wreck?.aboard && input.reset && !!run.skier.thrown;

@@ -679,10 +679,18 @@ export function carrierAt(
   const clock = carrierClock(plan);
   const span = clock ? clock.span : carrierLoop(plan);
   const s = ((((k * span) / carrierCount(plan) + plan.look.speed * t) % span) + span) % span;
-  const spot = loopSpot(plan, clock ? loopAt(clock, s) : s);
+  // The spot is a fresh object of the loop's own: `out` is laid onto it
+  // rather than spread into a second (every carrier of every lift asks
+  // this every frame).
+  const spot = loopSpot(plan, clock ? loopAt(clock, s) : s) as {
+    u: number;
+    side: 0 | 1;
+    out: boolean;
+    turn?: number;
+  };
   const clear = plan.lift.kind === "gondola" ? GONDOLA_IN_STATION : 2;
-  const out = spot.turn === undefined && spot.u > clear && spot.u < plan.length - clear;
-  return { ...spot, out };
+  spot.out = spot.turn === undefined && spot.u > clear && spot.u < plan.length - clear;
+  return spot;
 }
 
 /** WHERE A CARRIER'S GRIP RUNS, m over the sea, `u` m up the line: on the
@@ -737,14 +745,18 @@ export function carrierSpeedAt(plan: LiftPlan, u: number, side: 0 | 1): number {
   const K = TUNING.lift;
   const load = loadPoint(plan);
   const off = plan.length - plan.look.off;
-  const v2 = (a: number, d: number) => slow * slow + 2 * a * Math.max(0, d);
   // Up: taken up off the load line, slowed onto the unload. Down: taken up
   // out of the top terminal, slowed into the bottom one.
   const w2 =
     side === 0
-      ? Math.min(v2(K.accel, u - load), v2(K.decel, off - u))
-      : Math.min(v2(K.accel, off - u), v2(K.decel, u - load));
+      ? Math.min(speedSq(slow, K.accel, u - load), speedSq(slow, K.decel, off - u))
+      : Math.min(speedSq(slow, K.accel, off - u), speedSq(slow, K.decel, u - load));
   return Math.min(speed, Math.sqrt(w2));
+}
+
+/** The square of a speed `slow` gathered at `a` m/s² over `d` m. */
+function speedSq(slow: number, a: number, d: number): number {
+  return slow * slow + 2 * a * Math.max(0, d);
 }
 
 /** A DETACHABLE LIFT'S LOOP IN TIME: the loop's length `w` (m, round from

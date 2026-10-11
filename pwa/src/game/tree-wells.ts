@@ -17,10 +17,9 @@
 //
 // THE TRUNK IN IT. A tree is drawn from the snow's surface up; a well
 // opens the snow round its foot, so each well near the lens draws the
-// trunk down to its floor (a stub in the kind's own bark, flared at the
-// root) and the dead lower branches a conifer carries there — bare, grey,
-// drooping twigs under the green boughs, the thing that hides a real well
-// and catches a skier who falls into one.
+// trunk on down to its floor — a plain stub in the kind's own bark, as wide
+// as the trunk's foot, going straight into the snow. Nothing else: no root
+// and no dead twig, which at this scale read as thin spikes, not as wood.
 
 import * as THREE from "three";
 import { regionOf, wellDepthOf, type Level, type TreeWell } from "@engine";
@@ -29,7 +28,7 @@ import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
 import { FLARE } from "./tree-mesh.ts";
 import { kindPaint, treePaint } from "./tree-shapes.ts";
-import { treeTilt } from "./tree-tilt.ts";
+import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { leadVariant } from "./tree-variants.ts";
 
 /** The well map's texel, m, and its width in texels: `SPAN` m round the
@@ -39,15 +38,11 @@ const TEXELS = 320;
 const SPAN = CELL * TEXELS;
 /** How far the lens moves off the map's middle before it is refilled, m. */
 const RECENTRE = 16;
-/** The wells whose trunks and twigs are drawn: within `NEAR` m of the
+/** The wells whose trunks are drawn: within `NEAR` m of the
  * lens and at least `SHOWN` m deep at the trunk. */
 const NEAR = 70;
 const SHOWN = 0.2;
-/** Dead twigs a well's trunk carries, at the most, in `WHORLS` whorls. */
-const TWIGS = 22;
-const WHORLS = 3;
-const RUST = new THREE.Color(0x8a5232);
-const GREY = new THREE.Color(0x8a8378);
+const UP = new THREE.Vector3(0, 1, 0);
 
 /** The shader's half: the map, its frame (origin x, origin z, span, on). */
 export const WELL_GLSL = /* glsl */ `
@@ -70,17 +65,12 @@ export type WellUniforms = {
 
 export type TreeWellsView = {
   uniforms: WellUniforms;
-  /** The trunks and twigs in the wells near the lens. */
+  /** The trunks in the wells near the lens. */
   group: THREE.Group;
   /** Keep the map round the lens at (`x`, `z`). */
   follow(x: number, z: number): void;
   dispose(): void;
 };
-
-function hash(x: number, z: number, k: number): number {
-  const s = Math.sin(x * 12.9898 + z * 78.233 + k * 37.719) * 43758.5453;
-  return s - Math.floor(s);
-}
 
 /** The deepest well over (`x`, `z`) among `near`, as loose as the packed
  * field leaves it — `tree-well.ts`'s `wellAt` over a short list. */
@@ -107,35 +97,33 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
   const group = new THREE.Group();
   group.name = "tree-wells";
 
-  // The wood: a flared stub to the floor, and the bare dead twigs.
+  // The wood: a straight stub to the floor.
   const paint = treePaint(regionLookOf(regionOf(level).id));
-  // The stub hangs DOWN from the drawn trunk's foot along its axis, the
-  // root flare widening on below it.
-  const stubGeo = new THREE.CylinderGeometry(1, 1.18, 1, 7, 1, true);
+  // The stub hangs DOWN from the drawn trunk's foot along its axis, as wide
+  // all the way as the foot it carries on and cut with its five faces
+  // (`tree-shapes.ts`'s nearest cut, `tree-mesh.ts`'s `stemUp` corners).
+  const stubGeo = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true, Math.PI / 2);
   stubGeo.translate(0, -0.5, 0);
-  const twigGeo = new THREE.CylinderGeometry(0.006, 0.06, 1, 4, 1);
-  twigGeo.translate(0, 0.5, 0);
-  const wood = (name: string): THREE.MeshStandardMaterial =>
+  const room = field ? Math.min(field.list.length, 600) : 0;
+  const stubs = new THREE.InstancedMesh(
+    stubGeo,
     hazeMaterial(
       new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }),
       haze,
-      name,
-    );
-  const room = field ? Math.min(field.list.length, 600) : 0;
-  const stubs = new THREE.InstancedMesh(stubGeo, wood("well-stub"), Math.max(1, room));
-  const twigs = new THREE.InstancedMesh(twigGeo, wood("well-twig"), Math.max(1, room * TWIGS));
-  for (const im of [stubs, twigs]) {
-    im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(im.count * 3), 3);
-    im.count = 0;
-    im.frustumCulled = false;
-    group.add(im);
-  }
+      "well-stub",
+    ),
+    Math.max(1, room),
+  );
+  stubs.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(stubs.count * 3), 3);
+  stubs.count = 0;
+  stubs.frustumCulled = false;
+  group.add(stubs);
 
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
+  const turn = new THREE.Quaternion();
   const p = new THREE.Vector3();
   const s = new THREE.Vector3();
-  const e = new THREE.Euler();
   const colour = new THREE.Color();
   const axis = new THREE.Vector3();
   const ground = { x: 0, y: 1, z: 0 };
@@ -179,7 +167,6 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
 
     // THE WOOD in the wells near the lens.
     let ns = 0;
-    let nt = 0;
     const trees = level.trees;
     const byPlace = new Map<number, number>();
     for (let i = 0; i < trees.length; i++) byPlace.set(trees[i].x * 4099 + trees[i].z, i);
@@ -202,9 +189,8 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
         ground.z,
       );
       axis.set(tilt.dz, 0, -tilt.dx);
-      q.setFromAxisAngle(axis, tilt.angle);
+      q.setFromAxisAngle(axis, tilt.angle).multiply(turn.setFromAxisAngle(UP, trunkYaw(t.x, t.z)));
       const foot = t.y - 0.3 - t.radius * FLARE * Math.sin(tilt.angle);
-      const shift = Math.tan(tilt.angle);
       const r = t.radius * FLARE;
       // The stub: from the foot down past the well's floor.
       const length = foot - (t.y - floor) + 0.2;
@@ -212,48 +198,10 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
       stubs.setMatrixAt(ns, m);
       stubs.setColorAt(ns, colour.copy(bark).multiplyScalar(0.75));
       ns++;
-      // THE DEAD TWIGS, a conifer's alone: bare, drooping, round the trunk
-      // between the floor and the snow's surface.
-      if (w.reach <= t.radius + 0.8) continue;
-      const bottom = t.y - floor;
-      const top = t.y - 0.1;
-      // A spruce's boughs grow in WHORLS round the stem: a few at one
-      // height, the next whorl a hand or two above.
-      const count = Math.round(TWIGS * (0.6 + 0.4 * hash(t.x, t.z, 1)));
-      const each = Math.ceil(count / WHORLS);
-      for (let j = 0; j < count && nt < room * TWIGS; j++) {
-        const h = hash(t.x, t.z, j + 2);
-        const whorl = Math.floor(j / each);
-        const yaw = ((j % each) / each) * Math.PI * 2 + whorl * 0.9 + h * 0.8;
-        const y = bottom + 0.3 + ((top - bottom - 0.3) * (whorl + 0.5 * h)) / WHORLS;
-        const len = (w.reach - t.radius) * (0.35 + 0.45 * hash(t.x, t.z, j + 23));
-        // On the leant axis at that height.
-        const ax = t.x + tilt.dx * shift * (y - foot);
-        const az = t.z + tilt.dz * shift * (y - foot);
-        // Out from the trunk and drooping: tipped from up toward the side.
-        e.set(Math.PI / 2 + 0.25 + 0.35 * h, yaw, 0, "YXZ");
-        q.setFromEuler(e);
-        m.compose(
-          p.set(ax + Math.sin(yaw) * t.radius * 0.8, y, az + Math.cos(yaw) * t.radius * 0.8),
-          q,
-          s.set(1, len, 1),
-        );
-        twigs.setMatrixAt(nt, m);
-        // ...a dead bough's needles gone rust-brown, or long since dropped
-        // and the wood weathered grey.
-        twigs.setColorAt(
-          nt,
-          colour.copy(bark).lerp(hash(t.x, t.z, j + 31) < 0.6 ? RUST : GREY, 0.6),
-        );
-        nt++;
-      }
     }
     stubs.count = ns;
-    twigs.count = nt;
-    for (const im of [stubs, twigs]) {
-      im.instanceMatrix.needsUpdate = true;
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    }
+    stubs.instanceMatrix.needsUpdate = true;
+    if (stubs.instanceColor) stubs.instanceColor.needsUpdate = true;
   };
 
   return {
@@ -270,9 +218,7 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
     dispose() {
       tex.dispose();
       stubGeo.dispose();
-      twigGeo.dispose();
       (stubs.material as THREE.Material).dispose();
-      (twigs.material as THREE.Material).dispose();
     },
   };
 }

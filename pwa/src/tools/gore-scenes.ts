@@ -731,6 +731,24 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.clearBodies();
     st.shoot(next, "cleared", around(st.level, at, 1.0, 1.5, 9, 55, 0));
   },
+  /** A bleeding body flung through the air: an arm torn off on the snow,
+   * then thrown up and on again, frame by frame as it tumbles — the blood
+   * off it as drops, never threads. */
+  tumble(st) {
+    const { s } = ontoSnow(st, "left", 28, 2);
+    st.until(s, (q) => (q.gore?.lost ?? 0) !== 0, 1, still);
+    st.run(s, 0.3, still);
+    const b = s.skier.thrown!;
+    const h = s.skier.heading;
+    const v = { x: Math.sin(h) * 12, y: 7, z: Math.cos(h) * 12 };
+    for (let i = 0; i < b.points.length; i += 3) {
+      b.last[i] = b.points[i] - v.x * TUNING.dt;
+      b.last[i + 1] = b.points[i + 1] - v.y * TUNING.dt;
+      b.last[i + 2] = b.points[i + 2] - v.z * TUNING.dt;
+    }
+    const lens = onBody(h + Math.PI / 2, 5, 0.8, 50);
+    strobe(st, s, [0.1, 0.25, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5, 2.2], lens);
+  },
   /** A torn limb's artery closing: the stump spurting on the beat at
    * first, then — its spasm shutting it — welling, and dripping. */
   spasm(st) {
@@ -812,7 +830,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   maul: ["maul"],
   machines: ["groomer", "heli", "heli-fly"],
   rotor: ["rotor", "rotor-close"],
-  blood: ["spray", "snow", "spasm", "stand-drip"],
+  blood: ["spray", "snow", "spasm", "stand-drip", "tumble"],
   leak: ["leak", "leak-face", "got-up", "got-up-powder"],
   pools: ["pool-piste", "pool-powder"],
   close: ["closeup"],

@@ -70,13 +70,14 @@ export function isInjured(state: GameState): boolean {
 }
 
 /** Find him INJURED, the first step he has lain long enough to get up and
- * cannot — on a run that carries its injuries, alive and not already
+ * cannot — or at once, on the reset `pressed` while he lies (a fall the game
+ * knows he will not ski on from is answered at once, `run.ts`) — on a run that carries its injuries, alive and not already
  * found so. A blow that keeps him down while he is still ON HIS SKIS (a
  * landing ridden out with a femur broken, a knock-out on a shoulder into a
  * trunk) puts him down there and then: nobody skis on knocked out cold or
  * on a broken leg. (Called after every machine has had its step, so he is
  * on the snow on his own feet.) */
-export function callRescue(state: GameState, events: GameEvent[]): void {
+export function callRescue(state: GameState, events: GameEvent[], pressed = false): void {
   const g = state.gore;
   if (!g || g.injured >= 0 || g.mortal >= 0 || g.dead >= 0) return;
   const c = state.skier;
@@ -87,7 +88,7 @@ export function callRescue(state: GameState, events: GameEvent[]): void {
     return;
   }
   const off = c.thrown;
-  if (!off || !mayGetUp(off)) return;
+  if (!off || (!pressed && !mayGetUp(off))) return;
   g.injured = state.t;
   g.injury = injury;
   const P = off.points;

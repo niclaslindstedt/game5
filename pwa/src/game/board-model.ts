@@ -27,7 +27,8 @@
 // sat in a gondola's cabin with the board in its rack, on foot with the
 // board under his arm (through a gondola's station and in town), stood on
 // a snowmobile's boards (the board racked), in a balloon's basket (lashed
-// outside it) and sat on a helicopter's skid as on a chair.
+// outside it), sat on a helicopter's skid as on a chair, and out of the jump
+// plane's door and under a canopy with the board on (`board-skydive.ts`).
 
 import * as THREE from "three";
 import { TUNING, flightGravity, type GameState, type LoneSki, type SkiSpec } from "@engine";
@@ -53,6 +54,13 @@ import {
   underArmHand,
 } from "./board-lift.ts";
 import { createSeatEase, easeSeat, seatedPose } from "./skier-seat.ts";
+import {
+  boardSkydiveMounts,
+  boardSkydivePose,
+  boardSkydiveStand,
+  boardSkydiveYaw,
+} from "./board-skydive.ts";
+import { pitchPast, type SkydiveShape } from "./skier-skydive.ts";
 import type { Perch } from "./skier-dangle.ts";
 import type { SkierPoseInput } from "./skier-pose.ts";
 import { boardTownPose, rideLift, streetOver, townLift, townMove } from "./town-pose.ts";
@@ -76,6 +84,8 @@ const AFOOT_EASE = 0.4;
  * it, m/s. */
 const ROAD_RATE = 0.6;
 const smooth = (k: number): number => k * k * (3 - 2 * k);
+const ACROSS = new THREE.Vector3(1, 0, 0);
+const UP = new THREE.Vector3(0, 1, 0);
 
 /** A rider stood at rest, his hands empty, his feet `out` m wider each
  * side — what the snowmobile's boards and the basket stand him from. */
@@ -171,6 +181,7 @@ export function createBoardModel(
   let goreCrush = 0;
   const toRoot = new THREE.Quaternion();
   const thrownQ = new THREE.Quaternion();
+  const pitchQ = new THREE.Quaternion();
   const trunk = new THREE.Matrix4();
   const basis = new THREE.Matrix4();
   const axis = { x: new THREE.Vector3(), y: new THREE.Vector3(), z: new THREE.Vector3() };
@@ -216,6 +227,10 @@ export function createBoardModel(
   const townAt = new THREE.Vector3();
   const townQ = new THREE.Quaternion();
   const still0 = new THREE.Quaternion();
+  // The skydive's stage (`skier-skydive.ts`), and the mounts a square stand
+  // for it is laid on.
+  let sky: SkydiveShape | null = null;
+  const skyMounts = boardSkydiveMounts(spec);
   // The racked board, from the engine's pair in the cabin's rack, in the
   // root's frame.
   const rackFrame: BoardFrame = {
@@ -307,7 +322,10 @@ export function createBoardModel(
       const boarded = sled !== null && !off && !town;
       const inBasket = basket && !off && !town;
       const hung = perch !== null && !off && !town;
-      if (off || town || boarded || inBasket || hung) {
+      // SKYDIVING: his body laid by the stage, pitched past his frame.
+      const skydive = off || town ? null : sky;
+      if (skydive) root.quaternion.multiply(pitchQ.setFromAxisAngle(ACROSS, pitchPast(skydive)));
+      if (off || town || boarded || inBasket || hung || skydive) {
         if (!rested) restSkierSpring(legs);
         rested = true;
       } else {
@@ -334,7 +352,7 @@ export function createBoardModel(
       // How sat he is drawn on a chair or a cabin's bench, or towed.
       easeSeat(seatEase, skier.lift, false, dt);
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride" && !town;
-      const still = off || town || boarded || inBasket || hung || seatEase.seated > 0;
+      const still = off || town || boarded || inBasket || hung || skydive || seatEase.seated > 0;
       const { input, incline: lean, lift } = boardInputOf(skier, legs, at.q);
       // The rear foot drawn out of its binding or back in over a moment.
       freeShare = easeFree(freeShare, input.free, dt);
@@ -417,6 +435,17 @@ export function createBoardModel(
         layBoard(deckNow, pose.feet, pose.boots, null, true);
         lastTown = { pose: p, deck: d, at: townAt.clone(), q: townQ.clone() };
         bound.radius = BOUND + 1;
+      } else if (skydive) {
+        // OUT OF THE DOOR AND UNDER THE CANOPY (`board-skydive.ts`): laid
+        // square to his front off a square stand, the board across his
+        // feet, and turned about his up as the stage stands him.
+        const stand = boardSkydiveStand(skyMounts, skier.crouch);
+        const { pose: p, deck: d } = boardSkydivePose(stand, skydive, board, skyMounts);
+        figure.group.position.set(0, 0, 0);
+        figure.group.quaternion.setFromAxisAngle(UP, boardSkydiveYaw(skydive, board.lead));
+        figure.sprawl(p, 0, 0);
+        layBoard(d, p.feet, p.boots, null);
+        bound.radius = BOUND + 1;
       } else {
         figure.group.quaternion.identity();
         bound.radius = BOUND;
@@ -480,9 +509,9 @@ export function createBoardModel(
     setPerch(next) {
       perch = next;
     },
-    // The skydive's stages are laid on the skier's figure alone
-    // (`skier-skydive.ts`); a rider on a board falls in his riding pose.
-    setSkydive() {},
+    setSkydive(shape) {
+      sky = shape;
+    },
     setGore(lost, crush) {
       goreLost = lost;
       goreCrush = crush;

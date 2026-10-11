@@ -248,7 +248,7 @@ describe("the damage instrument and the bogged hint (snapshot.ts)", () => {
     expect(takeSnapshot(state).damage).toEqual({ skiLeft: 0, skiRight: 0.4, legs: 0.25 });
   });
 
-  it("lights the reset once the thrown skier may get up, and puts it out when he is stood up", () => {
+  it("lights the reset the moment the skier is thrown, and puts it out when he is stood up", () => {
     const state = createGame({ level: syntheticLevel(), rivals: 0, countdown: 0, quiet: true });
     placeRun(state, { x: LONE_TREE.x + 0.3, z: LONE_TREE.z - 30, heading: 0, speed: 50 / 3.6 });
     expect(takeSnapshot(state).down).toBe(false);
@@ -256,16 +256,16 @@ describe("the damage instrument and the bogged hint (snapshot.ts)", () => {
     for (let i = 0; i < 6 * TUNING.physicsHz && !state.skier.thrown; i++) step(state, tuck);
     expect(state.skier.thrown).not.toBeNull();
     expect(takeSnapshot(state).down).toBe(true);
-    // The first seconds are the fall's: the reset unlit, a press let go.
+    // The reset is lit from the first moment; the hint to get up waits.
+    expect(takeSnapshot(state).over).toBe(true);
     expect(takeSnapshot(state).getUp).toBe(false);
-    step(state, { ...NEUTRAL_INPUT, reset: true });
-    expect(state.skier.thrown).not.toBeNull();
     while (!mayGetUp(state.skier.thrown)) step(state, NEUTRAL_INPUT);
     expect(takeSnapshot(state).getUp).toBe(true);
-    // The press it lights then answers at once.
+    // The press answers at once.
     step(state, { ...NEUTRAL_INPUT, reset: true });
     expect(state.skier.thrown).toBeNull();
     expect(takeSnapshot(state).down).toBe(false);
+    expect(takeSnapshot(state).over).toBe(false);
   });
 
   it("says BOGGED while the skier is sunk in, and not while he is thrown off", () => {

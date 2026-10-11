@@ -15,7 +15,7 @@
 //   ↑ / Q / Z    lean forward         R               back to the checkpoint
 //   (and in the air, W and S pressed there lean too — `airLean`)
 //   (and DOWN off the skis, W pressed or a tap anywhere stands him up —
-//   the engine lets it go inside `crash.getUp`)
+//   once past `crash.getUp`; R answers at once)
 //   B            restart the race     C               next camera
 //   Escape       hold the race under the pause card (menu-pause.tsx);
 //                pressing it again over the card resumes, because the card's
@@ -29,6 +29,7 @@
 import {
   PLANE,
   TUNING,
+  mayGetUp,
   createStopHand,
   stopHand,
   type GameState,
@@ -76,8 +77,8 @@ export type InputManager = {
    * whether the player's skis is off the snow, where the tuck and brake
    * keys lean (`input-model.ts`'s `airLean`); `flying` whether he is sat on
    * the helicopter's skid, flying it (`heliControls`); `down` whether he is
-   * thrown off his skis, where the tuck key pressed or a tap anywhere is
-   * the reset (`crash.getUp` says when the engine takes it); `lift` the lift
+   * off his skis and may be asked to get up (`mayGetUp`), where the tuck
+   * key pressed or a tap anywhere is the reset; `lift` the lift
    * he is on, where a drag looks round rather than holds the tuck while it
    * carries him (`lift-gaze.ts`); `basket` whether he stands in the
    * balloon's basket, where the walking pad (`hud-balloon.tsx`) walks him
@@ -351,7 +352,10 @@ export function createInputManager(
         TUNING.dt,
         c.airborne,
         !!state.heli?.rider,
-        c.thrown !== null,
+        // A tap or the tuck key stands him up only once he may be asked to
+        // (`mayGetUp`): either is too easily made in the fall itself. The
+        // reset press needs no such wait.
+        c.thrown !== null && mayGetUp(c.thrown),
         c.lift,
         !!state.balloon?.aboard,
         p?.rider

@@ -23,7 +23,10 @@
 //     holds the maths they share) with no motor — the toggles on the edge,
 //     both on the back key (the flare), the risers on the lean.
 //   * AND AFTER: the press cuts it away (`released`: the canopy falls as
-//     cloth and lies where it comes down; he falls on), his skis on the snow
+//     cloth and lies where it comes down; he falls on) and the press again
+//     pulls THE RESERVE (`CHUTE.reserve`: its spring pilot chute, its free
+//     bag and its own shorter stages to a smaller 7-cell canopy flown the
+//     same way — and never cut away, there being no second one), his skis on the snow
 //     under it let it go (`landed`: he skis on), and the cloth or a line met
 //     by a crown or a lift's rope, tower or carrier holds it there
 //     (`snagged`: he hangs under it, swinging, until he starts again).
@@ -52,8 +55,8 @@ import {
 } from "./canopy.ts";
 import { airBoundsAt, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
-import { crashOver, mayGetUp } from "./crash.ts";
-import { CHUTE, jumperMass } from "./defs/chute.ts";
+import { crashOver } from "./crash.ts";
+import { CHUTE, jumperMass, wingOf, type ChuteWing } from "./defs/chute.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { holdsHim } from "./gore.ts";
@@ -74,9 +77,6 @@ import type {
 const dt = TUNING.dt;
 const g = TUNING.g;
 const F = CHUTE.freefall;
-const K = CHUTE.canopy;
-const P = CHUTE.polar;
-const STAGES = CHUTE.deploy.stages;
 const IDLE: ChuteControls = { brake: 0, steer: 0, riser: 0 };
 const HANGING: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
 /** How quickly the jumper in the harness is turned after his canopy, s: on
@@ -117,6 +117,7 @@ function freshChute(state: GameState, mode: ChuteMode): ChuteState {
     g: 0,
     peak: 0,
     deploy: null,
+    reserve: false,
     x: c.x,
     y: c.y,
     z: c.z,
@@ -131,6 +132,7 @@ function freshChute(state: GameState, mode: ChuteMode): ChuteState {
     tension: 0,
     controls: { ...IDLE },
     piece: null,
+    sparePiece: null,
     snag: null,
     fell: false,
     settle: 0,
@@ -161,6 +163,8 @@ export function skydiveAt(
     speed?: number;
     fall?: number;
     mode?: "exit" | "freefall" | "open";
+    /** Under the RESERVE (`mode: "open"`), the main cut away before. */
+    reserve?: boolean;
   },
 ): void {
   if (!state.plane) state.plane = freshPlane(state);
@@ -183,7 +187,9 @@ export function skydiveAt(
   pose(state, ch);
   if (mode !== "open") return;
   // ...or already flying the canopy, hands off, at what its polar flies.
-  const f = CHUTE.flies;
+  ch.reserve = !!at.reserve;
+  const W = wingOf(ch.reserve);
+  const f = W.flies;
   c.vx = Math.sin(heading) * (at.speed ?? f.forward);
   c.vz = Math.cos(heading) * (at.speed ?? f.forward);
   c.vy = -(at.fall ?? f.sink);
@@ -193,7 +199,7 @@ export function skydiveAt(
   ch.t = CHUTE.fill.time;
   ch.attitude = 0;
   ch.x = c.x;
-  ch.y = c.y + K.lines;
+  ch.y = c.y + W.canopy.lines;
   ch.z = c.z;
   ch.vx = c.vx;
   ch.vy = c.vy;
@@ -253,10 +259,11 @@ export function stepChute(state: GameState, input: SkierInput, events: GameEvent
   if (!ch) return false;
   ch.t += dt;
   ch.since += dt;
-  if (ch.piece) {
-    paraAirAt(state.level, state.t, ch.piece.x, ch.piece.y, ch.piece.z, air);
+  for (const piece of [ch.piece, ch.sparePiece]) {
+    if (!piece) continue;
+    paraAirAt(state.level, state.t, piece.x, piece.y, piece.z, air);
     const d = CHUTE.dropped;
-    fallPiece(state.level, ch.piece, d.mass, d.area, air.x * d.drift, air.z * d.drift);
+    fallPiece(state.level, piece, d.mass, d.area, air.x * d.drift, air.z * d.drift);
   }
   if (ch.done) return false;
   const c = state.skier;
@@ -268,7 +275,7 @@ export function stepChute(state: GameState, input: SkierInput, events: GameEvent
       ch.mode = "released";
       ch.fell = true;
     }
-    const up = crashOver(c.thrown, true) || (input.reset && mayGetUp(c.thrown));
+    const up = crashOver(c.thrown, true) || input.reset;
     if (up && !holdsHim(state)) restart(state, events);
     return false;
   }
@@ -281,7 +288,9 @@ export function stepChute(state: GameState, input: SkierInput, events: GameEvent
     return true;
   }
   if (ch.mode === "open") {
-    if (input.machine) {
+    // The main cut away on the press; under the reserve there is nothing
+    // left to cut away to.
+    if (input.machine && !ch.reserve) {
       cutAway(ch);
       enter(ch, "released");
       say(state, events, "release");
@@ -306,7 +315,13 @@ export function stepChute(state: GameState, input: SkierInput, events: GameEvent
   }
   const clear = ch.mode === "freefall" || (ch.mode === "exit" && ch.t >= CHUTE.exit.clear);
   if (input.machine && clear) {
-    throwOut(state, ch, events);
+    throwOut(state, ch, events, false);
+    deploying(state, ch, events);
+    return true;
+  }
+  // CUT AWAY, the press again pulls the reserve — once.
+  if (input.machine && ch.mode === "released" && !ch.reserve) {
+    throwOut(state, ch, events, true);
     deploying(state, ch, events);
     return true;
   }
@@ -440,11 +455,14 @@ function pose(state: GameState, ch: ChuteState): void {
   c.stuckFor = 0;
 }
 
-/** THE THROW: the pilot chute out of its pouch, the deployment begun. */
-function throwOut(state: GameState, ch: ChuteState, events: GameEvent[]): void {
+/** THE THROW: the pilot chute out of its pouch, the deployment begun — or,
+ * `reserve`, the reserve's handle pulled and its spring pilot chute
+ * launched off his back. */
+function throwOut(state: GameState, ch: ChuteState, events: GameEvent[], reserve: boolean): void {
   const c = state.skier;
   const at = { x: c.x, y: c.y, z: c.z };
   enter(ch, "deploying");
+  ch.reserve = reserve;
   ch.peak = 0;
   ch.deploy = {
     stage: "pilot",
@@ -456,7 +474,7 @@ function throwOut(state: GameState, ch: ChuteState, events: GameEvent[]): void {
     slider: 1,
     spread: 0,
   };
-  say(state, events, "open-start");
+  say(state, events, reserve ? "reserve" : "open-start");
 }
 
 /** ONE STEP OF THE OPENING: the stage and its drag area, the deceleration
@@ -465,6 +483,9 @@ function throwOut(state: GameState, ch: ChuteState, events: GameEvent[]): void {
 function deploying(state: GameState, ch: ChuteState, events: GameEvent[]): void {
   const c = state.skier;
   const d = ch.deploy as ChuteDeploy;
+  const W = wingOf(ch.reserve);
+  const STAGES = W.deploy.stages;
+  const K = W.canopy;
   const M = jumperMass(totalMass(c.spec));
   const t0 = d.t;
   d.t += dt;
@@ -516,8 +537,10 @@ function deploying(state: GameState, ch: ChuteState, events: GameEvent[]): void 
   d.lines = clamp((d.t - STAGES[0].end) / (lines - STAGES[0].end), 0, 1);
   const bagAt = 0.3 + (K.lines - 0.3) * d.lines;
   up(bagAt, d.bag);
-  up(bagAt + CHUTE.pilot.bridle * out(STAGES[1].end) + 1.2 * out(STAGES[0].end), d.pilot);
-  if (i === 0) {
+  up(bagAt + W.pilot.bridle * out(STAGES[1].end) + 1.2 * out(STAGES[0].end), d.pilot);
+  // The main's is thrown out to his right; the reserve's springs straight
+  // off his back into the air past him.
+  if (i === 0 && !ch.reserve) {
     const right = rotate(c.q, { x: 1, y: 0, z: 0 });
     const reach = 0.8 * (1 - share);
     d.pilot.x += right.x * reach;
@@ -563,7 +586,7 @@ export function flyChute(state: GameState, input: SkierInput, events: GameEvent[
     return;
   }
   const M = jumperMass(totalMass(c.spec));
-  fly(state, ch, input, M);
+  fly(state, ch, input, M, wingOf(ch.reserve));
   ch.agl = Math.max(0, feetUp(state));
   ch.fall = -c.vy;
   // The load on the harness through the lines' stretch: the inextensible
@@ -600,8 +623,10 @@ export function flyChute(state: GameState, input: SkierInput, events: GameEvent[
 
 /** THE CANOPY ON ITS LINES for one step (as `para.ts`'s wing, without the
  * motor, the folds or the eddies across the span). */
-function fly(state: GameState, ch: ChuteState, input: SkierInput, M: number): void {
+function fly(state: GameState, ch: ChuteState, input: SkierInput, M: number, W: ChuteWing): void {
   const c = state.skier;
+  const K = W.canopy;
+  const P = W.polar;
   const ctl = ch.controls;
   const want = chuteControls(input);
   readAir(state, ch, ch.x, ch.y, ch.z);
@@ -681,9 +706,10 @@ function fly(state: GameState, ch: ChuteState, input: SkierInput, M: number): vo
   derive(c, state.level);
 }
 
-/** THE CANOPY LET GO OF: it falls free as cloth from where it flew. */
+/** THE CANOPY LET GO OF: it falls free as cloth from where it flew — the
+ * main, or the reserve once that is the one over him. */
 function cutAway(ch: ChuteState): void {
-  ch.piece = {
+  const piece = {
     x: ch.x,
     y: ch.y,
     z: ch.z,
@@ -693,6 +719,8 @@ function cutAway(ch: ChuteState): void {
     heading: ch.canopyHeading,
     down: false,
   };
+  if (ch.reserve) ch.sparePiece = piece;
+  else ch.piece = piece;
   ch.tension = 0;
   ch.snag = null;
   ch.controls = { ...IDLE };
@@ -704,7 +732,7 @@ function cutAway(ch: ChuteState): void {
 function snagOf(state: GameState, ch: ChuteState): ChuteSnag | null {
   const c = state.skier;
   const level = state.level;
-  const half = K.span / 2;
+  const half = wingOf(ch.reserve).canopy.span / 2;
   const rx = Math.cos(ch.canopyHeading);
   const rz = -Math.sin(ch.canopyHeading);
   const pts = [

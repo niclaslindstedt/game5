@@ -274,13 +274,18 @@ export type HudSnapshot = {
   stuck: boolean;
   /** DOWN: the skier is off his skis (`crash.ts`'s `Thrown`). */
   down: boolean;
-  /** ...and may GET UP: down past `crash.getUp`, when a press of his own
-   * stands him up (`mayGetUp`) — the reset lit and the hint up from then,
-   * the first seconds left to the fall and the body's plate. */
+  /** ...and may GET UP: down past `crash.getUp` (`mayGetUp`), when the
+   * hint comes up and a tap or the tuck key stands him up — the first
+   * seconds left to the fall and the body's plate. */
   getUp: boolean;
   /** STOOD STILL ON A BOARD on a free ride, on the snow and on nothing
    * else: how he gets going — the skate and the hop — the standing hint. */
   crawl: boolean;
+  /** THE RUN AS RIDDEN IS OVER and only the reset carries on: off his
+   * skis (thrown off them, a machine or a craft), caught under his canopy
+   * in a crown or on a lift, or held by a wound (`holdsHim`). The reset
+   * is lit from the first moment of it, and its press answers at once. */
+  over: boolean;
   /** THE DAMAGE INSTRUMENT: each part 0 sound … 1 wrecked, or null on a
    * run without damage (`GameState.damage`). */
   damage: { skiLeft: number; skiRight: number; legs: number } | null;
@@ -747,6 +752,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     // A mortal wound is never got up from (`gore.ts`'s `holdsHim`).
     getUp: c.thrown !== null && mayGetUp(c.thrown) && !holdsHim(state),
     crawl: crawlHint(state),
+    over: c.thrown !== null || state.chute?.mode === "snagged" || holdsHim(state),
     damage: state.damage
       ? {
           skiLeft: c.damage.ski[0],

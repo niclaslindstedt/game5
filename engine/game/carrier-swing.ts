@@ -32,6 +32,29 @@ const LURCHES = 2;
 /** The step a speed's change is read over, m. */
 const READ = 0.5;
 
+/** EACH TOWER'S KICK, rad/s, per side (`2 i + side`): the rope's bend over
+ * its sheaves read `lift.bend` m either side the way the side runs — a
+ * function of the plan alone, so read once a plan rather than with four of
+ * the rope's heights for every carrier every frame. */
+const kicks = new WeakMap<LiftPlan, Float64Array>();
+function kicksOf(plan: LiftPlan): Float64Array {
+  let out = kicks.get(plan);
+  if (out) return out;
+  const s = plan.supports;
+  out = new Float64Array(2 * s.length);
+  for (let i = 0; i < s.length; i++) {
+    for (const side of [0, 1] as const) {
+      const dir = side === 0 ? 1 : -1;
+      const at = s[i].u;
+      const before = (ropeAt(plan, at) - ropeAt(plan, at - dir * K.bend)) / K.bend;
+      const after = (ropeAt(plan, at + dir * K.bend) - ropeAt(plan, at)) / K.bend;
+      out[2 * i + side] = clamp(K.kick * (before - after), -K.kickMost, K.kickMost);
+    }
+  }
+  kicks.set(plan, out);
+  return out;
+}
+
 /** HOW FAR A CARRIER `u` m up its line on `side` (0 up, 1 down) HANGS OFF
  * PLUMB, rad — positive with its foot swung forward the way it goes. */
 export function carrierSwingAt(plan: LiftPlan, u: number, side: 0 | 1): number {
@@ -53,9 +76,7 @@ export function carrierSwingAt(plan: LiftPlan, u: number, side: 0 | 1): number {
     const past = dir * (u - at);
     if (past < 0) continue;
     felt++;
-    const before = (ropeAt(plan, at) - ropeAt(plan, at - dir * K.bend)) / K.bend;
-    const after = (ropeAt(plan, at + dir * K.bend) - ropeAt(plan, at)) / K.bend;
-    const kick = clamp(K.kick * (before - after), -K.kickMost, K.kickMost);
+    const kick = kicksOf(plan)[2 * i + side];
     const tau = past / Math.max(0.3, v);
     swing += (kick / omega) * Math.exp((-K.damp * tau) / 2) * Math.sin(omega * tau);
   }

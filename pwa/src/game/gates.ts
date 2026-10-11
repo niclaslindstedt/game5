@@ -73,6 +73,7 @@ import {
   gatePanel,
   gatePole,
 } from "./mark-shapes.ts";
+import { createChallengeFlags } from "./challenge-flags.ts";
 import { createCrossFlags } from "./cross-flags.ts";
 import { createCrossGate } from "./cross-gate.ts";
 import { bulgeAt, hasNets, netDents, type NetDent } from "./net-bulge.ts";
@@ -774,6 +775,9 @@ export function createGates(
 
   // THE LAKES AND THE STREAMS, open or iced on the map's day.
   const water = createWater(level, haze);
+  // A JUDGED FREE RIDE'S CHALLENGES on the snow (`challenge-flags.ts`).
+  const challenges = createChallengeFlags(level, haze);
+  if (challenges) group.add(challenges.group);
 
   // A SLOPESTYLE COURSE'S RAILS AND BOXES (`jibs-view.ts`).
   const jibs = createJibs(level, std);
@@ -838,6 +842,7 @@ export function createGates(
       house?.update(state);
       tipStakes(state);
       crossGate?.update(state);
+      challenges?.update(state);
       if (sheets.length > 0) bulgeNets(state);
       if (next !== lit) {
         if (lit >= 0 && tops[lit]) {
@@ -870,10 +875,12 @@ export function createGates(
         (s.material as THREE.SpriteMaterial).opacity = on;
       }
       reflectorMat.emissiveIntensity = 0.2 + 1.6 * on;
+      challenges?.setLamps(on);
     },
     air(state, look, wind, eye, pixels) {
       guns?.update(state, look, wind, eye, pixels);
       water?.update(state.t, wind);
+      challenges?.air(state.t, wind);
       stakesNear?.update(eye);
       bandsNear?.update(eye);
       lights.near(eye);
@@ -889,6 +896,7 @@ export function createGates(
       bands.dispose();
       signs.dispose();
       routeSigns?.dispose();
+      challenges?.dispose();
       lights.dispose();
       streets?.dispose();
       guns?.dispose();

@@ -51,6 +51,7 @@ import { HudActions } from "./hud-actions.tsx";
 import { ReplayOffer, type CrashOffer } from "./hud-replay-offer.tsx";
 import { ComboTile, TricksChips } from "./hud-combo.tsx";
 import { BodyPanel } from "./hud-body.tsx";
+import { ChallengeChipView, ChallengePlateView } from "./hud-challenge.tsx";
 import { DamageGauge } from "./hud-damage.tsx";
 import { GForce } from "./hud-gforce.tsx";
 import { GradeMark } from "./grade-mark.tsx";
@@ -298,6 +299,11 @@ export function Hud({
               <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
             </div>
           </div>
+          {snap.challenge?.chip && (
+            <div class="hud-top-row">
+              <ChallengeChipView chip={snap.challenge.chip} />
+            </div>
+          )}
         </div>
       )}
       {!leisure && (
@@ -531,6 +537,11 @@ export function Hud({
         </div>
       )}
 
+      {/* A FREE RIDE'S CHALLENGE done: the medal plate, a few seconds. */}
+      {snap.challenge?.plate && snap.missed === null && (
+        <ChallengePlateView plate={snap.challenge.plate} />
+      )}
+
       {/* Indoors (the afterski's room) there is nothing to ski: no speed,
           edge or wind, and no body panel. In the balloon's basket the dial
           is the BASKET'S speed over the snow and nothing of the skier's:
@@ -593,6 +604,14 @@ export function Hud({
       {snap.getUp && snap.missed === null && (
         <div class="hud-missed hud-stuck hud-get-up" role="status">
           <span class="hud-missed-distance">{STRINGS.getUp(touch, tuckKey)}</span>
+        </div>
+      )}
+
+      {/* STOOD STILL ON A BOARD: the skate and the hop, how he gets going. */}
+      {snap.crawl && snap.missed === null && !snap.getUp && (
+        <div class="hud-missed hud-stuck hud-crawl" role="status">
+          <span class="hud-missed-title">{STRINGS.crawl}</span>
+          <span class="hud-missed-distance">{STRINGS.crawlHow(touch, tuckKey, jumpKey)}</span>
         </div>
       )}
 

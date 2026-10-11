@@ -36,6 +36,10 @@ export type StationGround = {
   height(x: number, z: number): number;
   floor(p: Point): boolean;
   linkEnds(id: string): readonly Point[];
+  /** The most the ground may fall across a bottom station's footprint, m
+   * per m, where a real face's own (`RR.massif.real.least.level`) is
+   * asked rather than `LEVEL`. */
+  readonly level?: number;
 };
 
 /** The slides tried across a chair's or a gondola's line at its bottom
@@ -78,7 +82,7 @@ function footprint(kind: LiftPlan["kind"], at: Point, dir: Point): Point[] {
  * the runs, on its own level ground. */
 function clearBottom(g: StationGround, kind: LiftPlan["kind"], bottom: Point, top: Point): boolean {
   // Its level first — reads of the ground, where the runs are a search.
-  if (!standsLevel(g.height, kind, bottom, top)) return false;
+  if (!standsLevel(g.height, kind, bottom, top, g.level)) return false;
   return bottomFootprint(kind, bottom, top).every((p) => !g.onRun(p.x, p.z, MARGIN));
 }
 
@@ -95,6 +99,7 @@ export function standsLevel(
   kind: LiftPlan["kind"],
   bottom: Point,
   top: Point,
+  most: number = LEVEL,
 ): boolean {
   let lo = Infinity;
   let hi = -Infinity;
@@ -104,7 +109,7 @@ export function standsLevel(
     hi = Math.max(hi, y);
   }
   const F = RR.lift.footprint[kind];
-  return (hi - lo) / Math.max(F.back + F.ahead, 2 * F.half) <= LEVEL;
+  return (hi - lo) / Math.max(F.back + F.ahead, 2 * F.half) <= most;
 }
 
 /** Whether a drag's line crosses no piste, climbs, keeps to a drag's

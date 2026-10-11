@@ -822,7 +822,12 @@ function walk(
     }
     const rx = Math.cos(p.heading) * (p.width / 2 + BENCH);
     const rz = -Math.sin(p.heading) * (p.width / 2 + BENCH);
-    if (flankAt(plan, p.x + rx, p.z + rz) > 0.05 || flankAt(plan, p.x - rx, p.z - rz) > 0.05) {
+    // A real face lays no side ridges (R25): its ground beside the ski area
+    // is the real mountain's, and a run may go out to it.
+    if (
+      !plan.face &&
+      (flankAt(plan, p.x + rx, p.z + rz) > 0.05 || flankAt(plan, p.x - rx, p.z - rz) > 0.05)
+    ) {
       return "a run runs up a side ridge";
     }
   }

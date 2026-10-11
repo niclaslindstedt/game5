@@ -61,6 +61,10 @@
 // piste — the pocket the mesh makes round him and the skis hooked in it;
 // with `--free --grimbear`, `grimbear-lurk`, `-chase`, `-run`, `-maul` and
 // `-leave`: the beast behind his trunk, out of it, over the skier and off;
+// with `--free`, `challenge-start`, `-finish`, `-gate-side`, `-far`,
+// `-kicker` and `-spot`: the free ride's challenges on the snow
+// (`challenge-flags.ts`, `pwa/src/tools/challenge-lab.ts`) — a timed line's
+// feather-flag gates, a trick kicker's pennant and a found spot's cairn;
 // with `--free --hour=21` (a free ride after dark), `keen-0`, `keen-1`,
 // `keen-2`, `keen-side` and `keen-lift`: the enthusiasts out on the empty
 // slopes (`enthusiasts.ts`), each from behind, one from beside his line and
@@ -295,6 +299,12 @@ const VIEWS = [
   "vehicle-van",
   "vehicle-bus",
   "vehicle-bike",
+  "challenge-start",
+  "challenge-finish",
+  "challenge-gate-side",
+  "challenge-far",
+  "challenge-kicker",
+  "challenge-spot",
 ];
 
 const args = parseArgs(

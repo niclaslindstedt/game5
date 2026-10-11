@@ -7,7 +7,7 @@
 
 import { ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import type { BigAirPhase, Freestyle, TrickRead } from "@engine";
-import { BOARD_GRAB_WORDS } from "./strings-board-tricks.ts";
+import { BOARD_GRAB_WORDS, BOARD_SIDE_WORDS } from "./strings-board-tricks.ts";
 
 /** A flip's count in front of its name. */
 const TIMES = ["", "", "DOUBLE ", "TRIPLE ", "QUAD "];
@@ -48,11 +48,16 @@ export const BIG_AIR_STRINGS = {
   bigAirJump: (jump: number, of: number): string => `JUMP ${jump}/${of}`,
 
   /* ── A TRICK AS THE JUDGES CALL IT ──────────────────────────────────── */
-  /** "SWITCH LEFT DOUBLE CORK 1260 MUTE", "BACKFLIP", "STRAIGHT AIR". */
+  /** "SWITCH LEFT DOUBLE CORK 1260 MUTE", "BACKFLIP", "STRAIGHT AIR" — and
+   * on a board the side in place of the way, "SWITCH BACKSIDE 720 INDY",
+   * "NOLLIE FRONTSIDE 360". */
   trickName: (r: TrickRead): string => {
     const words: string[] = [];
     if (r.switchIn) words.push("SWITCH");
-    if (r.dir) words.push(r.dir === "left" ? "LEFT" : "RIGHT");
+    else if (r.nollie && r.spin > 0) words.push("NOLLIE");
+    if (r.side !== undefined) {
+      if (r.side) words.push(BOARD_SIDE_WORDS[r.side]);
+    } else if (r.dir) words.push(r.dir === "left" ? "LEFT" : "RIGHT");
     if (r.offAxis) words.push(`${TIMES[r.flips] ?? `${r.flips}× `}CORK ${r.spin}`);
     else if (r.flips > 0) {
       const flip = `${TIMES[r.flips] ?? `${r.flips}× `}${r.flipDir === "front" ? "FRONT FLIP" : "BACKFLIP"}`;

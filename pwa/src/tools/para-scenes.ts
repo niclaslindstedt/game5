@@ -10,6 +10,7 @@
 
 import {
   NEUTRAL_INPUT,
+  chutePilot,
   paraPilot,
   type GameState,
   type Level,
@@ -81,6 +82,30 @@ function around(
       roll: 0,
     };
   };
+}
+
+/** A lens planted where `right` m off his side and `up` m over him would
+ * stand NOW, kept there and turned to follow him — so a loop or a fall is
+ * watched from one place, as a camera on the ground would. */
+function planted(state: GameState, right: number, up: number, fov = 50): Lens {
+  const c = state.skier;
+  const h = state.para?.heading ?? c.heading;
+  const eye = { x: c.x - Math.cos(h) * right, y: c.y + up, z: c.z + Math.sin(h) * right };
+  return (q) => ({
+    eye,
+    target: { x: q.skier.x, y: q.skier.y + 2.5, z: q.skier.z },
+    fov,
+    roll: 0,
+  });
+}
+
+/** High over the mountain on the throttle alone, with the height a dive
+ * and a loop spend. */
+function aloft(st: Stage, seconds = 40): GameState {
+  const s = st.fresh();
+  st.skip(s, seconds, ride({ tuck: 1 }));
+  st.run(s, 0.6, ride({}));
+  return s;
 }
 
 /** A lens planted off a released piece lying on the snow. */
@@ -190,6 +215,49 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "back-side", around(9, 0, 0, 50, 0, 1.5));
     st.shoot(s, "back-chase", "chase");
   },
+  // ── THE DIVE, THE SWING UP AND THE LOOP (`para-acro.ts`) ──────────────
+  // The lean forward held five seconds pitches the wing over into a dive;
+  // the lean back then swings him out in front and up and round over the
+  // top, watched from a lens planted beside where he pulled.
+  loop(st) {
+    const s = aloft(st);
+    st.run(s, 2.5, ride({ lean: -1 }));
+    st.shoot(s, "dive-side", around(10, 0, 0, 55, 0, 2));
+    st.shoot(s, "dive-chase", "chase");
+    st.run(s, 2.5, ride({ lean: -1 }));
+    const lens = planted(s, 28, 4, 60);
+    st.shoot(s, "pull-0.0s", lens);
+    for (const at of [0.6, 1.2, 1.8, 2.4, 3.0]) {
+      st.run(s, 0.6, ride({ lean: 1 }));
+      st.shoot(s, `pull-${at.toFixed(1)}s`, lens);
+    }
+    st.shoot(s, "over-chase", "chase");
+    st.run(s, 2, ride({}));
+    st.shoot(s, "after", lens);
+  },
+  // ── THE SWING UP FROM A CRUISE ─────────────────────────────────────────
+  swing(st) {
+    const s = aloft(st);
+    const lens = planted(s, 20, 2, 55);
+    let t = 0;
+    for (const at of [0.5, 1, 1.5, 2.5]) {
+      st.run(s, at - t, ride({ lean: 1 }));
+      t = at;
+      st.shoot(s, `back-${at}s`, lens);
+    }
+  },
+  // ── INTO THE WING: the pull without the speed for it ───────────────────
+  tangle(st) {
+    const s = aloft(st);
+    st.run(s, 2, ride({ lean: -1 }));
+    const lens = planted(s, 16, 2, 55);
+    st.until(s, (q) => q.para!.mode === "tangled", 6, ride({ lean: 1 }));
+    st.shoot(s, "fallen-in", lens);
+    st.run(s, 1, still);
+    st.shoot(s, "falling", lens);
+    st.shoot(s, "falling-chase", "chase");
+    st.shoot(s, "falling-close", around(5, 2, 4, 55, 0, 1));
+  },
   // ── DOWN ON THE SNOW UNDER IT, AND THE LANDING ─────────────────────────
   landing(st) {
     // Off the summit and straight back down, above the tree line.
@@ -240,8 +308,11 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "motor-down", overPiece("motor", 1.5, 1.2, 2.5));
   },
   // A LONG FALL: the rig let go high over the mountain (the bot's flight
-  // for 24 s), and the skier watched down onto the snow by the fall look
-  // (`camera-fall.ts`) — the chase, the far lens and his own eye.
+  // for 24 s) — the motor and the wing falling away on their own and the
+  // skier out into a skydive's freefall (`chute.ts`'s `craftFreefall`) on
+  // the rig he wore under the motor — watched by the chase, the far lens
+  // and his own eye, then the main pulled and flown down on the bot's
+  // pattern (`chutePilot`) onto his skis.
   "drop-high"(st) {
     const s = airborne(st);
     const high = (q: GameState) => q.skier.y - q.level.groundAt(q.skier.x, q.skier.z);
@@ -255,7 +326,16 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     }
     st.shoot(s, `${t}s-far`, "far");
     st.shoot(s, `${t}s-eye`, "helmet");
-    st.until(s, (q) => !q.skier.airborne || q.skier.thrown !== null, 15, still);
+    st.shoot(s, `${t}s-motor`, overPiece("motor", 3, 2, 5));
+    const pilot: Drive = (q) => chutePilot(q);
+    st.until(s, (q) => q.chute?.mode === "open" || !q.chute, 12, pilot);
+    st.run(s, 1.5, pilot);
+    st.shoot(s, `canopy-${high(s).toFixed(0)}m`, "chase");
+    // The main glides down the face (a sink of some 4 m/s over a slope that
+    // falls away under it), so the long way down is stepped undrawn.
+    const down = (q: GameState) => !q.skier.airborne || q.skier.thrown !== null || !q.chute;
+    for (let k = 0; k < 40 && !down(s) && (s.chute?.agl ?? 0) > 40; k++) st.skip(s, 10, pilot);
+    st.until(s, down, 30, pilot);
     st.shoot(s, "touchdown", "chase");
     st.run(s, 1, still);
     st.shoot(s, "after-1s", "chase");
@@ -341,6 +421,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   flight: ["flight"],
   turn: ["turn"],
   lean: ["lean"],
+  acro: ["loop", "swing", "tangle"],
   landing: ["landing"],
   fold: ["fold"],
   drop: ["drop", "drop-high"],

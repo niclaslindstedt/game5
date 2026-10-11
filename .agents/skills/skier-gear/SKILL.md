@@ -42,6 +42,7 @@ card's chrome.
 | `pwa/src/game/dress-body.ts` | THE BODY AS MEASURES: the ANSUR II means for the man (the Blender suit's own) and the woman, laid on the game's ONE skeleton (`BODY` — the engine's ragdoll's too), so a woman is her measure, never other bones |
 | `pwa/src/game/dress-garments.ts` | THE JACKETS AND THE PANTS: each cut (`JACKET_CUT`, `PANTS_CUT`: ease, hem, flare, quilt), the seat and the jacket clear of it (`seatAt`), the colour rules, the collar and the neck gaiter, the hood, the sleeves, the legs, the feet in their liners |
 | `pwa/src/game/dress-head.ts` | THE HEAD AND THE HANDS: `helmet-shape.ts`'s measured shell under each helmet's own parts (the freeride's ear pads and peak, the visor, the slalom chin guard), a woman's braid, the gloves (the fist on the hand bone, the cuff on the forearm's) |
+| `pwa/src/game/dress-face.ts` | THE FACE under the goggles: one low-poly grid over the head's egg (restated from `helmet-shape.ts`, which the Blender model is built off), relief for the nose, cheekbones, lips, chin and jaw, painted in shades of the skin (`faceShades` the suite's palette); a woman's softer jaw and fuller lips |
 | `pwa/src/game/dress.ts` | `dressOutfit` — an outfit (and a skin's tone) cut once into its two meshes and kept |
 | `pwa/src/game/skier-dress.ts` | `createDressed` — the two meshes (cloth, matt; hard goods, a shine) skinned on a skeleton of `SKIER_BONES`, posed by `skierBones`; a ghost's colours washed pale |
 | `pwa/src/game/skier-figure.ts` | The figure: the dressed skin, the outfit's POLES (alloy, carbon, the downhill racer's bent shaft, the powder basket's petals) and the head's frame the lamp hangs on |
@@ -93,7 +94,10 @@ card's chrome.
 - **A sleeve starts INSIDE the torso and is capped**: a big first ring at
   the shoulder joint stands proud of the shoulder line as spikes.
 - **Fill the neck**: a knit gaiter from the collar up to the helmet's rim,
-  or the background shows between them.
+  or the background shows between them — slim (a 13 cm neck), inside a
+  stand collar in the body's colour, and the jacket's top laid as a
+  sloping SHOULDER LINE by height over the joints (`shoulderLine`), or
+  the neck reads as a cone as wide as the helmet.
 - **A woman is her measure** (ANSUR II's women's means), a TAILORED cut
   (the jacket taken in at the waist) and a braid out from under the
   helmet — never other bones: one skeleton is every pose and animation.

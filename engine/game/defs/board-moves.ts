@@ -9,14 +9,15 @@
 //
 //   - THE ONE-FOOT SKATE. A rider crossing the flat, shuffling up a lift
 //     line or leaving a start takes his REAR foot out of its binding and
-//     pushes with it beside the board — short quick pushes, the front foot
-//     strapped in and the body turned to face the nose — then sets the
-//     foot back on the board between the bindings to glide, and straps it
-//     back in before he rides off down anything steep. A push from one
-//     foot beside a board is short and sideways to it: a fraction of a
-//     skier's two-legged skate (`legs`), useful to about a running pace and
-//     buying nothing past it. These numbers are ESTIMATES set to those
-//     descriptions, not measured.
+//     pushes with it on the TOE side of the board — short quick pushes,
+//     the front foot strapped in, the board along his way and the body
+//     side-on — then sets the foot back on the board between the bindings
+//     to glide, and straps it back in before he rides off down anything
+//     steep. Strapped in with both feet he can also HOP the board forward.
+//     A push from one foot beside a board is short and sideways to it: a
+//     fraction of a skier's two-legged skate (`legs`), useful to about a
+//     running pace and buying nothing past it. These numbers are ESTIMATES
+//     set to those descriptions, not measured.
 //   - THE STEP TURN. Strapped by the front foot alone, a rider steers a
 //     board at a walk by swinging its tail round with the free foot — the
 //     board pivots about the FRONT BINDING.
@@ -49,13 +50,18 @@
 export const BOARD_MOVES = {
   /** THE ONE-FOOT SKATE (`board-moves.ts`). */
   skate: {
-    /** The share of a skier's power-limited push (`poles.power`, the pair's
-     * `polePush`) one free foot beside the board has. */
-    legs: 0.35,
-    /** The push is whole under `speed` m/s (5 km/h) and gone by `fade`
-     * (14 km/h): a foot pushing beside a board cannot keep up past a run. */
-    speed: 1.4,
-    fade: 4,
+    /** The power a rider's legs put into a push, W — a fit recreational
+     * rider's sprint (a skier's own `poles.power` is an arcade double-poler's,
+     * and a free foot beside a deck is no double pole) — and the share of
+     * it, and of the pair's `polePush`, one free foot beside the board has —
+     * set so a rider skating from a stand on the flat is at 10 km/h in about
+     * 3 s. */
+    power: 450,
+    legs: 0.55,
+    /** The push is whole under `speed` m/s (8 km/h) and gone by `fade`
+     * (16.5 km/h): a foot pushing beside a board cannot keep up past a run. */
+    speed: 2.2,
+    fade: 4.6,
     /** Pushes a second: quick and short at a standstill, `slow`, to `fast`
      * by the fade. */
     slow: 1.3,
@@ -78,6 +84,15 @@ export const BOARD_MOVES = {
     hopBelow: 0.6,
     hopAt: 0.2,
     hop: 0.5,
+    /** THE HOP FORWARD: strapped in with both feet, a rider on the flat
+     * jumps the board along — the jump let go at a crawl throws him `ahead`
+     * m/s forward along the board as well as up, whole from a stand and
+     * gone by `aheadTo` m/s (11 km/h), past which a hop buys nothing a
+     * glide does not. A standing two-footed hop carries a strapped rider
+     * about half a metre to a metre, so `ahead` is set so a few hops a
+     * second build to a jog. An ESTIMATE, set to that description. */
+    ahead: 1.1,
+    aheadTo: 3,
     /** THE STEP TURN about the front foot: each push swings the tail round
      * by `turn` rad, taken up at `rate` a second. */
     turn: 0.22,
@@ -112,6 +127,47 @@ export const BOARD_MOVES = {
      * and the board slides that way across the hill. */
     leaf: 0.45,
     leafRate: 0.8,
+  },
+  /** THE PRESS AND THE BUTTER (`board-press.ts`). A rider moves his weight
+   * over one foot — the front for a NOSE press, the rear for a TAIL press
+   * — and the deck flexes onto that end while the other lifts off the
+   * snow, a hand's breadth on a soft board. Twisting through it with the
+   * shoulders pivots the board on the end left on the snow: a BUTTER. It is
+   * a slow-snow trick, ridden on a flat base (an edge set while the board
+   * turns across its way is the catch) on gentle groomed snow, easier the
+   * softer the board's flex; a butter carried half round leaves him riding
+   * fakie, a whole one riding forward again. The numbers are ESTIMATES set
+   * to those descriptions, not measured. */
+  press: {
+    /** The lean (`SkierState.lean`) presses past `from` of its throw and
+     * wholly by `full`. */
+    from: 0.45,
+    full: 0.95,
+    /** Whole under `slow` m/s (18 km/h), gone by `fast` (36 km/h): past a
+     * run's pace the snow's pull on a lifted end is no trick. */
+    slow: 5,
+    fast: 10,
+    /** How fast the press comes on and goes, 1/s. */
+    rate: 5,
+    /** The deck pitched onto its end, rad (about 3°) over the lean's own
+     * fore-aft balance (`skier.leanPitch`): on a 1.5 m board the far end a
+     * hand's breadth off the snow. */
+    lift: 0.05,
+    /** At a full press the edge's lock is `flat` less — buttered on a flat
+     * base — and the stations hold `grip` less across: one end on the
+     * snow, the board free to pivot and to slide on its base. */
+    flat: 0.95,
+    grip: 0.55,
+    /** THE BUTTER: at a full press with the steer full over, the board
+     * pivots `spin` rad/s (a half turn in about a second on a soft
+     * board) on the end left on the snow, past `dead` of the steer's
+     * throw, `stiff` of it lost per unit of the board's flex (`SkiSpec.flex`,
+     * 0 soft … 1 stiff). The pivot stands `end` of the board's length from
+     * its middle, toward the pressed end. */
+    spin: 3.6,
+    dead: 0.15,
+    stiff: 0.6,
+    end: 0.4,
   },
   /** THE CAUGHT DOWNHILL EDGE at a crawl (`board-crash.ts`): the edge
    * leading a slide across the board stood into it past `dig` rad (6°) —

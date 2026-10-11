@@ -10,7 +10,12 @@
 //           close at a skier's knee;
 //   low     the same three under a low sun, where a trough's walls read or
 //           do not;
-//   night   the deep trench under the headlamp.
+//   night   the deep trench under the headlamp;
+//   kinds   WHAT CUT IT — a pair of skis, a snowboard and a snowmobile,
+//           each on the groomer and in settled powder under the same
+//           turns, from above and close: two lines, one wide wedged line,
+//           and a packed belt printed with the paddles between two ski
+//           grooves.
 //
 // A track is cut by the engine itself (`step` under a scripted steer, so
 // the stations, the sink, the edge and the skid are the physics' own) on a
@@ -25,8 +30,13 @@
 import {
   createGame,
   generateLevel,
+  NEUTRAL_INPUT,
   nearestTrackPoint,
+  pairById,
   placeRun,
+  SLED,
+  standSled,
+  startSled,
   step,
   trackPointAt,
   TUNING,
@@ -53,7 +63,19 @@ const GROUPS: Record<string, readonly string[]> = {
   bands: ["groomed", "powder", "deep"],
   low: ["groomed-low", "powder-low", "deep-low"],
   night: ["deep-night"],
+  speed: ["speed-powder", "speed-deep"],
+  kinds: [
+    "skis-groomed",
+    "board-groomed",
+    "sled-groomed",
+    "skis-powder",
+    "board-powder",
+    "sled-powder",
+  ],
 };
+
+/** WHAT CUTS THE TRACK on the kinds sheet. */
+type Cutter = "skis" | "board" | "sled";
 
 declare global {
   interface Window {
@@ -95,7 +117,7 @@ const FRAME = 1 / 60;
 const STEPS = Math.round(FRAME / TUNING.dt);
 const STILL = 1e-4;
 
-function fresh(dial: number): GameState {
+function fresh(dial: number, cutter: Cutter = "skis"): GameState {
   return createGame({
     level: map,
     seed,
@@ -105,6 +127,8 @@ function fresh(dial: number): GameState {
     crowd: 0,
     groomer: "off",
     quiet: true,
+    spec: cutter === "board" ? pairById("lynx") : undefined,
+    sled: cutter === "sled",
   });
 }
 
@@ -166,18 +190,37 @@ function powderStart(s: GameState): Start {
 /** THE TRACK: placed at speed and skied by the engine under a slow
  * sine of a steer — linked turns — for `seconds`, every frame drawn so the
  * renderer stamps what the stations touch. Returns where he went. */
-function cut(s: GameState, at: Start, seconds: number): Vec[] {
-  placeRun(s, { x: at.x, z: at.z, heading: at.heading, speed: 11 });
+type Ride = { brake?: number; sled?: boolean; speed?: number; steer?: number; tuck?: number };
+
+function cut(s: GameState, at: Start, seconds: number, ride: Ride = {}): Vec[] {
+  const { brake = 0.25, speed = 11, steer: swing = 0.75, tuck = 0.2 } = ride;
+  // A free ride parks a snowmobile by the village; only the sled's track rides it.
+  const sled = ride.sled ? s.sled : undefined;
+  if (sled) {
+    // The snowmobile stood at the start with its rider on it, rolling.
+    if (!sled.rider) startSled(s, []);
+    standSled(s, sled, at.x, at.z, at.heading);
+    sled.vx = Math.sin(at.heading) * 9;
+    sled.vz = Math.cos(at.heading) * 9;
+    sled.treadSpeed = 9;
+    sled.rpm = 6000;
+  } else placeRun(s, { x: at.x, z: at.z, heading: at.heading, speed });
   const path: Vec[] = [];
   const n = Math.round(seconds / FRAME);
   for (let k = 0; k < n; k++) {
     const t = k * FRAME;
-    const steer = 0.75 * Math.sin((t * Math.PI * 2) / 2.6);
+    const steer = swing * Math.sin((t * Math.PI * 2) / 2.6);
     for (let i = 0; i < STEPS; i++) {
-      step(s, { steer, tuck: 0.2, brake: 0.25, lean: 0, reset: false });
+      step(
+        s,
+        sled
+          ? { ...NEUTRAL_INPUT, steer, tuck: 0.35 }
+          : { steer, tuck, brake, lean: 0, reset: false },
+      );
     }
     renderer.draw(s, 1, FRAME, false);
-    path.push({ x: s.skier.x, y: s.skier.y, z: s.skier.z });
+    const p = sled ?? s.skier;
+    path.push({ x: p.x, y: p.y, z: p.z });
   }
   return path;
 }
@@ -274,7 +317,107 @@ function chase(s: GameState): LensPose {
   });
 }
 
+/** A cutter's track on the groomer or in powder, from above and close. */
+async function kind(cutter: Cutter, b: "groomed" | "powder"): Promise<void> {
+  const def = BANDS[b];
+  const s = fresh(def.dial, cutter);
+  await renderer.load(s);
+  const at = def.piste ? pisteStart(s) : powderStart(s);
+  // Carved, unbraked: the footprint itself rather than a skid's smear.
+  const path = cut(s, at, cutter === "sled" ? 5 : 4.5, {
+    brake: 0,
+    sled: cutter === "sled",
+  });
+  const mid = path[Math.floor(path.length * 0.55)];
+  const fx = Math.sin(at.heading);
+  const fz = Math.cos(at.heading);
+  const g = (x: number, z: number) => s.level.groundAt(x, z);
+  const what =
+    cutter === "skis"
+      ? "a pair of skis"
+      : cutter === "board"
+        ? "a snowboard"
+        : `a snowmobile — a ${SLED.treadWidth.toFixed(2)} m belt`;
+  const extra = `${what} — ${def.word}`;
+  const side = { x: mid.x - fz * 4 - fx * 2, z: mid.z + fx * 4 - fz * 2 };
+  shoot(
+    s,
+    "from above, to the side",
+    lens({ ...side, y: g(side.x, side.z) + 4 }, { x: mid.x, y: g(mid.x, mid.z), z: mid.z }, 55),
+    extra,
+  );
+  // Straight down over it from a man's height and a half: the footprint's
+  // plan, its width and its print.
+  shoot(
+    s,
+    "from overhead",
+    lens(
+      { x: mid.x - fx * 0.4, y: g(mid.x, mid.z) + 2.6, z: mid.z - fz * 0.4 },
+      { x: mid.x, y: g(mid.x, mid.z), z: mid.z },
+      60,
+    ),
+    extra,
+  );
+  const knee = { x: mid.x - fz * 1.2 + fx * 1.8, z: mid.z + fx * 1.2 + fz * 1.8 };
+  shoot(
+    s,
+    "close, at a knee",
+    lens(
+      { ...knee, y: g(knee.x, knee.z) + 0.6 },
+      { x: mid.x - fx * 1.2, y: g(mid.x, mid.z) - 0.1, z: mid.z - fz * 1.2 },
+      60,
+    ),
+    extra,
+  );
+}
+
+/** FLAT OUT through powder (the free ride at a hundred-odd km/h): a few
+ * long arcs in a tuck, seen from the chase lens behind him as the game
+ * shows it, and from above. */
+async function speed(b: "powder" | "deep"): Promise<void> {
+  const def = BANDS[b];
+  const s = fresh(def.dial);
+  await renderer.load(s);
+  const at = powderStart(s);
+  const path = cut(s, at, 3, { brake: 0, speed: 26, steer: 0.3, tuck: 1 });
+  const k = s.skier;
+  const sink = Math.max(...k.contacts.map((c) => c.sink));
+  const extra = `${def.word} — ${(k.speed * 3.6).toFixed(0)} km/h, sink ${sink.toFixed(2)} m`;
+  const fx = Math.sin(k.heading);
+  const fz = Math.cos(k.heading);
+  const g = (x: number, z: number) => s.level.groundAt(x, z);
+  // The game's chase: behind and over him, looking past him.
+  const eye = { x: k.x - fx * 5, z: k.z - fz * 5 };
+  shoot(
+    s,
+    "the chase lens",
+    lens(
+      { ...eye, y: g(eye.x, eye.z) + 2.2 },
+      { x: k.x + fx * 8, y: g(k.x + fx * 8, k.z + fz * 8) + 0.5, z: k.z + fz * 8 },
+      60,
+    ),
+    extra,
+    true,
+  );
+  const mid = path[Math.floor(path.length * 0.6)];
+  const side = { x: mid.x - fz * 4 - fx * 2, z: mid.z + fx * 4 - fz * 2 };
+  shoot(
+    s,
+    "from above, to the side",
+    lens({ ...side, y: g(side.x, side.z) + 4 }, { x: mid.x, y: g(mid.x, mid.z), z: mid.z }, 55),
+    extra,
+  );
+}
+
 const VIEWS: Record<string, () => Promise<void>> = {
+  "speed-powder": () => speed("powder"),
+  "speed-deep": () => speed("deep"),
+  "skis-groomed": () => kind("skis", "groomed"),
+  "board-groomed": () => kind("board", "groomed"),
+  "sled-groomed": () => kind("sled", "groomed"),
+  "skis-powder": () => kind("skis", "powder"),
+  "board-powder": () => kind("board", "powder"),
+  "sled-powder": () => kind("sled", "powder"),
   groomed: () => band("groomed"),
   powder: () => band("powder"),
   deep: () => band("deep"),

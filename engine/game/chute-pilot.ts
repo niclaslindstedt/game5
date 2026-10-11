@@ -26,7 +26,7 @@ import { nearestTrackPoint } from "../mapgen/query.ts";
 import type { Level } from "../mapgen/types.ts";
 import { airstripOf } from "./airstrip.ts";
 import { AIR_BOUNDS } from "./defs/air-bounds.ts";
-import { CHUTE } from "./defs/chute.ts";
+import { CHUTE, exitClear } from "./defs/chute.ts";
 import { jumpSpotOf, planeInput } from "./plane-pilot.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
 
@@ -145,7 +145,7 @@ export function chutePilot(state: GameState): SkierInput {
   const ch = state.chute;
   if (!ch || ch.done || state.skier.thrown) return { ...NEUTRAL_INPUT };
   if (ch.mode === "exit" || ch.mode === "freefall") {
-    const out = ch.since >= CHUTE.exit.clear;
+    const out = ch.since >= exitClear(ch.from);
     const pull = (out && ch.agl <= B.deck) || (ch.since >= B.least && ch.agl <= B.open);
     return { ...NEUTRAL_INPUT, machine: pull };
   }

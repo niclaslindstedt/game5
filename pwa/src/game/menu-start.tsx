@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE START CARD — the first of the two questions between the front door and
-// a FREE RIDE: WHERE, and WHEN. The second, WHAT ON, is the skis card this
-// card's way on opens, which is also where RIDE is.
+// a FREE RIDE: WHERE, and WHEN. The second, WHO and WHAT ON, is the rider
+// card this card's way on opens and the gear card after it, which is also
+// where RIDE is.
 //
 // IT IS THE FREE RIDE'S CARD AND NOBODY ELSE'S. A race is dealt its map fresh
 // off the front door and rides the day that map came with; the free ride is
@@ -41,7 +42,8 @@
 //   SNOW    thin, medium, thick or very deep (`SNOW_STOPS`), read as how
 //           deep the loose snow lies — up to a metre of fresh snow.
 //
-//   START   how the ride begins: ON SKIS, carried by the lift to the RUN
+//   START   how the ride begins: ON SKIS or ON A SNOWBOARD (the pair of
+//           that kind the gear card picks), carried by the lift to the RUN
 //           row's run — or a way up with no lift: the PARAMOTOR (the
 //           ride begun on the summit, the wing over him, skied off and
 //           flown — `para.ts`), the HOT AIR BALLOON (begun in its basket
@@ -93,9 +95,9 @@ import {
   rangeOf,
   wherePicked,
 } from "./face-picks.ts";
-import { SEASONS, SNOW_STOPS, runPicked, spotOn, startPicked, type FreeRide } from "./free-ride.ts";
+import { SEASONS, SNOW_STOPS, runPicked, spotOn, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
-import { useRunPick } from "./run-pick.ts";
+import { startChosen, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
@@ -154,6 +156,10 @@ const TIME_STOPS = [
 
 /** The SNOW row's stops. */
 const SNOW_ROW = SNOW_STOPS.map(({ id }) => ({ id, label: STRINGS.snowNames[id] }));
+const AVALANCHE_ROW = [
+  { id: "on", label: STRINGS.optOn },
+  { id: "off", label: STRINGS.optOff },
+] as const;
 
 export function StartPage({
   settings,
@@ -263,7 +269,7 @@ export function StartPage({
                 stops={pick.starts}
                 value={pick.start}
                 extra={STRINGS.startRunWaiting}
-                onPick={(id) => setRide(startPicked(ride, seed, id))}
+                onPick={(id) => onSettings(startChosen(settings, seed, id))}
                 onHint={setHint}
               />
               <StepRow
@@ -316,6 +322,14 @@ export function StartPage({
                 stops={SNOW_ROW}
                 value={ride.snow}
                 onPick={(snow) => setRide({ snow })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startAvalanche}
+                hint={STRINGS.startAvalancheHint}
+                stops={AVALANCHE_ROW}
+                value={ride.avalanche ? "on" : "off"}
+                onPick={(id) => setRide({ avalanche: id === "on" })}
                 onHint={setHint}
               />
             </div>

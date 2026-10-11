@@ -44,6 +44,7 @@ type Frame = {
   t: number;
   skier: SkierState;
   trick: TrickPose | null;
+  flip?: { flipGoal: number; flipDone: number } | null;
   /** The snow under him: its height and its normal. */
   ground: [number, number, number, number];
   /** In the start gate under the lights. */
@@ -78,6 +79,8 @@ const sheet = params.get("sheet") ?? "moves";
 const moveId = params.get("move") ?? "";
 const cell = Number(params.get("cell") ?? 260);
 const views = (params.get("views") ?? "back,back3,side,front3,front").split(",") as View[];
+/** `--wire`: the figure's wireframe laid over each cell, the snow left out. */
+const wire = params.has("wire");
 
 /** Where each view's lens stands in the skier's heading frame — x to his
  * right, y up, z ahead — m from his centre, and its field. */
@@ -165,7 +168,7 @@ function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number 
     },
     data.gravity,
   );
-  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting);
+  model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting, f.flip);
   const off = c.thrown;
   const cx = off ? off.x : c.x;
   const cz = off ? off.z : c.z;
@@ -278,7 +281,27 @@ function drawCell(
   renderer.setScissor(x, y, w, h);
   renderer.setClearColor(row % 2 === col % 2 ? 0x51606f : 0x5b6a79);
   renderer.render(what, cam);
+  if (wire && what === scene) {
+    // The figure's own triangles over the paint: the snow hidden, every
+    // mesh drawn in one dark wire, the colour buffer kept.
+    const auto = renderer.autoClear;
+    renderer.autoClear = false;
+    snow.visible = false;
+    scene.overrideMaterial = WIRE;
+    renderer.render(scene, cam);
+    scene.overrideMaterial = null;
+    snow.visible = true;
+    renderer.autoClear = auto;
+  }
 }
+
+const WIRE = new THREE.MeshBasicMaterial({
+  color: 0x0b1116,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.45,
+  depthFunc: THREE.LessEqualDepth,
+});
 
 /** Pose him through a moment's states, his legs' spring stepped through
  * every one; where to aim. */

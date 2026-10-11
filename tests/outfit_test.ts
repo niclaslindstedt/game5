@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 
 import { dressOutfit } from "../pwa/src/game/dress.ts";
+import { faceShades } from "../pwa/src/game/dress-face.ts";
 import { bindPose, createLoom, linear, type DressPart } from "../pwa/src/game/dress-loft.ts";
 import { cutClothes } from "../pwa/src/game/dress-garments.ts";
 import { lensShades } from "../pwa/src/game/dress-head.ts";
@@ -97,6 +98,7 @@ function palette(o: Outfit): Set<string> {
     gearOf("body", o.body).skin,
     gearOf("body", o.body).hair,
     gearOf("body", o.body).plait,
+    ...faceShades(gearOf("body", o.body).skin, gearOf("body", o.body).female),
   ]);
   for (const slot of ["jacket", "pants", "gloves"] as const) {
     const g = gearOf(slot, o[slot]);

@@ -122,7 +122,8 @@ import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
-import { bodyStampOf, createPen, drawnDepth, stampsOf, type Stamp } from "./trail-stamp.ts";
+import { bodyStampOf, carveOf, createPen, drawnDepth, stampsOf } from "./trail-stamp.ts";
+import type { Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit is handed out
 // (`use-render-kit.ts`), when this build draws them; the rest is code.
@@ -636,7 +637,9 @@ export function createWorldRenderer(
         observe(r.track, skier, run.tick);
         sample(r.track, alpha, r.drawn);
         // With the trails off there is no furrow to sit in.
-        const want = TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0;
+        const want =
+          (TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0) -
+          (skier.thrown ? 0 : (machines?.slideLift(skier.x, skier.z) ?? 0));
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
         r.model.setRun(run);
@@ -651,6 +654,7 @@ export function createWorldRenderer(
           // In the jump plane's door he stands poised for the exit, crouched
           // under its lintel as a racer in the start gate is.
           run.plane?.rider ? true : inStartGate(run),
+          run.tricks,
         );
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp) {
           stampsOf(
@@ -661,7 +665,7 @@ export function createWorldRenderer(
             stamps,
             run.snowDepth,
             sampleSnow,
-            { edge: Math.abs(skier.edge) / Math.max(0.3, skier.spec.edgeMax), skid: skier.skid },
+            carveOf(skier),
           );
         }
         // The landing puff: grounded now, in the air at the last frame.

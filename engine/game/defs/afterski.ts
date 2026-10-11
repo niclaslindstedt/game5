@@ -96,6 +96,7 @@ export const BUZZ = {
     catchSlip: 4,
     stakeSpeed: 6,
     netSpeed: 1,
+    rockSpeed: 3,
   },
   /** NO RESET WHEN HE FALLS (`buzz.ts`'s `getUp`): from this buzz up a
    * player thrown on a free ride is not stood back up on the piste — he

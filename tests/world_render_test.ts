@@ -43,8 +43,10 @@ import {
   createPen,
   drawnDepth,
   furrowProfile,
+  planeOf,
   recentre,
   stampsOf,
+  tiltOf,
   TRAIL,
   type Stamp,
 } from "../pwa/src/game/trail-stamp.ts";
@@ -167,6 +169,79 @@ describe("the trail a skier leaves", () => {
     expect(out.some((o) => o.bz === 1.6)).toBe(true);
     // A body is a wider mark than any probe.
     expect(TRAIL.body).toBeGreaterThan(2 * 0.3);
+  });
+
+  it("tells a board's one wide line from a pair of skis' two", () => {
+    // In the same virgin powder at the same load: the ski cuts its own hand-
+    // wide line; the board one line the deck wide, floating higher.
+    const ski = contact({ side: -1, width: 0.1, sink: 0 });
+    const board = contact({ side: 0, width: 0.25, sink: 0 });
+    const out: Stamp[] = [];
+    stampsOf([ski], createPen(1), flat, 400, out);
+    stampsOf([board], createPen(1), flat, 400, out);
+    expect(out[1].half).toBeGreaterThan(out[0].half * 2);
+    expect(out[1].depth).toBeLessThan(out[0].depth);
+    expect(out[1].wall).toBeLessThan(out[0].wall!);
+    // On its edge the board narrows more than a ski does.
+    const edged = { edge: 1, skid: 0 };
+    out.length = 0;
+    stampsOf([ski], createPen(1), flat, 400, out, 1, undefined, edged);
+    stampsOf([board], createPen(1), flat, 400, out, 1, undefined, edged);
+    expect(out[1].half / 0.125).toBeLessThan(out[0].half / 0.05);
+  });
+
+  it("cuts a fast line in powder shallower and narrower than a slow one", () => {
+    // A ski planing at 25 m/s rides up onto the powder: its furrow, and the
+    // trench its walls slough into, are the shallower for it.
+    const ski = contact({ side: -1, width: 0.1, sink: 0 });
+    const out: Stamp[] = [];
+    stampsOf([ski], createPen(1), flat, 400, out, 2.5, undefined, { edge: 0, skid: 0, speed: 2 });
+    stampsOf([ski], createPen(1), flat, 400, out, 2.5, undefined, { edge: 0, skid: 0, speed: 25 });
+    expect(out[1].depth).toBeLessThan(out[0].depth * 0.6);
+    expect(out[1].slough!).toBeLessThan(out[0].slough!);
+    expect(planeOf(0)).toBe(1);
+    expect(planeOf(60)).toBeCloseTo(TRAIL.plane.floor, 6);
+  });
+
+  it("lays an edged cut as a wedge under the edge, its berm the other side", () => {
+    // Riding along +z (heading 0), his right is +x; edged right, the cut's
+    // right is deep.
+    const carve = { edge: 1, skid: 0, side: 1, rightX: 1, rightZ: 0 };
+    expect(tiltOf(carve, 0, 0, 0, 1)).toBeCloseTo(1, 6);
+    // Ridden the other way (switch), his right is the way's left.
+    expect(tiltOf(carve, 0, 1, 0, 0)).toBeCloseTo(-1, 6);
+    // Skidded square across, the edge's side is neither.
+    expect(tiltOf(carve, 0, 0, 1, 0)).toBeCloseTo(0, 6);
+    expect(tiltOf({ edge: 1, skid: 0 }, 0, 0, 0, 1)).toBe(0);
+    const deep = furrowProfile(0.05, 0.1, TRAIL.wall, 0.1, 1);
+    const shallow = furrowProfile(-0.05, 0.1, TRAIL.wall, 0.1, 1);
+    expect(deep.press).toBeGreaterThan(shallow.press * 2);
+    const out = 0.1 * (0.8 + TRAIL.bermReach / 2);
+    expect(furrowProfile(-out, 0.1, TRAIL.wall, 0.1, 1).berm).toBeGreaterThan(
+      furrowProfile(out, 0.1, TRAIL.wall, 0.1, 1).berm * 3,
+    );
+    // The board's edged stamp stands toward its edge and carries the tilt.
+    const stamps: Stamp[] = [];
+    const pen = createPen(1);
+    stampsOf([contact({ side: 0, width: 0.25 })], pen, flat, 400, stamps, 1, undefined, carve);
+    stamps.length = 0;
+    stampsOf(
+      [contact({ side: 0, width: 0.25, z: 0.5 })],
+      pen,
+      flat,
+      400,
+      stamps,
+      1,
+      undefined,
+      carve,
+    );
+    expect(stamps[0].ax).toBeGreaterThan(0);
+    expect(stamps[0].tilt).toBeCloseTo(1, 6);
+  });
+
+  it("leaves the even cut untilted", () => {
+    expect(furrowProfile(0.05, 0.1, TRAIL.wall, 0.1, 0)).toEqual(furrowProfile(0.05, 0.1));
+    expect(furrowProfile(-0.05, 0.1)).toEqual(furrowProfile(0.05, 0.1));
   });
 
   it("presses the centre deepest and throws a berm just outside it", () => {

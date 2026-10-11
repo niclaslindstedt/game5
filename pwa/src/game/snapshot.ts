@@ -75,6 +75,12 @@ import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
 import { aerialsOf, type AerialsHud } from "./aerials-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
+import {
+  challengeRows,
+  challengeTile,
+  type ChallengeRow,
+  type ChallengeTile,
+} from "./challenge-hud.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
 const BRAKE_SHOWN = 0.05;
@@ -269,6 +275,11 @@ export type HudSnapshot = {
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
+  /** A FREE RIDE'S CHALLENGES (`challenge-hud.ts`): the chip while a timed
+   * line runs and the plate after a finish, or null; and every challenge
+   * of the map as the pause card lists it, or null off a judged ride. */
+  challenge: ChallengeTile | null;
+  challenges: ChallengeRow[] | null;
   /** BOGGED: the skier is sunk to the knees in powder (`trench.ts`) and
    * must pole out — the standing hint, up while he is. */
   stuck: boolean;
@@ -278,6 +289,9 @@ export type HudSnapshot = {
    * hint comes up and a tap or the tuck key stands him up — the first
    * seconds left to the fall and the body's plate. */
   getUp: boolean;
+  /** STOOD STILL ON A BOARD on a free ride, on the snow and on nothing
+   * else: how he gets going — the skate and the hop — the standing hint. */
+  crawl: boolean;
   /** THE RUN AS RIDDEN IS OVER and only the reset carries on: off his
    * skis (thrown off them, a machine or a craft), caught under his canopy
    * in a crown or on a lift, or held by a wound (`holdsHim`). The reset
@@ -362,6 +376,32 @@ export type HudGroomer =
 /** How near a piste machine the HUD names it to him, m. */
 const GROOMER_CALL = 45;
 
+/** How slow a board rider must be for the crawl's hint, m/s. */
+const CRAWL_HINT = 1;
+
+/** Whether a board rider stands still on the snow of a free ride with
+ * nothing carrying him — when the HUD says how he gets going. */
+export function crawlHint(state: GameState): boolean {
+  const c = state.skier;
+  return (
+    c.board !== undefined &&
+    c.board !== null &&
+    !state.rules.course &&
+    c.speed < CRAWL_HINT &&
+    !c.airborne &&
+    c.thrown === null &&
+    c.lift === null &&
+    !c.town &&
+    !trenched(c.trench) &&
+    !state.heli?.rider &&
+    !state.sled?.rider &&
+    !state.balloon?.aboard &&
+    !state.plane?.rider &&
+    !(state.groomers ?? []).some((g) => g.rider) &&
+    !paraRigged(state)
+  );
+}
+
 /** The piste machines' readout for the player at this step. */
 export function groomerOf(state: GameState): HudGroomer | null {
   const gs = state.groomers;
@@ -383,10 +423,11 @@ export function groomerOf(state: GameState): HudGroomer | null {
  * on the snow — with his height over the snow, m, his climb, m/s, the air
  * through the wing, m/s, the throttle and the rpm's share of full, whether
  * the wing is stalled, the wind at it, m/s, how rough the air is (the
- * eddies' sigma, m/s), and how much of it is folded and on which side (−1
- * left, 1 right, 0 its leading edge). */
+ * eddies' sigma, m/s), how much of it is folded and on which side (−1
+ * left, 1 right, 0 its leading edge), and the pull he hangs on, g — or
+ * `tangled`, fallen into his own wing. */
 export type HudPara = {
-  kind: "ready" | "flying" | "riding";
+  kind: "ready" | "flying" | "riding" | "tangled";
   height: number;
   climb: number;
   air: number;
@@ -397,6 +438,7 @@ export type HudPara = {
   rough: number;
   fold: number;
   foldSide: number;
+  g: number;
 };
 
 /** The paramotor's readout for the player at this step. */
@@ -404,7 +446,14 @@ export function paraOf(state: GameState): HudPara | null {
   const p = state.para;
   if (!p || !paraRigged(state) || state.skier.thrown) return null;
   return {
-    kind: p.mode === "ready" ? "ready" : p.flying ? "flying" : "riding",
+    kind:
+      p.mode === "ready"
+        ? "ready"
+        : p.mode === "tangled"
+          ? "tangled"
+          : p.flying
+            ? "flying"
+            : "riding",
     height: p.agl,
     climb: p.climb,
     air: p.airspeed,
@@ -415,6 +464,7 @@ export function paraOf(state: GameState): HudPara | null {
     rough: p.rough,
     fold: p.fold,
     foldSide: p.foldSide,
+    g: p.g,
   };
 }
 
@@ -718,10 +768,13 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     moguls: mogulsOf(state),
     aerials: aerialsOf(state),
     minimap: buildMinimap(state),
+    challenge: challengeTile(state),
+    challenges: challengeRows(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
     // A mortal wound is never got up from (`gore.ts`'s `holdsHim`).
     getUp: c.thrown !== null && mayGetUp(c.thrown) && !holdsHim(state),
+    crawl: crawlHint(state),
     over: c.thrown !== null || state.chute?.mode === "snagged" || holdsHim(state),
     damage: state.damage
       ? {

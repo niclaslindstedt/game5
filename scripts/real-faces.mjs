@@ -17,8 +17,8 @@
 // start card names it by PLACE off its crop row — its range, its area and
 // the part of the area — and never by a brand, a lift or a piste.
 //
-// Where each crop sits was searched once (every bearing, offset and scale
-// round a face's middle, scored on how much of the playable face falls
+// Where each crop sits was searched once (every bearing and offset round a
+// face's middle, at a scale of 1 — a face is laid 1:1 — scored on how much of the playable face falls
 // down the map and how far the ridge row stands over the valley floor) and
 // the winners are written below; every run prints the table.
 //
@@ -344,7 +344,7 @@ function search(face) {
   for (let bearing = -180; bearing < 180; bearing += 10) {
     for (let east = -1350; east <= 1350; east += 450) {
       for (let north = -1350; north <= 1350; north += 450) {
-        for (const scale of [0.9, 1.0, 1.1]) {
+        for (const scale of [1]) {
           const row = { ...face, east, north, bearing, scale };
           tried.push({ row, m: roughMeasure(row) });
         }

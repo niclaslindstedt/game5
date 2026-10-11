@@ -24,6 +24,7 @@ import { useState } from "preact/hooks";
 import { pairById, type DeathCause, type GameMode, type PairId } from "@engine";
 
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
+import { MedalTally } from "./stats-medals.tsx";
 import {
   averageSpeed,
   seedsByRecent,
@@ -133,6 +134,8 @@ export function StatsPage({
                 />
               </div>
             </Section>
+
+            <MedalTally />
 
             <div class="stats-groups">
               <Figures

@@ -25,16 +25,11 @@
 //     mesh (`posed-merge.ts`) and re-posed in place, so four skiers of forty
 //     parts each are four draws and four shadow casts.
 //
-// THE HEADLAMP (`headlamp.ts`) on the brow of his helmet, on a band round
-// the crown, hung on the head's frame so it is on whichever helmet is
-// drawn; a draw of its own, since its lens is a lamp, not paint. After
-// dark it and the finish arena's floods (`gates.ts`) are the night's lights.
-//
-// Every pair is drawn in its own topsheet (`ski-topsheets.ts`) — a pair is
-// sold in one — and every skier in his own outfit (`outfit.ts`): the
-// player's as dressed on the DRESS card, each rival's his slot's
-// (`SLOT_DRESS`), his jacket in the slot's colour so the minimap's dot is
-// the jacket a player sees.
+// THE HEADLAMP (`headlamp.ts`) rides the head's frame on whichever helmet
+// is drawn, a draw of its own (its lens is a lamp, not paint). Every pair is
+// drawn in its topsheet (`ski-topsheets.ts`), every skier in his outfit
+// (`outfit.ts`): the player's off the DRESS card, each rival's his slot's
+// (`SLOT_DRESS`), the jacket in the slot's colour the minimap's dot is.
 
 import * as THREE from "three";
 import {
@@ -110,6 +105,7 @@ import { revertRise } from "./skier-switch.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
 import { pitchPast, skydivePose, squareSkis, squareStand } from "./skier-skydive.ts";
 import type { SkydiveShape } from "./skier-skydive.ts";
+import { createTuck, type FlipThrow } from "./skier-somersault.ts";
 
 /** How long the acceleration a broken arm feels is eased over, s — the
  * engine's steps' jitter taken out of its swing. */
@@ -170,7 +166,8 @@ export type SkisModel = {
    * m. `trick` is a tricks run's grab held in the air, if any; `dt` is the
    * frame's, s — the skier's body on its legs moves with it (0 holds it);
    * `body` the skier thrown as drawn between two steps (`sampleBody`),
-   * `skier.thrown` as stepped when not given. */
+   * `skier.thrown` as stepped when not given; `flip` the loop the lean
+   * has thrown (`TrickState`), tucked through (`skier-somersault.ts`). */
   pose(
     skier: SkierState,
     at: Pose,
@@ -181,6 +178,7 @@ export type SkisModel = {
     /** In the start gate under the lights; `"house"` in a slalom's start
      * house. */
     waiting?: boolean | "house",
+    flip?: FlipThrow | null,
   ): void;
   setSkierVisible(visible: boolean): void;
   /** SAT ON A HELICOPTER'S SKID (`heli.ts`): the skid's top in his body
@@ -603,6 +601,7 @@ export function createSkisModel(
   const stand = emptyStand();
   // THE CHATTER as drawn (`ski-chatter.ts`): the snow passed and the shake.
   const chatter = createChatter();
+  const tuck = createTuck();
   const flap = new THREE.Quaternion();
   const shook = new THREE.Euler();
   const pivot = new THREE.Vector3();
@@ -683,7 +682,7 @@ export function createSkisModel(
       out.radius = bound.radius;
       return out;
     },
-    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
+    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // ON HIS FEET after a buzzed fall (`buzz.ts`'s fetch): up, walking to
@@ -752,6 +751,8 @@ export function createSkisModel(
       // the snow passing under it, the knees taking it (the boots stand on
       // the same stand).
       stepChatter(chatter, skier, dt);
+      // ...and TUCKED for a loop the lean has thrown, opened out to land.
+      tuck.step(off || afoot ? null : flip, dt);
       shakeStand(stand, skier, hung ? 0 : ground, chatter);
       // ...and out of a slalom's start house, the heels kicked.
       kickStand(stand, skier.launch);
@@ -818,6 +819,7 @@ export function createSkisModel(
           bound.radius = BOUND;
         }
         const pose = poseInputOf(skier, legs, mounts, trick, waiting, stand, riding);
+        tuck.lay(pose); // a loop owning his body while it turns
         // Hung, the stand is moved with the boots below, after the figure's
         // input has read it: the input keeps the stand as it stood.
         const held = hung

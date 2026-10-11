@@ -21,14 +21,12 @@
 //   - THE DRIVE, which is gravity, and at a crawl the POLES (`poles.ts`);
 //   - THE SKIER: his hips moved inside the turn and fore and aft, and the
 //     INCLINATION he and his legs settle at into a carve, which in powder is
-//     the whole turn — a ski rolled over in powder turns toward the low
-//     side;
+//     the whole turn — a ski rolled over in powder turns toward the low side;
 //   - THE AIR, against the body's drag area — standing tall, or folded into
 //     a tuck; and in flight the skier's levers (`flight.ts`);
 //   - THE HULL: points on the body and the skis' ends that meet the snow
 //     when the legs have run out, which is how a skier goes down on his hip
-//     and how he tumbles — resolved as impulses after the forces
-//     (`chassis.ts`);
+//     and how he tumbles — resolved as impulses after the forces (`chassis.ts`);
 //   - GRAVITY.
 // The trees and the map's edge are `collision.ts`'s and are applied after.
 //
@@ -72,7 +70,7 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
-  onIce,
+  onRock,
   pisteIce,
   platformOf,
   packedSnow,
@@ -99,14 +97,15 @@ import { hullOf, probesOf } from "./suspension.ts";
 import { snowNormal, uprightOn } from "./snow-normal.ts";
 import { castLeg } from "./leg-ray.ts";
 import { riddenLevel } from "./mogul-ride.ts";
-import { climbShare } from "./poles.ts";
+import { climbShare, driveForce, hillPull, slopeShare } from "./poles.ts";
 import { holdsStill, laySkis, poleForce, pushReachOf, sidestepEdge } from "./board-moves.ts";
-import { stepRound, stepSide, stoodStill, strideOn, turnWork } from "./board-moves.ts";
+import { hopAhead, stepRound, stepSide, stoodStill, strideOn } from "./board-moves.ts";
+import { hopHeld, lockShare, pitchAsked, stepRevert, turnWork } from "./board-moves.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
-import { heldSlip, hopRevert, hopSwitch, revertHold, stepRevert, switchSteer } from "./switch.ts";
+import { heldSlip, hopRevert, hopSwitch, revertHold, switchSteer } from "./switch.ts";
 import { slideOver } from "./sidestep.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
@@ -143,9 +142,7 @@ const KNEES = [4, 5];
 const DRIVE_FROM = 0.4;
 /** How fast the tuck and the brake follow the thumb, 1/s. */
 const INPUT_RATE = 8;
-
 export { freshSkier } from "./skier-fresh.ts";
-
 // Scratch, reused every step: the engine allocates nothing per station.
 const grip: Grip = { edge: 0, base: 0 };
 const normal: Vec3 = { x: 0, y: 1, z: 0 };
@@ -188,9 +185,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // much he can step, not the step itself, which passes through nothing
   // from one side to the other and would stand the skis up on the full
   // lock for a moment at every change of turn.
-  const lock =
-    edgeAskedAt(spec, speed0, T, c.carve, Math.sign(c.steer)) *
-    (1 - P.turn.edge * turnWork(c, speed0));
+  const lock = edgeAskedAt(spec, speed0, T, c.carve, Math.sign(c.steer)) * lockShare(c, speed0);
   // STOOD STILL, a steer is no edge: it steps him round on the spot — or up
   // a steep slope, his skis set into the hill (`sidestep.ts`).
   snowNormal(level, c, normal);
@@ -231,8 +226,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // THE DRIVE HE MAKES (`poles.ts`): automatic at a crawl once he is
   // rolling (or the moment the tuck asks him to go — a skier standing still
   // with his hands off stays standing), and not while he is braking,
-  // loading a jump, riding switch, in the air or off his skis; the stride's
-  // phase runs only while he is working.
+  // loading a jump, riding switch, in the air or off his skis (a board's
+  // hop at a crawl excepted: `hopHeld`); the stride runs only while he works.
   // A BOARD rides FAKIE as forward (`switch.ts`): it drives the way it goes.
   const fakie = c.switched && spec.board !== undefined;
   const going = (!c.switched || fakie) && ((fakie ? -c.way : c.way) > DRIVE_FROM || c.tuck > 0.05);
@@ -244,10 +239,12 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // ...and never out of a start house (`start-push.ts`): one push, then
   // he skis.
   const housed = state.rules.start === "interval" && state.rules.course;
+  // ...and only while the hill pulls less than the poles (`slopeShare`; a board's is its own).
+  const poled = c.board ? 0 : driveForce(spec, speed0, c.packed, 1, c.poles, c.step) / m;
+  const hill = c.board ? 1 : slopeShare(hillPull(level, c.x, c.z, c.heading, c.way), poled);
+  const free = (!c.airborne && c.jumpLoad === 0) || hopHeld(c, speed0);
   const working =
-    going && !c.airborne && c.thrown === null && c.jumpLoad === 0 && !housed
-      ? (1 - c.brake) * straight
-      : 0;
+    going && free && c.thrown === null && !housed ? (1 - c.brake) * straight * hill : 0;
   c.drive = approach(c.drive, working, P.rate * dt);
   // The strides, the step turn and the line he glides on (`strideOn`), and
   // the turn he steps this step, which the yaw is asked for below.
@@ -267,7 +264,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // from the step he means to work, not once the drive has come up, or a
   // skier sent off at GO with the tuck held folds down and is stood back
   // up again before his first push.
-  const tucked = c.tuck * (1 - Math.max(c.drive, working) * pushReachOf(c, speed0));
+  const reachAt = free && c.airborne ? Math.abs(c.way) : speed0;
+  const tucked = c.tuck * (1 - Math.max(c.drive, working) * pushReachOf(c, reachAt));
   c.crouch = approach(c.crouch, Math.max(tucked, load), K.crouchRate * dt);
   const drop = spec.crouchDrop * c.crouch;
   const k = Math.min(1, dt / K.lag);
@@ -449,8 +447,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const az = c.z + fwd.z * p.bz + acrossZ * p.bx + dz * -(p.by + drop);
     const packed = packedSnow(state, ax, az);
     let ice = level.iceAt ? level.iceAt(ax, az) : 0;
-    // ...and an evening's refrozen groomer (`piste-day.ts`).
-    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed));
+    const bare = level.bareRockAt ? level.bareRockAt(ax, az) : 0;
+    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed)); // the evening's refreeze
     // In a TREE WELL the snow is loose to the bottom (`tree-well.ts`).
     const loose = level.wells ? Math.max(bottomless, wellLoose(level, ax, az)) : bottomless;
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.
@@ -555,7 +553,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const vl = pvx * side.x + pvy * side.y + pvz * side.z;
     if (Math.abs(vl) > slipWorst) slipWorst = Math.abs(vl);
     gripAt(packed, grip, fit);
-    if (ice > 0) onIce(grip, ice);
+    if (ice > 0 || bare > 0) onRock(grip, bare, ice);
     // THE EDGE holds sideways, as much as it is stood on; the BASE holds
     // in powder whatever the edge is doing; either lets go progressively.
     // A ski pivoted into a skid scrapes on its edge rather than biting
@@ -625,7 +623,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // low side, once there is way on to carve with.
     across +=
       load * K.carve * (1 - packed) * Math.sin(rollRel) * clamp(Math.abs(vf) / K.carveSpeed, 0, 1);
-    const drag = snowDrag(packed, sink, p.ploughs ? p.width : 0, load, vf, p.sinkScale * depth);
+    const ploughs = p.ploughs ? p.width : 0;
+    const drag = snowDrag(packed, sink, ploughs, load, vf, p.sinkScale * depth, bare);
     // THE SKID pays for the snow it shoves sideways, over and above what
     // the pivoted edge scrubs.
     let along = -(drag + S.skidDrag * c.skid * load) * Math.tanh(vf / DRAG_FADE);
@@ -778,7 +777,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       clamp(fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z, -1, 1),
     );
     tb.x +=
-      (clamp(K.pitchStiff * (pitchRel - K.leanPitch * c.lean), -K.pitchMax, K.pitchMax) -
+      (clamp(K.pitchStiff * (pitchRel - pitchAsked(c)), -K.pitchMax, K.pitchMax) -
         (K.pitchDamp + give * AB.steady) * c.wx) *
       (I.x / inertiaOf(SKIS).x) *
       hold;
@@ -889,6 +888,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     c.vx += pop * normal.x;
     c.vy += pop * normal.y;
     c.vz += pop * normal.z;
+    hopAhead(c, normal);
     c.popped = 0;
     events.push({ kind: "jump", t: state.t, pop, held: loaded });
     if (c.switched) hopRevert(state, input.steer);

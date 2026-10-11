@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE PAGE AROUND THE CANVAS — two chores `App.tsx`'s loop owes the browser
+// THE PAGE AROUND THE CANVAS — three chores `App.tsx`'s loop owes the browser
 // and that decide nothing about which surface is up: the sound unlocked on
-// the player's first real gesture, and the canvas's box handed to the
-// renderer whenever it changes.
+// the player's first real gesture, the canvas's box handed to the
+// renderer whenever it changes, and the world built again into a GPU
+// context the browser lost and gave back.
 
 import { unlockAudio } from "./audio/index.ts";
 import type { WorldRenderer } from "./renderer-api.ts";
 
-/** Start both; the function returned stops them. */
+/** Start all three; the function returned stops them. */
 export function watchCanvas(
   canvas: HTMLCanvasElement,
   renderer: Pick<WorldRenderer, "resize">,
+  rebuild: () => void,
 ): () => void {
   // A browser makes no sound before the player has touched something, so the unlock
   // hangs off real gestures only — captured, so a card cannot swallow it.
@@ -26,7 +28,13 @@ export function watchCanvas(
   const observer = new ResizeObserver(fit);
   observer.observe(canvas);
   fit();
+  // A phone takes the GPU's memory back from a page it put away and hands
+  // the context back empty. Three uploads again what it still holds a copy
+  // of, but the heaviest meshes keep none once drawn (`village-cuts.ts`'s
+  // `uploadOnce`), so the map is built into the new context whole.
+  canvas.addEventListener("webglcontextrestored", rebuild);
   return () => {
+    canvas.removeEventListener("webglcontextrestored", rebuild);
     observer.disconnect();
     document.removeEventListener("pointerdown", unlockAudio, unlockOpts);
     document.removeEventListener("keydown", unlockAudio, unlockOpts);

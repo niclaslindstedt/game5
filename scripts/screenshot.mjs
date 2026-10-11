@@ -104,6 +104,8 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import { challengeShots } from "./lib/challenge-shots.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
 const outDir = join(root, "previews");
@@ -316,14 +318,21 @@ const SURFACES = {
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
-  // ...and on the snowboard, the rack's last pair where a run lets a free
-  // pick of pair (the park run here, as the free ride).
+  // ...and on its SNOWBOARD side, where a run lets a free pick of pair (the
+  // park run here, as the free ride): the all-mountain twin...
   "skis-board": {
     params: { menu: "skis", mode: "tricks", skis: "lynx" },
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
-  // THE DRESS CARD: the skier on the same stand, framed on him.
+  // ...and the alpine carver, the range's far end.
+  "skis-carver": {
+    params: { menu: "skis", mode: "tricks", skis: "goshawk" },
+    wait: ".skis-pick-canvas",
+    settle: 1800,
+  },
+  // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
+  // him — the first card after a map is picked, the gear card after it.
   dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
@@ -358,6 +367,37 @@ const SURFACES = {
     params: { start: "free", t: "8", shot: "1" },
     wait: ".hud-seed",
     settle: 1500,
+  },
+  // THE FREE RIDE'S CHALLENGES (`docs/challenges.md`, poses and book off
+  // `scripts/lib/challenge-shots.mjs`): the chip as a timed line's clock
+  // starts, the medal plate off a trick kicker, the pause card's list and
+  // the statistics' tally — each page handed a book with medals in it.
+  "challenge-line": {
+    params: { start: "free" },
+    challenge: "line",
+    wait: ".hud-challenge",
+    settle: 900,
+  },
+  "challenge-kicker": {
+    params: { start: "free" },
+    challenge: "kicker",
+    wait: ".hud-challenge-plate",
+    settle: 250,
+  },
+  "pause-challenges": {
+    params: { start: "free", t: "20" },
+    challenge: "book",
+    open: ["Escape"],
+    press: "[data-menu=challenges]",
+    pressAfter: 700,
+    wait: ".menu-card-pause-challenges",
+    settle: 700,
+  },
+  "stats-medals": {
+    params: { menu: "stats" },
+    challenge: "book",
+    wait: ".stats-medals",
+    settle: 900,
   },
   // THE FREE RIDE'S HELICOPTER (`heli.ts`, `?heli=1`): sat on its skid on
   // the pad, lifting off into its own wash, and flown up the mountain by the
@@ -548,7 +588,7 @@ const args = parseArgs(
     move: {
       kind: "string",
       default: "straight",
-      help: "the held ride's move (straight, carve, turn, skid, check, stop, skate)",
+      help: "the held ride's move (straight, carve, turn, skid, check, stop, skate, climb)",
     },
     "hold-for": { kind: "number", default: 3, help: "seconds the held ride is ridden" },
     video: { kind: "string", help: "picture preset for the visit (low, medium, high)" },
@@ -570,7 +610,7 @@ const args = parseArgs(
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
     skis: {
       kind: "string",
-      help: "the player's pair for the run (?skis=: chamois, swift, chough, falcon, eagle, wolverine, peregrine, marmot, hare)",
+      help: "the player's pair for the run (?skis=: chamois, swift, chough, falcon, eagle, wolverine, peregrine, marmot, hare; a snowboard: lynx, pika, stoat, ptarmigan, wolf, goshawk)",
     },
     downhill: {
       kind: "flag",
@@ -655,6 +695,13 @@ async function capture(name, params, viewportName, surface) {
       problems.push(`${msg.type()}: ${msg.text()}`);
     }
   });
+  // A page handed what it should find in storage (a challenge surface's
+  // book), before any of its own scripts run.
+  if (surface?.storage) {
+    await page.addInitScript((items) => {
+      for (const [k, v] of Object.entries(items)) globalThis.localStorage.setItem(k, v);
+    }, surface.storage);
+  }
   const url = `${site.url}?${new URLSearchParams(params)}`;
   const file = join(outDir, `shot-${name}-${viewportName}.png`);
   try {
@@ -757,6 +804,8 @@ async function capture(name, params, viewportName, surface) {
   await page.close();
 }
 
+const holds = args.hold === undefined ? [undefined] : String(args.hold).split(",");
+
 if (args.surface) {
   const names = args.surface === "all" ? Object.keys(SURFACES) : String(args.surface).split(",");
   for (const name of names) {
@@ -767,6 +816,19 @@ if (args.surface) {
       continue;
     }
     const params = { seed: String(args.seed), probe: "0", ...surface.params };
+    if (surface.challenge) {
+      const shots = await challengeShots(root, Number(args.seed));
+      if (surface.challenge !== "book") params.pose = shots[surface.challenge];
+      surface.storage = {
+        "fall-line.challenges.v1": shots.book,
+        "fall-line.stats.v1": JSON.stringify({
+          v: 1,
+          runs: 14,
+          finished: 3,
+          since: Date.UTC(2026, 8, 1),
+        }),
+      };
+    }
     if (args.region !== undefined) params.region = String(args.region);
     if (args.face !== undefined) params.face = String(args.face);
     if (args.grade !== undefined) params.grade = String(args.grade);
@@ -781,20 +843,27 @@ if (args.surface) {
     if (params.t !== undefined && args.hour !== undefined) params.hour = String(args.hour);
     if (params.t !== undefined && args.pose !== undefined) params.pose = String(args.pose);
     if (params.t !== undefined && args.weather !== undefined) params.weather = String(args.weather);
-    for (const v of viewports)
-      await capture(
-        `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
-          `${args.face !== undefined ? `-${args.face}` : ""}` +
-          `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
-          `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
-          `${args["no-poles"] ? "-nopoles" : ""}` +
-          `${params.weather !== undefined ? `-${args.weather}` : ""}` +
-          `${params.hour !== undefined ? `-h${args.hour}` : ""}${params.pose !== undefined ? "-posed" : ""}` +
-          `${args.camera !== undefined ? `-${args.camera}` : ""}`,
-        params,
-        v,
-        surface,
-      );
+    for (const hold of holds) {
+      // ...and ridden on HELD from there (`--hold`, `--move`, `--hold-for`).
+      if (params.t !== undefined && hold !== undefined) {
+        params.hold = `${hold},${args.move},${args["hold-for"]}`;
+      }
+      for (const v of viewports)
+        await capture(
+          `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
+            `${args.face !== undefined ? `-${args.face}` : ""}` +
+            `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
+            `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
+            `${args["no-poles"] ? "-nopoles" : ""}` +
+            `${params.weather !== undefined ? `-${args.weather}` : ""}` +
+            `${params.hour !== undefined ? `-h${args.hour}` : ""}${params.pose !== undefined ? "-posed" : ""}` +
+            `${args.camera !== undefined ? `-${args.camera}` : ""}` +
+            `${params.hold !== undefined ? `-hold${hold}-${args.move}-${args["hold-for"]}` : ""}`,
+          params,
+          v,
+          surface,
+        );
+    }
   }
 } else {
   const scenes = args.scene === "all" ? Object.keys(SCENES) : String(args.scene).split(",");
@@ -810,7 +879,6 @@ if (args.surface) {
       process.exit(2);
     }
   }
-  const holds = args.hold === undefined ? [undefined] : String(args.hold).split(",");
   for (const scene of scenes)
     for (const sky of skies)
       for (const hold of holds) {

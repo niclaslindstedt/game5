@@ -140,6 +140,9 @@ export type FreeRide = {
    * machine (`SKIS_START`'s neighbours); null is the map's most difficult
    * run (`pickFreeRun`). */
   run: { seed: number; region: RegionId; face?: string | null; id: string } | null;
+  /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
+   * (`avalanche.ts`). On unless the player turns them off. */
+  avalanche: boolean;
 };
 
 export function freshRide(): FreeRide {
@@ -154,6 +157,7 @@ export function freshRide(): FreeRide {
     face: null,
     grade: null,
     run: null,
+    avalanche: true,
   };
 }
 
@@ -186,6 +190,7 @@ export function mergeRide(blob: unknown): FreeRide {
     out.weather = b.weather as WeatherKind;
   }
   if (isRegionId(b.region)) out.region = b.region;
+  if (typeof b.avalanche === "boolean") out.avalanche = b.avalanche;
   // A face is kept only in its own country: a face stored under another
   // region (or one this build has not baked) is the dealt massif.
   if (typeof b.face === "string" && realFaceRegion(b.face) === out.region) out.face = b.face;
@@ -288,11 +293,17 @@ export function afterskiOn(ride: FreeRide, seed: number): boolean {
  * row's run — no run id of its own: it is the run picked, or none. */
 export const SKIS_START = "skis";
 
-/** What the START row writes when `id` is picked on `seed`: ON SKIS hands
- * the ride back to the RUN row's first run, anything else is its machine
- * (or the lodge), kept as a run id of the map as before. */
+/** ...and its second: ON A SNOWBOARD, the same lift ride on the board the
+ * gear card last picked — not a run id either; which pair is ridden is the
+ * settings' (`Settings.skis`), and the row follows it. */
+export const BOARD_START = "board";
+
+/** What the START row writes when `id` is picked on `seed`: ON SKIS or ON
+ * A SNOWBOARD hands the ride back to the RUN row's first run, anything
+ * else is its machine (or the lodge), kept as a run id of the map as
+ * before. */
 export function startPicked(ride: FreeRide, seed: number, id: string): Partial<FreeRide> {
-  return id === SKIS_START
+  return id === SKIS_START || id === BOARD_START
     ? { run: null }
     : { run: { seed, region: ride.region, face: ride.face, id } };
 }
@@ -467,6 +478,9 @@ export function freeGameOptions(
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
     groomer: "night",
+    // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
+    // unless the start card's row turned them off.
+    avalanche: ride.avalanche,
   };
 }
 

@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  bedrockOf,
   createGame,
   NEUTRAL_INPUT,
   placeRun,
@@ -25,7 +26,8 @@ const game = (snowDepth: number): GameState =>
 describe("the wells laid", () => {
   it("lays none at the ordinary snow: the map is the map itself", () => {
     expect(wellShareOf(1)).toBe(0);
-    expect(game(1).level).toBe(level);
+    // (Under the rock skin its walls carry, `withRock`.)
+    expect(bedrockOf(game(1).level)).toBe(level);
     expect(withWells(level, 0)).toBe(level);
   });
 
@@ -75,20 +77,24 @@ describe("a skier and a well", () => {
     const s = game(2.5);
     placeRun(s, { x: LONE_TREE.x + dx, z: LONE_TREE.z + dz, heading, speed });
     let well = 0;
+    let trench = 0;
     let stuck = false;
     for (let i = 0; i < 10 * TUNING.physicsHz; i++) {
       step(s, NEUTRAL_INPUT);
       well = Math.max(well, s.skier.well);
+      trench = Math.max(trench, s.skier.trench);
       for (const e of s.events) if (e.kind === "stuck" && e.well) stuck = true;
     }
-    return { s, well, stuck };
+    return { s, well, trench, stuck };
   };
 
   it("slides one stood above it in, and holds him there", () => {
-    const { s, well, stuck } = ride(-3, 0, 0, 0);
+    const { well, trench, stuck } = ride(-3, 0, 0, 0);
     expect(well).toBeGreaterThan(0.3);
     expect(stuck).toBe(true);
-    expect(s.skier.trench).toBeGreaterThan(0.3);
+    // Sunk in it (the bog's own reset may stand him up before the ride is
+    // over).
+    expect(trench).toBeGreaterThan(0.3);
   });
 
   it("lets one skiing past at speed ride through", () => {

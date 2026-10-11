@@ -86,23 +86,104 @@ export const SOFT_BOOT = {
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
-/** The board's numbers its look is drawn from. */
+/** A BOARD'S PROFILE from the side, m: each end's KICK (how high its tip
+ * stands over the base's line, and how late past the contact point it
+ * rises: a `length` under 1 holds the end low and turns it up short at the
+ * tip, a directional board's tail), the CAMBER between the feet (a rocker between
+ * them is a negative camber: the middle lowest, the feet lifted), and how
+ * far each contact point is lifted off the camber's line (a hybrid's or a
+ * rockered nose's rise). */
+export type BoardProfile = {
+  nose: { rise: number; length: number };
+  tail: { rise: number; length: number };
+  camber: number;
+  noseRocker: number;
+  tailRocker: number;
+};
+
+/** THE ALL-MOUNTAIN TWIN'S PROFILE (the Lynx's): a hybrid — a few
+ * millimetres of camber between the feet, the contact points lifted, both
+ * ends kicked alike. Every board this does not name is drawn in it. */
+export const TWIN_PROFILE: BoardProfile = {
+  nose: KICK,
+  tail: KICK,
+  camber: CAMBER.rise,
+  noseRocker: CAMBER.rocker,
+  tailRocker: CAMBER.rocker,
+};
+
+/** EACH CLASS'S PROFILE, off the research's camber and rocker bands
+ * (camber 5–10 mm unloaded, drawn loaded; rocker's contact points lifted
+ * 1–2 cm): the beginner's board rockered between the feet, the park twin
+ * flat between them, the powder board's long rockered nose and short low
+ * tail, the charger's full camber with an early-rise nose, and the
+ * carver's full camber on short low tips. */
+const PROFILES: Readonly<Record<string, BoardProfile>> = {
+  pika: {
+    nose: { rise: 0.06, length: 1 },
+    tail: { rise: 0.06, length: 1 },
+    camber: -0.008,
+    noseRocker: 0.012,
+    tailRocker: 0.012,
+  },
+  stoat: {
+    nose: { rise: 0.055, length: 1 },
+    tail: { rise: 0.055, length: 1 },
+    camber: 0,
+    noseRocker: 0.009,
+    tailRocker: 0.009,
+  },
+  ptarmigan: {
+    nose: { rise: 0.08, length: 1 },
+    tail: { rise: 0.035, length: 0.8 },
+    camber: 0.004,
+    noseRocker: 0.02,
+    tailRocker: 0.003,
+  },
+  wolf: {
+    nose: { rise: 0.065, length: 1 },
+    tail: { rise: 0.04, length: 0.85 },
+    camber: 0.007,
+    noseRocker: 0.008,
+    tailRocker: 0.001,
+  },
+  goshawk: {
+    nose: { rise: 0.045, length: 0.9 },
+    tail: { rise: 0.022, length: 0.7 },
+    camber: 0.008,
+    noseRocker: 0,
+    tailRocker: 0,
+  },
+};
+
+/** The profile board `id` is drawn in. */
+export function profileOf(id: string): BoardProfile {
+  return PROFILES[id] ?? TWIN_PROFILE;
+}
+
+/** The board's numbers its look is drawn from: its outline, and — off the
+ * spec too — how far its middle stands AHEAD of the stance's (`setback`,
+ * m: a set-back board's feet stand behind its middle, `SkiSpec.mount`) and
+ * its profile. Left out, the twin's: centred, `TWIN_PROFILE`. */
 export type BoardShape = {
   length: number;
   waist: number;
   tipWidth: number;
   tailWidth: number;
   sidecut: number;
+  setback?: number;
+  profile?: BoardProfile;
 };
 
-/** HALF THE DECK'S WIDTH at `s` m from its middle (nose positive): the
- * sidecut's circle between the contact points, the end rounded off blunt
- * beyond them. */
+/** HALF THE DECK'S WIDTH at `s` m from the stance's middle (nose
+ * positive): the sidecut's circle between the contact points, the end
+ * rounded off blunt beyond them. */
 export function boardHalfWidth(b: BoardShape, s: number): number {
   const L = b.length;
   const c = CONTACT * L;
-  const end = s >= 0 ? b.tipWidth : b.tailWidth;
-  const a = Math.abs(s);
+  const d = s - (b.setback ?? 0);
+  const end = d >= 0 ? b.tipWidth : b.tailWidth;
+  const a = Math.abs(d);
   if (a <= c) {
     // The circle through the contact points' width at the spec's radius,
     // its deepest at the middle; held to the waist there.
@@ -119,31 +200,40 @@ export function boardHalfWidth(b: BoardShape, s: number): number {
 }
 
 /** THE BASE'S HEIGHT over the line the contact points stand on, m, at `s`
- * m from the middle: the camber between the feet, the contact points'
- * rocker, and each end kicked up past its contact point. */
+ * m from the stance's middle: the camber between the feet, the contact
+ * points' rocker, and each end kicked up past its contact point. */
 export function boardBaseHeight(b: BoardShape, s: number, stance: number): number {
+  const P = b.profile ?? TWIN_PROFILE;
+  const back = b.setback ?? 0;
   const L = b.length;
   const c = CONTACT * L;
-  const a = Math.abs(s);
+  const d = s - back;
+  const nose = d >= 0;
+  const a = Math.abs(d);
+  const lift = nose ? P.noseRocker : P.tailRocker;
+  if (a > c) {
+    // THE KICK: rising ever steeper to the tip, then rounding over it.
+    const K = nose ? P.nose : P.tail;
+    const u = clamp((a - c) / (L / 2 - c), 0, 1) ** (1 / K.length);
+    return lift + K.rise * (1 - Math.cos((Math.PI / 2) * u)) ** 1.3 * (1 + 0.15 * u);
+  }
   const feet = stance / 2;
-  if (a <= feet) {
+  const af = Math.abs(s);
+  if (af <= feet) {
     // Camber: highest in the middle, down to the feet.
-    const u = a / Math.max(1e-6, feet);
-    return CAMBER.rise * (1 - u * u);
+    const u = af / Math.max(1e-6, feet);
+    return P.camber * (1 - u * u);
   }
-  if (a <= c) {
-    // From the feet out to the contact points, lifted off the line.
-    const u = (a - feet) / Math.max(1e-6, c - feet);
-    return CAMBER.rocker * u * u;
-  }
-  // THE KICK: rising ever steeper to the tip, then rounding over it.
-  const u = clamp((a - c) / ((L / 2 - c) * KICK.length), 0, 1);
-  return CAMBER.rocker + KICK.rise * (1 - Math.cos((Math.PI / 2) * u)) ** 1.3 * (1 + 0.15 * u);
+  // From the feet out to the contact point, lifted off the line.
+  const reach = Math.abs((nose ? c : -c) + back);
+  const u = (af - feet) / Math.max(1e-6, reach - feet);
+  return lift * u * u;
 }
 
-/** THE DECK'S THICKNESS at `s` m from its middle, m. */
+/** THE DECK'S THICKNESS at `s` m from the stance's middle, m. */
 export function boardThickness(b: BoardShape, s: number): number {
-  const u = clamp(Math.abs(s) / (b.length / 2), 0, 1);
+  const d = s - (b.setback ?? 0);
+  const u = clamp(Math.abs(d) / (b.length / 2), 0, 1);
   return CORE.tip + (CORE.middle - CORE.tip) * Math.cos((Math.PI / 2) * u) ** 0.8;
 }
 
@@ -259,7 +349,180 @@ export const LYNX_SHEET: BoardSheet = {
   under: [band(0.18, 0.3, 0.08), band(0.7, 0.82, -0.08)],
 };
 
-/** The sheet a board is drawn in. */
-export function sheetOf(_id: string): BoardSheet {
-  return LYNX_SHEET;
+/** A ROUNDED BLOB of the deck's graphic: an `n`-sided polygon about (u, v)
+ * with half sizes `ru` along the deck and `rv` across it. */
+function blob(u: number, v: number, ru: number, rv: number, n = 8): [number, number][] {
+  return Array.from({ length: n }, (_, k) => {
+    const a = (k / n) * Math.PI * 2;
+    return [u + Math.cos(a) * ru, v + Math.sin(a) * rv] as [number, number];
+  });
+}
+
+/** A CHEVRON pointing toward the nose (`dir` 1) or the tail (−1), its
+ * point at `u`, `depth` deep along the deck and `thick` thick: two convex
+ * halves, each a slanted bar from an edge to the middle. */
+function chevron(u: number, depth: number, thick: number, dir = 1): [number, number][][] {
+  const tip = u;
+  const foot = u - dir * depth;
+  return [
+    [
+      [foot, -0.98],
+      [foot + dir * thick, -0.98],
+      [tip + dir * thick, 0],
+      [tip, 0],
+    ],
+    [
+      [tip, 0],
+      [tip + dir * thick, 0],
+      [foot + dir * thick, 0.98],
+      [foot, 0.98],
+    ],
+  ];
+}
+
+/** THE PIKA'S SHEET: a moss-green deck scattered with warm yellow pebbles
+ * and a cream rule round its middle — friendly and plain, as a first board
+ * is — with green bindings and tan boots. */
+export const PIKA_SHEET: BoardSheet = {
+  name: "Pika",
+  paint: 0x55803a,
+  trim: 0xf0c04a,
+  second: 0xefe7d2,
+  sidewall: 0x1c1f1a,
+  base: 0x2d3a26,
+  baseArt: 0xf0c04a,
+  binding: 0x2b3326,
+  strap: 0x6f9a45,
+  highback: 0x2e3529,
+  boot: 0x8a6a48,
+  bootTrim: 0x3a2c20,
+  top: [
+    blob(0.16, -0.45, 0.04, 0.3),
+    blob(0.22, 0.35, 0.03, 0.22),
+    blob(0.8, 0.42, 0.04, 0.3),
+    blob(0.86, -0.3, 0.03, 0.22),
+    blob(0.5, 0.0, 0.05, 0.45),
+  ],
+  second2: [band(0.44, 0.46, 0), band(0.54, 0.56, 0)],
+  under: [blob(0.25, 0, 0.08, 0.6), blob(0.75, 0, 0.08, 0.6)],
+};
+
+/** THE STOAT'S SHEET: a black park deck, a TWIN's graphic mirrored about
+ * the middle — red chevrons pointing out to both tips and a cream bar
+ * across the waist — so it reads alike ridden either way; red straps and
+ * black boots. */
+export const STOAT_SHEET: BoardSheet = {
+  name: "Stoat",
+  paint: 0x1b1c21,
+  trim: 0xd8452c,
+  second: 0xefe9dc,
+  sidewall: 0x0f1013,
+  base: 0xd8452c,
+  baseArt: 0x1b1c21,
+  binding: 0x16171b,
+  strap: 0xd8452c,
+  highback: 0x1f2126,
+  boot: 0x2a2c31,
+  bootTrim: 0xd8452c,
+  top: [...chevron(0.86, 0.12, 0.05, 1), ...chevron(0.14, 0.12, 0.05, -1)],
+  second2: [band(0.46, 0.54, 0)],
+  under: [...chevron(0.8, 0.14, 0.06, 1), ...chevron(0.2, 0.14, 0.06, -1)],
+};
+
+/** THE PTARMIGAN'S SHEET: a burnt-orange directional deck, a feathered
+ * arrow of cream chevrons running up to the nose and a dark band at the
+ * tail, so which way it points is read at a glance; dark bindings with
+ * orange straps and brown boots. */
+export const PTARMIGAN_SHEET: BoardSheet = {
+  name: "Ptarmigan",
+  paint: 0xc4561f,
+  trim: 0xf2ece0,
+  second: 0x2a2421,
+  sidewall: 0x1a1512,
+  base: 0x2a2421,
+  baseArt: 0xc4561f,
+  binding: 0x231f1c,
+  strap: 0xd0692c,
+  highback: 0x2a2522,
+  boot: 0x5b4636,
+  bootTrim: 0x221b16,
+  top: [
+    ...chevron(0.9, 0.1, 0.035, 1),
+    ...chevron(0.8, 0.1, 0.035, 1),
+    ...chevron(0.7, 0.1, 0.035, 1),
+  ],
+  second2: [band(0.04, 0.16, 0)],
+  under: [...chevron(0.85, 0.16, 0.06, 1)],
+};
+
+/** THE WOLF'S SHEET: a graphite deck, a long gold stripe from the tail to
+ * the nose down its middle and two deep red slashes across it ahead of the
+ * front foot; black bindings with gold straps and dark grey boots. */
+export const WOLF_SHEET: BoardSheet = {
+  name: "Wolf",
+  paint: 0x3a3f46,
+  trim: 0xc9a227,
+  second: 0x8c1f1f,
+  sidewall: 0x151719,
+  base: 0x1d1f22,
+  baseArt: 0xc9a227,
+  binding: 0x17191c,
+  strap: 0xc9a227,
+  highback: 0x202327,
+  boot: 0x3c4046,
+  bootTrim: 0x16181b,
+  top: [
+    [
+      [0.08, -0.07],
+      [0.92, -0.07],
+      [0.92, 0.07],
+      [0.08, 0.07],
+    ],
+  ],
+  second2: [band(0.74, 0.77, 0.08), band(0.8, 0.83, 0.08)],
+  under: [band(0.3, 0.7, 0)],
+};
+
+/** THE GOSHAWK'S SHEET: a race board's — a deep blue deck, a yellow race
+ * block at the nose with a white number panel in it and a yellow bar at
+ * the tail; plate bindings in black and white hard-boot shells. */
+export const GOSHAWK_SHEET: BoardSheet = {
+  name: "Goshawk",
+  paint: 0x163f78,
+  trim: 0xf2c400,
+  second: 0xf0f0ec,
+  sidewall: 0x0d1420,
+  base: 0x101a2c,
+  baseArt: 0xf2c400,
+  binding: 0x141518,
+  strap: 0x2a2c30,
+  highback: 0x1a1c20,
+  boot: 0xd9dbe0,
+  bootTrim: 0x1c1e22,
+  top: [band(0.72, 0.9, 0), band(0.08, 0.13, 0)],
+  second2: [
+    [
+      [0.76, -0.45],
+      [0.86, -0.45],
+      [0.86, 0.45],
+      [0.76, 0.45],
+    ],
+  ],
+  under: [band(0.45, 0.55, 0)],
+};
+
+/** EVERY BOARD'S SHEET, by its id. */
+const SHEETS: Readonly<Record<string, BoardSheet>> = {
+  lynx: LYNX_SHEET,
+  pika: PIKA_SHEET,
+  stoat: STOAT_SHEET,
+  ptarmigan: PTARMIGAN_SHEET,
+  wolf: WOLF_SHEET,
+  goshawk: GOSHAWK_SHEET,
+};
+
+/** The sheet a board is drawn in: its own, and the Lynx's for a board this
+ * build does not carry (a lab's own spec). */
+export function sheetOf(id: string): BoardSheet {
+  return SHEETS[id] ?? LYNX_SHEET;
 }

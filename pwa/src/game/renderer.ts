@@ -452,10 +452,8 @@ export function createWorldRenderer(
     };
   }
 
-  /** How much deeper the drawn furrow is than the physics' sink under the
-   * boots — the skier is drawn that much lower, so he stands IN the
-   * trough his skis are cutting rather than hovering over it — with the
-   * trails off (`cut`) there is none to sit in. A board floats on it. */
+  /** How much deeper the drawn furrow is than the physics' sink under the boots, so he stands
+   * IN it — none with the trails off (`cut`); a board floats on it. */
   function extraSink(skier: SkierState, depth: number, cut: boolean): number {
     if (!level) return 0;
     if (skier.spec.board) return boardRideSink(skier, level, depth, cut, sampleSnow);

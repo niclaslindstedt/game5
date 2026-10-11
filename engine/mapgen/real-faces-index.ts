@@ -778,7 +778,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     id: "maritime-12",
     region: "maritime",
     range: "CA",
-    area: "Whistler",
+    area: "Blackcomb",
     part: "Blackcomb",
     lat: 50.11,
     lon: -122.93,

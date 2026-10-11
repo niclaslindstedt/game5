@@ -1109,7 +1109,7 @@ export const FACES = [
     id: "maritime-12",
     region: "maritime",
     range: "CA",
-    area: "Whistler",
+    area: "Blackcomb",
     part: "Blackcomb",
     lat: 50.108,
     lon: -122.935,

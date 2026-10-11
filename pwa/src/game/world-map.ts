@@ -185,7 +185,7 @@ const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) 
 /** THE FLIGHT from `a` to `b` at `t` (0..1): the middle eased across and
  * the scale eased in its logarithm — and when the two are far apart for
  * the zoom they are at, BOWED OUT through a view that holds both, so a
- * jump from the Alps to Japan rises over the world and comes down again
+ * jump from one continent to another rises over the world and comes down again
  * rather than sliding across it at a valley's scale. */
 export function flyAt(a: Camera, b: Camera, view: View, t: number): Camera {
   const e = ease(Math.max(0, Math.min(1, t)));

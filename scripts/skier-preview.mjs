@@ -66,12 +66,19 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 import * as SKIER from "./lib/skier-moves.mjs";
 import { HOP_SWITCH_MOMENTS, HOP_SWITCH_MOVES } from "./lib/hop-switch-moves.mjs";
 import { REVERT_MOMENTS, REVERT_MOVES } from "./lib/revert-moves.mjs";
+import { FLIP_MOVES } from "./lib/flip-moves.mjs";
 import { BOARD_MOMENTS, BOARD_MOVES } from "./lib/board-figure-moves.mjs";
 import { POLE_MOVES } from "./lib/pole-moves.mjs";
 
-// The skier lab's moves and the revert lab's (`make revert`), the hop's and
-// the double pole's beside them.
-const SKI_MOVES = [...SKIER.MOVES, ...REVERT_MOVES, ...HOP_SWITCH_MOVES, ...POLE_MOVES];
+// The skier lab's moves and the revert lab's (`make revert`), the hop's,
+// the double pole's and the loops' beside them.
+const SKI_MOVES = [
+  ...SKIER.MOVES,
+  ...REVERT_MOVES,
+  ...HOP_SWITCH_MOVES,
+  ...POLE_MOVES,
+  ...FLIP_MOVES,
+];
 const MOVE_IDS = SKI_MOVES.map((m) => m.id);
 const SKI_MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS, ...HOP_SWITCH_MOMENTS];
 const MOMENT_IDS = SKI_MOMENTS.map((m) => m.id);
@@ -131,7 +138,8 @@ aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
 const spec = E.pairById(args.skis);
 const onBoard = E.isBoard(spec);
-const MOVES = onBoard ? BOARD_MOVES : SKI_MOVES;
+// The loops are the board's as well: one lean, one throw (`strokes.ts`).
+const MOVES = onBoard ? [...BOARD_MOVES, ...FLIP_MOVES] : SKI_MOVES;
 const MOMENTS = onBoard ? BOARD_MOMENTS : SKI_MOMENTS;
 const moves = args.move
   ? args.move.split(",").map((id) => {
@@ -195,6 +203,9 @@ function frameOf(state) {
     t: state.t,
     skier: withBreaks(JSON.parse(JSON.stringify(c))),
     trick: state.tricks?.pose ?? null,
+    flip: state.tricks
+      ? { flipGoal: state.tricks.flipGoal, flipDone: state.tricks.flipDone }
+      : null,
     waiting: SPRING.inStartGate(state),
     ground: [state.level.groundAt(at.x, at.z), n.x, n.y, n.z],
   };

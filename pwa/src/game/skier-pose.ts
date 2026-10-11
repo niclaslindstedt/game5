@@ -90,6 +90,7 @@ import {
 import { joltHand, NO_JOLT } from "./skier-save.ts";
 import { bareRest, placeBare } from "./skier-bare.ts";
 import { flightHands } from "./skier-flight.ts";
+import { holdShins, trickFeet, tuckOf } from "./skier-somersault.ts";
 import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
   bootFrame,
@@ -246,10 +247,12 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const skid = clamp01(input.skid ?? 0) * (1 - ready);
   const J = input.jolt ?? NO_JOLT;
   const F = input.flight;
+  // THE SOMERSAULT'S TUCK (`skier-somersault.ts`): the knees up and a fold.
+  const FS = tuckOf(input.somersault);
   // A SKIER BRAKING RISES OUT OF HIS TUCK: skis thrown across under a man
   // folded flat swing his legs into profile, the knees up by his shoulders
   // — so the skid stands him up, the skis where the engine's drop has them.
-  const crouch = clamp01(input.crouch) * (1 - SKID_RISE * skid);
+  const crouch = Math.max(clamp01(input.crouch) * (1 - SKID_RISE * skid), FS.crouch);
   // Into the air and back as motions (the view's eased `air`), and a
   // load let go of over the pop rather than in a step.
   const air = clamp01(input.air ?? (input.airborne ? 1 : 0));
@@ -440,16 +443,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       (F?.lift ?? 0),
     z: -across0 * ps + along0 * pc,
   };
-  // THE GRABS, in the air: a DAFFY kicks one ski forward and one back, a
-  // SPREAD flings both wide, a GRAB folds him to a hand on the outside of
-  // his boot.
-  if (input.trick === "daffy") {
-    feet[0] = { x: feet[0].x, y: feet[0].y - 0.1, z: feet[0].z - 0.45 };
-    feet[1] = { x: feet[1].x, y: feet[1].y + 0.1, z: feet[1].z + 0.5 };
-  } else if (input.trick === "spread") {
-    feet[0] = { x: feet[0].x - 0.45, y: feet[0].y + 0.15, z: feet[0].z + 0.08 };
-    feet[1] = { x: feet[1].x + 0.45, y: feet[1].y + 0.15, z: feet[1].z + 0.08 };
-  }
+  // THE GRABS, in the air: the skis kicked apart; a GRAB's fold is the hands'.
+  trickFeet(feet, input.trick);
   // THE PELVIS: turned with the skis as a hockey stop throws them across
   // (the legs turn under him; the shoulders stay facing down the hill),
   // the hip joints a hip's width either side along it, TILTED up over the
@@ -571,6 +566,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     breath +
     J.lurch +
     (F?.pitch ?? 0) +
+    FS.pitch +
     heldPitch +
     Math.asin(Math.min(1, Math.min(raise, raiseStood) / BODY.spine));
   // ANGULATED, NOT SAT SIDEWAYS: a carving skier is a column inclined
@@ -613,6 +609,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // folded by a landing.
   const round =
     SPINE_ROUND.stand +
+    FS.round +
     SPINE_ROUND.tuck * crouch +
     SPINE_ROUND.pole * crunch +
     SPINE_ROUND.fold * Math.min(1, taken / 0.15);
@@ -639,7 +636,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       norm({
         x: Math.sin(headRoll),
         y: 1 - 0.3 * J.duck,
-        z: upperDir.z * (0.35 + 0.45 * crouch) + (F?.nod ?? 0),
+        z: upperDir.z * (0.35 + 0.45 * crouch) + (F?.nod ?? 0) + FS.nod,
       }),
       BODY.neck,
     ),
@@ -838,6 +835,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   if (J !== NO_JOLT) {
     for (const i of [0, 1]) hands[i] = joltHand(hands[i], i ? 1 : -1, J, M.ground + drop);
   }
+  holdShins(hands, knees, feet, FS.hold, input.somersault?.dir ?? 1);
   if (input.trick === "grab") {
     // Folded to the right boot, the other hand out for balance.
     hands[1] = { x: feet[1].x + 0.12, y: feet[1].y + 0.04, z: feet[1].z + 0.12 };

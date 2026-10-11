@@ -130,12 +130,17 @@ export const TRICKS = {
    * accelerations are the reference pair's, scaled by the root of each
    * pair's own inertia against it (a long downhill ski is slower to throw
    * round, the short park ski quicker). An arcade's numbers: a 180 in
-   * about 0.36 s, a loop in 0.5–0.7, so both come round off the jump key's
-   * own pop on the flat — a real skier wants a kicker for the loop. */
+   * about 0.36 s, a loop in 0.5–0.65, so both come round off the jump key's
+   * own pop on the flat — a real skier wants a kicker for the loop. A tight
+   * tuck is how a body turns a somersault quickly (its inertia about the
+   * side axis a fraction of a laid-out one's), and a skier tucked for a
+   * backflip off a big kicker brings it round in well under a second; the
+   * loop's cruise of 12 rad/s (a loop in about 0.62 s) is that, a shade
+   * quick. */
   spinRate: 12,
-  flipRate: 10,
+  flipRate: 12,
   spinAccel: 120,
-  flipAccel: 100,
+  flipAccel: 120,
   /** THE THROW IS PACED TO THE SNOW: whatever is owed is turned by
    * `finish` s before the flight comes back down (`flight.ts`'s
    * `landingAhead`), the cruise raised to fit up to `rateMost` rad/s —
@@ -154,4 +159,11 @@ export const TRICKS = {
    * steers across it is his steering (`TrickState.meant`). A tricks run
    * means every flight. */
   popWindow: 0.3,
+  /** A BIG FLIGHT, s of air still ahead of him: in one the lean thrown
+   * across its gate is a loop whatever launched him — a crest, a cliff,
+   * a drop he never jumped — since that is the air a loop is thrown in,
+   * and the slow pitch the lean's own torque would give him there is a
+   * man toppling, not a trick. A roller's hop never has it. The twirl
+   * still wants a flight he meant. */
+  bigFlight: 1,
 } as const;

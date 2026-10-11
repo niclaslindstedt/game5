@@ -35,7 +35,9 @@ const {
   engineVersion,
   TUNING,
   SKI_CATALOG,
-  isSkiId,
+  BOARD_CATALOG,
+  isPairId,
+  pairById,
   RIDERS,
   isRiderId,
   riderById,
@@ -48,6 +50,9 @@ const {
   WEATHER_KINDS,
 } = await import(join(root, "engine/index.ts"));
 
+/** Every pair the bot can be put on: the catalog's skis and the boards. */
+const PAIRS = [...SKI_CATALOG, ...BOARD_CATALOG];
+
 const args = parseArgs(
   process.argv.slice(2),
   {
@@ -59,7 +64,7 @@ const args = parseArgs(
     skis: {
       kind: "string",
       default: SKI_CATALOG[0].id,
-      help: `the pair (${SKI_CATALOG.map((s) => s.id).join(", ")}), or all for the catalog`,
+      help: `the pair or the board (${PAIRS.map((s) => s.id).join(", ")}), or all for the catalog's skis`,
     },
     rider: {
       kind: "string",
@@ -146,17 +151,17 @@ if (!isRegionId(args.region)) {
   process.exit(2);
 }
 
-if (args.skis !== "all" && !isSkiId(args.skis)) {
-  console.error(`unknown skis "${args.skis}" (${SKI_CATALOG.map((s) => s.id).join(", ")}, all)`);
+if (args.skis !== "all" && !isPairId(args.skis)) {
+  console.error(`unknown skis "${args.skis}" (${PAIRS.map((s) => s.id).join(", ")}, all)`);
   process.exit(2);
 }
 if (!isRiderId(args.rider)) {
   console.error(`unknown rider "${args.rider}" (${RIDERS.map((r) => r.id).join(", ")})`);
   process.exit(2);
 }
-const roster = (
-  args.skis === "all" ? SKI_CATALOG : SKI_CATALOG.filter((s) => s.id === args.skis)
-).map((s) => withRider(s, riderById(args.rider)));
+const roster = (args.skis === "all" ? SKI_CATALOG : [pairById(args.skis)]).map((s) =>
+  withRider(s, riderById(args.rider)),
+);
 
 const seeds = args.seeds
   ? args.seeds.map(Number)

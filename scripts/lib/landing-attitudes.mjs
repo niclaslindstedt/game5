@@ -58,7 +58,7 @@ const GROUNDS = [
 const HEIGHTS = [1.6, 3, 6];
 const SPEEDS = [45, 80];
 
-function drop(E, level, ground, att, height, kmh) {
+function drop(E, level, ground, att, height, kmh, spec) {
   const [, tips, roll, yaw] = att;
   const state = E.createGame({
     level,
@@ -69,6 +69,7 @@ function drop(E, level, ground, att, height, kmh) {
     grimbear: false,
     quiet: true,
     assist: { yaw: 1, air: 0 },
+    ...(spec ? { spec } : {}),
   });
   const heading = yaw * D;
   const along = Math.cos(heading);
@@ -103,7 +104,7 @@ function drop(E, level, ground, att, height, kmh) {
   return { g: land?.g ?? 0, off: land?.off ?? 0, thrown };
 }
 
-export function attitudeSweep(E, S, args, root) {
+export function attitudeSweep(E, S, args, root, spec) {
   const cols = [];
   for (const h of HEIGHTS) for (const v of SPEEDS) cols.push({ h, v });
   const out = {};
@@ -115,7 +116,7 @@ export function attitudeSweep(E, S, args, root) {
     console.log("    " + "".padEnd(24) + cols.map((k) => `${k.h} m ${k.v}`.padStart(13)).join(""));
     out[ground.id] = {};
     for (const att of ATTITUDES) {
-      const cells = cols.map((k) => drop(E, level, ground, att, k.h, k.v));
+      const cells = cols.map((k) => drop(E, level, ground, att, k.h, k.v, spec));
       out[ground.id][att[0]] = cells.map((r) => r.thrown ?? "");
       for (const r of cells) {
         total++;

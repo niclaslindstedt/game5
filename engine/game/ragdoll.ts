@@ -49,6 +49,7 @@ import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framewor
 import { TUNING } from "./defs/tuning.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
+import { holdStance } from "./board-crash.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
 
@@ -266,6 +267,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
     const before = internal(P, L);
     holdJoints(P, L);
     holdLinks(P);
+    if (b.board) holdStance(P, R.footL, R.footR, b.board.stance);
     calm(P, L, before);
     if (b.pin) pinned(P, L, b.pin);
     for (let i = 0; i < N; i++) {
@@ -438,7 +440,7 @@ function drive(P: number[], L: number[], b: Thrown): void {
   const spring = Math.min(0.5, (w * dt) ** 2);
   const damp = Math.min(0.9, 2 * zeta * w * dt);
   frameOf(P);
-  posePoints(brace);
+  posePoints(brace, b.board?.back === true);
   let px = 0;
   let py = 0;
   let pz = 0;
@@ -572,7 +574,9 @@ function unturn(P: number[], com: Vec3, hx: number, hy: number, hz: number): Vec
  * world's down: a pair of hands that kept reaching for the snow while he
  * turned would windmill, and every windmill turns the trunk the faster the
  * other way. */
-function posePoints(brace: number): void {
+function posePoints(brace: number, back: boolean): void {
+  // ...behind him, falling onto his back (a board's slam, `Thrown.board`).
+  const face = back ? -1 : 1;
   const arm = B.upperArm + B.forearm;
   for (let s = 0; s < 2; s++) {
     const side = s === 0 ? -1 : 1;
@@ -601,7 +605,7 @@ function posePoints(brace: number): void {
       aim,
       side * (0.55 * slack + 0.5 * brace),
       -0.8 * slack - 0.3 * brace,
-      0.05 * slack + 0.8 * brace,
+      0.05 * slack + 0.8 * brace * face,
     );
     const h = (slack * 0.92 + brace * T.reach) * arm;
     set(6 + s, aim.x * h, aim.y * h, aim.z * h);
@@ -611,7 +615,7 @@ function posePoints(brace: number): void {
     const along = (u * u - B.forearm * B.forearm + h * h) / (2 * h);
     const off = Math.sqrt(Math.max(0, u * u - along * along));
     const bx = side * 0.4;
-    const bz = -1;
+    const bz = -face;
     const ba = bx * aim.x + bz * aim.z;
     unit(bow, bx - ba * aim.x, -ba * aim.y, bz - ba * aim.z);
     set(

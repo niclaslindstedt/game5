@@ -47,7 +47,7 @@ import {
   type CreateGameOptions,
   type GameMode,
   type GameState,
-  type SkiId,
+  type PairId,
   type SkierInput,
 } from "@engine";
 import {
@@ -154,7 +154,7 @@ export function startPrint(state: GameState): string {
  * `strings.ts` (§39.1). */
 export type ReplayBill = {
   mode: GameMode;
-  skis: SkiId;
+  skis: PairId;
   seed: number;
   /** The run's time, or null on a recording cut from a run nobody finished
    * — which is what the pause card's offer usually is. */

@@ -71,6 +71,14 @@ export const CRASH = {
   catchEdge: 0.85,
   catchSlip: 9,
   catchSkid: 0.5,
+  /** A SNOWBOARD'S CAUGHT EDGE is the one LEADING its slide across
+   * (`crash.ts`'s `edgeCatching`), stood down into the slide past this,
+   * rad (17°): it digs in and the board stops under him. A board slid
+   * across with its leading edge raised is a sideslip — the way a rider
+   * stops — and its washout at speed a skid, never a high-side. (The fall
+   * a board is known for — the DOWNHILL edge caught on a slow traverse,
+   * the board too flat — is a slam of its own: `board.catch`.) */
+  boardDig: 0.3,
   /** AN EDGE STAKE RUN INTO (`edge-stakes.ts`) at this closing speed or
    * more, m/s (54 km/h): it gives, but caught on a tip, a boot or a pole
    * at that pace it snatches the limb back faster than the body can
@@ -148,6 +156,12 @@ export const CRASH = {
     tree: { pitch: 1, side: 0.25, up: 1.8 },
     nose: { pitch: 1, side: 0, up: 1.8 },
     catch: { pitch: 1, side: 0.2, up: 1.2 },
+    // A SNOWBOARD'S DOWNHILL EDGE CAUGHT (`board-crash.ts`): off the heel
+    // edge SLAMMED onto his back, off the toe edge thrown onto his face —
+    // over the edge that caught, at the slide's own rate (`board.slam`);
+    // these rows are the shape, `slamThrow` the turn.
+    slam: { pitch: 1, side: 0.1, up: 0 },
+    faceplant: { pitch: 1, side: 0.1, up: 0.3 },
     roll: { pitch: 0.1, side: 1, up: 0.3 },
     landing: { pitch: -0.45, side: 0.8, up: 0.2 },
     // Another skier taken out: half over him, half off to the side.

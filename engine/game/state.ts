@@ -38,7 +38,6 @@ import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { ContestState } from "./contest-state.ts";
 import type { AfterskiEvent, AfterskiState, Fetch, TownWalk, Wobble } from "./afterski-state.ts";
 export type { AfterskiEvent, AfterskiState, Fetch, TownWalk, Wobble } from "./afterski-state.ts";
-
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type { LiftRide, TunnelRide } from "./ride-state.ts";
@@ -101,7 +100,7 @@ export type SnowContact = {
   kind: "ski";
   /** Which station of the ski. */
   station: "tip" | "mid" | "tail";
-  /** -1 the left ski, +1 the right. */
+  /** -1 the left ski, +1 the right; 0 a board's one column. */
   side: number;
   /** The footprint, world frame, m: on the SNOW SURFACE (`level.groundAt`)
    * under the probe — the top of the trough it cuts, not its floor. */
@@ -219,8 +218,10 @@ export type SkierState = {
    * on, right positive, while he stands across a steep slope on the ledges
    * his edges have cut — stepping up it a pair at a time while the steer
    * asks toward the hill, the stride's phase where in the pair he is — and
-   * 0 when he does not. What the pose reads to draw the sidestep. */
+   * 0 when he does not — on a board, his SIDESLIP's (`board-moves.ts`). */
   sidestep: number;
+  /** A SNOWBOARDER'S FEET (`board-state.ts`): on a board alone, absent on skis. */
+  board?: import("./board-state.ts").BoardMoves;
   /** THE CROUCH the body is actually in, 0 standing tall … 1 a full tuck —
    * the tuck after its lag. What the drag area and the CoG height read. */
   crouch: number;
@@ -241,10 +242,11 @@ export type SkierState = {
    * physics: the grip it costs is `chatterOf`'s own. */
   chatter: number;
   /** Every probe (`SnowContact`): the left ski's tip, mid and tail, then
-   * the right ski's. */
+   * the right ski's — on a board, its one column: the nose, the front
+   * foot, the back foot, the tail (`suspension.ts`). */
   contacts: SnowContact[];
   /** The legs' compression per ski, m (left, right) — the renderer's knee
-   * bend. */
+   * bend; on a board, per foot (front, back). */
   skiCompression: [number, number];
   /** True while nothing is touching the snow; `airTime` is the seconds
    * since it left, 0 when grounded. */

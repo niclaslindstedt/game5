@@ -58,6 +58,11 @@ const args = parseArgs(
       kind: "flag",
       help: "the ATTITUDE SWEEP: drops staged on the bench, the skis held off true (tips down, tails down, rolled, sideways) — which he rides away",
     },
+    skis: {
+      kind: "string",
+      default: "chamois",
+      help: "the pair or the board he rides (a ski of the catalog, or a board: lynx)",
+    },
     trace: {
       kind: "string",
       help: "ski one start step by step: seed:x:z:heading:kmh:pop:piste (as --list prints it)",
@@ -65,6 +70,13 @@ const args = parseArgs(
   },
   "usage: make landing ARGS='[--seeds n] [--every m] [--face n] [--json] [--compare file] [--list]'",
 );
+
+if (!E.isPairId(args.skis)) {
+  console.error(`unknown skis "${args.skis}"`);
+  process.exit(2);
+}
+/** The pair every landing is ridden on. */
+const spec = E.pairById(args.skis);
 
 const HZ = E.TUNING.physicsHz;
 const RUN = 6;
@@ -118,7 +130,7 @@ function startsOf(level) {
 
 if (args.attitudes) {
   const { attitudeSweep } = await import("./lib/landing-attitudes.mjs");
-  attitudeSweep(E, await import(join(root, "tests/support/synthetic.ts")), args, root);
+  attitudeSweep(E, await import(join(root, "tests/support/synthetic.ts")), args, root, spec);
   process.exit(0);
 }
 
@@ -140,6 +152,7 @@ if (args.trace) {
     crowd: 0,
     grimbear: false,
     quiet: true,
+    spec,
   });
   E.placeRun(state, { x, z, heading, speed: kmh / 3.6 });
   const c = state.skier;
@@ -184,6 +197,7 @@ for (let seed = 1; seed <= args.seeds; seed++) {
         crowd: 0,
         grimbear: false,
         quiet: true,
+        spec,
       });
       E.placeRun(state, { x: start.x, z: start.z, heading: start.heading, speed: start.kmh / 3.6 });
       const c = state.skier;

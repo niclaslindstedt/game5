@@ -38,12 +38,12 @@ import {
   NEUTRAL_INPUT,
   isGameMode,
   isRiderId,
-  isSkiId,
+  isPairId,
   type Assist,
   type GameMode,
   type Level,
   type RiderId,
-  type SkiId,
+  type PairId,
   type SkierInput,
 } from "@engine";
 
@@ -141,7 +141,7 @@ export type GhostRun = GhostStage &
   ControlTape & {
     format: number;
     seed: number;
-    skis: SkiId;
+    skis: PairId;
     /** The skier's build it was ridden at — absent on a medium build's run
      * (and on every run kept before a build could be chosen). */
     rider?: RiderId;
@@ -268,7 +268,7 @@ export function readsAsGhost(parsed: unknown): parsed is GhostRun {
   const run = parsed as Partial<GhostRun>;
   if (run.format !== GHOST_FORMAT) return false;
   if (typeof run.id !== "string" || typeof run.map !== "string") return false;
-  if (typeof run.skis !== "string" || !isSkiId(run.skis)) return false;
+  if (typeof run.skis !== "string" || !isPairId(run.skis)) return false;
   if (run.rider !== undefined && (typeof run.rider !== "string" || !isRiderId(run.rider))) {
     return false;
   }

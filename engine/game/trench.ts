@@ -33,7 +33,7 @@
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TREE_WELLS } from "./defs/tree-wells.ts";
 import { TUNING } from "./defs/tuning.ts";
-import type { GameEvent, GameState } from "./state.ts";
+import type { GameEvent, GameState, SkierState } from "./state.ts";
 
 const T = TUNING.trench;
 const W = TREE_WELLS;
@@ -47,6 +47,13 @@ export function trenched(depth: number): boolean {
 /** The share of the poles' push a hole `depth` m deep leaves them. */
 export function trenchGrip(depth: number): number {
   return 1 - T.grip * clamp(depth / T.max, 0, 1);
+}
+
+/** How well his rocking packs the hole back: whole on his poles,
+ * `poles.bare.rock` of it with none, `board.bog.rock` on a board. */
+function rockShare(c: SkierState): number {
+  if (c.board) return TUNING.board.bog.rock;
+  return c.poles ? 1 : TUNING.poles.bare.rock;
 }
 
 /** Sink or fill the hole by one step. `moved` is how far the skier's
@@ -68,8 +75,11 @@ export function stepTrench(state: GameState, moved: number, events: GameEvent[])
         ? T.dig * W.dig * (1 - c.packed) * Math.max(0.5, c.tuck) * dt
         : T.dig * (1 - c.packed) * c.tuck * dt;
     }
-    // ...worse with no poles to lever himself on (`poles.bare.rock`).
-    d -= T.rock * (inWell ? W.rock : 1) * (c.poles ? 1 : TUNING.poles.bare.rock) * moved;
+    // ...worse with no poles to lever himself on (`poles.bare.rock`) — and
+    // a snowboarder, who never had any, digs with his hands and HOPS the
+    // board free, the tuck his hops (`board.bog`).
+    d -= T.rock * (inWell ? W.rock : 1) * rockShare(c) * moved;
+    if (c.board) d -= TUNING.board.bog.hop * c.tuck * (1 - c.packed) * dt;
     // Creeping about in the hole is not moving out of it.
     d -= T.clear * Math.max(0, Math.abs(c.way) - T.creep) * dt;
     c.trench = clamp(d, 0, inWell ? W.max : Math.max(T.max, Math.min(was, W.max)));

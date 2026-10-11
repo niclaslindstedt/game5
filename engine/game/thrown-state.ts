@@ -58,6 +58,12 @@ export type Thrown = {
   /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
    * body from the moment its binding releases. */
   skis: LoneSki[];
+  /** THE BOARD KEPT ON (`board-crash.ts`): a snowboarder's two feet held
+   * `stance` m apart on its deck through the whole fall — no binding lets
+   * go, so `skis` is empty — and `back`, a fall onto his back (the heel
+   * edge's slam), his hands thrown out behind him rather than ahead.
+   * Absent on skis. */
+  board?: { stance: number; back: boolean };
 };
 
 /** ONE SKI WITHOUT ITS SKIER (`lone-skis.ts`): a stick the length of the

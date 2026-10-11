@@ -313,16 +313,25 @@ export function strideOn(c: SkierState, speed: number, dt: number): number {
     c.stride += strideRate(speed, c.poles, c.step) * stepQuick(c.step, speed) * c.drive * dt;
   }
   // STEPPING ROUND A TURN: the steer key over the share of him that can
-  // step, taken up and let go over a stride or so.
-  c.step = approach(c.step, c.steer * stepWork(c.drive, speed, c.poles), P.turn.rate * dt);
+  // step, taken up and let go over a stride or so. A board ridden FAKIE
+  // steps round the way he goes: the steer `switch.ts` mirrors for the
+  // carve (whose ask is the signed way) mirrored back, since a step turns
+  // the board and its tail with it.
+  const board = c.spec.board !== undefined;
+  const side = board && c.switched ? -c.steer : c.steer;
+  c.step = approach(c.step, side * stepWork(c.drive, speed, c.poles), P.turn.rate * dt);
   // SKATING, he rides the gliding ski's line: the snow grips him along it
   // and the push drives him along it — and the push's SIDEWAYS share is
   // what carries his way from one arm of the V to the other, so the way is
   // turned with the line, its speed kept: the leg pays for the turn, the
   // snow is not asked to scrub it out of him. Each stride's step turned
   // likewise.
+  // A BOARD is one deck under both feet: it runs on its own line, and no
+  // stride lays it onto another arm of a V.
   const glide0 = c.glide;
-  c.glide = glideYaw(c.stride, speed, skateWork(c.drive, speed, c.poles, c.step), c.step);
+  c.glide = board
+    ? 0
+    : glideYaw(c.stride, speed, skateWork(c.drive, speed, c.poles, c.step), c.step);
   const onSnow = !c.airborne && c.thrown === null;
   const stepped = onSnow ? stepYaw(c.step, c.drive, speed, c.poles) : 0;
   if (onSnow && (c.glide !== glide0 || stepped !== 0)) {

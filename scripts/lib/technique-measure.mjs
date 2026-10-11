@@ -27,6 +27,7 @@ export const NATURAL_SKIS = {
   giantSlalom: "chough",
   superG: "falcon",
   downhill: "eagle",
+  board: "lynx",
 };
 
 /** The course each technique skis under `--course=auto`: the slalom (R31)
@@ -41,6 +42,7 @@ export const NATURAL_COURSE = {
   giantSlalom: "piste",
   superG: "piste",
   downhill: "piste",
+  board: "piste",
 };
 
 /** What is measured, in the order the table prints it: the label, the
@@ -198,7 +200,7 @@ export function gameOf(E, courses, row) {
     mode: row.course === "slalom" ? "slalom" : "timeTrial",
     rivals: 0,
     countdown: 0,
-    spec: E.SKI_CATALOG.find((s) => s.id === row.skis),
+    spec: E.pairById(row.skis),
     technique: row.technique,
     quiet: true,
   });

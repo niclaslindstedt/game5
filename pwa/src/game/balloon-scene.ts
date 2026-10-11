@@ -51,6 +51,7 @@ import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import { lineLightOf, litLine, type LineLight } from "./para-motor.ts";
 import type { SkyLook } from "./sky.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
+import { drawnAs } from "./ski-looks.ts";
 
 export type BalloonScene = {
   group: THREE.Group;
@@ -299,7 +300,7 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
     envelope.look.scorch.value = b.scorch;
     // THE PAIR racked while he is aboard.
     if (b.aboard) {
-      const top = TOPSHEETS[state.skier.spec.id];
+      const top = TOPSHEETS[drawnAs(state.skier.spec)];
       basket.rack(true, state.skier.spec.length, top.body, top.trim);
     } else basket.rack(false);
   }

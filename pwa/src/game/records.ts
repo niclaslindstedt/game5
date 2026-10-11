@@ -36,12 +36,12 @@
 
 import {
   isGameMode,
-  isSkiId,
+  isPairId,
   riderOf,
   type GameMode,
   type GameState,
   type RiderId,
-  type SkiId,
+  type PairId,
   type SkiSpec,
 } from "@engine";
 import {
@@ -59,7 +59,7 @@ import {
 export type RecordKey = {
   seed: number;
   course?: string;
-  skis: SkiId;
+  skis: PairId;
   /** The skier's build (`Outfit.weight`): a heavier skier is faster
    * downhill, so each build keeps its own book. Absent is the medium
    * build, whose rows keep the ids they had before a build could be
@@ -78,7 +78,7 @@ export type RecordKey = {
  * first crossing first (`Progress.passed` less one indexes it). */
 export type RunRecord = {
   value: number;
-  skis: SkiId;
+  skis: PairId;
   at: number;
   splits: number[];
 };
@@ -163,13 +163,13 @@ export function splitGap(record: RunRecord | null, index: number, time: number):
 
 /** A stored blob as a book, one row at a time — every row checked, and any
  * that is not a row a run could have set dropped: a time that is not
- * positive and finite, a skis the catalog no longer has. The same rule
- * `mergeSettings` applies, for the same reason. */
+ * positive and finite, a pair (skis or a board) this build no longer has.
+ * The same rule `mergeSettings` applies, for the same reason. */
 export function mergeRecords(parsed: unknown): RecordBook {
   return readBook<RunRecord>(
     parsed,
     (raw, row) =>
-      typeof raw.skis === "string" && isSkiId(raw.skis)
+      typeof raw.skis === "string" && isPairId(raw.skis)
         ? { value: row.value, skis: raw.skis, at: row.at, splits: row.splits ?? [] }
         : null,
     { splits: true },

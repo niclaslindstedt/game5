@@ -341,7 +341,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     knock: base.knock,
     gates: base.gates,
     window: base.window,
-    technique: options.technique ?? base.technique,
+    // A BOARD is ridden as a board whatever the run (`BOARD_TECHNIQUE`).
+    technique: options.spec?.board ? "board" : (options.technique ?? base.technique),
     jury: base.jury,
     spinMost: base.spinMost,
     flipMost: base.flipMost,
@@ -474,7 +475,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     skier: {
       ...freshSkier(options.spec ?? SKIS),
       resilience: clampResilience(options.resilience),
-      poles: options.poles ?? true,
+      // A board's rider carries no poles, whatever is asked.
+      poles: (options.poles ?? true) && options.spec?.board === undefined,
     },
     input: { ...NEUTRAL_INPUT },
     progress: freshProgress(level),

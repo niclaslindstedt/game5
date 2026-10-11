@@ -81,6 +81,7 @@
     "balloon-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/balloon-lab.mjs",
     "plane-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/plane-flight-lab.mjs",
     "plane": "node scripts/plane-preview.mjs",
+    "skydive": "node scripts/skydive-preview.mjs",
     "skydive-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skydive-flight-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",
     "rescue": "node scripts/rescue-preview.mjs",

@@ -71,10 +71,18 @@ export function stepTunnel(run: GameState, events: GameEvent[]): void {
   const tunnels = run.level.resort?.tunnels;
   const T = TUNING.tunnel;
   const ride = c.tunnel;
+  const over = c.y - c.spec.cogHeight - run.level.groundAt(c.x, c.z) > T.roof;
   if (ride) {
     const t = tunnels?.[ride.index];
     const h = t ? readAt(t, c.x, c.z, ride.seg - WINDOW, ride.seg + WINDOW) : null;
-    if (!t || !h || c.thrown || h.s >= t.length || Math.abs(h.lateral) > t.width / 2 + T.release) {
+    if (
+      !t ||
+      !h ||
+      c.thrown ||
+      over ||
+      h.s >= t.length ||
+      Math.abs(h.lateral) > t.width / 2 + T.release
+    ) {
       c.tunnel = null;
       events.push({ kind: "tunnel", t: run.t, id: ride.id, phase: "out" });
       return;
@@ -85,7 +93,7 @@ export function stepTunnel(run: GameState, events: GameEvent[]): void {
     ride.seg = h.seg;
     return;
   }
-  if (!tunnels || c.thrown) return;
+  if (!tunnels || c.thrown || over) return;
   for (let i = 0; i < tunnels.length; i++) {
     const t = tunnels[i];
     if (!near(t, c.x, c.z)) continue;

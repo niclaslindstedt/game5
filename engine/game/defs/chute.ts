@@ -170,11 +170,29 @@ export const CHUTE = {
   /** THE BOT'S HANDS (`chute-pilot.ts`): the height over the snow it pulls
    * at, m (a sport jumper's 1,000 m), not before `least` s out of the door,
    * and the hard deck it pulls at as soon as it is clear of the plane, m;
-   * the glide it reckons on, the height it turns onto its final at, m, and
-   * THE FLARE — both toggles from naught at `flare` m over the snow down to
-   * all the way at `flared` m, a progressive flare that runs out of speed
-   * as the skis meet the snow. */
-  bot: { open: 1000, least: 2, deck: 600, glide: 2.2, final: 60, flare: 3, flared: 1 },
+   * the glide it reckons on, and how near the strip counts as over it, m;
+   * THE PATTERN a canopy pilot flies to his spot — the height he joins the
+   * downwind leg at, the height he turns onto base at and the height he
+   * turns onto final at, m, the most toggle he turns with (a holding turn,
+   * never a spiral) and how near the downwind leg's start he holds over it,
+   * m; and THE FLARE —
+   * both toggles from naught at `flare` m over the snow down to all the way
+   * at `flared` m, a progressive flare that runs out of speed as the skis
+   * meet the snow. */
+  bot: {
+    open: 1000,
+    least: 2,
+    deck: 600,
+    glide: 2.2,
+    near: 400,
+    downwind: 300,
+    base: 150,
+    final: 60,
+    steer: 0.45,
+    hold: 150,
+    flare: 3,
+    flared: 1,
+  },
 } as const;
 
 /** One stage of the deployment (`CHUTE.deploy.stages`). */

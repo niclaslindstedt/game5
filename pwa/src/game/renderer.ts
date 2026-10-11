@@ -701,7 +701,7 @@ export function createWorldRenderer(
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
       lens.bail(
-        !!(state.heli?.rider || state.plane?.rider),
+        !!state.heli?.rider, // out of the plane's door the skydive has its own eyes
         skier.airborne,
         skier.thrown !== null,
         Math.min(dt, 0.1),
@@ -735,7 +735,7 @@ export function createWorldRenderer(
         frameStart(startMoment(state, d), ladder);
       if (planted) {
         aimLens(lens.camera, planted);
-        player.model.setSkierVisible(true);
+        player.model.setSkierVisible(machines?.figureShown() ?? true);
       }
       // LOOKING ROUND FROM THE LIFT: the lift's lens swung about him by the drags.
       const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);

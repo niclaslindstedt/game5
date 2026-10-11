@@ -99,6 +99,10 @@ export const CHUTE_LIFT = 1.4;
  * hung under its middle at the main's own line length. */
 export const CHUTE_RIGS: Record<Rung, Rig> = {
   ...PARA_RIGS,
+  // Hung stood up in his leg straps, not sat in a harness: his eyes stand
+  // higher over his middle than a pilot's, and the chin's camera with them.
+  tips: bolted(PARA_RIGS.tips as BoltedRig, { eye: { x: 0, y: 1.02, z: 0.5 } }),
+  helmet: bolted(PARA_RIGS.helmet as BoltedRig, { eye: { x: 0, y: 0.94, z: 0.3 } }),
   chase: boom(PARA_RIGS.chase, { dist: 9, height: 1.2 }),
   far: boom(PARA_RIGS.far, { dist: 18, height: 3 }),
   high: bolted(PARA_RIGS.high, { eye: { x: 0, y: CHUTE.canopy.lines - 1.3, z: -1.2 } }),

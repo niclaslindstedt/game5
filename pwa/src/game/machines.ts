@@ -36,9 +36,11 @@ import {
   underWing,
 } from "./camera-para.ts";
 import { createChuteScene, type ChuteScene } from "./chute-scene.ts";
+import { createSkydiveCam, skydiveFramed, skydiveLens } from "./camera-skydive.ts";
 import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { Outfit } from "./outfit.ts";
+import { skydiveShapeOf } from "./skier-skydive.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
@@ -76,6 +78,9 @@ export type Machines = {
   /** THE HELICOPTER'S LENS, flown in from the skier's `ladder` and back
    * out to it (`heli-scene.ts`), or null while the ladder has it whole. */
   lens(ladder: LensPose, dt: number): LensPose | null;
+  /** Whether his own figure is drawn under the lens `lens` handed back:
+   * not while the skydive looks out of his own eyes. */
+  figureShown(): boolean;
   /** WHILE HE RIDES THE SNOWMOBILE (or drives a piste machine, hangs under
    * the paramotor's wing, stands in the balloon's basket), the ladder the
    * lens is framed on — its own rows (`camera-sled.ts`, `camera-groomer.ts`,
@@ -150,9 +155,16 @@ export function createMachines(
   // ...and the jump plane and the skydive out of its door, drawn while a
   // run carries them (`GameState.plane`, `.chute`).
   const plane: PlaneScene | null = state.rules.heli ? createPlaneScene(haze) : null;
-  const chute: ChuteScene | null = state.rules.heli ? createChuteScene(haze) : null;
+  const chute: ChuteScene | null = state.rules.heli ? createChuteScene(haze, level) : null;
   if (plane) group.add(plane.group);
   if (chute) group.add(chute.group);
+  // The skydive's own lens out of the door and through the opening.
+  const skyCam = chute ? createSkydiveCam() : null;
+  let skyState: GameState | null = null;
+  // Looking out of his own eyes (TIPS, HELMET): this frame's ask, and
+  // whether the lens handed back was it.
+  let ownEyes = false;
+  let ownLook = false;
   if (heli) group.add(heli.group);
   if (para) group.add(para.group);
   if (balloon) group.add(balloon.group);
@@ -213,6 +225,9 @@ export function createMachines(
       seated = model;
       model.setPerch(heli?.perch(s) ?? para?.perch(s) ?? null);
       model.setSled(sled ? sled.stand(s) : null);
+      // Out of the plane's door and under the canopy, every stage of the
+      // jump is a shape of his limbs (`skier-skydive.ts`).
+      model.setSkydive(chute ? skydiveShapeOf(s.chute ?? null, !!s.plane?.rider) : null);
       // In the balloon's basket his pair is racked in its corner, and he
       // steps as he walks about it (or turns where he stands).
       const b = s.balloon;
@@ -248,6 +263,19 @@ export function createMachines(
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect);
       chute?.frame(s, alpha, chute && (s.chute || s.plane?.rider) ? seated?.skin() : null);
+      const at = chute?.jumper();
+      const framed =
+        !!chute && !!at && !!s.chute && skydiveFramed(s.chute, s.skier.thrown !== null);
+      ownEyes = framed && (rung === "tips" || rung === "helmet");
+      ownLook = false;
+      chute?.setOwnEyes(ownEyes);
+      skyCam?.want(
+        chute && at && s.chute && framed
+          ? skydiveLens(rung, s.chute, at, chute.opening(), level.groundAt, chute.eyes(), aspect)
+          : null,
+        s !== skyState,
+      );
+      skyState = s;
       balloon?.frame(s, alpha, dt);
       hung = s.para?.flying ? hangIn(hung, dt) : 0;
       lastDt = dt;
@@ -290,8 +318,13 @@ export function createMachines(
       // Both asked every frame, so each hands its own lens in and out.
       const h = heli?.lens(ladder, dt) ?? null;
       const p = plane?.lens(ladder, dt) ?? null;
-      return h ?? p;
+      // The skydive's flown in from whatever is on screen: the door's
+      // lens holding him as he falls away, or the ladder.
+      const c = skyCam?.lens(p ?? ladder, dt) ?? null;
+      ownLook = !h && c !== null && ownEyes;
+      return h ?? c ?? p;
     },
+    figureShown: () => !ownLook,
     ladder(pose, s, screen = 16 / 9) {
       aspect = screen;
       pose.lift = null;

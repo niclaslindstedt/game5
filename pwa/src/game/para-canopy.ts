@@ -24,6 +24,39 @@
 //
 // The frame is the canopy's own: x to the right, y up the lines (the
 // canopy's centre at the origin), z forward.
+//
+// Every function takes the WING it builds (`WingShape`) and builds the
+// paramotor's (`CANOPY`) when left out; a skydiver's main is the same cloth
+// on numbers of its own (`chute-canopy.ts`'s `SKY_WING`).
+
+/** A RAM-AIR WING's shape, as `CANOPY` states the paramotor's: its cells,
+ * flat span and centre chord, m, the tips' share of the chord, the arc's
+ * curl and gathering, the sweep, the section, the pillow and scallop, the
+ * mouths and closed tip cells, the stabilizers, the brakes' pull, the mesh's
+ * strips and stations — and how many pillows a cell is sewn in (`sub`: 2 a
+ * sport main's bi-cell, its non-loaded rib down the middle; 1 when left
+ * out). */
+export type WingShape = {
+  readonly cells: number;
+  readonly span: number;
+  readonly chord: number;
+  readonly tip: number;
+  readonly curl: number;
+  readonly gather: number;
+  readonly sweep: number;
+  readonly thick: number;
+  readonly camber: number;
+  readonly pillow: number;
+  readonly scallop: number;
+  readonly mouth: readonly [number, number];
+  readonly closed: number;
+  readonly stabilo: number;
+  readonly brake: number;
+  readonly brakeFrom: number;
+  readonly strips: number;
+  readonly stations: number;
+  readonly sub?: number;
+};
 
 /** THE SHAPE. */
 export const CANOPY = {
@@ -100,12 +133,18 @@ type Rib = {
 const ARC_STEPS = 400;
 
 /** The arc's turn at `u` (−1..1 along the flat span). */
-const turnAt = (u: number): number =>
-  CANOPY.curl * ((1 - CANOPY.gather) * u + CANOPY.gather * u * u * u);
+const turnAt = (u: number, w: WingShape): number =>
+  w.curl * ((1 - w.gather) * u + w.gather * u * u * u);
 
-/** The arc sampled along the flat span: where each point lies. */
-const ARC = (() => {
-  const half = CANOPY.span / 2;
+type Arc = { xs: Float64Array; ys: Float64Array };
+const ARCS = new WeakMap<WingShape, Arc>();
+
+/** The arc sampled along the flat span: where each point lies (kept a
+ * wing). */
+function arcOf(w: WingShape): Arc {
+  const kept = ARCS.get(w);
+  if (kept) return kept;
+  const half = w.span / 2;
   const xs = new Float64Array(ARC_STEPS + 1);
   const ys = new Float64Array(ARC_STEPS + 1);
   // From the centre out to the right; the left is its mirror.
@@ -115,40 +154,43 @@ const ARC = (() => {
   for (let i = 0; i <= ARC_STEPS; i++) {
     xs[i] = x;
     ys[i] = y;
-    const a = turnAt((i + 0.5) / ARC_STEPS);
+    const a = turnAt((i + 0.5) / ARC_STEPS, w);
     x += Math.cos(a) * dl;
     y -= Math.sin(a) * dl;
   }
-  return { xs, ys };
-})();
+  const arc = { xs, ys };
+  ARCS.set(w, arc);
+  return arc;
+}
 
 /** The rib (or the section between ribs) at `u`. */
-export function ribAt(u: number): Rib {
+export function ribAt(u: number, w: WingShape = CANOPY): Rib {
+  const ARC = arcOf(w);
   const a = Math.min(1, Math.abs(u)) * ARC_STEPS;
   const i = Math.min(ARC_STEPS - 1, Math.floor(a));
   const f = a - i;
   const sx = ARC.xs[i] + (ARC.xs[i + 1] - ARC.xs[i]) * f;
   const y = ARC.ys[i] + (ARC.ys[i + 1] - ARC.ys[i]) * f;
-  const turn = turnAt(u);
-  const chord = CANOPY.chord * Math.sqrt(1 - (1 - CANOPY.tip ** 2) * u * u);
-  const lost = CANOPY.chord - chord;
+  const turn = turnAt(u, w);
+  const chord = w.chord * Math.sqrt(1 - (1 - w.tip ** 2) * u * u);
+  const lost = w.chord - chord;
   return {
     x: Math.sign(u) * sx,
     y,
     nx: Math.sin(turn),
     ny: Math.cos(turn),
     chord,
-    lead: 0.3 * CANOPY.chord - lost * CANOPY.sweep,
+    lead: 0.3 * w.chord - lost * w.sweep,
     u,
   };
 }
 
 /** The half-thickness of the section at `s` along the chord (a symmetric
  * four-digit section's). */
-export function halfThick(s: number): number {
+export function halfThick(s: number, w: WingShape = CANOPY): number {
   return (
     5 *
-    CANOPY.thick *
+    w.thick *
     (0.2969 * Math.sqrt(s) - 0.126 * s - 0.3516 * s * s + 0.2843 * s ** 3 - 0.1036 * s ** 4)
   );
 }
@@ -165,17 +207,20 @@ export function canopyPoint(
   drop: number,
   out: Float32Array | number[],
   o: number,
+  w: WingShape = CANOPY,
 ): void {
-  const r = ribAt(u);
+  const r = ribAt(u, w);
   const c = r.chord;
-  const mean = CANOPY.camber * c * 4 * s * (1 - s);
+  const mean = w.camber * c * 4 * s * (1 - s);
   // The pillow: the skin bellied out between ribs, flat at them and dying
-  // out toward the tail.
-  const belly = Math.sin(Math.PI * v) * Math.sin(Math.PI * Math.min(1, s / 0.92));
-  const pillow = side > 0 ? CANOPY.pillow * c * belly : -0.3 * CANOPY.pillow * c * belly;
-  const pull =
-    s > CANOPY.brakeFrom ? drop * ((s - CANOPY.brakeFrom) / (1 - CANOPY.brakeFrom)) ** 2 : 0;
-  const h = mean + side * halfThick(s) * c + pillow - pull;
+  // out toward the tail — a bi-cell's twice across the cell, either side
+  // of its non-loaded rib.
+  const sub = w.sub ?? 1;
+  const across = sub === 1 ? v : (v * sub) % 1;
+  const belly = Math.sin(Math.PI * across) * Math.sin(Math.PI * Math.min(1, s / 0.92));
+  const pillow = side > 0 ? w.pillow * c * belly : -0.3 * w.pillow * c * belly;
+  const pull = s > w.brakeFrom ? drop * ((s - w.brakeFrom) / (1 - w.brakeFrom)) ** 2 : 0;
+  const h = mean + side * halfThick(s, w) * c + pillow - pull;
   out[o] = r.x + r.nx * h;
   out[o + 1] = r.y + r.ny * h;
   out[o + 2] = r.lead - c * s;
@@ -183,9 +228,9 @@ export function canopyPoint(
 
 /** How far the brakes pull the trailing edge down at `u`, m: both brakes
  * the more toward the tips, each toggle its own side. */
-export function brakeDrop(u: number, left: number, right: number): number {
+export function brakeDrop(u: number, left: number, right: number, w: WingShape = CANOPY): number {
   const out = 0.35 + 0.65 * Math.abs(u);
-  return CANOPY.brake * out * (u < 0 ? left : right);
+  return w.brake * out * (u < 0 ? left : right);
 }
 
 /** THE PAINT AS THE SHADER LAYS IT, off each vertex's `aPaint` (its
@@ -229,7 +274,7 @@ export function paintAt(u: number, s: number, side: number, cell: number): reado
 }
 
 /** The chord's stations, bunched at the nose where the section is round. */
-export const stationAt = (j: number): number => (j / CANOPY.stations) ** 1.7;
+export const stationAt = (j: number, w: WingShape = CANOPY): number => (j / w.stations) ** 1.7;
 
 /** THE MESH'S LAYOUT: per cell, per skin, a grid of `strips + 1` across by
  * `stations + 1` along — its own vertices, so a cell's colours and its
@@ -241,14 +286,18 @@ export type CanopyLayout = {
   paint: Float32Array;
 };
 
-const ACROSS = CANOPY.strips + 1;
-const ALONG = CANOPY.stations + 1;
-const GRID = ACROSS * ALONG;
+/** A cell's grid: across it, along it, both. */
+const gridOf = (w: WingShape) => {
+  const across = w.strips + 1;
+  const along = w.stations + 1;
+  return { across, along, grid: across * along };
+};
 /** Each stabilizer is a triangle, drawn both ways round. */
 const STAB = 3;
 
-export function canopyLayout(): CanopyLayout {
-  const cells = CANOPY.cells;
+export function canopyLayout(w: WingShape = CANOPY): CanopyLayout {
+  const { across: ACROSS, along: ALONG, grid: GRID } = gridOf(w);
+  const cells = w.cells;
   const vertices = cells * 2 * GRID + 2 * STAB;
   const paint = new Float32Array(vertices * 3);
   const index: number[] = [];
@@ -256,14 +305,14 @@ export function canopyLayout(): CanopyLayout {
   for (let i = 0; i < cells; i++) {
     for (const side of [1, -1]) {
       for (let a = 0; a < ACROSS; a++) {
-        const u = cellU(i, a / CANOPY.strips);
+        const u = cellU(i, a / w.strips, w);
         for (let j = 0; j < ALONG; j++) {
-          const open = i >= CANOPY.closed && i < CANOPY.cells - CANOPY.closed;
-          paint.set([u, stationAt(j), side * (open ? 2 : 1)], (base + a * ALONG + j) * 3);
+          const open = i >= w.closed && i < w.cells - w.closed;
+          paint.set([u, stationAt(j, w), side * (open ? 2 : 1)], (base + a * ALONG + j) * 3);
         }
       }
-      for (let a = 0; a < CANOPY.strips; a++) {
-        for (let j = 0; j < CANOPY.stations; j++) {
+      for (let a = 0; a < w.strips; a++) {
+        for (let j = 0; j < w.stations; j++) {
           const p = base + a * ALONG + j;
           const q = p + ALONG;
           // The top skin faces up, the bottom down.
@@ -283,7 +332,8 @@ export function canopyLayout(): CanopyLayout {
 }
 
 /** Where `v` across cell `i` lies along the span, −1..1. */
-export const cellU = (i: number, v: number): number => -1 + (2 * (i + v)) / CANOPY.cells;
+export const cellU = (i: number, v: number, w: WingShape = CANOPY): number =>
+  -1 + (2 * (i + v)) / w.cells;
 
 /** How far a fold turns the folded part under, radians at a full fold:
  * a side folded down and back under the wing, a leading edge tucked down
@@ -304,13 +354,14 @@ export function foldPoint(
   side: number,
   out: Float32Array | number[],
   o: number,
+  w: WingShape = CANOPY,
 ): void {
   if (fold <= 0.01) return;
   const k = Math.min(1, fold / 0.4);
   if (side !== 0) {
     const hinge = side * Math.max(0.2, 1 - 1.1 * fold);
     if (side * u <= side * hinge) return;
-    const r = ribAt(hinge);
+    const r = ribAt(hinge, w);
     const b = -side * FOLD_UNDER * k;
     const x = out[o] - r.x;
     const y = out[o + 1] - r.y;
@@ -320,7 +371,7 @@ export function foldPoint(
   }
   const back = 0.12 + 0.45 * fold;
   if (s >= back) return;
-  const r = ribAt(u);
+  const r = ribAt(u, w);
   const hy = r.y;
   const hz = r.lead - r.chord * back;
   const a = TUCK_UNDER * k;
@@ -338,20 +389,24 @@ export function shapeCanopy(
   right: number,
   fold = 0,
   foldSide = 0,
+  w: WingShape = CANOPY,
 ): void {
+  const { across: ACROSS, along: ALONG, grid: GRID } = gridOf(w);
+  const sub = w.sub ?? 1;
   let base = 0;
-  for (let i = 0; i < CANOPY.cells; i++) {
+  for (let i = 0; i < w.cells; i++) {
     for (const side of [1, -1]) {
       for (let a = 0; a < ACROSS; a++) {
-        const v = a / CANOPY.strips;
-        const u = cellU(i, v);
-        const drop = brakeDrop(u, left, right);
-        // The scallop: the tail cut short between ribs.
-        const tail = 1 - CANOPY.scallop * Math.sin(Math.PI * v);
+        const v = a / w.strips;
+        const u = cellU(i, v, w);
+        const drop = brakeDrop(u, left, right, w);
+        // The scallop: the tail cut short between ribs (a bi-cell's either
+        // side of its non-loaded rib).
+        const tail = 1 - w.scallop * Math.sin(Math.PI * (sub === 1 ? v : (v * sub) % 1));
         for (let j = 0; j < ALONG; j++) {
           const at = (base + a * ALONG + j) * 3;
-          canopyPoint(u, stationAt(j) * tail, side, v, drop, out, at);
-          foldPoint(u, stationAt(j) * tail, fold, foldSide, out, at);
+          canopyPoint(u, stationAt(j, w) * tail, side, v, drop, out, at, w);
+          foldPoint(u, stationAt(j, w) * tail, fold, foldSide, out, at, w);
         }
       }
       base += GRID;
@@ -359,17 +414,17 @@ export function shapeCanopy(
   }
   // THE STABILIZERS: a fin under each tip, its point hung toward the pilot.
   for (const u of [-1, 1]) {
-    const r = ribAt(u);
-    canopyPoint(u, 0.12, -1, 0, 0, out, base * 3);
-    canopyPoint(u, 0.92, -1, 0, 0, out, (base + 1) * 3);
-    const d = CANOPY.stabilo;
-    canopyPoint(u, 0.55, -1, 0, 0, out, (base + 2) * 3);
+    const r = ribAt(u, w);
+    canopyPoint(u, 0.12, -1, 0, 0, out, base * 3, w);
+    canopyPoint(u, 0.92, -1, 0, 0, out, (base + 1) * 3, w);
+    const d = w.stabilo;
+    canopyPoint(u, 0.55, -1, 0, 0, out, (base + 2) * 3, w);
     // Down its rib's up, and in toward the middle.
     out[(base + 2) * 3] += -r.nx * d - Math.sign(u) * d * 0.3;
     out[(base + 2) * 3 + 1] += -r.ny * d;
-    foldPoint(u, 0.12, fold, foldSide, out, base * 3);
-    foldPoint(u, 0.92, fold, foldSide, out, (base + 1) * 3);
-    foldPoint(u, 0.55, fold, foldSide, out, (base + 2) * 3);
+    foldPoint(u, 0.12, fold, foldSide, out, base * 3, w);
+    foldPoint(u, 0.92, fold, foldSide, out, (base + 1) * 3, w);
+    foldPoint(u, 0.55, fold, foldSide, out, (base + 2) * 3, w);
     base += STAB;
   }
 }

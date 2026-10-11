@@ -452,8 +452,10 @@ const SURFACES = {
     wait: ".hud-chute",
     settle: 1500,
   },
+  // Pulled at 1,000 m some five seconds in (the fall starts slow), the shot
+  // falls in the opening's last second: the slider down, the cells filling.
   "chute-open": {
-    params: { start: "free", chute: "1100", t: "7", shot: "1" },
+    params: { start: "free", chute: "1100", t: "8.2", shot: "1" },
     wait: ".hud-chute",
     settle: 1500,
   },

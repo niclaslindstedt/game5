@@ -546,10 +546,17 @@ export function Hud({
             </div>
           )}
           <div class="hud-cluster">
-            <span class="hud-speed-num">
-              {Math.round(snap.balloon ? snap.balloon.groundKmh : snap.speedKmh)}
-            </span>
-            <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
+            {/* Flying the plane or under the skydive, its own panel reads
+                the speed (knots, the fall, the air through the canopy):
+                the skier's dial would be a second, different number. */}
+            {snap.plane?.kind !== "flown" && !snap.chute && (
+              <>
+                <span class="hud-speed-num">
+                  {Math.round(snap.balloon ? snap.balloon.groundKmh : snap.speedKmh)}
+                </span>
+                <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
+              </>
+            )}
             {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && (
               <WindMeter wind={snap.wind} />
             )}

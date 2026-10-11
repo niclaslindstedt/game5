@@ -140,7 +140,7 @@ export type FreeRide = {
   /** The run of the ski area (R27, `Run.id`) the ride is carried to the top
    * of, on the seed and in the country it was picked on — or a START row's
    * machine (`SKIS_START`'s neighbours); null is the map's most difficult
-   * run (`pickFreeRun`). */
+   * piste (`pickFreeRun`). */
   run: { seed: number; region: RegionId; face?: string | null; id: string } | null;
   /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
    * (`avalanche.ts`). On unless the player turns them off. */
@@ -394,7 +394,7 @@ export function freeRunList(level: Level): { runs: FreeRunInfo[]; fallback: stri
 }
 
 /** THE RUN THE CARD MARKS, of the runs its chart was sent: the one picked
- * on this map, else the most difficult of them (the first of the hardest
+ * on this map, else the most difficult piste (the first of the hardest, up to a black
  * colour) — the engine's own rule (`pickFreeRun`), so the run marked is the
  * run ridden. Null off a resort. */
 export function markedRun(

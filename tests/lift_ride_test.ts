@@ -18,7 +18,6 @@ import {
   boardingRing,
   PISTE_GRADES,
   RUN_GRADES,
-  skiRoutesOf,
   type RunGrade,
   generateLevel,
   NEUTRAL_INPUT,
@@ -491,8 +490,8 @@ describe("which run a free ride by lift starts down", () => {
     expect(run.progress.skied.at(-1)).toBe(runs[1].id);
   });
 
-  it("is the most difficult run where nothing is asked", () => {
-    const runs = [...freeRuns(map), ...skiRoutesOf(map)];
+  it("is the most difficult piste where nothing is asked", () => {
+    const runs = freeRuns(map);
     const rank = (g: RunGrade): number => RUN_GRADES.indexOf(g);
     const top = Math.max(...runs.map((r) => rank(r.grade)));
     expect(freeRunOf(map, {})).toBe(runs.find((r) => rank(r.grade) === top)!.id);

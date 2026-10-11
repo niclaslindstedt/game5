@@ -116,12 +116,12 @@ import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
 import { shotLabel } from "./game/run-news.ts";
 import { createNewsFeed } from "./game/run-watch.ts";
+import { wireLook } from "./game/app-look.ts";
 import {
   assistOf,
   injuriesShown,
   loadSettings,
   mixOf,
-  nextCamera,
   saveSettings,
   specFor,
   type Settings,
@@ -262,10 +262,10 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  const { keys: skiKeys, heliKeys, planeKeys } = settings;
+  const { keys: skiKeys, heliKeys, planeKeys, rideKeys } = settings;
   useEffect(
-    () => input?.setBindings({ keys: skiKeys, heliKeys, planeKeys }),
-    [input, skiKeys, heliKeys, planeKeys],
+    () => input?.setBindings({ keys: skiKeys, heliKeys, planeKeys, rideKeys }),
+    [input, skiKeys, heliKeys, planeKeys, rideKeys],
   );
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
@@ -283,7 +283,7 @@ export function App() {
     setInput(manager);
     const renderer = renderKit.createWorldRenderer(canvas, { video: videoOf(settingsRef.current) });
     rendererRef.current = renderer;
-    manager.onLook((dx, dy) => renderer.lookAround(dx, dy));
+    const cams = wireLook(manager, renderer, settingsRef, setSettings, shellRef);
     const book = createRunBook({ show: (ghost) => renderer.setGhost(ghost) });
     bookRef.current = book;
     const replays = (replayRef.current = createReplayRun({
@@ -637,12 +637,7 @@ export function App() {
         pinned.clear();
         setShellNow("menu");
       },
-      camera: () => {
-        if (watching(shellRef.current)) return replays.camera();
-        const next = nextCamera(settingsRef.current.camera);
-        setSettings((s) => ({ ...s, camera: next }));
-        if (hudOver(shellRef.current)) renderer.setCamera(next);
-      },
+      camera: () => (watching(shellRef.current) ? replays.camera() : cams.next()),
       shot: () => shots.take(),
     };
 
@@ -653,6 +648,7 @@ export function App() {
       resume: () => pressRef.current.resume(),
       restart,
       camera: () => pressRef.current.camera(),
+      firstPerson: cams.firstPerson,
       reset: () => manager.requestReset(),
       leave: () => pressRef.current.unwatch(),
       replay: () => pressRef.current.watch(replays.crash() ? "crash" : "recent"),

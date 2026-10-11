@@ -128,14 +128,16 @@ The whole game is two grounds under one pair of skis. On the **groomed piste** t
 | ------------------ | ----------------------------------------------------------------------------------------- |
 | W                  | Tuck — sets off from a standstill, throws you out of a start house; in the air, lean fwd  |
 | S                  | First: brake (then A / D: hockey stop; alone on a free ride, the whole stop, then back up the hill). After an edge: cut harder — in the air, lean back |
-| Space              | Hold to load a jump, let go to spring (higher the longer, to 2 s)                         |
+| Space              | Hold to load a jump, let go to spring (higher the longer, to 2 s); pressed again in the air, the grab (as F / X) |
 | A D / ← →          | Edge left / right; stood still, step the skis round on the spot — or, stood across a steep slope, toward the hill: sidestep up it |
 | ↓ / E / Shift      | Lean back — in the air, tips up                                                           |
 | ↑ / Q / Z          | Lean forward — in the air, tips down                                                      |
 | F / X              | Hold in the air on a tricks run: a grab                                                   |
 | R                  | Back onto the piste at the last gate taken (a race: out of the run, DNF; a free ride: the nearest run you have skied, or where you left the runs if you are off them) |
-| B                  | Restart the run from the start line (a race: from the start house; a free ride: the top of the last piste you skied) |
+| B / Tab            | Restart the run from the start line (a race: from the start house; a free ride: the top of the last piste you skied) |
 | C                  | Next camera                                                                               |
+| G                  | Straight to the helmet camera, and back to the camera you left                            |
+| Mouse              | Hold a button and drag to look round; let go and the view swings back behind you. The wheel steps the camera out and in |
 | H                  | HUD on / off                                                                              |
 | Enter              | On a free ride: get on the snowmobile or the helicopter you stand beside, or off again; into an afterski lodge at its door, and out; under the paramotor, drop the rig; in the balloon, jump over the side (or, stood on the snow, step out) |
 | V                  | Watch a replay: the crash just taken, or the last stretch of the run                      |
@@ -143,7 +145,9 @@ The whole game is two grounds under one pair of skis. On the **groomed piste** t
 | Escape             | Pause                                                                                     |
 | Arrows, Enter, Esc | Walk a card, press a row, go back                                                         |
 
-W and S lean only when they go down while the skier is IN THE AIR (a tuck held off the lip stays a tuck), S leaning does not brake, and a lean key held over them wins.
+W and S lean only when they go down while the skier is IN THE AIR (a tuck held off the lip stays a tuck), S leaning does not brake, and a lean key held over them wins. Space grabs the same way: only a press made in the air, so a jump key still held off a lip you never popped stays the jump.
+
+**The machines' own keys.** The snowmobile, the piste machine, the paramotor, the skydive and the balloon each have a section of their own on OPTIONS ▸ KEYS, its rows named for what they do there (THROTTLE, BURNER, TOGGLE LEFT…). Every one ships on the skier's keys, so nothing moves until you rebind it, and a key rebound on one machine moves nothing on another or on the skis.
 
 **Touch:** the lower-left of the screen is the **edge control** — touch anywhere there and move the thumb: sideways travel tips the skis onto their edge, vertical travel leans — and on the snow a drag DOWN is the back key (down first, then across: the hockey stop; across first, then down: the edge cut harder). The dashed ring is the control's reach: a thumb swept past it drags the control along, so swinging back is never further than one throw. On a **slalom** the ring is narrower across, so full edge one way to full edge the other is a short flick from gate to gate. The lower-right is the **tuck lever** — the skier is IN A FULL TUCK the moment your thumb lands; slide UP to stand him up, and further up to brake. **Tap it and put the thumb straight back down** to load a jump (the knob rings and swells), and lift to spring. The top-right corner carries the minimap — press it to pause — and two presses under it: reset and camera. **After dark the HUD dips** with the floodlights, as a dashboard does with its headlamps: the white goes to a soft grey-blue, the plates and the minimap's ground go nearly black (the runs and the lifts left light on it, as a night chart draws its roads), and only the warnings, the flag's red and the gap's green keep their full light.
 

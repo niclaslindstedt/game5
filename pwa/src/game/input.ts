@@ -68,6 +68,15 @@ import {
 } from "./input-plane.ts";
 import { DEFAULT_PLANE_KEYS, type PlaneAction, type PlaneBindings } from "./settings-plane-keys.ts";
 import { watchGazeDrags } from "./lift-gaze-watch.ts";
+import {
+  DEFAULT_RIDE_KEYS,
+  RIDE_MACHINES,
+  rideHeld,
+  rideOf,
+  type RideAction,
+  type RideBindings,
+  type RideMachine,
+} from "./settings-ride-keys.ts";
 import { gazeAllowed } from "./lift-gaze.ts";
 
 export type { InputAction };
@@ -117,7 +126,12 @@ export type InputManager = {
    * HUD's flap press on touch (`hud-plane.tsx`). */
   requestFlaps: (dir: number) => void;
   /** Hear the drags that look round from the lift, CSS px. */
-  onLook: (handler: (dx: number, dy: number) => void) => void;
+  onLook: (handler: (dx: number, dy: number, mouse: boolean) => void) => void;
+  /** Hear a mouse button go down to look, and come up. */
+  onLookHold: (handler: (on: boolean) => void) => void;
+  /** Hear the mouse wheel walk the camera ladder: +1 a rung further out,
+   * −1 a rung in. */
+  onZoom: (handler: (dir: 1 | -1) => void) => void;
   /** Hear the app-level presses. */
   onAction: (handler: (action: InputAction) => void) => void;
   /** Ride on a new keyboard (OPTIONS ▸ KEYS) — the skier's table and the
@@ -128,6 +142,7 @@ export type InputManager = {
     keys: KeyBindings;
     heliKeys?: HeliBindings;
     planeKeys?: PlaneBindings;
+    rideKeys?: RideBindings;
   }) => void;
   dispose: () => void;
 };
@@ -143,6 +158,11 @@ export type PlaneHand = {
   throttle: number;
   flaps: number;
 };
+
+/** A wheel's notch, px of `deltaY`, and the least gap between two rungs
+ * the wheel takes, ms. */
+const ZOOM_NOTCH = 60;
+const ZOOM_GAP = 180;
 
 /**
  * `claiming` says whether a RACE is being ridden right now. The listeners
@@ -186,6 +206,26 @@ export function createInputManager(
     }
   };
   indexPlane(DEFAULT_PLANE_KEYS);
+  // THE MACHINES' OWN TABLES (`settings-ride-keys.ts`): the snowmobile's,
+  // the piste machine's, the paramotor's, the skydive's and the balloon's,
+  // each held on its own and read in place of the skier's six controls
+  // while he rides that machine.
+  const rideKeys = {} as Record<RideMachine, Partial<Record<RideAction, boolean>>>;
+  for (const m of RIDE_MACHINES) rideKeys[m] = {};
+  const rideByCode = new Map<string, [RideMachine, RideAction][]>();
+  const indexRide = (next: RideBindings): void => {
+    rideByCode.clear();
+    for (const m of RIDE_MACHINES) {
+      for (const [action, codes] of Object.entries(next[m]) as [RideAction, string[]][]) {
+        for (const code of codes) {
+          rideByCode.set(code, [...(rideByCode.get(code) ?? []), [m, action]]);
+        }
+      }
+    }
+  };
+  indexRide(DEFAULT_RIDE_KEYS);
+  /** The machine the last `ride` found him on (`rideOf`). */
+  let ridden: RideMachine | null = null;
   const touch = neutralTouch();
   let reset = false;
   /** THE MACHINE PRESS (ENTER), kept until a step has seen it. */
@@ -225,6 +265,8 @@ export function createInputManager(
   const onKeyDown = (e: KeyboardEvent): void => {
     // A browser shortcut on its way past is not a press on the skis.
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // TAB off a run walks the page's focus, whatever it is bound to.
+    if (e.code === "Tab" && !claiming()) return;
     let took = false;
     for (const action of heliByCode.get(e.code) ?? []) {
       if (!claiming()) continue;
@@ -234,6 +276,11 @@ export function createInputManager(
     for (const action of planeByCode.get(e.code) ?? []) {
       if (!claiming()) continue;
       planeKeys[action] = true;
+      took = true;
+    }
+    for (const [m, action] of rideByCode.get(e.code) ?? []) {
+      if (!claiming()) continue;
+      rideKeys[m][action] = true;
       took = true;
     }
     const actions = byCode.get(e.code);
@@ -274,6 +321,7 @@ export function createInputManager(
     }
     for (const action of heliByCode.get(e.code) ?? []) heliKeys[action] = false;
     for (const action of planeByCode.get(e.code) ?? []) planeKeys[action] = false;
+    for (const [m, action] of rideByCode.get(e.code) ?? []) rideKeys[m][action] = false;
   };
   // A TAP ANYWHERE — on the glass, the thumb zones included, taken on the
   // way down before a zone keeps it — but never on one of the HUD's own
@@ -287,21 +335,45 @@ export function createInputManager(
     for (const k of Object.keys(keys) as (keyof KeysHeld)[]) keys[k] = false;
     for (const k of Object.keys(heliKeys) as HeliAction[]) heliKeys[k] = false;
     for (const k of Object.keys(planeKeys) as PlaneAction[]) planeKeys[k] = false;
+    for (const m of RIDE_MACHINES) rideKeys[m] = {};
   };
 
   // LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): every drag on a run, which
   // the renderer takes only while a lift carries him.
   let carriedNow = false;
-  let onLook: (dx: number, dy: number) => void = () => {};
+  let onLook: (dx: number, dy: number, mouse: boolean) => void = () => {};
+  let onLookHold: (on: boolean) => void = () => {};
   const gaze = watchGazeDrags(target, {
     riding: claiming,
-    drag: (dx, dy) => onLook(dx, dy),
+    drag: (dx, dy, mouse) => onLook(dx, dy, mouse),
+    hold: (on) => onLookHold(on),
   });
+
+  // THE WHEEL WALKS THE CAMERA LADDER on a run: rolled toward the player a
+  // rung further out, away a rung in. A trackpad's flick is a stream of
+  // small deltas, so they are summed to a notch's worth and a rung taken at
+  // most every `ZOOM_GAP` ms.
+  let onZoom: (dir: 1 | -1) => void = () => {};
+  let wheelSum = 0;
+  let wheelAt = -Infinity;
+  const onWheel = (e: WheelEvent): void => {
+    if (!claiming() || e.ctrlKey) return;
+    e.preventDefault();
+    wheelSum += e.deltaMode === 0 ? e.deltaY : e.deltaY * ZOOM_NOTCH;
+    if (Math.abs(wheelSum) < ZOOM_NOTCH) return;
+    const now = e.timeStamp;
+    const dir = wheelSum > 0 ? 1 : -1;
+    wheelSum = 0;
+    if (now - wheelAt < ZOOM_GAP) return;
+    wheelAt = now;
+    onZoom(dir);
+  };
 
   target.addEventListener("keydown", onKeyDown);
   target.addEventListener("keyup", onKeyUp);
   target.addEventListener("blur", onBlur);
   target.addEventListener("pointerdown", onPointerDown, true);
+  target.addEventListener("wheel", onWheel, { passive: false });
   target.document.addEventListener("visibilitychange", onBlur);
 
   const hand = createStopHand();
@@ -315,8 +387,10 @@ export function createInputManager(
       basket = false,
       inPlane = null,
     ) => {
+      // On a machine with a table of its own, its keys are the six controls.
+      const hands = rideHeld(keys, ridden, rideKeys);
       // A jump pressed and let go between two steps still reaches one.
-      const held = jumped && !keys.jump ? { ...keys, jump: true } : keys;
+      const held = jumped && !hands.jump ? { ...hands, jump: true } : hands;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying || !!inPlane);
       // A thumb dragged to look round from the lift is no tuck held to skip it.
       carriedNow = gazeAllowed(lift);
@@ -355,6 +429,7 @@ export function createInputManager(
     },
     ride: (state) => {
       const c = state.skier;
+      ridden = rideOf(state);
       const p = state.plane;
       const input = manager.sample(
         TUNING.dt,
@@ -379,7 +454,7 @@ export function createInputManager(
             }
           : null,
       );
-      const go = keys.tuck || (touch.lever && touch.tuck > 0.5);
+      const go = rideHeld(keys, ridden, rideKeys).tuck || (touch.lever && touch.tuck > 0.5);
       return stopHand(hand, state, { back: model.back === "brake", go }, input);
     },
     freshHand: () => {
@@ -401,6 +476,12 @@ export function createInputManager(
     onLook: (handler) => {
       onLook = handler;
     },
+    onLookHold: (handler) => {
+      onLookHold = handler;
+    },
+    onZoom: (handler) => {
+      onZoom = handler;
+    },
     onAction: (handler) => {
       onAction = handler;
     },
@@ -409,6 +490,7 @@ export function createInputManager(
       index(next.keys);
       indexHeli(next.heliKeys ?? DEFAULT_HELI_KEYS);
       indexPlane(next.planeKeys ?? DEFAULT_PLANE_KEYS);
+      indexRide(next.rideKeys ?? DEFAULT_RIDE_KEYS);
     },
     dispose: () => {
       gaze.stop();
@@ -416,6 +498,7 @@ export function createInputManager(
       target.removeEventListener("keyup", onKeyUp);
       target.removeEventListener("blur", onBlur);
       target.removeEventListener("pointerdown", onPointerDown, true);
+      target.removeEventListener("wheel", onWheel);
       target.document.removeEventListener("visibilitychange", onBlur);
     },
   };

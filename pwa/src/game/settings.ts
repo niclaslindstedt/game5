@@ -45,6 +45,7 @@ import type { ShellContent } from "../shell-host.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
 import { freshHeliKeys, mergeHeliKeys, type HeliBindings } from "./settings-heli-keys.ts";
 import { freshPlaneKeys, mergePlaneKeys, type PlaneBindings } from "./settings-plane-keys.ts";
+import { freshRideKeys, mergeRideKeys, type RideBindings } from "./settings-ride-keys.ts";
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
 import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
@@ -69,6 +70,45 @@ export const DEFAULT_CAMERA: CameraRung = "chase";
 export function nextCamera(rung: CameraRung): CameraRung {
   const at = RUN_CAMERAS.indexOf(rung);
   return at < 0 ? DEFAULT_CAMERA : RUN_CAMERAS[(at + 1) % RUN_CAMERAS.length];
+}
+
+/** The rung `dir` along the ladder from `rung` — the wheel rolled out (+1)
+ * or in (−1) — held at either end rather than wrapped round. */
+export function zoomCamera(rung: CameraRung, dir: 1 | -1): CameraRung {
+  const at = RUN_CAMERAS.indexOf(rung);
+  if (at < 0) return DEFAULT_CAMERA;
+  return RUN_CAMERAS[Math.max(0, Math.min(RUN_CAMERAS.length - 1, at + dir))];
+}
+
+/** THE FIRST-PERSON PRESS (G): onto the helmet's own eyes from any rung,
+ * and from the helmet back to `back`, the rung it was pressed from — or the
+ * default seat when that was the helmet too. */
+export function firstPersonCamera(rung: CameraRung, back: CameraRung): CameraRung {
+  if (rung !== "helmet") return "helmet";
+  return back !== "helmet" && RUN_CAMERAS.includes(back) ? back : DEFAULT_CAMERA;
+}
+
+/** THE CAMERA'S PRESSES over a run: C (`next`), G (`firstPerson`) and the
+ * mouse wheel (`zoom`), each handing `set` the rung it lands on — G
+ * remembering the rung it left so its second press goes back there. */
+export function createCameraPresses(
+  get: () => CameraRung,
+  set: (rung: CameraRung) => void,
+): { next: () => void; firstPerson: () => void; zoom: (dir: 1 | -1) => void } {
+  let back = get();
+  return {
+    next: () => set(nextCamera(get())),
+    firstPerson: () => {
+      const rung = get();
+      const next = firstPersonCamera(rung, back);
+      if (rung !== "helmet") back = rung;
+      set(next);
+    },
+    zoom: (dir) => {
+      const next = zoomCamera(get(), dir);
+      if (next !== get()) set(next);
+    },
+  };
 }
 
 /** The three faders, each 0..1: everything, the skier's own noise (the
@@ -136,6 +176,9 @@ export type Settings = {
   heliKeys: HeliBindings;
   /** The jump plane's own keys (`settings-plane-keys.ts`). */
   planeKeys: PlaneBindings;
+  /** The machines' own keys — the snowmobile's, the piste machine's, the
+   * paramotor's, the skydive's and the balloon's (`settings-ride-keys.ts`). */
+  rideKeys: RideBindings;
   touch: TouchSettings;
   assist: AssistSettings;
   /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the next
@@ -221,6 +264,7 @@ export function freshSettings(): Settings {
     keys: freshKeys(),
     heliKeys: freshHeliKeys(),
     planeKeys: freshPlaneKeys(),
+    rideKeys: freshRideKeys(),
     touch: { lever: "right", sensitivity: 1, invertLean: false },
     assist: { steer: "full", air: "full" },
     damage: false,
@@ -302,6 +346,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.keys = mergeKeys(blob.keys);
   out.heliKeys = mergeHeliKeys(blob.heliKeys);
   out.planeKeys = mergePlaneKeys(blob.planeKeys);
+  out.rideKeys = mergeRideKeys(blob.rideKeys);
   const touch = record(blob.touch);
   out.touch.lever = onLadder(touch.lever, LEVER_SIDES, out.touch.lever);
   const T = TOUCH_SENSITIVITY;

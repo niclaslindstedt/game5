@@ -755,6 +755,14 @@ export const STRINGS = {
   keysUnbound: "NONE",
   keysClash: "ALSO",
   keysRowHint: (action: string): string => `Press, then the key for ${action.toLowerCase()}.`,
+  /** What a skier row does beyond its name, said under its own hint. */
+  keysHowTo: {
+    brake:
+      "Press it before an edge for a hockey stop; with an edge already on, it cuts the turn harder.",
+    jump: "Hold to crouch, let go at the lip to pop. Press it again in the air to grab.",
+    restart: "Tab is the run again too, as in other snow games.",
+    firstPerson: "Straight to the helmet camera, and back to the camera you left.",
+  } as Partial<Record<string, string>>,
   keysClashHint: (action: string, others: string): string =>
     `The key on ${action.toLowerCase()} also does ${others.toLowerCase()} — pressing it does both.`,
   keyTuck: "TUCK",
@@ -779,6 +787,38 @@ export const STRINGS = {
   keyMachine: "GET ON / OFF",
   keyRestart: "RESTART",
   keyCamera: "CAMERA",
+  /** Straight to the helmet camera, and back to the rung it left. */
+  keyFirstPerson: "FIRST PERSON",
+  /** The machines' own rows of OPTIONS ▸ KEYS (`settings-ride-keys.ts`). */
+  keysGroomerTitle: "PISTE MACHINE",
+  groomerKeysNote:
+    "In the piste machine's cab the forward key drives it, the reverse key backs it up, and the pivot keys turn it on its tracks. The machine key climbs in beside its cab and out again.",
+  rideThrottle: "THROTTLE",
+  rideBrake: "BRAKE",
+  rideSteerLeft: "STEER LEFT",
+  rideSteerRight: "STEER RIGHT",
+  rideWeightForward: "WEIGHT FORWARD",
+  rideWeightBack: "WEIGHT BACK",
+  rideForward: "FORWARD",
+  rideReverse: "REVERSE",
+  ridePivotLeft: "PIVOT LEFT",
+  ridePivotRight: "PIVOT RIGHT",
+  rideFlare: "BRAKES / FLARE",
+  rideToggleLeft: "TOGGLE LEFT",
+  rideToggleRight: "TOGGLE RIGHT",
+  rideRisersForward: "RISERS FORWARD · DIVE",
+  rideRisersBack: "RISERS BACK",
+  rideHeadDown: "HEAD DOWN",
+  rideTurnLeft: "TURN / TOGGLE LEFT",
+  rideTurnRight: "TURN / TOGGLE RIGHT",
+  rideTrack: "TRACK · RISERS FORWARD",
+  rideBackSlide: "BACKSLIDE · RISERS BACK",
+  rideBurner: "BURNER",
+  rideVent: "VENT",
+  rideWalkLeft: "WALK LEFT",
+  rideWalkRight: "WALK RIGHT",
+  rideWalkForward: "WALK FORWARD",
+  rideWalkBack: "WALK BACK",
   keyPause: "PAUSE",
 
   /* ── THE LOADING CARD (loading-screen.tsx) ─────────────────────────── */

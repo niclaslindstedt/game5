@@ -11,6 +11,12 @@
 //
 // The drag GRABS THE WORLD: the finger pulled right turns the view left, and
 // pulled down tips it up, as a picture under a finger is moved.
+//
+// THE MOUSE LOOKS ON ANY RUN. On a desktop a mouse button held and the
+// mouse moved swings the lens the same way wherever he is — the free camera
+// the other snow games put on the mouse — but as a LOOK rather than a grab:
+// the mouse moved right turns the view right. Let go, the look lingers a
+// moment (`LIFT_GAZE.linger`) and then goes home behind him.
 
 import type { LiftRide } from "@engine";
 
@@ -25,6 +31,9 @@ export const LIFT_GAZE = {
   up: 0.55,
   /** How briskly the look goes home once the lift lets him go, 1/s. */
   home: 5,
+  /** How long a mouse look is held after the button is let go, s, before
+   * it goes home. */
+  linger: 0.6,
   /** A pointer's travel, px, before it is a look rather than a press — the
    * tuck lever's thumb is a press until it drags this far. */
   slop: 8,
@@ -57,10 +66,11 @@ export function dragGaze(g: LiftGaze, dx: number, dy: number, height: number, fo
   g.pitch = Math.max(-LIFT_GAZE.up, Math.min(LIFT_GAZE.down, g.pitch - dy * perPx));
 }
 
-/** One frame, `dt` s after the last: carried, the look stays where the
- * drags left it; off the lift it goes home behind him, the short way round. */
-export function stepGaze(g: LiftGaze, lift: LiftRide | null, dt: number): void {
-  if (gazeAllowed(lift)) return;
+/** One frame, `dt` s after the last: carried, or `held` by the mouse, the
+ * look stays where the drags left it; otherwise it goes home behind him, the
+ * short way round. */
+export function stepGaze(g: LiftGaze, lift: LiftRide | null, dt: number, held = false): void {
+  if (gazeAllowed(lift) || held) return;
   const k = Math.exp(-LIFT_GAZE.home * dt);
   g.yaw = wrap(g.yaw) * k;
   g.pitch *= k;
@@ -134,10 +144,20 @@ export function createGazeRig() {
   const g = createLiftGaze();
   let dx = 0;
   let dy = 0;
+  /** A mouse button down to look, and the linger left after it is let go. */
+  let held = false;
+  let linger = 0;
   return {
-    drag(x: number, y: number): void {
-      dx += x;
-      dy += y;
+    /** A drag of `x`, `y` CSS px — a finger's grabs the world, a mouse's
+     * looks (the sign turned). */
+    drag(x: number, y: number, mouse = false): void {
+      dx += mouse ? -x : x;
+      dy += mouse ? -y : y;
+    },
+    /** A mouse button gone down to look, or let go. */
+    hold(on: boolean): void {
+      if (held && !on) linger = LIFT_GAZE.linger;
+      held = on;
     },
     frame<L extends { eye: P; target: P; fov: number; roll: number }>(
       lens: L,
@@ -147,9 +167,11 @@ export function createGazeRig() {
       height: number,
       level: { groundAt: (x: number, z: number) => number },
     ): L | null {
-      if (gazeAllowed(lift)) dragGaze(g, dx, dy, height, lens.fov);
+      linger = Math.max(0, linger - dt);
+      const free = held || linger > 0;
+      if (gazeAllowed(lift) || free) dragGaze(g, dx, dy, height, lens.fov);
       dx = dy = 0;
-      stepGaze(g, lift, Math.min(dt, 0.1));
+      stepGaze(g, lift, Math.min(dt, 0.1), free);
       if (!gazing(g)) return null;
       const pivot = { x: at.x, y: at.y + LIFT_GAZE.pivot, z: at.z };
       const { eye, target } = swingLens(lens.eye, lens.target, pivot, g);

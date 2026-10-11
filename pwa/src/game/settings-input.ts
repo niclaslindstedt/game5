@@ -21,7 +21,8 @@ export type HeldAction = keyof KeysHeld;
  * edge that is not here: it reaches the engine as an input flag on the step
  * it arrives in, which is the whole difference between standing the skier
  * back on the piste and changing the camera. */
-export type InputAction = "restart" | "camera" | "pause" | "shot" | "hud" | "replay";
+export type InputAction =
+  "restart" | "camera" | "firstPerson" | "pause" | "shot" | "hud" | "replay";
 
 /** An action taken on the PRESS, not held. `machine` reaches the engine as
  * `reset` does (`SkierInput.machine`): on to the snowmobile or the
@@ -49,6 +50,7 @@ export const KEY_ACTIONS: readonly { id: KeyAction; label: string }[] = [
   { id: "machine", label: STRINGS.keyMachine },
   { id: "restart", label: STRINGS.keyRestart },
   { id: "camera", label: STRINGS.keyCamera },
+  { id: "firstPerson", label: STRINGS.keyFirstPerson },
   { id: "hud", label: STRINGS.keyHud },
   { id: "shot", label: STRINGS.keyShot },
   { id: "replay", label: STRINGS.keyReplay },
@@ -98,14 +100,18 @@ export function isHeldAction(action: KeyAction): action is HeldAction {
  *
  * THE GRAB, held in the air on a tricks run, takes the skier's body off the
  * controls and into a pose: F beside the WASD hand's lean keys, X beside
- * the arrow hand's Z.
+ * the arrow hand's Z — and SPACE pressed again in the air, the hand that
+ * popped the jump grabbing with it (`input-model.ts`'s `airGrab`).
  *
  * R stands the skier back on the piste at the last gate he took — the
  * press a skier makes lying in a tree well with a ski off. Standing the
  * WHOLE run back up in the start gate is the rarer press and far more
  * expensive to make by accident, so it is B beside it rather than a key
- * shared with it. C walks the camera ladder; Escape holds the run under
- * the pause card.
+ * shared with it — and TAB, the key a hand used to other snow games reaches
+ * for to try a line again (taken only while a run is ridden, so off one it
+ * still walks a card's focus). C walks the camera ladder and G goes
+ * straight to the helmet's own eyes and back (`settings.ts`'s
+ * `firstPersonCamera`); Escape holds the run under the pause card.
  *
  * ENTER IS THE MACHINE: on to the snowmobile or the helicopter he stands
  * beside, and off the one he rides — one press each way, on the key the
@@ -125,8 +131,10 @@ export const DEFAULT_KEYS: KeyBindings = {
   trick: ["KeyF", "KeyX"],
   reset: ["KeyR"],
   machine: ["Enter"],
-  restart: ["KeyB"],
+  restart: ["KeyB", "Tab"],
   camera: ["KeyC"],
+  // G FOR GOGGLES: the helmet camera and back in one press, beside C.
+  firstPerson: ["KeyG"],
   // H FOR THE READOUTS, beside C for what the camera looks at: the two
   // presses about the PICTURE rather than the skier. The same switch as
   // OPTIONS ▸ HUD, so the snow can be cleared for a photograph mid-run.

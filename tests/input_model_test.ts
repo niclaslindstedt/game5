@@ -246,7 +246,8 @@ describe("the key table (settings-input.ts)", () => {
     expect(DEFAULT_KEYS.left).toEqual(expect.arrayContaining(["KeyA", "ArrowLeft"]));
     expect(DEFAULT_KEYS.right).toEqual(expect.arrayContaining(["KeyD", "ArrowRight"]));
     expect(DEFAULT_KEYS.reset).toEqual(["KeyR"]);
-    expect(DEFAULT_KEYS.restart).toEqual(["KeyB"]);
+    expect(DEFAULT_KEYS.restart).toEqual(["KeyB", "Tab"]);
+    expect(DEFAULT_KEYS.firstPerson).toEqual(["KeyG"]);
     expect(DEFAULT_KEYS.camera).toEqual(["KeyC"]);
     expect(DEFAULT_KEYS.pause).toEqual(["Escape"]);
     for (const codes of Object.values(DEFAULT_KEYS)) {
@@ -528,5 +529,27 @@ describe("the walking pad in the balloon's basket (walkPad)", () => {
     walkPad(input, touch);
     expect(input.steer).toBe(SCREEN_TO_ENGINE);
     expect(input.lean).toBe(0);
+  });
+});
+
+describe("the jump key grabs in the air (airGrab)", () => {
+  const step = (m: ReturnType<typeof createInputModel>, jump: boolean, airborne: boolean) =>
+    sampleInput(m, { ...NO_KEYS, jump }, neutralTouch(), TUNING.dt, false, airborne);
+
+  it("grabs on a press made in the air, never on a hold carried off the lip", () => {
+    const m = createInputModel();
+    expect(step(m, true, false).trick).toBe(false);
+    // Held on over the lip: no grab.
+    expect(step(m, true, true).trick).toBe(false);
+    expect(step(m, false, true).trick).toBe(false);
+    // Pressed again in the air: the grab, held while the key is.
+    expect(step(m, true, true).trick).toBe(true);
+    expect(step(m, true, true).trick).toBe(true);
+    expect(step(m, false, true).trick).toBe(false);
+    // Down on the snow the key is the jump again.
+    step(m, true, true);
+    const landed = step(m, true, false);
+    expect(landed.trick).toBe(false);
+    expect(landed.jump).toBe(true);
   });
 });

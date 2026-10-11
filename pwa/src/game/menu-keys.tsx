@@ -25,7 +25,11 @@
 // under their own heading: flying it is another game on the same keyboard,
 // read only while he sits on the skid, so a key may serve the skier and the
 // helicopter both without a clash. So has THE JUMP PLANE
-// (`settings-plane-keys.ts`), read only while he stands in its door.
+// (`settings-plane-keys.ts`), read only while he stands in its door. And so
+// has every MACHINE the skier works through his own controls
+// (`settings-ride-keys.ts`) — the snowmobile, the piste machine, the
+// paramotor, the skydive and the balloon — each its section of the skier's
+// six controls under the names they have on that machine.
 //
 // A KEY MAY SERVE TWO ACTIONS, and the manager applies every action a code
 // carries — but a key quietly doing two jobs is the one thing this page must
@@ -58,7 +62,25 @@ import {
   planeClashesWith,
   type PlaneAction,
 } from "./settings-plane-keys.ts";
+import {
+  RIDE_MACHINES,
+  RIDE_TABLES,
+  bindRideKey,
+  freshRideKeys,
+  rideClashesWith,
+  type RideAction,
+  type RideMachine,
+} from "./settings-ride-keys.ts";
 import { STRINGS } from "./strings.ts";
+
+/** The note under a machine's rows: what its controls do besides. */
+const RIDE_NOTES: Record<RideMachine, string> = {
+  sled: STRINGS.sledKeysNote,
+  groomer: STRINGS.groomerKeysNote,
+  para: STRINGS.paraKeysNote,
+  chute: STRINGS.chuteKeysNote,
+  balloon: STRINGS.balloonKeysNote,
+};
 
 /** What each action is called, for the note on a row that shares its key. */
 const LABELS = new Map(KEY_ACTIONS.map((entry) => [entry.id, entry.label]));
@@ -70,7 +92,8 @@ const PLANE_LABELS = new Map(PLANE_KEY_ACTIONS.map((entry) => [entry.id, entry.l
 type Listening =
   | { table: "ski"; id: KeyAction }
   | { table: "heli"; id: HeliAction }
-  | { table: "plane"; id: PlaneAction };
+  | { table: "plane"; id: PlaneAction }
+  | { table: "ride"; machine: RideMachine; id: RideAction };
 
 export function KeysPage({
   settings,
@@ -101,6 +124,11 @@ export function KeysPage({
       if (e.code === "Escape") return;
       if (listening.table === "ski")
         onSettings({ ...settings, keys: bindKey(settings.keys, listening.id, e.code) });
+      else if (listening.table === "ride")
+        onSettings({
+          ...settings,
+          rideKeys: bindRideKey(settings.rideKeys, listening.machine, listening.id, e.code),
+        });
       else if (listening.table === "plane")
         onSettings({
           ...settings,
@@ -137,7 +165,7 @@ export function KeysPage({
                 hint={
                   clash.length > 0
                     ? STRINGS.keysClashHint(entry.label, others)
-                    : STRINGS.keysRowHint(entry.label)
+                    : `${STRINGS.keysRowHint(entry.label)} ${STRINGS.keysHowTo[entry.id] ?? ""}`.trim()
                 }
                 // A second press on a row that is already listening is how a
                 // player who changed their mind says so, with no key bound.
@@ -202,18 +230,46 @@ export function KeysPage({
             );
           })}
         </div>
-        {/* ...and out of its door the skier's own keys fly the skydive. */}
-        <h3 class="knob-section">{STRINGS.keysChuteTitle}</h3>
-        <p class="knob-note">{STRINGS.chuteKeysNote}</p>
-        {/* THE SNOWMOBILE has no table of its own: the skier's keys ride it. */}
-        <h3 class="knob-section">{STRINGS.keysSledTitle}</h3>
-        <p class="knob-note">{STRINGS.sledKeysNote}</p>
-        {/* ...and neither has the paramotor: the same keys fly the wing. */}
-        <h3 class="knob-section">{STRINGS.keysParaTitle}</h3>
-        <p class="knob-note">{STRINGS.paraKeysNote}</p>
-        {/* ...nor the balloon: the same keys burn, vent and walk the basket. */}
-        <h3 class="knob-section">{STRINGS.keysBalloonTitle}</h3>
-        <p class="knob-note">{STRINGS.balloonKeysNote}</p>
+        {/* THE MACHINES the skier works through his own controls, each a
+          table of its own (`settings-ride-keys.ts`). */}
+        {RIDE_MACHINES.map((machine) => {
+          const table = RIDE_TABLES[machine];
+          const labels = new Map(table.rows.map((row) => [row.id, row.label]));
+          return (
+            <div key={machine}>
+              <h3 class="knob-section">{table.title}</h3>
+              <div class="knob-binds">
+                {table.rows.map((entry) => {
+                  const clash = rideClashesWith(settings.rideKeys, machine, entry.id);
+                  const others = clash.map((id) => labels.get(id) ?? id).join(", ");
+                  const on =
+                    listening?.table === "ride" &&
+                    listening.machine === machine &&
+                    listening.id === entry.id;
+                  return (
+                    <BindRow
+                      key={entry.id}
+                      label={entry.label}
+                      bound={boundLabel(settings.rideKeys[machine][entry.id] ?? [])}
+                      listening={on}
+                      clash={clash.length > 0 ? `${STRINGS.keysClash} ${others}` : null}
+                      hint={
+                        clash.length > 0
+                          ? STRINGS.keysClashHint(entry.label, others)
+                          : STRINGS.keysRowHint(entry.label)
+                      }
+                      onListen={() =>
+                        setListening(on ? null : { table: "ride", machine, id: entry.id })
+                      }
+                      onHint={setHint}
+                    />
+                  );
+                })}
+              </div>
+              <p class="knob-note">{RIDE_NOTES[machine]}</p>
+            </div>
+          );
+        })}
         {/* The page's own restore: a skier who has made a mess of the keys
           wants the keys back, not the whole options page thrown away. */}
         <button
@@ -225,6 +281,7 @@ export function KeysPage({
               keys: freshKeys(),
               heliKeys: freshHeliKeys(),
               planeKeys: freshPlaneKeys(),
+              rideKeys: freshRideKeys(),
             })
           }
         >

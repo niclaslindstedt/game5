@@ -75,6 +75,7 @@ import { createBoardingRings } from "./boarding-rings.ts";
 import { createCabins } from "./cabins-view.ts";
 import { liftFade } from "./camera-lift.ts";
 import { createOwnCabin } from "./own-cabin.ts";
+import { BOARD_TOW } from "./board-lift.ts";
 import { CHAIR_SEAT, TOW } from "./skier-seat.ts";
 import {
   LIFT_PAINT,
@@ -165,7 +166,9 @@ export type Lifts = {
    * player on a lift (`SkierState.lift`, drawn at `drawn`), his own cabin
    * or T-bar where he is drawn — a chair he sits in is the clock's, as
    * every chair is. `others` are the keen skiers on lifts, `crowd` the
-   * ski area's amateurs (`GameState.crowd`), whose T-bars are held. */
+   * ski area's amateurs (`GameState.crowd`), whose T-bars are held;
+   * `board` when the player rides a snowboard, towed side-on with his bar
+   * behind his front thigh (`board-lift.ts`'s `BOARD_TOW`). */
   update(
     t: number,
     rider?: LiftRide | null,
@@ -173,6 +176,7 @@ export type Lifts = {
     eye?: THREE.Vector3,
     others?: readonly SeatedRider[],
     crowd?: readonly { mode: string; lift: number; carrier: number }[],
+    board?: boolean,
   ): void;
   /** The SPRAY row's share (`SPRAY_SHARE`): the tunnels' blown snow. */
   setBudget(share: number): void;
@@ -796,7 +800,7 @@ export function createLifts(
 
   const inCabin: { index: number; u: number }[] = [];
   const holds = new Map<number, Hold>();
-  done.update = (t, rider, drawn, eye, others = [], crowd = []) => {
+  done.update = (t, rider, drawn, eye, others = [], crowd = [], board = false) => {
     tunnels.update(t);
     if (eye) {
       houses.update(eye);
@@ -829,10 +833,9 @@ export function createLifts(
       // His bar across the backs of his thighs under his seat, in his own
       // frame (`TOW`), its stem to his left; the box on the rope at the
       // grip ahead of him, the cord from it down to the stem's eye.
-      bar
-        .set(-TUNING.lift.tee, TOW.hips.y + TOW.bar.y, TOW.hips.z + TOW.bar.z)
-        .applyQuaternion(riderQ)
-        .add(at.set(drawn.x, drawn.y, drawn.z));
+      if (board) bar.set(-TUNING.lift.tee, BOARD_TOW.y, BOARD_TOW.z);
+      else bar.set(-TUNING.lift.tee, TOW.hips.y + TOW.bar.y, TOW.hips.z + TOW.bar.z);
+      bar.applyQuaternion(riderQ).add(at.set(drawn.x, drawn.y, drawn.z));
       eyeOf.set(0, 0.6, 0).applyQuaternion(riderQ).add(bar);
       const g = carrierAt(towed, carried!.carrier!, t);
       grip.copy(onRope(towed, g.u, 0, ropeAt(towed, g.u)));

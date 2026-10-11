@@ -45,7 +45,7 @@ import { rotate, type Level, type SkierState, type Wind } from "@engine";
 
 import { LAMP_GLSL, LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
-import { skiShares } from "./ski-stand.ts";
+import { skiShares, stationOf } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import {
   flyPuff,
@@ -572,7 +572,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       // outside one, two thirds of his weight and more in a turn — the
       // wall rises off its boot, and each ski's sheet goes by its share.
       skiShares(skier, shares);
-      const lead = skier.contacts[(shares[0] >= shares[1] ? 0 : 3) + 1];
+      const lead = stationOf(skier.contacts, shares[0] >= shares[1] ? 0 : 1, 1);
       const under = rotate(skier.q, { x: 0, y: -skier.spec.cogHeight, z: 0 });
       const on = lead?.touching === true;
       const ux = on ? lead.x : skier.x + under.x;
@@ -616,8 +616,8 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       // THE SKIS: the sheet off a carve, the bow wave of a buried tip.
       const carve = carveOf(drive);
       for (let k = 0; k < 2; k++) {
-        const tip = skier.contacts[k * 3];
-        const mid = skier.contacts[k * 3 + 1];
+        const tip = stationOf(skier.contacts, k, 0);
+        const mid = stationOf(skier.contacts, k, 1);
         if (!mid || !mid.touching) continue;
         skiCloud(carve, tip?.touching ? tip.sink : 0, snowAt(mid.x, mid.z), ski, drive.speed);
         owed[1 + k] += ski.rate * dt * share * 2 * shares[k];

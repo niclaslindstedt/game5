@@ -62,7 +62,9 @@ export function AfterskiReadout({
   if (afterski.kind === "town") {
     return (
       <div class="hud-afterski hud-afterski-fetch" role="status">
-        <span class="hud-afterski-word">{STRINGS.townWord}</span>
+        <span class="hud-afterski-word">
+          {afterski.board ? STRINGS.townBoardWord : STRINGS.townWord}
+        </span>
         <span class="hud-afterski-sub">
           {afterski.walking ? STRINGS.townHint : STRINGS.townBusy}
         </span>

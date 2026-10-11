@@ -311,8 +311,21 @@ const SURFACES = {
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
+  // ...and on the snowboard, the rack's last pair where a run lets a free
+  // pick of pair (the park run here, as the free ride).
+  "skis-board": {
+    params: { menu: "skis", mode: "tricks", skis: "lynx" },
+    wait: ".skis-pick-canvas",
+    settle: 1800,
+  },
   // THE DRESS CARD: the skier on the same stand, framed on him.
   dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
+  // ...and dressing a snowboarder: no poles row.
+  "dress-board": {
+    params: { menu: "dress", mode: "tricks", skis: "lynx" },
+    wait: ".dress-stage canvas",
+    settle: 1800,
+  },
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map
   // generated in a worker — has landed on it.
   start: { params: { menu: "start" }, wait: ".seed-preview-map image", settle: 700 },

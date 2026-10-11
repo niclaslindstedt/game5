@@ -39,7 +39,9 @@
 // DOM-free: `tests/ski_card_test.ts` reads it on plain Node.
 
 import {
+  BOARD_CATALOG,
   SKI_CATALOG,
+  isBoard,
   carveCurvature,
   cornerGrip,
   edgeLockAt,
@@ -198,12 +200,21 @@ export type SkisBar = {
   value: number;
 };
 
-/** Where every bar of one pair sits against the rest of the roster. */
+/** Where every bar of one pair sits against the rest of the roster. A
+ * snowboard is read against the skis with itself among them, so it is
+ * billed on the skis' own scale and no pair of skis' bar moves for it. */
+/** THE RACK the ski card's arrows step through the arrows step through: the skis, and the boards after them
+ * when they are offered (`settings.ts`'s `boardAllowed`). */
+export function rackOf(boards: boolean): readonly SkiSpec[] {
+  return boards ? [...SKI_CATALOG, ...BOARD_CATALOG] : SKI_CATALOG;
+}
+
 export function skisBars(spec: SkiSpec): SkisBar[] {
-  const at = SKI_CATALOG.findIndex((s) => s.id === spec.id);
+  const roster = isBoard(spec) ? [...SKI_CATALOG, spec] : SKI_CATALOG;
+  const at = roster.findIndex((s) => s.id === spec.id);
   return BARS.map((bar) => {
-    const per = bar.axes.map((axis) => ranks(SKI_CATALOG.map(axis)));
-    const mean = SKI_CATALOG.map((_, i) => per.reduce((sum, p) => sum + p[i], 0) / per.length);
+    const per = bar.axes.map((axis) => ranks(roster.map(axis)));
+    const mean = roster.map((_, i) => per.reduce((sum, p) => sum + p[i], 0) / per.length);
     // A pair off the roster (a test's own spec) is read as the reference.
     const share = shares(mean)[at < 0 ? 0 : at];
     return {
@@ -231,12 +242,34 @@ export type SkisFact = {
  * m, the pair's weight with its bindings, boots and poles, and the top speed
  * the physics is held to. */
 export function skisFacts(spec: SkiSpec): SkisFact[] {
+  if (spec.board) return boardFacts(spec);
   const F = STRINGS.skisFacts;
   const U = STRINGS.skisUnits;
   return [
     { key: "length", label: F.length, value: spec.length * 100, places: 0, unit: U.cm },
     { key: "waist", label: F.waist, value: spec.waist * 1000, places: 0, unit: U.mm },
     { key: "sidecut", label: F.sidecut, value: spec.sidecut, places: 0, unit: U.metres },
+    { key: "weight", label: F.weight, value: spec.gearMass, places: 1, unit: U.kg },
+    { key: "top", label: F.top, value: spec.topSpeed, places: 0, unit: U.speed },
+  ];
+}
+
+/** A SNOWBOARD'S hard numbers: the length, the waist, the sidecut, the
+ * stance (binding centre to centre), each binding's angle off the line
+ * across the board (positive toward the nose), the board, bindings and
+ * boots' weight and its top speed — no pole reach, as there are no poles. */
+function boardFacts(spec: SkiSpec): SkisFact[] {
+  const b = spec.board!;
+  const F = STRINGS.boardFacts;
+  const U = STRINGS.skisUnits;
+  const deg = (a: number): number => (a * 180) / Math.PI;
+  return [
+    { key: "length", label: F.length, value: spec.length * 100, places: 0, unit: U.cm },
+    { key: "waist", label: F.waist, value: spec.waist * 1000, places: 0, unit: U.mm },
+    { key: "sidecut", label: F.sidecut, value: spec.sidecut, places: 1, unit: U.metres },
+    { key: "stance", label: F.stance, value: b.stance * 100, places: 0, unit: U.cm },
+    { key: "front", label: F.front, value: deg(b.front), places: 0, unit: U.degrees },
+    { key: "back", label: F.back, value: deg(b.back), places: 0, unit: U.degrees },
     { key: "weight", label: F.weight, value: spec.gearMass, places: 1, unit: U.kg },
     { key: "top", label: F.top, value: spec.topSpeed, places: 0, unit: U.speed },
   ];

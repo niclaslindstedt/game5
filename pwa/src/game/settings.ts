@@ -21,12 +21,15 @@ import {
   AERIALS,
   SKIS,
   isAerialCode,
-  isSkiId,
+  isBoardId,
+  isPairId,
+  pairById,
+  raceSkisOf,
   riderById,
-  skisById,
   withRider,
   type Assist,
-  type SkiId,
+  type GameMode,
+  type PairId,
   type SkiSpec,
 } from "@engine";
 
@@ -95,8 +98,10 @@ export function assistOf(assist: AssistSettings): Assist {
 export type Settings = {
   /** The run's camera rung (`RUN_CAMERAS`). */
   camera: CameraRung;
-  /** The pair the player skis on (`SKI_CATALOG`). */
-  skis: SkiId;
+  /** The pair the player rides (`SKI_CATALOG`), or his snowboard
+   * (`BOARD_CATALOG`) — a board only where a run lets a free choice of pair
+   * (`boardAllowed`). */
+  skis: PairId;
   /** What the skier wears (`outfit.ts`): a body, a jacket, pants, a
    * helmet, gloves and poles, each sold in its own colours — picked on the
    * DRESS card. */
@@ -257,7 +262,7 @@ export function mergeSettings(parsed: unknown): Settings {
   if (typeof blob.camera === "string" && RUN_CAMERAS.includes(blob.camera as CameraRung)) {
     out.camera = blob.camera as CameraRung;
   }
-  if (typeof blob.skis === "string" && isSkiId(blob.skis)) out.skis = blob.skis;
+  if (typeof blob.skis === "string" && isPairId(blob.skis)) out.skis = blob.skis;
   out.outfit = outfitOf(blob.outfit);
   if (typeof blob.sound === "boolean") out.sound = blob.sound;
   const audio = record(blob.audio);
@@ -323,9 +328,21 @@ export function saveSettings(settings: Settings): void {
   }
 }
 
-/** THE PAIR THE PLAYER SKIS: the one the ski card holds (or `link`'s, a
+/** WHETHER A RUN OF `mode` MAY BE RIDDEN ON A SNOWBOARD: a free choice of
+ * pair is a run whose mode deals none of its own — the free ride and the
+ * park TRICKS run (and the labs' time trial). A race discipline and a
+ * freestyle contest are raced on their own skis (`raceSkisOf`). */
+export function boardAllowed(mode: GameMode): boolean {
+  return raceSkisOf(mode) === null;
+}
+
+/** THE PAIR THE PLAYER RIDES: the one the ski card holds (or `link`'s, a
  * link's pair for this visit), under the build the DRESS card gives the
- * skier (`Outfit.weight`, `defs/riders.ts`). */
-export function specFor(s: Settings, link: SkiId | null = null): SkiSpec {
-  return withRider(skisById(link ?? s.skis), riderById(s.outfit.weight));
+ * skier (`Outfit.weight`, `defs/riders.ts`) — and for a run of `mode` that
+ * takes no board, its own pair (the all-mountain ski when it names none)
+ * in place of a board picked for a free ride. */
+export function specFor(s: Settings, link: PairId | null = null, mode?: GameMode): SkiSpec {
+  let id: PairId = link ?? s.skis;
+  if (mode !== undefined && isBoardId(id) && !boardAllowed(mode)) id = raceSkisOf(mode) ?? SKIS.id;
+  return withRider(pairById(id), riderById(s.outfit.weight));
 }

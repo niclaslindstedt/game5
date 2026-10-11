@@ -104,8 +104,14 @@ function offAt(plan: LiftPlan): number {
 export function stepLift(run: GameState, input: SkierInput, events: GameEvent[]): boolean {
   const c = run.skier;
   const ride = c.lift;
+  // ON A BOARD the rear foot is out of its binding from the load zone to
+  // the top — never ridden up strapped in — and stays out once the lift
+  // lets him go, until he is going fast enough to strap back in clear of
+  // the unload (`board-moves.ts`'s `strideOn`).
+  if (c.board && ride) c.board.free = true;
   if (!ride) {
     if (run.rules.lifts) boardLift(run, events);
+    if (c.board && c.lift) c.board.free = true;
     return c.lift !== null;
   }
   const plan = liftPlans(run.level)[ride.index];

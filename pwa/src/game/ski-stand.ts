@@ -97,19 +97,36 @@ export function turnOf(skier: Pick<SkierState, "edge" | "speed" | "airborne">): 
   return Math.sign(skier.edge) * over * smooth(TURN.still, TURN.moving, skier.speed);
 }
 
+/** A SKI'S STATION by its place (0 the tip, 1 the middle under the boot,
+ * 2 the tail) on ski `k` (0 the left): a pair's six stations three a ski;
+ * a SNOWBOARD'S four in one column down its deck (`suspension.ts`'s
+ * `BOARD_STATIONS`: the nose, under the front foot, under the rear foot,
+ * the tail), read as the front foot's "ski" (the nose, the front binding)
+ * and the rear foot's (the rear binding, the tail). */
+export function stationOf<T>(contacts: readonly T[], k: number, at: 0 | 1 | 2): T | undefined {
+  if (contacts.length === 4) return contacts[BOARD_AT[k]?.[at] ?? 0];
+  return contacts[k * 3 + at];
+}
+const BOARD_AT: readonly (readonly [number, number, number])[] = [
+  [0, 1, 1],
+  [2, 2, 3],
+];
+
 /** Each ski's share of the load, left then right, into `out`: the turn's
  * split laid over the engine's own two loads (each ski's three stations
- * summed). Both 0 with nothing on the snow. */
+ * summed — a board's by the foot over them). Both 0 with nothing on the
+ * snow. */
 export function skiShares(
   skier: Pick<SkierState, "edge" | "speed" | "airborne" | "contacts">,
   out: [number, number] = [0.5, 0.5],
 ): [number, number] {
   let left = 0;
   let right = 0;
+  const half = skier.contacts.length / 2;
   for (let i = 0; i < skier.contacts.length; i++) {
     const c = skier.contacts[i];
     if (!c.touching) continue;
-    if (i < 3) left += c.load;
+    if (i < half) left += c.load;
     else right += c.load;
   }
   const turn = turnOf(skier);

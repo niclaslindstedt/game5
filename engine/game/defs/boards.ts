@@ -22,9 +22,11 @@
 // the board-sizing and stance charts and the carving and wind-tunnel
 // literature gathered in the project's snowboard research.
 //
-// Nothing here is on the ski card or dealt to a start line: `SKI_CATALOG`
-// is the skis alone, and a board is ridden only where a run asks for one by
-// its id (`pairById`) — the labs and the suite, until it has a figure.
+// `SKI_CATALOG` is the skis alone and no board is dealt to a start line: a
+// board is ridden where a run asks for one by its id (`pairById`) — the
+// player's pick on the ski card where a run lets a free choice of pair (the
+// free ride and the park run; the app's `boardAllowed`), the labs and the
+// suite.
 
 import { SKIS, isSkiId, skisById, type BoardId, type PairId, type SkiSpec } from "./skis.ts";
 

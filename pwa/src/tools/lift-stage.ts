@@ -33,7 +33,17 @@ import {
   type GameState,
   type LiftKind,
   type RegionId,
+  type SkiSpec,
 } from "@engine";
+
+/** The pair every stage is stood up on — the reference skis unless a lab
+ * asks for another (`--skis=lynx`, the snowboard). */
+let stagePair: SkiSpec | undefined;
+
+/** Stand every stage after this on `spec` (undefined: the reference pair). */
+export function setStagePair(spec: SkiSpec | undefined): void {
+  stagePair = spec;
+}
 
 export type StageId =
   "chair-load" | "chair-unload" | "tbar-pick" | "tbar-release" | "gondola-in" | "gondola-out";
@@ -74,6 +84,7 @@ export function atFoot(
     mode: "free",
     quiet: true,
     ...(crowd !== undefined ? { crowd } : {}),
+    ...(stagePair ? { spec: stagePair } : {}),
   });
   const plan = liftPlans(state.level).find((p) => p.lift.kind === kind);
   if (!plan) return null;
@@ -116,6 +127,7 @@ export function onLift(
     run: run.id,
     quiet: true,
     ...(crowd !== undefined ? { crowd } : {}),
+    ...(stagePair ? { spec: stagePair } : {}),
   });
   return state.skier.lift?.kind === kind ? state : null;
 }

@@ -69,7 +69,7 @@ import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
 import { skyLookAt } from "./sky.ts";
 import { crossOf, type CrossHud } from "./ski-cross-run.ts";
-import { bigAirOf, type BigAirHud } from "./big-air-run.ts";
+import { skiJumpOf, type SkiJumpHud } from "./ski-jump-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
 import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
@@ -253,10 +253,10 @@ export type HudSnapshot = {
    * gate's commands, the heat's order and what comes next — null on any
    * other run. */
   cross: CrossHud | null;
-  /** A BIG AIR jump's readouts (`big-air-run.ts`) — its phase and number,
-   * the panel's score once judged, the board and what comes next — null on
-   * any other run. */
-  bigAir: BigAirHud | null;
+  /** A SKI JUMP's readouts (`ski-jump-run.ts`) — the bar's light, wind,
+   * gate and leader, the moment's reading, the jump scored once it is
+   * over, the board and what comes next — null on any other run. */
+  skiJump: SkiJumpHud | null;
   /** A SLOPESTYLE run (`slopestyle-run.ts`) — its phase and run, the
    * section he is in, and once judged the sheet, the board and what comes
    * next; null on any other run. */
@@ -719,7 +719,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   // the start clock's, and its word the small one at the top — and a ski
   // cross's heat has the start gate's commands and no count at all.
   const cross = crossOf(state);
-  const lights = state.rules.countdown > 0 && !race && !state.cross;
+  const lights = state.rules.countdown > 0 && !race && !state.cross && !state.jump;
   const aloft = balloonAboard(state) || aloftInPlane(state);
   return {
     speedKmh: c.speed * 3.6,
@@ -762,7 +762,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     standings: p.finished ? standingsOf(state) : null,
     race,
     cross,
-    bigAir: bigAirOf(state),
+    skiJump: skiJumpOf(state),
     slopestyle: slopestyleOf(state),
     halfpipe: halfpipeOf(state),
     moguls: mogulsOf(state),

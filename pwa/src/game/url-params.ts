@@ -16,8 +16,11 @@
 //   ?start=speedski ...or into a SPEED RACE's qualification on its track.
 //   ?start=skicross ...or into a SKI CROSS's qualification (`run=2` its
 //                   first heat, four out of the start gate).
-//   ?start=bigair   ...or into a BIG AIR contest's first jump (`run=2` the
-//                   next jump, off the first jumped by the bot).
+//   ?start=skijump  ...or into a SKI JUMPING contest's first jump, sat on
+//                   the bar (`round=1` round 1, the trial skipped;
+//                   `run=2` the next round, off the bot's jump; `gate=<n>`
+//                   the gate of that number over the jury's;
+//                   `hill=normal` the normal hill).
 //   ?start=slopestyle ...or into a SLOPESTYLE contest's first run (`run=2`
 //                   the next run, off the first skied by the bot).
 //   ?start=halfpipe ...or into a HALFPIPE contest's first run (`run=2`
@@ -58,8 +61,9 @@
 //                   slalom; ?mode=downhill, a DOWNHILL;
 //                   ?mode=superg, a SUPER-G; ?mode=gs, a GIANT SLALOM;
 //                   ?mode=speedski, a SPEED RACE;
-//                   ?mode=skicross, a SKI CROSS; ?mode=bigair, a BIG AIR
-//                   contest's first jump, built over the seed's map;
+//                   ?mode=skicross, a SKI CROSS; ?mode=skijump, a SKI
+//                   JUMPING contest's first jump, its hill built over the
+//                   seed's map;
 //                   ?mode=slopestyle, a SLOPESTYLE contest's first run,
 //                   its course built over the seed's map;
 //                   ?mode=halfpipe, a HALFPIPE contest's first run, its
@@ -280,6 +284,15 @@ export type UrlParams = {
   /** The jump an AERIALS link's first jump declares (`?plan=bLF`), or null
    * for the contest's own. */
   plan: string | null;
+  /** The gate a SKI JUMP link's jumper sits on (`?gate=<n>`, its number),
+   * or null for the jury's. */
+  gate: number | null;
+  /** The round a SKI JUMPING link's contest begins at (`?round=1`, the
+   * trial skipped), or null for its trial. */
+  round: "first" | null;
+  /** The hill a SKI JUMP link is jumped on (`?hill=normal`), or null for
+   * the contest's own (the large hill). */
+  hill: "large" | "normal" | null;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
   /** A free ride begun under the paramotor, over the card's RUN row. */
@@ -376,7 +389,7 @@ export function readParams(search: string): UrlParams {
       start === "gs" ||
       start === "speedski" ||
       start === "skicross" ||
-      start === "bigair" ||
+      start === "skijump" ||
       start === "slopestyle" ||
       start === "halfpipe" ||
       start === "moguls" ||
@@ -417,8 +430,8 @@ export function readParams(search: string): UrlParams {
                   ? "skiCross"
                   : q.get("mode") === "tricks"
                     ? "tricks"
-                    : start === "bigair" || q.get("mode") === "bigair"
-                      ? "bigAir"
+                    : start === "skijump" || q.get("mode") === "skijump"
+                      ? "skiJump"
                       : start === "slopestyle" || q.get("mode") === "slopestyle"
                         ? "slopestyle"
                         : start === "halfpipe" || q.get("mode") === "halfpipe"
@@ -442,6 +455,9 @@ export function readParams(search: string): UrlParams {
     face: realFaceRegion(q.get("face") ?? "") ? q.get("face") : null,
     grade: isRunGrade(q.get("grade")) ? (q.get("grade") as RunGrade) : null,
     plan: isAerialCode(q.get("plan")) ? q.get("plan") : null,
+    gate: gateOf(q.get("gate")),
+    round: q.get("round") === "1" ? "first" : null,
+    hill: q.get("hill") === "normal" ? "normal" : q.get("hill") === "large" ? "large" : null,
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
     balloon: q.get("balloon") === "1",
@@ -459,12 +475,21 @@ export function readParams(search: string): UrlParams {
   };
 }
 
+/** A gate's number off a link: a whole number from 1. */
+function gateOf(raw: string | null): number | null {
+  const n = Number(raw);
+  return raw !== null && Number.isInteger(n) && n >= 1 && n <= 99 ? n : null;
+}
+
 /** WHAT A LINK SAYS ABOUT THE WORLD a seed's run is stood up in: its sky,
  * its region and its grade, as options `createGame` takes — nothing where it
  * names none. */
-export function linkWorld(
-  params: UrlParams,
-): Pick<CreateGameOptions, "sky" | "region" | "face" | "grade" | "plan"> {
+export function linkWorld(params: UrlParams): Pick<
+  CreateGameOptions,
+  "sky" | "region" | "face" | "grade" | "plan" | "gate" | "hill"
+> & {
+  round?: "first";
+} {
   return {
     sky: params.sky ?? undefined,
     region: params.region ?? undefined,
@@ -472,6 +497,11 @@ export function linkWorld(
     grade: params.grade ?? undefined,
     // An aerials link's declared jump (the other modes declare none).
     plan: params.plan ?? undefined,
+    // A ski jump link's gate (an index, 0 the lowest; the others sit on none).
+    gate: params.gate === null ? undefined : params.gate - 1,
+    hill: params.hill ?? undefined,
+    // ...and the round its contest begins at.
+    ...(params.round ? { round: params.round } : {}),
   };
 }
 

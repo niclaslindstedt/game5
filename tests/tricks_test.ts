@@ -376,7 +376,6 @@ describe("the tricks run", () => {
       expect(rules.stunts).toBe(
         mode === "free" ||
           mode === "tricks" ||
-          mode === "bigAir" ||
           mode === "slopestyle" ||
           mode === "halfpipe" ||
           mode === "moguls",

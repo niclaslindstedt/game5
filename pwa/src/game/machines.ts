@@ -42,7 +42,8 @@ import {
   underCanopy,
   underWing,
 } from "./camera-para.ts";
-import { createChuteScene, rigWorn, type ChuteScene } from "./chute-scene.ts";
+import { createChuteScene, type ChuteScene } from "./chute-scene.ts";
+import { rigWorn } from "./chute-rig-plan.ts";
 import { createSkydiveCam, skydiveFramed, skydiveLens } from "./camera-skydive.ts";
 import { colourwayOf, suitOf } from "./wingsuit-look.ts";
 import { createWingsuitCam, wingsuitFramed, wingsuitLens } from "./camera-wingsuit.ts";

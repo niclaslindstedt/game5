@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // A FREESTYLE CONTEST'S BOARD ON THE PLATE — which of the phase's rows the
-// plate has room for. DOM-free: big air, slopestyle, the halfpipe, moguls
+// plate has room for. DOM-free: ski jumping, slopestyle, the halfpipe, moguls
 // and aerials all cut their board here, and `hud-contest-board.tsx` draws
 // it with a gap row wherever the places skip.
 //
@@ -29,7 +29,7 @@ export function boardWindow<R extends { you: boolean }>(rows: R[], size = BOARD_
  * drawn under a plate this full they read through it as clutter. */
 export function contestPlateUp(snap: HudSnapshot | null): boolean {
   return Boolean(
-    snap?.bigAir?.judged ||
+    snap?.skiJump?.judged ||
     snap?.slopestyle?.judged ||
     snap?.halfpipe?.judged ||
     snap?.moguls?.judged ||

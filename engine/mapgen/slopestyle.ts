@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // R38 — A SLOPESTYLE COURSE BUILT OVER A BUILT MAP. A line of its own cut
-// straight down the face, as R37's jump is (`straight-venue.ts`): a start
+// straight down the face, as R37 states (`straight-venue.ts`): a start
 // platform, then SIX SECTIONS in a row — three RAIL sections, each a deck
 // at a gentle pitch with a rail and a box side by side on it, the two
 // LINES a skier picks between, and three JUMPS sized up the ladder, each
@@ -13,7 +13,7 @@
 // a level run that long to bleed a landing's speed off) so the rule's
 // skier arrives at its design speed: stood up at a rail section's jibs,
 // tucked off a jump's lip. The skier is a point mass down the profile
-// itself, as R37's drop-in is sized, with the compressions' cost measured
+// itself, as R37 sizes an in-run, with the compressions' cost measured
 // off the engine's skier. Every section's approach is found with the ones
 // before it already fixed, so the course is the same on every map: only
 // WHERE it stands is the map's.
@@ -157,7 +157,7 @@ function draw(ps: readonly number[]): { pen: Pen; p: SlopeProfile; marks: Mark[]
 
 /** THE SPEED the rule's skier carries from the start gate to `to` m of
  * plan down `p` — stood up, and tucked down every approach to a jump
- * (`marks`) — off the same point mass as R37's drop-in. */
+ * (`marks`) — off the same point mass as R37's in-run. */
 export function courseSpeed(p: SlopeProfile, marks: readonly Mark[], to: number): number {
   const S = R.skier;
   const dx = p.dx;

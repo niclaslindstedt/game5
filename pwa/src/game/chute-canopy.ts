@@ -241,7 +241,33 @@ export type SkyShapeInput = {
   full?: number;
   /** The canopy drawn: the main when left out. */
   wing?: WingShape;
+  /** A LINE OVER the canopy (`ChuteState.over`): the tip it pinches, −1
+   * the left, 1 the right, 0 or left out none. */
+  pinch?: number;
 };
+
+/** Where a line over the top starts to bite into the span, |u|. */
+const PINCH_FROM = 0.4;
+
+/** A POINT PINCHED by a line over the canopy (`SkyShapeInput.pinch`): the
+ * end cells on `side` past `PINCH_FROM` drawn in toward the middle and
+ * down under the canopy — the tip a lobe hung under the line that holds
+ * it, as a line-over's bow-tie shows from below. The point at `u` in `out`
+ * at `o` moved in place, the canopy's frame (x along the span, y up). */
+export function pinchPoint(
+  u: number,
+  side: number,
+  out: Float32Array,
+  o: number,
+  w: WingShape,
+): void {
+  if (side === 0 || Math.sign(u) !== side) return;
+  const a = (Math.abs(u) - PINCH_FROM) / (1 - PINCH_FROM);
+  if (a <= 0) return;
+  const k = a * a * (3 - 2 * a);
+  out[o] *= 1 - 0.55 * k;
+  out[o + 1] -= 1.1 * w.chord * k;
+}
 
 const mean = new Float32Array(3);
 const top = new Float32Array(3);
@@ -306,6 +332,7 @@ export function shapeSkyCanopy(out: Float32Array, inp: SkyShapeInput): void {
         for (let j = 0; j < along; j++) {
           const at = (base + a * along + j) * 3;
           skyPoint(u, stationAt(j, w) * tail, side, v, drop, inf, inp.t, out, at, breath, w);
+          if (inp.pinch) pinchPoint(u, inp.pinch, out, at, w);
         }
       }
       base += across * along;
@@ -318,6 +345,9 @@ export function shapeSkyCanopy(out: Float32Array, inp: SkyShapeInput): void {
     skyPoint(u, 0.1, -1, 0, 0, inf, inp.t, out, base * 3, 0, w);
     skyPoint(u, 0.9, -1, 0, 0, inf, inp.t, out, (base + 1) * 3, 0, w);
     skyPoint(u, 0.5, -1, 0, 0, inf, inp.t, out, (base + 2) * 3, 0, w);
+    if (inp.pinch) {
+      for (let k = 0; k < 3; k++) pinchPoint(u, inp.pinch, out, (base + k) * 3, w);
+    }
     const o = (base + 2) * 3;
     const dx = -out[o];
     const dy = -skyLinesLength(w) - out[o + 1];

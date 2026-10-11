@@ -25,6 +25,8 @@
 //     down its sides; over a lift's rope, folded over the rope like a sheet on a
 //     line, both halves hanging.
 
+import type { GameState } from "@engine";
+
 /** A point, m. */
 export type P3 = { x: number; y: number; z: number };
 
@@ -263,4 +265,13 @@ export function ropeDrape(p: P3, snag: P3, dir: P3, out: Float32Array | number[]
   out[o] = snag.x + dir.x * along + cx * side * fold;
   out[o + 1] = snag.y + dir.y * along - drop * 0.93 - 0.03 * along * along;
   out[o + 2] = snag.z + dir.z * along + cz * side * fold;
+}
+
+/** WHETHER HE WEARS THE RIG: in the skydive, and on every ride in the air
+ * he could jump from with it (`craftFreefall`) — in the plane's door, on
+ * the helicopter's skid, a balloon ride and a paramotor ride whole. */
+export function rigWorn(state: GameState): boolean {
+  return (
+    !!state.chute || !!state.plane?.rider || !!state.heli?.rider || !!state.balloon || !!state.para
+  );
 }

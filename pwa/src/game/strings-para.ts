@@ -22,6 +22,10 @@ export const PARA_STRINGS = {
   newsParaLoop: "LOOP!",
   /** The lines gone slack and the pilot fallen into his own wing. */
   newsParaTangle: "IN THE WING! CUT IT AWAY",
+  newsParaCravat: "CRAVAT! PUMP THE BRAKES HARD",
+  newsParaFreed: "TIP OUT! FLYING",
+  newsParaTwist: "LINE TWISTS! KICK OUT",
+  newsParaUntwist: "TWISTS OUT",
 
   /* ── THE HUD (hud-para.tsx) ────────────────────────────────────────── */
   paraAlt: "ALT",

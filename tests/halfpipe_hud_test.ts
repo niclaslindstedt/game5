@@ -33,7 +33,7 @@ describe("the halfpipe on the HUD and the plate", () => {
   });
 
   it("is null on any other run", () => {
-    expect(halfpipeOf(createGame({ seed: 4, mode: "bigAir", quiet: true }))).toBeNull();
+    expect(halfpipeOf(createGame({ seed: 4, mode: "slopestyle", quiet: true }))).toBeNull();
   });
 
   it("judges a finished run, boards it and offers the next run", () => {

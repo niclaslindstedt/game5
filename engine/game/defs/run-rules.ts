@@ -125,16 +125,15 @@ export type RunRules = {
   jury?: Jury;
   /** THE MOST A FLIGHT'S STROKES MAY OWE on each axis, rad (`strokes.ts`):
    * a contest's ceilings over the arcade's (`TUNING.tricks.spinMost` and
-   * `.flipMost`, a 720 and a double) — big air's 2160 and quad. Left out,
+   * `.flipMost`, a 720 and a double) — slopestyle's 1800 and triple. Left out,
    * the arcade's. */
   spinMost?: number;
   flipMost?: number;
-  /** THE IN-RUN RIDDEN TUCKED (`in-run.ts`): on a big air jump, from the
-   * start gate to the lip, the skier holds his tuck, never brakes and
-   * never sits back, whatever is pressed — the jump is built for the speed
-   * a tucked skier carries off it, and a contest skier drops in straight,
-   * tucked and centred. The edge and the jump are his own, and in the air
-   * every control is. Left out, the controls are. */
+  /** THE IN-RUN RIDDEN TUCKED (`in-run.ts`): on an aerials site's or a
+   * ski jumping hill's in-run, from the start gate to the lip, the skier
+   * holds his tuck, never brakes and never sits back, whatever is pressed —
+   * the venue is built for the speed a tucked skier carries off it. In the
+   * air every control is his own. Left out, the controls are. */
   inRun?: boolean;
   /** THE AERIALS FLIGHT (`aerial-flight.ts`): in the air off an aerials
    * kicker (R41) the lean's taps are FLIPS turned about the take-off's
@@ -144,6 +143,10 @@ export type RunRules = {
    * twists to their flip; the strokes and the grabs are not read. Left
    * out, the air is the strokes' (`strokes.ts`). */
   aerials?: boolean;
+  /** THE SKI JUMP (R43): the hill's own jump — the in-run, the take-off,
+   * the flight and the telemark — over the strokes and the grabs, which
+   * are not read. Left out, the air is the strokes'. */
+  skiJump?: boolean;
   /** THE HOCKEY STOP (`hockey-stop.ts`): a freestyle run over — the jump
    * landed, the course run, the buzzer gone — is ridden out by throwing
    * the skis across the fall line on the brake and standing there, rather

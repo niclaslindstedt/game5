@@ -17,9 +17,23 @@ export type ParaControls = { throttle: number; brake: number; steer: number; bar
  * collapsed onto the snow or a crown and cut away (`collapse`), the wing
  * FOLDED in the air by rough air (`fold`), a whole turn of the wing round
  * him flown (`loop`), the pilot fallen INTO HIS WING (`tangle`), or the ride
- * begun again on the summit (`restart`). */
+ * begun again on the summit (`restart`) — and, dealt (`mishaps.ts`), a
+ * fold's tip caught in the lines (`cravat`) and pumped free (`freed`), and
+ * the lines twisted off the launch (`twist`) and come out (`untwist`). */
 export type ParaPhaseEvent =
-  "launch" | "takeoff" | "touch" | "drop" | "collapse" | "fold" | "loop" | "tangle" | "restart";
+  | "launch"
+  | "takeoff"
+  | "touch"
+  | "drop"
+  | "collapse"
+  | "fold"
+  | "loop"
+  | "tangle"
+  | "restart"
+  | "cravat"
+  | "freed"
+  | "twist"
+  | "untwist";
 
 /** A `para` event (`GameEvent`): where, and the pilot's speed, m/s. */
 export type ParaEvent = {
@@ -82,6 +96,14 @@ export type ParaState = {
    * 0..1, and which side — −1 the left tip, 1 the right, 0 a frontal. */
   fold: number;
   foldSide: number;
+  /** THINGS GONE WRONG (`mishaps.ts`), on a ride that asked for them —
+   * absent otherwise: a CRAVAT, the tip held in the lines after a deep side
+   * fold (−1 the left, 1 the right); the seconds since the brakes were let
+   * up, a pump being timed (−1 spent); and LINE TWISTS, rad (signed), left
+   * after the launch. */
+  cravat?: number;
+  pump?: number;
+  twist?: number;
   /** The air it flies in (`para-air.ts`): the wind's horizontal speed, its
    * rise off the slopes, m/s (ridge lift up, the lee's sink down), and how
    * rough it is (the eddies' sigma, m/s). */

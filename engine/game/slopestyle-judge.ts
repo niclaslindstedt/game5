@@ -5,7 +5,7 @@
 // THE TRICK JUDGES score each of the six sections 0–100 on what was done
 // there: a rail section on the jib ridden — the degrees onto it and off
 // it, the swaps, a press held, a rail over a box, a slide over a 50-50 —
-// and a jump section on its flight, read and marked as big air marks one
+// and a jump section on its flight, read and marked as a panel marks a jump
 // (`judge.ts`'s `impressionOf`, against the table's length). They sit as
 // three panels of two, each panel scoring two consecutive sections; with
 // fewer than six judges every mark counts, averaged and CUT to two

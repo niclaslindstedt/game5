@@ -515,7 +515,6 @@ export function setSkiCross(level: Level): Level {
     level.superG?.base ??
     level.giantSlalom?.base ??
     level.speedSki?.base ??
-    level.bigAir?.base ??
     level.slopestyle?.base ??
     level.halfpipe?.base ??
     level.moguls?.base ??

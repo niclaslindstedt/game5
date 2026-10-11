@@ -81,6 +81,14 @@ Two bodies on one line as the paramotor's wing (`canopy.ts` holds what they shar
 
 Near the map's edge the airborne bounds blow him back in and turn him toward the middle — 320 m on his body, 100 m under the canopy ([the jump plane](airplane.md#the-airborne-edge)).
 
+## Malfunctions
+
+With OPTIONS ▸ THINGS GO WRONG on (`rare` by default, `often`, or `off`), the main can open wrong (`engine/game/mishaps.ts`, its numbers `defs/mishaps.ts`'s `MISHAPS`) — at `rare` about one opening in eight, at `often` one in two — dealt off a stream of the ride's own (`GameState.mishaps`, salted by the app), so no digest moves:
+
+* **LINE TWISTS** (the commonest real malfunction, off a body turning during the opening): the lines wound one to four turns over the risers, the jumper turned under the canopy by as much, the toggles up in the twist and out of his reach. Kicked out on the edge they come out at 2.6 rad/s, on their own at 0.55; the canopy turns on its own meanwhile, by up to half a toggle. Drawn as the lines wound into a hand-thick rope over the risers (`chute-scene.ts`'s `TWIST`).
+* **A LINE OVER** (a line across the top skin): the tip it holds pinched off — half the area flying, a quarter of the lift lost, more drag and a spiral three times a full toggle that sinks him some twice as fast as a sound main. The answer is the real one: cut it away and pull the reserve. Drawn as the end cells pulled in and down under the line (`chute-canopy.ts`'s `pinchPoint`).
+* **A HARD OPENING** (the slider slammed down): the snivel cut to 6 % and the inflation to 45 % of a normal one's, so the shock is past twice a sound opening's peak — over 7 g it strikes the neck and loads the back (`body.ts`'s `hardOpening`). The canopy flies normally after it.
+
 ## The bot
 
 The bot never jumps from the door by itself, but flies the skydive once he is out (`chute-pilot.ts`): it pulls at 1,000 m over the snow (not before 2 s out, and at once below a 600 m deck), pulls the reserve at once after a cut-away, then flies the pattern a canopy pilot flies to his spot — the strip when it is within a 2.2 glide, else the piste below — on the side toward the map's middle: the downwind leg joined at 300 m, base at 150 m, final at 60 m, its steer held to 0.45 of a toggle (a holding turn, never a spiral), and a progressive flare from 3 m down to all the way at 1 m. On seed 38 it lands about 26 m from its spot. `skydiveInput` (the labs and the suite) jumps on the plane's jump run.

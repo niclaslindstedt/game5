@@ -204,6 +204,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
           tone: "good",
         };
       if (e.phase === "crash") return { text: STRINGS.newsHeliCrash, tone: "bad" };
+      // The turbine stopped: down the collective, into autorotation.
+      if (e.phase === "engine") return { text: STRINGS.newsHeliEngine, tone: "bad" };
       // The blades through him: said once, on the first.
       if (e.phase === "rotor")
         return e.t === state.heli?.bladed ? { text: STRINGS.newsHeliRotor, tone: "bad" } : null;
@@ -244,6 +246,11 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "fold") return { text: STRINGS.newsParaFold, tone: "bad" };
       if (e.phase === "loop") return { text: STRINGS.newsParaLoop, tone: "good" };
       if (e.phase === "tangle") return { text: STRINGS.newsParaTangle, tone: "bad" };
+      // A tip caught in the lines, pumped free; launched twisted, kicked out.
+      if (e.phase === "cravat") return { text: STRINGS.newsParaCravat, tone: "bad" };
+      if (e.phase === "freed") return { text: STRINGS.newsParaFreed, tone: "good" };
+      if (e.phase === "twist") return { text: STRINGS.newsParaTwist, tone: "bad" };
+      if (e.phase === "untwist") return { text: STRINGS.newsParaUntwist, tone: "good" };
       return { text: STRINGS.newsParaRestart, tone: "info" };
     case "balloon":
       // The balloon: let go, off and onto the snow, too hot, alight, over
@@ -269,6 +276,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "stall") return { text: STRINGS.newsPlaneStall, tone: "bad" };
       if (e.phase === "scrape") return { text: STRINGS.newsPlaneScrape, tone: "bad" };
       if (e.phase === "tear") return { text: STRINGS.newsPlaneTear, tone: "bad" };
+      // The engine coughing, then stopped: glide it down.
+      if (e.phase === "cough") return { text: STRINGS.newsPlaneCough, tone: "bad" };
+      if (e.phase === "engine") return { text: STRINGS.newsPlaneEngine, tone: "bad" };
       if (e.phase === "jump")
         return {
           text: STRINGS.newsPlaneJump(e.y - state.level.groundAt(e.x, e.z)),
@@ -296,6 +306,10 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "reserve") return { text: STRINGS.newsChuteReserve, tone: "info" };
       if (e.phase === "line-stretch") return { text: STRINGS.newsChuteLines, tone: "info" };
       if (e.phase === "open") return { text: STRINGS.newsChuteOpen(e.g ?? 0), tone: "good" };
+      // The main opened wrong (`ChuteState.mal`), and the twists kicked out.
+      if (e.phase === "malfunction")
+        return { text: STRINGS.newsChuteMal(state.chute?.mal ?? "twist", e.g ?? 0), tone: "bad" };
+      if (e.phase === "untwist") return { text: STRINGS.newsChuteUntwist, tone: "good" };
       if (e.phase === "release") return { text: STRINGS.newsChuteRelease, tone: "bad" };
       if (e.phase === "land") return { text: STRINGS.newsChuteLand, tone: "good" };
       if (e.phase === "snag")

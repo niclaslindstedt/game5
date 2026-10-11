@@ -73,7 +73,7 @@ export function lineLevel(level: Level, run: DealtRun, from: number, to: number)
     giantSlalom: undefined,
     speedSki: undefined,
     skiCross: undefined,
-    bigAir: undefined,
+    skiJump: undefined,
     slopestyle: undefined,
     halfpipe: undefined,
     moguls: undefined,

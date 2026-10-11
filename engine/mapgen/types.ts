@@ -8,6 +8,8 @@ import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heigh
 import type { PisteGrade, RunGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
 import type { GeneratorVersion } from "./versions.ts";
+import type { SkiJumpHill } from "./ski-jump-types.ts";
+export type { SkiJumpHill } from "./ski-jump-types.ts";
 
 export interface Vec3 {
   x: number;
@@ -306,12 +308,6 @@ export interface Level {
    * flags and the finish line, its `grid` the start gate's lanes. Absent on
    * every map the generator builds — a ski cross is built over one. */
   skiCross?: SkiCrossCourse;
-  /** A BIG AIR JUMP built on the map (R37, `setBigAir`): its `track` is the
-   * straight jump cut down the face — the platform, the drop-in, the
-   * kicker, the table, the landing and the run-out — its checkpoints the
-   * start gate and the finish line, its start platform the `spawn`. Absent
-   * on every map the generator builds — a jump is built over one. */
-  bigAir?: BigAirCourse;
   /** A SLOPESTYLE COURSE built on the map (R38, `setSlopestyle`): its
    * `track` the straight course cut down the face — the start platform,
    * three rail sections and three jump sections — its checkpoints the start
@@ -342,6 +338,15 @@ export interface Level {
    * `groundAt` / `normalAt` off its analytic surface (`bumps`, with no
    * moguls in it). Absent on every map the generator builds. */
   aerials?: AerialsCourse;
+  /** A SKI JUMPING HILL built on the map (R43, `setSkiJump`): its `track`
+   * the straight line cut down the face — the tower's deck, the in-run,
+   * the table to the edge, the knoll, the landing hill and the out-run —
+   * its checkpoints the start gate and the finish line (the fall line),
+   * its top gate the `spawn`, its take-off the map's one kicker, and the
+   * hill answered by `groundAt` / `normalAt` off its analytic surface
+   * (`bumps`, with no moguls in it). Absent on every map the generator
+   * builds. */
+  skiJump?: SkiJumpHill;
   /** THE JIBS standing on the map — the rails and boxes a skier slides on
    * (`jib.ts`). Absent on every map the generator builds: a venue sets
    * them (R38). */
@@ -439,32 +444,6 @@ export interface MogulsCourse {
   pitch: number;
   /** The mogul field (`Level.bumps`). */
   field: MogulField;
-}
-
-/** A BIG AIR JUMP (R37) as it was built over a map: its own `track`, every
- * arc down it, m. */
-export interface BigAirCourse {
-  /** The map it was built over, before any course. */
-  base: Level;
-  /** The start gate's arc and the finish line's, m. */
-  from: number;
-  to: number;
-  /** The vertical between them, m. */
-  vertical: number;
-  /** The flat's end (the kicker's foot), the LIP, the KNUCKLE (the table's
-   * end), the landing's end and the run-out's start, m. */
-  foot: number;
-  lip: number;
-  knuckle: number;
-  landing: number;
-  outrun: number;
-  /** The lip's height over the flat, m, and its take-off angle, rad. */
-  height: number;
-  kick: number;
-  /** The speed off the lip the drop-in is sized for, m/s. */
-  speed: number;
-  /** The jump's width, m. */
-  width: number;
 }
 
 /** Which of an aerials site's three kickers a jump is assigned (R41). */

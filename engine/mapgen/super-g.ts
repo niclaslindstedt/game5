@@ -55,7 +55,6 @@ export function setSuperG(level: Level): Level {
     level.giantSlalom?.base ??
     level.speedSki?.base ??
     level.skiCross?.base ??
-    level.bigAir?.base ??
     level.slopestyle?.base ??
     level.halfpipe?.base ??
     level.moguls?.base ??

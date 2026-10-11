@@ -21,7 +21,9 @@ export type ChuteControls = { brake: number; steer: number; riser: number };
  * or the reserve — open and flying (`open`), cut away by the press
  * (`release`), landed
  * under on his skis and let go (`land`), caught in a crown or on a lift
- * (`snag`), or the jump begun again in the craft he left (`restart`). */
+ * (`snag`), the jump begun again in the craft he left (`restart`) — and a
+ * main opened with a dealt malfunction (`malfunction`, `mishaps.ts`), its
+ * line twists come out (`untwist`). */
 export type ChutePhaseEvent =
   | "exit"
   | "open-start"
@@ -31,7 +33,9 @@ export type ChutePhaseEvent =
   | "release"
   | "land"
   | "snag"
-  | "restart";
+  | "restart"
+  | "malfunction"
+  | "untwist";
 
 /** A `chute` event (`GameEvent`): where, and the jumper's speed, m/s — at
  * `open` the opening's peak load, g, in `g`. */
@@ -87,6 +91,10 @@ export type WingsuitFlight = {
   glide: number;
   stalled: boolean;
 };
+
+/** A MAIN'S MALFUNCTION (`mishaps.ts`): its lines twisted, a line over the
+ * canopy, or a hard opening. */
+export type ChuteMalfunction = "twist" | "lineover" | "hard";
 
 /** WHAT HE JUMPED FROM — the craft a restart puts him back in: the jump
  * plane's door, the helicopter's skid, the balloon's basket or the
@@ -220,6 +228,13 @@ export type ChuteState = {
   /** Down on his skis and skiing on: the skydive is over — its canopy only
    * lies where it came down. */
   done: boolean;
+  /** THE MAIN'S DEALT MALFUNCTION (`mishaps.ts`), on a ride that asked for
+   * mishaps — absent otherwise; the line twists still in its lines, rad
+   * (signed: the way he spins as they come out), while they are; and the
+   * side a line over the canopy pinches (−1 the left tip, 1 the right). */
+  mal?: ChuteMalfunction;
+  twist?: number;
+  over?: number;
 };
 
 /** A skydive begun where the skier is, in `mode`, out of `from`, in `suit`. */

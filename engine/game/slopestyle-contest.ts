@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // A SLOPESTYLE CONTEST (R38), pure: the format the freestyle rules give it,
 // carried between the runs of one contest as `GameState.slopestyle`
-// (`CreateGameOptions.slopestyle`), as big air carries its contest.
+// (`CreateGameOptions.slopestyle`), as every freestyle contest is carried.
 //
 // THE FORMAT. A QUALIFICATION of `SLOPESTYLE.qualification` runs, each
 // skier's best one counting; the best `SLOPESTYLE.finalists` go to the

@@ -9,6 +9,9 @@
 // and `strings-ranges.ts` are the others): a face's range, area and part,
 // written as the map writes them — never a brand, a lift, a piste or a
 // race.
+//
+// game-spec:allow-large-file: a data table, one row a real face; it grows
+// with every face imported and holds no logic beyond the two transforms.
 
 /** The map's side, m. */
 export const SIZE = 4000;

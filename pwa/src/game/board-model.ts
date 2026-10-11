@@ -35,14 +35,8 @@ import { TUNING, flightGravity, type GameState, type LoneSki, type SkiSpec } fro
 
 import { buildBinding, buildDeck, buildSoftBoot, type Paint } from "./board-body.ts";
 import { sheetOf } from "./board-look.ts";
-import {
-  boardPose,
-  easeFree,
-  boardUnderFeet,
-  frontIndex,
-  type BoardFrame,
-  type BoardPose,
-} from "./board-pose.ts";
+import { boardPose, frontIndex, type BoardFrame, type BoardPose } from "./board-pose.ts";
+import { boardUnderFeet } from "./board-thrown.ts";
 import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
 import { createTuck, uprightSkier } from "./skier-somersault.ts";
 import {
@@ -68,7 +62,7 @@ import { boardTownPose, rideLift, streetOver, townLift, townMove } from "./town-
 import { buildHeadlamp } from "./headlamp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
-import { boardInputOf, boardOf } from "./board-input.ts";
+import { boardInputOf, boardOf, easeFree } from "./board-input.ts";
 import { outfitKey } from "./dress.ts";
 import { createSkier } from "./skier-figure.ts";
 import { createSkierSpring, restSkierSpring, stepSkierSpring } from "./skier-pose.ts";
@@ -82,8 +76,12 @@ import type { V3 } from "./skier-vec.ts";
 const AFOOT_EASE = 0.4;
 
 /** How fast the riding board is eased up onto a drawn street or down off
- * it, m/s. */
+ * it: m/s at a standstill, and m a metre ridden — a kerb taken as a ramp
+ * of ~17° whatever the speed, so a board ridden fast onto a street is never
+ * drawn sunk into it (nor left hanging over the snow off its edge) for the
+ * metres a fixed rate took to catch up. */
 const ROAD_RATE = 0.6;
+const ROAD_GRADE = 0.3;
 const smooth = (k: number): number => k * k * (3 - 2 * k);
 const ACROSS = new THREE.Vector3(1, 0, 0);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -217,7 +215,8 @@ export function createBoardModel(
   let perch: Perch | null = null;
   let run: GameState | null = null;
   // How far the riding board is stood up onto a drawn street (`rideLift`),
-  // eased at `ROAD_RATE` m/s so a kerb or the street's edge is no step.
+  // eased by `ROAD_RATE` and `ROAD_GRADE` so a kerb or the street's edge is
+  // no step.
   let roadLift = 0;
   // ON FOOT AND BACK: how far he is drawn into the town's pose (0 riding ..
   // 1 on foot), eased over `AFOOT_EASE` s each way, and the last pose of the
@@ -386,7 +385,7 @@ export function createBoardModel(
       // and the town's own is placed in the world whatever the root's lift).
       const road =
         run && !off && !boarded && !inBasket && !hung ? rideLift(run.level, at.x, at.z) : 0;
-      const easeBy = ROAD_RATE * Math.max(0, dt);
+      const easeBy = (ROAD_RATE + ROAD_GRADE * skier.speed) * Math.max(0, dt);
       roadLift = dt > 0 ? roadLift + Math.max(-easeBy, Math.min(easeBy, road - roadLift)) : road;
       root.position.set(
         at.x + pivot.x + v.x,

@@ -72,7 +72,9 @@ describe("a stake met", () => {
     expect(events.some((e) => e.kind === "hit" || e.kind === "wipeout")).toBe(false);
     on(state, 4, events);
     expect(state.stakes!.tilt[index]).toBe(0);
-    expect(events.filter((e) => e.kind === "stake")).toHaveLength(1);
+    // This stake met once — riding on down the edge he may meet the next.
+    const here = (e: GameEvent) => e.kind === "stake" && Math.hypot(e.x - stake.x, e.z - stake.z) < 0.5;
+    expect(events.filter(here)).toHaveLength(1);
   });
 
   it("fast snaps it, and it stays down", () => {

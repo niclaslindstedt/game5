@@ -40,7 +40,7 @@
 //                   ...and then ridden on a few seconds more (three unless
 //                   named) HELD at that speed along his heading in a move
 //                   (`hold-input.ts`: straight, carve, turn, skid, check,
-//                   stop, skate) —
+//                   stop, skate, climb — straight UP the fall line) —
 //                   how a lab photographs what a speed looks like in the
 //                   game: the cloud it raises, the skier at it.
 //   ?shot=1         ...and held still once drawn, so nothing moves under a

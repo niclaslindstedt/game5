@@ -5,7 +5,8 @@
 // error, and on top the MOVE's own — a carve's turns either way, ONE TURN
 // held to the right, a SKIDDED turn (the edge and the brake together), a
 // check's brake every 1.2 s, a hockey stop's brake and edge, a skate's
-// tuck held from a standstill. DOM-free and three-free, so the cloud lab
+// tuck held from a standstill, a CLIMB coasted straight up the fall line
+// (a wall run into — the rock lab's). DOM-free and three-free, so the cloud lab
 // (`tools/cloud-harness.ts`), the turns lab (`tools/turns-harness.ts`) and
 // the app ride the same hands.
 
@@ -13,7 +14,17 @@ import { placeRun, step, TUNING, type GameState, type SkierInput } from "@engine
 
 import { snapInput } from "./ghost.ts";
 
-export const HOLD_MOVES = ["straight", "carve", "turn", "skid", "check", "stop", "skate"] as const;
+// ...and CLIMB: straight UP the fall line, the way a wall is run into.
+export const HOLD_MOVES = [
+  "straight",
+  "carve",
+  "turn",
+  "skid",
+  "check",
+  "stop",
+  "skate",
+  "climb",
+] as const;
 export type HoldMove = (typeof HOLD_MOVES)[number];
 
 export function isHoldMove(value: unknown): value is HoldMove {
@@ -63,6 +74,9 @@ export function holdInput(
       return { ...base, tuck: 0, brake: t >= 0.2 ? 1 : 0, steer: t >= 0.35 ? 1 : keep };
     case "skate":
       return { ...base, tuck: 1, brake: 0 };
+    case "climb":
+      // Run up the wall and let it have him: nothing pressed but the line.
+      return { ...base, tuck: 0, brake: 0 };
     default:
       return base;
   }
@@ -87,7 +101,8 @@ export function rideHold(
   const n = { x: 0, y: 1, z: 0 };
   state.level.normalAt(s.x, s.z, n);
   const slope = Math.hypot(n.x, n.z);
-  const heading = slope > 0.05 ? Math.atan2(n.x, n.z) : s.heading;
+  const up = hold.move === "climb" ? -1 : 1;
+  const heading = slope > 0.05 ? Math.atan2(up * n.x, up * n.z) : s.heading;
   placeRun(state, {
     x: s.x,
     z: s.z,

@@ -33,6 +33,11 @@ export const ROCKS = {
     rough: 0.75,
     sink: 0.35,
     from: 0.15,
+    /** A facet's up share (its normal's y) snow lies whole on, and the
+     * one it slides off below — a facet tipped under 30° holds snow, as
+     * painted (`rock-shapes.ts`) and as ridden (`rock-ground.ts`). */
+    holds: 0.87,
+    slides: 0.67,
   },
   /** THE CLIFFS: a rocky cliff's face clad whole (`cliff-wall.ts`). Its
    * corners every `pitch` m across, out past the full-height edge `ends`

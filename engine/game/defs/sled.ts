@@ -254,7 +254,8 @@ export const SLED = {
    * `landingPowder` m/s in deep powder (a drop of some 7.6 m and 12 m at
    * the flight's gravity), or set down `tilt` rad off its belt any harder
    * than `tiltFrom` m/s; and the way it was going stopped `wall` m/s in a
-   * step — a cliff band ridden into.
+   * step — a cliff band ridden into — or driven into a wall's rock
+   * (`rock`).
    * HOW HE GOES OFF: over the bars (`crash.over.sled`) when a trunk, a
    * wall or a landing stops the machine under him, and when it rolls
    * over, `rolled` — he falls off its low side as it goes, turning with
@@ -271,6 +272,13 @@ export const SLED = {
     tilt: 0.7,
     tiltFrom: 4,
     wall: 8,
+    /** A WALL'S BARE ROCK run into (`rock-ground.ts`' `rockStrike`, read
+     * `rockReach` m past the nose): a step of stone at `rock` m/s, or up a
+     * face of it steeper than `rockClimb` rad (40°) as fast — the paddles
+     * have nothing to bite and the skis stop on it. */
+    rock: 7,
+    rockReach: 0.3,
+    rockClimb: 0.7,
     rolled: { pitch: 0.1, side: 0.5, up: 0.3 },
   },
   /** THE BODY'S POINTS that meet the snow and the trunks when the springs

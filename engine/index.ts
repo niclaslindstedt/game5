@@ -742,16 +742,8 @@ export {
 export * from "./game/village-api.ts";
 export * from "./game/traffic-api.ts";
 export * from "./game/plane-api.ts";
-export {
-  hashOf as rockHash,
-  onAnyCliff,
-  rockShare,
-  rockyCliff,
-  unit as rockDraw,
-  wallOf,
-} from "./game/rocks.ts";
-export { ROCKS } from "./game/defs/rocks.ts";
-export { cliffWalls, faceShare, wallSolids, type CliffWall } from "./game/cliff-wall.ts";
+// THE ROCK ON THE DROPS, AND UNDERFOOT.
+export * from "./game/rock-api.ts";
 export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";
 export {
   mastHeight,

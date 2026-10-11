@@ -26,6 +26,7 @@ import { standing } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { standSkier } from "./course.ts";
 import { liftOutOfSnow, throwRider } from "./crash.ts";
+import { rockStrike } from "./rock-ground.ts";
 import { SLED, SLED_PROBES, sledMass } from "./defs/sled.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -274,7 +275,20 @@ function drive(
   // INTO A WALL: the way it was going stopped dead in a step — a cliff
   // band, a rock step, a bank met square. Nothing on snow stops it so.
   const stopped = way0 - (s.vx * Math.sin(s.heading) + s.vz * Math.cos(s.heading));
+  // INTO A WALL'S ROCK (`rock-ground.ts`): the skis and the belt driven
+  // into a step of stone or up a face of it no paddle bites.
+  const rock = rockStrike(
+    run.level,
+    s.x,
+    s.z,
+    s.vx,
+    s.vy,
+    s.vz,
+    SLED.length / 2 + K.rockReach,
+    K.rockClimb,
+  );
   if (hit > K.tree) throwOff(run, s, events, v0, hit);
+  else if (rock > K.rock) throwOff(run, s, events, v0, rock);
   else if (landing && landing.off > 1) throwOff(run, s, events, v0, landing.into);
   else if (stopped > K.wall) throwOff(run, s, events, v0, stopped);
   else if (s.overFor > K.overFor) throwOff(run, s, events, v0, s.speed, true);

@@ -37,6 +37,7 @@ import type { Level } from "@engine";
 import { createHudPress, pressHandlers } from "@niclaslindstedt/oss-game-framework/input/hud-press";
 
 import { bakeMinimap, mapPxFor, minimapSource } from "./minimap-bake.ts";
+import { paintChallenges } from "./challenge-paint.ts";
 import { VIEW, arrowAngle, rotorTurnMs, type HudMinimap, type SkierMark } from "./minimap-view.ts";
 import type { BakeReply, BakeRequest } from "./minimap-worker.ts";
 import { skierCss } from "./skier-colours.ts";
@@ -375,6 +376,9 @@ function paint(
     ctx.lineTo(m.b[0], m.b[1]);
     ctx.stroke();
   }
+
+  // A FREE RIDE'S CHALLENGES: the lines' flags, the kickers, the summits.
+  if (map.challenges) paintChallenges(ctx, map.challenges, map.dot, css, pose.angle);
 
   // THE HELIPAD and THE HELICOPTER: a ring where it is kept, and the
   // machine itself wherever it is — on its pad, or flying home — from

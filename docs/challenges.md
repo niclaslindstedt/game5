@@ -135,6 +135,23 @@ times — for the HUD. The judge keeps its memory in itself and **writes
 nothing into the state**, so a run judged is the run unjudged, digest for
 digest.
 
+## In the app
+
+The app's half lives in `pwa/src/game/`:
+
+| Piece | Where | What it does |
+| --- | --- | --- |
+| **The book** | `challenge-book.ts` | Per map key (`challengeKey`) and challenge id: the best medal, the best value, what a count kind has found, and when it last got better — under `fall-line.challenges.v1` in `localStorage`. A medal only replaces a worse one; a better value on the same medal is kept; a value that earned no medal is kept only while there is no medal. `readChallenges` trusts a stored blob no further than the rig could have written it; `medalTally` totals the medals across every map. |
+| **The rig** | `challenge-run.ts` | Armed in `App.tsx`'s `adopt` beside the statistics' rig — a FREE RIDE the player rides is judged, nothing else — with the book's `memoryOf` the map, and stepped beside it on every step the player rides (never the bot's, a pre-roll's or a replay's). `readEvents` (pure) turns a step's events into news lines (a line's start with its medal times, the half-way split, the finish with its medal or the gap to bronze, a void and why, a kicker's goal, `HIDDEN SPOT 3/5`, `SUMMIT 4/7`, a medal won or a new best for the book), files them in the book at once and keeps the last finish's plate. The session is keyed by the run's state (`challengeSessionOf`). |
+| **What is shown** | `challenge-hud.ts` | DOM-free payloads off the session: the HUD's CHIP while a line runs (its clock, the medal still in reach and its time, the share of the way down) and the PLATE for `PLATE_HOLD` s after a finish; the minimap's marks (`ChallengeMarks`); the pause card's rows. |
+| **The HUD** | `hud-challenge.tsx`, `medal-mark.tsx`, `medal-look.ts`, `pwa/src/challenges.css` | The chip under the seed in the top left, in the colour of the medal still in reach; the plate in the upper third; one medal mark (a disc on a ribbon) every surface draws. |
+| **The minimap** | `challenge-paint.ts` (painted by `minimap.tsx` off `HudMinimap.challenges`) | Each line's two gates as a flag pair (start white, finish red, the running line's finish gold), each trick kicker a star in the medal held there, each lift top not yet stood on a hollow triangle, and each hidden spot a dot **only once it is found**. |
+| **The pause card** | `menu-pause-challenges.tsx` | CHALLENGES beside OPTIONS on a free ride: every challenge with its three bars and the best held, and RIDE on a line's row to stand the ride up again at the top of its run (the PISTE MAP's `runPicked`). |
+| **The statistics** | `stats-medals.tsx` | The gold, silver and bronze held across every mountain. |
+| **The words** | `strings-challenges.ts` | Every word above. |
+
+`make screenshots ARGS="--surface challenge-line,challenge-kicker,pause-challenges,stats-medals"` photographs them: the skier stood just above a dealt line's start gate and short of a dealt kicker's lip, and every page handed a book with medals in it (`scripts/lib/challenge-shots.mjs`).
+
 ## Adding a kind
 
 A kind is a row of `CHALLENGE_KINDS` (`registry.ts`): a module beside the

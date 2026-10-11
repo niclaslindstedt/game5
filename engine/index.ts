@@ -680,9 +680,7 @@ export {
   topOfSlope,
   TRACK_RUN,
 } from "./game/skied.ts";
-export { GRIMBEAR } from "./game/defs/grimbear.ts";
-export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
-export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
+export * from "./game/hazards-api.ts";
 export { GROOMER } from "./game/defs/groomer.ts";
 export {
   freshGroomers,

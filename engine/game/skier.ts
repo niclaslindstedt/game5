@@ -144,9 +144,7 @@ const KNEES = [4, 5];
 const DRIVE_FROM = 0.4;
 /** How fast the tuck and the brake follow the thumb, 1/s. */
 const INPUT_RATE = 8;
-
 export { freshSkier } from "./skier-fresh.ts";
-
 // Scratch, reused every step: the engine allocates nothing per station.
 const grip: Grip = { edge: 0, base: 0 };
 const normal: Vec3 = { x: 0, y: 1, z: 0 };

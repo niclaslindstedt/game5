@@ -27,6 +27,7 @@ uniform vec4 uSlab1;     // left, right, length, depth (m)
 uniform vec4 uSlabJog;   // the crown's and flanks' phases
 uniform vec4 uSlideBox;  // the debris map's corner u0, v0 and span u, v (m)
 uniform vec4 uSlideOn;   // x: a slab drawn, y: debris drawn
+uniform vec4 uSlabCrack; // the crack's start u, v, its speed (m/s), s since
 uniform sampler2D uSlide;
 
 vec2 slideFrame(vec2 p) {
@@ -45,7 +46,10 @@ float slideBed(vec2 uv) {
   if (u > left || u < -right) return 0.0;
   float edge = min(left - u, u + right);
   float t = clamp((v - top) / uSlab1.z, 0.0, 1.0);
-  return uSlab1.w * (1.0 - ${f(B.thin)} * t)
+  // Not gone until the crack has reached it (\`avalanche-crack.ts\`'s
+  // \`crackGone\`).
+  float gone = clamp((uSlabCrack.w - length(uv - uSlabCrack.xy) / uSlabCrack.z) / 0.1, 0.0, 1.0);
+  return gone * uSlab1.w * (1.0 - ${f(B.thin)} * t)
     * (${f(F.lowShare)} + ${f(1 - F.lowShare)} * smoothstep(0.0, ${f(F.low)}, edge))
     * (1.0 - smoothstep(uSlab1.z - ${f(B.toe)}, uSlab1.z, v));
 }
@@ -84,7 +88,7 @@ export const SLIDE_NORMAL = /* glsl */ `
       vec2 sg = vec2(slideAt(p + vec2(se, 0.0)) - slideAt(p - vec2(se, 0.0)),
                      slideAt(p + vec2(0.0, se)) - slideAt(p - vec2(0.0, se))) / (2.0 * se);
       // A WALL: the crown's and the flanks' steps, as steep as the mesh is fine.
-      snowSlideWall = smoothstep(1.2, 3.0, length(sg));
+      snowSlideWall = smoothstep(0.5, 1.6, length(sg));
       grad += sg;
       // THE DEBRIS: blocks and rounded balls in a jumble, each a bump with
       // a hollow between — cells a metre and a third of one across, faded
@@ -94,7 +98,9 @@ export const SLIDE_NORMAL = /* glsl */ `
         float px = length(fwidth(p));
         float a1 = 1.0 - smoothstep(0.25, 0.6, px * 0.9);
         float a2 = 1.0 - smoothstep(0.25, 0.6, px * 2.8);
-        grad += slideLumpGrad(p * 0.9) * 0.9 * 0.55 * k * a1;
+        vec2 wp = slideWarp(p);
+        grad += slideLumpGrad(wp * 0.9) * 0.9 * 0.45 * k * a1;
+        grad += slideLumpGrad(wp * 1.7 + 5.0) * 1.7 * 0.25 * k * a1;
         grad += slideLumpGrad(p * 2.8 + 11.0) * 2.8 * 0.18 * k * a2;
         grad += snowNoiseGrad(p * 0.22 + 5.0, 0.3) * 0.22 * 0.6 * k;
       }
@@ -138,6 +144,11 @@ float slideLumps(vec2 p) {
   float edge = sqrt(second) - sqrt(best);
   return (0.45 + 0.55 * tall) * smoothstep(0.0, 0.45, edge);
 }
+// The blocks' field bent about, so the jumble lies in no grid: some
+// blocks stretched, some crushed, the gaps wandering.
+vec2 slideWarp(vec2 p) {
+  return p + vec2(snowNoise(p * 0.31) - 0.5, snowNoise(p * 0.31 + 17.0) - 0.5) * 3.0;
+}
 vec2 slideLumpGrad(vec2 p) {
   float e = 0.08;
   return vec2(slideLumps(p + vec2(e, 0.0)) - slideLumps(p - vec2(e, 0.0)),
@@ -161,19 +172,27 @@ export const SLIDE_ALBEDO = /* glsl */ `
     if (snowSlideWall > 0.0) {
       float warp = snowNoise(p * 0.35) * 0.12;
       float bands = 0.5 + 0.5 * sin((vSnowWorld.y + warp) * 23.0);
-      vec3 wall = mix(vec3(0.8, 0.86, 0.95), vec3(0.96, 0.98, 1.0), bands);
+      vec3 wall = mix(vec3(0.6, 0.67, 0.8), vec3(0.8, 0.85, 0.95), bands);
       alb = mix(alb, wall, snowSlideWall);
     }
-    // THE DEBRIS: the slab's inside turned out, whiter than the old
-    // surface, a shade in every gap, and a fleck of dirt, bark or a
-    // broken branch here and there.
+    // THE DEBRIS: the slab's inside turned out, a shade in every gap, and
+    // a fleck of dirt, bark or a broken branch here and there. Close, the
+    // blocks; far, where they are finer than a pixel, the rough, shadowed
+    // grey of their gaps averaged, lumped in blocks metres across that
+    // still read — and a shadowed lip round its edge, so the tongue reads
+    // from across the valley as a rougher, darker thing on the snow.
     if (snowDebris > 0.02) {
       float k = smoothstep(0.02, 0.3, snowDebris);
       float a1 = 1.0 - smoothstep(0.3, 0.7, px * 0.9);
-      float lump = slideLumps(p * 0.9);
-      float gap = 1.0 - smoothstep(0.05, 0.4, lump);
-      alb = mix(alb, vec3(0.97, 0.98, 1.0), 0.5 * k);
-      alb *= mix(vec3(1.0), vec3(0.66, 0.74, 0.86), gap * 0.55 * k * a1);
+      vec2 wp = slideWarp(p);
+      float lump = max(slideLumps(wp * 0.9), 0.85 * slideLumps(wp * 1.7 + 5.0));
+      float gap = mix(0.6, 1.0 - smoothstep(0.02, 0.3, lump), a1);
+      float a0 = 1.0 - smoothstep(0.4, 1.2, px * 0.28);
+      float coarse = mix(0.5, 1.0 - smoothstep(0.05, 0.5, slideLumps(p * 0.28 + 7.0)), a0);
+      alb = mix(alb, vec3(0.95, 0.97, 1.0), 0.4 * k);
+      alb *= mix(vec3(1.0), vec3(0.56, 0.64, 0.79), (gap * 0.55 + coarse * 0.3) * k);
+      float rim = smoothstep(0.02, 0.12, snowDebris) * (1.0 - smoothstep(0.15, 0.6, snowDebris));
+      alb *= mix(vec3(1.0), vec3(0.7, 0.76, 0.86), rim * 0.6);
       float a3 = 1.0 - smoothstep(0.3, 0.7, px * 4.0);
       float fleck = smoothstep(0.93, 0.985, snowNoise(p * 4.0 + 61.0));
       alb = mix(alb, vec3(0.32, 0.27, 0.22), fleck * 0.55 * k * a3);

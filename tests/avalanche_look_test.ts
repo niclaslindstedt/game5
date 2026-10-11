@@ -33,12 +33,19 @@ import {
   debrisFits,
   plateBreak,
   plateGap,
-  plateGrid,
   quakeAt,
   slabFrameOf,
   slabPhases,
   splatDebris,
 } from "../pwa/src/game/avalanche-plan.ts";
+import {
+  CORNERS,
+  CRACK,
+  crackFront,
+  crackGone,
+  crackOpen,
+  crackSlab,
+} from "../pwa/src/game/avalanche-crack.ts";
 import { rumbleForEvent, RUMBLE } from "../pwa/src/game/rumble.ts";
 import { freeGameOptions, freshRide, mergeRide } from "../pwa/src/game/free-ride.ts";
 import { FULL_ASSIST, SKIS } from "@engine";
@@ -162,7 +169,7 @@ describe("the debris", () => {
 });
 
 describe("the blocks", () => {
-  it("cuts the slab into plates inside it, under the budget, each on a parcel", () => {
+  it("cracks the slab into plates of their own shapes, inside it, under the budget", () => {
     const slide = restedSlide();
     const k = slide.slab;
     const starts = new Float64Array(slide.count * 2);
@@ -170,21 +177,48 @@ describe("the blocks", () => {
       starts[i * 2] = slide.cells[i * CELL.stride + CELL.x];
       starts[i * 2 + 1] = slide.cells[i * CELL.stride + CELL.z];
     }
-    const plates = plateGrid(k, slabPhases(k), starts, slide.count);
+    const plates = crackSlab(k, slabPhases(k), starts, slide.count);
     expect(plates.length).toBeGreaterThan(0);
     expect(plates.length).toBeLessThanOrEqual(SLIDE_LOOK.plate.most);
+    const pad = SLIDE_LOOK.flank.ragged + 1e-6;
     for (const p of plates) {
-      expect(p.u).toBeGreaterThanOrEqual(-k.right);
-      expect(p.u).toBeLessThanOrEqual(k.left);
-      expect(p.v).toBeGreaterThanOrEqual(0);
-      expect(p.v).toBeLessThanOrEqual(k.length);
-      expect(p.h).toBeLessThanOrEqual(k.depth + 1e-9);
-      expect(p.parcel).toBeGreaterThanOrEqual(0);
-      expect(p.parcel).toBeLessThan(slide.count);
+      expect(p.outline.length).toBe(CORNERS * 2);
+      for (let c = 0; c < CORNERS; c++) {
+        const u = p.u + p.outline[c * 2];
+        const v = p.v + p.outline[c * 2 + 1];
+        expect(u).toBeGreaterThanOrEqual(-k.right - pad);
+        expect(u).toBeLessThanOrEqual(k.left + pad);
+        expect(v).toBeLessThanOrEqual(k.length + 1e-6);
+      }
+      expect(p.h).toBeGreaterThan(0);
+      expect(p.h).toBeLessThanOrEqual(k.depth * CRACK.thick[1] + 1e-6);
+      expect(p.weight[0] + p.weight[1] + p.weight[2]).toBeCloseTo(1, 6);
+      for (const n of p.near) {
+        expect(n).toBeGreaterThanOrEqual(0);
+        expect(n).toBeLessThan(slide.count);
+      }
+      expect(p.crack).toBeGreaterThanOrEqual(0);
+      expect(p.crack).toBeLessThanOrEqual(CRACK.most + 1e-6);
     }
-    // Not a tiled floor: the blocks of a row come in widths of their own.
-    const widths = new Set(plates.map((p) => p.w.toFixed(2)));
-    expect(widths.size).toBeGreaterThan(3);
+    // Not a tiled floor: the blocks come in sizes of their own, the
+    // biggest several times the smallest.
+    const r = plates.map((p) => p.r).sort((a, b) => a - b);
+    expect(r[r.length - 1] / r[0]).toBeGreaterThan(2.5);
+    expect(new Set(r.map((x) => x.toFixed(2))).size).toBeGreaterThan(plates.length / 5);
+  });
+
+  it("runs the crack out from its trigger and drops the bed only behind it", () => {
+    const slide = restedSlide();
+    const k = slide.slab;
+    const front = crackFront(k);
+    expect(crackGone(front, front.u, front.v, 0)).toBe(0);
+    expect(crackGone(front, front.u, front.v, 0.1)).toBe(1);
+    // Nearer the trigger cracks first; the far corner within the bound.
+    const far = { u: k.left, v: k.length };
+    expect(crackGone(front, far.u, far.v, 0.05)).toBe(0);
+    expect(crackGone(front, far.u, far.v, CRACK.most + 0.1)).toBe(1);
+    expect(crackOpen(0)).toBe(0);
+    expect(crackOpen(10)).toBe(1);
   });
 
   it("parts the cracks as a plate runs and breaks each up within its band", () => {

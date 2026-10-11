@@ -57,8 +57,8 @@ const args = parseArgs(
     },
     seed: {
       kind: "number",
-      default: 12,
-      help: "the map's seed (12: a wide lee face in the sun at 11)",
+      default: 7,
+      help: "the map's seed (7: an open face whose slide stops in sight, 330 m down)",
     },
     region: {
       kind: "string",
@@ -71,6 +71,11 @@ const args = parseArgs(
       help: "where the slab breaks, x,z in map metres; the most avalanche-prone open face when left out",
     },
     snow: { kind: "number", default: 3, help: "the snow dial (1 the ordinary snow)" },
+    depth: {
+      kind: "number",
+      default: 0.6,
+      help: "the slab's depth wanted, m: the run's seed is picked so its slab is nearest it",
+    },
     hour: { kind: "number", default: 11, help: "the solar hour the sheets are drawn under" },
     weather: {
       kind: "string",
@@ -148,6 +153,7 @@ const query = new URLSearchParams({
   ...(args.region ? { region: args.region } : {}),
   ...(args.at ? { at: args.at } : {}),
   snow: String(args.snow),
+  depth: String(args.depth),
   hour: String(args.hour),
   weather: args.weather,
 }).toString();

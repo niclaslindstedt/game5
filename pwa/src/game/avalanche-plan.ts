@@ -14,13 +14,14 @@
 //     blocks' slide marks down it. Here the bed is a pure function of the
 //     slab's frame (`bedDepth`), stated once and mirrored line for line in
 //     the shader, so the wall is as sharp as the ground's mesh is fine.
-//   * THE SLAB breaks into TABULAR BLOCKS — plates its own thickness thick
-//     and metres across — that slide, tip and break up (`plateGrid`,
-//     `plateBreak`) into tumbling CHUNKS that round off into SNOWBALLS as
-//     they run (`chunkSize`).
-//   * A POWDER CLOUD boils off the fast part of the flow — the front most
-//     — and hangs and drifts after it stops (`cloudRate`); a size 2 throws
-//     one a few metres to tens high.
+//   * THE SLAB cracks out from its trigger into IRREGULAR PLATES of very
+//     different sizes (`avalanche-crack.ts`) that slide, tip, crowd and
+//     break up (`plateBreak`) into tumbling CHUNKS that round off into
+//     SNOWBALLS as they run (`chunkSize`), in a churned BODY of snow, deepest
+//     at its head (`body`).
+//   * A POWDER CLOUD boils off the fast part of the flow — the head most —
+//     and hangs and drifts after it stops (`cloudShare`); a size 2 throws
+//     one tens of metres high.
 //   * THE DEBRIS lies in a lobed tongue, a metre or two deep, a jumble of
 //     blocks and snowballs with shade in every gap: the engine's own
 //     cones (`debrisDepth`), splatted into a small map (`splatDebris`).
@@ -47,15 +48,13 @@ export const SLIDE_LOOK = {
    * run, across each way and down past the stauchwall, m; and the most
    * texels either way, so a freak runout cannot grow the map. */
   debris: { texel: 2, side: 70, below: 320, above: 8, most: [160, 360] as const },
-  /** THE PLATES: the slab cut into blocks about this big, m (a dense
-   * slab's blocks are metres across and its own thickness thick); the
-   * crack between them at the release and as they part, m; the most; and
-   * how far its parcel carries one before it breaks up, m (dealt). */
+  /** THE PLATES (`avalanche-crack.ts` cuts them): the crack round one at
+   * the release and once its parcels have run it apart, m; the most; and
+   * how far it is carried before it breaks up, m (dealt). */
   plate: {
-    size: [4.2, 5.2] as const,
-    gap: [0.06, 0.45] as const,
+    gap: [0.08, 0.5] as const,
     most: 1024,
-    breaks: [6, 24] as const,
+    breaks: [5, 16] as const,
   },
   /** THE CHUNKS a parcel's plates break into: how many a parcel, the most
    * in all, how far its parcel runs before each shows, m (dealt), their
@@ -67,29 +66,53 @@ export const SLIDE_LOOK = {
     /** A small slide's parcels share the budget out to this many each, so
      * its flow is as dense as a big one's. */
     perMost: 16,
-    most: 1536,
+    most: 2560,
     from: [2, 16] as const,
-    big: [0.7, 1.7] as const,
-    ball: [0.22, 0.75] as const,
+    big: [0.5, 1.3] as const,
+    ball: [0.25, 0.6] as const,
     round: 60,
+  },
+  /** THE FLOWING BODY: the churned snow every running parcel carries, a
+   * few lumps a parcel (`per`) its half-sizes across and along, m, and
+   * their height as a share of the flow's (m over at least `low`); grown
+   * in over the parcel's first metres of run as its plates break (m), gone
+   * over `fade` s once it rests (the debris has it then); and the HEAD,
+   * the parcels within `front` m of the leading one, `head` times as big
+   * and `rise` times as tall — a flow is deepest at its front. */
+  body: {
+    per: 4,
+    across: [2.4, 4] as const,
+    along: [3.2, 5.6] as const,
+    tall: [0.7, 1.2] as const,
+    low: 0.45,
+    grow: [2, 12] as const,
+    fade: 1.6,
+    front: 40,
+    head: 0.45,
+    rise: 0.9,
   },
   /** THE POWDER CLOUD: the parcel speed it starts to boil off at and is
    * whole at, m/s (a dry flow at 20–30 m/s throws one); the BILLOWS a
-   * second off the whole slide at the whole of it; their size, m, how far
-   * each swells, how fast it rises, m/s, and how long it hangs, s (tens of
-   * seconds, drifting on the wind); and the low SALTATION puffs a second
-   * a running parcel raises from 5 m/s, each short-lived. */
+   * second off the whole slide at the whole of it, most of them off the
+   * HEAD (`front` m of it, `headShare` of the rate); their radius, m, how
+   * many times that it swells by, how fast they rise, m/s, and how long
+   * they hang, s (tens of seconds, drifting on the wind) — a size 2's
+   * cloud stands tens of metres tall; and the low SALTATION puffs a second
+   * a running parcel raises from `dustFrom` m/s, each short-lived. */
   cloud: {
-    from: 7,
-    full: 24,
-    billows: 60,
-    size: [2.2, 5] as const,
+    from: 4,
+    full: 17,
+    billows: 34,
+    front: 45,
+    headShare: 0.75,
+    size: [3, 6.5] as const,
     grow: 2.6,
-    rise: [1.2, 4.5] as const,
-    hang: [10, 24] as const,
-    dust: 1.1,
+    rise: [2.5, 6.5] as const,
+    hang: [14, 26] as const,
+    opacity: [0.75, 0.95] as const,
+    dust: 2,
     dustFrom: 4,
-    dustSize: [0.6, 1.3] as const,
+    dustSize: [1.2, 2.4] as const,
     dustHang: [2, 3.5] as const,
     /** At the release, the whumpf's dust along the crown: puffs a metre of
      * crown. */
@@ -292,60 +315,6 @@ export function debrisAt(box: DebrisBox, map: Float32Array, u: number, v: number
   return top + (bottom - top) * b;
 }
 
-/** ONE PLATE of the broken slab: its middle in the slab's frame (m), its
- * size across and down, m, how thick, m, and the parcel that carries it. */
-export type Plate = { u: number; v: number; w: number; l: number; h: number; parcel: number };
-
-/** THE SLAB CUT INTO PLATES over its frame, each handed to the parcel
- * nearest it (`starts` the parcels' plan positions at the release, x and
- * z a parcel), a plate whose middle is off the bed left out. */
-export function plateGrid(
-  slab: SlabFrame,
-  phase: readonly number[],
-  starts: Float64Array,
-  parcels: number,
-): Plate[] {
-  const P = SLIDE_LOOK.plate;
-  const wide = slab.left + slab.right;
-  let nu = Math.max(1, Math.ceil(wide / P.size[0]));
-  let nv = Math.max(1, Math.ceil(slab.length / P.size[1]));
-  while (nu * nv > P.most) {
-    if (nu > 1) nu = Math.ceil(nu * 0.9);
-    nv = Math.ceil(nv * 0.9);
-  }
-  const w = wide / nu;
-  const l = slab.length / nv;
-  const plates: Plate[] = [];
-  // Rows down the slope, each cut across into blocks of their own widths
-  // (half again to two thirds of the mean either way), so the cracks run
-  // as a fractured slab's do — never a tiled floor's.
-  for (let j = 0; j < nv && plates.length < P.most; j++) {
-    let at = -slab.right;
-    for (let i = 0; at < slab.left - 0.25 && plates.length < P.most; i++) {
-      let pw = w * (0.6 + 0.8 * hash01(i, j, 0x5ad));
-      if (slab.left - (at + pw) < w * 0.45) pw = slab.left - at;
-      const u = at + pw / 2;
-      at += pw;
-      const v = (j + 0.5) * l;
-      const h = bedDepth(slab, phase, u, v);
-      if (h <= 0.05) continue;
-      const x = slab.x + slab.fz * u + slab.fx * v;
-      const z = slab.z - slab.fx * u + slab.fz * v;
-      let best = 0;
-      let near = Infinity;
-      for (let k = 0; k < parcels; k++) {
-        const d = (starts[k * 2] - x) ** 2 + (starts[k * 2 + 1] - z) ** 2;
-        if (d < near) {
-          near = d;
-          best = k;
-        }
-      }
-      plates.push({ u, v, w: pw, l, h, parcel: best });
-    }
-  }
-  return plates;
-}
-
 /** How far its parcel carries plate `i` before it breaks up, m. */
 export function plateBreak(i: number): number {
   const B = SLIDE_LOOK.plate.breaks;
@@ -378,7 +347,9 @@ export function chunkSize(k: number, j: number, run: number): number {
  * the difference every `chunk.round` m. */
 export function roundOff(big: number, ball: number, from: number, run: number): number {
   const past = Math.max(0, run - from);
-  return ball + (big - ball) * Math.exp((-past * Math.LN2) / SLIDE_LOOK.chunk.round);
+  // Never grown: a block smaller than its snowball keeps its size.
+  const end = Math.min(ball, big);
+  return end + (big - end) * Math.exp((-past * Math.LN2) / SLIDE_LOOK.chunk.round);
 }
 
 /** How many numbers {@link chunkTraits} writes a chunk. */

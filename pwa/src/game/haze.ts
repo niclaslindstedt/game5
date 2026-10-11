@@ -113,6 +113,9 @@ export type HazeUniforms = {
   uSlabJog: { value: THREE.Vector4 };
   uSlideBox: { value: THREE.Vector4 };
   uSlideOn: { value: THREE.Vector4 };
+  /** Where the slab's crack started (u, v), how fast it ran, m/s, and the
+   * seconds since the release. */
+  uSlabCrack: { value: THREE.Vector4 };
   uSlide: { value: THREE.Texture | null };
 };
 
@@ -171,6 +174,7 @@ export function createHazeUniforms(): HazeUniforms {
     uSlabJog: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSlideBox: { value: new THREE.Vector4(0, 0, 1, 1) },
     uSlideOn: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uSlabCrack: { value: new THREE.Vector4(0, 0, 1, 1e3) },
     uSlide: { value: null },
   };
 }

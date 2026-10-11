@@ -69,6 +69,12 @@ const CAPACITY = 2400;
 const SHADOW_CELL = 1.2;
 const SHADOW_CELLS = 8192;
 const SHADOW_DEPTH = 0.9;
+/** The most cells across a big puff's shadow is laid in, either way of
+ * its middle. */
+const SHADOW_REACH = 5;
+/** How much deeper an avalanche's billow shades itself than a skier's
+ * puff: its far side and its underside go the sky's grey-blue. */
+const BILLOW_DENSE = 2.4;
 
 function cell(u: number, v: number): number {
   return (Math.imul(u, 73856093) ^ Math.imul(v, 19349663)) & (SHADOW_CELLS - 1);
@@ -261,7 +267,11 @@ void main() {
   float by = texture2D(uNoise, vSpin * 0.6 + o.yx + 0.41).b - 0.5;
   // Not a hard ball: a flattened bulge, so a row of puffs is one body of
   // cloud rather than a string of beads each shaded on its own.
-  vec3 N = normalize(vRight * (vUv.x * 0.6 + bx * 1.2) + vUp * (vUv.y * 0.6 + by * 1.2) + toEye * (0.4 + z));
+  // An avalanche's deep billow (\`dense\`) is rounder: a cauliflower head
+  // with a lit crown and a shaded flank and foot.
+  float deep = clamp(vSnow.y - 1.2, 0.0, 1.5);
+  float rounder = mix(0.6, 1.0, min(deep, 1.0));
+  vec3 N = normalize(vRight * (vUv.x * rounder + bx * 1.2) + vUp * (vUv.y * rounder + by * 1.2) + toEye * (0.4 + z));
 
   // SELF-SHADOW: how much snow lies between here and the key light, read a
   // step toward it across the sprite, and how thick the puff is.
@@ -271,7 +281,8 @@ void main() {
   // The puff's own relief, lightly, over the WHOLE CLOUD's shadow on it
   // (\`vSnow.w\`: how much of the sun reaches it through the rest).
   float shade = vSnow.w * exp(-(toward * 0.35 + d * 0.15) * thick);
-  float lambert = clamp((dot(N, uKey) + 0.45) / 1.45, 0.0, 1.0);
+  float wrap = mix(0.45, 0.2, min(deep, 1.0));
+  float lambert = clamp((dot(N, uKey) + wrap) / (1.0 + wrap), 0.0, 1.0);
 
   // FORWARD SCATTER (Henyey–Greenstein, g 0.6), strongest through the thin
   // parts: a cloud against the sun lights up at its edges.
@@ -284,7 +295,10 @@ void main() {
   float forward = hg * 0.3 * thin * mix(1.0, vSnow.w, 0.6);
 
   float direct = (lambert * shade * (1.0 - 0.7 * uFlat) + forward * (1.0 - 0.8 * uFlat));
-  vec3 amb = mix(uGroundCol, uSkyCol, N.y * 0.5 + 0.5) * mix(0.6, 1.0, shade);
+  // A deep billow's shaded side darker than a thin puff's, and its foot
+  // darker still, under the rest of the cloud.
+  vec3 amb = mix(uGroundCol, uSkyCol, N.y * 0.5 + 0.5) * mix(0.6 - 0.12 * deep, 1.0, shade);
+  amb *= mix(1.0, 0.78 + 0.22 * smoothstep(-0.9, 0.3, vUv.y), min(deep, 1.0));
   // Under the moon the snow on the ground is darker than the lights alone
   // say (the grade and the snow's own night); the cloud keeps pace with it.
   vec3 col = 0.96 * (1.0 - 0.15 * uNight) * (amb + uKeyCol * direct);
@@ -389,6 +403,9 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   const sparkle = new Float32Array(CAPACITY);
   const spin = new Float32Array(CAPACITY);
   const ground = new Float32Array(CAPACITY);
+  /** How deeply a puff shades itself, 1 the skier's: an avalanche's billow,
+   * metres of snow through, goes darker on its far side. */
+  const dense = new Float32Array(CAPACITY).fill(1);
   /** The draw order (far first), and whether a slot is in it. */
   const order = new Int32Array(CAPACITY);
   const listed = new Uint8Array(CAPACITY);
@@ -457,6 +474,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
     vz: number,
     r: CloudRecipe,
     g: number,
+    depth = 1,
   ) {
     const i = head;
     head = (head + 1) % cap;
@@ -477,6 +495,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
     sparkle[i] = r.sparkle;
     spin[i] = random() * Math.PI * 2;
     ground[i] = g;
+    dense[i] = depth;
     if (!listed[i]) {
       listed[i] = 1;
       order[count++] = i;
@@ -542,13 +561,32 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       // its disc covers.
       const a01 = age[i] / life[i];
       const r = puffRadius(size0[i], grow[i], a01);
-      const laid =
-        puffOpacity(opacity[i], size0[i], grow[i], a01) *
-        Math.min(1, (r * r) / (SHADOW_CELL * SHADOW_CELL));
-      reach[c00] += laid * w00;
-      reach[c10] += laid * w10;
-      reach[c01] += laid * w01;
-      reach[c11] += laid * w11;
+      const thick = puffOpacity(opacity[i], size0[i], grow[i], a01);
+      if (r < SHADOW_CELL * 1.5) {
+        const laid = thick * Math.min(1, (r * r) / (SHADOW_CELL * SHADOW_CELL));
+        reach[c00] += laid * w00;
+        reach[c10] += laid * w10;
+        reach[c01] += laid * w01;
+        reach[c11] += laid * w11;
+        continue;
+      }
+      // A BIG PUFF (an avalanche's billow) shades a disc as wide as it is,
+      // thickest through its middle — in cells of its own size past
+      // `SHADOW_REACH`, so a cloud of them costs no more than a few.
+      const step = Math.max(1, Math.ceil(r / SHADOW_CELL / SHADOW_REACH));
+      const span = Math.ceil(r / SHADOW_CELL / step);
+      for (let b = -span; b <= span; b++) {
+        for (let a = -span; a <= span; a++) {
+          const d2 = ((a * a + b * b) * step * step * SHADOW_CELL * SHADOW_CELL) / (r * r);
+          if (d2 >= 1) continue;
+          const laid = thick * (1 - d2);
+          for (let bb = 0; bb < step; bb++) {
+            for (let aa = 0; aa < step; aa++) {
+              reach[cell(u0 + a * step + aa, v0 + b * step + bb)] += laid;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -723,7 +761,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       boil.grow = grow;
       boil.hang = hang;
       boil.opacity = opacity;
-      spawn(x, y, z, vx, vy, vz, boil, groundOf(x, z));
+      spawn(x, y, z, vx, vy, vz, boil, groundOf(x, z), BILLOW_DENSE);
     },
     update(dt, look, level, wind, eye) {
       levelRef = level;
@@ -819,7 +857,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         L[n * 4 + 3] = ground[i];
         S[n * 4] = sparkle[i];
         // How thick it shades itself: dense young, thin once spread.
-        S[n * 4 + 1] = Math.min(1.2, (opacity[i] * (size0[i] * 2.2)) / r + 0.25);
+        S[n * 4 + 1] = Math.min(1.2, (opacity[i] * (size0[i] * 2.2)) / r + 0.25) * dense[i];
         S[n * 4 + 2] = spin[i] + a01 * (seed[i] - 0.5) * 1.5;
         S[n * 4 + 3] = lit[i];
       }

@@ -66,7 +66,7 @@ declare global {
 }
 
 const params = new URLSearchParams(location.search);
-const seed = Number(params.get("seed") ?? 12);
+const seed = Number(params.get("seed") ?? 7);
 const region = (params.get("region") || undefined) as RegionId | undefined;
 const dial = Number(params.get("snow") ?? 3);
 const hour = Number(params.get("hour") ?? 11);
@@ -104,10 +104,16 @@ const FRAME = 1 / 60;
 const STEPS = Math.round(FRAME / TUNING.dt);
 const STILL = 1e-4;
 
+/** The run's own seed the slides are dealt off: picked at the start so the
+ * sheets' slab is a middling one, near the half metre most dry slabs are
+ * (`AVALANCHE.depthMid`), rather than whatever the map's seed deals. */
+let runSeed = seed;
+const depthWanted = Number(params.get("depth") ?? 0.6);
+
 function fresh(): GameState {
   return createGame({
     level: map,
-    seed,
+    seed: runSeed,
     region,
     mode: "free",
     snowDepth: dial,
@@ -118,12 +124,36 @@ function fresh(): GameState {
   });
 }
 
-/** THE FACE: the open, loaded slope off the runs that breaks into the
- * biggest slab — its width across times its run down the fall line, both
- * probed as the engine sizes a slab (a point is slab while its hazard
- * stands above none) — with room below it on the map for the flow. */
-function pickFace(s: GameState): { x: number; z: number } {
-  if (forced.length === 2 && forced.every(Number.isFinite)) return { x: forced[0], z: forced[1] };
+type Spot = { x: number; z: number };
+
+/** THE WOODS: a face whose flow runs into trees is hidden by them, so the
+ * sheets' face is an open one — trees counted on a 10 m grid. */
+let woodsOf: ((x: number, z: number) => number) | null = null;
+function treeGrid(s: GameState): (x: number, z: number) => number {
+  if (woodsOf) return woodsOf;
+  const lv = s.level;
+  const CELLS = Math.ceil(lv.size / 10);
+  const woods = new Uint16Array(CELLS * CELLS);
+  for (const t of lv.trees) {
+    const i = Math.floor(t.x / 10);
+    const j = Math.floor(t.z / 10);
+    if (i >= 0 && j >= 0 && i < CELLS && j < CELLS) woods[j * CELLS + i]++;
+  }
+  woodsOf = (x: number, z: number) => {
+    const i = Math.floor(x / 10);
+    const j = Math.floor(z / 10);
+    return i >= 0 && j >= 0 && i < CELLS && j < CELLS ? woods[j * CELLS + i] : 0;
+  };
+  return woodsOf;
+}
+
+/** THE FACES worth a slide: the open, loaded slopes off the runs that
+ * break into the biggest slabs — width across times run down the fall
+ * line, both probed as the engine sizes a slab (a point is slab while its
+ * hazard stands above none) — with a run-out below in sight and few trees
+ * or rocks down the track; the best `most`, a couple of hundred metres
+ * apart, best first. */
+function faces(s: GameState, most: number): Spot[] {
   const lv = s.level;
   const n = { x: 0, y: 1, z: 0 };
   const on = (x: number, z: number) =>
@@ -132,8 +162,8 @@ function pickFace(s: GameState): { x: number; z: number } {
   const sun = sunAtRun({ sun: { ...lv.sun, hour } });
   const sx = Math.sin(sun.azimuth);
   const sz = Math.cos(sun.azimuth);
-  let best = { x: lv.size / 2, z: lv.size / 2 };
-  let score = -Infinity;
+  const treesAt = treeGrid(s);
+  const found: { x: number; z: number; score: number }[] = [];
   const margin = 120;
   for (let x = margin; x < lv.size - margin; x += 12) {
     for (let z = margin; z < lv.size - margin; z += 12) {
@@ -172,27 +202,121 @@ function pickFace(s: GameState): { x: number; z: number } {
         }
       }
       if (!ease) continue;
+      // The trees down the track, from the crown to past where it eases,
+      // and the rock: a pitch over 40° is a cliff's, drawn as bare rock.
+      let trees = 0;
+      for (let d = -up; d <= ease + 60; d += 10) {
+        for (let w = -across / 2; w <= across / 2; w += 10) {
+          const px = x + fx * d + fz * w;
+          const pz = z + fz * d - fx * w;
+          trees += treesAt(px, pz);
+          lv.normalAt(px, pz, n);
+          if (n.y < 0.77) trees += 3;
+        }
+      }
       const lit = 0.35 + 0.65 * Math.max(0, fx * sx + fz * sz);
       const sc =
         (Math.min(down, 140) * Math.min(across, 80) ** 2 * (0.5 + h) * lit) /
-        (1 + (ease - down) / 150);
-      if (sc > score) {
-        score = sc;
-        best = { x, z };
-      }
+        (1 + (ease - down) / 150) /
+        (1 + trees / 6);
+      if (sc > 0) found.push({ x, z, score: sc });
     }
   }
-  return best;
+  found.sort((a, b) => b.score - a.score);
+  const out: Spot[] = [];
+  for (const f of found) {
+    if (out.length >= most) break;
+    if (out.some((o) => Math.hypot(o.x - f.x, o.z - f.z) < 200)) continue;
+    out.push({ x: f.x, z: f.z });
+  }
+  return out;
+}
+
+/** The run's seed whose slab at `at` is nearest the depth wanted, and wide. */
+function seedFor(at: Spot): number {
+  let off = Infinity;
+  let pick = seed;
+  for (let k = 0; k < 40; k++) {
+    runSeed = seed + k * 7919;
+    const trial = fresh();
+    const slab = releaseAvalanche(trial, trial.avalanche!, at.x, at.z, []).slab;
+    const miss =
+      Math.abs(slab.depth - depthWanted) / 0.15 - Math.min(slab.left + slab.right, 60) / 20;
+    if (miss < off) {
+      off = miss;
+      pick = runSeed;
+    }
+  }
+  return pick;
+}
+
+/** A slide at `at` run to rest headless: whether it stopped, how far it
+ * ran, and how many trees stood along its path. */
+function trial(at: Spot): { stopped: boolean; runout: number; trees: number; wide: number } {
+  const s = fresh();
+  const treesAt = treeGrid(s);
+  placeRun(s, safe);
+  const slide = releaseAvalanche(s, s.avalanche!, at.x, at.z, []);
+  let trees = 0;
+  const seen = new Set<number>();
+  const steps = Math.round(1 / TUNING.dt);
+  for (let t = 0; t < 60 && slide.running; t++) {
+    for (let i = 0; i < steps; i++) step(s, NEUTRAL_INPUT);
+    for (let i = 0; i < slide.count; i += 3) {
+      const x = slide.cells[i * CELL.stride + CELL.x];
+      const z = slide.cells[i * CELL.stride + CELL.z];
+      const key = Math.floor(x / 10) * 100000 + Math.floor(z / 10);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      trees += treesAt(x, z);
+    }
+  }
+  return {
+    stopped: !slide.running,
+    runout: slide.runout,
+    trees,
+    wide: slide.slab.left + slide.slab.right,
+  };
 }
 
 let face = { x: 0, z: 0 };
+let bestSeed = seed;
 /** A safe place to stand the skier the planted views do not follow: the
  * start line, on the groomed piste. */
 let safe = { x: 0, z: 0, heading: 0 };
+const tried: string[] = [];
 const ready = (async () => {
-  const first = fresh();
-  face = pickFace(first);
+  let first = fresh();
   safe = { x: first.skier.x, z: first.skier.z, heading: first.skier.heading };
+  if (forced.length === 2 && forced.every(Number.isFinite)) {
+    face = { x: forced[0], z: forced[1] };
+    bestSeed = seedFor(face);
+  } else {
+    // Each candidate's slide run to rest headless: the sheets want one
+    // that stops in sight, on open snow.
+    let top = -Infinity;
+    for (const at of faces(first, 8)) {
+      const pick = seedFor(at);
+      runSeed = pick;
+      const r = trial(at);
+      const sc =
+        (r.stopped ? 1 : 0.02) *
+        Math.min(r.wide, 70) *
+        (1 / (1 + Math.max(0, r.runout - 450) / 200)) *
+        (1 / (1 + r.trees / 6));
+      tried.push(
+        `${at.x.toFixed(0)},${at.z.toFixed(0)} ${r.stopped ? "stops" : "runs"} ` +
+          `${r.runout.toFixed(0)} m, ${r.trees} trees, ${r.wide.toFixed(0)} m wide`,
+      );
+      if (sc > top) {
+        top = sc;
+        face = at;
+        bestSeed = pick;
+      }
+    }
+  }
+  runSeed = bestSeed;
+  first = fresh();
   await renderer.load(first);
   renderer.setSky({ hour });
   renderer.draw(first, 1, FRAME);
@@ -200,7 +324,8 @@ const ready = (async () => {
   const h = avalancheHazard(first.level, first.avalanche?.load ?? 0, face.x, face.z);
   return (
     `face at ${face.x.toFixed(0)}, ${face.z.toFixed(0)} — hazard ${h.toFixed(2)} at the run's ` +
-    `load ${(first.avalanche?.load ?? 0).toFixed(2)} (snow dial ${dial})`
+    `load ${(first.avalanche?.load ?? 0).toFixed(2)} (snow dial ${dial})` +
+    (tried.length ? `; tried ${tried.join(" | ")}` : "")
   );
 })();
 
@@ -235,6 +360,26 @@ function slabAt(slide: Slide, s: GameState, u: number, v: number, up: number) {
   return { x, y: s.level.groundAt(x, z) + up, z };
 }
 
+/** A lens on the crown from down the bed: `d` m down the ground's own
+ * fall line from the crown's point at `u` (the slab's frame leans off it
+ * on a twisted face), `up` m over the bed, looking back up at the wall. */
+function crownLens(slide: Slide, s: GameState, u: number, d: number, up: number) {
+  const k = slide.slab;
+  const top = slabAt(slide, s, u, 1.5, -k.depth * 0.5);
+  const n = { x: 0, y: 1, z: 0 };
+  let x = top.x;
+  let z = top.z;
+  // Walked down in steps, each down the ground's fall line where it is.
+  for (let w = 0; w < d; w += 2) {
+    s.level.normalAt(x, z, n);
+    const l = Math.hypot(n.x, n.z) || 1;
+    x += (n.x / l) * 2;
+    z += (n.z / l) * 2;
+  }
+  const eye = { x, y: s.level.groundAt(x, z) - k.depth + up, z };
+  return lens(eye, top, 60);
+}
+
 /** The flow's FRONT (the parcel furthest down) and its middle. */
 function frontOf(slide: Slide, s: GameState) {
   const c = slide.cells;
@@ -256,10 +401,43 @@ function frontOf(slide: Slide, s: GameState) {
       fz = z;
     }
   }
+  // The way the head is going: its parcels' mean velocity, near the front.
+  let wx = 0;
+  let wz = 0;
+  for (let i = 0; i < slide.count; i++) {
+    const x = c[i * CELL.stride + CELL.x];
+    const z = c[i * CELL.stride + CELL.z];
+    if (Math.hypot(x - fx, z - fz) > 40) continue;
+    wx += c[i * CELL.stride + CELL.vx];
+    wz += c[i * CELL.stride + CELL.vz];
+  }
+  const wl = Math.hypot(wx, wz);
+  const way = wl > 0.5 ? { x: wx / wl, z: wz / wl } : { x: k.fx, z: k.fz };
   return {
     front: { x: fx, y: s.level.groundAt(fx, fz), z: fz, v: far },
     middle: { x: mx, y: s.level.groundAt(mx, mz), z: mz },
+    way,
   };
+}
+
+/** A lens on the flow's head, set off it along the way it is going
+ * (`along` m ahead), to its left (`side` m) and `up` m over the snow there
+ * — never under the snow between — looking back at the head and its cloud. */
+function flowLens(slide: Slide, s: GameState, along: number, side: number, up: number) {
+  const { front, way } = frontOf(slide, s);
+  const x = front.x + way.x * along + way.z * side;
+  const z = front.z + way.z * along - way.x * side;
+  const eye = { x, y: s.level.groundAt(x, z) + up, z };
+  // Raised until the snow halfway along the line no longer stands in it.
+  for (let k = 0; k < 8; k++) {
+    const hx = (x + front.x) / 2;
+    const hz = (z + front.z) / 2;
+    const line = (eye.y + front.y + 8) / 2;
+    if (s.level.groundAt(hx, hz) + 4 < line) break;
+    eye.y += 8;
+  }
+  const at = { x: front.x - way.x * 12, y: front.y + 8, z: front.z - way.z * 12 };
+  return lens(eye, at, 55);
 }
 
 function lens(
@@ -319,11 +497,11 @@ const VIEWS: Record<string, () => Promise<void>> = {
       slabAt(slide, s, (k.left - k.right) / 2, 0, -k.depth),
       50,
     );
-    // Off the slab past its left flank, a few metres below the crown,
-    // looking up across it: the crown's wall and the flank side on.
+    // On the bed below the crown's left end, looking up at it: the crown's
+    // wall square to the bed, the plates going past.
     const close = lens(
-      slabAt(slide, s, k.left + 7, 12, 2.4),
-      slabAt(slide, s, mid - 2, 0, -k.depth),
+      slabAt(slide, s, mid + (k.left + k.right) * 0.28, 24, 2.2 - k.depth),
+      slabAt(slide, s, mid + (k.left + k.right) * 0.05, 0, 0),
       60,
     );
     const bare = fresh();
@@ -334,7 +512,8 @@ const VIEWS: Record<string, () => Promise<void>> = {
     shoot(s, "0.0 s, the crown cracks", far);
     shoot(s, "0.0 s, at the crown", close);
     for (const [dt, t] of [
-      [0.5, "0.5"],
+      [0.25, "0.25"],
+      [0.25, "0.5"],
       [0.5, "1.0"],
       [1, "2.0"],
     ] as const) {
@@ -342,37 +521,38 @@ const VIEWS: Record<string, () => Promise<void>> = {
       shoot(s, `${t} s`, far);
     }
     shoot(s, "2.0 s, at the crown", close);
+    // The slab gone off it: the crown's wall standing over the bed, seen
+    // from down the bed — high enough to see over the slope's bulge.
+    run(s, 5);
+    shoot(s, "7.0 s, the crown from the bed", crownLens(slide, s, mid, 16, 3.2));
   },
   async beside() {
     const { s, slide } = released();
-    const k = slide.slab;
     let t = 0;
     for (const at of [3, 6, 10, 15]) {
       run(s, at - t);
       t = at;
-      const { front } = frontOf(slide, s);
       // Off its left side, a little ahead of the front and over it,
       // looking back across the flow and up its track.
-      const eye = slabAt(slide, s, k.left + 90, front.v + 20, 45);
-      shoot(s, `${at} s from beside`, lens(eye, { ...front, y: front.y + 3 }, 55));
+      shoot(s, `${at} s from beside`, flowLens(slide, s, 25, 75, 28));
     }
   },
   async below() {
     const { s, slide } = released();
-    const k = slide.slab;
     let t = 0;
     for (const at of [3, 6, 10, 15]) {
       run(s, at - t);
       t = at;
-      const { front } = frontOf(slide, s);
-      const eye = slabAt(slide, s, (k.left - k.right) / 2 + 30, front.v + 120, 35);
-      shoot(s, `${at} s from below`, lens(eye, { ...front, y: front.y + 4 }, 55));
+      // Down its way, a little off its line, as it comes on.
+      shoot(s, `${at} s from below`, flowLens(slide, s, 110, 25, 14));
     }
   },
   async debris() {
     const { s, slide } = released();
     // To rest (`AVALANCHE.runMost` at the most).
     for (let t = 0; t < 60 && slide.running; t += 1) run(s, 1);
+    // And the cloud left to settle out of the air over it.
+    run(s, 30);
     const k = slide.slab;
     const { middle, front } = frontOf(slide, s);
     // The deposit's middle: the parcels at rest below the stauchwall.
@@ -395,7 +575,7 @@ const VIEWS: Record<string, () => Promise<void>> = {
     shoot(
       s,
       "close, on the deposit",
-      lens(slabAt(slide, s, lu + 9, lv - 12, 2.5), { x: lump.x, y: ly + 1, z: lump.z }, 60),
+      lens(slabAt(slide, s, lu + 12, lv - 16, 4.5), { x: lump.x, y: ly + 0.5, z: lump.z }, 60),
     );
     shoot(
       s,
@@ -405,12 +585,12 @@ const VIEWS: Record<string, () => Promise<void>> = {
     shoot(
       s,
       "far, across",
-      lens(slabAt(slide, s, k.left + 120, lv - 60, 70), slabAt(slide, s, lu, lv - 40, 0), 50),
+      lens(slabAt(slide, s, lu + 150, lv - 50, 70), { x: lump.x, y: ly, z: lump.z }, 45),
     );
     shoot(
       s,
       "the bed and the crown from below",
-      lens(slabAt(slide, s, 10, 45, 2), slabAt(slide, s, -5, 0, -k.depth), 55),
+      crownLens(slide, s, (k.left - k.right) / 2 - 10, 24, 4),
     );
   },
   async caught() {
@@ -441,19 +621,45 @@ const VIEWS: Record<string, () => Promise<void>> = {
     const { s, slide } = released();
     const k = slide.slab;
     run(s, 6);
-    const { front } = frontOf(slide, s);
+    shoot(s, "6 s from beside", flowLens(slide, s, 25, 75, 28));
+    for (let t = 0; t < 60 && slide.running; t += 1) run(s, 1);
+    // The skier just below the deposit's toe, down the ground's own fall
+    // line from it, facing its middle (its parcels past the slab), his
+    // headlamp on it.
+    const c = slide.cells;
+    let dx = 0;
+    let dz = 0;
+    let dn = 0;
+    for (let i = 0; i < slide.count; i++) {
+      const x = c[i * CELL.stride + CELL.x];
+      const z = c[i * CELL.stride + CELL.z];
+      if ((x - k.x) * k.fx + (z - k.z) * k.fz < k.length) continue;
+      dx += x;
+      dz += z;
+      dn++;
+    }
+    const lump = dn ? { x: dx / dn, z: dz / dn } : frontOf(slide, s).front;
+    const n = { x: 0, y: 1, z: 0 };
+    const toe = frontOf(slide, s).front;
+    s.level.normalAt(toe.x, toe.z, n);
+    const l = Math.hypot(n.x, n.z) || 1;
+    const sx = toe.x + (n.x / l) * 10;
+    const sz = toe.z + (n.z / l) * 10;
+    const heading = Math.atan2(lump.x - sx, lump.z - sz);
+    placeRun(s, { x: sx, z: sz, heading });
+    run(s, 0.05);
+    // A lens planted behind his shoulder, so it need not catch up.
+    const bx = s.skier.x - Math.sin(heading) * 6;
+    const bz = s.skier.z - Math.cos(heading) * 6;
     shoot(
       s,
-      "6 s from beside",
-      lens(slabAt(slide, s, k.left + 90, front.v + 20, 45), { ...front, y: front.y + 3 }, 55),
+      "the debris under the headlamp",
+      lens(
+        { x: bx, y: s.level.groundAt(bx, bz) + 3, z: bz },
+        { x: lump.x, y: s.level.groundAt(lump.x, lump.z), z: lump.z },
+        60,
+      ),
     );
-    for (let t = 0; t < 60 && slide.running; t += 1) run(s, 1);
-    // The skier at the deposit's toe, his headlamp on it.
-    const { front: toe } = frontOf(slide, s);
-    const heading = Math.atan2(-k.fx, -k.fz);
-    placeRun(s, { x: toe.x + k.fx * 14, z: toe.z + k.fz * 14, heading });
-    run(s, 0.3);
-    shoot(s, "the debris under the headlamp", "chase");
     renderer.setSky({ hour });
     await renderer.shadeSettled();
   },

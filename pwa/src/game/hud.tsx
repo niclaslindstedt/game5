@@ -51,6 +51,7 @@ import { HudActions } from "./hud-actions.tsx";
 import { ReplayOffer, type CrashOffer } from "./hud-replay-offer.tsx";
 import { ComboTile, TricksChips } from "./hud-combo.tsx";
 import { BodyPanel } from "./hud-body.tsx";
+import { ChallengeChipView, ChallengePlateView } from "./hud-challenge.tsx";
 import { DamageGauge } from "./hud-damage.tsx";
 import { GForce } from "./hud-gforce.tsx";
 import { GradeMark } from "./grade-mark.tsx";
@@ -298,6 +299,11 @@ export function Hud({
               <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
             </div>
           </div>
+          {snap.challenge?.chip && (
+            <div class="hud-top-row">
+              <ChallengeChipView chip={snap.challenge.chip} />
+            </div>
+          )}
         </div>
       )}
       {!leisure && (
@@ -529,6 +535,11 @@ export function Hud({
           <MissedArrow angle={snap.missed.angle} />
           <span class="hud-missed-distance">{STRINGS.missedBack(snap.missed.distance)}</span>
         </div>
+      )}
+
+      {/* A FREE RIDE'S CHALLENGE done: the medal plate, a few seconds. */}
+      {snap.challenge?.plate && snap.missed === null && (
+        <ChallengePlateView plate={snap.challenge.plate} />
       )}
 
       {/* Indoors (the afterski's room) there is nothing to ski: no speed,

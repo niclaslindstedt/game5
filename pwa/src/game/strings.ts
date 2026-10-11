@@ -20,6 +20,7 @@ import { REPLAY_STRINGS } from "./strings-replay.ts";
 import { DEV_STRINGS } from "./strings-dev.ts";
 import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
+import { CHALLENGE_STRINGS } from "./strings-challenges.ts";
 import { RANGE_NAMES } from "./strings-ranges.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
@@ -101,6 +102,7 @@ export const STRINGS = {
   ...GALLERY_STRINGS,
   /* ── THE STATISTICS — stated in strings-stats.ts ──────────────────── */
   ...STATS_STRINGS,
+  ...CHALLENGE_STRINGS,
   /* ── THE DEVELOPER PAGE — stated in strings-dev.ts ─────────────────── */
   ...DEV_STRINGS,
   /* ── THE BODY AND THE G METER — stated in strings-body.ts ──────────── */

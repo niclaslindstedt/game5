@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
 
 build:
 	npm run build
@@ -1016,6 +1016,16 @@ level:
 # `make lift-tops SEED=2 REGION=maritime ARGS="--weather storm"`
 lift-tops:
 	npm run lift-tops -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE CHALLENGES LAB: what a free ride map deals (the timed lines, the trick
+# goals, the hidden spots, the summits) and every timed line skied by the
+# bot, judged by the challenges' own judge — one row a line: its run and
+# colour, length, drop, par, the three medal times, the bot's time and
+# medal. The table the medals are calibrated by. Pure Node over the engine.
+# `make challenges-table SEED=38` · `make challenges-table COUNT=8` ·
+# `make challenges-table FACE=alpine-1` · `ARGS=--no-ski` the deal alone
+challenges-table:
+	npm run challenges-table -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(if $(FACE),--face $(FACE),) $(ARGS)
 
 # THE JUNCTIONS LAB: where the groomed snow BREAKS — a lip, a step or a
 # wall where a lane leaves a piste, a run merges into another, or anywhere

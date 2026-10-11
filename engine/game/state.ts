@@ -89,6 +89,13 @@ export type SkierInput = {
   plane?: import("./plane-state.ts").PlaneControls;
   /** EDGE-TRIGGERED: THE MACHINE PRESS — on or off a machine, a rig released, a jump. */
   machine?: boolean;
+  /** EDGE-TRIGGERED: THE TRANSCEIVER switched between sending and
+   * searching (`avalanche-rescue.ts`). Left out, untouched. */
+  beacon?: boolean;
+  /** HELD: THE RESCUE KEY — its press a PROBE pushed into the debris where
+   * he stands, held beside a strike the SHOVEL (`avalanche-rescue.ts`).
+   * Left out, let go. */
+  dig?: boolean;
 };
 
 export const NEUTRAL_INPUT: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };

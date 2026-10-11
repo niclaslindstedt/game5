@@ -25,8 +25,13 @@ export type InputAction = "restart" | "camera" | "pause" | "shot" | "hud" | "rep
 
 /** An action taken on the PRESS, not held. `machine` reaches the engine as
  * `reset` does (`SkierInput.machine`): on to the snowmobile or the
- * helicopter he stands beside, or off the one he rides. */
-export type EdgeAction = "reset" | "machine" | InputAction;
+ * helicopter he stands beside, or off the one he rides. `beacon` switches
+ * his avalanche transceiver between send and search (`SkierInput.beacon`),
+ * and `rescue` is the PROBE pushed in on the press and the SHOVEL worked
+ * while it is held (`SkierInput.dig`) — the one row kept both ways, which
+ * the input manager tracks itself rather than through the skier's held set
+ * (`input.ts`). */
+export type EdgeAction = "reset" | "machine" | "beacon" | "rescue" | InputAction;
 
 export type KeyAction = HeldAction | EdgeAction;
 
@@ -47,6 +52,8 @@ export const KEY_ACTIONS: readonly { id: KeyAction; label: string }[] = [
   { id: "trick", label: STRINGS.keyTrick },
   { id: "reset", label: STRINGS.keyReset },
   { id: "machine", label: STRINGS.keyMachine },
+  { id: "beacon", label: STRINGS.keyBeacon },
+  { id: "rescue", label: STRINGS.keyRescue },
   { id: "restart", label: STRINGS.keyRestart },
   { id: "camera", label: STRINGS.keyCamera },
   { id: "hud", label: STRINGS.keyHud },
@@ -112,6 +119,10 @@ export function isHeldAction(action: KeyAction): action is HeldAction {
  * hand beside the arrows rests near. It is read while he flies the
  * helicopter too, whose own table (`settings-heli-keys.ts`) has no row for
  * it.
+ *
+ * AFTER AN AVALANCHE: T for the TRANSCEIVER, switched between send and
+ * search, and G — beside F, where the left hand rests — the PROBE pressed
+ * and the SHOVEL held. Neither is on any machine's table.
  */
 export const DEFAULT_KEYS: KeyBindings = {
   tuck: ["KeyW"],
@@ -125,6 +136,8 @@ export const DEFAULT_KEYS: KeyBindings = {
   trick: ["KeyF", "KeyX"],
   reset: ["KeyR"],
   machine: ["Enter"],
+  beacon: ["KeyT"],
+  rescue: ["KeyG"],
   restart: ["KeyB"],
   camera: ["KeyC"],
   // H FOR THE READOUTS, beside C for what the camera looks at: the two

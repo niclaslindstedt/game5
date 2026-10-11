@@ -49,6 +49,8 @@ import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { Outfit } from "./outfit.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
+import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
+import { buriedLens } from "./camera-buried.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
 import { createAvalancheView, type AvalancheView } from "./avalanche-view.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
@@ -238,6 +240,18 @@ export function createMachines(
   let rescue: RescueScene | null = null;
   // THE AVALANCHE (`avalanche-view.ts`), built with the run's first slab.
   let slide: AvalancheView | null = null;
+  // THE SKI PATROL AND THE SEARCH (`patrol-view.ts`), built when the first
+  // patrol skis in or the first body is struck.
+  let patrol: PatrolView | null = null;
+  // The lens under the snow while he lies buried (`camera-buried.ts`).
+  const buriedPose: LensPose = {
+    eye: { x: 0, y: 0, z: 0 },
+    target: { x: 0, y: 0, z: 0 },
+    fov: 60,
+    roll: 0,
+  };
+  const surfaceAt = (x: number, z: number): number =>
+    level.groundAt(x, z) + (slide?.liftAt(x, z) ?? 0);
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
@@ -321,6 +335,11 @@ export function createMachines(
         group.add(slide.group);
       }
       slide?.frame(s, dt, simDt, fx.cloud);
+      if (slide && !patrol && patrolShown(s.avalanche)) {
+        patrol = createPatrolView(level, haze);
+        group.add(patrol.group);
+      }
+      patrol?.frame(s, dt, slide ? slide.liftAt : () => 0);
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
       if (seated && groomers) seated.root.visible = !drivenGroomer(s);
@@ -358,7 +377,9 @@ export function createMachines(
       // lens holding him as he falls away, or the ladder.
       const c = skyCam?.lens(p ?? ladder, dt) ?? null;
       ownLook = !h && ((c !== null && ownEyes) || (c === null && p !== null && doorEyes));
-      return h ?? c ?? p;
+      // Under the snow, the picture is his until the patrol digs him out.
+      const u = h || c || p || !slide ? null : buriedLens(current, surfaceAt, buriedPose);
+      return h ?? c ?? p ?? u;
     },
     figureShown: () => !ownLook,
     ladder(pose, s, screen = 16 / 9) {
@@ -421,6 +442,7 @@ export function createMachines(
       balloon?.dispose();
       rescue?.dispose();
       slide?.dispose();
+      patrol?.dispose();
     },
   };
 }

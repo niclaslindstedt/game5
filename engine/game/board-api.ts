@@ -22,3 +22,5 @@ export {
   turnWork,
 } from "./board-moves.ts";
 export { caughtCause, slideAcross, slowCatch, strapBoard } from "./board-crash.ts";
+export type { BoardGrab, SpinTag } from "./board-state.ts";
+export { boardGrabOf, edgeOf, popOf, spinSide } from "./board-tricks.ts";

@@ -47,7 +47,9 @@
 // the controls and into a grab: one ski kicked forward and one back, the
 // daffy (the edge over), both skis flung wide, the spread (the lean back),
 // or the body folded to a hand on the ski, the grab (the lean forward, or
-// nothing). While he grabs the lean and the edge move his body and not his
+// nothing) — and on a board the board's seven (`board-tricks.ts`: the indy,
+// the mute, the melon, the stalefish, the method, the nose and the tail).
+// While he grabs the lean and the edge move his body and not his
 // flight (`poseInput`), so he flies on as he was and the grab is a thing he
 // has to get out of before the snow comes back (`tricks.ts` judges that).
 //
@@ -59,12 +61,15 @@ import { landingAhead } from "./flight.ts";
 import { flightGravity } from "./limits.ts";
 import { SKIS, inertiaOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
-import type { GameState, SkierInput, TrickPose } from "./state.ts";
+import { boardGrabOf } from "./board-tricks.ts";
+import type { GameState, SkierInput, SkierState, TrickPose } from "./state.ts";
 
 const T = TUNING.tricks;
 
-/** Which grab the lean and the edge ask for with the trick button held. */
-export function poseOf(input: SkierInput): TrickPose {
+/** Which grab the lean and the edge ask for with the trick button held —
+ * on a board (`c` given and riding one) its own (`board-tricks.ts`). */
+export function poseOf(input: SkierInput, c?: SkierState): TrickPose {
+  if (c?.board) return boardGrabOf(input, c.spec, c.switched);
   const steer = Math.abs(input.steer);
   if (steer >= 0.5 && steer >= Math.abs(input.lean)) return "daffy";
   return input.lean >= 0.5 ? "spread" : "grab";
@@ -149,7 +154,7 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
   // whenever it changes. Left standing on the step the snow comes back, so
   // `tricks.ts` can see a landing taken in one.
   if (c.airborne) {
-    const pose = posing(state, input) ? poseOf(input) : null;
+    const pose = posing(state, input) ? poseOf(input, c) : null;
     if (pose !== k.pose) k.poseTime = 0;
     else if (pose !== null) k.poseTime += TUNING.dt;
     k.pose = pose;

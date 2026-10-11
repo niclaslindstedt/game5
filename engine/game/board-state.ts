@@ -23,9 +23,34 @@ export type BoardMoves = {
   /** THE FALLING LEAF: how far the nose is swung down the hill off square
    * to the fall line, rad (nose down positive); 0 off a sideslip. */
   leaf: number;
+  /** THE POP the flight he is in left the snow on (`board-tricks.ts`): off
+   * the TAIL, the ollie, or off the NOSE, the nollie — the lean he held as
+   * he sprang it; null for a flight he did not pop (off a kicker's lip or a
+   * crest). Set as he leaves the snow; naming only, it moves nothing. */
+  pop: "ollie" | "nollie" | null;
+};
+
+/** A SNOWBOARDER'S GRABS (`board-tricks.ts`'s `boardGrabOf`), each a hand
+ * on the board at the place the sport names it by: the INDY (the rear hand
+ * on the toe edge between the feet), the MUTE (the front hand on the toe
+ * edge), the MELON (the front hand on the heel edge), the STALEFISH (the
+ * rear hand round behind the rear leg on the heel edge), the METHOD (the
+ * front hand on the heel edge, the board kicked up behind him), the NOSE
+ * grab and the TAIL grab (a hand on that end). */
+export type BoardGrab = "indy" | "mute" | "melon" | "stalefish" | "method" | "nose" | "tail";
+
+/** WHAT A BOARD'S SPIN IS CALLED (`board-tricks.ts`'s `spinTag`), carried on
+ * the combo's spin and half parts beside their count: FRONTSIDE (the chest
+ * turned down the way he goes first) or BACKSIDE (the back first), whether
+ * he took off riding SWITCH, and whether he popped it off the nose (a
+ * NOLLIE). Absent on skis. */
+export type SpinTag = {
+  side?: "frontside" | "backside";
+  switched?: true;
+  nollie?: true;
 };
 
 /** A board's moves at rest: strapped in, stood still. */
 export function freshBoardMoves(): BoardMoves {
-  return { free: false, hop: 0, slip: 0, leaf: 0 };
+  return { free: false, hop: 0, slip: 0, leaf: 0, pop: null };
 }

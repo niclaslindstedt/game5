@@ -83,6 +83,8 @@
 // nothing here is random: a run replays to the same score.
 
 import { pipeHit } from "./pipe-air.ts";
+import { spinTag, takeOff } from "./board-tricks.ts";
+import type { SpinTag } from "./board-state.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { harshShare } from "./damage.ts";
 import { hurtLanding } from "./hurt.ts";
@@ -165,13 +167,15 @@ export function freshTricks(): TrickState {
 /** AN ELEMENT WON: the air's own rung first (rule 3, and first so the line
  * reads in the order the skier earned it), then the element's base and its
  * steps, then the beat. `spins` is which revolution of this flight it was
- * — the whole of the ladder. */
+ * — the whole of the ladder. `tag` is what a board's spin is called
+ * (`board-tricks.ts`), carried on the part for the words. */
 function win(
   state: GameState,
   events: GameEvent[],
   kind: TrickKind,
   spins: number,
   points: number,
+  tag?: SpinTag,
 ): void {
   const k = state.tricks;
   if (k.aired && !k.airPaid) {
@@ -183,7 +187,7 @@ function win(
   k.base += points;
   k.mult += spins;
   k.link = T.linkWindow;
-  k.parts.push({ kind, spins, flight: k.flight });
+  k.parts.push(tag ? { kind, spins, flight: k.flight, ...tag } : { kind, spins, flight: k.flight });
   events.push({ kind: "trick", t: state.t, trick: kind, spins, points, mult: k.mult });
 }
 
@@ -287,7 +291,8 @@ function countTurns(state: GameState, events: GameEvent[], slack: number): void 
   }
   while (Math.abs(k.yaw) + slack >= (k.turns + 1) * TAU) {
     k.turns += 1;
-    win(state, events, "spin", k.turns, T.spinPoints * k.turns);
+    const tag = spinTag(state.skier, k.yaw, k.switchIn);
+    win(state, events, "spin", k.turns, T.spinPoints * k.turns, tag);
   }
   if (!k.twisted && k.spins > 0 && k.turns > 0) {
     k.twisted = true;
@@ -301,7 +306,7 @@ function turnsLanded(state: GameState, events: GameEvent[]): void {
   countTurns(state, events, T.landSlack);
   const k = state.tricks;
   if (Math.abs(k.yaw) - k.turns * TAU + T.landSlack >= Math.PI) {
-    win(state, events, "half", 1, T.spinPoints / 2);
+    win(state, events, "half", 1, T.spinPoints / 2, spinTag(state.skier, k.yaw, k.switchIn));
   }
 }
 
@@ -372,6 +377,7 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
       k.fromY = c.y;
       k.peak = Math.max(c.y, k.fromY);
       k.switchIn = c.switched;
+      takeOff(c);
     }
     k.peak = Math.max(k.peak, c.y);
     // HOW FAR THE SKIER HAS TURNED, rad, on each axis he can turn about:

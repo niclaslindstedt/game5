@@ -27,7 +27,18 @@ import {
   TOP,
   turn,
   wipeout,
+  trick,
+  tricked,
+  LAUNCH,
 } from "./ride-helpers.mjs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
+
+// The combo READ as the HUD reads it: the app's words need `@engine`, so
+// the alias is laid before they are loaded.
+aliasEngine(join(dirname(fileURLToPath(import.meta.url)), "..", ".."));
+const { comboLine } = await import("../../pwa/src/game/strings.ts");
 
 /** The board every scenario here is ridden on. */
 const BOARD = "lynx";
@@ -214,4 +225,67 @@ export const BOARD_SCENARIOS = [
       return rows;
     },
   },
+];
+
+/** A BOARD TRICK (`board-tricks.ts`): the tricks lab's staged kicker flight
+ * ridden on the board, the trick asked by `input`, and the combo READ as
+ * the HUD reads it (`comboLine` — the grab's name, the spin's side). */
+function boardTrick(id, title, input, place = LAUNCH, switched = false) {
+  let seen = null;
+  return {
+    ...trick(id, title, input),
+    skis: BOARD,
+    place: () => place,
+    // A flight taken riding switch: tail first, as he rode the lip.
+    ...(switched ? { prepare: (st) => void (st.skier.switched = true) } : {}),
+    input: (t, st) => {
+      seen = st;
+      return { ...TUCK, ...input(t) };
+    },
+    measure: (run) => {
+      const parts = seen?.tricks.lastParts ?? [];
+      return [...tricked(run), ["named", parts.length ? comboLine(parts) : "—"]];
+    },
+  };
+}
+
+/** Two taps of the edge `side` way: a whole turn. */
+const TWO_TAPS = (side) => (t) => ({ steer: t < 0.05 || (t > 0.1 && t < 0.15) ? side : 0 });
+
+/** The board's tricks, in the ride lab's order. */
+export const BOARD_TRICK_SCENARIOS = [
+  ...[
+    ["indy", 0, 0],
+    ["mute", 1, 0],
+    ["melon", -1, 0],
+    ["stalefish", -1, 1],
+    ["method", -1, -1],
+    ["nose", 0, -1],
+    ["tail", 0, 1],
+  ].map(([grab, steer, lean]) =>
+    boardTrick(`board-${grab}`, `a ${grab} held 0.8 s off a kicker's flight on the board`, (t) =>
+      t < 0.8 ? { trick: true, steer, lean } : {},
+    ),
+  ),
+  boardTrick(
+    "board-bs360",
+    "two taps of the edge to the right on the board: a backside 360",
+    TWO_TAPS(1),
+  ),
+  boardTrick(
+    "board-fs360",
+    "two taps of the edge to the left on the board: a frontside 360",
+    TWO_TAPS(-1),
+  ),
+  boardTrick(
+    "board-switch-360",
+    "two taps to the right off a flight taken riding switch",
+    TWO_TAPS(1),
+    { ...LAUNCH, heading: Math.PI, speed: -LAUNCH.speed },
+    true,
+  ),
+  boardTrick("board-bs360-indy", "a backside 360 with an indy grabbed through it", (t) => ({
+    ...TWO_TAPS(1)(t),
+    ...(t > 0.3 && t < 1.0 ? { trick: true } : {}),
+  })),
 ];

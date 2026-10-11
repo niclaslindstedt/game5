@@ -14,8 +14,18 @@
 //
 //   node scripts/board-preview.mjs
 //   node scripts/board-preview.mjs --skip-build       # reuse the last bundle
+//   node scripts/board-preview.mjs --sheet=grabs      # the rider's tricks
+//
+// `--sheet=grabs` is THE RIDER'S TRICKS instead: the seven grabs held in the
+// air, the ollie's and the nollie's load, a spin led by the head and a press
+// on each end — each ridden by the real engine (`lib/board-trick-moves.mjs`)
+// and photographed by the skier lab's close sheet from behind, the rear
+// three-quarter, the side and the front three-quarter, at chase range:
+// `previews/board-grabs.png`. `make board-metrics` measures each grab's hand
+// to the board.
 
-import { existsSync, mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -35,11 +45,47 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: { kind: "string", default: "", help: "where the sheet is written" },
+    sheet: {
+      kind: "string",
+      default: "board",
+      help: "board (the deck, bindings and boots) or grabs (the rider's tricks, every grab from four sides)",
+    },
   },
-  "usage: node scripts/board-preview.mjs [--board=id] [--skip-build] [--out=path]",
+  "usage: node scripts/board-preview.mjs [--board=id] [--sheet=board|grabs] [--skip-build] [--out=path]",
 );
 
 mkdirSync(outDir, { recursive: true });
+
+if (args.sheet === "grabs") {
+  const { GRAB_ASKS } = await import("./lib/board-trick-moves.mjs");
+  const moments = [
+    ...GRAB_ASKS.map(([g]) => g),
+    "windup",
+    "nollie",
+    "spin",
+    "tail-press",
+    "nose-press",
+  ];
+  const run = spawnSync(
+    process.execPath,
+    [
+      "--experimental-strip-types",
+      "--disable-warning=ExperimentalWarning",
+      join(root, "scripts", "skier-preview.mjs"),
+      `--skis=${args.board}`,
+      "--sheet=closeup",
+      "--cell=190",
+      `--moment=${moments.join(",")}`,
+      ...(args["skip-build"] ? ["--skip-build"] : []),
+    ],
+    { stdio: "inherit" },
+  );
+  if (run.status !== 0) process.exit(run.status ?? 1);
+  const out = args.out || join(outDir, "board-grabs.png");
+  renameSync(join(outDir, "skier-closeup.png"), out);
+  console.log(out.replace(`${root}/`, ""));
+  process.exit(0);
+}
 
 if (!args["skip-build"] || !existsSync(join(buildDir, "board-preview.html"))) {
   const { build } = await import("vite");

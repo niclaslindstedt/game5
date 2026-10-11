@@ -130,11 +130,11 @@ function lineOf(level: Level, r: NetRun, ramp?: SummitRamp): Level {
     giantSlalom: undefined,
     speedSki: undefined,
     skiCross: undefined,
-    bigAir: undefined,
     slopestyle: undefined,
     halfpipe: undefined,
     moguls: undefined,
     aerials: undefined,
+    skiJump: undefined,
   };
   lines.set(key, line);
   return line;

@@ -91,7 +91,7 @@ describe("the slopestyle course set on a map (R38)", () => {
   it("is set, its start gate and finish line its only gates", () => {
     expect(course).toBeDefined();
     expect(level.checkpoints).toHaveLength(2);
-    expect(level.bigAir ?? level.slalom ?? level.downhill).toBeUndefined();
+    expect(level.aerials ?? level.slalom ?? level.downhill).toBeUndefined();
     expect(setSlopestyle(level)).toBe(level);
   });
 
@@ -126,9 +126,9 @@ describe("slopestyle as a mode", () => {
     expect(r.spinMost).toBeGreaterThanOrEqual(10 * Math.PI);
   });
 
-  it("opens on the big-air pair and the medium build", () => {
+  it("opens on the contest twin-tip (the Raven) and the medium build", () => {
     expect(raceSkisOf("slopestyle")).toBe("raven");
-    expect(skisById(SLOPESTYLE.skis).kind).toBe("Big air");
+    expect(skisById(SLOPESTYLE.skis).kind).toBe("Slopestyle");
     expect(raceRiderOf("slopestyle")).toBe("medium");
   });
 

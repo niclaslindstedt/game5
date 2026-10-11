@@ -161,7 +161,7 @@ export const TOPSHEETS: Record<SkiId, Topsheet> = {
   peregrine: sheet("Tracer", 0xf2541b, 0xf2f2f2, "race", { boot: 0x17191c, pole: 0xf2f2f2 }),
   marmot: sheet("Pine", 0x2c5a3a, 0xf2f2f2, "swoosh", { boot: 0x2c5a3a }),
   hare: sheet("Candy", 0xf05a8a, 0x17191c, "split", { boot: 0xf05a8a }),
-  // A big-air pair in a raven's gloss black with a lime twin: black reads
+  // The freestyle contest pair in a raven's gloss black with a lime twin: black reads
   // against the sky at the top of a jump, the lime against the snow.
   raven: sheet("Gloss", 0x1c1e26, 0xb6e01e, "twin", { boot: 0xb6e01e }),
   // A mogul pair in glacier cyan split with white: the knees and the skis
@@ -171,4 +171,7 @@ export const TOPSHEETS: Record<SkiId, Topsheet> = {
   // the judges follow through the twists, and a warm red turns against the
   // sky where black and white blur.
   kestrel: sheet("Rufous", 0xc2552b, 0xf4ead2, "split", { boot: 0xf4ead2 }),
+  // A jumping pair in an albatross's slate over white: a dark V reads
+  // against the white landing hill from the side-on camera.
+  albatross: sheet("Slate", 0x3a4250, 0xf2f2f2, "race", { boot: 0xf2f2f2, pole: 0x3a4250 }),
 };

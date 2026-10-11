@@ -5,12 +5,13 @@ section judging, the format and the dealt field, the bot, the HUD, the
 plate, the tricks card's box and the links are built; the boxes below that
 are still open say what remains. Delete this file when slopestyle is
 finished (see `README.md`). The shared pieces are `TRICK_MODES.md`'s; the
-jumps are `BIG_AIR.md`'s; the rails and boxes (JIBS) are first built here.
+jumps are the straight venue's (R37; big air's research in
+`docs/freestyle.md` § *Big air*); the rails and boxes (JIBS) are first built here.
 
 ## Start here
 
 1. Follow `README.md`'s *Starting a discipline in a new session*, and read
-   `TRICK_MODES.md` and `BIG_AIR.md` first.
+   `TRICK_MODES.md` first.
 2. The research is `docs/freestyle.md` § *Slopestyle* and § *What every
    judged park format shares*: the course (150 m+ of vertical, six judged
    sections of which three jumps, 30 m wide, two lines a section), the
@@ -124,6 +125,10 @@ three, the single best run counting.
 Research EXTENSIVELY before building (`TRICK_MODES.md` § *Research, the
 pair and the build*): several sources for every number that shapes the
 build, written into `docs/freestyle.md`.
+
+- [ ] The kicker's real take-off angle on a big jump (the rules' minimum
+      is 25°; a championship kicker is likely steeper) and the knuckle's
+      shape — carried over from the retired big air spec.
 
 - [x] **The rules and the conditions**, in full: the field of play and a
       championship venue's real size, the format, the judging and a fall,

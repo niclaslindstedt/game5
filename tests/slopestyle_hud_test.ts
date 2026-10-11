@@ -36,7 +36,7 @@ describe("slopestyle on the HUD and the plate", () => {
   });
 
   it("is null on any other run", () => {
-    expect(slopestyleOf(createGame({ seed: 4, mode: "bigAir", quiet: true }))).toBeNull();
+    expect(slopestyleOf(createGame({ seed: 4, mode: "halfpipe", quiet: true }))).toBeNull();
   });
 
   it("names the section he is in", () => {

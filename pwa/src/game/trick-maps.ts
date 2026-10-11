@@ -128,7 +128,7 @@ export const TRICK_MAPS: readonly TrickMap[] = [
  * contest built over one. */
 export const TRICK_RUNS = [
   "tricks",
-  "bigAir",
+  "skiJump",
   "slopestyle",
   "halfpipe",
   "moguls",

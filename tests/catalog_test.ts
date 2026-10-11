@@ -280,7 +280,7 @@ describe("nine answers to a kind of snow", () => {
     }
   });
 
-  it("the big-air ski's deep legs take the hardest landing whole, the soft park ski next; the stiff, heavy speed ski the least, then the downhill ski", () => {
+  it("the Raven's deep legs take the hardest landing whole, the soft park ski next; the stiff, heavy speed ski the least, then the downhill ski", () => {
     const harsh = SKI_CATALOG.map(harshSpeedOf);
     expect(Math.max(...harsh)).toBe(harshSpeedOf(RAVEN));
     expect(Math.max(...SKI_CATALOG.filter((s) => s !== RAVEN).map(harshSpeedOf))).toBe(

@@ -79,6 +79,7 @@ import { GroomerReadout } from "./hud-groomer.tsx";
 import { ParaReadout } from "./hud-para.tsx";
 import { ChuteReadout, PlaneReadout } from "./hud-plane.tsx";
 import { BalloonPad, BalloonReadout } from "./hud-balloon.tsx";
+import { JumpPad, SkiJumpBar, SkiJumpCues } from "./hud-skijump.tsx";
 
 export type { HudFlash };
 
@@ -202,6 +203,8 @@ export function Hud({
       landed={basket.call === "landed"}
       onJump={input.requestMachine}
     />
+  ) : snap.skiJump ? (
+    <JumpPad touch={input.touch} side={lever} />
   ) : (
     <LeverZone touch={input.touch} feel={feel} side={lever} />
   );
@@ -311,7 +314,9 @@ export function Hud({
           <div class="hud-top-row">
             {/* A SPEED RACE reads its SPEED where every other run reads its
               clock — what he carries, then what the zone timed (R34). */}
-            {snap.race?.zone ? (
+            {snap.skiJump ? (
+              <SkiJumpBar jump={snap.skiJump} />
+            ) : snap.race?.zone ? (
               <div class="hud-clock hud-clock-speed">
                 <span class="hud-clock-time">
                   {snap.finished && snap.result
@@ -332,7 +337,7 @@ export function Hud({
             )}
             {/* A TRICKS RUN'S TWO: the score and the buzzer. */}
             {snap.tricks &&
-              !snap.bigAir &&
+              !snap.skiJump &&
               !snap.slopestyle &&
               !snap.halfpipe &&
               !snap.moguls &&
@@ -384,13 +389,6 @@ export function Hud({
                 </span>
               </div>
             )}
-            {/* A BIG AIR JUMP: its phase, and which of its jumps. */}
-            {snap.bigAir && (
-              <div class="hud-chip hud-run">
-                <span>{STRINGS.bigAirJump(snap.bigAir.jump, snap.bigAir.of)}</span>
-                <span class="hud-chip-sub">{STRINGS.bigAirPhase(snap.bigAir.phase)}</span>
-              </div>
-            )}
             {/* THE PLACE — the one number a racer reads more than the clock.
               Keyed on the place, so a pass lands with its own beat. Left
               out of a race alone, where 1 / 1 says nothing. */}
@@ -438,7 +436,7 @@ export function Hud({
                 <span class="hud-chip-sub">{STRINGS.placeLabel}</span>
               </div>
             ) : null}
-            {!snap.free && (
+            {!snap.free && !snap.skiJump && (
               <div class="hud-chip hud-gates">
                 <span>{STRINGS.gates(snap.taken, snap.gates)}</span>
                 <span class="hud-chip-sub">
@@ -452,7 +450,7 @@ export function Hud({
             {/* THE VERTICAL: how far down the mountain the run has got — the
               one figure a descent has that a loop never did; a ski-cross
               heat's place in the pack says more, and has the room. */}
-            {!snap.free && !(snap.cross && snap.cross.round !== "qualify") && (
+            {!snap.free && !snap.skiJump && !(snap.cross && snap.cross.round !== "qualify") && (
               <div class="hud-chip">
                 <span>{STRINGS.dropped(snap.dropped)}</span>
                 <span class="hud-chip-sub">{STRINGS.droppedLabel}</span>
@@ -492,8 +490,9 @@ export function Hud({
           {/* THE SPLIT, under the row it belongs to: the clock as it stood at
             the gate just taken, held for a few seconds and then gone,
             so a stale figure is never read as a fresh one. Keyed on the
-            figure so a new split lands with the beat. */}
-          {snap.split !== null && (
+            figure so a new split lands with the beat. A ski jump keeps no
+            clock. */}
+          {snap.split !== null && !snap.skiJump && (
             <div class="hud-top-row">
               <div class="hud-chip hud-split" key={snap.split}>
                 <span>{STRINGS.split(snap.split)}</span>
@@ -548,7 +547,7 @@ export function Hud({
           the edge, his own wind and the height are the strip's. */}
       {!indoors && (
         <div class="hud-speed">
-          {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && (
+          {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && !snap.skiJump && (
             <div class="hud-revs-row">
               <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
               <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
@@ -559,8 +558,9 @@ export function Hud({
           <div class="hud-cluster">
             {/* Flying the plane or under the skydive, its own panel reads
                 the speed (knots, the fall, the air through the canopy):
-                the skier's dial would be a second, different number. */}
-            {snap.plane?.kind !== "flown" && !snap.chute && (
+                the skier's dial would be a second, different number. On a
+                ski jump the moment's cue reads it (`hud-skijump.tsx`). */}
+            {snap.plane?.kind !== "flown" && !snap.chute && !snap.skiJump && (
               <>
                 <span class="hud-speed-num">
                   {Math.round(snap.balloon ? snap.balloon.groundKmh : snap.speedKmh)}
@@ -568,7 +568,7 @@ export function Hud({
                 <span class="hud-speed-unit">{STRINGS.speedUnit}</span>
               </>
             )}
-            {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && (
+            {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && !snap.skiJump && (
               <WindMeter wind={snap.wind} />
             )}
             {snap.damage && <DamageGauge damage={snap.damage} />}
@@ -673,7 +673,10 @@ export function Hud({
       {/* THE AIR CLOCK, top centre, from the moment a flight has lasted long
           enough to BE one until the skis are back on the snow. A flight on
           course to be the race's longest says so while it is still up. */}
-      {snap.airTime > 0 && (
+      {/* A SKI JUMP's one reading for the moment (`hud-skijump.tsx`), in
+          the air clock's place: in the air only the attitude is read. */}
+      {snap.skiJump && <SkiJumpCues jump={snap.skiJump} touch={touch} jumpKey={jumpKey} />}
+      {snap.airTime > 0 && !snap.skiJump && (
         <div class="hud-air">
           <div class="hud-air-tile">
             <span class={`hud-air-read ${snap.airBest ? "hud-air-read-best" : ""}`}>

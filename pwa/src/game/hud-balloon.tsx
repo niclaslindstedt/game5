@@ -139,7 +139,7 @@ export function BalloonReadout({
 
 /** One held press: down writes `on(true)`, the lift (or anything else that
  * ends the grip — the thumb guard) writes `on(false)`. */
-function HoldPress({
+export function HoldPress({
   label,
   kind,
   on,

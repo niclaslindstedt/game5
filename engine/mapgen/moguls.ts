@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // R40 — A MOGULS COURSE BUILT OVER A BUILT MAP. A line of its own cut
-// straight down the face, as R37's jump and R39's pipe are
+// straight down the face, as R37 states and R39's pipe is
 // (`straight-venue.ts`): a start platform, a roll onto the course's pitch,
 // the pitch held down the course with its two AIR BUMPS drawn into it, and
 // a finish area at its foot — graded, groomed and cleared — and the MOGUL

@@ -286,6 +286,9 @@ export type TouchChannel = {
   lever: boolean;
   /** The lever's thumb loading the jump (`jumpTapDown`). */
   jump: boolean;
+  /** THE TRICK KEY on touch: a ski jumper's TELEMARK press
+   * (`hud-skijump.tsx`'s `JumpPad`), held while it is down. */
+  trick: boolean;
   /** A DOUBLE TAP on either thumb's zone, set on the second touch and kept
    * until a step has taken it — the MACHINE press on touch
    * (`SkierInput.machine`): on to the snowmobile or the helicopter beside
@@ -315,6 +318,7 @@ export function neutralTouch(): TouchChannel {
     brake: 0,
     lever: false,
     jump: false,
+    trick: false,
     tap2: false,
     stickX: 0,
     stickY: 0,
@@ -455,7 +459,7 @@ export function sampleInput(
     brake,
     lean: clamp(lean, -1, 1),
     reset,
-    trick: keys.trick,
+    trick: keys.trick || touch.trick,
     carve: back === "carve",
     jump: keys.jump || (touch.lever && touch.jump),
   });

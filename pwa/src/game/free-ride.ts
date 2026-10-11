@@ -568,3 +568,12 @@ export function standingFor(
     !level.giantSlalom;
   return same ? level : undefined;
 }
+
+/** A ride stood on a link's real `face` — a link to one of the free
+ * ride's cards opens it there — (in the face's own country), or
+ * the ride as it is where the link names none this build has. */
+export function rideOnFace(ride: FreeRide, face: string | null): FreeRide {
+  const region = face ? realFaceRegion(face) : null;
+  if (!face || !region || face === ride.face) return ride;
+  return { ...ride, face, region, spot: null, run: null };
+}

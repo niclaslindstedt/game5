@@ -38,7 +38,7 @@ import {
 } from "@engine";
 
 import { mergeRacePicks, type RacePicks } from "./race-maps.ts";
-import { freshRide, mergeRide, type FreeRide } from "./free-ride.ts";
+import { freshRide, mergeRide, rideOnFace, type FreeRide } from "./free-ride.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { ShellContent } from "../shell-host.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
@@ -324,15 +324,20 @@ export function mergeSettings(parsed: unknown): Settings {
 /** Versioned, so a blob a later build reshapes is a blob it can recognise. */
 export const SETTINGS_KEY = "fall-line.settings.v1";
 
-export function loadSettings(): Settings {
+/** The stored settings — with the free ride stood on `face`, a link's to
+ * one of the free ride's cards, where one is named (never written back
+ * until the player moves a row). */
+export function loadSettings(face: string | null = null): Settings {
+  let s: Settings;
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
-    return mergeSettings(stored === null ? null : JSON.parse(stored));
+    s = mergeSettings(stored === null ? null : JSON.parse(stored));
   } catch {
     // Storage unavailable, or a blob that is not JSON — the defaults are a
     // perfectly good game.
-    return freshSettings();
+    s = freshSettings();
   }
+  return { ...s, ride: rideOnFace(s.ride, face) };
 }
 
 export function saveSettings(settings: Settings): void {

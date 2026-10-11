@@ -83,8 +83,9 @@
 //                   them) — never written back.
 //   ?menu=root      open on the front door rather than the attract card;
 //   ?menu=options   ...on OPTIONS, and `keys` on OPTIONS ▸ KEYS; `skis` on
-//                   the skis card RACE opens; `start` on the free ride's
-//                   start card; `levels` on
+//                   the skis card RACE opens; `world` on the free ride's
+//                   world map (WHERE), `area` on its area's mountains,
+//                   `start` on its start card; `levels` on
 //                   the level card a RACE picks its pinned map on (the
 //                   discipline `mode=` names); `gallery` on the pictures
 //                   kept; `dev` on the DEVELOPER page (let out, as the
@@ -113,7 +114,9 @@
 //                   boots into; never a race map, which is pinned.
 //   ?face=<id>      raise a seed's resort on this REAL face (R25: alpine-1,
 //                   fell-3, … — `real-face.ts`), its region the face's own —
-//                   a free ride over the start card's SHAPE and PEAK rows.
+//                   a free ride over the start card's RANGE, AREA and PART
+//                   rows — and a link to the WHERE steps or the start card
+//                   opens them on it.
 //   ?grade=<id>     build a seed's piste to this grade (R23: green, blue,
 //                   red, black) instead of the one the seed deals — a free
 //                   ride over the start card's GRADE row, and a race a
@@ -199,6 +202,8 @@ export type MenuPage =
   | "options"
   | "keys"
   | "start"
+  | "world"
+  | "area"
   | "races"
   | "freestyle"
   | "levels"
@@ -214,6 +219,8 @@ const MENU_PAGES: readonly MenuPage[] = [
   "options",
   "keys",
   "start",
+  "world",
+  "area",
   "races",
   "freestyle",
   "levels",
@@ -223,6 +230,11 @@ const MENU_PAGES: readonly MenuPage[] = [
   "dev",
   "benchHistory",
 ];
+
+/** The free ride's own cards: the WHERE steps and the start card. A link
+ * to one is a free ride on its way to the skis card. */
+export const freeRidePage = (page: string): boolean =>
+  page === "start" || page === "world" || page === "area";
 
 export type UrlParams = {
   seed: number | null;
@@ -396,7 +408,7 @@ export function readParams(search: string): UrlParams {
       camera !== null && RUN_CAMERAS.includes(camera as CameraRung) ? (camera as CameraRung) : null,
     skis: skis !== null && isPairId(skis) ? skis : null,
     mode:
-      start === "free"
+      start === "free" || freeRidePage(q.get("menu") ?? "")
         ? "free"
         : start === "downhill" || q.get("mode") === "downhill"
           ? "downhill"

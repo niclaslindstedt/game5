@@ -10,12 +10,18 @@
 // where a map of your own, a day of your own and a depth of snow of your own
 // belong. (Sibling game3's start card, ported for snow.)
 //
-// THREE ROWS SAY WHERE, A CHART SHOWS IT, and the rest say when:
+// THE WHERE STEPS COME FIRST (`menu-where.tsx`, `where-steps.ts`): FREE RIDE
+// opens on a world map with every real ski area marked where it lies, then,
+// where an area has more than one, its mountainsides; this card is the
+// third step, and its WORLD MAP chip and its way back walk them again.
+//
+// THREE ROWS SAY WHERE AGAIN, for a quick step, A CHART SHOWS IT, and the
+// rest say when:
 //
 //   RANGE   the massif: the RANGE a real face lies in (`face-picks.ts`: a
-//           country, or a range across borders; by name) — only the ranges
-//           with a face whose real ski area signs a link's `?grade=` where
-//           one asks it — or, last, GENERATED: a mountain the generator raises off a seed.
+//           country, or a range across borders; by name) — every one,
+//           whatever colours its ski area signs — or, last, GENERATED: a
+//           mountain the generator raises off a seed.
 //
 //   AREA    under GENERATED, the kind of snow country it is raised in
 //           (R21): the alpine, a fell, a continental range or a maritime
@@ -76,7 +82,6 @@
 // one a `?start=free` link boots into are the same ride read the same way.
 
 import {
-  type RunGrade,
   TIMES_OF_DAY,
   WEATHER_KINDS,
   realFacePlace,
@@ -112,31 +117,27 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
   ...WEATHER_KINDS.map((kind) => ({ id: kind, label: STRINGS.weatherNames[kind] })),
 ];
 
-/** The RANGE row's stops: every range with a real face
- * whose ski area signs a link's grade (any, without one) (R25), then GENERATED. */
-function rangeStops(grade: RunGrade | null): { id: string; label: string }[] {
-  return rangeIds(grade).map((id) => ({
+/** The RANGE row's stops: every range with a real face (R25), then
+ * GENERATED. */
+function rangeStops(): { id: string; label: string }[] {
+  return rangeIds().map((id) => ({
     id,
     label: id === GENERATED ? STRINGS.rangeGenerated : STRINGS.rangeName(id),
   }));
 }
 
 /** The AREA row's stops: R21's four countries under GENERATED, a real
- * range's ski areas of a link's grade (any, without one). */
-function areaStops(range: string, grade: RunGrade | null): { id: string; label: string }[] {
-  return areaIds(range, grade).map((id) => ({
+ * range's ski areas. */
+function areaStops(range: string): { id: string; label: string }[] {
+  return areaIds(range).map((id) => ({
     id,
     label: range === GENERATED ? STRINGS.regionNames[id as RegionId] : STRINGS.placeName(id),
   }));
 }
 
-/** The PART row's stops: an area's parts of a link's grade (any, without one). */
-function partStops(
-  range: string,
-  area: string,
-  grade: RunGrade | null,
-): { id: string; label: string }[] {
-  return areaParts(range, area, grade).map(({ id, part }) => ({
+/** The PART row's stops: an area's parts. */
+function partStops(range: string, area: string): { id: string; label: string }[] {
+  return areaParts(range, area).map(({ id, part }) => ({
     id,
     label: STRINGS.placeName(part),
   }));
@@ -163,6 +164,7 @@ export function StartPage({
   onSettings,
   onReroll,
   onBack,
+  onMap,
   onNext,
 }: {
   settings: Settings;
@@ -172,6 +174,8 @@ export function StartPage({
   /** Deal a fresh map. */
   onReroll: () => void;
   onBack: () => void;
+  /** Back onto the world map, the WHERE steps' first. */
+  onMap: () => void;
   /** On to the skis card, which is where RIDE is. */
   onNext: () => void;
 }) {
@@ -185,11 +189,11 @@ export function StartPage({
   const generated = range === GENERATED;
   /** A pick of RANGE (and AREA): GENERATED and a country, or a real face. */
   const pickWhere = (next: string, area?: string): void => {
-    const at = wherePicked(next, ride.grade, ride.region, area);
+    const at = wherePicked(next, ride.region, area);
     if (at) setRide({ ...at, spot: null, run: null });
   };
   const place = ride.face ? realFacePlace(ride.face) : null;
-  const parts = place ? partStops(place.range, place.area, ride.grade) : [];
+  const parts = place ? partStops(place.range, place.area) : [];
 
   // THE RUN ROW AND ITS CHART, as the pause card's PISTE MAP asks them too.
   const pick = useRunPick(settings, seed);
@@ -223,7 +227,7 @@ export function StartPage({
               <StepRow
                 label={STRINGS.startRange}
                 hint={STRINGS.startRangeHint}
-                stops={rangeStops(ride.grade)}
+                stops={rangeStops()}
                 value={range}
                 onPick={(id) => pickWhere(id)}
                 onHint={setHint}
@@ -231,7 +235,7 @@ export function StartPage({
               <StepRow
                 label={STRINGS.startArea}
                 hint={generated ? STRINGS.startRegionHint : STRINGS.startAreaHint}
-                stops={areaStops(range, ride.grade)}
+                stops={areaStops(range)}
                 value={areaOf(ride.face, ride.region)}
                 onPick={(area) => pickWhere(range, area)}
                 onHint={setHint}
@@ -322,6 +326,9 @@ export function StartPage({
               />
             </div>
             <div class="start-actions">
+              <button type="button" class="menu-chip" data-menu="map" onClick={onMap}>
+                <span class="menu-tile-name">{STRINGS.whereMap}</span>
+              </button>
               <button type="button" class="menu-chip" data-menu="reroll" onClick={onReroll}>
                 <span class="menu-tile-name">{STRINGS.startReroll}</span>
               </button>

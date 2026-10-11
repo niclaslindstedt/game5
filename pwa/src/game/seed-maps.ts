@@ -147,9 +147,10 @@ export function heldLevel(ask: SeedAsk): GeneratedLevel | null {
 }
 
 /** A FREE RIDE IS BEING STOOD UP on `ask`: nothing more is built ahead —
- * the snow is about to take every core it can get — and no map is held:
- * the ride has taken the one it rides (`freeRideLevel`), or is waiting on
- * the worker for it. */
+ * the snow is about to take every core it can get — no map is held (the
+ * ride has taken the one it rides, `freeRideLevel`, or is waiting on the
+ * worker for it), and the worker is ended the moment it has nothing left
+ * to hand the ride. */
 export function quietSeedMaps(ask: SeedAsk): void {
   const key = askKey(ask);
   wanted = null;
@@ -205,8 +206,15 @@ function pump(): void {
     run({ ...ask, key, paint: !answer });
     return;
   }
-  // Nothing left: the worker goes after a while, with the ski area it holds.
   window.clearTimeout(idle);
+  // A FREE RIDE IS BEING STOOD UP (`quietSeedMaps`): the worker goes now,
+  // with the ski area it holds — tens of megabytes of its own heap that the
+  // load is about to want, on a phone where the tab has none to spare.
+  if (!wanted) {
+    stop();
+    return;
+  }
+  // Nothing left: the worker goes after a while, with the ski area it holds.
   idle = window.setTimeout(() => {
     if (!busy) stop();
   }, IDLE_MS);

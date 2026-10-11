@@ -20,6 +20,7 @@
 
 import { useState } from "preact/hooks";
 
+import { useBusyPress } from "./busy-press.ts";
 import { rideOnto, runPicked, startPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, StepRow, type Hint } from "./menu-knobs.tsx";
 import { useRunPick } from "./run-pick.ts";
@@ -51,6 +52,10 @@ export function PauseSlopes({
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...here, ride: { ...ride, ...patch } });
   const pick = useRunPick(here, seed);
+  const [busy, go] = useBusyPress(() => {
+    if (ride !== settings.ride) onSettings(here);
+    onRide(ride);
+  });
   return (
     <div
       class="menu-card menu-card-pause menu-card-pause-slopes"
@@ -70,12 +75,12 @@ export function PauseSlopes({
             data-nav-next
             data-nav-focus
             disabled={pick.start === ""}
-            onClick={() => {
-              if (ride !== settings.ride) onSettings(here);
-              onRide(ride);
-            }}
+            data-busy={busy ? "1" : undefined}
+            aria-busy={busy}
+            onClick={go}
           >
             <span class="menu-item-name">{STRINGS.pauseSlopesRide}</span>
+            {busy && <span class="menu-busy" aria-hidden="true" />}
           </button>
         }
       />

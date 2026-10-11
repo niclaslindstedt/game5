@@ -38,6 +38,9 @@
 // rigging does, so they come back only off it: slow on full power, as over
 // a loop's top, the nose wants right rudder.
 //
+// A WING TORN OFF (`plane-wings.ts`) is left out: its two sections lift and
+// drag nothing, so the plane rolls in toward the side it lost.
+//
 // Pure over the plane's state and the air given it; nothing here draws
 // from the stream.
 
@@ -259,6 +262,10 @@ export type PlaneAir = {
   stalled: number;
   lift: number;
   thrust: number;
+  /** Each wing's own lift along the body's up, N — the left (the engine's
+   * +x) and the right: what tears one off past its ultimate load. */
+  liftL: number;
+  liftR: number;
 };
 
 /** THE THRUST at a power share and an airspeed, N, in the air or on the
@@ -333,9 +340,14 @@ export function planeAir(
   let wingArea = 0;
   let stalledArea = 0;
   let lift = 0;
+  let liftL = 0;
+  let liftR = 0;
   const half = 0.5 * density;
+  const wings = p.wings;
   for (let i = 0; i < SECTIONS.length; i++) {
     const s = SECTIONS[i];
+    // A wing torn off (`plane-wings.ts`) lifts nothing.
+    if (s.kind === "wing" && wings?.[s.px > 0 ? 0 : 1].torn) continue;
     // The section's own velocity through the air: the CoG's and the turn's.
     let vx = ux + (p.wy * s.pz - p.wz * s.py);
     let vy = uy + (p.wz * s.px - p.wx * s.pz);
@@ -390,6 +402,8 @@ export function planeAir(
     ty += s.pz * Fx - s.px * Fz;
     tz += s.px * Fy - s.py * Fx;
     if (s.kind === "wing") {
+      if (s.px > 0) liftL += L * ly;
+      else liftR += L * ly;
       wingLift += co.cl * s.area;
       wingArea += s.area;
       stalledArea += b * s.area;
@@ -424,6 +438,8 @@ export function planeAir(
   out.stalled = wingArea > 0 ? stalledArea / wingArea : 0;
   out.lift = lift;
   out.thrust = thrust;
+  out.liftL = liftL;
+  out.liftR = liftR;
   void speed;
   return out;
 }

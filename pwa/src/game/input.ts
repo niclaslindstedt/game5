@@ -15,7 +15,7 @@
 //   ↑ / Q / Z    lean forward         R               back to the checkpoint
 //   (and in the air, W and S pressed there lean too — `airLean`)
 //   (and DOWN off the skis, W pressed or a tap anywhere stands him up —
-//   the engine lets it go inside `crash.getUp`)
+//   once past `crash.getUp`; R answers at once)
 //   B            restart the race     C               next camera
 //   Escape       hold the race under the pause card (menu-pause.tsx);
 //                pressing it again over the card resumes, because the card's
@@ -29,6 +29,7 @@
 import {
   PLANE,
   TUNING,
+  mayGetUp,
   createStopHand,
   stopHand,
   type GameState,
@@ -76,8 +77,8 @@ export type InputManager = {
    * whether the player's skis is off the snow, where the tuck and brake
    * keys lean (`input-model.ts`'s `airLean`); `flying` whether he is sat on
    * the helicopter's skid, flying it (`heliControls`); `down` whether he is
-   * thrown off his skis, where the tuck key pressed or a tap anywhere is
-   * the reset (`crash.getUp` says when the engine takes it); `lift` the lift
+   * off his skis and may be asked to get up (`mayGetUp`), where the tuck
+   * key pressed or a tap anywhere is the reset; `lift` the lift
    * he is on, where a drag looks round rather than holds the tuck while it
    * carries him (`lift-gaze.ts`); `basket` whether he stands in the
    * balloon's basket, where the walking pad (`hud-balloon.tsx`) walks him
@@ -132,9 +133,16 @@ export type InputManager = {
 };
 
 /** The jump plane as the hand flying it needs it: its airspeed, m/s, the
- * share of its wing stalled (the buffet the stick is felt through), and the
- * levers as they stand on it (what the hand is seated to as he boards). */
-export type PlaneHand = { airspeed: number; stalled?: number; throttle: number; flaps: number };
+ * share of its wing stalled (the buffet the stick is felt through), its load
+ * factor (the strain on the wings, felt in the seat), and the levers as they
+ * stand on it (what the hand is seated to as he boards). */
+export type PlaneHand = {
+  airspeed: number;
+  stalled?: number;
+  load?: number;
+  throttle: number;
+  flaps: number;
+};
 
 /**
  * `claiming` says whether a RACE is being ridden right now. The listeners
@@ -329,6 +337,7 @@ export function createInputManager(
           dt,
           inPlane.airspeed,
           inPlane.stalled ?? 0,
+          inPlane.load ?? 1,
         );
       } else aboard = false;
       // In the balloon's basket the walking pad owns both ways he walks.
@@ -351,13 +360,17 @@ export function createInputManager(
         TUNING.dt,
         c.airborne,
         !!state.heli?.rider,
-        c.thrown !== null,
+        // A tap or the tuck key stands him up only once he may be asked to
+        // (`mayGetUp`): either is too easily made in the fall itself. The
+        // reset press needs no such wait.
+        c.thrown !== null && mayGetUp(c.thrown),
         c.lift,
         !!state.balloon?.aboard,
         p?.rider
           ? {
               airspeed: p.airspeed,
               stalled: p.stalled,
+              load: p.load,
               throttle: p.controls.throttle,
               // Boarded on the snow, the lever on the take-off flap.
               flaps: p.grounded

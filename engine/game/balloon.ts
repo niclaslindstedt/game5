@@ -66,7 +66,7 @@ import {
 } from "./balloon-air.ts";
 import { mendBody } from "./body.ts";
 import { standSkier } from "./course.ts";
-import { mayGetUp, throwRider } from "./crash.ts";
+import { throwRider } from "./crash.ts";
 import { helipadOf, openSpotNear, type Helipad } from "./heli-pad.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { derive } from "./skier.ts";
@@ -231,8 +231,8 @@ export function stepBalloon(run: GameState, input: SkierInput, events: GameEvent
     const c = run.skier;
     if (b.wreck && c.thrown) {
       // Thrown out by the crash: lain long enough — or the player's own
-      // press, once it is his — and the ride starts again at the bottom.
-      const up = input.reset && mayGetUp(c.thrown);
+      // press, at once — and the ride starts again at the bottom.
+      const up = input.reset;
       if (b.t >= B.crash.lieFor || up) {
         startBalloon(run, events);
         return true;

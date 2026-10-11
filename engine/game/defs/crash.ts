@@ -348,9 +348,10 @@ export const CRASH = {
   lieMax: 6.5,
   /** THE PLAYER DOWN is held longer than a rival: the fall is his to
    * watch — the death cam over him, the HUD's body showing what it did —
-   * not cut away from. No press of his own stands him up before `getUp` s
-   * off the skis (the reset, or the app's tap and tuck key on a crash),
-   * and the engine stands him up at `lieFor` s, however he lies. */
+   * not cut away from — unless he presses the reset, which answers at once.
+   * The app's tap and tuck key (taken by accident too easily for that) stand
+   * him up only past `getUp` s off the skis, and the engine does at
+   * `lieFor` s, however he lies. */
   getUp: 3,
   lieFor: 6,
 };

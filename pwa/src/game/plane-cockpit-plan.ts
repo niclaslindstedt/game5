@@ -83,7 +83,7 @@ export const PLANE_COCKPIT = {
   /** THE STICKS: the pilot's pivot on the floor between his knees and the
    * second seat's, the stick's length to the grip's foot, the grip's
    * length, its aft cant at rest; the travel full stick swings it, rad. */
-  stick: { x: -0.3, y: FLOOR + 0.04, z: 0.78, length: 0.6, grip: 0.12, cant: 0.06 },
+  stick: { x: -0.3, y: FLOOR + 0.04, z: 0.78, length: 0.66, grip: 0.12, cant: 0.06 },
   stickTravel: { pitch: 0.24, roll: 0.22 },
   /** THE ENGINE LEVERS: out of the quadrant under the panel's middle,
    * their x (the propeller, the power, the condition), their pivot low in
@@ -118,7 +118,7 @@ export const PLANE_COCKPIT = {
    * height, from and to along z. */
   overhead: { half: 0.14, y: ROOF - 0.07, from: -0.05, to: 0.44 },
   /** The wet compass on the glareshield's middle. */
-  compass: { y: 2.26, z: 1.2 },
+  compass: { y: 2.24, z: 1.2 },
 
   /** THE PILOT (whose eyes the lens is): where his shoulders and hips
    * are, half their spread, the limbs' lengths. */

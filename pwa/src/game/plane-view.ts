@@ -4,7 +4,8 @@
 // the build packs it, the code's stand-in (`plane-standin.ts`) until it is
 // in and wherever it is switched off (`VITE_MODEL_PLANE=0`) or will not
 // load. Either is posed the same way every frame off the engine's plane:
-// the propeller turned and its blur disc faded in with the spin, the
+// the propeller as an eye sees it turn (`rotor-look.ts`: its blades
+// handed over to a drawn smear as they blur, `rotor-disc.ts`), the
 // elevator, the rudder, the ailerons and the flaps on their hinges where
 // the engine has them, the sliding door as far open as it is, the lamps
 // lit — the red and green navs at the wing tips while the engine runs, the
@@ -29,6 +30,8 @@ import type { Flood } from "./headlamp.ts";
 import { createPlaneCockpit, type PlaneCockpit } from "./plane-cockpit.ts";
 import type { WreckParts } from "./plane-shatter.ts";
 import { createPlaneStandIn } from "./plane-standin.ts";
+import { fadeBlades, lookDisc, rotorDisc, shadeDisc, type DiscSpec } from "./rotor-disc.ts";
+import { createRotorEye } from "./rotor-look.ts";
 import { PLANE_NODES, planeModelUrl } from "./skier-models.ts";
 
 export type PlaneLook = {
@@ -59,8 +62,25 @@ export type PlaneLook = {
   dispose(): void;
 };
 
-/** The blur disc's opacity at the propeller's full spin. */
-const DISC = 0.2;
+/** THE PROPELLER'S SMEAR (`rotor-disc.ts`), in the disc's own plane (the
+ * airframe's x and y, the hub its middle): the paddle blades off the
+ * spinner, their painted tips, blade 0 straight up and the smear trailing
+ * the clockwise turn seen from ahead. */
+const PROP_R = PLANE.prop.diameter / 2;
+const PROP_DISC: DiscSpec = {
+  radius: PROP_R,
+  root: PLANE.prop.spinner / 2,
+  chord: 0.21,
+  taper: 0.45,
+  tipFrom: (PROP_R - 0.12) / PROP_R,
+  band: (PROP_R - 0.13) / PROP_R,
+  blades: PLANE.prop.blades,
+  first: Math.PI / 2,
+  trail: 1,
+  // Seen from the seat a metre and a half behind it, the sweep fills the
+  // windscreen: a faint veil there, as a propeller at speed is.
+  strength: 0.45,
+};
 /** The landing light's power after dark. */
 const LANDING = 1.1;
 
@@ -167,6 +187,21 @@ function modelParts(root: THREE.Object3D, haze: HazeUniforms): Parts {
   };
 }
 
+/** The propeller's blade meshes (not its spinner) — their materials the
+ * propeller's alone, made transparent for good, so fading them never
+ * rebuilds a shader. */
+function bladesOf(node: THREE.Object3D | null): THREE.Mesh[] {
+  const out: THREE.Mesh[] = [];
+  node?.traverse((o) => {
+    if (!(o instanceof THREE.Mesh) || Array.isArray(o.material)) return;
+    if (!/^(prop|tip)/i.test(o.material.name ?? "")) return;
+    o.material.transparent = true;
+    o.material.needsUpdate = true;
+    out.push(o);
+  });
+  return out;
+}
+
 /** THE STAND-IN's parts, its own signs (`plane-standin.ts`'s hinges). */
 function standInParts(look: ReturnType<typeof createPlaneStandIn>): Parts {
   look.disc.visible = false;
@@ -197,21 +232,19 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
   let disposed = false;
   let wreckParts: WreckParts = { root: standIn.group, prop: standIn.prop, door: null };
 
-  // THE BLUR DISC across the propeller's sweep, the model's and the
-  // stand-in's alike.
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(PLANE.prop.diameter / 2, 40),
-    new THREE.MeshBasicMaterial({
-      color: 0x2a2c30,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    }),
-  );
+  // THE SMEAR across the propeller's sweep, the model's and the
+  // stand-in's alike, turned with the pattern the eye reads; the model's
+  // blades faded out under it as they blur (`propBlades`).
+  const disc = rotorDisc(PROP_DISC);
   disc.position.set(0, PLANE.prop.hub.y, PLANE.prop.hub.z + 0.02);
   disc.renderOrder = 8;
   group.add(disc);
+  const propEye = createRotorEye({
+    blades: PLANE.prop.blades,
+    rpm: PLANE.prop.rpm,
+    width: PROP_DISC.chord / (0.6 * PROP_R),
+  });
+  let propBlades: THREE.Mesh[] = [];
 
   // THE LIGHTS as haloes over the model's own lamps.
   const halo = (colour: number, at: { x: number; y: number; z: number }, size: number) => {
@@ -250,6 +283,13 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       const node = (name: string): THREE.Object3D | null =>
         gltf.scene.getObjectByName(name) ?? null;
       wreckParts = { root: gltf.scene, prop: node(PLANE_NODES.prop), door: node(PLANE_NODES.door) };
+      propBlades = bladesOf(node(PLANE_NODES.prop));
+      // The smear's tip ring in the blades' own tip paint.
+      for (const b of propBlades) {
+        const m = b.material as THREE.MeshStandardMaterial;
+        if (/^tip/i.test(m.name))
+          (disc.material as THREE.ShaderMaterial).uniforms.uTip.value.copy(m.color);
+      }
       // THE COCKPIT, off the model's own glass, in the airframe's frame.
       let body: THREE.Object3D | null = null;
       gltf.scene.traverse((o) => {
@@ -270,6 +310,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
     })
     .catch(() => undefined);
 
+  const seen = { prop: 0 } as PlaneState;
   const v = new THREE.Vector3();
   const d = new THREE.Vector3();
   const q = new THREE.Quaternion();
@@ -277,10 +318,19 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
     group,
     ready,
     pose(p, clock, level, dt = 0) {
-      parts.pose(p);
+      // THE PROPELLER as the eye sees it: turned to its strobed pattern
+      // (never the true turn, which a picture cannot follow), its blades
+      // handed over to the smear as they blur. A wreck's are bent pieces
+      // (`plane-shatter.ts`), drawn solid.
+      const wreck = p.mode === "wreck";
+      const look = propEye.step(wreck ? 0 : p.spin, dt);
+      seen.prop = wreck ? p.prop : look.phase;
+      parts.pose(Object.assign(seen, p, { prop: seen.prop }));
       if (cockpit && level) cockpit.update(p, level, clock, dt);
-      disc.material.opacity = DISC * Math.max(0, Math.min(1, (p.spin - 0.2) / 0.6));
-      const live = p.mode !== "wreck" && p.spin > 0.05;
+      disc.rotation.z = -look.phase;
+      lookDisc(disc, look, !wreck);
+      fadeBlades(propBlades, wreck ? { ...look, blades: 1 } : look);
+      const live = !wreck && p.spin > 0.05;
       const flash = clock % 1 < 0.1;
       const beat = clock % 1.3;
       for (const n of navs) n.visible = live;
@@ -303,6 +353,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
     },
     lamps(p, at, lit, out) {
       cockpit?.night(lit);
+      shadeDisc(disc, 1 - 0.85 * lit);
       if (lit <= 0 || p.mode === "wreck" || p.spin < 0.05) return;
       q.set(at.q.x, at.q.y, at.q.z, at.q.w);
       v.set(LIGHTS.landing.x, LIGHTS.landing.y, LIGHTS.landing.z).applyQuaternion(q);
@@ -326,7 +377,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       });
       for (const m of parts.materials) m.dispose();
       for (const s of sprites) s.material.dispose();
-      disc.material.dispose();
+      (disc.material as THREE.Material).dispose();
     },
   };
 }

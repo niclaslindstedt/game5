@@ -55,24 +55,26 @@ export const PLANE = {
   /** THE FUSELAGE as stations along z, m: the bottom and top of the skin
    * and its half width at each — the nose's spinner, the cowling, the
    * windscreen's foot (the firewall), the cabin, the tailcone tapering to
-   * the rudder post. 10.9 m overall. [class sheet; est. sections] */
+   * the rudder post. 11.0 m overall: the long turbine nose 2.7 m from the
+   * firewall to the spinner's tip, the wing's leading edge 3.6 m behind
+   * it, as the class's side view has them. [class sheet; est. sections] */
   fuselage: {
     stations: [
-      { z: 3.45, bottom: 1.82, top: 1.94, half: 0.05 },
-      { z: 3.2, bottom: 1.6, top: 2.12, half: 0.36 },
-      { z: 2.3, bottom: 1.36, top: 2.17, half: 0.46 },
+      { z: 4.0, bottom: 1.82, top: 1.94, half: 0.05 },
+      { z: 3.75, bottom: 1.6, top: 2.1, half: 0.35 },
+      { z: 2.7, bottom: 1.4, top: 2.13, half: 0.45 },
       { z: 1.3, bottom: 1.08, top: 2.2, half: 0.56 },
       { z: 0.4, bottom: 0.95, top: 2.68, half: 0.63 },
       { z: -1.9, bottom: 0.98, top: 2.68, half: 0.62 },
       { z: -3.0, bottom: 1.2, top: 2.56, half: 0.52 },
-      { z: -5.0, bottom: 1.55, top: 2.36, half: 0.32 },
-      { z: -7.0, bottom: 1.78, top: 2.22, half: 0.14 },
-      { z: -7.45, bottom: 1.9, top: 2.16, half: 0.06 },
+      { z: -4.75, bottom: 1.55, top: 2.36, half: 0.32 },
+      { z: -6.55, bottom: 1.78, top: 2.22, half: 0.14 },
+      { z: -7.0, bottom: 1.9, top: 2.16, half: 0.06 },
     ],
   },
   /** THE COWLING over the turbine, from its front ring to the firewall, m,
    * and the exhaust stacks either side (their z and height). [est.] */
-  cowling: { front: 3.2, back: 1.3, exhaust: { z: 2.55, y: 1.85 } },
+  cowling: { front: 3.75, back: 1.3, exhaust: { z: 3.15, y: 1.85 } },
 
   /** THE WING: span, m; chord, m (constant, rectangular); its root's
    * height (the chord line at the side of the cabin roof) and the leading
@@ -105,27 +107,27 @@ export const PLANE = {
    * the trim a pilot winds in for the jump run and for aerobatics, which a
    * held stick then pulls and pushes about), and the elevator's share of
    * its chord. [class drawing; est.] */
-  tail: { span: 5.13, chord: 1.1, le: -6.1, y: 1.98, incidence: 0.016, elevator: 0.4 },
+  tail: { span: 5.13, chord: 1.1, le: -5.65, y: 1.98, incidence: 0.016, elevator: 0.4 },
   /** THE FIN AND RUDDER: the root's height, leading edge and chord, the
    * tip's, m, and the rudder's share of the chord — tall, with a dorsal
    * fillet run forward along the tailcone (`dorsal`: its leading edge's z
    * at the root). Three-point fin-top height 3.2 m. [class sheet; est.] */
   fin: {
-    root: { y: 2.2, le: -5.85, chord: 1.65 },
-    tip: { y: 4.55, le: -6.75, chord: 0.85 },
-    dorsal: -4.6,
+    root: { y: 2.2, le: -5.4, chord: 1.65 },
+    tip: { y: 4.55, le: -6.3, chord: 0.85 },
+    dorsal: -4.15,
     rudder: 0.4,
   },
   /** THE PROPELLER: diameter, m; blades; the hub's height and place along
    * z, m; the spinner's diameter, m; and its rpm at full power. Turning
    * clockwise seen from the cockpit. [class sheet: 3 blades, 2.56–2.67 m] */
-  prop: { diameter: 2.56, blades: 3, hub: { y: 1.88, z: 3.25 }, spinner: 0.42, rpm: 2200 },
+  prop: { diameter: 2.56, blades: 3, hub: { y: 1.88, z: 3.8 }, spinner: 0.42, rpm: 2200 },
 
   /** THE GEAR: the main legs from the fuselage to the axles, the track,
    * the wheels' radius, and the main SKIS under them (length, width, how
    * far forward of the axle the tip reaches, the tip's upturn), m; and the
    * TAIL SKI (where it touches, length, width), m — its height in the
-   * level frame sets the three-point attitude, atan(1.37 / 7.05) ≈ 11°.
+   * level frame sets the three-point attitude, atan(1.37 / 6.6) ≈ 11.7°.
    * Wide-track spring legs; wheel-skis of a mountain operator. [class
    * drawing: track ≈3.0 m; skis est.] */
   gear: {
@@ -133,7 +135,7 @@ export const PLANE = {
     track: 3.0,
     wheel: 0.38,
     ski: { length: 2.6, width: 0.5, front: 1.5, tip: 0.18 },
-    tail: { z: -7.05, y: 1.37, length: 0.9, width: 0.25 },
+    tail: { z: -6.6, y: 1.37, length: 0.9, width: 0.25 },
   },
 
   /** THE CABIN behind the pilot: the floor's height, its front and back
@@ -151,7 +153,7 @@ export const PLANE = {
   jumper: { x: -0.4, y: 1.0, z: -0.92, height: 0.62 },
   /** THE PILOT'S EYE in the left seat as he sees it (the engine's +x),
    * body frame, m. */
-  pilotEye: { x: 0.3, y: 2.36, z: 0.46 },
+  pilotEye: { x: 0.3, y: 2.42, z: 0.46 },
 
   /** THE AIR ON IT (`plane.ts`'s per-surface model):
    *   * `lift` the 3D lift slope a rad of each surface (Helmbold off its

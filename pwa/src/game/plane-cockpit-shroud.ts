@@ -323,8 +323,8 @@ export function sealGeometry(
   const d = new THREE.Vector3();
   const to = new THREE.Vector3();
   const v: number[] = [];
-  const WIDE = 0.016;
-  const OVER = 0.004;
+  const WIDE = 0.009;
+  const OVER = 0.003;
   const IN = 0.01;
   const push = (p: THREE.Vector3) => v.push(p.x, p.y, p.z);
   for (const e of edges.values()) {

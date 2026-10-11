@@ -19,11 +19,23 @@
 //   * THE CRACKLE of a burning wreck: the helicopter's slots off the
 //     engine's clock (`crackleAt`, a hash — never a stream), on a salt of
 //     the plane's own.
+//   * THE WRECK STILL BURNING: where it went in, when, and its fire
+//     (`planeFireOf`) — so the fire is heard from where it lies, sinking
+//     and dying as the drawn pool fire does (`poolHeat`), on past the
+//     restart that has him back aboard on the strip.
 //
 // Built only on a run with a plane (`state.plane`, the free ride's);
 // anywhere else it builds nothing and costs nothing.
 
-import { PLANE, planePoint, type GameState, type PlaneState } from "@engine";
+import {
+  PLANE,
+  planeFireOf,
+  planePoint,
+  poolHeat,
+  type GameState,
+  type PlaneFire,
+  type PlaneState,
+} from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 import { createRack, type Rack } from "@niclaslindstedt/oss-game-framework/audio/rack";
@@ -78,7 +90,9 @@ function follow(previous: number, target: number, dt: number, tau: number): numb
   return previous + (target - previous) * (1 - Math.exp(-dt / tau));
 }
 
-/** How far the wreck is alight, 0..1, `t` s into its burn. */
+/** How far the wreck is alight, 0..1, `t` s into its burn — read off the
+ * state alone (the bed itself hears the drawn fire's own life, past the
+ * restart). */
 export function planeBurnOf(p: Pick<PlaneState, "mode" | "t">): number {
   if (p.mode !== "wreck") return 0;
   const lit = Math.min(1, Math.max(0, p.t / CATCH));
@@ -99,11 +113,13 @@ export function propRpmOf(p: Pick<PlaneState, "spin" | "power" | "grounded">): n
 /** THE PLANE AGAINST THE EAR — a `PlaneVoice` read off the state, with the
  * propeller as the bed heard it (`spin`, its own wind-down), the run-up
  * (`rise`), the snow's roughness (`rough`) and the flaps' run (`flapRun`),
- * and the seat's `cabin` (applied only with him aboard). */
+ * and the seat's `cabin` and `doorway` (applied only with him aboard). */
 export function planeVoiceOf(
   state: GameState,
   heard: { spin: number; rise: number; rough: number; flapRun: number },
   cabin: number,
+  doorway = 1,
+  burn?: { fire: number; distance: number },
 ): PlaneVoice {
   const p = state.plane!;
   const c = state.skier;
@@ -134,6 +150,7 @@ export function planeVoiceOf(
     airspeed: p.airspeed,
     door: p.door,
     cabin: p.rider ? cabin : 0,
+    doorway: p.rider ? doorway : 1,
     roll: p.grounded && p.mode !== "wreck" ? Math.hypot(p.vx, p.vz) : 0,
     rough: heard.rough,
     warn:
@@ -149,7 +166,8 @@ export function planeVoiceOf(
     distance,
     doppler: dopplerOf(closing),
     pan: across * SCREEN_TO_ENGINE * PAN,
-    fire: planeBurnOf(p),
+    fire: burn ? burn.fire : planeBurnOf(p),
+    fireDistance: burn?.distance,
     t: state.t,
   };
 }
@@ -178,6 +196,8 @@ export function createPlaneBed(synth: Synth): PlaneBed {
   let flapRun = 0;
   let slot = Number.NaN;
   let built = false;
+  /** The wreck still burning: where, since when (engine clock), its fire. */
+  let wreck: { x: number; y: number; z: number; since: number; fire: PlaneFire } | null = null;
 
   const forget = (): void => {
     spin = 0;
@@ -188,6 +208,7 @@ export function createPlaneBed(synth: Synth): PlaneBed {
     flaps = Number.NaN;
     flapRun = 0;
     slot = Number.NaN;
+    wreck = null;
   };
   const hush = (): void => {
     rack.stop();
@@ -222,17 +243,46 @@ export function createPlaneBed(synth: Synth): PlaneBed {
       flapRun = follow(flapRun, Math.min(1, move * 1.5), frame, 0.06);
       flaps = p.surfaces.flaps;
 
-      const voice = planeVoiceOf(state, { spin, rise, rough, flapRun }, listener.cabin);
+      // THE WRECK'S FIRE: remembered at the crash, heard until it is out.
+      if (p.mode === "wreck" && p.wreck) {
+        const since = state.t - p.t;
+        if (!wreck || Math.abs(wreck.since - since) > 0.5) {
+          const w = p.wreck;
+          wreck = { x: w.x, y: w.y, z: w.z, since, fire: planeFireOf(w.fuel, w.speed, w.kind) };
+        }
+      }
+      let burn: { fire: number; distance: number } | undefined;
+      if (wreck) {
+        const age = state.t - wreck.since;
+        if (age < 0 || age > wreck.fire.out) {
+          wreck = null;
+        } else {
+          const c = state.skier;
+          burn = {
+            fire: Math.min(1, age / CATCH) * poolHeat(wreck.fire, age),
+            distance: Math.hypot(wreck.x - c.x, wreck.y - (c.y + EAR), wreck.z - c.z),
+          };
+        }
+      }
+
+      const voice = planeVoiceOf(
+        state,
+        { spin, rise, rough, flapRun },
+        listener.cabin,
+        listener.doorway,
+        burn,
+      );
       voice.pan *= listener.side;
       if (spin <= 0.002 && voice.fire <= 0 && !built) return;
       rack.apply(planeTargets(voice, PROP, { machine: listener.machine * duck }));
       built = true;
 
       // ── The crackle ──────────────────────────────────────────────────
-      if (voice.fire > 0 && voice.distance < HEARD_FAR) {
+      const fireAt = voice.fireDistance ?? voice.distance;
+      if (voice.fire > 0 && fireAt < HEARD_FAR) {
         const now = Math.floor(state.t * CRACKLE_SLOTS);
         const from = Number.isNaN(slot) || now < slot ? now - 1 : slot;
-        const air = heliHeard(voice.distance);
+        const air = heliHeard(fireAt);
         let pops = 0;
         for (let s = Math.max(from + 1, now - CRACKLE_SLOTS); s <= now; s++) {
           const pop = crackleAt(s * 3 + CRACKLE_SALT, voice.fire);

@@ -24,6 +24,7 @@ import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-frame
 import { PLANE } from "./defs/plane.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { airstripOf, type Airstrip } from "./airstrip.ts";
+import { ropeTop } from "./airstrip-corridor.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
 import type { PlaneControls, PlaneState } from "./plane-state.ts";
 
@@ -98,16 +99,20 @@ function pathOf(p: PlaneState): number {
   return Math.asin(clamp(p.vy / v, -1, 1));
 }
 
-/** The highest snow under the way it is going over the next `H.look` s. */
+/** The highest snow under the way it is going over the next `H.look` s —
+ * and every lift's rope and towers under it, which a low circuit is held
+ * over as the snow is (`ropeTop`). */
 function snowAhead(run: GameState, p: PlaneState): number {
   const level = run.level;
-  let top = level.groundAt(p.x, p.z);
+  let top = Math.max(level.groundAt(p.x, p.z), ropeTop(level, p.x, p.z));
   const v = Math.max(20, hypot(p.vx, p.vz));
   const ux = p.vx / Math.max(1, hypot(p.vx, p.vz));
   const uz = p.vz / Math.max(1, hypot(p.vx, p.vz));
   for (let i = 1; i <= 8; i++) {
     const d = (i / 8) * H.look * v;
-    top = Math.max(top, level.groundAt(p.x + ux * d, p.z + uz * d));
+    const x = p.x + ux * d;
+    const z = p.z + uz * d;
+    top = Math.max(top, level.groundAt(x, z), ropeTop(level, x, z));
   }
   return top;
 }

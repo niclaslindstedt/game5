@@ -11,7 +11,18 @@
 
 import { describe, expect, it } from "vitest";
 
-import { PLANE, createGame, planeAloft, skydiveAt, type GameEvent, type GameState } from "@engine";
+import {
+  NEUTRAL_INPUT,
+  PLANE,
+  TUNING,
+  createGame,
+  planeAloft,
+  planeFireOf,
+  skydiveAt,
+  step,
+  type GameEvent,
+  type GameState,
+} from "@engine";
 
 import { RUN_BANK } from "../pwa/src/game/audio/bank.ts";
 import {
@@ -141,6 +152,11 @@ describe("the jump plane's voice (plane-voice.ts)", () => {
     // Outside, the door is only a breath; inside, the engine's top is dull
     // and the boom up.
     expect(plane({ cabin: 0 }).door.level).toBeLessThan(plane().door.level * 0.2);
+    // The cockpit, up front, hears the door's slipstream well under the
+    // door lens does.
+    const cockpit = plane({ doorway: LISTENERS.helmet.doorway }).door.level;
+    expect(cockpit).toBeLessThan(plane({ doorway: LISTENERS.tips.doorway }).door.level * 0.5);
+    expect(cockpit).toBeGreaterThan(0);
     expect(plane().boom.level).toBeGreaterThan(plane({ cabin: 0 }).boom.level);
     expect(plane().whine.level).toBeLessThan(plane({ cabin: 0 }).whine.level);
     expect(plane().buzz.cutoff!).toBeLessThan(plane({ cabin: 0 }).buzz.cutoff!);
@@ -197,6 +213,48 @@ describe("the jump plane's bed (plane-bed.ts)", () => {
     expect(propRpmOf({ spin: 1, power: PLANE.engine.idle, grounded: true })).toBeCloseTo(0.62, 6);
     expect(propRpmOf({ spin: 1, power: PLANE.engine.idle, grounded: false })).toBe(1);
     expect(propRpmOf({ spin: 1, power: 1, grounded: true })).toBe(1);
+  });
+
+  it("keeps the wreck's fire heard, sinking, after the restart puts him back aboard", () => {
+    const s = ride();
+    planeAloft(s, {
+      x: SIZE / 2,
+      y: flat.groundAt(SIZE / 2, SIZE / 2) + 120,
+      z: SIZE / 2,
+      heading: 0,
+      speed: 50,
+      pitch: -1.1,
+      power: 1,
+    });
+    const synth = recorder();
+    const bed = createPlaneBed(synth);
+    bed.setView("chase");
+    const dt = TUNING.dt;
+    const fireOf = () =>
+      synth.layers.find((l) => l.spec === PLANE_LAYERS.fire)?.sets.at(-1)?.level ?? 0;
+    for (let i = 0; i < 20 / dt && s.plane!.mode !== "wreck"; i++) {
+      step(s, { ...NEUTRAL_INPUT, tuck: 1 });
+      if (i % 4 === 0) bed.update(s, 4 * dt);
+    }
+    expect(s.plane!.mode).toBe("wreck");
+    const w = s.plane!.wreck!;
+    const fire = planeFireOf(w.fuel, w.speed, w.kind);
+    // Burning while the wreck lies there…
+    for (let i = 0; i < 3 / dt; i++) {
+      step(s, NEUTRAL_INPUT);
+      if (i % 4 === 0) bed.update(s, 4 * dt);
+    }
+    const burning = fireOf();
+    expect(burning).toBeGreaterThan(0);
+    // …and on past the restart, for as long as the drawn pool fire burns.
+    for (let i = 0; i < (PLANE.crash.wreck + 4) / dt; i++) {
+      step(s, { ...NEUTRAL_INPUT, reset: true });
+      if (i % 4 === 0) bed.update(s, 4 * dt);
+    }
+    expect(s.plane!.mode).not.toBe("wreck");
+    expect(fire.out).toBeGreaterThan(PLANE.crash.wreck + 4);
+    expect(fireOf()).toBeGreaterThan(0);
+    expect(fireOf()).toBeLessThan(burning);
   });
 
   it("hears the cabin from a lens aboard, the machine from a boom", () => {

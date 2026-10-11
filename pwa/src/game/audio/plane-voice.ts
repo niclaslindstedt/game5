@@ -92,6 +92,10 @@ export type PlaneVoice = {
   /** How far the ear is IN THE CABIN, 0..1 (the listener's `cabin`, with
    * the skier aboard). */
   cabin: number;
+  /** How far that ear is AT THE DOOR, 0..1 (the listener's `doorway`): the
+   * cockpit hears the door's slipstream come round the cabin, quieter.
+   * Taken as 1 when left out. */
+  doorway?: number;
   /** The speed over the snow with a ski on it, m/s (0 in the air). */
   roll: number;
   /** How rough the snow under the skis is, 0..1 (the legs working). */
@@ -108,6 +112,10 @@ export type PlaneVoice = {
   pan: number;
   /** The wreck burning, 0..1. */
   fire: number;
+  /** How far off the fire is, m, where it is not the machine (a wreck still
+   * burning after the restart has him back aboard on the strip); `distance`
+   * when left out. */
+  fireDistance?: number;
   /** The engine's clock, s — the fire heaves and the horn wavers on it. */
   t: number;
 };
@@ -239,6 +247,8 @@ export function planeTargets(
   const out = 1 - cabin;
   const door = unit(voice.door);
   const fire = unit(voice.fire);
+  const burnGain =
+    voice.fireDistance === undefined ? g : heliHeard(voice.fireDistance).gain * mix.machine;
   const dop = voice.doppler;
   const pan = Math.min(1, Math.max(-1, voice.pan));
   const blade = Math.max(0.5, prop.blade * rpm * dop);
@@ -252,9 +262,11 @@ export function planeTargets(
   const whine =
     g * air.high * ng * (0.0025 + 0.0015 * power + 0.004 * unit(voice.rise)) * (1 - 0.6 * cabin);
   // THE SLIPSTREAM through the door: the square of the airspeed to 70 m/s,
-  // heard all round from inside, only a breath off the airframe outside.
+  // heard all round at the door, a third of it from the cockpit up front,
+  // only a breath off the airframe outside.
   const stream = ramp(voice.airspeed, 0, 70);
-  const slip = stream * stream * door * (cabin + 0.12 * out);
+  const doorway = unit(voice.doorway ?? 1);
+  const slip = stream * stream * door * (cabin * doorway + 0.12 * out);
   const roll = ramp(voice.roll, 0, 35);
   const rough = unit(voice.rough);
   const warn = unit(voice.warn);
@@ -340,7 +352,7 @@ export function planeTargets(
       grit: 0.2,
     },
     fire: {
-      level: g * fire * (0.045 + 0.025 * heave),
+      level: burnGain * fire * (0.045 + 0.025 * heave),
       cutoff: 220 + 220 * heave,
       pan: pan * 0.5,
     },

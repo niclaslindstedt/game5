@@ -406,6 +406,12 @@ export function createPlaneShatter(): PlaneShatter {
         c.opacity = 1;
         c.color.set(0x141210);
       }
+      // The propeller's blades, faded under their smear while it turned
+      // (`plane-view.ts`): solid bent metal now.
+      if (/^(prop|tip)/i.test(c.name)) {
+        c.transparent = false;
+        c.opacity = 1;
+      }
       c.side = THREE.DoubleSide;
       set.set(mat, c);
       built.set(c, { c: c.color.clone(), r: c.roughness, m: c.metalness });

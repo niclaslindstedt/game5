@@ -144,6 +144,11 @@ export type Explosion = {
   wind(wx: number, wz: number): void;
   /** The fire's light this frame (the flash, the ball, the pool). */
   light(): FireLight;
+  /** How dark the sky is, 0 (day) .. 1 (night) — the sky's `lamps`. A
+   * pool fire's light on the snow round it is a night's: by day the sun
+   * and the sky drown it, and what of it is left would only tint the
+   * shadows (`POOL_DAY`). */
+  dusk(k: number): void;
   /** A burning piece of the airframe at (x, y, z) this frame, `heat`
    * 0..1, over `dt` s: the fire and smoke it trails. */
   flame(x: number, y: number, z: number, heat: number, dt: number): void;
@@ -159,6 +164,12 @@ export type Explosion = {
   clear(): void;
   dispose(): void;
 };
+
+/** The share of its night light a pool fire throws on the snow round it
+ * under a full day's sky. A fire is a few hundred lux at ten metres; a
+ * winter day's sky alone is thousands in the shade — a point light at
+ * the night's power would paint every shadow near the wreck rose. */
+const POOL_DAY = 0.08;
 
 /** A seeded stream of its own for the scatter — never the engine's. */
 function makeRandom(seed: number): () => number {
@@ -366,6 +377,7 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
   let scorchAt: { x: number; y: number; z: number } | null = null;
   let scorchAge = 0;
   const flash = new THREE.PointLight(0xffa050, 0, 260, 1.5);
+  let dark = 1;
   group.add(flash);
   let flashAge = 99;
   let nextFire = 0;
@@ -614,6 +626,9 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
       breeze.x = wx;
       breeze.z = wz;
     },
+    dusk(k) {
+      dark = Math.max(0, Math.min(1, k));
+    },
     light() {
       glowOut.x = flash.position.x;
       glowOut.y = flash.position.y;
@@ -677,7 +692,7 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
         flash.position.set(burn.x, burn.y + 5, burn.z);
         flash.intensity = Math.max(
           flash.intensity,
-          160 * flick * Math.sqrt(hot) * (R / POOL.radius),
+          160 * flick * Math.sqrt(hot) * (R / POOL.radius) * (POOL_DAY + (1 - POOL_DAY) * dark),
         );
         const rise = POOL_.flame * (0.85 + 0.45 * pulse) * (0.35 + 0.65 * hot);
         for (let n = POOL_.flames * (0.6 + 0.6 * pulse) * hot * dt + random(); n >= 1; n--) {

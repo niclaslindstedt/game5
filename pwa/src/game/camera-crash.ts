@@ -30,7 +30,14 @@ const BALL = fireballOf(WRECK.fire.fuel * WRECK.fire.share);
 /** What a machine's crash hands the lens: its fireball's diameter, m (0:
  * a pool fire alone), and where it went up when that is not where the
  * wreck comes to rest (a plane slid on past its own fireball). */
-export type CrashOptions = { ball?: number; ballAt?: Vec3 };
+export type CrashOptions = {
+  ball?: number;
+  ballAt?: Vec3;
+  /** Where the sun stands (`sunAtRun`): its world heading and its height,
+   * rad — a low sun is kept out of the lens's look where a bearing round
+   * it is as good. */
+  sun?: { azimuth: number; elevation: number };
+};
 
 /** Whether a lens at `eye` is wooded in looking at `target`. */
 export type Blocked = (eye: Vec3, target: Vec3) => boolean;
@@ -63,6 +70,12 @@ export const CRASH_LOOK = {
   clearance: 1.6,
   /** How much higher it stands where every way round is wooded, m. */
   overWoods: 9,
+  /** THE SUN: how far off the look a low sun still glares, rad, and how
+   * high it may stand and still be in the frame, rad; what looking
+   * straight into it costs a bearing (a trunk costs 30). */
+  glare: 0.75,
+  glareHigh: 0.5,
+  glareCost: 20,
 } as const;
 
 /** The lens's memory: where it stands off the wreck (level bearing and
@@ -95,6 +108,19 @@ const smooth = (x: number): number => {
 function inBall(eye: Vec3, ball: number, at: Vec3 | null | undefined): boolean {
   if (!at || ball <= 0) return false;
   return Math.hypot(eye.x - at.x, eye.z - at.z) < ball * 0.9 + CRASH_LOOK.margin;
+}
+
+/** How much a lens standing off the wreck at `bearing` looks into a low
+ * sun, 0..1: the look (from the eye to the wreck) near the sun's heading,
+ * the sun low enough to be in the frame. */
+function glareOf(bearing: number, sun: CrashOptions["sun"]): number {
+  if (!sun || sun.elevation <= -0.05) return 0;
+  const C = CRASH_LOOK;
+  const look = bearing + Math.PI;
+  const off = Math.abs(Math.atan2(Math.sin(look - sun.azimuth), Math.cos(look - sun.azimuth)));
+  const near = Math.max(0, 1 - off / C.glare);
+  const low = Math.max(0, 1 - sun.elevation / C.glareHigh);
+  return near * low;
 }
 
 /** The eye at `bearing` and `dist` off the wreck, `lift` m over the snow. */
@@ -158,9 +184,11 @@ export function startCrashCam(
     const snow = snowInWay(eye, aim, groundAt);
     const trees = blocked?.(eye, aim) ? 1 : 0;
     const fire = inBall(eye, ball, opts.ballAt) ? 1 : 0;
-    const cost = Math.max(0, snow) + trees * 30 + fire * 60 + Math.abs(turn) * 2;
+    const sun = glareOf(bearing, opts.sun);
+    const cost =
+      Math.max(0, snow) + trees * 30 + fire * 60 + sun * C.glareCost + Math.abs(turn) * 2;
     if (cost < best.cost) best = { bearing, lift: C.height + Math.max(0, snow), cost };
-    if (snow <= 0 && !trees && !fire) break;
+    if (snow <= 0 && !trees && !fire && sun < 0.05) break;
   }
   // Wooded in all round: stood up over the nearest crowns.
   if (best.cost >= 30) best.lift += C.overWoods;

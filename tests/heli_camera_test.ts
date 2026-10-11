@@ -121,6 +121,20 @@ describe("the crash's lens", () => {
     expect(Math.hypot(lens.target.x - wreck.x, lens.target.z - wreck.z)).toBeLessThan(2);
   });
 
+  it("turns out of a low sun's glare, and keeps its side under a high one", () => {
+    // The lens on screen looks north (+z) at the wreck, into a low sun.
+    const low = startCrashCam(from, wreck, flat, undefined, {
+      sun: { azimuth: 0, elevation: 0.1 },
+    });
+    const lens = frameCrash(low, wreck, 1 / 60, flat);
+    const look = Math.atan2(wreck.x - lens.eye.x, wreck.z - lens.eye.z);
+    expect(Math.abs(look)).toBeGreaterThan(0.5);
+    const high = startCrashCam(from, wreck, flat, undefined, {
+      sun: { azimuth: 0, elevation: 0.9 },
+    });
+    expect(high.bearing).toBeCloseTo(startCrashCam(from, wreck, flat).bearing, 6);
+  });
+
   it("holds on the wreck whatever the skier does: a slow push, the look rising with the smoke", () => {
     const cam = startCrashCam(from, wreck, flat);
     const first = frameCrash(cam, wreck, 1 / 60, flat);

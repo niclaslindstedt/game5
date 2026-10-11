@@ -182,7 +182,7 @@ def bottom_z(y):
 # ---------------------------------------------------------------- the skin's fields
 # The livery's cheatline: its middle's height along the fuselage, low along
 # the cowl and the cabin and sweeping up the tailcone to the fin.
-CHEAT = pchip([(NOSE, 1.74), (FIREWALL, 1.66), (-1.9, 1.64), (-3.4, 1.78), (-5.2, 1.98),
+CHEAT = pchip([(NOSE, 1.74), (FIREWALL, 1.66), (-1.9, 1.64), (-3.4, 1.78), (-4.85, 1.98),
                (TAIL, 2.04)])
 WIN0 = 1.87                                  # the cabin windows' sills
 SCREEN_FOOT = 2.21                           # the windscreen's foot on the cowl
@@ -209,9 +209,10 @@ def regions(X, Y, Z, seams=True, full=True):
                        0.86 * W - xs], 0.06)
         out.append((3, 5, screen))
         if full:
-            out.append((2, 6, np.minimum(0.022 - xs, screen)))       # its centre post
+            # its centre post, slim and painted as the frame is
+            out.append((0, 6, np.minimum(0.012 - xs, screen)))
         # the cockpit door's window, its sill rising toward the nose
-        sill = WIN0 + 0.12 * np.clip((Y - 0.05) / 1.0, 0, 1)
+        sill = WIN0 - 0.07 + 0.14 * np.clip((Y - 0.05) / 1.0, 0, 1)
         cock = rint([1.12 - Y, Y - 0.06, Z - sill, (top_z(0.0) - 0.12) - Z], 0.08)
         out.append((3, 5, np.minimum(cock, side)))
         if seams:
@@ -232,12 +233,13 @@ def regions(X, Y, Z, seams=True, full=True):
         if sx != DSIDE:
             out.append((3, 5, np.minimum(0.165 - np.hypot(Y + 2.32, Z - 2.12), side)))
         if seams:
-            for yc in (2.35, 1.75):                               # the cowling's panels
+            for f in (0.22, 0.48, 0.74):                          # the cowling's panels
+                yc = FIREWALL + f * (NOSE - FIREWALL)
                 out.append((2, 4, np.minimum(0.008 - np.abs(Y - yc), np.minimum(Z - 1.4, xs + 0.4))))
             out.append((2, 4, np.minimum(0.008 - np.abs(Z - 1.96),
                                          rint([NOSE - 0.12 - Y, Y - FIREWALL - 0.05, side + 0.1], 0.02))))
     # the anti-glare panel over the cowling, to the windscreen's foot
-    out.append((2, 3.5, rint([0.26 - np.abs(X), Y - FIREWALL + 0.05, NOSE - 0.14 - Y,
+    out.append((2, 3.5, rint([0.17 - np.abs(X), Y - FIREWALL + 0.05, NOSE - 0.14 - Y,
                               Z - (fT(Y) - 0.09)], 0.05)))
     # the nose ring, the cheatline and its pinstripe
     out.append((1, 3, Y - (NOSE - 0.16)))
@@ -617,7 +619,8 @@ def nose(Q):
         end = Vector(pts[-1])
         d = (end - Vector(pts[-2])).normalized()
         cyl("exhaust_in", end - d * 0.05, end + d * 0.004, 0.06, DARK, seg=16)
-    box("scoop", (0, 1.95, bottom_z(1.95) - 0.03), (0.22, 0.5, 0.08), DARK, bevel=0)
+    ys = FIREWALL + 0.35 * (NOSE - FIREWALL)
+    box("scoop", (0, ys, bottom_z(ys) - 0.03), (0.22, 0.5, 0.08), DARK, bevel=0)
 
 
 def prop_node(Q):

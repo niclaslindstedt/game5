@@ -297,7 +297,7 @@ export function createPlaneCockpit(
     box(1.3, P.bottom - floor + 0.1, 0.02, 0, (P.bottom + floor) / 2, C.firewall + 0.01),
   ];
   // THE SHROUD round the face and the coaming forward to the glass.
-  const moulding = std({ color: 0x1d1e21, roughness: 0.88, side: two });
+  const moulding = std({ color: 0x2a2c30, roughness: 0.78, side: two });
   spilled.push(moulding);
   const shroud = shroudGeometry();
   const glareFoot = foot ?? ((x: number) => ({ x, y: C.glare.foot.y, z: C.glare.foot.z }));
@@ -312,11 +312,11 @@ export function createPlaneCockpit(
   add(room, new THREE.Mesh(well.walls, trimmed), false);
 
   // THE COMPASS on the glareshield's middle: its bowl, its lit card.
-  housing.push(box(0.075, 0.06, 0.06, 0, C.compass.y, C.compass.z));
+  housing.push(box(0.06, 0.045, 0.05, 0, C.compass.y, C.compass.z));
   const card = std({ color: 0xe8e6da, roughness: 0.5, emissive: 0xffe6b0, emissiveIntensity: 0 });
   add(
     room,
-    new THREE.Mesh(box(0.05, 0.022, 0.004, 0, C.compass.y + 0.004, C.compass.z - 0.031), card),
+    new THREE.Mesh(box(0.04, 0.018, 0.004, 0, C.compass.y + 0.003, C.compass.z - 0.026), card),
     false,
   );
   room.add(merged(housing, m.black));

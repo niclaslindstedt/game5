@@ -23,6 +23,7 @@ import * as THREE from "three";
 import {
   planeFireOf,
   poolHeat,
+  sunAtRun,
   windAt,
   type GameState,
   type PlaneFire,
@@ -271,6 +272,7 @@ export function createPlaneWreckView(): PlaneWreckView {
           ? startCrashCam(lens, at, groundAt, (e, a) => wooded(state.level, e, a), {
               ball: fire.diameter,
               ballAt: { x: w.x, y: g, z: w.z },
+              sun: sunAtRun(state.level),
             })
           : null;
       clock = 0;
@@ -347,6 +349,7 @@ export function createPlaneWreckView(): PlaneWreckView {
       return frameCrash(crash, at, dt, groundAt, (e, a) => wooded(state.level, e, a));
     },
     lamps(lit, out) {
+      boom?.dusk(lit);
       if (!wreck || lit <= 0 || (flood.power ?? 0) < 0.01) return;
       out.push({ ...flood, power: (flood.power ?? 0) * lit });
     },

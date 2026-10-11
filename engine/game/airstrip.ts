@@ -38,6 +38,7 @@ import { helipadOf } from "./heli-pad.ts";
 import { liftPlans } from "./lift-line.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { treesNear } from "./upright-grid.ts";
+import { corridorIntrusion } from "./airstrip-corridor.ts";
 import { streetMaskAt, villageBuildingsOf } from "./village.ts";
 import type { Level } from "../mapgen/types.ts";
 
@@ -83,6 +84,10 @@ const HOUSE_GAP = 22;
 /** What a metre of height over the village costs the search, in metres of
  * distance from it — so the strip lies on the town's level or under it. */
 const ABOVE = 25;
+/** What a unit of a rope or a pad standing into the air off its ends costs
+ * the search (`corridorIntrusion`), in metres of distance from the town —
+ * a rope across the final moves the strip a few hundred metres. */
+const AIR = 120;
 
 const strips = new WeakMap<Level, Airstrip>();
 const near: number[] = [];
@@ -186,12 +191,53 @@ function search(
         const axis = Math.PI / 2 + b;
         if (!flatEnough(level, x, z, axis, rules)) continue;
         if (!clearOf(level, x, z, axis, rules, keep)) continue;
-        best = { x, z, axis, cost };
-        break;
+        // The air off its ends: the climb-out away from the town, and the
+        // clearer of the two ways in.
+        const air = cost + AIR * airOf(level, x, z, axis, village);
+        if (!best || air < best.cost) best = { x, z, axis, cost: air };
       }
     }
   }
   return best;
+}
+
+/** The ends of a rectangle and the way it is taken off (away from the
+ * town): the back end's and the far end's points and the take-off's unit. */
+function endsOf(
+  level: Level,
+  x: number,
+  z: number,
+  axis: number,
+  village: { x: number; z: number },
+): { back: StripPoint; far: StripPoint; hx: number; hz: number } {
+  const fx = Math.sin(axis);
+  const fz = Math.cos(axis);
+  const sign = (x - village.x) * fx + (z - village.z) * fz >= 0 ? 1 : -1;
+  const hx = fx * sign;
+  const hz = fz * sign;
+  const half = STRIP_LENGTH / 2;
+  const at = (s: number): StripPoint => {
+    const px = x + hx * s;
+    const pz = z + hz * s;
+    return { x: px, y: level.groundAt(px, pz), z: pz };
+  };
+  return { back: at(-half), far: at(half), hx, hz };
+}
+
+/** How much stands into the air off a rectangle's ends: the climb-out
+ * past its far end, and the clearer way in (over the back end, landed the
+ * way it is taken off; or over the far end, the other way). */
+function airOf(
+  level: Level,
+  x: number,
+  z: number,
+  axis: number,
+  village: { x: number; z: number },
+): number {
+  const e = endsOf(level, x, z, axis, village);
+  const out = corridorIntrusion(level, e.far.x, e.far.y, e.far.z, e.hx, e.hz);
+  const back = corridorIntrusion(level, e.back.x, e.back.y, e.back.z, -e.hx, -e.hz);
+  return out + Math.min(out, back);
 }
 
 /** The snow along the rectangle: the grade end to end, the cross slope at
@@ -343,9 +389,27 @@ function build(
     // The circuit flown on the side of the strip with more room.
     const right = room(tx + lz * 2 * PLANE.pilot.circuit, tz - lx * 2 * PLANE.pilot.circuit);
     const left = room(tx - lz * 2 * PLANE.pilot.circuit, tz + lx * 2 * PLANE.pilot.circuit);
-    return { dir, tx, tz, final, room: inside(final), side: right >= left ? 1 : -1 };
+    // The air the final comes in through, off the end it comes in over.
+    const end = point(-dir * half);
+    const air = corridorIntrusion(level, end.x, end.y, end.z, -lx, -lz);
+    return { dir, tx, tz, final, room: inside(final), side: right >= left ? 1 : -1, air };
   });
-  const way = ways[0].room >= ways[1].room - 1 ? ways[0] : ways[1];
+  // The clearer way in where both fit the map (or neither does), else the
+  // one with room.
+  const fits = (w: (typeof ways)[number]): boolean => w.room >= 0;
+  const [a, b] = ways;
+  const way =
+    fits(a) === fits(b)
+      ? Math.abs(a.air - b.air) > 0.5
+        ? a.air < b.air
+          ? a
+          : b
+        : a.room >= b.room - 1
+          ? a
+          : b
+      : fits(a)
+        ? a
+        : b;
   const landHeading = way.dir > 0 ? heading : heading - Math.PI;
   return {
     x: at.x,

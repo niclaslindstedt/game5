@@ -20,6 +20,7 @@ import {
   HELI,
   TUNING,
   airAt,
+  sunAtRun,
   unrotate,
   washAt,
   type GameState,
@@ -59,6 +60,9 @@ export type HeliScene = {
   /** The eye the frame is drawn from, settled: the cockpit shown while it
    * is in the cabin (`heli-cockpit.ts`). */
   seen(eye: Vec3): void;
+  /** How dark the sky is (its `lamps`): the burning wreck's light on the
+   * snow is a night's (`Explosion.dusk`). */
+  dusk(lit: number): void;
   /** The pace the run is shown at (`HeliView.setPace`). */
   setPace(pace: number): void;
   /** THE LENS this frame, `ladder` the skier's own as framed under it: the
@@ -183,7 +187,9 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
         }
         crash =
           h.wreck.aboard && shown && rung !== "orbit"
-            ? startCrashCam(shown, { x, y, z }, groundAt, (e, a) => wooded(state.level, e, a))
+            ? startCrashCam(shown, { x, y, z }, groundAt, (e, a) => wooded(state.level, e, a), {
+                sun: sunAtRun(state.level),
+              })
             : null;
       }
       if (!wreck && wasWreck) {
@@ -265,6 +271,9 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
     },
     setPace(pace) {
       view.setPace(pace);
+    },
+    dusk(lit) {
+      boom.dusk(lit);
     },
     seen(eye) {
       const at = view.drawn();

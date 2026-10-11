@@ -316,6 +316,7 @@ export function createMachines(
       // The eye settled for this frame: the helicopter's and the jump
       // plane's cockpits shown while it is in their cabins.
       heli?.seen(eye);
+      heli?.dusk(lit);
       plane?.seen(eye);
       doors?.seen(eye);
       floods.length = 0;

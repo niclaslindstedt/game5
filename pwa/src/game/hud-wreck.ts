@@ -129,8 +129,9 @@ export function injuredOf(state: GameState): number | null {
 }
 
 /** Whether a death — or a run ended INJURED — has run its course and the
- * run starts again, `again` s after it (OPTIONS ▸ RESTART AFTER). */
+ * run starts again, `again` s after it (OPTIONS ▸ RESTART AFTER), or at
+ * once on the reset pressed over it (`GoreState.again`). */
 export function deathOver(state: GameState, again: number = DEATH.again): boolean {
   const d = diedOf(state) ?? injuredOf(state);
-  return d !== null && d >= again;
+  return d !== null && (d >= again || !!state.gore?.again);
 }

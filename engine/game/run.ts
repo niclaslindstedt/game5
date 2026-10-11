@@ -159,6 +159,9 @@ export function stepRun(
     standUp(run, events, false);
     return;
   }
+  // ...and over a run that is over (dying, or held down hurt), asks the
+  // app for the run again at once.
+  if (player && input.reset && holdsHim(run)) run.gore!.again = true;
   const c = run.skier;
   // ON FOOT after a buzzed fall, fetching his skis (`buzz.ts`).
   if (c.fetch) {

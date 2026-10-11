@@ -54,7 +54,6 @@ import {
   botInput,
   createGame,
   error,
-  holdsHim,
   placeRun,
   step,
   type CreateGameOptions,
@@ -384,10 +383,6 @@ export function App() {
     const drawable = (): boolean => standing !== null && standing === state.level;
     let frozen = params.shot;
     let preroll = false;
-    /** THE RESET PRESSED OVER A RUN THAT IS OVER — dying, or down too hurt
-     * to rise (`holdsHim`), which no reset stands up: the run starts again
-     * at once instead of after OPTIONS ▸ RESTART AFTER. */
-    let againAsked = false;
     let ready = false;
     const live: { id: number; text: string; tone: HudFlash["tone"]; until: number }[] = [];
     let flashId = 0;
@@ -425,7 +420,6 @@ export function App() {
     const adopt = (next: GameState, ticket: RunTicket | null = null, rides = false): void => {
       show(next);
       manager.freshHand();
-      againAsked = false;
       book.arm(next, ticket);
       stats.rig.arm(next, mode);
       replays.arm(next, rides ? mode : null);
@@ -453,8 +447,6 @@ export function App() {
       // ON THE TAPE'S GRID whoever is riding (`ghost.ts`), and written down.
       const input = snapInput(replays.input() ?? inputFor());
       step(state, input);
-      // ...after the step, which may have just found him too hurt to rise.
-      if (input.reset && holdsHim(state) && playerRides(shellRef.current)) againAsked = true;
       if (!watching(shellRef.current)) book.step(input, state.events);
       replays.step(input, state);
       xray.step(state);
@@ -723,12 +715,8 @@ export function App() {
       if (!frozen && !held && shown) {
         const steps = replays.cap(clock.frame(dtRun));
         for (let i = 0; i < steps; i++) stepOnce();
-        // DIED (`hud-wreck.ts`): a new rider (`againAt`) once the dark is down
-        // — or at once, on the reset.
-        if (
-          playerRides(shellRef.current) &&
-          (againAsked || deathOver(state, settingsRef.current.restartAfter))
-        )
+        // DIED (`hud-wreck.ts`): a new rider (`againAt`) once the dark is down.
+        if (playerRides(shellRef.current) && deathOver(state, settingsRef.current.restartAfter))
           restart();
       } else {
         // Held: the controls are still read, so a banked reset does not fire on the thaw.

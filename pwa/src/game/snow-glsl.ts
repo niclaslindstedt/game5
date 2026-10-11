@@ -263,6 +263,7 @@ float snowDist;      // metres from the lens
 float snowPacked;    // 0 powder .. 1 groomed
 float snowPress;     // 0 untouched .. 1 a full furrow
 float snowWall;      // how steep the furrow's wall is here
+vec2 snowWallUp;     // the furrow's own slope here, pointing up its wall
 float snowForest;    // how wooded the ground round here is
 float snowBerm;      // 0 off the plough's berm .. 1 on its crest
 float snowCrust;     // 0 powder .. 1 a wind slab (R21)
@@ -365,13 +366,15 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   vec2 tr = trailAt(p);
   snowPress = clamp(tr.x / 0.14, 0.0, 1.0);
   snowWall = 0.0;
+  snowWallUp = vec2(0.0);
   if (snowDist < 220.0) {
     float fineW = trailFineWeight(p);
-    float e = mix(uCoarseTexel, uFineTexel * 1.25, fineW);
+    float e = mix(uCoarseTexel, uFineTexel * 0.75, fineW);
     vec2 tg = vec2(trailRelief(p + vec2(e, 0.0)) - trailRelief(p - vec2(e, 0.0)),
                    trailRelief(p + vec2(0.0, e)) - trailRelief(p - vec2(0.0, e))) / (2.0 * e);
     tg *= 1.0 - smoothstep(120.0, 220.0, snowDist);
     snowWall = clamp(length(tg), 0.0, 1.0);
+    snowWallUp = tg;
     grad += tg;
   }
 
@@ -653,6 +656,10 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
   }
   // Pressed snow is on its way to ice: a little less comes back.
   alb *= mix(vec3(1.0), vec3(0.9, 0.93, 0.97), snowPress);
+  // A FAST LINE IN LOOSE SNOW: the planing ski's narrow trough, its floor
+  // pressed smooth and in its own walls' shade — a cool line the relief
+  // alone loses in a flat or a head-on light.
+  alb *= mix(vec3(1.0), vec3(0.86, 0.9, 0.96), smoothstep(0.04, 0.29, snowPress) * (1.0 - snowPacked) * (1.0 - snowTrench));
   // THE SCUFF: snow pressed to a polish, a cool grey line.
   alb *= mix(vec3(1.0), vec3(0.86, 0.9, 0.96), snowScuff * (0.35 + 0.65 * snowPacked));
   // THE TRENCH: down out of the sky's light, its snow lit through its walls
@@ -662,8 +669,11 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
   alb *= mix(vec3(1.0), vec3(0.82, 0.9, 1.0), snowWall * snowTrench);
   // THE SPILL: snow turned over and thrown out, fresh white clods.
   alb = mix(alb, fresh, 0.6 * snowSpill);
-  // The walls see less sky; a blue-grey the shading alone would not give.
-  alb *= mix(vec3(1.0), vec3(0.8, 0.86, 0.95), snowWall * 0.8);
+  // The walls see less sky; a blue-grey the shading alone would not give —
+  // the wall turned from the sun the most and the one facing it hardly, so a
+  // wide trough reads as ONE groove shaded down one side, never two lines.
+  float awayW = 0.5 + 0.5 * dot(normalize(snowWallUp + vec2(1e-6)), normalize(uSunDir.xz + vec2(1e-6)));
+  alb *= mix(vec3(1.0), vec3(0.8, 0.86, 0.95), snowWall * mix(0.25, 1.0, awayW));
   // A wood seen from afar is a darker, greener ground — the trees past the
   // draw distance are still there in its colour.
   alb = mix(alb, uForestTint, snowForest * 0.55 * smoothstep(160.0, 520.0, snowDist));

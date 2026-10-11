@@ -189,8 +189,11 @@ varying float vSlough;
 varying vec2 vEdge;
 void main() {
   float hw = max(iShape.x, uMinHalf);
-  // A stamp widened to the texel floor keeps its volume, not its depth.
-  float thin = iShape.x / hw;
+  // A stamp widened to the texel floor gives up some of its depth, not all
+  // that its volume would ask: a ski's line a third of a texel wide kept to
+  // its volume is a smudge a few millimetres deep, gone at a phone's map,
+  // where kept at the root of it it still reads as the groove it is.
+  float thin = sqrt(iShape.x / hw);
   float sw = max(iExtra.x, hw);
   // A trench widened to it keeps its own depth: it is wide already.
   vSlough = sw;

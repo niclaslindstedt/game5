@@ -136,6 +136,13 @@ export const TRAIL = {
   /** THE DECK pressed between a ski's or a board's tip and tail
    * (`stampsOf`), as a share of the shallowest of its stations' cuts. */
   deck: 0.7,
+  /** THE PLANE (`planeOf`): a ski at speed rides up onto the powder (the
+   * physics' sink falls as exp(−(v / `snow.planeSpeed`)²)), so the furrow
+   * it leaves is shallower, and with it the trench its walls slough into —
+   * a fast line a narrow trough, a slow one a trench. Drawn slower to fall
+   * than the physics' sink, m/s, and never under `floor` of the furrow:
+   * a planing ski still packs the snow it rides on. */
+  plane: { speed: 9, floor: 0.45 },
   /** A SNOWBOARD's own: its trough as a share of a ski's furrow in powder
    * (a wider base, the same load, floats higher); how much narrower and
    * deeper its edged cut is at a full edge, as shares — the whole base laid
@@ -241,7 +248,15 @@ export function createPen(probes: number): TrailPen {
  * and, when given, which way the edge is (`side`, + his right) and his
  * right in the plan (`rightX`, `rightZ`), which lay the edged cut as a
  * wedge on the edge's side (`Stamp.tilt`). */
-export type Carve = { edge: number; skid: number; side?: number; rightX?: number; rightZ?: number };
+export type Carve = {
+  edge: number;
+  skid: number;
+  side?: number;
+  rightX?: number;
+  rightZ?: number;
+  /** How fast he is going, m/s — what lifts a ski onto the powder. */
+  speed?: number;
+};
 
 /** How a skier is using his skis or his board, as his trail reads it. */
 export function carveOf(skier: SkierState): Carve {
@@ -251,7 +266,16 @@ export function carveOf(skier: SkierState): Carve {
     side: Math.sign(skier.edge),
     rightX: Math.cos(skier.heading),
     rightZ: -Math.sin(skier.heading),
+    speed: skier.speed,
   };
+}
+
+/** THE PLANE: the share of the powder's furrow a ski or a board going
+ * `speed` m/s still cuts — the whole of it at a crawl, falling as
+ * exp(−(v / speed)²) to the `floor` a planing ski still packs. */
+export function planeOf(speed = 0): number {
+  const { speed: v0, floor } = TRAIL.plane;
+  return floor + (1 - floor) * Math.exp(-((speed / v0) ** 2));
 }
 
 /** A stamp's width and depth scaled by the carve and the skid: an edged
@@ -320,6 +344,7 @@ export function stampsOf(
 ): void {
   const skiShape = carveShape(carve);
   const boardShape = carveShape(carve, true);
+  const plane = planeOf(carve?.speed);
   for (let i = 0; i < contacts.length && i < pen.xs.length; i++) {
     const c = contacts[i];
     if (!c.touching) {
@@ -338,8 +363,8 @@ export function stampsOf(
     const shape = board ? boardShape : skiShape;
     const load = nominalLoad > 0 ? c.load / nominalLoad : 1;
     const snow = snowAt?.(c.x, c.z);
-    const float = board ? TRAIL.board.float : 1;
-    const give = board && snow ? { ...snow, give: snow.give * float } : snow;
+    const float = (board ? TRAIL.board.float : 1) * plane;
+    const give = snow && float !== 1 ? { ...snow, give: snow.give * float } : snow;
     const drawn = Math.min(
       TRAIL.maxDepth,
       drawnDepth(c, packedAt(c.x, c.z), load, depth * float, give) * shape.depth,

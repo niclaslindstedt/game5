@@ -45,12 +45,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (bands, low, night, kinds); every one when left out",
+      help: "which sheets, comma-separated (bands, low, night, kinds, speed); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night, skis-groomed, board-groomed, sled-groomed, skis-powder, board-powder, sled-powder)",
+      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night, skis-groomed, board-groomed, sled-groomed, skis-powder, board-powder, sled-powder, speed-powder, speed-deep)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

@@ -43,6 +43,7 @@ import {
   createPen,
   drawnDepth,
   furrowProfile,
+  planeOf,
   recentre,
   stampsOf,
   tiltOf,
@@ -187,6 +188,19 @@ describe("the trail a skier leaves", () => {
     stampsOf([ski], createPen(1), flat, 400, out, 1, undefined, edged);
     stampsOf([board], createPen(1), flat, 400, out, 1, undefined, edged);
     expect(out[1].half / 0.125).toBeLessThan(out[0].half / 0.05);
+  });
+
+  it("cuts a fast line in powder shallower and narrower than a slow one", () => {
+    // A ski planing at 25 m/s rides up onto the powder: its furrow, and the
+    // trench its walls slough into, are the shallower for it.
+    const ski = contact({ side: -1, width: 0.1, sink: 0 });
+    const out: Stamp[] = [];
+    stampsOf([ski], createPen(1), flat, 400, out, 2.5, undefined, { edge: 0, skid: 0, speed: 2 });
+    stampsOf([ski], createPen(1), flat, 400, out, 2.5, undefined, { edge: 0, skid: 0, speed: 25 });
+    expect(out[1].depth).toBeLessThan(out[0].depth * 0.6);
+    expect(out[1].slough!).toBeLessThan(out[0].slough!);
+    expect(planeOf(0)).toBe(1);
+    expect(planeOf(60)).toBeCloseTo(TRAIL.plane.floor, 6);
   });
 
   it("lays an edged cut as a wedge under the edge, its berm the other side", () => {

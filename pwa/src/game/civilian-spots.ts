@@ -157,6 +157,16 @@ type Obstacles = {
   lanes: { ax: number; az: number; bx: number; bz: number }[];
   rings: { x: number; z: number }[];
   pads: { x: number; z: number; r: number }[];
+  /** Each wind tunnel's centreline points, its half width and the box
+   * round its points. */
+  tunnels: {
+    points: readonly { x: number; z: number }[];
+    half: number;
+    x0: number;
+    x1: number;
+    z0: number;
+    z1: number;
+  }[];
   cabins: readonly Cabin[];
 };
 
@@ -192,7 +202,20 @@ function obstaclesOf(level: Level): Obstacles {
     pads.push({ x: heli.x, z: heli.z, r: CIVILIAN_CLEAR.pad });
     pads.push({ x: sled.x, z: sled.z, r: CIVILIAN_CLEAR.sled });
   }
-  const out: Obstacles = { houses, lanes, rings, pads, cabins: cabinsOf(level) };
+  const tunnels: Obstacles["tunnels"] = (level.resort?.tunnels ?? []).map((t) => {
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (const q of t.points) {
+      x0 = Math.min(x0, q.x);
+      x1 = Math.max(x1, q.x);
+      z0 = Math.min(z0, q.z);
+      z1 = Math.max(z1, q.z);
+    }
+    return { points: t.points, half: t.width / 2, x0, x1, z0, z1 };
+  });
+  const out: Obstacles = { houses, lanes, rings, pads, tunnels, cabins: cabinsOf(level) };
   obstacles.set(level, out);
   return out;
 }
@@ -263,9 +286,18 @@ export function civilianClear(
   if (post) return true;
   if (ground.slope(x, z) > C.slope) return false;
   if (pisteGap(level, x, z, 40) < C.piste + spare) return false;
-  for (const t of level.resort?.tunnels ?? []) {
-    const m = t.width / 2 + C.tunnel + spare;
-    for (const q of t.points) if (Math.hypot(q.x - x, q.z - z) < m) return false;
+  // A tunnel's points are boxed first, and each point is boxed before its
+  // hypot: a distance is never under either of its legs, so both tests
+  // turn away only what the hypot would.
+  for (const t of o.tunnels) {
+    const m = t.half + C.tunnel + spare;
+    if (x <= t.x0 - m || x >= t.x1 + m || z <= t.z0 - m || z >= t.z1 + m) continue;
+    for (const q of t.points) {
+      const dx = q.x - x;
+      const dz = q.z - z;
+      if (Math.abs(dx) >= m || Math.abs(dz) >= m) continue;
+      if (Math.hypot(dx, dz) < m) return false;
+    }
   }
   if (!clearOfLifts(level, x, z)) return false;
   // The lifts' clearance is a box, not a distance: the spare kept round it

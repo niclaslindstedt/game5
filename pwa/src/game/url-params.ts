@@ -131,6 +131,8 @@
 //   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
 //                   with 0, one he never shows on — over the odds the app
 //                   deals him by (`GRIMBEAR_ODDS`).
+//   ?avalanche=0    a free ride whose slopes never AVALANCHE (`avalanche.ts`)
+//                   — or, with 1, one whose do; left out, they do.
 //   ?afterski=1     a free ride begun INSIDE the valley's afterski lodge
 //                   (`afterski.ts`), the party under way.
 //   ?buzz=<0..1>    a free ride begun with that BUZZ (`buzz.ts`), as
@@ -295,6 +297,9 @@ export type UrlParams = {
   /** A free ride the grimbear hunts (true) or never shows on (false), over
    * the odds; null when the link names neither. */
   grimbear: boolean | null;
+  /** A free ride whose loaded slopes may avalanche (true) or never do
+   * (false); null when the link names neither — they may. */
+  avalanche: boolean | null;
   /** A free ride the piste machines work whatever the hour (true) or never
    * (false); null when the link names neither — out after dark. */
   groomer: boolean | null;
@@ -438,6 +443,7 @@ export function readParams(search: string): UrlParams {
     chute: chuteOf(q.get("chute")),
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
+    avalanche: q.get("avalanche") === "1" ? true : q.get("avalanche") === "0" ? false : null,
     afterski: q.get("afterski") === "1",
     buzz: buzzOf(q.get("buzz")),
     titleT: titleTOf(q.get("titleT")),
@@ -488,6 +494,7 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     grade: params.grade ?? ride.grade,
     grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
     groomer: params.groomer === null ? ride.groomer : params.groomer ? "on" : "off",
+    avalanche: params.avalanche ?? ride.avalanche,
     inLodge: params.afterski || ride.inLodge,
     buzz: params.buzz ?? ride.buzz,
   };

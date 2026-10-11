@@ -467,6 +467,8 @@ export function freeGameOptions(
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
     groomer: "night",
+    // THE AVALANCHES: the loaded slopes off the groomed runs may slide.
+    avalanche: true,
   };
 }
 

@@ -27,6 +27,13 @@
 // stalled (pulled or pushed) and comes back once it flies again. Held back
 // with full rudder is a deliberate spin entry, and then the hand pulls all
 // the way.
+//
+// NOR PAST THE WINGS' STRENGTH. A wing is torn off past its ultimate load
+// (`defs/plane-wings.ts`: 7.1 g up, 2.85 g down). A pilot feels the g in
+// the seat and eases off well before it: so does this hand (`STRAIN`,
+// `model.strain`) — the stick's travel that way eased off while the load is
+// past the limit and given back under it. A held key never breaks a wing;
+// the thumb's stick, pushed or hauled hard enough, still can.
 
 import type { PlaneControls } from "@engine";
 
@@ -109,6 +116,14 @@ export const BUFFET_EASE = 10;
 export const BUFFET_LEAST = 0.2;
 export const SPIN_RUDDER = 0.9;
 
+/** THE STRAIN the hand eases off at, g: past `up` pulled and under `down`
+ * pushed (a little over the wing's limit loads, 3.8 g and −1.52 g, and well
+ * under the 7.1 g and −2.85 g that tear one off), at `STRAIN_EASE` a second
+ * a g over it, never under `STRAIN_LEAST` of the reach. */
+export const STRAIN = { up: 5, down: -1.9 } as const;
+export const STRAIN_EASE = 3;
+export const STRAIN_LEAST = 0.15;
+
 /** The share of the elevator's travel the stick may use at `airspeed` m/s,
  * pulled back or (`push`) pushed forward. */
 export function pitchReach(airspeed: number, push = false): number {
@@ -134,6 +149,8 @@ export type PlaneModel = {
   yaw: number;
   /** The share of the back stick's reach the hand gives at the buffet. */
   pull: number;
+  /** The share of the stick's reach the hand gives against the g. */
+  strain: number;
   flapKeys: { down: boolean; up: boolean };
   nudge: number;
 };
@@ -146,6 +163,7 @@ export function createPlaneModel(): PlaneModel {
     roll: 0,
     yaw: 0,
     pull: 1,
+    strain: 1,
     flapKeys: { down: false, up: false },
     nudge: 0,
   };
@@ -165,6 +183,7 @@ export function seatPlaneModel(model: PlaneModel, at: { throttle: number; flaps:
   model.flaps = Math.round(Math.min(1, Math.max(0, at.flaps)) / FLAP_NOTCH) * FLAP_NOTCH;
   model.pitch = model.roll = model.yaw = 0;
   model.pull = 1;
+  model.strain = 1;
   model.nudge = 0;
 }
 
@@ -172,7 +191,8 @@ const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.m
 
 /**
  * ONE STEP OF THE PLANE'S CONTROLS off the keys and the thumbs, at the
- * plane's own `airspeed` (m/s) and the share of its wing `stalled` — on touch the helicopter's two pads, the
+ * plane's own `airspeed` (m/s), the share of its wing `stalled` and its
+ * `load` factor — on touch the helicopter's two pads, the
  * STICK on the edge thumb's side and the POWER PAD on the lever's:
  *   * the POWER LEVER worked by its keys, or the power pad's vertical
  *     travel (pushed up opens it, at a rate), and left where it is;
@@ -191,6 +211,7 @@ export function samplePlane(
   dt: number,
   airspeed: number,
   stalled = 0,
+  load = 1,
 ): PlaneControls {
   const lift = (keys.throttleUp ? 1 : 0) - (keys.throttleDown ? 1 : 0);
   const thumbLift = touch.power ? powerAxis(touch.powerY) : 0;
@@ -221,7 +242,16 @@ export function samplePlane(
   model.pull = spin
     ? 1
     : clamp(model.pull + (BUFFET - stalled) * BUFFET_EASE * dt, BUFFET_LEAST, 1);
-  const pitch = spin ? hand : hand * pitchReach(airspeed, hand > 0) * model.pull;
+  // Eased off against the g that way, a key's stick only.
+  const over = hand < 0 ? load - STRAIN.up : hand > 0 ? STRAIN.down - load : -1;
+  model.strain = touch.stick
+    ? 1
+    : clamp(
+        model.strain - Math.sign(over) * STRAIN_EASE * dt * Math.max(0.3, Math.abs(over)),
+        STRAIN_LEAST,
+        1,
+      );
+  const pitch = spin ? hand : hand * pitchReach(airspeed, hand > 0) * model.pull * model.strain;
   const roll = (touch.stick ? clamp(touch.stickX, -1, 1) : model.roll) * rollReach(airspeed);
   const flip = (v: number): number => (v === 0 ? 0 : clamp(v, -1, 1) * SCREEN_TO_ENGINE);
   return {

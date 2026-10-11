@@ -11,6 +11,8 @@
 //           below it, from above it and close at a skier's knee
 //   low     the same three under a low sun
 //   night   the deep trench under the headlamp
+//   kinds   what cut it: skis, a snowboard and a snowmobile, on the groomer
+//           and in powder, from above and close
 //
 // Each GROUP is one contact sheet, previews/trails-<group>.png, and every
 // frame is also written alone, previews/trails-<view>-<label>.png. The page
@@ -43,12 +45,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (bands, low, night); every one when left out",
+      help: "which sheets, comma-separated (bands, low, night, kinds, speed); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night)",
+      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night, skis-groomed, board-groomed, sled-groomed, skis-powder, board-powder, sled-powder, speed-powder, speed-deep)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

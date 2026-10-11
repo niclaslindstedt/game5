@@ -203,6 +203,9 @@ export const CRASH = {
     // Taken by the grimbear (`grimbear.ts`): knocked back off his feet
     // and down on a side.
     maul: { pitch: -0.5, side: 0.7, up: 0.6 },
+    // Taken by an avalanche's flow (`avalanche.ts`): swept off his feet,
+    // tumbled over and over onto a side, and lifted into it.
+    avalanche: { pitch: 0.7, side: 0.8, up: 0.8 },
     // Ridden into a piste machine (`groomer.ts`), or met by its blade:
     // knocked flat on his back off the steel, and over onto a side.
     groomer: { pitch: -0.7, side: 0.6, up: 0.8 },

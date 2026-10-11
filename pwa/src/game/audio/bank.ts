@@ -486,6 +486,44 @@ export const RUN_BANK: SoundBank = {
     ],
   },
 
+  slab: {
+    description:
+      "A slab letting go: the WHUMPF of the weak layer collapsing under " +
+      "the snow — a brown thump driven hard and very low — the crack " +
+      "running out across the slope a beat after it (a short band of " +
+      "white noise), and the slide's long rumble opening under both, " +
+      "brown and lowpassed, so it reads as the whole slope moving.",
+    voices: [
+      {
+        call: "tone",
+        type: "sine",
+        from: 70,
+        to: 38,
+        durationMs: 260,
+        volume: 0.07,
+        drive: 0.8,
+        filter: { type: "lowpass", frequency: 400 },
+      },
+      {
+        call: "noise",
+        durationMs: 140,
+        volume: 0.03,
+        delayMs: 120,
+        color: "white",
+        filter: { type: "bandpass", frequency: 2400, q: 1.2 },
+      },
+      {
+        call: "noise",
+        durationMs: 3200,
+        volume: 0.06,
+        delayMs: 200,
+        color: "brown",
+        attackMs: 900,
+        filter: { type: "lowpass", frequency: 500, to: 180 },
+      },
+    ],
+  },
+
   net: {
     description:
       "Into the A-nets beside a downhill: a body caught in netting — a long " +

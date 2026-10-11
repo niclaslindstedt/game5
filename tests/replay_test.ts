@@ -126,8 +126,8 @@ describe("the replay reaches the same flag", () => {
   // A field whose passes leave the kicker's flight its own shot: the
   // director spaces the edit, and a rival's pass a few seconds before the
   // take-off crowds a small air out of it (seed 11's does since the step
-  // turn quickened the start).
-  const SEED = 7;
+  // turn quickened the start, and seed 7's since the double pole did).
+  const SEED = 1;
   // The field on the start line beside him (a time trial with rivals, as
   // the benchmark rides it): every rival's run is rebuilt with his.
   const field = { mode: "timeTrial", rivals: RACE.rivals, laps: 1 } as const;

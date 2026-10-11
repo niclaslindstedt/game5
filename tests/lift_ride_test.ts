@@ -136,7 +136,7 @@ function followSign(
 /** How near a mark the rider who follows the sign makes for counts as
  * there, m; the speed he checks to, m/s. */
 const REACHED = 4;
-const CHECK = 12;
+const CHECK = 6;
 
 describe("riding a lift on a free ride", () => {
   it("has a chair, a gondola and a drag on the map", () => {
@@ -374,13 +374,15 @@ describe("a free ride begun on a lift", () => {
     const events = ride(run, 30, (r) => r.skier.lift === null);
     expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);
     expect(run.skier.lift).toBeNull();
-    // Let be, he slides off the ramp and coasts to a stop on the level top,
-    // never down off it: nothing steers him for a run.
-    ride(run, 20, () => false);
+    // Let be, he slides off the ramp and the skate works him on across the
+    // level top the way he was set down, never turned down off it: nothing
+    // steers him for a run.
+    const heading = run.skier.heading;
+    ride(run, 5, () => false);
     const c = run.skier;
+    expect(Math.abs(angleDiff(c.heading, heading))).toBeLessThan(0.1);
     expect(Math.hypot(c.x - plan.lift.top.x, c.z - plan.lift.top.z)).toBeLessThan(RR_PAD);
     expect(Math.abs(c.y - plan.lift.top.y)).toBeLessThan(2);
-    expect(c.speed).toBeLessThan(0.5);
     expect(c.thrown).toBeNull();
   });
 

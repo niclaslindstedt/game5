@@ -25,6 +25,10 @@
 //              5, 30 and 90 s, by day and after dark
 //   crash-kinds  nose in, cartwheeled, on its belly, out of a spin, into the
 //              trees — each frame by frame through the crash's lens
+//   wings      a wingtip scuffed on the take-off roll and flown on, a wing
+//              torn off by a trunk and on landing, the plane flying on with
+//              one wing, the torn wing on the snow, a crash that does not
+//              burn beside one that does
 //   airstrip   the strip as drawn: from the approach, overhead and the
 //              village, down the runway at a skier's eye, the apron with
 //              the plane parked, the hangar, fuel shed, hut and windsock
@@ -63,7 +67,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash, crash-kinds, airstrip); every one when left out",
+      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash, crash-kinds, wings, airstrip); every one when left out",
     },
     views: {
       kind: "string",

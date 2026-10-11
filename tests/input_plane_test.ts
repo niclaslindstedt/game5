@@ -5,11 +5,14 @@
 // the engine's, the pull eased off at the buffet — and the aerobatics a
 // player throws on the keys (a loop over the top from a dive, low and high
 // over a generated map's strip, an aileron roll, a hammerhead, inverted
-// flight, a spin and its recovery) flown on the physics alone.
+// flight, a spin and its recovery) flown on the physics alone — and the
+// take-off a new player flies: full power and the stick held back from the
+// start, off the strip and climbing on the take-off hand (`plane-hand.ts`).
 
 import { describe, expect, it } from "vitest";
 import {
   NEUTRAL_INPUT,
+  PLANE,
   TUNING,
   airstripOf,
   createGame,
@@ -155,9 +158,11 @@ function hand(
 }
 function press(h: Hand, k: Partial<PlaneKeysHeld>): void {
   const p = h.s.plane!;
-  const plane = samplePlane(h.m, keys(k), neutralTouch(), dt, p.airspeed, p.stalled);
+  const plane = samplePlane(h.m, keys(k), neutralTouch(), dt, p.airspeed, p.stalled, p.load);
   step(h.s, { ...NEUTRAL_INPUT, plane });
-  h.crashed ||= (h.s.events as GameEvent[]).some((e) => e.kind === "plane" && e.phase === "crash");
+  h.crashed ||= (h.s.events as GameEvent[]).some(
+    (e) => e.kind === "plane" && (e.phase === "crash" || e.phase === "tear"),
+  );
 }
 /** The aileron keys a human taps to bring the bank to `want`. */
 function wings(p: PlaneState, want = 0): Partial<PlaneKeysHeld> {
@@ -191,6 +196,43 @@ function loopByHand(level: Level, x: number, z: number, heading: number, height:
   }
   return { turned, gained: top - y0, bank: Math.abs(p.roll), crashed: h.crashed };
 }
+
+/** THE NAIVE TAKE-OFF (`make plane-flight`'s p-takeoff rows): the power
+ * run up and the stick held back from the strip's start, let go 60 m up;
+ * where it is 35 s on, how far off the line it lifted off, and whether a
+ * wing or the airframe came to grief. */
+function naiveTakeoff(level: Level) {
+  const strip = airstripOf(level);
+  const s = createGame({ level, mode: "free", plane: true, crowd: 0, quiet: true });
+  const m = createPlaneModel();
+  seatPlaneModel(m, { throttle: 0, flaps: PLANE.pilot.flapsOff });
+  const h: Hand = { s, m, crashed: false };
+  const p = s.plane!;
+  let side = Infinity;
+  let let_go = false;
+  for (let t = 0; t < 35 && !h.crashed; t += dt) {
+    if (p.agl > 60) let_go = true;
+    press(h, { throttleUp: t < 2.5, stickBack: !let_go });
+    const off = (s.events as GameEvent[]).some((e) => e.kind === "plane" && e.phase === "liftoff");
+    if (off && side === Infinity)
+      side = Math.abs(
+        (p.x - strip.start.x) * Math.cos(strip.heading) -
+          (p.z - strip.start.z) * Math.sin(strip.heading),
+      );
+  }
+  return { agl: p.agl, side, crashed: h.crashed };
+}
+
+describe("a naive take-off", () => {
+  it("flies off the strip and climbs on full power and the stick held back", () => {
+    for (const level of [flatLevel({ size: SIZE }), levelFor(38)]) {
+      const T = naiveTakeoff(level);
+      expect(T.crashed).toBe(false);
+      expect(T.side).toBeLessThan(10);
+      expect(T.agl).toBeGreaterThan(60);
+    }
+  });
+});
 
 describe("a held stick-back", () => {
   it("loops the plane over the top from a dive on full power", () => {

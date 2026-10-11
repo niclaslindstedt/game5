@@ -24,6 +24,8 @@
 import {
   CABINS,
   besidePoint,
+  stripPoint,
+  stripSiteOf,
   cabinsOf,
   felledTrees,
   regionOf,
@@ -84,6 +86,10 @@ export type MinimapSource = {
    * its width) quintuples, m — every piece of every street's line, out to
    * the back of its sidewalks; empty where the map has no village. */
   streets: Float32Array;
+  /** The jump plane's strip on a free ride (`airstrip-site.ts`): its
+   * runway and its apron as (ax, az, bx, bz, half their width) quintuples,
+   * m — the packed snow a piste map draws a strip as; empty elsewhere. */
+  strip?: Float32Array;
 };
 
 type Rgb = [number, number, number];
@@ -106,7 +112,11 @@ function woodOf(needle: string): Rgb {
   return rgb.map((c, i) => c + (CHART_LEAF[i] - c) * 0.5) as Rgb;
 }
 
-export function minimapSource(level: Level): MinimapSource {
+/** What the bake is asked to draw beyond the map itself: the free ride's
+ * airstrip, its runway, apron and buildings. */
+export type MinimapExtras = { strip?: boolean };
+
+export function minimapSource(level: Level, extras: MinimapExtras = {}): MinimapSource {
   const houses = cabinsOf(level);
   const gone = felledTrees(level);
   const trees = new Float32Array(level.trees.length * 3);
@@ -147,9 +157,47 @@ export function minimapSource(level: Level): MinimapSource {
       to: look.rock.to,
     },
     wood: woodOf(look.needle),
-    cabins,
+    cabins: extras.strip ? withStripRoofs(level, cabins) : cabins,
     streets: streetsOf(level),
+    ...(extras.strip ? { strip: stripOf(level) } : {}),
   };
+}
+
+/** The strip's runway and apron as bands (`MinimapSource.strip`). */
+function stripOf(level: Level): Float32Array {
+  const site = stripSiteOf(level);
+  const s = site.strip;
+  const half = s.length / 2;
+  const a = stripPoint(s, -half, 0);
+  const b = stripPoint(s, half, 0);
+  const ap = site.apron;
+  const mid = (ap.across0 + ap.across1) / 2;
+  const c = stripPoint(s, ap.along0, site.side * mid);
+  const d = stripPoint(s, ap.along1, site.side * mid);
+  return new Float32Array([
+    a.x,
+    a.z,
+    b.x,
+    b.z,
+    s.width / 2,
+    c.x,
+    c.z,
+    d.x,
+    d.z,
+    (ap.across1 - ap.across0) / 2,
+  ]);
+}
+
+/** The cabins' roofs and the strip's buildings' after them. */
+function withStripRoofs(level: Level, cabins: Float32Array): Float32Array {
+  const site = stripSiteOf(level);
+  const out = new Float32Array(cabins.length + site.buildings.length * 6);
+  out.set(cabins);
+  site.buildings.forEach((b, i) => {
+    const ridge = b.kind === "hangar" ? 2 : b.kind === "hut" ? 1 : 0;
+    out.set([b.x, b.z, b.width / 2, b.depth / 2, b.heading, ridge], cabins.length + i * 6);
+  });
+  return out;
 }
 
 /** The village's ground as the chart draws it (`MinimapSource.streets`). */
@@ -343,6 +391,7 @@ export function bakeMinimap(
   stampWoods(out, px, step, src.trees, src.wood);
   stampTrees(out, px, step, src.trees);
   stampStreets(out, px, step, src.streets);
+  if (src.strip) stampStrip(out, px, step, src.strip);
   stampCabins(out, px, step, src.cabins);
   return out;
 }
@@ -488,6 +537,46 @@ function stampCabins(out: Uint8ClampedArray, px: number, step: number, cabins: F
         if (a <= 0) continue;
         const onRidge = (ridge === 1 && lz < 0.95) || (ridge === 2 && lx < 0.95);
         const tone = inside < 1 ? ROOF_RIM : onRidge ? ROOF_RIDGE : ROOF;
+        const k = (j * px + i) * 4;
+        out[k] += (tone[0] - out[k]) * a;
+        out[k + 1] += (tone[1] - out[k + 1]) * a;
+        out[k + 2] += (tone[2] - out[k + 2]) * a;
+      }
+    }
+  }
+}
+
+/** The packed snow of a strip's runway and apron on the chart, the
+ * groomer's grey a shade darker than a piste's and rimmed a pixel dark,
+ * as a piste map draws a strip. */
+const STRIP_FILL = [136, 134, 142];
+const STRIP_RIM = [84, 82, 94];
+
+function stampStrip(out: Uint8ClampedArray, px: number, step: number, bands: Float32Array): void {
+  for (let n = 0; n < bands.length; n += 5) {
+    const ax = bands[n] / step - 0.5;
+    const az = bands[n + 1] / step - 0.5;
+    const bx = bands[n + 2] / step - 0.5;
+    const bz = bands[n + 3] / step - 0.5;
+    const r = Math.max(1, bands[n + 4] / step);
+    const ex = bx - ax;
+    const ez = bz - az;
+    const len = Math.max(1e-6, Math.hypot(ex, ez));
+    const ux = ex / len;
+    const uz = ez / len;
+    const i0 = Math.max(0, Math.floor(Math.min(ax, bx) - r - 1));
+    const i1 = Math.min(px - 1, Math.ceil(Math.max(ax, bx) + r + 1));
+    const j0 = Math.max(0, Math.floor(Math.min(az, bz) - r - 1));
+    const j1 = Math.min(px - 1, Math.ceil(Math.max(az, bz) + r + 1));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const along = (i - ax) * ux + (j - az) * uz;
+        const across = Math.abs((i - ax) * uz - (j - az) * ux);
+        // How far inside the rectangle, px.
+        const inside = Math.min(along, len - along, r - across);
+        const a = Math.min(1, Math.max(0, inside + 0.5));
+        if (a <= 0) continue;
+        const tone = inside < 1 ? STRIP_RIM : STRIP_FILL;
         const k = (j * px + i) * 4;
         out[k] += (tone[0] - out[k]) * a;
         out[k + 1] += (tone[1] - out[k + 1]) * a;

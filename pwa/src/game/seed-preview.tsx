@@ -391,10 +391,12 @@ export function SeedPreview({
         ? toChart(drawn.schematic.size, start.x, start.z)
         : toPanorama(drawn.panorama.view, start.x, start.y, start.z)
       : null;
-  // THE JUMP PLANE'S STRIP drawn as the line it is, under the pulse at its
-  // middle (a chart from a build without it draws only the pulse).
+  // THE JUMP PLANE'S STRIP drawn as the line it is — bright under the
+  // pulse at its middle when the plane is the start, quiet otherwise, a
+  // place on the ski area like any other (a chart from a build without it
+  // draws none).
   const stripEnds =
-    drawn && machine === "plane" && drawn.strip
+    drawn && drawn.strip
       ? view === "plan"
         ? [
             toChart(drawn.schematic.size, drawn.strip.a.x, drawn.strip.a.z),
@@ -430,9 +432,9 @@ export function SeedPreview({
             ) : (
               <PanoramaLayers drawn={drawn} at={at} entry={head !== null} />
             )}
-            {!at && stripEnds?.[0] && stripEnds[1] && (
+            {stripEnds?.[0] && stripEnds[1] && (
               <line
-                class="seed-preview-strip"
+                class={`seed-preview-strip${machine === "plane" ? "" : " seed-preview-strip-quiet"}`}
                 x1={stripEnds[0][0].toFixed(1)}
                 y1={stripEnds[0][1].toFixed(1)}
                 x2={stripEnds[1][0].toFixed(1)}

@@ -14,6 +14,7 @@
 import {
   createGame,
   generateLevel,
+  loadRealFace,
   NEUTRAL_INPUT,
   step,
   TUNING,
@@ -43,6 +44,8 @@ declare global {
 const params = new URLSearchParams(location.search);
 const seed = Number(params.get("seed") ?? 38);
 const region = (params.get("region") || undefined) as RegionId | undefined;
+/** A real mountainside to raise the map on (`real-face.ts`), or none. */
+const face = params.get("face") || undefined;
 const tier = (TIERS as readonly string[]).includes(params.get("quality") ?? "")
   ? (params.get("quality") as Tier)
   : "high";
@@ -73,7 +76,8 @@ const renderer = createWorldRenderer(canvas, {
 renderer.resize(width, height, 1);
 renderer.setDeathCam(true);
 
-const level = generateLevel(seed, { region });
+if (face) await loadRealFace(face);
+const level = generateLevel(seed, { region, ...(face ? { face } : {}) });
 const FRAME = 1 / 60;
 const STEPS = Math.round(FRAME / TUNING.dt);
 /** The wall time a still is drawn over: nothing moves in it. */
@@ -186,7 +190,7 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
   sheetEl.style.gridTemplateColumns = `repeat(${cols}, ${tw}px)`;
   const header = document.createElement("header");
   header.textContent =
-    `JUMP PLANE — ${group} (${views.join(", ")}) — seed ${seed}${region ? ` ${region}` : ""}` +
+    `JUMP PLANE — ${group} (${views.join(", ")}) — seed ${seed}${region ? ` ${region}` : ""}${face ? ` face ${face}` : ""}` +
     `${baseSky ? ` sky ${JSON.stringify(baseSky)}` : ""} — ${tier}\n${note}`;
   header.style.whiteSpace = "pre-wrap";
   const cells: HTMLElement[] = [header];

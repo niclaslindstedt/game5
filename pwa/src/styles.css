@@ -4129,6 +4129,11 @@ canvas {
   filter: drop-shadow(0 0 0.6px rgb(0 0 0 / 0.9));
 }
 
+.seed-preview-strip-quiet {
+  stroke: rgb(232 236 242 / 0.75);
+  stroke-width: 1.1;
+}
+
 .seed-preview-entry-ring {
   fill: rgb(0 0 0 / 0.35);
   stroke: var(--snow);

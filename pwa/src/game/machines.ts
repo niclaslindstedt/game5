@@ -15,7 +15,14 @@
 // plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
-import { BALLOON, type GameState, type Level } from "@engine";
+import {
+  BALLOON,
+  planeBoxes,
+  stripBoxes,
+  type GameState,
+  type Level,
+  type StripBox,
+} from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import { heliHull, type SolidBox } from "./camera-clear.ts";
@@ -51,6 +58,7 @@ import { TOPSHEETS } from "./ski-topsheets.ts";
 import { drawnAs } from "./ski-looks.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
 import { createDoorsView, type DoorsView } from "./doors-view.ts";
+import { createStripView, type StripView } from "./strip-view.ts";
 import type { ViewCull } from "./view-cull.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
@@ -104,7 +112,8 @@ export type Machines = {
   /** The sky's light on whatever the machines draw unlit (the wing's lines). */
   light(look: SkyLook): void;
   /** THE PISTE MACHINES AS SOLIDS to the lens (`camera-clear.ts`), where
-   * they were drawn this frame. */
+   * they were drawn this frame — and the airstrip's buildings and the jump
+   * plane standing on the snow with nobody aboard. */
   solids(): readonly SolidBox[];
   /** Both machines' models in the group — what the renderer waits on
    * before it compiles the run's programs, so the rotor's smear and the
@@ -158,6 +167,13 @@ export function createMachines(
   const chute: ChuteScene | null = state.rules.heli ? createChuteScene(haze, level) : null;
   if (plane) group.add(plane.group);
   if (chute) group.add(chute.group);
+  // ...and the strip it flies from: its snow, markers, buildings and sock.
+  const strip: StripView | null = state.rules.heli ? createStripView(level, haze) : null;
+  if (strip) group.add(strip.group);
+  // What stands there, as solids to the lens: the buildings, and the
+  // plane on the snow with its wing.
+  const stripSolids: readonly StripBox[] = strip ? stripBoxes(level) : [];
+  const planeSolids: StripBox[] = [];
   // The skydive's own lens out of the door and through the opening.
   const skyCam = chute ? createSkydiveCam() : null;
   let skyState: GameState | null = null;
@@ -308,6 +324,8 @@ export function createMachines(
       balloon?.lamps(eye, floods);
       rescue?.lamps(lit, floods);
       plane?.lamps(lit, floods);
+      strip?.frame(current, lit, eye);
+      strip?.lamps(lit, eye, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
       traffic?.update(current, lit, eye, floods, env.cull);
       if (floods.length === 0) return others;
@@ -359,7 +377,12 @@ export function createMachines(
       const g = groomers?.solids() ?? [];
       const t = traffic?.solids() ?? [];
       const all = t.length === 0 ? g : g.length === 0 ? t : [...g, ...t];
-      return hull ? [...all, hull] : all;
+      // ...never while he rides it: the lens is in it with him.
+      if (current.plane && !current.plane.rider) planeBoxes(current.plane, planeSolids, true);
+      else planeSolids.length = 0;
+      const more = stripSolids.length + planeSolids.length > 0;
+      const out = more ? [...all, ...stripSolids, ...planeSolids] : all;
+      return hull ? [...out, hull] : out;
     },
     setPace(pace) {
       heli?.setPace(pace);
@@ -373,6 +396,7 @@ export function createMachines(
       para?.dispose();
       plane?.dispose();
       chute?.dispose();
+      strip?.dispose();
       balloon?.dispose();
       rescue?.dispose();
     },

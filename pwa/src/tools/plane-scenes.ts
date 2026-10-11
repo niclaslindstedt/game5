@@ -22,6 +22,7 @@ import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { COCKPIT_SHEET, cockpitViews } from "./plane-cockpit-scenes.ts";
 import { CRASH_SHEET, CRASH_VIEWS, KINDS_SHEET } from "./plane-crash-scenes.ts";
+import { STRIP_SHEET, STRIP_VIEWS } from "./plane-strip-scenes.ts";
 
 /** A lens for a frame: a rung of the game's own ladder, a pose planted for
  * it, or one worked out off the state at the moment it is shot. */
@@ -215,6 +216,8 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
   ...cockpitViews({ riding, aloft }),
   // ── THE CRASH: every way a plane goes in, and the fire after ────────
   ...CRASH_VIEWS,
+  // ── THE AIRSTRIP: the snow, the markers, the buildings and the sock ──
+  ...STRIP_VIEWS,
 };
 
 /** The sheets and the views each is made of. */
@@ -227,4 +230,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   cockpit: COCKPIT_SHEET,
   crash: CRASH_SHEET,
   "crash-kinds": KINDS_SHEET,
+  airstrip: STRIP_SHEET,
 };

@@ -109,7 +109,8 @@ export function onStrip(level: Level, x: number, z: number): boolean {
 }
 
 type Rules = { grade: number; cross: number; bump: number; step: number; clear: number };
-type Keep = { x: number; z: number; r: number };
+/** A circle the strip and its buildings keep out of, m. */
+export type Keep = { x: number; z: number; r: number };
 type Found = { x: number; z: number; axis: number; cost: number };
 
 function findStrip(level: Level): Airstrip {
@@ -140,8 +141,9 @@ function findStrip(level: Level): Airstrip {
 
 /** Everything the strip keeps off that is a circle: the helipad, the
  * snowmobile's spot, the balloon's site, every cabin and village building
- * and every lift's bottom and top station. */
-function keepOffs(level: Level): Keep[] {
+ * and every lift's bottom and top station — and what its buildings keep
+ * off too (`airstrip-site.ts`). */
+export function keepOffs(level: Level): Keep[] {
   const out: Keep[] = [];
   if (level.resort) {
     const pad = helipadOf(level);

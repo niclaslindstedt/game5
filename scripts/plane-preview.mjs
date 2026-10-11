@@ -22,6 +22,10 @@
 //              5, 30 and 90 s, by day and after dark
 //   crash-kinds  nose in, cartwheeled, on its belly, out of a spin, into the
 //              trees — each frame by frame through the crash's lens
+//   airstrip   the strip as drawn: from the approach, overhead and the
+//              village, down the runway at a skier's eye, the apron with
+//              the plane parked, the hangar, fuel shed, hut and windsock
+//              close — by day and after dark (`--face=` a real face)
 //
 // Each GROUP is one contact sheet, previews/plane-<group>.png, and every
 // frame is also written alone, previews/plane-<view>-<label>.png. The page
@@ -56,7 +60,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash, crash-kinds); every one when left out",
+      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash, crash-kinds, airstrip); every one when left out",
     },
     views: {
       kind: "string",
@@ -78,6 +82,11 @@ const args = parseArgs(
       kind: "string",
       default: "",
       help: "the sky every sheet is drawn under (clear, fair, flurries, high, overcast, snow, storm, fog); the map's own when left out",
+    },
+    face: {
+      kind: "string",
+      default: "",
+      help: "a real mountainside to raise the map on (alpine-1 … fell-2); none when left out",
     },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
@@ -148,6 +157,7 @@ const query = new URLSearchParams({
   cols: String(args.cols),
   scale: String(args.scale),
   ...(args.region ? { region: args.region } : {}),
+  ...(args.face ? { face: args.face } : {}),
   ...(Number.isFinite(args.hour) ? { hour: String(args.hour) } : {}),
   ...(args.weather ? { weather: args.weather } : {}),
 }).toString();

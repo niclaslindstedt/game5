@@ -213,7 +213,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     if (paint) {
       const picture = await encode(
         CHART_PX,
-        bakeMinimap(minimapSource(level), CHART_PX, CHART_LIGHT),
+        bakeMinimap(minimapSource(level, { strip: true }), CHART_PX, CHART_LIGHT),
         transfer,
       );
       const houses = cabinsOf(level);

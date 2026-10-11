@@ -56,6 +56,7 @@ import { stepDoorLeaves, stepDoorway } from "./doorway.ts";
 import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./buzz.ts";
 import { intoTown, stepTown, townBrake } from "./town.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
+import { meetStrip } from "./airstrip-solids.ts";
 import { trafficStrike } from "./traffic-contact.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
@@ -250,6 +251,8 @@ export function stepRun(
   // OFF A PIPE'S WALL (`pipe-air.ts`): the lip's push and the turn round.
   if (!off && !railed) stepPipeAir(run, flightGravity(run.rules));
   if (!off) collideTrees(run, events, x0, z0);
+  // ...and the airstrip's buildings and the plane on the snow (`airstrip-solids.ts`).
+  if (!off) meetStrip(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);
   // THE EDGE STAKES (`edge-stakes.ts`): bent over, snapped, whipping back.

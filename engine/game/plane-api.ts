@@ -41,6 +41,18 @@ export { COG as PLANE_COG, SECTIONS as PLANE_SECTIONS, planeAir, thrustAt } from
 export type { PlaneAir } from "./plane-aero.ts";
 export { STRIP_LENGTH, airstripOf, onStrip, type Airstrip, type StripPoint } from "./airstrip.ts";
 export {
+  STRIP_SITE,
+  onApron,
+  stripFrame,
+  stripPoint,
+  stripSiteOf,
+  type StripBuilding,
+  type StripBuildingKind,
+  type StripMarker,
+  type StripSite,
+} from "./airstrip-site.ts";
+export { meetStrip, planeBoxes, stripBoxes, type StripBox } from "./airstrip-solids.ts";
+export {
   HANDS as PLANE_HANDS,
   homeControls,
   jumpSpotOf,

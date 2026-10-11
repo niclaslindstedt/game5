@@ -316,7 +316,7 @@ export function App() {
       if (standing === level) return Promise.resolve();
       wanted = level;
       standing = null;
-      prepareMinimap(level);
+      prepareMinimap(level, s.rules.heli); // the airstrip on a free ride's
       return renderer.load(s).then(() => {
         if (wanted === level) standing = level;
       });

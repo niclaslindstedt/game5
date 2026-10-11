@@ -258,6 +258,58 @@ function trackDirection(level: Level): Uint8Array {
   return out;
 }
 
+/** SNOW LAID BY A RUN ON THE GROUND'S OWN GRIDS — packed, combed one way and
+ * windrowed (the airstrip's runway and apron, `strip-ground.ts`): a plan
+ * box and, for a point in it, whether it is laid and how (`packed` the
+ * groomed share 0..1, `heading` the comb's, `berm` a windrow 0..1). Handed
+ * over by the run (`layGround`) once its own snow is known, kept per map
+ * so a ground rebuilt for a new picture is laid again. */
+export type GroundStamp = {
+  x0: number;
+  z0: number;
+  x1: number;
+  z1: number;
+  at(x: number, z: number, out: { packed: number; heading: number; berm: number }): boolean;
+};
+
+const stamps = new WeakMap<Level, GroundStamp>();
+const liveGrounds = new WeakMap<Level, { ground: THREE.DataTexture; dir: THREE.DataTexture }[]>();
+
+/** Lay `stamp` on `level`'s ground: on every ground drawn of it now, and on
+ * every one built of it after. */
+export function layGround(level: Level, stamp: GroundStamp): void {
+  if (stamps.get(level) === stamp) return;
+  stamps.set(level, stamp);
+  for (const t of liveGrounds.get(level) ?? []) {
+    stampGround(level, stamp, t.ground.image.data as Uint16Array, t.dir.image.data as Uint8Array);
+    t.ground.needsUpdate = true;
+    t.dir.needsUpdate = true;
+  }
+}
+
+function stampGround(level: Level, stamp: GroundStamp, ground: Uint16Array, dir: Uint8Array): void {
+  const f = level.ground;
+  const h = THREE.DataUtils.toHalfFloat;
+  const out = { packed: 0, heading: 0, berm: 0 };
+  const c0 = Math.max(0, Math.floor((stamp.x0 - f.originX) / f.cell));
+  const c1 = Math.min(f.cols - 1, Math.ceil((stamp.x1 - f.originX) / f.cell));
+  const r0 = Math.max(0, Math.floor((stamp.z0 - f.originZ) / f.cell));
+  const r1 = Math.min(f.rows - 1, Math.ceil((stamp.z1 - f.originZ) / f.cell));
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      if (!stamp.at(f.originX + c * f.cell, f.originZ + r * f.cell, out)) continue;
+      const k = r * f.cols + c;
+      const was = THREE.DataUtils.fromHalfFloat(ground[k * 4 + 2]);
+      ground[k * 4 + 2] = h(Math.max(was, out.packed));
+      if (out.packed > 0.5) {
+        dir[k * 4] = Math.round((Math.cos(2 * out.heading) * 0.5 + 0.5) * 255);
+        dir[k * 4 + 1] = Math.round((Math.sin(2 * out.heading) * 0.5 + 0.5) * 255);
+      }
+      dir[k * 4 + 2] = Math.max(dir[k * 4 + 2], Math.round(out.berm * 255));
+    }
+  }
+}
+
 function groundTextures(level: Level) {
   const f = level.ground;
   const height = new THREE.DataTexture(f.data, f.cols, f.rows, THREE.RedFormat, THREE.FloatType);
@@ -308,6 +360,11 @@ function groundTextures(level: Level) {
   dir.minFilter = THREE.LinearFilter;
   dir.magFilter = THREE.LinearFilter;
   dir.needsUpdate = true;
+  const stamp = stamps.get(level);
+  if (stamp) stampGround(level, stamp, ground, dir.image.data as Uint8Array);
+  const live = liveGrounds.get(level) ?? [];
+  live.push({ ground: groundTex, dir });
+  liveGrounds.set(level, live);
   return { height, ground: groundTex, dir, surface: surfaceTexture(level) };
 }
 
@@ -567,6 +624,12 @@ export function createTerrain(
         (lv.mesh.material as THREE.Material).dispose();
       }
       wells.dispose();
+      const live = liveGrounds.get(level);
+      if (live)
+        liveGrounds.set(
+          level,
+          live.filter((t) => t.ground !== tex.ground),
+        );
       tex.height.dispose();
       tex.ground.dispose();
       tex.dir.dispose();

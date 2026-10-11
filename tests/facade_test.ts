@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { liftPlans, stationHouses } from "@engine";
+import { liftPlans, stationHouses, stripSiteOf } from "@engine";
 import { FacadeKit } from "../pwa/src/game/facade-kit.ts";
 import {
   FACADE,
@@ -19,6 +19,7 @@ import {
   type FacadeLayer,
 } from "../pwa/src/game/facade-paint.ts";
 import { buildStationHouses } from "../pwa/src/game/station-build.ts";
+import { buildStrip } from "../pwa/src/game/strip-build.ts";
 import { layStations } from "../pwa/src/game/station-plan.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
@@ -155,5 +156,44 @@ describe("the lift stations as built", () => {
   it("keeps the whole resort's stations to a low-poly budget", () => {
     // A few hundred triangles a station end and its pieces.
     expect(kit.triangles / (plans.length * 2)).toBeLessThan(700);
+  });
+});
+
+describe("the airstrip's buildings (strip-build.ts)", () => {
+  const level = levelFor(38);
+  const site = stripSiteOf(level);
+  const kit = new FacadeKit();
+  buildStrip(kit, site.buildings);
+  const { pos, uv, layer, col, glow, nrm } = kit.out;
+
+  it("fills every attribute for every vertex, a lit pane among them", () => {
+    const n = pos.length / 3;
+    expect(n).toBeGreaterThan(0);
+    expect(nrm.length).toBe(n * 3);
+    expect(col.length).toBe(n * 3);
+    expect(uv.length).toBe(n * 2);
+    expect(layer.length).toBe(n);
+    expect(glow.length).toBe(n);
+    expect(layer.every((l) => Number.isInteger(l) && l >= 0 && l < FACADE_LAYERS)).toBe(true);
+    expect(pos.every(Number.isFinite)).toBe(true);
+    expect(Array.from(glow).some((g) => g > 0)).toBe(true);
+  });
+
+  it("stands every building on its footprint, down into the snow", () => {
+    for (const b of site.buildings) {
+      const fx = Math.sin(b.heading);
+      const fz = Math.cos(b.heading);
+      for (const a of [-1, 1]) {
+        for (const c of [-1, 1]) {
+          const x = b.x + fz * a * (b.width / 2) + fx * c * (b.depth / 2);
+          const z = b.z - fx * a * (b.width / 2) + fz * c * (b.depth / 2);
+          expect(b.base).toBeLessThan(level.groundAt(x, z) + 1e-6);
+        }
+      }
+    }
+  });
+
+  it("keeps the strip to a low-poly budget", () => {
+    expect(kit.triangles).toBeLessThan(6000);
   });
 });

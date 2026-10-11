@@ -107,6 +107,7 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
   let shown: PlaneAt | null = null;
   const cam = createPlaneCam();
   let wrecked = false;
+  let gone = false;
   let clock = 0;
   // THE HAND-OVER: what the plane wants on screen this frame (null: the
   // ladder), whether it is cut to, the share of it on screen and the last
@@ -257,8 +258,12 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
       wreckView.lamps(lit, out);
       if (p && shown) look.lamps(p, shown, lit, out);
     },
-    ready: look.ready,
+    // Its wreck made ready under the loading card, not at the crash.
+    ready: look.ready.then(() => {
+      if (!gone) wreckView.prime(look.group, look.wreckParts());
+    }),
     dispose() {
+      gone = true;
       wreckView.dispose();
       look.dispose();
     },

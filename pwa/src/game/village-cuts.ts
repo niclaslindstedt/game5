@@ -244,6 +244,23 @@ export function cutAt(d: number, was: number, at = NEAR): 0 | 1 {
   return d < at ? 0 : 1;
 }
 
+type Box = { min: readonly number[]; max: readonly number[] };
+const boxOf = ({ min, max }: Box): Box => ({ min, max });
+
+/** `geo` with its arrays let go once they are on the GPU: a real face's
+ * town is thousands of buildings at five cuts, and a second copy of every
+ * one kept in the page is the memory a phone kills the tab over. Its bounds
+ * are taken first (`facadeGeometry`), and nothing reads a building's
+ * vertices back. */
+function uploadOnce(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  for (const attr of Object.values(geo.attributes)) {
+    (attr as THREE.BufferAttribute).onUpload(function (this: THREE.BufferAttribute) {
+      this.array = new Float32Array(0);
+    });
+  }
+  return geo;
+}
+
 export type VillageBuildings = {
   group: THREE.Group;
   /** Each block at the cut `eye` sees it at. */
@@ -268,7 +285,7 @@ export function createBlockBuildings(
   const material = facadeMaterial(haze, name);
   const geos: THREE.BufferGeometry[] = [];
   const meshOf = (a: FacadeArrays, cut: string) => {
-    const geo = facadeGeometry(a);
+    const geo = uploadOnce(facadeGeometry(a));
     geos.push(geo);
     const mesh = new THREE.Mesh(geo, material);
     mesh.name = `${name}-${cut}`;
@@ -278,21 +295,31 @@ export function createBlockBuildings(
     group.add(mesh);
     return mesh;
   };
-  const cuts = blocks.map((b) => [meshOf(b.near, "near"), meshOf(b.far, "far")]);
+  // Loops rather than closures over `blocks` and `districts`, so the update
+  // below holds no reference to the arrays the meshes were made of.
+  const cuts: THREE.Mesh[][] = [];
+  for (const b of blocks) cuts.push([meshOf(b.near, "near"), meshOf(b.far, "far")]);
   const districts = districtsOf(blocks);
   const keys = [...districts.keys()];
-  const own = keys.map((k) => blocks.flatMap((b, i) => (b.district === k ? [i] : [])));
-  const areas = keys.map((k) => districts.get(k)!);
-  const dcuts = areas.map((d) => [meshOf(d.far, "district"), meshOf(d.distant, "distant")]);
-  const whole = meshOf(merged(areas.map((d) => d.distant)), "whole");
+  const own: number[][] = keys.map(() => []);
+  for (let i = 0; i < blocks.length; i++) own[keys.indexOf(blocks[i].district)].push(i);
+  const dcuts: THREE.Mesh[][] = [];
+  for (const d of districts.values()) {
+    dcuts.push([meshOf(d.far, "district"), meshOf(d.distant, "distant")]);
+  }
+  const whole = meshOf(merged([...districts.values()].map((d) => d.distant)), "whole");
+  // Only the boxes are kept past here: the arrays the meshes were made of
+  // are let go, and the meshes' own go once they are on the GPU.
+  const boxes = blocks.map(boxOf);
+  const areas = [...districts.values()].map(boxOf);
   // Until the first update, the whole village at its distant cut.
-  whole.visible = blocks.length > 0;
-  const band = new Int8Array(blocks.length).fill(-1);
+  whole.visible = boxes.length > 0;
+  const band = new Int8Array(boxes.length).fill(-1);
   const dband = new Int8Array(keys.length).fill(-1);
   return {
     group,
     update(eye) {
-      blocks.forEach((b, i) => {
+      boxes.forEach((b, i) => {
         band[i] = cutAt(blockDistance(b, eye), band[i]);
       });
       let distant = true;
@@ -300,7 +327,7 @@ export function createBlockBuildings(
         dband[k] = cutAt(blockDistance(d, eye), dband[k], DISTANT);
         if (dband[k] === 0) distant = false;
       });
-      whole.visible = distant && blocks.length > 0;
+      whole.visible = distant && boxes.length > 0;
       own.forEach((list, k) => {
         // A district with a block near the lens is drawn a block at a time.
         const split = !distant && list.some((i) => band[i] === 0);

@@ -68,6 +68,12 @@ export type PlaneWreckView = {
     wreck: PlaneWreck,
     lens: LensPose | null,
   ): void;
+  /** READY FOR A CRASH before there is one: the airframe cut into its
+   * pieces and a fire stood by, both hidden, so the load compiles their
+   * programs. Built at the moment of the crash instead, a phone met a
+   * dozen new programs and a whole airframe cut up in one frame — and
+   * reloaded the page. */
+  prime(machine: THREE.Object3D, parts: WreckParts): void;
   /** One frame: the pieces, the fire and the snow, for an eye at `eye`. */
   frame(
     state: GameState,
@@ -139,12 +145,33 @@ function gougeTexture(): THREE.Texture {
   return tex;
 }
 
+/** The fire a wreck burns with, sized off its fuel. */
+function explosionOf(fire: ReturnType<typeof planeFireOf>): Explosion {
+  return createExplosion({
+    pool: {
+      radius: fire.radius,
+      flame: fire.flame,
+      flames: 40 * (fire.radius / 2.6) ** 0.7,
+      girth: 0.8,
+      core: 0.6,
+      smoke: 10 * (fire.radius / 2.6) ** 2,
+      embers: 14 * (fire.radius / 2.6),
+      plume: 11,
+    },
+    scorch: fire.radius * WRECK_LOOK.scorch,
+    melt: true,
+  });
+}
+
 export function createPlaneWreckView(): PlaneWreckView {
   const group = new THREE.Group();
   group.name = "plane-wreck";
   const shatter = createPlaneShatter();
   group.add(shatter.group);
   let boom: Explosion | null = null;
+  /** A fire never lit, kept for as long as the view: its programs stay
+   * compiled for the one a crash lights (`prime`). */
+  let spare: Explosion | null = null;
   let fire: PlaneFire | null = null;
   let wreck: PlaneWreck | null = null;
   let since = 0;
@@ -242,20 +269,7 @@ export function createPlaneWreckView(): PlaneWreckView {
       shatter.burst(machine, parts, w, groundAt);
       boom?.dispose();
       if (boom) group.remove(boom.group);
-      boom = createExplosion({
-        pool: {
-          radius: fire.radius,
-          flame: fire.flame,
-          flames: 40 * (fire.radius / 2.6) ** 0.7,
-          girth: 0.8,
-          core: 0.6,
-          smoke: 10 * (fire.radius / 2.6) ** 2,
-          embers: 14 * (fire.radius / 2.6),
-          plume: 11,
-        },
-        scorch: fire.radius * WRECK_LOOK.scorch,
-        melt: true,
-      });
+      boom = explosionOf(fire);
       group.add(boom.group);
       const g = groundAt(w.x, w.z);
       boom.burst(w.x, Math.max(g, w.y - 0.5), w.z, w.speed, w.vx, w.vz, {
@@ -276,6 +290,13 @@ export function createPlaneWreckView(): PlaneWreckView {
             })
           : null;
       clock = 0;
+    },
+    prime(machine, parts) {
+      shatter.prime(machine, parts);
+      if (spare) return;
+      spare = explosionOf(planeFireOf(100, 40));
+      spare.clear();
+      group.add(spare.group);
     },
     frame(state, dt, eye, cloud, snowAt) {
       if (!wreck || !fire || !boom) return;
@@ -359,6 +380,7 @@ export function createPlaneWreckView(): PlaneWreckView {
     dispose() {
       shatter.dispose();
       boom?.dispose();
+      spare?.dispose();
       gougeTex.dispose();
       gougeGeo.dispose();
       gougeMat.dispose();

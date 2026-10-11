@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SKYDIVE — a free ride's jump out of the plane's door (`plane.ts`'s
-// `jump`, read here off its `jump` event) and everything after it, flown by
-// the skier's own keys:
+// `jump`, read here off its `jump` event) — or off the helicopter's skid,
+// over the balloon's side, out of the paramotor's dropped rig, high enough
+// for a canopy (`craftFreefall`: he wears the same rig on every ride in the
+// air) — and everything after it, flown by the skier's own keys:
 //
 //   * THE EXIT: out of the door into the plane's slipstream with its way and
 //     a push. He presents his chest to the air he moves through — at first
@@ -34,7 +36,9 @@
 // A freefall that meets the snow is handed back to the skier's own step a
 // couple of metres over it, and the landing is judged there as any fall's
 // is. A restart — or the end of a fall the skydive threw him in — begins the
-// ride again in the plane's door on its strip. Near the map's edge the
+// ride again in the craft he left: the plane's door on its strip, the
+// helicopter's skid on its pad, the balloon's basket on its site, the
+// paramotor's wing on the summit. Near the map's edge the
 // airborne bounds (`AIR_BOUNDS.chute` under the canopy, `.skydive` on his
 // body) blow him back in and turn him to its middle. Pure over the level, the state and the clock: nothing here draws
 // from the stream, and a ride with no jump never comes in here.
@@ -56,17 +60,21 @@ import {
 import { airBoundsAt, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
 import { crashOver } from "./crash.ts";
-import { CHUTE, jumperMass, wingOf, type ChuteWing } from "./defs/chute.ts";
+import { CHUTE, exitClear, jumperMass, wingOf, type ChuteWing } from "./defs/chute.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { holdsHim } from "./gore.ts";
 import { carrierAt, carrierPlace, liftPlans, ropeAt, upRope } from "./lift-line.ts";
 import { paraAirAt, type ParaAir } from "./para-air.ts";
 import { freshPlane, startPlane } from "./plane.ts";
+import { startPara } from "./para.ts";
+import { startBalloon } from "./balloon.ts";
+import { startAgain } from "./heli.ts";
 import { derive } from "./skier.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
 import type {
   ChuteControls,
+  ChuteCraft,
   ChuteDeploy,
   ChuteMode,
   ChutePhaseEvent,
@@ -97,12 +105,13 @@ export function chuteControls(input: SkierInput): ChuteControls {
   };
 }
 
-/** A skydive begun where the skier is, in `mode`. */
-function freshChute(state: GameState, mode: ChuteMode): ChuteState {
+/** A skydive begun where the skier is, in `mode`, out of `from`. */
+function freshChute(state: GameState, mode: ChuteMode, from: ChuteCraft): ChuteState {
   const c = state.skier;
   const flat = hypot(c.vx, c.vz);
   return {
     mode,
+    from,
     t: 0,
     since: 0,
     attitude: mode === "exit" ? CHUTE.exit.poise : Math.PI / 2,
@@ -152,7 +161,8 @@ const say = (state: GameState, events: GameEvent[], phase: ChutePhaseEvent, gs?:
  * falling `fall` m/s — in `exit` (out of a door, the air along his way), in
  * `freefall`, belly to earth, or `open` under the canopy already flying
  * (at the polar's own speeds unless told). A plane waits parked on its
- * strip for the restart. */
+ * strip for the restart — or, `from` another craft, the restart is that
+ * craft's (the ride must carry it, and nobody aboard it). */
 export function skydiveAt(
   state: GameState,
   at: {
@@ -165,10 +175,15 @@ export function skydiveAt(
     mode?: "exit" | "freefall" | "open";
     /** Under the RESERVE (`mode: "open"`), the main cut away before. */
     reserve?: boolean;
+    /** The craft he left, and is begun again in (the plane unless told). */
+    from?: ChuteCraft;
   },
 ): void {
-  if (!state.plane) state.plane = freshPlane(state);
-  else if (state.plane.rider) Object.assign(state.plane, freshPlane(state));
+  const from = at.from ?? "plane";
+  if (from === "plane") {
+    if (!state.plane) state.plane = freshPlane(state);
+    else if (state.plane.rider) Object.assign(state.plane, freshPlane(state));
+  }
   const heading = at.heading ?? 0;
   const c = state.skier;
   standSkier(state, at.x, at.z, heading);
@@ -180,7 +195,7 @@ export function skydiveAt(
   c.airborne = true;
   derive(c, state.level);
   const mode = at.mode ?? "freefall";
-  const ch = freshChute(state, mode === "open" ? "freefall" : mode);
+  const ch = freshChute(state, mode === "open" ? "freefall" : mode, from);
   ch.heading = heading;
   ch.agl = at.agl;
   state.chute = ch;
@@ -226,16 +241,50 @@ export function chuteHeld(state: GameState, input: SkierInput): SkierInput {
 }
 
 /** WHETHER HE LIES WHERE THE SKYDIVE THREW HIM: the ride begins again in
- * the plane's door once he has lain (`stepChute`), never on the piste. */
+ * the craft he left once he has lain (`stepChute`), never on the piste. */
 export function chuteDown(state: GameState): boolean {
   return !!state.chute?.fell && !!state.skier.thrown;
 }
 
-/** BEGIN AGAIN in the plane's door on its strip. */
+/** BEGIN AGAIN in the craft he left: the plane's door on its strip, or the
+ * helicopter's skid, the balloon's basket, the paramotor's wing on the
+ * summit — each saying its own restart. */
 function restart(state: GameState, events: GameEvent[]): void {
+  const from = state.chute?.from ?? "plane";
   delete state.chute;
-  startPlane(state, events);
-  say(state, events, "restart");
+  if (from === "para") startPara(state, events);
+  else if (from === "balloon") startBalloon(state, events);
+  else if (from === "heli" && state.heli) startAgain(state, events);
+  else {
+    startPlane(state, events);
+    say(state, events, "restart");
+  }
+}
+
+/** WHICH CRAFT THIS STEP'S EVENTS SAY HE LEFT, if any. */
+function leftCraft(events: readonly GameEvent[]): ChuteCraft | null {
+  for (const e of events) {
+    if (e.kind === "plane" && e.phase === "jump") return "plane";
+    if (e.kind === "heli" && e.phase === "drop") return "heli";
+    if (e.kind === "balloon" && e.phase === "jump") return "balloon";
+    if (e.kind === "para" && e.phase === "drop") return "para";
+  }
+  return null;
+}
+
+/** OUT OF A CRAFT INTO THE SKYDIVE — the one way in, off the event the craft
+ * let him go with: the plane's door always (its jump run is far over any
+ * canopy's need); the helicopter's skid, the balloon's side and the
+ * paramotor's dropped rig only `CHUTE.craft.least` m or more over the snow
+ * — under it he falls as a skier. True when it took him: out on the exit's
+ * body, the rig on his back to open. */
+export function craftFreefall(state: GameState, events: GameEvent[]): boolean {
+  if (state.chute && !state.chute.done) return false;
+  const from = leftCraft(events);
+  if (!from || (from !== "plane" && feetUp(state) < CHUTE.craft.least)) return false;
+  state.chute = freshChute(state, "exit", from);
+  say(state, events, "exit");
+  return true;
 }
 
 /** His feet's height over the snow, m. */
@@ -250,11 +299,8 @@ function feetUp(state: GameState): number {
  * is the skydive's (true). Under an open canopy the skier's own step runs
  * and `flyChute` flies the canopy after it. */
 export function stepChute(state: GameState, input: SkierInput, events: GameEvent[]): boolean {
-  if (events.some((e) => e.kind === "plane" && e.phase === "jump")) {
-    state.chute = freshChute(state, "exit");
-    say(state, events, "exit");
-    return true;
-  }
+  // Out of the plane's door, or off the helicopter's skid, this step.
+  if (craftFreefall(state, events)) return true;
   const ch = state.chute;
   if (!ch) return false;
   ch.t += dt;
@@ -313,7 +359,7 @@ export function stepChute(state: GameState, input: SkierInput, events: GameEvent
     deploying(state, ch, events);
     return true;
   }
-  const clear = ch.mode === "freefall" || (ch.mode === "exit" && ch.t >= CHUTE.exit.clear);
+  const clear = ch.mode === "freefall" || (ch.mode === "exit" && ch.t >= exitClear(ch.from));
   if (input.machine && clear) {
     throwOut(state, ch, events, false);
     deploying(state, ch, events);

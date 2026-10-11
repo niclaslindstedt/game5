@@ -27,7 +27,7 @@ import {
 
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
-import { GROUPS, VIEWS, type Drive, type Lens, type Stage } from "./skydive-scenes.ts";
+import { GROUPS, VIEWS, type Drive, type Lens, type Ride, type Stage } from "./skydive-scenes.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -84,14 +84,14 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 /** The wall time a still is drawn over: nothing moves in it. */
 const STILL = 1e-4;
 
-function fresh(): GameState {
+function fresh(ride: Ride = "plane"): GameState {
   return createGame({
     level,
     seed,
     region,
     spec,
     mode: "free",
-    plane: true,
+    [ride]: true,
     crowd: 0,
     quiet: true,
   });
@@ -121,9 +121,13 @@ function stateLine(s: GameState): string {
     ? "thrown"
     : s.plane?.rider
       ? "in the door"
-      : c.airborne
-        ? "in the air"
-        : "on snow";
+      : s.heli?.rider
+        ? "on the skid"
+        : s.balloon && (s.balloon.mode === "tethered" || s.balloon.mode === "flown")
+          ? "in the basket"
+          : c.airborne
+            ? "in the air"
+            : "on snow";
   if (!ch) return `${skier} · t ${s.t.toFixed(1)} s`;
   const d = ch.deploy;
   const k = ch.controls;

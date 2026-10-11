@@ -488,3 +488,56 @@ describe("the edge, the start and the bot", () => {
     expect(run()).toEqual(run());
   });
 });
+
+describe("out of another craft (craftFreefall)", () => {
+  /** A balloon ride on the flat map, the basket set `agl` m up. */
+  function basket(agl: number): GameState {
+    const s = createGame({
+      level: flatLevel({ size: SIZE }),
+      mode: "free",
+      balloon: true,
+      crowd: 0,
+      quiet: true,
+    });
+    const b = s.balloon!;
+    b.mode = "flown";
+    b.grounded = false;
+    b.y = s.level.groundAt(b.x, b.z) + agl;
+    b.vx = b.vy = b.vz = 0;
+    return s;
+  }
+
+  it("leaves on the exit's body with the press clear sooner than the plane's door", () => {
+    const s = basket(800);
+    step(s, ask({ machine: true }));
+    expect(said(s, "exit")).toBe(true);
+    expect(s.chute!.from).toBe("balloon");
+    expect(CHUTE.craft.clear).toBeLessThan(CHUTE.exit.clear);
+    fly(s, CHUTE.craft.clear + 0.05, N);
+    step(s, ask({ machine: true }));
+    expect(s.chute!.mode).toBe("deploying");
+  });
+
+  it("never opened, throws him at the snow and begins the ride again in the basket, never the door", () => {
+    const s = basket(300);
+    step(s, ask({ machine: true }));
+    expect(s.chute!.from).toBe("balloon");
+    const events = fly(s, 60, N, (r) => !r.chute && !!r.balloon?.aboard);
+    expect(s.chute).toBeUndefined();
+    expect(s.balloon!.aboard).toBe(true);
+    expect(s.balloon!.mode).toBe("tethered");
+    expect(s.plane).toBeUndefined();
+    // The skydive's fall said, and the restart left to the balloon's own word.
+    expect(events.some((e) => e.phase === "restart")).toBe(false);
+  });
+
+  it("is flown down on the bot's hands out of a craft: pulled, opened, landed on the skis", () => {
+    const s = basket(1200);
+    step(s, ask({ machine: true }));
+    const events = fly(s, 400, chutePilot, (r) => !!r.chute?.done || !!r.skier.thrown);
+    const phases = events.map((e) => e.phase);
+    expect(phases).toContain("open");
+    expect(phases).toContain("land");
+    expect(s.skier.thrown).toBeFalsy();
+  });
+});

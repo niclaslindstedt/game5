@@ -86,9 +86,11 @@ export const PARA = {
    * m, or tangled in a crown, and it collapses — the rig is cut away. */
   ground: 0.4,
   /** THE GEAR DROPPED (the release press): the canopy and the motor fall
-   * free — the canopy's drag area, m², streaming as cloth; how long the
-   * press must be clear of the last, s. */
-  dropped: { canopyDrag: 6, motorDrag: 0.3 },
+   * free — the canopy's drag area, m², streaming as cloth, and the motor's
+   * — and the shove the motor leaves his back with, m/s, back off it and a
+   * little up (shrugged out of the harness; at once it would fall with him,
+   * a body falling beside a body, and stay on his back as drawn). */
+  dropped: { canopyDrag: 6, motorDrag: 0.3, shove: 2.5, lift: 0.8 },
   /** NEAR THE SNOW the pilot stands up out of the seat and his skis meet
    * the slope square: from `stand` m over it, fully by `square` m. */
   flare: { stand: 6, square: 1.5 },

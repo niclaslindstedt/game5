@@ -15,7 +15,7 @@
 //     canopy, nothing while it opens; caught in a crown or on a lift, the
 //     reset that begins it again.
 
-import { CHUTE, PLANE, planeWithin, type ChuteMode, type GameState } from "@engine";
+import { CHUTE, PLANE, exitClear, planeWithin, type ChuteMode, type GameState } from "@engine";
 
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
 
@@ -124,7 +124,7 @@ export function chuteOf(state: GameState): HudChute | null {
     stall: ch.mode === "open" && ch.stalled,
     reserve: ch.reserve,
     press:
-      (ch.mode === "exit" && ch.since >= CHUTE.exit.clear) || ch.mode === "freefall"
+      (ch.mode === "exit" && ch.since >= exitClear(ch.from)) || ch.mode === "freefall"
         ? "open"
         : ch.mode === "open" && !ch.reserve
           ? "release"

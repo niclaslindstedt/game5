@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BALLOON,
+  CHUTE,
   NEUTRAL_INPUT,
   SKIS,
   balloonPilot,
@@ -180,7 +181,7 @@ describe("the hot air balloon (balloon.ts)", () => {
 
   it("jumps him over the side onto his own body, and flies on without him", () => {
     const s = ride();
-    aloft(s, 60);
+    aloft(s, 40);
     fly(s, 2, ask());
     const b = s.balloon!;
     const events = fly(s, 1 / 120, ask({ machine: true }));
@@ -188,6 +189,8 @@ describe("the hot air balloon (balloon.ts)", () => {
     expect(b.aboard).toBe(false);
     expect(b.mode).toBe("adrift");
     expect(s.skier.airborne).toBe(true);
+    // Under the skydive's least height: a skier's jump, never the skydive.
+    expect(s.chute).toBeUndefined();
     const y0 = b.y;
     const after = fly(s, 8, ask());
     // His own fall: he comes down onto the snow, on his skis or thrown.
@@ -195,6 +198,32 @@ describe("the hot air balloon (balloon.ts)", () => {
     // ...and the balloon, his weight gone, flies on.
     expect(b.y).not.toBe(y0);
     expect(b.mode).toBe("adrift");
+  });
+
+  it("jumps him high over the side into the skydive, the balloon flying on, the canopy opened", () => {
+    const s = ride();
+    aloft(s, 300);
+    fly(s, 1, ask());
+    const b = s.balloon!;
+    fly(s, 1 / 120, ask({ machine: true }));
+    expect(s.chute?.from).toBe("balloon");
+    expect(s.chute?.mode).toBe("exit");
+    expect(b.mode).toBe("adrift");
+    // The balloon, his weight gone, flies on while he falls.
+    const at = { x: b.x, y: b.y, z: b.z };
+    fly(s, CHUTE.craft.clear + 0.2, ask());
+    expect(Math.hypot(b.x - at.x, b.y - at.y, b.z - at.z)).toBeGreaterThan(0.5);
+    expect(b.y - s.skier.y).toBeGreaterThan(2);
+    fly(s, 1 / 120, ask({ machine: true }));
+    expect(s.chute!.mode).toBe("deploying");
+    fly(s, 5, ask());
+    expect(s.chute!.mode).toBe("open");
+    // The restart is the balloon's: in its basket on the valley floor.
+    const events = fly(s, 1 / 120, ask({ reset: true }));
+    expect(said(events, "restart")).toBe(true);
+    expect(s.chute).toBeUndefined();
+    expect(s.balloon!.aboard).toBe(true);
+    expect(s.balloon!.mode).toBe("tethered");
   });
 
   it("walks him about the basket and never through its wicker", () => {

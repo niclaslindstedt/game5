@@ -42,7 +42,7 @@ import {
   underCanopy,
   underWing,
 } from "./camera-para.ts";
-import { createChuteScene, type ChuteScene } from "./chute-scene.ts";
+import { createChuteScene, rigWorn, type ChuteScene } from "./chute-scene.ts";
 import { createSkydiveCam, skydiveFramed, skydiveLens } from "./camera-skydive.ts";
 import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
@@ -279,7 +279,7 @@ export function createMachines(
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, fx.cloud, fx.snowAt);
-      chute?.frame(s, alpha, chute && (s.chute || s.plane?.rider) ? seated?.skin() : null);
+      chute?.frame(s, alpha, chute && rigWorn(s) ? seated?.skin() : null);
       const at = chute?.jumper();
       const framed =
         !!chute && !!at && !!s.chute && skydiveFramed(s.chute, s.skier.thrown !== null);

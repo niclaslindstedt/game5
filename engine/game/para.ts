@@ -8,9 +8,12 @@
 // his weight turn him, the risers speed him up. He may put his skis back on
 // the snow under the flying wing and ski with it (speed riding), and THE
 // RELEASE PRESS (`SkierInput.machine`: ENTER, a double tap on touch) drops
-// the whole rig — the canopy streams away and the motor falls — and he is a
-// skier again, landing on his skis wherever he let go. Let go high, it is
-// a long way down.
+// the whole rig — the canopy streams away and the motor, shoved back off
+// him, falls on its own — and he is a skier again, landing on his skis
+// wherever he let go. Let go high (`CHUTE.craft.least` over the snow), he
+// is a skydiver in freefall on the rig he wore under the motor
+// (`chute.ts`'s `craftFreefall`), and a restart stands him under the wing
+// on the summit again.
 //
 // THE FLIGHT is two bodies on an inextensible line, solved after the skier's
 // own step (`stepSkier` keeps the snow, his drag and the landing):
@@ -637,13 +640,15 @@ function release(state: GameState, events: GameEvent[], phase: ParaPhaseEvent): 
     down: false,
   };
   const back = rotate(c.q, { x: 0, y: 0.1, z: -0.35 });
+  // Shoved off his back, so it leaves him rather than falling beside him.
+  const D = PARA.dropped;
   p.motor = {
     x: c.x + back.x,
     y: c.y + back.y,
     z: c.z + back.z,
-    vx: c.vx,
-    vy: c.vy,
-    vz: c.vz,
+    vx: c.vx - Math.sin(c.heading) * D.shove,
+    vy: c.vy + D.lift,
+    vz: c.vz - Math.cos(c.heading) * D.shove,
     heading: c.heading,
     down: false,
   };

@@ -818,7 +818,7 @@ export function createSkisModel(
           bound.radius = BOUND;
         }
         const pose = poseInputOf(skier, legs, mounts, trick, waiting, stand, riding);
-        pose.somersault = tuck.shape();
+        tuck.lay(pose); // a loop owning his body while it turns
         // Hung, the stand is moved with the boots below, after the figure's
         // input has read it: the input keeps the stand as it stood.
         const held = hung

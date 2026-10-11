@@ -367,6 +367,8 @@ export function createBoardModel(
       const fs = grabEase.share > 0 ? undefined : tuck.shape();
       input.grab = fs ? (fs.dir < 0 ? "mute" : "indy") : grabEase.grab;
       input.grabShare = fs ? fs.tuck : grabEase.share;
+      // ...the knees pulled up into it with the hand, let down to open.
+      if (fs) input.crouch = Math.max(input.crouch, fs.tuck);
       const r = still ? 0 : lean;
       const reach = spec.cogHeight - (lift[0] + lift[1]) / 2 - spec.crouchDrop * skier.crouch;
       pivot.set(reach * Math.sin(r), reach * (1 - Math.cos(r)), 0).applyQuaternion(root.quaternion);

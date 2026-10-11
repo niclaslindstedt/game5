@@ -25,6 +25,7 @@
 //             the views `busy`, `group`, `chase`, `kicker`, `overview`,
 //             `boarder` (behind a snowboarder at the chase camera's range),
 //             `sitting` (a rider sat in the snow, or stopped),
+//             `huddle` (the two riders stood still closest together),
 //             `queue` (the longest lift queue at its foot) and `chairs`
 //             (a chair line with its riders, from under it), and
 //             `fall-<s>` (an amateur shouldered over, <s> s after)
@@ -62,6 +63,7 @@ const VIEWS = [
   "chase",
   "boarder",
   "sitting",
+  "huddle",
   "kicker",
   "overview",
   "queue",

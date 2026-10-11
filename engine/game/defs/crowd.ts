@@ -473,6 +473,12 @@ export const CROWD = {
   /** The speed a stop is stood at, m/s: below it he holds on his edges,
    * still, however steep the pitch under him. */
   stand: 0.3,
+  /** STOOD APART (`crowd-apart.ts`): how far across the hill a body
+   * stopped with his board or skis across it reaches either side of him,
+   * m (a 1.5–1.7 m plank's half); the gap kept between two bodies, m; how
+   * much further downhill a sat rider's legs reach, m; and the pace he
+   * shuffles aside at, m/s. */
+  apart: { across: 0.8, gap: 0.25, legs: 0.5, shuffle: 0.7 },
   /** The lean a turn is read as begun past, rad — so a drunk's sway or a
    * straight line's chatter starts none (the player's view reads his edge
    * past 0.14 the same way). */

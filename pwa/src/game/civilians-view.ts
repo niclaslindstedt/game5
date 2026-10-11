@@ -65,6 +65,7 @@ import {
   poseCrowdFigure,
   type CrowdLod,
 } from "./crowd-shapes.ts";
+import { releaseShared, sharing } from "./geometry-share.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth, shadeDepth } from "./terrain-shade.ts";
 import { FIGURE, type ViewCull } from "./view-cull.ts";
@@ -180,7 +181,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   const makeSlot = (body: CrowdBody, lod: CrowdLod): Slot | undefined => {
     const capacity = counts[body];
     if (capacity === 0) return undefined;
-    const geometry = buildCivilianFigure(body, lod).clone();
+    const geometry = sharing(buildCivilianFigure(body, lod));
     const attr = () => {
       const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
       a.setUsage(THREE.DynamicDrawUsage);
@@ -237,7 +238,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   const makeSkiSlot = (body: CrowdBody, lod: CrowdLod): SkiSlot | undefined => {
     const capacity = skiCounts[body];
     if (capacity === 0) return undefined;
-    const geometry = buildCrowdFigure(body, lod).clone();
+    const geometry = sharing(buildCrowdFigure(body, lod));
     const attr = () => {
       const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
       a.setUsage(THREE.DynamicDrawUsage);
@@ -586,12 +587,12 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
     update,
     dispose() {
       for (const slot of slots.values()) {
-        slot.mesh.geometry.dispose();
+        releaseShared(slot.mesh.geometry);
         slot.mesh.dispose();
       }
       slots.clear();
       for (const slot of skiSlots.values()) {
-        slot.mesh.geometry.dispose();
+        releaseShared(slot.mesh.geometry);
         slot.mesh.dispose();
       }
       skiSlots.clear();

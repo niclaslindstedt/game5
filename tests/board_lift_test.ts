@@ -144,9 +144,11 @@ describe("riding a lift on the board", () => {
 });
 
 describe("the board on the card", () => {
-  it("stands at the end of the rack only where a run lets a free pick", () => {
-    expect(rackOf(true).at(-1)).toBe(LYNX);
-    expect(rackOf(true)).toHaveLength(SKI_CATALOG.length + BOARD_CATALOG.length);
+  it("stands on a rack of the boards' own, offered only where a run lets a free pick", () => {
+    expect(rackOf(true)[0]).toBe(LYNX);
+    expect(rackOf(true)).toEqual(BOARD_CATALOG);
+    expect(rackOf(true).every(isBoard)).toBe(true);
+    expect(rackOf(false)).toEqual(SKI_CATALOG);
     expect(rackOf(false).some(isBoard)).toBe(false);
     expect(boardAllowed("free")).toBe(true);
     expect(boardAllowed("tricks")).toBe(true);

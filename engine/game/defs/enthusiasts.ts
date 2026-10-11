@@ -10,7 +10,7 @@
 import type { PisteGrade } from "../../mapgen/grades.ts";
 import { GROOMER } from "./groomer.ts";
 import { RACE } from "./modes.ts";
-import type { SkiId } from "./skis.ts";
+import type { BoardId, SkiId } from "./skis.ts";
 
 export const ENTHUSIASTS = {
   /** How many are out after dark. */
@@ -25,6 +25,11 @@ export const ENTHUSIASTS = {
    * (`CROWD.board`). Dealt off a stream of its own, so the pair, build and
    * run every other enthusiast is dealt stay as they were. */
   board: 0.3,
+  /** The boards a keen night rider is dealt among (`BOARD_CATALOG` but the
+   * beginner's) — off a third stream, drawn only for one who rides a
+   * board, so who rides one and on what pair the rest ski stay as they
+   * were. */
+  boards: ["lynx", "stoat", "ptarmigan", "wolf", "goshawk"] as readonly BoardId[],
   /** How hard he tucks, at the least and the most: a keen skier, not a
    * racer, holds some of it back. */
   pace: [0.35, 0.8] as readonly [number, number],

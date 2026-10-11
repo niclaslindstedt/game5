@@ -21,7 +21,9 @@ import {
   AERIALS,
   SKIS,
   isAerialCode,
+  LYNX,
   isBoardId,
+  isSkiId,
   isPairId,
   pairById,
   raceSkisOf,
@@ -29,7 +31,9 @@ import {
   withRider,
   type Assist,
   type GameMode,
+  type BoardId,
   type PairId,
+  type SkiId,
   type SkiSpec,
 } from "@engine";
 
@@ -103,6 +107,10 @@ export type Settings = {
    * (`BOARD_CATALOG`) — a board only where a run lets a free choice of pair
    * (`boardAllowed`). */
   skis: PairId;
+  /** THE LAST OF EACH KIND the player picked — the skis and the board — so
+   * the gear card's SKIS / SNOWBOARD switch and the free ride's START row
+   * hand back the pair of that kind he last rode (`pickPair`, `kindPair`). */
+  kept: { skis: SkiId; board: BoardId };
   /** What the skier wears (`outfit.ts`): a body, a jacket, pants, a
    * helmet, gloves and poles, each sold in its own colours — picked on the
    * DRESS card. */
@@ -193,6 +201,7 @@ export function freshSettings(): Settings {
   return {
     camera: DEFAULT_CAMERA,
     skis: SKIS.id,
+    kept: { skis: SKIS.id, board: LYNX.id as BoardId },
     outfit: { ...DEFAULT_OUTFIT },
     sound: true,
     audio: { master: 1, engine: 1, effects: 1 },
@@ -267,6 +276,7 @@ export function mergeSettings(parsed: unknown): Settings {
     out.camera = blob.camera as CameraRung;
   }
   if (typeof blob.skis === "string" && isPairId(blob.skis)) out.skis = blob.skis;
+  out.kept = mergeKept(blob.kept, out.skis);
   out.outfit = outfitOf(blob.outfit);
   if (typeof blob.sound === "boolean") out.sound = blob.sound;
   const audio = record(blob.audio);
@@ -333,6 +343,33 @@ export function saveSettings(settings: Settings): void {
   }
 }
 
+/** A stored `kept` made one this build carries: each kind's own pick where
+ * it is one, else the pair ridden where it is of that kind, else the
+ * kind's first (a blob from before the board range has none). */
+function mergeKept(value: unknown, skis: PairId): Settings["kept"] {
+  const k = record(value);
+  return {
+    skis: typeof k.skis === "string" && isSkiId(k.skis) ? k.skis : isSkiId(skis) ? skis : SKIS.id,
+    board:
+      typeof k.board === "string" && isBoardId(k.board)
+        ? k.board
+        : isBoardId(skis)
+          ? skis
+          : (LYNX.id as BoardId),
+  };
+}
+
+/** THE PAIR `id` PICKED: ridden, and kept as its kind's last pick. */
+export function pickPair(s: Settings, id: PairId): Settings {
+  const kept = isBoardId(id) ? { ...s.kept, board: id } : { ...s.kept, skis: id as SkiId };
+  return { ...s, skis: id, kept };
+}
+
+/** The pair of a kind the player last picked: his board, or his skis. */
+export function kindPair(s: Settings, board: boolean): PairId {
+  return board ? s.kept.board : s.kept.skis;
+}
+
 /** WHETHER A RUN OF `mode` MAY BE RIDDEN ON A SNOWBOARD: a free choice of
  * pair is a run whose mode deals none of its own — the free ride and the
  * park TRICKS run (and the labs' time trial). A race discipline and a
@@ -348,6 +385,7 @@ export function boardAllowed(mode: GameMode): boolean {
  * in place of a board picked for a free ride. */
 export function specFor(s: Settings, link: PairId | null = null, mode?: GameMode): SkiSpec {
   let id: PairId = link ?? s.skis;
-  if (mode !== undefined && isBoardId(id) && !boardAllowed(mode)) id = raceSkisOf(mode) ?? SKIS.id;
+  if (mode !== undefined && isBoardId(id) && !boardAllowed(mode))
+    id = raceSkisOf(mode) ?? s.kept.skis;
   return withRider(pairById(id), riderById(s.outfit.weight));
 }

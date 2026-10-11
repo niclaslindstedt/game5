@@ -15,6 +15,12 @@
 //   node scripts/board-preview.mjs
 //   node scripts/board-preview.mjs --skip-build       # reuse the last bundle
 //   node scripts/board-preview.mjs --sheet=grabs      # the rider's tricks
+//   node scripts/board-preview.mjs --board=goshawk    # another board
+//   node scripts/board-preview.mjs --sheet=range      # every board, a row each
+//
+// `--sheet=range` is THE RANGE: every board of `BOARD_CATALOG` a row — its
+// top, its base, its profile and dressed at three quarters — at one scale,
+// `previews/board-range.png`.
 //
 // `--sheet=grabs` is THE RIDER'S TRICKS instead: the seven grabs held in the
 // air, the ollie's and the nollie's load, a spin led by the head and a press
@@ -48,10 +54,10 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "board",
-      help: "board (the deck, bindings and boots) or grabs (the rider's tricks, every grab from four sides)",
+      help: "board (the deck, bindings and boots), range (every board side by side) or grabs (the rider's tricks, every grab from four sides)",
     },
   },
-  "usage: node scripts/board-preview.mjs [--board=id] [--sheet=board|grabs] [--skip-build] [--out=path]",
+  "usage: node scripts/board-preview.mjs [--board=id] [--sheet=board|range|grabs] [--skip-build] [--out=path]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -126,8 +132,9 @@ page.on("console", (msg) => {
 
 const params = new URLSearchParams();
 params.set("board", args.board);
-const out = args.out || join(outDir, "board.png");
-console.log(`board — ${args.board}`);
+if (args.sheet === "range") params.set("sheet", "range");
+const out = args.out || join(outDir, args.sheet === "range" ? "board-range.png" : "board.png");
+console.log(args.sheet === "range" ? "board — the range" : `board — ${args.board}`);
 await page.goto(`${server.url}board-preview.html?${params}`);
 await Promise.race([
   page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),

@@ -63,7 +63,7 @@ describe("the night's skiers", () => {
       b.rivals.map((r) => [r.free, r.run.skier.spec.id]),
     );
     for (const r of a.rivals) {
-      expect([...ENTHUSIASTS.skis, "lynx"]).toContain(r.run.skier.spec.id);
+      expect([...ENTHUSIASTS.skis, ...ENTHUSIASTS.boards]).toContain(r.run.skier.spec.id);
     }
   });
 

@@ -5,7 +5,19 @@
 // its two edges — which is the toe and which the heel, and what each holds
 // (`limits.ts`, `incline.ts`).
 
-export { LYNX, BOARD_CATALOG, isBoard, isBoardId, isPairId, pairById } from "./defs/boards.ts";
+export {
+  LYNX,
+  PIKA,
+  STOAT,
+  PTARMIGAN,
+  WOLF,
+  GOSHAWK,
+  BOARD_CATALOG,
+  isBoard,
+  isBoardId,
+  isPairId,
+  pairById,
+} from "./defs/boards.ts";
 export { BOARD_TECHNIQUE } from "./defs/technique.ts";
 export { angulateShareOf, edgeAskedAt, edgeSideOf } from "./limits.ts";
 export { angulationOf } from "./incline.ts";

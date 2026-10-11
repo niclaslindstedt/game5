@@ -14,12 +14,16 @@
 //   * A SOFT BOOT in its binding from the same four sides.
 //   * THE DECK, BINDINGS AND BOOTS at the game's own chase distance.
 //
+// `?sheet=range` is THE RANGE instead: every board of `BOARD_CATALOG` a row
+// — its top, its base, its profile and dressed at three quarters — at one
+// scale, so their lengths, widths, outlines and profiles compare.
+//
 // A 10 cm grid stands under the flat views. Sets `window.__done` when the
 // sheet is on screen and `window.__tris` to each part's triangles.
 
 import * as THREE from "three";
 
-import { pairById } from "@engine";
+import { BOARD_CATALOG, pairById, type SkiSpec } from "@engine";
 
 import { buildBinding, buildDeck, buildSoftBoot, type Paint } from "../game/board-body.ts";
 import { BINDING, boardBend, sheetOf } from "../game/board-look.ts";
@@ -29,8 +33,11 @@ const CELL_W = 420;
 const CELL_H = 300;
 const query = new URLSearchParams(location.search);
 const spec = pairById(query.get("board") ?? "lynx");
-const board = boardOf(spec);
-const sheet = sheetOf(spec.id);
+const RANGE = query.get("sheet") === "range";
+/** The boards drawn: the one asked for, or the whole range. */
+const SPECS: readonly SkiSpec[] = RANGE ? BOARD_CATALOG : [spec];
+/** Half the span of a flat view of the deck, m: the longest drawn, fitted. */
+const SPAN = Math.max(0.85, ...SPECS.map((s) => s.length / 2 + 0.04));
 
 type Cell = {
   name: string;
@@ -46,21 +53,23 @@ type Cell = {
   el?: number;
   dist?: number;
   bend?: number;
+  /** Which board (`SPECS`): the one asked for when left out. */
+  board?: string;
 };
 
-const ROWS: Cell[][] = [
+const ONE: Cell[][] = [
   [
-    { name: "deck — top", subject: "deck", ortho: { look: "down", span: 0.85 } },
-    { name: "deck — base", subject: "deck", ortho: { look: "up", span: 0.85 } },
+    { name: "deck — top", subject: "deck", ortho: { look: "down", span: SPAN } },
+    { name: "deck — base", subject: "deck", ortho: { look: "up", span: SPAN } },
     {
       name: "deck — profile ×3 tall",
       subject: "deck",
-      ortho: { look: "side", span: 0.85, stretch: 3 },
+      ortho: { look: "side", span: SPAN, stretch: 3 },
     },
     {
       name: "deck — bowed by a 55° carve ×3",
       subject: "deck",
-      ortho: { look: "side", span: 0.85, stretch: 3 },
+      ortho: { look: "side", span: SPAN, stretch: 3 },
       bend: boardBend(0.96, spec.sidecut),
     },
   ],
@@ -83,6 +92,24 @@ const ROWS: Cell[][] = [
     { name: "boot — 3/4", subject: "boot", az: 140, el: 28, dist: 0.85 },
   ],
 ];
+
+/** THE RANGE: a board a row, at one scale. */
+const RANGE_ROWS: Cell[][] = BOARD_CATALOG.map((b) => {
+  const n = `${b.name} (${b.kind.toLowerCase()})`;
+  return [
+    { name: `${n} — top`, subject: "deck", board: b.id, ortho: { look: "down", span: SPAN } },
+    { name: `${n} — base`, subject: "deck", board: b.id, ortho: { look: "up", span: SPAN } },
+    {
+      name: `${n} — profile ×3`,
+      subject: "deck",
+      board: b.id,
+      ortho: { look: "side", span: SPAN, stretch: 3 },
+    },
+    { name: `${n} — 3/4`, subject: "dressed", board: b.id, az: 35, el: 30, dist: 2 },
+  ];
+});
+
+const ROWS = RANGE ? RANGE_ROWS : ONE;
 
 function tris(o: THREE.Object3D): number {
   let n = 0;
@@ -128,38 +155,52 @@ async function main(): Promise<void> {
   const grid = new THREE.GridHelper(2, 20, 0x8090a0, 0xa8b4c0);
   scene.add(grid);
 
-  // THE SUBJECTS, each in its own group, shown one at a time.
-  const deck = buildDeck(board, sheet, plain);
-  const deckOnly = new THREE.Group();
-  deckOnly.add(deck.mesh);
-  const dressed = new THREE.Group();
-  const deck2 = buildDeck(board, sheet, plain);
-  dressed.add(deck2.mesh);
-  const face = board.lead === "regular" ? 1 : -1;
-  for (const [s, a] of [
-    [board.stance / 2, board.front],
-    [-board.stance / 2, board.back],
-  ]) {
-    const b = buildBinding(sheet, paint, keep);
-    b.group.position.set(0, deck2.topAt(s), s);
-    b.group.rotation.set(0, Math.atan2(face * Math.cos(a), Math.sin(a)), 0);
+  // THE SUBJECTS, each in its own group, shown one at a time — a set a
+  // board drawn.
+  const subjectsOf = (b: SkiSpec) => {
+    const board = boardOf(b);
+    const sheet = sheetOf(b.id);
+    const deck = buildDeck(board, sheet, plain);
+    const deckOnly = new THREE.Group();
+    deckOnly.add(deck.mesh);
+    const dressed = new THREE.Group();
+    const deck2 = buildDeck(board, sheet, plain);
+    dressed.add(deck2.mesh);
+    const face = board.lead === "regular" ? 1 : -1;
+    for (const [s, a] of [
+      [board.stance / 2, board.front],
+      [-board.stance / 2, board.back],
+    ]) {
+      const bind = buildBinding(sheet, paint, keep);
+      bind.group.position.set(0, deck2.topAt(s), s);
+      bind.group.rotation.set(0, Math.atan2(face * Math.cos(a), Math.sin(a)), 0);
+      const boot = buildSoftBoot(sheet, paint, keep);
+      boot.position.y = BINDING.plate;
+      bind.group.add(boot);
+      dressed.add(bind.group);
+    }
+    const binding = buildBinding(sheet, paint, keep).group;
+    const booted = buildBinding(sheet, paint, keep).group;
     const boot = buildSoftBoot(sheet, paint, keep);
     boot.position.y = BINDING.plate;
-    b.group.add(boot);
-    dressed.add(b.group);
-  }
-  const binding = buildBinding(sheet, paint, keep).group;
-  const booted = buildBinding(sheet, paint, keep).group;
-  const boot = buildSoftBoot(sheet, paint, keep);
-  boot.position.y = BINDING.plate;
-  booted.add(boot);
-  const subjects = { deck: deckOnly, dressed, binding, boot: booted };
-  for (const g of Object.values(subjects)) scene.add(g);
+    booted.add(boot);
+    const groups = { deck: deckOnly, dressed, binding, boot: booted };
+    for (const g of Object.values(groups)) scene.add(g);
+    return { deck, deckOnly, dressed, binding, boot, groups };
+  };
+  const sets = new Map<string, ReturnType<typeof subjectsOf>>(
+    SPECS.map((b) => [b.id, subjectsOf(b)]),
+  );
+  const first = sets.get(SPECS[0].id)!;
 
   for (let r = 0; r < ROWS.length; r++) {
     for (let c = 0; c < ROWS[r].length; c++) {
       const v = ROWS[r][c];
-      for (const [k, g] of Object.entries(subjects)) g.visible = k === v.subject;
+      const id = v.board ?? SPECS[0].id;
+      for (const [b, set] of sets) {
+        for (const [k, g] of Object.entries(set.groups)) g.visible = b === id && k === v.subject;
+      }
+      const { deck, deckOnly } = sets.get(id)!;
       deck.setBend(v.bend ?? 0);
       deckOnly.scale.set(1, v.ortho?.stretch ?? 1, 1);
       let lens: THREE.Camera;
@@ -212,10 +253,10 @@ async function main(): Promise<void> {
     }
   }
   (window as unknown as { __tris: Record<string, number> }).__tris = {
-    deck: tris(deckOnly),
-    binding: tris(binding),
-    boot: tris(boot),
-    dressed: tris(dressed),
+    deck: tris(first.deckOnly),
+    binding: tris(first.binding),
+    boot: tris(first.boot),
+    dressed: tris(first.dressed),
   };
   (window as unknown as { __done: boolean }).__done = true;
 }

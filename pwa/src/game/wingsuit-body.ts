@@ -19,7 +19,12 @@ import type { Dressed } from "./skier-dress.ts";
 import type { BodyFrame } from "./skier-ragdoll.ts";
 import type { SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-vec.ts";
-import { wingsuitPose, wingsuitShapeOf, wingsuitTilt, type WingsuitShape } from "./skier-wingsuit.ts";
+import {
+  wingsuitPose,
+  wingsuitShapeOf,
+  wingsuitTilt,
+  type WingsuitShape,
+} from "./skier-wingsuit.ts";
 import type { WingsuitWings } from "./wingsuit-figure.ts";
 
 /** How far below his centre the snow is put flying, m: his hips at his

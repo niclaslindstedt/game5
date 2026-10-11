@@ -103,7 +103,13 @@ import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./ski
 import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 import { revertRise } from "./skier-switch.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
-import { pitchPast, skydivePose, squareSkis, squareStand, type SkydiveShape } from "./skier-skydive.ts";
+import {
+  pitchPast,
+  skydivePose,
+  squareSkis,
+  squareStand,
+  type SkydiveShape,
+} from "./skier-skydive.ts";
 import type { WingsuitShape } from "./skier-wingsuit.ts";
 import { flyerSnow, poseFlyer, STOOD } from "./wingsuit-body.ts";
 import { createWingsuitWings } from "./wingsuit-figure.ts";
@@ -198,8 +204,7 @@ export type SkisModel = {
    * skis carried with his boots and his drawing pitched past what his
    * skier's frame says (`skier-skydive.ts`), or null — read at the next pose. */
   setSkydive(shape: SkydiveShape | null): void;
-  /** In a WINGSUIT (a pair dressed in one, `SkierDress.suit`): what his
-   * body is doing (`skier-wingsuit.ts`), or null — read at the next pose. */
+  /** In a WINGSUIT (`SkierDress.suit`): his body's shape, or null (`skier-wingsuit.ts`). */
   setWingsuit?(shape: WingsuitShape | null): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
@@ -589,8 +594,7 @@ export function createSkisModel(
     return g;
   });
 
-  // IN A WINGSUIT: no skis, no boots and no poles (the liners are his
-  // booties), the wings lofted on the figure (`wingsuit-figure.ts`).
+  // IN A WINGSUIT: no skis, boots or poles; the wings lofted (`wingsuit-figure.ts`).
   const suit = style.skier.suit;
   const wings =
     suit === undefined ? null : createWingsuitWings(suit, figure.group, wrap, style.skier.ghost);
@@ -625,12 +629,10 @@ export function createSkisModel(
   };
   const lay = (p: SkierPose) => figure.sprawl(p); // A wingsuit flyer's (`wingsuit-body.ts`).
   const flight = wings && { root, group: figure.group, lay, dressed: figure.dressed, frame, wings };
-
   // The merged draw's bound: the pair's own, grown while he lies away from it.
   const bound = merged.mesh.geometry.boundingSphere!;
   const BOUND = bound.radius;
-  // How seated he is drawn, eased down as he stands off a chair, and how
-  // far sat back onto a T-bar, eased off as it lets go (`easeSeat`).
+  // How seated he is drawn, and how far sat back onto a T-bar (`easeSeat`).
   const seatEase = createSeatEase();
   // The helicopter's skid he is sat on, if any (`setPerch`), and his legs
   // dangling off it (`skier-dangle.ts`).
@@ -666,8 +668,7 @@ export function createSkisModel(
     pose(skier, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
-      // In the suit he is the flyer's figure — but sat on a skid or under a
-      // wing, or stood in a basket, before the jump, the rider's own.
+      // In the suit the flyer's figure, but the rider's own on a craft before the jump.
       if (flight && !off && (flyer || !(perch || basket || sled))) {
         root.position.set(at.x, at.y - sink, at.z);
         const shape = flyer ?? STOOD;

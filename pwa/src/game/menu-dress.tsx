@@ -5,25 +5,24 @@
 // one row the engine reads too (`defs/riders.ts`: a heavier skier runs
 // faster downhill, skates up to speed slower, lands harder and shoulders
 // harder) — then a piece of kit a row, the JACKET, the PANTS, the HELMET
-// and the GLOVES, each stepped through its catalog — and beside them the
-// rider himself on the gear he last picked, turning on the gear card's own
-// stand (`ski-turntable.ts`, framed on him), so a piece is judged on him
-// rather than by its name. (The POLES go with the skis, so they are picked
-// on the gear card's SKIS side.)
+// and the GLOVES, each stepped through its catalog — over the rider himself
+// on the snow, off his skis in his boots and waiting at ease (the stage
+// behind both cards, `menu-stage.tsx`), so a piece is judged on him rather
+// than by its name. (The POLES go with the skis, so they are picked on the
+// gear card's SKIS side.)
 //
 // A PIECE IS SOLD IN ITS OWN COLOURS. There is nothing to paint: a row
 // picks the piece, and the piece is the colours it comes in — as a pair of
 // skis is its topsheet. It WRITES `settings.outfit`; NEXT is the gear card,
 // and RIDE is there.
 
-import { useEffect, useRef } from "preact/hooks";
-import { isBoardId, pairById, raceSkisOf, type GameMode, type PairId } from "@engine";
+import { isBoardId, raceSkisOf, type GameMode, type PairId } from "@engine";
 
 import { MenuBody, MenuHead, StepRow, type Stop } from "./menu-knobs.tsx";
 import { SkisPage } from "./menu-skis.tsx";
 import { boardAllowed, kindPair, pickPair, type Settings } from "./settings.ts";
 import { GEAR, GEAR_SLOTS, type GearSlot, type Outfit } from "./outfit.ts";
-import type { SkisTurntable } from "./ski-turntable.ts";
+import { MenuStage } from "./menu-stage.tsx";
 import { STRINGS } from "./strings.ts";
 
 /** Each slot's catalog as a row's stops. */
@@ -41,48 +40,12 @@ const STOPS = Object.fromEntries(
  * skis on the gear card. */
 const RIDER_SLOTS = GEAR_SLOTS.filter((slot) => slot !== "poles");
 
-/** THE SKIER ON HIS STAND, framed on him. Its three.js is a chunk of its
- * own, pulled in as the ski card's is. */
-function DressStand({ skis, outfit }: { skis: PairId; outfit: Outfit }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const standRef = useRef<SkisTurntable | null>(null);
-  const wanted = useRef({ skis, outfit });
-  wanted.current = { skis, outfit };
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    let disposed = false;
-    void import("./ski-turntable.ts").then(async ({ createSkisTurntable, loadModels }) => {
-      await loadModels();
-      if (disposed) return;
-      standRef.current = createSkisTurntable(canvas, "skier");
-      standRef.current.setSkis(pairById(wanted.current.skis), wanted.current.outfit);
-    });
-    const onResize = (): void => standRef.current?.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      disposed = true;
-      window.removeEventListener("resize", onResize);
-      standRef.current?.dispose();
-      standRef.current = null;
-    };
-  }, []);
-  useEffect(() => standRef.current?.setSkis(pairById(skis), outfit), [skis, outfit]);
-  return (
-    <div class="dress-stage" role="presentation">
-      <canvas ref={canvasRef} class="skis-pick-canvas" />
-    </div>
-  );
-}
-
 export function DressPage({
-  skis,
   outfit,
   onOutfit,
   onBack,
   onNext,
 }: {
-  skis: PairId;
   outfit: Outfit;
   onOutfit: (outfit: Outfit) => void;
   /** Back to the card that opened the flow (the map, or the start card). */
@@ -91,26 +54,27 @@ export function DressPage({
   onNext: () => void;
 }) {
   return (
-    <div class="menu-card menu-card-dress">
-      <MenuHead
-        back={onBack}
-        backLabel={STRINGS.menuBack}
-        title={STRINGS.dressTitle}
-        action={
-          <button
-            type="button"
-            class="menu-item menu-item-start menu-head-go"
-            data-menu="dress-done"
-            data-nav-next
-            onClick={onNext}
-          >
-            <span class="menu-item-name">{STRINGS.dressDone}</span>
-          </button>
-        }
-      />
-      <MenuBody>
-        <div class="dress-body">
-          <DressStand skis={skis} outfit={outfit} />
+    <div class="menu-card menu-card-dress menu-card-staged">
+      <div class="stage-top" data-stage-cover>
+        <MenuHead
+          back={onBack}
+          backLabel={STRINGS.menuBack}
+          title={STRINGS.dressTitle}
+          action={
+            <button
+              type="button"
+              class="menu-item menu-item-start menu-head-go"
+              data-menu="dress-done"
+              data-nav-next
+              onClick={onNext}
+            >
+              <span class="menu-item-name">{STRINGS.dressDone}</span>
+            </button>
+          }
+        />
+      </div>
+      <div class="stage-sheet" data-stage-cover>
+        <MenuBody>
           <div class="dress-rows">
             {/* The POLES are the gear card's, with the skis. */}
             {RIDER_SLOTS.map((slot) => (
@@ -123,8 +87,8 @@ export function DressPage({
               />
             ))}
           </div>
-        </div>
-      </MenuBody>
+        </MenuBody>
+      </div>
     </div>
   );
 }
@@ -149,31 +113,37 @@ export function SkisCards(p: {
   const boards = boardAllowed(p.mode);
   const skis = !boards && isBoardId(p.skis) ? (raceSkisOf(p.mode) ?? p.settings.kept.skis) : p.skis;
   const outfit = (o: Outfit): void => p.onSettings((s) => ({ ...s, outfit: o }));
-  if (p.page === "dress") {
-    return (
-      <DressPage
-        skis={skis}
-        outfit={p.settings.outfit}
-        onOutfit={outfit}
-        onBack={p.onBack}
-        onNext={() => p.onPage("skis")}
-      />
-    );
-  }
   const pick = (id: PairId): void => {
     p.onLink();
     p.onSettings((s) => pickPair(s, id));
   };
+  // ONE STAGE behind both cards, kept as the player goes between them.
   return (
-    <SkisPage
-      skis={skis}
-      boards={boards}
-      outfit={p.settings.outfit}
-      onPick={pick}
-      onKind={(board) => pick(kindPair(p.settings, board))}
-      onOutfit={outfit}
-      onBack={() => p.onPage("dress")}
-      onRide={p.onRide}
-    />
+    <>
+      <MenuStage
+        shot={p.page === "dress" ? "rider" : "gear"}
+        skis={skis}
+        outfit={p.settings.outfit}
+      />
+      {p.page === "dress" ? (
+        <DressPage
+          outfit={p.settings.outfit}
+          onOutfit={outfit}
+          onBack={p.onBack}
+          onNext={() => p.onPage("skis")}
+        />
+      ) : (
+        <SkisPage
+          skis={skis}
+          boards={boards}
+          outfit={p.settings.outfit}
+          onPick={pick}
+          onKind={(board) => pick(kindPair(p.settings, board))}
+          onOutfit={outfit}
+          onBack={() => p.onPage("dress")}
+          onRide={p.onRide}
+        />
+      )}
+    </>
   );
 }

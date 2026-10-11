@@ -97,14 +97,22 @@ export function setOff(
   c.incline = 0;
 }
 
+/** HOW FAR RIGHT OF A DRAG'S ROPE HE RIDES, m: a skier sat on his bar's
+ * right arm (`lift.tee`, its stem to his left); a snowboarder side-on with
+ * the bar between his legs behind his front thigh, its stem — and the
+ * rope over it — right where he is (`board-lift.ts`'s `BOARD_TOW`). */
+export function teeSide(run: GameState): number {
+  return run.skier.spec.board ? 0 : K.tee;
+}
+
 /** Where boarding takes him: out onto a chair's load line under its up
- * rope, onto a drag's track on its bar's right arm (`lift.tee` right of
- * the rope), or `gondola.walkIn` m short of a gondola station's door,
- * where he steps out of his skis to walk in (`lift-skis.ts`). */
-export function boardAt(plan: LiftPlan): { x: number; z: number } {
+ * rope, onto a drag's track `side` m right of the rope (`teeSide`), or
+ * `gondola.walkIn` m short of a gondola station's door, where he steps
+ * out of his skis to walk in (`lift-skis.ts`). */
+export function boardAt(plan: LiftPlan, side: number = K.tee): { x: number; z: number } {
   const e = plan.look.entry;
   if (plan.lift.kind === "gondola") return along(plan, e.at - G.walkIn, 0);
-  if (plan.lift.kind === "drag") return along(plan, e.at, upRope(plan) + K.tee);
+  if (plan.lift.kind === "drag") return along(plan, e.at, upRope(plan) + side);
   return along(plan, e.at, upRope(plan));
 }
 
@@ -118,9 +126,10 @@ function walkOf(
   plan: LiftPlan,
   ride: Pick<LiftRide, "from">,
   ringed: boolean,
+  side: number,
 ): { x: number; z: number }[] {
   const start = { x: ride.from.x, z: ride.from.z };
-  if (!ringed) return [start, boardAt(plan)];
+  if (!ringed) return [start, boardAt(plan, side)];
   const lane = queueLane(plan);
   const n = lane.length;
   const off = B.past;
@@ -164,7 +173,7 @@ function walkOf(
     const stop = plan.look.entry.at - G.walkIn;
     while (way.length > 1 && upLine(plan, way[way.length - 1]) > stop - 0.5) way.pop();
   }
-  way.push(boardAt(plan));
+  way.push(boardAt(plan, side));
   return way;
 }
 
@@ -180,9 +189,14 @@ export function wayLength(way: readonly { x: number; z: number }[]): number {
   return n;
 }
 
-/** The way he is taken along from where he came in. */
-export function boardWay(plan: LiftPlan, ride: LiftRide): { x: number; z: number }[] {
-  return walkOf(plan, ride, ride.ringed ?? isRinged(plan, ride));
+/** The way he is taken along from where he came in; `side` where on a
+ * drag's track it ends (`teeSide`). */
+export function boardWay(
+  plan: LiftPlan,
+  ride: LiftRide,
+  side: number = K.tee,
+): { x: number; z: number }[] {
+  return walkOf(plan, ride, ride.ringed ?? isRinged(plan, ride), side);
 }
 
 /** The point `s` m along a way, and the way it runs there. */
@@ -241,7 +255,7 @@ function setOut(run: GameState, plan: LiftPlan, ride: LiftRide): boolean {
   // The way laid from where he stands, and where it heads.
   ride.from.x = c.x;
   ride.from.z = c.z;
-  const way = boardWay(plan, ride);
+  const way = boardWay(plan, ride, teeSide(run));
   let head = ride.head ?? c.heading;
   let pace = ride.pace ?? 0;
   const off = angleDiff(head, aimOf(way, 0, head));
@@ -324,7 +338,7 @@ export function stepBoard(run: GameState, plan: LiftPlan, ride: LiftRide): boole
   const dt = TUNING.dt;
   const c = run.skier;
   if (!ride.set && !setOut(run, plan, ride)) return false;
-  const way = boardWay(plan, ride);
+  const way = boardWay(plan, ride, teeSide(run));
   const total = ride.walk ?? wayLength(way);
   let s = ride.s ?? 0;
   let pace = ride.pace ?? 0;
@@ -375,7 +389,7 @@ export function stepBoard(run: GameState, plan: LiftPlan, ride: LiftRide): boole
  * the load line (`carrierPassing`), so his is a bar of the lift's own.
  * The bar it is, as it takes him from behind; -1 while he waits. */
 export function stepTee(run: GameState, plan: LiftPlan): number {
-  const p = boardAt(plan);
+  const p = boardAt(plan, teeSide(run));
   setOff(run, p.x, p.z, plan.heading, 0);
   const at = plan.look.entry.at;
   if (run.skier.lift) run.skier.lift.due = nextCarrierIn(plan, at, run.t);

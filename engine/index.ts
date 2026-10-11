@@ -896,6 +896,7 @@ export {
   seatedShare,
   skipShare,
   stepLift,
+  teeSide,
 } from "./game/lift-ride.ts";
 export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {

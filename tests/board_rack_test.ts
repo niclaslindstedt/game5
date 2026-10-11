@@ -6,7 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { pairById } from "@engine";
+import { pairById, teeSide, TUNING, type GameState } from "@engine";
+import { BOARD_TOW, boardStem } from "../pwa/src/game/board-lift.ts";
 
 import { buildRackedBoard, stowBoard } from "../pwa/src/game/board-rack.ts";
 import { basketFree, createSledRack, fitRack } from "../pwa/src/game/sled-rack.ts";
@@ -130,5 +131,18 @@ describe("the snowmobile's rack", () => {
     sled.stow({ spec: chamois, poles: true, body: 0, trim: 0 });
     expect(rack.children.some((o) => o.name === "racked-board")).toBe(false);
     sled.dispose();
+  });
+});
+
+describe("a snowboarder on a T-bar", () => {
+  it("rides under the rope with the bar between his legs; a skier on its right arm", () => {
+    const run = (id: string) => ({ skier: { spec: pairById(id) } }) as unknown as GameState;
+    expect(teeSide(run("lynx"))).toBe(0);
+    expect(teeSide(run("chamois"))).toBe(TUNING.lift.tee);
+    // The stem rises from the bar's middle at his centre, up the track.
+    const top = boardStem(0.6);
+    expect(top.x).toBe(0);
+    expect(top.y).toBeGreaterThan(BOARD_TOW.y);
+    expect(top.z).toBeGreaterThan(BOARD_TOW.z);
   });
 });

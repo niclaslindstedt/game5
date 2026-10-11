@@ -353,8 +353,11 @@ export function wingsuitPose(p: SkierPose, s: WingsuitShape): SkierPose {
   const roll = { x: 0, y: -0.01 * s.fly, z: 0.03 * s.fly };
   const shoulders = p.shoulders.map((q) => add(q, roll)) as [V3, V3];
   const waist = add(p.waist, scale(shift, 0.5));
-  const neck = add(p.neck, roll);
-  const head = add(p.head, roll);
+  // The neck stretched and the head carried up off his back flying, so the
+  // helmet stands over the line of the container.
+  const lift = { x: 0, y: 0.03 * s.fly * (1 - s.hang), z: -0.05 * s.fly * (1 - s.hang) };
+  const neck = add(add(p.neck, roll), scale(lift, 0.5));
+  const head = add(add(p.head, roll), lift);
   const plan = handsOf({ ...p, hips, shoulders }, s);
   const hands = [...p.hands] as [V3, V3];
   const elbows = [...p.elbows] as [V3, V3];
@@ -366,10 +369,12 @@ export function wingsuitPose(p: SkierPose, s: WingsuitShape): SkierPose {
     hands[i] = l > most ? add(sh, scale(d, most / l)) : plan.at[i];
     elbows[i] = solveLimb(sh, hands[i], BODY.upperArm, BODY.forearm, plan.pole[i]);
   }
-  // THE HEAD: flying, lifted to look along his way and down some 30° below
-  // the horizon — the rig's head turn (`skier-rig.ts`'s `headAxes`) is
-  // −0.2 + 0.3 × pitch about his across, so the pitch is written for it.
-  const look = -0.2 - (Math.PI / 2 - 0.62) * s.fly * (1 - s.hang);
+  // THE HEAD: flying, lifted to look along his way and down some 20° below
+  // the horizon — up off the line of his back, so the full-face helmet
+  // stands clear of the arm wings from the side as a flyer's does — the
+  // rig's head turn (`skier-rig.ts`'s `headAxes`) is −0.2 + 0.3 × pitch
+  // about his across, so the pitch is written for it.
+  const look = -0.2 - (Math.PI / 2 - 0.36) * s.fly * (1 - s.hang);
   return {
     ...p,
     hips,

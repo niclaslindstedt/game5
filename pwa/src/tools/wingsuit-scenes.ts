@@ -41,6 +41,8 @@ export type Stage = {
   run(state: GameState, seconds: number, drive?: Drive): void;
   until(state: GameState, test: (s: GameState) => boolean, limit: number, drive?: Drive): boolean;
   camera(rung: CameraRung): void;
+  /** A change of rung FLOWN, as a player's press makes it. */
+  fly(rung: CameraRung): void;
   shoot(state: GameState, label: string, lens?: Lens): void;
   sky(over: SkyOverride | null): Promise<void>;
 };
@@ -195,6 +197,28 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     const s = gliding(st);
     for (const r of RUNGS) st.shoot(s, r, r);
   },
+  // ...flying the face on the bot's hands, the snow a few hundred metres under.
+  "chase-face": (st) => {
+    const s = st.fresh();
+    ride(st, s, (x) => x.chute?.mode === "freefall", 20);
+    st.run(s, 10, bot);
+    for (const r of RUNGS) st.shoot(s, r, r);
+  },
+  // ...and a change of rung flown, frame by frame: chase to far to high.
+  "chase-swing": (st) => {
+    const s = st.fresh();
+    ride(st, s, (x) => x.chute?.mode === "freefall", 20);
+    st.run(s, 6, bot);
+    st.camera("chase");
+    st.run(s, 0.5, bot);
+    for (const r of ["far", "high"] as const) {
+      st.fly(r);
+      for (const t of [0.3, 0.6, 1.2]) {
+        st.run(s, t === 0.3 ? 0.3 : t === 0.6 ? 0.3 : 0.6, bot);
+        st.shoot(s, `to ${r} ${t} s`, r);
+      }
+    }
+  },
   "chase-canopy": (st) => {
     const s = st.fresh();
     ride(st, s, (x) => x.chute?.mode === "open");
@@ -204,7 +228,7 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
   "chase-exit": (st) => {
     const s = st.fresh();
     st.run(s, 0.4, still);
-    for (const r of ["chase", "far", "high"] as const) st.shoot(s, r, r);
+    for (const r of RUNGS) st.shoot(s, r, r);
   },
   // AFTER DARK.
   "night-exit": async (st) => {
@@ -228,6 +252,6 @@ export const GROUPS: Record<string, readonly string[]> = {
   suit: ["suit-flying", "suit-slack"],
   flight: ["flight-exit", "flight-pull", "flight-canopy"],
   poses: ["poses"],
-  chase: ["chase-glide", "chase-canopy", "chase-exit"],
+  chase: ["chase-glide", "chase-face", "chase-swing", "chase-canopy", "chase-exit"],
   night: ["night-exit", "night-glide"],
 };

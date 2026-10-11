@@ -52,6 +52,8 @@ export type HoverScene = {
    * (`camera-clear.ts`'s `heliHull`): the chase boom behind him on the
    * skid would otherwise stand in the cabin or the tail boom. */
   hull(): SolidBox | null;
+  /** Where the machine is in plan while it is shown, else null. */
+  at(): { x: number; z: number } | null;
   ready: Promise<void>;
   setPace(pace: number): void;
   dispose(): void;
@@ -136,6 +138,7 @@ export function createHoverScene(level: Level, haze: HazeUniforms): HoverScene {
     hull() {
       return group.visible && run ? heliHull(run.heli, box) : null;
     },
+    at: () => (group.visible && run ? { x: run.heli.x, z: run.heli.z } : null),
     setPace(p) {
       view.setPace(p);
     },

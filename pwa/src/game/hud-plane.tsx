@@ -255,7 +255,7 @@ function SuitReadout({
   return (
     <div class={`hud-heli hud-chute hud-suit${tone}`} role="status">
       <span class="hud-chip-sub">
-        {STRINGS.suitMode(mode)} · {STRINGS.chuteAlt}
+        {STRINGS.suitMode(mode)} · {STRINGS.suitAgl}
       </span>
       <span class="hud-chute-num">{STRINGS.chuteMetres(chute.height)}</span>
       {!ready && (

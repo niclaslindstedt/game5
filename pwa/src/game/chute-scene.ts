@@ -52,6 +52,7 @@ import {
   type SkyLine,
   type SkyPaint,
 } from "./chute-canopy.ts";
+import { meshSliderMaterial, paintBase, SLIDER_UV } from "./base-rig.ts";
 import { createGear, GEAR, layOnBone } from "./chute-gear.ts";
 import type { CanopyLayout, WingShape } from "./para-canopy.ts";
 import {
@@ -68,6 +69,7 @@ import {
 } from "./chute-rig-plan.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
 import { wingsuitShapeOf } from "./skier-wingsuit.ts";
+import { colourwayOf, type SuitColourway } from "./wingsuit-look.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 
 /** His dressed figure as last posed (`SkisModel.skin`): its bones' frames
@@ -162,7 +164,12 @@ const CAUGHT_BOUGHS = 0.6;
 const UP = new THREE.Vector3(0, 1, 0);
 const v3 = (): THREE.Vector3 => new THREE.Vector3();
 
-export function createChuteScene(haze: HazeUniforms, level: Level, base = false): ChuteScene {
+export function createChuteScene(
+  haze: HazeUniforms,
+  level: Level,
+  base = false,
+  suit: SuitColourway | null = null,
+): ChuteScene {
   const group = new THREE.Group();
   group.name = "skydive";
   group.visible = false;
@@ -177,13 +184,29 @@ export function createChuteScene(haze: HazeUniforms, level: Level, base = false)
     mats.push(m);
     return m;
   };
-  // A wingsuit's run wears the BASE rig (`createGear`'s `base`).
+  // A wingsuit's run wears the BASE rig (`createGear`'s `base`), soft and
+  // in the suit's colours (`base-rig.ts`).
+  const soft = (color: number, roughness: number): THREE.MeshStandardMaterial => {
+    const m = hazeMaterial(new THREE.MeshStandardMaterial({ color, roughness }), haze, "chute");
+    mats.push(m);
+    return m;
+  };
+  const baseColours = base
+    ? {
+        cloth: soft(0x1d2128, 0.8),
+        flap: soft(0x7a7f86, 0.7),
+        binding: soft(0xe8e8e2, 0.7),
+        bridle: soft(0xd8432c, 0.7),
+      }
+    : null;
+  if (baseColours) paintBase(baseColours, suit ?? colourwayOf(0));
   const gear = createGear(
     std(0x1d2128, 0.75),
     std(base ? 0x7a7f86 : 0x3a6fb4, 0.65),
     std(0x2a2d33, 0.8),
     std,
     base,
+    baseColours,
   );
   group.add(gear.body, ...gear.legs);
 
@@ -215,6 +238,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level, base = false)
     size: ChuteWing["canopy"],
     paint: SkyPaint,
     sliderColor: number,
+    mesh = false,
   ): Kit => {
     const layout = skyLayout(wing);
     const geo = new THREE.BufferGeometry();
@@ -254,7 +278,12 @@ export function createChuteScene(haze: HazeUniforms, level: Level, base = false)
     const sliderGeo = new THREE.BufferGeometry();
     sliderGeo.setAttribute("position", new THREE.BufferAttribute(sliderPos, 3));
     sliderGeo.setIndex([0, 1, 2, 0, 2, 3]);
-    const sliderMat = std(sliderColor, 0.7);
+    // A BASE rig's slider is open mesh (`base-rig.ts`), a sport rig's cloth.
+    sliderGeo.setAttribute("uv", new THREE.BufferAttribute(SLIDER_UV, 2));
+    const sliderMat = mesh
+      ? hazeMaterial(meshSliderMaterial(), haze, "chute-mesh")
+      : std(sliderColor, 0.7);
+    if (mesh) mats.push(sliderMat);
     sliderMat.side = THREE.DoubleSide;
     const slider = new THREE.Mesh(sliderGeo, sliderMat);
     slider.frustumCulled = false;
@@ -292,7 +321,9 @@ export function createChuteScene(haze: HazeUniforms, level: Level, base = false)
   const mainKit = makeKit(SKY_WING, CHUTE.canopy, SKY_PAINT, 0xe0b030);
   const reserveKit = makeKit(RESERVE_WING, CHUTE.reserve.canopy, RESERVE_PAINT, 0x8a8f96);
   // ...and a wingsuit's one canopy, the BASE rig's (`CHUTE.base`).
-  const baseKit = base ? makeKit(BASE_WING, CHUTE.base.canopy, BASE_PAINT, 0x2a2d33) : mainKit;
+  const baseKit = base
+    ? makeKit(BASE_WING, CHUTE.base.canopy, BASE_PAINT, 0x2a2d33, true)
+    : mainKit;
   const kits = base ? [mainKit, reserveKit, baseKit] : [mainKit, reserveKit];
   /** The kit every canopy function below draws with. */
   let cur = mainKit;

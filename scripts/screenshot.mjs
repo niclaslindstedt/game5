@@ -488,7 +488,7 @@ const SURFACES = {
     settle: 1500,
   },
   wingsuit: {
-    params: { start: "free", wingsuit: "1", chute: "1500", t: "6", shot: "1" },
+    params: { start: "free", wingsuit: "1", chute: "500", t: "6", shot: "1" },
     wait: ".hud-chute",
     settle: 1500,
   },

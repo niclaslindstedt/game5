@@ -16,6 +16,7 @@
 import * as THREE from "three";
 import { CHUTE } from "@engine";
 
+import { buildBaseContainer, type BaseColours } from "./base-rig.ts";
 import type { BoneFrame } from "./skier-rig.ts";
 
 /** WHERE THE PIECES ARE in his chest's frame, m: the container's middle
@@ -55,13 +56,15 @@ export type Gear = {
  * the webbing — or (`base`) A BASE RIG over a wingsuit: one slim tray
  * (`CHUTE.base.container`) under one closing flap and no reserve, no
  * reserve handle and no cut-away pad, the big pilot chute's pouch across
- * the bottom of the container. */
+ * the bottom of the container, soft and in the suit's colours
+ * (`base-rig.ts`, painted through `baseColours`). */
 export function createGear(
   cloth: THREE.Material,
   trim: THREE.Material,
   web: THREE.Material,
   std: (color: number, roughness: number) => THREE.MeshStandardMaterial,
   base = false,
+  baseColours: BaseColours | null = null,
 ): Gear {
   const K = base ? CHUTE.base.container : CHUTE.container;
   const body = new THREE.Group();
@@ -88,17 +91,21 @@ export function createGear(
   const lower = K.height * (base ? 1 : 0.64);
   const upper = K.height - lower;
   const yBase = B.up - K.height / 2;
-  // THE MAIN TRAY below, its closing flap on the back in a lighter panel.
-  box(K.width, lower, K.depth, cloth, 0, yBase + lower / 2, B.out);
-  box(
-    K.width * 0.86,
-    lower * 0.8,
-    0.01,
-    trim,
-    0,
-    yBase + lower * 0.52,
-    B.out - K.depth / 2 - 0.004,
-  );
+  if (base && baseColours) {
+    geos.push(...buildBaseContainer(body, baseColours, K, { y: yBase + K.height / 2, z: B.out }));
+  } else {
+    // THE MAIN TRAY below, its closing flap on the back in a lighter panel.
+    box(K.width, lower, K.depth, cloth, 0, yBase + lower / 2, B.out);
+    box(
+      K.width * 0.86,
+      lower * 0.8,
+      0.01,
+      trim,
+      0,
+      yBase + lower * 0.52,
+      B.out - K.depth / 2 - 0.004,
+    );
+  }
   // THE RESERVE TRAY on top, a little narrower, under its own flap — hung
   // on a hinge at the tray's top back edge so the spring can throw it open.
   if (!base)
@@ -122,8 +129,8 @@ export function createGear(
   // THE BOC POUCH under the main, the handle's tab out of it to the right
   // — a BASE rig's the bigger, for its metre-wide pilot chute.
   const P = GEAR.pouch;
-  if (base) box(0.24, 0.075, 0.1, trim, 0, yBase - 0.03, B.out - 0.01);
-  else box(0.16, 0.05, 0.07, cloth, 0, yBase - 0.02, B.out - 0.02);
+  if (base && !baseColours) box(0.24, 0.075, 0.1, trim, 0, yBase - 0.03, B.out - 0.01);
+  else if (!base) box(0.16, 0.05, 0.07, cloth, 0, yBase - 0.02, B.out - 0.02);
   // The handle (a soft ball), kept out of `body` so a hand can carry it.
   const ballGeo = new THREE.SphereGeometry(0.026, 8, 6);
   geos.push(ballGeo);

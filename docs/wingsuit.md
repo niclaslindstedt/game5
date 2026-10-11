@@ -96,7 +96,7 @@ Hands off, the canopy flies 9.1 m/s forward and 3.6 m/s down: a large, docile BA
 
 The start card's **START** row has a **WINGSUIT** stop after the plane: the ride begun on the wingsuit's own exit (`free-ride.ts`'s `WINGSUIT_RUN`; the chart marks the exit). On the paramotor, the balloon, the helicopter and the plane the card shows a **SUIT** row under it — **PARACHUTE** (the skydiver's rig, skis on) or **WINGSUIT** — kept as `FreeRide.suit`; the pause card's piste map carries both rows. A link says the same: `?wingsuit=1` the exit, `?suit=wing` (or `rig`) over the card's craft. A flyer who dies starts again on the exit (`againAt`'s `exit`) or in his craft.
 
-**The HUD** (`plane-hud.ts`'s `chuteOf`, its `suit`; `hud-plane.tsx`'s `SuitReadout`) reads the height over the snow big — amber inside the bot's slowing height (450 m), red with **PULL!** at its pull height (350 m) — the air speed in km/h beside the glide flown, the sink in m/s under it, and the press: **JUMP** on the exit, **PULL** in flight. Its words are `strings-wingsuit.ts`; the news says the exit, the pull and the landing on his feet.
+**The HUD** (`plane-hud.ts`'s `chuteOf`, its `suit`; `hud-plane.tsx`'s `SuitReadout`) reads the height over the snow big, labelled **ABOVE SNOW** (a flyer flies by the ground under him, never the sea) — amber inside the bot's slowing height (450 m), red with **PULL!** at its pull height (350 m) — the air speed in km/h beside the glide flown, the sink in m/s under it, and the press: **JUMP** on the exit, **PULL** in flight. Its words are `strings-wingsuit.ts`; the news says the exit, the pull and the landing on his feet.
 
 **The sound** is the skydive's bed (`chute-bed.ts`, `chute-voice.ts`) with the suit's own `suit` layer: the roar as a belly's at a fifth more air (a glide's 150–250 km/h is as loud as a freefall, over 115 dBA at the ear), the loose jumpsuit's flap gone, and the trailing edges' and cells' FLUTTER — a brown rumble of 20–80 Hz rising with the speed, a little quieter as the suit fills hard. `make audition ARGS=--meter` has its three rows (filling off the exit, gliding, diving).
 
@@ -149,7 +149,7 @@ Write the table with `ARGS=--json=FILE` before a change and compare against it w
 - `suit`: the suit flying, seen from six sides, and stood slack on the exit.
 - `flight`: the whole ride on the bot's hands, from the exit through the pull, the canopy and the flare to walking off.
 - `poses`: the shapes flown on the flyer's own keys (neutral, the turns, the dive, the flare), each from behind and from the side.
-- `chase`: every rung of the camera ladder, gliding, under the canopy and on the exit.
+- `chase`: every rung of the camera ladder gliding high (900 m), flying the face on the bot's hands (`chase-face`, a few hundred metres over the snow), a change of rung flown frame by frame (`chase-swing`), under the canopy and on the exit.
 - `night`: the exit and the glide at hour 21.
 
 `ARGS=--sheet=suit,poses` shoots only some sheets, `--views=` some views, and `SEED=` another map. It needs `npm i --no-save playwright-core` and, in a web session, `CHROMIUM_PATH=/opt/pw-browsers/chromium`.
@@ -182,5 +182,24 @@ The BOOTIES are the leg wing's sleeves, painted dark. The boots' liners are fold
 **The BASE rig** (`chute-gear.ts`, `chute-scene.ts`): a slim single container with no reserve tray and no reserve handle, a big pouch at its foot, and a large pilot chute sized off `CHUTE.base`. The canopy is a 7-cell main (`BASE_WING` in `chute-canopy.ts`), orange with a white centre and black ends.
 
 **THE HOVER EXIT** (`wingsuit-hover.ts`): when `state.wingsuit.hover > 0`, a helicopter is drawn holding a hover over the exit, with the flyer stood on its right skid. Once he steps off it holds for a moment, then noses over, climbs away to its left and is gone 50 s after the jump. It is the heli-ski machine's own drawing (`heli-view.ts`) handed a state of its own, presentation only.
+
+**The BASE container** (`base-rig.ts`): a soft, rounded bag in the suit's colours — the closing flap in its accent with a bound seam where the pin cover folds over, the bridle in its channel down the right edge of the flap to the pouch across the bottom, the handle out of it, and riser covers over the shoulders. **The slider** is open MESH: a tape border round a net that is mostly air.
+
+## The lenses
+
+`camera-wingsuit.ts` (three-free; `tests/camera_wingsuit_test.ts`) frames him from the exit to the pull the way wingsuit footage is shot, every lens LOOKING DOWN along his line so the mountain fills the frame:
+
+| Rung | The lens |
+| --- | --- |
+| TIPS | The camera on the back of his helmet: the helmet low in the frame, the arm wings out to its edges, the snow ahead |
+| HELMET | His own eyes, ahead and down along his way |
+| CHASE | The chase flyer about 4 m behind him and over him, looking down past him |
+| FAR | The SIDE FLYER 7 m off his wingtip and over him |
+| HIGH | Over and behind him, steeply down: him over the face |
+| ORBIT | A flyer slowly circling him |
+
+On the HOVER EXIT every lens stands out on the side away from the helicopter, outside its disc, looking down past him at the drop; TIPS and HELMET look out over the drop from the skid. Through the step off the exit's framing is flown into the flight's over 2.4 s. **Every change of rung is flown**, never cut, over 1.1 s: the lens swung round him (`swingLens`), never through him. Through the opening the skydive's lens takes him (`camera-skydive.ts`), flown in the same way, and under the full canopy the canopy's ladder (`CHUTE_RIGS`).
+
+**The mist aloft.** The DISTANCE row's mist closes on the distance through the air, so from hundreds of metres up it hid the whole mountain. On a wingsuit run alone, a lens more than 40 m over the snow (wholly by 220 m) measures it across the ground instead and closes it only at the ground's own edge (`haze.ts`'s `uMistAloft`, set by `machines.ts`). Every other ride keeps the mist as it was. And the higher he flies the steeper every lens looks (`camera-wingsuit.ts`'s `SEE`): pitched down until the middle of the frame lands within 380 m across the ground, most of it by climbing the flyer over him so he stays in the frame — from 500 m up the chase sees him over the woods and the runs, never over the mist past the ground's edge.
 
 `tests/wingsuit_look_test.ts` holds the shapes, the measures, the colourways, that nothing of a pair of skis is drawn, and the helicopter's skid under him.

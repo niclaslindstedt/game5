@@ -94,21 +94,6 @@ export function skydiveLens(
     if (opening) {
       return { eye: head, target: { ...top }, fov: 75, roll: 0 };
     }
-    if (ch.suit === "wingsuit") {
-      // IN A WINGSUIT there are no skis behind him to look back at: TIPS
-      // stands over his shoulders looking along his way past the arm wings
-      // spread either side, HELMET is his own eyes, both steeper down than a
-      // belly flyer's — the snow he flies over fills the frame, the horizon
-      // high in it, as a flyer's helmet camera shows it.
-      const over = rung === "tips" ? 0.45 : 0;
-      const back = rung === "tips" ? 0.55 : 0;
-      return {
-        eye: { x: head.x - fx * back, y: head.y + over, z: head.z - fz * back },
-        target: { x: head.x + fx * 8, y: head.y - 6, z: head.z + fz * 8 },
-        fov: rung === "tips" ? 86 : 74,
-        roll: 0,
-      };
-    }
     if (rung === "helmet") {
       // Belly to the earth his head is up and his eyes on the horizon ahead,
       // the snow coming up under it — never down at the haze straight below.

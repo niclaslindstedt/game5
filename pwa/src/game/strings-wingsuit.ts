@@ -26,6 +26,9 @@ export const WINGSUIT_STRINGS = {
   /** What the flight is doing. */
   suitMode: (mode: "ready" | "exit" | "freefall"): string =>
     mode === "ready" ? "ON THE EXIT" : mode === "exit" ? "EXIT" : "FLYING",
+  /** What the big number is: his height over the snow under him (what a
+   * flyer flies by — never over the sea). */
+  suitAgl: "ABOVE SNOW",
   /** The glide flown, across over down; level or climbing, a flare. */
   suitGlide: (g: number): string => (g > 9.5 || g < 0 ? "GLIDE ▲" : `GLIDE ${g.toFixed(1)}`),
   /** The air through the suit, km/h. */

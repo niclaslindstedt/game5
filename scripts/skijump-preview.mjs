@@ -19,6 +19,11 @@
 //            side and from below, the tower, the jumper on the deck
 //   broadcast  a whole jump through the game's broadcast director, bar to
 //            out-run (`camera-skijump.ts`)
+//   jumper   the jumper's body through every phase (`skier-jumper.ts`):
+//            on the bar, the in-run crouch, the take-off, the early flight,
+//            the stable V, the landing made ready, the telemark and the
+//            out-run — each close from the side, the front, behind and
+//            above (`--views=jumper-vee` one phase)
 //
 // Each GROUP is one contact sheet, previews/skijump-<group>.png, and every
 // frame is also written alone, previews/skijump-<view>-<label>.png; every
@@ -53,12 +58,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (hill, structure, broadcast, inrun, flight, landing); every one when left out",
+      help: "which sheets, comma-separated (hill, structure, broadcast, inrun, flight, landing, jumper); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (hill, night, structure, broadcast, inrun, flight, landing)",
+      help: "only these views, comma-separated (hill, night, structure, broadcast, inrun, flight, landing, jumper-bar … jumper-outrun)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     hill: { kind: "string", default: "large", help: "the hill: large or normal" },

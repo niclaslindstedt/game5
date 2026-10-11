@@ -50,10 +50,10 @@ import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight } from "./ski-gear.ts";
 import { SKI_LOOKS, drawnAs, lookOf } from "./ski-looks.ts";
-import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
+import { emptyStand, inclineAt, standOf } from "./ski-stand.ts";
 import { createChatter, shakeStand, stepChatter } from "./ski-chatter.ts";
 import { outfitKey } from "./dress.ts";
-import { DEFAULT_OUTFIT, RIVAL_OUTFITS } from "./outfit.ts";
+import { DEFAULT_OUTFIT, jumpKit, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
 import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.ts";
 import { doorReach, reachPose } from "./door-reach.ts";
@@ -74,6 +74,7 @@ import { fetchMove, movePose } from "./party-pose.ts";
 import { bootsOn, buildWalkBoots } from "./town-boots.ts";
 import { skiLift, streetOver, townLift, townMove, townPose } from "./town-pose.ts";
 import { LOOSE } from "./trail-stamp.ts";
+import { stepBoots, swingStand, type BasketWalk } from "./ski-swing.ts";
 import { flightRead, type FlightGround } from "./skier-flight.ts";
 import {
   CABIN_FLOOR,
@@ -107,6 +108,7 @@ import {
 import type { WingsuitShape } from "./skier-wingsuit.ts";
 import { flyerSnow, poseFlyer, STOOD } from "./wingsuit-body.ts";
 import { createWingsuitWings } from "./wingsuit-figure.ts";
+import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
@@ -150,7 +152,9 @@ export const SLOT_DRESS: readonly SkierDress[] = [
 
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
-  return styleIn(TOPSHEETS[drawnAs(spec)], skier);
+  // A ski jumper (only a jump rides the Albatross) in his suit (`jumpKit`).
+  const dress = spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit) } : skier;
+  return styleIn(TOPSHEETS[drawnAs(spec)], dress);
 }
 
 /** The snow the skis are drawn over: the ground a flight is read over and,
@@ -246,38 +250,6 @@ export type SkisModel = {
  * `ground` (y in the root's frame), its trunk's frame written into `frame`
  * as `ragdollPose` writes it. */
 export type StoodPose = (ground: number, frame: BodyFrame) => SkierPose;
-
-/** HIS STEPS IN A BALLOON'S BASKET (`setBasket`): strides walked, and the
- * pace, 0 stood … 1 a full shuffle. */
-export type BasketWalk = { strides: number; pace: number };
-
-/** A stride in the basket: each boot swung this far fore and aft of its
- * place, m, and lifted this far at the swing's top, m, at a full pace — a
- * short shuffle in ski boots on a wicker floor. */
-const BASKET_STEP = { swing: 0.17, lift: 0.07 };
-
-/** THE BOOTS STEPPED: each boot of `stand` swung and lifted through the
- * stride, the two half a stride apart. */
-function stepBoots(stand: Stand, walk: BasketWalk): void {
-  const pace = Math.max(0, Math.min(1, walk.pace));
-  if (pace < 0.01) return;
-  for (let i = 0; i < 2; i++) {
-    const p = (walk.strides + i * 0.5) * Math.PI * 2;
-    stand.fore[i] += BASKET_STEP.swing * pace * Math.sin(p);
-    stand.lift[i] += BASKET_STEP.lift * pace * Math.max(0, Math.cos(p));
-  }
-}
-
-/** Each ski of `stand` moved and turned with its boot (`SkiSwing`). */
-function swingStand(stand: Stand, skis: readonly [SkiSwing, SkiSwing]): void {
-  for (let i = 0; i < 2; i++) {
-    stand.out[i] += skis[i].dx;
-    stand.lift[i] += skis[i].dy;
-    stand.fore[i] += skis[i].dz;
-    stand.pitch[i] += skis[i].pitch;
-    stand.rock[i] += skis[i].rock;
-  }
-}
 
 /** THE SKIER ON A SNOWMOBILE as his model is handed it: where each boot
  * stands on the boards, across off half his stance, m (his body frame),
@@ -597,11 +569,16 @@ export function createSkisModel(
       // Thrown with no skis let go (off a snowmobile) his pair is on its
       // rack, and he lies in his boots.
       const bare = off !== null && off.skis.length === 0;
+      // A SKI JUMPER (`skier-jumper.ts`): his own body over the pose, his
+      // heels free of the skis — so his boots are on him.
+      const jump = !off && !afoot && run?.skier === skier ? run.jump : undefined;
+      const hillK = run?.level.skiJump?.w;
+      const jumper = jump && hillK !== undefined ? jumperShapeOf(jump, run!.t, hillK) : null;
       if (!wings) {
         rack(boarded || (cabin && !racked) || inBasket || bare || stood !== null);
         // A binding lets the BOOT out, buckled to his foot (`town-boots.ts`):
         // with the pair not under him, his boots are on him.
-        unboot(off !== null || afoot !== null || racked !== null);
+        unboot(off !== null || afoot !== null || racked !== null || jumper !== null);
       }
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);
@@ -705,7 +682,8 @@ export function createSkisModel(
           : pose;
         // A BROKEN ARM drops its pole: both broken, he rides with none.
         const breaks = armBreaks(skier.body.injuries);
-        const bare = inBasket || (breaks[0] && breaks[1]) ? { ...held, poles: false } : held;
+        const bare =
+          inBasket || jumper || (breaks[0] && breaks[1]) ? { ...held, poles: false } : held;
         // A skydive's body is laid from a square stand: no turn, fall or trick in it.
         const input = skydive ? squareStand(bare) : bare;
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
@@ -748,14 +726,31 @@ export function createSkisModel(
           breaks[0] || breaks[1] ? broken(skier, breaks, dt, root.quaternion) : undefined;
         // SKYDIVING: the limbs laid by the stage, the skis moved with the boots.
         const flown = skydive ? (p: SkierPose) => skydivePose(p, skydive, mounts) : null;
-        const swung: { skis: [SkiSwing, SkiSwing] | null } = { skis: null };
+        const swung: {
+          skis: [SkiSwing, SkiSwing] | null;
+          yaw?: [number, number];
+          pose?: SkierPose;
+        } = { skis: null };
         const arms = flown
           ? (p: SkierPose) => {
               const r = flown(broke ? broke(p) : p);
               swung.skis = r.skis;
               return r.pose;
             }
-          : broke;
+          : jumper
+            ? (p: SkierPose) => {
+                const r = jumperPose(
+                  broke ? broke(p) : p,
+                  jumper,
+                  mounts,
+                  spec.length * spec.mount,
+                );
+                swung.skis = r.skis;
+                swung.yaw = r.yaw;
+                swung.pose = r.pose;
+                return r.pose;
+              }
+            : broke;
         // A hand on a door (`door-reach.ts`), in his body's frame.
         const door = run && run.skier === skier ? doorReach(run) : null;
         if (door) {
@@ -766,7 +761,8 @@ export function createSkisModel(
           const at = { x: reachAt.x, y: reachAt.y, z: reachAt.z };
           figure.pose(input, seat, (p) => reachPose(arms ? arms(p) : p, at, door.weight));
         } else figure.pose(input, seat, arms);
-        if (swung.skis) swingStand(stand, swung.skis);
+        if (swung.skis) swingStand(stand, swung.skis, swung.yaw);
+        if (swung.pose) bootsOn(walkBoots, swung.pose, unbooted, goreLost);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.
@@ -774,10 +770,11 @@ export function createSkisModel(
       // The chatter's (and a dangling leg's) flap and rock on the code's
       // skis, about each ski's own across and then its length (tips up a
       // negative turn about +x) — the order the model's rig turns them in.
+      // A jumper's V (`Stand.yaw`): each ski turned about its binding.
       for (let i = 0; i < 2; i++) {
-        if (stand.pitch[i] === 0 && stand.rock[i] === 0) continue;
+        if (stand.pitch[i] === 0 && stand.rock[i] === 0 && stand.yaw[i] === 0) continue;
         gear.skis[i].quaternion.multiply(
-          flap.setFromEuler(shook.set(-stand.pitch[i], 0, -stand.rock[i], "ZYX")),
+          flap.setFromEuler(shook.set(-stand.pitch[i], stand.yaw[i], -stand.rock[i], "YZX")),
         );
       }
       // THE SKIS LET GO (`lone-skis.ts`): each laid where its own body

@@ -42,6 +42,7 @@ const MODE_NAMES: Record<GameMode, string> = {
   halfpipe: "HALFPIPE",
   moguls: "MOGULS",
   aerials: "AERIALS",
+  skiJump: "SKI JUMPING",
 };
 
 /** What threw him, as a line on the HARD KNOCKS chart. */

@@ -31,11 +31,13 @@ import {
   setHalfpipe,
   setMoguls,
   setAerials,
+  setSkiJump,
   setSlopestyle,
   withDay,
   withSky,
 } from "../mapgen/index.ts";
 import type { RunGrade } from "../mapgen/grades.ts";
+import type { SkiJumpHillId } from "../mapgen/trick-rules.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
 import type { Level, SkyOverride } from "../mapgen/types.ts";
@@ -67,6 +69,7 @@ import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
 import { freshAerials, type AerialsContest } from "./aerials-contest.ts";
 import { freshAerial } from "./aerial-flight.ts";
 import { AERIALS } from "./defs/aerials.ts";
+import { SKI_JUMP } from "./defs/ski-jump.ts";
 import { isAerialCode, kickerOf } from "./defs/aerial-jumps.ts";
 import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
@@ -161,6 +164,9 @@ export type CreateGameOptions = {
   /** THE JUMP DECLARED for an aerials run, over the contest's: a code of
    * the DD chart (`defs/aerial-jumps.ts`); its kicker is built (R41). */
   plan?: string;
+  /** THE SKI JUMPING HILL a ski jump is jumped on (R43): the large hill
+   * when left out. */
+  hill?: SkiJumpHillId;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -439,6 +445,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.halfpipe?.base ??
     built.moguls?.base ??
     built.aerials?.base ??
+    built.skiJump?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
@@ -465,7 +472,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                         ? setMoguls(built)
                         : options.mode === "aerials"
                           ? setAerials(built, kickerOf(planOf(options)))
-                          : original;
+                          : options.mode === "skiJump"
+                            ? setSkiJump(built, options.hill ?? SKI_JUMP.hill)
+                            : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);

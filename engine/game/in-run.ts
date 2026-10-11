@@ -10,7 +10,8 @@
 // jump stay his own, and in the air and past the lip every control is
 // again. An AERIALS site's in-run (R41) is ridden the same way to its
 // kicker, and STRAIGHT: the edge and the jump are held too — a 71° kicker
-// is met square and taken as it throws him, never popped.
+// is met square and taken as it throws him, never popped. A SKI JUMP's
+// in-run (R43) is ridden in the crouch, straight, to the edge.
 
 import { nearestTrackPoint } from "../mapgen/index.ts";
 import type { GameState, SkierInput } from "./state.ts";
@@ -18,6 +19,15 @@ import type { GameState, SkierInput } from "./state.ts";
 /** The controls the skier rides this step on: `held`, tucked, unbraked and
  * centred on a big air in-run. */
 export function inRunInput(run: GameState, held: SkierInput): SkierInput {
+  // A SKI JUMP'S IN-RUN (R43): the crouch held in the tracks, straight and
+  // unbraked, to the edge — the jump key the jumper's own.
+  const hill = run.level.skiJump;
+  if (hill && run.rules.inRun) {
+    const c = run.skier;
+    if (run.phase !== "racing" || c.airborne) return held;
+    if (nearestTrackPoint(run.level, c.x, c.z).s >= hill.edge) return held;
+    return { ...held, tuck: 1, brake: 0, lean: 0, steer: 0 };
+  }
   const jump = run.level.bigAir ?? run.level.aerials;
   if (!run.rules.inRun || !jump || run.phase !== "racing") return held;
   const site = run.level.aerials !== undefined;

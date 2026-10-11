@@ -28,12 +28,17 @@ export const BIG_AIR_STRINGS = {
   freestyleParkLine: (seconds: number): string => `KICKERS · ${Math.round(seconds / 60)} MIN`,
   /** Each freestyle format's name. */
   freestyle: {
+    skiJump: "SKI JUMPING",
     bigAir: "BIG AIR",
     slopestyle: "SLOPESTYLE",
     halfpipe: "HALFPIPE",
     moguls: "MOGULS",
     aerials: "AERIALS",
   } as Readonly<Record<Freestyle, string>>,
+  /** Ski jumping's row: the hill and its format under its name (a first
+   * word until the app's phase gives the format its own card). */
+  freestyleSkiJump: (hs: number, jumpers: number, finalists: number): string =>
+    `HS ${hs} · ${jumpers} · FINAL OF ${finalists}`,
   /** Big air's row: its format under its name. */
   freestyleBigAir: (skiers: number, finalists: number): string =>
     `ONE JUMP · ${skiers} · FINAL OF ${finalists}`,

@@ -78,6 +78,7 @@ export type SimOptions = {
     | "halfpipe"
     | "moguls"
     | "aerials"
+    | "skiJump"
   >;
   /** On aerials (R41), the jump the bot declares and throws (a code of the
    * chart, `defs/aerial-jumps.ts`) — the contest's default when left out. */

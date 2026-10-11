@@ -8,6 +8,8 @@ import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heigh
 import type { PisteGrade, RunGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
 import type { GeneratorVersion } from "./versions.ts";
+import type { SkiJumpHill } from "./ski-jump-types.ts";
+export type { SkiJumpHill } from "./ski-jump-types.ts";
 
 export interface Vec3 {
   x: number;
@@ -331,6 +333,15 @@ export interface Level {
    * `groundAt` / `normalAt` off its analytic surface (`bumps`, with no
    * moguls in it). Absent on every map the generator builds. */
   aerials?: AerialsCourse;
+  /** A SKI JUMPING HILL built on the map (R43, `setSkiJump`): its `track`
+   * the straight line cut down the face — the tower's deck, the in-run,
+   * the table to the edge, the knoll, the landing hill and the out-run —
+   * its checkpoints the start gate and the finish line (the fall line),
+   * its top gate the `spawn`, its take-off the map's one kicker, and the
+   * hill answered by `groundAt` / `normalAt` off its analytic surface
+   * (`bumps`, with no moguls in it). Absent on every map the generator
+   * builds. */
+  skiJump?: SkiJumpHill;
   /** THE JIBS standing on the map — the rails and boxes a skier slides on
    * (`jib.ts`). Absent on every map the generator builds: a venue sets
    * them (R38). */

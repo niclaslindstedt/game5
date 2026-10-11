@@ -43,6 +43,8 @@ const CLASS = {
   moguls: "Moguls",
   // Aerials ride the aerials ski: short, narrow, light and straight.
   aerials: "Aerials",
+  // Ski jumping rides the jumping ski: long, wide, straight and edgeless.
+  skiJump: "Ski jumping",
 } as const;
 
 describe("a race's own pair", () => {

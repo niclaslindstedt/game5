@@ -139,6 +139,10 @@ export type RunRules = {
    * twists to their flip; the strokes and the grabs are not read. Left
    * out, the air is the strokes' (`strokes.ts`). */
   aerials?: boolean;
+  /** THE SKI JUMP (R43): the hill's own jump — the in-run, the take-off,
+   * the flight and the telemark — over the strokes and the grabs, which
+   * are not read. Left out, the air is the strokes'. */
+  skiJump?: boolean;
   /** THE HOCKEY STOP (`hockey-stop.ts`): a freestyle run over — the jump
    * landed, the course run, the buzzer gone — is ridden out by throwing
    * the skis across the fall line on the brake and standing there, rather

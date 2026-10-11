@@ -8,7 +8,8 @@
 // (R39 — a U cut down the slope) and the MOGULS COURSE (R40 — a mogul
 // track down a steep pitch with two air bumps in it) and the AERIALS SITE
 // (R41 — an in-run, one steep kicker on a level table, a 37° landing hill)
-// are built (`docs/freestyle.md`).
+// and the SKI JUMPING HILL (R43 — an in-run, a table and a landing hill to
+// the construction norm) are built (`docs/freestyle.md`).
 //
 // THE RESEARCH BEHIND THE NUMBERS — the freestyle competition rules' park
 // chapter and a championship jump as its builders describe it, by article
@@ -189,6 +190,48 @@
 //       under it is cut to the same surface, never above it. Its gates are
 //       the START GATE at the platform's lip and the FINISH LINE
 //       `aerials.finish` metres into the out-run.
+//
+//   R43 THE SKI JUMPING HILL. A ski jumping hill is BUILT as R37's jump is,
+//       straight down a built map's face on a line searched the same way
+//       (`skiJump.search`, `skiJump.fit`), `skiJump.width` metres wide,
+//       graded, groomed and cleared, to one of the hills `skiJump.hills`
+//       names (the LARGE hill and the NORMAL hill), each a row of the
+//       construction norm's free choices: its construction point K `w`
+//       metres down the slope from the edge, its hill size `hs`, its
+//       in-run's angle `inRun`, its table's angle `table`, its steepness
+//       `steepness` (the height `h` over the horizontal distance `n` from
+//       the edge to K), the speed off the edge it is designed for in calm
+//       air `speed`, and the landing slope at K `slope`. Every other
+//       element is the norm's formula over those (`skiJump.norm`): `h` and
+//       `n` the chord to K at that steepness, `w` over `norm.chord`; the
+//       speed landing at K `norm.landing`; the landing radius `norm.radius`
+//       rounded to `norm.round` metres; the slope at P `norm.p` and at the
+//       knoll's foot `norm.foot` of it; the slope at L `norm.l`; the
+//       transition's radius at the table `norm.r1`, the table's length
+//       `norm.t` and its height over the knoll `norm.s` of `w`; the in-run's
+//       length from the top gate `norm.e1` and from the lowest `norm.e2`;
+//       the out-run's length `norm.a`. Its PROFILE is built against the
+//       horizontal, in order: a START PLATFORM level for `skiJump.platform`
+//       metres; a roll of `skiJump.roll` metres of radius onto the IN-RUN's
+//       straight at its angle, its top gate `skiJump.above` metres below
+//       the roll; a TRANSITION whose curvature grows evenly from nothing to
+//       the table's radius, so the in-run turns from its angle to the
+//       table's; the TABLE at its angle for its length to the EDGE; under
+//       the edge the KNOLL's foot its height below it, and from there a
+//       cubic parabola leaving at the foot's slope and meeting P at P's;
+//       from P through K to L an arc of the landing radius, concave up;
+//       from L a TRANSITION whose radius grows evenly from the row's `r2l`
+//       metres to its `r2` onto the level OUT-RUN at U, the out-run its
+//       length and `skiJump.past` metres more. The START GATES stand down
+//       the in-run from the top gate to the lowest, equally spaced along
+//       it and never more than `skiJump.gateHeight` metres of height
+//       apart, numbered from 1 at the bottom. A DISTANCE is credited along
+//       the profile from the knoll's foot, scaled so K reads `w` metres.
+//       The hill is an analytic surface, not the map's grid, and the grid
+//       under it is cut to the same surface, never above it. Its gates are
+//       the START GATE at the top gate and the FINISH LINE at the FALL LINE
+//       `skiJump.fallLine` metres into the out-run; its spawn stands on the
+//       top gate.
 
 /** A JUMP'S RULE, as R37 states one (`big-air.ts` builds it); `kick` is
  * the take-off its landing is shaped for. */
@@ -638,4 +681,149 @@ export const AERIALS_RULE = {
   },
   fit: { deepest: 0.3, stations: 40, village: 160 },
   arena: { before: 15, past: 30, half: 30 },
+} as const;
+
+/** ONE HILL of the ski jumping norm (R43): the free choices its builder
+ * makes, m and degrees, the speed it is designed for, m/s, the landing
+ * transition's radii, m, and the scoring numbers the hill carries — the
+ * metre value (points a metre), the gate factor (points a metre of in-run)
+ * and the wind factors (points per m/s of head and tail wind). */
+export type SkiJumpHillRow = {
+  readonly w: number;
+  readonly hs: number;
+  readonly inRun: number;
+  readonly table: number;
+  readonly steepness: number;
+  readonly speed: number;
+  readonly slope: number;
+  readonly r2l: number;
+  readonly r2: number;
+  readonly metre: number;
+  readonly gate: number;
+  readonly head: number;
+  readonly tail: number;
+};
+
+/** Which hill of the norm (R43). */
+export type SkiJumpHillId = "large" | "normal";
+
+/** R43 — the ski jumping hill (`docs/freestyle.md` § *Ski jumping*: the
+ * construction norm's profile, element by element, and the published
+ * certificates of a normal and a large hill of the class the top series
+ * jumps). */
+export const SKI_JUMP_RULE = {
+  /** THE HILLS, the large first (`docs/specs/SKI_JUMPING.md`). K's `w` is
+   * the hill size over 0.9; the table at the low end of the norm's band
+   * (w/30 + 6.9 … w/30 + 7.9) flies the higher flight; the steepness inside
+   * its band (w/800 + 0.400 … w/1000 + 0.480); the design speed and the
+   * slope at K are the norm's flight model's for those choices (our
+   * arithmetic off its tables). The landing transition's radii lie between
+   * the norm's floor at L (the 1.8 g load at the speed there, ~93 m on the
+   * large hill, ~86 m on the normal) and the landing radius (est.); the
+   * scoring numbers are the published sheets' until the flight lab
+   * measures the hill's own. */
+  hills: {
+    large: {
+      w: 126,
+      hs: 140,
+      inRun: 35,
+      table: 11.2,
+      steepness: 0.58,
+      speed: 26.2,
+      slope: 33.9,
+      r2l: 115,
+      r2: 130,
+      metre: 1.8,
+      gate: 7.67,
+      head: 10.8,
+      tail: 13.07,
+    },
+    normal: {
+      w: 95.4,
+      hs: 106,
+      inRun: 35,
+      table: 10.6,
+      steepness: 0.55,
+      speed: 24.6,
+      slope: 34.0,
+      r2l: 100,
+      r2: 115,
+      metre: 2.0,
+      gate: 7.0,
+      head: 8.0,
+      tail: 9.68,
+    },
+  } as Readonly<Record<SkiJumpHillId, SkiJumpHillRow>>,
+  /** THE NORM'S FORMULAS (lengths m, speeds m/s, angles degrees):
+   *   chord   a distance is 1.005 × the chord (h, n = w·sin, cos(atan h/n) / 1.005)
+   *   landing v_K = 0.68·v₀ + 12.44
+   *   radius  r_L = v_K²·w / 380, rounded to 10 m
+   *   p       β_P = β + 0.5·α − 2.5
+   *   foot    β₀ = β_P / 6
+   *   l       β_L = β − (1.4 / v_K)·(180/π)
+   *   r1      r₁ = 0.14·(v₀ + 0.95)²
+   *   t       t = 0.25·(v₀ + 0.95)
+   *   s       s = 0.025·w, at least 0.70 m
+   *   e1      e₁ = 92.3 − 1.517·γ + 0.426·HS
+   *   e2      e₂ = 67.3 − 0.944·γ + 0.331·HS
+   *   a       a = 18.9 + 1.113·w − 0.00482·w², at least 45 m
+   *   widths  the knoll's foot 0.06·w, K 0.20·w, U 0.22·w; the in-run 2.5 m
+   *   tower   the judges' tower 0.6–0.8·w along, 0.25–0.5·w off the axis */
+  norm: {
+    chord: 1.005,
+    landing: [0.68, 12.44] as readonly [number, number],
+    radius: 380,
+    round: 10,
+    p: [0.5, 2.5] as readonly [number, number],
+    foot: 6,
+    l: 1.4,
+    r1: [0.14, 0.95] as readonly [number, number],
+    t: [0.25, 0.95] as readonly [number, number],
+    s: [0.025, 0.7] as readonly [number, number],
+    e1: [92.3, 1.517, 0.426] as readonly [number, number, number],
+    e2: [67.3, 0.944, 0.331] as readonly [number, number, number],
+    a: [18.9, 1.113, 0.00482, 45] as readonly [number, number, number, number],
+    widths: { inRun: 2.5, foot: 0.06, k: 0.2, u: 0.22 },
+    tower: { from: 0.6, to: 0.8, off: [0.25, 0.5] as readonly [number, number] },
+  },
+  /** The start tower's deck, m, and the radius the in-run is rolled over
+   * on from it, m — the tower's, never ridden (est.). */
+  platform: 3,
+  roll: 8,
+  /** The in-run above the top gate, m along it (est.: room for the bar). */
+  above: 2,
+  /** The most height between two gates, m (the norm's 0.40). */
+  gateHeight: 0.4,
+  /** THE TRACKS' FRICTION ANGLE, degrees: 1° on ice or ceramic, 3° on snow
+   * (the norm); the hill's tracks are ice. */
+  tracks: 1,
+  /** The jumper the in-run's speeds are worked for, a point mass from the
+   * gate: his mass with his kit, kg (the flight models' 72 kg), his
+   * crouch's drag area, m², and the air's density at a hill on a mountain,
+   * kg/m³ (est., ~1500 m). The crouch's ~0.2 m² read off a simulated
+   * large-hill jump's forces leaves the norm's top gate short of the
+   * design speed on ice tracks; 0.15 m² (est.) puts the design gate in the
+   * upper half of the gates, as a jury runs a contest — the in-run lab
+   * fits it to the engine's own. */
+  skier: { mass: 72, crouch: 0.15, air: 1.0 },
+  /** The fall line, m of plan past U (est.), and the level out-run past the
+   * norm's length, m (the arena's room). */
+  fallLine: 20,
+  past: 15,
+  /** The hill's width, m (the landing's 28 m at U, and room either side),
+   * how far past its edges its grading eases out, m, and the trees cleared
+   * within this of them, m. */
+  width: 34,
+  ease: 14,
+  margin: 12,
+  search: {
+    stride: 24,
+    bearings: [-12, -6, 0, 6, 12] as readonly number[],
+    starts: 8,
+    step: 2,
+    edge: 120,
+    top: 60,
+  },
+  fit: { deepest: 0.3, stations: 40, village: 160 },
+  arena: { before: 40, past: 40, half: 45 },
 } as const;

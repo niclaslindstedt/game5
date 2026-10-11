@@ -6,6 +6,7 @@
 // (`limits.ts`, `incline.ts`).
 
 export { LYNX, BOARD_CATALOG, isBoard, isBoardId, isPairId, pairById } from "./defs/boards.ts";
+export type { BoardId, PairId, BoardFit, SkisSpec } from "./defs/skis.ts";
 export { BOARD_TECHNIQUE } from "./defs/technique.ts";
 export { angulateShareOf, edgeAskedAt, edgeSideOf } from "./limits.ts";
 export { angulationOf } from "./incline.ts";

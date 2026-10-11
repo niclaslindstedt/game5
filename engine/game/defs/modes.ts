@@ -38,6 +38,8 @@ import type { Discipline } from "./formats.ts";
 export { MOGULS, mogulsRules } from "./moguls.ts";
 import { AERIALS, aerialsRules } from "./aerials.ts";
 export { AERIALS, aerialsRules } from "./aerials.ts";
+import { SKI_JUMP, skiJumpRules } from "./ski-jump.ts";
+export { SKI_JUMP, skiJumpRules } from "./ski-jump.ts";
 
 export type { Jury, RunRules } from "./run-rules.ts";
 import type { Jury, RunRules } from "./run-rules.ts";
@@ -512,7 +514,8 @@ export type GameMode =
   | "slopestyle"
   | "halfpipe"
   | "moguls"
-  | "aerials";
+  | "aerials"
+  | "skiJump";
 
 export const GAME_MODES: readonly GameMode[] = [
   "slalom",
@@ -529,6 +532,7 @@ export const GAME_MODES: readonly GameMode[] = [
   "halfpipe",
   "moguls",
   "aerials",
+  "skiJump",
 ];
 
 export function isGameMode(value: unknown): value is GameMode {
@@ -696,12 +700,13 @@ export const MODE_RULES: Readonly<Record<GameMode, (laps: number) => RunRules>> 
   halfpipe: halfpipeRules,
   moguls: mogulsRules,
   aerials: aerialsRules,
+  skiJump: skiJumpRules,
 };
 
 /** THE PAIR A RACE IS RACED ON: its discipline's own, the one its field
  * skis — what the ski card is opened on for that race — and a trick
  * format's (big air's, slopestyle's and the halfpipe's the Raven; moguls'
- * the Ibex; aerials' the Kestrel), or
+ * the Ibex; aerials' the Kestrel; the ski jump's the Albatross), or
  * null for a mode that is neither (the labs' time trial, the free ride, the
  * tricks run). */
 export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
@@ -716,6 +721,7 @@ export const RACE_SKIS: Readonly<Partial<Record<GameMode, SkiId>>> = {
   halfpipe: HALFPIPE.skis,
   moguls: MOGULS.skis,
   aerials: AERIALS.skis,
+  skiJump: SKI_JUMP.skis,
 };
 
 export function raceSkisOf(mode: GameMode): SkiId | null {
@@ -754,7 +760,11 @@ export function raceSkisOf(mode: GameMode): SkiId | null {
  * team's men ~69 kg on 175 cm, its women ~56 kg on 160 cm, and a squad
  * ~58 kg — jumping without poles in light kit; the mixed team pairs the
  * two, and the field's middle sits near 62 kg: the LIGHT build
- * (`docs/freestyle.md` § *Aerials*, "The skier"). */
+ * (`docs/freestyle.md` § *Aerials*, "The skier"). SKI JUMPING pays
+ * lightness most of all — 1 % of BMI is worth ~2 % of ski area — and its
+ * field averages 178 cm and ~66 kg (a BMI of ~20.5): the LIGHT build, 60 kg
+ * in its kit, the nearest of the four, its flight fitted at that build
+ * (`docs/freestyle.md` § *Ski jumping*, "The jumpers"). */
 export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   slalom: "medium",
   superG: "solid",
@@ -767,6 +777,7 @@ export const RACE_RIDERS: Readonly<Partial<Record<GameMode, RiderId>>> = {
   halfpipe: "medium",
   moguls: "medium",
   aerials: "light",
+  skiJump: "light",
 };
 
 export function raceRiderOf(mode: GameMode): RiderId | null {

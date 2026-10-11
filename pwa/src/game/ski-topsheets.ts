@@ -171,4 +171,7 @@ export const TOPSHEETS: Record<SkiId, Topsheet> = {
   // the judges follow through the twists, and a warm red turns against the
   // sky where black and white blur.
   kestrel: sheet("Rufous", 0xc2552b, 0xf4ead2, "split", { boot: 0xf4ead2 }),
+  // A jumping pair in an albatross's slate over white: a dark V reads
+  // against the white landing hill from the side-on camera.
+  albatross: sheet("Slate", 0x3a4250, 0xf2f2f2, "race", { boot: 0xf2f2f2, pole: 0x3a4250 }),
 };

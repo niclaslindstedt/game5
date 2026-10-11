@@ -1,6 +1,7 @@
 # Ski jumping — draft spec
 
-**Researched, nothing built.** Ski jumping REPLACES BIG AIR as the first
+**The hill (R43) and the mode's skeleton are built; the jump is not.**
+Ski jumping REPLACES BIG AIR as the first
 format on the tricks card, and is to be the game's most important mode
 beside the free ride: a real jumping hill cut into the mountain, an in-run
 ridden in its tracks at 94 km/h, a take-off timed to a fraction of a
@@ -528,13 +529,19 @@ retired; what slopestyle, the halfpipe, moguls and aerials share stays.
 Each phase lands green and with its lab's before and after in the PR.
 
 - [x] **0. Research and this spec** (`docs/freestyle.md` § *Ski jumping*).
-- [ ] **1. The hill (R43)**: `SKI_JUMP_RULE` (both classes), the profile off
-      the norm (`skiJumpProfile`), `setSkiJump` over the straight venue,
-      the analytic surface, `Level.skiJump` and `distanceAt`, the analyzer's
-      hold, the rule's mirror; `tests/ski_jump_test.ts` (every element
-      against the norm's formulas, the hill on the first 24 seeds, no
-      digest moved); `make skijump-flight`'s profile table; `make level`
-      draws the hill.
+- [x] **1. The hill (R43)**: `SKI_JUMP_RULE` (both classes) in
+      `trick-rules.ts`, the norm's elements (`hillOf`) and the profile
+      (`skiJumpProfile`, `skiJumpHeightAt`), `setSkiJump` over the
+      straight venue, the analytic surface (`withMoguls` with no line),
+      `Level.skiJump` (`SkiJumpHill`, `ski-jump-types.ts`) with
+      `distanceAt` (`jumpDistanceAt`, `measuredDistance`), the gates and
+      the design gate off a point mass (`edgeSpeed`, `designGate`), the
+      rule's mirror; `tests/ski_jump_test.ts` (every element against the
+      norm's formulas, the hill graded into two seeds' maps — not 24: a map
+      costs ~12 s to generate; the venues have no analyzer check, the tests
+      hold them). **Left:** `make skijump-flight`'s profile table (phase 2
+      builds the lab), `make level` drawing the hill, the structure (the
+      in-run on trestles where it stands over the ground).
 - [ ] **2. The in-run and the take-off**: the bar and the light, the wire
       (`jump-inrun.ts`), the gates, the speed at the edge against v₀, the
       timed press and v⊥; the lab's in-run and take-off rows.
@@ -542,9 +549,19 @@ Each phase lands green and with its lab's before and after in the PR.
       in the lab to the norm's checks, the pitch, the V, the roll, the
       assist; the telemark, the faults, the falls; the distance to the half
       metre; the `JumpRecord`; `make injuries` unmoved for a clean jump.
-- [ ] **4. The ski, the build, the mode**: the ALBATROSS row, `SKI_JUMP`,
-      `skiJumpRules`, `RunRules.skiJump`, the `FREESTYLE` row first,
-      `RACE_SKIS`/`RACE_RIDERS`, `createGame`'s options.
+- [x] **4. The ski, the build, the mode**: the ALBATROSS row
+      (`defs/skis.ts`, off the card's rack: `MODE_SKIS`, `ALL_SKIS` — no
+      Blender model yet, drawn by the code off a first-cut `SKI_LOOKS`
+      row and a topsheet), the LIGHT build, `SKI_JUMP` and
+      `skiJumpRules` (`defs/ski-jump.ts`), `RunRules.skiJump`, the
+      `FREESTYLE` row first, `RACE_SKIS`/`RACE_RIDERS`, `createGame`'s
+      `mode: "skiJump"` and `hill` (stood on the top gate; the in-run held
+      in the crouch, straight and unbraked to the edge by `in-run.ts`;
+      the existing physics rides it and leaves the edge with no take-off).
+      `make sim ARGS="--mode skiJump"` runs. **Placeholders the app phase
+      owns:** the words `SKI JUMPING` in `strings-replay.ts` and
+      `strings-stats.ts`; the tricks card lists the format through
+      `FREESTYLE` with no box, HUD or plate of its own yet.
 - [ ] **5. The wind, the jury, the scorer, the contest, the field, the par,
       the bot**: the stations, the compensation, `jump-judge.ts`,
       `jump-contest.ts`, `ski-jump-steer.ts`, `make sim --mode skiJump`.
@@ -582,6 +599,52 @@ Each phase lands green and with its lab's before and after in the PR.
       it out), if a flying hill is wanted.
 - [ ] The cross lines' and the HS line's colours, the distance boards'
       numbering, the start light's phases on a modern hill.
+
+## Settled (phase 1 and 4)
+
+- The LARGE hill (HS 140) first, and the NORMAL hill (HS 106) as a second
+  row of the same rule, since it cost nothing more (`hill: "normal"`).
+- The LIGHT build is the rider; no fifth build. The light build's 60 kg in
+  kit is ~6 kg under the field's ~66 kg — near enough for the flight to be
+  fitted at it (phase 3).
+- The pair is the ALBATROSS. The trial round is kept (`SKI_JUMP.trial`).
+
+### What the hill measures (the large hill, `tests/ski_jump_test.ts`)
+
+h 62.90 m, n 108.45 m (h/n 0.58), v_K 30.26 m/s, r_L 300 m, r₁ 103.2 m,
+t 6.79 m, s 3.15 m, β_P 37.0°, β₀ 6.17°, β_L 31.25°, e₁ 98.8 m, e₂ 80.6 m,
+a 82.6 m, l₁ 16.2 m, l₂ 13.9 m — the norm's, and the profile's slopes at
+the knoll's foot, P, K and L within 0.05° of them (the foot within 0.3°).
+The in-run's curve (curvature growing evenly to 1/r₁) is 85.7 m, so the
+straight at 35° is only ~8 m and the gates stand on 34.5–35°. U is 87.8 m
+below the edge (the norm's 88 at most). The distance read along the
+profile from the knoll's foot is 125.2 m at K, 0.6 % short of the norm's
+1.005 × chord: it is SCALED (×1.0063) so K reads 126 — L then reads 139.97
+and P 109.7. 28 gates 0.39 m of height apart; a 72 kg point mass in a
+0.15 m² crouch on 1° ice tracks reaches 26.96 m/s off the top gate,
+23.7 off the lowest, and the design 26.2 off gate 22. The crouch's 0.15 m²
+is below the ~0.2 the research reads off a simulation, because at 0.22 the
+top gate falls short of v₀; the norm's top gate is meant to give ~27.6
+(K in a 3 m/s tail). Phase 2 fits it to the engine's own in-run. The
+NORMAL hill's design gate is its top gate (24.7 m/s off it): its row's
+v₀ 24.6 is near what its e₁ carries — the in-run lab should look at it.
+
+### What the next phases must know
+
+- `Level.skiJump`'s places are m of PLAN along the line (the track's `s`),
+  the deck at 0; `distanceAt(planX)` credits a landing; the edge is a
+  one-sample wall `s` m high (`p.dx` = 0.05 m); `takeOff` is the table's
+  angle at the edge (down positive).
+- The engine's skier is the ordinary one: in the in-run `in-run.ts` holds
+  the crouch; nothing guides him in the tracks, and he leaves the edge on
+  the snow's own step (`RunRules.skiJump` is read by nothing yet).
+- The kicker `SJ` is the take-off (height `s`, ramp the table).
+- `RunRules.jury` eases the day to gusts under 40 km/h and a steady fall.
+- `make sim ARGS="--mode skiJump --skis albatross --rider light --count 4"`
+  runs (~110 km/h top, 0.9 s of air, no wipeout) but every seed reads
+  `dsq start@0`: the strict gates judge the start gate at the spawn before
+  any push or take-off exists. Phases 2 and 5 own the start (the bar, the
+  push, the window) and the bot.
 
 ## Open questions for the user
 

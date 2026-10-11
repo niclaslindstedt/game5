@@ -525,6 +525,7 @@ function gradeTrack(original: Level): Graded {
     halfpipe: undefined,
     moguls: undefined,
     aerials: undefined,
+    skiJump: undefined,
     bumps: undefined,
     normalNear: undefined,
     pipe: undefined,

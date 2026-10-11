@@ -12,6 +12,8 @@ import {
   FREESTYLE,
   HALFPIPE,
   MOGULS,
+  SKI_JUMP,
+  SKI_JUMP_RULE,
   SLOPESTYLE,
   TRICKS_RUN,
   type GameMode,
@@ -23,6 +25,13 @@ import { STRINGS } from "./strings.ts";
 
 /** Each built format's line, by its mode. */
 function formatOf(mode: GameMode): string {
+  if (mode === "skiJump") {
+    return STRINGS.freestyleSkiJump(
+      SKI_JUMP_RULE.hills[SKI_JUMP.hill].hs,
+      SKI_JUMP.field + 1,
+      SKI_JUMP.final,
+    );
+  }
   if (mode === "bigAir") return STRINGS.freestyleBigAir(BIG_AIR.field + 1, BIG_AIR.finalists);
   if (mode === "slopestyle") {
     return STRINGS.freestyleSlopestyle(SLOPESTYLE.field + 1, SLOPESTYLE.finalists);

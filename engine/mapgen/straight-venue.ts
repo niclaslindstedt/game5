@@ -216,6 +216,7 @@ export function originalOf(level: Level): Level {
     level.halfpipe?.base ??
     level.moguls?.base ??
     level.aerials?.base ??
+    level.skiJump?.base ??
     level
   );
 }
@@ -358,6 +359,7 @@ export function gradeVenue(
     halfpipe: undefined,
     moguls: undefined,
     aerials: undefined,
+    skiJump: undefined,
     bumps: undefined,
     normalNear: undefined,
     pipe: undefined,

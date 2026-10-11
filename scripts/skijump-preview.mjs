@@ -15,6 +15,10 @@
 //   flight   in the air over the landing hill from the side and behind
 //   landing  touching down at the boards, the telemark, the out-run, the K
 //            and HS lines
+//   structure  the raised in-run: the deck on its truss and piers from the
+//            side and from below, the tower, the jumper on the deck
+//   broadcast  a whole jump through the game's broadcast director, bar to
+//            out-run (`camera-skijump.ts`)
 //
 // Each GROUP is one contact sheet, previews/skijump-<group>.png, and every
 // frame is also written alone, previews/skijump-<view>-<label>.png; every
@@ -49,12 +53,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (hill, inrun, flight, landing); every one when left out",
+      help: "which sheets, comma-separated (hill, structure, broadcast, inrun, flight, landing); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (hill, night, inrun, flight, landing)",
+      help: "only these views, comma-separated (hill, night, structure, broadcast, inrun, flight, landing)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     hill: { kind: "string", default: "large", help: "the hill: large or normal" },

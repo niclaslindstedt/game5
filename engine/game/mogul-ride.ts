@@ -19,7 +19,7 @@
 // Every other map is the map itself, untouched: no digest moves.
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
-import { fieldCoords, fieldHeight, mogulsAt } from "../mapgen/mogul-field.ts";
+import { fieldCoords, fieldHeight, mogulsAt, onField } from "../mapgen/mogul-field.ts";
 import type { Level, Vec3 } from "../mapgen/types.ts";
 
 /** HOW MUCH OF A MOGUL THE LEGS TAKE (est.): all of it to `easy` m/s — a
@@ -47,7 +47,7 @@ export function riddenLevel(level: Level, speed: number): Level {
   };
   const normalAt = (x: number, z: number, out: Vec3): void => {
     const { along, across } = fieldCoords(f, x, z);
-    if (along <= 0 || along >= f.end || Math.abs(across) >= f.half) {
+    if (!onField(f, along, across)) {
       level.normalAt(x, z, out);
       return;
     }

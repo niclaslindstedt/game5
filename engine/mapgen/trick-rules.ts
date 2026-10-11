@@ -688,6 +688,20 @@ export const SKI_JUMP_RULE = {
   roll: 8,
   /** The in-run above the top gate, m along it (est.: room for the bar). */
   above: 2,
+  /** THE RAISED IN-RUN. A modern large hill's in-run is a STRUCTURE, not a
+   * groove in the slope: a deck on a steel truss or a concrete trough on
+   * piers, standing well over the ground for its upper part, the start
+   * tower at its top (some 40–60 m tall on a large hill) and the table at
+   * its foot standing proud of the knoll by the edge's own height. The
+   * ground under it is laid as a slope of `slope` degrees up from the
+   * knoll's foot under the edge — no steeper than the table, so the deck
+   * stands higher over it the further up it is (~36 m at the top of the
+   * large hill, ~29 m on the normal one, est. off towers of the class) —
+   * and is LOWERED to that where the map stands higher, the cut banked out
+   * `bank` m across for every metre deep. The deck itself is the surface
+   * the engine answers `half` m either side of the line (the trough, its
+   * walls and the stair beside them); beside it the ground is the map's. */
+  raised: { slope: 8, bank: 1.5, half: 2.8 },
   /** The most height between two gates, m (the norm's 0.40). */
   gateHeight: 0.4,
   /** THE TRACKS' FRICTION ANGLE, degrees: 1° on ice or ceramic, 3° on snow

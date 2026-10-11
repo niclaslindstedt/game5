@@ -24,7 +24,7 @@ export function wireLook(
     () => settings.current.camera,
     (next) => {
       setSettings((s) => ({ ...s, camera: next }));
-      if (hudOver(shell.current)) renderer.setCamera(next);
+      if (hudOver(shell.current)) renderer.setCamera(next, false, true);
     },
   );
   // THE WHEEL: a rung further out or in along the ladder, on a run.

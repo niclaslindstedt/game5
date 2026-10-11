@@ -18,6 +18,6 @@ with that spread (10–20 m), and a body reaching onto the valley floor's
 rows (where the hub, the bottom stations and the tunnels go) is cut along
 them and marked `clipped`. Measure a change here with the attempts per face
 and with what WOULD stand in the water with the guard off — a station on a
-lake shows up there long before it shows in a picture. A station's pad cut
-and a run graded across a body still move the ground under it; the suite
-leaves those corridors out of the flatness check.
+lake shows up there long before it shows in a picture. What is graded
+after the water moves the ground under it again — see the lesson on
+laying the water again last.

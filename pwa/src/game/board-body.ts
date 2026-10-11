@@ -19,9 +19,12 @@
 //     cap with their ratchets — the straps apart, so a foot out of its
 //     binding leaves them hanging open (hidden).
 //   * A SOFT BOOT (`buildSoftBoot`) in the boot's frame — its sole's middle
-//     the origin, y up its shaft, z to its toes: a faceted loft from the
-//     sole and the bulky toe box up the shaft to the padded cuff, the tongue
-//     and the laces on its front. The dress's liner stands inside it.
+//     the origin, y up its shaft, z to its toes: the rubber outsole, its
+//     midsole band and toe bumper, a faceted upper from the bulky toe box up
+//     the shaft to the padded collar, the mudguard and heel counter over
+//     it, the tongue standing proud, the laces crossing between eyelets and
+//     speed hooks, and the pull loops. The dress's liner stands inside it;
+//     `make board`'s last row is the boot alone.
 
 import * as THREE from "three";
 
@@ -543,7 +546,13 @@ export function buildBinding(
 }
 
 /** A SOFT BOOT in its own frame (the sole's middle the origin, y up the
- * shaft, z to the toes). */
+ * shaft, z to the toes), drawn as a freestyle boot is made: a rubber
+ * OUTSOLE with a midsole band round it and a bumper over the toe, the
+ * padded UPPER rising off its toe box into the shaft, a MUDGUARD and a
+ * HEEL COUNTER laid over it in the trim, the TONGUE standing proud of the
+ * collar with its pull loop, the LACES crossing up the front between their
+ * eyelets to the hooks at the ankle, the padded COLLAR and the heel's pull
+ * loop. */
 export function buildSoftBoot(
   sheet: BoardSheet,
   paint: Paint,
@@ -553,61 +562,209 @@ export function buildSoftBoot(
   const shell = paint(sheet.boot);
   const trim = paint(sheet.bootTrim);
   const lace = paint(0xd8d4cc);
+  const rubber = paint(0x18191c);
+  const metal = paint(0x8c9198);
   const S = SOFT_BOOT;
   const L = S.length / 2;
   const W = S.width / 2;
-  // THE SOLE: a slab under the whole foot, a touch longer than the upper.
+  // THE UPPER's rings, bottom to top — what everything laid over it reads.
+  const upper: Ring[] = [
+    { y: S.sole, z: -0.004, l: L - 0.004, w: W - 0.002, sq: 2.5 },
+    { y: S.sole + 0.035, z: -0.004, l: L - 0.006, w: W, sq: 2.4 },
+    { y: S.toe - 0.012, z: -0.01, l: L - 0.022, w: W - 0.002, sq: 2.3 },
+    { y: S.toe, z: -0.02, l: L - 0.04, w: W - 0.004, sq: 2.2 },
+    { y: S.toe + 0.03, z: SHAFT_Z - 0.01, l: 0.095, w: W - 0.006 },
+    { y: 0.16, z: SHAFT_Z - 0.004, l: S.ankle + 0.012, w: S.ankle },
+    { y: 0.22, z: SHAFT_Z, l: S.top + 0.002, w: S.top - 0.004 },
+    { y: S.cuff - 0.022, z: SHAFT_Z, l: S.top + 0.004, w: S.top },
+  ];
+  /** The upper's ring at a height, eased between its rings. */
+  const ringAt = (y: number): Ring => {
+    for (let i = 0; i < upper.length - 1; i++) {
+      const a = upper[i];
+      const b = upper[i + 1];
+      if (y <= b.y || i === upper.length - 2) {
+        const t = Math.max(0, Math.min(1, (y - a.y) / (b.y - a.y)));
+        const mix = (u: number, v: number) => u + (v - u) * t;
+        return {
+          y,
+          z: mix(a.z, b.z),
+          l: mix(a.l, b.l),
+          w: mix(a.w, b.w),
+          sq: mix(a.sq ?? 2, b.sq ?? 2),
+        };
+      }
+    }
+    return upper[0];
+  };
+  /** A ring of the upper at `y`, grown out by `out` all round. */
+  const over = (y: number, out: number): Ring => {
+    const r = ringAt(y);
+    return { ...r, l: r.l + out, w: r.w + out };
+  };
+  /** A point on the upper's surface at height `y`, an angle `a` round it
+   * (0 the toe, π/2 the +x side), `out` off it. */
+  const onUpper = (y: number, a: number, out = 0): THREE.Vector3 => {
+    const r = ringAt(y);
+    const p = r.sq ?? 2;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    return new THREE.Vector3(
+      Math.sign(s) * Math.abs(s) ** (2 / p) * (r.w + out),
+      y,
+      Math.sign(c) * Math.abs(c) ** (2 / p) * (r.l + out) + r.z,
+    );
+  };
+
+  // THE OUTSOLE: dark rubber under the whole foot, its lugged edge a touch
+  // proud of the upper; the MIDSOLE a band of the trim round its top.
   part(
     group,
     loft(
       [
-        { y: 0, z: 0, l: L, w: W, sq: 2.6 },
-        { y: S.sole, z: 0, l: L, w: W, sq: 2.6 },
+        { y: 0, z: 0, l: L - 0.006, w: W - 0.006, sq: 2.6 },
+        { y: 0.008, z: 0, l: L + 0.002, w: W + 0.002, sq: 2.6 },
+        { y: S.sole * 0.55, z: 0, l: L + 0.002, w: W + 0.002, sq: 2.6 },
       ],
-      14,
+      16,
+    ),
+    rubber,
+    keep,
+  );
+  part(
+    group,
+    loft(
+      [
+        { y: S.sole * 0.55, z: 0, l: L + 0.003, w: W + 0.003, sq: 2.6 },
+        { y: S.sole, z: -0.002, l: L, w: W, sq: 2.6 },
+      ],
+      16,
     ),
     trim,
     keep,
   );
   // THE UPPER: the toe box rising into the shaft over the ankle, up to the
   // cuff's padded top.
+  part(group, loft(upper, 16, false), shell, keep);
+  // THE MUDGUARD: an overlay round the foot's foot, its rubber BUMPER
+  // capping the toe.
   part(
     group,
-    loft(
-      [
-        { y: S.sole, z: -0.004, l: L - 0.004, w: W - 0.002, sq: 2.5 },
-        { y: S.sole + 0.035, z: -0.004, l: L - 0.006, w: W, sq: 2.4 },
-        { y: S.toe, z: -0.016, l: L - 0.035, w: W - 0.003, sq: 2.2 },
-        { y: S.toe + 0.03, z: SHAFT_Z - 0.01, l: 0.095, w: W - 0.004 },
-        { y: 0.16, z: SHAFT_Z - 0.004, l: S.ankle + 0.012, w: S.ankle },
-        { y: 0.22, z: SHAFT_Z, l: S.top + 0.002, w: S.top - 0.004 },
-        { y: S.cuff - 0.022, z: SHAFT_Z, l: S.top + 0.004, w: S.top },
-      ],
-      14,
-      false,
-    ),
-    shell,
+    loft([over(S.sole, 0.003), over(S.sole + 0.03, 0.003), over(S.sole + 0.036, 0.001)], 16, false),
+    trim,
     keep,
   );
-  // THE CUFF's padded collar, and the TONGUE up the front of the shaft.
   part(
     group,
     loft(
       [
-        { y: S.cuff - 0.024, z: SHAFT_Z, l: S.top + 0.008, w: S.top + 0.004 },
-        { y: S.cuff, z: SHAFT_Z - 0.002, l: S.top + 0.006, w: S.top + 0.002 },
+        { y: S.sole, z: L - 0.05, l: 0.056, w: W - 0.004, sq: 2.2 },
+        { y: S.sole + 0.03, z: L - 0.054, l: 0.052, w: W - 0.012, sq: 2.2 },
+        { y: S.sole + 0.046, z: L - 0.07, l: 0.03, w: W - 0.03, sq: 2 },
       ],
-      14,
+      12,
+    ),
+    rubber,
+    keep,
+  );
+  // THE HEEL COUNTER: a stiff cup over the back of the heel up to the
+  // ankle, in the trim.
+  const counter = (y: number) => {
+    const path: THREE.Vector3[] = [];
+    for (let k = 0; k <= 8; k++) path.push(onUpper(y, Math.PI * (0.7 + (0.6 * k) / 8), 0.002));
+    return path;
+  };
+  for (const [y, h] of [[S.sole + 0.034, 0.056]] as const) {
+    const path = counter(y);
+    part(group, band(path, new THREE.Vector3(0, y, SHAFT_Z), h, 0.005), trim, keep);
+  }
+  // THE TONGUE: a padded slab up the front of the shaft from the instep,
+  // standing proud of the collar, and the loop to pull it on by.
+  const tongue: THREE.Vector3[] = [];
+  for (let k = 0; k <= 6; k++) {
+    const y = S.toe - 0.004 + ((S.cuff + 0.014 - (S.toe - 0.004)) * k) / 6;
+    tongue.push(onUpper(Math.min(y, S.cuff - 0.022), 0, 0.002 + 0.008 * (k / 6) ** 2).setY(y));
+  }
+  part(group, band(tongue, new THREE.Vector3(0, 0.15, SHAFT_Z - 0.2), 0.06, 0.007), trim, keep);
+  const tip = tongue[tongue.length - 1];
+  part(
+    group,
+    band(
+      [
+        new THREE.Vector3(0, tip.y - 0.008, tip.z + 0.012),
+        new THREE.Vector3(0, tip.y + 0.016, tip.z + 0.01),
+        new THREE.Vector3(0, tip.y + 0.018, tip.z - 0.004),
+        new THREE.Vector3(0, tip.y - 0.004, tip.z - 0.002),
+      ],
+      new THREE.Vector3(0, tip.y, tip.z),
+      0.016,
+      0.003,
+    ),
+    lace,
+    keep,
+  );
+  // THE LACING: eyelets either side of the tongue from the instep up, the
+  // laces crossing between them, and the speed hooks at the ankle.
+  const rows = 6;
+  const eyes: THREE.Vector3[][] = [];
+  for (let k = 0; k < rows; k++) {
+    const y = S.toe + 0.002 + ((S.cuff - 0.05 - S.toe) * k) / (rows - 1);
+    eyes.push([-1, 1].map((side) => onUpper(y, side * 0.5, 0.004)));
+  }
+  for (let k = 0; k < rows; k++) {
+    for (const e of eyes[k]) {
+      const hook = k >= rows - 2;
+      part(
+        group,
+        box(e.x, e.y, e.z, hook ? 0.006 : 0.005, 0.005, hook ? 0.007 : 0.004),
+        metal,
+        keep,
+      );
+    }
+  }
+  const lift = (v: THREE.Vector3, by: number) => v.clone().setZ(v.z + by + 0.006);
+  for (let k = 0; k < rows - 1; k++) {
+    // Across from each eyelet to the other side's next one up — the X.
+    for (const [a, b] of [
+      [eyes[k][0], eyes[k + 1][1]],
+      [eyes[k][1], eyes[k + 1][0]],
+    ]) {
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+      const path = [lift(a, 0.004), lift(mid, 0.014), lift(b, 0.004)];
+      part(group, band(path, mid.clone().setZ(mid.z - 0.2), 0.0065, 0.003), lace, keep);
+    }
+  }
+  // THE COLLAR: its padded rim, and the heel's pull loop behind it.
+  part(
+    group,
+    loft(
+      [
+        { y: S.cuff - 0.026, z: SHAFT_Z, l: S.top + 0.009, w: S.top + 0.005 },
+        { y: S.cuff - 0.006, z: SHAFT_Z - 0.002, l: S.top + 0.01, w: S.top + 0.006 },
+        { y: S.cuff + 0.002, z: SHAFT_Z - 0.003, l: S.top + 0.002, w: S.top - 0.002 },
+      ],
+      16,
+      false,
     ),
     trim,
     keep,
   );
-  part(group, box(0, 0.19, SHAFT_Z + S.top - 0.004, 0.032, 0.085, 0.01), trim, keep);
-  // The laces across the tongue and down the instep.
-  for (let k = 0; k < 5; k++) {
-    const y = 0.115 + k * 0.032;
-    const z = SHAFT_Z + S.top + 0.004 + (k === 0 ? 0.02 : 0);
-    part(group, box(0, y, z, 0.03, 0.004, 0.004), lace, keep);
-  }
+  const back = SHAFT_Z - S.top - 0.008;
+  part(
+    group,
+    band(
+      [
+        new THREE.Vector3(0, S.cuff - 0.03, back),
+        new THREE.Vector3(0, S.cuff + 0.01, back - 0.008),
+        new THREE.Vector3(0, S.cuff + 0.022, back + 0.004),
+        new THREE.Vector3(0, S.cuff - 0.006, back + 0.008),
+      ],
+      new THREE.Vector3(0, S.cuff, back + 0.02),
+      0.018,
+      0.003,
+    ),
+    lace,
+    keep,
+  );
   return group;
 }

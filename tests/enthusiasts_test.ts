@@ -62,7 +62,35 @@ describe("the night's skiers", () => {
     expect(a.rivals.map((r) => [r.free, r.run.skier.spec.id])).toEqual(
       b.rivals.map((r) => [r.free, r.run.skier.spec.id]),
     );
-    for (const r of a.rivals) expect(ENTHUSIASTS.skis).toContain(r.run.skier.spec.id);
+    for (const r of a.rivals) {
+      expect([...ENTHUSIASTS.skis, "lynx"]).toContain(r.run.skier.spec.id);
+    }
+  });
+
+  it("about three in ten ride a snowboard, and a rider rides his run", () => {
+    let riders = 0;
+    let all = 0;
+    let rider: ReturnType<typeof createGame> | null = null;
+    for (let seed = 1; seed <= 30; seed++) {
+      const s = createGame({ level, seed, mode: "free", sky: night, quiet: true });
+      for (const r of s.rivals) {
+        all += 1;
+        if (r.run.skier.spec.board) {
+          riders += 1;
+          rider ??= s;
+        }
+      }
+    }
+    expect(riders / all).toBeGreaterThan(0.15);
+    expect(riders / all).toBeLessThan(0.45);
+    // The bot rides the board down his run as it skis a pair.
+    const s = rider!;
+    const r = s.rivals.find((x) => x.run.skier.spec.board)!;
+    const from = { x: r.run.skier.x, z: r.run.skier.z };
+    for (let i = 0; i < 120 * 45; i++) step(s, NEUTRAL_INPUT);
+    const c = r.run.skier;
+    expect(Number.isFinite(c.x) && Number.isFinite(c.z)).toBe(true);
+    expect(Math.hypot(c.x - from.x, c.z - from.z) > 100 || c.lift !== null).toBe(true);
   });
 
   it("ski their runs: every one under way, none lost to a NaN", () => {

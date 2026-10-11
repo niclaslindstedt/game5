@@ -14,6 +14,11 @@
 // him — in its queue, sat on his chair, stood behind his T-bar — save in a
 // cabin, on the chair the player rides, or up a lift on a map with none.
 //
+// A SNOWBOARDER (`Amateur.board`) is a figure of his own — the same body
+// on a board, its targets the player's rider's (`crowd-board.ts`) — so a
+// body ridden both ways is two meshes a cut, each sized to its own share of
+// the crowd, and a goofy rider is drawn mirrored.
+//
 // AN AMATEUR DOWN (`Amateur.thrown`) is no blend of targets: his figure is
 // hung on the engine's ragdoll as it tumbles and lies, and lifted off it as
 // he gets up (`crowd-fall.ts`) — the same mesh at the same cut, its
@@ -36,6 +41,7 @@ import {
   type Level,
 } from "@engine";
 
+import { BOARD_POSES, boardDialsOf, boardSeatHeight } from "./crowd-board.ts";
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
 import { fallenPose, standFrame } from "./crowd-fall.ts";
 import { CROWD_LOOKS, CROWD_POSES, dialsOf, seatHeight } from "./crowd-rig.ts";
@@ -66,8 +72,17 @@ type Slot = {
   dress: THREE.InstancedBufferAttribute;
   dress2: THREE.InstancedBufferAttribute;
   weights: Float32Array;
+  /** How many targets the figure carries (the morph texture's stride, less
+   * the base), and how many of that body ride this way. */
+  targets: number;
+  capacity: number;
   n: number;
 };
+
+/** Which figure an amateur is: his body, on skis or on a board. */
+type Gear = "ski" | "board";
+const GEARS: readonly Gear[] = ["ski", "board"];
+const gearOf = (a: { board: unknown }): Gear => (a.board ? "board" : "ski");
 
 export type CrowdView = {
   group: THREE.Group;
@@ -78,13 +93,14 @@ export type CrowdView = {
 };
 
 const TARGETS = CROWD_POSES.length;
+const BOARD_TARGETS = BOARD_POSES.length;
 
 export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   const group = new THREE.Group();
   group.name = "crowd";
   const material = crowdMaterial(haze);
   const slots = new Map<string, Slot>();
-  let capacityOf: Record<CrowdBody, number> | null = null;
+  let capacityOf: Map<string, number> | null = null;
   let outfits: Outfit[] = [];
   let dealtFor: unknown = null;
 
@@ -108,12 +124,12 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     fallen.clear();
   };
   /** A mesh off the pool for `body` at `lod`, built the first time. */
-  const fallenMesh = (body: CrowdBody, lod: CrowdLod): Fallen => {
-    const key = `${body}:${lod}`;
+  const fallenMesh = (body: CrowdBody, lod: CrowdLod, gear: Gear): Fallen => {
+    const key = `${body}:${lod}:${gear}`;
     let pool = fallen.get(key);
     if (!pool) fallen.set(key, (pool = { meshes: [], n: 0 }));
     if (pool.n < pool.meshes.length) return pool.meshes[pool.n++];
-    const geometry = buildCrowdFigure(body, lod).clone();
+    const geometry = buildCrowdFigure(body, lod, gear === "board").clone();
     geometry.morphAttributes = {};
     const dress = new THREE.InstancedBufferAttribute(new Float32Array(4), 4);
     const dress2 = new THREE.InstancedBufferAttribute(new Float32Array(4), 4);
@@ -131,14 +147,16 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     pool.n++;
     return f;
   };
-  /** A mesh a body and cut, each as big as that body's share of the crowd. */
-  const build = (counts: Record<CrowdBody, number>): void => {
+  /** A mesh a body, way of riding and cut, each as big as its share of the
+   * crowd. */
+  const build = (counts: Map<string, number>): void => {
     clear();
-    for (const body of CROWD_BODIES) {
-      const capacity = counts[body];
+    for (const [figure, capacity] of counts) {
       if (capacity === 0) continue;
+      const [body, gear] = figure.split(":") as [CrowdBody, Gear];
+      const targets = gear === "board" ? BOARD_TARGETS : TARGETS;
       for (const lod of CROWD_LODS) {
-        const geometry = buildCrowdFigure(body, lod).clone();
+        const geometry = buildCrowdFigure(body, lod, gear === "board").clone();
         const dress = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
         const dress2 = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
         dress.setUsage(THREE.DynamicDrawUsage);
@@ -147,7 +165,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
         geometry.setAttribute("aDress2", dress2);
         const mesh = new THREE.InstancedMesh(geometry, material, capacity);
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        mesh.morphTargetInfluences = new Array<number>(TARGETS).fill(0);
+        mesh.morphTargetInfluences = new Array<number>(targets).fill(0);
         // The morph texture, allocated once at the crowd's size.
         mesh.setMorphAt(0, mesh);
         mesh.castShadow = lod !== "far";
@@ -156,10 +174,18 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
         mesh.frustumCulled = false;
         mesh.count = 0;
         mesh.visible = false;
-        mesh.name = `crowd-${body}-${lod}`;
+        mesh.name = `crowd-${body}-${lod}${gear === "board" ? "-board" : ""}`;
         group.add(mesh);
         const weights = mesh.morphTexture!.image.data as unknown as Float32Array;
-        slots.set(`${body}:${lod}`, { mesh, dress, dress2, weights, n: 0 });
+        slots.set(`${body}:${gear}:${lod}`, {
+          mesh,
+          dress,
+          dress2,
+          weights,
+          targets,
+          capacity,
+          n: 0,
+        });
       }
     }
   };
@@ -177,9 +203,14 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   /** When each amateur was last sat on a chair, s of the engine's clock. */
   let satAt = new Float64Array(0);
   const dials = new Float32Array(TARGETS);
-  /** How far under a chair's seat each body's figure is set, m. */
+  const boardDials = new Float32Array(BOARD_TARGETS);
+  /** How far under a chair's seat each body's figure is set, m, on skis
+   * and on a board. */
   const seatDrop = Object.fromEntries(
     CROWD_BODIES.map((b) => [b, seatHeight(CROWD_LOOKS[b])]),
+  ) as Record<CrowdBody, number>;
+  const boardDrop = Object.fromEntries(
+    CROWD_BODIES.map((b) => [b, boardSeatHeight(CROWD_LOOKS[b])]),
   ) as Record<CrowdBody, number>;
 
   const update: CrowdView["update"] = (state, eye, cull) => {
@@ -192,12 +223,13 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     if (dealtFor !== crowd) {
       // A crowd of its own: the meshes sized to it and every outfit dealt.
       dealtFor = crowd;
-      const counts = Object.fromEntries(CROWD_BODIES.map((b) => [b, 0])) as Record<
-        CrowdBody,
-        number
-      >;
-      for (const a of crowd.amateurs) counts[a.body] += 1;
-      const same = capacityOf && CROWD_BODIES.every((b) => capacityOf![b] >= counts[b]);
+      const counts = new Map<string, number>();
+      for (const b of CROWD_BODIES) for (const g of GEARS) counts.set(`${b}:${g}`, 0);
+      for (const a of crowd.amateurs) {
+        const key = `${a.body}:${gearOf(a)}`;
+        counts.set(key, counts.get(key)! + 1);
+      }
+      const same = capacityOf && [...counts].every(([key, n]) => (capacityOf!.get(key) ?? 0) >= n);
       if (!same) {
         build(counts);
         capacityOf = counts;
@@ -266,8 +298,8 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
         // DOWN: hung on his ragdoll, or getting up off it.
         const pose = fallenPose(a, standFrame(a, normal), [a.x, a.y, a.z]);
         if (!pose) continue;
-        const f = fallenMesh(a.body, lod);
-        poseCrowdFigure(a.body, lod, pose, f.mesh.geometry);
+        const f = fallenMesh(a.body, lod, gearOf(a));
+        poseCrowdFigure(a.body, lod, pose, f.mesh.geometry, a.board !== null);
         f.mesh.setMatrixAt(0, m.makeTranslation(a.x, a.y, a.z));
         f.mesh.instanceMatrix.needsUpdate = true;
         const o = outfits[a.id];
@@ -277,26 +309,33 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
         f.dress2.needsUpdate = true;
         continue;
       }
-      const slot = slots.get(`${a.body}:${lod}`);
-      if (!slot || slot.n >= (capacityOf?.[a.body] ?? 0)) continue;
+      const gear = gearOf(a);
+      const slot = slots.get(`${a.body}:${gear}:${lod}`);
+      if (!slot || slot.n >= slot.capacity) continue;
       const i = slot.n;
       basis.makeBasis(right, up, fwd);
       quat.setFromRotationMatrix(basis);
-      const mirror = dialsOf(a, dials, state.t, seat);
+      // A rider on a T-bar rides it stood, his rear foot out on the pad.
+      const mirror =
+        gear === "board"
+          ? boardDialsOf(a, boardDials, state.t, seat, kind === "drag" ? 1 : 0)
+          : dialsOf(a, dials, state.t, seat);
+      const drop = (gear === "board" ? boardDrop : seatDrop)[a.body];
       if (kind === "chair") {
         // Hung from the grip `ride.under` m over the seat, swung about it.
         const e = fromEuler(a.heading, swing, 0);
         quat.set(e.x, e.y, e.z, e.w);
-        pos.set(0, -(CROWD.ride.under + seatDrop[a.body]), 0).applyQuaternion(quat);
+        pos.set(0, -(CROWD.ride.under + drop), 0).applyQuaternion(quat);
         pos.add(lift.set(a.x, a.y + CROWD.ride.under, a.z));
-      } else pos.set(a.x, a.y - (kind && seat > 0 ? seatDrop[a.body] : 0), a.z);
+      } else pos.set(a.x, a.y - (kind && seat > 0 ? drop : 0), a.z);
       m.compose(pos, quat, size.set(mirror, 1, 1));
       slot.mesh.setMatrixAt(i, m);
       // The morph texture: the base's influence, then each target's.
       const w = slot.weights;
-      const at = i * (TARGETS + 1);
+      const from = gear === "board" ? boardDials : dials;
+      const at = i * (slot.targets + 1);
       w[at] = 1;
-      for (let k = 0; k < TARGETS; k++) w[at + 1 + k] = dials[k];
+      for (let k = 0; k < slot.targets; k++) w[at + 1 + k] = from[k];
       const o = outfits[a.id];
       slot.dress.setXYZW(i, o[0], o[1], o[2], o[3]);
       slot.dress2.setXYZW(i, o[4], o[5], o[6], 0);

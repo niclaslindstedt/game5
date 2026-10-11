@@ -110,7 +110,12 @@ export type FeetPoints = { footL: number; footR: number; kneeL: number; kneeR: n
 /** THE BOARD KEPT ON A THROWN BODY: its feet spread to the board's stance
  * along the line they stand on (each knee with its foot, the motion kept),
  * and `Thrown.board` set — `back` for a fall onto his back. Nothing on skis. */
-export function strapBoard(b: Thrown, c: SkierState, back: boolean, R: FeetPoints): void {
+export function strapBoard(
+  b: Thrown,
+  c: { spec: { board?: { stance: number } } },
+  back: boolean,
+  R: FeetPoints,
+): void {
   const board = c.spec.board;
   if (!board) return;
   const P = b.points;

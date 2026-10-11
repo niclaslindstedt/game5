@@ -20,6 +20,11 @@ export const ENTHUSIASTS = {
   night: GROOMER.night,
   /** The pairs one is dealt — the six the player picks from. */
   skis: RACE.skis as readonly SkiId[],
+  /** The share who ride a SNOWBOARD (the Lynx) instead: a night session's
+   * keen riders are the day's mix, about three in ten on a board
+   * (`CROWD.board`). Dealt off a stream of its own, so the pair, build and
+   * run every other enthusiast is dealt stay as they were. */
+  board: 0.3,
   /** How hard he tucks, at the least and the most: a keen skier, not a
    * racer, holds some of it back. */
   pace: [0.35, 0.8] as readonly [number, number],

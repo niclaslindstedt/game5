@@ -39,6 +39,7 @@ import { standSkier } from "./course.ts";
 import { crowdNet, type CrowdNet, type NetRun } from "./crowd.ts";
 import { ENTHUSIASTS } from "./defs/enthusiasts.ts";
 import { RACE } from "./defs/modes.ts";
+import { LYNX } from "./defs/boards.ts";
 import { RIDERS, withRider } from "./defs/riders.ts";
 import { skisById } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -54,6 +55,9 @@ const dt = TUNING.dt;
 
 /** What the enthusiasts' stream is seeded with beside the run's seed. */
 const ENTHUSIAST_SALT = 0x3e7a51;
+/** ...and the stream that says who of them rides a board, apart so the
+ * pairs, builds and runs the deal draws stay as they were. */
+const BOARD_SALT = 0x5b0a4d;
 
 /** WHETHER IT IS NIGHT on the ski area at the map's hour: the sun under
  * `ENTHUSIASTS.night`, when the crowd has gone in. */
@@ -168,9 +172,12 @@ export function dealEnthusiasts(state: GameState, count: number): void {
   const net = crowdNet(state.level);
   if (net.runs.length === 0) return;
   const rng = createRng((state.seed ^ ENTHUSIAST_SALT) >>> 0);
+  const boards = createRng((state.seed ^ BOARD_SALT) >>> 0);
   for (let i = 0; i < count; i++) {
     const rider = rng.pick(RIDERS);
-    const spec = withRider(skisById(rng.pick(K.skis)), rider);
+    const skis = skisById(rng.pick(K.skis));
+    // Three in ten ride the Lynx instead, skied by the same bot.
+    const spec = withRider(boards.chance(K.board) ? LYNX : skis, rider);
     // Each on a run of his own while there are runs enough.
     const taken = new Set(state.rivals.map((x) => x.free?.run));
     const fresh = pickRun(rng, net, (r) => !taken.has(net.runs.indexOf(r)));

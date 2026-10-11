@@ -56,17 +56,9 @@ import {
 } from "./crowd-lift.ts";
 import { crashLimit, throwRider } from "./crash.ts";
 import { stepDown, throwAmateur } from "./crowd-down.ts";
-import {
-  CROWD,
-  CROWD_GROUPS,
-  CROWD_KINDS,
-  CROWD_SIZE,
-  TURN_STYLES,
-  type AmateurKnobs,
-  type CrowdBody,
-  type CrowdKind,
-  type GroupKind,
-} from "./defs/crowd.ts";
+import { boardFallSide, sitFor, stepSit } from "./crowd-board.ts";
+import { band, bodyFor, dealBoard, dealKnobs, freshAmateur, pickGroup } from "./crowd-deal.ts";
+import { CROWD, CROWD_GROUPS, CROWD_SIZE, TURN_STYLES } from "./defs/crowd.ts";
 import { RACE } from "./defs/modes.ts";
 import { strideRate } from "./poles.ts";
 import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
@@ -217,110 +209,6 @@ const trunks: number[] = [];
 /** The amateurs on each run this step, by run — scratch, rebuilt a step. */
 const onRun: Amateur[][] = [];
 
-const band = (rng: Rng, b: readonly [number, number]): number => rng.range(b[0], b[1]);
-
-/** His knobs, dealt from his kind's bands. */
-function dealKnobs(rng: Rng, kind: CrowdKind): AmateurKnobs {
-  const k = CROWD_KINDS[kind];
-  const style = rng.pick(k.styles);
-  return {
-    skill: band(rng, k.skill),
-    aggression: band(rng, k.aggression),
-    offPiste: band(rng, k.offPiste),
-    width: band(rng, k.width),
-    wobble: band(rng, k.wobble),
-    stopper: band(rng, k.stopper),
-    jumper: band(rng, k.jumper),
-    style,
-    turn: band(rng, TURN_STYLES[style].len),
-  };
-}
-
-function freshAmateur(
-  id: number,
-  group: number,
-  rank: number,
-  kind: CrowdKind,
-  body: CrowdBody,
-  knobs: AmateurKnobs,
-  rng: Rng,
-): Amateur {
-  return {
-    id,
-    group,
-    rank,
-    body,
-    kind,
-    knobs,
-    mode: "ski",
-    run: 0,
-    s: 0,
-    d: 0,
-    speed: 0,
-    yaw: 0,
-    centre: 0,
-    phase: rng.range(0, Math.PI * 2),
-    wander: 0,
-    wanderTo: 0,
-    kickerAt: NaN,
-    kickerD: 0,
-    cap: 0,
-    timer: 0,
-    think: rng.range(0, CROWD.think),
-    airT: 0,
-    airH: 0,
-    airAt: 0,
-    x: 0,
-    y: 0,
-    z: 0,
-    heading: 0,
-    vx: 0,
-    vz: 0,
-    lean: 0,
-    crouch: 0.3,
-    plough: 0,
-    across: 0,
-    fall: 0,
-    fallSide: 1,
-    lift: -1,
-    carrier: -1,
-    seat: 0,
-    tx: 0,
-    tz: 0,
-    ts: 0,
-    // His own place in the stride, off his id rather than the stream: the
-    // whole crowd pushes off at once, and at one phase it skates in step.
-    pole: id * 0.76393,
-    push: 0,
-    turnSide: 0,
-    turnT: 0,
-    turnHeld: 0,
-    thrown: null,
-    rise: 0,
-  };
-}
-
-/** A group kind, by weight. */
-function pickGroup(rng: Rng): GroupKind {
-  const kinds = Object.keys(CROWD_GROUPS) as GroupKind[];
-  let total = 0;
-  for (const k of kinds) total += CROWD_GROUPS[k].weight;
-  let at = rng.next() * total;
-  for (const k of kinds) {
-    at -= CROWD_GROUPS[k].weight;
-    if (at <= 0) return k;
-  }
-  return "solo";
-}
-
-/** The body a member of a group wears: a family's second member is the
- * other parent, and a child is a child. */
-function bodyFor(rng: Rng, kind: CrowdKind, group: GroupKind, rank: number): CrowdBody {
-  if (group === "family" && kind !== "kid") return rng.pick(["man", "woman", "retro"] as const);
-  if (group === "school" && rank > 0) return "child";
-  return rng.pick(CROWD_KINDS[kind].bodies);
-}
-
 /** How much a group would rather ski a run: the colour's crowd per metre of
  * it, and the skill it asks of the group's least skilled — a family goes
  * where the children can. `lengthy` weighs it by its length (where people
@@ -426,11 +314,18 @@ export function createCrowd(state: GameState, count: number): void {
         dealKnobs(rng, who),
         rng,
       );
-      if (def.keep === "track" && k > 0) {
-        // The snake: the instructor's turns, at the children's own skill.
-        const l = crowd.amateurs[crowd.amateurs.length - k].knobs;
-        a.knobs = { ...a.knobs, style: l.style, turn: l.turn, width: l.width };
-      }
+      // Skis or a board — in the snake, what the instructor rides — and,
+      // there, the instructor's turns at the children's own skill.
+      const head = crowd.amateurs[crowd.amateurs.length - k];
+      const snake = def.keep === "track" && k > 0;
+      a.board = dealBoard(rng, a, snake ? head.board : undefined);
+      if (snake)
+        a.knobs = {
+          ...a.knobs,
+          style: head.knobs.style,
+          turn: head.knobs.turn,
+          width: head.knobs.width,
+        };
       g.members.push(a.id);
       crowd.amateurs.push(a);
     }
@@ -528,6 +423,11 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
       if (a.mode !== "stop") {
         a.mode = "stop";
         a.timer = 1;
+        // A rider waiting on a long stop sits down with the rest.
+        if (a.board && leader.mode === "stop") {
+          a.timer = leader.timer;
+          sitFor(rng, a, a.timer);
+        }
       } else a.timer = Math.max(a.timer, 1);
       a.centre = clamp(leader.d + (a.rank % 2 ? -2 : 2), -half + 1, half - 1);
       return;
@@ -591,7 +491,7 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
     (1 + CROWD.fall.wobble * k.wobble * 3) *
     wild;
   if (rng.chance((rate / 60) * think)) {
-    fallDown(a, rng, rng.chance(0.5) ? 1 : -1, "roll");
+    fallDown(a, rng, a.board ? boardFallSide(rng, a) : rng.chance(0.5) ? 1 : -1, "roll");
     return;
   }
 
@@ -599,9 +499,11 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
   if (a.rank === 0 && k.stopper > 0) {
     sampleRun(r, Math.max(0, a.s - CROWD.stop.crestBack), above);
     const crest = here.pitch - above.pitch > CROWD.stop.crestPitch ? CROWD.stop.crest : 1;
-    if (rng.chance(((CROWD.stop.rate * k.stopper * crest) / 60) * think)) {
+    const often = a.board ? CROWD.board.stops : 1;
+    if (rng.chance(((CROWD.stop.rate * k.stopper * crest * often) / 60) * think)) {
       a.mode = "stop";
       a.timer = band(rng, CROWD.stop.hold);
+      sitFor(rng, a, a.timer);
       // The considerate ones pull over; the stopper stops where he is.
       if (k.stopper < 0.6) a.centre = (a.d >= 0 ? 1 : -1) * (half - 2.5);
       return;
@@ -808,7 +710,7 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
       // it is on his back.
       const p = (1 - k.skill) * 0.5 * a.airT + k.wobble * 0.3;
       if (crowd.rng.chance(p)) {
-        const side = crowd.rng.chance(0.5) ? 1 : -1;
+        const side = a.board ? boardFallSide(crowd.rng, a) : crowd.rng.chance(0.5) ? 1 : -1;
         fallDown(a, crowd.rng, side, "landing", a.vx, a.vz, (-G * a.airT) / 2);
       }
     }
@@ -842,22 +744,30 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
       ? 0.55
       : Math.max(tuck, 0.2 + 0.3 * k.aggression * clamp(v / 12, 0, 1) + 0.25 * (1 - k.skill));
   a.crouch += (crouch - a.crouch) * ease;
+  // On a board: no wedge, and a stop is the heel edge skidded across.
   const wedge =
-    k.style === "plough" || (k.skill < 0.3 && (braking > 0 || a.mode === "stop")) ? 0.9 : 0;
+    a.board !== null
+      ? 0
+      : k.style === "plough" || (k.skill < 0.3 && (braking > 0 || a.mode === "stop"))
+        ? 0.9
+        : 0;
   a.plough += (wedge - a.plough) * ease;
   const across =
-    k.style === "slip"
-      ? 0.85
-      : a.mode === "stop"
-        ? v > 0.5
-          ? k.skill >= 0.3
-            ? 1
-            : 0.2
-          : 0.35
-        : k.skill >= 0.3
-          ? braking * 0.6
-          : 0;
+    a.board !== null && a.mode === "stop"
+      ? 1
+      : k.style === "slip"
+        ? 0.85
+        : a.mode === "stop"
+          ? v > 0.5
+            ? k.skill >= 0.3
+              ? 1
+              : 0.2
+            : 0.35
+          : k.skill >= 0.3
+            ? braking * 0.6
+            : 0;
   a.across += (across - a.across) * ease;
+  stepSit(a);
 }
 
 /** Bring a group whose ride is over off the top of a lift. */

@@ -17,8 +17,14 @@
 //                                                      → previews/crowd-falls.png
 //   dress     a real crowd's groups in what they were dealt
 //                                                      → previews/crowd-dress.png
+//   boarders  the SNOWBOARDERS (`crowd-board.ts`): every board shape (a
+//             row) at the three cuts from behind, the side and the front,
+//             then the moments blended as the crowd draws them, a fall, and
+//             every body on a board          → previews/crowd-boarders.png
 //   slope     the crowd on `--seed`'s mountain `--t` s into a free ride, at
 //             the views `busy`, `group`, `chase`, `kicker`, `overview`,
+//             `boarder` (behind a snowboarder at the chase camera's range),
+//             `sitting` (a rider sat in the snow, or stopped),
 //             `queue` (the longest lift queue at its foot) and `chairs`
 //             (a chair line with its riders, from under it), and
 //             `fall-<s>` (an amateur shouldered over, <s> s after)
@@ -49,8 +55,18 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".crowd-preview");
 const outDir = join(root, "previews");
 
-const SHEETS = ["figures", "lods", "moments", "falls", "dress", "slope"];
-const VIEWS = ["busy", "group", "chase", "kicker", "overview", "queue", "chairs"];
+const SHEETS = ["figures", "lods", "moments", "falls", "dress", "boarders", "slope"];
+const VIEWS = [
+  "busy",
+  "group",
+  "chase",
+  "boarder",
+  "sitting",
+  "kicker",
+  "overview",
+  "queue",
+  "chairs",
+];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -81,7 +97,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/crowd-preview.mjs [--sheet=figures,lods,moments,falls,dress,slope] [--bodies=a,b] [--seed=n] [--t=s] [--views=a,b] [--skip-build]",
+  "usage: node scripts/crowd-preview.mjs [--sheet=figures,lods,moments,falls,dress,boarders,slope] [--bodies=a,b] [--seed=n] [--t=s] [--views=a,b] [--skip-build]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());

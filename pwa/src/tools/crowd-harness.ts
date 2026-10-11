@@ -75,6 +75,7 @@ import {
   type CrowdLod,
 } from "../game/crowd-shapes.ts";
 import { createHazeUniforms } from "../game/haze.ts";
+import { BOARDER_COLUMNS, boarderCells } from "./crowd-boarders.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
 
@@ -165,6 +166,9 @@ function standIn(body: CrowdBody, id: number, over: Partial<Amateur> = {}): Amat
     turnHeld: 0,
     thrown: null,
     rise: 0,
+    board: null,
+    sit: 0,
+    sitDown: false,
     ...over,
   };
 }
@@ -178,8 +182,9 @@ function figure(
   outfit: Outfit,
   mirror: number,
   x: number,
+  board = false,
 ): THREE.InstancedMesh {
-  const geometry = buildCrowdFigure(body, lod).clone();
+  const geometry = buildCrowdFigure(body, lod, board).clone();
   geometry.setAttribute(
     "aDress",
     new THREE.InstancedBufferAttribute(new Float32Array(outfit.slice(0, 4)), 4),
@@ -650,6 +655,28 @@ async function slope(): Promise<void> {
       behind(a, 7, 2.2, 60);
       return `behind a carver at ${(a.speed * 3.6).toFixed(0)} km/h`;
     },
+    // THE SNOWBOARDERS: behind a rider at the chase camera's range, and one
+    // sat in the snow (or stopped) from the side and below.
+    boarder() {
+      const pick = (o: Amateur) => out(o) && o.board !== null && o.mode === "ski" && o.speed > 4;
+      const a = busiest(80, pick);
+      if (!pick(a)) return "no rider skiing";
+      behind(a, 7, 2.2, 60);
+      return `behind a ${a.board} rider (${a.kind}/${a.body}) at ${(a.speed * 3.6).toFixed(0)} km/h, lean ${a.lean.toFixed(2)}`;
+    },
+    sitting() {
+      const a =
+        crowd.amateurs.find((o) => o.board && o.sit > 0.8) ??
+        crowd.amateurs.find((o) => o.board && o.mode === "stop");
+      if (!a) return "no rider sat or stopped";
+      const ex = a.x + Math.cos(a.heading) * 5 + Math.sin(a.heading) * 4;
+      const ez = a.z - Math.sin(a.heading) * 5 + Math.cos(a.heading) * 4;
+      look([ex, level.groundAt(ex, ez) + 1.6, ez], [a.x, a.y + 0.4, a.z], 45);
+      const near = crowd.amateurs.filter(
+        (o) => o.board && Math.hypot(o.x - a.x, o.z - a.z) < 30,
+      ).length;
+      return `a ${a.board} rider ${a.sit > 0.8 ? "sat in the snow" : "stopped"} (${near} riders within 30 m)`;
+    },
     kicker() {
       const a =
         crowd.amateurs.find((o) => o.mode === "air") ??
@@ -733,6 +760,8 @@ async function slope(): Promise<void> {
       }
       const modes: Record<string, number> = {};
       for (const a of crowd.amateurs) modes[a.mode] = (modes[a.mode] ?? 0) + 1;
+      modes["on a board"] = crowd.amateurs.filter((a) => a.board).length;
+      modes["sat"] = crowd.amateurs.filter((a) => a.sit > 0.5).length;
       const what = shoot();
       return `${what} — t ${state.t.toFixed(0)} s, ${Object.entries(modes)
         .map(([k, n]) => `${n} ${k}`)
@@ -744,6 +773,9 @@ async function slope(): Promise<void> {
 
 if (sheet === "slope") {
   void slope();
+} else if (sheet === "boarders") {
+  const kit = { bodies, figure, stage, sample, standIn, cell: { w: CELL_W, h: CELL_H } };
+  drawSheet(boarderCells(kit), BOARDER_COLUMNS);
 } else {
   const cells =
     sheet === "lods"

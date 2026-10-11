@@ -141,8 +141,12 @@ export function createPinnedRuns(world: {
       const skier = world.skier(s);
       const standing = (): Level | undefined => {
         const now = world.current();
+        // A tricks run's map carries its park; a jump hill's is built without.
         const same =
-          now.rules.tricks && now.level.seed === map.seed && now.level.version === map.version;
+          map.hill === undefined &&
+          now.rules.tricks &&
+          now.level.seed === map.seed &&
+          now.level.version === map.version;
         return same ? now.level : undefined;
       };
       world.loader.begin({

@@ -49,6 +49,7 @@ import { freshRideKeys, mergeRideKeys, type RideBindings } from "./settings-ride
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
 import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
+import { isJumpHill } from "./jump-hills.ts";
 
 /** How often things go wrong on a free ride: never, or a `MishapRate`. */
 export type MishapSetting = "off" | MishapRate;
@@ -215,6 +216,9 @@ export type Settings = {
   /** THE TRICK MAP CARD's answer: the park a TRICKS run skis
    * (`trick-maps.ts`) — its id, or null for the first. */
   trickMap: string | null;
+  /** THE SAME CARD's answer for SKI JUMPING: the hill its contest jumps
+   * (`jump-hills.ts`) — its id, or null for the first. */
+  jumpHill: string | null;
   /** THE JUMP an AERIALS contest's first jump declares, picked on the trick
    * map card (a code of the chart, `defs/aerial-jumps.ts`). */
   aerialPlan: string;
@@ -276,6 +280,7 @@ export function freshSettings(): Settings {
     ride: freshRide(),
     raceMap: {},
     trickMap: null,
+    jumpHill: null,
     aerialPlan: AERIALS.plan,
     hud: true,
     developer: false,
@@ -367,6 +372,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.ride = mergeRide(blob.ride);
   out.raceMap = mergeRacePicks(blob.raceMap);
   if (isTrickMap(blob.trickMap)) out.trickMap = blob.trickMap;
+  if (isJumpHill(blob.jumpHill)) out.jumpHill = blob.jumpHill;
   if (isAerialCode(blob.aerialPlan)) out.aerialPlan = blob.aerialPlan;
   if (typeof blob.hud === "boolean") out.hud = blob.hud;
   if (typeof blob.developer === "boolean") out.developer = blob.developer;

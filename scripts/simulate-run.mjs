@@ -102,9 +102,13 @@ const args = parseArgs(
       kind: "string",
       help: "on --mode aerials, the jump the bot declares and throws (a code of the chart: bL, bLF, bFdFF …); the contest's default when left out",
     },
+    hill: {
+      kind: "string",
+      help: "on --mode skiJump, the hill jumped (large, normal); the contest's own, the large, when left out",
+    },
     json: { kind: "string", help: "also write the rows (events dropped) to this file" },
   },
-  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--face id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|slopestyle|halfpipe|moguls|aerials|skiJump] [--heat] [--plan code] [--json path]",
+  "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--face id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|slopestyle|halfpipe|moguls|aerials|skiJump] [--heat] [--plan code] [--hill large|normal] [--json path]",
 );
 // A real face is fetched before a map is raised on it (`loadRealFace`).
 if (args.face) await (await import(join(root, "engine/index.ts"))).loadRealFace(args.face);
@@ -136,6 +140,10 @@ if (
   process.exit(2);
 }
 
+if (args.hill !== undefined && args.hill !== "large" && args.hill !== "normal") {
+  console.error(`unknown hill "${args.hill}" (large, normal)`);
+  process.exit(2);
+}
 if (args.plan !== undefined && !isAerialCode(args.plan)) {
   console.error(`unknown jump "${args.plan}" (a back jump of the aerials chart: bL, bLF, bFdFF …)`);
   process.exit(2);
@@ -232,6 +240,7 @@ for (const spec of roster) {
       mode: args.mode,
       heat: args.heat,
       plan: args.plan,
+      hill: args.hill,
     });
     rows.push(r);
     console.log(

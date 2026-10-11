@@ -23,7 +23,8 @@ export type MapPicks = {
    * on to the rider card, then the gear card. */
   choose: (level: PinnedLevel) => void;
   /** A trick map picked on the trick map card, kept as the one the TRICKS
-   * run rides, on to the rider card, then the gear card. */
+   * run rides (a jump hill as the one SKI JUMPING jumps), on to the rider
+   * card, then the gear card. */
   chooseTrick: (map: TrickMap) => void;
 };
 
@@ -57,7 +58,9 @@ export function mapPicks(world: {
       world.setPage("dress");
     },
     chooseTrick: (map) => {
-      world.setSettings((s) => ({ ...s, trickMap: map.id }));
+      world.setSettings((s) =>
+        map.hill ? { ...s, jumpHill: map.id } : { ...s, trickMap: map.id },
+      );
       world.setPage("dress");
     },
   };

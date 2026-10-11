@@ -33,9 +33,10 @@ export const FREESTYLE_STRINGS = {
     moguls: "MOGULS",
     aerials: "AERIALS",
   } as Readonly<Record<Freestyle, string>>,
-  /** Ski jumping's row: the hill and its format under its name. */
-  freestyleSkiJump: (hs: number, jumpers: number, finalists: number): string =>
-    `HS ${hs} · ${jumpers} · FINAL OF ${finalists}`,
+  /** Ski jumping's row: the hill sizes its hills come in and its format
+   * under its name — "HS 106 / 140 · 50 · FINAL OF 30". */
+  freestyleSkiJump: (hs: readonly number[], jumpers: number, finalists: number): string =>
+    `HS ${hs.join(" / ")} · ${jumpers} · FINAL OF ${finalists}`,
 
   /* ── A TRICK AS THE JUDGES CALL IT ──────────────────────────────────── */
   /** "SWITCH LEFT DOUBLE CORK 1260 MUTE", "BACKFLIP", "STRAIGHT AIR" — and

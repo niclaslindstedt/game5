@@ -2,7 +2,7 @@
 // A SKI JUMP AS TELEVISION SHOWS IT (R43) — the broadcast's director over a
 // jump: the cameras a jumping hill's production stands where it stands
 // them, and the cut from one to the next as the jump goes from the bar to
-// the out-run. The research (`docs/specs/SKI_JUMPING.md` § *The cameras*,
+// the out-run. The research (`docs/freestyle.md` § *Ski jumping*, *The camera*,
 // in our own words off a broadcaster's camera plan for the sport):
 //
 //   TOWER    the crane opposite the start tower, over the deck down the

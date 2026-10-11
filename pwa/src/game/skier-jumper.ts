@@ -16,8 +16,8 @@
 // HIP's inside angles, the HEEL's lift off the ski about the toe, the HEAD
 // raised off the trunk's line — and the ARMS as a direction off the trunk.
 //
-// THE RESEARCH (`docs/specs/SKI_JUMPING.md` § *Settled (phase 9)*, in our
-// own words; *(est.)* where it is ours):
+// THE RESEARCH (`docs/freestyle.md` § *Ski jumping*, *What the game
+// models*, in our own words; *(est.)* where it is ours):
 //   * THE IN-RUN (a 2-D study of 267 top jumpers' in-run on a large hill):
 //     the ankle at 54 ± 5° (the shin's lean off the ski), the knee at
 //     67 ± 8°, the trunk 12 ± 4° off the track — folded flat over the

@@ -21,7 +21,7 @@ How the research is recorded here is `docs/disciplines.md`'s rule, restated:
 
 | Format | Kind | Built on | State |
 | --- | --- | --- | --- |
-| Ski jumping | distance + style ± wind and gate, two rounds | a jumping hill of its own | BUILT (R43) — spec `SKI_JUMPING.md`; first and lit on the tricks card |
+| Ski jumping | distance + style ± wind and gate, two rounds | a jumping hill of its own | BUILT (R43) — below, § *Ski jumping*; first and lit on the tricks card, on nine hills of its own |
 | Halfpipe | judged runs, best run counts | a pipe of its own | BUILT in part (R39) — spec `HALFPIPE.md` |
 | Slopestyle | judged runs, best run counts | a course of jumps and rails | BUILT in part (R38) — spec `SLOPESTYLE.md` |
 | Big air | judged jumps, best two different | one jump | RETIRED for ski jumping; its straight venue (R37) stays under slopestyle, the halfpipe, moguls and aerials |
@@ -268,6 +268,153 @@ by arrangement; mini cameras in the in-run's tracks. The inserts: the
 athlete with the countdown at the bar, the in-run speed after the take-off,
 the distance two or three seconds after the landing — none on a slow
 motion.
+
+### What the game models
+
+Built (R43). Every number here is the game's own, measured by its labs —
+`make skijump-flight` the jump, `make skijump-hills` the hills, `make
+skijump` the picture — or marked *(est.)*; the research above is what it
+stands on.
+
+- **The two hills** are two rows of one rule (`SKI_JUMP_RULE` in
+  `engine/mapgen/trick-rules.ts`): the LARGE hill (HS 140, w 126) and the
+  NORMAL (HS 106, w 95.4), each a pair of free choices inside the norm's
+  bands — the table at the low end (11.2° and 10.6°, the higher flight),
+  the steepness 0.58 and 0.55 — and every element off the norm's formulas
+  (`hillOf`). The large hill measures h 62.9 m, n 108.5 m, v_K 30.3 m/s,
+  r_L 300 m, r₁ 103 m, t 6.8 m, s 3.15 m, e₁ 98.8 m, e₂ 80.6 m, a 82.6 m;
+  U lies 87.8 m under the edge (the norm's 88 at most). The distance read
+  along the profile from the knoll's foot is scaled (× 1.0063) so K reads
+  w. The design speed v₀ is the speed that reaches K in calm air on the
+  game's own flight: 26.2 m/s on the large hill (the norm's flight model's
+  for its choices) and 24.4 m/s on the normal (the norm's model gives 24.6,
+  which the game's flight carries 4 m past K; a certificate of a hill of
+  the class reads 24.6, the norm's worked HS 100 hill 24.25).
+- **The hill is designed, then fitted**: the profile is the same on every
+  map, dropped onto the line of the face where it cuts and fills least
+  (`straight-venue.ts`'s search and grading), its surface ANALYTIC inside
+  its width (the 2 m grid cut under it). The in-run above the edge is a
+  RAISED DECK on a truss and piers to a start tower: the ground under it is
+  laid as an 8° slope up from the knoll's foot and lowered to that where
+  the map stands higher, so the deck stands ~36 m over the snow at the top
+  of the large hill and ~29 m on the normal *(est., off towers of the
+  class)*.
+- **The pair and the build**: the ALBATROSS (2.55 m, 105/100/102 mm, a
+  straight sidecut, no steel edges, the boot's toe 57 % back, the heel
+  free) at the LIGHT build — 67.5 kg with the kit, near the field's ~66 kg.
+- **The bar and the in-run**: sat on the bar of the jury's gate under a
+  start light; off the bar on the tuck or the jump key; down the tracks as a
+  bead on a wire — gravity, the ice tracks' friction 0.007 and a 0.15 m²
+  crouch in the hill's own air (the light end of the measured 0.15–0.25,
+  fitted so the large hill's design gate stands in the upper half of its
+  28 gates: gate 22; the normal hill's is gate 21 of 23).
+- **The take-off** is the jump press TIMED to the edge: a half-sine push of
+  0.28 s giving 2.5 m/s at right angles to the table, the share kept
+  falling off as (1 + cos(πΔ/0.28))/2 for a press Δ off; 0.1 s off costs
+  13–22 m on the large hill, never pressed he clears the knoll and no more.
+- **The flight** flies a POLAR of lift and drag areas against the angle of
+  attack to the air, its shape the V-style studies' and its size fitted
+  *(est.: 0.55 m² of lift and 0.32 m² of drag at 38°, an L/D near 1.7 —
+  the studies' lift under their drag; a measured table should replace
+  it)*; the wind along the hill follows its slope, so a head wind lifts.
+  The transition laid out in 0.55 s, the V opened over 0.35 s on the tuck,
+  the attitude on the lean (the assist easing it toward the ideal 30 → 38°),
+  the roll on the edge; the TELEMARK on the trick key, two-footed without
+  it; the falls (turned over, rolled, sat back). The large hill's design
+  jump: 127 m, 4.3 s, peaking 4.3 m over the slope 56 m down; head wind
+  +5.5 m a m/s, tail −5.5. A clean jump hurts no one.
+- **The wind** is the hill's own (`jump-wind.ts`), never the map's: a day's
+  mean along the hill dealt off the contest's seed about +0.2 m/s, swinging
+  over a quarter of an hour to two hours, gusts blown down it; five stations
+  at the edge and at 25–100 % of K, the mean of those passed compensated.
+  The jury holds a jumper on the bar while the tail at the edge passes
+  3 m/s, eases the day to gusts under 40 km/h and a steady fall, picks the
+  round's gate off the forecast (par + 8 m under 0.97 × HS) and lowers it
+  when the wind would carry the best past HS.
+- **The scorer** (`ski-jump-judge.ts`): 60 at K and the metre value either
+  way, five judges' style marks with the high and low struck, the gate's
+  and the wind's compensation off the hill's own factors (measured the
+  norm's way: the large hill 6.5 points a metre of in-run, 9.9 a m/s head,
+  11.98 tail; the normal 6.6, 6.7 and 8.1 — the tail the rules' 1.21 × the
+  head).
+- **The contest** (`ski-jump-contest.ts`): a trial, round 1 of fifty — the
+  player and 49 dealt off the contest's own stream about the bot's PAR (the
+  bot's clean jump at the calm jury gate: 126 m on the large hill, 96 m on
+  the normal) — the best thirty to the final in reverse order, the total of
+  both.
+- **The jumper's body as drawn** (`skier-jumper.ts`, a layer over the
+  skier's own pose): a study of some 270 top jumpers' in-run position on a
+  large hill measured the ankle at 54 ± 5° (the shin's lean off the ski),
+  the knee at 67 ± 8°, the trunk only 12 ± 4° off the track — folded flat
+  onto the thighs — the arms laid straight back along the body and the
+  elbow at 166 ± 7°; from the edge into the early flight the hip opens from
+  about 86 to 109° and the knee from 136 to 171° over the 0.25–0.30 s of
+  the push; in flight the hips near 160°, the V 30° from the heels, the
+  heel lifted about the toe *(est. 35°)*; the telemark one foot a foot's
+  length ahead, the back knee lower and its heel up, the arms out and
+  forward, held 10–15 m.
+- **As drawn and heard** (`ski-jump-plan.ts`, `ski-jump-raised.ts`,
+  `skier-jumper.ts`, `camera-skijump.ts`, `ski-jump-arena-plan.ts`,
+  `audio/jump-*.ts`): the trough and its ice tracks on the raised deck,
+  the tower, the gates and the light, the boards every metre, the P, K and
+  HS lines, the wind flags and the judges' tower; the jumper laid over the
+  skier's own pose (the bar, the crouch folded flat, the extension, the
+  V-style, the telemark, a tight suit, no poles, the heel free); a
+  broadcast director cutting the bar, the profile beside the take-off, the
+  flight's rail, the landing and the out-run; a stadium round the out-run;
+  the tracks' hiss, the flight's wind and the crowd's roar with the
+  distance.
+
+### The hills it is jumped on
+
+A contest is jumped on one of ski jumping's own pinned hills
+(`pwa/src/game/jump-hills.ts`), picked on the trick map card — a seed's
+map in its country on a generator version, its digest held, its hill of
+either class, its day and sky its own. They were chosen out of a sweep of
+the first thirty seeds in every country (`make skijump-hills`) for the hill
+each map gives: little earth moved under the landing hill and the out-run,
+level ground beside the out-run for the stadium, the bot's jump near K,
+and the map built in a few attempts — then spread over the countries, the
+light and the skies a jury lets a contest go ahead in (no storm), some of
+them under the arena's floodlights.
+
+| Hill | Class | Country, seed | Day, hour, sky | rms m | fill / cut m | beside the out-run m | the bot |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Clear Morning | normal | alpine 29 | day 50, 10:30, clear | 3.6 | 6.0 / 5.6 | 12.8 | 94.0 m |
+| Sea Breeze | normal | maritime 14 | day 30, 13:30, fair | 1.2 | 1.8 / 3.6 | 14.5 | 92.5 m |
+| High Plateau | normal | continental 3 | day 70, 15:00, high cloud | 2.3 | 4.0 / 2.6 | 11.2 | 86.0 m |
+| Polar Night | normal | fell 12 | day 15, 19:30, clear (night) | 3.0 | 3.5 / 4.8 | 4.8 | 90.0 m |
+| Spring Giant | large | alpine 15 | day 80, 12:00, clear | 3.2 | 5.1 / 5.0 | 15.0 | 122.5 m |
+| Powder Sky | large | continental 29 | day 45, 14:00, flurries | 3.7 | 6.5 / 5.5 | 15.3 | 124.0 m |
+| Grey Coast | large | maritime 19 | day 25, 11:30, overcast | 3.5 | 5.4 / 4.6 | 15.8 | 126.0 m |
+| Midwinter Lights | large | fell 15 | day 355, 18:30, snow (night) | 4.6 | 7.3 / 7.2 | 11.8 | 127.0 m |
+| Valley Fog | large | continental 26 | day 60, 17:30, fog | 3.2 | 5.7 / 5.4 | 15.6 | 114.5 m |
+
+All on generator 9, none on a trick map's seed in its country; `rms` the
+landing hill's and out-run's cut and fill, `fill / cut` the most the
+landing hill is built up or dug, `beside the out-run` the most the ground
+20–40 m off its axis lies off its level, the bot's jump the first round's
+on the hill's own air (the day's wind dealt off the contest's seed, so it
+reads either side of K: 95.4 m normal, 126 m large). A sweep's middle
+moves 4–6 m of rms and leaves 10–20 m beside the out-run; a hill with the
+mountain rising 80–120 m beside its out-run was never a candidate.
+
+### Still open
+
+- A FLYING hill (HS 185 and over: 120 points at K, 1.2 a metre; the air's
+  density matters there and the norm leaves it out).
+- A measured polar (lift and drag areas against the angle of attack, the
+  body angle and the V) in place of the fitted one.
+- The current wind-window and gate practice (how often a jury moves the
+  gate); a round restarted when it passes HS; a coach lowering his own
+  jumper's gate.
+- The hill's chairlift, the television crane, the photocells drawn, a
+  jumping boot of its own (the walk boots stand in), the suit's panelling,
+  the landing's snow cloud thinner than a piste's, `skier-metrics` rows of
+  the jumper's own bands.
+- The clatter over the tracks' joints, a gust's buffet in flight, the
+  horns, the cowbells and the coach's whistle.
+- Team events (four jumpers a team).
 
 ## What every judged park format shares (halfpipe, slopestyle, big air)
 
@@ -517,7 +664,7 @@ field is dealt.
 ## Big air
 
 *Retired: ski jumping replaced big air on the tricks card
-(`docs/specs/SKI_JUMPING.md`). The research stays — slopestyle's jumps,
+(§ *Ski jumping* above). The research stays — slopestyle's jumps,
 the judges' trick reader (`judge.ts`) and the straight venue cite it.*
 
 ONE jump — a big kicker over a table onto a steep landing — one trick an

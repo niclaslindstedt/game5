@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
 
 build:
 	npm run build
@@ -692,6 +692,16 @@ plane-flight:
 # before, --compare=FILE after; SEED= another map's hill).
 skijump-flight:
 	npm run skijump-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE SKI JUMPING HILLS LAB: what the hill R43 cuts makes of a map — the
+# earth it moves under the landing hill and the out-run, the in-run's deck
+# over the ground and the cut under it, the ground beside the out-run for
+# the stadium, the bot's jump — over a sweep of seeds and countries, or the
+# committed hills audited against their digests, in pure Node
+# (`scripts/skijump-hills-lab.mjs`; ARGS="--seeds=1-30 --regions=fell
+# --hill=normal --bot", ARGS="--pinned --bot").
+skijump-hills:
+	npm run skijump-hills -- $(ARGS)
 
 # THE JUMP PLANE LAB: the free ride's jump plane — the Blender model where
 # the build packs it (`make models KIND=plane`), the code's stand-in where it

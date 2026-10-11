@@ -604,12 +604,16 @@ export type SkiJumpHillId = "large" | "normal";
  * certificates of a normal and a large hill of the class the top series
  * jumps). */
 export const SKI_JUMP_RULE = {
-  /** THE HILLS, the large first (`docs/specs/SKI_JUMPING.md`). K's `w` is
+  /** THE HILLS, the large first (`docs/freestyle.md` § *Ski jumping*). K's `w` is
    * the hill size over 0.9; the table at the low end of the norm's band
    * (w/30 + 6.9 … w/30 + 7.9) flies the higher flight; the steepness inside
-   * its band (w/800 + 0.400 … w/1000 + 0.480); the design speed and the
-   * slope at K are the norm's flight model's for those choices (our
-   * arithmetic off its tables). The landing transition's radii lie between
+   * its band (w/800 + 0.400 … w/1000 + 0.480); the slope at K is the
+   * norm's flight model's for those choices (our arithmetic off its
+   * tables), and the design speed the one the game's own flight reaches K
+   * at in calm air — the norm's model's 26.2 m/s on the large hill, 24.4 on
+   * the normal (where the model's 24.6 flies 4 m past K and leaves the
+   * design gate the top one; a certificate of a hill of the class reads
+   * 24.6, the norm's worked HS 100 hill 24.25). The landing transition's radii lie between
    * the norm's floor at L (the 1.8 g load at the speed there, ~93 m on the
    * large hill, ~86 m on the normal) and the landing radius (est.). The
    * SCORING numbers are the hill's own, measured the norm's way by
@@ -640,14 +644,14 @@ export const SKI_JUMP_RULE = {
       inRun: 35,
       table: 10.6,
       steepness: 0.55,
-      speed: 24.6,
+      speed: 24.4,
       slope: 34.0,
       r2l: 100,
       r2: 115,
       metre: 2.0,
-      gate: 6.2,
-      head: 6.2,
-      tail: 7.5,
+      gate: 6.6,
+      head: 6.7,
+      tail: 8.1,
     },
   } as Readonly<Record<SkiJumpHillId, SkiJumpHillRow>>,
   /** THE NORM'S FORMULAS (lengths m, speeds m/s, angles degrees):

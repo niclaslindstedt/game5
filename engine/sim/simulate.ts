@@ -21,6 +21,7 @@ import {
   skiJumpPlace,
 } from "../game/ski-jump-contest.ts";
 import { setSkiJump } from "../mapgen/ski-jump.ts";
+import type { SkiJumpHillId } from "../mapgen/trick-rules.ts";
 import type { GameMode } from "../game/defs/modes.ts";
 import type { CrossHeat } from "../game/cross-bracket.ts";
 import { generateLevel } from "../mapgen/generate.ts";
@@ -93,6 +94,9 @@ export type SimOptions = {
   /** On a ski cross, ski a HEAT (R35) rather than the qualification: the
    * bot in the first seed's lane beside three of the start list, skied. */
   heat?: boolean;
+  /** On a ski jump (R43), the hill jumped — the contest's own (the large
+   * hill) when left out. */
+  hill?: SkiJumpHillId;
 };
 
 export type RunReport = {
@@ -190,6 +194,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     laps: options.laps,
     cross: race === "skiCross" && options.heat ? SIM_HEAT : undefined,
     plan: race === "aerials" ? options.plan : undefined,
+    hill: race === "skiJump" ? options.hill : undefined,
     rivals: race ? undefined : (options.rivals ?? 0),
     countdown: 0,
     spec: options.spec,
@@ -205,9 +210,13 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
       ? {
           ...asked,
           level: base,
-          skiJumpContest: freshSkiJumpContest(seed, setSkiJump(base, SKI_JUMP.hill), {
-            trial: false,
-          }),
+          skiJumpContest: freshSkiJumpContest(
+            seed,
+            setSkiJump(base, options.hill ?? SKI_JUMP.hill),
+            {
+              trial: false,
+            },
+          ),
         }
       : asked,
   );

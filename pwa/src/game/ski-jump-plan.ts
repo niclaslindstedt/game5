@@ -7,7 +7,7 @@
 // places (`tests/ski_jump_look_test.ts`).
 //
 // What a large hill is, as a crowd and a broadcast see it (the research,
-// in our own words — `docs/specs/SKI_JUMPING.md` § *The hill as drawn*):
+// in our own words — `docs/freestyle.md` § *Ski jumping*):
 //
 //   * THE IN-RUN is a concrete trough on a raised deck, about two and a half
 //     metres between its guard walls, its floor carrying TWO TRACKS — ice

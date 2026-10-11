@@ -71,7 +71,8 @@ import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
 import { raceMapsOf } from "./game/race-maps.ts";
 import { carriesPoles } from "./game/outfit.ts";
 import { mapPicks } from "./game/map-picks.ts";
-import { isTrickRun, trickMapFor, tricksTile } from "./game/trick-maps.ts";
+import { isTrickRun, tricksTile } from "./game/trick-maps.ts";
+import { cardPick } from "./game/jump-hills.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
 import {
   FIRST_FREE_SEED,
@@ -835,7 +836,7 @@ export function App() {
     // trick map card's map, unless a link pinned a seed.
     const m = modeRef.current;
     if (isTrickRun(m) && params.seed === null) {
-      return pressRef.current.tricks(trickMapFor(settings.trickMap), m);
+      return pressRef.current.tricks(cardPick(m, settings), m);
     }
     // The tricks run is ridden on the map the menu stands over.
     const here = modeRef.current === "tricks";

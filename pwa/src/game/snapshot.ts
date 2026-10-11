@@ -278,6 +278,9 @@ export type HudSnapshot = {
    * stands him up (`mayGetUp`) — the reset lit and the hint up from then,
    * the first seconds left to the fall and the body's plate. */
   getUp: boolean;
+  /** STOOD STILL ON A BOARD on a free ride, on the snow and on nothing
+   * else: how he gets going — the skate and the hop — the standing hint. */
+  crawl: boolean;
   /** THE DAMAGE INSTRUMENT: each part 0 sound … 1 wrecked, or null on a
    * run without damage (`GameState.damage`). */
   damage: { skiLeft: number; skiRight: number; legs: number } | null;
@@ -356,6 +359,32 @@ export type HudGroomer =
 
 /** How near a piste machine the HUD names it to him, m. */
 const GROOMER_CALL = 45;
+
+/** How slow a board rider must be for the crawl's hint, m/s. */
+const CRAWL_HINT = 1;
+
+/** Whether a board rider stands still on the snow of a free ride with
+ * nothing carrying him — when the HUD says how he gets going. */
+export function crawlHint(state: GameState): boolean {
+  const c = state.skier;
+  return (
+    c.board !== undefined &&
+    c.board !== null &&
+    !state.rules.course &&
+    c.speed < CRAWL_HINT &&
+    !c.airborne &&
+    c.thrown === null &&
+    c.lift === null &&
+    !c.town &&
+    !trenched(c.trench) &&
+    !state.heli?.rider &&
+    !state.sled?.rider &&
+    !state.balloon?.aboard &&
+    !state.plane?.rider &&
+    !(state.groomers ?? []).some((g) => g.rider) &&
+    !paraRigged(state)
+  );
+}
 
 /** The piste machines' readout for the player at this step. */
 export function groomerOf(state: GameState): HudGroomer | null {
@@ -717,6 +746,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     down: c.thrown !== null,
     // A mortal wound is never got up from (`gore.ts`'s `holdsHim`).
     getUp: c.thrown !== null && mayGetUp(c.thrown) && !holdsHim(state),
+    crawl: crawlHint(state),
     damage: state.damage
       ? {
           skiLeft: c.damage.ski[0],

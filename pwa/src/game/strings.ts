@@ -195,6 +195,11 @@ export const STRINGS = {
    * him up — a tap anywhere, or the tuck key as bound. */
   getUp: (touch: boolean, key: string): string =>
     touch ? "TAP TO GET UP" : `PRESS ${key} TO GET UP`,
+  /** STOOD STILL ON A BOARD: how he gets going — the rear foot out to
+   * skate on the tuck, or both feet in and hopped along on the jump. */
+  crawl: "GET GOING",
+  crawlHow: (touch: boolean, tuck: string, jump: string): string =>
+    touch ? "HOLD TUCK TO SKATE · TAP JUMP TO HOP" : `HOLD ${tuck} TO SKATE · TAP ${jump} TO HOP`,
   /** THE DAMAGE INSTRUMENT: its caption, and what each part is called. */
   damageLabel: "DAMAGE",
   damageSkiLeft: "Left edge",

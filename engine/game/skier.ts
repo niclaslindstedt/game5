@@ -101,7 +101,8 @@ import { castLeg } from "./leg-ray.ts";
 import { riddenLevel } from "./mogul-ride.ts";
 import { climbShare } from "./poles.ts";
 import { holdsStill, laySkis, poleForce, pushReachOf, sidestepEdge } from "./board-moves.ts";
-import { stepRound, stepSide, stoodStill, strideOn, turnWork } from "./board-moves.ts";
+import { hopAhead, stepRound, stepSide, stoodStill, strideOn } from "./board-moves.ts";
+import { turnWork } from "./board-moves.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
@@ -889,6 +890,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     c.vx += pop * normal.x;
     c.vy += pop * normal.y;
     c.vz += pop * normal.z;
+    hopAhead(c, normal);
     c.popped = 0;
     events.push({ kind: "jump", t: state.t, pop, held: loaded });
     if (c.switched) hopRevert(state, input.steer);

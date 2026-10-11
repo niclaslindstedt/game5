@@ -86,6 +86,7 @@ import { laySkiRoutes } from "./ski-routes.ts";
 import { resortCached } from "./resort-cache.ts";
 import { realFaceRegion } from "./real-face.ts";
 import { analyzeResort } from "../analysis/resort.ts";
+import { RESORT_RULES } from "./resort-rules.ts";
 
 /** How many pistes an attempt walks before it gives up on its mountain. */
 const DRAWS = 40;
@@ -246,7 +247,7 @@ export function generateLevel(seed: number, opts: GenerateOptions = {}): Generat
 }
 
 function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
-  const attempts = opts.attempts ?? 16;
+  const attempts = attemptsOf(opts);
   const laps = opts.laps ?? R.race.laps;
   const traits = generatorTraits(opts.version);
   const { version } = traits;
@@ -273,6 +274,13 @@ function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
   throw new Error(`level ${seed}: no clean map in ${attempts} attempts — ${reasons.join("; ")}`);
 }
 
+/** The attempts a map is searched over: a real face's more
+ * (`RR.massif.real.attempts`), since its later ones give the dealt peak,
+ * valley and stations back. */
+function attemptsOf(opts: GenerateOptions): number {
+  return opts.attempts ?? (opts.face ? RESORT_RULES.massif.real.attempts : 16);
+}
+
 /** Whether `generateLevel(seed, opts)` would be answered off the ski area
  * this thread built last (`buildResort`'s one-resort cache): a course's map
  * stood up in milliseconds rather than a mountain raised in seconds. */
@@ -283,7 +291,7 @@ export function levelIsCached(seed: number, opts: GenerateOptions = {}): boolean
   return resortCached(
     seed,
     face ?? opts.region,
-    opts.attempts ?? 16,
+    attemptsOf(opts),
     traits.version,
     face ? opts.face : undefined,
   );

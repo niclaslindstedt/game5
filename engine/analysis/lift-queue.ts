@@ -51,10 +51,12 @@ export function queueFault(level: Level, upper: Lift, lower: LiftPlan): string |
   const n = Math.max(1, Math.ceil(reach / READ));
   const y0 = level.groundAt(off.x, off.z);
   let low = y0;
+  // A real face's way is graded through its own knolls (R25).
+  const rise = level.face ? RR.massif.real.least.rise : C.rise;
   for (let i = 1; i <= n; i++) {
     const t = i / n;
     const y = level.groundAt(off.x + dx * t, off.z + dz * t);
-    if (y - low > C.rise) return `is reached over snow that climbs ${(y - low).toFixed(2)} m`;
+    if (y - low > rise) return `is reached over snow that climbs ${(y - low).toFixed(2)} m`;
     low = Math.min(low, y);
   }
   const fall = (y0 - level.groundAt(ring.x, ring.z)) / reach;

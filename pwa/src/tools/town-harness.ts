@@ -11,11 +11,12 @@
 //   * walking the street with the pair on his shoulder, and away off it;
 //   * the pair off his shoulder and down on the snow, and back in.
 //
-// Every frame is named by the moment it is of — `stop:<s>` s after he
-// stopped, `walk:<s>` s into the walk, `leave:<s>` s after the pair began
-// to come off — and drawn through a lens of the sheet's: `front` (three
-// quarters from in front, to his right), `side` (his right side), `back`
-// (three quarters behind), or `chase` (the game's own chase rung).
+// Every frame is named by the moment it is of — `ride:<s>` s into the run,
+// `street:<s>` s after his town began, `stop:<s>` s after he stopped,
+// `walk:<s>` s into the walk, `leave:<s>` s after the pair began to come
+// off — and drawn through a lens of the sheet's: `front` (three quarters
+// from in front, to his right), `side` (his right side), `back` (three
+// quarters behind), or `chase` (the game's own chase rung).
 
 import { angleDiff } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
@@ -120,7 +121,7 @@ function lensOf(s: GameState, lens: Lens): LensPose | null {
 }
 
 /** Where in the story he is, and the time each moment is at once known. */
-type Story = { stop: number; walk: number; leave: number };
+type Story = { ride: number; street: number; stop: number; walk: number; leave: number };
 
 function phaseOf(s: GameState): string {
   const w = s.skier.town;
@@ -143,14 +144,14 @@ window.__town = {
       heading: start.heading,
       speed: 7,
     });
-    const story: Story = { stop: NaN, walk: NaN, leave: NaN };
+    const story: Story = { ride: state.t, street: NaN, stop: NaN, walk: NaN, leave: NaN };
     const wanted = sheets.flatMap((sh, n) =>
       sh.frames.map((f, j) => {
         const [anchor, at] = f.split(":");
         return { sheet: n, j, anchor: anchor as keyof Story, at: Number(at), name: f };
       }),
     );
-    const order: (keyof Story)[] = ["stop", "walk", "leave"];
+    const order: (keyof Story)[] = ["ride", "street", "stop", "walk", "leave"];
     wanted.sort((a, b) => order.indexOf(a.anchor) - order.indexOf(b.anchor) || a.at - b.at);
     const shots = sheets.map((sh) => ({
       ...sh,
@@ -188,6 +189,7 @@ window.__town = {
           if (e.phase === "stop") story.stop = state.t;
         }
         const now = state.skier.town;
+        if (now && Number.isNaN(story.street)) story.street = state.t;
         if (now?.phase === "walk" && Number.isNaN(story.walk)) story.walk = state.t;
         if (now?.phase === "drop" && Number.isNaN(story.leave)) story.leave = state.t;
         // A frame drawn every other step, so the view's own springs run.

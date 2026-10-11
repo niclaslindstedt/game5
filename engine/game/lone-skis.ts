@@ -34,6 +34,7 @@ import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
+import { liftedOnRock } from "./rock-ground.ts";
 import type { GameState, LoneSki, SkierState, Thrown } from "./state.ts";
 
 const S = TUNING.crash.skis;
@@ -279,6 +280,7 @@ function stepSki(state: GameState, b: Thrown | null, ski: LoneSki): void {
       const j = 3 * e;
       if (ski.hooked & (1 << e)) continue;
       if (P[j + 1] < floor[e]) {
+        liftedOnRock(level, P[j], P[j + 2], floor[e] - P[j + 1], L, j);
         P[j + 1] = floor[e];
         touching |= 1 << e;
       }
@@ -287,6 +289,8 @@ function stepSki(state: GameState, b: Thrown | null, ski: LoneSki): void {
     const mz = P[5] + (P[2] - P[5]) * m;
     const under = level.groundAt(mx, mz) - (P[4] + (P[1] - P[4]) * m);
     if (under > 0 && !ski.hooked) {
+      liftedOnRock(level, mx, mz, under, L, 0);
+      liftedOnRock(level, mx, mz, under, L, 3);
       P[1] += under;
       P[4] += under;
       touching = 3;

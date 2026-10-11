@@ -288,11 +288,17 @@ export function afterskiOn(ride: FreeRide, seed: number): boolean {
  * row's run — no run id of its own: it is the run picked, or none. */
 export const SKIS_START = "skis";
 
-/** What the START row writes when `id` is picked on `seed`: ON SKIS hands
- * the ride back to the RUN row's first run, anything else is its machine
- * (or the lodge), kept as a run id of the map as before. */
+/** ...and its second: ON A SNOWBOARD, the same lift ride on the board the
+ * gear card last picked — not a run id either; which pair is ridden is the
+ * settings' (`Settings.skis`), and the row follows it. */
+export const BOARD_START = "board";
+
+/** What the START row writes when `id` is picked on `seed`: ON SKIS or ON
+ * A SNOWBOARD hands the ride back to the RUN row's first run, anything
+ * else is its machine (or the lodge), kept as a run id of the map as
+ * before. */
 export function startPicked(ride: FreeRide, seed: number, id: string): Partial<FreeRide> {
-  return id === SKIS_START
+  return id === SKIS_START || id === BOARD_START
     ? { run: null }
     : { run: { seed, region: ride.region, face: ride.face, id } };
 }
@@ -467,6 +473,8 @@ export function freeGameOptions(
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
     groomer: "night",
+    // THE AVALANCHES: the loaded slopes off the groomed runs may slide.
+    avalanche: true,
   };
 }
 

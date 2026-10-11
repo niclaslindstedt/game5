@@ -8,9 +8,12 @@
 // his weight turn him, the risers speed him up. He may put his skis back on
 // the snow under the flying wing and ski with it (speed riding), and THE
 // RELEASE PRESS (`SkierInput.machine`: ENTER, a double tap on touch) drops
-// the whole rig — the canopy streams away and the motor falls — and he is a
-// skier again, landing on his skis wherever he let go. Let go high, it is
-// a long way down.
+// the whole rig — the canopy streams away and the motor, shoved back off
+// him, falls on its own — and he is a skier again, landing on his skis
+// wherever he let go. Let go high (`CHUTE.craft.least` over the snow), he
+// is a skydiver in freefall on the rig he wore under the motor
+// (`chute.ts`'s `craftFreefall`), and a restart stands him under the wing
+// on the summit again.
 //
 // THE FLIGHT is two bodies on an inextensible line, solved after the skier's
 // own step (`stepSkier` keeps the snow, his drag and the landing):
@@ -37,9 +40,9 @@
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run with no paramotor never comes in here.
 
-import { angleDiff, clamp, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { airBoundsAt, type AirBounds } from "./collision.ts";
-import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { standSkier } from "./course.ts";
 import { PARA, pilotMass } from "./defs/para.ts";
 import { totalMass } from "./defs/skis.ts";
@@ -55,9 +58,25 @@ import {
   liftDrag,
   pullLines,
   swingDamp,
-  wayOf,
 } from "./canopy.ts";
 import { eddyUp, paraAirAt, type ParaAir } from "./para-air.ts";
+import {
+  countSwing,
+  fallenIn,
+  hangOnLines,
+  keptWay,
+  loaded,
+  biteRears,
+  heldOf,
+  heldShare,
+  holdPitch,
+  reflexOf,
+  riserLift,
+  riserRig,
+  readLoad,
+  stepTangled,
+} from "./para-acro.ts";
+import { throwRider } from "./crash.ts";
 import type { Level } from "../mapgen/types.ts";
 import type {
   GameEvent,
@@ -83,6 +102,9 @@ const FW = { x: 0, y: 0, z: 1 };
 const AF = { x: 0, y: 0, z: 0 };
 const air: ParaAir = { x: 0, y: 0, z: 0, mean: 0, lift: 0, rough: 0, lee: 0 };
 const F = PARA.fold;
+/** The lines' tilt off plumb, rad, past which the pilot is drawn hung along
+ * them rather than sat square under the wing — fully at twice it. */
+const TILT = 0.35;
 
 /** WHERE THE RIDE BEGINS: the highest head of the ski area's runs — the top
  * of the mountain a skier can ski off — or, off a resort, the piste's own
@@ -130,6 +152,13 @@ export function freshPara(state: GameState): ParaState {
     lift: 0,
     rough: 0,
     tension: 0,
+    g: 0,
+    way: { x: Math.sin(start.heading), y: 0, z: Math.cos(start.heading) },
+    swing: 0,
+    loops: 0,
+    slack: 0,
+    rears: 0,
+    hold: { x: 0, y: 0, z: 0, at: -1 },
     controls: { ...IDLE },
     rpm: PARA.engine.idle,
     thrust: 0,
@@ -162,7 +191,7 @@ export function startPara(state: GameState, events: GameEvent[]): void {
 /** Whether the rig is on him — the wing ready or flying. */
 export function paraRigged(state: GameState): boolean {
   const m = state.para?.mode;
-  return m === "ready" || m === "flown";
+  return m === "ready" || m === "flown" || m === "tangled";
 }
 
 /** WHAT THE SKIER IS STEPPED ON while the rig is on him: in the air he
@@ -170,7 +199,7 @@ export function paraRigged(state: GameState): boolean {
  * nothing; on the snow he skis as ever. */
 export function paraHeld(state: GameState, input: SkierInput): SkierInput {
   const p = state.para;
-  if (!p || p.mode !== "flown" || !p.flying) return input;
+  if (!p || ((p.mode !== "flown" || !p.flying) && p.mode !== "tangled")) return input;
   return HANGING;
 }
 const HANGING: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
@@ -214,6 +243,23 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
   }
   const level = state.level;
   const M = pilotMass(totalMass(c.spec));
+  // FALLEN INTO HIS WING (`para-acro.ts`): falling tangled in it, the motor
+  // run down, until the press cuts it away or the snow stops him.
+  if (p.mode === "tangled") {
+    p.rpm *= Math.exp(-dt / SPIN_DOWN);
+    p.prop = (p.prop + (p.rpm / 60) * 2 * Math.PI * dt) % (2 * Math.PI);
+    p.thrust = 0;
+    const fell = { x: p.vx, y: p.vy, z: p.vz };
+    stepTangled(state, p, M);
+    readPilot(state, p);
+    // Met by the snow wrapped in it, nothing to land on: thrown, at the
+    // speed he fell at (the bundle's own, a step ago).
+    if (!c.airborne) {
+      if (!c.thrown) throwRider(state, "slam", fell, events);
+      release(state, events, "collapse");
+    }
+    return;
+  }
   // THE HANDS: the toggles and the throttle follow them.
   const want = paraControls(input);
   // NEAR THE MAP'S EDGE in the air (`airBoundsAt`): the toggles turned
@@ -275,6 +321,7 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
 
   fly(state, p, M, events);
   readPilot(state, p);
+  if (p.mode !== "flown") return;
   // THE FLIGHT, counted and reported.
   if (c.airborne) {
     p.airTime += dt;
@@ -309,22 +356,36 @@ function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): vo
   // The air through the wing: the wind, its rise off the slopes and its
   // eddies (`para-air.ts`).
   readAir(state, p);
-  const ax = p.vx - air.x;
-  const ay = p.vy - air.y;
-  const az = p.vz - air.z;
+  // The pilot's own air, and the rears' bite and hold off its speed: a wing
+  // held in its pitch flies his path, the air through it his (`para-acro.ts`).
+  const cx = c.vx - air.x;
+  const cy = c.vy - air.y;
+  const cz = c.vz - air.z;
+  const Vc = hypot3(cx, cy, cz);
+  biteRears(p, ctl.bar, Vc);
+  const held = heldShare(p, ctl.bar, Vc);
+  const ax = p.vx - air.x + (cx - p.vx + air.x) * held;
+  const ay = p.vy - air.y + (cy - p.vy + air.y) * held;
+  const az = p.vz - air.z + (cz - p.vz + air.z) * held;
   const V = hypot3(ax, ay, az);
   const down = ax * ux + ay * uy + az * uz;
   // Its way: the air's direction square to the lines (the canopy noses into
-  // the flow), else where it last pointed.
-  wayOf(ax, ay, az, down, U, p.heading, FW);
+  // the flow), else where it last pointed — and met by the air from behind
+  // it is flying backwards, and collapses whole (`para-acro.ts`).
+  const backwards = keptWay(ax, ay, az, down, U, p.way, FW);
+  if (backwards && p.flying) {
+    if (p.fold === 0) say(state, events, "fold");
+    p.fold = 1;
+    p.foldSide = 0;
+  }
   const fwx = FW.x;
   const fwy = FW.y;
   const fwz = FW.z;
   // THE POLAR: the angle of attack off the trim, the brakes and the risers.
   const bar = ctl.bar >= 0 ? ctl.bar * PARA.speedBar.rig : -ctl.bar * PARA.speedBar.trimmers;
-  const rig = PARA.rig + B.rig * ctl.brake + bar;
+  const rig = PARA.rig + B.rig * ctl.brake + bar + riserRig(p, ctl.bar);
   const alpha = rig + Math.atan2(-down, Math.max(1e-3, ax * fwx + ay * fwy + az * fwz));
-  const stall = P.stall - B.stall * ctl.brake;
+  const stall = P.stall - B.stall * ctl.brake + heldOf(p, ctl.bar);
   p.stalled = alpha > stall;
   // THE TIPS: the eddies across the span meet each tip at its own angle.
   const rx0 = uy * fwz - uz * fwy;
@@ -340,9 +401,13 @@ function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): vo
   const alphaL = alpha + (upL - upC) / Vs;
   foldIn(state, p, alpha, alphaL, alphaR, V, events);
   const frontal = p.foldSide === 0 ? 1 : F.sideLift;
-  const lift =
-    (p.stalled ? P.stalled : Math.max(0, P.slope * (alpha - P.zero) + B.lift * ctl.brake)) *
-    (1 - F.lift * frontal * p.fold);
+  const folded = 1 - F.lift * frontal * p.fold;
+  const base = clamp(P.slope * (alpha - P.zero) + B.lift * ctl.brake, 0, P.most);
+  const lift = (p.stalled ? P.stalled : base) * folded;
+  // The rears' lift (`riserLift`): the wing held in its pitch by the
+  // rigging and its path bent, so it bends the pair's path — put on the
+  // pilot at the speed he carries, the lines bringing the wing round.
+  const rears = p.stalled ? 0 : (clamp(base + riserLift(p, ctl.bar), 0, P.most) - base) * folded;
   const drag =
     P.drag0 +
     P.induced * lift * lift +
@@ -351,20 +416,46 @@ function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): vo
     F.drag * p.fold +
     (p.stalled ? P.stallDrag : 0);
   const qS = 0.5 * TUNING.airDensity * V * V * W.area;
+  // The rears' lift bends the pair's path as one: shared by their masses,
+  // so the lines between them carry none of it — and the rears hold the
+  // wing over him through it. What they put on him he feels (`felt`, N).
+  let bx = 0;
+  let by = 0;
+  let bz = 0;
+  let felt = 0;
+  if (rears > 0) {
+    liftDrag(cx, cy, cz, Vc, U, 0.5 * TUNING.airDensity * Vc * Vc * W.area, rears, 0, AF);
+    const share = W.mass / (W.mass + M);
+    bx = AF.x * share;
+    by = AF.y * share;
+    bz = AF.z * share;
+    c.vx += ((AF.x - bx) / M) * dt;
+    c.vy += ((AF.y - by) / M) * dt;
+    c.vz += ((AF.z - bz) / M) * dt;
+    felt = hypot3(AF.x - bx, AF.y - by, AF.z - bz);
+  }
+  holdPitch(p, c, held, cx, cy, cz, U, M, AF);
+  bx += AF.x;
+  by += AF.y;
+  bz += AF.z;
+  felt -= AF.x * U.x + AF.y * U.y + AF.z * U.z;
   // Lift square to the air, on the lines' side; drag down the air.
   liftDrag(ax, ay, az, V, U, qS, lift, drag, AF);
-  let fx = AF.x;
-  let fy = AF.y;
-  let fz = AF.z;
+  let fx = AF.x + bx;
+  let fy = AF.y + by;
+  let fz = AF.z + bz;
   // THE TURN: toward the toggle pulled and the weight shifted, and the
   // engine's torque — along the canopy's right, u × f.
   const rx = rx0;
   const ry = ry0;
   const rz = rz0;
   const T = PARA.turn;
-  const hx0 = Math.cos(p.heading);
-  const hz0 = -Math.sin(p.heading);
-  const banked = ux * hx0 + uz * hz0;
+  // The bank: the lines tilted across the way, toward its level right —
+  // or, its way straight down where it has none, off how far the canopy's
+  // right has tipped.
+  const wh = hypot(fwx, fwz);
+  const banked =
+    wh > 0.2 ? (ux * fwz - uz * fwx) / wh : (-uy * ry0) / Math.max(0.2, hypot(rx0, rz0));
   const side =
     qS *
     ((T.side + T.weight) * ctl.steer +
@@ -401,6 +492,23 @@ function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): vo
   // THE LINES, pulled tight: the stretch past their length taken out of
   // both by their masses, and the speed apart along them.
   p.tension = pullLines(p, c, W.lines, W.mass, M);
+  readLoad(p, p.tension + Math.max(0, felt), M);
+  p.way.x = fwx;
+  p.way.y = fwy;
+  p.way.z = fwz;
+  // THE SWING counted, a whole turn round him a loop; and the lines gone
+  // slack with the wing level with him or below — he falls into it.
+  if (p.flying) {
+    lineDir(p, c, U);
+    if (countSwing(p, U)) say(state, events, "loop");
+    const apart = hypot3(p.x - c.x, p.y - c.y, p.z - c.z);
+    if (fallenIn(p, p.tension, M, U, apart)) {
+      p.mode = "tangled";
+      p.t = 0;
+      p.controls = { ...IDLE };
+      say(state, events, "tangle");
+    }
+  }
   // What it is drawn by: its heading, its bank over him, its pitch.
   p.heading = Math.atan2(fwx, fwz);
   const hx = Math.cos(p.heading);
@@ -444,15 +552,17 @@ function foldIn(
     p.fold = Math.max(0, p.fold - (rate * dt) / F.refill);
     if (p.fold < 0.02) p.fold = 0;
   }
-  if (!p.flying) return;
+  // A wing flung round him hard on its lines is held full by the pull.
+  if (!p.flying || loaded(p) > 0) return;
   const deepest = Math.min(alpha, alphaL, alphaR);
-  if (deepest >= F.alpha) return;
-  const depth = clamp(F.least + (F.alpha - deepest) * F.deep, F.least, F.most);
+  const under = F.alpha - reflexOf(p, p.controls.bar);
+  if (deepest >= under) return;
+  const depth = clamp(F.least + (under - deepest) * F.deep, F.least, F.most);
   if (depth <= p.fold) return;
   const onset = p.fold === 0;
   p.fold = depth;
   // A frontal when the middle went under; else the side that did.
-  p.foldSide = alpha < F.alpha ? 0 : alphaL < alphaR ? -1 : 1;
+  p.foldSide = alpha < under ? 0 : alphaL < alphaR ? -1 : 1;
   if (onset) say(state, events, "fold");
 }
 
@@ -463,7 +573,15 @@ function hang(state: GameState, p: ParaState): void {
   // Aloft he leans in the harness as the bar asks (forward over it, back
   // reclined); stood up to land, squared to the slope.
   const F = PARA.flare;
-  hangUnder(state, p.heading, p.bank, p.agl, -p.controls.bar * PARA.lean.pitch, F.stand, F.square);
+  const lean = -p.controls.bar * PARA.lean.pitch;
+  // Aloft, along his lines and facing the wing's way — whatever way up
+  // that is (`para-acro.ts`); near the snow, stood up to land.
+  lineDir(p, state.skier, U);
+  const over = clamp((Math.acos(clamp(U.y, -1, 1)) - TILT) / TILT, 0, 1);
+  if (p.agl > F.stand && over > 0) {
+    const plumb = fromEuler(p.heading, lean, clamp(p.bank, -1.15, 1.15));
+    hangOnLines(state, U, p.way, lean, 0.3, over, plumb);
+  } else hangUnder(state, p.heading, p.bank, p.agl, lean, F.stand, F.square);
 }
 
 /** The pilot's height over the snow and his climb. */
@@ -488,6 +606,9 @@ function holdOverhead(state: GameState, p: ParaState): void {
   p.vz = c.vz;
   p.bank = 0;
   p.pitch = 0;
+  p.way.x = Math.sin(h);
+  p.way.y = 0;
+  p.way.z = Math.cos(h);
   p.airspeed = c.speed;
   p.tension = 0;
 }
@@ -519,13 +640,15 @@ function release(state: GameState, events: GameEvent[], phase: ParaPhaseEvent): 
     down: false,
   };
   const back = rotate(c.q, { x: 0, y: 0.1, z: -0.35 });
+  // Shoved off his back, so it leaves him rather than falling beside him.
+  const D = PARA.dropped;
   p.motor = {
     x: c.x + back.x,
     y: c.y + back.y,
     z: c.z + back.z,
-    vx: c.vx,
-    vy: c.vy,
-    vz: c.vz,
+    vx: c.vx - Math.sin(c.heading) * D.shove,
+    vy: c.vy + D.lift,
+    vz: c.vz - Math.cos(c.heading) * D.shove,
     heading: c.heading,
     down: false,
   };

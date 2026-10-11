@@ -50,6 +50,7 @@ export const TITLE_SOURCES = [
   "pwa/src/game/dress-loft.ts",
   "pwa/src/game/dress-garments.ts",
   "pwa/src/game/dress-head.ts",
+  "pwa/src/game/dress-face.ts",
   "pwa/src/game/dress-body.ts",
   "pwa/src/game/helmet-shape.ts",
   "pwa/src/game/skier-pose.ts",

@@ -64,7 +64,7 @@ const args = parseArgs(
 /** How near a mark the rider counts as there, m; the speed he checks to,
  * m/s; how long he is given, s. */
 const REACHED = 4;
-const CHECK = 12;
+const CHECK = 6;
 const SECONDS = 90;
 
 /** One run ridden off its lift's top by a rider who follows its sign. */

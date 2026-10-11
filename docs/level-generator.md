@@ -224,10 +224,11 @@ an attempt is built in and `engine/analysis/resort.ts` (`analyzeResort`, with `a
   profile falls from the ridge to the floor, so any blend of them does and the ground never climbs
   down the fall line under R3's folds. Asked for a REAL FACE (`GenerateOptions.face`, `real-face.ts`,
   [real-faces.md](real-faces.md)), the massif's shape is read off a real mountainside instead: the
-  peak, the shoulder and the village where the real ones stand (inside their bands), the face's own
-  profile stretched to the dealt vertical, and its relief laid whole beside the ski area and behind
-  the ridge, calmed to `massif.real.relief` over the skiing face and faded out onto the valley floor
-  (`readFace`, `faceLift`); each refused attempt calms it further, and after `massif.real.placed`
+  peak, the shoulder and the village where the real ones stand (inside their bands), the summit on
+  the brow of the real ridge (`massif.real.ridge`, `massif.real.brow`), and the face laid 1:1 over its
+  floor — its real vertical (`massif.real.vertical`, never R25's band) and its relief laid whole,
+  faded onto its own profile only on the valley floor (`readFace`, `faceLift`); the rules a real
+  mountain asks more of bend for a face alone (`massif.real.least`), and after `massif.real.placed`
   attempts the dealt peak, shoulder and village stand in for the real ones. Every draw is made as before and the face read after them, so a map with
   no face is unchanged and owes no version.
 - **The lifts** (`resort.ts`, R26) — straight lines from a bottom station to a top one: a gondola

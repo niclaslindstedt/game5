@@ -316,14 +316,21 @@ const SURFACES = {
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
-  // ...and on the snowboard, the rack's last pair where a run lets a free
-  // pick of pair (the park run here, as the free ride).
+  // ...and on its SNOWBOARD side, where a run lets a free pick of pair (the
+  // park run here, as the free ride): the all-mountain twin...
   "skis-board": {
     params: { menu: "skis", mode: "tricks", skis: "lynx" },
     wait: ".skis-pick-canvas",
     settle: 1800,
   },
-  // THE DRESS CARD: the skier on the same stand, framed on him.
+  // ...and the alpine carver, the range's far end.
+  "skis-carver": {
+    params: { menu: "skis", mode: "tricks", skis: "goshawk" },
+    wait: ".skis-pick-canvas",
+    settle: 1800,
+  },
+  // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
+  // him — the first card after a map is picked, the gear card after it.
   dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
@@ -548,7 +555,7 @@ const args = parseArgs(
     move: {
       kind: "string",
       default: "straight",
-      help: "the held ride's move (straight, carve, turn, skid, check, stop, skate)",
+      help: "the held ride's move (straight, carve, turn, skid, check, stop, skate, climb)",
     },
     "hold-for": { kind: "number", default: 3, help: "seconds the held ride is ridden" },
     video: { kind: "string", help: "picture preset for the visit (low, medium, high)" },
@@ -570,7 +577,7 @@ const args = parseArgs(
     tricks: { kind: "flag", help: "a tricks run on the trick field (?mode=tricks)" },
     skis: {
       kind: "string",
-      help: "the player's pair for the run (?skis=: chamois, swift, chough, falcon, eagle, wolverine, peregrine, marmot, hare)",
+      help: "the player's pair for the run (?skis=: chamois, swift, chough, falcon, eagle, wolverine, peregrine, marmot, hare; a snowboard: lynx, pika, stoat, ptarmigan, wolf, goshawk)",
     },
     downhill: {
       kind: "flag",
@@ -757,6 +764,8 @@ async function capture(name, params, viewportName, surface) {
   await page.close();
 }
 
+const holds = args.hold === undefined ? [undefined] : String(args.hold).split(",");
+
 if (args.surface) {
   const names = args.surface === "all" ? Object.keys(SURFACES) : String(args.surface).split(",");
   for (const name of names) {
@@ -781,20 +790,27 @@ if (args.surface) {
     if (params.t !== undefined && args.hour !== undefined) params.hour = String(args.hour);
     if (params.t !== undefined && args.pose !== undefined) params.pose = String(args.pose);
     if (params.t !== undefined && args.weather !== undefined) params.weather = String(args.weather);
-    for (const v of viewports)
-      await capture(
-        `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
-          `${args.face !== undefined ? `-${args.face}` : ""}` +
-          `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
-          `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
-          `${args["no-poles"] ? "-nopoles" : ""}` +
-          `${params.weather !== undefined ? `-${args.weather}` : ""}` +
-          `${params.hour !== undefined ? `-h${args.hour}` : ""}${params.pose !== undefined ? "-posed" : ""}` +
-          `${args.camera !== undefined ? `-${args.camera}` : ""}`,
-        params,
-        v,
-        surface,
-      );
+    for (const hold of holds) {
+      // ...and ridden on HELD from there (`--hold`, `--move`, `--hold-for`).
+      if (params.t !== undefined && hold !== undefined) {
+        params.hold = `${hold},${args.move},${args["hold-for"]}`;
+      }
+      for (const v of viewports)
+        await capture(
+          `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
+            `${args.face !== undefined ? `-${args.face}` : ""}` +
+            `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
+            `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
+            `${args["no-poles"] ? "-nopoles" : ""}` +
+            `${params.weather !== undefined ? `-${args.weather}` : ""}` +
+            `${params.hour !== undefined ? `-h${args.hour}` : ""}${params.pose !== undefined ? "-posed" : ""}` +
+            `${args.camera !== undefined ? `-${args.camera}` : ""}` +
+            `${params.hold !== undefined ? `-hold${hold}-${args.move}-${args["hold-for"]}` : ""}`,
+          params,
+          v,
+          surface,
+        );
+    }
   }
 } else {
   const scenes = args.scene === "all" ? Object.keys(SCENES) : String(args.scene).split(",");
@@ -810,7 +826,6 @@ if (args.surface) {
       process.exit(2);
     }
   }
-  const holds = args.hold === undefined ? [undefined] : String(args.hold).split(",");
   for (const scene of scenes)
     for (const sky of skies)
       for (const hold of holds) {

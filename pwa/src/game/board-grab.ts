@@ -62,6 +62,9 @@ export type GrabLook = {
   /** The elbow pointed out to the side (`out`, +1) or back behind him (−1)
    * — a stalefish's arm goes round behind his leg. */
   elbow: number;
+  /** How far the knees are driven forward under him (`F`, a little down),
+   * 0..1 — a method's, the board kicked up behind him. */
+  knees?: number;
 };
 
 /** THE SEVEN, tuned in `make skier ARGS="--skis=lynx --move=grab-…"`. */
@@ -91,11 +94,11 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     yaw: 0,
     lift: 0.1,
     across: 0.02,
-    lean: 0.85,
+    lean: 0.95,
     to: 1,
     fore: 0.5,
     open: 0.25,
-    knee: 0,
+    knee: -0.4,
     elbow: 1,
   },
   melon: {
@@ -105,13 +108,13 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     roll: 0.3,
     pitch: -0.06,
     yaw: 0,
-    lift: 0.14,
-    across: 0.04,
-    lean: 0.6,
+    lift: 0.04,
+    across: -0.12,
+    lean: 0.75,
     to: 0.2,
     fore: 0.6,
     open: 0.35,
-    knee: 0,
+    knee: -0.2,
     elbow: 1,
   },
   stalefish: {
@@ -121,8 +124,8 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     roll: 0.3,
     pitch: 0.06,
     yaw: 0,
-    lift: 0.14,
-    across: 0.04,
+    lift: 0.04,
+    across: -0.12,
     lean: 0.6,
     to: 0.2,
     fore: -0.6,
@@ -134,17 +137,18 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     hand: "front",
     at: 0.35,
     edge: -1,
-    roll: 1.25,
-    pitch: 0.1,
+    roll: 1.65,
+    pitch: 0.15,
     yaw: 0,
-    lift: 0.28,
-    across: -0.3,
-    lean: -0.05,
+    lift: 0.6,
+    across: -0.45,
+    lean: 0.1,
     to: -1,
     fore: 0,
     open: 0.45,
     knee: 0,
     elbow: 1,
+    knees: 1,
   },
   nose: {
     hand: "front",
@@ -214,18 +218,12 @@ export function easeGrab(ease: GrabEase, grab: BoardGrab | null, dt: number): Gr
 
 /** THE PRESS and THE POP's LOAD, rad of the deck pitched nose up (+) on the
  * snow at their fullest: a press bends the board onto one end and lifts
- * the other a hand's breadth; loading an ollie sits him over the tail. */
-export const PRESS = { most: 0.18, from: 0.45, to: 0.95, hips: 0.12 };
+ * the other a hand's breadth; loading an ollie sits him over the tail.
+ * The press itself is the engine's (`SkierState.board.press`,
+ * `board-press.ts`), which already pitches the whole body `press.lift`
+ * onto the pressed end — the deck's bend here is the rest of it. */
+export const PRESS = { most: 0.13, hips: 0.12 };
 export const POP = { most: 0.1, hips: 0.08 };
-
-/** The press a lean of `lean` (+1 back) holds on the snow, −1 … 1 (+ on
- * the tail), faded out as the edge comes on and at speed. */
-export function pressOf(lean: number, edge: number, speed: number): number {
-  const t = Math.min(1, Math.max(0, (Math.abs(lean) - PRESS.from) / (PRESS.to - PRESS.from)));
-  const flat = Math.max(0, 1 - Math.abs(edge) / 0.35);
-  const slow = Math.max(0, Math.min(1, (16 - speed) / 6));
-  return Math.sign(lean) * t * t * (3 - 2 * t) * flat * slow;
-}
 
 /** The load before a pop, −1 … 1: + over the tail (the ollie), − over the
  * nose (the nollie, the lean carried forward — `popOf`'s). */

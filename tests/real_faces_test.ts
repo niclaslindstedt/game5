@@ -190,8 +190,9 @@ describe("the real faces", () => {
     // face's drop it stands at: fell-2's birch reaches most of the way up.
     expect(share(M)).toBeGreaterThan(0.3);
     expect(share(M)).toBeLessThan(1);
-    // No tree stands over it.
-    const lineY = M.base.y + (M.treeLine - M.altitude);
+    // No tree stands over it: the real tree line, in metres over the sea,
+    // where the map's own heights over the sea are the real ones.
+    const lineY = M.treeLine + M.sea;
     expect(level.trees.length).toBeGreaterThan(100);
     for (const t of level.trees) expect(t.y).toBeLessThanOrEqual(lineY + 0.01);
   });
@@ -199,16 +200,16 @@ describe("the real faces", () => {
   it("thin the woods where the real face is bare, and only on a face", () => {
     const cover = (): { keep: number; close: number } => ({ keep: 1, close: 1 });
     const trees = { lo: 0, hi: 800, line: 700, bands: [1, 1, 1, 1, 0, 0, 0, 0] };
-    const face = { floor: 0, stretch: 1, trees } as unknown as NonNullable<TerrainPlan["face"]>;
-    const woods = faceWoods({ face } as TerrainPlan, 0, cover);
+    const face = { floor: 0, trees } as unknown as NonNullable<TerrainPlan["face"]>;
+    const woods = faceWoods({ face } as TerrainPlan, cover);
     // Full in a wooded band, thinned (never emptied) in a bare one.
     expect(woods(150).keep).toBeCloseTo(1, 6);
     expect(woods(700).keep).toBeGreaterThan(0);
     expect(woods(700).keep).toBeLessThan(0.5);
     // A dealt massif, or a face with no woods of its own, is R14's alone.
-    expect(faceWoods({} as TerrainPlan, 0, cover)).toBe(cover);
+    expect(faceWoods({} as TerrainPlan, cover)).toBe(cover);
     const bare = { ...face, trees: null } as NonNullable<TerrainPlan["face"]>;
-    expect(faceWoods({ face: bare } as TerrainPlan, 0, cover)).toBe(cover);
+    expect(faceWoods({ face: bare } as TerrainPlan, cover)).toBe(cover);
   });
 });
 
@@ -520,7 +521,12 @@ function levelWater(level: ReturnType<typeof generateLevel>): number {
       for (let c = c0; c <= Math.min(g.cols - 1, Math.floor(x1 / g.cell)); c++) {
         const [x, z] = [c * g.cell, row * g.cell];
         if (!inWater([b], x, z)) continue;
-        if (others.some((o) => inWater([o], x + 1, z) || inWater([o], x - 1, z))) continue;
+        const shared = (o: (typeof water)[number]): boolean =>
+          inWater([o], x + 1, z) ||
+          inWater([o], x - 1, z) ||
+          inWater([o], x, z + 1) ||
+          inWater([o], x, z - 1);
+        if (others.some(shared)) continue;
         const d = g.data[row * g.cols + c] - b.y;
         expect(d, `${b.kind} at ${x}, ${z}`).toBeGreaterThanOrEqual(-0.3);
         expect(d, `${b.kind} at ${x}, ${z}`).toBeLessThanOrEqual(0.05);

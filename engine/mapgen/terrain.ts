@@ -111,19 +111,15 @@ export type TerrainPlan = {
    * the map's middle: the rule book's `mountain.flank` when absent — a
    * resort's face is wider (R25). */
   readonly flankBand?: { readonly inner: number; readonly outer: number };
-  /** R25 — A REAL FACE the massif's shape is read off (`real-face.ts`):
-   * its grid, its valley floor's real height (m) and the stretch that
-   * stands its ridge row the plan's vertical over that floor. Absent on a
-   * dealt massif. */
+  /** R25 — A REAL FACE the massif is laid 1:1 off (`real-face.ts`): its
+   * grid and its valley floor's real height, m — the map's nought, so a
+   * map height is the real one less it. Absent on a dealt massif. */
   readonly face?: {
     readonly grid: import("./real-face.ts").RealFace;
     readonly floor: number;
-    readonly stretch: number;
     /** The face's own profile, its mean height a grid row at a time over
-     * the floor, stretched, m. */
+     * the floor, never climbing below the ridge, m. */
     readonly rows: Float64Array;
-    /** The share of the face's relief laid over the profile. */
-    readonly relief: number;
     /** The face's woods by height off the real map (`realFaceTrees`): its
      * tree line and cover, real metres — null where the map draws none. */
     readonly trees: import("./real-face.ts").FaceTrees | null;
@@ -453,9 +449,13 @@ export function bakeCountry(
 
 /** R25 — where the sea stands in the map's frame, m: from v8 the lowest
  * ground's height less the plan's `sea`; on the low massif under the
- * village by the floor's altitude (R21), as the tree line is measured. */
+ * village by the floor's altitude (R21), as the tree line is measured; on
+ * a real face its real floor's height under the map's nought. */
 export function seaLevelOf(plan: TerrainPlan, ground: Heightfield, village: Vec3): number {
   if (plan.sea === undefined) return village.y - plan.altitude;
+  // A real face is laid 1:1 over its floor's real height (`massif.ts`),
+  // so the sea is that far under the map's nought.
+  if (plan.face) return -plan.face.floor;
   let low = Infinity;
   const d = ground.data;
   for (let i = 0; i < d.length; i++) if (d[i] < low) low = d[i];

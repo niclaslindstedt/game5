@@ -12,6 +12,7 @@ import {
   HELI_RUN,
   PARA_RUN,
   PLANE_RUN,
+  BOARD_START,
   SKIS_START,
   SLED_RUN,
   afterskiOn,
@@ -22,10 +23,12 @@ import {
   planeOn,
   sledOn,
   spotOn,
+  startPicked,
   type FreeRide,
   type FreeRunInfo,
 } from "./free-ride.ts";
-import { injuriesShown, type Settings } from "./settings.ts";
+import { injuriesShown, kindPair, type Settings } from "./settings.ts";
+import { isBoardId } from "@engine";
 import { shellContent } from "../shell-host.ts";
 import { STRINGS } from "./strings.ts";
 
@@ -87,14 +90,16 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     id: r.id,
     label: STRINGS.startRunWord(r.number),
   }));
-  // THE START ROW: on skis, by the lift to the run picked — or one of the
-  // ways up with no lift: the paramotor on the summit, the balloon and the
+  // THE START ROW: on skis or on a snowboard (the pair of that kind the gear
+  // card last picked), by the lift to the run picked — or one of the ways
+  // up with no lift: the paramotor on the summit, the balloon and the
   // snowmobile on the valley floor, the helicopter on its pad and the jump
   // plane on its strip below the village.
   const starts = [
     ...(list
       ? [
           { id: SKIS_START, label: STRINGS.startOnSkis },
+          { id: BOARD_START, label: STRINGS.startOnBoard },
           { id: PARA_RUN, label: STRINGS.startRunPara },
           { id: BALLOON_RUN, label: STRINGS.startRunBalloon },
           { id: SLED_RUN, label: STRINGS.startRunSled },
@@ -108,7 +113,8 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
       : []),
   ];
   const value = marked?.id ?? "";
-  const start = list === null ? "" : machine === null ? SKIS_START : MACHINE_RUN[machine];
+  const onFoot = isBoardId(settings.skis) ? BOARD_START : SKIS_START;
+  const start = list === null ? "" : machine === null ? onFoot : MACHINE_RUN[machine];
   return {
     chart,
     stops,
@@ -119,6 +125,15 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     machine,
     spot: machine === null ? spotOn(ride, seed) : null,
   };
+}
+
+/** THE START ROW PICKED on `seed`: the ride's own answer (`startPicked`),
+ * and on ON SKIS or ON A SNOWBOARD the pair of that kind the gear card last
+ * picked (`kindPair`) — so the row and the gear card always agree. */
+export function startChosen(s: Settings, seed: number, id: string): Settings {
+  const next: Settings = { ...s, ride: { ...s.ride, ...startPicked(s.ride, seed, id) } };
+  if (id !== SKIS_START && id !== BOARD_START) return next;
+  return { ...next, skis: kindPair(next, id === BOARD_START) };
 }
 
 /** The RUN row's stop each machine stands on. */

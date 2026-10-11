@@ -15,8 +15,10 @@ import {
   boardGrabOf,
   createGame,
   placeRun,
+  readTrick,
   spinSide,
   step,
+  trickKind,
   type GameEvent,
   type GameState,
   type RunMoment,
@@ -27,7 +29,7 @@ import {
 import { boardInputOf } from "../pwa/src/game/board-input.ts";
 import { bindingsOf, boardPose, grabGap } from "../pwa/src/game/board-pose.ts";
 import { createSkierSpring, stepSkierSpring } from "../pwa/src/game/skier-pose.ts";
-import { comboLine } from "../pwa/src/game/strings.ts";
+import { STRINGS, comboLine } from "../pwa/src/game/strings.ts";
 import { flatLevel } from "./support/synthetic.ts";
 
 const GOOFY: SkiSpec = { ...LYNX, board: { ...LYNX.board!, lead: "goofy" } };
@@ -227,5 +229,53 @@ describe("the grabs as drawn", () => {
         expect(d, grab).toBeLessThan(1e-6);
       }
     }
+  });
+});
+
+describe("the judges read a board's spin by its side", () => {
+  const flown = (spec: SkiSpec, moment: RunMoment = LAUNCH, switched = false) => {
+    const state = staged(spec, moment);
+    if (switched) state.skier.switched = true;
+    ride(state, 4, TWO_TAPS);
+    const flight = state.tricks.flights.at(-1);
+    expect(flight).toBeDefined();
+    return flight!;
+  };
+
+  it("a regular rider's clockwise 360 is BACKSIDE, a goofy rider's FRONTSIDE", () => {
+    const regular = readTrick(flown(LYNX));
+    expect(regular.side).toBe("backside");
+    expect(STRINGS.trickName(regular)).toBe("BACKSIDE 360");
+    expect(trickKind(regular)).toBe("backside");
+    const goofy = readTrick(flown(GOOFY));
+    expect(goofy.side).toBe("frontside");
+    expect(STRINGS.trickName(goofy)).toBe("FRONTSIDE 360");
+    expect(trickKind(goofy)).toBe("frontside");
+  });
+
+  it("taken off switch the side swaps and SWITCH is named first", () => {
+    const flight = flown(LYNX, { ...LAUNCH, heading: Math.PI, speed: -18 }, true);
+    const read = readTrick(flight);
+    expect(read.switchIn).toBe(true);
+    expect(read.side).toBe(spinSide(flight.spin, LYNX, true));
+    expect(STRINGS.trickName(read)).toBe(
+      `SWITCH ${read.side === "frontside" ? "FRONTSIDE" : "BACKSIDE"} 360`,
+    );
+  });
+
+  it("a straight air on a board names no side", () => {
+    const state = staged();
+    ride(state, 4, () => ({}));
+    const read = readTrick(state.tricks.flights.at(-1)!);
+    expect(read.side).toBeNull();
+    expect(STRINGS.trickName(read)).toBe("STRAIGHT AIR");
+  });
+
+  it("a skier's spin is still read left or right", () => {
+    const read = readTrick(flown(SKIS));
+    expect(read.side).toBeUndefined();
+    expect(read.dir).toBe("right");
+    expect(STRINGS.trickName(read)).toBe("RIGHT 360");
+    expect(trickKind(read)).toBe("right");
   });
 });

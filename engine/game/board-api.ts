@@ -5,7 +5,19 @@
 // its two edges — which is the toe and which the heel, and what each holds
 // (`limits.ts`, `incline.ts`).
 
-export { LYNX, BOARD_CATALOG, isBoard, isBoardId, isPairId, pairById } from "./defs/boards.ts";
+export {
+  LYNX,
+  PIKA,
+  STOAT,
+  PTARMIGAN,
+  WOLF,
+  GOSHAWK,
+  BOARD_CATALOG,
+  isBoard,
+  isBoardId,
+  isPairId,
+  pairById,
+} from "./defs/boards.ts";
 export type { BoardId, PairId, BoardFit, SkisSpec } from "./defs/skis.ts";
 export { BOARD_TECHNIQUE } from "./defs/technique.ts";
 export { angulateShareOf, edgeAskedAt, edgeSideOf } from "./limits.ts";
@@ -25,3 +37,4 @@ export {
 export { caughtCause, slideAcross, slowCatch, strapBoard } from "./board-crash.ts";
 export type { BoardGrab, SpinTag } from "./board-state.ts";
 export { boardGrabOf, edgeOf, popOf, spinSide } from "./board-tricks.ts";
+export { butterRate, buttering, pressAsked } from "./board-press.ts";

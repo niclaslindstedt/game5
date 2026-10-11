@@ -47,6 +47,7 @@ const walls = new WeakMap<Level, CliffWall[]>();
 /** EVERY ROCKY CLIFF'S WALL of `level` (none where its region lays no
  * rock). Kept per map. */
 export function cliffWalls(level: Level): readonly CliffWall[] {
+  level = level.bedrock ?? level;
   let list = walls.get(level);
   if (list) return list;
   list = regionOf(level).rock
@@ -150,6 +151,7 @@ function cliffWall(level: Level, c: Cliff, seed: number): CliffWall {
 const solids = new WeakMap<Level, Upright[]>();
 
 export function wallSolids(level: Level): readonly Upright[] {
+  level = level.bedrock ?? level;
   const had = solids.get(level);
   if (had) return had;
   const out: Upright[] = [];

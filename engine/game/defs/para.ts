@@ -40,6 +40,7 @@ export const PARA = {
     induced: 0.133,
     stallDrag: 0.45,
     surge: 0.5,
+    most: 2,
   },
   /** THE TRIM: the chord's angle to the plane square to the lines, rad,
    * nose down negative — what sets the angle of attack the wing settles
@@ -85,9 +86,11 @@ export const PARA = {
    * m, or tangled in a crown, and it collapses — the rig is cut away. */
   ground: 0.4,
   /** THE GEAR DROPPED (the release press): the canopy and the motor fall
-   * free — the canopy's drag area, m², streaming as cloth; how long the
-   * press must be clear of the last, s. */
-  dropped: { canopyDrag: 6, motorDrag: 0.3 },
+   * free — the canopy's drag area, m², streaming as cloth, and the motor's
+   * — and the shove the motor leaves his back with, m/s, back off it and a
+   * little up (shrugged out of the harness; at once it would fall with him,
+   * a body falling beside a body, and stay on his back as drawn). */
+  dropped: { canopyDrag: 6, motorDrag: 0.3, shove: 2.5, lift: 0.8 },
   /** NEAR THE SNOW the pilot stands up out of the seat and his skis meet
    * the slope square: from `stand` m over it, fully by `square` m. */
   flare: { stand: 6, square: 1.5 },
@@ -158,6 +161,50 @@ export const PARA = {
     pump: 1.5,
     slow: 8,
     roll: 0.6,
+  },
+  /** THE ACRO — the wing pitched by the pilot and what goes wrong past it
+   * (`para-acro.ts`, the research in `docs/paramotor.md`). THE DIVE: the
+   * lean forward pulls the fronts down, the trim `dive.rig` rad at a full
+   * lean, and `dive.reflex` rad of the fold's threshold kept off it. THE
+   * SWING UP: the lean back pulls the rears, biting as hard as the pilot is
+   * fast when he pulls (none at `swing.from` m/s, all of it at `full`, kept
+   * until he lets go): `swing.lift` more lift coefficient at a full lean,
+   * shared between the two bodies by mass and carrying no induced drag —
+   * the game's one liberty, without which a soft wing cannot close a loop —
+   * the wing held `back` rad behind square on the inside of his path by a
+   * spring, N/m, and a damper, N per m/s, its air blended `held` of the way
+   * to his and its stall raised by `reflex`. A wing pulled past `loaded` g
+   * holds full whatever its angle. A wing met by the air from behind
+   * (`backflown`, the share of the air along its way, at more than
+   * `backSpeed` m/s) cannot fly backwards: it COLLAPSES whole. Out of a
+   * swing, THE LINES SLACK — their pull under `slack` of the pilot's weight
+   * — for `slackFor` s with the wing level with him or below (`over`, the
+   * lines' rise), or the two fallen within `close` of the lines' length,
+   * and he FALLS INTO THE WING: tangled, the motor stopped, the bundle
+   * dragging (`tangle.drag`, m²) and turning him over (`tangle.spin`, rad/s
+   * about his right, up and forward) until he cuts it away or meets the
+   * snow. The pull he hangs on is read in g (`gLag`, s, its smoothing). */
+  acro: {
+    dive: { rig: -0.5, reflex: 0.4 },
+    swing: {
+      lift: 1.5,
+      reflex: 0.4,
+      held: 0.3,
+      from: 10,
+      full: 24,
+      spring: 2500,
+      damp: 300,
+      back: 0.25,
+    },
+    loaded: 1.8,
+    backflown: -0.2,
+    backSpeed: 4,
+    slack: 0.25,
+    slackFor: 0.35,
+    over: 0.15,
+    close: 0.7,
+    tangle: { drag: 2.2, spin: [2.2, 0.9, 0.6] },
+    gLag: 0.15,
   },
 } as const;
 

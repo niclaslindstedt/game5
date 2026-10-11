@@ -232,8 +232,9 @@ function named(resort: Resort, runs: Set<number>): string {
  * ski area. Each piste P holds both halves on runs no harder than it,
  * lanes, tunnels and lifts: THE WAY IN — from some lift's top a skier
  * comes onto P within a skate of its start — and THE WAY OUT AND BACK —
- * from P, down it and on from its foot, a lift's top puts him back there. */
-export function accessOf(resort: Resort): AccessReport {
+ * from P, down it and on from its foot, a lift's top puts him back there
+ * (on a real face, down runs up to `slack` colours harder than P). */
+export function accessOf(resort: Resort, slack = 0): AccessReport {
   const g = graphOf(resort);
   const runs: RunAccess[] = [];
   const everyTop: Node[] = resort.lifts.map((_, i) => ({ lift: i }));
@@ -252,7 +253,8 @@ export function accessOf(resort: Resort): AccessReport {
       });
       return;
     }
-    const out = reach(g, [{ run: i, s: 0 }], may, i);
+    const back = (r: number): boolean => rankOf(resort.runs[r]) <= rank + slack;
+    const out = reach(g, [{ run: i, s: 0 }], back, i);
     if (out.back) {
       // The way home is measured off a lift whose bottom stands up the
       // mountain: off one in the hub, skiing down to it is the way back.
@@ -277,6 +279,7 @@ export function accessOf(resort: Resort): AccessReport {
 
 /** R29 — `accessOf` the level's ski area; an empty report on a map with
  * none. */
-export function accessReport(level: { resort?: Resort }): AccessReport {
-  return level.resort ? accessOf(level.resort) : { runs: [], orphans: [] };
+export function accessReport(level: { resort?: Resort; face?: string }): AccessReport {
+  const slack = level.face ? RR.massif.real.least.harder : 0;
+  return level.resort ? accessOf(level.resort, slack) : { runs: [], orphans: [] };
 }

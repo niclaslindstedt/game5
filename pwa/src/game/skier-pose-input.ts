@@ -10,6 +10,7 @@ import type { Gait } from "./skier-gait.ts";
 import type { GateShape } from "./slalom-start.ts";
 import type { Jolt } from "./skier-save.ts";
 import type { FlightShape } from "./skier-flight.ts";
+import type { SomersaultShape } from "./skier-somersault.ts";
 import type { Mounts } from "./skier-mounts.ts";
 import type { GateBlock, TechniquePose } from "./technique-pose.ts";
 
@@ -106,6 +107,9 @@ export type SkierPoseInput = {
   house?: GateShape;
   /** A TRICKS run's grab held in the air (`strokes.ts`), or none. */
   trick?: TrickPose | null;
+  /** THE SOMERSAULT's tuck a loop is turned in (`skier-somersault.ts`), or
+   * none. */
+  somersault?: SomersaultShape;
   /** THE SAVE his body is making (`skier-save.ts`), or none. */
   jolt?: Jolt;
   /** How far his trunk is held off the skis' pitch, rad — further forward

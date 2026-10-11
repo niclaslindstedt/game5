@@ -8,11 +8,12 @@
 // generated file a face (`real-faces/face-<id>.ts`), listed in
 // `real-faces-index.ts`. What the face replaces is the massif's
 // SHAPE — the ridge, the profile, the bench, the folds a dealt mountain is
-// given — and nothing else: the vertical is still dealt in R25's band (the
-// face stretched to it, so its grades are the game's), the peak, the
-// shoulder and the village are read off where the real ones stand, and the
-// rollers and the little hills R3 lays are laid over it at their own scale,
-// under the 30 m the model can see. Everything downstream — the lifts, the
+// given — LAID 1:1: a map metre a real metre and a map height the real
+// height less the face's floor, so its vertical, its grades and its relief
+// are the real mountain's; the peak, the shoulder and the village are read
+// off where the real ones stand, and the rollers and the little hills R3
+// lays are laid over it at their own scale, under the 30 m the model can
+// see. Everything downstream — the lifts, the
 // runs walked and graded, the woods, the courses — is built onto it as onto
 // any massif, by the same rules and the same analysis.
 //

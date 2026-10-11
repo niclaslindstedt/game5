@@ -680,9 +680,7 @@ export {
   topOfSlope,
   TRACK_RUN,
 } from "./game/skied.ts";
-export { GRIMBEAR } from "./game/defs/grimbear.ts";
-export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
-export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
+export * from "./game/hazards-api.ts";
 export { GROOMER } from "./game/defs/groomer.ts";
 export {
   freshGroomers,
@@ -742,16 +740,8 @@ export {
 export * from "./game/village-api.ts";
 export * from "./game/traffic-api.ts";
 export * from "./game/plane-api.ts";
-export {
-  hashOf as rockHash,
-  onAnyCliff,
-  rockShare,
-  rockyCliff,
-  unit as rockDraw,
-  wallOf,
-} from "./game/rocks.ts";
-export { ROCKS } from "./game/defs/rocks.ts";
-export { cliffWalls, faceShare, wallSolids, type CliffWall } from "./game/cliff-wall.ts";
+// THE ROCK ON THE DROPS, AND UNDERFOOT.
+export * from "./game/rock-api.ts";
 export { stakePlan, stepStakes, type StakePlan, type StakeState } from "./game/edge-stakes.ts";
 export {
   mastHeight,

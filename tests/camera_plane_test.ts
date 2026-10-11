@@ -66,12 +66,18 @@ describe("the plane's lenses", () => {
     expect(Number.isFinite(lens.eye.x)).toBe(true);
   });
 
-  it("holds the door lens just outside the door, looking out, down and a little aft", () => {
+  it("looks out of his own eyes in the door on HELMET: crouched in the doorway, out of it, forward and down", () => {
     const { s, at } = flying();
-    const lens = planeLens(createPlaneCam(), s.plane!, at, "tips", ground);
+    const lens = planeLens(createPlaneCam(), s.plane!, at, "helmet", ground);
     const eye = body(at, lens.eye);
+    // In the doorway: between the cabin's middle and the door's plane, under
+    // the lintel, along the door's length.
     expect(Math.sign(eye.x)).toBe(Math.sign(PLANE.door.x));
-    expect(Math.abs(eye.x)).toBeGreaterThan(Math.abs(PLANE.door.x));
+    expect(Math.abs(eye.x)).toBeLessThan(Math.abs(PLANE.door.x) + 0.05);
+    expect(eye.y).toBeLessThan(PLANE.door.top);
+    expect(eye.y).toBeGreaterThan(PLANE.door.bottom + 0.6);
+    expect(eye.z).toBeLessThan(PLANE.door.front);
+    expect(eye.z).toBeGreaterThan(PLANE.door.back);
     const look = body(at, {
       x: at.x + (lens.target.x - lens.eye.x),
       y: at.y + (lens.target.y - lens.eye.y),
@@ -79,14 +85,13 @@ describe("the plane's lenses", () => {
     });
     expect(look.y).toBeLessThan(0);
     expect(Math.sign(look.x)).toBe(Math.sign(PLANE.door.x));
-    // a little aft — clear of the strut and the gear ahead of the door
-    expect(look.z).toBeLessThan(0);
-    expect(Math.abs(look.x)).toBeGreaterThan(Math.abs(look.z));
+    // facing forward along the fuselage as a poised exit does, turned out
+    expect(look.z).toBeGreaterThan(0);
   });
 
-  it("puts the cockpit lens at the pilot's eye, looking forward", () => {
+  it("puts the cockpit lens (TIPS: the airframe's own) at the pilot's eye, looking forward", () => {
     const { s, at } = flying();
-    const lens = planeLens(createPlaneCam(), s.plane!, at, "helmet", ground);
+    const lens = planeLens(createPlaneCam(), s.plane!, at, "tips", ground);
     const eye = body(at, lens.eye);
     expect(eye.x).toBeCloseTo(PLANE.pilotEye.x, 6);
     expect(eye.y).toBeCloseTo(PLANE.pilotEye.y, 6);

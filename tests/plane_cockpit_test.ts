@@ -180,7 +180,7 @@ describe("the plane's cockpit", () => {
 describe("the cockpit lens", () => {
   it("stands at the pilot's eye inside the cabin, looking forward over the nose", () => {
     const { s, at } = flying();
-    const lens = planeLens(createPlaneCam(), s.plane!, at, "helmet", ground);
+    const lens = planeLens(createPlaneCam(), s.plane!, at, "tips", ground);
     const back = { x: -at.q.x, y: -at.q.y, z: -at.q.z, w: at.q.w };
     const eye = rotate(back, { x: lens.eye.x - at.x, y: lens.eye.y - at.y, z: lens.eye.z - at.z });
     expect(inPlaneCabin(eye)).toBe(true);
@@ -202,7 +202,7 @@ describe("the cockpit lens", () => {
       p.roll = roll;
       p.wy = 0;
       const at = { x: p.x, y: p.y, z: p.z, q: p.q };
-      const lens = planeLens(createPlaneCam(), { ...p, roll: 0 }, at, "helmet", ground);
+      const lens = planeLens(createPlaneCam(), { ...p, roll: 0 }, at, "tips", ground);
       const f = {
         x: lens.target.x - lens.eye.x,
         y: lens.target.y - lens.eye.y,
@@ -220,8 +220,8 @@ describe("the cockpit lens", () => {
 
   it("widens the cockpit lens on a tall screen", () => {
     const { s, at } = flying();
-    const wide = planeLens(createPlaneCam(), s.plane!, at, "helmet", ground, 16 / 9);
-    const tall = planeLens(createPlaneCam(), s.plane!, at, "helmet", ground, 390 / 844);
+    const wide = planeLens(createPlaneCam(), s.plane!, at, "tips", ground, 16 / 9);
+    const tall = planeLens(createPlaneCam(), s.plane!, at, "tips", ground, 390 / 844);
     expect(tall.fov).toBeGreaterThan(wide.fov);
   });
 });

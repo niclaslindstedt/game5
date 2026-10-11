@@ -34,7 +34,6 @@ import {
   canopyLayout,
   canopyPoint,
   cellU,
-  ribAt,
   stationAt,
   type CanopyLayout,
   type WingShape,
@@ -55,7 +54,7 @@ export const SKY_WING: WingShape = {
   scallop: 0.045,
   mouth: [0.0, 0.08],
   closed: 0,
-  stabilo: 0.55,
+  stabilo: 0.34,
   brake: 0.85,
   brakeFrom: 0.5,
   strips: 4,
@@ -217,15 +216,20 @@ export function shapeSkyCanopy(out: Float32Array, inp: SkyShapeInput): void {
       base += across * along;
     }
   }
-  // THE STABILIZERS: the panel under each end rib, its point toward him.
+  // THE STABILIZERS: the panel hung under each end rib, in the plane of
+  // the end lines — its point (the slider stop) down them toward him, the
+  // lines converging on his risers some `lines` m under the canopy.
   for (const u of [-1, 1]) {
-    const r = ribAt(u * inf.width, w);
     skyPoint(u, 0.1, -1, 0, 0, inf, inp.t, out, base * 3);
     skyPoint(u, 0.9, -1, 0, 0, inf, inp.t, out, (base + 1) * 3);
     skyPoint(u, 0.5, -1, 0, 0, inf, inp.t, out, (base + 2) * 3);
+    const o = (base + 2) * 3;
+    const dx = -out[o];
+    const dy = -CHUTE.canopy.lines - out[o + 1];
+    const dl = Math.hypot(dx, dy) || 1;
     const d = w.stabilo * (0.3 + 0.7 * inf.fill(u));
-    out[(base + 2) * 3] += -r.nx * d - Math.sign(u) * d * 0.2;
-    out[(base + 2) * 3 + 1] += -r.ny * d;
+    out[o] += (dx / dl) * d;
+    out[o + 1] += (dy / dl) * d;
     base += 3;
   }
 }

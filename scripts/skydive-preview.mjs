@@ -16,6 +16,8 @@
 //   deploy     the opening frame by frame: the reach, the throw, the bag
 //              lifted, line stretch, the snivel, the slider coming down,
 //              full — off his side and on the game's chase lens
+//   shape      the sport main from behind, the side, below, the front, over
+//              its top skin (the bridle, the bag, the pilot chute) and in a turn
 //   canopy     flown hands off, a toggle each way, the front risers, the
 //              flare, and the landing on the bot's hands
 //   cutaway    the pad punched, the canopy streaming down, lying on the snow
@@ -57,7 +59,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (gear, exit, freefall, deploy, canopy, cutaway, snag, lenses, night); every one when left out",
+      help: "which sheets, comma-separated (gear, exit, freefall, deploy, canopy, shape, cutaway, snag, lenses, night); every one when left out",
     },
     views: {
       kind: "string",

@@ -8,7 +8,9 @@
 // where it has one:
 //
 //   exit        out of the door at the jump run's speed: the seconds until
-//               the air comes from under him (freefall)
+//               the air comes from under him (freefall), and how far over
+//               from upright his body is half a second and a second and a
+//               half out (the poised exit laid onto the wind)
 //   v50, v95    from a standstill high up: the seconds to half and to 95 %
 //               of the belly terminal speed
 //   terminal    the belly-to-earth terminal speed near the snow and high up,
@@ -101,11 +103,15 @@ function exit() {
   });
   E.step(s, { ...N, machine: true });
   let t = NaN;
+  const at = { 0.5: NaN, 1.5: NaN };
   for (let i = 0; i < steps(15) && Number.isNaN(t); i++) {
     E.step(s, N);
+    for (const k of [0.5, 1.5])
+      if (Number.isNaN(at[k]) && (s.chute?.since ?? 0) >= k)
+        at[k] = (s.chute.attitude * 180) / Math.PI;
     if (s.chute?.mode === "freefall") t = s.chute.since;
   }
-  return t;
+  return { t, a05: at[0.5], a15: at[1.5] };
 }
 
 /** From a standstill 4,000 m up, belly to earth: the seconds to half and
@@ -338,7 +344,27 @@ const J = jump();
 
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : "—");
 const rows = [
-  { id: "exit", value: X, unit: "s", band: "8–10", note: "out of the door to the air from below" },
+  {
+    id: "exit",
+    value: X.t,
+    unit: "s",
+    band: "8–10",
+    note: "out of the door to the air from below",
+  },
+  {
+    id: "exit-0.5s",
+    value: X.a05,
+    unit: "°",
+    band: "30–60",
+    note: "his body over from upright half a second out of the door",
+  },
+  {
+    id: "exit-1.5s",
+    value: X.a15,
+    unit: "°",
+    band: "45–75",
+    note: "...and at a second and a half, laid onto the wind",
+  },
   { id: "v50", value: FALL.v50, unit: "s", band: "≈3", note: "from a standstill, 4,000 m up" },
   { id: "v95", value: FALL.v95, unit: "s", band: "≈10", note: "...to 95 % of 62 m/s" },
   { id: "terminal", value: LOW.fall, unit: "m/s", band: "54–56", note: "belly, 300 m up" },

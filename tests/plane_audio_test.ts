@@ -35,6 +35,7 @@ import {
   chuteVoiceOf,
   createChuteBed,
   creakAt,
+  pullOf,
   rideShares,
 } from "../pwa/src/game/audio/chute-bed.ts";
 import { createPlaneBed, planeVoiceOf, propRpmOf } from "../pwa/src/game/audio/plane-bed.ts";
@@ -154,8 +155,8 @@ describe("the jump plane's voice (plane-voice.ts)", () => {
     expect(plane({ cabin: 0 }).door.level).toBeLessThan(plane().door.level * 0.2);
     // The cockpit, up front, hears the door's slipstream well under the
     // door lens does.
-    const cockpit = plane({ doorway: LISTENERS.helmet.doorway }).door.level;
-    expect(cockpit).toBeLessThan(plane({ doorway: LISTENERS.tips.doorway }).door.level * 0.5);
+    const cockpit = plane({ doorway: LISTENERS.tips.doorway }).door.level;
+    expect(cockpit).toBeLessThan(plane({ doorway: LISTENERS.helmet.doorway }).door.level * 0.5);
     expect(cockpit).toBeGreaterThan(0);
     expect(plane().boom.level).toBeGreaterThan(plane({ cabin: 0 }).boom.level);
     expect(plane().whine.level).toBeLessThan(plane({ cabin: 0 }).whine.level);
@@ -332,6 +333,25 @@ describe("the skydive's voice and bed (chute-voice.ts, chute-bed.ts)", () => {
     expect(air({ body: 0, open: 1, airspeed: 12, brake: 1 }).luff.level).toBeGreaterThan(
       canopy.luff.level,
     );
+  });
+
+  it("hears the toggles worked: the brake line zipping as it runs, the tail strained while held", () => {
+    const canopy = { body: 0, open: 1, airspeed: 12 };
+    expect(air(canopy).zip.level).toBe(0);
+    expect(air({ ...canopy, pull: 1 }).zip.level).toBeGreaterThan(0);
+    expect(air({ ...canopy, pull: 1 }).zip.cutoff!).toBeGreaterThan(
+      air({ ...canopy, pull: 0.2 }).zip.cutoff!,
+    );
+    expect(air(canopy).tail.level).toBe(0);
+    expect(air({ ...canopy, turn: 1 }).tail.level).toBeGreaterThan(0);
+    expect(air({ ...canopy, riser: 1 }).tail.level).toBeGreaterThan(0);
+    // Subtle: under the freefall's roar by far, and nothing in freefall.
+    expect(air({ ...canopy, pull: 1, brake: 1 }).zip.level).toBeLessThan(air().roar.level * 0.1);
+    expect(air({ pull: 1 }).zip.level).toBe(0);
+    // A full throw in a quarter of a second is a whole pull; still, none.
+    const was = { brake: 0, steer: 0, riser: 0 };
+    expect(pullOf(was, { brake: 1, steer: 0, riser: 0 }, 0.25)).toBeCloseTo(1, 6);
+    expect(pullOf(was, was, 1 / 60)).toBe(0);
   });
 
   it("flogs the canopy as it comes out, and flaps a cut-away off up the sky", () => {

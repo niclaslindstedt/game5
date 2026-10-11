@@ -57,10 +57,10 @@ export type Listener = {
    * and the door's slipstream fills the cabin — or outside it, hearing the
    * machine's own buzz (`plane-voice.ts`). Read only with him aboard. */
   cabin: number;
-  /** How far an ear in the cabin is AT THE JUMP DOOR, 0..1: the door lens
-   * has the slipstream all round it, while the cockpit is up front behind
-   * the pilot's seat and hears it come forward round the cabin, much
-   * quieter (`plane-voice.ts`). */
+  /** How far an ear in the cabin is AT THE JUMP DOOR, 0..1: his own eyes
+   * in the door (HELMET) have the slipstream all round them, while the
+   * cockpit (TIPS) is up front in the pilot's seat and hears it come
+   * forward round the cabin, much quieter (`plane-voice.ts`). */
   doorway: number;
 };
 
@@ -74,7 +74,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     muffle: 1,
     machine: 1,
     cabin: 1,
-    doorway: 1,
+    doorway: 0.3,
   },
   helmet: {
     wind: 1.45,
@@ -85,7 +85,7 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     muffle: 1,
     machine: 1.1,
     cabin: 1,
-    doorway: 0.3,
+    doorway: 1,
   },
   chase: {
     wind: 0.85,

@@ -105,7 +105,7 @@ function freshChute(state: GameState, mode: ChuteMode): ChuteState {
     mode,
     t: 0,
     since: 0,
-    attitude: mode === "exit" ? 0 : Math.PI / 2,
+    attitude: mode === "exit" ? CHUTE.exit.poise : Math.PI / 2,
     track: 0,
     slide: 0,
     heading: flat > 2 ? Math.atan2(c.vx, c.vz) : c.heading,
@@ -352,18 +352,22 @@ function freefall(state: GameState, ch: ChuteState, input: SkierInput): void {
   const ay = c.vy - air.y;
   const az = c.vz - air.z;
   const V = hypot3(ax, ay, az);
-  // THE BODY: how he flies it, eased.
-  const k = 1 - Math.exp(-dt / F.body);
+  // THE BODY: how he flies it, eased (out of the door, the slipstream
+  // turns him onto it sooner).
   const flying = ch.mode !== "exit";
+  const k = 1 - Math.exp(-dt / (flying ? F.body : CHUTE.exit.body));
   const head = flying ? clamp(input.tuck, 0, 1) : 0;
   const track = flying ? clamp(-input.lean, 0, 1) * (1 - head) : 0;
   const slide = flying ? clamp(input.lean, 0, 1) * (1 - head) : 0;
   ch.track += (track - ch.track) * k;
   ch.slide += (slide - ch.slide) * k;
-  // Chest to the air: the path's angle under the level out of the door;
-  // belly to earth in freefall, on over to head down on the tuck.
+  // Chest to the air: out of the door the path's angle under the level,
+  // led by the poised exit's dive; belly to earth in freefall, on over to
+  // head down on the tuck.
   const path = V > 1 ? Math.asin(clamp(-ay / V, -1, 1)) : Math.PI / 2;
-  const want = flying ? Math.PI / 2 + head * Math.PI * 0.45 : clamp(path, 0, Math.PI / 2);
+  const want = flying
+    ? Math.PI / 2 + head * Math.PI * 0.45
+    : clamp(Math.max(path, 0) + CHUTE.exit.lead, 0, Math.PI / 2);
   ch.attitude += (want - ch.attitude) * k;
   const steer = steerOf(ch, flying ? clamp(input.steer, -1, 1) : 0, ch.heading);
   ch.turn += (steer * F.turn - ch.turn) * k;

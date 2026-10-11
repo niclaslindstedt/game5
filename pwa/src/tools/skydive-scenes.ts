@@ -219,6 +219,22 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(s, "brakes", around(6, 0.5, -4, 48, 2.5));
     st.shoot(s, "hands", around(0.8, 1.2, -1.4, 40, 0.8));
   },
+  // The sport main's own shape against a 9-cell main's photographs: from
+  // behind, the side, below, the front and over its top skin (the bridle,
+  // the bag and the pilot chute on it), and in a turn.
+  shape(st) {
+    const s = dive(st, 700, "open");
+    st.run(s, 3, still);
+    st.shoot(s, "behind", around(0, 4.4, 11, 40, 4.4));
+    st.shoot(s, "side", around(11, 4.4, 0, 40, 4.2));
+    st.shoot(s, "below", around(0.4, -5, 2.5, 52, 4.2));
+    st.shoot(s, "front", around(0, 4.6, -11, 40, 4.4));
+    st.shoot(s, "top", around(2.5, 9.5, 6, 40, 4.6));
+    st.shoot(s, "top side", around(7, 7, 0.5, 40, 4.6));
+    st.run(s, 2.2, keys({ steer: 1 }));
+    st.shoot(s, "turn behind", around(0, 4.4, 11, 40, 4.4));
+    st.shoot(s, "turn side", around(-10, 3, 3, 44, 4));
+  },
   landing(st) {
     const s = dive(st, 260, "open");
     st.until(s, (x) => (x.chute?.agl ?? 0) < 12, 90, bot);
@@ -288,8 +304,18 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       const n = q.chute?.snag;
       return n ? { x: n.x, y: n.y - 3, z: n.z } : { x: q.skier.x, y: q.skier.y, z: q.skier.z };
     };
+    // Framed on the crown's top and him under it: the cloth over the tree.
+    const crown = (q: GameState) => {
+      const n = q.chute?.snag;
+      const t = n?.on === "tree" ? level.trees[n.index] : null;
+      if (!t) return caught(q);
+      const top = t.y + t.height;
+      return { x: (t.x + q.skier.x) / 2, y: (top + q.skier.y) / 2, z: (t.z + q.skier.z) / 2 };
+    };
     st.shoot(s, "crown", overPoint(caught, 13, 1, -9, 50));
     st.shoot(s, "crown side", overPoint(caught, -12, 3, 8, 50));
+    st.shoot(s, "crown over", overPoint(crown, 15, 6, -13, 48));
+    st.shoot(s, "crown round", overPoint(crown, -17, 4, -6, 48));
     // The rope: flown down across the longest chair's.
     const plans = liftPlans(level).filter((p) => p.lift.kind !== "drag");
     if (plans.length === 0) return;
@@ -365,6 +391,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   freefall: ["freefall"],
   deploy: ["deploy", "deploy-game"],
   canopy: ["canopy", "landing"],
+  shape: ["shape"],
   cutaway: ["cutaway"],
   snag: ["snag"],
   lenses: ["lenses"],

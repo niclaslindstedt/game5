@@ -98,8 +98,9 @@ const smooth = (v: number): number => {
 const window = (t: number, from: number, a: number, to: number, b: number): number =>
   Math.min(smooth((t - from) / a), 1 - smooth((t - to) / b));
 
-/** How long the step from the door into the slipstream takes, s. */
-const LEAVE = 0.7;
+/** How long the step from the door into the slipstream takes, s: a poised
+ * exit is in the arch within half a second. */
+const LEAVE = 0.4;
 /** THE PULL, s after the press (the pilot chute's stage is 0.45 s): the
  * hand at the pouch, the throw out, back in the box. */
 const PULL = { at: 0.14, out: 0.42, back: 0.9 };

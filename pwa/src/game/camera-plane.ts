@@ -13,18 +13,21 @@
 //   HIGH   high over it looking down, turned only with its heading — the
 //          snow under it and how far down it is;
 //   ORBIT  swung slowly round it, level;
-//   TIPS   OUT OF THE DOOR: a lens held just outside the jump door (on the
-//          right as a pilot sees it, `PLANE.door`), under the wing, bolted
-//          to the airframe and looking out, down and a little aft of the
-//          strut and the gear at the snow going by — the jumper's own look
-//          before the exit, nothing of the airframe across it but the strut
-//          at its edge and his skis on the step;
-//   HELMET THE COCKPIT: the pilot's eye in the left seat (`PLANE.pilotEye`),
+//   TIPS   THE COCKPIT: the pilot's eye in the left seat (`PLANE.pilotEye`),
 //          bolted to the airframe — it pitches, rolls and loops with it —
 //          looking out over the long nose, a little down off the fuselage
 //          line, and turned a little into a turn as a pilot's head is
 //          (`planeHeadOf`); its fov opened on a tall screen
 //          (`planeCockpitFov`). The cockpit it sees is `plane-cockpit.ts`.
+//          It is the airframe's own lens, as the helicopter's TIPS is its
+//          nose lens;
+//   HELMET HIS OWN EYES IN THE DOOR: the jumper's eyes as he crouches in
+//          the jump door (`PLANE.jumper`, on the right as a pilot sees it,
+//          `PLANE.door`), looking out of it forward along the fuselage and
+//          down past the strut at the snow — his figure hidden, as the
+//          skydive's HELMET hides it — so HELMET is his own eyes from the
+//          door to the snow: the exit flies on into the skydive's HELMET
+//          (`camera-skydive.ts`) and the canopy's (`CHUTE_RIGS`).
 //
 // A change of rung is FLOWN, never cut: for `HANDOVER` s both rungs are
 // framed and the lens is flown round the airframe (`orbitBlend`) rather
@@ -50,15 +53,19 @@ export const PLANE_LOOK = {
   /** The orbit: its radius and height over the middle, m, its turn, rad/s,
    * and its fov, deg. */
   orbit: { radius: 30, height: 6, spin: 0.16, fov: 56 },
-  /** The door lens, body frame (y up from the ground datum, z forward):
-   * outside the door, a head leaned out of it under the wing; how far it
-   * is turned out of the door (past square: a little aft) and down, rad,
-   * and its fov, deg. */
+  /** His eyes in the door, body frame (y up from the ground datum, z
+   * forward): crouched under the lintel in the doorway, a little ahead of
+   * his middle; how far his look is turned out of the door off the
+   * fuselage's way and down, rad, and its fov, deg. */
   door: {
-    eye: { x: PLANE.door.x + Math.sign(PLANE.door.x) * 0.45, y: 2.25, z: PLANE.door.back + 0.6 },
-    out: 1.85,
-    down: 0.75,
-    fov: 80,
+    eye: {
+      x: PLANE.jumper.x + Math.sign(PLANE.door.x) * 0.12,
+      y: PLANE.jumper.y + PLANE.jumper.height + 0.42,
+      z: PLANE.jumper.z + 0.12,
+    },
+    out: 0.95,
+    down: 0.3,
+    fov: 76,
   },
   /** How briskly the booms follow the airframe's attitude, 1/s. */
   follow: 3,
@@ -188,7 +195,7 @@ export function planeLens(
   groundAt: (x: number, z: number) => number,
   aspect = 16 / 9,
 ): LensPose {
-  if (rung === "tips") {
+  if (rung === "helmet") {
     const D = PLANE_LOOK.door;
     const look = {
       x: Math.sign(PLANE.door.x) * Math.sin(D.out) * Math.cos(D.down),
@@ -197,7 +204,7 @@ export function planeLens(
     };
     return bolted(at, D.eye, look, D.fov);
   }
-  if (rung === "helmet") {
+  if (rung === "tips") {
     const head = planeHeadOf(p);
     const look = {
       x: Math.sin(head.turn) * Math.cos(head.down),

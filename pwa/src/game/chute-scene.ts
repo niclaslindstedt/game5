@@ -42,7 +42,9 @@ import {
   bridlePath,
   crownDrape,
   cutawayPoint,
+  flownOver,
   laidPoint,
+  overCanopy,
   pilotOpen,
   ropeDrape,
   type P3,
@@ -95,9 +97,10 @@ const RISER = { length: 0.55, apart: 0.05 };
 const THROW = { from: 0.14, out: 0.42, catch: 0.2 };
 /** The fist down the hand bone from the wrist, m. */
 const FIST = 0.08;
-/** How far the bag rides over the canopy on the bridle once it is out, m,
- * and the pilot chute over the bag, trailing. */
-const OVER = { bag: 0.7, pilot: 1.9 };
+/** A canopy caught in a crown lies over its top this far down, m, held
+ * this far out past the foliage by the boughs' tips, m. */
+const CAUGHT_DEPTH = 3.2;
+const CAUGHT_BOUGHS = 0.6;
 
 const UP = new THREE.Vector3(0, 1, 0);
 const v3 = (): THREE.Vector3 => new THREE.Vector3();
@@ -245,6 +248,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
   let ownEyes = false;
   const eyes: Eyes = { at: v3(), face: v3(), up: v3() };
   let draped: ChuteState["snag"] = null;
+  let feetOn = false;
   let shaped = "";
 
   /** A point of his chest's frame (the harness's) in the world. */
@@ -415,6 +419,21 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     bridle.visible = true;
   }
 
+  /** The bridle's attachment, the bag and the pilot chute over the canopy
+   * as `overCanopy` has them at `fly`, the world's frame. */
+  function rigOver(
+    fly: number,
+    top: THREE.Vector3,
+    atBag: THREE.Vector3,
+    atPilot: THREE.Vector3,
+  ): void {
+    const o = overCanopy(fly);
+    const m = canopy.matrixWorld;
+    top.set(o.top.x, o.top.y, o.top.z).applyMatrix4(m);
+    atBag.set(o.bag.x, o.bag.y, o.bag.z).applyMatrix4(m);
+    atPilot.set(o.pilot.x, o.pilot.y, o.pilot.z).applyMatrix4(m);
+  }
+
   /** The pilot chute at `at`, its dome to the air past `from`. */
   function placePilot(at: THREE.Vector3, from: THREE.Vector3, open: number): void {
     pilot.visible = true;
@@ -467,25 +486,49 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       shapeSkyCanopy(skin, { left: 0, right: 0, spread: 1, t: 0 });
       const tree = s.on === "tree" ? level.trees[s.index] : null;
       const plan = tree ? null : liftPlans(level)[s.index];
+      // Laid over the drawn foliage, whose pads and sprays reach out past
+      // the crown's own radius, so the cloth is never buried in it — and
+      // caught over its top few metres only, held out by the stiff boughs
+      // there (a wing does not slide down a spire to wrap it like a sock).
+      const reach = tree ? tree.height * 0.6 : 1;
+      const depth = Math.min(reach, CAUGHT_DEPTH);
       const crown = tree && {
         x: tree.x,
         z: tree.z,
         top: tree.y + tree.height,
-        // Laid over the drawn foliage, whose pads and sprays reach out past
-        // the crown's own radius, so the cloth is never buried in it.
-        depth: tree.height * 0.6,
-        radius: tree.crown * 1.25 + 0.35,
+        depth,
+        radius: (tree.crown * 1.25 + 0.35) * Math.max(0.7, depth / reach) + CAUGHT_BOUGHS,
       };
       const dir = { x: plan?.dx ?? 1, y: 0, z: plan?.dz ?? 0 };
       const n = layout.vertices;
       const p = { x: 0, y: 0, z: 0 };
       for (let i = 0; i < n; i++) {
+        if (crown) {
+          p.x = skin[i * 3];
+          p.y = skin[i * 3 + 1];
+          p.z = skin[i * 3 + 2];
+          crownDrape(p, crown, ch.canopyHeading, skin, i * 3);
+          continue;
+        }
         tmp.fromArray(skin, i * 3).applyMatrix4(canopy.matrixWorld);
         p.x = tmp.x;
         p.y = tmp.y;
         p.z = tmp.z;
-        if (crown) crownDrape(p, s, crown, skin, i * 3);
-        else ropeDrape(p, s, dir, skin, i * 3);
+        ropeDrape(p, s, dir, skin, i * 3);
+      }
+      // Over a crown his lines run up to their feet on the cloth thrown
+      // over it; over a rope, to the point it is held at.
+      feetOn = !!crown;
+      if (crown) {
+        const inf = skyInflation(1);
+        for (let i = 0; i < LINES.length; i++) {
+          skyPoint(LINES[i].u, LINES[i].s, -1, 0, 0, inf, 0, pt, 0);
+          p.x = pt[0];
+          p.y = pt[1];
+          p.z = pt[2];
+          crownDrape(p, crown, ch.canopyHeading, pt, 0);
+          leafAt[i].set(pt[0], pt[1], pt[2]);
+        }
       }
       geo.getAttribute("position").needsUpdate = true;
       geo.computeVertexNormals();
@@ -495,7 +538,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     canopy.quaternion.identity();
     canopy.scale.setScalar(1);
     canopy.visible = true;
-    // His lines: up from the risers to the point it is held at.
+    // His risers up toward the point it is held at, and the lines on.
     let o = 0;
     tmp.set(s.x, s.y, s.z);
     for (let k = 0; k < 4; k++) {
@@ -508,9 +551,20 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
         .add(shoulders[side]);
       shoulders[side].toArray(linePos, o);
       riserTop[k].toArray(linePos, o + 3);
-      riserTop[k].toArray(linePos, o + 6);
-      tmp.toArray(linePos, o + 9);
-      o += 12;
+      o += 6;
+      if (feetOn) continue;
+      riserTop[k].toArray(linePos, o);
+      tmp.toArray(linePos, o + 3);
+      o += 6;
+    }
+    if (feetOn) {
+      for (let i = 0; i < LINES.length; i++) {
+        const L = LINES[i];
+        const k = (L.side < 0 ? 0 : 2) + (L.front ? 0 : 1);
+        riserTop[k].toArray(linePos, o);
+        leafAt[i].toArray(linePos, o + 3);
+        o += 6;
+      }
     }
     lineGeo.getAttribute("position").needsUpdate = true;
     lineGeo.setDrawRange(0, o / 3);
@@ -582,10 +636,10 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
         // THE BAG on his back until the bridle lifts it, then up the wind,
         // tumbling as the lines strip out of it; over the canopy once out.
         const lifted = d.stage !== "pilot";
+        const top = v3();
         if (out) {
           hangCanopy(ch);
-          atBag.set(0, OVER.bag, 0).applyMatrix4(canopy.matrixWorld);
-          atPilot.set(0, OVER.bag + OVER.pilot, 0.3).applyMatrix4(canopy.matrixWorld);
+          rigOver(0, top, atBag, atPilot);
         }
         placePilot(atPilot, out ? atBag : lifted ? atBag : box, pilotOpen(t - THROW.out, out));
         bag.visible = lifted;
@@ -616,8 +670,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
         canopy.visible = true;
         shapeCloth(ch, d.spread, t, undefined);
         rigLines(ch, d.spread, d.slider, t, toggles);
-        tmp.set(0, 0.2, -CHUTE.canopy.chord * 0.35).applyMatrix4(canopy.matrixWorld);
-        drawBridle(atBag, atPilot, CHUTE.pilot.bridle, t, tmp);
+        drawBridle(top, atBag, top.distanceTo(atBag) + 0.05, t, atPilot);
         over = { x: canopyAt.x, y: canopyAt.y, z: canopyAt.z };
         return;
       }
@@ -627,20 +680,18 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       canopy.visible = true;
       shapeCloth(ch, 1, state.t, ch.t);
       rigLines(ch, 1, 0, state.t, toggles);
-      const top = v3()
-        .set(0, 0.2, -CHUTE.canopy.chord * 0.35)
-        .applyMatrix4(canopy.matrixWorld);
-      const atBag = v3()
-        .set(0, OVER.bag * 0.6, -CHUTE.canopy.chord * 0.6)
-        .applyMatrix4(canopy.matrixWorld);
-      const atPilot = v3()
-        .set(0, OVER.bag, -CHUTE.canopy.chord - OVER.pilot)
-        .applyMatrix4(canopy.matrixWorld);
+      // The air turning from rising past it to coming from ahead lays the
+      // bag down on the top skin and the pilot chute back behind the tail.
+      const fly = flownOver(ch.t);
+      const top = v3();
+      const atBag = v3();
+      const atPilot = v3();
+      rigOver(fly, top, atBag, atPilot);
       bag.visible = true;
       bag.position.copy(atBag);
       bag.quaternion.copy(canopy.quaternion);
       placePilot(atPilot, atBag, pilotOpen(0, true));
-      drawBridle(top, atPilot, OVER.pilot + 0.9, state.t);
+      drawBridle(top, atBag, top.distanceTo(atBag) + 0.05, state.t, atPilot);
       over = { x: canopyAt.x, y: canopyAt.y, z: canopyAt.z };
     },
     canopy: () => over,

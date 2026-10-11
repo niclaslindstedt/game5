@@ -10,13 +10,19 @@
 //     the air rushing past; taut, it is straight.
 //   * THE BAG (`bagTurn`): lifted off his back and tumbling as the lines
 //     strip out of its bands, then stood on the bridle over the canopy.
+//   * WHERE THEY RIDE OVER THE CANOPY (`overCanopy`): the bridle sewn to the
+//     top skin's middle; through the opening, the pilot chute straight over
+//     it pulling with the bag on the tape under it; the canopy flying, the
+//     bag (a free bag, kept on the bridle) lying on the top skin behind the
+//     attachment and the pilot chute collapsed and trailing up and behind
+//     the tail in the air off it, as sport mains are photographed.
 //   * THE CANOPY CUT AWAY (`cutawayPoint`): out of the air in a second and a
 //     fifth, the span crumpling in and the cloth streaming, its ends flogging
 //     as it falls — then LAID ON THE SNOW (`laidPoint`), crumpled flat in a
 //     long heap along the way it fell.
 //   * THE CANOPY CAUGHT (`crownDrape`, `ropeDrape`): over a crown, the cloth
-//     laid down the cone of the tree from where it caught and hanging off
-//     its rim; over a lift's rope, folded over the rope like a sheet on a
+//     thrown over the tree's top like a sheet over a cone, gathered in folds
+//     down its sides; over a lift's rope, folded over the rope like a sheet on a
 //     line, both halves hanging.
 
 /** A point, m. */
@@ -29,6 +35,45 @@ export function pilotOpen(t: number, trailing: boolean): number {
   if (trailing) return 0.35;
   const k = Math.max(0, Math.min(1, (t - 0.05) / 0.3));
   return 0.15 + 0.85 * k * k * (3 - 2 * k);
+}
+
+/** WHERE THE BRIDLE, THE BAG AND THE PILOT CHUTE RIDE over the canopy,
+ * in its own frame (`chute-scene.ts`'s: x along the span, y up its lines,
+ * z forward; the leading edge at z 0.85, the tail at −2, the top skin
+ * highest, some 0.3 m, a third of the way back): `fly` 0 the opening (the
+ * air rising straight up past it) .. 1 flying (the air past it from ahead
+ * and under, up and back over the top skin). `top` the bridle's
+ * attachment, `bag` the bag's middle, `pilot` the pilot chute's apex. */
+export function overCanopy(fly: number): { top: P3; bag: P3; pilot: P3 } {
+  const k = Math.max(0, Math.min(1, fly));
+  const f = k * k * (3 - 2 * k);
+  const top = { ...OVER.top };
+  const mix = (a: P3, b: P3): P3 => ({
+    x: a.x + (b.x - a.x) * f,
+    y: a.y + (b.y - a.y) * f,
+    z: a.z + (b.z - a.z) * f,
+  });
+  return {
+    top,
+    bag: mix(OVER.bag.opening, OVER.bag.flying),
+    pilot: mix(OVER.pilot.opening, OVER.pilot.flying),
+  };
+}
+
+/** The places `overCanopy` blends between, m in the canopy's frame. The
+ * flying bag lies on the top skin (0.27 m up there) and the bridle's 2.5 m
+ * reach the pilot chute a metre over and some 0.6 m behind the tail. */
+export const OVER = {
+  top: { x: 0, y: 0.33, z: -0.25 },
+  bag: { opening: { x: 0, y: 1.05, z: -0.25 }, flying: { x: 0, y: 0.36, z: -0.85 } },
+  pilot: { opening: { x: 0, y: 2.8, z: -0.1 }, flying: { x: 0, y: 1.1, z: -2.6 } },
+} as const;
+
+/** How far over from the opening to flying the rig over the canopy is, 0..1,
+ * `t` s after the canopy is open: the air turning from rising past it to
+ * coming from ahead over a couple of seconds. */
+export function flownOver(t: number): number {
+  return Math.max(0, Math.min(1, t / 2.2));
 }
 
 /** THE BRIDLE as `n + 1` points from `from` to `to` into `out` (x, y, z a
@@ -120,51 +165,80 @@ export function laidPoint(
  * radius at the foot of that reach, m. */
 export type Crown = { x: number; z: number; top: number; depth: number; radius: number };
 
-/** A POINT OF THE CANOPY CAUGHT IN A CROWN: `p` the point where it hung
- * when it caught (the world's frame), laid on the crown's cone out from
- * where it caught it — as far round the cone as it lay from the snag in
- * the air — and hanging straight down off the cone's rim past it; `snag`
- * the point it is held at. Into `out` at `o`. */
+/** A POINT OF THE CANOPY CAUGHT IN A CROWN: `p` the point in the canopy's
+ * own frame (x along the span, y up its lines, z forward), the cloth thrown
+ * over the tree like a sheet over a cone — its middle on the top, every
+ * point as far down the cone as it lay from the middle across the flat
+ * cloth and round it the way it lay (`heading` the canopy's, the span
+ * across it), gathered into folds as the cone's girth runs short of the
+ * cloth's, the top skin a little proud of the bottom one, and any of it
+ * past the cone's foot hanging off its rim. Into `out` at `o`, the
+ * world's frame. */
 export function crownDrape(
   p: P3,
-  snag: P3,
   crown: Crown,
+  heading: number,
   out: Float32Array | number[],
   o: number,
 ): void {
-  // The cone the cloth lies on: the crown's, widened to take in the snag
-  // (a line or the cloth's edge can catch a little outside the foliage).
-  const radius = Math.max(crown.radius, Math.hypot(snag.x - crown.x, snag.z - crown.z) * 1.05);
-  const slant = Math.hypot(crown.depth, radius);
-  // How far over the cloth this point is from the snag, and which way.
-  const hx = p.x - crown.x;
-  const hz = p.z - crown.z;
-  const h = Math.hypot(hx, hz);
-  const reach = Math.hypot(p.x - snag.x, p.y - snag.y, p.z - snag.z);
-  const dx = h > 1e-4 ? hx / h : 1;
-  const dz = h > 1e-4 ? hz / h : 0;
-  // Down the cone from the snag's own height on it, the cloth wrapping round
-  // as much as it runs down.
-  const from = Math.max(0, Math.min(1, (crown.top - snag.y) / crown.depth)) * slant;
-  const r = from + reach * DRAPE_DOWN;
+  const slant = Math.hypot(crown.depth, crown.radius);
+  // The cloth laid flat: its span along the arc (some 6 % longer than its
+  // chord across the span), its middle at mid-chord.
+  const fx = p.x * DRAPE.arc;
+  const fz = p.z - DRAPE.middle;
+  const r = Math.hypot(fx, fz);
+  const rx = Math.cos(heading);
+  const rz = -Math.sin(heading);
+  const ax = Math.sin(heading);
+  const az = Math.cos(heading);
+  let dx = r > 1e-4 ? (fx * rx + fz * ax) / r : 1;
+  let dz = r > 1e-4 ? (fx * rz + fz * az) / r : 0;
+  const dl = Math.hypot(dx, dz) || 1;
+  dx /= dl;
+  dz /= dl;
+  // Proud of the foliage, the top skin over the bottom, and the folds.
+  const theta = Math.atan2(fz, fx);
+  const gather = 1 - crown.radius / slant;
+  const fold = DRAPE.fold * gather * Math.min(1, r / 1.2) * Math.sin(theta * 9 + r * 1.7);
+  const lift = DRAPE.proud + DRAPE.skin * Math.max(0, Math.min(1.4, p.y + 0.8)) + fold;
   if (r <= slant) {
-    const d = (r / slant) * radius;
-    out[o] = crown.x + dx * d;
-    out[o + 1] = crown.top - (r / slant) * crown.depth + 0.12;
-    out[o + 2] = crown.z + dz * d;
+    const d = (r / slant) * crown.radius;
+    // The cone's outward normal (straight up over its point), and a
+    // rounded cap over the point.
+    const round = Math.min(1, r / 0.9);
+    const nh = (crown.depth / slant) * round;
+    const nv = 1 - (1 - crown.radius / slant) * round;
+    const cap = DRAPE.cap * Math.exp(-r / 0.9);
+    out[o] = crown.x + dx * (d + nh * lift);
+    out[o + 1] = crown.top - (r / slant) * crown.depth + nv * lift + cap;
+    out[o + 2] = crown.z + dz * (d + nh * lift);
     return;
   }
-  // Off the rim: hanging, swung a little out by the folds.
+  // Off the rim: hanging over the wider boughs below, flared out on them
+  // and hung in deep folds between their tips.
   const hang = r - slant;
-  const d = radius + 0.15 + 0.1 * Math.sin(hang * 3 + h);
+  const d =
+    crown.radius + lift + DRAPE.flare * hang + DRAPE.hang * Math.sin(theta * 9 + hang * 2.2);
   out[o] = crown.x + dx * d;
   out[o + 1] = crown.top - crown.depth - hang * 0.95;
   out[o + 2] = crown.z + dz * d;
 }
 
-/** The share of the cloth's run from the snag that goes down the crown's
- * cone (the rest wraps round it). */
-const DRAPE_DOWN = 0.7;
+/** How the caught canopy lies on the crown: its span's arc over its chord,
+ * the chord's middle (the canopy's frame, m), how far proud of the cone,
+ * how much the top skin stands over the bottom, the folds' depth and the
+ * rounded cap over the tree's point, m; off the rim, how far the skirt
+ * flares out per metre it hangs and its folds' depth, m. */
+const DRAPE = {
+  arc: 1.06,
+  middle: -0.6,
+  proud: 0.18,
+  skin: 0.35,
+  fold: 0.16,
+  cap: 0.3,
+  flare: 0.3,
+  hang: 0.22,
+};
 
 /** A POINT OF THE CANOPY CAUGHT OVER A ROPE: `p` the point where it hung
  * when it caught (the world's frame), folded over the rope through `snag`

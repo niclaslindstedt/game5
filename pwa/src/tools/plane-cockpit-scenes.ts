@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE JUMP PLANE LAB'S COCKPIT SHEET (`plane-scenes.ts` lists it): the
-// cockpit (`plane-cockpit.ts`) through the HELMET rung — the pilot's eye —
+// cockpit (`plane-cockpit.ts`) through the TIPS rung — the pilot's eye, the airframe's own lens —
 // on the strip, in the climb, in a bank, upside down at the top of a loop
 // and after dark; over his shoulder; the panel, its displays, the quadrant,
 // the pedals and the overhead close; the controls thrown; and the pilot in
@@ -52,12 +52,12 @@ export function cockpitViews(k: CockpitKit): Record<string, (st: Stage) => void 
     "cockpit-eye"(st) {
       const s = st.fresh();
       st.run(s, 0.5, still);
-      st.shoot(s, "on the strip", "helmet");
+      st.shoot(s, "on the strip", "tips");
       const c = aloft(st, 22);
-      st.shoot(c, "climbing", "helmet");
+      st.shoot(c, "climbing", "tips");
       const b = aloft(st, 60);
       st.run(b, 1.6, held({ roll: 0.8, pitch: -0.3 }));
-      st.shoot(b, "banked", "helmet");
+      st.shoot(b, "banked", "tips");
       // THE LOOP'S TOP, flown: over the strip at full power, pushed into a
       // dive to 120 kt and then the stick held back on the player's own
       // hand (`samplePlane`) until it hangs upside down over the top.
@@ -88,15 +88,15 @@ export function cockpitViews(k: CockpitKit): Record<string, (st: Stage) => void 
         st.run(l, 0.05, keyed({ stickBack: true }));
         over = Math.abs(p.roll) > 2.6 && Math.abs(p.pitch) < 0.25;
       }
-      st.shoot(l, "loop's top", "helmet");
+      st.shoot(l, "loop's top", "tips");
     },
     async "cockpit-night"(st) {
       await st.sky({ hour: 21, weather: "clear" });
       const s = st.fresh();
       st.run(s, 0.5, still);
-      st.shoot(s, "strip at night", "helmet");
+      st.shoot(s, "strip at night", "tips");
       const up = aloft(st, 40);
-      st.shoot(up, "aloft at night", "helmet");
+      st.shoot(up, "aloft at night", "tips");
       st.shoot(up, "panel at night", riding([0.12, 2.2, 0.5], [0.0, 1.8, 1.15], 58));
       await st.sky(null);
     },

@@ -110,8 +110,14 @@ export const CHUTE = {
    * — first the prop blast along the plane's way, then, as gravity takes
    * him, the air from below; he is out of the "hill" and in freefall once
    * the air comes `vertical` rad of plumb up at him, or after `most` s.
-   * The press there does nothing for `clear` s (the tail passes over). */
-  exit: { vertical: 0.2, most: 9, clear: 1.5 },
+   * The press there does nothing for `clear` s (the tail passes over).
+   * A POISED EXIT leaves the door diving, already turning onto the wind:
+   * his body leads the air's own angle by `lead` rad (the hips presented
+   * to it, the chest and legs swept back over the arch — the "hill" flown
+   * a step ahead of the air), he leaves the crouch at `poise` rad over
+   * upright, and the slipstream at some 40 m/s turns him onto it in
+   * `body` s (the freefall's own easing is for the slower air under him). */
+  exit: { vertical: 0.2, most: 9, clear: 1.5, lead: 0.55, poise: 0.35, body: 0.25 },
   /** THE DEPLOYMENT (the throw out): the pilot chute out and inflating, the
    * bridle taut and the pin pulled, the bag lifted off the container, the
    * lines unstowed to LINE STRETCH, the canopy SNIVELLING with the slider

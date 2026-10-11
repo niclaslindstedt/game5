@@ -443,7 +443,7 @@ const SURFACES = {
     settle: 1500,
   },
   "plane-door": {
-    params: { start: "free", plane: "1", t: "60", camera: "tips", shot: "1" },
+    params: { start: "free", plane: "1", t: "60", camera: "helmet", shot: "1" },
     wait: ".hud-plane",
     settle: 1500,
   },

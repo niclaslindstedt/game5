@@ -69,9 +69,29 @@ export function rideShares(state: GameState): { air: number; snow: number } {
   return { air: 1, snow: 1 };
 }
 
-/** THE JUMP AGAINST THE EAR — a `ChuteVoice` read off the state, or null
- * when nothing of it is to be heard. */
-export function chuteVoiceOf(state: GameState): ChuteVoice | null {
+/** How fast the hands work the controls that reads as a whole pull, 1/s
+ * of a control's travel (a full throw in a quarter of a second). */
+const PULL_FULL = 4;
+
+/** HOW FAST HIS HANDS ARE WORKING the toggles and the risers, 0..1: the
+ * controls' travel between `was` and `now` over `dt` s. */
+export function pullOf(
+  was: { brake: number; steer: number; riser: number },
+  now: { brake: number; steer: number; riser: number },
+  dt: number,
+): number {
+  if (dt <= 0) return 0;
+  const moved =
+    Math.abs(now.brake - was.brake) +
+    Math.abs(now.steer - was.steer) +
+    Math.abs(now.riser - was.riser);
+  return Math.min(1, moved / dt / PULL_FULL);
+}
+
+/** THE JUMP AGAINST THE EAR — a `ChuteVoice` read off the state (his hands'
+ * `pull` this frame, 0..1, the bed's), or null when nothing of it is to be
+ * heard. */
+export function chuteVoiceOf(state: GameState, pull = 0): ChuteVoice | null {
   const ch = state.chute;
   if (!ch) return null;
   const c = state.skier;
@@ -109,6 +129,8 @@ export function chuteVoiceOf(state: GameState): ChuteVoice | null {
     open,
     brake: ch.controls.brake,
     turn: Math.abs(ch.controls.steer),
+    pull,
+    riser: Math.abs(ch.controls.riser),
     stalled: ch.stalled,
     piece,
     pieceDistance,
@@ -131,12 +153,15 @@ export function createChuteBed(synth: Synth): ChuteBed {
   let listener: Listener = listenerFor("chase");
   let built = false;
   let slot = Number.NaN;
+  // His hands on the controls last frame, and the pull eased between frames.
+  const hands = { brake: 0, steer: 0, riser: 0 };
+  let pull = 0;
   const hush = (): void => {
     rack.stop();
     built = false;
   };
   return {
-    update(state, _dt, duck = 1) {
+    update(state, dt, duck = 1) {
       const ch = state.chute;
       if (!ch) {
         if (built) hush();
@@ -144,7 +169,13 @@ export function createChuteBed(synth: Synth): ChuteBed {
         return;
       }
       if (synth.now() === null) return;
-      const voice = chuteVoiceOf(state);
+      const k = ch.controls;
+      const now = pullOf(hands, k, dt);
+      pull = Math.max(now, pull * Math.exp(-dt / 0.12));
+      hands.brake = k.brake;
+      hands.steer = k.steer;
+      hands.riser = k.riser;
+      const voice = chuteVoiceOf(state, ch.mode === "open" ? pull : 0);
       if (voice) {
         rack.apply(
           chuteTargets(voice, { wind: listener.wind * duck, machine: listener.machine * duck }),

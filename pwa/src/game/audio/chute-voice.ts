@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SKYDIVE, HEARD — the jump out of the plane's door (`chute.ts`) as
-// ten layers, a pure function of how fast the air is going through him or
+// twelve layers, a pure function of how fast the air is going through him or
 // his canopy, how his body lies in it, and what is over him.
 //
 // What a skydive sounds like, in our own words:
@@ -28,7 +28,12 @@
 //     thin HUM in the breeze of his own glide (a line a millimetre and a
 //     half thick sheds vortices at about a fifth of the airspeed over its
 //     diameter — a kilohertz and a half at a canopy's 12 m/s), the cloth
-//     luffing louder deep in the brakes and stalling.
+//     luffing louder deep in the brakes and stalling. Working the toggles
+//     is heard too, close by his ears: the brake line ZIPPING through its
+//     guide ring on the rear riser as a hand pulls or lets it up (a short
+//     hiss whose pitch rises with how fast it runs), and the TAIL — the
+//     trailing edge pulled down into the air, a soft flutter of strained
+//     cloth while it is held there (and the nose's, on the front risers).
 //   * CUT AWAY, the canopy FLAPS AWAY above him, a flogging rag going off
 //     up the sky as he falls clear (its distance off `heliHeard`).
 //
@@ -64,6 +69,11 @@ export type ChuteVoice = {
   brake: number;
   /** One toggle more than the other, 0..1. */
   turn: number;
+  /** How fast his hands are working the toggles and the risers, 0..1 (a
+   * full throw in a quarter of a second is 1); none when left out. */
+  pull?: number;
+  /** A pair of risers pulled down, 0..1; none when left out. */
+  riser?: number;
   /** The canopy stalled. */
   stalled: boolean;
   /** The canopy cut away and falling, how fast, m/s (0 none or down), and
@@ -78,7 +88,18 @@ export type ChuteVoice = {
 export type ChuteMix = { wind: number; machine: number };
 
 export type ChuteLayer =
-  "roar" | "rumble" | "whistle" | "flap" | "buffet" | "flog" | "rustle" | "hum" | "luff" | "piece";
+  | "roar"
+  | "rumble"
+  | "whistle"
+  | "flap"
+  | "buffet"
+  | "flog"
+  | "rustle"
+  | "hum"
+  | "luff"
+  | "zip"
+  | "tail"
+  | "piece";
 
 /** What each layer is BUILT from — decided once. */
 export const CHUTE_LAYERS: Record<ChuteLayer, LayerSpec> = {
@@ -91,6 +112,8 @@ export const CHUTE_LAYERS: Record<ChuteLayer, LayerSpec> = {
   rustle: { kind: "noise", color: "pink", filter: { type: "bandpass", q: 0.9 } },
   hum: { kind: "tone", type: "triangle", detuneCents: 9, filter: { type: "bandpass", q: 4 } },
   luff: { kind: "noise", color: "pink", filter: { type: "bandpass", q: 1.3 } },
+  zip: { kind: "noise", color: "white", filter: { type: "bandpass", q: 3 } },
+  tail: { kind: "noise", color: "pink", filter: { type: "bandpass", q: 1.6 } },
   piece: { kind: "noise", color: "pink", filter: { type: "bandpass", q: 1.2 } },
 };
 
@@ -106,6 +129,8 @@ export const CHUTE_GLIDE: Record<ChuteLayer, number> = {
   rustle: 0.12,
   hum: 0.2,
   luff: 0.08,
+  zip: 0.03,
+  tail: 0.1,
   piece: 0.06,
 };
 
@@ -158,6 +183,10 @@ export function chuteTargets(voice: ChuteVoice, mix: ChuteMix): Record<ChuteLaye
   const canopy = ramp(v, 0, 16);
   const brake = unit(voice.brake);
   const luff = open * unit(0.6 * ramp(brake, 0.55, 1) + (voice.stalled ? 0.8 : 0));
+  const pull = unit(voice.pull ?? 0);
+  // The cloth pulled out of its trim: the tail down on the toggles, the
+  // nose on the front risers.
+  const bent = unit(Math.max(brake, unit(voice.turn), unit(voice.riser ?? 0)));
   const piece = ramp(voice.piece, 0, 20);
   const away = heliHeard(voice.pieceDistance);
   return {
@@ -203,6 +232,15 @@ export function chuteTargets(voice: ChuteVoice, mix: ChuteMix): Record<ChuteLaye
     luff: {
       level: luff * 0.012 * (0.6 + 0.4 * flutter) * w,
       cutoff: 500 + 600 * flutter,
+    },
+    // HIS HANDS: the brake line zipping through its ring, the tail strained.
+    zip: {
+      level: open * pull * 0.005 * w,
+      cutoff: 2200 + 2200 * pull,
+    },
+    tail: {
+      level: open * canopy * bent * 0.0045 * (0.6 + 0.4 * flutter) * w,
+      cutoff: 600 + 500 * bent + 200 * flutter,
     },
     // CUT AWAY: the canopy flapping away up the sky.
     piece: {

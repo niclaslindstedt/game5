@@ -29,10 +29,12 @@ import {
   skyPaintAt,
   sliderOf,
 } from "../pwa/src/game/chute-canopy.ts";
-import { CANOPY, canopyLayout } from "../pwa/src/game/para-canopy.ts";
+import { CANOPY, canopyLayout, canopyPoint } from "../pwa/src/game/para-canopy.ts";
 import {
   bridlePath,
   crownDrape,
+  flownOver,
+  overCanopy,
   cutawayPoint,
   deflated,
   laidPoint,
@@ -155,6 +157,31 @@ describe("the loose pieces", () => {
     expect(pilotOpen(9, true)).toBeLessThan(0.5);
   });
 
+  it("rides the bridle off the top skin's middle: the pilot chute over it opening, trailing up and back flying", () => {
+    const open = overCanopy(0);
+    const fly = overCanopy(flownOver(9));
+    expect(open.pilot.y - open.top.y).toBeGreaterThan(2);
+    expect(Math.abs(open.pilot.z - open.top.z)).toBeLessThan(0.3);
+    for (const o of [open, fly]) {
+      for (const p of [o.top, o.bag, o.pilot]) expect(Math.abs(p.x)).toBeLessThan(0.01);
+      // The whole tape a bridle long, never longer.
+      const run =
+        Math.hypot(o.bag.y - o.top.y, o.bag.z - o.top.z) +
+        Math.hypot(o.pilot.y - o.bag.y, o.pilot.z - o.bag.z);
+      expect(run).toBeLessThanOrEqual(CHUTE.pilot.bridle + 0.05);
+    }
+    // Flying: the bag lying on the top skin behind the attachment, the pilot
+    // chute behind the tail and over it.
+    const skin = [0, 0, 0];
+    canopyPoint(0, (0.85 - fly.bag.z) / CHUTE.canopy.chord, 1, 0, 0, skin, 0, SKY_WING);
+    expect(fly.bag.y - CHUTE.bag.depth / 2).toBeGreaterThan(skin[1] - 0.03);
+    expect(fly.bag.y - skin[1]).toBeLessThan(0.2);
+    expect(fly.bag.z).toBeLessThan(fly.top.z);
+    expect(fly.pilot.z).toBeLessThan(-2);
+    expect(fly.pilot.y).toBeGreaterThan(0.6);
+    expect(flownOver(0)).toBe(0);
+  });
+
   it("lays the bridle straight when taut and sags it when slack", () => {
     const out = new Float32Array(17 * 3);
     const from = { x: 0, y: 0, z: 0 };
@@ -189,14 +216,24 @@ describe("the loose pieces", () => {
 
   it("lays a caught canopy over the crown and hangs it off the rim; folds it over a rope", () => {
     const crown = { x: 0, z: 0, top: 20, depth: 12, radius: 3 };
-    const snag = { x: 0.5, y: 19, z: 0 };
     const out = [0, 0, 0];
-    crownDrape({ x: 1, y: 19.5, z: 0.5 }, snag, crown, out, 0);
-    // Near the snag: on the cone, under the top.
-    expect(out[1]).toBeLessThan(crown.top + 0.2);
-    expect(Math.hypot(out[0], out[2])).toBeLessThanOrEqual(crown.radius + 0.01);
-    crownDrape({ x: 30, y: 19, z: 0 }, snag, crown, out, 0);
-    // Far off it: hanging below the cone's foot, just outside its rim.
+    // The cloth's middle over the tree's top.
+    crownDrape({ x: 0, y: 0.3, z: -0.6 }, crown, 0, out, 0);
+    expect(out[1]).toBeGreaterThan(crown.top);
+    expect(Math.hypot(out[0], out[2])).toBeLessThan(0.5);
+    // A tip down the cone's side, the span across the heading, proud of it.
+    crownDrape({ x: 3.2, y: -0.7, z: -0.6 }, crown, 0, out, 0);
+    expect(out[1]).toBeLessThan(crown.top - 2);
+    expect(out[1]).toBeGreaterThan(crown.top - crown.depth);
+    expect(out[0]).toBeGreaterThan(0.5);
+    expect(Math.abs(out[2])).toBeLessThan(0.6);
+    const onCone = crown.radius * ((crown.top - out[1]) / crown.depth);
+    expect(Math.hypot(out[0], out[2])).toBeGreaterThan(onCone);
+    // Turned a quarter, the span lies along the other way.
+    crownDrape({ x: 3.2, y: -0.7, z: -0.6 }, crown, Math.PI / 2, out, 0);
+    expect(Math.abs(out[2])).toBeGreaterThan(0.5);
+    // Far off its middle: hanging below the cone's foot, outside its rim.
+    crownDrape({ x: 30, y: 0, z: -0.6 }, crown, 0, out, 0);
     expect(out[1]).toBeLessThan(crown.top - crown.depth);
     expect(Math.hypot(out[0], out[2])).toBeGreaterThan(crown.radius);
     const rope = { x: 0, y: 10, z: 0 };

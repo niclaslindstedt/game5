@@ -180,6 +180,7 @@ export function createMachines(
   // Looking out of his own eyes (TIPS, HELMET): this frame's ask, and
   // whether the lens handed back was it.
   let ownEyes = false;
+  let doorEyes = false;
   let ownLook = false;
   if (heli) group.add(heli.group);
   if (para) group.add(para.group);
@@ -282,7 +283,9 @@ export function createMachines(
       const at = chute?.jumper();
       const framed =
         !!chute && !!at && !!s.chute && skydiveFramed(s.chute, s.skier.thrown !== null);
-      ownEyes = framed && (rung === "tips" || rung === "helmet");
+      // In the plane's door HELMET is his own eyes too (`camera-plane.ts`).
+      doorEyes = !!s.plane?.rider && rung === "helmet";
+      ownEyes = (framed && (rung === "tips" || rung === "helmet")) || doorEyes;
       ownLook = false;
       chute?.setOwnEyes(ownEyes);
       skyCam?.want(
@@ -340,7 +343,7 @@ export function createMachines(
       // The skydive's flown in from whatever is on screen: the door's
       // lens holding him as he falls away, or the ladder.
       const c = skyCam?.lens(p ?? ladder, dt) ?? null;
-      ownLook = !h && c !== null && ownEyes;
+      ownLook = !h && ((c !== null && ownEyes) || (c === null && p !== null && doorEyes));
       return h ?? c ?? p;
     },
     figureShown: () => !ownLook,

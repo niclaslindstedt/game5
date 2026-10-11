@@ -263,7 +263,7 @@ export const STRINGS = {
    * stake hit fast,
    * the empty chair off a lift run into his legs, a downhill's A-nets
    * driven into, the grimbear, a piste machine ridden into, a balloon's
-   * basket gone over. */
+   * basket gone over, a wall's rock struck head on. */
   newsWipeout: (
     cause:
       | "tree"
@@ -284,43 +284,46 @@ export const STRINGS = {
       | "groomer"
       | "car"
       | "balloon"
-      | "plane",
+      | "plane"
+      | "rock",
   ): string =>
-    cause === "car"
-      ? TRAFFIC_STRINGS.newsCar
-      : cause === "balloon"
-        ? BALLOON_STRINGS.newsBalloonCrash
-        : cause === "maul"
-          ? "TAKEN BY THE GRIMBEAR"
-          : cause === "groomer"
-            ? "BONK! PISTE MACHINE"
-            : cause === "heli" || cause === "plane"
-              ? "THROWN CLEAR!"
-              : cause === "grip"
-                ? "LOST HIS GRIP!"
-                : cause === "chair"
-                  ? "SWEPT BY THE CHAIR!"
-                  : cause === "net"
-                    ? "INTO THE NETS!"
-                    : cause === "stake"
-                      ? "YARD SALE! STAKE"
-                      : cause === "sled"
-                        ? "OFF THE SLED!"
-                        : cause === "tree"
-                          ? "YARD SALE! TREE"
-                          : cause === "skier"
-                            ? "YARD SALE! TAKEN OUT"
-                            : cause === "nose"
-                              ? "OVER THE TIPS"
-                              : cause === "roll"
-                                ? "YARD SALE"
-                                : cause === "landing"
-                                  ? "CRASH LANDING"
-                                  : cause === "slam"
-                                    ? "SLAMMED! HEEL EDGE"
-                                    : cause === "faceplant"
-                                      ? "FACEPLANT! TOE EDGE"
-                                      : "EDGE CAUGHT",
+    cause === "rock"
+      ? "YARD SALE! ROCK"
+      : cause === "car"
+        ? TRAFFIC_STRINGS.newsCar
+        : cause === "balloon"
+          ? BALLOON_STRINGS.newsBalloonCrash
+          : cause === "maul"
+            ? "TAKEN BY THE GRIMBEAR"
+            : cause === "groomer"
+              ? "BONK! PISTE MACHINE"
+              : cause === "heli" || cause === "plane"
+                ? "THROWN CLEAR!"
+                : cause === "grip"
+                  ? "LOST HIS GRIP!"
+                  : cause === "chair"
+                    ? "SWEPT BY THE CHAIR!"
+                    : cause === "net"
+                      ? "INTO THE NETS!"
+                      : cause === "stake"
+                        ? "YARD SALE! STAKE"
+                        : cause === "sled"
+                          ? "OFF THE SLED!"
+                          : cause === "tree"
+                            ? "YARD SALE! TREE"
+                            : cause === "skier"
+                              ? "YARD SALE! TAKEN OUT"
+                              : cause === "nose"
+                                ? "OVER THE TIPS"
+                                : cause === "roll"
+                                  ? "YARD SALE"
+                                  : cause === "landing"
+                                    ? "CRASH LANDING"
+                                    : cause === "slam"
+                                      ? "SLAMMED! HEEL EDGE"
+                                      : cause === "faceplant"
+                                        ? "FACEPLANT! TOE EDGE"
+                                        : "EDGE CAUGHT",
   /** A snowboarder's skis-off word: nothing comes off a board, so a
    * YARD SALE is a WIPEOUT. */
   newsBoardDown: "WIPEOUT",

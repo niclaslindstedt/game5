@@ -41,7 +41,10 @@
 // FREE RIDE a flight takes a stroke only if he MEANT it — off a kicker, or
 // in a pop of his own (`popWindow`): a knee or a roller taken at speed
 // throws him without asking, and the edge he steers across it then is his
-// steering, never a 180 (`TrickState.meant`).
+// steering, never a 180 (`TrickState.meant`). A BIG FLIGHT is the
+// exception for the lean: with a second of air or more still ahead
+// (`bigFlight`) — off a crest, a cliff, a drop — the lean thrown across its
+// gate is a loop whatever launched him.
 //
 // THE GRABS. With the trick button held in the air the skier's body is off
 // the controls and into a grab: one ski kicked forward and one back, the
@@ -160,8 +163,15 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     k.pose = pose;
   }
 
-  const flying =
-    c.airborne && c.thrown === null && c.airTime >= TUNING.air.counts && c.launchVy >= T.launch;
+  const aloft = c.airborne && c.thrown === null && c.airTime >= TUNING.air.counts;
+  // A BIG FLIGHT — a crest, a cliff, a drop with the air still ahead of
+  // him for a loop (`bigFlight`) — is the pump's whatever launched it.
+  const down = aloft ? landingAhead(c, state.level, flightGravity(state.rules)) : null;
+  const ahead = down ? down.t : Infinity;
+  const big = aloft && ahead >= T.bigFlight;
+  const launched = aloft && c.launchVy >= T.launch;
+  // ...and a loop under way is turned out whatever the air left says.
+  const flying = launched || big || (aloft && owing(k.flipGoal, k.flipDone));
   // An axis let back under its gate is the air control's again.
   if (flip === 0) k.flipHeld = false;
   if (spin === 0) k.spinHeld = false;
@@ -197,14 +207,16 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
   const ref = inertiaOf(SKIS);
   const flipAccel = T.flipAccel * Math.sqrt(ref.x / I.x);
   const spinAccel = T.spinAccel * Math.sqrt(ref.y / I.y);
-  const down = landingAhead(c, state.level, flightGravity(state.rules));
-  const left = (down ? down.t : Infinity) - T.finish;
-
-  if (k.pose !== null || !(k.meant || state.rules.tricks)) {
+  const left = ahead - T.finish;
+  // A flight he never meant (`TrickState.meant`) is steered, never thrown
+  // — a twirl off a knee is his steering — but in a big one the lean is
+  // the pump all the same: there is the air for a loop, and leaning hard
+  // in it means one.
+  const willed = launched && (k.meant || state.rules.tricks);
+  if (k.pose !== null || !(willed || big)) {
     // Grabbing: the body is busy, and whatever the axes are doing is the
     // grab's — nothing is thrown, though a throw already owed is still
-    // turned below. Let go, they must be thrown afresh. And a flight he
-    // never meant (`TrickState.meant`) is steered, never thrown.
+    // turned below. Let go, they must be thrown afresh.
     k.flipCrossed = flip;
     k.spinCrossed = spin;
   } else {
@@ -221,7 +233,7 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     }
     // THE TWIRL, half a turn the way the edge went.
     // (A revert under way turns him round itself: no twirl is read on top.)
-    if (spin === 0 || c.revert != null) k.spinCrossed = spin;
+    if (spin === 0 || c.revert != null || !willed) k.spinCrossed = spin;
     else if (spin !== k.spinCrossed) {
       k.spinCrossed = spin;
       const goal = k.spinGoal + spin * T.spinStep;

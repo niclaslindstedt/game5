@@ -121,6 +121,10 @@ export const TUNING = {
      * and in powder. */
     crrPacked: 0.035,
     crrPowder: 0.07,
+    /** ...and on BARE ROCK (`Level.bareRockAt`): a polyethylene base
+     * ground over granite and scree, 0.3–0.5 — a skier on a wall's rock
+     * slows hard, and the base pays for it. */
+    crrRock: 0.35,
     /** THE PLOUGH: the snow a sunk tip shoves aside, N per metre of ski
      * width per metre of sink per (m/s)² — the bow wave of a displacement
      * hull, and why a skier bogged in powder wants momentum. */
@@ -254,6 +258,10 @@ export const TUNING = {
      * region's crust carries): the share of the groomer's grip an edge has
      * left on bare ice — a sharp edge scratches a line and little more. */
     ice: { edge: 0.35, base: 0.35 },
+    /** BARE ROCK (a wall's skin, `rock-ground.ts`): the share of the
+     * groomer's grip a steel edge keeps skating on stone — it catches on
+     * a crystal and lets go on the next. */
+    rock: { edge: 0.45, base: 0.45 },
   },
 
   /** THE EDGE AND THE SKID — how the skis are steered. */

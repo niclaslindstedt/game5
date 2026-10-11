@@ -28,6 +28,7 @@ function fairHeading(
   z: number,
   want: number,
   row: GradeRow,
+  face: boolean,
 ): number | null {
   const run = R.grid.back + R.track.step + R.spawn.run;
   const { maxSlope, minSlope } = row.spawn;
@@ -50,7 +51,9 @@ function fairHeading(
     const end = sampleField(ground, x + Math.sin(h) * run, z + Math.cos(h) * run);
     const mean = (sampleField(ground, x, z) - end) / run;
     if (steepest > maxSlope * 0.85 || climb > 0.06) continue;
-    if (minSlope > 0 && mean < minSlope * 1.2) continue;
+    // On a REAL face (R25) the start is the mountain's: the run is billed
+    // the colour it measures, so it need not open as steeply as its slot's.
+    if (!face && minSlope > 0 && mean < minSlope * 1.2) continue;
     return h;
   }
   return null;
@@ -74,6 +77,8 @@ export type StartTop = {
   z: number;
   y: number;
   rim: number;
+  /** The glide a ramp off it falls at the least, m per m. */
+  glide: number;
 };
 
 /** A lift's top as the starts under it read it: its snow's height off
@@ -83,9 +88,10 @@ export function startTop(
   ground: Heightfield,
   lift: { kind: string; top: { x: number; z: number } },
   rim: number,
+  glide: number = RR.lift.top.ramp.fall,
 ): StartTop {
   const y = sampleField(ground, lift.top.x, lift.top.z);
-  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim };
+  return { x: lift.top.x, z: lift.top.z, y, rim: lift.kind === "drag" ? 0 : rim, glide };
 }
 
 /** The fall line a start is slid along, m a step and steps. */
@@ -99,7 +105,7 @@ const HEAD_SLIDES = 60;
  * down it. */
 function headBelow(top: StartTop, x: number, z: number): number {
   const K = RR.lift.top.ramp;
-  return K.drop + K.fall * Math.max(0, hypot(x - top.x, z - top.z) - top.rim);
+  return K.drop + top.glide * Math.max(0, hypot(x - top.x, z - top.z) - top.rim);
 }
 
 /** R27 — where on the fall line through (x, z0) a run off `top` starts:
@@ -147,8 +153,9 @@ const HEAD_DOWNS = [0, 12, 24, 36, 48];
  * side the run leans to and then the other, a start of its colour can be
  * raced off — under it by a glide's fall (`headOnContour`), so a rider
  * off the lift slides down to it, never climbs; `top` null (a run off no
- * lift's top) looks along the line across the face, at whatever height. Null where there is none within
- * reach. */
+ * lift's top) looks along the line across the face, at whatever height;
+ * on a real `face` it need not open as steeply as its colour's start.
+ * Null where there is none within reach. */
 export function placeStart(
   ground: Heightfield,
   spec: RunSpec,
@@ -156,6 +163,7 @@ export function placeStart(
   siblings: readonly number[],
   clear: (x: number, z: number, heading: number) => boolean,
   top: StartTop | null,
+  face = false,
 ): RunSpec | null {
   const dir = lean >= 0 ? 1 : -1;
   const mid = ((ground.cols - 1) * ground.cell) / 2;
@@ -174,7 +182,7 @@ export function placeStart(
       for (const down of downs) {
         const z = z0 + down;
         if (top && close && hypot(x - top.x, z - top.z) > RR.lift.top.ramp.far - REACH_SPARE) break;
-        const heading = fairHeading(ground, x, z, spec.heading, spec.row);
+        const heading = fairHeading(ground, x, z, spec.heading, spec.row, face);
         if (heading !== null && clear(x, z, heading)) return { ...spec, x, z, heading };
       }
     }

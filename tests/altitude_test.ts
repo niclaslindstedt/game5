@@ -83,12 +83,13 @@ describe("a real face's altitude", () => {
     const base = baseAltitude(level)!;
     expect(Math.abs(base - real)).toBeLessThan(25);
     // The lifts' tops read the real tops' altitudes too, give or take the
-    // few tens of metres a station is moved to stand on the dealt ridge.
+    // station stood on the face's brow (`readFace`) a little below a real
+    // top on the ridge behind it (on this face a drag's, at the map's edge).
     const top = Math.max(
       ...level.resort!.lifts.map((l) => altitudeAt(level, l.top.x, l.top.y, l.top.z)!),
     );
     const realTop = Math.max(...hints.lifts.map((l) => faceHeight(face, l.top.x, l.top.z)));
-    expect(Math.abs(top - realTop)).toBeLessThan(60);
+    expect(Math.abs(top - realTop)).toBeLessThan(120);
     // The real drop, never the vertical the map was stretched to.
     expect(top - base).toBeLessThan(level.mountain!.vertical);
   });

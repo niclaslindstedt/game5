@@ -332,24 +332,35 @@ export const RESORT_RULES = {
      * eases toward the floor, and the least share it eases to): the steep
      * sector's falls hardest just under the ridge, the gentle one's is
      * rounded over the top and runs out long. */
-    /** R25 — A REAL FACE (`real-face.ts`): the share of R3's hills and
-     * spurs laid over it (the face carries its own at the scale the 30 m
-     * model sees; the folds add what lies under it), how far either side
-     * of the middle its ridge and floor are read, m, and the least drop a
-     * face is stretched off, m. */
+    /** R25 — A REAL FACE (`real-face.ts`), laid 1:1: the share of R3's
+     * hills and spurs laid over it (the face carries its own at the scale
+     * the 30 m model sees; the folds add what lies under it). */
     real: {
       folds: 0.35,
-      /** The face's RELIEF — its height less its own profile: the spurs,
-       * gullies and bowls, the lean of the face — laid over the skiing face
-       * at this root mean square, m (or its own, where that is less). A
-       * real face stands 70–320 m off its profile; the lifts' stations and
-       * the runs' grading hold at about 30 (a sweep of the twenty faces). */
-      relief: 30,
-      /** The share of `relief` given up each attempt after the first, and
-       * the least of it ever laid: a face too rugged for one attempt's
-       * lifts and runs is laid gentler on the next. */
-      calming: 0.06,
-      calmest: 0.3,
+      /** THE VERTICAL A FACE IS HELD TO: the face is laid 1:1 (`faceLift`),
+       * so its vertical is the real peak's over its real floor, whatever
+       * R25 deals a massif — a fell a few hundred metres, a big alpine face
+       * over a thousand. The band only catches a face read wrong, m. */
+      vertical: { min: 200, max: 2500 } as Band,
+      /** How far down the map a face's summit ridge may stand, m: the
+       * highest row of its mean profile between the rule book's ridge row
+       * and this (`readFace`) — a real crop's top row is not always its
+       * ridge. */
+      ridge: 1000,
+      /** The most trees a face stands (`thinTrees`): laid 1:1, a low face
+       * whose real tree line stands over its summit is wooded top to
+       * bottom, and a phone holds no more on one than the most any face
+       * stood when faces were stretched to R25's vertical (83,000). */
+      trees: 80_000,
+      /** The attempts a face is searched over where a dealt map is given
+       * 16: laid 1:1, a few seeds' lifts and runs will not stand on a real
+       * face until the dealt positions and no hints stand in (`placed`,
+       * `hinted`), and a free ride must always raise its mountain. */
+      attempts: 32,
+      /** The BROW the summit stands on (`readFace`): the share of a face's
+       * drop its mean profile may fall from the ridge to it, and how far
+       * down the map it may stand, m. */
+      brow: { share: 0.05, most: 1400 },
       /** The attempts the real peak, shoulder and valley are built on;
        * after them, the dealt ones (a seed's lifts will not take every
        * face's: a sweep of three seeds over the twenty). */
@@ -393,8 +404,45 @@ export const RESORT_RULES = {
        * top's pad level to `pad` m across its cut; a rope `rope` m into
        * its clearance; a run billed the colour the real piste is signed
        * where it measures within `signed` colours of it (a real ski area
-       * signs a run by more than its steepest pitch). */
-      least: { runs: 4, pad: 0.6, rope: 1, signed: 1 },
+       * signs a run by more than its steepest pitch); a run falling `fall`
+       * m per m at the least where R8 asks `track.minGrade` — a real face
+       * laid 1:1 runs out onto a valley floor flatter than a dealt one, and
+       * its runs are skated there as the real ones are — and cut or filled
+       * `cut` m at the most where R8 asks `track.maxCut`, through the real
+       * knolls and hollows a dealt face is never given; and the way off
+       * the gondola's top to the peak's chair graded with up to `chain`'s
+       * fill and dig, m (R26's `lift.chain`), on a bench the real mountain
+       * has rather than the one a massif is dealt; and R29's way out and
+       * back from a piste's foot down runs up to `harder` colours harder
+       * than it — a real area's runs keep their signed colours, and its
+       * way home is the one its real runs give; and a ramp off a top
+       * falling `ramp.glide` m per m at the least where `lift.top.ramp.fall`
+       * asks more — a real fell's top is a plateau that falls gently — and
+       * `ramp.gentle` at the most down to a green's or a blue's run where
+       * `lift.top.ramp.grade` asks less, off a real face's steeper top; and
+       * a bottom station stood where the ground falls up to `level` m per
+       * m across its footprint (its pad graded into the real slope); and
+       * the way to the peak's chair's queue rising `rise` m at the most
+       * where R26 asks `lift.chain.rise`; and a course's finish straight
+       * falling up to `finish` m per m where R8 holds it near level, onto
+       * a real valley floor still falling into its hub; and a run climbing
+       * up to `climb` m per m over R27's window where it is held never to
+       * climb, over a knoll its grading through the real ground left. */
+      least: {
+        runs: 4,
+        pad: 0.6,
+        rope: 1,
+        signed: 1,
+        fall: 0.02,
+        cut: 30,
+        chain: { fill: 20, dig: 40, skate: true },
+        harder: 1,
+        ramp: { glide: 0.04, gentle: 0.3 },
+        level: 0.35,
+        rise: 1.2,
+        finish: 0.06,
+        climb: 0.04,
+      },
       /** THE VILLAGE AT THE REAL TOWN: on a face whose hints carry a town
        * (`HintTown`), the village stands on the valley floor straight
        * below the town's middle — at most `town.across` m from the
@@ -405,12 +453,11 @@ export const RESORT_RULES = {
        * not stand round the town still builds in a few attempts. Read on
        * the attempts the real valley is (`placed`). */
       town: { across: 800, yield: 0.2 },
-      /** How far behind the summit ridge the whole relief is reached, m,
-       * and the descent (u) over which it fades out onto the valley floor. */
-      behind: 200,
+      /** The descent (u) over which the relief across the face fades out
+       * onto the face's own profile on the valley floor, and how far either
+       * side of the middle its floor and profile are read, m. */
       floor: { min: 0.82, max: 0.98 } as Band,
       reach: 1300,
-      leastDrop: 300,
     },
     steepProfile: { shoulder: 0.55, shoulderRun: 0.07, ease: 1.35, runout: 0.12 },
     gentleProfile: { shoulder: 0.35, shoulderRun: 0.32, ease: 0.55, runout: 0.32 },

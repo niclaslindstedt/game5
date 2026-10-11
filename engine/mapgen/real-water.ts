@@ -367,7 +367,16 @@ export function relayWater(
       data.set(was.subarray((r - r0) * w, (r - r0 + 1) * w), r * cols + c0);
     dropped.add(b);
   }
-  if (dropped.size > 0) laid.water = water.filter((_, b) => !dropped.has(b));
+  if (dropped.size > 0) {
+    // A cell a body left off had claimed (the first body over a cell takes
+    // it) is the next body's that lies over it: its surface, not the
+    // dropped body's.
+    water.forEach((body, b) => {
+      if (dropped.has(b)) return;
+      for (const i of cellsIn(ground, body)) if (dropped.has(wet[i] - 1)) data[i] = body.y;
+    });
+    laid.water = water.filter((_, b) => !dropped.has(b));
+  }
   for (const run of runs) {
     for (const set of [run.walked.points, run.kickers, run.drops])
       for (const p of set) p.y = sampleField(ground, p.x, p.z);

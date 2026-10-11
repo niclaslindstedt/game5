@@ -156,6 +156,10 @@ const TIME_STOPS = [
 
 /** The SNOW row's stops. */
 const SNOW_ROW = SNOW_STOPS.map(({ id }) => ({ id, label: STRINGS.snowNames[id] }));
+const AVALANCHE_ROW = [
+  { id: "on", label: STRINGS.optOn },
+  { id: "off", label: STRINGS.optOff },
+] as const;
 
 export function StartPage({
   settings,
@@ -318,6 +322,14 @@ export function StartPage({
                 stops={SNOW_ROW}
                 value={ride.snow}
                 onPick={(snow) => setRide({ snow })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.startAvalanche}
+                hint={STRINGS.startAvalancheHint}
+                stops={AVALANCHE_ROW}
+                value={ride.avalanche ? "on" : "off"}
+                onPick={(id) => setRide({ avalanche: id === "on" })}
                 onHint={setHint}
               />
             </div>

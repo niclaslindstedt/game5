@@ -193,10 +193,64 @@ What came of each line:
 | Below in its path | Escaped |
 | Beside it | Untouched |
 
-### Not yet built
+## As drawn
 
-- **The pictures (part B):** the crown wall and the bed surface, the blocks, the powder cloud, the debris' texture and the hole dug.
+The engine knows a slab as a frame (the crown's middle, its fall line, its flanks, its length and depth) and a cloud of parcels. Nothing it steps is a picture, and nothing drawn moves a digest: the look is the app's alone (`pwa/src/game/avalanche-plan.ts`, three-free; `avalanche-glsl.ts`; `avalanche-view.ts`, held by `machines.ts`).
+
+### What a slab avalanche looks like
+
+What the field photographs and the observation guidelines agree on, restated as the numbers the drawing is held to:
+
+- **The crown** is a clean fracture across the slope, square to the bed, about **0.3–1 m** tall in a slide of this size. It runs fairly straight, stepping where it jogged between weak spots. Its face shows the slab's layers in bands, the harder ones whiter, with the weak layer a darker, sugary line at its foot.
+- **The flanks** run down the slope from the crown's ends, roughly along the fall line. They are lower than the crown and more ragged, and sometimes only a shear scarp.
+- **The bed surface** is the old snow the slab slid off: smooth, planar and harder than the slab, often a greyer or bluer tone, and glazed in patches. Little debris stays on it, but blocks leave slide marks scored down the fall line.
+- **The stauchwall** at the slab's foot, where it pushed into the snow below, is indistinct and usually overrun.
+- **The slab breaks up** within seconds and metres: first into plates metres across and the slab's own thickness thick, opening along cracks; then the plates tip, break and tumble into angular blocks; down the track the blocks round off into **snowballs** of a few decimetres, and fines boil between them.
+- **The front** is the fastest and most churned part, a low wall of tumbling blocks and snow.
+- **A powder cloud** rides a fast dry flow. In a size 2 it is a few metres to tens of metres high, boiling up off the front, and it hangs and drifts on the wind for tens of seconds after the flow stops.
+- **The debris** lies in a lobed tongue, typically **1–3 m** deep, rougher and whiter than the old surface: blocks and snowballs **10 cm to 1–2 m** across, with fines packed between them. Every gap holds a blue-grey shade, so it reads lumpy from afar and as a jumble of chunks close up. Levees along its sides hold the scoured track between them. Dirt, bark and broken branches fleck it where it ran through trees.
+
+### How it is drawn
+
+- **The crown, the flanks and the bed** are cut into the terrain's own shader. The vertex half lowers the snow over the slab's footprint by `slideBed`: the slab's whole depth at once under a crown line that jogs on two waves (`SLIDE_LOOK.crown`), ragged flanks lower than the crown (`flank`), a bed that thins down the slope and fades into the snow at the stauchwall (`bed`). Because the step is a pure function, the crown is as sharp as the clipmap's finest ring (25 cm at HIGH). The fragment half scores the bed down the fall line, colours it a greyer blue, and paints the walls in the slab's layers. `bedDepth` in the plan is the same function in TypeScript, held equal by `tests/avalanche_look_test.ts`.
+- **The debris** is the engine's own `debrisDepth`: every rested parcel's cone, splatted into a small half-float map in the slab's frame (`splatDebris`, 2 m texels). The map starts with room round the slab and grows to wherever the flow got to (`debrisBoxOf`), coarsening its texel rather than passing **160 × 360** texels. The vertex half raises the snow by it. The fragment half lays a field of rounded blocks and snowballs on it with a shade in every gap, whiter than the old snow, flecked dark here and there. It is laid as the parcels come to rest, a quarter-second at a time, and stays for the rest of the run.
+- **The blocks** are two instanced meshes, each one draw call. Up to **1,024 plates** are cut from the slab in rows, the blocks of each row of their own widths (`plateGrid`), each carried by the parcel nearest it. The cracks between them open as they move; each plate tips and breaks up within **6–24 m** of its run. Up to **1,536 chunks** are faceted lumps, each parcel owning up to sixteen. They break off over its first **2–16 m**, bounce and roll in the flow, and round off from **0.7–1.7 m** blocks towards **0.22–0.75 m** snowballs, halving the difference every **60 m** (`chunkSize`). Each block's faces are shaded by which way they look: the top as white as the snow it was, the broken sides and underside the blue-grey of snow in its own shade. Every chunk's numbers are dealt once a slide (`chunkTraits`), and a parcel at rest is not posed again until the debris under it is laid anew.
+- **The powder cloud** reuses the skier's snow cloud (`snow-cloud.ts`'s `billow`: the same sorted, self-shadowed puffs, lit by the sky and the lamps). Each running parcel throws billows by its speed, from **7 m/s** to whole at **24 m/s**, so the front throws the most (`cloudShare`). They rise **1.2–4.5 m/s**, swell to two and a half times their size and hang **10–24 s**. A low saltation dust trails every fast parcel. The whumpf throws a faint line of dust along the crown.
+- **The ground shakes.** A skier within **90 m** of the running flow, or near the crown as it breaks, feels the chase lens tremble (`quakeAt`, `camera-rigs.ts`'s `quake`). The hands feel the release, the flow taking him (the longest pulse there is) and being put down (`rumble.ts`). The drawn skier stands on the drawn bed and debris, lifted by the same function the shader reads (`liftAt`).
+- **Nothing is built before the first slab.** The meshes, the material and the map are made at the first release. A run with avalanches off, or none released, pays nothing. The view's scatter is its own xorshift, seeded off the slab, so a lab sheet is the same sheet twice and the run's stream is never touched.
+
+### What it costs
+
+Measured on the lab's sheets (seed 12, HIGH) and on the bench's lee face in Node:
+
+| What | Cost |
+| --- | --- |
+| Draw calls | **+2** (the plates and the chunks; the cloud rides the skier's own ring) |
+| Triangles | **+25–30 k**: 12 a plate, 20 a chunk slot (a chunk not yet broken off is drawn at nought) |
+| GPU memory | **235–245 KB**: 2,560 instances at 76 B (matrix and colour) and the debris map, at most 160 × 360 half floats (115 KB) |
+| Memory in all | **0.63–0.68 MB**, the GPU's copies and the CPU's (the map as floats, the chunks' numbers, the parcels' notes) — far under the 4 MB budget |
+| Processor, flowing | **0.36–0.54 ms** a frame for the view, beside **0.16–0.36 ms** for the engine's two steps (Node, this container) |
+| Processor, at rest | nothing: once every parcel rests and the map is laid, the view returns at once |
+| The release's frame | **2–23 ms** once: the meshes and the material built at the first slab, the plates cut |
+| Off, or no slab yet | nothing is built |
+
+The terrain's shader pays a few branches a pixel everywhere (`uSlideOn`), and the bed's and the debris' terms only over the slide's footprint within 400 m of the lens.
+
+### The lab (`make avalanche`)
+
+`scripts/avalanche-preview.mjs` builds `pwa/avalanche-preview.html` (`pwa/src/tools/avalanche-harness.ts`) into a one-off bundle. It finds the generated map's widest sunlit, loaded lee face with a run-out in sight (or `--at=x,z`), lets a slab go there, and photographs it through the game's own renderer. The sheets are:
+
+- **release:** the crown cracking and the slab breaking into blocks, 0–2 s, with the same lens on the map with no slide as the cost's baseline.
+- **flow:** the front and its cloud from beside and from below, at 3, 6, 10 and 15 s.
+- **debris:** the deposit close, from its toe and from far, and the bed and the crown from below.
+- **caught:** a skier crossing the slab when it goes, from the chase.
+- **night:** the flow and the debris at hour 21, under the headlamp.
+
+Each frame's draw time, draw calls and triangles are printed under its sheet.
+
+## Not yet built
+
+- **The hole dug** in the debris (part C's), and the debris drawn round trees: the flow's pile on a trunk's uphill side and its eddy behind.
 - **The search (part C):** the transceiver search, the probe, the shovel and the patrol's response.
-- **The OPTIONS / start-card switch.** Today avalanches are always on in a free ride, and `?avalanche=0` turns them off.
 - **Amateurs caught.**
 - **The woods' ξ.** The flow does not yet lower ξ to the woods' **400** as it runs through trees (`xiForest` is stated, unused).

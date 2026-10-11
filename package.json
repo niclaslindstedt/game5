@@ -99,6 +99,7 @@
     "snowguns": "node scripts/snowguns-preview.mjs",
     "water": "node scripts/water-preview.mjs",
     "tree-wells": "node scripts/tree-wells-preview.mjs",
+    "avalanche": "node scripts/avalanche-preview.mjs",
     "trails": "node scripts/trails-preview.mjs",
     "piste-day": "node scripts/piste-day-preview.mjs",
     "judder": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/judder-lab.mjs",

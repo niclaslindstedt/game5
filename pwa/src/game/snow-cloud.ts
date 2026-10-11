@@ -349,6 +349,21 @@ export type SnowCloud = {
   /** A PUFF BLOWN by a helicopter's rotor wash (`heli-view.ts`): one
    * puff of loose snow at a point, thrown at (vx, vy, vz), `size` m. */
   blow(x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number): void;
+  /** AN AVALANCHE'S POWDER CLOUD (`avalanche-view.ts`): one puff `size`
+   * m across at a point, thrown at (vx, vy, vz), swelling `grow` m and
+   * hanging `hang` s, at `opacity`. */
+  billow(
+    x: number,
+    y: number,
+    z: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    size: number,
+    grow: number,
+    hang: number,
+    opacity: number,
+  ): void;
   /** Fly every puff and sort them for the lens. */
   update(dt: number, look: SkyLook, level: Level, wind: Wind, eye: THREE.Vector3): void;
   /** The skier the lens is looking at, and how thin his plume is drawn
@@ -557,6 +572,8 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
     opacity: 0.55,
     sparkle: 0.4,
   };
+  // The avalanche's cloud: slow to settle, slow to stop, glinting little.
+  const boil: CloudRecipe = { ...emptyRecipe(), settle: 0.12, tau: 2.2, sparkle: 0.25 };
   const drive = { speed: 0, skid: 0, edge: 0, grounded: false };
   const shares: [number, number] = [0.5, 0.5];
 
@@ -699,6 +716,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       blown.grow = size * 2.2;
       if (random() > share) return;
       spawn(x, y, z, vx, vy, vz, blown, groundOf(x, z));
+    },
+    billow(x, y, z, vx, vy, vz, size, grow, hang, opacity) {
+      if (random() > share) return;
+      boil.size = size;
+      boil.grow = grow;
+      boil.hang = hang;
+      boil.opacity = opacity;
+      spawn(x, y, z, vx, vy, vz, boil, groundOf(x, z));
     },
     update(dt, look, level, wind, eye) {
       levelRef = level;

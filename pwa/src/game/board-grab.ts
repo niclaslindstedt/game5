@@ -62,6 +62,9 @@ export type GrabLook = {
   /** The elbow pointed out to the side (`out`, +1) or back behind him (−1)
    * — a stalefish's arm goes round behind his leg. */
   elbow: number;
+  /** How far the knees are driven forward under him (`F`, a little down),
+   * 0..1 — a method's, the board kicked up behind him. */
+  knees?: number;
 };
 
 /** THE SEVEN, tuned in `make skier ARGS="--skis=lynx --move=grab-…"`. */
@@ -91,11 +94,11 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     yaw: 0,
     lift: 0.1,
     across: 0.02,
-    lean: 0.85,
+    lean: 0.95,
     to: 1,
     fore: 0.5,
     open: 0.25,
-    knee: 0,
+    knee: -0.4,
     elbow: 1,
   },
   melon: {
@@ -105,13 +108,13 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     roll: 0.3,
     pitch: -0.06,
     yaw: 0,
-    lift: 0.14,
-    across: 0.04,
-    lean: 0.6,
+    lift: 0.04,
+    across: -0.12,
+    lean: 0.75,
     to: 0.2,
     fore: 0.6,
     open: 0.35,
-    knee: 0,
+    knee: -0.2,
     elbow: 1,
   },
   stalefish: {
@@ -121,8 +124,8 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     roll: 0.3,
     pitch: 0.06,
     yaw: 0,
-    lift: 0.14,
-    across: 0.04,
+    lift: 0.04,
+    across: -0.12,
     lean: 0.6,
     to: 0.2,
     fore: -0.6,
@@ -134,17 +137,18 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     hand: "front",
     at: 0.35,
     edge: -1,
-    roll: 1.25,
-    pitch: 0.1,
+    roll: 1.65,
+    pitch: 0.15,
     yaw: 0,
-    lift: 0.28,
-    across: -0.3,
-    lean: -0.05,
+    lift: 0.6,
+    across: -0.45,
+    lean: 0.1,
     to: -1,
     fore: 0,
     open: 0.45,
     knee: 0,
     elbow: 1,
+    knees: 1,
   },
   nose: {
     hand: "front",

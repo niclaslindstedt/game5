@@ -31,8 +31,9 @@ export type Tone = readonly [number, number, number];
 export const SNOW_HOLDS = 0.62;
 export const SNOW_SLIDES = 0.42;
 /** A wall's skin lies at 50° and more, so snow holds only on its ledges:
- * whole past this up share (a facet tipped under 30°). */
-const SKIN_HOLDS = 0.87;
+ * whole past this up share (a facet tipped under 30°) — the engine's, so
+ * the rock a skier rides is bare where it is drawn bare. */
+const SKIN_HOLDS = ROCKS.skin.holds;
 /** The region's rock tone as the crags paint it: the region's hue, warmed
  * a little and brought to one VALUE (`ROCK_VALUE`, linear luminance) —
  * the shader's tone is that rock seen through a skin of snow and
@@ -142,6 +143,8 @@ export function buildSkin(
   j1: number,
 ): void {
   const S = ROCKS.skin;
+  // Laid off the map under the skin the physics rides (`withRock`).
+  level = level.bedrock ?? level;
   const stone = rockTone(tone);
   const w = i1 - i0 + 1;
   const corners: (Corner | null)[] = new Array(w * (j1 - j0 + 1)).fill(null);

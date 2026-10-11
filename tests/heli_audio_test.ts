@@ -217,13 +217,16 @@ describe("the helicopter's moments (heli-bank.ts, route.ts)", () => {
     expect(hard.gain!).toBeGreaterThan(soft.gain!);
   });
 
-  it("is the loudest def in the bank, and the longest", () => {
+  // The jump plane's crash is this blast with the airframe tearing over it
+  // (`plane-bank.ts`), the one def allowed past it.
+  it("is the loudest def in the bank but the plane's, and the longest", () => {
     const end = (id: string) =>
       Math.max(...RUN_BANK[id].voices.map((v) => (v.delayMs ?? 0) + v.durationMs));
     const sum = (id: string) => RUN_BANK[id].voices.reduce((a, v) => a + (v.volume ?? 0.05), 0);
     expect(end("heli_crash")).toBeGreaterThan(3000);
     for (const id of Object.keys(RUN_BANK))
-      if (id !== "heli_crash") expect(sum(id), id).toBeLessThan(sum("heli_crash"));
+      if (id !== "heli_crash" && id !== "plane_crash")
+        expect(sum(id), id).toBeLessThan(sum("heli_crash"));
   });
 });
 

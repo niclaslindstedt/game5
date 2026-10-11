@@ -192,14 +192,9 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * skier bogged is the powder's hush, which the snow bed already is; and
  * what a blow bent or hurt is heard in the blow, as a save is in the landing, the
  * trunk or the edges' scrape that started it — and a body found too hurt to
- * get up has nothing more to say than the fall that did it. The jump
- * plane's and the skydive's moments are silent until their own sound lands
- * (their audio is a later piece of the plane's work, beside its renderer) —
- * all but the plane's crash, the helicopter's blast (held below). */
+ * get up has nothing more to say than the fall that did it. */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
-  "plane",
-  "chute",
   "stuck",
   "damage",
   "save",
@@ -224,13 +219,15 @@ describe("the bank and the route (bank.ts, route.ts)", () => {
     }
   });
 
-  it("blows the jump plane up as the helicopter's blast, and keeps its flight silent", () => {
+  it("blows the jump plane up bigger the harder it strikes, and hears its flight", () => {
     const at = { t: 1, x: 0, y: 0, z: 0 };
     const slow = soundForEvent({ kind: "plane", phase: "crash", speed: 10, ...at });
     const hard = soundForEvent({ kind: "plane", phase: "crash", speed: 60, ...at });
-    expect(slow?.id).toBe("heli_crash");
+    expect(slow?.id).toBe("plane_crash");
     expect(hard!.shape!.gain!).toBeGreaterThan(slow!.shape!.gain!);
-    expect(soundForEvent({ kind: "plane", phase: "liftoff", speed: 30, ...at })).toBe(null);
+    expect(soundForEvent({ kind: "plane", phase: "liftoff", speed: 30, ...at })?.id).toBe(
+      "plane_liftoff",
+    );
   });
 
   it("describes every sound, and keeps every voice under the mixing ceiling", () => {

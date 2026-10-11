@@ -41,6 +41,9 @@ export type Contact = {
    * START GATE (`gate`, R35) — its doors the GO — and whether it is a HEAT,
    * four racers out of it on the starter's word with no lights to beep. */
   start?: { gate: boolean; heat: boolean };
+  /** What a skydive's canopy came down on (`ChuteSnag.on`) — the boughs of
+   * a crown crack, a lift's steel twangs. */
+  caught?: "tree" | "rope" | "tower" | "carrier";
 };
 
 export type Trunk = { radius: number; snag: boolean };
@@ -492,22 +495,74 @@ export function soundForEvent(
       }
     }
 
-    // THE JUMP PLANE: only its CRASH speaks yet — the helicopter's blast,
-    // a plane's tanks heavier and its strike faster, so a size up and a
-    // shade lower. The rest of a flight is silent until its own bank lands.
+    // THE JUMP PLANE (`plane-bank.ts`), heard from where the ear is: aboard
+    // and the turbine lit, off the strip and onto it, the wing let go, out
+    // of the door and off it — and the CRASH, the helicopter's blast with
+    // the airframe tearing over it, a plane's tanks heavier and its strike
+    // faster, so a size up and a shade lower. Its pilot home and the ride
+    // begun again say nothing: the bed winds the engine down and up.
     case "plane": {
-      if (event.phase !== "crash") return null;
-      const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
-      const big = CRASH_FLOOR + (1 - CRASH_FLOOR) * ramp(event.speed, 0, 2 * CRASH_FULL);
-      return {
-        id: "heli_crash",
-        shape: {
-          gain: blast.gain! * (0.95 + 0.45 * big),
-          pitch: blast.pitch! * (1.02 - 0.14 * big),
-          stretch: blast.stretch! * (1 + 0.25 * big),
-        },
-      };
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      switch (event.phase) {
+        case "board":
+          return { id: "plane_board", shape: heard };
+        case "liftoff":
+          return { id: "plane_liftoff", shape: heard };
+        case "land":
+          return {
+            id: "plane_land",
+            shape: { ...heard, gain: heard.gain! * (0.6 + 0.6 * ramp(event.speed, 0, 3)) },
+          };
+        case "stall":
+          return { id: "plane_stall", shape: heard };
+        case "jump":
+          return { id: "plane_jump", shape: heard };
+        case "stepoff":
+          return { id: "plane_stepoff", shape: heard };
+        case "crash": {
+          const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
+          const big = CRASH_FLOOR + (1 - CRASH_FLOOR) * ramp(event.speed, 0, 2 * CRASH_FULL);
+          return {
+            id: "plane_crash",
+            shape: {
+              gain: blast.gain! * (0.95 + 0.45 * big),
+              pitch: blast.pitch! * (1.02 - 0.14 * big),
+              stretch: blast.stretch! * (1 + 0.25 * big),
+            },
+          };
+        }
+        default:
+          return null;
+      }
     }
+
+    // THE SKYDIVE (`chute-bank.ts`): always the jumper's own, heard where
+    // he is — out of the door, the pilot chute thrown, line stretch, the
+    // canopy open (as hard as its opening shock), cut away, down on his
+    // skis, and caught (a crown's boughs or a lift's steel, `Contact.caught`).
+    // The ride begun again is the plane's.
+    case "chute":
+      switch (event.phase) {
+        case "exit":
+          return { id: "chute_exit" };
+        case "open-start":
+          return { id: "chute_throw" };
+        case "line-stretch":
+          return { id: "chute_lines" };
+        case "open":
+          return {
+            id: "chute_open",
+            shape: { gain: 0.75 + 0.35 * ramp(event.g ?? 4, 2, 6), pitch: 1 },
+          };
+        case "release":
+          return { id: "chute_release" };
+        case "land":
+          return { id: "chute_land" };
+        case "snag":
+          return { id: contact.caught === "tree" ? "chute_snag_tree" : "chute_snag_lift" };
+        default:
+          return null;
+      }
 
     // THE PARAMOTOR, on his back: the rig let go is the drop's clack and
     // rush of the helicopter's skid, the buckles and the cloth away; the

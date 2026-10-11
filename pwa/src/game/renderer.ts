@@ -651,6 +651,7 @@ export function createWorldRenderer(
           // In the jump plane's door he stands poised for the exit, crouched
           // under its lintel as a racer in the start gate is.
           run.plane?.rider ? true : inStartGate(run),
+          run.tricks,
         );
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp) {
           stampsOf(

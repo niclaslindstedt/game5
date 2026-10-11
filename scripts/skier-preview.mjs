@@ -129,7 +129,9 @@ aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
 const spec = E.pairById(args.skis);
 const onBoard = E.isBoard(spec);
-const MOVES = onBoard ? BOARD_MOVES : SKI_MOVES;
+// The loops are the board's as well: one lean, one throw (`strokes.ts`).
+const FLIPS = SKI_MOVES.filter((m) => m.id === "backflip" || m.id === "frontflip");
+const MOVES = onBoard ? [...BOARD_MOVES, ...FLIPS] : SKI_MOVES;
 const MOMENTS = onBoard ? BOARD_MOMENTS : SKI_MOMENTS;
 const moves = args.move
   ? args.move.split(",").map((id) => {
@@ -193,6 +195,9 @@ function frameOf(state) {
     t: state.t,
     skier: withBreaks(JSON.parse(JSON.stringify(c))),
     trick: state.tricks?.pose ?? null,
+    flip: state.tricks
+      ? { flipGoal: state.tricks.flipGoal, flipDone: state.tricks.flipDone }
+      : null,
     waiting: SPRING.inStartGate(state),
     ground: [state.level.groundAt(at.x, at.z), n.x, n.y, n.z],
   };

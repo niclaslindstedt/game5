@@ -174,15 +174,18 @@ export const TUCK = { knee: 0.75, lean: 0.6, open: 0.2 };
  * boot's full flex. */
 export const KNEE_MOST = 2.1;
 
-/** THE ONE-FOOT SKATE: the free foot's push along the deck (m, from just
- * behind the front binding back past the rear one), out beside the heel
- * edge behind him, its lift on the way back, the share of the stride it pushes for,
- * the torso's turn to the nose, rad — part way, the body kept side-on —
- * and the hips' shift toward the toes over the pushing foot, m. */
+/** THE ONE-FOOT SKATE: the free foot behind him beside the heel edge, its
+ * toes kept pointing ahead along his way, PRESSED OUT SIDEWAYS to drive the
+ * board on — where along the deck it stands (m, back from the board's
+ * middle) at the plant and at the end of the press, how far out past the
+ * heel edge at each (m), its lift on the way back, the share of the stride
+ * it presses for, the torso's turn to the nose, rad — part way, the body
+ * kept side-on — and the hips' shift toward the toes, m. */
 export const SKATE = {
-  from: -0.06,
-  to: -0.46,
-  out: 0.1,
+  from: -0.12,
+  to: -0.26,
+  out: 0.06,
+  outTo: 0.3,
   lift: 0.07,
   push: 0.55,
   open: 0.35,
@@ -436,11 +439,12 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     const along = SKATE.from + (SKATE.to - SKATE.from) * (0.5 - 0.5 * Math.cos(Math.PI * p));
     const up = phase < SKATE.push ? 0 : SKATE.lift * Math.sin(Math.PI * (1 - p));
     const snow = rz(UP, input.incline);
+    const wide = SKATE.out + (SKATE.outTo - SKATE.out) * (0.5 - 0.5 * Math.cos(Math.PI * p));
     const base = add(
-      add(add(deck.centre, scale(nose, along)), scale(F, -(b.waist / 2 + SKATE.out))),
+      add(add(deck.centre, scale(nose, along)), scale(F, -(b.waist / 2 + wide))),
       scale(snow, up + SOFT_BOOT.sole * 0.2),
     );
-    const pushF = norm(add(nose, scale(F, 0.25)));
+    const pushF = nose;
     const padF = norm(add(scale(F, 0.8), scale(deck.along, 0.55)));
     freeSole = mix(sole[ri], mix(padAt, base, pushing), freeK);
     const fr = norm(mix(padF, pushF, pushing));

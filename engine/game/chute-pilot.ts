@@ -17,6 +17,7 @@
 //     DOWNWIND leg beside the spot, BASE across, and FINAL straight in —
 //     along the strip into the wind, or down the fall line onto a piste
 //     (he lands on his skis and skis on) — and the flare a few metres up.
+//     Cut away, it pulls the reserve at once and flies it the same way.
 //
 // Pure over the state: nothing here moves anything.
 
@@ -147,6 +148,11 @@ export function chutePilot(state: GameState): SkierInput {
     const out = ch.since >= CHUTE.exit.clear;
     const pull = (out && ch.agl <= B.deck) || (ch.since >= B.least && ch.agl <= B.open);
     return { ...NEUTRAL_INPUT, machine: pull };
+  }
+  // Cut away (never by its own hand, but a lab's or a player's handed
+  // over): the reserve pulled at once while there is height for it.
+  if (ch.mode === "released" && !ch.reserve) {
+    return { ...NEUTRAL_INPUT, machine: ch.agl > CHUTE.handover };
   }
   if (ch.mode !== "open") return { ...NEUTRAL_INPUT };
   const c = state.skier;

@@ -423,6 +423,7 @@ describe("the plane's and the skydive's moments (route.ts)", () => {
     const chute: Record<string, string> = {
       exit: "chute_exit",
       "open-start": "chute_throw",
+      reserve: "chute_reserve",
       "line-stretch": "chute_lines",
       open: "chute_open",
       release: "chute_release",

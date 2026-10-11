@@ -29,12 +29,16 @@
 //     legs under him for the snow;
 //   * THE CUT-AWAY: a hand on the red pad on his chest strap and the other
 //     on the reserve's, the pad punched out and away;
+//   * THE RESERVE: the left hand on the reserve's metal handle on the left
+//     lift web, punched out forward at arm's length (the spring does the
+//     rest — no throw), the right hand forward over his head, then the
+//     opening's shock and the toggles as the main's;
 //   * CAUGHT, hung on his risers, the hands up on them.
 //
 // The decision (`skydiveShapeOf`) reads the engine's skydive alone and its
 // clock, so a frame is the same frame twice.
 
-import { CHUTE, type ChuteState } from "@engine";
+import { CHUTE, wingOf, type ChuteState } from "@engine";
 
 import type { SkiSwing } from "./skier-dangle.ts";
 import type { SkierPose } from "./skier-joints.ts";
@@ -50,8 +54,9 @@ import { add, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
  * reach back for the pilot chute and the throw; hanging in the harness;
  * the toggles, left and right; the risers −1..1 (forward the fronts); the
  * opening's shock; the flare (his legs brought under him for the snow);
- * the cut-away's two moves (the hands on the pads, the punch); and the
- * attitude he is drawn at, rad (0 upright .. π/2 belly to earth .. π head
+ * the cut-away's two moves (the hands on the pads, the punch); the
+ * reserve's pull (the left hand to its handle and out); and the attitude
+ * he is drawn at, rad (0 upright .. π/2 belly to earth .. π head
  * down), past what his skier's frame can say. */
 export type SkydiveShape = {
   door: number;
@@ -68,6 +73,7 @@ export type SkydiveShape = {
   flare: number;
   pads: number;
   punch: number;
+  reserve: number;
   attitude: number;
 };
 
@@ -86,6 +92,7 @@ const NONE: SkydiveShape = {
   flare: 0,
   pads: 0,
   punch: 0,
+  reserve: 0,
   attitude: 0,
 };
 
@@ -110,6 +117,9 @@ const SHOCK = { decay: 0.55, full: 0.45 };
 /** How long the cut-away's two moves take, s: the hands to the pads, the
  * punch, and the pose let go. */
 const CUT = { pads: 0.25, punch: 0.55, done: 1.3 };
+/** THE RESERVE'S PULL, s after the press: the left hand on the handle, out
+ * at arm's length, and back to the box (the pilot chute is sprung). */
+const RESERVE_PULL = { at: 0.1, out: 0.3, back: 0.7 };
 
 /** WHAT HIS BODY IS DOING THIS FRAME, off the run's skydive (`ch`) — or in
  * the plane's door (`inDoor`), or nothing (null: the pose is his own). */
@@ -138,12 +148,23 @@ export function skydiveShapeOf(ch: ChuteState | null, inDoor: boolean): SkydiveS
   }
   if (ch.mode === "deploying" && ch.deploy) {
     const t = ch.deploy.t;
-    const stretch = CHUTE.deploy.stages[2].end;
-    const full = CHUTE.deploy.stages[4].end;
+    const stages = wingOf(ch.reserve).deploy.stages;
+    const stretch = stages[2].end;
+    const full = stages[4].end;
     const hang = smooth((t - stretch) / 0.45);
     falling(1 - hang);
-    out.reach = window(t, 0, PULL.at, PULL.at + 0.04, 0.12);
-    out.throw = window(t, PULL.at, PULL.out - PULL.at, PULL.out + 0.05, PULL.back - PULL.out);
+    if (ch.reserve) {
+      // Up to a half the hand is on its way to the handle, past it the
+      // handle is pulled out; back down, the arm returns to the box.
+      const R = RESERVE_PULL;
+      out.reserve =
+        t < R.out
+          ? 0.5 * smooth(t / R.at) + 0.5 * smooth((t - R.at) / (R.out - R.at))
+          : 1 - smooth((t - R.out) / (R.back - R.out));
+    } else {
+      out.reach = window(t, 0, PULL.at, PULL.at + 0.04, 0.12);
+      out.throw = window(t, PULL.at, PULL.out - PULL.at, PULL.out + 0.05, PULL.back - PULL.out);
+    }
     out.hang = hang;
     const kick = (from: number, size: number): number =>
       t < from ? 0 : size * smooth((t - from) / 0.12) * Math.exp(-(t - from) / SHOCK.decay);
@@ -300,7 +321,18 @@ function handsOf(p: SkierPose, s: SkydiveShape): { at: [V3, V3]; weight: number;
     pole[1] = norm(mix(pole[1], { x: 0.4, y: 0.3, z: -1 }, reach));
     at[0] = mix(at[0], add(p.shoulders[0], { x: -0.12, y: 0.56, z: 0.04 }), reach);
   }
-  return { at, weight: Math.max(weight, reach), pole };
+  // THE RESERVE'S PULL over the rest: the left hand on its handle on the
+  // left lift web and punched out forward; the right forward over his head.
+  if (s.reserve > 0) {
+    const handle = add(p.neck, { x: -0.1, y: -0.2, z: 0.14 });
+    const pulled = add(p.shoulders[0], { x: -0.18, y: -0.08, z: 0.55 });
+    const w = Math.min(1, s.reserve * 2);
+    const pull = smooth((s.reserve - 0.5) * 2);
+    at[0] = mix(at[0], mix(handle, pulled, pull), w);
+    pole[0] = norm(mix(pole[0], { x: -1, y: -0.6, z: 0 }, w));
+    at[1] = mix(at[1], add(p.shoulders[1], { x: 0.12, y: 0.56, z: 0.04 }), w);
+  }
+  return { at, weight: Math.max(weight, reach, Math.min(1, s.reserve * 2)), pole };
 }
 
 /** THE POSE MADE OVER FOR THE SKYDIVE: `p` (the standing pose, his skis on)

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SKYDIVE'S MOMENTS — the `chute` event's one-shots (`chute.ts`) and
 // the creaks the bed raises while he hangs caught: into the plane's blast
-// out of the door, the pilot chute thrown and flapping out on its bridle,
+// out of the door, the pilot chute thrown and flapping out on its bridle
+// (the reserve's sprung out of its tray with a thunk),
 // the lines' SNAP at line stretch, the canopy's WHUMP as it pressurises and
 // the slider slaps down, the cut-away's release clicking and the canopy
 // whipping off him, the risers let go as his skis take the snow, and the
@@ -75,6 +76,32 @@ export const CHUTE_BANK: SoundBank = {
         delayMs: 300,
         filter: { type: "bandpass", frequency: 3600, q: 5 },
       },
+    ],
+  },
+
+  chute_reserve: {
+    description:
+      "THE RESERVE: the metal handle's rasp out of its pocket and the pin's " +
+      "tick, the flap thrown open with a hollow THUNK as the spring launches " +
+      "the pilot chute off his back, and its quick flaps catching the air.",
+    voices: [
+      {
+        call: "noise",
+        durationMs: 60,
+        volume: 0.035,
+        color: "white",
+        filter: { type: "bandpass", frequency: 2800, to: 4200, q: 3 },
+      },
+      {
+        call: "noise",
+        durationMs: 10,
+        volume: 0.04,
+        color: "white",
+        delayMs: 70,
+        filter: { type: "bandpass", frequency: 3800, q: 5 },
+      },
+      { call: "tone", type: "sine", from: 190, to: 70, durationMs: 120, volume: 0.05, delayMs: 85 },
+      ...PILOT_FLAPS.map((at, i) => flapAt(110 + at * 0.7, 0.05 - i * 0.005, 1000 + i * 130)),
     ],
   },
 

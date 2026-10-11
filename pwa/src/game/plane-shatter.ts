@@ -249,6 +249,9 @@ export type PlaneShatter = {
     wreck: PlaneWreck,
     groundAt: (x: number, z: number) => number,
   ): void;
+  /** Cut the airframe under `parts` into its pieces now, hidden, so a
+   * burst later finds them built (`PlaneWreckView.prime`). */
+  prime(machine: THREE.Object3D, parts: WreckParts): void;
   /** `age` s since the crash (the run's clock, so a frame skipped on is
    * caught up), `dt` this frame. */
   update(age: number, groundAt: (x: number, z: number) => number, hooks: ShatterHooks): void;
@@ -634,6 +637,9 @@ export function createPlaneShatter(): PlaneShatter {
 
   return {
     group,
+    prime(machine, parts) {
+      if (parts.root !== builtFor) build(machine, parts);
+    },
     burst(machine, parts, w, groundAt) {
       if (parts.root !== builtFor) build(machine, parts);
       const random = makeRandom(

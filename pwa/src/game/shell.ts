@@ -114,13 +114,15 @@ export function initialBackdrop(search: string, rides: boolean): Backdrop {
   return rides ? "race" : "title";
 }
 
-/** Whether the title scene is drawn: over the attract card, the front door
- * and the first loading card while the backdrop is the title — and never
- * again once a run has been skied (`spent`), whatever the backdrop says. */
+/** Whether the title scene is drawn: over the attract card and the front
+ * door while the backdrop is the title — and never again once a run has
+ * been skied (`spent`), whatever the backdrop says.
+ *
+ * NOT under the loading card, which is opaque: the scene there is a second
+ * WebGL context and its plates held through the heaviest moment the page
+ * has, while the world is built and its shaders compiled — on a phone, the
+ * memory that tips the tab over. A load that fails goes back to the door,
+ * which stands the scene up again. */
 export function titleUp(backdrop: Backdrop, shell: Shell, spent: boolean): boolean {
-  return (
-    backdrop === "title" &&
-    !spent &&
-    (shell === "splash" || shell === "menu" || shell === "loading")
-  );
+  return backdrop === "title" && !spent && (shell === "splash" || shell === "menu");
 }

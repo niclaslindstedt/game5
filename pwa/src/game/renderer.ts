@@ -51,6 +51,7 @@ import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { figureShown } from "./camera-para.ts";
 import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
+import { compileByParts } from "./scene-compile.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
@@ -573,18 +574,13 @@ export function createWorldRenderer(
       lens.camera.position.set(skier.x, skier.y + 3, skier.z - 6);
       lens.camera.lookAt(skier.x, skier.y, skier.z);
       terrain.follow(skier.x, skier.z);
-      // Asynchronously where the driver can (three blocks where it cannot),
-      // against the target the frame is drawn into (a graded region's are
-      // linear), and the trail maps' passes, not in the scene, beside it.
+      // A part of the scene at a time (`scene-compile.ts`), against the
+      // target the frame is drawn into, the trail maps' passes beside it.
       gl.setRenderTarget(picture.load(lv));
       // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
       const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
-      if (gl.extensions.has("KHR_parallel_shader_compile")) {
-        await Promise.all([gl.compileAsync(scene, lens.camera), trail.compile(gl), shade]);
-      } else {
-        gl.compile(scene, lens.camera);
-        await Promise.all([trail.compile(gl), shade]);
-      }
+      const parts = compileByParts(gl, scene, lens.camera, () => mine === loads);
+      await Promise.all([parts, trail.compile(gl), shade]);
       if (mine === loads) hero.render(gl, scene, [], null);
       if (mine === loads) env.warm(gl, scene, lens.camera, lv.size);
       gl.setRenderTarget(null);

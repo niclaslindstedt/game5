@@ -216,6 +216,11 @@ export function createSkisTurntable(
       snow.geometry.dispose();
       (snow.material as THREE.Material).dispose();
       renderer.dispose();
+      // The CONTEXT goes too, now rather than whenever the canvas is
+      // collected: the ski card's RIDE stands a whole mountain up next, and
+      // a phone browser counts this context's memory against the tab — and
+      // drops its oldest context, the game's, past its handful of them.
+      renderer.forceContextLoss();
     },
   };
 }

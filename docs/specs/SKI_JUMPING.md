@@ -642,8 +642,9 @@ Each phase lands green and with its lab's before and after in the PR.
       TV crane, the photocells and the warming room's lift (see *Settled
       (phase 8)*); `make skijump`'s `hill` (with `night`), `inrun`,
       `flight` and `landing` sheets.
-- [ ] **9. The jumper as drawn**: the poses, the suit, the skis and the free
-      heel; `make skijump`'s `poses`, `skier-metrics`.
+- [x] **9. The jumper as drawn**: the poses, the suit, the skis and the free
+      heel (see *Settled (phase 9)*); `make skijump`'s `jumper` sheet,
+      `skier-metrics` (unmoved), `tests/ski_jump_pose_test.ts`.
 - [x] **10. The cameras and the replay**: the broadcast director, the
       profile camera, the replay's take-off and landing in slow motion, and
       the raised in-run they look past (see *Settled (phase 10)*); `make
@@ -976,6 +977,101 @@ sims' digests unmoved.
   the generic finish arena's stands and video wall stand meanwhile); the
   piste masts the engine stands along the hill's own line (solid to a
   skier, so left standing) still pool their light beside it at night.
+
+## Settled (phase 9)
+
+- **The research, restated** (the numbers `skier-jumper.ts`'s `JUMPER`
+  carries; *(est.)* where they are ours):
+  - THE IN-RUN: a two-dimensional study of some 270 top jumpers' in-run
+    position on a large hill measured the ankle at 54 ± 5° (the shin's
+    lean off the ski), the knee at 67 ± 8°, the trunk only 12 ± 4° off
+    the track — folded flat onto the thighs — the shoulder near 180° (the
+    arms laid straight back along the body) and the elbow at 166 ± 7°.
+    Sat on the bar before it, he sits with his hands on it *(est.)*.
+  - THE TAKE-OFF: the extension off the table lasts 0.25–0.30 s on the
+    hill (the engine's push is 0.28 s); from the edge into the early
+    flight the hip opens from about 86 to 109° and the knee from 136 to
+    171°, the arms kept back and the body thrown forward over the skis.
+  - THE FLIGHT (`docs/freestyle.md` § *Ski jumping*): the skis 20–45° to
+    the air, the body 0–20° above them, the hips near 160°, the legs
+    stretched, the V opened 25–35° from the heels (30° drawn; a recent
+    flow study found its best posture near a 20° body-to-ski angle and a
+    30° V), the arms back along him a little out from his sides; the
+    heel off the ski about the toe in its binding *(est. 35°)*, the shin
+    ~15° off the ski. Readying the landing he rises out of the V, the
+    knees giving, the arms coming forward, the skis brought together.
+  - THE LANDING: the TELEMARK — one foot a foot's length ahead of the
+    other, the back knee lower and its heel up, the trunk raised and the
+    arms out — held some 10–15 m; both feet side by side is the judges'
+    lesser landing. On the out-run he rises and, after a long jump, raises
+    his arms.
+  - THE KIT: a one-piece suit cut close (the rules hold its air
+    permeability and its ease over the body), a light shell helmet and
+    goggles, gloves, NO POLES, and skis up to 146 % of his height (the
+    Albatross's 2.54 m) in a binding that holds only the toe, the heel
+    free on a cord.
+- **Built**: the jumper is a LAYER over the skier's own pose, as the
+  skydive's is (`skier-jumper.ts`, three-free): `jumperShapeOf` reads
+  `GameState.jump` (its stage, the bar's leave, the press, the edge, the
+  lay, the V, the prep, the record) and the run clock into a shape of
+  joint angles laid in the skis' frame, and `jumperPose` builds the body
+  joint by joint — the soles set where the engine's centre of mass has
+  them (`JUMP.bar.seat`, `.takeOff.release`, `.landing.feet`), each boot
+  hinged at its toe, the shins, knees, thighs, trunk, head and arms off
+  the angles, the knees and elbows solved between. `skis-body.ts` lays it
+  only on a ski jump's own jumper, on his feet: the boots go on him
+  (`walkBoots`, so the heel lifts off the ski), the poles are dropped, and
+  each ski is moved with its boot and YAWED ABOUT ITS BINDING for the V
+  (`Stand.yaw`, read by the code's skis and by the models' rig,
+  `ski-rig.ts`); the feet are carried apart just so far that the tails
+  meet behind him rather than cross. The V drawn is the engine's own
+  (`j.vee`) and closes over the landing's prep. A fall is the ragdoll's.
+  The KIT is `outfit.ts`'s `jumpKit`: the jacket and pants cut as one
+  tight suit in the player's jacket colours (`Outfit.suit`, a cut of its
+  own in `dress-garments.ts`), the race helmet painted to match
+  (`helmetOf`), no poles — put on any rider of the Albatross
+  (`pairStyle`), so the player and the field wear it. No other mode's pose
+  or cut moved (`tests/ski_jump_pose_test.ts` hashes every technique's
+  pose and every outfit's mesh), `skier-metrics` is unmoved, and nothing
+  in the engine changed, so no digest moved. The lab now rides the jump on
+  the Albatross at the light build, as the app does (it rode the default
+  pair before).
+- **The lab rounds** (`make skijump ARGS=--sheet=jumper`, seed 38, the
+  large hill; each phase shot close from the side, the front, behind and
+  above):
+  0. Before: the alpine skier's pose on the jump — stood up with his poles
+     through the take-off and the flight, the skis parallel, sunk into the
+     in-run's tracks, in a jacket and pants — and the lab rode the default
+     all-mountain pair, not the Albatross.
+  1. Round 1, the layer laid: the bar, the crouch folded over the thighs,
+     the take-off's extension, the V-style laid over the skis with the V
+     open from the heels and the heels off them, the telemark split and
+     the arms raised on the out-run all read; no poles. The suit and the
+     slate skis did not show (the lab's run named no pair, so it was
+     dressed as an alpine skier), and the side lenses in the in-run stood
+     behind its wall.
+  2. Round 2: the lab rides the Albatross at the light build, as the app
+     does — the suit in the jacket's red, the helmet to match, the slate
+     skis; the side lens raised over the trough's wall and the bar's
+     overhead lens brought under the warming room's roof. The skis still
+     stood in the V into the landing, and the telemark was lost in his
+     own spray.
+  3. Round 3: the V drawn closed over the landing's prep, the skis
+     parallel at the touch; the telemark shot later and further ahead —
+     the split, the back knee and the arms read from the front, the side
+     still in the landing's cloud. The arms stood straight out at the
+     shoulders.
+  4. Round 4: the telemark's arms lowered and brought forward (66° off the
+     body, 36° toward the front); the front lens stood further back so the
+     prep's whole body is framed.
+
+- **Left for later**: the landing's snow cloud veils the telemark from
+  the side (the cloud is the alpine skier's off a hard edge set — a jump's
+  landing should throw less); the walk boots stand in for a jumping boot
+  (low at the back, its cuff hinged); the suit has no jumping-suit
+  panelling of its own (it wears the jacket's pattern); `skier-metrics`
+  has no rows of the jumper's own bands yet; the fall is the ragdoll's,
+  thrown from the V.
 
 ## Settled (phase 10)
 

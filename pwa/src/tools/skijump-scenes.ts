@@ -89,6 +89,90 @@ const past = (d: number) => (s: GameState) => {
 
 type Scene = (stage: Stage) => Promise<void> | void;
 
+/** A lens CLOSE ON THE JUMPER, `dist` m off him: from his left side, ahead
+ * of him, behind him or over him — read along the way he is going (the
+ * hill's line at a crawl), so a flight is seen square to its path. */
+function close(from: "side" | "front" | "behind" | "above", dist = 4.6, fov = 38) {
+  return (state: GameState): LensPose => {
+    const f = frameOf(state);
+    const c = state.skier;
+    const v = Math.hypot(c.vx, c.vy, c.vz);
+    const al = v > 2 ? { x: c.vx / v, y: c.vy / v, z: c.vz / v } : { x: f.fx, y: 0, z: f.fz };
+    const r = { x: f.rx, y: 0, z: f.rz };
+    const up = {
+      x: al.y * r.z - al.z * r.y,
+      y: al.z * r.x - al.x * r.z,
+      z: al.x * r.y - al.y * r.x,
+    };
+    // In the in-run's trough the side lens stands up over its wall; after
+    // the touch a little ahead, out of the spray he trails.
+    const inRun = stage(state) === "bar" || stage(state) === "tracks";
+    const down = stage(state) === "down";
+    const off =
+      from === "side"
+        ? { a: down ? 4 : 0, r: -dist, u: inRun ? 1.7 : down ? 1.2 : 0.25 }
+        : from === "front"
+          ? { a: dist * 1.35, r: -0.6, u: 0.35 }
+          : from === "behind"
+            ? { a: -dist, r: 0.6, u: 0.6 }
+            : { a: -1.2, r: -0.3, u: stage(state) === "bar" ? dist * 0.55 : dist };
+    const eye = {
+      x: c.x + al.x * off.a + r.x * off.r + up.x * off.u,
+      y: c.y + al.y * off.a + r.y * off.r + up.y * off.u,
+      z: c.z + al.z * off.a + r.z * off.r + up.z * off.u,
+    };
+    eye.y = Math.max(eye.y, state.level.groundAt(eye.x, eye.z) + 0.3);
+    return { eye, target: { x: c.x, y: c.y - 0.2, z: c.z }, fov, roll: 0 };
+  };
+}
+
+/** A PHASE OF THE JUMPER (`skier-jumper.ts`), shot close from four sides. */
+function phase(get: (st: Stage, s: GameState) => void): Scene {
+  return (st) => {
+    const s = st.fresh();
+    get(st, s);
+    for (const from of ["side", "front", "behind", "above"] as const) {
+      st.shoot(s, from, close(from));
+    }
+  };
+}
+const toAir = (st: Stage, s: GameState) => st.until(s, (x) => stage(x) === "air", 40, bot);
+const toTouch = (st: Stage, s: GameState) =>
+  st.until(s, (x) => x.jump?.record.landing != null, 60, bot);
+
+/** The jumper's phases, bar to out-run (`make skijump ARGS=--sheet=jumper`). */
+const JUMPER_VIEWS: Record<string, Scene> = {
+  "jumper-bar": phase((st, s) => st.run(s, 1.2)),
+  "jumper-crouch": phase((st, s) => {
+    st.until(s, (x) => stage(x) === "tracks", 30, bot);
+    st.until(s, past((frameOf(s).hill.from + frameOf(s).hill.table) / 2), 20, bot);
+  }),
+  "jumper-takeoff": phase((st, s) => {
+    st.until(s, (x) => (x.jump?.pressAt ?? -1) >= 0, 40, bot);
+    st.run(s, 0.2, bot);
+  }),
+  "jumper-early": phase((st, s) => {
+    toAir(st, s);
+    st.run(s, 0.3, bot);
+  }),
+  "jumper-vee": phase((st, s) => {
+    toAir(st, s);
+    st.run(s, 1.8, bot);
+  }),
+  "jumper-prep": phase((st, s) => {
+    st.until(s, (x) => (x.jump?.prepAt ?? -1) >= 0, 60, bot);
+    st.run(s, 0.3, bot);
+  }),
+  "jumper-telemark": phase((st, s) => {
+    toTouch(st, s);
+    st.run(s, 0.75, bot);
+  }),
+  "jumper-outrun": phase((st, s) => {
+    toTouch(st, s);
+    st.run(s, 2.3, bot);
+  }),
+};
+
 /** Where on the hill a still of the empty hill is shot from, each a lens
  * reading the hill's own places. */
 const hillShots = (st: Stage, s: GameState): void => {
@@ -208,6 +292,7 @@ export const VIEWS: Record<string, Scene> = {
     const h = frameOf(s).hill;
     st.shoot(s, "K and HS lines", planted(h.k - 14, -15, 3, h.l + 5, 6, 0, 60));
   },
+  ...JUMPER_VIEWS,
 };
 
 export const GROUPS: Record<string, readonly string[]> = {
@@ -217,4 +302,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   inrun: ["inrun"],
   flight: ["flight"],
   landing: ["landing"],
+  jumper: Object.keys(JUMPER_VIEWS),
 };

@@ -47,7 +47,7 @@ import {
   type V3,
 } from "./dress-loft.ts";
 import { cutFace } from "./dress-face.ts";
-import { gearOf, type Outfit } from "./outfit.ts";
+import { gearOf, helmetOf, type Outfit } from "./outfit.ts";
 
 const DARK = 0x101114;
 const LINER = 0x26282c;
@@ -111,7 +111,7 @@ const HARD: HelmetMaterial[] = ["shell", "stripe", "frame", "lens"];
 /** The head dressed: in his helmet, or `bare` (indoors — his face, and his
  * hair or, on a man, a beanie in his helmet's colour). */
 export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): void {
-  const h = gearOf("helmet", o.helmet);
+  const h = helmetOf(o);
   const body = gearOf("body", o.body);
   const skin = tone ?? body.skin;
   if (bare) {

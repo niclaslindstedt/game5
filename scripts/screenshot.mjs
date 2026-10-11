@@ -294,50 +294,50 @@ const SURFACES = {
   "bench-history": { params: { menu: "benchHistory" }, wait: ".dev-line", settle: 900 },
   // THE SKI CARD, straight off the URL; the rack is its own chunk and
   // builds the pair on its first frame, so it is given a moment.
-  skis: { params: { menu: "skis" }, wait: ".skis-pick-canvas", settle: 1800 },
+  skis: { params: { menu: "skis" }, wait: ".menu-stage[data-ready]", settle: 1800 },
   "skis-powder": {
     params: { menu: "skis", skis: "marmot" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on the super-G pair, the one SPEED CARVE fills.
   "skis-superg": {
     params: { menu: "skis", skis: "falcon" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on the ski-cross pair, the one BERM fills.
   "skis-cross": {
     params: { menu: "skis", skis: "wolverine" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on the speed ski, the one TOP SPEED fills.
   "skis-speed": {
     params: { menu: "skis", skis: "peregrine" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on its SNOWBOARD side, where a run lets a free pick of pair (the
   // park run here, as the free ride): the all-mountain twin...
   "skis-board": {
     params: { menu: "skis", mode: "tricks", skis: "lynx" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and the alpine carver, the range's far end.
   "skis-carver": {
     params: { menu: "skis", mode: "tricks", skis: "goshawk" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
   // him — the first card after a map is picked, the gear card after it.
-  dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
+  dress: { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
     params: { menu: "dress", mode: "tricks", skis: "lynx" },
-    wait: ".dress-stage canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // THE FREE RIDE'S WHERE STEPS: the world map flown onto a range (its

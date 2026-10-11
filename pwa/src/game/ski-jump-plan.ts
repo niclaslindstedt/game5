@@ -9,7 +9,7 @@
 // What a large hill is, as a crowd and a broadcast see it (the research,
 // in our own words — `docs/specs/SKI_JUMPING.md` § *The hill as drawn*):
 //
-//   * THE IN-RUN is a concrete trough on the slope, about two and a half
+//   * THE IN-RUN is a concrete trough on a raised deck, about two and a half
 //     metres between its guard walls, its floor carrying TWO TRACKS — ice
 //     or porcelain grooves a ski's width, the skis' stance apart — with
 //     snow between them; a stair runs down one side, lamps on posts down
@@ -53,7 +53,7 @@ export const SJ_LOOK = {
   board: { out: 0.55, every: 5, tick: 1, w: 0.9, h: 0.55, lift: 0.75, past: 5 },
   flag: { count: 8, pole: 4.2, out: 1.6 },
   meter: { pole: 7, out: 3.2 },
-  mast: { every: 40, height: 26, out: 6, lux: 70, lamps: 3 },
+  mast: { every: 40, height: 26, over: 14, out: 6, lux: 70, lamps: 3 },
   judges: { cabins: 5, cabin: 2.6, deep: 2.4, eye: 6.5 },
   coach: { deck: 3.6, wide: 6, deep: 2.5 },
   line: { k: 0.5, hs: 0.5, p: 0.4, cross: 0.25, beat: 0.35, side: 0.6 },
@@ -142,6 +142,9 @@ function mastsOf(f: HillFrame, level: Level): PisteMast[] {
       const a = side * (Math.max(landingWidth(hill, d) / 2, 3) + M.out);
       const foot = hillPoint(f, d, a);
       const y = level.groundAt(foot.x, foot.z);
+      // Beside the raised in-run the mast stands from the ground far under
+      // the deck, and is as much taller as its lamps must clear the deck.
+      const height = Math.max(M.height, foot.y - y + M.over);
       const served = M.every * (Math.max(landingWidth(hill, d), 8) / 2);
       const lumens = (M.lux * served) / PISTE_LIGHT.utilisation / M.lamps;
       const lamps: PisteLamp[] = [];
@@ -149,7 +152,7 @@ function mastsOf(f: HillFrame, level: Level): PisteMast[] {
         const spread = (i - (M.lamps - 1) / 2) * 0.7;
         const lx = foot.x + f.fx * spread;
         const lz = foot.z + f.fz * spread;
-        const ly = y + M.height;
+        const ly = y + height;
         // Thrown well across the hill and down it, so the foot of the mast is
         // no pool and the lamps of a side overlap into one wash.
         const t = hillPoint(f, d + 8 + i * 14, -side * 0.35 * landingWidth(hill, d));
@@ -173,7 +176,7 @@ function mastsOf(f: HillFrame, level: Level): PisteMast[] {
       }
       // Facing across the hill, toward its axis.
       const heading = Math.atan2(-f.rx * side, -f.rz * side);
-      out.push({ x: foot.x, y, z: foot.z, height: M.height, side, heading, lamps });
+      out.push({ x: foot.x, y, z: foot.z, height, side, heading, lamps });
     }
   }
   return out;

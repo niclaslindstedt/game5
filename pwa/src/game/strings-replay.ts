@@ -42,6 +42,8 @@ const MARK_WORDS: Record<ShotKind, string> = {
   bump: "CONTACT",
   hit: "TRUNK",
   wipeout: "CRASH",
+  takeoff: "TAKE-OFF",
+  landing: "LANDING",
   finish: "FINISH",
 };
 

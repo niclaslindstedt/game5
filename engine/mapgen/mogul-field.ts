@@ -49,6 +49,11 @@ export type MogulField = {
   height: number;
   wave: number;
   ease: number;
+  /** A RAISED STRETCH at the field's top (a ski jump's in-run on its deck,
+   * R43): up to `until` m along, the surface reaches only `half` m either
+   * side of the line — the deck itself — and the grid's own ground, far
+   * under it, answers beside it. */
+  narrow?: { until: number; half: number };
 };
 
 /** A point of the plan in the field's frame: `along` its line and `across`
@@ -97,9 +102,13 @@ export function mogulsAt(f: MogulField, along: number, across: number): number {
 }
 
 /** Whether a point of the field's frame is on its own surface. */
-function inside(f: MogulField, along: number, across: number): boolean {
-  return along > 0 && along < f.end && Math.abs(across) < f.half;
+export function onField(f: MogulField, along: number, across: number): boolean {
+  if (!(along > 0 && along < f.end)) return false;
+  const half = f.narrow && along < f.narrow.until ? f.narrow.half : f.half;
+  return Math.abs(across) < half;
 }
+
+const inside = onField;
 
 /** The field's surface height at a point of its frame, m. */
 export function fieldHeight(f: MogulField, along: number, across: number): number {

@@ -37,10 +37,16 @@ export function createMoguls(
   // A hair inside the field's own edges, so every point is the field's.
   const half = f.half - 0.01;
   const cols = Math.max(2, Math.ceil((2 * half) / LOOK.step) + 1);
-  const rows = Math.max(2, Math.ceil(f.end / LOOK.step) + 1);
+  // A raised stretch at the top (a ski jump's deck, `MogulField.narrow`) is
+  // the structure's own to draw: the field's mesh starts below it.
+  const from = f.narrow?.until ?? 0;
+  const rows = Math.max(2, Math.ceil((f.end - from) / LOOK.step) + 1);
   const pos = new Float32Array(rows * cols * 3);
   for (let r = 0; r < rows; r++) {
-    const along = Math.min(f.end - 0.01, Math.max(0.01, (f.end * r) / (rows - 1)));
+    const along = Math.min(
+      f.end - 0.01,
+      Math.max(from + 0.01, from + ((f.end - from) * r) / (rows - 1)),
+    );
     for (let k = 0; k < cols; k++) {
       const across = -half + (2 * half * k) / (cols - 1);
       const x = f.x + along * fx + across * fz;

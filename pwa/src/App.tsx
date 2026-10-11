@@ -641,7 +641,7 @@ export function App() {
         if (watching(shellRef.current)) return replays.camera();
         const next = nextCamera(settingsRef.current.camera);
         setSettings((s) => ({ ...s, camera: next }));
-        if (hudOver(shellRef.current)) renderer.setCamera(next);
+        if (hudOver(shellRef.current)) renderer.setCamera(next, false, true);
       },
       shot: () => shots.take(),
     };

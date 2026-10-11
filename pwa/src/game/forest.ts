@@ -52,7 +52,7 @@ import { createRocks } from "./rocks.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
 import { buildTree, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
-import { treeTilt } from "./tree-tilt.ts";
+import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
@@ -226,7 +226,6 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   for (let k = 0; k < count; k++) gone[rank[k]] = felled[k];
   for (let i = 0; i < count; i++) {
     const t = trees[i];
-    const h = hash(t.x, t.z);
     thin[i] = hash(t.x * 1.7 + 11, t.z * 0.6 - 5);
     // Turned about its own axis, then LEANT off plumb about its foot
     // (`tree-tilt.ts`): mostly a few degrees, mostly down the slope.
@@ -234,7 +233,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     const tilt = treeTilt(t.x, t.z, leadVariant(t.kind ?? "spruce").shape.form, ground.x, ground.z);
     across.set(tilt.dz, 0, -tilt.dx);
     lean.setFromAxisAngle(across, tilt.angle);
-    q.setFromAxisAngle(up, h * Math.PI * 2).premultiply(lean);
+    q.setFromAxisAngle(up, trunkYaw(t.x, t.z)).premultiply(lean);
     const reach = Math.tan(tilt.angle);
     leans[i * 2] = tilt.dx * reach;
     leans[i * 2 + 1] = tilt.dz * reach;

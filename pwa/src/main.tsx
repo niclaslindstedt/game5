@@ -18,6 +18,7 @@ import "./skijump.css";
 import "./beacon.css";
 import "./plane.css";
 import "./stats.css";
+import "./where.css";
 import "./challenges.css";
 import "./replay.css";
 import "./title.css";

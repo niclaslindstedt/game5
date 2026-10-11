@@ -14,7 +14,7 @@ export type HudAfterski =
   | { kind: "fetch"; left: number }
   /** In town on foot: `walking` once the pair is on his shoulder, false
    * while it is coming off his feet or going back on. */
-  | { kind: "town"; walking: boolean };
+  | { kind: "town"; walking: boolean; board: boolean };
 
 /** How far from a lodge's door the HUD calls it, m. */
 const CALL = 45;
@@ -25,9 +25,11 @@ export function afterskiOf(state: GameState): HudAfterski | null {
   // station onto the pad (`lift-skis.ts`), where it is no town and the lift
   // walks him.
   if (c.town && !c.lift && !c.town.station)
-    return { kind: "town", walking: c.town.phase === "walk" };
+    return { kind: "town", walking: c.town.phase === "walk", board: c.spec.board !== undefined };
   const a = state.afterski;
   if (!a) return null;
+  // A snowboarder keeps his board on through a fall: he only gets up.
+  if (c.fetch && c.spec.board) return null;
   if (c.fetch) return { kind: "fetch", left: c.fetch.carried.filter((k) => !k).length };
   if (a.inside) return { kind: "inside", beers: a.beers, total: a.total, drinking: a.sip >= 0 };
   if (c.thrown || c.lift || state.heli?.rider || state.sled?.rider) return null;

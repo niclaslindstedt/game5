@@ -22,15 +22,37 @@
 //     (`posed-merge.ts`); the deck is a draw of its own (its texture, and its
 //     heights laid again when it bows); the lamp on his helmet another.
 //
-// Not yet on a board (drawn as riding): a chair's seat, a helicopter's
-// skid, a snowmobile's boards, a balloon's basket, walking in town.
+// OFF THE SNOW (`board-lift.ts`): sat on a chair with the board hung off
+// his front foot and his rear foot on its deck, towed side-on by a T-bar,
+// sat in a gondola's cabin with the board in its rack, on foot with the
+// board under his arm (through a gondola's station and in town), stood on
+// a snowmobile's boards (the board racked), in a balloon's basket (lashed
+// outside it) and sat on a helicopter's skid as on a chair.
 
 import * as THREE from "three";
-import { TUNING, flightGravity, type GameState, type SkiSpec } from "@engine";
+import { TUNING, flightGravity, type GameState, type LoneSki, type SkiSpec } from "@engine";
 
 import { buildBinding, buildDeck, buildSoftBoot, type Paint } from "./board-body.ts";
 import { sheetOf } from "./board-look.ts";
-import { boardPose, boardUnderFeet, frontIndex, type BoardFrame } from "./board-pose.ts";
+import {
+  boardPose,
+  easeFree,
+  boardUnderFeet,
+  frontIndex,
+  type BoardFrame,
+  type BoardPose,
+} from "./board-pose.ts";
+import {
+  BOARD_SEAT_Y,
+  boardLiftPose,
+  chairBoardPose,
+  underArmFrame,
+  underArmHand,
+} from "./board-lift.ts";
+import { createSeatEase, easeSeat, seatedPose } from "./skier-seat.ts";
+import type { Perch } from "./skier-dangle.ts";
+import type { SkierPoseInput } from "./skier-pose.ts";
+import { boardTownPose, streetOver, townLift, townMove } from "./town-pose.ts";
 import { buildHeadlamp } from "./headlamp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
@@ -40,8 +62,24 @@ import { createSkier } from "./skier-figure.ts";
 import { createSkierSpring, restSkierSpring, stepSkierSpring } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead } from "./skier-flight.ts";
-import type { SkisModel, SkiStyle, SnowGround } from "./skis-body.ts";
+import type { SkisModel, SkiStyle, SledStand, SnowGround } from "./skis-body.ts";
 import type { V3 } from "./skier-vec.ts";
+
+/** A rider stood at rest, his hands empty, his feet `out` m wider each
+ * side — what the snowmobile's boards and the basket stand him from. */
+function restInput(out: readonly [number, number]): SkierPoseInput {
+  return {
+    hipRight: 0,
+    hipAft: 0,
+    lean: 0,
+    steer: 0,
+    crouch: 0,
+    airborne: false,
+    landing: 0,
+    poles: false,
+    spread: out,
+  };
+}
 
 export function createBoardModel(
   spec: SkiSpec,
@@ -137,6 +175,53 @@ export function createBoardModel(
   const BOUND = Math.max(bound.radius, spec.length / 2 + 0.3);
   bound.radius = BOUND;
   let rested = false;
+  // How far the rear foot is drawn out of its binding (`easeFree`).
+  let freeShare = 0;
+  // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
+  // basket and the helicopter's skid he is on, if any; the run he rides.
+  const seatEase = createSeatEase();
+  let sled: SledStand | null = null;
+  let basket = false;
+  let perch: Perch | null = null;
+  let run: GameState | null = null;
+  // The racked board, from the engine's pair in the cabin's rack, in the
+  // root's frame.
+  const rackFrame: BoardFrame = {
+    centre: { x: 0, y: 0, z: 0 },
+    along: { x: 0, y: 0, z: 1 },
+    normal: { x: 0, y: 1, z: 0 },
+    right: { x: 1, y: 0, z: 0 },
+    bend: 0,
+  };
+  const toLocal = new THREE.Matrix4();
+  const w = new THREE.Vector3();
+  /** THE BOARD IN THE CABIN'S RACK: on its tail where the engine stands
+   * the pair (`lift-skis.ts`), between its two skis. */
+  function rackedDeck(skis: readonly LoneSki[]): BoardFrame {
+    root.updateWorldMatrix(true, false);
+    toLocal.copy(root.matrixWorld).invert();
+    const [a, c] = skis;
+    const mid = (k: number) => (a.ends[k] + c.ends[k]) / 2;
+    // The tail's end and the tip's, then the middle between.
+    w.set((mid(0) + mid(3)) / 2, (mid(1) + mid(4)) / 2, (mid(2) + mid(5)) / 2).applyMatrix4(
+      toLocal,
+    );
+    rackFrame.centre = { x: w.x, y: w.y, z: w.z };
+    const dir = new THREE.Vector3(mid(0) - mid(3), mid(1) - mid(4), mid(2) - mid(5))
+      .transformDirection(toLocal)
+      .normalize();
+    const up = new THREE.Vector3(
+      (a.up[0] + c.up[0]) / 2,
+      (a.up[1] + c.up[1]) / 2,
+      (a.up[2] + c.up[2]) / 2,
+    ).transformDirection(toLocal);
+    up.addScaledVector(dir, -up.dot(dir)).normalize();
+    rackFrame.along = { x: dir.x, y: dir.y, z: dir.z };
+    rackFrame.normal = { x: up.x, y: up.y, z: up.z };
+    const right = up.clone().cross(dir);
+    rackFrame.right = { x: right.x, y: right.y, z: right.z };
+    return rackFrame;
+  }
 
   /** The deck, its bindings and the boots laid for a deck frame and the
    * pose's feet; the rear foot's straps open while it is out. */
@@ -145,6 +230,7 @@ export function createBoardModel(
     feet: readonly V3[],
     bootsOf: readonly { f: V3; n: V3 }[],
     free: number | null,
+    afoot = false,
   ) {
     axis.x.set(f.right.x, f.right.y, f.right.z);
     axis.y.set(f.normal.x, f.normal.y, f.normal.z);
@@ -154,7 +240,7 @@ export function createBoardModel(
     deck.setBend(f.bend);
     for (let i = 0; i < 2; i++) {
       bindings[i].group.position.set(0, deck.topAt(stations[i]), stations[i]);
-      for (const m of bindings[i].straps) m.visible = free !== i;
+      for (const m of bindings[i].straps) m.visible = free !== i && !afoot;
       const b = bootsOf[i];
       const n = axis.y.set(b.n.x, b.n.y, b.n.z);
       const fw = axis.z.set(b.f.x, b.f.y, b.f.z);
@@ -182,7 +268,14 @@ export function createBoardModel(
     pose(skier, at, sink, _trick = null, dt = 0, body, waiting = false) {
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
-      if (off) {
+      // ON FOOT with the board — through a gondola's station, or in town.
+      const town = off ? null : (skier.town ?? null);
+      // Off the snow: on a snowmobile's boards, in a balloon's basket, on a
+      // helicopter's skid.
+      const boarded = sled !== null && !off && !town;
+      const inBasket = basket && !off && !town;
+      const hung = perch !== null && !off && !town;
+      if (off || town || boarded || inBasket || hung) {
         if (!rested) restSkierSpring(legs);
         rested = true;
       } else {
@@ -206,10 +299,25 @@ export function createBoardModel(
           (gearLift(skier)[0] + gearLift(skier)[1]) / 2,
         );
       }
-      const { input, incline: r, lift } = boardInputOf(skier, legs, at.q);
+      // How sat he is drawn on a chair or a cabin's bench, or towed.
+      easeSeat(seatEase, skier.lift, false, dt);
+      const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride" && !town;
+      const still = off || town || boarded || inBasket || hung || seatEase.seated > 0;
+      const { input, incline: lean, lift } = boardInputOf(skier, legs, at.q);
+      // The rear foot drawn out of its binding or back in over a moment.
+      freeShare = easeFree(freeShare, input.free, dt);
+      input.freeShare = freeShare;
+      const r = still ? 0 : lean;
       const reach = spec.cogHeight - (lift[0] + lift[1]) / 2 - spec.crouchDrop * skier.crouch;
       pivot.set(reach * Math.sin(r), reach * (1 - Math.cos(r)), 0).applyQuaternion(root.quaternion);
-      root.position.set(at.x + pivot.x, at.y - sink + pivot.y, at.z + pivot.z);
+      const hang = boarded ? sled!.board.hang : null;
+      if (hang) v.set(-hang.x, 0, -hang.z).applyQuaternion(root.quaternion);
+      else v.set(0, 0, 0);
+      root.position.set(at.x + pivot.x + v.x, at.y - sink + pivot.y, at.z + pivot.z + v.z);
+      // The board out of sight: racked on the snowmobile's tunnel, lashed to
+      // the basket, or in a cabin with no rack placed.
+      const racked = cabin ? (skier.lift?.skis ?? null) : null;
+      deckGroup.visible = !(boarded || inBasket || (cabin && !racked));
 
       if (off) {
         // THROWN, the board kept on between his feet.
@@ -229,15 +337,61 @@ export function createBoardModel(
         figure.sprawl(p, goreLost, goreCrush);
         layBoard(deckAt, p.feet, p.boots, null);
         bound.radius = BOUND + figure.group.position.length();
+      } else if (town) {
+        // ON FOOT, the board on the snow, in his hands or UNDER HIS ARM —
+        // laid in the root's own frame (stood upright, facing his way).
+        const lifted = run ? townLift(town, run.level, at.x, at.z) : 0;
+        const over = run ? streetOver(run.level, at.x, at.z) : 0;
+        const snow =
+          (fall ? fall.ground.groundAt(at.x, at.z) - root.position.y : -spec.cogHeight) + lifted;
+        const { pose: p, deck: d } = boardTownPose(
+          townMove(town, skier),
+          snow,
+          frame,
+          underArmFrame(board.lead),
+          underArmHand(board.lead),
+          (over > 0 ? over + 0.04 : 0) - lifted,
+        );
+        figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
+        trunk.makeBasis(
+          axis.x.set(frame.x.x, frame.x.y, frame.x.z),
+          axis.y.set(frame.y.x, frame.y.y, frame.y.z),
+          axis.z.set(frame.z.x, frame.z.y, frame.z.z),
+        );
+        figure.group.quaternion.setFromRotationMatrix(trunk);
+        figure.sprawl(p, 0, 0);
+        layBoard(d, p.feet, p.boots, null, true);
+        bound.radius = BOUND + 1;
       } else {
-        const bp = boardPose(input);
         figure.group.quaternion.identity();
+        bound.radius = BOUND;
+        let bp: BoardPose;
+        if (boarded) {
+          // ON A SNOWMOBILE'S BOARDS in his soft boots, the board racked.
+          bp = { ...boardPose(input), free: null, rise: 0 };
+          bp.pose = seatedPose(restInput(sled!.out), { share: 1, y: 0, board: sled!.board });
+        } else if (inBasket) {
+          // IN THE BASKET, stood in his soft boots, the board lashed outside.
+          bp = { ...boardPose(input), pose: seatedPose(restInput([0, 0]), null), free: null };
+          bp.rise = 0;
+        } else if (hung) {
+          // ON THE SKID, sat as on a chair, the board hung off his front foot.
+          bp = chairBoardPose(board, perch!.y);
+        } else {
+          const seat = {
+            seated: seatEase.seated,
+            towing: seatEase.towing,
+            y: BOARD_SEAT_Y,
+            cabin,
+          };
+          bp = boardLiftPose(input, seat);
+        }
         // A hop lifts all of him, the board with him, off the snow.
         v.set(-Math.sin(r), Math.cos(r), 0).multiplyScalar(bp.rise);
         figure.group.position.copy(v);
-        bound.radius = BOUND;
         figure.sprawl(bp.pose, 0, 0);
-        layBoard(bp.board, bp.pose.feet, bp.pose.boots, bp.free);
+        const deckAt = racked ? rackedDeck(racked) : bp.board;
+        layBoard(deckAt, bp.pose.feet, bp.pose.boots, bp.free, boarded || inBasket || cabin);
       }
       merged.update();
     },
@@ -249,11 +403,18 @@ export function createBoardModel(
       fall = ground ? { ground, gravity } : null;
     },
     setRun(next: GameState | null) {
+      run = next;
       fall = next ? { ground: next.level, gravity: flightGravity(next.rules) } : null;
     },
-    setSled() {},
-    setBasket() {},
-    setPerch() {},
+    setSled(next) {
+      sled = next;
+    },
+    setBasket(on) {
+      basket = on;
+    },
+    setPerch(next) {
+      perch = next;
+    },
     setGore(lost, crush) {
       goreLost = lost;
       goreCrush = crush;

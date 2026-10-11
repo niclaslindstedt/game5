@@ -71,6 +71,11 @@ const args = parseArgs(
     },
     tile: { kind: "number", default: 420, help: "one frame's size, px (square)" },
     along: { kind: "number", default: 5, help: "how long he walks the street before leaving, s" },
+    skis: {
+      kind: "string",
+      default: "",
+      help: "the pair he rides by its id (lynx: the snowboard); the reference skis when left out",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
@@ -121,6 +126,7 @@ const query = new URLSearchParams({
   seed: String(args.seed),
   tile: String(args.tile),
   along: String(args.along),
+  ...(args.skis ? { skis: args.skis } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
 }).toString();
 console.log(`town — seed ${args.seed}, ${args.tile} px frames`);
@@ -134,7 +140,10 @@ const sheets = names.map((name) => ({ name, ...SHEETS[name] }));
 const shots = await page.evaluate((list) => globalThis.__town.run(list), sheets);
 if (crashed) process.exit(1);
 for (const shot of shots) {
-  const out = join(outDir, `town-${args.hour >= 0 ? `h${args.hour}-` : ""}${shot.name}.png`);
+  const out = join(
+    outDir,
+    `town-${args.skis ? `${args.skis}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${shot.name}.png`,
+  );
   writeFileSync(out, Buffer.from(shot.png.split(",")[1], "base64"));
   console.log(out.replace(`${root}/`, ""));
   for (const note of shot.notes) console.log(`  ${note}`);

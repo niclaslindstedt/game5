@@ -47,7 +47,7 @@
 // ITS OWN LAYER, drawn by App.tsx outside the HUD, and gated here: it is up
 // over a finished race and down under the pause card, which offers its own.
 
-import { isSkiId, skisById } from "@engine";
+import { isPairId, pairById } from "@engine";
 
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { SLALOM, SPEED_SKI } from "@engine";
@@ -182,7 +182,7 @@ export function ResultPlate({
   const mine = standings.find((s) => s.you);
   const second = slalom?.second ?? null;
   const onward = (second?.kind === "go" || second?.kind === "race") && onSecond !== null;
-  const skisName = (id: string): string => (isSkiId(id) ? skisById(id).name : id);
+  const skisName = (id: string): string => (isPairId(id) ? pairById(id).name : id);
   return (
     <div class="hud hud-result-layer">
       <div class="hud-center">

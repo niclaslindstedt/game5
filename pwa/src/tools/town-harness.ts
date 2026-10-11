@@ -28,6 +28,7 @@ import {
   type GameState,
   type SkierInput,
 } from "@engine";
+import { labPairOption } from "./lab-pair.ts";
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
@@ -64,7 +65,7 @@ renderer.resize(tile, tile, 1);
 if (params.get("hour") !== null) renderer.setSky({ hour: Number(params.get("hour")) });
 
 function fresh(): GameState {
-  const state = createGame({ seed, mode: "free" });
+  const state = createGame({ seed, mode: "free", ...labPairOption(params) });
   // The crowd is the free ride's, not the lab's: sent home so the views
   // are of him.
   delete state.crowd;

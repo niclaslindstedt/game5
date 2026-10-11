@@ -33,6 +33,7 @@ import {
   type GameState,
   type SkierInput,
 } from "@engine";
+import { labPairOption } from "./lab-pair.ts";
 
 import { h, render } from "preact";
 
@@ -70,7 +71,7 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
-const state: GameState = createGame({ seed, mode: "free" });
+const state: GameState = createGame({ seed, mode: "free", ...labPairOption(params) });
 // The crowd is the free ride's, not the lab's: sent home so the views are
 // of him.
 delete state.crowd;

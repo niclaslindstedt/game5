@@ -797,6 +797,7 @@ export function createWorldRenderer(
         lens.camera.position,
         seated,
         state.crowd?.amateurs,
+        skier.spec.board !== undefined,
       );
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);

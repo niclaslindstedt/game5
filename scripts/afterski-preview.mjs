@@ -63,6 +63,11 @@ const args = parseArgs(
     },
     width: { kind: "number", default: 1280, help: "picture width, px" },
     height: { kind: "number", default: 720, help: "picture height, px" },
+    skis: {
+      kind: "string",
+      default: "",
+      help: "the pair he rides by its id (lynx: the snowboard); the reference skis when left out",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
@@ -110,6 +115,7 @@ const query = new URLSearchParams({
   seed: String(args.seed),
   w: String(args.width),
   h: String(args.height),
+  ...(args.skis ? { skis: args.skis } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
 }).toString();
 console.log(`afterski — seed ${args.seed}, ${args.width}×${args.height}`);
@@ -123,7 +129,10 @@ for (const view of wanted) {
   const t0 = Date.now();
   const shot = await page.evaluate((name) => globalThis.__afterski.shoot(name), view);
   if (crashed) process.exit(1);
-  const out = join(outDir, `afterski-${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`);
+  const out = join(
+    outDir,
+    `afterski-${args.skis ? `${args.skis}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+  );
   await page.locator("body").screenshot({ path: out });
   console.log(
     `${out.replace(`${root}/`, "")}  ${shot.note}  (${((Date.now() - t0) / 1000).toFixed(1)} s)`,

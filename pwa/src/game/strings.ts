@@ -439,9 +439,13 @@ export const STRINGS = {
   /* ── THE SKI CARD (menu-skis.tsx, ski-picker.tsx, ski-stats.ts) ────── */
   skisTitle: "SKIS",
   skisRide: "SKI",
+  /** ...the same card turning the snowboard (`BOARD_CATALOG`). */
+  boardTitle: "SNOWBOARD",
+  boardRide: "RIDE",
   skisPrev: "Previous pair",
   skisNext: "Next pair",
   skisDress: "CUSTOMIZE SKIER",
+  boardDress: "CUSTOMIZE RIDER",
   skisOf: (at: number, of: number): string => `${at} / ${of}`,
 
   /* ── THE DRESS CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
@@ -467,7 +471,19 @@ export const STRINGS = {
     weight: "PAIR",
     top: "TOP SPEED",
   },
-  skisUnits: { cm: "CM", mm: "MM", metres: "M", kg: "KG", speed: "KM/H" },
+  skisUnits: { cm: "CM", mm: "MM", metres: "M", kg: "KG", speed: "KM/H", degrees: "°" },
+  /** ...a snowboard's: its own numbers, its stance and the bindings'
+   * angles in place of a pair's — and no pole reach, as it has no poles. */
+  boardFacts: {
+    length: "LENGTH",
+    waist: "WAIST",
+    sidecut: "SIDECUT",
+    stance: "STANCE",
+    front: "FRONT",
+    back: "BACK",
+    weight: "SETUP",
+    top: "TOP SPEED",
+  },
   /** ...and the three bars: fast on the groomer, turning on it, and off it. */
   skisBars: {
     speed: "SPEED",

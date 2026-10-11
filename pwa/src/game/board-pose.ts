@@ -110,6 +110,10 @@ export type BoardPoseInput = {
    * share, how hard he is working (`drive`, 0..1) and the stride's count
    * (`stride` — its fraction the phase). */
   free: boolean;
+  /** How far the rear foot is drawn out of its binding, 0..1 — `free`
+   * eased by the drawing (`easeFree`) so the foot, the hips and the arms
+   * go over in a moment rather than a frame; `free` itself when left out. */
+  freeShare?: number;
   hop: number;
   drive: number;
   stride: number;
@@ -366,7 +370,9 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   const crouch = clamp(input.crouch, 0, 1);
   const still = input.idle?.still ?? 0;
   const clock = input.idle?.t ?? 0;
-  const free = input.free && onSnow > 0.5;
+  // The rear foot out, and how far drawn out (eased).
+  const freeK = onSnow > 0.5 ? clamp(input.freeShare ?? (input.free ? 1 : 0), 0, 1) : 0;
+  const free = freeK > 0;
   const phase = input.stride - Math.floor(input.stride);
   const pushing = free ? smooth(0.15, 0.5, input.drive) : 0;
   // THE HOP: the knees folded before it and the whole of him up over it.
@@ -392,10 +398,11 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     );
     const pushF = norm(add(nose, scale(F, 0.45)));
     const padF = norm(add(scale(F, 0.8), scale(deck.along, 0.55)));
-    freeSole = mix(padAt, base, pushing);
+    freeSole = mix(sole[ri], mix(padAt, base, pushing), freeK);
     const fr = norm(mix(padF, pushF, pushing));
     const n = norm(mix(deck.normal, snow, pushing));
-    freeBoot = { f: norm(sub(fr, scale(n, dot(fr, n)))), n };
+    const out = { f: norm(sub(fr, scale(n, dot(fr, n)))), n };
+    freeBoot = { f: norm(mix(boot[ri].f, out.f, freeK)), n: norm(mix(boot[ri].n, out.n, freeK)) };
   }
   const soles: [V3, V3] = [sole[0], sole[1]];
   const boots: [Boot, Boot] = [boot[0], boot[1]];
@@ -410,7 +417,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   // deck by the lean (and over the front foot while the rear one works).
   const mid = mix(sole[0], sole[1], 0.5);
   const fore =
-    0.06 * clamp(input.lean, -1, 1) + (free ? 0.1 : 0) + still * 0.025 * Math.sin(clock * 0.55);
+    0.06 * clamp(input.lean, -1, 1) + 0.1 * freeK + still * 0.025 * Math.sin(clock * 0.55);
   // THE LOW CARVE: laid over past ~35°, he reaches the snow on the turn's
   // inside — bent down to it over his toes, or sat back toward it behind
   // his heels.
@@ -436,7 +443,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       0.7 * air +
       0.5 * hop * hopLoad -
       0.15 * still -
-      (free ? 0.12 * pushing : 0),
+      0.12 * pushing * freeK,
     0.3,
     KNEE_MOST,
   );
@@ -446,7 +453,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     TOESIDE.open * toeK +
     HEELSIDE.open * heelK +
     TUCK.open * crouch +
-    (free ? SKATE.open : 0) * (0.6 + 0.4 * pushing);
+    SKATE.open * freeK * (0.6 + 0.4 * pushing);
   // ...turned back the way a fakie rider looks.
   const fakie = input.switched ? -1 : 1;
   const openSign = fakie;
@@ -497,7 +504,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       0.35 * fold +
       0.3 * clamp(input.load, 0, 1) +
       0.1 * air +
-      (free ? 0.12 : 0),
+      0.12 * freeK,
     -0.2,
     1.25,
   );
@@ -590,12 +597,12 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     handF = mix(
       handF,
       add(add(add(sF, scale(lead2, 0.28 + swing)), scale(F, 0.12)), scale(downV, 0.42)),
-      0.7,
+      0.7 * freeK,
     );
     handR = mix(
       handR,
       add(add(add(sR, scale(lead2, 0.05 - swing)), scale(F, 0.24)), scale(downV, 0.45)),
-      0.7,
+      0.7 * freeK,
     );
   }
   // Stood still the hands hang by his thighs.
@@ -667,9 +674,20 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       look: angles.look,
     },
     board: deck,
-    free: free ? ri : null,
+    free: freeK > 0.5 ? ri : null,
     rise,
   };
+}
+
+/** How fast the drawing draws the rear foot out of its binding or back
+ * in, a share a second (about a quarter of a second each way). */
+const FREE_RATE = 4;
+
+/** `share` eased `dt` s toward the rear foot out (`free`) or in. */
+export function easeFree(share: number, free: boolean, dt: number): number {
+  const to = free ? 1 : 0;
+  const step = FREE_RATE * Math.max(0, dt);
+  return share < to ? Math.min(to, share + step) : Math.max(to, share - step);
 }
 
 function V0(): V3 {

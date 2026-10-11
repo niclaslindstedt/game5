@@ -367,10 +367,15 @@ const args = parseArgs(
       kind: "flag",
       help: "with --free, the grimbear hunts the ride (the grimbear-lurk, -chase, -run, -maul and -leave views)",
     },
+    skis: {
+      kind: "string",
+      default: "",
+      help: "the pair he rides by its id (lynx: the snowboard); the reference skis when left out",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skis=id] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -459,6 +464,7 @@ const query = new URLSearchParams({
   ...(args.slalom ? { slalom: "1" } : {}),
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
+  ...(args.skis ? { skis: args.skis } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   w: String(args.width),
   h: String(args.height),
@@ -505,7 +511,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

@@ -147,8 +147,16 @@ describe("the ski jumper's pose", () => {
 });
 
 /** A hash of everything a pose or a mesh holds, to the last bit. */
+// Every number rounded to 1e-4 first: the last bits of a sine differ
+// between Node releases, and the hash must hold on every one CI runs.
 function hashOf(x: unknown): string {
-  const s = JSON.stringify(x);
+  const s = JSON.stringify(x, (_k, v: unknown) =>
+    typeof v === "number"
+      ? Math.round(v * 1e4)
+      : ArrayBuffer.isView(v)
+        ? Array.from(v as Float32Array)
+        : v,
+  );
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
   return (h >>> 0).toString(16);
@@ -194,5 +202,5 @@ describe("every other mode, unmoved", () => {
 });
 
 // Taken off the tree before the jumper was drawn.
-const POSES_HASH = "721a353e";
-const DRESS_HASH = "a466a505";
+const POSES_HASH = "49773418";
+const DRESS_HASH = "5f1700c5";

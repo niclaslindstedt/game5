@@ -321,6 +321,116 @@ describe("cut away, caught and begun again", () => {
   });
 });
 
+describe("the reserve", () => {
+  /** The main flown 2 s from `agl` m, then cut away. */
+  function cutAway(agl: number): GameState {
+    const s = dive(agl, { mode: "open" });
+    fly(s, 2, N);
+    step(s, ask({ machine: true }));
+    expect(s.chute!.mode).toBe("released");
+    return s;
+  }
+
+  it("is pulled only after a cut-away: in freefall the press opens the main", () => {
+    const s = dive(1500);
+    step(s, ask({ machine: true }));
+    expect(said(s, "open-start")).toBe(true);
+    expect(said(s, "reserve")).toBe(false);
+    expect(s.chute!.reserve).toBe(false);
+  });
+
+  it("opens in its own shorter stages after the cut-away, the main falling on as cloth", () => {
+    const s = cutAway(1200);
+    const main = s.chute!.piece!;
+    step(s, ask({ machine: true }));
+    expect(said(s, "reserve")).toBe(true);
+    expect(s.chute!.mode).toBe("deploying");
+    expect(s.chute!.reserve).toBe(true);
+    const R = CHUTE.reserve.deploy.stages;
+    let full = NaN;
+    const seen: string[] = [];
+    for (let i = 0; i < steps(6) && Number.isNaN(full); i++) {
+      step(s, N);
+      const st = s.chute!.deploy?.stage;
+      if (st && seen[seen.length - 1] !== st) seen.push(st);
+      if (said(s, "open")) full = s.chute!.deploy!.t;
+    }
+    // Faster than the main's 3–4 s: full in 2–3 s of the pull.
+    expect(seen).toEqual(R.map((r) => r.id));
+    expect(full).toBeGreaterThan(2);
+    expect(full).toBeLessThan(3);
+    expect(R[R.length - 1].end).toBeLessThan(CHUTE.deploy.stages[4].end);
+    expect(s.chute!.mode).toBe("open");
+    expect(s.chute!.reserve).toBe(true);
+    // The main is still the main's piece, falling or down, apart from him.
+    expect(s.chute!.piece).toBe(main);
+    expect(s.chute!.sparePiece).toBeNull();
+  });
+
+  it("takes an opening shock in the class's band pulled near terminal", () => {
+    const s = cutAway(1500);
+    fly(s, 10, N);
+    expect(s.chute!.fall).toBeGreaterThan(50);
+    step(s, ask({ machine: true }));
+    let full = NaN;
+    for (let i = 0; i < steps(5) && Number.isNaN(full); i++) {
+      step(s, N);
+      if (said(s, "open")) full = s.chute!.deploy!.t;
+    }
+    expect(full).toBeGreaterThan(2);
+    expect(full).toBeLessThan(3);
+    fly(s, 1.5, N);
+    expect(s.chute!.peak).toBeGreaterThan(CHUTE.shock.least);
+    expect(s.chute!.peak).toBeLessThan(CHUTE.shock.most);
+  });
+
+  it("flies a little faster and steeper than the main hands off", () => {
+    const glide = (reserve: boolean) => {
+      const s = dive(1500, { mode: "open", reserve });
+      fly(s, 8, N);
+      const y0 = s.skier.y;
+      const x0 = s.skier.x;
+      const z0 = s.skier.z;
+      fly(s, 20, N);
+      const sink = (y0 - s.skier.y) / 20;
+      return { sink, glide: Math.hypot(s.skier.x - x0, s.skier.z - z0) / (y0 - s.skier.y) };
+    };
+    const main = glide(false);
+    const res = glide(true);
+    expect(res.sink).toBeGreaterThan(main.sink);
+    expect(res.sink).toBeGreaterThan(4.5);
+    expect(res.sink).toBeLessThan(5.5);
+    expect(res.glide).toBeLessThan(main.glide);
+    expect(res.glide).toBeGreaterThan(2.2);
+  });
+
+  it("is never cut away: the press under it does nothing", () => {
+    const s = dive(800, { mode: "open", reserve: true });
+    fly(s, 2, N);
+    step(s, ask({ machine: true }));
+    expect(said(s, "release")).toBe(false);
+    expect(s.chute!.mode).toBe("open");
+    expect(s.chute!.sparePiece).toBeNull();
+  });
+
+  it("lets itself go on the skis as the main does, flared on the bot's hands", () => {
+    const s = dive(300, { mode: "open", reserve: true });
+    fly(s, 120, chutePilot, (r) => !!r.chute?.done || !!r.skier.thrown);
+    expect(s.skier.thrown).toBeFalsy();
+    expect(s.chute!.mode).toBe("landed");
+    expect(s.chute!.sparePiece).not.toBeNull();
+    expect(s.chute!.piece).toBeNull();
+  });
+
+  it("is pulled by the bot at once after a cut-away and flown down to the skis", () => {
+    const s = cutAway(900);
+    fly(s, 200, chutePilot, (r) => !!r.chute?.done || !!r.skier.thrown);
+    expect(s.skier.thrown).toBeFalsy();
+    expect(s.chute!.reserve).toBe(true);
+    expect(s.chute!.mode).toBe("landed");
+  });
+});
+
 describe("the edge, the start and the bot", () => {
   it("is blown back in and turned at the map's edge, tracking and under the canopy", () => {
     const s = dive(2500, { x: SIZE - 300, heading: Math.PI / 2, fall: 50 });

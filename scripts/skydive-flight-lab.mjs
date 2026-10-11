@@ -27,6 +27,12 @@
 //   land        down on his skis under it: let go of, and skiing on
 //   cutaway     cut away 400 m up: the canopy falling free to the snow, and
 //               the jump begun again in the plane's door after his fall
+//   reserve-*   the reserve pulled after a cut-away: at once (the seconds to
+//               line stretch and to full, the height from the cut-away to
+//               full, the shock) and after ten seconds' freefall (the shock
+//               near terminal); flown hands off (forward, sink, glide),
+//               flared onto the snow on the bot's hands, and the press
+//               under it doing nothing
 //   snag-*      flown into a crown and onto a lift's rope: caught, hanging
 //               over the snow; swung into the trunk; and the restart
 //   edge-*      at the map's edge: a track toward it and a canopy flown at
@@ -37,7 +43,10 @@
 // The bands are the class's (the research the numbers came from): terminal
 // 54–56 m/s low and 62–67 high, head down 85–90, a track's glide 0.5–1.0,
 // the opening 3–4 s and 150–250 m at 3–6 g, line stretch 1–1.5 s, the
-// canopy 10–13 m/s forward and 4–5 down, a glide of 2.5–3.
+// canopy 10–13 m/s forward and 4–5 down, a glide of 2.5–3; the reserve
+// full in 2–3 s of the pull (it is certified to open within 300 ft), at
+// 3–6 g from near terminal, flown a little faster and steeper than the
+// main (11–14 m/s forward, 4.5–5.5 down, a glide of 2.2–2.8).
 //
 // Seconds, no browser, synthetic flat maps (`tests/support/synthetic.ts`);
 // the jump and the lift snag on a generated map. Deterministic.
@@ -166,8 +175,8 @@ function opening() {
 
 /** The canopy flown hands off (or on `input`) for `seconds` after 8 s to
  * settle: its forward speed, sink and glide; and its turn, rad. */
-function canopy(input = N, seconds = 20) {
-  const s = dive(1500, { mode: "open" });
+function canopy(input = N, seconds = 20, reserve = false) {
+  const s = dive(1500, { mode: "open", reserve });
   for (let i = 0; i < steps(8); i++) E.step(s, N);
   const c = s.skier;
   const x0 = c.x;
@@ -196,8 +205,8 @@ function canopy(input = N, seconds = 20) {
 
 /** Flown down to the snow on the bot's hands (or with the hands off): the
  * sink as the skis met it, and how he went on. */
-function landing(flare) {
-  const s = dive(300, { mode: "open" });
+function landing(flare, reserve = false) {
+  const s = dive(300, { mode: "open", reserve });
   let sink = NaN;
   let land = false;
   for (let i = 0; i < steps(120) && !land; i++) {
@@ -213,7 +222,11 @@ function landing(flare) {
   return {
     sink,
     land,
-    on: !s.skier.thrown && s.chute.done && s.skier.speed > 0.5 && !!s.chute.piece,
+    on:
+      !s.skier.thrown &&
+      s.chute.done &&
+      s.skier.speed > 0.5 &&
+      !!(reserve ? s.chute.sparePiece : s.chute.piece),
     speed: s.skier.speed,
   };
 }
@@ -234,6 +247,33 @@ function cutaway() {
     if (s.plane?.rider) back = (i + 1) * dt;
   }
   return { sink, drift: Math.hypot(piece.x - p0.x, piece.z - p0.z), back };
+}
+
+/** THE RESERVE: the main flown 2 s from `agl` m, cut away, `delay` s of
+ * freefall, the reserve pulled — the seconds to line stretch and to full,
+ * the height from the cut-away to full, the peak load; then the press
+ * under it (which must do nothing). */
+function reserve(agl, delay) {
+  const s = dive(agl, { mode: "open" });
+  for (let i = 0; i < steps(2); i++) E.step(s, N);
+  const y0 = s.skier.y;
+  E.step(s, { ...N, machine: true });
+  for (let i = 0; i < steps(delay); i++) E.step(s, N);
+  const fall = s.chute.fall;
+  E.step(s, { ...N, machine: true });
+  const pulled = s.chute.reserve && said(s, "reserve");
+  let stretch = NaN;
+  let full = NaN;
+  for (let i = 0; i < steps(10) && Number.isNaN(full); i++) {
+    E.step(s, N);
+    if (said(s, "line-stretch")) stretch = s.chute.deploy.t;
+    if (said(s, "open")) full = s.chute.deploy.t;
+  }
+  const lost = y0 - s.skier.y;
+  for (let i = 0; i < steps(1.5); i++) E.step(s, N);
+  E.step(s, { ...N, machine: true });
+  const kept = s.chute.mode === "open" && s.chute.reserve;
+  return { pulled, fall, stretch, full, lost, peak: s.chute.peak, kept };
 }
 
 /** INTO A CROWN: a canopy flown at a lone tree, caught, hanging, swung,
@@ -337,6 +377,10 @@ const T5 = canopy({ ...N, steer: 0.5 }, 12);
 const FL = landing(true);
 const NF = landing(false);
 const CUT = cutaway();
+const R0 = reserve(1200, 0);
+const R10 = reserve(1500, 10);
+const RC = canopy(N, 20, true);
+const RFL = landing(true, true);
 const TREE = snagTree();
 const LIFT = snagLift();
 const EDGE = edge();
@@ -419,6 +463,47 @@ const rows = [
     unit: "s",
     band: "",
     note: `cut away 400 m up: thrown at the snow, in the door again; the canopy falls ${f1(CUT.sink)} m/s, drifted ${f1(CUT.drift)} m`,
+  },
+  {
+    id: "reserve-stretch",
+    value: R0.stretch,
+    unit: "s",
+    band: "",
+    note: `pulled at once after the cut-away (${R0.pulled ? "pulled" : "NOT PULLED"}): to line stretch`,
+  },
+  { id: "reserve-full", value: R0.full, unit: "s", band: "2–3", note: "...to full inflation" },
+  {
+    id: "reserve-lost",
+    value: R0.lost,
+    unit: "m",
+    band: "<90",
+    note: "height from the cut-away to the reserve full (300 ft)",
+  },
+  { id: "reserve-g-now", value: R0.peak, unit: "g", band: "", note: "its shock pulled at once" },
+  {
+    id: "reserve-g",
+    value: R10.peak,
+    unit: "g",
+    band: "3–6",
+    note: `pulled after 10 s of freefall at ${f1(R10.fall)} m/s; full in ${f1(R10.full)} s, ${f1(R10.lost)} m from the cut-away`,
+  },
+  { id: "reserve-fwd", value: RC.forward, unit: "m/s", band: "11–14", note: "hands off" },
+  { id: "reserve-sink", value: RC.sink, unit: "m/s", band: "4.5–5.5", note: "hands off" },
+  {
+    id: "reserve-glide",
+    value: RC.glide,
+    unit: ":1",
+    band: "2.2–2.8",
+    note: `hands off; the press under it ${R0.kept && R10.kept ? "does nothing" : "CUT IT AWAY"}`,
+  },
+  {
+    id: "reserve-land",
+    value: RFL.sink,
+    unit: "m/s",
+    band: "<2.5",
+    note: RFL.on
+      ? `the bot's flare; let go of, skiing on at ${f1(RFL.speed)} m/s`
+      : "DID NOT ski on",
   },
   {
     id: "snag-tree",

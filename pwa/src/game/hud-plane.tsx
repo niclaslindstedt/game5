@@ -15,7 +15,8 @@
 //   * FALLING FROM IT (`ChuteReadout`): the ALTIMETER big — the one number
 //     a skydive is played against — the fall under it (or the air through
 //     the canopy), PULL! lit at a sport jumper's pull height, the canopy's
-//     stall, and the press the machine key is now: OPEN, then CUT AWAY.
+//     stall, and the press the machine key is now: OPEN, then CUT AWAY,
+//     then — cut away — RESERVE.
 //
 // Every figure is the snapshot's (`plane-hud.ts`) but the power bar, drawn
 // every frame off `hud-live.ts` so it fills as the thumb holds it.
@@ -205,13 +206,15 @@ export function ChuteReadout({
       ? STRINGS.chuteOpenPress(touch, machineKey)
       : chute.press === "release"
         ? STRINGS.chuteReleasePress(touch, machineKey)
-        : chute.mode === "snagged"
-          ? STRINGS.chuteSnagged
-          : null;
+        : chute.press === "reserve"
+          ? STRINGS.chuteReservePress(touch, machineKey)
+          : chute.mode === "snagged"
+            ? STRINGS.chuteSnagged
+            : null;
   return (
     <div class={`hud-heli hud-chute${chute.pull ? " hud-chute-pull" : ""}`} role="status">
       <span class="hud-chip-sub">
-        {STRINGS.chuteMode(chute.mode)} · {STRINGS.chuteAlt}
+        {STRINGS.chuteMode(chute.mode, chute.reserve)} · {STRINGS.chuteAlt}
       </span>
       <span class="hud-chute-num">{STRINGS.chuteMetres(chute.height)}</span>
       <span class="hud-heli-sub">{STRINGS.chuteFall(chute.fall)}</span>

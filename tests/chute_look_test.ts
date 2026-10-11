@@ -21,12 +21,16 @@ import {
 
 import { flatLevel } from "./support/synthetic.ts";
 import {
+  RESERVE_PAINT,
+  RESERVE_WING,
+  SKY_PAINT_GLSL,
   SKY_WING,
   shapeSkyCanopy,
   skyInflation,
   skyLayout,
   skyLines,
   skyPaintAt,
+  skyPaintGlsl,
   sliderOf,
 } from "../pwa/src/game/chute-canopy.ts";
 import { CANOPY, canopyLayout, canopyPoint } from "../pwa/src/game/para-canopy.ts";
@@ -146,6 +150,72 @@ describe("the sport main as drawn", () => {
     expect(sliderOf(1).share).toBe(1);
     expect(sliderOf(0).open).toBeGreaterThan(sliderOf(1).open);
     expect(sliderOf(0.5).open).toBeGreaterThan(sliderOf(0.8).open);
+  });
+});
+
+describe("the reserve as drawn", () => {
+  it("is a smaller seven-cell canopy on its own numbers, the main's drawing untouched", () => {
+    expect(RESERVE_WING.cells).toBe(CHUTE.reserve.canopy.cells);
+    expect(RESERVE_WING.cells).toBe(7);
+    expect(RESERVE_WING.sub).toBe(1);
+    expect(RESERVE_WING.span).toBeLessThan(SKY_WING.span);
+    const out = new Float32Array(skyLayout(RESERVE_WING).vertices * 3);
+    shapeSkyCanopy(out, { left: 0, right: 0, spread: 1, t: 0.37, wing: RESERVE_WING });
+    for (const v of out) expect(Number.isFinite(v)).toBe(true);
+    const span = spanOf(out);
+    expect(span).toBeGreaterThan(CHUTE.reserve.canopy.span * 0.82);
+    expect(span).toBeLessThan(CHUTE.reserve.canopy.span * 1.02);
+    expect(span).toBeLessThan(spanOf(shaped(1)));
+    // The main's paint is the same shader it was before the reserve.
+    expect(SKY_PAINT_GLSL).toBe(skyPaintGlsl());
+  });
+
+  it("hangs four rows of lines off its eight ribs, and paints a white body with red ends", () => {
+    const lines = skyLines(RESERVE_WING);
+    expect(lines.filter((l) => !l.brake).length).toBe((CHUTE.reserve.canopy.cells + 1) * 4);
+    expect(lines.some((l) => l.brake && l.side < 0)).toBe(true);
+    expect(lines.some((l) => l.brake && l.side > 0)).toBe(true);
+    expect(skyPaintAt(0.98, 0.5, 1, RESERVE_WING, RESERVE_PAINT)).toEqual(RESERVE_PAINT.ends);
+    expect(skyPaintAt(0.5, 0.5, 1, RESERVE_WING, RESERVE_PAINT)).toEqual(RESERVE_PAINT.body);
+  });
+
+  it("pulls the handle with the left hand, never the main's reach and throw, the hands in reach", () => {
+    const s = dive("open");
+    fly(s, 1);
+    step(s, { ...NEUTRAL_INPUT, machine: true });
+    expect(s.chute!.mode).toBe("released");
+    fly(s, 1);
+    step(s, { ...NEUTRAL_INPUT, machine: true });
+    expect(s.chute!.reserve).toBe(true);
+    const p = skierPose({
+      hipRight: 0,
+      hipAft: 0,
+      lean: 0,
+      steer: 0,
+      crouch: 0,
+      airborne: true,
+      landing: 5,
+    });
+    const seen = { reserve: 0, reach: 0, throw: 0 };
+    for (let i = 0; i < Math.round(4 / TUNING.dt) && s.chute!.mode === "deploying"; i++) {
+      step(s, NEUTRAL_INPUT);
+      const sh = skydiveShapeOf(s.chute!, false)!;
+      for (const k of ["reserve", "reach", "throw"] as const) seen[k] = Math.max(seen[k], sh[k]);
+      const { pose } = skydivePose(p, sh, MOUNTS);
+      for (const side of [0, 1]) {
+        const arm = Math.hypot(
+          pose.hands[side].x - pose.shoulders[side].x,
+          pose.hands[side].y - pose.shoulders[side].y,
+          pose.hands[side].z - pose.shoulders[side].z,
+        );
+        expect(arm).toBeLessThan(0.75);
+      }
+    }
+    expect(s.chute!.mode).toBe("open");
+    expect(seen.reserve).toBeGreaterThan(0.9);
+    expect(seen.reach).toBe(0);
+    expect(seen.throw).toBe(0);
+    expect(skydiveShapeOf(s.chute!, false)!.reserve).toBe(0);
   });
 });
 

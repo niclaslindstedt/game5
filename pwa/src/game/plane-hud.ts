@@ -102,8 +102,11 @@ export type HudChute = {
   pull: boolean;
   /** The canopy stalled under the toggles. */
   stall: boolean;
-  /** What the machine key does now. */
-  press: "open" | "release" | null;
+  /** The canopy over him (or opening) is the reserve. */
+  reserve: boolean;
+  /** What the machine key does now: open the main, cut it away, or — cut
+   * away — pull the reserve (never under it: there is no other). */
+  press: "open" | "release" | "reserve" | null;
 };
 
 /** The skydive's readout for the player at this step: from the door to the
@@ -119,12 +122,15 @@ export function chuteOf(state: GameState): HudChute | null {
     air: ch.airspeed,
     pull: falling && ch.agl <= CHUTE.bot.open,
     stall: ch.mode === "open" && ch.stalled,
+    reserve: ch.reserve,
     press:
       (ch.mode === "exit" && ch.since >= CHUTE.exit.clear) || ch.mode === "freefall"
         ? "open"
-        : ch.mode === "open"
+        : ch.mode === "open" && !ch.reserve
           ? "release"
-          : null,
+          : ch.mode === "released" && !ch.reserve && ch.agl > CHUTE.handover
+            ? "reserve"
+            : null,
   };
 }
 

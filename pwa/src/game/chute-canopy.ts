@@ -27,6 +27,12 @@
 // until it is driven down the lines, the cells still empty flog in the
 // relative wind and the span spreads as the slider comes down — and, full,
 // the cloth breathes a little as it flies.
+//
+// THE RESERVE (`RESERVE_WING`, `RESERVE_PAINT`) is the same cloth on the
+// reserve's numbers (`CHUTE.reserve.canopy`): seven single cells on eight
+// loaded ribs, a squarer, smaller planform, plain white low-bulk fabric
+// with its end cells in red — every function below takes the wing it draws
+// and draws the main when left out.
 
 import { CHUTE } from "@engine";
 
@@ -62,6 +68,38 @@ export const SKY_WING: WingShape = {
   sub: 2,
 };
 
+/** THE RESERVE's shape: seven single cells (no bi-cells) on a squarer,
+ * smaller planform off `CHUTE.reserve.canopy`, its tips a little rounder. */
+export const RESERVE_WING: WingShape = {
+  ...SKY_WING,
+  cells: CHUTE.reserve.canopy.cells,
+  span: CHUTE.reserve.canopy.span,
+  chord: CHUTE.reserve.canopy.chord,
+  tip: 0.93,
+  curl: 0.66,
+  thick: 0.16,
+  pillow: 0.034,
+  scallop: 0.05,
+  stabilo: 0.3,
+  sub: 1,
+};
+
+/** The lines' length a wing hangs him on, m. */
+export function skyLinesLength(w: WingShape = SKY_WING): number {
+  return w === RESERVE_WING ? CHUTE.reserve.canopy.lines : CHUTE.canopy.lines;
+}
+
+/** A CANOPY'S PAINT: the centre cell, the body, the end cells, the band
+ * across the nose, the underside's shade and the cells' insides. */
+export type SkyPaint = {
+  readonly centre: readonly number[];
+  readonly body: readonly number[];
+  readonly ends: readonly number[];
+  readonly nose: readonly number[];
+  readonly under: number;
+  readonly mouth: readonly number[];
+};
+
 /** THE PAINT: a sport main's — the cells in three colours, the centre cell
  * and the end cells in their own, a band across the nose; the underside a
  * shade under; the cells' insides seen through the open nose. */
@@ -74,47 +112,70 @@ export const SKY_PAINT = {
   mouth: [0.03, 0.03, 0.04],
 } as const;
 
+/** THE RESERVE'S PAINT: plain — the low-bulk cloth white over the body and
+ * the centre, the end cells red so a canopy over him reads from below, a
+ * grey band across the nose. */
+export const RESERVE_PAINT: SkyPaint = {
+  centre: [0.93, 0.93, 0.9],
+  body: [0.93, 0.93, 0.9],
+  ends: [0.78, 0.1, 0.09],
+  nose: [0.34, 0.35, 0.37],
+  under: 0.72,
+  mouth: [0.04, 0.04, 0.05],
+};
+
 /** The paint as the shader lays it off `aPaint` (`canopyLayout`'s: the
  * place along the span, along the chord, and the skin), restated by
  * `skyPaintAt` for the suite. `canopyPaint(p)` is the colour there. */
-export const SKY_PAINT_GLSL = /* glsl */ `
+export function skyPaintGlsl(w: WingShape = SKY_WING, P: SkyPaint = SKY_PAINT): string {
+  const sub = w.sub ?? 1;
+  return /* glsl */ `
 vec3 canopyPaint(vec3 p) {
   float u = p.x;
   float s = p.y;
   bool under = p.z < 0.0;
-  if (under && s < ${SKY_WING.mouth[1].toFixed(3)}) return vec3(${SKY_PAINT.mouth.join(", ")});
-  float cell = floor((u + 1.0) * ${(SKY_WING.cells / 2).toFixed(1)});
-  vec3 c = cell < 0.5 || cell > ${(SKY_WING.cells - 1.5).toFixed(1)} ? vec3(${SKY_PAINT.ends.join(", ")})
-    : abs(cell - ${((SKY_WING.cells - 1) / 2).toFixed(1)}) < 0.5 ? vec3(${SKY_PAINT.centre.join(", ")})
-    : vec3(${SKY_PAINT.body.join(", ")});
-  if (!under && s < 0.07) c = vec3(${SKY_PAINT.nose.join(", ")});
+  if (under && s < ${w.mouth[1].toFixed(3)}) return vec3(${P.mouth.join(", ")});
+  float cell = floor((u + 1.0) * ${(w.cells / 2).toFixed(1)});
+  vec3 c = cell < 0.5 || cell > ${(w.cells - 1.5).toFixed(1)} ? vec3(${P.ends.join(", ")})
+    : abs(cell - ${((w.cells - 1) / 2).toFixed(1)}) < 0.5 ? vec3(${P.centre.join(", ")})
+    : vec3(${P.body.join(", ")});
+  if (!under && s < 0.07) c = vec3(${P.nose.join(", ")});
   // The ribs' seams a shade darker, the loaded ones the more.
-  float v = fract((u + 1.0) * ${(SKY_WING.cells / 2).toFixed(1)});
+  float v = fract((u + 1.0) * ${(w.cells / 2).toFixed(1)});
   if (v < 0.012 || v > 0.988) c *= 0.75;
-  else if (abs(v - 0.5) < 0.01) c *= 0.88;
-  return under ? c * ${SKY_PAINT.under.toFixed(2)} : c;
+  else if (${sub > 1 ? "abs(v - 0.5) < 0.01" : "false"}) c *= 0.88;
+  return under ? c * ${P.under.toFixed(2)} : c;
 }
 `;
+}
 
-/** `SKY_PAINT_GLSL` restated for the suite: the colour at `u`, `s` on a
+/** The sport main's paint in the shader. */
+export const SKY_PAINT_GLSL = skyPaintGlsl();
+
+/** `skyPaintGlsl` restated for the suite: the colour at `u`, `s` on a
  * skin (`side` 1 the top). */
-export function skyPaintAt(u: number, s: number, side: number): readonly number[] {
-  const P = SKY_PAINT;
-  if (side < 0 && s < SKY_WING.mouth[1]) return P.mouth;
-  const cell = Math.floor((u + 1) * (SKY_WING.cells / 2));
+export function skyPaintAt(
+  u: number,
+  s: number,
+  side: number,
+  w: WingShape = SKY_WING,
+  P: SkyPaint = SKY_PAINT,
+): readonly number[] {
+  if (side < 0 && s < w.mouth[1]) return P.mouth;
+  const cell = Math.floor((u + 1) * (w.cells / 2));
   let c: readonly number[] =
-    cell < 1 || cell > SKY_WING.cells - 2
+    cell < 1 || cell > w.cells - 2
       ? P.ends
-      : Math.abs(cell - (SKY_WING.cells - 1) / 2) < 0.5
+      : Math.abs(cell - (w.cells - 1) / 2) < 0.5
         ? P.centre
         : P.body;
   if (side > 0 && s < 0.07) c = P.nose;
   return side < 0 ? c.map((x) => x * P.under) : c;
 }
 
-/** The mesh's layout for the sport main (`canopyLayout`). */
-export function skyLayout(): CanopyLayout {
-  return canopyLayout(SKY_WING);
+/** The mesh's layout for a canopy (`canopyLayout`), the main by default. */
+export function skyLayout(w: WingShape = SKY_WING): CanopyLayout {
+  return canopyLayout(w);
 }
 
 /** HOW FAR OPEN THE CANOPY IS, out of the engine's deployment (`ChuteDeploy.spread`,
@@ -147,6 +208,8 @@ export type SkyShapeInput = {
   spread: number;
   t: number;
   full?: number;
+  /** The canopy drawn: the main when left out. */
+  wing?: WingShape;
 };
 
 const mean = new Float32Array(3);
@@ -168,6 +231,7 @@ export function skyPoint(
   out: Float32Array | number[],
   o: number,
   breath = 0,
+  wing: WingShape = SKY_WING,
 ): void {
   const f = inf.fill(u);
   const w = inf.width;
@@ -175,14 +239,14 @@ export function skyPoint(
   // cloth between folded in pleats; an empty cell's tail crumpled forward.
   const ug = u * w;
   const sc = s * (0.55 + 0.45 * f);
-  canopyPoint(ug, sc, 0, v, drop * f, mean, 0, SKY_WING);
-  canopyPoint(ug, sc, side, v, drop * f, top, 0, SKY_WING);
+  canopyPoint(ug, sc, 0, v, drop * f, mean, 0, wing);
+  canopyPoint(ug, sc, side, v, drop * f, top, 0, wing);
   const k = (0.1 + 0.9 * f) * (1 + breath * 0.04 * Math.sin(t * 2.1 + u * 3));
   const loose = 1 - f;
   const bunch = 1 - w;
   // The pleats of cloth bunched by the slider, and the empty cells flogging
   // in the air rushing up past them.
-  const pleat = bunch * 0.07 * Math.sin(u * SKY_WING.cells * Math.PI);
+  const pleat = bunch * 0.07 * Math.sin(u * wing.cells * Math.PI);
   const flog = loose * (0.06 + 0.14 * s) * Math.sin(t * 17 + u * 9 + s * 6);
   out[o] = mean[0] + (top[0] - mean[0]) * k + pleat;
   out[o + 1] = mean[1] + (top[1] - mean[1]) * k - bunch * 0.55 * Math.abs(u) + flog;
@@ -193,7 +257,7 @@ export function skyPoint(
  * (`skyLayout`'s order): every cell gathered and filled as `skyInflation`
  * has it at `inp.spread`, the trailing edge pulled down by the toggles. */
 export function shapeSkyCanopy(out: Float32Array, inp: SkyShapeInput): void {
-  const w = SKY_WING;
+  const w = inp.wing ?? SKY_WING;
   const inf = skyInflation(inp.spread);
   const breath = inp.full === undefined ? 0 : Math.exp(-inp.full / 3) * 0.6 + 0.4;
   const across = w.strips + 1;
@@ -210,7 +274,7 @@ export function shapeSkyCanopy(out: Float32Array, inp: SkyShapeInput): void {
         const tail = 1 - w.scallop * Math.sin(Math.PI * ((v * sub) % 1));
         for (let j = 0; j < along; j++) {
           const at = (base + a * along + j) * 3;
-          skyPoint(u, stationAt(j, w) * tail, side, v, drop, inf, inp.t, out, at, breath);
+          skyPoint(u, stationAt(j, w) * tail, side, v, drop, inf, inp.t, out, at, breath, w);
         }
       }
       base += across * along;
@@ -220,12 +284,12 @@ export function shapeSkyCanopy(out: Float32Array, inp: SkyShapeInput): void {
   // the end lines — its point (the slider stop) down them toward him, the
   // lines converging on his risers some `lines` m under the canopy.
   for (const u of [-1, 1]) {
-    skyPoint(u, 0.1, -1, 0, 0, inf, inp.t, out, base * 3);
-    skyPoint(u, 0.9, -1, 0, 0, inf, inp.t, out, (base + 1) * 3);
-    skyPoint(u, 0.5, -1, 0, 0, inf, inp.t, out, (base + 2) * 3);
+    skyPoint(u, 0.1, -1, 0, 0, inf, inp.t, out, base * 3, 0, w);
+    skyPoint(u, 0.9, -1, 0, 0, inf, inp.t, out, (base + 1) * 3, 0, w);
+    skyPoint(u, 0.5, -1, 0, 0, inf, inp.t, out, (base + 2) * 3, 0, w);
     const o = (base + 2) * 3;
     const dx = -out[o];
-    const dy = -CHUTE.canopy.lines - out[o + 1];
+    const dy = -skyLinesLength(w) - out[o + 1];
     const dl = Math.hypot(dx, dy) || 1;
     const d = w.stabilo * (0.3 + 0.7 * inf.fill(u));
     out[o] += (dx / dl) * d;
@@ -244,12 +308,13 @@ export type SkyLine = { u: number; s: number; side: number; front: boolean; brak
 /** The rows along the chord, shares of it. */
 export const SKY_ROWS = { A: 0.06, B: 0.32, C: 0.6, D: 0.88 } as const;
 
-/** EVERY LINE: the four rows off the ten loaded ribs, and the steering
- * lines off the trailing edge's outer ribs and the end. */
-export function skyLines(): SkyLine[] {
+/** EVERY LINE: the four rows off the loaded ribs (the main's ten, the
+ * reserve's eight), and the steering lines off the trailing edge's outer
+ * ribs and the end. */
+export function skyLines(w: WingShape = SKY_WING): SkyLine[] {
   const lines: SkyLine[] = [];
-  for (let k = 0; k <= SKY_WING.cells; k++) {
-    const u = cellU(k, 0, SKY_WING);
+  for (let k = 0; k <= w.cells; k++) {
+    const u = cellU(k, 0, w);
     const side = u < 0 ? -1 : 1;
     for (const [row, s] of Object.entries(SKY_ROWS)) {
       lines.push({ u, s, side, front: row === "A" || row === "B", brake: false });

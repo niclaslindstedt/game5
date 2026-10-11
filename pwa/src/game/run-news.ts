@@ -255,10 +255,12 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "crash") return { text: STRINGS.newsPlaneCrash, tone: "bad" };
       return { text: STRINGS.newsPlaneRestart, tone: "info" };
     case "chute":
-      // The skydive: out, the pilot chute thrown, line stretch, open (at
+      // The skydive: out, the pilot chute thrown (or the reserve pulled),
+      // line stretch, open (at
       // the opening's load), cut away, down on the skis, caught, again.
       if (e.phase === "exit") return { text: STRINGS.newsChuteExit, tone: "good" };
       if (e.phase === "open-start") return { text: STRINGS.newsChuteThrow, tone: "info" };
+      if (e.phase === "reserve") return { text: STRINGS.newsChuteReserve, tone: "info" };
       if (e.phase === "line-stretch") return { text: STRINGS.newsChuteLines, tone: "info" };
       if (e.phase === "open") return { text: STRINGS.newsChuteOpen(e.g ?? 0), tone: "good" };
       if (e.phase === "release") return { text: STRINGS.newsChuteRelease, tone: "bad" };

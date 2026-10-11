@@ -3,7 +3,7 @@
 // (`strings.ts`, §39.1), stated next door and spread into `STRINGS` under
 // the same names: the news a jump earns, its HUD (`hud-plane.tsx`'s
 // `ChuteReadout`) — the altimeter, the fall, the pull cue and the next
-// press, OPEN or CUT AWAY — and the note in OPTIONS ▸ KEYS on how the
+// press, OPEN, CUT AWAY or the RESERVE — and the note in OPTIONS ▸ KEYS on how the
 // skier's own keys fly it.
 
 export const CHUTE_STRINGS = {
@@ -14,6 +14,7 @@ export const CHUTE_STRINGS = {
   /** The canopy open and flying, at the opening's peak load, g. */
   newsChuteOpen: (g: number): string => `CANOPY OPEN · ${g.toFixed(1)} G`,
   newsChuteRelease: "CUT AWAY!",
+  newsChuteReserve: "RESERVE OUT",
   newsChuteLand: "TOUCHDOWN! CANOPY OFF",
   /** Caught: in a crown, or on a lift. */
   newsChuteSnag: (tree: boolean): string => (tree ? "CAUGHT IN A TREE!" : "CAUGHT ON THE LIFT!"),
@@ -28,16 +29,23 @@ export const CHUTE_STRINGS = {
     `${ms >= 0 ? "▼" : "▲"} ${Math.round(Math.abs(ms) * 3.6)} KM/H`,
   /** The air through the canopy, km/h. */
   chuteAir: (ms: number): string => `AIR ${Math.round(ms * 3.6)} KM/H`,
-  /** What the skydive is doing. */
-  chuteMode: (mode: "exit" | "freefall" | "deploying" | "open" | "released" | "snagged"): string =>
+  /** What the skydive is doing (`reserve`: under the reserve, or opening it). */
+  chuteMode: (
+    mode: "exit" | "freefall" | "deploying" | "open" | "released" | "snagged",
+    reserve = false,
+  ): string =>
     mode === "exit"
       ? "EXIT"
       : mode === "freefall"
         ? "FREEFALL"
         : mode === "deploying"
-          ? "OPENING"
+          ? reserve
+            ? "RESERVE OPENING"
+            : "OPENING"
           : mode === "open"
-            ? "CANOPY"
+            ? reserve
+              ? "RESERVE"
+              : "CANOPY"
             : mode === "released"
               ? "CUT AWAY"
               : "CAUGHT",
@@ -51,11 +59,14 @@ export const CHUTE_STRINGS = {
     touch ? "DOUBLE TAP TO OPEN" : `${key} TO OPEN`,
   chuteReleasePress: (touch: boolean, key: string): string =>
     touch ? "DOUBLE TAP TO CUT AWAY" : `${key} TO CUT AWAY`,
+  /** Cut away and falling: the reserve's handle. */
+  chuteReservePress: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP FOR THE RESERVE" : `${key} FOR THE RESERVE`,
   /** Hanging from a crown or a lift: only a reset brings him down. */
   chuteSnagged: "HANGING · RESET TO START AGAIN",
 
   /* ── OPTIONS ▸ KEYS (menu-keys.tsx) ────────────────────────────────── */
   keysChuteTitle: "SKYDIVE",
   chuteKeysNote:
-    "Out of the plane the skier's own keys fly you. In freefall the edge turns you, the lean forward tracks across the sky and back slides you back, the tuck dives head down. Under the canopy the edge is the toggles, the skid both brakes (a flare to land) and the lean the risers. The machine key jumps from the door, opens the canopy, then cuts it away; land on your skis and it lets go by itself.",
+    "Out of the plane the skier's own keys fly you. In freefall the edge turns you, the lean forward tracks across the sky and back slides you back, the tuck dives head down. Under the canopy the edge is the toggles, the skid both brakes (a flare to land) and the lean the risers. The machine key jumps from the door, opens the canopy, then cuts it away, then pulls the reserve, which cannot be cut away; land on your skis and either lets go by itself.",
 };

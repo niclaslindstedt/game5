@@ -16,6 +16,7 @@ import {
   createGame,
   generateLevel,
   NEUTRAL_INPUT,
+  pairById,
   step,
   TUNING,
   type GameState,
@@ -54,6 +55,9 @@ const scale = Number(params.get("scale") ?? 0.5);
 /** The lab's own sky over the map's (`withSky`): an hour and a weather. */
 const hour = Number(params.get("hour"));
 const weather = (params.get("weather") || undefined) as WeatherKind | undefined;
+// The pair he jumps on (`--skis=lynx` a snowboard); the all-mountain one when left out.
+const skis = params.get("skis");
+const spec = skis ? pairById(skis) : undefined;
 const baseSky: SkyOverride | null =
   Number.isFinite(hour) && params.get("hour") !== null
     ? { hour, ...(weather ? { weather } : {}) }
@@ -81,7 +85,16 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 const STILL = 1e-4;
 
 function fresh(): GameState {
-  return createGame({ level, seed, region, mode: "free", plane: true, crowd: 0, quiet: true });
+  return createGame({
+    level,
+    seed,
+    region,
+    spec,
+    mode: "free",
+    plane: true,
+    crowd: 0,
+    quiet: true,
+  });
 }
 
 const ready = (async () => {
@@ -186,7 +199,7 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
   sheetEl.style.gridTemplateColumns = `repeat(${cols}, ${tw}px)`;
   const header = document.createElement("header");
   header.textContent =
-    `SKYDIVE — ${group} (${views.join(", ")}) — seed ${seed}${region ? ` ${region}` : ""}` +
+    `SKYDIVE — ${group} (${views.join(", ")}) — seed ${seed}${skis ? ` on ${skis}` : ""}${region ? ` ${region}` : ""}` +
     `${baseSky ? ` sky ${JSON.stringify(baseSky)}` : ""} — ${tier}\n${note}`;
   header.style.whiteSpace = "pre-wrap";
   const cells: HTMLElement[] = [header];

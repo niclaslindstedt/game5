@@ -537,7 +537,8 @@ export function soundForEvent(
     }
 
     // THE SKYDIVE (`chute-bank.ts`): always the jumper's own, heard where
-    // he is — out of the door, the pilot chute thrown, line stretch, the
+    // he is — out of the door, the pilot chute thrown, the reserve's handle
+    // pulled and its spring pilot chute launched, line stretch, the
     // canopy open (as hard as its opening shock), cut away, down on his
     // skis, and caught (a crown's boughs or a lift's steel, `Contact.caught`).
     // The ride begun again is the plane's.
@@ -547,6 +548,8 @@ export function soundForEvent(
           return { id: "chute_exit" };
         case "open-start":
           return { id: "chute_throw" };
+        case "reserve":
+          return { id: "chute_reserve" };
         case "line-stretch":
           return { id: "chute_lines" };
         case "open":

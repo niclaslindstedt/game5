@@ -252,6 +252,13 @@ function run(job: Job): void {
     return;
   }
   busy = job;
+  // The bar goes up at once for a map to be raised: the worker takes a
+  // moment to start, a real face is fetched before its mountain is raised,
+  // and that mountain takes seconds before the generator's first landmark.
+  if (!own) {
+    shares.set(job.key, 0);
+    notify();
+  }
   const w = worker ?? spawn();
   const ask: PreviewRequest = {
     seed: job.seed,

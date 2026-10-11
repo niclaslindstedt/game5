@@ -91,7 +91,7 @@ export function useSeedPreview(
     const show = (): void => {
       const answer = seedAnswer({ seed, region, face, grade });
       if (answer) setShown(answer);
-      setShare(seedShare({ seed, region, grade }));
+      setShare(seedShare({ seed, region, face, grade }));
     };
     show();
     const off = onSeedMaps(show);

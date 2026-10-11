@@ -63,7 +63,14 @@ export {
   type PlaneWant,
 } from "./plane-pilot.ts";
 export { airBounds, airBoundsAt, type AirBounds } from "./collision.ts";
-export { CHUTE, jumperMass, type DeployStage } from "./defs/chute.ts";
+export {
+  CHUTE,
+  jumperMass,
+  MAIN_WING,
+  wingOf,
+  type ChuteWing,
+  type DeployStage,
+} from "./defs/chute.ts";
 export type {
   ChuteControls,
   ChuteDeploy,

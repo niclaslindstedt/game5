@@ -4,7 +4,7 @@
 // `skier-skydive.ts`) staged on the engine and photographed through the
 // game's own renderer — stood up in freefall, under the canopy or in the
 // plane's door off `skydiveAt`, and flown on by the jumper's own keys (the
-// machine press the pull and the cut-away, the edge the toggles, the back
+// machine press the pull, the cut-away and the reserve, the edge the toggles, the back
 // key the flare, the lean the track and the risers, the tuck head down) or
 // on the bot's hands (`chutePilot`, `skydiveInput`). A scene stands up its
 // own run (`Stage.fresh`), so any one of them can be shot alone. Nothing
@@ -57,6 +57,18 @@ const keys =
   (o: Partial<SkierInput>): Drive =>
   () => ({ ...NEUTRAL_INPUT, ...o });
 const bot: Drive = (s) => chutePilot(s);
+/** THE MACHINE PRESS taken once — on the first step of a frame, as the
+ * app's input hands it over a step at a time, never held over the frame's
+ * two steps (the second would be the next press: a cut-away and the
+ * reserve's pull in one frame). */
+const press = (): Drive => {
+  let done = false;
+  return () => {
+    if (done) return NEUTRAL_INPUT;
+    done = true;
+    return { ...NEUTRAL_INPUT, machine: true };
+  };
+};
 
 /** A lens planted off the jumper where he is: `right` m to the right of
  * his heading, `up` m over him, `back` m behind him, looking at a point
@@ -127,7 +139,7 @@ function dive(st: Stage, agl: number, mode: "freefall" | "open" = "freefall"): G
 function opening(st: Stage): GameState {
   const s = dive(st, 1100);
   st.run(s, 0.4, still);
-  st.run(s, 1 / 60, keys({ machine: true }));
+  st.run(s, 1 / 60, press());
   return s;
 }
 
@@ -256,7 +268,7 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     const s = dive(st, 500, "open");
     st.run(s, 1.5, still);
     st.shoot(s, "before", around(9, 3, 3, 50, 3));
-    st.run(s, 1 / 60, keys({ machine: true }));
+    st.run(s, 1 / 60, press());
     for (const k of [0.15, 0.4]) {
       st.until(s, (x) => (x.chute?.t ?? 0) >= k, 4, still);
       st.shoot(s, `+${k}s`, around(9, 3, 3, 50, 3));
@@ -269,11 +281,60 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     // cloth comes down beside him and lies there.
     const low = dive(st, 6, "open");
     st.run(low, 0.2, still);
-    st.run(low, 1 / 60, keys({ machine: true }));
+    st.run(low, 1 / 60, press());
     st.until(low, (x) => !!x.chute?.piece?.down, 60, still);
     st.run(low, 1, still);
     st.shoot(low, "on the snow", overPoint(piece, 7, 6, 7, 50));
     st.shoot(low, "on the snow low", overPoint(piece, 6, 1.6, -4, 50));
+  },
+  // ── THE RESERVE: pulled after the cut-away, frame by frame, and flown ──
+  reserve(st) {
+    const s = dive(st, 900, "open");
+    st.run(s, 1.5, still);
+    st.run(s, 1 / 60, press());
+    st.until(s, (x) => (x.chute?.t ?? 0) >= 1.4, 4, still);
+    st.shoot(s, "cut away", around(9, 2, 3, 50, 1));
+    st.run(s, 1 / 60, press());
+    openTo(st, s, 0.06);
+    st.shoot(s, "handle close", around(-1.8, 0.6, -1.6, 42, 0.2));
+    openTo(st, s, 0.2);
+    st.shoot(s, "pulled close", around(-1.8, 0.6, -1.6, 42, 0.2));
+    for (const t of [0.3, 0.6, 0.95, 1.3, 1.7, 2.1, 2.5]) {
+      openTo(st, s, t);
+      st.shoot(s, `${t.toFixed(2)}s`, around(9, 1, 2, 50, 2.5));
+    }
+    openTo(st, s, 9);
+    st.run(s, 3, still);
+    st.shoot(s, "behind", around(0, 4.2, 10, 40, 4.2));
+    st.shoot(s, "side", around(10, 4.2, 0, 40, 4));
+    st.shoot(s, "below", around(0.4, -5, 2.5, 52, 4));
+    st.shoot(s, "top", around(2.5, 9, 6, 40, 4.4));
+    const main = (x: GameState) => {
+      const p = x.chute?.piece;
+      return p ? { x: p.x, y: p.y, z: p.z } : { x: x.skier.x, y: x.skier.y, z: x.skier.z };
+    };
+    st.shoot(s, "the main away", overPoint(main, 10, 4, 10, 50));
+    // The two canopies side by side in the sky: the main and the reserve.
+    const a = dive(st, 700, "open");
+    const b = st.fresh();
+    const at = overPiste(st.level);
+    skydiveAt(b, { ...at, agl: 700, mode: "open", reserve: true });
+    st.run(b, 3.6, still);
+    st.run(a, 3, still);
+    st.shoot(a, "main behind", around(0, 4.2, 10, 40, 4.2));
+    st.shoot(b, "reserve behind", around(0, 4.2, 10, 40, 4.2));
+    // Down on the skis under it, on the bot's hands.
+    const l = st.fresh();
+    skydiveAt(l, { ...at, agl: 260, mode: "open", reserve: true });
+    st.until(l, (x) => (x.chute?.agl ?? 0) < 2.5, 90, bot);
+    st.shoot(l, "flare", around(6, 0.5, -3, 45, 2));
+    st.until(l, (x) => x.chute?.mode === "landed" || !x.skier.airborne, 10, bot);
+    st.run(l, 2.5, still);
+    const spare = (x: GameState) => {
+      const p = x.chute?.sparePiece;
+      return p ? { x: p.x, y: p.y, z: p.z } : { x: x.skier.x, y: x.skier.y, z: x.skier.z };
+    };
+    st.shoot(l, "let go", overPoint(spare, 7, 5, 7, 50));
   },
   // ── CAUGHT: a crown and a lift's rope ─────────────────────────────────
   snag(st) {
@@ -368,6 +429,67 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     }
     st.camera("chase");
   },
+  // ── EVERY STAGE OF THE BODY on one sheet, close — what `--skis=lynx`
+  // looks at for the snowboarder: the door, the exit, the freefall's
+  // bodies from the side, behind and below, the pull, the canopy, the
+  // cut-away, the reserve, the flare and the landing ──────────────────
+  stages(st) {
+    const side = around(3.2, 0.6, 0.3, 42);
+    const t = st.fresh();
+    st.run(t, 0.5, still);
+    st.shoot(t, "door", around(-2.6, 0.5, 0.4, 38, 0.3));
+    st.shoot(t, "door outside", around(-3.4, 0.2, -1.2, 40, 0.1));
+    const held: Drive = (x) => ({ ...skydiveInput(x), machine: false });
+    for (let i = 0; i < 400 && !skydiveInput(t).machine; i++) st.skip(t, 2.5, held);
+    st.run(t, 1, held);
+    st.until(t, (x) => !x.plane?.rider, 6, skydiveInput);
+    st.until(t, (x) => (x.chute?.since ?? 0) >= 0.25, 4, still);
+    st.shoot(t, "exit", around(-4, 1.2, 2.4, 44));
+    const s = dive(st, 2600);
+    st.shoot(s, "box side", side);
+    st.shoot(s, "box behind", around(0.3, 1.6, 3.4, 42));
+    st.shoot(s, "box below", around(1.2, -3.4, 0.6, 42));
+    st.run(s, 3, keys({ lean: -1 }));
+    st.shoot(s, "track side", side);
+    st.shoot(s, "track behind", around(0.3, 1.6, 3.4, 42));
+    st.run(s, 4, keys({ tuck: 1 }));
+    st.shoot(s, "head down side", side);
+    const o = opening(st);
+    openTo(st, o, 0.12);
+    st.shoot(o, "reach", around(3.2, 0.8, 1.2, 42));
+    openTo(st, o, 0.4);
+    st.shoot(o, "throw", around(3.2, 0.8, 1.2, 42));
+    const c = dive(st, 700, "open");
+    st.run(c, 2, still);
+    st.shoot(c, "canopy side", around(3.8, 0.2, 0.4, 46, 0));
+    st.shoot(c, "canopy behind", around(0.4, 0.8, 3.8, 44, 0.6));
+    st.shoot(c, "canopy below", around(1.2, -3.2, 1, 44, 0.4));
+    st.run(c, 1 / 60, press());
+    st.until(c, (x) => (x.chute?.t ?? 0) >= 0.4, 4, still);
+    st.shoot(c, "cut away", around(3.4, 0.6, 1.2, 44));
+    st.until(c, (x) => (x.chute?.t ?? 0) >= 1.4, 4, still);
+    st.run(c, 1 / 60, press());
+    openTo(st, c, 0.08);
+    st.shoot(c, "reserve handle", around(-2.6, 0.6, -1.6, 42, 0.2));
+    openTo(st, c, 0.22);
+    st.shoot(c, "reserve pulled", around(-2.6, 0.6, -1.6, 42, 0.2));
+    const at = overPiste(st.level);
+    const r = st.fresh();
+    skydiveAt(r, { ...at, agl: 600, mode: "open", reserve: true });
+    st.run(r, 3, still);
+    st.shoot(r, "under the reserve", around(3.8, 0.2, 0.4, 46, 0));
+    // Set down a few metres over the piste, flared by hand.
+    const l = st.fresh();
+    const p = trackPointAt(st.level, st.level.track.length * 0.62);
+    skydiveAt(l, { x: p.x, z: p.z, heading: p.heading, agl: 8, mode: "open" });
+    st.until(l, (x) => (x.chute?.agl ?? 0) < 2.2, 10, still);
+    st.until(l, (x) => (x.chute?.agl ?? 0) < 1.6, 4, keys({ brake: 1 }));
+    st.shoot(l, "flare", around(3.6, 0.4, -1.4, 44, 0.4));
+    st.shoot(l, "flare behind", around(0.4, 0.6, 3.6, 44, 0.4));
+    st.until(l, (x) => x.chute?.mode === "landed" || !x.skier.airborne, 10, keys({ brake: 1 }));
+    st.run(l, 0.4, still);
+    st.shoot(l, "landed", around(3.6, 0.8, 1, 44));
+  },
   // ── AFTER DARK ────────────────────────────────────────────────────────
   async night(st) {
     await st.sky({ hour: 21 });
@@ -393,7 +515,9 @@ export const GROUPS: Record<string, readonly string[]> = {
   canopy: ["canopy", "landing"],
   shape: ["shape"],
   cutaway: ["cutaway"],
+  reserve: ["reserve"],
   snag: ["snag"],
   lenses: ["lenses"],
   night: ["night"],
+  stages: ["stages"],
 };

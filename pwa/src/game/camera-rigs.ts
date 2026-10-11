@@ -121,6 +121,10 @@ export type RigPose = {
    * from his front, skiing backward at the lens. Decided on the snow and
    * held through a flight, so a 360 does not swing the boom round twice. */
   switched?: boolean;
+  /** ON A SNOWBOARD, the side his toes point to (+1 his right of the way
+   * the nose runs, a regular rider; −1 goofy), 0 or none on skis: the worn
+   * rungs ride the board's own eye (`BoltedRig.board`), out over his toes. */
+  board?: number;
   /** The packed share under the skis, 0 powder .. 1 groomed. */
   packed: number;
   /** Body → world (the framework's `core/quat` convention). */
@@ -184,6 +188,9 @@ export type BoltedRig = {
    * he is rolled to, per rad of roll — a pilot under a wing turns his head
    * to where he is going. */
   turn?: number;
+  /** ON A SNOWBOARD (`RigPose.board`): the eye and the look's pitch in
+   * place of `eye` and `down` — the eye's `x` out to his toe side. */
+  board?: { eye: Vec3; down: number };
 };
 
 export type BoomRig = {
@@ -271,6 +278,12 @@ export const RIGS: Record<Rung, Rig> = {
     rollShare: 0.85,
     tremor: 1,
     fallDown: 0.35,
+    // ON A BOARD there are no tips either side of the lens: one deck runs
+    // under it, the rider stood across it, his boots across its middle. The
+    // lens rides between his feet out over his toe edge, at his knees, and
+    // looks down past his front boot — which stands in the bottom of the
+    // frame — to the nose running out ahead, clear of the boot beside it.
+    board: { eye: { x: 0.3, y: -0.3, z: 0 }, down: 0.4 },
   },
   // THE HELMET CAM: the skier's own eyes, at the height of a standing head
   // over the body's origin (the tuck folds the body and the lens with it,
@@ -562,7 +575,9 @@ export function frameRig(
   trunks?: TrunksNear,
 ): LensPose {
   if (rig.kind === "bolted") {
-    const off = rotate(pose.q, rig.eye);
+    const worn = pose.board && rig.board ? rig.board : null;
+    const at = worn ? { ...worn.eye, x: worn.eye.x * pose.board! } : rig.eye;
+    const off = rotate(pose.q, at);
     const lift = pose.lift;
     const eye = lift
       ? { x: pose.x - lift.x + off.x, y: pose.y - lift.y + off.y, z: pose.z - lift.z + off.z }
@@ -574,7 +589,7 @@ export function frameRig(
     const spot = rig.fallDown
       ? fallEase(stepFall(st.fallen, pose, groundAt, dt, st.fresh)) * rig.fallDown
       : 0;
-    const dip = rig.look * Math.tan((rig.down ?? 0) + spot);
+    const dip = rig.look * Math.tan((worn ? worn.down : (rig.down ?? 0)) + spot);
     const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing - dip, z: rig.look });
     if (rig.turn) {
       const a = pose.roll * rig.turn;

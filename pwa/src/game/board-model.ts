@@ -139,6 +139,12 @@ export function createBoardModel(
   // the body frame; thrown, his trunk's — so the board goes where he does.
   const figure = createSkier(style.skier, wrap);
   root.add(figure.group);
+  // HIS BODY apart from what he stands in, so the worn lenses (TIPS, HELMET)
+  // hide the one and keep the deck, the bindings and the boots under them —
+  // the board's nose and his front boot are what a rider looks down at.
+  const body = new THREE.Group();
+  body.add(...figure.group.children);
+  figure.group.add(body);
   const deckGroup = new THREE.Group();
   figure.group.add(deckGroup);
   const deck = buildDeck(board, sheet, wrap);
@@ -531,8 +537,8 @@ export function createBoardModel(
       cloth: figure.dressed.cloth,
     }),
     setSkierVisible(on) {
-      if (figure.group.visible === on) return;
-      figure.group.visible = on;
+      if (body.visible === on) return;
+      body.visible = on;
       merged.update();
     },
     dispose() {

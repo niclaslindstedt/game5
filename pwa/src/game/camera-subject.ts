@@ -69,6 +69,8 @@ export function subjectPose(
   pose.speed = skier.speed;
   pose.airborne = skier.airborne;
   pose.switched = r ? false : skier.switched;
+  const b = skier.spec.board;
+  pose.board = b ? (b.lead === "regular" ? 1 : -1) : 0;
   pose.packed = skier.packed;
   return onBody(pose, body, groundAt, mem);
 }
@@ -97,6 +99,7 @@ export function onBody(
   pose.speed = Math.hypot(body.vx, body.vy, body.vz);
   pose.heading = mem.heading;
   pose.switched = false;
+  pose.board = 0;
   pose.airborne = !body.touching;
   return pose;
 }

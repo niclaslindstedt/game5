@@ -16,7 +16,6 @@ export const AVALANCHE_STRINGS = {
   beaconNoSignal: "NO SIGNAL",
   beaconMetres: (m: number): string => (m < 10 ? m.toFixed(1) : `${Math.round(m)}`),
   beaconUnit: "M",
-  beaconCount: (n: number): string => `${n}`,
   beaconSlow: "SLOW DOWN · UNIT TO THE SNOW",
   beaconStop: "STOP · LOWEST NUMBER",
   beaconProbe: (key: string): string => `${key} PROBE`,

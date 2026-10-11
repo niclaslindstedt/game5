@@ -15,15 +15,11 @@
 //   ghost-model.ts  a ghost, see-through and trail-less (no mode keeps one now)
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
-//   camera.ts      the ladder of lenses; camera-start.ts, a slalom's start
+//   camera.ts      the ladder; camera-start.ts a slalom's start, camera-skijump.ts a jump
 //
-// WHAT IT COSTS is the picture it is handed (`settings-video.ts`): `setVideo`
-// is the one place a row of OPTIONS ▸ PICTURE becomes a draw call.
-//
-// It READS `GameState` and never writes it. Everything that depends on the
-// map is built in `load`; `draw` only moves things. Every skier — the player
-// and each rival — is drawn at `alpha` of a step on from the step before
-// (`interp.ts`), since the engine keeps no previous pose of its own.
+// `setVideo` is the one place a PICTURE row becomes a draw call. It READS
+// `GameState` and never writes it; the map is built in `load`, `draw` only
+// moves things, every skier drawn `alpha` of a step on (`interp.ts`).
 
 import * as THREE from "three";
 import {
@@ -50,6 +46,7 @@ import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { figureShown } from "./camera-para.ts";
 import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
+import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { compileByParts } from "./scene-compile.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
@@ -126,8 +123,7 @@ import { loadModels as loadSkierModels } from "./skier-models.ts";
 import { bodyStampOf, carveOf, createPen, drawnDepth, stampsOf } from "./trail-stamp.ts";
 import type { Stamp } from "./trail-stamp.ts";
 
-// The modelled skis and skiers, fetched before the kit is handed out
-// (`use-render-kit.ts`), when this build draws them; the rest is code.
+// The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
 export async function loadModels(): Promise<void> {
   await loadSkierModels();
 }
@@ -149,8 +145,9 @@ export type FrameInfo = { calls: number; triangles: number; points: number };
  * ask. */
 export type WorldRendererExt = WorldRenderer &
   DevRenderer & {
-    /** Change rung; `cut` skips the flown hand-over. */
-    setCamera(rung: CameraRung, cut?: boolean): void;
+    /** Change rung; `cut` skips the flown hand-over; `chosen` whether the
+     * player picked it (a ski jump's broadcast gives way to his pick). */
+    setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean): void;
     /** `present` false does everything a frame does — the trails stamped,
      * the spray flown, the lens moved — except draw the picture: how a lab
      * fast-forwards a run without losing the furrows it cut. */
@@ -218,6 +215,7 @@ export function createWorldRenderer(
   scene.add(lens.camera);
   /** THE REPLAY'S LENSES (`camera-replay.ts`), or null for the ladder's own rung. */
   const replayCam = createReplayCamera(() => (level && clear ? { level, clear } : null));
+  const broadcast = createJumpBroadcast(); // a ski jump's director (`camera-skijump.ts`)
   let watched: ReplayView | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9);
   env.setDistance(video.distance);
@@ -723,6 +721,7 @@ export function createWorldRenderer(
       // The ladder is framed underneath either way: a planted lens hands back to a boom in place.
       const planted =
         override ??
+        broadcast.lens(state, rigPose, watched, clear) ??
         (watched ? replayCam.update(watched, rigPose, body, state.t, dt) : null) ??
         (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??
@@ -920,8 +919,9 @@ export function createWorldRenderer(
       if (lastState && level) pack = packFor(lastState);
     },
 
-    setCamera(rung: CameraRung, cut: boolean = false) {
+    setCamera(rung: CameraRung, cut: boolean = false, chosen?: boolean) {
       lens.set(rung, cut);
+      if (chosen !== undefined) broadcast.pick(chosen);
     },
     camera: () => lens.chosen(),
     pickRay: (x, y) => lensRay(lens.camera, x, y),

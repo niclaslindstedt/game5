@@ -18,6 +18,7 @@ import { createGame, generateLevel, NEUTRAL_INPUT, step, TUNING, type GameState 
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { withJumpContest } from "../game/ski-jump-run.ts";
+import { jumpMoment, wantShot } from "../game/camera-skijump.ts";
 import { GROUPS, VIEWS, type Drive, type Lens, type Stage } from "./skijump-scenes.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
@@ -123,12 +124,17 @@ const stage: Stage = {
   shoot(state, label, lens: Lens = "chase") {
     catchUp(state);
     if (typeof lens === "string") {
-      if (renderer.camera() !== lens) renderer.setCamera(lens, true);
+      // A rung is picked as the player picks one; the broadcast is the
+      // game's own opening, the director's until a pick.
+      const tv = lens === "broadcast";
+      renderer.setCamera(tv ? "far" : lens, true, !tv);
       renderer.setOverride(null);
       renderer.draw(state, 1, FRAME);
     } else renderer.setOverride(typeof lens === "function" ? lens(state) : lens);
     renderer.draw(state, 1, STILL);
-    const caption = `${view} ${label} [${typeof lens === "string" ? lens : "planted"}]\n${stateLine(state)}`;
+    const tv = lens === "broadcast" ? jumpMoment(state, state.skier) : null;
+    const said = typeof lens === "string" ? (tv ? `broadcast: ${wantShot(tv)}` : lens) : "planted";
+    const caption = `${view} ${label} [${said}]\n${stateLine(state)}`;
     renderer.setOverride(null);
     frames.push({ view, label, caption, png: canvas.toDataURL("image/png") });
   },

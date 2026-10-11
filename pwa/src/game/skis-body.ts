@@ -48,7 +48,7 @@ import type { SkierPose } from "./skier-joints.ts";
 import { armBreaks, createBrokenFeel } from "./skier-broken.ts";
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
-import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
+import { buildGear, cuffHeight } from "./ski-gear.ts";
 import { SKI_LOOKS, drawnAs, lookOf } from "./ski-looks.ts";
 import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
 import { createChatter, shakeStand, stepChatter } from "./ski-chatter.ts";
@@ -57,16 +57,12 @@ import { DEFAULT_OUTFIT, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
 import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.ts";
 import { doorReach, reachPose } from "./door-reach.ts";
-import { launchGait } from "./skier-gait.ts";
-import { kickStand, slalomStart } from "./slalom-start.ts";
+import { kickStand } from "./slalom-start.ts";
 import { attachModels } from "./skier-models.ts";
 import {
   createSkierSpring,
   drawnSkiAngle,
-  gaitOf,
-  leadOf,
   mountsFor,
-  pitchHeld,
   restSkierSpring,
   stepSkierSpring,
   type Mounts,
@@ -78,13 +74,12 @@ import { fetchMove, movePose } from "./party-pose.ts";
 import { bootsOn, buildWalkBoots } from "./town-boots.ts";
 import { skiLift, streetOver, townLift, townMove, townPose } from "./town-pose.ts";
 import { LOOSE } from "./trail-stamp.ts";
-import { flightRead, flightShape, type FlightGround } from "./skier-flight.ts";
+import { flightRead, type FlightGround } from "./skier-flight.ts";
 import {
   CABIN_FLOOR,
   CHAIR_SEAT,
   createSeatEase,
   easeSeat,
-  lookBack,
   seatedPose,
   type Seat,
 } from "./skier-seat.ts";
@@ -99,8 +94,8 @@ import {
   type SkiSwing,
 } from "./skier-dangle.ts";
 import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./skier-perch.ts";
-import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
-import { revertRise } from "./skier-switch.ts";
+import { ridingOf, widenStand } from "./technique-pose.ts";
+import { groundOf, legsLift, poseInputOf } from "./skis-pose-input.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
 import {
   pitchPast,
@@ -115,6 +110,7 @@ import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
+export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
 
 export type SkiStyle = {
   /** The topsheet's paint, and the trim its graphic is cut in. */
@@ -199,6 +195,11 @@ export type SkisModel = {
    * through his stride, in strides, and his pace, 0 stood … 1 the engine's
    * shuffle), his boots stepped. Read at the next pose. */
   setBasket(on: boolean, walk?: BasketWalk): void;
+  /** STOOD OFF HIS SKIS in his boots, his hands empty (the rider card's
+   * idle, `rider-idle.ts`): the body as `stood` lays it over the snow in
+   * the root's frame, the pair out of sight — or null back on them. Read
+   * at the next pose. Only the skis' model stands a rider off them. */
+  setStood?(stood: StoodPose | null): void;
   /** SKYDIVING (`chute.ts`): his limbs as the jump's stage lays them, his
    * skis carried with his boots and his drawing pitched past what his
    * skier's frame says (`skier-skydive.ts`), or null — read at the next pose. */
@@ -240,6 +241,11 @@ export type SkisModel = {
   poseSkier(input: SkierPoseInput): void;
   dispose(): void;
 };
+
+/** A BODY STOOD IN HIS BOOTS (`setStood`): the pose over the snow at
+ * `ground` (y in the root's frame), its trunk's frame written into `frame`
+ * as `ragdollPose` writes it. */
+export type StoodPose = (ground: number, frame: BodyFrame) => SkierPose;
 
 /** HIS STEPS IN A BALLOON'S BASKET (`setBasket`): strides walked, and the
  * pace, 0 stood … 1 a full shuffle. */
@@ -296,142 +302,6 @@ const ACROSS = new THREE.Vector3(1, 0, 0);
 function isUnder(o: THREE.Object3D, group: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p === group) return true;
   return false;
-}
-
-/** Coming down off a hop into switch (`SkierState.hopHeld`): still in its
- * little flight, round already — the look back held for the landing. */
-export function hopLanding(skier: SkierState): boolean {
-  return skier.airborne && (skier.hopHeld ?? 0) > 0;
-}
-
-/** How far he stands on the snow as drawn, 0..1: the view's eased air, or
- * the engine's flag before the spring has read a ride. */
-export function groundOf(skier: SkierState, legs: ReturnType<typeof createSkierSpring>): number {
-  if (skier.thrown) return 0;
-  return Number.isNaN(legs.hip) ? (skier.airborne ? 0 : 1) : 1 - legs.air;
-}
-
-/** The engine's readings as the pose wants them, for one frame —
- * `waiting` in the start gate under the lights (`"house"` in a slalom's
- * start house, and out of it on his one push); `stand` where the skis
- * stand on the snow (`ski-stand.ts`, worked out off `legs` when left
- * out); `riding` how he rides (`technique-pose.ts`'s `ridingOf`: the free
- * skier, at no gate, when left out). */
-export function poseInputOf(
-  skier: SkierState,
-  legs: ReturnType<typeof createSkierSpring>,
-  mounts: Mounts,
-  trick: TrickPose | null,
-  waiting: boolean | "house" = false,
-  stand: Stand = standOf(
-    skier,
-    groundOf(skier, legs),
-    undefined,
-    skier.incline + (Number.isNaN(legs.hip) ? 0 : legs.hill),
-    drawnSkiAngle(legs, skier),
-  ),
-  riding?: Riding,
-): SkierPoseInput {
-  // A slalom's start house: the slalom start clip, in it and out of it.
-  const clip = slalomStart(waiting === "house", skier.launch);
-  // The inclination the skis are tipped against beyond the world's roll —
-  // carried onto the body's own eased roll.
-  // On his platforms the body is drawn stood over the hill (`hillLean`):
-  // a roll of its own on top of the engine's.
-  const hill = Number.isNaN(legs.hip) ? 0 : legs.hill;
-  const roll = skier.roll + hill;
-  const onSnow = stand.incline - groundOf(skier, legs) * roll;
-  return {
-    roll,
-    // The hips' shift as his body carries it (eased in the view's spring),
-    // or the engine's own before the spring has read a ride.
-    hipRight: Number.isNaN(legs.hip) ? skier.hipRight : legs.hip,
-    hipAft: skier.hipAft,
-    lean: skier.lean,
-    steer: skier.steer,
-    edge: stand.tilt,
-    // The edge and the roll as his body above the boots carries them.
-    body: Number.isNaN(legs.hip)
-      ? undefined
-      : {
-          tilt: skiTilt({ edge: legs.edge, roll: legs.roll + hill + onSnow, speed: skier.speed }),
-          roll: legs.roll + hill,
-        },
-    // The upper body's lead into a turn, ahead of the skis' edge.
-    lead: leadOf(legs),
-    // The skid's pivot as his body carries it (eased in the view's spring).
-    skiAngle: drawnSkiAngle(legs, skier),
-    crouch: skier.crouch,
-    tuck: skier.tuck,
-    drop: skier.spec.crouchDrop * skier.crouch,
-    lift: stand.lift,
-    spread: stand.out,
-    fore: stand.fore,
-    incline: stand.incline,
-    sidestep: Number.isNaN(legs.hip) ? skier.sidestep : legs.platform,
-    // RIDING SWITCH: looking back over the shoulder his body has turned to
-    // — or, waiting for a chair or a T-bar, over his inside one for it.
-    switched: legs.back * legs.backSide + lookBack(skier.lift),
-    windUp: legs.wind,
-    turningRound: skier.revert != null || hopLanding(skier),
-    airborne: skier.airborne,
-    landing: skier.landing,
-    // ...lengthened a little through a revert, the skis light (`skier-switch.ts`).
-    bump: legs.bump - (skier.revert ? revertRise(skier.revert.u) : 0),
-    // THE POLE PLANT the view times on his turns (`skier-spring.ts`).
-    plantAt:
-      legs.plantT < legs.plantLength
-        ? { side: legs.plantSide, t: legs.plantT / legs.plantLength, weight: legs.plantOk }
-        : undefined,
-    // THE GAIT at a crawl — the skate and the double pole — in time with
-    // the engine's own push (`poles.ts`).
-    // ...how much he works the poles as his arms carry it.
-    // Out of a slalom's start house, his one push is the whole gait.
-    gait:
-      launchGait(skier.launch, TUNING.start.push) ??
-      (Number.isNaN(legs.keep) ? gaitOf(skier) : { ...gaitOf(skier), keep: legs.keep }),
-    // The snow passed since the stroke's plant, as the view kept it.
-    poled: Number.isNaN(legs.poledStride) ? undefined : legs.poled,
-    air: legs.air,
-    jumpLoad: legs.load,
-    popped: skier.popped,
-    carve: skier.carve,
-    skid: skier.skid,
-    // THE SAVE his body is making, as the view's spring carries it.
-    jolt: legs.jolt,
-    // THE TRUNK HELD while the skis rock under him over a bump.
-    pitchHeld: pitchHeld(legs, skier.pitch),
-    // THE FALL his body is riding, by how far it is.
-    flight: flightShape(legs.flight, legs.air),
-    trick,
-    // ...with his poles, or with nothing in his hands (the hard mode).
-    poles: skier.poles,
-    // HOW HE RIDES: his technique's row, the block at the gate he owes, and
-    // how far he has been edging lately (what tells an edge change).
-    style: riding?.style,
-    block: riding?.block,
-    swing: Number.isNaN(legs.swing) ? undefined : legs.swing,
-    mounts,
-    // IN THE START GATE under the lights, as his body has settled into it
-    // — or, before the spring has read a ride, as the lights say.
-    ready: clip ? clip.weight : Number.isNaN(legs.hip) ? (waiting ? 1 : 0) : legs.ready,
-    house: clip?.shape,
-    // STOOD STILL, he waits alive: his own clock, faded in below a walk.
-    idle: {
-      t: legs.clock,
-      // ...but not while he steps his skis round on the spot.
-      still:
-        Math.max(0, 1 - skier.speed / 1.5) * Math.max(0, 1 - skier.drive * 4) * (1 - legs.stepping),
-    },
-  };
-}
-
-/** How far the drawn skis stand folded up toward him off the engine's
- * legs, m, the two skis' mean (`gearLift`) — what the body's spring is
- * handed so the legs never fold or stretch past their reach. */
-export function legsLift(skier: SkierState): number {
-  const lift = gearLift(skier);
-  return (lift[0] + lift[1]) / 2;
 }
 
 export function createSkisModel(
@@ -641,6 +511,7 @@ export function createSkisModel(
   // In a balloon's basket (`setBasket`): his pair racked, his hands empty.
   let basket = false;
   let basketWalk: BasketWalk | null = null;
+  let stoodPose: StoodPose | null = null;
   let sky: SkydiveShape | null = null;
   let lastPerch: number | null = null;
   const dangle = createDangle();
@@ -681,7 +552,10 @@ export function createSkisModel(
       // his skis, picking them up and back into the bindings.
       // ...or IN TOWN, his skis on his shoulder (`town.ts`).
       const town = off ? null : (skier.town ?? null);
-      const afoot = off ? null : (skier.fetch ?? town);
+      // ...or STOOD in his boots, the pair put away (`setStood`).
+      const stood = off || skier.fetch || town ? null : stoodPose;
+      const walking = off ? null : (skier.fetch ?? town);
+      const afoot = walking ?? stood;
       // His legs' spring first: how far he stands on the snow is its own —
       // and thrown, they carry nothing, so he is stood back up on them at
       // rest.
@@ -724,7 +598,7 @@ export function createSkisModel(
       // rack, and he lies in his boots.
       const bare = off !== null && off.skis.length === 0;
       if (!wings) {
-        rack(boarded || (cabin && !racked) || inBasket || bare);
+        rack(boarded || (cabin && !racked) || inBasket || bare || stood !== null);
         // A binding lets the BOOT out, buckled to his foot (`town-boots.ts`):
         // with the pair not under him, his boots are on him.
         unboot(off !== null || afoot !== null || racked !== null);
@@ -795,9 +669,11 @@ export function createSkisModel(
         townFigure = lifted;
         const snow =
           (fall ? fall.ground.groundAt(at.x, at.z) - root.position.y : -spec.cogHeight) + lifted;
-        const p = town
-          ? townPose(townMove(town, skier), snow, frame, mounts.pole)
-          : movePose(fetchMove(skier.fetch!, skier), snow, frame);
+        const p = stood
+          ? stood(snow, frame)
+          : town
+            ? townPose(townMove(town, skier), snow, frame, mounts.pole)
+            : movePose(fetchMove(skier.fetch!, skier), snow, frame);
         figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
         trunk.makeBasis(
           axis.x.set(frame.x.x, frame.x.y, frame.x.z),
@@ -909,8 +785,8 @@ export function createSkisModel(
       const loose =
         off && off.skis.length === 2
           ? off.skis
-          : afoot?.skis.length === 2
-            ? afoot.skis
+          : walking?.skis.length === 2
+            ? walking.skis
             : racked?.length === 2
               ? racked
               : null;
@@ -961,6 +837,9 @@ export function createSkisModel(
     },
     setWingsuit(shape) {
       flyer = shape;
+    },
+    setStood(next) {
+      stoodPose = next;
     },
     setBasket(on, walk) {
       basket = on;

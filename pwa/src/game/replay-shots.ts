@@ -28,6 +28,9 @@
 //   hit      a trunk met at speed (`hit`).
 //   wipeout  the skier thrown off (`wipeout`).
 //   finish   the flag (`finish`) — always worth the arch's lens.
+//   takeoff  a ski jump's edge (`skiJump` takeOff) and
+//   landing  its touch-down (`skiJump` touch): the two moments of a jump
+//            the broadcast runs slow; a jump's flight files no `air`.
 //
 // AND THE SLOW MOTION, the other thing only a replay may have. It is part of
 // the shot rather than a setting, runs over the thing worth watching, and
@@ -43,7 +46,8 @@
 import { racePlace, TUNING, type GameState } from "@engine";
 
 /** What a shot is OF. The word the bar prints is `strings.ts`'s (§39.1). */
-export type ShotKind = "air" | "pass" | "bump" | "hit" | "wipeout" | "finish";
+export type ShotKind =
+  "air" | "pass" | "bump" | "hit" | "wipeout" | "finish" | "takeoff" | "landing";
 
 /** ONE MOMENT WORTH A CAMERA, as the run wrote it down. Steps rather than
  * seconds: a step is the one clock a replay and its run cannot disagree on.
@@ -107,7 +111,18 @@ export const SHOTS = {
   rest: 4,
   /** The most shots one replay carries. */
   most: 16,
+  /** A SKI JUMP'S TWO: what the edge and the touch-down are worth, and how
+   * long each is run slow, s. They are a pair a few seconds apart, so the
+   * boom's rest is not kept round them (`JUMP_KINDS`): the flag after a
+   * landing is a second or two behind it. */
+  takeoff: 0.9,
+  landing: 0.95,
+  edgeRuns: 0.7,
+  touchRuns: 0.9,
 } as const;
+
+/** The shots a ski jump files, never spaced off another shot. */
+const JUMP_KINDS: ReadonlySet<ShotKind> = new Set(["takeoff", "landing"]);
 
 /** THE SLOW MOTION. */
 export const SLOW = {
@@ -186,7 +201,24 @@ export function createShotCollector(): ShotCollector {
         if (e.kind === "trick" && e.trick !== "air" && e.trick !== "landing") turned += 1;
       for (const e of state.events) {
         switch (e.kind) {
+          case "skiJump":
+            if (e.stage === "takeOff")
+              push(
+                "takeoff",
+                poseInto(emptyPose(), state, at),
+                steps(SHOTS.edgeRuns),
+                SHOTS.takeoff,
+              );
+            else if (e.stage === "touch")
+              push(
+                "landing",
+                poseInto(emptyPose(), state, at),
+                steps(SHOTS.touchRuns),
+                SHOTS.landing,
+              );
+            break;
           case "air":
+            if (state.jump) break; // a jump's flight is the takeoff's and the landing's
             flight = { ...ground };
             turned = 0;
             break;
@@ -262,6 +294,7 @@ export function planShots(found: readonly ReplayShot[]): ReplayShot[] {
     if (kept.length >= SHOTS.most) break;
     const { from, until } = shotWindow(shot);
     const crowds = kept.some((held) => {
+      if (JUMP_KINDS.has(held.kind) || JUMP_KINDS.has(shot.kind)) return false;
       const w = shotWindow(held);
       return from < w.until + rest && w.from < until + rest;
     });

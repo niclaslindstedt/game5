@@ -116,6 +116,15 @@ export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {
   "maritime-10": ["green", "blue", "black"],
   "maritime-11": ["green", "blue", "black", "orange"],
   "maritime-12": ["green", "blue", "black", "orange"],
+  "maritime-13": ["green", "blue", "black"],
+  "maritime-14": ["green", "blue", "black"],
+  "maritime-15": ["green", "blue", "black"],
+  "maritime-16": ["green", "blue", "black", "orange"],
+  "maritime-17": ["green", "blue", "black"],
+  "maritime-18": ["green", "blue", "black"],
+  "maritime-19": ["green", "blue", "black"],
+  "maritime-20": ["green", "blue", "black"],
+  "maritime-21": ["green", "blue", "black"],
 };
 
 /** Each wooded face's woods by height, read off the forest the map draws:
@@ -206,6 +215,15 @@ export const HINT_TREES: Readonly<Record<string, string>> = {
   "maritime-10": "da80d89d7e4e231d01",
   "maritime-11": "ef83ccdfe4e0bfab2b",
   "maritime-12": "ef69cfd1c5b3765d1f",
+  "maritime-13": "ffcfb5cde3e1d9c491",
+  "maritime-14": "f458d4dfe5e7dfd3d4",
+  "maritime-15": "ffa4e9ebeef0f5f3ff",
+  "maritime-16": "ff90ccd4e4eceef6ff",
+  "maritime-17": "ff3ec3dbe0cdc7dbfd",
+  "maritime-18": "fffde6f4e7eaeaf3d9",
+  "maritime-19": "fa6cdbece6f6e8c394",
+  "maritime-20": "ff6ebbdde4daf3f8f7",
+  "maritime-21": "ffcb94dad7d0d2d7ba",
 };
 
 /** Each face's hints, fetched when a map is raised on it. */
@@ -294,4 +312,13 @@ export const HINT_LOADERS: Readonly<Record<string, () => Promise<{ HINTS: HintDa
   "maritime-10": () => import("./real-hints/hints-maritime-10.ts"),
   "maritime-11": () => import("./real-hints/hints-maritime-11.ts"),
   "maritime-12": () => import("./real-hints/hints-maritime-12.ts"),
+  "maritime-13": () => import("./real-hints/hints-maritime-13.ts"),
+  "maritime-14": () => import("./real-hints/hints-maritime-14.ts"),
+  "maritime-15": () => import("./real-hints/hints-maritime-15.ts"),
+  "maritime-16": () => import("./real-hints/hints-maritime-16.ts"),
+  "maritime-17": () => import("./real-hints/hints-maritime-17.ts"),
+  "maritime-18": () => import("./real-hints/hints-maritime-18.ts"),
+  "maritime-19": () => import("./real-hints/hints-maritime-19.ts"),
+  "maritime-20": () => import("./real-hints/hints-maritime-20.ts"),
+  "maritime-21": () => import("./real-hints/hints-maritime-21.ts"),
 };

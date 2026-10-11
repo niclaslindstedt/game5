@@ -34,6 +34,7 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The loose pieces: the pilot chute, the bridle, the bag, the slider, the cut-away streamer, the cloth on the snow, the crown and rope drapes, the rig over the canopy (`OVER`, `overCanopy`, `flownOver`, `crownDrape`) | `pwa/src/game/chute-rig-plan.ts` (three-free) |
 | Every stage drawn (a kit a canopy, the main's and the reserve's, each on its own clock; the reserve's spring pilot chute and free bag), the eyes and the own-eyes hiding | `pwa/src/game/chute-scene.ts` (through `machines.ts`) |
 | The body through every stage, laid from a square stand | `pwa/src/game/skier-skydive.ts` (`SkydiveShape`, `skydivePose`, `squareStand`, `squareSkis`), read by `skis-body.ts`'s `setSkydive` |
+| The snowboarder through every stage: the skier's arms, square to his front, the board across his feet (`boardSkydiveYaw` turns him out of the door, square in the air and side-on at the flare) | `pwa/src/game/board-skydive.ts`, read by `board-model.ts`'s `setSkydive`; `tests/board_skydive_test.ts` |
 | The lenses | `pwa/src/game/camera-skydive.ts` (the freefall's flyer, the opening), `camera-para.ts`'s `CHUTE_RIGS` (under the canopy) |
 | The HUD, the words | `plane-hud.ts`'s `chuteOf`, `hud-plane.tsx`, `strings-chute.ts`, `run-news.ts` |
 | The sound | `audio/chute-voice.ts`, `chute-bed.ts` (`rideShares`: the ride bed silent while he falls), `chute-bank.ts` |
@@ -77,7 +78,10 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   opening frame by frame, four sides beside the main, the flare and the
   let-go), `snag` (the crown — its
   `crown over` and `crown round` views — and a lift's rope), `lenses` (every
-  rung in freefall, the opening and under the canopy) and `night`.
+  rung in freefall, the opening and under the canopy), `night` and `stages`
+  (every stage of the body close on one sheet). `ARGS=--skis=lynx` jumps on a
+  snowboard (its pictures go under `previews/skydive-lynx-*`): a change to
+  the body owes `--sheet=stages` on the skis and on the board.
   `ARGS=--sheet=…`, `--views=…`, `SEED=`, `REGION=`; prefix with
   `CHROMIUM_PATH=/opt/pw-browsers/chromium` in a cloud session. A change to
   the cloth also owes `make para` (`para-canopy.ts` is shared).
@@ -150,9 +154,8 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 - The crown drape is a cone model; a slim fir reads as cloth in the crown.
 - The stabilizers read as small white triangles from straight behind; the
   opening's HELMET shows his gloves as dark slabs at the frame's edge.
-- A rider on a snowboard falls in his riding pose (`board-model.ts`'s
-  `setSkydive` is empty; `SkydiveShape.reserve` is the reserve's pull for it
-  to read).
+- The snowboarder's HELMET eyes in the door still look along the plane,
+  where his figure is turned to face out of the door.
 
 ## Skill self-improvement
 

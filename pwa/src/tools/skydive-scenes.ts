@@ -429,6 +429,67 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     }
     st.camera("chase");
   },
+  // ── EVERY STAGE OF THE BODY on one sheet, close — what `--skis=lynx`
+  // looks at for the snowboarder: the door, the exit, the freefall's
+  // bodies from the side, behind and below, the pull, the canopy, the
+  // cut-away, the reserve, the flare and the landing ──────────────────
+  stages(st) {
+    const side = around(3.2, 0.6, 0.3, 42);
+    const t = st.fresh();
+    st.run(t, 0.5, still);
+    st.shoot(t, "door", around(-2.6, 0.5, 0.4, 38, 0.3));
+    st.shoot(t, "door outside", around(-3.4, 0.2, -1.2, 40, 0.1));
+    const held: Drive = (x) => ({ ...skydiveInput(x), machine: false });
+    for (let i = 0; i < 400 && !skydiveInput(t).machine; i++) st.skip(t, 2.5, held);
+    st.run(t, 1, held);
+    st.until(t, (x) => !x.plane?.rider, 6, skydiveInput);
+    st.until(t, (x) => (x.chute?.since ?? 0) >= 0.25, 4, still);
+    st.shoot(t, "exit", around(-4, 1.2, 2.4, 44));
+    const s = dive(st, 2600);
+    st.shoot(s, "box side", side);
+    st.shoot(s, "box behind", around(0.3, 1.6, 3.4, 42));
+    st.shoot(s, "box below", around(1.2, -3.4, 0.6, 42));
+    st.run(s, 3, keys({ lean: -1 }));
+    st.shoot(s, "track side", side);
+    st.shoot(s, "track behind", around(0.3, 1.6, 3.4, 42));
+    st.run(s, 4, keys({ tuck: 1 }));
+    st.shoot(s, "head down side", side);
+    const o = opening(st);
+    openTo(st, o, 0.12);
+    st.shoot(o, "reach", around(3.2, 0.8, 1.2, 42));
+    openTo(st, o, 0.4);
+    st.shoot(o, "throw", around(3.2, 0.8, 1.2, 42));
+    const c = dive(st, 700, "open");
+    st.run(c, 2, still);
+    st.shoot(c, "canopy side", around(3.8, 0.2, 0.4, 46, 0));
+    st.shoot(c, "canopy behind", around(0.4, 0.8, 3.8, 44, 0.6));
+    st.shoot(c, "canopy below", around(1.2, -3.2, 1, 44, 0.4));
+    st.run(c, 1 / 60, press());
+    st.until(c, (x) => (x.chute?.t ?? 0) >= 0.4, 4, still);
+    st.shoot(c, "cut away", around(3.4, 0.6, 1.2, 44));
+    st.until(c, (x) => (x.chute?.t ?? 0) >= 1.4, 4, still);
+    st.run(c, 1 / 60, press());
+    openTo(st, c, 0.08);
+    st.shoot(c, "reserve handle", around(-2.6, 0.6, -1.6, 42, 0.2));
+    openTo(st, c, 0.22);
+    st.shoot(c, "reserve pulled", around(-2.6, 0.6, -1.6, 42, 0.2));
+    const at = overPiste(st.level);
+    const r = st.fresh();
+    skydiveAt(r, { ...at, agl: 600, mode: "open", reserve: true });
+    st.run(r, 3, still);
+    st.shoot(r, "under the reserve", around(3.8, 0.2, 0.4, 46, 0));
+    // Set down a few metres over the piste, flared by hand.
+    const l = st.fresh();
+    const p = trackPointAt(st.level, st.level.track.length * 0.62);
+    skydiveAt(l, { x: p.x, z: p.z, heading: p.heading, agl: 8, mode: "open" });
+    st.until(l, (x) => (x.chute?.agl ?? 0) < 2.2, 10, still);
+    st.until(l, (x) => (x.chute?.agl ?? 0) < 1.6, 4, keys({ brake: 1 }));
+    st.shoot(l, "flare", around(3.6, 0.4, -1.4, 44, 0.4));
+    st.shoot(l, "flare behind", around(0.4, 0.6, 3.6, 44, 0.4));
+    st.until(l, (x) => x.chute?.mode === "landed" || !x.skier.airborne, 10, keys({ brake: 1 }));
+    st.run(l, 0.4, still);
+    st.shoot(l, "landed", around(3.6, 0.8, 1, 44));
+  },
   // ── AFTER DARK ────────────────────────────────────────────────────────
   async night(st) {
     await st.sky({ hour: 21 });
@@ -458,4 +519,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   snag: ["snag"],
   lenses: ["lenses"],
   night: ["night"],
+  stages: ["stages"],
 };

@@ -62,7 +62,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (gear, exit, freefall, deploy, canopy, shape, cutaway, reserve, snag, lenses, night); every one when left out",
+      help: "which sheets, comma-separated (gear, exit, freefall, deploy, canopy, shape, cutaway, reserve, snag, lenses, night, stages); every one when left out",
     },
     views: {
       kind: "string",
@@ -70,6 +70,11 @@ const args = parseArgs(
       help: "only these views, comma-separated (the same names as the sheets)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
+    skis: {
+      kind: "string",
+      default: "",
+      help: "the pair he jumps on (lynx: a snowboard); the all-mountain pair when left out — the pictures then go under previews/skydive-<skis>-*",
+    },
     region: {
       kind: "string",
       default: "",
@@ -95,8 +100,11 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1800, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/skydive-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--hour=h] [--weather=kind] [--skip-build]",
+  "usage: node scripts/skydive-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--skis=id] [--region=id] [--hour=h] [--weather=kind] [--skip-build]",
 );
+
+// Another pair's pictures beside the skier's, never over them.
+const stem = args.skis && args.out === "skydive" ? `skydive-${args.skis}` : args.out;
 
 const list = (s) =>
   s
@@ -148,6 +156,7 @@ page.setDefaultTimeout(args.timeout * 1000);
 
 const query = new URLSearchParams({
   seed: String(args.seed),
+  ...(args.skis ? { skis: args.skis } : {}),
   quality: args.quality,
   w: String(args.width),
   h: String(args.height),
@@ -208,7 +217,7 @@ for (const [group, views] of Object.entries(groups)) {
   );
   if (!args["sheets-only"]) {
     for (const f of frames) {
-      const file = join(outDir, `${args.out}-${safe(f.view)}-${safe(f.label)}.png`);
+      const file = join(outDir, `${stem}-${safe(f.view)}-${safe(f.label)}.png`);
       writeFileSync(file, Buffer.from(f.png.split(",")[1], "base64"));
     }
   }
@@ -218,7 +227,7 @@ for (const [group, views] of Object.entries(groups)) {
     width: Math.max(args.width, Math.ceil(box.width)),
     height: Math.ceil(box.y + box.height),
   });
-  const out = join(outDir, `${args.out}-${group}.png`);
+  const out = join(outDir, `${stem}-${group}.png`);
   await page.locator("#sheet").screenshot({ path: out });
   await page.setViewportSize(viewport);
   const suffix = wantViews.length ? ` (${shot.join(", ")})` : "";

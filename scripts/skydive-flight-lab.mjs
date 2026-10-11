@@ -501,7 +501,9 @@ const rows = [
     value: RFL.sink,
     unit: "m/s",
     band: "<2.5",
-    note: RFL.on ? `the bot's flare; let go of, skiing on at ${f1(RFL.speed)} m/s` : "DID NOT ski on",
+    note: RFL.on
+      ? `the bot's flare; let go of, skiing on at ${f1(RFL.speed)} m/s`
+      : "DID NOT ski on",
   },
   {
     id: "snag-tree",

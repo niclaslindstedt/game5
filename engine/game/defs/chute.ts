@@ -275,7 +275,11 @@ export type ChuteWing = {
   readonly flies: { readonly forward: number; readonly sink: number };
   readonly pilot: { readonly diameter: number; readonly bridle: number };
   readonly deploy: {
-    readonly stages: readonly { readonly id: DeployStage; readonly end: number; readonly area: number }[];
+    readonly stages: readonly {
+      readonly id: DeployStage;
+      readonly end: number;
+      readonly area: number;
+    }[];
   };
 };
 

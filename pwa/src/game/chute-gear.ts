@@ -28,6 +28,9 @@
 // are each in its thigh's.
 
 import * as THREE from "three";
+import { CHUTE } from "@engine";
+
+import { buildBaseContainer, type BaseColours } from "./base-rig.ts";
 
 import type { BoneFrame } from "./skier-rig.ts";
 
@@ -228,12 +231,18 @@ function rounded(cx: number, cy: number, w: number, h: number, r: number): THREE
 }
 
 /** BUILD THE RIG off three materials: the container's cloth, its colour
- * (the side walls, the flaps' trim) and the webbing. */
+ * (the side walls, the flaps' trim) and the webbing — or (`base`) A BASE RIG
+ * over a wingsuit: one slim tray (`CHUTE.base.container`) under one closing
+ * flap, with no reserve, no reserve handle and no cut-away pad, the big
+ * pilot chute's pouch across its bottom, soft and in the suit's colours
+ * (`base-rig.ts`, painted through `baseColours`). */
 export function createGear(
   cloth: THREE.Material,
   trim: THREE.Material,
   web: THREE.Material,
   std: (color: number, roughness: number) => THREE.MeshStandardMaterial,
+  base = false,
+  baseColours: BaseColours | null = null,
 ): Gear {
   const body = new THREE.Group();
   body.name = "harness";
@@ -251,6 +260,19 @@ export function createGear(
     if (smoothly) m.flatShading = false;
     return m;
   };
+
+  // A BASE RIG's soft bag in the suit's colours, hung from the yoke with its
+  // backpad on his back; the sport container's shell, tape and flaps are not
+  // drawn under it.
+  const soft = base && baseColours !== null;
+  if (soft) {
+    const K = CHUTE.base.container;
+    const mid = { y: P.top - K.height / 2 + 0.02, z: padAt(0.05) - K.depth / 2 };
+    geos.push(...buildBaseContainer(body, baseColours, K, mid));
+  }
+  const sport = new THREE.Group();
+  sport.visible = !soft;
+  body.add(sport);
 
   // THE CONTAINER'S SHELL: the outline extruded with rolled edges, laid
   // from the backpad out to the back's surface; its side walls painted in
@@ -296,21 +318,25 @@ export function createGear(
   }
   const shellMat = mat(0xffffff, 0.82, true);
   shellMat.vertexColors = true;
-  mesh(shellGeo, shellMat);
+  mesh(shellGeo, shellMat, sport);
 
   // THE BINDING TAPE round the back's rim and across at the trays' seam.
   const tape = mat(0x0f1114, 0.7, true);
   const rim = outline(0.03)
     .getSpacedPoints(64)
     .map((p) => new THREE.Vector3(p.x, p.y, backAt(p.x, p.y) + 0.004));
-  mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rim, true), 96, 0.006, 5, true), tape);
+  mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rim, true), 96, 0.006, 5, true),
+    tape,
+    sport,
+  );
   const seam: THREE.Vector3[] = [];
   const hs = halfAt(P.seam) - 0.03;
   for (let i = 0; i <= 12; i++) {
     const x = -hs + (2 * hs * i) / 12;
     seam.push(new THREE.Vector3(x, P.seam, backAt(x, P.seam) - 0.002));
   }
-  mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(seam), 24, 0.006, 5, false), tape);
+  mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(seam), 24, 0.006, 5, false), tape, sport);
 
   // THE MAIN'S PIN COVER: a tuck-tab flap down the middle of the main tray,
   // and the BOTTOM FLAP's seam across under it.
@@ -322,26 +348,36 @@ export function createGear(
   pin.quadraticCurveTo(0.045, -0.06, 0, -0.065);
   pin.quadraticCurveTo(-0.045, -0.06, -0.045, -0.02);
   pin.closePath();
-  mesh(onBack(pin, 0.008, 0.003), flapCloth);
+  mesh(onBack(pin, 0.008, 0.003), flapCloth, sport);
   const bottomSeam: THREE.Vector3[] = [];
   const hb = halfAt(-0.1) - 0.035;
   for (let i = 0; i <= 10; i++) {
     const x = -hb + (2 * hb * i) / 10;
     bottomSeam.push(new THREE.Vector3(x, -0.1, backAt(x, -0.1) - 0.001));
   }
-  mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bottomSeam), 20, 0.004, 4, false), tape);
+  mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bottomSeam), 20, 0.004, 4, false),
+    tape,
+    sport,
+  );
 
   // THE BOC POUCH across the bottom of the container, its lip in tape.
-  mesh(onBack(rounded(0, P.bottom + 0.035, 0.22, 0.05, 0.02), 0.022, 0.0), flapCloth);
+  mesh(onBack(rounded(0, P.bottom + 0.035, 0.22, 0.05, 0.02), 0.022, 0.0), flapCloth, sport);
   // The handle (a soft ball on its tab), kept apart so a hand can carry it.
   const PO = GEAR.pouch;
   const tabGeo = new THREE.BoxGeometry(0.018, 0.035, 0.006);
   tabGeo.translate(PO.x, PO.y + 0.022, PO.z + 0.01);
-  mesh(tabGeo, tape);
+  mesh(tabGeo, tape, sport);
   const ballGeo = new THREE.SphereGeometry(0.022, 10, 8);
   geos.push(ballGeo);
   const handle = new THREE.Mesh(ballGeo, mat(0xe8e4d6, 0.7, true));
   handle.position.set(PO.x, PO.y, PO.z);
+  // On a BASE rig's bag the handle rides its bigger pouch, lower and further out.
+  if (soft) {
+    const K = CHUTE.base.container;
+    const bottom = P.top + 0.02 - K.height;
+    handle.position.set(PO.x, bottom - 0.03, padAt(0.05) - K.depth / 2 - 0.07);
+  }
   body.add(handle);
 
   // THE RESERVE PIN COVER: a rounded tongue down from the top of the
@@ -353,6 +389,7 @@ export function createGear(
   const hingeZ = backAt(0, hingeY);
   hinge.position.set(0, hingeY, hingeZ);
   body.add(hinge);
+  hinge.visible = !base;
   const flapGroup = new THREE.Group();
   flapGroup.position.set(0, -hingeY, -hingeZ);
   hinge.add(flapGroup);
@@ -483,6 +520,7 @@ export function createGear(
   const pad = new THREE.Mesh(padGeo, mat(0xc8201c, 0.55, true));
   pad.position.set(GEAR.webs + 0.012, GEAR.pads, F + 0.016);
   body.add(pad);
+  pad.visible = reserveHandle.visible = !base;
 
   // THE LEG STRAPS, padded, round each thigh (the torus's axis laid along
   // the bone), the strap's buckle at the front.

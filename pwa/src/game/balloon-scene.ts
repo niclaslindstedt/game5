@@ -298,8 +298,8 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
     envelope.look.glow.value = b.flame;
     envelope.look.burnt.value = b.burnt;
     envelope.look.scorch.value = b.scorch;
-    // THE PAIR racked while he is aboard.
-    if (b.aboard) {
+    // THE PAIR racked while he is aboard — none in a wingsuit, which wears no skis.
+    if (b.aboard && !state.wingsuit) {
       const top = TOPSHEETS[drawnAs(state.skier.spec)];
       const k = state.skier;
       basket.rack({ spec: k.spec, poles: k.poles, body: top.body, trim: top.trim });

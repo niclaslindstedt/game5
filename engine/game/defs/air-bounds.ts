@@ -11,7 +11,10 @@
 //     of the way in (`plane.ts`) brings it round with a couple of hundred
 //     metres to spare; a helicopter's and a
 //     balloon's less, a canopy's least — and a skydiver on his body
-//     (`skydive`) a track's: 40 m/s turned round at his flat turn's rate;
+//     (`skydive`) a track's: 40 m/s turned round at his flat turn's rate,
+//     and a WINGSUIT's (`wingsuit`) a glide's: 45 m/s rolled into a firm
+//     turn of some 20 °/s, its half circle 250 m across and the eight
+//     seconds it takes 350 m of way;
 //   * `wind` the wind that blows it back in at the edge, m/s, growing as
 //     the square of how deep in the band it is (and on past the edge);
 //   * `low` and `high` the heights over the snow the plane's turn and wind
@@ -25,6 +28,7 @@ export const AIR_BOUNDS = {
   balloon: 160,
   chute: 100,
   skydive: 320,
+  wingsuit: 600,
   wind: 16,
   low: 40,
   high: 140,

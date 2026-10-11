@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skijump skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
 
 build:
 	npm run build
@@ -727,6 +727,15 @@ skijump:
 skydive-flight:
 	npm run skydive-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
+# THE WINGSUIT'S FLIGHT LAB: the glide, the dive, the flare, the short
+# period and the phugoid, the turn, the exit off the mountain and out of the
+# plane's door, the pull and the BASE canopy, the landing on his boots, the
+# map's edge and the bot's whole flight, beside the class's bands — pure
+# Node (`scripts/wingsuit-flight-lab.mjs`; ARGS=--json=FILE before,
+# --compare=FILE after; SEED= the exit's and the whole flight's map).
+wingsuit-flight:
+	npm run wingsuit-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
 # THE SKYDIVE LAB: the free ride's skydive through the game's own renderer —
 # the harness-container on him, poised in the plane's door and the exit
 # frame by frame, belly to earth, the turns, the track and head down, the
@@ -740,6 +749,19 @@ skydive-flight:
 # ARGS="--sheet=deploy,canopy" a few sheets.
 skydive:
 	npm run skydive -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE WINGSUIT LAB: the free ride's wingsuit through the game's own renderer
+# — the suit round a turntable flying and stood slack, the bot's ride frame
+# by frame (the exit off a ledge or a hovering helicopter's skid, the suit
+# pressurising, the glide, the pull, the BASE canopy and its arm wings
+# unzipped, the flare, landed and walking), the turns, the dive and the
+# flare, every camera rung and after dark. One contact sheet a group,
+# previews/wingsuit-<group>.png, and every frame alone,
+# previews/wingsuit-<view>-<label>.png. Its own one-off bundle from
+# pwa/wingsuit-preview.html (never deployed); needs a Chromium like
+# `world`. ARGS="--sheet=suit,poses" a few sheets.
+wingsuit:
+	npm run wingsuit -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE BALLOON LAB: the free ride's hot air balloon staged at every moment it
 # has — tethered on the valley floor, in flight over the mountain, the

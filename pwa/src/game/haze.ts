@@ -46,6 +46,14 @@ export type HazeUniforms = {
   /** THE MIST the DISTANCE row closes on (`mistFor`): its wall, m, past
    * which nothing is seen and nothing is drawn; 0 is no mist. */
   uMist: { value: number };
+  /** HOW FAR ALOFT the lens is, 0..1 — 0 on the snow and on every ride but
+   * a wingsuit's, whose lens high over the snow (`machines.ts`) sets it: the
+   * mist is then measured across the ground rather than through the air
+   * down to it, thin under him and thickening out to close a little
+   * inside its wall — so a flyer hundreds of metres up sees the mountain
+   * under him melt into the haze, with no rim where the ground or the
+   * woods end. At 0 the mist is exactly the DISTANCE row's. */
+  uMistAloft: { value: number };
   /** Where the sun's shadow stands (`shadow-box.ts`): the circle's centre
    * in plan, and the plan distances the fade runs between. Written by
    * `environment.ts`; not the sky's, but it rides the same shared object
@@ -144,6 +152,7 @@ export function createHazeUniforms(): HazeUniforms {
     uSunCol: { value: new THREE.Color() },
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },
+    uMistAloft: { value: 0 },
     uShadowFade: { value: new THREE.Vector4(0, 0, 1e9, 2e9) },
     uHeroMap: { value: null },
     uHeroMatrix: { value: Array.from({ length: HERO_SLOTS }, () => new THREE.Matrix4()) },
@@ -207,6 +216,7 @@ uniform vec3 uGlow;
 uniform vec3 uSunCol;
 uniform float uHaze;
 uniform float uMist;
+uniform float uMistAloft;
 uniform float uHazeLift;
 uniform float uHazeFloor;
 
@@ -238,8 +248,13 @@ float hazeAmount(float dist, float rise) {
   float thin = exp(-max(rise, 0.0) / uHazeLift);
   float air = 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
   if (uMist <= 0.0) return air;
-  float m = dist / uMist;
+  // Aloft (\`uMistAloft\`), across the ground, melting it into the haze
+  // over most of the way out and whole a little inside the wall — where
+  // the woods stop — so neither the woods nor the ground ends on a rim.
+  float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
+  float m = across / uMist;
   float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
+  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
   return max(air, mist);
 }
 
@@ -493,6 +508,6 @@ export function hazeMaterial<M extends THREE.Material>(
 export const PAST_THE_WALL = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
   shader.fragmentShader = shader.fragmentShader.replace(
     "void main() {",
-    "void main() {\n  if (uMist > 0.0 && length(vHazeWorld - cameraPosition) > uMist) discard;",
+    "void main() {\n  vec3 hzW = vHazeWorld - cameraPosition;\n  if (uMist > 0.0 && mix(length(hzW), length(hzW.xz), uMistAloft) > uMist) discard;",
   );
 };

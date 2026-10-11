@@ -91,6 +91,8 @@
     "plane": "node scripts/plane-preview.mjs",
     "skydive": "node scripts/skydive-preview.mjs",
     "skydive-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skydive-flight-lab.mjs",
+    "wingsuit": "node scripts/wingsuit-preview.mjs",
+    "wingsuit-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/wingsuit-flight-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",
     "rescue": "node scripts/rescue-preview.mjs",
     "gore": "node scripts/gore-preview.mjs",

@@ -240,6 +240,62 @@ export const CHUTE = {
       ],
     },
   },
+  /** THE BASE RIG a wingsuit is flown with (`defs/wingsuit.ts`): ONE CANOPY
+   * AND NO RESERVE — nothing to cut away, no reserve tray, no automatic
+   * activation device; a slim single-pin container on the back with a
+   * throw-out pilot chute in a pouch at its bottom, the harness over the
+   * suit. The canopy is a 7-CELL rectangle built for BASE, sized larger
+   * than a sport main for a light wing loading (260 sq ft for a flyer of
+   * about 90 kg: some 3.5 kg of exit weight to the square metre, the class's
+   * 0.625–0.725 lb/sq ft), its lines stowed in a TAIL POCKET (no bag — the
+   * `bag` stage is the canopy leaving the container), opened SLIDER UP on a
+   * MESH slider (a wingsuit's throw is always a long delay at speed), off a
+   * pilot chute larger than a sport rig's (40 in) on a longer bridle; the
+   * opening slower and longer than a sport main's — three to five seconds
+   * from the throw. Flown slower than a sport main under the light loading:
+   * the class's 7–9 m/s forward and 3.5–5 m/s down at full glide. Restated
+   * from the class's published bands (the BASE canopy makers' sizing
+   * charts, the pilot-chute and slider tables, the wingsuit section of a
+   * national manual), no maker's numbers. */
+  base: {
+    container: { width: 0.32, height: 0.5, depth: 0.12, mass: 5.5 },
+    canopy: {
+      area: 24.2,
+      span: 6.6,
+      chord: 3.7,
+      cells: 7,
+      mass: 14,
+      lines: 4.6,
+      slider: { width: 0.8, length: 0.7 },
+    },
+    polar: {
+      slope: 2.6,
+      zero: -0.05,
+      stall: 0.5,
+      stalled: 0.5,
+      drag0: 0.12,
+      induced: 0.25,
+      stallDrag: 0.6,
+      surge: 0.5,
+    },
+    /** What it flies hands off, m/s (`skydiveAt`'s standing under it). */
+    flies: { forward: 9, sink: 4.2 },
+    /** The pilot chute's diameter, m (40 in), and its bridle, m (9 ft). */
+    pilot: { diameter: 1.0, bridle: 2.7 },
+    /** THE OPENING as `deploy` is read: the pilot chute thrown and filled,
+     * the canopy out of the container, line stretch, the snivel held on the
+     * mesh slider, full — each stage's end, s after the throw, and the drag
+     * area at its end, m². */
+    deploy: {
+      stages: [
+        { id: "pilot", end: 0.6, area: 0.4 },
+        { id: "bag", end: 1.1, area: 0.75 },
+        { id: "lines", end: 1.7, area: 1.8 },
+        { id: "snivel", end: 3.5, area: 4.6 },
+        { id: "inflate", end: 4.3, area: 17 },
+      ],
+    },
+  },
   /** THE BOT'S HANDS (`chute-pilot.ts`): the height over the snow it pulls
    * at, m (a sport jumper's 1,000 m), not before `least` s out of the door,
    * and the hard deck it pulls at as soon as it is clear of the plane, m;
@@ -304,9 +360,10 @@ export const MAIN_WING: ChuteWing = {
   deploy: CHUTE.deploy,
 };
 
-/** The canopy over him (or opening): the reserve once it is pulled. */
-export function wingOf(reserve: boolean): ChuteWing {
-  return reserve ? CHUTE.reserve : MAIN_WING;
+/** The canopy over him (or opening): the reserve once it is pulled — or,
+ * `base`, the wingsuit's one BASE canopy (`CHUTE.base`), which has none. */
+export function wingOf(reserve: boolean, base = false): ChuteWing {
+  return base ? CHUTE.base : reserve ? CHUTE.reserve : MAIN_WING;
 }
 
 /** Seconds out of `from` before the press throws the pilot chute. */

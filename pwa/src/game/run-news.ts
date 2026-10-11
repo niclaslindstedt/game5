@@ -278,6 +278,15 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // The skydive: out, the pilot chute thrown (or the reserve pulled),
       // line stretch, open (at
       // the opening's load), cut away, down on the skis, caught, again.
+      // In the wingsuit: out and flying, the pull, down on his feet, and
+      // stood on the exit again.
+      if (state.wingsuit) {
+        if (e.phase === "exit") return { text: STRINGS.newsSuitExit, tone: "good" };
+        if (e.phase === "open-start") return { text: STRINGS.newsSuitThrow, tone: "info" };
+        if (e.phase === "land") return { text: STRINGS.newsSuitLand, tone: "good" };
+        if (e.phase === "restart" && state.wingsuit.from !== "craft")
+          return { text: STRINGS.newsSuitRestart, tone: "info" };
+      }
       if (e.phase === "exit") return { text: STRINGS.newsChuteExit, tone: "good" };
       if (e.phase === "open-start") return { text: STRINGS.newsChuteThrow, tone: "info" };
       if (e.phase === "reserve") return { text: STRINGS.newsChuteReserve, tone: "info" };

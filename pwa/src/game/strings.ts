@@ -35,6 +35,7 @@ import { BALLOON_STRINGS } from "./strings-balloon.ts";
 import { AVALANCHE_STRINGS } from "./strings-avalanche.ts";
 import { PLANE_STRINGS } from "./strings-plane.ts";
 import { CHUTE_STRINGS } from "./strings-chute.ts";
+import { WINGSUIT_STRINGS } from "./strings-wingsuit.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
@@ -125,6 +126,7 @@ export const STRINGS = {
   ...AVALANCHE_STRINGS,
   ...PLANE_STRINGS,
   ...CHUTE_STRINGS,
+  ...WINGSUIT_STRINGS,
   ...GROOMER_STRINGS,
   ...TRAFFIC_STRINGS,
   ...FREESTYLE_STRINGS,
@@ -293,45 +295,48 @@ export const STRINGS = {
       | "car"
       | "balloon"
       | "plane"
-      | "rock",
+      | "rock"
+      | "wingsuit",
   ): string =>
-    cause === "rock"
-      ? "YARD SALE! ROCK"
-      : cause === "car"
-        ? TRAFFIC_STRINGS.newsCar
-        : cause === "balloon"
-          ? BALLOON_STRINGS.newsBalloonCrash
-          : cause === "maul"
-            ? "TAKEN BY THE GRIMBEAR"
-            : cause === "groomer"
-              ? "BONK! PISTE MACHINE"
-              : cause === "heli" || cause === "plane"
-                ? "THROWN CLEAR!"
-                : cause === "grip"
-                  ? "LOST HIS GRIP!"
-                  : cause === "chair"
-                    ? "SWEPT BY THE CHAIR!"
-                    : cause === "net"
-                      ? "INTO THE NETS!"
-                      : cause === "stake"
-                        ? "YARD SALE! STAKE"
-                        : cause === "sled"
-                          ? "OFF THE SLED!"
-                          : cause === "tree"
-                            ? "YARD SALE! TREE"
-                            : cause === "skier"
-                              ? "YARD SALE! TAKEN OUT"
-                              : cause === "nose"
-                                ? "OVER THE TIPS"
-                                : cause === "roll"
-                                  ? "YARD SALE"
-                                  : cause === "landing"
-                                    ? "CRASH LANDING"
-                                    : cause === "slam"
-                                      ? "SLAMMED! HEEL EDGE"
-                                      : cause === "faceplant"
-                                        ? "FACEPLANT! TOE EDGE"
-                                        : "EDGE CAUGHT",
+    cause === "wingsuit"
+      ? "FLOWN INTO THE SNOW!"
+      : cause === "rock"
+        ? "YARD SALE! ROCK"
+        : cause === "car"
+          ? TRAFFIC_STRINGS.newsCar
+          : cause === "balloon"
+            ? BALLOON_STRINGS.newsBalloonCrash
+            : cause === "maul"
+              ? "TAKEN BY THE GRIMBEAR"
+              : cause === "groomer"
+                ? "BONK! PISTE MACHINE"
+                : cause === "heli" || cause === "plane"
+                  ? "THROWN CLEAR!"
+                  : cause === "grip"
+                    ? "LOST HIS GRIP!"
+                    : cause === "chair"
+                      ? "SWEPT BY THE CHAIR!"
+                      : cause === "net"
+                        ? "INTO THE NETS!"
+                        : cause === "stake"
+                          ? "YARD SALE! STAKE"
+                          : cause === "sled"
+                            ? "OFF THE SLED!"
+                            : cause === "tree"
+                              ? "YARD SALE! TREE"
+                              : cause === "skier"
+                                ? "YARD SALE! TAKEN OUT"
+                                : cause === "nose"
+                                  ? "OVER THE TIPS"
+                                  : cause === "roll"
+                                    ? "YARD SALE"
+                                    : cause === "landing"
+                                      ? "CRASH LANDING"
+                                      : cause === "slam"
+                                        ? "SLAMMED! HEEL EDGE"
+                                        : cause === "faceplant"
+                                          ? "FACEPLANT! TOE EDGE"
+                                          : "EDGE CAUGHT",
   /** A snowboarder's skis-off word: nothing comes off a board, so a
    * YARD SALE is a WIPEOUT. */
   newsBoardDown: "WIPEOUT",
@@ -619,7 +624,7 @@ export const STRINGS = {
    * lift (`free-ride.ts`'s `startPicked`). */
   startStart: "START",
   startStartHint:
-    "How the ride begins. ON SKIS or ON A SNOWBOARD: the lift carries you up to the RUN row's run, on the pair or the board the GEAR card picks. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off; the PLANE: stood in its open door on the strip below the village, fly it up as high as you dare, jump, open the canopy and fly it down. And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
+    "How the ride begins. ON SKIS or ON A SNOWBOARD: the lift carries you up to the RUN row's run, on the pair or the board the GEAR card picks. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off; the PLANE: stood in its open door on the strip below the village, fly it up as high as you dare, jump, open the canopy and fly it down; the WINGSUIT: no skis, stood on an exit high on the mountain — jump, fly the suit down the face, pull and land on your feet (the SUIT row puts you in it up any craft that flies, too). And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
   /** The START row's first two stops: the skis, or a board. */
   startOnSkis: "ON SKIS",
   startOnBoard: "ON A SNOWBOARD",

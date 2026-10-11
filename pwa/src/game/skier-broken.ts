@@ -296,3 +296,49 @@ export function breakArms(
   }
   return { ...p, elbows, hands, kinks, dropped };
 }
+
+/** How long the acceleration a broken arm feels is eased over, s — the
+ * engine's steps' jitter taken out of its swing. */
+const FELT_EASE = 0.1;
+
+/** A BROKEN ARM'S FEEL, kept a figure: its swing, and the acceleration its
+ * body feels, eased — off the velocity a frame ago. `make(skier, breaks,
+ * dt, q)` is the pose made over for his broken arms, swung by `dt` s under
+ * the gravity they feel (g less his acceleration) in the frame of his
+ * body, turned `q` in the world. */
+export function createBrokenFeel(): (
+  skier: { vx: number; vy: number; vz: number },
+  breaks: [ArmBreak | null, ArmBreak | null],
+  dt: number,
+  q: { x: number; y: number; z: number; w: number },
+) => (p: SkierPose) => SkierPose {
+  const arms = createArmSwing();
+  const felt = { x: 0, y: 0, z: 0 };
+  let lastV: V3 | null = null;
+  return (skier, breaks, dt, q) => {
+    if (dt > 0 && lastV) {
+      let ax = (skier.vx - lastV.x) / dt;
+      let ay = (skier.vy - lastV.y) / dt;
+      let az = (skier.vz - lastV.z) / dt;
+      const a = Math.hypot(ax, ay, az);
+      if (a > SWING.most) [ax, ay, az] = [ax, ay, az].map((v) => (v * SWING.most) / a);
+      const k = 1 - Math.exp(-dt / FELT_EASE);
+      felt.x += (ax - felt.x) * k;
+      felt.y += (ay - felt.y) * k;
+      felt.z += (az - felt.z) * k;
+    }
+    lastV = { x: skier.vx, y: skier.vy, z: skier.vz };
+    // The felt gravity turned into his body's frame: by the conjugate of q.
+    const v = { x: -felt.x, y: -9.81 - felt.y, z: -felt.z };
+    const [qx, qy, qz, qw] = [-q.x, -q.y, -q.z, q.w];
+    const tx = 2 * (qy * v.z - qz * v.y);
+    const ty = 2 * (qz * v.x - qx * v.z);
+    const tz = 2 * (qx * v.y - qy * v.x);
+    const g = {
+      x: v.x + qw * tx + (qy * tz - qz * ty),
+      y: v.y + qw * ty + (qz * tx - qx * tz),
+      z: v.z + qw * tz + (qx * ty - qy * tx),
+    };
+    return (p) => breakArms(p, breaks, arms, dt, g);
+  };
+}

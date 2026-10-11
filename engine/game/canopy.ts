@@ -12,6 +12,7 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { treesNear } from "./upright-grid.ts";
 import type { Level } from "../mapgen/types.ts";
+import { CHUTE } from "./defs/chute.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { derive } from "./skier.ts";
 import type { GameState } from "./state.ts";
@@ -277,4 +278,25 @@ export function hangUnder(
   c.q = fromEuler(h, pitch, roll);
   c.wx = c.wy = c.wz = 0;
   derive(c, level);
+}
+
+/** THE SKIER'S OWN AXES while a body in the air has him (the skydive, the
+ * wingsuit): facing `heading`, pitched over toward the snow by `attitude`
+ * (0 upright, π/2 belly to earth, π head down) as far as his skier's frame
+ * can say (`CHUTE.freefall.pitchMost` — short of straight down, where a
+ * heading has no meaning; the drawing reads the whole attitude off the
+ * state) — and off the snow. */
+export function airPose(state: GameState, heading: number, attitude: number): void {
+  const c = state.skier;
+  c.q = fromEuler(heading, -Math.min(attitude, CHUTE.freefall.pitchMost), 0);
+  c.wx = c.wy = c.wz = 0;
+  c.airborne = true;
+  c.airTime = 0;
+  for (const contact of c.contacts) {
+    contact.touching = false;
+    contact.load = 0;
+  }
+  derive(c, state.level);
+  c.overFor = 0;
+  c.stuckFor = 0;
 }

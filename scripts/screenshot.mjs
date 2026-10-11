@@ -131,7 +131,8 @@ const SCENES = {
  * card being in the DOM. `settle` is the beat after it the card's arrival
  * animation needs. `press` is a button pressed on the way in, for a surface
  * reached by a press rather than by a URL, and `keys` are keys pressed once
- * the card is up; `prime` is a race stood
+ * the card is up; `storage` is what the game remembers, laid in before the
+ * page loads (a card that reads a stored pick); `prime` is a race stood
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
 const SURFACES = {
@@ -365,6 +366,18 @@ const SURFACES = {
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map
   // generated in a worker — has landed on it.
   start: { params: { menu: "start" }, wait: ".seed-preview-map image", settle: 700 },
+  // ...with the helicopter picked on map 38 and the SUIT row on WINGSUIT
+  // (`storage`: the settings the card reads, laid in before the page loads).
+  "start-suit": {
+    params: { menu: "start" },
+    storage: {
+      "fall-line.settings.v1": JSON.stringify({
+        ride: { seed: 38, run: { seed: 38, region: "alpine", id: "heli" }, suit: "wingsuit" },
+      }),
+    },
+    wait: ".seed-preview-map image",
+    settle: 700,
+  },
   // ...and the free ride itself, twenty seconds in, held still: no run's
   // figures over it — the map's seed alone at the top left.
   free: {
@@ -520,6 +533,18 @@ const SURFACES = {
   "plane-door": {
     params: { start: "free", plane: "1", t: "60", camera: "helmet", shot: "1" },
     wait: ".hud-plane",
+    settle: 1500,
+  },
+  // THE WINGSUIT (`wingsuit.ts`, `?wingsuit=1`): stood on its exit high on
+  // the mountain, and flying the suit's glide (`?chute=` with `wingsuit=1`).
+  "wingsuit-ready": {
+    params: { start: "free", wingsuit: "1", t: "1", shot: "1" },
+    wait: ".hud-chute",
+    settle: 1500,
+  },
+  wingsuit: {
+    params: { start: "free", wingsuit: "1", chute: "500", t: "6", shot: "1" },
+    wait: ".hud-chute",
     settle: 1500,
   },
   "chute-free": {
@@ -743,6 +768,13 @@ async function capture(name, params, viewportName, surface) {
         null,
         { timeout: args.timeout * 1000 },
       );
+    }
+    if (surface?.storage) {
+      // A surface that reads what the game remembers: laid in before any of
+      // the page's own scripts run.
+      await page.addInitScript((kept) => {
+        for (const [k, v] of Object.entries(kept)) localStorage.setItem(k, v);
+      }, surface.storage);
     }
     await page.goto(url, { waitUntil: "load" });
     if (surface) {

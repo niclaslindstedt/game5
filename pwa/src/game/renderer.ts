@@ -31,7 +31,6 @@ import {
   windAt,
   windFromOf,
   withSky,
-  type FreeRider,
   type GameState,
   type Level,
   type Rival,
@@ -82,10 +81,11 @@ import { createAfterskiView } from "./afterski-view.ts";
 import { runsOf, SLICE_OF_GROUP, type Rider } from "./renderer-rider.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
-import type { SkierDress } from "./skier-dress.ts";
+import { dealtKit, type SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
-import { DEFAULT_OUTFIT, dealtOutfit, type Outfit } from "./outfit.ts";
+import { suitOf } from "./wingsuit-look.ts";
+import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { LOOSE } from "./snow-glsl.ts";
@@ -406,25 +406,17 @@ export function createWorldRenderer(
   /** The run's rivals, read for an enthusiast's own kit. */
   let field: readonly Rival[] = [];
   const dealtKits = new Map<string, SkierDress>();
-  /** An enthusiast's kit, dealt off his look (`dealtOutfit`), kept. */
-  const kitOfFree = (free: FreeRider): SkierDress => {
-    const key = `${free.look}:${free.rider}`;
-    let kit = dealtKits.get(key);
-    if (!kit) {
-      const { tone, ...dressed } = dealtOutfit(free.look, free.rider);
-      kit = { outfit: dressed, tone };
-      dealtKits.set(key, kit);
-    }
-    return kit;
-  };
+  let suited = false; // A wingsuit's run: the player in his suit.
   const dressOf = (i: number): SkierDress => {
-    if (i === 0) return { outfit };
+    if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit };
     const free = field[i - 1]?.free;
-    return free ? kitOfFree(free) : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+    return free
+      ? dealtKit(dealtKits, free.look, free.rider)
+      : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
   };
   const kitOf = (i: number): string => {
     const d = dressOf(i);
-    return outfitKey(d.outfit, d.tone);
+    return `${outfitKey(d.outfit, d.tone)}${d.suit ?? ""}`;
   };
   function riderFor(i: number, spec: SkiSpec): Rider {
     const model = createSkisModel(spec, pairStyle(spec, dressOf(i)), wrap);
@@ -563,6 +555,7 @@ export function createWorldRenderer(
       machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
       field = state.rivals;
+      suited = !!state.wingsuit;
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
       lastTick = -1;
@@ -592,6 +585,7 @@ export function createWorldRenderer(
       const opened = performance.now();
       const runs = runsOf(state);
       field = state.rivals;
+      suited = !!state.wingsuit;
       while (riders.length < runs.length) {
         riders.push(riderFor(riders.length, runs[riders.length].skier.spec));
       }

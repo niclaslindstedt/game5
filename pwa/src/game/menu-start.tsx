@@ -56,9 +56,16 @@
 //           on the valley floor and flown up the mountain on the day's
 //           wind — `balloon.ts`), the SNOWMOBILE (stood on its boards, the
 //           skis racked — `sled.ts`), the HELICOPTER (sat on the skid on
-//           its pad — `heli.ts`), or the AFTERSKI (inside the valley's
-//           lodge at the party — `afterski.ts`). A machine is kept as a
-//           run id of its map, as it always was (`startPicked`).
+//           its pad — `heli.ts`), the PLANE (in its door on the strip —
+//           `plane.ts`), the WINGSUIT (no skis, stood on its exit high on
+//           the mountain — `wingsuit-start.ts`), or the AFTERSKI (inside
+//           the valley's lodge at the party — `afterski.ts`). A machine is
+//           kept as a run id of its map, as it always was (`startPicked`).
+//
+//   SUIT    on a craft he can jump from (the paramotor, the balloon, the
+//           helicopter, the plane) only: what he jumps in — the
+//           skydiver's rig on his skis, or the WINGSUIT with none
+//           (`FreeRide.suit`).
 //
 //   RUN     which run of the ski area the ride starts down, by the number
 //           the piste map signs it with — EVERY run of the map, of any
@@ -102,7 +109,7 @@ import {
 } from "./face-picks.ts";
 import { SEASONS, SNOW_STOPS, runPicked, spotOn, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
-import { startChosen, useRunPick } from "./run-pick.ts";
+import { startChosen, SUIT_STOPS, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
@@ -276,6 +283,17 @@ export function StartPage({
                 onPick={(id) => onSettings(startChosen(settings, seed, id))}
                 onHint={setHint}
               />
+              {/* THE SUIT the airborne rides ask: the rig on his skis, or the wingsuit. */}
+              {pick.suits && (
+                <StepRow
+                  label={STRINGS.startSuit}
+                  hint={STRINGS.startSuitHint}
+                  stops={SUIT_STOPS}
+                  value={ride.suit}
+                  onPick={(suit) => setRide({ suit })}
+                  onHint={setHint}
+                />
+              )}
               <StepRow
                 label={STRINGS.startRun}
                 hint={STRINGS.startRunHint}

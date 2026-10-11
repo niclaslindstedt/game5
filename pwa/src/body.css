@@ -511,3 +511,28 @@
 :root.xray-on .hud-gforce {
   filter: opacity(0);
 }
+
+/* THE EXIT CUT (`camera-exit.ts`'s `exitHud`): while the leap out of a
+   craft plays as a film, the screen is letterboxed — a black bar over and
+   under the picture, `--exit-bar` tall, closing in and opening out with the
+   cut — and the readouts leave the glass. The pause press and the thumbs
+   stay: the pull is still his to make. */
+.hud::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    #000 0 var(--exit-bar, 0px),
+    transparent var(--exit-bar, 0px) calc(100% - var(--exit-bar, 0px)),
+    #000 calc(100% - var(--exit-bar, 0px))
+  );
+}
+
+:root:not(.exit-cut) .hud::before {
+  display: none;
+}
+
+:root.exit-cut .hud > :not(.hud-touch, .hud-topright) {
+  visibility: hidden;
+}

@@ -90,6 +90,7 @@
     "skijump-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skijump-flight-lab.mjs",
     "plane": "node scripts/plane-preview.mjs",
     "skydive": "node scripts/skydive-preview.mjs",
+    "exit-cam": "node scripts/exit-preview.mjs",
     "skydive-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skydive-flight-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",
     "rescue": "node scripts/rescue-preview.mjs",

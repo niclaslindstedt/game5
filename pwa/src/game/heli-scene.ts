@@ -74,6 +74,8 @@ export type HeliScene = {
    * — the gravity less the seat's acceleration, the air past him, the
    * rotor), or null off it. */
   perch(state: GameState): Perch | null;
+  /** The machine as drawn this frame (its skid datum and attitude), or null. */
+  drawn(): { x: number; y: number; z: number; q: THREE.Quaternion } | null;
   /** The model in the group (`HeliView.ready`). */
   ready: Promise<void>;
   dispose(): void;
@@ -294,6 +296,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       if (inside) shelterAt(at, CABIN.centre, CABIN.half);
       else shelterOff();
     },
+    drawn: () => view.drawn(),
     perch(state) {
       const h = state.heli;
       if (!h?.rider) {

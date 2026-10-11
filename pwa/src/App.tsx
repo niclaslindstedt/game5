@@ -702,13 +702,13 @@ export function App() {
           adopt(createGame({ level: state.level, seed: state.seed }));
         }
       }
-
       const held = !simulates(shellRef.current);
       const shown = drawable();
-      // SLOW MOTION is fewer steps a frame: the replay director's (`replay-shots.ts`) and the X-ray cam's.
+      // SLOW MOTION is fewer steps a frame: the replay director's, the X-ray cam's, the exit cut's.
       const xrayOn = playerRides(shellRef.current) && !frozen && !held && shown;
       renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
-      const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn);
+      const exit = xrayOn ? renderer.exitPace() : 1;
+      const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn) * exit;
       const dtRun = dtFrame * rate;
       renderer.setPace(rate);
       const simAt = performance.now();

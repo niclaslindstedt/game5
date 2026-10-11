@@ -55,6 +55,7 @@ import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createHurtLens } from "./xray-scene.ts";
+import { wrecked } from "./impact-forecast.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createGoreView, type GoreView } from "./gore-view.ts";
@@ -651,7 +652,9 @@ export function createWorldRenderer(
           run.tricks.pose,
           dt,
           sampleBody(r.body, alpha),
-          inStartGate(run),
+          // In the jump plane's door he stands poised for the exit, crouched
+          // under its lintel as a racer in the start gate is.
+          run.plane?.rider ? true : inStartGate(run),
         );
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp) {
           stampsOf(
@@ -670,7 +673,7 @@ export function createWorldRenderer(
         if (r.wasAirborne && !skier.airborne && r.airTime > 0.25) {
           landed = Math.abs(r.vy) + r.airTime * 2;
         }
-        if (simDt > 0 || landed > 0) {
+        if ((simDt > 0 || landed > 0) && !run.plane?.rider) {
           spray.emit(skier, level, simDt, landed, snowAt(pack!, skier.x, skier.z, skierSnow));
           cloud.emit(skier, simDt, landed, sampleSnow);
         }
@@ -698,7 +701,12 @@ export function createWorldRenderer(
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
-      lens.bail(!!state.heli?.rider, skier.airborne, skier.thrown !== null, Math.min(dt, 0.1));
+      lens.bail(
+        !!state.heli?.rider, // out of the plane's door the skydive has its own eyes
+        skier.airborne,
+        skier.thrown !== null,
+        Math.min(dt, 0.1),
+      );
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
@@ -707,8 +715,7 @@ export function createWorldRenderer(
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
       hurt.update(state, player.model.skin());
       // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
-      const allowed =
-        !override && !watched && lens.rung() !== "orbit" && !state.heli?.wreck?.aboard;
+      const allowed = !override && !watched && lens.rung() !== "orbit" && !wrecked(state);
       const dead = hurt.lens(
         allowed,
         body,
@@ -728,7 +735,7 @@ export function createWorldRenderer(
         frameStart(startMoment(state, d), ladder);
       if (planted) {
         aimLens(lens.camera, planted);
-        player.model.setSkierVisible(true);
+        player.model.setSkierVisible(machines?.figureShown() ?? true);
       }
       // LOOKING ROUND FROM THE LIFT: the lift's lens swung about him by the drags.
       const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);

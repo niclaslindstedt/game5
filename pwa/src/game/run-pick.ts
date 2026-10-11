@@ -11,6 +11,7 @@ import {
   BALLOON_RUN,
   HELI_RUN,
   PARA_RUN,
+  PLANE_RUN,
   SKIS_START,
   SLED_RUN,
   afterskiOn,
@@ -18,6 +19,7 @@ import {
   heliOn,
   markedRun,
   paraOn,
+  planeOn,
   sledOn,
   spotOn,
   type FreeRide,
@@ -28,7 +30,7 @@ import { shellContent } from "../shell-host.ts";
 import { STRINGS } from "./strings.ts";
 
 /** What the chart marks a machine's start with, or null for a run's. */
-export type RunMachine = "heli" | "sled" | "para" | "balloon" | "afterski";
+export type RunMachine = "heli" | "sled" | "para" | "balloon" | "plane" | "afterski";
 
 export type RunPick = {
   chart: SeedChart;
@@ -73,9 +75,11 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
         ? "para"
         : balloonOn(ride, seed)
           ? "balloon"
-          : !sfw && afterskiOn(ride, seed)
-            ? "afterski"
-            : null;
+          : planeOn(ride, seed)
+            ? "plane"
+            : !sfw && afterskiOn(ride, seed)
+              ? "afterski"
+              : null;
   const marked = list && machine === null ? markedRun(ride, seed, list) : null;
   // The RUN row walks EVERY run of the map, whatever its colour: a slope
   // is all it ever names.
@@ -85,7 +89,8 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
   }));
   // THE START ROW: on skis, by the lift to the run picked — or one of the
   // ways up with no lift: the paramotor on the summit, the balloon and the
-  // snowmobile on the valley floor and the helicopter on its pad.
+  // snowmobile on the valley floor, the helicopter on its pad and the jump
+  // plane on its strip below the village.
   const starts = [
     ...(list
       ? [
@@ -94,6 +99,7 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
           { id: BALLOON_RUN, label: STRINGS.startRunBalloon },
           { id: SLED_RUN, label: STRINGS.startRunSled },
           { id: HELI_RUN, label: STRINGS.startRunHeli },
+          { id: PLANE_RUN, label: STRINGS.startRunPlane },
           // ...and the party in the valley's lodge, where the map has one.
           ...(list.machines.afterski && !sfw
             ? [{ id: AFTERSKI_RUN, label: STRINGS.startRunAfterski }]
@@ -121,5 +127,6 @@ const MACHINE_RUN: Record<RunMachine, string> = {
   sled: SLED_RUN,
   para: PARA_RUN,
   balloon: BALLOON_RUN,
+  plane: PLANE_RUN,
   afterski: AFTERSKI_RUN,
 };

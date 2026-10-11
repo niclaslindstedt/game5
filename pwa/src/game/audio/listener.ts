@@ -26,7 +26,8 @@
 // A MACHINE out in the world — the free ride's helicopter — is heard from
 // where the skier is (its distance is the bed's own, `heli-bed.ts`); the
 // seat only leans on it: loudest with the ear in the helmet on its skid,
-// thinner from the boom.
+// thinner from the boom. ABOARD THE JUMP PLANE the cockpit and the door
+// lenses are in its cabin (`cabin`), the booms outside it.
 //
 // DOM-free, three-free, so the tests can read it and the audition page can
 // switch seats without a renderer.
@@ -51,6 +52,16 @@ export type Listener = {
   /** A machine out in the world — the helicopter's rotor, turbine, wash and
    * fire — on top of its own distance. */
   machine: number;
+  /** Whether a lens aboard the jump plane is IN ITS CABIN, 0..1 — the
+   * cockpit and the door, where the turboprop is heard through the firewall
+   * and the door's slipstream fills the cabin — or outside it, hearing the
+   * machine's own buzz (`plane-voice.ts`). Read only with him aboard. */
+  cabin: number;
+  /** How far an ear in the cabin is AT THE JUMP DOOR, 0..1: his own eyes
+   * in the door (HELMET) have the slipstream all round them, while the
+   * cockpit (TIPS) is up front in the pilot's seat and hears it come
+   * forward round the cabin, much quieter (`plane-voice.ts`). */
+  doorway: number;
 };
 
 export const LISTENERS: Record<CameraRung, Listener> = {
@@ -62,6 +73,8 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     events: 1.1,
     muffle: 1,
     machine: 1,
+    cabin: 1,
+    doorway: 0.3,
   },
   helmet: {
     wind: 1.45,
@@ -71,6 +84,8 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     events: 1,
     muffle: 1,
     machine: 1.1,
+    cabin: 1,
+    doorway: 1,
   },
   chase: {
     wind: 0.85,
@@ -80,6 +95,8 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     events: 1,
     muffle: 1,
     machine: 1,
+    cabin: 0,
+    doorway: 0,
   },
   far: {
     wind: 0.4,
@@ -89,6 +106,8 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     events: 0.9,
     muffle: 0.95,
     machine: 0.85,
+    cabin: 0,
+    doorway: 0,
   },
   high: {
     wind: 0.2,
@@ -98,6 +117,8 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     events: 0.8,
     muffle: 0.9,
     machine: 0.75,
+    cabin: 0,
+    doorway: 0,
   },
   orbit: {
     wind: 0.12,
@@ -107,6 +128,8 @@ export const LISTENERS: Record<CameraRung, Listener> = {
     events: 0.6,
     muffle: 0.8,
     machine: 0.5,
+    cabin: 0,
+    doorway: 0,
   },
 };
 

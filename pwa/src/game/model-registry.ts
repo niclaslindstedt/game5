@@ -128,6 +128,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "the same machine in boxes",
   },
   {
+    asset: "Jump plane",
+    ids: ["plane"],
+    source: "blender",
+    code: ["pwa/src/game/plane-standin.ts"],
+    drawnBy: "pwa/src/game/plane-view.ts",
+    blender: {
+      builder: "scripts/blender/plane.py",
+      files: ["plane.glb"],
+      pattern: "plane.glb",
+      switch: "VITE_MODEL_PLANE",
+    },
+    note:
+      "the free ride's single turboprop utility plane on wheel-skis, in jump dress, built off " +
+      "`PLANE`: the fuselage one traced skin (`plane_skin.py`) with its cabin seen through the " +
+      "open jump door, and rigid nodes (the propeller; the elevator, rudder, ailerons and flaps " +
+      "on their hinges; the sliding door); the code's stand-in is the same airframe faceted",
+  },
+  {
     asset: "Hot air balloon",
     ids: ["balloon"],
     source: "code",

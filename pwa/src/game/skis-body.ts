@@ -42,7 +42,6 @@ import {
   flightGravity,
   isBoard,
   type GameState,
-  type LoneSki,
   type SkiSpec,
   type SkierState,
   type Thrown,
@@ -103,10 +102,14 @@ import {
   swingLegs,
   swingOf,
   type Perch,
+  type SkiSwing,
 } from "./skier-dangle.ts";
 import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./skier-perch.ts";
 import { ridingOf, widenStand, type Riding } from "./technique-pose.ts";
 import { revertRise } from "./skier-switch.ts";
+import { loneSkiFrame } from "./lone-ski-frame.ts";
+import { pitchPast, skydivePose, squareSkis, squareStand } from "./skier-skydive.ts";
+import type { SkydiveShape } from "./skier-skydive.ts";
 
 /** How long the acceleration a broken arm feels is eased over, s — the
  * engine's steps' jitter taken out of its swing. */
@@ -195,6 +198,10 @@ export type SkisModel = {
    * through his stride, in strides, and his pace, 0 stood … 1 the engine's
    * shuffle), his boots stepped. Read at the next pose. */
   setBasket(on: boolean, walk?: BasketWalk): void;
+  /** SKYDIVING (`chute.ts`): his limbs as the jump's stage lays them, his
+   * skis carried with his boots and his drawing pitched past what his
+   * skier's frame says (`skier-skydive.ts`), or null — read at the next pose. */
+  setSkydive(shape: SkydiveShape | null): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
    * the snow comes, which stage his fall by. Without one a fall is staged
@@ -252,6 +259,17 @@ function stepBoots(stand: Stand, walk: BasketWalk): void {
   }
 }
 
+/** Each ski of `stand` moved and turned with its boot (`SkiSwing`). */
+function swingStand(stand: Stand, skis: readonly [SkiSwing, SkiSwing]): void {
+  for (let i = 0; i < 2; i++) {
+    stand.out[i] += skis[i].dx;
+    stand.lift[i] += skis[i].dy;
+    stand.fore[i] += skis[i].dz;
+    stand.pitch[i] += skis[i].pitch;
+    stand.rock[i] += skis[i].rock;
+  }
+}
+
 /** THE SKIER ON A SNOWMOBILE as his model is handed it: where each boot
  * stands on the boards, across off half his stance, m (his body frame),
  * and the grips, his lean and where his weight hangs (`Board`) — his figure
@@ -266,40 +284,10 @@ export function mountsOf(spec: SkiSpec): Mounts {
   return mountsFor(spec, cuffHeight(look) + 0.02, look.pole.length);
 }
 
-const lifted = [0, 0, 0, 0, 0, 0];
-const tipward = new THREE.Vector3();
-const upward = new THREE.Vector3();
-const rightward = new THREE.Vector3();
 /** The body's forward axis, and the turn that stands him over the hill. */
 const FORWARD = new THREE.Vector3(0, 0, 1);
 const hillTurn = new THREE.Quaternion();
-
-/** A ski let go (`lone-skis.ts`) as a world matrix in the frame the drawn
- * ski is built in: at its boot centre on the base, x to its right, y out
- * of its topsheet, z to its tip. `lift` is how far the drawn snow stands
- * over the engine's ground at a point (the loose cover, `LOOSE`): each end
- * is laid on top of it, never in it — a ski rides up out of the snow. */
-export function loneSkiFrame(
-  ski: LoneSki,
-  out: THREE.Matrix4,
-  lift: (x: number, z: number) => number = () => 0,
-): THREE.Matrix4 {
-  const e = lifted;
-  for (let k = 0; k < 6; k++) e[k] = ski.ends[k];
-  e[1] += lift(e[0], e[2]);
-  e[4] += lift(e[3], e[5]);
-  tipward.set(e[0] - e[3], e[1] - e[4], e[2] - e[5]).normalize();
-  upward.set(ski.up[0], ski.up[1], ski.up[2]);
-  upward.addScaledVector(tipward, -upward.dot(tipward)).normalize();
-  rightward.crossVectors(upward, tipward);
-  out.makeBasis(rightward, upward, tipward);
-  const m = ski.mount;
-  return out.setPosition(
-    e[3] + (e[0] - e[3]) * m,
-    e[4] + (e[1] - e[4]) * m,
-    e[5] + (e[2] - e[5]) * m,
-  );
-}
+const ACROSS = new THREE.Vector3(1, 0, 0);
 
 /** Whether `o` hangs anywhere under `group`. */
 function isUnder(o: THREE.Object3D, group: THREE.Object3D): boolean {
@@ -645,6 +633,7 @@ export function createSkisModel(
   // In a balloon's basket (`setBasket`): his pair racked, his hands empty.
   let basket = false;
   let basketWalk: BasketWalk | null = null;
+  let sky: SkydiveShape | null = null;
   let lastPerch: number | null = null;
   const dangle = createDangle();
   const react = createPerchReact();
@@ -754,8 +743,11 @@ export function createSkisModel(
       // the skis stand under.
       const hill = off ? 0 : legs.hill;
       if (hill !== 0) root.quaternion.multiply(hillTurn.setFromAxisAngle(FORWARD, -hill));
+      const skydive = off || afoot ? null : sky;
+      if (skydive) root.quaternion.multiply(hillTurn.setFromAxisAngle(ACROSS, pitchPast(skydive)));
       standOf(skier, ground, stand, inclineAt(skier, at.q) + hill, angle);
       if (hung) stand.tilt = 0;
+      if (skydive) squareSkis(stand);
       // ...and SHAKEN at speed: each ski hopping, flapping and rocking on
       // the snow passing under it, the knees taking it (the boots stand on
       // the same stand).
@@ -839,7 +831,9 @@ export function createSkisModel(
           : pose;
         // A BROKEN ARM drops its pole: both broken, he rides with none.
         const breaks = armBreaks(skier.body.injuries);
-        const input = inBasket || (breaks[0] && breaks[1]) ? { ...held, poles: false } : held;
+        const bare = inBasket || (breaks[0] && breaks[1]) ? { ...held, poles: false } : held;
+        // A skydive's body is laid from a square stand: no turn, fall or trick in it.
+        const input = skydive ? squareStand(bare) : bare;
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
         // over a moment once the chair lets him go.
         // ...or ON A HELICOPTER'S SKID, sat on its tube.
@@ -871,18 +865,22 @@ export function createSkisModel(
           seat.held = { react, feel };
           const { skis } = swingLegs(seatedPose(input, seat), swing, mounts);
           seat.legs = swing;
-          for (let i = 0; i < 2; i++) {
-            stand.out[i] += skis[i].dx;
-            stand.lift[i] += skis[i].dy;
-            stand.fore[i] += skis[i].dz;
-            stand.pitch[i] += skis[i].pitch;
-            stand.rock[i] += skis[i].rock;
-          }
+          swingStand(stand, skis);
         } else {
           resetDangle(dangle);
           resetPerchReact(react);
         }
-        const arms = breaks[0] || breaks[1] ? broken(skier, breaks, dt) : undefined;
+        const broke = breaks[0] || breaks[1] ? broken(skier, breaks, dt) : undefined;
+        // SKYDIVING: the limbs laid by the stage, the skis moved with the boots.
+        const flown = skydive ? (p: SkierPose) => skydivePose(p, skydive, mounts) : null;
+        const swung: { skis: [SkiSwing, SkiSwing] | null } = { skis: null };
+        const arms = flown
+          ? (p: SkierPose) => {
+              const r = flown(broke ? broke(p) : p);
+              swung.skis = r.skis;
+              return r.pose;
+            }
+          : broke;
         // A hand on a door (`door-reach.ts`), in his body's frame.
         const door = run && run.skier === skier ? doorReach(run) : null;
         if (door) {
@@ -893,6 +891,7 @@ export function createSkisModel(
           const at = { x: reachAt.x, y: reachAt.y, z: reachAt.z };
           figure.pose(input, seat, (p) => reachPose(arms ? arms(p) : p, at, door.weight));
         } else figure.pose(input, seat, arms);
+        if (swung.skis) swingStand(stand, swung.skis);
       }
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.
@@ -957,6 +956,9 @@ export function createSkisModel(
     },
     setSled(s) {
       sled = s;
+    },
+    setSkydive(shape) {
+      sky = shape;
     },
     setBasket(on, walk) {
       basket = on;

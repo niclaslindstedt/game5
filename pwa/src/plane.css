@@ -1,0 +1,87 @@
+/* THE JUMP PLANE'S PANEL AND THE SKYDIVER'S ALTIMETER (`hud-plane.tsx`):
+   laid in the helicopter's furniture (`heli.css`) — top centre, in the air
+   clock's place — with what only a fixed wing and a skydive have over it:
+   the airspeed, the flaps' presses, the stall horn and the PULL cue. */
+.hud-plane-ias {
+  min-width: 4.2rem;
+}
+
+.hud-plane-num {
+  font-size: clamp(1.1rem, 4vmin, 1.9rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-plane-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.hud-plane-flaps {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hud-plane-flap {
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  border: 2px solid rgb(255 255 255 / 70%);
+  border-radius: 0.4rem;
+  background: rgb(0 0 0 / 30%);
+  color: var(--hud-ink);
+  font: inherit;
+  font-size: 0.9rem;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.hud-plane-load {
+  color: #ffd23f;
+}
+
+/* THE STALL HORN, and the PULL cue: red, and pulsing. */
+.hud-plane-stall {
+  margin-top: 0.45rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0.3rem;
+  background: rgb(200 30 30 / 85%);
+  font-size: clamp(0.8rem, 2.6vmin, 1.15rem);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  animation: hud-heli-pulse 0.35s ease-in-out infinite alternate;
+}
+
+.hud-chute-num {
+  font-size: clamp(2rem, 8vmin, 3.8rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-chute-pull .hud-chute-num {
+  color: #ff5a4a;
+}
+
+.hud-chute-cue {
+  font-size: clamp(1rem, 3.4vmin, 1.5rem);
+}
+
+/* On a phone held upright the hint wraps rather than running off both
+   edges, and the skydive's readout stands higher than the helicopter's —
+   over the falling skier the chase frames in the middle of the screen. */
+@media (orientation: portrait) and (max-width: 700px) {
+  .hud-plane .hud-heli-hint,
+  .hud-chute .hud-heli-hint {
+    max-width: 86vw;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .hud-chute {
+    top: 17vh;
+  }
+}

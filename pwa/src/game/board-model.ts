@@ -421,6 +421,9 @@ export function createBoardModel(
     setPerch(next) {
       perch = next;
     },
+    // The skydive's stages are laid on the skier's figure alone
+    // (`skier-skydive.ts`); a rider on a board falls in his riding pose.
+    setSkydive() {},
     setGore(lost, crush) {
       goreLost = lost;
       goreCrush = crush;

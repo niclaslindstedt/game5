@@ -146,8 +146,9 @@ describe("the helicopter", () => {
       ["pitch", { pitch: -1 }],
     ] as const) {
       const s = ride();
-      // High enough over any ground the loop drifts across to come round.
-      pilot(s, 45, { x: s.heli!.x, z: s.heli!.z, height: 700 });
+      // High enough over any ground the loop drifts across to come round,
+      // and well in from the map's edge, where the bounds would take it.
+      pilot(s, 45, { x: s.heli!.x, z: s.heli!.z - 400, height: 700 });
       let turned = 0;
       let was = s.heli!.disc[axis];
       let past = 0;

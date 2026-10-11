@@ -157,7 +157,8 @@ export function createBall(): Ball {
 }
 
 /** LIGHT `ball` at (x, y, z), `radius` m at its full size, `delay` s from
- * now, drawn out along (fx, fz); `random` the caller's stream. */
+ * now, drawn out along (fx, fz); `random` the caller's stream; `life` its
+ * life, s (the helicopter's ball's, scaled to its size, when left out). */
 export function lightBall(
   ball: Ball,
   x: number,
@@ -168,6 +169,7 @@ export function lightBall(
   fx: number,
   fz: number,
   random: () => number,
+  life?: number,
 ): void {
   const full = fireballOf(BALL.fuel * BALL.share);
   Object.assign(ball, {
@@ -177,7 +179,7 @@ export function lightBall(
     ground: y,
     vy: 0,
     radius,
-    life: full.life * Math.sqrt(radius / (full.diameter / 2)),
+    life: life ?? full.life * Math.sqrt(radius / (full.diameter / 2)),
     age: -delay,
     live: true,
   });

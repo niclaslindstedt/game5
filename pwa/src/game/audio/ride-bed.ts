@@ -44,6 +44,7 @@ import {
   type SnowUnder,
 } from "./snow-voice.ts";
 import { WIND_GLIDE, WIND_LAYERS, windTargets, type WindLayer } from "./wind-voice.ts";
+import { rideShares } from "./chute-bed.ts";
 import {
   TUNNEL_GLIDE,
   TUNNEL_HEARD,
@@ -166,6 +167,9 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       // and a storm is heard standing still. Across him it is heard on the
       // side it comes from: a wind toward the engine's right comes from his
       // left, which the screen's one flip turns into the ear it lands on.
+      // WHO OWNS THE AIR (`rideShares`): in the jump plane's door the cabin
+      // is the plane's bed, in freefall the roar is the skydive's.
+      const own = rideShares(state);
       airflowAt(state.level, state.t, c, flow);
       wind = follow(wind, flow.speed, frame, WIND_TAU);
       const across = flow.speed > 1 ? -flow.across / flow.speed : 0;
@@ -173,7 +177,7 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       air.apply(
         windTargets(
           { wind, crouch: c.crouch, airborne: c.airborne, side },
-          { wind: listener.wind * duck, tone: listener.tone },
+          { wind: listener.wind * duck * own.air, tone: listener.tone },
         ),
       );
 
@@ -203,7 +207,7 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
             skid: c.skid,
             airborne: c.airborne,
           },
-          { snow: listener.snow * duck },
+          { snow: listener.snow * duck * own.snow },
         ),
       );
 

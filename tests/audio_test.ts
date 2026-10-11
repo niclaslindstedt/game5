@@ -182,6 +182,8 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   sled: { kind: "sled", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
   para: { kind: "para", t: 1, phase: "drop", x: 0, y: 0, z: 0, speed: 14 },
   balloon: { kind: "balloon", t: 1, phase: "jump", x: 0, y: 0, z: 0, speed: 3 },
+  plane: { kind: "plane", t: 1, phase: "jump", x: 0, y: 0, z: 0, speed: 37 },
+  chute: { kind: "chute", t: 1, phase: "open", x: 0, y: 0, z: 0, speed: 14, g: 4 },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
 };
 
@@ -215,6 +217,17 @@ describe("the bank and the route (bank.ts, route.ts)", () => {
       expect(hit, event.kind).not.toBe(null);
       expect(RUN_BANK[hit!.id], `${event.kind} → ${hit!.id}`).toBeDefined();
     }
+  });
+
+  it("blows the jump plane up bigger the harder it strikes, and hears its flight", () => {
+    const at = { t: 1, x: 0, y: 0, z: 0 };
+    const slow = soundForEvent({ kind: "plane", phase: "crash", speed: 10, ...at });
+    const hard = soundForEvent({ kind: "plane", phase: "crash", speed: 60, ...at });
+    expect(slow?.id).toBe("plane_crash");
+    expect(hard!.shape!.gain!).toBeGreaterThan(slow!.shape!.gain!);
+    expect(soundForEvent({ kind: "plane", phase: "liftoff", speed: 30, ...at })?.id).toBe(
+      "plane_liftoff",
+    );
   });
 
   it("describes every sound, and keeps every voice under the mixing ceiling", () => {

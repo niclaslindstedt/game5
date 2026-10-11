@@ -15,6 +15,8 @@ import {
   fillField,
   placeRun,
   step,
+  stripPoint,
+  stripSiteOf,
   type GameState,
 } from "@engine";
 
@@ -169,6 +171,26 @@ describe("the baked ground (minimap-bake.ts)", () => {
       off += tone(p.x + Math.cos(p.heading) * d, p.z - Math.sin(p.heading) * d)[0];
     }
     expect(on).toBeLessThan(off);
+  });
+
+  it("lays the jump plane's strip on a free ride's plate, and only when asked", () => {
+    const level = levelFor(38);
+    const strip = stripSiteOf(level).strip;
+    const px = 1024;
+    const plain = bakeMinimap(minimapSource(level), px);
+    const laid = bakeMinimap(minimapSource(level, { strip: true }), px);
+    const at = (rgba: Uint8ClampedArray | Uint8Array, along: number): number[] => {
+      const p = stripPoint(strip, along, 0);
+      const k =
+        (Math.floor((p.z / level.size) * px) * px + Math.floor((p.x / level.size) * px)) * 4;
+      return [rgba[k], rgba[k + 1], rgba[k + 2]];
+    };
+    for (const along of [-strip.length / 3, 0, strip.length / 3]) {
+      const [r, g, b] = at(laid, along);
+      // The strip's packed grey: no snow's blue over the red.
+      expect(b - r).toBeLessThan(10);
+      expect(at(plain, along)).not.toEqual([r, g, b]);
+    }
   });
 });
 

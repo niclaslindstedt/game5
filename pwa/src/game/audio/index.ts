@@ -26,6 +26,8 @@ import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { createParaBed, type ParaBed } from "./para-bed.ts";
 import { createBalloonBed, type BalloonBed } from "./balloon-bed.ts";
+import { createPlaneBed, type PlaneBed } from "./plane-bed.ts";
+import { createChuteBed, type ChuteBed } from "./chute-bed.ts";
 import { createAfterskiBed, type AfterskiBed } from "./afterski-bed.ts";
 import { listenerFor, type Listener } from "./listener.ts";
 import { playSound } from "@niclaslindstedt/oss-game-framework/audio/play";
@@ -72,6 +74,11 @@ export function createRunAudio(): RunAudio {
   // THE FREE RIDE'S HOT AIR BALLOON (`balloon-bed.ts`): its burner over
   // his head, and as it flies on without him.
   const balloon: BalloonBed = createBalloonBed(sfx);
+  // THE FREE RIDE'S JUMP PLANE (`plane-bed.ts`) and THE SKYDIVE out of its
+  // door (`chute-bed.ts`): the turboprop and the cabin, the freefall's roar
+  // and the canopy's quiet.
+  const plane: PlaneBed = createPlaneBed(sfx);
+  const chute: ChuteBed = createChuteBed(sfx);
   // THE AFTERSKI LODGE'S ROOM (`afterski-bed.ts`): while he is in, the
   // ride's beds fall silent under it.
   const room: AfterskiBed = createAfterskiBed(sfx);
@@ -95,11 +102,16 @@ export function createRunAudio(): RunAudio {
             event.kind === "sled" ||
             event.kind === "para" ||
             event.kind === "balloon" ||
+            event.kind === "plane" ||
             event.kind === "door") &&
           state
         ) {
           const c = state.skier;
           return { ground, ear: { x: c.x, y: c.y + 1.6, z: c.z } };
+        }
+        // A canopy caught: on what.
+        if (event.kind === "chute" && state?.chute?.snag) {
+          return { ground, caught: state.chute.snag.on };
         }
         // The starter's sounds hear how the run starts.
         if ((event.kind === "count" || event.kind === "go") && state) {
@@ -133,6 +145,8 @@ export function createRunAudio(): RunAudio {
       sled.update(state, dt, outside);
       para.update(state, dt, outside);
       balloon.update(state, dt, outside);
+      plane.update(state, dt, outside);
+      chute.update(state, dt, outside);
     },
 
     setView(view) {
@@ -143,6 +157,8 @@ export function createRunAudio(): RunAudio {
       sled.setView(view);
       para.setView(view);
       balloon.setView(view);
+      plane.setView(view);
+      chute.setView(view);
     },
 
     silence() {
@@ -152,6 +168,8 @@ export function createRunAudio(): RunAudio {
       sled.silence();
       para.silence();
       balloon.silence();
+      plane.silence();
+      chute.silence();
       room.silence();
     },
 
@@ -162,6 +180,8 @@ export function createRunAudio(): RunAudio {
       sled.reset();
       para.reset();
       balloon.reset();
+      plane.reset();
+      chute.reset();
       room.reset();
     },
   };

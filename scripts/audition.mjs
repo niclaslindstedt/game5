@@ -52,6 +52,13 @@ import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 
 import { NO_BALLOON, NO_HELI, NO_SLED, PRESETS } from "./lib/audition-presets.mjs";
 import { BALLOON_PANEL, BALLOON_SCRIPT } from "./lib/audition-balloon.mjs";
+import {
+  NO_CHUTE,
+  NO_PLANE,
+  PLANE_PANEL,
+  PLANE_PRESETS,
+  PLANE_SCRIPT,
+} from "./lib/audition-plane.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -101,6 +108,8 @@ const RUNTIME = [
   "pwa/src/game/audio/snow-voice.ts",
   "pwa/src/game/audio/tunnel-voice.ts",
   "pwa/src/game/audio/heli-voice.ts",
+  "pwa/src/game/audio/plane-voice.ts",
+  "pwa/src/game/audio/chute-voice.ts",
   "pwa/src/game/audio/balloon-voice.ts",
   "pwa/src/game/audio/sled-voice.ts",
 ];
@@ -173,7 +182,9 @@ function compileRuntime() {
 const { RUN_BANK } = await import(join(root, "pwa/src/game/audio/bank.ts"));
 const { WIND_LAYERS } = await import(join(root, "pwa/src/game/audio/wind-voice.ts"));
 const { SNOW_LAYERS } = await import(join(root, "pwa/src/game/audio/snow-voice.ts"));
-const { HELI, SKIS, SKI_CATALOG, SLED, topSpeedOf } = await import(join(root, "engine/index.ts"));
+const engine = await import(join(root, "engine/index.ts"));
+const { HELI, PLANE, SKIS, SKI_CATALOG, SLED, topSpeedOf } = engine;
+const { propOf } = await import(join(root, "pwa/src/game/audio/plane-voice.ts"));
 const { rotorsOf } = await import(join(root, "pwa/src/game/audio/heli-voice.ts"));
 const { APP_NAME } = await import(join(root, "pwa/src/identity.ts"));
 const spec = SKIS;
@@ -186,6 +197,8 @@ const data = JSON.stringify({
   // The helicopter's blade passages off the engine's own rotors — the page
   // has no engine in it.
   rotors: rotorsOf(HELI),
+  // The jump plane's blade passage and tip speed off its own propeller.
+  prop: propOf(PLANE),
   // The snowmobile's engine band, off the engine's own table.
   sled: { idle: SLED.idleRpm, max: SLED.maxRpm },
   skis: { name: spec.name, top: topSpeedOf(spec) },
@@ -381,6 +394,7 @@ const page = `<!doctype html>
     <div id="sledSliders"></div>
   </div>
 ${BALLOON_PANEL}
+${PLANE_PANEL}
   <div id="bank"></div>
 
   <footer>
@@ -732,6 +746,7 @@ sledBtn.addEventListener("click", () => {
 });
 
 ${BALLOON_SCRIPT}
+${PLANE_SCRIPT}
 // ── The bank ───────────────────────────────────────────────────────────────
 const bank = document.getElementById("bank");
 bank.append(el("h2", null, "The bank"));
@@ -880,17 +895,29 @@ async function meter() {
         Object.assign(window.__ear.heli, p.noHeli, p.heli ?? {});
         Object.assign(window.__ear.sled, p.noSled, p.sled ?? {});
         Object.assign(window.__ear.balloon, p.noBalloon, p.balloon ?? {});
+        Object.assign(window.__ear.plane, p.noPlane, p.plane ?? {});
+        Object.assign(window.__ear.chute, p.noChute, p.chute ?? {});
       },
-      { ...preset, noHeli: NO_HELI, noSled: NO_SLED, noBalloon: NO_BALLOON },
+      {
+        ...preset,
+        noHeli: NO_HELI,
+        noSled: NO_SLED,
+        noBalloon: NO_BALLOON,
+        noPlane: NO_PLANE,
+        noChute: NO_CHUTE,
+      },
     );
-  await set(PRESETS[0]);
+  const presets = [...PRESETS, ...PLANE_PRESETS];
+  await set(presets[0]);
   await page.click("#rush");
   await page.click("#snow");
   await page.click("#tunnel");
   await page.click("#heli");
   await page.click("#sled");
   await page.click("#balloon");
-  for (const preset of PRESETS) {
+  await page.click("#plane");
+  await page.click("#chute");
+  for (const preset of presets) {
     await set(preset);
     await page.waitForTimeout(SETTLE_MS);
     const { mean, peak } = await read(READ_MS);
@@ -902,6 +929,8 @@ async function meter() {
   await page.click("#heli");
   await page.click("#sled");
   await page.click("#balloon");
+  await page.click("#plane");
+  await page.click("#chute");
   await page.waitForTimeout(400);
 
   console.log("\nTHE BANK (peak)");

@@ -52,7 +52,13 @@ type Ground = ImageBitmap | HTMLCanvasElement;
  * map. The last map's ground is let go when the next one's is asked for —
  * a race is on one map at a time — and never closed by hand: the plate
  * may draw it for one more frame before the HUD's snapshot moves on. */
-type Entry = { level: Level; ground: Ground | null; waiting: Array<(g: Ground) => void> };
+type Entry = {
+  level: Level;
+  /** Whether the free ride's airstrip is drawn on it. */
+  strip: boolean;
+  ground: Ground | null;
+  waiting: Array<(g: Ground) => void>;
+};
 let picture: Entry | null = null;
 let worker: Worker | null = null;
 /** Whether the worker has failed once: from then on every bake is made on
@@ -84,15 +90,18 @@ function bakeHere(entry: Entry): void {
   setTimeout(() => {
     if (picture !== entry) return;
     const px = mapPxFor(entry.level.size);
-    const ground = toCanvas(px, bakeMinimap(minimapSource(entry.level), px));
+    const ground = toCanvas(
+      px,
+      bakeMinimap(minimapSource(entry.level, { strip: entry.strip }), px),
+    );
     if (ground) land(entry, ground);
   }, 0);
 }
 
 /** Ask for a map's picture: in the worker where there is one, here where
  * there is not or where it has failed. */
-function bake(level: Level): void {
-  const entry: Entry = { level, ground: null, waiting: [] };
+function bake(level: Level, strip: boolean): void {
+  const entry: Entry = { level, strip, ground: null, waiting: [] };
   picture = entry;
   const id = ++asked;
   if (typeof Worker === "undefined" || workerFailed) {
@@ -123,15 +132,19 @@ function bake(level: Level): void {
     worker.onerror = fail;
     worker.onmessageerror = fail;
   }
-  const ask: BakeRequest = { id, source: minimapSource(level), px: mapPxFor(level.size) };
+  const ask: BakeRequest = {
+    id,
+    source: minimapSource(level, { strip }),
+    px: mapPxFor(level.size),
+  };
   worker.postMessage(ask);
 }
 
 /** Start the picture of a map, if it is not the one already baked or
  * baking. The app asks as the map is put into the renderer, so the picture
  * is made behind the loading card rather than after the lights come up. */
-export function prepareMinimap(level: Level): void {
-  if (picture?.level !== level) bake(level);
+export function prepareMinimap(level: Level, strip = false): void {
+  if (picture?.level !== level || (strip && !picture.strip)) bake(level, strip);
 }
 
 /** The ground of this map, once it has been baked; null until then. */

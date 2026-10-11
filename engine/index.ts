@@ -738,10 +738,10 @@ export {
   type CabinKind,
   type LogKind,
 } from "./game/defs/cabins.ts";
-// THE SKI AREA'S BUILDINGS AND THE VILLAGE'S STREETS: where they stand, the
-// plan, what it carries, the questions asked of it.
+// THE VILLAGE'S BUILDINGS, STREETS AND TRAFFIC; THE JUMP PLANE AND ITS STRIP.
 export * from "./game/village-api.ts";
 export * from "./game/traffic-api.ts";
+export * from "./game/plane-api.ts";
 export {
   hashOf as rockHash,
   onAnyCliff,

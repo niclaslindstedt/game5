@@ -2,7 +2,8 @@
 // THE FREE RIDE'S MACHINES IN THE RENDERER — the helicopter on its pad
 // (`heli-scene.ts`), the snowmobile at the bottom (`sled-scene.ts`) and the
 // paramotor's wing over a skier begun under it (`para-scene.ts`), the hot
-// air balloon a skier is begun in (`balloon-scene.ts`) and the
+// air balloon a skier is begun in (`balloon-scene.ts`), the jump plane and
+// the skydive out of its door (`plane-scene.ts`, `chute-scene.ts`) and the
 // piste machines working the runs after dark (`groomer-scene.ts`), and the
 // village's cars, ski bus and bicycles (`traffic-view.ts`) and every
 // building's door (`doors-view.ts`), held
@@ -10,11 +11,18 @@
 // rest of the world (only where a run's rules carry them), the player's
 // figure seated on the skid or stood on the boards, each drawn every frame
 // — the snowmobile's tracks stamped with the skiers' furrows and its roost
-// thrown, the helicopter's wash blown — and the helicopter's lens while he
-// rides it, flown onto it and off it.
+// thrown, the helicopter's wash blown — and the helicopter's and the
+// plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
-import { BALLOON, type GameState, type Level } from "@engine";
+import {
+  BALLOON,
+  planeBoxes,
+  stripBoxes,
+  type GameState,
+  type Level,
+  type StripBox,
+} from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import { heliHull, type SolidBox } from "./camera-clear.ts";
@@ -25,9 +33,21 @@ import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
-import { hangIn, PARA_RIGS, paraRigPose, underWing } from "./camera-para.ts";
+import {
+  CHUTE_RIGS,
+  hangIn,
+  PARA_RIGS,
+  paraRigPose,
+  CHUTE_LIFT,
+  underCanopy,
+  underWing,
+} from "./camera-para.ts";
+import { createChuteScene, type ChuteScene } from "./chute-scene.ts";
+import { createSkydiveCam, skydiveFramed, skydiveLens } from "./camera-skydive.ts";
+import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { Outfit } from "./outfit.ts";
+import { skydiveShapeOf } from "./skier-skydive.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
@@ -38,6 +58,7 @@ import { TOPSHEETS } from "./ski-topsheets.ts";
 import { drawnAs } from "./ski-looks.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
 import { createDoorsView, type DoorsView } from "./doors-view.ts";
+import { createStripView, type StripView } from "./strip-view.ts";
 import type { ViewCull } from "./view-cull.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
@@ -65,6 +86,9 @@ export type Machines = {
   /** THE HELICOPTER'S LENS, flown in from the skier's `ladder` and back
    * out to it (`heli-scene.ts`), or null while the ladder has it whole. */
   lens(ladder: LensPose, dt: number): LensPose | null;
+  /** Whether his own figure is drawn under the lens `lens` handed back:
+   * not while the skydive looks out of his own eyes. */
+  figureShown(): boolean;
   /** WHILE HE RIDES THE SNOWMOBILE (or drives a piste machine, hangs under
    * the paramotor's wing, stands in the balloon's basket), the ladder the
    * lens is framed on — its own rows (`camera-sled.ts`, `camera-groomer.ts`,
@@ -88,7 +112,8 @@ export type Machines = {
   /** The sky's light on whatever the machines draw unlit (the wing's lines). */
   light(look: SkyLook): void;
   /** THE PISTE MACHINES AS SOLIDS to the lens (`camera-clear.ts`), where
-   * they were drawn this frame. */
+   * they were drawn this frame — and the airstrip's buildings and the jump
+   * plane standing on the snow with nobody aboard. */
   solids(): readonly SolidBox[];
   /** Both machines' models in the group — what the renderer waits on
    * before it compiles the run's programs, so the rotor's smear and the
@@ -136,6 +161,27 @@ export function createMachines(
   // ...and the hot air balloon, drawn while a run carries one
   // (`GameState.balloon`).
   const balloon: BalloonScene | null = state.rules.heli ? createBalloonScene(haze) : null;
+  // ...and the jump plane and the skydive out of its door, drawn while a
+  // run carries them (`GameState.plane`, `.chute`).
+  const plane: PlaneScene | null = state.rules.heli ? createPlaneScene(haze) : null;
+  const chute: ChuteScene | null = state.rules.heli ? createChuteScene(haze, level) : null;
+  if (plane) group.add(plane.group);
+  if (chute) group.add(chute.group);
+  // ...and the strip it flies from: its snow, markers, buildings and sock.
+  const strip: StripView | null = state.rules.heli ? createStripView(level, haze) : null;
+  if (strip) group.add(strip.group);
+  // What stands there, as solids to the lens: the buildings, and the
+  // plane on the snow with its wing.
+  const stripSolids: readonly StripBox[] = strip ? stripBoxes(level) : [];
+  const planeSolids: StripBox[] = [];
+  // The skydive's own lens out of the door and through the opening.
+  const skyCam = chute ? createSkydiveCam() : null;
+  let skyState: GameState | null = null;
+  // Looking out of his own eyes (TIPS, HELMET): this frame's ask, and
+  // whether the lens handed back was it.
+  let ownEyes = false;
+  let doorEyes = false;
+  let ownLook = false;
   if (heli) group.add(heli.group);
   if (para) group.add(para.group);
   if (balloon) group.add(balloon.group);
@@ -189,13 +235,16 @@ export function createMachines(
     group,
     balloon,
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready, groomers?.ready]).then(() => undefined),
+      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
       seated = model;
       model.setPerch(heli?.perch(s) ?? para?.perch(s) ?? null);
       model.setSled(sled ? sled.stand(s) : null);
+      // Out of the plane's door and under the canopy, every stage of the
+      // jump is a shape of his limbs (`skier-skydive.ts`).
+      model.setSkydive(chute ? skydiveShapeOf(s.chute ?? null, !!s.plane?.rider) : null);
       // In the balloon's basket his pair is racked in its corner, and he
       // steps as he walks about it (or turns where he stands).
       const b = s.balloon;
@@ -229,6 +278,23 @@ export function createMachines(
       });
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
+      plane?.frame(s, alpha, dt, rung, flying, aspect, fx.cloud, fx.snowAt);
+      chute?.frame(s, alpha, chute && (s.chute || s.plane?.rider) ? seated?.skin() : null);
+      const at = chute?.jumper();
+      const framed =
+        !!chute && !!at && !!s.chute && skydiveFramed(s.chute, s.skier.thrown !== null);
+      // In the plane's door HELMET is his own eyes too (`camera-plane.ts`).
+      doorEyes = !!s.plane?.rider && rung === "helmet";
+      ownEyes = (framed && (rung === "tips" || rung === "helmet")) || doorEyes;
+      ownLook = false;
+      chute?.setOwnEyes(ownEyes);
+      skyCam?.want(
+        chute && at && s.chute && framed
+          ? skydiveLens(rung, s.chute, at, chute.opening(), level.groundAt, chute.eyes(), aspect)
+          : null,
+        s !== skyState,
+      );
+      skyState = s;
       balloon?.frame(s, alpha, dt);
       hung = s.para?.flying ? hangIn(hung, dt) : 0;
       lastDt = dt;
@@ -250,15 +316,20 @@ export function createMachines(
       balloon?.light(look);
     },
     lamps(lit, eye, others) {
-      // The eye settled for this frame: the helicopter's cockpit shown
-      // while it is in the cabin.
+      // The eye settled for this frame: the helicopter's and the jump
+      // plane's cockpits shown while it is in their cabins.
       heli?.seen(eye);
+      heli?.dusk(lit);
+      plane?.seen(eye);
       doors?.seen(eye);
       floods.length = 0;
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
       rescue?.lamps(lit, floods);
+      plane?.lamps(lit, floods);
+      strip?.frame(current, lit, eye);
+      strip?.lamps(lit, eye, floods);
       if (groomers && current.groomers) groomers.lamps(current, lit, eye, floods);
       traffic?.update(current, lit, eye, floods, env.cull);
       if (floods.length === 0) return others;
@@ -266,8 +337,16 @@ export function createMachines(
       return floods;
     },
     lens(ladder, dt) {
-      return heli?.lens(ladder, dt) ?? null;
+      // Both asked every frame, so each hands its own lens in and out.
+      const h = heli?.lens(ladder, dt) ?? null;
+      const p = plane?.lens(ladder, dt) ?? null;
+      // The skydive's flown in from whatever is on screen: the door's
+      // lens holding him as he falls away, or the ladder.
+      const c = skyCam?.lens(p ?? ladder, dt) ?? null;
+      ownLook = !h && ((c !== null && ownEyes) || (c === null && p !== null && doorEyes));
+      return h ?? c ?? p;
     },
+    figureShown: () => !ownLook,
     ladder(pose, s, screen = 16 / 9) {
       aspect = screen;
       pose.lift = null;
@@ -286,6 +365,10 @@ export function createMachines(
         paraRigPose(pose, para.wing(), hung);
         return PARA_RIGS;
       }
+      if (chute && underCanopy(s)) {
+        paraRigPose(pose, chute.canopy(), 1, CHUTE_LIFT);
+        return CHUTE_RIGS;
+      }
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;
       sledRigPose(pose, s.sled, sled?.drawn() ?? null, s.skier.spec.cogHeight);
       return SLED_RIGS;
@@ -298,7 +381,12 @@ export function createMachines(
       const g = groomers?.solids() ?? [];
       const t = traffic?.solids() ?? [];
       const all = t.length === 0 ? g : g.length === 0 ? t : [...g, ...t];
-      return hull ? [...all, hull] : all;
+      // ...never while he rides it: the lens is in it with him.
+      if (current.plane && !current.plane.rider) planeBoxes(current.plane, planeSolids, true);
+      else planeSolids.length = 0;
+      const more = stripSolids.length + planeSolids.length > 0;
+      const out = more ? [...all, ...stripSolids, ...planeSolids] : all;
+      return hull ? [...out, hull] : out;
     },
     setPace(pace) {
       heli?.setPace(pace);
@@ -310,6 +398,9 @@ export function createMachines(
       traffic?.dispose();
       doors?.dispose();
       para?.dispose();
+      plane?.dispose();
+      chute?.dispose();
+      strip?.dispose();
       balloon?.dispose();
       rescue?.dispose();
     },

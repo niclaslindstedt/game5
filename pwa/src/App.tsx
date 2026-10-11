@@ -198,8 +198,7 @@ export function App() {
   const [linkSkis, setLinkSkis] = useState(params.skis);
   const linkSkisRef = useRef(linkSkis);
   linkSkisRef.current = linkSkis;
-  /** The pair the player skis, under his build (`specFor`) — for a run of
-   * `mode`, which may say no to a board picked for a free ride. */
+  /** The pair the player skis under his build (`specFor`); `mode` may refuse a board. */
   const specOf = (s: Settings, mode?: GameMode): SkiSpec => specFor(s, linkSkisRef.current, mode);
   /** Who skis the player's runs, and with what: the pair, the help, the
    * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
@@ -266,8 +265,11 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  const { keys: skiKeys, heliKeys } = settings;
-  useEffect(() => input?.setBindings({ keys: skiKeys, heliKeys }), [input, skiKeys, heliKeys]);
+  const { keys: skiKeys, heliKeys, planeKeys } = settings;
+  useEffect(
+    () => input?.setBindings({ keys: skiKeys, heliKeys, planeKeys }),
+    [input, skiKeys, heliKeys, planeKeys],
+  );
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
   const renderKit = useRenderKit();
@@ -314,7 +316,7 @@ export function App() {
       if (standing === level) return Promise.resolve();
       wanted = level;
       standing = null;
-      prepareMinimap(level);
+      prepareMinimap(level, s.rules.heli); // the airstrip on a free ride's
       return renderer.load(s).then(() => {
         if (wanted === level) standing = level;
       });

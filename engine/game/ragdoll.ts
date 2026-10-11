@@ -47,6 +47,7 @@
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
+import { ragdollOutOfStrip } from "./airstrip-solids.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { holdStance } from "./board-crash.ts";
@@ -314,6 +315,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
       L[j + 2] += into * wallHit.nz;
     }
   }
+  // The airstrip's buildings and the plane on the snow (a free ride's).
+  ragdollOutOfStrip(state, P, L, RADIUS, struck, dt);
   // Along the snow: what every point on it loses of its way.
   let touching = false;
   let planted = 0;

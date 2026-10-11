@@ -21,6 +21,7 @@ import { BOARD_MOVES } from "./board-moves.ts";
 import { STOP_HAND } from "./stop-hand.ts";
 import { STAKES } from "./stakes.ts";
 import { LIFT } from "./lift.ts";
+import { AIR_BOUNDS } from "./air-bounds.ts";
 
 /** The clock the whole engine runs on. Named out here so the timestep is
  * derived from it rather than restated. */
@@ -785,8 +786,9 @@ export const TUNING = {
   stakes: STAKES,
 
   /** THE MAP'S EDGE: the skier is turned back this far inside it, m, by a
-   * push that grows over `soft` m. */
-  bounds: { margin: 6, soft: 20, push: 12 },
+   * push that grows over `soft` m; an AIRBORNE craft by its own rule
+   * (`air`, stated next door in `defs/air-bounds.ts`). */
+  bounds: { margin: 6, soft: 20, push: 12, air: AIR_BOUNDS },
 
   /** THE COURSE. */
   course: {
@@ -959,13 +961,16 @@ export const TUNING = {
    * taken out. He is taken in where he stands inside its width with his
    * skis within `capture` rad of the way it blows — a skier crossing it
    * is not — and let go `release` m past its edge, at its exit with his
-   * way kept, or thrown. */
+   * way kept, or thrown. A skier whose feet are more than `roof` m over its
+   * floor is over the arches, never in it — a canopy flown over the hub
+   * or a freefall through its column passes over. */
   tunnel: {
     thrust: 9,
     centre: 0.8,
     damp: 1.5,
     capture: 0.7,
     release: 2,
+    roof: 8,
   },
 
   /** THE LIFT RIDE (`defs/lift.ts`). */

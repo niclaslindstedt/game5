@@ -42,6 +42,10 @@
 //             out of the dive: the heading change, ° (a hammerhead's ≈180)
 //   p-invert  half rolled onto its back and held there 10 s on the push
 //             (and the ailerons): the height it lost, m
+//   p-takeoff the naive take-off: full power, the stick held back from the
+//             start (`-p`: from 25 m/s) and let go 60 m up, nothing else —
+//             the height 35 s on, m, where it lifted off and how far off the
+//             strip's line (also over seed 38's strip, `p-takeoff-38`)
 //   p-spin    on idle, the stick held back to the stall, then full left
 //             rudder with it (the hand pulls through the buffet): three
 //             turns, then opposite rudder and the stick forward — the height
@@ -278,7 +282,7 @@ function hand(level, at, throttle = 1) {
   E.planeAloft(state, { ...at, power: throttle });
   const model = H.createPlaneModel();
   H.seatPlaneModel(model, { throttle, flaps: 0 });
-  return { state, model, p: state.plane, crashed: false };
+  return { state, model, p: state.plane, crashed: false, torn: false };
 }
 /** One step with these plane keys held (screen sides). */
 function press(r, keys) {
@@ -289,9 +293,13 @@ function press(r, keys) {
     dt,
     r.p.airspeed,
     r.p.stalled,
+    r.p.load,
   );
   E.step(r.state, { ...E.NEUTRAL_INPUT, plane: c });
-  for (const e of r.state.events) if (e.kind === "plane" && e.phase === "crash") r.crashed = true;
+  for (const e of r.state.events) {
+    if (e.kind === "plane" && e.phase === "crash") r.crashed = true;
+    if (e.kind === "plane" && e.phase === "tear") r.torn = true;
+  }
 }
 /** The aileron keys a human taps to bring the bank to `want`, rad. */
 function wings(p, want = 0) {
@@ -335,6 +343,7 @@ function handLoop(level, x, z, heading, height) {
     bank: deg(p.roll),
     yawed: deg(wrap(p.heading - h0)),
     crashed: r.crashed,
+    torn: r.torn,
   };
 }
 
@@ -353,7 +362,13 @@ function handRoll() {
     rolled += p.wz * dt;
     t += dt;
   }
-  return { t, lost: y0 - p.y, round: Math.abs(rolled) >= 2 * Math.PI, crashed: r.crashed };
+  return {
+    t,
+    lost: y0 - p.y,
+    round: Math.abs(rolled) >= 2 * Math.PI,
+    crashed: r.crashed,
+    torn: r.torn,
+  };
 }
 
 /** THE BARREL ROLL BY HAND. */
@@ -377,6 +392,7 @@ function handBarrel() {
     pitched: deg(pitched),
     lost: y0 - p.y,
     crashed: r.crashed,
+    torn: r.torn,
   };
 }
 
@@ -410,6 +426,7 @@ function handHammer() {
     turned: deg(Math.abs(wrap(p.heading - h0))),
     done: phase === "down",
     crashed: r.crashed,
+    torn: r.torn,
   };
 }
 
@@ -427,7 +444,7 @@ function handInverted() {
     low = Math.min(low, p.y);
     if (Math.abs(p.roll) > 2.6) upside += dt;
   }
-  return { lost: y0 - low, upside, speed: p.airspeed * KT, crashed: r.crashed };
+  return { lost: y0 - low, upside, speed: p.airspeed * KT, crashed: r.crashed, torn: r.torn };
 }
 
 /** THE SPIN BY HAND: entry, three turns, the recovery. */
@@ -462,7 +479,39 @@ function handSpin() {
     }
     press(r, k);
   }
-  return { turns: Math.abs(yawed) / (2 * Math.PI), lost, crashed: r.crashed };
+  return { turns: Math.abs(yawed) / (2 * Math.PI), lost, crashed: r.crashed, torn: r.torn };
+}
+
+/** THE NAIVE TAKE-OFF BY HAND on `level`'s strip: the power lever run up
+ * to full, the take-off flap the hand is seated with, the stick held back
+ * from the start (`pull`: only past 25 m/s) and let go 60 m over the snow,
+ * nothing else touched — what a player who has never flown does. The height
+ * over the snow 35 s on, m; the roll, how far off the centre line it lifted
+ * off and wandered on the roll, m, and whether it crashed or lost a wing. */
+function handTakeoff(level, pull = "start") {
+  const strip = E.airstripOf(level);
+  const state = game(level);
+  const p = state.plane;
+  const model = H.createPlaneModel();
+  H.seatPlaneModel(model, { throttle: 0, flaps: E.PLANE.pilot.flapsOff });
+  const r = { state, model, p, crashed: false, torn: false };
+  const side = () =>
+    (p.x - strip.start.x) * Math.cos(strip.heading) -
+    (p.z - strip.start.z) * Math.sin(strip.heading);
+  let off = null;
+  let wander = 0;
+  let released = false;
+  for (let t = 0; t < 35 && !r.crashed; t += dt) {
+    if (p.agl > 60) released = true;
+    const back = !released && (pull === "start" || p.airspeed > 25);
+    press(r, { throttleUp: t < 2.5, stickBack: back });
+    if (!off) wander = Math.max(wander, Math.abs(side()));
+    for (const e of state.events) {
+      if (e.kind === "plane" && e.phase === "liftoff" && !off)
+        off = { along: Math.hypot(p.x - strip.start.x, p.z - strip.start.z), side: side() };
+    }
+  }
+  return { agl: r.crashed ? 0 : p.agl, off, wander, crashed: r.crashed, torn: r.torn };
 }
 
 const SEED = 38;
@@ -477,8 +526,13 @@ const PB = handBarrel();
 const PH = handHammer();
 const PI = handInverted();
 const PS = handSpin();
+const TO = handTakeoff(flat());
+const TOP = handTakeoff(flat(), "late");
+const TO38 = handTakeoff(seeded);
+const takeoffNote = (T) =>
+  `${T.off ? `off after ${T.off.along.toFixed(0)} m, ${T.off.side.toFixed(1)} m off the line` : "NEVER OFF"}, wandered ${T.wander.toFixed(1)} m${T.torn ? ", LOST A WING" : ""}${T.crashed ? ", CRASHED" : ""}`;
 const loopNote = (L) =>
-  `${L.turned >= 359 ? "came round" : "DID NOT come round"}${L.crashed ? ", CRASHED" : ""}, gained ${L.gained.toFixed(0)} m, top ${L.slow.toFixed(0)} kt, out at ${L.bank.toFixed(0)}° bank, ${L.yawed.toFixed(0)}° off`;
+  `${L.turned >= 359 ? "came round" : "DID NOT come round"}${L.torn ? ", LOST A WING" : ""}${L.crashed ? ", CRASHED" : ""}, gained ${L.gained.toFixed(0)} m, top ${L.slow.toFixed(0)} kt, out at ${L.bank.toFixed(0)}° bank, ${L.yawed.toFixed(0)}° off`;
 
 const R = takeoff();
 const C = climb();
@@ -559,35 +613,56 @@ const rows = [
     value: PR.t,
     unit: "s",
     band: "<9",
-    note: `${PR.round ? "rolled round" : "DID NOT roll round"}, lost ${PR.lost.toFixed(0)} m${PR.crashed ? ", CRASHED" : ""}`,
+    note: `${PR.round ? "rolled round" : "DID NOT roll round"}, lost ${PR.lost.toFixed(0)} m${PR.torn ? ", LOST A WING" : ""}${PR.crashed ? ", CRASHED" : ""}`,
   },
   {
     id: "p-barrel",
     value: PB.t,
     unit: "s",
     band: "",
-    note: `rolled ${PB.rolled.toFixed(0)}°, pitched ${PB.pitched.toFixed(0)}°, lost ${PB.lost.toFixed(0)} m${PB.crashed ? ", CRASHED" : ""}`,
+    note: `rolled ${PB.rolled.toFixed(0)}°, pitched ${PB.pitched.toFixed(0)}°, lost ${PB.lost.toFixed(0)} m${PB.torn ? ", LOST A WING" : ""}${PB.crashed ? ", CRASHED" : ""}`,
   },
   {
     id: "p-hammer",
     value: PH.turned,
     unit: "°",
     band: "150–210",
-    note: `${PH.done ? "turned and dived out" : "DID NOT come down"}${PH.crashed ? ", CRASHED" : ""}`,
+    note: `${PH.done ? "turned and dived out" : "DID NOT come down"}${PH.torn ? ", LOST A WING" : ""}${PH.crashed ? ", CRASHED" : ""}`,
   },
   {
     id: "p-invert",
     value: PI.lost,
     unit: "m",
     band: "<100",
-    note: `${PI.upside.toFixed(1)} s on its back of 10, out at ${PI.speed.toFixed(0)} kt${PI.crashed ? ", CRASHED" : ""}`,
+    note: `${PI.upside.toFixed(1)} s on its back of 10, out at ${PI.speed.toFixed(0)} kt${PI.torn ? ", LOST A WING" : ""}${PI.crashed ? ", CRASHED" : ""}`,
+  },
+  {
+    id: "p-takeoff",
+    value: TO.agl,
+    unit: "m",
+    band: ">60",
+    note: `flat, full power, held back from the start: ${takeoffNote(TO)}`,
+  },
+  {
+    id: "p-takeoff-p",
+    value: TOP.agl,
+    unit: "m",
+    band: ">60",
+    note: `flat, full power, pulled back past 25 m/s: ${takeoffNote(TOP)}`,
+  },
+  {
+    id: "p-takeoff-38",
+    value: TO38.agl,
+    unit: "m",
+    band: ">60",
+    note: `seed ${SEED} strip, held back from the start: ${takeoffNote(TO38)}`,
   },
   {
     id: "p-spin",
     value: PS.lost,
     unit: "m",
     band: "",
-    note: `${PS.turns.toFixed(1)} turns, then recovered in that height${PS.crashed ? ", CRASHED" : ""}`,
+    note: `${PS.turns.toFixed(1)} turns, then recovered in that height${PS.torn ? ", LOST A WING" : ""}${PS.crashed ? ", CRASHED" : ""}`,
   },
 ];
 

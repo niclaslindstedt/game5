@@ -5,7 +5,8 @@
 // propeller turned, its blur disc faded in with the spin, its surfaces on
 // their hinges where the engine has them, its lamps lit; torn apart and
 // burning where it came down (`plane-wreck-view.ts`, which keeps the wreck
-// burning after the ride is begun again); and the lens it takes while the
+// burning after the ride is begun again), its torn-off wings tumbling down
+// and lying where they come to rest (`plane-wing-cut.ts`); and the lens it takes while the
 // skier stands in its door (`camera-plane.ts`) — or the crash's, planted
 // off the wreck he went in with.
 //
@@ -95,7 +96,7 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
   const group = new THREE.Group();
   group.name = "plane";
   const wreckView = createPlaneWreckView();
-  group.add(look.group, wreckView.group);
+  group.add(look.group, look.debris, wreckView.group);
   group.visible = false;
   /** The wreck last torn apart, the lens on screen last frame (what a crash
    * cuts from) and where the eye stood (what the fire is sorted for). */
@@ -153,6 +154,7 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
       }
       if (!wreck) burst = null;
       wreckView.frame(state, dt, eyeWas, cloud, snowAt);
+      look.holdDebris(wreckView.live());
       // The airframe is drawn as its pieces while it is a wreck.
       look.group.visible = !wreck || !burst;
       observe(track, { x: p.x, y: p.y, z: p.z, q: p.q }, state.tick);

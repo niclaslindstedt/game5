@@ -67,9 +67,11 @@ import * as SKIER from "./lib/skier-moves.mjs";
 import { HOP_SWITCH_MOMENTS, HOP_SWITCH_MOVES } from "./lib/hop-switch-moves.mjs";
 import { REVERT_MOMENTS, REVERT_MOVES } from "./lib/revert-moves.mjs";
 import { BOARD_MOMENTS, BOARD_MOVES } from "./lib/board-figure-moves.mjs";
+import { POLE_MOVES } from "./lib/pole-moves.mjs";
 
-// The skier lab's moves and the revert lab's (`make revert`) beside them.
-const SKI_MOVES = [...SKIER.MOVES, ...REVERT_MOVES, ...HOP_SWITCH_MOVES];
+// The skier lab's moves and the revert lab's (`make revert`), the hop's and
+// the double pole's beside them.
+const SKI_MOVES = [...SKIER.MOVES, ...REVERT_MOVES, ...HOP_SWITCH_MOVES, ...POLE_MOVES];
 const MOVE_IDS = SKI_MOVES.map((m) => m.id);
 const SKI_MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS, ...HOP_SWITCH_MOMENTS];
 const MOMENT_IDS = SKI_MOMENTS.map((m) => m.id);

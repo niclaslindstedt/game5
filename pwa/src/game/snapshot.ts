@@ -412,10 +412,11 @@ export function groomerOf(state: GameState): HudGroomer | null {
  * on the snow — with his height over the snow, m, his climb, m/s, the air
  * through the wing, m/s, the throttle and the rpm's share of full, whether
  * the wing is stalled, the wind at it, m/s, how rough the air is (the
- * eddies' sigma, m/s), and how much of it is folded and on which side (−1
- * left, 1 right, 0 its leading edge). */
+ * eddies' sigma, m/s), how much of it is folded and on which side (−1
+ * left, 1 right, 0 its leading edge), and the pull he hangs on, g — or
+ * `tangled`, fallen into his own wing. */
 export type HudPara = {
-  kind: "ready" | "flying" | "riding";
+  kind: "ready" | "flying" | "riding" | "tangled";
   height: number;
   climb: number;
   air: number;
@@ -426,6 +427,7 @@ export type HudPara = {
   rough: number;
   fold: number;
   foldSide: number;
+  g: number;
 };
 
 /** The paramotor's readout for the player at this step. */
@@ -433,7 +435,14 @@ export function paraOf(state: GameState): HudPara | null {
   const p = state.para;
   if (!p || !paraRigged(state) || state.skier.thrown) return null;
   return {
-    kind: p.mode === "ready" ? "ready" : p.flying ? "flying" : "riding",
+    kind:
+      p.mode === "ready"
+        ? "ready"
+        : p.mode === "tangled"
+          ? "tangled"
+          : p.flying
+            ? "flying"
+            : "riding",
     height: p.agl,
     climb: p.climb,
     air: p.airspeed,
@@ -444,6 +453,7 @@ export function paraOf(state: GameState): HudPara | null {
     rough: p.rough,
     fold: p.fold,
     foldSide: p.foldSide,
+    g: p.g,
   };
 }
 

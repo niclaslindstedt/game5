@@ -50,9 +50,13 @@
 export const BOARD_MOVES = {
   /** THE ONE-FOOT SKATE (`board-moves.ts`). */
   skate: {
-    /** The share of a skier's power-limited push (`poles.power`, the pair's
-     * `polePush`) one free foot beside the board has — set so a rider
-     * skating from a stand on the flat is at 10 km/h in about 3 s. */
+    /** The power a rider's legs put into a push, W — a fit recreational
+     * rider's sprint (a skier's own `poles.power` is an arcade double-poler's,
+     * and a free foot beside a deck is no double pole) — and the share of
+     * it, and of the pair's `polePush`, one free foot beside the board has —
+     * set so a rider skating from a stand on the flat is at 10 km/h in about
+     * 3 s. */
+    power: 450,
     legs: 0.55,
     /** The push is whole under `speed` m/s (8 km/h) and gone by `fade`
      * (16.5 km/h): a foot pushing beside a board cannot keep up past a run. */

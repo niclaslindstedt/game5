@@ -180,19 +180,20 @@ def groove_material(base):
 
 
 # ---------------------------------------------------------------- the spray
-def spray_points(emit, along, out, up, speed, n, rng, g=9.81):
+def spray_points(emit, along, out, up, speed, n, rng, g=9.81, strength=1.0):
     """`n` grains of the rooster tail: each left the edge somewhere between
     the boot and the tail (`emit` ± `along`) a moment ago, sheared off out
     of the turn and up with a share of his speed kept forward, and has
     flown since under gravity and the air's drag (a grain's terminal speed
     of a few metres a second). Positions in the world, radii in metres,
-    ages in seconds."""
+    ages in seconds. `strength` scales the shear: the inside ski, carrying
+    a third of his weight, throws a lower, shorter sheet than the outside."""
     age = rng.uniform(0, 1, n) ** 1.6 * 0.75
     s = rng.uniform(-0.4, 1.0, n)
     # The shear's velocity: out and up, faster for the grains thrown early
     # in a stroke, a cone of scatter round it.
-    v_out = rng.normal(4.6, 1.1, n)
-    v_up = rng.normal(4.2, 1.0, n)
+    v_out = rng.normal(4.6, 1.1, n) * strength
+    v_up = rng.normal(4.2, 1.0, n) * strength
     v_fwd = speed * rng.uniform(0.15, 0.4, n)
     v_side = rng.normal(0, 0.6, n)
     drag = 1.6  # 1/s: a grain's speed falls by e in ~0.6 s

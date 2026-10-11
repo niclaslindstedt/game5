@@ -46,7 +46,7 @@
 //     IN THE AIR the knees come up (the board drawn up under the hips),
 //     the board levelled and the arms out.
 //   * THE ONE-FOOT SKATE: the rear foot out of its binding pushing beside
-//     the TOE edge (where he can see it), never ahead of the front binding,
+//     the HEEL edge, behind his back, never ahead of the front binding,
 //     the board pointed along his travel; the body stays SIDE-ON over it —
 //     the shoulders opened only part way to the nose, the head looking
 //     forward over the front shoulder — so from behind he reads as a
@@ -175,14 +175,14 @@ export const TUCK = { knee: 0.75, lean: 0.6, open: 0.2 };
 export const KNEE_MOST = 2.1;
 
 /** THE ONE-FOOT SKATE: the free foot's push along the deck (m, from just
- * behind the front binding back past the rear one), out beside the toe
- * edge, its lift on the way back, the share of the stride it pushes for,
+ * behind the front binding back past the rear one), out beside the heel
+ * edge behind him, its lift on the way back, the share of the stride it pushes for,
  * the torso's turn to the nose, rad — part way, the body kept side-on —
  * and the hips' shift toward the toes over the pushing foot, m. */
 export const SKATE = {
   from: -0.06,
   to: -0.46,
-  out: 0.08,
+  out: 0.1,
   lift: 0.07,
   push: 0.55,
   open: 0.35,
@@ -424,7 +424,8 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   const hopLoad = Math.max(0, -Math.sin(2 * Math.PI * phase));
   const rise = hop * HOP * hopUp;
 
-  // THE FREE FOOT: pushing beside the toe edge, or on the stomp pad.
+  // THE FREE FOOT: pushing behind him beside the heel edge, or on the
+  // stomp pad.
   let freeSole: V3 | null = null;
   let freeBoot: Boot | null = null;
   if (free) {
@@ -436,7 +437,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     const up = phase < SKATE.push ? 0 : SKATE.lift * Math.sin(Math.PI * (1 - p));
     const snow = rz(UP, input.incline);
     const base = add(
-      add(add(deck.centre, scale(nose, along)), scale(F, b.waist / 2 + SKATE.out)),
+      add(add(deck.centre, scale(nose, along)), scale(F, -(b.waist / 2 + SKATE.out))),
       scale(snow, up + SOFT_BOOT.sole * 0.2),
     );
     const pushF = norm(add(nose, scale(F, 0.25)));
@@ -615,7 +616,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       0.3 * clamp(input.load, 0, 1) +
       0.1 * air +
       (look?.lean ?? 0) * g +
-      0.12 * freeK,
+      0.04 * freeK,
     -0.2,
     1.25,
   );

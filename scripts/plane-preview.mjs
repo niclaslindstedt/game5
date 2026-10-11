@@ -17,7 +17,10 @@
 //   door       the skier crouched in the open door: close, and the TIPS and
 //              HELMET rungs, parked and on the jump run
 //   lenses     every rung of the game's camera in the air
-//   cockpit    what the pilot's eye sees today (Phase E's subject)
+//   cockpit    the pilot's eye (the TIPS rung) on the strip, climbing,
+//              banked, over a flown loop's top and at night; the panel, its
+//              displays, the quadrant, the overhead, the pedals, the controls
+//              thrown and the pilot seen from outside
 //   crash      the fireball's growth and burn-out, the wreck burning on at
 //              5, 30 and 90 s, by day and after dark
 //   crash-kinds  nose in, cartwheeled, on its belly, out of a spin, into the

@@ -97,6 +97,10 @@ export type GoreState = {
   impaled: Impaled | null;
   mortal: number;
   dead: number;
+  /** THE RESET PRESSED while dying or held down (`holdsHim`): no reset
+   * stands him up, so the app starts the run again at once
+   * (`hud-wreck.ts`'s `deathOver`) rather than after RESTART AFTER. */
+  again?: boolean;
   cause: DeathCause | null;
   /** HURT TOO BADLY TO SKI ON and alive (`rescue.ts`): the run clock he
    * was found so (−1 not), and the injury that keeps him down — from then

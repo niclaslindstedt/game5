@@ -125,22 +125,14 @@ describe("the wipeout", () => {
     expect(state.skier.thrown).toBeNull();
   });
 
-  it("lets the player's own press stand him up only past `getUp`", () => {
+  it("answers the player's reset the moment he is thrown, and asks him up past `getUp`", () => {
     const state = atTree(0.3, 50);
     for (let i = 0; i < 6 * TUNING.physicsHz && !state.skier.thrown; i++) step(state, TUCK);
     expect(state.skier.thrown).not.toBeNull();
-    const press = { ...NEUTRAL_INPUT, reset: true };
-    // Pressed inside the first seconds: let go, and he lies on.
-    step(state, press);
-    expect(state.skier.thrown).not.toBeNull();
-    while (state.skier.thrown!.t < TUNING.crash.getUp - TUNING.dt) {
-      step(state, NEUTRAL_INPUT);
-      expect(mayGetUp(state.skier.thrown)).toBe(state.skier.thrown!.t >= TUNING.crash.getUp);
-    }
-    step(state, NEUTRAL_INPUT);
-    expect(mayGetUp(state.skier.thrown)).toBe(true);
-    // ...and past them it answers at once.
-    step(state, press);
+    // The hint to get up waits out the fall's first seconds...
+    expect(mayGetUp(state.skier.thrown)).toBe(false);
+    // ...but the reset never does: pressed in the fall, it stands him up.
+    step(state, { ...NEUTRAL_INPUT, reset: true });
     expect(state.skier.thrown).toBeNull();
     expect(state.events.some((e) => e.kind === "reset" && !e.auto)).toBe(true);
   });

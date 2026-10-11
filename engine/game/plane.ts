@@ -41,7 +41,7 @@ import { airDensity, airKelvin, airPressure, seaAltitude } from "./balloon-air.t
 import { mendBody } from "./body.ts";
 import { airBoundsAt, treesNear, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
-import { mayGetUp, throwRider } from "./crash.ts";
+import { throwRider } from "./crash.ts";
 import { PLANE, planeMass } from "./defs/plane.ts";
 import { PLANE_WRECK, wreckKindOf } from "./defs/plane-wreck.ts";
 import { totalMass } from "./defs/skis.ts";
@@ -281,7 +281,7 @@ export function stepPlane(run: GameState, input: SkierInput, events: GameEvent[]
   if (!p) return false;
   p.t += dt;
   if (p.mode === "wreck") {
-    const up = !!p.wreck?.aboard && input.reset && !!run.skier.thrown && mayGetUp(run.skier.thrown);
+    const up = !!p.wreck?.aboard && input.reset && !!run.skier.thrown;
     if (p.t < K.crash.wreck && !up) return false;
     if (p.wreck?.aboard) startPlane(run, events);
     else {

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skijump skydive-flight skydive balloon afterski town
 
 build:
 	npm run build
@@ -704,6 +704,20 @@ skijump-flight:
 # `world`. ARGS="--sheet=model,door" a few sheets.
 plane:
 	npm run plane -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE SKI JUMP LAB: the ski jumping hill (R43) as drawn and a jump off it,
+# through the game's own renderer — the empty hill from the broadcast's
+# side, the out-run, down the in-run, the judges' tower, the air and its
+# silhouette, by day and at hour 21 (`hill`); the jumper on the bar, in the
+# tracks and at the edge (`inrun`); in the air (`flight`); touching down
+# among the distance boards and the K and HS lines (`landing`). One contact
+# sheet a group, previews/skijump-<group>.png, and every frame alone,
+# previews/skijump-<view>-<label>.png, each captioned with its draw calls
+# and triangles. Its own one-off bundle from pwa/skijump-preview.html (never
+# deployed); needs a Chromium like `world`. ARGS="--sheet=hill,landing",
+# "--hill=normal".
+skijump:
+	npm run skijump -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
 # THE SKYDIVE'S FLIGHT LAB: the exit, the freefall's terminal speeds, the
 # staged opening, the canopy's polar, turns and flare, the landing, the

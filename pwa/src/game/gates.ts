@@ -63,6 +63,7 @@ import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createJibs } from "./jibs-view.ts";
 import { createPipe } from "./pipe-view.ts";
 import { createMoguls } from "./mogul-view.ts";
+import { createSkiJump, skiJumpMasts } from "./ski-jump-view.ts";
 import {
   archBlower,
   archSkirt,
@@ -339,10 +340,12 @@ export function createGates(
     // A ski cross's flags are `cross-flags.ts`'s, a pole gate's poles
     // `slalom-poles.ts`'s; the marker rides over the outside poles, or the
     // turning pole.
-    if (cp.flags || cp.pole !== undefined) {
+    // A ski jumping hill's start and fall line are its own furniture
+    // (`ski-jump-view.ts`): no panels, hut, arch or markers.
+    if (cp.flags || cp.pole !== undefined || level.skiJump) {
       for (let k = 0; k < 4; k++) poles.setMatrixAt(index * 4 + k, m4.compose(at, q, none));
       for (let k = 0; k < 2; k++) panels.setMatrixAt(index * 2 + k, m4.compose(at, q, none));
-      const top = slalomPoles?.top(index);
+      const top = level.skiJump ? undefined : slalomPoles?.top(index);
       tops.push(cp.flags ? (crossFlags?.tops(index) ?? []) : top ? [top] : []);
       return;
     }
@@ -766,7 +769,10 @@ export function createGates(
   // the masts'.
   const streets = createVillageStreets(level, haze);
   if (streets) group.add(streets.group);
-  const lights = createPisteLights(level, haze, streetLampMasts(level));
+  const lights = createPisteLights(level, haze, [
+    ...streetLampMasts(level),
+    ...skiJumpMasts(level),
+  ]);
   group.add(lights.group);
 
   // THE SNOW GUNS, in a thin season.
@@ -790,6 +796,9 @@ export function createGates(
   // own field (`mogul-view.ts`).
   const bumps = createMoguls(level, std);
   if (bumps) group.add(bumps.group);
+  // A SKI JUMPING HILL'S in-run, tower, boards and lines (`ski-jump-view.ts`).
+  const hill = createSkiJump(level, haze, std);
+  if (hill) group.add(hill.group);
 
   const breathing = new THREE.Color();
   let lit = -1;
@@ -839,6 +848,7 @@ export function createGates(
       const next = state.progress.nextCheckpoint;
       const t = state.t;
       slalomPoles?.update(state);
+      hill?.update(state);
       house?.update(state);
       tipStakes(state);
       crossGate?.update(state);
@@ -908,6 +918,7 @@ export function createGates(
       jibs?.dispose();
       pipe?.dispose();
       bumps?.dispose();
+      hill?.dispose();
       for (const t of texs) t.dispose();
     },
   };

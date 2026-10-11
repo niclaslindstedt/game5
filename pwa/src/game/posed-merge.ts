@@ -27,7 +27,7 @@
 //
 // The bones are the ROOT's, not the world's, and the mesh is bound DETACHED:
 // the mesh's own model matrix — the root's — puts the skier in the world.
-// So what moves the root or anything above it (the skier card's turntable
+// So what moves the root or anything above it (the gear card's stage
 // spinning a pivot over a skier posed once) moves the whole draw with no
 // re-pose; world bones froze every part where the last pose left it and only
 // the windshield, a mesh of its own, turned.

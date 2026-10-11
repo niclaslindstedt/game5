@@ -42,7 +42,7 @@ function rideOut(mode: GameMode, after: number) {
 describe("the hockey stop after a freestyle run", () => {
   it("is every freestyle mode's, and no race's", () => {
     for (const mode of [
-      "bigAir",
+      "skiJump",
       "slopestyle",
       "halfpipe",
       "moguls",
@@ -56,8 +56,8 @@ describe("the hockey stop after a freestyle run", () => {
     }
   });
 
-  it("throws the skis across and stands him still off a big air landing", () => {
-    const r = rideOut("bigAir", 12);
+  it("throws the skis across and stands him still off an aerials landing", () => {
+    const r = rideOut("aerials", 12);
     expect(r.thrown).toBeGreaterThan(0.5);
     expect(r.speed).toBeLessThan(0.05);
     expect(r.stoppedAt).toBeLessThan(8);

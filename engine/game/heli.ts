@@ -55,7 +55,17 @@ import { helipadOf } from "./heli-pad.ts";
 import { carryFall, fallsIntoRotor, hangFrame, stepGrip } from "./heli-grip.ts";
 import { HELI_BLADES } from "./defs/heli-grip.ts";
 import { pilotControls, steadyControls } from "./heli-pilot.ts";
-import { SEAT, discQuat, heliMass, heliPoint, heliQuat, thrustMost } from "./heli-rotor.ts";
+import {
+  ROTOR_AREA,
+  SEAT,
+  discQuat,
+  heliMass,
+  heliPoint,
+  heliQuat,
+  thrustMost,
+} from "./heli-rotor.ts";
+import { AUTOROTATION } from "./defs/mishaps.ts";
+import { coughOf, engineFaultOf, stepFault } from "./mishaps.ts";
 import { mendBody } from "./body.ts";
 import { derive } from "./skier.ts";
 import { profileAt, windAt, type Wind } from "./wind.ts";
@@ -169,6 +179,7 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
     else {
       // Dropped off before it went down: a fresh machine waits on the pad.
       Object.assign(h, freshHeli(run));
+      delete h.engine;
       say(run, events, "restart");
     }
     return h.rider;
@@ -182,9 +193,20 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   // the drop on the same step.
   const boarded = !!input.machine && heliWithin(run);
   if (boarded) board(run, events);
-  // The rotor up to speed with a rider on, down without.
-  const spoolTo = h.rider || h.mode === "home" ? 1 : 0;
-  h.spool = clamp(h.spool + Math.sign(spoolTo - h.spool) * K.spool * dt, 0, 1);
+  // A DEALT STOPPAGE (`mishaps.ts`) counted down while he flies it.
+  if (
+    h.engine &&
+    h.mode === "flown" &&
+    stepFault(h.engine, !h.grounded, h.agl, "heli", dt) === "out"
+  )
+    say(run, events, "engine");
+  // The rotor up to speed with a rider on, down without — governed while
+  // the engine runs; with it failing, the rotor's own spin
+  // (`autorotate`, in `fly`).
+  if (!failing(h)) {
+    const spoolTo = h.rider || h.mode === "home" ? 1 : 0;
+    h.spool = clamp(h.spool + Math.sign(spoolTo - h.spool) * K.spool * dt, 0, 1);
+  }
   h.controls = controlsFor(run, h, input);
   // LET GO OVER ITS ROTOR: the collective dumped and the cyclic centred
   // while he falls (`heli-grip.ts`), so an inverted machine stops driving
@@ -330,14 +352,25 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
   // squared), answered in `flight.lag` — so a skier pushing off the skid
   // leaves a machine lifting for his weight too.
   const along = hypot(ax, az);
-  const most = thrustMost(along, Math.max(-20, ay), h.agl) * h.spool * h.spool;
-  const want = c.collective * most;
+  // ...or, the engine failing, what the blades give at their pitch, the
+  // rpm the rotor still has and the air through it (`bladeThrust`).
+  const off = failing(h);
+  const vn = off ? ax * thrustUp.x + ay * thrustUp.y + az * thrustUp.z : 0;
+  const flat = off ? Math.sqrt(Math.max(0, ax * ax + ay * ay + az * az - vn * vn)) : 0;
+  const most = off
+    ? bladeThrust(h, 1, flat, vn)
+    : thrustMost(along, Math.max(-20, ay), h.agl) * h.spool * h.spool;
+  const want = off ? bladeThrust(h, c.collective, flat, vn) : c.collective * most;
   const thrust = clamp(h.thrust + (want - h.thrust) * (1 - Math.exp(-dt / F.lag)), 0, most);
   h.thrust = thrust;
-  h.collective = most > 0 ? thrust / most : 0;
+  h.collective = off ? c.collective : most > 0 ? thrust / most : 0;
   fx += thrustUp.x * thrust;
   fy += thrustUp.y * thrust - m * g;
   fz += thrustUp.z * thrust;
+  // THE ROTOR'S SPIN, the engine failing: its energy fed by what power is
+  // left and by the air coming up through the disc, spent on the thrust's
+  // induced flow and the blades' own drag.
+  if (off) autorotate(h, thrust, c.collective, flat, vn, enginePower(run, h));
   h.vx += (fx / m) * dt;
   h.vy += (fy / m) * dt;
   h.vz += (fz / m) * dt;
@@ -385,7 +418,10 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
   // THE PEDALS, the torque, the fin.
   if (h.grounded && !light) h.yawRate = 0;
   else {
-    const torque = F.torque * (thrust / (m * g) - 1);
+    // The engine's torque goes with its power: stopped, the tail rotor's
+    // trim for it swings the nose the other way.
+    const share = failing(h) ? enginePower(run, h) : 1;
+    const torque = F.torque * ((share * thrust) / (m * g) - 1);
     const vane = K.vane * as * Math.min(40, Math.abs(af) + Math.abs(as));
     h.yawRate += (F.pedal * spool2 * c.pedal - F.yawDamping * h.yawRate - torque + vane) * dt;
   }
@@ -425,11 +461,100 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
     }
   } else if (h.y > under + 0.05) {
     h.grounded = false;
-    if (was) say(run, events, "liftoff");
+    if (was) {
+      say(run, events, "liftoff");
+      // A lift-off with him at the controls may be dealt a stoppage.
+      const fault = h.mode === "flown" && h.rider && !h.engine ? engineFaultOf(run, "heli") : null;
+      if (fault) h.engine = fault;
+    }
   }
   // Seated on the skid, his skis come down to hang as it lifts.
   const to = h.grounded ? HANG_GROUND : HANG_AIR;
   h.hang += clamp(to - h.hang, -dt * 0.6, dt * 0.6);
+}
+
+/** Whether the dealt stoppage has begun (`mishaps.ts`): the engine coughing
+ * or stopped, the rotor's rpm its own. */
+function failing(h: HeliState): boolean {
+  return !!h.engine && h.engine.due <= 0;
+}
+
+/** THE ENGINE'S POWER a failing machine still has, a share: a cough's
+ * surges, then naught. */
+function enginePower(run: GameState, h: HeliState): number {
+  return !h.engine || h.engine.due > 0 ? 1 : h.engine.out ? 0 : coughOf(run.t);
+}
+
+const A = AUTOROTATION;
+/** ρA(ΩR)²·σa/2 — the rotor's thrust per unit of (θ/3 − λ/2) at full rpm, N. */
+const BLADES =
+  K.density * ROTOR_AREA * (OMEGA * K.rotor.radius) ** 2 * ((A.solidity * A.slope) / 2);
+
+/** The blades' pitch at collective `c`, rad. */
+const pitchOf = (c: number): number => A.pitch[0] + (A.pitch[1] - A.pitch[0]) * clamp(c, 0, 1);
+
+/** How much of their lift the blades keep at rpm share `r`: all of it
+ * over their stall, none by `dead`. */
+const unstalled = (r: number): number => clamp((r - A.dead) / (A.stall - A.dead), 0, 1);
+
+/** THE BLADES' THRUST at collective `c` with the engine failing, N: the
+ * blade element's T = ρA(Ωr R)²·σa/2·(θ/3 − λ/2) at the rotor's rpm share,
+ * λ the flow through the disc — the air `vn` m/s up through it (climbing
+ * positive) and the induced flow at the thrust it had — over the
+ * rotor's speed; lost as the blades stall. */
+function bladeThrust(h: HeliState, c: number, flat: number, vn: number): number {
+  const r = h.spool;
+  const tip = OMEGA * K.rotor.radius * Math.max(0.05, r);
+  const lambda = (vn + inducedFlow(h.thrust, flat, vn)) / tip;
+  const t = BLADES * r * r * (pitchOf(c) / 3 - lambda / 2);
+  return Math.max(0, t) * unstalled(r);
+}
+
+/** THE INDUCED FLOW through the disc, m/s, at thrust `T` N, the air
+ * `flat` m/s along the disc and `vn` m/s up through it (climbing positive):
+ * Glauert's relation, and — slow along the disc and coming down at it —
+ * the measured curve through the vortex ring (Leishman's quartic in
+ * vn / v_h, −2 < vn / v_h < 0), where momentum theory has no answer. */
+export function inducedFlow(T: number, flat: number, vn: number): number {
+  const vh = Math.sqrt(Math.max(1, T) / (2 * K.density * ROTOR_AREA));
+  let vi = vh;
+  for (let k = 0; k < 8; k++) {
+    vi = 0.5 * (vi + (vh * vh) / Math.max(0.3 * vh, hypot(flat, vn + vi)));
+  }
+  const x = vn / vh;
+  if (x < 0 && x > -2 && flat < vh) {
+    const ring = 1.15 + x * (-1.125 + x * (-1.372 + x * (-1.718 + x * -0.655)));
+    const w = flat / vh;
+    vi = w * vi + (1 - w) * ring * vh;
+  }
+  return vi;
+}
+
+/** ONE STEP OF THE ROTOR'S SPIN with the engine failing (`h.spool` its
+ * rpm share): I·Ω²·r·ṙ = P_engine − P_needed, where P_needed is the thrust
+ * through the flow it meets, T·(vn + v_i), and the blades' profile power
+ * at the rpm cubed — so a collective held up bleeds the rpm off in a
+ * second or two, and the air of a steep descent coming up through a
+ * lowered collective (vn + v_i under naught) drives it back up. The
+ * engine's power, while it coughs, governs it toward full. */
+function autorotate(
+  h: HeliState,
+  T: number,
+  c: number,
+  flat: number,
+  vn: number,
+  power: number,
+): void {
+  const r = h.spool;
+  const theta = pitchOf(c) / A.pitch[1];
+  const stalled = 1 - unstalled(r);
+  const profile =
+    A.profile * r * r * r * (1 + A.drag * theta * theta) * (1 + A.stallDrag * stalled * c);
+  const need = T * (vn + inducedFlow(T, flat, vn)) + profile;
+  const give = power * (K.power + A.profile);
+  const engine = r >= 1 ? Math.min(give, Math.max(0, need)) : give;
+  const dr = ((engine - need) / (A.inertia * OMEGA * OMEGA * Math.max(0.2, r))) * TUNING.dt;
+  h.spool = clamp(r + dr, 0, A.most);
 }
 
 /** An angle kept to (−π, π]. */
@@ -745,6 +870,7 @@ function board(run: GameState, events: GameEvent[]): void {
 export function startAgain(run: GameState, events: GameEvent[]): void {
   const h = run.heli!;
   Object.assign(h, freshHeli(run));
+  delete h.engine;
   h.mode = "flown";
   h.rider = true;
   h.spool = 1;

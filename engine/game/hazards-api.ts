@@ -7,6 +7,8 @@
 export { GRIMBEAR } from "./defs/grimbear.ts";
 export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 export type { GrimbearPhase, GrimbearState } from "./grimbear-state.ts";
+// THINGS THAT GO WRONG IN THE AIR (`mishaps.ts`): its numbers and stream.
+export * from "./mishaps.ts";
 export { AVALANCHE } from "./defs/avalanche.ts";
 export {
   avalancheHazard,

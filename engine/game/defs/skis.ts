@@ -36,7 +36,7 @@
 //           where the others sink, vague and slow on the groomer.
 //   HARE    a PARK ski — a soft twin-tip: spins, lands anything softly,
 //           slow in a tuck and loose on an edge.
-//   RAVEN   a BIG-AIR ski — the competition park twin-tip: longer and
+//   RAVEN   a FREESTYLE CONTEST ski — the competition park twin-tip: longer and
 //           stiffer than the Hare, damp for a landing from ten metres up,
 //           still mounted near its centre to spin and ride away switch.
 //   IBEX    a MOGUL ski — short, narrow and straight, soft in the forebody:
@@ -46,6 +46,10 @@
 //           stiff underfoot: holds a dead straight line into a 71°
 //           kicker and swings round three flips and five twists, and
 //           little else.
+//   ALBATROSS a SKI JUMPING ski — the longest pair here, wide, straight
+//           and edgeless, mounted far back with the heel free: it runs in
+//           an in-run's tracks and flies spread in a V, and does nothing
+//           else. Ridden by the mode alone, never on the card's rack.
 // What separates them is what separates the real classes: the length, the
 // waist and the tip, the sidecut radius, the flex and the rocker
 // (`footprint.ts` prices every one), and what the skier can do on them.
@@ -97,7 +101,8 @@ export type SkiId =
   | "hare"
   | "raven"
   | "ibex"
-  | "kestrel";
+  | "kestrel"
+  | "albatross";
 
 /** The snowboards (`boards.ts`), named as the skis are (`board-ids.ts`). */
 export type { BoardId };
@@ -501,9 +506,10 @@ export const HARE: SkisSpec = {
   topSpeed: 106,
 };
 
-/** THE RAVEN — a BIG-AIR ski (named for the bird that rolls and tumbles in
- * the air for the joy of it): the competition park twin-tip a big air jump
- * is ridden on (`docs/freestyle.md` § *Big air*, "The skis"). The freestyle
+/** THE RAVEN — a COMPETITION PARK ski (named for the bird that rolls and
+ * tumbles in the air for the joy of it): the twin-tip a slopestyle course
+ * and a halfpipe are ridden on (`docs/freestyle.md` § *Big air*, "The
+ * skis" — the research its jumps were sized off). The freestyle
  * rules set no length, width or sidecut, so the class is what the
  * athletes ride: a twin-tip of some 1.78–1.84 m on an 85–96 mm waist and a
  * 17–20 m arc, built STIFF and damp for the take-off and a landing from ten
@@ -520,7 +526,7 @@ export const RAVEN: SkisSpec = {
   ...SKIS,
   id: "raven",
   name: "Raven",
-  kind: "Big air",
+  kind: "Slopestyle",
   blurb:
     "A stiff competition twin-tip: straight down the in-run, round three times, and down clean.",
   gearMass: 8.5,
@@ -613,12 +619,53 @@ export const KESTREL: SkisSpec = {
   topSpeed: 106,
 };
 
+/** THE ALBATROSS — a SKI JUMPING ski (named for the bird that flies
+ * farthest on the least work, its wings held still): the class a ski
+ * jumping hill is jumped on (`docs/freestyle.md` § *Ski jumping*, "The
+ * equipment"). The rule ties its length to the jumper — at most 145 % of
+ * his height at a BMI of 21, 0.5 % less for every 0.125 under it — so on
+ * the field's 1.78 m jumper at a BMI of 20.5, 143 %: 2.54 m. 95–105 mm at
+ * the balance point, its tip and tail within 5 mm of each other and the
+ * sidecut straight lines: 105 / 100 / 102 mm, 1.75 mm of side depth over a
+ * 2.3 m chord, a ~375 m arc no turn is skied on. No steel edges (it tracks
+ * in its grooves), so the least edge of any pair; the boot's toe 57 % of
+ * the way back from the tip, the boot's centre at 0.37 of its length from
+ * the tail; stiff; 2.75 kg a ski with its binding and soft low boots, no
+ * poles; the tip turned up 40 mm and the tail flat. Its in-run crouch is
+ * the tightest tuck of the catalog (a jumper's ~0.2 m² against a racer's
+ * 0.25–0.35, est.; the in-run lab fits it). The HEEL is free in the
+ * binding — the drawing's, not the engine's. It skis badly anywhere else
+ * and is no pair of the ski card's rack: a ski jump alone rides it
+ * (`RACE_SKIS`). */
+export const ALBATROSS: SkisSpec = {
+  ...SKIS,
+  id: "albatross",
+  name: "Albatross",
+  kind: "Ski jumping",
+  blurb: "Long, wide, straight and edgeless: runs in the tracks, flies in a V, and nothing else.",
+  gearMass: 7.5,
+  length: 2.54,
+  waist: 0.1,
+  tipWidth: 0.105,
+  tailWidth: 0.102,
+  sidecut: 375,
+  flex: 0.9,
+  rocker: 0,
+  edgeMax: 0.5,
+  stance: 0.2,
+  mount: 0.37,
+  legs: { rate: 7400, bump: 560, rebound: 900, travel: 0.52 },
+  cdAUpright: 0.85,
+  cdATuck: 0.24,
+  topSpeed: 150,
+};
+
 /** THE CATALOG, in the order the ski card turns through it — the order a
  * skier should pick them in, best all-round first and the one that asks
  * most of him last: the all-mountain ski that refuses nothing, the alpine
  * race skis from the shortest to the longest (slalom, giant slalom, super-G,
  * downhill), the ski-cross ski, the speed ski, the powder ski and the park
- * ski, the big-air ski, the mogul ski and the aerials ski. (`make sim ARGS="--skis
+ * ski, the competition park ski, the mogul ski and the aerials ski. (`make sim ARGS="--skis
  * all"` is the measure.) */
 export const SKI_CATALOG: readonly SkisSpec[] = [
   SKIS,
@@ -635,16 +682,23 @@ export const SKI_CATALOG: readonly SkisSpec[] = [
   KESTREL,
 ];
 
+/** THE PAIRS A MODE RIDES that the ski card's rack does not carry: the
+ * ski jumping ski. */
+export const MODE_SKIS: readonly SkisSpec[] = [ALBATROSS];
+
+/** Every pair of skis: the catalog's and the modes' own. */
+export const ALL_SKIS: readonly SkisSpec[] = [...SKI_CATALOG, ...MODE_SKIS];
+
 /** The pair with this id, or the all-mountain ski for one this build does
  * not carry (a stored pick from another version, or a hand-typed link).
  * The skis alone: a board is `boards.ts`'s `pairById`. */
 export function skisById(id: string): SkisSpec {
-  return SKI_CATALOG.find((s) => s.id === id) ?? SKIS;
+  return ALL_SKIS.find((s) => s.id === id) ?? SKIS;
 }
 
-/** Whether `id` names a pair in the catalog. */
+/** Whether `id` names a pair of skis — the catalog's or a mode's. */
 export function isSkiId(id: string): id is SkiId {
-  return SKI_CATALOG.some((s) => s.id === id);
+  return ALL_SKIS.some((s) => s.id === id);
 }
 
 /** Skier and skis, kg. */

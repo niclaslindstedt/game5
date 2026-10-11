@@ -37,11 +37,11 @@ const MODE_NAMES: Record<GameMode, string> = {
   timeTrial: "SOLO RUN",
   free: "FREE RIDE",
   tricks: "TRICKS",
-  bigAir: "BIG AIR",
   slopestyle: "SLOPESTYLE",
   halfpipe: "HALFPIPE",
   moguls: "MOGULS",
   aerials: "AERIALS",
+  skiJump: "SKI JUMPING",
 };
 
 /** What threw him, as a line on the HARD KNOCKS chart. */

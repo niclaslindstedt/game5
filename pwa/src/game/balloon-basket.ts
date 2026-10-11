@@ -20,9 +20,10 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { BALLOON } from "@engine";
+import { BALLOON, type SkiSpec } from "@engine";
 
 import { BASKET_LOOK, BURNER_LOOK, wickerTexels } from "./balloon-look.ts";
+import { buildRackedBoard, stowBoard, type RackedBoard, type RackLoad } from "./board-rack.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 
 const K = BALLOON.basket;
@@ -41,9 +42,9 @@ export type Basket = {
   /** Paint the cylinders' covers and the sleeves in a colourway's deep
    * colour (sRGB). */
   paint(cover: number): void;
-  /** The pair lashed to the wall: its length, m, and its topsheet's
-   * body and trim (sRGB) — or hidden. */
-  rack(on: boolean, length?: number, body?: number, trim?: number): void;
+  /** What is lashed to the wall (`RackLoad`: his pair and his poles, or
+   * his board) — or nothing. */
+  rack(load: RackLoad | null): void;
   dispose(): void;
 };
 
@@ -449,6 +450,28 @@ export function createBasket(haze: HazeUniforms): Basket {
   }
   racked.visible = false;
   detail.add(racked);
+  // ...or HIS BOARD, lashed the same way: on edge along the wall through the
+  // handles, its base to the wicker and its bindings out — built once he
+  // first flies with it.
+  let stowed: { id: string; board: RackedBoard } | null = null;
+  const stowBoardOn = (spec: SkiSpec): { id: string; board: RackedBoard } => {
+    stowed?.board.group.removeFromParent();
+    stowed?.board.dispose();
+    const board = buildRackedBoard(spec, (m, name) => hazeMaterial(m, haze, name));
+    const out = Math.sign(B.rack[0]);
+    stowBoard(
+      board.group,
+      { x: 0, y: 0, z: 1 },
+      { x: out, y: 0, z: 0 },
+      {
+        x: rackX + out * 0.004,
+        y: B.handleY - 0.02,
+        z: 0,
+      },
+    );
+    detail.add(board.group);
+    return { id: spec.id, board };
+  };
 
   // THE STAND-IN far off: the basket a box, the frame and its rods.
   const far = new THREE.Group();
@@ -481,17 +504,25 @@ export function createBasket(haze: HazeUniforms): Basket {
       cover.color.setHex(c);
       sleeveMat.color.setHex(c).multiplyScalar(0.7);
     },
-    rack(on, length = 1.7, body = 0xd5361f, trim = 0xf2f2f2) {
-      racked.visible = on;
-      if (!on) return;
-      for (const one of racked.children.slice(0, 2)) {
-        one.scale.set(1, length, 1);
-        one.position.z = -length / 2;
+    rack(load) {
+      racked.visible = load !== null && !load.spec.board;
+      if (stowed && (!load || stowed.id !== load.spec.id)) stowed.board.group.visible = false;
+      if (!load) return;
+      if (load.spec.board) {
+        stowed = stowed?.id === load.spec.id ? stowed : stowBoardOn(load.spec);
+        stowed.board.group.visible = true;
+        return;
       }
-      skiBody.color.setHex(body);
-      skiTrim.color.setHex(trim);
+      for (const one of racked.children.slice(0, 2)) {
+        one.scale.set(1, load.spec.length, 1);
+        one.position.z = -load.spec.length / 2;
+      }
+      for (const pole of racked.children.slice(2)) pole.visible = load.poles;
+      skiBody.color.setHex(load.body);
+      skiTrim.color.setHex(load.trim);
     },
     dispose() {
+      stowed?.board.dispose();
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
       maps.map.dispose();

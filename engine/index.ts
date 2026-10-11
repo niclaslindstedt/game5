@@ -62,8 +62,7 @@ export {
   type SunPlace,
 } from "@niclaslindstedt/oss-game-framework/core/solar";
 
-// THE WORLD (engine/mapgen/): the generator, the Level contract, the track
-// queries.
+// THE WORLD (engine/mapgen/): the generator, the Level contract, the queries.
 export * from "./mapgen/index.ts";
 export { jibAt, jibLength, stepJib } from "./game/jib.ts";
 export {
@@ -233,8 +232,6 @@ export {
   giantSlalomRules,
   SPEED_SKI,
   speedSkiRules,
-  BIG_AIR,
-  bigAirRules,
   HALFPIPE,
   halfpipeRules,
   MOGULS,
@@ -332,23 +329,6 @@ export {
   type CrossResult,
   type CrossRound,
 } from "./game/cross-bracket.ts";
-export {
-  BIG_AIR_FIELD,
-  boardOf,
-  contestAfter,
-  freshBigAir,
-  judgeRun,
-  jumpOf,
-  jumpsIn,
-  nextPhase,
-  placeOf,
-  rivalJump,
-  totalOf,
-  type BigAirContest,
-  type BigAirJump,
-  type BigAirPhase,
-  type BigAirRow,
-} from "./game/big-air-contest.ts";
 export { inRunInput } from "./game/in-run.ts";
 export * from "./game/stop-hand.ts";
 export {
@@ -387,8 +367,8 @@ export {
   type SkiSpec,
   type LegSpec,
 } from "./game/defs/skis.ts";
-export type { BoardId, PairId, BoardFit, SkisSpec } from "./game/defs/skis.ts";
 export * from "./game/board-api.ts";
+export * from "./game/ski-jump-api.ts";
 export { TAIL_RISE, tailRiseOf } from "./game/defs/tails.ts";
 export { heldSlip, revertShare, switchSteer, switchTurn, tailDug } from "./game/switch.ts";
 export type { Revert } from "./game/switch.ts";
@@ -896,6 +876,7 @@ export {
   seatedShare,
   skipShare,
   stepLift,
+  teeSide,
 } from "./game/lift-ride.ts";
 export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {

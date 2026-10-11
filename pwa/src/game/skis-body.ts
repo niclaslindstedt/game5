@@ -15,8 +15,7 @@
 //     edge, and raised toward the body by the tuck's drop — and ON THE
 //     SNOW (`ski-stand.ts`): the body drawn turned about its feet rather
 //     than its centre of gravity, the inside ski lifted toward him and the
-//     outside let down, so he inclines over two skis on the snow and never
-//     rolls the outside one up into the air.
+//     outside let down, so he inclines over two skis and never rolls one up.
 //   * THE SKIER (`skier-figure.ts`), hung on the points `skier-pose.ts`
 //     works out: his boots are the skis' boots, his hips angulated inside
 //     the turn by what the engine reports, folded into the tuck, his poles
@@ -105,7 +104,7 @@ import { revertRise } from "./skier-switch.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
 import { pitchPast, skydivePose, squareSkis, squareStand } from "./skier-skydive.ts";
 import type { SkydiveShape } from "./skier-skydive.ts";
-import { createTuck, type FlipThrow } from "./skier-somersault.ts";
+import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
 
 /** How long the acceleration a broken arm feels is eased over, s — the
  * engine's steps' jitter taken out of its swing. */
@@ -682,7 +681,8 @@ export function createSkisModel(
       out.radius = bound.radius;
       return out;
     },
-    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+    pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+      const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // ON HIS FEET after a buzzed fall (`buzz.ts`'s fetch): up, walking to
@@ -752,7 +752,7 @@ export function createSkisModel(
       // the same stand).
       stepChatter(chatter, skier, dt);
       // ...and TUCKED for a loop the lean has thrown, opened out to land.
-      tuck.step(off || afoot ? null : flip, dt);
+      tuck.step(off || afoot ? null : flip, dt, stand);
       shakeStand(stand, skier, hung ? 0 : ground, chatter);
       // ...and out of a slalom's start house, the heels kicked.
       kickStand(stand, skier.launch);

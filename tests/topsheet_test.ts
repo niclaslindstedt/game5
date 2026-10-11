@@ -8,7 +8,7 @@
 // skier's feet, and the widths drawing the sidecut the spec carves.
 
 import { describe, expect, it } from "vitest";
-import { SKI_CATALOG, isSkiId } from "@engine";
+import { ALL_SKIS, isSkiId } from "@engine";
 
 import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { PATTERNS, TOPSHEETS } from "../pwa/src/game/ski-topsheets.ts";
@@ -17,7 +17,7 @@ import { MOUNTS } from "../pwa/src/game/skier-pose.ts";
 
 describe("the topsheets", () => {
   it("dress every pair in one of its own, no two alike", () => {
-    expect(Object.keys(TOPSHEETS).sort()).toEqual(SKI_CATALOG.map((s) => s.id).sort());
+    expect(Object.keys(TOPSHEETS).sort()).toEqual(ALL_SKIS.map((s) => s.id).sort());
     expect(Object.keys(TOPSHEETS).every(isSkiId)).toBe(true);
     const sheets = Object.values(TOPSHEETS);
     expect(new Set(sheets.map((l) => `${l.body}:${l.pattern}`)).size).toBe(sheets.length);
@@ -56,7 +56,7 @@ describe("the topsheets", () => {
 
 describe("the traced looks", () => {
   it("carry every class's trace onto its pair without a stretch", () => {
-    for (const s of SKI_CATALOG) {
+    for (const s of ALL_SKIS) {
       const F = lookFrame(s);
       expect(F.look).toBe(SKI_LOOKS[s.id]);
       expect(F.stretch, s.id).toBeGreaterThan(0.97);
@@ -71,7 +71,7 @@ describe("the traced looks", () => {
   });
 
   it("shape every ski as a ski: a shovel that rises, a waist under the boot", () => {
-    for (const s of SKI_CATALOG) {
+    for (const s of ALL_SKIS) {
       const look = SKI_LOOKS[s.id];
       expect(look.tip.rise).toBeGreaterThan(0);
       expect(look.tip.length).toBeGreaterThan(0);
@@ -87,7 +87,7 @@ describe("the traced looks", () => {
     // the circle through the three is R ≈ c² / 8d. A race pair is cut to
     // its radius within a few per cent; the rockered and twin-tipped pairs
     // run a little off it, and none by more than a sixth.
-    for (const s of SKI_CATALOG) {
+    for (const s of ALL_SKIS) {
       const look = SKI_LOOKS[s.id];
       const widest = (from: number, to: number): number => {
         let best = from;
@@ -107,7 +107,7 @@ describe("the traced looks", () => {
   it("stand the boots where the skier's feet are", () => {
     // The ankles sit over the boots' cuffs: half the stance apart, a hair
     // ahead of the boot centre, which every look puts under the origin.
-    for (const s of SKI_CATALOG) {
+    for (const s of ALL_SKIS) {
       const F = lookFrame(s);
       expect(Math.abs(F.boot - MOUNTS.foot.z), s.id).toBeLessThan(0.1);
       expect(s.stance / 2).toBeCloseTo(MOUNTS.foot.x, 1);

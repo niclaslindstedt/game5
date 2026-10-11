@@ -17,9 +17,19 @@
 export type HeliControls = { collective: number; pitch: number; roll: number; pedal: number };
 
 /** What a `heli` event says (`heli.ts`) — and `slip`, the skier's grip
- * on the skid given out (`heli-grip.ts`), and `rotor`, a blade through him. */
+ * on the skid given out (`heli-grip.ts`), `rotor`, a blade through him, and
+ * `engine`, its turbine stopped (`mishaps.ts`). */
 export type HeliPhaseEvent =
-  "board" | "liftoff" | "land" | "drop" | "home" | "crash" | "restart" | "slip" | "rotor";
+  | "board"
+  | "liftoff"
+  | "land"
+  | "drop"
+  | "home"
+  | "crash"
+  | "restart"
+  | "slip"
+  | "rotor"
+  | "engine";
 
 /** WHAT THE HELICOPTER IS DOING (`heli.ts`): `parked` on its pad, the
  * rotor winding down or turning; `flown` by the player with the skier on
@@ -69,6 +79,9 @@ export type HeliState = {
   agl: number;
   /** Whether the skier is sat on the right skid. */
   rider: boolean;
+  /** AN ENGINE STOPPAGE dealt this flight (`mishaps.ts`), on a free ride
+   * that asked for mishaps — absent otherwise. */
+  engine?: import("./mishaps.ts").EngineFault;
   /** Seconds in this mode (the wreck's clock, the boarding's). */
   t: number;
   /** Where the wreck came down, how hard, m/s, how fast it was coming

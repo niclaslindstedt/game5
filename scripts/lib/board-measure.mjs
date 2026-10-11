@@ -18,14 +18,23 @@ export const BANDS = {
   torso: [0, 30],
   hipsH: [0.6, 1],
   shin: [25, 90],
+  shinDeck: [42, 90],
   snow: 0,
 };
 export const OWN = {
   // Cut hard, the eyes go on round to the turn's exit and one hand may
   // reach the snow.
   // On the heels he sits as on a chair: the knees deeper, the hips lower.
-  heel: { knee: [50, 95], chest: [0, 40] },
-  "heel-cut": { knee: [60, 105], chest: [0, 45], head: [0, 60], snow: 1, hand: [0, 0.4] },
+  heel: { knee: [60, 105], chest: [0, 40], hipsH: [0.6, 0.85] },
+  "heel-cut": {
+    knee: [85, 125],
+    chest: [0, 45],
+    head: [0, 60],
+    snow: 1,
+    hand: [0, 0.25],
+    hipsH: [0.5, 0.75],
+    torso: [0, 40],
+  },
   tuck: { knee: [60, 125], torso: [20, 75], hipsH: [0.4, 0.8] },
   landing: { knee: [45, 120], torso: [0, 45], hipsH: [0.45, 1] },
   wait: { knee: [10, 50] },
@@ -49,10 +58,27 @@ export const OWN = {
     ]),
   ),
   // On his toe edge laid over hard the shins come low — never flat.
-  toe: { knee: [20, 80], shin: [15, 90] },
-  "toe-cut": { knee: [10, 90], head: [0, 60], snow: 1, hand: [0, 0.25], shin: [5, 90] },
-  air: { knee: [30, 100], shin: [0, 90] },
-  spin: { knee: [30, 110], chest: [0, 60], head: [0, 180], shin: [0, 90] },
+  // On his toe edge both knees bend deep and down the edge, the rear one
+  // never left straight; the shins lie low over the snow, never on it.
+  toe: { knee: [65, 100], kneeGap: [0, 20], hipsH: [0.6, 0.85], shin: [5, 90], shinDeck: [45, 90] },
+  // Cut hard he is folded: the hips low, the trunk over the knees, the
+  // front hand at the snow.
+  "toe-cut": {
+    knee: [85, 120],
+    kneeGap: [0, 20],
+    hipsH: [0.45, 0.75],
+    torso: [25, 60],
+    head: [0, 60],
+    snow: 1,
+    hand: [0, 0.15],
+    shin: [3, 90],
+    shinDeck: [50, 90],
+  },
+  // In the air the legs absorb: the knees pulled up, the board under him.
+  air: { knee: [90, 130], hipsH: [0.55, 0.8], torso: [0, 40], shin: [0, 90] },
+  // Leaving the snow, the legs drawing up into the air's fold.
+  rising: { knee: [30, 130], hipsH: [0.55, 1], torso: [0, 40], shin: [0, 90] },
+  spin: { knee: [30, 130], chest: [0, 60], head: [0, 180], shin: [0, 90] },
   windup: { knee: [50, 120], torso: [0, 45] },
   nollie: { knee: [50, 120], torso: [0, 45] },
 };
@@ -113,11 +139,38 @@ export function figuresOf(c, input, bp, BP) {
     dist(p.knees[0], p.feet[0]) +
     dot(sub(p.feet[0], f.centre), f.normal);
   const hipsH = dot(sub(p.hips, f.centre), f.normal) / straight;
-  // The hips across the board, toward his toes positive.
+  // The hips across the board, toward his toes positive, as seen from
+  // above the SNOW (the deck's across laid into the snow's plane): over or
+  // beyond the toe edge on a toeside turn, inside the heel edge on a
+  // heelside one.
   const face = input.board.lead === "regular" ? 1 : -1;
-  const across = dot(sub(p.hips, f.centre), f.right) * face;
+  const n = plane.normal;
+  const flatRight = norm(
+    sub(f.right, { x: n.x * dot(f.right, n), y: n.y * dot(f.right, n), z: n.z * dot(f.right, n) }),
+  );
+  const across = dot(sub(p.hips, f.centre), flatRight) * face;
+  // The shins against the DECK: a shin laid toward the deck is a rider
+  // kneeling on his board (a soft boot leaves it ~55° or more on the snow).
+  const shinDeckOf = (i) =>
+    deg(Math.asin(Math.min(1, Math.abs(dot(norm(sub(p.knees[i], p.feet[i])), f.normal)))));
+  const shinDeck = c.airborne ? null : Math.min(shinDeckOf(0), shinDeckOf(1));
+  const kneeGap = Math.abs(knee[0] - knee[1]);
   const toe = BP.toeShare(input.edge, input.board.lead);
-  return { knee, hips, chest, head, hand, across, torso, hipsH, shin, onSnow, toe };
+  return {
+    knee,
+    kneeGap,
+    hips,
+    chest,
+    head,
+    hand,
+    across,
+    torso,
+    hipsH,
+    shin,
+    shinDeck,
+    onSnow,
+    toe,
+  };
 }
 
 /** The figures `f` (and the grab's gap, m, or null) held to `bands`: the
@@ -146,7 +199,9 @@ export function faultsOf(f, bands, grab = null) {
         bands.grab.map((v) => v * 100),
       );
   }
-  if (f.toe > 0.3) hold("over", f.across, [0, 0.25]);
-  if (f.toe < -0.3) hold("over", f.across, [-0.3, -0.05]);
+  hold("shinDeck", f.shinDeck, bands.shinDeck);
+  if (bands.kneeGap) hold("kneeGap", f.kneeGap, bands.kneeGap);
+  if (f.toe > 0.3) hold("over", f.across, [0.1, 0.8]);
+  if (f.toe < -0.3) hold("over", f.across, [-0.8, -0.1]);
   return faults;
 }

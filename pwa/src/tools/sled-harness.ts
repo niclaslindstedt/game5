@@ -16,7 +16,9 @@
 import {
   createGame,
   generateLevel,
+  isPairId,
   NEUTRAL_INPUT,
+  pairById,
   step,
   TUNING,
   type GameState,
@@ -57,6 +59,11 @@ const scale = Number(params.get("scale") ?? 0.5);
 /** The lab's own sky over the map's (`withSky`): an hour and a weather. */
 const hour = Number(params.get("hour"));
 const weather = (params.get("weather") || undefined) as WeatherKind | undefined;
+// What he rides (`?skis=`, a pair or a board — what the rack carries) and
+// whether he carries poles (`?poles=0`).
+const pick = params.get("skis") ?? "";
+const spec = isPairId(pick) ? pairById(pick) : undefined;
+const poles = params.get("poles") !== "0";
 const baseSky: SkyOverride | null =
   Number.isFinite(hour) && params.get("hour") !== null
     ? { hour, ...(weather ? { weather } : {}) }
@@ -85,7 +92,17 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 const STILL = 1e-4;
 
 function fresh(sled: boolean): GameState {
-  return createGame({ level, seed, region, mode: "free", sled, crowd: 0, quiet: true });
+  return createGame({
+    level,
+    seed,
+    region,
+    mode: "free",
+    sled,
+    spec,
+    poles,
+    crowd: 0,
+    quiet: true,
+  });
 }
 
 const ready = (async () => {

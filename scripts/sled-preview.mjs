@@ -90,6 +90,12 @@ const args = parseArgs(
       default: "",
       help: "the sky every sheet is drawn under (clear, fair, flurries, high, overcast, snow, storm, fog); the map's own when left out",
     },
+    skis: {
+      kind: "string",
+      default: "",
+      help: "what he rides, and the rack carries: a pair (chamois …) or a snowboard (lynx …); the default pair when left out",
+    },
+    "no-poles": { kind: "flag", help: "he rides without poles, so none are racked" },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
     height: { kind: "number", default: 720, help: "a frame's height, px" },
@@ -100,7 +106,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1800, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/sled-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--hour=h] [--weather=kind] [--skip-build]",
+  "usage: node scripts/sled-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--hour=h] [--weather=kind] [--skis=id] [--no-poles] [--skip-build]",
 );
 
 const list = (s) =>
@@ -161,6 +167,8 @@ const query = new URLSearchParams({
   ...(args.region ? { region: args.region } : {}),
   ...(Number.isFinite(args.hour) ? { hour: String(args.hour) } : {}),
   ...(args.weather ? { weather: args.weather } : {}),
+  ...(args.skis ? { skis: args.skis } : {}),
+  ...(args["no-poles"] ? { poles: "0" } : {}),
 }).toString();
 /** `work`, or a failure the moment the page throws — never the timeout
  * burnt on a page that died. */

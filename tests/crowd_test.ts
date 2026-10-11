@@ -114,14 +114,26 @@ describe("the crowd is dealt", () => {
     for (const a of riders) expect(a.knobs.turn).not.toBe("plough");
   });
 
-  it("a rider sits down in the snow at a stop now and then, and gets up again", () => {
+  it("a rider sits down in the snow at a stop now and then, and gets up again — clear of the rest", () => {
     const state = free();
     let sat = 0;
     let rose = false;
+    let inside = 0;
+    let riders = 0;
     const was = new Set<number>();
     for (let i = 0; i < 120 * 90; i++) {
       step(state, NEUTRAL_INPUT);
       if (i % 60 !== 0) continue;
+      // Stood still, nobody stands inside another: riders strapping in off
+      // one lift's top, a group pulled up together (`crowd-apart.ts`).
+      const still = state.crowd!.amateurs.filter((a) => a.mode === "stop" && a.speed === 0);
+      for (let p = 0; p < still.length; p++)
+        for (let q = p + 1; q < still.length; q++) {
+          const [a, b] = [still[p], still[q]];
+          if (Math.hypot(a.x - b.x, a.z - b.z) >= 0.5) continue;
+          inside++;
+          if (a.board && b.board) riders++;
+        }
       state.crowd!.amateurs.forEach((a, k) => {
         if (a.sit > 0.9) {
           expect(a.board).not.toBeNull();
@@ -133,6 +145,8 @@ describe("the crowd is dealt", () => {
     }
     expect(sat).toBeGreaterThan(0);
     expect(rose).toBe(true);
+    expect(riders).toBe(0);
+    expect(inside).toBe(0);
   });
 
   it("the same seed, the same crowd, step for step", () => {
@@ -275,6 +289,37 @@ describe("the crowd on the lifts", () => {
 });
 
 describe("nobody skis inside another", () => {
+  it("stopped on one spot, riders and skiers shuffle apart across the hill", () => {
+    for (const boards of [true, false]) {
+      const state = free();
+      const crowd = state.crowd!;
+      ride(state, 1 / 120);
+      // Two on one run, stood still on the very same spot for a long stop,
+      // one of them sat if they ride boards (riders strapping in off a top).
+      const a = crowd.amateurs.find((m) => m.mode === "ski" && Boolean(m.board) === boards)!;
+      const b = crowd.amateurs.find(
+        (m) => m !== a && m.mode === "ski" && Boolean(m.board) === boards,
+      )!;
+      b.run = a.run;
+      for (const m of [a, b]) {
+        m.s = a.s;
+        m.d = 0;
+        m.mode = "stop";
+        m.speed = 0;
+        m.timer = 30;
+        m.think = 30;
+        m.sitDown = boards && m === a;
+      }
+      ride(state, 4);
+      expect([a.mode, b.mode]).toEqual(["stop", "stop"]);
+      const gap = Math.abs(a.d - b.d);
+      // A board across the hill reaches the plank's half either side of
+      // him; a skier stood on his skis, his own body's room.
+      expect(gap).toBeGreaterThan(boards ? 2 * CROWD.apart.across : 1);
+      if (boards) expect(Math.abs(a.d)).toBeLessThan(0.05); // the sat one stays put
+    }
+  });
+
   it("off a lift, on a run, in a school's snake: a body's room between them", () => {
     const state = free();
     const crowd = state.crowd!;

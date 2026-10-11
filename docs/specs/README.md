@@ -33,7 +33,7 @@ one spec cuts across them all:
 | Spec | Format | State |
 | --- | --- | --- |
 | [TRICK_MODES.md](TRICK_MODES.md) | What every format shares: the trick card, the trick reader, the judge, the field, more rotation, jibs, the build order | built in part — every format built; more grabs, the jibs' balance, the judges' marks one by one, the venues' audience and cameras open |
-| [BIG_AIR.md](BIG_AIR.md) | Big air | built in part |
+| [SKI_JUMPING.md](SKI_JUMPING.md) | Ski jumping — replaced big air as the tricks card's first format | built through phase 7 (the engine and the app); the hill, the jumper, the cameras, the sound and its hills to come |
 | [SLOPESTYLE.md](SLOPESTYLE.md) | Slopestyle | built in part |
 | [HALFPIPE.md](HALFPIPE.md) | Halfpipe | built in part |
 | [MOGULS.md](MOGULS.md) | Moguls | built in part |

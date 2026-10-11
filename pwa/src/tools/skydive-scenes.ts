@@ -343,6 +343,30 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     };
     st.shoot(l, "let go", overPoint(spare, 7, 5, 7, 50));
   },
+  // ── MALFUNCTIONS (`mishaps.ts`): line twists and a line over ─────────
+  // The main given each by hand, as a mishap stream would deal it: three
+  // turns of twist kicked out on the edge, then a line over the right tip
+  // spiralling him round, seen from behind, below, the side and the front.
+  malfunction(st) {
+    const s = dive(st, 900, "open");
+    st.run(s, 1, still);
+    s.chute!.mal = "twist";
+    s.chute!.twist = 3 * 2 * Math.PI;
+    st.run(s, 0.5, still);
+    st.shoot(s, "twists behind", around(0, 3.2, 8, 44, 3));
+    st.shoot(s, "twists close", around(3.5, 1.4, 3.5, 40, 1.4));
+    st.run(s, 1.2, keys({ steer: 1 }));
+    st.shoot(s, "kicking", around(6, 2, 5, 48, 2.5));
+    const o = dive(st, 900, "open");
+    st.run(o, 1, still);
+    o.chute!.mal = "lineover";
+    o.chute!.over = 1;
+    st.run(o, 2.5, still);
+    st.shoot(o, "line over behind", around(0, 4.4, 11, 40, 4.4));
+    st.shoot(o, "line over below", around(0.4, -5, 2.5, 52, 4.2));
+    st.shoot(o, "line over side", around(11, 4.4, 0, 40, 4.2));
+    st.shoot(o, "line over front", around(0, 4.6, -11, 40, 4.4));
+  },
   // ── CAUGHT: a crown and a lift's rope ─────────────────────────────────
   snag(st) {
     const level = st.level;
@@ -573,6 +597,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   cutaway: ["cutaway"],
   reserve: ["reserve"],
   snag: ["snag"],
+  malfunction: ["malfunction"],
   lenses: ["lenses"],
   night: ["night"],
   stages: ["stages"],

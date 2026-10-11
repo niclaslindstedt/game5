@@ -6,7 +6,8 @@
 // it, the medals totalled — and the rig over a free ride: judged only when
 // the player rides it, its news, its book filed at once, the HUD's chip and
 // plate, the minimap's marks (a hidden spot never before it is found) and
-// the pause card's rows.
+// the pause card's rows — and what stands on the snow for them
+// (`challenge-flags-plan.ts`).
 
 import { describe, expect, it } from "vitest";
 
@@ -41,6 +42,7 @@ import {
   medalInReach,
   PLATE_HOLD,
 } from "../pwa/src/game/challenge-hud.ts";
+import { CHALLENGE_FLAG, planFlags } from "../pwa/src/game/challenge-flags-plan.ts";
 import { levelFor } from "./support/levels.ts";
 
 const LINE = {
@@ -282,5 +284,49 @@ describe("the challenges' rig", () => {
     expect(texts.some((t) => t.includes("NO MEDAL, +3.0 S TO BRONZE"))).toBe(true);
     expect(r.plate).toMatchObject({ id: line.id, medal: null, gap: 3 });
     expect(entryOf(r.book, plan.key, trick.id)).toMatchObject({ medal: "silver", value: 2 });
+  });
+});
+
+describe("the challenges on the snow", () => {
+  const level = levelFor(38);
+  const plan = dealChallenges(level);
+  const flags = planFlags(level, plan);
+
+  it("plants two feather flags and two timing posts at every line's start and finish", () => {
+    const lines = plan.challenges.filter(isLine);
+    expect(flags.flags.length).toBe(lines.length * 4);
+    expect(flags.sensors.length).toBe(lines.length * 4);
+    expect(flags.dyes.length).toBe(lines.length * 2);
+    for (const c of lines) {
+      for (const role of ["start", "finish"] as const) {
+        const g = c[role];
+        const own = flags.flags.filter((f) => f.id === c.id && f.role === role);
+        expect(own).toHaveLength(2);
+        for (const f of own) {
+          // Outside the run's edge, never on its snow, and sunk into the ground.
+          const across = Math.abs(
+            (f.x - g.x) * Math.cos(g.heading) - (f.z - g.z) * Math.sin(g.heading),
+          );
+          expect(across).toBeGreaterThan(g.width / 2 + 0.5);
+          expect(f.y).toBeLessThan(level.groundAt(f.x, f.z));
+          expect(f.y).toBeGreaterThan(level.groundAt(f.x, f.z) - 0.2);
+        }
+      }
+    }
+  });
+
+  it("stands a kicker's pennant off its side and a pennant over every hidden spot", () => {
+    const tricks = plan.challenges.filter(isTrick);
+    expect(flags.kickers).toHaveLength(tricks.length);
+    for (const t of tricks) {
+      const p = flags.kickers.find((k) => k.id === t.id)!;
+      const k = t.kicker;
+      const across = Math.abs(
+        (p.x - k.x) * Math.cos(k.heading) - (p.z - k.z) * Math.sin(k.heading),
+      );
+      expect(across).toBeCloseTo(k.width / 2 + CHALLENGE_FLAG.pennant.out, 3);
+    }
+    const spots = plan.challenges.find(isSpots);
+    expect(flags.spots).toHaveLength(spots?.spots.length ?? 0);
   });
 });

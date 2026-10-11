@@ -46,6 +46,9 @@ function goalWord(goal: { spin: number; flips: number; grab: boolean }): string 
 
 export const CHALLENGE_STRINGS = {
   medalNames: MEDAL_NAMES,
+  /** The words printed down a timed line's feather flags on the snow. */
+  challengeFlagStart: "START",
+  challengeFlagFinish: "FINISH",
   /** A time on a challenge, as every clock in the game reads one. */
   challengeTime: (s: number): string => formatTime(s),
   challengeGoal: goalWord,

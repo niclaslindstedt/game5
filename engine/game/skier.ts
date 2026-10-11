@@ -72,7 +72,6 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
-  onIce,
   onRock,
   pisteIce,
   platformOf,
@@ -561,8 +560,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const vl = pvx * side.x + pvy * side.y + pvz * side.z;
     if (Math.abs(vl) > slipWorst) slipWorst = Math.abs(vl);
     gripAt(packed, grip, fit);
-    if (ice > 0) onIce(grip, ice);
-    if (bare > 0) onRock(grip, bare);
+    if (ice > 0 || bare > 0) onRock(grip, bare, ice);
     // THE EDGE holds sideways, as much as it is stood on; the BASE holds
     // in powder whatever the edge is doing; either lets go progressively.
     // A ski pivoted into a skid scrapes on its edge rather than biting

@@ -276,8 +276,10 @@ export function onIce(out: Grip, ice: number): Grip {
 
 /** What BARE ROCK leaves of a grip already read, `rock` 0..1 of the
  * station's footprint on it (`Level.bareRockAt`): a steel edge on stone
- * skates and scrapes, holding `grip.rock` of what it holds on snow. */
-export function onRock(out: Grip, rock: number): Grip {
+ * skates and scrapes, holding `grip.rock` of what it holds on snow — after
+ * the bare ice under it (`onIce`), when there is some. */
+export function onRock(out: Grip, rock: number, ice = 0): Grip {
+  if (ice > 0) onIce(out, ice);
   const R = G.rock;
   out.edge *= 1 - rock * (1 - R.edge);
   out.base *= 1 - rock * (1 - R.base);

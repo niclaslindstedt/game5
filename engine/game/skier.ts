@@ -101,7 +101,8 @@ import { castLeg } from "./leg-ray.ts";
 import { riddenLevel } from "./mogul-ride.ts";
 import { climbShare, driveForce, hillPull, slopeShare } from "./poles.ts";
 import { holdsStill, laySkis, poleForce, pushReachOf, sidestepEdge } from "./board-moves.ts";
-import { stepRound, stepSide, stoodStill, strideOn, turnWork } from "./board-moves.ts";
+import { hopAhead, stepRound, stepSide, stoodStill, strideOn } from "./board-moves.ts";
+import { hopHeld, turnWork } from "./board-moves.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
@@ -231,7 +232,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // THE DRIVE HE MAKES (`poles.ts`): automatic at a crawl once he is
   // rolling (or the moment the tuck asks him to go — a skier standing still
   // with his hands off stays standing), and not while he is braking,
-  // loading a jump, riding switch, in the air or off his skis; the stride's
+  // loading a jump, riding switch, in the air or off his skis (a board's
+  // hop at a crawl excepted: `hopHeld`); the stride's
   // phase runs only while he is working.
   // A BOARD rides FAKIE as forward (`switch.ts`): it drives the way it goes.
   const fakie = c.switched && spec.board !== undefined;
@@ -244,14 +246,12 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // ...and never out of a start house (`start-push.ts`): one push, then
   // he skis.
   const housed = state.rules.start === "interval" && state.rules.course;
-  // ...and only while the poles are worth it: down a pitch pulling him on
-  // harder than they push (`slopeShare`), he tucks. A board's is its own.
+  // ...and only while the hill pulls less than the poles (`slopeShare`; a board's is its own).
   const poled = c.board ? 0 : driveForce(spec, speed0, c.packed, 1, c.poles, c.step) / m;
   const hill = c.board ? 1 : slopeShare(hillPull(level, c.x, c.z, c.heading, c.way), poled);
+  const free = (!c.airborne && c.jumpLoad === 0) || hopHeld(c, speed0);
   const working =
-    going && !c.airborne && c.thrown === null && c.jumpLoad === 0 && !housed
-      ? (1 - c.brake) * straight * hill
-      : 0;
+    going && free && c.thrown === null && !housed ? (1 - c.brake) * straight * hill : 0;
   c.drive = approach(c.drive, working, P.rate * dt);
   // The strides, the step turn and the line he glides on (`strideOn`), and
   // the turn he steps this step, which the yaw is asked for below.
@@ -271,7 +271,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // from the step he means to work, not once the drive has come up, or a
   // skier sent off at GO with the tuck held folds down and is stood back
   // up again before his first push.
-  const tucked = c.tuck * (1 - Math.max(c.drive, working) * pushReachOf(c, speed0));
+  const reachAt = free && c.airborne ? Math.abs(c.way) : speed0;
+  const tucked = c.tuck * (1 - Math.max(c.drive, working) * pushReachOf(c, reachAt));
   c.crouch = approach(c.crouch, Math.max(tucked, load), K.crouchRate * dt);
   const drop = spec.crouchDrop * c.crouch;
   const k = Math.min(1, dt / K.lag);
@@ -893,6 +894,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     c.vx += pop * normal.x;
     c.vy += pop * normal.y;
     c.vz += pop * normal.z;
+    hopAhead(c, normal);
     c.popped = 0;
     events.push({ kind: "jump", t: state.t, pop, held: loaded });
     if (c.switched) hopRevert(state, input.steer);

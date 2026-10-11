@@ -16,6 +16,8 @@ import {
   BONES,
   ORGANS,
   INJURIES,
+  LYNX,
+  SKIS,
   mayGetUp,
   NEUTRAL_INPUT,
   TUNING,
@@ -50,6 +52,7 @@ import {
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import {
   AIR_SHOWN,
+  crawlHint,
   gatesTaken,
   standingsOf,
   takeSnapshot,
@@ -57,7 +60,7 @@ import {
 } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
 import { skyLookAt } from "../pwa/src/game/sky.ts";
-import { LONE_TREE, syntheticLevel } from "./support/synthetic.ts";
+import { LONE_TREE, flatLevel, syntheticLevel } from "./support/synthetic.ts";
 
 /** A race on the slope, three rivals on the start line and the lights on. */
 function race(): GameState {
@@ -720,5 +723,38 @@ describe("the strings table (strings.ts, §39.1)", () => {
       if (typeof value === "string") expect(value.trim().length, key).toBeGreaterThan(0);
       expect(sources.includes(`STRINGS.${key}`), `STRINGS.${key} is never read`).toBe(true);
     }
+  });
+});
+
+describe("the snowboarder's GET GOING hint", () => {
+  const stood = (spec: typeof LYNX, mode: "free" | undefined) => {
+    const state = createGame({
+      level: flatLevel({ packed: 1 }),
+      spec,
+      rivals: 0,
+      countdown: 0,
+      quiet: true,
+      mode,
+    });
+    placeRun(state, { x: 1500, z: 200, heading: 0 });
+    step(state, NEUTRAL_INPUT);
+    return state;
+  };
+
+  it("shows a board rider stood still on a free ride how to get going, and no one else", () => {
+    expect(crawlHint(stood(LYNX, "free"))).toBe(true);
+    expect(crawlHint(stood(SKIS, "free"))).toBe(false);
+    expect(crawlHint(stood(LYNX, undefined))).toBe(false);
+  });
+
+  it("is gone once he is going", () => {
+    const state = stood(LYNX, "free");
+    for (let i = 0; i < TUNING.physicsHz * 3; i++) step(state, { ...NEUTRAL_INPUT, tuck: 1 });
+    expect(crawlHint(state)).toBe(false);
+  });
+
+  it("names the keys it asks for", () => {
+    expect(STRINGS.crawlHow(false, "W", "SPACE")).toContain("W");
+    expect(STRINGS.crawlHow(true, "", "")).toContain("TUCK");
   });
 });

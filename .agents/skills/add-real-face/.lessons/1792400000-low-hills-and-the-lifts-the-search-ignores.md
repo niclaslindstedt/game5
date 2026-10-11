@@ -5,13 +5,13 @@ scope: scripts/real-faces.mjs, scripts/lib/real-face-crops.mjs, tests/real_faces
 concepts: [crop, search, drop, lifts, ids]
 ---
 
-`--search` ranks crops by drop and fall share alone, so its best row can
-leave half the real lifts off the map (an area whose lifts radiate off a
-dome) or put them all in the top quarter with the drop coming from the
-valley below. Before the hints, pull the lifts' ends round the middle off
-the map API and turn them onto the crop with `mapAt`: every end on the map,
-the bottoms low on it. Among the rows with every lift on the map, take the
-best drop. A score that weighs the lifts belongs in `--search` itself.
+`--search` once ranked crops by drop and fall share alone, so its best
+row could leave half the real lifts off the map (an area whose lifts
+radiate off a dome) or put them all in the top quarter with the drop coming
+from the valley below. It now fetches the lifts' ends round the middle off
+the map API and weighs each row by the share of ends on the map and of
+bottoms low on it (`lifts on`, `low`). Read those two columns before
+taking a row: every end on the map, the bottoms low, then the best drop.
 
 The suite holds a face to 250 m between its ridge row and its floor row
 across the playable width. A ski area of under about 300 m of vertical in a

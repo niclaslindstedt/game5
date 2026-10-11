@@ -1,4 +1,7 @@
 ---
+title: Two mountainsides of one area must stand about seven kilometres apart
+date: 2026-10-11
+scope: scripts/lib/real-face-crops.mjs, tests/world_map_test.ts
 concepts: [crops, where, area-step, markers]
 ---
 

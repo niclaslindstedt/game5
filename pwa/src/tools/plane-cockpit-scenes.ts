@@ -8,15 +8,22 @@
 
 import {
   NEUTRAL_INPUT,
-  fromEuler,
+  TUNING,
   planeAloft,
   planeFlight,
-  rotate,
   type GameState,
   type PlaneControls,
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { neutralTouch } from "../game/input-model.ts";
+import {
+  NO_PLANE_KEYS,
+  createPlaneModel,
+  samplePlane,
+  seatPlaneModel,
+  type PlaneKeysHeld,
+} from "../game/input-plane.ts";
 import type { Drive, Stage } from "./plane-scenes.ts";
 
 /** What the sheet borrows from the lab's own scenes. */
@@ -51,19 +58,36 @@ export function cockpitViews(k: CockpitKit): Record<string, (st: Stage) => void 
       const b = aloft(st, 60);
       st.run(b, 1.6, held({ roll: 0.8, pitch: -0.3 }));
       st.shoot(b, "banked", "helmet");
-      // THE LOOP'S TOP: set over the strip upside down, wings level, the
-      // nose coming round over the top on the stick held back.
+      // THE LOOP'S TOP, flown: over the strip at full power, pushed into a
+      // dive to 120 kt and then the stick held back on the player's own
+      // hand (`samplePlane`) until it hangs upside down over the top.
       const l = st.fresh();
       const p0 = l.plane!;
-      planeAloft(l, { x: p0.x, y: p0.y + 700, z: p0.z, heading: p0.heading, speed: 38, power: 1 });
+      planeAloft(l, { x: p0.x, y: p0.y + 700, z: p0.z, heading: p0.heading, speed: 50, power: 1 });
       const p = l.plane!;
-      p.q = fromEuler(p0.heading + Math.PI, 0, Math.PI);
-      const f = rotate(p.q, { x: 0, y: 0, z: 1 });
-      p.vx = f.x * 38;
-      p.vy = 0;
-      p.vz = f.z * 38;
-      p.wx = -0.45;
-      st.run(l, 0.2, held({ pitch: -0.8, throttle: 1, roll: 0 }));
+      const hand = createPlaneModel();
+      seatPlaneModel(hand, { throttle: 1, flaps: 0 });
+      const keyed =
+        (k: Partial<PlaneKeysHeld>): Drive =>
+        (s) => {
+          const q = s.plane!;
+          const plane = samplePlane(
+            hand,
+            { ...NO_PLANE_KEYS, ...k },
+            neutralTouch(),
+            TUNING.dt,
+            q.airspeed,
+            q.stalled,
+          );
+          return { ...NEUTRAL_INPUT, plane };
+        };
+      for (let t = 0; t < 30 && p.airspeed < 62; t += 0.1)
+        st.run(l, 0.1, keyed({ stickForward: true }));
+      let over = false;
+      for (let t = 0; t < 20 && !over; t += 0.05) {
+        st.run(l, 0.05, keyed({ stickBack: true }));
+        over = Math.abs(p.roll) > 2.6 && Math.abs(p.pitch) < 0.25;
+      }
       st.shoot(l, "loop's top", "helmet");
     },
     async "cockpit-night"(st) {

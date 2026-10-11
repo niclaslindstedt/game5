@@ -32,7 +32,11 @@
 // airspeed at its efficiency, held under its static thrust (momentum
 // theory, the power's two-thirds power) by a smooth minimum; windmilling at
 // idle it drags; on the snow with the brakes on, it reverses. Its torque
-// rolls the airframe left and the slipstream's swirl yaws it left.
+// rolls the airframe left and the slipstream's swirl yaws it left — and the
+// airframe is RIGGED against both (`aero.rig`: the ailerons set a touch
+// apart, the fin offset), cancelling them at the cruise as a single's
+// rigging does, so they come back only off it: slow on full power, as over
+// a loop's top, the nose wants right rudder.
 //
 // Pure over the plane's state and the air given it; nothing here draws
 // from the stream.
@@ -175,7 +179,13 @@ function wingSections(): Section[] {
           side,
           (piece.to - piece.from) * W.chord * scale,
           "wing",
-          { flap: piece.flap, aileron: piece.flap ? 0 : side },
+          {
+            flap: piece.flap,
+            aileron: piece.flap ? 0 : side,
+            // The ailerons' rigging: the left one set a touch down, the
+            // right a touch up, against the torque's roll.
+            camber: -A.zeroLift - (piece.flap ? 0 : side * A.rig.aileron),
+          },
         ),
       );
     }
@@ -209,7 +219,9 @@ function finSection(): Section {
     stall: A.stall.fin,
     profile: A.profile.fin,
     induced: 1 / (Math.PI * ((2 * h * h) / area) * 0.8),
-    camber: 0,
+    // The fin set off the centre line, its leading edge to the left, as a
+    // touch of right rudder held for good against the swirl's yaw.
+    camber: -A.rig.fin,
   });
   // A fin's normal is the body's right.
   s.nx = 1;

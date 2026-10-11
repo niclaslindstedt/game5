@@ -101,9 +101,11 @@ export const PLANE = {
   },
   /** THE HORIZONTAL TAIL: span, m (16 ft 10 in), chord, m, its leading
    * edge's z and height, m, its incidence to the fuselage line, rad (set
-   * so the plane trims at about 45 m/s with the stick centred), and the
-   * elevator's share of its chord. [class drawing; est.] */
-  tail: { span: 5.13, chord: 1.1, le: -6.1, y: 1.98, incidence: -0.035, elevator: 0.4 },
+   * so the plane trims at 45 m/s on climb power with the stick centred —
+   * the trim a pilot winds in for the jump run and for aerobatics, which a
+   * held stick then pulls and pushes about), and the elevator's share of
+   * its chord. [class drawing; est.] */
+  tail: { span: 5.13, chord: 1.1, le: -6.1, y: 1.98, incidence: 0.016, elevator: 0.4 },
   /** THE FIN AND RUDDER: the root's height, leading edge and chord, the
    * tip's, m, and the rudder's share of the chord — tall, with a dorsal
    * fillet run forward along the tailcone (`dorsal`: its leading edge's z
@@ -171,9 +173,18 @@ export const PLANE = {
    *     behind the CoG (`at`); their sum with the wing's profile drag is
    *     the class's CD0 ≈ 0.078 × 30.15 m², plus the skis.
    *   * `effect` each control surface's angle-of-attack effectiveness (a
-   *     rad of surface a rad of the surface's α).
+   *     rad of surface a rad of the surface's α) — the aileron's set for a
+   *     full-aileron roll of ≈60°/s at the cruise (a helix angle pb/2V of
+   *     ≈0.07, a long-winged utility single's).
    *   * `slip` the share of the propeller's slipstream increment the tail
-   *     and the fin sit in. [est., see the header] */
+   *     and the fin sit in;
+   *   * `rig` how it is rigged against the propeller: the ailerons set a
+   *     touch apart (`aileron`, rad of section angle, the left down) and the
+   *     fin offset (`fin`, rad, as right rudder), each solved so the
+   *     torque's roll and the swirl's yaw cancel at 50 m/s on three-quarter
+   *     power, as a single's are — slower on full power the left-turning
+   *     pull comes back (the right rudder over a loop's top), faster on
+   *     less it reverses. [est., see the header] */
   aero: {
     lift: { wing: 4.96, tail: 4.15, fin: 3.4 },
     zeroLift: -0.052,
@@ -188,8 +199,9 @@ export const PLANE = {
     flapStall: 0.8,
     downwash: 0.076,
     body: { front: 1.8, side: 6.5, plan: 6.0, at: { y: 1.6, z: -0.9 } },
-    effect: { aileron: 0.25, elevator: 0.5, rudder: 0.5 },
+    effect: { aileron: 0.35, elevator: 0.5, rudder: 0.5 },
     slip: 0.6,
+    rig: { aileron: 0.00085, fin: 0.00107 },
   },
 
   /** THE ENGINE AND PROPELLER: the shaft power at full throttle, W (550
@@ -291,8 +303,8 @@ export const PLANE = {
    * (`rollFactor`, ≈1.5 — "just enough" with an abort margin), and the
    * overrun past it, m; the measured roll itself, m (`plane-flight`'s lab
    * reads it off the engine: its packed-snow roll at the working weight
-   * with the skier aboard, the take-off flap, full power — 199 m on the
-   * flat, 222 m down a generated map's own strip); the steepest grade along
+   * with the skier aboard, the take-off flap, full power — 222 m on the
+   * flat, 225 m down a generated map's own strip); the steepest grade along
    * it and across it, and the most the snow may stand off a straight line
    * along it, m, and the most its grade over any 5 m may stand off the
    * strip's own (no lip or terrace edge); the clearance kept round it, m. */

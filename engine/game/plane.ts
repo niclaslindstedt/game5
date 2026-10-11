@@ -332,13 +332,26 @@ function controlsFor(run: GameState, p: PlaneState, input: SkierInput): PlaneCon
   airBoundsAt(run.level, p.x, p.z, p.agl, TUNING.bounds.air.plane, bounds);
   p.bounds = bounds.depth;
   if (p.bounds > 0 && !p.grounded && p.mode === "flown") {
-    // Only flown on toward the edge: along it or back in, it is let be.
-    const out = Math.cos(angleDiff(p.heading, bounds.heading + Math.PI));
-    const w = clamp(p.bounds * 6, 0, 1) * clamp(out + 1, 0, 1);
+    // Only flown on toward the edge (fully within 60° of straight out);
+    // along it only deep in the band (past 60 % of it), and back in, it is
+    // let be. Only flown upright, too: a loop, a roll or a stall turn thrown
+    // in the band is the player's — its heading means nothing over the top,
+    // and the wind still blows it back in. Outward is against the bounds'
+    // wind, which blows straight in off the nearest edge (or two, in a
+    // corner).
+    const wl = hypot(bounds.wx, bounds.wz);
+    const out =
+      wl > 1e-6
+        ? -(Math.sin(p.heading) * bounds.wx + Math.cos(p.heading) * bounds.wz) / wl
+        : Math.cos(angleDiff(p.heading, bounds.heading + Math.PI));
+    const upright =
+      clamp((1.4 - Math.abs(p.roll)) / 0.5, 0, 1) * clamp((0.9 - Math.abs(p.pitch)) / 0.35, 0, 1);
+    const w = clamp(p.bounds * 6, 0, 1) * clamp(2 * out + 2 * (p.bounds - 0.6), 0, 1) * upright;
     const hand = boundsHand(p, bounds.heading);
     c.roll += (hand.roll - c.roll) * w;
     c.yaw += (hand.yaw - c.yaw) * w;
-    c.pitch += (hand.pitch - c.pitch) * w;
+    // The hand's pitch never weakens the player's pull (nose up negative).
+    c.pitch = Math.min(c.pitch, c.pitch + (hand.pitch - c.pitch) * w);
     c.throttle = Math.max(c.throttle, hand.throttle * w);
   }
   return c;

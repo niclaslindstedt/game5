@@ -17,6 +17,16 @@
 // enough to snap the wing. The ailerons are scaled the same way, by the
 // speed alone (a roll rate grows with it). The thumbs' stick is scaled too;
 // it is not eased, the thumb being its own ramp.
+//
+// THE HAND PULLS TO THE BUFFET, NOT THROUGH IT. The reach grows as the
+// plane slows, so a stick held back over a loop's top would reach all its
+// travel just where the air is thinnest and stall the wing inverted. A
+// pilot feels the buffet when the inner wing starts to let go and eases
+// the pull there; so does this hand (`BUFFET`, `model.pull`): the share of
+// the stick's travel it gives eases off while more of the wing than that is
+// stalled (pulled or pushed) and comes back once it flies again. Held back
+// with full rudder is a deliberate spin entry, and then the hand pulls all
+// the way.
 
 import type { PlaneControls } from "@engine";
 
@@ -79,15 +89,31 @@ export const YAW_RELEASE = 9;
  * its buffet, four g at cruise — a tight loop, never a snap. */
 export const PITCH_FULL = 28;
 export const PITCH_LEAST = 0.35;
-/** THE AILERONS' REACH: all of it up to `ROLL_FULL` m/s, falling with the
- * speed to no less than `ROLL_LEAST`. */
-export const ROLL_FULL = 40;
-export const ROLL_LEAST = 0.5;
+/** The forward stick's least reach: a push needs more of the travel than a
+ * pull (inverted the wing must be flown at a negative angle, and a dive at
+ * full power is pushed against the trim), and its stall is the buffet's
+ * to guard, as the pull's is. */
+export const PUSH_LEAST = 0.7;
+/** THE AILERONS' REACH: all of it up to `ROLL_FULL` m/s (the cruise),
+ * falling with the speed to no less than `ROLL_LEAST`. */
+export const ROLL_FULL = 60;
+export const ROLL_LEAST = 0.6;
 
-/** The share of the elevator's travel the stick may use at `airspeed` m/s. */
-export function pitchReach(airspeed: number): number {
+/** THE BUFFET the hand pulls to: the share of the wing stalled past which
+ * it eases the back stick off, at `BUFFET_EASE` a second a share over it
+ * (and back on at the same rate under it), never under `BUFFET_LEAST` of
+ * the reach; and the rudder past which a held pull goes through it (the
+ * spin's entry). */
+export const BUFFET = 0.08;
+export const BUFFET_EASE = 10;
+export const BUFFET_LEAST = 0.2;
+export const SPIN_RUDDER = 0.9;
+
+/** The share of the elevator's travel the stick may use at `airspeed` m/s,
+ * pulled back or (`push`) pushed forward. */
+export function pitchReach(airspeed: number, push = false): number {
   const v = Math.max(1, airspeed);
-  return Math.min(1, Math.max(PITCH_LEAST, (PITCH_FULL / v) ** 2));
+  return Math.min(1, Math.max(push ? PUSH_LEAST : PITCH_LEAST, (PITCH_FULL / v) ** 2));
 }
 
 /** The share of the ailerons' travel the stick may use at `airspeed` m/s. */
@@ -106,6 +132,8 @@ export type PlaneModel = {
   pitch: number;
   roll: number;
   yaw: number;
+  /** The share of the back stick's reach the hand gives at the buffet. */
+  pull: number;
   flapKeys: { down: boolean; up: boolean };
   nudge: number;
 };
@@ -117,6 +145,7 @@ export function createPlaneModel(): PlaneModel {
     pitch: 0,
     roll: 0,
     yaw: 0,
+    pull: 1,
     flapKeys: { down: false, up: false },
     nudge: 0,
   };
@@ -135,6 +164,7 @@ export function seatPlaneModel(model: PlaneModel, at: { throttle: number; flaps:
   model.throttle = Math.min(1, Math.max(0, at.throttle));
   model.flaps = Math.round(Math.min(1, Math.max(0, at.flaps)) / FLAP_NOTCH) * FLAP_NOTCH;
   model.pitch = model.roll = model.yaw = 0;
+  model.pull = 1;
   model.nudge = 0;
 }
 
@@ -142,12 +172,13 @@ const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.m
 
 /**
  * ONE STEP OF THE PLANE'S CONTROLS off the keys and the thumbs, at the
- * plane's own `airspeed` (m/s) — on touch the helicopter's two pads, the
+ * plane's own `airspeed` (m/s) and the share of its wing `stalled` — on touch the helicopter's two pads, the
  * STICK on the edge thumb's side and the POWER PAD on the lever's:
  *   * the POWER LEVER worked by its keys, or the power pad's vertical
  *     travel (pushed up opens it, at a rate), and left where it is;
  *   * the STICK off its keys (eased) or the thumb's stick, which owns both
- *     its axes while it is down — either scaled to the speed's reach;
+ *     its axes while it is down — either scaled to the speed's reach, and
+ *     its back travel eased off at the buffet;
  *   * the RUDDER off its keys, or the power pad's sideways travel;
  *   * the FLAPS a notch a press, off the keys or the HUD's flap press;
  *   * the BRAKES while their key is down.
@@ -159,6 +190,7 @@ export function samplePlane(
   touch: TouchChannel,
   dt: number,
   airspeed: number,
+  stalled = 0,
 ): PlaneControls {
   const lift = (keys.throttleUp ? 1 : 0) - (keys.throttleDown ? 1 : 0);
   const thumbLift = touch.power ? powerAxis(touch.powerY) : 0;
@@ -182,9 +214,15 @@ export function samplePlane(
   model.pitch = rampToward(model.pitch, fore, dt, PITCH_ATTACK, PITCH_RELEASE);
   model.roll = rampToward(model.roll, side, dt, ROLL_ATTACK, ROLL_RELEASE);
   model.yaw = rampToward(model.yaw, yaw, dt, YAW_ATTACK, YAW_RELEASE);
-  const pitch = (touch.stick ? clamp(touch.stickY, -1, 1) : model.pitch) * pitchReach(airspeed);
-  const roll = (touch.stick ? clamp(touch.stickX, -1, 1) : model.roll) * rollReach(airspeed);
   const rudder = touch.power ? powerAxis(touch.powerX) : model.yaw;
+  const hand = touch.stick ? clamp(touch.stickY, -1, 1) : model.pitch;
+  // Eased off at the buffet; pulled through it with the rudder full over.
+  const spin = hand < 0 && Math.abs(rudder) >= SPIN_RUDDER;
+  model.pull = spin
+    ? 1
+    : clamp(model.pull + (BUFFET - stalled) * BUFFET_EASE * dt, BUFFET_LEAST, 1);
+  const pitch = spin ? hand : hand * pitchReach(airspeed, hand > 0) * model.pull;
+  const roll = (touch.stick ? clamp(touch.stickX, -1, 1) : model.roll) * rollReach(airspeed);
   const flip = (v: number): number => (v === 0 ? 0 : clamp(v, -1, 1) * SCREEN_TO_ENGINE);
   return {
     throttle: model.throttle,

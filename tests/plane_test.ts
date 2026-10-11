@@ -17,6 +17,7 @@ import {
   chutePilot,
   createGame,
   onStrip,
+  planeAir,
   planeAloft,
   planeHold,
   planeInput,
@@ -258,6 +259,53 @@ describe("the jump plane on a free ride", () => {
     const pa = a.plane!;
     const pb = b.plane!;
     expect([pa.x, pa.y, pa.z, pa.q.x, pa.q.w]).toEqual([pb.x, pb.y, pb.z, pb.q.x, pb.q.w]);
+  });
+});
+
+describe("the airframe's rigging and trim", () => {
+  /** The torque and pitching moment on the plane flown level, wings level,
+   * at `v` m/s on `power` (the angle of attack found for 1 g). */
+  function level(v: number, power: number) {
+    const p = {
+      controls: { brake: 0 },
+      power,
+      surfaces: { aileron: 0, elevator: 0, rudder: 0, flaps: 0 },
+      cl: 0.4,
+      wx: 0,
+      wy: 0,
+      wz: 0,
+    } as unknown as Parameters<typeof planeAir>[0];
+    const out = { fx: 0, fy: 0, fz: 0, tx: 0, ty: 0, tz: 0, cl: 0, stalled: 0, lift: 0, thrust: 0 };
+    const weight = (PLANE.mass + 90) * TUNING.g;
+    let lo = -0.1;
+    let hi = 0.3;
+    for (let k = 0; k < 40; k++) {
+      const a = (lo + hi) / 2;
+      planeAir(p, 0, -v * Math.sin(a), v * Math.cos(a), 1.1, false, out);
+      p.cl = out.cl;
+      if (out.lift > weight) hi = a;
+      else lo = a;
+    }
+    return out;
+  }
+
+  it("cancels the propeller's roll and yaw at the cruise, and leaves the left pull slow on full power", () => {
+    const cruise = level(50, 0.75);
+    expect(Math.abs(cruise.tz)).toBeLessThan(60);
+    expect(Math.abs(cruise.ty)).toBeLessThan(30);
+    const slow = level(32, 1);
+    // Slow on full power the torque comes back: a roll to the left, a yaw
+    // to the left (the right rudder over a loop's top).
+    expect(slow.tz).toBeGreaterThan(200);
+    expect(slow.ty).toBeLessThan(-50);
+  });
+
+  it("trims at 45 m/s on climb power with the stick centred", () => {
+    const m = level(45, 0.75).tx;
+    expect(Math.abs(m)).toBeLessThan(1500);
+    // Faster, it wants the nose up (speed stability); slower, down.
+    expect(level(60, 0.75).tx).toBeLessThan(-3000);
+    expect(level(35, 0.75).tx).toBeGreaterThan(1000);
   });
 });
 

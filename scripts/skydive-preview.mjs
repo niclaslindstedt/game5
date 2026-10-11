@@ -7,7 +7,7 @@
 // and photographed through the game's own renderer, so the rig, the canopy
 // and the body can be judged by eye in the game:
 //
-//   gear       the harness-container on him close up from behind, the side
+//   gear       the harness-container on him from behind, the side
 //              and the front (the pilot chute's handle, the cut-away pad,
 //              the reserve's handle, the leg straps)
 //   exit       poised in the plane's door, the exit and the swing into the
@@ -62,7 +62,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (gear, exit, freefall, deploy, canopy, shape, cutaway, reserve, snag, lenses, night, stages); every one when left out",
+      help: "which sheets, comma-separated (gear, worn, exit, freefall, deploy, canopy, shape, cutaway, reserve, snag, lenses, night, stages); every one when left out",
     },
     views: {
       kind: "string",

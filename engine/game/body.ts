@@ -91,6 +91,7 @@ import type {
   GameEvent,
   GameState,
   ImpactSource,
+  Injury,
   SkierState,
   Thrown,
   TrunkLoad,
@@ -670,7 +671,7 @@ function judge(state: GameState, events: GameEvent[], most: number = I.perBlow):
       if (d <= 0) continue;
       if (!struckOn(def, p)) continue;
       const part = BODY_PARTS[p];
-      if (body.injuries.some((h) => h.kind === kind && h.part === part)) continue;
+      if (hasInjury(body.injuries, kind, part)) continue;
       const at = def.at * (1 - I.weaken * worst);
       const u = hash2(state.tick, p * 64 + index, (state.seed ^ SALT) | 0);
       if (u >= riskOf(d, at)) continue;
@@ -710,6 +711,13 @@ function struckOn(def: InjuryDef, p: number): boolean {
   if (!def.on) return true;
   const out = BODY_PARTS[p].endsWith("L") ? "left" : "right";
   return def.on.some((o) => o === f || (o === "outside" && f === out));
+}
+
+/** Whether `injuries` holds `kind` on `part` — a loop, so the ladder's
+ * every rung asks it without a closure. */
+function hasInjury(injuries: readonly Injury[], kind: InjuryKind, part: BodyPart): boolean {
+  for (const h of injuries) if (h.kind === kind && h.part === part) return true;
+  return false;
 }
 
 const found: {

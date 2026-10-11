@@ -47,16 +47,25 @@ export function loopSpot(plan: LiftPlan, w: number): { u: number; side: 0 | 1; t
   return { u: 0, side: turn < Math.PI / 2 ? 1 : 0, turn };
 }
 
-/** A CARRIER ON ITS LOOP, PLACED: `along` m up the line and `v` m right
+/** A CARRIER ON ITS LOOP, PLACED (into `into` when given): `along` m up the line and `v` m right
  * of it (in the line's frame), where in the world, and the way it runs
  * there (`heading`, 0 is +z, clockwise from above) — on its rope's side up
  * or down the line, or round a wheel on the half circle about its centre,
  * its way the circle's tangent. And `bend`: the turn's curvature, 1/m,
  * positive turning right, 0 on a straight. */
+export type CarrierPlace = {
+  along: number;
+  v: number;
+  x: number;
+  z: number;
+  heading: number;
+  bend: number;
+};
 export function carrierPlace(
   plan: LiftPlan,
   c: { u: number; side: 0 | 1; turn?: number },
-): { along: number; v: number; x: number; z: number; heading: number; bend: number } {
+  into?: CarrierPlace,
+): CarrierPlace {
   const r = turnRadius(plan);
   let along = c.u;
   let v = c.side === 0 ? r : -r;
@@ -86,5 +95,14 @@ export function carrierPlace(
   const z = plan.lift.bottom.z + plan.dz * along - plan.dx * v;
   const wx = plan.dx * tu + plan.dz * tv;
   const wz = plan.dz * tu - plan.dx * tv;
-  return { along, v, x, z, heading: Math.atan2(wx, wz), bend };
+  const heading = Math.atan2(wx, wz);
+  if (!into) return { along, v, x, z, heading, bend };
+  // Filled in place for a caller placing every carrier every frame.
+  into.along = along;
+  into.v = v;
+  into.x = x;
+  into.z = z;
+  into.heading = heading;
+  into.bend = bend;
+  return into;
 }

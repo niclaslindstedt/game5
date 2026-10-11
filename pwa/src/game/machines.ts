@@ -160,12 +160,25 @@ export function createMachines(
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
   const sled: SledScene | null = state.rules.sled ? createSledScene(haze) : null;
-  // The paramotor rides every free ride's rules: drawn only while a run
-  // carries the rig (`GameState.para`).
-  const para: ParaScene | null = state.rules.heli ? createParaScene(haze) : null;
-  // ...and the hot air balloon, drawn while a run carries one
-  // (`GameState.balloon`).
-  const balloon: BalloonScene | null = state.rules.heli ? createBalloonScene(haze) : null;
+  // The paramotor rides every free ride's rules, drawn only while a run
+  // carries the rig (`GameState.para`) — and the hot air balloon while a
+  // run carries one (`GameState.balloon`). A run begun with neither never
+  // builds them (their meshes, cloth and sixty-odd materials): each is
+  // built for a run stood up with it, behind the loading card, or at the
+  // first frame of one on a map already standing (`carried`).
+  let para: ParaScene | null = null;
+  let balloon: BalloonScene | null = null;
+  const carried = (s: GameState): void => {
+    if (!s.rules.heli) return;
+    if (!para && s.para) {
+      para = createParaScene(haze);
+      group.add(para.group);
+    }
+    if (!balloon && s.balloon) {
+      balloon = createBalloonScene(haze);
+      group.add(balloon.group);
+    }
+  };
   // ...and the jump plane and the skydive out of its door, drawn while a
   // run carries them (`GameState.plane`, `.chute`).
   const plane: PlaneScene | null = state.rules.heli ? createPlaneScene(haze) : null;
@@ -188,10 +201,9 @@ export function createMachines(
   let doorEyes = false;
   let ownLook = false;
   if (heli) group.add(heli.group);
-  if (para) group.add(para.group);
-  if (balloon) group.add(balloon.group);
+  carried(state);
   // The balloon's own ladder while he stands in its basket.
-  const basketLens = balloon ? createBalloonLadder() : null;
+  const basketLens = state.rules.heli ? createBalloonLadder() : null;
   let lastDt = 1 / 60;
   const hullBox: SolidBox = {
     x: 0,
@@ -240,12 +252,15 @@ export function createMachines(
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
     group,
-    balloon,
+    get balloon() {
+      return balloon;
+    },
     ready: Promise.race([
       Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
+      carried(s);
       seated = model;
       model.setPerch(heli?.perch(s) ?? para?.perch(s) ?? null);
       model.setSled(sled ? sled.stand(s) : null);
@@ -275,6 +290,7 @@ export function createMachines(
       }
     },
     frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
+      carried(s);
       // The helicopter as a solid to the booms while nobody rides it.
       const h = s.heli;
       hull = h && !h.rider && h.mode !== "wreck" ? heliHull(h, hullBox) : null;

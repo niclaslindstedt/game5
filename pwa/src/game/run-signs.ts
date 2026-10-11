@@ -35,6 +35,7 @@ import type { Level } from "@engine";
 
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { storedBump } from "./print-bump.ts";
 import { SIGN, signPlan, summitSigns, type SignBoard } from "./run-sign-plan.ts";
 import { SIGN_FALLBACK, signLookOf, type SignLook } from "./sign-look.ts";
 
@@ -534,11 +535,8 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
-  // The bump reads the same print as linear data — its red channel is the
-  // height, the char deepest — so it gets its own view of the canvas.
-  const bump = new THREE.CanvasTexture(canvas);
-  bump.colorSpace = THREE.NoColorSpace;
-  bump.anisotropy = 8;
+  // The bump reads the same print — its red channel is the height, the
+  // char deepest — off the same texture, as stored (`storedBump`).
   const frontGeo = new THREE.BufferGeometry();
   frontGeo.setAttribute("position", new THREE.Float32BufferAttribute(front.pos, 3));
   frontGeo.setAttribute("normal", new THREE.Float32BufferAttribute(front.nrm, 3));
@@ -549,9 +547,10 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
   woodGeo.setAttribute("normal", new THREE.Float32BufferAttribute(wood.nrm, 3));
   woodGeo.setIndex(wood.idx);
   const faceMat = hazeMaterial(
-    new THREE.MeshStandardMaterial({ map: tex, bumpMap: bump, bumpScale: 2, roughness: 0.85 }),
+    new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 2, roughness: 0.85 }),
     haze,
     "sign-face",
+    storedBump,
   );
   const woodMat = hazeMaterial(
     new THREE.MeshStandardMaterial({ color: look.edge, roughness: 0.9 }),
@@ -588,7 +587,7 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
   void loadFace(look).then((ok) => {
     if (!ok || disposed) return;
     print(`"${look.family}", ${SIGN_FALLBACK}`);
-    tex.needsUpdate = bump.needsUpdate = true;
+    tex.needsUpdate = true;
   });
 
   return {
@@ -603,7 +602,6 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
       postMat.dispose();
       timbers.dispose();
       tex.dispose();
-      bump.dispose();
     },
   };
 }

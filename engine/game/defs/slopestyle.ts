@@ -27,9 +27,9 @@ export const SLOPESTYLE = {
    * course is spun) and a triple. */
   spinMost: 10 * Math.PI,
   flipMost: 6 * Math.PI,
-  /** The pair the field rides: the competition twin-tip the same skiers
-   * ride in big air — a slopestyle course is three big-air-sized jumps
-   * after its rails, and its skiers ride one stiff park pair for both
+  /** The pair the field rides: the competition twin-tip — a slopestyle
+   * course is three big jumps after its rails, and its skiers ride one
+   * stiff park pair for both
    * (`docs/freestyle.md` § *Slopestyle*, "The pair"). */
   skis: "raven" as SkiId,
   /** THE JURY'S WEATHER (est.): no rule sets a wind speed; a top final run

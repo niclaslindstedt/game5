@@ -6,7 +6,7 @@
 // the plate offers next, and the CONTEST the next run is stood up with
 // (`CreateGameOptions.slopestyle`).
 //
-// THE CONTEST RIDES THE RUN, as big air's does (`big-air-run.ts`): each run
+// THE CONTEST RIDES THE RUN, as ski jumping's does (`ski-jump-run.ts`): each run
 // on the snow carries the contest as it stood before it
 // (`GameState.slopestyle`), so a restart and a replay stand the same run up
 // again, and the contest after it is that one with this run filed

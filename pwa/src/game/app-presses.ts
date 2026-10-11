@@ -15,8 +15,8 @@ import type { TrickMap, TrickRun } from "./trick-maps.ts";
 export type Presses = {
   race: (seed: number, mode: GameMode) => void;
   free: (options: CreateGameOptions) => void;
-  /** A TRICKS run on a trick map (`trick-maps.ts`), or a BIG AIR contest
-   * built over one. */
+  /** A TRICKS run on a trick map (`trick-maps.ts`), or a freestyle
+   * contest (ski jumping and the rest) built over one. */
   tricks: (map: TrickMap, mode?: TrickRun) => void;
   /** A pinned map off the level card. */
   pinned: (pin: PinnedLevel, mode: PinnedLevel["mode"]) => void;

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // A VENUE BUILT STRAIGHT DOWN THE FACE — what every freestyle venue cut on a
-// line of its own shares (R37's big air jump, R38's slopestyle course, the
-// halfpipe, the moguls course and the aerials site): a PROFILE drawn against the horizontal with a pen,
+// line of its own shares (R37 states it: R38's slopestyle course, the
+// halfpipe, the moguls course, the aerials site and the ski jumping hill): a
+// PROFILE drawn against the horizontal with a pen,
 // the LINE searched down the face where that profile cuts and fills least,
 // and the ground GRADED to it, groomed, its woods cleared and the piste's
 // kickers, drops and cliffs in it taken out.
@@ -43,11 +44,38 @@ export type VenueRule = Pick<JumpRule, "width" | "ease" | "margin" | "search" | 
  * where its finish line stands and where it ends, m of plan. */
 export type VenueProfile = { dx: number; y: Float64Array; finish: number; end: number };
 
+/** A PROFILE WITH AN IN-RUN: where its start gate and its lip (the edge an
+ * in-run ends at) stand, m of plan. */
+export type JumpProfile = VenueProfile & { gate: number; lip: number };
+
 /** The profile's height `x` m of plan along it, m. */
 export function jumpHeightAt(p: VenueProfile, x: number): number {
   const f = clamp(x / p.dx, 0, p.y.length - 1);
   const i = Math.min(p.y.length - 2, Math.floor(f));
   return p.y[i] + (p.y[i + 1] - p.y[i]) * (f - i);
+}
+
+/** The speed, m/s, rule `R`'s skier carries tucked from the start gate to
+ * the lip of `p` — a point mass down the profile itself, the air's drag on
+ * his tuck and the snow's friction, and THE COMPRESSIONS' COST: the share of
+ * his speed's square he gives up for each radian the snow turns him upward
+ * (his legs taking the load and his body lagging the turn), measured off
+ * the engine's skier tucked down a jump. */
+export function lipSpeed(p: JumpProfile, R: Pick<JumpRule, "skier">): number {
+  const S = R.skier;
+  const k = (0.5 * S.air * S.tuck) / S.mass;
+  const dx = p.dx;
+  let v = 1.5;
+  let was = 0;
+  for (let x = p.gate; x < p.lip; x += dx) {
+    const dy = jumpHeightAt(p, x) - jumpHeightAt(p, x + dx);
+    const ds = hypot(dx, dy);
+    v = Math.sqrt(Math.max(0.01, v * v + 2 * ds * ((G * (dy - S.friction * dx)) / ds - k * v * v)));
+    const fall = Math.atan2(dy, dx);
+    if (x > p.gate && fall < was) v *= Math.exp(-0.5 * S.compression * (was - fall));
+    was = fall;
+  }
+  return v;
 }
 
 /** THE PEN a profile is drawn with: where it has got to (`x` of plan, `y`
@@ -211,11 +239,11 @@ export function originalOf(level: Level): Level {
     level.giantSlalom?.base ??
     level.speedSki?.base ??
     level.skiCross?.base ??
-    level.bigAir?.base ??
     level.slopestyle?.base ??
     level.halfpipe?.base ??
     level.moguls?.base ??
     level.aerials?.base ??
+    level.skiJump?.base ??
     level
   );
 }
@@ -353,11 +381,11 @@ export function gradeVenue(
     giantSlalom: undefined,
     speedSki: undefined,
     skiCross: undefined,
-    bigAir: undefined,
     slopestyle: undefined,
     halfpipe: undefined,
     moguls: undefined,
     aerials: undefined,
+    skiJump: undefined,
     bumps: undefined,
     normalNear: undefined,
     pipe: undefined,

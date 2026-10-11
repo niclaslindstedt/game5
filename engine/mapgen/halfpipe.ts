@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // R39 — A HALFPIPE BUILT OVER A BUILT MAP. A line of its own cut straight
-// down the face, as R37's jump and R38's course are (`straight-venue.ts`): a
+// down the face, as R37 states and R38's course is (`straight-venue.ts`): a
 // start platform, a roll onto the pipe's pitch, the pitch held the pipe's
 // whole length and a run-out at its foot — graded, groomed and cleared —
 // and the PIPE cut into the pitch as an analytic surface (`pipe.ts`): the

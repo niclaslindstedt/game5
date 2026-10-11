@@ -28,15 +28,16 @@ import {
   setSkiCross,
   setSpeedSki,
   setSlalom,
-  setBigAir,
   setHalfpipe,
   setMoguls,
   setAerials,
+  setSkiJump,
   setSlopestyle,
   withDay,
   withSky,
 } from "../mapgen/index.ts";
 import type { RunGrade } from "../mapgen/grades.ts";
+import type { SkiJumpHillId } from "../mapgen/trick-rules.ts";
 import type { RegionId } from "../mapgen/regions.ts";
 import type { TimeOfDay } from "../mapgen/sun.ts";
 import type { Level, SkyOverride } from "../mapgen/types.ts";
@@ -61,13 +62,15 @@ import { TUNING } from "./defs/tuning.ts";
 import { clipRiders, createRivals, gridSlot, stepRivals } from "./rivals.ts";
 import { createField, type Heat } from "./field.ts";
 import { nextHeat, type Bracket, type CrossHeat } from "./cross-bracket.ts";
-import { freshBigAir, type BigAirContest } from "./big-air-contest.ts";
 import { freshSlopestyle, type SlopeContest } from "./slopestyle-contest.ts";
 import { freshHalfpipe, type PipeContest } from "./halfpipe-contest.ts";
 import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
 import { freshAerials, type AerialsContest } from "./aerials-contest.ts";
 import { freshAerial } from "./aerial-flight.ts";
+import { freshJump, seatOnBar } from "./jump-inrun.ts";
+import { skiJumpSetup, type SkiJumpContest } from "./ski-jump-contest.ts";
 import { AERIALS } from "./defs/aerials.ts";
+import { SKI_JUMP } from "./defs/ski-jump.ts";
 import { isAerialCode, kickerOf } from "./defs/aerial-jumps.ts";
 import { freshTurns, stepMogulTurns } from "./mogul-turns.ts";
 import { createHeat, crossCountdown, stepDrafts } from "./cross-heat.ts";
@@ -78,6 +81,7 @@ import { ENTHUSIASTS } from "./defs/enthusiasts.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
+import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
 import { freshHeli, startAgain } from "./heli.ts";
@@ -144,10 +148,6 @@ export type CreateGameOptions = {
    * of one race, its heat the player's next (`nextHeat`) where `cross` asks
    * for none. The engine never reads it otherwise. */
   bracket?: Bracket;
-  /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`): the jumps the
-   * player has taken, carried between the runs of one contest — a fresh
-   * one off the seed when a big air run leaves it out. */
-  bigAir?: BigAirContest;
   /** A SLOPESTYLE CONTEST so far (R38, `slopestyle-contest.ts`): the runs
    * the player has skied, carried between the runs of one contest — a
    * fresh one off the seed when a slopestyle run leaves it out. */
@@ -164,6 +164,19 @@ export type CreateGameOptions = {
   /** THE JUMP DECLARED for an aerials run, over the contest's: a code of
    * the DD chart (`defs/aerial-jumps.ts`); its kicker is built (R41). */
   plan?: string;
+  /** THE SKI JUMPING HILL a ski jump is jumped on (R43): the large hill
+   * when left out. */
+  hill?: SkiJumpHillId;
+  /** A SKI JUMPING CONTEST so far (R43, `ski-jump-contest.ts`): the
+   * jumps the player has taken. The run jumps his next — from the gate the
+   * jury has for him, in the hill's air at his moment of the contest's day
+   * (`skiJumpSetup`). A jump with no contest is jumped from the calm-air
+   * jury gate in the map's own hill's air, and scored by nobody. */
+  skiJumpContest?: SkiJumpContest;
+  /** THE GATE a ski jumper sits on (an index into `Level.skiJump.gates`, 0
+   * the lowest): the jury's — the lowest that brings him to the edge at
+   * the hill's design speed in calm air — when left out. */
+  gate?: number;
   /** A DOWNHILL'S TRAINING RUN (R32): the course and the rules the race's,
    * the board the field's training times — slower and further apart than
    * a race's, and counted for nothing. The race when left out. */
@@ -301,6 +314,10 @@ export type CreateGameOptions = {
    * started again after he was caught). None when left out; the app deals
    * him to one ride in a few. Ignored by every other mode. */
   grimbear?: GrimbearAsk;
+  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`) on a FREE RIDE: a
+   * canopy's malfunctions, an engine's stoppage — how often, and the app's
+   * salt. None when left out. Ignored by every other mode. */
+  mishaps?: MishapAsk;
   /** THE PISTE MACHINES (`groomer.ts`) on a FREE RIDE: out after dark
    * (`night`, the app's ask), whatever the hour (`on`), or never (`off`).
    * None when left out. Ignored by every other mode. */
@@ -374,6 +391,7 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     inRun: base.inRun,
     ...(options.sfw ? { sfw: true } : {}),
     aerials: base.aerials,
+    ...(base.skiJump ? { skiJump: true } : {}),
     hockeyStop: base.hockeyStop,
   };
 }
@@ -445,14 +463,14 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.giantSlalom?.base ??
     built.speedSki?.base ??
     built.skiCross?.base ??
-    built.bigAir?.base ??
     built.slopestyle?.base ??
     built.halfpipe?.base ??
     built.moguls?.base ??
     built.aerials?.base ??
+    built.skiJump?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
-  // qualification's, or the final's; BIG AIR builds a jump of its own (R37).
+  // qualification's, or the final's; a FREESTYLE VENUE builds one of its own (R37).
   const course =
     options.mode === "slalom"
       ? setSlalom(built, options.heat?.run ?? 1)
@@ -466,16 +484,16 @@ export function createGame(options: CreateGameOptions = {}): GameState {
               ? setSpeedSki(built, options.heat?.run ?? 1)
               : options.mode === "skiCross"
                 ? setSkiCross(built)
-                : options.mode === "bigAir"
-                  ? setBigAir(built)
-                  : options.mode === "slopestyle"
-                    ? setSlopestyle(built)
-                    : options.mode === "halfpipe"
-                      ? setHalfpipe(built)
-                      : options.mode === "moguls"
-                        ? setMoguls(built)
-                        : options.mode === "aerials"
-                          ? setAerials(built, kickerOf(planOf(options)))
+                : options.mode === "slopestyle"
+                  ? setSlopestyle(built)
+                  : options.mode === "halfpipe"
+                    ? setHalfpipe(built)
+                    : options.mode === "moguls"
+                      ? setMoguls(built)
+                      : options.mode === "aerials"
+                        ? setAerials(built, kickerOf(planOf(options)))
+                        : options.mode === "skiJump"
+                          ? setSkiJump(built, options.hill ?? SKI_JUMP.hill)
                           : original;
   const dayed = options.day ? withDay(course, options.day) : course;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
@@ -589,7 +607,6 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     else createRivals(state, rules.rivals);
   }
   if (options.bracket) state.bracket = options.bracket;
-  if (level.bigAir) state.bigAir = options.bigAir ?? freshBigAir(state.seed);
   if (level.slopestyle) state.slopestyle = options.slopestyle ?? freshSlopestyle(state.seed);
   if (level.halfpipe) state.halfpipe = options.halfpipe ?? freshHalfpipe(state.seed);
   if (level.moguls) {
@@ -600,6 +617,14 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     state.aerials = { ...(options.aerials ?? freshAerials(state.seed)), plan: planOf(options) };
     state.aerial = freshAerial(planOf(options));
   }
+  // A SKI JUMP (R43): sat on the bar of his gate.
+  if (level.skiJump && rules.skiJump) {
+    const contest = options.skiJumpContest;
+    const setup = contest ? skiJumpSetup(contest) : null;
+    if (contest) state.skiJumpContest = contest;
+    state.jump = freshJump(state, options.gate ?? setup?.gate, setup?.air);
+    seatOnBar(state);
+  }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);
   // ...and the few keen skiers still lapping the lit runs instead.
   const keen =
@@ -609,6 +634,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (rules.avalanche) state.avalanche = freshAvalanche(state);
+  if (free && options.mishaps) state.mishaps = freshMishaps(seed, options.mishaps);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
     state.groomers = freshGroomers(state);

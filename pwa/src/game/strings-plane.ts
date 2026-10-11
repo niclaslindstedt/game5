@@ -28,6 +28,8 @@ export const PLANE_STRINGS = {
   newsPlaneStall: "STALL!",
   newsPlaneScrape: "WINGTIP SCRAPE!",
   newsPlaneTear: "WING TORN OFF!",
+  newsPlaneCough: "ENGINE COUGHING!",
+  newsPlaneEngine: "ENGINE OUT! BEST GLIDE",
 
   /* ── THE HUD (hud-plane.tsx) ───────────────────────────────────────── */
   /** The airspeed, knots. */

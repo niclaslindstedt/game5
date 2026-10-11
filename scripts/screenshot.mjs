@@ -30,8 +30,8 @@
 //                    --run2 its first heat, four out of the start gate).
 //   ?mode=speedski   ...or a SPEED RACE's qualification (--speedski; with
 //                    --run2 its final).
-//   ?mode=bigair     ...or a BIG AIR contest's first jump (--bigair; with
-//                    --run2 its second).
+//   ?mode=skijump    ...or a SKI JUMPING contest's first jump, its trial
+//                    (--skijump; with --run2 its next round).
 //   ?mode=slopestyle ...or a SLOPESTYLE contest's first run (--slopestyle;
 //                    with --run2 its second).
 //   ?mode=halfpipe   ...or a HALFPIPE contest's first run (--halfpipe).
@@ -242,11 +242,11 @@ const SURFACES = {
     settle: 900,
   },
   // ...THE TRICKS CARD the front door's TRICKS tile opens
-  // (`?menu=freestyle`), and the trick map card a big air contest is picked
-  // on (`?menu=tricks&mode=bigair`).
+  // (`?menu=freestyle`), and the trick map card a ski jumping contest is
+  // picked on (`?menu=tricks&mode=skijump`).
   freestyle: { params: { menu: "freestyle" }, wait: ".menu-card-races", settle: 900 },
-  "bigair-maps": {
-    params: { menu: "tricks", mode: "bigair" },
+  "skijump-maps": {
+    params: { menu: "tricks", mode: "skijump" },
     wait: ".menu-card-levels",
     settle: 900,
   },
@@ -644,9 +644,9 @@ const args = parseArgs(
       kind: "flag",
       help: "a ski cross's qualification (?mode=skicross; --run2 its first heat)",
     },
-    bigair: {
+    skijump: {
       kind: "flag",
-      help: "a big air contest's first jump (?mode=bigair; --run2 its second)",
+      help: "a ski jumping contest's first jump (?mode=skijump; --run2 its next round)",
     },
     halfpipe: { kind: "flag", help: "a halfpipe contest's first run (?mode=halfpipe)" },
     moguls: { kind: "flag", help: "a moguls contest's qualification run (?mode=moguls)" },
@@ -670,7 +670,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--bigair] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--skijump] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -929,7 +929,7 @@ if (args.surface) {
         if (args.gs) params.mode = "gs";
         if (args.speedski) params.mode = "speedski";
         if (args.skicross) params.mode = "skicross";
-        if (args.bigair) params.mode = "bigair";
+        if (args.skijump) params.mode = "skijump";
         if (args.slopestyle) params.mode = "slopestyle";
         if (args.halfpipe) params.mode = "halfpipe";
         if (args.moguls) params.mode = "moguls";
@@ -941,7 +941,7 @@ if (args.surface) {
         if (args.pose !== undefined) params.pose = String(args.pose);
         if (hold !== undefined) params.hold = `${hold},${args.move},${args["hold-for"]}`;
         const name =
-          `${scene}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.aerials ? `-aerials${args.plan ?? ""}` : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
+          `${scene}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.skijump ? "-skijump" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.aerials ? `-aerials${args.plan ?? ""}` : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
           `${args.face !== undefined ? `-${args.face}` : ""}` +

@@ -3,37 +3,23 @@
 // built to on a map that is already built (R1–R30), beside the races'
 // (`discipline-rules.ts`, R31–R36). A venue is not a course on the piste: it
 // is a thing BUILT in the snow, as a real one is shaped by the snowcats out
-// of a mountain's side. BIG AIR (R37) and the SLOPESTYLE COURSE (R38 —
-// three rail sections and three jumps cut on one line) and the HALFPIPE
-// (R39 — a U cut down the slope) and the MOGULS COURSE (R40 — a mogul
-// track down a steep pitch with two air bumps in it) and the AERIALS SITE
-// (R41 — an in-run, one steep kicker on a level table, a 37° landing hill)
-// are built (`docs/freestyle.md`).
+// of a mountain's side. Every one is cut on a STRAIGHT LINE of its own down
+// the face (R37, `straight-venue.ts`): the SLOPESTYLE COURSE (R38 — three
+// rail sections and three jumps cut on one line), the HALFPIPE (R39 — a U
+// cut down the slope), the MOGULS COURSE (R40 — a mogul track down a steep
+// pitch with two air bumps in it), the AERIALS SITE (R41 — an in-run, one
+// steep kicker on a level table, a 37° landing hill) and the SKI JUMPING
+// HILL (R43 — an in-run, a table and a landing hill to the construction
+// norm) are built (`docs/freestyle.md`).
 //
-// THE RESEARCH BEHIND THE NUMBERS — the freestyle competition rules' park
-// chapter and a championship jump as its builders describe it, by article
-// and never by event (`docs/freestyle.md` § *Big air*):
-//
-//   bigAir.platform ≥ 5 m        the start area: a level platform at the
-//                                top of the drop-in
-//   bigAir.dropIn ≥ 20°          the drop-in at least 20° (30 m long, 5 m
-//                                wide at the least); a championship jump's
-//                                in-run is 35–40° — a scaffold's; one cut
-//                                into a mountain is gentler and longer
-//   bigAir.flat 5–10 m           a flat before the kicker
-//   bigAir.kick ≥ 25°, ≥ 2 m     the kicker: at least 2 m high and 25° at
-//                                the take-off (a championship kicker ~5 m)
-//   bigAir.table ≥ 15 m          take-off to landing: 15 m at the top two
-//                                levels (~18 m on a championship jump)
-//   bigAir.landing ≥ 28°         the landing at least 28°, MATCHED to the
-//                                take-off, 20 m wide and 20 m long at the
-//                                least
-//   bigAir.finish ≥ 25 m         a finish area at least 25 m long if flat,
-//                                over 30 m recommended, 30 m wide
-//   bigAir.speed 50–70 km/h      off the lip (55–60 on a championship
-//                                jump, ~80 km/h down its in-run); a jump
-//                                of ~30 m and ~2 s of air, ~5 m over the
-//                                lip on a big one
+// THE RESEARCH BEHIND THE STRAIGHT VENUE — the freestyle competition
+// rules' park chapter and a championship jump as its builders describe it,
+// by article and never by event (`docs/freestyle.md` § *Big air*, kept as
+// the research every venue's jumps are sized off): a level platform at the
+// top of the in-run; a drop-in of 20° at the least, cut into a mountain
+// gentler and longer than a scaffold's 35–40°; a kicker 2–5 m high at 25°
+// or more; a table of 15–18 m; a landing of 28° or more, MATCHED to the
+// take-off; a finish area of 25–30 m; 50–70 km/h off the lip.
 //
 //   EQUIVALENT FALL HEIGHT        a landing slope is SAFE when whoever
 //                                lands on it, at whatever speed he left
@@ -49,36 +35,29 @@
 // The rules, stated once here and mirrored VERBATIM in
 // `docs/level-generator.md` (`tests/docs_rules_test.ts`):
 //
-//   R37 THE BIG AIR JUMP. A big air jump is BUILT straight down a built
-//       map's face, a line of its own and not the piste, from a column of
-//       the face (`bigAir.search`) and a bearing within a few degrees of
-//       the fall line, where its profile lies nearest the ground it is cut
-//       from (`bigAir.fit`) and clear of every lift station and the
-//       village. Its PROFILE is built against the horizontal, in order: a
-//       START PLATFORM level for `bigAir.platform` metres; a DROP-IN rolled
-//       over to `bigAir.dropIn` degrees within `bigAir.roll` metres of
-//       radius and as long as brings a skier tucked down it from the start
-//       gate (`bigAir.skier`) to the lip at `bigAir.speed` m/s; a
-//       transition of `bigAir.toFlat` metres of radius onto a FLAT of
-//       `bigAir.flat` metres; the KICKER, curved up on `bigAir.kicker`
-//       metres of radius to a take-off of `bigAir.kick` degrees; a level
-//       TABLE of `bigAir.table` metres at the lip's height; a KNUCKLE
-//       rounded over on `bigAir.knuckle` metres of radius onto a LANDING
-//       shaped point by point so that a skier off the lip at any speed
-//       meets it no harder than a fall of `bigAir.fall` metres, never
-//       steeper than `bigAir.steepest` degrees and running `bigAir.past`
-//       metres beyond where a skier `bigAir.fast` times the design speed
-//       comes down; a transition of `bigAir.round` metres of radius onto a
-//       RUN-OUT falling at `bigAir.outrun.grade` degrees for
-//       `bigAir.outrun.length` metres. The jump is `bigAir.width` metres
-//       wide, graded to its profile across that width and eased out over
-//       `bigAir.ease`, groomed hard, every tree within `bigAir.margin`
-//       metres of its edges cleared, and the piste's kickers and drops in
-//       it taken out. Its gates are the START GATE at the platform's lip and
-//       the FINISH LINE `bigAir.finish` metres into the run-out.
+//   R37 THE STRAIGHT VENUE. A freestyle venue is BUILT straight down a
+//       built map's face, a line of its own and not the piste, from a
+//       column of the face (its rule's `search`) and a bearing within a
+//       few degrees of the fall line, where its profile lies nearest the
+//       ground it is cut from (its rule's `fit`) and clear of every lift
+//       station and the village. Its PROFILE is designed against the
+//       horizontal, the same on every map, and only where it stands is the
+//       map's: every IN-RUN or APPROACH is as long as brings its rule's
+//       skier (its `skier`) from the start gate to what it leads to at that
+//       thing's design speed, a point mass down the profile itself paying
+//       the air, the snow and every compression; every LANDING behind a
+//       kicker is shaped point by point so that a skier off the lip at any
+//       speed meets it no harder than a fall of its rule's `fall` metres,
+//       never steeper than its `steepest` degrees and running its `past`
+//       metres beyond where a skier its `fast` times the design speed comes
+//       down. The venue is its rule's `width` metres wide, graded to its
+//       profile across that width and eased out over its `ease`, groomed
+//       hard, every tree within its `margin` metres of its edges cleared,
+//       and the piste's kickers and drops in it taken out. Its gates are the
+//       START GATE at the platform's lip and the FINISH LINE at its foot.
 //
-//   R38 THE SLOPESTYLE COURSE. A slopestyle course is BUILT as R37's jump
-//       is, straight down a built map's face on a line searched the same
+//   R38 THE SLOPESTYLE COURSE. A slopestyle course is BUILT as R37
+//       states, straight down a built map's face on a line searched the same
 //       way (`slopestyle.search`, `slopestyle.fit`), `slopestyle.width`
 //       metres wide, graded, groomed and cleared. Its PROFILE is built
 //       against the horizontal, in order: a START PLATFORM level for
@@ -96,7 +75,7 @@
 //       `slopestyle.jibs` gives, its near end `slopestyle.rails.entry`
 //       metres over the snow — met at `slopestyle.rails.speed` m/s. The
 //       last THREE are JUMPS, each sized up the ladder of
-//       `slopestyle.jumps` and built as R37's: a FLAT of
+//       `slopestyle.jumps` and built as R37 states: a FLAT of
 //       `slopestyle.flat` metres, a KICKER on its row's radius to its
 //       row's take-off, a level TABLE of its row's length, and a LANDING
 //       shaped to the equivalent fall height `slopestyle.fall` for its
@@ -110,7 +89,7 @@
 //       into the finish area; it has no gate between.
 //
 //   R39 THE HALFPIPE. A halfpipe is ridden in a U CUT DOWN THE SLOPE, on a
-//       line searched as R37's is (`halfpipe.search`, `halfpipe.fit`),
+//       line searched as R37 states (`halfpipe.search`, `halfpipe.fit`),
 //       `halfpipe.width` metres wide, graded, groomed and cleared. Its
 //       PROFILE is built against the horizontal, in order: a START
 //       PLATFORM level for `halfpipe.platform` metres; a roll of
@@ -135,7 +114,7 @@
 //       platform's lip and the FINISH LINE `halfpipe.finish` metres into
 //       the run-out; it has no gate between.
 //
-//   R40 THE MOGULS COURSE. A moguls course is BUILT as R37's jump is,
+//   R40 THE MOGULS COURSE. A moguls course is BUILT as R37 states,
 //       straight down a built map's face on a line searched the same way
 //       (`moguls.search`, `moguls.fit`), `moguls.width` metres wide,
 //       graded, groomed and cleared. Its PROFILE is built against the
@@ -165,7 +144,7 @@
 //       `moguls.track` metres wide spaced evenly between it and the FINISH
 //       LINE at the course's foot, and the finish line.
 //
-//   R41 THE AERIALS SITE. An aerials site is BUILT as R37's jump is,
+//   R41 THE AERIALS SITE. An aerials site is BUILT as R37 states,
 //       straight down a built map's face on a line searched the same way
 //       (`aerials.search`, `aerials.fit`), `aerials.width` metres wide,
 //       graded, groomed and cleared, with ONE KICKER of the three the rule
@@ -189,9 +168,54 @@
 //       under it is cut to the same surface, never above it. Its gates are
 //       the START GATE at the platform's lip and the FINISH LINE
 //       `aerials.finish` metres into the out-run.
+//
+//   R43 THE SKI JUMPING HILL. A ski jumping hill is BUILT as R37 states,
+//       straight down a built map's face on a line searched the same way
+//       (`skiJump.search`, `skiJump.fit`), `skiJump.width` metres wide,
+//       graded, groomed and cleared, to one of the hills `skiJump.hills`
+//       names (the LARGE hill and the NORMAL hill), each a row of the
+//       construction norm's free choices: its construction point K `w`
+//       metres down the slope from the edge, its hill size `hs`, its
+//       in-run's angle `inRun`, its table's angle `table`, its steepness
+//       `steepness` (the height `h` over the horizontal distance `n` from
+//       the edge to K), the speed off the edge it is designed for in calm
+//       air `speed`, and the landing slope at K `slope`. Every other
+//       element is the norm's formula over those (`skiJump.norm`): `h` and
+//       `n` the chord to K at that steepness, `w` over `norm.chord`; the
+//       speed landing at K `norm.landing`; the landing radius `norm.radius`
+//       rounded to `norm.round` metres; the slope at P `norm.p` and at the
+//       knoll's foot `norm.foot` of it; the slope at L `norm.l`; the
+//       transition's radius at the table `norm.r1`, the table's length
+//       `norm.t` and its height over the knoll `norm.s` of `w`; the in-run's
+//       length from the top gate `norm.e1` and from the lowest `norm.e2`;
+//       the out-run's length `norm.a`. Its PROFILE is built against the
+//       horizontal, in order: a START PLATFORM level for `skiJump.platform`
+//       metres; a roll of `skiJump.roll` metres of radius onto the IN-RUN's
+//       straight at its angle, its top gate `skiJump.above` metres below
+//       the roll; a TRANSITION whose curvature grows evenly from nothing to
+//       the table's radius, so the in-run turns from its angle to the
+//       table's; the TABLE at its angle for its length to the EDGE; under
+//       the edge the KNOLL's foot its height below it, and from there a
+//       cubic parabola leaving at the foot's slope and meeting P at P's;
+//       from P through K to L an arc of the landing radius, concave up;
+//       from L a TRANSITION whose radius grows evenly from the row's `r2l`
+//       metres to its `r2` onto the level OUT-RUN at U, the out-run its
+//       length and `skiJump.past` metres more. The START GATES stand down
+//       the in-run from the top gate to the lowest, equally spaced along
+//       it and never more than `skiJump.gateHeight` metres of height
+//       apart, numbered from 1 at the bottom. A DISTANCE is credited along
+//       the profile from the knoll's foot, scaled so K reads `w` metres.
+//       The hill is an analytic surface, not the map's grid, and the grid
+//       under it is cut to the same surface, never above it. Its gates are
+//       the START GATE at the top gate and the FINISH LINE at the FALL LINE
+//       `skiJump.fallLine` metres into the out-run; its spawn stands on the
+//       top gate.
 
-/** A JUMP'S RULE, as R37 states one (`big-air.ts` builds it); `kick` is
- * the take-off its landing is shaped for. */
+/** A JUMP'S RULE, the shape R37 states a straight venue's in: its in-run
+ * and its skier, the kicker and the landing shaped behind it (`kick` the
+ * take-off its landing is shaped for), and where and how wide it is cut —
+ * what `straight-venue.ts`'s `shapeLanding`, `lipSpeed` and line search
+ * read a venue's rule as. */
 export type JumpRule = {
   readonly platform: number;
   readonly dropIn: number;
@@ -232,95 +256,6 @@ export type JumpRule = {
   readonly fit: { readonly deepest: number; readonly stations: number; readonly village: number };
   readonly arena: { readonly before: number; readonly past: number; readonly half: number };
 };
-
-export const TRICK_RULES = {
-  /** R37 — the big air jump. */
-  bigAir: {
-    /** The start platform, m. */
-    platform: 6,
-    /** The drop-in, degrees: steeper than the rule's 20°, gentler than a
-     * scaffold's 35–40°, as a jump cut into a mountain's side is. */
-    dropIn: 30,
-    /** The radius it is rolled over to the drop-in on, m. */
-    roll: 20,
-    /** The radius the drop-in meets the flat on, m: wide enough that the
-     * skier coming off the drop-in at ~100 km/h is pressed into it at
-     * under 2 g. */
-    toFlat: 50,
-    /** The flat before the kicker, m. */
-    flat: 8,
-    /** The kicker's curve, m of radius, and its take-off, degrees: on
-     * 25 m to 32° the lip stands ~4 m over the flat — toward a
-     * championship kicker's ~5 m — and a tucked skier is thrown ~2.5 m over
-     * it, ~5 m with the jump sprung at the lip. */
-    kicker: 25,
-    kick: 32,
-    /** THE LAUNCH: the share of the lip's angle a skier leaves it on — his
-     * legs give through the kicker's curve and he comes off flatter than
-     * the snow, so the landing is shaped for the flight he flies, not the
-     * lip's (measured off the engine's skier tucked off the lip: a peak
-     * over it of `v² sin²(launch × kick) / 2g`). */
-    launch: 0.78,
-    /** The table, m — the top two levels' 15 m. */
-    table: 15,
-    /** The knuckle's radius, m. */
-    knuckle: 10,
-    /** THE LANDING: the equivalent fall height it is shaped to, m (a third
-     * of a metre — a landing a skier's legs take as a step down), its
-     * steepest, degrees, and how far past the fast skier's touchdown it
-     * runs, m. `fast` is the share of the design speed it is shaped for —
-     * a skier who carries a tenth more is still on it. */
-    fall: 0.35,
-    steepest: 38,
-    fast: 1.12,
-    past: 6,
-    /** The radius the landing meets the run-out on, m. */
-    round: 45,
-    /** The run-out: its fall, degrees, and its length, m. */
-    outrun: { grade: 5, length: 70 },
-    /** The finish line, m into the run-out. */
-    finish: 35,
-    /** THE DESIGN SPEED off the lip, m/s (59 km/h, a championship jump's
-     * 55–60): a tucked skier's. One stood up the whole in-run comes off it
-     * near 45 km/h and comes down on the knuckle — a jump is skied
-     * tucked. */
-    speed: 16.5,
-    /** The skier the drop-in is sized for, tucked from the start gate:
-     * his mass with his kit, kg, his tuck's drag area, m², the air's
-     * density at a ski area's altitude, kg/m³, and the snow's friction —
-     * and THE COMPRESSIONS' COST: the share of his speed's square he gives
-     * up for each radian the snow turns him upward through, the drop-in's
-     * foot and the kicker (his legs taking the load and his body lagging
-     * the turn), measured off the engine's skier tucked down the jump
-     * (`make sim ARGS="--mode bigAir"`). */
-    skier: { mass: 85, tuck: 0.5, air: 1.0, friction: 0.05, compression: 0.55 },
-    /** The jump's width, m (the landing's 20 m least and the finish's
-     * 30), how far past its edges its grading eases out, m, and the trees
-     * cleared within this of them, m. */
-    width: 30,
-    ease: 14,
-    margin: 12,
-    /** THE SEARCH for its line: every `stride` m across the face, these
-     * bearings off the fall line, degrees, every `starts` m down each,
-     * read every `step` m, `edge` m inside the map. */
-    search: {
-      stride: 24,
-      bearings: [-12, -6, 0, 6, 12] as readonly number[],
-      starts: 8,
-      step: 2,
-      edge: 120,
-      top: 60,
-    },
-    /** How the line is chosen: the profile's root-mean-square cut or fill
-     * against the ground under it, m, with its deepest weighted `deepest`
-     * against it. No lift station within `stations` m, nor the village
-     * within `village` m. */
-    fit: { deepest: 0.3, stations: 40, village: 160 },
-    /** How far past the finish the finish arena reaches, and how far
-     * either side of the line, m. */
-    arena: { before: 20, past: 40, half: 30 },
-  },
-} as const satisfies Record<string, JumpRule>;
 
 /** ONE JIB of a rail section (R38), as its row gives it: which line, a
  * RAIL or a BOX, its shape, and the plan length of each of its legs, m —
@@ -406,7 +341,7 @@ export const SLOPESTYLE_RULE = {
   ] as readonly SlopeJumpRow[],
   /** The flat before each kicker, m. */
   flat: 6,
-  /** The landing (as R37's): the share of the lip a skier leaves it at,
+  /** The landing (as R37 states): the share of the lip a skier leaves it at,
    * the knuckle's radius, m, the equivalent fall height, m, the share of
    * the design speed it is shaped for, how far past that skier's
    * touchdown it runs, m, and its steepest, degrees. */
@@ -427,7 +362,7 @@ export const SLOPESTYLE_RULE = {
   /** THE SKIER the approaches are sized for: his mass, kg, his drag area
    * stood up and tucked, m², the air's density, kg/m³, the snow's
    * friction, and the share of his speed's square a radian of
-   * compression costs him (as R37's). */
+   * compression costs him (as R37 states). */
   skier: { mass: 80, stand: 0.7, tuck: 0.5, air: 1.0, friction: 0.05, compression: 0.65 },
   width: 30,
   ease: 14,
@@ -638,4 +573,160 @@ export const AERIALS_RULE = {
   },
   fit: { deepest: 0.3, stations: 40, village: 160 },
   arena: { before: 15, past: 30, half: 30 },
+} as const;
+
+/** ONE HILL of the ski jumping norm (R43): the free choices its builder
+ * makes, m and degrees, the speed it is designed for, m/s, the landing
+ * transition's radii, m, and the scoring numbers the hill carries — the
+ * metre value (points a metre), the gate factor (points a metre of in-run)
+ * and the wind factors (points per m/s of head and tail wind). */
+export type SkiJumpHillRow = {
+  readonly w: number;
+  readonly hs: number;
+  readonly inRun: number;
+  readonly table: number;
+  readonly steepness: number;
+  readonly speed: number;
+  readonly slope: number;
+  readonly r2l: number;
+  readonly r2: number;
+  readonly metre: number;
+  readonly gate: number;
+  readonly head: number;
+  readonly tail: number;
+};
+
+/** Which hill of the norm (R43). */
+export type SkiJumpHillId = "large" | "normal";
+
+/** R43 — the ski jumping hill (`docs/freestyle.md` § *Ski jumping*: the
+ * construction norm's profile, element by element, and the published
+ * certificates of a normal and a large hill of the class the top series
+ * jumps). */
+export const SKI_JUMP_RULE = {
+  /** THE HILLS, the large first (`docs/specs/SKI_JUMPING.md`). K's `w` is
+   * the hill size over 0.9; the table at the low end of the norm's band
+   * (w/30 + 6.9 … w/30 + 7.9) flies the higher flight; the steepness inside
+   * its band (w/800 + 0.400 … w/1000 + 0.480); the design speed and the
+   * slope at K are the norm's flight model's for those choices (our
+   * arithmetic off its tables). The landing transition's radii lie between
+   * the norm's floor at L (the 1.8 g load at the speed there, ~93 m on the
+   * large hill, ~86 m on the normal) and the landing radius (est.). The
+   * SCORING numbers are the hill's own, measured the norm's way by
+   * `make skijump-flight` (3 m of in-run, ±3 m/s at (K + HS)/2) — the gate
+   * factor in points a metre of in-run, the head wind's in points a m/s —
+   * and the tail wind's the rules' 1.21 × the head's; the published sheets
+   * of hills of the class read 7.67, 10.8 and 13.07 on the large hill and
+   * 7.0, 8.0 and 9.68 on the normal one. */
+  hills: {
+    large: {
+      w: 126,
+      hs: 140,
+      inRun: 35,
+      table: 11.2,
+      steepness: 0.58,
+      speed: 26.2,
+      slope: 33.9,
+      r2l: 115,
+      r2: 130,
+      metre: 1.8,
+      gate: 6.5,
+      head: 9.9,
+      tail: 11.98,
+    },
+    normal: {
+      w: 95.4,
+      hs: 106,
+      inRun: 35,
+      table: 10.6,
+      steepness: 0.55,
+      speed: 24.6,
+      slope: 34.0,
+      r2l: 100,
+      r2: 115,
+      metre: 2.0,
+      gate: 6.2,
+      head: 6.2,
+      tail: 7.5,
+    },
+  } as Readonly<Record<SkiJumpHillId, SkiJumpHillRow>>,
+  /** THE NORM'S FORMULAS (lengths m, speeds m/s, angles degrees):
+   *   chord   a distance is 1.005 × the chord (h, n = w·sin, cos(atan h/n) / 1.005)
+   *   landing v_K = 0.68·v₀ + 12.44
+   *   radius  r_L = v_K²·w / 380, rounded to 10 m
+   *   p       β_P = β + 0.5·α − 2.5
+   *   foot    β₀ = β_P / 6
+   *   l       β_L = β − (1.4 / v_K)·(180/π)
+   *   r1      r₁ = 0.14·(v₀ + 0.95)²
+   *   t       t = 0.25·(v₀ + 0.95)
+   *   s       s = 0.025·w, at least 0.70 m
+   *   e1      e₁ = 92.3 − 1.517·γ + 0.426·HS
+   *   e2      e₂ = 67.3 − 0.944·γ + 0.331·HS
+   *   a       a = 18.9 + 1.113·w − 0.00482·w², at least 45 m
+   *   widths  the knoll's foot 0.06·w, K 0.20·w, U 0.22·w; the in-run 2.5 m
+   *   tower   the judges' tower 0.6–0.8·w along, 0.25–0.5·w off the axis */
+  norm: {
+    chord: 1.005,
+    landing: [0.68, 12.44] as readonly [number, number],
+    radius: 380,
+    round: 10,
+    p: [0.5, 2.5] as readonly [number, number],
+    foot: 6,
+    l: 1.4,
+    r1: [0.14, 0.95] as readonly [number, number],
+    t: [0.25, 0.95] as readonly [number, number],
+    s: [0.025, 0.7] as readonly [number, number],
+    e1: [92.3, 1.517, 0.426] as readonly [number, number, number],
+    e2: [67.3, 0.944, 0.331] as readonly [number, number, number],
+    a: [18.9, 1.113, 0.00482, 45] as readonly [number, number, number, number],
+    widths: { inRun: 2.5, foot: 0.06, k: 0.2, u: 0.22 },
+    tower: { from: 0.6, to: 0.8, off: [0.25, 0.5] as readonly [number, number] },
+  },
+  /** The start tower's deck, m, and the radius the in-run is rolled over
+   * on from it, m — the tower's, never ridden (est.). */
+  platform: 3,
+  roll: 8,
+  /** The in-run above the top gate, m along it (est.: room for the bar). */
+  above: 2,
+  /** The most height between two gates, m (the norm's 0.40). */
+  gateHeight: 0.4,
+  /** THE TRACKS' FRICTION ANGLE, degrees: 1° on ice or ceramic, 3° on snow
+   * (the norm); the hill's tracks are ice. */
+  tracks: 1,
+  /** The jumper the in-run's speeds are worked for, a point mass from the
+   * gate — and the engine's own in-run (`jump-inrun.ts`) rides these same
+   * numbers: his mass with his kit, kg (the light build the mode rides, 60
+   * kg, and the jumping skis, boots and suit, 7.5 kg — the field's ~66 kg
+   * mean); his CROUCH's drag area, m² (the in-run position's measures run
+   * about 0.15–0.25 m², a simulated large-hill jump's forces reading ~0.2;
+   * an elite crouch, the arms back along the body, at the low end, est. —
+   * any more and the normal hill's top gate falls short of its design
+   * speed); the TRACKS' FRICTION coefficient (refrigerated ice tracks at
+   * speed: 0.005–0.02 for a base on cold ice, est.; the norm designs a hill
+   * on 1°, `tracks`, as an allowance); and the air's density at a hill a
+   * few hundred metres over the sea on a winter day, kg/m³ (the standard
+   * atmosphere off −3 °C at the sea, ~600 m; the engine reads its own
+   * hill's height). Fitted in `make skijump-flight` so the design gate
+   * stands in the upper half of the gates, as a jury runs a contest. */
+  skier: { mass: 67.5, crouch: 0.15, air: 1.24, friction: 0.007 },
+  /** The fall line, m of plan past U (est.), and the level out-run past the
+   * norm's length, m (the arena's room). */
+  fallLine: 20,
+  past: 15,
+  /** The hill's width, m (the landing's 28 m at U, and room either side),
+   * how far past its edges its grading eases out, m, and the trees cleared
+   * within this of them, m. */
+  width: 34,
+  ease: 14,
+  margin: 12,
+  search: {
+    stride: 24,
+    bearings: [-12, -6, 0, 6, 12] as readonly number[],
+    starts: 8,
+    step: 2,
+    edge: 120,
+    top: 60,
+  },
+  fit: { deepest: 0.3, stations: 40, village: 160 },
+  arena: { before: 40, past: 40, half: 45 },
 } as const;

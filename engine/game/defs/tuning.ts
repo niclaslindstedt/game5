@@ -597,7 +597,7 @@ export const TUNING = {
     absorb: LANDING_ABSORB,
     /** THE LOAD A LANDING MAY CARRY: under `clean` g a landing is judged
      * only as the tips' dig is (`crash.noseAngle`), and past `buckle` g the
-     * legs fold however true it was — a flat landing off a big air. */
+     * legs fold however true it was — a flat landing off a big jump. */
     clean: 6,
     buckle: 14,
     /** HOW TRUE HE MUST COME DOWN: the most the skis may be off the slope

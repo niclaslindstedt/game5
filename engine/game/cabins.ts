@@ -121,7 +121,6 @@ function hasVenue(level: Level): boolean {
     level.giantSlalom ||
     level.speedSki ||
     level.skiCross ||
-    level.bigAir ||
     level.slopestyle
   );
 }

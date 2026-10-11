@@ -14,8 +14,8 @@ import type { PairId, SkiSpec } from "./skis.ts";
 /** HOW FAR THE TAIL IS TURNED UP, 0 (a race ski's flat tail, cut square)
  * … 1 (a twin-tip's, turned up as high as its tip): the race skis (the
  * ski-cross ski's among them) and the speed ski none, the all-mountain ski a little kick, the powder ski a
- * raised tail, the park ski and the big-air ski their twin tips, the mogul ski a low
- * kick, the aerials ski a lower one — and a twin snowboard's tail is its
+ * raised tail, the park ski and the competition park ski their twin tips, the mogul ski a low
+ * kick, the aerials ski a lower one, the jumping ski none (its tail flat) — and a twin snowboard's tail is its
  * nose, turned up as high (the beginner's, the park's and the all-mountain
  * board's), a directional board's lower: the powder board's tapered tail
  * a short kick, the big-mountain board's less, the carver's least. */
@@ -32,6 +32,7 @@ export const TAIL_RISE: Readonly<Record<PairId, number>> = {
   raven: 1,
   ibex: 0.2,
   kestrel: 0.12,
+  albatross: 0,
   lynx: 1,
   pika: 1,
   stoat: 1,

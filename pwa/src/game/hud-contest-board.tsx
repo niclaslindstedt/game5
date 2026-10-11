@@ -13,15 +13,18 @@ export function ContestBoard<R extends { id: number; place: number; you: boolean
   rows,
   name,
   figure,
+  tight = false,
 }: {
   rows: R[];
+  /** Rows set closer, for a board that lists more of them. */
+  tight?: boolean;
   /** A row's name: the player's word, or the rival's bib. */
   name: (r: R) => string;
   /** What the row scored, worded. */
   figure: (r: R) => string;
 }) {
   return (
-    <ol class="hud-standings hud-bigair-board">
+    <ol class={`hud-standings hud-contest-board${tight ? " hud-contest-tight" : ""}`}>
       {rows.map((r, i) => (
         <Fragment key={r.id}>
           {i > 0 && r.place > rows[i - 1].place + 1 && (

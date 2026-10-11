@@ -21,11 +21,11 @@ const MODE_WORDS: Record<GameMode, string> = {
   timeTrial: "TIME TRIAL",
   free: "FREE RIDE",
   tricks: "TRICKS",
-  bigAir: "BIG AIR",
   slopestyle: "SLOPESTYLE",
   halfpipe: "HALFPIPE",
   moguls: "MOGULS",
   aerials: "AERIALS",
+  skiJump: "SKI JUMPING",
 };
 
 /** A recording's clock: minutes, seconds and a tenth — `1:04.2`. */

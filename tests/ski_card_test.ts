@@ -99,7 +99,7 @@ describe("the spec sheet", () => {
     // slalom ski's arc does not yet ask all of its own: the ski-cross
     // ski's arc asks all of a grip greater than the slalom ski's.
     expect(by(bermCarveOf)[0]).toBe("wolverine");
-    // The big-air ski's legs fold the deepest: it takes the hardest landing
+    // The Raven's legs fold the deepest: it takes the hardest landing
     // whole, where the softer park ski is the more forgiving.
     expect(by(harshSpeedOf)[0]).toBe("raven");
     // The mogul ski's short length on legs that fold quickest takes a

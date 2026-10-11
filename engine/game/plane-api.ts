@@ -82,6 +82,7 @@ export type {
   ChuteCraft,
   ChuteDeploy,
   ChuteEvent,
+  ChuteMalfunction,
   ChuteMode,
   ChutePhaseEvent,
   ChutePiece,

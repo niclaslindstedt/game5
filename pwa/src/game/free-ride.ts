@@ -40,6 +40,8 @@ import {
   type GameState,
   type GrimbearState,
   lastPiste,
+  type MishapRate,
+  type MishapState,
   type Level,
   type RunRules,
   type SkiSpec,
@@ -420,7 +422,14 @@ export const GRIMBEAR_ODDS = 1 / 3;
 export function freeGameOptions(
   ride: FreeRide,
   seed: number,
-  skier: { spec: SkiSpec; assist: Assist; poles?: boolean; gore?: boolean; sfw?: boolean },
+  skier: {
+    spec: SkiSpec;
+    assist: Assist;
+    poles?: boolean;
+    gore?: boolean;
+    sfw?: boolean;
+    mishapRate?: MishapRate | "off";
+  },
   random: () => number = Math.random,
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
@@ -481,6 +490,11 @@ export function freeGameOptions(
     // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
     // unless the start card's row turned them off.
     avalanche: ride.avalanche,
+    // THINGS GO WRONG (`mishaps.ts`): a canopy's malfunction, an engine
+    // stopping — dealt off a stream of their own, salted by the app.
+    ...(skier.mishapRate && skier.mishapRate !== "off"
+      ? { mishaps: { rate: skier.mishapRate, salt: Math.floor(random() * 2 ** 32) } }
+      : {}),
   };
 }
 
@@ -501,6 +515,7 @@ export function freeTopOptions(
   again: CreateGameOptions,
   run: string | undefined,
   beast?: GrimbearState,
+  mishaps?: MishapState,
 ): CreateGameOptions {
   return {
     ...again,
@@ -508,6 +523,11 @@ export function freeTopOptions(
     byLift: false,
     run,
     grimbear: grimbearAgain(beast),
+    // The next rider is dealt his own mishaps, salted off the last one's.
+    mishaps: again.mishaps && {
+      ...again.mishaps,
+      salt: mishaps ? Math.floor(mishaps.rng.next() * 2 ** 32) : (again.mishaps.salt + 1) >>> 0,
+    },
     // A ride begun at the afterski starts again on the snow, not at the bar.
     inLodge: false,
   };
@@ -521,7 +541,7 @@ export function freeRestart(
   again: CreateGameOptions | null,
 ): CreateGameOptions | null {
   return !state.rules.course && !state.rules.tricks && again
-    ? freeTopOptions(again, lastPiste(state), state.grimbear)
+    ? freeTopOptions(again, lastPiste(state), state.grimbear, state.mishaps)
     : null;
 }
 

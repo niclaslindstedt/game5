@@ -520,11 +520,11 @@ function gradeTrack(original: Level): Graded {
     superG: undefined,
     giantSlalom: undefined,
     skiCross: undefined,
-    bigAir: undefined,
     slopestyle: undefined,
     halfpipe: undefined,
     moguls: undefined,
     aerials: undefined,
+    skiJump: undefined,
     bumps: undefined,
     normalNear: undefined,
     pipe: undefined,
@@ -580,7 +580,6 @@ export function setSpeedSki(level: Level, run: 1 | 2 = 2): Level {
     level.superG?.base ??
     level.giantSlalom?.base ??
     level.skiCross?.base ??
-    level.bigAir?.base ??
     level.slopestyle?.base ??
     level.halfpipe?.base ??
     level.moguls?.base ??

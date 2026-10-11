@@ -49,6 +49,10 @@ export type ParaScene = {
 
 /** THE RISERS: their length up the lines from his hang points, m, and how
  * far apart fore and aft the A and the C risers' links sit, m. */
+/** How deep a CRAVAT's tip is drawn turned under, a share of a full side
+ * fold: the outer cells caught in the lines, the rest of the wing flying. */
+const CRAVAT_FOLD = 0.3;
+
 const RISER = 0.45;
 const RISER_GAP = 0.035;
 /** How far his seat hangs under him in the harness, m; how high over the
@@ -344,24 +348,28 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
         const { brake, steer } = p.controls;
         const l = Math.min(1, brake + Math.max(0, -steer));
         const r = Math.min(1, brake + Math.max(0, steer));
-        // FOLDED by rough air: the side or the nose turned under, refilling.
-        const fold = p.fold;
+        // FOLDED by rough air: the side or the nose turned under, refilling
+        // — and a CRAVAT (`ParaState.cravat`): its tip held turned under by
+        // the lines it is caught in once the rest has filled.
+        const caught = p.cravat && p.fold < CRAVAT_FOLD;
+        const fold = caught ? CRAVAT_FOLD : p.fold;
+        const foldSide = caught ? p.cravat! : p.foldSide;
         if (
           Math.abs(l - shapedL) > 0.02 ||
           Math.abs(r - shapedR) > 0.02 ||
           Math.abs(fold - shapedFold) > 0.01 ||
-          p.foldSide !== shapedSide
+          foldSide !== shapedSide
         ) {
-          shapeCanopy(skin, l, r, fold, p.foldSide);
+          shapeCanopy(skin, l, r, fold, foldSide);
           canopyGeo.getAttribute("position").needsUpdate = true;
           canopyGeo.computeVertexNormals();
           shapedL = l;
           shapedR = r;
           shapedFold = fold;
-          shapedSide = p.foldSide;
+          shapedSide = foldSide;
         }
         folded = fold;
-        foldedSide = p.foldSide;
+        foldedSide = foldSide;
         // The motor on his back, down with him as he sits in the seat (the
         // perch's own share), the propeller at the engine's own turn.
         const sit = p.flying ? Math.max(0, Math.min(1, (p.agl - SIT) / 2)) : 0;

@@ -66,6 +66,8 @@ import { TUNING } from "./defs/tuning.ts";
 import { holdsHim } from "./gore.ts";
 import { carrierAt, carrierPlace, liftPlans, ropeAt, upRope } from "./lift-line.ts";
 import { paraAirAt, type ParaAir } from "./para-air.ts";
+import { MISHAPS } from "./defs/mishaps.ts";
+import { mishapOf, stagesOf, twistTurn, unwound } from "./mishaps.ts";
 import { freshPlane, startPlane } from "./plane.ts";
 import { startPara } from "./para.ts";
 import { startBalloon } from "./balloon.ts";
@@ -182,7 +184,10 @@ export function skydiveAt(
   const from = at.from ?? "plane";
   if (from === "plane") {
     if (!state.plane) state.plane = freshPlane(state);
-    else if (state.plane.rider) Object.assign(state.plane, freshPlane(state));
+    else if (state.plane.rider) {
+      Object.assign(state.plane, freshPlane(state));
+      delete state.plane.engine;
+    }
   }
   const heading = at.heading ?? 0;
   const c = state.skier;
@@ -521,6 +526,18 @@ function throwOut(state: GameState, ch: ChuteState, events: GameEvent[], reserve
     spread: 0,
   };
   say(state, events, reserve ? "reserve" : "open-start");
+  // THE MAIN may open badly (`mishaps.ts`); a reserve never does here.
+  const rng = reserve ? null : mishapOf(state, "chute");
+  if (rng) {
+    const C = MISHAPS.chute;
+    const r = rng.next();
+    ch.mal = r < C.twist ? "twist" : r < C.twist + C.hard ? "hard" : "lineover";
+    const side = rng.next() < 0.5 ? -1 : 1;
+    if (ch.mal === "twist") {
+      ch.twist = side * 2 * Math.PI * rng.range(MISHAPS.twist.min, MISHAPS.twist.max);
+    }
+    if (ch.mal === "lineover") ch.over = side;
+  }
 }
 
 /** ONE STEP OF THE OPENING: the stage and its drag area, the deceleration
@@ -530,7 +547,7 @@ function deploying(state: GameState, ch: ChuteState, events: GameEvent[]): void 
   const c = state.skier;
   const d = ch.deploy as ChuteDeploy;
   const W = wingOf(ch.reserve);
-  const STAGES = W.deploy.stages;
+  const STAGES = stagesOf(W, !ch.reserve && ch.mal === "hard");
   const K = W.canopy;
   const M = jumperMass(totalMass(c.spec));
   const t0 = d.t;
@@ -612,6 +629,11 @@ function deploying(state: GameState, ch: ChuteState, events: GameEvent[]): void 
     enter(ch, "open");
     ch.controls = { ...IDLE };
     say(state, events, "open", ch.peak);
+    if (!ch.reserve && ch.mal) {
+      say(state, events, "malfunction", ch.peak);
+      // A hard opening's load is a blow on the body (`body.ts`).
+      if (ch.mal === "hard") stepBody(state, events, null);
+    }
   }
 }
 
@@ -642,7 +664,13 @@ export function flyChute(state: GameState, input: SkierInput, events: GameEvent[
   if (c.airborne) {
     const lean = -ch.controls.riser * 0.2;
     const Fl = CHUTE.flare;
-    hangUnder(state, ch.canopyHeading, ch.bank, ch.agl, lean, Fl.stand, Fl.square, HARNESS);
+    // Twisted, he hangs turned under it by the twist left in the lines.
+    const facing = ch.canopyHeading + (ch.twist ?? 0);
+    hangUnder(state, facing, ch.bank, ch.agl, lean, Fl.stand, Fl.square, HARNESS);
+    if (ch.twist === 0) {
+      delete ch.twist;
+      say(state, events, "untwist");
+    }
   } else {
     // DOWN ON HIS SKIS under it: let go of, and he skis on.
     cutAway(ch);
@@ -675,6 +703,13 @@ function fly(state: GameState, ch: ChuteState, input: SkierInput, M: number, W: 
   const P = W.polar;
   const ctl = ch.controls;
   const want = chuteControls(input);
+  // LINE TWISTS (`mishaps.ts`): the toggles are above the twist, out of his
+  // reach; the edge is his kick, unwinding them faster.
+  if (ch.twist) {
+    ch.twist = unwound(ch.twist, Math.abs(want.steer) > 0.4, dt);
+    want.steer = 0;
+    want.brake = 0;
+  }
   readAir(state, ch, ch.x, ch.y, ch.z);
   if (c.airborne) want.steer = steerOf(ch, want.steer, ch.canopyHeading);
   const k = 1 - Math.exp(-dt / CHUTE.hands);
@@ -694,20 +729,23 @@ function fly(state: GameState, ch: ChuteState, input: SkierInput, M: number, W: 
   const rig = CHUTE.rig + B.rig * ctl.brake + riser;
   const alpha = rig + Math.atan2(-down, Math.max(1e-3, ax * FW.x + ay * FW.y + az * FW.z));
   ch.stalled = alpha > P.stall - B.stall * ctl.brake;
-  const lift = ch.stalled
-    ? P.stalled
-    : Math.max(0, P.slope * (alpha - P.zero) + B.lift * ctl.brake);
+  const O = MISHAPS.lineover;
+  const over = ch.over ?? 0;
+  const lift =
+    (ch.stalled ? P.stalled : Math.max(0, P.slope * (alpha - P.zero) + B.lift * ctl.brake)) *
+    (1 - O.lift * Math.abs(over));
   const T = CHUTE.turn;
   const drag =
     P.drag0 +
     P.induced * lift * lift +
     B.drag * ctl.brake * ctl.brake +
     T.drag * Math.abs(ctl.steer) +
-    (ch.stalled ? P.stallDrag : 0);
+    (ch.stalled ? P.stallDrag : 0) +
+    O.drag * Math.abs(over);
   // The last of the inflation: the cells still filling as the canopy flies.
   const Fi = CHUTE.fill;
   const fill = Math.min(1, Fi.from + ((1 - Fi.from) * ch.t) / Fi.time);
-  const qS = 0.5 * ch.density * V * V * K.area * fill;
+  const qS = 0.5 * ch.density * V * V * K.area * fill * (1 - O.area * Math.abs(over));
   liftDrag(ax, ay, az, V, U, qS, lift, drag, AF);
   let fx = AF.x;
   let fy = AF.y;
@@ -718,7 +756,10 @@ function fly(state: GameState, ch: ChuteState, input: SkierInput, M: number, W: 
   const ry = U.z * FW.x - U.x * FW.z;
   const rz = U.x * FW.y - U.y * FW.x;
   const banked = U.x * Math.cos(ch.canopyHeading) - U.z * Math.sin(ch.canopyHeading);
-  const side = qS * (T.side * ctl.steer - T.righting * banked);
+  // A twisted canopy turns on its own; a line over it turns it hard
+  // toward the pinched tip, past what the other toggle can hold.
+  const own = (ch.twist ? twistTurn(ch.twist) : 0) + O.turn * over;
+  const side = qS * (T.side * (ctl.steer + own) - T.righting * banked);
   fx += side * rx;
   fy += side * ry;
   fz += side * rz;
@@ -755,6 +796,8 @@ function fly(state: GameState, ch: ChuteState, input: SkierInput, M: number, W: 
 /** THE CANOPY LET GO OF: it falls free as cloth from where it flew — the
  * main, or the reserve once that is the one over him. */
 function cutAway(ch: ChuteState): void {
+  delete ch.twist;
+  delete ch.over;
   const piece = {
     x: ch.x,
     y: ch.y,

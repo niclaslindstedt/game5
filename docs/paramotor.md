@@ -124,6 +124,13 @@ A wing that flies at 55 km/h is moved bodily by a wind of half that, and it is k
 
 What it comes to: calm air, fog and a clear day's breeze fly clean. A fair or overcast day's 25 km/h folds the wing now and then. A snowfall's 45 km/h folds it often, stalls it and sets it going backwards over the ground when it turns into the wind. A storm's gale throws most flights. Real soft-wing pilots stop flying at about 20 km/h with gusts of 8 km/h, so the game's flyable band is wider on purpose, and still hard at its top end.
 
+## Things that go wrong
+
+With OPTIONS ▸ THINGS GO WRONG on (`engine/game/mishaps.ts`, `MISHAPS`), off the ride's own mishap stream:
+
+* **A CRAVAT**: a deep side fold (half or more) may leave its tip caught in the lines (`ParaState.cravat`) once the rest has filled — a fifth of the lift gone, more drag, the wing dragged round toward that side. Pumped free on the brakes: let up past a quarter and pulled past 85 % inside 0.6 s, each sharp pump frees it about one time in three; a slow squeeze does nothing. Drawn as that tip held turned under (`para-scene.ts`'s `CRAVAT_FOLD`).
+* **LAUNCH TWISTS**: the wing let fly with one to two turns of twist in its lines (`ParaState.twist`) — the pilot hanging turned under it, the motor pushing where he faces, the toggles out of reach until they are kicked out on the edge.
+
 ## Where it starts
 
 `paraStartOf(level)` picks the highest head among the ski area's runs, or else the piste's own start, and faces the skier down that run from it.

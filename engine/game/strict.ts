@@ -127,10 +127,7 @@ export function stepStrict(state: GameState, x0: number, z0: number, events: Gam
   const cp = cps[owed];
   if (!p.started) {
     if (crossedCheckpoint(cp, x0, z0, c.x, c.z, K.startGrace) !== null) {
-      credit(state, events, owed);
-      p.started = true;
-      p.lapStart = p.time;
-      p.nextCheckpoint = owed + 1;
+      startStrict(state, events);
       return;
     }
     const window = state.rules.window;
@@ -182,6 +179,17 @@ export function stepStrict(state: GameState, x0: number, z0: number, events: Gam
   if (next && owed + 1 < n - 1 && crossedCheckpoint(next, x0, z0, c.x, c.z, -K.grace) !== null) {
     disqualify(state, events, "missed", owed);
   }
+}
+
+/** THE START GATE TAKEN: the run is on. A ski jumper's is his leaving the
+ * starting bar (`jump-inrun.ts`) — wherever his gate stands on the in-run. */
+export function startStrict(state: GameState, events: GameEvent[]): void {
+  const p = state.progress;
+  if (p.started) return;
+  credit(state, events, p.nextCheckpoint);
+  p.started = true;
+  p.lapStart = p.time;
+  p.nextCheckpoint += 1;
 }
 
 /** A gate taken: the clock at it, the count, the event. */

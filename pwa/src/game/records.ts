@@ -124,7 +124,7 @@ export function keepsRecords(mode: GameMode): boolean {
     isGameMode(mode) &&
     mode !== "free" &&
     mode !== "tricks" &&
-    mode !== "bigAir" &&
+    mode !== "skiJump" &&
     mode !== "slopestyle" &&
     mode !== "halfpipe" &&
     mode !== "moguls" &&
@@ -166,13 +166,18 @@ export function splitGap(record: RunRecord | null, index: number, time: number):
  * positive and finite, a pair (skis or a board) this build no longer has.
  * The same rule `mergeSettings` applies, for the same reason. */
 export function mergeRecords(parsed: unknown): RecordBook {
-  return readBook<RunRecord>(
+  const book = readBook<RunRecord>(
     parsed,
     (raw, row) =>
       typeof raw.skis === "string" && isPairId(raw.skis)
         ? { value: row.value, skis: raw.skis, at: row.at, splits: row.splits ?? [] }
         : null,
     { splits: true },
+  );
+  // A row filed under a mode this build no longer has (`recordId`'s first
+  // part) is dropped.
+  return Object.fromEntries(
+    Object.entries(book).filter(([id]) => !id.includes("/") || isGameMode(id.split("/")[0])),
   );
 }
 

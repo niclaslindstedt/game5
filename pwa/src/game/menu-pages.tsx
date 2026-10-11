@@ -130,7 +130,7 @@ export function MenuPages(p: {
             const to = skisBack(p.mode, p.linkSeed);
             const trick =
               p.mode === "tricks" ||
-              p.mode === "bigAir" ||
+              p.mode === "skiJump" ||
               p.mode === "slopestyle" ||
               p.mode === "halfpipe" ||
               p.mode === "moguls" ||

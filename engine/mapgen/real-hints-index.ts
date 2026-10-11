@@ -72,6 +72,12 @@ export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {
   "fell-20": ["green", "blue", "red", "black"],
   "fell-21": ["green", "blue", "red", "black"],
   "maritime-4": ["green", "blue", "red", "black"],
+  "fell-22": ["green", "blue", "red", "black"],
+  "fell-23": ["green", "blue", "red", "black"],
+  "fell-24": ["blue", "red", "black"],
+  "fell-25": ["green", "red", "black"],
+  "fell-26": ["green", "blue", "red", "black"],
+  "fell-27": ["green", "blue", "red", "black"],
 };
 
 /** Each wooded face's woods by height, read off the forest the map draws:
@@ -118,6 +124,12 @@ export const HINT_TREES: Readonly<Record<string, string>> = {
   "fell-20": "9fb92ea3be5d000000",
   "fell-21": "85bcc9db5503000000",
   "maritime-4": "9538baac7817000000",
+  "fell-22": "eacbb1cb9fbfb55709",
+  "fell-23": "bf5ac5bcacd0610100",
+  "fell-24": "60707e5c0000000000",
+  "fell-25": "bfb2f7d3756a2f0500",
+  "fell-26": "d5c9d384aeac600e00",
+  "fell-27": "ff72f0fdfffffffcef",
 };
 
 /** Each face's hints, fetched when a map is raised on it. */
@@ -162,4 +174,10 @@ export const HINT_LOADERS: Readonly<Record<string, () => Promise<{ HINTS: HintDa
   "fell-20": () => import("./real-hints/hints-fell-20.ts"),
   "fell-21": () => import("./real-hints/hints-fell-21.ts"),
   "maritime-4": () => import("./real-hints/hints-maritime-4.ts"),
+  "fell-22": () => import("./real-hints/hints-fell-22.ts"),
+  "fell-23": () => import("./real-hints/hints-fell-23.ts"),
+  "fell-24": () => import("./real-hints/hints-fell-24.ts"),
+  "fell-25": () => import("./real-hints/hints-fell-25.ts"),
+  "fell-26": () => import("./real-hints/hints-fell-26.ts"),
+  "fell-27": () => import("./real-hints/hints-fell-27.ts"),
 };

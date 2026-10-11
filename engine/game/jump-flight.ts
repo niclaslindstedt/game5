@@ -43,7 +43,8 @@ import { measuredDistance } from "../mapgen/ski-jump.ts";
 import { JUMP } from "./defs/ski-jump-flight.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { throwRider } from "./crash.ts";
-import { hillFrame, hillWind, massOf, slopeAt } from "./jump-inrun.ts";
+import { hillFrame, hillWind, massOf, slopeAt, windAlong } from "./jump-inrun.ts";
+import { stationsOf } from "./jump-wind.ts";
 import { derive } from "./skier.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
 import type { SkiJumpState } from "./ski-jump-state.ts";
@@ -125,7 +126,7 @@ export function stepFlight(
   // THE AIR at him, over the snow under him.
   const ground = hill.yAt(j.along);
   const gap = j.y - LD.feet - ground;
-  const wind = hillWind(state, j, gap + LD.feet);
+  const wind = hillWind(state, j);
   // THE LANDING MADE READY: the trick key, or the assist's hand near the
   // snow.
   if (j.prepAt < 0 && t > L.time) {
@@ -204,6 +205,12 @@ export function stepFlight(
   if (after) j.errSum += Math.abs(j.aoa / D - idealAoa(t)) * dt;
   j.windSum += wind.head * dt;
   j.timeSum += dt;
+  // THE STATIONS, each read as he passes it.
+  const reads = j.record.stations;
+  const posts = stationsOf(hill);
+  while (reads.length < posts.length && hill.distanceAt(j.along) >= posts[reads.length]) {
+    reads.push(windAlong(state, j, posts[reads.length]).head);
+  }
   const over = j.y - hill.yAt(j.along);
   if (over > j.record.peak) {
     j.record.peak = over;
@@ -253,6 +260,10 @@ function touchDown(state: GameState, j: SkiJumpState, at: number, events: GameEv
   r.into = Math.max(0, -(j.va * Math.sin(slope) + j.vy * Math.cos(slope)));
   r.attitude = j.timeSum > 0 ? j.errSum / Math.max(1e-6, j.timeSum - JUMP.layout.time) : 0;
   r.wind = j.timeSum > 0 ? j.windSum / j.timeSum : 0;
+  if (r.stations.length === 0) r.stations.push(windAlong(state, j, 0).head);
+  let sum = 0;
+  for (const w of r.stations) sum += w;
+  r.measured = Math.round((sum / r.stations.length) * 100) / 100;
   const aoa = j.aoa / D;
   const fell = r.lost || aoa > LD.sat || Math.abs(j.roll) > LD.rolled;
   const since = j.prepAt >= 0 ? state.t - j.prepAt : -1;

@@ -16,6 +16,7 @@ export {
   pushShare,
   slopeAt,
   timeToEdge,
+  windAlong,
 } from "./jump-inrun.ts";
 export { idealAoa, jumpFlying, polarAt } from "./jump-flight.ts";
 export type {
@@ -25,3 +26,59 @@ export type {
   JumpStage,
   SkiJumpState,
 } from "./ski-jump-state.ts";
+export { HILL_AIR } from "./defs/ski-jump.ts";
+export {
+  hillAirAt,
+  hillAirOf,
+  hillMeanAt,
+  measuredAt,
+  stationsOf,
+  stationTimes,
+  type HillAir,
+  type HillWind,
+} from "./jump-wind.ts";
+export {
+  JUMP_PANEL,
+  deductionsOf,
+  distancePoints,
+  gatePoints,
+  judgeJump,
+  marksFor,
+  noStart,
+  scoreJump,
+  styleOf,
+  tenth,
+  windPoints,
+  type JumpScore,
+  type JumpScoring,
+} from "./ski-jump-judge.ts";
+export {
+  SKI_JUMP_DAY,
+  SKI_JUMP_FIELD,
+  SKI_JUMP_PAR,
+  fileSkiJump,
+  finalists,
+  freshSkiJumpContest,
+  gateFor,
+  judgeSkiJumpRun,
+  jumpVenueOf,
+  jumperLevelOf,
+  parDistance,
+  rivalJump,
+  roundPlan,
+  skiJumpBoard,
+  skiJumpContestAfter,
+  skiJumpPlace,
+  skiJumpRoundOf,
+  skiJumpSetup,
+  skiJumpStandings,
+  skipTrial,
+  startList,
+  type JumpRow,
+  type JumpRun,
+  type JumpStanding,
+  type JumpVenue,
+  type RoundPlan,
+  type SkiJumpContest,
+  type SkiJumpRound,
+} from "./ski-jump-contest.ts";

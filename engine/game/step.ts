@@ -69,6 +69,7 @@ import { freshMoguls, type MogulsContest } from "./moguls-contest.ts";
 import { freshAerials, type AerialsContest } from "./aerials-contest.ts";
 import { freshAerial } from "./aerial-flight.ts";
 import { freshJump, seatOnBar } from "./jump-inrun.ts";
+import { skiJumpSetup, type SkiJumpContest } from "./ski-jump-contest.ts";
 import { AERIALS } from "./defs/aerials.ts";
 import { SKI_JUMP } from "./defs/ski-jump.ts";
 import { isAerialCode, kickerOf } from "./defs/aerial-jumps.ts";
@@ -168,6 +169,12 @@ export type CreateGameOptions = {
   /** THE SKI JUMPING HILL a ski jump is jumped on (R43): the large hill
    * when left out. */
   hill?: SkiJumpHillId;
+  /** A SKI JUMPING CONTEST so far (R43, `ski-jump-contest.ts`): the
+   * jumps the player has taken. The run jumps his next — from the gate the
+   * jury has for him, in the hill's air at his moment of the contest's day
+   * (`skiJumpSetup`). A jump with no contest is jumped from the calm-air
+   * jury gate in the map's own hill's air, and scored by nobody. */
+  skiJumpContest?: SkiJumpContest;
   /** THE GATE a ski jumper sits on (an index into `Level.skiJump.gates`, 0
    * the lowest): the jury's — the lowest that brings him to the edge at
    * the hill's design speed in calm air — when left out. */
@@ -605,7 +612,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   }
   // A SKI JUMP (R43): sat on the bar of his gate.
   if (level.skiJump && rules.skiJump) {
-    state.jump = freshJump(state, options.gate);
+    const contest = options.skiJumpContest;
+    const setup = contest ? skiJumpSetup(contest) : null;
+    if (contest) state.skiJumpContest = contest;
+    state.jump = freshJump(state, options.gate ?? setup?.gate, setup?.air);
     seatOnBar(state);
   }
   if (rules.crowd > 0) createCrowd(state, rules.crowd);

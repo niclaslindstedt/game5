@@ -5,6 +5,8 @@
 // the RECORD a scorer, the HUD, the replay and the sim read off it. Stated
 // apart so `state.ts` stays under its line cap.
 
+import type { HillAir } from "./jump-wind.ts";
+
 /** Where the jumper is in his jump: sat on the BAR, down the TRACKS, in the
  * AIR, or DOWN — on the snow of the landing hill and the out-run, the jump
  * over and the engine's skier riding it out. */
@@ -42,6 +44,11 @@ export type JumpRecord = {
   peak: number;
   peakAt: number;
   wind: number;
+  /** THE WIND MEASURED: what the hill's stations read as he passed each
+   * (`jump-wind.ts`, the edge first), and their mean, m/s (head positive)
+   * — the wind the jump is compensated for. */
+  stations: number[];
+  measured: number;
   /** HOW WELL IT WAS FLOWN: the mean of the angle of attack's distance from
    * the ideal over the flight after the take-off's transition, the most it
    * rolled, when the V was open, s after the edge (−1 never), and whether
@@ -108,6 +115,9 @@ export type SkiJumpState = {
   errSum: number;
   windSum: number;
   timeSum: number;
+  /** THE HILL'S AIR the jump is flown in (`jump-wind.ts`): the contest's
+   * day at his moment, or the map's own hill dealt off its seed. */
+  air: HillAir;
   /** A STAGED WIND for the labs and the tests, m/s along the hill (head
    * positive) and across it (to the right): read in place of the map's air
    * when set, never by a played run. */

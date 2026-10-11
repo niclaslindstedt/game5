@@ -719,9 +719,13 @@ export const SKI_JUMP_RULE = {
    * slope at K are the norm's flight model's for those choices (our
    * arithmetic off its tables). The landing transition's radii lie between
    * the norm's floor at L (the 1.8 g load at the speed there, ~93 m on the
-   * large hill, ~86 m on the normal) and the landing radius (est.); the
-   * scoring numbers are the published sheets' until the flight lab
-   * measures the hill's own. */
+   * large hill, ~86 m on the normal) and the landing radius (est.). The
+   * SCORING numbers are the hill's own, measured the norm's way by
+   * `make skijump-flight` (3 m of in-run, ±3 m/s at (K + HS)/2) — the gate
+   * factor in points a metre of in-run, the head wind's in points a m/s —
+   * and the tail wind's the rules' 1.21 × the head's; the published sheets
+   * of hills of the class read 7.67, 10.8 and 13.07 on the large hill and
+   * 7.0, 8.0 and 9.68 on the normal one. */
   hills: {
     large: {
       w: 126,
@@ -734,9 +738,9 @@ export const SKI_JUMP_RULE = {
       r2l: 115,
       r2: 130,
       metre: 1.8,
-      gate: 7.67,
-      head: 10.8,
-      tail: 13.07,
+      gate: 6.5,
+      head: 9.9,
+      tail: 11.98,
     },
     normal: {
       w: 95.4,
@@ -749,9 +753,9 @@ export const SKI_JUMP_RULE = {
       r2l: 100,
       r2: 115,
       metre: 2.0,
-      gate: 7.0,
-      head: 8.0,
-      tail: 9.68,
+      gate: 6.2,
+      head: 6.2,
+      tail: 7.5,
     },
   } as Readonly<Record<SkiJumpHillId, SkiJumpHillRow>>,
   /** THE NORM'S FORMULAS (lengths m, speeds m/s, angles degrees):

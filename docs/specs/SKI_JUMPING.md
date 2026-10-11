@@ -1,6 +1,6 @@
 # Ski jumping — draft spec
 
-**The hill (R43) and the mode's skeleton are built; the jump is not.**
+**The hill (R43), the jump, its wind, its scorer and its contest are built (engine); the app and the drawing are not.**
 Ski jumping REPLACES BIG AIR as the first
 format on the tricks card, and is to be the game's most important mode
 beside the free ride: a real jumping hill cut into the mountain, an in-run
@@ -270,7 +270,7 @@ FLYING hill (HS 200+, 120 points at K, 1.2 a metre) is open.
 - **A jury's day** like the races' (`juryDay`): a storm or a whiteout eased
   to what a jumping contest is held in *(est.: no more than a steady fall)*.
 
-### The scorer (`engine/game/jump-judge.ts`, pure)
+### The scorer (`engine/game/ski-jump-judge.ts`, pure)
 
 - DISTANCE points: 60 + metre value × (distance − K), never below zero.
 - STYLE: five judges, each 20 less his deductions in half points — the
@@ -286,7 +286,7 @@ FLYING hill (HS 200+, 120 points at K, 1.2 a metre) is open.
   examples in its test (a 126 m clean telemark on the large hill at the
   reference gate in calm air: 60 + 3 × 18.5 = 115.5).
 
-### The contest (`engine/game/jump-contest.ts`, pure; `ContestState.skiJump`)
+### The contest (`engine/game/ski-jump-contest.ts`, pure; `ContestState.skiJumpContest`)
 
 - A TRIAL round the player may jump or skip (it counts nothing); the FIRST
   ROUND of 50 (the player and 49 dealt), the start order the field's level
@@ -300,8 +300,8 @@ FLYING hill (HS 200+, 120 points at K, 1.2 a metre) is open.
   (the day's own at his moment — the field jumps in the same wind field
   the player does, at its own clock times) and his fall (a few in a
   hundred *(est.)*), revealed as far as the player has jumped.
-- The contest rides the runs as `ContestState.skiJump`
-  (`CreateGameOptions.skiJump`), as aerials' does.
+- The contest rides the runs as `ContestState.skiJumpContest`
+  (`CreateGameOptions.skiJumpContest`), as aerials' does.
 
 ### The mode
 
@@ -594,9 +594,22 @@ Each phase lands green and with its lab's before and after in the PR.
       owns:** the words `SKI JUMPING` in `strings-replay.ts` and
       `strings-stats.ts`; the tricks card lists the format through
       `FREESTYLE` with no box, HUD or plate of its own yet.
-- [ ] **5. The wind, the jury, the scorer, the contest, the field, the par,
-      the bot**: the stations, the compensation, `jump-judge.ts`,
-      `jump-contest.ts`, `ski-jump-steer.ts`, `make sim --mode skiJump`.
+- [x] **5. The wind, the jury, the scorer, the contest, the field, the par,
+      the bot**: the hill's own air (`jump-wind.ts`, head and tail both),
+      the five stations and their mean (`JumpRecord.stations`,
+      `.measured`), the jury's gate a round and its lowering, the hold on
+      the bar for a tail wind (the dealt field's moments), the scorer
+      (`ski-jump-judge.ts`), the contest and its dealt field
+      (`ski-jump-contest.ts`, `GameState.skiJumpContest`), the par
+      (`SKI_JUMP_PAR`), `make sim --mode skiJump` scoring points and a
+      place; `tests/ski_jump_judge_test.ts`, `tests/ski_jump_contest_test.ts`.
+      **Left:** the jury holding the PLAYER on the bar (the app's light:
+      `windAlong(state, state.jump, 0)` against `HILL_AIR.holdTail`), a
+      coach's request to lower his gate (`createGame`'s `gate` with the
+      contest; the reference stays the round's), the start order dealt by
+      the player's book (`SkiJumpContest.level`, 0.5 today), a round
+      restarted when it passes HS, the normal hill's par re-measured once
+      its design gate is under its top gate.
 - [ ] **6. Big air retired** (the list above), R37 rewritten.
 - [ ] **7. The app**: the tricks card, the hill row, the HUD, the plate and
       the board, the words, the URL, the records, the replay recipe;
@@ -773,6 +786,73 @@ sims' digests unmoved.
 - The bot's timing is `ski-jump-steer.ts`'s `botTiming(seed)`; a field's
   jumpers dealt later should deal theirs the same way, off a stream of
   their own.
+
+## Settled (phase 5)
+
+- THE HILL'S AIR is its own (`jump-wind.ts`), never the map's folded wind:
+  a day's mean along the hill dealt off the contest's seed about a small
+  head wind (+0.2 m/s), its spread 0.45 m/s + 0.05 × the map's 10 m wind,
+  swinging over periods of 15 min to 1¾ h (so one round may be a head-wind
+  round and the next a tail-wind one), gusts of 4–23 s blown along the
+  hill at 8 m/s, a swing across it. Over 200 contests on seed 38 the
+  rounds' means run −2.1 … +2.6 m/s, a third of them tail. A jump with no
+  contest flies the map's own hill's air, dealt off the map's seed (seed
+  38: +0.9 m/s head, where the folded map wind was −1.9 tail).
+- THE STATIONS stand at the edge and at 25, 50, 75 and 100 % of K; each is
+  read as the jumper passes it, and the mean of those he passed is the
+  wind compensated (a jump short of K reads four).
+- THE SCORING NUMBERS are the hill's own, measured by the flight lab the
+  norm's way: the large hill 6.5 points a metre of in-run, 9.9 a m/s of
+  head wind and 11.98 of tail (1.21 ×); the normal hill 6.2, 6.2 and 7.5.
+- THE STYLE: 20 a judge less 0.5 for any flight, the take-off's error ×8
+  (most 2; never pressed 2), the attitude's mean error × 0.12 a degree
+  (most 1.5), the roll past 4° × 0.1 (most 1.5), the V late past 0.8 s
+  (most 1; never 1.5), turned over 5; the landing 0.5 a telemark, 1.5
+  late, 2 two-footed, 4.5 a fall, + 0.5 a g of load past 3.2 (most 1.5);
+  the out-run 4.5 a hand down, 7 a fall, 0.5 unsteady past 4.5 g; each
+  judge's eye ±0.4 before the half point. The bot's clean telemark reads
+  18.5–19 a judge (~56), a fall ~8 a judge.
+- THE PAR (`SKI_JUMP_PAR`, the lab's bot at the calm jury gate): the large
+  hill 126 m, 3.6 m a metre of in-run, 5.5 m a m/s either way; the normal
+  hill 99.5 m, 3.1, 3.2 head and 3.0 tail.
+- THE JURY picks the round's gate off the forecast mean at its start: the
+  highest whose par + 8 m stays under 0.97 × HS; for the rest of the round
+  it lowers it whenever the wind would carry the best past HS, the
+  round's first gate staying its reference. A jumper is held on the bar
+  15 s at a time (8 at most) while the tail at the edge is past 3 m/s.
+- THE DAY: the trial at 0 s, the first round at 2,400 s, the final at
+  6,600 s, a jumper every 70 s, 8 s from his run's start to the edge.
+- THE FIELD (`SKI_JUMP_FIELD`): a level each; his distance par + 3 −
+  22 × (1 − level)^1.3, ± a 2.5 m bell, a botched take-off one jump in
+  twenty (8–24 m short), a fall 1.2 % (+4 % a metre past HS); his marks
+  16.7 + 1.9 × level ± 0.5 (a botch and past HS a mark off; a fall 8.5).
+  Seed 1's large hill over contests 1–6: the best 127–135 m, the tenth
+  118–128, the thirtieth 109–117; points the winner's 104–117 a round, the
+  thirtieth's 74–91 (the head winds' compensation keeps them under a
+  real round's).
+- `make sim ARGS="--mode skiJump --skis albatross --rider light --count 8"`:
+  8/8 home, no wipeout, the bot's points 102–129 and its place 1st–11th of
+  fifty (on the default pair and build, `--count 8`: 96–123, 5th–18th); the
+  default and the aerials sims' digests unmoved.
+
+### What the app phase must know (phase 5)
+
+- A contest: `freshSkiJumpContest(seed, level, { trial })` (the level with
+  its hill set); the next jump `skiJumpRoundOf(c)` (null: over, or out of
+  the final), `skipTrial(c)`, `skiJumpSetup(c)` (the round, the gate, the
+  reference, the moment, the air). Stand the run up with
+  `createGame({ mode: "skiJump", level, skiJumpContest: c })` — the gate
+  and the air are read off it. Once `judgeSkiJumpRun(state)` answers (the
+  outcome settled, or a no start), `skiJumpContestAfter(state)` is the
+  contest with the jump filed (its record kept) and the final opened when
+  it put him in the thirty.
+- The boards: `skiJumpBoard(c, round)` (rows with shared places),
+  `skiJumpPlace`, `finalists`, `startList`, `roundPlan` (every jumper's
+  moment and gate), `skiJumpStandings(c)` (totals, finalists first). A
+  jump's points part by part are `JumpScore` (`distancePoints`, `marks`,
+  `style`, `gatePoints`, `wind`, `windPoints`, `points`).
+- The wind the HUD shows on the bar: `windAlong(state, state.jump!, 0)`;
+  the stations' readings `record.stations`, their mean `record.measured`.
 
 ## Open questions for the user
 

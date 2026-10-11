@@ -242,7 +242,7 @@ for (const r of table) {
   const b = was(r.id);
   if (b) console.log(`  was        ${line(b)}`);
 }
-console.log("\nTHE FACTORS — points; the hill's sheets beside them");
+console.log("\nTHE FACTORS — points, measured; the hill's scoring numbers beside them");
 const say = (k, mine, sheet) =>
   console.log(`  ${k.padEnd(5)} ${mine === undefined ? "-" : mine.toFixed(2)}  (${sheet})`);
 say("gate", factors.gate, `${hill.gateFactor} a metre of in-run`);

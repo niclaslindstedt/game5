@@ -12,6 +12,7 @@ import type { MogulTurns } from "./mogul-turns.ts";
 import type { AerialFlight } from "./aerial-flight.ts";
 import type { AerialsContest } from "./aerials-contest.ts";
 import type { SkiJumpState } from "./ski-jump-state.ts";
+import type { SkiJumpContest } from "./ski-jump-contest.ts";
 
 export type ContestState = {
   /** A BIG AIR CONTEST so far (R37, `big-air-contest.ts`), before this
@@ -40,4 +41,8 @@ export type ContestState = {
    * the tracks, the take-off, the flight and its record — the run's own,
    * stepped with it. */
   jump?: SkiJumpState;
+  /** A SKI JUMPING CONTEST so far (R43, `ski-jump-contest.ts`), before
+   * this run's jump — carried for the jury, the judges and the app; the
+   * jump's gate and its air are read off it when the run is stood up. */
+  skiJumpContest?: SkiJumpContest;
 };

@@ -65,3 +65,43 @@ export function skiJumpRules(laps: number): RunRules {
     hockeyStop: true,
   };
 }
+
+/** THE AIR AT THE HILL (est.; `jump-wind.ts`): a jumping hill stands in a
+ * hollow of its own, sheltered, its wind reported along its axis — head
+ * (up the landing hill, positive) or tail — at a few m/s at most on a day
+ * a contest is held, a head wind somewhat oftener than a tail one by day
+ * (the valley's up-slope breeze). The day's MEAN along the hill is dealt
+ * off the contest's seed about `bias`, its spread `spread` + `perWind` ×
+ * the map's 10 m wind, held inside `least` … `most`; it SWINGS over the
+ * day on slow periods, s, of the shares given; GUSTS ride it on short
+ * periods, s, blown down or up the hill at `travel` m/s, their size
+ * `gust` + `gustPer` × |the mean|; the air ACROSS the hill swings about
+ * nothing by `across` × the spread. The jury holds a jumper on the bar
+ * while the tail wind at the edge is past `holdTail` m/s, `holdFor` s at a
+ * time, `holdMost` times at the most. The STATIONS read the wind along
+ * the hill at these shares of K's distance (the edge first). */
+export const HILL_AIR = {
+  bias: 0.2,
+  spread: 0.45,
+  perWind: 0.05,
+  least: -3.2,
+  most: 3.6,
+  swing: [
+    { period: 2700, share: 0.75 },
+    { period: 6100, share: 0.55 },
+    { period: 940, share: 0.3 },
+  ],
+  gusts: [
+    { period: 3.7, share: 0.5 },
+    { period: 9.1, share: 0.35 },
+    { period: 23, share: 0.25 },
+  ],
+  travel: 8,
+  gust: 0.22,
+  gustPer: 0.1,
+  across: 0.6,
+  holdTail: 3,
+  holdFor: 15,
+  holdMost: 8,
+  stations: [0, 0.25, 0.5, 0.75, 1],
+} as const;

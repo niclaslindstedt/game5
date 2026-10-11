@@ -39,7 +39,7 @@ import { riderOf } from "./defs/riders.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { derive } from "./skier.ts";
 import { startStrict } from "./strict.ts";
-import { airAt } from "./wind.ts";
+import { hillAirAt, hillAirOf, type HillAir } from "./jump-wind.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
 import type { SkiJumpState } from "./ski-jump-state.ts";
 
@@ -135,9 +135,13 @@ export function hillDensity(state: Pick<GameState, "level">): number {
   return airDensity(airPressure(alt), airKelvin(alt));
 }
 
+/** The salt a hill's own air is dealt off when no contest deals it. */
+const AIR_SALT = 0x51a1e;
+
 /** A JUMP AS IT STANDS BEFORE IT IS JUMPED: on the bar of `gate` (an index;
- * the jury's when left out), the record empty. */
-export function freshJump(state: GameState, gate?: number): SkiJumpState {
+ * the jury's when left out), in the hill's `air` (the map's own hill's,
+ * dealt off its seed, when left out), the record empty. */
+export function freshJump(state: GameState, gate?: number, air?: HillAir): SkiJumpState {
   const hill = state.level.skiJump!;
   const density = hillDensity(state);
   const at = clamp(gate ?? juryGate(hill, density, massOf(state.skier)), 0, hill.gates.length - 1);
@@ -167,6 +171,7 @@ export function freshJump(state: GameState, gate?: number): SkiJumpState {
     errSum: 0,
     windSum: 0,
     timeSum: 0,
+    air: air ?? hillAirOf(state.level, (state.level.seed ^ AIR_SALT) >>> 0),
     record: {
       gate: hill.gates[at].number,
       inRunSpeed: 0,
@@ -178,6 +183,8 @@ export function freshJump(state: GameState, gate?: number): SkiJumpState {
       peak: 0,
       peakAt: 0,
       wind: 0,
+      stations: [],
+      measured: 0,
       attitude: 0,
       roll: 0,
       veeAt: -1,
@@ -234,23 +241,28 @@ function placeOnTracks(state: GameState, j: SkiJumpState, v: number, h: number):
   derive(c, state.level);
 }
 
-/** The head wind along the hill at the jumper, m/s (a tail wind negative),
- * and the wind across it to his right — the staged one, if any. */
-export function hillWind(
+/** The head wind along the hill, m/s (a tail wind negative), and the wind
+ * across it to his right, `d` m of distance down the landing hill (0 at
+ * the edge and on the in-run) — the staged one, if any, else the hill's
+ * air (`jump-wind.ts`) at this moment of its day. */
+export function windAlong(
   state: GameState,
   j: SkiJumpState,
-  height: number,
+  d: number,
 ): {
   head: number;
   across: number;
 } {
   if (j.staged) return j.staged;
-  const f = hillFrame(state);
-  const c = state.skier;
-  const w = airAt(state.level, state.t, c.x, c.z, Math.max(1, height));
-  const fx = Math.sin(f.heading);
-  const fz = Math.cos(f.heading);
-  return { head: -(w.x * fx + w.z * fz), across: w.x * fz - w.z * fx };
+  return hillAirAt(j.air, j.air.clock + state.t, Math.max(0, d));
+}
+
+/** The wind along and across the hill at the jumper (`windAlong` where he
+ * is). The hill's air is reported at the stations' height, the flight's,
+ * so it is read the same at any height over the snow. */
+export function hillWind(state: GameState, j: SkiJumpState): { head: number; across: number } {
+  const hill = state.level.skiJump!;
+  return windAlong(state, j, j.along > hill.edge ? hill.distanceAt(j.along) : 0);
 }
 
 /** THE SHARE OF THE PUSH the edge keeps, pressed `timing` s off perfect
@@ -302,7 +314,7 @@ export function stepTracks(
     // THE PRESS: the push started (once) — never the one that left the bar.
     j.pressAt = t0;
   }
-  const head = hillWind(state, j, 1).head;
+  const head = hillWind(state, j).head;
   const from = j.along;
   const step = trackStep(hill, j.along, j.speed, dt, j.density, massOf(c), head);
   // THE PHOTOCELLS: 8 m of the arc, the second 10 m before the edge.

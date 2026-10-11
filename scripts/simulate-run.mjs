@@ -92,7 +92,7 @@ const args = parseArgs(
     },
     mode: {
       kind: "string",
-      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), giantSlalom (R36, its first run), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four), bigAir (R37, a contest's first jump), slopestyle (R38, a contest's first run), halfpipe (R39, a contest's first run), moguls (R40, a contest's qualification run) aerials (R41, a contest's qualification jump; --plan for the jump) or skiJump (R43, a jump off the large hill's top gate, the in-run held in the crouch — no take-off, flight or scoring yet) — its course set over each seed's map under the strict gates; the open rules when left out",
+      help: "race a discipline: slalom (R31), downhill (R32), superG (R33), giantSlalom (R36, its first run), speedSki (R34, its qualification; time is through the timing zone) or skiCross (R35, its qualification; --heat for a heat of four), bigAir (R37, a contest's first jump), slopestyle (R38, a contest's first run), halfpipe (R39, a contest's first run), moguls (R40, a contest's qualification run) aerials (R41, a contest's qualification jump; --plan for the jump) or skiJump (R43, the first round of a contest dealt off the seed: off the large hill's jury gate in the hill's own air, its score the jump's points and its place among the fifty) — its course set over each seed's map under the strict gates; the open rules when left out",
     },
     heat: {
       kind: "flag",

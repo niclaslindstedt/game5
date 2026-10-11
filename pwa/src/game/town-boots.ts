@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE BOOTS ON HIS FEET IN TOWN (`town.ts`): out of the bindings, walking
-// the village with the pair on his shoulder, he wears the boots the pair
-// was drawn with — the same shell, toe box, forward-tipped cuff and three
+// THE BOOTS ON HIS FEET whenever the pair is not under him. An alpine
+// binding holds the boot's toe and heel and lets the BOOT out of it — the
+// toe sideways in a twist, the heel upward in a forward fall — while the
+// boot itself stays buckled to the foot; the ski is left with an empty
+// binding and its brake. So thrown (`crash.ts`), on his feet after a fall
+// (`buzz.ts`'s fetch), with the pair racked, or in town (`town.ts`) with the
+// pair on his shoulder, he wears the boots the pair was drawn with — the same shell, toe box, forward-tipped cuff and three
 // buckles `ski-gear.ts` clamps into the bindings — on the figure's feet
 // instead. Each is built with its origin at the top of the cuff, where the
 // figure's own cloth stops (`SkierPose.feet`), and turned by the foot's
@@ -9,7 +13,10 @@
 
 import * as THREE from "three";
 
+import { GORE_PIECES } from "@engine";
+
 import type { Boot } from "./skier-limbs.ts";
+import type { SkierPose } from "./skier-pose.ts";
 import type { V3 } from "./skier-vec.ts";
 
 type BootLook = { boot: { length: number; height: number } };
@@ -67,4 +74,26 @@ export function bootOn(group: THREE.Object3D, foot: V3, frame: Boot): void {
   basis.makeBasis(bx, by, bz);
   group.quaternion.setFromRotationMatrix(basis);
   group.position.set(foot.x, foot.y, foot.z);
+}
+
+/** The bits of `GORE_PIECES` that take a foot with them: each leg's (the
+ * leg, the shin) and the lower half's. */
+const bit = (piece: (typeof GORE_PIECES)[number]): number => 1 << GORE_PIECES.indexOf(piece);
+const TORN_LEG = [bit("legL") | bit("shinL"), bit("legR") | bit("shinR")];
+const TORN_LOWER = bit("lower");
+
+/** Whether a foot is on him: not on a leg torn off at or above the ankle
+ * (`lost`, a bit a piece of `GORE_PIECES`). */
+export function footKept(lost: number, i: number): boolean {
+  return (lost & (TORN_LEG[i] | TORN_LOWER)) === 0;
+}
+
+/** The walking boots put on the feet of `p` when `shown`, each but on a
+ * leg torn off (`footKept`). */
+export function bootsOn(boots: THREE.Object3D[], p: SkierPose, shown: boolean, lost: number): void {
+  for (let i = 0; i < 2; i++) {
+    const kept = footKept(lost, i);
+    boots[i].visible = shown && kept;
+    if (kept) bootOn(boots[i], p.feet[i], p.boots[i]);
+  }
 }

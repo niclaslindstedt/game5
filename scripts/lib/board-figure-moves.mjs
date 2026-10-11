@@ -5,6 +5,8 @@
 // sheets and `make board-metrics` judge the rider at. A regular rider faces
 // his board's right, so the steer to the right is his TOESIDE turn.
 
+import { BOARD_TRICK_MOMENTS, BOARD_TRICK_MOVES } from "./board-trick-moves.mjs";
+
 const IDLE = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
 const PITCH = Math.tan(Math.PI / 9);
 /** The 20° groomed pitch every carve is ridden down. */
@@ -151,6 +153,8 @@ export const BOARD_MOVES = [
     window: [0.4, 2.9],
     input: (t) => ({ ...IDLE, steer: t < 1 ? -0.75 : -1 }),
   },
+  // The tricks: the seven grabs, a spin, the ollie and the nollie, a press.
+  ...BOARD_TRICK_MOVES,
 ];
 
 /** The moments the close sheets and the metrics judge him at. */
@@ -167,4 +171,5 @@ export const BOARD_MOMENTS = [
   { id: "landing", move: "drop", t: 0.75, say: "a landing taken in the legs" },
   { id: "slip", move: "slip", t: 2.0, say: "a heelside sideslip on a steep face" },
   { id: "fakie", move: "fakie", t: 3.0, say: "riding fakie, looking over the other shoulder" },
+  ...BOARD_TRICK_MOMENTS,
 ];

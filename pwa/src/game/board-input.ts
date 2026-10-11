@@ -5,6 +5,7 @@
 // world's up in his body frame. Three-free, so the model (`board-model.ts`),
 // the metrics lab (`make board-metrics`) and the suite build it alike.
 
+import { popLoad, pressOf } from "./board-grab.ts";
 import { unrotate, type SkiSpec, type SkierState } from "@engine";
 
 import type { BoardPoseInput } from "./board-pose.ts";
@@ -108,6 +109,13 @@ export function boardInputOf(
       drive: skier.drive,
       stride: skier.stride,
       idle: { t: legs.clock, still },
+      // THE TRICKS' READINGS (`board-grab.ts`): a press held on the lean, the
+      // load before a pop, the steer that winds up a spin and the spin.
+      press:
+        legs.load > 0 || feet?.free ? 0 : pressOf(skier.lean, skier.edge, skier.speed) * onSnow,
+      pop: popLoad(legs.load, skier.lean) * onSnow,
+      windup: skier.steer,
+      spin: skier.airborne ? skier.wy : 0,
     },
   };
 }

@@ -21,6 +21,7 @@ import type { BodyPart, InjuryKind } from "./defs/anatomy.ts";
 import type { CRASH } from "./defs/crash.ts";
 import type { HeliControls, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 import type { Thrown } from "./thrown-state.ts";
+import type { BoardGrab, SpinTag } from "./board-state.ts";
 import type { Injury, TrunkLoad } from "./injury-state.ts";
 export type { Injury, TrunkLoad } from "./injury-state.ts";
 import type { GoreEvent, GoreState } from "./gore-state.ts";
@@ -431,14 +432,14 @@ export type TrickKind =
 /** THE SKIER'S GRABS, picked with the trick button held in the air by what
  * the lean and the edge say (`strokes.ts`'s `poseOf`): the DAFFY, one ski
  * kicked forward and one back (the edge over), the SPREAD, both skis flung
- * wide (the lean back), or the GRAB, the body folded to a hand on the ski
- * (the lean forward, or nothing). */
-export type TrickPose = "daffy" | "spread" | "grab";
+ * wide (the lean back), or the GRAB, a hand on the ski (the lean forward,
+ * or nothing) — and on a board its own seven (`BoardGrab`). */
+export type TrickPose = "daffy" | "spread" | "grab" | BoardGrab;
 
 /** One element of a combo: what it was, which revolution of its flight
  * (1 for everything that is not a revolution), and which flight of the
  * combo won it (1-based). */
-export type TrickPart = { kind: TrickKind; spins: number; flight: number };
+export type TrickPart = { kind: TrickKind; spins: number; flight: number } & SpinTag;
 
 /** THE SCORE AND ITS COMBO, and the strokes' per-flight bookkeeping
  * (`tricks.ts`, `strokes.ts` — every rule is theirs). Written only there. */

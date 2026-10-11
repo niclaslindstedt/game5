@@ -63,7 +63,7 @@ import {
 import { SLALOM_SCENARIOS } from "./ride-slalom.mjs";
 import { DRUNK_SCENARIOS } from "./ride-drunk.mjs";
 import { SPEED_SCENARIOS } from "./ride-speed.mjs";
-import { BOARD_SCENARIOS } from "./ride-board.mjs";
+import { BOARD_SCENARIOS, BOARD_TRICK_SCENARIOS } from "./ride-board.mjs";
 import { BOARD_MOVES_SCENARIOS } from "./ride-board-moves.mjs";
 
 /** The fastest the snow slid across the skis over a run, m/s. */
@@ -296,6 +296,7 @@ export const SCENARIOS = [
   // The snowboard's, on the board (`ride-board.mjs`).
   ...BOARD_SCENARIOS,
   ...BOARD_MOVES_SCENARIOS,
+  ...BOARD_TRICK_SCENARIOS,
   {
     id: "jump-tap",
     title: "the jump tapped at 50 km/h on flat packed snow",

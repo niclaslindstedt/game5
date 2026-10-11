@@ -7,12 +7,18 @@
 
 import { ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import type { BigAirPhase, Freestyle, TrickRead } from "@engine";
+import { BOARD_GRAB_WORDS } from "./strings-board-tricks.ts";
 
 /** A flip's count in front of its name. */
 const TIMES = ["", "", "DOUBLE ", "TRIPLE ", "QUAD "];
 
 /** The grabs, as a big air trick names them. */
-const GRABS = { daffy: "DAFFY", spread: "SPREAD EAGLE", grab: "MUTE" } as const;
+const GRABS = {
+  daffy: "DAFFY",
+  spread: "SPREAD EAGLE",
+  grab: "MUTE",
+  ...BOARD_GRAB_WORDS,
+} as const;
 
 export const BIG_AIR_STRINGS = {
   /* ── THE FREESTYLE CARD (menu-freestyle.tsx) ────────────────────────── */

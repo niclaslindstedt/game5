@@ -67,6 +67,9 @@ import {
   bowAt,
   type BoardShape,
 } from "./board-look.ts";
+import type { BoardGrab } from "@engine";
+import { CONTACT, boardHalfWidth } from "./board-look.ts";
+import { END_IN, FIST, GRAB_LOOKS, POP, PRESS, type GrabLook } from "./board-grab.ts";
 
 /** What the pose is handed: the board's own numbers and one frame's
  * readings, each the engine's (eased by the view's spring where it says). */
@@ -119,6 +122,19 @@ export type BoardPoseInput = {
   stride: number;
   /** Stood still: his own clock, s, and how still, 0..1. */
   idle?: { t: number; still: number };
+  /** THE TRICKS (`board-grab.ts`): the grab held in the air and how far
+   * into it, 0..1 (eased by the drawing, `easeGrab`); the press on the
+   * snow, −1 (the nose) … 1 (the tail); the load before a pop, + over the
+   * tail (an ollie), − over the nose (a nollie); the wind-up before a spin,
+   * −1 … 1 (the steer held while a jump is loaded, + a clockwise one); and
+   * his turn about his up, rad/s (clockwise +) — the head and the
+   * shoulders lead a spin. */
+  grab?: BoardGrab | null;
+  grabShare?: number;
+  press?: number;
+  pop?: number;
+  windup?: number;
+  spin?: number;
 };
 
 /** THE DECK as laid in the body frame: the middle of its base, its axes
@@ -250,7 +266,10 @@ export function boardFrame(input: BoardPoseInput): BoardFrame {
   const r = input.incline;
   const [lf, lb] = input.lift;
   const lifted = (lf + lb) / 2 + input.air * 0.16;
-  const pitch = Math.atan2(lf - lb, b.stance) * (1 - ground);
+  // A PRESS or the load before a pop bends the deck onto one end (nose up
+  // positive), its low end kept on the snow.
+  const tilt = (PRESS.most * (input.press ?? 0) + POP.most * (input.pop ?? 0)) * (1 - ground);
+  const pitch = Math.atan2(lf - lb, b.stance) * (1 - ground) + tilt;
   const place = (v: V3): V3 => rz(ry(rz(rx(v, -pitch), -edge), input.angle), r);
   const along = place({ x: 0, y: 0, z: 1 });
   const normal = place({ x: 0, y: 1, z: 0 });
@@ -259,7 +278,11 @@ export function boardFrame(input: BoardPoseInput): BoardFrame {
   const centre = add(
     {
       x: 0,
-      y: input.ground + lifted + input.crouchDrop * input.crouch,
+      y:
+        input.ground +
+        lifted +
+        input.crouchDrop * input.crouch +
+        Math.sin(Math.abs(tilt)) * CONTACT * b.length,
       z: 0,
     },
     scale(snow, (b.waist / 2) * Math.abs(Math.sin(edge))),
@@ -357,6 +380,9 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   const onSnow = 1 - air;
   const deck = boardFrame(input);
   const { sole, boot } = bindingsOf(deck, input);
+  // THE GRAB, drawn in the air only (`board-grab.ts`).
+  const look = input.grab ? GRAB_LOOKS[input.grab] : null;
+  const g = look ? clamp(input.grabShare ?? 1, 0, 1) * smooth(0.3, 0.9, air) : 0;
 
   // THE RIDER'S AXES, level in the body: the nose's way, the way he faces
   // (his toes), and his own right.
@@ -416,8 +442,14 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   // toward the toes on a toeside turn and sat back on a heelside; along the
   // deck by the lean (and over the front foot while the rear one works).
   const mid = mix(sole[0], sole[1], 0.5);
+  // (the lean +1 is BACK, `SkierInput.lean`: the hips go toward the tail;
+  // further in a press or over the loaded end before a pop).
   const fore =
-    0.06 * clamp(input.lean, -1, 1) + 0.1 * freeK + still * 0.025 * Math.sin(clock * 0.55);
+    -0.06 * clamp(input.lean, -1, 1) -
+    PRESS.hips * (input.press ?? 0) * onSnow -
+    POP.hips * (input.pop ?? 0) * onSnow +
+    0.1 * freeK +
+    still * 0.025 * Math.sin(clock * 0.55);
   // THE LOW CARVE: laid over past ~35°, he reaches the snow on the turn's
   // inside — bent down to it over his toes, or sat back toward it behind
   // his heels.
@@ -441,6 +473,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       0.4 * fold +
       0.55 * clamp(input.load, 0, 1) +
       0.7 * air +
+      (look?.knee ?? 0) * g +
       0.5 * hop * hopLoad -
       0.15 * still -
       0.12 * pushing * freeK,
@@ -457,7 +490,12 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   // ...turned back the way a fakie rider looks.
   const fakie = input.switched ? -1 : 1;
   const openSign = fakie;
-  const hipFace = turn(F, UP, -face * openSign * openUpper * STANCE.hips);
+  // THE SPIN: wound up against it while the jump is loaded, then led by the
+  // shoulders (and the head, below) — a turn about his up, clockwise +.
+  const twist = spinTwist(input);
+  // A grab turns the shoulders to the nose or the tail (`GrabLook.open`).
+  const openAll = openUpper + ((look?.open ?? 0) * g - twist * face) * openSign;
+  const hipFace = turn(F, UP, -face * openSign * openAll * STANCE.hips);
   const pelvis = cross(UP, hipFace); // left to right
   // Height: each leg's hip joint over its cuff at the flexion asked for.
   const span = Math.sqrt(
@@ -488,14 +526,32 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     V3,
   ];
   // THE KNEES, solved over the toes (each shin forward of its boot).
-  const knees = [0, 1].map((i) => {
-    const toward = norm(add(add(boots[i].f, scale(boots[i].n, 0.15)), scale(F, 0.3)));
-    return solveLimb(hipJoints[i], feet[i], BODY.thigh, SHIN_ABOVE_CUFF, toward);
-  }) as [V3, V3];
+  // THE GRAB'S BOARD: drawn up by the knees under the hips (and kicked
+  // behind him in a method), tweaked, the feet in its bindings — the hips
+  // where the air left them.
+  let ridden = deck;
+  const standOn = (f: BoardFrame): void => {
+    ridden = f;
+    const at = bindingsOf(f, input);
+    for (let i = 0; i < 2; i++) {
+      soles[i] = at.sole[i];
+      boots[i] = at.boot[i];
+      feet[i] = cuffOver(soles[i], boots[i]);
+    }
+  };
+  if (look && g > 0) standOn(tweakDeck(deck, look, g, face, F));
+  const knees = [V0(), V0()] as [V3, V3];
+  const solveKnees = (): void => {
+    for (let i = 0; i < 2; i++) {
+      const toward = norm(add(add(boots[i].f, scale(boots[i].n, 0.15)), scale(F, 0.3)));
+      knees[i] = solveLimb(hipJoints[i], feet[i], BODY.thigh, SHIN_ABOVE_CUFF, toward);
+    }
+  };
+  solveKnees();
 
   // THE TRUNK: leaning toward his toes (and down over the front knee in a
   // tuck), the shoulders opened to the nose.
-  const chestFace = turn(F, UP, -face * openSign * openUpper);
+  const chestFace = turn(F, UP, -face * openSign * openAll);
   const lean = clamp(
     STANCE.lean +
       TOESIDE.lean * toeK +
@@ -504,13 +560,16 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       0.35 * fold +
       0.3 * clamp(input.load, 0, 1) +
       0.1 * air +
+      (look?.lean ?? 0) * g +
       0.12 * freeK,
     -0.2,
     1.25,
   );
   // In a tuck the chest goes down over the FRONT knee: the lean's way
   // turned toward the nose.
-  const leanWay = norm(add(chestFace, scale(nose, 0.35 * crouch * fakie)));
+  let leanWay = norm(add(chestFace, scale(nose, 0.35 * crouch * fakie)));
+  // ...and in a grab toward where the hand goes.
+  if (look) leanWay = norm(mix(leanWay, norm(add(scale(F, look.to), scale(nose, look.fore))), g));
   const spineDir = norm(add(scale(UP, Math.cos(lean)), scale(leanWay, Math.sin(lean))));
   const round = 0.12 + 0.35 * crouch + 0.2 * fold;
   const bendAxis = norm(cross(spineDir, leanWay));
@@ -542,6 +601,8 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   want = norm(add(want, scale(inside, 0.3 * Math.abs(toe))));
   // Stood still he glances about.
   want = turn(want, UP, still * 0.35 * Math.sin(clock * 0.37));
+  // A spin is led by the head.
+  want = turn(want, UP, clamp(SPIN.head * (input.spin ?? 0), -SPIN.most, SPIN.most) * air);
   const off = yawBetween(chestFace, want);
   const NECK = 1.35;
   const yaw = clamp(off, -NECK, NECK);
@@ -640,13 +701,53 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   // ...and none is ever drawn into it.
   handF = above(handF, LOW.gap);
   handR = above(handR, LOW.gap);
+  // THE GRAB: the hand down to its place on the board, the free arm thrown
+  // out and up.
+  const grabFront = look?.hand === "front";
+  if (look && g > 0) {
+    const spot = grabSpot(look, ridden, b, face);
+    const freeS = grabFront ? sR : sF;
+    const out = norm(sub(freeS, neck));
+    const thrown = add(
+      add(add(freeS, scale(UP, 0.32)), scale(out, 0.3)),
+      scale(nose, (grabFront ? -0.25 : 0.25) * fakie),
+    );
+    if (grabFront) {
+      handF = mix(handF, spot, g);
+      handR = mix(handR, thrown, g * 0.85);
+    } else {
+      handR = mix(handR, spot, g);
+      handF = mix(handF, thrown, g * 0.85);
+    }
+  }
   const elbowPole = (i: number): V3 => {
     const out = norm(sub(shoulders[i], neck));
     return norm(add(add(scale(UP, -0.55), scale(out, 0.8)), scale(chestFace, -0.25)));
   };
+  // A grab's elbow out to the side, or round behind him (a stalefish).
+  const grabPole = (i: number): V3 =>
+    look && g > 0 && (i === fi) === grabFront
+      ? norm(mix(elbowPole(i), norm(add(scale(F, -look.elbow), scale(UP, 0.2))), g * 0.6))
+      : elbowPole(i);
   const hands: [V3, V3] = [handF, handR];
-  const armF = arm(sF, hands[0], elbowPole(fi));
-  const armR = arm(sR, hands[1], elbowPole(ri));
+  let armF = arm(sF, hands[0], grabPole(fi));
+  let armR = arm(sR, hands[1], grabPole(ri));
+  // OUT OF REACH, the knees draw the board the rest of the way up to the
+  // hand — a little, never past `REACH_MOST` m.
+  if (look && g > 0) {
+    const reached = grabFront ? armF.hand : armR.hand;
+    const want = grabFront ? hands[0] : hands[1];
+    const short = sub(want, reached);
+    const l = len(short);
+    if (l > 0.003) {
+      const shift = scale(short, -Math.min(l, REACH_MOST) / l);
+      standOn({ ...ridden, centre: add(ridden.centre, shift) });
+      solveKnees();
+      const spot = mix(want, grabSpot(look, ridden, b, face), g);
+      if (grabFront) armF = arm(sF, spot, grabPole(fi));
+      else armR = arm(sR, spot, grabPole(ri));
+    }
+  }
   const elbows = [V0(), V0()] as [V3, V3];
   const fists = [V0(), V0()] as [V3, V3];
   elbows[fi] = armF.elbow;
@@ -673,7 +774,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       poles: null,
       look: angles.look,
     },
-    board: deck,
+    board: ridden,
     free: freeK > 0.5 ? ri : null,
     rise,
   };
@@ -688,6 +789,87 @@ export function easeFree(share: number, free: boolean, dt: number): number {
   const to = free ? 1 : 0;
   const step = FREE_RATE * Math.max(0, dt);
   return share < to ? Math.min(to, share + step) : Math.max(to, share - step);
+}
+
+/** THE SPIN as the body leads it: the wind-up's turn against it, rad at a
+ * full one, how far ahead the head and the shoulders turn per rad/s of the
+ * spin, and the most either turns. */
+export const SPIN = { wind: 0.55, head: 0.09, shoulders: 0.035, most: 0.8 };
+
+/** The shoulders' turn for a spin, rad, clockwise from above +: wound
+ * against it while the jump is loaded, led into it in the air. */
+export function spinTwist(input: BoardPoseInput): number {
+  const wound = -SPIN.wind * clamp(input.windup ?? 0, -1, 1) * clamp(input.load, 0, 1);
+  const led = clamp(SPIN.shoulders * (input.spin ?? 0), -SPIN.most, SPIN.most) * input.air;
+  return wound + led;
+}
+
+/** The most the board is drawn up to a hand that cannot reach it, m. */
+export const REACH_MOST = 0.3;
+
+/** THE DECK A GRAB HOLDS: drawn up toward the hips and across (`lift`,
+ * `across`), tweaked (`roll` the heel edge up, `pitch` the nose up, `yaw`
+ * the nose toward the toes), all by the grab's share `g`. `face` +1 for a
+ * regular rider, `F` the way he faces. */
+export function tweakDeck(
+  deck: BoardFrame,
+  look: GrabLook,
+  g: number,
+  face: number,
+  F: V3,
+): BoardFrame {
+  const heel = scale(deck.right, -face);
+  const rollAxis = norm(cross(heel, deck.normal));
+  const pitchAxis = norm(cross(deck.along, deck.normal));
+  // About the deck's normal a positive turn is clockwise from above: the
+  // nose toward a regular rider's toes.
+  const spin = (v: V3): V3 =>
+    turn(
+      turn(turn(v, rollAxis, look.roll * g), pitchAxis, look.pitch * g),
+      deck.normal,
+      look.yaw * g * face,
+    );
+  const centre = add(add(deck.centre, scale(UP, look.lift * g)), scale(F, look.across * g));
+  return {
+    centre,
+    along: norm(spin(deck.along)),
+    normal: norm(spin(deck.normal)),
+    right: norm(spin(deck.right)),
+    bend: deck.bend * (1 - g),
+  };
+}
+
+/** WHERE THE HAND CLOSES on the deck for a grab: on its edge between (or
+ * beyond) the feet, or on an end — a fist's thickness off the board. */
+export function grabSpot(
+  look: GrabLook,
+  f: BoardFrame,
+  b: BoardPoseInput["board"],
+  face: number,
+  fist = FIST,
+): V3 {
+  if (look.end) {
+    const s = look.end * (b.length / 2 - END_IN);
+    return add(onDeck(f, b, s), scale(f.normal, fist * 0.5));
+  }
+  const s = (look.at * b.stance) / 2;
+  const top = onDeck(f, b, s);
+  const out = scale(f.right, face * look.edge);
+  return add(add(top, scale(out, boardHalfWidth(b, s) + fist * 0.6)), scale(f.normal, -0.01));
+}
+
+/** THE HAND'S GAP to the board it grabs, m — from the hand's point to the
+ * edge (or the end) it closes on, so a fist round it reads a few cm: 0
+ * with no grab. */
+export function grabGap(bp: BoardPose, input: BoardPoseInput): number {
+  if (!input.grab) return 0;
+  const look = GRAB_LOOKS[input.grab];
+  const face = input.board.lead === "regular" ? 1 : -1;
+  const fi = frontIndex(input.board.lead);
+  const i = look.hand === "front" ? fi : 1 - fi;
+  const spot = grabSpot(look, bp.board, input.board, face, 0);
+  const h = bp.pose.hands[i];
+  return Math.max(0, len(sub(h, spot)));
 }
 
 function V0(): V3 {

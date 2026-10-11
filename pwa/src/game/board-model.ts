@@ -42,6 +42,7 @@ import {
   type BoardFrame,
   type BoardPose,
 } from "./board-pose.ts";
+import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
 import {
   BOARD_SEAT_Y,
   boardLiftPose,
@@ -177,6 +178,7 @@ export function createBoardModel(
   let rested = false;
   // How far the rear foot is drawn out of its binding (`easeFree`).
   let freeShare = 0;
+  let grabEase: GrabEase = { grab: null, share: 0 };
   // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
   // basket and the helicopter's skid he is on, if any; the run he rides.
   const seatEase = createSeatEase();
@@ -265,7 +267,7 @@ export function createBoardModel(
       out.radius = bound.radius;
       return out;
     },
-    pose(skier, at, sink, _trick = null, dt = 0, body, waiting = false) {
+    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // ON FOOT with the board — through a gondola's station, or in town.
@@ -307,6 +309,10 @@ export function createBoardModel(
       // The rear foot drawn out of its binding or back in over a moment.
       freeShare = easeFree(freeShare, input.free, dt);
       input.freeShare = freeShare;
+      // The grab held in the air drawn in, and let go, over a moment.
+      grabEase = easeGrab(grabEase, isBoardGrab(trick) ? trick : null, dt);
+      input.grab = grabEase.grab;
+      input.grabShare = grabEase.share;
       const r = still ? 0 : lean;
       const reach = spec.cogHeight - (lift[0] + lift[1]) / 2 - spec.crouchDrop * skier.crouch;
       pivot.set(reach * Math.sin(r), reach * (1 - Math.cos(r)), 0).applyQuaternion(root.quaternion);

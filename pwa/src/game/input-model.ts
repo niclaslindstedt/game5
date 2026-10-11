@@ -340,6 +340,10 @@ export type InputModel = {
    * IN THE AIR is told apart from a hold carried off the snow by. */
   wasTuck: boolean;
   wasBrake: boolean;
+  /** The jump key as the last step saw it, and whether it is the GRAB this
+   * flight (`airGrab`). */
+  wasJump: boolean;
+  jumpGrabs: boolean;
   /** Whether each of them is leaning the skier this flight (`airLean`). */
   tuckLeans: boolean;
   brakeLeans: boolean;
@@ -355,6 +359,8 @@ export function createInputModel(): InputModel {
     lean: 0,
     wasTuck: false,
     wasBrake: false,
+    wasJump: false,
+    jumpGrabs: false,
     tuckLeans: false,
     brakeLeans: false,
     back: "none",
@@ -393,6 +399,25 @@ export function airLean(model: InputModel, keys: KeysHeld, airborne: boolean): n
   return (model.brakeLeans ? 1 : 0) - (model.tuckLeans ? 1 : 0);
 }
 
+/**
+ * THE JUMP KEY GRABS IN THE AIR. SPACE is held to load the jump on the snow
+ * and let go at the lip; pressed again while he flies, it is the TRICK key —
+ * the grab on a tricks run, the telemark made ready on a ski jump, the tuck
+ * in an aerial — so one hand pops and grabs without reaching for F. The
+ * dedicated trick key still works beside it.
+ *
+ * ONLY A PRESS MADE IN THE AIR GRABS, as `airLean`'s keys lean: a skier
+ * still holding the key as he rolls off a lip he never popped is not asking
+ * to grab, and a landing hands the key back to the jump (held on through it,
+ * it loads the next one).
+ */
+export function airGrab(model: InputModel, keys: KeysHeld, airborne: boolean): boolean {
+  const pressed = keys.jump && !model.wasJump;
+  model.wasJump = keys.jump;
+  model.jumpGrabs = airborne && keys.jump && (model.jumpGrabs || pressed);
+  return model.jumpGrabs;
+}
+
 /** One step's input: advance the keyboard ramps by `dt`, merge the thumbs
  * in, apply the sign flip and hand the engine its structure. `reset` is the
  * edge the caller has banked since the last step (§37.1: a press is never
@@ -419,6 +444,7 @@ export function sampleInput(
 ): SkierInput {
   const aloft = airborne && !flying;
   const keyAir = airLean(model, keys, aloft);
+  const jumpGrab = airGrab(model, keys, aloft);
   const steerTarget = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   const steerAttack = aloft ? KEY_AIR_ATTACK : KEY_STEER_ATTACK;
   model.steer = rampToward(model.steer, steerTarget, dt, steerAttack, KEY_STEER_RELEASE);
@@ -459,7 +485,7 @@ export function sampleInput(
     brake,
     lean: clamp(lean, -1, 1),
     reset,
-    trick: keys.trick || touch.trick,
+    trick: keys.trick || touch.trick || jumpGrab,
     carve: back === "carve",
     jump: keys.jump || (touch.lever && touch.jump),
   });

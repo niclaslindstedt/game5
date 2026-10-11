@@ -893,11 +893,10 @@ export function createWorldRenderer(
       ghostRun = run;
     },
 
-    setOverride(view) {
-      override = view;
-    },
+    setOverride: (view) => void (override = view),
 
     lookAround: gaze.drag,
+    holdLook: gaze.hold,
     setDeathCam: hurt.setDeathCam,
     clearBodies: () => gore?.clearRemains(),
     setXray: hurt.setXray,

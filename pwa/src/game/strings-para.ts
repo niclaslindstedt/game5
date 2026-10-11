@@ -66,5 +66,5 @@ export const PARA_STRINGS = {
    * fly the wing. */
   keysParaTitle: "PARAMOTOR",
   paraKeysNote:
-    "Under the paramotor the same keys fly the wing: the tuck is the throttle, the skid both brakes (a flare to land), the edge the toggles and your weight, the lean the risers — forward pitches the wing over into a dive, back pulls the rears and swings you up; out of a big enough dive, held back, you loop over the wing. Pull up without the speed and the lines go slack and you fall into the wing. The machine key drops the whole rig and leaves you on your skis.",
+    "Under the paramotor its own keys above fly the wing — by default the skier's: the tuck key is the throttle, the skid both brakes (a flare to land), the edge the toggles and your weight, the lean the risers — forward pitches the wing over into a dive, back pulls the rears and swings you up; out of a big enough dive, held back, you loop over the wing. Pull up without the speed and the lines go slack and you fall into the wing. The machine key drops the whole rig and leaves you on your skis.",
 };

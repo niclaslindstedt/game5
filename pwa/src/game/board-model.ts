@@ -55,7 +55,7 @@ import {
 import { createSeatEase, easeSeat, seatedPose } from "./skier-seat.ts";
 import type { Perch } from "./skier-dangle.ts";
 import type { SkierPoseInput } from "./skier-pose.ts";
-import { boardTownPose, streetOver, townLift, townMove } from "./town-pose.ts";
+import { boardTownPose, rideLift, streetOver, townLift, townMove } from "./town-pose.ts";
 import { buildHeadlamp } from "./headlamp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
@@ -71,6 +71,10 @@ import type { V3 } from "./skier-vec.ts";
 /** How long the figure takes to step from the riding pose into the town's,
  * or back, s — about a beat of the town's own steps. */
 const AFOOT_EASE = 0.4;
+
+/** How fast the riding board is eased up onto a drawn street or down off
+ * it, m/s. */
+const ROAD_RATE = 0.6;
 const smooth = (k: number): number => k * k * (3 - 2 * k);
 
 /** A rider stood at rest, his hands empty, his feet `out` m wider each
@@ -193,6 +197,9 @@ export function createBoardModel(
   let basket = false;
   let perch: Perch | null = null;
   let run: GameState | null = null;
+  // How far the riding board is stood up onto a drawn street (`rideLift`),
+  // eased at `ROAD_RATE` m/s so a kerb or the street's edge is no step.
+  let roadLift = 0;
   // ON FOOT AND BACK: how far he is drawn into the town's pose (0 riding ..
   // 1 on foot), eased over `AFOOT_EASE` s each way, and the last pose of the
   // side he left — the riding one held while he steps into the town's, the
@@ -342,7 +349,17 @@ export function createBoardModel(
       const hang = boarded ? sled!.board.hang : null;
       if (hang) v.set(-hang.x, 0, -hang.z).applyQuaternion(root.quaternion);
       else v.set(0, 0, 0);
-      root.position.set(at.x + pivot.x + v.x, at.y - sink + pivot.y, at.z + pivot.z + v.z);
+      // (in town too: the riding pose held as he steps off is laid on it,
+      // and the town's own is placed in the world whatever the root's lift).
+      const road =
+        run && !off && !boarded && !inBasket && !hung ? rideLift(run.level, at.x, at.z) : 0;
+      const easeBy = ROAD_RATE * Math.max(0, dt);
+      roadLift = dt > 0 ? roadLift + Math.max(-easeBy, Math.min(easeBy, road - roadLift)) : road;
+      root.position.set(
+        at.x + pivot.x + v.x,
+        at.y - sink + pivot.y + roadLift,
+        at.z + pivot.z + v.z,
+      );
       // The board out of sight: racked on the snowmobile's tunnel, lashed to
       // the basket, or in a cabin with no rack placed.
       const racked = cabin ? (skier.lift?.skis ?? null) : null;

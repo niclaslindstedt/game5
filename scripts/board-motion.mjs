@@ -43,6 +43,7 @@ import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { createDrawing } from "@niclaslindstedt/oss-game-framework/tooling/draw";
 import { BOARD_MOMENTS, BOARD_MOVES } from "./lib/board-figure-moves.mjs";
+import { GRAB_ASKS } from "./lib/board-trick-moves.mjs";
 import { bandsOf, figuresOf } from "./lib/board-measure.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -102,13 +103,24 @@ const CHARTS = [
   { id: "shin", say: "shin v snow", top: 90, of: (f) => [f.shin] },
 ];
 
-/** The moment of `move` whose bands hold a frame `t` s into it: the last
- * one at or before `t`, or its first. */
-function momentAt(move, t) {
+/** The moments photographed in the air. */
+const AIRBORNE = new Set(["air", "spin", ...GRAB_ASKS.map(([g]) => g)]);
+
+/** The moment of `move` whose bands hold a frame `t` s into it, its
+ * figures `f`: the last of its own at or before `t` (from where its input
+ * starts — `from` — or its photograph's second), or its first; a move with
+ * none of its own is held on a carve to a carve's bands (`f.toe`, the
+ * toeside share, past a half), else to its own; and any frame with the
+ * rear foot out of its binding (skating at a crawl) to the skate's, and
+ * any frame in the air (a jump's flight, a pop's) to the air's — where a
+ * move's own moment is not itself in the air (a grab, a spin). */
+function momentAt(move, t, f, free = false, airborne = false) {
+  if (free) return "skate";
   const own = BOARD_MOMENTS.filter((m) => m.move === move.id).sort((a, b) => a.t - b.t);
-  if (own.length === 0) return move.id;
+  if (own.length === 0) return f.toe > 0.5 ? "toe" : f.toe < -0.5 ? "heel" : move.id;
   let at = own[0];
-  for (const m of own) if (m.t <= t + 1e-6) at = m;
+  for (const m of own) if ((m.from ?? m.t) <= t + 1e-6) at = m;
+  if (airborne && !AIRBORNE.has(at.id)) return "air";
   return at.id;
 }
 
@@ -155,7 +167,7 @@ function ride(move) {
     input.grabShare = grab.share;
     const bp = BP.boardPose(input);
     const f = figuresOf(c, input, bp, BP);
-    samples.push({ t, moment: momentAt(move, t), f });
+    samples.push({ t, moment: momentAt(move, t, f, input.free, c.airborne), f });
   }
   return samples;
 }

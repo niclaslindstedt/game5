@@ -189,6 +189,21 @@ export function hopAhead(c: SkierState, n: Vec3): void {
   c.vz += tz * k;
 }
 
+/** WHETHER HE KEEPS WORKING THROUGH A HOP: a board at a crawl (the
+ * one-foot push still reaching, `skateReach`) loading a jump or in its air
+ * goes on working for his speed — the skate takes up again the moment he
+ * lands, the hop's kick added to it, and the tuck held is read as going,
+ * not as folding up in the air — where a skier's drive (and a board's at
+ * speed) is let go for the jump. Never on skis. */
+export function hopHeld(c: SkierState, speed: number): boolean {
+  return (
+    c.board !== undefined &&
+    c.thrown === null &&
+    (c.jumpLoad > 0 || c.airborne) &&
+    skateReach(speed) > 0
+  );
+}
+
 /** STOOD STILL (`poles.ts`'s `stoodStill`) — and on a board stood across a
  * slope on his edge (`SkierState.sidestep`), as long as he barely slides. */
 export function stoodStill(c: SkierState, speed: number): boolean {

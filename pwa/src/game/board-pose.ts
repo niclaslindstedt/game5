@@ -31,13 +31,14 @@
 //   * A CARVE IS CARRIED BY THE INCLINATION: the root is already rolled
 //     onto the line he leans along, so the body stays one long line from
 //     the edge — tall-ish, never folded at the waist or down on his knees.
-//   * TOESIDE (his toe edge down): the knees and ankles driven forward
-//     into the hill, the hips over the toes, the trunk tall along the
-//     inclined line, the chest facing up the slope, both arms forward at
-//     waist height; cut hard, the front hand reaches toward the snow.
+//   * TOESIDE (his toe edge down): the knees bent (~40–55°) and the ankles
+//     flexed forward into the hill, the hips over the toe edge, the trunk
+//     near upright off the snow (angulated against the inclination), the
+//     chest facing up the slope, both arms forward at waist height; cut
+//     hard, the trunk leans out and the front hand reaches the snow.
 //   * HEELSIDE: the hips low over the heel edge as on a chair (the knees
-//     ~70–100°), the trunk leaning back along the line, the chest open down
-//     the hill, the front arm pointing down the turn and the rear hand
+//     ~80–100°), the trunk forward over them so the chest is up and open
+//     down the hill, the front arm pointing down the turn and the rear hand
 //     trailing low — brushing the snow only when the turn is cut hard. One
 //     hand at most is ever on the snow.
 //   * THE TUCK side-on: the knees folded deep, the chest low over the
@@ -161,9 +162,10 @@ export const STANCE = { knee: 0.9, hipsBack: 0.05, lean: 0.24, open: 0.18, hips:
 
 /** TOESIDE and HEELSIDE at a full turn: the knees' extra flexion, the hips'
  * shift toward the toes (positive) or back over the heels, the trunk's
- * extra lean and opening, rad, m. */
-export const TOESIDE = { knee: -0.05, hips: 0.1, lean: 0.05, open: 0.05 };
-export const HEELSIDE = { knee: 0.32, hips: -0.08, lean: -0.12, open: 0.3 };
+ * extra lean (the toeside's negative: upright, angulated against the
+ * inclination — leaning out by `cutLean` cut hard) and opening, rad, m. */
+export const TOESIDE = { knee: 0.4, hips: 0.1, lean: -0.35, cutLean: 0.25, open: 0.05 };
+export const HEELSIDE = { knee: 0.5, hips: -0.08, lean: 0.12, open: 0.3 };
 
 /** THE TUCK at full crouch: the knees' extra flexion, the trunk's lean and
  * its opening toward the nose — the chest over the front knee. */
@@ -197,12 +199,16 @@ export const SKATE = {
  * (`front`), the rear one driven in toward it (`rear`). */
 export const KNEES = { toes: 0.6, face: 0.2, front: 0.2, rear: 0.5 };
 
-/** NEVER KNEELING on the snow: the least angle a shin keeps to the snow,
- * rad (~27° — a soft boot's ankle flexed over a toe edge stood on), and
- * each try's straightening of the knees, rad, and easing of the hips back
- * across the board, m, how many tries, and the least flexion the knees
- * are straightened to, rad (~29°: a rider at speed is never stiff-legged). */
-export const SHIN = { least: 0.3, straighten: 0.04, back: 0, tries: 16, flexLeast: 0.5 };
+/** NEVER KNEELING: the most a shin ever needs to the snow (~17°), the least
+ * (~6°, an edge laid past what the ankle's flex leaves — `ANKLE`), each
+ * try's straightening of the knees, the tries, and the least flexion they
+ * are straightened to (~29°: never stiff-legged at speed), rad. */
+export const SHIN = { least: 0.3, floor: 0.1, straighten: 0.04, tries: 40, flexLeast: 0.5 };
+
+/** THE ANKLE IN A SOFT BOOT on the toe edge: the most a shin stands forward
+ * of the deck's normal, rad (~28°), the most the hips go back to keep it
+ * there and the least they keep over the deck's middle toward the toes, m. */
+export const ANKLE = { most: 0.49, back: 0.25, over: 0.005 };
 
 /** THE HOP's height at its top, m. */
 export const HOP = 0.11;
@@ -211,7 +217,7 @@ export const HOP = 0.11;
  * on a turn cut hard, rad; how close the brushing hand is held over it and
  * the least height any other hand keeps, m; how far the toeside front
  * hand reaches down toward it, m. */
-export const LOW = { from: 0.5, to: 0.8, gap: 0.03, clear: 0.18, reach: 0.22 };
+export const LOW = { from: 0.5, to: 0.8, gap: 0.03, clear: 0.18, reach: 0.34 };
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 const smooth = (a: number, b: number, x: number): number => {
@@ -589,22 +595,45 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     }
   };
   solveKnees();
-  // NEVER KNEELING: on the snow no shin lies down along it. On his toe
-  // edge the shins lean over the toes by the edge AND the ankles' flex, so
-  // where they would lie flatter than `SHIN.least` the legs are
-  // straightened and the hips eased back over the board until they stand
-  // — the knees driven at the hill, not laid on it.
+  // NEVER KNEELING, THE BEND KEPT IN THE ANKLES: no shin on the snow lies
+  // flatter than a soft boot's ankle leaves at this edge (`90° − edge −
+  // ANKLE.most`, held between `SHIN.floor` and `SHIN.least`). Where it
+  // would, the hips go BACK first — the knees kept bent — as far as they
+  // stay over the toe edge; only then are the legs straightened.
   if (onSnow > 0.5) {
     const n = rz(UP, input.incline);
     const lowest = (): number =>
       Math.min(...[0, 1].map((i) => Math.asin(clamp(dot(norm(sub(knees[i], feet[i])), n), -1, 1))));
-    let flexNow = flex;
-    let acrossNow = across;
-    for (let k = 0; k < SHIN.tries && lowest() < SHIN.least; k++) {
-      flexNow = Math.max(SHIN.flexLeast, flexNow - SHIN.straighten);
-      acrossNow -= SHIN.back;
+    const least = clamp(Math.PI / 2 - Math.abs(input.edge) - ANKLE.most, SHIN.floor, SHIN.least);
+    const try_ = (flexNow: number, acrossNow: number): number => {
       setHips(flexNow, acrossNow);
       solveKnees();
+      return lowest();
+    };
+    let flexNow = flex;
+    let acrossNow = across;
+    if (lowest() < least && toeK > 0) {
+      const over = (): number => dot(sub(hips, deck.centre), deck.right) * face;
+      const per = Math.max(0.3, dot(F, deck.right) * face);
+      // How far back the hips may go: while they stay over the toe edge.
+      const floor = Math.max(across - ANKLE.back, across - (over() - ANKLE.over) / per);
+      if (floor < across) {
+        // The least way back that stands the shins up, else all the way.
+        let lo = floor;
+        let hi = across;
+        if (try_(flexNow, floor) >= least)
+          for (let k = 0; k < 12; k++) {
+            const m = (lo + hi) / 2;
+            if (try_(flexNow, m) >= least) lo = m;
+            else hi = m;
+          }
+        acrossNow = lo;
+        try_(flexNow, acrossNow);
+      }
+    }
+    for (let k = 0; k < SHIN.tries && lowest() < least; k++) {
+      flexNow = Math.max(SHIN.flexLeast, flexNow - SHIN.straighten);
+      try_(flexNow, acrossNow);
     }
   }
 
@@ -613,7 +642,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   const chestFace = turn(F, UP, -face * openSign * openAll);
   const lean = clamp(
     STANCE.lean +
-      TOESIDE.lean * toeK +
+      (TOESIDE.lean + TOESIDE.cutLean * clamp(input.carve, 0, 1)) * toeK +
       HEELSIDE.lean * heelK +
       TUCK.lean * crouch +
       0.35 * fold +
@@ -754,7 +783,7 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   handF = above(handF, LOW.clear * onSnow + LOW.gap);
   handR = above(handR, LOW.clear * onSnow + LOW.gap);
   if (brush > 0) {
-    if (toe > 0) handF = add(handF, scale(plane.normal, -LOW.reach * brush));
+    if (toe > 0) handF = toSnow(add(handF, scale(lead2, LOW.reach * brush)), sF);
     else handR = toSnow(add(handR, scale(lead2, -0.08 * brush)), sR);
   }
   // ...and none is ever drawn into it.

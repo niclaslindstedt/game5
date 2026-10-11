@@ -25,6 +25,7 @@ import {
   generateLevel,
   gradeOf,
   helipadOf,
+  wingsuitExitOf,
   airstripOf,
   balloonSiteOf,
   loadRealFace,
@@ -109,9 +110,9 @@ export type PreviewPainted = {
    * door of the valley's afterski lodge (`lodgesOf`), null on a map with
    * none, where the RUN row offers no afterski — and the jump plane's strip
    * (`airstripOf`): its middle, and its two ends the chart draws it
-   * between. */
+   * between — and the wingsuit's exit (`wingsuitExitOf`). */
   machines: Record<
-    "heli" | "sled" | "para" | "balloon" | "plane",
+    "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit",
     { x: number; y: number; z: number }
   > & {
     afterski: { x: number; y: number; z: number } | null;
@@ -247,6 +248,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
           para: summitOf(level),
           balloon: placeOf(balloonSiteOf(level)),
           plane: placeOf(airstripOf(level)),
+          wingsuit: placeOf(wingsuitExitOf(level)),
           afterski: lodgeDoorOf(level),
         },
         strip: { a: placeOf(airstripOf(level).start), b: placeOf(airstripOf(level).end) },

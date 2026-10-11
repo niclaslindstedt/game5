@@ -176,6 +176,7 @@ export function StatsPage({
                   [STRINGS.statsHeli, s.heli, STRINGS.statsMinutes(s.heli)],
                   [STRINGS.statsPara, s.para, STRINGS.statsMinutes(s.para)],
                   [STRINGS.statsSled, s.sled, STRINGS.statsReach(s.sled)],
+                  [STRINGS.statsSuit, s.suit, STRINGS.statsReach(s.suit)],
                   [STRINGS.statsGroomer, s.groomer, STRINGS.statsMinutes(s.groomer)],
                   [STRINGS.statsBumps, s.bumps, STRINGS.statsCount(s.bumps)],
                   [STRINGS.statsBeers, s.beers, STRINGS.statsCount(s.beers)],

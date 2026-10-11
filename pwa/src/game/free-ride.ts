@@ -140,7 +140,15 @@ export type FreeRide = {
    * machine (`SKIS_START`'s neighbours); null is the map's most difficult
    * run (`pickFreeRun`). */
   run: { seed: number; region: RegionId; face?: string | null; id: string } | null;
+  /** What he jumps in off a craft in the air (the SUIT row, shown on the
+   * paramotor, the balloon, the helicopter and the plane): the skydiver's
+   * rig on his skis (`rig`), or a WINGSUIT with no skis (`wingsuit`). */
+  suit: SuitId;
 };
+
+/** THE SUIT ROW'S STOPS: the skydiver's rig, or the wingsuit. */
+export type SuitId = "rig" | "wingsuit";
+export const SUITS: readonly SuitId[] = ["rig", "wingsuit"];
 
 export function freshRide(): FreeRide {
   return {
@@ -154,6 +162,7 @@ export function freshRide(): FreeRide {
     face: null,
     grade: null,
     run: null,
+    suit: "rig",
   };
 }
 
@@ -216,6 +225,7 @@ export function mergeRide(blob: unknown): FreeRide {
   ) {
     out.spot = { seed: spot.seed, x: spot.x, z: spot.z };
   }
+  if (SUITS.includes(b.suit as SuitId)) out.suit = b.suit as SuitId;
   return out;
 }
 
@@ -282,6 +292,29 @@ export const AFTERSKI_RUN = "afterski";
 /** Whether the ride on `seed` begins inside the afterski lodge. */
 export function afterskiOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === AFTERSKI_RUN;
+}
+
+/** THE START ROW'S WINGSUIT STOP, after the plane: the WINGSUIT with no
+ * skis on, stood on its exit high on the mountain (`wingsuit-start.ts`) —
+ * the edge over the drop, or a hover off the helicopter's skid over it. */
+export const WINGSUIT_RUN = "wingsuit";
+
+/** Whether the ride on `seed` begins on the wingsuit's own exit. */
+export function wingsuitOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === WINGSUIT_RUN;
+}
+
+/** Whether the ride on `seed` begins in a craft he can jump from — the
+ * paramotor, the balloon, the helicopter, the plane — where the SUIT row
+ * asks what he jumps in. */
+export function airborneOn(ride: FreeRide, seed: number): boolean {
+  return paraOn(ride, seed) || balloonOn(ride, seed) || heliOn(ride, seed) || planeOn(ride, seed);
+}
+
+/** Whether the ride on `seed` is flown in the wingsuit: its own exit, or a
+ * craft in the air with the SUIT row on WINGSUIT. */
+export function suitedOn(ride: FreeRide, seed: number): boolean {
+  return wingsuitOn(ride, seed) || (ride.suit === "wingsuit" && airborneOn(ride, seed));
 }
 
 /** THE START ROW'S FIRST STOP: on skis, carried by the lift to the RUN
@@ -423,9 +456,10 @@ export function freeGameOptions(
   const para = paraOn(ride, seed);
   const balloon = balloonOn(ride, seed);
   const plane = planeOn(ride, seed);
+  const wingsuit = suitedOn(ride, seed);
   // SAFE FOR WORK the lodges are shut: no ride begins at the party.
   const party = !skier.sfw && afterskiOn(ride, seed);
-  const vehicle = heli || sled || para || balloon || plane || party;
+  const vehicle = heli || sled || para || balloon || plane || party || wingsuit;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
@@ -449,6 +483,9 @@ export function freeGameOptions(
     balloon,
     // THE JUMP PLANE: stood in its door on the strip, the engine running.
     plane,
+    // THE WINGSUIT: on its own exit high on the mountain, or worn up the
+    // craft picked — no skis on, every jump flown in it.
+    ...(wingsuit ? { wingsuit: true } : {}),
     // THE AFTERSKI: inside the valley's lodge, the party under way.
     inLodge: party,
     snowDepth: depthOf(ride.snow),
@@ -468,7 +505,7 @@ export function freeGameOptions(
     // whose run passes nearest the start line, led off its top onto that run.
     // (The afterski asks for the chair too: a map with no lodge — which
     // the card never offers it on — comes onto the mountain by lift.)
-    byLift: spot === null && !(heli || sled || para || balloon || plane),
+    byLift: spot === null && !vehicle,
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
@@ -523,9 +560,9 @@ export function freeRestart(
  * or a tricks run; on a free ride, wherever the restart's options `next`
  * (`freeTopOptions`) put him, read in the order `createGame` reads them —
  * the balloon's basket, the paramotor's summit, the plane's door on its
- * strip, the helicopter's pad, the snowmobile, then the top of the last piste
- * skied, else the start line. */
-export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip";
+ * strip, the helicopter's pad, the snowmobile, the wingsuit's own exit,
+ * then the top of the last piste skied, else the start line. */
+export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip" | "exit";
 
 export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainAt {
   if (rules.course || rules.tricks || !next) return "start";
@@ -534,6 +571,7 @@ export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainA
   if (next.plane && !next.inLodge) return "strip";
   if (rules.heli && next.heli) return "pad";
   if (rules.sled && next.sled) return "sled";
+  if (next.wingsuit && !next.inLodge) return "exit";
   return next.run !== undefined ? "top" : "start";
 }
 

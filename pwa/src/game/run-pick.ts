@@ -12,6 +12,7 @@ import {
   HELI_RUN,
   PARA_RUN,
   PLANE_RUN,
+  WINGSUIT_RUN,
   BOARD_START,
   SKIS_START,
   SLED_RUN,
@@ -21,10 +22,14 @@ import {
   markedRun,
   paraOn,
   planeOn,
+  airborneOn,
+  wingsuitOn,
   sledOn,
   spotOn,
   startPicked,
+  SUITS,
   type FreeRide,
+  type SuitId,
   type FreeRunInfo,
 } from "./free-ride.ts";
 import { injuriesShown, kindPair, type Settings } from "./settings.ts";
@@ -33,7 +38,7 @@ import { shellContent } from "../shell-host.ts";
 import { STRINGS } from "./strings.ts";
 
 /** What the chart marks a machine's start with, or null for a run's. */
-export type RunMachine = "heli" | "sled" | "para" | "balloon" | "plane" | "afterski";
+export type RunMachine = "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit" | "afterski";
 
 export type RunPick = {
   chart: SeedChart;
@@ -51,6 +56,8 @@ export type RunPick = {
   machine: RunMachine | null;
   /** Where on the chart the ride starts, where it was pressed. */
   spot: { x: number; z: number } | null;
+  /** Whether the SUIT row is asked: a ride up a craft he can jump from. */
+  suits: boolean;
 };
 
 export function useRunPick(settings: Settings, seed: number): RunPick {
@@ -80,9 +87,11 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
           ? "balloon"
           : planeOn(ride, seed)
             ? "plane"
-            : !sfw && afterskiOn(ride, seed)
-              ? "afterski"
-              : null;
+            : wingsuitOn(ride, seed)
+              ? "wingsuit"
+              : !sfw && afterskiOn(ride, seed)
+                ? "afterski"
+                : null;
   const marked = list && machine === null ? markedRun(ride, seed, list) : null;
   // The RUN row walks EVERY run of the map, whatever its colour: a slope
   // is all it ever names.
@@ -94,7 +103,8 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
   // card last picked), by the lift to the run picked — or one of the ways
   // up with no lift: the paramotor on the summit, the balloon and the
   // snowmobile on the valley floor, the helicopter on its pad and the jump
-  // plane on its strip below the village.
+  // plane on its strip below the village — or the wingsuit, no skis on,
+  // off its exit high on the mountain.
   const starts = [
     ...(list
       ? [
@@ -105,6 +115,8 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
           { id: SLED_RUN, label: STRINGS.startRunSled },
           { id: HELI_RUN, label: STRINGS.startRunHeli },
           { id: PLANE_RUN, label: STRINGS.startRunPlane },
+          // ...and the wingsuit off its own exit high on the mountain.
+          { id: WINGSUIT_RUN, label: STRINGS.startRunWingsuit },
           // ...and the party in the valley's lodge, where the map has one.
           ...(list.machines.afterski && !sfw
             ? [{ id: AFTERSKI_RUN, label: STRINGS.startRunAfterski }]
@@ -124,6 +136,7 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     marked,
     machine,
     spot: machine === null ? spotOn(ride, seed) : null,
+    suits: list !== null && airborneOn(ride, seed),
   };
 }
 
@@ -143,5 +156,12 @@ const MACHINE_RUN: Record<RunMachine, string> = {
   para: PARA_RUN,
   balloon: BALLOON_RUN,
   plane: PLANE_RUN,
+  wingsuit: WINGSUIT_RUN,
   afterski: AFTERSKI_RUN,
 };
+
+/** THE SUIT ROW'S STOPS (`FreeRide.suit`): the rig, or the wingsuit. */
+export const SUIT_STOPS: { id: SuitId; label: string }[] = SUITS.map((id) => ({
+  id,
+  label: STRINGS.suitWord[id],
+}));

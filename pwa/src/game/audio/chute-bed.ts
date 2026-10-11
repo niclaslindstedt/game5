@@ -2,7 +2,7 @@
 // THE SKYDIVE'S SCHEDULER — the half that reads the free ride's jump
 // (`GameState.chute`) once a frame and steers its layers (`chute-voice.ts`):
 // the exit's buffet, the freefall's roar by his speed and how his body
-// lies, the canopy flogging open, the quiet under it, the cut-away canopy
+// lies (in a wingsuit, its flutter too), the canopy flogging open, the quiet under it, the cut-away canopy
 // flapping away — and, caught in a crown or on a lift, the CREAK of what
 // holds him, a cue drawn off the engine's clock (a hash of the slot, never
 // a stream), the tree's wood or the rope's steel.
@@ -99,8 +99,10 @@ export function chuteVoiceOf(state: GameState, pull = 0): ChuteVoice | null {
   const deploying = ch.mode === "deploying" && d;
   // Through the deployment the body gives the air over to the canopy, from
   // line stretch to full inflation.
-  const lines = CHUTE.deploy.stages[2].end;
-  const full = CHUTE.deploy.stages[4].end;
+  const suited = ch.suit === "wingsuit";
+  const stages = (suited ? CHUTE.base.deploy : CHUTE.deploy).stages;
+  const lines = stages[2].end;
+  const full = stages[4].end;
   const body =
     ch.mode === "exit" || ch.mode === "freefall"
       ? 1
@@ -135,6 +137,7 @@ export function chuteVoiceOf(state: GameState, pull = 0): ChuteVoice | null {
     piece,
     pieceDistance,
     t: state.t,
+    ...(suited ? { suit: ch.wing?.pressure ?? 0 } : {}),
   };
 }
 

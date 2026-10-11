@@ -23,7 +23,7 @@ import { useState } from "preact/hooks";
 import { useBusyPress } from "./busy-press.ts";
 import { rideOnto, runPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, StepRow, type Hint } from "./menu-knobs.tsx";
-import { startChosen, useRunPick } from "./run-pick.ts";
+import { startChosen, SUIT_STOPS, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import type { HudSnapshot } from "./snapshot.ts";
@@ -103,6 +103,17 @@ export function PauseSlopes({
               onPick={(id) => onSettings(startChosen(here, seed, id))}
               onHint={setHint}
             />
+            {/* THE SUIT the airborne rides ask: the rig on his skis, or the wingsuit. */}
+            {pick.suits && (
+              <StepRow
+                label={STRINGS.startSuit}
+                hint={STRINGS.startSuitHint}
+                stops={SUIT_STOPS}
+                value={ride.suit}
+                onPick={(suit) => setRide({ suit })}
+                onHint={setHint}
+              />
+            )}
             <StepRow
               label={STRINGS.startRun}
               hint={STRINGS.pauseSlopesRunHint}

@@ -3,8 +3,8 @@
 A free ride can be flown in a WINGSUIT: a large three-wing suit (two arm wings and a leg wing, ram-air, the arms and legs its spars) over a BASE rig with one canopy and **no reserve**. **He wears no skis**: he jumps on his boots and lands on them. The engine takes it with `CreateGameOptions.wingsuit`:
 
 - **On its own** (`wingsuit: true`), he stands at the CLIFF EXIT high on the mountain, facing out over the drop.
-- **With `plane`** (or `chute`), he goes out of the jump plane's door in the suit ([the jump plane](airplane.md)).
-- **Out of any other craft**, a hook (`wingsuitOut`) takes him out at the craft's position and velocity. The helicopter, the balloon and the paramotor do not call it yet.
+- **Up a craft** — with `plane` (or `chute`), `heli`, `balloon` or `para` — he wears the suit in the plane's door, on the helicopter's skid, in the balloon's basket or under the paramotor's wing, with no skis, and every way off it is the suit's start arc: the plane's jump, the helicopter's drop, the balloon's jump over the side, the paramotor's dropped rig. The skydive's one way in off a craft (`chute.ts`'s `craftFreefall`) reads the craft's event and hands him to `suitExit` with the craft's own way — at ANY height, where the rig's skydive needs 100 m: in the suit there are no skis to fall onto. A restart puts him back in the craft he left.
+- **At a lab's moment**, `wingsuitOut` takes him out at a given position and velocity, and `skydiveAt` with its `suit` stands him already flying.
 
 The engine side:
 
@@ -15,7 +15,7 @@ The engine side:
 | `wingsuit-pilot.ts` | The bot's hands |
 | `defs/wingsuit.ts` | `WINGSUIT`: every number, with its source |
 
-It rides on the skydive's step (`chute.ts`, [the skydive](skydive.md)): `ChuteState.suit` is `"wingsuit"`, its flight `ChuteState.wing` (`WingsuitFlight`), and the canopy `CHUTE.base` on `canopy.ts`'s maths. `GameState.wingsuit` says where the ride began (`from`: `"cliff"`, `"plane"` or `"air"`) and, on a cliff exit, the hover he is held at (`hover`, below). Nothing draws from the stream, and a ride with no wingsuit never comes in here, so no digest moves.
+It rides on the skydive's step (`chute.ts`, [the skydive](skydive.md)): `ChuteState.suit` is `"wingsuit"`, its flight `ChuteState.wing` (`WingsuitFlight`), and the canopy `CHUTE.base` on `canopy.ts`'s maths. `GameState.wingsuit` says where the ride began (`from`: `"cliff"` on its own exit, `"craft"` up a craft, `"air"` a lab's moment) and, on a cliff exit, the hover he is held at (`hover`, below). Nothing draws from the stream, and a ride with no wingsuit never comes in here, so no digest moves.
 
 ## The press
 
@@ -85,12 +85,22 @@ Hands off, the canopy flies 9.1 m/s forward and 3.6 m/s down: a large, docile BA
 
 ## The snow and the landing
 
-**The snow met in flight** throws him. This is the snow under him (or where he will be next step) within the body's 0.3 m half thickness, or a crown within 0.2 m. The cause is `wingsuit`, or `tree` for a crown. Once he has lain, the jump begins again at its exit: the cliff (or hover), the plane's door, or for a craft's drop, the cliff exit.
+**The snow met in flight** throws him. This is the snow under him (or where he will be next step) within the body's 0.3 m half thickness, or a crown within 0.2 m. The cause is `wingsuit`, or `tree` for a crown. Once he has lain, the jump begins again where the ride began: the cliff (or hover), or the craft he left.
 
 **Landed under the canopy**, the canopy is let go and he is **on his boots**:
 
 - **Too hard**: from 6 m/s of sink, or 9 m/s across the snow, he is thrown (`landing`).
 - **Otherwise**: he runs it out at 5 m/s² and walks at 1.4 m/s at most, turning at 1.6 rad/s.
+
+## In the app
+
+The start card's **START** row has a **WINGSUIT** stop after the plane: the ride begun on the wingsuit's own exit (`free-ride.ts`'s `WINGSUIT_RUN`; the chart marks the exit). On the paramotor, the balloon, the helicopter and the plane the card shows a **SUIT** row under it — **PARACHUTE** (the skydiver's rig, skis on) or **WINGSUIT** — kept as `FreeRide.suit`; the pause card's piste map carries both rows. A link says the same: `?wingsuit=1` the exit, `?suit=wing` (or `rig`) over the card's craft. A flyer who dies starts again on the exit (`againAt`'s `exit`) or in his craft.
+
+**The HUD** (`plane-hud.ts`'s `chuteOf`, its `suit`; `hud-plane.tsx`'s `SuitReadout`) reads the height over the snow big — amber inside the bot's slowing height (450 m), red with **PULL!** at its pull height (350 m) — the air speed in km/h beside the glide flown, the sink in m/s under it, and the press: **JUMP** on the exit, **PULL** in flight. Its words are `strings-wingsuit.ts`; the news says the exit, the pull and the landing on his feet.
+
+**The sound** is the skydive's bed (`chute-bed.ts`, `chute-voice.ts`) with the suit's own `suit` layer: the roar as a belly's at a fifth more air (a glide's 150–250 km/h is as loud as a freefall, over 115 dBA at the ear), the loose jumpsuit's flap gone, and the trailing edges' and cells' FLUTTER — a brown rumble of 20–80 Hz rising with the speed, a little quieter as the suit fills hard. `make audition ARGS=--meter` has its three rows (filling off the exit, gliding, diving).
+
+**The statistics** keep the metres flown across the sky in the suit (`stats.ts`'s `suit`, FLOWN IN A WINGSUIT).
 
 ## The bot
 

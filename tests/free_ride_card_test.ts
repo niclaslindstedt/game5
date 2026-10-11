@@ -80,6 +80,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       face: null,
       grade: null,
       run: null,
+      suit: "rig",
     });
   });
 
@@ -181,6 +182,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       face: null,
       grade: "black" as const,
       run: { seed: 9, region: "fell" as const, id: "4" },
+      suit: "rig" as const,
     };
     const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.mode).toBe("free");

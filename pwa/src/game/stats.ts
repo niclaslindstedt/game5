@@ -70,6 +70,8 @@ export type RunSums = {
   para: number;
   groomer: number;
   sled: number;
+  /** Metres flown across the sky in a wingsuit. */
+  suit: number;
   beers: number;
   mauled: number;
   /** Rivals and amateurs shouldered. */
@@ -208,6 +210,7 @@ const SUM_KEYS: readonly (keyof RunSums)[] = [
   "para",
   "groomer",
   "sled",
+  "suit",
   "beers",
   "mauled",
   "bumps",
@@ -352,6 +355,13 @@ export function createStatsTracker(): StatsTracker {
       if (state.heli?.rider) add("heli", dt);
       if (state.para?.mode === "flown") add("para", dt);
       if (state.groomers?.some((g) => g.rider)) add("groomer", dt);
+      // Flown in the wingsuit: the metres across the sky, out of the exit
+      // to the pull.
+      const ch = state.chute;
+      if (ch?.suit === "wingsuit" && (ch.mode === "exit" || ch.mode === "freefall") && !k.thrown) {
+        const across = Math.hypot(k.vx, k.vz) * dt;
+        if (across < 1) add("suit", across);
+      }
       if (state.sled?.mode === "ridden") {
         const sl = state.sled;
         if (sledLast) {

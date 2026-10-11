@@ -34,6 +34,13 @@
 //     hiss whose pitch rises with how fast it runs), and the TAIL — the
 //     trailing edge pulled down into the air, a soft flutter of strained
 //     cloth while it is held there (and the nose's, on the front risers).
+//   * IN A WINGSUIT the air is as loud — over 115 dBA at the ear through a
+//     glide's 150–250 km/h, as loud as a belly's freefall though he is
+//     slower, the wings catching it — and the suit adds its own: the
+//     trailing edges and the ram-air cells FLUTTERING, a low rumble of
+//     20–80 Hz that deepens and swells with the speed and goes taut and
+//     quieter as the suit fills hard (`suit`). The flapping of a loose
+//     jumpsuit is gone: the suit is pressurised flat.
 //   * CUT AWAY, the canopy FLAPS AWAY above him, a flogging rag going off
 //     up the sky as he falls clear (its distance off `heliHeard`).
 //
@@ -82,6 +89,9 @@ export type ChuteVoice = {
   pieceDistance: number;
   /** The engine's clock, s — the cloth flutters on it. */
   t: number;
+  /** In a WINGSUIT flying, how full of air the suit is, 0..1 (0 in the
+   * box, and left out there). */
+  suit?: number;
 };
 
 /** What the seat does to it: the skier's own air and a machine away. */
@@ -99,7 +109,8 @@ export type ChuteLayer =
   | "luff"
   | "zip"
   | "tail"
-  | "piece";
+  | "piece"
+  | "suit";
 
 /** What each layer is BUILT from — decided once. */
 export const CHUTE_LAYERS: Record<ChuteLayer, LayerSpec> = {
@@ -115,6 +126,7 @@ export const CHUTE_LAYERS: Record<ChuteLayer, LayerSpec> = {
   zip: { kind: "noise", color: "white", filter: { type: "bandpass", q: 3 } },
   tail: { kind: "noise", color: "pink", filter: { type: "bandpass", q: 1.6 } },
   piece: { kind: "noise", color: "pink", filter: { type: "bandpass", q: 1.2 } },
+  suit: { kind: "noise", color: "brown", filter: { type: "lowpass", q: 2.2 } },
 };
 
 /** How fast each layer follows, s: the roar on a slow glide (a body turns
@@ -132,6 +144,7 @@ export const CHUTE_GLIDE: Record<ChuteLayer, number> = {
   zip: 0.03,
   tail: 0.1,
   piece: 0.06,
+  suit: 0.08,
 };
 
 /** The airspeed the roar is full at, m/s — head down; past it nothing gets
@@ -172,7 +185,10 @@ export function humOf(airspeed: number): number {
 /** Where every layer should be for `voice`, through the seat. */
 export function chuteTargets(voice: ChuteVoice, mix: ChuteMix): Record<ChuteLayer, LayerTarget> {
   const v = Math.max(0, voice.airspeed);
-  const s = ramp(v, 0, AIR_TOP);
+  const suit = unit(voice.suit ?? 0);
+  // A suit's wings catch the air as a belly does at more speed: its roar
+  // is a belly's at a fifth more air.
+  const s = ramp(v * (1 + 0.2 * suit), 0, AIR_TOP);
   const loud = s * s;
   const body = unit(voice.body);
   const w = mix.wind;
@@ -207,7 +223,13 @@ export function chuteTargets(voice: ChuteVoice, mix: ChuteMix): Record<ChuteLaye
     // head down.
     flap: {
       level:
-        body * s * 0.02 * (0.7 * pose.belly + 1.3 * pose.track + 0.15 * pose.head) * flutter * w,
+        body *
+        s *
+        0.02 *
+        (1 - 0.8 * suit) *
+        (0.7 * pose.belly + 1.3 * pose.track + 0.15 * pose.head) *
+        flutter *
+        w,
       cutoff: 500 + 900 * s,
     },
     buffet: {
@@ -241,6 +263,12 @@ export function chuteTargets(voice: ChuteVoice, mix: ChuteMix): Record<ChuteLaye
     tail: {
       level: open * canopy * bent * 0.0045 * (0.6 + 0.4 * flutter) * w,
       cutoff: 600 + 500 * bent + 200 * flutter,
+    },
+    // THE WINGSUIT'S FLUTTER: its trailing edges and cells, a low rumble
+    // 20–80 Hz with the speed, taut (quieter) as it fills hard.
+    suit: {
+      level: body * suit * loud * 0.09 * (1.15 - 0.35 * suit) * (0.6 + 0.4 * flogBeat) * w,
+      cutoff: 20 + 60 * s,
     },
     // CUT AWAY: the canopy flapping away up the sky.
     piece: {

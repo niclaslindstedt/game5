@@ -175,6 +175,7 @@ export const STATS_STRINGS = {
   statsLifts: "LIFT RIDES",
   statsHeli: "HELICOPTER",
   statsPara: "UNDER A WING",
+  statsSuit: "FLOWN IN A WINGSUIT",
   statsSled: "SNOWMOBILE",
   statsGroomer: "PISTE MACHINE",
   statsBeers: "BEERS",

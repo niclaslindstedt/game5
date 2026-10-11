@@ -307,6 +307,9 @@ export const STRINGS = {
                                     : cause === "faceplant"
                                       ? "FACEPLANT! TOE EDGE"
                                       : "EDGE CAUGHT",
+  /** A snowboarder's skis-off word: nothing comes off a board, so a
+   * YARD SALE is a WIPEOUT. */
+  newsBoardDown: "WIPEOUT",
   newsStuck: "BOGGED! POLE OUT",
   newsWell: "TREE WELL! ROCK OUT OR RESET",
   /** Riding switch into loose snow on tails that do not ride over it

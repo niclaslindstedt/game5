@@ -40,6 +40,7 @@ import * as THREE from "three";
 import {
   TUNING,
   flightGravity,
+  isBoard,
   type GameState,
   type LoneSki,
   type SkiSpec,
@@ -48,6 +49,7 @@ import {
   type TrickPose,
 } from "@engine";
 
+import { createBoardModel } from "./board-model.ts";
 import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
 import type { SkierPose } from "./skier-joints.ts";
 import { armBreaks, breakArms, createArmSwing, SWING, type ArmBreak } from "./skier-broken.ts";
@@ -446,6 +448,7 @@ export function createSkisModel(
   style: SkiStyle,
   wrap: <M extends THREE.Material>(m: M, name: string) => M,
 ): SkisModel {
+  if (isBoard(spec)) return createBoardModel(spec, style, wrap);
   const root = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];

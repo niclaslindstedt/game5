@@ -345,7 +345,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // turn by the engine's angulation, aft of nominal by the engine's shift,
   // sunk by a landing's fold and a jump being loaded, sat down into a
   // hockey stop, and up and forward in the pop.
-  const rest = mix(M.hips, M.tuckHips, crouch);
+  const rest = add(mix(M.hips, M.tuckHips, crouch), FS.hips);
   // ALIVE WHILE HE WAITS: stood still (the start line, the finish), a
   // skier is never a statue — he breathes (the chest rising every few
   // seconds), shifts his weight from ski to ski, looks about and works his
@@ -487,7 +487,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // ...his technique's inside knee folded as far as it folds in a carve.
   const kneeMost = KNEE_MOST.bent + (S.legs.kneeMost - KNEE_MOST.bent) * (1 - skid);
   const roomAt = (at: V3): number =>
-    kneeRoom(at, pelvis, feet, crouch, BODY.hip, BODY.thigh, SHIN_ABOVE_CUFF, kneeMost);
+    kneeRoom(at, pelvis, feet, crouch + FS.knee, BODY.hip, BODY.thigh, SHIN_ABOVE_CUFF, kneeMost);
   const raise = roomAt(hips);
   // THE FOLD THE LEGS CANNOT TAKE IS NOT TAKEN AT THE WAIST: the legs'
   // spring sinks him by `fold`, but knees already folded as far as they go

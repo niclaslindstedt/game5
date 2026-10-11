@@ -39,6 +39,7 @@ import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
 import { drawPath } from "./skier-path.ts";
+import { uprightSkier } from "../game/skier-somersault.ts";
 
 type Frame = {
   t: number;
@@ -182,7 +183,7 @@ function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number 
     : new THREE.Vector3(drawn.x, drawn.y - 0.1, drawn.z);
   sun.position.set(centre.x + 4, centre.y + 8, centre.z - 3);
   sun.target.position.copy(centre);
-  return { centre, heading: off ? off.heading : c.heading };
+  return { centre, heading: off ? off.heading : uprightSkier(c).heading };
 }
 
 /** Aim the lens from a view (or a bearing round him) at a centre. */

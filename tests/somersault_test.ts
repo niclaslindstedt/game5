@@ -8,10 +8,12 @@ import { describe, expect, it } from "vitest";
 import {
   createSomersault,
   createTuck,
+  flipLift,
   flipPhases,
   somersaultOf,
   stepSomersault,
   tuckOf,
+  uprightSkier,
   withFlip,
 } from "../pwa/src/game/skier-somersault.ts";
 
@@ -72,5 +74,25 @@ describe("the loop as drawn", () => {
     tuck.lay(after);
     expect(after.lean).toBe(1);
     expect(after.flight).toBe(fall);
+  });
+});
+
+describe("the loop's ball and its top", () => {
+  it("tucks into a ball: the feet pulled up, the knees over the hips", () => {
+    const k = { tuck: 1, dir: 1, own: 1, u: 0.45 };
+    expect(flipLift(k)).toBeGreaterThan(0.3);
+    const t = tuckOf(k);
+    expect(t.hips.y).toBeLessThan(0);
+    expect(t.knee).toBeGreaterThan(1);
+    expect(flipLift(undefined)).toBe(0);
+  });
+
+  it("reads him right way round over the top, never half a roll over", () => {
+    const over = uprightSkier({ heading: Math.PI, pitch: 0.9, roll: Math.PI });
+    expect(over.heading).toBeCloseTo(0);
+    expect(over.pitch).toBeCloseTo(Math.PI - 0.9);
+    expect(over.roll).toBeCloseTo(0);
+    const upright = { heading: 0.4, pitch: 0.2, roll: 0.3 };
+    expect(uprightSkier(upright)).toBe(upright);
   });
 });

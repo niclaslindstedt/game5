@@ -109,19 +109,52 @@ type LaidPose = { somersault?: SomersaultShape; flight?: FlightShape; lean: numb
  * while it turns, its own arms over the fall's, and the lean that threw it
  * no longer drawn as a lean. */
 export function createTuck(): {
-  step(t: FlipThrow | null | undefined, dt: number): void;
+  step(t: FlipThrow | null | undefined, dt: number, stand?: { lift: number[] }): void;
   shape(): SomersaultShape | undefined;
   lay(pose: LaidPose): void;
 } {
   const s = createSomersault();
   return {
-    step: (t, dt) => stepSomersault(s, t, dt),
+    step(t, dt, stand) {
+      stepSomersault(s, t, dt);
+      // ...the skis pulled up under him with the knees.
+      if (stand) for (let i = 0; i < 2; i++) stand.lift[i] += flipLift(somersaultOf(s));
+    },
     shape: () => somersaultOf(s),
     lay(pose) {
       pose.somersault = somersaultOf(s);
       pose.flight = withFlip(pose.flight, pose.somersault);
       pose.lean *= 1 - (pose.somersault?.own ?? 0);
     },
+  };
+}
+
+/** HOW FAR THE TUCK PULLS THE FEET UP, m in the body frame: a flip is
+ * tucked as a BALL, not a racer's egg — the heels drawn in under the seat
+ * and the knees up past the hips to the chest, so the skis come up close
+ * under him and turn round with him rather than a man sat in a chair
+ * hanging off them. */
+export const FLIP_LIFT = 0.45;
+
+export function flipLift(f: SomersaultShape | undefined): number {
+  return f ? FLIP_LIFT * Math.max(0, Math.min(1, f.tuck)) : 0;
+}
+
+/** THE SKIER RIGHT WAY ROUND. His yaw, pitch and roll as the engine
+ * states them (the pitch kept within a quarter turn) go over the top of a
+ * loop as half a turn of heading and a half roll — the same body, but a
+ * figure that reads the roll as how far he leans over lays itself out
+ * beside its skis, and a lens that reads the heading swings round to his
+ * side. Past a quarter roll the same turn is read the other way round: the
+ * heading turned back, the pitch carried on past upright, the roll near
+ * level. */
+export function uprightSkier<T extends { heading: number; pitch: number; roll: number }>(s: T): T {
+  if (Math.abs(s.roll) <= Math.PI / 2) return s;
+  return {
+    ...s,
+    heading: s.heading + (s.heading > 0 ? -Math.PI : Math.PI),
+    pitch: (s.pitch >= 0 ? Math.PI : -Math.PI) - s.pitch,
+    roll: s.roll - Math.sign(s.roll) * Math.PI,
   };
 }
 
@@ -158,6 +191,8 @@ export function tuckOf(f: SomersaultShape | undefined): {
   hold: number;
   round: number;
   pitch: number;
+  hips: V3;
+  knee: number;
 } {
   if (!f) return NO_TUCK;
   const { pop, tuck: k, open } = flipPhases(f);
@@ -170,12 +205,28 @@ export function tuckOf(f: SomersaultShape | undefined): {
   return {
     crouch: k,
     nod: back ? 0.1 * k - 0.55 * open - 0.15 * pop : 0.45 * k + 0.25 * pop - 0.25 * open,
-    pitch: (back ? -0.3 * pop - 0.3 * open : 0.35 * pop + 0.3 * open) - unfold,
+    pitch: (back ? -0.3 * pop - 0.3 * open : 0.35 * pop + 0.3 * open) - unfold - BALL.up * k,
     hold: k,
     round: 0.5 * k,
+    hips: { x: 0, y: -BALL.drop * k, z: -BALL.back * k },
+    knee: BALL.knee * k,
   };
 }
-const NO_TUCK = { crouch: 0, nod: 0, hold: 0, round: 0, pitch: 0 };
+const NO_TUCK = {
+  crouch: 0,
+  nod: 0,
+  hold: 0,
+  round: 0,
+  pitch: 0,
+  hips: { x: 0, y: 0, z: 0 },
+  knee: 0,
+};
+/** THE BALL a flip is tucked into, beside a racer's egg: the hips let
+ * down to the heels' height (`drop`, m) and back over them (`back`, m), the
+ * knees folded past the egg's (`knee`, in shares of the egg's own fold
+ * past a skier's bent knee — `skier-limbs.ts`'s `kneeRoom`) and the trunk
+ * stood up off them (`up`, rad) so the chest comes onto the knees. */
+const BALL = { drop: 0.14, back: 0.04, knee: 1.8, up: 0.95 };
 
 /** The arms through a loop, as the fall's arms are stated
  * (`skier-flight.ts`'s `FlightShape`: rad from hanging, forward positive,

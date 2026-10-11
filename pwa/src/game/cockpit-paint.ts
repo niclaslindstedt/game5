@@ -47,7 +47,7 @@ export const PANEL_LAYOUT = {
   radar: { x: 0.612, y: 0.098, d: 0.084 },
   fli: { x: 0, y: 0.214, w: 0.17, h: 0.112 },
   eng: { x: 0, y: 0.084, w: 0.17, h: 0.112 },
-  caution: { x: 0, y: 0.313, w: 0.27, h: 0.03 },
+  caution: { x: 0, y: 0.316, w: 0.25, h: 0.036 },
   map: { x: -0.37, y: 0.17, w: 0.21, h: 0.2 },
   clock: { x: -0.59, y: 0.245, d: 0.068 },
   oat: { x: -0.59, y: 0.098, d: 0.06 },
@@ -569,26 +569,68 @@ function paintEngine(c: Ctx, g: Gauges): void {
   }
 }
 
-/** THE CAUTION LIGHTS over the engine display. */
+/** THE CAUTION AND WARNING PANEL over the engine display: two rows of
+ * square-cornered capsules, each legend engraved in the glass and readable
+ * dim while it is out, lit red (a warning) or amber (a caution) behind
+ * it when it is on — the rotor and the engine's oil and the gearbox's
+ * warnings down with the rotor, the generator, the fuel pump and the
+ * hydraulics with the engine, the first limit, the fuel low, and the
+ * cabin's DOOR open while a skier is out on the skid. */
 function paintCautions(c: Ctx, g: Gauges): void {
   const [x, y, w, h] = box(PANEL_LAYOUT.caution);
-  const lights: [string, boolean, string][] = [
-    ["ROTOR RPM", g.lowRotor, RED],
-    ["LIMIT", g.limit, AMBER],
-    ["SKID LOAD", g.skid, AMBER],
-    ["GEN", !g.live, AMBER],
-    ["FUEL P", !g.live, AMBER],
+  const off = !g.live;
+  const lights: [string, string, boolean, string][] = [
+    ["ROTOR", "RPM", g.lowRotor, RED],
+    ["ENG", "P", off, RED],
+    ["XMSN", "P", off, RED],
+    ["LIMIT", "", g.limit, AMBER],
+    ["FUEL", "P", off, AMBER],
+    ["GEN", "", off, AMBER],
+    ["HYD", "", off, AMBER],
+    ["LOW", "FUEL", g.fuel < 9, AMBER],
+    ["DOOR", "", g.skid, AMBER],
+    ["BATT", "TEMP", false, AMBER],
   ];
-  const cw = w / lights.length;
-  lights.forEach(([word, on, colour], i) => {
-    const lx = x + i * cw + 3;
-    c.fillStyle = on ? colour : "#1a1b1c";
-    c.fillRect(lx, y, cw - 6, h);
-    c.fillStyle = on ? "#111" : "#55585c";
-    c.font = `bold ${Math.round(h * 0.42)}px sans-serif`;
+  // The bezel the capsules sit in.
+  c.fillStyle = "#050506";
+  c.fillRect(x - 3, y - 3, w + 6, h + 6);
+  const cols = 5;
+  const gap = 3;
+  const cw = (w - gap * (cols - 1)) / cols;
+  const ch = (h - gap) / 2;
+  lights.forEach(([top, bottom, on, colour], i) => {
+    const lx = x + (i % cols) * (cw + gap);
+    const ly = y + Math.floor(i / cols) * (ch + gap);
+    if (on) {
+      const glow = c.createRadialGradient(
+        lx + cw / 2,
+        ly + ch / 2,
+        1,
+        lx + cw / 2,
+        ly + ch / 2,
+        cw * 0.7,
+      );
+      glow.addColorStop(0, "#fff6d8");
+      glow.addColorStop(0.35, colour);
+      glow.addColorStop(1, colour);
+      c.fillStyle = glow;
+    } else {
+      c.fillStyle = colour === RED ? "#2a1514" : "#29230f";
+    }
+    c.fillRect(lx, ly, cw, ch);
+    // The glass's sheen over its top.
+    c.fillStyle = "rgba(255,255,255,0.06)";
+    c.fillRect(lx, ly, cw, ch * 0.4);
+    c.fillStyle = on ? "#141110" : colour === RED ? "#9a4a43" : "#9a8448";
     c.textAlign = "center";
     c.textBaseline = "middle";
-    c.fillText(word, lx + (cw - 6) / 2, y + h / 2);
+    const lines = bottom ? [top, bottom] : [top];
+    const size = Math.round(ch * (lines.length > 1 ? 0.36 : 0.44));
+    c.font = `bold ${size}px sans-serif`;
+    lines.forEach((word, k) => {
+      const ty = ly + ch / 2 + (k - (lines.length - 1) / 2) * size * 1.05;
+      c.fillText(word, lx + cw / 2, ty, cw - 6);
+    });
   });
 }
 

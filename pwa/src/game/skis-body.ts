@@ -50,7 +50,7 @@ import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight } from "./ski-gear.ts";
 import { SKI_LOOKS, drawnAs, lookOf } from "./ski-looks.ts";
-import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
+import { emptyStand, inclineAt, standOf } from "./ski-stand.ts";
 import { createChatter, shakeStand, stepChatter } from "./ski-chatter.ts";
 import { outfitKey } from "./dress.ts";
 import { DEFAULT_OUTFIT, jumpKit, RIVAL_OUTFITS } from "./outfit.ts";

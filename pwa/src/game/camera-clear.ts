@@ -40,6 +40,8 @@ import {
 
 import type { LineClear, Trunk, TrunksNear, Vec3 } from "./camera-rigs.ts";
 import { ARCH, archPlan } from "./start-arch.ts";
+import { skiJumpPlan } from "./ski-jump-plan.ts";
+import { raisedSolids } from "./ski-jump-raised.ts";
 
 /** How far off any solid the lens is kept, m — a near plane's worth and a
  * little more, so the branch nearest the lens is never cut open by it. */
@@ -197,6 +199,13 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
       top: c.y + d.ridge,
     });
   }
+  // ...and a ski jump's raised in-run, its piers and its tower: a lens
+  // beside the deck is never stood inside its truss — and its floodlight masts, which stand between a lens beside the
+  // hill and the jumper in the air.
+  const jump = skiJumpPlan(level);
+  if (jump) houses.push(...raisedSolids(level, jump));
+  for (const m of jump?.masts ?? [])
+    posts.push({ x: m.x, z: m.z, y0: m.y - 1, y1: m.y + m.height, r: 0.35 });
   let movers: readonly SolidBox[] = [];
 
   const near: number[] = [];

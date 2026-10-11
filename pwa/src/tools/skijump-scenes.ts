@@ -15,9 +15,10 @@ import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { hillFrame, hillPoint, type HillFrame } from "../game/ski-jump-frame.ts";
 
-/** A lens for a frame: a rung of the game's own ladder, a pose planted for
- * it, or one worked out off the state at the moment it is shot. */
-export type Lens = CameraRung | LensPose | ((state: GameState) => LensPose);
+/** A lens for a frame: a rung of the game's own ladder (picked, as the
+ * player picks one), the BROADCAST director the game opens a jump on, a
+ * pose planted for it, or one worked out off the state when it is shot. */
+export type Lens = CameraRung | "broadcast" | LensPose | ((state: GameState) => LensPose);
 export type Drive = (state: GameState) => SkierInput;
 
 export type Stage = {
@@ -104,6 +105,57 @@ const hillShots = (st: Stage, s: GameState): void => {
 };
 
 export const VIEWS: Record<string, Scene> = {
+  /** THE RAISED IN-RUN (`ski-jump-raised.ts`): the deck on its truss and
+   * piers from the side and from below, the tower, and the jumper on it. */
+  structure(st) {
+    const s = st.fresh();
+    st.run(s, 0.3);
+    const h = frameOf(s).hill;
+    const mid = h.edge / 2;
+    st.shoot(s, "side, high", planted(mid, -70, 30, mid, 0, -14, 52));
+    st.shoot(s, "side, three-quarter", planted(h.edge + 40, -55, 22, mid - 10, 0, -14, 52));
+    st.shoot(s, "from below", planted(mid + 6, -9, -40, mid - 6, 0, -4, 70));
+    st.shoot(s, "piers, up the line", planted(h.edge - 6, 7, -2, mid - 20, 0, -22, 62));
+    st.shoot(s, "tower", planted(-34, -26, -14, -4, 0, -12, 55));
+    st.shoot(s, "tower, behind", planted(-45, 14, 6, -4, 0, -6, 55));
+    st.until(s, (x) => stage(x) === "tracks", 30, bot);
+    st.until(s, past(mid), 20, bot);
+    st.shoot(s, "on the deck, side", beside(-14, 1, 0, 40));
+    st.shoot(s, "on the deck, chase", "chase");
+    st.shoot(s, "on the deck, below", beside(-10, -18, -4, 55));
+  },
+  /** A WHOLE JUMP THROUGH THE BROADCAST (`camera-skijump.ts`): the frames
+   * the game shows a jump in by default, bar to out-run. */
+  broadcast(st) {
+    const s = st.fresh();
+    const h = frameOf(s).hill;
+    st.run(s, 1);
+    st.shoot(s, "on the bar, opening", "broadcast");
+    st.run(s, 1.6);
+    st.shoot(s, "on the bar", "broadcast");
+    st.until(s, (x) => stage(x) === "tracks", 30, bot);
+    st.run(s, 0.6, bot);
+    st.shoot(s, "off the bar", "broadcast");
+    st.until(s, past(h.edge * 0.6), 20, bot);
+    st.shoot(s, "in the tracks", "broadcast");
+    st.until(s, past(h.edge - 12), 20, bot);
+    st.shoot(s, "to the edge", "broadcast");
+    st.until(s, (x) => stage(x) === "air", 20, bot);
+    st.run(s, 0.25, bot);
+    st.shoot(s, "take-off", "broadcast");
+    st.run(s, 0.8, bot);
+    st.shoot(s, "early flight", "broadcast");
+    st.run(s, 1.2, bot);
+    st.shoot(s, "mid flight", "broadcast");
+    st.until(s, (x) => x.jump?.record.landing != null, 20, bot);
+    st.shoot(s, "touch", "broadcast");
+    st.run(s, 1, bot);
+    st.shoot(s, "telemark", "broadcast");
+    st.run(s, 1.5, bot);
+    st.shoot(s, "out-run", "broadcast");
+    st.run(s, 2.5, bot);
+    st.shoot(s, "stopping", "broadcast");
+  },
   hill(st) {
     const s = st.fresh();
     st.run(s, 0.3);
@@ -160,6 +212,8 @@ export const VIEWS: Record<string, Scene> = {
 
 export const GROUPS: Record<string, readonly string[]> = {
   hill: ["hill", "night"],
+  structure: ["structure"],
+  broadcast: ["broadcast"],
   inrun: ["inrun"],
   flight: ["flight"],
   landing: ["landing"],

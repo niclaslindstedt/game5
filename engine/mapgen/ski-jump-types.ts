@@ -50,8 +50,11 @@ export interface SkiJumpHill {
   gateFactor: number;
   headFactor: number;
   tailFactor: number;
-  /** The hill's width, m. */
+  /** The hill's width, m, and the RAISED IN-RUN's deck: how far either
+   * side of the line the surface above the edge is the deck's (beside it,
+   * the ground lies far under the structure), m. */
   width: number;
+  deck: number;
   /** The hill's height `d` m of plan along its line, m — the analytic
    * surface. */
   yAt: (d: number) => number;

@@ -351,27 +351,51 @@ jumped, every jump landed, none past HS at the jury's gate, the `dist`,
 - **The replay** (`replay-shots.ts`): the take-off filed as the moment, the
   flight slowed, the landing; the broadcast plan below.
 
-### The cameras (`pwa/src/game/camera-skijump.ts`, three-free, its own rows)
+### The cameras (`pwa/src/game/camera-skijump.ts`, three-free)
 
-As a balloon ride swaps the ladder for its own (`camera-balloon.ts`), a
-jump has its own, and the default rung is the broadcast's SIDE:
+A jump played is shown as television shows it: a BROADCAST DIRECTOR is the
+default while he jumps, and the player's own ladder (TIPS … ORBIT) stays a
+camera press away for the rest of the run. The research, restated off a
+broadcaster's camera plan for the sport (numbers, not names):
 
-| Rung | On a jump |
-| --- | --- |
-| TIPS | his own eye: the tips and the V in front, the in-run's tracks rushing, the landing hill opening below |
-| HELMET | over his shoulder, the skis' V and the slope beneath |
-| CHASE | behind and above, the crane behind the tower: the in-run, the edge, the whole flight and the landing |
-| FAR (default) | THE MAIN SIDE-ON CAMERA: ~2/3 of the way to K, 12–20 m off the slope, the lens at his flight's height, panning from the take-off to the landing with every marking on the snow in frame |
-| HIGH | the crane 20 m over the tower, the hill laid out ahead |
-| ORBIT | round him in flight, slow |
+- On the bar: a close-up on the jumper sat on the bar, which follows him
+  off it and down the upper in-run.
+- Beside the take-off: a camera on a platform at least 0.5 m over the table
+  and 5–7 m off it, on a long lens, holding him in full profile through the
+  push; the cut to the main camera falls at the take-off.
+- THE MAIN CAMERA: about two thirds of the way from the edge to K, 12–20 m
+  off the hill, its lens at the flight's own height (3–4 m over the snow),
+  square across the hill, panning from the take-off through the landing to
+  the end of the landing zone.
+- A super-slow-motion camera at snow level on the landing hill a little
+  above the jury, for the last third of the flight and the touch-down.
+- Cranes: 9–11 m in the flat out-run, and a 60–80 m one behind the tower
+  (at least 20 m over it) or opposite it for the opening; hand-helds in the
+  out-run and at the exit for the reaction.
+- Inserts: the in-run speed just after the take-off, the distance two to
+  three seconds after the landing.
 
-The start: a close-up on the bar (the `camera-start.ts` pattern), the
-coach's flag, the light; down the in-run the PROFILE camera beside the
-table (5–7 m off it, over it) holding him in full profile through the
-push, cutting to the rung at the edge. The replay's broadcast: the
-take-off profile in slow motion, the side-on main, a low camera on the
-landing hill for the last third, the out-run crane for the reaction; a
-CABLE camera flying down the hill beside him *(a replay lens)*.
+The director (`createJumpDirector`, its numbers `JUMP_CAM`) cuts by the
+jump's stage, never backward and never off a shot in under 1.5 s:
+
+| Shot | Where it stands | When |
+| --- | --- | --- |
+| TOWER | a crane over the deck 30 m down the in-run, looking back up at him with the tower behind | the first 2.2 s on the bar |
+| BAR | down the in-run from the gate, on the stair, wide open | on the bar, and his first 26 m |
+| PROFILE | beside the take-off, 6.5 m out, 3.6 m over the table | down the in-run to 0.55 s past the edge |
+| FLIGHT | a rail 3.5 m outside the landing area (inside the masts), 3 m behind him, at his height | in the air |
+| LANDING | low beside the landing hill 25 m past K, 2.4 m up, looking up at him | past 0.68·K or 3.1 s up, to 1.4 s past the touch-down |
+| OUT-RUN | a crane past U, over the snow | the reaction and the stop |
+
+Every lens aims at him and ZOOMS to hold a few metres of world round him
+(`JUMP_CAM.frame`), so a long lens keeps him big however far off it
+stands; each is kept over the snow and lifted until the line to him is
+open through the line clear, which carries the raised in-run, its piers,
+its tower and the hill's masts (`camera-clear.ts`). The replay's
+BROADCAST is the same director over the recording; its collector files the
+TAKE-OFF and the LANDING (`replay-shots.ts`, never a plain `air` shot on a
+jump) and runs both slow. The tower's crane and the cable camera are left
+for later.
 
 ### The hill as drawn (a later visual phase models every piece)
 
@@ -620,8 +644,11 @@ Each phase lands green and with its lab's before and after in the PR.
       `flight` and `landing` sheets.
 - [ ] **9. The jumper as drawn**: the poses, the suit, the skis and the free
       heel; `make skijump`'s `poses`, `skier-metrics`.
-- [ ] **10. The cameras and the replay**: the rows, the start, the profile
-      camera, the broadcast; `lenses`.
+- [x] **10. The cameras and the replay**: the broadcast director, the
+      profile camera, the replay's take-off and landing in slow motion, and
+      the raised in-run they look past (see *Settled (phase 10)*); `make
+      skijump`'s `structure` and `broadcast` sheets,
+      `tests/camera_skijump_test.ts`.
 - [ ] **11. The audience, the arena, the floodlights**: `crowd`, `night`.
 - [ ] **12. The sound**: `audition` and `--meter`.
 - [ ] **13. Its hills**: the trick maps first; then its own pinned hills
@@ -942,12 +969,67 @@ sims' digests unmoved.
      mirrored through it; the boards are drawn one-sided now with a bare
      back, and the late side lens moved out of the trees.
 - **Left for later**: the in-run as a raised trestle or ramp over the knoll
-  (an engine change: the grid and the graded strip); the chairlift beside
+  (an engine change: the grid and the graded strip — built in phase 10);
+  the chairlift beside
   the hill, the TV crane, the photocells and a pole camera; banners in the
   arena's colours on the board walls; the jumping arena itself (phase 11 —
   the generic finish arena's stands and video wall stand meanwhile); the
   piste masts the engine stands along the hill's own line (solid to a
   skier, so left standing) still pool their light beside it at night.
+
+## Settled (phase 10)
+
+- **The raised in-run, researched**: a large hill's in-run tower stands
+  some 43–60 m; the in-run is carried as a steel lattice or a concrete
+  trough on steel trusses with as few piers as the span allows, an
+  elevator (often a glass cabin) and a stair in the tower to the warming
+  room at its top; the table under the edge is some 3–4 m high and 6–8 m
+  long at about 10°.
+- **The ground under it** (`SKI_JUMP_RULE.raised`): the in-run's own line,
+  fit and `yAt` are untouched — the wire, the speed at the edge and the
+  flight are the same to the bit, and every sim digest (the ski jump's
+  own included) is unmoved. What moves is the GROUND: `ski-jump.ts` hands
+  `gradeVenue` an `under` profile, the knoll's foot carried back up the
+  in-run at 8° until it meets the natural ground, and the venue is graded
+  DOWN to it there (never raised), the cut banked out 1.5 m a metre of
+  depth; the large hill's deck stands some 36 m over the snow at its top
+  and 3.5 m at the edge (the normal hill's 29 m). The engine still reads
+  the deck under him: the analytic field narrows to the deck's half-width
+  (2.8 m) above the edge (`MogulField.narrow`), so `groundAt` and
+  `normalAt` are the deck's within it, and the deck's snow stays packed.
+  Trick maps' digests are of the base map, so no pinned map moved.
+- **Drawn** (`ski-jump-raised.ts`, in the facade kit, beside the trough):
+  the deck's slab, its fascia and soffit; a Warren truss under it deepening
+  with the span; tapered concrete piers every 15 m with cross-heads; the
+  take-off's block walled to the ground; the tower — a concrete shaft
+  with glazing slits, a glazed elevator shaft on one side and a steel stair
+  tower on the other; the floodlight masts beside the deck grown to clear
+  it. `raisedSolids` hands the same boxes to the line clear, so no lens
+  stands in the truss or looks through the tower.
+- **The lab rounds** (`make skijump ARGS=--sheet=structure,broadcast`,
+  seed 38, the large hill):
+  1. Round 1: the deck, truss and tower read from below and beside; the
+     two side lenses of the structure sheet stood under the bank. The
+     broadcast held him big through the jump, but the opening crane aimed
+     so far down the hill he fell out of the frame, the profile camera
+     stood low enough for the trough's wall to cut his legs off, a
+     floodlight mast stood across the flight's rail, and the landing camera
+     was veiled by his own spray.
+  2. Round 2: the masts put in the line clear and the rail moved inside
+     them (3.5 m out), the profile camera raised to 3.6 m, the crane closer
+     with its aim led only 7 % toward K, the landing camera at 2.4 m; the
+     structure sheet's side lenses moved out and up.
+  3. Round 3: the opening crane, behind the tower, looked down on the
+     warming room's roof over the top gates and never saw him; it stands
+     opposite now, over the deck 34 m down the in-run, looking back up at
+     him on the bar with the tower behind. The landing camera moved 25 m
+     past K so the telemark comes toward it with his spray behind him, and
+     the out-run's crane is cut to 1.4 s after the touch-down. The
+     structure sheet's lenses moved high beside the deck and in under it
+     at the take-off: the deck, the truss, the piers and the lowered cut
+     read from every side.
+  4. Round 4: the opening held him small; it stands closer (30 m down,
+     11 m out, 7 m up) and frames 6 m of world round him.
 
 ## Open questions for the user
 

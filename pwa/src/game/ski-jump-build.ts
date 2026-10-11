@@ -11,6 +11,8 @@
 //   * THE START TOWER behind the deck (a concrete storey, a glazed one
 //     over it, a flat roof and a mast) and the canopy over the top gates;
 //   * THE TABLE'S EDGE: the concrete face it drops off to the knoll;
+//   * THE RAISED IN-RUN under it all — the deck, the truss, the piers, the
+//     take-off block and the tower's shaft (`ski-jump-raised.ts`);
 //   * THE LANDING HILL'S BOARD WALLS down both sides, the boards' posts,
 //     the flagpoles and the anemometers' masts;
 //   * THE JUDGES' TOWER (five glazed cabins stepped down the slope on a
@@ -25,6 +27,7 @@ import { FACADE, type FacadeLayer } from "./facade-paint.ts";
 import type { FacadeKit, V3 } from "./facade-kit.ts";
 import { hillPoint } from "./ski-jump-frame.ts";
 import { landingWidth, SJ_LOOK, type SkiJumpPlan } from "./ski-jump-plan.ts";
+import { buildRaised, deckSides } from "./ski-jump-raised.ts";
 
 const CONCRETE = 0xd2d0cb;
 const STEEL = 0x8f989f;
@@ -407,8 +410,10 @@ function buildTowerAndEdge(kit: FacadeKit, plan: SkiJumpPlan): void {
   const e = plan.inRun.to;
   const lip = yOf(plan, e);
   const foot = yOf(plan, e + 0.08);
-  const across = plan.frame.hill.width / 2;
-  kit.wall(-across, e + 0.01, across, e + 0.01, foot - 0.3, lip - 0.02, FACADE.concrete, 0xb8b6b1);
+  // The table stands proud of the knoll: its face is the take-off block's,
+  // the deck's width, down to the ground (`ski-jump-raised.ts`).
+  const { left, right } = deckSides(plan);
+  kit.wall(left, e + 0.01, right, e + 0.01, foot - 0.6, lip - 0.02, FACADE.concrete, 0xb8b6b1);
   kit.wall(
     -plan.inRun.half - 0.3,
     e + 0.02,
@@ -743,6 +748,7 @@ export function buildSkiJump(kit: FacadeKit, level: Level, plan: SkiJumpPlan): v
   setFrame(kit, plan);
   buildInRun(kit, plan);
   buildTowerAndEdge(kit, plan);
+  buildRaised(kit, level, plan);
   buildLanding(kit, level, plan);
   buildStands(kit, level, plan);
 }

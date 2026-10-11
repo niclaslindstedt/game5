@@ -277,6 +277,14 @@ function build(hill: SkiJumpHillId): SkiJumpProfile {
       ys[i] = landingAt(q);
     }
   }
+  // THE GROUND UNDER THE RAISED IN-RUN: a slope up from the knoll's foot
+  // under the edge, never over the in-run itself.
+  const under = new Float64Array(n);
+  const rise = Math.tan(R.raised.slope * RAD);
+  for (let i = 0; i < n; i++) {
+    const q = i * PEN_STEP + start;
+    under[i] = q < -PEN_STEP / 2 ? Math.min(ys[i], k0 - rise * q) : ys[i];
+  }
   // THE DISTANCE: the arc along the landing profile from the knoll's foot.
   const steps = Math.ceil((end - edge) / PEN_STEP) + 1;
   const arc = new Float64Array(steps);
@@ -297,6 +305,7 @@ function build(hill: SkiJumpHillId): SkiJumpProfile {
     elements: el,
     dx: PEN_STEP,
     y: ys,
+    under: { y: under, bank: R.raised.bank, half: R.raised.half },
     straight: marks.straight - start,
     curve: marks.curve - start,
     table: marks.table - start,
@@ -471,6 +480,7 @@ function buildOver(original: Level, hill: SkiJumpHillId): Level {
     height: 0,
     wave: 1,
     ease: 1,
+    narrow: { until: p.edge, half: R.raised.half },
   };
   const course: SkiJumpHill = {
     base: original,
@@ -499,6 +509,7 @@ function buildOver(original: Level, hill: SkiJumpHillId): Level {
     headFactor: R.hills[hill].head,
     tailFactor: R.hills[hill].tail,
     width: R.width,
+    deck: R.raised.half,
     yAt,
     distanceAt: (x: number) => jumpDistanceAt(p, x),
   };

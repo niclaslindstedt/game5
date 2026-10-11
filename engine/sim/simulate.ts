@@ -12,7 +12,15 @@ import { judgePipeRun } from "../game/halfpipe-contest.ts";
 import { judgeMogulsRun } from "../game/moguls-contest.ts";
 import { judgeAerialRun } from "../game/aerials-contest.ts";
 import { TUNING } from "../game/defs/tuning.ts";
-import { createGame, step } from "../game/step.ts";
+import { createGame, levelFor, step, type CreateGameOptions } from "../game/step.ts";
+import { SKI_JUMP } from "../game/defs/ski-jump.ts";
+import {
+  freshSkiJumpContest,
+  judgeSkiJumpRun,
+  skiJumpContestAfter,
+  skiJumpPlace,
+} from "../game/ski-jump-contest.ts";
+import { setSkiJump } from "../mapgen/ski-jump.ts";
 import type { GameMode } from "../game/defs/modes.ts";
 import type { CrossHeat } from "../game/cross-bracket.ts";
 import { generateLevel } from "../mapgen/generate.ts";
@@ -73,11 +81,11 @@ export type SimOptions = {
     | "superG"
     | "speedSki"
     | "skiCross"
-    | "bigAir"
     | "slopestyle"
     | "halfpipe"
     | "moguls"
     | "aerials"
+    | "skiJump"
   >;
   /** On aerials (R41), the jump the bot declares and throws (a code of the
    * chart, `defs/aerial-jumps.ts`) — the contest's default when left out. */
@@ -161,7 +169,7 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
   const profile = options.profile ?? RIDER_BOT;
   const maxSeconds = options.maxSeconds ?? SIM_SECONDS;
   const race = options.tricks ? undefined : options.mode;
-  const state = createGame({
+  const asked: CreateGameOptions = {
     seed,
     mode: race,
     region: race ? options.region : undefined,
@@ -188,7 +196,21 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     poles: options.poles,
     sky: options.weather ? { weather: options.weather } : undefined,
     quiet: true,
-  });
+  };
+  // A SKI JUMP is the first round of a contest dealt off the seed: the
+  // jury's gate and the hill's air at the bot's moment, its points scored.
+  const base = race === "skiJump" ? levelFor(asked) : undefined;
+  const state = createGame(
+    base
+      ? {
+          ...asked,
+          level: base,
+          skiJumpContest: freshSkiJumpContest(seed, setSkiJump(base, SKI_JUMP.hill), {
+            trial: false,
+          }),
+        }
+      : asked,
+  );
   const events: GameEvent[] = [];
   let hash = 0x811c9dc5;
   const mix = (v: number): void => {
@@ -238,6 +260,8 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
       mix(c.speed);
     }
   }
+  const jumped = state.skiJumpContest ? skiJumpContestAfter(state) : null;
+  if (jumped) place = skiJumpPlace(jumped, "first");
   mix(state.skier.x);
   mix(state.skier.y);
   mix(state.skier.z);
@@ -277,16 +301,19 @@ export function simulateRun(seed: number, options: SimOptions = {}): RunReport {
     // A SLOPESTYLE run's is the judges' (`slopestyle-judge.ts`), a
     // HALFPIPE's the panel's for the run (`halfpipe-judge.ts`), MOGULS'
     // the formal score (`moguls-judge.ts`), AERIALS' the jump's (`aerials-
-    // judge.ts`).
-    score: state.moguls
-      ? (judgeMogulsRun(state)?.score ?? 0)
-      : state.aerials
-        ? (judgeAerialRun(state)?.score ?? 0)
-        : state.slopestyle
-          ? (judgeSlopeRun(state)?.score ?? 0)
-          : state.halfpipe
-            ? (judgePipeRun(state)?.score ?? 0)
-            : state.tricks.score,
+    // judge.ts`), a SKI JUMP's its points (`ski-jump-judge.ts`) — the
+    // distance credited where no contest scores it.
+    score: state.jump
+      ? (judgeSkiJumpRun(state)?.points ?? state.jump.record.distance)
+      : state.moguls
+        ? (judgeMogulsRun(state)?.score ?? 0)
+        : state.aerials
+          ? (judgeAerialRun(state)?.score ?? 0)
+          : state.slopestyle
+            ? (judgeSlopeRun(state)?.score ?? 0)
+            : state.halfpipe
+              ? (judgePipeRun(state)?.score ?? 0)
+              : state.tricks.score,
     events,
     digest: hash.toString(16).padStart(8, "0"),
   };

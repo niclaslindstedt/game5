@@ -170,6 +170,31 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.shoot(d, "door close", around(-1.8, 0.6, 1.6, 36, 0.2));
     st.shoot(d, "door back", around(-0.4, 1, 1.8, 36, 0.2));
   },
+  // ── THE RIG WORN CLOSE: on the snow after a landing, riding on, and
+  // under the canopy — where it is seen longest, from every side ────────
+  worn(st) {
+    // Landed low over the open piste on the bot's hands, the canopy let go.
+    const s = dive(st, 12, "open");
+    st.until(s, (x) => x.chute?.mode === "landed" || !x.skier.airborne, 30, bot);
+    st.run(s, 3, still);
+    const o = 0.35;
+    st.shoot(s, "back", around(0, 0.5, 1.9, 34, o));
+    st.shoot(s, "back left", around(-1.3, 0.4, 1.4, 34, o));
+    st.shoot(s, "back right", around(1.3, 0.4, 1.4, 34, o));
+    st.shoot(s, "side left", around(-1.9, 0.2, 0, 34, o));
+    st.shoot(s, "side right", around(1.9, 0.2, 0, 34, o));
+    st.shoot(s, "front", around(0.5, 0.3, -1.9, 34, o));
+    st.shoot(s, "above", around(0.2, 1.6, 0.8, 34, o));
+    st.shoot(s, "chase", "chase");
+    st.run(s, 1.2, keys({ tuck: 0.5 }));
+    st.shoot(s, "riding", around(0.5, 0.9, 3, 36, o));
+    st.shoot(s, "riding chase", "chase");
+    const c = dive(st, 600, "open");
+    st.run(c, 1.5, still);
+    st.shoot(c, "canopy back", around(0.4, 0.4, 2.2, 36, 0.2));
+    const f = dive(st, 1800);
+    st.shoot(f, "freefall above", around(1.0, 2.4, 0.2, 36));
+  },
   // ── THE DOOR AND THE EXIT, frame by frame ─────────────────────────────
   exit(st) {
     // Climbed to the jump run on the pilot's hands, held in the door the
@@ -342,6 +367,30 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       return p ? { x: p.x, y: p.y, z: p.z } : { x: x.skier.x, y: x.skier.y, z: x.skier.z };
     };
     st.shoot(l, "let go", overPoint(spare, 7, 5, 7, 50));
+  },
+  // ── MALFUNCTIONS (`mishaps.ts`): line twists and a line over ─────────
+  // The main given each by hand, as a mishap stream would deal it: three
+  // turns of twist kicked out on the edge, then a line over the right tip
+  // spiralling him round, seen from behind, below, the side and the front.
+  malfunction(st) {
+    const s = dive(st, 900, "open");
+    st.run(s, 1, still);
+    s.chute!.mal = "twist";
+    s.chute!.twist = 3 * 2 * Math.PI;
+    st.run(s, 0.5, still);
+    st.shoot(s, "twists behind", around(0, 3.2, 8, 44, 3));
+    st.shoot(s, "twists close", around(3.5, 1.4, 3.5, 40, 1.4));
+    st.run(s, 1.2, keys({ steer: 1 }));
+    st.shoot(s, "kicking", around(6, 2, 5, 48, 2.5));
+    const o = dive(st, 900, "open");
+    st.run(o, 1, still);
+    o.chute!.mal = "lineover";
+    o.chute!.over = 1;
+    st.run(o, 2.5, still);
+    st.shoot(o, "line over behind", around(0, 4.4, 11, 40, 4.4));
+    st.shoot(o, "line over below", around(0.4, -5, 2.5, 52, 4.2));
+    st.shoot(o, "line over side", around(11, 4.4, 0, 40, 4.2));
+    st.shoot(o, "line over front", around(0, 4.6, -11, 40, 4.4));
   },
   // ── CAUGHT: a crown and a lift's rope ─────────────────────────────────
   snag(st) {
@@ -565,6 +614,7 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
 /** The sheets and the views each is made of. */
 export const GROUPS: Record<string, readonly string[]> = {
   gear: ["gear"],
+  worn: ["worn"],
   exit: ["exit"],
   freefall: ["freefall"],
   deploy: ["deploy", "deploy-game"],
@@ -573,6 +623,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   cutaway: ["cutaway"],
   reserve: ["reserve"],
   snag: ["snag"],
+  malfunction: ["malfunction"],
   lenses: ["lenses"],
   night: ["night"],
   stages: ["stages"],

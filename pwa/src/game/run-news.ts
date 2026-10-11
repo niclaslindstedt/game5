@@ -116,21 +116,7 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
             ? { text: STRINGS.newsGrimbearHalt, tone: "info" }
             : null;
     case "avalanche":
-      // A slab breaking, and what it did with him; the flow at rest and
-      // a reset out of it are not news.
-      return e.phase === "release"
-        ? { text: STRINGS.newsAvalanche, tone: "bad" }
-        : e.phase === "caught"
-          ? { text: STRINGS.newsAvalancheCaught, tone: "bad" }
-          : e.phase === "buried"
-            ? { text: STRINGS.newsAvalancheBuried(e.depth), tone: "bad" }
-            : e.phase === "surfaced"
-              ? { text: STRINGS.newsAvalancheSurfaced, tone: "info" }
-              : e.phase === "escaped"
-                ? { text: STRINGS.newsAvalancheEscaped, tone: "good" }
-                : e.phase === "lost"
-                  ? { text: STRINGS.newsAvalancheLost, tone: "bad" }
-                  : null;
+      return avalancheNews(e);
     case "groomer":
       // Into its cab and out of it; ridden into, it is the wipeout's word.
       return e.phase === "board"
@@ -204,6 +190,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
           tone: "good",
         };
       if (e.phase === "crash") return { text: STRINGS.newsHeliCrash, tone: "bad" };
+      // The turbine stopped: down the collective, into autorotation.
+      if (e.phase === "engine") return { text: STRINGS.newsHeliEngine, tone: "bad" };
       // The blades through him: said once, on the first.
       if (e.phase === "rotor")
         return e.t === state.heli?.bladed ? { text: STRINGS.newsHeliRotor, tone: "bad" } : null;
@@ -244,6 +232,11 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "fold") return { text: STRINGS.newsParaFold, tone: "bad" };
       if (e.phase === "loop") return { text: STRINGS.newsParaLoop, tone: "good" };
       if (e.phase === "tangle") return { text: STRINGS.newsParaTangle, tone: "bad" };
+      // A tip caught in the lines, pumped free; launched twisted, kicked out.
+      if (e.phase === "cravat") return { text: STRINGS.newsParaCravat, tone: "bad" };
+      if (e.phase === "freed") return { text: STRINGS.newsParaFreed, tone: "good" };
+      if (e.phase === "twist") return { text: STRINGS.newsParaTwist, tone: "bad" };
+      if (e.phase === "untwist") return { text: STRINGS.newsParaUntwist, tone: "good" };
       return { text: STRINGS.newsParaRestart, tone: "info" };
     case "balloon":
       // The balloon: let go, off and onto the snow, too hot, alight, over
@@ -269,6 +262,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "stall") return { text: STRINGS.newsPlaneStall, tone: "bad" };
       if (e.phase === "scrape") return { text: STRINGS.newsPlaneScrape, tone: "bad" };
       if (e.phase === "tear") return { text: STRINGS.newsPlaneTear, tone: "bad" };
+      // The engine coughing, then stopped: glide it down.
+      if (e.phase === "cough") return { text: STRINGS.newsPlaneCough, tone: "bad" };
+      if (e.phase === "engine") return { text: STRINGS.newsPlaneEngine, tone: "bad" };
       if (e.phase === "jump")
         return {
           text: STRINGS.newsPlaneJump(e.y - state.level.groundAt(e.x, e.z)),
@@ -287,6 +283,10 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "reserve") return { text: STRINGS.newsChuteReserve, tone: "info" };
       if (e.phase === "line-stretch") return { text: STRINGS.newsChuteLines, tone: "info" };
       if (e.phase === "open") return { text: STRINGS.newsChuteOpen(e.g ?? 0), tone: "good" };
+      // The main opened wrong (`ChuteState.mal`), and the twists kicked out.
+      if (e.phase === "malfunction")
+        return { text: STRINGS.newsChuteMal(state.chute?.mal ?? "twist", e.g ?? 0), tone: "bad" };
+      if (e.phase === "untwist") return { text: STRINGS.newsChuteUntwist, tone: "good" };
       if (e.phase === "release") return { text: STRINGS.newsChuteRelease, tone: "bad" };
       if (e.phase === "land") return { text: STRINGS.newsChuteLand, tone: "good" };
       if (e.phase === "snag")
@@ -311,4 +311,43 @@ export function shotLabel(state: GameState): string {
     kmh: state.skier.speed * 3.6,
     skis: state.skier.spec.name,
   });
+}
+
+/** A slab breaking, what it did with him and with the others, the search
+ * and the patrol (`avalanche-rescue.ts`); the flow at rest and a reset out
+ * of it are not news. */
+function avalancheNews(e: Extract<GameEvent, { kind: "avalanche" }>): NewsLine | null {
+  const other = e.who !== undefined;
+  switch (e.phase) {
+    case "release":
+      return { text: STRINGS.newsAvalanche, tone: "bad" };
+    case "caught":
+      return { text: other ? STRINGS.newsOtherCaught : STRINGS.newsAvalancheCaught, tone: "bad" };
+    case "buried":
+      return other
+        ? { text: STRINGS.newsOtherBuried, tone: "bad" }
+        : { text: STRINGS.newsAvalancheBuried(e.depth), tone: "bad" };
+    case "surfaced":
+      return {
+        text: other ? STRINGS.newsOtherSurfaced : STRINGS.newsAvalancheSurfaced,
+        tone: "info",
+      };
+    case "escaped":
+      return { text: STRINGS.newsAvalancheEscaped, tone: "good" };
+    case "lost":
+      return { text: STRINGS.newsAvalancheLost, tone: "bad" };
+    case "beacon":
+      return { text: e.alive ? STRINGS.newsBeaconSearch : STRINGS.newsBeaconSend, tone: "info" };
+    case "strike":
+      return { text: STRINGS.newsStrike, tone: "good" };
+    case "dug":
+      if (!other) return e.alive ? { text: STRINGS.newsPatrolYou, tone: "good" } : null;
+      return e.alive
+        ? { text: STRINGS.newsDugAlive, tone: "good" }
+        : { text: STRINGS.newsDugDead, tone: "bad" };
+    case "patrol":
+      return { text: STRINGS.newsPatrol, tone: "info" };
+    default:
+      return null;
+  }
 }

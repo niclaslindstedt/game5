@@ -25,7 +25,8 @@ import { createGroomerFar, farNow } from "./groomer-far.ts";
 import { GROOMER_LAMPS } from "./groomer-look.ts";
 import { createGroomerView, type GroomerView } from "./groomer-view.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
-import { groomerModelUrl } from "./skier-models.ts";
+import { mergeParts } from "./model-merge.ts";
+import { GROOMER_NODES, groomerModelUrl } from "./skier-models.ts";
 import type { SolidBox } from "./camera-clear.ts";
 import type { Flood } from "./headlamp.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
@@ -123,6 +124,11 @@ function loadModel(haze: HazeUniforms, lit: Lit, made: THREE.Material[]) {
           }
         }
       });
+      // Each part's plain primitives one draw (`mergeParts`), once for every copy.
+      for (const name of Object.values(GROOMER_NODES)) {
+        const node = gltf.scene.getObjectByName(name);
+        if (node) mergeParts(node, (m) => hazeMaterial(m, haze, "groomer"), made);
+      }
       return gltf.scene;
     })
     .catch(() => null);

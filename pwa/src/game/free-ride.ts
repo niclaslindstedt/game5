@@ -40,6 +40,8 @@ import {
   type GameState,
   type GrimbearState,
   lastPiste,
+  type MishapRate,
+  type MishapState,
   type Level,
   type RunRules,
   type SkiSpec,
@@ -138,7 +140,7 @@ export type FreeRide = {
   /** The run of the ski area (R27, `Run.id`) the ride is carried to the top
    * of, on the seed and in the country it was picked on — or a START row's
    * machine (`SKIS_START`'s neighbours); null is the map's most difficult
-   * run (`pickFreeRun`). */
+   * piste (`pickFreeRun`). */
   run: { seed: number; region: RegionId; face?: string | null; id: string } | null;
   /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
    * (`avalanche.ts`). On unless the player turns them off. */
@@ -392,7 +394,7 @@ export function freeRunList(level: Level): { runs: FreeRunInfo[]; fallback: stri
 }
 
 /** THE RUN THE CARD MARKS, of the runs its chart was sent: the one picked
- * on this map, else the most difficult of them (the first of the hardest
+ * on this map, else the most difficult piste (the first of the hardest, up to a black
  * colour) — the engine's own rule (`pickFreeRun`), so the run marked is the
  * run ridden. Null off a resort. */
 export function markedRun(
@@ -420,7 +422,14 @@ export const GRIMBEAR_ODDS = 1 / 3;
 export function freeGameOptions(
   ride: FreeRide,
   seed: number,
-  skier: { spec: SkiSpec; assist: Assist; poles?: boolean; gore?: boolean; sfw?: boolean },
+  skier: {
+    spec: SkiSpec;
+    assist: Assist;
+    poles?: boolean;
+    gore?: boolean;
+    sfw?: boolean;
+    mishapRate?: MishapRate | "off";
+  },
   random: () => number = Math.random,
 ): CreateGameOptions {
   const heli = heliOn(ride, seed);
@@ -481,6 +490,11 @@ export function freeGameOptions(
     // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
     // unless the start card's row turned them off.
     avalanche: ride.avalanche,
+    // THINGS GO WRONG (`mishaps.ts`): a canopy's malfunction, an engine
+    // stopping — dealt off a stream of their own, salted by the app.
+    ...(skier.mishapRate && skier.mishapRate !== "off"
+      ? { mishaps: { rate: skier.mishapRate, salt: Math.floor(random() * 2 ** 32) } }
+      : {}),
   };
 }
 
@@ -501,6 +515,7 @@ export function freeTopOptions(
   again: CreateGameOptions,
   run: string | undefined,
   beast?: GrimbearState,
+  mishaps?: MishapState,
 ): CreateGameOptions {
   return {
     ...again,
@@ -508,6 +523,11 @@ export function freeTopOptions(
     byLift: false,
     run,
     grimbear: grimbearAgain(beast),
+    // The next rider is dealt his own mishaps, salted off the last one's.
+    mishaps: again.mishaps && {
+      ...again.mishaps,
+      salt: mishaps ? Math.floor(mishaps.rng.next() * 2 ** 32) : (again.mishaps.salt + 1) >>> 0,
+    },
     // A ride begun at the afterski starts again on the snow, not at the bar.
     inLodge: false,
   };
@@ -521,7 +541,7 @@ export function freeRestart(
   again: CreateGameOptions | null,
 ): CreateGameOptions | null {
   return !state.rules.course && !state.rules.tricks && again
-    ? freeTopOptions(again, lastPiste(state), state.grimbear)
+    ? freeTopOptions(again, lastPiste(state), state.grimbear, state.mishaps)
     : null;
 }
 
@@ -573,4 +593,13 @@ export function standingFor(
     !level.superG &&
     !level.giantSlalom;
   return same ? level : undefined;
+}
+
+/** A ride stood on a link's real `face` — a link to one of the free
+ * ride's cards opens it there — (in the face's own country), or
+ * the ride as it is where the link names none this build has. */
+export function rideOnFace(ride: FreeRide, face: string | null): FreeRide {
+  const region = face ? realFaceRegion(face) : null;
+  if (!face || !region || face === ride.face) return ride;
+  return { ...ride, face, region, spot: null, run: null };
 }

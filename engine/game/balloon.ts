@@ -45,6 +45,7 @@
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run with no balloon never comes in here.
 
+import { keptDown } from "./rescue.ts";
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import {
@@ -229,7 +230,9 @@ export function stepBalloon(run: GameState, input: SkierInput, events: GameEvent
     b.valve = false;
     b.burnt = b.burning ? Math.min(1, b.burnt + dt / B.fire.burnFor) : b.burnt;
     const c = run.skier;
-    if (b.wreck && c.thrown) {
+    // Killed or hurt too badly to ski on (`keptDown`), he lies where it
+    // threw him: the run is the app's to end, and the rescue comes there.
+    if (b.wreck && c.thrown && !keptDown(run)) {
       // Thrown out by the crash: lain long enough — or the player's own
       // press, at once — and the ride starts again at the bottom.
       const up = input.reset;

@@ -1,0 +1,307 @@
+/* THE FREE RIDE'S WHERE STEPS (menu-where.tsx, world-map-view.tsx): the
+   world map and, beside or under it, the rows that step the same picks.
+   The map is the card's reason to exist, so it takes what the card has —
+   beside the rows on a wide screen and on a phone on its side, over them
+   on a phone held upright — and is never scrolled to. */
+.menu-card-where {
+  gap: 0.6rem;
+  text-align: left;
+  width: min(60rem, 100%);
+}
+
+.where-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.where-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.where-plate {
+  padding: 0.3rem;
+  border: 2px solid rgb(244 248 251 / 16%);
+  border-radius: 0.5rem;
+  background: rgb(13 34 51 / 55%);
+}
+
+.where-map {
+  position: relative;
+  height: clamp(13rem, 46dvh, 30rem);
+  overflow: hidden;
+  border-radius: 0.3rem;
+  /* The sea: the menu's deep blue, a little lighter than the card. */
+  background: radial-gradient(120% 120% at 50% 40%, #1d4a6e 0%, #12304b 70%, #0d2438 100%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.where-map:active {
+  cursor: grabbing;
+}
+
+.where-map-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.where-map-word {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+  opacity: 0.8;
+}
+
+/* The land in the snow's own white, a little blue in it; the lakes the
+   sea's; the borders a faint dashed line. */
+.where-land {
+  fill: #d8e6f0;
+  stroke: #f4f8fb;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+.where-lake {
+  fill: #2b5a80;
+  stroke: none;
+}
+
+.where-border {
+  fill: none;
+  stroke: #5d7f9c;
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  stroke-linejoin: round;
+}
+
+.where-leader {
+  stroke: #12304b;
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+/* A ski area: a dark dot ringed in white; the one picked the flag's red,
+   ringed and pulsing; another range's quieter. */
+.where-mark-dot {
+  fill: #12304b;
+  stroke: #f4f8fb;
+  stroke-width: 1.6;
+}
+
+.where-mark-dim .where-mark-dot {
+  fill: #4f6f8b;
+  stroke-width: 1.2;
+}
+
+.where-mark-on .where-mark-dot {
+  fill: var(--flag);
+  stroke-width: 2;
+}
+
+.where-mark-ring {
+  fill: none;
+  stroke: var(--flag);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: where-pulse 1.6s ease-out infinite;
+}
+
+@keyframes where-pulse {
+  from {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .where-mark-ring {
+    animation: none;
+  }
+}
+
+.where-label rect {
+  fill: rgb(13 34 51 / 86%);
+  stroke: rgb(244 248 251 / 30%);
+  stroke-width: 1;
+}
+
+.where-label text {
+  fill: #f4f8fb;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-anchor: middle;
+}
+
+.where-mark-dim .where-label {
+  opacity: 0.72;
+}
+
+.where-mark-on .where-label rect {
+  fill: var(--flag);
+  stroke: #f4f8fb;
+}
+
+/* The scale bar, white with a dark halo: it reads over the sea and the
+   land alike. */
+.where-scale path {
+  fill: none;
+  stroke: #f4f8fb;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 1.5px #0d2438);
+}
+
+.where-scale text {
+  fill: #f4f8fb;
+  stroke: #0d2438;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* The reading under the rows: the place picked, its range, and roughly
+   where on the globe it lies. */
+.where-read {
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--flag);
+  border-radius: 0.2rem;
+  background: rgb(13 34 51 / 45%);
+}
+
+.where-read p {
+  margin: 0;
+}
+
+.where-read-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.where-read-line {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+}
+
+@media (max-width: 30rem) {
+  .menu-card-where {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+  }
+}
+
+/* A wide screen: the map on the left, as tall as the window allows, the
+   rows and the reading beside it. */
+@media (min-width: 48rem) {
+  .where-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.4rem 1.1rem;
+  }
+
+  .where-map {
+    height: clamp(16rem, calc(100dvh - 15rem), 32rem);
+  }
+
+  .menu-card-where .knob-value {
+    width: 7.5rem;
+  }
+}
+
+/* A phone on its side: the least height of all, so the map takes the left
+   and the body's whole height, and the rows stand beside it. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .menu-card-where {
+    width: min(52rem, 100%);
+  }
+
+  .where-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.4rem 0.6rem;
+  }
+
+  .where-map {
+    height: clamp(9rem, calc(100dvh - 10.5rem), 22rem);
+  }
+
+  .where-side {
+    gap: 0.4rem;
+  }
+
+  .menu-card-where .knob {
+    gap: 0.25rem;
+    padding-left: 0.55rem;
+    padding-right: 0.15rem;
+  }
+
+  .menu-card-where .knob-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+  }
+
+  .menu-card-where .knob-value {
+    width: 6.4rem;
+  }
+
+  .where-read {
+    padding: 0.35rem 0.55rem;
+  }
+
+  .where-read-name {
+    font-size: 0.8rem;
+  }
+}
+
+/* A cluster: several ski areas too close to read at this zoom, counted. */
+.where-mark-many .where-mark-dot {
+  fill: #12304b;
+  stroke-width: 2;
+}
+
+.where-mark-many.where-mark-dim .where-mark-dot {
+  fill: #4f6f8b;
+}
+
+.where-mark-many.where-mark-on .where-mark-dot {
+  fill: var(--flag);
+}
+
+.where-mark-count {
+  fill: #f4f8fb;
+  font-size: 10px;
+  font-weight: 800;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* The area step's ring round a mountainside: roughly here. */
+.where-halo {
+  fill: rgb(18 48 75 / 10%);
+  stroke: rgb(18 48 75 / 35%);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}

@@ -36,7 +36,7 @@
 // folded three times is counted once.
 
 import type { CrashCause, DeathCause, GameMode, GameState, PairId, TrickKind } from "@engine";
-import { TUNING, bonesOf, severityOf } from "@engine";
+import { TUNING, bonesOf, isGameMode, severityOf } from "@engine";
 
 /** Seconds of riding before a run is a run. */
 export const MIN_RUN = 3;
@@ -630,7 +630,8 @@ function sumsOf(v: unknown): RunSums {
 
 function bestOf(v: unknown): Best | null {
   const r = record(v);
-  if (typeof r.mode !== "string" || typeof r.skis !== "string") return null;
+  // A mode this build no longer has drops the row.
+  if (!isGameMode(r.mode) || typeof r.skis !== "string") return null;
   const value = num(r.value);
   if (value <= 0) return null;
   return {
@@ -651,6 +652,13 @@ function rowsOf<K extends string>(v: unknown): Partial<Record<K, ShareRow>> {
   return out;
 }
 
+/** A per-mode row kept only for the modes this build has. */
+function modeKeys<T>(rows: Partial<Record<string, T>>): Partial<Record<GameMode, T>> {
+  const out: Partial<Record<GameMode, T>> = {};
+  for (const [k, row] of Object.entries(rows)) if (isGameMode(k) && row !== undefined) out[k] = row;
+  return out;
+}
+
 function seedRowOf(v: unknown): SeedRow | null {
   const r = record(v);
   if (num(r.at) <= 0) return null;
@@ -661,7 +669,7 @@ function seedRowOf(v: unknown): SeedRow | null {
     distance: num(r.distance),
     top: num(r.top),
     score: num(r.score),
-    times: counts(r.times),
+    times: modeKeys(counts(r.times)),
     tricks: counts(r.tricks) as Record<string, number>,
   };
 }
@@ -677,7 +685,7 @@ function seedsOf(v: unknown): Record<string, SeedRow> {
 
 function tallyOf(v: unknown): RunTally | null {
   const r = record(v);
-  if (typeof r.mode !== "string" || typeof r.skis !== "string" || num(r.at) <= 0) return null;
+  if (!isGameMode(r.mode) || typeof r.skis !== "string" || num(r.at) <= 0) return null;
   const place = num(r.place);
   const time = num(r.time_);
   return {
@@ -730,7 +738,7 @@ export function readStats(blob: unknown): StatsBook {
     },
     causes: counts(r.causes),
     killed: counts(r.killed),
-    modes: rowsOf(r.modes),
+    modes: modeKeys(rowsOf(r.modes)),
     skis: rowsOf(r.skis),
     tricks: counts(r.tricks) as Record<string, number>,
     seeds: seedsOf(r.seeds),

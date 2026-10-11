@@ -136,3 +136,61 @@ export function heroFrame(
   const texel = (2 * half) / Math.max(size, 1);
   return { half, texel, normalBias: texel * 1.5, depthBias: 0.02 / (HERO_BACK + HERO_DEPTH) };
 }
+
+// THE SUN'S MAP AT HALF RATE. Under SHADOWS HIGH the riders cast into a map
+// of their own (above), so what the sun's map holds is the woods, the lifts,
+// the gates and the stations — what stands still — and the few small movers
+// round them (the crowd, a chair, a car). The receivers read the map through
+// the matrix it was DRAWN with, so a map a frame old still puts every shadow
+// of what stands still exactly where it was: only the movers' shadows run a
+// frame behind. So under HIGH the map is drawn every other frame — half the
+// pass, the woods' vertices above all. It is drawn every frame whenever the
+// lag would show: when the lens is on a machine or planted (the snowmobile,
+// the helicopter and the rest cast into this map, and ride under the lens),
+// while he is thrown (his gore flies in it), after the box jumps (a cut, a
+// reset) and when the sun has turned.
+
+/** Frames the sun's map may stand, drawn once in this many. */
+export const SUN_EVERY = 2;
+/** How far the box may have travelled since the map was drawn, m: a lens
+ * at 200 km/h moves under a metre a frame, a cut a long way more. The map
+ * is the reach and `SHADOW_MARGIN` each way, so a box this far off still
+ * covers the circle every shadow is drawn in. */
+export const SUN_DRIFT = 2;
+
+/** When the sun's map was last drawn: its box's centre, the sun's way and
+ * the frames since. */
+export type SunCadence = {
+  drawn: boolean;
+  x: number;
+  z: number;
+  sx: number;
+  sy: number;
+  sz: number;
+  since: number;
+};
+
+export function createSunCadence(): SunCadence {
+  return { drawn: false, x: 0, z: 0, sx: 0, sy: 1, sz: 0, since: 0 };
+}
+
+/** Whether the sun's map is drawn this frame, for a box at `box`: always
+ * unless `steady` (SHADOWS HIGH, the lens on him on his skis), and then once
+ * in `SUN_EVERY` frames, or at once when the box has drifted `SUN_DRIFT` or
+ * the sun has turned. Records the frame it says yes to. */
+export function sunDue(c: SunCadence, box: ShadowBox, steady: boolean): boolean {
+  const turned = box.sx * c.sx + box.sy * c.sy + box.sz * c.sz < 0.99999;
+  const moved = Math.hypot(box.x - c.x, box.z - c.z) > SUN_DRIFT;
+  if (steady && c.drawn && !turned && !moved && c.since + 1 < SUN_EVERY) {
+    c.since++;
+    return false;
+  }
+  c.drawn = true;
+  c.x = box.x;
+  c.z = box.z;
+  c.sx = box.sx;
+  c.sy = box.sy;
+  c.sz = box.sz;
+  c.since = 0;
+  return true;
+}

@@ -108,8 +108,11 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     // A ski cross's heat and the bracket it was raced in (`ski-cross-run.ts`).
     cross: state.cross,
     bracket: state.bracket,
-    // A big air jump and the contest it was jumped in (`big-air-run.ts`).
-    bigAir: state.bigAir,
+    // A ski jump: the contest it was jumped in, its hill and its gate
+    // (`ski-jump-run.ts`).
+    skiJumpContest: state.skiJumpContest,
+    hill: state.level.skiJump?.hill,
+    gate: state.jump?.gate,
     // A slopestyle run and the contest it was skied in (`slopestyle-run.ts`).
     slopestyle: state.slopestyle,
     // A halfpipe run and the contest it was skied in (`halfpipe-run.ts`).

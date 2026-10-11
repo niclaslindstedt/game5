@@ -175,14 +175,22 @@ export {
 export { chainedLifts, queueFault } from "../analysis/lift-queue.ts";
 export { offRamp, rampFrame, rampHeight, rampLip } from "./summit-ramps.ts";
 export { setSkiCross, skiCrossCourseOf } from "./ski-cross.ts";
-export { jumpHeightAt, jumpProfile, lipSpeed, setBigAir, type JumpProfile } from "./big-air.ts";
+export {
+  createPen,
+  jumpHeightAt,
+  lipSpeed,
+  shapeLanding,
+  type JumpProfile,
+} from "./straight-venue.ts";
 export {
   AERIALS_RULE,
   HALFPIPE_RULE,
   MOGULS_RULE,
+  SKI_JUMP_RULE,
   SLOPESTYLE_RULE,
-  TRICK_RULES,
   type AerialKickerRow,
+  type SkiJumpHillId,
+  type SkiJumpHillRow,
   type JibRow,
   type JumpRule,
   type SlopeJumpRow,
@@ -208,6 +216,19 @@ export {
   type MogulsRule,
 } from "./moguls.ts";
 export { aerialsHeightAt, aerialsProfile, setAerials, type AerialsProfile } from "./aerials.ts";
+export {
+  designGate,
+  edgeSpeed,
+  hillOf,
+  jumpDistanceAt,
+  measuredDistance,
+  setSkiJump,
+  skiJumpHeightAt,
+  skiJumpProfile,
+  type HillElements,
+  type JumpGate,
+  type SkiJumpProfile,
+} from "./ski-jump.ts";
 export {
   fieldCoords,
   fieldHeight,

@@ -335,6 +335,8 @@ export function soundForEvent(
     // AN AVALANCHE (`avalanche.ts`): the slab's whumpf, crack and rumble,
     // heard from where it broke; what comes of the skier after is the
     // wipeout's and the news line's.
+    // The probe's stroke and its strike are the searcher's own, at his
+    // hand (`rescue-bank.ts`).
     case "avalanche":
       return event.phase === "release"
         ? {
@@ -346,7 +348,14 @@ export function soundForEvent(
               0.3,
             ),
           }
-        : null;
+        : event.phase === "probe"
+          ? { id: "probe_in" }
+          : event.phase === "strike" && event.who !== undefined
+            ? {
+                id: "probe_strike",
+                shape: heardAt({ x: event.x, y: contact.ear?.y ?? 0, z: event.z }, contact.ear, 8),
+              }
+            : null;
 
     // INTO THE A-NETS (R32): the mesh taking him, bigger the harder.
     case "net": {
@@ -483,6 +492,9 @@ export function soundForEvent(
           return { id: "heli_liftoff", shape: heard };
         case "land":
           return { id: "heli_land", shape: heard };
+        // The turbine stopped: the cockpit's warning horn (the plane's).
+        case "engine":
+          return { id: "plane_stall", shape: heard };
         // His grip gone (`slip`): the same clack off the tube and the rush
         // of the fall out of the downwash.
         case "drop":
@@ -530,7 +542,9 @@ export function soundForEvent(
             id: "plane_land",
             shape: { ...heard, gain: heard.gain! * (0.6 + 0.6 * ramp(event.speed, 0, 3)) },
           };
+        // The stall horn — and the same horn the moment the engine stops.
         case "stall":
+        case "engine":
           return { id: "plane_stall", shape: heard };
         case "jump":
           return { id: "plane_jump", shape: heard };
@@ -578,7 +592,10 @@ export function soundForEvent(
           return { id: "chute_reserve" };
         case "line-stretch":
           return { id: "chute_lines" };
+        // A main that opened wrong opened all the same — a hard one as
+        // hard as its shock.
         case "open":
+        case "malfunction":
           return {
             id: "chute_open",
             shape: { gain: 0.75 + 0.35 * ramp(event.g ?? 4, 2, 6), pitch: 1 },

@@ -89,6 +89,13 @@ export type SkierInput = {
   plane?: import("./plane-state.ts").PlaneControls;
   /** EDGE-TRIGGERED: THE MACHINE PRESS — on or off a machine, a rig released, a jump. */
   machine?: boolean;
+  /** EDGE-TRIGGERED: THE TRANSCEIVER switched between sending and
+   * searching (`avalanche-rescue.ts`). Left out, untouched. */
+  beacon?: boolean;
+  /** HELD: THE RESCUE KEY — its press a PROBE pushed into the debris where
+   * he stands, held beside a strike the SHOVEL (`avalanche-rescue.ts`).
+   * Left out, let go. */
+  dig?: boolean;
 };
 
 export const NEUTRAL_INPUT: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
@@ -660,6 +667,17 @@ export type GameEvent =
     }
   /** A SAVE (`crash.ts`): a near throw ridden out — which, how near, 0..1. */
   | { kind: "save"; t: number; save: SaveKind; size: number }
+  /** A SKI JUMP'S MOMENTS (`ski-jump.ts`): off the bar (`go`), off the edge
+   * (`takeOff`, the timing against perfect, s, null never pressed) and the
+   * feet on the snow (`touch`, the distance credited, m). */
+  | {
+      kind: "skiJump";
+      t: number;
+      stage: "go" | "takeOff" | "touch";
+      speed: number;
+      timing?: number | null;
+      distance?: number;
+    }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
   | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
   | GrimbearEvent
@@ -864,6 +882,9 @@ export type GameState = ContestState & {
   grimbear?: GrimbearState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
+  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose
+   * player asked for them. */
+  mishaps?: import("./mishaps.ts").MishapState;
   /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;

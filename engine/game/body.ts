@@ -79,6 +79,7 @@ import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
+import { MISHAPS } from "./defs/mishaps.ts";
 import { TRAFFIC_STRIKE } from "./defs/traffic.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
@@ -91,6 +92,7 @@ import type {
   GameEvent,
   GameState,
   ImpactSource,
+  Injury,
   SkierState,
   Thrown,
   TrunkLoad,
@@ -670,7 +672,7 @@ function judge(state: GameState, events: GameEvent[], most: number = I.perBlow):
       if (d <= 0) continue;
       if (!struckOn(def, p)) continue;
       const part = BODY_PARTS[p];
-      if (body.injuries.some((h) => h.kind === kind && h.part === part)) continue;
+      if (hasInjury(body.injuries, kind, part)) continue;
       const at = def.at * (1 - I.weaken * worst);
       const u = hash2(state.tick, p * 64 + index, (state.seed ^ SALT) | 0);
       if (u >= riskOf(d, at)) continue;
@@ -712,6 +714,13 @@ function struckOn(def: InjuryDef, p: number): boolean {
   return def.on.some((o) => o === f || (o === "outside" && f === out));
 }
 
+/** Whether `injuries` holds `kind` on `part` — a loop, so the ladder's
+ * every rung asks it without a closure. */
+function hasInjury(injuries: readonly Injury[], kind: InjuryKind, part: BodyPart): boolean {
+  for (const h of injuries) if (h.kind === kind && h.part === part) return true;
+  return false;
+}
+
 const found: {
   p: number;
   kind: InjuryKind;
@@ -746,6 +755,9 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
       if (e.kind === "hit") trunkOnSkis(c, e.speed, e.x, e.z, e.stuff, e.radius);
       else if (e.kind === "land") landing(state, e.g, e.airTime, e.impact);
       else if (e.kind === "wipeout") fall(c, e.cause, e.speed);
+      else if (e.kind === "chute" && e.phase === "malfunction" && state.chute?.mal === "hard") {
+        hardOpening(e.g ?? 0);
+      }
     }
     // Still on his skis after it, nothing carries him down: paid now.
     if (c.body.owed && !c.thrown) {
@@ -778,6 +790,17 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   wreckSeat(state, events);
   judge(state, events, cap);
   wreckFire(state, events);
+}
+
+/** A HARD OPENING (`mishaps.ts`): the canopy's load at `g` through the
+ * harness — the head whipped on the neck and a load down the spine, past
+ * `MISHAPS.hard.hurt`. */
+function hardOpening(g: number): void {
+  const H = MISHAPS.hard;
+  if (g <= H.hurt) return;
+  strike("neck", g * H.neck);
+  charge("back", "load", g * H.back);
+  offer(g, "neck", "snow");
 }
 
 /** THE ROTOR'S BLADES through the points of him they passed this step

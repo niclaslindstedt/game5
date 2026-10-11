@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skijump skydive-flight skydive balloon afterski town
 
 build:
 	npm run build
@@ -684,6 +684,15 @@ balloon-flight:
 plane-flight:
 	npm run plane-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
+# THE SKI JUMP'S FLIGHT LAB: the in-run's speed over the edge at every few
+# gates, then jumps off the ski jumping hill (R43) jumped by the real engine —
+# the take-off early, late and never, the wind along the hill, the lean, the
+# assist off, the bot — and the hill's gate and wind factors beside its
+# sheets, in pure Node (`scripts/skijump-flight-lab.mjs`; ARGS=--json=FILE
+# before, --compare=FILE after; SEED= another map's hill).
+skijump-flight:
+	npm run skijump-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
 # THE JUMP PLANE LAB: the free ride's jump plane — the Blender model where
 # the build packs it (`make models KIND=plane`), the code's stand-in where it
 # does not — parked on its strip from eight sides by day and after dark, the
@@ -695,6 +704,20 @@ plane-flight:
 # `world`. ARGS="--sheet=model,door" a few sheets.
 plane:
 	npm run plane -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE SKI JUMP LAB: the ski jumping hill (R43) as drawn and a jump off it,
+# through the game's own renderer — the empty hill from the broadcast's
+# side, the out-run, down the in-run, the judges' tower, the air and its
+# silhouette, by day and at hour 21 (`hill`); the jumper on the bar, in the
+# tracks and at the edge (`inrun`); in the air (`flight`); touching down
+# among the distance boards and the K and HS lines (`landing`). One contact
+# sheet a group, previews/skijump-<group>.png, and every frame alone,
+# previews/skijump-<view>-<label>.png, each captioned with its draw calls
+# and triangles. Its own one-off bundle from pwa/skijump-preview.html (never
+# deployed); needs a Chromium like `world`. ARGS="--sheet=hill,landing",
+# "--hill=normal".
+skijump:
+	npm run skijump -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
 # THE SKYDIVE'S FLIGHT LAB: the exit, the freefall's terminal speeds, the
 # staged opening, the canopy's polar, turns and flare, the landing, the
@@ -1105,6 +1128,14 @@ real-faces:
 # `make real-hints ARGS="--fetch --only id"` · `ARGS="--only id --write"`
 real-hints:
 	npm run real-hints -- $(ARGS)
+
+# THE WORLD MAP the free ride's WHERE steps are drawn over: Natural Earth's
+# 1:50 m land, borders and lakes (public domain), simplified and baked into
+# pwa/src/game/world-map-data.ts (generated). The layers are fetched once
+# into previews/.ne/.
+# `make world-map ARGS=--fetch` · `make world-map ARGS=--write`
+world-map:
+	npm run world-map -- $(ARGS)
 
 # THE MODEL REGISTRY: which assets are Blender models and which the code
 # generates, written into docs/models.md from pwa/src/game/model-registry.ts.

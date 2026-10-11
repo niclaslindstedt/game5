@@ -44,7 +44,6 @@
 // many towers.
 
 import * as THREE from "three";
-import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING, type Level, type LiftRide } from "@engine";
 
@@ -85,6 +84,7 @@ import {
   towerHeadGeometry,
 } from "./lift-shapes.ts";
 import { Cut, StillCut, type Beyond } from "./lift-cuts.ts";
+import { eulerInto } from "./quat-into.ts";
 import type { ViewCull } from "./view-cull.ts";
 import {
   CHAIR_BAR,
@@ -686,6 +686,9 @@ export function createLifts(
     return mesh;
   }
 
+  // Filled in place for every carrier every frame (`hang`).
+  const placed = { along: 0, v: 0, x: 0, z: 0, heading: 0, bend: 0 };
+  const turned = { x: 0, y: 0, z: 0, w: 1 };
   /** A carrier where the clock has it on its loop — up or down its rope, or
    * round a wheel (`carrierPlace`) — its grip at `y`: its place (`at`) and
    * its turn (`q`), its way along the loop, swung `swing` off plumb on its
@@ -697,9 +700,9 @@ export function createLifts(
     swing: number,
     roll: number,
   ): void => {
-    const where = carrierPlace(p, c);
+    const where = carrierPlace(p, c, placed);
     at.set(where.x, y, where.z);
-    const e = fromEuler(where.heading, swing, roll);
+    const e = eulerInto(turned, where.heading, swing, roll);
     q.set(e.x, e.y, e.z, e.w);
   };
   /** Where carrier `u` m up line `p` is on rope `side`, in the world. */
@@ -787,7 +790,12 @@ export function createLifts(
       // — and the cord and bar under it flung out of a wheel's turn.
       hang(c.p, g, y, 0, 0);
       springs.add(m4.compose(at, q, one));
-      const e = fromEuler(carrierPlace(c.p, g).heading, 0, carrierRollAt(c.p, g.turn));
+      const e = eulerInto(
+        turned,
+        carrierPlace(c.p, g, placed).heading,
+        0,
+        carrierRollAt(c.p, g.turn),
+      );
       flung.set(e.x, e.y, e.z, e.w);
       at.setY(y - 0.58);
       cords.setMatrixAt(n, m4.compose(at, flung, size.set(1, cord, 1)));

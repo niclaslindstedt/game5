@@ -54,7 +54,7 @@ import { SLALOM, SPEED_SKI } from "@engine";
 
 import { SlalomBoard } from "./hud-board.tsx";
 import { CrossPlate } from "./hud-cross.tsx";
-import { BigAirPlate } from "./hud-bigair.tsx";
+import { SkiJumpPlate } from "./hud-skijump.tsx";
 import { SlopestylePlate } from "./hud-slopestyle.tsx";
 import { HalfpipePlate } from "./hud-halfpipe.tsx";
 import { MogulsPlate } from "./hud-moguls.tsx";
@@ -87,10 +87,10 @@ export function ResultPlate({
    * app offers none. */
   onSecond?: (() => void) | null;
 }) {
-  // BIG AIR's plate is its own: the jump judged and the contest's board.
-  if (snap?.bigAir?.judged) {
+  // A SKI JUMP's plate is its own: the points part by part and the board.
+  if (snap?.skiJump?.judged) {
     return (
-      <BigAirPlate
+      <SkiJumpPlate
         snap={snap}
         touch={touch}
         onAgain={onAgain}

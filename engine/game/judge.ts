@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE JUDGES (R37's contest, `big-air.ts`): a flight READ as a trick and
-// SCORED as a panel scores it.
+// THE JUDGES of a jump off a kicker (slopestyle's, the halfpipe's and the
+// moguls' air bumps'): a flight READ as a trick and SCORED as a panel
+// scores it.
 //
-// THE READING. A big air trick is named by what it turned: the spin in
+// THE READING. A trick is named by what it turned: the spin in
 // half turns (a 180, a 360 … a 1800), the flips and which way (back or
 // front), OFF-AXIS when it flipped and spun together (a cork), its
 // direction (left or right, the way he spun), whether it left or met the
 // snow switch, and the grabs held. `readTrick` reads a `FlightRecord`
 // (`tricks.ts`) into those figures and nothing else: the WORDS are the
-// app's (`strings-bigair.ts`).
+// app's (`strings-freestyle.ts`).
 //
-// THE SCORE. A big air jump is judged on its OVERALL IMPRESSION, 0–100,
+// THE SCORE. A jump is judged on its OVERALL IMPRESSION, 0–100,
 // weighing the difficulty of the trick, its execution (the take-off, the
 // control in the air, the grab held, the landing), the amplitude, and
 // progression — the freestyle rules' judging chapter (`docs/freestyle.md`).

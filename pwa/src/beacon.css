@@ -1,0 +1,268 @@
+/* THE AVALANCHE TRANSCEIVER AND THE VIEW FROM UNDER THE SNOW
+   (`hud-beacon.tsx`): a rugged unit held low in the middle of the picture
+   with its monochrome display, the next step under it and its two presses
+   on touch; and the dark veil over a buried skier with his air on it. */
+.hud-beacon {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(0.6rem, env(safe-area-inset-bottom)) + 5.6rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  transform: translateX(-50%);
+  color: var(--hud-ink);
+  pointer-events: none;
+}
+
+/* The case: a high-visibility shell round a recessed display. */
+.hud-beacon-case {
+  position: relative;
+  width: clamp(7.6rem, 26vmin, 10rem);
+  padding: 0.55rem 0.45rem 0.45rem;
+  border-radius: 0.9rem 0.9rem 1.2rem 1.2rem;
+  background: linear-gradient(170deg, #ffb52e, #f08a12 60%, #c86a06);
+  box-shadow:
+    0 0.25rem 0.8rem rgb(0 0 0 / 45%),
+    inset 0 0.12rem 0.1rem rgb(255 255 255 / 45%),
+    inset 0 -0.18rem 0.2rem rgb(0 0 0 / 25%);
+}
+
+.hud-beacon-send .hud-beacon-case {
+  filter: saturate(0.6) brightness(0.9);
+}
+
+/* The lamp over the display: a short flash with every beep. */
+.hud-beacon-led {
+  position: absolute;
+  top: 0.18rem;
+  right: 0.7rem;
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 50%;
+  background: #4a1b12;
+  box-shadow: inset 0 0 0.08rem rgb(0 0 0 / 60%);
+}
+
+.hud-beacon-blink {
+  animation: hud-beacon-beep 1s steps(1, end) infinite;
+}
+
+@keyframes hud-beacon-beep {
+  0% {
+    background: #ff3b25;
+    box-shadow: 0 0 0.35rem #ff5a3a;
+  }
+  12% {
+    background: #4a1b12;
+    box-shadow: inset 0 0 0.08rem rgb(0 0 0 / 60%);
+  }
+}
+
+.hud-beacon-lcd {
+  display: block;
+  width: 100%;
+  border-radius: 0.35rem;
+  background: linear-gradient(180deg, #c3d1b0, #a9b998);
+  box-shadow: inset 0 0.1rem 0.25rem rgb(0 0 0 / 55%);
+}
+
+.hud-beacon-lcd text {
+  fill: #1c2318;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-weight: 700;
+}
+
+.hud-beacon-small {
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+
+.hud-beacon-mid {
+  text-anchor: middle;
+  font-size: 8px;
+}
+
+.hud-beacon-big {
+  text-anchor: middle;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+
+.hud-beacon-fine {
+  font-size: 30px;
+}
+
+.hud-beacon-unit {
+  font-size: 10px;
+}
+
+/* The segments and bars unlit read as the faint ghost a real display
+   shows; lit, solid. */
+.hud-beacon-seg,
+.hud-beacon-bar {
+  fill: rgb(28 35 24 / 10%);
+}
+
+.hud-beacon-seg.hud-beacon-lit,
+.hud-beacon-bar.hud-beacon-lit,
+.hud-beacon-ink {
+  fill: #1c2318;
+}
+
+.hud-beacon-ink-line,
+.hud-beacon-ink-line path,
+.hud-beacon-scan {
+  fill: none;
+  stroke: #1c2318;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.hud-beacon-scan {
+  stroke-dasharray: 2 5;
+  animation: hud-beacon-scan 0.9s linear infinite;
+}
+
+@keyframes hud-beacon-scan {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+/* How far the hole has gone down to the body. */
+.hud-beacon-dug {
+  display: block;
+  height: 0.3rem;
+  margin-top: 0.3rem;
+  border-radius: 0.15rem;
+  background: rgb(0 0 0 / 30%);
+  overflow: hidden;
+}
+
+.hud-beacon-dug span {
+  display: block;
+  height: 100%;
+  background: #fff6e0;
+}
+
+.hud-beacon-prompt {
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.35rem;
+  background: rgb(var(--hud-plate) / 70%);
+  font-size: clamp(0.62rem, 2.3vmin, 0.8rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.hud-beacon-presses {
+  display: flex;
+  gap: 0.5rem;
+  pointer-events: auto;
+}
+
+.hud-beacon-press {
+  min-width: 4.4rem;
+  min-height: 2.6rem;
+  padding: 0 0.7rem;
+  border: 0.12rem solid rgb(255 255 255 / 55%);
+  border-radius: 1.3rem;
+  background: rgb(var(--hud-plate) / 65%);
+  color: var(--hud-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  touch-action: none;
+}
+
+.hud-beacon-hold {
+  background: rgb(240 138 18 / 70%);
+}
+
+.hud-beacon-held {
+  background: rgb(240 138 18 / 95%);
+  transform: scale(0.96);
+}
+
+/* UNDER THE SNOW: the cold dark of the debris over him, breathing. */
+.hud-buried {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 42%,
+    rgb(40 62 88 / 35%),
+    rgb(8 14 24 / 82%) 55%,
+    rgb(2 4 8 / 96%)
+  );
+  animation: hud-buried-breathe 3.4s ease-in-out infinite;
+}
+
+.hud-buried-low {
+  animation-duration: 1.4s;
+}
+
+.hud-buried-dark {
+  position: absolute;
+  inset: 0;
+  background: rgb(3 6 12);
+}
+
+@keyframes hud-buried-breathe {
+  50% {
+    filter: brightness(1.18);
+  }
+}
+
+.hud-buried-read {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: #dfe8f3;
+  text-shadow: 0 0.05rem 0.2rem rgb(0 0 0 / 70%);
+}
+
+.hud-buried-label {
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+}
+
+.hud-buried-air {
+  display: block;
+  width: clamp(9rem, 40vmin, 16rem);
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: rgb(255 255 255 / 15%);
+  overflow: hidden;
+}
+
+.hud-buried-air span {
+  display: block;
+  height: 100%;
+  background: #cfe6f7;
+}
+
+.hud-buried-low .hud-buried-air span {
+  background: var(--hud-bad);
+}
+
+.hud-buried-depth {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+
+.hud-buried-stage {
+  font-size: clamp(0.9rem, 3vmin, 1.2rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}

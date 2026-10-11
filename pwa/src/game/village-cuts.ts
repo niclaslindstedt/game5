@@ -261,6 +261,34 @@ function uploadOnce(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   return geo;
 }
 
+/** Vertices `start` to `start + count` of `base` as a geometry of their
+ * own: `base`'s attributes themselves (one buffer on the GPU) under a draw
+ * range, bounded as three would bound a geometry of those vertices alone. */
+export function rangeOf(
+  base: THREE.BufferGeometry,
+  start: number,
+  count: number,
+): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  for (const [name, a] of Object.entries(base.attributes)) g.setAttribute(name, a);
+  g.setDrawRange(start, count);
+  const pos = base.getAttribute("position");
+  const box = new THREE.Box3();
+  const v = new THREE.Vector3();
+  for (let i = start; i < start + count; i++) box.expandByPoint(v.fromBufferAttribute(pos, i));
+  const sphere = new THREE.Sphere();
+  if (count > 0) {
+    box.getCenter(sphere.center);
+    let r2 = 0;
+    for (let i = start; i < start + count; i++) {
+      r2 = Math.max(r2, sphere.center.distanceToSquared(v.fromBufferAttribute(pos, i)));
+    }
+    sphere.radius = Math.sqrt(r2);
+  } else sphere.radius = -1;
+  g.boundingSphere = sphere;
+  return g;
+}
+
 export type VillageBuildings = {
   group: THREE.Group;
   /** Each block at the cut `eye` sees it at. */
@@ -284,8 +312,8 @@ export function createBlockBuildings(
   group.name = name;
   const material = facadeMaterial(haze, name);
   const geos: THREE.BufferGeometry[] = [];
-  const meshOf = (a: FacadeArrays, cut: string) => {
-    const geo = uploadOnce(facadeGeometry(a));
+  const meshOf = (a: FacadeArrays | THREE.BufferGeometry, cut: string) => {
+    const geo = a instanceof THREE.BufferGeometry ? a : uploadOnce(facadeGeometry(a));
     geos.push(geo);
     const mesh = new THREE.Mesh(geo, material);
     mesh.name = `${name}-${cut}`;
@@ -297,17 +325,42 @@ export function createBlockBuildings(
   };
   // Loops rather than closures over `blocks` and `districts`, so the update
   // below holds no reference to the arrays the meshes were made of.
-  const cuts: THREE.Mesh[][] = [];
-  for (const b of blocks) cuts.push([meshOf(b.near, "near"), meshOf(b.far, "far")]);
+  //
+  // ONE COPY OF EACH CUT ON THE GPU. A district's far cut is its blocks'
+  // far cuts one after another, and the whole village's distant cut is the
+  // districts' distant cuts one after another (`districtsOf`, `merged`),
+  // so a block's far mesh is a RANGE of its district's vertices and a
+  // district's distant mesh a range of the whole's — the same triangles in
+  // the same order, uploaded once (`rangeOf`) rather than twice.
   const districts = districtsOf(blocks);
   const keys = [...districts.keys()];
   const own: number[][] = keys.map(() => []);
   for (let i = 0; i < blocks.length; i++) own[keys.indexOf(blocks[i].district)].push(i);
-  const dcuts: THREE.Mesh[][] = [];
+  const farGeos = [...districts.values()].map((d) => uploadOnce(facadeGeometry(d.far)));
+  const wholeGeo = uploadOnce(
+    facadeGeometry(merged([...districts.values()].map((d) => d.distant))),
+  );
+  const farOf: THREE.BufferGeometry[] = [];
+  own.forEach((list, k) => {
+    let start = 0;
+    for (const i of list) {
+      const count = blocks[i].far.pos.length / 3;
+      farOf[i] = rangeOf(farGeos[k], start, count);
+      start += count;
+    }
+  });
+  const distantOf: THREE.BufferGeometry[] = [];
+  let start = 0;
   for (const d of districts.values()) {
-    dcuts.push([meshOf(d.far, "district"), meshOf(d.distant, "distant")]);
+    const count = d.distant.pos.length / 3;
+    distantOf.push(rangeOf(wholeGeo, start, count));
+    start += count;
   }
-  const whole = meshOf(merged([...districts.values()].map((d) => d.distant)), "whole");
+  const cuts: THREE.Mesh[][] = [];
+  blocks.forEach((b, i) => cuts.push([meshOf(b.near, "near"), meshOf(farOf[i], "far")]));
+  const dcuts: THREE.Mesh[][] = [];
+  farGeos.forEach((g, k) => dcuts.push([meshOf(g, "district"), meshOf(distantOf[k], "distant")]));
+  const whole = meshOf(wholeGeo, "whole");
   // Only the boxes are kept past here: the arrays the meshes were made of
   // are let go, and the meshes' own go once they are on the GPU.
   const boxes = blocks.map(boxOf);

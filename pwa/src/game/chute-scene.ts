@@ -23,6 +23,7 @@
 // Drawn between two steps on the jumper's own line (`interp.ts`).
 
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import {
   CHUTE,
   liftPlans,
@@ -45,6 +46,7 @@ import {
   skyLayout,
   skyLines,
   skyPaintGlsl,
+  pinchPoint,
   skyPoint,
   sliderOf,
   type SkyLine,
@@ -136,6 +138,12 @@ type Kit = {
   feetOn: boolean;
   cutAt: number;
 };
+/** LINE TWISTS as drawn: where the bundle the lines are wound into starts
+ * and ends along the way from over the risers up to the slider (shares),
+ * and how thick it is, m — a twisted set of lines reads as a rope a hand
+ * wide some way over the jumper's head. */
+const TWIST = { top: 0.3, low: 0.04, radius: 0.05 };
+
 /** How far the four risers stand up off the three rings, m, and apart fore
  * and aft (the front riser to the nose). */
 const RISER = { length: 0.55, apart: 0.05 };
@@ -174,7 +182,8 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     mats.push(m);
     return m;
   };
-  const gear = createGear(std(0x1d2128, 0.75), std(0x3a6fb4, 0.65), std(0x2a2d33, 0.8), std);
+  const webMat = std(0x2a2d33, 0.8);
+  const gear = createGear(std(0x1d2128, 0.75), std(0x3a6fb4, 0.65), webMat, std);
   group.add(gear.body, ...gear.legs);
 
   // THE PILOT CHUTE: a dome of cloth over a mesh skirt drawn to the bridle.
@@ -193,7 +202,8 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
   pilot.add(new THREE.Mesh(dome, domeMat), new THREE.Mesh(skirt, meshMat));
   // THE BAG the canopy is packed in.
   const B = CHUTE.bag;
-  const bagGeo = new THREE.BoxGeometry(B.width, B.height, B.depth);
+  // A soft cloth bag, its corners rounded by the canopy packed in it.
+  const bagGeo = new RoundedBoxGeometry(B.width, B.height, B.depth, 3, 0.05);
   const bag = new THREE.Mesh(bagGeo, std(0x2e3238, 0.8));
   group.add(pilot, bag);
 
@@ -251,7 +261,8 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     // THE LINES: every line in two runs (its foot to its grommet, the
     // grommet to its riser or toggle), and the four risers.
     const LINES = skyLines(wing);
-    const linePos = new Float32Array((LINES.length * 2 + 4) * 6);
+    // (Twisted, a line runs on through the twist in two more.)
+    const linePos = new Float32Array((LINES.length * 4 + 4) * 6);
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute("position", new THREE.BufferAttribute(linePos, 3));
     const lines = new THREE.LineSegments(lineGeo, lineMat);
@@ -294,7 +305,6 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
   const bridle = new THREE.Line(bridleGeo, bridleMat);
   bridle.frustumCulled = false;
   group.add(bridle);
-  const webMat = gear.legs[0].material as THREE.Material;
   const riserGeo = new THREE.BoxGeometry(0.035, 1, 0.006);
   riserGeo.translate(0, 0.5, 0);
   const risers = [0, 1, 2, 3].map(() => {
@@ -361,7 +371,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     gear.legs[0].visible = gear.legs[1].visible = !!wearing && !ownEyes;
     gear.body.updateMatrixWorld();
     for (const s of [0, 1])
-      onChest((s ? 1 : -1) * GEAR.webs, 0.43, GEAR.front + 0.01, shoulders[s]);
+      onChest((s ? 1 : -1) * GEAR.riser.x, GEAR.riser.y, GEAR.riser.z, shoulders[s]);
   }
 
   /** The canopy's frame: up its lines from his shoulders, along its
@@ -390,10 +400,12 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     const r = Math.min(1, brake + Math.max(0, steer));
     // Opening and breathing the cloth moves every frame; flown still, only
     // when the toggles do.
-    const key = spread < 1 || (full ?? 99) < 9 ? `${t}` : `${l.toFixed(2)},${r.toFixed(2)}`;
+    const pinch = ch.over ?? 0;
+    const key =
+      spread < 1 || (full ?? 99) < 9 ? `${t}` : `${l.toFixed(2)},${r.toFixed(2)},${pinch}`;
     if (key === cur.shaped) return;
     cur.shaped = key;
-    shapeSkyCanopy(cur.skin, { left: l, right: r, spread, t, full, wing: cur.wing });
+    shapeSkyCanopy(cur.skin, { left: l, right: r, spread, t, full, wing: cur.wing, pinch });
     cur.geo.getAttribute("position").needsUpdate = true;
     cur.geo.computeVertexNormals();
   }
@@ -415,6 +427,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       const drop = L.brake || L.s > 0.5 ? 0.85 * (0.35 + 0.65 * Math.abs(L.u)) : 0;
       const pull = Math.min(1, brake + Math.max(0, L.side < 0 ? -steer : steer));
       skyPoint(L.u, L.s, -1, 0, drop * pull, inf, t, pt, 0, 0, cur.wing);
+      if (ch.over) pinchPoint(L.u, ch.over, pt, 0, cur.wing);
       cur.leafAt[i].set(pt[0], pt[1], pt[2]).applyMatrix4(cur.canopy.matrixWorld);
     }
     // The risers stand up toward the canopy off the rings.
@@ -443,7 +456,13 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     const under = v3()
       .set(0, -0.35, -cur.size.chord * 0.45)
       .applyMatrix4(cur.canopy.matrixWorld);
-    const c = v3().lerpVectors(mid, under, sl.share * 0.94);
+    // Twisted, the slider rides on the twist's top: the lines wound under it.
+    const twist = ch.twist ?? 0;
+    const c = v3().lerpVectors(
+      mid,
+      under,
+      twist ? Math.max(sl.share * 0.94, TWIST.top + 0.03) : sl.share * 0.94,
+    );
     for (let k = 0; k < 4; k++) {
       const sx = k < 2 ? -1 : 1;
       const sz = k % 2 === 0 ? 1 : -1;
@@ -456,6 +475,11 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     cur.sliderGeo.getAttribute("position").needsUpdate = true;
     cur.sliderGeo.computeVertexNormals();
     cur.slider.visible = true;
+    // LINE TWISTS (`ChuteState.twist`): every line gathered into a bundle
+    // over the risers and wound round it by the twist left in them, the
+    // jumper under it turned by as much (`hangUnder`); the toggles up in
+    // the twist, out of his reach.
+    if (twist) twistFrame(mid, under);
     let o = 0;
     for (let i = 0; i < cur.LINES.length; i++) {
       const L = cur.LINES[i];
@@ -463,7 +487,19 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       cur.leafAt[i].toArray(cur.linePos, o);
       grommet[k].toArray(cur.linePos, o + 3);
       grommet[k].toArray(cur.linePos, o + 6);
-      const end = L.brake && toggles ? hands[L.side < 0 ? 0 : 1] : riserTop[k];
+      const end = L.brake && toggles && !twist ? hands[L.side < 0 ? 0 : 1] : riserTop[k];
+      if (twist) {
+        const a = Math.atan2(L.front ? 1 : -1, L.side) + 0.15 * L.u;
+        twistPoint(knotTop, a, 0);
+        twistPoint(knotLow, a, twist);
+        knotTop.toArray(cur.linePos, o + 9);
+        knotTop.toArray(cur.linePos, o + 12);
+        knotLow.toArray(cur.linePos, o + 15);
+        knotLow.toArray(cur.linePos, o + 18);
+        end.toArray(cur.linePos, o + 21);
+        o += 24;
+        continue;
+      }
       end.toArray(cur.linePos, o + 9);
       o += 12;
     }
@@ -475,6 +511,29 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     cur.lineGeo.getAttribute("position").needsUpdate = true;
     cur.lineGeo.setDrawRange(0, o / 3);
     cur.lines.visible = true;
+  }
+
+  /** THE TWIST'S BUNDLE: its axis from over the risers (`mid`) up toward
+   * the slider (`c`), its top `TWIST.top` of the way up and its foot
+   * `TWIST.low`; a line's point on it at angle `a` round the axis, wound
+   * `turn` rad more at the foot. */
+  const knotTop = v3();
+  const knotLow = v3();
+  const twistAxis = v3();
+  const twistBase = v3();
+  function twistFrame(mid: THREE.Vector3, c: THREE.Vector3): void {
+    twistBase.copy(mid);
+    twistAxis.copy(c).sub(mid);
+  }
+  function twistPoint(out: THREE.Vector3, a: number, turn: number): void {
+    const at = turn ? TWIST.low : TWIST.top;
+    const r = TWIST.radius * (turn ? 1 : 1.6);
+    const b = a + turn;
+    out
+      .copy(twistBase)
+      .addScaledVector(twistAxis, at)
+      .addScaledVector(right, Math.cos(b) * r)
+      .addScaledVector(fwd, Math.sin(b) * r);
   }
 
   /** The bridle's run from `from` to the pilot chute at `to`, `length` m,
@@ -667,7 +726,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
   ): void {
     const t = d.t;
     const R = CHUTE.reserve;
-    const tray = onChest(0, GEAR.back.up + CHUTE.container.height * 0.4, GEAR.back.out, v3());
+    const tray = onChest(0, GEAR.reserveTray.y, GEAR.reserveTray.z, v3());
     const atBag = v3().set(d.bag.x, d.bag.y, d.bag.z);
     const atPilot = v3().set(d.pilot.x, d.pilot.y, d.pilot.z);
     // Sprung out of the tray over the first tenth of a second.
@@ -742,7 +801,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       hideAll();
       const shape = skydiveShapeOf(ch ?? null, !!p?.rider);
       // The red pad punched out is carried off in his right hand.
-      gear.pad.position.set(GEAR.webs + 0.012, GEAR.pads, GEAR.front + 0.014);
+      gear.pad.position.set(GEAR.webs + 0.012, GEAR.pads, GEAR.front + 0.016);
       gear.pad.visible = true;
       if (shape && shape.punch > 0.5)
         gear.pad.position.copy(gear.body.worldToLocal(tmp.copy(hands[1])));
@@ -751,7 +810,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       // The reserve's handle in his left fist as he pulls it, then let go;
       // its tray's flap thrown open by the spring and left hanging open.
       const pulled = !!ch?.reserve;
-      gear.reserveHandle.position.set(-GEAR.webs - 0.012, GEAR.pads, GEAR.front + 0.012);
+      gear.reserveHandle.position.set(-GEAR.webs - 0.01, GEAR.pads, GEAR.front + 0.012);
       gear.reserveHandle.visible = !pulled || (!!shape && shape.reserve > 0.3);
       if (pulled && gear.reserveHandle.visible)
         gear.reserveHandle.position.copy(gear.body.worldToLocal(tmp.copy(hands[0])));
@@ -779,7 +838,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       if (ch.mode !== "deploying" && ch.mode !== "open") return;
       observe(canopyTrack, { x: ch.x, y: ch.y, z: ch.z, q: jumper.q }, state.tick);
       sample(canopyTrack, alpha, canopyAt);
-      const box = onChest(0, GEAR.back.up + 0.05, GEAR.back.out, v3());
+      const box = onChest(0, GEAR.mainTray.y, GEAR.mainTray.z, v3());
       const toggles = !!shape && shape.hang > 0.5;
       if (ch.mode === "deploying" && d && ch.reserve) {
         reserveOpening(ch, d, box, toggles);

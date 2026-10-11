@@ -22,6 +22,7 @@ import { GALLERY_STRINGS } from "./strings-gallery.ts";
 import { STATS_STRINGS } from "./strings-stats.ts";
 import { CHALLENGE_STRINGS } from "./strings-challenges.ts";
 import { RANGE_NAMES } from "./strings-ranges.ts";
+import { WHERE_STRINGS } from "./strings-where.ts";
 import { DOWNHILL_STRINGS } from "./strings-downhill.ts";
 import { SUPER_G_STRINGS } from "./strings-superg.ts";
 import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
@@ -31,12 +32,14 @@ import { SLED_STRINGS } from "./strings-sled.ts";
 import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
+import { AVALANCHE_STRINGS } from "./strings-avalanche.ts";
 import { PLANE_STRINGS } from "./strings-plane.ts";
 import { CHUTE_STRINGS } from "./strings-chute.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
-import { BIG_AIR_STRINGS } from "./strings-bigair.ts";
+import { FREESTYLE_STRINGS } from "./strings-freestyle.ts";
+import { SKI_JUMP_STRINGS } from "./strings-skijump.ts";
 import { SLOPESTYLE_STRINGS } from "./strings-slopestyle.ts";
 import { HALFPIPE_STRINGS } from "./strings-halfpipe.ts";
 import { MOGULS_STRINGS } from "./strings-moguls.ts";
@@ -117,12 +120,15 @@ export const STRINGS = {
   ...SLED_STRINGS,
   ...AFTERSKI_STRINGS,
   ...PARA_STRINGS,
+  ...WHERE_STRINGS,
   ...BALLOON_STRINGS,
+  ...AVALANCHE_STRINGS,
   ...PLANE_STRINGS,
   ...CHUTE_STRINGS,
   ...GROOMER_STRINGS,
   ...TRAFFIC_STRINGS,
-  ...BIG_AIR_STRINGS,
+  ...FREESTYLE_STRINGS,
+  ...SKI_JUMP_STRINGS,
   ...SLOPESTYLE_STRINGS,
   ...HALFPIPE_STRINGS,
   ...MOGULS_STRINGS,
@@ -358,6 +364,7 @@ export const STRINGS = {
   newsHeliDrop: (metres: number): string => `DROPPED FROM ${Math.round(metres)} M!`,
   newsHeliCrash: "MAYDAY! SHE'S GONE DOWN",
   newsHeliRestart: "BACK ON THE PAD",
+  newsHeliEngine: "ENGINE OUT! COLLECTIVE DOWN",
   newsHeliRotor: "INTO THE ROTOR!",
   /** THE HELICOPTER'S HUD (`hud-heli.tsx`): the height its skids are over
    * the snow, its climb, how to jump off it, and the way to it. */
@@ -455,7 +462,7 @@ export const STRINGS = {
   comboBanked: (points: number): string => `+${points.toLocaleString("en-US")}`,
   comboSketchy: "SKETCHY",
   comboBailed: (points: number): string => `BAILED −${points.toLocaleString("en-US")}`,
-  keyTrick: "GRAB",
+  keyTrick: "GRAB · TELEMARK",
   newsTricksFinish: (points: number): string => `TIME! ${points.toLocaleString("en-US")} PTS`,
   resultTricksTitle: "TRICKS",
   pauseSubTricks: (seed: number, points: number): string =>
@@ -694,6 +701,12 @@ export const STRINGS = {
   assistHalf: "HALF",
   assistFull: "FULL",
   optAssistNote: "Applies from the next run.",
+  optMishaps: "THINGS GO WRONG",
+  optMishapsHint:
+    "On a free ride: a parachute or a paramotor's wing that opens wrong, an engine that stops in the air. Never, now and then, or often.",
+  mishapsOff: "NEVER",
+  mishapsRare: "RARE",
+  mishapsOften: "OFTEN",
   optDamage: "DAMAGE",
   optDamageHint:
     "On: a trunk or a hard landing dulls an edge or hurts a knee, and you ski it for the rest of the run.",

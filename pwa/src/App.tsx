@@ -63,7 +63,7 @@ import { connectOutput } from "./output-bridge.ts";
 import { onShellCommand, shellContent } from "./shell-host.ts";
 import { createRunAudio, setAudioVolumes } from "./game/audio/index.ts";
 import { watchCanvas } from "./game/app-canvas.ts";
-import { createLoader, raceOrFallback } from "./game/app-load.ts";
+import { createLoader, raceOrFallback, withJumpContest } from "./game/app-load.ts";
 import { buildMap, gameOrder } from "./game/map-build.ts";
 import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
@@ -184,7 +184,7 @@ export function App() {
    * what the attract card waits on before it will take a press. */
   const [warm, setWarm] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
-    const s = loadSettings();
+    const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
     if (params.page === "dev") s.developer = true;
     return params.camera ? { ...s, camera: params.camera } : s;
   });
@@ -197,8 +197,7 @@ export function App() {
   linkSkisRef.current = linkSkis;
   /** The pair the player skis under his build (`specFor`); `mode` may refuse a board. */
   const specOf = (s: Settings, mode?: GameMode): SkiSpec => specFor(s, linkSkisRef.current, mode);
-  /** Who skis the player's runs, and with what: the pair, the help, the
-   * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
+  /** Who skis, and with what: the pair, the help, the switches, his poles. */
   const skierOf = (s: Settings, mode?: GameMode): PinnedSkier => ({
     spec: specOf(s, mode),
     assist: assistOf(s.assist),
@@ -206,6 +205,7 @@ export function App() {
     gore: injuriesShown(s, shellContent()),
     sfw: !injuriesShown(s, shellContent()), // SAFE FOR WORK (`RunRules.sfw`)
     poles: params.poles ?? carriesPoles(s.outfit),
+    mishapRate: s.mishaps,
   });
   /** The picture drawn: the stored one, or a lab's preset for this visit —
    * `?video=` is never written back. */
@@ -221,8 +221,8 @@ export function App() {
   /** THE MAP THE MENU IS STANDING OVER — what a tricks run a link pinned rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
   /** The mode the skis card's RIDE is for: whichever tile opened it. */
-  // (A link to the start card is a free ride on its way to the skis card.)
-  const modeRef = useRef<GameMode>(params.page === "start" ? "free" : params.mode);
+  // (A link to a free ride's card is a free ride on its way: `readParams`.)
+  const modeRef = useRef<GameMode>(params.mode);
   /** The presses that route a card to the skis card (`map-picks.ts`). */
   const picks = mapPicks({ mode: modeRef, setPage, setSettings });
   const dev = useDevApp();
@@ -356,18 +356,19 @@ export function App() {
     if (params.rides && params.run === 2) state = secondRunOff(state);
     /** The mode the player's runs are ridden in, until a tile says otherwise. */
     let mode: GameMode = params.mode;
-    /** The run the player is about to ski, in `mode`, on the pair they
-     * picked and with the help they asked for — on this map, or a fresh one. */
+    /** The player's run, in `mode` on his pair and help: on this map or a fresh one. */
     const playerGame = (level: Level | undefined, seed: number): GameState =>
-      createGame({
-        // A tricks run needs its map's trick field (R20): the race's won't do.
-        level: mode === "tricks" && !level?.kickers?.some((k) => k.trick) ? undefined : level,
-        seed,
-        ...linkWorld(params),
-        mode,
-        training: mode === "downhill" ? true : undefined,
-        ...skierOf(settingsRef.current, mode),
-      });
+      createGame(
+        withJumpContest({
+          // A tricks run needs its map's trick field (R20): the race's won't do.
+          level: mode === "tricks" && !level?.kickers?.some((k) => k.trick) ? undefined : level,
+          seed,
+          ...linkWorld(params),
+          mode,
+          training: mode === "downhill" ? true : undefined,
+          ...skierOf(settingsRef.current, mode),
+        }),
+      );
     /** What a player's run is filed under — nothing for a run the bot rides
      * from the line (`?bot=1`), which is nobody's time, nothing for a mode
      * that keeps no book (a free ride, `keepsRecords`), and nothing for a
@@ -834,9 +835,8 @@ export function App() {
     // A PINNED map off the level card.
     const pin = pinnedPress(settings, modeRef.current, params.seed);
     if (pin) return pressRef.current.pinned(...pin);
-    // A TRICKS run on the trick map card's map, unless a link pinned a seed.
-    // ...and a BIG AIR contest, a SLOPESTYLE run, a HALFPIPE, MOGULS or
-    // AERIALS on the same card's map, its venue built over it.
+    // A TRICKS run (or a freestyle contest, its venue built over it) on the
+    // trick map card's map, unless a link pinned a seed.
     const m = modeRef.current;
     if (isTrickRun(m) && params.seed === null) {
       return pressRef.current.tricks(trickMapFor(settings.trickMap), m);
@@ -883,7 +883,7 @@ export function App() {
           bare={!settings.hud}
           machineKey={boundLabel(settings.keys.machine)}
           tuckKey={boundLabel(settings.keys.tuck)}
-          jumpKey={boundLabel(settings.keys.jump)}
+          keys={settings.keys}
           injuries={injuriesShown(settings, shellContent())}
           bodyHud={settings.bodyHud}
           restartAfter={settings.restartAfter}
@@ -948,7 +948,7 @@ export function App() {
           seed={nextSeed}
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
-          onFree={() => picks.openCard("free", "start")}
+          onFree={() => picks.openCard("free", "world")}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

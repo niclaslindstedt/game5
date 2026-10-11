@@ -295,8 +295,8 @@ export function attachModels(o: {
   const F = lookFrame(o.spec);
   const parts = dressed(skisGltf, o.skis, null, o.wrap, mats);
   const { scene } = parts;
-  // One draw for the pair, its boots apart (`model-merge.ts`).
-  const merged = mergeModel(parts.meshes, (m) => m.name === "boot", o.wrap);
+  // One draw for the pair, its boots and their buckles apart (`model-merge.ts`).
+  const merged = mergeModel(parts.meshes, (m) => m.name === "boot" || m.name === "buckle", o.wrap);
   const { meshes } = merged;
   scene.rotation.y = Math.PI;
   const holder = new THREE.Group();

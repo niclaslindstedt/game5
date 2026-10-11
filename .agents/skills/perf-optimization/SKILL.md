@@ -186,10 +186,28 @@ SwiftShader's time.
 | 5 | THE ROUND, END TO END (no-draw meter, 600 frames, MEDIUM) | processor frame (sim + render) 14.4 → 13.3 ms; draws 232 → 200 | The meter: the benchmark under SwiftShader with every `draw*` call stubbed to nothing (an init script), so the main thread is priced without software rasterising in it. The wall clock did not move there: SwiftShader's own fence (~11 ms) is the frame. What the card gains needs `make bench ARGS="--gpu --ab"` on real hardware. |
 | 6 | THE FOOT OF THE MOUNTAIN (a free ride's village: its people on foot, dogs, amateurs, cars, ski bus, the lifts' moving carriers, the village's buildings) | triangles a frame from the village square, lens turning, seeds 7 and 3: 337k → 191k and 374k → 209k; draws 106 → 91 (`previews` probe; `make cpu-cost ARGS="--suite valley"` now meters it, culled and not); `world --free --views=village-street,village-traffic` pixel-identical | Every instanced view held every instance within a few hundred metres all round the lens (three culls a mesh, never an instance) and drew it twice, the sun's map too. `view-cull.ts`, aimed by `environment.ts` once a frame after the lens and the sun's box, keeps an instance only in the frustum or shadowing into the sun's circle (`castsInto`, the forest's rule); the crowd, civilians, dogs, traffic and `lift-cuts.ts`'s moving `Cut`s ask it. The village's one facade mesh is cut into 96 m tiles (`tile-split.ts`) so three culls them in both passes. Owes a GPU A/B. |
 | 7 | THE VILLAGE AND ITS TRAFFIC FROM THE MOUNTAIN (a free ride, seed 7, a scratch Node probe tallying the visible meshes' triangles) | the ski area's buildings 60k → 21k triangles from 300 m up the slope and beyond (one draw); the traffic 36k → 16.5k | Round 6's tiles were every triangle at full detail, so from the slope the whole village still drew. `village-cuts.ts` builds the same 96 m tiles as blocks (a building whole in the block its origin stands in), each built twice: the far cut leaves out every triangle under 0.3 m² that neither lights nor has an edge of 2 m (`FacadeKit.minArea`), taken past 120 m with a 15 m band; with no block near, one mesh of every far cut. The cars got a DISTANT cut past 240 m (`TrafficCut`): four rings at the ends, two side points, one strip of glass. Looked at forced to the far cut at street level (`make world --views=village-street,village-air,vehicles`): the window frames, the balusters and the windrows' lumps are what goes. Owes a GPU A/B. |
+| 8 | THE LIFTS' MOVING CARRIERS (`make cpu-cost`'s `lifts`) | 0.99 → 0.67 ms p50, same hash; the garbage a frame about halved | Every carrier every frame spread `carrierAt`'s spot into a new object, built a closure in `carrierSpeedAt`, a new place in `carrierPlace` and a new quaternion in `fromEuler`, and re-read four of the rope's heights for each tower's kick. The kicks are read once a plan (`carrier-swing.ts`'s `kicksOf`), the place and the turn are filled into scratch (`carrierPlace`'s `into`, `quat-into.ts`'s `eulerInto` — the framework's arithmetic to the bit). |
+| 8 | THE VILLAGE'S BUILDINGS IN MEMORY (a free ride, seeds 7 and 3, a scratch probe adding up every attribute once) | the lifts' group's geometry 34.4 → 25.6 MB on seed 7, about 27 MB less on seed 3; the same draws, the same triangles | Each block's far cut, each district's distant cut and the whole village were buffers of their own, so every far triangle was held three times. Now a district's far cuts are one buffer and each block draws its range of it, the districts' distant cuts likewise one buffer (`village-cuts.ts`'s `rangeOf`, with each range's bounding sphere worked out as three would for those vertices alone, so culling is unchanged). |
+| 8 | THE RUN SIGNS AND THE ROUTE BOARDS (their printed faces) | the gates' group's textures 21.8 → 12.3 MB of canvases; one upload a reprint instead of two | The print was a sRGB canvas texture and a second, linear copy of the same canvas for the bump. The bump now reads the one texture and encodes the hardware's decode back (`print-bump.ts`'s `storedBump`), so it reads the very values the second copy held. |
+| 8 | THE PARAMOTOR AND THE BALLOON (built on every free ride for the one that might carry them) | built only on a ride that carries one, when it does | `machines.ts` builds each the first time the state holds one (`carried`), so a ride on skis never builds the wing, the motor, the envelope or the basket, nor holds their buffers. |
+| 8 | THE BODY'S JUDGE (every step, every skier) | ~50 KB a step of garbage → none | `body.injuries.some(...)` with a closure per part and kind, in a loop over every part; a plain loop instead (`hasInjury`). |
+| 9 | THE PEOPLE ON FOOT IN THE VILLAGE (`make cpu-cost`'s `valley`, the people view alone in a scratch probe) | valley 2.37 → 1.73 ms p50, people 1.3 → 0.7 ms; same hashes, sim digests unmoved | `collide` posed every person a hitter neared once per hitter, and every dog walker (bounded by `Infinity`) for every moving car: each person is now posed once a frame (`poseAt`), the broad phase tests a box before `Math.hypot`, `personOf` is worked out once a body, `roleOf` reads a map and `shareAt` keeps each table's last hour. The rock skin's `underOf` asks the one to four tiles under its 4 × 4 corners before the sixteen corners, so a point with no rock near costs four map reads, not sixteen. |
+| 10 | THE SUN'S MAP UNDER SHADOWS HIGH (every lit frame) | drawn every frame → every other frame while he skis: the benchmark race at HIGH (`make profile`, a short window) 339 → 321 draws and 1.13M → 1.10M triangles a frame on average | Under HIGH the riders cast into their own map, so the sun's holds what stands still and a few small movers. `shadow-box.ts`'s `sunDue` sets `sun.shadow.autoUpdate` from `environment.ts`: the map stands a frame (its matrix stands with it, so every shadow of what stands still is exactly where it was) unless the lens is on a machine or planted, he is thrown, the box drifted `SUN_DRIFT` or the sun turned. Owes a GPU A/B. |
+| 10 | THE SNOWMOBILE AND THE PISTE MACHINES IN THE PICTURE | the sled 39 → 15 draws; a piste machine 28 → 13 (a night's fleet of six, 168 → 78); `sled` and `groomer` labs pixel-identical but for the snow cloud's own randomness | `model-merge.ts`'s `mergeParts`: a node's plain primitives (no glow, no sheen, no map, no morph) merged into one mesh, the look on the vertices through `mergedLook`, the graft the skis' merge uses. The groomer's is done once on the template every machine clones. |
 
 ## Open leads, ranked
 
 Each is a real cost found in a round and not taken, with why:
+
+- **The free ride's crowd, in the engine (round 9's profile).** `stepCrowd`
+  is ~0.45 ms a step (two a frame) with 400 amateurs, most of it `move`'s
+  own arithmetic (two `sampleRun`s an amateur), `place`'s ground read and
+  `standApart`'s pairs on the one run 240 of them share. Nothing in it is
+  wasted work; a cut is a cheaper crowd (amateurs far from the lens stepped
+  less often), which moves its state and owes its own proof.
+- **The riders' pose** (`make cpu-cost`'s `pose`, ~0.65 ms for four):
+  spread over `skier-figure.ts`'s `lay` and `skierBones`, the dress's pose
+  and three's `updateMatrixWorld`, with no one hot spot.
 
 - **The canvas's own multisampling under a graded region.** The fell, the
   continental and the maritime draw the scene into the grade's multisampled
@@ -199,16 +217,9 @@ Each is a real cost found in a round and not taken, with why:
   multisampling is fixed when it is made, so the fix is a context without it
   and the alpine drawn through the pass too — dearer for the alpine, cheaper
   for the rest. Needs the GPU A/B on both kinds of map before anyone decides.
-- **The sun's shadow map under SHADOWS HIGH** holds only what does not move
-  much (the woods, the lifts' chairs, the animals, the gates' poles) and is
-  redrawn every frame because its box follows the lens. Redrawn every other
-  frame it would keep its shadows exactly where they are (the receivers read
-  the map with the matrix it was drawn with), the movers a frame late. Not
-  under MEDIUM, where the skiers are in it. Needs the GPU A/B and a look.
-- **The sun's map is three's PCF-soft over RGBA-packed depth** — sixteen
-  reads a pixel inside the shadow's reach — on every lit material. A
-  comparing sampler would do it in four, but it is three's shadow system,
-  not ours: a change there is a graft as big as the haze's.
+- **The sun's map's filter** is no longer a lead: three (0.186) reads it
+  through a comparing sampler, five hardware taps a pixel — the sixteen
+  RGBA reads this lead was written against are gone.
 - **Map generation, what is left of it** (round 2 took a third off, below).
   A free ride's map is ~3 s in Node, nearly all of it the ski area: the
   massif's bake (~0.55 s, fifteen noise reads a cell over 2.25 M cells),
@@ -230,11 +241,10 @@ Each is a real cost found in a round and not taken, with why:
   What would cut it is fewer of those pixels: a lighter recipe for the
   roost, or a veil that drops what it thins. Either changes the look, so it
   is a design call, not a speed-up.
-- **The sled's 39 primitives in the picture.** The shadow pass is merged
-  (round 3); the picture still draws a primitive per material per node.
-  Merging needs the materials folded into vertex data (colour, roughness,
-  metalness, the lamp's emissive), and the rack's dress repainted into it —
-  `model-merge.ts` (round 5) does it for the skis, minus the emissive.
+- **The helicopter, the jump plane and the rescue machine** have 15, 28
+  and 19 primitives; `mergeParts` would take them, but each changes
+  materials at run time by name (the livery, the faded blades, the glass),
+  so a merge needs those kept out by `keep` first.
 - **Three's own scene walk** (`updateMatrixWorld` ~0.45 ms, `projectObject`
   ~1.3 ms of the no-draw frame) and the uniforms it sends per draw are
   most of what is left of `submit`; static groups could be frozen

@@ -33,10 +33,8 @@ describe("a race's own build", () => {
     expect(raceRiderOf("downhill")).toBe("solid");
     expect(raceRiderOf("skiCross")).toBe("solid");
     expect(raceRiderOf("speedSki")).toBe("heavy");
-    // Big air: the competition field's measured mean (~72 kg) is nearest
+    // Slopestyle: the competition field's measured mean (~72 kg) is nearest
     // the medium build.
-    expect(raceRiderOf("bigAir")).toBe("medium");
-    // Slopestyle: the same field, the same build.
     expect(raceRiderOf("slopestyle")).toBe("medium");
     expect(raceRiderOf("halfpipe")).toBe("medium");
     // Moguls: a top field's men ~73 kg on 178 cm, the medium build.

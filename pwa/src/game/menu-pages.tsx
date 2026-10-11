@@ -21,6 +21,8 @@ import type { MapPicks } from "./map-picks.ts";
 import { RacesPage } from "./menu-races.tsx";
 import { FreestylePage } from "./menu-freestyle.tsx";
 import { StartPage } from "./menu-start.tsx";
+import { WherePage } from "./menu-where.tsx";
+import { stepAfter, stepBefore } from "./where-steps.ts";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
 import type { Settings } from "./settings.ts";
@@ -128,7 +130,7 @@ export function MenuPages(p: {
             const to = skisBack(p.mode, p.linkSeed);
             const trick =
               p.mode === "tricks" ||
-              p.mode === "bigAir" ||
+              p.mode === "skiJump" ||
               p.mode === "slopestyle" ||
               p.mode === "halfpipe" ||
               p.mode === "moguls" ||
@@ -148,8 +150,17 @@ export function MenuPages(p: {
               ride: { ...s.ride, seed: nextFreeSeed(p.startSeed), spot: null },
             }))
           }
-          onBack={toPlay}
+          onBack={() => setPage(stepBefore("start", settings.ride.face))}
+          onMap={() => setPage("world")}
           onNext={() => setPage("dress")}
+        />
+      ) : page === "world" || page === "area" ? (
+        <WherePage
+          step={page}
+          settings={settings}
+          onSettings={setSettings}
+          onBack={() => setPage(stepBefore(page, settings.ride.face))}
+          onNext={() => setPage(stepAfter(page, settings.ride.face))}
         />
       ) : page === "gallery" ? (
         <GalleryPage onBack={back} />

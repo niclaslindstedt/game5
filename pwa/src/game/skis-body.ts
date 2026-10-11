@@ -71,7 +71,7 @@ import {
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 import { fetchMove, movePose } from "./party-pose.ts";
-import { bootOn, buildWalkBoots } from "./town-boots.ts";
+import { bootsOn, buildWalkBoots } from "./town-boots.ts";
 import { skiLift, streetOver, townLift, townMove, townPose } from "./town-pose.ts";
 import { LOOSE } from "./trail-stamp.ts";
 import { flightRead, type FlightGround } from "./skier-flight.ts";
@@ -425,14 +425,12 @@ export function createSkisModel(
   if (models?.skis) {
     for (const m of models.meshes) {
       const named = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => x.name);
-      // The buckles share the aluminium with the brakes and the lever, so
-      // the metal goes too: at the shoulder those are the least missed.
-      if (named.includes("boot") || named.includes("aluminium")) bootParts.push(m);
+      if (named.includes("boot") || named.includes("buckle")) bootParts.push(m);
     }
   } else {
     for (const g of gear.skis) {
       g.traverse((o) => {
-        if (o instanceof THREE.Mesh && (o.material === boot || o.material === alloy)) {
+        if (o instanceof THREE.Mesh && (o.material === boot || o.name === "buckle")) {
           bootParts.push(o);
         }
       });
@@ -608,7 +606,9 @@ export function createSkisModel(
       // rack, and he lies in his boots.
       const bare = off !== null && off.skis.length === 0;
       rack(boarded || (cabin && !racked) || inBasket || bare || stood !== null);
-      unboot(town !== null || stood !== null);
+      // A binding lets the BOOT out, buckled to his foot (`town-boots.ts`):
+      // with the pair not under him, his boots are on him.
+      unboot(off !== null || afoot !== null || racked !== null);
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);
       // ON HIS PLATFORMS across a steep face, stood over the hill: the body
@@ -663,6 +663,7 @@ export function createSkisModel(
         thrown.setFromRotationMatrix(trunk);
         figure.group.quaternion.copy(toRoot).multiply(thrown);
         figure.sprawl(p, goreLost, goreCrush);
+        bootsOn(walkBoots, p, unbooted, goreLost);
         bound.radius = BOUND + figure.group.position.length();
       } else if (afoot) {
         // Laid in the root's own frame (stood upright, facing the way he
@@ -686,7 +687,7 @@ export function createSkisModel(
         );
         figure.group.quaternion.setFromRotationMatrix(trunk);
         figure.sprawl(p, 0, 0, town !== null);
-        if (town || stood) for (let i = 0; i < 2; i++) bootOn(walkBoots[i], p.feet[i], p.boots[i]);
+        bootsOn(walkBoots, p, unbooted, goreLost);
       } else {
         if (bound.radius !== BOUND) {
           figure.group.position.set(0, 0, 0);

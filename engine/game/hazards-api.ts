@@ -7,6 +7,8 @@
 export { GRIMBEAR } from "./defs/grimbear.ts";
 export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 export type { GrimbearPhase, GrimbearState } from "./grimbear-state.ts";
+// THINGS THAT GO WRONG IN THE AIR (`mishaps.ts`): its numbers and stream.
+export * from "./mishaps.ts";
 export { AVALANCHE } from "./defs/avalanche.ts";
 export {
   avalancheHazard,
@@ -19,11 +21,19 @@ export {
   stepAvalanche,
   survivalMinutes,
 } from "./avalanche.ts";
+export { AVALANCHE_RESCUE } from "./defs/avalanche-rescue.ts";
+export { burialOf, patrolMan, patrolReach, type PatrolMan } from "./avalanche-rescue.ts";
 export {
   CELL as AVALANCHE_CELL,
   type AvalancheEvent,
   type AvalancheState,
   type AvalancheVictim,
+  type Beacon,
+  type Burial,
+  type BuriedWho,
+  type Patrol,
+  type PatrolAct,
+  type ProbeHole,
   type SlabFrame,
   type Slide,
 } from "./avalanche-state.ts";

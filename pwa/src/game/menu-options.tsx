@@ -49,8 +49,10 @@ import {
   TOUCH_SENSITIVITY,
   freshSettings,
   injuriesShown,
+  MISHAP_SETTINGS,
   RESTART_AFTER,
   type AssistLevel,
+  type MishapSetting,
   type AudioLevels,
   type LeverSide,
   type Settings,
@@ -130,6 +132,16 @@ const ASSIST_WORD: Record<AssistLevel, string> = {
 const ASSIST_STOPS: Stop<AssistLevel>[] = ASSIST_LEVELS.map((id) => ({
   id,
   label: ASSIST_WORD[id],
+}));
+
+const MISHAP_WORD: Record<MishapSetting, string> = {
+  off: STRINGS.mishapsOff,
+  rare: STRINGS.mishapsRare,
+  often: STRINGS.mishapsOften,
+};
+const MISHAP_STOPS: Stop<MishapSetting>[] = MISHAP_SETTINGS.map((id) => ({
+  id,
+  label: MISHAP_WORD[id],
 }));
 
 /** A volume's reading: OFF at the bottom of the travel rather than 0%,
@@ -301,6 +313,16 @@ export function OptionsPage({
                 stops={ASSIST_STOPS}
                 value={settings.assist.air}
                 onPick={(air) => setAssist({ air })}
+                onHint={setHint}
+              />
+              {/* THINGS GO WRONG: a free ride's malfunctions and engine
+                failures (`mishaps.ts`), now and then unless asked otherwise. */}
+              <StepRow
+                label={STRINGS.optMishaps}
+                hint={`${STRINGS.optMishapsHint} ${STRINGS.optAssistNote}`}
+                stops={MISHAP_STOPS}
+                value={settings.mishaps}
+                onPick={(id) => onSettings({ ...settings, mishaps: id })}
                 onHint={setHint}
               />
               <StepRow

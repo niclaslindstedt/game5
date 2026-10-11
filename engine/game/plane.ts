@@ -32,6 +32,7 @@
 // Pure over the level, the state and the clock: nothing here draws from the
 // stream, and a run that never asked for a plane never comes in here.
 
+import { keptDown } from "./rescue.ts";
 import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
   fromEuler,
@@ -58,6 +59,7 @@ import { boundsHand, homeControls } from "./plane-pilot.ts";
 import { freshWing, judgeWings, stepLooseWings, tipContacts } from "./plane-wings.ts";
 import { derive } from "./skier.ts";
 import { profileAt, windAt, type Wind } from "./wind.ts";
+import { coughOf, engineFaultOf, stepFault } from "./mishaps.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
 import type { PlaneControls, PlanePhaseEvent, PlaneState } from "./plane-state.ts";
 
@@ -70,6 +72,9 @@ export const THREE_POINT = Math.atan2(K.gear.tail.y, -K.gear.tail.z);
 /** The wing's share stalled past which it has let go of its air (the
  * `stall` event): the inner, flapped sections stall first. */
 const STALLED = 0.35;
+/** The propeller's share of its rpm windmilling on the air through it with
+ * the engine stopped. */
+const WINDMILL = 0.35;
 /** The controls let go: idle, the stick and pedals centred, flaps up. */
 const IDLE: PlaneControls = { throttle: 0, pitch: 0, roll: 0, yaw: 0, flaps: 0, brake: 0 };
 /** The gear's legs from the CoG, body frame: left main, right main, tail. */
@@ -293,11 +298,15 @@ export function stepPlane(run: GameState, input: SkierInput, events: GameEvent[]
   p.t += dt;
   stepLooseWings(run, p);
   if (p.mode === "wreck") {
+    // Killed or hurt too badly to ski on (`keptDown`), he lies where it
+    // threw him: the run is the app's to end, and the rescue comes there.
+    if (p.wreck?.aboard && keptDown(run)) return false;
     const up = !!p.wreck?.aboard && input.reset && !!run.skier.thrown;
     if (p.t < K.crash.wreck && !up) return false;
     if (p.wreck?.aboard) startPlane(run, events);
     else {
       Object.assign(p, freshPlane(run));
+      delete p.engine;
       say(run, events, "restart");
     }
     return p.rider;
@@ -309,7 +318,11 @@ export function stepPlane(run: GameState, input: SkierInput, events: GameEvent[]
   const boarded = !!input.machine && planeWithin(run);
   if (boarded) board(run, events);
   const running = p.rider || p.mode === "home";
-  p.spin = clamp(p.spin + (running ? 0.5 : -0.25) * dt, 0, 1);
+  // Stopped in the air the propeller windmills on the air through it.
+  if (p.engine?.out) {
+    const to = p.grounded ? 0 : WINDMILL;
+    p.spin += clamp(to - p.spin, -0.25 * dt, 0.5 * dt);
+  } else p.spin = clamp(p.spin + (running ? 0.5 : -0.25) * dt, 0, 1);
   p.controls = controlsFor(run, p, input);
   if (p.mode !== "parked") fly(run, p, events);
   else p.power += (0 - p.power) * (1 - Math.exp(-dt / K.engine.spool));
@@ -420,8 +433,16 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
   const rider = p.rider ? totalMass(run.skier.spec) : 0;
   const m = planeMass(rider);
   const g = TUNING.g;
-  // THE ENGINE: the power after the lever, a turbine's spool.
-  const want = K.engine.idle + (1 - K.engine.idle) * p.controls.throttle;
+  // THE ENGINE: the power after the lever, a turbine's spool — or, a
+  // dealt stoppage (`mishaps.ts`) coughing and then gone, none of it, the
+  // propeller windmilling.
+  const f = p.engine;
+  if (f && p.mode === "flown") {
+    const was = stepFault(f, !p.grounded, p.agl, "plane", dt);
+    if (was) say(run, events, was === "out" ? "engine" : "cough", p.airspeed);
+  }
+  const left = !f || f.due > 0 ? 1 : f.out ? 0 : coughOf(run.t);
+  const want = (K.engine.idle + (1 - K.engine.idle) * p.controls.throttle) * left;
   p.power += (want * p.spin - p.power) * (1 - Math.exp(-dt / K.engine.spool));
   if (p.spin > 0.05) {
     const B = PLANE_WRECK.burn;
@@ -565,7 +586,12 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
   // A touch the gear feels (not the skis' chatter on a rough strip).
   if (onSnow && !was && hardest > 1) say(run, events, "land", hardest);
   // Off the snow for good: a metre up and climbing (a hop off a bump is not).
-  if (!onSnow && aglWas <= 1 && p.agl > 1 && p.vy > 0) say(run, events, "liftoff", p.airspeed);
+  if (!onSnow && aglWas <= 1 && p.agl > 1 && p.vy > 0) {
+    say(run, events, "liftoff", p.airspeed);
+    // A lift-off with him aboard may be dealt a stoppage (`mishaps.ts`).
+    const fault = p.mode === "flown" && p.rider && !p.engine ? engineFaultOf(run, "plane") : null;
+    if (fault) p.engine = fault;
+  }
   if (p.mode !== "flown" && p.mode !== "home") return;
   if (run.rules.sfw) return fend(run, p);
   // A wing scraped, battered or torn off — never a crash on its own.

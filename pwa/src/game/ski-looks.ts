@@ -171,7 +171,7 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     boot: BOOT,
     pole: { length: 1.15, basket: 0.045, bent: false },
   },
-  // THE BIG-AIR SKI: the park ski's twin tips, a little longer and lower,
+  // THE FREESTYLE CONTEST SKI (the Raven): the park ski's twin tips, a little longer and lower,
   // thicker under the boot for its stiffness, a touch more camber to pop
   // off the lip, on a recreational binding with the park's short poles.
   raven: {
@@ -208,6 +208,20 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
     camber: 0.008,
     binding: RACE_BINDING,
     boot: BOOT,
+    pole: { length: 1.1, basket: 0.04, bent: false },
+  },
+  // THE JUMPING SKI: long and flat, a long gentle shovel turned up 40 mm,
+  // a flat square tail, thick and stiff, no camber to speak of, on a low
+  // binding and a soft low boot; a jumper carries no poles (est.: a first
+  // cut until its class is traced).
+  albatross: {
+    tip: { rise: 0.04, length: 0.22 },
+    tail: { rise: 0, length: 0.04, twin: false },
+    point: 0.3,
+    thick: { boot: 0.024, end: 0.009 },
+    camber: 0.004,
+    binding: TRAIL_BINDING,
+    boot: { length: 0.3, height: 0.2 },
     pole: { length: 1.1, basket: 0.04, bent: false },
   },
 };

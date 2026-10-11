@@ -17,6 +17,7 @@ import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
 import { altitudeAt, overBase } from "./altitude.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
+import { beaconRead, buriedRead, type BeaconRead, type BuriedRead } from "./beacon-read.ts";
 import { aloftInPlane, chuteOf, planeOf, type HudChute, type HudPlane } from "./plane-hud.ts";
 import {
   airflowAt,
@@ -69,7 +70,7 @@ import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
 import { skyLookAt } from "./sky.ts";
 import { crossOf, type CrossHud } from "./ski-cross-run.ts";
-import { bigAirOf, type BigAirHud } from "./big-air-run.ts";
+import { skiJumpOf, type SkiJumpHud } from "./ski-jump-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
 import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
@@ -253,10 +254,10 @@ export type HudSnapshot = {
    * gate's commands, the heat's order and what comes next — null on any
    * other run. */
   cross: CrossHud | null;
-  /** A BIG AIR jump's readouts (`big-air-run.ts`) — its phase and number,
-   * the panel's score once judged, the board and what comes next — null on
-   * any other run. */
-  bigAir: BigAirHud | null;
+  /** A SKI JUMP's readouts (`ski-jump-run.ts`) — the bar's light, wind,
+   * gate and leader, the moment's reading, the jump scored once it is
+   * over, the board and what comes next — null on any other run. */
+  skiJump: SkiJumpHud | null;
   /** A SLOPESTYLE run (`slopestyle-run.ts`) — its phase and run, the
    * section he is in, and once judged the sheet, the board and what comes
    * next; null on any other run. */
@@ -337,6 +338,12 @@ export type HudSnapshot = {
   /** THE HOT AIR BALLOON (`balloon-hud.ts`): its instruments and the call
    * while he stands in its basket, or null. */
   balloon: HudBalloon | null;
+  /** THE AVALANCHE TRANSCEIVER (`beacon-read.ts`): its face while somebody
+   * is under the snow or it is switched to search, or null. */
+  beacon: BeaconRead | null;
+  /** UNDER THE SNOW HIMSELF (`beacon-read.ts`): his air, his depth and the
+   * patrol's progress while he lies buried, or null. */
+  buried: BuriedRead | null;
   /** THE JUMP PLANE (`plane-hud.ts`): its instruments while he flies it
    * from the door, its call while it stands parked near him, or null. */
   plane: HudPlane | null;
@@ -719,7 +726,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
   // the start clock's, and its word the small one at the top — and a ski
   // cross's heat has the start gate's commands and no count at all.
   const cross = crossOf(state);
-  const lights = state.rules.countdown > 0 && !race && !state.cross;
+  const lights = state.rules.countdown > 0 && !race && !state.cross && !state.jump;
   const aloft = balloonAboard(state) || aloftInPlane(state);
   return {
     speedKmh: c.speed * 3.6,
@@ -762,7 +769,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     standings: p.finished ? standingsOf(state) : null,
     race,
     cross,
-    bigAir: bigAirOf(state),
+    skiJump: skiJumpOf(state),
     slopestyle: slopestyleOf(state),
     halfpipe: halfpipeOf(state),
     moguls: mogulsOf(state),
@@ -798,6 +805,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     groomer: aloft ? null : groomerOf(state),
     para: paraOf(state),
     balloon: balloonOf(state),
+    beacon: aloft ? null : beaconRead(state, state.t),
+    buried: buriedRead(state),
     plane: balloonAboard(state) ? null : planeOf(state),
     chute: chuteOf(state),
     afterski: aloft ? null : afterskiOf(state),

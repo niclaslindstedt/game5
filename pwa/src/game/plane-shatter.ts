@@ -25,8 +25,10 @@
 // piece's own for what hangs off it (the blades off the engine), each
 // bent about its hinge. The thrown ones tumble, strike the snow (a burst of
 // sparks and snow), skid and come to rest; the hulk ploughs. The materials
-// are cloned for the wreck (two sets: what burns with the hulk and what is
-// thrown clear), so the next plane on the strip is not charred with it.
+// are cloned for the wreck (sets for what burns with the hulk and what is
+// thrown clear), so the next plane on the strip is not charred with it; a
+// wreck that does not light (`PlaneWreck.fire`) burns nothing, and a wing
+// torn off before it went in is left out — it lies where it came down.
 // Presentation only — a stream of its own, seeded off the crash, never the
 // engine's; built once per model, nothing allocated once it is cut.
 
@@ -249,6 +251,9 @@ export type PlaneShatter = {
     wreck: PlaneWreck,
     groundAt: (x: number, z: number) => number,
   ): void;
+  /** Cut the airframe under `parts` into its pieces now, hidden, so a
+   * burst later finds them built (`PlaneWreckView.prime`). */
+  prime(machine: THREE.Object3D, parts: WreckParts): void;
   /** `age` s since the crash (the run's clock, so a frame skipped on is
    * caught up), `dt` this frame. */
   update(age: number, groundAt: (x: number, z: number) => number, hooks: ShatterHooks): void;
@@ -363,6 +368,7 @@ export function createPlaneShatter(): PlaneShatter {
   group.matrixAutoUpdate = false;
   let pieces: Piece[] = [];
   let builtFor: THREE.Object3D | null = null;
+  let builtTorn = "";
   /** The wreck's materials: a clone of each of the airframe's for each
    * heat a piece lies in (`Piece.sets`), with their colours as built. */
   const hot = new Map<THREE.Material, THREE.MeshStandardMaterial>();
@@ -421,7 +427,7 @@ export function createPlaneShatter(): PlaneShatter {
 
   /** Every mesh under `parts.root`, cut into cells in the frame of
    * `machine`. */
-  function build(machine: THREE.Object3D, parts: WreckParts): void {
+  function build(machine: THREE.Object3D, parts: WreckParts, torn: readonly boolean[]): void {
     for (const p of pieces) {
       group.remove(p.mesh);
       p.mesh.geometry.dispose();
@@ -434,7 +440,10 @@ export function createPlaneShatter(): PlaneShatter {
     const c = new THREE.Vector3();
     const mid = new THREE.Vector3();
     parts.root.traverse((o) => {
-      if (!(o instanceof THREE.Mesh) || !o.visible) return;
+      if (!(o instanceof THREE.Mesh)) return;
+      // A wing torn off before the crash lies apart (`plane-wing-cut.ts`).
+      const cut = o.userData.wingCut as number | undefined;
+      if (cut !== undefined ? torn[cut] : !o.visible) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       if (!mats.every((x) => x instanceof THREE.MeshStandardMaterial)) return;
       let node: "body" | "prop" | "door" = "body";
@@ -488,6 +497,7 @@ export function createPlaneShatter(): PlaneShatter {
       .map(([key, cell]) => pieceOf(key, cell));
     for (const p of pieces) group.add(p.mesh);
     builtFor = parts.root;
+    builtTorn = torn.join();
   }
 
   function pieceOf(key: string, cell: Map<THREE.Material, number[]>): Piece {
@@ -634,8 +644,12 @@ export function createPlaneShatter(): PlaneShatter {
 
   return {
     group,
+    prime(machine, parts) {
+      if (parts.root !== builtFor) build(machine, parts, [false, false]);
+    },
     burst(machine, parts, w, groundAt) {
-      if (parts.root !== builtFor) build(machine, parts);
+      const torn = w.torn ?? [false, false];
+      if (parts.root !== builtFor || torn.join() !== builtTorn) build(machine, parts, torn);
       const random = makeRandom(
         Math.floor(w.x * 131 + w.z * 977 + w.speed * 7919) ^ Math.floor(w.fuel * 37),
       );
@@ -746,7 +760,7 @@ export function createPlaneShatter(): PlaneShatter {
                 );
             }
             if (p.part === "wingIn" || p.fate !== "fold") {
-              // The tanks are in the wings: a torn-off wing burns.
+              // The tanks are in the wings: a lit wreck's torn wing burns.
               p.burn = p.fate === "fold" ? 0.35 : 0.8;
               p.burnFor = r(FLING.tank[0], FLING.tank[1]);
             }
@@ -829,18 +843,22 @@ export function createPlaneShatter(): PlaneShatter {
       }
       // A thrown parent's blades go with it: their place re-based on it.
       place(0);
+      // Unlit (`PlaneWreck.fire`), nothing burns: the tanks spill cold.
+      if (!w.fire) for (const p of pieces) p.burn = 0;
       // How near the fire each lies: the hulk and what stays on it burn
       // with it — the tanks are in the wings — the tail aft of the fire
       // and a thrown piece alight scorch, the rest lie clear.
       for (const p of pieces) {
         const thrown = p.fate === "throw" || p.fate === "tear" || p.fate === "drop";
-        const heat: Heat = thrown
-          ? p.burn > 0
-            ? "warm"
-            : "cool"
-          : p.part === "tail"
-            ? "warm"
-            : "hot";
+        const heat: Heat = !w.fire
+          ? "cool"
+          : thrown
+            ? p.burn > 0
+              ? "warm"
+              : "cool"
+            : p.part === "tail"
+              ? "warm"
+              : "hot";
         p.mesh.material = p.sets[heat];
       }
     },

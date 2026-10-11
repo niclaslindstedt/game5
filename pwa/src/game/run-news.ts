@@ -242,12 +242,15 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       return null;
     case "plane":
       // The jump plane: aboard at its door, off the strip and down on it,
-      // the stall horn, out of the door (from how high over the snow), off
-      // it on the snow, its pilot home, flown into the mountain, begun again.
+      // the stall horn, a wingtip scraped, a wing torn off, out of the door
+      // (from how high over the snow), off it on the snow, its pilot home,
+      // flown into the mountain, begun again.
       if (e.phase === "board") return { text: STRINGS.newsPlaneBoard, tone: "info" };
       if (e.phase === "liftoff") return { text: STRINGS.newsPlaneLiftoff, tone: "good" };
       if (e.phase === "land") return { text: STRINGS.newsPlaneLand, tone: "info" };
       if (e.phase === "stall") return { text: STRINGS.newsPlaneStall, tone: "bad" };
+      if (e.phase === "scrape") return { text: STRINGS.newsPlaneScrape, tone: "bad" };
+      if (e.phase === "tear") return { text: STRINGS.newsPlaneTear, tone: "bad" };
       if (e.phase === "jump")
         return {
           text: STRINGS.newsPlaneJump(e.y - state.level.groundAt(e.x, e.z)),

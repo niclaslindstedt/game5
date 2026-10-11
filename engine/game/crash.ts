@@ -582,8 +582,11 @@ export function crashOver(b: Thrown, player = false): boolean {
   return b.t >= K.lieMin && b.still >= K.lieStill;
 }
 
-/** Whether a press of the player's own may stand him up yet: not before
- * `getUp` s off the skis — a press inside them is let go, not kept. */
+/** Whether he has lain long enough to be asked to GET UP: past `getUp` s
+ * off the skis — when the HUD's hint comes up and the app's tap and tuck
+ * key start standing him up, and when a fall too hurt to rise from is
+ * found so (`rescue.ts`). The reset press itself never waits on it: a
+ * fall he is off his skis in is final, and is answered at once. */
 export function mayGetUp(b: Thrown | null): boolean {
   return b === null || b.t >= K.getUp;
 }

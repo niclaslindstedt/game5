@@ -3633,6 +3633,39 @@ canvas {
   white-space: nowrap;
 }
 
+/* THE PRESS HAS LANDED: a way on pressed is marked busy until the loading
+   card is over it (`busy-press.ts`). The ring turns on a transform, so it
+   keeps turning while the run is being stood up on the main thread. */
+.menu-head-go[data-busy] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  pointer-events: none;
+}
+
+.menu-busy {
+  flex: none;
+  width: 0.95em;
+  height: 0.95em;
+  border: 0.16em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: menu-busy-turn 0.8s linear infinite;
+  will-change: transform;
+}
+
+@keyframes menu-busy-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-busy {
+    animation-duration: 2.4s;
+  }
+}
+
 /* ── EVERY PAGE TURNED SIDEWAYS ────────────────────────────────────────────
    A phone on its side is 390 px tall, less a browser's own bar when it is
    not installed, and every page pays for its head and its caption before a

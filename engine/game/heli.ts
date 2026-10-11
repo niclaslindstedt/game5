@@ -47,7 +47,7 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { airBoundsAt, treesNear, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
-import { mayGetUp, throwRider } from "./crash.ts";
+import { throwRider } from "./crash.ts";
 import { HELI } from "./defs/heli.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -161,9 +161,9 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
   const dt = TUNING.dt;
   h.t += dt;
   if (h.mode === "wreck") {
-    // The player's own press to get up, once it is his (`mayGetUp`), starts
-    // the ride again rather than standing him by the fire.
-    const up = !!h.wreck?.aboard && input.reset && !!run.skier.thrown && mayGetUp(run.skier.thrown);
+    // The player's own press starts the ride again at once rather than
+    // standing him by the fire.
+    const up = !!h.wreck?.aboard && input.reset && !!run.skier.thrown;
     if (h.t < K.crash.wreck && !up) return false;
     if (h.wreck?.aboard) startAgain(run, events);
     else {

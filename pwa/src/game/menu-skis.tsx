@@ -32,6 +32,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { pairById, riderById, withRider, type PairId } from "@engine";
 
 import { COUNT_SECONDS, countAt } from "@niclaslindstedt/oss-game-framework/hud/count";
+import { useBusyPress } from "./busy-press.ts";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import type { Outfit } from "./outfit.ts";
 import { SkisPicker } from "./ski-picker.tsx";
@@ -142,6 +143,7 @@ export function SkisPage({
 }) {
   const spec = pairById(skis);
   const board = spec.board !== undefined;
+  const [busy, ride] = useBusyPress(onRide);
   return (
     <div class="menu-card menu-card-skis">
       <MenuHead
@@ -158,9 +160,12 @@ export function SkisPage({
             class="menu-item menu-item-start menu-head-go skis-done"
             data-menu="ride"
             data-nav-next
-            onClick={onRide}
+            data-busy={busy ? "1" : undefined}
+            aria-busy={busy}
+            onClick={ride}
           >
             <span class="menu-item-name">{board ? STRINGS.boardRide : STRINGS.skisRide}</span>
+            {busy && <span class="menu-busy" aria-hidden="true" />}
           </button>
         }
       />

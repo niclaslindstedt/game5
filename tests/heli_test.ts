@@ -8,7 +8,6 @@ import { describe, expect, it } from "vitest";
 import {
   HELI,
   NEUTRAL_INPUT,
-  TUNING,
   angleDiff,
   createGame,
   helipadOf,
@@ -334,17 +333,14 @@ describe("the helicopter", () => {
     expect(s.heli!.rider).toBe(true);
   });
 
-  it("starts the ride again on the player's press to get up while the wreck burns", () => {
+  it("starts the ride again at once on the player's reset while the wreck burns", () => {
     const s = ride();
     fly(s, 6, hands({ collective: 0.95 }));
     for (let i = 0; i < 40 * 120 && s.heli!.mode !== "wreck"; i++)
       step(s, hands({ collective: 0.1 }));
-    // A press inside the beat he must lie is let go...
-    fly(s, 0.5, ask());
-    fly(s, 1 / 120, { ...ask(), reset: true });
     expect(s.heli!.mode).toBe("wreck");
-    // ...and one after it puts him back on the pad.
-    fly(s, TUNING.crash.getUp, ask());
+    // Pressed in the beat after the crash, it puts him back on the pad.
+    fly(s, 0.5, ask());
     const events = fly(s, 1 / 120, { ...ask(), reset: true });
     expect(events.some((e) => e.kind === "heli" && e.phase === "restart")).toBe(true);
     expect(s.heli!.rider).toBe(true);

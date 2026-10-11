@@ -55,7 +55,7 @@ import {
 } from "./canopy.ts";
 import { airBoundsAt, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
-import { crashOver, mayGetUp } from "./crash.ts";
+import { crashOver } from "./crash.ts";
 import { CHUTE, jumperMass, wingOf, type ChuteWing } from "./defs/chute.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -275,7 +275,7 @@ export function stepChute(state: GameState, input: SkierInput, events: GameEvent
       ch.mode = "released";
       ch.fell = true;
     }
-    const up = crashOver(c.thrown, true) || (input.reset && mayGetUp(c.thrown));
+    const up = crashOver(c.thrown, true) || input.reset;
     if (up && !holdsHim(state)) restart(state, events);
     return false;
   }

@@ -262,6 +262,71 @@ describe("the jump plane on a free ride", () => {
   });
 });
 
+// THE WINGS (`plane-wings.ts`): a tip touched on the take-off roll is a
+// scrape and flown on; past the ultimate load a wing folds off and the plane
+// flies on with the other, rolling in after it, the torn one tumbling down.
+describe("the wings", () => {
+  it("takes a wingtip scraped on the take-off roll and flies on", () => {
+    const s = ride();
+    const strip = airstripOf(flat);
+    planeAloft(s, {
+      x: strip.start.x,
+      z: strip.start.z,
+      heading: strip.heading,
+      y: flat.groundAt(strip.start.x, strip.start.z) + 0.05,
+      speed: 30,
+      pitch: 0.05,
+      roll: 0.25,
+      power: 1,
+      rates: { wx: 0, wy: 0, wz: -3.5 },
+    });
+    const events = fly(s, 12, () => hands({ throttle: 1, flaps: 0.5 }));
+    const phases = events.map((e) => e.phase);
+    expect(phases).toContain("scrape");
+    expect(phases).not.toContain("tear");
+    expect(phases).not.toContain("crash");
+    expect(phases).toContain("liftoff");
+    const p = s.plane!;
+    const worn = Math.min(...p.wings.map((w) => w.health));
+    expect(worn).toBeLessThan(1);
+    expect(worn).toBeGreaterThan(0.8);
+    expect(p.wings.every((w) => !w.torn)).toBe(true);
+  });
+
+  it("folds a wing off past its ultimate load, and flies on with the other", () => {
+    const s = ride();
+    planeAloft(s, {
+      x: SIZE / 2,
+      y: 1500,
+      z: SIZE / 2 - 1200,
+      heading: 0,
+      speed: 90,
+      power: 1,
+      rates: { wx: 0, wy: 0, wz: 2 },
+    });
+    const events = fly(s, 0.6, () => hands({ throttle: 1, pitch: -1, roll: 1 }));
+    expect(events.filter((e) => e.phase === "tear")).toHaveLength(1);
+    expect(events.map((e) => e.phase)).not.toContain("crash");
+    const p = s.plane!;
+    const side = p.wings[0].torn ? 0 : 1;
+    const torn = p.wings[side].torn!;
+    expect(torn.cause).toBe("load");
+    expect(p.wings[1 - side].torn).toBeNull();
+    // Its tank went with it: half the fuel.
+    expect(p.fuel).toBeLessThan(PLANE.fuel / 2 + 1);
+    // The torn side lifts nothing; the plane is still in the air, and the
+    // wing falls away on its own.
+    const air = { fx: 0, fy: 0, fz: 0, tx: 0, ty: 0, tz: 0, cl: 0, stalled: 0, lift: 0 };
+    const out = planeAir(p, 0, -4, 60, 1.1, false, { ...air, thrust: 0, liftL: 0, liftR: 0 });
+    expect(side === 0 ? out.liftL : out.liftR).toBe(0);
+    expect(Math.abs(side === 0 ? out.liftR : out.liftL)).toBeGreaterThan(1000);
+    const y0 = torn.y;
+    fly(s, 3, () => hands({ throttle: 1 }));
+    expect(s.plane!.mode).toBe("flown");
+    expect(torn.y).toBeLessThan(y0 - 20);
+  });
+});
+
 describe("the airframe's rigging and trim", () => {
   /** The torque and pitching moment on the plane flown level, wings level,
    * at `v` m/s on `power` (the angle of attack found for 1 g). */
@@ -275,7 +340,20 @@ describe("the airframe's rigging and trim", () => {
       wy: 0,
       wz: 0,
     } as unknown as Parameters<typeof planeAir>[0];
-    const out = { fx: 0, fy: 0, fz: 0, tx: 0, ty: 0, tz: 0, cl: 0, stalled: 0, lift: 0, thrust: 0 };
+    const out = {
+      fx: 0,
+      fy: 0,
+      fz: 0,
+      tx: 0,
+      ty: 0,
+      tz: 0,
+      cl: 0,
+      stalled: 0,
+      lift: 0,
+      thrust: 0,
+      liftL: 0,
+      liftR: 0,
+    };
     const weight = (PLANE.mass + 90) * TUNING.g;
     let lo = -0.1;
     let hi = 0.3;

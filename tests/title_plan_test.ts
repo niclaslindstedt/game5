@@ -160,12 +160,13 @@ describe("the attract card and the backdrop (splash.ts, shell.ts, url-params.ts)
   });
 
   it("draws the title only over the cards before a run, and never after one", () => {
-    for (const shell of ["splash", "menu", "loading"] as Shell[]) {
+    for (const shell of ["splash", "menu"] as Shell[]) {
       expect(titleUp("title", shell, false)).toBe(true);
       expect(titleUp("title", shell, true)).toBe(false);
       expect(titleUp("race", shell, false)).toBe(false);
     }
-    for (const shell of ["run", "pause", "replay", "bench"] as Shell[]) {
+    // ...and not under the opaque loading card, where it is only memory.
+    for (const shell of ["loading", "run", "pause", "replay", "bench"] as Shell[]) {
       expect(titleUp("title", shell, false)).toBe(false);
     }
   });

@@ -21,8 +21,11 @@ const SHOULDER_INTO_TRUNK: Staging = {
 function ride(s: Staging, seconds: number, gore = true) {
   const { state, input } = stageTrial(s, 0, gore);
   const events: GameEvent[] = [];
+  // The reset pressed every step once the fall has hurt him: answered at
+  // once, it finds him so or stands him up.
   for (let i = 0; i < Math.round(seconds / TUNING.dt); i++) {
-    step(state, { ...input, reset: true });
+    const hurtNow = state.skier.body.injuries.length > 0;
+    step(state, { ...input, reset: hurtNow });
     events.push(...state.events);
   }
   return { state, events };
@@ -55,7 +58,8 @@ describe("hurt too badly to ski on", () => {
     const { state, events } = ride(FEET_FIRST, 10);
     const g = state.gore!;
     expect(g.dead).toBe(-1);
-    expect(g.injured).toBeGreaterThanOrEqual(TUNING.crash.getUp - TUNING.dt);
+    // Found so the first press he lies through: a reset never waits.
+    expect(g.injured).toBeGreaterThanOrEqual(0);
     expect(g.injury).not.toBeNull();
     expect(disables(g.injury!)).toBe(true);
     // Pressed to get up every step, and past the time the engine would
@@ -107,11 +111,21 @@ describe("the run ended INJURED (hud-wreck.ts)", () => {
     expect(wreckOf(null, null, null).white).toBe(false);
   });
 
-  it("starts the run again once it has run its course", () => {
-    const { state } = ride(FEET_FIRST, 10);
+  it("starts the run again once it has run its course, or at once on the reset", () => {
+    // Left alone: found so past `getUp`, and over `again` s after.
+    const { state, input } = stageTrial(FEET_FIRST, 0, true);
+    const steps = (sec: number) => {
+      for (let i = 0; i < Math.round(sec / TUNING.dt); i++) step(state, input);
+    };
+    steps(TUNING.crash.getUp + 0.5);
     expect(injuredOf(state)).not.toBeNull();
-    expect(deathOver(state)).toBe(injuredOf(state)! >= DEATH.again);
-    const { state: later } = ride(FEET_FIRST, TUNING.crash.getUp + DEATH.again + 0.5);
-    expect(deathOver(later)).toBe(true);
+    expect(deathOver(state)).toBe(false);
+    steps(DEATH.again);
+    expect(deathOver(state)).toBe(true);
+    // Pressed over it, the run is over at once.
+    const { state: pressed } = ride(FEET_FIRST, 2);
+    expect(injuredOf(pressed)).not.toBeNull();
+    expect(injuredOf(pressed)!).toBeLessThan(DEATH.again);
+    expect(deathOver(pressed)).toBe(true);
   });
 });

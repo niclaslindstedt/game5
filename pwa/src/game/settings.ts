@@ -31,6 +31,7 @@ import {
   type GameMode,
   type PairId,
   type SkiSpec,
+  type MishapRate,
 } from "@engine";
 
 import { mergeRacePicks, type RacePicks } from "./race-maps.ts";
@@ -43,6 +44,11 @@ import { freshPlaneKeys, mergePlaneKeys, type PlaneBindings } from "./settings-p
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
 import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
+
+/** How often things go wrong on a free ride: never, or a `MishapRate`. */
+export type MishapSetting = "off" | MishapRate;
+/** THINGS GO WRONG's stops, in order. */
+export const MISHAP_SETTINGS: readonly MishapSetting[] = ["off", "rare", "often"];
 
 /** THE LADDER C WALKS, nearest first: a lens at the ski tips, the helmet
  * camera, then the three booms behind. "orbit" is not on it: that is the
@@ -127,6 +133,10 @@ export type Settings = {
   /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the next
    * run's, off unless asked for. */
   damage: boolean;
+  /** THINGS GO WRONG (OPTIONS ▸ THINGS GO WRONG, `mishaps.ts`): how often a
+   * free ride's canopies malfunction and its engines stop — never, now and
+   * then (the default) or often. */
+  mishaps: MishapSetting;
   /** Whether the HUD draws the body's injuries — the anatomy plate and the
    * g meter (OPTIONS ▸ INJURIES), off for a younger player. `null` is "as
    * the device says" (`injuriesShown`): shown, unless the store app reports
@@ -205,6 +215,7 @@ export function freshSettings(): Settings {
     touch: { lever: "right", sensitivity: 1, invertLean: false },
     assist: { steer: "full", air: "full" },
     damage: false,
+    mishaps: "rare",
     injuries: null,
     xray: false,
     bodyHud: false,
@@ -290,6 +301,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.assist.steer = onLadder(assist.steer, ASSIST_LEVELS, out.assist.steer);
   out.assist.air = onLadder(assist.air, ASSIST_LEVELS, out.assist.air);
   if (typeof blob.damage === "boolean") out.damage = blob.damage;
+  out.mishaps = onLadder(blob.mishaps, MISHAP_SETTINGS, out.mishaps);
   if (typeof blob.injuries === "boolean") out.injuries = blob.injuries;
   if (typeof blob.xray === "boolean") out.xray = blob.xray;
   if (typeof blob.bodyHud === "boolean") out.bodyHud = blob.bodyHud;

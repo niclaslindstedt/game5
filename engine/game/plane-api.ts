@@ -75,6 +75,7 @@ export type {
   ChuteControls,
   ChuteDeploy,
   ChuteEvent,
+  ChuteMalfunction,
   ChuteMode,
   ChutePhaseEvent,
   ChutePiece,

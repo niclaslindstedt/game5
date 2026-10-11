@@ -22,6 +22,7 @@ import {
   type CreateGameOptions,
   type GameMode,
   type Level,
+  type MishapRate,
   type SkyOverride,
   type SkiSpec,
 } from "@engine";
@@ -136,6 +137,9 @@ export type PinnedSkier = {
    * nobody collides, no afterski, a helicopter and a balloon that cannot
    * crash or burn. */
   sfw?: boolean;
+  /** THINGS GO WRONG (`Settings.mishaps`): a free ride's canopy
+   * malfunctions and engine failures — never, now and then or often. */
+  mishapRate?: MishapRate | "off";
 };
 
 /** A RUN ON THE PINNED MAP — the map's own snow under the map's own sky,

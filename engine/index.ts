@@ -62,8 +62,7 @@ export {
   type SunPlace,
 } from "@niclaslindstedt/oss-game-framework/core/solar";
 
-// THE WORLD (engine/mapgen/): the generator, the Level contract, the track
-// queries.
+// THE WORLD (engine/mapgen/): the generator, the Level contract, the queries.
 export * from "./mapgen/index.ts";
 export { jibAt, jibLength, stepJib } from "./game/jib.ts";
 export {
@@ -683,6 +682,7 @@ export {
 export { GRIMBEAR } from "./game/defs/grimbear.ts";
 export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./game/grimbear.ts";
 export type { GrimbearPhase, GrimbearState } from "./game/grimbear-state.ts";
+export * from "./game/mishaps.ts";
 export { GROOMER } from "./game/defs/groomer.ts";
 export {
   freshGroomers,

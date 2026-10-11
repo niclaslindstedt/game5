@@ -35,9 +35,20 @@ export type PlaneControls = {
  * door, off the snow, onto it, out of the door in the air (`jump`) or onto
  * the snow from a plane stopped (`stepoff`), the pilot home on the strip,
  * the machine crashed (where it burns), the ride started again on the
- * strip — and `stall`, a wing let go of its air. */
+ * strip — `stall`, a wing let go of its air — and its dealt stoppage
+ * (`mishaps.ts`): the engine coughing (`cough`) and stopped (`engine`). */
 export type PlanePhaseEvent =
-  "board" | "liftoff" | "land" | "jump" | "stepoff" | "home" | "crash" | "restart" | "stall";
+  | "board"
+  | "liftoff"
+  | "land"
+  | "jump"
+  | "stepoff"
+  | "home"
+  | "crash"
+  | "restart"
+  | "stall"
+  | "cough"
+  | "engine";
 
 /** THE PLANE'S EVENT. `speed` is how hard: the closing speed into the snow
  * or a crown, m/s (a crash, a landing), the airspeed (a jump), 0 else. */
@@ -117,6 +128,9 @@ export type PlaneState = {
   /** Whether the skier stands in its door, and how far open the door is,
    * 0..1 (slid open on the ground at the start, as a jump plane flies). */
   rider: boolean;
+  /** AN ENGINE STOPPAGE dealt this flight (`mishaps.ts`), on a free ride
+   * that asked for mishaps — absent otherwise. */
+  engine?: import("./mishaps.ts").EngineFault;
   door: number;
   /** Seconds in this mode (the wreck's clock, the pilot's beat). */
   t: number;

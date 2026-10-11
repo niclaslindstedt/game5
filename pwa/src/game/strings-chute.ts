@@ -19,6 +19,14 @@ export const CHUTE_STRINGS = {
   /** Caught: in a crown, or on a lift. */
   newsChuteSnag: (tree: boolean): string => (tree ? "CAUGHT IN A TREE!" : "CAUGHT ON THE LIFT!"),
   newsChuteRestart: "BACK IN THE DOOR",
+  /** A main that opened wrong (`ChuteMalfunction`): what it is and what to do. */
+  newsChuteMal: (mal: "twist" | "lineover" | "hard", g: number): string =>
+    mal === "twist"
+      ? "LINE TWISTS! KICK OUT"
+      : mal === "lineover"
+        ? "LINE OVER! CUT AWAY"
+        : `HARD OPENING · ${g.toFixed(1)} G`,
+  newsChuteUntwist: "TWISTS OUT! STEER",
 
   /* ── THE HUD (hud-plane.tsx) ───────────────────────────────────────── */
   /** The altimeter: his height over the snow, m. */

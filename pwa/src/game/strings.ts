@@ -339,6 +339,7 @@ export const STRINGS = {
   newsHeliDrop: (metres: number): string => `DROPPED FROM ${Math.round(metres)} M!`,
   newsHeliCrash: "MAYDAY! SHE'S GONE DOWN",
   newsHeliRestart: "BACK ON THE PAD",
+  newsHeliEngine: "ENGINE OUT! COLLECTIVE DOWN",
   newsHeliRotor: "INTO THE ROTOR!",
   /** THE HELICOPTER'S HUD (`hud-heli.tsx`): the height its skids are over
    * the snow, its climb, how to jump off it, and the way to it. */
@@ -667,6 +668,12 @@ export const STRINGS = {
   assistHalf: "HALF",
   assistFull: "FULL",
   optAssistNote: "Applies from the next run.",
+  optMishaps: "THINGS GO WRONG",
+  optMishapsHint:
+    "On a free ride: a parachute or a paramotor's wing that opens wrong, an engine that stops in the air. Never, now and then, or often.",
+  mishapsOff: "NEVER",
+  mishapsRare: "RARE",
+  mishapsOften: "OFTEN",
   optDamage: "DAMAGE",
   optDamageHint:
     "On: a trunk or a hard landing dulls an edge or hurts a knee, and you ski it for the rest of the run.",

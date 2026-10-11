@@ -41,10 +41,12 @@ import { angleDiff, clamp, hypot3 } from "@niclaslindstedt/oss-game-framework/co
 import { airBoundsAt, type AirBounds } from "./collision.ts";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { standSkier } from "./course.ts";
+import { MISHAPS } from "./defs/mishaps.ts";
 import { PARA, pilotMass } from "./defs/para.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { mendBody } from "./body.ts";
+import { mishapDraw, mishapOf, unwound } from "./mishaps.ts";
 import { freeRuns } from "./lift-ride.ts";
 import { derive } from "./skier.ts";
 import {
@@ -224,6 +226,18 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
     const back = clamp(1.5 * angleDiff(p.heading, edge.heading), -1, 1);
     want.steer += (back - want.steer) * w;
   }
+  // LINE TWISTS (`mishaps.ts`): the toggles above the twist, out of reach;
+  // the edge is his kick. A CRAVAT is pumped free on the brakes.
+  if (p.twist) {
+    p.twist = unwound(p.twist, Math.abs(want.steer) > 0.4, dt);
+    want.steer = 0;
+    want.brake = 0;
+    if (p.twist === 0) {
+      delete p.twist;
+      say(state, events, "untwist");
+    }
+  }
+  if (p.cravat) pumpCravat(state, p, want.brake, events);
   const k = 1 - Math.exp(-dt / HANDS);
   const ctl = p.controls;
   ctl.throttle += (want.throttle - ctl.throttle) * k;
@@ -237,8 +251,10 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
   const goal = E.idle + (E.full - E.idle) * ctl.throttle;
   p.rpm += (goal - p.rpm) * (1 - Math.exp(-dt / E.lag));
   p.prop = (p.prop + (p.rpm / 60) * 2 * Math.PI * dt) % (2 * Math.PI);
-  const fx = Math.sin(p.heading);
-  const fz = Math.cos(p.heading);
+  // The motor on his back points where he faces — round by the twist.
+  const facing = p.heading + (p.twist ?? 0);
+  const fx = Math.sin(facing);
+  const fz = Math.cos(facing);
   // In the air the thrust line tilts with the pilot's lean in the harness.
   const tilt = E.tilt - ctl.bar * PARA.lean.pitch * PARA.lean.thrust;
   const along = c.airborne
@@ -268,6 +284,13 @@ export function stepPara(state: GameState, input: SkierInput, events: GameEvent[
       p.mode = "flown";
       p.t = 0;
       say(state, events, "launch");
+      // A reverse launch not turned round in time leaves the lines twisted.
+      const rng = mishapOf(state, "paraTwist");
+      if (rng) {
+        const side = rng.next() < 0.5 ? -1 : 1;
+        p.twist = side * 2 * Math.PI * rng.range(MISHAPS.paraTwist.min, MISHAPS.paraTwist.max);
+        say(state, events, "twist");
+      }
     }
     readPilot(state, p);
     return;
@@ -340,15 +363,19 @@ function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): vo
   const alphaL = alpha + (upL - upC) / Vs;
   foldIn(state, p, alpha, alphaL, alphaR, V, events);
   const frontal = p.foldSide === 0 ? 1 : F.sideLift;
+  const Cr = MISHAPS.cravat;
+  const cravat = p.cravat ?? 0;
   const lift =
     (p.stalled ? P.stalled : Math.max(0, P.slope * (alpha - P.zero) + B.lift * ctl.brake)) *
-    (1 - F.lift * frontal * p.fold);
+    (1 - F.lift * frontal * p.fold) *
+    (1 - Cr.lift * Math.abs(cravat));
   const drag =
     P.drag0 +
     P.induced * lift * lift +
     B.drag * ctl.brake * ctl.brake +
     PARA.turn.drag * Math.abs(ctl.steer) +
     F.drag * p.fold +
+    Cr.drag * Math.abs(cravat) +
     (p.stalled ? P.stallDrag : 0);
   const qS = 0.5 * TUNING.airDensity * V * V * W.area;
   // Lift square to the air, on the lines' side; drag down the air.
@@ -373,7 +400,9 @@ function fly(state: GameState, p: ParaState, M: number, events: GameEvent[]): vo
       // The tip lifted the more rolls the canopy toward the other side; a
       // folded side drags the wing round toward it.
       F.roll * (alphaL - alphaR) +
-      F.turn * p.foldSide * p.fold);
+      F.turn * p.foldSide * p.fold +
+      // ...and a cravat's held tip drags it round toward that side.
+      Cr.turn * cravat);
   fx += side * rx;
   fy += side * ry;
   fz += side * rz;
@@ -454,6 +483,33 @@ function foldIn(
   // A frontal when the middle went under; else the side that did.
   p.foldSide = alpha < F.alpha ? 0 : alphaL < alphaR ? -1 : 1;
   if (onset) say(state, events, "fold");
+  // A deep side fold may leave its tip caught in the lines (`mishaps.ts`).
+  if (p.foldSide !== 0 && !p.cravat && depth >= MISHAPS.cravat.depth && mishapOf(state, "cravat")) {
+    p.cravat = p.foldSide;
+    p.pump = -1;
+    say(state, events, "cravat");
+  }
+}
+
+/** A CRAVAT PUMPED: the brakes let up past `slack` and pulled sharply past
+ * `pull` inside `snap` s — the slack the caught cloth needs — free it at
+ * the dealt odds (`MISHAPS.cravat`). */
+function pumpCravat(state: GameState, p: ParaState, brake: number, events: GameEvent[]): void {
+  const C = MISHAPS.cravat;
+  if (brake < C.slack) {
+    p.pump = 0;
+    return;
+  }
+  if (p.pump === undefined || p.pump < 0) return;
+  p.pump += dt;
+  if (brake < C.pull) return;
+  const sharp = p.pump <= C.snap;
+  p.pump = -1;
+  if (sharp && mishapDraw(state) < C.clear) {
+    delete p.cravat;
+    delete p.pump;
+    say(state, events, "freed");
+  }
 }
 
 /** THE PILOT IN THE HARNESS, off the snow: turned to the wing's heading,
@@ -463,7 +519,16 @@ function hang(state: GameState, p: ParaState): void {
   // Aloft he leans in the harness as the bar asks (forward over it, back
   // reclined); stood up to land, squared to the slope.
   const F = PARA.flare;
-  hangUnder(state, p.heading, p.bank, p.agl, -p.controls.bar * PARA.lean.pitch, F.stand, F.square);
+  // Twisted, he hangs turned under it by the twist left in the lines.
+  hangUnder(
+    state,
+    p.heading + (p.twist ?? 0),
+    p.bank,
+    p.agl,
+    -p.controls.bar * PARA.lean.pitch,
+    F.stand,
+    F.square,
+  );
 }
 
 /** The pilot's height over the snow and his climb. */
@@ -505,6 +570,9 @@ function release(state: GameState, events: GameEvent[], phase: ParaPhaseEvent): 
   p.mode = "dropped";
   p.t = 0;
   p.flying = false;
+  delete p.cravat;
+  delete p.pump;
+  delete p.twist;
   p.tension = 0;
   p.thrust = 0;
   p.controls = { ...IDLE };

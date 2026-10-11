@@ -860,6 +860,9 @@ export type GameState = ContestState & {
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
+  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose
+   * player asked for them. */
+  mishaps?: import("./mishaps.ts").MishapState;
   /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;

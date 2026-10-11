@@ -18,6 +18,10 @@ export const PARA_STRINGS = {
   /** The wing folded in the air by rough air: pump it out. */
   newsParaFold: "COLLAPSE! PUMP THE BRAKES",
   newsParaRestart: "ON THE SUMMIT",
+  newsParaCravat: "CRAVAT! PUMP THE BRAKES HARD",
+  newsParaFreed: "TIP OUT! FLYING",
+  newsParaTwist: "LINE TWISTS! KICK OUT",
+  newsParaUntwist: "TWISTS OUT",
 
   /* ── THE HUD (hud-para.tsx) ────────────────────────────────────────── */
   paraAlt: "ALT",

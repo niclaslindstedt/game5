@@ -200,8 +200,7 @@ export function App() {
   linkSkisRef.current = linkSkis;
   /** The pair the player skis under his build (`specFor`); `mode` may refuse a board. */
   const specOf = (s: Settings, mode?: GameMode): SkiSpec => specFor(s, linkSkisRef.current, mode);
-  /** Who skis the player's runs, and with what: the pair, the help, the
-   * switches, his poles (the DRESS card's, a link's `?poles=` over them). */
+  /** Who skis, and with what: the pair, the help, the switches, his poles. */
   const skierOf = (s: Settings, mode?: GameMode): PinnedSkier => ({
     spec: specOf(s, mode),
     assist: assistOf(s.assist),
@@ -209,6 +208,7 @@ export function App() {
     gore: injuriesShown(s, shellContent()),
     sfw: !injuriesShown(s, shellContent()), // SAFE FOR WORK (`RunRules.sfw`)
     poles: params.poles ?? carriesPoles(s.outfit),
+    mishapRate: s.mishaps,
   });
   /** The picture drawn: the stored one, or a lab's preset for this visit —
    * `?video=` is never written back. */

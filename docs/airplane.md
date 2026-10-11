@@ -67,6 +67,10 @@ The player's hand (`input-plane.ts`'s `samplePlane`) is the honest stick a keybo
 
 The plane's hand is full within about 60° of straight out, along the edge only past 60 % of the band, never when heading back in, only upright (fading out past 80° of roll or 52° of pitch), and it never weakens the player's own pull — so a loop near the edge is still the player's loop. The skier on his skis and every race keep `keepInBounds`, untouched. The wind tunnels, likewise, take a skier only within `TUNING.tunnel.roof` (8 m) of the snow, so a canopy flown over one is never caught.
 
+## Engine failure
+
+With OPTIONS ▸ THINGS GO WRONG on, a take-off may be dealt a stoppage (`PlaneState.engine`, `engine/game/mishaps.ts`): 25 to 200 s aloft, never under 150 m over the snow, three seconds of coughing (`cough`, the power surging and dying) and then nothing (`engine`, the horn) — the propeller windmilling down to a third of its turn. Flown at the best glide she comes down at about nine to one, so a field within some nine times the height is a dead-stick landing.
+
 ## The crash
 
 Into the snow too hard (a sink past 3.6 m/s, a leg pressed past 0.42 m, a sideways skid past 7 m/s), a wingtip, the nose, the belly, the tail or the propeller's disc into the snow, or a tree: `struck()` names what hit and `crash()` files a rich `PlaneWreck` — where, how fast, its attitude and rates, its power and fuel, and its **kind**: `nose`, `cart` (cartwheeled off a wingtip), `belly`, `spin` or `tree`. The skier in the door is flung clear by the blast (6 m/s out, 5 up; the `plane` crash cause) as the helicopter's rider is. Ten seconds later the ride begins again in the door on the strip.

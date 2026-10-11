@@ -15,6 +15,9 @@
 //   flight   in the air over the landing hill from the side and behind
 //   landing  touching down at the boards, the telemark, the out-run, the K
 //            and HS lines
+//   arena    the stadium round the out-run: its stands, the counter-slope,
+//            the boards, the leader's box, the video wall, the flags, the
+//            crowd up the landing hill — by day and at hour 21, lit
 //   structure  the raised in-run: the deck on its truss and piers from the
 //            side and from below, the tower, the jumper on the deck
 //   broadcast  a whole jump through the game's broadcast director, bar to
@@ -58,12 +61,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (hill, structure, broadcast, inrun, flight, landing, jumper); every one when left out",
+      help: "which sheets, comma-separated (hill, arena, structure, broadcast, inrun, flight, landing, jumper); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (hill, night, structure, broadcast, inrun, flight, landing, jumper-bar … jumper-outrun)",
+      help: "only these views, comma-separated (hill, night, arena, arenanight, structure, broadcast, inrun, flight, landing, jumper-bar … jumper-outrun)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     hill: { kind: "string", default: "large", help: "the hill: large or normal" },

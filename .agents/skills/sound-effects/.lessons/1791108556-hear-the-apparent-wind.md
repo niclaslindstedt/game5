@@ -1,7 +1,7 @@
 ---
 title: The wind bed hears the APPARENT wind, and a meter preset past WIND_FULL is how a gale is judged
 date: 2026-10-04
-scope: pwa/src/game/audio/wind-voice.ts, ride-bed.ts
+scope: pwa/src/game/audio/wind-voice.ts, pwa/src/game/audio/ride-bed.ts
 concepts: [wind, apparent-wind, crosswind, pan, meter]
 ---
 

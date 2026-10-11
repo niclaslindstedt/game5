@@ -7,7 +7,7 @@
 // the profile is that origin carried along and across. Three-free: the
 // plan (`ski-jump-plan.ts`), the view and the lab all ask this one frame.
 
-import type { Level } from "@engine";
+import { SKI_JUMP_RULE, type Level } from "@engine";
 
 /** The hill a map publishes (`Level.skiJump`). */
 export type SkiJumpHill = NonNullable<Level["skiJump"]>;
@@ -48,4 +48,18 @@ export function hillPoint(
     y: f.hill.yAt(d) + h,
     z: f.z + f.fz * d + f.rz * a,
   };
+}
+
+/** THE LANDING AREA'S WIDTH `d` m of plan along the hill, m: the norm's
+ * widths at the knoll's foot, at K and at U, straight between them, the
+ * in-run's above the edge. */
+export function landingWidth(hill: SkiJumpHill, d: number): number {
+  const w = hill.w;
+  const foot = SKI_JUMP_RULE.norm.widths.foot * w;
+  const k = SKI_JUMP_RULE.norm.widths.k * w;
+  const u = SKI_JUMP_RULE.norm.widths.u * w;
+  if (d <= hill.edge) return SKI_JUMP_RULE.norm.widths.inRun;
+  if (d <= hill.k) return foot + ((k - foot) * (d - hill.edge)) / (hill.k - hill.edge);
+  if (d <= hill.u) return k + ((u - k) * (d - hill.k)) / (hill.u - hill.k);
+  return u;
 }

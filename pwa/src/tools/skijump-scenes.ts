@@ -188,7 +188,41 @@ const hillShots = (st: Stage, s: GameState): void => {
   st.shoot(s, "silhouette", planted(h.u - 30, -22, 1.2, h.from, 0, 4, 55));
 };
 
+/** Where the STADIUM round the out-run is shot from (`ski-jump-arena.ts`):
+ * as the broadcast opens on it, as the jumper sees it from the knoll, from
+ * the out-run's floor at its stands, its screen and its leader's box, up
+ * the landing hill's crowd, and from the air. */
+const arenaShots = (st: Stage, s: GameState): void => {
+  const h = frameOf(s).hill;
+  st.shoot(s, "broadcast wide", planted(h.k - 20, -42, 30, h.outrun - 10, 0, 0, 58));
+  st.shoot(s, "from the knoll", planted(h.edge + 40, 2, 22, h.outrun, 0, 0, 42));
+  st.shoot(s, "back stands, screen", planted(h.u + 8, 4, 2.2, h.outrun + 12, 0, 7, 64));
+  st.shoot(s, "side stand", planted(h.u + 34, 9, 1.8, h.u + 18, -26, 4, 64));
+  st.shoot(s, "landing hill crowd", planted(h.u - 18, 11, 2, h.k - 10, -20, 2, 60));
+  st.shoot(s, "leader's box, exit", planted(h.outrun - 28, 4, 2.4, h.outrun - 4, 14, 1, 52));
+  st.shoot(s, "aerial", planted(h.outrun + 80, 95, 85, h.u + 10, 0, 0, 50));
+};
+
 export const VIEWS: Record<string, Scene> = {
+  /** THE STADIUM round the out-run, empty and with a jumper stopping in it. */
+  arena(st) {
+    const s = st.fresh();
+    st.run(s, 0.3);
+    arenaShots(st, s);
+    st.until(s, (x) => x.jump?.record.landing != null, 60, bot);
+    st.run(s, 4, bot);
+    st.shoot(s, "jumper in the out-run", "far");
+  },
+  async arenanight(st) {
+    await st.hour(21);
+    const s = st.fresh();
+    st.run(s, 0.3);
+    arenaShots(st, s);
+    st.until(s, (x) => x.jump?.record.landing != null, 60, bot);
+    st.run(s, 1, bot);
+    st.shoot(s, "telemark under the lights", beside(-25, 2, 2, 45));
+    await st.hour(null);
+  },
   /** THE RAISED IN-RUN (`ski-jump-raised.ts`): the deck on its truss and
    * piers from the side and from below, the tower, and the jumper on it. */
   structure(st) {
@@ -297,6 +331,7 @@ export const VIEWS: Record<string, Scene> = {
 
 export const GROUPS: Record<string, readonly string[]> = {
   hill: ["hill", "night"],
+  arena: ["arena", "arenanight"],
   structure: ["structure"],
   broadcast: ["broadcast"],
   inrun: ["inrun"],

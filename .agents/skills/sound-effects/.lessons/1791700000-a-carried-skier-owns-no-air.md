@@ -1,7 +1,7 @@
 ---
 title: A skier carried by a machine at speed must give his wind to the machine's bed
 date: 2026-10-11
-scope: pwa/src/game/audio/ride-bed.ts, chute-bed.ts
+scope: pwa/src/game/audio/ride-bed.ts, pwa/src/game/audio/chute-bed.ts, pwa/src/game/audio/jump-bed.ts
 concepts: [wind, apparent-wind, machines, mix]
 ---
 
@@ -15,3 +15,8 @@ exit, freefall and deployment, whose roar is the skydive bed's). A new
 machine that carries him fast adds its case there, and its own bed then
 meters at the level the ride wind had (the plane's door at the helicopter's
 hover, the belly freefall at a flat-out tuck).
+
+The same share covers any mode whose skier the engine moves by its own
+model rather than the snow's: a ski jump's bar and tracks hand the skis to
+`jump-bed.ts` (the grooves, not the piste's hiss) and its flight hands it
+the wind too; once he is down in the out-run both come back.

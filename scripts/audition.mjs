@@ -23,6 +23,9 @@
 //   THE SNOWMOBILE the free ride's other machine: its revs, the thumb, how
 //              hard it works, the belt's speed and slip, the loose snow
 //              under the paddles, and how far off it idles.
+//   THE SKI JUMP the skis in the in-run's tracks, the flight's wind with
+//              its speed and V, and the stadium's crowd — how near, how
+//              hard it roars (`scripts/lib/audition-jump.mjs`).
 //   THE BANK   every discrete sound in the game, one button each, with the
 //              description it was written against printed beside it.
 //
@@ -52,6 +55,7 @@ import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 
 import { NO_BALLOON, NO_HELI, NO_SLED, PRESETS } from "./lib/audition-presets.mjs";
 import { BALLOON_PANEL, BALLOON_SCRIPT } from "./lib/audition-balloon.mjs";
+import { JUMP_PANEL, JUMP_PRESETS, JUMP_SCRIPT, NO_JUMP } from "./lib/audition-jump.mjs";
 import {
   NO_CHUTE,
   NO_PLANE,
@@ -112,6 +116,7 @@ const RUNTIME = [
   "pwa/src/game/audio/chute-voice.ts",
   "pwa/src/game/audio/balloon-voice.ts",
   "pwa/src/game/audio/sled-voice.ts",
+  "pwa/src/game/audio/jump-voice.ts",
 ];
 
 /** Compile the runtime modules to plain JS and return one concatenated blob. */
@@ -395,6 +400,7 @@ const page = `<!doctype html>
   </div>
 ${BALLOON_PANEL}
 ${PLANE_PANEL}
+${JUMP_PANEL}
   <div id="bank"></div>
 
   <footer>
@@ -747,6 +753,7 @@ sledBtn.addEventListener("click", () => {
 
 ${BALLOON_SCRIPT}
 ${PLANE_SCRIPT}
+${JUMP_SCRIPT}
 // ── The bank ───────────────────────────────────────────────────────────────
 const bank = document.getElementById("bank");
 bank.append(el("h2", null, "The bank"));
@@ -897,6 +904,7 @@ async function meter() {
         Object.assign(window.__ear.balloon, p.noBalloon, p.balloon ?? {});
         Object.assign(window.__ear.plane, p.noPlane, p.plane ?? {});
         Object.assign(window.__ear.chute, p.noChute, p.chute ?? {});
+        Object.assign(window.__ear.jump, p.noJump, p.jump ?? {});
       },
       {
         ...preset,
@@ -905,9 +913,10 @@ async function meter() {
         noBalloon: NO_BALLOON,
         noPlane: NO_PLANE,
         noChute: NO_CHUTE,
+        noJump: NO_JUMP,
       },
     );
-  const presets = [...PRESETS, ...PLANE_PRESETS];
+  const presets = [...PRESETS, ...PLANE_PRESETS, ...JUMP_PRESETS];
   await set(presets[0]);
   await page.click("#rush");
   await page.click("#snow");
@@ -917,6 +926,7 @@ async function meter() {
   await page.click("#balloon");
   await page.click("#plane");
   await page.click("#chute");
+  await page.click("#jump");
   for (const preset of presets) {
     await set(preset);
     await page.waitForTimeout(SETTLE_MS);
@@ -931,6 +941,7 @@ async function meter() {
   await page.click("#balloon");
   await page.click("#plane");
   await page.click("#chute");
+  await page.click("#jump");
   await page.waitForTimeout(400);
 
   console.log("\nTHE BANK (peak)");

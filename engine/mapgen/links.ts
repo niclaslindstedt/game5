@@ -182,6 +182,7 @@ export function layAccess(b: LinkBuilder, nextId: () => string): AccessLaid {
     const verdict = reckonAccess(
       runs,
       b.lifts.map((l) => ({ id: l.id, bottom: l.bottom, top: l.top, floor: b.floor(l.bottom) })),
+      b.slack,
     );
     let done = false;
     for (const id of verdict.orphans) {
@@ -248,6 +249,7 @@ export function layAccess(b: LinkBuilder, nextId: () => string): AccessLaid {
   const verdict = reckonAccess(
     runs,
     b.lifts.map((l) => ({ id: l.id, bottom: l.bottom, top: l.top, floor: b.floor(l.bottom) })),
+    b.slack,
   );
   runs.forEach((r, i) => {
     if (lost.has(i) || verdict.home[i] <= RR.access.runout) return;

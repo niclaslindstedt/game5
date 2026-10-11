@@ -21,7 +21,7 @@ import { LEVEL_RULES as R, withinBand } from "../mapgen/rules.ts";
 import { minSeparation, tightestBend, windowGrades } from "../mapgen/track.ts";
 import { driftAt } from "../mapgen/drift.ts";
 import type { Level, Lift, Run } from "../mapgen/types.ts";
-import { ropeShortfall, ruledLiftPlans } from "../game/lift-line.ts";
+import { boardingRing, letGoOf, ropeShortfall, ruledLiftPlans } from "../game/lift-line.ts";
 import { accessOf } from "./access.ts";
 import { chainedLifts, queueFault } from "./lift-queue.ts";
 import { holdDrags, holdHub, holdTunnels } from "./hub.ts";
@@ -97,6 +97,19 @@ const PAD_TOLERANCE = 0.3;
 /** How near a run's line the pad is that run's snow, m. */
 const PAD_LINE = 10;
 
+/** Plan distance from (x, z) to the segment a–b, m. */
+function segmentDistance(
+  a: { x: number; z: number },
+  b: { x: number; z: number },
+  x: number,
+  z: number,
+): number {
+  const ex = b.x - a.x;
+  const ez = b.z - a.z;
+  const k = Math.max(0, Math.min(1, ((x - a.x) * ex + (z - a.z) * ez) / (ex * ex + ez * ez || 1)));
+  return hypot(x - (a.x + ex * k), z - (a.z + ez * k));
+}
+
 /** R26 — a top station's pad as the finished ground reads: how far it
  * stands off the surface R26 cuts it to — its
  * deck along the line level and the pad leaning off it to both sides
@@ -105,7 +118,12 @@ const PAD_LINE = 10;
  * — null for a drag, whose top is held by `lift.drag.padGrade`. */
 function padReading(
   level: Level,
-  l: { kind: string; bottom: { x: number; z: number }; top: { x: number; y: number; z: number } },
+  l: {
+    id: string;
+    kind: string;
+    bottom: { x: number; z: number };
+    top: { x: number; y: number; z: number };
+  },
 ): { spread: number; ramp: number | null } | null {
   if (l.kind === "drag") return null;
   const len = Math.max(1, hypot(l.top.x - l.bottom.x, l.top.z - l.bottom.z));
@@ -127,6 +145,20 @@ function padReading(
   const lines = (level.resort?.runs ?? []).flatMap((r) =>
     r.points.filter((p) => hypot(p.x - l.top.x, p.z - l.top.z) < reach),
   );
+  // On a real face, the way off it to the next chair's queue is cut across
+  // its leaning pad from where he is let go (R25, `regradeLeg`).
+  const ways = level.face
+    ? chainedLifts(level)
+        .filter((c) => c.upper.id === l.id)
+        .map((c) => ({
+          off: letGoOf(c.upper.kind, c.upper.bottom, c.upper.top),
+          ring: boardingRing(c.lower),
+        }))
+    : [];
+  const onWay = (x: number, z: number): boolean =>
+    ways.some(
+      (w) => segmentDistance(w.off, w.ring, x, z) < RR.lift.chain.half + RR.lift.chain.blend,
+    );
   let lo = Infinity;
   let hi = -Infinity;
   for (let a = 0; a < 24; a++) {
@@ -142,6 +174,7 @@ function padReading(
       const k = chair ? "chair" : "gondola";
       if (back > from[k] - A.ease && v < A.half[k] + A.blend) continue;
       if (lines.some((p) => hypot(x - p.x, z - p.z) < PAD_LINE)) continue;
+      if (onWay(x, z)) continue;
       // The lean off the deck taken back out: what is left is level.
       const g = level.groundAt(x, z) + lean * Math.max(0, v - deck);
       lo = Math.min(lo, g);
@@ -186,7 +219,8 @@ function rampFault(
   const run = level.resort?.runs.find((q) => q.id === r.run);
   if (!run) return "comes down to no run";
   const length = hypot(r.to.x - r.from.x, r.to.z - r.from.z);
-  if (r.from.y - r.to.y < RR.lift.top.ramp.fall * length - RAMP_SLACK)
+  const glide = level.face ? RR.massif.real.least.ramp.glide : RR.lift.top.ramp.fall;
+  if (r.from.y - r.to.y < glide * length - RAMP_SLACK)
     return `falls only ${((r.from.y - r.to.y) / length).toFixed(2)} to its run`;
   let last = level.groundAt(r.from.x, r.from.z);
   // Short of its foot, where the run's own shoulder and windrow begin.
@@ -261,12 +295,16 @@ export function analyzeResort(level: Level): ResortAnalysis {
   const net = runIndex(runs);
 
   // R25 — the massif's vertical, and the village on the valley floor.
+  // A REAL FACE is laid 1:1 (`massif.ts`): its vertical is the real one
+  // (`real.vertical` only catches a face read wrong) and its sea the real
+  // sea, its floor's real height under the map's nought.
   const M = level.mountain;
-  if (M && !withinBand(M.vertical, RR.massif.vertical, 1e-6)) {
+  const verticalBand = level.face ? RR.massif.real.vertical : RR.massif.vertical;
+  if (M && !withinBand(M.vertical, verticalBand, 1e-6)) {
     add("R25", "error", `a vertical of ${M.vertical.toFixed(0)} m`);
   }
   // R25 — the lowest ground stands `massif.sea` over the sea.
-  if (M) {
+  if (M && !level.face) {
     let lowest = Infinity;
     for (const v of level.ground.data) if (v < lowest) lowest = v;
     if (!withinBand(lowest - M.sea, RR.massif.sea, 0.5)) {
@@ -457,7 +495,8 @@ export function analyzeResort(level: Level): ResortAnalysis {
     }
     for (let i = 0; i < n; i++) if (shared[i]) skip[i] = 1;
     const grades = windowGrades(ys, step, skip);
-    if (grades.gentlest < -0.01) {
+    // A real face's run is skated over the odd knoll its grading left (R25).
+    if (grades.gentlest < -(level.face ? RR.massif.real.least.climb : 0.01)) {
       add("R27", "error", `run ${run.id} climbs at ${(-grades.gentlest).toFixed(3)}`);
     }
     const ceiling = road ? RR.road.grade + ROAD_SLACK : R.track.maxGrade + 0.01;
@@ -565,7 +604,7 @@ export function analyzeResort(level: Level): ResortAnalysis {
 
   // R29 — access: every piste skied again without a harder one, and no
   // lift an island; the hub it all comes down to.
-  const access = accessOf(resort);
+  const access = accessOf(resort, level.face ? RR.massif.real.least.harder : 0);
   for (const a of access.runs) {
     if (!a.ok) add("R29", "error", `run ${a.id} cannot be skied again: ${a.why}`);
     else if (a.home > RR.access.runout) {

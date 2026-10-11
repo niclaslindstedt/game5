@@ -29,6 +29,10 @@ export type DragGround = {
   height(x: number, z: number): number;
   piste(x: number, z: number): { distance: number; width: number; heading: number };
   floor(p: Point): boolean;
+  /** R29 on a real face: how many colours harder than a piste the way
+   * back from its foot may run (`RR.massif.real.least.harder`); none on a
+   * dealt map. */
+  readonly slack?: number;
 };
 
 /** A foot a drag lift may leave: a station on a run. */
@@ -194,7 +198,7 @@ export function dragBack(
       const lift = planDrag(g, base, t, id);
       if (!lift) continue;
       lifts.push(lift);
-      const v = reckonAccess(runs, planLifts(g, lifts));
+      const v = reckonAccess(runs, planLifts(g, lifts), g.slack);
       if (v.ok[i] && (why === "back" || v.home[i] <= RR.access.runout)) return lift;
       lifts.pop();
     }
@@ -234,7 +238,8 @@ export function settleDrags(
     if (l.kind === "drag" && l.id !== "D1" && !pinned(l.id) && !fits(g, l.bottom, l.top))
       lifts.splice(k, 1);
   }
-  const read = (): ReturnType<typeof reckonAccess> => reckonAccess(runs, planLifts(g, lifts));
+  const read = (): ReturnType<typeof reckonAccess> =>
+    reckonAccess(runs, planLifts(g, lifts), g.slack);
   let v = read();
   for (let i = 0; i < runs.length; i++) {
     if (!v.ok[i] && dragBack(g, runs, lifts, i)) {

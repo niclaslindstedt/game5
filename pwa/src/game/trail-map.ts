@@ -43,6 +43,16 @@
 // terrain reads them through `trailGroomAt`; `uWorked` is 1 once a machine
 // has groomed anything this run — the night the rest of the piste reads as
 // the day's skied-up snow.
+//
+// A SNOWMOBILE'S BELT (`Stamp.belt`) shares those two channels: its furrow
+// is a furrow, and under it the blue is set (the belt's floor packed) and
+// the alpha is its axis too — the comb's in the lower half, [0, ½), the
+// belt's in the upper, [½, 1] — so the shader prints the paddles across a
+// belt's floor where it would comb a swath (`trailPackAt`). Both are MAX
+// blended there: a belt across a swath packs it the belt's way and breaks
+// its comb, as a machine ridden over the corduroy does, and a groomer over a
+// belt's track wipes it whole. `uBelted` is 1 once a belt has been laid.
+// Nothing new is kept: the same four bytes a texel.
 
 import * as THREE from "three";
 
@@ -71,6 +81,8 @@ export type TrailUniforms = {
   uTrailScale: { value: THREE.Vector2 };
   /** 1 once a piste machine has groomed anything this run, else 0. */
   uWorked: { value: number };
+  /** 1 once a snowmobile's belt has been laid this run, else 0. */
+  uBelted: { value: number };
 };
 
 /** The GLSL every surface that reads the trail map needs: `trailAt(p)` is
@@ -87,6 +99,7 @@ uniform float uCoarseTexel;
 uniform float uMapSize;
 uniform vec2 uTrailScale;
 uniform float uWorked;
+uniform float uBelted;
 
 float trailFineWeight(vec2 p) {
   vec2 u = (p - uFineOrigin) / uFineSpan;
@@ -113,6 +126,14 @@ vec2 trailGroomAt(vec2 p) {
   if (w <= 0.0) return coarse;
   vec2 fine = textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).ba;
   return mix(coarse, fine, w);
+}
+
+// THE PACKED FLOOR at \`p\`, decoded: a swath's share (x), a belt's (y),
+// and the axis either runs along (z, over π).
+vec3 trailPackAt(vec2 p) {
+  vec2 g = trailGroomAt(p);
+  float belt = step(0.5, g.y);
+  return vec3(g.x * (1.0 - belt), g.x * belt, belt > 0.5 ? (g.y - 0.5) * 2.0 : g.y * 2.0);
 }
 
 // How far the snow at \`p\` stands off its untouched surface, m: down by
@@ -157,7 +178,7 @@ function target(size: number): THREE.WebGLRenderTarget {
 const STAMP_VERTEX = /* glsl */ `
 attribute vec4 iSeg;
 attribute vec4 iShape;
-attribute float iSlough;
+attribute vec3 iExtra;
 uniform vec2 uOrigin;
 uniform float uSpan;
 uniform float uMinHalf;
@@ -165,13 +186,16 @@ varying vec2 vP;
 varying vec4 vSeg;
 varying vec4 vShape;
 varying float vSlough;
+varying vec2 vEdge;
 void main() {
   float hw = max(iShape.x, uMinHalf);
   // A stamp widened to the texel floor keeps its volume, not its depth.
   float thin = iShape.x / hw;
-  float sw = max(iSlough, hw);
+  float sw = max(iExtra.x, hw);
   // A trench widened to it keeps its own depth: it is wide already.
   vSlough = sw;
+  // The tilt, and a belt's pack — thinned with the stamp, as its depth is.
+  vEdge = vec2(iExtra.y, iExtra.z * thin);
   float reach = sw * (1.0 + ${TRAIL.bermReach.toFixed(2)}) + uMinHalf;
   vec2 a = iSeg.xy;
   vec2 b = iSeg.zw;
@@ -188,28 +212,49 @@ void main() {
 }
 `;
 
-// \`furrowProfile\` in trail-stamp.ts, in GLSL.
+// \`furrowProfile\` in trail-stamp.ts, in GLSL — and a belt's packed floor
+// and axis into the blue and the alpha (\`trailPackAt\`).
 const STAMP_FRAGMENT = /* glsl */ `
+uniform float uMinHalf;
 varying vec2 vP;
 varying vec4 vSeg;
 varying vec4 vShape;
 varying float vSlough;
+varying vec2 vEdge;
 void main() {
   vec2 a = vSeg.xy;
   vec2 ab = vSeg.zw - a;
-  float h = clamp(dot(vP - a, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);
-  float d = length(vP - a - ab * h);
+  float l2 = dot(ab, ab);
+  float h = clamp(dot(vP - a, ab) / max(l2, 1e-8), 0.0, 1.0);
+  vec2 rel = vP - a - ab * h;
+  float d = length(rel);
+  // Signed across the way: + its right (heading 0 along +z, clockwise).
+  float sd = l2 > 1e-8 ? dot(rel, vec2(ab.y, -ab.x)) / sqrt(l2) : d;
   float u = d / vShape.x;
   float k = ${TRAIL.wallSoft.toFixed(1)} + ${(TRAIL.wallHard - TRAIL.wallSoft).toFixed(1)} * clamp(vShape.w, 0.0, 1.0);
   float outer = max(vShape.x, vSlough);
   float w = d / outer;
-  float cut = u < 1.0 ? 1.0 - pow(u, k) : 0.0;
+  float tilt = vEdge.x;
+  float lean = clamp(sd / vShape.x, -1.0, 1.0);
+  float wedge = 1.0 - abs(tilt) * 0.5 * (1.0 - sign(tilt) * lean);
+  float cut = u < 1.0 ? (1.0 - pow(u, k)) * wedge : 0.0;
   // The walls fallen in round it: the trench, \`sloughDeep\` of the cut.
   float bowl = (outer > vShape.x && w < 1.0) ? ${TRAIL.sloughDeep.toFixed(2)} * (1.0 - w * w * w) : 0.0;
   float press = max(cut, bowl);
   float v = (w - 0.8) / ${TRAIL.bermReach.toFixed(2)};
-  float berm = (v > 0.0 && v < 1.0) ? sin(3.14159265 * v) : 0.0;
-  gl_FragColor = vec4(press * vShape.y, berm * vShape.z, 0.0, 0.0);
+  float heap = max(0.0, 1.0 - 0.8 * tilt * sign(sd));
+  float berm = (v > 0.0 && v < 1.0) ? sin(3.14159265 * v) * heap : 0.0;
+  // A BELT: packed across its floor, its axis written a couple of texels
+  // past it so a filtered edge fades the pack rather than the axis.
+  float pack = 0.0;
+  float axis = 0.0;
+  if (vEdge.y > 0.0) {
+    pack = d < vShape.x ? vEdge.y : 0.0;
+    float th = atan(ab.x, ab.y);
+    if (th < 0.0) th += 3.14159265;
+    axis = d < vShape.x + 2.0 * uMinHalf ? 0.5 + 0.5 * clamp(th / 3.14159265, 0.0, 1.0) : 0.0;
+  }
+  gl_FragColor = vec4(press * vShape.y, berm * vShape.z, pack, axis);
 }
 `;
 
@@ -226,7 +271,7 @@ void main() {
   if (length(vP - a - ab * h) > vShape.x) discard;
   float axis = atan(ab.x, ab.y);
   if (axis < 0.0) axis += 3.14159265;
-  gl_FragColor = vec4(0.0, 0.0, 1.0, clamp(axis / 3.14159265, 0.0, 1.0));
+  gl_FragColor = vec4(0.0, 0.0, 1.0, 0.5 * clamp(axis / 3.14159265, 0.0, 0.999));
 }
 `;
 
@@ -266,6 +311,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     uMapSize: { value: mapSize },
     uTrailScale: { value: new THREE.Vector2(TRAIL.maxDepth, TRAIL.maxBerm) },
     uWorked: { value: 0 },
+    uBelted: { value: 0 },
   };
 
   // THE STAMP PASS.
@@ -277,13 +323,13 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
   quad.setIndex([0, 1, 2, 0, 2, 3]);
   const seg = new THREE.InstancedBufferAttribute(new Float32Array(BATCH * 4), 4);
   const shape = new THREE.InstancedBufferAttribute(new Float32Array(BATCH * 4), 4);
-  const slough = new THREE.InstancedBufferAttribute(new Float32Array(BATCH), 1);
+  const extra = new THREE.InstancedBufferAttribute(new Float32Array(BATCH * 3), 3);
   seg.setUsage(THREE.DynamicDrawUsage);
   shape.setUsage(THREE.DynamicDrawUsage);
-  slough.setUsage(THREE.DynamicDrawUsage);
+  extra.setUsage(THREE.DynamicDrawUsage);
   quad.setAttribute("iSeg", seg);
   quad.setAttribute("iShape", shape);
-  quad.setAttribute("iSlough", slough);
+  quad.setAttribute("iExtra", extra);
   const stampMaterial = new THREE.ShaderMaterial({
     uniforms: {
       uOrigin: { value: new THREE.Vector2() },
@@ -437,7 +483,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
       const n = Math.min(BATCH, list.length - from);
       const sa = seg.array as Float32Array;
       const sh = shape.array as Float32Array;
-      const sl = slough.array as Float32Array;
+      const ex = extra.array as Float32Array;
       for (let i = 0; i < n; i++) {
         const s = list[from + i];
         sa[i * 4] = s.ax;
@@ -448,11 +494,13 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
         sh[i * 4 + 1] = s.depth / TRAIL.maxDepth;
         sh[i * 4 + 2] = s.berm / TRAIL.maxBerm;
         sh[i * 4 + 3] = s.wall ?? TRAIL.wall;
-        sl[i] = s.slough ?? 0;
+        ex[i * 3] = s.slough ?? 0;
+        ex[i * 3 + 1] = s.tilt ?? 0;
+        ex[i * 3 + 2] = s.belt ? 1 : 0;
       }
       seg.needsUpdate = true;
       shape.needsUpdate = true;
-      slough.needsUpdate = true;
+      extra.needsUpdate = true;
       drawStamps(renderer, coarse, 0, 0, mapSize, coarseTexel * 0.75, n);
       drawStamps(renderer, fine, o.x, o.y, span, fineTexel * 0.75, n);
     }
@@ -468,7 +516,10 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
       // The swaths first, so a furrow cut this frame over one stays cut.
       groomed.length = 0;
       furrows.length = 0;
-      for (const st of stamps) (st.groom ? groomed : furrows).push(st);
+      for (const st of stamps) {
+        (st.groom ? groomed : furrows).push(st);
+        if (st.belt) uniforms.uBelted.value = 1;
+      }
       if (groomed.length > 0) uniforms.uWorked.value = 1;
       for (const list of [groomed, furrows]) {
         stampMesh.material = list === groomed ? groomMaterial : stampMaterial;
@@ -496,6 +547,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     clear(renderer) {
       pending = 0;
       uniforms.uWorked.value = 0;
+      uniforms.uBelted.value = 0;
       wipe(renderer, coarse);
       wipe(renderer, fine);
       wipe(renderer, spare);

@@ -43,8 +43,31 @@
 // square wall, and a groomer's scuff is too shallow to slump at all. So the
 // snow's depth reads in three bands of its own: a groomer's two pencil
 // lines, powder's soft trough a boot deep, and deep snow's trench.
+//
+// THREE FOOTPRINTS, NOT ONE. What cuts the snow decides the track as much as
+// the snow does, and the eye tells them apart at a glance:
+//
+//   * SKIS leave TWO lines a stance apart, each a hand wide — on a groomer
+//     two pencil lines, edged into narrow railed grooves; in deep powder
+//     two troughs that slough together into one.
+//   * A SNOWBOARD (a contact with `side` 0, `suspension.ts`) leaves ONE line
+//     as wide as the deck. On its edge the whole base is laid into the
+//     snow at the edge's angle, so the cut is a WEDGE — deep under the edge
+//     it stands on, shallowing across the deck, square on the edge's side —
+//     and the snow it shoves out piles on the OTHER side, the turn's
+//     outside (`Stamp.tilt`). A wider base floats higher in powder
+//     (`TRAIL.board.float`) and rounds its trough (`.wall`); skidded, it is
+//     a long deck sideways, a scraped band a board long.
+//   * A SNOWMOBILE (`sled-scene.ts`) leaves a belt's FLAT-BOTTOMED TRENCH,
+//     packed hard and SQUARE-WALLED, its floor printed across with the
+//     paddles' imprints (`Stamp.belt`, drawn by the shader off the trail
+//     map's blue and alpha as the groomer's comb is), between two narrow
+//     ski grooves each with a keel's line down its middle.
+//
+// The skis and the board share the edge's tilt, which is the physics': a
+// ski stood on its edge cuts a wedge too, only too narrow to read.
 
-import { RAGDOLL, type SnowContact } from "@engine";
+import { RAGDOLL, type SkierState, type SnowContact } from "@engine";
 
 import type { SnowProps } from "./snowpack.ts";
 
@@ -110,6 +133,34 @@ export const TRAIL = {
   sloughFrom: 0.03,
   sloughFull: 0.09,
   sloughDeep: 0.88,
+  /** THE DECK pressed between a ski's or a board's tip and tail
+   * (`stampsOf`), as a share of the shallowest of its stations' cuts. */
+  deck: 0.7,
+  /** A SNOWBOARD's own: its trough as a share of a ski's furrow in powder
+   * (a wider base, the same load, floats higher); how much narrower and
+   * deeper its edged cut is at a full edge, as shares — the whole base laid
+   * into the snow at the edge's angle, where a ski's edge only scores it; how much softer its walls
+   * stand (a rounded U, the base's own shape); its skid's scrape, wider and
+   * shallower than a ski's, as shares at a full skid. */
+  board: {
+    float: 0.8,
+    carveNarrow: 0.45,
+    carveDeep: 1.8,
+    wall: 0.6,
+    skidWide: 1.25,
+    skidShallow: 0.4,
+  },
+  /** A SNOWMOBILE's belt (`sled-scene.ts`): the least its trench's walls
+   * stand (packed under the paddles, they hold square), and the keel's
+   * groove down each ski — its half width, m, and how much deeper than the
+   * ski's own groove, m (the runner under a ski is a steel rod). */
+  belt: { wall: 0.8 },
+  keel: { half: 0.012, deep: 0.02 },
+  /** THE PADDLES' PRINT across a belt's floor (`snow-glsl.ts`): their pitch
+   * along the belt, m (a deep-snow belt's 2.86 in), how deep each lug's
+   * imprint is drawn, m, and how wide a staggered row of paddle runs
+   * across the belt before the next is offset by half a pitch, m. */
+  lug: { pitch: 0.073, depth: 0.012, row: 0.135 },
 };
 
 /** One capsule of trail: from (ax, az) to (bx, bz), `half` wide either side
@@ -134,6 +185,15 @@ export type Stamp = {
    * running along it (`trail-map.ts`'s groom pass). `depth` and `berm` are
    * nought. */
   groom?: boolean;
+  /** THE EDGE'S TILT, −1 … 1: the cut laid as a wedge, deepest on the side
+   * of the line it is positive toward (+ the right of the way it runs, a
+   * to b), shallowing to nothing across it at ±1, and its berm thrown out
+   * the other side. None — 0 — is the even cut. */
+  tilt?: number;
+  /** A SNOWMOBILE'S BELT: as a furrow, and its floor PACKED and printed
+   * with the paddles — the trail map's blue set and its alpha the belt's
+   * axis, read by the shader (`trail-map.ts`'s `trailBeltAt`). */
+  belt?: boolean;
 };
 
 /** THE DEPTH A PROBE IS DRAWN AT, m, on snow `packed` (0 powder … 1
@@ -177,20 +237,67 @@ export function createPen(probes: number): TrailPen {
 }
 
 /** How the skis are being used, as the trail reads it: the edge they
- * stand on (0 flat … 1 the most) and the skid across the way (0..1). */
-export type Carve = { edge: number; skid: number };
+ * stand on (0 flat … 1 the most) and the skid across the way (0..1) —
+ * and, when given, which way the edge is (`side`, + his right) and his
+ * right in the plan (`rightX`, `rightZ`), which lay the edged cut as a
+ * wedge on the edge's side (`Stamp.tilt`). */
+export type Carve = { edge: number; skid: number; side?: number; rightX?: number; rightZ?: number };
+
+/** How a skier is using his skis or his board, as his trail reads it. */
+export function carveOf(skier: SkierState): Carve {
+  return {
+    edge: Math.abs(skier.edge) / Math.max(0.3, skier.spec.edgeMax),
+    skid: skier.skid,
+    side: Math.sign(skier.edge),
+    rightX: Math.cos(skier.heading),
+    rightZ: -Math.sin(skier.heading),
+  };
+}
 
 /** A stamp's width and depth scaled by the carve and the skid: an edged
  * ski cuts a narrower, deeper groove; a pivoted one scrapes wide and
- * shallow. */
-export function carveShape(carve: Carve | undefined): { width: number; depth: number } {
+ * shallow — a board by its own shares (`board`). */
+export function carveShape(
+  carve: Carve | undefined,
+  board = false,
+): { width: number; depth: number } {
   if (!carve) return { width: 1, depth: 1 };
-  const e = Math.min(1, Math.max(0, carve.edge)) * (1 - Math.min(1, Math.max(0, carve.skid)));
+  const e = edgeShare(carve);
   const k = Math.min(1, Math.max(0, carve.skid));
+  const narrow = board ? TRAIL.board.carveNarrow : TRAIL.carveNarrow;
+  const wide = board ? TRAIL.board.skidWide : TRAIL.skidWide;
+  const shallow = board ? TRAIL.board.skidShallow : TRAIL.skidShallow;
+  const deep = board ? TRAIL.board.carveDeep : TRAIL.carveDeep;
   return {
-    width: (1 - (1 - TRAIL.carveNarrow) * e) * (1 + (TRAIL.skidWide - 1) * k),
-    depth: (1 + (TRAIL.carveDeep - 1) * e) * (1 - (1 - TRAIL.skidShallow) * k),
+    width: (1 - (1 - narrow) * e) * (1 + (wide - 1) * k),
+    depth: (1 + (deep - 1) * e) * (1 - (1 - shallow) * k),
   };
+}
+
+/** How much of the edge the cut stands on: the edge, less the skid. */
+function edgeShare(carve: Carve): number {
+  return Math.min(1, Math.max(0, carve.edge)) * (1 - Math.min(1, Math.max(0, carve.skid)));
+}
+
+/** THE TILT a cut from (ax, az) to (bx, bz) is laid at (`Stamp.tilt`): the
+ * edge's share, on the side of the way he went that his edged side is — so
+ * riding switch, or skidded across the way, it reads the right way round,
+ * and fades as the cut runs across his right rather than along it. */
+export function tiltOf(
+  carve: Carve | undefined,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): number {
+  if (!carve || carve.rightX === undefined || carve.rightZ === undefined || !carve.side) return 0;
+  const dx = bx - ax;
+  const dz = bz - az;
+  const len = Math.hypot(dx, dz);
+  if (len < 1e-6) return 0;
+  // The way's right in the plan (heading 0 along +z, clockwise from above).
+  const across = (carve.rightX * dz - carve.rightZ * dx) / len;
+  return Math.max(-1, Math.min(1, edgeShare(carve) * Math.sign(carve.side) * across));
 }
 
 /**
@@ -211,7 +318,8 @@ export function stampsOf(
   snowAt?: SnowSampler,
   carve?: Carve,
 ): void {
-  const shape = carveShape(carve);
+  const skiShape = carveShape(carve);
+  const boardShape = carveShape(carve, true);
   for (let i = 0; i < contacts.length && i < pen.xs.length; i++) {
     const c = contacts[i];
     if (!c.touching) {
@@ -226,27 +334,92 @@ export function stampsOf(
     pen.zs[i] = c.z;
     pen.down[i] = 1;
     if (moved > TRAIL.jump) continue;
+    const board = c.side === 0;
+    const shape = board ? boardShape : skiShape;
     const load = nominalLoad > 0 ? c.load / nominalLoad : 1;
     const snow = snowAt?.(c.x, c.z);
+    const float = board ? TRAIL.board.float : 1;
+    const give = board && snow ? { ...snow, give: snow.give * float } : snow;
     const drawn = Math.min(
       TRAIL.maxDepth,
-      drawnDepth(c, packedAt(c.x, c.z), load, depth, snow) * shape.depth,
+      drawnDepth(c, packedAt(c.x, c.z), load, depth * float, give) * shape.depth,
     );
     const half = c.width * 0.5 * shape.width;
-    const wall = snow ? snow.wall : TRAIL.wall;
-    out.push({
-      ax,
-      az,
-      bx: c.x,
-      bz: c.z,
+    const wall = (snow ? snow.wall : TRAIL.wall) * (board ? TRAIL.board.wall : 1);
+    // The edged cut stands under the EDGE, not the middle of the base: moved
+    // over by what the narrowing took off, toward the edged side.
+    const tilt = tiltOf(carve, ax, az, c.x, c.z);
+    const off = carve?.side ? Math.max(0, c.width * 0.5 - half) * Math.sign(carve.side) : 0;
+    const ox = off * (carve?.rightX ?? 0);
+    const oz = off * (carve?.rightZ ?? 0);
+    const stamp: Stamp = {
+      ax: ax + ox,
+      az: az + oz,
+      bx: c.x + ox,
+      bz: c.z + oz,
       half,
       depth: drawn,
       berm: Math.min(TRAIL.maxBerm, drawn * (snow ? snow.berm : TRAIL.bermShare)),
       wall,
       slough: sloughOf(half, drawn, wall),
-    });
+    };
+    if (tilt !== 0) stamp.tilt = tilt;
+    out.push(stamp);
+    // Kept for the deck below: the column's ends where they stand now.
+    const col = c.side + 1;
+    if (c.station === "tip") {
+      deck.tx[col] = stamp.bx;
+      deck.tz[col] = stamp.bz;
+      deck.tip[col] = 1;
+    } else if (c.station === "tail") {
+      deck.lx[col] = stamp.bx;
+      deck.lz[col] = stamp.bz;
+      deck.tail[col] = 1;
+    }
+    deck.half[col] = Math.min(deck.half[col], half);
+    deck.depth[col] = Math.min(deck.depth[col], drawn);
+    deck.wall[col] = wall;
+  }
+  // THE DECK: a ski or a board presses its whole length, not three points of
+  // it — tip to tail where it lies now. Run straight it lies in its own
+  // line; skidded across the way it lays the scraped band a deck long that
+  // the stations' own lines would leave gaps in.
+  for (let col = 0; col < 3; col++) {
+    if (deck.tip[col] && deck.tail[col]) {
+      const depth = deck.depth[col] * TRAIL.deck;
+      const stamp: Stamp = {
+        ax: deck.tx[col],
+        az: deck.tz[col],
+        bx: deck.lx[col],
+        bz: deck.lz[col],
+        half: deck.half[col],
+        depth,
+        berm: 0,
+        wall: deck.wall[col],
+      };
+      const tilt = tiltOf(carve, stamp.ax, stamp.az, stamp.bx, stamp.bz);
+      if (tilt !== 0) stamp.tilt = tilt;
+      out.push(stamp);
+    }
+    deck.tip[col] = 0;
+    deck.tail[col] = 0;
+    deck.half[col] = Infinity;
+    deck.depth[col] = Infinity;
   }
 }
+
+/** The deck's scratch, a column a side (left ski, board, right ski). */
+const deck = {
+  tx: new Float64Array(3),
+  tz: new Float64Array(3),
+  lx: new Float64Array(3),
+  lz: new Float64Array(3),
+  tip: new Uint8Array(3),
+  tail: new Uint8Array(3),
+  half: new Float64Array(3).fill(Infinity),
+  depth: new Float64Array(3).fill(Infinity),
+  wall: new Float64Array(3),
+};
 
 /** THE BODY'S TRAIL: a thrown skier (`Thrown`, `crash.ts`) sliding on the
  * snow ploughs a wide, shallow gouge of his own — a body is a footprint
@@ -335,28 +508,35 @@ export function wallPower(wall: number): number {
   return TRAIL.wallSoft + (TRAIL.wallHard - TRAIL.wallSoft) * Math.min(1, Math.max(0, wall));
 }
 
-/** The cross-section of one furrow at `d` m from its centreline: how far
- * the snow is pressed (0..1 of the stamp's depth) and how much berm stands
- * there (0..1 of its berm), for walls `wall` (settled powder's when left
- * out) and a sloughed trench `slough` m either side (none when left out) —
- * the cut, or the trench's `sloughDeep` round it, whichever is the deeper,
- * the berm thrown up past the trench's edge. The GLSL in `trail-map.ts` is
- * this, verbatim. */
+/** The cross-section of one furrow at `d` m from its centreline (+ to the
+ * right of the way it runs): how far the snow is pressed (0..1 of the
+ * stamp's depth) and how much berm stands there (0..1 of its berm), for
+ * walls `wall` (settled powder's when left out), a sloughed trench
+ * `slough` m either side (none when left out) and an edge's `tilt`
+ * (`Stamp.tilt`, none when left out) — the cut, laid as a wedge on its
+ * deep side, or the trench's `sloughDeep` round it, whichever is the
+ * deeper, the berm thrown up past the trench's edge, heaped on the side
+ * away from the edge. The GLSL in `trail-map.ts` is this, verbatim. */
 export function furrowProfile(
   d: number,
   half: number,
   wall = TRAIL.wall,
   slough = half,
+  tilt = 0,
 ): { press: number; berm: number } {
-  const u = d / Math.max(half, 1e-6);
+  const a = Math.abs(d);
+  const u = a / Math.max(half, 1e-6);
   const outer = Math.max(half, slough);
-  const w = d / outer;
-  const cut = u < 1 ? 1 - u ** wallPower(wall) : 0;
+  const w = a / outer;
+  const lean = Math.max(-1, Math.min(1, d / Math.max(half, 1e-6)));
+  const wedge = 1 - Math.abs(tilt) * 0.5 * (1 - Math.sign(tilt) * lean);
+  const cut = u < 1 ? (1 - u ** wallPower(wall)) * wedge : 0;
   const bowl = outer > half && w < 1 ? TRAIL.sloughDeep * (1 - w * w * w) : 0;
   const press = Math.max(cut, bowl);
   const reach = TRAIL.bermReach;
   const v = (w - 0.8) / reach;
-  const berm = v > 0 && v < 1 ? Math.sin(Math.PI * v) : 0;
+  const heap = Math.max(0, 1 - 0.8 * tilt * Math.sign(d));
+  const berm = v > 0 && v < 1 ? Math.sin(Math.PI * v) * heap : 0;
   return { press, berm };
 }
 

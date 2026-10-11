@@ -53,7 +53,7 @@
 
 import { LAMP_SLOTS } from "./haze.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
-import { FRESH_LOOK, LOOSE } from "./trail-stamp.ts";
+import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
 
 /** How much brighter than white snow's albedo is painted. */
@@ -268,7 +268,9 @@ float snowBerm;      // 0 off the plough's berm .. 1 on its crest
 float snowCrust;     // 0 powder .. 1 a wind slab (R21)
 float snowIce;       // 0 snow .. 1 a frozen river's bare ice (R21)
 float snowRock;      // 0 snow .. 1 rock showing through a steep face
-float snowGroomed;   // 0 .. 1 a piste machine's fresh swath (trailGroomAt)
+float snowGroomed;   // 0 .. 1 a piste machine's fresh swath (trailPackAt)
+float snowBelt;      // 0 .. 1 a snowmobile's belt-packed floor (trailPackAt)
+float snowLug;       // 0 .. 1 down in a paddle's imprint across that floor
 float snowWorked;    // 0 .. 1 the day's skied-up piste (the hour's, or a night they groom)
 float snowSoft;      // 0 .. 1 the groomer gone to slush under a spring sun
 float snowHard;      // 0 .. 1 ...and frozen hard and glassy since
@@ -305,10 +307,18 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   // tiller went, on the piste or off it, and only the snow since on it. On
   // a night the machines work, the rest of the piste is the day's: skied
   // up, scraped and heaped, the comb long gone (\`snowWorked\`).
-  vec2 groom = uWorked > 0.0 ? trailGroomAt(p) : vec2(0.0);
+  vec3 groom = uWorked + uBelted > 0.0 ? trailPackAt(p) : vec3(0.0);
   // Ramped over half the mark, so the filtered edge of a swath is a soft
   // line rather than the trail map's texel stairs.
   snowGroomed = smoothstep(0.0, 0.45, groom.x);
+  // A SNOWMOBILE'S BELT: its floor packed hard under the paddles, and only
+  // the snow fallen since on it (\`trailPackAt\`'s y, buried as a swath is).
+  snowBelt = smoothstep(0.0, 0.45, groom.y);
+  snowLug = 0.0;
+  if (snowBelt > 0.0) {
+    float since = (1.0 - groom.y) * ${FRESH_LOOK.toFixed(3)};
+    snowPacked = mix(snowPacked, 0.85 * (1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, since)), snowBelt);
+  }
   if (snowGroomed > 0.0) {
     float since = (1.0 - groom.x) * ${FRESH_LOOK.toFixed(3)};
     snowPacked = mix(snowPacked, 1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, since), snowGroomed);
@@ -316,7 +326,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   // THE PISTE THROUGH THE DAY (\`uPiste\`, \`piste-day.ts\`): skied up
   // since the first chair, softened by the sun and frozen again — all of it
   // on the groomer the machines have not been over since.
-  float notSwath = (1.0 - snowGroomed) * snowPacked;
+  float notSwath = (1.0 - snowGroomed) * (1.0 - snowBelt) * snowPacked;
   snowCord = 0.0;
   snowLane = 0.0;
   snowWorked = max(uWorked, uPiste.x) * notSwath;
@@ -408,6 +418,30 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     grad += snowNoiseGrad(p * 8.0 + 43.0, 0.04) * 8.0 * 0.06 * snowSpill;
   }
 
+  // THE PADDLES' PRINT across a belt's floor: a lug's imprint every pitch
+  // along the belt, the paddles in staggered rows across it a half pitch
+  // apart, each imprint a sharp trough between flat pressed ridges — faded
+  // out before it aliases. The way the belt ran is the map's (\`groom.z\`).
+  if (snowBelt > 0.01 && snowDist < 70.0) {
+    float th = groom.z * 3.14159265;
+    vec2 alg = vec2(sin(th), cos(th));
+    vec2 acr = vec2(cos(th), -sin(th));
+    float row = floor(dot(p, acr) / ${TRAIL.lug.row.toFixed(3)});
+    float ph = dot(p, alg) / ${TRAIL.lug.pitch.toFixed(3)} + 0.5 * mod(row, 2.0);
+    float aa = 1.0 - smoothstep(0.3, 0.8, fwidth(ph));
+    float c = 0.5 + 0.5 * cos(6.2831853 * ph);
+    float c2 = c * c;
+    // A row's ends rounded off, as a paddle's are, and the odd one broken.
+    float ac = fract(dot(p, acr) / ${TRAIL.lug.row.toFixed(3)});
+    float ends = smoothstep(0.0, 0.12, ac) * smoothstep(1.0, 0.88, ac);
+    float k = snowBelt * aa * ends * (1.0 - smoothstep(35.0, 70.0, snowDist));
+    k *= mix(0.6, 1.0, snowNoise(p * 3.0 + row * 1.7));
+    snowLug = c2 * c * k;
+    // h = −depth · c³; its slope along the belt.
+    float dh = 3.0 * ${TRAIL.lug.depth.toFixed(3)} * 3.14159265 * c2 * sin(6.2831853 * ph) / ${TRAIL.lug.pitch.toFixed(3)};
+    grad += alg * dh * k;
+  }
+
   // THE TREE WELLS: the hollow's own slope, off the same map the mesh is
   // lowered by.
   snowWell = wellDepth(p);
@@ -489,11 +523,11 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     vec2 dd = td.xy * 2.0 - 1.0;
     float th = 0.5 * atan(dd.y, dd.x);
     // In a swath the comb runs the way the machine went.
-    th = mix(th, groom.y * 3.14159265, step(0.5, snowGroomed));
+    th = mix(th, groom.z * 3.14159265, step(0.5, snowGroomed));
     vec2 across = vec2(cos(th), -sin(th));
     float phase = dot(p, across) * 6.2831853 / 0.14;
     float aa = 1.0 - smoothstep(0.35, 0.9, fwidth(phase));
-    float k = snowPacked * min(along * 2.0, 1.0) * aa * (1.0 - snowPress * 0.7);
+    float k = snowPacked * min(along * 2.0, 1.0) * aa * (1.0 - snowPress * 0.7) * (1.0 - snowBelt);
 
     k *= 1.0 - smoothstep(0.0, 0.25, snowBerm);
     float worn = smoothstep(0.3, 0.7, snowNoise(p * 0.42 + 11.0));
@@ -509,7 +543,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     // THE NIGHT'S PASSES, seen from further than the comb: the machine's
     // lanes a swath wide side by side, each a shade of its own, a low
     // ridge where the finisher's flaps left the seam between two.
-    float kl = snowPacked * min(along * 2.0, 1.0) * (1.0 - snowWorked) * (1.0 - snowPress * 0.7);
+    float kl = snowPacked * min(along * 2.0, 1.0) * (1.0 - snowWorked) * (1.0 - snowPress * 0.7) * (1.0 - snowBelt);
     kl *= 1.0 - smoothstep(0.0, 0.25, snowBerm);
     kl *= mix(0.35, 1.0, max(snowCombed, snowGroomed)) * midFade;
     if (kl > 0.01) {
@@ -550,6 +584,10 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
   alb = mix(alb, vec3(0.86, 0.9, 0.95), max(snowGroomed * 0.65, snowCombed * 0.5));
   // The comb's furrows hold a little shade, its ridges catch the light.
   alb *= 1.0 + 0.07 * snowCord + 0.07 * snowLane;
+  // A belt's floor: pressed smooth, a shade greyer than the loose snow it
+  // was, each paddle's imprint holding a little shadow.
+  alb = mix(alb, vec3(0.8, 0.85, 0.92), snowBelt * 0.35);
+  alb *= 1.0 - 0.08 * snowLug;
   // The day's piste: polished grey-blue where it is scraped, white where
   // the loose snow is heaped.
   if (snowWorked > 0.01) {

@@ -99,21 +99,15 @@ import { hullOf, probesOf } from "./suspension.ts";
 import { snowNormal, uprightOn } from "./snow-normal.ts";
 import { castLeg } from "./leg-ray.ts";
 import { riddenLevel } from "./mogul-ride.ts";
-import {
-  climbShare,
-  driveReach,
-  poleForce,
-  stepRound,
-  stepWork,
-  stoodStill,
-  strideOn,
-} from "./poles.ts";
+import { climbShare } from "./poles.ts";
+import { holdsStill, laySkis, poleForce, pushReachOf, sidestepEdge } from "./board-moves.ts";
+import { stepRound, stepSide, stoodStill, strideOn, turnWork } from "./board-moves.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
 import { heldSlip, hopRevert, hopSwitch, revertHold, stepRevert, switchSteer } from "./switch.ts";
-import { laySkis, sidestepEdge, slideOver, stepSide } from "./sidestep.ts";
+import { slideOver } from "./sidestep.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
 
@@ -196,7 +190,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // lock for a moment at every change of turn.
   const lock =
     edgeAskedAt(spec, speed0, T, c.carve, Math.sign(c.steer)) *
-    (1 - P.turn.edge * stepWork(c.drive, speed0, c.poles));
+    (1 - P.turn.edge * turnWork(c, speed0));
   // STOOD STILL, a steer is no edge: it steps him round on the spot — or up
   // a steep slope, his skis set into the hill (`sidestep.ts`).
   snowNormal(level, c, normal);
@@ -246,7 +240,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // take it away — but not from a skier who can step his skis round it
   // (`stepWork`: the skate and the walk), who pushes all the way through.
   const bent = clamp((Math.abs(c.steer) - P.edgeFrom) / (P.edgeGone - P.edgeFrom), 0, 1);
-  const straight = 1 - bent * (1 - stepWork(1, speed0, c.poles));
+  const straight = 1 - bent * (1 - turnWork(c, speed0, 1));
   // ...and never out of a start house (`start-push.ts`): one push, then
   // he skis.
   const housed = state.rules.start === "interval" && state.rules.course;
@@ -273,7 +267,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // from the step he means to work, not once the drive has come up, or a
   // skier sent off at GO with the tuck held folds down and is stood back
   // up again before his first push.
-  const tucked = c.tuck * (1 - Math.max(c.drive, working) * driveReach(speed0, c.poles, c.step));
+  const tucked = c.tuck * (1 - Math.max(c.drive, working) * pushReachOf(c, speed0));
   c.crouch = approach(c.crouch, Math.max(tucked, load), K.crouchRate * dt);
   const drop = spec.crouchDrop * c.crouch;
   const k = Math.min(1, dt / K.lag);
@@ -877,7 +871,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const vn = c.vx * normal.x + c.vy * normal.y + c.vz * normal.z;
     // ...and so is one STEPPING ROUND on the spot (`stepRound`): each ski
     // set down on its edge as it comes round, a pair at a time.
-    const held = strain <= strained || c.sidestep !== 0 || c.pivot !== 0;
+    const held = holdsStill(c, strain, strained);
     if (slideOver(c, normal) < G.stillSpeed && strained > 0 && held) {
       c.vx = vn * normal.x;
       c.vy = vn * normal.y;

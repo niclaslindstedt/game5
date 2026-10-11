@@ -84,6 +84,7 @@ import { carriedThrough, landingFaults, landingTolerance, type LandingFaults } f
 import { letGo, stepLoneSkis } from "./lone-skis.ts";
 import { RADIUS, RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts";
 import { tailDug } from "./switch.ts";
+import { boardBody, caughtCause, slamThrow, slowCatch, strapBoard } from "./board-crash.ts";
 import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
@@ -235,7 +236,8 @@ export function wipeoutCause(
   // had its say, so one who came down on his side is down on it.
   if (landedG >= 0 && !overSnow(state)) {
     const crooked = crookedOf(state, landedG);
-    if (crooked) return crooked;
+    // ...a board's set down across its slide: the edge leading it catches.
+    if (crooked) return crooked === "catch" ? caughtCause(c) : crooked;
   }
   // Over is over against the SNOW, not the sky — a skier on a steep face
   // stands well off vertical — and ON the snow: a skier turning over in the
@@ -257,7 +259,9 @@ export function wipeoutCause(
     edgeCatching(c, 1) &&
     c.sideSlip >= crashLimit(c, "catchSlip")
   )
-    return "catch";
+    return caughtCause(c);
+  // ...and a board's DOWNHILL EDGE caught at a crawl (`board-crash.ts`).
+  if (slowCatch(c)) return caughtCause(c);
   // THE TAIL DUG IN, riding switch through loose snow (`switch.ts`): the
   // leading end dives and he goes over it, as over the tips — and he is
   // going tails first, whether or not the snow has yet said so (a 180 that
@@ -434,7 +438,13 @@ export function throwRider(
   // snow: the trunk and the head meet it themselves (`body.ts`).
   const land = cause === "landing" ? events.find((ev) => ev.kind === "land") : undefined;
   const sink = land && land.kind === "land" ? carriedThrough(land.impact, land.g) : 0;
-  const thrown = throwOf(cause, c.q, c.x, c.y, c.z, v0, heading, side, own, sink, opts.how);
+  // A board rider stands across his board (`boardBody`), and its caught
+  // edge throws him over it (`slamThrow`).
+  const q = boardBody(c);
+  const slam = cause === "slam" || cause === "faceplant" ? slamThrow(c, cause, v0, own) : null;
+  const thrown = slam
+    ? bodyThrown(cause, q, c.x, c.y, c.z, slam.v, slam.w, slam.heading)
+    : throwOf(cause, q, c.x, c.y, c.z, v0, heading, side, own, sink, opts.how);
   if (cause === "nose") {
     // The tips dig and the skis go over them: a tips-down pitch rate is a
     // positive `wx`.
@@ -444,7 +454,9 @@ export function throwRider(
   }
   // ...and the bindings let go, each ski its own body from here — unless
   // he was not standing in them.
-  if (!opts.keepSkis) thrown.skis = letGo(state, c, side, speed);
+  // A board stays on, its feet held their stance apart (`strapBoard`).
+  if (c.spec.board) strapBoard(thrown, c, cause === "slam", RAGDOLL);
+  else if (!opts.keepSkis) thrown.skis = letGo(state, c, side, speed);
   c.thrown = thrown;
   events.push({ kind: "wipeout", t: state.t, cause, speed, x: c.x, z: c.z });
   return thrown;

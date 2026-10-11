@@ -214,9 +214,25 @@ function record(scenario, asked) {
       ry: c.thrown ? c.thrown.y : c.y,
       rz: c.thrown ? c.thrown.z : c.z,
       tumble: c.thrown ? c.thrown.tumble : 0,
+      // A snowboarder's feet (`board-state.ts`) and his steps round.
+      board: c.board ? { ...c.board } : null,
+      sidestep: c.sidestep,
+      pivot: c.pivot,
+      stride: c.stride,
+      // What a fall left on his feet: the skis let go, and a board's feet
+      // held apart on its deck (`Thrown.board`).
+      loneSkis: c.thrown ? c.thrown.skis.length : 0,
+      feet: c.thrown ? feetApart(c.thrown.points) : 0,
     });
   }
   return { frames, events, trees: level.trees, spec };
+}
+
+/** How far apart a thrown body's two feet are, m. */
+function feetApart(P) {
+  const l = 3 * E.RAGDOLL.footL;
+  const r = 3 * E.RAGDOLL.footR;
+  return Math.hypot(P[l] - P[r], P[l + 1] - P[r + 1], P[l + 2] - P[r + 2]);
 }
 
 /** THE ROSTER CARD's columns: a scenario, the figure off its table, and the

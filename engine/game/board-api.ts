@@ -9,3 +9,16 @@ export { LYNX, BOARD_CATALOG, isBoard, isBoardId, isPairId, pairById } from "./d
 export { BOARD_TECHNIQUE } from "./defs/technique.ts";
 export { angulateShareOf, edgeAskedAt, edgeSideOf } from "./limits.ts";
 export { angulationOf } from "./incline.ts";
+export type { BoardMoves } from "./board-state.ts";
+export { BOARD_MOVES } from "./defs/board-moves.ts";
+export {
+  boardDrive,
+  freeFootOf,
+  holdsStill,
+  hopShare,
+  pushRate,
+  pushReachOf,
+  skateReach,
+  turnWork,
+} from "./board-moves.ts";
+export { caughtCause, slideAcross, slowCatch, strapBoard } from "./board-crash.ts";

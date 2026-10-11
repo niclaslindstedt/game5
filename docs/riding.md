@@ -78,7 +78,7 @@ FAKIE: a twin is the same board either way round, so a rider riding backward nev
 
 THE TWO EDGES. A rider stands on his toes on one edge and on his heels on the other, and the heel edge is the weaker: the ankle tips it less, the hips reach less far over it, and its turn is the wider and the less loaded. `edgeSideOf(spec, side)` says which edge a side is — the toe edge is the board's right for a regular rider and its left for a goofy one, in the board's own frame, so riding fakie changes nothing. `limits.ts` reads every ceiling by that side (`edgeMostOf`, `edgeLockAt`, `edgeAskedAt`, `tipLimit`, `carveSpeedOf`, `cornerGrip`), and `incline.ts` angulates by it (`angulationOf`). The physics and the bot read the same numbers; a bot that does not know which way it turns plans on the heel.
 
-THE CAUGHT EDGE. A board's catch is not a skier's high-side. A board slid sideways falls when the edge LEADING the slide is stood into the snow: the deck trips over it (`crash.ts`'s `edgeCatching`, past `TUNING.crash.boardDig`, 17°). A slide led by the raised edge is a SIDESLIP, and it is ridden. A pair of skis keeps its own rule, a slip past what an edge that far over can hold. A board rider is also no less steady for having no poles: the bare-handed skier's lost balance (`poles.bare.balance`) is a skier's who has dropped his poles, and a board is ridden without them by design.
+THE CAUGHT EDGE. A board's catch is not a skier's high-side. A board slid sideways falls when the edge LEADING the slide is stood into the snow: the deck trips over it. At speed that is `crash.ts`'s `edgeCatching`, past `TUNING.crash.boardDig` (17°); at a crawl — a slow traverse, a sideslip let go past flat — it is `board-crash.ts`'s `slowCatch`, past `TUNING.board.catch.dig` (6°) with the slide at 1.2 m/s or more. A slide led by the raised edge is a SIDESLIP, and it is ridden. A caught board edge is a fall of its OWN, never a ski's `catch` (which twists a knee over a ski that bites): off the HEEL edge he is SLAMMED onto his back (`slam`), off the TOE edge thrown forward onto his face (`faceplant`) — `caughtCause` names which, by the edge that led. The board stops dead and the body pivots over that edge at the slide's speed over his height (`slamThrow`, `TUNING.board.slam`), his hands put down behind him or ahead of him. A pair of skis keeps its own rule, a slip past what an edge that far over can hold. A board rider is also no less steady for having no poles: the bare-handed skier's lost balance (`poles.bare.balance`) is a skier's who has dropped his poles, and a board is ridden without them by design.
 
 THE TECHNIQUE. A board is ridden as a board whatever the run asks (`BOARD_TECHNIQUE`, dealt by `step.ts`'s `rulesFor`): the edge rolled on at the board's own rate with no fade and a softer platform, the turn's incline taken nearly whole. The pose stands him as the free skier until the board has a figure of its own.
 
@@ -87,7 +87,8 @@ THE TECHNIQUE. A board is ridden as a board whatever the run asks (`BOARD_TECHNI
 - `board-straight`, `board-carve`, `board-carve-fast`, `board-fakie`, `board-kicker` and `board-powder`;
 - `board-toe` and `board-heel`, full edge each way at 50 km/h;
 - `board-toe-cut` and `board-heel-cut`, full edge each way at 80 km/h, cut hard;
-- `board-catch` and `board-sideslip`, slid sideways at 45 km/h with the leading edge stood down and raised.
+- `board-catch` and `board-sideslip`, slid sideways at 45 km/h with the leading edge stood down and raised;
+- and the moves below.
 
 The `landing`, `sag` and `lean` labs and `make sim` take `--skis lynx` too (the lean lab's course row is the open piste on a board, not the slalom), and `make technique ARGS=--techniques=board` rides the board's row. `tests/board_test.ts` holds it. It measures:
 
@@ -99,13 +100,38 @@ The `landing`, `sag` and `lean` labs and `make sim` take `--skis lynx` too (the 
 - **Landings (`make landing ARGS="--skis lynx"`):** 3.6% thrown over 4028 landings against the skis' 3.5%; 6.8% between 9 and 14 g, and 29% between 14 and 20 g against the skis' 39%.
 - **The bot (`make sim ARGS="--skis lynx"`):** eight seeds of eight home, no wipeout, one gate missed (seed 6's gate 16, run wide on a long heelside turn), a mean of 47 km/h.
 
+### The board at a crawl, across the slope, and down (`board-moves.ts`, `board-crash.ts`)
+
+A board's own moves have their numbers in `TUNING.board` (`defs/board-moves.ts`), and every one of them is gated on `SkiSpec.board`: a pair of skis takes the original path through `poles.ts` and `sidestep.ts` unchanged, so no ski digest moves. `skier.ts` calls `board-moves.ts`'s functions under the skis' own names, and each hands a pair of skis straight back to the original.
+
+THE ONE-FOOT SKATE. Working for his speed at a standstill (the drive past 0.3) and under 2.2 m/s, the rider takes his REAR foot out of its binding (`SkierState.board.free`; `freeFootOf(spec)` names it — the right foot for a regular rider, the left for a goofy one) and pushes with it beside his heel edge, the body turned to face the nose. The push is the skier's power-limited one cut to 0.35 of it (one foot beside a deck, sideways to it), whole under 5 km/h and gone by 14 km/h, at 1.3 pushes a second from rest and 1.8 by the fade; `SkierState.stride` counts them, as it counts a skier's. With a foot free he stands the board on at most 0.4 of the edge the lock asks. He STRAPS BACK IN at 4.5 m/s (16 km/h), past where a push buys anything, so he never rides off down a pitch with a foot hanging. These numbers are ESTIMATES set to what riders and instructors describe — short quick pushes, good to about a running pace — not measurements. In LOOSE SNOW (the packed share under 0.6, wholly by 0.2) a free foot sinks where it pushes, so he keeps both feet in and HOPS the board along (`SkierState.board.hop`), worth 0.5 of the skate. THE STEP TURN at a crawl swings the tail round about the FRONT BINDING with the free foot (0.22 rad a push), and the step round on the spot (`stepRound`) pivots about it too, the foot out while he does.
+
+NO SIDESTEP. Both feet on one deck, a rider cannot step up a slope a ski at a time: he climbs only by taking the board off and walking, which this game does not do, as it does not let a skier kick steps up a wall. A board gets up a rise only as far as the skate carries it; the steer toward the hill on a steep face only sets the uphill edge.
+
+THE SIDESLIP AND THE FALLING LEAF. Stood across a pitch of 8° or more within `sidestep.across` of square to the fall line, under 18 km/h and 3 m/s along the board, not working and not tucked, he stands on his UPHILL edge (`SkierState.sidestep` holds which side the hill is on, right positive — a regular rider's toe edge), set the slope's angle plus 0.12 rad and never past 0.9 rad. The steer AWAY from the hill past a tenth of full eases the edge off over 0.75 of the steer's travel; past 0.12 of the way to flat the standstill hold lets go and he SLIDES straight down the fall line, the edge's own grip his brake (`SkierState.board.slip`, 0..1.25). The steer toward the hill, or the brake, sets the edge whole and he stops on it. The last quarter of the steer tips the board PAST flat onto the downhill edge — and catches it. THE FALLING LEAF: the lean forward (weight on the front foot) swings the nose down off square by up to 0.45 rad (26°) at 0.8 rad/s, the lean back the tail (`SkierState.board.leaf`), and the board drifts that way across the hill as it slides.
+
+THE BOARD KEPT ON. There is no binding release, so a fall loses no board: `throwRider` lets no ski go on a board (`Thrown.skis` stays empty) and `strapBoard` spreads the ragdoll's feet to the board's stance (`Thrown.board`: the stance and whether he went over BACKWARD). The ragdoll holds the two ankles at that distance every iteration (`holdStance`, the board a bone between them). The body is stood up facing the TOE edge (`boardBody`), a quarter round from a skier's, and on a slam his bracing hands are thrown behind him. He gets up where he lies as a skier does, still strapped in.
+
+BOGGED with no poles, he digs with his hands as he rocks the board — 0.7 of a skier's rocking packs the hole back — and each hop (the tuck, in loose snow) packs back 0.05 m a second of what the push digs. A board rocked in its hole is held by its walls: no caught edge while he is bogged.
+
+The ride lab's scenarios for these (`scripts/lib/ride-board-moves.mjs`, ridden on the Lynx whatever the lab is asked) measure:
+
+- **`board-skate-flat`:** from rest, 5.3 km/h at 2 s and 8.7 km/h at 5 s, 11.9 km/h at most on the flat, 1.58 pushes a second, the foot out at 0.08 s and strapped back in at 16.2 km/h down the 12% pitch after it.
+- **`board-pivot`:** 122° turned on the spot in 4 s, the front foot unmoved (0.00 m).
+- **`board-sideslip-steep`:** heelside down the 31° face, 3.4 m slid in 4 s at a 3.5 km/h drift, stopped on the edge 0.2 s after it is set, no fall.
+- **`board-leaf`:** heelside down a 25° face, the nose swung 26° each way, 1.2 m across the slope and back over 10 s, no fall.
+- **`board-catch-back`:** the heel edge caught out of a toeside sideslip, slammed at 7.5 km/h (74 g) — the hands, the shoulders, the elbows, a bump on the back of the head and whiplash.
+- **`board-catch-face`:** the toe edge caught out of a heelside sideslip, a faceplant at 8 km/h (116 g) — the hands, a shoulder and the jaw. Neither touches a knee: wrists and hands are the snowboarder's commonest injury and knee ligaments a skier's.
+- **`board-wipeout-tree`:** a trunk at 50 km/h, no binding let go and the feet held 0.53 m apart all the fall.
+- **`board-bog`:** bogged at 2.07 s, rocked and dug out at 5.98 s (a skier on his poles: 4.34 s); hopping on across the dead flat bogs him again, as it bogs a skier.
+
+`make injuries ARGS="--skis lynx"` stages every moment of the injury lab on the board, the board kept on; its ski-only expectations it misses (a caught ski's knee twist, a straddled trunk) are a board's differences, not faults. `tests/board_drive_test.ts` holds all of it.
+
+THE BOT AND SEED 6. The bot plans every turn on the heel already — `cornerGrip`, `carveSpeedOf` and `tipLimit` read side 0 as the heel — so planning a heelside turn on the heel's weaker grip changes nothing: scaling its grip and braking further by the heel's share of the edge still misses seed 6's gate 16, and slower. The miss is the bot near the piste's edge on a 25–30° pitch skidding on full brake on its heel edge, the pitch outrunning the brake, turning too late and passing about 3 m outside the gate's end. It is a steering and braking matter, left open. Out of the start the bot pushes with the one-foot skate like any rider.
+
 Still to come:
 
-- the one-foot skate;
-- the sideslip and the falling leaf ridden on purpose;
-- the downhill edge slammed down in a slide as a wipeout of its own;
-- the board kept on the rider's feet in a wipeout;
-- the figure.
+- the figure (the free foot, the skate's push, the sideslip's stance, the leaf, the slam and the faceplant drawn), and the app's words for a board's fall into a trunk — it still says YARD SALE.
 
 ## Where the skis meet the snow, and the legs (`suspension.ts`)
 

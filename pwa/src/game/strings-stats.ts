@@ -49,6 +49,8 @@ const CAUSE_NAMES: Record<CrashCause, string> = {
   tree: "TREES",
   nose: "OVER THE TIPS",
   catch: "CAUGHT EDGES",
+  slam: "HEEL-EDGE SLAMS",
+  faceplant: "FACEPLANTS",
   roll: "TUMBLES",
   landing: "BAD LANDINGS",
   skier: "OTHER SKIERS",

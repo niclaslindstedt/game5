@@ -331,8 +331,9 @@ function slidAcross(edge: number): string | null {
 
 describe("the board's caught edge", () => {
   it("catches the edge leading a slide when it is stood down, and rides a sideslip led by the raised one", () => {
-    // Sliding to his left: the board's left edge leads.
-    expect(slidAcross(-1)).toBe("catch");
+    // Sliding to his left: the board's left edge — a regular rider's heel
+    // edge — leads, and slams him onto his back (`board-crash.ts`).
+    expect(slidAcross(-1)).toBe("slam");
     expect(slidAcross(1)).toBeNull();
   });
 

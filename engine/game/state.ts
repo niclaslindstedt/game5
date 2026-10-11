@@ -38,7 +38,6 @@ import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { ContestState } from "./contest-state.ts";
 import type { AfterskiEvent, AfterskiState, Fetch, TownWalk, Wobble } from "./afterski-state.ts";
 export type { AfterskiEvent, AfterskiState, Fetch, TownWalk, Wobble } from "./afterski-state.ts";
-
 export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-state.ts";
 export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type { LiftRide, TunnelRide } from "./ride-state.ts";
@@ -219,8 +218,10 @@ export type SkierState = {
    * on, right positive, while he stands across a steep slope on the ledges
    * his edges have cut — stepping up it a pair at a time while the steer
    * asks toward the hill, the stride's phase where in the pair he is — and
-   * 0 when he does not. What the pose reads to draw the sidestep. */
+   * 0 when he does not — on a board, his SIDESLIP's (`board-moves.ts`). */
   sidestep: number;
+  /** A SNOWBOARDER'S FEET (`board-state.ts`): on a board alone, absent on skis. */
+  board?: import("./board-state.ts").BoardMoves;
   /** THE CROUCH the body is actually in, 0 standing tall … 1 a full tuck —
    * the tuck after its lag. What the drag area and the CoG height read. */
   crouch: number;

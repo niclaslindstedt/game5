@@ -245,7 +245,9 @@ export const STRINGS = {
             : "HELD THE EDGE",
   /** THE WIPEOUT (`crash.ts`), by what put the skier down: a trunk, a
    * landing taken over the tips, a fall at speed, an edge caught, a
-   * landing on the body or one the legs folded under, a stake hit fast,
+   * landing on the body or one the legs folded under, a board's downhill
+   * edge caught (onto his back off the heel, his face off the toe), a
+   * stake hit fast,
    * the empty chair off a lift run into his legs, a downhill's A-nets
    * driven into, the grimbear, a piste machine ridden into, a balloon's
    * basket gone over. */
@@ -255,6 +257,8 @@ export const STRINGS = {
       | "nose"
       | "roll"
       | "catch"
+      | "slam"
+      | "faceplant"
       | "landing"
       | "skier"
       | "heli"
@@ -298,7 +302,11 @@ export const STRINGS = {
                                 ? "YARD SALE"
                                 : cause === "landing"
                                   ? "CRASH LANDING"
-                                  : "EDGE CAUGHT",
+                                  : cause === "slam"
+                                    ? "SLAMMED! HEEL EDGE"
+                                    : cause === "faceplant"
+                                      ? "FACEPLANT! TOE EDGE"
+                                      : "EDGE CAUGHT",
   newsStuck: "BOGGED! POLE OUT",
   newsWell: "TREE WELL! ROCK OUT OR RESET",
   /** Riding switch into loose snow on tails that do not ride over it

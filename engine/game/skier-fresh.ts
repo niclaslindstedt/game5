@@ -4,6 +4,7 @@
 // from the step (`skier.ts`, which re-exports it) so the body's model is
 // the whole of that file.
 
+import { freshBoardMoves } from "./board-state.ts";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import type { SkiSpec } from "./defs/skis.ts";
 import { freshBody } from "./body.ts";
@@ -62,6 +63,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     step: 0,
     pivot: 0,
     sidestep: 0,
+    ...(spec.board === undefined ? {} : { board: freshBoardMoves() }),
     crouch: 0,
     hipRight: 0,
     hipAft: 0,

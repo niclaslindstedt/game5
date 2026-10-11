@@ -18,6 +18,10 @@ export const PARA_STRINGS = {
   /** The wing folded in the air by rough air: pump it out. */
   newsParaFold: "COLLAPSE! PUMP THE BRAKES",
   newsParaRestart: "ON THE SUMMIT",
+  /** A whole turn flown round over the wing. */
+  newsParaLoop: "LOOP!",
+  /** The lines gone slack and the pilot fallen into his own wing. */
+  newsParaTangle: "IN THE WING! CUT IT AWAY",
 
   /* ── THE HUD (hud-para.tsx) ────────────────────────────────────────── */
   paraAlt: "ALT",
@@ -35,6 +39,14 @@ export const PARA_STRINGS = {
   /** The wing folded: which side, or its whole leading edge. */
   paraFold: (side: number): string =>
     side < 0 ? "LEFT SIDE FOLDED" : side > 0 ? "RIGHT SIDE FOLDED" : "FRONTAL COLLAPSE",
+  /** The pull he hangs on, g. */
+  paraG: "G",
+  paraGValue: (g: number): string => g.toFixed(1),
+  /** Fallen into his own wing: the cloth and the lines round him. */
+  paraTangled: "IN THE WING",
+  /** How to cut the tangled wing away. */
+  paraCut: (touch: boolean, key: string): string =>
+    touch ? "DOUBLE TAP TO CUT AWAY" : `${key} TO CUT AWAY`,
   /** The wing past its stall. */
   paraStall: "STALL",
   /** On the summit, the wing held up: how to go. */
@@ -50,5 +62,5 @@ export const PARA_STRINGS = {
    * fly the wing. */
   keysParaTitle: "PARAMOTOR",
   paraKeysNote:
-    "Under the paramotor the same keys fly the wing: the tuck is the throttle, the skid both brakes (a flare to land), the edge the toggles and your weight, the lean the risers — forward to speed up, back to slow. The machine key drops the whole rig and leaves you on your skis.",
+    "Under the paramotor the same keys fly the wing: the tuck is the throttle, the skid both brakes (a flare to land), the edge the toggles and your weight, the lean the risers — forward pitches the wing over into a dive, back pulls the rears and swings you up; out of a big enough dive, held back, you loop over the wing. Pull up without the speed and the lines go slack and you fall into the wing. The machine key drops the whole rig and leaves you on your skis.",
 };

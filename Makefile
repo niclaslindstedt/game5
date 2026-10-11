@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight balloon afterski town
 
 build:
 	npm run build
@@ -316,15 +316,16 @@ models:
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender
-# (the skier built at game quality, then `scripts/blender/title.py` over
-# `kinds/title.mjs`) and published into the COMMITTED pwa/src/title/ with a
+# (`scripts/blender/title.py` over `kinds/title.mjs`, which writes the game's
+# own dressed skier into previews/blender/ — `scripts/dressed-skier.mjs`, the
+# player's DEFAULT_OUTFIT off the game's loom — for the scene to pose) and
+# published into the COMMITTED pwa/src/title/ with a
 # stamp of their sources (tests/title_scene_test.ts holds it). A full
 # render is a long one (an hour and more on a CPU); a draft is
 # `TITLE_SIZE=768 make blender KIND=title ARGS=--samples=32`.
 #   make title-scene                      the plates, 256 samples
 #   make title-scene SAMPLES=128          fewer samples
 title-scene:
-	npm run blender -- --kind skier --id skier0 --quality=game --views=none
 	npm run blender -- --kind title --quality=render --samples=$(or $(SAMPLES),256)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/title-plates.mjs
 
@@ -375,6 +376,18 @@ cloud:
 # ARGS="--weathers=storm --rides=into --speeds=0,50,100,150 --camera=tips".
 snowfall:
 	npm run snowfall -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE SHIMMER LAB: how much of the far mountain FLICKERS as the lens moves —
+# a lens slid a few centimetres a frame across the rockiest face (or, with
+# --along, toward it) from several ranges, every frame read back and each
+# pixel's mean second difference of brightness taken, with the share of the
+# crags the snow blinks over, as a contact sheet
+# (previews/shimmer-<seed>-<grade>.png: each first frame, its heat map and
+# its crags) and a table. Its own one-off bundle from
+# pwa/shimmer-preview.html (never deployed); needs a Chromium like `world`.
+# SEED=n; ARGS="--face=alpine-1 --along --step=0.5 --frames=16 --json".
+shimmer:
+	npm run shimmer -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE CLOUD METRICS LAB: how MUCH snow cloud a skier raises — each kind of
 # snow × move × speed skied by the engine in pure Node and every frame read
@@ -740,6 +753,17 @@ groomer:
 snowguns:
 	npm run snowguns -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE WATER LAB: the lakes and the streams through the game's own renderer,
+# on a map with placeholder water laid on it — the valley lake and the tarn
+# through the seasons, open water still and in a wind, the shore ice, black
+# ice, scoured snow, rotten ice and its moat, the light, and the game's own
+# views. One contact sheet a group, previews/water-<group>.png, and every
+# frame alone. Its own one-off bundle from pwa/water-preview.html (never
+# deployed); needs a Chromium like `world`. FACE=fell-1 a real face;
+# ARGS="--sheet=states".
+water:
+	npm run water -- $(if $(SEED),--seed=$(SEED),) $(if $(FACE),--face=$(FACE),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
 # THE TREE WELL LAB: the hollows round the trunks in deep powder photographed
 # through the game's own renderer — one well from every side and at the
 # ordinary snow beside it (look), a skier sliding in and stuck (fall), and
@@ -984,19 +1008,20 @@ difficulty:
 routes:
 	npm run routes -- $(ARGS)
 
-# THE REAL FACES: twenty real mountainsides off the 30 m elevation model,
-# cropped, smoothed and baked into engine/mapgen/real-faces-data.ts
-# (generated; docs/real-faces.md). The tiles are fetched once into
-# previews/.dem/.
-# `make real-faces ARGS=--fetch` · `make real-faces ARGS="--fetch --write"`
+# THE REAL FACES: real mountainsides off the 30 m elevation model, cropped,
+# smoothed and baked into engine/mapgen/real-faces/face-<id>.ts, a file a
+# face, and the index beside them (generated; docs/real-faces.md). The tiles
+# are fetched once into previews/.dem/. `--search` finds a new face's crop.
+# `make real-faces ARGS="--fetch --search --only id"` · `ARGS="--only id --write"`
 real-faces:
 	npm run real-faces -- $(ARGS)
 
 # The real faces' HINTS: the real ski area's lifts, pistes and houses on
 # each face, read off OpenStreetMap and baked coarsely into
-# engine/mapgen/real-hints-data.ts (generated, ODbL; docs/real-faces.md).
-# The map data is fetched once into previews/.osm/.
-# `make real-hints ARGS=--fetch` · `make real-hints ARGS="--fetch --write"`
+# engine/mapgen/real-hints/hints-<id>.ts and the index beside them
+# (generated, ODbL; docs/real-faces.md). The map data is fetched once into
+# previews/.osm/.
+# `make real-hints ARGS="--fetch --only id"` · `ARGS="--only id --write"`
 real-hints:
 	npm run real-hints -- $(ARGS)
 

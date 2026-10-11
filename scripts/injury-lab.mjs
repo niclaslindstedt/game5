@@ -44,10 +44,12 @@ const args = parseArgs(
     list: { kind: "flag", help: "print every injury's rate under each row" },
     json: { kind: "flag", help: "write previews/injuries.json (the baseline)" },
     compare: { kind: "string", help: "a baseline to print beside this run" },
+    skis: { kind: "string", help: "the pair (or board) every moment is staged on, e.g. lynx" },
   },
-  "usage: make injuries ARGS='[--only ids] [--trials n] [--list] [--json] [--compare file]'",
+  "usage: make injuries ARGS='[--only ids] [--trials n] [--list] [--json] [--compare file] [--skis id]'",
 );
 
+const spec = args.skis ? E.pairById(args.skis) : undefined;
 const only = args.only ? new Set(args.only.split(",")) : null;
 const scenarios = S.INJURY_SCENARIOS.filter((s) => !only || only.has(s.id));
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;
@@ -60,7 +62,7 @@ console.log(
   `${"scenario".padEnd(20)} ${"pass".padEnd(4)} ${"AIS".padStart(3)} ${"g".padStart(5)}  expected (rate)  ·  never (rate)`,
 );
 for (const s of scenarios) {
-  const r = B.ratesOf(s, args.trials);
+  const r = B.ratesOf(s, args.trials, spec);
   const fails = S.missesOf(s, r);
   const exp = s.expect.map(
     (group) =>

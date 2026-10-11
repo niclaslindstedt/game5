@@ -93,7 +93,7 @@ aliasEngine(root);
 const E = await import(join(root, "engine", "index.ts"));
 const S = await import(join(root, "tests", "support", "synthetic.ts"));
 const IDS = Object.keys(E.TECHNIQUES);
-const PAIRS = E.SKI_CATALOG.map((s) => s.id);
+const PAIRS = [...E.SKI_CATALOG, ...E.BOARD_CATALOG].map((s) => s.id);
 
 const args = parseArgs(
   process.argv.slice(2),

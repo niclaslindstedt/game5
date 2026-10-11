@@ -20,7 +20,15 @@
 
 /** The techniques the engine knows. */
 export type TechniqueId =
-  "free" | "slalom" | "giantSlalom" | "superG" | "downhill" | "skiCross" | "speedSki" | "moguls";
+  | "free"
+  | "slalom"
+  | "giantSlalom"
+  | "superG"
+  | "downhill"
+  | "skiCross"
+  | "speedSki"
+  | "moguls"
+  | "board";
 
 export type Technique = {
   id: TechniqueId;
@@ -249,6 +257,27 @@ export const MOGULS_TECHNIQUE: Technique = {
   cross: { under: 0.7, retract: 0.15, steep: 0 },
 };
 
+/** THE ALL-MOUNTAIN SNOWBOARDER — the board's own row, whatever the mode
+ * (`step.ts`'s `rulesFor` deals it to every run ridden on a board). A
+ * rider carves at 40–60° of edge in soft boots (15–30° in a skidded
+ * recreational turn), leans 45–60° into a carve (a 70° lean is ~2.7 g),
+ * and changes edge by twisting the board under him, the front foot first
+ * — the body crossing over it in an all-mountain turn. So: the edge rolled
+ * at the shared rate (the board's own width already slows it,
+ * `Footprint.edgeRate`), stood on the board's own most (55° on the toes,
+ * less on the heels — `BoardFit.heel`), its lock eased with speed as the
+ * free skier's (est.), a little of the shelf a carver stands on, the body
+ * let in to 55°, crossing over (`docs/riding.md` § The board). */
+export const BOARD_TECHNIQUE: Technique = {
+  id: "board",
+  edgeRate: 1,
+  edgeMax: 0,
+  fade: 1,
+  platform: 0.4,
+  incline: 0.96,
+  cross: CROSS_OVER,
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {
   free: FREE,
   slalom: SLALOM_TECHNIQUE,
@@ -258,6 +287,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, Technique>> = {
   skiCross: SKI_CROSS_TECHNIQUE,
   speedSki: SPEED_SKI_TECHNIQUE,
   moguls: MOGULS_TECHNIQUE,
+  board: BOARD_TECHNIQUE,
 };
 
 /** The technique a run is skied with: its rules' own, the free skier's when

@@ -34,6 +34,7 @@ import {
   generateLevel,
   levelIsCached,
   portableLevel,
+  realFaceLoaded,
   type CreateGameOptions,
   type GeneratedLevel,
   type Level,
@@ -229,7 +230,8 @@ function run(job: Job): void {
   // never built twice: it is stood up here and handed over to be painted.
   const own =
     levels.get(job.key) ??
-    (levelIsCached(job.seed, { region: job.region, face: job.face ?? undefined })
+    ((!job.face || realFaceLoaded(job.face)) &&
+    levelIsCached(job.seed, { region: job.region, face: job.face ?? undefined })
       ? generateLevel(job.seed, {
           region: job.region,
           face: job.face ?? undefined,
@@ -379,6 +381,8 @@ export function freeRideLevel(
   map: () => MapOrder | null;
   /** The map in hand, if any. */
   has: () => Level | undefined;
+  /** The real face it stands on, fetched on this thread first. */
+  face: string | undefined;
 } {
   const ask = freeAsk(options);
   const held = heldLevel(ask);
@@ -393,6 +397,7 @@ export function freeRideLevel(
     readyShare: () => (came !== undefined ? 1 : (seedShare(ask) ?? 0)),
     map: () => (has() ? null : gameOrder(options)),
     has,
+    face: options.face,
   };
 }
 

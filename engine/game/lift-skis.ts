@@ -68,6 +68,7 @@ export function offForDoor(run: GameState): void {
     skis: freshPair(run),
     at: { x: c.x, z: c.z, heading: c.heading },
     walked: 0,
+    station: true,
   };
   onFoot(run, c.x, c.z, c.heading, 0, 0);
   placeSkis(run);
@@ -202,6 +203,7 @@ export function carryOut(run: GameState, ride: LiftRide): void {
     skis: ride.skis ?? freshPair(run),
     at: { x: c.x, z: c.z, heading: c.heading },
     walked: 0,
+    station: true,
   };
   delete ride.skis;
 }

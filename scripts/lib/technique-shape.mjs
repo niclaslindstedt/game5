@@ -28,13 +28,15 @@ import { PITCH, hold, schussStrip, slideOf, turnsOf } from "./ride-helpers.mjs";
  * turn; the super-G 24.2 ± 2.6 m/s at turn entry; the downhill 26 ± 4 m/s
  * through the turn). The free skier has no discipline: a recreational
  * carved turn of 1.3 s at 35 km/h *(est.)* — what the free row skis the
- * slalom course at (`make technique`'s table). */
+ * slalom course at (`make technique`'s table). The board rides the free
+ * skier's recreational turn on the open piste. */
 export const SHAPE_DRIVE = {
   free: { turn: 1.3, kmh: 35 },
   slalom: { turn: 0.9, kmh: 40 },
   giantSlalom: { turn: 1.45, kmh: 65 },
   superG: { turn: 2.1, kmh: 87 },
   downhill: { turn: 2.5, kmh: 94 },
+  board: { turn: 1.3, kmh: 35 },
 };
 
 /** How far off the fall line the drive lets him come before it turns him
@@ -59,7 +61,7 @@ export function skiShape(E, S, row, seconds) {
   const state = E.createGame({
     level: schussStrip(S),
     technique: row.technique,
-    spec: E.SKI_CATALOG.find((s) => s.id === row.skis),
+    spec: E.pairById(row.skis),
     rivals: 0,
     countdown: 0,
     quiet: true,

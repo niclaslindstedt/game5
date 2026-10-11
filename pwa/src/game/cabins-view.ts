@@ -4,8 +4,11 @@
 // kind at two cuts (`cabin-shapes.ts`) and INSTANCED: a draw a kind and
 // cut, however many stand on the mountain. Each building takes its near cut
 // inside `NEAR` metres of the lens and its far cut past it (a few metres of
-// hysteresis, so a lens hovering on the line does not flicker it); the
-// instances are refilled only when a building changes band.
+// hysteresis, so a lens hovering on the line does not flicker it), and past
+// `DISTANT` a DISTANT cut — the far one without its triangles under a square
+// metre (`keepsTriangle`, the village's own rule), casting no shadow — so a
+// real face's hundreds of huts and chalets across the mountain stay cheap;
+// the instances are refilled only when a building changes band.
 //
 // THE DRIFT: every building's plinth has the snow banked up against it
 // all round — a skirt cut for the building where it stands, off the
@@ -31,10 +34,12 @@ import {
 
 import { CABIN_PAINT } from "./cabin-parts.ts";
 
-import { buildCabin, porchOf, type CabinLod } from "./cabin-shapes.ts";
+import { buildCabin, porchOf } from "./cabin-shapes.ts";
 import { lodgeYardGeometry } from "./lodge-yard.ts";
 import { FACADE } from "./facade-paint.ts";
 import { facadeMaterial } from "./facade-mesh.ts";
+import { keepsTriangle } from "./facade-kit.ts";
+import { DISTANT, DISTANT_AREA } from "./village-cuts.ts";
 import { PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
 import { splitByTile } from "./tile-split.ts";
 import { LUX_TO_LAMP } from "./piste-lights.ts";
@@ -45,6 +50,29 @@ import { LUX_TO_LAMP } from "./piste-lights.ts";
  * the near cut's every log is wanted only inside this. */
 const NEAR = 130;
 const HYSTERESIS = 12;
+
+/** `geo` (a cut, unindexed) without its triangles under `minArea` m². */
+function thinnedCut(geo: THREE.BufferGeometry, minArea: number): THREE.BufferGeometry {
+  const pos = geo.getAttribute("position").array;
+  const glow = geo.getAttribute("glow").array;
+  const kept: number[] = [];
+  for (let t = 0; t < pos.length / 9; t++) if (keepsTriangle(pos, glow, t, minArea)) kept.push(t);
+  const out = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(geo.attributes)) {
+    const n = attr.itemSize * 3;
+    const a = new Float32Array(kept.length * n);
+    kept.forEach((t, i) => a.set(attr.array.subarray(t * n, t * n + n) as Float32Array, i * n));
+    out.setAttribute(name, new THREE.BufferAttribute(a, attr.itemSize));
+  }
+  return out;
+}
+
+/** Which cut a building takes at `d` m, having had `was` (−1 none yet). */
+function bandAt(d: number, was: number): number {
+  const at = (edge: number, cut: number) =>
+    d > edge + (was > cut ? -HYSTERESIS : was === cut ? HYSTERESIS : 0) ? cut + 1 : cut;
+  return at(NEAR, 0) === 0 ? 0 : at(DISTANT, 1);
+}
 
 /** The lamplight in a window, linear, and how bright at full dark. */
 const LAMP = "vec3(1.0, 0.56, 0.24)";
@@ -199,11 +227,11 @@ export function createCabins(level: Level, haze: HazeUniforms): Cabins {
   type Kind = { list: Cabin[]; cuts: THREE.InstancedMesh[]; band: Int8Array };
   const kinds: Kind[] = [];
   for (const [kind, list] of byKind) {
-    const cuts = ([0, 1] as CabinLod[]).map((lod) => {
-      const geo = buildCabin(kind, lod);
+    const far = buildCabin(kind, 1);
+    const cuts = [buildCabin(kind, 0), far, thinnedCut(far, DISTANT_AREA)].map((geo, cut) => {
       geos.push(geo);
       const mesh = new THREE.InstancedMesh(geo, material, list.length);
-      mesh.castShadow = true;
+      mesh.castShadow = cut < 2;
       mesh.receiveShadow = true;
       mesh.count = 0;
       mesh.frustumCulled = false;
@@ -255,12 +283,12 @@ export function createCabins(level: Level, haze: HazeUniforms): Cabins {
         k.list.forEach((c, i) => {
           const d = Math.hypot(c.x - eye.x, c.z - eye.z, c.y - eye.y);
           const was = k.band[i];
-          const now = was === 0 ? (d > NEAR + HYSTERESIS ? 1 : 0) : d < NEAR - HYSTERESIS ? 0 : 1;
+          const now = bandAt(d, was);
           if (now !== was) moved = true;
           k.band[i] = now;
         });
         if (!moved) continue;
-        const n = [0, 0];
+        const n = [0, 0, 0];
         k.list.forEach((c, i) => {
           const cut = k.band[i];
           const mesh = k.cuts[cut];

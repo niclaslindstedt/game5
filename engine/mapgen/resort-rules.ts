@@ -395,6 +395,16 @@ export const RESORT_RULES = {
        * where it measures within `signed` colours of it (a real ski area
        * signs a run by more than its steepest pitch). */
       least: { runs: 4, pad: 0.6, rope: 1, signed: 1 },
+      /** THE VILLAGE AT THE REAL TOWN: on a face whose hints carry a town
+       * (`HintTown`), the village stands on the valley floor straight
+       * below the town's middle — at most `town.across` m from the
+       * square's middle, the nearest it can stand where the town lies past
+       * that — instead of at the valley's lowest point in the dealt band
+       * (`massif.village`); each attempt after the first gives `town.yield`
+       * of the way back to that point, so a face whose lifts and runs will
+       * not stand round the town still builds in a few attempts. Read on
+       * the attempts the real valley is (`placed`). */
+      town: { across: 800, yield: 0.2 },
       /** How far behind the summit ridge the whole relief is reached, m,
        * and the descent (u) over which it fades out onto the valley floor. */
       behind: 200,

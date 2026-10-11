@@ -20,6 +20,7 @@ import {
   boardingRing,
   cabinDoors,
   carrierAt,
+  skipShare,
   carrierCount,
   createGame,
   liftPlans,
@@ -351,12 +352,26 @@ describe("leaving a lift early", () => {
       // Not before it has been held long enough.
       ride(run, TUNING.lift.skip.hold - 0.2, () => false, tuck);
       expect(run.skier.lift?.skip).toBeUndefined();
-      // A chair's rider is put on the lift's own chair nearest there.
-      const there = arrivalOf(plan).u - (kind === "chair" ? plan.look.every / 2 : 0);
+      // The HUD's ring has filled most of the way meanwhile.
+      expect(skipShare(run)).toBeGreaterThan(0.85);
+      expect(skipShare(run)).toBeLessThan(1);
+      // A chair's rider is put on the lift's own chair nearest there, a
+      // drag's held to its own T-bar there.
+      const there = arrivalOf(plan).u - (kind !== "gondola" ? plan.look.every / 2 : 0);
       ride(run, 1.5, (r) => r.skier.lift?.faded === true && r.skier.lift.u >= there - 1, tuck);
       const l = run.skier.lift!;
       expect(l.u).toBeGreaterThanOrEqual(there - 1);
       expect(l.faded).toBe(true);
+      // Held by a carrier of the lift's own — a drag's rider never ahead
+      // of his bar's grip, so the bar drawn behind him is the one pulling.
+      if (kind !== "gondola") {
+        expect(l.carrier).toBeDefined();
+        const grip = carrierAt(plan, l.carrier!, run.t);
+        if (kind === "drag") expect(l.u).toBeLessThanOrEqual(grip.u + 1e-6);
+      }
+      // Let go of the tuck, the ring is gone.
+      step(run, NEUTRAL_INPUT);
+      expect(skipShare(run)).toBe(0);
       // And on to the top from there, let go as ever.
       const events = ride(run, 30, (r) => r.skier.lift === null);
       expect(events.some((e) => e.kind === "lift" && e.phase === "off")).toBe(true);

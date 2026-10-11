@@ -15,13 +15,17 @@
 //   - THE YAW HOLD keeps the TAILS on his line, as it keeps the tips on it
 //     going forward (`heldSlip`).
 //   - HE DOES NOT PUSH: a stride along his skis would be a stride back up
-//     the hill (`poles.ts`'s drive is off while he is).
+//     the hill (`poles.ts`'s drive is off while he is) — on skis.
 //   - In the air, the lens's aim and the landing are judged tails first
 //     (`flight.ts`), and so is the end that digs (`crash.ts`'s `noseDown`).
 //   - THE TAIL DIGS (`tailDug`): on the groomer every pair runs backward,
 //     but in loose snow the leading end must ride over it, and a flat tail
 //     is a blade into it — only a ski turned up at both ends (the park
 //     ski's twin tips, `TAIL_RISE`) planes through powder switch.
+//
+//   - A BOARD RIDES FAKIE (`SkiSpec.board`): a twin is the same board
+//     either way round, so a rider never turns round out of it — no revert
+//     and no hop round — and he pushes the way he is going (`skier.ts`).
 //
 //   - TOO SLOW TO RIDE IT, HE TURNS ROUND (`RunRules.revert`: the free
 //     ride and the tricks run): under `switch.revert.below` on the snow a
@@ -92,6 +96,7 @@ function revertDue(state: GameState, below: number, least = 0): boolean {
   return (
     state.rules.revert === true &&
     c.switched &&
+    c.spec.board === undefined &&
     c.revert == null &&
     c.thrown === null &&
     c.lift === null &&

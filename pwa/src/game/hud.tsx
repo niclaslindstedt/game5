@@ -559,6 +559,11 @@ export function Hud({
           {snap.altitude !== null && !snap.balloon && (
             <span class="hud-chip-sub hud-altitude" title={STRINGS.altitudeSaid}>
               {STRINGS.altitude(snap.altitude)}
+              {snap.overBase !== null && (
+                <span class="hud-over-base" title={STRINGS.overBaseSaid}>
+                  {STRINGS.overBase(snap.overBase)}
+                </span>
+              )}
             </span>
           )}
         </div>
@@ -596,6 +601,21 @@ export function Hud({
           >
             {snap.go ? STRINGS.go : STRINGS.count(snap.countdown)}
           </span>
+        </div>
+      )}
+
+      {/* SKIPPING UP THE LIFT: the tuck held while carried fills a ring
+          round the word, so he sees how long is left to hold — and that
+          letting go starts it over. */}
+      {(snap.skip ?? 0) > 0 && (
+        <div
+          class="hud-skip"
+          role="status"
+          style={{ "--skip": (snap.skip ?? 0).toFixed(3) }}
+          data-full={(snap.skip ?? 0) >= 1 ? "1" : undefined}
+        >
+          <span class="hud-skip-ring" />
+          <span class="hud-skip-word">{STRINGS.liftSkip}</span>
         </div>
       )}
 

@@ -543,6 +543,10 @@ const args = parseArgs(
       kind: "string",
       help: "build the seed's map in this kind of snow country (alpine, fell, continental, maritime)",
     },
+    face: {
+      kind: "string",
+      help: "raise the seed's resort on this real face (?face=, alpine-1 …; a free ride's)",
+    },
     grade: {
       kind: "string",
       help: "build the seed's piste to this grade (green, blue, red, black, orange)",
@@ -749,6 +753,7 @@ if (args.surface) {
     }
     const params = { seed: String(args.seed), probe: "0", ...surface.params };
     if (args.region !== undefined) params.region = String(args.region);
+    if (args.face !== undefined) params.face = String(args.face);
     if (args.grade !== undefined) params.grade = String(args.grade);
     if (args.video !== undefined) params.video = String(args.video);
     if (args.update) params.update = "1";
@@ -764,6 +769,7 @@ if (args.surface) {
     for (const v of viewports)
       await capture(
         `${name}${args.region !== undefined ? `-${args.region}` : ""}` +
+          `${args.face !== undefined ? `-${args.face}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
           `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
           `${args["no-poles"] ? "-nopoles" : ""}` +
@@ -810,6 +816,7 @@ if (args.surface) {
         if (sky !== undefined) params.weather = sky;
         if (args.hour !== undefined) params.hour = String(args.hour);
         if (args.region !== undefined) params.region = String(args.region);
+        if (args.face !== undefined) params.face = String(args.face);
         if (args.grade !== undefined) params.grade = String(args.grade);
         if (args.tricks) params.mode = "tricks";
         if (args.downhill) params.mode = "downhill";
@@ -832,6 +839,7 @@ if (args.surface) {
           `${scene}${args.tricks ? "-tricks" : ""}${args.downhill ? "-downhill" : ""}${args.superg ? "-superg" : ""}${args.gs ? "-gs" : ""}${args.speedski ? "-speedski" : ""}${args.skicross ? "-skicross" : ""}${args.bigair ? "-bigair" : ""}${args.slopestyle ? "-slopestyle" : ""}${args.halfpipe ? "-halfpipe" : ""}${args.moguls ? "-moguls" : ""}${args.aerials ? `-aerials${args.plan ?? ""}` : ""}${args.skis !== undefined ? `-${args.skis}` : ""}${args.run2 ? "-run2" : ""}${sky !== undefined ? `-${sky}` : ""}` +
           `${args.hour !== undefined ? `-h${args.hour}` : ""}` +
           `${args.region !== undefined ? `-${args.region}` : ""}` +
+          `${args.face !== undefined ? `-${args.face}` : ""}` +
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +
           `${args.t !== undefined ? `-t${args.t}` : ""}` +
           `${args.camera !== undefined ? `-${args.camera}` : ""}` +

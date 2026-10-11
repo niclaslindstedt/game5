@@ -1,0 +1,11 @@
+---
+type: Fixed
+---
+
+Holding the tuck to skip up a lift now fills a ring on screen so you can see how long is left to hold, and a T-bar ride skipped up (or a free ride begun on a T-bar) keeps its bar behind the rider all the way to the top.
+
+Walking out of a gondola's top station with the skis on the shoulder no longer calls it "in town, on foot".
+
+Stepping into a gondola cabin at the bottom station goes through its door and onto its bench instead of through its walls.
+
+A chairlift's safety bar raised stops short of the hanger instead of swinging through it.

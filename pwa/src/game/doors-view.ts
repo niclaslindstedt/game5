@@ -5,6 +5,10 @@
 // leaf for the whole map, an instance a leaf, in the buildings' own painted
 // material. A leaf is moved only while it moves — the matrices of the
 // doors the run has open are written each frame, every other one once.
+// The leaves are instanced by TILE too (`DOOR_TILE`), and a tile is drawn
+// only within `DOOR_REACH` of the lens (`seen`): a leaf flush in its wall
+// is lost in the facade long before that, and a real face stands a few
+// thousand of them across the mountain.
 // The building drew the doorway behind it dark, so an opened door shows
 // the room's darkness — or, where a log building cut a real hole for a
 // leaf that swings in, the furnished room itself (`interiors-view.ts`).
@@ -26,8 +30,15 @@ import { doorLookOf, leafArrays, leafPose, type DoorLook } from "./door-looks.ts
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
 import type { HazeUniforms } from "./haze.ts";
 
+/** The tile the leaves are instanced by, m, and how far off a tile's
+ * nearest leaf may be and its tile still be drawn. */
+const DOOR_TILE = 256;
+const DOOR_REACH = 300;
+
 export type DoorsView = {
   group: THREE.Group;
+  /** Show the tiles near `eye`, the lens settled for the frame. */
+  seen(eye: THREE.Vector3): void;
   /** Every leaf where `state` has it: the doors in motion, and all of them
    * on a run not seen before. */
   update(state: GameState): void;
@@ -51,17 +62,26 @@ export function createDoorsView(level: Level, haze: HazeUniforms): DoorsView | n
   group.name = "doors";
   const material = facadeMaterial(haze, "doors");
   // The leaves by the geometry they share: a kind, its hand and its half.
+  // (One geometry a shape, shared by its tiles.)
   const kinds = new Map<string, { geo: THREE.BufferGeometry; leaves: [BuildingDoor, number][] }>();
+  const shapes = new Map<string, THREE.BufferGeometry>();
   for (const door of doors) {
     const look = doorLookOf(door.kind)!;
     leavesOf(door).forEach((L, k) => {
       const dir = L.latch > L.hinge ? -1 : 1;
       const half = door.leaves === 2 ? k : 0;
       const h = door.height - look.sill;
-      const key = `${door.kind}|${dir}|${half}|${L.width}|${h}`;
+      const tile = `${Math.floor(door.x / DOOR_TILE)},${Math.floor(door.z / DOOR_TILE)}`;
+      const key = `${tile}|${door.kind}|${dir}|${half}|${L.width}|${h}`;
       let entry = kinds.get(key);
       if (!entry) {
-        entry = { geo: facadeGeometry(leafArrays(look, L.width, h, dir, half).out), leaves: [] };
+        const shape = key.slice(key.indexOf("|"));
+        let geo = shapes.get(shape);
+        if (!geo) {
+          geo = facadeGeometry(leafArrays(look, L.width, h, dir, half).out);
+          shapes.set(shape, geo);
+        }
+        entry = { geo, leaves: [] };
         kinds.set(key, entry);
       }
       entry.leaves.push([door, k]);
@@ -110,8 +130,15 @@ export function createDoorsView(level: Level, haze: HazeUniforms): DoorsView | n
   for (const mesh of meshes) mesh.computeBoundingSphere();
   let seen: GameState | null = null;
   let moving = new Set<string>();
+  const reach = DOOR_REACH;
   return {
     group,
+    seen(eye) {
+      for (const mesh of meshes) {
+        const b = mesh.boundingSphere!;
+        mesh.visible = b.center.distanceTo(eye) - b.radius < reach;
+      }
+    },
     update(state) {
       const now = new Set<string>();
       for (const s of state.doorway?.swings ?? []) now.add(s.id);
@@ -125,7 +152,7 @@ export function createDoorsView(level: Level, haze: HazeUniforms): DoorsView | n
       moving = now;
     },
     dispose() {
-      for (const { geo } of kinds.values()) geo.dispose();
+      for (const geo of shapes.values()) geo.dispose();
       for (const mesh of meshes) mesh.dispose();
       material.dispose();
     },

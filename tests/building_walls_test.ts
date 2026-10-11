@@ -7,7 +7,7 @@
 // passes through only while the run has it open; and once inside, the
 // walls hold him in.
 
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import {
   BUILDING_DOORS,
@@ -20,6 +20,8 @@ import {
   cabinsOf,
   createGame,
   doorOpen,
+  generateLevel,
+  loadRealFace,
   NEUTRAL_INPUT,
   placeRun,
   setDoor,
@@ -58,7 +60,8 @@ function inside(c: Cabin, x: number, z: number, m: number): boolean {
   return true;
 }
 
-/** One building of every kind, off the corpus's maps, with its map. */
+/** One building of every kind, off the corpus's maps, with its map — and
+ * off a real face for a kind only a real town stands (a HALL). */
 function oneOfEach(): { level: Level; c: Cabin }[] {
   const seen = new Map<CabinKind, { level: Level; c: Cabin }>();
   for (const seed of LEVEL_SEEDS) {
@@ -67,6 +70,17 @@ function oneOfEach(): { level: Level; c: Cabin }[] {
     if (seen.size === Object.keys(CABINS).length) break;
   }
   return [...seen.values()];
+}
+
+/** The kinds `found` lacks, off the real face fell-2's town. */
+function fromFace(found: { level: Level; c: Cabin }[]): { level: Level; c: Cabin }[] {
+  const have = new Set(found.map((a) => a.c.kind));
+  if (have.size === Object.keys(CABINS).length) return [];
+  const level = generateLevel(1, { face: "fell-2" });
+  const more = new Map<CabinKind, { level: Level; c: Cabin }>();
+  for (const c of cabinsOf(level))
+    if (!have.has(c.kind) && !more.has(c.kind)) more.set(c.kind, { level, c });
+  return [...more.values()];
 }
 
 /** A free ride on `level` with the skier stood at `from` facing `to`. */
@@ -117,6 +131,10 @@ function drive(
 
 describe("the buildings' walls", () => {
   const all = oneOfEach();
+  beforeAll(async () => {
+    await loadRealFace("fell-2");
+    all.push(...fromFace(all));
+  }, 300_000);
 
   it("are found for every kind of building", () => {
     expect(all.map((a) => a.c.kind).sort()).toEqual(Object.keys(CABINS).sort());
@@ -124,12 +142,18 @@ describe("the buildings' walls", () => {
 
   it("are slabs round every footprint, its posts in what a skier is pushed out of", () => {
     for (const { level } of all) {
-      const solids = solidsOf(level);
-      for (const w of cabinWalls(level)) expect(solids).toContain(w);
-      const segs = wallSegmentsOf(level);
+      const solids = new Set(solidsOf(level));
+      for (const w of cabinWalls(level)) expect(solids.has(w)).toBe(true);
+      // Indexed once: a real face's town stands thousands of buildings.
+      const byCabin = new Map<number, ReturnType<typeof wallSegmentsOf>[number][]>();
+      for (const s of wallSegmentsOf(level)) {
+        const list = byCabin.get(s.cabin) ?? [];
+        list.push(s);
+        byCabin.set(s.cabin, list);
+      }
       const cabins = cabinsOf(level);
       for (let k = 0; k < cabins.length; k++) {
-        const mine = segs.filter((s) => s.cabin === k);
+        const mine = byCabin.get(k) ?? [];
         // Four walls at the least; a door's side in two pieces and its door.
         expect(mine.length).toBeGreaterThanOrEqual(4);
         const doors = mine.filter((s) => s.door !== null);

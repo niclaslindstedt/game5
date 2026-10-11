@@ -344,6 +344,7 @@ export function createWorldRenderer(
       terrain?.group,
       forest?.group,
       gates?.group,
+      gates?.water?.group,
       lifts?.group,
       spray?.points,
       cloud?.mesh,
@@ -526,13 +527,14 @@ export function createWorldRenderer(
       forest = createForest(lv, env.haze, forestOptions());
       forest.group.name = "forest";
       scene.add(forest.group);
-      gates = createGates(lv, env.haze);
+      gates = createGates(lv, env.haze, state.rules.course);
       castInLight(gates.group, env.haze);
       gates.group.name = "checkpoints";
       clear = createLineClear(lv, { movers: () => machines?.solids() ?? [] });
       boomClear = createLineClear(lv, { trees: false, movers: () => machines?.solids() ?? [] });
       trunks = createTrunksNear(lv);
       scene.add(gates.group);
+      if (gates.water) scene.add(gates.water.group);
       lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts, env.cull);
       castInLight(lifts.group, env.haze);
       lifts.group.name = "lifts";

@@ -139,6 +139,34 @@ export interface WellField {
   deepest: number;
 }
 
+/** A body of water lying on the map (`Level.water`). */
+export interface WaterBody {
+  readonly kind: "lake" | "pond" | "reservoir" | "river";
+  /** Its shore in map metres, (x, z) pairs: `rings[0]` the outer ring,
+   * counter-clockwise, every later one an island's. */
+  readonly rings: readonly Float32Array[];
+  /** The surface's height on the map, m (the ground is flattened to it). */
+  readonly y: number;
+  /** The surface's REAL height over the sea, m — what its climate is read
+   * off, since a real face is stretched to the game's vertical. Absent: `y`. */
+  readonly realLevel?: number;
+  /** Its area, m². */
+  readonly area: number;
+  /** Cut by the edge of the face's window: no shore is drawn along a cut. */
+  readonly clipped?: boolean;
+}
+
+/** A stream or river too narrow to be an area (`Level.streams`). */
+export interface WaterStream {
+  readonly kind: "river" | "stream";
+  /** Its line in map metres, (x, z) pairs, the first point uphill. */
+  readonly line: Float32Array;
+  /** Its width, m. */
+  readonly width: number;
+  /** The real height over the sea at its head, m, if known. */
+  readonly realLevel?: number;
+}
+
 export interface Level {
   seed: number;
   /** The world is [0, size] × [0, size] metres. */
@@ -215,6 +243,13 @@ export interface Level {
   /** THE REAL FACE the map's mountain was read off (R25, `real-face.ts`) —
    * absent on a dealt massif. */
   face?: string;
+  /** THE WATER on the map (a real face's, off its OpenStreetMap hints):
+   * every lake, pond, reservoir and river wide enough to be an area, its
+   * ground flattened to its surface. Whether each is frozen on the map's
+   * day is `engine/game/lake-ice.ts`'s. Absent on a dealt massif. */
+  water?: readonly WaterBody[];
+  /** The streams and rivers too narrow to be an area, as lines. */
+  streams?: readonly WaterStream[];
   /** THE PISTE GRADE the map was BUILT to (R23) — absent on a map from a
    * generator before the grades, or a hand-built one. Ask `gradeOf` for the
    * colour on its signs, which measures one where none was built to. */

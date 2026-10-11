@@ -38,22 +38,67 @@ export function terminalSpeed(spec: SkiSpec, grade: number, crouch = 1): number 
   return Math.sqrt((2 * m * pull) / (TUNING.airDensity * cdA));
 }
 
+/** WHICH EDGE OF A BOARD an edge of sign `side` is (right side down
+ * positive, the board's own frame — the same edge riding fakie): its TOE
+ * edge, the board's right under a regular rider and its left under a
+ * goofy one, or its HEEL edge — and on a board `side` 0, an edge not yet
+ * chosen, is the heel's, the weaker, so a plan made for either side holds
+ * on both. Null for a pair of skis, whose edges are each other's mirror. */
+export function edgeSideOf(spec: SkiSpec, side: number): "toe" | "heel" | null {
+  const board = spec.board;
+  if (!board) return null;
+  const toe = board.lead === "regular" ? 1 : -1;
+  return side * toe > 0 ? "toe" : "heel";
+}
+
+/** The share of his angulation (`skier.angulateMost`) a rider has on the
+ * edge of sign `side`: the whole of it on skis and on a board's toe edge,
+ * `BoardFit.heel.angulate` of it on its heel edge. Read by `incline.ts`. */
+export function angulateShareOf(spec: SkiSpec, side: number): number {
+  return edgeSideOf(spec, side) === "heel" ? spec.board!.heel.angulate : 1;
+}
+
 /** The most edge a skier skiing `technique` stands the skis on, rad: the
  * technique's own where it names one (`Technique.edgeMax` — a racer stands
  * his ski at his discipline's angle, whichever pair is under him), the
- * spec's where it does not. */
-export function edgeMostOf(spec: SkiSpec, technique: Technique = FREE): number {
-  return technique.edgeMax > 0 ? technique.edgeMax : spec.edgeMax;
+ * spec's where it does not — and on a board's heel edge (`side`, the sign
+ * of the edge; `edgeSideOf`) `BoardFit.heel.edge` of it. */
+export function edgeMostOf(spec: SkiSpec, technique: Technique = FREE, side = 0): number {
+  const most = technique.edgeMax > 0 ? technique.edgeMax : spec.edgeMax;
+  return edgeSideOf(spec, side) === "heel" ? most * spec.board!.heel.edge : most;
 }
 
 /** The full edge the skis can be put on at `speed` m/s, rad: the most
- * (`edgeMostOf`) at a standstill, two thirds of it by `steer.fadeSpeed` —
- * as long again as the technique holds its edge (`Technique.fade`). Read by
- * the physics AND the bot. */
-export function edgeLockAt(spec: SkiSpec, speed: number, technique: Technique = FREE): number {
+ * (`edgeMostOf`, on the edge of sign `side`) at a standstill, two thirds
+ * of it by `steer.fadeSpeed` — as long again as the technique holds its
+ * edge (`Technique.fade`). Read by the physics AND the bot. */
+export function edgeLockAt(
+  spec: SkiSpec,
+  speed: number,
+  technique: Technique = FREE,
+  side = 0,
+): number {
   return (
-    edgeMostOf(spec, technique) /
+    edgeMostOf(spec, technique, side) /
     (1 + Math.abs(speed) / (2 * TUNING.steer.fadeSpeed * technique.fade))
+  );
+}
+
+/** THE EDGE THE STEER'S FULL THROW ASKS FOR at `speed` m/s on the edge of
+ * sign `side`, rad: the lock, stood `carve.edge` further over by as much
+ * as he cuts hard (`carve` 0..1, `TUNING.carve`), never past the most he
+ * stands that edge on. What the physics rolls the skis toward (`skier.ts`)
+ * and the bot and its turn model read. */
+export function edgeAskedAt(
+  spec: SkiSpec,
+  speed: number,
+  technique: Technique,
+  carve: number,
+  side = 0,
+): number {
+  return Math.min(
+    edgeMostOf(spec, technique, side),
+    edgeLockAt(spec, speed, technique, side) * (1 + TUNING.carve.edge * carve),
   );
 }
 
@@ -88,10 +133,16 @@ export function carveMost(spec: SkiSpec, edge: number): number {
  * tight (`carveCurvature` turned round, atan(k·R)) is the lock the edge
  * eases to with speed (`edgeLockAt`) at this speed and no faster. Zero
  * where no edge the skier stands his skis on carves it at all — a bend a
- * long ski can only be skidded round. */
-export function carveSpeedOf(spec: SkiSpec, k: number, technique: Technique = FREE): number {
+ * long ski can only be skidded round. On a board, on the edge of sign
+ * `side` — the heel's, the weaker, unless it names the toe's. */
+export function carveSpeedOf(
+  spec: SkiSpec,
+  k: number,
+  technique: Technique = FREE,
+  side = 0,
+): number {
   const need = Math.atan(Math.abs(k) * spec.sidecut);
-  const most = edgeMostOf(spec, technique);
+  const most = edgeMostOf(spec, technique, side);
   if (need >= most) return 0;
   return 2 * TUNING.steer.fadeSpeed * technique.fade * (most / Math.max(need, 1e-6) - 1);
 }
@@ -105,10 +156,12 @@ export function carveSpeedOf(spec: SkiSpec, k: number, technique: Technique = FR
  * inside over his CoG height, folded half a tuck low — times the arcade's
  * `hangOff`. So a skier folded low into a turn holds a carve a tall one is
  * thrown out of, and on the groomer the edge's grip, not this, is what a
- * carve runs out of first. */
-export function tipLimit(spec: SkiSpec): number {
+ * carve runs out of first. On a board's heel edge (`side`) his hips hang
+ * in only `BoardFit.heel.angulate` as far. */
+export function tipLimit(spec: SkiSpec, side = 0): number {
   const low = spec.cogHeight - spec.crouchDrop / 2;
-  const incline = TUNING.skier.rollPacked + Math.atan(spec.hipReach / low);
+  const reach = spec.hipReach * angulateShareOf(spec, side);
+  const incline = TUNING.skier.rollPacked + Math.atan(reach / low);
   return Math.tan(Math.min(incline, 1.2)) * TUNING.arcade.hangOff;
 }
 
@@ -147,7 +200,7 @@ export function cornerGrip(
   const hold =
     grip.edge * chatterHold(spec, speed) * (1 + platformOf(edge, technique.platform)) * packed +
     grip.base * (1 - packed);
-  return TUNING.g * Math.min(hold * TUNING.arcade.sideGrip, tipLimit(spec));
+  return TUNING.g * Math.min(hold * TUNING.arcade.sideGrip, tipLimit(spec, Math.sign(edge)));
 }
 
 /** THE EDGE CUT HARD at `speed` m/s, rad: the back key held after the edge
@@ -155,10 +208,7 @@ export function cornerGrip(
  * speed's own lock, never past the most he stands them on — the edge the
  * physics puts a skier cutting hard on. */
 export function cutEdgeAt(spec: SkiSpec, speed: number, technique: Technique = FREE): number {
-  return Math.min(
-    edgeMostOf(spec, technique),
-    edgeLockAt(spec, speed, technique) * (1 + TUNING.carve.edge),
-  );
+  return edgeAskedAt(spec, speed, technique, 1);
 }
 
 /** HOW HARD A SKIER CUTTING HARD CAN CORNER on snow `packed` 0..1 at

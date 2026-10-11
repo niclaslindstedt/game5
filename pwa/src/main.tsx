@@ -18,8 +18,10 @@ import "./plane.css";
 import "./stats.css";
 import "./replay.css";
 import "./title.css";
+import { loadRealFace } from "@engine";
 import { App } from "./App.tsx";
 import { guardAgainstLoupe } from "./game/no-loupe.ts";
+import { loadSettings } from "./game/settings.ts";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";
 
 // In dev no worker registers (`usePwaUpdate` runs disabled), but a worker
@@ -45,4 +47,12 @@ guardAgainstLoupe();
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root element");
 
-render(<App />, root);
+// THE REAL FACE A BOOT MAY STAND ON, fetched before the first render: a
+// link's (`?face=`) and the free ride's stored one, so a ride the app
+// stands up at once (`?start=free`) can raise its map on it. Its heights
+// and hints are a chunk of their own (`loadRealFace`); a fetch that fails
+// leaves the boot to fall back as any refused map does.
+const faces = [new URLSearchParams(location.search).get("face"), loadSettings().ride.face];
+void Promise.allSettled(faces.map((id) => (id ? loadRealFace(id) : null))).then(() =>
+  render(<App />, root),
+);

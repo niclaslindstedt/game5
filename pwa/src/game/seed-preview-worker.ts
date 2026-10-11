@@ -27,6 +27,7 @@ import {
   helipadOf,
   airstripOf,
   balloonSiteOf,
+  loadRealFace,
   lodgesOf,
   paraStartOf,
   sledSpotOf,
@@ -196,6 +197,9 @@ const lodgeDoorOf = (level: Level) => {
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
   const { seed, region, face, grade, paint, level: given } = e.data;
   try {
+    // A real face is fetched before its map is raised or painted (the
+    // panorama stands its real houses).
+    if (face) await loadRealFace(face);
     const level = given
       ? boundLevel(given)
       : generateLevel(seed, {

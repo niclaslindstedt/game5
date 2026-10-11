@@ -42,6 +42,9 @@ aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
 const S = await import(join(root, "tests/support/synthetic.ts"));
 
+/** Every pair the lab rides: the skis, then the boards. */
+const PAIRS = [...E.SKI_CATALOG, ...E.BOARD_CATALOG];
+
 const args = parseArgs(
   process.argv.slice(2),
   {
@@ -50,7 +53,7 @@ const args = parseArgs(
     skis: {
       kind: "string",
       default: "chamois",
-      help: `the pair (${E.SKI_CATALOG.map((s) => s.id).join(", ")}), or all`,
+      help: `the pair or the board (${PAIRS.map((s) => s.id).join(", ")}), or all`,
     },
     rider: {
       kind: "string",
@@ -81,8 +84,8 @@ const args = parseArgs(
   "usage: npm run ride -- [scenario] [--skis id|all] [--rider id] [--seconds s] [--resilience 0..1] [--buzz 0..1] [--hurt part:ais,…] [--no-poles] [--no-png] [--out dir]",
 );
 
-if (args.skis !== "all" && !E.isSkiId(args.skis)) {
-  console.error(`unknown skis "${args.skis}" (${E.SKI_CATALOG.map((s) => s.id).join(", ")}, all)`);
+if (args.skis !== "all" && !E.isPairId(args.skis)) {
+  console.error(`unknown skis "${args.skis}" (${PAIRS.map((s) => s.id).join(", ")}, all)`);
   process.exit(2);
 }
 if (!E.isRiderId(args.rider)) {
@@ -92,8 +95,8 @@ if (!E.isRiderId(args.rider)) {
 const rider = E.riderById(args.rider);
 const roster = (
   args.skis === "all" || (args.card && args.skis === "chamois" && !process.argv.includes("--skis"))
-    ? E.SKI_CATALOG
-    : [E.skisById(args.skis)]
+    ? PAIRS
+    : [E.pairById(args.skis)]
 ).map((s) => E.withRider(s, rider));
 
 const wanted = args.scenario ?? args._[0];
@@ -119,7 +122,7 @@ const hurts = (args.hurt ?? "")
 /** Ski a scenario and keep a frame every step. */
 function record(scenario, asked) {
   // A scenario of a discipline's own pair skis it whatever the lab asked.
-  const spec = scenario.skis ? E.skisById(scenario.skis) : asked;
+  const spec = scenario.skis ? E.pairById(scenario.skis) : asked;
   const level = scenario.level(S);
   const state = E.createGame({
     level,
@@ -179,6 +182,10 @@ function record(scenario, asked) {
       sink: c.sinks[probe],
       speed: c.speed,
       way: c.way,
+      vx: c.vx,
+      vz: c.vz,
+      switched: c.switched,
+      reverting: c.revert != null,
       edge: c.edge,
       skid: c.skid,
       crouch: c.crouch,
@@ -207,9 +214,25 @@ function record(scenario, asked) {
       ry: c.thrown ? c.thrown.y : c.y,
       rz: c.thrown ? c.thrown.z : c.z,
       tumble: c.thrown ? c.thrown.tumble : 0,
+      // A snowboarder's feet (`board-state.ts`) and his steps round.
+      board: c.board ? { ...c.board } : null,
+      sidestep: c.sidestep,
+      pivot: c.pivot,
+      stride: c.stride,
+      // What a fall left on his feet: the skis let go, and a board's feet
+      // held apart on its deck (`Thrown.board`).
+      loneSkis: c.thrown ? c.thrown.skis.length : 0,
+      feet: c.thrown ? feetApart(c.thrown.points) : 0,
     });
   }
-  return { frames, events, trees: level.trees };
+  return { frames, events, trees: level.trees, spec };
+}
+
+/** How far apart a thrown body's two feet are, m. */
+function feetApart(P) {
+  const l = 3 * E.RAGDOLL.footL;
+  const r = 3 * E.RAGDOLL.footR;
+  return Math.hypot(P[l] - P[r], P[l + 1] - P[r + 1], P[l + 2] - P[r + 2]);
 }
 
 /** THE ROSTER CARD's columns: a scenario, the figure off its table, and the

@@ -12,6 +12,7 @@ import {
   balloonSiteOf,
   generateLevel,
   helipadOf,
+  loadRealFace,
   onStrip,
   sledSpotOf,
   streetMaskAt,
@@ -87,7 +88,8 @@ describe("the airstrip", () => {
     });
   }
 
-  it("is found on a real mountainside too", () => {
+  it("is found on a real mountainside too", async () => {
+    await loadRealFace("alpine-1");
     holds(generateLevel(1, { face: "alpine-1" }));
   });
 });

@@ -177,7 +177,7 @@ if (!(args.technique in TP.TECHNIQUE_POSES)) {
   );
   process.exit(2);
 }
-const spec = E.SKI_CATALOG.find((s) => s.id === args.skis);
+const spec = E.isPairId(args.skis) ? E.pairById(args.skis) : null;
 if (!spec) {
   console.error(`unknown skis "${args.skis}" (${E.SKI_CATALOG.map((s) => s.id).join(", ")})`);
   process.exit(2);
@@ -494,31 +494,36 @@ function flatOf(v) {
 
 /** The rows asked for, each skied and drawn. */
 const rows = [];
+// A BOARD races no slalom (no discipline is ridden on one): its course row
+// is the seed's own piste, the run a mode names none of, ridden by the bot
+// from the start gate with the board's own technique (`BOARD_TECHNIQUE`).
+const board = E.isBoard(spec);
 if (rowIds.includes("course")) {
   for (const seed of args.seed.split(",").filter(Boolean).map(Number)) {
     const state = E.createGame({
       seed,
-      mode: "slalom",
+      ...(board ? {} : { mode: "slalom" }),
       rivals: 0,
       countdown: 0,
       spec,
       technique: args.technique,
       quiet: true,
     });
-    if (!state.level.slalom) {
+    if (!board && !state.level.slalom) {
       console.error(`seed ${seed} sets no slalom`);
       process.exit(2);
     }
     // Read from a moment after the start push (the clip's own) to the finish.
     const run = drawRun(state, (_t, st) => E.botInput(st, E.RIDER_BOT), {
-      measured: (st) => st.progress.started && st.skier.launch > 1,
+      measured: (st) => st.progress.started && (board || st.skier.launch > 1),
       done: (st) => st.progress.finished,
       seconds: args.seconds + 20,
     });
     const out = state.progress.out;
+    const what = board ? "piste, the bot on the board" : "slalom, the bot";
     rows.push({
       id: `course-${seed}`,
-      say: `seed ${seed}'s slalom, the bot${out ? `, ${out.status} at gate ${out.gate} (${out.why})` : ""}`,
+      say: `seed ${seed}'s ${what}${out ? `, ${out.status} at gate ${out.gate} (${out.why})` : ""}`,
       ...run,
     });
   }

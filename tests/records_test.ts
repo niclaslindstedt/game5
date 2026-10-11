@@ -166,9 +166,12 @@ describe("a stored book", () => {
       zero: { value: 0, skis: "hare", at: 5 },
       nan: { value: "fast", skis: "hare", at: 5 },
       ghostSkis: { value: 70, skis: "snowboard", at: 5 },
+      // A board this build carries is a pair a run could have been set on.
+      board: { value: 73, skis: "lynx", at: 6 },
       junk: 12,
     });
-    expect(Object.keys(book).sort()).toEqual(["badSplits", "good", "noDate"]);
+    expect(Object.keys(book).sort()).toEqual(["badSplits", "board", "good", "noDate"]);
+    expect(book.board.skis).toBe("lynx");
     expect(book.noDate.at).toBe(0);
     expect(book.noDate.splits).toEqual([]);
     expect(book.badSplits.splits).toEqual([1, 3]);

@@ -2,12 +2,15 @@
 // R25 — A REAL FACE'S HINTS: where the real ski area on a real face has
 // its lifts, its pistes and its houses, coarsely.
 //
-// Baked offline off OpenStreetMap by `scripts/real-hints.mjs` into
-// `real-hints-data.ts` (generated, under the Open Database Licence) on the
+// Baked offline off OpenStreetMap by `scripts/real-hints.mjs` into a
+// generated file a face (`real-hints/hints-<id>.ts`, under the Open
+// Database Licence, listed in `real-hints-index.ts`) on the
 // same crop as the face's heights, so a hint stands on the map where the
 // real lift, piste or house stands on the face. Nothing is named: a lift
 // is its two ends and its kind, a piste its grade and a few bends down its
-// line, a house its middle, its size and its bearing.
+// line, a house its middle, its size and its bearing, a street of the town
+// at the foot its class (a main road or a street) and a few bends, the
+// town its middle and radius.
 //
 // They are HINTS, not a plan: the generator leans its stations, its runs
 // and the village's buildings toward them where its own rules allow, and
@@ -15,8 +18,8 @@
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { PISTE_GRADES, type PisteGrade, type RunGrade } from "./grades.ts";
-import { HINT_DATA, HINT_GRAIN, type HintData } from "./real-hints-data.ts";
-import { base64 } from "./real-face.ts";
+import { base64 } from "./base64.ts";
+import { HINT_GRAIN, HINT_LOADERS, type HintData } from "./real-hints-index.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 
 /** A real lift: its kind and its ends, the bottom the lower. */
@@ -44,10 +47,51 @@ export type HintHouse = {
   readonly turn: number;
 };
 
+/** A real street of the town at the face's foot, roughly: whether it is a
+ * MAIN road (a through road) or a street, and its bends to a few metres. */
+export type HintStreet = {
+  readonly main: boolean;
+  readonly points: readonly Point[];
+};
+
+/** The real town, roughly: its middle (where the most street lies) and the
+ * radius that holds most of its streets, m. */
+export type HintTown = { readonly x: number; readonly z: number; readonly r: number };
+
+/** A real body of water (`scripts/lib/real-face-water.mjs`): its kind,
+ * its rings on the map as x, z pairs — `rings[0]` the outer,
+ * counter-clockwise (a positive area in x, z), the holes (its islands)
+ * clockwise — the lowest its shore stands on the real face, m over the
+ * sea, its area, m², and whether the map's window cut it. */
+export type HintWater = {
+  readonly kind: "lake" | "pond" | "reservoir" | "river";
+  readonly rings: readonly Float32Array[];
+  readonly level: number;
+  readonly area: number;
+  readonly clipped: boolean;
+};
+
+/** A real river or stream too thin to be mapped as an area: its line on
+ * the map as x, z pairs, DOWNSTREAM (its first point the uphill one), and
+ * its width, m. */
+export type HintStream = {
+  readonly kind: "river" | "stream";
+  readonly line: Float32Array;
+  readonly width: number;
+};
+
 export type RealHints = {
   readonly lifts: readonly HintLift[];
   readonly pistes: readonly HintPiste[];
   readonly houses: readonly HintHouse[];
+  /** The town's streets, the most central first (none where the face has
+   * no town), and the town itself (null then). */
+  readonly streets: readonly HintStreet[];
+  readonly town: HintTown | null;
+  /** The lakes, ponds, reservoirs and rivers mapped as areas, the largest
+   * first, and the streams and rivers mapped as lines, the longest first. */
+  readonly water: readonly HintWater[];
+  readonly streams: readonly HintStream[];
 };
 
 /** A point on the map, m. */
@@ -55,15 +99,39 @@ export type Point = { readonly x: number; readonly z: number };
 
 const KINDS = ["chair", "gondola", "drag"] as const;
 const GRADES: readonly RunGrade[] = ["green", "blue", "red", "black", "orange"];
+const WATER_KINDS = ["lake", "pond", "reservoir", "river"] as const;
+const STREAM_KINDS = ["river", "stream"] as const;
 
+const loaded = new Map<string, HintData>();
 const decoded = new Map<string, RealHints>();
 
-/** A face's hints by its id, decoded once; null for a face with none. */
+/** Whether a face has hints at all. */
+export function faceHasHints(id: string): boolean {
+  return HINT_LOADERS[id] !== undefined;
+}
+
+/** Fetch a face's hints, once — `loadRealFace`'s half; true for a face
+ * with none. */
+export async function loadRealHints(id: string): Promise<boolean> {
+  const load = HINT_LOADERS[id];
+  if (!load) return true;
+  if (!loaded.has(id)) loaded.set(id, (await load()).HINTS);
+  return true;
+}
+
+/** Whether a face's hints are in hand. */
+export function realHintsLoaded(id: string): boolean {
+  return loaded.has(id);
+}
+
+/** A face's hints by its id, decoded once; null for a face with none.
+ * Throws for a face whose hints are not loaded (`loadRealFace`). */
 export function realHints(id: string): RealHints | null {
   const kept = decoded.get(id);
   if (kept) return kept;
-  const data = HINT_DATA.find((h) => h.id === id);
-  if (!data) return null;
+  if (!faceHasHints(id)) return null;
+  const data = loaded.get(id);
+  if (!data) throw new Error(`real face ${id} is not loaded (loadRealFace)`);
   const hints = decode(data);
   decoded.set(id, hints);
   return hints;
@@ -84,7 +152,7 @@ function decode(h: HintData): RealHints {
     } while (b & 0x80);
     return z % 2 ? -(z + 1) / 2 : z / 2;
   };
-  const { coarse, fine, size, width, bearings } = HINT_GRAIN;
+  const { coarse, fine, size, width, bearings, town: townStep } = HINT_GRAIN;
   const lifts: HintLift[] = [];
   for (let i = get(); i > 0; i--) {
     const kind = KINDS[get()];
@@ -119,7 +187,62 @@ function decode(h: HintData): RealHints {
       turn: ((v % bearings) / bearings) * Math.PI,
     });
   }
-  return { lifts, pistes, houses };
+  const streets: HintStreet[] = [];
+  let town: HintTown | null = null;
+  const nStreets = at < bytes.length ? get() : 0;
+  if (nStreets > 0) {
+    town = { x: get() * coarse, z: get() * coarse, r: get() * townStep };
+    let [x, z] = [0, 0];
+    for (let i = nStreets; i > 0; i--) {
+      const main = get() === 0;
+      const points: Point[] = [];
+      for (let k = get(); k > 0; k--) {
+        x += get();
+        z += get();
+        points.push({ x: x * coarse, z: z * coarse });
+      }
+      streets.push({ main, points });
+    }
+  }
+  const { water: grain } = HINT_GRAIN;
+  let [wx, wz] = [0, 0];
+  const pointsOf = (): Float32Array => {
+    const out = new Float32Array(get() * 2);
+    for (let k = 0; k < out.length; k += 2) {
+      wx += get();
+      wz += get();
+      out[k] = wx * grain;
+      out[k + 1] = wz * grain;
+    }
+    return out;
+  };
+  const water: HintWater[] = [];
+  for (let i = at < bytes.length ? get() : 0; i > 0; i--) {
+    const v = get();
+    const level = get();
+    const rings: Float32Array[] = [];
+    for (let k = get(); k > 0; k--) rings.push(pointsOf());
+    const area = rings.reduce((s, r) => s + ringArea(r), 0);
+    water.push({ kind: WATER_KINDS[v >> 1], rings, level, area, clipped: (v & 1) === 1 });
+  }
+  const streams: HintStream[] = [];
+  for (let i = at < bytes.length ? get() : 0; i > 0; i--) {
+    const kind = STREAM_KINDS[get()];
+    const width = get();
+    streams.push({ kind, width, line: pointsOf() });
+  }
+  return { lifts, pistes, houses, streets, town, water, streams };
+}
+
+/** A ring's signed area, m² (x, z pairs): positive counter-clockwise. */
+export function ringArea(ring: Float32Array): number {
+  let a = 0;
+  const n = ring.length;
+  for (let i = 0; i < n; i += 2) {
+    const j = (i + 2) % n;
+    a += ring[i] * ring[j + 1] - ring[j] * ring[i + 1];
+  }
+  return a / 2;
 }
 
 // ── Leaning on them ─────────────────────────────────────────────────────
@@ -337,7 +460,11 @@ export function alongPiste(
   piste: HintPiste,
   r: { readonly ahead: { readonly min: number; readonly max: number }; readonly aside: number },
 ): (x: number, z: number) => Point | null {
-  return pisteAhead({ lifts: [], pistes: [piste], houses: [] }, piste.grade, { ...r, same: 0 });
+  return pisteAhead(
+    { lifts: [], pistes: [piste], houses: [], streets: [], town: null, water: [], streams: [] },
+    piste.grade,
+    { ...r, same: 0 },
+  );
 }
 
 /** The real width of the pistes at (`x`, `z`), m: the width the map gives

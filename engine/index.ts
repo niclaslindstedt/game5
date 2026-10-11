@@ -196,6 +196,16 @@ export {
 } from "./game/defs/aerial-jumps.ts";
 export { MOGUL_ABSORB, absorbedAt, riddenLevel } from "./game/mogul-ride.ts";
 export { snowNormal, uprightOn } from "./game/snow-normal.ts";
+export {
+  airOn,
+  bodyState,
+  frostNeeded,
+  streamState,
+  waterOn,
+  type WaterPhase,
+  type WaterState,
+} from "./game/lake-ice.ts";
+export { LAKE_ICE } from "./game/defs/lake-ice.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
@@ -377,6 +387,8 @@ export {
   type SkiSpec,
   type LegSpec,
 } from "./game/defs/skis.ts";
+export type { BoardId, PairId, BoardFit, SkisSpec } from "./game/defs/skis.ts";
+export * from "./game/board-api.ts";
 export { TAIL_RISE, tailRiseOf } from "./game/defs/tails.ts";
 export { heldSlip, revertShare, switchSteer, switchTurn, tailDug } from "./game/switch.ts";
 export type { Revert } from "./game/switch.ts";
@@ -726,8 +738,7 @@ export {
   type CabinKind,
   type LogKind,
 } from "./game/defs/cabins.ts";
-// THE SKI AREA'S BUILDINGS AND THE VILLAGE'S STREETS: where they stand, the
-// plan, what it carries, the questions asked of it.
+// THE VILLAGE'S BUILDINGS, STREETS AND TRAFFIC; THE JUMP PLANE AND ITS STRIP.
 export * from "./game/village-api.ts";
 export * from "./game/traffic-api.ts";
 export * from "./game/plane-api.ts";
@@ -893,6 +904,7 @@ export {
   pickFreeRun,
   runsOffTop,
   seatedShare,
+  skipShare,
   stepLift,
 } from "./game/lift-ride.ts";
 export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";

@@ -35,7 +35,9 @@ const {
   engineVersion,
   TUNING,
   SKI_CATALOG,
-  isSkiId,
+  BOARD_CATALOG,
+  isPairId,
+  pairById,
   RIDERS,
   isRiderId,
   riderById,
@@ -48,6 +50,9 @@ const {
   WEATHER_KINDS,
 } = await import(join(root, "engine/index.ts"));
 
+/** Every pair the bot can be put on: the catalog's skis and the boards. */
+const PAIRS = [...SKI_CATALOG, ...BOARD_CATALOG];
+
 const args = parseArgs(
   process.argv.slice(2),
   {
@@ -59,7 +64,7 @@ const args = parseArgs(
     skis: {
       kind: "string",
       default: SKI_CATALOG[0].id,
-      help: `the pair (${SKI_CATALOG.map((s) => s.id).join(", ")}), or all for the catalog`,
+      help: `the pair or the board (${PAIRS.map((s) => s.id).join(", ")}), or all for the catalog's skis`,
     },
     rider: {
       kind: "string",
@@ -70,7 +75,7 @@ const args = parseArgs(
     "no-poles": { kind: "flag", help: "the bot skis without poles (the player's hard mode)" },
     face: {
       kind: "string",
-      help: "raise each seed's resort on this REAL face (R25: alpine-1 … fell-2)",
+      help: "raise each seed's resort on this REAL face (R25: alpine-1, fell-3, …)",
     },
     region: {
       kind: "string",
@@ -101,6 +106,8 @@ const args = parseArgs(
   },
   "usage: npm run sim -- [--count n | --seeds a,b,c] [--skis id|all] [--rider id] [--laps n] [--rivals n] [--max s] [--tricks] [--no-poles] [--region id] [--face id] [--grade id] [--weather kind] [--mode slalom|giantSlalom|downhill|superG|speedSki|skiCross|bigAir|slopestyle|halfpipe|moguls|aerials] [--heat] [--plan code] [--json path]",
 );
+// A real face is fetched before a map is raised on it (`loadRealFace`).
+if (args.face) await (await import(join(root, "engine/index.ts"))).loadRealFace(args.face);
 
 if (args.grade !== undefined && !isPisteGrade(args.grade)) {
   console.error(`unknown grade "${args.grade}" (${PISTE_GRADES.join(", ")})`);
@@ -144,17 +151,17 @@ if (!isRegionId(args.region)) {
   process.exit(2);
 }
 
-if (args.skis !== "all" && !isSkiId(args.skis)) {
-  console.error(`unknown skis "${args.skis}" (${SKI_CATALOG.map((s) => s.id).join(", ")}, all)`);
+if (args.skis !== "all" && !isPairId(args.skis)) {
+  console.error(`unknown skis "${args.skis}" (${PAIRS.map((s) => s.id).join(", ")}, all)`);
   process.exit(2);
 }
 if (!isRiderId(args.rider)) {
   console.error(`unknown rider "${args.rider}" (${RIDERS.map((r) => r.id).join(", ")})`);
   process.exit(2);
 }
-const roster = (
-  args.skis === "all" ? SKI_CATALOG : SKI_CATALOG.filter((s) => s.id === args.skis)
-).map((s) => withRider(s, riderById(args.rider)));
+const roster = (args.skis === "all" ? SKI_CATALOG : [pairById(args.skis)]).map((s) =>
+  withRider(s, riderById(args.rider)),
+);
 
 const seeds = args.seeds
   ? args.seeds.map(Number)

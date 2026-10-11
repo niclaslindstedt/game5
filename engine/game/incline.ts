@@ -30,7 +30,7 @@ import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
 import type { Technique } from "./defs/technique.ts";
 import type { SkiSpec } from "./defs/skis.ts";
-import { carveCurvature, carveMost, cornerGrip } from "./limits.ts";
+import { angulateShareOf, carveCurvature, carveMost, cornerGrip } from "./limits.ts";
 import type { SkierState } from "./state.ts";
 import { snowNormal } from "./snow-normal.ts";
 import type { Level } from "../mapgen/types.ts";
@@ -61,16 +61,17 @@ export function crossUnderOf(T: Technique, fall: number): number {
  * under him first (`Crossing.under`: the cross-under). On the groomer: in
  * powder the roll is the whole of the turn. The physics' rule
  * (`edgeWithin`) and the bot's model of it (`turn-model.ts`) both read it
- * here. */
+ * here, the angulation (`angulate`, rad) the edge's own (`angulationOf`). */
 export function edgeReach(
   lean: number,
   goal: number,
   packed: number,
   fall: number,
   T: Technique,
+  angulate: number = TUNING.skier.angulateMost,
 ): number {
   const reach = Math.max(
-    TUNING.skier.angulateMost + Math.max(0, lean * Math.sign(goal)),
+    angulate + Math.max(0, lean * Math.sign(goal)),
     T.cross.under * crossUnderOf(T, fall),
   );
   return Math.sign(goal) * Math.min(Math.abs(goal), reach + (1 - packed) * Math.PI);
@@ -87,9 +88,17 @@ export function crossFall(level: Level, c: SkierState, T: Technique): number {
   return Math.acos(clamp(up.y, -1, 1));
 }
 
+/** HOW FAR HE ANGULATES past his inclination onto the edge of sign
+ * `side`, rad (`skier.angulateMost`): the whole of it on skis and on a
+ * board's toe edge, less on its heel edge (`limits.ts`'s
+ * `angulateShareOf`). */
+export function angulationOf(spec: SkiSpec, side: number): number {
+  return TUNING.skier.angulateMost * angulateShareOf(spec, side);
+}
+
 /** `edgeReach` for the skier `c` as he stands, on a pitch `fall` rad. */
 export function edgeWithin(c: SkierState, goal: number, fall: number, T: Technique): number {
-  return edgeReach(c.incline, goal, c.packed, fall, T);
+  return edgeReach(c.incline, goal, c.packed, fall, T, angulationOf(c.spec, Math.sign(goal)));
 }
 
 /** HOW FAR HE MAY COMMIT ACROSS into the next turn against the balance

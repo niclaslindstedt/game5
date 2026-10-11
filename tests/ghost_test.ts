@@ -203,6 +203,8 @@ describe("what names the snow", () => {
     expect(ghostMatches(run, { ...stage, map: "00000000" })).toBe(false);
     expect(readsAsGhost({ ...run, format: GHOST_FORMAT + 1 })).toBe(false);
     expect(readsAsGhost({ ...run, skis: "hovercraft" })).toBe(false);
+    // A board this build carries is a pair a ghost could have been ridden on.
+    expect(readsAsGhost({ ...run, skis: "lynx" })).toBe(true);
     expect(readsAsGhost({ ...run, value: 0 })).toBe(false);
     expect(readsAsGhost({ ...run, assist: { yaw: 2, air: 1 } })).toBe(false);
     expect(readsAsGhost({ ...run, steer: undefined })).toBe(false);

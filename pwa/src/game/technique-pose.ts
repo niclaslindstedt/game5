@@ -261,6 +261,9 @@ export const TECHNIQUE_POSES: Readonly<Record<TechniqueId, TechniquePose>> = {
   skiCross: SKI_CROSS_POSE,
   speedSki: SPEED_SKI_POSE,
   moguls: MOGULS_POSE,
+  // The board has no figure of its own yet: drawn as the park twin, he is
+  // stood as the free skier.
+  board: { ...FREE_POSE, id: "board" },
 };
 
 /** The pose row a run's skier carries himself by: its technique's (the

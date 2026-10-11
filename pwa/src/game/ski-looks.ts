@@ -35,7 +35,7 @@
 // Blender builder is handed it, and the suite holds every class's trace to
 // its spec.
 
-import { bootOffset, type SkiId, type SkiSpec } from "@engine";
+import { bootOffset, isSkiId, type SkiId, type SkiSpec } from "@engine";
 
 export type SkiLook = {
   tip: { rise: number; length: number };
@@ -212,9 +212,16 @@ export const SKI_LOOKS: Record<SkiId, SkiLook> = {
   },
 };
 
+/** WHICH SKIS A PAIR IS DRAWN AS: its own — and a snowboard, which has no
+ * figure of its own yet, as the park twin, the nearest pair to it in look.
+ * The one place a board meets the skis' drawing tables. */
+export function drawnAs(spec: SkiSpec): SkiId {
+  return isSkiId(spec.id) ? spec.id : "hare";
+}
+
 /** The look for a pair, its class's. */
 export function lookOf(spec: SkiSpec): SkiLook {
-  return SKI_LOOKS[spec.id];
+  return SKI_LOOKS[drawnAs(spec)];
 }
 
 /**
@@ -226,7 +233,7 @@ export function lookOf(spec: SkiSpec): SkiLook {
  */
 export function lookFrame(
   spec: SkiSpec,
-  look: SkiLook = SKI_LOOKS[spec.id],
+  look: SkiLook = SKI_LOOKS[drawnAs(spec)],
 ): {
   z: (s: number) => number;
   y: (h: number) => number;

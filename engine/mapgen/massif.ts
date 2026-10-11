@@ -43,8 +43,8 @@ import {
 import { sampleNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { UNGRADED } from "./grades.ts";
-import { FACE_GRID } from "./real-faces-data.ts";
-import { faceExtreme, faceHeight, faceMean, type RealFace } from "./real-face.ts";
+import { FACE_GRID } from "./real-faces-index.ts";
+import { faceExtreme, faceHeight, faceMean, realFaceTrees, type RealFace } from "./real-face.ts";
 import { realHints } from "./real-hints.ts";
 import { scaleBand, scaleCount, type Region } from "./regions.ts";
 import { TREE_LINE_MASSIF, RESORT_RULES as RR } from "./resort-rules.ts";
@@ -182,7 +182,8 @@ export function planMassif(
   const benchWidth = inBand(rng, M.bench.width);
   const benchDepth = inBand(rng, M.bench.depth);
   const villageX = cx - side * inBand(rng, across(M.village.across));
-  const benchX = villageX + (peakX - villageX) * inBand(rng, M.bench.toward);
+  const benchToward = inBand(rng, M.bench.toward);
+  const benchX = villageX + (peakX - villageX) * benchToward;
   const benchSpread = inBand(rng, across(M.bench.spread));
   const flankBand = { inner: M.flank.inner * wide, outer: M.flank.outer * wide };
   const Q = M.relief;
@@ -246,7 +247,9 @@ export function planMassif(
     benchU,
     benchWidth,
     benchDepth,
-    benchX,
+    // The bench (and the gondola's top on it) between the village and the
+    // peak, wherever a real face stands them.
+    benchX: placed ? placed.villageX + (placed.peakX - placed.villageX) * benchToward : benchX,
     benchSpread,
     villageX: placed?.villageX ?? villageX,
     tables: [
@@ -269,7 +272,14 @@ export function planMassif(
   const altitude = sea;
   const regionVertical =
     ((TREE_LINE_MASSIF.vertical.min + TREE_LINE_MASSIF.vertical.max) / 2) * K.vertical;
-  const treeLine = altitude + (above * vertical) / regionVertical;
+  // On a real face whose map draws its woods, its REAL tree line, stood
+  // over the floor as far as the face is stretched (`readFace`): the line
+  // lies on the map's vertical at the share of the real relief it stands
+  // at. A face with none keeps the region's.
+  const trees = real?.face.trees;
+  const treeLine = trees
+    ? altitude + Math.max(0, (trees.line - real.face.floor) * real.face.stretch)
+    : altitude + (above * vertical) / regionVertical;
   return {
     vertical,
     altitude,
@@ -337,11 +347,21 @@ function readFace(
     across(M.shoulder.across),
     -side,
   );
-  const villageX = keep(
+  // The valley's lowest point, in the dealt band…
+  const lowest = keep(
     faceExtreme(grid, other[0], other[1], baseZ - 60, size, true),
     across(M.village.across),
     -side,
   );
+  // …or, on a face with a town, straight below the town's middle on the
+  // valley floor (as near as `town.across` allows), given back toward the
+  // lowest point a share each attempt the last one refused (`town.yield`).
+  const town = attempt < M.real.hinted ? realHints(grid.id)?.town : null;
+  const toTown = Math.max(0, 1 - attempt * M.real.town.yield);
+  const townX = town
+    ? cx + Math.max(-M.real.town.across, Math.min(M.real.town.across, town.x - cx))
+    : lowest;
+  const villageX = lowest + (townX - lowest) * toTown;
   const drop = Math.max(M.real.leastDrop, ridge - floor);
   const stretch = vertical / drop;
   // The face's own profile: its mean height across the playable face, a
@@ -369,7 +389,8 @@ function readFace(
   }
   const calm = Math.max(M.real.calmest, 1 - attempt * M.real.calming);
   const relief = Math.min(1, (M.real.relief * calm) / Math.max(1, Math.sqrt(sum / count)));
-  return { side, peakX, shoulderX, villageX, face: { grid, floor, stretch, rows, relief } };
+  const trees = realFaceTrees(grid);
+  return { side, peakX, shoulderX, villageX, face: { grid, floor, stretch, rows, relief, trees } };
 }
 
 /** The massif of a plan, or a thrown error: everything below is only ever

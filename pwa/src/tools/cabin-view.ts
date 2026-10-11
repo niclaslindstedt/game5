@@ -12,6 +12,10 @@
 //   * cabins-air — the busiest corner of the ski area (the group with most
 //     groups round it), from a drone 120–200 m up out over the valley,
 //     looking down at it;
+//   * real-house, real-air — on a real face, the real building stood
+//     highest up the mountain (`real-houses.ts`) close, as cabin-near is,
+//     and the busiest corner of the real buildings stood 60 m or more over
+//     the valley, from the air;
 //   * lodge, lodge-near, lodge-2 — an afterski lodge from the snow before
 //     its terrace, close off one end of its racks, and the mountain's (the
 //     afterski lab's, `make afterski`);
@@ -20,7 +24,7 @@
 //   * rocks, rocks-near, rocks-run, rocks-air — the crags on the bare
 //     faces (`rock-view.ts`'s).
 
-import { cabinsOf, trackPointAt, type Cabin, type Level } from "@engine";
+import { REAL_HOUSES, REAL_RUN, cabinsOf, trackPointAt, type Cabin, type Level } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { ROCK_VIEWS, rockView } from "./rock-view.ts";
@@ -33,6 +37,8 @@ export const SITE_VIEWS = [
   "cabin-3",
   "cabin-near",
   "cabins-air",
+  "real-house",
+  "real-air",
   ...TOWER_VIEWS,
   ...ROCK_VIEWS,
 ] as const;
@@ -125,39 +131,65 @@ function lodgeView(level: Level, name: string): { pose: LensPose; note: string }
   };
 }
 
+/** A building close, at three quarters from its front on whichever side
+ * has no trunk in the way (the turn off its front with the fewest trees by
+ * the sight line), the lens a little over its floor. */
+function closeView(level: Level, c: Cabin): LensPose {
+  const blockers = (a: number): number => {
+    const ex = c.x + Math.sin(a) * 18;
+    const ez = c.z + Math.cos(a) * 18;
+    let n = 0;
+    for (const t of level.trees) {
+      const vx = c.x - ex;
+      const vz = c.z - ez;
+      const k = Math.max(0, Math.min(1, ((t.x - ex) * vx + (t.z - ez) * vz) / (vx * vx + vz * vz)));
+      if (Math.hypot(ex + vx * k - t.x, ez + vz * k - t.z) < 2.5 + t.crown * 0.5) n++;
+    }
+    return n;
+  };
+  const turns = [0.55, -0.55, 0.85, -0.85, 0.25, -0.25].map((d) => c.heading + d);
+  const a = turns.reduce((best, t) => (blockers(t) < blockers(best) ? t : best), turns[0]);
+  const eye = { x: c.x + Math.sin(a) * 18, z: c.z + Math.cos(a) * 18 };
+  const high = Math.max(3.2, c.y + 2.5 - level.groundAt(eye.x, eye.z));
+  return pose(eye, high, c, 2.4, level, 50);
+}
+
+/** A REAL FACE's buildings up the mountain (`real-house`, `real-air`):
+ * the real building stood highest over the valley, close, and the
+ * busiest corner of those stood `REAL_HOUSES.up` m or more over it, from the air. */
+function realView(level: Level, name: string): { pose: LensPose; note: string } | null {
+  const base = level.mountain?.base.y ?? 0;
+  const real = cabinsOf(level)
+    .filter((c) => c.run === REAL_RUN)
+    .sort((a, b) => b.y - a.y || a.x - b.x);
+  if (real.length === 0) return null;
+  const up = real.filter((c) => c.y - base >= REAL_HOUSES.up);
+  if (name === "real-air") {
+    if (up.length === 0) return null;
+    const { pose: p, note } = aerial(level, up);
+    return {
+      pose: p,
+      note: `${up.length} of ${real.length} real buildings ${REAL_HOUSES.up} m up; ${note}`,
+    };
+  }
+  const c = real[0];
+  return {
+    pose: closeView(level, c),
+    note: `close: real ${c.id} (${c.kind}), ${Math.round(c.y - base)} m over the valley`,
+  };
+}
+
 export function cabinView(level: Level, name: string): { pose: LensPose; note: string } | null {
   if (name.startsWith("lodge")) return lodgeView(level, name);
   if (name.startsWith("tower")) return towerView(level, name);
   if (name.startsWith("rocks")) return rockView(level, name);
+  if (name.startsWith("real-")) return realView(level, name);
   const groups = groupsOf(level);
   if (groups.length === 0) return null;
   const pick = name === "cabin-2" ? 1 : name === "cabin-3" ? 2 : 0;
   const c = groups[Math.min(pick, groups.length - 1)];
   const said = `${c.id} (${c.kind}) by ${c.run}, ${cabinsOf(level).length} buildings on the map`;
-  if (name === "cabin-near") {
-    // Three quarters from the front, whichever side has no trunk in the
-    // way: the turn off its front with the fewest trees by the sight line.
-    const blockers = (a: number): number => {
-      const ex = c.x + Math.sin(a) * 18;
-      const ez = c.z + Math.cos(a) * 18;
-      let n = 0;
-      for (const t of level.trees) {
-        const vx = c.x - ex;
-        const vz = c.z - ez;
-        const k = Math.max(
-          0,
-          Math.min(1, ((t.x - ex) * vx + (t.z - ez) * vz) / (vx * vx + vz * vz)),
-        );
-        if (Math.hypot(ex + vx * k - t.x, ez + vz * k - t.z) < 2.5 + t.crown * 0.5) n++;
-      }
-      return n;
-    };
-    const turns = [0.55, -0.55, 0.85, -0.85, 0.25, -0.25].map((d) => c.heading + d);
-    const a = turns.reduce((best, t) => (blockers(t) < blockers(best) ? t : best), turns[0]);
-    const eye = { x: c.x + Math.sin(a) * 18, z: c.z + Math.cos(a) * 18 };
-    const high = Math.max(3.2, c.y + 2.5 - level.groundAt(eye.x, eye.z));
-    return { pose: pose(eye, high, c, 2.4, level, 50), note: `close: ${said}` };
-  }
+  if (name === "cabin-near") return { pose: closeView(level, c), note: `close: ${said}` };
   if (name === "cabins-air") return aerial(level, groups);
   const run = level.resort?.runs.find((r) => r.id === c.run);
   const line = run ? { track: { points: run.points, length: run.length } } : level;

@@ -9,13 +9,29 @@
 // where a map of your own, a day of your own and a depth of snow of your own
 // belong. (Sibling game3's start card, ported for snow.)
 //
-// FOUR ROWS AND A CHART, and every one of them changes the ride:
+// THREE ROWS SAY WHERE, A CHART SHOWS IT, and the rest say when:
 //
-//   MAP     which seed, typed or stepped, with ANOTHER MAP under the chart to
-//           deal a fresh one. The CHART is the row's meaning — a number
-//           nobody can picture is not a choice — and it is cut from the real
+//   RANGE   the massif: the RANGE a real face lies in (`face-picks.ts`: a
+//           country, or a range across borders; by name) — only the ranges
+//           with a face whose real ski area signs a link's `?grade=` where
+//           one asks it — or, last, GENERATED: a mountain the generator raises off a seed.
+//
+//   AREA    under GENERATED, the kind of snow country it is raised in
+//           (R21): the alpine, a fell, a continental range or a maritime
+//           one. Under a real range, which of its ski areas, by the place
+//           it is known by (a real face brings its own country).
+//
+//   MOUNTAIN under GENERATED, the mountain's NUMBER — the seed, typed or
+//           stepped — with ANOTHER MOUNTAIN beside the rows to deal a
+//           fresh one. The CHART is the row's meaning — a number nobody
+//           can picture is not a choice — and it is cut from the real
 //           generated map in a worker (`seed-preview.tsx`), with every
 //           KICKER marked on it, which is what a free skier is hunting.
+//   PART    under a real area, which part of it (`real-face.ts`) — a real
+//           mountainside's ridge, spurs, gullies and tree line under the
+//           seed's lifts and runs; shown only where the area has more
+//           than one.
+//
 //   SEASON  early winter, midwinter, late winter or spring (`SEASONS`): how
 //           high the sun climbs and how long the shadows lie.
 //   TIME    morning, day, evening or night — a WORD, whose hour is the
@@ -24,13 +40,6 @@
 //           stands there for the whole ride.
 //   SNOW    thin, medium, thick or very deep (`SNOW_STOPS`), read as how
 //           deep the loose snow lies — up to a metre of fresh snow.
-//
-//   COUNTRY the kind of snow country the map is built in (R21): the same seed
-//           raised as the alpine, a fell, a continental range or a maritime one.
-//
-//   SHAPE   the massif's shape: the seed's own, or one of the real faces
-//           of that country (`real-face.ts`) — a real mountainside's
-//           ridge, spurs and gullies under the seed's lifts and runs.
 //
 //   START   how the ride begins: ON SKIS, carried by the lift to the RUN
 //           row's run — or a way up with no lift: the PARAMOTOR (the
@@ -65,16 +74,25 @@
 // one a `?start=free` link boots into are the same ride read the same way.
 
 import {
-  REAL_FACE_IDS,
-  REGION_IDS,
+  type RunGrade,
   TIMES_OF_DAY,
   WEATHER_KINDS,
+  realFacePlace,
   realFaceRegion,
   type RegionId,
   type WeatherKind,
 } from "@engine";
 import { useState } from "preact/hooks";
 
+import {
+  areaIds,
+  areaOf,
+  areaParts,
+  GENERATED,
+  rangeIds,
+  rangeOf,
+  wherePicked,
+} from "./face-picks.ts";
 import { SEASONS, SNOW_STOPS, runPicked, spotOn, startPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { useRunPick } from "./run-pick.ts";
@@ -92,17 +110,34 @@ const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
   ...WEATHER_KINDS.map((kind) => ({ id: kind, label: STRINGS.weatherNames[kind] })),
 ];
 
-/** The COUNTRY row's stops: R21's regions. */
-const REGION_STOPS = REGION_IDS.map((id) => ({ id, label: STRINGS.regionNames[id] }));
+/** The RANGE row's stops: every range with a real face
+ * whose ski area signs a link's grade (any, without one) (R25), then GENERATED. */
+function rangeStops(grade: RunGrade | null): { id: string; label: string }[] {
+  return rangeIds(grade).map((id) => ({
+    id,
+    label: id === GENERATED ? STRINGS.rangeGenerated : STRINGS.rangeName(id),
+  }));
+}
 
-/** The SHAPE row's stops: the seed's own massif, then the real faces of
- * the country on the card, numbered in it — never named (R25). */
-function faceStops(region: RegionId): { id: string; label: string }[] {
-  const faces = REAL_FACE_IDS.filter((id) => realFaceRegion(id) === region);
-  return [
-    { id: "dealt", label: STRINGS.weatherDealt },
-    ...faces.map((id, i) => ({ id, label: STRINGS.faceName(i + 1) })),
-  ];
+/** The AREA row's stops: R21's four countries under GENERATED, a real
+ * range's ski areas of a link's grade (any, without one). */
+function areaStops(range: string, grade: RunGrade | null): { id: string; label: string }[] {
+  return areaIds(range, grade).map((id) => ({
+    id,
+    label: range === GENERATED ? STRINGS.regionNames[id as RegionId] : STRINGS.placeName(id),
+  }));
+}
+
+/** The PART row's stops: an area's parts of a link's grade (any, without one). */
+function partStops(
+  range: string,
+  area: string,
+  grade: RunGrade | null,
+): { id: string; label: string }[] {
+  return areaParts(range, area, grade).map(({ id, part }) => ({
+    id,
+    label: STRINGS.placeName(part),
+  }));
 }
 
 /** The SEASON row's stops: the map's own date, then the four. */
@@ -143,6 +178,17 @@ export function StartPage({
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...settings, ride: { ...ride, ...patch } });
 
+  /** Where the ride stands, as RANGE and AREA read it. */
+  const range = rangeOf(ride.face);
+  const generated = range === GENERATED;
+  /** A pick of RANGE (and AREA): GENERATED and a country, or a real face. */
+  const pickWhere = (next: string, area?: string): void => {
+    const at = wherePicked(next, ride.grade, ride.region, area);
+    if (at) setRide({ ...at, spot: null, run: null });
+  };
+  const place = ride.face ? realFacePlace(ride.face) : null;
+  const parts = place ? partStops(place.range, place.area, ride.grade) : [];
+
   // THE RUN ROW AND ITS CHART, as the pause card's PISTE MAP asks them too.
   const pick = useRunPick(settings, seed);
 
@@ -172,33 +218,45 @@ export function StartPage({
         <div class="start-cols">
           <div class="start-col">
             <div class="knob-rows">
-              <NumberRow
-                label={STRINGS.startMap}
-                hint={STRINGS.startMapHint}
-                value={seed}
-                min={SEED_RANGE.min}
-                max={SEED_RANGE.max}
-                onValue={(next) => setRide({ seed: next })}
+              <StepRow
+                label={STRINGS.startRange}
+                hint={STRINGS.startRangeHint}
+                stops={rangeStops(ride.grade)}
+                value={range}
+                onPick={(id) => pickWhere(id)}
                 onHint={setHint}
               />
               <StepRow
-                label={STRINGS.startRegion}
-                hint={STRINGS.startRegionHint}
-                stops={REGION_STOPS}
-                value={ride.region}
-                onPick={(region) => setRide({ region, face: null, spot: null, run: null })}
+                label={STRINGS.startArea}
+                hint={generated ? STRINGS.startRegionHint : STRINGS.startAreaHint}
+                stops={areaStops(range, ride.grade)}
+                value={areaOf(ride.face, ride.region)}
+                onPick={(area) => pickWhere(range, area)}
                 onHint={setHint}
               />
-              <StepRow
-                label={STRINGS.startFace}
-                hint={STRINGS.startFaceHint}
-                stops={faceStops(ride.region)}
-                value={ride.face ?? "dealt"}
-                onPick={(id) =>
-                  setRide({ face: id === "dealt" ? null : id, spot: null, run: null })
-                }
-                onHint={setHint}
-              />
+              {generated && (
+                <NumberRow
+                  label={STRINGS.startMap}
+                  hint={STRINGS.startMapHint}
+                  value={seed}
+                  min={SEED_RANGE.min}
+                  max={SEED_RANGE.max}
+                  onValue={(next) => setRide({ seed: next })}
+                  onHint={setHint}
+                />
+              )}
+              {parts.length > 1 && (
+                <StepRow
+                  label={STRINGS.startPart}
+                  hint={STRINGS.startPartHint}
+                  stops={parts}
+                  value={ride.face ?? ""}
+                  onPick={(face) =>
+                    setRide({ face, region: realFaceRegion(face)!, spot: null, run: null })
+                  }
+                  onHint={setHint}
+                />
+              )}
               <StepRow
                 label={STRINGS.startStart}
                 hint={STRINGS.startStartHint}

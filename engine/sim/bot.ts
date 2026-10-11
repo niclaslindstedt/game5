@@ -42,8 +42,7 @@ import {
   carveSpeedOf,
   cornerGrip,
   cutGrip,
-  edgeLockAt,
-  edgeMostOf,
+  edgeAskedAt,
   flightGravity,
   harshSpeedOf,
 } from "../game/limits.ts";
@@ -887,10 +886,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   if (capped) {
     // ...against the lock the physics stands his skis to (`skier.ts`).
     const T = techniqueOf(state.rules);
-    const lock = Math.min(
-      edgeMostOf(c.spec, T),
-      edgeLockAt(c.spec, speed, T) * (1 + TUNING.carve.edge * c.carve),
-    );
+    const lock = edgeAskedAt(c.spec, speed, T, c.carve, Math.sign(input.steer));
     const cap = (profile.slideEdge * K.slipEdge) / Math.max(lock, 0.05);
     input.steer = clamp(input.steer, -cap, cap);
   }

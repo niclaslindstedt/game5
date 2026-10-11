@@ -68,9 +68,16 @@ export type Footprint = {
 };
 
 /** The skis' ground pressure at rest, Pa: the whole weight over the two
- * skis' length by their waist. */
+ * skis' length by their waist — or over a board's one deck. */
 export function pressureOf(spec: SkiSpec): number {
-  return (totalMass(spec) * TUNING.g) / (2 * spec.length * spec.waist);
+  return (totalMass(spec) * TUNING.g) / ((spec.board ? 1 : 2) * spec.length * spec.waist);
+}
+
+/** HOW WIDE THE BASES ARE THAT TURN IN POWDER, m: a pair of skis' two
+ * waists, a board's one deck — a board is not three skis wide but one and
+ * a half (25 cm against 2 × 8.8). */
+function widthOf(spec: SkiSpec): number {
+  return (spec.board ? 1 : 2) * spec.waist;
 }
 
 const cache = new WeakMap<SkiSpec, Footprint>();
@@ -89,7 +96,7 @@ export function footprintOf(spec: SkiSpec): Footprint {
     sink: Math.pow(ratio, F.floatExp),
     plane: Math.sqrt(ratio),
     edge: Math.max(0.2, (1 + F.edgeFlex * flex) * (1 - F.edgeRocker * rocker)),
-    base: Math.pow(spec.waist / SKIS.waist, F.baseFloat) * (1 + F.rockerFloat * rocker),
+    base: Math.pow(widthOf(spec) / widthOf(SKIS), F.baseFloat) * (1 + F.rockerFloat * rocker),
     edgeRate:
       1 /
       ((spec.length / SKIS.length) *

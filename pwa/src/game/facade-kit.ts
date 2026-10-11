@@ -62,7 +62,38 @@ function linear(c: number): [number, number, number] {
 }
 
 /** A far cut keeps a small triangle with an edge this long, m. */
-const LONG = 2;
+export const LONG = 2;
+
+/** Whether triangle `t` of `pos` (world corners, nine numbers a triangle)
+ * and `glow` (one a corner) stays in a cut whose floor is `minArea` m² —
+ * `FacadeKit.tri`'s own rule: a pane that lights, a long thin one
+ * (`LONG`), or one as big. What a cut thinned after it is built keeps. */
+export function keepsTriangle(
+  pos: ArrayLike<number>,
+  glow: ArrayLike<number>,
+  t: number,
+  minArea: number,
+): boolean {
+  if (glow[t * 3] !== 0) return true;
+  const o = t * 9;
+  const ux = pos[o + 3] - pos[o];
+  const uy = pos[o + 4] - pos[o + 1];
+  const uz = pos[o + 5] - pos[o + 2];
+  const vx = pos[o + 6] - pos[o];
+  const vy = pos[o + 7] - pos[o + 1];
+  const vz = pos[o + 8] - pos[o + 2];
+  const l = Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+  if (l >= minArea * 2) return true;
+  const wx = pos[o + 6] - pos[o + 3];
+  const wy = pos[o + 7] - pos[o + 4];
+  const wz = pos[o + 8] - pos[o + 5];
+  const l2 = LONG * LONG;
+  return (
+    ux * ux + uy * uy + uz * uz >= l2 ||
+    vx * vx + vy * vy + vz * vz >= l2 ||
+    wx * wx + wy * wy + wz * wz >= l2
+  );
+}
 
 export class FacadeKit {
   readonly out: FacadeArrays = { pos: [], nrm: [], col: [], uv: [], layer: [], glow: [] };

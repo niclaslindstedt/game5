@@ -81,6 +81,7 @@ import { streetLampMasts } from "./street-furniture-build.ts";
 import { createVillageStreets } from "./streets-view.ts";
 import { InstanceReach } from "./instance-reach.ts";
 import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
+import { createWater, type WaterView } from "./water-view.ts";
 import type { SkyLook } from "./sky.ts";
 import { createRouteSigns } from "./route-sign.ts";
 import { createRunSigns } from "./run-signs.ts";
@@ -125,10 +126,14 @@ export type Gates = {
    * `pixels` the lens's focal length in pixels. */
   setLamps(level: number, pixels: number): void;
   /** THE SNOW GUNS of a thin season (`snow-guns-view.ts`): their sweep,
-   * their plumes and their whales at the run's moment, in its sky. */
+   * their plumes and their whales at the run's moment, in its sky; and the
+   * water's waves on its clock and in its wind. */
   air(state: GameState, look: SkyLook, wind: Wind, eye: THREE.Vector3, pixels: number): void;
   /** The snow guns standing, for the labs; null where none stand. */
   guns: SnowGuns | null;
+  /** THE MAP'S WATER (`water-view.ts`), its own group: the renderer stands
+   * it in the scene beside this one, so the benchmark can weigh it alone. */
+  water: WaterView | null;
   dispose(): void;
 };
 
@@ -223,7 +228,14 @@ function strand(a: THREE.Vector3, b: THREE.Vector3, r: number): THREE.BufferGeom
   return g;
 }
 
-export function createGates(level: Level, haze: HazeUniforms): Gates {
+export function createGates(
+  level: Level,
+  haze: HazeUniforms,
+  /** Whether the run counts its course: a free ride's does not, and is
+   * given no wand to start through — a lone bar at the knee across the
+   * run head where a restart stands him reads as a fence on the slope. */
+  counted = true,
+): Gates {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -386,6 +398,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       group.add(hut);
     }
     // The wand: two posts a racer's shins go between, the bar at the knee.
+    if (!counted) return;
     for (const side of [-1, 1]) {
       const px = cp.x + rx * side * (WAND.gap / 2);
       const pz = cp.z + rz * side * (WAND.gap / 2);
@@ -759,6 +772,9 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
   const guns = createSnowGuns(level, haze);
   if (guns) group.add(guns.group);
 
+  // THE LAKES AND THE STREAMS, open or iced on the map's day.
+  const water = createWater(level, haze);
+
   // A SLOPESTYLE COURSE'S RAILS AND BOXES (`jibs-view.ts`).
   const jibs = createJibs(level, std);
   if (jibs) group.add(jibs.group);
@@ -857,11 +873,13 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
     },
     air(state, look, wind, eye, pixels) {
       guns?.update(state, look, wind, eye, pixels);
+      water?.update(state.t, wind);
       stakesNear?.update(eye);
       bandsNear?.update(eye);
       lights.near(eye);
     },
     guns,
+    water,
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
@@ -874,6 +892,7 @@ export function createGates(level: Level, haze: HazeUniforms): Gates {
       lights.dispose();
       streets?.dispose();
       guns?.dispose();
+      water?.dispose();
       slalomPoles?.dispose();
       house?.dispose();
       crossFlags?.dispose();

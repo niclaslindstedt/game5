@@ -54,7 +54,7 @@ import { armBreaks, breakArms, createArmSwing, SWING, type ArmBreak } from "./sk
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
-import { SKI_LOOKS, lookOf } from "./ski-looks.ts";
+import { SKI_LOOKS, drawnAs, lookOf } from "./ski-looks.ts";
 import { emptyStand, inclineAt, standOf, type Stand } from "./ski-stand.ts";
 import { createChatter, shakeStand, stepChatter } from "./ski-chatter.ts";
 import { outfitKey } from "./dress.ts";
@@ -150,7 +150,7 @@ export const SLOT_DRESS: readonly SkierDress[] = [
 
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
-  return styleIn(TOPSHEETS[spec.id], skier);
+  return styleIn(TOPSHEETS[drawnAs(spec)], skier);
 }
 
 /** The snow the skis are drawn over: the ground a flight is read over and,
@@ -454,7 +454,7 @@ export function createSkisModel(
     mats.push(m);
     return m;
   };
-  const look = SKI_LOOKS[spec.id];
+  const look = SKI_LOOKS[drawnAs(spec)];
   const paint = mat({ color: style.body, roughness: 0.28, metalness: 0.05 });
   const trim = mat({ color: style.accent, roughness: 0.35 });
   const black = mat({ color: style.panel ?? 0x1c1f23, roughness: 0.7 });
@@ -462,7 +462,7 @@ export function createSkisModel(
   const alloy = mat({ color: 0x9aa1a9, roughness: 0.3, metalness: 0.8 });
   // The base: the black sintered sheet a ski runs on, with a little sheen.
   const base = mat({ color: 0x0c0d10, roughness: 0.45, metalness: 0.2 });
-  const pattern = PATTERNS[style.pattern ?? TOPSHEETS[spec.id].pattern];
+  const pattern = PATTERNS[style.pattern ?? TOPSHEETS[drawnAs(spec)].pattern];
 
   const add = (g: THREE.BufferGeometry, m: THREE.Material, parent: THREE.Object3D = root) => {
     geos.push(g);

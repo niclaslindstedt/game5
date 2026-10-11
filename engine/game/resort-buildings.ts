@@ -68,6 +68,11 @@ export type Fit = {
   /** How far past its roof a building's yard is cleared of trunks, m — a
    * real house's (`real-houses.ts`), felled for it (`fellsTree`). */
   clearing?: number;
+  /** A multiple on the fall its footprint may be terraced over, the stone
+   * under its floor and the cut behind it — a real house's
+   * (`REAL_HOUSES.steep`), stood on its real slope with a walk-out storey
+   * under it. */
+  steep?: number;
 };
 
 /** Stand a kind at a place facing a heading, beside a run at an arc, in a

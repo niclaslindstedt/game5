@@ -904,6 +904,14 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+/* …and beside it, smaller still, how far he stands over the ski area's
+   base station. */
+.hud-over-base {
+  margin-left: 0.6em;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
 /* THE DAMAGE INSTRUMENT (hud-damage.tsx): the skier from above beside
    the speed, its parts painted sound, tired or wrecked. */
 .hud-damage {
@@ -1378,6 +1386,52 @@ canvas {
   .hud-starter {
     top: 20%;
   }
+}
+
+/* SKIPPING UP A LIFT (`hud.tsx`): a ring filled clockwise by how long the
+   tuck has been held (`--skip`, 0..1), over the word, in the upper third so
+   the rider on his carrier stays clear. Full, it glows as the picture fades
+   him up the line. */
+.hud-skip {
+  position: absolute;
+  top: 26%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  pointer-events: none;
+  animation: hud-air-in 200ms ease-out backwards;
+}
+
+.hud-skip-ring {
+  position: relative;
+  width: clamp(2.8rem, 9vmin, 4.2rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--hud-good) calc(var(--skip) * 360deg),
+    rgb(var(--hud-plate) / 60%) calc(var(--skip) * 360deg)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent 68%, #000 70%);
+  mask: radial-gradient(farthest-side, transparent 68%, #000 70%);
+  filter: drop-shadow(0 0 2px var(--hud-shadow));
+}
+
+.hud-skip[data-full] .hud-skip-ring {
+  filter: drop-shadow(0 0 6px #fff);
+}
+
+.hud-skip-word {
+  padding: 0.15rem 0.8rem;
+  border-radius: 999px;
+  background: rgb(var(--hud-plate) / 70%);
+  border: 1px solid var(--hud-edge);
+  font-size: clamp(0.75rem, 2.2vmin, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #fff;
 }
 
 /* THE RESULT PLATE — the tab-away card's plate with the finish's own lines on
@@ -2285,13 +2339,35 @@ canvas {
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--snow);
+  /* One line, unless a word is wider than the row (a long place name on
+     the start card): then it breaks between its words. */
+  max-width: 100%;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.knob-value .knob-word {
+  white-space: normal;
+  text-align: center;
 }
 
 .knob-pips {
   display: flex;
   gap: 0.26rem;
+}
+
+/* A long ladder's window fades its pips out at an end with more beyond it:
+   the right end at the start, both in the middle, the left at the end. */
+.knob-pips-before {
+  mask-image: linear-gradient(to right, transparent, #000 32%);
+}
+
+.knob-pips-after {
+  mask-image: linear-gradient(to left, transparent, #000 32%);
+}
+
+.knob-pips-before.knob-pips-after {
+  mask-image: linear-gradient(to right, transparent, #000 28%, #000 72%, transparent);
 }
 
 .knob-pip {

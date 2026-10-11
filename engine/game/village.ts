@@ -272,11 +272,14 @@ export function felledTrees(level: Level): Uint8Array {
   if (out) return out;
   out = new Uint8Array(level.trees.length);
   // The village's own lots are the mask's; the rest of the ski area's
-  // buildings fell what stands inside their walls.
+  // buildings, and a real face's houses wherever they stand (a real house
+  // on a village lot is the real one's size, not the lot's), fell what
+  // stands inside their walls.
   const own = new Set(villageBuildingsOf(level));
   const all = cabinsOf(level).filter(
-    (c) => (isResortBuilding(c.kind) || c.run === REAL_RUN) && !own.has(c),
+    (c) => (isResortBuilding(c.kind) && !own.has(c)) || c.run === REAL_RUN,
   );
+  const real = all.filter((c) => c.run === REAL_RUN);
   const seed = level.seed >>> 0;
   const m = maskOf(level);
   for (let i = 0; i < level.trees.length; i++) {
@@ -284,7 +287,8 @@ export function felledTrees(level: Level): Uint8Array {
     const at = m ? streetMaskAt(level, t.x, t.z) : MASK.none;
     if (at >= MASK.felled) out[i] = 1;
     else if (at === MASK.garden) {
-      out[i] = pick(seed, "garden", Math.round(t.x * 7 + t.z * 13), 3) < L.keep ? 0 : 1;
+      const kept = pick(seed, "garden", Math.round(t.x * 7 + t.z * 13), 3) < L.keep;
+      out[i] = kept && !fellsTree(real, t.x, t.z) ? 0 : 1;
     } else if (fellsTree(all, t.x, t.z)) out[i] = 1;
   }
   felled.set(level, out);

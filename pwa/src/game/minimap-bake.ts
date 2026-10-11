@@ -229,6 +229,7 @@ const RIDGE: Readonly<Record<CabinKind, number>> = {
   patrol: 0,
   house: 2,
   apartments: 1,
+  hall: 1,
   shop: 2,
   church: 2,
 };

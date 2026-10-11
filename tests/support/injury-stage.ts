@@ -27,11 +27,13 @@ import {
   letGo,
   placeRun,
   step,
+  strapBoard,
   type Bone,
   type GameEvent,
   type GameState,
   type InjuryKind,
   type Level,
+  type SkiSpec,
   type SkierInput,
   type Stuff,
   type TreeDef,
@@ -315,8 +317,10 @@ function throwStaged(state: GameState, st: Stage & { how: "fall" | "into" | "spi
   thrown.x += dx;
   thrown.y += dy;
   thrown.z += dz;
-  // ...and his skis let go where he stood, out of the way.
-  thrown.skis = letGo(state, state.skier, 1, 0);
+  // ...and his skis let go where he stood, out of the way — a board kept
+  // on his feet (`strapBoard`).
+  if (state.skier.spec.board) strapBoard(thrown, state.skier, false, R);
+  else thrown.skis = letGo(state, state.skier, 1, 0);
   state.skier.thrown = thrown;
 }
 
@@ -363,11 +367,13 @@ function inputOf(st: Stage): SkierInput {
 
 /** A staging stood up for its trial, its run seed `trial + 1`, ready to
  * step with the input it is ridden with — `gore` a run that may kill him
- * (`gore.ts`). */
+ * (`gore.ts`), `spec` the pair (or board) he is on, the reference pair if
+ * none. */
 export function stageTrial(
   s: Staging,
   trial: number,
   gore = false,
+  spec?: SkiSpec,
 ): { state: GameState; input: SkierInput } {
   const level = benchOf(s);
   const state = createGame({
@@ -381,6 +387,7 @@ export function stageTrial(
     // the air.
     assist: { yaw: 1, air: s.stage.how === "drop" ? 0 : 1 },
     gore,
+    ...(spec ? { spec } : {}),
   });
   const st = s.stage;
   if (st.how === "fall" || st.how === "into" || st.how === "spike") {
@@ -393,8 +400,8 @@ export function stageTrial(
 }
 
 /** ONE TRIAL of a staging, its run seed `trial + 1`. */
-export function runTrial(s: Staging, trial: number): Trial {
-  const { state, input } = stageTrial(s, trial);
+export function runTrial(s: Staging, trial: number, spec?: SkiSpec): Trial {
+  const { state, input } = stageTrial(s, trial, false, spec);
   const out: Trial = { injuries: [], worst: 0, peak: 0, cause: null, land: 0, shattered: [] };
   const events: GameEvent[] = [];
   for (let i = 0; i < Math.round(RUN / dt); i++) {
@@ -430,9 +437,9 @@ export type Rates = {
   trials: Trial[];
 };
 
-export function ratesOf(s: Staging, trials = TRIALS): Rates {
+export function ratesOf(s: Staging, trials = TRIALS, spec?: SkiSpec): Rates {
   const all: Trial[] = [];
-  for (let k = 0; k < trials; k++) all.push(runTrial(s, k));
+  for (let k = 0; k < trials; k++) all.push(runTrial(s, k, spec));
   const rate = new Map<InjuryKind, number>();
   for (const t of all) {
     for (const kind of new Set(t.injuries.map((h) => h.kind))) {

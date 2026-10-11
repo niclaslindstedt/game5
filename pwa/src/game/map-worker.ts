@@ -11,9 +11,9 @@
 // comes back as plain data (`portableLevel`) and the page binds it
 // (`map-build.ts`).
 
-import { generateLevel, levelFor, portableLevel, type GeneratedLevel } from "@engine";
+import { generateLevel, levelFor, loadRealFace, portableLevel, type GeneratedLevel } from "@engine";
 
-import type { MapOrder, MapWorkerReply } from "./map-order.ts";
+import { faceOfOrder, type MapOrder, type MapWorkerReply } from "./map-order.ts";
 
 const post = (reply: MapWorkerReply): void => (self as unknown as Worker).postMessage(reply);
 
@@ -21,7 +21,7 @@ const post = (reply: MapWorkerReply): void => (self as unknown as Worker).postMe
  * a second at most, so this only keeps two landmarks in one step quiet. */
 const STEP = 0.005;
 
-self.onmessage = (e: MessageEvent<MapOrder>) => {
+self.onmessage = async (e: MessageEvent<MapOrder>) => {
   const order = e.data;
   let told = 0;
   const progress = (share: number): void => {
@@ -30,6 +30,10 @@ self.onmessage = (e: MessageEvent<MapOrder>) => {
     post({ kind: "progress", share });
   };
   try {
+    // A real face's heights and hints are a chunk of their own, fetched
+    // here before the map is raised on it.
+    const face = faceOfOrder(order);
+    if (face) await loadRealFace(face);
     const level =
       "generate" in order
         ? generateLevel(order.seed, { ...order.generate, progress })

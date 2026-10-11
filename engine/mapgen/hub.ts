@@ -64,6 +64,14 @@ export function planHub(
     minX = cx;
     maxX = cx;
   }
+  // On a REAL FACE the village stands below the real town (`massif.ts`), so
+  // a station beside it may stand past the side ridges' inner edge; the
+  // tunnels are kept inside the band the hub is (a dealt map's stations
+  // never stand out there).
+  if (plan.face) {
+    minX = Math.max(cx - inner + H.step, Math.min(cx + inner - H.step, minX));
+    maxX = Math.max(cx - inner + H.step, Math.min(cx + inner - H.step, maxX));
+  }
   // The tunnels never shorter than `tunnel.length`: a hub whose stations
   // stand close together is still crossed end to end.
   const short = T.length - (maxX - minX);

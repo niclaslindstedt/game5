@@ -83,6 +83,7 @@
     "avalanche-flow": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/avalanche-lab.mjs",
     "para": "node scripts/para-preview.mjs",
     "para-wind": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/para-wind-lab.mjs",
+    "skijump": "node scripts/skijump-preview.mjs",
     "balloon": "node scripts/balloon-preview.mjs",
     "balloon-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/balloon-lab.mjs",
     "plane-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/plane-flight-lab.mjs",

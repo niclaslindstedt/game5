@@ -20,6 +20,7 @@ import {
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
+import { COCKPIT_SHEET, cockpitViews } from "./plane-cockpit-scenes.ts";
 
 /** A lens for a frame: a rung of the game's own ladder, a pose planted for
  * it, or one worked out off the state at the moment it is shot. */
@@ -210,20 +211,8 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       st.run(s, 0.2, pilot);
     }
   },
-  // ── THE COCKPIT (Phase E builds it): what the pilot's eye sees now ─────
-  cockpit(st) {
-    const s = st.fresh();
-    st.run(s, 0.5, still);
-    // Drawn as from the pilot's seat (the HELMET rung's inside view).
-    st.camera("helmet");
-    st.shoot(s, "helmet", "helmet");
-    st.shoot(s, "pilot's eye", riding([0.3, 2.3, 0.72], [0.3, 1.85, 8], 70));
-    st.shoot(s, "over the shoulder", riding([0.35, 2.5, -0.4], [0, 2.0, 3], 70));
-    const up = aloft(st);
-    st.camera("helmet");
-    st.shoot(up, "helmet aloft", "helmet");
-  },
-  // ── THE CRASH (Phase E draws the fire): stick forward into the snow ────
+  ...cockpitViews({ riding, aloft }),
+  // ── THE CRASH: stick forward into the snow ────
   crash(st) {
     const s = aloft(st, 40);
     st.until(s, (x) => x.plane?.mode === "wreck", 60, held({ pitch: 1, throttle: 1 }));
@@ -241,6 +230,6 @@ export const GROUPS: Record<string, readonly string[]> = {
   flight: ["flight", "surfaces"],
   door: ["door"],
   lenses: ["lenses"],
-  cockpit: ["cockpit"],
+  cockpit: COCKPIT_SHEET,
   crash: ["crash"],
 };

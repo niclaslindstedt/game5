@@ -266,8 +266,8 @@ def build_skin(Q):
 def liner(Q):
     """The cabin's lining inside the skin from the firewall to the rear
     bulkhead, facing in — so the cabin seen through the doorway is a
-    cabin — the doorway left open, the windows dark glass, and the
-    bulkheads closing it fore and aft."""
+    cabin — the doorway and the windows left open, and the bulkheads
+    closing it fore and aft."""
     n_y, n_th = Q["liner"]
     y0, y1 = CABIN["back"], FIREWALL - 0.02
     ys = np.linspace(y0, y1, n_y)
@@ -295,10 +295,12 @@ def liner(Q):
     for s, prio, F in regions(cx * 1.04, cy, cz):
         win = (F > 0) & (prio > best)
         slot[win], best[win] = s, prio
-    keep = [k for k in range(len(faces)) if slot[k] >= 0 and not (cy[k] > 0.5 and slot[k] == 3)]
+    # The windows are the skin's own glass: the lining is cut away round
+    # them, so the cockpit's view out and the cabin seen through the
+    # doorway look through one pane.
+    keep = [k for k in range(len(faces)) if slot[k] >= 0 and slot[k] != 3]
     faces = [faces[k] for k in keep]
-    fm = [1 if slot[k] == 3 else 0 for k in keep]
-    mesh_obj("liner", verts, faces, [CABIN_M, GLASS], fm, smooth=True, recalc=False)
+    mesh_obj("liner", verts, faces, [CABIN_M], [0] * len(faces), smooth=True, recalc=False)
     # the rear bulkhead and the firewall's back
     for y, m in ((y0, CABIN_M), (y1, DARK)):
         x, _, z = skin(np.full_like(ths, y), ths)
@@ -751,15 +753,16 @@ def door_outline(n, inset=0.0):
 
 def cabin(Q):
     """The doorway's frame, the cabin floor, the jumpers' bench along the far
-    wall, the handrail over the door inside and the grab rail outside, the
-    pilot's seat and the panel's back, seen through the open door."""
+    wall, the handrail over the door inside and the grab rail outside. The
+    cockpit forward of the floor's end — the seats, the panel, the controls
+    and the pilot — is the game's own (`plane-cockpit.ts`)."""
     liner(Q)
     pts = door_outline(3 if Q["full"] else 1)
     frame = [Vector((side_x(y, z, DSIDE) - DSIDE * 0.016, y, z)) for y, z in pts]
     pipe("door_frame", frame + frame[:2], 0.024, TRIM, Q, smooth=False)
     fl = CABIN["floor"]
     # the floor, as wide as the skin is at its height
-    ys = np.linspace(CABIN["back"], FIREWALL - 0.05, 8)
+    ys = np.linspace(CABIN["back"], 0.78, 8)
     half = [abs(side_x(y, fl + 0.03)) - 0.04 for y in ys]
     fv = [Vector((sx * h, y, fl)) for y, h in zip(ys, half) for sx in (-1, 1)]
     ff = [[2 * k, 2 * k + 1, 2 * k + 3, 2 * k + 2] for k in range(len(ys) - 1)]
@@ -780,13 +783,6 @@ def cabin(Q):
     pipe("grab", [(xo - DSIDE * 0.06, DOOR["front"] + 0.05, 2.27), (xo, DOOR["front"] - 0.05, 2.27),
                   (xo, DOOR["front"] - 0.75, 2.27), (xo - DSIDE * 0.06, DOOR["front"] - 0.85, 2.27)],
          0.016, METAL, Q, smooth=False)
-    # the pilot's seat (the left), the panel's back and its coaming
-    px = P["pilotEye"]["x"]
-    box("seat", (px, 0.55, fl + 0.32), (0.42, 0.45, 0.1), DARK, bevel=0)
-    box("seat_back", (px, 0.3, fl + 0.72), (0.42, 0.08, 0.7), DARK, rot=(-0.2, 0, 0), bevel=0)
-    box("panel", (0, FIREWALL - 0.08, 1.9), (0.98, 0.12, 0.4), DARK, bevel=0)
-    box("coaming", (0, FIREWALL - 0.16, 2.06), (0.8, 0.2, 0.04), DARK, bevel=0)
-    pipe("stick", [(px, 0.95, fl + 0.05), (px, 0.88, fl + 0.6)], 0.016, DARK, Q, smooth=False)
 
 
 def door_node(Q):

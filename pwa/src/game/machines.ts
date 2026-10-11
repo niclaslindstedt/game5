@@ -268,9 +268,10 @@ export function createMachines(
       balloon?.light(look);
     },
     lamps(lit, eye, others) {
-      // The eye settled for this frame: the helicopter's cockpit shown
-      // while it is in the cabin.
+      // The eye settled for this frame: the helicopter's and the jump
+      // plane's cockpits shown while it is in their cabins.
       heli?.seen(eye);
+      plane?.seen(eye);
       floods.length = 0;
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.

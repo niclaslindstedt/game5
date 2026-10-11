@@ -149,7 +149,7 @@ export const PLANE = {
   jumper: { x: -0.4, y: 1.0, z: -0.92, height: 0.62 },
   /** THE PILOT'S EYE in the left seat as he sees it (the engine's +x),
    * body frame, m. */
-  pilotEye: { x: 0.3, y: 2.3, z: 0.72 },
+  pilotEye: { x: 0.3, y: 2.36, z: 0.46 },
 
   /** THE AIR ON IT (`plane.ts`'s per-surface model):
    *   * `lift` the 3D lift slope a rad of each surface (Helmbold off its

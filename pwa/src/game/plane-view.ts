@@ -12,19 +12,21 @@
 // after dark the landing light in the left wing's leading edge thrown onto
 // the snow ahead (`lamps`). Charred where it came down (`char`).
 //
-// Seen from the pilot's seat (`inside`) the glass is all but clear, so the
-// cowling ahead is seen through the windscreen over the glare shield. The
-// skin stays two-sided there too: the pilot's eye sits close under the
-// cowling's top line, and a one-sided skin would cull the very cowling he
-// looks along.
+// THE COCKPIT (`plane-cockpit.ts`) is built off the model's own glass when
+// it arrives and shown while the eye is in it — the outside's glass put
+// away for its own clear panes — or near enough outside to see the pilot
+// through the glass, which is then let half clear. The skin stays
+// two-sided: the pilot's eye sits close under the cowling's top line, and
+// a one-sided skin would cull the very cowling he looks along.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { PLANE, type PlaneState, type Quat } from "@engine";
+import { PLANE, type Level, type PlaneState, type Quat } from "@engine";
 
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { Flood } from "./headlamp.ts";
+import { createPlaneCockpit, type PlaneCockpit } from "./plane-cockpit.ts";
 import { createPlaneStandIn } from "./plane-standin.ts";
 import { PLANE_NODES, planeModelUrl } from "./skier-models.ts";
 
@@ -34,13 +36,16 @@ export type PlaneLook = {
   group: THREE.Group;
   /** Settled once the model is in, or the stand-in is kept. */
   ready: Promise<void>;
-  /** One frame's pose off the engine's plane, `clock` s into the run. */
-  pose(p: PlaneState, clock: number): void;
+  /** One frame's pose off the engine's plane, `clock` s into the run —
+   * the cockpit's controls and displays too, off `level`, `dt` s on. */
+  pose(p: PlaneState, clock: number, level?: Level, dt?: number): void;
   /** Every surface charred `k` of the way: 0 as built, 1 burnt black. */
   char(k: number): void;
-  inside(on: boolean): void;
+  /** Whether the eye is in the cockpit, whether it is the pilot's own,
+   * and whether it is near enough outside to see in. */
+  inside(on: boolean, own?: boolean, near?: boolean): void;
   /** After dark (`lit` > 0), the landing light's beam into `out`, the
-   * airframe drawn at `at`. */
+   * airframe drawn at `at` — and the cockpit lit for the night. */
   lamps(
     p: PlaneState,
     at: { x: number; y: number; z: number; q: Quat },
@@ -226,6 +231,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
   const beacons = LIGHTS.beacons.map((l) => halo(0xff2a10, l, 1.8));
   const sprites = [...navs, ...strobes, ...beacons];
   let lampMats: THREE.MeshStandardMaterial[] = [];
+  let cockpit: PlaneCockpit | null = null;
 
   const ready = (url ? new GLTFLoader().loadAsync(url) : Promise.reject(new Error("no model")))
     .then((gltf) => {
@@ -236,6 +242,17 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       group.remove(standIn.group);
       group.add(gltf.scene);
       parts = next;
+      // THE COCKPIT, off the model's own glass, in the airframe's frame.
+      let body: THREE.Object3D | null = null;
+      gltf.scene.traverse((o) => {
+        if (o.name === PLANE_NODES.body) body = o;
+      });
+      if (body) {
+        group.updateMatrixWorld(true);
+        const back = group.matrixWorld.clone().invert();
+        cockpit = createPlaneCockpit(body, (mesh) => back.clone().multiply(mesh.matrixWorld), haze);
+        group.add(cockpit.group);
+      }
       colours = parts.materials.map((m) => (m as THREE.MeshStandardMaterial).color.clone());
       lampMats = parts.materials.filter(
         (m): m is THREE.MeshStandardMaterial =>
@@ -251,8 +268,9 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
   return {
     group,
     ready,
-    pose(p, clock) {
+    pose(p, clock, level, dt = 0) {
       parts.pose(p);
+      if (cockpit && level) cockpit.update(p, level, clock, dt);
       disc.material.opacity = DISC * Math.max(0, Math.min(1, (p.spin - 0.2) / 0.6));
       const live = p.mode !== "wreck" && p.spin > 0.05;
       const flash = clock % 1 < 0.1;
@@ -270,8 +288,12 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       });
       charred = k;
     },
-    inside: (on) => parts.inside(on),
+    inside(on, own = on, near = false) {
+      if (cockpit) cockpit.show(on, own, near);
+      else parts.inside(on);
+    },
     lamps(p, at, lit, out) {
+      cockpit?.night(lit);
       if (lit <= 0 || p.mode === "wreck" || p.spin < 0.05) return;
       q.set(at.q.x, at.q.y, at.q.z, at.q.w);
       v.set(LIGHTS.landing.x, LIGHTS.landing.y, LIGHTS.landing.z).applyQuaternion(q);
@@ -289,6 +311,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
     },
     dispose() {
       disposed = true;
+      cockpit?.dispose();
       group.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
       });

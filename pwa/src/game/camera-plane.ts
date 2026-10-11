@@ -20,7 +20,11 @@
 //          before the exit, nothing of the airframe across it but the strut
 //          at its edge and his skis on the step;
 //   HELMET THE COCKPIT: the pilot's eye in the left seat (`PLANE.pilotEye`),
-//          bolted to the airframe — it pitches, rolls and loops with it.
+//          bolted to the airframe — it pitches, rolls and loops with it —
+//          looking out over the long nose, a little down off the fuselage
+//          line, and turned a little into a turn as a pilot's head is
+//          (`planeHeadOf`); its fov opened on a tall screen
+//          (`planeCockpitFov`). The cockpit it sees is `plane-cockpit.ts`.
 //
 // A change of rung is FLOWN, never cut: for `HANDOVER` s both rungs are
 // framed and the lens is flown round the airframe (`orbitBlend`) rather
@@ -31,6 +35,7 @@ import { PLANE, rotate, type PlaneState, type Quat } from "@engine";
 import { TALL } from "./camera-balloon.ts";
 import { HANDOVER, type LensPose } from "./camera-rigs.ts";
 import { orbitBlend, rollFor } from "./camera-heli.ts";
+import { planeCockpitFov, planeHeadOf } from "./plane-cockpit-plan.ts";
 import type { CameraRung } from "./renderer-api.ts";
 
 /** Per boom: the standoff behind the plane's middle, m, and what each m/s
@@ -55,9 +60,6 @@ export const PLANE_LOOK = {
     down: 0.75,
     fov: 80,
   },
-  /** The cockpit lens: how far down the look is tipped off the fuselage
-   * line, rad (over the long nose), and its fov, deg. */
-  cockpit: { down: 0.1, fov: 74 },
   /** How briskly the booms follow the airframe's attitude, 1/s. */
   follow: 3,
   /** The least gap the booms keep from the snow, m. */
@@ -196,8 +198,13 @@ export function planeLens(
     return bolted(at, D.eye, look, D.fov);
   }
   if (rung === "helmet") {
-    const C = PLANE_LOOK.cockpit;
-    return bolted(at, PLANE.pilotEye, { x: 0, y: -Math.sin(C.down), z: Math.cos(C.down) }, C.fov);
+    const head = planeHeadOf(p);
+    const look = {
+      x: Math.sin(head.turn) * Math.cos(head.down),
+      y: -Math.sin(head.down),
+      z: Math.cos(head.turn) * Math.cos(head.down),
+    };
+    return bolted(at, PLANE.pilotEye, look, planeCockpitFov(aspect));
   }
   const centre = planeMiddleOf(at);
   const keep = (eye: Vec): Vec => {

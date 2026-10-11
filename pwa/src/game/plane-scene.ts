@@ -15,7 +15,7 @@
 // the wing — and then handed back to the ladder.
 
 import * as THREE from "three";
-import type { GameState } from "@engine";
+import { PLANE, type GameState } from "@engine";
 
 import { blendLens, type LensPose } from "./camera-rigs.ts";
 import { orbitBlend } from "./camera-heli.ts";
@@ -23,7 +23,9 @@ import { createPlaneCam, framePlane, planeMiddleOf, type PlaneAt } from "./camer
 import type { HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import type { Flood } from "./headlamp.ts";
+import { PLANE_COCKPIT, bodyOf, inPlaneCabin } from "./plane-cockpit-plan.ts";
 import { createPlaneLook } from "./plane-view.ts";
+import { shelterAt, shelterOff } from "./shelter.ts";
 import type { CameraRung } from "./renderer-api.ts";
 
 export type PlaneScene = {
@@ -45,6 +47,9 @@ export type PlaneScene = {
   lens(ladder: LensPose, dt: number): LensPose | null;
   /** The plane as drawn this frame, or null with none. */
   drawn(): PlaneAt | null;
+  /** The eye settled for this frame: the cockpit shown while it is in the
+   * cabin (no snow falling in there) or near enough outside to see in. */
+  seen(eye: { x: number; y: number; z: number }): void;
   /** After dark (`lit` > 0), its landing light into `out`. */
   lamps(lit: number, out: Flood[]): void;
   /** Settled once the model is in (or the stand-in is kept). */
@@ -62,6 +67,23 @@ const HAND_OUT = 1.3;
 /** How far the wreck is charred, 0..1, and how long the charring takes, s. */
 const CHAR = 0.85;
 const CHAR_TIME = 3;
+/** How near the eye must be outside to see the pilot through the glass, m. */
+const NEAR = 60;
+/** The cabin's box the snowfall is kept out of: its middle and half
+ * extents, body frame. */
+const CABIN = {
+  centre: {
+    x: 0,
+    y: (PLANE.cabin.floor + PLANE_COCKPIT.roof) / 2,
+    z: (PLANE.cabin.back + PLANE_COCKPIT.firewall) / 2,
+  },
+  half: {
+    x: PLANE.cabin.width / 2,
+    y: (PLANE_COCKPIT.roof - PLANE.cabin.floor) / 2,
+    z: (PLANE_COCKPIT.firewall - PLANE.cabin.back) / 2,
+  },
+};
+const PILOT = bodyOf(PLANE_COCKPIT.eye);
 
 export function createPlaneScene(haze: HazeUniforms): PlaneScene {
   const look = createPlaneLook(haze);
@@ -86,6 +108,9 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
   let worn = false;
   let since = Infinity;
   let lastState: GameState | null = null;
+  let sheltered = false;
+  const local = new THREE.Vector3();
+  const qi = new THREE.Quaternion();
 
   return {
     group,
@@ -114,12 +139,11 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
       // The propeller turned clockwise seen from the cockpit, its blur
       // faded in as it spins up; the surfaces where the engine has them.
       clock += dt;
-      look.pose(p, clock);
+      look.pose(p, clock, state.level, dt);
 
       const groundAt = (x: number, z: number) => state.level.groundAt(x, z);
       const step = Math.min(dt, 0.1);
       if (!p.rider || wreck) {
-        look.inside(false);
         cam.fresh = true;
         if (lastLens && !wreck && since < DROP_HOLD && rung !== "orbit" && !worn) {
           // THE EXIT: held where it was, its look coming round onto him as
@@ -148,7 +172,6 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
       }
       since = 0;
       worn = rung === "tips" || rung === "helmet";
-      look.inside(rung === "helmet");
       lastLens = framePlane(cam, p, shown, rung, step, groundAt, aspect);
       own = lastLens;
     },
@@ -173,6 +196,29 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
       return out;
     },
     drawn: () => shown,
+    seen(eye) {
+      const p = lastState?.plane;
+      if (!p || !shown || p.mode === "wreck") {
+        look.inside(false, false, false);
+        if (sheltered) shelterOff();
+        sheltered = false;
+        return;
+      }
+      qi.set(shown.q.x, shown.q.y, shown.q.z, shown.q.w).invert();
+      local.set(eye.x - shown.x, eye.y - shown.y, eye.z - shown.z).applyQuaternion(qi);
+      const inside = inPlaneCabin(local);
+      const own = Math.hypot(local.x - PILOT.x, local.y - PILOT.y, local.z - PILOT.z) < 0.05;
+      look.inside(inside, own, !inside && local.length() < NEAR);
+      // No snow falls inside the cabin the lens is in (`shelter.ts`).
+      if (inside) {
+        qi.invert();
+        shelterAt({ ...shown, q: qi }, CABIN.centre, CABIN.half);
+        sheltered = true;
+      } else if (sheltered) {
+        shelterOff();
+        sheltered = false;
+      }
+    },
     lamps(lit, out) {
       const p = lastState?.plane;
       if (p && shown) look.lamps(p, shown, lit, out);

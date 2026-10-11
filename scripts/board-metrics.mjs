@@ -9,8 +9,10 @@
 // off the state the way the game takes it (`board-input.ts`, `boardPose`)
 // and MEASURED against the bands the project's snowboard research sets:
 //
-//   knee   each knee's flexion, deg — 30–80 riding (deeper in the tuck, a
-//          heelside cut hard and a landing; straighter stood still)
+//   knee   each knee's flexion, deg — 30–80 riding straight (deeper in a
+//          carve: 65–100 on the toe edge, 85–120 cut hard, 70–105 on the
+//          heels, 90–125 cut hard; 90–130 absorbing in the air; deeper in
+//          the tuck and a landing; straighter stood still)
 //   hips   the pelvis's line against the board's, deg — square to the
 //          board, inside ~20° (the duck stance opens it a little)
 //   chest  the shoulders' line against the board's, deg — inside ~30°
@@ -21,10 +23,10 @@
 //   hand   the lower hand's height over the snow, m — in a carve cut hard
 //          the toeside front hand reaches toward it and the heelside rear
 //          one trails low
-//   over   the hips across the board toward the edge he stands on, m —
-//          over the toes on a toeside turn (0–0.25), back over the heel
-//          edge on a heelside one (−0.05 to −0.3), never sat down behind
-//          it
+//   over   the hips across the board toward the edge he stands on, seen
+//          from above the snow, m — over or beyond the toe edge on a
+//          toeside turn (0.1–0.8), inside the heel edge on a heelside one
+//          (−0.1 to −0.8)
 //   torso  the spine (hips to neck) off the line he inclines along, deg —
 //          a carve is carried by the whole body laid into the turn as one
 //          line, not by folding at the waist: inside ~30° riding
@@ -37,6 +39,12 @@
 //          deg — a shin laid flat along it is a rider KNEELING on his
 //          board: never under ~25° (a method's shins rise from the knees
 //          to the board kicked up behind him)
+//   deck   the shins' least angle to the DECK, deg — a soft boot and its
+//          highback let a shin lean ~45° off the deck's normal at the most
+//          (42–90; 50–90 on the toe edge): a shin past that is a rider
+//          kneeling on his board
+//   kneeGap  on the toe edge, the two knees' flexion apart, deg — both bent
+//          down the edge, the rear one never left straight (0–20)
 //   grab   in a grab (`board-grab.ts`), the grabbing hand's gap to the
 //          board's edge or end it closes on, m — a fist round it: 0–0.05
 //
@@ -147,6 +155,7 @@ function measure(m) {
     torso: f.torso,
     hipsH: f.hipsH,
     shin: f.shin,
+    shinDeck: f.shinDeck,
     onSnow: f.onSnow,
     grab,
     faults,
@@ -169,13 +178,13 @@ const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : n
 const pad = (s, n) => String(s).padStart(n);
 const num = (v, d = 0) => (v === null ? "—" : v.toFixed(d));
 console.log(
-  `${"moment".padEnd(10)}${pad("km/h", 6)}${pad("edge°", 7)}${pad("incl°", 7)}${pad("knee F/B°", 11)}${pad("hips°", 7)}${pad("chest°", 8)}${pad("head°", 7)}${pad("hand m", 8)}${pad("snow", 5)}${pad("torso°", 8)}${pad("hipsH", 7)}${pad("shin°", 7)}${pad("over m", 8)}${pad("grab cm", 9)}  faults`,
+  `${"moment".padEnd(10)}${pad("km/h", 6)}${pad("edge°", 7)}${pad("incl°", 7)}${pad("knee F/B°", 11)}${pad("hips°", 7)}${pad("chest°", 8)}${pad("head°", 7)}${pad("hand m", 8)}${pad("snow", 5)}${pad("torso°", 8)}${pad("hipsH", 7)}${pad("shin°", 7)}${pad("deck°", 7)}${pad("over m", 8)}${pad("grab cm", 9)}  faults`,
 );
 for (const r of rows) {
   const was = before?.find((b) => b.id === r.id);
   const delta = was ? `  (was ${was.faults.length})` : "";
   console.log(
-    `${r.id.padEnd(10)}${pad(num(r.speed), 6)}${pad(num(r.edge), 7)}${pad(num(r.incline), 7)}${pad(`${num(r.knee[0])}/${num(r.knee[1])}`, 11)}${pad(num(r.hips), 7)}${pad(num(r.chest), 8)}${pad(num(r.head), 7)}${pad(num(r.hand, 2), 8)}${pad(r.onSnow, 5)}${pad(num(r.torso), 8)}${pad(num(r.hipsH, 2), 7)}${pad(num(r.shin), 7)}${pad(num(r.across, 2), 8)}${pad(r.grab === null ? "—" : num(r.grab * 100, 1), 9)}  ${r.faults.length ? r.faults.join("; ") : "ok"}${delta}`,
+    `${r.id.padEnd(10)}${pad(num(r.speed), 6)}${pad(num(r.edge), 7)}${pad(num(r.incline), 7)}${pad(`${num(r.knee[0])}/${num(r.knee[1])}`, 11)}${pad(num(r.hips), 7)}${pad(num(r.chest), 8)}${pad(num(r.head), 7)}${pad(num(r.hand, 2), 8)}${pad(r.onSnow, 5)}${pad(num(r.torso), 8)}${pad(num(r.hipsH, 2), 7)}${pad(num(r.shin), 7)}${pad(num(r.shinDeck ?? null), 7)}${pad(num(r.across, 2), 8)}${pad(r.grab === null ? "—" : num(r.grab * 100, 1), 9)}  ${r.faults.length ? r.faults.join("; ") : "ok"}${delta}`,
   );
 }
 const total = rows.reduce((n, r) => n + r.faults.length, 0);

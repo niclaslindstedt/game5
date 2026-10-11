@@ -162,3 +162,14 @@ export function boardInputOf(
     },
   };
 }
+
+/** How fast the drawing draws the rear foot out of its binding or back
+ * in, a share a second (about a quarter of a second each way). */
+const FREE_RATE = 4;
+
+/** `share` eased `dt` s toward the rear foot out (`free`) or in. */
+export function easeFree(share: number, free: boolean, dt: number): number {
+  const to = free ? 1 : 0;
+  const step = FREE_RATE * Math.max(0, dt);
+  return share < to ? Math.min(to, share + step) : Math.max(to, share - step);
+}

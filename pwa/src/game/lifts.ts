@@ -168,7 +168,7 @@ export type Lifts = {
    * every chair is. `others` are the keen skiers on lifts, `crowd` the
    * ski area's amateurs (`GameState.crowd`), whose T-bars are held;
    * `board` when the player rides a snowboard, towed side-on with his bar
-   * behind his front thigh (`board-lift.ts`'s `BOARD_TOW`). */
+   * between his legs behind his front thigh (`board-lift.ts`'s `BOARD_TOW`). */
   update(
     t: number,
     rider?: LiftRide | null,
@@ -635,6 +635,8 @@ export function createLifts(
   group.add(fade);
   const lift = new THREE.Vector3();
   const riderQ = new THREE.Quaternion();
+  const teeQ = new THREE.Quaternion();
+  const leanQ = new THREE.Quaternion();
   const bar = new THREE.Vector3();
   const eyeOf = new THREE.Vector3();
   const grip = new THREE.Vector3();
@@ -831,12 +833,16 @@ export function createLifts(
     for (const m of tow) m.visible = !!towed;
     if (towed && drawn) {
       // His bar across the backs of his thighs under his seat, in his own
-      // frame (`TOW`), its stem to his left; the box on the rope at the
-      // grip ahead of him, the cord from it down to the stem's eye.
-      if (board) bar.set(-TUNING.lift.tee, BOARD_TOW.y, BOARD_TOW.z);
+      // frame (`TOW`), its stem to his left — or on a board, its middle
+      // between his legs behind his front thigh, its stem leaning up the
+      // track to the cord (`BOARD_TOW`); the box on the rope at the grip
+      // ahead of him, the cord from it down to the stem's eye.
+      if (board) bar.set(0, BOARD_TOW.y, BOARD_TOW.z);
       else bar.set(-TUNING.lift.tee, TOW.hips.y + TOW.bar.y, TOW.hips.z + TOW.bar.z);
       bar.applyQuaternion(riderQ).add(at.set(drawn.x, drawn.y, drawn.z));
-      eyeOf.set(0, 0.6, 0).applyQuaternion(riderQ).add(bar);
+      teeQ.copy(riderQ);
+      if (board) teeQ.multiply(leanQ.setFromAxisAngle(side, BOARD_TOW.lean));
+      eyeOf.set(0, 0.6, 0).applyQuaternion(teeQ).add(bar);
       const g = carrierAt(towed, carried!.carrier!, t);
       grip.copy(onRope(towed, g.u, 0, ropeAt(towed, g.u)));
       q.setFromAxisAngle(up, towed.heading);
@@ -849,7 +855,7 @@ export function createLifts(
       towLine.quaternion.setFromUnitVectors(down, lift.normalize());
       towLine.scale.set(1, cord, 1);
       towTee.position.copy(bar);
-      towTee.quaternion.copy(riderQ);
+      towTee.quaternion.copy(teeQ);
       holds.set(barKey(carried!.index, carried!.carrier!), { hide: true, cord });
     } else if (rider?.kind === "drag" && rider.phase === "wait" && plan && drawn) {
       const ru =

@@ -223,3 +223,52 @@ describe("the chase behind a skier riding switch", () => {
     expect(back.eye.x).toBeCloseTo(forward.eye.x, 1);
   });
 });
+
+describe("the TIPS lens on a snowboard", () => {
+  const pose = (board?: number): RigPose => ({
+    x: 0,
+    y: 1,
+    z: 0,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+    vx: 0,
+    vy: 0,
+    vz: 10,
+    speed: 10,
+    airborne: false,
+    board,
+    packed: 1,
+    q: { x: 0, y: 0, z: 0, w: 1 },
+  });
+  const tips = RIGS.tips;
+
+  it("rides out over his toes and looks down past his front boot to the nose", () => {
+    if (tips.kind !== "bolted" || !tips.board)
+      throw new Error("tips is a worn rung, with a board eye");
+    for (const toe of [1, -1]) {
+      const l = frameRig(tips, pose(toe), createBoomState(), DT, () => 0);
+      // Out to the toe side, higher than over the ski tips, and looking down.
+      expect(Math.sign(l.eye.x)).toBe(toe);
+      expect(l.eye.y).toBeGreaterThan(1 + tips.eye.y);
+      expect(aimOf(l)).toBeLessThan(-deg(15));
+      // The nose (0.78 m ahead on the snow) and the front boot's cuff (a
+      // quarter metre ahead, 0.3 m up) both in the frame.
+      for (const p of [
+        { z: 0.78, y: 0 },
+        { z: 0.27, y: 0.3 },
+      ]) {
+        const a = Math.atan2(p.y - l.eye.y, Math.hypot(l.eye.x, p.z - l.eye.z));
+        expect(Math.abs(onScreen(l, a))).toBeLessThan(1);
+      }
+    }
+  });
+
+  it("is the ski tips' own lens on skis", () => {
+    if (tips.kind !== "bolted") throw new Error("tips is a worn rung");
+    const skis = frameRig(tips, pose(), createBoomState(), DT, () => 0);
+    expect(skis.eye.x).toBeCloseTo(0, 9);
+    expect(skis.eye.y).toBeCloseTo(1 + tips.eye.y, 9);
+    expect(skis.eye.z).toBeCloseTo(tips.eye.z, 9);
+  });
+});

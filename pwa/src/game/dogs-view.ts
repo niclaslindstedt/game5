@@ -29,6 +29,7 @@ import { DOG_POSES, collarOf, dogDials, dogSkel, leadCurve, type V3 } from "./do
 import { DOG_LODS, buildDogFigure, dogMaterial, packColour, type DogLod } from "./dog-shapes.ts";
 import { dogPlanFor, messAt, type Mess } from "./dog-walk.ts";
 import { dogAt, dogWalkerAt, freshDogPose } from "./dog-walk-pose.ts";
+import { releaseShared, sharing } from "./geometry-share.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
 import type { ViewCull } from "./view-cull.ts";
@@ -171,7 +172,7 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
   const slots = new Map<string, Slot>();
   for (const [kind, capacity] of counts) {
     for (const lod of DOG_LODS) {
-      const geometry = buildDogFigure(kind, lod).clone();
+      const geometry = sharing(buildDogFigure(kind, lod));
       const attr = () => {
         const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
         a.setUsage(THREE.DynamicDrawUsage);
@@ -494,7 +495,7 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
     update,
     dispose() {
       for (const slot of slots.values()) {
-        slot.mesh.geometry.dispose();
+        releaseShared(slot.mesh.geometry);
         slot.mesh.dispose();
       }
       slots.clear();

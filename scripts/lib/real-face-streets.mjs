@@ -200,7 +200,11 @@ export function townOf(face, data, thin, sizeOf) {
         .map((g) => mapAt(face, ...g));
       for (const piece of pieces(pts)) {
         if (lengthOf(piece) < SHORTEST) continue;
-        streets.push({ cls, points: thinRing(piece, thin), length: lengthOf(piece) });
+        // A hairpin thinned to its bends can come out shorter than the
+        // road was: what is kept is what the hints carry.
+        const points = thinRing(piece, thin);
+        if (lengthOf(points) < SHORTEST) continue;
+        streets.push({ cls, points, length: lengthOf(piece) });
       }
     }
   }

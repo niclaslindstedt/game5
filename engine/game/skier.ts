@@ -101,8 +101,8 @@ import { castLeg } from "./leg-ray.ts";
 import { riddenLevel } from "./mogul-ride.ts";
 import { climbShare, driveForce, hillPull, slopeShare } from "./poles.ts";
 import { holdsStill, laySkis, poleForce, pushReachOf, sidestepEdge } from "./board-moves.ts";
-import { hopAhead, stepRound, stepSide, stoodStill, strideOn } from "./board-moves.ts";
-import { hopHeld, turnWork } from "./board-moves.ts";
+import { hopAhead, hopHeld, stepRound, stepSide, stoodStill } from "./board-moves.ts";
+import { strideOn, turnWork } from "./board-moves.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
@@ -233,8 +233,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // rolling (or the moment the tuck asks him to go — a skier standing still
   // with his hands off stays standing), and not while he is braking,
   // loading a jump, riding switch, in the air or off his skis (a board's
-  // hop at a crawl excepted: `hopHeld`); the stride's
-  // phase runs only while he is working.
+  // hop at a crawl excepted: `hopHeld`); the stride runs only while he works.
   // A BOARD rides FAKIE as forward (`switch.ts`): it drives the way it goes.
   const fakie = c.switched && spec.board !== undefined;
   const going = (!c.switched || fakie) && ((fakie ? -c.way : c.way) > DRIVE_FROM || c.tuck > 0.05);
@@ -455,8 +454,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const packed = packedSnow(state, ax, az);
     let ice = level.iceAt ? level.iceAt(ax, az) : 0;
     const bare = level.bareRockAt ? level.bareRockAt(ax, az) : 0;
-    // ...and an evening's refrozen groomer (`piste-day.ts`).
-    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed));
+    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed)); // the evening's refreeze
     // In a TREE WELL the snow is loose to the bottom (`tree-well.ts`).
     const loose = level.wells ? Math.max(bottomless, wellLoose(level, ax, az)) : bottomless;
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.

@@ -787,6 +787,8 @@ export const STRINGS = {
    * caption. */
   pauseSlopesRunHint:
     "Which run to ski next, of every run on the mountain: the lift carries you up to its head.",
+  /** The panel's ways onto the snow, a press each: what they are. */
+  pauseSlopesStartOn: "START ON",
   pauseSlopesStartHint:
     "How to go on: on skis down the run picked, or the paramotor on the summit, the balloon, the snowmobile, the helicopter or the jump plane in the valley, or the afterski.",
   pauseSlopesCaption:

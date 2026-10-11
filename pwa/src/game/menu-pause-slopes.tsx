@@ -4,7 +4,8 @@
 // card's foot: the start card's own RUN row and chart (`run-pick.ts`), on the
 // map the ride is skied on, and GO stands the ride up again there — by the
 // lift up to the run's head (ANY run of the mountain, whatever its colour),
-// at a spot pressed on the chart, or on a machine off the START row.
+// at a spot pressed on the chart, or on a machine off the START ON presses
+// (one a ride, the picked one lit, so the plane or the balloon is one tap).
 //
 // ONLY THE RUN AND THE START ARE ASKED. The mountain, its country and its grade are the
 // ride's own (a different one is a different map, and that is the start
@@ -27,6 +28,8 @@ import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import type { HudSnapshot } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
+
+const STARTS_HINT: Hint = { label: STRINGS.pauseSlopesStartOn, text: STRINGS.pauseSlopesStartHint };
 
 export function PauseSlopes({
   snap,
@@ -88,16 +91,37 @@ export function PauseSlopes({
           onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
         />
         <div class="pause-slopes-rows">
+          {/* START ON: every way onto the snow as a press of its own, the
+              one picked lit, so a ride is switched in one tap — on skis,
+              the paramotor, the balloon, the snowmobile, the helicopter,
+              the jump plane or the afterski. */}
+          <div
+            class="pause-starts"
+            role="group"
+            aria-label={STRINGS.pauseSlopesStartOn}
+            onPointerEnter={() => setHint(STARTS_HINT)}
+          >
+            <span class="pause-starts-name">{STRINGS.pauseSlopesStartOn}</span>
+            <div class="pause-starts-chips">
+              {pick.starts.length === 0 ? (
+                <span class="pause-starts-wait">{STRINGS.startRunWaiting}</span>
+              ) : (
+                pick.starts.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    class={`menu-chip pause-start${s.id === pick.start ? " pause-start-on" : ""}`}
+                    data-menu={`start-${s.id}`}
+                    aria-pressed={s.id === pick.start}
+                    onClick={() => setRide(startPicked(ride, seed, s.id))}
+                  >
+                    {s.label}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
           <div class="knob-rows">
-            <StepRow
-              label={STRINGS.startStart}
-              hint={STRINGS.pauseSlopesStartHint}
-              stops={pick.starts}
-              value={pick.start}
-              extra={STRINGS.startRunWaiting}
-              onPick={(id) => setRide(startPicked(ride, seed, id))}
-              onHint={setHint}
-            />
             <StepRow
               label={STRINGS.startRun}
               hint={STRINGS.pauseSlopesRunHint}

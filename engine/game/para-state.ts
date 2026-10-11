@@ -15,10 +15,11 @@ export type ParaControls = { throttle: number; brake: number; steer: number; bar
  * (`launch`), the skis off the snow (`takeoff`) and back on it under the
  * wing (`touch`), the gear released by the pilot (`drop`), the wing
  * collapsed onto the snow or a crown and cut away (`collapse`), the wing
- * FOLDED in the air by rough air (`fold`), or the ride begun again on the
- * summit (`restart`). */
+ * FOLDED in the air by rough air (`fold`), a whole turn of the wing round
+ * him flown (`loop`), the pilot fallen INTO HIS WING (`tangle`), or the ride
+ * begun again on the summit (`restart`). */
 export type ParaPhaseEvent =
-  "launch" | "takeoff" | "touch" | "drop" | "collapse" | "fold" | "restart";
+  "launch" | "takeoff" | "touch" | "drop" | "collapse" | "fold" | "loop" | "tangle" | "restart";
 
 /** A `para` event (`GameEvent`): where, and the pilot's speed, m/s. */
 export type ParaEvent = {
@@ -33,9 +34,11 @@ export type ParaEvent = {
 
 /** WHAT THE RIG IS DOING: `ready` on the summit, the wing held inflated
  * overhead; `flown` — the wing flying on its lines, the pilot under it in
- * the air or skiing under it on the snow; `dropped` — released, the
- * canopy and the motor fallen free of him, lying where they came down. */
-export type ParaMode = "ready" | "flown" | "dropped";
+ * the air or skiing under it on the snow; `tangled` — fallen into his own
+ * wing, the cloth and the lines round him and falling with him until he
+ * cuts it away or meets the snow (`para-acro.ts`); `dropped` — released,
+ * the canopy and the motor fallen free of him, lying where they came down. */
+export type ParaMode = "ready" | "flown" | "tangled" | "dropped";
 
 /** A body of the rig falling free once released: where, how fast, and
  * whether it lies on the snow. */
@@ -85,8 +88,26 @@ export type ParaState = {
   wind: number;
   lift: number;
   rough: number;
-  /** The pull on the lines, N — 0 slack. */
+  /** The pull on the lines, N — 0 slack — and the pilot's load on them in
+   * g, smoothed (`PARA.acro.gLag`). */
   tension: number;
+  g: number;
+  /** THE WING'S WAY (`para-acro.ts`): the way its leading edge points,
+   * square to the lines, unit — kept, so a wing met by the air from behind
+   * knows it is flying backwards. */
+  way: { x: number; y: number; z: number };
+  /** THE SWING: the lines' pitch off plumb about the pilot, rad, wing ahead
+   * positive, unwrapped (a whole turn forward is 2π), and the whole turns
+   * flown, and how long the lines have hung slack with the wing level or
+   * below him, s. */
+  swing: number;
+  loops: number;
+  slack: number;
+  /** How hard the rears bite, 0..1: caught at the speed he carried when
+   * he leant back, and held while he holds the lean (`para-acro.ts`). */
+  rears: number;
+  /** Where the rears last held the wing to, m, and when (`ParaState.t`). */
+  hold: { x: number; y: number; z: number; at: number };
   /** The controls as they stand after their lags. */
   controls: ParaControls;
   /** THE ENGINE: rpm, the thrust this step, N, and the propeller's turn,

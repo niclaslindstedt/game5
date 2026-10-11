@@ -59,7 +59,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (summit, launch, flight, turn, lean, landing, fold, drop, gear, turntable, lenses, pov, night); every one when left out",
+      help: "which sheets, comma-separated (summit, launch, flight, turn, lean, acro, landing, fold, drop, gear, turntable, lenses, pov, night); every one when left out",
     },
     views: {
       kind: "string",

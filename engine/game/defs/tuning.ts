@@ -467,16 +467,35 @@ export const TUNING = {
    * whatever the thumbs say — and stops with the skid thrown, in the air,
    * with a jump being loaded, and once he is thrown. */
   poles: {
-    /** The speed, m/s, under which the push is its whole, and the speed by
-     * which the legs and the arms can no longer keep up and it is gone: 22
-     * and 34 km/h — a racer skates out of the gate and keeps skating on a
-     * flat to hold his speed, and the power law (below) is what makes the
-     * last of it little. */
+    /** The speed, m/s, under which the push is its whole; the speed by
+     * which THE SKATE is gone, the legs no longer keeping up with the skis
+     * (34 km/h — a racer skates out of the gate and a step turn is a
+     * crawl's); and the speed by which THE DOUBLE POLE is, eased
+     * (`driveReach`): 61 km/h, though the arms' cadence gives out well
+     * before it (`keepUp`). Measured, an elite double-poler runs up to some
+     * 30 km/h on the flat and poles on down a gentle pitch past 40; the
+     * power law (below) is what makes each push buy less the faster he
+     * goes. */
     speed: 6,
-    fade: 9.5,
-    /** The mean propulsive power, W — a fit recreational skier's sprint
-     * (an elite cross-country skier holds over 400 W for minutes). */
-    power: 450,
+    skateFade: 9.5,
+    fade: 17,
+    /** The mean propulsive power, W — past what a double-poler holds over a
+     * race (some 300 W a cycle measured on the ergometer, more out of the
+     * legs and the trunk than the arms), nearer what the fittest put down
+     * in a sprint: this is an arcade's skier, working like mad, and the
+     * speed he wins off the flat is meant to be felt. */
+    power: 800,
+    /** THE HILL TAKES OVER (`slopeShare`): down a pitch whose pull along his
+     * skis is `from` times what his poles add at the speed he is going, he
+     * starts to give up working them, and by `to` times he has — he stands
+     * the poles under his arms and tucks (the thumb's tuck, which the drive
+     * held off). On a gentle run-out he poles; down a steep face, never. */
+    hill: { from: 0.9, to: 1.6 },
+    /** THE FOLD a double-pole stroke averages, as a share of the tuck's
+     * (`poleFold`): the trunk drives down near level over the plant and
+     * comes back up through the recovery — measured, a double-poler's
+     * frontal area is some way between a skier stood up and one tucked. */
+    fold: 0.45,
     /** Below this way, m/s, he skates; over `skateTo` he double-poles —
      * blended between: a skater's V at a crawl and up to about 20 km/h,
      * where the legs can no longer keep up with the skis and the arms take
@@ -554,12 +573,18 @@ export const TUNING = {
     sweep: 1.35,
     sweepSkate: 1,
     /** The quickest he works the poles, strides a second — a double pole
-     * at its most driven — and the shares of the snow going by under one
+     * at its most driven: past the 1.3 a second measured of an elite
+     * double-poler at 80 poles a minute, an arcade skier's frantic arms —
+     * and the shares of the snow going by under one
      * push that a push at that cadence still sweeps where he starts to
      * give up poling for the tuck, and where he has (the arm reaches past
      * `sweep`, so he keeps up with somewhat more than it). */
-    cadenceMax: 2,
-    keepUp: { from: 0.85, to: 0.6 },
+    cadenceMax: 2.4,
+    keepUp: { from: 0.95, to: 0.8 },
+    /** The least share of a double pole's stroke the poles are on the snow
+     * (`doublePoleDuty`): measured, a double-poler driving his cadence up
+     * shortens his poling time to some 0.2 s of a stroke of 0.7–0.8 s. */
+    jab: 0.25,
     /** How fast the drive the body shows comes and goes, 1/s. */
     rate: 4,
     /** WITHOUT POLES (`SkierState.poles` off — the player's hard mode):

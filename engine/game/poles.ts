@@ -17,7 +17,7 @@
 // the force is the lesser of what a plant can press (`SkiSpec.polePush`)
 // and `poles.power` over the way (both the rider's own, `strength`) — so the first strides off a standstill
 // are strong and each one after buys less, and a skier on the flat runs up
-// to about 25 km/h and no further. Under `poles.speed` it is whole, and it
+// to over 40 km/h and no further. Under `poles.speed` it is whole, and it
 // is gone by `poles.fade`; `poles.powderShare` of it is left in powder.
 //
 // THE STRIDE is a cycle (`SkierState.stride`, counted in strides, advanced
@@ -84,13 +84,45 @@ import type { SkierState } from "./state.ts";
 const P = TUNING.poles;
 const B = P.bare;
 
-/** How much of the push the way leaves, 0..1: whole under `poles.speed`,
- * gone by `poles.fade` — and the poles' share of it gone sooner, once his
- * arms cannot keep up with the snow (`poleKeepUp`): he stops working them
- * and tucks. A skier with no `poles` skates all the way to the fade. */
+/** How much of the push the way leaves, 0..1, whole under `poles.speed`:
+ * THE SKATE'S gone by `poles.skateFade` — the legs cannot keep up with
+ * skis running on that fast — and THE DOUBLE POLE'S by `poles.fade`, eased
+ * (little of it lost at first, the last going quickly), and sooner once
+ * his arms at their quickest cannot keep up with the snow (`poleKeepUp`):
+ * he stops working them and tucks. Blended by how much of him is skating
+ * (`skateShare`) — so a skier with no `poles` skates to the skate's fade,
+ * and a step turn is a crawl's.  */
 export function driveReach(way: number, poles = true, step = 0): number {
-  const fade = 1 - clamp((Math.abs(way) - P.speed) / (P.fade - P.speed), 0, 1);
-  return fade * (1 - (1 - skateShare(way, poles, step)) * (1 - poleKeepUp(way, step)));
+  const w = Math.abs(way);
+  const skate = skateShare(way, poles, step);
+  const legs = 1 - clamp((w - P.speed) / (P.skateFade - P.speed), 0, 1);
+  const k = clamp((w - P.speed) / (P.fade - P.speed), 0, 1);
+  const arms = (1 - k * k * k) * poleKeepUp(way, step);
+  return skate * legs + (1 - skate) * arms;
+}
+
+/** THE HILL TAKES OVER, 0..1: the share of his work a skier keeps up on
+ * a pitch whose pull along his skis is `along` m/s² (downhill positive),
+ * when his poles would add `push` m/s² at the speed he is going
+ * (`driveForce` over his mass). Whole on the flat and up a rise; given up
+ * from `hill.from` times what the poles add and gone by `hill.to` times —
+ * the snow is carrying him faster than his arms can, so he tucks. */
+export function slopeShare(along: number, push: number): number {
+  if (along <= 0) return 1;
+  const H = P.hill;
+  const r = along / Math.max(1e-6, push);
+  const k = clamp((r - H.from) / (H.to - H.from), 0, 1);
+  return 1 - k * k * (3 - 2 * k);
+}
+
+/** HOW FOLDED A DOUBLE-POLER IS on the mean, as a crouch 0..1 (`poles.fold`):
+ * the share of him double-poling — working, within the drive's reach, and
+ * not skating — times the fold a stroke averages. What the air meets
+ * (`air.ts`). */
+export function poleFold(c: SkierState): number {
+  if (c.drive <= 0) return 0;
+  const pole = 1 - skateShare(c.speed, c.poles, c.step);
+  return P.fold * c.drive * driveReach(c.speed, c.poles, c.step) * pole;
 }
 
 /** The share of the drive that is SKATING rather than double-poling at a
@@ -231,7 +263,29 @@ export function poleDuty(way: number, step = 0): number {
   const k = skateShare(way, true, step);
   const bite = (P.sweepSkate * skateCadence(way)) / Math.max(1e-6, Math.abs(way));
   const skate = clamp(bite, P.dutyLeast, P.duty);
-  return skate * k + P.duty * (1 - k);
+  return skate * k + doublePoleDuty(way) * (1 - k);
+}
+
+/** THE DOUBLE POLE'S SHARE OF A STROKE on the snow, 0..1, at `way` m/s:
+ * the whole push (`poles.duty`) while his arms can keep a planted basket
+ * where it bit, SHORTENING once his cadence is at its quickest
+ * (`cadenceMax`) — the push lasting only as long as the snow takes to pass
+ * under one sweep of the pole — to `poles.jab`. Measured, a
+ * double-poler's poling time falls from some 0.3 s to 0.2 s as he drives
+ * his cadence up: a quick hard jab, then a long recovery. */
+export function doublePoleDuty(way: number): number {
+  const w = Math.max(1e-6, Math.abs(way));
+  const rate = clamp((w * P.duty) / P.sweep, P.cadencePole, P.cadenceMax);
+  return clamp((P.sweep * rate) / w, P.jab, P.duty);
+}
+
+/** THE PUSH'S SHARE OF A STRIDE, 0..1, at `way` m/s: the skating leg's long
+ * push (`poles.duty`) by the share of him skating, the double pole's jab
+ * (`doublePoleDuty`) by the rest — what the force is shaped over
+ * (`strideShape`). */
+export function pushDuty(way: number, poles = true, step = 0): number {
+  const k = skateShare(way, poles, step);
+  return P.duty * k + doublePoleDuty(way) * (1 - k);
 }
 
 /** How well a push keeps up with the snow at `way` m/s, 0..1: whole while
@@ -246,20 +300,20 @@ export function poleKeepUp(way: number, step = 0): number {
 }
 
 /** The shape of a push over one stride at phase 0..1: a half-sine over the
- * first `duty` of it on a `floor`, its mean over the whole cycle 1. */
-export function strideShape(phase: number): number {
+ * first `duty` of it (`pushDuty`; `poles.duty` unless told) on a `floor`, its mean over the whole cycle 1. */
+export function strideShape(phase: number, duty: number = P.duty): number {
   const p = phase - Math.floor(phase);
-  const peak = Math.PI / (2 * P.duty);
-  const on = p < P.duty ? peak * Math.sin((Math.PI * p) / P.duty) : 0;
+  const peak = Math.PI / (2 * duty);
+  const on = p < duty ? peak * Math.sin((Math.PI * p) / duty) : 0;
   return P.floor + (1 - P.floor) * on;
 }
 
 /** The plants' pulse at stride `stride` (strides counted), 0..1 — the
  * pole in the snow for the push, out of it for the recovery. What the
  * pose and the audio read. */
-export function plantPulse(stride: number): number {
+export function plantPulse(stride: number, duty: number = P.duty): number {
   const p = stride - Math.floor(stride);
-  return p < P.duty ? Math.sin((Math.PI * p) / P.duty) : 0;
+  return p < duty ? Math.sin((Math.PI * p) / duty) : 0;
 }
 
 /** The MEAN force the skier drives himself with along the skis, N, at
@@ -296,7 +350,10 @@ export function poleForce(
   poles = true,
   step = 0,
 ): number {
-  return driveForce(spec, way, packed, effort, poles, step) * strideShape(stride);
+  return (
+    driveForce(spec, way, packed, effort, poles, step) *
+    strideShape(stride, pushDuty(way, poles, step))
+  );
 }
 
 /** ONE STEP OF HIS STRIDES, for a skier working at `c.drive` at `speed`

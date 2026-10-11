@@ -37,6 +37,7 @@ import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
 import { TUNING } from "./defs/tuning.ts";
 import type { SkiSpec } from "./defs/skis.ts";
+import { poleFold } from "./poles.ts";
 import type { GameState, SkierState } from "./state.ts";
 import { BODY_HEIGHT, airAt, type Wind } from "./wind.ts";
 import { tunnelBlow, tunnelWind } from "./wind-tunnel.ts";
@@ -93,7 +94,10 @@ export function airForce(state: GameState, c: SkierState, m: number, out: AirFor
   const across = ax * fz - az * fx;
   const half = 0.5 * TUNING.airDensity * hypot3(ax, ay, az);
   // ...less what a racer close ahead takes off it in a ski-cross heat.
-  const front = half * dragAreaOf(c.spec, c.crouch) * (1 - (c.draft ?? 0));
+  // DOUBLE-POLING he is folded over his poles for much of each stroke, and
+  // the air meets that body (`poles.fold`), whatever the tuck says.
+  const fold = c.board ? c.crouch : Math.max(c.crouch, poleFold(c));
+  const front = half * dragAreaOf(c.spec, fold) * (1 - (c.draft ?? 0));
   const side = half * sideAreaOf(c.spec, c.crouch);
   const fAlong = -front * along;
   const fAcross = -side * across;

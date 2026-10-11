@@ -88,3 +88,29 @@ describe("the lift's free look", () => {
     expect(rig.frame(lens, at, riding, 1 / 60, 720, high)!.eye.y).toBeGreaterThanOrEqual(13.5);
   });
 });
+
+describe("the mouse's free look", () => {
+  it("holds while the button is down and lingers, then goes home", () => {
+    const g = { yaw: 1, pitch: 0.2 };
+    stepGaze(g, null, 0.1, true);
+    expect(g).toEqual({ yaw: 1, pitch: 0.2 });
+    stepGaze(g, null, 0.1, false);
+    expect(g.yaw).toBeLessThan(1);
+  });
+
+  it("looks the way the mouse moves on any run, and goes home after the linger", () => {
+    const rig = createGazeRig();
+    const level = { groundAt: () => -100 };
+    const lens = { eye: { x: 0, y: 2, z: -5 }, target: { x: 0, y: 1, z: 0 }, fov: 60, roll: 0 };
+    const at = { x: 0, y: 0, z: 0 };
+    rig.hold(true);
+    rig.drag(100, 0, true);
+    const looked = rig.frame(lens, at, null, 1 / 60, 800, level);
+    expect(looked).not.toBeNull();
+    rig.hold(false);
+    // Inside the linger the look stays.
+    expect(rig.frame(lens, at, null, LIFT_GAZE.linger / 2, 800, level)).not.toBeNull();
+    for (let i = 0; i < 240; i++) rig.frame(lens, at, null, 1 / 60, 800, level);
+    expect(rig.frame(lens, at, null, 1 / 60, 800, level)).toBeNull();
+  });
+});

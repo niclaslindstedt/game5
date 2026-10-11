@@ -227,9 +227,11 @@ export function createMachines(
   const floods: Flood[] = [];
   if (sled) {
     group.add(sled.group);
-    // The rider's own pair on the rack, in its topsheet's colours.
+    // The rider's own pair on the rack, in its topsheet's colours, his
+    // poles with it if he carries them — or his board.
     const top = TOPSHEETS[drawnAs(state.skier.spec)];
-    sled.dressRack(top.body, top.trim);
+    const k = state.skier;
+    sled.stowRack({ spec: k.spec, poles: k.poles, body: top.body, trim: top.trim });
   }
   // THE AIR AMBULANCE on the run after an injured one (`rescue-view.ts`),
   // built with the first run that carries its injuries.

@@ -133,3 +133,44 @@ On seed 38 it flies 3.7 km in the suit, pulls 337 m over the snow and lands on i
 | `flight` | 3.7 km | — |
 
 Write the table with `ARGS=--json=FILE` before a change and compare against it with `--compare=FILE` after. `SEED=` flies another map. `tests/wingsuit_test.ts` holds the bands that matter.
+
+`make wingsuit` is the picture lab. It skis the run through the game's own renderer and writes five sheets to `previews/`:
+
+- `suit`: the suit flying, seen from six sides, and stood slack on the exit.
+- `flight`: the whole ride on the bot's hands, from the exit through the pull, the canopy and the flare to walking off.
+- `poses`: the shapes flown on the flyer's own keys (neutral, the turns, the dive, the flare), each from behind and from the side.
+- `chase`: every rung of the camera ladder, gliding, under the canopy and on the exit.
+- `night`: the exit and the glide at hour 21.
+
+`ARGS=--sheet=suit,poses` shoots only some sheets, `--views=` some views, and `SEED=` another map. It needs `npm i --no-save playwright-core` and, in a web session, `CHROMIUM_PATH=/opt/pw-browsers/chromium`.
+
+## As drawn
+
+On a wingsuit run the flyer has no skis, no boots on bindings and no poles. Every stage is a shape laid on the engine's attitude (`skier-wingsuit.ts`, three-free: `wingsuitShapeOf`, `wingsuitPose`, `wingsuitTilt`):
+
+- **Ready**: stood on the edge, or on the helicopter's skid with his left hand on the door frame. The wings hang slack.
+- **Exit**: he pushes off and lays himself onto the air while the suit fills.
+- **Flight**: the arms out from his sides, nearly straight, a little forward and pushed down. The legs are spread about 30° and the toes pointed.
+- **Turn**: banked about his length, with the inside arm dropped.
+- **Dive**: the arms swept back toward the hips.
+- **Flare**: the arms forward and wide.
+- **Pull**: his right hand reaches back to the pouch at the foot of the container, then throws out at arm's length.
+- **Canopy**: the arm wings unzipped and hanging off the arms, his hands on the toggles.
+- **Landed**: stood on his boots, then walking with the leg wing hanging like a skirt.
+
+**The wings are lofted every frame, not skinned.** In the rig's bind pose he stands with his arms down, so a membrane between the arm and the side has no area there. Weights cannot grow it into a wing. Instead `wingsuit-cloth.ts` (three-free) builds each wing as a Coons patch off the posed joints:
+
+- The arm wing runs from the wrist and the arm to the side of the trunk and down to the hip.
+- The leg wing runs between the legs from the crotch to the ankles.
+
+Each wing is two skins, top and bottom, with caps at the open edges. The gap between the skins is the thicker of two shapes: a round sleeve around the limb, or an airfoil section (NACA, about 6 % of the chord) grown by the suit's PRESSURE. Inflated, the wing takes on a camber, a pillow between each pair of ribs, and RAM-AIR INLETS under the leading edge. Slack, it sags and flutters. Under the canopy the arm wing is UNZIPPED and hangs off the arm. `suitMeasures` holds the sizes to a large suit's: about 1.7 m of span, a root chord near a metre, a 0.3 m tip and a leg wing about a metre long.
+
+The BOOTIES are the leg wing's sleeves, painted dark. The boots' liners are folded away in flight. The body under the wings is the outfit's race jacket, insulated pants, race gloves and visor helmet, recoloured to the suit (`wingsuit-dress.ts`).
+
+**The paint.** `wingsuit-look.ts` holds five bold COLOURWAYS: ember, volt, glacier, orchid and crimson. Each has a base, an accent, an edge, an underside, tips and trim. The wing's shader (`suitPaint`) paints each skin from the wing's own coordinates, so a panel stays put however the wing is bent. The colourway follows the outfit (`suitOf`).
+
+**The BASE rig** (`chute-gear.ts`, `chute-scene.ts`): a slim single container with no reserve tray and no reserve handle, a big pouch at its foot, and a large pilot chute sized off `CHUTE.base`. The canopy is a 7-cell main (`BASE_WING` in `chute-canopy.ts`), orange with a white centre and black ends.
+
+**THE HOVER EXIT** (`wingsuit-hover.ts`): when `state.wingsuit.hover > 0`, a helicopter is drawn holding a hover over the exit, with the flyer stood on its right skid. Once he steps off it holds for a moment, then noses over, climbs away to its left and is gone 50 s after the jump. It is the heli-ski machine's own drawing (`heli-view.ts`) handed a state of its own, presentation only.
+
+`tests/wingsuit_look_test.ts` holds the shapes, the measures, the colourways, that nothing of a pair of skis is drawn, and the helicopter's skid under him.

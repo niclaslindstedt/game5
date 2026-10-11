@@ -52,14 +52,18 @@ export type Gear = {
 };
 
 /** BUILD THE RIG off three materials: the container's cloth, its trim and
- * the webbing. */
+ * the webbing — or (`base`) A BASE RIG over a wingsuit: one slim tray
+ * (`CHUTE.base.container`) under one closing flap and no reserve, no
+ * reserve handle and no cut-away pad, the big pilot chute's pouch across
+ * the bottom of the container. */
 export function createGear(
   cloth: THREE.Material,
   trim: THREE.Material,
   web: THREE.Material,
   std: (color: number, roughness: number) => THREE.MeshStandardMaterial,
+  base = false,
 ): Gear {
-  const K = CHUTE.container;
+  const K = base ? CHUTE.base.container : CHUTE.container;
   const body = new THREE.Group();
   body.name = "harness";
   const geos: THREE.BufferGeometry[] = [];
@@ -79,8 +83,9 @@ export function createGear(
     body.add(mesh);
     return mesh;
   };
-  const B = GEAR.back;
-  const lower = K.height * 0.64;
+  // A slimmer tray stands as close to his back.
+  const B = { up: GEAR.back.up, out: GEAR.back.out + (CHUTE.container.depth - K.depth) / 2 };
+  const lower = K.height * (base ? 1 : 0.64);
   const upper = K.height - lower;
   const yBase = B.up - K.height / 2;
   // THE MAIN TRAY below, its closing flap on the back in a lighter panel.
@@ -96,7 +101,8 @@ export function createGear(
   );
   // THE RESERVE TRAY on top, a little narrower, under its own flap — hung
   // on a hinge at the tray's top back edge so the spring can throw it open.
-  box(K.width * 0.94, upper, K.depth * 0.88, cloth, 0, yBase + lower + upper / 2, B.out + 0.005);
+  if (!base)
+    box(K.width * 0.94, upper, K.depth * 0.88, cloth, 0, yBase + lower + upper / 2, B.out + 0.005);
   const flapHinge = new THREE.Group();
   const hingeY = yBase + K.height;
   const hingeZ = B.out - K.depth * 0.35 - 0.01;
@@ -112,9 +118,12 @@ export function createGear(
     K.depth * 0.35,
   );
   flapHinge.add(flap);
-  // THE BOC POUCH under the main, the handle's tab out of it to the right.
+  flapHinge.visible = !base;
+  // THE BOC POUCH under the main, the handle's tab out of it to the right
+  // — a BASE rig's the bigger, for its metre-wide pilot chute.
   const P = GEAR.pouch;
-  box(0.16, 0.05, 0.07, cloth, 0, yBase - 0.02, B.out - 0.02);
+  if (base) box(0.24, 0.075, 0.1, trim, 0, yBase - 0.03, B.out - 0.01);
+  else box(0.16, 0.05, 0.07, cloth, 0, yBase - 0.02, B.out - 0.02);
   // The handle (a soft ball), kept out of `body` so a hand can carry it.
   const ballGeo = new THREE.SphereGeometry(0.026, 8, 6);
   geos.push(ballGeo);
@@ -158,6 +167,7 @@ export function createGear(
   const pad = new THREE.Mesh(padGeo, std(0xc8201c, 0.55));
   pad.position.set(GEAR.webs + 0.012, GEAR.pads, F + 0.014);
   body.add(pad);
+  pad.visible = reserveHandle.visible = !base;
   // THE LEG STRAPS, round each thigh (the torus's axis laid along the bone).
   const strap = new THREE.TorusGeometry(GEAR.leg.radius, 0.014, 5, 16);
   strap.rotateX(Math.PI / 2);

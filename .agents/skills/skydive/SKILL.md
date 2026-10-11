@@ -39,7 +39,8 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The HUD, the words | `plane-hud.ts`'s `chuteOf`, `hud-plane.tsx`, `strings-chute.ts`, `run-news.ts` |
 | The sound | `audio/chute-voice.ts`, `chute-bed.ts` (`rideShares`: the ride bed silent while he falls), `chute-bank.ts` |
 | THE WINGSUIT on the same step (`ChuteState.suit` `"wingsuit"`, no skis, no reserve): the flight, the exit and its hover, the BASE canopy (`CHUTE.base`), the landing on his boots, the bot | `engine/game/wingsuit.ts`, `wingsuit-start.ts`, `wingsuit-pilot.ts`, `defs/wingsuit.ts`; `docs/wingsuit.md`; `tests/wingsuit_test.ts` |
-| The labs | `scripts/skydive-flight-lab.mjs`, `scripts/wingsuit-flight-lab.mjs`; `scripts/skydive-preview.mjs` over `pwa/skydive-preview.html`, `pwa/src/tools/skydive-harness.ts`, `skydive-scenes.ts` |
+| THE WINGSUIT AS DRAWN: the shapes and the pose (`skier-wingsuit.ts`), the wings lofted off the joints (`wingsuit-cloth.ts`, `wingsuit-figure.ts`), the colourways and the paint (`wingsuit-look.ts`), the dress (`wingsuit-dress.ts`), the flyer posed (`wingsuit-body.ts`, read by `skis-body.ts`'s `setWingsuit`), the BASE rig (`chute-gear.ts`, `chute-scene.ts`, `chute-canopy.ts`'s `BASE_WING`), the hover helicopter (`wingsuit-hover.ts`) | `pwa/src/game/`; `tests/wingsuit_look_test.ts`; `make wingsuit` over `pwa/wingsuit-preview.html`, `pwa/src/tools/wingsuit-harness.ts`, `wingsuit-scenes.ts` |
+| The labs | `scripts/skydive-flight-lab.mjs`, `scripts/wingsuit-flight-lab.mjs`, `scripts/wingsuit-preview.mjs`; `scripts/skydive-preview.mjs` over `pwa/skydive-preview.html`, `pwa/src/tools/skydive-harness.ts`, `skydive-scenes.ts` |
 
 ## The numbers it is held to
 

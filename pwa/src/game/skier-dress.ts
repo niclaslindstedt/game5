@@ -19,6 +19,7 @@ import type { Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
+import { suitDress } from "./wingsuit-dress.ts";
 
 export type Dressed = {
   /** What the figure's group carries: the bones and the two meshes. */
@@ -46,6 +47,9 @@ export type SkierDress = {
   ghost?: boolean;
   /** Indoors: no helmet and no goggles (`cutHead`). */
   bare?: boolean;
+  /** In a WINGSUIT, its colourway (`wingsuit-look.ts`): the body cut as
+   * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
+  suit?: number;
 };
 
 /** A ghost's colours: the kit's own light, lifted toward a pale ice blue. */
@@ -103,7 +107,10 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
 
-  const cut = dressOutfit(dress.outfit, dress.tone, dress.bare);
+  const cut =
+    dress.suit === undefined
+      ? dressOutfit(dress.outfit, dress.tone, dress.bare)
+      : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
   const ghost = !!dress.ghost;
   const geos = [geometryOf(cut.cloth, ghost), geometryOf(cut.hard, ghost)];
   const mats = [

@@ -51,7 +51,7 @@ import {
 import { createBoardModel } from "./board-model.ts";
 import { buildHeadlamp, type Headlamp } from "./headlamp.ts";
 import type { SkierPose } from "./skier-joints.ts";
-import { armBreaks, breakArms, createArmSwing, SWING, type ArmBreak } from "./skier-broken.ts";
+import { armBreaks, createBrokenFeel } from "./skier-broken.ts";
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { buildGear, cuffHeight, gearLift, skiTilt } from "./ski-gear.ts";
@@ -110,10 +110,12 @@ import { revertRise } from "./skier-switch.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
 import { pitchPast, skydivePose, squareSkis, squareStand } from "./skier-skydive.ts";
 import type { SkydiveShape } from "./skier-skydive.ts";
+import { wingsuitShapeOf, type WingsuitShape } from "./skier-wingsuit.ts";
+import { flyerSnow, poseFlyer } from "./wingsuit-body.ts";
+import { createWingsuitWings } from "./wingsuit-figure.ts";
 
-/** How long the acceleration a broken arm feels is eased over, s — the
- * engine's steps' jitter taken out of its swing. */
-const FELT_EASE = 0.1;
+/** A wingsuit flyer with nothing to do: stood. */
+const STOOD = wingsuitShapeOf(null, true)!;
 
 export { REST_SAG } from "./ski-gear.ts";
 
@@ -202,6 +204,9 @@ export type SkisModel = {
    * skis carried with his boots and his drawing pitched past what his
    * skier's frame says (`skier-skydive.ts`), or null — read at the next pose. */
   setSkydive(shape: SkydiveShape | null): void;
+  /** In a WINGSUIT (a pair dressed in one, `SkierDress.suit`): what his
+   * body is doing (`skier-wingsuit.ts`), or null — read at the next pose. */
+  setWingsuit?(shape: WingsuitShape | null): void;
   /** THE SNOW HIS FLIGHTS ARE READ OVER (`skier-flight.ts`): the map, and
    * the flight's gravity, m/s² (`flightGravity`) — how high he is and when
    * the snow comes, which stage his fall by. Without one a fall is staged
@@ -590,6 +595,13 @@ export function createSkisModel(
     return g;
   });
 
+  // IN A WINGSUIT: no skis, no boots and no poles (the liners are his
+  // booties), the wings lofted on the figure (`wingsuit-figure.ts`).
+  const suit = style.skier.suit;
+  const wings =
+    suit === undefined ? null : createWingsuitWings(suit, figure.group, wrap, style.skier.ghost);
+  if (wings) for (const m of [...skiParts, ...bootParts]) m.visible = false;
+  let flyer: WingsuitShape | null = null;
   // HIS BODY TORN APART (`setGore`).
   let goreLost = 0;
   let goreCrush = 0;
@@ -616,6 +628,9 @@ export function createSkisModel(
     y: { x: 0, y: 1, z: 0 },
     z: { x: 0, y: 0, z: 1 },
   };
+  const lay = (p: SkierPose) => figure.sprawl(p); // A wingsuit flyer's (`wingsuit-body.ts`).
+  const flight = wings && { root, group: figure.group, lay, dressed: figure.dressed, frame, wings };
+
   // The merged draw's bound: the pair's own, grown while the skier is
   // lying away from it.
   const bound = merged.mesh.geometry.boundingSphere!;
@@ -637,43 +652,12 @@ export function createSkisModel(
   let lastPerch: number | null = null;
   const dangle = createDangle();
   const react = createPerchReact();
-  // HIS BROKEN ARMS swinging from their breaks (`skier-broken.ts`), and the
-  // acceleration they feel his body's, eased — the velocity it was taken
-  // off a frame ago.
-  const arms = createArmSwing();
-  const felt = { x: 0, y: 0, z: 0 };
-  let lastV: { x: number; y: number; z: number } | null = null;
-  const feltBody = new THREE.Vector3();
+  // HIS BROKEN ARMS swinging from their breaks (`skier-broken.ts`).
+  const broken = createBrokenFeel();
   const toBody = new THREE.Quaternion();
   const reachAt = new THREE.Vector3();
   // Whether his legs' spring has been set back to rest since he was thrown.
   let rested = false;
-
-  /** The pose made over for his broken arms, swung by `dt` s under the
-   * gravity they feel: g less his acceleration, in his body's frame. */
-  function broken(
-    skier: SkierState,
-    breaks: [ArmBreak | null, ArmBreak | null],
-    dt: number,
-  ): (p: SkierPose) => SkierPose {
-    if (dt > 0 && lastV) {
-      let ax = (skier.vx - lastV.x) / dt;
-      let ay = (skier.vy - lastV.y) / dt;
-      let az = (skier.vz - lastV.z) / dt;
-      const a = Math.hypot(ax, ay, az);
-      if (a > SWING.most) [ax, ay, az] = [ax, ay, az].map((v) => (v * SWING.most) / a);
-      const k = 1 - Math.exp(-dt / FELT_EASE);
-      felt.x += (ax - felt.x) * k;
-      felt.y += (ay - felt.y) * k;
-      felt.z += (az - felt.z) * k;
-    }
-    lastV = { x: skier.vx, y: skier.vy, z: skier.vz };
-    feltBody
-      .set(-felt.x, -9.81 - felt.y, -felt.z)
-      .applyQuaternion(toBody.copy(root.quaternion).invert());
-    const g = { x: feltBody.x, y: feltBody.y, z: feltBody.z };
-    return (p) => breakArms(p, breaks, arms, dt, g);
-  }
 
   return {
     root,
@@ -688,6 +672,16 @@ export function createSkisModel(
     pose(skier, at, sink, trick = null, dt = 0, body, waiting = false) {
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
+      if (flight && !off) {
+        root.position.set(at.x, at.y - sink, at.z);
+        const shape = flyer ?? STOOD;
+        const ground = fall ? fall.ground.groundAt(at.x, at.z) : null;
+        const snow = flyerSnow(shape, root.position.y, ground, at.y);
+        poseFlyer(flight, shape, snow, run?.t ?? 0);
+        bound.radius = BOUND + 1.2;
+        merged.update();
+        return;
+      }
       // ON HIS FEET after a buzzed fall (`buzz.ts`'s fetch): up, walking to
       // his skis, picking them up and back into the bindings.
       // ...or IN TOWN, his skis on his shoulder (`town.ts`).
@@ -734,8 +728,10 @@ export function createSkisModel(
       // Thrown with no skis let go (off a snowmobile) his pair is on its
       // rack, and he lies in his boots.
       const bare = off !== null && off.skis.length === 0;
-      rack(boarded || (cabin && !racked) || inBasket || bare);
-      unboot(town !== null);
+      if (!wings) {
+        rack(boarded || (cabin && !racked) || inBasket || bare);
+        unboot(town !== null);
+      }
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);
       // ON HIS PLATFORMS across a steep face, stood over the hill: the body
@@ -788,6 +784,7 @@ export function createSkisModel(
         thrown.setFromRotationMatrix(trunk);
         figure.group.quaternion.copy(toRoot).multiply(thrown);
         figure.sprawl(p, goreLost, goreCrush);
+        wings?.pose(p, { pressure: 0, unzip: 0, t: run?.t ?? 0 });
         bound.radius = BOUND + figure.group.position.length();
       } else if (afoot) {
         // Laid in the root's own frame (stood upright, facing the way he
@@ -870,7 +867,8 @@ export function createSkisModel(
           resetDangle(dangle);
           resetPerchReact(react);
         }
-        const broke = breaks[0] || breaks[1] ? broken(skier, breaks, dt) : undefined;
+        const broke =
+          breaks[0] || breaks[1] ? broken(skier, breaks, dt, root.quaternion) : undefined;
         // SKYDIVING: the limbs laid by the stage, the skis moved with the boots.
         const flown = skydive ? (p: SkierPose) => skydivePose(p, skydive, mounts) : null;
         const swung: { skis: [SkiSwing, SkiSwing] | null } = { skis: null };
@@ -960,6 +958,9 @@ export function createSkisModel(
     setSkydive(shape) {
       sky = shape;
     },
+    setWingsuit(shape) {
+      flyer = shape;
+    },
     setBasket(on, walk) {
       basket = on;
       basketWalk = on ? (walk ?? null) : null;
@@ -991,6 +992,7 @@ export function createSkisModel(
       for (const m of mats) m.dispose();
       merged.dispose();
       figure.dispose();
+      wings?.dispose();
       models?.dispose();
     },
   };

@@ -48,6 +48,8 @@ import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { Outfit } from "./outfit.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
+import { wingsuitShapeOf } from "./skier-wingsuit.ts";
+import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
@@ -164,7 +166,12 @@ export function createMachines(
   // ...and the jump plane and the skydive out of its door, drawn while a
   // run carries them (`GameState.plane`, `.chute`).
   const plane: PlaneScene | null = state.rules.heli ? createPlaneScene(haze) : null;
-  const chute: ChuteScene | null = state.rules.heli ? createChuteScene(haze, level) : null;
+  const chute: ChuteScene | null = state.rules.heli
+    ? createChuteScene(haze, level, !!state.wingsuit)
+    : null;
+  // ...and a wingsuit's hover exit: the helicopter it steps off.
+  const hover: HoverScene | null = state.wingsuit ? createHoverScene(level, haze) : null;
+  if (hover) group.add(hover.group);
   if (plane) group.add(plane.group);
   if (chute) group.add(chute.group);
   // ...and the strip it flies from: its snow, markers, buildings and sock.
@@ -235,7 +242,9 @@ export function createMachines(
     group,
     balloon,
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready]).then(() => undefined),
+      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready, hover?.ready]).then(
+        () => undefined,
+      ),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
@@ -244,7 +253,14 @@ export function createMachines(
       model.setSled(sled ? sled.stand(s) : null);
       // Out of the plane's door and under the canopy, every stage of the
       // jump is a shape of his limbs (`skier-skydive.ts`).
-      model.setSkydive(chute ? skydiveShapeOf(s.chute ?? null, !!s.plane?.rider) : null);
+      // ...or in a WINGSUIT, no skis on: the flyer's own (`skier-wingsuit.ts`).
+      const suit = !!s.wingsuit;
+      model.setSkydive(chute && !suit ? skydiveShapeOf(s.chute ?? null, !!s.plane?.rider) : null);
+      model.setWingsuit?.(
+        suit
+          ? wingsuitShapeOf(s.chute ?? null, !!s.plane?.rider, (s.wingsuit?.hover ?? 0) > 0)
+          : null,
+      );
       // In the balloon's basket his pair is racked in its corner, and he
       // steps as he walks about it (or turns where he stands).
       const b = s.balloon;
@@ -280,6 +296,12 @@ export function createMachines(
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, fx.cloud, fx.snowAt);
       chute?.frame(s, alpha, chute && (s.chute || s.plane?.rider) ? seated?.skin() : null);
+      hover?.frame(
+        s,
+        dt,
+        (x, y, z, vx, vy, vz, size) => fx.cloud.blow(x, y, z, vx, vy, vz, size),
+        (x, z) => fx.snowAt(x, z).loose,
+      );
       const at = chute?.jumper();
       const framed =
         !!chute && !!at && !!s.chute && skydiveFramed(s.chute, s.skier.thrown !== null);
@@ -386,10 +408,13 @@ export function createMachines(
       else planeSolids.length = 0;
       const more = stripSolids.length + planeSolids.length > 0;
       const out = more ? [...all, ...stripSolids, ...planeSolids] : all;
-      return hull ? [...out, hull] : out;
+      const over = hover?.hull();
+      const withHull = hull ? [...out, hull] : out;
+      return over ? [...withHull, over] : withHull;
     },
     setPace(pace) {
       heli?.setPace(pace);
+      hover?.setPace(pace);
     },
     dispose() {
       heli?.dispose();
@@ -403,6 +428,7 @@ export function createMachines(
       strip?.dispose();
       balloon?.dispose();
       rescue?.dispose();
+      hover?.dispose();
     },
   };
 }

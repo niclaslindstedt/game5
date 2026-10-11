@@ -84,9 +84,28 @@ export const RESERVE_WING: WingShape = {
   sub: 1,
 };
 
+/** THE BASE CANOPY's shape — the wingsuit's one canopy (`CHUTE.base`):
+ * seven single cells on a big, nearly square planform (an aspect ratio
+ * near 1.8, slower and gentler to open than a sport main), its tips square,
+ * a deep section, its stabilizers long. */
+export const BASE_WING: WingShape = {
+  ...RESERVE_WING,
+  cells: CHUTE.base.canopy.cells,
+  span: CHUTE.base.canopy.span,
+  chord: CHUTE.base.canopy.chord,
+  tip: 0.97,
+  curl: 0.6,
+  thick: 0.18,
+  stabilo: 0.38,
+};
+
 /** The lines' length a wing hangs him on, m. */
 export function skyLinesLength(w: WingShape = SKY_WING): number {
-  return w === RESERVE_WING ? CHUTE.reserve.canopy.lines : CHUTE.canopy.lines;
+  return w === RESERVE_WING
+    ? CHUTE.reserve.canopy.lines
+    : w === BASE_WING
+      ? CHUTE.base.canopy.lines
+      : CHUTE.canopy.lines;
 }
 
 /** A CANOPY'S PAINT: the centre cell, the body, the end cells, the band
@@ -120,6 +139,18 @@ export const RESERVE_PAINT: SkyPaint = {
   body: [0.93, 0.93, 0.9],
   ends: [0.78, 0.1, 0.09],
   nose: [0.34, 0.35, 0.37],
+  under: 0.72,
+  mouth: [0.04, 0.04, 0.05],
+};
+
+/** THE BASE CANOPY'S PAINT: a high-visibility orange body, the centre
+ * cell white and the end cells black — a canopy the ground crew picks out
+ * against snow and rock alike. */
+export const BASE_PAINT: SkyPaint = {
+  centre: [0.94, 0.94, 0.9],
+  body: [0.9, 0.3, 0.06],
+  ends: [0.07, 0.08, 0.1],
+  nose: [0.1, 0.1, 0.12],
   under: 0.72,
   mouth: [0.04, 0.04, 0.05],
 };

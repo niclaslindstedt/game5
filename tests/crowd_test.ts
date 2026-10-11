@@ -8,9 +8,9 @@ import { describe, expect, it } from "vitest";
 import {
   CROWD,
   carrierAt,
+  carrierGripAt,
   liftPlans,
   queueSpot,
-  ropeAt,
   CROWD_GROUPS,
   clipCrowd,
   createGame,
@@ -91,6 +91,48 @@ describe("the crowd is dealt", () => {
     const c = poling.reduce((x, a) => x + Math.cos(Math.PI * a.pole), 0) / poling.length;
     const s = poling.reduce((x, a) => x + Math.sin(Math.PI * a.pole), 0) / poling.length;
     expect(Math.hypot(c, s)).toBeLessThan(0.3);
+  });
+
+  it("about three in ten on a snowboard: the park rats mostly, a school as its instructor", () => {
+    const crowd = free().crowd!;
+    const riders = crowd.amateurs.filter((a) => a.board);
+    const share = riders.length / crowd.amateurs.length;
+    expect(share).toBeGreaterThan(0.2);
+    expect(share).toBeLessThan(0.36);
+    expect(riders.some((a) => a.board === "goofy")).toBe(true);
+    expect(riders.filter((a) => a.board === "goofy").length).toBeLessThan(riders.length / 2);
+    const rats = crowd.amateurs.filter((a) => a.kind === "parkRat");
+    if (rats.length > 0) {
+      expect(rats.filter((a) => a.board).length / rats.length).toBeGreaterThan(0.6);
+    }
+    for (const g of crowd.groups) {
+      if (g.kind !== "school") continue;
+      const people = g.members.map((m) => crowd.amateurs[m]);
+      for (const a of people) expect(Boolean(a.board)).toBe(Boolean(people[0].board));
+    }
+    // No rider ploughs: the wedge is a skier's.
+    for (const a of riders) expect(a.knobs.turn).not.toBe("plough");
+  });
+
+  it("a rider sits down in the snow at a stop now and then, and gets up again", () => {
+    const state = free();
+    let sat = 0;
+    let rose = false;
+    const was = new Set<number>();
+    for (let i = 0; i < 120 * 90; i++) {
+      step(state, NEUTRAL_INPUT);
+      if (i % 60 !== 0) continue;
+      state.crowd!.amateurs.forEach((a, k) => {
+        if (a.sit > 0.9) {
+          expect(a.board).not.toBeNull();
+          expect(a.speed).toBe(0);
+          sat += 1;
+          was.add(k);
+        } else if (was.has(k) && a.sit === 0) rose = true;
+      });
+    }
+    expect(sat).toBeGreaterThan(0);
+    expect(rose).toBe(true);
   });
 
   it("the same seed, the same crowd, step for step", () => {
@@ -224,7 +266,7 @@ describe("the crowd on the lifts", () => {
       const at = carrierAt(p, a.carrier, state.t);
       expect(at.side).toBe(0);
       if (p.lift.kind === "chair")
-        expect(Math.abs(a.y - (ropeAt(p, at.u) - CROWD.ride.under))).toBeLessThan(1e-6);
+        expect(Math.abs(a.y - (carrierGripAt(p, at.u) - CROWD.ride.under))).toBeLessThan(1e-6);
       if (p.lift.kind === "drag")
         expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(1e-6);
     }
@@ -324,6 +366,30 @@ describe("the player meets the crowd", () => {
     expect(a.thrown).toBeNull();
     expect(a.fall).toBe(0);
     expect(Math.abs(a.y - state.level.groundAt(a.x, a.z))).toBeLessThan(0.05);
+  });
+
+  it("a rider knocked down goes over with his board kept on his feet", () => {
+    const state = free(30);
+    const crowd = state.crowd!;
+    for (const o of crowd.amateurs) o.mode = "lift";
+    const a = crowd.amateurs[0];
+    a.board = "regular";
+    a.mode = "ski";
+    a.knobs = { ...a.knobs, skill: 0.2 };
+    a.vx = a.vz = a.speed = 0;
+    const c = state.skier;
+    a.x = c.x;
+    a.z = c.z + 0.9;
+    a.y = c.y - c.spec.cogHeight;
+    c.heading = 0;
+    c.vx = 0;
+    c.vz = 6;
+    clipCrowd(state, []);
+    const body = a.thrown!;
+    expect(body.board).toBeDefined();
+    for (let i = 0; i < 120 * 20 && a.thrown; i++) step(state, NEUTRAL_INPUT);
+    expect(a.mode).not.toBe("down");
+    expect(a.board).toBe("regular");
   });
 
   it("a fall replays body for body, off the crowd's own stream", () => {

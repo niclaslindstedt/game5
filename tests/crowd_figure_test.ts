@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { CROWD_BODIES, createGame, type Amateur } from "@engine";
 
+import { BOARD_POSES, boardDialsOf, boardTargets } from "../pwa/src/game/crowd-board.ts";
 import { CROWD_PALETTE } from "../pwa/src/game/crowd-dress.ts";
 import { outfitOf } from "../pwa/src/game/crowd-dress.ts";
 import {
@@ -89,6 +90,63 @@ describe("the figures are built", () => {
         expect(slots.length).toBe(g.getAttribute("position").count);
       }
     }
+  });
+});
+
+describe("a snowboarder in the crowd", () => {
+  it("on a board to the same budget, every board pose the same mesh", () => {
+    for (const body of CROWD_BODIES) {
+      const [near, mid, far] = CROWD_LODS.map((lod) => crowdTriangles(body, lod, true));
+      expect(near).toBeLessThanOrEqual(300);
+      expect(mid).toBeLessThan(near);
+      expect(far).toBeLessThan(mid);
+      expect(far).toBeLessThanOrEqual(110);
+      for (const lod of CROWD_LODS) {
+        const g = buildCrowdFigure(body, lod, true);
+        expect(g.morphAttributes.position).toHaveLength(BOARD_POSES.length);
+        expect(g.morphTargetsRelative).toBe(true);
+      }
+    }
+  });
+
+  it("stands on his board on the snow, his head over his hips, but in the air and seated", () => {
+    for (const body of CROWD_BODIES) {
+      boardTargets(CROWD_LOOKS[body]).forEach((t, k) => {
+        const pose = k === 0 ? "stance" : BOARD_POSES[k - 1];
+        if (pose === "air" || pose === "chair") return;
+        // On an edge the board's middle stands up to half its width over
+        // the snow its edge cuts.
+        const mid = Math.min(t.skiL.mid[1], t.skiR.mid[1]);
+        expect(mid, `${body} ${pose}`).toBeGreaterThan(-0.02);
+        expect(mid, `${body} ${pose}`).toBeLessThan(0.15);
+        if (pose !== "sit") expect(t.head[1], `${body} ${pose}`).toBeGreaterThan(t.pelvis[1]);
+      });
+    }
+  });
+
+  it("weighed off his numbers: never below zero, goofy mirrored, sat when he sits", () => {
+    const base = createGame({ seed: 7, mode: "free", quiet: true, crowd: 40 }).crowd!.amateurs[0];
+    const out = new Array<number>(BOARD_POSES.length).fill(0);
+    const of = (k: (typeof BOARD_POSES)[number]) => out[BOARD_POSES.indexOf(k)];
+    for (const over of [
+      { speed: 8, lean: 0.3 },
+      { speed: 12, lean: -0.7 },
+      { speed: 2, across: 1, mode: "stop" as const },
+      { speed: 2, push: 1, pole: 0.6 },
+      { speed: 0, mode: "stop" as const, sit: 1 },
+      { mode: "air" as const, airT: 1, airAt: 0.5 },
+    ]) {
+      for (const board of ["regular", "goofy"] as const) {
+        const mirror = boardDialsOf({ ...base, board, ...over }, out, 3);
+        expect(mirror).toBe(board === "goofy" ? -1 : 1);
+        for (const v of out) expect(v).toBeGreaterThanOrEqual(0);
+      }
+    }
+    boardDialsOf({ ...base, board: "regular", speed: 0, mode: "stop", sit: 1 }, out, 3);
+    expect(of("sit")).toBeCloseTo(1, 6);
+    boardDialsOf({ ...base, board: "regular", speed: 12, lean: 0.9, crouch: 0.3 }, out, 3);
+    expect(of("carveToe")).toBeGreaterThan(0.5);
+    expect(of("carveHeel")).toBe(0);
   });
 });
 

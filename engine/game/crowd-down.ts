@@ -8,10 +8,12 @@
 // it always was. How it is drawn is `pwa/src/game/crowd-fall.ts`'s.
 
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
-import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { fromAxisAngle, fromEuler, multiply } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { strapBoard } from "./board-crash.ts";
 import { crashOver, throwOf } from "./crash.ts";
 import { place, sampleRun, type Along, type CrowdNet } from "./crowd.ts";
 import { CROWD } from "./defs/crowd.ts";
+import { LYNX } from "./defs/boards.ts";
 import { SKIS } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { RAGDOLL, stepRagdoll } from "./ragdoll.ts";
@@ -38,9 +40,12 @@ export function throwAmateur(
   a.kickerAt = NaN;
   a.rise = 0;
   const heading = a.heading;
+  // A rider stands across his board, facing its toe edge (`boardBody`).
+  const toe = a.board === "goofy" ? -1 : 1;
+  const q = fromEuler(heading, 0, 0);
   a.thrown = throwOf(
     cause,
-    fromEuler(heading, 0, 0),
+    a.board ? multiply(q, fromAxisAngle(0, 1, 0, (toe * Math.PI) / 2)) : q,
     a.x,
     a.y + SKIS.cogHeight,
     a.z,
@@ -49,6 +54,8 @@ export function throwAmateur(
     side,
     STILL,
   );
+  // ...and his board stays on, his feet held their stance apart on it.
+  if (a.board) strapBoard(a.thrown, { spec: LYNX }, side === (toe > 0 ? -1 : 1), RAGDOLL);
 }
 
 const STILL = { x: 0, y: 0, z: 0 };

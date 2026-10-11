@@ -18,6 +18,7 @@
 import { strideRate } from "./poles.ts";
 import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
+import { strapIn } from "./crowd-board.ts";
 import { CROWD } from "./defs/crowd.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
@@ -150,7 +151,8 @@ export function stepCrowdLifts(state: GameState, crowd: CrowdState, net: LiftRun
   }
   for (const a of crowd.amateurs) {
     if (a.mode === "ride") ride(state, crowd, net, plans, a);
-    else if (a.mode === "skate") skate(state, a);
+    // Onto his run: a rider stops there to strap his rear foot in.
+    else if (a.mode === "skate" && skate(state, a)) strapIn(crowd.rng, a);
   }
 }
 

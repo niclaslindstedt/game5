@@ -138,6 +138,8 @@ export type CrowdKindDef = {
   jumper: Band;
   styles: readonly TurnStyle[];
   bodies: readonly CrowdBody[];
+  /** The share of the kind that rides a SNOWBOARD (`CROWD.board`). */
+  board: number;
 };
 
 const ADULTS: readonly CrowdBody[] = ["man", "woman", "oldMan", "oldWoman", "retro"];
@@ -155,6 +157,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0, 0.15],
     styles: ["carve", "carve", "short", "zigzag"],
     bodies: [...ADULTS, "teen"],
+    board: 0.32,
   },
   // THE CARVER: the good skier — long arcs on the edges, fast and clean.
   carver: {
@@ -167,6 +170,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0.05, 0.3],
     styles: ["carve", "carve", "short"],
     bodies: ["man", "woman", "teen", "retro", "oldMan"],
+    board: 0.22,
   },
   // THE BOMBER: straight down the fall line in a tuck, faster than his
   // skiing, through every gap in the crowd.
@@ -180,6 +184,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0.3, 0.7],
     styles: ["line"],
     bodies: ["man", "teen", "freerider"],
+    board: 0.35,
   },
   // THE BEGINNER: a wedge and a prayer.
   beginner: {
@@ -192,6 +197,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0, 0],
     styles: ["plough", "plough", "traverse"],
     bodies: [...ADULTS, "teen"],
+    board: 0.4,
   },
   // THE ZIGZAG: wall to wall across the piste, edge to edge, in nobody's
   // line and everybody's way.
@@ -205,6 +211,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0, 0.05],
     styles: ["zigzag", "traverse"],
     bodies: [...ADULTS, "teen"],
+    board: 0.38,
   },
   // THE ONE WHO STOPS BELOW THE CREST: middle of the piste, just over the
   // roll, where nobody coming over it sees him until he is there.
@@ -218,6 +225,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0, 0.05],
     styles: ["carve", "plough", "short"],
     bodies: ADULTS,
+    board: 0.5,
   },
   // THE POWDER HOUND: off the side of the piste whenever the snow is deep,
   // a pack on his back and wide skis.
@@ -231,6 +239,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0.2, 0.6],
     styles: ["short", "carve"],
     bodies: ["freerider", "freerider", "man", "woman"],
+    board: 0.45,
   },
   // THE PARK RAT: every kicker, every time — and a fair share of them
   // landed on his back.
@@ -244,6 +253,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0.8, 1],
     styles: ["short", "line", "carve"],
     bodies: ["teen", "teen", "freerider"],
+    board: 0.8,
   },
   // AFTER LUNCH AT THE HUT: the line wanders, the body sways, and the snow
   // comes up to meet him for no reason anyone else can see.
@@ -257,6 +267,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0, 0.3],
     styles: ["zigzag", "carve", "line"],
     bodies: ["man", "man", "woman", "oldMan", "retro"],
+    board: 0.3,
   },
   // THE INSTRUCTOR at the head of a ski school: slow, short, tidy turns the
   // children can follow in.
@@ -270,6 +281,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0, 0],
     styles: ["plough", "short"],
     bodies: ["man", "woman"],
+    board: 0.15,
   },
   // A CHILD: in a wedge behind whoever is in front — a parent, an
   // instructor — and down a dozen times a morning without minding.
@@ -283,6 +295,7 @@ export const CROWD_KINDS: Readonly<Record<CrowdKind, CrowdKindDef>> = {
     jumper: [0, 0.2],
     styles: ["plough", "plough", "short"],
     bodies: ["child"],
+    board: 0.26,
   },
 };
 
@@ -518,4 +531,39 @@ export const CROWD = {
   knock: [2.5, 6] as readonly [number, number],
   restitution: 0.25,
   floors: 0.85,
+  /** THE SNOWBOARDERS (`crowd-deal.ts`, `crowd-board.ts`). Resort surveys
+   * put snowboarders at about a quarter to a third of the visits on many
+   * ski areas — fewer among the over-fifties, most of the teenagers and
+   * nearly everyone in a terrain park — and ski schools teach mostly skis.
+   * So each kind carries its share (`CrowdKindDef.board`), weighed here by
+   * the body (a teenager half as likely again, an older skier a quarter as
+   * likely), never past `most`; and a third of the riders ride GOOFY (the
+   * right foot forward — a regular rider is some 70 %). A ski school is
+   * one or the other whole: its children ride what the instructor does.
+   *
+   * A boarder STOPS on his heel edge and as often as not SITS DOWN in the
+   * snow (`sit`, the share of his stops of `sitFor` s or more; he stops
+   * `stops` times as often as a skier of his knobs would) — and off
+   * every lift's top he stops to strap his rear foot back in (`strap`, s),
+   * sat down `strapSat` of the time; `sitRise` s to sit down or get up. */
+  board: {
+    bodies: {
+      man: 1,
+      woman: 0.85,
+      teen: 1.6,
+      child: 1,
+      oldMan: 0.25,
+      oldWoman: 0.2,
+      freerider: 1.3,
+      retro: 0.35,
+    } as Readonly<Record<CrowdBody, number>>,
+    most: 0.95,
+    goofy: 0.3,
+    sit: 0.55,
+    stops: 1.8,
+    sitFor: 3,
+    strap: [5, 14] as readonly [number, number],
+    strapSat: 0.65,
+    sitRise: 1.2,
+  },
 };

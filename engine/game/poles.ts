@@ -77,6 +77,7 @@ import {
   type Vec3,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { riderOf } from "./defs/riders.ts";
+import type { Level } from "../mapgen/types.ts";
 import type { SkiSpec } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import type { SkierState } from "./state.ts";
@@ -113,6 +114,18 @@ export function slopeShare(along: number, push: number): number {
   const r = along / Math.max(1e-6, push);
   const k = clamp((r - H.from) / (H.to - H.from), 0, 1);
   return 1 - k * k * (3 - 2 * k);
+}
+
+/** THE HILL'S PULL along the way he is going, m/s² (downhill positive),
+ * for `slopeShare`: read off the ground over `hill.span` m about him, not
+ * off his skis' pitch — a skier judges the hill, and the up-face of a
+ * roller is no reason to start poling. */
+export function hillPull(level: Level, x: number, z: number, heading: number, way: number): number {
+  const s = (way < 0 ? -P.hill.span : P.hill.span) / 2;
+  const dx = Math.sin(heading) * s;
+  const dz = Math.cos(heading) * s;
+  const grade = (level.groundAt(x - dx, z - dz) - level.groundAt(x + dx, z + dz)) / Math.abs(2 * s);
+  return (TUNING.g * grade) / Math.sqrt(1 + grade * grade);
 }
 
 /** HOW FOLDED A DOUBLE-POLER IS on the mean, as a crouch 0..1 (`poles.fold`):

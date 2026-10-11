@@ -147,6 +147,18 @@ describe("the orange grade", () => {
     expect(pickFreeRun(runs.slice(0, 1), { grade: "orange" }, "1")).toBe("1");
   });
 
+  it("starts on the most difficult run when none is asked for", () => {
+    const runs = [
+      { id: "1", grade: "green" as const },
+      { id: "2", grade: "black" as const },
+      { id: "3", grade: "red" as const },
+      { id: "4", grade: "black" as const },
+    ];
+    expect(pickFreeRun(runs, {}, "1")).toBe("2");
+    expect(pickFreeRun([...runs, { id: "SR1", grade: "orange" as const }], {}, "1")).toBe("SR1");
+    expect(pickFreeRun([], {}, "1")).toBe("1");
+  });
+
   it("starts a free ride by lift up the lift its route leaves", () => {
     const { level } = maps().find(({ level }) => skiRoutesOf(level).length > 0)!;
     const route = skiRoutesOf(level)[0];

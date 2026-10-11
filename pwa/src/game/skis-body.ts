@@ -59,7 +59,7 @@ import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.t
 import { doorReach, reachPose } from "./door-reach.ts";
 import { launchGait } from "./skier-gait.ts";
 import { kickStand, slalomStart } from "./slalom-start.ts";
-import { attachModels } from "./skier-models.ts";
+import { attachModels, isBootPart } from "./skier-models.ts";
 import {
   createSkierSpring,
   drawnSkiAngle,
@@ -533,7 +533,7 @@ export function createSkisModel(
   if (models?.skis) {
     for (const m of models.meshes) {
       const named = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => x.name);
-      if (!named.includes("boot")) skiParts.push(m);
+      if (!named.some(isBootPart)) skiParts.push(m);
     }
   } else {
     for (const g of gear.skis) {
@@ -555,7 +555,7 @@ export function createSkisModel(
   if (models?.skis) {
     for (const m of models.meshes) {
       const named = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => x.name);
-      if (named.includes("boot") || named.includes("buckle")) bootParts.push(m);
+      if (named.some(isBootPart)) bootParts.push(m);
     }
   } else {
     for (const g of gear.skis) {

@@ -8,7 +8,8 @@
 // and kept: four skiers on a start line in the same kit share one cut.
 
 import { cutClothes } from "./dress-garments.ts";
-import { cutGloves, cutHead } from "./dress-head.ts";
+import { cutGloves } from "./dress-gloves.ts";
+import { cutHead } from "./dress-head.ts";
 import { createLoom, type DressMesh } from "./dress-loft.ts";
 import { GEAR_SLOTS, type Outfit } from "./outfit.ts";
 

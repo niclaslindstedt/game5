@@ -201,12 +201,25 @@ export type SkisStyle = {
   pole?: number;
 };
 
+/** Whether a model's material is part of a BOOT (the shell, its sole and
+ * trim — `boot`, `boot_dark`, `boot_accent` — or a buckle): what is kept out
+ * of the merged pair, stays on his feet on a rack and leaves the bindings
+ * in town (`skis-body.ts`). */
+export function isBootPart(name: string): boolean {
+  return name.startsWith("boot") || name === "buckle";
+}
+
 export function dressOf(name: string, skis: SkisStyle | null, skier: SkierStyle | null): Dress {
   if (skis) {
     if (name === "paint") return { colour: skis.body };
     if (name === "white") return { colour: skis.accent };
     if (name === "panel") return { colour: skis.panel ?? 0x1c1f23 };
     if (name === "boot") return { colour: skis.boot ?? 0x121316 };
+    // The boot's spine and badge in the pair's own colour — its trim where
+    // the boot is already the topsheet's.
+    if (name === "boot_accent") {
+      return { colour: (skis.boot ?? 0x121316) === skis.body ? skis.accent : skis.body };
+    }
     if (name === "pole") return { colour: skis.pole ?? 0x9aa1a9 };
   }
   if (skier) {
@@ -296,7 +309,7 @@ export function attachModels(o: {
   const parts = dressed(skisGltf, o.skis, null, o.wrap, mats);
   const { scene } = parts;
   // One draw for the pair, its boots and their buckles apart (`model-merge.ts`).
-  const merged = mergeModel(parts.meshes, (m) => m.name === "boot" || m.name === "buckle", o.wrap);
+  const merged = mergeModel(parts.meshes, (m) => isBootPart(m.name), o.wrap);
   const { meshes } = merged;
   scene.rotation.y = Math.PI;
   const holder = new THREE.Group();

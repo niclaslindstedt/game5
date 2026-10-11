@@ -191,18 +191,21 @@ SwiftShader's time.
 | 8 | THE RUN SIGNS AND THE ROUTE BOARDS (their printed faces) | the gates' group's textures 21.8 → 12.3 MB of canvases; one upload a reprint instead of two | The print was a sRGB canvas texture and a second, linear copy of the same canvas for the bump. The bump now reads the one texture and encodes the hardware's decode back (`print-bump.ts`'s `storedBump`), so it reads the very values the second copy held. |
 | 8 | THE PARAMOTOR AND THE BALLOON (built on every free ride for the one that might carry them) | built only on a ride that carries one, when it does | `machines.ts` builds each the first time the state holds one (`carried`), so a ride on skis never builds the wing, the motor, the envelope or the basket, nor holds their buffers. |
 | 8 | THE BODY'S JUDGE (every step, every skier) | ~50 KB a step of garbage → none | `body.injuries.some(...)` with a closure per part and kind, in a loop over every part; a plain loop instead (`hasInjury`). |
+| 9 | THE PEOPLE ON FOOT IN THE VILLAGE (`make cpu-cost`'s `valley`, the people view alone in a scratch probe) | valley 2.37 → 1.73 ms p50, people 1.3 → 0.7 ms; same hashes, sim digests unmoved | `collide` posed every person a hitter neared once per hitter, and every dog walker (bounded by `Infinity`) for every moving car: each person is now posed once a frame (`poseAt`), the broad phase tests a box before `Math.hypot`, `personOf` is worked out once a body, `roleOf` reads a map and `shareAt` keeps each table's last hour. The rock skin's `underOf` asks the one to four tiles under its 4 × 4 corners before the sixteen corners, so a point with no rock near costs four map reads, not sixteen. |
 
 ## Open leads, ranked
 
 Each is a real cost found in a round and not taken, with why:
 
-- **The people on foot in the village, a frame (round 8's heap and CPU
-  profiles).** `civilian-hits.ts`'s `collide` tests every hitter against every
-  person and asks `person.at` of each, and `civilian-plan.ts` asks
-  `shareAt(roleOf(c.role).hours, hour)` of every person every frame (about
-  1.3 ms each from the square); a broad phase and the share read once a role
-  and hour would take most of it. Not taken: the round had its four wins, and
-  the instance hash must be proven unchanged.
+- **The free ride's crowd, in the engine (round 9's profile).** `stepCrowd`
+  is ~0.45 ms a step (two a frame) with 400 amateurs, most of it `move`'s
+  own arithmetic (two `sampleRun`s an amateur), `place`'s ground read and
+  `standApart`'s pairs on the one run 240 of them share. Nothing in it is
+  wasted work; a cut is a cheaper crowd (amateurs far from the lens stepped
+  less often), which moves its state and owes its own proof.
+- **The riders' pose** (`make cpu-cost`'s `pose`, ~0.65 ms for four):
+  spread over `skier-figure.ts`'s `lay` and `skierBones`, the dress's pose
+  and three's `updateMatrixWorld`, with no one hot spot.
 
 - **The canvas's own multisampling under a graded region.** The fell, the
   continental and the maritime draw the scene into the grade's multisampled

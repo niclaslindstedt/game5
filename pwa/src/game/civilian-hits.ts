@@ -168,11 +168,18 @@ export function peopleOf(level: Level, hour: number): Person[] {
   return out;
 }
 
-/** A person's reach and mass, by his height. */
-export function personOf(body: CrowdBody): { r: number; mass: number; height: number } {
+type Build = { readonly r: number; readonly mass: number; readonly height: number };
+const builds = new Map<CrowdBody, Build>();
+
+/** A person's reach and mass, by his height (worked out once a body). */
+export function personOf(body: CrowdBody): Build {
+  const had = builds.get(body);
+  if (had) return had;
   const h = CROWD_LOOKS[body].height;
   const k = h / 1.8;
-  return { r: KNOCK_HIT.radius * Math.sqrt(k), mass: KNOCK_HIT.mass * k ** 3, height: h };
+  const b = { r: KNOCK_HIT.radius * Math.sqrt(k), mass: KNOCK_HIT.mass * k ** 3, height: h };
+  builds.set(body, b);
+  return b;
 }
 
 /** The knocks a view keeps: every person knocked, by key, and the engine's
@@ -380,6 +387,28 @@ function overlaps(h: Hitter, hx: number, hz: number, px: number, pz: number, pr:
 const pose = freshCivilianPose();
 const hitters: Hitter[] = [];
 
+/** Each person's pose at the clock `collide` last asked, by key: a person
+ * every hitter nears is posed once a frame, not once a hitter. */
+const posed: { people: readonly Person[] | null; t: Float64Array; poses: CivilianPose[] } = {
+  people: null,
+  t: new Float64Array(0),
+  poses: [],
+};
+
+function poseAt(people: readonly Person[], person: Person, t: number): CivilianPose {
+  if (posed.people !== people) {
+    posed.people = people;
+    posed.t = new Float64Array(people.length).fill(NaN);
+    posed.poses = people.map(() => freshCivilianPose());
+  }
+  const o = posed.poses[person.key];
+  if (posed.t[person.key] !== t) {
+    person.at(t, o);
+    posed.t[person.key] = t;
+  }
+  return o;
+}
+
 /**
  * THE KNOCKS THIS FRAME: everything that hits (`hittersOf`) swept from a
  * frame ago against everyone it nears, then every person knocked stepped
@@ -438,7 +467,12 @@ export function collide(
     const n = Math.max(1, Math.ceil(sweep / KNOCK_HIT.sweep));
     for (const person of people) {
       if (person.key === h.from) continue;
-      if (Math.hypot(person.rx - h.x, person.rz - h.z) > person.rr + reach + sweep) continue;
+      // A box before the circle: never nearer than either leg.
+      const far = person.rr + reach + sweep;
+      const ox = person.rx - h.x;
+      const oz = person.rz - h.z;
+      if (ox > far || -ox > far || oz > far || -oz > far) continue;
+      if (Math.hypot(ox, oz) > far) continue;
       const k = knocks.map.get(person.key);
       const me = personOf(person.body);
       let px: number;
@@ -466,11 +500,11 @@ export function collide(
         pz = k.bz;
         py = state.level.groundAt(px, pz);
       } else {
-        person.at(t, pose);
-        if (!pose.shown) continue;
-        px = pose.x;
-        pz = pose.z;
-        py = pose.y;
+        const o = poseAt(people, person, t);
+        if (!o.shown) continue;
+        px = o.x;
+        pz = o.z;
+        py = o.y;
       }
       if (h.y > py + height || h.y + h.height < py) continue;
       // Swept back over the frame from where the hitter stands now.
@@ -498,12 +532,13 @@ export function collide(
       let knock = k;
       if (!knock) {
         if (knocks.map.size >= KNOCK_HIT.most || Math.hypot(dvx, dvz) < 0.05) continue;
+        const o = poseAt(people, person, t);
         knock = knockOf(
           state,
           px,
           pz,
-          pose.heading,
-          startTarget(pose.activity, pose.seat),
+          o.heading,
+          startTarget(o.activity, o.seat),
           person.skis,
           person.body,
         );

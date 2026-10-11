@@ -43,6 +43,11 @@ export type Gear = {
    * harness, or (`hold`) carried in a hand. */
   pad: THREE.Mesh;
   handle: THREE.Mesh;
+  /** The reserve's metal handle on the left lift web (carried off in the
+   * left hand as it is pulled), and the reserve tray's top flap, hinged at
+   * the tray's back edge (thrown open over his shoulders once it is). */
+  reserveHandle: THREE.Mesh;
+  reserveFlap: THREE.Object3D;
   dispose(): void;
 };
 
@@ -89,17 +94,24 @@ export function createGear(
     yBase + lower * 0.52,
     B.out - K.depth / 2 - 0.004,
   );
-  // THE RESERVE TRAY on top, a little narrower, under its own flap.
+  // THE RESERVE TRAY on top, a little narrower, under its own flap — hung
+  // on a hinge at the tray's top back edge so the spring can throw it open.
   box(K.width * 0.94, upper, K.depth * 0.88, cloth, 0, yBase + lower + upper / 2, B.out + 0.005);
-  box(
+  const flapHinge = new THREE.Group();
+  const hingeY = yBase + K.height;
+  const hingeZ = B.out - K.depth * 0.35 - 0.01;
+  flapHinge.position.set(0, hingeY, hingeZ);
+  body.add(flapHinge);
+  const flap = box(
     K.width * 0.9,
     upper * 0.55,
     K.depth * 0.7,
     trim,
     0,
-    yBase + K.height - upper * 0.2,
-    B.out - 0.01,
+    -upper * 0.2,
+    K.depth * 0.35,
   );
+  flapHinge.add(flap);
   // THE BOC POUCH under the main, the handle's tab out of it to the right.
   const P = GEAR.pouch;
   box(0.16, 0.05, 0.07, cloth, 0, yBase - 0.02, B.out - 0.02);
@@ -130,7 +142,15 @@ export function createGear(
   // THE CHEST STRAP across.
   box(GEAR.webs * 2 + 0.02, 0.028, 0.008, web, 0, GEAR.chestStrap, F + 0.004);
   // THE RESERVE'S HANDLE on the left web, metal.
-  box(0.07, 0.035, 0.018, std(0xb9bec6, 0.3), -GEAR.webs - 0.012, GEAR.pads, F + 0.012);
+  const reserveHandle = box(
+    0.07,
+    0.035,
+    0.018,
+    std(0xb9bec6, 0.3),
+    -GEAR.webs - 0.012,
+    GEAR.pads,
+    F + 0.012,
+  );
   // THE CUT-AWAY PAD on the right web: a red pillow, kept apart so the hand
   // that punches it can carry it away.
   const padGeo = new THREE.BoxGeometry(0.075, 0.05, 0.026);
@@ -148,9 +168,12 @@ export function createGear(
     legs,
     pad,
     handle,
+    reserveHandle,
+    reserveFlap: flapHinge,
     dispose() {
       for (const g of geos) g.dispose();
       (handle.material as THREE.Material).dispose();
+      (reserveHandle.material as THREE.Material).dispose();
       (pad.material as THREE.Material).dispose();
     },
   };

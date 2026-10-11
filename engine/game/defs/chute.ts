@@ -173,6 +173,61 @@ export const CHUTE = {
    * damping, 1/s, and the speed into a trunk past which the blow is felt,
    * m/s. */
   snag: { crown: 1.2, rope: 0.7, tower: 1.0, carrier: 1.4, damping: 0.25, hurt: 2.5 },
+  /** THE RESERVE, in the upper tray: the canopy he pulls once the main is
+   * cut away (the machine press again — the RESERVE HANDLE on his left
+   * main lift web), and the only one he has. A sport reserve is a 7-CELL
+   * square of low-bulk fabric a size or so under the main (the class's
+   * reserves run about 0.85–0.9 of the main's area for the same jumper, so
+   * flown a little faster and steeper: a higher wing loading on a lower
+   * aspect ratio, its seven cells sewn as one each, no bi-cells), its
+   * pilot chute SPRING-LOADED — launched off his back the moment the pin
+   * is pulled, never thrown, and quicker to bite than a throw-out — on a
+   * short bridle to a FREE BAG that leaves with it, and a slider like the
+   * main's; it is built and packed to open quickly and surely (whole in
+   * well under 300 ft from the pull, the standard the class is certified
+   * to), so its stages are shorter than the main's. Restated from the
+   * class's published bands (the reserve makers' size ranges, the
+   * certification's opening limits, a free-bag system's sequence), no
+   * maker's numbers. The polar is the main's on a squarer wing: the lift
+   * slope a little lower and the induced drag higher. */
+  reserve: {
+    canopy: {
+      area: 16.3,
+      span: 5.6,
+      chord: 2.9,
+      cells: 7,
+      mass: 10,
+      lines: 4.0,
+      slider: { width: 0.7, length: 0.6 },
+    },
+    polar: {
+      slope: 2.7,
+      zero: -0.05,
+      stall: 0.5,
+      stalled: 0.5,
+      drag0: 0.105,
+      induced: 0.23,
+      stallDrag: 0.6,
+      surge: 0.5,
+    },
+    /** What it flies hands off, m/s (`skydiveAt`'s reserve standing). */
+    flies: { forward: 12.0, sink: 4.8 },
+    /** The spring pilot chute's diameter, m, and its bridle to the free
+     * bag, m. */
+    pilot: { diameter: 0.6, bridle: 1.8 },
+    /** THE OPENING as `deploy` is read: the pilot chute sprung clear, the
+     * free bag off the tray, line stretch, the snivel, full — each stage's
+     * end, s after the pull, and the drag area at its end, m². */
+    deploy: {
+      stages: [
+        { id: "pilot", end: 0.25, area: 0.55 },
+        { id: "bag", end: 0.55, area: 0.65 },
+        { id: "lines", end: 0.95, area: 1.4 },
+        { id: "snivel", end: 2.0, area: 3.0 },
+        { id: "inflate", end: 2.7, area: 12 },
+      ],
+    },
+  },
   /** THE BOT'S HANDS (`chute-pilot.ts`): the height over the snow it pulls
    * at, m (a sport jumper's 1,000 m), not before `least` s out of the door,
    * and the hard deck it pulls at as soon as it is clear of the plane, m;
@@ -203,6 +258,40 @@ export const CHUTE = {
 
 /** One stage of the deployment (`CHUTE.deploy.stages`). */
 export type DeployStage = (typeof CHUTE.deploy.stages)[number]["id"];
+
+/** A CANOPY'S OWN NUMBERS — the main's or the reserve's: the cloth, the
+ * polar, what it flies hands off, its pilot chute and its opening. */
+export type ChuteWing = {
+  readonly canopy: {
+    readonly area: number;
+    readonly span: number;
+    readonly chord: number;
+    readonly cells: number;
+    readonly mass: number;
+    readonly lines: number;
+    readonly slider: { readonly width: number; readonly length: number };
+  };
+  readonly polar: { readonly [K in keyof (typeof CHUTE)["polar"]]: number };
+  readonly flies: { readonly forward: number; readonly sink: number };
+  readonly pilot: { readonly diameter: number; readonly bridle: number };
+  readonly deploy: {
+    readonly stages: readonly { readonly id: DeployStage; readonly end: number; readonly area: number }[];
+  };
+};
+
+/** THE MAIN as a `ChuteWing`. */
+export const MAIN_WING: ChuteWing = {
+  canopy: CHUTE.canopy,
+  polar: CHUTE.polar,
+  flies: CHUTE.flies,
+  pilot: CHUTE.pilot,
+  deploy: CHUTE.deploy,
+};
+
+/** The canopy over him (or opening): the reserve once it is pulled. */
+export function wingOf(reserve: boolean): ChuteWing {
+  return reserve ? CHUTE.reserve : MAIN_WING;
+}
 
 /** The jumper's mass on the lines, kg: the skier, his kit and the rig. */
 export function jumperMass(skierMass: number): number {

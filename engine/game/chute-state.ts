@@ -13,12 +13,22 @@ import type { DeployStage } from "./defs/chute.ts";
 export type ChuteControls = { brake: number; steer: number; riser: number };
 
 /** What a `chute` event says: out of the door (`exit`), the pilot chute
- * thrown (`open-start`), the lines stretched (`line-stretch`), the canopy
- * open and flying (`open`), cut away by the press (`release`), landed
+ * thrown (`open-start`), the reserve's handle pulled after a cut-away
+ * (`reserve`), the lines stretched (`line-stretch`), the canopy — the main
+ * or the reserve — open and flying (`open`), cut away by the press
+ * (`release`), landed
  * under on his skis and let go (`land`), caught in a crown or on a lift
  * (`snag`), or the jump begun again in the plane's door (`restart`). */
 export type ChutePhaseEvent =
-  "exit" | "open-start" | "line-stretch" | "open" | "release" | "land" | "snag" | "restart";
+  | "exit"
+  | "open-start"
+  | "reserve"
+  | "line-stretch"
+  | "open"
+  | "release"
+  | "land"
+  | "snag"
+  | "restart";
 
 /** A `chute` event (`GameEvent`): where, and the jumper's speed, m/s — at
  * `open` the opening's peak load, g, in `g`. */
@@ -63,7 +73,7 @@ export type ChuteDeploy = {
   spread: number;
 };
 
-/** The canopy let go of (cut away, or let go on landing): where, how fast,
+/** A canopy let go of (cut away, or let go on landing): where, how fast,
  * which way it lies, and whether it lies on the snow. */
 export type ChutePiece = {
   x: number;
@@ -119,6 +129,9 @@ export type ChuteState = {
   peak: number;
   /** THE DEPLOYMENT, while it lasts and after (the drawing's last frame). */
   deploy: ChuteDeploy | null;
+  /** THE RESERVE PULLED: the deployment and the canopy over him are the
+   * reserve's (`CHUTE.reserve`) from the pull on — the main long cut away. */
+  reserve: boolean;
   /** THE CANOPY's centre, world frame, m, and its velocity, m/s — over him
    * on its lines while open. */
   x: number;
@@ -139,8 +152,11 @@ export type ChuteState = {
   tension: number;
   /** The toggles and risers after their lags. */
   controls: ChuteControls;
-  /** The canopy let go of — cut away or landed under — once it is. */
+  /** The MAIN let go of — cut away or landed under — once it is. */
   piece: ChutePiece | null;
+  /** The RESERVE let go of — landed under, or brought down onto the snow —
+   * once it is (it is never cut away). */
+  sparePiece: ChutePiece | null;
   /** What the canopy is caught on, while it is. */
   snag: ChuteSnag | null;
   /** THROWN out of the skydive (a freefall or a canopy brought into the

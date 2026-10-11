@@ -21,6 +21,9 @@
 //   canopy     flown hands off, a toggle each way, the front risers, the
 //              flare, and the landing on the bot's hands
 //   cutaway    the pad punched, the canopy streaming down, lying on the snow
+//   reserve    after a cut-away the reserve pulled and opening frame by
+//              frame, flown from behind, the side, below and over, beside
+//              the main, and flared down onto the skis
 //   snag       caught in a crown and on a lift's rope, hanging under it
 //   lenses     every rung of the game's camera in freefall, through the
 //              opening and under the canopy
@@ -59,7 +62,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (gear, exit, freefall, deploy, canopy, shape, cutaway, snag, lenses, night); every one when left out",
+      help: "which sheets, comma-separated (gear, exit, freefall, deploy, canopy, shape, cutaway, reserve, snag, lenses, night); every one when left out",
     },
     views: {
       kind: "string",

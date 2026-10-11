@@ -73,7 +73,8 @@ describe("a stake met", () => {
     on(state, 4, events);
     expect(state.stakes!.tilt[index]).toBe(0);
     // This stake met once — riding on down the edge he may meet the next.
-    const here = (e: GameEvent) => e.kind === "stake" && Math.hypot(e.x - stake.x, e.z - stake.z) < 0.5;
+    const here = (e: GameEvent) =>
+      e.kind === "stake" && Math.hypot(e.x - stake.x, e.z - stake.z) < 0.5;
     expect(events.filter(here)).toHaveLength(1);
   });
 

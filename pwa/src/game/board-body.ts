@@ -146,12 +146,14 @@ export function buildDeck(
   wrap: <M extends THREE.Material>(m: M, name: string) => M,
 ): Deck {
   const L = board.length;
+  // A set-back board's middle stands ahead of the stance's (`setback`).
+  const back = board.setback ?? 0;
   const stations: number[] = [];
   for (let i = 0; i <= ALONG; i++) {
     // Closer together at the ends, where the outline and the kick turn.
     const t = i / ALONG;
     const u = 0.5 - 0.5 * Math.cos(Math.PI * t);
-    stations.push((u * 0.6 + t * 0.4 - 0.5) * L);
+    stations.push((u * 0.6 + t * 0.4 - 0.5) * L + back);
   }
   const pos: number[] = [];
   const uv: number[] = [];
@@ -172,7 +174,7 @@ export function buildDeck(
     for (const s of stations) {
       const hw = boardHalfWidth(board, s);
       const y = boardBaseHeight(board, s, board.stance) + (top ? boardThickness(board, s) : 0);
-      const u = s / L + 0.5;
+      const u = (s - back) / L + 0.5;
       for (let j = 0; j <= ACROSS; j++) {
         const v = (j / ACROSS) * 2 - 1;
         // The top seen from above (its left at v = 0); the base from below,
@@ -201,7 +203,7 @@ export function buildDeck(
     for (const s of stations) {
       const hw = boardHalfWidth(board, s) * side;
       const y = boardBaseHeight(board, s, board.stance);
-      const u = s / L + 0.5;
+      const u = (s - back) / L + 0.5;
       vertex(hw, s, y, u, sideV(0));
       vertex(hw, s, y + boardThickness(board, s), u, sideV(1));
     }

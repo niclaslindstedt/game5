@@ -86,6 +86,7 @@ import { RADIUS, RAGDOLL, centreOf, stepRagdoll, throwBody } from "./ragdoll.ts"
 import { tailDug } from "./switch.ts";
 import { boardBody, caughtCause, slamThrow, slowCatch, strapBoard } from "./board-crash.ts";
 import type { CrashCause, GameEvent, GameState, SaveKind, SkierState, Thrown } from "./state.ts";
+import { alongRock, outOfRock, rockStrike } from "./rock-ground.ts";
 import { snowNormal } from "./snow-normal.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 
@@ -195,6 +196,16 @@ function trunkAt(c: SkierState, tx: number, tz: number): { limit: number; side: 
   };
 }
 
+/** HOW HARD THE SKIS RUN INTO A WALL'S ROCK this step, m/s
+ * (`rock-ground.ts`' `rockStrike`), read just ahead of the tips along his
+ * way. Zero off the rock and in the air. */
+export function skisOnRock(state: GameState): number {
+  const c = state.skier;
+  if (!state.level.bareRockAt || c.airborne) return 0;
+  const reach = envelopeOf(c.spec).length / 2 + K.rockReach;
+  return rockStrike(state.level, c.x, c.z, c.vx, c.vy, c.vz, reach, K.rockClimb);
+}
+
 /** What, of this step's events and the skier's attitude, throws him — or
  * null. `speed0` is his speed before the step. */
 export function wipeoutCause(
@@ -225,6 +236,8 @@ export function wipeoutCause(
     }
     if (e.airTime >= TUNING.landing.air) landedG = e.g;
   }
+  // A WALL'S ROCK met head on (`rock-ground.ts`).
+  if (skisOnRock(state) >= crashLimit(c, "rockSpeed")) return "rock";
   // THE BODY DOWN: his hips, shoulders or helmet driven into the snow —
   // whatever the skis were doing, he is on the ground; a landing's, when
   // the skis touched down a moment before.
@@ -413,6 +426,9 @@ export type OverHow = { readonly pitch: number; readonly side: number; readonly 
  * go — a snowmobile's rider, whose pair is on its rack (`keepSkis`). */
 export type ThrowOptions = { how?: OverHow; keepSkis?: boolean };
 
+/** A lone ski's two ends, as `outOfRock` is handed them. */
+const SKI_ENDS = [0.02, 0.02];
+
 /** Throw the skier: `v0` is his velocity before the blow, which is what
  * he carries on with. */
 export function throwRider(
@@ -426,6 +442,8 @@ export function throwRider(
   const flat = hypot(v0.x, v0.z);
   const speed = hypot3(v0.x, v0.y, v0.z);
   const heading = flat > 1 ? Math.atan2(v0.x, v0.z) : c.heading;
+  // Into rock, the wall takes the way into it: he goes on along its face.
+  if (cause === "rock") v0 = alongRock(state.level, c.x, c.z, v0, K.rockReach + 0.9);
   // THE TURN HE GOES OVER WITH, by what threw him (`crash.over`): head
   // over heels about the axis across the way he goes (forward positive, a
   // right-handed turn about his right) and over onto his side about the
@@ -445,6 +463,8 @@ export function throwRider(
   const thrown = slam
     ? bodyThrown(cause, q, c.x, c.y, c.z, slam.v, slam.w, slam.heading)
     : throwOf(cause, q, c.x, c.y, c.z, v0, heading, side, own, sink, opts.how);
+  // Stood up a wall of rock, the body is put back out of it whole.
+  outOfRock(state.level, thrown.points, thrown.last, RADIUS);
   if (cause === "nose") {
     // The tips dig and the skis go over them: a tips-down pitch rate is a
     // positive `wx`.
@@ -457,6 +477,7 @@ export function throwRider(
   // A board stays on, its feet held their stance apart (`strapBoard`).
   if (c.spec.board) strapBoard(thrown, c, cause === "slam", RAGDOLL);
   else if (!opts.keepSkis) thrown.skis = letGo(state, c, side, speed);
+  for (const ski of thrown.skis) outOfRock(state.level, ski.ends, ski.last, SKI_ENDS);
   c.thrown = thrown;
   events.push({ kind: "wipeout", t: state.t, cause, speed, x: c.x, z: c.z });
   return thrown;

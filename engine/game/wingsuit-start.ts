@@ -3,8 +3,9 @@
 // a point high on the mountain over its steepest ground, facing out over the
 // drop, found by flying the start arc off each of the likeliest), the flyer
 // stood on it (`standOnExit`), and the two ways into the suit's flight from
-// elsewhere: out of a craft already moving (`wingsuitOut` — the hook every
-// craft in the air may call) and a lab's moment in the air (`wingsuitAt`).
+// elsewhere: out of a craft already moving (`suitExit`, off every craft in
+// the air, and `wingsuitOut`) and a lab's moment in the air (`chute.ts`'s
+// `skydiveAt` with its `suit`).
 //
 // The search reads only the map and the suit's own numbers, memoized per
 // map: nothing here draws from the stream, so no digest moves.
@@ -15,7 +16,7 @@ import { airDensity, airKelvin, airPressure, seaAltitude } from "./balloon-air.t
 import { mendBody } from "./body.ts";
 import { onFoot } from "./buzz.ts";
 import { crownAt } from "./canopy.ts";
-import { freshChute } from "./chute-state.ts";
+import { freshChute, type ChuteCraft, type ChuteState } from "./chute-state.ts";
 import { standSkier } from "./course.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { WINGSUIT as W } from "./defs/wingsuit.ts";
@@ -175,7 +176,7 @@ export function standOnExit(state: GameState, events: GameEvent[]): void {
   onFoot(state, ex.x, ex.z, ex.heading, 0, 0);
   if (!state.wingsuit) state.wingsuit = { from: "cliff" };
   state.wingsuit.hover = ex.hover;
-  const ch = freshChute(state, "ready", "wingsuit");
+  const ch = freshChute(state, "ready", "plane", "wingsuit");
   ch.heading = ex.heading;
   ch.attitude = 0;
   ch.wing = freshWing(W.exit.alpha, 0);
@@ -184,15 +185,28 @@ export function standOnExit(state: GameState, events: GameEvent[]): void {
   events.push({ kind: "chute", t: state.t, phase: "restart", x: c.x, y: c.y, z: c.z, speed: 0 });
 }
 
-/** OUT OF A CRAFT IN A WINGSUIT — the hook every craft in the air may call
- * (the plane's door is its own, off its `jump` event): the flyer at
+/** INTO THE WINGSUIT'S START ARC where he is, with the way he has, out of
+ * `from` — the suit filling in the air through him. The one way into the
+ * suit's flight off a craft: `chute.ts`'s `craftFreefall` calls it off every
+ * craft's way off in the air (the plane's jump, the helicopter's drop, the
+ * balloon's jump, the paramotor's drop), and `wingsuitOut` below. */
+export function suitExit(state: GameState, from: ChuteCraft): ChuteState {
+  const ch = freshChute(state, "exit", from, "wingsuit");
+  suitUp(ch);
+  state.chute = ch;
+  if (!state.wingsuit) state.wingsuit = { from: "air" };
+  return ch;
+}
+
+/** OUT OF A CRAFT IN A WINGSUIT at a lab's or a test's moment: the flyer at
  * (x, y, z) moving (vx, vy, vz), m/s, facing `heading`, into the start arc
- * with the craft's way — the suit filling in the air through him. A ride
- * begun so restarts on the cliff exit unless it already says where. */
+ * with that way (`suitExit`). A ride begun so restarts on the cliff exit
+ * unless it already says where. */
 export function wingsuitOut(
   state: GameState,
   at: { x: number; y: number; z: number; vx: number; vy: number; vz: number; heading: number },
   events: GameEvent[],
+  from: ChuteCraft = "plane",
 ): void {
   const c = state.skier;
   c.x = at.x;
@@ -203,11 +217,7 @@ export function wingsuitOut(
   c.vz = at.vz;
   c.airborne = true;
   derive(c, state.level);
-  const ch = freshChute(state, "exit", "wingsuit");
-  ch.heading = at.heading;
-  suitUp(ch);
-  state.chute = ch;
-  if (!state.wingsuit) state.wingsuit = { from: "air" };
+  suitExit(state, from).heading = at.heading;
   events.push({ kind: "chute", t: state.t, phase: "exit", x: c.x, y: c.y, z: c.z, speed: c.speed });
 }
 

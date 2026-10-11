@@ -8,6 +8,7 @@
 import { popLoad, pressOf } from "./board-grab.ts";
 import { unrotate, type SkiSpec, type SkierState } from "@engine";
 
+import { profileOf } from "./board-look.ts";
 import type { BoardPoseInput } from "./board-pose.ts";
 import { gearLift } from "./ski-gear.ts";
 import { inclineAt } from "./ski-stand.ts";
@@ -22,6 +23,10 @@ export function boardOf(spec: SkiSpec): BoardPoseInput["board"] {
     tipWidth: spec.tipWidth,
     tailWidth: spec.tailWidth,
     sidecut: spec.sidecut,
+    // Its middle ahead of the stance's on a set-back board (the engine's
+    // own `bootOffset`, `suspension.ts`), and its class's profile.
+    setback: (0.5 - spec.mount) * spec.length,
+    profile: profileOf(spec.id),
     stance: b.stance,
     front: b.front,
     back: b.back,

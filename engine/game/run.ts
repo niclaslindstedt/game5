@@ -42,7 +42,15 @@ import { stepSled } from "./sled.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { planeAboard, planeDown, stepPlane } from "./plane.ts";
-import { chuteActive, chuteDown, chuteHeld, chuteRigged, flyChute, stepChute } from "./chute.ts";
+import {
+  chuteActive,
+  chuteDown,
+  chuteHeld,
+  chuteRigged,
+  craftFreefall,
+  flyChute,
+  stepChute,
+} from "./chute.ts";
 import { stepAfterski } from "./afterski.ts";
 import { avalancheHolds } from "./avalanche.ts";
 import { stepDoorLeaves, stepDoorway } from "./doorway.ts";
@@ -134,7 +142,12 @@ export function stepRun(
   if (stepPlane(run, input, events)) return forgetRun(run);
   // THE SKYDIVE (`chute.ts`): out of its door, falling, opening or caught
   // — the step its own; under an open canopy, `flyChute` after his own.
-  if (stepChute(run, input, events)) return forgetRun(run);
+  // ...the craft he left flying on (or falling) without him meanwhile.
+  if (stepChute(run, input, events)) {
+    if (run.chute && run.balloon) stepBalloon(run, input, events);
+    if (run.chute && run.para) stepPara(run, NEUTRAL_INPUT, events);
+    return forgetRun(run);
+  }
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
   if (stepSled(run, out, events)) return forgetRun(run);
@@ -146,6 +159,9 @@ export function stepRun(
   // THE PARAMOTOR (`para.ts`): the rig released, or the ride begun again on
   // the summit — which takes the step.
   if (paraPress(run, out, events)) return;
+  // ...over the balloon's side or out of the paramotor's rig high in the
+  // air, the skydive takes him (`chute.ts`).
+  if (craftFreefall(run, events)) return forgetRun(run);
   // A BUILDING'S DOOR (`doorway.ts`): the hand to its lever and through —
   // a lodge's own door too, walked up to, which takes him in at its end.
   if (stepDoorway(run, out, events)) return;

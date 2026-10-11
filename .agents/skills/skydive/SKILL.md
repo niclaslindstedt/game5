@@ -1,6 +1,6 @@
 ---
 name: skydive
-description: "Use when working on THE SKYDIVE — the free ride's jump out of the jump plane's open door: the exit into the slipstream and its attitude, the freefall (the body's drag areas belly, tracking and head down at the air's real density, the flat turn), the press sequence (jump, open, cut away, reserve), the staged deployment and its numbers (the pilot chute, the bag, line stretch, the snivel, the slider, full inflation, the opening shock), the sport main flown on its lines (`canopy.ts`, shared with the paramotor: toggles, brakes and flare, risers), the cut-away, the RESERVE (the 7-cell square off a spring pilot chute and a free bag, `CHUTE.reserve`), the auto-release on landing, the canopy caught in a crown or on a lift's rope, tower or carrier and the crown drape, the restart in the door, the bot's landing pattern, the drawing (the harness-container, the canopy, the bridle, bag and pilot chute over it, the body through every stage), the lenses, the sound, the `make skydive` sheets and `make skydive-flight` with its exit rows — and the AIRBORNE EDGE it shares with every craft (`airBounds`). Not the plane it jumps from (`airplane`), not the paramotor's own flight (`engine-system`, `ski-physics`)."
+description: "Use when working on THE SKYDIVE — the free ride's jump out of the jump plane's open door: the exit into the slipstream and its attitude, the freefall (the body's drag areas belly, tracking and head down at the air's real density, the flat turn), the press sequence (jump, open, cut away, reserve), the staged deployment and its numbers (the pilot chute, the bag, line stretch, the snivel, the slider, full inflation, the opening shock), the sport main flown on its lines (`canopy.ts`, shared with the paramotor: toggles, brakes and flare, risers), the cut-away, the RESERVE (the 7-cell square off a spring pilot chute and a free bag, `CHUTE.reserve`), the auto-release on landing, the canopy caught in a crown or on a lift's rope, tower or carrier and the crown drape, the restart in the door (or in the craft he left), THE SKYDIVE OUT OF ANOTHER CRAFT (the helicopter's skid, the balloon's side, the paramotor's dropped rig — `craftFreefall`, `ChuteState.from`, `CHUTE.craft`), the bot's landing pattern, the drawing (the harness-container, the canopy, the bridle, bag and pilot chute over it, the body through every stage), the lenses, the sound, the `make skydive` sheets and `make skydive-flight` with its exit rows — and the AIRBORNE EDGE it shares with every craft (`airBounds`). Not the plane it jumps from (`airplane`), not the paramotor's own flight (`engine-system`, `ski-physics`)."
 ---
 
 # The skydive
@@ -27,7 +27,8 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The step: the exit, the freefall, the opening, the canopy (`flyChute` after the skier's own step), the cut-away, the reserve's pull, the landing, the snag, the restart; `skydiveAt` stands one up (`reserve: true` under the reserve) | `engine/game/chute.ts`, `chute-state.ts` (`ChuteMode`: exit, freefall, deploying, open, released, landed, snagged; `reserve` once it is pulled, the main's `piece` and the reserve's `sparePiece`) |
 | The ram-air maths shared with the paramotor (`lineDir`, `wayOf`, `liftDrag`, `swingDamp`, `pullLines`, `crownAt`, `fallPiece`, `hangUnder`) | `engine/game/canopy.ts` |
 | The bot's hands: the pull, the pattern, the flare; `skydiveInput` for the labs | `engine/game/chute-pilot.ts` (`chutePilot`, `landingSpotOf`), hooked into `engine/sim/bot.ts` |
-| The hook from the plane | `plane.ts`'s `jump()` and its `jump` event, read by `stepChute` |
+| The ONE entry from a craft: the plane's `jump`, the helicopter's `drop`, the balloon's `jump`, the paramotor's `drop` — high enough (`CHUTE.craft.least`), a skydive in its exit; `from` names the craft, `exitClear` its clear, `restart` puts him back in it | `chute.ts`'s `craftFreefall` (called first by `stepChute`, and again by `run.ts` after `paraPress` for the balloon and the paramotor, which step after it), `chute-state.ts`'s `ChuteCraft`, `defs/chute.ts`'s `CHUTE.craft` / `exitClear` |
+| The rig drawn on him in a craft | `chute-scene.ts`'s `rigWorn` (read by `machines.ts`) |
 | The edge | `AIR_BOUNDS.skydive` (on his body) and `.chute` (under the canopy), `collision.ts`'s `airBoundsAt` |
 | The harness-container on his bones | `pwa/src/game/chute-gear.ts` |
 | The sport main and the reserve (`SKY_WING`, `RESERVE_WING`, their paints — `WingShape`s over the paramotor's cloth) | `pwa/src/game/chute-canopy.ts`, `para-canopy.ts` |
@@ -60,6 +61,7 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The reserve: height from the cut-away to full / its peak near terminal | < 90 m / 3–6 g | `reserve-lost`, `reserve-g` |
 | The reserve hands off: forward / sink / glide / landed flared | 11–14 m/s / 4.5–5.5 m/s / 2.2–2.8 / < 2.5 m/s | `reserve-fwd`, `-sink`, `-glide`, `-land` |
 | Nearest the edge tracking / under a canopy | > 0 m | `edge-track`, `edge-canopy` |
+| Out of the paramotor / the helicopter / the balloon: the height he left it at; landed on the bot's pattern | > 100 m; < 4 m/s of sink | `para-`, `heli-`, `balloon-out` / `-open` / `-land` |
 | THE WINGSUIT: glide / across / sink | 3.0–3.5 / 150–190 km/h / 10–14 m/s | `wingsuit-flight`'s `glide-ratio`, `-across`, `-sink` |
 | The wingsuit's dive / flare | ≥ 250 km/h / a climb of 10–40 m | `dive-top`, `flare-gain`, `flare-sink` |
 | The wingsuit's exit: drop / time to flying | 60–120 m / 4–7 s | `exit-drop`, `exit-time` |
@@ -72,7 +74,8 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   `ARGS=--json=previews/skydive-before.json`, then `--compare=…`. The rows
   above, plus `turn-full`, `turn-half`, `land`, `cutaway` and `jump` (the
   bot's whole jump on seed 38: the exit height, the pull, how far from its
-  spot it lands). A change to `canopy.ts` also owes `make para-wind`
+  spot it lands) and the craft's own rows (the paramotor's `para-out` with the
+  motor's distance off him 1.5 s after the drop). A change to `canopy.ts` also owes `make para-wind`
   `--compare` (the paramotor unmoved) and `tests/para_test.ts`.
 - **`make wingsuit-flight`** (pure Node, seconds) — the same before and
   after every change to `WINGSUIT`, `CHUTE.base`, `wingsuit*.ts` or the
@@ -88,7 +91,11 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   let-go), `snag` (the crown — its
   `crown over` and `crown round` views — and a lift's rope), `lenses` (every
   rung in freefall, the opening and under the canopy), `night` and `stages`
-  (every stage of the body close on one sheet). `ARGS=--skis=lynx` jumps on a
+  (every stage of the body close on one sheet), `craft` (the paramotor flown,
+  its motor falling away, the freefall, the canopy; the helicopter's skid,
+  the push-off, the freefall, the canopy; the balloon's basket, over the
+  side, the freefall, the canopy — `Stage.fresh(ride)` stands up the craft).
+  `make para ARGS=--sheet=drop` holds the paramotor's side. `ARGS=--skis=lynx` jumps on a
   snowboard (its pictures go under `previews/skydive-lynx-*`): a change to
   the body owes `--sheet=stages` on the skis and on the board.
   `ARGS=--sheet=…`, `--views=…`, `SEED=`, `REGION=`; prefix with
@@ -101,6 +108,7 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   opening's last second, t = 8.2 s).
 - **The suite**: `npx vitest run tests/chute_test.ts tests/chute_look_test.ts
   tests/para_look_test.ts tests/para_test.ts tests/para_wind_test.ts
+  tests/heli_test.ts tests/balloon_test.ts
   tests/plane_test.ts tests/air_bounds_test.ts tests/plane_hud_test.ts
   tests/plane_audio_test.ts tests/determinism_test.ts`.
 
@@ -119,7 +127,13 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   `CHUTE.exit.clear` s does nothing (the tail passes over).
 - **A fall ends as any fall does.** A freefall or a cut-away is handed to the
   skier's own step 2.5 m over the snow and judged by the crash code; thrown,
-  the ride restarts in the plane's door. Snagged, he hangs until **R**.
+  the ride restarts in the plane's door, or in the craft he left. Snagged,
+  he hangs until **R**.
+- **ONE WAY INTO THE SKYDIVE.** Every craft's way off in the air is read by
+  `craftFreefall` off the step's events and nowhere else; a new craft adds its
+  event to `leftCraft`, its restart to `restart` and its stage to the lab.
+  Below `CHUTE.craft.least` he falls as a skier (the old rows stand). The
+  craft goes on stepping while he falls (`run.ts`).
 - **THE BOT NEVER JUMPS FROM THE DOOR.** A pre-roll stays aboard; the bot
   flies the skydive once he is out, and `skydiveInput` jumps for the labs.
   Its pattern is downwind, base and final to a spot, a holding turn of at
@@ -160,6 +174,9 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   is a fall to the snow; firing the reserve by itself would move the
   `cutaway` row and its test.
 - A snag on a moving chair is held where it caught.
+- The harness-container is drawn under the paramotor's motor and shows
+  through its cage from some angles; the rig worn under a motor frame is not
+  modelled as one piece with it.
 - The crown drape is a cone model; a slim fir reads as cloth in the crown.
 - The stabilizers read as small white triangles from straight behind; the
   opening's HELMET shows his gloves as dark slabs at the frame's edge.

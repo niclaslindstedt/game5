@@ -10,9 +10,9 @@
 // is why the name and the arrows are markup rather than anything the canvas
 // paints.
 //
-// THE SNOWBOARD stands at the end of the rack where a run lets a free
-// choice of pair (`boards` — the free ride and the park run): the board on
-// the stand with its bindings and soft boots, the rider stood across it.
+// THE SNOWBOARDS are a rack of their own (`board` — the gear card's
+// SNOWBOARD side, where a run lets a free choice of pair): the board on the
+// stand with its bindings and boots, the rider stood across it.
 
 import { useEffect, useRef } from "preact/hooks";
 import { pairById, type PairId } from "@engine";
@@ -25,14 +25,14 @@ import { STRINGS } from "./strings.ts";
 export function SkisPicker({
   skis,
   outfit,
-  boards = false,
+  board = false,
   onPick,
 }: {
   skis: PairId;
   /** What the skier stood on it wears (`Settings.outfit`). */
   outfit: Outfit;
-  /** Whether the snowboard is on the rack (`settings.ts`'s `boardAllowed`). */
-  boards?: boolean;
+  /** Whether the rack is the boards' (the gear card's SNOWBOARD side). */
+  board?: boolean;
   onPick: (id: PairId) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,7 +40,7 @@ export function SkisPicker({
   // The outfit rides beside the stand too, for one that lands late.
   const outfitRef = useRef(outfit);
   const spec = pairById(skis);
-  const rack = rackOf(boards);
+  const rack = rackOf(board);
   const index = Math.max(
     0,
     rack.findIndex((s) => s.id === spec.id),

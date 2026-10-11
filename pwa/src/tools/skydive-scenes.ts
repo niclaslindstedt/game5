@@ -15,6 +15,8 @@ import {
   NEUTRAL_INPUT,
   chutePilot,
   liftPlans,
+  paraPilot,
+  pilotInput,
   ropeAt,
   skydiveAt,
   skydiveInput,
@@ -33,14 +35,19 @@ import type { CameraRung } from "../game/renderer-api.ts";
  * it, or one worked out off the state at the moment it is shot. */
 export type Lens = CameraRung | LensPose | ((state: GameState) => LensPose);
 
+/** The craft a run is stood up in. */
+export type Ride = "plane" | "heli" | "balloon" | "para";
+
 /** What drives a run on, step by step. */
 export type Drive = (state: GameState) => SkierInput;
 
 /** What a scene may ask of the page. */
 export type Stage = {
   level: Level;
-  /** A free ride stood up in the jump plane's door on its strip. */
-  fresh(): GameState;
+  /** A free ride stood up in the jump plane's door on its strip — or, with
+   * a `ride`, on the helicopter's skid on its pad, in the balloon's basket
+   * or under the paramotor's wing on the summit. */
+  fresh(ride?: Ride): GameState;
   /** Stepped and drawn every sixtieth of a second. */
   run(state: GameState, seconds: number, drive?: Drive): void;
   /** Stepped and not drawn, then `run` a moment so the drawing catches up. */
@@ -490,6 +497,55 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.run(l, 0.4, still);
     st.shoot(l, "landed", around(3.6, 0.8, 1, 44));
   },
+  // ── OUT OF ANOTHER CRAFT (`craftFreefall`) ─────────────────────────────
+  // The same skydive out of the paramotor's dropped rig (the motor and the
+  // wing falling away on their own), off the helicopter's skid and over the
+  // balloon's side: the rig on him in the craft, out into freefall, the main
+  // pulled on the bot's hands and flown.
+  craft(st) {
+    const pilot: Drive = (x) => chutePilot(x);
+    const out = (s: GameState, tag: string): void => {
+      if ((s.chute?.since ?? 0) < 0.8) {
+        st.until(s, (x) => (x.chute?.since ?? 0) >= 0.8, 4, still);
+        st.shoot(s, `${tag} out`, around(5, 2, 7, 50, -1));
+      }
+      st.run(s, 1.2, still);
+      st.shoot(s, `${tag} freefall`, around(4, 1.5, 3, 46));
+      st.until(s, (x) => x.chute?.mode === "open" || !x.chute, 15, pilot);
+      st.run(s, 1.5, pilot);
+      st.shoot(s, `${tag} canopy`, around(4, 0.6, 3, 46, 0.6));
+    };
+    // The paramotor: 24 s up on the bot's hands, then the rig let go.
+    const p = st.fresh("para");
+    st.skip(p, 24, (x) => paraPilot(x));
+    st.run(p, 0.6, (x) => paraPilot(x));
+    st.shoot(p, "para flown", around(5, 1, 8, 50, 1.5));
+    st.run(p, 1 / 60, press());
+    st.until(p, (x) => (x.chute?.since ?? 0) >= 1.5, 4, still);
+    st.shoot(p, "para motor falling away", around(6, 6, 6, 60, -3));
+    out(p, "para");
+    // The helicopter: flown 300 m up off its pad by its pilot, then off the skid.
+    const h = st.fresh("heli");
+    const aim = h.heli ? { x: h.heli.x, z: h.heli.z - 100, height: 300 } : undefined;
+    st.skip(h, 40, (x) => pilotInput(x, aim));
+    st.run(h, 0.6, (x) => pilotInput(x, aim));
+    st.shoot(h, "heli on the skid", around(6, 1, 6, 50, 0.5));
+    st.run(h, 1 / 60, press());
+    out(h, "heli");
+    // The balloon: let go 300 m over the snow, then over the side.
+    const b = st.fresh("balloon");
+    const bal = b.balloon;
+    if (bal) {
+      bal.mode = "flown";
+      bal.grounded = false;
+      bal.y = st.level.groundAt(bal.x, bal.z) + 300;
+      bal.vx = bal.vy = bal.vz = 0;
+    }
+    st.run(b, 0.6, still);
+    st.shoot(b, "balloon in the basket", around(4, 1.5, 5, 50, 0.5));
+    st.run(b, 1 / 60, press());
+    out(b, "balloon");
+  },
   // ── AFTER DARK ────────────────────────────────────────────────────────
   async night(st) {
     await st.sky({ hour: 21 });
@@ -520,4 +576,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   lenses: ["lenses"],
   night: ["night"],
   stages: ["stages"],
+  craft: ["craft"],
 };

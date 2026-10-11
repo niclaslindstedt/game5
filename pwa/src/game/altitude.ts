@@ -9,10 +9,11 @@
 // height at that point of the face (`faceHeight` — the map's square IS the
 // face's window, so a map point is the real point), plus whatever he stands
 // over the snow there (in the air, a balloon's height). The map's own
-// heights are the face stretched to R25's vertical and its relief calmed
-// (`massif.ts`'s `readFace` / `faceLift`), so its sea-relative height would
-// read a made-up mountain; the real one's is what a watch would read
-// standing there. A run's vertical stays as skied —
+// heights are the face laid 1:1 over its floor and its sea the floor's real
+// altitude below it (`massif.ts`'s `readFace` / `faceLift`), so the two
+// agree wherever the ground is the real ground; the elevation model is
+// still read here, so a pad, a run's grading or a hollow filled on the
+// valley floor reads what a watch would read standing there. A run's vertical stays as skied —
 // only a height above the sea is read this way.
 //
 // THE BASE is the foot of the ski area's lowest lift — its valley station

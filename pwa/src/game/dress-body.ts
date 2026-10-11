@@ -123,13 +123,23 @@ function measure(A: typeof MAN, female: boolean): BodyMeasure {
     deltoid: (A.bideltoid / 2) * MM,
     trunk: [
       { level: level(A.crotch) - 0.04, w: bh * 0.8, f: bd * 0.3, b: bd * 0.45 },
-      { level: level(A.crotch) + 0.05, w: bh, f: bd * 0.4, b: bd * (female ? 0.56 : 0.52) },
-      { level: 0.08, w: bh, f: bd * 0.42, b: bd * (female ? 0.58 : 0.55) },
+      {
+        level: level(A.crotch) + 0.05,
+        w: bh * (female ? 1 : 0.95),
+        f: bd * 0.4,
+        b: bd * (female ? 0.56 : 0.52),
+      },
+      { level: 0.08, w: bh * (female ? 0.97 : 0.93), f: bd * 0.42, b: bd * (female ? 0.58 : 0.55) },
       { level: level(A.waist_h), w: wb, f: wd * 0.55, b: wd * 0.45 },
       { level: level(A.tenth_rib_h), w: wb * 0.97, f: wd * 0.55, b: wd * 0.46 },
       { level: 0.52, w: cb * 1.18, f: cd * bust, b: cd * 0.48 },
-      { level: level(A.chest_h), w: cb * 1.27, f: cd * (bust - 0.01), b: cd * 0.5 },
-      { level: level(A.axilla_h), w: cb * 1.32, f: cd * 0.47, b: cd * 0.5 },
+      {
+        level: level(A.chest_h),
+        w: cb * (female ? 1.27 : 1.38),
+        f: cd * (bust - 0.01),
+        b: cd * 0.5,
+      },
+      { level: level(A.axilla_h), w: cb * (female ? 1.32 : 1.45), f: cd * 0.47, b: cd * 0.5 },
       {
         level: level(A.acromion_h) - 0.05,
         w: (A.biacromial / 2) * MM * 0.98,

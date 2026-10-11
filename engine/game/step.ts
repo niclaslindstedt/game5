@@ -90,6 +90,7 @@ import { standOnExit } from "./wingsuit-start.ts";
 import { jumpSpotOf } from "./plane-pilot.ts";
 import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
+import { bedrockOf, withRock } from "./rock-ground.ts";
 import { stepRun } from "./run.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
@@ -259,11 +260,13 @@ export type CreateGameOptions = {
    * lodge start, and by every mode but the free ride. */
   chute?: number;
   /** A FREE RIDE IN A WINGSUIT (`wingsuit.ts`): every jump of it in the
-   * suit over a one-canopy BASE rig, NO SKIS on — with `plane`, crouched in
-   * the plane's door; with `chute`, flying the suit's glide that high; else
-   * STOOD ON THE CLIFF EXIT high on the mountain (`wingsuitExitOf`), facing
-   * out over the drop, the press the jump. Ignored where the balloon, the
-   * paramotor or the lodge start, and by every mode but the free ride. */
+   * suit over a one-canopy BASE rig, NO SKIS on — up a craft with it
+   * (`plane` crouched in its door, `heli` on its skid, `balloon` in its
+   * basket, `para` under its wing), every way off it the suit's start arc
+   * (`chute.ts`'s `craftFreefall`); with `chute`, flying the suit's glide
+   * that high; else STOOD ON THE CLIFF EXIT high on the mountain
+   * (`wingsuitExitOf`), facing out over the drop, the press the jump.
+   * Ignored where the lodge starts, and by every mode but the free ride. */
   wingsuit?: boolean;
   /** A FREE RIDE begun INSIDE the valley's afterski lodge (`afterski.ts`),
    * the party under way and his skis in the rack. Wins over every other
@@ -437,7 +440,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const downhill = options.mode === "downhill";
   const superG = options.mode === "superG";
   const giant = options.mode === "giantSlalom";
-  const built = levelFor(options);
+  // (A map handed back off a run is taken under its rock skin, laid again below.)
+  const built = bedrockOf(levelFor(options));
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
   // lowered start (R33), a GIANT SLALOM from its own — either run's — (R36),
@@ -491,7 +495,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const judged = rules.jury ? juryDay(skied, rules.jury) : skied;
   // THE TREE WELLS the run's powder has left round the trunks
   // (`tree-well.ts`): none at the ordinary snow, where this is the map.
-  const level = withWells(judged, wellShareOf(clampSnowDepth(options.snowDepth)));
+  // ...and THE ROCK on its walls the surface a body meets (`rock-ground.ts`).
+  const level = withRock(withWells(judged, wellShareOf(clampSnowDepth(options.snowDepth))));
   const seed = options.seed ?? level.seed;
   // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
   // machines work its runs, the runs are as the hour and the sky have left
@@ -547,13 +552,15 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     free && options.chute !== undefined && !balloon && !para && !options.inLodge
       ? options.chute
       : -1;
-  const wingsuit = free && options.wingsuit === true && !balloon && !para && !options.inLodge;
-  const other = para || balloon || plane || chute >= 0 || wingsuit;
+  const wingsuit = free && options.wingsuit === true && !options.inLodge;
+  // In the suit up a craft, or — asked for no craft — off its own exit.
+  const craft = para || balloon || plane || chute >= 0 || !!(state.heli && options.heli);
+  const other = para || balloon || plane || chute >= 0 || (wingsuit && !craft);
   if (state.heli && options.heli && !other) startAgain(state, []);
   if (state.sled && options.sled && !(state.heli && options.heli) && !other) {
     startSled(state, []);
   }
-  if (wingsuit) state.wingsuit = { from: plane || chute >= 0 ? "plane" : "cliff" };
+  if (wingsuit) state.wingsuit = { from: craft ? "craft" : "cliff" };
   if (para) startPara(state, []);
   if (plane) startPlane(state, []);
   if (balloon) startBalloon(state, []);
@@ -561,7 +568,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     if (!state.plane) state.plane = freshPlane(state);
     const spot = jumpSpotOf(state);
     skydiveAt(state, { x: spot.x, z: spot.z, agl: chute, suit: wingsuit ? "wingsuit" : "box" });
-  } else if (wingsuit && !plane) standOnExit(state, []);
+  } else if (wingsuit && !craft) standOnExit(state, []);
   // Up a lift: to the chair whose run passes nearest the spot, or with no
   // spot to the top of the run picked — the one the start card marks —
   // whatever kind of lift serves it.

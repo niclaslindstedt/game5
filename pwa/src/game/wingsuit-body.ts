@@ -19,7 +19,7 @@ import type { Dressed } from "./skier-dress.ts";
 import type { BodyFrame } from "./skier-ragdoll.ts";
 import type { SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-vec.ts";
-import { wingsuitPose, wingsuitTilt, type WingsuitShape } from "./skier-wingsuit.ts";
+import { wingsuitPose, wingsuitShapeOf, wingsuitTilt, type WingsuitShape } from "./skier-wingsuit.ts";
 import type { WingsuitWings } from "./wingsuit-figure.ts";
 
 /** How far below his centre the snow is put flying, m: his hips at his
@@ -37,6 +37,9 @@ const az = new THREE.Vector3();
 /** What the flyer is posed with: the pair's root (already at the engine's
  * place and turn), his figure's group and its pose call, the frame the
  * stand is laid in, and the wings. */
+/** A wingsuit flyer with nothing to do: stood. */
+export const STOOD = wingsuitShapeOf(null, true)!;
+
 export type Flyer = {
   root: THREE.Object3D;
   group: THREE.Object3D;

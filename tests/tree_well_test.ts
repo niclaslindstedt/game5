@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  bedrockOf,
   createGame,
   NEUTRAL_INPUT,
   placeRun,
@@ -25,7 +26,8 @@ const game = (snowDepth: number): GameState =>
 describe("the wells laid", () => {
   it("lays none at the ordinary snow: the map is the map itself", () => {
     expect(wellShareOf(1)).toBe(0);
-    expect(game(1).level).toBe(level);
+    // (Under the rock skin its walls carry, `withRock`.)
+    expect(bedrockOf(game(1).level)).toBe(level);
     expect(withWells(level, 0)).toBe(level);
   });
 

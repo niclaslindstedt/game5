@@ -18,6 +18,8 @@
 // skier's own body (his centre of gravity); the open canopy is a point mass
 // the lines hang him from, as the paramotor's wing is (`para.ts`).
 
+import type { ChuteCraft } from "../chute-state.ts";
+
 export const CHUTE = {
   /** THE CONTAINER on his back, m (width across, height up the back, depth
    * off it) and its mass with both canopies packed, kg: a sport rig's. */
@@ -118,6 +120,16 @@ export const CHUTE = {
    * upright, and the slipstream at some 40 m/s turns him onto it in
    * `body` s (the freefall's own easing is for the slower air under him). */
   exit: { vertical: 0.2, most: 9, clear: 1.5, lead: 0.55, poise: 0.35, body: 0.25 },
+  /** OUT OF ANOTHER CRAFT — off the helicopter's skid, over the balloon's
+   * side, the paramotor's rig dropped (`craftFreefall`): he wears the same
+   * rig on every ride in the air. Under `least` m over the snow he falls as
+   * a skier and never as a skydiver: too low for the main to open and fly
+   * him down (out of a standstill and pulled the moment he is clear, it is
+   * full some 75 m under the exit, and a canopy only just full lands him
+   * no softer than his skis would). Over it he leaves on the exit's own
+   * body, the press clear after `clear` s (no tail to pass, only the craft
+   * to fall clear of). */
+  craft: { least: 100, clear: 1 },
   /** THE DEPLOYMENT (the throw out): the pilot chute out and inflating, the
    * bridle taut and the pin pulled, the bag lifted off the container, the
    * lines unstowed to LINE STRETCH, the canopy SNIVELLING with the slider
@@ -352,6 +364,11 @@ export const MAIN_WING: ChuteWing = {
  * `base`, the wingsuit's one BASE canopy (`CHUTE.base`), which has none. */
 export function wingOf(reserve: boolean, base = false): ChuteWing {
   return base ? CHUTE.base : reserve ? CHUTE.reserve : MAIN_WING;
+}
+
+/** Seconds out of `from` before the press throws the pilot chute. */
+export function exitClear(from: ChuteCraft): number {
+  return from === "plane" ? CHUTE.exit.clear : CHUTE.craft.clear;
 }
 
 /** The jumper's mass on the lines, kg: the skier, his kit and the rig. */

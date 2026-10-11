@@ -125,6 +125,35 @@ describe("the one-foot skate", () => {
     expect(skis.skier.speed).toBeGreaterThan(b5.skier.speed);
   });
 
+  it("skates from a stand to 10 km/h across the flat in about 3 s", () => {
+    const state = stage(LYNX, flatLevel({ packed: 1 }), { x: 1500, z: 200, heading: 0 });
+    let at = -1;
+    ride(
+      state,
+      5,
+      () => TUCK,
+      (t) => {
+        if (at < 0 && state.skier.speed * 3.6 >= 10) at = t;
+      },
+    );
+    expect(at).toBeGreaterThan(0);
+    expect(at).toBeLessThan(3.5);
+  });
+
+  it("hops the board forward strapped in, where a pair of skis' hop goes nowhere", () => {
+    const level = flatLevel({ packed: 1 });
+    const at = { x: 1500, z: 200, heading: 0 };
+    const board = stage(LYNX, level, at);
+    const skis = stage(SKIS, level, at);
+    const hop = (t: number): Partial<SkierInput> => ({ jump: t % 0.5 < 0.12 });
+    ride(board, 4, hop);
+    ride(skis, 4, hop);
+    expect(board.skier.board!.free).toBe(false);
+    expect(board.skier.z - at.z).toBeGreaterThan(3);
+    expect(board.skier.speed * 3.6).toBeGreaterThan(4);
+    expect(Math.abs(skis.skier.z - at.z)).toBeLessThan(0.5);
+  });
+
   it("hops the board along with both feet in, in loose snow", () => {
     const state = stage(LYNX, flatLevel({ packed: 0 }), { x: 1500, z: 300, heading: 0 });
     let free = false;

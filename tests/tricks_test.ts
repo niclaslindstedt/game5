@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   GAME_MODES,
   LEVEL_RULES,
+  LYNX,
   NEUTRAL_INPUT,
   TUNING,
   airPointsPerSecond,
@@ -149,6 +150,61 @@ describe("a free ride's flight that was never meant", () => {
     expect(tricksOf(events)).not.toContain("half");
     expect(state.tricks.spinGoal).toBe(0);
     expect(state.skier.switched).toBe(false);
+  });
+
+  it("throws a loop on the lean in a BIG one, off a crest or a drop he never jumped", () => {
+    // Off the crest: the lean thrown once he is up is a backflip, not the
+    // lean's slow topple.
+    const crest = staged("free", LAUNCH, LANDING);
+    const lean = (state: GameState) => (): Partial<SkierInput> => ({
+      lean: state.skier.airborne && state.skier.airTime > 0.25 ? 1 : 0,
+    });
+    const events = ride(crest, 3, lean(crest));
+    expect(events.some((e) => e.kind === "wipeout")).toBe(false);
+    expect(Math.abs(crest.skier.pitch)).toBeLessThan(0.6);
+    expect(tricksOf(events)).toContain("backflip");
+    // Off a drop: 14 m over the snow and not climbing at all.
+    const drop = staged("free", { ...ROLLING, height: 14, vy: 0 });
+    const rates: number[] = [];
+    for (let i = 0; i < 1.2 * TUNING.physicsHz; i++) {
+      step(drop, { ...NEUTRAL_INPUT, tuck: 1, ...lean(drop)() });
+      rates.push(-drop.skier.wx);
+    }
+    // One loop turned, a tad over half a second at its cruise, and stopped.
+    const turned = rates.reduce((a, r) => a + r * TUNING.dt, 0);
+    // (The lean's own torque has tipped him a little before the gate.)
+    expect(turned).toBeGreaterThan(2 * Math.PI - 0.05);
+    expect(turned).toBeLessThan(2 * Math.PI + 0.4);
+    expect(rates.filter((r) => r > 1).length * TUNING.dt).toBeLessThan(0.7);
+    expect(Math.max(...rates)).toBeGreaterThan(TUNING.tricks.flipRate * 0.9);
+  });
+
+  it("throws a snowboarder's loop the same way, back and forward", () => {
+    for (const lean of [1, -1]) {
+      const board = createGame({
+        level: flatLevel({ packed: 1 }),
+        spec: LYNX,
+        mode: "free",
+        countdown: 0,
+        quiet: true,
+        crowd: 0,
+      });
+      placeRun(board, { ...ROLLING, height: 14, vy: 0 });
+      let turned = 0;
+      for (let i = 0; i < 1.2 * TUNING.physicsHz; i++) {
+        step(board, { ...NEUTRAL_INPUT, lean: board.skier.airTime > 0.25 ? lean : 0 });
+        turned -= board.skier.wx * TUNING.dt;
+      }
+      expect(board.skier.board).toBeTruthy();
+      expect(Math.abs(turned)).toBeGreaterThan(2 * Math.PI - 0.05);
+      expect(Math.sign(turned)).toBe(lean);
+    }
+  });
+
+  it("leaves the lean the air control in a flight too short for a loop", () => {
+    const hop = staged("free", { ...ROLLING, height: 0.6, vy: 3 });
+    ride(hop, 0.4, () => ({ lean: hop.skier.airborne && hop.skier.airTime > 0.1 ? 1 : 0 }));
+    expect(hop.tricks.flipGoal).toBe(0);
   });
 
   it("throws a 180 in a flight he popped himself", () => {

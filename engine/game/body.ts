@@ -179,7 +179,14 @@ export function snowGive(state: GameState, x: number, z: number): number {
   const loose = I.snow.soft + I.snow.deep * depthUnder(state.snowDepth, state.fresh);
   const give = p * I.snow.packed + (1 - p) * loose;
   const ice = level.iceAt ? level.iceAt(x, z) : 0;
-  return give + (I.snow.ice - give) * ice;
+  const snow = give + (I.snow.ice - give) * ice;
+  // A wall's bare ROCK (`rock-ground.ts`) gives as a crag does, and the
+  // snow on a ledge of it is a skin over the stone: half way.
+  const rock = level.rockAt ? level.rockAt(x, z) : 0;
+  if (rock <= 0) return snow;
+  const bare = level.bareRockAt ? level.bareRockAt(x, z) : rock;
+  const stone = I.solid.rock + (I.snow.ice - I.solid.rock) * (1 - bare / rock) * 0.5;
+  return snow + (stone - snow) * rock;
 }
 
 /** THE ENERGY of a dose `d` over that of an injury's even-chance dose

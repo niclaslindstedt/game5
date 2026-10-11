@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  CHUTE,
   NEUTRAL_INPUT,
   PARA,
   createGame,
@@ -162,6 +163,8 @@ describe("the paramotor's flight (para.ts)", () => {
     const p = s.para!;
     expect(p.mode).toBe("dropped");
     expect(paraRigged(s)).toBe(false);
+    // On the snow, never a skydive: he skis on.
+    expect(s.chute).toBeUndefined();
     expect(p.canopy).not.toBeNull();
     expect(p.motor).not.toBeNull();
     fly(s, 10, ask({ tuck: 1 }));
@@ -170,6 +173,49 @@ describe("the paramotor's flight (para.ts)", () => {
     // The pieces came down and lie on the snow.
     expect(p.canopy!.down).toBe(true);
     expect(p.motor!.down).toBe(true);
+  });
+
+  it("shoves the motor off his back as the rig is dropped, so it never rides down with him", () => {
+    const s = rig();
+    fly(s, 30, ask({ tuck: 1 }));
+    fly(s, 1 / 120, ask({ machine: true }));
+    fly(s, 1.5, ask());
+    const m = s.para!.motor!;
+    const c = s.skier;
+    expect(Math.hypot(m.x - c.x, m.y - c.y, m.z - c.z)).toBeGreaterThan(2.5);
+  });
+
+  it("drops him high into the skydive on the rig he wears, and opens its canopy on the press", () => {
+    const s = rig();
+    fly(s, 30, ask({ tuck: 1 }));
+    expect(s.para!.agl).toBeGreaterThan(CHUTE.craft.least);
+    const events = fly(s, 1 / 120, ask({ machine: true }));
+    expect(phases(events)).toContain("drop");
+    expect(s.chute?.from).toBe("para");
+    expect(s.chute?.mode).toBe("exit");
+    // The rig let go falls on without him while he falls on his body.
+    const y = s.para!.canopy!.y;
+    fly(s, 1.2, ask());
+    expect(s.para!.canopy!.y).toBeLessThan(y);
+    fly(s, 1 / 120, ask({ machine: true }));
+    expect(s.chute!.mode).toBe("deploying");
+    fly(s, 5, ask());
+    expect(s.chute!.mode).toBe("open");
+    expect(s.skier.thrown).toBeNull();
+  });
+
+  it("begins a fall out of the skydive again on the summit under the wing, never in a door", () => {
+    const s = rig();
+    const start = { x: s.skier.x, z: s.skier.z };
+    fly(s, 30, ask({ tuck: 1 }));
+    fly(s, 1 / 120, ask({ machine: true }));
+    const events = fly(s, 0.5, ask());
+    fly(s, 1 / 120, ask({ reset: true }), events);
+    expect(phases(events)).toContain("restart");
+    expect(s.chute).toBeUndefined();
+    expect(s.para!.mode).toBe("ready");
+    expect(s.plane).toBeUndefined();
+    expect(Math.hypot(s.skier.x - start.x, s.skier.z - start.z)).toBeLessThan(1);
   });
 
   it("starts again on the summit on a reset while rigged", () => {

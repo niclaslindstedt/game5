@@ -76,13 +76,12 @@ const FACE_THINNEST = 0.2;
 /** R14 on a REAL FACE (R25) — the woods by height, `cover` (R14's curve)
  * scaled by how wooded the real face is at the same height, off its own
  * bands (`realFaceTrees`): the densest band keeps the whole curve, a bare
- * one `FACE_THINNEST` of it. A ground `y` m high stands at `floor` m plus
- * its height over the base (`baseY`) unstretched, as the face is laid.
- * Any other map — a dealt massif, or a face whose map draws no forest —
- * gets `cover` itself. */
+ * one `FACE_THINNEST` of it. The face is laid 1:1 over its floor, so a
+ * ground `y` m high stands at `floor` + `y` m over the sea. Any other map
+ * — a dealt massif, or a face whose map draws no forest — gets `cover`
+ * itself. */
 export function faceWoods(
   plan: TerrainPlan,
-  baseY: number,
   cover: (y: number) => { keep: number; close: number },
 ): (y: number) => { keep: number; close: number } {
   const face = plan.face;
@@ -92,8 +91,19 @@ export function faceWoods(
   if (peak <= 0) return cover;
   return (y) => {
     const c = cover(y);
-    const real = face.floor + (y - baseY) / face.stretch;
+    const real = face.floor + y;
     const share = Math.min(1, faceCoverAt(trees, real) / peak);
     return { keep: c.keep * (FACE_THINNEST + (1 - FACE_THINNEST) * share), close: c.close * share };
   };
 }
+
+/** `trees` thinned evenly to at most `most` — kept by a golden-ratio
+ * stride over their order, so no stream is drawn on — or the array itself
+ * where it holds no more (`RR.massif.real.trees`). */
+export function thinTrees<T>(trees: T[], most: number): T[] {
+  if (trees.length <= most) return trees;
+  const keep = most / trees.length;
+  return trees.filter((_, i) => ((i + 1) * GOLDEN) % 1 < keep).slice(0, most);
+}
+
+const GOLDEN = (Math.sqrt(5) - 1) / 2;

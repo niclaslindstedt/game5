@@ -37,6 +37,9 @@
 //               over the snow; swung into the trunk; and the restart
 //   edge-*      at the map's edge: a track toward it and a canopy flown at
 //               it, how near either came
+//   para-*, heli-*, balloon-*  out of another craft high enough for the
+//               skydive (`craftFreefall`): the height out, the height the
+//               canopy is full at on the bot's pull, the touchdown's sink
 //   jump        on a generated map (`--seed`): the bot's whole jump — the
 //               climb, the exit's height, the opening, where it landed
 //
@@ -364,6 +367,62 @@ function jump() {
   return { out, open, land, thrown: !!s.skier.thrown };
 }
 
+/** OUT OF ANOTHER CRAFT (`craftFreefall`), the bot's hands from the moment
+ * he is out: the paramotor's rig dropped after 30 s on the throttle up the
+ * long face, the helicopter's skid pushed off 300 m over the valley floor
+ * beside its pad on the generated map, the balloon's side jumped 600 m over
+ * the flat map — the height out, the height the canopy is full at, the
+ * sink as the skis meet the snow (on the paramotor's slope as well as the
+ * flat), how he went on; for the paramotor, how far the motor is off him
+ * 1.5 s after. */
+function craft(kind) {
+  let s;
+  let motor = NaN;
+  if (kind === "para") {
+    const level = S.flatLevel({ grade: 0.3, slopeFrom: 120, runOut: { at: 1500, bend: 300 } });
+    s = E.createGame({ level, mode: "free", para: true, crowd: 0, quiet: true });
+    for (let i = 0; i < steps(30); i++) E.step(s, { ...N, tuck: 1 });
+  } else if (kind === "heli") {
+    s = E.createGame({
+      level: E.generateLevel(args.seed),
+      mode: "free",
+      heli: true,
+      crowd: 0,
+      quiet: true,
+    });
+    const aim = { x: s.heli.x, z: s.heli.z - 100, height: 300 };
+    for (let i = 0; i < steps(40); i++) E.step(s, E.pilotInput(s, aim));
+  } else {
+    s = E.createGame({ level: flat(), mode: "free", balloon: true, crowd: 0, quiet: true });
+    const b = s.balloon;
+    b.mode = "flown";
+    b.grounded = false;
+    b.y = s.level.groundAt(b.x, b.z) + 600;
+    b.vx = b.vy = b.vz = 0;
+  }
+  const hands = kind === "heli" ? E.pilotInput(s) : N;
+  E.step(s, { ...hands, machine: true });
+  const out = s.chute ? s.chute.agl || s.skier.y - s.level.groundAt(s.skier.x, s.skier.z) : NaN;
+  const from = s.chute?.from ?? "—";
+  let open = NaN;
+  let sink = NaN;
+  let land = false;
+  for (let i = 0; i < steps(400) && s.chute && !land && !s.skier.thrown; i++) {
+    const before = -s.skier.vy;
+    E.step(s, E.chutePilot(s));
+    if (i === steps(1.5) && s.para?.motor) {
+      const m = s.para.motor;
+      motor = Math.hypot(m.x - s.skier.x, m.y - s.skier.y, m.z - s.skier.z);
+    }
+    if (said(s, "open")) open = s.chute.agl;
+    if (said(s, "land")) {
+      land = true;
+      sink = before;
+    }
+  }
+  return { out, from, open, sink, land, thrown: !!s.skier.thrown, motor };
+}
+
 const X = exit();
 const FALL = fall();
 const LOW = terminal(300);
@@ -385,6 +444,7 @@ const TREE = snagTree();
 const LIFT = snagLift();
 const EDGE = edge();
 const J = jump();
+const CRAFT = { para: craft("para"), heli: craft("heli"), balloon: craft("balloon") };
 
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : "—");
 const rows = [
@@ -530,6 +590,37 @@ const rows = [
       ? `seed ${args.seed}: out ${f1(J.out)} m up, open ${f1(J.open)} m, down ${f1(J.land.d)} m from the strip's middle`
       : `seed ${args.seed}: ${J.thrown ? "THROWN" : "did not land"}`,
   },
+  ...Object.entries(CRAFT).flatMap(([kind, r]) => [
+    {
+      id: `${kind}-out`,
+      value: r.out,
+      unit: "m",
+      band: `>${E.CHUTE.craft.least}`,
+      note:
+        r.from === kind
+          ? `out of the ${kind} into the skydive` +
+            (kind === "para" ? `; the motor ${f1(r.motor)} m off him 1.5 s after` : "")
+          : `NOT taken into the skydive (${r.from})`,
+    },
+    {
+      id: `${kind}-open`,
+      value: r.open,
+      unit: "m",
+      band: "",
+      note: "the canopy full on the bot's pull, over the snow",
+    },
+    {
+      id: `${kind}-land`,
+      value: r.sink,
+      unit: "m/s",
+      band: "<4",
+      note: r.land
+        ? "sink at touchdown, the bot's flare onto the snow under him; let go of on the skis, skiing on"
+        : r.thrown
+          ? "THROWN"
+          : "DID NOT land",
+    },
+  ]),
 ];
 
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;

@@ -47,6 +47,7 @@ const MODE_NAMES: Record<GameMode, string> = {
 /** What threw him, as a line on the HARD KNOCKS chart. */
 const CAUSE_NAMES: Record<CrashCause, string> = {
   tree: "TREES",
+  rock: "ROCK",
   nose: "OVER THE TIPS",
   catch: "CAUGHT EDGES",
   slam: "HEEL-EDGE SLAMS",

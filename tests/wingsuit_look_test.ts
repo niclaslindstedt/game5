@@ -89,7 +89,7 @@ describe("the flyer's body", () => {
     for (const mode of ["ready", "exit", "freefall", "deploying", "open", "landed"] as const) {
       const s = suitState(mode);
       if (mode === "deploying") {
-        const d = freshChute(s, "freefall", "wingsuit");
+        const d = freshChute(s, "freefall", "plane", "wingsuit");
         s.chute!.deploy = {
           stage: "pilot",
           share: 0,

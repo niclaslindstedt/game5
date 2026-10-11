@@ -9,14 +9,15 @@
 //
 //   - THE ONE-FOOT SKATE. A rider crossing the flat, shuffling up a lift
 //     line or leaving a start takes his REAR foot out of its binding and
-//     pushes with it beside the board — short quick pushes, the front foot
-//     strapped in and the body turned to face the nose — then sets the
-//     foot back on the board between the bindings to glide, and straps it
-//     back in before he rides off down anything steep. A push from one
-//     foot beside a board is short and sideways to it: a fraction of a
-//     skier's two-legged skate (`legs`), useful to about a running pace and
-//     buying nothing past it. These numbers are ESTIMATES set to those
-//     descriptions, not measured.
+//     pushes with it on the TOE side of the board — short quick pushes,
+//     the front foot strapped in, the board along his way and the body
+//     side-on — then sets the foot back on the board between the bindings
+//     to glide, and straps it back in before he rides off down anything
+//     steep. Strapped in with both feet he can also HOP the board forward.
+//     A push from one foot beside a board is short and sideways to it: a
+//     fraction of a skier's two-legged skate (`legs`), useful to about a
+//     running pace and buying nothing past it. These numbers are ESTIMATES
+//     set to those descriptions, not measured.
 //   - THE STEP TURN. Strapped by the front foot alone, a rider steers a
 //     board at a walk by swinging its tail round with the free foot — the
 //     board pivots about the FRONT BINDING.
@@ -52,13 +53,15 @@ export const BOARD_MOVES = {
     /** The power a rider's legs put into a push, W — a fit recreational
      * rider's sprint (a skier's own `poles.power` is an arcade double-poler's,
      * and a free foot beside a deck is no double pole) — and the share of
-     * it, and of the pair's `polePush`, one free foot beside the board has. */
+     * it, and of the pair's `polePush`, one free foot beside the board has —
+     * set so a rider skating from a stand on the flat is at 10 km/h in about
+     * 3 s. */
     power: 450,
-    legs: 0.35,
-    /** The push is whole under `speed` m/s (5 km/h) and gone by `fade`
-     * (14 km/h): a foot pushing beside a board cannot keep up past a run. */
-    speed: 1.4,
-    fade: 4,
+    legs: 0.55,
+    /** The push is whole under `speed` m/s (8 km/h) and gone by `fade`
+     * (16.5 km/h): a foot pushing beside a board cannot keep up past a run. */
+    speed: 2.2,
+    fade: 4.6,
     /** Pushes a second: quick and short at a standstill, `slow`, to `fast`
      * by the fade. */
     slow: 1.3,
@@ -81,6 +84,15 @@ export const BOARD_MOVES = {
     hopBelow: 0.6,
     hopAt: 0.2,
     hop: 0.5,
+    /** THE HOP FORWARD: strapped in with both feet, a rider on the flat
+     * jumps the board along — the jump let go at a crawl throws him `ahead`
+     * m/s forward along the board as well as up, whole from a stand and
+     * gone by `aheadTo` m/s (11 km/h), past which a hop buys nothing a
+     * glide does not. A standing two-footed hop carries a strapped rider
+     * about half a metre to a metre, so `ahead` is set so a few hops a
+     * second build to a jog. An ESTIMATE, set to that description. */
+    ahead: 1.1,
+    aheadTo: 3,
     /** THE STEP TURN about the front foot: each push swings the tail round
      * by `turn` rad, taken up at `rate` a second. */
     turn: 0.22,

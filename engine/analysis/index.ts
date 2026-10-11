@@ -296,7 +296,8 @@ export function analyzeLevel(level: Level, opts: { network?: boolean } = {}): Le
     if (Math.abs(top - M.summit.y) > slack) {
       add("R2", "error", `the ground at the summit stands ${fmt(top - M.summit.y, 0)} m off it`);
     }
-    if (Math.abs(M.summit.z - R.mountain.summit * size) > 1) {
+    // A real face's summit ridge stands where its own does (R25).
+    if (!level.face && Math.abs(M.summit.z - R.mountain.summit * size) > 1) {
       add("R2", "error", "the summit is not on the summit ridge");
     }
     if (M.base.z < R.mountain.base * size - 1)
@@ -434,12 +435,14 @@ export function analyzeLevel(level: Level, opts: { network?: boolean } = {}): Le
   const held = Uint8Array.from(plain);
   for (let i = 0; i < n; i++) if (pts[i].s > finishAt - R.track.gradeWindow) held[i] = 1;
   const minGrade = windowGrades(ys, step, held).gentlest;
-  if (minGrade < R.track.minGrade - 0.01) {
-    add("R8", "error", `the line falls only ${fmt(minGrade, 3)} (least ${R.track.minGrade})`);
+  // A real face's runs fall as gently as its valley floor does (R25).
+  const leastGrade = level.face ? RR.massif.real.least.fall : R.track.minGrade;
+  if (minGrade < leastGrade - 0.01) {
+    add("R8", "error", `the line falls only ${fmt(minGrade, 3)} (least ${leastGrade})`);
   }
   const flatFrom = trackPointAt(level, L - R.track.finish);
   const finishGrade = (flatFrom.y - pts[n - 1].y) / R.track.finish;
-  if (Math.abs(finishGrade) > 0.03) {
+  if (Math.abs(finishGrade) > (level.face ? RR.massif.real.least.finish : 0.03)) {
     add("R8", "error", `the finish straight falls at ${fmt(finishGrade, 3)}`);
   }
   let maxCross = 0;
@@ -627,7 +630,8 @@ export function analyzeLevel(level: Level, opts: { network?: boolean } = {}): Le
   // R12, R23 — a black drops off the hut onto a pitch.
   const runEnd = trackPointAt(level, gateArc + R.spawn.run);
   const startFall = (gate.y - runEnd.y) / R.spawn.run;
-  if (S.spawn.minSlope > 0 && startFall < S.spawn.minSlope - 0.02) {
+  // A real face's run leaves its top as the real one does (R25).
+  if (!level.face && S.spawn.minSlope > 0 && startFall < S.spawn.minSlope - 0.02) {
     add("R12", "error", `the run out of the gate falls only ${fmt(startFall * 100, 0)} %`);
   }
 

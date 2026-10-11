@@ -650,7 +650,10 @@ Each phase lands green and with its lab's before and after in the PR.
       the raised in-run they look past (see *Settled (phase 10)*); `make
       skijump`'s `structure` and `broadcast` sheets,
       `tests/camera_skijump_test.ts`.
-- [ ] **11. The audience, the arena, the floodlights**: `crowd`, `night`.
+- [x] **11. The audience, the arena, the floodlights**: the stadium round
+      the out-run, its crowd and its masts (see *Settled (phase 11)*);
+      `make skijump`'s `arena` sheet by day and at hour 21,
+      `tests/ski_jump_arena_test.ts`.
 - [ ] **12. The sound**: `audition` and `--meter`.
 - [ ] **13. Its hills**: the trick maps first; then its own pinned hills
       (`RACE_MAPS.md`'s pattern) chosen for the hill they cut; docs,
@@ -1126,6 +1129,75 @@ sims' digests unmoved.
      read from every side.
   4. Round 4: the opening held him small; it stands closer (30 m down,
      11 m out, 7 m up) and frames 6 m of world round him.
+
+## Settled (phase 11)
+
+- **A jumping stadium, researched** (restated in `ski-jump-arena-plan.ts`'s
+  header): a large hill's out-run is a level flat some 80–100 m long
+  closed by padded boards, often with a short COUNTER-SLOPE rising past
+  them to slow a jumper who runs on; the crowd stands in a U round it —
+  grandstands down both sides of the out-run, terraces across its foot —
+  and up the landing hill behind the fences either side, thickest where
+  the jumps land; the video wall faces up the hill over the foot of the
+  out-run; the leader's box stands by the out-run's end; the hill is lit
+  for night contests by tall masts round the arena (30–40 m, a few hundred
+  lux on the landing area for television) as well as down the hill.
+- **The plan** (`ski-jump-arena-plan.ts`, three-free, `jumpArenaPlan`,
+  `SJ_ARENA`): two side GRANDSTANDS (12 rows) from 6 m above U to 58 m
+  past it, 4.6 m outside the landing area's walls; the COUNTER-SLOPE —
+  1.5 m past the out-run's end, 2.4 m up over 7 m, a 3 m flat — with the
+  two BACK TERRACES (13 rows) on it either side of a 15 m gap; the BACK
+  BOARDS across the out-run's end with the EXIT GATE 9 m right of the axis;
+  the LEADER'S BOX 9 m before the end; the VIDEO WALL (12 × 6.75 m) over
+  the gap; the HILL BANKS from 0.55 K down to U − 8, further out on the
+  left where the broadcast's rail and landing camera run; FLAGS on poles
+  every 6 m along the stands' backs in tricolours dealt off the seed;
+  BANNERS down both walls into the out-run; six ARENA MASTS (36 m, six
+  lamps each) behind the stands and at the back corners, the hill's own
+  masts ended above the stands. A ski jump's `planSpectators` returns this
+  stadium in place of the finish arena (`spectator-plan.ts`), so no other
+  mode's plan moved.
+- **The crowd** (`spectator-jump.ts`'s `planJumpBanks`, through the plan's
+  own `FanDealer`, on its stream): a fan a seat on every stand (0.58 m a
+  place, 93 % full), the hill banks stepped into the snow behind a net
+  posted every 2 m and kept clear of the masts, meters, coaches' decks and
+  the judges' tower, nine coaches on each coaches' platform. On seed 38's
+  large hill: 4,199 fans (2,412 in the side stands, 810 on the back
+  terraces, 959 up the landing hill, 18 coaches), none within 2 m of a
+  trunk, none on the in-run or the landing area.
+- **Drawn**: the stands, boards, leader's box and the video wall's tower
+  by `finish-arena.ts` as for any race; the counter-slope, the banners and
+  the flagpoles by `ski-jump-arena.ts` (one facade mesh); the flags by
+  `wind-flags.ts` (one sheet, rewritten each frame as it streams — the
+  hill's wind flags are drawn by it too); the arena masts lit with the
+  hill's by `piste-lights.ts`. The video wall shows the jump: the gate and
+  the distance to beat on the bar, the speed in the in-run and the air,
+  the distance landed (`jumpScreen`).
+- **The lab rounds** (`make skijump ARGS=--sheet=arena`, by day and at
+  hour 21 — `arena` and `arenanight`, seed 38):
+  1. Before: the generic finish arena's small stand and video wall stood
+     at the fall line beside the out-run, its finish circle's boards
+     across the out-run short of its end, the end itself open onto the
+     falling ground, a thin crowd up the landing hill.
+  2. Round 2: the stadium read at broadcast distance and close up — the
+     side stands packed, the banners, the flags streaming, the video wall
+     with the gate and the distance to beat, the leader's box, the crowd up
+     the hill behind its nets, the masts flooding it at night — but the
+     counter-slope's ends and back were walled down to the snow, which
+     falls some 10 m past the out-run, and stood as grey cliffs at the back
+     corners from the air.
+  3. Round 3: the counter-slope spills off its flanks and back at 0.8 a
+     metre out to the snow round it (no walls); the back terraces stand on
+     their scaffolding over it.
+- **Tests**: `tests/ski_jump_arena_test.ts` (the stands outside the walls,
+  the boards at the out-run's end, the masts outside the walls, the crowd
+  dealt the same and inside the budget, nobody on the in-run or the
+  landing area, nobody in a trunk).
+- **Left for later**: the back terraces are smaller than the side stands
+  (the woods past the out-run's end stand close); the counter-slope sits
+  in a hollow where the hillside rises on the left; the crowd's roar with
+  the distance is the sound's (phase 12), its animation the shader's
+  existing mood.
 
 ## Open questions for the user
 

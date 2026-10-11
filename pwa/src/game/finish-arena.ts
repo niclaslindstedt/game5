@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FINISH ARENA'S FURNITURE — what a crowd stands on, behind and looks
-// at, as `spectator-plan.ts` lays it out (the arch, the line and the nets
+// at, as `spectator-plan.ts` lays it out (a ski jump's stadium too, as
+// `ski-jump-arena-plan.ts` lays it) (the arch, the line and the nets
 // down the last stretch are `gates.ts`'s):
 //
 //   * THE GRANDSTANDS: tiered standing terraces either side of the line,
@@ -14,7 +15,9 @@
 //     standing at its back and the leader's chair in front of it.
 //   * THE VIDEO WALL: a screen on scaffolding with a white roof and sides
 //     over it, facing up the piste so the stands can see it — showing the
-//     run's clock, live.
+//     run's clock, live — on a ski jump the in-run's or the flight's
+//     speed, the gate, the distance to beat and the distance landed
+//     (`jumpScreen`).
 //
 // The stands, the platform and the video wall's tower are built on the
 // facade kit in scaffold steel, timber and white panels (`arena-build.ts`);
@@ -27,6 +30,8 @@ import type { GameState, Level } from "@engine";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 
 import { PALETTE } from "../identity.ts";
+import { leaderOf } from "./ski-jump-run.ts";
+import { STRINGS } from "./strings.ts";
 import { buildGrandstand, buildLeaderPlatform, buildVideoTower } from "./arena-build.ts";
 import { FacadeKit } from "./facade-kit.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
@@ -140,9 +145,10 @@ function netStrip(
   return { mesh: g, posts };
 }
 
-/** The video wall's picture: the run's clock, big, on the night-blue of a
- * screen, a red rule under it. */
-function drawScreen(g: CanvasRenderingContext2D, time: string): void {
+/** The video wall's picture: the run's clock — or a jump's speed and
+ * distance — big, on the night-blue of a screen, a red rule under it and a
+ * caption over it. */
+function drawScreen(g: CanvasRenderingContext2D, time: string, caption = ""): void {
   const { width: w, height: h } = g.canvas;
   g.fillStyle = "#0b1626";
   g.fillRect(0, 0, w, h);
@@ -151,8 +157,30 @@ function drawScreen(g: CanvasRenderingContext2D, time: string): void {
   g.fillStyle = "#f6f8fa";
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.font = `800 ${Math.round(h * 0.42)}px sans-serif`;
-  g.fillText(time, w / 2, h * 0.44);
+  g.font = `800 ${Math.round(h * (caption ? 0.36 : 0.42))}px sans-serif`;
+  g.fillText(time, w / 2, h * (caption ? 0.5 : 0.44));
+  if (caption) {
+    g.fillStyle = "#9fb4cc";
+    g.font = `700 ${Math.round(h * 0.13)}px sans-serif`;
+    g.fillText(caption, w / 2, h * 0.17);
+  }
+}
+
+/** What a SKI JUMP'S video wall shows: the in-run's speed, the edge's once
+ * he is in the air, the distance once he is down — and over it what the
+ * figure is, or the distance to beat. */
+function jumpScreen(state: GameState): [string, string] | null {
+  const j = state.jump;
+  if (!j) return null;
+  const r = j.record;
+  if (r.landing !== null) return [STRINGS.skiJumpDistance(r.distance), STRINGS.skiJumpScreenDown];
+  if (j.stage === "air") return [STRINGS.skiJumpSpeed(r.edgeSpeed * 3.6), STRINGS.skiJumpEdgeLabel];
+  const leader = state.skiJumpContest ? leaderOf(state.skiJumpContest) : null;
+  const gate = state.level.skiJump?.gates[j.gate]?.number ?? j.gate + 1;
+  return [
+    j.stage === "tracks" ? STRINGS.skiJumpSpeed(j.speed * 3.6) : STRINGS.skiJumpGate(gate),
+    leader ? STRINGS.skiJumpToBeat(leader.toBeat) : STRINGS.skiJumpFirstUp,
+  ];
 }
 
 export function createFinishArena(
@@ -277,10 +305,12 @@ export function createFinishArena(
     update(state) {
       if (!screenCtx || !screenTex) return;
       // Tenths, so the canvas is redrawn ten times a second at most.
-      const time = formatTime(Math.floor(state.progress.time * 10) / 10);
-      if (time === shown) return;
-      shown = time;
-      drawScreen(screenCtx, time);
+      const jump = jumpScreen(state);
+      const time = jump?.[0] ?? formatTime(Math.floor(state.progress.time * 10) / 10);
+      const caption = jump?.[1] ?? "";
+      if (time + caption === shown) return;
+      shown = time + caption;
+      drawScreen(screenCtx, time, caption);
       screenTex.needsUpdate = true;
     },
     dispose() {

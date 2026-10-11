@@ -104,6 +104,8 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import { challengeShots } from "./lib/challenge-shots.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
 const outDir = join(root, "previews");
@@ -387,6 +389,37 @@ const SURFACES = {
     params: { start: "free", t: "8", shot: "1" },
     wait: ".hud-seed",
     settle: 1500,
+  },
+  // THE FREE RIDE'S CHALLENGES (`docs/challenges.md`, poses and book off
+  // `scripts/lib/challenge-shots.mjs`): the chip as a timed line's clock
+  // starts, the medal plate off a trick kicker, the pause card's list and
+  // the statistics' tally — each page handed a book with medals in it.
+  "challenge-line": {
+    params: { start: "free" },
+    challenge: "line",
+    wait: ".hud-challenge",
+    settle: 900,
+  },
+  "challenge-kicker": {
+    params: { start: "free" },
+    challenge: "kicker",
+    wait: ".hud-challenge-plate",
+    settle: 250,
+  },
+  "pause-challenges": {
+    params: { start: "free", t: "20" },
+    challenge: "book",
+    open: ["Escape"],
+    press: "[data-menu=challenges]",
+    pressAfter: 700,
+    wait: ".menu-card-pause-challenges",
+    settle: 700,
+  },
+  "stats-medals": {
+    params: { menu: "stats" },
+    challenge: "book",
+    wait: ".stats-medals",
+    settle: 900,
   },
   // THE FREE RIDE'S HELICOPTER (`heli.ts`, `?heli=1`): sat on its skid on
   // the pad, lifting off into its own wash, and flown up the mountain by the
@@ -684,6 +717,13 @@ async function capture(name, params, viewportName, surface) {
       problems.push(`${msg.type()}: ${msg.text()}`);
     }
   });
+  // A page handed what it should find in storage (a challenge surface's
+  // book), before any of its own scripts run.
+  if (surface?.storage) {
+    await page.addInitScript((items) => {
+      for (const [k, v] of Object.entries(items)) globalThis.localStorage.setItem(k, v);
+    }, surface.storage);
+  }
   const url = `${site.url}?${new URLSearchParams(params)}`;
   const file = join(outDir, `shot-${name}-${viewportName}.png`);
   try {
@@ -798,6 +838,19 @@ if (args.surface) {
       continue;
     }
     const params = { seed: String(args.seed), probe: "0", ...surface.params };
+    if (surface.challenge) {
+      const shots = await challengeShots(root, Number(args.seed));
+      if (surface.challenge !== "book") params.pose = shots[surface.challenge];
+      surface.storage = {
+        "fall-line.challenges.v1": shots.book,
+        "fall-line.stats.v1": JSON.stringify({
+          v: 1,
+          runs: 14,
+          finished: 3,
+          since: Date.UTC(2026, 8, 1),
+        }),
+      };
+    }
     if (args.region !== undefined) params.region = String(args.region);
     if (args.face !== undefined) params.face = String(args.face);
     if (args.grade !== undefined) params.grade = String(args.grade);

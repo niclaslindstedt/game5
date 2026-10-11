@@ -1,0 +1,279 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE FREE RIDE'S CHALLENGES — the HUD's chip and plate (`hud-challenge.tsx`),
+   the pause card's list (`menu-pause-challenges.tsx`) and the statistics'
+   tally (`stats-medals.tsx`). A medal's colours are `medal-look.ts`'s and
+   come in as `--medal-ink`; the disc itself is `medal-mark.tsx`'s SVG. */
+
+.medal-mark {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+  vertical-align: -0.25em;
+  overflow: visible;
+}
+
+/* ── THE CHIP: under the seed, while a timed line runs ─────────────────── */
+
+.hud-challenge {
+  gap: 0.12rem;
+  padding: 0.3rem 0.55rem 0.35rem;
+  border-radius: 0.5rem;
+  background: rgb(var(--hud-plate) / 42%);
+  border-left: 3px solid var(--medal-ink, rgb(255 255 255 / 45%));
+}
+
+.hud-challenge-time {
+  font-size: clamp(1.2rem, 4.4vmin, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.hud-challenge-reach {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  color: var(--medal-ink, var(--hud-ink));
+  opacity: 1;
+  font-weight: 700;
+}
+
+.hud-challenge-target {
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-challenge-bar {
+  position: relative;
+  display: block;
+  height: 3px;
+  margin: 0.15rem 0 0.1rem;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 22%);
+  overflow: hidden;
+}
+
+.hud-challenge-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--medal-ink, rgb(255 255 255 / 70%));
+  transition: width 120ms linear;
+}
+
+/* ── THE PLATE: a medal won, upper centre, a few seconds ───────────────── */
+
+.hud-challenge-plate {
+  position: absolute;
+  z-index: 1;
+  top: 22%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  max-width: min(26rem, 88vw);
+  padding: 0.55rem 1rem 0.55rem 0.7rem;
+  border-radius: 0.8rem;
+  background: rgb(var(--hud-plate) / 72%);
+  border: 1px solid var(--medal-ink, rgb(255 255 255 / 30%));
+  box-shadow: 0 0.4rem 1.4rem rgb(0 0 0 / 35%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: hud-challenge-in 380ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.hud-challenge-plate .medal-mark {
+  width: clamp(2.6rem, 9vmin, 3.6rem);
+  height: clamp(2.6rem, 9vmin, 3.6rem);
+}
+
+.hud-challenge-plate-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.hud-challenge-plate-medal-name {
+  font-size: clamp(1.1rem, 4vmin, 1.6rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--medal-ink, var(--hud-ink));
+}
+
+.hud-challenge-plate-name,
+.hud-challenge-plate-note {
+  font-size: clamp(0.62rem, 2vmin, 0.8rem);
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-challenge-plate-value {
+  font-size: clamp(0.95rem, 3.2vmin, 1.25rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-challenge-plate-note {
+  color: var(--medal-ink, var(--hud-ink));
+  opacity: 1;
+  font-weight: 700;
+}
+
+@keyframes hud-challenge-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-challenge-plate {
+    animation: none;
+  }
+}
+
+/* ── THE PAUSE CARD'S LIST ─────────────────────────────────────────────── */
+
+.menu-card-pause-challenges {
+  text-align: left;
+  width: min(30rem, 100%);
+}
+
+.challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.challenge-none {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+
+.challenge-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.55rem;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 9%);
+}
+
+.challenge-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 1.6rem;
+}
+
+.challenge-grade {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+.challenge-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.challenge-ride {
+  flex: none;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.66rem;
+}
+
+.challenge-row-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.8rem;
+}
+
+.challenge-bars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.7rem;
+}
+
+.challenge-bar,
+.challenge-held-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.challenge-held {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.challenge-held-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  opacity: 0.6;
+}
+
+.challenge-held-value {
+  font-weight: 700;
+}
+
+.challenge-held-none .challenge-held-value {
+  opacity: 0.55;
+}
+
+/* ── THE STATISTICS' TALLY ─────────────────────────────────────────────── */
+
+.stats-medal-row {
+  display: flex;
+  gap: 1.4rem;
+}
+
+.stats-medal {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.45rem;
+  align-items: center;
+}
+
+.stats-medal .medal-mark {
+  grid-row: 1 / 3;
+  width: 2rem;
+  height: 2rem;
+}
+
+.stats-medal-count {
+  font-size: clamp(1.15rem, 3.8vmin, 1.6rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.stats-medal-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  opacity: 0.72;
+}

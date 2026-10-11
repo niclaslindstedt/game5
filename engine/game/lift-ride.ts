@@ -70,6 +70,7 @@ import {
   stepChairWait,
   stepGondola,
   stepTee,
+  teeSide,
   toPlatform,
 } from "./lift-board.ts";
 import { RUN_GRADES, type RunGrade } from "../mapgen/grades.ts";
@@ -87,6 +88,9 @@ import {
   type LiftRide,
   type SkierInput,
 } from "./state.ts";
+
+// What side of a drag's rope a rider stands, for the hosts (`lift-board.ts`).
+export { teeSide };
 
 const K = TUNING.lift;
 
@@ -435,8 +439,9 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "tower" });
   }
   if (plan.lift.kind === "drag") {
-    // Pulled up the track on his skis, sat back on his bar's right arm.
-    const p = along(plan, ride.u, upRope(plan) + K.tee);
+    // Pulled up the track on his skis, sat back on his bar's right arm —
+    // or on his board, the bar between his legs (`teeSide`).
+    const p = along(plan, ride.u, upRope(plan) + teeSide(run));
     setOff(run, p.x, p.z, plan.heading, ride.speed);
   } else if (ride.rack !== undefined) racking(run, plan, ride, events);
   else hold(run, plan, ride);
@@ -848,7 +853,7 @@ function ride(run: GameState, plan: LiftPlan, lift: number): void {
   if (plan.lift.kind === "drag") {
     onTee(plan, c.lift, carrierNear(plan, u, run.t), run.t);
     // On a drag he is pulled up the track on his skis.
-    const p = along(plan, c.lift.u, upRope(plan) + K.tee);
+    const p = along(plan, c.lift.u, upRope(plan) + teeSide(run));
     setOff(run, p.x, p.z, plan.heading, c.lift.speed);
   } else hold(run, plan, c.lift);
 }

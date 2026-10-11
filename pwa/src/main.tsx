@@ -17,6 +17,7 @@ import "./balloon.css";
 import "./plane.css";
 import "./stats.css";
 import "./where.css";
+import "./challenges.css";
 import "./replay.css";
 import "./title.css";
 import { loadRealFace } from "@engine";

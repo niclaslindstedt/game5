@@ -15,6 +15,7 @@
 import * as THREE from "three";
 import { SLED, type GameState, type SledState } from "@engine";
 
+import type { RackLoad } from "./board-rack.ts";
 import type { HazeUniforms } from "./haze.ts";
 import type { Outfit } from "./outfit.ts";
 import { createSledView, type SledView } from "./sled-view.ts";
@@ -49,8 +50,8 @@ export type SledScene = {
   stand(state: GameState): SledStand | null;
   /** The machine as drawn this frame (its centre and attitude), or null. */
   drawn(): ReturnType<SledView["drawn"]>;
-  /** Dress the racked pair in the rider's topsheet colours. */
-  dressRack(body: number, trim: number): void;
+  /** Load the rack with what he rides (`SledView.stowRack`). */
+  stowRack(load: RackLoad): void;
   /** The model in the group (`SledView.ready`). */
   ready: Promise<void>;
   dispose(): void;
@@ -332,8 +333,8 @@ export function createSledScene(haze: HazeUniforms): SledScene {
         },
       };
     },
-    dressRack(body, trim) {
-      view.dressRack(body, trim);
+    stowRack(load) {
+      view.stowRack(load);
     },
     drawn: () => view.drawn(),
     dispose() {

@@ -114,12 +114,26 @@ const AIRBORNE = new Set(["air", "spin", ...GRAB_ASKS.map(([g]) => g)]);
  * rear foot out of its binding (skating at a crawl) to the skate's, and
  * any frame in the air (a jump's flight, a pop's) to the air's — where a
  * move's own moment is not itself in the air (a grab, a spin). */
-function momentAt(move, t, f, free = false, airborne = false) {
+function momentAt(move, t, f, free = false, airborne = false, air = 0, held = 1) {
   if (free) return "skate";
+  const carve = f.toe > 0.5 ? "toe" : f.toe < -0.5 ? "heel" : null;
   const own = BOARD_MOMENTS.filter((m) => m.move === move.id).sort((a, b) => a.t - b.t);
-  if (own.length === 0) return f.toe > 0.5 ? "toe" : f.toe < -0.5 ? "heel" : move.id;
+  if (own.length === 0) return carve ?? move.id;
   let at = own[0];
   for (const m of own) if ((m.from ?? m.t) <= t + 1e-6) at = m;
+  // The air and a spin hold only the frames in the air — those on the
+  // snow are the jump loaded and landed, and while the legs are still
+  // drawing up into the air (its eased share), the take-off's. (A grab's
+  // own bands are wide enough for its whole move.)
+  const grab = GRAB_ASKS.some(([g]) => g === at.id);
+  // A grab's frames with no hand on the board are the jump's own: the
+  // flight before and after it, and the snow.
+  if (grab && held < 0.05) return airborne ? (air < 0.7 ? "rising" : "air") : "landing";
+  // A carve's moment holds its carve: the frames before he is on the edge
+  // are ridden straight.
+  if (/^(toe|heel)/.test(at.id) && Math.abs(f.toe) < 0.5) return "stance";
+  if (AIRBORNE.has(at.id) && !grab && !airborne) return carve ?? "landing";
+  if (airborne && air < 0.7 && !grab) return "rising";
   if (airborne && !AIRBORNE.has(at.id)) return "air";
   return at.id;
 }
@@ -167,7 +181,11 @@ function ride(move) {
     input.grabShare = grab.share;
     const bp = BP.boardPose(input);
     const f = figuresOf(c, input, bp, BP);
-    samples.push({ t, moment: momentAt(move, t, f, input.free, c.airborne), f });
+    samples.push({
+      t,
+      moment: momentAt(move, t, f, input.free, c.airborne, input.air, grab.share),
+      f,
+    });
   }
   return samples;
 }

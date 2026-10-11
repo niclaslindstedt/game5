@@ -55,6 +55,7 @@ import {
   type LiftRuns,
 } from "./crowd-lift.ts";
 import { crashLimit, throwRider } from "./crash.ts";
+import { standApart } from "./crowd-apart.ts";
 import { stepDown, throwAmateur } from "./crowd-down.ts";
 import { boardFallSide, sitFor, stepSit } from "./crowd-board.ts";
 import { band, bodyFor, dealBoard, dealKnobs, freshAmateur, pickGroup } from "./crowd-deal.ts";
@@ -794,6 +795,8 @@ export function stepCrowd(state: GameState): void {
   while (onRun.length < net.runs.length) onRun.push([]);
   for (const list of onRun) list.length = 0;
   for (const a of crowd.amateurs) if (!onLift(a)) onRun[a.run].push(a);
+  // Nobody stands inside another either (`crowd-apart.ts`).
+  standApart(onRun, (a) => sampleRun(net.runs[a.run], a.s, here).width / 2);
   for (const a of crowd.amateurs) {
     if (onLift(a)) continue;
     a.think -= dt;

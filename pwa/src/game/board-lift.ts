@@ -17,8 +17,11 @@
 //     stomp pad — the board pointed up the line, nose first, gliding
 //     straight — blended to the chair's by how seated he is.
 //   * A T-BAR is ridden SIDE-ON as he rides, the board up the track, the
-//     rear foot free on the pad, the bar behind his front thigh
-//     (`BOARD_TOW`: `lifts.ts` hangs it there).
+//     rear foot free on the pad, and — alone on it — the bar's middle
+//     BETWEEN HIS LEGS, the bar across behind his front thigh pulling him
+//     by it, its stem leaning up the track in front of his front hip to the
+//     cord, the rope over him (`BOARD_TOW`: `lifts.ts` hangs it there, the
+//     engine's `teeSide` stands him under the rope).
 //   * IN A GONDOLA'S CABIN he sits on the bench with both feet on its floor,
 //     the board standing in the rack on the door (`cabinBoardPose`).
 //   * CARRIED, the board is held UNDER HIS ARM on his rear-foot side, on
@@ -53,11 +56,22 @@ type Board = BoardPoseInput["board"];
  * pad by the rear binding). */
 export const CHAIR_BOARD = { turnIn: 0.5, roll: 0.75, shin: 0.3, rest: -0.22 };
 
-/** A T-BAR'S BAR UNDER A BOARD RIDER, in his body frame, m: the bar across
- * the line behind his FRONT thigh, between his legs (the board points up
- * the track, so the front leg is up it, `z` positive), at the height of
- * the back of that thigh; its stem `TUNING.lift.tee` to the line's left. */
-export const BOARD_TOW = { y: -0.28, z: 0.12 };
+/** A T-BAR'S BAR UNDER A BOARD RIDER, in his body frame, m: the bar's
+ * middle between his legs (x 0) behind his FRONT thigh (the board points
+ * up the track, so the front leg is up it, `z` positive), at the height of
+ * the back of that thigh, the bar across the line; its stem leaning `lean`
+ * rad up the track off plumb, toward the cord pulling it. */
+export const BOARD_TOW = { y: -0.28, z: 0.12, lean: 0.6 };
+
+/** The point `up` m up a board rider's T-bar stem from the bar, in his
+ * body frame (`BOARD_TOW`). */
+export function boardStem(up: number): V3 {
+  return {
+    x: 0,
+    y: BOARD_TOW.y + up * Math.cos(BOARD_TOW.lean),
+    z: BOARD_TOW.z + up * Math.sin(BOARD_TOW.lean),
+  };
+}
 
 /** THE HAND ON THE T-BAR'S STEM, m: how far up the stem from the bar the
  * fist closes round it (`lifts.ts` stands the stem 0.6 m up from the bar,
@@ -251,15 +265,15 @@ export function boardLiftPose(input: BoardPoseInput, seat: BoardSeat): BoardPose
 }
 
 /** TOWED BY A T-BAR, by `share` (0..1): the riding pose with the hand
- * nearer the stem (`lifts.ts` hangs it `TUNING.lift.tee` to his left, the
- * bar behind his front thigh) closed round it `TOW_GRIP.up` over the bar,
+ * nearer the stem (`lifts.ts` hangs it between his legs, the bar behind
+ * his front thigh, `boardStem`) closed round it `TOW_GRIP.up` up it,
  * its elbow solved again out from the body; the other hand left where the
  * riding pose has it. */
 export function towedBoardPose(ride: BoardPose, share: number): BoardPose {
   const k = clamp(share, 0, 1);
   if (k <= 0) return ride;
   const p = ride.pose;
-  const stem: V3 = { x: -TUNING.lift.tee, y: BOARD_TOW.y + TOW_GRIP.up, z: BOARD_TOW.z };
+  const stem = boardStem(TOW_GRIP.up);
   const i = len(sub(p.shoulders[0], stem)) <= len(sub(p.shoulders[1], stem)) ? 0 : 1;
   const hands = [p.hands[0], p.hands[1]] as [V3, V3];
   const elbows = [p.elbows[0], p.elbows[1]] as [V3, V3];

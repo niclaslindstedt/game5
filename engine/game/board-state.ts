@@ -28,6 +28,13 @@ export type BoardMoves = {
    * he sprang it; null for a flight he did not pop (off a kicker's lip or a
    * crest). Set as he leaves the snow; naming only, it moves nothing. */
   pop: "ollie" | "nollie" | null;
+  /** THE PRESS (`board-press.ts`): how far his weight is over one end on
+   * the snow, the deck flexed onto it and the other end lifted — −1 the
+   * NOSE … +1 the TAIL (the lean's sign), 0 none. */
+  press: number;
+  /** THE BUTTER: how far the board has pivoted on its pressed end since
+   * the press came on, rad, clockwise from above positive; 0 off a press. */
+  butter: number;
 };
 
 /** A SNOWBOARDER'S GRABS (`board-tricks.ts`'s `boardGrabOf`), each a hand
@@ -52,5 +59,5 @@ export type SpinTag = {
 
 /** A board's moves at rest: strapped in, stood still. */
 export function freshBoardMoves(): BoardMoves {
-  return { free: false, hop: 0, slip: 0, leaf: 0, pop: null };
+  return { free: false, hop: 0, slip: 0, leaf: 0, pop: null, press: 0, butter: 0 };
 }

@@ -74,6 +74,11 @@ export type TrickRead = {
   flips: number;
   flipDir: "back" | "front" | null;
   dir: "left" | "right" | null;
+  /** ON A SNOWBOARD: the spin's FRONTSIDE or BACKSIDE (null without a
+   * spin) and whether it was popped off the nose — a rider's spin is
+   * named by the side he turns, never by left or right. Absent on skis. */
+  side?: "frontside" | "backside" | null;
+  nollie?: boolean;
   offAxis: boolean;
   switchIn: boolean;
   switchOut: boolean;
@@ -95,6 +100,9 @@ export function readTrick(f: FlightRecord): TrickRead {
     switchIn: f.switchIn,
     switchOut: f.switchOut,
     grabs: f.grabs.slice(),
+    ...(f.board
+      ? { side: halves === 0 ? null : (f.board.side ?? null), nollie: f.board.nollie === true }
+      : {}),
   };
 }
 
@@ -114,6 +122,7 @@ export function difficultyOf(r: TrickRead): number {
  * jumps differ: the way it spun, or — thrown without a spin — the way it
  * flipped; a straight air is its own kind. */
 export function trickKind(r: TrickRead): string {
+  if (r.side) return r.side;
   if (r.dir) return r.dir;
   return r.flipDir ?? "straight";
 }

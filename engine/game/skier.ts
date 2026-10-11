@@ -99,13 +99,13 @@ import { castLeg } from "./leg-ray.ts";
 import { riddenLevel } from "./mogul-ride.ts";
 import { climbShare, driveForce, hillPull, slopeShare } from "./poles.ts";
 import { holdsStill, laySkis, poleForce, pushReachOf, sidestepEdge } from "./board-moves.ts";
-import { hopAhead, hopHeld, stepRound, stepSide, stoodStill } from "./board-moves.ts";
-import { strideOn, turnWork } from "./board-moves.ts";
+import { hopAhead, stepRound, stepSide, stoodStill, strideOn } from "./board-moves.ts";
+import { hopHeld, lockShare, pitchAsked, stepRevert, turnWork } from "./board-moves.ts";
 import { dampShare, harshShare, skiBite, skiPull, springShare } from "./damage.ts";
 import { hurtDrive, hurtEdge, hurtGrip, hurtLanding, hurtRate, hurtTuck } from "./hurt.ts";
 import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
-import { heldSlip, hopRevert, hopSwitch, revertHold, stepRevert, switchSteer } from "./switch.ts";
+import { heldSlip, hopRevert, hopSwitch, revertHold, switchSteer } from "./switch.ts";
 import { slideOver } from "./sidestep.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
@@ -187,9 +187,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // much he can step, not the step itself, which passes through nothing
   // from one side to the other and would stand the skis up on the full
   // lock for a moment at every change of turn.
-  const lock =
-    edgeAskedAt(spec, speed0, T, c.carve, Math.sign(c.steer)) *
-    (1 - P.turn.edge * turnWork(c, speed0));
+  const lock = edgeAskedAt(spec, speed0, T, c.carve, Math.sign(c.steer)) * lockShare(c, speed0);
   // STOOD STILL, a steer is no edge: it steps him round on the spot — or up
   // a steep slope, his skis set into the hill (`sidestep.ts`).
   snowNormal(level, c, normal);
@@ -781,7 +779,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       clamp(fwd.x * normal.x + fwd.y * normal.y + fwd.z * normal.z, -1, 1),
     );
     tb.x +=
-      (clamp(K.pitchStiff * (pitchRel - K.leanPitch * c.lean), -K.pitchMax, K.pitchMax) -
+      (clamp(K.pitchStiff * (pitchRel - pitchAsked(c)), -K.pitchMax, K.pitchMax) -
         (K.pitchDamp + give * AB.steady) * c.wx) *
       (I.x / inertiaOf(SKIS).x) *
       hold;

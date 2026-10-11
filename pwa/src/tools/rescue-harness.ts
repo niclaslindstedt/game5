@@ -13,8 +13,12 @@
 // driver to photograph, and hands back every frame at full size.
 
 import {
+  NEUTRAL_INPUT,
+  PLANE,
+  RAGDOLL,
   botInput,
   createGame,
+  planeAloft,
   generateLevel,
   placeRun,
   step,
@@ -339,6 +343,82 @@ function pass(s: GameState): void {
   }
 }
 
+/** THE PLANE'S CRASH: the jump plane flown into the snow down its own strip
+ * with the skier in its door, found too hurt to ski on where it threw him,
+ * the reset held over the burning wreck — then the next run, begun in the
+ * door on the strip. The rescue must come to where he lay by the wreck,
+ * never to the strip the next ride starts on. */
+async function planeCrash(): Promise<void> {
+  const ride = (): GameState =>
+    createGame({
+      level,
+      seed,
+      region,
+      mode: "free",
+      gore: true,
+      crowd: 0,
+      quiet: true,
+      plane: true,
+    });
+  const hurt = ride();
+  await renderer.load(hurt);
+  const p0 = hurt.plane!;
+  const h0 = p0.heading;
+  const start = { x: p0.x, z: p0.z, y: level.groundAt(p0.x, p0.z) };
+  const cx = p0.x + Math.sin(h0) * 220;
+  const cz = p0.z + Math.cos(h0) * 220;
+  planeAloft(hurt, {
+    x: cx,
+    y: level.groundAt(cx, cz) + 40,
+    z: cz,
+    heading: h0,
+    speed: 50,
+    pitch: -0.5,
+    power: 1,
+  });
+  const dive = { throttle: 1, pitch: 1, roll: 0, yaw: 0, flaps: 0 };
+  const run = (s: GameState, seconds: number, reset: boolean, flown = true): void => {
+    for (let f = 0; f < Math.round(seconds / FRAME); f++) {
+      for (let i = 0; i < STEPS; i++)
+        step(s, { ...NEUTRAL_INPUT, reset, ...(flown ? { plane: dive } : {}) });
+      renderer.draw(s, 1, FRAME, false);
+    }
+  };
+  run(hurt, 5, false);
+  // A leg broken in it, and the reset held while the wreck burns: found too
+  // hurt to ski on where the crash threw him (`rescue.ts`).
+  hurt.skier.body.injuries.push({ part: "thighL", kind: "brokenFemur", ais: 3, t: hurt.t });
+  run(hurt, PLANE.crash.wreck + 1, true);
+  const P = hurt.skier.thrown?.points;
+  const lx = P ? (P[3 * RAGDOLL.hipL] + P[3 * RAGDOLL.hipR]) / 2 : hurt.skier.x;
+  const lz = P ? (P[3 * RAGDOLL.hipL + 2] + P[3 * RAGDOLL.hipR + 2]) / 2 : hurt.skier.z;
+  const lay = { x: lx, z: lz, y: level.groundAt(lx, lz) };
+  shoot(
+    hurt,
+    `${hurt.skier.thrown ? "lying" : "stood up in the door"} at ${hurt.t.toFixed(0)} s`,
+    planted(lay, h0, 14, 18, 8, 50, 0.5),
+  );
+  // THE NEXT RUN: in the door on the strip.
+  const s = ride();
+  renderer.draw(s, 1, FRAME, false);
+  run(s, 1.5, false, false);
+  shoot(s, "next run: the strip", planted(start, h0, 10, 16, 6, 55, 0.5));
+  shoot(s, "next run: the wreck's spot", planted(lay, h0, 14, 18, 8, 50, 0.5));
+  shoot(s, "next run: down the strip", planted(start, h0, 0, 10, 10, 60, 0));
+  // ...and skied up to it: out of the door, stood 40 m short of where he lay.
+  s.plane!.rider = false;
+  placeRun(s, { x: lay.x - Math.sin(h0) * 40, z: lay.z - Math.cos(h0) * 40, heading: h0 });
+  const t0 = s.t;
+  for (const [label, t] of [
+    ["walking up", 6],
+    ["scooping", 30],
+    ["carrying", 60],
+  ] as const) {
+    poseAt(s, t0 + t, 2);
+    shoot(s, `next run, by the wreck: ${label}`, planted(lay, h0, 16, 22, 10, 55, 0.5));
+  }
+}
+
 const GROUPS: Record<string, readonly string[]> = {
   site: ["overview"],
   scoop: ["scoop"],
@@ -347,6 +427,7 @@ const GROUPS: Record<string, readonly string[]> = {
   lift: ["lift"],
   pass: ["pass"],
   night: ["night"],
+  plane: ["plane"],
 };
 
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] }> {
@@ -354,7 +435,9 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
   frames = [];
   for (const v of views) {
     view = v;
-    if (v === "pass") {
+    if (v === "plane") {
+      await planeCrash();
+    } else if (v === "pass") {
       pass(nextRun(RESCUE.reach + 120));
     } else if (v === "night") {
       renderer.setSky({ ...(baseSky ?? {}), hour: 21 });

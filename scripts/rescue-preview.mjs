@@ -56,7 +56,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night); every one when left out",
+      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane); every one when left out",
     },
     views: {
       kind: "string",

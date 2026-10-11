@@ -64,6 +64,7 @@ const GROUPS: Record<string, readonly string[]> = {
   low: ["groomed-low", "powder-low", "deep-low"],
   night: ["deep-night"],
   speed: ["speed-powder", "speed-deep"],
+  rider: ["rider-skis-deep", "rider-board-powder", "rider-board-deep", "rider-board-crawl"],
   kinds: [
     "skis-groomed",
     "board-groomed",
@@ -409,7 +410,37 @@ async function speed(b: "powder" | "deep"): Promise<void> {
   );
 }
 
+/** THE RIDER IN HIS OWN TRACK: the cutter ridden at `speed` m/s down an
+ * open powder slope at the band's dial, then shot beside him at a knee's
+ * height — how deep the drawn skis or board stand in the snow they cut. */
+async function rider(cutter: "skis" | "board", b: Band, speed: number): Promise<void> {
+  const def = BANDS[b];
+  const s = fresh(def.dial, cutter);
+  await renderer.load(s);
+  const at = def.piste ? pisteStart(s) : powderStart(s);
+  cut(s, at, 3, { brake: speed < 4 ? 0.6 : 0, speed, steer: 0.25, tuck: speed < 4 ? 0 : 0.3 });
+  const k = s.skier;
+  const sink = Math.max(...k.contacts.map((c) => c.sink));
+  const extra = `${cutter === "board" ? "a snowboard" : "a pair of skis"} — ${def.word} — ${(k.speed * 3.6).toFixed(0)} km/h, sink ${sink.toFixed(2)} m`;
+  const fx = Math.sin(k.heading);
+  const fz = Math.cos(k.heading);
+  const g = (x: number, z: number) => s.level.groundAt(x, z);
+  const side = { x: k.x - fz * 3.2 + fx * 1.2, z: k.z + fx * 3.2 + fz * 1.2 };
+  shoot(
+    s,
+    "beside him, at a knee",
+    lens({ ...side, y: g(side.x, side.z) + 0.7 }, { x: k.x, y: g(k.x, k.z) + 0.4, z: k.z }, 50),
+    extra,
+    true,
+  );
+  shoot(s, "the chase lens", chase(s), extra, true);
+}
+
 const VIEWS: Record<string, () => Promise<void>> = {
+  "rider-skis-deep": () => rider("skis", "deep", 9),
+  "rider-board-powder": () => rider("board", "powder", 9),
+  "rider-board-deep": () => rider("board", "deep", 9),
+  "rider-board-crawl": () => rider("board", "deep", 2),
   "speed-powder": () => speed("powder"),
   "speed-deep": () => speed("deep"),
   "skis-groomed": () => kind("skis", "groomed"),

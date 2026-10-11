@@ -144,6 +144,9 @@ export type FreeRide = {
    * paramotor, the balloon, the helicopter and the plane): the skydiver's
    * rig on his skis (`rig`), or a WINGSUIT with no skis (`wingsuit`). */
   suit: SuitId;
+  /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
+   * (`avalanche.ts`). On unless the player turns them off. */
+  avalanche: boolean;
 };
 
 /** THE SUIT ROW'S STOPS: the skydiver's rig, or the wingsuit. */
@@ -163,6 +166,7 @@ export function freshRide(): FreeRide {
     grade: null,
     run: null,
     suit: "rig",
+    avalanche: true,
   };
 }
 
@@ -195,6 +199,7 @@ export function mergeRide(blob: unknown): FreeRide {
     out.weather = b.weather as WeatherKind;
   }
   if (isRegionId(b.region)) out.region = b.region;
+  if (typeof b.avalanche === "boolean") out.avalanche = b.avalanche;
   // A face is kept only in its own country: a face stored under another
   // region (or one this build has not baked) is the dealt massif.
   if (typeof b.face === "string" && realFaceRegion(b.face) === out.region) out.face = b.face;
@@ -510,8 +515,9 @@ export function freeGameOptions(
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
     groomer: "night",
-    // THE AVALANCHES: the loaded slopes off the groomed runs may slide.
-    avalanche: true,
+    // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
+    // unless the start card's row turned them off.
+    avalanche: ride.avalanche,
   };
 }
 

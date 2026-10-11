@@ -20,6 +20,7 @@ import type { SkierState, Thrown } from "@engine";
 import type { Quat } from "@niclaslindstedt/oss-game-framework/core/quat";
 
 import type { RigPose } from "./camera-rigs.ts";
+import { uprightSkier } from "./skier-somersault.ts";
 
 /** How far his centre of mass stands over his boots, m — what is taken off
  * the body's height so the boom stands where it would over him on his skis,
@@ -58,17 +59,21 @@ export function subjectPose(
   // swung half round under it, which would swing the lens with it; and
   // HOPPING INTO it, the nose he had, the line he goes on travelling.
   const r = skier.revert;
+  // OVER A LOOP'S TOP, read right way round: never swung out to his side.
+  const up = uprightSkier(skier);
   pose.heading = r
-    ? skier.heading - r.turn * revertShare(r.u) + (r.to === "switch" ? 0 : Math.PI)
-    : skier.heading;
-  pose.pitch = skier.pitch;
-  pose.roll = skier.roll;
+    ? up.heading - r.turn * revertShare(r.u) + (r.to === "switch" ? 0 : Math.PI)
+    : up.heading;
+  pose.pitch = up.pitch;
+  pose.roll = up.roll;
   pose.vx = skier.vx;
   pose.vy = skier.vy;
   pose.vz = skier.vz;
   pose.speed = skier.speed;
   pose.airborne = skier.airborne;
   pose.switched = r ? false : skier.switched;
+  const b = skier.spec.board;
+  pose.board = b ? (b.lead === "regular" ? 1 : -1) : 0;
   pose.packed = skier.packed;
   return onBody(pose, body, groundAt, mem);
 }
@@ -97,6 +102,7 @@ export function onBody(
   pose.speed = Math.hypot(body.vx, body.vy, body.vz);
   pose.heading = mem.heading;
   pose.switched = false;
+  pose.board = 0;
   pose.airborne = !body.touching;
   return pose;
 }

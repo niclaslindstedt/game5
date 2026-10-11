@@ -217,6 +217,7 @@ function file(
     t: state.t,
     x: k.fromX,
     z: k.fromZ,
+    ...(c.board ? { board: spinTag(c, k.yaw, k.switchIn) } : {}),
     ...(state.level.pipe
       ? { pipe: pipeHit(state.level, c, k.fromX, k.fromZ, k.peak) ?? undefined }
       : {}),

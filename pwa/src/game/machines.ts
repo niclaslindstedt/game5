@@ -54,6 +54,7 @@ import { wingsuitShapeOf } from "./skier-wingsuit.ts";
 import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
+import { createAvalancheView, type AvalancheView } from "./avalanche-view.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
@@ -132,6 +133,10 @@ export type Machines = {
    * they were drawn this frame — and the airstrip's buildings and the jump
    * plane standing on the snow with nobody aboard. */
   solids(): readonly SolidBox[];
+  /** THE AVALANCHE AS DRAWN (`avalanche-view.ts`): how far its bed and
+   * debris stand the drawn snow off the engine's at (`x`, `z`), m — what a
+   * skier on it is drawn on. */
+  slideLift(x: number, z: number): number;
   /** Both machines' models in the group — what the renderer waits on
    * before it compiles the run's programs, so the rotor's smear and the
    * blades' fade are linked behind the loading card, not as he boards. */
@@ -252,13 +257,17 @@ export function createMachines(
   const floods: Flood[] = [];
   if (sled) {
     group.add(sled.group);
-    // The rider's own pair on the rack, in its topsheet's colours.
+    // The rider's own pair on the rack, in its topsheet's colours, his
+    // poles with it if he carries them — or his board.
     const top = TOPSHEETS[drawnAs(state.skier.spec)];
-    sled.dressRack(top.body, top.trim);
+    const k = state.skier;
+    sled.stowRack({ spec: k.spec, poles: k.poles, body: top.body, trim: top.trim });
   }
   // THE AIR AMBULANCE on the run after an injured one (`rescue-view.ts`),
   // built with the first run that carries its injuries.
   let rescue: RescueScene | null = null;
+  // THE AVALANCHE (`avalanche-view.ts`), built with the run's first slab.
+  let slide: AvalancheView | null = null;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
@@ -387,6 +396,11 @@ export function createMachines(
       }
       if (rescue && fx.wearing) rescue.dress(fx.wearing());
       rescue?.frame(s, dt, fx.cloud, fx.snowAt);
+      if (s.avalanche?.slide && !slide) {
+        slide = createAvalancheView(level, haze);
+        group.add(slide.group);
+      }
+      slide?.frame(s, dt, simDt, fx.cloud);
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
       if (seated && groomers) seated.root.visible = !drivenGroomer(s);
@@ -437,6 +451,8 @@ export function createMachines(
     ladder(pose, s, screen = 16 / 9) {
       aspect = screen;
       pose.lift = null;
+      // The ground under him shaking as a slide runs near (`camera-rigs.ts`).
+      pose.quake = slide && !s.skier.thrown ? slide.quake(pose.x, pose.z) : 0;
       const g = drivenGroomer(s);
       if (g) {
         groomerRigPose(pose, g, groomers?.drawn(g) ?? null);
@@ -481,6 +497,7 @@ export function createMachines(
       heli?.setPace(pace);
       hover?.setPace(pace);
     },
+    slideLift: (x, z) => slide?.liftAt(x, z) ?? 0,
     dispose() {
       haze.uMistAloft.value = 0;
       heli?.dispose();
@@ -495,6 +512,7 @@ export function createMachines(
       balloon?.dispose();
       rescue?.dispose();
       hover?.dispose();
+      slide?.dispose();
     },
   };
 }

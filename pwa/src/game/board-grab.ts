@@ -27,6 +27,7 @@
 // −1 the heel edge, 0 an end.
 
 import type { BoardGrab, TrickPose } from "@engine";
+import type { BoardPoseInput } from "./board-pose.ts";
 
 /** One grab as drawn. */
 export type GrabLook = {
@@ -218,22 +219,31 @@ export function easeGrab(ease: GrabEase, grab: BoardGrab | null, dt: number): Gr
 
 /** THE PRESS and THE POP's LOAD, rad of the deck pitched nose up (+) on the
  * snow at their fullest: a press bends the board onto one end and lifts
- * the other a hand's breadth; loading an ollie sits him over the tail. */
-export const PRESS = { most: 0.18, from: 0.45, to: 0.95, hips: 0.12 };
+ * the other a hand's breadth; loading an ollie sits him over the tail.
+ * The press itself is the engine's (`SkierState.board.press`,
+ * `board-press.ts`), which already pitches the whole body `press.lift`
+ * onto the pressed end — the deck's bend here is the rest of it. */
+export const PRESS = { most: 0.13, hips: 0.12 };
 export const POP = { most: 0.1, hips: 0.08 };
-
-/** The press a lean of `lean` (+1 back) holds on the snow, −1 … 1 (+ on
- * the tail), faded out as the edge comes on and at speed. */
-export function pressOf(lean: number, edge: number, speed: number): number {
-  const t = Math.min(1, Math.max(0, (Math.abs(lean) - PRESS.from) / (PRESS.to - PRESS.from)));
-  const flat = Math.max(0, 1 - Math.abs(edge) / 0.35);
-  const slow = Math.max(0, Math.min(1, (16 - speed) / 6));
-  return Math.sign(lean) * t * t * (3 - 2 * t) * flat * slow;
-}
 
 /** The load before a pop, −1 … 1: + over the tail (the ollie), − over the
  * nose (the nollie, the lean carried forward — `popOf`'s). */
 export function popLoad(load: number, lean: number): number {
   const l = Math.min(1, Math.max(0, load));
   return lean <= -0.5 ? -l : l;
+}
+
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
+/** THE SPIN as the body leads it: the wind-up's turn against it, rad at a
+ * full one, how far ahead the head and the shoulders turn per rad/s of the
+ * spin, and the most either turns. */
+export const SPIN = { wind: 0.55, head: 0.09, shoulders: 0.035, most: 0.8 };
+
+/** The shoulders' turn for a spin, rad, clockwise from above +: wound
+ * against it while the jump is loaded, led into it in the air or a butter. */
+export function spinTwist(input: BoardPoseInput): number {
+  const wound = -SPIN.wind * clamp(input.windup ?? 0, -1, 1) * clamp(input.load, 0, 1);
+  const led = clamp(SPIN.shoulders * (input.spin ?? 0), -SPIN.most, SPIN.most);
+  return wound + led * Math.max(input.air, Math.abs(input.press ?? 0));
 }

@@ -5,11 +5,10 @@
 // exposes `window.__world.shoot(name)`, which rides the run on to that
 // moment and draws it; the script photographs the canvas after each.
 //
-// ONE CONTINUOUS RUN, so the trails the views show are the trails that run
-// actually cut. Between two shots the run is fast-forwarded at the display's
-// own pace with `present` off (`renderer.ts`): every frame still stamps its
-// furrows and flies its spray, it only skips drawing the picture — which in a
-// software rasterizer is most of the cost.
+// ONE CONTINUOUS RUN, so the trails the views show are the trails it cut.
+// Between two shots the run is fast-forwarded with `present` off: every
+// frame stamps its furrows and flies its spray, only the picture (most of a
+// software rasterizer's cost) is skipped.
 
 import {
   botInput,
@@ -41,6 +40,7 @@ import { intoNet, netLens } from "./net-view.ts";
 import { crashShot } from "./crash-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
+import { challengeShots } from "./challenge-lab.ts";
 import { ROUTE_VIEWS, routeView } from "./route-view.ts";
 import { SIGN_VIEWS, namedSignView } from "./sign-view.ts";
 import { buildingShots } from "./building-shots.ts";
@@ -77,11 +77,10 @@ const face = params.get("face") ?? undefined;
 if (face && !(await loadRealFace(face))) throw new Error(`no real face ${face}`);
 /** The piste grade (R23); the seed's own unless named. */
 const grade = isPisteGrade(params.get("grade")) ? (params.get("grade") as PisteGrade) : undefined;
-/** The picture, a preset at a time (`settings-video.ts`); HIGH unless named. */
+/** The picture's preset (`settings-video.ts`); HIGH unless named. */
 const quality = params.get("quality") ?? "";
 const tier = (TIERS as readonly string[]).includes(quality) ? (quality as Tier) : "high";
-/** Picture rows over the preset (`?picture=distance:max`, `readPicture`):
- * the vista photographed past the DISTANCE row's mist wall at HIGH. */
+/** Picture rows over the preset (`?picture=distance:max`, `readPicture`). */
 const picture = readPicture(params.get("picture"));
 /** The SHADOWS row over the preset, when one is named. */
 const shade = params.get("shadows") as ShadowLevel;
@@ -614,6 +613,7 @@ function standoff(): string {
 
 const shots: Record<string, () => string> = {
   ...grimbearShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
+  ...challengeShots(state, renderer),
   ...enthusiastShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   ...buildingShots({ level, still, setOverride: (p) => renderer.setOverride(p), canvas, state }),
   spawn() {

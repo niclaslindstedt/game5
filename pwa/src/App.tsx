@@ -8,18 +8,16 @@
 // the run, the replay and the bench) and owns what each means; this file
 // decides when one gives way to the next. DEVELOPER's half is `dev-app.tsx`.
 //
-// ONE ENGINE STATE THROUGHOUT, and the surface decides who rides it:
-// `botInput` under a card, the input manager under a run. Leaving a race
-// for the front door hands the same skis back to the bot rather than
-// tearing anything down, which is why the menu comes up over the map the
-// player was just on. Until the first run the door stands over the TITLE
-// SCENE instead (`title-app.tsx`), and no map is built. Under a card the camera is the slow ORBIT round the
-// skis; over a run it is the rung the skier chose (`cameraFor`).
+// ONE ENGINE STATE THROUGHOUT, and the surface decides who rides it: `botInput` under a card, the
+// input manager under a run. Leaving a race for the front door hands the same skis back to the bot
+// rather than tearing anything down, which is why the menu comes up over the map the player was
+// just on. Until the first run the door stands over the TITLE SCENE instead (`title-app.tsx`), and
+// no map is built. Under a card the camera is the slow ORBIT round the skis; over a run it is the
+// rung the skier chose (`cameraFor`).
 //
-// THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player
-// rides is armed with a ticket — its seed, skis, mode and length — before
-// its first step; every input the engine is handed passes `snapInput` on
-// the way in, so what the book's tape writes down is what was ridden. The
+// THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player rides is armed with a ticket
+// — its seed, skis, mode and length — before its first step; every input the engine is handed
+// passes `snapInput` on the way in, so what the book's tape writes down is what was ridden. The
 // bot's race under a card is armed with nothing.
 //
 // THE PINNED MAPS (`pinned-run.ts`): a RACE rides a pinned map.
@@ -32,21 +30,19 @@
 // anything else opens on the attract card or the front door.
 //
 // THE LOOP: `requestAnimationFrame` hands the clock (the framework's `loop/run-clock`) the wall
-// time; the clock says how many fixed steps to take; each step samples the
-// input (§37.1, once per step) and calls `step`. The renderer draws the
-// state once per frame; the HUD is refreshed from a snapshot at ~12 Hz. A
-// hidden tab pauses the clock (§37.3) and the HUD says so.
+// time; the clock says how many fixed steps to take; each step samples the input (§37.1, once per
+// step) and calls `step`. The renderer draws the state once per frame; the HUD is refreshed from a
+// snapshot at ~12 Hz. A hidden tab pauses the clock (§37.3) and the HUD says so.
 //
 // THE RENDERER IS FETCHED, NOT BUNDLED (`use-render-kit.ts`): `game/renderer.ts` is the one
 // import that reaches three.js, so it arrives as its own chunk behind the attract card, and all
 // this file asks of it is `renderer-api.ts`'s — it draws a `GameState` and never writes one.
 //
-// THE SOUND AND THE MOTOR FOLLOW THE SAME RULE AS THE SNOW: fed every frame
-// the engine steps — the beds ducked under a card, where the bot's race is
-// scenery — and told to be quiet on every frame it does not, because a bed
-// that is merely not fed holds its last note. The race's events make a
-// noise and a pulse only with the player's feet on the skis: a gate
-// the bot takes under the menu is not news.
+// THE SOUND AND THE MOTOR FOLLOW THE SAME RULE AS THE SNOW: fed every frame the engine steps — the
+// beds ducked under a card, where the bot's race is scenery — and told to be quiet on every frame
+// it does not, because a bed that is merely not fed holds its last note. The race's events make a
+// noise and a pulse only with the player's feet on the skis: a gate the bot takes under the menu is
+// not news.
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
@@ -108,6 +104,7 @@ import { LoadingScreen } from "./game/loading-screen.tsx";
 import { labProbe } from "./game/lab-probe.ts";
 import { MainMenu } from "./game/menu-main.tsx";
 import { useStats } from "./game/use-stats.ts";
+import { createChallengeRig } from "./game/challenge-run.ts";
 import { MenuPages } from "./game/menu-pages.tsx";
 import { createMenuNav, walkCardsOnKeys } from "./game/menu-nav.ts";
 import { PauseMenu } from "./game/menu-pause.tsx";
@@ -387,6 +384,7 @@ export function App() {
     const live: { id: number; text: string; tone: HudFlash["tone"]; until: number }[] = [];
     let flashId = 0;
     const news = createNewsFeed();
+    const challenges = createChallengeRig();
     /** Every event the player's run has raised, by kind (`__SH_PROBE__`). */
     const tally: Record<string, number> = {};
     let hudClock = HUD_TICK;
@@ -422,6 +420,7 @@ export function App() {
       manager.freshHand();
       book.arm(next, ticket);
       stats.rig.arm(next, mode);
+      challenges.arm(next, mode, rides && !params.bot);
       replays.arm(next, rides ? mode : null);
       setMapSeed(next.seed);
       for (const k of Object.keys(tally)) delete tally[k];
@@ -455,12 +454,13 @@ export function App() {
       const rides = playerRides(shellRef.current);
       if (soundsLive(shellRef.current)) audio.events(state.events, state);
       if (rides && !params.bot) stats.rig.step(state);
+      const won = rides && !params.bot ? challenges.step(state) : [];
       if (rides) {
         runRumble.events(state.events);
         runRumble.step(state.skier);
       }
       if (rides || watching(shellRef.current)) {
-        for (const line of news.step(state))
+        for (const line of [...news.step(state), ...won])
           live.push({ id: flashId++, ...line, until: wall + FLASH_LIFE });
       }
     };

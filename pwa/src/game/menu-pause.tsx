@@ -18,6 +18,9 @@
 //                 ride up there. Over a race, beside OPTIONS, half its
 //                 row: the level card of the race's own discipline, a
 //                 piste drawn on every map — which leaves it.
+//   CHALLENGES    on a free ride, beside OPTIONS, half its row: the
+//                 medals this mountain deals and what is held of them
+//                 (`menu-pause-challenges.tsx`).
 //   WATCH REPLAY  the race so far, from the outside (`replay-run.ts`) —
 //                 which ENDS it, and the press says so.
 //   MAIN MENU     out of the race and back to the front door. Nothing is
@@ -71,6 +74,7 @@ import {
   type Stop,
 } from "./menu-knobs.tsx";
 import { SoundRows } from "./menu-options.tsx";
+import { PauseChallenges } from "./menu-pause-challenges.tsx";
 import { PauseSlopes } from "./menu-pause-slopes.tsx";
 import { pauseStats } from "./pause-stats.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -162,7 +166,7 @@ export function PauseMenu({
 }) {
   // Which of the card's faces is up. Local, and dropped the moment the
   // card is: coming back to a held race costs the same one press every time.
-  const [panel, setPanel] = useState<"card" | "options" | "slopes">("card");
+  const [panel, setPanel] = useState<"card" | "options" | "slopes" | "challenges">("card");
   const back = (): void => setPanel("card");
   const stats = pauseStats(snap);
   return (
@@ -183,6 +187,15 @@ export function PauseMenu({
       ) : panel === "slopes" && onSlopes ? (
         <PauseSlopes
           snap={snap}
+          settings={settings}
+          onSettings={onSettings}
+          onRide={onSlopes}
+          onBack={back}
+        />
+      ) : panel === "challenges" && snap.challenges ? (
+        <PauseChallenges
+          snap={snap}
+          rows={snap.challenges}
           settings={settings}
           onSettings={onSettings}
           onRide={onSlopes}
@@ -257,11 +270,24 @@ export function PauseMenu({
                 press that ends the race — with a race's level card beside it
                 where there is one: half a row each, so the card is no taller
                 for it. */}
-            <div class={!onSlopes && onMaps ? "pause-pair" : "pause-single"}>
+            <div class={(!onSlopes && onMaps) || snap.challenges ? "pause-pair" : "pause-single"}>
               <button type="button" class="menu-item" onClick={() => setPanel("options")}>
                 <Glyph name="sliders" />
                 <span class="menu-item-name">{STRINGS.pauseOptions}</span>
               </button>
+              {/* A FREE RIDE'S CHALLENGES beside OPTIONS: the medals this
+                  mountain deals, and what is held of them. */}
+              {snap.challenges && (
+                <button
+                  type="button"
+                  class="menu-item"
+                  data-menu="challenges"
+                  onClick={() => setPanel("challenges")}
+                >
+                  <Glyph name="medal" />
+                  <span class="menu-item-name">{STRINGS.pauseChallenges}</span>
+                </button>
+              )}
               {!onSlopes && onMaps && (
                 <button type="button" class="menu-item pause-slopes-press" onClick={onMaps}>
                   <Glyph name="piste" />

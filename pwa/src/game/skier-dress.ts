@@ -15,11 +15,12 @@ import * as THREE from "three";
 
 import { dressOutfit } from "./dress.ts";
 import { bindPose, type DressPart } from "./dress-loft.ts";
-import type { Outfit } from "./outfit.ts";
+import { dealtOutfit, type Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
 import { suitDress } from "./wingsuit-dress.ts";
+import type { RiderId } from "@engine";
 
 export type Dressed = {
   /** What the figure's group carries: the bones and the two meshes. */
@@ -51,6 +52,18 @@ export type SkierDress = {
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
 };
+
+/** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
+ * kept in `kits` under them, so a rider is dressed once a run. */
+export function dealtKit(kits: Map<string, SkierDress>, look: number, rider: RiderId): SkierDress {
+  const key = `${look}:${rider}`;
+  const kit = kits.get(key);
+  if (kit) return kit;
+  const { tone, ...dressed } = dealtOutfit(look, rider);
+  const made: SkierDress = { outfit: dressed, tone };
+  kits.set(key, made);
+  return made;
+}
 
 /** A ghost's colours: the kit's own light, lifted toward a pale ice blue. */
 const PALE = new THREE.Color(0xdcecff).convertSRGBToLinear();

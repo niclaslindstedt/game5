@@ -2,6 +2,7 @@
 // A FLIGHT AS IT ENDED (`tricks.ts`), stated beside `state.ts` — which
 // re-exports it — so the state's file stays under its cap.
 
+import type { SpinTag } from "./board-state.ts";
 import type { TrickPose } from "./state.ts";
 
 /** ONE FLIGHT AS IT ENDED: its number in the run, the turns it made on
@@ -31,6 +32,10 @@ export type FlightRecord = {
   /** Off a PIPE'S wall (R39, `pipe-air.ts`'s `pipeHit`): which wall, how
    * high over its coping and where on the snow it came down. */
   pipe?: PipeHit;
+  /** ON A SNOWBOARD (`board-tricks.ts`'s `spinTag`): the spin's side —
+   * FRONTSIDE or BACKSIDE for his stance and whether he left switch — and
+   * a NOLLIE pop. Never on skis, whose spins are read left or right. */
+  board?: SpinTag;
 };
 
 /** ONE HIT OF A PIPE: the wall it left (+1 the right of the pipe's line,

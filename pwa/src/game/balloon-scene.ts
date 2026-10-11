@@ -301,8 +301,9 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
     // THE PAIR racked while he is aboard — none in a wingsuit, which wears no skis.
     if (b.aboard && !state.wingsuit) {
       const top = TOPSHEETS[drawnAs(state.skier.spec)];
-      basket.rack(true, state.skier.spec.length, top.body, top.trim);
-    } else basket.rack(false);
+      const k = state.skier;
+      basket.rack({ spec: k.spec, poles: k.poles, body: top.body, trim: top.trim });
+    } else basket.rack(null);
   }
 
   /** The mesh's frame in the group's, as drawn. */

@@ -35,7 +35,6 @@ import {
   windAt,
   windFromOf,
   withSky,
-  type FreeRider,
   type GameState,
   type Level,
   type Rival,
@@ -46,6 +45,7 @@ import {
 } from "@engine";
 
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
+import { boardRideSink } from "./board-input.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { figureShown } from "./camera-para.ts";
@@ -84,11 +84,11 @@ import { createAfterskiView } from "./afterski-view.ts";
 import { runsOf, SLICE_OF_GROUP, type Rider } from "./renderer-rider.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
-import type { SkierDress } from "./skier-dress.ts";
+import { dealtKit, type SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
 import { suitOf } from "./wingsuit-look.ts";
-import { DEFAULT_OUTFIT, dealtOutfit, type Outfit } from "./outfit.ts";
+import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { skyLookAt } from "./sky.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { LOOSE } from "./snow-glsl.ts";
@@ -408,21 +408,13 @@ export function createWorldRenderer(
   /** The run's rivals, read for an enthusiast's own kit. */
   let field: readonly Rival[] = [];
   const dealtKits = new Map<string, SkierDress>();
-  /** An enthusiast's kit, dealt off his look (`dealtOutfit`), kept. */
-  const kitOfFree = (free: FreeRider): SkierDress => {
-    const key = `${free.look}:${free.rider}`;
-    const kit = dealtKits.get(key);
-    if (kit) return kit;
-    const { tone, ...dressed } = dealtOutfit(free.look, free.rider);
-    const made: SkierDress = { outfit: dressed, tone };
-    dealtKits.set(key, made);
-    return made;
-  };
   let suited = false; // A wingsuit's run: the player in his suit.
   const dressOf = (i: number): SkierDress => {
     if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit };
     const free = field[i - 1]?.free;
-    return free ? kitOfFree(free) : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
+    return free
+      ? dealtKit(dealtKits, free.look, free.rider)
+      : SLOT_DRESS[1 + ((i - 1) % (SLOT_DRESS.length - 1))];
   };
   const kitOf = (i: number): string => {
     const d = dressOf(i);
@@ -452,11 +444,12 @@ export function createWorldRenderer(
     };
   }
 
-  /** How much deeper the drawn furrow is than the physics' sink under the
-   * boots — the skier is drawn that much lower, so he stands IN the
-   * trough his skis are cutting rather than hovering over it. */
-  function extraSink(skier: SkierState, depth: number): number {
+  /** How much deeper the drawn furrow is than the physics' sink under the boots, so he stands
+   * IN it — none with the trails off (`cut`); a board floats on it. */
+  function extraSink(skier: SkierState, depth: number, cut: boolean): number {
     if (!level) return 0;
+    if (skier.spec.board) return boardRideSink(skier, level, depth, cut, sampleSnow);
+    if (!cut) return 0;
     let sum = 0;
     let n = 0;
     for (const c of skier.contacts) {
@@ -639,8 +632,9 @@ export function createWorldRenderer(
         const skier = run.skier;
         observe(r.track, skier, run.tick);
         sample(r.track, alpha, r.drawn);
-        // With the trails off there is no furrow to sit in.
-        const want = TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0;
+        const want =
+          extraSink(skier, run.snowDepth, TRAIL_LOOK[video.trails].stamp) -
+          (skier.thrown ? 0 : (machines?.slideLift(skier.x, skier.z) ?? 0));
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
         r.model.setRun(run);

@@ -38,7 +38,7 @@ import { useBusyPress } from "./busy-press.ts";
 import { MenuBody, MenuHead, StepRow } from "./menu-knobs.tsx";
 import { carriesPoles, POLES, type Outfit } from "./outfit.ts";
 import { SkisPicker } from "./ski-picker.tsx";
-import { skisBars, skisFacts, type SkisFact } from "./ski-stats.ts";
+import { factNumber, skisBars, skisFacts, type SkisFact } from "./ski-stats.ts";
 import { STRINGS } from "./strings.ts";
 
 /** The POLES row's stops: the catalog's poles, NONE among them. */
@@ -69,8 +69,10 @@ function Figure({ fact }: { fact: SkisFact }) {
     <div class="skis-figure">
       <span class="skis-figure-label">{fact.label}</span>
       <span class="skis-figure-value">
-        {shown.current.toFixed(fact.places)}
-        <span class="skis-figure-unit">{fact.unit}</span>
+        {factNumber(fact, shown.current)}
+        <span class={fact.tight ? "skis-figure-unit skis-figure-unit-tight" : "skis-figure-unit"}>
+          {fact.unit}
+        </span>
       </span>
     </div>
   );

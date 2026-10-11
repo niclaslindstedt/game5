@@ -126,6 +126,11 @@ const args = parseArgs(
       default: "",
       help: "ski every move with his arms broken (`skier-broken.ts`): LEFT,RIGHT each upper, fore, wrist or none — one word for both (upper,none: the left upper arm)",
     },
+    wire: {
+      kind: "flag",
+      default: false,
+      help: "lay the figure's wireframe over every cell, so its shape reads through the paint",
+    },
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 240, help: "seconds a sheet may take" },
   },
@@ -186,7 +191,7 @@ const injuries = brokenWords.flatMap((w, i) =>
       ]
     : [],
 );
-const tag = args.broken ? `-broken-${brokenWords.join("-")}` : "";
+const tag = (args.broken ? `-broken-${brokenWords.join("-")}` : "") + (args.wire ? "-wire" : "");
 
 // ── Ski every move through the real engine ────────────────────────────────
 const S = await import(join(root, "tests/support/synthetic.ts"));
@@ -349,6 +354,7 @@ for (const job of jobs) {
     move: job.move ?? job.id,
     views: args.views,
     cell: String(args.cell),
+    ...(args.wire ? { wire: "1" } : {}),
   }).toString();
   const t0 = Date.now();
   await page.goto(`${server.url}skier-preview.html?${query}`);

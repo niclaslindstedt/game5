@@ -18,6 +18,12 @@ export const BOARD_GRAB_WORDS: Readonly<Record<BoardGrab, string>> = {
   tail: "TAIL GRAB",
 };
 
+/** A spin's side (`spinSide`), as a combo line and a judge read it. */
+export const BOARD_SIDE_WORDS: Readonly<Record<"frontside" | "backside", string>> = {
+  frontside: "FRONTSIDE",
+  backside: "BACKSIDE",
+};
+
 /** A spin of `degrees` as a board rider's: its words in front of the
  * figure — SWITCH, or NOLLIE off the nose, then the side. On skis (no
  * side in the tag) the figure alone. */
@@ -25,7 +31,7 @@ export function boardSpinWord(degrees: number, tag: SpinTag): string {
   const words: string[] = [];
   if (tag.switched) words.push("SWITCH");
   else if (tag.nollie) words.push("NOLLIE");
-  if (tag.side) words.push(tag.side === "frontside" ? "FRONTSIDE" : "BACKSIDE");
+  if (tag.side) words.push(BOARD_SIDE_WORDS[tag.side]);
   words.push(String(degrees));
   return words.join(" ");
 }

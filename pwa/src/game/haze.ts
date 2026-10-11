@@ -111,6 +111,19 @@ export type HazeUniforms = {
   uPisteBox: { value: THREE.Vector4 };
   uPisteOn: { value: THREE.Vector4 };
   uPisteCol: { value: THREE.Vector3 };
+  /** THE AVALANCHE IN THE SNOW (`avalanche-glsl.ts`, written by
+   * `avalanche-view.ts`): the slab's frame and size, its crown's and
+   * flanks' phases, the debris map and its box in the slab's frame, and
+   * whether a slab (`x`) and debris (`y`) are drawn — nought with none. */
+  uSlab0: { value: THREE.Vector4 };
+  uSlab1: { value: THREE.Vector4 };
+  uSlabJog: { value: THREE.Vector4 };
+  uSlideBox: { value: THREE.Vector4 };
+  uSlideOn: { value: THREE.Vector4 };
+  /** Where the slab's crack started (u, v), how fast it ran, m/s, and the
+   * seconds since the release. */
+  uSlabCrack: { value: THREE.Vector4 };
+  uSlide: { value: THREE.Texture | null };
 };
 
 /** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`) and the
@@ -164,6 +177,13 @@ export function createHazeUniforms(): HazeUniforms {
     uPisteBox: { value: new THREE.Vector4(0, 0, 1, 1) },
     uPisteOn: { value: new THREE.Vector4(0, 0, 0, 0) },
     uPisteCol: { value: new THREE.Vector3(1, 1, 1) },
+    uSlab0: { value: new THREE.Vector4(0, 0, 0, 1) },
+    uSlab1: { value: new THREE.Vector4(0, 0, 1, 0) },
+    uSlabJog: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uSlideBox: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uSlideOn: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uSlabCrack: { value: new THREE.Vector4(0, 0, 1, 1e3) },
+    uSlide: { value: null },
   };
 }
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
 
 build:
 	npm run build
@@ -246,6 +246,16 @@ board:
 # "--compare=a.json" a before and after.
 board-metrics:
 	npm run board-metrics -- $(ARGS)
+
+# THE BOARD MOTION LAB: the snowboarder's pose as MOTION — each board move
+# ridden by the engine in pure Node and the pose plotted over its whole time
+# (the knees, the hips and the shoulders against the board, the head's yaw
+# off his travel, the shins against the snow) against the metrics' bands:
+# previews/board-motion.png and a table of each move's frames out of band.
+# ARGS="--move=skate,toe"; "--json=a.json" / "--compare=a.json" a before and
+# after; "--film" the moves' filmstrips too (chase and side, the skier lab).
+board-motion:
+	npm run board-motion -- $(ARGS)
 
 # THE SAG LAB: the body PULLED DOWN onto his legs — landings, a pitch run
 # out onto the flat, a stop down a pitch, rollers, a tuck, and generated

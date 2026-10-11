@@ -47,6 +47,8 @@ import {
   BOARD_SEAT_Y,
   boardLiftPose,
   chairBoardPose,
+  mixDeck,
+  mixPose,
   underArmFrame,
   underArmHand,
 } from "./board-lift.ts";
@@ -65,6 +67,11 @@ import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead } from "./skier-flight.ts";
 import type { SkisModel, SkiStyle, SledStand, SnowGround } from "./skis-body.ts";
 import type { V3 } from "./skier-vec.ts";
+
+/** How long the figure takes to step from the riding pose into the town's,
+ * or back, s — about a beat of the town's own steps. */
+const AFOOT_EASE = 0.4;
+const smooth = (k: number): number => k * k * (3 - 2 * k);
 
 /** A rider stood at rest, his hands empty, his feet `out` m wider each
  * side — what the snowmobile's boards and the basket stand him from. */
@@ -186,6 +193,22 @@ export function createBoardModel(
   let basket = false;
   let perch: Perch | null = null;
   let run: GameState | null = null;
+  // ON FOOT AND BACK: how far he is drawn into the town's pose (0 riding ..
+  // 1 on foot), eased over `AFOOT_EASE` s each way, and the last pose of the
+  // side he left — the riding one held while he steps into the town's, the
+  // town's (with the frame it stood in) while he rides off — so neither the
+  // stop nor the click-in snaps the figure round.
+  let onFoot = 0;
+  let lastRide: { pose: BoardPose["pose"]; deck: BoardFrame } | null = null;
+  let lastTown: {
+    pose: BoardPose["pose"];
+    deck: BoardFrame;
+    at: THREE.Vector3;
+    q: THREE.Quaternion;
+  } | null = null;
+  const townAt = new THREE.Vector3();
+  const townQ = new THREE.Quaternion();
+  const still0 = new THREE.Quaternion();
   // The racked board, from the engine's pair in the cabin's rack, in the
   // root's frame.
   const rackFrame: BoardFrame = {
@@ -358,15 +381,24 @@ export function createBoardModel(
           underArmHand(board.lead),
           (over > 0 ? over + 0.04 : 0) - lifted,
         );
-        figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
+        townAt.set(frame.origin.x, frame.origin.y, frame.origin.z);
         trunk.makeBasis(
           axis.x.set(frame.x.x, frame.x.y, frame.x.z),
           axis.y.set(frame.y.x, frame.y.y, frame.y.z),
           axis.z.set(frame.z.x, frame.z.y, frame.z.z),
         );
-        figure.group.quaternion.setFromRotationMatrix(trunk);
-        figure.sprawl(p, 0, 0);
-        layBoard(d, p.feet, p.boots, null, true);
+        townQ.setFromRotationMatrix(trunk);
+        // Stepped into from the riding pose over a moment: the frame and
+        // the pose each carried from where he rode to where he stands.
+        onFoot = dt > 0 && lastRide ? Math.min(1, onFoot + dt / AFOOT_EASE) : 1;
+        const k = smooth(onFoot);
+        const pose = k < 1 && lastRide ? mixPose(lastRide.pose, p, k) : p;
+        const deckNow = k < 1 && lastRide ? mixDeck(lastRide.deck, d, k) : d;
+        figure.group.position.copy(townAt).multiplyScalar(k);
+        figure.group.quaternion.slerpQuaternions(still0, townQ, k);
+        figure.sprawl(pose, 0, 0);
+        layBoard(deckNow, pose.feet, pose.boots, null, true);
+        lastTown = { pose: p, deck: d, at: townAt.clone(), q: townQ.clone() };
         bound.radius = BOUND + 1;
       } else {
         figure.group.quaternion.identity();
@@ -395,6 +427,16 @@ export function createBoardModel(
         // A hop lifts all of him, the board with him, off the snow.
         v.set(-Math.sin(r), Math.cos(r), 0).multiplyScalar(bp.rise);
         figure.group.position.copy(v);
+        lastRide = { pose: bp.pose, deck: bp.board };
+        // Ridden off from the town's pose over a moment.
+        onFoot = dt > 0 && lastTown ? Math.max(0, onFoot - dt / AFOOT_EASE) : 0;
+        const k = smooth(onFoot);
+        if (k > 0 && lastTown) {
+          bp = { ...bp, pose: mixPose(bp.pose, lastTown.pose, k) };
+          if (!racked) bp.board = mixDeck(bp.board, lastTown.deck, k);
+          figure.group.position.lerp(lastTown.at, k);
+          figure.group.quaternion.slerpQuaternions(still0, lastTown.q, k);
+        }
         figure.sprawl(bp.pose, 0, 0);
         const deckAt = racked ? rackedDeck(racked) : bp.board;
         layBoard(deckAt, bp.pose.feet, bp.pose.boots, bp.free, boarded || inBasket || cabin);

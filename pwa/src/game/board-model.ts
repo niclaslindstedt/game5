@@ -44,7 +44,7 @@ import {
   type BoardPose,
 } from "./board-pose.ts";
 import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
-import { createTuck } from "./skier-somersault.ts";
+import { createTuck, uprightSkier } from "./skier-somersault.ts";
 import {
   BOARD_SEAT_Y,
   boardLiftPose,
@@ -314,7 +314,8 @@ export function createBoardModel(
       out.radius = bound.radius;
       return out;
     },
-    pose(skier, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+    pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+      const skier = uprightSkier(engine); // never laid out beside his board over a loop's top
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // ON FOOT with the board — through a gondola's station, or in town.

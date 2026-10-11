@@ -42,7 +42,7 @@ import {
   type BoardPoseInput,
 } from "../pwa/src/game/board-pose.ts";
 import { boardAllowed, mergeSettings, specFor, freshSettings } from "../pwa/src/game/settings.ts";
-import { rackOf, skisBars, skisFacts } from "../pwa/src/game/ski-stats.ts";
+import { factNumber, rackOf, skisBars, skisFacts } from "../pwa/src/game/ski-stats.ts";
 import { skiShares, stationOf } from "../pwa/src/game/ski-stand.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
 
@@ -173,6 +173,32 @@ describe("the board on the card", () => {
       "weight",
       "top",
     ]);
+  });
+
+  it("reads every board's binding angles as a rider writes them", () => {
+    for (const spec of BOARD_CATALOG) {
+      for (const key of ["front", "back"]) {
+        const fact = skisFacts(spec).find((f) => f.key === key)!;
+        const text = `${factNumber(fact, fact.value)}${fact.unit}`;
+        // Signed, a true minus, the degree sign on the figure.
+        expect(text).toMatch(/^(?:[+\u2212][1-9]\d*|0)°$/);
+        expect(text).not.toContain("-");
+        expect(fact.tight).toBe(true);
+        const deg = Math.round(fact.value);
+        if (deg > 0) expect(text.startsWith("+")).toBe(true);
+        if (deg < 0) expect(text.startsWith("\u2212")).toBe(true);
+      }
+    }
+    // The duck stance of the all-mountain twin, and its back foot's minus.
+    const read = (key: string): string => {
+      const f = skisFacts(LYNX).find((x) => x.key === key)!;
+      return `${factNumber(f, f.value)}${f.unit}`;
+    };
+    expect(read("front")).toBe("+15°");
+    expect(read("back")).toBe("\u221215°");
+    // A count passing through zero never reads "-0".
+    const back = skisFacts(LYNX).find((x) => x.key === "back")!;
+    expect(factNumber(back, -0.3)).toBe("0");
   });
 
   it("is kept as the pick and read off a link", () => {

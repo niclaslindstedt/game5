@@ -19,7 +19,9 @@ import { createFarSwap } from "./far-swap.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
+import type { RackLoad } from "./board-rack.ts";
 import { SLED_LOOK } from "./sled-look.ts";
+import { createSledRack, type SledRack } from "./sled-rack.ts";
 import { createSledCockpit } from "./sled-cockpit.ts";
 import type { Outfit } from "./outfit.ts";
 import { SLED_NODES, sledModelUrl } from "./skier-models.ts";
@@ -52,8 +54,9 @@ export type SledView = {
   ): void;
   /** Dress the rider's hands and sleeves in the cockpit in his kit. */
   dressRider(outfit: Outfit): void;
-  /** Dress the racked pair in the rider's colours: the topsheet and its trim. */
-  dressRack(body: number, trim: number): void;
+  /** Load the rack with what he rides (`sled-rack.ts`): his pair in its
+   * topsheet's colours and his poles if he carries them, or his board. */
+  stowRack(load: RackLoad): void;
   /** The machine as drawn this frame. */
   drawn(): { x: number; y: number; z: number; q: THREE.Quaternion } | null;
   /** Resolved once the model is in the group (or the stand-in, should it
@@ -195,15 +198,12 @@ export function createSledView(haze: HazeUniforms): SledView {
   let lugs: THREE.Mesh | null = null;
   let run = RUN_FALLBACK;
   const allMats: THREE.Material[] = [];
-  const rackMats: { ski: THREE.MeshStandardMaterial[]; trim: THREE.MeshStandardMaterial[] } = {
-    ski: [],
-    trim: [],
-  };
   const lampMats: THREE.MeshStandardMaterial[] = [];
   // The model's own small gauge on the hood, put away while the cockpit's
   // display stands in for it.
   const gauges: THREE.Object3D[] = [];
-  let dressed: { body: number; trim: number } | null = null;
+  let loaded: RackLoad | null = null;
+  let rack: SledRack | null = null;
   let disposed = false;
 
   // THE HEADLAMP's glow over the lens, and the halo that calls him.
@@ -262,8 +262,6 @@ export function createSledView(haze: HazeUniforms): SledView {
         for (const m of list) {
           if (m instanceof THREE.MeshStandardMaterial) {
             hazeMaterial(m, haze, "sled");
-            if (m.name === "rack_ski") rackMats.ski.push(m);
-            if (m.name === "rack_trim") rackMats.trim.push(m);
             if (/lamp/i.test(m.name) && m.name !== "taillight") lampMats.push(m);
             if (m.name === "gauge") gauges.push(o);
           }
@@ -273,8 +271,11 @@ export function createSledView(haze: HazeUniforms): SledView {
     });
     for (const key of Object.keys(SLED_NODES) as (keyof typeof SLED_NODES)[]) {
       const node = nodes[key];
-      if (node) mergeCasters(node, allMats);
+      // The rack keeps its primitives' own shadows: what it carries is
+      // shown and hidden a primitive at a time (`sled-rack.ts`).
+      if (node && key !== "rack") mergeCasters(node, allMats);
     }
+    if (nodes.rack && !rack) rack = createSledRack(nodes.rack, (m, n) => hazeMaterial(m, haze, n));
     if (standing) frame.add(root);
     else {
       // THE FAR CUT: the stand-in, for a parked machine far off.
@@ -287,11 +288,7 @@ export function createSledView(haze: HazeUniforms): SledView {
       });
       swap.hold(root, far);
     }
-    if (dressed) paintRack(dressed.body, dressed.trim);
-  };
-  const paintRack = (body: number, trim: number): void => {
-    for (const m of rackMats.ski) m.color.setHex(body);
-    for (const m of rackMats.trim) m.color.setHex(trim);
+    if (loaded) rack?.stow(loaded);
   };
 
   const url = sledModelUrl();
@@ -387,9 +384,9 @@ export function createSledView(haze: HazeUniforms): SledView {
       call.visible = waiting;
       (call.material as THREE.SpriteMaterial).opacity = 0.35 + 0.35 * Math.sin(clock * 4);
     },
-    dressRack(body, trim) {
-      dressed = { body, trim };
-      paintRack(body, trim);
+    stowRack(load) {
+      loaded = load;
+      rack?.stow(load);
     },
     dressRider(outfit) {
       cockpit.dress(outfit);
@@ -400,6 +397,7 @@ export function createSledView(haze: HazeUniforms): SledView {
     dispose() {
       disposed = true;
       cockpit.dispose();
+      rack?.dispose();
       group.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
         if (o instanceof THREE.Sprite) o.material.dispose();

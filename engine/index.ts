@@ -704,10 +704,9 @@ export {
 } from "./game/snow-guns.ts";
 export { SNOW_GUN } from "./game/defs/snow-guns.ts";
 export { cabinsOf, type Cabin } from "./game/cabins.ts";
-// A building's walls, its doorway and its door (`building-walls.ts`).
+// A building's walls, its doorway and its door, the door opened (`doorway.ts`).
 export * from "./game/building-walls.ts";
 export * from "./game/defs/building-walls.ts";
-// A door opened: the leaves, the skier's move through it (`doorway.ts`).
 export * from "./game/doorway.ts";
 export { DOOR } from "./game/defs/doors.ts";
 export {
@@ -717,7 +716,8 @@ export {
   type CabinKind,
   type LogKind,
 } from "./game/defs/cabins.ts";
-// THE VILLAGE'S BUILDINGS, STREETS AND TRAFFIC; THE JUMP PLANE AND ITS STRIP.
+// THE VILLAGE AND ITS TRAFFIC; THE JUMP PLANE AND ITS STRIP; THE CHALLENGES.
+export * from "./game/challenges/index.ts";
 export * from "./game/village-api.ts";
 export * from "./game/traffic-api.ts";
 export * from "./game/plane-api.ts";
@@ -877,6 +877,7 @@ export {
   seatedShare,
   skipShare,
   stepLift,
+  teeSide,
 } from "./game/lift-ride.ts";
 export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {

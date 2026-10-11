@@ -75,6 +75,12 @@ import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
 import { aerialsOf, type AerialsHud } from "./aerials-run.ts";
 import { comboTile, type TrickTile } from "./trick-tile.ts";
+import {
+  challengeRows,
+  challengeTile,
+  type ChallengeRow,
+  type ChallengeTile,
+} from "./challenge-hud.ts";
 
 /** The brake's share past which the edge bar says the skid is on. */
 const BRAKE_SHOWN = 0.05;
@@ -269,6 +275,11 @@ export type HudSnapshot = {
   /** THE MINIMAP: the plate's pose and every mark on it
    * (`minimap-view.ts`). */
   minimap: HudMinimap;
+  /** A FREE RIDE'S CHALLENGES (`challenge-hud.ts`): the chip while a timed
+   * line runs and the plate after a finish, or null; and every challenge
+   * of the map as the pause card lists it, or null off a judged ride. */
+  challenge: ChallengeTile | null;
+  challenges: ChallengeRow[] | null;
   /** BOGGED: the skier is sunk to the knees in powder (`trench.ts`) and
    * must pole out — the standing hint, up while he is. */
   stuck: boolean;
@@ -757,6 +768,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     moguls: mogulsOf(state),
     aerials: aerialsOf(state),
     minimap: buildMinimap(state),
+    challenge: challengeTile(state),
+    challenges: challengeRows(state),
     stuck: trenched(c.trench) && c.thrown === null,
     down: c.thrown !== null,
     // A mortal wound is never got up from (`gore.ts`'s `holdsHim`).

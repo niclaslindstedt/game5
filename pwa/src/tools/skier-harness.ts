@@ -39,6 +39,7 @@ import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
 import { drawPath } from "./skier-path.ts";
+import { uprightSkier } from "../game/skier-somersault.ts";
 
 type Frame = {
   t: number;
@@ -79,6 +80,8 @@ const sheet = params.get("sheet") ?? "moves";
 const moveId = params.get("move") ?? "";
 const cell = Number(params.get("cell") ?? 260);
 const views = (params.get("views") ?? "back,back3,side,front3,front").split(",") as View[];
+/** `--wire`: the figure's wireframe laid over each cell, the snow left out. */
+const wire = params.has("wire");
 
 /** Where each view's lens stands in the skier's heading frame — x to his
  * right, y up, z ahead — m from his centre, and its field. */
@@ -180,7 +183,7 @@ function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number 
     : new THREE.Vector3(drawn.x, drawn.y - 0.1, drawn.z);
   sun.position.set(centre.x + 4, centre.y + 8, centre.z - 3);
   sun.target.position.copy(centre);
-  return { centre, heading: off ? off.heading : c.heading };
+  return { centre, heading: off ? off.heading : uprightSkier(c).heading };
 }
 
 /** Aim the lens from a view (or a bearing round him) at a centre. */
@@ -279,7 +282,27 @@ function drawCell(
   renderer.setScissor(x, y, w, h);
   renderer.setClearColor(row % 2 === col % 2 ? 0x51606f : 0x5b6a79);
   renderer.render(what, cam);
+  if (wire && what === scene) {
+    // The figure's own triangles over the paint: the snow hidden, every
+    // mesh drawn in one dark wire, the colour buffer kept.
+    const auto = renderer.autoClear;
+    renderer.autoClear = false;
+    snow.visible = false;
+    scene.overrideMaterial = WIRE;
+    renderer.render(scene, cam);
+    scene.overrideMaterial = null;
+    snow.visible = true;
+    renderer.autoClear = auto;
+  }
 }
+
+const WIRE = new THREE.MeshBasicMaterial({
+  color: 0x0b1116,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.45,
+  depthFunc: THREE.LessEqualDepth,
+});
 
 /** Pose him through a moment's states, his legs' spring stepped through
  * every one; where to aim. */

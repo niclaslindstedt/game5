@@ -27,6 +27,7 @@
 
 import { angleDiff, skiRoutesOf, type GameState, type Level, type TrackPoint } from "@engine";
 
+import { challengeMarks, type ChallengeMarks } from "./challenge-hud.ts";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { tunnelPaint, tunnelPointAt, tunnelsOf } from "./wind-tunnel-plan.ts";
 import { helipadOf } from "@engine";
@@ -182,6 +183,10 @@ export type HudMinimap = {
   /** THE SNOWMOBILE (`sled.ts`) on a free ride, where it was left — null
    * while he rides it (he is the dot) and on a run with none. */
   sled: { x: number; z: number } | null;
+  /** A FREE RIDE'S CHALLENGES (`challenge-hud.ts`): the lines' flag gates,
+   * the trick kickers, the summits still to stand on and the hidden spots
+   * found — null off a judged ride. */
+  challenges: ChallengeMarks | null;
 };
 
 /** THE ROTOR ON THE PLATE: one turn of the drawn rotor at full rpm, ms.
@@ -413,5 +418,6 @@ export function buildMinimap(state: GameState): HudMinimap {
       : null,
     flying: ridden ? { spool: ridden.spool } : null,
     sled: state.sled && !state.sled.rider ? { x: state.sled.x, z: state.sled.z } : null,
+    challenges: challengeMarks(state),
   };
 }

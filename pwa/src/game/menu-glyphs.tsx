@@ -33,6 +33,7 @@ export const GLYPH_NAMES = [
   "replay",
   "chart",
   "piste",
+  "medal",
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -178,6 +179,14 @@ const GLYPHS: Record<GlyphName, JSX.Element> = {
       <path d="M3.5 5.5 9 3.5l6 2 5.5-2v15L15 20.5l-6-2-5.5 2Z" />
       <path d="M9 3.5v15M15 5.5v15" opacity="0.45" />
       <path d="M12 6.2c-3.4 1.6 3.4 3.8 0 5.6s3.4 3.9 0 5.8" stroke-dasharray="1.6 1.4" />
+    </>
+  ),
+  // A DISC ON A V OF RIBBON: the challenges — the medals a mountain deals.
+  medal: (
+    <>
+      <path d="M7.5 3 11 9.6M16.5 3 13 9.6" />
+      <circle cx="12" cy="15" r="5.6" />
+      <circle cx="12" cy="15" r="2.2" fill="currentColor" stroke="none" />
     </>
   ),
 };

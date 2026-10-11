@@ -27,6 +27,7 @@
 // −1 the heel edge, 0 an end.
 
 import type { BoardGrab, TrickPose } from "@engine";
+import type { BoardPoseInput } from "./board-pose.ts";
 
 /** One grab as drawn. */
 export type GrabLook = {
@@ -230,4 +231,19 @@ export const POP = { most: 0.1, hips: 0.08 };
 export function popLoad(load: number, lean: number): number {
   const l = Math.min(1, Math.max(0, load));
   return lean <= -0.5 ? -l : l;
+}
+
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
+/** THE SPIN as the body leads it: the wind-up's turn against it, rad at a
+ * full one, how far ahead the head and the shoulders turn per rad/s of the
+ * spin, and the most either turns. */
+export const SPIN = { wind: 0.55, head: 0.09, shoulders: 0.035, most: 0.8 };
+
+/** The shoulders' turn for a spin, rad, clockwise from above +: wound
+ * against it while the jump is loaded, led into it in the air or a butter. */
+export function spinTwist(input: BoardPoseInput): number {
+  const wound = -SPIN.wind * clamp(input.windup ?? 0, -1, 1) * clamp(input.load, 0, 1);
+  const led = clamp(SPIN.shoulders * (input.spin ?? 0), -SPIN.most, SPIN.most);
+  return wound + led * Math.max(input.air, Math.abs(input.press ?? 0));
 }

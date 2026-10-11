@@ -160,6 +160,17 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
     case "checkpoint":
       return RUMBLE.checkpoint;
 
+    // THE AVALANCHE: the whumpf of the snowpack dropping under him as the
+    // slab breaks — a long low heave — the flow taking him, the longest
+    // blow there is, and the jolt of being put down in the debris.
+    case "avalanche":
+      if (event.phase === "release") return { ms: 220, strength: 0.55 };
+      if (event.phase === "caught") return { ms: RUMBLE.longest, strength: 1 };
+      if (event.phase === "buried" || event.phase === "surfaced") {
+        return { ms: 140, strength: 0.5 };
+      }
+      return null;
+
     default:
       return null;
   }

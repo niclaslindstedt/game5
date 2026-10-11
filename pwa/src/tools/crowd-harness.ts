@@ -677,6 +677,31 @@ async function slope(): Promise<void> {
       ).length;
       return `a ${a.board} rider ${a.sit > 0.8 ? "sat in the snow" : "stopped"} (${near} riders within 30 m)`;
     },
+    // STOOD TOGETHER (`crowd-apart.ts`): the two riders stood still
+    // closest together — riders strapping in off a top, a group pulled up —
+    // from beside them, to see that each has his room.
+    huddle() {
+      const still = crowd.amateurs.filter((o) => o.board && o.mode === "stop" && o.speed === 0);
+      let pair: [(typeof still)[number], (typeof still)[number]] | null = null;
+      let best = Infinity;
+      for (let i = 0; i < still.length; i++)
+        for (let j = i + 1; j < still.length; j++) {
+          const d = Math.hypot(still[i].x - still[j].x, still[i].z - still[j].z);
+          if (d < best) {
+            best = d;
+            pair = [still[i], still[j]];
+          }
+        }
+      if (!pair) return "no two riders stood still";
+      const [a, b] = pair;
+      const mx = (a.x + b.x) / 2;
+      const mz = (a.z + b.z) / 2;
+      const ex = mx - Math.sin(a.heading) * 4.5 + Math.cos(a.heading) * 2;
+      const ez = mz - Math.cos(a.heading) * 4.5 - Math.sin(a.heading) * 2;
+      look([ex, level.groundAt(ex, ez) + 2.4, ez], [mx, (a.y + b.y) / 2 + 0.3, mz], 50);
+      const near = still.filter((o) => Math.hypot(o.x - mx, o.z - mz) < 3).length;
+      return `riders ${a.id} and ${b.id} stood ${best.toFixed(2)} m apart (${near} stood within 3 m)`;
+    },
     kicker() {
       const a =
         crowd.amateurs.find((o) => o.mode === "air") ??

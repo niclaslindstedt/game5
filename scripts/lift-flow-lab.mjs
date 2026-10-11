@@ -103,7 +103,6 @@ const CAM = await import(join(root, "pwa/src/game/camera-lift.ts"));
 const STAGE = await import(join(root, "pwa/src/tools/lift-stage.ts"));
 const BI = await import(join(root, "pwa/src/game/board-input.ts"));
 const BL = await import(join(root, "pwa/src/game/board-lift.ts"));
-const BP = await import(join(root, "pwa/src/game/board-pose.ts"));
 
 if (args.skis && !E.isPairId(args.skis)) {
   console.error(`no pair "${args.skis}"`);
@@ -201,7 +200,7 @@ function rideStage(id) {
     let pose;
     if (c.spec.board && !c.town) {
       const bi = BI.boardInputOf(c, legs, c.q).input;
-      freeShare = BP.easeFree(freeShare, bi.free, dt);
+      freeShare = BI.easeFree(freeShare, bi.free, dt);
       bi.freeShare = freeShare;
       pose = BL.boardLiftPose(bi, {
         seated: seatEase.seated,

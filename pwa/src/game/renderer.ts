@@ -637,7 +637,9 @@ export function createWorldRenderer(
         observe(r.track, skier, run.tick);
         sample(r.track, alpha, r.drawn);
         // With the trails off there is no furrow to sit in.
-        const want = TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0;
+        const want =
+          (TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0) -
+          (skier.thrown ? 0 : (machines?.slideLift(skier.x, skier.z) ?? 0));
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);
         r.model.setRun(run);

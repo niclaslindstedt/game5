@@ -135,6 +135,8 @@ export type RigPose = {
    * frames its booms up his lines): the bolted rungs take it back off and
    * stay on him. */
   lift?: Vec3 | null;
+  /** The ground shaking under him, 0..1 (`avalanche-view.ts`'s quake). */
+  quake?: number;
 };
 
 /** A pose at rest at the origin — what the renderer fills every frame. */
@@ -464,6 +466,7 @@ export const PACE = {
      * falls away, back a beat after a landing. */
     rise: 5,
     fall: 16,
+    quake: 3.5, // the ground's quake at 1, in the speed's wholes
   },
   surge: {
     /** Metres of standoff per m/s² along the way, and the most either way:
@@ -487,7 +490,8 @@ function tremorAt(
   const T = PACE.tremor;
   const pace = Math.max(0, Math.min(1, (pose.speed - T.from) / (T.full - T.from)));
   const ground = T.powder + (1 - T.powder) * Math.max(0, Math.min(1, pose.packed));
-  const want = pose.airborne ? 0 : pace * pace * ground * share;
+  const shake = (pose.quake ?? 0) * T.quake;
+  const want = (pose.airborne ? 0 : pace * pace * ground * share) + shake * share;
   const rate = want > st.buzz ? T.rise : T.fall;
   st.buzz = st.fresh ? want : st.buzz + (want - st.buzz) * (1 - Math.exp(-rate * dt));
   st.clock += dt;

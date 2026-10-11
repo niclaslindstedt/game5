@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight plane skydive-flight skydive balloon afterski town
 
 build:
 	npm run build
@@ -629,6 +629,19 @@ sled-tip:
 # "--compare=a.json" after; ARGS="--wind=6 --fall=0" another day.
 avalanche-flow:
 	npm run avalanche-flow -- $(ARGS)
+
+# THE AVALANCHE AS DRAWN: a slab let go on a generated free ride's loaded
+# lee face and photographed through the game's own renderer (avalanche-
+# view.ts, avalanche-glsl.ts) — the crown cracking and the slab breaking
+# into blocks (release), the front and its powder cloud from beside and
+# below (flow), the deposit and the bed (debris), a skier crossing it when
+# it goes (caught) and the flow and debris under the headlamp (night). One
+# contact sheet a group, previews/avalanche-<group>.png, every frame alone,
+# and what each frame cost (ms, draw calls, triangles). Its own one-off
+# bundle from pwa/avalanche-preview.html (never deployed); needs a Chromium.
+# SEED=, REGION=, SNOW= (the dial) and ARGS= (--sheet=flow, --at=x,z).
+avalanche:
+	npm run avalanche -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(if $(SNOW),--snow=$(SNOW),) $(ARGS)
 
 # THE PARAMOTOR LAB: the free ride's paramotor staged at every moment it has
 # — on the summit under the held wing, the launch, in the air, a turn and

@@ -602,6 +602,10 @@ export const STRINGS = {
   startSnow: "SNOW",
   startSnowHint:
     "How deep the powder lies off the piste: thin 20 cm, medium 40 cm (the snow a race is skied on), thick 70 cm, very deep 100 cm. Past medium it is bottomless — stop and you sink to the knees, so keep the speed up and lean back to float the tips; a wide pair floats where a narrow one bogs.",
+  /** THE AVALANCHES row (`free-ride.ts`'s `avalanche`). */
+  startAvalanche: "AVALANCHES",
+  startAvalancheHint:
+    "Whether the loaded slopes off the groomed runs can slide. ON: a steep, open lee face under new snow or a wind-blown slab may break as you cross it — the crown cracks, the slab runs and the debris stays where it stops for the rest of the ride. OFF: the snow holds wherever you ski.",
   /** The SNOW row's stops (`SNOW_STOPS`; the hint above reads their depths). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   /** THE START ROW: how the ride begins — on skis, or a way up with no

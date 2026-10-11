@@ -35,6 +35,7 @@ import {
   mul,
   norm,
   rides,
+  smoothstep,
   sub,
   type Loom,
   type Section,
@@ -80,6 +81,7 @@ function trunkSections(
   to: number,
   ease: { side: number; front: number; back: number },
   flare: (level: number) => number = () => 0,
+  hang: (level: number) => number = () => 1,
 ): Section[] {
   const S = trunkLine().S;
   const out: Section[] = [];
@@ -88,9 +90,10 @@ function trunkSections(
     const level = from + ((to - from) * i) / n;
     const t = trunkAt(m, level);
     const f = flare(level);
+    const k = hang(level);
     out.push({
       s: S(level),
-      w: t.w + ease.side + f,
+      w: t.w + ease.side * k + f,
       f: t.f + ease.front + f,
       b: t.b + ease.back + f,
     });
@@ -182,7 +185,7 @@ const JACKET_CUT: Record<JacketId, JacketCut> = {
   shell: {
     hem: -0.24,
     ease: 0.036,
-    hemFlare: 0.022,
+    hemFlare: 0.01,
     collar: 0.115,
     square: 2.4,
     sleeve: 0.03,
@@ -245,6 +248,9 @@ const SHOULDER_IN = 0.018;
 /** A race shell's side panel's half width round the trunk, rad. */
 const SIDE_PANEL = 0.3;
 
+/** The most ease a pant's seat takes over the hips, m. */
+const SEAT_EASE = 0.026;
+
 /** The pants' seat at a level: the body's section eased, and wide enough to
  * take both thighs' tops — what the jacket must hang clear of. */
 function seatAt(
@@ -252,18 +258,26 @@ function seatAt(
   pc: PantsCut,
   level: number,
   from: number,
+  close = true,
 ): { w: number; f: number; b: number } {
   const { pose: P } = bindPose();
   const t = trunkAt(m, level);
-  const span = Math.abs(P.hipJoints[0].x) - HIP_IN + m.thigh * 0.78 + pc.ease;
+  // A baggy pant is baggy in the LEG: its seat is cut nearly as close as
+  // any, or the jacket over it balloons out over the hips. `close` false is
+  // the leg's own tops as well, which a fitted jacket's hug meets in a tuck.
+  const ease = close ? Math.min(pc.ease, SEAT_EASE) : pc.ease;
+  const give = close ? 0.6 : 1;
+  const span = Math.abs(P.hipJoints[0].x) - HIP_IN + m.thigh * 0.78 + ease * give;
   const low = Math.max(0, Math.min(1, (level - from) / 0.12));
   // Wide only over the thighs' tops: above the hip joints the seat closes
   // in to the waist, which is the body's own (a woman's narrower).
   const high = 1 - Math.max(0, Math.min(1, (level - 0.1) / 0.16));
+  // The seat is cut close over the hips (the flesh gives under a fitted
+  // pant), so the jacket over it can hang no wider than the shoulders.
   return {
-    w: Math.max(t.w + pc.ease, span * (0.55 + 0.45 * low) * high),
-    f: t.f + pc.ease,
-    b: t.b * 0.9 + pc.ease + 0.004,
+    w: Math.max(t.w * (close ? 0.93 : 1) + ease * give, span * (0.55 + 0.45 * low) * high),
+    f: t.f + ease,
+    b: t.b * (close ? 0.84 : 0.9) + ease * (close ? 0.7 : 1) + 0.004,
   };
 }
 const seatFrom = (m: BodyMeasure, pc: PantsCut) => m.crotch - 0.05 - pc.drop;
@@ -390,7 +404,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const to = top[0].level;
   // Below the crotch a long jacket hangs over both thighs, and widens to.
   const legs = (level: number) =>
-    level < m.crotch ? (m.crotch - level) * (0.22 + cut.hemFlare * 4) : 0;
+    level < m.crotch ? (m.crotch - level) * (0.12 + cut.hemFlare * 4) : 0;
   const flare = (level: number) =>
     legs(level) + cut.hemFlare * Math.max(0, 1 - (level - cut.hem) / 0.15);
   // Clear of the pants wherever it hangs over them.
@@ -398,17 +412,28 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   // A woman's cut is TAILORED: taken in at the waist and let out over the
   // hips, where a man's hangs straight.
   const female = gearOf("body", o.body).female;
+  // A loose cut is taken in less: its waist pinched as a fitted shell's
+  // reads, under its hang, as hips ballooning below it.
   const tailor = (level: number) =>
     female
-      ? -0.026 * Math.max(0, 1 - Math.abs(level - (m.waist + 0.08)) / 0.22) +
-        0.01 * Math.max(0, 1 - Math.abs(level - 0.02) / 0.14)
+      ? -0.026 *
+        (1.2 - 0.7 * cut.drape) *
+        Math.max(0, 1 - Math.abs(level - (m.waist + 0.08)) / 0.22)
       : 0;
+  // How loose the cut hangs: a fitted race shell keeps its ease all the way
+  // down, as it must to stay over the seat in a tuck.
+  const loose = Math.max(0, cut.drape - 0.5) * 2;
   const sections = trunkSections(
     m,
     from,
     to,
     { side: cut.ease, front: cut.ease + 0.006, back: cut.ease },
     flare,
+    // The ease is the shoulders' and the chest's: the cloth hangs from them
+    // and only clears the hips, so the hem is about their breadth and never
+    // wider than the shoulders.
+    (level) =>
+      1 - loose * 0.65 * (1 - smoothstep((level - m.crotch) / (m.waist + 0.25 - m.crotch))),
   )
     .concat(top.slice(1).map((q) => ({ s: line.S(q.level), w: q.w, f: q.f, b: q.b })))
     .map((given) => {
@@ -420,8 +445,10 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
       // The hem's rings are tilted (`HEM_DROP`): the back of a ring lies
       // over the seat a little lower down, so clear the seat there too.
       const sf = seatFrom(m, pc);
-      const seat = seatAt(m, pc, Math.max(level, sf), sf);
-      const lower = seatAt(m, pc, Math.max(level - 0.1, sf), sf);
+      // A fitted cut clears the baggy leg's tops too, which its hug would
+      // meet in a tuck; a loose one hangs clear of them anyway.
+      const seat = seatAt(m, pc, Math.max(level, sf), sf, loose > 0);
+      const lower = seatAt(m, pc, Math.max(level - 0.1, sf), sf, loose > 0);
       return {
         ...q,
         w: Math.max(q.w, seat.w + 0.011, lower.w + 0.009),
@@ -437,6 +464,24 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     f: cut.drape * (female ? 0.4 : 0.6),
     b: Math.max(cut.drape, 0.9),
   });
+  // Below the crotch a long jacket falls STRAIGHT on from the hips — never
+  // pinched in under the seat and flared out again at the hem, the bell a
+  // shell's skirt reads as from behind.
+  const hips = sections.filter((q) => {
+    const level = line.L(q.s);
+    return level >= m.crotch && level <= m.waist;
+  });
+  if (hips.length) {
+    for (const k of ["w", "b"] as const) {
+      const most = Math.max(...hips.map((q) => q[k]));
+      for (const q of sections) {
+        if (line.L(q.s) >= m.crotch) continue;
+        // Across, no wider than the hips; through, never cut into the seat.
+        q[k] = Math.max(q[k], most * 0.97);
+        if (k === "w") q[k] = Math.min(q[k], most);
+      }
+    }
+  }
   // THE HEM: the cloth turned under and drawn in by its cord, so its edge
   // rolls in over the pants rather than ending in an open ring — and the
   // whole hem DROPPED AT THE BACK, the rings below the hips tilted (the
@@ -580,16 +625,20 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   if (id === "shell" || id === "anorak") {
     const back = mul(F.chest.z, -1);
     const across = F.chest.x;
-    const at = add(P.neck, add(mul(back, 0.1), mul(F.chest.y, id === "shell" ? -0.01 : -0.07)));
-    const half = id === "shell" ? 0.1 : 0.115;
+    // Rolled round the collar's back foot (the shell's) or hung below it.
+    const at = add(
+      P.neck,
+      add(mul(back, m.neck + 0.035), mul(F.chest.y, id === "shell" ? 0.02 : -0.06)),
+    );
+    const half = id === "shell" ? 0.085 : 0.11;
     loom.tube({
       path: [add(at, mul(across, -half)), add(at, mul(across, half))],
       face: [F.chest.y, F.chest.y],
       sections: [
-        { s: 0, w: 0.026, f: 0.03, b: 0.03 },
+        { s: 0, w: 0.016, f: 0.018, b: 0.018 },
         { s: 0.04, w: 0.04, f: id === "shell" ? 0.034 : 0.06, b: 0.03 },
         { s: half * 2 - 0.04, w: 0.04, f: id === "shell" ? 0.034 : 0.06, b: 0.03 },
-        { s: half * 2, w: 0.026, f: 0.03, b: 0.03 },
+        { s: half * 2, w: 0.016, f: 0.018, b: 0.018 },
       ],
       step: 0.04,
       segments: 10,
@@ -748,9 +797,16 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
     const e = cut.ease;
     const ek = cut.knee;
     const baggy = id === "baggy";
+    // At the top the leg is the seat's, cut as close as it.
+    const et = Math.min(e, SEAT_EASE);
     const sections: Section[] = [
-      { s: 0, w: m.thigh * 0.6 + e * 0.4, f: m.thigh * 0.7 + e * 0.5, b: m.thigh * 0.7 + e * 0.5 },
-      { s: 0.1, w: m.thigh * 0.96 + e * 0.6, f: m.thigh + e * 0.8, b: m.thigh + e * 0.8 },
+      {
+        s: 0,
+        w: m.thigh * 0.6 + et * 0.4,
+        f: m.thigh * 0.7 + et * 0.5,
+        b: m.thigh * 0.7 + et * 0.5,
+      },
+      { s: 0.1, w: m.thigh * 0.96 + et * 0.6, f: m.thigh + et * 0.8, b: m.thigh + et * 0.8 },
       {
         s: K - 0.17,
         w: (m.thigh + m.lowerThigh) / 2 + e,

@@ -36,3 +36,4 @@ export {
 export { caughtCause, slideAcross, slowCatch, strapBoard } from "./board-crash.ts";
 export type { BoardGrab, SpinTag } from "./board-state.ts";
 export { boardGrabOf, edgeOf, popOf, spinSide } from "./board-tricks.ts";
+export { butterRate, buttering, pressAsked } from "./board-press.ts";

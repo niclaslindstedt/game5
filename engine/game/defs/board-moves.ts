@@ -128,6 +128,47 @@ export const BOARD_MOVES = {
     leaf: 0.45,
     leafRate: 0.8,
   },
+  /** THE PRESS AND THE BUTTER (`board-press.ts`). A rider moves his weight
+   * over one foot — the front for a NOSE press, the rear for a TAIL press
+   * — and the deck flexes onto that end while the other lifts off the
+   * snow, a hand's breadth on a soft board. Twisting through it with the
+   * shoulders pivots the board on the end left on the snow: a BUTTER. It is
+   * a slow-snow trick, ridden on a flat base (an edge set while the board
+   * turns across its way is the catch) on gentle groomed snow, easier the
+   * softer the board's flex; a butter carried half round leaves him riding
+   * fakie, a whole one riding forward again. The numbers are ESTIMATES set
+   * to those descriptions, not measured. */
+  press: {
+    /** The lean (`SkierState.lean`) presses past `from` of its throw and
+     * wholly by `full`. */
+    from: 0.45,
+    full: 0.95,
+    /** Whole under `slow` m/s (18 km/h), gone by `fast` (36 km/h): past a
+     * run's pace the snow's pull on a lifted end is no trick. */
+    slow: 5,
+    fast: 10,
+    /** How fast the press comes on and goes, 1/s. */
+    rate: 5,
+    /** The deck pitched onto its end, rad (about 3°) over the lean's own
+     * fore-aft balance (`skier.leanPitch`): on a 1.5 m board the far end a
+     * hand's breadth off the snow. */
+    lift: 0.05,
+    /** At a full press the edge's lock is `flat` less — buttered on a flat
+     * base — and the stations hold `grip` less across: one end on the
+     * snow, the board free to pivot and to slide on its base. */
+    flat: 0.95,
+    grip: 0.55,
+    /** THE BUTTER: at a full press with the steer full over, the board
+     * pivots `spin` rad/s (a half turn in about a second on a soft
+     * board) on the end left on the snow, past `dead` of the steer's
+     * throw, `stiff` of it lost per unit of the board's flex (`SkiSpec.flex`,
+     * 0 soft … 1 stiff). The pivot stands `end` of the board's length from
+     * its middle, toward the pressed end. */
+    spin: 3.6,
+    dead: 0.15,
+    stiff: 0.6,
+    end: 0.4,
+  },
   /** THE CAUGHT DOWNHILL EDGE at a crawl (`board-crash.ts`): the edge
    * leading a slide across the board stood into it past `dig` rad (6°) —
    * the board laid flat or onto it — with the slide at `slip` m/s or more,

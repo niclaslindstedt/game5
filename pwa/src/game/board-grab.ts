@@ -218,18 +218,12 @@ export function easeGrab(ease: GrabEase, grab: BoardGrab | null, dt: number): Gr
 
 /** THE PRESS and THE POP's LOAD, rad of the deck pitched nose up (+) on the
  * snow at their fullest: a press bends the board onto one end and lifts
- * the other a hand's breadth; loading an ollie sits him over the tail. */
-export const PRESS = { most: 0.18, from: 0.45, to: 0.95, hips: 0.12 };
+ * the other a hand's breadth; loading an ollie sits him over the tail.
+ * The press itself is the engine's (`SkierState.board.press`,
+ * `board-press.ts`), which already pitches the whole body `press.lift`
+ * onto the pressed end — the deck's bend here is the rest of it. */
+export const PRESS = { most: 0.13, hips: 0.12 };
 export const POP = { most: 0.1, hips: 0.08 };
-
-/** The press a lean of `lean` (+1 back) holds on the snow, −1 … 1 (+ on
- * the tail), faded out as the edge comes on and at speed. */
-export function pressOf(lean: number, edge: number, speed: number): number {
-  const t = Math.min(1, Math.max(0, (Math.abs(lean) - PRESS.from) / (PRESS.to - PRESS.from)));
-  const flat = Math.max(0, 1 - Math.abs(edge) / 0.35);
-  const slow = Math.max(0, Math.min(1, (16 - speed) / 6));
-  return Math.sign(lean) * t * t * (3 - 2 * t) * flat * slow;
-}
 
 /** The load before a pop, −1 … 1: + over the tail (the ollie), − over the
  * nose (the nollie, the lean carried forward — `popOf`'s). */

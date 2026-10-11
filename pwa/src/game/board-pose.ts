@@ -879,11 +879,11 @@ export function easeFree(share: number, free: boolean, dt: number): number {
 export const SPIN = { wind: 0.55, head: 0.09, shoulders: 0.035, most: 0.8 };
 
 /** The shoulders' turn for a spin, rad, clockwise from above +: wound
- * against it while the jump is loaded, led into it in the air. */
+ * against it while the jump is loaded, led into it in the air or a butter. */
 export function spinTwist(input: BoardPoseInput): number {
   const wound = -SPIN.wind * clamp(input.windup ?? 0, -1, 1) * clamp(input.load, 0, 1);
-  const led = clamp(SPIN.shoulders * (input.spin ?? 0), -SPIN.most, SPIN.most) * input.air;
-  return wound + led;
+  const led = clamp(SPIN.shoulders * (input.spin ?? 0), -SPIN.most, SPIN.most);
+  return wound + led * Math.max(input.air, Math.abs(input.press ?? 0));
 }
 
 /** The most the board is drawn up to a hand that cannot reach it, m. */

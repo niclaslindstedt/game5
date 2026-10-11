@@ -61,6 +61,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { tailRiseOf } from "./defs/tails.ts";
 import { depthUnder } from "./snow.ts";
 import { onRamp } from "./strokes.ts";
+import { buttering, pressHold } from "./board-press.ts";
 import type { GameState, SkierInput, SkierState } from "./state.ts";
 
 const SW = TUNING.switch;
@@ -83,9 +84,11 @@ export function revertShare(u: number): number {
 
 /** THE SKIS LIGHT IN A REVERT: the share of their hold across the snow
  * they keep — least at the middle of it, where they are across the way —
- * and all of it when he is not reverting. */
+ * and all of it when he is not reverting; on a board pressed onto one end,
+ * less the share the press takes (`board-press.ts`'s `pressHold`). */
 export function revertHold(c: SkierState): number {
-  return c.revert == null ? 1 : 1 - RV.unweight * Math.sin(Math.PI * c.revert.u);
+  const turning = c.revert == null ? 1 : 1 - RV.unweight * Math.sin(Math.PI * c.revert.u);
+  return turning * pressHold(c);
 }
 
 /** Whether a skier riding switch turns round this step: the rules let him,
@@ -228,7 +231,7 @@ export function stepRevert(c: SkierState, n: Vec3, dt: number): void {
  * the snow (`flat`) or sliding back on a skier who is not riding switch.
  * `way` is the step's own way along the skis. */
 export function heldSlip(c: SkierState, flat: number, way: number): number {
-  if (flat <= TUNING.steer.slipFrom || c.revert != null) return 0;
+  if (flat <= TUNING.steer.slipFrom || c.revert != null || buttering(c)) return 0;
   const travel = Math.atan2(c.vx, c.vz);
   if (way > 0) return angleDiff(travel, c.heading + c.glide);
   return c.switched ? angleDiff(travel, c.heading + Math.PI) : 0;

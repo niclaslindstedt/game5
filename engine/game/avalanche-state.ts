@@ -98,20 +98,133 @@ export type AvalancheState = {
   beds: SlabFrame[];
   victim: AvalancheVictim | null;
   count: number;
+  /** THE BURIED (`avalanche-rescue.ts`): every body the slides have taken
+   * and not yet given back — the player's own beside the crowd's and the
+   * keen skiers' — the oldest dropped past `AVALANCHE_RESCUE.burials`;
+   * `ids` counts them from 1. */
+  burials: Burial[];
+  ids: number;
+  /** THE PLAYER'S TRANSCEIVER, his probe and his shovel. */
+  beacon: Beacon;
+  /** THE SKI PATROL on its way or at work, or null. */
+  patrol: Patrol | null;
 };
 
-/** THE AVALANCHE'S EVENT (`avalanche.ts`): a slab broke (`release`), the
+/** WHO A SLIDE TOOK: the player, one of the crowd's amateurs, or one of
+ * the night's keen skiers. */
+export type BuriedWho = "player" | "amateur" | "keen";
+
+/** ONE BODY A SLIDE TOOK (`avalanche-rescue.ts`): `carried` while the flow
+ * runs with him (in its parcel `parcel` of slide `slide`), `buried` once
+ * it has put him down under `depth` m of debris at (`x`, `z`), `out` once
+ * he has been dug out. `ref` names him — the amateur's index in the
+ * crowd, the keen skier's in `GameState.rivals`, −1 the player; `t` the
+ * seconds in this phase, `clear` since his parcel came to rest; `air` the
+ * seconds of play he lives buried (off the survival curve); `dug` the
+ * metres of debris dug off him; `struck` whether a probe has found him and
+ * by whom it was (`found`); `alive` whether he still lives; `aerial` his
+ * transceiver's antenna's bearing in plan, rad (the field the searchers
+ * read is turned by it). `patrol` is when the patrol was called for him,
+ * the run clock (−1 not yet). */
+export type Burial = {
+  id: number;
+  who: BuriedWho;
+  ref: number;
+  slide: number;
+  parcel: number;
+  phase: "carried" | "buried" | "out";
+  t: number;
+  clear: number;
+  x: number;
+  z: number;
+  depth: number;
+  air: number;
+  dug: number;
+  struck: boolean;
+  found: "player" | "patrol" | null;
+  alive: boolean;
+  aerial: number;
+};
+
+/** ONE PROBE pushed into the debris: where (plan, m), when (run clock),
+ * how deep it went (m) and the burial it struck (its id, 0 none). */
+export type ProbeHole = { x: number; z: number; t: number; depth: number; hit: number };
+
+/** THE PLAYER'S TRANSCEIVER: `search` receiving (else sending); `auto` the
+ * last burial the unit switched itself to search for; `held` whether the
+ * rescue key was down last step (its press is the probe); `wait` the
+ * seconds before he can probe again; `holes` his probes so far;
+ * `digging` the burial he is digging now (0 none). */
+export type Beacon = {
+  search: boolean;
+  auto: number;
+  held: boolean;
+  wait: number;
+  holes: ProbeHole[];
+  digging: number;
+};
+
+/** What a patroller is doing, for the picture: skiing in, walking, the
+ * transceiver held out low (`search`), the probe (`probe`), the shovel
+ * (`dig`), or stood by. */
+export type PatrolAct = "ski" | "walk" | "search" | "probe" | "dig" | "stand";
+
+/** THE SKI PATROL (`avalanche-rescue.ts`): called for burial `target`
+ * (`called`: on its way, `eta` s off), skiing in from (`ax`, `az`) to its
+ * stand-off (`sx`, `sz`), then the search, the probe, the dig and standing
+ * by (`leave`), `t` the seconds in the phase. The fall line it digs from
+ * (`fx`, `fz`); `dug` the metres it has dug. Where each of the two is is a
+ * pure function of this (`patrolMan`). */
+export type Patrol = {
+  target: number;
+  phase: "called" | "coming" | "search" | "probe" | "dig" | "leave";
+  t: number;
+  eta: number;
+  ax: number;
+  az: number;
+  sx: number;
+  sz: number;
+  tx: number;
+  tz: number;
+  fx: number;
+  fz: number;
+  depth: number;
+  dug: number;
+};
+
+/** THE AVALANCHE'S EVENT (`avalanche.ts`, `avalanche-rescue.ts`): a slab broke (`release`), the
  * flow took the skier (`caught`), put him down under the debris
  * (`buried`, at `depth` m) or let him up with his head out (`surfaced`),
  * he got away from it (`escaped`), the flow came to rest (`stopped`), his
- * air ran out (`lost`), or he was taken out of it (`freed`, a reset).
+ * air ran out (`lost`), or he was taken out of it (`freed`, a reset); his
+ * transceiver switched (`beacon`), a probe pushed in (`probe`) or struck a
+ * body (`strike`), a body dug out (`dug`), the patrol arrived (`patrol`).
  * `id` names the avalanche; `size` its slab's volume, m³; where it
  * happened, plan m. */
 export type AvalancheEvent = {
   kind: "avalanche";
   t: number;
-  phase: "release" | "caught" | "buried" | "surfaced" | "escaped" | "stopped" | "lost" | "freed";
+  phase:
+    | "release"
+    | "caught"
+    | "buried"
+    | "surfaced"
+    | "escaped"
+    | "stopped"
+    | "lost"
+    | "freed"
+    | "beacon"
+    | "probe"
+    | "strike"
+    | "dug"
+    | "patrol";
   id: number;
+  /** WHO it happened to, where it is not the player (an amateur caught or
+   * dug out, the patrol's arrival); left out, him. */
+  who?: BuriedWho;
+  /** On `dug`, whether the body came out alive; on `beacon`, whether the
+   * unit is now receiving. */
+  alive?: boolean;
   x: number;
   z: number;
   size: number;

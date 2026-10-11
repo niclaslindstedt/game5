@@ -66,6 +66,7 @@ import type { HudFlash } from "./run-news.ts";
 import type { HudSnapshot } from "./snapshot.ts";
 import { speedOf } from "./speed-ski-run.ts";
 import { STRINGS } from "./strings.ts";
+import { boundLabel, type KeyBindings } from "./settings-input.ts";
 import { wreckOf } from "./hud-wreck.ts";
 import type { AgainAt } from "./free-ride.ts";
 import { DeathCard, InjuredCard } from "./hud-glass.tsx";
@@ -80,6 +81,7 @@ import { ParaReadout } from "./hud-para.tsx";
 import { ChuteReadout, PlaneReadout } from "./hud-plane.tsx";
 import { BalloonPad, BalloonReadout } from "./hud-balloon.tsx";
 import { JumpPad, SkiJumpBar, SkiJumpCues } from "./hud-skijump.tsx";
+import { BeaconUnit, BuriedVeil } from "./hud-beacon.tsx";
 
 export type { HudFlash };
 
@@ -120,7 +122,7 @@ export function Hud({
   bare = false,
   machineKey,
   tuckKey,
-  jumpKey = "SPACE",
+  keys,
   injuries = true,
   bodyHud = true,
   restartAfter,
@@ -154,9 +156,10 @@ export function Hud({
   /** The tuck key as bound — what stands a fallen skier up past the first
    * seconds of his fall, with a tap anywhere on touch. */
   tuckKey: string;
-  /** The jump key as bound — what orders another round in the afterski's
-   * room. */
-  jumpKey?: string;
+  /** The keys as bound — the jump's orders another round in the
+   * afterski's room; the transceiver's and the probe / dig's are what the
+   * avalanche transceiver's prompts name (`hud-beacon.tsx`). */
+  keys?: KeyBindings;
   /** Whether the body's injuries are drawn (`settings.ts`'s
    * `injuriesShown`): off, neither the anatomy plate nor the g meter. */
   injuries?: boolean;
@@ -174,6 +177,7 @@ export function Hud({
    * dark a death or an ended run brings down over the live one. */
   replaying?: boolean;
 }) {
+  const jumpKey = keys ? boundLabel(keys.jump) : "SPACE";
   const lit = snap.missed !== null || snap.over;
   // A free ride is leisure; a tricks run is scored like a contest.
   const leisure = snap.free && !snap.tricks;
@@ -765,6 +769,19 @@ export function Hud({
           call while he stands in the basket, in the same place. */}
       {snap.balloon && (
         <BalloonReadout balloon={snap.balloon} touch={touch} machineKey={machineKey} />
+      )}
+      {/* THE AVALANCHE TRANSCEIVER (`hud-beacon.tsx`) while somebody is
+          under the snow, and the dark over him when it is he who is. */}
+      {snap.buried && <BuriedVeil buried={snap.buried} />}
+      {snap.beacon && !snap.buried && (
+        <BeaconUnit
+          read={snap.beacon}
+          touch={touch}
+          beaconKey={keys ? boundLabel(keys.beacon) : "T"}
+          rescueKey={keys ? boundLabel(keys.rescue) : "G"}
+          onBeacon={input.requestBeacon}
+          onRescue={input.holdRescue}
+        />
       )}
       {/* THE PISTE MACHINE (`hud-groomer.tsx`): driven, or the call to one
           working near him when nothing else is calling. */}

@@ -883,7 +883,7 @@ export function App() {
           bare={!settings.hud}
           machineKey={boundLabel(settings.keys.machine)}
           tuckKey={boundLabel(settings.keys.tuck)}
-          jumpKey={boundLabel(settings.keys.jump)}
+          keys={settings.keys}
           injuries={injuriesShown(settings, shellContent())}
           bodyHud={settings.bodyHud}
           restartAfter={settings.restartAfter}

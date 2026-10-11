@@ -34,16 +34,22 @@ import {
   type GameEvent,
   type GameState,
   type RegionId,
+  type SkierInput,
   type Slide,
   type WeatherKind,
 } from "@engine";
 
+import { render, type ComponentChild } from "preact";
+
+import "../beacon.css";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { RESCUE_GROUPS, rescueViews } from "./avalanche-rescue-lab.ts";
 
-type Frame = { view: string; label: string; caption: string; png: string };
+/** A frame, and the HUD drawn over it (the transceiver, the buried veil). */
+type Frame = { view: string; label: string; caption: string; png: string; hud?: ComponentChild };
 type Lens = CameraRung | LensPose;
 type Cost = { label: string; ms: number; calls: number; triangles: number; geometries: number };
 
@@ -53,6 +59,7 @@ const GROUPS: Record<string, readonly string[]> = {
   debris: ["debris"],
   caught: ["caught"],
   night: ["night"],
+  ...RESCUE_GROUPS,
 };
 
 declare global {
@@ -110,14 +117,14 @@ const STILL = 1e-4;
 let runSeed = seed;
 const depthWanted = Number(params.get("depth") ?? 0.6);
 
-function fresh(): GameState {
+function fresh(crowd = 0): GameState {
   return createGame({
     level: map,
     seed: runSeed,
     region,
     mode: "free",
     snowDepth: dial,
-    crowd: 0,
+    crowd,
     groomer: "off",
     avalanche: true,
     quiet: true,
@@ -333,10 +340,10 @@ let frames: Frame[] = [];
 let costs: Cost[] = [];
 let view = "";
 
-function run(s: GameState, seconds: number): void {
+function run(s: GameState, seconds: number, input: SkierInput = NEUTRAL_INPUT): void {
   const n = Math.round(seconds / FRAME);
   for (let k = 0; k < n; k++) {
-    for (let i = 0; i < STEPS; i++) step(s, NEUTRAL_INPUT);
+    for (let i = 0; i < STEPS; i++) step(s, input);
     renderer.draw(s, 1, FRAME, false);
   }
 }
@@ -448,7 +455,7 @@ function lens(
   return { eye, target, fov, roll: 0 };
 }
 
-function shoot(s: GameState, label: string, l: Lens): void {
+function shoot(s: GameState, label: string, l: Lens, hud?: ComponentChild): void {
   if (typeof l === "string") {
     if (renderer.camera() !== l) renderer.setCamera(l, true);
     renderer.setOverride(null);
@@ -484,6 +491,7 @@ function shoot(s: GameState, label: string, l: Lens): void {
         : "no slide") +
       (v ? `\nvictim ${v.phase} ${v.depth.toFixed(2)} m` : ""),
     png: canvas.toDataURL("image/png"),
+    ...(hud ? { hud } : {}),
   });
 }
 
@@ -665,6 +673,30 @@ const VIEWS: Record<string, () => Promise<void>> = {
   },
 };
 
+Object.assign(
+  VIEWS,
+  rescueViews({
+    fresh,
+    face: () => face,
+    safe: () => safe,
+    play: run,
+    shoot,
+  }),
+);
+
+/** The HUD over a tile: drawn at the frame's own size and scaled to it,
+ * with the HUD's colours (`styles.css`'s, which the harness does not load). */
+function overlay(hud: ComponentChild, tw: number): HTMLElement {
+  const box = document.createElement("div");
+  box.style.cssText =
+    `position:absolute;left:0;top:0;width:${width}px;height:${height}px;` +
+    `transform:scale(${tw / width});transform-origin:0 0;overflow:hidden;` +
+    "--hud-ink:#fff;--hud-plate:13 34 51;--hud-bad:#ff5a4e;" +
+    "font:16px/1.2 system-ui,sans-serif;";
+  render(hud, box);
+  return box;
+}
+
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[]; costs: Cost[] }> {
   const note = await ready;
   frames = [];
@@ -693,7 +725,9 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[];
     await img.decode();
     const caption = document.createElement("figcaption");
     caption.textContent = f.caption;
-    cell.append(img, caption);
+    cell.append(img);
+    if (f.hud) cell.append(overlay(f.hud, tw));
+    cell.append(caption);
     cells.push(cell);
   }
   sheetEl.replaceChildren(...cells);

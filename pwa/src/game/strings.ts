@@ -31,6 +31,7 @@ import { SLED_STRINGS } from "./strings-sled.ts";
 import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
+import { AVALANCHE_STRINGS } from "./strings-avalanche.ts";
 import { PLANE_STRINGS } from "./strings-plane.ts";
 import { CHUTE_STRINGS } from "./strings-chute.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
@@ -119,6 +120,7 @@ export const STRINGS = {
   ...AFTERSKI_STRINGS,
   ...PARA_STRINGS,
   ...BALLOON_STRINGS,
+  ...AVALANCHE_STRINGS,
   ...PLANE_STRINGS,
   ...CHUTE_STRINGS,
   ...GROOMER_STRINGS,

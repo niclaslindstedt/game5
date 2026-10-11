@@ -13,6 +13,12 @@
 //             and the crown and the bed from below
 //   caught    a skier crossing the slab when it breaks, from the chase
 //   night     the flow and the debris at hour 21, under the headlamp
+//   search    the player's transceiver at every phase of the search (over
+//             the frame, as the HUD draws it) and the probe's miss and strike
+//   hole      the hole dug down to a buried amateur, a third, two thirds, out
+//   patrol    the patrol skiing in, searching, probing, digging, done
+//   buried    the player under the snow: the dark, his air, the lens pulled
+//             up out of the hole as the patrol digs, stood up again
 //
 // Each GROUP is one contact sheet, previews/avalanche-<group>.png, and every
 // frame is also written alone, previews/avalanche-<view>-<label>.png. Each
@@ -48,12 +54,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (release, flow, debris, caught, night); every one when left out",
+      help: "which sheets, comma-separated (release, flow, debris, caught, night, search, hole, patrol, buried); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (release, beside, below, debris, caught, night)",
+      help: "only these views, comma-separated (release, beside, below, debris, caught, night, hud, probe, hole, patrol, buried)",
     },
     seed: {
       kind: "number",

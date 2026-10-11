@@ -240,6 +240,39 @@ describe("the jump plane on a free ride", () => {
     expect(Math.hypot(s.plane!.x - strip.start.x, s.plane!.z - strip.start.z)).toBeLessThan(3);
   });
 
+  it("leaves a skier it hurt too badly to ski on lying by the wreck, for the rescue", () => {
+    const s = createGame({
+      level: flat,
+      mode: "free",
+      plane: true,
+      crowd: 0,
+      quiet: true,
+      gore: true,
+    });
+    planeAloft(s, {
+      x: SIZE / 2,
+      y: 40,
+      z: SIZE / 2,
+      heading: 0,
+      speed: 50,
+      pitch: -0.5,
+      power: 1,
+    });
+    fly(s, 5, () => hands({ throttle: 1, pitch: 1 }));
+    expect(s.plane!.mode).toBe("wreck");
+    // A leg broken in it, and the reset held from the moment it threw him:
+    // he is found injured where he lies (`rescue.ts`) and the run is the
+    // app's to end — never begun again, mended, in the door on the strip.
+    s.skier.body.injuries.push({ part: "thighL", kind: "brokenFemur", ais: 3, t: s.t });
+    const thrown = s.skier.thrown!;
+    const again = fly(s, PLANE.crash.wreck + 1, () => ({ ...NEUTRAL_INPUT, reset: true }));
+    expect(again.some((e) => e.phase === "restart")).toBe(false);
+    expect(s.plane!.rider).toBe(false);
+    expect(s.skier.thrown).toBe(thrown);
+    expect(s.gore!.injured).toBeGreaterThanOrEqual(0);
+    expect(s.gore!.again).toBe(true);
+  });
+
   it("is set back on the strip by the reset", () => {
     const s = ride();
     aloft(s);

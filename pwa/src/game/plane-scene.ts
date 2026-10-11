@@ -3,9 +3,11 @@
 // (through `machines.ts`): the airframe drawn off the engine's plane
 // (`plane-view.ts`: the Blender model, or the code's stand-in), its
 // propeller turned, its blur disc faded in with the spin, its surfaces on
-// their hinges where the engine has them, its lamps lit, charred where it
-// came down; and the lens it takes while the skier stands in its door
-// (`camera-plane.ts`).
+// their hinges where the engine has them, its lamps lit; torn apart and
+// burning where it came down (`plane-wreck-view.ts`, which keeps the wreck
+// burning after the ride is begun again); and the lens it takes while the
+// skier stands in its door (`camera-plane.ts`) — or the crash's, planted
+// off the wreck he went in with.
 //
 // Drawn between two steps on the RIDER'S own line (`interp.ts`), so the
 // door he stands in never parts from under him between frames. The lens is
@@ -21,6 +23,9 @@ import { blendLens, type LensPose } from "./camera-rigs.ts";
 import { orbitBlend } from "./camera-heli.ts";
 import { createPlaneCam, framePlane, planeMiddleOf, type PlaneAt } from "./camera-plane.ts";
 import type { HazeUniforms } from "./haze.ts";
+import { createPlaneWreckView } from "./plane-wreck-view.ts";
+import type { SnowCloud } from "./snow-cloud.ts";
+import type { SnowSampler } from "./trail-stamp.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import type { Flood } from "./headlamp.ts";
 import { PLANE_COCKPIT, bodyOf, inPlaneCabin } from "./plane-cockpit-plan.ts";
@@ -33,7 +38,8 @@ export type PlaneScene = {
   /** One frame: the airframe drawn `alpha` of the way from the step before,
    * and the lens it wants on `rung` worked out (`lens` hands it over) — a
    * change of rung flown while `flying`, else cut; framed for a screen
-   * `aspect` wide to its height. */
+   * `aspect` wide to its height; a wreck's snow thrown into `cloud`, read
+   * off `snowAt`. */
   frame(
     state: GameState,
     alpha: number,
@@ -41,6 +47,8 @@ export type PlaneScene = {
     rung: CameraRung,
     flying: boolean,
     aspect?: number,
+    cloud?: SnowCloud | null,
+    snowAt?: SnowSampler | null,
   ): void;
   /** THE PLANE'S LENS, flown in from the skier's `ladder` and back out to
    * it, or null while the ladder has it whole. */
@@ -64,9 +72,6 @@ const DROP_HOLD = 1.6;
 const DROP_TURN = 0.5;
 const HAND_IN = 1.1;
 const HAND_OUT = 1.3;
-/** How far the wreck is charred, 0..1, and how long the charring takes, s. */
-const CHAR = 0.85;
-const CHAR_TIME = 3;
 /** How near the eye must be outside to see the pilot through the glass, m. */
 const NEAR = 60;
 /** The cabin's box the snowfall is kept out of: its middle and half
@@ -89,8 +94,14 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
   const look = createPlaneLook(haze);
   const group = new THREE.Group();
   group.name = "plane";
-  group.add(look.group);
+  const wreckView = createPlaneWreckView();
+  group.add(look.group, wreckView.group);
   group.visible = false;
+  /** The wreck last torn apart, the lens on screen last frame (what a crash
+   * cuts from) and where the eye stood (what the fire is sorted for). */
+  let burst: object | null = null;
+  let screen: LensPose | null = null;
+  const eyeWas = { x: 0, y: 0, z: 0 };
   const track = createTrack();
   const at: Pose = { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } };
   let shown: PlaneAt | null = null;
@@ -114,7 +125,7 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
 
   return {
     group,
-    frame(state, alpha, dt, rung, flying, aspect = 16 / 9) {
+    frame(state, alpha, dt, rung, flying, aspect = 16 / 9, cloud = null, snowAt = null) {
       const p = state.plane;
       own = null;
       cam.cut = !flying;
@@ -130,7 +141,19 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
         wrecked = wreck;
         track.tick = -1;
       }
-      look.char(wreck ? CHAR * Math.min(1, p.t / CHAR_TIME) : 0);
+      if (wreck && p.wreck && p.wreck !== burst) {
+        // IT GOES IN: the airframe as it struck, torn apart and burning.
+        burst = p.wreck;
+        const w = p.wreck;
+        look.group.position.set(w.x, w.y, w.z);
+        look.group.quaternion.set(w.q.x, w.q.y, w.q.z, w.q.w);
+        look.group.updateMatrixWorld(true);
+        wreckView.burst(state, look.group, look.wreckParts(), w, rung === "orbit" ? null : screen);
+      }
+      if (!wreck) burst = null;
+      wreckView.frame(state, dt, eyeWas, cloud, snowAt);
+      // The airframe is drawn as its pieces while it is a wreck.
+      look.group.visible = !wreck || !burst;
       observe(track, { x: p.x, y: p.y, z: p.z, q: p.q }, state.tick);
       sample(track, alpha, at);
       look.group.position.set(at.x, at.y, at.z);
@@ -143,6 +166,14 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
 
       const groundAt = (x: number, z: number) => state.level.groundAt(x, z);
       const step = Math.min(dt, 0.1);
+      // THE CRASH'S LENS while it holds the picture: cut to on the impact.
+      const crashLens = wreck && rung !== "orbit" ? wreckView.lens(state, step) : null;
+      if (crashLens) {
+        own = crashLens;
+        cut = true;
+        lastLens = null;
+        return;
+      }
       if (!p.rider || wreck) {
         cam.fresh = true;
         if (lastLens && !wreck && since < DROP_HOLD && rung !== "orbit" && !worn) {
@@ -193,6 +224,8 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
               ? orbitBlend(ladder, held, share, planeMiddleOf(shown), 10)
               : blendLens(ladder, held, share);
       if (!out) held = null;
+      screen = out ?? ladder;
+      Object.assign(eyeWas, screen.eye);
       return out;
     },
     drawn: () => shown,
@@ -221,10 +254,12 @@ export function createPlaneScene(haze: HazeUniforms): PlaneScene {
     },
     lamps(lit, out) {
       const p = lastState?.plane;
+      wreckView.lamps(lit, out);
       if (p && shown) look.lamps(p, shown, lit, out);
     },
     ready: look.ready,
     dispose() {
+      wreckView.dispose();
       look.dispose();
     },
   };

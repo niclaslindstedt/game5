@@ -55,6 +55,7 @@ import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
 import { createHurtLens } from "./xray-scene.ts";
+import { wrecked } from "./impact-forecast.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
 import { createGoreView, type GoreView } from "./gore-view.ts";
@@ -672,7 +673,7 @@ export function createWorldRenderer(
         if (r.wasAirborne && !skier.airborne && r.airTime > 0.25) {
           landed = Math.abs(r.vy) + r.airTime * 2;
         }
-        if (simDt > 0 || landed > 0) {
+        if ((simDt > 0 || landed > 0) && !run.plane?.rider) {
           spray.emit(skier, level, simDt, landed, snowAt(pack!, skier.x, skier.z, skierSnow));
           cloud.emit(skier, simDt, landed, sampleSnow);
         }
@@ -714,8 +715,7 @@ export function createWorldRenderer(
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
       hurt.update(state, player.model.skin());
       // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
-      const allowed =
-        !override && !watched && lens.rung() !== "orbit" && !state.heli?.wreck?.aboard;
+      const allowed = !override && !watched && lens.rung() !== "orbit" && !wrecked(state);
       const dead = hurt.lens(
         allowed,
         body,

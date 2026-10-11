@@ -43,6 +43,7 @@ import { airBoundsAt, treesNear, type AirBounds } from "./collision.ts";
 import { standSkier } from "./course.ts";
 import { mayGetUp, throwRider } from "./crash.ts";
 import { PLANE, planeMass } from "./defs/plane.ts";
+import { PLANE_WRECK, wreckKindOf } from "./defs/plane-wreck.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { airstripOf, onStrip } from "./airstrip.ts";
@@ -149,6 +150,7 @@ export function freshPlane(state: GameState): PlaneState {
     rider: false,
     door: 1,
     t: 0,
+    fuel: PLANE.fuel,
     wreck: null,
   };
   restOn(state, p, at.x, at.z, strip.heading);
@@ -221,6 +223,12 @@ export function planeAloft(
     speed: number;
     pitch?: number;
     power?: number;
+    /** The bank, rad (right side down positive). */
+    roll?: number;
+    /** The body rates, rad/s (a lab's spin), and the way flown, m/s,
+     * along the snow and down — the nose's own line when left out. */
+    rates?: { wx: number; wy: number; wz: number };
+    way?: { x: number; y: number; z: number };
   },
 ): void {
   const p = state.plane;
@@ -231,13 +239,16 @@ export function planeAloft(
   p.x = at.x;
   p.y = at.y;
   p.z = at.z;
-  p.q = fromEuler(at.heading, pitch, 0);
+  p.q = fromEuler(at.heading, pitch, at.roll ?? 0);
   readAngles(p);
-  const f = rotate(p.q, { x: 0, y: 0, z: 1 });
-  p.vx = f.x * at.speed;
-  p.vy = f.y * at.speed;
-  p.vz = f.z * at.speed;
-  p.wx = p.wy = p.wz = 0;
+  const f = at.way ?? rotate(p.q, { x: 0, y: 0, z: 1 });
+  const fl = hypot3(f.x, f.y, f.z) || 1;
+  p.vx = (f.x / fl) * at.speed;
+  p.vy = (f.y / fl) * at.speed;
+  p.vz = (f.z / fl) * at.speed;
+  p.wx = at.rates?.wx ?? 0;
+  p.wy = at.rates?.wy ?? 0;
+  p.wz = at.rates?.wz ?? 0;
   p.spin = 1;
   p.airspeed = at.speed;
   p.power = at.power ?? 0.7;
@@ -397,6 +408,10 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
   // THE ENGINE: the power after the lever, a turbine's spool.
   const want = K.engine.idle + (1 - K.engine.idle) * p.controls.throttle;
   p.power += (want * p.spin - p.power) * (1 - Math.exp(-dt / K.engine.spool));
+  if (p.spin > 0.05) {
+    const B = PLANE_WRECK.burn;
+    p.fuel = Math.max(0, p.fuel - ((B.idle + (B.full - B.idle) * p.power) / 3600) * dt);
+  }
   moveSurfaces(p);
   // THE CoG and the air it flies through.
   const cogW = rotate(p.q, COG);
@@ -532,8 +547,9 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
   if (run.rules.sfw) return fend(run, p);
   const fell =
     hardest > K.crash.sink || side > K.crash.slide || p.legs.some((l) => l > K.crash.travel);
-  if (fell || struck(run, p)) {
-    crash(run, p, events, Math.max(hardest, hypot3(p.vx, p.vy, p.vz)));
+  const hit = fell ? HIT_GEAR : struck(run, p);
+  if (hit !== HIT_NONE) {
+    crash(run, p, events, Math.max(hardest, hypot3(p.vx, p.vy, p.vz)), hit);
     return;
   }
   if (p.mode === "home" && onSnow && hypot3(p.vx, p.vy, p.vz) < 0.8 && p.t > K.home.beat + 5) {
@@ -543,9 +559,18 @@ function fly(run: GameState, p: PlaneState, events: GameEvent[]): void {
 
 const trunks: number[] = [];
 
-/** Whether the airframe has met the mountain: a point of it in the snow,
- * the propeller's disc in it, or a wing or the fuselage in a crown. */
-function struck(run: GameState, p: PlaneState): boolean {
+/** What met the mountain first: nothing, the gear (folded or sliding
+ * out), an airframe point (the index into `K.crash.strike` — the first
+ * four the wing tips), the propeller, or a tree. */
+const HIT_NONE = -1;
+const HIT_GEAR = -2;
+const HIT_PROP = -3;
+const HIT_TREE = -4;
+
+/** Whether the airframe has met the mountain, and where first: a point of
+ * it in the snow, the propeller's disc in it, or a wing or the fuselage in
+ * a crown. */
+function struck(run: GameState, p: PlaneState): number {
   const level = run.level;
   const cog = rotate(p.q, COG);
   const cx = p.x + cog.x;
@@ -555,9 +580,9 @@ function struck(run: GameState, p: PlaneState): boolean {
     const r = rotate(p.q, b);
     return cy + r.y < level.groundAt(cx + r.x, cz + r.z) - give;
   };
-  for (const s of STRIKES) if (inSnow(s, 0.05)) return true;
-  for (const s of PROP_RIM) if (inSnow(s, 0.02)) return true;
-  if (p.agl > 60) return false;
+  for (let i = 0; i < STRIKES.length; i++) if (inSnow(STRIKES[i], 0.05)) return i;
+  for (const s of PROP_RIM) if (inSnow(s, 0.02)) return HIT_PROP;
+  if (p.agl > 60) return HIT_NONE;
   for (const i of treesNear(level, cx, cz, 14, trunks)) {
     const t = level.trees[i];
     const top = t.y + t.height;
@@ -567,10 +592,10 @@ function struck(run: GameState, p: PlaneState): boolean {
       if (y > top) continue;
       const d = hypot(cx + r.x - t.x, cz + r.z - t.z);
       const spread = t.crown * Math.min(1, (top - y) / Math.max(1, t.height * 0.8));
-      if (d < spread * 0.7 || d < t.radius + 0.3) return true;
+      if (d < spread * 0.7 || d < t.radius + 0.3) return HIT_TREE;
     }
   }
-  return false;
+  return HIT_NONE;
 }
 
 /** SAFE FOR WORK (`RunRules.sfw`): nothing is struck; an airframe pushed
@@ -589,11 +614,50 @@ function fend(run: GameState, p: PlaneState): void {
 }
 
 /** THE CRASH: the plane burns where it came down, and the skier in its
- * door is thrown — flung out by the impact. */
-function crash(run: GameState, p: PlaneState, events: GameEvent[], speed: number): void {
+ * door is thrown — flung out by the impact. What it struck first and how
+ * it was flying say what KIND of crash it was (`wreckKindOf`); the wreck
+ * keeps its way, attitude and rates as it struck for the drawing to break
+ * it up by, and the fuel it had left for the fire. */
+function crash(
+  run: GameState,
+  p: PlaneState,
+  events: GameEvent[],
+  speed: number,
+  hit: number,
+): void {
   p.mode = "wreck";
   p.t = 0;
-  p.wreck = { x: p.x, y: p.y, z: p.z, speed, aboard: p.rider };
+  // The wing tips are the first four strike points: +x the left (`PLANE`).
+  const tip = hit >= 0 && hit < 4 ? (STRIKES[hit].x > 0 ? -1 : 1) : 0;
+  const kind = wreckKindOf({
+    tip,
+    tree: hit === HIT_TREE,
+    vx: p.vx,
+    vy: p.vy,
+    vz: p.vz,
+    pitch: p.pitch,
+    roll: p.roll,
+    yawRate: rotate(p.q, { x: p.wx, y: p.wy, z: p.wz }).y,
+    stalled: p.stalled,
+  });
+  p.wreck = {
+    x: p.x,
+    y: p.y,
+    z: p.z,
+    speed,
+    aboard: p.rider,
+    kind,
+    tip,
+    vx: p.vx,
+    vy: p.vy,
+    vz: p.vz,
+    q: { ...p.q },
+    wx: p.wx,
+    wy: p.wy,
+    wz: p.wz,
+    power: p.power,
+    fuel: p.fuel,
+  };
   say(run, events, "crash", speed);
   if (p.rider) {
     release(run, p, K.crash.blast.out, K.crash.blast.up);

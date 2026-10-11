@@ -69,8 +69,9 @@ export type Forecast = {
  * own lens's — `wrecked`.) */
 const MANGLING: readonly string[] = ["machine", "rotor"];
 
-/** Whether a run's helicopter has come down with its skier on it. */
-export const wrecked = (s: GameState): boolean => !!s.heli?.wreck?.aboard;
+/** Whether a run's helicopter or jump plane has come down with its skier on it. */
+export const wrecked = (s: GameState): boolean =>
+  !!s.heli?.wreck?.aboard || !!s.plane?.wreck?.aboard;
 
 /** Whether a run's skier is being taken apart by a machine — the piste
  * machine's belts and tiller or the helicopter's blades

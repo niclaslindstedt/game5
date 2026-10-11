@@ -27,6 +27,7 @@ import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { Flood } from "./headlamp.ts";
 import { createPlaneCockpit, type PlaneCockpit } from "./plane-cockpit.ts";
+import type { WreckParts } from "./plane-shatter.ts";
 import { createPlaneStandIn } from "./plane-standin.ts";
 import { PLANE_NODES, planeModelUrl } from "./skier-models.ts";
 
@@ -41,6 +42,9 @@ export type PlaneLook = {
   pose(p: PlaneState, clock: number, level?: Level, dt?: number): void;
   /** Every surface charred `k` of the way: 0 as built, 1 burnt black. */
   char(k: number): void;
+  /** What a wreck is torn from (`plane-shatter.ts`): the airframe drawn
+   * now — the model, or the stand-in — its propeller and its door. */
+  wreckParts(): WreckParts;
   /** Whether the eye is in the cockpit, whether it is the pilot's own,
    * and whether it is near enough outside to see in. */
   inside(on: boolean, own?: boolean, near?: boolean): void;
@@ -191,6 +195,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
   let colours = parts.materials.map((m) => (m as THREE.MeshStandardMaterial).color.clone());
   let charred = 0;
   let disposed = false;
+  let wreckParts: WreckParts = { root: standIn.group, prop: standIn.prop, door: null };
 
   // THE BLUR DISC across the propeller's sweep, the model's and the
   // stand-in's alike.
@@ -242,6 +247,9 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       group.remove(standIn.group);
       group.add(gltf.scene);
       parts = next;
+      const node = (name: string): THREE.Object3D | null =>
+        gltf.scene.getObjectByName(name) ?? null;
+      wreckParts = { root: gltf.scene, prop: node(PLANE_NODES.prop), door: node(PLANE_NODES.door) };
       // THE COCKPIT, off the model's own glass, in the airframe's frame.
       let body: THREE.Object3D | null = null;
       gltf.scene.traverse((o) => {
@@ -288,6 +296,7 @@ export function createPlaneLook(haze: HazeUniforms, url = planeModelUrl()): Plan
       });
       charred = k;
     },
+    wreckParts: () => wreckParts,
     inside(on, own = on, near = false) {
       if (cockpit) cockpit.show(on, own, near);
       else parts.inside(on);

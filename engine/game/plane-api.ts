@@ -9,12 +9,22 @@
 
 export { PLANE, planeMass } from "./defs/plane.ts";
 export { AIR_BOUNDS } from "./defs/air-bounds.ts";
+export {
+  PLANE_WRECK,
+  planeFireOf,
+  planeFireballAt,
+  poolHeat,
+  wreckKindOf,
+  type PlaneFire,
+  type WreckKind,
+} from "./defs/plane-wreck.ts";
 export type {
   PlaneControls,
   PlaneEvent,
   PlaneMode,
   PlanePhaseEvent,
   PlaneState,
+  PlaneWreck,
 } from "./plane-state.ts";
 export {
   THREE_POINT,

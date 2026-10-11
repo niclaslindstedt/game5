@@ -261,7 +261,7 @@ export function createMachines(
       });
       heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
-      plane?.frame(s, alpha, dt, rung, flying, aspect);
+      plane?.frame(s, alpha, dt, rung, flying, aspect, fx.cloud, fx.snowAt);
       chute?.frame(s, alpha, chute && (s.chute || s.plane?.rider) ? seated?.skin() : null);
       const at = chute?.jumper();
       const framed =

@@ -295,7 +295,7 @@ export function planeGaugesOf(p: PlaneState, ground: number, clock: number): Pla
     flow: live ? 70 + p.power * 130 : 0,
     oilP: live ? 85 + p.power * 20 : 0,
     oilT: live ? 62 + p.power * 14 : 8,
-    fuel: PLANE.fuel,
+    fuel: p.fuel,
     flaps: p.surfaces.flaps,
     trim: p.trim,
     power: p.power,

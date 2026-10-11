@@ -20,7 +20,6 @@ import {
   HELI,
   TUNING,
   airAt,
-  treesNear,
   unrotate,
   washAt,
   type GameState,
@@ -28,7 +27,7 @@ import {
   type Wash,
 } from "@engine";
 
-import { frameCrash, startCrashCam, type CrashCam } from "./camera-crash.ts";
+import { frameCrash, startCrashCam, wooded, type CrashCam } from "./camera-crash.ts";
 import { createHeliCam, frameHeli, heliMiddleOf, orbitBlend } from "./camera-heli.ts";
 import { bodyOf, COCKPIT, inCabin } from "./cockpit-plan.ts";
 import { blendLens, type LensPose, type Vec3 } from "./camera-rigs.ts";
@@ -75,35 +74,6 @@ export type HeliScene = {
   ready: Promise<void>;
   dispose(): void;
 };
-
-const trunks: number[] = [];
-
-/** WHETHER A TRUNK STANDS between `eye` and `at` — the crash's lens rises
- * over one. */
-function treeBetween(level: Level, eye: Vec3, at: Vec3): boolean {
-  for (let t = 0.05; t < 0.95; t += 0.05) {
-    const px = eye.x + (at.x - eye.x) * t;
-    const pz = eye.z + (at.z - eye.z) * t;
-    const py = eye.y + (at.y + 2 - eye.y) * t;
-    for (const i of treesNear(level, px, pz, 2.5, trunks)) {
-      const tree = level.trees[i];
-      if (tree.y + tree.height > py) return true;
-    }
-  }
-  return false;
-}
-
-/** WHETHER THE CRASH'S LENS WOULD BE WOODED IN at `eye`: a trunk between
- * it and the fire, or a tree near enough the eye to fill the frame. */
-function wooded(level: Level, eye: Vec3, at: Vec3): boolean {
-  if (treeBetween(level, eye, at)) return true;
-  for (let t = 0; t < 0.35; t += 0.05) {
-    const px = eye.x + (at.x - eye.x) * t;
-    const pz = eye.z + (at.z - eye.z) * t;
-    if (treesNear(level, px, pz, 4 + 22 * t, trunks).length > 0) return true;
-  }
-  return false;
-}
 
 /** How long the drop's lens is held after the push, s, and how long its
  * look takes to come round onto him; how long the lens takes to fly onto

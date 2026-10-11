@@ -3,6 +3,7 @@
 // where, and what its events say — beside `state.ts`, which names them.
 
 import type { Quat } from "@niclaslindstedt/oss-game-framework/core/quat";
+import type { WreckKind } from "./defs/plane-wreck.ts";
 
 /** THE CONTROLS OF THE PLANE, flown by hand with nothing between the pilot
  * and the surfaces:
@@ -119,7 +120,37 @@ export type PlaneState = {
   door: number;
   /** Seconds in this mode (the wreck's clock, the pilot's beat). */
   t: number;
+  /** The fuel aboard, kg of jet fuel: the jump flight's load drawn down
+   * by the engine's burn (`PLANE_WRECK.burn`) — what a wreck burns. */
+  fuel: number;
   /** Where the wreck came down, how hard, m/s, and whether the skier was
    * aboard (`plane` crash) — then the ride starts again on the strip. */
-  wreck: { x: number; y: number; z: number; speed: number; aboard: boolean } | null;
+  wreck: PlaneWreck | null;
+};
+
+/** A CRASHED PLANE as it struck (`plane.ts`'s `crash`): where, how hard,
+ * m/s, and whether the skier was aboard; the KIND of crash it was
+ * (`wreckKindOf`) and the wing tip that struck first (−1 the left, the
+ * engine's +x, +1 the right, 0 neither); the way it was going, m/s, its
+ * attitude and its body rates, rad/s, as it struck (the engine leaves it
+ * at rest there — the drawing breaks it up off these); its engine's power
+ * share (the blades bent back at idle, curled forward under power); and
+ * the fuel it had left, kg. Nothing in it draws from the stream. */
+export type PlaneWreck = {
+  x: number;
+  y: number;
+  z: number;
+  speed: number;
+  aboard: boolean;
+  kind: WreckKind;
+  tip: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  q: Quat;
+  wx: number;
+  wy: number;
+  wz: number;
+  power: number;
+  fuel: number;
 };

@@ -18,7 +18,10 @@
 //              HELMET rungs, parked and on the jump run
 //   lenses     every rung of the game's camera in the air
 //   cockpit    what the pilot's eye sees today (Phase E's subject)
-//   crash      flown into the snow, the wreck and its charring
+//   crash      the fireball's growth and burn-out, the wreck burning on at
+//              5, 30 and 90 s, by day and after dark
+//   crash-kinds  nose in, cartwheeled, on its belly, out of a spin, into the
+//              trees — each frame by frame through the crash's lens
 //
 // Each GROUP is one contact sheet, previews/plane-<group>.png, and every
 // frame is also written alone, previews/plane-<view>-<label>.png. The page
@@ -53,7 +56,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash); every one when left out",
+      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash, crash-kinds); every one when left out",
     },
     views: {
       kind: "string",

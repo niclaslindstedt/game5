@@ -50,6 +50,37 @@ export const TRAIL = { flames: 14, smoke: 10, embers: 4 } as const;
  * how dark it goes at its middle. */
 export const SCORCH = { radius: 10, darken: 2.5, dark: 0.85 } as const;
 
+/** WHAT A MACHINE'S FIRE LOOKS LIKE, where it is not the helicopter's: its
+ * pool (`POOL`'s fields, and `girth` its flames' width against the
+ * helicopter's — a wider pool licks up in more, thinner tongues), its
+ * scorch's radius, m, and whether the scorch is ringed with the slush a
+ * long fire melts round it. */
+export type ExplosionLook = {
+  pool: {
+    radius: number;
+    flame: number;
+    flames: number;
+    smoke: number;
+    embers: number;
+    plume: number;
+    girth?: number;
+    /** The share of its radius its flames lick up from — the fuel
+     * gathers deepest round the hulk; the rest of the pool is the scorch
+     * and the slush. */
+    core?: number;
+  };
+  scorch: number;
+  melt: boolean;
+};
+
+/** A fireball to light: its diameter, m, and its life, s (`fireballOf`) —
+ * a diameter of 0 lights none (a pool fire alone). */
+export type BallSize = { diameter: number; life: number };
+
+/** The fire's light this frame: where it stands and how bright, a flood's
+ * power (`headlamp.ts`), 0 dark. */
+export type FireLight = { x: number; y: number; z: number; power: number };
+
 /** The pools: loose flames, smoke puffs, shards; and the batch they and
  * the fireball's lobes are drawn in. */
 const FIRE = 520;
@@ -95,10 +126,24 @@ type Shard = {
 export type Explosion = {
   group: THREE.Group;
   /** Go up at (x, y, z) — `speed` the closing speed it came down at, m/s,
-   * and (vx, vz) the way it was going, the fuel's spray thrown along it. */
-  burst(x: number, y: number, z: number, speed: number, vx?: number, vz?: number): void;
-  /** Keep the wreck burning at (x, y, z) while `on`. */
-  burning(on: boolean, x: number, y: number, z: number): void;
+   * and (vx, vz) the way it was going, the fuel's spray thrown along it;
+   * `ball` the fireball's size (the helicopter's when left out). */
+  burst(
+    x: number,
+    y: number,
+    z: number,
+    speed: number,
+    vx?: number,
+    vz?: number,
+    ball?: BallSize,
+  ): void;
+  /** Keep the wreck burning at (x, y, z) while `on`, `heat` of the pool's
+   * full fire (0..1). */
+  burning(on: boolean, x: number, y: number, z: number, heat?: number): void;
+  /** The wind the smoke drifts on, m/s (the column leans with it). */
+  wind(wx: number, wz: number): void;
+  /** The fire's light this frame (the flash, the ball, the pool). */
+  light(): FireLight;
   /** A burning piece of the airframe at (x, y, z) this frame, `heat`
    * 0..1, over `dt` s: the fire and smoke it trails. */
   flame(x: number, y: number, z: number, heat: number, dt: number): void;
@@ -169,13 +214,43 @@ export function billowStrip(): THREE.Texture {
 }
 
 /** The scorch's mark: a dark, ragged blot fading out to its rim and
- * speckled with soot beyond it. */
-function scorchTexture(): THREE.Texture {
-  const n = 128;
+ * speckled with soot beyond it — and, under a long fire (`melt`), ringed
+ * with the grey wet slush the heat melts the snow to, its middle down to
+ * dark water and the ground. */
+function scorchTexture(melt = false): THREE.Texture {
+  const n = melt ? 256 : 128;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = n;
   const ctx = canvas.getContext("2d")!;
   const rand = makeRandom(0x5c0c);
+  if (melt) {
+    // The slush: a ragged ring of wet grey-blue snow, lumpy at its rim.
+    for (let i = 0; i < 40; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = n * (0.18 + rand() * 0.14);
+      const cx = n / 2 + Math.cos(a) * r;
+      const cy = n / 2 + Math.sin(a) * r;
+      const rad = n * (0.1 + rand() * 0.12);
+      const b = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      b.addColorStop(0, "rgba(70,78,86,0.5)");
+      b.addColorStop(1, "rgba(70,78,86,0)");
+      ctx.fillStyle = b;
+      ctx.fillRect(0, 0, n, n);
+    }
+    // Melted through: dark water and earth at the heart.
+    for (let i = 0; i < 14; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = rand() * n * 0.1;
+      const cx = n / 2 + Math.cos(a) * r;
+      const cy = n / 2 + Math.sin(a) * r;
+      const rad = n * (0.06 + rand() * 0.1);
+      const b = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      b.addColorStop(0, "rgba(28,24,20,0.85)");
+      b.addColorStop(1, "rgba(28,24,20,0)");
+      ctx.fillStyle = b;
+      ctx.fillRect(0, 0, n, n);
+    }
+  }
   for (let i = 0; i < 22; i++) {
     const a = rand() * Math.PI * 2;
     const r = rand() * n * 0.18;
@@ -221,7 +296,9 @@ export function glowTexture(): THREE.Texture {
   return tex;
 }
 
-export function createExplosion(): Explosion {
+export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
+  const POOL_: ExplosionLook["pool"] = look.pool ?? POOL;
+  const SCORCH_R = look.scorch ?? SCORCH.radius;
   const group = new THREE.Group();
   group.name = "explosion";
   const random = makeRandom(0xb00a);
@@ -268,9 +345,9 @@ export function createExplosion(): Explosion {
     return { mesh, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: new THREE.Vector3(), live: false };
   });
   // The scorch, draped over the snow where it went up.
-  const scorchTex = scorchTexture();
-  const scorchN = 12;
-  const scorchGeo = new THREE.PlaneGeometry(SCORCH.radius * 2, SCORCH.radius * 2, scorchN, scorchN);
+  const scorchTex = scorchTexture(look.melt);
+  const scorchN = look.melt ? 24 : 12;
+  const scorchGeo = new THREE.PlaneGeometry(SCORCH_R * 2, SCORCH_R * 2, scorchN, scorchN);
   scorchGeo.rotateX(-Math.PI / 2);
   const scorchMat = new THREE.MeshBasicMaterial({
     map: scorchTex,
@@ -294,9 +371,13 @@ export function createExplosion(): Explosion {
   let nextFire = 0;
   let nextSmoke = 0;
   let burn: { x: number; y: number; z: number } | null = null;
+  let burnHeat = 1;
+  const breeze = { x: 0, z: 0 };
+  const glowOut: FireLight = { x: 0, y: 0, z: 0, power: 0 };
   const debt = { flame: 0, smoke: 0, ember: 0 };
   let clock = 0;
-  const full = fireballOf(BALL.fuel * BALL.share);
+  const heli = fireballOf(BALL.fuel * BALL.share);
+  let full: BallSize = heli;
 
   function spawn(list: Puff[], at: number, p: Partial<Puff>): number {
     Object.assign(list[at], { age: 0, rot: random() * Math.PI * 2 }, p);
@@ -435,25 +516,57 @@ export function createExplosion(): Explosion {
 
   return {
     group,
-    burst(x, y, z, speed, vx = 0, vz = 0) {
+    burst(x, y, z, speed, vx = 0, vz = 0, ball = heli) {
       const flat = Math.hypot(vx, vz);
       const fx = flat > 1 ? vx / flat : 0;
       const fz = flat > 1 ? vz / flat : 0;
+      full = ball;
       // THE FIREBALL, and the smaller ones the fuel's spray lights along
-      // the way it was going.
-      const R = full.diameter / 2;
-      lightBall(balls[0], x, y, z, R, 0, fx, fz, random);
-      const reach = Math.min(1, flat / 30) * R;
-      BALL.spray.forEach((s, i) => {
-        const a = flat > 1 ? (random() - 0.5) * 0.9 : random() * Math.PI * 2;
-        const dx = flat > 1 ? fx * Math.cos(a) - fz * Math.sin(a) : Math.sin(a);
-        const dz = flat > 1 ? fz * Math.cos(a) + fx * Math.sin(a) : Math.cos(a);
-        const out = flat > 1 ? s.along * reach : R * 0.5;
-        lightBall(balls[i + 1], x + dx * out, y, z + dz * out, R * s.size, s.delay, fx, fz, random);
-      });
+      // the way it was going — or, with no ball (fuel spilt too slowly to
+      // mist), the pool lighting with a WHOOMP of flame off its whole face.
+      const R = Math.max(POOL_.radius, full.diameter / 2);
+      if (full.diameter > 0) {
+        const life = (r: number) => full.life * Math.sqrt(r / (full.diameter / 2));
+        lightBall(balls[0], x, y, z, R, 0, fx, fz, random, life(R));
+        const reach = Math.min(1, flat / 30) * R;
+        BALL.spray.forEach((s, i) => {
+          const a = flat > 1 ? (random() - 0.5) * 0.9 : random() * Math.PI * 2;
+          const dx = flat > 1 ? fx * Math.cos(a) - fz * Math.sin(a) : Math.sin(a);
+          const dz = flat > 1 ? fz * Math.cos(a) + fx * Math.sin(a) : Math.cos(a);
+          const out = flat > 1 ? s.along * reach : R * 0.5;
+          const r = R * s.size;
+          lightBall(
+            balls[i + 1],
+            x + dx * out,
+            y,
+            z + dz * out,
+            r,
+            s.delay,
+            fx,
+            fz,
+            random,
+            life(r),
+          );
+        });
+      } else {
+        for (let i = 0; i < 60; i++) {
+          const a = random() * Math.PI * 2;
+          const d = Math.sqrt(random()) * R * 1.3;
+          flameAt(
+            x + Math.sin(a) * d,
+            y + 0.3,
+            z + Math.cos(a) * d,
+            2.5 + 2 * random(),
+            9,
+            0.6 + 0.8 * random(),
+            0.85,
+          );
+        }
+      }
+      const fierce = full.diameter > 0 ? 1 : 0.35;
       // THE SPARKS: burning fuel and metal flung out of it, white-hot; and
       // the embers lofted in it.
-      shower(x, y + 1.2, z, 520, 50, vx * 0.4, vz * 0.4);
+      shower(x, y + 1.2, z, Math.round(520 * fierce), 50 * fierce, vx * 0.4, vz * 0.4);
       for (let i = 0; i < 160; i++) {
         const a = random() * Math.PI * 2;
         const sp = 2 + random() * 8;
@@ -489,12 +602,24 @@ export function createExplosion(): Explosion {
         p.mesh.visible = true;
       }
       flash.position.set(x, y + 4, z);
-      flashAge = 0;
+      flashAge = full.diameter > 0 ? 0 : 1.2;
       scorchAt = { x, y, z };
       scorchAge = 0;
     },
-    burning(on, x, y, z) {
-      burn = on ? { x, y, z } : null;
+    burning(on, x, y, z, heat = 1) {
+      burn = on && heat > 0.01 ? { x, y, z } : null;
+      burnHeat = heat;
+    },
+    wind(wx, wz) {
+      breeze.x = wx;
+      breeze.z = wz;
+    },
+    light() {
+      glowOut.x = flash.position.x;
+      glowOut.y = flash.position.y;
+      glowOut.z = flash.position.z;
+      glowOut.power = flash.intensity / 160;
+      return glowOut;
     },
     flame(x, y, z, heat, dt) {
       debt.flame += dt * TRAIL.flames * heat;
@@ -545,39 +670,46 @@ export function createExplosion(): Explosion {
         // THE POOL FIRE: flames licking up off the spilled fuel ten metres
         // and more, PUFFING as a pool fire does, smoke rolling up black
         // over them, embers in the plume.
-        const R = POOL.radius;
-        const pulse = 0.5 + 0.5 * Math.sin(clock * POOL.puff * Math.PI * 2);
+        const R = POOL_.radius;
+        const hot = burnHeat;
+        const pulse = 0.5 + 0.5 * Math.sin(clock * (1.5 / Math.sqrt(2 * R)) * Math.PI * 2);
         const flick = (0.7 + 0.3 * pulse) * (0.9 + 0.1 * Math.sin(clock * 23));
         flash.position.set(burn.x, burn.y + 5, burn.z);
-        flash.intensity = Math.max(flash.intensity, 160 * flick);
-        const rise = POOL.flame * (0.85 + 0.45 * pulse);
-        for (let n = POOL.flames * (0.6 + 0.6 * pulse) * dt + random(); n >= 1; n--) {
+        flash.intensity = Math.max(
+          flash.intensity,
+          160 * flick * Math.sqrt(hot) * (R / POOL.radius),
+        );
+        const rise = POOL_.flame * (0.85 + 0.45 * pulse) * (0.35 + 0.65 * hot);
+        for (let n = POOL_.flames * (0.6 + 0.6 * pulse) * hot * dt + random(); n >= 1; n--) {
           const a = random() * Math.PI * 2;
-          const d = Math.sqrt(random()) * R;
+          const d = Math.sqrt(random()) * R * (POOL_.core ?? 1);
           flameAt(
             burn.x + Math.sin(a) * d,
             burn.y + 0.4,
             burn.z + Math.cos(a) * d,
-            (2.2 + 2.6 * random() * (1 - d / R)) * (0.85 + 0.3 * pulse),
+            (2.2 + 2.6 * random() * (1 - d / R)) *
+              (0.85 + 0.3 * pulse) *
+              (0.5 + 0.5 * hot) *
+              (POOL_.girth ?? 1),
             rise * (1 - 0.5 * (d / R)),
             0.7 + 0.6 * random(),
             0.58 - 0.2 * (d / R),
           );
         }
-        for (let n = POOL.smoke * dt + random(); n >= 1; n--) {
+        for (let n = POOL_.smoke * (0.3 + 0.7 * hot) * dt + random(); n >= 1; n--) {
           smokeAt(
             burn.x + (random() - 0.5) * R,
-            burn.y + POOL.flame * (0.6 + 0.4 * random()),
+            burn.y + POOL_.flame * (0.6 + 0.4 * random()) * (0.35 + 0.65 * hot),
             burn.z + (random() - 0.5) * R,
-            3.5,
-            POOL.plume,
+            3.5 * Math.sqrt(R / POOL.radius) * (0.6 + 0.4 * hot),
+            POOL_.plume * (0.5 + 0.5 * hot),
             0,
             0,
             12,
             0.9,
           );
         }
-        for (let n = POOL.embers * dt + random(); n >= 1; n--) {
+        for (let n = POOL_.embers * hot * dt + random(); n >= 1; n--) {
           sparks.emit(
             burn.x + (random() - 0.5) * R,
             burn.y + 1 + random() * 3,
@@ -609,8 +741,9 @@ export function createExplosion(): Explosion {
         // cools and spreads out under it — the mushroom's cap, a column
         // eighty metres and more after ten seconds.
         const drag = Math.exp(-0.32 * dt);
-        p.vx *= drag;
-        p.vz *= drag;
+        // Drag toward the wind: the column leans downwind as it climbs.
+        p.vx = breeze.x + (p.vx - breeze.x) * drag;
+        p.vz = breeze.z + (p.vz - breeze.z) * drag;
         p.vy *= Math.exp(-0.09 * dt);
         p.x += p.vx * dt;
         p.y = Math.max(groundAt(p.x, p.z) + 0.6, p.y + p.vy * dt);
@@ -658,6 +791,7 @@ export function createExplosion(): Explosion {
       flash.intensity = 0;
       flashAge = 99;
       burn = null;
+      full = heli;
     },
     dispose() {
       strip.dispose();

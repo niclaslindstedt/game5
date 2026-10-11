@@ -492,6 +492,23 @@ export function soundForEvent(
       }
     }
 
+    // THE JUMP PLANE: only its CRASH speaks yet — the helicopter's blast,
+    // a plane's tanks heavier and its strike faster, so a size up and a
+    // shade lower. The rest of a flight is silent until its own bank lands.
+    case "plane": {
+      if (event.phase !== "crash") return null;
+      const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
+      const big = CRASH_FLOOR + (1 - CRASH_FLOOR) * ramp(event.speed, 0, 2 * CRASH_FULL);
+      return {
+        id: "heli_crash",
+        shape: {
+          gain: blast.gain! * (0.95 + 0.45 * big),
+          pitch: blast.pitch! * (1.02 - 0.14 * big),
+          stretch: blast.stretch! * (1 + 0.25 * big),
+        },
+      };
+    }
+
     // THE PARAMOTOR, on his back: the rig let go is the drop's clack and
     // rush of the helicopter's skid, the buckles and the cloth away; the
     // rest of a flight is its engine's bed and the wind.

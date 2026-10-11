@@ -148,8 +148,13 @@ export const TRAIL = {
    * deeper its edged cut is at a full edge, as shares — the whole base laid
    * into the snow at the edge's angle, where a ski's edge only scores it; how much softer its walls
    * stand (a rounded U, the base's own shape); its skid's scrape, wider and
-   * shallower than a ski's, as shares at a full skid. */
+   * shallower than a ski's, as shares at a full skid. THE FLOAT'S DEPTH:
+   * the deepest a board's own cut is drawn in powder, m, at a crawl
+   * (`boardCut`) — a board's wide base floats where a ski's sinks, so the
+   * deck rides at the snow's surface, at most a few centimetres under it
+   * with the boots' soles in the snow, whatever the physics' sink. */
   board: {
+    bury: 0.07,
     float: 0.8,
     carveNarrow: 0.45,
     carveDeep: 1.8,
@@ -230,6 +235,26 @@ export function drawnDepth(
     : base * depth * (1 - p) + TRAIL.packedDepth * p;
   const drawn = share * Math.min(1, Math.max(0.25, load));
   return Math.min(TRAIL.maxDepth, Math.max(contact.sink, drawn));
+}
+
+/** THE CUT A BOARD'S STATION DRAWS, m, before the carve's shape: the
+ * powder's furrow at the board's float (`TRAIL.board.float`) and the plane
+ * at `speed` m/s, never deeper than `board.bury` of it — a board floats,
+ * so neither its trench nor the deck drawn in it (`board-input.ts`'s
+ * `boardRideSink`) goes down with the physics' sink in deep snow. */
+export function boardCut(
+  contact: SnowContact,
+  packed: number,
+  load = 1,
+  depth = 1,
+  snow?: SnowProps,
+  speed = 0,
+): number {
+  const plane = planeOf(speed);
+  const float = TRAIL.board.float * plane;
+  const give = snow ? { ...snow, give: snow.give * float } : snow;
+  const cap = Math.max(TRAIL.packedDepth, TRAIL.board.bury * plane);
+  return Math.min(cap, drawnDepth(contact, packed, load, depth * float, give));
 }
 
 /** The last place each probe of one skier was stamped. */
@@ -363,12 +388,14 @@ export function stampsOf(
     const shape = board ? boardShape : skiShape;
     const load = nominalLoad > 0 ? c.load / nominalLoad : 1;
     const snow = snowAt?.(c.x, c.z);
-    const float = (board ? TRAIL.board.float : 1) * plane;
-    const give = snow && float !== 1 ? { ...snow, give: snow.give * float } : snow;
-    const drawn = Math.min(
-      TRAIL.maxDepth,
-      drawnDepth(c, packedAt(c.x, c.z), load, depth * float, give) * shape.depth,
-    );
+    const packed = packedAt(c.x, c.z);
+    let cut: number;
+    if (board) cut = boardCut(c, packed, load, depth, snow, carve?.speed);
+    else {
+      const give = snow && plane !== 1 ? { ...snow, give: snow.give * plane } : snow;
+      cut = drawnDepth(c, packed, load, depth * plane, give);
+    }
+    const drawn = Math.min(TRAIL.maxDepth, cut * shape.depth);
     const half = c.width * 0.5 * shape.width;
     const wall = (snow ? snow.wall : TRAIL.wall) * (board ? TRAIL.board.wall : 1);
     // The edged cut stands under the EDGE, not the middle of the base: moved

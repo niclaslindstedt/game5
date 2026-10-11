@@ -46,6 +46,7 @@ import {
 } from "@engine";
 
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
+import { boardRideSink } from "./board-input.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { figureShown } from "./camera-para.ts";
@@ -453,9 +454,12 @@ export function createWorldRenderer(
 
   /** How much deeper the drawn furrow is than the physics' sink under the
    * boots — the skier is drawn that much lower, so he stands IN the
-   * trough his skis are cutting rather than hovering over it. */
-  function extraSink(skier: SkierState, depth: number): number {
+   * trough his skis are cutting rather than hovering over it — with the
+   * trails off (`cut`) there is none to sit in. A board floats on it. */
+  function extraSink(skier: SkierState, depth: number, cut: boolean): number {
     if (!level) return 0;
+    if (skier.spec.board) return boardRideSink(skier, level, depth, cut, sampleSnow);
+    if (!cut) return 0;
     let sum = 0;
     let n = 0;
     for (const c of skier.contacts) {
@@ -636,9 +640,8 @@ export function createWorldRenderer(
         const skier = run.skier;
         observe(r.track, skier, run.tick);
         sample(r.track, alpha, r.drawn);
-        // With the trails off there is no furrow to sit in.
         const want =
-          (TRAIL_LOOK[video.trails].stamp ? extraSink(skier, run.snowDepth) : 0) -
+          extraSink(skier, run.snowDepth, TRAIL_LOOK[video.trails].stamp) -
           (skier.thrown ? 0 : (machines?.slideLift(skier.x, skier.z) ?? 0));
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
         observeBody(r.body, skier.thrown, run.tick);

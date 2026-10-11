@@ -81,6 +81,7 @@ import { ENTHUSIASTS } from "./defs/enthusiasts.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
+import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
 import { freshHeli, startAgain } from "./heli.ts";
@@ -313,6 +314,10 @@ export type CreateGameOptions = {
    * started again after he was caught). None when left out; the app deals
    * him to one ride in a few. Ignored by every other mode. */
   grimbear?: GrimbearAsk;
+  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`) on a FREE RIDE: a
+   * canopy's malfunctions, an engine's stoppage — how often, and the app's
+   * salt. None when left out. Ignored by every other mode. */
+  mishaps?: MishapAsk;
   /** THE PISTE MACHINES (`groomer.ts`) on a FREE RIDE: out after dark
    * (`night`, the app's ask), whatever the hour (`on`), or never (`off`).
    * None when left out. Ignored by every other mode. */
@@ -629,6 +634,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (rules.avalanche) state.avalanche = freshAvalanche(state);
+  if (free && options.mishaps) state.mishaps = freshMishaps(seed, options.mishaps);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
     state.groomers = freshGroomers(state);

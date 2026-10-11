@@ -294,6 +294,24 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     p.fold = 0;
     p.foldSide = 0;
   },
+  // ── MISHAPS (`mishaps.ts`): a cravat and line twists, set by hand ────
+  // A right tip caught in the lines once the rest has filled, and the
+  // pilot turned under his wing by two turns of twist.
+  mishap(st) {
+    const s = airborne(st);
+    const p = s.para!;
+    p.cravat = 1;
+    st.run(s, 1.2, ride({ tuck: 0.4 }));
+    st.shoot(s, "cravat-behind", around(0, 1.5, 12, 55, 0, 3));
+    st.shoot(s, "cravat-quarter", around(-7, 2, -9, 55, 0, 3));
+    delete p.cravat;
+    delete p.pump;
+    p.twist = 2 * 2 * Math.PI + 1.2;
+    st.run(s, 0.3, ride({ tuck: 0.4 }));
+    st.shoot(s, "twists-behind", around(0, 1.5, 12, 55, 0, 3));
+    st.shoot(s, "twists-close", around(3, 1, 4, 50, 0, 2));
+    delete p.twist;
+  },
   // ── THE RIG DROPPED ────────────────────────────────────────────────────
   drop(st) {
     const s = st.fresh();
@@ -424,6 +442,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   acro: ["loop", "swing", "tangle"],
   landing: ["landing"],
   fold: ["fold"],
+  mishap: ["mishap"],
   drop: ["drop", "drop-high"],
   gear: ["gear"],
   turntable: ["turntable"],

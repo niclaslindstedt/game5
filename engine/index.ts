@@ -62,8 +62,7 @@ export {
   type SunPlace,
 } from "@niclaslindstedt/oss-game-framework/core/solar";
 
-// THE WORLD (engine/mapgen/): the generator, the Level contract, the track
-// queries.
+// THE WORLD (engine/mapgen/): the generator, the Level contract, the queries.
 export * from "./mapgen/index.ts";
 export { jibAt, jibLength, stepJib } from "./game/jib.ts";
 export {

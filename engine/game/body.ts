@@ -79,6 +79,7 @@ import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
+import { MISHAPS } from "./defs/mishaps.ts";
 import { TRAFFIC_STRIKE } from "./defs/traffic.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
@@ -746,6 +747,9 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
       if (e.kind === "hit") trunkOnSkis(c, e.speed, e.x, e.z, e.stuff, e.radius);
       else if (e.kind === "land") landing(state, e.g, e.airTime, e.impact);
       else if (e.kind === "wipeout") fall(c, e.cause, e.speed);
+      else if (e.kind === "chute" && e.phase === "malfunction" && state.chute?.mal === "hard") {
+        hardOpening(e.g ?? 0);
+      }
     }
     // Still on his skis after it, nothing carries him down: paid now.
     if (c.body.owed && !c.thrown) {
@@ -778,6 +782,17 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   wreckSeat(state, events);
   judge(state, events, cap);
   wreckFire(state, events);
+}
+
+/** A HARD OPENING (`mishaps.ts`): the canopy's load at `g` through the
+ * harness — the head whipped on the neck and a load down the spine, past
+ * `MISHAPS.hard.hurt`. */
+function hardOpening(g: number): void {
+  const H = MISHAPS.hard;
+  if (g <= H.hurt) return;
+  strike("neck", g * H.neck);
+  charge("back", "load", g * H.back);
+  offer(g, "neck", "snow");
 }
 
 /** THE ROTOR'S BLADES through the points of him they passed this step

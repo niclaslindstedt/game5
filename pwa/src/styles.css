@@ -2773,15 +2773,56 @@ canvas {
   color: var(--hud-ink);
 }
 
-/* The way to the DRESS card, where the topsheet swatches stood: a pair is
-   sold in one topsheet, and what the skier wears is a card of its own. */
-.skis-dress-row {
+/* THE GEAR CARD'S SWITCH between its two racks, SKIS and SNOWBOARD, under
+   the head: two halves of one slab, the rack shown wearing the light edge
+   every focus wears — never the flag, which is the way onto the snow. */
+.gear-kinds {
   display: flex;
+  align-self: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 0.6rem;
+  background: rgb(var(--hud-plate) / 55%);
 }
 
-.skis-dress {
-  flex: 1;
-  justify-content: center;
+.gear-kind {
+  min-width: 7.5rem;
+  padding: 0.4rem 1rem;
+  border: 2px solid transparent;
+  border-radius: 0.45rem;
+  background: none;
+  color: var(--hud-info);
+  font: inherit;
+  font-size: clamp(0.62rem, 2.2vmin, 0.8rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.gear-kind-on {
+  border-color: rgb(244 248 251 / 70%);
+  background: rgb(244 248 251 / 12%);
+  color: var(--hud-ink);
+}
+
+.gear-kind:hover,
+.gear-kind:focus-visible,
+.gear-kind.nav-cursor {
+  border-color: var(--flag);
+  outline: none;
+}
+
+/* The POLES row under the skis' sheet: they go with the skis. */
+.gear-poles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gear-poles .dress-note {
+  margin: 0;
+  font-size: 0.72rem;
 }
 
 .skis-pick-kind {
@@ -3008,6 +3049,11 @@ canvas {
     min-height: 0;
   }
 
+  .gear-kind {
+    min-width: 6rem;
+    padding: 0.22rem 0.8rem;
+  }
+
   /* The billing gives its two lines back to the pair: on this shape the
      pane is the scarcest thing on the card, and the bars beside it already
      say what the sentence says. */
@@ -3016,11 +3062,11 @@ canvas {
   }
 }
 
-/* ── THE DRESS CARD (menu-dress.tsx) ──────────────────────────────────────
-   The skier on his stand beside seven rows — the body, its weight and the
+/* ── THE RIDER CARD (menu-dress.tsx) ──────────────────────────────────────
+   The rider on his stand beside six rows — the body, its weight and the
    kit. Side by side where there is the width, the stand over the rows on a
    phone held upright, and the rows in two columns on a phone on its side,
-   where seven of them stacked are taller than the screen. */
+   where six of them stacked are taller than the screen. */
 .menu-card-dress {
   width: min(52rem, 100%);
   gap: 0.6rem;

@@ -36,8 +36,19 @@ export const FALL_FROM = 0.1;
  * frame, so one frame's smear meets the next's), and its bounds, s. */
 export const SHUTTER = { share: 1, min: 1 / 120, max: 1 / 30 };
 /** THE LENS'S VELOCITY: how quickly the measured velocity follows the lens,
- * s, and the speed past which a move is a CUT, m/s (no lens skis faster). */
-export const LENS = { settle: 0.06, cut: 90 };
+ * s, and the speed past which a move is a CUT, m/s (no lens moves faster: a wingsuit's dive is a little over 100). */
+export const LENS = { settle: 0.06, cut: 160 };
+/** THE STREAKS AT PACE: past `from` m/s of lens the air's crystals are
+ * drawn bigger and brighter, whole by `full` — the peripheral flow a
+ * player reads speed by (`camera-pace.ts`), the motes skimming the lens
+ * at 200 km/h in a dive, never a fall's flakes, which stream already. */
+export const STREAKS = { from: 12, full: 50, size: 0.9, light: 1.6, floor: 0.4 };
+
+/** How much of the streaks' boost a lens moving `speed` m/s takes, 0..1. */
+export function streakOf(speed: number): number {
+  const t = Math.max(0, Math.min(1, (speed - STREAKS.from) / (STREAKS.full - STREAKS.from)));
+  return t * t * (3 - 2 * t);
+}
 
 export type Vec3 = { x: number; y: number; z: number };
 

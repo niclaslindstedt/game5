@@ -426,9 +426,10 @@ if (!args.ages) {
     );
   }
   console.log("(second line of each: every metric's score, 0..1, in the same order — cost last)");
-  const best = [...out.models].sort((a, b) => b.score - a.score)[0];
-  if (best)
-    console.log(`best: ${best.model} (${best.score.toFixed(0)}); the game flies ${P.SPRAY_MODEL}`);
+  const ranked = [...out.models].sort((a, b) => b.score - a.score);
+  console.log(
+    `ranked: ${ranked.map((r) => `${r.model} ${r.score.toFixed(0)}`).join(" > ")}; the game flies ${P.SPRAY_MODEL}`,
+  );
   console.log("");
 }
 

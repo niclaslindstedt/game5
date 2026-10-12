@@ -43,7 +43,7 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".turns-preview");
 const outDir = join(root, "previews");
-const VIEWS = ["chase", "low", "behind", "side", "front", "high"];
+const VIEWS = ["chase", "low", "behind", "side", "front", "high", "close", "closel"];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -74,6 +74,11 @@ const args = parseArgs(
       kind: "string",
       default: "piste",
       help: "the stage: piste (its groomer) or meadow (the open powder off it)",
+    },
+    skis: {
+      kind: "string",
+      default: "chamois",
+      help: "the pair ridden: a pair of skis or a board (lynx) — defs/skis.ts, defs/boards.ts",
     },
     at: { kind: "number", default: 1 / 3, help: "how far down the piste the ride starts, 0..1" },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
@@ -139,6 +144,7 @@ for (const view of views) {
     view,
     where: args.where,
     at: String(args.at),
+    skis: args.skis,
     quality: args.quality,
     w: String(args.width),
     h: String(args.height),
@@ -152,7 +158,8 @@ for (const view of views) {
   if (crashed) process.exit(1);
   // An element's picture is clipped at the viewport: size it to the sheet.
   await page.setViewportSize({ width: drawn.w, height: drawn.h });
-  const out = join(outDir, `turns-${args.seed}-${view}.png`);
+  const pair = args.skis === "chamois" ? "" : `-${args.skis}`;
+  const out = join(outDir, `turns-${args.seed}${pair}-${view}.png`);
   await page.locator("#sheet").screenshot({ path: out });
   console.log(
     `${out.replace(`${root}/`, "")}  ${drawn.rows}×${drawn.cols}: ${drawn.note}  (${((Date.now() - t0) / 1000).toFixed(0)} s)`,

@@ -69,6 +69,7 @@
     "turns": "node scripts/turns-preview.mjs",
     "technique": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/technique-preview.mjs",
     "cloud-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/cloud-metrics.mjs",
+    "spray-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/spray-metrics.mjs",
     "birds": "node scripts/birds-preview.mjs",
     "crowd": "node scripts/crowd-preview.mjs",
     "audience": "node scripts/audience-preview.mjs",

@@ -44,8 +44,9 @@ loaded ski's boot. Judge it with `make turns ARGS=--views=low`.
 
 | Effect | Where |
 | --- | --- |
-| THE SKID'S SHEET: snow thrown sideways off two skis pivoted across the way, harder with the brake and the speed, a wall of it in a hockey stop, much more in powder than on the groomer | `spray.ts` |
-| THE CARVE'S SPRAY: powder off the tips and the outside ski's tail in a carve, sized by the edge and the speed; a thin dust on the groomer | `spray.ts` |
+| THE EDGE'S SHEET: snow CUT by an edge sliding across its own line (`edgeSlips`: the skier's velocity read across the skis as they stand pivoted) — chips shoved ahead of the edge at about the slide's speed and thrown up off it, along the WHOLE loaded edge (a ski's tip to tail, a board's one long edge), each ski by its share; a hockey stop's wall ahead of him and down the hill, next to nothing off a clean carve | `spray-sim.ts` (three-free, `tests/spray_test.ts`) |
+| THE CARVE'S TAIL: the groove's lip flicked off a railed tail, by the edge and the speed; the powder off the tips (a board's nose) running deep | `spray-sim.ts` |
+| THE GRAINS AS DRAWN: one instanced draw, each grain a STREAK along its motion over a short shutter (a dot cloud reads as foam), thinned by its length, let go of near the lens, glowing against a low sun and glinting | `spray.ts` |
 | THE LANDING PUFF: a ring of powder from under a skier coming down, sized by how hard — read off the airborne → grounded TRANSITION rather than the `land` event, so a frame that ran two steps cannot swallow it and a rival's landing throws the same puff | `spray.ts` |
 | THE SNOW CLOUD: the fine powder a skid, a powder turn, a landing and a wipeout raise — the rooster tail that stalls, swells, drifts and hangs. What each source throws out of which snow and how a puff flies, swells and thins is `snow-cloud-plan.ts` (three-free, `tests/snow_cloud_test.ts`) — `driveOf` / `carveOf` read a skier into its inputs, and `loftOf` scales every recipe (rate, size, swell, hang, lift) by how much a speed LOFTS; the flight, the sort, the whole cloud's self-shadow (a sun-first walk through a hashed grid), the shader (noise-carved body, wrap light, Henyey–Greenstein glow, glints, lamps, the soft meeting with the snow) and the chase lens's VEIL through the player's own tail are `snow-cloud.ts` | `snow-cloud-plan.ts`, `snow-cloud.ts` |
 | THE KINDS OF SNOW: groomed, hard, soft, new, wet, ice — where each lies (the packed field, the crust, the ice, a snowing sky's new layer and `fresh`, a spring thaw) and what each does to the cloud, the spray's clumps, a groove's depth, WALLS and windrow, and a print (a crust carries a light foot) | `snowpack.ts` (three-free, `tests/snowpack_test.ts`) |
@@ -153,6 +154,25 @@ in code. Snow in the air is:
    no still: `npm run dev`, or `make screenshots` at two offsets
    (`ARGS="--t 12"`, `--t 13`).
 8. Judge, refine the worst beat, re-shoot. `make profile` before and after.
+
+## What the spray taught
+
+- **The edge's SLIDE throws the snow, not the brake key.** Read the
+  velocity across the skis as they stand: a carve slides across nothing
+  and throws a thin tail, a hockey stop slides at its whole speed and
+  throws a wall — and the wall goes AHEAD and down the hill, the way the
+  edge slides (`make spray-metrics`' `ahead` column), never back at him.
+- **A board is one long edge**, not two skis: emit along its whole deck
+  with the whole load, or a board's stop throws half a pair's.
+- **Streaks, not dots.** A grain at 10 m/s drawn as a disc reads as foam
+  or hail; drawn along its motion over ~45 ms it reads as spray.
+- **The mist rises off the same edge, the same way** — the cloud's wall
+  read off the edge's slide (`snow-cloud.ts`), smaller and more numerous
+  puffs on a groomer's thin skin (`bodyOf`), or it reads as balls.
+- **Fade a grain near the lens**, as the cloud does: a grain a metre off
+  is an egg across the picture.
+- `make spray` (both pairs, close and chase, `WHERE=meadow`) and
+  `make spray-metrics` are the labs; the turns lab takes `--skis=lynx`.
 
 ## What the cloud taught (the snow cloud's own rules)
 

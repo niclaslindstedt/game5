@@ -23,6 +23,7 @@
 import {
   createGame,
   isRegionId,
+  pairById,
   placeRun,
   step,
   type GameState,
@@ -66,6 +67,8 @@ const times = list("times", "0.4,0.8,1.2,1.6,2,2.4").map(Number);
 const view = params.get("view") ?? "chase";
 const onMeadow = params.get("where") === "meadow";
 const along = Number(params.get("at") ?? 1 / 3);
+/** The pair ridden — a board's id (`lynx`) stands a snowboarder on it. */
+const spec = pairById(params.get("skis") || "chamois");
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
@@ -74,7 +77,14 @@ const renderer = createWorldRenderer(stage, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(cellW, cellH, 1);
-const first: GameState = createGame({ seed, region, mode: "free", rivals: 0, quiet: true });
+const first: GameState = createGame({
+  seed,
+  region,
+  mode: "free",
+  rivals: 0,
+  quiet: true,
+  spec,
+});
 const level = first.level;
 const DEG = Math.PI / 180;
 const FRAME = 1 / 60;
@@ -100,6 +110,11 @@ function viewOf(name: string, state: GameState): LensPose | null {
       return { eye: at(0, 6, 0.9), target: at(0, 0, 0.8), fov: 38, roll: 0 };
     case "front":
       return { eye: at(6, 1.6, 1.2), target: at(0, 0, 0.8), fov: 38, roll: 0 };
+    case "close":
+      // Close in front of him on his right, low: the spray off the skis.
+      return { eye: at(3.2, 2.8, 0.7), target: at(-0.3, 0, 0.5), fov: 46, roll: 0 };
+    case "closel":
+      return { eye: at(3.2, -2.8, 0.7), target: at(-0.3, 0, 0.5), fov: 46, roll: 0 };
     case "high":
       return { eye: at(-3, 4, 7), target: at(0.5, 0, 0.3), fov: 42, roll: 0 };
     default:
@@ -126,7 +141,8 @@ function readout(state: GameState, t: number): string[] {
   const s = state.skier;
   const ground = s.airborne ? 0 : 1;
   const stand = standOf(s, ground);
-  const gap = skiGaps(s, stand, level);
+  // A board's four stations are one column, not two skis of three.
+  const gap = s.contacts.length === 4 ? [0, 0] : skiGaps(s, stand, level);
   const pc = (v: number) => `${Math.round(v * 100)}`;
   const cm = (v: number) => `${Math.round(v * 100)}`;
   return [
@@ -159,7 +175,7 @@ window.__turns = {
     ctx.font = "12px monospace";
     ctx.textBaseline = "middle";
     ctx.fillText(
-      `TURNS · seed ${seed}${region ? ` ${region}` : ""} · ${onMeadow ? "meadow" : `piste ${(along * 100).toFixed(0)}% down`} at ${spot.x.toFixed(0)},${spot.z.toFixed(0)} · ${view.toUpperCase()} · ${tier}`,
+      `TURNS · ${spec.id} · seed ${seed}${region ? ` ${region}` : ""} · ${onMeadow ? "meadow" : `piste ${(along * 100).toFixed(0)}% down`} at ${spot.x.toFixed(0)},${spot.z.toFixed(0)} · ${view.toUpperCase()} · ${tier}`,
       8,
       10,
     );
@@ -169,7 +185,7 @@ window.__turns = {
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r];
       const y0 = headH + r * cellH;
-      const state = createGame({ level, mode: "free", rivals: 0, quiet: true });
+      const state = createGame({ level, mode: "free", rivals: 0, quiet: true, spec });
       placeRun(state, { x: spot.x, z: spot.z, heading: spot.heading, speed: row.kmh / 3.6 });
       const t0 = state.t;
       renderer.setOverride(null);

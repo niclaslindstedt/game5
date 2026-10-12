@@ -19,6 +19,7 @@
 
 import * as THREE from "three";
 
+import type { Tracks } from "./piste-tracks.ts";
 import type { SkyLook } from "./sky.ts";
 import type { SnowAge } from "./snow-age.ts";
 import { TERRAIN_SHADOW_GLSL } from "./terrain-shadow.ts";
@@ -97,6 +98,9 @@ export type HazeUniforms = {
    * renderer writes them off the run's snowpack. */
   uSnowAge: { value: THREE.Vector4 };
   uSnowAge2: { value: THREE.Vector4 };
+  /** THE OTHER SKIERS' TRACKS on the piste (`piste-tracks.ts`): how many
+   * lines, 0..1, and how churned, 0..1. */
+  uTracks: { value: THREE.Vector2 };
   /** THE LAMPS: each slot's lamp — a flood or a skier's headlamp — where
    * it is, where it points, how far on (0 for a slot with no lamp), the
    * colour of its light (linear) and its BEAM (`lampReach`): the spot's
@@ -137,14 +141,17 @@ export type HazeUniforms = {
 /** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`), the
  * piste through the day (`uPiste`: worn, soft, hard, and 1 in `w` on a run
  * dealt it — `GameState.piste`) and how old the loose snow is (`uSnowAge`,
- * `uSnowAge2` — settled powder when there is no age to read). */
+ * `uSnowAge2` — settled powder when there is no age to read) and the other
+ * skiers' tracks on the piste (`uTracks`). */
 export function setRunSnow(
   u: HazeUniforms,
   fresh: number,
   day: { worn: number; soft: number; hard: number } | undefined,
   age?: SnowAge | null,
+  tracks?: Tracks,
 ): void {
   u.uFresh.value = fresh;
+  u.uTracks.value.set(tracks?.many ?? 0, tracks?.churn ?? 0);
   if (day) u.uPiste.value.set(day.worn, day.soft, day.hard, 1);
   else u.uPiste.value.set(0, 0, 0, 0);
   if (age) {
@@ -186,6 +193,7 @@ export function createHazeUniforms(): HazeUniforms {
     uPiste: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSnowAge: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSnowAge2: { value: new THREE.Vector4(0, 0, 0, -1) },
+    uTracks: { value: new THREE.Vector2(0, 0) },
     uLampPos: { value: vectors() },
     uLampDir: { value: vectors() },
     uLampOn: { value: new Array<number>(LAMP_SLOTS).fill(0) },

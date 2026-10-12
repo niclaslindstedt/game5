@@ -12,6 +12,15 @@
 //   far    from forty metres up across the face: the aspects (a crust on
 //          the sunny side, hoar in the shade) and the snow at range
 //
+// and two sheets of the PISTE THROUGH THE DAY (`piste-tracks.ts`) — the
+// groomer at the spot from the first chair to the last, the other skiers'
+// tracks printed on it and churned through the afternoon:
+//
+//   piste      down the piste at eye height
+//   pistenear  close in at the snow
+//   pistetop   from fourteen metres over it, looking down (the piste runs
+//              up the frame)
+//
 // The skier stands on the piste at the spot, for scale. It exposes
 // `window.__snow.sheet(group, views)`, which shoots one lens's views, lays
 // them out as a contact sheet for the driver to photograph, and hands back
@@ -20,6 +29,7 @@
 import {
   createGame,
   generateLevel,
+  pisteDayOf,
   NEUTRAL_INPUT,
   placeRun,
   step,
@@ -35,6 +45,7 @@ import {
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { tracksOf } from "../game/piste-tracks.ts";
 import { SNOW_AGE_KINDS, snowAgeOf, type SnowAgeKind } from "../game/snow-age.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
@@ -68,9 +79,15 @@ const hourParam = params.get("hour");
 const AGES: readonly ("map" | SnowAgeKind)[] = ["map", ...SNOW_AGE_KINDS];
 const LENSES = ["down", "sun", "away", "near", "far"] as const;
 type LensId = (typeof LENSES)[number];
-const GROUPS: Record<string, readonly string[]> = Object.fromEntries(
-  LENSES.map((l) => [l, AGES.map((a) => `${l}-${a}`)]),
-);
+/** THE PISTE THROUGH THE DAY (`piste-tracks.ts`): the groomer at the spot
+ * at each of these solar hours, from the first chair to the last. */
+const HOURS = [8.5, 9.5, 11, 13, 15, 16.5] as const;
+const PISTE_LENSES = ["piste", "pistenear", "pistetop"] as const;
+type PisteLens = (typeof PISTE_LENSES)[number];
+const GROUPS: Record<string, readonly string[]> = {
+  ...Object.fromEntries(LENSES.map((l) => [l, AGES.map((a) => `${l}-${a}`)])),
+  ...Object.fromEntries(PISTE_LENSES.map((l) => [l, HOURS.map((h) => `${l}-${h}`)])),
+};
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 canvas.style.width = `${width}px`;
@@ -174,6 +191,28 @@ function lensOf(id: LensId): LensPose {
   }
 }
 
+/** A lens on the piste at the spot: down it at eye height, or close in. */
+function pisteLens(id: PisteLens): LensPose {
+  const g = level.groundAt;
+  const at = (ds: number, side: number, h: number) => {
+    const p = trackPointAt(level, spot.s + ds);
+    const x = p.x - Math.cos(p.heading) * side;
+    const z = p.z + Math.sin(p.heading) * side;
+    return { x, y: g(x, z) + h, z };
+  };
+  if (id === "pistetop") return { eye: at(-1, 0, 14), target: at(0, 0, 0), fov: 60, roll: 0 };
+  return id === "piste"
+    ? { eye: at(-8, 4, 1.7), target: at(22, -1, 0), fov: 55, roll: 0 }
+    : { eye: at(-1, 2.5, 1.2), target: at(3.5, 0, 0), fov: 55, roll: 0 };
+}
+
+/** The piste's tracks at an hour, for the caption. */
+function trackLine(h: number): string {
+  const day = pisteDayOf(withSky(level, { weather, hour: h }));
+  const t = tracksOf(day.skied);
+  return `${day.skied.toFixed(1)} h skied  lines ${t.many.toFixed(2)} churn ${t.churn.toFixed(2)}`;
+}
+
 const ready = (async () => {
   const first = ride();
   await renderer.load(first);
@@ -200,10 +239,28 @@ function line(age: "map" | SnowAgeKind): string {
 
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] }> {
   const note = await ready;
-  const lens = group as LensId;
-  if (!LENSES.includes(lens)) throw new Error(`no sheet "${group}"`);
   const frames: Frame[] = [];
   const s = ride();
+  if ((PISTE_LENSES as readonly string[]).includes(group)) {
+    for (const view of views) {
+      const h = Number(view.slice(group.length + 1));
+      renderer.setSky({ weather, hour: h });
+      renderer.setOverride(pisteLens(group as PisteLens));
+      renderer.draw(s, 1, FRAME, true);
+      renderer.draw(s, 1, FRAME, true);
+      renderer.setOverride(null);
+      frames.push({
+        view,
+        label: `${h} h`,
+        caption: `${h.toFixed(1)} h [${group}]\n${trackLine(h)}`,
+        png: canvas.toDataURL("image/png"),
+      });
+    }
+    renderer.setSky(sky);
+    return lay(group, note, frames);
+  }
+  const lens = group as LensId;
+  if (!LENSES.includes(lens)) throw new Error(`no sheet "${group}"`);
   for (const view of views) {
     const age = view.slice(group.length + 1) as "map" | SnowAgeKind;
     renderer.setSnow(null, age === "map" ? null : age);
@@ -219,6 +276,11 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
     });
   }
   renderer.setSnow(null, null);
+  return lay(lens, note, frames);
+}
+
+/** Lays the frames out as a contact sheet. */
+async function lay(lens: string, note: string, frames: Frame[]): Promise<{ frames: Frame[] }> {
   const tw = Math.round(width * scale);
   const th = Math.round(height * scale);
   sheetEl.style.gridTemplateColumns = `repeat(${cols}, ${tw}px)`;

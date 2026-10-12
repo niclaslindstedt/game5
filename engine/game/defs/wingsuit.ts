@@ -98,7 +98,10 @@ export const WINGSUIT = {
    * has none (a generated mountain's faces top out near 45°, and the arc
    * off one meets the snow 60–80 m down), the exit is a HOVER over the best
    * edge, the least height from `hoverLeast` to `hoverMost` m in
-   * `hoverStep`s whose arc from rest clears the snow. */
+   * `hoverStep`s whose arc from rest clears the snow, raised `hoverRoom` m
+   * more so the suit is flown a while before the pull (a heli exit is set
+   * well above the least a jumper could clear, the pull 350 m over the
+   * snow). */
   search: {
     top: 0.55,
     margin: 300,
@@ -113,6 +116,7 @@ export const WINGSUIT = {
     hoverLeast: 100,
     hoverMost: 800,
     hoverStep: 25,
+    hoverRoom: 500,
   },
   /** THE SNOW MET IN FLIGHT: the body's half thickness lying on the wind,
    * m — his centre this near the snow under him (or where he will be next

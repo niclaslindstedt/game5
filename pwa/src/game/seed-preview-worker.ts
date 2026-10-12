@@ -22,6 +22,7 @@ import {
   boundLevel,
   cabinsOf,
   doorOf,
+  freeRuns,
   generateLevel,
   gradeOf,
   helipadOf,
@@ -40,6 +41,7 @@ import {
   type RegionId,
 } from "@engine";
 
+import { profileOf, profileStats, type RunFigures } from "./face-stats.ts";
 import { dealtDay, freeRunList, type DealtDay, type FreeRunInfo } from "./free-ride.ts";
 import { boardKey } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE, bakeMinimap, minimapSource } from "./minimap-bake.ts";
@@ -95,6 +97,10 @@ export type PreviewPainted = {
   length: number;
   /** The mountain's vertical, m — the summit to the base (R2). */
   vertical: number;
+  /** What the WHERE steps bill a mountain by, read off the runs the map
+   * lays (`profileStats`): their drop, steepest and mean pitch, and how
+   * many — null on a map with no runs. */
+  figures: RunFigures | null;
   /** The colour the piste came out (R23, `gradeOf`). */
   colour: PisteGrade;
   /** The season, time of day and sky the map was dealt (`dealtDay`). */
@@ -241,6 +247,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         panorama,
         length: level.track.length,
         vertical: level.mountain?.vertical ?? 0,
+        figures: profileStats(freeRuns(level).map((r) => profileOf(r.points))),
         colour: gradeOf(level),
         dealt: dealtDay(level),
         board: boardKey(level),

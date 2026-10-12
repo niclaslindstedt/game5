@@ -48,7 +48,10 @@ const SHOTS: Record<
   { turn: number; aim: number; eye: number; tall: number; half: number; fov: number }
 > = {
   rider: { turn: 0.45, aim: 0.95, eye: 1.1, tall: 2.35, half: 0.6, fov: 30 },
-  gear: { turn: 1.3, aim: 0.62, eye: 1.5, tall: 2.3, half: 1.25, fov: 32 },
+  // The gear from ABOVE and close: the lens up over his shoulder looking
+  // down on the pair, so the skis' or the board's top, shape and sidecut
+  // read — his head may leave the frame.
+  gear: { turn: 1.3, aim: 0.18, eye: 2.6, tall: 1.35, half: 1.05, fov: 30 },
 };
 /** How quickly the lens settles on a new framing, 1/s. */
 const SETTLE = 3.2;

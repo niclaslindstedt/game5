@@ -582,8 +582,8 @@ export const STRINGS = {
   startTime: "TIME",
   timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
   startWeather: "WEATHER",
-  startWeatherHint:
-    "Overcast is flat light and hard to read; a storm closes the view to a few tens of metres; where it snows, new snow builds up over the run.",
+  /** The start card's SKY press, a cloud over a sun: its name to a reader. */
+  startSky: "THE DAY",
   /** The WEATHER row's stops: R19's eight. */
   weatherNames: {
     clear: "CLEAR",
@@ -596,19 +596,13 @@ export const STRINGS = {
     fog: "FOG",
   },
   startSnow: "SNOW",
-  startSnowHint:
-    "How deep the powder lies off the piste: thin 20 cm, medium 40 cm, thick 70 cm, very deep 100 cm. Past medium it is bottomless: stop and you sink to the knees, so keep the speed up, and a wide pair floats where a narrow one bogs.",
   /** THE AVALANCHES row (`free-ride.ts`'s `avalanche`). */
   startAvalanche: "AVALANCHES",
-  startAvalancheHint:
-    "ON: a steep, open lee slope under new snow can slide as you cross it, and its debris lies there for the rest of the ride.",
-  /** The SNOW row's stops (`SNOW_STOPS`; the hint above reads their depths). */
+  /** The SNOW row's stops (`SNOW_STOPS`). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   /** THE START ROW: how the ride begins — on skis, or a way up with no
    * lift (`free-ride.ts`'s `startPicked`). */
   startStart: "START",
-  startStartHint:
-    "SLOPE rides the lift up to the RUN row's run, on the skis or the board the GEAR card picks. The rest begin with no lift: the paramotor on the summit, the balloon in the valley, the snowmobile by the village, the helicopter on its pad, the plane on its strip, the wingsuit on a cliff, the afterski in the lodge.",
   /** The START row's first stop: down a slope, on skis or a board. */
   startOnSlope: "SLOPE",
   startRun: "RUN",
@@ -621,8 +615,6 @@ export const STRINGS = {
   startRunWord: (number: string): string => number,
   /** The RUN row before the chart has said what runs there are. */
   startRunWaiting: "…",
-  startCaption:
-    "The pulsing mark is where you start · tap the chart to start anywhere else · the arrows are kickers",
   seedReading: "RAISING THE MOUNTAIN…",
   seedRefused: "NO PISTE ON THIS SEED",
   /** The line under the chart: the run's (or the piste's) grade and

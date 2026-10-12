@@ -25,6 +25,7 @@ import "./title.css";
 import { loadRealFace } from "@engine";
 import { App } from "./App.tsx";
 import { guardAgainstLoupe } from "./game/no-loupe.ts";
+import { fullscreenOnTouch } from "./game/touch-fullscreen.ts";
 import { loadSettings } from "./game/settings.ts";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";
 
@@ -47,6 +48,9 @@ watchVisibleViewport();
 // No loupe, no double-tap zoom, no selection on any screen (`no-loupe.ts`);
 // for the life of the page, before anything can be touched.
 guardAgainstLoupe();
+
+// The whole screen on a phone's browser, at its first touch.
+fullscreenOnTouch();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root element");

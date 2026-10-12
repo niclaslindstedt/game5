@@ -247,15 +247,19 @@
 /* A wide screen: the map on the left, as tall as the window allows, the
    rows and the reading beside it. */
 @media (min-width: 48rem) {
+  .menu-card-where {
+    width: min(84rem, 100%);
+  }
+
   .where-cols {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2.4fr) minmax(16rem, 1fr);
     align-items: start;
     gap: 0.4rem 1.1rem;
   }
 
   .where-map {
-    height: clamp(16rem, calc(100dvh - 15rem), 32rem);
+    height: clamp(16rem, calc(100dvh - 10rem), 52rem);
   }
 
   .menu-card-where .knob-value {
@@ -264,21 +268,22 @@
 }
 
 /* A phone on its side: the least height of all, so the map takes the left
-   and the body's whole height, and the rows stand beside it. */
+   and the body's whole height — the whole screen less the head — and the
+   rows stand beside it. */
 @media (orientation: landscape) and (max-height: 34rem) {
   .menu-card-where {
-    width: min(52rem, 100%);
+    width: 100%;
   }
 
   .where-cols {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 17rem;
     align-items: start;
     gap: 0.4rem 0.6rem;
   }
 
   .where-map {
-    height: clamp(9rem, calc(100dvh - 10.5rem), 22rem);
+    height: clamp(9rem, calc(100dvh - 6.4rem - max(0.5rem, env(safe-area-inset-bottom))), 30rem);
   }
 
   .where-side {

@@ -40,3 +40,25 @@ export function loupeAction(end: {
 }): "leave" | "take" {
   return end.second && end.cancelable && !end.editable && end.tap ? "take" : "leave";
 }
+
+/** How long after the guard gives a click back the browser's own click for
+ * the same touch may still come, in ms. Far longer than any browser takes —
+ * the window is closed early anyway by the next touch beginning. */
+export const ECHO_MS = 800;
+
+/** WHETHER A CLICK IS THE BROWSER'S ECHO of one the guard already gave back,
+ * and must be swallowed. A cancelled `touchend` is SUPPOSED to take the
+ * browser's click with it, and on some browsers it does not — iOS has been
+ * seen to click anyway — so a stepper tapped quickly stepped twice: three to
+ * five, then three, four, five as it should once the taps slowed. The guard
+ * no longer trusts the cancel: every click it gives back opens a window
+ * (`given`, cleared by the next touch's start), and a TRUSTED click on the
+ * same element (or one inside it) within it is the browser's copy of a press already made. */
+export function isEcho(
+  given: { at: number } | null,
+  click: { at: number; trusted: boolean; same: boolean },
+): boolean {
+  if (given === null || !click.trusted || !click.same) return false;
+  const after = click.at - given.at;
+  return after >= 0 && after < ECHO_MS;
+}

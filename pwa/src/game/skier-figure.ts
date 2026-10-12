@@ -203,7 +203,7 @@ export function createSkier(
     // The head held nearer level than the shoulders — a skier looks down
     // the hill out of a tuck — and turned a little into the turn (as the
     // rig's head bone is: `skier-rig.ts`'s `headAxes`).
-    headGroup.rotation.set(-0.2 + p.pitch * 0.3, p.look * 0.5, -p.headRoll, "YXZ");
+    headGroup.rotation.set(-0.2 + p.pitch * 0.3 + (p.bow ?? 0), p.look * 0.5, -p.headRoll, "YXZ");
   }
 
   return {

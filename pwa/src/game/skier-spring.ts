@@ -609,7 +609,16 @@ export function stepSkierSpring(
     stepBody(s, ride, airborne, dt);
     work = stepPoled(s, ride, airborne, dt);
   }
-  stepFlight(s.flight, airborne, fall?.read, ride?.airTime ?? 0, dt, fall?.gravity, ride?.lean);
+  stepFlight(
+    s.flight,
+    airborne,
+    fall?.read,
+    ride?.airTime ?? 0,
+    dt,
+    fall?.gravity,
+    ride?.lean,
+    ride?.pitch,
+  );
   // A HOP is not a flight (`flying`): he goes compact only once he is
   // really flying.
   const into = flying({ airborne, airTime: ride?.airTime, popped: ride?.popped }) ? 1 : 0;

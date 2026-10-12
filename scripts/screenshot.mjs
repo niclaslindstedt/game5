@@ -209,16 +209,14 @@ const SURFACES = {
     wait: ".hud-replay",
     settle: 6000,
   },
-  // PUT AWAY by a tap on the picture, paused: nothing but that tap takes
-  // a paused bar down.
+  // PUT AWAY by a tap on the picture, paused.
   "replay-away": {
     params: { paused: "1", t: "20" },
     press: ".pause-replay",
     pressAfter: 700,
     wait: ".hud-replay",
     keys: ["Space"],
-    tap: [0.5, 0.35],
-    tapWait: ".hud-replay-layer.is-idle",
+    tap: [0.5, 0.35, ".hud-replay-layer.is-idle"],
     settle: 12000,
   },
   "replay-idle": {
@@ -809,15 +807,11 @@ async function capture(name, params, viewportName, surface) {
       }
       await page.waitForSelector(surface.wait, { timeout: args.timeout * 1000 });
       for (const key of surface.keys ?? []) await page.keyboard.press(key);
-      if (surface.tap) {
-        const box = page.viewportSize();
-        await page.waitForTimeout(400);
-        await page.mouse.click(box.width * surface.tap[0], box.height * surface.tap[1]);
-        // Under a software renderer a frame can take seconds, and the tap is
-        // handled between frames: wait for what it should do, not a clock.
-        if (surface.tapWait)
-          await page.waitForSelector(surface.tapWait, { timeout: args.timeout * 1000 });
-      }
+      // A tap, then its effect waited for: a software frame can take seconds.
+      const [tx, ty, until] = surface.tap ?? [];
+      if (until)
+        await page.mouse.click(page.viewportSize().width * tx, page.viewportSize().height * ty);
+      if (until) await page.waitForSelector(until, { timeout: args.timeout * 1000 });
       await page.waitForTimeout(surface.settle);
     } else {
       await page.waitForFunction("window.__SH_READY__ === true", null, {

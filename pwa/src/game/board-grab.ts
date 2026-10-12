@@ -200,7 +200,7 @@ export const FIST = 0.035;
 
 /** How fast a grab is drawn in and let go, a share a second — a grab held
  * `poseHold` (0.35 s) is in by then. */
-const GRAB_RATE = 5;
+const GRAB_RATE = 4;
 
 /** THE GRAB AS DRAWN, eased: the grab last asked for (kept while it is let
  * go) and how far into it, 0..1. */

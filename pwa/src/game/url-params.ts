@@ -428,7 +428,7 @@ export function readParams(search: string): UrlParams {
       camera !== null && RUN_CAMERAS.includes(camera as CameraRung) ? (camera as CameraRung) : null,
     skis: skis !== null && isPairId(skis) ? skis : null,
     mode:
-      start === "free" || freeRidePage(q.get("menu") ?? "")
+      start === "free" || q.get("mode") === "free" || freeRidePage(q.get("menu") ?? "")
         ? "free"
         : start === "downhill" || q.get("mode") === "downhill"
           ? "downhill"

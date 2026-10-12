@@ -13,10 +13,17 @@ import {
   planeAloft,
   skydiveAt,
   step,
+  wingsuitInput,
   type GameState,
 } from "@engine";
 
-import { aloftInPlane, chuteOf, planeOf } from "../pwa/src/game/plane-hud.ts";
+import {
+  SUIT_LANDED_AFTER,
+  aloftInPlane,
+  chuteOf,
+  planeOf,
+  suitLandedOf,
+} from "../pwa/src/game/plane-hud.ts";
 import { SCREEN_TO_ENGINE } from "../pwa/src/game/input-model.ts";
 import { flatLevel } from "./support/synthetic.ts";
 
@@ -92,5 +99,28 @@ describe("chuteOf", () => {
     expect(opening).toBe(true);
     expect(s.chute!.mode).toBe("open");
     expect(chuteOf(s)?.press).toBe("release");
+  });
+});
+
+describe("suitLandedOf", () => {
+  it("asks the way on once a wingsuit is down on his boots, and never in the air", () => {
+    const s = createGame({ level, mode: "free", wingsuit: true, crowd: 0, quiet: true });
+    skydiveAt(s, { x: SIZE / 2, z: 1500, agl: 300, mode: "open", suit: "wingsuit" });
+    let aloft = false;
+    for (let i = 0; i < 200 / dt && s.chute?.mode !== "landed"; i++) {
+      aloft ||= suitLandedOf(s);
+      step(s, wingsuitInput(s));
+    }
+    expect(aloft).toBe(false);
+    expect(s.chute?.mode).toBe("landed");
+    expect(suitLandedOf(s)).toBe(false);
+    for (let i = 0; i < (SUIT_LANDED_AFTER + 0.1) / dt; i++) step(s, NEUTRAL_INPUT);
+    expect(suitLandedOf(s)).toBe(true);
+  });
+
+  it("is never asked under the skydiver's rig, which lands on his skis", () => {
+    const s = ride({ chute: 1500 });
+    for (let i = 0; i < 300 / dt && !s.chute?.done; i++) step(s, NEUTRAL_INPUT);
+    expect(suitLandedOf(s)).toBe(false);
   });
 });

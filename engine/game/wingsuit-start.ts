@@ -157,6 +157,9 @@ export function wingsuitExitOf(level: Level): WingsuitExit {
         found = { ...found, clear, hover: h };
         if (clear >= S.clear) break;
       }
+      // Room to fly the suit before the pull, over the least that clears.
+      const hover = found.hover + S.hoverRoom;
+      found = { ...found, hover, clear: arcClear(level, found.x, found.z, found.heading, hover) };
     }
   }
   exits.set(level, found);

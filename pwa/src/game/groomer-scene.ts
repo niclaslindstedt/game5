@@ -184,19 +184,23 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
         }
         if (stamps) {
           // THE SWATH: every segment the engine has laid since the last frame.
+          // `pen.swath` counts from the run's first; the engine drops the
+          // oldest (`swathFrom`), and any it dropped unseen are skipped.
           const sw = g.swath;
-          for (; pen.swath + 3 < sw.length; pen.swath += 4) {
+          let i = Math.max(0, pen.swath - g.swathFrom);
+          for (; i + 3 < sw.length; i += 4) {
             stamps.push({
-              ax: sw[pen.swath],
-              az: sw[pen.swath + 1],
-              bx: sw[pen.swath + 2],
-              bz: sw[pen.swath + 3],
+              ax: sw[i],
+              az: sw[i + 1],
+              bx: sw[i + 2],
+              bz: sw[i + 3],
               half: K.tiller.width / 2,
               depth: 0,
               berm: 0,
               groom: true,
             });
           }
+          pen.swath = g.swathFrom + i;
           // THE BELTS' PRINTS, pressed ahead of the tiller (which combs
           // them out again when it is down).
           const fx = Math.sin(g.heading);

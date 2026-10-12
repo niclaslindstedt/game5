@@ -665,6 +665,7 @@ export * from "./game/hazards-api.ts";
 export { GROOMER } from "./game/defs/groomer.ts";
 export {
   freshGroomers,
+  SWATH_KEPT,
   groomerCount,
   groomersOut,
   groomerStrike,

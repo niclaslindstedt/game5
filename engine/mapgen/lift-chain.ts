@@ -180,16 +180,26 @@ const DIG_READ = 2;
  * `RR.massif.real.least.chain`, which keeps the station a skate from the
  * gondola's top) and stand off every pad — the pads
  * pressed again where it moved (its line, and so its top's pad, turns with
- * it) — and the way GRADED into the mountain (`pressWay`). The way and the
- * pads, or null where no aim will do. `raw` is the ground before any pad
- * was pressed. Moves the chair in place. */
+ * it) — and the way GRADED into the mountain (`pressWay`). Where none of
+ * the aims will do and `most.search` asks it (a real face's), every aim
+ * on a grid over R26's band (`searchAims`) is read and the one asking the
+ * least earthworks taken: a real top's flank often climbs to the rider's
+ * right, where the dealt aims all lie, and the queue stands on the snow
+ * falling ahead of him. The way and the pads, or null where no aim will
+ * do. `raw` is the ground before any pad was pressed. Moves the chair in
+ * place. */
 export function layChain(
   ground: Heightfield,
   raw: Heightfield["data"],
   lifts: readonly LiftPlan[],
   pads: StationPad[],
   shape: PadShape,
-  most: { readonly fill: number; readonly dig: number; readonly skate?: boolean } = RR.lift.chain,
+  most: {
+    readonly fill: number;
+    readonly dig: number;
+    readonly skate?: boolean;
+    readonly search?: boolean;
+  } = RR.lift.chain,
 ): { way: ChainWay; pads: StationPad[] } | null {
   const upper = lifts.find((l) => l.id === UPPER);
   const lower = lifts.find((l) => l.id === LOWER);
@@ -198,29 +208,67 @@ export function layChain(
     bottomFootprint(lower.kind, b, lower.top).every((p) =>
       pads.every((q) => hypot(p.x - q.x, p.z - q.z) > q.r),
     );
-  const aims = RR.lift.chain.aims;
-  for (let i = 0; i < aims.length; i++) {
-    const bottom = i === 0 ? lower.bottom : chainBottom(upper, lower.kind, lower.top, aims[i]);
+  const C = RR.lift.chain;
+  /** The way to the queue with the chair's bottom at `bottom`, and the
+   * earthworks it asks, or null where it stands on a pad, past a skate
+   * or asks more than `most`. */
+  const tried = (bottom: Point) => {
     const ends = { kind: lower.kind, bottom, top: lower.top };
-    const way = chainWay(upper, ends);
-    if (!offPads(bottom)) continue;
+    if (!offPads(bottom)) return null;
     // A real face's way may ask more earthworks of a further aim: its
     // station is still kept a skate from the gondola's top (R29).
     if (most.skate && hypot(bottom.x - upper.top.x, bottom.z - upper.top.z) >= RR.access.skate)
-      continue;
+      return null;
+    const way = chainWay(upper, ends);
     const works = earthworks(ground, way, ends);
-    const C = RR.lift.chain;
-    if (works.fill > most.fill || works.cut > most.dig || works.dig > most.dig) continue;
-    if (i > 0) {
-      // Pressed again with the chair where it now stands.
-      lower.bottom = bottom;
-      ground.data.set(raw);
-      pads = pressPads(ground, lifts, shape);
-    }
-    pressWay(ground, way, ends, upper, Math.max(C.blend, C.bank * works.dig));
-    return { way, pads };
+    if (works.fill > most.fill || works.cut > most.dig || works.dig > most.dig) return null;
+    return { bottom, ends, way, works };
+  };
+  const aims = C.aims;
+  let found: ReturnType<typeof tried> = null;
+  let moved = false;
+  for (let i = 0; i < aims.length && !found; i++) {
+    found = tried(i === 0 ? lower.bottom : chainBottom(upper, lower.kind, lower.top, aims[i]));
+    moved = i > 0;
   }
-  return null;
+  if (!found && most.search) {
+    // The whole band read, and the aim asking the least of the mountain.
+    let least = Infinity;
+    for (const aim of searchAims()) {
+      const t = tried(chainBottom(upper, lower.kind, lower.top, aim));
+      const cost = t ? t.works.fill + Math.max(t.works.cut, t.works.dig) : Infinity;
+      if (cost < least) [least, found] = [cost, t];
+    }
+    moved = true;
+  }
+  if (!found) return null;
+  if (moved) {
+    // Pressed again with the chair where it now stands.
+    lower.bottom = found.bottom;
+    ground.data.set(raw);
+    pads = pressPads(ground, lifts, shape);
+  }
+  pressWay(ground, found.way, found.ends, upper, Math.max(C.blend, C.bank * found.works.dig));
+  return { way: found.way, pads };
+}
+
+/** How far inside R26's band a searched aim keeps, rad and m: the ring is
+ * solved onto it only nearly (`chainBottom`). */
+const AIM_MARGIN = { bearing: 0.05, reach: 2 };
+/** The steps a searched aim is read at, rad and m. */
+const AIM_STEP = { bearing: 0.1, reach: 4 };
+
+/** Every aim on a grid over R26's band (`lift.chain.bearing`, `.reach`),
+ * kept `AIM_MARGIN` inside it. */
+function searchAims(): (readonly [number, number])[] {
+  const C = RR.lift.chain;
+  const out: (readonly [number, number])[] = [];
+  const b1 = C.bearing.max - AIM_MARGIN.bearing;
+  const r1 = C.reach.max - AIM_MARGIN.reach;
+  for (let b = C.bearing.min + AIM_MARGIN.bearing; b <= b1 + 1e-9; b += AIM_STEP.bearing)
+    for (let r = C.reach.min + AIM_MARGIN.reach; r <= r1 + 1e-9; r += AIM_STEP.reach)
+      out.push([b, r]);
+  return out;
 }
 
 /** What the way's ground is graded to at (x, z): the height, how far
@@ -350,7 +398,8 @@ function pressWay(
  * no ramp crosses it — the pad itself left as it was pressed. On a real
  * face (`hold`) a ramp off its gentler top may cross the leg above its
  * line: the line is then held up to the ramp from the pad's edge on and
- * filled to it, so the way never climbs onto the ramp. */
+ * filled to it, so the way never climbs onto the ramp; and the ring is
+ * cut to fall `lift.chain.grade` from him, as the way was laid. */
 export function regradeLeg(
   ground: Heightfield,
   lifts: readonly LiftPlan[],
@@ -372,8 +421,13 @@ export function regradeLeg(
   const edge = pad && !hold ? leaves(way, pad, pad.r - ground.cell) : way.from;
   const leg = { ...way, from };
   const y0 = sampleField(ground, edge.x, edge.z);
-  const yRing = sampleField(ground, way.ring.x, way.ring.z);
   const reach = hypot(way.ring.x - from.x, way.ring.z - from.z);
+  // On a real face the ring is cut again to fall `lift.chain.grade` from
+  // him, as it was laid (`wayLevels`): its runs and ramps, graded through
+  // the real knolls since, may have left it standing nearly level.
+  const yRing = hold
+    ? Math.min(sampleField(ground, way.ring.x, way.ring.z), y0 - C.grade * reach)
+    : sampleField(ground, way.ring.x, way.ring.z);
   // A ramp off the deck crossing the leg: its own even fall (`SummitRamp`
   // from its rim to its run) and its flanks falling off it, never cut
   // under, so a rider down the ramp meets no trench across it.

@@ -412,7 +412,10 @@ export const RESORT_RULES = {
        * knolls and hollows a dealt face is never given; and the way off
        * the gondola's top to the peak's chair graded with up to `chain`'s
        * fill and dig, m (R26's `lift.chain`), on a bench the real mountain
-       * has rather than the one a massif is dealt; and R29's way out and
+       * has rather than the one a massif is dealt — its queue searched for
+       * (`search`) over the whole of R26's band where none of the dealt
+       * aims will do, a real top's flank often climbing to the rider's
+       * right; and R29's way out and
        * back from a piste's foot down runs up to `harder` colours harder
        * than it — a real area's runs keep their signed colours, and its
        * way home is the one its real runs give; and a ramp off a top
@@ -435,7 +438,7 @@ export const RESORT_RULES = {
         signed: 1,
         fall: 0.02,
         cut: 30,
-        chain: { fill: 20, dig: 40, skate: true },
+        chain: { fill: 20, dig: 40, skate: true, search: true },
         harder: 1,
         ramp: { glide: 0.04, gentle: 0.3 },
         level: 0.35,

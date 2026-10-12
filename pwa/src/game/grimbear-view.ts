@@ -76,8 +76,18 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     m.castShadow = true;
     return m;
   };
-  const joint = (x: number, y: number, z: number, parent: THREE.Object3D): THREE.Group => {
+  /** A pivot, NAMED (`hips`, `knee_l`, …) so a lab can read where each of
+   * his joints is drawn (the jolt lab's `wild` family) — a name and an
+   * empty marker draw nothing. */
+  const joint = (
+    x: number,
+    y: number,
+    z: number,
+    parent: THREE.Object3D,
+    name = "",
+  ): THREE.Group => {
     const g = new THREE.Group();
+    g.name = name;
     g.position.set(x, y, z);
     parent.add(g);
     return g;
@@ -115,12 +125,12 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     m.rotation.z = x * 1.2;
     parent.add(m);
   };
-  const hips = joint(0, HIP, 0, group);
+  const hips = joint(0, HIP, 0, group, "hips");
   hips.add(mesh(lump(0.34, 0.22, 0.27), fur, 0, 0.02, 0));
   // THE TRUNK, leant from the hips: a bear's pot belly and barrel chest, the
   // grizzled hump over the shoulders, a ruff at the throat and shag down
   // the flanks and the back.
-  const trunk = joint(0, 0.05, 0, hips);
+  const trunk = joint(0, 0.05, 0, hips, "trunk");
   trunk.add(mesh(lump(0.44, 0.4, 0.4), fur, 0, TRUNK * 0.32, 0.06));
   trunk.add(mesh(lump(0.5, 0.38, 0.4), fur, 0, TRUNK * 0.7, 0.02));
   trunk.add(mesh(lump(0.44, 0.19, 0.34), mantle, 0, TRUNK * 0.9, -0.08));
@@ -134,7 +144,8 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   // bear's is: the broad skull, the brow, the long pale muzzle, the round
   // ears.
   trunk.add(mesh(lump(0.22, 0.2, 0.24), fur, 0, TRUNK * 0.86, 0.2));
-  const head = joint(0, TRUNK * 0.92, 0.32, trunk);
+  const head = joint(0, TRUNK * 0.92, 0.32, trunk, "head");
+  joint(0, 0.07, 0.44, head, "snout");
   // The neck's root inside the head, so the head can nod off the trunk
   // without a gap opening at the nape.
   head.add(mesh(lump(0.19, 0.17, 0.2), fur, 0, -0.02, -0.08));
@@ -170,7 +181,7 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     small.scale.setScalar(0.55);
     head.add(small);
   }
-  const jaw = joint(0, -0.03, 0.14, head);
+  const jaw = joint(0, -0.03, 0.14, head, "jaw");
   jaw.add(mesh(lump(0.1, 0.045, 0.14), pale, 0, -0.02, 0.1));
   for (const side of [-1, 1]) {
     const m = mesh(tusk, ivory, side * 0.11, 0.05, 0.2);
@@ -184,13 +195,14 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   claw.rotateX(Math.PI);
   geometries.push(claw);
   const arms = [-1, 1].map((side) => {
-    const spread = joint(side * 0.5, TRUNK * 0.74, 0, trunk);
+    const lr = side > 0 ? "l" : "r";
+    const spread = joint(side * 0.5, TRUNK * 0.74, 0, trunk, `shoulder_${lr}`);
     // The shoulder: a ball the arm turns in, rounded into the trunk.
     ball(spread, 0.18);
     const swing = joint(0, 0, 0, spread);
     swing.add(mesh(limb(0.15, 0.12, UPPER), fur, 0, 0, 0));
     swing.add(mesh(lump(0.14, 0.21, 0.14), fur, 0, -UPPER * 0.4, 0));
-    const elbow = joint(0, -UPPER, 0, swing);
+    const elbow = joint(0, -UPPER, 0, swing, `elbow_${lr}`);
     ball(elbow, 0.125);
     elbow.add(mesh(limb(0.12, 0.1, FORE), fur, 0, 0, 0));
     elbow.add(mesh(lump(0.1, 0.1, 0.1), fur, 0, -FORE, 0.01));
@@ -199,16 +211,18 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     for (let k = 0; k < 4; k++) {
       elbow.add(mesh(claw, horn, (k - 1.5) * 0.045, -FORE - 0.15, 0.09));
     }
+    joint(0, -FORE - 0.15, 0.09, elbow, `claws_${lr}`);
     return { spread, swing, elbow, side };
   });
   // THE LEGS: a man's, to run on — the long thigh, the knee, the shin — in
   // a bear's heavy hams and shaggy calves, on broad clawed feet.
   const legs = [-1, 1].map((side) => {
-    const hip = joint(side * 0.19, 0, 0, hips);
+    const lr = side > 0 ? "l" : "r";
+    const hip = joint(side * 0.19, 0, 0, hips, `hip_${lr}`);
     ball(hip, 0.2);
     hip.add(mesh(limb(0.19, 0.13, THIGH), fur, 0, 0, 0));
     hip.add(mesh(lump(0.17, 0.24, 0.18), fur, 0, -THIGH * 0.42, 0));
-    const knee = joint(0, -THIGH, 0, hip);
+    const knee = joint(0, -THIGH, 0, hip, `knee_${lr}`);
     ball(knee, 0.135);
     knee.add(mesh(limb(0.13, 0.1, SHIN), fur, 0, 0, 0));
     // The calf's belly behind the shin, so the leg is round, not a plank.
@@ -221,6 +235,8 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
       m.rotation.x = -Math.PI / 2;
       knee.add(m);
     }
+    joint(0, -SHIN, 0, knee, `ankle_${lr}`);
+    joint(0, -SHIN - 0.04, 0.28, knee, `toes_${lr}`);
     return { hip, knee };
   });
 

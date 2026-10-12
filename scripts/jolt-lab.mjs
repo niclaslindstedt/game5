@@ -105,7 +105,9 @@ const rows = [];
 for (const fam of families) {
   const scenes = fam.scenes.filter((s) => !wanted || wanted.has(s.id));
   if (scenes.length === 0) continue;
-  console.log(`\n${fam.id} · ${fam.say}${ctx.world ? " (in the world)" : ""}`);
+  console.log(
+    `\n${fam.id} · ${fam.say}${ctx.world && !fam.say.includes("(in the world)") ? " (in the world)" : ""}`,
+  );
   console.log(
     `${"scene".padEnd(18)}${pad("frames", 7)}${pad("snap", 11)}${pad("worst m/s²", 16)}  joint @ s · phase${"".padEnd(14)}${pad("pops", 6)}${pad("worst pop", 12)}  joint @ s`,
   );
@@ -151,6 +153,7 @@ for (const fam of families) {
         const a = args.joint
           ? (() => {
               const [u, w] = [samples[k - 1]?.joints[j], samples[k + 1]?.joints[j]];
+              if (!u || !p || !w) return 0;
               const h = (samples[k + 1].t - samples[k - 1].t) / 2;
               return (
                 Math.hypot(u.x - 2 * p.x + w.x, u.y - 2 * p.y + w.y, u.z - 2 * p.z + w.z) / (h * h)

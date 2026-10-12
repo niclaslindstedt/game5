@@ -15,14 +15,7 @@
 // plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
-import {
-  BALLOON,
-  planeBoxes,
-  stripBoxes,
-  type GameState,
-  type Level,
-  type StripBox,
-} from "@engine";
+import { planeBoxes, stripBoxes, type GameState, type Level, type StripBox } from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import { heliHull, type SolidBox } from "./camera-clear.ts";
@@ -50,6 +43,7 @@ import { createWingsuitCam, wingsuitFramed, wingsuitLens } from "./camera-wingsu
 import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import type { Outfit } from "./outfit.ts";
+import { createBasketWalk } from "./ride-perch.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
 import { wingsuitShapeOf } from "./skier-wingsuit.ts";
 import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
@@ -145,11 +139,6 @@ export type Machines = {
   setPace(pace: number): void;
   dispose(): void;
 };
-
-/** A whole stride in the basket (both boots), m, and the metres of stride
- * a radian of turning on the spot is worth. */
-const STRIDE = 0.7;
-const TURN_STEP = 0.25;
 
 /** The longest the run's load waits on the machines' models, ms: a file that
  * never comes is linked when it does, rather than holding the card up. */
@@ -249,7 +238,7 @@ export function createMachines(
   // the cockpit's lens is widened on a tall one.
   let aspect = 16 / 9;
   // His steps about the basket, as last seen (`seat`).
-  const walk = { x: Number.NaN, z: Number.NaN, face: 0, strides: 0, pace: 0 };
+  const walk = createBasketWalk();
   const groomers: GroomerScene | null = state.rules.groomer ? createGroomerScene(haze) : null;
   if (groomers) group.add(groomers.group);
   // THE VILLAGE'S TRAFFIC (`traffic-view.ts`), on every run whose map has
@@ -321,25 +310,9 @@ export function createMachines(
       );
       // In the balloon's basket his pair is racked in its corner, and he
       // steps as he walks about it (or turns where he stands).
-      const b = s.balloon;
-      if (b?.aboard) {
-        const moved = Number.isNaN(walk.x)
-          ? 0
-          : Math.hypot(b.walkX - walk.x, b.walkZ - walk.z) +
-            TURN_STEP *
-              Math.abs(Math.atan2(Math.sin(b.face - walk.face), Math.cos(b.face - walk.face)));
-        walk.x = b.walkX;
-        walk.z = b.walkZ;
-        walk.face = b.face;
-        walk.strides += moved / STRIDE;
-        const pace = Math.min(1, moved / Math.max(1e-3, lastDt) / BALLOON.walk.speed);
-        walk.pace += (pace - walk.pace) * Math.min(1, lastDt * 10);
-        model.setBasket(true, walk);
-      } else {
-        walk.x = Number.NaN;
-        walk.pace = 0;
-        model.setBasket(false);
-      }
+      const walked = walk(s.balloon, lastDt);
+      if (walked) model.setBasket(true, walked);
+      else model.setBasket(false);
     },
     frame(s, alpha, dt, simDt, player, rung, flying, stamps) {
       carried(s);

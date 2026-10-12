@@ -253,6 +253,12 @@ export function townKey(m: TownMove, pole: number): TownKey {
           mix(v(0.3, 0.9, 0.12), binding(m, 1), down),
         ];
         inLeft(key.hands[0]);
+        // ...the right pole carried over from its own fist as it goes,
+        // never jumped into the left in a frame.
+        const over = span(k, 0, TOWN_KEYS.lift[0] * 0.7);
+        const own = planted(key)[1];
+        tips = [tips![0], mix(own, tips![1], over)];
+        grips = [grips![0], mix(key.hands[1], grips![1], over)];
       } else if (k < TOWN_KEYS.swing[0]) {
         // Up with the pair onto its tails, a hand at each binding.
         key = blend(STOOP, STAND, raised(m));

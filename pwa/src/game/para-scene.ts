@@ -16,9 +16,10 @@
 // stands up out of the seat for the snow.
 
 import * as THREE from "three";
-import { HANG_AIR, PARA, TUNING, airAt, unrotate, type GameState, type ParaState } from "@engine";
+import { PARA, type GameState, type ParaState } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { createParaPerch, PARA_SEAT, PARA_SIT } from "./ride-perch.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import {
   LINE_PAINT,
@@ -56,11 +57,10 @@ const CRAVAT_FOLD = 0.3;
 const RISER = 0.45;
 const RISER_GAP = 0.035;
 /** How far his seat hangs under him in the harness, m; how high over the
- * snow he is sat in it, m (lower, he is stood for the snow). */
-const SEAT = HANG_AIR;
-const SIT = 2.5;
-/** How quickly the seat's acceleration is felt by his legs, s. */
-const ACCEL_LAG = 0.06;
+ * snow he is sat in it, m (lower, he is stood for the snow) — the perch's
+ * own (`ride-perch.ts`). */
+const SEAT = PARA_SEAT;
+const SIT = PARA_SIT;
 /** How far the seated figure sits under the standing one's place, m — the
  * motor on his back goes down with him (`perch`'s seat). */
 const SAT = 0.48;
@@ -223,11 +223,6 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
     canopy.scale.set(1, 1, 1);
     draped = true;
   }
-
-  // The perch's memory: the seat's acceleration, smoothed.
-  const accel = { x: 0, y: 0, z: 0 };
-  const lastV = { x: 0, y: 0, z: 0 };
-  let lastTick = -1;
 
   const wingOver = (p: ParaState): boolean => p.mode !== "dropped";
 
@@ -437,38 +432,7 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
       (motor.disc.material as THREE.MeshBasicMaterial).opacity = 0.4 * spin;
       motor.blades.visible = spin < 0.9;
     },
-    perch(state) {
-      const p = state.para;
-      if (!p || p.mode !== "flown" || !p.flying || p.agl < SIT || state.skier.thrown) {
-        lastTick = -1;
-        return null;
-      }
-      const c = state.skier;
-      if (state.tick !== lastTick) {
-        const span = (state.tick - lastTick) * TUNING.dt;
-        if (lastTick >= 0 && span > 0) {
-          const k = 1 - Math.exp(-span / ACCEL_LAG);
-          accel.x += ((c.vx - lastV.x) / span - accel.x) * k;
-          accel.y += ((c.vy - lastV.y) / span - accel.y) * k;
-          accel.z += ((c.vz - lastV.z) / span - accel.z) * k;
-        } else accel.x = accel.y = accel.z = 0;
-        lastTick = state.tick;
-        lastV.x = c.vx;
-        lastV.y = c.vy;
-        lastV.z = c.vz;
-      }
-      const wind = airAt(state.level, state.t, c.x, c.z, Math.max(0.5, p.agl));
-      return {
-        y: -SEAT,
-        gravity: unrotate(c.q, { x: -accel.x, y: -TUNING.g - accel.y, z: -accel.z }),
-        air: unrotate(c.q, { x: wind.x - c.vx, y: -c.vy, z: wind.z - c.vz }),
-        spool: 0,
-        rotor: 0,
-        // Let down onto the snow as he comes in.
-        hanging: Math.max(0, Math.min(1, (p.agl - SIT) / 2)),
-        t: state.t,
-      };
-    },
+    perch: createParaPerch(),
     wing() {
       return shown ? { x: wingAt.x, y: wingAt.y, z: wingAt.z } : null;
     },

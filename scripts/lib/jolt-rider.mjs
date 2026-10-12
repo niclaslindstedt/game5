@@ -33,7 +33,7 @@ export function createRiderReader(ctx) {
   const modelOf = (spec, dress) =>
     G.createSkisModel(spec, G.pairStyle(spec, dress ?? G.SLOT_DRESS[0]), (x) => x);
   /** Every bone of his drawn skin, in the frame `c` stands in (his body's). */
-  const read = (model, c) => {
+  const read = (model, c, inWorld) => {
     const sk = model.skin();
     sk.group.updateWorldMatrix(true, false);
     const mw = sk.group.matrixWorld;
@@ -41,7 +41,7 @@ export function createRiderReader(ctx) {
     const out = {};
     const put = (name, x, y, z) => {
       world.set(x, y, z).applyMatrix4(mw);
-      if (!ctx.world) {
+      if (!inWorld) {
         world.x -= c.x;
         world.y -= c.y;
         world.z -= c.z;
@@ -137,22 +137,19 @@ export function createRiderReader(ctx) {
       );
       last = t;
       if (t < SETTLE) continue;
-      // Thrown, he is read in a frame that flies on as his body frame was
-      // at the throw — square, at its last speed — so the ragdoll's own
-      // tumble is read as it moves and nothing of the engine's turn of a
-      // skier no longer on his skis is.
+      // Thrown, he is read at the engine's own place (which goes with his
+      // body) turned as his body frame was at the throw — so the ragdoll's
+      // own tumble is read as it moves and nothing of the engine's turn of
+      // a skier no longer on his skis is.
       if (!c.thrown) {
         Object.assign(ref, { x: c.x, y: c.y, z: c.z, q: c.q, vx: c.vx, vy: c.vy, vz: c.vz, t });
       }
-      const at = c.thrown
-        ? {
-            x: ref.x + ref.vx * (t - ref.t),
-            y: ref.y + ref.vy * (t - ref.t),
-            z: ref.z + ref.vz * (t - ref.t),
-            q: ref.q,
-          }
-        : c;
-      samples.push({ t, joints: read(model, at), phase: phaseOf(state) });
+      const at = c.thrown ? { x: c.x, y: c.y, z: c.z, q: ref.q } : c;
+      samples.push({
+        t,
+        joints: read(model, at, ctx.world || scene.world === true),
+        phase: phaseOf(state),
+      });
     }
     return samples;
   };

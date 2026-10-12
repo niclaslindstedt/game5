@@ -637,7 +637,7 @@ export function birdMaterial(spec: BirdSpec, haze: HazeUniforms): THREE.MeshLamb
     side: THREE.DoubleSide,
   });
   const num = (v: number): string => v.toFixed(4);
-  const wrist = (spec.span / 2) * spec.wing.wrist;
+  const wrist = wristOf(spec);
   return hazeMaterial(material, haze, "bird", (shader) => {
     shader.uniforms.uWrist = { value: wrist };
     shader.vertexShader = `uniform float uWrist;
@@ -671,4 +671,47 @@ ${shader.vertexShader}`.replace(
 \t}`,
     );
   });
+}
+
+/** Where a species' WRIST is along the half-span, m — the hinge the hand
+ * folds back about (`birdMaterial`'s `uWrist`). */
+export function wristOf(spec: BirdSpec): number {
+  return (spec.span / 2) * spec.wing.wrist;
+}
+
+/**
+ * A WING POINT as `birdMaterial`'s graft moves it, on the processor: the
+ * point (`x`, `y`, `z`) of a level wing in the bird's own frame, folded at
+ * the wrist and the shoulder by `fold` and flapped about the shoulder by
+ * `flap` (the instance's `aFold` and `aFlap`), for a species whose wrist
+ * stands `wrist` m out (`wristOf`). The same sums in the same order as the
+ * GLSL above, for what reads the drawn wing without a GPU (the jolt lab).
+ */
+export function wingPoint(
+  x: number,
+  y: number,
+  z: number,
+  wrist: number,
+  flap: number,
+  fold: number,
+): [number, number, number] {
+  const side = x < 0 ? -1 : 1;
+  let ax = Math.abs(x);
+  let az = z;
+  const hand = ax - wrist;
+  if (hand > 0) {
+    const a = fold * HAND_FOLD;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    ax = wrist + hand * c + az * s;
+    az = -hand * s + az * c;
+  }
+  const b = fold * ARM_FOLD;
+  const cb = Math.cos(b);
+  const sb = Math.sin(b);
+  const bx = ax * cb + az * sb;
+  const bz = -ax * sb + az * cb;
+  const cf = Math.cos(flap);
+  const sf = Math.sin(flap);
+  return [side * (bx * cf - y * sf), bx * sf + y * cf, bz];
 }

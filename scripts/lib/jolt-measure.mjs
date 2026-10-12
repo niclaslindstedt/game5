@@ -26,12 +26,29 @@ export const SNAP_MOST = 150;
  * once. */
 const POP_TURN = -0.5;
 
+/** A step his joints move further than this on the whole (their middle
+ * mover) is a CUT — the engine standing him somewhere else, a reset, a
+ * staged scene starting over — and is not read across, m. */
+const CUT = 2.5;
+
+/** How far the middle joint moved between two samples, m. */
+function middleMove(a, b) {
+  const d = [];
+  for (const j of Object.keys(b.joints)) {
+    const p = a.joints[j];
+    const q = b.joints[j];
+    if (p) d.push(Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z));
+  }
+  d.sort((x, y) => x - y);
+  return d.length ? d[d.length >> 1] : 0;
+}
+
 /** Frames closer than this apart are one SNAP event, s. */
 const EVENT_GAP = 0.06;
 
 /** Every frame's worst joint, its jolt and the phase it was drawn in.
- * Frames more than `gap` s apart (a cut, a reset of the clock) are not
- * read across. */
+ * Frames more than `gap` s apart (a reset of the clock), or a CUT apart,
+ * are not read across. */
 export function joltsOf(samples, gap = 0.1, most = SNAP_MOST) {
   const out = [];
   /** Each joint's last second difference, to read a pop against. */
@@ -39,7 +56,7 @@ export function joltsOf(samples, gap = 0.1, most = SNAP_MOST) {
   for (let k = 1; k + 1 < samples.length; k++) {
     const [p, q, r] = [samples[k - 1], samples[k], samples[k + 1]];
     const h = (r.t - p.t) / 2;
-    if (h <= 0 || h > gap) {
+    if (h <= 0 || h > gap || middleMove(p, q) > CUT || middleMove(q, r) > CUT) {
       was = null;
       continue;
     }

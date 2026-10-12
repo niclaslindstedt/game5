@@ -35,6 +35,17 @@
 //     blue mirror with no crystals on it; and, where the region says so,
 //     rock showing through on every face too steep to hold snow. The
 //     alpine lays none of it and paints nothing of it.
+//   * THE SNOW'S AGE (`uSnowAge`, `uSnowAge2`, `snow-age.ts`): the loose
+//     snow off the groomer as the days since the fall have left it — NEW
+//     snow the whitest, smoothest and finest-glittering; OLD snow a shade
+//     greyer and coarser-grained (fewer, bigger glints); the WIND's slab
+//     smoothed and rippled across its way on exposed ground; a SUN CRUST
+//     glazed on the faces the noon sun stands on; SURFACE HOAR flashing like
+//     sequins on the shaded snow; and the thaw's WET snow grey, glossy and
+//     dimpled into sun cups.
+//   * THE GLARE: snow scatters the sun FORWARD, so looking into a low sun a
+//     snowfield shines — a broad sheen on powder, a hard streak off a crust,
+//     wet snow, ice or a polished groomer. Its own lobe, over the material's.
 //   * THE NEW SNOW (`uFresh`, `GameState.fresh`) a fall lays over a run
 //     buries the groomed track's look — its corduroy, its grey, its gloss —
 //     under a few centimetres, and the trail map fills its furrows as it
@@ -59,6 +70,10 @@ import { SLIDE_ALBEDO, SLIDE_GLSL, SLIDE_LUMPS, SLIDE_NORMAL } from "./avalanche
 
 /** How much brighter than white snow's albedo is painted. */
 export const GLARE = 1.12;
+
+/** How bright the sun's forward glare off the snow is drawn, over the key's
+ * own light: set by looking into the sun (`make snow ARGS=--sheet=sun`). */
+export const SUN_GLARE = 0.6;
 
 // New snow that buries the groomed track's LOOK outright, m: stated
 // three-free in `trail-stamp.ts`, where the trail map's fill reads it too.
@@ -231,6 +246,8 @@ uniform float uCell;
 uniform float uFlat;
 uniform float uFresh;
 uniform vec4 uPiste;
+uniform vec4 uSnowAge;
+uniform vec4 uSnowAge2;
 uniform float uGlitter;
 uniform sampler2D uSurface;
 uniform vec3 uForestTint;
@@ -322,6 +339,14 @@ float snowTrough;    // 0 .. 1 THE MIDDLE BAND: powder's soft trough a boot deep
 float snowTrench;    // 0 .. 1 THE DEEP BAND: a trench in deep snow
 float snowHollow;    // 0 .. 1 how far down in a trench, out of the sky's light
 float snowSpill;     // 0 .. 1 the clods a trench has thrown out over its rim
+float snowNew;       // 0 .. 1 new snow's look, off the groomer
+float snowOld;       // 0 .. 1 old snow's: greyer, coarser
+float snowWind;      // 0 .. 1 the wind's slab, smoothed and rippled
+float snowSunCrust;  // 0 .. 1 a sun crust's glaze on a face turned to the noon sun
+float snowHoar;      // 0 .. 1 surface hoar on the shaded snow
+float snowWet;       // 0 .. 1 thawed snow: grey, glossy, sun-cupped
+float snowCup;       // 0 .. 1 down in a sun cup's hollow
+float snowScour;     // 0 .. 1 a patch the wind has scoured to its slab
 `;
 
 /** Straight after `clipping_planes_fragment`: throw away what the finer
@@ -394,6 +419,28 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     grad = mix(grad, -vn.xz / max(vn.y, 0.2), smoothstep(0.0, 30.0, past));
   }
   snowRock = uRock.w * smoothstep(uRockSlope.x, uRockSlope.y, length(grad)) * (1.0 - snowPacked);
+
+  // THE SNOW'S AGE, here: only the loose snow (the groomer is the night's,
+  // the ice and the rock are not snow), the run's own fall making it new
+  // again, and which way the ground faces the noon sun — a crust on the
+  // faces it stands on, hoar in the shade.
+  {
+    float loose = (1.0 - snowPacked) * (1.0 - snowIce) * (1.0 - snowRock);
+    float runNew = smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh);
+    float aged = uSnowAge.y * (1.0 - runNew) * loose;
+    float steep = length(g.rg);
+    float face = dot(-g.rg / max(steep, 1e-4), uSnowAge2.zw) * smoothstep(0.04, 0.3, steep);
+    float exposed = 1.0 - snowForest;
+    snowNew = max(uSnowAge.x, runNew) * loose;
+    snowOld = aged;
+    snowWind = uSnowAge.z * aged * exposed;
+    snowSunCrust = uSnowAge.w * aged * clamp(0.35 + 0.9 * face, 0.0, 1.0) * (1.0 - 0.5 * snowForest);
+    snowHoar = uSnowAge2.x * (1.0 - runNew) * loose * clamp(0.85 - 0.8 * face, 0.25, 1.0)
+      * (1.0 - 0.6 * uSnowAge.z * exposed);
+    snowWet = uSnowAge2.y * (1.0 - runNew) * loose * clamp(0.55 + 0.6 * face, 0.0, 1.0);
+    snowCup = 0.0;
+    snowScour = 0.0;
+  }
 
   // THE FURROWS, per pixel.
   vec2 tr = trailAt(p);
@@ -545,8 +592,51 @@ ${SLIDE_NORMAL}
     grad += across * cos(ph) * 1.9 * 0.07 * k;
   }
   if (nearFade > 0.0) {
-    grad += snowNoiseGrad(p * 1.7, 0.3) * 1.7 * 0.035 * nearFade;
-    grad += snowNoiseGrad(p * 7.0, 0.3) * 7.0 * 0.007 * nearFade * (1.0 - snowPress);
+    // New snow lies smooth over the old surface's grain; old snow is the
+    // coarser, a wet one the more.
+    float grain = (1.0 - 0.6 * snowNew) * (1.0 + 0.7 * snowOld) * (1.0 - 0.5 * snowWind);
+    grad += snowNoiseGrad(p * 1.7, 0.3) * 1.7 * 0.035 * nearFade * (1.0 - 0.4 * snowNew);
+    grad += snowNoiseGrad(p * 7.0, 0.3) * 7.0 * 0.007 * nearFade * (1.0 - snowPress) * grain;
+  }
+  // THE WIND'S SLAB: ripples across the way it blew, a hand apart and a
+  // centimetre high, wandering and broken, and patches scoured flat and
+  // polished between drifted ones — faded before the ripples alias.
+  if (snowWind > 0.01 && midFade > 0.0) {
+    snowScour = smoothstep(0.45, 0.75, snowNoise(p * 0.11 + 51.0)) * snowWind;
+    // The ripples alias out past a few tens of metres: not drawn there.
+    if (nearFade > 0.0) {
+      float warp = snowNoise(p * 0.5 + 3.0) * 4.0 + snowNoise(p * 1.3) * 1.2;
+      float ph = dot(p, uWindDir) * 6.2831853 / 0.32 + warp * 6.2831853;
+      float aa = 1.0 - smoothstep(0.25, 0.7, fwidth(ph) / 6.2831853);
+      float breakUp = smoothstep(0.25, 0.6, snowNoise(p * 0.7 + 9.0));
+      float k = snowWind * aa * breakUp * (1.0 - snowPress) * (1.0 - 0.6 * snowScour);
+      grad += uWindDir * sin(ph) * 0.32 * k;
+    }
+    // ...and the drifts' long, low swells in the lee of the scoured patches.
+    grad += snowNoiseGrad(p * 0.16 + 5.0, 0.4) * 0.16 * 0.45 * snowWind * midFade;
+  }
+  // THE SUN CRUST: a melt-frozen glaze with the faint orange-peel of the
+  // grains under it.
+  if (snowSunCrust > 0.01 && nearFade > 0.0) {
+    grad += snowNoiseGrad(p * 3.4 + 61.0, 0.12) * 3.4 * 0.012 * snowSunCrust * nearFade;
+  }
+  // SUN CUPS in the thawed snow: hollows half a metre or so across with
+  // soft ridges between — an egg-crate of dimples, turned off the axes and
+  // warped so no row lines up, faded before it aliases.
+  if (snowWet > 0.01 && snowDist < 120.0) {
+    // Two crates, turned and sized apart and warped by a metre or two, so
+    // the dimples neither line up nor repeat.
+    vec2 w = vec2(snowNoise(p * 0.45 + 3.0), snowNoise(p * 0.45 + 8.0)) * 5.0;
+    mat2 r1 = mat2(0.8, 0.6, -0.6, 0.8);
+    mat2 r2 = mat2(0.28, -0.96, 0.96, 0.28);
+    vec2 c1 = r1 * p * 10.5 + w;
+    vec2 c2 = r2 * p * 14.0 - w.yx;
+    float aa = 1.0 - smoothstep(0.6, 1.6, length(fwidth(c2)));
+    float k = snowWet * aa * (1.0 - smoothstep(60.0, 120.0, snowDist)) * (1.0 - snowPress);
+    // h = cos x + cos y on each; their slopes turned back into the world.
+    grad += (transpose(r1) * -vec2(sin(c1.x), sin(c1.y))) * 10.5 * 0.009 * k;
+    grad += (transpose(r2) * -vec2(sin(c2.x), sin(c2.y))) * 14.0 * 0.005 * k;
+    snowCup = clamp(0.15 * (cos(c1.x) + cos(c1.y) + cos(c2.x) + cos(c2.y)) + 0.5, 0.0, 1.0) * k;
   }
 
   // THE CORDUROY: the groomer's comb, running along the track — and WORN
@@ -616,6 +706,17 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
   vec3 shade = vec3(0.84, 0.9, 0.98);
   float drift = snowNoise(p * 0.018) * 0.6 + snowNoise(p * 0.07) * 0.4;
   vec3 alb = mix(fresh, shade, drift * 0.32);
+  // THE SNOW'S AGE (\`snow-age.ts\`): new snow the cleanest white, its
+  // drifts' shade filled in; old snow a settled, faintly warmer grey; the
+  // wind's scoured slab a polished blue-grey; a crust a touch darker under
+  // its glaze; wet snow grey, the most in its cups' hollows, where the dirt
+  // of the season gathers; and hoar a fur of crystals, whiter than the snow.
+  alb = mix(alb, vec3(0.975, 0.99, 1.0), 0.75 * snowNew);
+  alb *= mix(vec3(1.0), vec3(0.85, 0.855, 0.84), snowOld);
+  alb *= mix(vec3(1.0), vec3(0.8, 0.86, 0.94), snowScour * 0.9);
+  alb *= mix(vec3(1.0), vec3(0.93, 0.945, 0.965), snowSunCrust);
+  alb *= mix(vec3(1.0), vec3(0.72, 0.74, 0.74) * (1.0 - 0.12 * snowCup), snowWet);
+  alb = mix(alb, vec3(0.97, 0.985, 1.0), 0.35 * snowHoar);
   // Groomed: greyer and a touch warmer — worked snow on its way to ice.
   alb = mix(alb, vec3(0.7, 0.75, 0.82), snowPacked * 0.9);
   // Fresh off the tiller: milled snow, a brighter, even sugar-white.
@@ -666,7 +767,9 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
     float m1 = (snowNoise(p * 0.85) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 0.85));
     float m2 = (snowNoise(p * 2.9 + 3.7) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 2.9));
     float m3 = (snowNoise(p * 8.5 + 9.1) - 0.5) * (1.0 - smoothstep(0.3, 0.7, px * 8.5));
-    alb *= 1.0 + (m1 * 0.45 + m2 * 0.4 + m3 * 0.3) * mix(0.22, 0.32, snowPacked) * (1.0 - snowIce);
+    // New snow is the evener, old and wet snow the patchier.
+    float patchy = mix(0.22, 0.32, snowPacked) * (1.0 - 0.55 * snowNew) * (1.0 + 0.5 * snowOld + 0.5 * snowWet);
+    alb *= 1.0 + (m1 * 0.45 + m2 * 0.4 + m3 * 0.3) * patchy * (1.0 - snowIce);
   }
   // A TREE WELL: the hollow under the boughs is out of the sky's light and
   // its snow is older and coarser — a cooler, shadier grey-blue the deeper
@@ -730,6 +833,10 @@ roughnessFactor = mix(roughnessFactor, 0.72, snowGroomed);
 roughnessFactor -= 0.15 * snowWorked;
 roughnessFactor = mix(roughnessFactor, 0.4, 0.6 * snowSoft);
 roughnessFactor = mix(roughnessFactor, 0.28, 0.7 * snowHard);
+roughnessFactor = mix(roughnessFactor, 0.94, 0.7 * snowNew);
+roughnessFactor = mix(roughnessFactor, 0.62, snowWind * (0.3 + 0.5 * snowScour));
+roughnessFactor = mix(roughnessFactor, 0.34, 0.85 * snowSunCrust);
+roughnessFactor = mix(roughnessFactor, 0.3, 0.8 * snowWet);
 roughnessFactor = mix(roughnessFactor, 0.62, snowCrust * 0.6);
 roughnessFactor = mix(roughnessFactor, 0.18, snowIce);
 roughnessFactor = mix(roughnessFactor, 0.95, snowRock);
@@ -843,16 +950,43 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
     vec3 V = normalize(cameraPosition - vSnowWorld);
     vec3 H = normalize(uSunDir + V);
     float loose = (1.0 - snowPacked * 0.8) * (1.0 - snowPress * 0.6) * (1.0 - snowIce) * (1.0 - snowRock);
+    // THE GRAINS BY AGE: new snow's crystals a dense dust of fine points;
+    // old snow's rounded into fewer, coarser grains — the fine layer thinned,
+    // the coarse one fuller and brought in close; a crust's and wet snow's
+    // glazed over; and HOAR's feathers the biggest, brightest flashes of all,
+    // facing every way.
+    float keepFine = 0.6 * (1.0 + 0.45 * snowNew + 0.5 * snowHoar) * (1.0 - 0.55 * snowOld);
+    float keepCoarse = mix(0.35, 0.6, max(snowOld, snowHoar));
+    float near = mix(8.0, 1.5, max(snowOld, snowHoar));
+    float glaze = (1.0 - 0.6 * snowSunCrust) * (1.0 - 0.85 * snowWet);
     float glint = 0.0;
     if (snowDist < 45.0) {
-      glint += snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 0.0)
-        * (1.0 - smoothstep(15.0, 45.0, snowDist));
+      glint += snowGlints(vSnowWorld, 7.0, mix(600.0, 320.0, snowNew), keepFine, snowN, H, 0.0)
+        * (1.0 - smoothstep(15.0, 45.0, snowDist)) * (1.0 + 0.3 * snowNew + 1.5 * snowHoar);
     }
-    if (snowDist > 8.0) {
-      glint += snowGlints(vSnowWorld, 2.5, 900.0, 0.35, snowN, H, 31.0)
-        * smoothstep(8.0, 25.0, snowDist) * (1.0 - smoothstep(50.0, 140.0, snowDist));
+    if (snowDist > near) {
+      glint += snowGlints(vSnowWorld, 2.5, mix(900.0, 140.0, snowHoar), mix(keepCoarse, 0.9, snowHoar), snowN, H, 31.0)
+        * smoothstep(near, near + 17.0, snowDist) * (1.0 - smoothstep(50.0, 140.0 + 60.0 * snowHoar, snowDist))
+        * (1.0 + 0.6 * snowOld + 4.0 * snowHoar);
     }
-    reflectedLight.directSpecular += sunLit * glint * loose * 18.0 * uGlitter;
+    reflectedLight.directSpecular += sunLit * glint * loose * glaze * 18.0 * uGlitter;
+  }
+
+  // THE GLARE: the sun scattered forward off the snow, the brighter the
+  // more grazing the look. Powder spreads it into a broad sheen; a crust,
+  // wet snow, the polished groomer and ice gather it into a hard streak
+  // toward the sun. Its own lobe over the material's GGX, which at snow's
+  // roughness all but loses it. Under a lid there is no sun to glare.
+  {
+    vec3 V = normalize(cameraPosition - vSnowWorld);
+    float rv = max(dot(reflect(-uSunDir, snowN), V), 0.0);
+    float gloss = clamp(0.3 * snowPacked + 0.85 * snowSunCrust + 0.55 * snowWet
+      + 0.3 * snowScour + 0.5 * snowHard + 0.4 * snowSoft + 0.9 * snowIce, 0.0, 1.0) * (1.0 - snowRock);
+    float k = mix(6.0, 140.0, gloss * gloss);
+    float graze = 1.0 - max(dot(snowN, V), 0.0);
+    graze *= graze;
+    float lobe = pow(rv, k) * (0.25 + 2.5 * gloss * gloss) * (0.15 + 1.6 * graze);
+    reflectedLight.directSpecular += sunLit * lobe * ${SUN_GLARE.toFixed(3)} * (1.0 - 0.8 * snowNew * (1.0 - gloss));
   }
 }
 #endif

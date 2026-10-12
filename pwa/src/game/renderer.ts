@@ -97,6 +97,7 @@ import {
   snowpackOf,
   type SnowKind,
   type Snowpack,
+  type SnowpackOptions,
   type SnowProps,
 } from "./snowpack.ts";
 import {
@@ -157,10 +158,9 @@ export type WorldRendererExt = WorldRenderer &
     setSky(sky: SkyOverride | null): void;
     /** Resolves once the mountain's shadow under the sky last drawn is. */
     shadeSettled(): Promise<void>;
-    /** Lay ONE kind of snow over the whole map for the picture — the
-     * cloud, the spray, the furrows and the prints (`snowpack.ts`) — or
-     * null for the map's own: a lab's sheet. */
-    setSnow(kind: SnowKind | null): void;
+    /** Lay ONE kind of snow (and one surface age) over the whole map for the
+     * picture (`snowpack.ts`, `snow-age.ts`), or null for the map's own. */
+    setSnow(kind: SnowKind | null, age?: SnowpackOptions["age"]): void;
     /** The three.js renderer, for a lab that needs to read pixels. */
     readonly gl: THREE.WebGLRenderer;
   };
@@ -245,7 +245,7 @@ export function createWorldRenderer(
   /** WHAT SNOW LIES WHERE for this run (`snowpack.ts`), a lab's forced
    * kind, and the samples every reader takes of it — each read at once. */
   let pack: Snowpack | null = null;
-  let snowForce: SnowKind | null = null;
+  let snowForce: Pick<SnowpackOptions, "force" | "age"> = {};
   const sampled: SnowProps = { ...SNOW.soft };
   const skierSnow: SnowProps = { ...SNOW.soft };
   const sampleSnow = (x: number, z: number): SnowProps =>
@@ -454,7 +454,7 @@ export function createWorldRenderer(
       elevation: sunAtRun(sky).elevation,
       fresh: state.fresh,
       depth: state.snowDepth,
-      force: snowForce,
+      ...snowForce,
       piste: state.piste,
     });
   }
@@ -764,7 +764,7 @@ export function createWorldRenderer(
         filled = state.fresh;
       }
       timer.pop();
-      setRunSnow(env.haze, state.fresh, state.piste);
+      setRunSnow(env.haze, state.fresh, state.piste, pack?.age);
       const trailed = performance.now();
       // THE VIEW ALOFT (`view-aloft.ts`): the reach grows with the height over the snow.
       const eyeAt = lens.camera.position;
@@ -919,8 +919,8 @@ export function createWorldRenderer(
       if (lastState && level) pack = packFor(lastState);
     },
     shadeSettled: () => env.shadeSettled(),
-    setSnow(kind) {
-      snowForce = kind;
+    setSnow(kind, age) {
+      snowForce = { force: kind, age };
       if (lastState && level) pack = packFor(lastState);
     },
 

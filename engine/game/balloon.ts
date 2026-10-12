@@ -68,8 +68,9 @@ import {
 import { mendBody } from "./body.ts";
 import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
-import { helipadOf, openSpotNear, type Helipad } from "./heli-pad.ts";
-import { sledSpotOf } from "./sled-pad.ts";
+import { balloonSiteOf } from "./balloon-site.ts";
+
+export { balloonSiteOf };
 import { derive } from "./skier.ts";
 import { treesNear } from "./upright-grid.ts";
 import { airBoundsAt, type AirBounds } from "./collision.ts";
@@ -87,28 +88,9 @@ const CLEAR = 0.02;
 /** The largest crown a basket is looked for in, m. */
 const CROWNS = 9;
 
-const sites = new WeakMap<Level, Helipad>();
 const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 const normal = { x: 0, y: 1, z: 0 };
 const near: number[] = [];
-
-/** WHERE THE BALLOON IS STOOD UP: open, level snow on the valley floor near
- * the village (or the finish) — room for the envelope's sweep, clear of
- * trunks, lifts and tunnels, and kept off the helicopter's pad and the
- * snowmobile's spot — faced to the summit. Worked out once a map. */
-export function balloonSiteOf(level: Level): Helipad {
-  let site = sites.get(level);
-  if (!site) {
-    const pad = helipadOf(level);
-    const sled = sledSpotOf(level);
-    site = openSpotNear(level, B.site.room, B.site.slope, [
-      { x: pad.x, z: pad.z, r: B.site.fromPad },
-      { x: sled.x, z: sled.z, r: B.site.fromPad },
-    ]);
-    sites.set(level, site);
-  }
-  return site;
-}
 
 /** The whole weight's mass, kg: the balloon, the fuel left and the skier
  * aboard. */

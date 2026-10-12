@@ -161,6 +161,11 @@ export type Explosion = {
     groundAt: (x: number, z: number) => number,
     eye: { x: number; y: number; z: number },
   ): void;
+  /** Sized afresh for the next fire (the pool and the scorch; whether the
+   * scorch is ringed with slush stays as made) — so one explosion, and the
+   * one light in it, serves every wreck a view draws: a light added to the
+   * scene at a crash would have every lit program in it compiled again. */
+  resize(look: Partial<Pick<ExplosionLook, "pool" | "scorch">>): void;
   clear(): void;
   dispose(): void;
 };
@@ -308,8 +313,8 @@ export function glowTexture(): THREE.Texture {
 }
 
 export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
-  const POOL_: ExplosionLook["pool"] = look.pool ?? POOL;
-  const SCORCH_R = look.scorch ?? SCORCH.radius;
+  let POOL_: ExplosionLook["pool"] = look.pool ?? POOL;
+  let scorchR = look.scorch ?? SCORCH.radius;
   const group = new THREE.Group();
   group.name = "explosion";
   const random = makeRandom(0xb00a);
@@ -358,8 +363,10 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
   // The scorch, draped over the snow where it went up.
   const scorchTex = scorchTexture(look.melt);
   const scorchN = look.melt ? 24 : 12;
-  const scorchGeo = new THREE.PlaneGeometry(SCORCH_R * 2, SCORCH_R * 2, scorchN, scorchN);
+  // Made a metre across and laid out to the radius where it is draped.
+  const scorchGeo = new THREE.PlaneGeometry(2, 2, scorchN, scorchN);
   scorchGeo.rotateX(-Math.PI / 2);
+  const scorchUnit = Float32Array.from(scorchGeo.getAttribute("position").array);
   const scorchMat = new THREE.MeshBasicMaterial({
     map: scorchTex,
     transparent: true,
@@ -669,9 +676,9 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
           // Laid over the snow under it, vertex by vertex.
           const pos = scorchGeo.getAttribute("position") as THREE.BufferAttribute;
           for (let i = 0; i < pos.count; i++) {
-            const px = scorchAt.x + pos.getX(i);
-            const pz = scorchAt.z + pos.getZ(i);
-            pos.setY(i, groundAt(px, pz) - scorchAt.y + 0.2);
+            const ox = scorchUnit[i * 3] * scorchR;
+            const oz = scorchUnit[i * 3 + 2] * scorchR;
+            pos.setXYZ(i, ox, groundAt(scorchAt.x + ox, scorchAt.z + oz) - scorchAt.y + 0.2, oz);
           }
           pos.needsUpdate = true;
           scorchGeo.computeBoundingSphere();
@@ -788,6 +795,10 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
       }
       sparks.update(dt, groundAt);
       draw(eye);
+    },
+    resize(to) {
+      if (to.pool) POOL_ = to.pool;
+      if (to.scorch !== undefined) scorchR = to.scorch;
     },
     clear() {
       for (const p of [...fire, ...smoke]) p.age = p.life = 0;

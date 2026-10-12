@@ -44,7 +44,15 @@ export {
 } from "./plane.ts";
 export { COG as PLANE_COG, SECTIONS as PLANE_SECTIONS, planeAir, thrustAt } from "./plane-aero.ts";
 export type { PlaneAir } from "./plane-aero.ts";
-export { STRIP_LENGTH, airstripOf, onStrip, type Airstrip, type StripPoint } from "./airstrip.ts";
+export {
+  STRIP_LENGTH,
+  airstripOf,
+  onStrip,
+  type Airstrip,
+  type StripPoint,
+  type StripTier,
+} from "./airstrip.ts";
+export { STRIP_ROOM, stripRoomAt } from "./airstrip-room.ts";
 export { CORRIDOR, corridorIntrusion, ropeTop } from "./airstrip-corridor.ts";
 export {
   STRIP_SITE,

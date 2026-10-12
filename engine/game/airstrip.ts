@@ -6,30 +6,33 @@
 // its start weight (`PLANE.strip.roll`, measured off this engine by
 // `make plane-flight`) times `rollFactor`, and an overrun.
 //
-// A RECTANGLE SEARCH over the floor round the village (or the finish, on a
-// map with none): every centre on a grid and a handful of bearings within a
-// few degrees of the valley's axis (±x), each rectangle held to
+// A RECTANGLE SEARCH over the whole floor, nearest the village (or the
+// finish, on a map with none) first: every centre on a grid and every
+// bearing round the half circle, each rectangle held to
 //   * the map, a margin inside its edge;
 //   * the snow: its grade along and across, and how far the ground stands
 //     off a straight line down its length (`PLANE.strip.grade`, `.cross`,
 //     `.bump`) — a flat enough strip is CHOSEN, never graded, so the map's
 //     ground is never touched;
-//   * what stands on the floor: no trunk inside it or its clearance; off
-//     the village's ground (its streets, lots and gardens — `streetMaskAt`)
-//     and its buildings, every cabin, every lift's line and stations, the
-//     wind tunnels, the helipad, the snowmobile's spot and the balloon's
-//     site.
-// The cheapest wins: nearest the village, never above it. NOTHING ELSE
-// AVOIDS THE STRIP — every other place on the map was decided before it and
-// none of them asks it, so no map, village or digest moves for it. A map
-// with no room for one gets the nearest it can (the rules eased, then the
-// village or the finish itself, `fallback`).
+//   * ROOM: its whole centre line half its width and its clearance off
+//     everything the floor carries (`airstrip-room.ts`'s field): every
+//     building by its own footprint and the village's streets, every run,
+//     lane and route by its own width and the hub, every lift's line and
+//     stations, the wind tunnels, the helipad, the snowmobile's spot and
+//     the balloon's site, every trunk, every lake and stream.
+// The cheapest wins: nearest the village, never above it, along the
+// valley's axis where it fits (a bearing off it costs a little), the air
+// off its ends clear. NOTHING ELSE AVOIDS THE STRIP — every other place on
+// the map was decided before it and none of them asks it, so no map,
+// village or digest moves for it. A map with no room under the rules gets
+// the nearest under rules eased twice over (`fallback`), and only a map
+// with none at all the village itself.
 //
 // A pure function of the map, worked out once and kept per map; nothing
 // here draws from the stream.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { balloonSiteOf } from "./balloon.ts";
+import { balloonSiteOf } from "./balloon-site.ts";
 import { cabinsOf } from "./cabins.ts";
 import { BALLOON } from "./defs/balloon.ts";
 import { HELI } from "./defs/heli.ts";
@@ -39,7 +42,8 @@ import { liftPlans } from "./lift-line.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { treesNear } from "./upright-grid.ts";
 import { corridorIntrusion } from "./airstrip-corridor.ts";
-import { streetMaskAt, villageBuildingsOf } from "./village.ts";
+import { stripRoomAt } from "./airstrip-room.ts";
+import { villageBuildingsOf } from "./village.ts";
 import type { Level } from "../mapgen/types.ts";
 
 /** A point on the strip, world frame, m. */
@@ -51,7 +55,9 @@ export type StripPoint = { x: number; y: number; z: number };
  * threshold a landing aims to touch down past, and how far out the final
  * approach is joined, m (shortened where the map is short of room), and
  * the side of it the landing circuit is flown on (1 right of the landing
- * bearing, −1 left); and whether no place met the rules (`fallback`). */
+ * bearing, −1 left); and whether no place met the rules (`fallback`) —
+ * which rules the place found met (`tier`: the strict, the eased, the
+ * loose, or none and the strip laid on the village). */
 export type Airstrip = {
   x: number;
   y: number;
@@ -63,7 +69,15 @@ export type Airstrip = {
   end: StripPoint;
   land: { heading: number; threshold: StripPoint; final: number; side: number };
   fallback: boolean;
+  tier: StripTier;
+  /** The clearance kept either side of its packed edge, m: what its
+   * search held everything off and fells the trees over
+   * (`airstrip-site.ts`'s `stripFelled`). */
+  clear: number;
 };
+
+/** Which rules a strip was found under (`airstrip.ts`'s search). */
+export type StripTier = "strict" | "eased" | "loose" | "village";
 
 const S = PLANE.strip;
 /** The strip's whole length, m. */
@@ -72,15 +86,23 @@ export const STRIP_LENGTH = Math.round(S.roll * S.rollFactor + S.overrun);
  * bearings tried either side of the valley's axis, rad; the margin kept
  * inside the map's edge, m. */
 const STEP = 20;
-const SEARCH = 1800;
-const BEARINGS = [0, 0.06, -0.06, 0.12, -0.12, 0.18, -0.18];
+const BEARINGS = Array.from({ length: 36 }, (_, k) => ((k < 18 ? k : 17 - k) * Math.PI) / 36);
 const EDGE = 60;
-/** The gaps kept from a lift's line and its stations, a tunnel's lane, a
- * building, m. */
-const LINE_GAP = 18;
+/** The gaps the site's buildings keep from a lift's stations and from a
+ * building, m (`keepOffs`). */
 const STATION_GAP = 40;
-const TUNNEL_GAP = 16;
 const HOUSE_GAP = 22;
+/** What a radian of the strip's bearing off the valley's axis costs the
+ * search, in metres of distance from the town — so it lies along the
+ * valley where the valley has room, and turns where only that fits. */
+const TURN = 300;
+/** What a trunk felled for the strip and its clearance costs the search,
+ * in metres of distance from the town — so a clearing is cut only where
+ * the open floor is far, and through the thinnest wood. */
+const FELL = 12;
+/** How far apart the room is read down the centre line, m (the room
+ * field's own cell, `STRIP_ROOM.cell`). */
+const ROOM_STEP = 4;
 /** What a metre of height over the village costs the search, in metres of
  * distance from it — so the strip lies on the town's level or under it. */
 const ABOVE = 25;
@@ -114,7 +136,7 @@ export function onStrip(level: Level, x: number, z: number): boolean {
 }
 
 type Rules = { grade: number; cross: number; bump: number; step: number; clear: number };
-/** A circle the strip and its buildings keep out of, m. */
+/** A circle the strip and its buildings keep off, m. */
 export type Keep = { x: number; z: number; r: number };
 type Found = { x: number; z: number; axis: number; cost: number };
 
@@ -123,7 +145,6 @@ function findStrip(level: Level): Airstrip {
   const finish = level.track.points[level.track.points.length - 1];
   const village = resort ? resort.village : { x: finish.x, z: finish.z };
   const homeY = level.groundAt(village.x, village.z);
-  const keep = keepOffs(level);
   const strict: Rules = {
     grade: S.grade,
     cross: S.cross,
@@ -138,16 +159,32 @@ function findStrip(level: Level): Airstrip {
     step: S.step * 1.5,
     clear: 6,
   };
-  const found =
-    search(level, village, homeY, keep, strict) ?? search(level, village, homeY, keep, eased);
-  const at = found ?? { x: village.x, z: village.z, axis: Math.PI / 2, cost: 0 };
-  return build(level, at, village, !found);
+  const loose: Rules = {
+    grade: S.grade * 3,
+    cross: S.cross * 3,
+    bump: S.bump * 3,
+    step: S.step * 2,
+    clear: 2,
+  };
+  const offsets = offsetsOf(level, village);
+  const tiers = [
+    ["strict", strict],
+    ["eased", eased],
+    ["loose", loose],
+  ] as const;
+  for (const [tier, rules] of tiers) {
+    const found = search(level, village, homeY, offsets, rules);
+    if (found) return build(level, found, village, tier, rules.clear);
+  }
+  const home = { x: village.x, z: village.z, axis: Math.PI / 2, cost: 0 };
+  return build(level, home, village, "village", 0);
 }
 
-/** Everything the strip keeps off that is a circle: the helipad, the
- * snowmobile's spot, the balloon's site, every cabin and village building
- * and every lift's bottom and top station — and what its buildings keep
- * off too (`airstrip-site.ts`). */
+/** Everything the strip's site keeps off that is a circle: the helipad,
+ * the snowmobile's spot, the balloon's site, every cabin and village
+ * building and every lift's bottom and top station (`airstrip-site.ts`;
+ * the strip itself reads all of it, and the runs, the hub and the water
+ * besides, off `stripRoomAt`). */
 export function keepOffs(level: Level): Keep[] {
   const out: Keep[] = [];
   if (level.resort) {
@@ -167,38 +204,112 @@ export function keepOffs(level: Level): Keep[] {
   return out;
 }
 
+/** Every centre on the search's grid inside the map, nearest the village
+ * first, with its distance from it. */
+function offsetsOf(level: Level, village: { x: number; z: number }): Float64Array {
+  const pts: [number, number, number][] = [];
+  const reach = Math.ceil(level.size / STEP);
+  for (let j = -reach; j <= reach; j++) {
+    for (let i = -reach; i <= reach; i++) {
+      const x = village.x + i * STEP;
+      const z = village.z + j * STEP;
+      if (x < EDGE || z < EDGE || x > level.size - EDGE || z > level.size - EDGE) continue;
+      pts.push([x, z, hypot(i * STEP, j * STEP)]);
+    }
+  }
+  pts.sort((a, b) => a[2] - b[2]);
+  const out = new Float64Array(pts.length * 3);
+  pts.forEach((p, k) => out.set(p, k * 3));
+  return out;
+}
+
 function search(
   level: Level,
   village: { x: number; z: number },
   homeY: number,
-  keep: readonly Keep[],
+  offsets: Float64Array,
   rules: Rules,
 ): Found | null {
   const half = STRIP_LENGTH / 2;
+  const need = S.width / 2 + rules.clear;
+  const inMap = (x: number, z: number): boolean =>
+    x >= EDGE && z >= EDGE && x <= level.size - EDGE && z <= level.size - EDGE;
   let best: Found | null = null;
-  for (let dz = -SEARCH; dz <= SEARCH; dz += STEP) {
-    for (let dx = -SEARCH; dx <= SEARCH; dx += STEP) {
-      const x = village.x + dx;
-      const z = village.z + dz;
-      if (x < EDGE + half || x > level.size - EDGE - half) continue;
-      if (z < EDGE + half || z > level.size - EDGE - half) continue;
-      const d = hypot(dx, dz);
-      if (best && d >= best.cost) continue;
-      const y = level.groundAt(x, z);
-      const cost = d + ABOVE * Math.max(0, y - homeY);
-      if (best && cost >= best.cost) continue;
-      for (const b of BEARINGS) {
-        const axis = Math.PI / 2 + b;
-        if (!flatEnough(level, x, z, axis, rules)) continue;
-        if (!clearOf(level, x, z, axis, rules, keep)) continue;
-        // The air off its ends: the climb-out away from the town, and the
-        // clearer of the two ways in.
-        const air = cost + AIR * airOf(level, x, z, axis, village);
-        if (!best || air < best.cost) best = { x, z, axis, cost: air };
-      }
+  for (let k = 0; k < offsets.length; k += 3) {
+    const x = offsets[k];
+    const z = offsets[k + 1];
+    const d = offsets[k + 2];
+    // Nearest first: nothing further on can be cheaper.
+    if (best && d >= best.cost) break;
+    if (stripRoomAt(level, x, z) < need) continue;
+    const y = level.groundAt(x, z);
+    const cost = d + ABOVE * Math.max(0, y - homeY);
+    if (best && cost >= best.cost) continue;
+    for (const b of BEARINGS) {
+      const turned = cost + TURN * Math.abs(b);
+      if (best && turned >= best.cost) continue;
+      const axis = Math.PI / 2 + b;
+      const fx = Math.sin(axis);
+      const fz = Math.cos(axis);
+      if (!inMap(x - fx * half, z - fz * half) || !inMap(x + fx * half, z + fz * half)) continue;
+      if (!roomy(level, x, z, fx, fz, need)) continue;
+      if (!flatEnough(level, x, z, axis, rules)) continue;
+      const cut: number =
+        turned + FELL * trunksOn(level, x, z, fx, fz, need, best ? best.cost - turned : Infinity);
+      if (best && cut >= best.cost) continue;
+      // The air off its ends: the climb-out away from the town, and the
+      // clearer of the two ways in.
+      const air: number = cut + AIR * airOf(level, x, z, axis, village);
+      if (!best || air < best.cost) best = { x, z, axis, cost: air };
     }
   }
   return best;
+}
+
+/** How many trunks stand within `need` m of a centre line (counted no
+ * further than past `most`'s worth). */
+function trunksOn(
+  level: Level,
+  x: number,
+  z: number,
+  fx: number,
+  fz: number,
+  need: number,
+  most: number,
+): number {
+  const half = STRIP_LENGTH / 2;
+  const seen = new Set<number>();
+  for (let s = -half; s <= half + need; s += need) {
+    const a = Math.min(s, half);
+    for (const i of treesNear(level, x + fx * a, z + fz * a, need * 1.5, near)) {
+      if (seen.has(i)) continue;
+      const t = level.trees[i];
+      if (offLine(t.x - x, t.z - z, fx, fz) <= need) seen.add(i);
+    }
+    if (seen.size * FELL >= most) break;
+  }
+  return seen.size;
+}
+
+/** How far (dx, dz) off a strip's middle is from its centre line's
+ * segment, m. */
+function offLine(dx: number, dz: number, fx: number, fz: number): number {
+  const half = STRIP_LENGTH / 2;
+  const along = Math.max(-half, Math.min(half, dx * fx + dz * fz));
+  return hypot(dx - fx * along, dz - fz * along);
+}
+
+/** Whether the strip's whole centre line, end to end, stands `need` m or
+ * more off everything it keeps off (`stripRoomAt`). */
+function roomy(level: Level, x: number, z: number, fx: number, fz: number, need: number): boolean {
+  const half = STRIP_LENGTH / 2;
+  // The ends first: most rectangles that fail, fail there.
+  if (stripRoomAt(level, x - fx * half, z - fz * half) < need) return false;
+  if (stripRoomAt(level, x + fx * half, z + fz * half) < need) return false;
+  for (let s = -half; s <= half; s += ROOM_STEP) {
+    if (stripRoomAt(level, x + fx * s, z + fz * s) < need) return false;
+  }
+  return true;
 }
 
 /** The ends of a rectangle and the way it is taken off (away from the
@@ -278,83 +389,14 @@ function flatEnough(level: Level, x: number, z: number, axis: number, r: Rules):
   return true;
 }
 
-/** Nothing on the rectangle or its clearance: the village's ground, a
- * trunk, a kept-off circle, a lift's line, a tunnel's lane. */
-function clearOf(
-  level: Level,
-  x: number,
-  z: number,
-  axis: number,
-  r: Rules,
-  keep: readonly Keep[],
-): boolean {
-  const fx = Math.sin(axis);
-  const fz = Math.cos(axis);
-  const half = STRIP_LENGTH / 2;
-  const w = S.width / 2 + r.clear;
-  const n = Math.ceil(STRIP_LENGTH / 10);
-  for (let i = 0; i <= n; i++) {
-    const s = -half + (i / n) * STRIP_LENGTH;
-    for (const side of [-w, 0, w]) {
-      const px = x + fx * s + fz * side;
-      const pz = z + fz * s - fx * side;
-      if (streetMaskAt(level, px, pz) !== 0) return false;
-      for (const k of keep) if (hypot(k.x - px, k.z - pz) < k.r) return false;
-    }
-  }
-  for (let s = -half; s <= half; s += w) {
-    if (treesNear(level, x + fx * s, z + fz * s, w * 1.12, near).length > 0) return false;
-  }
-  for (const p of liftPlans(level)) {
-    for (const s of [-half, -half / 2, 0, half / 2, half]) {
-      const rx = x + fx * s - p.lift.bottom.x;
-      const rz = z + fz * s - p.lift.bottom.z;
-      const u = rx * p.dx + rz * p.dz;
-      const v = rx * p.dz - rz * p.dx;
-      if (u > -w && u < p.length + w && Math.abs(v) < LINE_GAP + w) return false;
-    }
-    if (crosses(x, z, fx, fz, half, p)) return false;
-  }
-  for (const t of level.resort?.tunnels ?? []) {
-    for (const q of t.points) {
-      const rx = q.x - x;
-      const rz = q.z - z;
-      const along = rx * fx + rz * fz;
-      const across = rx * fz - rz * fx;
-      if (Math.abs(along) < half + TUNNEL_GAP && Math.abs(across) < w + TUNNEL_GAP + t.width / 2) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-/** Whether the strip's centre line crosses a lift's line in plan. */
-function crosses(
-  x: number,
-  z: number,
-  fx: number,
-  fz: number,
-  half: number,
-  p: { lift: { bottom: { x: number; z: number } }; dx: number; dz: number; length: number },
-): boolean {
-  const ax = x - fx * half - p.lift.bottom.x;
-  const az = z - fz * half - p.lift.bottom.z;
-  const den = fx * p.dz - fz * p.dx;
-  if (Math.abs(den) < 1e-6) return false;
-  // a + t·f = u·d, solved for the strip's t and the line's u.
-  const t = (p.dx * az - p.dz * ax) / den;
-  const u = (fx * az - fz * ax) / den;
-  return t >= 0 && t <= 2 * half && u >= 0 && u <= p.length;
-}
-
 /** The strip worked out round the rectangle found: taken off away from the
  * town; landed the way whose final approach lies furthest inside the map. */
 function build(
   level: Level,
   at: Found,
   village: { x: number; z: number },
-  fallback: boolean,
+  tier: StripTier,
+  clear: number,
 ): Airstrip {
   const half = STRIP_LENGTH / 2;
   const fx = Math.sin(at.axis);
@@ -426,7 +468,9 @@ function build(
       final: way.final,
       side: way.side,
     },
-    fallback,
+    fallback: tier === "loose" || tier === "village",
+    tier,
+    clear,
   };
 }
 

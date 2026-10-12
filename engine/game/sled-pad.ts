@@ -12,7 +12,7 @@
 
 import { waterWithin } from "../mapgen/real-water.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import { treesNear } from "./collision.ts";
+import { treesNear } from "./upright-grid.ts";
 import { HELI } from "./defs/heli.ts";
 import { SLED } from "./defs/sled.ts";
 import { helipadOf } from "./heli-pad.ts";

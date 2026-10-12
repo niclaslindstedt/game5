@@ -30,7 +30,7 @@ import { throwRider } from "./crash.ts";
 import { treesNear } from "./upright-grid.ts";
 import type { GrimbearPhase, GrimbearState } from "./grimbear-state.ts";
 import type { GameEvent, GameState } from "./state.ts";
-import { felledTrees } from "./village.ts";
+import { felledTrees } from "./felled.ts";
 
 const K = GRIMBEAR;
 const dt = TUNING.dt;

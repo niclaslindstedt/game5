@@ -70,6 +70,7 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
+  holeSink,
   onRock,
   pisteIce,
   platformOf,
@@ -436,7 +437,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // skier laid 40° over into a carve stands on two loaded legs. A skier
     // on his side has no legs under him at all.
     if (uprightOn(level, up, { x: legX, y: legY, z: legZ }) < PROBE_MIN_DOWN) {
-      c.comps[i] = 0;
+      c.comps[i] = -1; // LYING: rolled back up, the leg meets the hole he lay in
       continue;
     }
     const dx = -legX;
@@ -457,14 +458,19 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // Deep snow a ski has pressed stays pressed (`settleShare`).
     const settle = target < c.sinks[i] ? settleShare(loose, speed0) : 1;
     c.sinks[i] += (target - c.sinks[i]) * Math.min(1, (dt / TUNING.snow.sinkLag) * settle);
-    const sink = c.sinks[i];
-    if (p.station === "mid") midSink += sink / 2;
+    if (p.station === "mid") midSink += c.sinks[i] / 2;
     // Where the ray meets the support (`leg-ray.ts`).
-    const t = castLeg(level, ax, ay, az, dx, dy, dz, sink, p.susp.travel + 0.5, normal);
+    let t = castLeg(level, ax, ay, az, dx, dy, dz, c.sinks[i], p.susp.travel + 0.5, normal);
     if (Number.isNaN(t)) {
       c.comps[i] = 0;
       continue;
     }
+    if (c.comps[i] < 0 || (c.bodyHit > 0 && !c.airborne)) {
+      const take = holeSink(c.sinks[i], depth, packed, p.susp.travel - t - p.rest / p.susp.rate);
+      c.sinks[i] += take;
+      t += take;
+    }
+    const sink = c.sinks[i];
     const cx = ax + dx * t;
     const cz = az + dz * t;
     const cy = ay + dy * t;

@@ -317,3 +317,16 @@ export function platformOf(edge: number, on: number): number {
 export type GripFit = { edge: number; base: number };
 
 const UNIT_FIT: GripFit = { edge: 1, base: 1 };
+
+/** ROLLED BACK UP OUT OF THE SNOW HE LAY IN: how much further a ski sinks
+ * when a leg comes back under a skier who was lying in deep snow (or whose
+ * hips or shoulders are still down in it). His skis are down in the hole
+ * with him, not on the untouched surface over it: the loose cover under the
+ * ski (`snow.cover` a unit of depth, down to the settled base, less what it
+ * has sunk already) gives until the leg is compressed no more than `over`
+ * past its rest. Met at the surface instead, the whole of its travel crushed
+ * at once fired him a metre and a half out of the powder. */
+export function holeSink(sink: number, depth: number, packed: number, over: number): number {
+  const room = TUNING.snow.cover * depth * (1 - packed) - sink;
+  return clamp(over, 0, Math.max(0, room));
+}

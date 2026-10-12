@@ -56,7 +56,11 @@
 // `fall-<s>` at any time off the skis (`fall-0.2,fall-0.5,fall-1`): the same
 // crash drawn from one lens planted square to his line, the frames of one
 // fall, and `yard-<s>` the same fall from over it, pulled back to take in
-// both skis he left; with `--downhill`, `net-<s>` (`net-0.3,net-1,net-3`):
+// both skis he left; with `--snow` (deep, `--snow=2.5`), `plunge-<s>`,
+// `plunge-chase-<s>` and `plunge-top-<s>`: a fall into deep powder, from
+// beside where he went in, the chase boom and over him — the body sunk in
+// the hole it made (`powder-lab.ts`, which also holds `deep`, `deep-side`);
+// with `--downhill`, `net-<s>` (`net-0.3,net-1,net-3`):
 // the player driven into the A-nets half way down the course, from the
 // piste — the pocket the mesh makes round him and the skis hooked in it;
 // with `--free --grimbear`, `grimbear-lurk`, `-chase`, `-run`, `-maul` and
@@ -337,7 +341,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s>, yard-<s> and crash-<s> at any time; crash-net-<s> with --downhill)`,
+      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s>, yard-<s>, crash-<s> and plunge-<s>, plunge-chase-<s>, plunge-top-<s> at any time; crash-net-<s> with --downhill)`,
     },
     quality: {
       kind: "string",
@@ -508,11 +512,19 @@ const isCrash = (v) => /^crash-(net-)?\d+(\.\d+)?$/.test(v);
 const crashes = wanted
   .filter(isCrash)
   .sort((a, b) => Number(a.split("-").at(-1)) - Number(b.split("-").at(-1)));
+// A plunge view (`plunge-1`, `plunge-chase-1`, `plunge-top-1`, with
+// `--snow`) is staged after the nets, in the order of its clock: the frames
+// of one fall into deep powder (`pwa/src/tools/powder-lab.ts`).
+const isPlunge = (v) => /^plunge(-chase|-top)?-\d+(\.\d+)?$/.test(v);
+const plunges = wanted
+  .filter(isPlunge)
+  .sort((a, b) => Number(a.split("-").at(-1)) - Number(b.split("-").at(-1)));
 const order = [
   ...VIEWS.flatMap((v) =>
     v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
   ),
   ...nets,
+  ...plunges,
   ...crashes,
 ];
 for (const view of order.filter((v) => wanted.includes(v))) {

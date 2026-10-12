@@ -10,7 +10,14 @@
 import * as THREE from "three";
 import type { GameState, Level } from "@engine";
 
-import { freshGrimbearPose, grimbearPose } from "./grimbear-pose.ts";
+import {
+  GRIMBEAR_BLEND,
+  freshGrimbearPose,
+  grimbearMove,
+  grimbearPose,
+  mixGrimbearPose,
+  type GrimbearMove,
+} from "./grimbear-pose.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 
 export type GrimbearView = {
@@ -27,6 +34,31 @@ const SHIN = 0.5;
 const TRUNK = 0.86;
 const UPPER = 0.48;
 const FORE = 0.46;
+/** How fast the way he is drawn facing follows the way the engine has him
+ * facing, rad/s: a critically damped spring, so a turn the engine makes
+ * in a step (the dive's aim, the pull-up turned on the skier) is drawn
+ * swung round over a moment, never in a frame. */
+const TURN_RATE = 9;
+/** The fastest he turns, rad/s (`GRIMBEAR.turn` and a margin): a turn
+ * faster than this between two frames is a jump. */
+const TURN_MOST = 7;
+/** How fast the place he is drawn at follows the engine's, 1/s: a spring
+ * on the gap fed his own velocity, so a steady run is drawn where he is
+ * and a change of course made in a step (the dive aimed aside, the clear
+ * gap kept off the skier) is drawn as a swerve. */
+const FOLLOW = 10;
+/** A frame further apart than this, s (a pause, a replay's seek), is a cut:
+ * the figure is drawn as the engine has him. */
+const CUT = 0.25;
+
+function smooth(x: number): number {
+  const u = x < 0 ? 0 : x > 1 ? 1 : x;
+  return u * u * (3 - 2 * u);
+}
+
+function wrap(a: number): number {
+  return a - Math.round(a / (Math.PI * 2)) * Math.PI * 2;
+}
 
 export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearView {
   const geometries: THREE.BufferGeometry[] = [];
@@ -241,15 +273,114 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   });
 
   const pose = freshGrimbearPose();
+  const was = freshGrimbearPose();
+  /** THE HAND-OFF between moves: every move he was drawn in lately, the
+   * newest last, each faded in over `GRIMBEAR_BLEND` s from when it began —
+   * so a burst, a dive, a catch or a pull-up is a move rather than a jump,
+   * and a move cut short mid-fade (a dive's stumble pulled up) still
+   * fades. A move given up is carried on at the stride, pace and clock it
+   * had, whatever the engine does with them next. */
+  type Layer = {
+    move: GrimbearMove;
+    start: number;
+    ended: number;
+    t: number;
+    stride: number;
+    speed: number;
+  };
+  const layers: Layer[] = [];
+  /** The figure's own clock, s: the run's, but a cut starts it afresh. */
+  let now = 0;
+  let shown: GrimbearMove = "away";
+  /** The heading drawn and how fast it is turning, rad and rad/s. */
+  let face = 0;
+  let turn = 0;
+  let aim = 0;
+  /** The place drawn and its velocity, m and m/s. */
+  let px = 0;
+  let pz = 0;
+  let pvx = 0;
+  let pvz = 0;
+  let clock = -Infinity;
   return {
     group,
     update(state) {
       const b = state.grimbear;
       group.visible = b !== undefined && b.phase !== "away";
-      if (!b || !group.visible) return;
-      group.position.set(b.x, level.groundAt(b.x, b.z), b.z);
-      group.rotation.y = b.heading;
-      grimbearPose(b.phase, b.stride, b.speed, b.t, pose);
+      if (!b || !group.visible) {
+        shown = "away";
+        return;
+      }
+      const dt = state.t - clock;
+      clock = state.t;
+      const cut = !(dt >= 0 && dt <= CUT) || shown === "away";
+      const move = grimbearMove(b.phase, b.speed);
+      if (cut) {
+        layers.length = 0;
+        now = 0;
+      } else now += dt;
+      const top = layers[layers.length - 1];
+      if (move !== shown || !top) {
+        if (top) top.ended = now - dt;
+        // The oldest is dropped once nothing under the newest shows.
+        if (layers.length === 4) layers.shift();
+        layers.push({
+          move,
+          start: cut ? now - GRIMBEAR_BLEND : now - dt,
+          ended: Infinity,
+          t: 0,
+          stride: 0,
+          speed: 0,
+        });
+        shown = move;
+      }
+      while (layers.length > 1 && now - layers[1].start >= GRIMBEAR_BLEND) layers.shift();
+      const live = layers[layers.length - 1];
+      const ux = Math.sin(b.heading) * b.speed;
+      const uz = Math.cos(b.heading) * b.speed;
+      if (cut) {
+        face = b.heading;
+        turn = 0;
+        px = b.x;
+        pz = b.z;
+        pvx = ux;
+        pvz = uz;
+      } else {
+        const n = Math.max(1, Math.ceil(dt * 240));
+        const h = dt / n;
+        for (let i = 0; i < n; i++) {
+          pvx += (FOLLOW * FOLLOW * (b.x - px) + 2 * FOLLOW * (ux - pvx)) * h;
+          pvz += (FOLLOW * FOLLOW * (b.z - pz) + 2 * FOLLOW * (uz - pvz)) * h;
+          px += pvx * h;
+          pz += pvz * h;
+        }
+        // His own turning fed forward — a turn faster than he can run one
+        // is a jump the engine made in a step, and is swung round instead.
+        let rate = dt > 0 ? wrap(b.heading - aim) / dt : 0;
+        if (Math.abs(rate) > TURN_MOST) rate = 0;
+        const k = TURN_RATE;
+        for (let i = 0; i < n; i++) {
+          const err = wrap(b.heading - face);
+          turn += (k * k * err + 2 * k * (rate - turn)) * h;
+          face += turn * h;
+        }
+      }
+      aim = b.heading;
+      group.position.set(px, level.groundAt(px, pz), pz);
+      group.rotation.y = face;
+      for (let i = 0; i < layers.length; i++) {
+        const l = layers[i];
+        const into = i === 0 ? pose : was;
+        if (l === live) grimbearPose(l.move, b.stride, b.speed, b.t, into);
+        else {
+          const on = now - l.ended;
+          grimbearPose(l.move, l.stride + l.speed * on, l.speed, l.t + on, into);
+        }
+        if (i > 0) mixGrimbearPose(pose, was, smooth((now - l.start) / GRIMBEAR_BLEND));
+      }
+      live.t = b.t;
+      live.stride = b.stride;
+      live.speed = b.speed;
       // The hips come down as the knees fold under him.
       hips.position.y = HIP + pose.bob;
       trunk.rotation.x = pose.lean;

@@ -205,6 +205,11 @@ export function walked(group: BeastGroup, t: number): { s: number; pace: number 
 }
 
 /** How long a flight of this species takes, s. */
+/** How long a fleeing animal takes to wheel onto its flight, and back
+ * onto its round as the flight runs out, s. */
+const TURN_ONTO = 0.4;
+const TURN_OFF = 0.8;
+
 function fleeSeconds(spec: BeastSpec): number {
   return (spec.flee / spec.fleeSpeed) * 1.4;
 }
@@ -248,13 +253,18 @@ function placeOf(
   const x = at.x + at.fz * side + spook.ox + spook.dx * f;
   const z = at.z - at.fx * side + spook.oz + spook.dz * f;
   const running = spook.at <= t && t - spook.at < fleeSeconds(spec);
-  let heading: number;
-  if (running) heading = Math.atan2(spook.dx, spook.dz);
-  else {
-    const walkHeading = Math.atan2(at.fx * group.round.sense, at.fz * group.round.sense);
-    // Stood still, a herd faces every way a head can dig.
-    const idle = (hash2(i, 2, group.scatter) - 0.5) * 2.6 * (1 - pace);
-    heading = walkHeading + idle;
+  const walkHeading = Math.atan2(at.fx * group.round.sense, at.fz * group.round.sense);
+  // Stood still, a herd faces every way a head can dig.
+  const idle = (hash2(i, 2, group.scatter) - 0.5) * 2.6 * (1 - pace);
+  let heading = walkHeading + idle;
+  if (running) {
+    // Wheeled round onto the flight as it breaks, and back onto its round
+    // as the flight runs out — a turn, never a frame's jump.
+    const into = smooth((t - spook.at) / TURN_ONTO);
+    const out = smooth((spook.at + fleeSeconds(spec) - t) / TURN_OFF);
+    const away = Math.atan2(spook.dx, spook.dz);
+    const gap = Math.atan2(Math.sin(away - heading), Math.cos(away - heading));
+    heading += gap * Math.min(into, out);
   }
   const flight = Math.hypot(spook.dx, spook.dz) * f;
   const u = (t - spook.at) / fleeSeconds(spec);

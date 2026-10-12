@@ -59,6 +59,16 @@ const FINGERS = [
   { up: -0.083, w: 0.0098, t: 0.0104, reach: 0.9 },
 ];
 
+/** WHERE A SLEEVE ENDS UNDER A GAUNTLET, m along the forearm from the
+ * grip's top (negative, up the arm): tucked well inside the gauntlet's
+ * mouth, which stands over it to 0.186 m, so the cuff is pulled on over
+ * the sleeve as a real one is and no hem shows through it. */
+export const GAUNTLET_SLEEVE = -0.13;
+
+/** Whether the gloves are pulled on OVER the sleeve (a gauntlet's cuff),
+ * rather than tucked up under it (the undercuff). */
+export const overSleeve = (o: Outfit): boolean => o.gloves !== "undercuff";
+
 /** THE GLOVES: one a hand, its fist round the grip and its cuff up the
  * forearm. */
 export function cutGloves(loom: Loom, o: Outfit): void {
@@ -230,22 +240,35 @@ export function cutGloves(loom: Loom, o: Outfit): void {
     // THE CUFF: from the wrist up the forearm — a gauntlet's flared over
     // the sleeve, an undercuff's short knit tucked under it — with the
     // wrist strap cinched round it.
+    // A gauntlet's mouth is laid round the SLEEVE — on the forearm's own
+    // line, which the sleeve is cut round — and tapers to the wrist under
+    // the fist, a hand's breadth down the grip; wide over the sleeve's end
+    // tucked inside it (`GAUNTLET_SLEEVE`), rounder on a heavier build.
     const C = under ? 0.065 : 0.13;
-    const flare = under ? 0.042 : mitten ? 0.088 : 0.092;
+    const limb = 1 + (gearOf("weight", o.weight).girth - 1) * 0.7;
+    const flare = (under ? 0.042 : mitten ? 0.092 : 0.096) * (under ? 1 : limb);
     const w0 = WRIST - C;
     const strap = [C - 0.03, C - 0.008];
     const rim = under ? 0.012 : 0.016;
     loom.tube({
-      path: [at(w0, 0.002, mid + 0.006), at(WRIST + 0.006, 0.002, mid + 0.004)],
-      face: [up, up],
+      path: under
+        ? [at(w0, 0, mid * 0.4), at(WRIST + 0.006, 0.002, mid + 0.004)]
+        : [
+            at(w0, 0, 0),
+            at(w0 + 0.06, 0, mid * 0.25),
+            at(WRIST - 0.02, 0.002, mid * 0.85),
+            at(WRIST + 0.006, 0.002, mid + 0.004),
+          ],
+      face: under ? [up, up] : [up, up, up, up],
       sections: [
         { s: 0, w: flare * 0.94, f: flare * 0.94, b: flare * 0.94 },
         { s: rim * 0.6, w: flare + 0.002, f: flare + 0.002, b: flare + 0.002 },
         ...(under
           ? []
           : [
-              { s: 0.045, w: flare * 0.9, f: flare * 0.88, b: flare * 0.9 },
-              { s: C - 0.05, w: 0.052, f: 0.056, b: 0.056 },
+              { s: 0.05, w: flare * 0.93, f: flare * 0.92, b: flare * 0.93 },
+              { s: 0.075, w: flare * 0.8, f: flare * 0.8, b: flare * 0.8 },
+              { s: C - 0.045, w: 0.054, f: 0.058, b: 0.058 },
             ]),
         { s: C - 0.028, w: 0.038, f: 0.046, b: 0.046 },
         { s: C, w: hw * 0.9, f: hu * 0.76, b: hu * 0.76 },
@@ -290,7 +313,7 @@ export function cutGloves(loom: Loom, o: Outfit): void {
       weights,
     });
     if (!under && !mitten) {
-      const cord = at(w0 + 0.012, -flare * 0.7, mid - flare * 0.55);
+      const cord = at(w0 + 0.012, -flare * 0.7, -flare * 0.6);
       loom.tube({
         path: [cord, add(cord, add(mul(up, -0.028), mul(d, 0.006)))],
         face: [d, d],

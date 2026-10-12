@@ -46,6 +46,9 @@ import { dressOf } from "../game/skier-models.ts";
 import { loadModels } from "../game/skier-models.ts";
 import { skierPose, type SkierPoseInput } from "../game/skier-pose.ts";
 import { rigSkier } from "../game/skier-rig.ts";
+import { createSkier } from "../game/skier-figure.ts";
+import { idlePose, idleRoom } from "../game/rider-idle.ts";
+import type { BodyFrame } from "../game/skier-ragdoll.ts";
 import {
   createSkisModel,
   mountsOf,
@@ -199,6 +202,42 @@ function figureSubject(d: SkierDress, label: string, on: SkiSpec = spec): Subjec
       const dressed = model.root.getObjectByName("dressed");
       if (dressed) dressed.visible = true;
       model.poseSkier(inputOf(m, on));
+    },
+  };
+}
+
+/** The dressed figure STOOD AT EASE in his boots, as the rider card has
+ * him (`rider-idle.ts`), his hands empty — no pair under him. */
+function easeSubject(d: SkierDress, label: string): Subject {
+  const figure = createSkier(d, plain);
+  figure.group.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.castShadow = o.receiveShadow = true;
+  });
+  const root = new THREE.Group();
+  root.add(figure.group);
+  scene.add(root);
+  const frame: BodyFrame = {
+    origin: { x: 0, y: 0, z: 0 },
+    x: { x: 1, y: 0, z: 0 },
+    y: { x: 0, y: 1, z: 0 },
+    z: { x: 0, y: 0, z: 1 },
+  };
+  const basis = new THREE.Matrix4();
+  return {
+    label,
+    root,
+    tris: dressedTris(d),
+    cost: "at ease",
+    pose: () => {
+      const p = idlePose(0, 0, frame, idleRoom(d.outfit));
+      figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
+      basis.makeBasis(
+        new THREE.Vector3(frame.x.x, frame.x.y, frame.x.z),
+        new THREE.Vector3(frame.y.x, frame.y.y, frame.y.z),
+        new THREE.Vector3(frame.z.x, frame.z.y, frame.z.z),
+      );
+      figure.group.quaternion.setFromRotationMatrix(basis);
+      figure.sprawl(p);
     },
   };
 }
@@ -541,15 +580,16 @@ const HAND_VIEWS: View[] = [
   { name: "chase", bearing: 165, up: 15, dist: 0.9, aim: "hand" },
 ];
 function drawHands(): Drawn {
-  const rows: { label: string; subject: Subject; moment: Moment }[] = [];
+  const rows: { label: string; subject: Subject; moment?: Moment }[] = [];
   for (const g of GEAR.gloves) {
     const outfit = { ...DEFAULT_OUTFIT, gloves: g.id } as Outfit;
     const s = figureSubject({ outfit }, g.name);
     rows.push({ label: `${g.name} · stood`, subject: s, moment: MOMENTS[0] });
     rows.push({ label: `${g.name} · tuck`, subject: s, moment: MOMENTS[3] });
+    rows.push({ label: `${g.name} · at ease`, subject: easeSubject({ outfit }, g.name) });
   }
   return drawRows(
-    "hands — every glove on the grip: back, knuckles, thumb, palm, chase",
+    "hands — every glove on the grip, and empty at ease: back, knuckles, thumb, palm, chase",
     rows,
     () => HAND_VIEWS,
   );

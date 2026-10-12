@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 # THE TITLE SCENE — the game's key art, path-traced: "first light on the
 # fall line". A skier alone on a big faceted face, laid over in a carve,
-# his outside edge throwing a backlit rooster tail of spray, the logo's own
-# double S cut into the snow behind him up the face to under its summit,
-# the low sun in a col of the ridge beside it; the steep face and its rock
+# his outside edge throwing a backlit rooster tail of spray (no track cut
+# behind him: the spray hides where it would be), the low sun in a col of the ridge beside it; the steep face and its rock
 # in cold blue shadow, his long shadow thrown at the lens, the crests and
 # the spray lit gold. Built by `scripts/blender.mjs --kind=title`
 # (`make title-scene`) off `kinds/title.mjs`; its plates are published by
@@ -70,10 +69,8 @@ P = {
     "face": (900.0, 0.3, 1.0), "summit": (-1800.0, 260.0, 380.0),
     "shoulder": (3000.0, 5500.0, -1), "notch": (0.0, 4.0, 800.0), "floor": -420.0,
     "facet": 0.012, "rock": 41.0, "tree_line": 380.0,
-    # Where the lens sees them (plate UV): the top of his S (under the
-    # summit) and how wide it is laid across its chord; the two slalom
-    # gates; the box the near stand of spruces stands in (u0, v0, u1, v1).
-    "track_aim": (0.52, 0.17), "track_squash": 1.2,
+    # Where the lens sees them (plate UV): the two slalom gates; the box
+    # the near stand of spruces stands in (u0, v0, u1, v1).
     "gates": ((0.37, 0.545), (0.25, 0.585)), "stand": (0.0, 0.5, 0.25, 0.57),
     # The sun: its elevation and bearing off the lens's (°), strength and
     # colour; the sky's scattering.
@@ -152,15 +149,12 @@ scene.camera = cam
 scene.render.resolution_x = scene.render.resolution_y = SIZE
 bpy.context.view_layer.update()
 
-# ---------------------------------------------------------------- his marks
-groove = S.groove_material(snow)
-# The track leaves the snow just behind his boots.
-tails = hit - travel * 0.9
-# The S up the face to where the lens sees it under the summit.
+# Where a point of the frame (plate UV) looks out into the world.
 tr, br, bl, tl = cd.view_frame(scene=scene)
 def ray_of(u, v):
     return (cam.matrix_world.to_3x3() @ (tl + (tr - tl) * u + (bl - tl) * v)).normalized()
-S.tracks(DATA["mark"], PL.uv_of(cam, tails), P["track_aim"], ray_of, bvh, cam_xy, groove, P["track_squash"])
+
+# ---------------------------------------------------------------- his spray
 # The outside ski: the one further from his centre of gravity across his line.
 side = normal.cross(travel)
 pair_arm = next(o for o in bpy.data.objects if o.type == "ARMATURE" and o.parent and o.parent.name == DATA["pair"]["id"])

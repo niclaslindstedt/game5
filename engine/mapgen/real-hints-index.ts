@@ -79,6 +79,10 @@ export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {
   "continental-16": ["green", "blue", "black"],
   "continental-17": ["green", "blue", "black"],
   "continental-18": ["green", "blue", "black"],
+  "continental-19": ["green", "blue", "black", "orange"],
+  "continental-20": ["green", "blue", "black", "orange"],
+  "continental-21": ["green", "blue", "black", "orange"],
+  "continental-22": ["green", "blue", "black", "orange"],
   "maritime-1": ["green", "blue", "black", "orange"],
   "maritime-2": ["green", "blue", "black", "orange"],
   "maritime-3": ["green", "blue", "black"],
@@ -132,6 +136,8 @@ export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {
   "maritime-19": ["green", "blue", "black"],
   "maritime-20": ["green", "blue", "black"],
   "maritime-21": ["green", "blue", "black"],
+  "maritime-22": ["green", "blue", "black"],
+  "maritime-23": ["green", "blue", "black", "orange"],
 };
 
 /** Each wooded face's woods by height, read off the forest the map draws:
@@ -186,6 +192,10 @@ export const HINT_TREES: Readonly<Record<string, string>> = {
   "continental-16": "ff668fb0a8d4a77174",
   "continental-17": "ffa1b3bc9695968a69",
   "continental-18": "e4b1d4daccb89a4714",
+  "continental-19": "000000000000000000",
+  "continental-20": "000000000000000000",
+  "continental-21": "000000000000000000",
+  "continental-22": "000000000000000000",
   "maritime-1": "ff51c3e1cbc1bdbcbe",
   "maritime-2": "fa78afc4dbc0abad56",
   "maritime-3": "ff6dc2dbeeddbebda1",
@@ -238,6 +248,8 @@ export const HINT_TREES: Readonly<Record<string, string>> = {
   "maritime-19": "fa6cdbece6f6e8c394",
   "maritime-20": "ff6ebbdde4daf3f8f7",
   "maritime-21": "ffcb94dad7d0d2d7ba",
+  "maritime-22": "8a71a386650b000000",
+  "maritime-23": "a5b7afbdc679060000",
 };
 
 /** Each face's hints, fetched when a map is raised on it. */
@@ -289,6 +301,10 @@ export const HINT_LOADERS: Readonly<Record<string, () => Promise<{ HINTS: HintDa
   "continental-16": () => import("./real-hints/hints-continental-16.ts"),
   "continental-17": () => import("./real-hints/hints-continental-17.ts"),
   "continental-18": () => import("./real-hints/hints-continental-18.ts"),
+  "continental-19": () => import("./real-hints/hints-continental-19.ts"),
+  "continental-20": () => import("./real-hints/hints-continental-20.ts"),
+  "continental-21": () => import("./real-hints/hints-continental-21.ts"),
+  "continental-22": () => import("./real-hints/hints-continental-22.ts"),
   "maritime-1": () => import("./real-hints/hints-maritime-1.ts"),
   "maritime-2": () => import("./real-hints/hints-maritime-2.ts"),
   "maritime-3": () => import("./real-hints/hints-maritime-3.ts"),
@@ -342,4 +358,6 @@ export const HINT_LOADERS: Readonly<Record<string, () => Promise<{ HINTS: HintDa
   "maritime-19": () => import("./real-hints/hints-maritime-19.ts"),
   "maritime-20": () => import("./real-hints/hints-maritime-20.ts"),
   "maritime-21": () => import("./real-hints/hints-maritime-21.ts"),
+  "maritime-22": () => import("./real-hints/hints-maritime-22.ts"),
+  "maritime-23": () => import("./real-hints/hints-maritime-23.ts"),
 };

@@ -24,7 +24,10 @@ export const SIZE = 4000;
  * area (the area itself where it is one) — the middle it was searched
  * round (°), and the crop the search kept: the window's middle east and
  * north of it (m), the bearing its fall line runs down the map on (°
- * clockwise from north) and how many real metres a metre of the map is. */
+ * clockwise from north) and how many real metres a metre of the map is.
+ * A face marked `bare` stands wholly above its trees (a high, dry range):
+ * its map drawing no forest is read as treeless rather than unmapped
+ * (`scripts/real-hints.mjs`). */
 export const FACES = [
   {
     id: "alpine-1",
@@ -636,6 +639,62 @@ export const FACES = [
     north: -1350,
     bearing: -20,
     scale: 1,
+  },
+  {
+    id: "continental-19",
+    region: "continental",
+    range: "CL",
+    area: "Valle Nevado",
+    part: "Valle Nevado",
+    lat: -33.343,
+    lon: -70.24,
+    east: -450,
+    north: 450,
+    bearing: 170,
+    scale: 1,
+    bare: true,
+  },
+  {
+    id: "continental-20",
+    region: "continental",
+    range: "CL",
+    area: "Farellones",
+    part: "Farellones",
+    lat: -33.34,
+    lon: -70.3,
+    east: 900,
+    north: -450,
+    bearing: -100,
+    scale: 1,
+    bare: true,
+  },
+  {
+    id: "continental-21",
+    region: "continental",
+    range: "CL",
+    area: "Portillo",
+    part: "Portillo",
+    lat: -32.836,
+    lon: -70.129,
+    east: -1350,
+    north: 0,
+    bearing: 130,
+    scale: 1,
+    bare: true,
+  },
+  {
+    id: "continental-22",
+    region: "continental",
+    range: "AR",
+    area: "Las Leñas",
+    part: "Las Leñas",
+    lat: -35.142,
+    lon: -70.093,
+    east: -450,
+    north: 900,
+    bearing: 110,
+    scale: 1,
+    bare: true,
   },
   {
     id: "maritime-1",
@@ -1324,6 +1383,32 @@ export const FACES = [
     east: 450,
     north: -450,
     bearing: 50,
+    scale: 1,
+  },
+  {
+    id: "maritime-22",
+    region: "maritime",
+    range: "CL",
+    area: "Nevados de Chillán",
+    part: "Nevados de Chillán",
+    lat: -36.901,
+    lon: -71.414,
+    east: 450,
+    north: 0,
+    bearing: -120,
+    scale: 1,
+  },
+  {
+    id: "maritime-23",
+    region: "maritime",
+    range: "AR",
+    area: "Cerro Catedral",
+    part: "Cerro Catedral",
+    lat: -41.166,
+    lon: -71.463,
+    east: 0,
+    north: -450,
+    bearing: 70,
     scale: 1,
   },
 ];

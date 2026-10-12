@@ -50,7 +50,13 @@ import {
   writeHintFile,
   writeHintIndex,
 } from "./lib/real-face-files.mjs";
-import { encodeTrees, forestPolygons, rasterise, woodsByHeight } from "./lib/real-face-forest.mjs";
+import {
+  BANDS,
+  encodeTrees,
+  forestPolygons,
+  rasterise,
+  woodsByHeight,
+} from "./lib/real-face-forest.mjs";
 import { townOf } from "./lib/real-face-streets.mjs";
 import { GRAIN as WATER_GRAIN, putWater, waterOf } from "./lib/real-face-water.mjs";
 
@@ -582,7 +588,12 @@ for (const face of faces) {
   h.water = water;
   const { polys, missing } = await forestPolygons(face, data, relationFull, readXml);
   const woods = woodsByHeight(rasterise(polys, FACE_GRID.n, FACE_GRID.cell), grid.heights);
-  const trees = woods.trees ? encodeTrees(woods.trees) : null;
+  // A face its crop marks BARE stands wholly above its trees (a high, dry
+  // range): no forest on its map is no forest on the mountain, not an
+  // unmapped one, so its tree line is its lowest sample and no band is
+  // wooded — the region's row would stand a wood on it.
+  const kept = woods.trees ?? (face.bare ? { line: 0, bands: Array(BANDS).fill(0) } : null);
+  const trees = kept ? encodeTrees(kept) : null;
   const encoded = encode(h);
   baked.push({
     id: face.id,
@@ -590,8 +601,12 @@ for (const face of faces) {
     grades: h.pistes.map((p) => GRADE_NAMES[p.grade]),
     trees,
   });
-  const line = woods.trees ? (woods.lo + woods.trees.line * (woods.hi - woods.lo)).toFixed(0) : "-";
-  const bands = woods.trees ? woods.trees.bands.map((b) => b.toFixed(2)).join(" ") : "";
+  const line = woods.trees
+    ? (woods.lo + woods.trees.line * (woods.hi - woods.lo)).toFixed(0)
+    : kept
+      ? "bare"
+      : "-";
+  const bands = kept ? kept.bands.map((b) => b.toFixed(2)).join(" ") : "";
   console.log(
     `${face.id.padEnd(16)}${String(h.lifts.length).padStart(5)}${String(h.pistes.length).padStart(8)}${String(h.houses.length).padStart(8)}${String(h.streets.length).padStart(9)}${String(townBytes(h.streets)).padStart(8)}${String(water.bodies.length).padStart(7)}${String(water.streams.length).padStart(9)}${String(waterBytes(water)).padStart(9)}${String(Math.round(water.bodies[0]?.area ?? 0)).padStart(12)}${String(Math.round((encoded.length * 3) / 4)).padStart(8)}${woods.share.toFixed(2).padStart(8)}${line.padStart(8)}${String(missing + water.missing).padStart(9)}  ${bands}`,
   );

@@ -113,6 +113,8 @@ import { PauseMenu } from "./game/menu-pause.tsx";
 import { createPinnedRuns, secondRunOff } from "./game/pinned-run.ts";
 import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
+import { useAhead } from "./game/use-ahead.ts";
+import { backdropHeld } from "./game/backdrop-hold.ts";
 import { createRunActions } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
@@ -516,6 +518,18 @@ export function App() {
       setShellNow("run");
     };
 
+    /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
+    const frees = createFreeRides({
+      world,
+      loader,
+      current: () => state,
+      // The live race behind the door again; over the title nothing stands.
+      restore: () => void (title.raced() && build(state)),
+      outfit: () => outfitKey(settingsRef.current.outfit),
+      plan: () => ({ camera: settingsRef.current.camera, done: lift }),
+      stood: (again) => (freeAgain = again),
+    });
+
     const pinned = createPinnedRuns({
       loader,
       current: () => state,
@@ -523,6 +537,7 @@ export function App() {
       skier: skierOf,
       setMode: (asked) => (mode = asked),
       done: lift,
+      stage: frees.pinned,
     });
     // DEVELOPER's instruments and its BENCHMARK (`dev-app.tsx`).
     const devRig = dev.attach({
@@ -544,18 +559,6 @@ export function App() {
       benchAb: params.ab,
       benchFrames: params.frames,
       benchVista: params.view === "vista",
-    });
-
-    /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
-    const frees = createFreeRides({
-      world,
-      loader,
-      current: () => state,
-      // The live race behind the door again; over the title nothing stands.
-      restore: () => void (title.raced() && build(state)),
-      outfit: () => outfitKey(settingsRef.current.outfit),
-      plan: () => ({ camera: settingsRef.current.camera, done: lift }),
-      stood: (again) => (freeAgain = again),
     });
 
     pressRef.current = {
@@ -580,6 +583,7 @@ export function App() {
       },
       tricks: pinned.tricks,
       pinned: pinned.press,
+      mapAhead: (pick, covered) => pinned.ahead(loader.busy() ? null : pick, covered),
       restart,
       second: pinned.second,
       pause: () => {
@@ -707,10 +711,12 @@ export function App() {
       devRig.frame(frameMs, dtFrame, performance.now() - simAt);
       if (!shown || !appDraws(shellRef.current)) return;
       const still = frozen || held || clock.paused() || rate === 0;
+      // Raced but not drawn under a card whose picture covers it (`backdrop-hold.ts`).
+      const covered = !playerRides(shellRef.current) && backdropHeld();
       const quiet = !playerRides(shellRef.current) && !loader.busy() && !still && title.raced();
-      const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet);
+      const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet && !covered);
       const drawAt = performance.now();
-      renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
+      if (!covered) renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
       feedHudLive(hudLive, state);
       shots.serve();
       if (timing) {
@@ -835,14 +841,15 @@ export function App() {
   /** The map on the start card: the one it stored, or the first of the
    * free ride's own mountains (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
-  // The free ride's rider and gear cards stage its world (the start card keeps it).
-  useEffect(() => {
-    const free = modeRef.current === "free" && shell === "menu";
-    const opts = () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free"));
-    const cards = page === "dress" || page === "skis";
-    pressRef.current.stageFree(free && cards ? opts() : free && page === "start" ? "keep" : null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the ride's own fields
-  }, [page, shell, settings.ride, settings.outfit, startSeed]);
+  useAhead({
+    page,
+    shell,
+    settings,
+    mode: modeRef,
+    linkSeed: params.seed,
+    freeOptions: () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free")),
+    presses: pressRef,
+  });
   /** Onto the snow on a FREE RIDE: the start card's map, day and snow (or the
    * pause card's PISTE MAP's), on the pair the ski card holds. */
   const freeRide = (ride = settings.ride): void => {

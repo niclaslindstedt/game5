@@ -20,6 +20,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { pairById, type PairId } from "@engine";
 
+import { holdBackdrop } from "./backdrop-hold.ts";
 import type { GearStage, StageShot } from "./gear-stage.ts";
 import { freeOf } from "./stage-free.ts";
 import type { Outfit } from "./outfit.ts";
@@ -100,6 +101,7 @@ export function MenuStage({
     const box = boxRef.current;
     if (!canvas || !box) return;
     let disposed = false;
+    let covering = false;
     let raf = 0;
     // The covers are measured every frame: a card's height changes with
     // its rows, and a resize event is not the only way a layout moves.
@@ -129,9 +131,13 @@ export function MenuStage({
       stage.set(w.shot, pairById(w.skis), w.outfit);
       stage.hold(false);
       box.dataset.ready = "1";
+      // The stage fills the screen: nothing behind it need be drawn.
+      covering = true;
+      holdBackdrop(true);
     });
     return () => {
       disposed = true;
+      if (covering) holdBackdrop(false);
       cancelAnimationFrame(raf);
       stageRef.current?.dispose();
       stageRef.current = null;

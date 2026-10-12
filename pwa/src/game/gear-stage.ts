@@ -25,6 +25,7 @@
 import * as THREE from "three";
 import { freshSkier, isBoard, pairById, type SkiSpec, type SkierState } from "@engine";
 
+import { holdHands } from "./backdrop-hold.ts";
 import { outfitKey } from "./dress.ts";
 import { carriesPoles, DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { idlePose, idleRoom } from "./rider-idle.ts";
@@ -120,6 +121,15 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   let model: SkisModel | null = null;
   let rest: SkierState | null = null;
   let shown: string | null = null;
+  /** The kit last asked for, so a held stage can stand it up on the other
+   * card too. */
+  let kit: Outfit = DEFAULT_OUTFIT;
+  let pick: SkiSpec | null = null;
+  /** A model built for the OTHER card and kept for it — a board's rider
+   * stands on a pair of skis on the rider card and on his board on the
+   * gear card, two models; the one waiting is built ahead (`hold`), so
+   * NEXT never builds a skier. */
+  const kept = new Map<string, { model: SkisModel; rest: SkierState }>();
   let pending: { shot: StageShot; spec: SkiSpec; outfit: Outfit } | null = null;
   let shot: StageShot = "rider";
   let free: FreeRect = { x: 0, y: 0, w: 1, h: 1 };
@@ -130,6 +140,20 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
     pivot.remove(model.root);
     model.dispose();
     model = null;
+  };
+  /** The model on show put by, under its key, rather than thrown away. */
+  const putBy = (): void => {
+    if (!model || !rest || shown === null) return;
+    pivot.remove(model.root);
+    kept.set(shown, { model, rest });
+    model = null;
+  };
+  const dropKept = (...but: string[]): void => {
+    for (const [k, m] of kept) {
+      if (but.includes(k)) continue;
+      m.model.dispose();
+      kept.delete(k);
+    }
   };
 
   /** What is drawn: off his gear on the rider card (a board's rider on a
@@ -152,8 +176,22 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   };
 
   const build = (s: StageShot, given: SkiSpec, outfit: Outfit): void => {
-    clear();
-    shown = keyOf(s, given, outfit);
+    const key = keyOf(s, given, outfit);
+    const other = s === "rider" ? keyOf("gear", given, outfit) : keyOf("rider", given, outfit);
+    // The other card's model is kept only while it is the same pick's.
+    if (other !== key && shown === other) putBy();
+    else clear();
+    dropKept(other, key);
+    shown = key;
+    const waiting = kept.get(key);
+    if (waiting) {
+      kept.delete(key);
+      model = waiting.model;
+      rest = waiting.rest;
+      dress(s, outfit);
+      pivot.add(model.root);
+      return;
+    }
     const spec = drawnSpec(s, given);
     model = createSkisModel(spec, pairStyle(spec, { outfit }), (m) => m);
     const fresh = freshSkier(spec);
@@ -222,6 +260,8 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
 
   const cut = new THREE.Vector2();
   const resize = (): void => {
+    // Off the page (held ahead of its card) it keeps the size it was given.
+    if (canvas.clientWidth === 0) return;
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     const ratio = renderer.getPixelRatio();
@@ -241,6 +281,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   // THE DRAG: a pointer across the picture walks the lens round him.
   let downX: number | null = null;
   const onDown = (e: PointerEvent): void => {
+    if (downX === null) holdHands(true);
     downX = e.clientX;
     canvas.setPointerCapture?.(e.pointerId);
   };
@@ -250,6 +291,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
     downX = e.clientX;
   };
   const onUp = (): void => {
+    if (downX !== null) holdHands(false);
     downX = null;
   };
   canvas.addEventListener("pointerdown", onDown);
@@ -295,9 +337,36 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   resize();
   raf = requestAnimationFrame(tick);
 
+  /** THE WARM-UP, for a stage held off the page ahead of its card: every
+   * cost the cards would otherwise pay on the frames the player is turning
+   * the rider round — the drawing buffer at the screen's size, the model
+   * for each card (a board's rider is two), and every program either card
+   * draws, his poles in hand or not, compiled whether or not it is in the
+   * lens (`compile` reaches what a framing would cull). It ends stood on
+   * the card it was asked for. */
+  const warmUp = (): void => {
+    if (canvas.clientWidth === 0) {
+      renderer.setSize(innerWidth, innerHeight, false);
+      camera.aspect = innerWidth / Math.max(1, innerHeight);
+    }
+    const now = performance.now();
+    frame(now);
+    if (!pick) return;
+    const asked = shot;
+    for (const s of [asked === "rider" ? "gear" : "rider", asked] as const) {
+      shot = s;
+      if (shown !== keyOf(s, pick, kit)) build(s, pick, kit);
+      else dress(s, kit);
+      frame(now);
+      renderer.compile(scene, camera);
+    }
+  };
+
   return {
     set: (next, spec, outfit = DEFAULT_OUTFIT) => {
       shot = next;
+      kit = outfit;
+      pick = spec;
       if (shown === keyOf(next, spec, outfit)) {
         pending = null;
         dress(next, outfit);
@@ -310,7 +379,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
     hold: (held) => {
       cancelAnimationFrame(raf);
       if (held) {
-        frame(performance.now());
+        warmUp();
         return;
       }
       // Shown at last: the lens stands on its framing for the real canvas
@@ -321,11 +390,13 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
     },
     dispose: () => {
       cancelAnimationFrame(raf);
+      onUp();
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
       clear();
+      dropKept();
       backdrop.dispose();
       renderer.dispose();
       // The CONTEXT goes too, now rather than whenever the canvas is

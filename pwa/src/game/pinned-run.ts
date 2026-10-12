@@ -42,6 +42,9 @@ import {
 } from "@engine";
 
 import type { Loader } from "./app-load.ts";
+import type { FreeStage } from "./free-stage.ts";
+import { buildAhead } from "./map-build.ts";
+import type { MapOrder } from "./map-order.ts";
 import {
   isPinnedMap,
   pinnedAsk,
@@ -81,10 +84,22 @@ export type PinnedRuns = {
   /** A slalom's SECOND RUN, behind the loading card, off the first run on
    * the snow — nothing where it earned none (`secondRunOf`). */
   second: () => void;
+  /** The cards before RIDE are up on this pinned map (or trick map) — its
+   * map is ordered ahead on a worker unless it is standing already — or,
+   * with null, they are down and nothing is held (`map-build.ts`). */
+  ahead: (
+    pick: { pin: PinnedLevel; mode: PinnedLevel["mode"] } | { map: TrickMap } | null,
+    covered: boolean,
+  ) => void;
   /** The run on the snow is no longer a pinned one: nothing to stand up
    * again. */
   clear: () => void;
 };
+
+/** The order a pinned map's load asks its worker for. */
+const pinOrder = (pin: PinnedLevel): MapOrder => ({ seed: pin.seed, generate: pinnedAsk(pin) });
+/** ...and a trick map's. */
+const trickOrder = (map: TrickMap): MapOrder => ({ seed: map.seed, generate: trickAsk(map) });
 
 export function createPinnedRuns(world: {
   loader: Loader;
@@ -101,31 +116,65 @@ export function createPinnedRuns(world: {
   setMode: (mode: GameMode) => void;
   /** Run on the frame the loading card lifts. */
   done: () => void;
+  /** A race's world staged behind the rider and gear cards on its map
+   * ordered ahead (`app-free.ts`'s `pinned`). */
+  stage: FreeStage;
 }): PinnedRuns {
   let last: ReturnType<typeof pinnedGameOptions> | null = null;
+  /** A race's options on `pin` in `mode`, on `level` (built on this thread
+   * when left out, `buildPinnedLevel`). `null` only NAMES the race — the
+   * stage's `want` and `take` key it without its level and hand back the
+   * map staged — and the map under the menu stands in for it. */
+  const raceOptions = (pin: PinnedLevel, mode: PinnedLevel["mode"], level?: Level | null) => ({
+    ...pinnedGameOptions(
+      pin,
+      mode,
+      world.skier(world.settings()),
+      level === null ? world.current().level : level,
+    ),
+    // A downhill stands up as its training.
+    training: mode === "downhill",
+  });
+  /** The pinned map standing under the menu, where it is `pin`'s. */
+  const pinStanding = (pin: PinnedLevel): Level | undefined => {
+    const now = world.current();
+    return now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
+  };
+  /** The trick map standing under the menu, where it is `map`'s. A tricks
+   * run's map carries its park; a jump hill's is built without. */
+  const trickStanding = (map: TrickMap): Level | undefined => {
+    const now = world.current();
+    const same =
+      map.hill === undefined &&
+      now.rules.tricks &&
+      now.level.seed === map.seed &&
+      now.level.version === map.version;
+    return same ? now.level : undefined;
+  };
   return {
+    ahead: (pick, covered) => {
+      const pin = pick && "pin" in pick && !pinStanding(pick.pin) ? pick : null;
+      // Its world too, while a card covering the whole screen is up: the
+      // race behind it is not drawn meanwhile (`world-build.ts`).
+      if (pin && covered) world.stage.want(raceOptions(pin.pin, pin.mode, null), "");
+      else world.stage.drop();
+      if (!pick) return buildAhead(null);
+      if ("pin" in pick) return buildAhead(pin ? pinOrder(pick.pin) : null);
+      buildAhead(trickStanding(pick.map) ? null : trickOrder(pick.map));
+    },
     press: (pin, mode) => {
       world.setMode(mode);
       const s = world.settings();
-      const skier = world.skier(s);
-      const standing = (): Level | undefined => {
-        const now = world.current();
-        return now.rules.course && isPinnedMap(now.level, pin) ? now.level : undefined;
-      };
+      const standing = () => pinStanding(pin);
+      // The world staged behind the cards, where it is this race's: its map
+      // and every mesh are built, and only its shaders are left.
+      const staged = world.stage.take(raceOptions(pin, mode, null), "");
       world.loader.begin({
         // Generated on the card's worker unless it is standing already.
-        map: () =>
-          standing()
-            ? null
-            : {
-                seed: pin.seed,
-                generate: pinnedAsk(pin),
-              },
+        map: () => (staged || standing() ? null : pinOrder(pin)),
         build: (level) => {
-          // A downhill stands up as its training.
-          const training = mode === "downhill";
-          const built = level ?? standing();
-          const opts = { ...pinnedGameOptions(pin, mode, skier, built), training };
+          const built = level ?? staged?.level ?? standing();
+          const opts = staged ?? raceOptions(pin, mode, built);
           const game = createGame(opts);
           last = { ...opts, level: game.level };
           return game;
@@ -139,24 +188,9 @@ export function createPinnedRuns(world: {
       last = null;
       const s = world.settings();
       const skier = world.skier(s);
-      const standing = (): Level | undefined => {
-        const now = world.current();
-        // A tricks run's map carries its park; a jump hill's is built without.
-        const same =
-          map.hill === undefined &&
-          now.rules.tricks &&
-          now.level.seed === map.seed &&
-          now.level.version === map.version;
-        return same ? now.level : undefined;
-      };
+      const standing = () => trickStanding(map);
       world.loader.begin({
-        map: () =>
-          standing()
-            ? null
-            : {
-                seed: map.seed,
-                generate: trickAsk(map),
-              },
+        map: () => (standing() ? null : trickOrder(map)),
         build: (level) => {
           const opts = trickGameOptions(map, skier, level ?? standing());
           // An aerials contest's first jump declares the jump the card picked.

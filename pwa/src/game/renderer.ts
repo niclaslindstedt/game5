@@ -39,6 +39,7 @@ import {
   type Wind,
 } from "@engine";
 
+import { handsFree } from "./backdrop-hold.ts";
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
@@ -375,7 +376,10 @@ export function createWorldRenderer(
     snowfall.clear();
   }
 
-  const breathe = () => new Promise<void>((done) => setTimeout(done, 0));
+  /** A breath between two heavy builders — and, while a hand is down on a
+   * card's own picture (the rider turned round on the gear stage, while a
+   * world is built cold behind it), held until it lifts. */
+  const breathe = () => new Promise<void>((done) => setTimeout(done, 0)).then(() => handsFree());
   /** Loads begun: one superseded stops at its next breath, adding nothing. */
   let loads = 0;
   /** A breath between two heavy builders; false once the load is superseded. */

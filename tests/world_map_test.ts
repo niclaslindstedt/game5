@@ -19,6 +19,7 @@ import {
   hasAreaStep,
   markOf,
   nearestMark,
+  tappedMark,
   partMarks,
   stepAfter,
   stepBefore,
@@ -320,6 +321,15 @@ describe("the world map's markers", () => {
     // A tap picks the marker within reach, the nearest of two.
     expect(nearestMark({ x: 103, y: 100 }, marks, 20)).toBe(0);
     expect(nearestMark({ x: 200, y: 20 }, marks, 20)).toBe(-1);
+    // A tap on a marker's NAME picks it too, even far from its dot; a tap
+    // on a dot beats a label lying over it.
+    const named = [
+      { at: { x: 100, y: 100 }, label: { x: 110, y: 90, w: 80, h: 16 } },
+      { at: { x: 196, y: 98 }, label: null },
+    ];
+    expect(tappedMark({ x: 180, y: 96 }, named, 20)).toBe(0);
+    expect(tappedMark({ x: 193, y: 98 }, named, 20)).toBe(1);
+    expect(tappedMark({ x: 300, y: 300 }, named, 20)).toBe(-1);
   });
 
   it("stand GENERATED over the whole world", () => {

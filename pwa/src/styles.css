@@ -3851,8 +3851,8 @@ canvas {
 
 /* A phone on its side: the least height of all, so the CHART takes a column
    of its own down the left, as tall as the body, and the rows stand in two
-   columns beside it — the mountain, the country and the grade with the two
-   chips under them; the day's four on the right. Nothing on the card is
+   columns beside it — where and what on the left, the day's rows on the
+   right. Nothing on the card is
    below the fold, and nothing that is a picture scrolls. */
 @media (orientation: landscape) and (max-height: 34rem) {
   /* THE CHART'S SIDE: square, and sized off what the window has left under
@@ -3891,11 +3891,6 @@ canvas {
   .start-col:last-child > .knob-rows {
     grid-column: 3;
     grid-row: 1 / span 2;
-  }
-
-  .start-actions {
-    grid-column: 2;
-    grid-row: 2;
   }
 
   .menu-card-start .seed-preview-plate {

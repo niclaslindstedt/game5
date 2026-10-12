@@ -540,7 +540,6 @@ export const STRINGS = {
   startMap: "MOUNTAIN",
   startMapHint:
     "Which generated mountain: every number is another one, its face, lifts and runs its own. Type one, or step through them.",
-  startReroll: "ANOTHER MOUNTAIN",
   /** The AREA row's hint under GENERATED: the four kinds of country. */
   startRegionHint:
     "What kind of snow country the generated mountain is raised in: the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",

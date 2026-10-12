@@ -28,7 +28,6 @@ import type { RecordKey, RunRecord } from "./records.ts";
 import type { Settings } from "./settings.ts";
 import type { StatsBook } from "./stats.ts";
 import { STRINGS } from "./strings.ts";
-import { nextFreeSeed } from "./free-ride.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export function MenuPages(p: {
@@ -144,14 +143,7 @@ export function MenuPages(p: {
           settings={settings}
           seed={p.startSeed}
           onSettings={setSettings}
-          onReroll={() =>
-            setSettings((s) => ({
-              ...s,
-              ride: { ...s.ride, seed: nextFreeSeed(p.startSeed), spot: null },
-            }))
-          }
           onBack={() => setPage(stepBefore("start", settings.ride.face))}
-          onMap={() => setPage("world")}
           onNext={() => setPage("dress")}
         />
       ) : page === "world" || page === "area" ? (

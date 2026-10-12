@@ -21,7 +21,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { STRINGS } from "./strings.ts";
-import { nearestMark } from "./where-steps.ts";
+import { tappedMark } from "./where-steps.ts";
 import {
   type Camera,
   clampCamera,
@@ -255,11 +255,7 @@ export function WorldMapView({
     const single = pointers.current.size === 1;
     pointers.current.delete(e.pointerId);
     if (!had || !single || travel.current > TAP) return;
-    const i = nearestMark(
-      local(e),
-      drawn.map((d) => d.at),
-      REACH,
-    );
+    const i = tappedMark(local(e), drawn, REACH);
     if (i < 0) return;
     const hit = drawn[i];
     if (hit.members.length === 1) return onPick(hit.members[0].key);

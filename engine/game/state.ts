@@ -206,6 +206,12 @@ export type SkierState = {
    * the push and the pose are both on. */
   drive: number;
   stride: number;
+  /** THE HILL'S PULL along the way he is going, m/s², downhill positive —
+   * the ground's over `poles.hill.span` m about him (`poles.ts`'s
+   * `hillPull`), written every step on the snow. Up a rise (negative) it
+   * cuts a skater's glide short and quickens his strides
+   * (`skateCadence`); the pose reads it to draw him driving harder. */
+  hill: number;
   /** THE LINE HE GLIDES ON, rad off his heading, clockwise positive: 0
    * but skating, when it is the gliding ski's — the V's other arm each
    * stride, carried across by the push (`poles.ts`'s `glideYaw`). The

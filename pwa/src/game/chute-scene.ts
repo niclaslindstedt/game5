@@ -35,6 +35,7 @@ import {
 } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { litLine, type LineLight } from "./para-motor.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import {
   BASE_PAINT,
@@ -68,6 +69,15 @@ import {
   pilotOpen,
   rigWorn,
   ropeDrape,
+  CAUGHT_BOUGHS,
+  CAUGHT_DEPTH,
+  FIST,
+  FREE_BAG,
+  FREE_GONE,
+  RISER,
+  SPRING,
+  THROW,
+  TWIST,
   type P3,
 } from "./chute-rig-plan.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
@@ -135,32 +145,6 @@ type Kit = {
   feetOn: boolean;
   cutAt: number;
 };
-/** LINE TWISTS as drawn: where the bundle the lines are wound into starts
- * and ends along the way from over the risers up to the slider (shares),
- * and how thick it is, m — a twisted set of lines reads as a rope a hand
- * wide some way over the jumper's head. */
-const TWIST = { top: 0.3, low: 0.04, radius: 0.05 };
-
-/** How far the four risers stand up off the three rings, m, and apart fore
- * and aft (the front riser to the nose). */
-const RISER = { length: 0.55, apart: 0.05 };
-/** The pull (`skier-skydive.ts`'s): the pilot chute in his fist until the
- * throw lets it go, s after the press, and how long it takes to reach the
- * place the engine has it. */
-const THROW = { from: 0.14, out: 0.42, catch: 0.2 };
-/** The reserve's spring pilot chute out of its tray, s; the free bag's
- * climb off over the canopy after line stretch, m/s, and when it is gone
- * from the picture, s after line stretch. */
-const SPRING = 0.12;
-const FREE_BAG = 5;
-const FREE_GONE = 2.5;
-/** The fist down the hand bone from the wrist, m. */
-const FIST = 0.08;
-/** A canopy caught in a crown lies over its top this far down, m, held
- * this far out past the foliage by the boughs' tips, m. */
-const CAUGHT_DEPTH = 3.2;
-const CAUGHT_BOUGHS = 0.6;
-
 const UP = new THREE.Vector3(0, 1, 0);
 const v3 = (): THREE.Vector3 => new THREE.Vector3();
 
@@ -169,6 +153,7 @@ export function createChuteScene(
   level: Level,
   base = false,
   suit: SuitColourway | null = null,
+  light: LineLight = { value: new THREE.Color(1, 1, 1) },
 ): ChuteScene {
   const group = new THREE.Group();
   group.name = "skydive";
@@ -234,7 +219,13 @@ export function createChuteScene(
 
   // THE CANOPIES: the sport main and the reserve, each its own cloth, slider
   // and lines (`Kit`), the one over him (or let go of) drawn in its turn.
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xd2d2c8 });
+  // Lit by the sky as the paramotor's are (`litLine`), never glowing at night.
+  const lineMat = litLine(
+    new THREE.LineBasicMaterial({ color: 0xd2d2c8 }),
+    haze,
+    "chute-line",
+    light,
+  );
   const makeKit = (
     wing: WingShape,
     size: ChuteWing["canopy"],
@@ -336,7 +327,12 @@ export function createChuteScene(
   const bridlePos = new Float32Array((BRIDLE + 1) * 3 * 2);
   const bridleGeo = new THREE.BufferGeometry();
   bridleGeo.setAttribute("position", new THREE.BufferAttribute(bridlePos, 3));
-  const bridleMat = new THREE.LineBasicMaterial({ color: 0xe8d8a0 });
+  const bridleMat = litLine(
+    new THREE.LineBasicMaterial({ color: 0xe8d8a0 }),
+    haze,
+    "chute-bridle",
+    light,
+  );
   const bridle = new THREE.Line(bridleGeo, bridleMat);
   bridle.frustumCulled = false;
   group.add(bridle);

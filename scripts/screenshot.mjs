@@ -209,6 +209,16 @@ const SURFACES = {
     wait: ".hud-replay",
     settle: 6000,
   },
+  // PUT AWAY by a tap on the picture, paused.
+  "replay-away": {
+    params: { paused: "1", t: "20" },
+    press: ".pause-replay",
+    pressAfter: 700,
+    wait: ".hud-replay",
+    keys: ["Space"],
+    tap: [0.5, 0.35, ".hud-replay-layer.is-idle"],
+    settle: 12000,
+  },
   "replay-idle": {
     params: { paused: "1", t: "20" },
     press: ".pause-replay",
@@ -797,6 +807,11 @@ async function capture(name, params, viewportName, surface) {
       }
       await page.waitForSelector(surface.wait, { timeout: args.timeout * 1000 });
       for (const key of surface.keys ?? []) await page.keyboard.press(key);
+      // A tap, then its effect waited for: a software frame can take seconds.
+      const [tx, ty, until] = surface.tap ?? [];
+      if (until)
+        await page.mouse.click(page.viewportSize().width * tx, page.viewportSize().height * ty);
+      if (until) await page.waitForSelector(until, { timeout: args.timeout * 1000 });
       await page.waitForTimeout(surface.settle);
     } else {
       await page.waitForFunction("window.__SH_READY__ === true", null, {

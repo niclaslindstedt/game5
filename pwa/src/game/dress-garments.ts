@@ -32,6 +32,7 @@ import {
   clothWeights,
   cross,
   dot,
+  len,
   mul,
   norm,
   rides,
@@ -41,7 +42,7 @@ import {
   type Section,
   type V3,
 } from "./dress-loft.ts";
-import { GAUNTLET_SLEEVE, overSleeve } from "./dress-gloves.ts";
+import { gauntletMouth, overSleeve } from "./dress-gloves.ts";
 import { gearOf, suitPants, type JacketId, type Outfit, type PantsId } from "./outfit.ts";
 
 const TAU = Math.PI * 2;
@@ -676,15 +677,19 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     // Started low inside the shoulder, so the deltoid's top rounds off under
     // the shoulder line rather than standing over it as an epaulette.
     const start = add(P.shoulders[i], add(mul(out, -0.06), mul(F.chest.y, -0.03)));
-    // Under a gauntlet the sleeve ends inside its mouth (`GAUNTLET_SLEEVE`),
-    // the cuff pulled on over it; under an undercuff it reaches the wrist.
-    const wristAt = overSleeve(o)
-      ? Math.min(m.wristAt, 1 + (GAUNTLET_SLEEVE - 0.04) / fa.length)
-      : m.wristAt;
+    // Under a gauntlet the sleeve ends inside its mouth, GATHERED into it
+    // (`gauntletMouth`) as a real sleeve's cuff is cinched in under one;
+    // under an undercuff it reaches the wrist.
+    const over = overSleeve(o);
+    const mouth = gauntletMouth(o);
+    const wristAt = over ? Math.min(m.wristAt, 1 + (mouth.at + 0.012) / fa.length) : m.wristAt;
     const wrist = add(fa.head, mul(fa.y, fa.length * wristAt));
     const path = [start, P.elbows[i], wrist, add(wrist, mul(fa.y, 0.04))];
-    const L1 = 0.06 + ua.length;
-    const L2 = L1 + fa.length * wristAt;
+    // How far along the sleeve's line the elbow and the wrist lie: every
+    // section is stood on them, the gather into a gauntlet's mouth to the
+    // millimetre.
+    const L1 = len(sub(P.elbows[i], start));
+    const L2 = L1 + len(sub(wrist, P.elbows[i]));
     const e = cut.sleeve;
     const b = m.biceps * 0.95;
     const f = m.forearm * 0.95;
@@ -698,8 +703,22 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
       { s: L1, w: b * 0.92 + e, f: b * 0.95 + e, b: b * 0.92 + e },
       { s: L1 + 0.1, w: f + e, f: f + e, b: f + e },
       { s: L2 - 0.06, w: (f + w) / 2 + e * 1.15, f: (f + w) / 2 + e, b: (f + w) / 2 + e },
-      { s: L2, w: w + e * 1.25, f: w + e * 1.2, b: w + e * 1.2 },
-      { s: L2 + 0.03, w: w + e * 1.2, f: w + e * 1.15, b: w + e * 1.15 },
+      ...(over
+        ? [
+            // Full to the gauntlet's rim, then gathered in under it.
+            { s: L2 - 0.03, w: (f + w) / 2 + e * 1.1, f: (f + w) / 2 + e, b: (f + w) / 2 + e },
+            { s: L2 - 0.017, w: mouth.room, f: mouth.room, b: mouth.room },
+            { s: L2 + 0.03, w: mouth.room * 0.85, f: mouth.room * 0.85, b: mouth.room * 0.85 },
+          ].map((q) => ({
+            ...q,
+            w: Math.min(q.w, (f + w) / 2 + e * 1.15),
+            f: Math.min(q.f, (f + w) / 2 + e),
+            b: Math.min(q.b, (f + w) / 2 + e),
+          }))
+        : [
+            { s: L2, w: w + e * 1.25, f: w + e * 1.2, b: w + e * 1.2 },
+            { s: L2 + 0.03, w: w + e * 1.2, f: w + e * 1.15, b: w + e * 1.15 },
+          ]),
     ];
     // The outside of the arm, as a turn round each ring (a sleeve's stripe
     // runs down it).
@@ -713,7 +732,8 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
       for (const q of sections)
         q.x = inward * Math.max(0, Math.min(1, (L1 * 0.6 - q.s) / (L1 * 0.6 - 0.11)));
     }
-    const cuffAt = L2 - 0.045;
+    // A sleeve's cuff band, hidden inside a gauntlet.
+    const cuffAt = over ? L2 : L2 - 0.045;
     // Where the sleeve's line crosses the yoke's height: above it the
     // sleeve's top is the yoke, on one line with the trunk's.
     const drop = start.y - P.elbows[i].y;
@@ -740,6 +760,8 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
         k += 0.006 * crook * Math.sin(((sl - L1) / 0.045) * TAU);
         const bunch = Math.max(0, 1 - Math.abs(sl - (L2 - 0.08)) / 0.06);
         k += 0.004 * bunch * Math.sin(((sl - L2) / 0.03) * TAU + t);
+        // Gathered smooth into a gauntlet's mouth: nothing proud inside it.
+        if (over) k *= smoothstep((L2 - 0.024 - sl) / 0.01);
         return k;
       },
       colour: (sl, t, p) => {

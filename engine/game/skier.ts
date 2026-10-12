@@ -70,6 +70,7 @@ import {
   bottomlessOf,
   depthUnder,
   gripAt,
+  holeSink,
   onRock,
   pisteIce,
   platformOf,
@@ -240,8 +241,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // he skis.
   const housed = state.rules.start === "interval" && state.rules.course;
   // ...and only while the hill pulls less than the poles (`slopeShare`; a board's is its own).
+  // The hill's pull along his way is kept (`SkierState.hill`): up a rise
+  // it cuts each glide short and quickens his strides (`skateCadence`).
+  c.hill = hillPull(level, c.x, c.z, c.heading, c.way);
   const poled = c.board ? 0 : driveForce(spec, speed0, c.packed, 1, c.poles, c.step) / m;
-  const hill = c.board ? 1 : slopeShare(hillPull(level, c.x, c.z, c.heading, c.way), poled);
+  const hill = c.board ? 1 : slopeShare(c.hill, poled);
   const free = (!c.airborne && c.jumpLoad === 0) || hopHeld(c, speed0);
   const working =
     going && free && c.thrown === null && !housed ? (1 - c.brake) * straight * hill : 0;
@@ -436,7 +440,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // skier laid 40° over into a carve stands on two loaded legs. A skier
     // on his side has no legs under him at all.
     if (uprightOn(level, up, { x: legX, y: legY, z: legZ }) < PROBE_MIN_DOWN) {
-      c.comps[i] = 0;
+      c.comps[i] = -1; // LYING: rolled back up, the leg meets the hole he lay in
       continue;
     }
     const dx = -legX;
@@ -457,14 +461,16 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     // Deep snow a ski has pressed stays pressed (`settleShare`).
     const settle = target < c.sinks[i] ? settleShare(loose, speed0) : 1;
     c.sinks[i] += (target - c.sinks[i]) * Math.min(1, (dt / TUNING.snow.sinkLag) * settle);
-    const sink = c.sinks[i];
-    if (p.station === "mid") midSink += sink / 2;
+    if (p.station === "mid") midSink += c.sinks[i] / 2;
     // Where the ray meets the support (`leg-ray.ts`).
-    const t = castLeg(level, ax, ay, az, dx, dy, dz, sink, p.susp.travel + 0.5, normal);
+    let t = castLeg(level, ax, ay, az, dx, dy, dz, c.sinks[i], p.susp.travel + 0.5, normal);
     if (Number.isNaN(t)) {
       c.comps[i] = 0;
       continue;
     }
+    const lying = c.comps[i] < 0 || (c.bodyHit > 0 && !c.airborne);
+    if (lying) t += holeSink(c.sinks, i, depth, packed, p.susp.travel - t - p.rest / p.susp.rate);
+    const sink = c.sinks[i];
     const cx = ax + dx * t;
     const cz = az + dz * t;
     const cy = ay + dy * t;
@@ -658,7 +664,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     if (p.station === "mid")
       along +=
         ((fakie ? -bite : bite) *
-          poleForce(spec, speed0, packed, c.drive, c.stride, c.poles, c.step) *
+          poleForce(spec, speed0, packed, c.drive, c.stride, c.poles, c.step, c.hill) *
           hurtDrive(c)) /
         2;
     push(

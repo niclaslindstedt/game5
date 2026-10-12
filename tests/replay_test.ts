@@ -354,21 +354,24 @@ describe("the replay's lenses (camera-replay.ts)", () => {
         const p = pts[i];
         const rig = freshRigPose();
         rig.x = p.x;
-        rig.y = level.groundAt(p.x, p.z);
+        rig.y = level.groundAt(p.x, p.z) + REPLAY_LENS.hips; // his centre of gravity
         rig.z = p.z;
         rig.heading = p.heading;
         rig.vx = Math.sin(p.heading) * 18;
         rig.vz = Math.cos(p.heading) * 18;
         const pose = cam.update({ angle, shot: null }, rig, null, i * 0.1, 1 / 60)!;
-        const hips = { x: rig.x, y: rig.y + REPLAY_LENS.hips, z: rig.z };
+        const hips = { x: rig.x, y: rig.y, z: rig.z };
         const range = Math.hypot(pose.eye.x - hips.x, pose.eye.y - hips.y, pose.eye.z - hips.z);
         expect(range, `${angle} at ${p.s}`).toBeLessThan(
           angle === "aerial" || angle === "tv" ? 16 : 9,
         );
         expect(pose.eye.y).toBeGreaterThan(level.groundAt(pose.eye.x, pose.eye.z));
         expect(snowBetween(level, hips, pose.eye), `${angle} at ${p.s}`).toBe(false);
-        // AIMED AT HIM: the look passes within a couple of metres of his hips.
-        expect(Math.hypot(pose.target.x - hips.x, pose.target.z - hips.z)).toBeLessThan(3.5);
+        // AIMED AT HIM: the look is on his hips, so he is in the middle of the frame.
+        expect(
+          Math.hypot(pose.target.x - hips.x, pose.target.y - hips.y, pose.target.z - hips.z),
+          `${angle} at ${p.s}`,
+        ).toBeLessThan(1e-9);
       }
     }
   });
@@ -384,7 +387,7 @@ describe("the replay's lenses (camera-replay.ts)", () => {
     rig.z = p.z;
     const body = { x: p.x + 12, y: level.groundAt(p.x + 12, p.z) + 0.3, z: p.z, vx: 0, vz: 0 };
     const pose = cam.update({ angle: "close", shot: null }, rig, body, 3, 1 / 60)!;
-    expect(Math.hypot(pose.target.x - body.x, pose.target.z - body.z)).toBeLessThan(3.5);
+    expect(Math.hypot(pose.target.x - body.x, pose.target.z - body.z)).toBeLessThan(1e-9);
     expect(Math.hypot(pose.eye.x - body.x, pose.eye.z - body.z)).toBeLessThan(9);
   });
 });

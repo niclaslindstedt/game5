@@ -253,18 +253,46 @@ export function poleSweep(way: number, step = 0): number {
  * `poles.cadencePole` up to the quickest an arm swings
  * (`poles.cadenceMax`). Blended between by `skateShare`; with no `poles`,
  * the skate's alone. */
-export function strideRate(way: number, poles = true, step = 0): number {
+export function strideRate(way: number, poles = true, step = 0, hill = 0): number {
   const k = skateShare(way, poles, step);
   const pinned = (Math.abs(way) * P.duty) / P.sweep;
   const pole = clamp(pinned, P.cadencePole, P.cadenceMax);
-  return skateCadence(way) * k + pole * (1 - k);
+  return skateCadence(way, hill) * k + pole * (1 - k);
 }
 
 /** THE SKATE'S CADENCE, strides a second, at `way` m/s (`poles.cadence`):
- * slow and long at a crawl, quickening toward his top speed. */
-function skateCadence(way: number): number {
+ * slow and long at a crawl, quickening toward his top speed — and, up a
+ * rise whose pull along his way is `hill` m/s² (downhill positive,
+ * `SkierState.hill`), quicker still as the climb cuts the glide short
+ * (`poles.climb`). The flat's cadence down a pitch: the hill there is the
+ * tuck's business, not a longer glide's. */
+export function skateCadence(way: number, hill = 0): number {
   const C = P.cadence;
-  return C.slow + (C.fast - C.slow) * clamp((Math.abs(way) - C.from) / (C.to - C.from), 0, 1);
+  const flat = C.slow + (C.fast - C.slow) * clamp((Math.abs(way) - C.from) / (C.to - C.from), 0, 1);
+  if (hill >= 0) return flat;
+  const slows = glideSlowing(way);
+  const glide = (1 - P.duty) / flat;
+  const push = P.duty / flat;
+  const climbing = 1 / (push + (glide * slows) / (slows - hill));
+  return Math.max(flat, Math.min(P.climb.most, climbing));
+}
+
+/** How quickly a gliding ski slows ON THE FLAT at `way` m/s, m/s²: the
+ * base's rolling resistance and the air's drag on a skier stood up
+ * (`poles.climb`). */
+export function glideSlowing(way: number): number {
+  const G = P.climb;
+  return TUNING.snow.crrPacked * TUNING.g + (0.5 * TUNING.airDensity * G.area * way * way) / G.mass;
+}
+
+/** THE LEG'S PUSH'S SHARE OF A SKATING STRIDE, 0..1, at `way` m/s up a
+ * pull of `hill` m/s²: `poles.duty` on the flat; up a rise the push keeps
+ * its time while the glide shortens, so it fills more of each stride —
+ * to `climb.duty`. */
+export function skateDuty(way: number, hill = 0): number {
+  if (hill >= 0) return P.duty;
+  const flat = skateCadence(way, 0);
+  return Math.min(P.climb.duty, (P.duty * skateCadence(way, hill)) / flat);
 }
 
 /** THE POLES' SHARE OF A STRIDE on the snow, 0..1, at `way` m/s: the
@@ -272,10 +300,10 @@ function skateCadence(way: number): number {
  * snow takes to pass under one sweep of the pole at the skate's cadence
  * — a quick bite inside the leg's long push — and never less than
  * `poles.dutyLeast`. What the arms are posed on. */
-export function poleDuty(way: number, step = 0): number {
+export function poleDuty(way: number, step = 0, hill = 0): number {
   const k = skateShare(way, true, step);
-  const bite = (P.sweepSkate * skateCadence(way)) / Math.max(1e-6, Math.abs(way));
-  const skate = clamp(bite, P.dutyLeast, P.duty);
+  const bite = (P.sweepSkate * skateCadence(way, hill)) / Math.max(1e-6, Math.abs(way));
+  const skate = clamp(bite, P.dutyLeast, skateDuty(way, hill));
   return skate * k + doublePoleDuty(way) * (1 - k);
 }
 
@@ -296,9 +324,9 @@ export function doublePoleDuty(way: number): number {
  * push (`poles.duty`) by the share of him skating, the double pole's jab
  * (`doublePoleDuty`) by the rest — what the force is shaped over
  * (`strideShape`). */
-export function pushDuty(way: number, poles = true, step = 0): number {
+export function pushDuty(way: number, poles = true, step = 0, hill = 0): number {
   const k = skateShare(way, poles, step);
-  return P.duty * k + doublePoleDuty(way) * (1 - k);
+  return skateDuty(way, hill) * k + doublePoleDuty(way) * (1 - k);
 }
 
 /** How well a push keeps up with the snow at `way` m/s, 0..1: whole while
@@ -353,7 +381,8 @@ export function driveForce(
 }
 
 /** The force the drive pushes with THIS STEP along the skis, N: the mean
- * shaped by the stride's phase. */
+ * shaped by the stride's phase — up a pull of `hill` m/s² (downhill
+ * positive), a longer push in a shorter stride (`skateDuty`). */
 export function poleForce(
   spec: SkiSpec,
   way: number,
@@ -362,10 +391,11 @@ export function poleForce(
   stride: number,
   poles = true,
   step = 0,
+  hill = 0,
 ): number {
   return (
     driveForce(spec, way, packed, effort, poles, step) *
-    strideShape(stride, pushDuty(way, poles, step))
+    strideShape(stride, pushDuty(way, poles, step, hill))
   );
 }
 
@@ -380,7 +410,8 @@ export function strideOn(c: SkierState, speed: number, dt: number): number {
   // Read off the SPEED, not the way: a skier sliding sideways at 80 km/h has
   // no way along his skis and no business pushing on them.
   if (c.drive > 0 && driveReach(speed, c.poles, c.step) > 0) {
-    c.stride += strideRate(speed, c.poles, c.step) * stepQuick(c.step, speed) * c.drive * dt;
+    c.stride +=
+      strideRate(speed, c.poles, c.step, c.hill) * stepQuick(c.step, speed) * c.drive * dt;
   }
   // STEPPING ROUND A TURN: the steer key over the share of him that can
   // step, taken up and let go over a stride or so. A board ridden FAKIE

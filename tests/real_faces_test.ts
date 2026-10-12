@@ -79,7 +79,7 @@ describe("the real faces", () => {
   beforeAll(loadAllRealFaces);
 
   it("are listed, each keyed by its region and a number", () => {
-    expect(REAL_FACE_IDS).toHaveLength(106);
+    expect(REAL_FACE_IDS).toHaveLength(114);
     for (const id of REAL_FACE_IDS) {
       const region = realFaceRegion(id);
       expect(region && REGION_IDS.includes(region)).toBe(true);

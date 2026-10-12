@@ -218,7 +218,8 @@ const SURFACES = {
     wait: ".hud-replay",
     keys: ["Space"],
     tap: [0.5, 0.35],
-    settle: 1500,
+    tapWait: ".hud-replay-layer.is-idle",
+    settle: 12000,
   },
   "replay-idle": {
     params: { paused: "1", t: "20" },
@@ -812,6 +813,10 @@ async function capture(name, params, viewportName, surface) {
         const box = page.viewportSize();
         await page.waitForTimeout(400);
         await page.mouse.click(box.width * surface.tap[0], box.height * surface.tap[1]);
+        // Under a software renderer a frame can take seconds, and the tap is
+        // handled between frames: wait for what it should do, not a clock.
+        if (surface.tapWait)
+          await page.waitForSelector(surface.tapWait, { timeout: args.timeout * 1000 });
       }
       await page.waitForTimeout(surface.settle);
     } else {

@@ -13,7 +13,7 @@
 // THE WHERE STEPS COME FIRST (`menu-where.tsx`, `where-steps.ts`): FREE RIDE
 // opens on a world map with every real ski area marked where it lies, then,
 // where an area has more than one, its mountainsides; this card is the
-// third step, and its WORLD MAP chip and its way back walk them again.
+// third step, and its way back walks them again.
 //
 // THREE ROWS SAY WHERE AGAIN, for a quick step, A CHART SHOWS IT, and the
 // rest say when:
@@ -29,8 +29,7 @@
 //           it is known by (a real face brings its own country).
 //
 //   MOUNTAIN under GENERATED, the mountain's NUMBER — the seed, typed or
-//           stepped — with ANOTHER MOUNTAIN beside the rows to deal a
-//           fresh one. The CHART is the row's meaning — a number nobody
+//           stepped. The CHART is the row's meaning — a number nobody
 //           can picture is not a choice — and it is cut from the real
 //           generated map in a worker (`seed-preview.tsx`), with every
 //           KICKER marked on it, which is what a free skier is hunting.
@@ -83,7 +82,7 @@
 //
 // THE DAY'S TWO ROWS DEFER TO THE MAP until they are moved (`free-ride.ts`):
 // both stand on AS DEALT, and stepping one pins a word. THE CHART IS A CONTROL too: a press on it is where
-// the ride starts, and FROM THE GRID takes that back.
+// the ride starts, and a pick of the RUN row takes that back.
 //
 // What the rows WRITE is `settings.ride` — so a ride stood up from here and
 // one a `?start=free` link boots into are the same ride read the same way.
@@ -107,7 +106,7 @@ import {
   rangeOf,
   wherePicked,
 } from "./face-picks.ts";
-import { SEASONS, SNOW_STOPS, runPicked, spotOn, type FreeRide } from "./free-ride.ts";
+import { SEASONS, SNOW_STOPS, runPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { startChosen, SUIT_STOPS, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
@@ -173,20 +172,15 @@ export function StartPage({
   settings,
   seed,
   onSettings,
-  onReroll,
   onBack,
-  onMap,
   onNext,
 }: {
   settings: Settings;
   /** The map on the card: the stored one, or the front door's. */
   seed: number;
   onSettings: (settings: Settings) => void;
-  /** Deal a fresh map. */
-  onReroll: () => void;
+  /** Back a WHERE step: the area's parts or the world map. */
   onBack: () => void;
-  /** Back onto the world map, the WHERE steps' first. */
-  onMap: () => void;
   /** On to the skis card, which is where RIDE is. */
   onNext: () => void;
 }) {
@@ -354,23 +348,6 @@ export function StartPage({
                 onPick={(id) => setRide({ avalanche: id === "on" })}
                 onHint={setHint}
               />
-            </div>
-            <div class="start-actions">
-              <button type="button" class="menu-chip" data-menu="map" onClick={onMap}>
-                <span class="menu-tile-name">{STRINGS.whereMap}</span>
-              </button>
-              <button type="button" class="menu-chip" data-menu="reroll" onClick={onReroll}>
-                <span class="menu-tile-name">{STRINGS.startReroll}</span>
-              </button>
-              <button
-                type="button"
-                class="menu-chip"
-                data-menu="grid"
-                disabled={spotOn(ride, seed) === null}
-                onClick={() => setRide({ spot: null })}
-              >
-                <span class="menu-tile-name">{STRINGS.startGrid}</span>
-              </button>
             </div>
           </div>
         </div>

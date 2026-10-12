@@ -119,6 +119,37 @@ export function areaTarget(face: string | null, view: View): Camera {
   return fitCamera(parts, view, Math.min(FRAME_PAD * 1.5, view.w / 5, view.h / 5), AREA_KM);
 }
 
+/** How near a marker's own dot a tap must land to beat a label over it, px. */
+const ON_DOT = 12;
+/** How far round a label's box a tap still counts as on it, px. */
+const LABEL_PAD = 4;
+
+/** The marker a tap picks: one whose DOT it lands on, else one whose LABEL
+ * it lands on (the name is as much the marker as the circle is), else the
+ * nearest within `reach` px; -1 for none. */
+export function tappedMark(
+  at: { x: number; y: number },
+  marks: readonly {
+    at: { x: number; y: number };
+    label?: { x: number; y: number; w: number; h: number } | null;
+  }[],
+  reach: number,
+): number {
+  const pts = marks.map((m) => m.at);
+  const dot = nearestMark(at, pts, ON_DOT);
+  if (dot >= 0) return dot;
+  const named = marks.findIndex(
+    ({ label: b }) =>
+      !!b &&
+      at.x >= b.x - LABEL_PAD &&
+      at.x <= b.x + b.w + LABEL_PAD &&
+      at.y >= b.y - LABEL_PAD &&
+      at.y <= b.y + b.h + LABEL_PAD,
+  );
+  if (named >= 0) return named;
+  return nearestMark(at, pts, reach);
+}
+
 /** The marker nearest a screen point, if it is within `reach` px. */
 export function nearestMark<T extends { x: number; y: number }>(
   at: { x: number; y: number },

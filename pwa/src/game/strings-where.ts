@@ -10,7 +10,6 @@ export const WHERE_STRINGS = {
   whereTitle: "WHERE",
   whereAreaTitle: "MOUNTAIN",
   /** The start card's chip back onto the world map. */
-  whereMap: "WORLD MAP",
   /** The world map being fetched (it is its own small download). */
   whereLoading: "LOADING THE MAP",
   /** The PART row's hint on the area step. */
@@ -18,7 +17,7 @@ export const WHERE_STRINGS = {
     "Which mountainside of the ski area to ride: each is a real one of its own, its marker standing where it lies.",
   /** The map's own hint, under a press on it. */
   whereMapHint:
-    "Drag to pan, pinch or scroll to zoom, and tap a marker to pick that ski area. The range rows fly the map to it.",
+    "Drag to pan, pinch or scroll to zoom, and tap a marker or its name to pick that ski area. The range rows fly the map to it.",
   /** The line under the map: the place picked and roughly where it lies. */
   whereAt: (lat: number, lon: number): string =>
     `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? "N" : "S"} · ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? "E" : "W"}`,

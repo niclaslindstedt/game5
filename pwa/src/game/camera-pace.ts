@@ -162,3 +162,18 @@ export function createFlightPace(): FlightPace {
     surge: () => surge,
   };
 }
+
+/** THE BANK ON THE SNOW (`camera-rigs.ts`'s booms): the roll the horizon
+ * eases to from `was` — `share` of his roll on the snow (none in the air),
+ * clamped to a radian and eased so a take-off or a spin never jerks it. */
+export function easedBank(
+  was: number,
+  roll: number,
+  airborne: boolean,
+  share: number,
+  dt: number,
+  snap: boolean,
+): number {
+  const want = airborne ? 0 : Math.max(-1, Math.min(1, roll)) * share;
+  return snap ? want : was + (want - was) * (1 - Math.exp(-dt * 4));
+}

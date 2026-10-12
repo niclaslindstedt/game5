@@ -35,19 +35,14 @@
 // so three readings of pace are folded in on top of the framing, each small enough to go unnoticed
 // until it is gone:
 //
-//   * THE STRETCH. The fov widens with speed while the boom pulls in along
-//     its own line (`hold`), so the skier keeps his size in the frame and
-//     the WORLD is what rushes out past the edges. A boom that ran out with
-//     speed as the fov widened would shrink the skier into the distance,
-//     which is the one picture that reads as slow.
-//   * THE SURGE. The lens has mass on the end of its arm: it falls behind a
-//     skier dropping into a tuck and swings in over one throwing a skid,
-//     and settles back to its length when the pace is steady.
-//   * THE TREMOR. Past a brisk pace the lens buzzes — the chatter of the
-//     skis over hard snow — harder on the groomer than in powder, and goes
-//     still the moment the skis leave the snow: the air is quiet, which is
-//     half of what makes it air. A few incommensurate oscillators under
-//     8 Hz on an eased envelope, never a fresh random offset per frame.
+//   * THE STRETCH. The fov widens with speed while the boom pulls in along its own line (`hold`),
+//     so the skier keeps his size and the WORLD rushes out past the edges. A boom that ran out
+//     with speed would shrink him into the distance, the one picture that reads as slow.
+//   * THE SURGE. The lens has mass on its arm: it falls behind a skier dropping into a tuck and
+//     swings in over one throwing a skid, and settles back when the pace is steady.
+//   * THE TREMOR. Past a brisk pace the lens buzzes — the skis' chatter over hard snow — harder on
+//     the groomer than in powder, and still the moment they leave the snow: the air is quiet. A few
+//     incommensurate oscillators under 8 Hz on an eased envelope, never a fresh offset per frame.
 //
 // THE SKIER STAYS IN THE PICTURE. The boom's height is sprung, and slowly in the air, which is what
 // makes a flight hang — but a skier dropping off a cliff band falls faster than any spring follows,
@@ -68,8 +63,8 @@
 // picture (`forest.ts`).
 
 import { rotate, type Quat } from "@engine";
-
 import type { RideLook } from "./camera-lift.ts";
+import { easedBank } from "./camera-pace.ts";
 
 import {
   createFallMemory,
@@ -232,9 +227,8 @@ export type BoomRig = {
   /** Share of a lift's close look (`RigPose.ride`) the rig takes, 0..1: the
    * chase comes in behind a rider, the far and high lenses keep their own. */
   ride: number;
-  /** THE BANK: share of his roll on the snow the horizon takes, 0..1 — a
-   * camera following a carve cants a little into it, so the turn reads as
-   * a turn and not as the world sliding sideways. Never in the air. */
+  /** THE BANK: share of his roll on the snow the horizon takes, 0..1
+   * (`camera-pace.ts`'s `easedBank`). */
   bank?: number;
   /** Share of THE FALL LOOK (`camera-fall.ts`) the rig takes, 0..1 — up
    * over his back and looking down at his landing in a long fall. A
@@ -759,18 +753,9 @@ export function frameRig(
   eye.x += fz * shake.x * buzz;
   eye.y += shake.y * buzz;
   eye.z -= fx * shake.x * buzz;
-  // THE BANK: a share of his roll on the snow, eased so a take-off or a
-  // spin never jerks the horizon.
-  const lean = pose.airborne ? 0 : Math.max(-BANK_MOST, Math.min(BANK_MOST, pose.roll));
-  const bankWant = lean * (rig.bank ?? 0) * (1 - fallen);
-  st.bank = snap ? bankWant : st.bank + (bankWant - st.bank) * (1 - Math.exp(-dt * BANK_RATE));
+  st.bank = easedBank(st.bank, pose.roll, pose.airborne, (rig.bank ?? 0) * (1 - fallen), dt, snap);
   return { eye, target, fov, roll: st.bank + shake.r * PACE.tremor.roll };
 }
-
-/** The most of his roll the bank reads, rad, and how briskly it follows,
- * 1/s. */
-const BANK_MOST = 1;
-const BANK_RATE = 4;
 
 /** THE LOOK AT A SUMMIT (`camera-summit.ts`): the share of the boom's
  * lean with the mountain taken out (all but a little), the share past which

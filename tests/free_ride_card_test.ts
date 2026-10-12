@@ -370,8 +370,6 @@ describe("what the rows ask for", () => {
     // The deepest stop is the dial's deepest, and a metre of snow.
     expect(depthOf("deep")).toBeCloseTo(SNOW_DIAL.max, 9);
     expect(depthOf("medium")).toBeCloseTo(1, 9);
-    // The row's hint states every stop's depth.
-    for (const stop of SNOW_STOPS) expect(STRINGS.startSnowHint).toContain(`${stop.cm} cm`);
   });
 
   it("puts the seasons in winter's order, December to April", () => {

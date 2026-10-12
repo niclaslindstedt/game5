@@ -17,11 +17,12 @@ export const WHERE_STRINGS = {
     `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? "N" : "S"} · ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? "E" : "W"}`,
   /** How many mountainsides an area has, on its marker's line. */
   whereParts: (n: number): string => (n === 1 ? "ONE MOUNTAIN" : `${n} MOUNTAINS`),
-  /** A generated mountain has no place on the globe. */
-  whereGenerated: "A MOUNTAIN OF ITS OWN, RAISED OFF ITS NUMBER",
+  /** A generated mountain has no place on the globe: its number instead. */
+  whereNumber: (seed: number): string => `MOUNTAIN ${seed}`,
   /** The scale bar's length. */
   whereKm: (km: number): string => `${km} KM`,
-  /** How many real pistes an area or a mountainside has. */
+  /** How many runs the mountain's built map lays — the slopes a ride can
+   * be carried to the top of, never the real piste map's ways. */
   whereSlopes: (n: number): string => (n === 1 ? "ONE SLOPE" : `${n} SLOPES`),
   /** The reading's three figures, each a caption over its value: the drop
    * from the highest piste to the lowest, the steepest hundred metres of

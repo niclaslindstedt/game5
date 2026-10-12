@@ -129,3 +129,49 @@ describe("an enthusiast's kit", () => {
     for (const k of kits) expect(k.poles).not.toBe("none");
   });
 });
+
+describe("the night's skiers and the player's rides", () => {
+  // Each enthusiast's run is a copy of the player's, so a ride the player
+  // is on — the jump plane, the skydive, the balloon — would be stepped once
+  // by the player's run and once more by every enthusiast's: the plane flown
+  // many times as fast after dark.
+  const rides = [
+    { plane: true },
+    { balloon: true },
+    { para: true },
+    { plane: true, chute: 1500 },
+  ] as const;
+  for (const ride of rides) {
+    it(`no enthusiast carries the player's ride (${Object.keys(ride).join(", ")})`, () => {
+      const s = createGame({ level, mode: "free", sky: night, quiet: true, ...ride });
+      expect(s.rivals.length).toBeGreaterThan(0);
+      for (const r of s.rivals) {
+        expect(r.run.plane).toBeUndefined();
+        expect(r.run.chute).toBeUndefined();
+        expect(r.run.balloon).toBeUndefined();
+        expect(r.run.para).toBeUndefined();
+        expect(r.run.wingsuit).toBeUndefined();
+        expect(r.run.doorway).toBeUndefined();
+      }
+    });
+  }
+
+  it("the plane flies as fast after dark with them as without them", () => {
+    const a = createGame({ level, mode: "free", sky: night, quiet: true, plane: true });
+    const b = createGame({
+      level,
+      mode: "free",
+      sky: night,
+      quiet: true,
+      plane: true,
+      enthusiasts: 0,
+    });
+    const full = { ...NEUTRAL_INPUT, tuck: 1 };
+    for (let i = 0; i < 600; i++) {
+      step(a, full);
+      step(b, full);
+    }
+    expect(a.plane?.x).toBe(b.plane?.x);
+    expect(a.plane?.z).toBe(b.plane?.z);
+  });
+});

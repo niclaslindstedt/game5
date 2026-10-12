@@ -49,6 +49,7 @@ import { colourwayOf, suitOf } from "./wingsuit-look.ts";
 import { createWingsuitCam, wingsuitFramed, wingsuitLens } from "./camera-wingsuit.ts";
 import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
+import { lineLightOf, type LineLight } from "./para-motor.ts";
 import type { Outfit } from "./outfit.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
 import { wingsuitShapeOf } from "./skier-wingsuit.ts";
@@ -198,12 +199,14 @@ export function createMachines(
   // ...and the jump plane and the skydive out of its door, drawn while a
   // run carries them (`GameState.plane`, `.chute`).
   const plane: PlaneScene | null = state.rules.heli ? createPlaneScene(haze) : null;
+  const chuteLight: LineLight = { value: new THREE.Color(1, 1, 1) };
   const chute: ChuteScene | null = state.rules.heli
     ? createChuteScene(
         haze,
         level,
         !!state.wingsuit,
         state.wingsuit && fx.wearing ? colourwayOf(suitOf(fx.wearing())) : null,
+        chuteLight,
       )
     : null;
   // ...and a wingsuit's hover exit: the helicopter it steps off.
@@ -440,6 +443,7 @@ export function createMachines(
     light(look) {
       para?.light(look);
       balloon?.light(look);
+      if (chute) lineLightOf(look, chuteLight.value);
     },
     lamps(lit, eye, others) {
       // The eye settled for this frame: the helicopter's and the jump

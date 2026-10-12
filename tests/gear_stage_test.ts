@@ -3,7 +3,8 @@
 // free.
 import { describe, expect, it } from "vitest";
 import { keyPoints } from "../pwa/src/game/party-pose.ts";
-import { idleKey } from "../pwa/src/game/rider-idle.ts";
+import { DEFAULT_OUTFIT, GEAR, type Outfit } from "../pwa/src/game/outfit.ts";
+import { idleKey, idleRoom } from "../pwa/src/game/rider-idle.ts";
 import { freeOf } from "../pwa/src/game/stage-free.ts";
 
 describe("the rider's idle", () => {
@@ -18,6 +19,22 @@ describe("the rider's idle", () => {
     }
     // A hand moves at most a couple of metres a second while he fidgets.
     expect(worst).toBeLessThan(0.04);
+  });
+
+  it("hangs his fists clear of his pants, the broader the leg the further out", () => {
+    // The thigh's outside at its fullest: the hip joint (0.12 m out), the
+    // thigh's radius on the build and the pants' ease over it; a glove's
+    // fist reaches about 0.045 m in from the hand toward it.
+    const ease = { insulated: 0.024, race: 0.012, baggy: 0.05, cargo: 0.034 };
+    for (const w of GEAR.weight)
+      for (const p of GEAR.pants) {
+        const o = { ...DEFAULT_OUTFIT, weight: w.id, pants: p.id } as Outfit;
+        const thigh = 0.12 + 0.1 * (1 + (w.girth - 1) * 0.7) + ease[p.id];
+        for (const t of [0, 3, 7.5, 12, 20]) {
+          const k = idleKey(t, idleRoom(o));
+          for (const h of k.hands) expect(Math.abs(h.x - k.hipX) - 0.045).toBeGreaterThan(thigh);
+        }
+      }
   });
 
   it("stands him on his feet: the hips about a skier's height up", () => {

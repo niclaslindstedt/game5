@@ -325,7 +325,11 @@ export async function crowdFamily(ctx) {
         view.update(state, eye, { seen: (x, _y, z) => x === a.x && z === a.z });
         const phase = phaseOf(a, plans);
         let joints = null;
-        if (a.thrown) {
+        // Drawn as joints — down on his ragdoll, or handed over between it
+        // and his skis — the joints the view drew him at, in the world.
+        const shown = view.shownOf?.(a.id);
+        if (shown) joints = moved(posedPoints(shown), 0, 0, 0);
+        else if (a.thrown) {
           // DOWN: hung on his ragdoll, as the view hangs him (its stand on
           // the snow's own normal — the view's after-chair upright frame
           // a fall straight off a chair would take is not read here).

@@ -200,7 +200,16 @@ describe("a model's dress", () => {
   it("reads every name it dresses off the builders' own materials", () => {
     const skis = new Set(matNames("skis.py"));
     const skier = new Set(matNames("skier.py"));
-    for (const n of ["paint", "white", "panel", "boot", "buckle", "base"]) {
+    for (const n of [
+      "paint",
+      "white",
+      "panel",
+      "boot",
+      "boot_dark",
+      "boot_accent",
+      "buckle",
+      "base",
+    ]) {
       expect(skis.has(n), `skis.py names "${n}"`).toBe(true);
     }
     for (const n of ["jacket", "accent", "pants", "helmet", "peak", "lens", "skin"]) {

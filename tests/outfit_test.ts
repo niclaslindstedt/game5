@@ -104,6 +104,8 @@ function palette(o: Outfit): Set<string> {
     const g = gearOf(slot, o[slot]);
     for (const c of [g.main, g.second, g.third]) out.add(c);
   }
+  const gl = gearOf("gloves", o.gloves);
+  for (const c of [gl.palm, gl.accent]) out.add(c);
   const h = gearOf("helmet", o.helmet);
   for (const c of [h.shell, h.trim, h.lens, ...lensShades(h.lens)]) out.add(c);
   return new Set(

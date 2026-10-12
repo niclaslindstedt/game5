@@ -5,11 +5,15 @@
 // (`dress-head.ts`) — into the two skinned meshes a skier is drawn in.
 // Three-free, so the suite and the gear lab read the same triangles the
 // game draws; `skier-dress.ts` makes them a figure. An outfit is cut once
-// and kept: four skiers on a start line in the same kit share one cut.
+// and kept (the last few, `keptCut`): four skiers on a start line in the
+// same kit share one cut, and a card browsed through every colour lets the
+// oldest go.
 
 import { cutClothes } from "./dress-garments.ts";
-import { cutGloves, cutHead } from "./dress-head.ts";
+import { cutGloves } from "./dress-gloves.ts";
+import { cutHead } from "./dress-head.ts";
 import { createLoom, type DressMesh } from "./dress-loft.ts";
+import { keptCut } from "./kept-cut.ts";
 import { GEAR_SLOTS, type Outfit } from "./outfit.ts";
 
 const cut = new Map<string, DressMesh>();
@@ -22,13 +26,11 @@ export const outfitKey = (o: Outfit, tone?: number): string =>
  * written to). */
 export function dressOutfit(o: Outfit, tone?: number, bare = false): DressMesh {
   const key = `${outfitKey(o, tone)}${bare ? ":bare" : ""}`;
-  const known = cut.get(key);
-  if (known) return known;
-  const loom = createLoom();
-  cutClothes(loom, o);
-  cutGloves(loom, o);
-  cutHead(loom, o, tone, bare);
-  const mesh = loom.mesh();
-  cut.set(key, mesh);
-  return mesh;
+  return keptCut(cut, key, () => {
+    const loom = createLoom();
+    cutClothes(loom, o);
+    cutGloves(loom, o);
+    cutHead(loom, o, tone, bare);
+    return loom.mesh();
+  });
 }

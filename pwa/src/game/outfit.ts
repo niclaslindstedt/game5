@@ -107,7 +107,11 @@ export type HelmetDef = {
   trim: number;
   lens: number;
 };
-export type GloveDef = Colours & { id: GloveId; name: string };
+/** A glove's shell (`main`), its straps and pads (`second`), its cuff's
+ * lining or knit (`third`), its PALM — the leather or the synthetic grip
+ * sewn over the palm, the fingers' insides and the thumb — and the ACCENT
+ * of its piping and the cuff's binding. */
+export type GloveDef = Colours & { id: GloveId; name: string; palm: number; accent: number };
 export type PoleDef = {
   id: PoleId;
   name: string;
@@ -163,10 +167,42 @@ export const HELMETS: readonly HelmetDef[] = [
 ];
 
 export const GLOVES: readonly GloveDef[] = [
-  { id: "gauntlet", name: "Gauntlet", main: 0x17191d, second: 0x2c2f35, third: 0x0d0e10 },
-  { id: "mitten", name: "Mittens", main: 0xb3261b, second: 0x17191d, third: 0xe9e4da },
-  { id: "undercuff", name: "Undercuff", main: 0x7a4a2a, second: 0x4a2c18, third: 0x1d1a17 },
-  { id: "race", name: "Race", main: 0x17191d, second: 0xd8e021, third: 0x3a3d43 },
+  {
+    id: "gauntlet",
+    name: "Gauntlet",
+    main: 0x1b1d22,
+    second: 0x34373e,
+    third: 0x0d0e10,
+    palm: 0x5a3f2c,
+    accent: 0xd23a26,
+  },
+  {
+    id: "mitten",
+    name: "Mittens",
+    main: 0xb3261b,
+    second: 0x17191d,
+    third: 0xe9e4da,
+    palm: 0x2a2523,
+    accent: 0xe9e4da,
+  },
+  {
+    id: "undercuff",
+    name: "Undercuff",
+    main: 0x8a5a33,
+    second: 0x4a2c18,
+    third: 0x1d1a17,
+    palm: 0xb98a55,
+    accent: 0x4a2c18,
+  },
+  {
+    id: "race",
+    name: "Race",
+    main: 0x17191d,
+    second: 0xd8e021,
+    third: 0x3a3d43,
+    palm: 0x45484f,
+    accent: 0xd8e021,
+  },
 ];
 
 export const POLES: readonly PoleDef[] = [

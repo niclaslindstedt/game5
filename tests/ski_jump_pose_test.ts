@@ -201,6 +201,7 @@ describe("every other mode, unmoved", () => {
   });
 });
 
-// Taken off the tree before the jumper was drawn.
+// Taken off the tree before the jumper was drawn (the dress re-cut when the
+// gauntlet cuff was fitted over the sleeve).
 const POSES_HASH = "49773418";
-const DRESS_HASH = "5f1700c5";
+const DRESS_HASH = "5d1c8c73";

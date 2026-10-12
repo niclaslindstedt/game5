@@ -5,7 +5,7 @@
 // game's own builder (`createSkisModel`) and posed by the game's own pose —
 // and, beside it, a MODELLED skier (a Blender glTF the driver serves, posed
 // by the same rig and dressed in the outfit's colours), so the two roads
-// to the same kit are judged in one frame. Seven sheets:
+// to the same kit are judged in one frame. Nine sheets:
 //
 //   catalog   every piece of every slot asked for, worn over the default
 //             kit, a row a piece: behind, the rear three-quarter, the side,
@@ -46,6 +46,9 @@ import { dressOf } from "../game/skier-models.ts";
 import { loadModels } from "../game/skier-models.ts";
 import { skierPose, type SkierPoseInput } from "../game/skier-pose.ts";
 import { rigSkier } from "../game/skier-rig.ts";
+import { createSkier } from "../game/skier-figure.ts";
+import { idlePose, idleRoom } from "../game/rider-idle.ts";
+import type { BodyFrame } from "../game/skier-ragdoll.ts";
 import {
   createSkisModel,
   mountsOf,
@@ -71,7 +74,10 @@ const slotsAsked = (params.get("slots") ?? GEAR_SLOTS.join(",")).split(",") as G
 const outfitsAsked = (params.get("outfits") ?? "0,1,2,3").split(",");
 const models = (params.get("models") ?? "").split(",").filter(Boolean);
 const refs = (params.get("refs") ?? "").split(",").filter(Boolean);
-const spec: SkiSpec = SKI_CATALOG.find((s) => s.id === (params.get("skis") ?? SKIS.id)) ?? SKIS;
+const specOf = (id: string): SkiSpec => SKI_CATALOG.find((s) => s.id === id) ?? SKIS;
+const spec: SkiSpec = specOf(params.get("skis") ?? SKIS.id);
+/** The pairs the boots sheet sets side by side. */
+const pairs = (params.get("pairs") ?? spec.id).split(",").filter(Boolean).map(specOf);
 
 function dressFrom(asked: string): SkierDress {
   if (/^\d+$/.test(asked)) return SLOT_DRESS[Number(asked) % SLOT_DRESS.length];
@@ -134,7 +140,7 @@ const MOMENTS: Moment[] = [
     input: { airborne: true, trick },
   })),
 ];
-const inputOf = (m: Moment): SkierPoseInput => ({
+const inputOf = (m: Moment, on: SkiSpec = spec): SkierPoseInput => ({
   hipRight: 0,
   hipAft: 0,
   lean: 0,
@@ -143,7 +149,7 @@ const inputOf = (m: Moment): SkierPoseInput => ({
   airborne: false,
   landing: 5,
   bump: 0,
-  mounts: mountsOf(spec),
+  mounts: mountsOf(on),
   ...m.input,
 });
 
@@ -161,16 +167,16 @@ type Subject = {
 
 const figures = new Map<string, SkisModel>();
 /** The dressed figure on the pair, built once per outfit. */
-function figureOf(d: SkierDress): { model: SkisModel; ms: number } {
-  const key = outfitKey(d.outfit, d.tone);
+function figureOf(d: SkierDress, on: SkiSpec = spec): { model: SkisModel; ms: number } {
+  const key = `${on.id}:${outfitKey(d.outfit, d.tone)}`;
   let m = figures.get(key);
   let ms = 0;
   if (!m) {
     const t0 = performance.now();
     dressOutfit(d.outfit, d.tone);
     ms = performance.now() - t0;
-    m = createSkisModel(spec, pairStyle(spec, d), plain);
-    m.root.position.set(0, spec.cogHeight, 0);
+    m = createSkisModel(on, pairStyle(on, d), plain);
+    m.root.position.set(0, on.cogHeight, 0);
     m.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.castShadow = o.receiveShadow = true;
     });
@@ -185,8 +191,8 @@ function dressedTris(d: SkierDress): number {
   return (cut.cloth.index.length + cut.hard.index.length) / 3;
 }
 
-function figureSubject(d: SkierDress, label: string): Subject {
-  const { model, ms } = figureOf(d);
+function figureSubject(d: SkierDress, label: string, on: SkiSpec = spec): Subject {
+  const { model, ms } = figureOf(d, on);
   return {
     label,
     root: model.root,
@@ -195,7 +201,43 @@ function figureSubject(d: SkierDress, label: string): Subject {
     pose: (m) => {
       const dressed = model.root.getObjectByName("dressed");
       if (dressed) dressed.visible = true;
-      model.poseSkier(inputOf(m));
+      model.poseSkier(inputOf(m, on));
+    },
+  };
+}
+
+/** The dressed figure STOOD AT EASE in his boots, as the rider card has
+ * him (`rider-idle.ts`), his hands empty — no pair under him. */
+function easeSubject(d: SkierDress, label: string): Subject {
+  const figure = createSkier(d, plain);
+  figure.group.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.castShadow = o.receiveShadow = true;
+  });
+  const root = new THREE.Group();
+  root.add(figure.group);
+  scene.add(root);
+  const frame: BodyFrame = {
+    origin: { x: 0, y: 0, z: 0 },
+    x: { x: 1, y: 0, z: 0 },
+    y: { x: 0, y: 1, z: 0 },
+    z: { x: 0, y: 0, z: 1 },
+  };
+  const basis = new THREE.Matrix4();
+  return {
+    label,
+    root,
+    tris: dressedTris(d),
+    cost: "at ease",
+    pose: () => {
+      const p = idlePose(0, 0, frame, idleRoom(d.outfit));
+      figure.group.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
+      basis.makeBasis(
+        new THREE.Vector3(frame.x.x, frame.x.y, frame.x.z),
+        new THREE.Vector3(frame.y.x, frame.y.y, frame.y.z),
+        new THREE.Vector3(frame.z.x, frame.z.y, frame.z.z),
+      );
+      figure.group.quaternion.setFromRotationMatrix(basis);
+      figure.sprawl(p);
     },
   };
 }
@@ -257,7 +299,7 @@ type View = {
   bearing: number;
   up: number;
   dist: number;
-  aim: "body" | "head" | "hand";
+  aim: "body" | "head" | "hand" | "boot";
   /** Where on him a body view aims, m over the snow (his middle when left out). */
   at?: number;
 };
@@ -281,8 +323,12 @@ function aim(root: THREE.Object3D, v: View, w: number, h: number): THREE.Perspec
   root.updateMatrixWorld(true);
   if (v.aim === "body") at.set(0, v.at ?? spec.cogHeight + 0.1, 0);
   else {
-    const bone = root.getObjectByName(v.aim === "head" ? "head" : "hand_r");
+    const bone = root.getObjectByName(
+      v.aim === "head" ? "head" : v.aim === "hand" ? "hand_r" : "boot_r",
+    );
     if (bone) bone.getWorldPosition(at);
+    // A boot is aimed at its middle, a hand's breadth over the sole.
+    if (v.aim === "boot") at.y = Math.max(0.16, at.y - 0.12);
   }
   const b = (v.bearing * Math.PI) / 180;
   const u = (v.up * Math.PI) / 180;
@@ -524,6 +570,52 @@ function drawGame(): Drawn {
   return { rows, cols, note: "game", table: [] };
 }
 
+/** THE HANDS: each glove close round the right fist (on the pole's grip),
+ * stood and tucked, and as the chase camera sees it. */
+const HAND_VIEWS: View[] = [
+  { name: "back", bearing: -70, up: 15, dist: 0.6, aim: "hand" },
+  { name: "knuckles", bearing: -10, up: 10, dist: 0.6, aim: "hand" },
+  { name: "thumb", bearing: 60, up: 35, dist: 0.6, aim: "hand" },
+  { name: "palm", bearing: 120, up: -25, dist: 0.6, aim: "hand" },
+  { name: "chase", bearing: 165, up: 15, dist: 0.9, aim: "hand" },
+];
+function drawHands(): Drawn {
+  const rows: { label: string; subject: Subject; moment?: Moment }[] = [];
+  for (const g of GEAR.gloves) {
+    const outfit = { ...DEFAULT_OUTFIT, gloves: g.id } as Outfit;
+    const s = figureSubject({ outfit }, g.name);
+    rows.push({ label: `${g.name} · stood`, subject: s, moment: MOMENTS[0] });
+    rows.push({ label: `${g.name} · tuck`, subject: s, moment: MOMENTS[3] });
+    rows.push({ label: `${g.name} · at ease`, subject: easeSubject({ outfit }, g.name) });
+  }
+  return drawRows(
+    "hands — every glove on the grip, and empty at ease: back, knuckles, thumb, palm, chase",
+    rows,
+    () => HAND_VIEWS,
+  );
+}
+
+/** THE FEET: each pair's boots close, stood and carving. */
+const BOOT_VIEWS: View[] = [
+  { name: "outside", bearing: -90, up: 8, dist: 0.95, aim: "boot" },
+  { name: "front three", bearing: -35, up: 18, dist: 0.95, aim: "boot" },
+  { name: "inside", bearing: 80, up: 12, dist: 0.95, aim: "boot" },
+  { name: "back three", bearing: -150, up: 20, dist: 0.95, aim: "boot" },
+  { name: "chase", bearing: 180, up: 16, dist: 1.6, aim: "boot" },
+];
+function drawBoots(): Drawn {
+  const rows: { label: string; subject: Subject; moment: Moment }[] = [];
+  for (const p of pairs) {
+    const s = figureSubject(dresses[0], p.id, p);
+    rows.push({ label: `${p.id} · stood`, subject: s, moment: MOMENTS[0] });
+  }
+  return drawRows(
+    "boots — every pair's boots: outside, front three, inside, back three, chase",
+    rows,
+    () => BOOT_VIEWS,
+  );
+}
+
 /** THE REFERENCES: the photographs in a row a slot (their file names lead
  * with the slot: `jacket-…`, `pants-…`), the slot's pieces as drawn after
  * them. */
@@ -592,6 +684,10 @@ window.__gear = {
         return drawCompare();
       case "refs":
         return drawRefs();
+      case "hands":
+        return drawHands();
+      case "boots":
+        return drawBoots();
       default:
         return drawCatalog();
     }

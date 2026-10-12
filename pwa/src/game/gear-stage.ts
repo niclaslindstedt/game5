@@ -27,7 +27,7 @@ import { freshSkier, isBoard, pairById, type SkiSpec, type SkierState } from "@e
 
 import { outfitKey } from "./dress.ts";
 import { carriesPoles, DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
-import { idlePose } from "./rider-idle.ts";
+import { idlePose, idleRoom } from "./rider-idle.ts";
 import { createSkisModel, pairStyle, REST_SAG, type SkisModel } from "./skis-body.ts";
 import { createBackdrop, HAZE, SUN_DIR } from "./stage-backdrop.ts";
 
@@ -145,7 +145,10 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   const dress = (s: StageShot, outfit: Outfit): void => {
     if (!model || !rest) return;
     rest.poles = s === "gear" && carriesPoles(outfit);
-    model.setStood?.(s === "rider" ? (ground, frame) => idlePose(clock, ground, frame) : null);
+    const room = idleRoom(outfit);
+    model.setStood?.(
+      s === "rider" ? (ground, frame) => idlePose(clock, ground, frame, room) : null,
+    );
   };
 
   const build = (s: StageShot, given: SkiSpec, outfit: Outfit): void => {

@@ -41,6 +41,7 @@ import {
   type Section,
   type V3,
 } from "./dress-loft.ts";
+import { GAUNTLET_SLEEVE, overSleeve } from "./dress-gloves.ts";
 import { gearOf, suitPants, type JacketId, type Outfit, type PantsId } from "./outfit.ts";
 
 const TAU = Math.PI * 2;
@@ -675,10 +676,15 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
     // Started low inside the shoulder, so the deltoid's top rounds off under
     // the shoulder line rather than standing over it as an epaulette.
     const start = add(P.shoulders[i], add(mul(out, -0.06), mul(F.chest.y, -0.03)));
-    const wrist = add(fa.head, mul(fa.y, fa.length * m.wristAt));
+    // Under a gauntlet the sleeve ends inside its mouth (`GAUNTLET_SLEEVE`),
+    // the cuff pulled on over it; under an undercuff it reaches the wrist.
+    const wristAt = overSleeve(o)
+      ? Math.min(m.wristAt, 1 + (GAUNTLET_SLEEVE - 0.04) / fa.length)
+      : m.wristAt;
+    const wrist = add(fa.head, mul(fa.y, fa.length * wristAt));
     const path = [start, P.elbows[i], wrist, add(wrist, mul(fa.y, 0.04))];
     const L1 = 0.06 + ua.length;
-    const L2 = L1 + fa.length * m.wristAt;
+    const L2 = L1 + fa.length * wristAt;
     const e = cut.sleeve;
     const b = m.biceps * 0.95;
     const f = m.forearm * 0.95;

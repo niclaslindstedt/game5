@@ -16,6 +16,10 @@
 //   compare   the dressed figure beside each `--model` (a Blender glTF,
 //             e.g. `make blender KIND=skier`'s previews/blender/skier0-lod0.glb)
 //             in one kit, with each one's triangles and making cost
+//   hands     every glove close on the grip, stood and tucked, from the
+//             back, the knuckles, the thumb, the palm and the chase
+//   boots     the boots of each `--pairs` pair close, stood and carving,
+//             from outside, the front, inside, behind and the chase
 //   refs      local reference photographs (`--refs=DIR`: jpg, png or webp
 //             files named by slot — `jacket-…`, `pants-…`, `helmet-…`,
 //             `gloves-…`, `poles-…`, `body-…`) beside the pieces as drawn.
@@ -44,7 +48,7 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".gear-preview");
 const outDir = join(root, "previews");
-const SHEETS = ["catalog", "outfits", "poses", "game", "wire", "compare", "refs"];
+const SHEETS = ["catalog", "outfits", "poses", "game", "wire", "compare", "hands", "boots", "refs"];
 const SLOTS = ["body", "weight", "jacket", "pants", "helmet", "gloves", "poles"];
 
 const args = parseArgs(
@@ -76,11 +80,16 @@ const args = parseArgs(
       help: "a directory of local reference photographs, named by slot (the refs sheet)",
     },
     skis: { kind: "string", default: "chamois", help: "the pair he stands on" },
+    pairs: {
+      kind: "string",
+      default: "chamois,swift,chough,raven",
+      help: "the pairs whose boots the boots sheet sets side by side",
+    },
     cell: { kind: "number", default: 300, help: "a cell's width, px" },
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 180, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/gear-preview.mjs [--sheet=catalog,outfits,poses,game,wire,compare,refs] [--slots=jacket] [--outfits=0,1] [--model=a.glb] [--refs=DIR]",
+  "usage: node scripts/gear-preview.mjs [--sheet=catalog,outfits,poses,game,wire,compare,hands,boots,refs] [--pairs=chamois,swift] [--slots=jacket] [--outfits=0,1] [--model=a.glb] [--refs=DIR]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS.filter((s) => s !== "refs");
@@ -176,6 +185,7 @@ for (const sheet of sheets) {
     models: models.join(","),
     refs: refs.join(","),
     skis: args.skis,
+    pairs: args.pairs,
     cell: String(args.cell),
   }).toString();
   const t0 = Date.now();

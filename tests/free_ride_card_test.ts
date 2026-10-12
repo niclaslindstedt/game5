@@ -24,6 +24,9 @@ import {
   snowCoverOf,
   standSkier,
   step,
+  TIMES_OF_DAY,
+  WEATHER_KINDS,
+  hourOfTime,
 } from "@engine";
 
 import {
@@ -51,6 +54,8 @@ import {
   sledOn,
   spotOn,
   startPicked,
+  dealtDay,
+  firstWhere,
 } from "../pwa/src/game/free-ride.ts";
 import {
   CHART_VIEW,
@@ -60,6 +65,7 @@ import {
   seedSchematic,
   toChart,
 } from "../pwa/src/game/seed-chart.ts";
+import { DEFAULT_FACE, rangeIds, rangeOf } from "../pwa/src/game/face-picks.ts";
 import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
@@ -82,7 +88,35 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       run: null,
       suit: "rig",
       avalanche: true,
+      placed: false,
     });
+  });
+
+  it("stands a first visit's WHERE steps on the first real range, once", () => {
+    const ride = firstWhere(freshSettings().ride);
+    expect(ride.placed).toBe(true);
+    expect(ride.face).toBe(DEFAULT_FACE);
+    expect(rangeOf(ride.face)).toBe(rangeIds()[0]);
+    expect(rangeIds()[0]).toBe("ALPS");
+    // Placed, it is wherever the skier last left it, GENERATED included.
+    const left = { ...ride, face: null };
+    expect(firstWhere(left)).toBe(left);
+  });
+
+  it("names the day a map was dealt in the card's own words", () => {
+    const level = syntheticLevel();
+    const day = dealtDay(level);
+    expect(SEASONS.map((s) => s.id)).toContain(day.season);
+    expect(TIMES_OF_DAY).toContain(day.time);
+    expect(WEATHER_KINDS).toContain(day.weather);
+    // A map dealt on a season's own date at a time's own hour reads back as them.
+    const lat = level.sun.latitude;
+    const doy = 20;
+    const at = {
+      ...level,
+      sun: { ...level.sun, dayOfYear: doy, hour: hourOfTime(lat, doy, "evening") },
+    };
+    expect(dealtDay(at)).toMatchObject({ season: "mid", time: "evening" });
   });
 
   it("reads an older blob with no ride in it as a fresh one", () => {
@@ -185,6 +219,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       run: { seed: 9, region: "fell" as const, id: "4" },
       suit: "rig" as const,
       avalanche: true,
+      placed: true,
     };
     const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.mode).toBe("free");

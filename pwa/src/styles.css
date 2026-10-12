@@ -2346,6 +2346,12 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+/* A value the map dealt rather than one the skier picked (the start card's
+   SEASON, TIME and WEATHER): the same word, in a warm, quiet colour. */
+.knob-dealt .knob-word {
+  color: var(--alpenglow);
+}
+
 .knob-value .knob-word {
   white-space: normal;
   text-align: center;

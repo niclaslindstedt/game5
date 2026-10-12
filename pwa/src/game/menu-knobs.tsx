@@ -163,7 +163,7 @@ export function StepRow<T extends string>({
   };
   return (
     <div
-      class="knob"
+      class="knob knob-step"
       data-nav-steps
       {...carries(label, hint)}
       onPointerEnter={describe}
@@ -503,7 +503,9 @@ export function KnobGroup({
 }
 
 /** The page's ONE sentence — the row being looked at, named and then
- * explained, or the page's own line while no row is. Written as the card's
+ * explained, or the page's own line while no row is (a page with nothing
+ * worth saying until a row is looked at has none, and the bar stands
+ * empty and unseen). Written as the card's
  * last child, after its `MenuBody`: the body scrolls and this does not, so
  * the sentence is on screen whichever row is being read.
  *
@@ -516,7 +518,7 @@ export function KnobGroup({
  * (`carries`) is laid in the same cell, unseen, and the one being read is
  * drawn over them: the bar's height is decided before the first touch and
  * never moves after it. */
-export function Caption({ hint, fallback }: { hint: Hint | null; fallback: string }) {
+export function Caption({ hint, fallback = "" }: { hint: Hint | null; fallback?: string }) {
   const bar = useRef<HTMLDivElement>(null);
   const [all, setAll] = useState<Hint[]>([]);
   useLayoutEffect(() => {
@@ -553,7 +555,11 @@ export function Caption({ hint, fallback }: { hint: Hint | null; fallback: strin
       </>
     );
   return (
-    <div ref={bar} class={`knob-caption${hint ? " knob-caption-on" : ""}`} aria-live="polite">
+    <div
+      ref={bar}
+      class={`knob-caption${hint ? " knob-caption-on" : ""}${!hint && !fallback ? " knob-caption-idle" : ""}`}
+      aria-live="polite"
+    >
       <span class="knob-caption-line">{line(hint)}</span>
       <span class="knob-caption-line knob-caption-sizer" aria-hidden="true">
         {fallback}

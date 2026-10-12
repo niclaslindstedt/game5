@@ -138,6 +138,14 @@ export const HINT_GRADES: Readonly<Record<string, readonly RunGrade[]>> = {
   "maritime-21": ["green", "blue", "black"],
   "maritime-22": ["green", "blue", "black"],
   "maritime-23": ["green", "blue", "black", "orange"],
+  "alpine-30": ["green", "blue", "red", "black"],
+  "alpine-31": ["blue", "red", "black", "orange"],
+  "alpine-32": ["blue", "red", "black"],
+  "alpine-33": ["green", "blue", "red"],
+  "maritime-24": ["green", "blue", "red", "black", "orange"],
+  "continental-23": ["green", "blue", "black"],
+  "continental-24": ["green", "blue", "black"],
+  "maritime-25": ["green", "blue", "black"],
 };
 
 /** Each wooded face's woods by height, read off the forest the map draws:
@@ -250,6 +258,13 @@ export const HINT_TREES: Readonly<Record<string, string>> = {
   "maritime-21": "ffcb94dad7d0d2d7ba",
   "maritime-22": "8a71a386650b000000",
   "maritime-23": "a5b7afbdc679060000",
+  "alpine-30": "85367a7a3f04000000",
+  "alpine-31": "5a608f320000000000",
+  "alpine-32": "aa43ab616b300b0000",
+  "maritime-24": "efb8cc9ba37c815010",
+  "continental-23": "000000000000000000",
+  "continental-24": "000000000000000000",
+  "maritime-25": "000000000000000000",
 };
 
 /** Each face's hints, fetched when a map is raised on it. */
@@ -360,4 +375,12 @@ export const HINT_LOADERS: Readonly<Record<string, () => Promise<{ HINTS: HintDa
   "maritime-21": () => import("./real-hints/hints-maritime-21.ts"),
   "maritime-22": () => import("./real-hints/hints-maritime-22.ts"),
   "maritime-23": () => import("./real-hints/hints-maritime-23.ts"),
+  "alpine-30": () => import("./real-hints/hints-alpine-30.ts"),
+  "alpine-31": () => import("./real-hints/hints-alpine-31.ts"),
+  "alpine-32": () => import("./real-hints/hints-alpine-32.ts"),
+  "alpine-33": () => import("./real-hints/hints-alpine-33.ts"),
+  "maritime-24": () => import("./real-hints/hints-maritime-24.ts"),
+  "continental-23": () => import("./real-hints/hints-continental-23.ts"),
+  "continental-24": () => import("./real-hints/hints-continental-24.ts"),
+  "maritime-25": () => import("./real-hints/hints-maritime-25.ts"),
 };

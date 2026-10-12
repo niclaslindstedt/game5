@@ -26,6 +26,7 @@ import { boardInputOf } from "../pwa/src/game/board-input.ts";
 import { newsFor } from "../pwa/src/game/run-news.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
 import { boardUnderFeet } from "../pwa/src/game/board-thrown.ts";
+import { createLimbEase, easeLimbs } from "../pwa/src/game/board-ease.ts";
 import {
   boardPose,
   headForward,
@@ -49,6 +50,8 @@ const PITCH = Math.tan(Math.PI / 9);
 const sub = (a: V3, b: V3): V3 => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 const dot = (a: V3, b: V3): number => a.x * b.x + a.y * b.y + a.z * b.z;
 const len = (a: V3): number => Math.hypot(a.x, a.y, a.z);
+const add = (a: V3, b: V3): V3 => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
+const scale = (a: V3, k: number): V3 => ({ x: a.x * k, y: a.y * k, z: a.z * k });
 const unit = (a: V3): V3 => {
   const l = len(a) || 1;
   return { x: a.x / l, y: a.y / l, z: a.z / l };
@@ -180,6 +183,39 @@ describe("the snowboarder's pose", () => {
       expect(apart, id).toBeLessThan(1.2 * at(id).input.board.stance);
     }
     expect(at("skate").bp.free).not.toBeNull();
+  });
+
+  it("pushes the skate with the free foot's toes square into the board, never along it", () => {
+    const { input, bp } = at("skate");
+    const i = bp.free!;
+    const toes = bp.pose.boots[i].f;
+    // Pushing hard, the boot points across the deck within ~25°.
+    const along = Math.abs(dot(unit(toes), bp.board.along));
+    expect(input.drive).toBeGreaterThan(0.5);
+    expect(along).toBeLessThan(Math.sin((25 * Math.PI) / 180));
+  });
+
+  it("eases the limbs between frames: an elbow flipped comes round, a hand never jumps", () => {
+    const { bp } = at("straight");
+    const e = createLimbEase();
+    easeLimbs(e, bp.pose, 0);
+    // The same pose with the left elbow bent the other way, and the hand
+    // thrown 30 cm, a frame on.
+    const p: SkierPose = structuredClone(bp.pose);
+    const s = p.shoulders[0];
+    const h = p.hands[0];
+    const u = unit(sub(h, s));
+    const foot = add(s, scale(u, dot(sub(p.elbows[0], s), u)));
+    p.elbows[0] = sub(scale(foot, 2), p.elbows[0]);
+    p.hands[0] = add(h, { x: 0.3, y: 0, z: 0 });
+    const dt = 1 / 60;
+    const out = easeLimbs(e, p, dt);
+    expect(len(sub(out.hands[0], h))).toBeLessThan(0.05);
+    const turned = len(sub(out.elbows[0], bp.pose.elbows[0]));
+    expect(turned).toBeLessThan(0.1);
+    // ...each bone's length kept.
+    const upper = len(sub(bp.pose.elbows[0], s));
+    expect(len(sub(out.elbows[0], s))).toBeCloseTo(upper, 2);
   });
 
   it("rides across the board, the hips and shoulders near square to it", () => {

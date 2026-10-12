@@ -76,6 +76,7 @@ const P = await import(join(root, "pwa/src/game/skier-pose.ts"));
 const BI = await import(join(root, "pwa/src/game/board-input.ts"));
 const BP = await import(join(root, "pwa/src/game/board-pose.ts"));
 const BG = await import(join(root, "pwa/src/game/board-grab.ts"));
+const BE = await import(join(root, "pwa/src/game/board-ease.ts"));
 
 const spec = E.pairById(args.skis);
 if (!E.isBoard(spec)) {
@@ -138,6 +139,47 @@ function momentAt(move, t, f, free = false, airborne = false, air = 0, held = 1)
   return at.id;
 }
 
+/** The pose's joints, in the body frame, named for the SNAP column. */
+function jointsOf(p) {
+  const at = { hips: p.hips, waist: p.waist, neck: p.neck, head: p.head };
+  for (const k of ["hipJoints", "knees", "feet", "shoulders", "elbows", "hands"]) {
+    at[`${k}0`] = p[k][0];
+    at[`${k}1`] = p[k][1];
+  }
+  at.toe0 = p.boots[0].f;
+  at.toe1 = p.boots[1].f;
+  return at;
+}
+
+/** SNAP: a joint's jolt between two frames of the drawing — its second
+ * difference over the samples, as an acceleration, m/s² (a toe's
+ * direction read as a point 0.3 m out along it). Above `SNAP_MOST` a
+ * frame reads as a jump rather than motion: the share of frames past it,
+ * and the worst with its joint and second. */
+const SNAP_MOST = 150;
+function snapOf(samples) {
+  let bad = 0;
+  let worst = { a: 0, joint: "", t: 0 };
+  for (let k = 1; k + 1 < samples.length; k++) {
+    const [p, q, r] = [samples[k - 1], samples[k], samples[k + 1]];
+    const h = (r.t - p.t) / 2;
+    if (h <= 0 || h > 0.1) continue;
+    let most = 0;
+    let at = "";
+    for (const j of Object.keys(q.joints)) {
+      const w = j.startsWith("toe") ? 0.3 : 1;
+      const d = ["x", "y", "z"].map(
+        (c) => (p.joints[j][c] - 2 * q.joints[j][c] + r.joints[j][c]) * w,
+      );
+      const a = Math.hypot(...d) / (h * h);
+      if (a > most) [most, at] = [a, j];
+    }
+    if (most > SNAP_MOST) bad++;
+    if (most > worst.a) worst = { a: most, joint: at, t: q.t };
+  }
+  return { share: samples.length > 2 ? bad / (samples.length - 2) : 0, worst };
+}
+
 /** Ride `move` its whole time, the figures every `every` s. */
 function ride(move) {
   const state = E.createGame({
@@ -154,6 +196,10 @@ function ride(move) {
   const legs = P.createSkierSpring(0);
   const dt = 1 / E.TUNING.physicsHz;
   let grab = { grab: null, share: 0 };
+  let freeShare = 0;
+  let fakieShare = 1;
+  const limbs = BE.createLimbEase();
+  let last = null;
   let next = 0;
   const samples = [];
   while (state.t - t0 < move.seconds) {
@@ -161,7 +207,12 @@ function ride(move) {
     const c = state.skier;
     const held = state.tricks.pose;
     grab = BG.easeGrab(grab, BG.isBoardGrab(held) ? held : null, dt);
-    if (c.thrown) continue;
+    freeShare = BI.easeFree(freeShare, c.board?.free === true, dt);
+    fakieShare = BI.easeFakie(fakieShare, c.switched === true, dt);
+    if (c.thrown) {
+      BE.resetLimbEase(limbs);
+      continue;
+    }
     P.stepSkierSpring(
       legs,
       c.vy,
@@ -177,14 +228,20 @@ function ride(move) {
     if (t + 1e-9 < next) continue;
     next += args.every;
     const { input } = BI.boardInputOf(c, legs, c.q);
+    input.freeShare = freeShare;
+    input.fakieShare = fakieShare;
     input.grab = grab.grab;
     input.grabShare = grab.share;
     const bp = BP.boardPose(input);
+    // ...its limbs eased from the last frame's, as the model draws them.
+    bp.pose = BE.easeLimbs(limbs, bp.pose, last === null ? 0 : t - last);
+    last = t;
     const f = figuresOf(c, input, bp, BP);
     samples.push({
       t,
       moment: momentAt(move, t, f, input.free, c.airborne, input.air, grab.share),
       f,
+      joints: jointsOf(bp.pose),
     });
   }
   return samples;
@@ -212,28 +269,39 @@ function outShares(samples) {
 
 const rows = moves.map((m) => {
   const samples = ride(m);
-  return { id: m.id, title: m.title, seconds: m.seconds, samples, out: outShares(samples) };
+  const snap = snapOf(samples);
+  return {
+    id: m.id,
+    title: m.title,
+    seconds: m.seconds,
+    samples,
+    out: { ...outShares(samples), snap: snap.share },
+    worst: snap.worst,
+  };
 });
 
 // THE TABLE: each move's share of frames outside each band.
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;
 const pad = (s, n) => String(s).padStart(n);
 const pct = (v) => `${Math.round(v * 100)}%`;
-console.log(`${"move".padEnd(14)}${CHARTS.map((c) => pad(c.id, 9)).join("")}`);
+const COLUMNS = [...CHARTS.map((c) => c.id), "snap"];
+console.log(`${"move".padEnd(14)}${COLUMNS.map((c) => pad(c, 9)).join("")}   worst snap`);
 for (const r of rows) {
   const was = before?.find((b) => b.id === r.id);
-  const cells = CHARTS.map((c) => {
-    const now = pct(r.out[c.id]);
-    const then = was ? pct(was.out[c.id] ?? 0) : null;
+  const cells = COLUMNS.map((c) => {
+    const now = pct(r.out[c]);
+    const then = was ? pct(was.out[c] ?? 0) : null;
     return pad(then !== null && then !== now ? `${then}>${now}` : now, 9);
   });
-  console.log(`${r.id.padEnd(14)}${cells.join("")}`);
+  const w = r.worst;
+  const worst = `${Math.round(w.a)} m/s² ${w.joint} @${w.t.toFixed(2)}s`;
+  console.log(`${r.id.padEnd(14)}${cells.join("")}   ${worst}`);
 }
 if (args.json) {
   writeFileSync(
     join(root, args.json),
     JSON.stringify(
-      rows.map((r) => ({ id: r.id, out: r.out })),
+      rows.map((r) => ({ id: r.id, out: r.out, worst: r.worst })),
       null,
       2,
     ),

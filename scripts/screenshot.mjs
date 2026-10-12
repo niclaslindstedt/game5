@@ -368,18 +368,6 @@ const SURFACES = {
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map
   // generated in a worker — has landed on it.
   start: { params: { menu: "start" }, wait: ".seed-preview-map image", settle: 700 },
-  // ...with the helicopter picked on map 38 and the SUIT row on WINGSUIT
-  // (`storage`: the settings the card reads, laid in before the page loads).
-  "start-suit": {
-    params: { menu: "start" },
-    storage: {
-      "fall-line.settings.v1": JSON.stringify({
-        ride: { seed: 38, run: { seed: 38, region: "alpine", id: "heli" }, suit: "wingsuit" },
-      }),
-    },
-    wait: ".seed-preview-map image",
-    settle: 700,
-  },
   // ...and the free ride itself, twenty seconds in, held still: no run's
   // figures over it — the map's seed alone at the top left.
   free: {

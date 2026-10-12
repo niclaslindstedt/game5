@@ -47,8 +47,8 @@
 //   SNOW    thin, medium, thick or very deep (`SNOW_STOPS`), read as how
 //           deep the loose snow lies — up to a metre of fresh snow.
 //
-//   START   how the ride begins: ON SKIS or ON A SNOWBOARD (the pair of
-//           that kind the gear card picks), carried by the lift to the RUN
+//   START   how the ride begins: SLOPE (on the skis or the board the
+//           gear card picks), carried by the lift to the RUN
 //           row's run — or a way up with no lift: the PARAMOTOR (the
 //           ride begun on the summit, the wing over him, skied off and
 //           flown — `para.ts`), the HOT AIR BALLOON (begun in its basket
@@ -61,18 +61,13 @@
 //           the valley's lodge at the party — `afterski.ts`). A machine is
 //           kept as a run id of its map, as it always was (`startPicked`).
 //
-//   SUIT    on a craft he can jump from (the paramotor, the balloon, the
-//           helicopter, the plane) only: what he jumps in — the
-//           skydiver's rig on his skis, or the WINGSUIT with none
-//           (`FreeRide.suit`).
-//
 //   RUN     which run of the ski area the ride starts down, by the number
 //           the piste map signs it with — EVERY run of the map, of any
 //           colour, and nothing that is not a run (`markedRun`, the
 //           engine's `pickFreeRun`). The lift up to its top carries the
 //           skier the last few seconds, and the chart marks its head with
 //           a pulse; the line under the chart bills it. Picking one puts
-//           the START row back ON SKIS (`runPicked`). There is NO GRADE
+//           the START row back on the SLOPE (`runPicked`). There is NO GRADE
 //           row: the mountain is the seed's own, and the slope is chosen
 //           here, whatever its colour.
 //
@@ -110,7 +105,7 @@ import {
 } from "./face-picks.ts";
 import { SEASONS, SNOW_STOPS, runPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
-import { startChosen, SUIT_STOPS, useRunPick } from "./run-pick.ts";
+import { startChosen, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
@@ -273,17 +268,6 @@ export function StartPage({
                 onPick={(id) => onSettings(startChosen(settings, seed, id))}
                 onHint={setHint}
               />
-              {/* THE SUIT the airborne rides ask: the rig on his skis, or the wingsuit. */}
-              {pick.suits && (
-                <StepRow
-                  label={STRINGS.startSuit}
-                  hint={STRINGS.startSuitHint}
-                  stops={SUIT_STOPS}
-                  value={ride.suit}
-                  onPick={(suit) => setRide({ suit })}
-                  onHint={setHint}
-                />
-              )}
               <StepRow
                 label={STRINGS.startRun}
                 hint={STRINGS.startRunHint}

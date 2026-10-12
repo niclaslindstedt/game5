@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE WINGSUIT ON THE APP'S SIDE: the START row's WINGSUIT stop and the
-// SUIT row the airborne rides ask (`free-ride.ts`), what is kept of them
-// (`mergeRide`), the links (`url-params.ts`), where a dead flyer's next
+// THE WINGSUIT ON THE APP'S SIDE: the START row's WINGSUIT stop — its own
+// thing, never worn up a craft from the cards (`free-ride.ts`), the links (`url-params.ts`), where a dead flyer's next
 // rider stands (`againAt`), its HUD strip (`plane-hud.ts`'s `chuteOf`), its
 // news (`run-news.ts`) and its voice (`chute-bed.ts`, `chute-voice.ts`).
 
@@ -11,13 +10,12 @@ import { SKIS, createGame, skydiveAt, step, NEUTRAL_INPUT, WINGSUIT } from "@eng
 import {
   BALLOON_RUN,
   HELI_RUN,
-  SLED_RUN,
+  PLANE_RUN,
   WINGSUIT_RUN,
   againAt,
   freeGameOptions,
   freshRide,
   mergeRide,
-  suitedOn,
   type FreeRide,
 } from "../pwa/src/game/free-ride.ts";
 import { overLink, readParams } from "../pwa/src/game/url-params.ts";
@@ -33,7 +31,7 @@ const on = (id: string, o: Partial<FreeRide> = {}): FreeRide => ({
   ...o,
 });
 
-describe("the START row's WINGSUIT stop and the SUIT row", () => {
+describe("the START row's WINGSUIT stop", () => {
   it("stands the ride up in the wingsuit on its own exit, never by lift", () => {
     const o = freeGameOptions(on(WINGSUIT_RUN), 7, skier);
     expect(o.wingsuit).toBe(true);
@@ -41,20 +39,14 @@ describe("the START row's WINGSUIT stop and the SUIT row", () => {
     expect(o.plane || o.heli || o.para || o.balloon).toBeFalsy();
   });
 
-  it("puts him in the suit up an airborne craft only when the SUIT row says so", () => {
-    expect(freeGameOptions(on(HELI_RUN), 7, skier).wingsuit).toBeUndefined();
-    const heli = freeGameOptions(on(HELI_RUN, { suit: "wingsuit" }), 7, skier);
-    expect(heli.heli).toBe(true);
-    expect(heli.wingsuit).toBe(true);
-    expect(freeGameOptions(on(BALLOON_RUN, { suit: "wingsuit" }), 7, skier).wingsuit).toBe(true);
-    // The snowmobile does not fly: the row says nothing there.
-    expect(suitedOn(on(SLED_RUN, { suit: "wingsuit" }), 7)).toBe(false);
-  });
-
-  it("keeps the SUIT row's answer, and drops a stored nonsense", () => {
-    expect(mergeRide({ suit: "wingsuit" }).suit).toBe("wingsuit");
-    expect(mergeRide({ suit: "cape" }).suit).toBe("rig");
-    expect(mergeRide({}).suit).toBe("rig");
+  it("never puts him in the suit up a craft: the aircraft jump in the parachute", () => {
+    for (const id of [HELI_RUN, BALLOON_RUN, PLANE_RUN]) {
+      expect(freeGameOptions(on(id), 7, skier).wingsuit).toBeUndefined();
+      // A blob from when the cards asked a SUIT row is read without it.
+      const old = mergeRide({ ...on(id), suit: "wingsuit" } as never);
+      expect("suit" in old).toBe(false);
+      expect(freeGameOptions(old, 7, skier).wingsuit).toBeUndefined();
+    }
   });
 
   it("stands the next rider on the exit when a flyer dies there", () => {

@@ -117,7 +117,7 @@ export function SkisCards(p: {
   onPage: (page: "skis" | "dress") => void;
   onBack: () => void;
   onRide: () => void;
-  /** A free ride flown in a WINGSUIT (`suitedOn`): no skis go with him, so
+  /** A free ride flown in a WINGSUIT (`wingsuitOn`): no skis go with him, so
    * the rider card rides and the gear card is never shown. */
   noSkis?: boolean;
 }) {

@@ -25,7 +25,7 @@ import { FreestylePage } from "./menu-freestyle.tsx";
 import { StartPage } from "./menu-start.tsx";
 import { WherePage } from "./menu-where.tsx";
 import { stepAfter, stepBefore } from "./where-steps.ts";
-import { suitedOn } from "./free-ride.ts";
+import { wingsuitOn } from "./free-ride.ts";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
 import type { Settings } from "./settings.ts";
@@ -154,7 +154,7 @@ export function MenuPages(p: {
             setPage(to === "root" && race ? "races" : to === "root" && trick ? "freestyle" : to);
           }}
           onRide={p.mode === "free" ? p.onFreeRide : p.onRide}
-          noSkis={p.mode === "free" && suitedOn(settings.ride, settings.ride.seed ?? p.startSeed)}
+          noSkis={p.mode === "free" && wingsuitOn(settings.ride, settings.ride.seed ?? p.startSeed)}
         />
       ) : page === "start" ? (
         <StartPage

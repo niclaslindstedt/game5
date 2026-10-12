@@ -86,7 +86,6 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       face: null,
       grade: null,
       run: null,
-      suit: "rig",
       avalanche: true,
       placed: false,
     });
@@ -465,7 +464,7 @@ describe("the START row and the RUN row (free-ride.ts)", () => {
     expect(runOn(onHeli, 7)).toBe(HELI_RUN);
   });
 
-  it("hands the ride back to the map's own run ON SKIS", () => {
+  it("hands the ride back to the map's own run on the SLOPE", () => {
     const onHeli = { ...freshRide(), run: { seed: 7, region, id: HELI_RUN } };
     const onSkis = { ...onHeli, ...startPicked(onHeli, 7, SKIS_START) };
     expect(heliOn(onSkis, 7)).toBe(false);

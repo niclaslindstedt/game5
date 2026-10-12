@@ -76,7 +76,7 @@ import {
 } from "./interp.ts";
 import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
-import { runsOf, SLICE_OF_GROUP, thrownEffects, type Rider } from "./renderer-rider.ts";
+import { hideSlices, runsOf, SLICE_OF_GROUP, thrownEffects, type Rider } from "./renderer-rider.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
@@ -824,13 +824,7 @@ export function createWorldRenderer(
 
       const built = performance.now();
       if (present) {
-        for (const child of scene.children) {
-          const slice = SLICE_OF_GROUP[child.name];
-          if (slice !== undefined && hidden.has(slice) && child.visible) {
-            child.visible = false;
-            hid.push(child);
-          }
-        }
+        hideSlices(scene, hidden, hid);
         const autoShadow = gl.shadowMap.autoUpdate;
         if (hidden.has("shadow")) gl.shadowMap.autoUpdate = false;
         timer.push("scene");
@@ -863,7 +857,7 @@ export function createWorldRenderer(
     },
 
     cost: () => cost,
-    sceneTally: () => tallyScene(scene),
+    sceneTally: () => tallyScene(scene, lens.camera),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {
       overlayOn = on;

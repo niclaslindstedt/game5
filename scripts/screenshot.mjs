@@ -105,6 +105,7 @@ import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
 import { challengeShots } from "./lib/challenge-shots.mjs";
+import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
@@ -131,10 +132,12 @@ const SCENES = {
  * card being in the DOM. `settle` is the beat after it the card's arrival
  * animation needs. `press` is a button pressed on the way in, for a surface
  * reached by a press rather than by a URL, and `keys` are keys pressed once
- * the card is up; `prime` is a race stood
+ * the card is up; `storage` is what the game remembers, laid in before the
+ * page loads (a card that reads a stored pick); `prime` is a race stood
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
 const SURFACES = {
+  ...WINGSUIT_SURFACES,
   // The title and the invitation, over the title scene's first frames.
   splash: { params: { splash: "1" }, wait: ".splash-prompt", settle: 900 },
   // The front door over the title scene (a visit's first)...
@@ -522,6 +525,18 @@ const SURFACES = {
     wait: ".hud-plane",
     settle: 1500,
   },
+  // THE WINGSUIT (`wingsuit.ts`, `?wingsuit=1`): stood on its exit high on
+  // the mountain, and flying the suit's glide (`?chute=` with `wingsuit=1`).
+  "wingsuit-ready": {
+    params: { start: "free", wingsuit: "1", t: "1", shot: "1" },
+    wait: ".hud-chute",
+    settle: 1500,
+  },
+  wingsuit: {
+    params: { start: "free", wingsuit: "1", chute: "500", t: "6", shot: "1" },
+    wait: ".hud-chute",
+    settle: 1500,
+  },
   "chute-free": {
     params: { start: "free", chute: "1500", t: "4", shot: "1" },
     wait: ".hud-chute",
@@ -743,6 +758,13 @@ async function capture(name, params, viewportName, surface) {
         null,
         { timeout: args.timeout * 1000 },
       );
+    }
+    if (surface?.storage) {
+      // A surface that reads what the game remembers: laid in before any of
+      // the page's own scripts run.
+      await page.addInitScript((kept) => {
+        for (const [k, v] of Object.entries(kept)) localStorage.setItem(k, v);
+      }, surface.storage);
     }
     await page.goto(url, { waitUntil: "load" });
     if (surface) {

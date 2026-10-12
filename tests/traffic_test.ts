@@ -6,7 +6,7 @@
 // carriageway, never two in one place, at a village's speeds; the bus
 // standing at its stop; and, on a free ride alone, met by the skier.
 
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { lampLevels, vehicleLook } from "../pwa/src/game/traffic-look.ts";
 import { PEDAL_POSES, PEDAL_STRIDE, pedalDials } from "../pwa/src/game/traffic-rider.ts";
@@ -16,7 +16,13 @@ import {
   NEUTRAL_INPUT,
   TRAFFIC,
   VEHICLES,
+  bayPulls,
+  cabinsOf,
   createGame,
+  generateLevel,
+  kerbShare,
+  loadRealFace,
+  loopBusy,
   freshVehiclePose,
   onCarriageway,
   placeRun,
@@ -193,6 +199,63 @@ describe("the village's traffic", () => {
     }
     expect(atStop).toBeGreaterThanOrEqual(TRAFFIC.bus.stay.least);
     expect(atStop / still).toBeGreaterThan(0.8);
+  });
+});
+
+describe("where the cars park", () => {
+  const D = TRAFFIC.demand;
+  /** Whether anything that draws people stands within the demand's reach
+   * of (x, z): a building of a kind that pulls, the square, a lift's foot. */
+  const fronted = (l: Level, x: number, z: number): boolean =>
+    cabinsOf(l).some((c) => D.kinds[c.kind] > 0 && Math.hypot(c.x - x, c.z - z) < D.reach) ||
+    villageOf(l)!.areas.some(
+      (a) => a.kind === "square" && Math.hypot(a.x - x, a.z - z) < D.reach,
+    ) ||
+    (l.resort?.lifts ?? []).some((f) => Math.hypot(f.bottom.x - x, f.bottom.z - z) < D.reach);
+
+  beforeAll(async () => {
+    expect(await loadRealFace("fell-1")).toBe(true);
+  });
+
+  it("takes a bay by what stands near it, the kerb's whole share in front of a busy row", () => {
+    expect(kerbShare(0)).toBeLessThanOrEqual(TRAFFIC.parked.kerb * 0.05);
+    expect(kerbShare(D.full)).toBeCloseTo(TRAFFIC.parked.kerb, 6);
+    expect(kerbShare(D.full * 3)).toBeCloseTo(TRAFFIC.parked.kerb, 6);
+    expect(kerbShare(D.full / 2)).toBeLessThan(kerbShare(D.full));
+  });
+
+  it("leaves a street with nothing on it nearly empty, on a real face's bare back street", () => {
+    const l = generateLevel(1, { face: "fell-1" });
+    const v = villageOf(l)!;
+    const plan = planOf(l);
+    const pulls = bayPulls(l, v);
+    const bare = v.bays.filter((b) => b.kind === "kerb" && !fronted(l, b.x, b.z));
+    expect(bare.length, "the face's village has a bare stretch of kerb").toBeGreaterThan(20);
+    for (const b of bare) expect(pulls.get(b.id)).toBe(0);
+    const ids = new Set(bare.map((b) => b.id));
+    const taken = plan.parked.filter((p) => ids.has(p.bay)).length;
+    expect(taken / bare.length).toBeLessThan(0.1);
+    // ...and the loop round it carries fewer cars and cyclists than a
+    // village built all the way round.
+    expect(loopBusy(l, v)).toBeLessThan(0.7);
+    const round = plan.vehicles.filter((x) => x.role === "loop" || x.role === "bike").length;
+    expect(round).toBeLessThan(TRAFFIC.loop.least * 2 + TRAFFIC.bikes.least);
+  });
+
+  it("keeps a dealt village's built-up kerbs and its car park full by day", () => {
+    const v = villageOf(level)!;
+    const plan = planOf(level);
+    expect(loopBusy(level, v)).toBeGreaterThan(0.9);
+    const kerb = v.bays.filter((b) => b.kind === "kerb").length;
+    const lot = v.bays.length - kerb;
+    const bays = new Map(v.bays.map((b) => [b.id, b]));
+    const taken = (kind: "kerb" | "lot") =>
+      plan.parked.filter((p) => bays.get(p.bay)!.kind === kind).length;
+    expect(taken("kerb") / kerb).toBeGreaterThan(0.3);
+    const hour = level.sun?.hour ?? 12;
+    if (hour >= TRAFFIC.parked.hours[0] && hour < TRAFFIC.parked.hours[1]) {
+      expect(taken("lot") / lot).toBeGreaterThan(0.5);
+    }
   });
 });
 

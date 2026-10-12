@@ -9,6 +9,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import type { CameraRung } from "../pwa/src/game/renderer-api.ts";
+
 import {
   PAUSE_STATS,
   pauseStats,
@@ -33,6 +35,9 @@ import {
   mergeSettings,
   mixOf,
   nextCamera,
+  firstPersonCamera,
+  zoomCamera,
+  createCameraPresses,
 } from "../pwa/src/game/settings.ts";
 import {
   DEFAULT_KEYS,
@@ -351,6 +356,34 @@ describe("what the game remembers (settings.ts)", () => {
     expect(rung).toBe(RUN_CAMERAS[0]);
     expect(seen.size).toBe(RUN_CAMERAS.length);
     expect(nextCamera("orbit")).toBe(DEFAULT_CAMERA);
+  });
+
+  it("goes straight to the helmet on the first-person press, and back", () => {
+    expect(firstPersonCamera("far", "chase")).toBe("helmet");
+    expect(firstPersonCamera("helmet", "far")).toBe("far");
+    expect(firstPersonCamera("helmet", "helmet")).toBe(DEFAULT_CAMERA);
+  });
+
+  it("goes back from the helmet to the rung G was pressed from", () => {
+    let rung: CameraRung = "far";
+    const cams = createCameraPresses(
+      () => rung,
+      (next) => (rung = next),
+    );
+    cams.firstPerson();
+    expect(rung).toBe("helmet");
+    cams.firstPerson();
+    expect(rung).toBe("far");
+    cams.zoom(-1);
+    expect(rung).toBe("chase");
+  });
+
+  it("walks the ladder on the wheel, held at either end", () => {
+    expect(zoomCamera("chase", 1)).toBe("far");
+    expect(zoomCamera("chase", -1)).toBe("helmet");
+    expect(zoomCamera(RUN_CAMERAS[0], -1)).toBe(RUN_CAMERAS[0]);
+    const last = RUN_CAMERAS[RUN_CAMERAS.length - 1];
+    expect(zoomCamera(last, 1)).toBe(last);
   });
 });
 

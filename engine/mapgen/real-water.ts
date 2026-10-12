@@ -26,14 +26,16 @@ import {
   sampleField,
   type Heightfield,
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import { SECTIONS, VILLAGE_STREETS as V, sideReach } from "../game/defs/village-streets.ts";
 import { offWay, type ChainWay } from "./lift-chain.ts";
+import { hubAt } from "./query.ts";
 import { faceHeight } from "./real-face.ts";
 import { realHints, ringArea } from "./real-hints.ts";
 import { RESORT_RULES as RR } from "./resort-rules.ts";
 import { LEVEL_RULES } from "./rules.ts";
 import { offRamp } from "./summit-ramps.ts";
 import type { TerrainPlan } from "./terrain.ts";
-import type { SummitRamp, WaterBody, WaterStream } from "./types.ts";
+import type { Hub, SummitRamp, WaterBody, WaterStream } from "./types.ts";
 
 /** How a real face's water is laid on the map.
  *   * `feather`: how far round a body its ground is eased from the surface
@@ -112,15 +114,24 @@ const LEAST = 400;
 /** A ring (x, z pairs) cut along the row `z`, the side `keep` kept (-1
  * the rows above it, +1 those below) — Sutherland–Hodgman on one edge. */
 function clipRow(ring: Float32Array, z: number, keep: number): Float32Array {
+  return clipLine(ring, 1, z, keep);
+}
+
+/** A ring cut along the line where its `axis` (0 x, 1 z) is `at`, the
+ * side `keep` kept (-1 the lesser, +1 the greater). */
+function clipLine(ring: Float32Array, axis: 0 | 1, at: number, keep: number): Float32Array {
   const out: number[] = [];
   const n = ring.length;
-  const ins = (i: number): boolean => (ring[i + 1] - z) * keep >= 0;
+  const ins = (i: number): boolean => (ring[i + axis] - at) * keep >= 0;
   for (let i = 0; i < n; i += 2) {
     const j = (i + n - 2) % n;
     const [a, b] = [ins(j), ins(i)];
     if (a !== b) {
-      const t = (z - ring[j + 1]) / (ring[i + 1] - ring[j + 1]);
-      out.push(ring[j] + (ring[i] - ring[j]) * t, z);
+      const t = (at - ring[j + axis]) / (ring[i + axis] - ring[j + axis]);
+      const x = ring[j] + (ring[i] - ring[j]) * t;
+      const z = ring[j + 1] + (ring[i + 1] - ring[j + 1]) * t;
+      if (axis === 0) out.push(at, z);
+      else out.push(x, at);
     }
     if (b) out.push(ring[i], ring[i + 1]);
   }
@@ -386,6 +397,83 @@ export function relayWater(
     r.to.y = sampleField(ground, r.to.x, r.to.z);
   }
 }
+
+/** THE VILLAGE'S ROOM kept dry (`laid` changed in place): the village is
+ * laid off the hub's valley edge (`valley` the way z runs into the
+ * valley), its streets `VILLAGE_STREETS.main` and `.back` out from it and
+ * its centre tried within `.tries.centre` of the ski area's village point
+ * `vx` (`village-streets.ts`). Where the water leaves the rows it is laid
+ * in no dry stretch the shortest village fits along — a lake or a river
+ * reaching up to the hub's edge, a real town on its shore — every body is
+ * cut back out of that room along its far row and its two ends, the rest
+ * of it kept, so the village stands on the shore rather than on the ice.
+ * The ground under the cut is the body's flat surface already. A face
+ * whose village has room is left as it is. */
+export function keepVillageDry(laid: FaceWater | null, hub: Hub, vx: number, valley: 1 | -1): void {
+  const water = laid?.water;
+  if (!laid || !water || water.length === 0 || hub.top.length < 2) return;
+  const hx0 = hub.x0 + ROOM.step;
+  const hx1 = hub.x0 + hub.step * (hub.top.length - 1) - ROOM.step;
+  const reach = Math.max(...V.tries.centre.map(Math.abs)) + V.span.most / 2;
+  const x0 = Math.max(hx0, vx - reach);
+  const x1 = Math.min(hx1, vx + reach);
+  if (x1 <= x0) return;
+  let edge = valley > 0 ? -Infinity : Infinity;
+  for (let x = x0; x <= x1; x += ROOM.step) {
+    const e = hubAt(hub, x);
+    if (e) edge = valley > 0 ? Math.max(edge, e.bottom) : Math.min(edge, e.top);
+  }
+  if (!Number.isFinite(edge)) return;
+  const depth =
+    V.main.most +
+    V.back.most +
+    V.bend +
+    Math.max(sideReach(SECTIONS.back, 0), sideReach(SECTIONS.back, 1)) +
+    ROOM.lot;
+  const far = edge + valley * depth;
+  const [z0, z1] = valley > 0 ? [edge, far] : [far, edge];
+  // The longest run along the room of columns dry through its depth.
+  const need =
+    V.span.least * Math.min(...V.tries.span) +
+    2 * Math.max(sideReach(SECTIONS.cross, 0), sideReach(SECTIONS.cross, 1));
+  let run = 0;
+  for (let x = x0; x <= x1; x += ROOM.step) {
+    let dry = true;
+    for (let z = z0; z <= z1 && dry; z += ROOM.step) dry = !inWater(water, x, z);
+    run = dry ? run + ROOM.step : 0;
+    if (run >= need) return;
+  }
+  const out: WaterBody[] = [];
+  for (const body of water) {
+    const box = boxOf(body);
+    if (box.x1 < x0 || box.x0 > x1 || box.z1 < z0 || box.z0 > z1) {
+      out.push(body);
+      continue;
+    }
+    // Its pieces past either end of the room, then beyond its far row and
+    // on the hub's side of its near one.
+    const cuts: ((r: Float32Array) => Float32Array)[] = [
+      (r) => clipLine(r, 0, x0, -1),
+      (r) => clipLine(r, 0, x1, 1),
+      (r) => clipLine(clipLine(clipLine(r, 0, x0, 1), 0, x1, -1), 1, z1, 1),
+      (r) => clipLine(clipLine(clipLine(r, 0, x0, 1), 0, x1, -1), 1, z0, -1),
+    ];
+    for (const cut of cuts) {
+      const rings = body.rings.map(cut);
+      if (rings[0].length < 6) continue;
+      const kept = rings.filter((r) => r.length >= 6);
+      const area = kept.reduce((a, r) => a + ringArea(r), 0);
+      if (area < LEAST) continue;
+      out.push({ ...body, rings: kept, area, clipped: true });
+    }
+  }
+  laid.water = out.slice(0, 255);
+}
+
+/** The village's room as `keepVillageDry` reads it: `step` m between its
+ * samples (and kept off the hub's ends), and `lot` m behind the back
+ * street for the lots its houses stand on. */
+const ROOM = { step: 5, lot: 20 } as const;
 
 /** How far a cell may move and count as unmoved, m. */
 const MOVED = 1e-3;

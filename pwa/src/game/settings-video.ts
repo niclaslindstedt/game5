@@ -243,7 +243,9 @@ export type DistanceLook = {
 /** DISTANCE. The trees stop a little inside the view, where the mist is
  * nearly whole, so the woods thin into it rather than stopping at a line.
  * LOW is the course and what stands beside it — a few seconds ahead at
- * speed, and no more; MAX is the mountain to its summit ridge on the sky's own air. */
+ * speed, and no more; MAX is the mountain to its summit ridge on the sky's own air.
+ * These are the reaches ON THE SNOW: a lens high over it sees further on
+ * every stop (`view-aloft.ts`). */
 export const DISTANCE_LOOK: Record<DistanceLevel, DistanceLook> = {
   low: { trees: 250, view: 280, mist: true },
   medium: { trees: 540, view: 600, mist: true },

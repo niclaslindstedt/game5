@@ -15,7 +15,15 @@
 //     canopy, nothing while it opens; caught in a crown or on a lift, the
 //     reset that begins it again.
 
-import { CHUTE, PLANE, exitClear, planeWithin, type ChuteMode, type GameState } from "@engine";
+import {
+  CHUTE,
+  PLANE,
+  WINGSUIT,
+  exitClear,
+  planeWithin,
+  type ChuteMode,
+  type GameState,
+} from "@engine";
 
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
 
@@ -90,8 +98,21 @@ export function planeOf(state: GameState): HudPlane | null {
   return away < PLANE_CALL ? { kind: "waiting", away, near: planeWithin(state) } : null;
 }
 
+/** THE WINGSUIT'S STRIP, over the skydive's (`HudChute.suit`): the glide
+ * it flies (across over down, through the air), the air through it, m/s,
+ * its sink, m/s (down positive), and the height closing on the pull — `warn`
+ * inside the bot's slowing height, `low` at its pull height (and under). */
+export type HudSuit = {
+  glide: number;
+  air: number;
+  sink: number;
+  warn: boolean;
+  low: boolean;
+};
+
 /** THE SKYDIVE as the HUD reads it. */
 export type HudChute = {
+  /** `ready` is a wingsuit's alone: stood on its exit before the jump. */
   mode: Exclude<ChuteMode, "landed">;
   /** His height over the snow, m; his fall, m/s (down positive); the air
    * through him or the canopy, m/s. */
@@ -104,33 +125,57 @@ export type HudChute = {
   stall: boolean;
   /** The canopy over him (or opening) is the reserve. */
   reserve: boolean;
-  /** What the machine key does now: open the main, cut it away, or — cut
-   * away — pull the reserve (never under it: there is no other). */
-  press: "open" | "release" | "reserve" | null;
+  /** What the machine key does now: jump (off a wingsuit's exit), open the
+   * main, cut it away, or — cut away — pull the reserve (never under it:
+   * there is no other). */
+  press: "jump" | "open" | "release" | "reserve" | null;
+  /** In a wingsuit, flying it (or stood ready): its strip; null in the box
+   * and under the canopy. */
+  suit: HudSuit | null;
 };
 
 /** The skydive's readout for the player at this step: from the door to the
  * snow, and caught; gone once he is down on his skis or thrown. */
 export function chuteOf(state: GameState): HudChute | null {
   const ch = state.chute;
-  if (!ch || ch.done || ch.fell || ch.mode === "landed" || state.skier.thrown) return null;
+  if (!ch || ch.done || ch.fell || ch.mode === "landed") return null;
+  if (state.skier.thrown) return null;
+  // A wingsuit's BASE rig has one canopy: nothing to cut away, no reserve.
+  const suited = ch.suit === "wingsuit";
+  if (ch.mode === "ready" && !suited) return null;
+  const spare = !suited && !ch.reserve;
   const falling = ch.mode === "exit" || ch.mode === "freefall";
+  const pullAt = suited ? WINGSUIT.bot.open : CHUTE.bot.open;
+  const clear = suited ? WINGSUIT.exit.clear : exitClear(ch.from);
+  const w = ch.wing;
   return {
     mode: ch.mode,
     height: Math.max(0, ch.agl),
     fall: ch.fall,
     air: ch.airspeed,
-    pull: falling && ch.agl <= CHUTE.bot.open,
+    pull: falling && ch.agl <= pullAt,
     stall: ch.mode === "open" && ch.stalled,
     reserve: ch.reserve,
     press:
-      (ch.mode === "exit" && ch.since >= exitClear(ch.from)) || ch.mode === "freefall"
-        ? "open"
-        : ch.mode === "open" && !ch.reserve
-          ? "release"
-          : ch.mode === "released" && !ch.reserve && ch.agl > CHUTE.handover
-            ? "reserve"
-            : null,
+      ch.mode === "ready"
+        ? "jump"
+        : (ch.mode === "exit" && ch.since >= clear) || ch.mode === "freefall"
+          ? "open"
+          : ch.mode === "open" && spare
+            ? "release"
+            : ch.mode === "released" && spare && ch.agl > CHUTE.handover
+              ? "reserve"
+              : null,
+    suit:
+      suited && (falling || ch.mode === "ready")
+        ? {
+            glide: w && falling ? w.glide : 0,
+            air: ch.airspeed,
+            sink: ch.fall,
+            warn: falling && ch.agl <= WINGSUIT.bot.slow,
+            low: falling && ch.agl <= pullAt,
+          }
+        : null,
   };
 }
 
@@ -138,4 +183,23 @@ export function chuteOf(state: GameState): HudChute | null {
  * plane or falls from it. */
 export function aloftInPlane(state: GameState): boolean {
   return !!state.plane?.rider || !!(state.chute && !state.chute.done && !state.chute.fell);
+}
+
+/** How long he has stood on his boots after a wingsuit's landing before the
+ * plate asks what next, s: the run-out walked off first. */
+export const SUIT_LANDED_AFTER = 1.5;
+
+/** DOWN OUT OF A WINGSUIT, on his boots and unhurt: with no skis on him
+ * there is nothing to ski on, so the HUD offers the way on — again, the
+ * piste map, or out (`hud-result.tsx`'s `LandedPlate`). */
+export function suitLandedOf(state: GameState): boolean {
+  const ch = state.chute;
+  return (
+    !!ch &&
+    ch.suit === "wingsuit" &&
+    ch.mode === "landed" &&
+    !ch.fell &&
+    !state.skier.thrown &&
+    ch.t >= SUIT_LANDED_AFTER
+  );
 }

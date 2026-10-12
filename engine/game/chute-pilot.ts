@@ -29,6 +29,7 @@ import { AIR_BOUNDS } from "./defs/air-bounds.ts";
 import { CHUTE, exitClear } from "./defs/chute.ts";
 import { jumpSpotOf, planeInput } from "./plane-pilot.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
+import { wingsuitPilot } from "./wingsuit-pilot.ts";
 
 const B = CHUTE.bot;
 
@@ -140,10 +141,25 @@ export function skydiveInput(state: GameState): SkierInput {
   return chutePilot(state);
 }
 
+/** THE WHOLE WINGSUIT JUMP off the cliff exit on the bot's hands: the jump
+ * off the edge a moment after he stands there (the one hand that ever
+ * leaves the edge — the sim's and the app's bot never jump: a ride on the
+ * edge is the player's to begin), then the suit and the canopy. */
+export function wingsuitInput(state: GameState): SkierInput {
+  const ch = state.chute;
+  if (ch?.suit === "wingsuit" && ch.mode === "ready") {
+    return { ...NEUTRAL_INPUT, machine: ch.t >= 0.6 };
+  }
+  return chutePilot(state);
+}
+
 /** THE BOT'S HANDS on the skydive this step. */
 export function chutePilot(state: GameState): SkierInput {
   const ch = state.chute;
   if (!ch || ch.done || state.skier.thrown) return { ...NEUTRAL_INPUT };
+  // In a wingsuit, its own hands to the pull (`wingsuit-pilot.ts`).
+  const suit = wingsuitPilot(state);
+  if (suit) return suit;
   if (ch.mode === "exit" || ch.mode === "freefall") {
     const out = ch.since >= exitClear(ch.from);
     const pull = (out && ch.agl <= B.deck) || (ch.since >= B.least && ch.agl <= B.open);
@@ -151,7 +167,7 @@ export function chutePilot(state: GameState): SkierInput {
   }
   // Cut away (never by its own hand, but a lab's or a player's handed
   // over): the reserve pulled at once while there is height for it.
-  if (ch.mode === "released" && !ch.reserve) {
+  if (ch.mode === "released" && !ch.reserve && ch.suit !== "wingsuit") {
     return { ...NEUTRAL_INPUT, machine: ch.agl > CHUTE.handover };
   }
   if (ch.mode !== "open") return { ...NEUTRAL_INPUT };

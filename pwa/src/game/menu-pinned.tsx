@@ -48,7 +48,7 @@ export function PinnedCards({
     return (
       <TrickMapsPage
         mode={mode}
-        chosen={settings.trickMap}
+        chosen={settings}
         plan={settings.aerialPlan}
         onPlan={(plan) => onSettings((s) => ({ ...s, aerialPlan: plan }))}
         onBack={onBack}

@@ -14,7 +14,8 @@
 // A PIECE IS SOLD IN ITS OWN COLOURS. There is nothing to paint: a row
 // picks the piece, and the piece is the colours it comes in — as a pair of
 // skis is its topsheet. It WRITES `settings.outfit`; NEXT is the gear card,
-// and RIDE is there.
+// and RIDE is there — except on a free ride flown in a WINGSUIT, where no
+// skis or board go with him: the gear card is skipped and FLY here rides.
 
 import { isBoardId, raceSkisOf, type GameMode, type PairId } from "@engine";
 
@@ -23,6 +24,7 @@ import { SkisPage } from "./menu-skis.tsx";
 import { boardAllowed, kindPair, pickPair, type Settings } from "./settings.ts";
 import { GEAR, GEAR_SLOTS, type GearSlot, type Outfit } from "./outfit.ts";
 import { MenuStage } from "./menu-stage.tsx";
+import { useBusyPress } from "./busy-press.ts";
 import { STRINGS } from "./strings.ts";
 
 /** Each slot's catalog as a row's stops. */
@@ -45,6 +47,7 @@ export function DressPage({
   onOutfit,
   onBack,
   onNext,
+  fly = null,
 }: {
   outfit: Outfit;
   onOutfit: (outfit: Outfit) => void;
@@ -52,7 +55,10 @@ export function DressPage({
   onBack: () => void;
   /** NEXT: on to the gear card. */
   onNext: () => void;
+  /** A WINGSUIT ride: no gear to pick, so the way on is FLY and rides. */
+  fly?: (() => void) | null;
 }) {
+  const [busy, go] = useBusyPress(fly ?? onNext);
   return (
     <div class="menu-card menu-card-dress menu-card-staged">
       <div class="stage-top" data-stage-cover>
@@ -64,11 +70,13 @@ export function DressPage({
             <button
               type="button"
               class="menu-item menu-item-start menu-head-go"
-              data-menu="dress-done"
+              data-menu={fly ? "ride" : "dress-done"}
               data-nav-next
-              onClick={onNext}
+              data-busy={fly && busy ? "1" : undefined}
+              onClick={fly ? go : onNext}
             >
-              <span class="menu-item-name">{STRINGS.dressDone}</span>
+              <span class="menu-item-name">{fly ? STRINGS.dressFly : STRINGS.dressDone}</span>
+              {fly && busy && <span class="menu-busy" aria-hidden="true" />}
             </button>
           }
         />
@@ -109,6 +117,9 @@ export function SkisCards(p: {
   onPage: (page: "skis" | "dress") => void;
   onBack: () => void;
   onRide: () => void;
+  /** A free ride flown in a WINGSUIT (`wingsuitOn`): no skis go with him, so
+   * the rider card rides and the gear card is never shown. */
+  noSkis?: boolean;
 }) {
   const boards = boardAllowed(p.mode);
   const skis = !boards && isBoardId(p.skis) ? (raceSkisOf(p.mode) ?? p.settings.kept.skis) : p.skis;
@@ -131,6 +142,7 @@ export function SkisCards(p: {
           onOutfit={outfit}
           onBack={p.onBack}
           onNext={() => p.onPage("skis")}
+          fly={p.noSkis ? p.onRide : null}
         />
       ) : (
         <SkisPage

@@ -35,6 +35,8 @@ import {
 } from "./ski-jump-plan.ts";
 import { leaderOf } from "./ski-jump-run.ts";
 import type { PisteMast } from "./piste-light-plan.ts";
+import { createJumpArena } from "./ski-jump-arena.ts";
+import { createFlagSheet, type FlagTop } from "./wind-flags.ts";
 
 type Paint = (p: THREE.MeshStandardMaterialParameters, name: string) => THREE.Material;
 
@@ -180,6 +182,10 @@ export function createSkiJump(level: Level, haze: HazeUniforms, paint: Paint): S
   structures.castShadow = true;
   structures.receiveShadow = true;
   group.add(structures);
+  // THE STADIUM round the out-run: the counter-slope, the banners, the
+  // flags (`ski-jump-arena.ts`).
+  const arena = createJumpArena(level, haze, paint);
+  if (arena) group.add(arena.group);
 
   // THE TRACKS: each groove a glazed strip on the profile, its two lips a
   // hand higher, down the in-run from the deck to the edge.
@@ -362,10 +368,9 @@ export function createSkiJump(level: Level, haze: HazeUniforms, paint: Paint): S
   const boardMat = paint({ map: atlas.tex, roughness: 0.7 }, "jump-boards");
   group.add(new THREE.Mesh(boardGeo, boardMat));
 
-  // THE WIND FLAGS: one geometry, every flag a sheet of 4 × 2 quads
-  // rewritten each frame as it streams.
-  const FLAG = { long: 1.2, deep: 0.7, segs: 4 };
-  const flagTops = plan.flags.map((fl) => {
+  // THE WIND FLAGS, streaming with the hill's air (`wind-flags.ts`).
+  const flagColours = [0xd8232a, 0xf3f4f6, 0x1d5fd0];
+  const flagTops: FlagTop[] = plan.flags.map((fl, i) => {
     const a = fl.side * (landingWidth(hill, fl.d) / 2 + L.flag.out);
     const at = hillPoint(f, fl.d, a);
     return {
@@ -373,71 +378,29 @@ export function createSkiJump(level: Level, haze: HazeUniforms, paint: Paint): S
       y: level.groundAt(at.x, at.z) + L.flag.pole - 0.05,
       z: at.z,
       phase: fl.d * 0.37,
+      stripes: [flagColours[i % flagColours.length]],
     };
-  });
-  const perFlag = FLAG.segs * 2 * 3 * 2;
-  const flagPos = new Float32Array(flagTops.length * perFlag * 3);
-  const flagCol = new Float32Array(flagTops.length * perFlag * 3);
-  const flagGeo = new THREE.BufferGeometry();
-  flagGeo.setAttribute("position", new THREE.BufferAttribute(flagPos, 3));
-  flagGeo.setAttribute("color", new THREE.BufferAttribute(flagCol, 3));
-  geos.push(flagGeo);
-  const flagColours = [0xd8232a, 0xf3f4f6, 0x1d5fd0];
-  flagTops.forEach((_, i) => {
-    c.set(flagColours[i % flagColours.length]);
-    for (let k = 0; k < perFlag; k++) flagCol.set([c.r, c.g, c.b], (i * perFlag + k) * 3);
   });
   const flagMat = paint(
     { vertexColors: true, roughness: 0.8, side: THREE.DoubleSide },
     "jump-flags",
   );
-  const flags = new THREE.Mesh(flagGeo, flagMat);
-  flags.frustumCulled = false;
-  group.add(flags);
-  const streamFlags = (t: number, head: number, across: number) => {
-    // The air blows UP the hill on a head wind: the flags stream toward
-    // the tower, or down it in a tail; across with the crosswind.
-    let wx = -f.fx * head + f.rx * across;
-    let wz = -f.fz * head + f.rz * across;
+  const flags = createFlagSheet(flagTops, { long: 1.2, deep: 0.7, segs: 4 }, flagMat);
+  geos.push(flags.geometry);
+  group.add(flags.mesh);
+  // The air blows UP the hill on a head wind: the flags stream toward the
+  // tower, or down it in a tail; across with the crosswind.
+  const downwind = (head: number, across: number) => {
+    const wx = -f.fx * head + f.rx * across;
+    const wz = -f.fz * head + f.rz * across;
     const speed = Math.hypot(wx, wz);
-    if (speed < 0.05) {
-      wx = f.rx;
-      wz = f.rz;
-    } else {
-      wx /= speed;
-      wz /= speed;
-    }
-    // A calm flag hangs; a breeze lifts it out.
-    const lift = Math.min(1, 0.25 + speed / 4);
-    let o = 0;
-    for (const top of flagTops) {
-      const at = (s: number, v: number): [number, number, number] => {
-        const flap = Math.sin(t * (4 + speed) - s * 5 + top.phase) * 0.12 * s * lift;
-        const droop = (1 - lift) * s * FLAG.long * 0.9;
-        return [
-          top.x + wx * s * FLAG.long * lift - wz * flap,
-          top.y - v * FLAG.deep - droop,
-          top.z + wz * s * FLAG.long * lift + wx * flap,
-        ];
-      };
-      for (let k = 0; k < FLAG.segs; k++) {
-        const s0 = k / FLAG.segs;
-        const s1 = (k + 1) / FLAG.segs;
-        for (let r = 0; r < 2; r++) {
-          const v0 = r / 2;
-          const v1 = (r + 1) / 2;
-          const q = [at(s0, v0), at(s1, v0), at(s1, v1), at(s0, v1)];
-          for (const n of [0, 1, 2, 0, 2, 3]) {
-            flagPos.set(q[n], o);
-            o += 3;
-          }
-        }
-      }
-    }
-    flagGeo.getAttribute("position").needsUpdate = true;
-    flagGeo.computeVertexNormals();
+    return speed < 0.05 ? { wx: f.rx, wz: f.rz, speed } : { wx: wx / speed, wz: wz / speed, speed };
   };
-  streamFlags(0, 0, 0);
+  const streamFlags = (t: number, head: number, across: number) => {
+    const w = downwind(head, across);
+    flags.stream(t, w.wx, w.wz, w.speed);
+    arena?.stream(t, w.wx, w.wz, w.speed);
+  };
 
   // THE START LIGHT on its post by the jury's gate: red, yellow, green.
   const lightMats = [0xff2a1e, 0xffc41a, 0x2fe05a].map((col, i) => {
@@ -520,6 +483,7 @@ export function createSkiJump(level: Level, haze: HazeUniforms, paint: Paint): S
       if (leader && leader.toBeat !== beatAt) layBeat(leader.toBeat);
     },
     dispose() {
+      arena?.dispose();
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
       for (const t of texs) t.dispose();

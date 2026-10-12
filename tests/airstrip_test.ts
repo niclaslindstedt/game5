@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE JUMP PLANE'S STRIP (`engine/game/airstrip.ts`): a rectangle of flat
 // snow on the valley floor by the town, found once a map — inside the map,
-// clear of the streets, the trees and every other machine's place, with no
-// lip along it — on generated mountains and on a real mountainside.
+// clear of the buildings, the streets, the runs, the lifts, the water and
+// every other machine's place, the trees on it felled, with no lip along it
+// — on generated mountains and on real mountainsides.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -13,6 +14,7 @@ import {
   airstripOf,
   balloonSiteOf,
   createGame,
+  felledTrees,
   generateLevel,
   helipadOf,
   liftPlans,
@@ -25,6 +27,7 @@ import {
   streetMaskAt,
   stripBoxes,
   stripFrame,
+  stripRoomAt,
   stripSiteOf,
   villageBuildingsOf,
   villageOf,
@@ -76,7 +79,17 @@ describe("the airstrip", () => {
         for (const k of keep) expect(Math.hypot(k.x - x, k.z - z)).toBeGreaterThan(10);
       }
     }
-    for (const t of level.trees) {
+    // Off every building, run, lift and shore by the room the search keeps
+    // (`airstrip-room.ts`) — strictly or eased, never the village's fallback.
+    expect(["strict", "eased"]).toContain(strip.tier);
+    for (let s = -half; s <= half; s += 4) {
+      const room = stripRoomAt(level, strip.x + fx * s, strip.z + fz * s);
+      expect(room).toBeGreaterThanOrEqual(strip.width / 2 + strip.clear - 1e-6);
+    }
+    // The trees on it felled (`felledTrees`).
+    const gone = felledTrees(level);
+    for (const [i, t] of level.trees.entries()) {
+      if (gone[i]) continue;
       const dx = t.x - strip.x;
       const dz = t.z - strip.z;
       const along = dx * fx + dz * fz;
@@ -146,7 +159,10 @@ describe("the airstrip", () => {
       expect(streetMaskAt(level, b.x, b.z)).toBe(0);
       for (const k of keep) expect(Math.hypot(k.x - b.x, k.z - b.z)).toBeGreaterThan(reach + 10);
       for (const h of houses) expect(Math.hypot(h.x - b.x, h.z - b.z)).toBeGreaterThan(reach);
-      for (const t of level.trees) expect(Math.hypot(t.x - b.x, t.z - b.z)).toBeGreaterThan(reach);
+      const gone = felledTrees(level);
+      for (const [i, t] of level.trees.entries()) {
+        if (!gone[i]) expect(Math.hypot(t.x - b.x, t.z - b.z)).toBeGreaterThan(reach);
+      }
       for (const p of liftPlans(level)) {
         const rx = b.x - p.lift.bottom.x;
         const rz = b.z - p.lift.bottom.z;
@@ -172,12 +188,15 @@ describe("the airstrip", () => {
     });
   }
 
-  it("is found on a real mountainside too", async () => {
-    await loadRealFace("alpine-1");
-    const level = generateLevel(1, { face: "alpine-1" });
-    holds(level);
-    siteHolds(level);
-  });
+  // The face whose strip once fell back onto its town, and another.
+  for (const face of ["alpine-9", "alpine-1"]) {
+    it(`is found on a real mountainside too — ${face}`, async () => {
+      await loadRealFace(face);
+      const level = generateLevel(38, { face });
+      holds(level);
+      siteHolds(level);
+    });
+  }
 });
 
 describe("what stands at the airstrip, as solids", () => {

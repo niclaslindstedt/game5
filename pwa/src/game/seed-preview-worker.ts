@@ -25,6 +25,7 @@ import {
   generateLevel,
   gradeOf,
   helipadOf,
+  wingsuitExitOf,
   airstripOf,
   balloonSiteOf,
   loadRealFace,
@@ -39,7 +40,7 @@ import {
   type RegionId,
 } from "@engine";
 
-import { freeRunList, type FreeRunInfo } from "./free-ride.ts";
+import { dealtDay, freeRunList, type DealtDay, type FreeRunInfo } from "./free-ride.ts";
 import { boardKey } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE, bakeMinimap, minimapSource } from "./minimap-bake.ts";
 import {
@@ -96,6 +97,8 @@ export type PreviewPainted = {
   vertical: number;
   /** The colour the piste came out (R23, `gradeOf`). */
   colour: PisteGrade;
+  /** The season, time of day and sky the map was dealt (`dealtDay`). */
+  dealt: DealtDay;
   /** What names the map built (`boardKey`): the boards at its lifts'
    * tops are painted with this panorama. */
   board: string;
@@ -109,9 +112,9 @@ export type PreviewPainted = {
    * door of the valley's afterski lodge (`lodgesOf`), null on a map with
    * none, where the RUN row offers no afterski — and the jump plane's strip
    * (`airstripOf`): its middle, and its two ends the chart draws it
-   * between. */
+   * between — and the wingsuit's exit (`wingsuitExitOf`). */
   machines: Record<
-    "heli" | "sled" | "para" | "balloon" | "plane",
+    "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit",
     { x: number; y: number; z: number }
   > & {
     afterski: { x: number; y: number; z: number } | null;
@@ -239,6 +242,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         length: level.track.length,
         vertical: level.mountain?.vertical ?? 0,
         colour: gradeOf(level),
+        dealt: dealtDay(level),
         board: boardKey(level),
         ...freeRunList(level),
         machines: {
@@ -247,6 +251,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
           para: summitOf(level),
           balloon: placeOf(balloonSiteOf(level)),
           plane: placeOf(airstripOf(level)),
+          wingsuit: placeOf(wingsuitExitOf(level)),
           afterski: lodgeDoorOf(level),
         },
         strip: { a: placeOf(airstripOf(level).start), b: placeOf(airstripOf(level).end) },

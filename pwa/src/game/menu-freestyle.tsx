@@ -12,7 +12,6 @@ import {
   HALFPIPE,
   MOGULS,
   SKI_JUMP,
-  SKI_JUMP_RULE,
   SLOPESTYLE,
   TRICKS_RUN,
   type GameMode,
@@ -21,15 +20,12 @@ import {
 import { Glyph } from "./menu-glyphs.tsx";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
 import { STRINGS } from "./strings.ts";
+import { hillSizes } from "./jump-hills.ts";
 
 /** Each built format's line, by its mode. */
 function formatOf(mode: GameMode): string {
   if (mode === "skiJump") {
-    return STRINGS.freestyleSkiJump(
-      SKI_JUMP_RULE.hills[SKI_JUMP.hill].hs,
-      SKI_JUMP.field + 1,
-      SKI_JUMP.final,
-    );
+    return STRINGS.freestyleSkiJump(hillSizes(), SKI_JUMP.field + 1, SKI_JUMP.final);
   }
   if (mode === "slopestyle") {
     return STRINGS.freestyleSlopestyle(SLOPESTYLE.field + 1, SLOPESTYLE.finalists);

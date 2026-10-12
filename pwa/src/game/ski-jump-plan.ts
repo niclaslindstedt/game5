@@ -7,7 +7,7 @@
 // places (`tests/ski_jump_look_test.ts`).
 //
 // What a large hill is, as a crowd and a broadcast see it (the research,
-// in our own words — `docs/specs/SKI_JUMPING.md` § *The hill as drawn*):
+// in our own words — `docs/freestyle.md` § *Ski jumping*):
 //
 //   * THE IN-RUN is a concrete trough on a raised deck, about two and a half
 //     metres between its guard walls, its floor carrying TWO TRACKS — ice
@@ -33,10 +33,19 @@
 
 import { ALBATROSS, SKI_JUMP_RULE, type Level } from "@engine";
 
-import { hillFrame, hillPoint, type HillFrame, type SkiJumpHill } from "./ski-jump-frame.ts";
+import {
+  hillFrame,
+  hillPoint,
+  landingWidth,
+  type HillFrame,
+  type SkiJumpHill,
+} from "./ski-jump-frame.ts";
 import { PISTE_LIGHT, solidOf, type PisteLamp, type PisteMast } from "./piste-light-plan.ts";
+import { arenaMasts, SJ_ARENA } from "./ski-jump-arena-plan.ts";
 
 const N = SKI_JUMP_RULE.norm;
+
+export { landingWidth };
 
 /** THE DRAWN SIZES (est., off photographs of large hills): the in-run's
  * guard walls (high over the floor, thick), the track's groove (wider
@@ -101,20 +110,6 @@ export type SkiJumpPlan = {
   masts: readonly PisteMast[];
 };
 
-/** THE LANDING AREA'S WIDTH `d` m of plan along the hill, m: the norm's
- * widths at the knoll's foot, at K and at U, straight between them, the
- * in-run's above the edge. */
-export function landingWidth(hill: SkiJumpHill, d: number): number {
-  const w = hill.w;
-  const foot = N.widths.foot * w;
-  const k = N.widths.k * w;
-  const u = N.widths.u * w;
-  if (d <= hill.edge) return N.widths.inRun;
-  if (d <= hill.k) return foot + ((k - foot) * (d - hill.edge)) / (hill.k - hill.edge);
-  if (d <= hill.u) return k + ((u - k) * (d - hill.k)) / (hill.u - hill.k);
-  return u;
-}
-
 /** WHERE A DISTANCE IS MARKED: the m of plan along the hill a landing is
  * credited `distance` m at — `distanceAt` read back, by halving. */
 export function planOfDistance(hill: SkiJumpHill, distance: number): number {
@@ -137,7 +132,8 @@ function mastsOf(f: HillFrame, level: Level): PisteMast[] {
   const M = SJ_LOOK.mast;
   const out: PisteMast[] = [];
   const from = hill.from + 20;
-  for (let d = from; d <= hill.u + 30; d += M.every) {
+  // Down to the stadium, whose own masts light the out-run (`arenaMasts`).
+  for (let d = from; d <= hill.u - SJ_ARENA.side.above - 6; d += M.every) {
     for (const side of [-1, 1] as const) {
       const a = side * (Math.max(landingWidth(hill, d) / 2, 3) + M.out);
       const foot = hillPoint(f, d, a);
@@ -179,6 +175,7 @@ function mastsOf(f: HillFrame, level: Level): PisteMast[] {
       out.push({ x: foot.x, y, z: foot.z, height, side, heading, lamps });
     }
   }
+  out.push(...arenaMasts(f, level));
   return out;
 }
 

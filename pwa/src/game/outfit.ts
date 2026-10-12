@@ -68,8 +68,12 @@ export type Outfit = {
   helmet: HelmetId;
   gloves: GloveId;
   poles: PoleId;
+  /** A SKI JUMPER'S KIT (`jumpKit`): the jacket and pants cut as one tight
+   * suit in the jacket's own colours, the helmet painted to match. Never a
+   * slot of the DRESS card — the ski jump puts it on him. */
+  suit?: boolean;
 };
-export type GearSlot = keyof Outfit;
+export type GearSlot = Exclude<keyof Outfit, "suit">;
 
 /** A BUILD: its name and its shape (`dress-body.ts`' `builtTo`) — the
  * GIRTH, the body's breadth and depth as a share of the medium build's at
@@ -357,6 +361,29 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
     poles: of(POLES, 5),
     tone: TONES[dealt(look, 6, TONES.length)],
   };
+}
+
+/** THE SKI JUMPER'S KIT off the player's (or a rival's) own: the one-piece
+ * suit in his jacket's colours over the race softshell's legs, the race
+ * shell's helmet in the suit's colours, his own gloves — and NO POLES,
+ * which a jumper never carries. */
+export function jumpKit(o: Outfit): Outfit {
+  return { ...o, pants: "race", helmet: "race", poles: "none", suit: true };
+}
+
+/** A suit's legs in its jacket's colours (`jumpKit`). */
+export function suitPants(o: Outfit): Colours {
+  const j = gearOf("jacket", o.jacket);
+  return { main: j.main, second: j.second, third: j.third };
+}
+
+/** The helmet as worn: its catalog entry, or on a jumper's suit the race
+ * shell painted in the suit's main and second colours. */
+export function helmetOf(o: Outfit): HelmetDef {
+  const h = gearOf("helmet", o.helmet);
+  if (!o.suit) return h;
+  const j = gearOf("jacket", o.jacket);
+  return { ...h, shell: j.main, trim: j.second };
 }
 
 /** One slot's catalog entry for an id — its first when the id is unknown. */

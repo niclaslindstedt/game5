@@ -35,6 +35,7 @@ import {
   type GeneratorVersion,
   type Level,
   type RegionId,
+  type SkiJumpHillId,
   type SkyOverride,
   type SkiSpec,
   type WeatherKind,
@@ -60,6 +61,10 @@ export type TrickMap = {
    * where it is past the daylight (the night), since the day's own hour is
    * held inside it (`withDay`). */
   day: { dayOfYear: number; hour: number; weather: WeatherKind };
+  /** A SKI JUMPING HILL's row (`jump-hills.ts`): the hill of the norm R43
+   * cuts down the map, and its map built with no park — the hill is what
+   * it was chosen for. Left out on a trick map. */
+  hill?: SkiJumpHillId;
 };
 
 /** THE SIX, in the order the card shows them — the brightest first. */
@@ -153,7 +158,7 @@ export function isTrickMap(id: unknown): id is string {
 }
 
 /** The ground a trick map is: its seed in its country on its generator,
- * with the park. */
+ * with the park — or, a jump hill's, without. */
 export function buildTrickMap(map: TrickMap): Level {
   return generateLevel(map.seed, trickAsk(map));
 }
@@ -161,7 +166,7 @@ export function buildTrickMap(map: TrickMap): Level {
 /** What the generator is asked for a trick map — here, or on the loading
  * card's worker (`map-build.ts`). */
 export function trickAsk(map: TrickMap): GenerateOptions {
-  return { tricks: true, version: map.version, region: map.region };
+  return { tricks: map.hill === undefined, version: map.version, region: map.region };
 }
 
 /** The sky a trick map is ridden under: its weather, and its hour where the
@@ -199,6 +204,7 @@ export function trickGameOptions(
     damage: skier.damage,
     ...(skier.gore ? { gore: true } : {}),
     poles: skier.poles,
+    ...(map.hill ? { hill: map.hill } : {}),
   };
 }
 

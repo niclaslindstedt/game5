@@ -166,6 +166,9 @@ export type Stand = {
    * chatter at speed (`ski-chatter.ts`); nought off `standOf`. */
   pitch: [number, number];
   rock: [number, number];
+  /** Each ski turned about its binding, rad (clockwise from above) — a
+   * ski jumper's V (`skier-jumper.ts`); nought off `standOf`. */
+  yaw: [number, number];
 };
 
 export function emptyStand(): Stand {
@@ -179,6 +182,7 @@ export function emptyStand(): Stand {
     share: [0.5, 0.5],
     pitch: [0, 0],
     rock: [0, 0],
+    yaw: [0, 0],
   };
 }
 
@@ -216,6 +220,7 @@ export function standOf(
     out.fore[i] = -side * w * sa;
     out.pitch[i] = 0;
     out.rock[i] = 0;
+    out.yaw[i] = 0;
   }
   // On the snow the skis' edge is taken against the snow he inclines to;
   // in the air against the world, as before.

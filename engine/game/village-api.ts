@@ -9,7 +9,6 @@
 
 export {
   MASK as STREET_MASK,
-  felledTrees,
   onCarriageway,
   onStreet,
   streetMaskAt,
@@ -19,6 +18,7 @@ export {
   villageSolids,
   type Village,
 } from "./village.ts";
+export { felledTrees } from "./felled.ts";
 export {
   besidePoint,
   reachOf,

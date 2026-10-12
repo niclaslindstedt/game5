@@ -13,31 +13,17 @@
 // THE WHERE STEPS COME FIRST (`menu-where.tsx`, `where-steps.ts`): FREE RIDE
 // opens on a world map with every real ski area marked where it lies, then,
 // where an area has more than one, its mountainsides; this card is the
-// third step, and its WORLD MAP chip and its way back walk them again.
+// third step, and its way back walks them again.
 //
-// THREE ROWS SAY WHERE AGAIN, for a quick step, A CHART SHOWS IT, and the
-// rest say when:
-//
-//   RANGE   the massif: the RANGE a real face lies in (`face-picks.ts`: a
-//           country, or a range across borders; by name) — every one,
-//           whatever colours its ski area signs — or, last, GENERATED: a
-//           mountain the generator raises off a seed.
-//
-//   AREA    under GENERATED, the kind of snow country it is raised in
-//           (R21): the alpine, a fell, a continental range or a maritime
-//           one. Under a real range, which of its ski areas, by the place
-//           it is known by (a real face brings its own country).
+// WHERE IS NOT ASKED AGAIN: the steps before this card picked it, and its
+// way back is how to change it. Only a GENERATED mountain asks one more
+// thing here, as A CHART SHOWS IT, and the rest say when:
 //
 //   MOUNTAIN under GENERATED, the mountain's NUMBER — the seed, typed or
-//           stepped — with ANOTHER MOUNTAIN beside the rows to deal a
-//           fresh one. The CHART is the row's meaning — a number nobody
+//           stepped. The CHART is the row's meaning — a number nobody
 //           can picture is not a choice — and it is cut from the real
 //           generated map in a worker (`seed-preview.tsx`), with every
 //           KICKER marked on it, which is what a free skier is hunting.
-//   PART    under a real area, which part of it (`real-face.ts`) — a real
-//           mountainside's ridge, spurs, gullies and tree line under the
-//           seed's lifts and runs; shown only where the area has more
-//           than one.
 //
 //   SEASON  early winter, midwinter, late winter or spring (`SEASONS`): how
 //           high the sun climbs and how long the shadows lie.
@@ -48,17 +34,19 @@
 //   SNOW    thin, medium, thick or very deep (`SNOW_STOPS`), read as how
 //           deep the loose snow lies — up to a metre of fresh snow.
 //
-//   START   how the ride begins: ON SKIS or ON A SNOWBOARD (the pair of
-//           that kind the gear card picks), carried by the lift to the RUN
+//   START   how the ride begins: SLOPE (on the skis or the board the
+//           gear card picks), carried by the lift to the RUN
 //           row's run — or a way up with no lift: the PARAMOTOR (the
 //           ride begun on the summit, the wing over him, skied off and
 //           flown — `para.ts`), the HOT AIR BALLOON (begun in its basket
 //           on the valley floor and flown up the mountain on the day's
 //           wind — `balloon.ts`), the SNOWMOBILE (stood on its boards, the
 //           skis racked — `sled.ts`), the HELICOPTER (sat on the skid on
-//           its pad — `heli.ts`), or the AFTERSKI (inside the valley's
-//           lodge at the party — `afterski.ts`). A machine is kept as a
-//           run id of its map, as it always was (`startPicked`).
+//           its pad — `heli.ts`), the PLANE (in its door on the strip —
+//           `plane.ts`), the WINGSUIT (no skis, stood on its exit high on
+//           the mountain — `wingsuit-start.ts`), or the AFTERSKI (inside
+//           the valley's lodge at the party — `afterski.ts`). A machine is
+//           kept as a run id of its map, as it always was (`startPicked`).
 //
 //   RUN     which run of the ski area the ride starts down, by the number
 //           the piste map signs it with — EVERY run of the map, of any
@@ -66,41 +54,28 @@
 //           engine's `pickFreeRun`). The lift up to its top carries the
 //           skier the last few seconds, and the chart marks its head with
 //           a pulse; the line under the chart bills it. Picking one puts
-//           the START row back ON SKIS (`runPicked`). There is NO GRADE
+//           the START row back on the SLOPE (`runPicked`). There is NO GRADE
 //           row: the mountain is the seed's own, and the slope is chosen
 //           here, whatever its colour.
 //
-//   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
+//   WEATHER the sky (R19): the map's own, or one of the eight at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
 //           is TIME's alone, so the two rows cannot disagree.
 //
-// THE DAY'S TWO ROWS DEFER TO THE MAP until they are moved (`free-ride.ts`):
-// both stand on AS DEALT, and stepping one pins a word. THE CHART IS A CONTROL too: a press on it is where
-// the ride starts, and FROM THE GRID takes that back.
+// THE DAY'S ROWS DEFER TO THE MAP until they are moved (`free-ride.ts`):
+// SEASON, TIME and WEATHER show what the map was dealt (`dealtDay`), in a
+// colour of their own, and stepping one pins a word. There is no AS DEALT
+// stop: the row always says what the ride will get. THE CHART IS A CONTROL too: a press on it is where
+// the ride starts, and a pick of the RUN row takes that back.
 //
 // What the rows WRITE is `settings.ride` — so a ride stood up from here and
 // one a `?start=free` link boots into are the same ride read the same way.
 
-import {
-  TIMES_OF_DAY,
-  WEATHER_KINDS,
-  realFacePlace,
-  realFaceRegion,
-  type RegionId,
-  type WeatherKind,
-} from "@engine";
+import { TIMES_OF_DAY, WEATHER_KINDS, type WeatherKind } from "@engine";
 import { useState } from "preact/hooks";
 
-import {
-  areaIds,
-  areaOf,
-  areaParts,
-  GENERATED,
-  rangeIds,
-  rangeOf,
-  wherePicked,
-} from "./face-picks.ts";
-import { SEASONS, SNOW_STOPS, runPicked, spotOn, type FreeRide } from "./free-ride.ts";
+import { GENERATED, rangeOf } from "./face-picks.ts";
+import { SEASONS, SNOW_STOPS, runPicked, type FreeRide } from "./free-ride.ts";
 import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
 import { startChosen, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
@@ -111,49 +86,17 @@ import { STRINGS } from "./strings.ts";
  * seed the stream takes, and the row clamps what it is typed. */
 export const SEED_RANGE = { min: 1, max: 999_999 } as const;
 
-/** The WEATHER row's stops: the map's own sky, then R19's eight. */
-const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
-  { id: "dealt", label: STRINGS.weatherDealt },
-  ...WEATHER_KINDS.map((kind) => ({ id: kind, label: STRINGS.weatherNames[kind] })),
-];
+/** The WEATHER row's stops: R19's eight. */
+const WEATHER_STOPS: { id: WeatherKind; label: string }[] = WEATHER_KINDS.map((kind) => ({
+  id: kind,
+  label: STRINGS.weatherNames[kind],
+}));
 
-/** The RANGE row's stops: every range with a real face (R25), then
- * GENERATED. */
-function rangeStops(): { id: string; label: string }[] {
-  return rangeIds().map((id) => ({
-    id,
-    label: id === GENERATED ? STRINGS.rangeGenerated : STRINGS.rangeName(id),
-  }));
-}
+/** The SEASON row's stops: the four. */
+const SEASON_STOPS = SEASONS.map(({ id }) => ({ id, label: STRINGS.seasonNames[id] }));
 
-/** The AREA row's stops: R21's four countries under GENERATED, a real
- * range's ski areas. */
-function areaStops(range: string): { id: string; label: string }[] {
-  return areaIds(range).map((id) => ({
-    id,
-    label: range === GENERATED ? STRINGS.regionNames[id as RegionId] : STRINGS.placeName(id),
-  }));
-}
-
-/** The PART row's stops: an area's parts. */
-function partStops(range: string, area: string): { id: string; label: string }[] {
-  return areaParts(range, area).map(({ id, part }) => ({
-    id,
-    label: STRINGS.placeName(part),
-  }));
-}
-
-/** The SEASON row's stops: the map's own date, then the four. */
-const SEASON_STOPS = [
-  { id: "dealt" as const, label: STRINGS.weatherDealt },
-  ...SEASONS.map(({ id }) => ({ id, label: STRINGS.seasonNames[id] })),
-];
-
-/** The TIME row's stops: the map's own hour, then the four. */
-const TIME_STOPS = [
-  { id: "dealt" as const, label: STRINGS.weatherDealt },
-  ...TIMES_OF_DAY.map((id) => ({ id, label: STRINGS.timeNames[id] })),
-];
+/** The TIME row's stops: the four. */
+const TIME_STOPS = TIMES_OF_DAY.map((id) => ({ id, label: STRINGS.timeNames[id] }));
 
 /** The SNOW row's stops. */
 const SNOW_ROW = SNOW_STOPS.map(({ id }) => ({ id, label: STRINGS.snowNames[id] }));
@@ -166,20 +109,15 @@ export function StartPage({
   settings,
   seed,
   onSettings,
-  onReroll,
   onBack,
-  onMap,
   onNext,
 }: {
   settings: Settings;
   /** The map on the card: the stored one, or the front door's. */
   seed: number;
   onSettings: (settings: Settings) => void;
-  /** Deal a fresh map. */
-  onReroll: () => void;
+  /** Back a WHERE step: the area's parts or the world map. */
   onBack: () => void;
-  /** Back onto the world map, the WHERE steps' first. */
-  onMap: () => void;
   /** On to the skis card, which is where RIDE is. */
   onNext: () => void;
 }) {
@@ -188,16 +126,8 @@ export function StartPage({
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...settings, ride: { ...ride, ...patch } });
 
-  /** Where the ride stands, as RANGE and AREA read it. */
-  const range = rangeOf(ride.face);
-  const generated = range === GENERATED;
-  /** A pick of RANGE (and AREA): GENERATED and a country, or a real face. */
-  const pickWhere = (next: string, area?: string): void => {
-    const at = wherePicked(next, ride.region, area);
-    if (at) setRide({ ...at, spot: null, run: null });
-  };
-  const place = ride.face ? realFacePlace(ride.face) : null;
-  const parts = place ? partStops(place.range, place.area) : [];
+  /** A GENERATED mountain asks its number here. */
+  const generated = rangeOf(ride.face) === GENERATED;
 
   // THE RUN ROW AND ITS CHART, as the pause card's PISTE MAP asks them too.
   const pick = useRunPick(settings, seed);
@@ -228,42 +158,13 @@ export function StartPage({
         <div class="start-cols">
           <div class="start-col">
             <div class="knob-rows">
-              <StepRow
-                label={STRINGS.startRange}
-                hint={STRINGS.startRangeHint}
-                stops={rangeStops()}
-                value={range}
-                onPick={(id) => pickWhere(id)}
-                onHint={setHint}
-              />
-              <StepRow
-                label={STRINGS.startArea}
-                hint={generated ? STRINGS.startRegionHint : STRINGS.startAreaHint}
-                stops={areaStops(range)}
-                value={areaOf(ride.face, ride.region)}
-                onPick={(area) => pickWhere(range, area)}
-                onHint={setHint}
-              />
               {generated && (
                 <NumberRow
                   label={STRINGS.startMap}
-                  hint={STRINGS.startMapHint}
                   value={seed}
                   min={SEED_RANGE.min}
                   max={SEED_RANGE.max}
                   onValue={(next) => setRide({ seed: next })}
-                  onHint={setHint}
-                />
-              )}
-              {parts.length > 1 && (
-                <StepRow
-                  label={STRINGS.startPart}
-                  hint={STRINGS.startPartHint}
-                  stops={parts}
-                  value={ride.face ?? ""}
-                  onPick={(face) =>
-                    setRide({ face, region: realFaceRegion(face)!, spot: null, run: null })
-                  }
                   onHint={setHint}
                 />
               )}
@@ -278,7 +179,6 @@ export function StartPage({
               />
               <StepRow
                 label={STRINGS.startRun}
-                hint={STRINGS.startRunHint}
                 stops={pick.stops}
                 value={pick.value}
                 extra={pick.machine ? STRINGS.startRunOff : STRINGS.startRunWaiting}
@@ -298,26 +198,30 @@ export function StartPage({
             <div class="knob-rows">
               <StepRow
                 label={STRINGS.startSeason}
-                hint={STRINGS.startSeasonHint}
                 stops={SEASON_STOPS}
-                value={ride.season ?? "dealt"}
-                onPick={(id) => setRide({ season: id === "dealt" ? null : id })}
+                value={ride.season ?? pick.dealt?.season ?? ""}
+                dealt={ride.season === null}
+                extra={STRINGS.startRunWaiting}
+                onPick={(season) => setRide({ season })}
                 onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startTime}
-                hint={STRINGS.startTimeHint}
                 stops={TIME_STOPS}
-                value={ride.time ?? "dealt"}
-                onPick={(id) => setRide({ time: id === "dealt" ? null : id })}
+                value={ride.time ?? pick.dealt?.time ?? ""}
+                dealt={ride.time === null}
+                extra={STRINGS.startRunWaiting}
+                onPick={(time) => setRide({ time })}
                 onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startWeather}
                 hint={STRINGS.startWeatherHint}
                 stops={WEATHER_STOPS}
-                value={ride.weather ?? "dealt"}
-                onPick={(id) => setRide({ weather: id === "dealt" ? null : id })}
+                value={ride.weather ?? pick.dealt?.weather ?? ""}
+                dealt={ride.weather === null}
+                extra={STRINGS.startRunWaiting}
+                onPick={(weather) => setRide({ weather })}
                 onHint={setHint}
               />
               <StepRow
@@ -336,23 +240,6 @@ export function StartPage({
                 onPick={(id) => setRide({ avalanche: id === "on" })}
                 onHint={setHint}
               />
-            </div>
-            <div class="start-actions">
-              <button type="button" class="menu-chip" data-menu="map" onClick={onMap}>
-                <span class="menu-tile-name">{STRINGS.whereMap}</span>
-              </button>
-              <button type="button" class="menu-chip" data-menu="reroll" onClick={onReroll}>
-                <span class="menu-tile-name">{STRINGS.startReroll}</span>
-              </button>
-              <button
-                type="button"
-                class="menu-chip"
-                data-menu="grid"
-                disabled={spotOn(ride, seed) === null}
-                onClick={() => setRide({ spot: null })}
-              >
-                <span class="menu-tile-name">{STRINGS.startGrid}</span>
-              </button>
             </div>
           </div>
         </div>

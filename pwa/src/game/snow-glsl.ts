@@ -80,6 +80,7 @@ uniform vec2 uLevelCentre;
 uniform float uSpacing;
 uniform float uGridHalf;
 uniform float uBaseSpacing;
+uniform vec4 uHole;
 uniform sampler2D uGround;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
@@ -173,17 +174,44 @@ float snowRelief;
 // the track's shoulders are a real edge the light picks out. (The engine's
 // ground is the track's graded surface; the skier drawn in powder is lowered
 // by as much in renderer.ts.)
-float snowPackedV = textureLod(uGround, (snowXZ - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell), 0.0).b;
+vec4 snowGroundV = textureLod(uGround, (snowXZ - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell), 0.0);
+float snowPackedV = snowGroundV.b;
 // THE TREE WELLS (\`tree-wells.ts\`): the hollows round the trunks in deep
 // powder, off the engine's own wells.
 float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ)
   // THE AVALANCHE (\`avalanche-glsl.ts\`): its bed below, its debris above.
   + slideAt(snowXZ);
+// UNDER THE FINER LEVEL (\`uHole\`: its centre and half extent), the
+// vertices it covers by a whole cell of this one are SUNK, so every
+// triangle of this level the finer one draws over hinges down from where
+// the two meet and lies under it — out of sight, and no pixel of it thrown
+// away. Thrown away per pixel, as it was, the ground's shader held a
+// \`discard\`, and a GPU that sorts what it draws before it shades it
+// (a phone's tiles) cannot, for any draw that may discard: every
+// fragment of the mountain behind a nearer one was shaded in full. The
+// finer level is wholly morphed onto this one's cells within two of them
+// of its edge (the morph's last 8 %), so the seam is one surface.
+if (uHole.w > 0.5) {
+  vec2 dh = abs(snowXZ - uHole.xy);
+  if (max(dh.x, dh.y) <= uHole.z - uSpacing + 0.01 * uSpacing) snowY -= 2.0 * uSpacing;
+}
+// THE MESH'S NORMAL. The snow's shading never reads it — the fragment
+// half lights every pixel by its own normal off the GROUND map's slope —
+// so on the map it is that same slope, already read above (the shadow's
+// normal bias is all it steers there); past the edge, where the rim's
+// rise is noise of its own, the ground is differenced, four heights.
 float snowE = max(uSpacing, uCell);
-vec3 objectNormal = normalize(vec3(
-  groundHeight(snowXZ - vec2(snowE, 0.0)) - groundHeight(snowXZ + vec2(snowE, 0.0)),
-  2.0 * snowE,
-  groundHeight(snowXZ - vec2(0.0, snowE)) - groundHeight(snowXZ + vec2(0.0, snowE))));
+vec2 snowLo = uHeightOrigin + snowE;
+vec2 snowHi = uHeightOrigin + (uHeightCount - 1.0) * uCell - snowE;
+vec3 objectNormal;
+if (all(greaterThanEqual(snowXZ, snowLo)) && all(lessThanEqual(snowXZ, snowHi))) {
+  objectNormal = normalize(vec3(-snowGroundV.r, 1.0, -snowGroundV.g));
+} else {
+  objectNormal = normalize(vec3(
+    groundHeight(snowXZ - vec2(snowE, 0.0)) - groundHeight(snowXZ + vec2(snowE, 0.0)),
+    2.0 * snowE,
+    groundHeight(snowXZ - vec2(0.0, snowE)) - groundHeight(snowXZ + vec2(0.0, snowE))));
+}
 `;
 
 /** Replaces `begin_vertex`. */
@@ -200,7 +228,6 @@ uniform sampler2D uTrackDir;
 uniform vec2 uHeightOrigin;
 uniform vec2 uHeightCount;
 uniform float uCell;
-uniform vec4 uHole;
 uniform float uFlat;
 uniform float uFresh;
 uniform vec4 uPiste;
@@ -302,10 +329,6 @@ float snowSpill;     // 0 .. 1 the clods a trench has thrown out over its rim
 export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
 {
   vec2 p = vSnowWorld.xz;
-  if (uHole.w > 0.5) {
-    vec2 dh = abs(p - uHole.xy);
-    if (max(dh.x, dh.y) < uHole.z) discard;
-  }
   vec3 eye = vSnowWorld - cameraPosition;
   snowDist = length(eye);
   vec2 guv = (p - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell);

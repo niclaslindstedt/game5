@@ -42,7 +42,7 @@ import {
   type V3,
 } from "./dress-loft.ts";
 import { GAUNTLET_SLEEVE, overSleeve } from "./dress-gloves.ts";
-import { gearOf, type JacketId, type Outfit, type PantsId } from "./outfit.ts";
+import { gearOf, suitPants, type JacketId, type Outfit, type PantsId } from "./outfit.ts";
 
 const TAU = Math.PI * 2;
 const FRONT = Math.PI / 2;
@@ -222,6 +222,22 @@ const PANTS_CUT: Record<PantsId, PantsCut> = {
   cargo: { ease: 0.034, knee: 0.032, hem: 0.096, drop: 0.02, square: 2.3 },
 };
 
+/** A SKI JUMPER'S ONE-PIECE SUIT (`Outfit.suit`): close over the body
+ * with no swing at the hem and narrow sleeves, the legs as close, cut down
+ * over the boot. */
+const SUIT: { jacket: JacketCut; pants: PantsCut } = {
+  jacket: {
+    hem: -0.1,
+    ease: 0.014,
+    hemFlare: -0.008,
+    collar: 0.07,
+    square: 2.2,
+    sleeve: 0.016,
+    drape: 0.2,
+  },
+  pants: { ease: 0.012, knee: 0.01, hem: 0.074, drop: 0, square: 2.2 },
+};
+
 /** How far the thighs' tops are drawn in toward the middle under the seat,
  * m: the rig's hip joints stand a stance apart (`BODY.hip`), wider than a
  * body's, and a thigh lofted round them would bulge out past the hips. */
@@ -395,7 +411,7 @@ function drape(
 
 function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.jacket;
-  const cut = JACKET_CUT[id];
+  const cut = o.suit ? SUIT.jacket : JACKET_CUT[id];
   const j = gearOf("jacket", id);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
@@ -409,7 +425,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const flare = (level: number) =>
     legs(level) + cut.hemFlare * Math.max(0, 1 - (level - cut.hem) / 0.15);
   // Clear of the pants wherever it hangs over them.
-  const pc = PANTS_CUT[o.pants];
+  const pc = o.suit ? SUIT.pants : PANTS_CUT[o.pants];
   // A woman's cut is TAILORED: taken in at the waist and let out over the
   // hips, where a man's hangs straight.
   const female = gearOf("body", o.body).female;
@@ -754,8 +770,8 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
 
 function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.pants;
-  const cut = PANTS_CUT[id];
-  const pd = gearOf("pants", id);
+  const cut = o.suit ? SUIT.pants : PANTS_CUT[id];
+  const pd = o.suit ? suitPants(o) : gearOf("pants", id);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
   // THE SEAT, from the crotch (dropped, on a baggy pair) to the waist

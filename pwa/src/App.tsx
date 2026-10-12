@@ -71,7 +71,8 @@ import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
 import { raceMapsOf } from "./game/race-maps.ts";
 import { carriesPoles } from "./game/outfit.ts";
 import { mapPicks } from "./game/map-picks.ts";
-import { isTrickRun, trickMapFor, tricksTile } from "./game/trick-maps.ts";
+import { isTrickRun, tricksTile } from "./game/trick-maps.ts";
+import { cardPick } from "./game/jump-hills.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
 import {
   FIRST_FREE_SEED,
@@ -80,9 +81,10 @@ import {
   type AgainAt,
   freeGameOptions,
   freeRestart,
-  standingFor,
 } from "./game/free-ride.ts";
-import { freeRideLevel } from "./game/seed-maps.ts";
+import { createFreeRides } from "./game/app-free.ts";
+import { createWorldBuild } from "./game/world-build.ts";
+import { outfitKey } from "./game/dress.ts";
 import { DevLayer, useDevApp } from "./game/dev-app.tsx";
 import { snapInput } from "./game/ghost.ts";
 import { heldRide } from "./game/hold-input.ts";
@@ -116,12 +118,12 @@ import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
 import { shotLabel } from "./game/run-news.ts";
 import { createNewsFeed } from "./game/run-watch.ts";
+import { wireLook } from "./game/app-look.ts";
 import {
   assistOf,
   injuriesShown,
   loadSettings,
   mixOf,
-  nextCamera,
   saveSettings,
   specFor,
   type Settings,
@@ -262,10 +264,10 @@ export function App() {
     () => setAudioVolumes({ engine: mix.engine, effects: mix.effects }),
     [mix.engine, mix.effects],
   );
-  const { keys: skiKeys, heliKeys, planeKeys } = settings;
+  const { keys: skiKeys, heliKeys, planeKeys, rideKeys } = settings;
   useEffect(
-    () => input?.setBindings({ keys: skiKeys, heliKeys, planeKeys }),
-    [input, skiKeys, heliKeys, planeKeys],
+    () => input?.setBindings({ keys: skiKeys, heliKeys, planeKeys, rideKeys }),
+    [input, skiKeys, heliKeys, planeKeys, rideKeys],
   );
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
@@ -283,7 +285,7 @@ export function App() {
     setInput(manager);
     const renderer = renderKit.createWorldRenderer(canvas, { video: videoOf(settingsRef.current) });
     rendererRef.current = renderer;
-    manager.onLook((dx, dy) => renderer.lookAround(dx, dy));
+    const cams = wireLook(manager, renderer, settingsRef, setSettings, shellRef);
     const book = createRunBook({ show: (ghost) => renderer.setGhost(ghost) });
     bookRef.current = book;
     const replays = (replayRef.current = createReplayRun({
@@ -297,27 +299,9 @@ export function App() {
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
 
-    /* ── WHICH MAP THE RENDERER HOLDS ───────────────────────────────────
-       A map is built into the renderer asynchronously, and until it has
-       been the renderer cannot draw a race on it — nor may that race be
-       stepped, or its lights would count down under a card the player
-       cannot see through. So every build goes through `build`, which
-       remembers which level is standing; `drawable` is the one question the
-       loop asks before it steps or draws. */
-    let standing: Level | null = null;
-    let wanted: Level | null = null;
-    const build = (s: GameState, again = false): Promise<void> => {
-      const level = s.level;
-      // A new race on the map already standing needs nothing built: the
-      // renderer sees a fresh state and starts its trails and spray clean.
-      if (standing === level && !again) return Promise.resolve();
-      wanted = level;
-      standing = null;
-      prepareMinimap(level, s.rules.heli); // the airstrip on a free ride's
-      return renderer.load(s).then(() => {
-        if (wanted === level) standing = level;
-      });
-    };
+    /* ── WHICH MAP THE RENDERER HOLDS (`world-build.ts`) ──────────────── */
+    const world = createWorldBuild(renderer, (s) => prepareMinimap(s.level, s.rules.heli));
+    const build = world.build;
     // The renderer's methods are closures, never `this`, so a copy with its
     // own `load` is the renderer with every build going through `build`.
     const view: WorldRenderer = { ...renderer, load: build };
@@ -378,7 +362,7 @@ export function App() {
       params.bot || !keepsRecords(mode) || isTraining(s) || s.cross !== undefined
         ? null
         : { key: runKey(s, mode), assist: { ...s.assist } };
-    const drawable = (): boolean => standing !== null && standing === state.level;
+    const drawable = (): boolean => world.drawable(state.level);
     let frozen = params.shot;
     let preroll = false;
     let ready = false;
@@ -562,7 +546,20 @@ export function App() {
       benchVista: params.view === "vista",
     });
 
+    /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
+    const frees = createFreeRides({
+      world,
+      loader,
+      current: () => state,
+      // The live race behind the door again; over the title nothing stands.
+      restore: () => void (title.raced() && build(state)),
+      outfit: () => outfitKey(settingsRef.current.outfit),
+      plan: () => ({ camera: settingsRef.current.camera, done: lift }),
+      stood: (again) => (freeAgain = again),
+    });
+
     pressRef.current = {
+      stageFree: frees.stageFree,
       race: (seed, asked) => {
         mode = asked;
         pinned.clear();
@@ -579,19 +576,7 @@ export function App() {
       free: (options) => {
         mode = "free";
         pinned.clear();
-        // The map standing, or the one the start card's worker built or is
-        // building (`seed-maps.ts`); else built on the card's own worker.
-        const made = freeRideLevel(options, () => standingFor(state.level, state.rules, options));
-        loader.begin({
-          ...made,
-          build: (built) => {
-            const game = createGame({ ...options, level: built ?? made.has() });
-            freeAgain = freeAgainOptions(options, game.level);
-            return game;
-          },
-          camera: settingsRef.current.camera,
-          done: lift,
-        });
+        frees.free(options);
       },
       tricks: pinned.tricks,
       pinned: pinned.press,
@@ -637,12 +622,7 @@ export function App() {
         pinned.clear();
         setShellNow("menu");
       },
-      camera: () => {
-        if (watching(shellRef.current)) return replays.camera();
-        const next = nextCamera(settingsRef.current.camera);
-        setSettings((s) => ({ ...s, camera: next }));
-        if (hudOver(shellRef.current)) renderer.setCamera(next, false, true);
-      },
+      camera: () => (watching(shellRef.current) ? replays.camera() : cams.next()),
       shot: () => shots.take(),
     };
 
@@ -653,6 +633,7 @@ export function App() {
       resume: () => pressRef.current.resume(),
       restart,
       camera: () => pressRef.current.camera(),
+      firstPerson: cams.firstPerson,
       reset: () => manager.requestReset(),
       leave: () => pressRef.current.unwatch(),
       replay: () => pressRef.current.watch(replays.crash() ? "crash" : "recent"),
@@ -792,7 +773,10 @@ export function App() {
       setAway(awayRef.current);
     };
     document.addEventListener("visibilitychange", onVisibility);
-    const stopCanvas = watchCanvas(canvas, renderer, () => standing && void build(state, true));
+    const stopCanvas = watchCanvas(canvas, renderer, () => {
+      world.unstage(); // a context handed back empty: a staged world is gone
+      if (drawable()) void build(state, true);
+    });
     // A tap on the snowmobile or the helicopter beside him gets him on.
     const stopTaps = watchMachineTaps(canvas, {
       ray: (x, y) => renderer.pickRay(x, y),
@@ -839,7 +823,7 @@ export function App() {
     // trick map card's map, unless a link pinned a seed.
     const m = modeRef.current;
     if (isTrickRun(m) && params.seed === null) {
-      return pressRef.current.tricks(trickMapFor(settings.trickMap), m);
+      return pressRef.current.tricks(cardPick(m, settings), m);
     }
     // The tricks run is ridden on the map the menu stands over.
     const here = modeRef.current === "tricks";
@@ -851,6 +835,14 @@ export function App() {
   /** The map on the start card: the one it stored, or the first of the
    * free ride's own mountains (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
+  // The free ride's rider and gear cards stage its world (the start card keeps it).
+  useEffect(() => {
+    const free = modeRef.current === "free" && shell === "menu";
+    const opts = () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free"));
+    const cards = page === "dress" || page === "skis";
+    pressRef.current.stageFree(free && cards ? opts() : free && page === "start" ? "keep" : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the ride's own fields
+  }, [page, shell, settings.ride, settings.outfit, startSeed]);
   /** Onto the snow on a FREE RIDE: the start card's map, day and snow (or the
    * pause card's PISTE MAP's), on the pair the ski card holds. */
   const freeRide = (ride = settings.ride): void => {
@@ -923,6 +915,7 @@ export function App() {
         onMenu={() => pressRef.current.toMenu()}
         onReplay={canReplay ? () => pressRef.current.watch() : null}
         onSecond={() => pressRef.current.second()}
+        onSlopes={modeRef.current === "free" ? () => pressRef.current.pause() : null}
       />
       {shell === "pause" && snap !== null && (
         <PauseMenu

@@ -63,5 +63,5 @@ export const BALLOON_STRINGS = {
   /** OPTIONS ▸ KEYS: the balloon's section, and how the skier's keys fly it. */
   keysBalloonTitle: "HOT AIR BALLOON",
   balloonKeysNote:
-    "In the balloon the same keys fly it: hold the tuck to burn (the climb comes tens of seconds later), the skid pulls the parachute valve to dump heat, the edge and the lean walk you about the basket. The machine key jumps over the side — or, stood on the snow, steps you out. Burning in a strong wind can set the envelope alight. On touch the left thumb is a pad that walks you about the basket, and the right side holds BURN, VENT and JUMP.",
+    "In the balloon its own keys above fly it — by default the skier's: hold the tuck to burn (the climb comes tens of seconds later), the skid pulls the parachute valve to dump heat, the edge and the lean walk you about the basket. The machine key jumps over the side — or, stood on the snow, steps you out. Burning in a strong wind can set the envelope alight. On touch the left thumb is a pad that walks you about the basket, and the right side holds BURN, VENT and JUMP.",
 };

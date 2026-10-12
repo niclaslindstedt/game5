@@ -36,10 +36,12 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | Every stage drawn (a kit a canopy, the main's and the reserve's, each on its own clock; the reserve's spring pilot chute and free bag), the eyes and the own-eyes hiding | `pwa/src/game/chute-scene.ts` (through `machines.ts`) |
 | The body through every stage, laid from a square stand | `pwa/src/game/skier-skydive.ts` (`SkydiveShape`, `skydivePose`, `squareStand`, `squareSkis`), read by `skis-body.ts`'s `setSkydive` |
 | The snowboarder through every stage: the skier's arms, square to his front, the board across his feet (`boardSkydiveYaw` turns him out of the door, square in the air and side-on at the flare) | `pwa/src/game/board-skydive.ts`, read by `board-model.ts`'s `setSkydive`; `tests/board_skydive_test.ts` |
-| The lenses | `pwa/src/game/camera-skydive.ts` (the freefall's flyer, the opening), `camera-para.ts`'s `CHUTE_RIGS` (under the canopy) |
+| The lenses | `pwa/src/game/camera-skydive.ts` (the freefall's flyer, the opening), `camera-para.ts`'s `CHUTE_RIGS` (under the canopy); in a wingsuit `camera-wingsuit.ts` (the chase, side and helmet lenses along his line, the hover exit framed off the helicopter's side, every change flown round him) and `haze.ts`'s `uMistAloft` (the mist measured across the ground under a high lens); `tests/camera_wingsuit_test.ts` |
 | The HUD, the words | `plane-hud.ts`'s `chuteOf`, `hud-plane.tsx`, `strings-chute.ts`, `run-news.ts` |
 | The sound | `audio/chute-voice.ts`, `chute-bed.ts` (`rideShares`: the ride bed silent while he falls), `chute-bank.ts` |
-| The labs | `scripts/skydive-flight-lab.mjs`; `scripts/skydive-preview.mjs` over `pwa/skydive-preview.html`, `pwa/src/tools/skydive-harness.ts`, `skydive-scenes.ts` |
+| THE WINGSUIT on the same step (`ChuteState.suit` `"wingsuit"`, no skis, no reserve): the flight, the exit and its hover, the BASE canopy (`CHUTE.base`), the landing on his boots, the bot | `engine/game/wingsuit.ts`, `wingsuit-start.ts`, `wingsuit-pilot.ts`, `defs/wingsuit.ts`; `docs/wingsuit.md`; `tests/wingsuit_test.ts` |
+| THE WINGSUIT AS DRAWN: the shapes and the pose (`skier-wingsuit.ts`), the wings lofted off the joints (`wingsuit-cloth.ts`, `wingsuit-figure.ts`), the colourways and the paint (`wingsuit-look.ts`), the dress (`wingsuit-dress.ts`), the flyer posed (`wingsuit-body.ts`, read by `skis-body.ts`'s `setWingsuit`), the BASE rig (`chute-gear.ts`, `chute-scene.ts`, `chute-canopy.ts`'s `BASE_WING`), the hover helicopter (`wingsuit-hover.ts`) | `pwa/src/game/`; `tests/wingsuit_look_test.ts`; `make wingsuit` over `pwa/wingsuit-preview.html`, `pwa/src/tools/wingsuit-harness.ts`, `wingsuit-scenes.ts` |
+| The labs | `scripts/skydive-flight-lab.mjs`, `scripts/wingsuit-flight-lab.mjs`, `scripts/wingsuit-preview.mjs`; `scripts/skydive-preview.mjs` over `pwa/skydive-preview.html`, `pwa/src/tools/skydive-harness.ts`, `skydive-scenes.ts` |
 
 ## The numbers it is held to
 
@@ -60,6 +62,10 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 | The reserve hands off: forward / sink / glide / landed flared | 11–14 m/s / 4.5–5.5 m/s / 2.2–2.8 / < 2.5 m/s | `reserve-fwd`, `-sink`, `-glide`, `-land` |
 | Nearest the edge tracking / under a canopy | > 0 m | `edge-track`, `edge-canopy` |
 | Out of the paramotor / the helicopter / the balloon: the height he left it at; landed on the bot's pattern | > 100 m; < 4 m/s of sink | `para-`, `heli-`, `balloon-out` / `-open` / `-land` |
+| THE WINGSUIT: glide / across / sink | 3.0–3.5 / 150–190 km/h / 10–14 m/s | `wingsuit-flight`'s `glide-ratio`, `-across`, `-sink` |
+| The wingsuit's dive / flare | ≥ 250 km/h / a climb of 10–40 m | `dive-top`, `flare-gain`, `flare-sink` |
+| The wingsuit's exit: drop / time to flying | 60–120 m / 4–7 s | `exit-drop`, `exit-time` |
+| The BASE canopy: full / height / forward / sink | 3–5 s / 60–150 m / 8–10 m/s / 3.5–5 m/s | `pull-full`, `pull-lost`, `canopy-fwd`, `canopy-sink` |
 
 ## The labs
 
@@ -71,6 +77,9 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   spot it lands) and the craft's own rows (the paramotor's `para-out` with the
   motor's distance off him 1.5 s after the drop). A change to `canopy.ts` also owes `make para-wind`
   `--compare` (the paramotor unmoved) and `tests/para_test.ts`.
+- **`make wingsuit-flight`** (pure Node, seconds) — the same before and
+  after every change to `WINGSUIT`, `CHUTE.base`, `wingsuit*.ts` or the
+  chute step the suit rides on; a change to the chute step owes both labs.
 - **`make skydive`** (browser, its own bundle) — every sheet before and
   after a change to the look: `gear`, `worn` (the rig close from every side
   on the snow after a landing, riding on, under the canopy and in freefall —
@@ -139,6 +148,16 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
 - **Pure.** Nothing draws from `state.rng`; `make sim` before and after.
 
 ## What the passes learned
+
+- **A high lens saw only mist.** The DISTANCE row's mist closes on the 3D
+  distance at any height, so from 900 m over the snow even straight down
+  was three parts mist and a level chase lens saw nothing but haze. A
+  wingsuit's lens high over the snow measures the mist across the ground
+  instead (`haze.ts`'s `uMistAloft`, set by `machines.ts`; 0 on every other
+  ride, so no other look moves) — and frames him LOOKING DOWN along his
+  line, never level. Judge a wingsuit lens on `make wingsuit ARGS=--sheet=chase`'s
+  `chase-face` row (the bot's own flight a few hundred metres over the face),
+  not only the 900 m `chase-glide`.
 
 - **A lens that bails is every lens.** Leaving the plane bailed TIPS and
   HELMET to CHASE, so every first-person shot was really the chase; and a

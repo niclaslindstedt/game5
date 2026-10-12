@@ -34,5 +34,5 @@ export const SLED_STRINGS = {
    * work on the boards. */
   keysSledTitle: "SNOWMOBILE",
   sledKeysNote:
-    "On the snowmobile the same keys ride it: the tuck is the throttle, the skid the brake, the edge the bars and the lean your weight. The machine key gets you on beside it and off again onto your skis.",
+    "On the snowmobile its own keys above ride it — by default the skier's: W the throttle, S the brake, the edge keys the bars and the lean keys your weight. The machine key gets you on beside it and off again onto your skis.",
 };

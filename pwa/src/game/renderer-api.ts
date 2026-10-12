@@ -19,7 +19,14 @@ export type CameraRung = "tips" | "helmet" | "chase" | "far" | "high" | "orbit";
 export interface WorldRenderer {
   /** Build (or rebuild, for a new level) everything that depends on the map.
    * Heavy: the loading card calls it behind a frame so the card can paint. */
-  load(state: GameState): Promise<void>;
+  load(state: GameState, cold?: boolean): Promise<void>;
+  /** Compile a world built `cold` — `load` with `cold` builds everything but
+   * leaves its shaders for here, so the free ride's cards can stand the
+   * world up while they are up and the loading card pays only for this. A
+   * world not built cold (or another map) is loaded whole. */
+  finish(state: GameState): Promise<void>;
+  /** Throw the world away, and any load of one in flight. */
+  clear(): void;
   /** Draw one frame of `state`. `alpha` is the accumulator's leftover share of
    * a step (0..1) for interpolation; `dt` is wall seconds since the last frame. */
   draw(state: GameState, alpha: number, dt: number): void;
@@ -49,8 +56,10 @@ export interface WorldRenderer {
    * camera ladder. Only a replay ever sets one (`replay-run.ts`). */
   setReplayCam(view: ReplayView | null): void;
   /** LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): a drag of `dx`, `dy`
-   * CSS px over the picture, taken while the lift carries the player. */
-  lookAround(dx: number, dy: number): void;
+   * CSS px over the picture, taken while the lift carries the player — and
+   * a MOUSE's (`mouse`) on any run, while its button is held (`holdLook`). */
+  lookAround(dx: number, dy: number, mouse?: boolean): void;
+  holdLook(on: boolean): void;
   /** THE DEATH CAM (`camera-death.ts`): whether it may take the lens when
    * the player is thrown — only while the player rides, never under a card
    * or over a replay. */

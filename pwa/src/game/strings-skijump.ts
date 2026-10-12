@@ -66,6 +66,8 @@ export const SKI_JUMP_STRINGS = {
   skiJumpHold: "HOLD IT",
   /** The distance on the landing, in big type. */
   skiJumpDistance: (metres: number): string => `${metres.toFixed(1)} m`,
+  /** The arena's video wall's caption over the distance. */
+  skiJumpScreenDown: "DISTANCE",
   skiJumpTelemark: "TELEMARK",
   skiJumpTwoFooted: "TWO-FOOTED",
   skiJumpFall: "FALL",

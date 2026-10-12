@@ -80,6 +80,7 @@ import {
   offRamp,
   rampRoom,
   roomBlocked,
+  type RampFit,
   type RampRoom,
 } from "./summit-ramps.ts";
 import { trimDrifts } from "./drift-trim.ts";
@@ -87,7 +88,7 @@ import { groomHub, hubClear, layTunnels, planHub, type FloorPoint } from "./hub.
 import { layAccess, layLinks, planRuns, type LinkBuilder } from "./links.ts";
 import { bakeMassif, planMassif } from "./massif.ts";
 import { realFace, type RealFace } from "./real-face.ts";
-import { inWater, layWater, relayWater, type FaceWater } from "./real-water.ts";
+import { inWater, keepVillageDry, layWater, relayWater, type FaceWater } from "./real-water.ts";
 import { billedColour } from "./real-hints.ts";
 import {
   BENCH,
@@ -246,9 +247,10 @@ export function attemptResort(
   const rng = createRng(sub);
   const traits = generatorTraits(version);
   const plan = planMassif(rng, region, face, attempt);
-  /** How a ramp off a top may fall (R26), a real face's own. */
-  const FIT = plan.face
-    ? RR.massif.real.least.ramp
+  /** How a ramp off a top may fall (R26), a real face's own — whose
+   * crowded tops have their ramps chosen together (`chooseRamps`). */
+  const FIT: RampFit = plan.face
+    ? { ...RR.massif.real.least.ramp, joint: true }
     : { glide: RR.lift.top.ramp.fall, gentle: RR.lift.top.ramp.grade };
   const ground = bakeMassif(plan);
   const water = layWater(plan, ground); // a real face's, its ground flattened under it
@@ -788,6 +790,9 @@ export function attemptResort(
   groomRamps(packed, ramps, [...pads, ...dragTops], runs, runIn, RAMP_GROOM);
   const tunnels = layTunnels(hubPlan, ground);
   relayWater(ground, water, built, { pads: [...pads, ...dragTops], ramps: allRamps, way });
+  // …and cut back out of the village's room below the hub where it would
+  // leave the village none (a town on a lake's shore).
+  keepVillageDry(water, hubPlan.hub, v.x, plan.baseZ > plan.summitZ ? 1 : -1);
   reached("features");
   // ── 7. THE WOODS ─────────────────────────────────────────────────────
   const lifts: Lift[] = liftPlans.map((l) => ({

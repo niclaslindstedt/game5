@@ -181,7 +181,7 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
         drive(
           o,
           lift[i] + gait.lift[i] + drop + sink * SINK_SHARE,
-          angle + gait.splay[i],
+          angle + gait.splay[i] + (stand?.yaw[i] ?? 0),
           tilt + gait.tilt[i] + (stand?.rock[i] ?? 0),
           stand?.incline ?? 0,
           stand?.pitch[i] ?? 0,

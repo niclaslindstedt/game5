@@ -44,7 +44,15 @@ export {
 } from "./plane.ts";
 export { COG as PLANE_COG, SECTIONS as PLANE_SECTIONS, planeAir, thrustAt } from "./plane-aero.ts";
 export type { PlaneAir } from "./plane-aero.ts";
-export { STRIP_LENGTH, airstripOf, onStrip, type Airstrip, type StripPoint } from "./airstrip.ts";
+export {
+  STRIP_LENGTH,
+  airstripOf,
+  onStrip,
+  type Airstrip,
+  type StripPoint,
+  type StripTier,
+} from "./airstrip.ts";
+export { STRIP_ROOM, stripRoomAt } from "./airstrip-room.ts";
 export { CORRIDOR, corridorIntrusion, ropeTop } from "./airstrip-corridor.ts";
 export {
   STRIP_SITE,
@@ -89,15 +97,37 @@ export type {
   ChutePoint,
   ChuteSnag,
   ChuteState,
+  ChuteSuit,
+  WingsuitFlight,
 } from "./chute-state.ts";
+export { freshChute } from "./chute-state.ts";
 export {
   chuteActive,
   chuteControls,
   chuteDown,
   chuteRigged,
+  chuteWing,
   craftFreefall,
   flyChute,
   skydiveAt,
   stepChute,
 } from "./chute.ts";
-export { chutePilot, landingSpotOf, skydiveInput } from "./chute-pilot.ts";
+export { chutePilot, landingSpotOf, skydiveInput, wingsuitInput } from "./chute-pilot.ts";
+export { WINGSUIT, wingsuitMass } from "./defs/wingsuit.ts";
+export {
+  bodyUp as wingsuitClearance,
+  densityAt,
+  flyerMass,
+  liftAndDrag,
+  suitAero,
+  type SuitAero,
+} from "./wingsuit.ts";
+export {
+  glideOf as wingsuitGlideOf,
+  standOnExit,
+  suitExit,
+  wingsuitExitOf,
+  wingsuitOut,
+  type WingsuitExit,
+} from "./wingsuit-start.ts";
+export { wingsuitPilot } from "./wingsuit-pilot.ts";

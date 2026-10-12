@@ -32,6 +32,7 @@ import { BALLOON_BANK } from "./balloon-bank.ts";
 import { SLED_BANK } from "./sled-bank.ts";
 import { LIFT_BANK } from "./lift-voice.ts";
 import { TUNNEL_BANK } from "./tunnel-voice.ts";
+import { JUMP_BANK } from "./jump-bank.ts";
 import type { SoundBank } from "@niclaslindstedt/oss-game-framework/audio/types";
 
 export const RUN_BANK: SoundBank = {
@@ -767,4 +768,7 @@ export const RUN_BANK: SoundBank = {
   // beep, the probe's stroke and its strike, the shovel's bite.
   ...RESCUE_BANK,
   ...GORE_BANK,
+  // A SKI JUMP (`jump-bank.ts`): the start signal, off the bar, the
+  // take-off, the landing's slap and the telemark.
+  ...JUMP_BANK,
 };

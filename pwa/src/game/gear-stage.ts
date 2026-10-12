@@ -70,6 +70,10 @@ export type GearStage = {
   setFree: (free: FreeRect) => void;
   /** Match the canvas to its box after a layout change. */
   resize: () => void;
+  /** Stop drawing (a stage stood up ahead of its card, off the page) or
+   * start again; a held stage builds what it was last asked to at once
+   * and draws one frame, so its shaders are compiled before it is shown. */
+  hold: (held: boolean) => void;
   dispose: () => void;
 };
 
@@ -260,6 +264,9 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   let first = true;
   const tick = (now: number): void => {
     raf = requestAnimationFrame(tick);
+    frame(now);
+  };
+  const frame = (now: number): void => {
     resize();
     if (pending) {
       const p = pending;
@@ -300,6 +307,18 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       free = f;
     },
     resize,
+    hold: (held) => {
+      cancelAnimationFrame(raf);
+      if (held) {
+        frame(performance.now());
+        return;
+      }
+      // Shown at last: the lens stands on its framing for the real canvas
+      // at once rather than easing in from the off-page one.
+      first = true;
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    },
     dispose: () => {
       cancelAnimationFrame(raf);
       canvas.removeEventListener("pointerdown", onDown);

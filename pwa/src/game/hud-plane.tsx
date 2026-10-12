@@ -25,7 +25,7 @@ import { useEffect, useMemo, useRef } from "preact/hooks";
 
 import { createHudPress, pressHandlers } from "@niclaslindstedt/oss-game-framework/input/hud-press";
 
-import type { HudChute, HudPlane } from "./plane-hud.ts";
+import type { HudChute, HudPlane, HudSuit } from "./plane-hud.ts";
 import type { HudLive } from "./hud-live.ts";
 import { MachinePress } from "./hud-machine-press.tsx";
 import { STRINGS } from "./strings.ts";
@@ -200,6 +200,8 @@ export function ChuteReadout({
   /** The machine key as bound, as the player reads it off the keyboard. */
   machineKey: string;
 }) {
+  const suit = chute.suit;
+  if (suit) return <SuitReadout chute={chute} suit={suit} touch={touch} machineKey={machineKey} />;
   const canopy = chute.mode === "open" || chute.mode === "deploying";
   const hint =
     chute.press === "open"
@@ -214,13 +216,58 @@ export function ChuteReadout({
   return (
     <div class={`hud-heli hud-chute${chute.pull ? " hud-chute-pull" : ""}`} role="status">
       <span class="hud-chip-sub">
-        {STRINGS.chuteMode(chute.mode, chute.reserve)} · {STRINGS.chuteAlt}
+        {STRINGS.chuteMode(chute.mode as Exclude<typeof chute.mode, "ready">, chute.reserve)} ·{" "}
+        {STRINGS.chuteAlt}
       </span>
       <span class="hud-chute-num">{STRINGS.chuteMetres(chute.height)}</span>
       <span class="hud-heli-sub">{STRINGS.chuteFall(chute.fall)}</span>
       {canopy && <span class="hud-heli-sub">{STRINGS.chuteAir(chute.air)}</span>}
       {chute.pull && <span class="hud-plane-stall hud-chute-cue">{STRINGS.chutePull}</span>}
       {chute.stall && <span class="hud-plane-stall">{STRINGS.chuteStall}</span>}
+      {hint && <span class="hud-heli-hint">{hint}</span>}
+    </div>
+  );
+}
+
+/** THE WINGSUIT'S STRIP: the height over the snow big — warm as it closes
+ * on the pull, red at it — the air speed and the glide beside it, the sink
+ * under, and the press, JUMP off the exit and PULL in flight. */
+function SuitReadout({
+  chute,
+  suit,
+  touch,
+  machineKey,
+}: {
+  chute: HudChute;
+  suit: HudSuit;
+  touch: boolean;
+  machineKey: string;
+}) {
+  const ready = chute.mode === "ready";
+  const hint =
+    chute.press === "jump"
+      ? STRINGS.suitJumpPress(touch, machineKey)
+      : chute.press === "open"
+        ? STRINGS.suitPullPress(touch, machineKey)
+        : null;
+  const mode = chute.mode === "ready" || chute.mode === "exit" ? chute.mode : "freefall";
+  const tone = suit.low ? " hud-chute-pull" : suit.warn ? " hud-suit-warn" : "";
+  return (
+    <div class={`hud-heli hud-chute hud-suit${tone}`} role="status">
+      <span class="hud-chip-sub">
+        {STRINGS.suitMode(mode)} · {STRINGS.suitAgl}
+      </span>
+      <span class="hud-chute-num">{STRINGS.chuteMetres(chute.height)}</span>
+      {!ready && (
+        <>
+          <span class="hud-suit-row">
+            <span class="hud-suit-air">{STRINGS.suitAir(suit.air)}</span>
+            <span class="hud-suit-glide">{STRINGS.suitGlide(suit.glide)}</span>
+          </span>
+          <span class="hud-heli-sub">{STRINGS.suitSink(suit.sink)}</span>
+        </>
+      )}
+      {chute.pull && <span class="hud-plane-stall hud-chute-cue">{STRINGS.chutePull}</span>}
       {hint && <span class="hud-heli-hint">{hint}</span>}
     </div>
   );

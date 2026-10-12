@@ -113,6 +113,7 @@ sliderRow(chuteSliders, chute, "riser", "Risers", 0);
 sliderRow(chuteSliders, chute, "pull", "Hands on the toggles", 0);
 sliderRow(chuteSliders, chute, "piece", "Cut away", 0, 0, 20, " m/s");
 sliderRow(chuteSliders, chute, "pieceDistance", "Away", 10, 0, 500, " m");
+sliderRow(chuteSliders, chute, "suit", "Wingsuit full", 0);
 let chuteRack = null;
 const chuteBtn = document.getElementById("chute");
 chuteBtn.addEventListener("click", () => {
@@ -222,13 +223,15 @@ export const NO_CHUTE = {
   pull: 0,
   piece: 0,
   pieceDistance: 500,
+  suit: 0,
 };
 
 /** THE PLANE AND THE SKYDIVE'S METER PRESETS: the start in the door, the
  * take-off roll at full power, the climb from the cockpit and from the
  * boom, the stall, the plane flying home 300 m and 1.5 km off; out of the
  * door, the freefall on the belly and head down, the canopy flogging open,
- * the quiet under it, the flare, the toggles worked, and the cut-away flapping off. */
+ * the quiet under it, the flare, the toggles worked, and the cut-away flapping off;
+ * and the wingsuit filling off its exit, gliding and diving. */
 export const PLANE_PRESETS = [
   planeAt("the plane starting, in the door", {
     rpm: 0.4,
@@ -271,4 +274,7 @@ export const PLANE_PRESETS = [
   chuteAt("the flare", 6, { open: 1, airspeed: 7, brake: 1 }),
   chuteAt("working the toggles", 12, { open: 1, airspeed: 11, turn: 0.6, pull: 0.8 }),
   chuteAt("cut away, the canopy off", 0, { piece: 15, pieceDistance: 15 }),
+  chuteAt("wingsuit, filling off the exit", 0, { body: 1, exit: 1, airspeed: 20, suit: 0.4 }),
+  chuteAt("wingsuit, gliding 150 km/h", 0, { body: 1, airspeed: 44, suit: 1 }),
+  chuteAt("wingsuit, diving 250 km/h", 0, { body: 1, airspeed: 70, suit: 1 }),
 ];

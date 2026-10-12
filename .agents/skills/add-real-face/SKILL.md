@@ -131,7 +131,10 @@ in degrees, the skiing face's middle — the lifts' middle, read off the map
 data), and the crop: `east` / `north` (m, the window's middle off that
 point), `bearing` (° clockwise from north the fall line runs down the map
 on) and `scale`, which is 1 on every face (a real metre a map metre: the
-face is laid 1:1, so a crop is never stretched or squeezed to fit). Keep a new face's middle 4 km or more
+face is laid 1:1, so a crop is never stretched or squeezed to fit), and
+`bare: true` where the real mountain grows no tree at all (a high, dry
+range: its map drawing no forest is then read as treeless, not unmapped).
+Keep a new face's middle 4 km or more
 from every other's, or it is the same mountain twice.
 
 Pick the bearing so the summit ridge is the map's TOP edge (z = 0) and the

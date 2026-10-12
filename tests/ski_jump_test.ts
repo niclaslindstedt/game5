@@ -58,7 +58,7 @@ describe("the hill's elements off the norm (R43)", () => {
     expect(el.h).toBeCloseTo(45.7, 1);
     expect(el.n).toBeCloseTo(83.2, 1);
     expect(el.rL).toBe(210);
-    expect(el.r1).toBeCloseTo(91.4, 1);
+    expect(el.r1).toBeCloseTo(90.0, 1);
     expect(el.e1).toBeCloseTo(84.4, 1);
     expect(el.e2).toBeCloseTo(69.3, 1);
     expect(el.slopeL * DEG).toBeCloseTo(31.25, 1);

@@ -18,7 +18,14 @@ import { altitudeAt, overBase } from "./altitude.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import { beaconRead, buriedRead, type BeaconRead, type BuriedRead } from "./beacon-read.ts";
-import { aloftInPlane, chuteOf, planeOf, type HudChute, type HudPlane } from "./plane-hud.ts";
+import {
+  aloftInPlane,
+  chuteOf,
+  planeOf,
+  suitLandedOf,
+  type HudChute,
+  type HudPlane,
+} from "./plane-hud.ts";
 import {
   airflowAt,
   bearingToNext,
@@ -350,6 +357,9 @@ export type HudSnapshot = {
   /** THE SKYDIVE (`plane-hud.ts`): the altimeter and the next press from
    * the door to the snow, or null. */
   chute: HudChute | null;
+  /** DOWN OUT OF A WINGSUIT on his boots (`suitLandedOf`): the plate asks
+   * what next — he has no skis to ski on. */
+  suitLanded?: boolean;
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
@@ -809,6 +819,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     buried: buriedRead(state),
     plane: balloonAboard(state) ? null : planeOf(state),
     chute: chuteOf(state),
+    suitLanded: suitLandedOf(state),
     afterski: aloft ? null : afterskiOf(state),
     door: aloft ? null : doorCallOf(state),
     buzz: c.buzz ?? 0,

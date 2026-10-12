@@ -12,7 +12,7 @@ import {
   HELI_RUN,
   PARA_RUN,
   PLANE_RUN,
-  BOARD_START,
+  WINGSUIT_RUN,
   SKIS_START,
   SLED_RUN,
   afterskiOn,
@@ -21,19 +21,20 @@ import {
   markedRun,
   paraOn,
   planeOn,
+  wingsuitOn,
   sledOn,
   spotOn,
   startPicked,
   type FreeRide,
+  type DealtDay,
   type FreeRunInfo,
 } from "./free-ride.ts";
-import { injuriesShown, kindPair, type Settings } from "./settings.ts";
-import { isBoardId } from "@engine";
+import { injuriesShown, type Settings } from "./settings.ts";
 import { shellContent } from "../shell-host.ts";
 import { STRINGS } from "./strings.ts";
 
 /** What the chart marks a machine's start with, or null for a run's. */
-export type RunMachine = "heli" | "sled" | "para" | "balloon" | "plane" | "afterski";
+export type RunMachine = "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit" | "afterski";
 
 export type RunPick = {
   chart: SeedChart;
@@ -42,7 +43,7 @@ export type RunPick = {
   /** The run the RUN row stands on ("" while the chart is still coming,
    * and on a machine, which starts at no run). */
   value: string;
-  /** The START row's stops: ON SKIS, then the machines and the lodge. */
+  /** The START row's stops: SLOPE, then the machines and the lodge. */
   starts: { id: string; label: string }[];
   /** The stop the START row stands on ("" while the chart is coming). */
   start: string;
@@ -51,6 +52,8 @@ export type RunPick = {
   machine: RunMachine | null;
   /** Where on the chart the ride starts, where it was pressed. */
   spot: { x: number; z: number } | null;
+  /** The day the map was dealt, once its chart is in. */
+  dealt: DealtDay | null;
 };
 
 export function useRunPick(settings: Settings, seed: number): RunPick {
@@ -80,9 +83,11 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
           ? "balloon"
           : planeOn(ride, seed)
             ? "plane"
-            : !sfw && afterskiOn(ride, seed)
-              ? "afterski"
-              : null;
+            : wingsuitOn(ride, seed)
+              ? "wingsuit"
+              : !sfw && afterskiOn(ride, seed)
+                ? "afterski"
+                : null;
   const marked = list && machine === null ? markedRun(ride, seed, list) : null;
   // The RUN row walks EVERY run of the map, whatever its colour: a slope
   // is all it ever names.
@@ -90,21 +95,23 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     id: r.id,
     label: STRINGS.startRunWord(r.number),
   }));
-  // THE START ROW: on skis or on a snowboard (the pair of that kind the gear
-  // card last picked), by the lift to the run picked — or one of the ways
+  // THE START ROW: SLOPE (skis or a snowboard, as the gear card picks),
+  // by the lift to the run picked — or one of the ways
   // up with no lift: the paramotor on the summit, the balloon and the
   // snowmobile on the valley floor, the helicopter on its pad and the jump
-  // plane on its strip below the village.
+  // plane on its strip below the village — or the wingsuit, no skis on,
+  // off its exit high on the mountain.
   const starts = [
     ...(list
       ? [
-          { id: SKIS_START, label: STRINGS.startOnSkis },
-          { id: BOARD_START, label: STRINGS.startOnBoard },
+          { id: SKIS_START, label: STRINGS.startOnSlope },
           { id: PARA_RUN, label: STRINGS.startRunPara },
           { id: BALLOON_RUN, label: STRINGS.startRunBalloon },
           { id: SLED_RUN, label: STRINGS.startRunSled },
           { id: HELI_RUN, label: STRINGS.startRunHeli },
           { id: PLANE_RUN, label: STRINGS.startRunPlane },
+          // ...and the wingsuit off its own exit high on the mountain.
+          { id: WINGSUIT_RUN, label: STRINGS.startRunWingsuit },
           // ...and the party in the valley's lodge, where the map has one.
           ...(list.machines.afterski && !sfw
             ? [{ id: AFTERSKI_RUN, label: STRINGS.startRunAfterski }]
@@ -113,8 +120,7 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
       : []),
   ];
   const value = marked?.id ?? "";
-  const onFoot = isBoardId(settings.skis) ? BOARD_START : SKIS_START;
-  const start = list === null ? "" : machine === null ? onFoot : MACHINE_RUN[machine];
+  const start = list === null ? "" : machine === null ? SKIS_START : MACHINE_RUN[machine];
   return {
     chart,
     stops,
@@ -124,16 +130,14 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     marked,
     machine,
     spot: machine === null ? spotOn(ride, seed) : null,
+    dealt: list?.dealt ?? null,
   };
 }
 
-/** THE START ROW PICKED on `seed`: the ride's own answer (`startPicked`),
- * and on ON SKIS or ON A SNOWBOARD the pair of that kind the gear card last
- * picked (`kindPair`) — so the row and the gear card always agree. */
+/** THE START ROW PICKED on `seed`: the ride's own answer (`startPicked`);
+ * the pair, skis or a board, is the gear card's to pick. */
 export function startChosen(s: Settings, seed: number, id: string): Settings {
-  const next: Settings = { ...s, ride: { ...s.ride, ...startPicked(s.ride, seed, id) } };
-  if (id !== SKIS_START && id !== BOARD_START) return next;
-  return { ...next, skis: kindPair(next, id === BOARD_START) };
+  return { ...s, ride: { ...s.ride, ...startPicked(s.ride, seed, id) } };
 }
 
 /** The RUN row's stop each machine stands on. */
@@ -143,5 +147,6 @@ const MACHINE_RUN: Record<RunMachine, string> = {
   para: PARA_RUN,
   balloon: BALLOON_RUN,
   plane: PLANE_RUN,
+  wingsuit: WINGSUIT_RUN,
   afterski: AFTERSKI_RUN,
 };

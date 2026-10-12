@@ -35,6 +35,7 @@ about the cards themselves.
 | The row shape: seed, mode, version, region, grade, course, digest, day | `pwa/src/game/pinned-levels.ts` (`PinnedLevel`) |
 | Every discipline's nine race maps | `pwa/src/game/race-maps.ts`, held by `tests/race_maps_test.ts` and its per-discipline siblings |
 | The trick maps | `pwa/src/game/trick-maps.ts`, held by `tests/trick_maps_test.ts` |
+| Ski jumping's own hills | `pwa/src/game/jump-hills.ts` (a trick map's row with its `hill` and `hillDigest`), chosen and audited with `make skijump-hills` (`ARGS="--pinned --bot"`), held by `tests/jump_hills_test.ts` |
 | The policy: building a map, `pinnedFor`, `pinnedPress`, the run's options | `pwa/src/game/pinned.ts` (pure) |
 | A pinned run stood up, and stood up again | `pwa/src/game/pinned-run.ts` (a factory over `App.tsx`'s loader) |
 | The presses that route a card to the ski card | `pwa/src/game/map-picks.ts` |

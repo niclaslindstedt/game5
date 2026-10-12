@@ -34,6 +34,10 @@
 // finish arena kept as it is here. So is a SKI CROSS, fenced its whole
 // length and watched where it is built to be watched — its jumps, the
 // outside of its berms, its finish area (`spectator-cross.ts`).
+// A SKI JUMP is watched from a STADIUM round its out-run instead of a
+// finish arena — grandstands down both sides, terraces across its foot and
+// the crowd up the landing hill behind its nets (`ski-jump-arena-plan.ts`
+// builds it, `spectator-jump.ts` lays its crowd).
 //
 // And they CARRY what ski fans carry — COWBELLS, flags on poles, a board
 // held over the head, a horn, a phone held up — and wear what a cold day
@@ -63,7 +67,9 @@ import {
   type TrackPoint,
 } from "@engine";
 
+import { jumpArenaPlan } from "./ski-jump-arena-plan.ts";
 import { planCrossBanks } from "./spectator-cross.ts";
+import { planJumpBanks } from "./spectator-jump.ts";
 import { planSlalomBanks } from "./spectator-slalom.ts";
 import { wildGround } from "./wild-ground.ts";
 
@@ -338,10 +344,14 @@ export type FanDealer = {
     rows: (s: number) => number,
     fill: number | ((s: number) => number),
   ): void;
-  /** One fan at (x, z) facing `yaw`, where the ground, the trunks, the
-   * lifts and the next fan leave room — the piste NOT asked, so the caller
-   * answers for it. Whether he was put down. */
-  put(x: number, z: number, yaw: number, kind: BankKind, along: number): boolean;
+  /** One fan at (x, z) facing `yaw`, where the ground (up to `steep`, rise
+   * over run — `FANS.steep` unless asked), the trunks, the lifts and the
+   * next fan leave room — the piste NOT asked, so the caller answers for
+   * it. Whether he was put down. */
+  put(x: number, z: number, yaw: number, kind: BankKind, along: number, steep?: number): boolean;
+  /** One fan stood at (x, y, z) — on a stand's step or a platform's deck,
+   * the ground not asked. */
+  seat(x: number, y: number, z: number, yaw: number, kind: BankKind, along: number): void;
   /** Close a bank over the fans laid since `from`. */
   close(kind: BankKind, from: number): void;
 };
@@ -364,10 +374,10 @@ export function planSpectators(level: Level): SpectatorPlan {
   /** Whether a fan has room at (x, z), the piste aside: on the map, on
    * ground he can stand on, clear of the trunks, the lifts and the next
    * fan. */
-  const room = (x: number, z: number): boolean => {
+  const room = (x: number, z: number, steep: number = FANS.steep): boolean => {
     if (!ground.inside(x, z, 6)) return false;
     if (taken.has(cellOf(x, z))) return false;
-    if (ground.slope(x, z) > FANS.steep) return false;
+    if (ground.slope(x, z) > steep) return false;
     if (ground.onIce(x, z)) return false;
     if (ground.nearestTree(x, z, FANS.trunk)) return false;
     return !blocked(x, z);
@@ -495,6 +505,42 @@ export function planSpectators(level: Level): SpectatorPlan {
       fences.push({ points: fence, height: 1.1, kind: "net" });
     close(kind, from);
   };
+
+  /** The dealer a course's own crowd is laid with (`FanDealer`). */
+  const dealerOf = (slopeEnd: number): FanDealer => ({
+    level,
+    rng,
+    fans,
+    slopeEnd,
+    standing,
+    put(x, z, yaw, kind, along, steep) {
+      if (fans.length >= FANS.cap || !room(x, z, steep)) return false;
+      taken.add(cellOf(x, z));
+      fans.push(fan(x, ground.snowY(x, z), z, yaw, kind, along));
+      return true;
+    },
+    seat(x, y, z, yaw, kind, along) {
+      if (fans.length >= FANS.cap) return;
+      taken.add(cellOf(x, z));
+      fans.push(fan(x, y, z, yaw, kind, along));
+    },
+    close,
+  });
+
+  // A SKI JUMPING HILL (R43) is watched from its own stadium round the
+  // out-run and up the landing hill (`spectator-jump.ts`), and nothing of
+  // a race course's.
+  const stadium = jumpArenaPlan(level);
+  if (stadium) {
+    const nets = planJumpBanks(dealerOf(0), stadium);
+    return {
+      fans,
+      banks,
+      stands: stadium.stands,
+      fences: [...stadium.fences, ...nets],
+      arena: stadium.arena,
+    };
+  }
 
   // THE FINISH ARENA.
   // On a speed track the arena is the finish enclosure at the run-out's
@@ -662,20 +708,7 @@ export function planSpectators(level: Level): SpectatorPlan {
   // the finish slope, and nothing of a downhill's — and a SKI CROSS: its
   // fenced course watched at its features (`spectator-cross.ts`).
   if ((level.slalom || level.skiCross) && finishCp) {
-    const dealer: FanDealer = {
-      level,
-      rng,
-      fans,
-      slopeEnd: finishCp.s - FANS.stand.before - 2,
-      standing,
-      put(x, z, yaw, kind, along) {
-        if (fans.length >= FANS.cap || !room(x, z)) return false;
-        taken.add(cellOf(x, z));
-        fans.push(fan(x, ground.snowY(x, z), z, yaw, kind, along));
-        return true;
-      },
-      close,
-    };
+    const dealer = dealerOf(finishCp.s - FANS.stand.before - 2);
     if (level.slalom) planSlalomBanks(dealer);
     else planCrossBanks(dealer);
     return { fans, banks, stands, fences, arena };

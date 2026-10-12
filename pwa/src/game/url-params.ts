@@ -315,6 +315,14 @@ export type UrlParams = {
   sled: boolean;
   /** A free ride begun in the jump plane's door, over the card's START row. */
   plane: boolean;
+  /** A free ride in the WINGSUIT off its own exit (`?wingsuit=1`), over the
+   * card's START row. */
+  wingsuit: boolean;
+  /** What he jumps in up a craft (`?suit=wing` the wingsuit, `?suit=rig`
+   * the skydiver's rig) — a lab's way to fly a craft's jump in the suit;
+   * the cards offer the wingsuit only as its own START stop. Null when the
+   * link names neither. */
+  suit: "wing" | "rig" | null;
   /** A free ride begun IN FREEFALL this many metres over the snow under the
    * plane's jump run (`?chute=<m>`, a lab's and a screenshot's way into the
    * skydive), or null. */
@@ -421,7 +429,7 @@ export function readParams(search: string): UrlParams {
       camera !== null && RUN_CAMERAS.includes(camera as CameraRung) ? (camera as CameraRung) : null,
     skis: skis !== null && isPairId(skis) ? skis : null,
     mode:
-      start === "free" || freeRidePage(q.get("menu") ?? "")
+      start === "free" || q.get("mode") === "free" || freeRidePage(q.get("menu") ?? "")
         ? "free"
         : start === "downhill" || q.get("mode") === "downhill"
           ? "downhill"
@@ -468,6 +476,8 @@ export function readParams(search: string): UrlParams {
     balloon: q.get("balloon") === "1",
     sled: q.get("sled") === "1",
     plane: q.get("plane") === "1",
+    wingsuit: q.get("wingsuit") === "1",
+    suit: q.get("suit") === "wing" ? "wing" : q.get("suit") === "rig" ? "rig" : null,
     chute: chuteOf(q.get("chute")),
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
@@ -509,14 +519,15 @@ export function linkWorld(params: UrlParams): Pick<
 }
 
 /** A free ride's options with a link's sky, region, grade, helicopter,
- * snowmobile, paramotor, balloon, jump plane and skydive laid over the
- * card's. */
+ * snowmobile, paramotor, balloon, jump plane, skydive and wingsuit laid
+ * over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   // A link naming a machine is the start, whatever the card picked — and
   // names that one alone.
   const sky = params.chute !== null;
   const plane = params.plane || sky;
-  const named = params.heli || params.sled || params.para || params.balloon || plane;
+  const named =
+    params.heli || params.sled || params.para || params.balloon || plane || params.wingsuit;
   const only = (mine: boolean, card: boolean | undefined): boolean =>
     named ? mine : (card ?? false);
   return {
@@ -527,6 +538,17 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     balloon: only(params.balloon, ride.balloon),
     plane: only(plane && !params.para && !params.balloon, ride.plane),
     chute: params.chute ?? ride.chute,
+    // THE WINGSUIT: its own exit on `?wingsuit=1`; up a craft on `?suit=wing`
+    // (and never on `?suit=rig`); a link naming another start drops the
+    // card's.
+    wingsuit:
+      params.suit === "rig"
+        ? false
+        : params.wingsuit || params.suit === "wing"
+          ? true
+          : named
+            ? false
+            : (ride.wingsuit ?? false),
     byLift: named ? false : ride.byLift,
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,

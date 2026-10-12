@@ -59,6 +59,7 @@ import { SlopestylePlate } from "./hud-slopestyle.tsx";
 import { HalfpipePlate } from "./hud-halfpipe.tsx";
 import { MogulsPlate } from "./hud-moguls.tsx";
 import { AerialsPlate } from "./hud-aerials.tsx";
+import { pauseOnSlopes } from "./menu-pause.tsx";
 import { speedGapOf, speedOf } from "./speed-ski-run.ts";
 import type { HudSnapshot, RaceHud } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
@@ -71,6 +72,7 @@ export function ResultPlate({
   onMenu,
   onReplay = null,
   onSecond = null,
+  onSlopes = null,
 }: {
   /** The race, or null while the plate is not the player's to press. */
   snap: HudSnapshot | null;
@@ -86,7 +88,13 @@ export function ResultPlate({
   /** A slalom's SECOND RUN stood up (`pinned-run.ts`), or null where the
    * app offers none. */
   onSecond?: (() => void) | null;
+  /** A free ride's pause, which the landed plate opens on its piste map
+   * (`pauseOnSlopes`), or null on any other run. */
+  onSlopes?: (() => void) | null;
 }) {
+  // DOWN OUT OF A WINGSUIT: no skis to ski on, so the way on is asked.
+  if (snap?.suitLanded)
+    return <LandedPlate onAgain={onAgain} onSlopes={onSlopes} onMenu={onMenu} />;
   // A SKI JUMP's plate is its own: the points part by part and the board.
   if (snap?.skiJump?.judged) {
     return (
@@ -381,6 +389,63 @@ function OutPlate({ snap, onAgain }: { snap: HudSnapshot; onAgain: () => void })
           <div class="hud-result-acts">
             <button type="button" class="hud-mini hud-result-act" data-nav-next onClick={onAgain}>
               {STRINGS.outAgain}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** THE PLATE OVER A WINGSUIT LANDED ON HIS BOOTS: there are no skis in a
+ * wingsuit, so the ride cannot go on down the mountain — the plate offers
+ * the jump AGAIN off its exit, the PISTE MAP (a run picked to start on, on
+ * skis) and the way OUT to the front door. */
+function LandedPlate({
+  onAgain,
+  onSlopes,
+  onMenu,
+}: {
+  onAgain: () => void;
+  onSlopes: (() => void) | null;
+  onMenu: () => void;
+}) {
+  return (
+    <div class="hud hud-result-layer">
+      <div class="hud-center">
+        <div class="hud-card hud-result hud-result-landed">
+          <span class="hud-card-title">{STRINGS.suitLandedTitle}</span>
+          <span class="hud-card-note">{STRINGS.suitLandedNote}</span>
+          <div class="hud-result-acts">
+            <button
+              type="button"
+              class="hud-mini hud-result-act"
+              data-menu="landed-again"
+              data-nav-next
+              onClick={onAgain}
+            >
+              {STRINGS.suitLandedAgain}
+            </button>
+            {onSlopes && (
+              <button
+                type="button"
+                class="hud-mini hud-result-act"
+                data-menu="landed-slopes"
+                onClick={() => {
+                  pauseOnSlopes();
+                  onSlopes();
+                }}
+              >
+                {STRINGS.suitLandedSlopes}
+              </button>
+            )}
+            <button
+              type="button"
+              class="hud-mini hud-result-act"
+              data-menu="landed-quit"
+              onClick={onMenu}
+            >
+              {STRINGS.suitLandedQuit}
             </button>
           </div>
         </div>

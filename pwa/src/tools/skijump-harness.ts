@@ -13,7 +13,19 @@
 // to photograph, and hands back every frame at full size with the frame's
 // draw calls and triangles.
 
-import { createGame, generateLevel, NEUTRAL_INPUT, step, TUNING, type GameState } from "@engine";
+import {
+  createGame,
+  generateLevel,
+  NEUTRAL_INPUT,
+  raceRiderOf,
+  raceSkisOf,
+  riderById,
+  skisById,
+  step,
+  TUNING,
+  withRider,
+  type GameState,
+} from "@engine";
 
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
@@ -63,8 +75,13 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 const STILL = 1e-4;
 const baseHour = Number.isFinite(hourAsked) ? hourAsked : null;
 
+/** The pair and the build a ski jump is jumped on, as the app hands them. */
+const SPEC = withRider(skisById(raceSkisOf("skiJump")!), riderById(raceRiderOf("skiJump")!));
+
 function fresh(): GameState {
-  return createGame(withJumpContest({ level, seed, mode: "skiJump", hill, quiet: true }));
+  return createGame(
+    withJumpContest({ level, seed, mode: "skiJump", hill, quiet: true, spec: SPEC }),
+  );
 }
 
 const ready = (async () => {

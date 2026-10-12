@@ -7,7 +7,8 @@
 // row a line: its run and colour, its length and drop, its par, its bronze,
 // silver and gold times, the bot's time, the share of par it took and the
 // medal it earned. The medals are shares of par (`CHALLENGES.medals`); this
-// is the table they are calibrated by — a competent bot lands mostly silver,
+// is the table they are calibrated by — and how far the run-in above each
+// start gate is (`in`, m) and how fast the bot crossed it (`kmh`) — a competent bot lands mostly silver,
 // sometimes gold, never off the table. Pure Node over the engine.
 //
 //   node scripts/challenges-lab.mjs --seed=38
@@ -81,7 +82,7 @@ for (const seed of seeds) {
     }
   }
   console.log(
-    `  ${padR("line", 16)} ${padR("grade", 7)} ${pad("len", 5)} ${pad("drop", 5)} ${pad("par", 6)} ${pad("gold", 6)} ${pad("silv", 6)} ${pad("brnz", 6)} ${pad("bot", 6)} ${pad("/par", 5)} medal`,
+    `  ${padR("line", 16)} ${padR("grade", 7)} ${pad("len", 5)} ${pad("drop", 5)} ${pad("par", 6)} ${pad("gold", 6)} ${pad("silv", 6)} ${pad("brnz", 6)} ${pad("in", 4)} ${pad("bot", 6)} ${pad("/par", 5)} ${pad("kmh", 4)} medal`,
   );
   for (const c of plan.challenges) {
     if (!E.isLine(c)) continue;
@@ -95,13 +96,16 @@ for (const seed of seeds) {
       drop: c.drop,
       par: c.par,
       medals: c.medals,
+      run_in: c.start.s - c.runIn,
+      entry: c.entry,
+      enter: skied?.entry ?? null,
       bot: skied?.time ?? null,
       medal: skied?.medal ?? null,
       why: skied?.why ?? null,
     };
     rows.push(row);
     console.log(
-      `  ${padR(c.id, 16)} ${padR(c.grade, 7)} ${pad(Math.round(c.length), 5)} ${pad(Math.round(c.drop), 5)} ${pad(f1(c.par), 6)} ${pad(f1(c.medals.gold), 6)} ${pad(f1(c.medals.silver), 6)} ${pad(f1(c.medals.bronze), 6)} ${pad(f1(row.bot), 6)} ${pad(row.bot ? (row.bot / c.par).toFixed(2) : "—", 5)} ${row.medal ?? (skied ? (row.why ?? "none") : "")}`,
+      `  ${padR(c.id, 16)} ${padR(c.grade, 7)} ${pad(Math.round(c.length), 5)} ${pad(Math.round(c.drop), 5)} ${pad(f1(c.par), 6)} ${pad(f1(c.medals.gold), 6)} ${pad(f1(c.medals.silver), 6)} ${pad(f1(c.medals.bronze), 6)} ${pad(Math.round(row.run_in), 4)} ${pad(f1(row.bot), 6)} ${pad(row.bot ? (row.bot / c.par).toFixed(2) : "—", 5)} ${pad(row.enter === null ? "—" : Math.round(row.enter * 3.6), 4)} ${row.medal ?? (skied ? (row.why ?? "none") : "")}`,
     );
   }
 }
@@ -114,6 +118,14 @@ if (skied.length > 0) {
     `\n${rows.length} lines: gold ${count("gold")}, silver ${count("silver")}, bronze ${count("bronze")}, none ${rows.filter((r) => r.bot !== null && r.medal === null).length}, void ${rows.length - skied.length}` +
       ` — bot/par ${ratios[0].toFixed(2)}…${ratios[ratios.length - 1].toFixed(2)}, median ${ratios[Math.floor(ratios.length / 2)].toFixed(2)}`,
   );
+  const enters = rows
+    .filter((r) => r.enter !== null)
+    .map((r) => r.enter * 3.6)
+    .sort((a, b) => a - b);
+  if (enters.length > 0)
+    console.log(
+      `start gate crossed at ${enters[0].toFixed(0)}…${enters[enters.length - 1].toFixed(0)} km/h, median ${enters[Math.floor(enters.length / 2)].toFixed(0)}`,
+    );
 }
 if (args.json) {
   const { writeFileSync } = await import("node:fs");

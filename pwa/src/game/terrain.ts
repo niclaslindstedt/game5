@@ -23,9 +23,14 @@
 //
 // WHERE TWO LEVELS OVERLAP. A level's hole is cut one cell short of where
 // the finer level can be (the finer level's snap can shift it by one of
-// the coarser cells either way), and the rest is thrown away per pixel
-// (`uHole`) up to half a finer cell inside the finer level's edge — a thin
-// strip where both draw the same surface, so the seam has no pinholes.
+// the coarser cells either way), and what of the rest the finer level
+// covers is SUNK under it in the vertex shader (`uHole`): the coarser
+// cells along the seam hinge down from it like a skirt, so the seam has no
+// pinholes, and nothing is thrown away per pixel. The ground's shader
+// discards only inside a room or a dug pit (`room-cuts.ts`), and only
+// while there is one — a second program, swapped in for as long as one
+// stands — because a phone's GPU shades every hidden fragment of a draw
+// that may discard.
 //
 // Four textures carry the map to the GPU, built once per level: the
 // heights (R32F, read with texelFetch in the vertex shader), a GROUND map
@@ -513,10 +518,27 @@ export function createTerrain(
     spacing: number;
     centre: THREE.Vector2;
     hole: THREE.Vector4;
+    /** The ground with no room cut, and with one. */
+    plain: THREE.Material;
+    cutting: THREE.Material;
     /** Drawn whole, its hole filled: the first level a lens aloft keeps. */
     whole: boolean;
   };
+  /** A mesh that is never drawn — its bound stands far under the map, so
+   * the frustum always drops it — but that the load's compile meets, so the
+   * cutting program is linked before a room first asks for it. */
+  const warmer = (material: THREE.Material): THREE.Mesh => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", vertices);
+    geometry.setIndex(fullIndex);
+    geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, -1e7, 0), 1);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.matrixAutoUpdate = false;
+    mesh.name = "terrain-warm";
+    return mesh;
+  };
   const levels: LevelMesh[] = [];
+  let warm: THREE.Mesh | null = null;
   for (let l = 0; l < options.levels; l++) {
     const spacing = options.spacing * 2 ** l;
     const centre = new THREE.Vector2();
@@ -526,12 +548,37 @@ export function createTerrain(
       uSpacing: { value: spacing },
       uHole: { value: hole },
     };
+    const material = groundMaterial(false, own);
+    const cutting = groundMaterial(true, own);
+    // Every level after the first is drawn by the same two programs, so one
+    // level's pair is enough to link them both ahead of the run.
+    if (l === 0) {
+      warm = warmer(cutting);
+      group.add(warm);
+    }
+    // Every level its own geometry over the shared buffers, so each can
+    // draw its own range of the wedges.
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", vertices);
+    geometry.setIndex(l === 0 ? fullIndex : ringIndex);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.frustumCulled = false;
+    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.matrixAutoUpdate = false;
+    group.add(mesh);
+    levels.push({ mesh, spacing, centre, hole, plain: material, cutting, whole: l === 0 });
+  }
+
+  type Own = Record<"uLevelCentre" | "uSpacing" | "uHole", THREE.IUniform>;
+  /** A level's ground, keeping the snow out of the rooms (`cut`) or not. */
+  function groundMaterial(cut: boolean, own: Own): THREE.MeshStandardMaterial {
     const material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.8,
       metalness: 0,
     });
-    hazeMaterial(material, haze, "terrain", (shader) => {
+    hazeMaterial(material, haze, cut ? "terrain-cut" : "terrain", (shader) => {
       Object.assign(shader.uniforms, shared, own, trail, roomCutUniforms);
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", `#include <common>\n${SNOW_VERTEX_PARS}`)
@@ -543,7 +590,7 @@ export function createTerrain(
         // No snow inside a room that is built (`room-cuts.ts`).
         .replace(
           "#include <clipping_planes_fragment>",
-          `#include <clipping_planes_fragment>\nif (inRoomCut(vSnowWorld.xz)) discard;\n${SNOW_FRAGMENT_SAMPLE}`,
+          `#include <clipping_planes_fragment>\n${cut ? "if (inRoomCut(vSnowWorld.xz)) discard;\n" : ""}${SNOW_FRAGMENT_SAMPLE}`,
         )
         .replace("#include <color_fragment>", `#include <color_fragment>\n${SNOW_FRAGMENT_COLOUR}`)
         .replace(
@@ -559,18 +606,7 @@ export function createTerrain(
           `#include <lights_fragment_end>\n${SNOW_FRAGMENT_LIGHT}`,
         );
     });
-    // Every level its own geometry over the shared buffers, so each can
-    // draw its own range of the wedges.
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", vertices);
-    geometry.setIndex(l === 0 ? fullIndex : ringIndex);
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.frustumCulled = false;
-    mesh.receiveShadow = true;
-    mesh.castShadow = false;
-    mesh.matrixAutoUpdate = false;
-    group.add(mesh);
-    levels.push({ mesh, spacing, centre, hole, whole: l === 0 });
+    return material;
   }
 
   const frustum = new THREE.Frustum();
@@ -629,6 +665,7 @@ export function createTerrain(
     group,
     follow(x, z, lens, reach = Infinity, over = 0) {
       wells.follow(x, z);
+      const cut = roomCutUniforms.uRoomCuts.value > 0;
       if (lens) {
         view.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
         frustum.setFromProjectionMatrix(view);
@@ -638,6 +675,7 @@ export function createTerrain(
       const base = baseLevel(over, last, reachOf);
       for (let l = 0; l < levels.length; l++) {
         const lv = levels[l];
+        lv.mesh.material = cut ? lv.cutting : lv.plain;
         const snap = lv.spacing * 2;
         lv.centre.set(Math.round(x / snap) * snap, Math.round(z / snap) * snap);
         if (l < base || l > last) {
@@ -658,12 +696,9 @@ export function createTerrain(
         }
         if (l > 0) {
           const finer = levels[l - 1];
-          // Half a finer cell short of the finer level's edge: the two
-          // overlap on a strip where the finer one is fully morphed, so
-          // they are the same surface there and — shaded per pixel off the
-          // world position — draw the same colour; without it, float
-          // rounding between two grids opens pinholes along the seam.
-          lv.hole.set(finer.centre.x, finer.centre.y, (options.n / 2 - 0.5) * finer.spacing, 1);
+          // The finer level's whole extent: this level's vertices a cell
+          // inside it are sunk under it (`SNOW_VERTEX_PLACE`).
+          lv.hole.set(finer.centre.x, finer.centre.y, (options.n / 2) * finer.spacing, 1);
         }
         aim(lv, lens);
       }
@@ -671,8 +706,10 @@ export function createTerrain(
     dispose() {
       for (const lv of levels) {
         lv.mesh.geometry.dispose();
-        (lv.mesh.material as THREE.Material).dispose();
+        lv.plain.dispose();
+        lv.cutting.dispose();
       }
+      warm?.geometry.dispose();
       wells.dispose();
       const live = liveGrounds.get(level);
       if (live)

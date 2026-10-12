@@ -297,6 +297,20 @@ describe("the report (benchmark-report.ts)", () => {
     expect(benchmarkReport({ ...fakeRun(), gpu: alone })).not.toContain("A/B");
   });
 
+  it("bills the A/B BY THE CLOCK where there is no GPU timer, cheapest frame first", () => {
+    const fence = {
+      "": { frames: 100, gpu: 760, wall: 1140 },
+      terrain: { frames: 100, gpu: 300, wall: 600 },
+      forest: { frames: 100, gpu: 740, wall: 1130 },
+    };
+    const text = benchmarkReport({ ...fakeRun(), gpu: noGpu(), fence });
+    expect(text).toContain("A/B BY THE CLOCK, INTERLEAVED FRAME BY FRAME");
+    expect(text).toMatch(/\(nothing\)\s+7\.60 ms\s+11\.40 ms\s+100/);
+    expect(text).toMatch(/terrain\s+3\.00 ms\s+-4\.60\s+6\.00 ms\s+-5\.40\s+100/);
+    expect(text.indexOf("terrain     ")).toBeLessThan(text.indexOf("forest      "));
+    expect(benchmarkReport(fakeRun())).not.toContain("BY THE CLOCK");
+  });
+
   it("says a run drawn WITHOUT a subsystem is an A/B reading", () => {
     expect(benchmarkReport(fakeRun())).not.toContain("HIDDEN");
     const text = benchmarkReport({ ...fakeRun(), hidden: ["forest", "shadow"] });

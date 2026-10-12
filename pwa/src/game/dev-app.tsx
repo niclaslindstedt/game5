@@ -58,7 +58,8 @@ export type DevRig = {
   frame: (frameMs: number, dt: number, simMs: number) => void;
   /** On the HUD's tick: the overlay's snapshot refreshed. */
   tick: () => void;
-  startBench: () => void;
+  /** `ab` the run part by part; left out, the kind of run last pressed. */
+  startBench: (ab?: boolean) => void;
   leaveBench: () => void;
   repro: () => string;
   dispose: () => void;
@@ -101,6 +102,7 @@ export function useDevApp(): DevApp {
     });
     /** From the press to the way out — the load under the card included. */
     let benching = false;
+    let partByPart = world.benchAb;
     const made: DevRig = {
       // Dark for the whole benchmark, load and warm-up included: an
       // instrument switched back on mid-run would be timed with it.
@@ -112,9 +114,11 @@ export function useDevApp(): DevApp {
         if (benching && world.shell() === "menu") benching = false;
         setDebug(benching ? null : tools.snapshot());
       },
-      startBench: () => {
+      startBench: (ab) => {
         benching = true;
-        benchRun.start();
+        // AGAIN repeats the run it follows, whole or part by part.
+        if (ab !== undefined) partByPart = ab;
+        benchRun.start(partByPart);
       },
       leaveBench: () => {
         benching = false;

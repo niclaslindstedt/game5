@@ -264,6 +264,13 @@ export function pictureRows(video: VideoSettings): ReportRow[] {
 }
 
 /** A run, ready to paste. */
+/** THE A/B BY THE CLOCK: every variant of the interleaved run (`""` the whole
+ * picture, else the subsystem it was drawn without), its frames and their
+ * fence and wall summed, ms. The GPU's timer is the better meter, but a
+ * phone's context has none, and the frame's own wall clock still tells a
+ * part's cost once the frames either side of it are drawn whole. */
+export type FenceAb = Record<string, { frames: number; gpu: number; wall: number }>;
+
 export type BenchmarkRun = {
   /** The map as the card words it. */
   map: string;
@@ -282,6 +289,8 @@ export type BenchmarkRun = {
   totals: RunTotals;
   /** The GPU's own timer, where the context has one (`gpu-timer.ts`). */
   gpu: GpuTotals;
+  /** The interleaved A/B timed by the fence and the wall, where it ran. */
+  fence?: FenceAb;
   /** The subsystems the run was drawn WITHOUT (`?hide=`): an A/B reading,
    * never a score to compare with a whole picture's. */
   hidden: readonly string[];
@@ -412,6 +421,37 @@ function whereTheGpuWent(gpu: GpuTotals): string[] {
   return out;
 }
 
+/** THE A/B BY THE CLOCK: each part's frame against the whole picture's,
+ * by the fence (the wait for the GPU after the submit) and by the wall (the
+ * frame's whole period). A part dearer than the noise saves its Δ. */
+function abByTheClock(fence: FenceAb | undefined): string[] {
+  const whole = fence?.[""];
+  if (!fence || !whole || whole.frames <= 0) return [];
+  const others = Object.entries(fence).filter(([tag, t]) => tag !== "" && t.frames > 0);
+  if (others.length === 0) return [];
+  const gpu0 = whole.gpu / whole.frames;
+  const wall0 = whole.wall / whole.frames;
+  const delta = (v: number): string => (v >= 0 ? "+" : "") + v.toFixed(2);
+  const out = [
+    "",
+    "A/B BY THE CLOCK, INTERLEAVED FRAME BY FRAME — the frame drawn WITHOUT each",
+    `  ${"without".padEnd(SLICE_NAME)} ${pad("fence", 7)}    ${pad("Δ", 6)} ` +
+      `${pad("wall", 7)}    ${pad("Δ", 6)}  frames`,
+    `  ${"(nothing)".padEnd(SLICE_NAME)} ${pad(gpu0.toFixed(2), 7)} ms ${pad("", 6)} ` +
+      `${pad(wall0.toFixed(2), 7)} ms ${pad("", 6)}  ${whole.frames}`,
+  ];
+  const rows = others
+    .map(([tag, t]) => ({ tag, frames: t.frames, gpu: t.gpu / t.frames, wall: t.wall / t.frames }))
+    .sort((a, b) => a.wall - b.wall);
+  for (const r of rows) {
+    out.push(
+      `  ${r.tag.padEnd(SLICE_NAME)} ${pad(r.gpu.toFixed(2), 7)} ms ${pad(delta(r.gpu - gpu0), 6)} ` +
+        `${pad(r.wall.toFixed(2), 7)} ms ${pad(delta(r.wall - wall0), 6)}  ${r.frames}`,
+    );
+  }
+  return out;
+}
+
 /** THE REPORT — the text COPY DEBUG REPORT puts on the clipboard. */
 export function benchmarkReport(run: BenchmarkRun): string {
   const { samples, costs, scene, totals, machine, step, frames } = run;
@@ -438,6 +478,7 @@ export function benchmarkReport(run: BenchmarkRun): string {
   if (run.hidden.length > 0) out.push(`HIDDEN  ${run.hidden.join(" · ")} — an A/B reading`);
   out.push(...whereTheFrameWent(totals, step));
   out.push(...whereTheGpuWent(run.gpu));
+  out.push(...abByTheClock(run.fence));
 
   if (costs.length > 0) {
     const held = costs[costs.length - 1];

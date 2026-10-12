@@ -52,7 +52,8 @@ function DeveloperPage({
   onSettings: (settings: Settings) => void;
   onBack: () => void;
   onPage: (page: DevPage) => void;
-  onBenchmark: () => void;
+  /** `true` the run part by part (the interleaved A/B). */
+  onBenchmark: (ab: boolean) => void;
 }) {
   const [hint, setHint] = useState<Hint | null>(null);
   const [said, say] = useReceipt();
@@ -76,11 +77,17 @@ function DeveloperPage({
         </KnobGroup>
         {/* THE STOPWATCH, under the rows rather than among them: not a setting
           but a press that takes the canvas for half a minute. */}
-        <button type="button" class="menu-item menu-item-dev" onClick={onBenchmark}>
+        <button type="button" class="menu-item menu-item-dev" onClick={() => onBenchmark(false)}>
           {STRINGS.benchTitle}
           <span class="menu-item-sub">
             {STRINGS.benchRowHint(benchmarkSeconds(), BENCHMARK.seed, RACE.rivals + 1)}
           </span>
+        </button>
+        {/* The same race with each part of the picture left out a frame in
+          turn: what a part costs on a machine with no GPU timer. */}
+        <button type="button" class="menu-item menu-item-dev" onClick={() => onBenchmark(true)}>
+          {STRINGS.benchPartsTitle}
+          <span class="menu-item-sub">{STRINGS.benchPartsHint}</span>
         </button>
         <button
           type="button"
@@ -132,10 +139,10 @@ export function DevPages({
   onPage: (page: DevPage) => void;
   /** Out to the front door. */
   onBack: () => void;
-  onBenchmark: () => void;
+  onBenchmark: (ab: boolean) => void;
 }) {
   if (page === "benchHistory") {
-    return <BenchHistoryPage onBack={() => onPage("dev")} onRun={onBenchmark} />;
+    return <BenchHistoryPage onBack={() => onPage("dev")} onRun={() => onBenchmark(false)} />;
   }
   return (
     <DeveloperPage

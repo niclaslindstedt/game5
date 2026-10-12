@@ -31,7 +31,11 @@ export function tallyScene(root: THREE.Object3D): SceneShare[] {
       share.objects += 1;
       const index = geometry.getIndex();
       const position = geometry.getAttribute("position");
-      const verts = index ? index.count : (position?.count ?? 0);
+      // A draw range is what three submits: the ground's rings hold every
+      // wedge twice round and draw the run of them the lens can see.
+      const whole = index ? index.count : (position?.count ?? 0);
+      const range = geometry.drawRange;
+      const verts = Math.max(0, Math.min(whole, range.start + range.count) - range.start);
       const instances = (object as Partial<THREE.InstancedMesh>).count ?? 1;
       // Points and lines draw no triangles; they are still objects.
       const isMesh = (object as Partial<THREE.Mesh>).isMesh === true;

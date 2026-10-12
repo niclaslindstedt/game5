@@ -46,6 +46,7 @@ import {
   GPU_NAME_CAP,
   noMachine,
   noTotals,
+  type FenceAb,
   type FramePhases,
   type FrameTiming,
   type GpuTotals,
@@ -89,6 +90,8 @@ export type BenchmarkStatus = {
   totals: RunTotals;
   /** The GPU's own timer over the run (`gpu-timer.ts`), where it has one. */
   gpu: GpuTotals;
+  /** The interleaved A/B by the fence and the wall, where it ran. */
+  fence?: FenceAb;
   /** What the run is drawn without (`?hide=`), for the report's line. */
   hidden: readonly string[];
   machine: Machine;
@@ -233,6 +236,8 @@ export function runBenchmark(
   const costs: FramePhases[] = [];
   let scene: SceneShare[] = [];
   const totals = noTotals();
+  const fence: FenceAb = {};
+  for (const tag of cycle) fence[tag] = { frames: 0, gpu: 0, wall: 0 };
   let machine = noMachine();
 
   const report = (phase: BenchmarkStatus["phase"]): void => {
@@ -251,6 +256,7 @@ export function runBenchmark(
       scene,
       totals: { ...totals },
       gpu: renderer.gpuTotals(),
+      fence: cycle.length > 0 ? structuredClone(fence) : undefined,
       hidden,
       machine,
       skis: state.rivals.length + 1,
@@ -266,11 +272,17 @@ export function runBenchmark(
       renderer.resetGpu();
       green = framed = performance.now();
     }
-    if (cycle.length > 0) {
-      const without = cycle[frames % cycle.length];
+    const without = cycle.length > 0 ? cycle[frames % cycle.length] : null;
+    if (without !== null) {
       renderer.setHidden(without === "" ? hidden : [...hidden, without], without);
     }
     const now = benchFrame(race, totals, framed);
+    if (without !== null) {
+      const t = fence[without];
+      t.frames += 1;
+      t.gpu += last.gpuMs;
+      t.wall += last.wallMs;
+    }
     frames += 1;
     elapsed = now - green;
     const fps = now > framed ? 1000 / (now - framed) : 0;

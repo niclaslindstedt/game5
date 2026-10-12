@@ -184,7 +184,7 @@ export function MenuPages(p: {
           onSettings={setSettings}
           onPage={setPage}
           onBack={back}
-          onBenchmark={() => p.dev.rig.current?.startBench()}
+          onBenchmark={(ab) => p.dev.rig.current?.startBench(ab)}
         />
       ) : page === "options" ? (
         <OptionsPage

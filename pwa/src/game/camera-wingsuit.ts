@@ -45,6 +45,10 @@ export const SUIT_FLYER = {
   high: { back: 6, up: 11, right: 1.5, ahead: 4, down: 3, fov: 56 },
   orbit: { radius: 6, up: 2.8, rate: 0.16, ahead: 1, down: 0.6, fov: 54 },
 } as const;
+/** THE DIVE: past a glide's airspeed (m/s, `from`) the booms close in on
+ * him, by `close` of their reach at a full dive's (`full`). */
+export const SUIT_DIVE = { from: 45, full: 68, close: 0.55 } as const;
+
 /** THE FIRST PERSON: the camera on the back of his helmet (`tips`), m
  * behind and over his eyes, and his own eyes (`helmet`) — each looking
  * along his way pitched down `pitch` rad, its field, deg. */
@@ -223,10 +227,18 @@ function flightLens(rung: CameraRung, s: SuitSubject, d: P, h: number, t: number
     fov = O.fov;
   } else {
     const F = SUIT_FLYER[rung];
+    // IN A DIVE the flyer closes on him: swept back and tucked he is half
+    // the size he is gliding, and the widened field shrinks him further.
+    const pace = Math.hypot(s.v.x, s.v.y, s.v.z);
+    const dive = Math.max(
+      0,
+      Math.min(1, (pace - SUIT_DIVE.from) / (SUIT_DIVE.full - SUIT_DIVE.from)),
+    );
+    const near = (1 - SUIT_DIVE.close * dive * dive * (3 - 2 * dive)) * wide;
     eye = {
-      x: at.x - d.x * F.back * wide + rx * F.right * wide,
-      y: at.y - d.y * F.back * wide + F.up * wide,
-      z: at.z - d.z * F.back * wide + rz * F.right * wide,
+      x: at.x - d.x * F.back * near + rx * F.right * near,
+      y: at.y - d.y * F.back * near + F.up * near,
+      z: at.z - d.z * F.back * near + rz * F.right * near,
     };
     aim = { x: at.x + d.x * F.ahead, y: at.y + d.y * F.ahead - F.down, z: at.z + d.z * F.ahead };
     fov = F.fov;

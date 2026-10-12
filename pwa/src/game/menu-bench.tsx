@@ -68,6 +68,7 @@ export function BenchmarkCard({
       scene: status.scene,
       totals: status.totals,
       gpu: status.gpu,
+      fence: status.fence,
       hidden: status.hidden,
       machine: status.machine,
       step: BENCHMARK.step,

@@ -47,6 +47,9 @@ export const DEV_STRINGS = {
   benchTitle: "BENCHMARK",
   benchRowHint: (seconds: number, seed: number, skiers: number): string =>
     `${Math.round(seconds)} s of seed ${seed}, ${skiers} skiers, drawn as fast as this machine can`,
+  benchPartsTitle: "BENCHMARK, PART BY PART",
+  benchPartsHint:
+    "the same race with each part of the picture left out a frame in turn — what each costs",
   benchMap: (seed: number): string => `SEED ${seed} · THE WOODS AND A KICKER`,
   benchIndexUnit: (fps: number, w: number, h: number): string => `INDEX · ${fps} FPS · ${w}×${h}`,
   benchAxis: (top: number, topFps: number): string => `0–${top} index · 0–${topFps} fps`,

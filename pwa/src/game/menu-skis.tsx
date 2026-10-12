@@ -90,11 +90,16 @@ function PolesRow({ outfit, onOutfit }: { outfit: Outfit; onOutfit: (o: Outfit) 
         value={outfit.poles}
         onPick={(poles) => onOutfit({ ...outfit, poles })}
       />
-      {!carriesPoles(outfit) && (
-        <p class="dress-note" role="note" data-menu="dress-no-poles">
-          {STRINGS.dressNoPoles}
-        </p>
-      )}
+      {/* Always laid out, and only SEEN with no poles: a note that came
+          and went would grow the card and move everything on it. */}
+      <p
+        class={carriesPoles(outfit) ? "dress-note dress-note-held" : "dress-note"}
+        role="note"
+        aria-hidden={carriesPoles(outfit) ? "true" : undefined}
+        data-menu={carriesPoles(outfit) ? undefined : "dress-no-poles"}
+      >
+        {STRINGS.dressNoPoles}
+      </p>
     </div>
   );
 }

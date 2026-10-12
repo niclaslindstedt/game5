@@ -10,6 +10,7 @@
 
 import { raceRiderOf, raceSkisOf, type GameMode } from "@engine";
 
+import { firstWhere } from "./free-ride.ts";
 import type { PinnedLevel } from "./pinned.ts";
 import { disciplineOf, findRaceMap } from "./race-maps.ts";
 import type { Settings } from "./settings.ts";
@@ -47,6 +48,8 @@ export function mapPicks(world: {
     openCard: (mode, page) => {
       world.mode.current = mode;
       raceSkis(mode);
+      // A first free ride stands on a real range rather than GENERATED.
+      if (mode === "free") world.setSettings((s) => ({ ...s, ride: firstWhere(s.ride) }));
       world.setPage(page);
     },
     choose: (level) => {

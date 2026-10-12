@@ -76,7 +76,6 @@ import { cardPick } from "./game/jump-hills.ts";
 import { useCloudSync } from "./game/use-cloud-sync.ts";
 import {
   FIRST_FREE_SEED,
-  firstWhere,
   againAt,
   freeAgainOptions,
   type AgainAt,
@@ -946,10 +945,7 @@ export function App() {
           seed={nextSeed}
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
-          onFree={() => {
-            setSettings((s) => ({ ...s, ride: firstWhere(s.ride) }));
-            picks.openCard("free", "world");
-          }}
+          onFree={() => picks.openCard("free", "world")}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

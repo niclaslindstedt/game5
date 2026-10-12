@@ -59,6 +59,7 @@ export function freshSkier(spec: SkiSpec): SkierState {
     popped: 1e6,
     drive: 0,
     stride: 0,
+    hill: 0,
     glide: 0,
     step: 0,
     pivot: 0,

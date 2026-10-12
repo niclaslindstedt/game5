@@ -203,6 +203,12 @@ export function dealEnthusiasts(state: GameState, count: number): void {
     run.heli = undefined;
     run.sled = undefined;
     run.para = undefined;
+    run.balloon = undefined;
+    run.plane = undefined;
+    run.chute = undefined;
+    run.wingsuit = undefined;
+    run.doorway = undefined;
+    run.mishaps = undefined;
     run.afterski = undefined;
     run.grimbear = undefined;
     run.avalanche = undefined;

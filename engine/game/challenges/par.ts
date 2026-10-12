@@ -37,8 +37,9 @@ const qa: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 const qb: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
 
 /** THE PAR, s, of the line down `run` from arc `from` to `to` on `spec`
- * (the reference pair when left out) — and, handed `profile`, the speed it
- * reckons at every `CHALLENGES.par.step` m, m/s (a lab's trace). */
+ * (the reference pair when left out), crossing `from` at `entry` m/s —
+ * and, handed `profile`, the speed it reckons at every
+ * `CHALLENGES.par.step` m, m/s (the run-in's reckoning, a lab's trace). */
 export function linePar(
   level: Level,
   run: DealtRun,
@@ -46,6 +47,7 @@ export function linePar(
   to: number,
   spec: SkiSpec = SKIS,
   profile?: number[],
+  entry: number = P.entry,
 ): number {
   const ds = P.step;
   const n = Math.max(2, Math.ceil((to - from) / ds) + 1);
@@ -109,7 +111,7 @@ export function linePar(
     return most;
   };
   const v = new Float64Array(n);
-  v[0] = Math.min(P.entry, allowed(0, P.entry));
+  v[0] = Math.min(entry, allowed(0, entry));
   for (let i = 1; i < n; i++) {
     const loose = TUNING.g * TUNING.snow.powderDrag * v[i - 1] * (1 - packs[i - 1]);
     const gain = 2 * ds * (pull[i - 1] - loose - air * v[i - 1] ** 2);

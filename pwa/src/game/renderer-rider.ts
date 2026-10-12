@@ -3,6 +3,7 @@
 // and the memories its drawing runs on, the runs a frame draws, and the GPU
 // timer's slice for each named group of the scene.
 
+import type * as THREE from "three";
 import type { GameState, Level, SkiSpec, SkierState } from "@engine";
 
 import type { GpuSlice, Hideable } from "./benchmark-report.ts";
@@ -54,7 +55,34 @@ export const SLICE_OF_GROUP: Readonly<Record<string, GpuSlice & Hideable>> = {
   snowfall: "snowfall",
   wildlife: "wildlife",
   crowd: "field",
+  // Inside the "crowd" group, beside the free ride's amateurs (`spectators.ts`).
+  spectators: "audience",
 };
+
+/** An A/B frame drawn WITHOUT the `hidden` slices: each group of one is
+ * switched off and pushed onto `hid` for the frame to switch back on. A
+ * slice may stand one group down (the audience, in the crowd's). */
+export function hideSlices(
+  scene: THREE.Object3D,
+  hidden: ReadonlySet<Hideable>,
+  hid: THREE.Object3D[],
+): void {
+  for (const child of scene.children) {
+    const slice = SLICE_OF_GROUP[child.name];
+    if (slice !== undefined && hidden.has(slice)) {
+      if (child.visible) hid.push(child);
+      child.visible = false;
+      continue;
+    }
+    for (const inner of child.children) {
+      const own = SLICE_OF_GROUP[inner.name];
+      if (own !== undefined && hidden.has(own) && inner.visible) {
+        inner.visible = false;
+        hid.push(inner);
+      }
+    }
+  }
+}
 
 /** The runs a frame draws: the player's first, then the field's. */
 export function runsOf(state: GameState): GameState[] {

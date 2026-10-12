@@ -583,9 +583,53 @@ export function freeRestart(
   state: GameState,
   again: CreateGameOptions | null,
 ): CreateGameOptions | null {
-  return !state.rules.course && !state.rules.tricks && again
-    ? freeTopOptions(again, lastPiste(state), state.grimbear, state.mishaps)
-    : null;
+  if (state.rules.course || state.rules.tricks || !again) return null;
+  // ON HIS FEET ON THE SLOPE, a ride begun on a machine starts again at the
+  // top of that slope on his skis, never back on the machine he left.
+  const ride = onTheSlope(state) && !again.wingsuit ? onSkisAgain(again) : again;
+  return freeTopOptions(ride, lastPiste(state), state.grimbear, state.mishaps);
+}
+
+/** The crashes a machine throws its rider in: down off one of these, he is
+ * still the machine's, and its restart stands him back on it. */
+const CRAFT_CRASHES: ReadonlySet<string> = new Set([
+  "heli",
+  "sled",
+  "balloon",
+  "plane",
+  "wingsuit",
+]);
+
+/** WHETHER THE RIDER IS ON HIS OWN FEET ON THE MOUNTAIN — skiing, stood or
+ * down on the snow off his own skis, or riding a lift — rather than in, on
+ * or under a machine: the helicopter's skid, the snowmobile, the plane, the
+ * balloon's basket, the paramotor's wing, a canopy or freefall, a piste
+ * machine's cab, the lodge — or thrown by one of them. */
+export function onTheSlope(state: GameState): boolean {
+  const c = state.skier;
+  if (c.thrown && CRAFT_CRASHES.has(c.thrown.cause)) return false;
+  if (state.heli?.rider || state.plane?.rider || state.sled?.rider) return false;
+  if (state.balloon?.aboard) return false;
+  if (state.para && state.para.mode !== "dropped") return false;
+  const ch = state.chute;
+  if (ch && !ch.done && ch.mode !== "landed" && ch.mode !== "released") return false;
+  if (state.afterski?.inside) return false;
+  return !state.groomers?.some((g) => g.rider);
+}
+
+/** The ride `again` with every machine it was begun on left out: stood on
+ * the snow on his skis, the helicopter and the snowmobile parked where the
+ * ski area keeps them. */
+function onSkisAgain(again: CreateGameOptions): CreateGameOptions {
+  return {
+    ...again,
+    heli: undefined,
+    sled: undefined,
+    para: undefined,
+    balloon: undefined,
+    plane: undefined,
+    chute: undefined,
+  };
 }
 
 /** WHERE THE NEXT RIDER STANDS once this one is dead: the start of a race

@@ -39,6 +39,7 @@ import {
   freeAgainOptions,
   freeGameOptions,
   freeRestart,
+  onTheSlope,
   freeRunList,
   freeTopOptions,
   freshRide,
@@ -299,6 +300,38 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     const slot = first.level.grid[0];
     expect(again.skier.x).toBeCloseTo(slot.x, 5);
     expect(again.skier.z).toBeCloseTo(slot.z, 5);
+  });
+
+  it("restarts a rider on his feet at the top of his slope, not on the machine he began on", () => {
+    const ride = { ...freshRide(), run: { seed: 9, region: freshRide().region, id: SLED_RUN } };
+    const opts = {
+      ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      quiet: true,
+    };
+    expect(opts.sled).toBe(true);
+    const first = createGame({ ...opts, level: syntheticLevel() });
+    const free = freeAgainOptions(opts, first.level);
+    // Still on the snowmobile: the restart is the snowmobile's.
+    expect(first.sled?.rider).toBe(true);
+    expect(onTheSlope(first)).toBe(false);
+    expect(freeRestart(first, free)?.sled).toBe(true);
+    // Stepped off it and out on his skis: the restart is the slope's.
+    if (first.sled) first.sled.rider = false;
+    expect(onTheSlope(first)).toBe(true);
+    const top = freeRestart(first, free);
+    expect(top?.sled).toBeUndefined();
+    expect(againAt(first.rules, top)).toBe("top");
+    const again = createGame(top!);
+    expect(again.sled?.rider).toBe(false);
+    const slot = first.level.grid[0];
+    expect(again.skier.x).toBeCloseTo(slot.x, 5);
+    expect(again.skier.z).toBeCloseTo(slot.z, 5);
+    // Thrown off the machine he is still its rider: stood back on it.
+    first.skier.thrown = { cause: "sled" } as never;
+    expect(onTheSlope(first)).toBe(false);
+    // A ride on skis from the start is the slope's however it ends.
+    const skied = createGame({ ...freeAgainOptions(opts, first.level), sled: undefined });
+    expect(onTheSlope(skied)).toBe(true);
   });
 
   it("names where the next rider stands after a death, as the restart stands him", () => {

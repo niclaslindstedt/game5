@@ -141,6 +141,13 @@ describe("a map's challenges", () => {
           expect(Math.hypot(g.left.x - g.right.x, g.left.z - g.right.z)).toBeCloseTo(g.width, 3);
         }
         expect(l.start.s).toBeGreaterThanOrEqual(CHALLENGES.line.fromHead);
+        // The start gate stands down its run-in where the slope has dipped
+        // and a skier off the top is already moving — never on the flat
+        // under the lift's pad at a crawl.
+        expect(l.runIn).toBeGreaterThanOrEqual(CHALLENGES.line.fromHead);
+        expect(l.start.s).toBeGreaterThanOrEqual(l.runIn);
+        expect(l.start.s - l.runIn).toBeLessThanOrEqual(CHALLENGES.line.runIn + 1e-6);
+        expect(l.entry).toBeGreaterThan(CHALLENGES.line.speed * 0.75);
         expect(l.finish.s - l.start.s).toBeGreaterThanOrEqual(CHALLENGES.line.shortest - 1e-6);
         expect(l.finish.s - l.start.s).toBeLessThanOrEqual(CHALLENGES.line.longest + 1e-6);
         expect(l.finish.y).toBeLessThan(l.start.y - CHALLENGES.line.drop + 1e-6);

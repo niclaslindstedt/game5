@@ -26,9 +26,14 @@ on), a run of **every colour** the ski area has first — a green, a blue, a
 red, a black and an orange ski route where there is one — then any other.
 One line a run:
 
-- the **start gate** stands 30 m below where the last summit ramp joins the
-  run (and never nearer its head than 40 m), on the run's own snow and clear
-  of the lift's pad;
+- the **start gate** stands where the slope has DIPPED: the line's
+  **run-in** begins 30 m below where the last summit ramp joins the run (and
+  never nearer its head than 40 m), clear of the lift's pad, and the gate
+  stands down it at the first arc the par's own profile has a skier pushing
+  off its head at 4 m/s up to **15 m/s** (about 55 km/h) — or, on a run
+  that never takes him there, where it takes him nearest (95 % of the most
+  it does) — never more than 500 m down, so nobody starts a line at a crawl
+  on the flat under the top;
 - the **finish gate** stands 300–1500 m further down, short of the run's
   foot, and the line drops at least 25 m and 6 % of its length — downhill
   from gate to gate;
@@ -53,14 +58,19 @@ snow lies loose and the air's — under what the run's bends allow (a share of
 the corner grip less a share of the pitch's pull out of a turn, and no
 faster than the pair carves) and under a free skier's top speed, every bend
 within his skid's reach come to in time. That clock times the median share
-of it the bot takes is par.
+of it the bot takes is par. He crosses the start gate at the speed the
+run-in's own reckoning gave him there (`LineChallenge.entry`).
 
 **Calibration.** `make challenges-table COUNT=8` skis every line seeds 1–8
-deal with the bot and prints its time against the medals. Before
+deal with the bot, set at the head of its run-in pushing off, and prints its
+time against the medals, the run-in's length and the speed it crossed the
+start gate at. With the gate at the run-in's head the bot crossed it at
+27–68 km/h (median 30); with the gate down where the slope dips, at
+40–61 km/h (median 49), and par is scaled by its median over those lines. Before
 calibration (the profile alone) the bot ran 0.77–1.47 of par and won
 bronze on 26 lines of 34; with the top speed, the corner share and the
 fall's share fitted to that spread and par scaled by the bot's median, the
-bot runs about 0.89–1.14 of par: silver mostly, gold now and then, and
+bot runs about 0.84–1.19 of par: silver mostly, gold now and then, and
 never off the table. The orange ski routes — 60–110 % steep in untracked
 snow — are past what the bot skis cleanly, so their par is the same
 reckoning, unmeasured.

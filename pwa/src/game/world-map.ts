@@ -217,6 +217,27 @@ export function panBy(cam: Camera, view: View, dx: number, dy: number): Camera {
   return clampCamera({ ...cam, x: cam.x - dx / cam.scale, y: cam.y - dy / cam.scale }, view);
 }
 
+// ── THE OUTLINE'S SHEET ──────────────────────────────────────────────────
+
+/** The outline's sheet runs this share of the view past each edge. */
+export const SHEET_OVER = 0.25;
+/** The sheet is repainted once blown up past this (it blurs). */
+export const SHEET_SHARP = 1.6;
+/** The CSS transform that carries the outline painted under `base` to where
+ * `cam` shows it — a scale about the view's middle and a shift — or null
+ * when the sheet (`SHEET_OVER` past every edge) would leave a gap in the view or
+ * be blown up past `SHEET_SHARP`, and must be painted again. */
+export function sheetMove(base: Camera, cam: Camera, view: View): string | null {
+  const k = cam.scale / base.scale;
+  const tx = (base.x - cam.x) * cam.scale;
+  const ty = (base.y - cam.y) * cam.scale;
+  const reach = k * (1 + 2 * SHEET_OVER);
+  if (k > SHEET_SHARP || Math.abs(tx) > ((reach - 1) * view.w) / 2) return null;
+  if (Math.abs(ty) > ((reach - 1) * view.h) / 2) return null;
+  const f = (v: number): string => String(Math.round(v * 1000) / 1000);
+  return `translate(${f(tx)}px, ${f(ty)}px) scale(${f(k)})`;
+}
+
 // ── THE MARKERS ───────────────────────────────────────────────────────────
 
 /** Markers closer than this on the screen are pushed apart, px. */

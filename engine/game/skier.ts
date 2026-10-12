@@ -241,8 +241,11 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // he skis.
   const housed = state.rules.start === "interval" && state.rules.course;
   // ...and only while the hill pulls less than the poles (`slopeShare`; a board's is its own).
+  // The hill's pull along his way is kept (`SkierState.hill`): up a rise
+  // it cuts each glide short and quickens his strides (`skateCadence`).
+  c.hill = hillPull(level, c.x, c.z, c.heading, c.way);
   const poled = c.board ? 0 : driveForce(spec, speed0, c.packed, 1, c.poles, c.step) / m;
-  const hill = c.board ? 1 : slopeShare(hillPull(level, c.x, c.z, c.heading, c.way), poled);
+  const hill = c.board ? 1 : slopeShare(c.hill, poled);
   const free = (!c.airborne && c.jumpLoad === 0) || hopHeld(c, speed0);
   const working =
     going && free && c.thrown === null && !housed ? (1 - c.brake) * straight * hill : 0;
@@ -664,7 +667,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     if (p.station === "mid")
       along +=
         ((fakie ? -bite : bite) *
-          poleForce(spec, speed0, packed, c.drive, c.stride, c.poles, c.step) *
+          poleForce(spec, speed0, packed, c.drive, c.stride, c.poles, c.step, c.hill) *
           hurtDrive(c)) /
         2;
     push(

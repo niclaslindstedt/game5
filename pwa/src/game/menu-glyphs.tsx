@@ -34,6 +34,7 @@ export const GLYPH_NAMES = [
   "chart",
   "piste",
   "medal",
+  "weather",
 ] as const;
 
 export type GlyphName = (typeof GLYPH_NAMES)[number];
@@ -179,6 +180,15 @@ const GLYPHS: Record<GlyphName, JSX.Element> = {
       <path d="M3.5 5.5 9 3.5l6 2 5.5-2v15L15 20.5l-6-2-5.5 2Z" />
       <path d="M9 3.5v15M15 5.5v15" opacity="0.45" />
       <path d="M12 6.2c-3.4 1.6 3.4 3.8 0 5.6s3.4 3.9 0 5.8" stroke-dasharray="1.6 1.4" />
+    </>
+  ),
+  // A SUN BEHIND A CLOUD: the day — the season, the hour, the sky and the
+  // snow, put away behind one press on the start card.
+  weather: (
+    <>
+      <path d="M9 2.8v1.6M3.6 8.6h1.6M4.9 4.5l1.1 1.1M13.1 4.5 12 5.6" />
+      <path d="M5.9 11.2a3.6 3.6 0 0 1 6.6-3.4" />
+      <path d="M7.2 19.5h10.3a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6-.6 3.9 3.9 0 0 0-1.1 7.8z" />
     </>
   ),
   // A DISC ON A V OF RIBBON: the challenges — the medals a mountain deals.

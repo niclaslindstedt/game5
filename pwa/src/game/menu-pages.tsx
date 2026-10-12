@@ -168,6 +168,7 @@ export function MenuPages(p: {
         <WherePage
           step={page}
           settings={settings}
+          seed={p.startSeed}
           onSettings={setSettings}
           onBack={() => setPage(stepBefore(page, settings.ride.face))}
           onNext={() => setPage(stepAfter(page, settings.ride.face))}

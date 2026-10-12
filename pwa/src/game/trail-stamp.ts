@@ -118,6 +118,10 @@ export const TRAIL = {
    * flung arm — and its depth in virgin powder, m. */
   body: 0.7,
   bodyDepth: 0.14,
+  /** ...and the hole a bone SUNK past that leaves (`bodyHole`): this much
+   * wider than the bone, a share of its half-width — the snow he went in
+   * through, which closes round a body only so far. */
+  bodyRoom: 1.4,
   /** The walls of a furrow in settled powder (`SnowProps.wall`), and the
    * power its cross-section falls away with at the softest and the hardest
    * wall: 1 − u^k, k from `wallSoft` to `wallHard`. */
@@ -480,14 +484,19 @@ const deck = {
  * touches now, drawn as a furrow of `TRAIL.body` width at the powder's own
  * depth (a scuff on the groomer), and — given the body's `points`
  * (`RAGDOLL`) — every bone of him pressed in (`BONES`), so a body lying in
- * powder lies in the body-shaped hole it made rather than under the snow. `pen` is a one-probe pen of its own, and `snowAt`, when given,
- * shapes it by the snow it slides through. */
+ * powder lies in the body-shaped hole it made rather than under the snow.
+ * Given the ground (`groundAt`), every bone's hole goes down to where that
+ * bone actually lies: in deep powder the engine lets a body sink a third of
+ * a metre and more, and a hole drawn only a hand deep left him under the
+ * snow, gone (`bodyHole`). `pen` is a one-probe pen of its own, and
+ * `snowAt`, when given, shapes it by the snow it slides through. */
 export function bodyStampOf(
   body: { x: number; z: number; touching: boolean; points?: readonly number[] },
   pen: TrailPen,
   packedAt: (x: number, z: number) => number,
   out: Stamp[],
   snowAt?: SnowSampler,
+  groundAt?: (x: number, z: number) => number,
 ): void {
   if (!body.touching) {
     pen.down[0] = 0;
@@ -511,18 +520,58 @@ export function bodyStampOf(
   out.push({ ax, az, bx: body.x, bz: body.z, half, depth, berm, wall });
   const q = body.points;
   if (!q) return;
-  for (const [i, j, half] of BONES) {
+  for (const [i, j, bone] of BONES) {
+    const x0 = q[3 * i];
+    const z0 = q[3 * i + 2];
+    const x1 = q[3 * j];
+    const z1 = q[3 * j + 2];
+    const hole = groundAt
+      ? bodyHole(
+          (x0 + x1) / 2,
+          (z0 + z1) / 2,
+          Math.min(q[3 * i + 1], q[3 * j + 1]),
+          bone,
+          packedAt,
+          groundAt,
+        )
+      : 0;
+    if (hole <= depth) {
+      out.push({ ax: x0, az: z0, bx: x1, bz: z1, half: bone, depth, berm, wall });
+      continue;
+    }
+    // Sunk past the gouge: the hole to his own depth, a little wider than
+    // he is, its walls slumped as deep a cut's are in snow this loose,
+    // and the snow he shoved aside heaped round its rim.
+    const wide = bone * TRAIL.bodyRoom;
     out.push({
-      ax: q[3 * i],
-      az: q[3 * i + 2],
-      bx: q[3 * j],
-      bz: q[3 * j + 2],
-      half,
-      depth,
-      berm,
+      ax: x0,
+      az: z0,
+      bx: x1,
+      bz: z1,
+      half: wide,
+      depth: hole,
+      berm: Math.min(TRAIL.maxBerm, hole * (snow ? snow.berm : TRAIL.bermShare)),
       wall,
+      slough: sloughOf(wide, hole, wall),
     });
   }
+}
+
+/** HOW DEEP A BONE'S HOLE IS DRAWN, m: from the drawn snow over the bone's
+ * middle (`x`, `z` — the ground and the loose snow `LOOSE` stands over it)
+ * down to the underside of the bone, whose lower end's centre is at `y`
+ * and which is `half` m thick each side — never past the map's full scale. */
+export function bodyHole(
+  x: number,
+  z: number,
+  y: number,
+  half: number,
+  packedAt: (x: number, z: number) => number,
+  groundAt: (x: number, z: number) => number,
+): number {
+  const p = Math.min(1, Math.max(0, packedAt(x, z)));
+  const surface = groundAt(x, z) + LOOSE * (1 - p);
+  return Math.min(TRAIL.maxDepth, Math.max(0, surface - (y - half)));
 }
 
 /** THE BODY PRESSED IN: every bone of a thrown skier's body (`RAGDOLL`)

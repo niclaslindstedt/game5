@@ -128,5 +128,6 @@ export function thrownEffects(
   }
   r.bodyDown = off.touching;
   r.wasThrown = true;
-  if (fx.stamps) bodyStampOf(off, r.bodyPen, fx.level.packedAt, fx.stamps, fx.sampleSnow);
+  if (fx.stamps)
+    bodyStampOf(off, r.bodyPen, fx.level.packedAt, fx.stamps, fx.sampleSnow, fx.level.groundAt);
 }

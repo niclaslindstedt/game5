@@ -101,6 +101,11 @@ export type BoardPoseInput = {
   /** Each foot's lift toward the body off the engine's legs, m: the front
    * foot, then the back (`gearLift`). */
   lift: readonly [number, number];
+  /** How far the deck has just come up under him faster than his legs
+   * let it carry him, m (`board-model.ts`' `SAG_EASE`): taken in his knees
+   * rather than lifting his hips — a landing's deck stopping under a body
+   * still coming down. */
+  sag?: number;
   /** The tuck the body is in, 0..1, and the lean fore and aft, −1..1. */
   crouch: number;
   lean: number;
@@ -179,6 +184,9 @@ export const HEELSIDE = { knee: 0.65, hips: -0.08, lean: 0.12, cutLean: -0.4, op
  * legs absorbing, never hung stiff under him; in a grab its own fold takes
  * over from `grab`), how far the board is drawn
  * up toward him for it (m), and the trunk's lean over the knees (rad). */
+/** The most a deck come up under him is taken in his knees, m. */
+const SAG_MOST = 0.15;
+
 export const AIR = { knee: 1.0, grab: 0.7, lift: 0.28, lean: 0.25 };
 
 /** THE TUCK at full crouch: the knees' extra flexion, the trunk's lean and opening, rad. */
@@ -537,6 +545,8 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       const w = 0.5 + (i === fi ? 0.3 : -0.3) * freeK;
       hipY += w * (feet[i].y + Math.sqrt(Math.max(0.01, span * span - dx * dx - dz * dz)));
     }
+    // A deck come up under him in a frame is taken in the knees.
+    hipY -= Math.min(SAG_MOST, input.sag ?? 0);
     // Stood still he breathes on his legs.
     hipY += still * 0.008 * Math.sin(clock * 1.7);
     hips = { x: hipsXZ.x, y: hipY, z: hipsXZ.z };

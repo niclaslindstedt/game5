@@ -173,9 +173,26 @@ function span(head: V3, tail: V3, face: V3, fallback: V3): BoneFrame {
   return { head, x: cross(y, z), y, z, length: Math.sqrt(dot(d, d)) };
 }
 
+/** `v` turned by the least rotation that takes the unit `from` onto the
+ * unit `to` (about their cross; nearly half round, about any axis square
+ * to `from`). */
+function turnedLeast(from: V3, to: V3, v: V3): V3 {
+  const c = dot(from, to);
+  if (c < -0.999) return scale(v, -1);
+  const w = cross(from, to);
+  const wv = cross(w, v);
+  return add(add(v, wv), scale(cross(w, wv), 1 / (1 + c)));
+}
 /** The way a two-bone limb bends: its middle joint off the line from its
  * root to its tip. */
 const bend = (root: V3, mid: V3, tip: V3): V3 => sub(mid, scale(add(root, tip), 0.5));
+/** How far a limb's bend leans the way a knee or an elbow folds, m — so a
+ * limb stood straight keeps its face rather than turning half round about
+ * its length as the bend crosses nothing (`make jolt`: a shin or an upper
+ * arm flung through a landing). */
+const STRAIGHT = 0.03;
+const limbBend = (root: V3, mid: V3, tip: V3, fold: V3): V3 =>
+  add(bend(root, mid, tip), scale(fold, STRAIGHT));
 
 /** How the head is turned, as `skier-figure.ts` turns it: nearer level
  * than the shoulders and looking into the turn — three's "YXZ" Euler of
@@ -225,13 +242,13 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
   [-1, 1].forEach((side, i) => {
     const s = i === 0 ? "l" : "r";
     const hip = p.hipJoints[i];
-    const knee = bend(hip, p.knees[i], p.feet[i]);
+    const knee = limbBend(hip, p.knees[i], p.feet[i], chest);
     out[`thigh_${s}`] = span(hip, p.knees[i], knee, chest);
     out[`shin_${s}`] = span(p.knees[i], p.feet[i], knee, chest);
     // The foot along its boot's sole, its instep up (`SkierPose.boots`).
     const boot = p.boots[i];
     out[`boot_${s}`] = span(p.feet[i], add(p.feet[i], scale(boot.f, 0.2)), boot.n, up);
-    const elbow = bend(p.shoulders[i], p.elbows[i], p.hands[i]);
+    const elbow = limbBend(p.shoulders[i], p.elbows[i], p.hands[i], scale(chest, -1));
     const kink = p.kinks?.[i] ?? null;
     // A BROKEN BONE IN TWO (`skier-broken.ts`): above the break along the
     // piece held, below it along the piece hanging — and a sound one's
@@ -243,7 +260,7 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
       length: f.length - at,
     });
     if (kink?.bone === "upper") {
-      const face = bend(kink.at, p.elbows[i], p.hands[i]);
+      const face = limbBend(kink.at, p.elbows[i], p.hands[i], scale(chest, -1));
       out[`upperarm_${s}`] = span(p.shoulders[i], kink.at, face, scale(chest, -1));
       out[`upperarm_lo_${s}`] = span(kink.at, p.elbows[i], face, scale(chest, -1));
     } else {
@@ -265,7 +282,7 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
     // it, so a fold past a right angle spreads over the joint rather than
     // collapsing where the two bones' weights meet.
     // THE HAND, CLOSED ROUND THE POLE'S GRIP: its +z up the shaft (from the
-    // basket to the fist), its +y the forearm's line squared to it — so the
+    // basket to the fist), its +y on along the forearm as near as that lets — so the
     // pole runs through the fist whatever the stroke does to it, the wrist
     // turning to hold it. A hand with no pole in it (let go, thrown, stood
     // in his boots) is the same fist round no pole: along its forearm (or
@@ -281,8 +298,15 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
       return { head: p.hands[i], x: cross(yy, zz), y: yy, z: zz, length: 0.08 };
     };
     if (pole && kink?.bone !== "wrist") {
+      // The fist round a pole run forward through it (its +z the forearm's
+      // face turned out, its +y on along the forearm), turned the least way
+      // that lays that pole on the shaft. Squaring the forearm to the shaft
+      // instead turns the fist half round in a frame wherever the forearm
+      // swings through the shaft's own line — a pole hung in line with an
+      // arm, every plant (`make jolt`: the fist flung at five hundred m/s²).
       const zz = norm(sub(p.hands[i], pole));
-      let yy = sub(fore.y, scale(zz, dot(fore.y, zz)));
+      let yy = turnedLeast(scale(fore.z, -1), zz, fore.y);
+      yy = sub(yy, scale(zz, dot(yy, zz)));
       yy = dot(yy, yy) < 1e-8 ? fore.z : norm(yy);
       out[`hand_${s}`] = { head: p.hands[i], x: cross(yy, zz), y: yy, z: zz, length: 0.08 };
     } else {

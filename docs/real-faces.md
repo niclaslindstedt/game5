@@ -1,6 +1,6 @@
 # The real faces
 
-A free ride's resort can be raised on a REAL mountainside instead of the massif R25 deals. There are ninety-three of them: thirty-two on the fells, twenty-nine in the alpine, eleven continental and twenty-one maritime. By range, twenty, seventeen and one lie in the three Nordic countries, twenty-nine in the range across borders in the middle of Europe, and eleven, eleven and four in the three ranges overseas. Each one is a 4×4 km stretch of a real ski mountain, from its summit ridge down to its valley floor, turned so its fall line runs down the map. A `?face=` link picks one too (`docs/configuration.md`).
+A free ride's resort can be raised on a REAL mountainside instead of the massif R25 deals. There are a hundred of them: thirty-two on the fells, twenty-nine in the alpine, eighteen continental and twenty-one maritime. By range, twenty, seventeen and one lie in the three Nordic countries, twenty-nine in the range across borders in the middle of Europe, and eleven in each of the three ranges overseas. Each one is a 4×4 km stretch of a real ski mountain, from its summit ridge down to its valley floor, turned so its fall line runs down the map. A `?face=` link picks one too (`docs/configuration.md`).
 
 The free ride names a face by PLACE, in three rows (`pwa/src/game/face-picks.ts`) — on the start card, and first on the WHERE steps before it, whose world map shows each one where it lies (below):
 

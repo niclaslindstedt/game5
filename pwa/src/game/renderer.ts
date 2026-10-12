@@ -174,13 +174,13 @@ const CLOUD_HEIGHT = 1400;
 /** How much of the player's own snow cloud the chase lens sees between
  * itself and him (`snow-cloud.ts`'s veil). */
 const CLOUD_VEIL = 0.12;
-/** A RIVAL nearer the lens's eye than this share of the eye's reach to the
- * player is not drawn that frame where the lens TRAILS him: the field
- * bunched behind puts one in the boom's own spot, his helmet filling the
- * picture. A lens circling him or planted by the piste sees the field ski
- * PAST in plain view, so it drops only one within `LENS_TOUCH` m of it. */
-const LENS_CROWD = 0.55;
-const LENS_TOUCH = 1.5;
+/** A RIVAL is drawn until he is this far BEHIND the lens, m, along its
+ * axis: a rider passing the lens is seen going by and out of the frame's
+ * edge, never dropped out of the middle of the picture while he is still in
+ * it. Past this he is wholly behind the near plane and costs a draw for
+ * nothing. */
+const LENS_BEHIND = 1;
+const lensAxis = new THREE.Vector3();
 
 export function createWorldRenderer(
   canvas: HTMLCanvasElement,
@@ -736,14 +736,14 @@ export function createWorldRenderer(
       if (looked && !planted && lens.rung() !== "orbit") aimLens(lens.camera, looked);
       afterski.sway(lens.camera, state, lens.rung(), planted !== null);
 
-      // A rival standing in the lens's own spot is left out of this frame.
+      // A rival clear behind the lens is left out of this frame.
       const eye = lens.camera.position;
-      const me = player.drawn;
-      const far = Math.hypot(me.x - eye.x, me.y - eye.y, me.z - eye.z) * LENS_CROWD;
-      const reach = !planted && lens.rung() !== "orbit" ? Math.max(LENS_TOUCH, far) : LENS_TOUCH;
+      lensAxis.set(0, 0, -1).applyQuaternion(lens.camera.quaternion);
       for (let i = 1; i < riders.length; i++) {
         const at = riders[i].drawn;
-        riders[i].model.root.visible = Math.hypot(at.x - eye.x, at.y - eye.y, at.z - eye.z) > reach;
+        const ahead =
+          (at.x - eye.x) * lensAxis.x + (at.y - eye.y) * lensAxis.y + (at.z - eye.z) * lensAxis.z;
+        riders[i].model.root.visible = ahead > -LENS_BEHIND;
       }
 
       const posed = performance.now();

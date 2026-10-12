@@ -349,13 +349,12 @@ canvas {
 }
 
 /* The chart's reading, led by the sign of the colour that came out. */
-.seed-preview-read {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.seed-preview-bit {
+  white-space: nowrap;
 }
 
 .seed-preview-read .seed-preview-grade {
+  display: inline-block;
   width: 1.2em;
   height: 1.2em;
   margin-right: 0.4em;
@@ -2293,7 +2292,10 @@ canvas {
   flex: none;
 }
 
+/* Never shrunk: a long value word must not take its room off the arrows,
+   or the targets move with the word. */
 .knob-arrow {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2358,18 +2360,24 @@ canvas {
    a narrow value leaving the middle of the row empty. Stated with three
    classes so it outranks every card's own fixed width. */
 .knob.knob-step .knob-label {
-  flex: 0 0 45%;
+  flex: 0 1 45%;
 }
 
+/* ...but never narrower than its longest word and its two arrows, where
+   the NAME gives instead (it truncates): the word is held in a cell sized
+   by every stop's word, so that floor is the same whichever is shown. */
 .knob.knob-step .knob-ctl {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: min-content;
 }
 
+/* From nothing, not from its word: a basis read off the word's length
+   would make every row's value as wide as what it says, and the arrows
+   step sideways each press. */
 .knob.knob-step .knob-value {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   width: auto;
-  min-width: 0;
+  min-width: min-content;
 }
 
 .knob-value .knob-word {
@@ -2377,9 +2385,26 @@ canvas {
   text-align: center;
 }
 
+.knob-word-held {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+}
+
+.knob-word-held > * {
+  grid-area: 1 / 1;
+}
+
+.knob-word-sizer {
+  visibility: hidden;
+}
+
+/* A pip's height even with no pips: a ladder still waiting on its stops
+   (the start card's MOUNTAIN, TIME) is as tall as one that has them. */
 .knob-pips {
   display: flex;
   gap: 0.26rem;
+  min-height: 0.36rem;
 }
 
 /* A long ladder's window fades its pips out at an end with more beyond it:
@@ -3012,6 +3037,12 @@ canvas {
   font-size: 0.82rem;
   line-height: 1.35;
   color: rgb(244 248 251 / 88%);
+}
+
+/* A note held in its place, unseen, so its coming and going moves
+   nothing. */
+.dress-note-held {
+  visibility: hidden;
 }
 
 /* A PHONE HELD UPRIGHT: no panel. The card is the whole screen and clear
@@ -3967,6 +3998,22 @@ canvas {
     width: 5.2rem;
   }
 
+  /* Two narrow columns of rows: the control is ONE width on every row,
+     not its longest word's — a row whose stops are still on their way
+     (TIME) is as wide as when they come, and every row's arrows — the
+     MOUNTAIN's number field's too —
+     stand on the same two x's. A longer word wraps in it. */
+  .menu-card-start .knob .knob-ctl {
+    flex: none;
+    justify-content: space-between;
+    width: 9.8rem;
+    min-width: 0;
+  }
+
+  .menu-card-start .knob.knob-step .knob-value {
+    min-width: 0;
+  }
+
   .menu-card-start .knob-ctl {
     gap: 0;
   }
@@ -4069,13 +4116,26 @@ canvas {
   opacity: 0.8;
 }
 
+/* THE READING NEVER SIZES THE PANEL: its figures change with every run
+   picked, and a line that widened the chart's box by its own length would
+   shove the box and the rows beside it a few pixels each press. So it is
+   contained to the plate's width (its own length counts for nothing), wraps
+   there, keeps two lines' room whether it needs them or not, and sets its
+   digits on one width. */
 .seed-preview-read {
+  display: grid;
+  align-content: center;
+  align-self: stretch;
+  contain: inline-size;
   margin: 0;
-  min-height: 1.4em;
+  min-height: 2.8em;
   font-size: 0.64rem;
   line-height: 1.4;
   font-weight: 700;
   letter-spacing: 0.14em;
+  text-align: center;
+  text-wrap: balance;
+  font-variant-numeric: tabular-nums;
   color: var(--hud-info);
 }
 

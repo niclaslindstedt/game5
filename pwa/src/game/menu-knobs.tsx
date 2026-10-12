@@ -181,7 +181,23 @@ export function StepRow<T extends string>({
           ‹
         </button>
         <span class={`knob-value${dealt ? " knob-dealt" : ""}`}>
-          <span class="knob-word">{current?.label ?? extra ?? STRINGS.optUnset}</span>
+          {/* Every stop's word is laid in the same cell, unseen, so the
+              cell is as tall as the longest of them wraps to: a two-line
+              word picked does not make the row taller and push every row
+              under it down. */}
+          <span class="knob-word knob-word-held">
+            <span>{current?.label ?? extra ?? STRINGS.optUnset}</span>
+            {stops.map((stop) => (
+              <span key={stop.id} class="knob-word-sizer" aria-hidden="true">
+                {stop.label}
+              </span>
+            ))}
+            {extra !== undefined && (
+              <span class="knob-word-sizer" aria-hidden="true">
+                {extra}
+              </span>
+            )}
+          </span>
           <span class={pipsClass(stops.length, shown)} aria-hidden="true">
             {shown.map((i) => (
               <i key={stops[i].id} class={`knob-pip${i === at ? " knob-pip-on" : ""}`} />

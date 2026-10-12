@@ -120,6 +120,7 @@ export function freshGroomers(state: GameState): GroomerState[] {
       speed: K.work,
       tiller: true,
       swath: [],
+      swathFrom: 0,
       lastX: Number.NaN,
       lastZ: Number.NaN,
       turn: { x0: 0, z0: 0, h0: 0, x1: 0, z1: 0, h1: 0, k: 0 },
@@ -187,6 +188,11 @@ function lay(state: GameState, g: GroomerState): void {
   }
   if (hypot(tx - g.lastX, tz - g.lastZ) < K.step) return;
   g.swath.push(g.lastX, g.lastZ, tx, tz);
+  if (g.swath.length >= K.kept * 8) {
+    const drop = g.swath.length - K.kept * 4;
+    g.swath.splice(0, drop);
+    g.swathFrom += drop;
+  }
   if (state.groomed) {
     groomSegment(state.groomed, g.lastX, g.lastZ, tx, tz, K.tiller.width / 2, state.fresh);
   }

@@ -64,6 +64,10 @@ export const GROOMER = {
   margin: 18,
   /** How far one swath point is laid from the last, m. */
   step: 2,
+  /** THE SWATH KEPT, segments: at twice this the oldest are dropped down
+   * to it — some forty minutes of a machine's work, far more than a night's
+   * head start, so the renderer has stamped every one long before. */
+  kept: 4096,
   /** A NIGHT'S WORK BEFORE THE SKIER COMES: the most lanes the machine has
    * already finished when the run starts, and the most of the pass it is
    * on, as a share of the run. */

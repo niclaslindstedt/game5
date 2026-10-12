@@ -37,8 +37,14 @@ export type GroomerState = {
   tiller: boolean;
   /** THE SWATH it has laid this run, as segments: [ax, az, bx, bz] each,
    * flat — the renderer stamps the corduroy along them, the physics packs
-   * the snow under them (`groomed.ts`). */
+   * the snow under them (`groomed.ts`). Only the newest are kept: once it
+   * holds `GROOMER.kept` × 2 segments the oldest are dropped down to
+   * `kept`, long after the renderer has stamped them — the physics has its
+   * own grid of the snow they groomed. */
   swath: number[];
+  /** How many numbers have been dropped off the swath's front: index `i`
+   * of every swath laid this run is `swath[i - swathFrom]`. */
+  swathFrom: number;
   /** Where the last swath point was laid, m. */
   lastX: number;
   lastZ: number;

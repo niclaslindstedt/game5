@@ -171,8 +171,22 @@ in code. Snow in the air is:
   puffs on a groomer's thin skin (`bodyOf`), or it reads as balls.
 - **Fade a grain near the lens**, as the cloud does: a grain a metre off
   is an egg across the picture.
-- `make spray` (both pairs, close and chase, `WHERE=meadow`) and
-  `make spray-metrics` are the labs; the turns lab takes `--skis=lynx`.
+- **Fly a grain at its own fall speed.** Measured snow falls at half a
+  metre a second as crystals, three to six as the chips an edge cuts and
+  some nine as a clump: a quadratic drag set by that speed (`drag` and
+  `sheet`) hangs the fines and throws the chips far, where one drag for
+  every grain (`streak`) can't do both. Puffs thrown any way (`puff`, the
+  control) read as smoke and score lowest. `make spray-eval` scores the
+  four against the research's bands; re-run it after any change to the
+  flight or the emission and keep the winner in `SPRAY_MODEL`.
+- **The snow's AGE makes the spray** (`snowpack.ts`'s `ageSnow`, off the
+  same `SnowAge` the terrain is drawn by): new snow fine and light, old
+  snow coarse and clumpy, a wind slab or a crust in plates, hoar glinting,
+  wet snow heavy, short and cloudless. Its depth (the snow dial) scales
+  how much is thrown and how high. The eval's age and depth table holds it.
+- `make spray` (both pairs, close and chase, `WHERE=meadow`; `--age=`,
+  `--spray=`, `--depth=`), `make spray-metrics` and `make spray-eval` are
+  the labs; the turns lab takes `--skis=lynx`.
 
 ## What the cloud taught (the snow cloud's own rules)
 

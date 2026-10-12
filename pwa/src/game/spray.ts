@@ -23,8 +23,8 @@ import type { Level, SkierState } from "@engine";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import type { SkyLook } from "./sky.ts";
-import type { SnowProps } from "./snowpack.ts";
-import { createSprayPool } from "./spray-sim.ts";
+import type { AgedSnow, SnowProps } from "./snowpack.ts";
+import { createSprayPool, SPRAY_MODEL, type SprayModel } from "./spray-sim.ts";
 
 export { heavyShare } from "./spray-sim.ts";
 
@@ -38,8 +38,15 @@ export type Spray = {
    * renderer that adds it. */
   points: THREE.Object3D;
   /** Emit for one rider over `dt`; `landed` is the landing's measure this
-   * frame (0 for none); `snow` what the skier is on (`snowpack.ts`). */
-  emit(skier: SkierState, level: Level, dt: number, landed: number, snow?: SnowProps): void;
+   * frame (0 for none); `snow` what the skier is on, as its age leaves it
+   * (`snowpack.ts`'s `ageSnow`). */
+  emit(
+    skier: SkierState,
+    level: Level,
+    dt: number,
+    landed: number,
+    snow?: SnowProps | AgedSnow,
+  ): void;
   /** A BURST of snow thrown up at a point — a wipeout's (`size` 1) or a
    * body bouncing on the snow (less) — carried along at (vx, vz). */
   burst(
@@ -73,12 +80,25 @@ export type Spray = {
   /** The SPRAY row: the share, 0..1, of every emission rate and of the pool
    * the particles are flown from. */
   setBudget(share: number): void;
+  /** How a grain flies (`spray-sim.ts`'s `SprayModel`) — the game flies
+   * `SPRAY_MODEL`; the labs fly each candidate. */
+  setModel(model: SprayModel): void;
   clear(): void;
   dispose(): void;
 };
 
+/** The model every spray made from now on flies — `SPRAY_MODEL` unless a
+ * lab says otherwise (`flySprayAs`, the spray lab's `?spray=`). */
+let flown: SprayModel = SPRAY_MODEL;
+
+/** A LAB'S SWITCH: fly every spray made after this by `model`. */
+export function flySprayAs(model: SprayModel): void {
+  flown = model;
+}
+
 export function createSpray(haze: HazeUniforms): Spray {
   const pool = createSprayPool(CAPACITY);
+  pool.model = flown;
   // Per grain: where and how big (xyz, size), how it moves and how opaque
   // (xyz, alpha), and what it is (hardness, glint).
   const a0 = new Float32Array(CAPACITY * 4);
@@ -106,6 +126,8 @@ export function createSpray(haze: HazeUniforms): Spray {
       uShade: { value: new THREE.Color(0.6, 0.7, 0.9) },
       uScale: { value: 600 },
       uShutter: { value: SHUTTER },
+      // 0 draws every grain round (the `puff` model), 1 streaked.
+      uStreak: { value: pool.model === "puff" ? 0 : 1 },
       uTime: { value: 0 },
       ...SHELTER,
     },
@@ -115,6 +137,7 @@ export function createSpray(haze: HazeUniforms): Spray {
       attribute vec2 aKind;
       uniform float uScale;
       uniform float uShutter;
+      uniform float uStreak;
       varying vec2 vUv;
       varying float vAlpha;
       varying float vHard;
@@ -125,7 +148,7 @@ export function createSpray(haze: HazeUniforms): Spray {
         vec3 world = aSpot.xyz;
         vec4 head = modelViewMatrix * vec4(world, 1.0);
         // The streak: where it was a shutter ago, a clump streaked less.
-        vec3 back = world - aMove.xyz * uShutter * (1.0 - 0.75 * aKind.x);
+        vec3 back = world - aMove.xyz * uShutter * uStreak * (1.0 - 0.75 * aKind.x);
         vec4 tail = modelViewMatrix * vec4(back, 1.0);
         float depth = max(-head.z, 0.1);
         // Never thinner than about a pixel at its distance, so a far sheet
@@ -257,6 +280,10 @@ export function createSpray(haze: HazeUniforms): Spray {
     },
     setBudget(next) {
       pool.setBudget(next);
+    },
+    setModel(model) {
+      pool.model = model;
+      material.uniforms.uStreak.value = model === "puff" ? 0 : 1;
     },
     clear() {
       pool.clear();

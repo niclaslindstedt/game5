@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer aloft cloud-metrics spray-metrics spray turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
 
 build:
 	npm run build
@@ -452,13 +452,25 @@ cloud-metrics:
 spray-metrics:
 	npm run spray-metrics -- $(ARGS)
 
+# THE SPRAY EVAL: which way of flying the spray is best — the four models
+# spray-sim.ts carries (puff, streak, drag, sheet) flown through the same
+# carves, skids and stops on the groomer and in powder, each scored against
+# what a real turn throws (which way, how fast, how high and far, how a
+# carve's compares with a skid's, how the fines hang, how thin the curtain,
+# how a grain is drawn, the cost) — and the game's model through a stop on
+# every age of snow at three depths. Pure Node, seconds.
+# ARGS="--models=drag,sheet", "--detail=sheet" (run by run), "--ages".
+spray-eval:
+	npm run spray-eval -- $(ARGS)
+
 # THE SPRAY LAB: the snow a turn throws off the skis AND off a board, as the
 # game draws it — the turns lab (below) ridden on the Chamois and the Lynx
 # through linked carves, a skidded turn and a hockey stop, from a lens close
 # in front of the skis and from the chase lens, on the groomer and in the
 # meadow's powder: previews/turns-<seed>[-lynx]-close.png and -chase.png
 # (the meadow's written over the piste's — WHERE=meadow alone for those).
-# SEED=n; WHERE=piste|meadow; ARGS="--speeds=30,60 --times=0.5,1".
+# SEED=n; WHERE=piste|meadow; ARGS="--speeds=30,60 --times=0.5,1";
+# ARGS="--spray=puff" another model, "--age=wet" a snow age, "--depth=2".
 spray:
 	for pair in chamois lynx; do npm run turns -- --skis=$$pair --where=$(or $(WHERE),piste) --moves=carve,skid,stop --speeds=45 --times=0.6,1,1.4 --views=close,chase --width=480 --height=320 $(if $(SEED),--seed $(SEED),) $(ARGS) || exit 1; done
 

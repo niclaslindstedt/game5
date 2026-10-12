@@ -43,6 +43,12 @@ import { derive } from "./skier.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
 
 const K = GROOMER;
+
+/** THE SWATH KEPT, segments: at twice this the oldest are dropped down to
+ * it — some forty minutes of a machine's work, far more than a night's head
+ * start, so the renderer has stamped every one long before. Kept here, not in
+ * `GROOMER`, which the machine's model is built off. */
+export const SWATH_KEPT = 4096;
 const dt = TUNING.dt;
 
 /** The machines' stream's salt off the run's seed — no other shares it. */
@@ -188,8 +194,8 @@ function lay(state: GameState, g: GroomerState): void {
   }
   if (hypot(tx - g.lastX, tz - g.lastZ) < K.step) return;
   g.swath.push(g.lastX, g.lastZ, tx, tz);
-  if (g.swath.length >= K.kept * 8) {
-    const drop = g.swath.length - K.kept * 4;
+  if (g.swath.length >= SWATH_KEPT * 8) {
+    const drop = g.swath.length - SWATH_KEPT * 4;
     g.swath.splice(0, drop);
     g.swathFrom += drop;
   }

@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import {
   GORE,
+  SWATH_KEPT,
   GROOMER,
   NEUTRAL_INPUT,
   createGame,
@@ -139,12 +140,12 @@ describe("the swath", () => {
     expect(g.swathFrom).toBe(0);
     // A night's whole run of work already laid: one more segment and the
     // oldest go, down to the kept share.
-    const full = GROOMER.kept * 8 - 4;
+    const full = SWATH_KEPT * 8 - 4;
     g.swath = Array.from({ length: full }, (_, i) => i);
     const before = g.swath.length;
     run(s, 4, NEUTRAL_INPUT);
     expect(g.swath.length).toBeLessThan(before);
-    expect(g.swath.length).toBeLessThanOrEqual(GROOMER.kept * 4 + 64);
+    expect(g.swath.length).toBeLessThanOrEqual(SWATH_KEPT * 4 + 64);
     expect(g.swath.length % 4).toBe(0);
     // Index i of the run's swath is swath[i - swathFrom]: the numbers kept
     // are the newest of the ones laid before, in order.

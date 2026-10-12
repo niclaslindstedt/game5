@@ -105,6 +105,7 @@ import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
 import { challengeShots } from "./lib/challenge-shots.mjs";
+import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
@@ -136,6 +137,7 @@ const SCENES = {
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
 const SURFACES = {
+  ...WINGSUIT_SURFACES,
   // The title and the invitation, over the title scene's first frames.
   splash: { params: { splash: "1" }, wait: ".splash-prompt", settle: 900 },
   // The front door over the title scene (a visit's first)...
@@ -366,18 +368,6 @@ const SURFACES = {
   // THE FREE RIDE'S START CARD: waited on until its chart — a whole map
   // generated in a worker — has landed on it.
   start: { params: { menu: "start" }, wait: ".seed-preview-map image", settle: 700 },
-  // ...with the helicopter picked on map 38 and the SUIT row on WINGSUIT
-  // (`storage`: the settings the card reads, laid in before the page loads).
-  "start-suit": {
-    params: { menu: "start" },
-    storage: {
-      "fall-line.settings.v1": JSON.stringify({
-        ride: { seed: 38, run: { seed: 38, region: "alpine", id: "heli" }, suit: "wingsuit" },
-      }),
-    },
-    wait: ".seed-preview-map image",
-    settle: 700,
-  },
   // ...and the free ride itself, twenty seconds in, held still: no run's
   // figures over it — the map's seed alone at the top left.
   free: {

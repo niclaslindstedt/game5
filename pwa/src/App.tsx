@@ -915,6 +915,7 @@ export function App() {
         onMenu={() => pressRef.current.toMenu()}
         onReplay={canReplay ? () => pressRef.current.watch() : null}
         onSecond={() => pressRef.current.second()}
+        onSlopes={modeRef.current === "free" ? () => pressRef.current.pause() : null}
       />
       {shell === "pause" && snap !== null && (
         <PauseMenu

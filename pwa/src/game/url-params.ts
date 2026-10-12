@@ -319,8 +319,9 @@ export type UrlParams = {
    * card's START row. */
   wingsuit: boolean;
   /** What he jumps in up a craft (`?suit=wing` the wingsuit, `?suit=rig`
-   * the skydiver's rig), over the card's SUIT row; null when the link
-   * names neither. */
+   * the skydiver's rig) — a lab's way to fly a craft's jump in the suit;
+   * the cards offer the wingsuit only as its own START stop. Null when the
+   * link names neither. */
   suit: "wing" | "rig" | null;
   /** A free ride begun IN FREEFALL this many metres over the snow under the
    * plane's jump run (`?chute=<m>`, a lab's and a screenshot's way into the
@@ -428,7 +429,7 @@ export function readParams(search: string): UrlParams {
       camera !== null && RUN_CAMERAS.includes(camera as CameraRung) ? (camera as CameraRung) : null,
     skis: skis !== null && isPairId(skis) ? skis : null,
     mode:
-      start === "free" || freeRidePage(q.get("menu") ?? "")
+      start === "free" || q.get("mode") === "free" || freeRidePage(q.get("menu") ?? "")
         ? "free"
         : start === "downhill" || q.get("mode") === "downhill"
           ? "downhill"

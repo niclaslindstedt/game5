@@ -608,10 +608,9 @@ export const STRINGS = {
    * lift (`free-ride.ts`'s `startPicked`). */
   startStart: "START",
   startStartHint:
-    "ON SKIS or ON A SNOWBOARD rides the lift up to the RUN row's run. The rest begin with no lift: the paramotor on the summit, the balloon in the valley, the snowmobile by the village, the helicopter on its pad, the plane on its strip, the wingsuit on a cliff, the afterski in the lodge.",
-  /** The START row's first two stops: the skis, or a board. */
-  startOnSkis: "ON SKIS",
-  startOnBoard: "ON A SNOWBOARD",
+    "SLOPE rides the lift up to the RUN row's run, on the skis or the board the GEAR card picks. The rest begin with no lift: the paramotor on the summit, the balloon in the valley, the snowmobile by the village, the helicopter on its pad, the plane on its strip, the wingsuit on a cliff, the afterski in the lodge.",
+  /** The START row's first stop: down a slope, on skis or a board. */
+  startOnSlope: "SLOPE",
   startRun: "RUN",
   /** The RUN row while the START row stands on a machine, which starts at
    * no run. */

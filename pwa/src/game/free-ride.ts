@@ -50,6 +50,8 @@ import {
   type SkiSpec,
   regionOf,
   realFaceRegion,
+  SKIS,
+  isBoard,
 } from "@engine";
 
 import { DEFAULT_FACE } from "./face-picks.ts";
@@ -146,10 +148,6 @@ export type FreeRide = {
    * machine (`SKIS_START`'s neighbours); null is the map's most difficult
    * piste (`pickFreeRun`). */
   run: { seed: number; region: RegionId; face?: string | null; id: string } | null;
-  /** What he jumps in off a craft in the air (the SUIT row, shown on the
-   * paramotor, the balloon, the helicopter and the plane): the skydiver's
-   * rig on his skis (`rig`), or a WINGSUIT with no skis (`wingsuit`). */
-  suit: SuitId;
   /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
    * (`avalanche.ts`). On unless the player turns them off. */
   avalanche: boolean;
@@ -157,10 +155,6 @@ export type FreeRide = {
    * they are, the ride is stood on the first real range (`firstWhere`). */
   placed: boolean;
 };
-
-/** THE SUIT ROW'S STOPS: the skydiver's rig, or the wingsuit. */
-export type SuitId = "rig" | "wingsuit";
-export const SUITS: readonly SuitId[] = ["rig", "wingsuit"];
 
 export function freshRide(): FreeRide {
   return {
@@ -174,7 +168,6 @@ export function freshRide(): FreeRide {
     face: null,
     grade: null,
     run: null,
-    suit: "rig",
     avalanche: true,
     placed: false,
   };
@@ -241,7 +234,6 @@ export function mergeRide(blob: unknown): FreeRide {
   ) {
     out.spot = { seed: spot.seed, x: spot.x, z: spot.z };
   }
-  if (SUITS.includes(b.suit as SuitId)) out.suit = b.suit as SuitId;
   return out;
 }
 
@@ -320,34 +312,17 @@ export function wingsuitOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === WINGSUIT_RUN;
 }
 
-/** Whether the ride on `seed` begins in a craft he can jump from — the
- * paramotor, the balloon, the helicopter, the plane — where the SUIT row
- * asks what he jumps in. */
-export function airborneOn(ride: FreeRide, seed: number): boolean {
-  return paraOn(ride, seed) || balloonOn(ride, seed) || heliOn(ride, seed) || planeOn(ride, seed);
-}
-
-/** Whether the ride on `seed` is flown in the wingsuit: its own exit, or a
- * craft in the air with the SUIT row on WINGSUIT. */
-export function suitedOn(ride: FreeRide, seed: number): boolean {
-  return wingsuitOn(ride, seed) || (ride.suit === "wingsuit" && airborneOn(ride, seed));
-}
-
-/** THE START ROW'S FIRST STOP: on skis, carried by the lift to the RUN
- * row's run — no run id of its own: it is the run picked, or none. */
+/** THE START ROW'S FIRST STOP: SLOPE, carried by the lift to the RUN
+ * row's run on whatever the gear card picks, skis or a snowboard — no run
+ * id of its own: it is the run picked, or none. */
 export const SKIS_START = "skis";
 
-/** ...and its second: ON A SNOWBOARD, the same lift ride on the board the
- * gear card last picked — not a run id either; which pair is ridden is the
- * settings' (`Settings.skis`), and the row follows it. */
-export const BOARD_START = "board";
-
-/** What the START row writes when `id` is picked on `seed`: ON SKIS or ON
- * A SNOWBOARD hands the ride back to the RUN row's first run, anything
- * else is its machine (or the lodge), kept as a run id of the map as
+/** What the START row writes when `id` is picked on `seed`: SLOPE hands the
+ * ride back to the RUN row's first run, anything else is its machine (or
+ * the lodge, or the wingsuit's exit), kept as a run id of the map as
  * before. */
 export function startPicked(ride: FreeRide, seed: number, id: string): Partial<FreeRide> {
-  return id === SKIS_START || id === BOARD_START
+  return id === SKIS_START
     ? { run: null }
     : { run: { seed, region: ride.region, face: ride.face, id } };
 }
@@ -498,14 +473,17 @@ export function freeGameOptions(
   const para = paraOn(ride, seed);
   const balloon = balloonOn(ride, seed);
   const plane = planeOn(ride, seed);
-  const wingsuit = suitedOn(ride, seed);
+  const wingsuit = wingsuitOn(ride, seed);
   // SAFE FOR WORK the lodges are shut: no ride begins at the party.
   const party = !skier.sfw && afterskiOn(ride, seed);
   const vehicle = heli || sled || para || balloon || plane || party || wingsuit;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
-    spec: skier.spec,
+    // NOTHING ON HIS FEET IN A WINGSUIT: a board picked on the gear card is
+    // not his figure in the suit (a board is drawn as its own model, with no
+    // wings), so the ride is stood up on the reference pair, never shown.
+    spec: wingsuit && isBoard(skier.spec) ? SKIS : skier.spec,
     assist: skier.assist,
     poles: skier.poles ?? true,
     ...(skier.gore ? { gore: true } : {}),

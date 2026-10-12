@@ -50,6 +50,8 @@ import {
   type SkiSpec,
   regionOf,
   realFaceRegion,
+  SKIS,
+  isBoard,
 } from "@engine";
 
 import { DEFAULT_FACE } from "./face-picks.ts";
@@ -478,7 +480,10 @@ export function freeGameOptions(
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
-    spec: skier.spec,
+    // NOTHING ON HIS FEET IN A WINGSUIT: a board picked on the gear card is
+    // not his figure in the suit (a board is drawn as its own model, with no
+    // wings), so the ride is stood up on the reference pair, never shown.
+    spec: wingsuit && isBoard(skier.spec) ? SKIS : skier.spec,
     assist: skier.assist,
     poles: skier.poles ?? true,
     ...(skier.gore ? { gore: true } : {}),

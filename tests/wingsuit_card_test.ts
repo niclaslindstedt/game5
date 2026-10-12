@@ -5,7 +5,16 @@
 // news (`run-news.ts`) and its voice (`chute-bed.ts`, `chute-voice.ts`).
 
 import { describe, expect, it } from "vitest";
-import { SKIS, createGame, skydiveAt, step, NEUTRAL_INPUT, WINGSUIT } from "@engine";
+import {
+  SKIS,
+  createGame,
+  isBoard,
+  pairById,
+  skydiveAt,
+  step,
+  NEUTRAL_INPUT,
+  WINGSUIT,
+} from "@engine";
 
 import {
   BALLOON_RUN,
@@ -32,6 +41,12 @@ const on = (id: string, o: Partial<FreeRide> = {}): FreeRide => ({
 });
 
 describe("the START row's WINGSUIT stop", () => {
+  it("never stands a wingsuit ride up on a snowboard, which has no suit drawn", () => {
+    const board = { ...skier, spec: pairById("lynx") };
+    expect(isBoard(freeGameOptions(on(WINGSUIT_RUN), 7, board).spec!)).toBe(false);
+    expect(freeGameOptions(on(HELI_RUN), 7, board).spec).toBe(board.spec);
+  });
+
   it("stands the ride up in the wingsuit on its own exit, never by lift", () => {
     const o = freeGameOptions(on(WINGSUIT_RUN), 7, skier);
     expect(o.wingsuit).toBe(true);

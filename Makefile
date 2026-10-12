@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
 
 build:
 	npm run build
@@ -248,6 +248,16 @@ glove-metrics:
 # ARGS="--json=a.json" / "--compare=a.json" a before and after.
 skier-metrics:
 	npm run skier-metrics -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE AIR-LEAN LAB: the body in the air with the lean held FORWARD — a
+# kicker flown fully and half forward, a cliff dropped forward, the kicker
+# unleaned and leaned back as controls — skied by the engine in pure Node,
+# each candidate shape of `skier-flight.ts`'s `AIR_FORE` measured side on
+# in the world against a skier's bands and drawn as stick figures
+# (previews/air-lean.png). ARGS="--json=a.json" / "--compare=a.json" a
+# before and after; ARGS=--search walks the knobs to the best score.
+air-lean:
+	npm run air-lean -- $(ARGS)
 
 # THE BOARD LAB: the snowboard as the game draws it (`board-body.ts`) — the
 # deck's top, base and profile and bowed by a carve, the deck dressed with

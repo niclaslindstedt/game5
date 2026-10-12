@@ -325,8 +325,17 @@ const UNIT_FIT: GripFit = { edge: 1, base: 1 };
  * ski (`snow.cover` a unit of depth, down to the settled base, less what it
  * has sunk already) gives until the leg is compressed no more than `over`
  * past its rest. Met at the surface instead, the whole of its travel crushed
- * at once fired him a metre and a half out of the powder. */
-export function holeSink(sink: number, depth: number, packed: number, over: number): number {
-  const room = TUNING.snow.cover * depth * (1 - packed) - sink;
-  return clamp(over, 0, Math.max(0, room));
+ * at once fired him a metre and a half out of the powder. Sinks the
+ * station's ski (`sinks[i]`) and returns how far. */
+export function holeSink(
+  sinks: number[],
+  i: number,
+  depth: number,
+  packed: number,
+  over: number,
+): number {
+  const room = TUNING.snow.cover * depth * (1 - packed) - sinks[i];
+  const take = clamp(over, 0, Math.max(0, room));
+  sinks[i] += take;
+  return take;
 }

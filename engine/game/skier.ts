@@ -468,11 +468,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
       c.comps[i] = 0;
       continue;
     }
-    if (c.comps[i] < 0 || (c.bodyHit > 0 && !c.airborne)) {
-      const take = holeSink(c.sinks[i], depth, packed, p.susp.travel - t - p.rest / p.susp.rate);
-      c.sinks[i] += take;
-      t += take;
-    }
+    const lying = c.comps[i] < 0 || (c.bodyHit > 0 && !c.airborne);
+    if (lying) t += holeSink(c.sinks, i, depth, packed, p.susp.travel - t - p.rest / p.susp.rate);
     const sink = c.sinks[i];
     const cx = ax + dx * t;
     const cz = az + dz * t;

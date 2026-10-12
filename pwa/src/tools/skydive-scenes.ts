@@ -607,6 +607,12 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.run(c, 1, still);
     st.shoot(c, "canopy", around(8, 2, 4, 48, 2.5));
     st.shoot(c, "canopy chase", "chase");
+    // ...and under a lid of cloud, no moon or stars: the lines as dark as the cloth.
+    await st.sky({ hour: 21, weather: "overcast" });
+    const d = dive(st, 400, "open");
+    st.run(d, 1, still);
+    st.shoot(d, "overcast canopy", around(8, 2, 4, 48, 2.5));
+    st.shoot(d, "overcast chase", "chase");
     await st.sky(null);
   },
 };

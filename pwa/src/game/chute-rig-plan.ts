@@ -275,3 +275,31 @@ export function rigWorn(state: GameState): boolean {
     !!state.chute || !!state.plane?.rider || !!state.heli?.rider || !!state.balloon || !!state.para
   );
 }
+
+// THE RIG'S MEASURES AS DRAWN (`chute-scene.ts`).
+
+/** LINE TWISTS as drawn: where the bundle the lines are wound into starts
+ * and ends along the way from over the risers up to the slider (shares),
+ * and how thick it is, m — a twisted set of lines reads as a rope a hand
+ * wide some way over the jumper's head. */
+export const TWIST = { top: 0.3, low: 0.04, radius: 0.05 };
+
+/** How far the four risers stand up off the three rings, m, and apart fore
+ * and aft (the front riser to the nose). */
+export const RISER = { length: 0.55, apart: 0.05 };
+/** The pull (`skier-skydive.ts`'s): the pilot chute in his fist until the
+ * throw lets it go, s after the press, and how long it takes to reach the
+ * place the engine has it. */
+export const THROW = { from: 0.14, out: 0.42, catch: 0.2 };
+/** The reserve's spring pilot chute out of its tray, s; the free bag's
+ * climb off over the canopy after line stretch, m/s, and when it is gone
+ * from the picture, s after line stretch. */
+export const SPRING = 0.12;
+export const FREE_BAG = 5;
+export const FREE_GONE = 2.5;
+/** The fist down the hand bone from the wrist, m. */
+export const FIST = 0.08;
+/** A canopy caught in a crown lies over its top this far down, m, held
+ * this far out past the foliage by the boughs' tips, m. */
+export const CAUGHT_DEPTH = 3.2;
+export const CAUGHT_BOUGHS = 0.6;

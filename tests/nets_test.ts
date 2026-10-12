@@ -83,7 +83,9 @@ describe("into the A-nets", () => {
 
   it("drops him to its foot and keeps him in its pocket", () => {
     const state = stage(25, 1.2);
-    ride(state, 3);
+    // A thrown elbow is turned back over steps (`ragdoll.ts`'s `holdJoints`),
+    // so the arm finishes settling a moment after the body lies down.
+    ride(state, 3.5);
     const b = state.skier.thrown!;
     expect(b.cause).toBe("net");
     // Lying at the foot of the net, still...

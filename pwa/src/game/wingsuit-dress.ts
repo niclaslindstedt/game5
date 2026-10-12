@@ -16,7 +16,8 @@
 // draws with no ski boots over them. The WINGS are lofted apart, every
 // frame (`wingsuit-cloth.ts`).
 
-import { dressOutfit, keptCut } from "./dress.ts";
+import { dressOutfit } from "./dress.ts";
+import { keptCut } from "./kept-cut.ts";
 import { linear, type DressMesh, type DressPart } from "./dress-loft.ts";
 import { GLOVES, HELMETS, JACKETS, PANTS, type Outfit } from "./outfit.ts";
 import { colourwayOf } from "./wingsuit-look.ts";

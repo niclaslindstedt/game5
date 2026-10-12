@@ -66,6 +66,7 @@ import { LAMP_SLOTS } from "./haze.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
+import { PISTE_TRACKS_GLSL } from "./piste-tracks.ts";
 import { SLIDE_ALBEDO, SLIDE_GLSL, SLIDE_LUMPS, SLIDE_NORMAL } from "./avalanche-glsl.ts";
 
 /** How much brighter than white snow's albedo is painted. */
@@ -347,7 +348,7 @@ float snowHoar;      // 0 .. 1 surface hoar on the shaded snow
 float snowWet;       // 0 .. 1 thawed snow: grey, glossy, sun-cupped
 float snowCup;       // 0 .. 1 down in a sun cup's hollow
 float snowScour;     // 0 .. 1 a patch the wind has scoured to its slab
-`;
+${PISTE_TRACKS_GLSL}`;
 
 /** Straight after `clipping_planes_fragment`: throw away what the finer
  * level already covers, and work out everything about this bit of snow. */
@@ -387,6 +388,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   // on the groomer the machines have not been over since.
   float notSwath = (1.0 - snowGroomed) * (1.0 - snowBelt) * snowPacked;
   snowCord = 0.0;
+  snowTrackShade = 0.0;
   snowLane = 0.0;
   snowWorked = max(uWorked, uPiste.x) * notSwath;
   snowSoft = uPiste.y * notSwath;
@@ -666,6 +668,8 @@ ${SLIDE_NORMAL}
     k *= 1.0 - snowWorked;
     // The night's comb, untouched, stands the sharper.
     k *= 1.0 + 0.6 * snowCombed;
+    // THE OTHER SKIERS' LINES (\`piste-tracks.ts\`), cutting the comb away.
+    k *= 1.0 - pisteTracks(p, across, snowPacked * min(along * 2.0, 1.0) * (1.0 - snowBelt) * (1.0 - snowGroomed), grad);
     grad += across * cos(phase) * 0.14 * k;
     snowCord = sin(phase) * min(k, 1.0);
     // THE NIGHT'S PASSES, seen from further than the comb: the machine's
@@ -722,7 +726,7 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
   // Fresh off the tiller: milled snow, a brighter, even sugar-white.
   alb = mix(alb, vec3(0.86, 0.9, 0.95), max(snowGroomed * 0.65, snowCombed * 0.5));
   // The comb's furrows hold a little shade, its ridges catch the light.
-  alb *= 1.0 + 0.07 * snowCord + 0.07 * snowLane;
+  alb *= 1.0 + 0.07 * snowCord + 0.07 * snowLane + 0.3 * snowTrackShade;
   // A belt's floor: pressed smooth, a shade greyer than the loose snow it
   // was, each paddle's imprint holding a little shadow.
   alb = mix(alb, vec3(0.8, 0.85, 0.92), snowBelt * 0.35);

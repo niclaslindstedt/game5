@@ -12,6 +12,10 @@
 //            and the glints), with the sun behind (the snow's own colour),
 //            close in at a skier's knee, and from forty metres up across the
 //            face (the aspects)
+//   piste, pistenear, pistetop
+//            the piste at the spot from the first chair to the last (the
+//            other skiers' tracks, `piste-tracks.ts`): down it at eye
+//            height, close in, and from fourteen metres over it
 //
 // Each SHEET is one contact sheet, previews/snow-<lens>.png, and every frame
 // is also written alone, previews/snow-<lens>-<age>.png. The page
@@ -22,6 +26,7 @@
 //   node scripts/snow-preview.mjs                        # every lens
 //   node scripts/snow-preview.mjs --sheet=sun --hour=15  # the glare, a lower sun
 //   node scripts/snow-preview.mjs --views=near-fresh,near-old
+//   node scripts/snow-preview.mjs --sheet=piste,pistetop --cols=3  # the piste's day
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

@@ -36,8 +36,9 @@
 // every number here is what a pixel does, not what a skier feels. Three-free
 // and DOM-free, so the suite reads every kind (`tests/snowpack_test.ts`).
 
-import { regionOf, sampleField, weatherOf, type Level, type Weather } from "@engine";
+import { pisteDayOf, regionOf, sampleField, weatherOf, type Level, type Weather } from "@engine";
 
+import { NO_TRACKS, tracksOf, type Tracks } from "./piste-tracks.ts";
 import { snowAgeOf, THAW, type SnowAge, type SnowAgeKind } from "./snow-age.ts";
 
 export { THAW };
@@ -186,6 +187,9 @@ export type Snowpack = {
   /** HOW OLD THE LOOSE SNOW LOOKS (`snow-age.ts`) — what the terrain's
    * shader draws its surface by; null on a level with no sun to read. */
   age: SnowAge | null;
+  /** THE OTHER SKIERS' TRACKS on the piste (`piste-tracks.ts`), off the
+   * hours of traffic the runs have taken by the map's hour. */
+  tracks: Tracks;
 };
 
 export type SnowpackOptions = {
@@ -241,6 +245,9 @@ export function snowpackOf(
             { elevation: options.elevation, force: options.age ?? null },
           )
         : null,
+    tracks: level.sun
+      ? tracksOf(pisteDayOf({ sun: level.sun, weather: level.weather }).skied)
+      : NO_TRACKS,
   };
 }
 

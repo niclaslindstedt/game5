@@ -35,6 +35,8 @@ and **`write-code`** beside this one.
 | `pwa/src/game/snow-glsl.ts` | HOW THE SNOW IS LIT, per pixel: the slope off the ground's gradient texture (never the mesh's normals — the clipmap's rings would show on every face), fine noise over it, WRAP LIGHTING for the soft blue terminator (`SSS`), the GLITTER (world hashed into cells, a random facet each, a flare where it lines the sun up with the eye, faded before a cell is smaller than a pixel), the GROOMED PISTE (greyer, shinier, no glitter, the CORDUROY along the piste's direction, `LOOSE` powder standing over it), the region's crust, sastrugi and rock (`region-look.ts`'s numbers), the forest tint, and `GLARE` — snow painted brighter than white so the tone mapper brings the lit side down to an unclipped white |
 | `pwa/src/game/trail-stamp.ts` | WHAT A SKI LEAVES, as arithmetic, three-free: every contact (`SkierState.contacts` — the tip, mid and tail station of each ski) lays a CAPSULE from where it touched at the last stamp to where it touches now, so a track is continuous at any speed and frame rate; `drawnDepth` (the physics' sink or the powder's own furrow, whichever is deeper, scaled by how much of the snow was powder, and cut narrower and deeper the more edge the ski stands on); the windrow beside it (`furrowProfile`); `TRAIL` — every number; a station that jumped further than `TRAIL.jump` is a reset, not a track; a thrown skier's slide as a wider gouge of its own (`bodyStampOf`) |
 | `pwa/src/game/snowpack.ts` | WHAT KIND OF SNOW IS HERE (three-free, `visual-effects`' too): groomed, hard, soft, new, wet, ice, blended off the packed field, the crust, the ice, the new snow and a thaw. Given the snow, `drawnDepth` takes the groove's depth off its `give`, and every `Stamp` carries its `wall` (0 sloughed … 1 square — `wallPower` is the cross-section's exponent, `trail-map.ts`'s stamp shader reads it) and its windrow share. Soft is the picture the game had before, so a stamp with no snow said draws as it always did |
+| `pwa/src/game/piste-tracks.ts` | THE OTHER SKIERS' TRACKS ON THE PISTE (three-free): `tracksOf` (how many lines and how churned, off `pisteDayOf`'s hours of traffic on every map), `trackFrameOf` (the piste's own across-and-down frame on a half-float grid — never a frame turned by the local heading, which curls centimetre grooves hundreds of metres from the origin), and `PISTE_TRACKS_GLSL` (the carves, skids and boards, their relief, the snow a carve throws, the churn) — carried as `Snowpack.tracks`; the snow lab's `piste`, `pistenear` and `pistetop` sheets |
+| `pwa/src/game/snow-age.ts` | HOW OLD THE LOOSE SNOW IS (three-free): the days since the last fall dealt off the map's seed and its sky (none under a falling sky), and what they leave — `fresh` and `old`, the `wind`'s slab, a sun `crust` on the faces the NOON sun stands on, surface `hoar` in the shade, the high sun's `wet` — carried as `Snowpack.age` and written into `uSnowAge` / `uSnowAge2` by `haze.ts`'s `setRunSnow`; a lab forces one (`renderer.setSnow(null, age)`) |
 | `pwa/src/game/trail-map.ts` | THE TRAIL MAP, on the GPU in world space: a COARSE map over the whole mountain (every stamp of every skier, for the life of the run — a rival's track across the face is still there when the player comes down it) and a FINE window round the player at a few centimetres a texel, moved when he skis off its centre (the old window copied, the new edge filled from the coarse map). Each stamp an instanced quad with MAX blending: a groove skied twice is as deep as the deeper, and a windrow never fills a trough. `TRAIL_GLSL`'s `trailAt` is the one decoder |
 | `pwa/src/game/renderer.ts` | Stamps every skier's stations each frame (even with `present` off, so a fast-forward still cuts its tracks) and hands the terrain the trail uniforms |
 | `pwa/src/identity.ts` | `PALETTE.snow`, `snowShadow`, `track` — the colours the shader is keyed on |
@@ -88,6 +90,20 @@ stamp — the trail map's stamping and the clipmap's fill are the dearest parts
 of the frame.
 
 ## The rules
+
+- **The snow has an age, and the shader draws it on the LOOSE snow only.**
+  New snow is the cleanest white with the finest, densest glitter; old snow
+  greyer with fewer, coarser glints; the wind's slab rippled ACROSS its way
+  (the phase runs along the wind) with scoured, polished patches; a sun crust
+  glazed on the faces turned to the NOON sun (not the run's hour's); hoar in
+  the shade, the biggest flashes; wet snow grey, glossy, sun-cupped. The
+  groomer, the ice and the rock keep their own looks. `make snow` lays every
+  age at one spot, from five lenses.
+- **The GLARE is its own lobe** (`SUN_GLARE`): snow scatters the sun
+  forward, broad off powder and tight off a glaze; the material's GGX at
+  snow's roughness all but loses it. Judge it looking INTO a low sun
+  (`make snow ARGS="--sheet=sun --hour=15"`) — it must shine, never clip a
+  whole field to flat white.
 
 - **What is drawn IS what is simulated — with one deliberate exaggeration,
   stated once.** The ground is the generator's heightfield, sampled on the

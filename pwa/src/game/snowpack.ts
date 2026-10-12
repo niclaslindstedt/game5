@@ -363,3 +363,85 @@ export function printGive(snow: SnowProps, sink: number): number {
   const carried = snow.bears * (1 - heavy);
   return snow.give * (1 - carried) + 0.08 * carried;
 }
+
+/** What THROWN snow is, beyond its kind: the kind's figures as its AGE
+ * leaves them (`ageSnow`), and three of the age's own. */
+export type AgedSnow = SnowProps & {
+  /** The share of the heavy spray that comes off as PLATES — a wind slab's
+   * or a sun crust's broken shards, flat, hard and glinting. */
+  plates: number;
+  /** How heavy and wet it is, 0..1: thrown slower and lower, falling as
+   * lumps, no cloud. */
+  heavy: number;
+  /** Surface hoar's feathers in it, 0..1: big, bright glints. */
+  flake: number;
+};
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+
+/** THE SNOW AS ITS AGE LEAVES IT for what a skier throws (`spray-sim.ts`,
+ * `snow-cloud.ts`): the loose snow off the groomer, by how much of it
+ * there is, made over by the days since it fell (`snow-age.ts`) — the
+ * SAME age the terrain's shader draws its surface by, so the spray is the
+ * snow the eye sees:
+ *   * NEW SNOW is light and dry, sugar-fine, a dust of tiny glints: more
+ *     of it to throw, nearly all of it fine, next to no clumps;
+ *   * OLD SNOW has rounded and coarsened: fewer fines, more clumps;
+ *   * a WIND SLAB is a firm plate over loose: less shoved, broken PLATES;
+ *   * a SUN CRUST holds the loose under a glaze an edge breaks into
+ *     plates, with little fine to it;
+ *   * SURFACE HOAR's feathers throw big glints;
+ *   * WET SNOW is heavy: clumps, no fines, little glitter, thrown short.
+ * The groomer and the ice keep their own (an age is the loose snow's), and
+ * no age (`null`) leaves the kind as it is. Into `out`. */
+export function ageSnow(snow: SnowProps, age: SnowAge | null, out: AgedSnow): AgedSnow {
+  Object.assign(out, snow);
+  // Wet by its kind (a thaw's or a spring piste's slush), whatever its age.
+  const kindWet = clamp01((snow.density - 300) / 150) * clamp01((snow.loose - 0.3) / 0.4);
+  if (!age) {
+    out.plates = 0;
+    out.heavy = kindWet;
+    out.flake = 0;
+    return out;
+  }
+  // How much of it is loose snow an age shows on.
+  const off = clamp01((snow.loose - 0.14) / 0.6);
+  const f = age.fresh * off;
+  const o = age.old * off;
+  const w = age.wind * off;
+  const c = age.crust * off;
+  const wet = Math.max(age.wet * off, kindWet);
+  out.loose = snow.loose * (1 + 0.35 * f - 0.3 * w - 0.45 * c);
+  out.fine = clamp01(
+    snow.fine * (1 - 0.35 * o - 0.3 * w - 0.5 * c) * (1 - 0.9 * wet) + 0.3 * f * (1 - snow.fine),
+  );
+  out.clumps = clamp01(
+    (snow.clumps + (1 - snow.clumps) * (0.35 * o + 0.6 * wet)) * (1 - 0.8 * f * (1 - wet)),
+  );
+  out.sparkle = clamp01(snow.sparkle * (1 + 0.3 * f) * (1 - 0.7 * wet));
+  out.plates = clamp01(Math.max(0.8 * w, c) * (1 - wet));
+  out.heavy = wet;
+  out.flake = clamp01(0.8 * age.hoar * off);
+  return out;
+}
+
+/** An `AgedSnow` to write into. */
+export function emptyAged(): AgedSnow {
+  return { ...SNOW.soft, plates: 0, heavy: 0, flake: 0 };
+}
+
+/** WHAT A SKIER THROWS at (x, z): the snow there as its age leaves it —
+ * the spray's and the cloud's alike — into `out`; settled powder with no
+ * snowpack to read. */
+export function thrownAt(
+  pack: Snowpack | null,
+  x: number,
+  z: number,
+  out: AgedSnow = thrownOut,
+): AgedSnow {
+  if (!pack) return ageSnow(SNOW.soft, null, out);
+  return ageSnow(snowAt(pack, x, z, thrownScratch), pack.age, out);
+}
+
+const thrownScratch: SnowProps = { ...SNOW.soft };
+const thrownOut = emptyAged();

@@ -95,6 +95,7 @@ import {
   SNOW,
   snowAt,
   snowpackOf,
+  thrownAt,
   type SnowKind,
   type Snowpack,
   type SnowpackOptions,
@@ -242,14 +243,13 @@ export function createWorldRenderer(
   let cloud: SnowCloud | null = null;
   /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
   let gore: GoreView | null = null;
-  /** WHAT SNOW LIES WHERE for this run (`snowpack.ts`), a lab's forced
-   * kind, and the samples every reader takes of it — each read at once. */
+  /** WHAT SNOW LIES WHERE (`snowpack.ts`), a lab's forced kind, and its samples. */
   let pack: Snowpack | null = null;
   let snowForce: Pick<SnowpackOptions, "force" | "age"> = {};
   const sampled: SnowProps = { ...SNOW.soft };
-  const skierSnow: SnowProps = { ...SNOW.soft };
   const sampleSnow = (x: number, z: number): SnowProps =>
     pack ? snowAt(pack, x, z, sampled) : SNOW.soft;
+  const thrownSnow = (x: number, z: number) => thrownAt(pack, x, z);
   let wildlife: Wildlife | null = null;
   let crowd: CrowdView | null = null;
   let machines: Machines | null = null;
@@ -656,13 +656,13 @@ export function createWorldRenderer(
           landed = Math.abs(r.vy) + r.airTime * 2;
         }
         if ((simDt > 0 || landed > 0) && !run.plane?.rider) {
-          spray.emit(skier, level, simDt, landed, snowAt(pack!, skier.x, skier.z, skierSnow));
-          cloud.emit(skier, simDt, landed, sampleSnow);
+          spray.emit(skier, level, simDt, landed, thrownSnow(skier.x, skier.z));
+          cloud.emit(skier, simDt, landed, thrownSnow);
         }
         if (level && spray && cloud) {
           const stamp = TRAIL_LOOK[video.trails].stamp ? stamps : null;
           const off = skier.thrown;
-          const at = off ? snowAt(pack ?? snowpackOf(level), off.x, off.z, skierSnow) : skierSnow;
+          const at = thrownSnow(off ? off.x : skier.x, off ? off.z : skier.z);
           thrownEffects(r, skier, simDt, {
             level,
             spray,

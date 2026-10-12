@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer aloft cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
 
 build:
 	npm run build
@@ -420,6 +420,18 @@ snowfall:
 # SEED=n; ARGS="--face=alpine-1 --along --step=0.5 --frames=16 --json".
 shimmer:
 	npm run shimmer -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE ALOFT LAB: what a lens high over the snow sees at each DISTANCE stop
+# (`view-aloft.ts`: the reach growing with the height, the ground's fine
+# levels left out under it, the woods cut by their slant distance), as a
+# grid — a row a height over the snow, a column a stop — each frame
+# captioned with its draw calls, triangles, the ground's and the woods'
+# triangles and the world phase's ms (previews/aloft-<seed>.png) and a
+# table. Its own one-off bundle from pwa/aloft-preview.html (never
+# deployed); needs a Chromium like `world`. SEED=n;
+# ARGS="--heights=2,300,1500 --distances=low,max --json=FILE --compare=FILE".
+aloft:
+	npm run aloft -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE CLOUD METRICS LAB: how MUCH snow cloud a skier raises — each kind of
 # snow × move × speed skied by the engine in pure Node and every frame read

@@ -25,6 +25,7 @@ import type { Heightfield } from "@engine";
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
 import { mistFor, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
+import type { AloftLook } from "./view-aloft.ts";
 import {
   aimShadow,
   createSunCadence,
@@ -66,6 +67,8 @@ export type Environment = {
   setShadow(look: ShadowLook): void;
   /** The DISTANCE row, whose mist is `mistFor`'s. */
   setDistance(distance: DistanceLevel): void;
+  /** The mist as a lens over the snow sees it (`view-aloft.ts`), every frame. */
+  setAloft(look: Pick<AloftLook, "mist" | "aloft">): void;
   /** The map's ground the mountain's shadow is baked off (null: none), and
    * the key it is baked for first; resolves once that shade is drawn. */
   setGround(ground: Heightfield | null, key: Dir | null): Promise<void>;
@@ -292,6 +295,10 @@ export function createEnvironment(
     setShadow,
     setDistance(next) {
       haze.uMist.value = mistFor(next);
+    },
+    setAloft(look) {
+      haze.uMist.value = look.mist;
+      haze.uMistAloft.value = look.aloft;
     },
     setGround(ground, key) {
       return terrain.setGround(ground, key, sun.castShadow);

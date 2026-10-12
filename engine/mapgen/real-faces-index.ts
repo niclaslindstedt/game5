@@ -4,6 +4,9 @@
 // its area and the part of the area it is — and where its heights are kept
 // (`real-faces/face-<id>.ts`, loaded only when a map is raised on it);
 // `real-face.ts` reads it.
+//
+// game-spec:allow-large-file: a generated table, ten lines a real face;
+// it grows with every face imported and holds no logic.
 
 import type { RegionId } from "./regions.ts";
 
@@ -394,6 +397,69 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Lake Louise",
     lat: 51.45,
     lon: -116.15,
+  },
+  {
+    id: "continental-12",
+    region: "continental",
+    range: "CA",
+    area: "Kicking Horse",
+    part: "Kicking Horse",
+    lat: 51.29,
+    lon: -117.07,
+  },
+  {
+    id: "continental-13",
+    region: "continental",
+    range: "CA",
+    area: "Fernie",
+    part: "Fernie",
+    lat: 49.46,
+    lon: -115.1,
+  },
+  {
+    id: "continental-14",
+    region: "continental",
+    range: "CA",
+    area: "Sunshine Village",
+    part: "Sunshine Village",
+    lat: 51.08,
+    lon: -115.78,
+  },
+  {
+    id: "continental-15",
+    region: "continental",
+    range: "CA",
+    area: "Big White",
+    part: "Big White",
+    lat: 49.72,
+    lon: -118.94,
+  },
+  {
+    id: "continental-16",
+    region: "continental",
+    range: "CA",
+    area: "Sun Peaks",
+    part: "Sun Peaks",
+    lat: 50.89,
+    lon: -119.9,
+  },
+  {
+    id: "continental-17",
+    region: "continental",
+    range: "CA",
+    area: "Rossland",
+    part: "Red Mountain",
+    lat: 49.11,
+    lon: -117.85,
+  },
+  {
+    id: "continental-18",
+    region: "continental",
+    range: "CA",
+    area: "Panorama",
+    part: "Panorama",
+    lat: 50.46,
+    lon: -116.26,
   },
   {
     id: "maritime-1",
@@ -908,6 +974,13 @@ export const FACE_LOADERS: Readonly<Record<string, () => Promise<{ FACE: FaceDat
   "continental-9": () => import("./real-faces/face-continental-9.ts"),
   "continental-10": () => import("./real-faces/face-continental-10.ts"),
   "continental-11": () => import("./real-faces/face-continental-11.ts"),
+  "continental-12": () => import("./real-faces/face-continental-12.ts"),
+  "continental-13": () => import("./real-faces/face-continental-13.ts"),
+  "continental-14": () => import("./real-faces/face-continental-14.ts"),
+  "continental-15": () => import("./real-faces/face-continental-15.ts"),
+  "continental-16": () => import("./real-faces/face-continental-16.ts"),
+  "continental-17": () => import("./real-faces/face-continental-17.ts"),
+  "continental-18": () => import("./real-faces/face-continental-18.ts"),
   "maritime-1": () => import("./real-faces/face-maritime-1.ts"),
   "maritime-2": () => import("./real-faces/face-maritime-2.ts"),
   "maritime-3": () => import("./real-faces/face-maritime-3.ts"),

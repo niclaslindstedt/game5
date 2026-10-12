@@ -173,3 +173,16 @@ export function easeFree(share: number, free: boolean, dt: number): number {
   const step = FREE_RATE * Math.max(0, dt);
   return share < to ? Math.min(to, share + step) : Math.max(to, share - step);
 }
+
+/** How fast the drawing turns him round to ride fakie or back, a share a
+ * second over the two ways (about a third of a second from one to the
+ * other). */
+const FAKIE_RATE = 6;
+
+/** `share` (−1 fakie … 1 forward) eased `dt` s toward `switched`'s side,
+ * so the head, shoulders and arms come round rather than flip in a frame. */
+export function easeFakie(share: number, switched: boolean, dt: number): number {
+  const to = switched ? -1 : 1;
+  const step = FAKIE_RATE * Math.max(0, dt);
+  return share < to ? Math.min(to, share + step) : Math.max(to, share - step);
+}

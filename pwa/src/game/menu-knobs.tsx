@@ -130,6 +130,7 @@ export function StepRow<T extends string>({
   stops,
   value,
   extra,
+  dealt = false,
   hint,
   onPick,
   onHint,
@@ -139,6 +140,9 @@ export function StepRow<T extends string>({
   value: T | string;
   /** The word for a value that is on no stop. */
   extra?: string;
+  /** The value is the map's own, not one picked: shown in a colour of its
+   * own until a step picks one. */
+  dealt?: boolean;
   hint?: string;
   onPick: (id: T) => void;
   onHint?: OnHint;
@@ -176,7 +180,7 @@ export function StepRow<T extends string>({
         >
           ‹
         </button>
-        <span class="knob-value">
+        <span class={`knob-value${dealt ? " knob-dealt" : ""}`}>
           <span class="knob-word">{current?.label ?? extra ?? STRINGS.optUnset}</span>
           <span class={pipsClass(stops.length, shown)} aria-hidden="true">
             {shown.map((i) => (

@@ -128,7 +128,7 @@ function PauseOptions({
           </KnobGroup>
         </div>
       </MenuBody>
-      <Caption hint={hint} fallback={STRINGS.pauseOptionsCaption} />
+      <Caption hint={hint} />
     </div>
   );
 }

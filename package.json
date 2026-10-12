@@ -59,6 +59,7 @@
     "lean": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lean-lab.mjs",
     "poleless": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/poleless-lab.mjs",
     "skate-turns": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skate-turns-lab.mjs",
+    "skate-climb": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skate-climb-lab.mjs",
     "sidestep": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sidestep-lab.mjs",
     "blender": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/blender.mjs",
     "sky": "node scripts/sky-preview.mjs",

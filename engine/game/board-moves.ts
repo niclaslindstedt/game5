@@ -110,8 +110,9 @@ export function poleForce(
   stride: number,
   poles = true,
   step = 0,
+  hill = 0,
 ): number {
-  if (!spec.board) return Poles.poleForce(spec, way, packed, effort, stride, poles, step);
+  if (!spec.board) return Poles.poleForce(spec, way, packed, effort, stride, poles, step, hill);
   return boardDrive(spec, way, packed, effort) * Poles.strideShape(stride);
 }
 

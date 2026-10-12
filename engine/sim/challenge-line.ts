@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // A TIMED LINE SKIED BY THE BOT — the measurement the line challenges'
 // medals are calibrated against (`make challenges-table`, the suite). A
-// free ride is stood up on the map, the skier set on the run some way above
-// the line's start gate and moving, and the bot skis the run (reading a copy
+// free ride is stood up on the map, the skier set at the head of the line's
+// run-in pushing off, as a player comes off the top, and the bot skis the run (reading a copy
 // of the map whose piste is that run, as an enthusiast's does —
 // `enthusiasts.ts`) while the challenges' own judge watches; what comes back
 // is what the judge said of the line.
@@ -13,23 +13,25 @@ import { dealtRuns, type DealtRun } from "../game/challenges/common.ts";
 import { createChallengeRun } from "../game/challenges/registry.ts";
 import type { LineChallenge } from "../game/challenges/line.ts";
 import type { Medal, VoidCause } from "../game/challenges/types.ts";
+import { CHALLENGES } from "../game/defs/challenges.ts";
 import type { SkiSpec } from "../game/defs/skis.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { placeRun } from "../game/place.ts";
 import { createGame, step } from "../game/step.ts";
 import { botInput, RIDER_BOT } from "./bot.ts";
 
-/** How far above the start gate the bot is set down, m, and the speed he
- * is set down at, m/s: he crosses the gate skiing, as a player does. */
-const LEAD = 50;
-const ENTRY = 6;
+/** The speed the bot is set down at the run-in's head at, m/s: he skis
+ * the run-in and crosses the gate at what it gave him, as a player does. */
+const ENTRY = CHALLENGES.line.runInEntry;
 /** How far past the finish the copy's piste runs on, m. */
 const TAIL = 40;
 
 /** What the bot made of a line: its time, s (null when the attempt went
- * void or never finished), the medal and why it went void. */
+ * void or never finished), the speed he crossed the start gate at, m/s
+ * (null when he never did), the medal and why it went void. */
 export type LineSkied = {
   time: number | null;
+  entry: number | null;
   medal: Medal | null;
   why: VoidCause | "timeout" | "unstarted" | null;
 };
@@ -85,8 +87,8 @@ export function lineLevel(level: Level, run: DealtRun, from: number, to: number)
  * when left out), judged by the challenges' own judge. */
 export function skiLine(level: Level, line: LineChallenge, spec?: SkiSpec): LineSkied {
   const run = dealtRuns(level).find((r) => r.id === line.run);
-  if (!run) return { time: null, medal: null, why: "unstarted" };
-  const from = Math.max(0, line.start.s - LEAD);
+  if (!run) return { time: null, entry: null, medal: null, why: "unstarted" };
+  const from = Math.min(line.runIn, line.start.s);
   const to = Math.min(run.track.length, line.finish.s + TAIL);
   const read = lineLevel(level, run, from, to);
   const state = createGame({
@@ -103,15 +105,16 @@ export function skiLine(level: Level, line: LineChallenge, spec?: SkiSpec): Line
   const judge = createChallengeRun(level);
   judge.step(state);
   const most = (line.medals.bronze * 3 + 60) / TUNING.dt;
-  let started = false;
+  let entry: number | null = null;
   for (let i = 0; i < most; i++) {
     step(state, botInput({ ...state, level: read }, RIDER_BOT));
     for (const e of judge.step(state)) {
       if (e.id !== line.id) continue;
-      if (e.kind === "start") started = true;
-      if (e.kind === "done") return { time: e.value ?? null, medal: e.medal ?? null, why: null };
-      if (e.kind === "void") return { time: null, medal: null, why: e.why ?? null };
+      if (e.kind === "start") entry = state.skier.speed;
+      if (e.kind === "done")
+        return { time: e.value ?? null, entry, medal: e.medal ?? null, why: null };
+      if (e.kind === "void") return { time: null, entry, medal: null, why: e.why ?? null };
     }
   }
-  return { time: null, medal: null, why: started ? "timeout" : "unstarted" };
+  return { time: null, entry, medal: null, why: entry !== null ? "timeout" : "unstarted" };
 }

@@ -26,6 +26,19 @@ its numbers come from, in our own words.
   front wheels' steer, the odometer the wheels and the cranks turn by, the
   brake and the indicator. `parkedCars` are the bays' cars, taken by the hour
   (more by day than at night) and never in a mover's way.
+- **WHERE PEOPLE GO** (`traffic-demand.ts`): a village parks its cars in
+  front of its shops, flats and houses, by the square and at the lift, and
+  a bare stretch of street keeps the odd car or none. Every building the map
+  stands (the base's, the town's and a real face's real houses) pulls by its
+  kind, the square and every lift's foot station as a busy shop, each fading
+  to nothing 45 m from a kerb's bay (`bayPulls`); a bay is taken at the
+  kerb's share times its pull over `TRAFFIC.demand.full`, and at 4 % of it
+  where nothing pulls (`kerbShare`). The cars round the loop and the
+  cyclists are dealt as before and cut by how built-up the loop is — the
+  pull within 30 m of its streets per hundred metres of them, full at 4
+  (`loopBusy`). The car park is the lifts' and stays full by day; the
+  visitors, the cars through and the bus are unchanged. A pure function of
+  the map, so no digest moves.
 - **MET BY THE SKIER** (`traffic-contact.ts`'s `trafficStrike`), on a free ride
   only (`RunRules.traffic`): a shuffle against a car is held off it; faster, he
   is knocked down — the `car` crash cause, a blow over the bodywork's give
@@ -72,10 +85,25 @@ its numbers come from, in our own words.
   of the car park (staying 1.5–5 minutes on the game's clock), two passing
   through, three or four cyclists, one ski bus standing 25–45 s at its stop.
 - A car's class: hatch 35 %, SUV 30 %, estate 20 %, van 15 %.
-- The kerbs' bays are about 60 % taken; the car park 80 % in the lifts' hours
+- The kerbs' bays are about 60 % taken in front of a busy row and hardly
+  ever along a bare street (below); the car park 80 % in the lifts' hours
   (08–17) and 30 % after.
 - A car keeps a quarter of a metre to either side and 1.2 m plus 0.6 s of its
   speed ahead; it swings 0.9 m out round a cyclist.
+
+### What stands along a street (`TRAFFIC.demand`)
+
+Measured at seed 1 (the cars parked by day at the kerbs, and the cars and
+cyclists round the loop), before and after the kerbs and the loop were made
+to read what stands along them:
+
+| Map | Loop built up | Kerb cars | On bare kerbs | Round the loop |
+| --- | --- | --- | --- | --- |
+| fell-1 (a back street with nothing on it, 52 kerb bays) | 0.43 | 38 → 2 | 38 of 52 → 2 | 7 → 4 |
+| alpine-9 (13 bare bays) | 0.67 | 38 → 10 | 9 of 13 → 1 | 7 → 5 |
+| maritime-4 | 1.00 | 30 → 29 | none bare | 5 → 5 |
+| dealt seed 1 | 1.00 | 38 → 35 | none bare | 7 → 7 |
+| dealt seed 38 | 1.00 | 26 → 21 | none bare | 7 → 7 |
 
 ### The look (`traffic-look.ts`)
 

@@ -105,24 +105,12 @@ export function PauseSlopes({
             />
             <StepRow
               label={STRINGS.startRun}
-              hint={STRINGS.pauseSlopesRunHint}
               stops={pick.stops}
               value={pick.value}
               extra={pick.machine ? STRINGS.startRunOff : STRINGS.startRunWaiting}
               onPick={(id) => setRide(runPicked(ride, seed, id))}
               onHint={setHint}
             />
-          </div>
-          <div class="start-actions">
-            <button
-              type="button"
-              class="menu-chip"
-              data-menu="grid"
-              disabled={pick.spot === null}
-              onClick={() => setRide({ spot: null })}
-            >
-              <span class="menu-tile-name">{STRINGS.startGrid}</span>
-            </button>
           </div>
         </div>
       </MenuBody>

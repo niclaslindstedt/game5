@@ -420,7 +420,8 @@ export function splatMask(size = 128): THREE.CanvasTexture | null {
   const c = document.createElement("canvas");
   c.width = size;
   c.height = size;
-  const g = c.getContext("2d");
+  // Read back below: a canvas kept off the GPU, so the read never waits on it.
+  const g = c.getContext("2d", { willReadFrequently: true });
   if (!g) return null;
   const h = size / 2;
   g.fillStyle = "#000";

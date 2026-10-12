@@ -15,6 +15,9 @@ import type { TrickMap, TrickRun } from "./trick-maps.ts";
 export type Presses = {
   race: (seed: number, mode: GameMode) => void;
   free: (options: CreateGameOptions) => void;
+  /** The free ride's cards: stage the world of the ride they are on
+   * (`free-stage.ts`), keep the one staged, or throw it away (null). */
+  stageFree: (options: CreateGameOptions | "keep" | null) => void;
   /** A TRICKS run on a trick map (`trick-maps.ts`), or a freestyle
    * contest (ski jumping and the rest) built over one. */
   tricks: (map: TrickMap, mode?: TrickRun) => void;
@@ -37,6 +40,7 @@ export type Presses = {
 export const NO_PRESSES: Presses = {
   race: () => {},
   free: () => {},
+  stageFree: () => {},
   tricks: () => {},
   pinned: () => {},
   restart: () => {},

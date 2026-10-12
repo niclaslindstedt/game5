@@ -671,7 +671,7 @@ export function rideOnFace(ride: FreeRide, face: string | null): FreeRide {
 }
 
 /** THE WHERE STEPS OPENED FOR THE FIRST TIME: the ride is stood on the first
- * real range's first mountain (`DEFAULT_FACE`, the Alps) rather than on
+ * real range's first mountain (`DEFAULT_FACE`) rather than on
  * GENERATED; after that, wherever the skier last left it. */
 export function firstWhere(ride: FreeRide): FreeRide {
   if (ride.placed) return ride;

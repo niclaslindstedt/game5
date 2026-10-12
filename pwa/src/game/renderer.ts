@@ -95,8 +95,10 @@ import {
   SNOW,
   snowAt,
   snowpackOf,
+  thrownAt,
   type SnowKind,
   type Snowpack,
+  type SnowpackOptions,
   type SnowProps,
 } from "./snowpack.ts";
 import {
@@ -157,10 +159,9 @@ export type WorldRendererExt = WorldRenderer &
     setSky(sky: SkyOverride | null): void;
     /** Resolves once the mountain's shadow under the sky last drawn is. */
     shadeSettled(): Promise<void>;
-    /** Lay ONE kind of snow over the whole map for the picture — the
-     * cloud, the spray, the furrows and the prints (`snowpack.ts`) — or
-     * null for the map's own: a lab's sheet. */
-    setSnow(kind: SnowKind | null): void;
+    /** Lay ONE kind of snow (and one surface age) over the whole map for the
+     * picture (`snowpack.ts`, `snow-age.ts`), or null for the map's own. */
+    setSnow(kind: SnowKind | null, age?: SnowpackOptions["age"]): void;
     /** The three.js renderer, for a lab that needs to read pixels. */
     readonly gl: THREE.WebGLRenderer;
   };
@@ -242,14 +243,13 @@ export function createWorldRenderer(
   let cloud: SnowCloud | null = null;
   /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
   let gore: GoreView | null = null;
-  /** WHAT SNOW LIES WHERE for this run (`snowpack.ts`), a lab's forced
-   * kind, and the samples every reader takes of it — each read at once. */
+  /** WHAT SNOW LIES WHERE (`snowpack.ts`), a lab's forced kind, and its samples. */
   let pack: Snowpack | null = null;
-  let snowForce: SnowKind | null = null;
+  let snowForce: Pick<SnowpackOptions, "force" | "age"> = {};
   const sampled: SnowProps = { ...SNOW.soft };
-  const skierSnow: SnowProps = { ...SNOW.soft };
   const sampleSnow = (x: number, z: number): SnowProps =>
     pack ? snowAt(pack, x, z, sampled) : SNOW.soft;
+  const thrownSnow = (x: number, z: number) => thrownAt(pack, x, z);
   let wildlife: Wildlife | null = null;
   let crowd: CrowdView | null = null;
   let machines: Machines | null = null;
@@ -454,7 +454,7 @@ export function createWorldRenderer(
       elevation: sunAtRun(sky).elevation,
       fresh: state.fresh,
       depth: state.snowDepth,
-      force: snowForce,
+      ...snowForce,
       piste: state.piste,
     });
   }
@@ -656,13 +656,13 @@ export function createWorldRenderer(
           landed = Math.abs(r.vy) + r.airTime * 2;
         }
         if ((simDt > 0 || landed > 0) && !run.plane?.rider) {
-          spray.emit(skier, level, simDt, landed, snowAt(pack!, skier.x, skier.z, skierSnow));
-          cloud.emit(skier, simDt, landed, sampleSnow);
+          spray.emit(skier, level, simDt, landed, thrownSnow(skier.x, skier.z));
+          cloud.emit(skier, simDt, landed, thrownSnow);
         }
         if (level && spray && cloud) {
           const stamp = TRAIL_LOOK[video.trails].stamp ? stamps : null;
           const off = skier.thrown;
-          const at = off ? snowAt(pack ?? snowpackOf(level), off.x, off.z, skierSnow) : skierSnow;
+          const at = thrownSnow(off ? off.x : skier.x, off ? off.z : skier.z);
           thrownEffects(r, skier, simDt, {
             level,
             spray,
@@ -764,7 +764,7 @@ export function createWorldRenderer(
         filled = state.fresh;
       }
       timer.pop();
-      setRunSnow(env.haze, state.fresh, state.piste);
+      setRunSnow(env.haze, state.fresh, state.piste, pack?.age, pack?.tracks);
       const trailed = performance.now();
       // THE VIEW ALOFT (`view-aloft.ts`): the reach grows with the height over the snow.
       const eyeAt = lens.camera.position;
@@ -919,8 +919,8 @@ export function createWorldRenderer(
       if (lastState && level) pack = packFor(lastState);
     },
     shadeSettled: () => env.shadeSettled(),
-    setSnow(kind) {
-      snowForce = kind;
+    setSnow(kind, age) {
+      snowForce = { force: kind, age };
       if (lastState && level) pack = packFor(lastState);
     },
 

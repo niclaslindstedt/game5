@@ -50,6 +50,16 @@
   display: block;
 }
 
+.where-map-sheet {
+  position: absolute;
+  display: block;
+  transform-origin: 50% 50%;
+  /* Its own layer: a pinch moves it in the compositor, never repainting
+     the outline (world-map-view.tsx). */
+  will-change: transform;
+  pointer-events: none;
+}
+
 .where-map-word {
   position: absolute;
   inset: 0;

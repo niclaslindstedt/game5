@@ -24,6 +24,7 @@ import colourUrl from "../title/title-colour.webp?url";
 import auxUrl from "../title/title-aux.webp?url";
 import plateUrl from "../title/title-plate.json?url";
 import type { TitlePlate } from "../title/plates.ts";
+import { backdropHeld } from "./backdrop-hold.ts";
 import type { TitleRenderer } from "./title-renderer.ts";
 
 async function bitmapOf(url: string): Promise<ImageBitmap> {
@@ -88,7 +89,8 @@ export function TitleStage({
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.25, Math.max(0, (now - last) / 1000));
       last = now;
-      if (document.hidden || !renderer) return;
+      // Held still while a card's own map is in the hands (`backdrop-hold.ts`).
+      if (document.hidden || !renderer || backdropHeld()) return;
       const t =
         frozenT ?? (litAt.current === null ? -1 : (performance.now() - litAt.current) / 1000);
       renderer.draw(t, dt, pointer, menuRef.current);

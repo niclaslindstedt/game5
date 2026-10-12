@@ -7,15 +7,17 @@
 //
 // DEALT on the runs of every colour the ski area has — a green, a blue, a
 // red, a black and an orange ski route where it has them, then any others —
-// one line a run, its start gate clear of the lift's pad below the last
-// summit ramp's join, its finish some hundreds of metres to a kilometre and
-// a half down, and downhill all the way. Its medals are shares of the
+// one line a run, its start gate where the slope has dipped and a skier
+// skiing in off the top is already fast (never on the flat under the lift's
+// pad), its finish some hundreds of metres to a kilometre and a half down,
+// and downhill all the way. Its medals are shares of the
 // line's PAR (`par.ts`), measured against the bot.
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import type { Level } from "../../mapgen/types.ts";
 import { CHALLENGES } from "../defs/challenges.ts";
+import { SKIS } from "../defs/skis.ts";
 import type { GameState } from "../state.ts";
 import {
   dealtRuns,
@@ -41,12 +43,15 @@ import {
 const L = CHALLENGES.line;
 const M = CHALLENGES.medals;
 
-/** A TIMED LINE: the run it is on and that run's colour, its two gates,
- * its length and drop, m, and its par, s. */
+/** A TIMED LINE: the run it is on and that run's colour, the arc its
+ * run-in begins at, m, its two gates, the speed its run-in carries a skier
+ * through the start gate at, m/s, its length and drop, m, and its par, s. */
 export interface LineChallenge extends ChallengeBase {
   kind: "line";
   run: string;
   grade: DealtRun["grade"];
+  runIn: number;
+  entry: number;
   start: ChallengeGate;
   finish: ChallengeGate;
   length: number;
@@ -61,12 +66,33 @@ export function isLine(c: ChallengeBase): c is LineChallenge {
 /** The colours a map's lines are dealt across first, in order. */
 const COLOURS = ["green", "blue", "red", "black", "orange"] as const;
 
-/** The stretch of `run` a line may lie on: from where its start gate
- * stands to the last arc its finish may — null on a run too short. */
-function roomOn(run: DealtRun): { from: number; most: number } | null {
-  const from = Math.max(L.fromHead, run.ramp + L.fromRamp);
-  const most = Math.min(from + L.longest, run.track.length - L.beforeEnd);
-  return most - from >= L.shortest ? { from, most } : null;
+/** The stretch of `run` a line may lie on: from where its RUN-IN begins
+ * (clear of the lift's pad) to the last arc its finish may — null on a run
+ * too short. */
+function roomOn(run: DealtRun): { head: number; end: number } | null {
+  const head = Math.max(L.fromHead, run.ramp + L.fromRamp);
+  const end = run.track.length - L.beforeEnd;
+  return end - head >= L.shortest ? { head, end } : null;
+}
+
+const STEP = CHALLENGES.par.step;
+
+/** WHERE THE START GATE STANDS on `run`, and the speed a skier pushing off
+ * the run-in's head crosses it at: the first arc the par's own profile has
+ * him at `CHALLENGES.line.speed` — the slope dipped under him — or, on a run
+ * that never takes him there, the first at `nearly` of the most it does;
+ * never more than `runIn` m down, and always leaving a line's room. */
+function startOn(level: Level, run: DealtRun, room: { head: number; end: number }) {
+  const last = Math.min(room.head + L.runIn, room.end - L.shortest);
+  if (last - room.head < STEP) return { s: room.head, entry: CHALLENGES.par.entry };
+  const v: number[] = [];
+  linePar(level, run, room.head, last, SKIS, v, L.runInEntry);
+  let at = v.findIndex((u) => u >= L.speed);
+  if (at < 0) {
+    const most = Math.max(...v);
+    at = v.findIndex((u) => u >= most * L.nearly);
+  }
+  return { s: Math.min(last, room.head + at * STEP), entry: v[at] };
 }
 
 function dealLines(level: Level, rng: Rng): LineChallenge[] {
@@ -94,20 +120,24 @@ function dealLines(level: Level, rng: Rng): LineChallenge[] {
 function lineOn(level: Level, run: DealtRun, length: number): LineChallenge | null {
   const room = roomOn(run);
   if (!room) return null;
-  const start = gateOn(run, room.from);
-  for (const ask of [length, room.most - room.from]) {
-    const to = Math.min(room.most, room.from + Math.max(L.shortest, ask));
+  const { s: from, entry } = startOn(level, run, room);
+  const most = Math.min(from + L.longest, room.end);
+  const start = gateOn(run, from);
+  for (const ask of [length, most - from]) {
+    const to = Math.min(most, from + Math.max(L.shortest, ask));
     const finish = gateOn(run, to);
-    const long = to - room.from;
+    const long = to - from;
     const drop = start.y - finish.y;
     if (drop < Math.max(L.drop, L.dropPer * long)) continue;
-    const par = linePar(level, run, room.from, to);
+    const par = linePar(level, run, from, to, SKIS, undefined, entry);
     const round = (v: number) => Math.round(v * 10) / 10;
     return {
       id: `line:${run.id}:1`,
       kind: "line",
       run: run.id,
       grade: run.grade,
+      runIn: room.head,
+      entry,
       start,
       finish,
       length: long,

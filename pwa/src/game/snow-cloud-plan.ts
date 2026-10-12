@@ -165,11 +165,20 @@ export function emptyRecipe(): CloudRecipe {
   };
 }
 
+/** How big a puff out of this snow is against powder's, 0.45..1: the
+ * groomer's thin loose skin throws a low mist of small puffs. */
+export function bodyOf(snow: SnowProps): number {
+  return 0.45 + 0.55 * Math.min(1, Math.max(0, snow.loose));
+}
+
 /** What every puff out of this snow is like, whatever threw it. */
 function puffOf(snow: SnowProps, out: CloudRecipe): CloudRecipe {
   const fine = Math.min(1, Math.max(0, snow.fine));
-  out.size = CLOUD.size.min + CLOUD.size.fine * fine;
-  out.grow = CLOUD.grow.min + CLOUD.grow.fine * fine;
+  // A thin skin of loose snow (the groomer's) lifts a low, small mist, not
+  // the billows a deep powder throws.
+  const body = bodyOf(snow);
+  out.size = (CLOUD.size.min + CLOUD.size.fine * fine) * body;
+  out.grow = (CLOUD.grow.min + CLOUD.grow.fine * fine) * body;
   out.hang = CLOUD.hang.min + CLOUD.hang.fine * fine * fine;
   out.settle = CLOUD.settle.coarse + (CLOUD.settle.fine - CLOUD.settle.coarse) * fine;
   out.tau = CLOUD.tau.coarse + (CLOUD.tau.fine - CLOUD.tau.coarse) * fine;
@@ -198,7 +207,8 @@ export function skidCloud(
   // At speed on hard snow the skis still lift a mist without digging: the
   // air under a fast skier sweeps the loose top off.
   const sweep = drive.grounded ? Math.min(1, drive.speed / 30) * 0.25 : 0;
-  out.rate = CLOUD.skidRate * (push + sweep) * Math.min(1.8, loose) * snow.fine;
+  // Smaller puffs off a thin skin, more of them: the same snow in the air.
+  out.rate = (CLOUD.skidRate * (push + sweep) * Math.min(1.8, loose) * snow.fine) / bodyOf(snow);
   out.lift = (CLOUD.lift.min + CLOUD.lift.loose * Math.min(1.5, loose)) * (0.35 + 0.65 * push);
   out.back =
     Math.min(CLOUD.back.most, CLOUD.back.min + drive.skid * CLOUD.back.skid) * (0.5 + push);

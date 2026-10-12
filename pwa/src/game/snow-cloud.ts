@@ -47,6 +47,7 @@ import { LAMP_GLSL, LAMP_SLOTS, SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import { skiShares, stationOf } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
+import { edgeSlips, emptySlip, type EdgeSlip } from "./spray-sim.ts";
 import {
   flyPuff,
   carveOf,
@@ -614,6 +615,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   const boil: CloudRecipe = { ...emptyRecipe(), settle: 0.12, tau: 2.2, sparkle: 0.25 };
   const drive = { speed: 0, skid: 0, edge: 0, grounded: false };
   const shares: [number, number] = [0.5, 0.5];
+  const slips: [EdgeSlip, EdgeSlip] = [emptySlip(), emptySlip()];
 
   const api: SnowCloud = {
     mesh,
@@ -637,24 +639,48 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       driveOf(skier, drive);
       // Which way the skis are sliding across their own line.
       const out = skier.skiAngle !== 0 ? -Math.sign(skier.skiAngle) : -Math.sign(skier.edge || 1);
-      // THE SKID'S WALL, off the loaded ski's boot, out across the way.
+      // THE SKID'S WALL, off the loaded edge, the way it slides
+      // (`spray-sim.ts`'s `edgeSlips`: the skier's velocity read across the
+      // skis) — the fine part of the same sheet the grains are, so the
+      // cloud rises where the spray flies and never behind it.
       skidCloud(drive, snow, wall);
+      const edges = edgeSlips(skier, slips);
+      const e = edges > 1 && slips[1].share > slips[0].share ? slips[1] : slips[0];
+      const along = e.share > 0;
+      const ax = along ? e.across.x : 0;
+      const az = along ? e.across.z : 0;
+      const slide = along ? e.slide : 0;
       owed[0] += wall.rate * dt * share;
       while (owed[0] >= 1) {
         owed[0] -= 1;
         // Spread along the frame's path, so a fast skier's plume is a
-        // stream and not a string of beads a frame apart.
+        // stream and not a string of beads a frame apart — and along the
+        // loaded edge, tip to tail, as the sheet is.
         const back = random() * dt;
-        const at = rotate(skier.q, {
-          x: (random() - 0.5) * 0.7 + out * 0.3,
-          y: 0.1 + (random() - 0.5) * 0.2,
-          z: (random() - 0.5) * 0.8,
-        });
-        const kick = rotate(skier.q, {
-          x: out * wall.back * (0.6 + 0.8 * random()),
-          y: wall.lift * (0.55 + 0.7 * random()),
-          z: (random() - 0.5) * 1.5,
-        });
+        const u = 0.2 + 0.8 * random();
+        const at = along
+          ? {
+              x: e.tip.x + (e.tail.x - e.tip.x) * u - ux + ax * 0.25,
+              y: 0.1 + (random() - 0.5) * 0.2,
+              z: e.tip.z + (e.tail.z - e.tip.z) * u - uz + az * 0.25,
+            }
+          : rotate(skier.q, {
+              x: (random() - 0.5) * 0.7 + out * 0.3,
+              y: 0.1 + (random() - 0.5) * 0.2,
+              z: (random() - 0.5) * 0.8,
+            });
+        const throwOut = wall.back * (0.6 + 0.8 * random()) + slide * 0.3;
+        const kick = along
+          ? {
+              x: ax * throwOut + (random() - 0.5) * 1.2,
+              y: wall.lift * (0.55 + 0.7 * random()),
+              z: az * throwOut + (random() - 0.5) * 1.2,
+            }
+          : rotate(skier.q, {
+              x: out * wall.back * (0.6 + 0.8 * random()),
+              y: wall.lift * (0.55 + 0.7 * random()),
+              z: (random() - 0.5) * 1.5,
+            });
         const x = ux + at.x - skier.vx * back;
         const z = uz + at.z - skier.vz * back;
         spawn(

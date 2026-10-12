@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer aloft cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive balloon afterski town
 
 build:
 	npm run build
@@ -454,6 +454,37 @@ aloft:
 # --speeds=10,20,40"; ARGS="--json=a.json" / "--compare=a.json".
 cloud-metrics:
 	npm run cloud-metrics -- $(ARGS)
+
+# THE SPRAY METRICS LAB: how much SNOW a turn throws, how fast, how high,
+# how far and which way — a pair of skis and a board × a kind of snow × a
+# move (straight, carve, skid, check, stop) × a speed, skied by the engine in
+# pure Node and every frame flown through the game's own spray pool
+# (spray-sim.ts). Seconds, no browser. ARGS="--skis=lynx --moves=stop
+# --speeds=20,40,60"; ARGS="--json=a.json" / "--compare=a.json".
+spray-metrics:
+	npm run spray-metrics -- $(ARGS)
+
+# THE SPRAY EVAL: which way of flying the spray is best — the four models
+# spray-sim.ts carries (puff, streak, drag, sheet) flown through the same
+# carves, skids and stops on the groomer and in powder, each scored against
+# what a real turn throws (which way, how fast, how high and far, how a
+# carve's compares with a skid's, how the fines hang, how thin the curtain,
+# how a grain is drawn, the cost) — and the game's model through a stop on
+# every age of snow at three depths. Pure Node, seconds.
+# ARGS="--models=drag,sheet", "--detail=sheet" (run by run), "--ages".
+spray-eval:
+	npm run spray-eval -- $(ARGS)
+
+# THE SPRAY LAB: the snow a turn throws off the skis AND off a board, as the
+# game draws it — the turns lab (below) ridden on the Chamois and the Lynx
+# through linked carves, a skidded turn and a hockey stop, from a lens close
+# in front of the skis and from the chase lens, on the groomer and in the
+# meadow's powder: previews/turns-<seed>[-lynx]-close.png and -chase.png
+# (the meadow's written over the piste's — WHERE=meadow alone for those).
+# SEED=n; WHERE=piste|meadow; ARGS="--speeds=30,60 --times=0.5,1";
+# ARGS="--spray=puff" another model, "--age=wet" a snow age, "--depth=2".
+spray:
+	for pair in chamois lynx; do npm run turns -- --skis=$$pair --where=$(or $(WHERE),piste) --moves=carve,skid,stop --speeds=45 --times=0.6,1,1.4 --views=close,chase --width=480 --height=320 $(if $(SEED),--seed $(SEED),) $(ARGS) || exit 1; done
 
 # THE TURNS LAB: the skier TURNING AND STOPPING as the game draws him — one
 # turn held, linked carves, a skidded turn and a hockey stop (the held moves
@@ -952,6 +983,16 @@ trails:
 # "--hours=8,12,16,19".
 piste-day:
 	npm run piste-day -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE SNOW LAB: one spot of a mountain's loose snow beside its piste at
+# every age of the snow — the map's own, new, settled, old, wind-packed,
+# sun-crusted, hoar and wet (snow-age.ts) — through the game's own renderer,
+# from the same place under the same sun. One contact sheet a lens
+# (down, sun — the glare — away, near, far), previews/snow-<lens>.png, and
+# every frame alone. Its own one-off bundle from pwa/snow-preview.html (never
+# deployed); needs a Chromium. ARGS="--sheet=sun --hour=15", "--weather=fair".
+snow:
+	npm run snow -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
 # helicopter) and its rider are DRAWN from frame to frame — the bot rides

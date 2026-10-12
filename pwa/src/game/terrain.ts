@@ -61,6 +61,7 @@ import {
 import type { TerrainLook } from "./settings-video.ts";
 import type { TrailUniforms } from "./trail-map.ts";
 import { createTreeWells } from "./tree-wells.ts";
+import { trackFrameOf } from "./piste-tracks.ts";
 
 /** The grid's size, pitch and depth — a TERRAIN stop, `terrainLook` in
  * `settings-video.ts`. */
@@ -399,7 +400,25 @@ function groundTextures(level: Level) {
   const live = liveGrounds.get(level) ?? [];
   live.push({ ground: groundTex, dir });
   liveGrounds.set(level, live);
-  return { height, ground: groundTex, dir, surface: surfaceTexture(level) };
+  // THE PISTE'S OWN FRAME the other skiers' lines are laid in.
+  const tf = trackFrameOf(level.track, f.cell, THREE.DataUtils.toHalfFloat);
+  const frame = new THREE.DataTexture(
+    tf.data,
+    tf.cols,
+    tf.rows,
+    THREE.RGBAFormat,
+    THREE.HalfFloatType,
+  );
+  frame.minFilter = THREE.LinearFilter;
+  frame.magFilter = THREE.LinearFilter;
+  frame.needsUpdate = true;
+  const frameBox = new THREE.Vector4(
+    tf.x0 - tf.cell / 2,
+    tf.z0 - tf.cell / 2,
+    1 / (tf.cols * tf.cell),
+    1 / (tf.rows * tf.cell),
+  );
+  return { height, ground: groundTex, dir, frame, frameBox, surface: surfaceTexture(level) };
 }
 
 /** R21 — the wind crust (R) and the river's ice (G) on the ground's grid; a
@@ -444,6 +463,8 @@ export function createTerrain(
     uHeight: { value: tex.height },
     uGround: { value: tex.ground },
     uTrackDir: { value: tex.dir },
+    uTrackFrame: { value: tex.frame },
+    uTrackFrameBox: { value: tex.frameBox },
     uSurface: { value: tex.surface },
     uForestTint: { value: new THREE.Vector3(...look.forestTint) },
     uCrustTone: { value: new THREE.Vector3(...look.crust) },
@@ -720,6 +741,7 @@ export function createTerrain(
       tex.height.dispose();
       tex.ground.dispose();
       tex.dir.dispose();
+      tex.frame.dispose();
       tex.surface.dispose();
     },
   };

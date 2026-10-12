@@ -13,12 +13,22 @@ export const CHALLENGES = {
     perRuns: 2,
     least: 3,
     most: 5,
-    /** Where the start gate stands: past the last summit ramp's join onto
-     * the run (or the run's head) by `fromRamp` m, and never nearer the
-     * head than `fromHead` m — clear of the lift's unload pad, on the
-     * run's own snow. */
+    /** Where the RUN-IN starts: past the last summit ramp's join onto the
+     * run (or the run's head) by `fromRamp` m, and never nearer the head
+     * than `fromHead` m — clear of the lift's unload pad, on the run's own
+     * snow. */
     fromRamp: 30,
     fromHead: 40,
+    /** WHERE THE START GATE STANDS: down the run-in where the slope has
+     * dipped and a skier pushing off at `runInEntry` m/s is carried up to
+     * `speed` m/s (about 55 km/h — a start at a crawl on the flat under
+     * the top is no line at all), reckoned by the par's own profile; never
+     * more than `runIn` m down it, and where the run never gets him there,
+     * where it gets him nearest (`nearly` of the most it does). */
+    speed: 15,
+    runInEntry: 4,
+    runIn: 500,
+    nearly: 0.95,
     /** How long a line is, m: dealt in `[want0, want1]`, held to
      * `[shortest, longest]`, and ended `beforeEnd` m short of the run's
      * foot (where it merges, the snow is the other run's). */
@@ -51,7 +61,8 @@ export const CHALLENGES = {
     step: 2,
     /** How far into his tuck he skis, 0 tall … 1 folded. */
     crouch: 0.6,
-    /** The speed he crosses the start gate at, m/s — skied in from above. */
+    /** The speed he crosses the start gate at when none is reckoned, m/s
+     * — a line's own is its run-in's (`LineChallenge.entry`). */
     entry: 8,
     /** The fastest a free skier lets a line run, m/s (about 75 km/h —
      * the bot's own on a free run, measured). */
@@ -62,10 +73,10 @@ export const CHALLENGES = {
     fall: 0.5,
     /** A good free skier's time as a share of the profile's own: the
      * measured median of the bot's over every line seeds 1–8 deal (`make
-     * challenges-table ARGS=--count=8`) — its time 0.89–1.14 of par on
-     * every line it finished, the corner, fall and top speed above fitted
-     * to that spread. */
-    scale: 1.26,
+     * challenges-table COUNT=8`), each skied from its run-in's head — its
+     * time 0.84–1.19 of par on every line it finished, the corner, fall and
+     * top speed above fitted to that spread. */
+    scale: 1.3,
     /** The slowest any bend asks of him, m/s (the bot's `CRAWL`). */
     crawl: 4,
     /** The share of the pitch's pull out of a turn across it taken off the

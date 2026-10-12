@@ -4,6 +4,8 @@
 // driven by. Measured off the real thing (`docs/traffic.md`); every number
 // is metres, seconds or metres a second unless it says otherwise.
 
+import type { CabinKind } from "./cabins.ts";
+
 /** The kinds of vehicle the village's streets carry. */
 export type VehicleKind = "hatch" | "estate" | "suv" | "van" | "bus" | "bike";
 
@@ -163,7 +165,19 @@ export const DRIVES: Readonly<Record<"car" | "bus" | "bike", Drive>> = {
  *     how far ahead and behind of him.
  *   * `signal`: how far ahead a turn lights the indicator, m, and how much
  *     of a turn, rad.
- *   * `reach`: how far round the village its traffic is looked for, m. */
+ *   * `reach`: how far round the village its traffic is looked for, m.
+ *   * `demand`: WHERE PEOPLE GO (`traffic-demand.ts`) — what pulls a car
+ *     to a kerb's bay and puts cars on the loop. Each building pulls by
+ *     its kind (`kinds`: a shop, a hotel or a block of flats most, a
+ *     house a little, a shed or a pump house nothing), the square and a
+ *     lift's foot station like a busy shop (`square`, `lift`), each
+ *     fading to nothing at `reach` m from the bay. A bay is taken at the
+ *     kerb's share times its pull over `full` (at most the share), and
+ *     at `floor` of it where nothing pulls at all — a bare stretch of
+ *     street keeps the odd car and no more. The loop's own traffic, its
+ *     cars and its cyclists, is dealt as before and cut by how built-up
+ *     the loop is: the pull of the buildings within `front` m of its
+ *     streets per hundred metres of them, over `busy`. */
 export const TRAFFIC = {
   period: 600,
   sample: 0.25,
@@ -182,6 +196,37 @@ export const TRAFFIC = {
   pass: { swing: 0.9, ahead: 14, behind: 6 },
   signal: { ahead: 28, turn: 0.6 },
   reach: 250,
+  demand: {
+    reach: 45,
+    full: 1.2,
+    floor: 0.04,
+    square: 2,
+    lift: 2,
+    front: 30,
+    busy: 4,
+    kinds: {
+      hut: 0.3,
+      cabin: 0.5,
+      chalet: 0.6,
+      shed: 0,
+      afterski: 1.4,
+      restaurant: 1.4,
+      ticket: 1,
+      rental: 1.2,
+      school: 1,
+      firstAid: 0.6,
+      hotel: 2,
+      garage: 0.3,
+      pumpHouse: 0,
+      house: 0.7,
+      apartments: 1.4,
+      shop: 1.6,
+      church: 0.8,
+      hall: 1.4,
+      mountainHut: 0,
+      patrol: 0,
+    } as Readonly<Record<CabinKind, number>>,
+  },
 } as const;
 
 /** MET BY A VEHICLE (`traffic-contact.ts`): a skier on his skis against a

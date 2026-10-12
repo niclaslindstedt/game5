@@ -14,6 +14,7 @@ import {
   IN_VIEW,
   keepInView,
   launchShare,
+  SUIT_DIVE,
   SUIT_LAUNCH,
   swingLens,
   wingsuitFramed,
@@ -80,6 +81,16 @@ describe("the wingsuit's lenses in flight", () => {
     const high = wingsuitLens("high", chute("freefall"), subject());
     expect(high.eye.y - at.y).toBeGreaterThan(8);
     expect(down(high)).toBeGreaterThan(0.6);
+  });
+
+  it("closes in on him in a dive", () => {
+    const reach = (l: LensPose): number =>
+      Math.hypot(l.eye.x - at.x, l.eye.y - at.y, l.eye.z - at.z);
+    const glide = wingsuitLens("chase", chute("freefall"), subject());
+    const fast = { x: 0, y: -60, z: SUIT_DIVE.full };
+    const dive = wingsuitLens("chase", chute("freefall"), subject({ v: fast }));
+    expect(reach(dive)).toBeLessThan(reach(glide) * (1 - SUIT_DIVE.close) + 0.3);
+    expect(reach(dive)).toBeGreaterThan(1.5);
   });
 
   it("looks ahead and down out of his own eyes", () => {

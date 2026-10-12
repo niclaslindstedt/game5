@@ -28,7 +28,9 @@
 //     dust that hangs rather than falls, near the lens only. It is the one
 //     thing in open air close enough to stream past: at pace the crystals
 //     whip by the lens, which is most of what says the skier is FAST over a
-//     meadow with nothing else near it. As the fall starts they become it.
+//     meadow with nothing else near it — and the faster the lens goes the
+//     bigger and brighter they are drawn (`STREAKS`), the speed lines of a
+//     racing game made of the air itself. As the fall starts they become it.
 //   * THE SPINDRIFT is a few hundred grains on the CPU, lifted where the
 //     ground CRESTS (the ground over its neighbours) and blown downwind a
 //     metre or two off the snow, fading as they go. Only a wind that could
@@ -48,11 +50,13 @@ import {
   FLAKES,
   MOTE_REACH,
   MOTES,
+  STREAKS,
   airPast,
   createLensTrack,
   flakeDrift,
   moteOf,
   shutterOf,
+  streakOf,
   type Vec3,
 } from "./snowfall-plan.ts";
 
@@ -142,6 +146,8 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
     uAir: { value: new THREE.Vector3() },
     /** The seconds each smear spans. */
     uShutter: { value: shutterOf(1 / 60) },
+    /** How much of the streaks at pace the crystals take, 0..1. */
+    uPace: { value: 0 },
   };
   const fallMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -168,6 +174,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       uniform vec3 uLit;
       uniform vec3 uAir;
       uniform float uShutter;
+      uniform float uPace;
       ${LAMP_GLSL}
       varying float vAlpha;
       varying vec3 vCol;
@@ -198,7 +205,9 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
         vec2 dir = len > 1e-3 ? smear / len : vec2(1.0, 0.0);
         len = min(len, halfPx.y * 2.0 * ${SMEAR_MAX.toFixed(2)});
         float depth = ch.w;
-        float size = (0.035 + 0.05 * aSeed.w) * uSize * mix(1.0, 0.35, uMote);
+        float streak = uPace * uMote;
+        float size = (0.035 + 0.05 * aSeed.w) * uSize * mix(1.0, 0.35, uMote)
+          * (1.0 + ${STREAKS.size.toFixed(2)} * streak);
         float px = size * uScale / depth;
         float wide = clamp(px, 1.0, ${FLAKE_PX.max.toFixed(1)});
         float rad = max(wide, ${FLAKE_PX.quad.toFixed(1)}) * 0.5;
@@ -217,7 +226,8 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
         float reach = mix(${(BOX / 2).toFixed(1)}, ${MOTE_REACH.toFixed(1)}, uMote);
         vAlpha = min(px, 1.0) * smoothstep(reach, reach * 0.6, dist)
           * smoothstep(0.25, 1.0, dist) * mix(1.0, 0.6, uMote)
-          * max(pow(wide / (len + wide), ${SMEAR_SPREAD.toFixed(2)}), 0.15);
+          * max(pow(wide / (len + wide), ${SMEAR_SPREAD.toFixed(2)}), mix(0.15, ${STREAKS.floor.toFixed(2)}, streak))
+          * (1.0 + ${STREAKS.light.toFixed(2)} * streak);
         vCol = uLit;
         for (int i = 0; i < ${LAMP_SLOTS}; i++) {
           if (uLampOn[i] <= 0.0) break;
@@ -376,6 +386,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       const lensV = lensTrack.step(camera.position, dt);
       airPast(carried, lensV, air);
       own.uAir.value.set(air.x, air.y, air.z);
+      own.uPace.value = streakOf(Math.hypot(lensV.x, lensV.y, lensV.z));
       if (dt > 0) own.uShutter.value = shutterOf(dt);
 
       const strength =

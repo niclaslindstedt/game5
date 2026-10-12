@@ -232,6 +232,10 @@ export type BoomRig = {
   /** Share of a lift's close look (`RigPose.ride`) the rig takes, 0..1: the
    * chase comes in behind a rider, the far and high lenses keep their own. */
   ride: number;
+  /** THE BANK: share of his roll on the snow the horizon takes, 0..1 — a
+   * camera following a carve cants a little into it, so the turn reads as
+   * a turn and not as the world sliding sideways. Never in the air. */
+  bank?: number;
   /** Share of THE FALL LOOK (`camera-fall.ts`) the rig takes, 0..1 — up
    * over his back and looking down at his landing in a long fall. A
    * machine's ladder leaves it out: under a wing he is not falling. */
@@ -318,6 +322,7 @@ export const RIGS: Record<Rung, Rig> = {
     clearance: 0.9,
     ride: 1,
     fall: 1,
+    bank: 0.12,
   },
   far: {
     kind: "boom",
@@ -346,6 +351,7 @@ export const RIGS: Record<Rung, Rig> = {
     clearance: 1.4,
     ride: 0,
     fall: 1,
+    bank: 0.07,
   },
   high: {
     kind: "boom",
@@ -416,6 +422,8 @@ export type BoomState = {
   /** THE TREMOR's memory: its own clock, s, and its envelope, 0..1. */
   clock: number;
   buzz: number;
+  /** THE BANK's memory: the roll the horizon is canted by, rad. */
+  bank: number;
   /** THE FALL LOOK's memory (`camera-fall.ts`). */
   fallen: FallMemory;
 };
@@ -436,6 +444,7 @@ export function createBoomState(): BoomState {
     surge: 0,
     clock: 0,
     buzz: 0,
+    bank: 0,
     fallen: createFallMemory(),
   };
 }
@@ -750,8 +759,18 @@ export function frameRig(
   eye.x += fz * shake.x * buzz;
   eye.y += shake.y * buzz;
   eye.z -= fx * shake.x * buzz;
-  return { eye, target, fov, roll: shake.r * PACE.tremor.roll };
+  // THE BANK: a share of his roll on the snow, eased so a take-off or a
+  // spin never jerks the horizon.
+  const lean = pose.airborne ? 0 : Math.max(-BANK_MOST, Math.min(BANK_MOST, pose.roll));
+  const bankWant = lean * (rig.bank ?? 0) * (1 - fallen);
+  st.bank = snap ? bankWant : st.bank + (bankWant - st.bank) * (1 - Math.exp(-dt * BANK_RATE));
+  return { eye, target, fov, roll: st.bank + shake.r * PACE.tremor.roll };
 }
+
+/** The most of his roll the bank reads, rad, and how briskly it follows,
+ * 1/s. */
+const BANK_MOST = 1;
+const BANK_RATE = 4;
 
 /** THE LOOK AT A SUMMIT (`camera-summit.ts`): the share of the boom's
  * lean with the mountain taken out (all but a little), the share past which

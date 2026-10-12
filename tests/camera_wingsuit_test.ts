@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE WINGSUIT'S LENSES (`camera-wingsuit.ts`): the chase flyer behind and
-// over him looking down along his line, the side flyer off his wingtip, the
-// first person ahead and down, the hover exit framed off the helicopter's
+// THE WINGSUIT'S LENSES (`camera-wingsuit.ts`): the chase flyer straight
+// behind and over him looking along his way, the far flyer behind him too,
+// the first person ahead and down, the launch's dramatic shot flown round
+// behind him within two seconds, the hover exit framed off the helicopter's
 // side and out of its disc, and every change of rung flown round him.
 
 import { describe, expect, it } from "vitest";
@@ -10,6 +11,10 @@ import { HELI, type ChuteState } from "@engine";
 import {
   createWingsuitCam,
   flightWay,
+  IN_VIEW,
+  keepInView,
+  launchShare,
+  SUIT_LAUNCH,
   swingLens,
   wingsuitFramed,
   wingsuitLens,
@@ -56,18 +61,22 @@ describe("the wingsuit's lenses in flight", () => {
     expect(flightWay(1, { x: 0, y: 0, z: 0 }).x).toBeCloseTo(Math.sin(1), 5);
   });
 
-  it("chases from behind and over him, looking down along his line", () => {
+  it("chases from straight behind and over him, looking where he goes", () => {
     const l = wingsuitLens("chase", chute("freefall"), subject());
     expect(l.eye.z).toBeLessThan(at.z - 3);
+    expect(Math.abs(l.eye.x - at.x)).toBeLessThan(0.5);
     expect(l.eye.y - at.y).toBeGreaterThan(1);
     expect(l.eye.y - at.y).toBeLessThan(6);
-    // Looking down well past the horizon: the mountain fills the frame.
+    // Down along his line, past him, but never straight down at the map.
     expect(down(l)).toBeGreaterThan(0.3);
+    expect(down(l)).toBeLessThan(0.9);
+    expect(l.target.z).toBeGreaterThan(at.z + 15);
   });
 
-  it("puts the side flyer off a wingtip and the high lens over him", () => {
+  it("keeps the far flyer behind him too, and the high lens over him", () => {
     const far = wingsuitLens("far", chute("freefall"), subject());
-    expect(Math.abs(far.eye.x - at.x)).toBeGreaterThan(5);
+    expect(far.eye.z).toBeLessThan(at.z - 6);
+    expect(Math.abs(far.eye.x - at.x)).toBeLessThan(2);
     const high = wingsuitLens("high", chute("freefall"), subject());
     expect(high.eye.y - at.y).toBeGreaterThan(8);
     expect(down(high)).toBeGreaterThan(0.6);
@@ -111,6 +120,68 @@ describe("the hover exit", () => {
     const fly = wingsuitLens("chase", chute("freefall"), s);
     expect(late).toEqual(fly);
     expect(early.eye.x).toBeGreaterThan(at.x + 2);
+  });
+});
+
+describe("the launch", () => {
+  it("opens in front of him off a ledge and is behind him within two seconds", () => {
+    const s = subject();
+    const early = wingsuitLens("chase", chute("exit", { since: 0.2 }), s);
+    expect(early.eye.z).toBeGreaterThan(at.z + 3);
+    const done = SUIT_LAUNCH.hold + SUIT_LAUNCH.fly;
+    expect(done).toBeLessThanOrEqual(2);
+    expect(launchShare(done + 1e-9)).toBe(1);
+    const flown = wingsuitLens("chase", chute("freefall", { since: done + 1e-9 }), s);
+    expect(flown).toEqual(wingsuitLens("chase", chute("freefall"), s));
+    expect(flown.eye.z).toBeLessThan(at.z);
+  });
+
+  it("leaves his own eyes alone", () => {
+    const s = subject();
+    const eyes = wingsuitLens("helmet", chute("exit", { since: 0.2 }), s);
+    expect(eyes).toEqual(wingsuitLens("helmet", chute("freefall", { since: 0.2 }), s));
+  });
+});
+
+describe("keeping him in view", () => {
+  it("turns an aim that has lost him back until he is inside the frame", () => {
+    const lens: LensPose = {
+      eye: { x: 0, y: 510, z: -5 },
+      target: { x: 0, y: 510, z: 40 },
+      fov: 60,
+      roll: 0,
+    };
+    const off = (l: LensPose): number => {
+      const t = { x: l.target.x - l.eye.x, y: l.target.y - l.eye.y, z: l.target.z - l.eye.z };
+      const b = { x: at.x - l.eye.x, y: at.y - l.eye.y, z: at.z - l.eye.z };
+      const c =
+        (t.x * b.x + t.y * b.y + t.z * b.z) / Math.hypot(t.x, t.y, t.z) / Math.hypot(b.x, b.y, b.z);
+      return Math.acos(c);
+    };
+    expect(off(lens)).toBeGreaterThan(0.6);
+    const kept = keepInView(lens, at);
+    expect(off(kept)).toBeCloseTo(((60 * Math.PI) / 360) * IN_VIEW, 5);
+    expect(kept.eye).toEqual(lens.eye);
+    // One that holds him already is left alone.
+    const fine = wingsuitLens("chase", chute("freefall"), subject());
+    expect(keepInView(fine, at)).toEqual(fine);
+  });
+
+  it("never loses him through the launch", () => {
+    const s = subject({ v: { x: 0, y: -25, z: 6 } });
+    for (let t = 0; t <= 2.5; t += 0.1) {
+      const l = wingsuitLens("chase", chute(t < 1 ? "exit" : "freefall", { since: t }), s);
+      const tx = l.target.x - l.eye.x;
+      const ty = l.target.y - l.eye.y;
+      const tz = l.target.z - l.eye.z;
+      const bx = at.x - l.eye.x;
+      const by = at.y - l.eye.y;
+      const bz = at.z - l.eye.z;
+      const c = (tx * bx + ty * by + tz * bz) / Math.hypot(tx, ty, tz) / Math.hypot(bx, by, bz);
+      expect(Math.acos(Math.min(1, c))).toBeLessThanOrEqual(
+        ((l.fov * Math.PI) / 360) * IN_VIEW + 1e-6,
+      );
+    }
   });
 });
 

@@ -189,14 +189,15 @@ export async function peopleFamily(ctx) {
   const one = new THREE.Vector3(1, 1, 1);
   const pos = new THREE.Vector3();
   /** A civilian's joints off his pose at `t` (`id` his dials' phase). */
-  const drawCivilian = (c, i, pose, t, id) => {
+  const drawCivilian = (c, i, pose, t, id, share = 1) => {
     if (c.skis) {
       // On his skis: the crowd's figure on the snow's slope.
       const moving = pose.activity === "skate";
       skater.id = 50000 + i;
       skater.body = c.body;
-      skater.speed = moving ? c.leg.speed : 0;
-      skater.push = moving ? 1 : 0;
+      const go = moving ? moves.settled(pose.since) : 1 - moves.settled(pose.since);
+      skater.speed = go * c.leg.speed;
+      skater.push = go;
       skater.pole = pose.walked / SKATE_STRIDE;
       rig.dialsOf(skater, skiDials, t, 0);
       level.normalAt(pose.x, pose.z, normal);
@@ -209,8 +210,20 @@ export async function peopleFamily(ctx) {
       m.compose(pos.set(pose.x, level.groundAt(pose.x, pose.z), pose.z), quat, one);
       return throughMatrix(blendPoints(skaterSkel(c.body), skiDials), m.elements);
     }
-    moves.civilianDials(pose, t, id, dials);
+    dialsAt(pose, t, id, share, (u, o) => plans.civilianAt(plan, i, u, hour, o));
     return yawed(blendPoints(civilianSkel(c.body), dials), pose.x, pose.y, pose.z, pose.heading);
+  };
+  /** The weights as `civilians-view.ts` reads them: eased out of `from`
+   * by `share` when it is home from a knock (`share` < 1), else out of
+   * what he did a moment ago (`at` his plan). */
+  const from = plans.freshCivilianPose();
+  const dialsAt = (p, t, id, share, at) => {
+    if (share >= 1 && p.since < moves.SETTLE) {
+      at(moves.settledFrom(t, p), from);
+      share = moves.settled(p.since);
+    }
+    if (share < 1) moves.civilianDialsFrom(p, from, p.since, share, t, id, dials);
+    else moves.civilianDials(p, t, id, dials);
   };
 
   // --- the scenes, found in the plans -----------------------------------
@@ -333,7 +346,7 @@ export async function peopleFamily(ctx) {
       walkPose.dogWalkerAt(dogs, h, 0, t, hour, pose);
       if (!pose.shown) return null;
       // The owner is drawn as a civilian of his household's body.
-      moves.civilianDials(pose, t, 9000 + h * 2, dials);
+      dialsAt(pose, t, 9000 + h * 2, 1, (u, o) => walkPose.dogWalkerAt(dogs, h, 0, u, hour, o));
       return yawed(
         blendPoints(civilianSkel(dogs.households[h].walker), dials),
         pose.x,
@@ -449,9 +462,13 @@ export async function peopleFamily(ctx) {
         phase = k.phase;
       } else {
         plans.civilianAt(plan, i, t, hour, pose);
-        if (k) walkBack(k, pose);
+        let share = 1;
+        if (k) {
+          walkBack(k, pose);
+          if (!c.skis) share = hits.backFrom(k, pose, from);
+        } else if (pose.shown && !c.skis) share = hits.homeFrom(knocks, i, t, pose, from);
         if (!pose.shown) continue;
-        joints = drawCivilian(c, i, pose, t, i);
+        joints = drawCivilian(c, i, pose, t, i, share);
         phase = k ? "back" : pose.activity;
       }
       out.push({ t: t - t0, joints, phase });
@@ -459,20 +476,7 @@ export async function peopleFamily(ctx) {
     return out;
   };
   /** Walking back to his routine (`civilians-view.ts`' `walkBack`). */
-  const walkBack = (k, out) => {
-    out.x = k.bx;
-    out.z = k.bz;
-    out.y = level.groundAt(k.bx, k.bz);
-    out.heading = k.heading;
-    out.activity = "walk";
-    out.walked = k.walked;
-    out.clock = k.walked;
-    out.span = 1;
-    out.carry = "none";
-    out.seat = null;
-    out.bag = false;
-    out.shown = true;
-  };
+  const walkBack = (k, out) => hits.walkBackPose(k, level.groundAt(k.bx, k.bz), out);
   knock(
     "knock-stood",
     "a patroller knocked down by a skier",

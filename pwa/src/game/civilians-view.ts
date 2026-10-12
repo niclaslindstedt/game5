@@ -33,10 +33,25 @@ import * as THREE from "three";
 import { CROWD_BODIES, type Amateur, type CrowdBody, type GameState, type Level } from "@engine";
 
 import { civilianKit, kitParts, type CivilianKit } from "./civilian-dress.ts";
-import { createKnocks, peopleOf, updateKnocks } from "./civilian-hits.ts";
+import {
+  backFrom,
+  createKnocks,
+  homeFrom,
+  peopleOf,
+  updateKnocks,
+  walkBackPose,
+} from "./civilian-hits.ts";
 import { onRagdoll, type Knock } from "./civilian-knock.ts";
 import { knockedPose } from "./civilian-knock-pose.ts";
-import { CIVILIAN_POSES, civilianDials, snowballAt } from "./civilian-moves.ts";
+import {
+  CIVILIAN_POSES,
+  SETTLE,
+  civilianDials,
+  civilianDialsFrom,
+  settled,
+  settledFrom,
+  snowballAt,
+} from "./civilian-moves.ts";
 import {
   type Civilian,
   civilianAt,
@@ -424,18 +439,15 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   };
   /** Walking back to his routine: drawn walking where he walks. */
   const walkBack = (k: Knock, out: typeof pose): void => {
-    out.x = k.bx;
-    out.z = k.bz;
-    out.y = level.groundAt(k.bx, k.bz);
-    out.heading = k.heading;
-    out.activity = "walk";
-    out.walked = k.walked;
-    out.clock = k.walked;
-    out.span = 1;
-    out.carry = "none";
-    out.seat = null;
-    out.bag = false;
-    out.shown = true;
+    walkBackPose(k, level.groundAt(k.bx, k.bz), out);
+  };
+  /** The pose a moment before what he does changed, or the walk back home
+   * from a knock, that he is eased out of. */
+  const from = freshCivilianPose();
+  /** His weights at `pose`, eased out of `from` by `share` (1: none). */
+  const dialsAt = (t: number, id: number, share: number): void => {
+    if (share < 1) civilianDialsFrom(pose, from, pose.since, share, t, id, dials);
+    else civilianDials(pose, t, id, dials);
   };
 
   const update: CiviliansView["update"] = (state, eye, cull) => {
@@ -459,9 +471,19 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
         continue;
       }
       civilianAt(plan, i, t, hour, pose);
+      // Eased into what he does now: home from a knock, else out of what
+      // he did a moment ago.
+      let share = 1;
       if (knock) {
         walkBack(knock, pose);
         if (c.skis) pose.activity = "skate";
+        else share = backFrom(knock, pose, from);
+      } else if (pose.shown) {
+        share = c.skis ? 1 : homeFrom(knocks, i, t, pose, from);
+        if (share >= 1 && pose.since < SETTLE) {
+          civilianAt(plan, i, settledFrom(t, pose), hour, from);
+          share = settled(pose.since);
+        }
       }
       if (!pose.shown) continue;
       const dx = pose.x - eye.x;
@@ -488,11 +510,13 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
         // ON HIS SKIS: the crowd's figure, stood on the snow's slope.
         const slot = skiSlotOf(c.body, lod);
         if (!slot) continue;
+        // Into his skating and out of it over a moment, never at once.
         const moving = pose.activity === "skate";
+        const go = moving ? settled(pose.since) : 1 - settled(pose.since);
         skater.id = 50000 + i;
         skater.body = c.body;
-        skater.speed = moving ? c.leg!.speed : 0;
-        skater.push = moving ? 1 : 0;
+        skater.speed = go * c.leg!.speed;
+        skater.push = go;
         skater.pole = pose.walked / SKATE_STRIDE;
         dialsOf(skater, skiDials, t, 0);
         level.normalAt(pose.x, pose.z, normal);
@@ -520,7 +544,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       quat.setFromAxisAngle(yAxis, pose.heading);
       m.compose(pos.set(pose.x, pose.y, pose.z), quat, one);
       slot.mesh.setMatrixAt(k, m);
-      civilianDials(pose, t, ids[i], dials);
+      dialsAt(t, ids[i], share);
       const w = slot.weights;
       const at = k * (TARGETS + 1);
       w[at] = 1;
@@ -539,7 +563,17 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
         continue;
       }
       dogWalkerAt(dogs!, w.h, w.member, t, hour, pose);
-      if (knock) walkBack(knock, pose);
+      let share = 1;
+      if (knock) {
+        walkBack(knock, pose);
+        share = backFrom(knock, pose, from);
+      } else if (pose.shown) {
+        share = homeFrom(knocks, plan.people.length + wi, t, pose, from);
+        if (share >= 1 && pose.since < SETTLE) {
+          dogWalkerAt(dogs!, w.h, w.member, settledFrom(t, pose), hour, from);
+          share = settled(pose.since);
+        }
+      }
       if (!pose.shown) continue;
       const far = Math.hypot(pose.x - eye.x, pose.y - eye.y, pose.z - eye.z);
       if (far > CIVILIAN_CUTS.far) continue;
@@ -553,7 +587,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
       quat.setFromAxisAngle(yAxis, pose.heading);
       m.compose(pos.set(pose.x, pose.y, pose.z), quat, one);
       slot.mesh.setMatrixAt(k, m);
-      civilianDials(pose, t, 9000 + w.h * 2 + w.member, dials);
+      dialsAt(t, 9000 + w.h * 2 + w.member, share);
       const wt = slot.weights;
       const at = k * (TARGETS + 1);
       wt[at] = 1;

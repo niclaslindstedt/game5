@@ -47,6 +47,8 @@ export type RouteAt = {
   line: number;
   along: number;
   walked: number;
+  /** How long he has been on this line or at this stop, s. */
+  since: number;
 };
 
 export function freshRouteAt(): RouteAt {
@@ -61,6 +63,7 @@ export function freshRouteAt(): RouteAt {
     line: 0,
     along: 0,
     walked: 0,
+    since: 0,
   };
 }
 
@@ -107,6 +110,9 @@ function headingOf(r: Route, k: number): number {
   return Math.atan2(b.x - a.x, b.z - a.z);
 }
 
+/** How long a person takes to turn to his next line at a stop, s. */
+const TURN = 0.9;
+
 const ease = (u: number): number => {
   const c = Math.max(0, Math.min(1, u));
   return c * c * (3 - 2 * c);
@@ -140,6 +146,7 @@ export function routeAt(r: Route, u: number, out: RouteAt = freshRouteAt()): Rou
         out.stop = -1;
         out.out = !back;
         out.walked = walked + s;
+        out.since = w;
         return out;
       }
       w -= walk;
@@ -158,12 +165,26 @@ export function routeAt(r: Route, u: number, out: RouteAt = freshRouteAt()): Rou
           out.x = p.x + r.side * (a.x + (b.x - a.x) * f);
           out.z = p.z + r.side * (a.z + (b.z - a.z) * f);
         }
-        out.heading = headingOf(r, k) + (back ? Math.PI : 0);
+        // Turned to the next line over the pause's end, as a person turns
+        // before he sets off — never round in a frame as he goes.
+        const was = headingOf(r, k) + (back ? Math.PI : 0);
+        const then =
+          back && k > 0
+            ? headingOf(r, k - 1) + Math.PI
+            : back
+              ? headingOf(r, 0)
+              : k + 1 < legs
+                ? headingOf(r, k + 1)
+                : was + Math.PI;
+        const turnFor = Math.min(TURN, r.pause);
+        const f = turnFor > 0 ? ease((w - (r.pause - turnFor)) / turnFor) : 0;
+        out.heading = was + Math.atan2(Math.sin(then - was), Math.cos(then - was)) * f;
         out.moving = false;
         out.paused = w;
         out.stop = stop;
         out.out = !back;
         out.walked = walked;
+        out.since = w;
         return out;
       }
       w -= r.pause;
@@ -171,12 +192,13 @@ export function routeAt(r: Route, u: number, out: RouteAt = freshRouteAt()): Rou
   }
   // Round the end of the cycle to its first stop.
   place(r, 0, 0, out);
-  out.heading = headingOf(r, 0) + Math.PI;
+  out.heading = headingOf(r, 0);
   out.moving = false;
   out.paused = r.pause;
   out.stop = 0;
   out.out = false;
   out.walked = walked;
+  out.since = Infinity;
   return out;
 }
 

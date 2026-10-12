@@ -109,6 +109,7 @@ export function dogWalkerAt(
   out.shown = w !== null && householdOut(plan, h, hour);
   out.seat = null;
   out.bag = false;
+  out.since = Infinity;
   if (!w) return out;
   const hh = plan.households[h];
   const arc = walkerArc(w.legs, t);
@@ -123,6 +124,8 @@ export function dogWalkerAt(
   out.walked = arc;
   out.carry = member === 0 ? "lead" : "none";
   out.bag = member === 0 && t >= w.bag;
+  // Since his last change of leg (a stop begun or ended, a walk begun).
+  out.since = t >= leg.t0 ? t - leg.t0 : Infinity;
   if (leg.act === "walk") {
     out.activity = "walk";
     out.clock = t - w.t0;
@@ -168,7 +171,9 @@ export function dogAt(
   // Turned the way it moves (its sidestep to a stop's place in), else the
   // way the line runs.
   const dLat = (dogSide(w, d, dog.side, t + dt) - dogSide(w, d, dog.side, t - dt)) / (2 * dt);
-  out.heading = AT.heading + (speed > 0.15 ? Math.atan2(dLat, speed) : 0);
+  // Faded in with its speed rather than switched, so it never swings round.
+  const aside = Math.atan2(dLat, Math.max(speed, 1e-6)) * ease((speed - 0.08) / 0.2);
+  out.heading = AT.heading + aside;
   out.speed = speed;
   out.lift = 0;
   // Its stride off how far along it is; a trot past the gait's change.
@@ -187,12 +192,15 @@ export function dogAt(
       st.circle > 0
         ? 2 * Math.PI * ease((t - st.te) / st.circle) * (1 - ease((t - st.tr) / 0.8))
         : 0;
-    out.heading = AT.heading + turn(0, st.yaw) * into + circle;
+    out.heading = AT.heading + aside * (1 - into) + turn(0, st.yaw) * into + circle;
     if (now.stop) {
       const squat = st.act === "poop" && t >= st.te + st.circle;
       out.act = st.act === "sniff" || (st.act === "poop" && !squat) ? "sniff" : st.act;
       out.clock = t - (squat ? st.te + st.circle : st.te);
-      out.span = st.tr - (squat ? st.te + st.circle : st.te);
+      // Circling before a squat its nose is down only until the squat:
+      // eased out as the squat comes, never dropped at it.
+      out.span =
+        st.act === "poop" && !squat ? st.circle : st.tr - (squat ? st.te + st.circle : st.te);
       out.lift = st.act === "mark" ? st.lift : 0;
       return out;
     }

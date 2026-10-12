@@ -642,6 +642,90 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
   }
 }
 
+/** HOW LONG A CHANGE OF WHAT HE DOES IS BLENDED OVER, s: a turn to talk,
+ * the broom taken up, a walk begun or ended — the pose a moment before
+ * eased out over this (`civilianDialsFrom`), never switched in a frame. */
+export const SETTLE = 0.35;
+
+/** The share of the pose he has gone into `since` s ago (the rest is the
+ * one before), over `over` s. */
+export function settled(since: number, over = SETTLE): number {
+  return ease(since / over);
+}
+
+/** When to ask his plan for the pose he is settling out of: a moment
+ * before what he does changed. */
+export function settledFrom(t: number, p: CivilianPose): number {
+  return t - p.since - 1e-3;
+}
+
+/** Whether two poses are drawn by the same move: nothing to settle. */
+function sameMove(a: CivilianPose, b: CivilianPose): boolean {
+  return a.activity === b.activity && a.carry === b.carry && a.seat === b.seat;
+}
+
+const fromPose: CivilianPose = {
+  x: 0,
+  y: 0,
+  z: 0,
+  heading: 0,
+  activity: "stand",
+  clock: 0,
+  span: 1,
+  walked: 0,
+  carry: "none",
+  seat: null,
+  shown: true,
+  bag: false,
+  since: Infinity,
+};
+const fromDials = new Float32Array(CIVILIAN_POSES.length);
+
+/**
+ * THE WEIGHTS of a civilian SETTLING INTO A NEW MOVE: `p`'s
+ * (`civilianDials`) at `share` of the whole, the rest `from`'s — the pose a
+ * moment before the change, its own clock run on `elapsed` s so a dance or
+ * a broom eases out still moving rather than frozen. Every share is a pure
+ * function of the clock, so nothing is kept between frames.
+ */
+export function civilianDialsFrom(
+  p: CivilianPose,
+  from: CivilianPose,
+  elapsed: number,
+  share: number,
+  t: number,
+  id: number,
+  out: Float32Array,
+): void {
+  civilianDials(p, t, id, out);
+  // The same move on (a walk's next leg, a word after a word) runs on
+  // continuous as it is.
+  if (share >= 1 || sameMove(p, from)) return;
+  Object.assign(fromPose, from);
+  fromPose.clock = from.clock + elapsed;
+  civilianDials(fromPose, t, id, fromDials);
+  for (let j = 0; j < out.length; j++) out[j] = out[j] * share + fromDials[j] * (1 - share);
+}
+
+const TARGET_POINTS: number[][] = [];
+
+/** THE BODY AT A CIVILIAN'S WEIGHTS, as the ragdoll's points in his own
+ * frame (`keyPoints`): the stance and every target blended as the figure's
+ * morph targets blend them — the pose a knock takes over from. */
+export function dialsPoints(dials: Float32Array): number[] {
+  const base = keyPoints(STOOD, 0);
+  if (TARGET_POINTS.length === 0)
+    for (const name of CIVILIAN_POSES) TARGET_POINTS.push(keyPoints(MOVES[name].key, 0));
+  const out = base.slice();
+  for (let j = 0; j < dials.length; j++) {
+    const w = dials[j];
+    if (w === 0) continue;
+    const p = TARGET_POINTS[j];
+    for (let k = 0; k < out.length; k++) out[k] += w * (p[k] - base[k]);
+  }
+  return out;
+}
+
 /** Of a throw's span, the share at which the snowball leaves his hand. */
 const LEAVES = THROW.wind + 0.12;
 

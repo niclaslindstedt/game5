@@ -190,6 +190,10 @@ export type CivilianPose = {
   shown: boolean;
   /** A dog walker's: a full bag in his left hand, a pile picked up. */
   bag: boolean;
+  /** How long ago what he does last changed, s (Infinity: long ago) — the
+   * moment his pose a little before it is asked for, to blend out of
+   * (`civilianDials`' `from`). */
+  since: number;
 };
 
 export function freshCivilianPose(): CivilianPose {
@@ -206,6 +210,7 @@ export function freshCivilianPose(): CivilianPose {
     seat: null,
     shown: false,
     bag: false,
+    since: Infinity,
   };
 }
 
@@ -768,12 +773,15 @@ export function civilianAt(
       out.activity = c.skis ? "skate" : c.role === "roller" && at.out ? "roll" : "walk";
       out.clock = at.walked / c.leg.speed;
       out.span = c.leg.length / c.leg.speed;
+      out.since = at.since;
       return out;
     }
     // Stood at a stop, as the routine has it.
     out.activity = held.act === "walk" ? "stand" : held.act;
     out.clock = at.paused;
     out.span = c.leg.pause;
+    // On his skis what he does stood is not drawn: only the stop counts.
+    out.since = c.skis ? at.since : Math.min(at.since, into);
     return out;
   }
   out.x = c.home.x;
@@ -784,6 +792,7 @@ export function civilianAt(
   // The terrace dances to one beat: the run's own clock.
   out.clock = held.act === "dance" ? t : into;
   out.span = held.seconds;
+  out.since = into;
   return out;
 }
 

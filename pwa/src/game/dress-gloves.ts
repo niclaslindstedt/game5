@@ -59,15 +59,47 @@ const FINGERS = [
   { up: -0.083, w: 0.0098, t: 0.0104, reach: 0.9 },
 ];
 
-/** WHERE A SLEEVE ENDS UNDER A GAUNTLET, m along the forearm from the
- * grip's top (negative, up the arm): tucked well inside the gauntlet's
- * mouth, which stands over it to 0.186 m, so the cuff is pulled on over
- * the sleeve as a real one is and no hem shows through it. */
-export const GAUNTLET_SLEEVE = -0.13;
+/** Where the WRIST is, m along the forearm from the grip's top: the
+ * strap's middle, where the hand gives way to the cuff. */
+const WRIST = -0.056;
+
+/** A GLOVE'S SIZE, measured off real ones (`make glove-metrics`): a cuff's
+ * length from the wrist to its mouth, m, and the half widths of its mouth
+ * and of the wrist under its strap. A gauntlet laid flat is ~0.9 of its
+ * hand's length from the wrist to the mouth, its mouth ~1.45 the palm's
+ * width and its wrist ~0.9 — ~41 cm round the mouth and ~28 round the
+ * wrist on a man's hand — and it flares out of the strap over its first
+ * ~8 cm and runs on near straight, its drawcord gathering the rim. A race
+ * glove's cuff is half that, a knit undercuff a wristband's. */
+const CUFFS = {
+  gauntlet: { length: 0.172, mouth: 0.062, wrist: 0.043 },
+  mitten: { length: 0.165, mouth: 0.063, wrist: 0.044 },
+  race: { length: 0.095, mouth: 0.055, wrist: 0.043 },
+  undercuff: { length: 0.065, mouth: 0.04, wrist: 0.035 },
+} as const;
+
+/** A WOMAN'S HAND against a man's: the survey's mean breadth and girth
+ * (78 mm and 187 mm against 88 and 212). */
+const WOMAN_HAND = 0.89;
+
+/** A glove's girths scaled to the hand in it, and a cuff to the forearm
+ * (rounder on a heavier build). */
+const handScale = (o: Outfit): number => (gearOf("body", o.body).female ? WOMAN_HAND : 1);
+const limbScale = (o: Outfit): number => 1 + (gearOf("weight", o.weight).girth - 1) * 0.7;
 
 /** Whether the gloves are pulled on OVER the sleeve (a gauntlet's cuff),
  * rather than tucked up under it (the undercuff). */
 export const overSleeve = (o: Outfit): boolean => o.gloves !== "undercuff";
+
+/** WHERE A CUFF'S MOUTH STANDS over the sleeve it is pulled on over: `at`
+ * m along the forearm from the grip's top (negative, up the arm), and the
+ * room inside it — the sleeve is gathered into the mouth to fit (a real
+ * sleeve's cuff is cinched in under the gauntlet), so nothing of it pokes
+ * out through the glove. */
+export function gauntletMouth(o: Outfit): { at: number; room: number } {
+  const c = CUFFS[o.gloves];
+  return { at: WRIST - c.length, room: c.mouth * handScale(o) * limbScale(o) * 0.86 - 0.003 };
+}
 
 /** THE GLOVES: one a hand, its fist round the grip and its cuff up the
  * forearm. */
@@ -77,6 +109,8 @@ export function cutGloves(loom: Loom, o: Outfit): void {
   const mitten = o.gloves === "mitten";
   const race = o.gloves === "race";
   const under = o.gloves === "undercuff";
+  const k = handScale(o);
+  const limb = limbScale(o);
   for (let i = 0; i < 2; i++) {
     const s = i === 0 ? "l" : "r";
     const fa = F[`forearm_${s}`];
@@ -97,7 +131,6 @@ export function cutGloves(loom: Loom, o: Outfit): void {
     // the hand is where cos(t) has the sign of `out`.
     const backness = (t: number): number => Math.cos(t) * out;
 
-    const WRIST = -0.056;
     const weights = (p: V3): Influence[] => {
       const along = dot(sub(p, top), d);
       const k = smoothstep((along - WRIST + 0.035) / 0.05);
@@ -110,9 +143,12 @@ export function cutGloves(loom: Loom, o: Outfit): void {
 
     // THE HAND: the back and the palm, from the wrist to the knuckles, its
     // middle a little down the grip from its top.
-    const mid = -0.046;
-    const hw = mitten ? 0.033 : 0.03;
-    const hu = mitten ? 0.058 : 0.054;
+    const mid = -0.046 * k;
+    const hw = (mitten ? 0.0265 : 0.025) * k;
+    const hu = (mitten ? 0.057 : 0.054) * k;
+    // The wrist's padding is the same whatever the hand in it: a smaller
+    // hand's glove is a little rounder there than its hand's scale.
+    const pad = 1 + (1 - k) * 0.4;
     const knuckle = 0.078;
     const H0 = 0.0;
     loom.tube({
@@ -120,8 +156,8 @@ export function cutGloves(loom: Loom, o: Outfit): void {
       face: [up, up],
       round: 0.02,
       sections: [
-        { s: H0, w: hw * 0.86, f: hu * 0.72, b: hu * 0.72 },
-        { s: 0.03, w: hw * 0.95, f: hu * 0.9, b: hu * 0.88 },
+        { s: H0, w: hw * 1.03 * pad, f: hu * 0.96 * pad, b: hu * 0.96 * pad },
+        { s: 0.03, w: hw * pad, f: hu * 0.95 * pad, b: hu * 0.93 * pad },
         { s: 0.055, w: hw, f: hu, b: hu * 0.96 },
         { s: knuckle - 0.004, w: hw * 0.98, f: hu * 0.98, b: hu * 0.94 },
         { s: knuckle + 0.007, w: hw * 0.8, f: hu * 0.86, b: hu * 0.82 },
@@ -132,12 +168,12 @@ export function cutGloves(loom: Loom, o: Outfit): void {
       angles: [Math.PI / 2 - out * 0.9, -Math.PI / 2 + out * 0.9],
       square: 3.2,
       fold: (sl, t) => {
-        let k = 0;
+        let proud = 0;
         // The padded knuckle band across the back.
-        if (sl > 0.06 && sl < 0.074 && backness(t) > 0.35) k += mitten ? 0.002 : 0.004;
+        if (sl > 0.06 && sl < 0.074 && backness(t) > 0.35) proud += mitten ? 0.002 : 0.004;
         // The race glove's shield proud over the back of the hand.
-        if (race && sl > 0.015 && sl < 0.057 && backness(t) > 0.45) k += 0.0045;
-        return k;
+        if (race && sl > 0.015 && sl < 0.057 && backness(t) > 0.45) proud += 0.0035;
+        return proud;
       },
       colour: (sl, t) => {
         const b = backness(t);
@@ -153,12 +189,17 @@ export function cutGloves(loom: Loom, o: Outfit): void {
 
     // THE FINGERS: curled round the grip's front from the knuckles into the
     // palm — or, in a mitten, one mitt where all four are.
+    // A smaller hand's fingers wrap the same grip closer, and so reach less
+    // far round it: the curl drawn in about the grip's middle.
+    const wrap = 1 - (1 - k) * 0.6;
+    const wrapped = (a: number, b: number, u: number): V3 =>
+      at(0.012 + (a - 0.012) * wrap, b * wrap, u);
     const curl = (u: number, reach: number): V3[] => [
-      at(-0.002, 0.021, u),
-      at(0.018, 0.024, u),
-      at(0.03 + 0.004 * reach, 0.004, u),
-      at(0.024, -0.019, u),
-      at(0.004, -0.027, u),
+      wrapped(-0.002, 0.021, u),
+      wrapped(0.018, 0.024, u),
+      wrapped(0.03 + 0.004 * reach, 0.004, u),
+      wrapped(0.024, -0.019, u),
+      wrapped(0.004, -0.027, u),
     ];
     const fingerColour = (sl: number, t: number, plates: boolean): number => {
       // The ring's +x (the curl's way × up) lies in the curl's plane, and
@@ -169,16 +210,16 @@ export function cutGloves(loom: Loom, o: Outfit): void {
       return g.main;
     };
     if (mitten) {
-      const u = -0.05;
+      const u = -0.05 * k;
       loom.tube({
         path: curl(u, 1.08),
         face: [up, up, up, up, up],
         round: 0.016,
         sections: [
-          { s: 0, w: 0.019, f: 0.046, b: 0.046 },
-          { s: 0.035, w: 0.02, f: 0.048, b: 0.046 },
-          { s: 0.07, w: 0.019, f: 0.046, b: 0.044 },
-          { s: 0.092, w: 0.016, f: 0.04, b: 0.038 },
+          { s: 0, w: 0.019 * k, f: 0.046 * k, b: 0.046 * k },
+          { s: 0.035, w: 0.02 * k, f: 0.048 * k, b: 0.046 * k },
+          { s: 0.07, w: 0.019 * k, f: 0.046 * k, b: 0.044 * k },
+          { s: 0.092, w: 0.016 * k, f: 0.04 * k, b: 0.038 * k },
         ],
         step: 0.018,
         segments: 12,
@@ -189,16 +230,18 @@ export function cutGloves(loom: Loom, o: Outfit): void {
       });
     } else {
       for (const f of FINGERS) {
-        const path = curl(f.up, f.reach);
+        const path = curl(f.up * k, f.reach);
+        const fw = f.w * k;
+        const ft = f.t * k;
         loom.tube({
           path,
           face: path.map(() => up),
           round: 0.012,
           sections: [
-            { s: 0, w: f.t * 1.05, f: f.w, b: f.w },
-            { s: 0.03, w: f.t, f: f.w, b: f.w },
-            { s: 0.06, w: f.t * 0.95, f: f.w * 0.95, b: f.w * 0.95 },
-            { s: 0.08 * f.reach, w: f.t * 0.88, f: f.w * 0.88, b: f.w * 0.88 },
+            { s: 0, w: ft * 1.05, f: fw, b: fw },
+            { s: 0.03, w: ft, f: fw, b: fw },
+            { s: 0.06, w: ft * 0.95, f: fw * 0.95, b: fw * 0.95 },
+            { s: 0.08 * f.reach, w: ft * 0.88, f: fw * 0.88, b: fw * 0.88 },
           ],
           step: 0.02,
           cuts: race ? [0.012, 0.05] : [],
@@ -214,7 +257,7 @@ export function cutGloves(loom: Loom, o: Outfit): void {
 
     // THE THUMB: from the palm's side of the hand, over the grip and laid
     // across the index finger's middle.
-    const tw = mitten ? 0.016 : 0.0125;
+    const tw = (mitten ? 0.016 : 0.0135) * k;
     const t0 = at(-0.035, -0.024, -0.008);
     const t1 = at(-0.008, -0.034, 0.004);
     const t2 = at(0.016, -0.031, 0.002);
@@ -237,16 +280,16 @@ export function cutGloves(loom: Loom, o: Outfit): void {
       weights: onHand,
     });
 
-    // THE CUFF: from the wrist up the forearm — a gauntlet's flared over
-    // the sleeve, an undercuff's short knit tucked under it — with the
-    // wrist strap cinched round it.
-    // A gauntlet's mouth is laid round the SLEEVE — on the forearm's own
-    // line, which the sleeve is cut round — and tapers to the wrist under
-    // the fist, a hand's breadth down the grip; wide over the sleeve's end
-    // tucked inside it (`GAUNTLET_SLEEVE`), rounder on a heavier build.
-    const C = under ? 0.065 : 0.13;
-    const limb = 1 + (gearOf("weight", o.weight).girth - 1) * 0.7;
-    const flare = (under ? 0.042 : mitten ? 0.092 : 0.096) * (under ? 1 : limb);
+    // THE CUFF: from the wrist up the forearm — a gauntlet's pulled on over
+    // the sleeve, a race glove's short one, an undercuff's knit tucked under
+    // it — with the wrist strap cinched round it. A gauntlet's mouth is laid
+    // round the SLEEVE, on the forearm's own line (the sleeve is gathered
+    // into it, `gauntletMouth`), and it flares out of the strap over its
+    // first few centimetres and runs on near straight to the mouth.
+    const cuffOf = CUFFS[o.gloves];
+    const C = cuffOf.length;
+    const flare = cuffOf.mouth * k * limb;
+    const cinch = cuffOf.wrist * k;
     const w0 = WRIST - C;
     const strap = [C - 0.03, C - 0.008];
     const rim = under ? 0.012 : 0.016;
@@ -255,34 +298,39 @@ export function cutGloves(loom: Loom, o: Outfit): void {
         ? [at(w0, 0, mid * 0.4), at(WRIST + 0.006, 0.002, mid + 0.004)]
         : [
             at(w0, 0, 0),
-            at(w0 + 0.06, 0, mid * 0.25),
+            at(w0 + 0.06, 0, mid * 0.12),
             at(WRIST - 0.02, 0.002, mid * 0.85),
             at(WRIST + 0.006, 0.002, mid + 0.004),
           ],
       face: under ? [up, up] : [up, up, up, up],
-      sections: [
-        { s: 0, w: flare * 0.94, f: flare * 0.94, b: flare * 0.94 },
-        { s: rim * 0.6, w: flare + 0.002, f: flare + 0.002, b: flare + 0.002 },
-        ...(under
-          ? []
-          : [
-              { s: 0.05, w: flare * 0.93, f: flare * 0.92, b: flare * 0.93 },
-              { s: 0.075, w: flare * 0.8, f: flare * 0.8, b: flare * 0.8 },
-              { s: C - 0.045, w: 0.054, f: 0.058, b: 0.058 },
-            ]),
-        { s: C - 0.028, w: 0.038, f: 0.046, b: 0.046 },
-        { s: C, w: hw * 0.9, f: hu * 0.76, b: hu * 0.76 },
-      ],
+      sections: under
+        ? [
+            { s: 0, w: flare * 0.94, f: flare * 0.94, b: flare * 0.94 },
+            { s: rim * 0.6, w: flare, f: flare, b: flare },
+            { s: C - 0.028, w: cinch, f: cinch * 1.06, b: cinch * 1.06 },
+            { s: C, w: hw * pad, f: hu * 0.9 * pad, b: hu * 0.9 * pad },
+          ]
+        : [
+            // The rim, gathered by its drawcord.
+            { s: 0, w: flare * 0.93, f: flare * 0.93, b: flare * 0.93 },
+            { s: rim * 0.6, w: flare * 0.98, f: flare * 0.98, b: flare * 0.98 },
+            { s: 0.03, w: flare, f: flare, b: flare },
+            { s: C - 0.08, w: flare * 0.97, f: flare * 0.97, b: flare * 0.97 },
+            // Out of the strap, the flare.
+            { s: C - 0.048, w: cinch * 1.22, f: cinch * 1.26, b: cinch * 1.26 },
+            { s: C - 0.028, w: cinch, f: cinch * 1.18, b: cinch * 1.18 },
+            { s: C, w: hw * 1.08 * pad, f: hu * 0.96 * pad, b: hu * 0.96 * pad },
+          ],
       step: 0.024,
       cuts: [rim, strap[0], strap[1], under ? rim : 0.052],
       segments: 12,
       square: 2.6,
       fold: (sl) => {
-        let k = 0;
-        if (sl > strap[0] && sl < strap[1]) k += 0.0035;
+        let proud = 0;
+        if (sl > strap[0] && sl < strap[1]) proud += 0.0035;
         // The rim's binding rolled proud of the cuff.
-        if (sl < rim) k += 0.002;
-        return k;
+        if (sl < rim) proud += 0.002;
+        return proud;
       },
       colour: (sl, t) => {
         if (sl > strap[0] && sl < strap[1]) return g.second;

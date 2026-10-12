@@ -128,9 +128,21 @@ function PauseOptions({
           </KnobGroup>
         </div>
       </MenuBody>
-      <Caption hint={hint} fallback={STRINGS.pauseOptionsCaption} />
+      <Caption hint={hint} />
     </div>
   );
+}
+
+type PausePanel = "card" | "options" | "slopes" | "challenges";
+
+/** The face the NEXT pause card opens on, taken once by it: the card's own
+ * face unless a press asked for another (`pauseOnSlopes`). */
+let nextPanel: PausePanel = "card";
+
+/** The next pause card opens on the PISTE MAP — the wingsuit's landed
+ * plate's press (`hud-result.tsx`), so the map is one press from the snow. */
+export function pauseOnSlopes(): void {
+  nextPanel = "slopes";
 }
 
 export function PauseMenu({
@@ -166,7 +178,11 @@ export function PauseMenu({
 }) {
   // Which of the card's faces is up. Local, and dropped the moment the
   // card is: coming back to a held race costs the same one press every time.
-  const [panel, setPanel] = useState<"card" | "options" | "slopes" | "challenges">("card");
+  const [panel, setPanel] = useState<PausePanel>(() => {
+    const first = nextPanel;
+    nextPanel = "card";
+    return first;
+  });
   const back = (): void => setPanel("card");
   const stats = pauseStats(snap);
   return (

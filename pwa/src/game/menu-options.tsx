@@ -169,7 +169,6 @@ export function SoundRows({
     <>
       <StepRow
         label={STRINGS.optSound}
-        hint={STRINGS.optSoundHint}
         stops={ON_OFF}
         value={onOff(settings.sound)}
         onPick={(id) => onSettings({ ...settings, sound: id === "on" })}
@@ -177,7 +176,6 @@ export function SoundRows({
       />
       <FadeRow
         label={STRINGS.optMaster}
-        hint={STRINGS.optMasterHint}
         value={settings.audio.master}
         min={0}
         max={1}
@@ -256,7 +254,6 @@ export function OptionsPage({
                 {keys && (
                   <LinkRow
                     label={STRINGS.optKeys}
-                    hint={STRINGS.optKeysHint}
                     value={STRINGS.optKeysCount(KEY_ACTIONS.length)}
                     onOpen={onKeys}
                     onHint={setHint}
@@ -460,7 +457,6 @@ export function OptionsPage({
               />
               <StepRow
                 label={STRINGS.optSpray}
-                hint={STRINGS.optSprayHint}
                 stops={TIER_STOPS}
                 value={video.spray}
                 onPick={(spray) => setVideo({ spray })}
@@ -504,7 +500,7 @@ export function OptionsPage({
           {STRINGS.optRestore}
         </button>
       </MenuBody>
-      <Caption hint={hint} fallback={STRINGS.optCaption} />
+      <Caption hint={hint} />
     </div>
   );
 }

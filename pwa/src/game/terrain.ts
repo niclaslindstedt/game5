@@ -69,8 +69,11 @@ export type TerrainOptions = TerrainLook;
 export type Terrain = {
   group: THREE.Group;
   /** Re-centre every level on the lens at (`x`, `z`) — and, given the lens
-   * itself, draw only the parts of each level its view can reach. */
-  follow(x: number, z: number, lens?: THREE.Camera): void;
+   * itself, draw only the parts of each level its view can reach: no level
+   * wholly past `reach` m (the DISTANCE row's view, or more aloft —
+   * `view-aloft.ts`), and none too fine to be seen from `over` m up
+   * (`FINE_UNDER`). */
+  follow(x: number, z: number, lens?: THREE.Camera, reach?: number, over?: number): void;
   dispose(): void;
 };
 
@@ -86,6 +89,32 @@ export type Terrain = {
  * reaches are ONE range of the index whichever way the lens looks: a level
  * is still one draw. Level 0, which the lens stands in, is drawn whole. */
 export const TERRAIN_WEDGES = 16;
+
+/** A LEVEL TOO FINE TO SEE FROM UP THERE: a lens `over` m above the snow
+ * leaves out every level whose whole square reaches less than this share
+ * of `over` out from it — its cells a few pixels across at that range, the
+ * furrows and wells they carry unseen — and draws the first level it keeps
+ * WHOLE, its hole filled, in their place. So a lens aloft draws about as
+ * many levels as one on the snow, coarser where it cannot tell, and spends
+ * them on the reach instead. The renderer hands it the height past where
+ * the view begins to open (`view-aloft.ts`'s `lift`), so on the snow, and
+ * on every boom a skier is followed by, nothing is left out. */
+export const FINE_UNDER = 1;
+
+/** The first level a lens `over` m above the snow draws, of `levels`
+ * reaching `reachOf(l)` each, the last no further than `last`. */
+export function baseLevel(over: number, last: number, reachOf: (l: number) => number): number {
+  let base = 0;
+  while (base < last && reachOf(base) < over * FINE_UNDER) base++;
+  return base;
+}
+
+/** The last level a view of `reach` m draws: the first that reaches it. */
+export function lastLevel(reach: number, levels: number, reachOf: (l: number) => number): number {
+  let last = 0;
+  while (last < levels - 1 && reachOf(last) < reach) last++;
+  return last;
+}
 
 /** The wedge cell (`i`, `j`) of an `n` grid falls in, by the bearing of its
  * centre from the grid's. */
@@ -492,6 +521,8 @@ export function createTerrain(
     /** The ground with no room cut, and with one. */
     plain: THREE.Material;
     cutting: THREE.Material;
+    /** Drawn whole, its hole filled: the first level a lens aloft keeps. */
+    whole: boolean;
   };
   /** A mesh that is never drawn — its bound stands far under the map, so
    * the frustum always drops it — but that the load's compile meets, so the
@@ -536,7 +567,7 @@ export function createTerrain(
     mesh.castShadow = false;
     mesh.matrixAutoUpdate = false;
     group.add(mesh);
-    levels.push({ mesh, spacing, centre, hole, plain: material, cutting });
+    levels.push({ mesh, spacing, centre, hole, plain: material, cutting, whole: l === 0 });
   }
 
   type Own = Record<"uLevelCentre" | "uSpacing" | "uHole", THREE.IUniform>;
@@ -632,25 +663,44 @@ export function createTerrain(
   };
   return {
     group,
-    follow(x, z, lens) {
+    follow(x, z, lens, reach = Infinity, over = 0) {
       wells.follow(x, z);
       const cut = roomCutUniforms.uRoomCuts.value > 0;
       if (lens) {
         view.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
         frustum.setFromProjectionMatrix(view);
       }
+      const reachOf = (l: number): number => half * levels[l].spacing;
+      const last = lastLevel(reach, levels.length, reachOf);
+      const base = baseLevel(over, last, reachOf);
       for (let l = 0; l < levels.length; l++) {
         const lv = levels[l];
         lv.mesh.material = cut ? lv.cutting : lv.plain;
         const snap = lv.spacing * 2;
         lv.centre.set(Math.round(x / snap) * snap, Math.round(z / snap) * snap);
+        if (l < base || l > last) {
+          lv.mesh.visible = false;
+          continue;
+        }
+        // The first level kept is drawn whole, the finer ones' place filled.
+        const whole = l === base;
+        if (whole !== lv.whole && l > 0) {
+          lv.whole = whole;
+          lv.mesh.geometry.setIndex(whole ? fullIndex : ringIndex);
+        }
+        if (whole) {
+          lv.hole.set(0, 0, 0, 0);
+          lv.mesh.visible = true;
+          lv.mesh.geometry.setDrawRange(0, Infinity);
+          continue;
+        }
         if (l > 0) {
           const finer = levels[l - 1];
           // The finer level's whole extent: this level's vertices a cell
           // inside it are sunk under it (`SNOW_VERTEX_PLACE`).
           lv.hole.set(finer.centre.x, finer.centre.y, (options.n / 2) * finer.spacing, 1);
         }
-        if (l > 0) aim(lv, lens);
+        aim(lv, lens);
       }
     },
     dispose() {

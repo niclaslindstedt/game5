@@ -72,6 +72,16 @@ export const CHUTE_STRINGS = {
     touch ? "DOUBLE TAP FOR THE RESERVE" : `${key} FOR THE RESERVE`,
   /** Hanging from a crown or a lift: only a reset brings him down. */
   chuteSnagged: "HANGING · RESET TO START AGAIN",
+  /** Down out of a wingsuit on his boots, with no skis to ski on: the
+   * plate's title, its note and its three presses (`hud-result.tsx`). */
+  /** The rider card's way on when the ride is flown in a wingsuit: no
+   * skis are picked, the ride starts there (`menu-dress.tsx`). */
+  dressFly: "FLY",
+  suitLandedTitle: "LANDED",
+  suitLandedNote: "No skis in a wingsuit: fly again, pick a run, or call it a day.",
+  suitLandedAgain: "FLY AGAIN",
+  suitLandedSlopes: "PISTE MAP",
+  suitLandedQuit: "QUIT",
 
   /* ── OPTIONS ▸ KEYS (menu-keys.tsx) ────────────────────────────────── */
   keysChuteTitle: "SKYDIVE",

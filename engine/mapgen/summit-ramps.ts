@@ -105,6 +105,7 @@ export function planRamps(
   runs: readonly {
     id: string;
     from: string;
+    kind?: string;
     row?: { steepest: { max: number } };
     points: readonly { x: number; y: number; z: number; s: number; width: number }[];
   }[],
@@ -117,9 +118,12 @@ export function planRamps(
   const out = new Map<string, SummitRamp[]>();
   for (const p of pads) {
     const ramps: SummitRamp[] = [];
+    /** Every run's ramps that would stand, best first (`fit.joint`). */
+    const choices: RampChoices[] = [];
     runs.forEach((r, own) => {
       if (r.from !== p.lift) return;
-      let best: { ramp: SummitRamp; length: number; grade: number } | null = null;
+      let best: RampCandidate | null = null;
+      const all: RampCandidate[] = [];
       for (let k = 0; k < r.points.length; k += AIM_EVERY) {
         const q = r.points[k];
         if (q.y > p.y - K.drop) continue;
@@ -134,29 +138,112 @@ export function planRamps(
           if ((q.x - fx) * (fx - p.x) + (q.z - fz) * (fz - p.z) <= 0 || head(fx, fz)) continue;
           if (height(fx, fz) > p.y + RIM_RISE) continue;
           const ramp = rampTo(r, own, fx, fz, q, height, cover, station);
-          if (!ramp || ramps.some((o) => overlaps(o, ramp))) continue;
+          // Off the ramps already laid off this pad — or, where they are
+          // chosen together (`fit.joint`), off whichever are chosen.
+          if (!ramp || (!fit.joint && ramps.some((o) => overlaps(o, ramp)))) continue;
           const length = hypot(ramp.to.x - ramp.from.x, ramp.to.z - ramp.from.z);
           if (length < K.least) continue;
           const grade = (ramp.from.y - ramp.to.y) / length;
           // Steeper than its lip's drop all the way down is no ramp, and
           // nor is one a rider let go at a crawl would not glide down.
           if (grade > steepest(r.row, fit) || grade < fit.glide) continue;
-          const fits = grade <= K.grade;
-          const better = !best
-            ? true
-            : fits !== best.grade <= K.grade
-              ? fits
-              : fits
-                ? length < best.length
-                : grade < best.grade;
-          if (better) best = { ramp, length, grade };
+          const found = { ramp, length, grade };
+          if (fit.joint) all.push(found);
+          else if (!best || betterRamp(found, best)) best = found;
         }
       }
-      if (best) ramps.push(best.ramp);
+      if (fit.joint) choices.push(rankRamps(all, r.kind !== "road"));
+      else if (best) ramps.push(best.ramp);
     });
+    if (fit.joint) ramps.push(...chooseRamps(choices));
     if (ramps.length > 0) out.set(p.lift, ramps);
   }
   return out;
+}
+
+/** A ramp that would stand, its plan length and its fall, m per m. */
+type RampCandidate = { ramp: SummitRamp; length: number; grade: number };
+
+/** Whether ramp `a` is to be laid before `b`: one falling within `grade`
+ * before one steeper, the shortest of those, the gentlest of the rest. */
+function betterRamp(a: RampCandidate, b: RampCandidate): boolean {
+  const fits = a.grade <= K.grade;
+  return fits !== b.grade <= K.grade ? fits : fits ? a.length < b.length : a.grade < b.grade;
+}
+
+/** One run's ramps off a pad, best first — every one, and the few told
+ * apart the joint choice weighs — and whether it is a piste (which must
+ * have one, R26) or a lane (which may). */
+type RampChoices = { piste: boolean; ramps: RampCandidate[]; few: RampCandidate[] };
+
+/** How many of a run's ramps the joint choice weighs, how far apart two
+ * must leave or land to be told apart, m, and how many arrangements it
+ * tries before it keeps the best found. */
+const JOINT_KEEP = 12;
+const JOINT_APART = 8;
+const JOINT_TRIES = 20000;
+
+/** A run's ramps best first, and the first `JOINT_KEEP` told apart: two
+ * leaving and landing within `JOINT_APART` of each other are one ramp. */
+function rankRamps(all: RampCandidate[], piste: boolean): RampChoices {
+  const ramps = [...all].sort((a, b) => (betterRamp(a, b) ? -1 : betterRamp(b, a) ? 1 : 0));
+  const kept: RampCandidate[] = [];
+  for (const c of ramps) {
+    if (kept.length >= JOINT_KEEP) break;
+    const same = kept.some(
+      (k) =>
+        hypot(k.ramp.from.x - c.ramp.from.x, k.ramp.from.z - c.ramp.from.z) < JOINT_APART &&
+        hypot(k.ramp.to.x - c.ramp.to.x, k.ramp.to.z - c.ramp.to.z) < JOINT_APART,
+    );
+    if (!same) kept.push(c);
+  }
+  return { piste, ramps, few: kept };
+}
+
+/** R26 — the ramps off one pad CHOSEN TOGETHER (a real face's, whose tops
+ * are crowded): each run's best that clears the ramps chosen before it,
+ * as `planRamps` lays them one at a time — and where that leaves a run
+ * with none though it has one that would stand, the arrangement that
+ * serves the most pistes, then the most lanes, each run's ramp as near
+ * its best as that allows. A ramp laid first to the shortest line onto
+ * its run can take the only room another run had, where a longer one of
+ * its own would have left it. */
+function chooseRamps(choices: readonly RampChoices[]): SummitRamp[] {
+  const greedy: (RampCandidate | null)[] = [];
+  for (const c of choices)
+    greedy.push(c.ramps.find((r) => !greedy.some((g) => g && overlaps(g.ramp, r.ramp))) ?? null);
+  // A piste served outweighs every lane.
+  const worth = (c: RampChoices): number => (c.piste ? 1000 : 1);
+  const could = (from: number): number =>
+    choices.slice(from).reduce((n, c) => n + (c.ramps.length > 0 ? worth(c) : 0), 0);
+  const most = could(0);
+  let best = greedy;
+  let bestServed = greedy.reduce((n, g, i) => n + (g ? worth(choices[i]) : 0), 0);
+  if (bestServed < most) {
+    // Every arrangement, each run's ramps tried best first (or none), the
+    // first found serving the most kept: the nearest each run's best.
+    const pick: (RampCandidate | null)[] = [];
+    let tries = 0;
+    const walk = (i: number, got: number): void => {
+      if (tries++ > JOINT_TRIES || bestServed === most || got + could(i) <= bestServed) return;
+      if (i === choices.length) {
+        best = [...pick];
+        bestServed = got;
+        return;
+      }
+      for (const r of choices[i].few) {
+        if (pick.some((g) => g && overlaps(g.ramp, r.ramp))) continue;
+        pick.push(r);
+        walk(i + 1, got + worth(choices[i]));
+        pick.pop();
+      }
+      pick.push(null);
+      walk(i + 1, got);
+      pick.pop();
+    };
+    walk(0, 0);
+  }
+  return best.flatMap((g) => (g ? [g.ramp] : []));
 }
 
 /** Whether two ramps' corridors would press the same ground: one's line
@@ -191,7 +278,13 @@ function steepest(row: { steepest: { max: number } } | undefined, fit: RampFit):
  * and at the most down to a green's or a blue's run (`gentle`) — a real
  * face's own (`RR.massif.real.least.ramp`) where its tops are gentler and
  * its faces steeper than a dealt massif's. */
-export type RampFit = { readonly glide: number; readonly gentle: number };
+export type RampFit = {
+  readonly glide: number;
+  readonly gentle: number;
+  /** Whether a pad's ramps are chosen together (`chooseRamps`) rather than
+   * one run at a time: a real face's. */
+  readonly joint?: boolean;
+};
 const RAMP_FIT: RampFit = { glide: K.fall, gentle: K.grade };
 const BLUE = GRADES.blue.steepest.max;
 
@@ -218,7 +311,7 @@ function rampTo(
   const len = hypot(q.x - fx, q.z - fz);
   const ux = (q.x - fx) / len;
   const uz = (q.z - fz) / len;
-  for (let u = 0; u <= len; u += 1.5) {
+  for (let u = 0; u <= len; u += LINE_STEP) {
     const x = fx + ux * u;
     const z = fz + uz * u;
     if (station(x, z, run.id)) return null;
@@ -244,6 +337,9 @@ function rampTo(
   }
   return null;
 }
+
+/** The step a ramp's line is read at, m. */
+const LINE_STEP = 1.5;
 
 /** How much further than the pressing a ramp's line keeps off another
  * run's ground, m: a couple of cells, so no cell under it is left. */
@@ -350,7 +446,10 @@ const SHOULDER = R.track.shoulder.flat + R.berm.width + 1;
  * from its head on the rim, or null where there is none. What a run's
  * start is placed by, and the ground the runs walked after it keep off
  * (`nearRoom`), so the ramp `planRamps` lays once the runs are pressed has
- * its room. */
+ * its room. Where the ramps are chosen together (`fit.joint`, a real
+ * face's) the room is read as `planRamps` reads the ramp — finer, on to
+ * the run's line, from a head no higher than the pad — and with the
+ * `JOINT_SPARE` and `JOINT_STEEP` a real face's grading needs. */
 export function rampRoom(
   p: StationPad,
   pads: readonly StationPad[],
@@ -363,12 +462,19 @@ export function rampRoom(
   blocked: (x: number, z: number) => boolean,
   fit: RampFit = RAMP_FIT,
 ): RampRoom | null {
+  // Read as the ramp itself will be where the ramps are chosen together (a
+  // real face's): from a head no higher than the pad's middle, every metre
+  // and a half of its line and on to the run's line — a room read coarser
+  // or shorter grazes the cut under the way in, and its ramp is then
+  // refused once the runs stand.
+  const step = fit.joint ? LINE_STEP : ROOM_STEP;
   for (let a = 0; a < RIM; a++) {
     const ang = (a / RIM) * Math.PI * 2;
     const fx = p.x + Math.sin(ang) * p.r;
     const fz = p.z + Math.cos(ang) * p.r;
     if ((x - fx) * (fx - p.x) + (z - fz) * (fz - p.z) <= 0) continue;
     if (inApproach(pads, fx, fz, APPROACH_HEAD)) continue;
+    if (fit.joint && height(fx, fz) > p.y + RIM_RISE) continue;
     const d = hypot(x - fx, z - fz);
     const length = d - half;
     if (length < K.least) continue;
@@ -378,10 +484,15 @@ export function rampRoom(
     // cuts its edge down to it).
     const rim = height(fx, fz);
     const edge = height(fx + ((x - fx) * length) / d, fz + ((z - fz) * length) / d);
-    if ((rim - edge) / length < fit.glide * ROOM_SPARE) continue;
-    if ((rim - height(x, z)) / length > steepest(row, fit) * ROOM_STEEP) continue;
+    const spare = fit.joint ? JOINT_SPARE : ROOM_SPARE;
+    if ((rim - edge) / length < fit.glide * spare) continue;
+    const steep = fit.joint ? JOINT_STEEP : ROOM_STEEP;
+    if ((rim - height(x, z)) / length > steepest(row, fit) * steep) continue;
     let clear = true;
-    for (let u = 0; clear && u <= length; u += ROOM_STEP) {
+    // A run is often narrower than its colour's widest: its ramp, ended
+    // where it first meets the run's snow, may reach on to its line.
+    const reach = fit.joint ? d : length;
+    for (let u = 0; clear && u <= reach; u += step) {
       const k = u / (length + half);
       const px = fx + (x - fx) * k;
       const pz = fz + (z - fz) * k;
@@ -490,6 +601,11 @@ const ROOM_SPARE = 1;
 /** The share of the steepest a ramp may fall at that a start is placed
  * under: the run's grading cuts its snow down, the ramp's foot with it. */
 const ROOM_STEEP = 0.7;
+/** The same where the ramps are chosen together (a real face's): its runs
+ * are graded through the real knolls and hollows, which moves a start's
+ * snow further than a dealt massif's grading does. */
+const JOINT_SPARE = 1.5;
+const JOINT_STEEP = 0.6;
 const ROOM_STEP = 3;
 
 /** R26 — the ramps off every pad (`planRamps`), pressed into `ground` off a

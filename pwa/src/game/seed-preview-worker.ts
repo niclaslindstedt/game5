@@ -40,7 +40,7 @@ import {
   type RegionId,
 } from "@engine";
 
-import { freeRunList, type FreeRunInfo } from "./free-ride.ts";
+import { dealtDay, freeRunList, type DealtDay, type FreeRunInfo } from "./free-ride.ts";
 import { boardKey } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE, bakeMinimap, minimapSource } from "./minimap-bake.ts";
 import {
@@ -97,6 +97,8 @@ export type PreviewPainted = {
   vertical: number;
   /** The colour the piste came out (R23, `gradeOf`). */
   colour: PisteGrade;
+  /** The season, time of day and sky the map was dealt (`dealtDay`). */
+  dealt: DealtDay;
   /** What names the map built (`boardKey`): the boards at its lifts'
    * tops are painted with this panorama. */
   board: string;
@@ -240,6 +242,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         length: level.track.length,
         vertical: level.mountain?.vertical ?? 0,
         colour: gradeOf(level),
+        dealt: dealtDay(level),
         board: boardKey(level),
         ...freeRunList(level),
         machines: {

@@ -184,3 +184,22 @@ export function chuteOf(state: GameState): HudChute | null {
 export function aloftInPlane(state: GameState): boolean {
   return !!state.plane?.rider || !!(state.chute && !state.chute.done && !state.chute.fell);
 }
+
+/** How long he has stood on his boots after a wingsuit's landing before the
+ * plate asks what next, s: the run-out walked off first. */
+export const SUIT_LANDED_AFTER = 1.5;
+
+/** DOWN OUT OF A WINGSUIT, on his boots and unhurt: with no skis on him
+ * there is nothing to ski on, so the HUD offers the way on — again, the
+ * piste map, or out (`hud-result.tsx`'s `LandedPlate`). */
+export function suitLandedOf(state: GameState): boolean {
+  const ch = state.chute;
+  return (
+    !!ch &&
+    ch.suit === "wingsuit" &&
+    ch.mode === "landed" &&
+    !ch.fell &&
+    !state.skier.thrown &&
+    ch.t >= SUIT_LANDED_AFTER
+  );
+}

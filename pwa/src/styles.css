@@ -2346,6 +2346,32 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+/* A value the map dealt rather than one the skier picked (the start card's
+   SEASON, TIME and WEATHER): the same word, in a warm, quiet colour. */
+.knob-dealt .knob-word {
+  color: var(--alpenglow);
+}
+
+/* A STEPPED ROW'S VALUE TAKES THE ROW: the label keeps its own width and
+   the arrows, the word and the pips stretch over the rest, every row's
+   arrows standing in the same place, rather than
+   a narrow value leaving the middle of the row empty. Stated with three
+   classes so it outranks every card's own fixed width. */
+.knob.knob-step .knob-label {
+  flex: 0 0 45%;
+}
+
+.knob.knob-step .knob-ctl {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.knob.knob-step .knob-value {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
 .knob-value .knob-word {
   white-space: normal;
   text-align: center;
@@ -2489,6 +2515,11 @@ canvas {
 
 .knob-caption-sizer {
   visibility: hidden;
+}
+
+/* A page with no line of its own, while no row is looked at. */
+.knob-caption-idle {
+  opacity: 0;
 }
 
 .knob-caption-on {

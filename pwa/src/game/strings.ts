@@ -538,11 +538,6 @@ export const STRINGS = {
   startTitle: "FREE RIDE",
   startNext: "NEXT",
   startMap: "MOUNTAIN",
-  startMapHint:
-    "Which generated mountain: every number is another one, its face, lifts and runs its own. Type one, or step through them.",
-  /** The AREA row's hint under GENERATED: the four kinds of country. */
-  startRegionHint:
-    "What kind of snow country the generated mountain is raised in: the alpine (steep, woods low down and bowls above the tree line), the fell (low rounded hills in the far north, birch at the tree line), the continental (a tall dry range, cold light snow) or the maritime (deep heavy snow, rime on the trees).",
   /** The REGION row's stops (R21) — a kind of country, never a place. */
   regionNames: {
     alpine: "ALPINE",
@@ -553,13 +548,8 @@ export const STRINGS = {
   startRange: "RANGE",
   /** The RANGE row's first stop: a mountain the generator raises. */
   rangeGenerated: "GENERATED",
-  startRangeHint:
-    "The mountain: a real mountainside in one of these ranges, read off a satellite survey — its ridge, spurs and gullies and its real tree line, with the real ski area's lifts and runs laid down it as near as the seed's own allow — and last, GENERATED: a mountain raised off its number.",
   startArea: "AREA",
-  startAreaHint:
-    "Which of the range's ski areas, by the place it is known by. Its snow country is its own.",
   startPart: "PART",
-  startPartHint: "Which part of the ski area: each is a mountainside of its own.",
   /** A real face's range on the RANGE row (its key to its name), the key
    * itself for one this table lacks. */
   rangeName: (key: string): string => RANGE_NAMES[key] ?? key,
@@ -582,9 +572,7 @@ export const STRINGS = {
   /** A grade as a run: `BLACK RUN`. */
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",
-  startSeasonHint:
-    "The time of winter: how high the sun climbs and how long the shadows lie, from the low sun of December to the long days of April. Starts on the mountain's own date.",
-  /** The SEASON row's stops; AS DEALT (`weatherDealt`) is the map's own. */
+  /** The SEASON row's stops. */
   seasonNames: {
     early: "EARLY WINTER",
     mid: "MIDWINTER",
@@ -592,14 +580,11 @@ export const STRINGS = {
     spring: "SPRING",
   },
   startTime: "TIME",
-  startTimeHint:
-    "The time of day the run starts at, on that date at that mountain's latitude — a night run under the moon, the runs lit by their floodlight masts and the woods between them dark. The sun stays where it is for the whole run.",
   timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
   startWeather: "WEATHER",
   startWeatherHint:
-    "The sky over the run: the mountain's own, or clear, fair, flurries (a few flakes out of a sunny sky), high cloud, overcast (flat light, the rollers hard to read), a steady snowfall, a storm under black cloud (a few tens of metres to see by) or a valley fog. Where it snows, new snow builds up over the run: a storm lays a hand's depth in an hour.",
-  /** The WEATHER row's stops: the map's own first, then R19's seven. */
-  weatherDealt: "AS DEALT",
+    "Overcast is flat light and hard to read; a storm closes the view to a few tens of metres; where it snows, new snow builds up over the run.",
+  /** The WEATHER row's stops: R19's eight. */
   weatherNames: {
     clear: "CLEAR",
     fair: "FAIR",
@@ -612,24 +597,21 @@ export const STRINGS = {
   },
   startSnow: "SNOW",
   startSnowHint:
-    "How deep the powder lies off the piste: thin 20 cm, medium 40 cm (the snow a race is skied on), thick 70 cm, very deep 100 cm. Past medium it is bottomless — stop and you sink to the knees, so keep the speed up and lean back to float the tips; a wide pair floats where a narrow one bogs.",
+    "How deep the powder lies off the piste: thin 20 cm, medium 40 cm, thick 70 cm, very deep 100 cm. Past medium it is bottomless: stop and you sink to the knees, so keep the speed up, and a wide pair floats where a narrow one bogs.",
   /** THE AVALANCHES row (`free-ride.ts`'s `avalanche`). */
   startAvalanche: "AVALANCHES",
   startAvalancheHint:
-    "Whether the loaded slopes off the groomed runs can slide. ON: a steep, open lee face under new snow or a wind-blown slab may break as you cross it — the crown cracks, the slab runs and the debris stays where it stops for the rest of the ride. OFF: the snow holds wherever you ski.",
+    "ON: a steep, open lee slope under new snow can slide as you cross it, and its debris lies there for the rest of the ride.",
   /** The SNOW row's stops (`SNOW_STOPS`; the hint above reads their depths). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   /** THE START ROW: how the ride begins — on skis, or a way up with no
    * lift (`free-ride.ts`'s `startPicked`). */
   startStart: "START",
   startStartHint:
-    "How the ride begins. ON SKIS or ON A SNOWBOARD: the lift carries you up to the RUN row's run, on the pair or the board the GEAR card picks. Or with no lift at all — the PARAMOTOR: on the summit with the wing over you, ski off and fly; the BALLOON: in its basket on the valley floor, burn to climb and drift up the mountain; the SNOWMOBILE: stood on its boards with your skis racked, ride it anywhere and press the jump twice to ski off; the HELICOPTER: sat on its skid on the pad, fly it anywhere and jump off; the PLANE: stood in its open door on the strip below the village, fly it up as high as you dare, jump, open the canopy and fly it down; the WINGSUIT: no skis, stood on an exit high on the mountain — jump, fly the suit down the face, pull and land on your feet (the SUIT row puts you in it up any craft that flies, too). And the AFTERSKI: inside the valley's lodge with the party under way — the beers come round, JUMP orders another, and the machine key takes you out onto the snow with whatever buzz you drank.",
-  /** The START row's first two stops: the skis, or a board. */
-  startOnSkis: "ON SKIS",
-  startOnBoard: "ON A SNOWBOARD",
+    "SLOPE rides the lift up to the RUN row's run, on the skis or the board the GEAR card picks. The rest begin with no lift: the paramotor on the summit, the balloon in the valley, the snowmobile by the village, the helicopter on its pad, the plane on its strip, the wingsuit on a cliff, the afterski in the lodge.",
+  /** The START row's first stop: down a slope, on skis or a board. */
+  startOnSlope: "SLOPE",
   startRun: "RUN",
-  startRunHint:
-    "Which run to ski, of every run on the mountain whatever its colour: the lift up to its top carries you the last of the way, and the pulsing mark on the chart is where it sets you down. Picking one puts you back ON SKIS.",
   /** The RUN row while the START row stands on a machine, which starts at
    * no run. */
   startRunOff: "—",
@@ -639,7 +621,6 @@ export const STRINGS = {
   startRunWord: (number: string): string => number,
   /** The RUN row before the chart has said what runs there are. */
   startRunWaiting: "…",
-  startGrid: "FROM THE LIFT",
   startCaption:
     "The pulsing mark is where you start · tap the chart to start anywhere else · the arrows are kickers",
   seedReading: "RAISING THE MOUNTAIN…",
@@ -657,7 +638,6 @@ export const STRINGS = {
   seedViewPlan: "PLAN",
 
   /* ── OPTIONS (menu-options.tsx) and its rows (menu-knobs.tsx) ──────── */
-  optCaption: "Point at a row to read what it does",
   optRestore: "RESTORE DEFAULTS",
   optOff: "OFF",
   optOn: "ON",
@@ -680,7 +660,6 @@ export const STRINGS = {
 
   optControlsGroup: "CONTROLS",
   optKeys: "KEYS",
-  optKeysHint: "Put any action on any key.",
   optKeysCount: (n: number): string => `${n} ACTIONS`,
   optLever: "TUCK SIDE",
   optLeverHint:
@@ -717,9 +696,7 @@ export const STRINGS = {
 
   optSoundGroup: "SOUND",
   optSound: "SOUND",
-  optSoundHint: "Every sound the game makes, on or off. The same switch as on the front door.",
   optMaster: "MASTER",
-  optMasterHint: "Everything, under the three rows below it.",
   optEngine: "WIND",
   optEngineHint: "The skier's own noise: the wind in the helmet and the edges on the snow.",
   optEffects: "EFFECTS",
@@ -748,7 +725,6 @@ export const STRINGS = {
   optShadowsHint:
     "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
   optSpray: "SPRAY",
-  optSprayHint: "How much snow the skis throw.",
   optLamps: "LAMPS",
   optLampsHint:
     "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",
@@ -867,10 +843,8 @@ export const STRINGS = {
   pauseSlopesRide: "GO",
   /** Under the PISTE MAP press on a free ride's pause card: what it is for. */
   pauseSlopesNote: "ANY RUN · ANY RIDE",
-  /** The panel's RUN and START rows: the start card's hints, cut to fit its
+  /** The panel's START row: the start card's hint, cut to fit its
    * caption. */
-  pauseSlopesRunHint:
-    "Which run to ski next, of every run on the mountain: the lift carries you up to its head.",
   pauseSlopesStartHint:
     "How to go on: on skis down the run picked, or the paramotor on the summit, the balloon, the snowmobile, the helicopter or the jump plane in the valley, or the afterski.",
   pauseSlopesCaption:
@@ -878,9 +852,6 @@ export const STRINGS = {
   /** The card BEHIND the pause card's own options panel, named on the way
    * back to it. */
   pauseBack: "PAUSED",
-  /** The options panel's line while no row is being looked at. */
-  pauseOptionsCaption:
-    "What the frame in front of you looks and sounds like. The rest is on the front door.",
   /** THE CAPTION ON THE HELD RUN'S RECORD CELL (`pause-stats.ts`); the
    * other cells wear the HUD's own captions. */
   pauseRecord: "RECORD",

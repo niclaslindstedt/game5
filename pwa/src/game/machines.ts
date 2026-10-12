@@ -73,10 +73,6 @@ import type { SnowCloud } from "./snow-cloud.ts";
 import type { Spray } from "./spray.ts";
 import type { SnowSampler, Stamp } from "./trail-stamp.ts";
 
-/** A wingsuit's lens counts as ALOFT from this height over the snow, m,
- * and wholly so by that one (`haze.ts`'s `uMistAloft`). */
-const ALOFT = { from: 40, to: 220 };
-
 /** The level way out from a machine at `m` to the flyer at `at`. */
 function awayFrom(m: { x: number; z: number } | null, at: Vec3): Vec3 | null {
   if (!m) return null;
@@ -446,13 +442,6 @@ export function createMachines(
       balloon?.light(look);
     },
     lamps(lit, eye, others) {
-      // A WINGSUIT'S LENS high over the snow: the mist measured across the
-      // ground under it (`haze.ts`'s `uMistAloft`), eased in from `ALOFT`.
-      if (suitCam) {
-        const over = eye.y - level.groundAt(eye.x, eye.z);
-        const t = Math.min(1, Math.max(0, (over - ALOFT.from) / (ALOFT.to - ALOFT.from)));
-        haze.uMistAloft.value = t * t * (3 - 2 * t);
-      }
       // The eye settled for this frame: the helicopter's and the jump
       // plane's cockpits shown while it is in their cabins.
       heli?.seen(eye);

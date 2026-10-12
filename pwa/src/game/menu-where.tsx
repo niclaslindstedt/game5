@@ -18,11 +18,12 @@
 // `world-map-view.tsx`, whose outline is a small download of its own.
 
 import { type RegionId, realFacePlace, realFaceRegion } from "@engine";
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 
+import { areaStats, loadFaceStats, type FaceStats } from "./face-stats.ts";
 import { areaIds, areaOf, GENERATED, rangeIds, rangeOf, wherePicked } from "./face-picks.ts";
 import type { FreeRide } from "./free-ride.ts";
-import { Caption, MenuBody, MenuHead, StepRow, type Hint } from "./menu-knobs.tsx";
+import { MenuBody, MenuHead, StepRow } from "./menu-knobs.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
 import { areaMarks, areaTarget, markOf, partMarks, worldTarget } from "./where-steps.ts";
@@ -45,7 +46,6 @@ export function WherePage({
   onBack: () => void;
   onNext: () => void;
 }) {
-  const [hint, setHint] = useState<Hint | null>(null);
   const ride = settings.ride;
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...settings, ride: { ...ride, ...patch } });
@@ -79,9 +79,13 @@ export function WherePage({
       }));
   const parts = partMarks(face);
   const place = face ? realFacePlace(face) : null;
+  // The figures billed under the rows: the whole area's on the world step,
+  // the one mountainside's on the area step.
+  const billed = world ? (area?.faces ?? []) : face && place ? [face] : [];
+  const stats = useStats(billed);
 
   return (
-    <div class="menu-card menu-card-where" onPointerLeave={() => setHint(null)}>
+    <div class="menu-card menu-card-where">
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
@@ -101,14 +105,7 @@ export function WherePage({
       />
       <MenuBody>
         <div class="where-cols">
-          <div
-            class="where-plate"
-            data-hint={STRINGS.whereMapHint}
-            data-hint-label={STRINGS.whereTitle}
-            onPointerEnter={() =>
-              setHint({ label: STRINGS.whereTitle, text: STRINGS.whereMapHint })
-            }
-          >
+          <div class="where-plate">
             <WorldMapView
               marks={marks}
               selected={world ? (area?.key ?? null) : face}
@@ -128,18 +125,15 @@ export function WherePage({
                 <>
                   <StepRow
                     label={STRINGS.startRange}
-                    hint={STRINGS.startRangeHint}
                     stops={rangeIds().map((id) => ({
                       id,
                       label: id === GENERATED ? STRINGS.rangeGenerated : STRINGS.rangeName(id),
                     }))}
                     value={range}
                     onPick={(id) => pickWhere(id)}
-                    onHint={setHint}
                   />
                   <StepRow
                     label={STRINGS.startArea}
-                    hint={generated ? STRINGS.startRegionHint : STRINGS.startAreaHint}
                     stops={areaIds(range).map((id) => ({
                       id,
                       label: generated
@@ -148,17 +142,14 @@ export function WherePage({
                     }))}
                     value={areaOf(face, ride.region)}
                     onPick={(at) => pickWhere(range, at)}
-                    onHint={setHint}
                   />
                 </>
               ) : (
                 <StepRow
                   label={STRINGS.startPart}
-                  hint={STRINGS.whereMountainHint}
                   stops={parts.map((p) => ({ id: p.id, label: STRINGS.placeName(p.part) }))}
                   value={face ?? ""}
                   onPick={pickFace}
-                  onHint={setHint}
                 />
               )}
             </div>
@@ -171,7 +162,22 @@ export function WherePage({
                   <p class="where-read-line">
                     {STRINGS.rangeName(place.range)}
                     {world ? ` · ${STRINGS.whereParts(area.faces.length)}` : ""}
+                    {stats ? ` · ${STRINGS.whereSlopes(stats.pistes)}` : ""}
                   </p>
+                  <dl class="where-figures">
+                    <Figure
+                      label={STRINGS.whereDrop}
+                      value={stats && STRINGS.whereMetres(stats.drop)}
+                    />
+                    <Figure
+                      label={STRINGS.whereSteepest}
+                      value={stats && STRINGS.wherePitch(stats.steepest)}
+                    />
+                    <Figure
+                      label={STRINGS.whereMean}
+                      value={stats && STRINGS.wherePitch(stats.mean)}
+                    />
+                  </dl>
                   <p class="where-read-line">
                     {world
                       ? STRINGS.whereAt(area.lat, area.lon)
@@ -188,7 +194,37 @@ export function WherePage({
           </div>
         </div>
       </MenuBody>
-      <Caption hint={hint} fallback={world ? STRINGS.whereCaption : STRINGS.whereAreaCaption} />
     </div>
   );
+}
+
+/** One of the reading's figures: its caption over its value. */
+function Figure({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div class="where-figure">
+      <dt>{label}</dt>
+      <dd>{value ?? STRINGS.whereReading}</dd>
+    </div>
+  );
+}
+
+/** The figures of the faces named, read once each fetched; null while any
+ * is still on its way, or for none. */
+function useStats(ids: readonly string[]): FaceStats | null {
+  const key = ids.join(",");
+  const [read, setRead] = useState<{ key: string; stats: FaceStats | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void Promise.all(ids.map(loadFaceStats)).then((all) => {
+      if (!live) return;
+      const stats = areaStats(all.filter((s): s is FaceStats => s !== null));
+      setRead({ key, stats });
+    });
+    return () => {
+      live = false;
+    };
+    // The ids are named by their key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return read?.key === key ? read.stats : null;
 }

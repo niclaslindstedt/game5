@@ -204,6 +204,29 @@
   color: var(--hud-info);
 }
 
+/* The reading's figures: the drop, the steepest pitch and the mean, three
+   captions over three values. */
+.where-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.3rem;
+}
+
+.where-figure dt {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+}
+
+.where-figure dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 @media (max-width: 30rem) {
   .menu-card-where {
     padding-top: 0.7rem;

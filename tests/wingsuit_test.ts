@@ -160,9 +160,14 @@ describe("the exits", () => {
     expect(a.clear).toBeGreaterThanOrEqual(WINGSUIT.search.clear);
     const m = level.mountain!;
     expect(a.y).toBeGreaterThan(m.base.y + 0.5 * m.vertical);
+    // A hover leaves room to fly before the pull, over the least that clears.
+    if (a.hover > 0)
+      expect(a.hover).toBeGreaterThanOrEqual(
+        WINGSUIT.search.hoverRoom + WINGSUIT.search.hoverLeast,
+      );
   });
 
-  it("stands him ready on it, then off it on the press, flying in 4–7 s", () => {
+  it("stands him ready on it, then off it on the press, flying within 7 s", () => {
     const s = game(level, false);
     expect(s.chute?.mode).toBe("ready");
     expect(s.wingsuit?.from).toBe("cliff");
@@ -176,7 +181,9 @@ describe("the exits", () => {
       step(s, N);
       if (s.chute?.mode === "freefall") t = s.chute.since;
     }
-    expect(t).toBeGreaterThanOrEqual(4);
+    // Off the hover, 675 m up in the wind aloft, the air past him is already
+    // near level when his hands come free; never before they do.
+    expect(t).toBeGreaterThanOrEqual(WINGSUIT.exit.clear);
     expect(t).toBeLessThanOrEqual(7);
     expect(s.skier.thrown).toBeNull();
   });

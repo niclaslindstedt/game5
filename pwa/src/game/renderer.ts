@@ -113,6 +113,7 @@ import {
   type ShadowLook,
   type VideoSettings,
 } from "./settings-video.ts";
+import { aloftLook } from "./view-aloft.ts";
 import { tallyScene } from "./scene-tally.ts";
 import { createTerrain, type Terrain } from "./terrain.ts";
 import { createTrailMap, type TrailMap } from "./trail-map.ts";
@@ -387,7 +388,7 @@ export function createWorldRenderer(
     return map;
   }
   function buildTerrain(lv: Level, map: TrailMap): Terrain {
-    const look = terrainLook(video.terrain, DISTANCE_LOOK[video.distance].view);
+    const look = terrainLook(video.terrain); // the whole reach: aloft draws past the stop's view
     const ground = createTerrain(lv, env.haze, map.uniforms, look);
     ground.group.name = "terrain";
     scene.add(ground.group);
@@ -765,7 +766,12 @@ export function createWorldRenderer(
       timer.pop();
       setRunSnow(env.haze, state.fresh, state.piste);
       const trailed = performance.now();
-      terrain.follow(lens.camera.position.x, lens.camera.position.z, lens.camera);
+      // THE VIEW ALOFT (`view-aloft.ts`): the reach grows with the height over the snow.
+      const eyeAt = lens.camera.position;
+      const aloft = aloftLook(video.distance, eyeAt.y - level.groundAt(eyeAt.x, eyeAt.z));
+      env.setAloft(aloft);
+      forest?.setAloft(aloft.trees, aloft.lift, aloft.view);
+      terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);
       windAt(sky, state.t, wind);
@@ -952,7 +958,7 @@ export function createWorldRenderer(
       // a card, where the race behind it is scenery — so only a TRAILS move
       // pays that; a new ground reads the maps standing.
       const retrail = was.trails !== video.trails;
-      const regrid = retrail || was.terrain !== video.terrain || was.distance !== video.distance;
+      const regrid = retrail || was.terrain !== video.terrain;
       if (level && regrid) {
         if (terrain) {
           scene.remove(terrain.group);

@@ -527,6 +527,9 @@ export {
   STILL_DRIVE,
   stoodStill,
   strideRate,
+  skateCadence,
+  skateDuty,
+  glideSlowing,
   strideShape,
   strideShare,
 } from "./game/poles.ts";

@@ -583,8 +583,8 @@ export const STRINGS = {
   gradeRun: (grade: string): string => `${grade} RUN`,
   startSeason: "SEASON",
   startSeasonHint:
-    "The time of winter: how high the sun climbs and how long the shadows lie, from the low sun of December to the long days of April. Starts on the mountain's own date.",
-  /** The SEASON row's stops; AS DEALT (`weatherDealt`) is the map's own. */
+    "The time of winter: how high the sun climbs and how long the shadows lie, from the low sun of December to the long days of April. Starts on the mountain's own date, shown in orange until you pick one.",
+  /** The SEASON row's stops. */
   seasonNames: {
     early: "EARLY WINTER",
     mid: "MIDWINTER",
@@ -597,9 +597,8 @@ export const STRINGS = {
   timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
   startWeather: "WEATHER",
   startWeatherHint:
-    "The sky over the run: the mountain's own, or clear, fair, flurries (a few flakes out of a sunny sky), high cloud, overcast (flat light, the rollers hard to read), a steady snowfall, a storm under black cloud (a few tens of metres to see by) or a valley fog. Where it snows, new snow builds up over the run: a storm lays a hand's depth in an hour.",
-  /** The WEATHER row's stops: the map's own first, then R19's seven. */
-  weatherDealt: "AS DEALT",
+    "The sky over the run: the mountain's own (in orange until you pick one), or clear, fair, flurries (a few flakes out of a sunny sky), high cloud, overcast (flat light, the rollers hard to read), a steady snowfall, a storm under black cloud (a few tens of metres to see by) or a valley fog. Where it snows, new snow builds up over the run: a storm lays a hand's depth in an hour.",
+  /** The WEATHER row's stops: R19's eight. */
   weatherNames: {
     clear: "CLEAR",
     fair: "FAIR",

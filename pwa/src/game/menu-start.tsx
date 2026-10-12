@@ -76,12 +76,14 @@
 //           row: the mountain is the seed's own, and the slope is chosen
 //           here, whatever its colour.
 //
-//   WEATHER the sky (R19): the map's own (AS DEALT), or one of the six at
+//   WEATHER the sky (R19): the map's own, or one of the eight at
 //           its typical numbers (`weatherFor`). It names no hour: the hour
 //           is TIME's alone, so the two rows cannot disagree.
 //
-// THE DAY'S TWO ROWS DEFER TO THE MAP until they are moved (`free-ride.ts`):
-// both stand on AS DEALT, and stepping one pins a word. THE CHART IS A CONTROL too: a press on it is where
+// THE DAY'S ROWS DEFER TO THE MAP until they are moved (`free-ride.ts`):
+// SEASON, TIME and WEATHER show what the map was dealt (`dealtDay`), in a
+// colour of their own, and stepping one pins a word. There is no AS DEALT
+// stop: the row always says what the ride will get. THE CHART IS A CONTROL too: a press on it is where
 // the ride starts, and a pick of the RUN row takes that back.
 //
 // What the rows WRITE is `settings.ride` — so a ride stood up from here and
@@ -117,11 +119,11 @@ import { STRINGS } from "./strings.ts";
  * seed the stream takes, and the row clamps what it is typed. */
 export const SEED_RANGE = { min: 1, max: 999_999 } as const;
 
-/** The WEATHER row's stops: the map's own sky, then R19's eight. */
-const WEATHER_STOPS: { id: "dealt" | WeatherKind; label: string }[] = [
-  { id: "dealt", label: STRINGS.weatherDealt },
-  ...WEATHER_KINDS.map((kind) => ({ id: kind, label: STRINGS.weatherNames[kind] })),
-];
+/** The WEATHER row's stops: R19's eight. */
+const WEATHER_STOPS: { id: WeatherKind; label: string }[] = WEATHER_KINDS.map((kind) => ({
+  id: kind,
+  label: STRINGS.weatherNames[kind],
+}));
 
 /** The RANGE row's stops: every range with a real face (R25), then
  * GENERATED. */
@@ -149,17 +151,11 @@ function partStops(range: string, area: string): { id: string; label: string }[]
   }));
 }
 
-/** The SEASON row's stops: the map's own date, then the four. */
-const SEASON_STOPS = [
-  { id: "dealt" as const, label: STRINGS.weatherDealt },
-  ...SEASONS.map(({ id }) => ({ id, label: STRINGS.seasonNames[id] })),
-];
+/** The SEASON row's stops: the four. */
+const SEASON_STOPS = SEASONS.map(({ id }) => ({ id, label: STRINGS.seasonNames[id] }));
 
-/** The TIME row's stops: the map's own hour, then the four. */
-const TIME_STOPS = [
-  { id: "dealt" as const, label: STRINGS.weatherDealt },
-  ...TIMES_OF_DAY.map((id) => ({ id, label: STRINGS.timeNames[id] })),
-];
+/** The TIME row's stops: the four. */
+const TIME_STOPS = TIMES_OF_DAY.map((id) => ({ id, label: STRINGS.timeNames[id] }));
 
 /** The SNOW row's stops. */
 const SNOW_ROW = SNOW_STOPS.map(({ id }) => ({ id, label: STRINGS.snowNames[id] }));
@@ -312,24 +308,30 @@ export function StartPage({
                 label={STRINGS.startSeason}
                 hint={STRINGS.startSeasonHint}
                 stops={SEASON_STOPS}
-                value={ride.season ?? "dealt"}
-                onPick={(id) => setRide({ season: id === "dealt" ? null : id })}
+                value={ride.season ?? pick.dealt?.season ?? ""}
+                dealt={ride.season === null}
+                extra={STRINGS.startRunWaiting}
+                onPick={(season) => setRide({ season })}
                 onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startTime}
                 hint={STRINGS.startTimeHint}
                 stops={TIME_STOPS}
-                value={ride.time ?? "dealt"}
-                onPick={(id) => setRide({ time: id === "dealt" ? null : id })}
+                value={ride.time ?? pick.dealt?.time ?? ""}
+                dealt={ride.time === null}
+                extra={STRINGS.startRunWaiting}
+                onPick={(time) => setRide({ time })}
                 onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startWeather}
                 hint={STRINGS.startWeatherHint}
                 stops={WEATHER_STOPS}
-                value={ride.weather ?? "dealt"}
-                onPick={(id) => setRide({ weather: id === "dealt" ? null : id })}
+                value={ride.weather ?? pick.dealt?.weather ?? ""}
+                dealt={ride.weather === null}
+                extra={STRINGS.startRunWaiting}
+                onPick={(weather) => setRide({ weather })}
                 onHint={setHint}
               />
               <StepRow

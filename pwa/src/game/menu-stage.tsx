@@ -9,6 +9,13 @@
 // The three.js is a chunk of its own, pulled in once the stage mounts:
 // this component is on the app shell's static import chain. Until it lands
 // the stage is its CSS sky.
+//
+// IT IS STOOD UP AHEAD OF ITS CARD (`warmStage`): the free ride's WHERE
+// steps and start card ask for it while the skier picks the mountain, so
+// the chunk, the models, the backdrop and the shaders are ready when NEXT
+// opens the rider card, which takes the canvas over (`claim`). One not
+// taken soon after the cards that asked for it close is let go, so no
+// second context outlives the menu.
 
 import { useEffect, useRef } from "preact/hooks";
 import { pairById, type PairId } from "@engine";
@@ -16,6 +23,62 @@ import { pairById, type PairId } from "@engine";
 import type { GearStage, StageShot } from "./gear-stage.ts";
 import { freeOf } from "./stage-free.ts";
 import type { Outfit } from "./outfit.ts";
+
+/** A stage stood up off the page, its canvas waiting to be taken. */
+type Warm = { canvas: HTMLCanvasElement; stage: Promise<GearStage | null>; dropped: boolean };
+let warm: Warm | null = null;
+let letGo = 0;
+
+const build = async (canvas: HTMLCanvasElement, skis: PairId, outfit: Outfit) => {
+  const { createGearStage, loadModels } = await import("./gear-stage.ts");
+  await loadModels();
+  const stage = createGearStage(canvas);
+  stage.set("rider", pairById(skis), outfit);
+  return stage;
+};
+
+/** Stand the stage up ahead of its card, held off the page. Asked again,
+ * it keeps the one it has. */
+export function warmStage(skis: PairId, outfit: Outfit): void {
+  clearTimeout(letGo);
+  if (warm || typeof document === "undefined") return;
+  const canvas = document.createElement("canvas");
+  canvas.className = "menu-stage-canvas";
+  const w: Warm = { canvas, stage: Promise.resolve(null), dropped: false };
+  w.stage = build(canvas, skis, outfit).then(
+    (stage) => {
+      if (w.dropped) {
+        stage.dispose();
+        return null;
+      }
+      stage.hold(true);
+      return stage;
+    },
+    () => null,
+  );
+  warm = w;
+}
+
+/** The cards that asked for a stage are closing: let it go unless a stage
+ * card takes it over in the moment after. */
+export function coolStage(): void {
+  clearTimeout(letGo);
+  letGo = window.setTimeout(() => {
+    const w = warm;
+    warm = null;
+    if (!w) return;
+    w.dropped = true;
+    void w.stage.then((stage) => stage?.dispose());
+  }, 1500);
+}
+
+/** The stage waiting off the page, taken by the card that shows it. */
+function claim(): Warm | null {
+  clearTimeout(letGo);
+  const w = warm;
+  warm = null;
+  return w;
+}
 
 export function MenuStage({
   shot,
@@ -50,13 +113,21 @@ export function MenuStage({
       stageRef.current.setFree(freeOf(box.getBoundingClientRect(), covers));
     };
     raf = requestAnimationFrame(measure);
-    void import("./gear-stage.ts").then(async ({ createGearStage, loadModels }) => {
-      await loadModels();
-      if (disposed) return;
-      const stage = createGearStage(canvas);
+    const taken = claim();
+    // The warmed canvas stands where this one did, its listeners with it.
+    if (taken) canvas.replaceWith(taken.canvas);
+    const fresh = (on: HTMLCanvasElement) => build(on, wanted.current.skis, wanted.current.outfit);
+    const ready = taken ? taken.stage.then((stage) => stage ?? fresh(taken.canvas)) : fresh(canvas);
+    void ready.then((stage) => {
+      if (!stage) return;
+      if (disposed) {
+        stage.dispose();
+        return;
+      }
       stageRef.current = stage;
       const w = wanted.current;
       stage.set(w.shot, pairById(w.skis), w.outfit);
+      stage.hold(false);
       box.dataset.ready = "1";
     });
     return () => {

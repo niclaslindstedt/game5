@@ -30,6 +30,7 @@ import {
   SUITS,
   type FreeRide,
   type SuitId,
+  type DealtDay,
   type FreeRunInfo,
 } from "./free-ride.ts";
 import { injuriesShown, kindPair, type Settings } from "./settings.ts";
@@ -58,6 +59,8 @@ export type RunPick = {
   spot: { x: number; z: number } | null;
   /** Whether the SUIT row is asked: a ride up a craft he can jump from. */
   suits: boolean;
+  /** The day the map was dealt, once its chart is in. */
+  dealt: DealtDay | null;
 };
 
 export function useRunPick(settings: Settings, seed: number): RunPick {
@@ -137,6 +140,7 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     machine,
     spot: machine === null ? spotOn(ride, seed) : null,
     suits: list !== null && airborneOn(ride, seed),
+    dealt: list?.dealt ?? null,
   };
 }
 

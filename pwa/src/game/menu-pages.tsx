@@ -7,10 +7,12 @@
 // what each press does is the app's, handed in.
 
 import type { GameMode, PairId } from "@engine";
+import { useEffect } from "preact/hooks";
 
 import type { DevApp } from "./dev-app.tsx";
 import { DevPages } from "./menu-dev.tsx";
 import { SkisCards } from "./menu-dress.tsx";
+import { coolStage, warmStage } from "./menu-stage.tsx";
 import { GalleryPage } from "./menu-gallery.tsx";
 import { StatsPage } from "./menu-stats.tsx";
 import { KeysPage } from "./menu-keys.tsx";
@@ -56,6 +58,20 @@ export function MenuPages(p: {
   onResetStats: () => void;
 }) {
   const { page, setPage, settings, setSettings, picks } = p;
+  // THE RIDER AND GEAR CARDS' STAGE, stood up while the cards before them
+  // are picked on (the WHERE steps, the start card, a level or trick map
+  // card), and let go on any other card or when the menu closes.
+  const ahead =
+    page === "world" ||
+    page === "area" ||
+    page === "start" ||
+    page === "levels" ||
+    page === "tricks";
+  useEffect(() => {
+    if (ahead) warmStage(p.skis, settings.outfit);
+    else if (page !== "dress" && page !== "skis") coolStage();
+  }, [ahead, page, p.skis, settings.outfit]);
+  useEffect(() => coolStage, []);
   const back = (): void => setPage("root");
   /** The three ways onto the snow go back to PLAY's page, which opened them. */
   const toPlay = (): void => setPage("play");

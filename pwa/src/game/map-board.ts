@@ -260,12 +260,17 @@ export function createMapBoards(
   });
   let disposed = false;
   void pictureOf(level).then(({ image, view, schematic }) => {
-    if (disposed) return;
-    for (const f of faces) {
-      const here = f.top ? toPanorama(view, f.top.x, f.top.y, f.top.z) : null;
-      paintFace(f.canvas.getContext("2d")!, image, schematic, here);
-      f.tex.needsUpdate = true;
+    if (!disposed) {
+      for (const f of faces) {
+        const here = f.top ? toPanorama(view, f.top.x, f.top.y, f.top.z) : null;
+        paintFace(f.canvas.getContext("2d")!, image, schematic, here);
+        f.tex.needsUpdate = true;
+      }
     }
+    // Painted onto every face, the picture is let go at once: a bitmap's
+    // pixels are memory the garbage collector does not see.
+    if ("close" in image) image.close();
+    else if (image instanceof HTMLCanvasElement) image.width = image.height = 0;
   });
   return {
     group,
@@ -276,6 +281,10 @@ export function createMapBoards(
         m.tex.dispose();
         m.mat.dispose();
       }
+      // A canvas's backing store outlives its texture until it is collected;
+      // emptied, it is given back now (a phone caps the canvas memory a page
+      // may hold, and a new map's boards are painted while the old wait).
+      for (const f of faces) f.canvas.width = f.canvas.height = 0;
     },
   };
 }

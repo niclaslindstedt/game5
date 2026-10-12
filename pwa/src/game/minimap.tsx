@@ -51,8 +51,10 @@ type Ground = ImageBitmap | HTMLCanvasElement;
  * Module state rather than component state, because the plate is unmounted
  * with the HUD at every pause and the map it would bake again is the same
  * map. The last map's ground is let go when the next one's is asked for —
- * a race is on one map at a time — and never closed by hand: the plate
- * may draw it for one more frame before the HUD's snapshot moves on. */
+ * a race is on one map at a time — and RELEASED a little later (`release`):
+ * the plate may draw it for one more frame before the HUD's snapshot moves
+ * on, and a bitmap of 1024–2048 px square is 4–16 MB the garbage collector
+ * does not see, which a phone that loads map after map runs out of. */
 type Entry = {
   level: Level;
   /** Whether the free ride's airstrip is drawn on it. */
@@ -66,6 +68,21 @@ let worker: Worker | null = null;
  * this thread, so a browser whose worker cannot run still gets its map. */
 let workerFailed = false;
 let asked = 0;
+
+/** How long a ground let go is kept before it is released, ms: long past
+ * the one frame the plate may still draw it in. */
+const RELEASE_AFTER_MS = 2000;
+
+/** Give a ground's memory back now: a bitmap closed, a canvas emptied. */
+function free(ground: Ground): void {
+  if ("close" in ground) ground.close();
+  else ground.width = ground.height = 0;
+}
+
+/** Give a ground's memory back once nothing can be drawing it. */
+function release(ground: Ground | null): void {
+  if (ground) setTimeout(() => free(ground), RELEASE_AFTER_MS);
+}
 
 /** Raw pixels as a canvas a canvas can draw. */
 function toCanvas(px: number, rgba: Uint8ClampedArray<ArrayBuffer>): Ground | null {
@@ -81,7 +98,10 @@ function toCanvas(px: number, rgba: Uint8ClampedArray<ArrayBuffer>): Ground | nu
 /** Hand a baked ground to the entry it was made for — or drop it, if the
  * plate has moved on to another map since it was asked for. */
 function land(entry: Entry, ground: Ground): void {
-  if (picture !== entry) return;
+  if (picture !== entry) {
+    free(ground);
+    return;
+  }
   entry.ground = ground;
   for (const w of entry.waiting.splice(0)) w(ground);
 }
@@ -103,6 +123,7 @@ function bakeHere(entry: Entry): void {
  * there is not or where it has failed. */
 function bake(level: Level, strip: boolean): void {
   const entry: Entry = { level, strip, ground: null, waiting: [] };
+  release(picture?.ground ?? null);
   picture = entry;
   const id = ++asked;
   if (typeof Worker === "undefined" || workerFailed) {
@@ -120,7 +141,9 @@ function bake(level: Level, strip: boolean): void {
     worker.onmessage = (e: MessageEvent<BakeReply>) => {
       const reply = e.data;
       const ground = "bitmap" in reply ? reply.bitmap : toCanvas(reply.px, reply.rgba);
-      if (ground && reply.id === asked && picture !== null) land(picture, ground);
+      if (!ground) return;
+      if (reply.id === asked && picture !== null) land(picture, ground);
+      else free(ground); // a map since moved on from
     };
     // A worker that will not load or throws mid-bake answers nothing, and a
     // plate waiting on it would stay bare for the whole run.

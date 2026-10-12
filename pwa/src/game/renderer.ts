@@ -46,7 +46,7 @@ import { figureShown } from "./camera-para.ts";
 import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
-import { compileByParts } from "./scene-compile.ts";
+import { compileByParts, compiled } from "./scene-compile.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
@@ -354,7 +354,9 @@ export function createWorldRenderer(
       machines?.group,
       gore?.group,
     ]) {
-      if (o) scene.remove(o);
+      if (!o) continue;
+      o.traverse((n) => n instanceof THREE.InstancedMesh && n.dispose()); // its buffers too
+      scene.remove(o);
     }
     for (const r of riders) scene.remove(r.model.root);
     ghost?.dispose();
@@ -473,7 +475,7 @@ export function createWorldRenderer(
     // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
     const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
     const parts = compileByParts(gl, scene, lens.camera, () => mine === loads);
-    await Promise.all([parts, trail.compile(gl), shade]);
+    await Promise.all([parts, compiled(gl, trail.compile(gl)), shade]);
     if (mine === loads) hero.render(gl, scene, [], null);
     if (mine === loads) env.warm(gl, scene, lens.camera, lv.size);
     gl.setRenderTarget(null);
@@ -991,6 +993,7 @@ export function createWorldRenderer(
       hero.dispose();
       timer.dispose();
       gl.dispose();
+      gl.forceContextLoss(); // a phone keeps only a few contexts alive at once
     },
   };
   return api;

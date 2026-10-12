@@ -46,6 +46,7 @@ import {
 import type { Village } from "./village.ts";
 import type { Bay, Lane } from "./village-furniture.ts";
 import { besidePoint, streetAt, type StreetPoint } from "./village-streets.ts";
+import { bayPulls, kerbShare, loopBusy } from "./traffic-demand.ts";
 
 /** The traffic's own salt on the map's seed. */
 export const TRAFFIC_SALT = 7331;
@@ -684,9 +685,17 @@ export function planTraffic(level: Level, v: Village): TrafficPlan | null {
       "through",
     );
   }
-  // THE CARS ROUND THE LOOP, each way, and the cyclists.
-  const loopCars = [loopA, loopB].map(
-    (_, w) => T.loop.least + Math.floor(deal(seed, "loop", w) * (T.loop.most - T.loop.least + 1)),
+  // THE CARS ROUND THE LOOP, each way, and the cyclists — as many as the
+  // loop's buildings call for (`loopBusy`): all of them dealt round a
+  // village built all the way round, fewer round a bare one.
+  const busy = loopBusy(level, v);
+  const cut = (n: number, k: string): number =>
+    Math.floor(n * busy + deal(seed, `${k}-busy`, 0) * (busy < 1 ? 1 : 0));
+  const loopCars = [loopA, loopB].map((_, w) =>
+    cut(
+      T.loop.least + Math.floor(deal(seed, "loop", w) * (T.loop.most - T.loop.least + 1)),
+      `loop${w}`,
+    ),
   );
   const routeA = loopA.length > 1 ? loopRoute(m, loopA, "middle", DRIVES.car, "loop") : null;
   const routeB = loopB.length > 1 ? loopRoute(m, loopB, "middle", DRIVES.car, "loop") : null;
@@ -702,8 +711,10 @@ export function planTraffic(level: Level, v: Village): TrafficPlan | null {
       });
     }
   }
-  const nBikes =
-    T.bikes.least + Math.floor(deal(seed, "bikes", 0) * (T.bikes.most - T.bikes.least + 1));
+  const nBikes = cut(
+    T.bikes.least + Math.floor(deal(seed, "bikes", 0) * (T.bikes.most - T.bikes.least + 1)),
+    "bikes",
+  );
   const bikeRoutes = [loopA, loopB].map((ids) =>
     ids.length > 1 ? loopRoute(m, ids, "edge", DRIVES.bike, "bike") : null,
   );
@@ -793,10 +804,14 @@ export function planTraffic(level: Level, v: Village): TrafficPlan | null {
   // ...and none where a moving vehicle's body would pass through it (a
   // visitor swinging into the next bay).
   const blocked = sweptBays(v.bays, placed);
+  // A kerb's bay is taken by what stands near it (`bayPulls`): in front of
+  // the shops and flats, by the square and the lift, hardly ever along a
+  // stretch with nothing on it.
+  const pulls = bayPulls(level, v);
   const parked: Parked[] = [];
   for (const bay of v.bays) {
     if (reserved.has(bay.id) || blocked.has(bay.id)) continue;
-    const share = bay.kind === "kerb" ? T.parked.kerb : lotShare;
+    const share = bay.kind === "kerb" ? kerbShare(pulls.get(bay.id) ?? 0) : lotShare;
     if (deal(seed, `park-${bay.id}`, 0) >= share) continue;
     parked.push({
       id: parked.length,

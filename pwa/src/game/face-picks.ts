@@ -176,3 +176,8 @@ export function wherePicked(
   const face = firstFace(range, area);
   return face === null ? null : { face, region: realFaceRegion(face)! };
 }
+
+/** THE FACE A FRESH FREE RIDE STANDS ON: the first part of the first area
+ * of the first range on the RANGE row, so the WHERE steps open
+ * on a real mountain rather than on GENERATED. */
+export const DEFAULT_FACE: string | null = firstFace(faceRanges()[0] ?? GENERATED);

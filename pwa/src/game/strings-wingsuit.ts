@@ -13,7 +13,7 @@ export const WINGSUIT_STRINGS = {
   /** The SUIT row, shown on a ride up a craft he can jump from. */
   startSuit: "SUIT",
   startSuitHint:
-    "What you jump in from the paramotor, the balloon, the helicopter or the plane. PARACHUTE: the skydiver's rig over your ski clothes, skis on — a main and a reserve, landed on your skis. WINGSUIT: no skis, one BASE canopy and no reserve; leave the craft at any height and fly the suit down, pull, and land on your feet.",
+    "PARACHUTE: the skydiver's rig on your skis, a main and a reserve. WINGSUIT: no skis and no reserve; fly the suit down, pull, and land on your feet.",
   suitWord: { rig: "PARACHUTE", wingsuit: "WINGSUIT" } as const,
 
   /* ── THE NEWS (run-news.ts) ────────────────────────────────────────── */

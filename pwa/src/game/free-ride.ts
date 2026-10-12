@@ -14,7 +14,7 @@
 // THE DAY'S TWO ROWS DEFER TO THE MAP UNTIL THEY ARE MOVED. A generated map
 // is a whole day, and a card that arrived with an opinion about it would
 // quietly take that away from every skier who never touched it. So both
-// store NULL until moved, and null is the seed's own answer (AS DEALT).
+// store NULL until moved, and null is the seed's own answer (`dealtDay`, shown in orange).
 //
 // THE SPOT BELONGS TO ITS SEED. A place picked on one map's chart is a
 // meaningless coordinate on the next, so it is kept with the seed it was
@@ -24,6 +24,9 @@ import {
   CURRENT_GENERATOR_VERSION,
   DEFAULT_REGION,
   TIMES_OF_DAY,
+  dayOfYearOf,
+  hourOfTime,
+  weatherOf,
   freeRuns,
   skiRoutesOf,
   pickFreeRun,
@@ -49,6 +52,7 @@ import {
   realFaceRegion,
 } from "@engine";
 
+import { DEFAULT_FACE } from "./face-picks.ts";
 import { runNumbers } from "./run-names.ts";
 
 /** THE FREE RIDE'S MOUNTAINS, IN ORDER: the map the start card opens on
@@ -149,6 +153,9 @@ export type FreeRide = {
   /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
    * (`avalanche.ts`). On unless the player turns them off. */
   avalanche: boolean;
+  /** Whether the WHERE steps have been opened on this ride: the first time
+   * they are, the ride is stood on the first real range (`firstWhere`). */
+  placed: boolean;
 };
 
 /** THE SUIT ROW'S STOPS: the skydiver's rig, or the wingsuit. */
@@ -169,6 +176,7 @@ export function freshRide(): FreeRide {
     run: null,
     suit: "rig",
     avalanche: true,
+    placed: false,
   };
 }
 
@@ -202,6 +210,7 @@ export function mergeRide(blob: unknown): FreeRide {
   }
   if (isRegionId(b.region)) out.region = b.region;
   if (typeof b.avalanche === "boolean") out.avalanche = b.avalanche;
+  if (typeof b.placed === "boolean") out.placed = b.placed;
   // A face is kept only in its own country: a face stored under another
   // region (or one this build has not baked) is the dealt massif.
   if (typeof b.face === "string" && realFaceRegion(b.face) === out.region) out.face = b.face;
@@ -390,6 +399,25 @@ export type FreeRunInfo = {
   vertical: number;
   head: { x: number; y: number; z: number; heading: number };
 };
+
+/** THE DAY A MAP WAS DEALT, in the start card's own words: the season
+ * nearest its date, the time of day nearest its hour, and its sky. The
+ * SEASON, TIME and WEATHER rows show these (in a colour of their own) until
+ * the skier steps one. */
+export type DealtDay = { season: SeasonId; time: TimeOfDay; weather: WeatherKind };
+
+export function dealtDay(level: Pick<Level, "sun" | "weather">): DealtDay {
+  const { hour, dayOfYear, latitude } = level.sun;
+  const apart = (a: number, b: number, round: number): number => {
+    const d = Math.abs(a - b) % round;
+    return Math.min(d, round - d);
+  };
+  const nearest = <T>(items: readonly T[], off: (t: T) => number): T =>
+    items.reduce((best, t) => (off(t) < off(best) ? t : best));
+  const season = nearest(SEASONS, (s) => apart(dayOfYearOf(s.day), dayOfYear, 365)).id;
+  const time = nearest(TIMES_OF_DAY, (t) => apart(hourOfTime(latitude, dayOfYear, t), hour, 24));
+  return { season, time, weather: weatherOf(level).kind };
+}
 
 /** Every run of `level` a free ride can be carried to the top of, billed
  * (`FreeRunInfo`), and the run that is when nothing is asked — the first
@@ -640,4 +668,12 @@ export function rideOnFace(ride: FreeRide, face: string | null): FreeRide {
   const region = face ? realFaceRegion(face) : null;
   if (!face || !region || face === ride.face) return ride;
   return { ...ride, face, region, spot: null, run: null };
+}
+
+/** THE WHERE STEPS OPENED FOR THE FIRST TIME: the ride is stood on the first
+ * real range's first mountain (`DEFAULT_FACE`) rather than on
+ * GENERATED; after that, wherever the skier last left it. */
+export function firstWhere(ride: FreeRide): FreeRide {
+  if (ride.placed) return ride;
+  return { ...(DEFAULT_FACE ? rideOnFace(ride, DEFAULT_FACE) : ride), placed: true };
 }

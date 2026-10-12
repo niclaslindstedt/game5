@@ -19,7 +19,14 @@ export type CameraRung = "tips" | "helmet" | "chase" | "far" | "high" | "orbit";
 export interface WorldRenderer {
   /** Build (or rebuild, for a new level) everything that depends on the map.
    * Heavy: the loading card calls it behind a frame so the card can paint. */
-  load(state: GameState): Promise<void>;
+  load(state: GameState, cold?: boolean): Promise<void>;
+  /** Compile a world built `cold` — `load` with `cold` builds everything but
+   * leaves its shaders for here, so the free ride's cards can stand the
+   * world up while they are up and the loading card pays only for this. A
+   * world not built cold (or another map) is loaded whole. */
+  finish(state: GameState): Promise<void>;
+  /** Throw the world away, and any load of one in flight. */
+  clear(): void;
   /** Draw one frame of `state`. `alpha` is the accumulator's leftover share of
    * a step (0..1) for interpolation; `dt` is wall seconds since the last frame. */
   draw(state: GameState, alpha: number, dt: number): void;

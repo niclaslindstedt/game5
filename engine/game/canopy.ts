@@ -10,6 +10,7 @@
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { felledTrees } from "./felled.ts";
 import { treesNear } from "./upright-grid.ts";
 import type { Level } from "../mapgen/types.ts";
 import { CHUTE } from "./defs/chute.ts";
@@ -191,10 +192,13 @@ const trees: number[] = [];
 
 /** THE CROWN the cloth at (x, y, z) is in — under the tree's top and
  * within `reach` m of its crown's edge — by its index into `level.trees`,
- * or −1. */
+ * or −1. A tree felled for the village or the strip (`felledTrees`) is no
+ * crown. */
 export function crownAt(level: Level, x: number, y: number, z: number, reach: number): number {
   const near = treesNear(level, x, z, 12, trees);
+  const gone = felledTrees(level);
   for (let i = 0; i < near.length; i++) {
+    if (gone[near[i]]) continue;
     const t = level.trees[near[i]];
     if (y < t.y + t.height && hypot(x - t.x, z - t.z) < t.crown + reach) return near[i];
   }

@@ -17,7 +17,7 @@ import { disablingOf, type GameState } from "@engine";
 
 import type { KeyBindings } from "./settings-input.ts";
 
-import { createForecaster } from "./impact-forecast.ts";
+import { createForecaster, wrecked } from "./impact-forecast.ts";
 import { createSkipCount, createXrayDirector, type XrayLook } from "./xray-shots.ts";
 
 /** A skier this slow, on the snow and on his skis, is not read ahead:
@@ -106,7 +106,11 @@ export function createXrayRun(
       running = true;
       const s = state.skier;
       const moving = s.speed > STILL || s.airborne || s.thrown !== null || !!state.heli?.rider;
-      if (moving && state.gore.dead < 0) director.seen(ahead.frame(state, state.input), state);
+      // A machine come down with him on it is the crash's own lens's
+      // (`Forecast.wrecked`): nothing to read ahead for, and a copy of the
+      // run stepped through a wreck every frame is a frame's budget.
+      if (moving && state.gore.dead < 0 && !wrecked(state))
+        director.seen(ahead.frame(state, state.input), state);
       const look = director.frame(state, wall);
       active = look.active;
       show(look);

@@ -16,7 +16,8 @@ import { PISTE_MAST, pisteMasts } from "./piste-masts.ts";
 import { wallSolids } from "./cliff-wall.ts";
 import { gunSolid, standingGuns } from "./snow-guns.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
-import { felledTrees, villageSolids } from "./village.ts";
+import { felledTrees } from "./felled.ts";
+import { villageSolids } from "./village.ts";
 
 const lists = new WeakMap<Level, Upright[]>();
 

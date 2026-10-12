@@ -88,6 +88,7 @@
     "balloon": "node scripts/balloon-preview.mjs",
     "balloon-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/balloon-lab.mjs",
     "plane-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/plane-flight-lab.mjs",
+    "airstrip": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/airstrip-lab.mjs",
     "skijump-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skijump-flight-lab.mjs",
     "skijump-hills": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skijump-hills-lab.mjs",
     "plane": "node scripts/plane-preview.mjs",

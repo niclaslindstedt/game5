@@ -46,6 +46,7 @@ import {
 import { airDensity, airKelvin, airPressure, seaAltitude } from "./balloon-air.ts";
 import { mendBody } from "./body.ts";
 import { airBoundsAt, treesNear, type AirBounds } from "./collision.ts";
+import { felledTrees } from "./felled.ts";
 import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
 import { PLANE, planeMass } from "./defs/plane.ts";
@@ -636,7 +637,10 @@ function struck(run: GameState, p: PlaneState): number {
   for (let i = 4; i < STRIKES.length; i++) if (inSnow(STRIKES[i], 0.05)) return i;
   for (const s of PROP_RIM) if (inSnow(s, 0.02)) return HIT_PROP;
   if (p.agl > 60) return HIT_NONE;
+  // A tree felled for the village or the strip stands nowhere.
+  const gone = felledTrees(level);
   for (const i of treesNear(level, cx, cz, 14, trunks)) {
+    if (gone[i]) continue;
     const t = level.trees[i];
     const top = t.y + t.height;
     for (const b of TREE_POINTS) {

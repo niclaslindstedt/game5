@@ -10,7 +10,7 @@
 //   * `streetMaskAt` — what the ground at a point is (a carriageway, the
 //     rest of a street to the back of its sidewalks or an open place, the
 //     margin the trees are felled over, the gardens they are thinned in);
-//   * `felledTrees` — which of the map's trees are gone for the village
+//   * `villageFelled` — which of the map's trees are gone for the village
 //     (on its streets, its open places and its lots, most in the gardens
 //     between) or for a building of the ski area's site: not drawn, not on
 //     the chart and not solid;
@@ -266,8 +266,9 @@ const felled = new WeakMap<Level, Uint8Array>();
  * village (on a street, an open place or a lot, or past them in the
  * margin) or thinned out of its gardens (all but `VILLAGE_LOTS.keep`), or
  * standing inside the walls of one of the ski area's buildings
- * (`fellsTree`). */
-export function felledTrees(level: Level): Uint8Array {
+ * (`fellsTree`). The whole set, the strip's clearing with it, is
+ * `felled.ts`'s `felledTrees`. */
+export function villageFelled(level: Level): Uint8Array {
   let out = felled.get(level);
   if (out) return out;
   out = new Uint8Array(level.trees.length);

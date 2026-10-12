@@ -80,6 +80,7 @@ import {
   offRamp,
   rampRoom,
   roomBlocked,
+  type RampFit,
   type RampRoom,
 } from "./summit-ramps.ts";
 import { trimDrifts } from "./drift-trim.ts";
@@ -246,9 +247,10 @@ export function attemptResort(
   const rng = createRng(sub);
   const traits = generatorTraits(version);
   const plan = planMassif(rng, region, face, attempt);
-  /** How a ramp off a top may fall (R26), a real face's own. */
-  const FIT = plan.face
-    ? RR.massif.real.least.ramp
+  /** How a ramp off a top may fall (R26), a real face's own — whose
+   * crowded tops have their ramps chosen together (`chooseRamps`). */
+  const FIT: RampFit = plan.face
+    ? { ...RR.massif.real.least.ramp, joint: true }
     : { glide: RR.lift.top.ramp.fall, gentle: RR.lift.top.ramp.grade };
   const ground = bakeMassif(plan);
   const water = layWater(plan, ground); // a real face's, its ground flattened under it

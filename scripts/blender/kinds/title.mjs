@@ -27,8 +27,6 @@
 //             the pole tips, his turn in the world and the slope's
 //   spruce    the game's spruce variants (`TREE_VARIANTS`), the woods'
 //             tiers, sides, taper and load
-//   mark      the logo's two carved tracks (`MARK_TRAILS`), which the
-//             scene cuts into the face as the tracks he left
 import { fileURLToPath } from "node:url";
 
 export const kind = {
@@ -50,7 +48,6 @@ export const kind = {
     const { GIANT_SLALOM_POSE } = await import("../../../pwa/src/game/technique-pose.ts");
     const { skierBones } = await import("../../../pwa/src/game/skier-rig.ts");
     const { bindPose } = await import("../../../pwa/src/game/dress-loft.ts");
-    const { MARK_TRAILS, MARK_TRAIL_VIEWBOX } = await import("../../../pwa/src/game/app-mark.ts");
     const { TREE_VARIANTS } = await import("../../../pwa/src/game/tree-variants.ts");
     const { MOVES } = await import("../../lib/skier-moves.mjs");
     const { traceMove } = await import("../../lib/skier-trace.mjs");
@@ -100,7 +97,6 @@ export const kind = {
           snow: v.shape.snow,
           droop: v.shape.droop,
         })),
-      mark: { trails: MARK_TRAILS, viewBox: MARK_TRAIL_VIEWBOX },
     };
   },
   builder: "title.py",

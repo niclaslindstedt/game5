@@ -187,10 +187,18 @@ export function stripLaid(level: Level): boolean {
  * fifteen metres (`plane-wings.ts`). */
 export const STRIP_AIR = { rise: 1 / 20, reach: 600 } as const;
 
+/** THE CANOPIES' LANDING AREA: the strip's middle is where a skydiver's
+ * canopy is flown to (`chute-pilot.ts`), and a drop zone keeps a licensed
+ * jumper's landing area this far from any hazard, m — every crown reaching
+ * inside it is felled, so a canopy set down a few tens of metres off the
+ * centre line in a crosswind is down on the snow, never in a tree. */
+export const STRIP_DROP = 30;
+
 /** THE TREES FELLED FOR THE STRIP: 1 for each of `level.trees` standing
  * within the strip's clearance of its centre line (`Airstrip.clear`) — a
  * clearing cut through the wood where the floor's only room is wooded —
- * up into the air off either end (`STRIP_AIR`), or inside a margin round
+ * up into the air off either end (`STRIP_AIR`), round the canopies'
+ * landing area at its middle (`STRIP_DROP`), or inside a margin round
  * one of its buildings. */
 export function stripFelled(level: Level): Uint8Array {
   let out = felled.get(level);
@@ -206,6 +214,10 @@ export function stripFelled(level: Level): Uint8Array {
       const f = stripFrame(s, t.x, t.z);
       const along = Math.max(-half, Math.min(half, f.along));
       if (hypot(f.along - along, f.across) <= need) out[i] = 1;
+    }
+    for (const i of treesNear(level, s.x, s.z, STRIP_DROP + 10, near)) {
+      const t = level.trees[i];
+      if (hypot(t.x - s.x, t.z - s.z) - t.crown <= STRIP_DROP) out[i] = 1;
     }
     const ends = [
       {

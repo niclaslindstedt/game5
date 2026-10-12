@@ -16,7 +16,7 @@
 // draws with no ski boots over them. The WINGS are lofted apart, every
 // frame (`wingsuit-cloth.ts`).
 
-import { dressOutfit } from "./dress.ts";
+import { dressOutfit, keptCut } from "./dress.ts";
 import { linear, type DressMesh, type DressPart } from "./dress-loft.ts";
 import { GLOVES, HELMETS, JACKETS, PANTS, type Outfit } from "./outfit.ts";
 import { colourwayOf } from "./wingsuit-look.ts";
@@ -82,14 +82,12 @@ function recolour(part: DressPart, map: [number[], number[]][]): DressPart {
 const cut = new Map<string, DressMesh>();
 
 /** THE SUIT'S BODY for outfit `o` (its body, build and skin) in colourway
- * `suit`: cut once and kept. */
+ * `suit`: cut once and kept (the last few, `keptCut`). */
 export function suitDress(o: Outfit, suit: number, tone?: number, bare = false): DressMesh {
   const key = `${suit}:${tone ?? ""}:${bare ? 1 : 0}:${o.body}:${o.weight}`;
-  const known = cut.get(key);
-  if (known) return known;
-  const mesh = dressOutfit(suitOutfit(o), tone, bare);
-  const map = suitPalette(suit).map(([a, b]) => [linear(a), linear(b)] as [number[], number[]]);
-  const made = { cloth: recolour(mesh.cloth, map), hard: recolour(mesh.hard, map) };
-  cut.set(key, made);
-  return made;
+  return keptCut(cut, key, () => {
+    const mesh = dressOutfit(suitOutfit(o), tone, bare);
+    const map = suitPalette(suit).map(([a, b]) => [linear(a), linear(b)] as [number[], number[]]);
+    return { cloth: recolour(mesh.cloth, map), hard: recolour(mesh.hard, map) };
+  });
 }

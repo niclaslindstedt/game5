@@ -159,7 +159,8 @@ export const SLOT_DRESS: readonly SkierDress[] = [
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
   // A ski jumper (only a jump rides the Albatross) in his suit (`jumpKit`).
-  const dress = spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit) } : skier;
+  const dress =
+    spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit), model: false } : skier;
   return styleIn(TOPSHEETS[drawnAs(spec)], dress);
 }
 

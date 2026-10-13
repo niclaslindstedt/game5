@@ -27,6 +27,7 @@ import {
   pairById,
   placeRun,
   step,
+  throwRider,
   type GameState,
   type RegionId,
   type SkierInput,
@@ -46,6 +47,7 @@ import {
   type FilmMove,
   type Plume,
 } from "../game/spray-film.ts";
+import { wildGround } from "../game/wild-ground.ts";
 import { hourAt, meadow, pisteSpot } from "./stage.ts";
 
 type CellScore = { move: FilmMove; t: number; game: Plume; film: FilmFrame; score: number };
@@ -300,70 +302,6 @@ const LAID_DOWN: SkierInput = { ...NEUTRAL_INPUT, steer: 1, brake: 1, lean: 1 };
 
 async function marksSheet(ctx: CanvasRenderingContext2D, labelW: number, headH: number) {
   const titles = ["FALL IN POWDER", "TRACK LINE"];
-  // Row 0: the fall, beside at three moments and over the hole.
-  // Deep enough to lay him down (the world lab's powder views' dial).
-  renderer.setSnow(null, "fresh");
-  const fall = createGame({
-    level,
-    mode: "free",
-    rivals: 0,
-    quiet: true,
-    spec: CHAMOIS,
-    snowDepth: 2.5,
-  });
-  placeRun(fall, { x: field.x, z: field.z, heading: field.heading, speed: 12 / 3.6 });
-  await settle(fall);
-  const until = fall.t + 8;
-  while (!fall.skier.thrown && fall.t < until) {
-    for (let i = 0; i < 2; i++) step(fall, LAID_DOWN);
-    renderer.draw(fall, 0, FRAME, false);
-  }
-  const into = fall.skier.thrown
-    ? { x: fall.skier.thrown.x, z: fall.skier.thrown.z, h: fall.skier.thrown.heading }
-    : null;
-  const shots: { t: number; top: boolean }[] = [
-    { t: 0.3, top: false },
-    { t: 1, top: false },
-    { t: 3, top: false },
-    { t: 3, top: true },
-  ];
-  for (let c = 0; c < shots.length; c++) {
-    const x0 = labelW + c * cellW;
-    const off = fall.skier.thrown;
-    if (!into || !off) {
-      ctx.fillStyle = "#e8eef4";
-      ctx.fillText("he did not fall", x0 + 8, headH + 20);
-      continue;
-    }
-    while (fall.skier.thrown && fall.skier.thrown.t < shots[c].t) {
-      for (let i = 0; i < 2; i++) step(fall, NEUTRAL_INPUT);
-      renderer.draw(fall, 0, FRAME, false);
-    }
-    const now = fall.skier.thrown ?? off;
-    const across = into.h + Math.PI / 2;
-    const far = shots[c].top ? 1.4 : 3.6;
-    const ex = into.x + Math.sin(across) * far;
-    const ez = into.z + Math.cos(across) * far;
-    renderer.setOverride({
-      eye: { x: ex, y: level.groundAt(ex, ez) + (shots[c].top ? 4.4 : 1.0), z: ez },
-      target: { x: now.x, y: level.groundAt(now.x, now.z) - 0.2, z: now.z },
-      fov: 50,
-      roll: 0,
-    });
-    renderer.draw(fall, 0, 0, true);
-    ctx.drawImage(stage, x0, headH, cellW, cellH);
-    renderer.setOverride(null);
-    const under = level.groundAt(now.x, now.z) - now.y;
-    label(
-      ctx,
-      [
-        `${shots[c].t} s down in deep powder · ${shots[c].top ? "over the hole" : "beside"} · middle ${under.toFixed(2)} m under`,
-      ],
-      x0,
-      headH,
-    );
-  }
-  renderer.setSnow(null);
   // Row 1: the track line behind six seconds of carves, groomer and powder.
   const tracks: { powder: boolean; lens: "chase" | "low" }[] = [
     { powder: false, lens: "chase" },
@@ -408,6 +346,83 @@ async function marksSheet(ctx: CanvasRenderingContext2D, labelW: number, headH: 
       headH + cellH,
     );
   }
+  // Row 0: the fall, beside at three moments and over the hole — shot last,
+  // since the deep dial is a map of its own (its tree wells dug into it) the
+  // renderer is loaded with for this row alone.
+  // Deep enough to lay him down (the world lab's powder views' dial).
+  renderer.setSnow(null, "fresh");
+  const fall = createGame({
+    level,
+    mode: "free",
+    rivals: 0,
+    quiet: true,
+    spec: CHAMOIS,
+    snowDepth: 2.5,
+  });
+  await renderer.load(fall);
+  placeRun(fall, { x: field.x, z: field.z, heading: field.heading, speed: 12 / 3.6 });
+  await settle(fall);
+  const until = fall.t + 8;
+  while (!fall.skier.thrown && fall.t < until) {
+    for (let i = 0; i < 2; i++) step(fall, LAID_DOWN);
+    renderer.draw(fall, 0, FRAME, false);
+  }
+  // Snow that will not lay him down by itself (too firm, or a pitch that
+  // carries him on): put him over his tips as a faceplant would, at the
+  // crawl he was stood off at, so the crater is always shot.
+  if (!fall.skier.thrown) {
+    const h = fall.skier.heading;
+    const v = 12 / 3.6;
+    throwRider(fall, "faceplant", { x: Math.sin(h) * v, y: 0.5, z: Math.cos(h) * v }, []);
+  }
+  const into = fall.skier.thrown
+    ? { x: fall.skier.thrown.x, z: fall.skier.thrown.z, h: fall.skier.thrown.heading }
+    : null;
+  const shots: { t: number; top: boolean }[] = [
+    { t: 0.3, top: false },
+    { t: 1, top: false },
+    { t: 3, top: false },
+    { t: 3, top: true },
+  ];
+  for (let c = 0; c < shots.length; c++) {
+    const x0 = labelW + c * cellW;
+    const off = fall.skier.thrown;
+    if (!into || !off) {
+      ctx.fillStyle = "#e8eef4";
+      ctx.fillText("he did not fall", x0 + 8, headH + 20);
+      continue;
+    }
+    while (fall.skier.thrown && fall.skier.thrown.t < shots[c].t) {
+      for (let i = 0; i < 2; i++) step(fall, NEUTRAL_INPUT);
+      renderer.draw(fall, 0, FRAME, false);
+    }
+    const now = fall.skier.thrown ?? off;
+    const across = into.h + Math.PI / 2;
+    const far = shots[c].top ? 1.4 : 3.6;
+    const ex = into.x + Math.sin(across) * far;
+    const ez = into.z + Math.cos(across) * far;
+    renderer.setOverride({
+      // On the snow's own surface: a dial this deep stands it well over the
+      // ground, and a lens at the ground's height would be buried in it.
+      eye: { x: ex, y: wildGround(fall.level).snowY(ex, ez) + (shots[c].top ? 4.4 : 1.1), z: ez },
+      target: { x: now.x, y: fall.level.groundAt(now.x, now.z) - 0.2, z: now.z },
+      fov: 50,
+      roll: 0,
+    });
+    renderer.draw(fall, 0, 0, true);
+    ctx.drawImage(stage, x0, headH, cellW, cellH);
+    renderer.setOverride(null);
+    const under = fall.level.groundAt(now.x, now.z) - now.y;
+    label(
+      ctx,
+      [
+        `${shots[c].t} s down in deep powder · ${shots[c].top ? "over the hole" : "beside"} · middle ${under.toFixed(2)} m under`,
+      ],
+      x0,
+      headH,
+    );
+  }
+  renderer.setSnow(null);
   ctx.fillStyle = "#e8eef4";
   titles.forEach((t, r) => ctx.fillText(t, 8, headH + r * cellH + cellH / 2));
 }

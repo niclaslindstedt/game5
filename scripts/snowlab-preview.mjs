@@ -108,6 +108,7 @@ if (args.perf) {
       const r = await page.evaluate(() => globalThis.__snowlab.perf());
       if (crashed) process.exit(1);
       rows.push({ quality, deform, ...r });
+      console.log(`  ${quality} ${deform}: ${r.ms.toFixed(1)} ms`);
       await page.close();
     }
   }

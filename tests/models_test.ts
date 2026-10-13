@@ -19,7 +19,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { GROOMER, HELI, PLANE, SKI_CATALOG } from "@engine";
+import { BIKE_BB, GROOMER, HELI, PLANE, SKI_CATALOG } from "@engine";
 
 import {
   ALL_MODELS,
@@ -30,6 +30,7 @@ import {
 } from "../pwa/models-plugin.ts";
 import { modelSwitch } from "../pwa/src/game/model-switch.ts";
 import {
+  bikeModelUrl,
   dressOf,
   GROOMER_NODES,
   groomerModelUrl,
@@ -38,12 +39,15 @@ import {
   PLANE_NODES,
   planeModelUrl,
   rescueModelUrl,
+  riderModelUrl,
   SLED_NODES,
   sledModelUrl,
 } from "../pwa/src/game/skier-models.ts";
 import { coloursOf, RIVAL_OUTFITS } from "../pwa/src/game/outfit.ts";
 import { pairStyle } from "../pwa/src/game/skis-body.ts";
 import { GROOMER_LOOK } from "../pwa/src/game/groomer-look.ts";
+import { BIKE_NODES, BIKE_REST } from "../pwa/src/game/bike-rig.ts";
+import { SKIER_BONES } from "../pwa/src/game/skier-rig.ts";
 
 const root = join(import.meta.dirname, "..");
 const matNames = (file: string): string[] =>
@@ -54,7 +58,7 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine and the jump plane", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the bike with its rider", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
@@ -63,9 +67,20 @@ describe("the models the game ships", () => {
         "sled.glb",
         "groomer.glb",
         "plane.glb",
+        "bike.glb",
+        "rider.glb",
       ].sort(),
     );
-    const none = { skis: false, heli: false, sled: false, groomer: false, plane: false };
+    const none = {
+      skis: false,
+      heli: false,
+      sled: false,
+      groomer: false,
+      plane: false,
+      bike: false,
+    };
+    expect(modelFiles({ ...none, bike: true })).toEqual(["bike.glb", "rider.glb"]);
+    expect(modelFiles(ALL_MODELS, "bike")).toEqual(["bike.glb", "rider.glb"]);
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
     expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
@@ -89,6 +104,7 @@ describe("the models the game ships", () => {
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as object;
     expect(Object.keys(stamp).sort()).toEqual([
+      "bike",
       "blender",
       "groomer",
       "heli",
@@ -425,5 +441,58 @@ describe("the jump plane model", () => {
     // 20k: the traced skin with its windows and livery, the cabin behind
     // the open door, the wing and tail, the gear on its skis.
     expect(tris).toBeLessThan(20_000);
+  });
+});
+
+describe("the downhill bike and its rider", () => {
+  type Gltf = {
+    nodes: { name: string; mesh?: number; translation?: number[]; children?: number[] }[];
+    meshes: { primitives: { indices: number }[] }[];
+    accessors: { count: number }[];
+    skins?: { joints: number[] }[];
+    animations?: { name: string }[];
+  };
+  const read = (file: string): Gltf => {
+    const glb = readFileSync(join(root, MODELS_DIR, file));
+    return JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as Gltf;
+  };
+  const tris = (g: Gltf): number =>
+    g.meshes.flatMap((m) => m.primitives).reduce((n, p) => n + g.accessors[p.indices].count / 3, 0);
+  const bike = read("bike.glb");
+  const rider = read("rider.glb");
+  const v = (n: number[] | undefined) => (n ?? [0, 0, 0]).map((x) => Math.round(x * 1000) / 1000);
+
+  it("is served where its drawers look", () => {
+    expect(bikeModelUrl()).toBe("/models/bike.glb");
+    expect(riderModelUrl()).toBe("/models/rider.glb");
+  });
+
+  it("carries every node the bike is posed by, each at its pivot", () => {
+    const builder = readFileSync(join(root, "scripts", "blender", "bike.py"), "utf8");
+    for (const [key, name] of Object.entries(BIKE_NODES) as [keyof typeof BIKE_NODES, string][]) {
+      const n = bike.nodes.find((x) => x.name === name);
+      expect(n, name).toBeDefined();
+      const r = BIKE_REST[key];
+      expect(v(n!.translation), name).toEqual(v([r.x, r.y, r.z]));
+    }
+    expect(builder).toContain("BIKE_NODES");
+    const frame = bike.nodes.find((x) => x.name === BIKE_NODES.frame)!;
+    expect(v(frame.translation)).toEqual(v([BIKE_BB.x, BIKE_BB.y, BIKE_BB.z]));
+  });
+
+  it("is skinned on the skier's own bones, with the clips the rig deals", () => {
+    const joints = rider.skins![0]!.joints.map((i) => rider.nodes[i]!.name);
+    for (const j of joints) expect([...SKIER_BONES, "body"] as string[], j).toContain(j);
+    for (const b of SKIER_BONES) expect(joints, b).toContain(b);
+    const clips = ["pedal", "attack", "corner", "pump", "brake", "jump", "manual"];
+    expect(rider.animations!.map((a) => a.name)).toEqual(clips);
+    expect(bike.animations!.map((a) => a.name).sort()).toEqual([...clips].sort());
+  });
+
+  it("stays inside the game's triangle budget", () => {
+    // 32k: the knobbed tyres and the spoked wheels the chase lens sits
+    // over, the coil shock, the dual-crown fork; the rider 15k.
+    expect(tris(bike)).toBeLessThan(32_000);
+    expect(tris(rider)).toBeLessThan(15_000);
   });
 });

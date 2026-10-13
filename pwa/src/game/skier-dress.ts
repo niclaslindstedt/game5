@@ -26,6 +26,9 @@ export type Dressed = {
   /** What the figure's group carries: the bones and the two meshes. */
   group: THREE.Group;
   meshes: THREE.SkinnedMesh[];
+  /** The skeleton the skin is bound on — another skin bound on it too (the
+   * modelled bike rider's, `bike-rider.ts`) is posed by every pose. */
+  skeleton: THREE.Skeleton;
   pose(p: SkierPose, cut?: Collapse | null): void;
   /** Posed off bone frames handed in whole (a piece torn off,
    * `gore-view.ts`), each in the group's frame. */
@@ -177,6 +180,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   return {
     group,
     meshes,
+    skeleton,
     pose(p, cut) {
       lay(skierBones(p), cut);
     },

@@ -5,9 +5,12 @@
 // WHEELS turned about their axles, the BARS and the fork's crowns turned
 // about the steer axis, the FORK's lowers slid up its stanchions, the
 // SWINGARM swung about the main pivot and the SHOCK shortened between its
-// eyes, the CRANKS turned with the pedals held level. A modelled bike plugs
-// into the same NODES (`BIKE_NODES`, each with its origin on its pivot) and
-// is posed by the same hand (`poseBike`).
+// eyes, the CRANKS turned with the pedals held level. The MODELLED bike
+// (`make blender KIND=bike`, `models/bike.glb`) carries the same NODES
+// (`bike-rig.ts`'s `BIKE_NODES`, each with its origin on its pivot, the
+// shock's body and rod apart so its coil alone is stretched) and is posed
+// by the same hand (`poseBike`, over `bikeNodes`); this code bike is drawn
+// until it is in, and wherever it is switched off (`VITE_MODEL_BIKE=0`).
 //
 // Off the rider it lies where the engine lays it, rolls with him on a lift —
 // hung by its front wheel off the back of his chair (`LIFT_HOOK`), carried
@@ -16,6 +19,7 @@
 // Presentation only: it reads `GameState.bike` and writes nothing back.
 
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { BIKE, BIKE_BB, bikePose, type BikePose, type BikeState, type GameState } from "@engine";
 
@@ -34,12 +38,16 @@ import {
   STEER_AXIS,
   frontAxle,
   shockAt,
-  swingAt,
   type V3,
 } from "./bike-look.ts";
+import { BIKE_NODES, bikeNodes, type BikeNodeKey } from "./bike-rig.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
+import { mergeParts } from "./model-merge.ts";
+import { bikeModelUrl } from "./skier-models.ts";
+
+export { BIKE_NODES };
 
 /** THE NODES a drawn bike is posed by — the code's groups here, a model's
  * named nodes later. Every origin is its pivot, in the body frame from the
@@ -57,20 +65,8 @@ import { createTrack, observe, sample, type Pose } from "./interp.ts";
  *   cranks    origin the bottom bracket, turned about +x by the cranks'
  *             angle; pedalL / pedalR its children at the arms' ends,
  *             turned back so the platforms stay level. */
-export const BIKE_NODES = {
-  frame: "bike_frame",
-  bars: "bike_bars",
-  fork: "bike_fork",
-  wheelF: "bike_wheel_f",
-  swingarm: "bike_swingarm",
-  wheelR: "bike_wheel_r",
-  shock: "bike_shock",
-  cranks: "bike_cranks",
-  pedalL: "bike_pedal_l",
-  pedalR: "bike_pedal_r",
-} as const;
 
-export type BikeNodes = Record<keyof typeof BIKE_NODES, THREE.Object3D>;
+export type BikeNodes = Partial<Record<BikeNodeKey, THREE.Object3D>>;
 
 /** How near the parked bike a walker is for its halo to call him, m. */
 const LIGHT_UP = 30;
@@ -419,25 +415,19 @@ function buildBike(haze: HazeUniforms): {
 }
 
 const turn = new THREE.Quaternion();
-const axisSteer = new THREE.Vector3(STEER_AXIS.x, STEER_AXIS.y, STEER_AXIS.z);
-const zAxis = new THREE.Vector3(0, 0, 1);
-const aim = new THREE.Vector3();
 
 /** POSE a drawn bike's nodes off the engine's `pose` — the code's or a
- * model's alike. */
+ * model's alike: every node put where `bikeNodes` stands it. */
 export function poseBike(n: BikeNodes, pose: BikePose): void {
-  n.bars.quaternion.setFromAxisAngle(axisSteer, pose.steer);
-  n.fork.position.set(STEER_AXIS.x * pose.fork, STEER_AXIS.y * pose.fork, STEER_AXIS.z * pose.fork);
-  n.wheelF.rotation.set(pose.frontSpin, 0, 0);
-  n.swingarm.rotation.set(swingAt(pose.shock), 0, 0);
-  n.wheelR.rotation.set(pose.rearSpin, 0, 0);
-  const s = shockAt(pose.shock);
-  aim.set(0, s.rear.y - s.front.y, s.rear.z - s.front.z).normalize();
-  n.shock.quaternion.copy(turn.setFromUnitVectors(zAxis, aim));
-  n.shock.scale.set(1, 1, s.length / SHOCK_REST);
-  n.cranks.rotation.set(pose.crank, 0, 0);
-  n.pedalL.rotation.set(-pose.crank, 0, 0);
-  n.pedalR.rotation.set(-pose.crank, 0, 0);
+  const at = bikeNodes(pose);
+  for (const k of Object.keys(at) as BikeNodeKey[]) {
+    const o = n[k];
+    if (!o) continue;
+    const { p, q, s } = at[k];
+    o.position.set(p.x, p.y, p.z);
+    o.quaternion.set(q.x, q.y, q.z, q.w);
+    o.scale.set(s.x, s.y, s.z);
+  }
 }
 
 export type BikeView = {
@@ -463,7 +453,36 @@ export function createBikeView(haze: HazeUniforms): BikeView {
   const group = new THREE.Group();
   group.name = "downhill-bike";
   const built = buildBike(haze);
-  group.add(built.root);
+  // THE BODY the bike is hung in at its centre of mass: the code's bike
+  // until the model is in.
+  const body = new THREE.Group();
+  body.add(built.root);
+  group.add(body);
+  let nodes: BikeNodes = built.nodes;
+  let disposed = false;
+  const modelMats: THREE.Material[] = [];
+  const url = bikeModelUrl();
+  const ready = (url ? new GLTFLoader().loadAsync(url) : Promise.reject(new Error("no model")))
+    .then((gltf) => {
+      if (disposed) return;
+      const found: BikeNodes = {};
+      gltf.scene.traverse((o) => {
+        for (const [key, name] of Object.entries(BIKE_NODES) as [BikeNodeKey, string][])
+          if (o.name === name) found[key] = o;
+      });
+      for (const o of Object.values(found)) {
+        // Its plain primitives one draw a material (`mergeParts`), each in the haze.
+        mergeParts(o, (m) => hazeMaterial(m, haze, "bike"), modelMats);
+        o.traverse((c) => {
+          if (c instanceof THREE.Mesh) c.castShadow = true;
+        });
+      }
+      body.remove(built.root);
+      built.dispose();
+      body.add(gltf.scene);
+      nodes = found;
+    })
+    .catch(() => undefined);
   const call = new THREE.Sprite(
     new THREE.SpriteMaterial({
       map: glow(),
@@ -490,8 +509,10 @@ export function createBikeView(haze: HazeUniforms): BikeView {
 
   return {
     group,
-    nodes: built.nodes,
-    ready: Promise.resolve(),
+    get nodes() {
+      return nodes;
+    },
+    ready,
     update(state, alpha, dt, player) {
       const b: BikeState | undefined = state.bike;
       group.visible = !!b;
@@ -530,10 +551,10 @@ export function createBikeView(haze: HazeUniforms): BikeView {
         const h = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), h);
       }
-      built.root.position.set(x, y, z);
-      built.root.quaternion.copy(q);
+      body.position.set(x, y, z);
+      body.quaternion.copy(q);
       shown = { x, y, z, q };
-      poseBike(built.nodes, bikePose(b));
+      poseBike(nodes, bikePose(b));
       // THE CALL while it lies waiting near him on foot.
       const near = Math.hypot(player.x - b.x, player.z - b.z);
       const waiting = !!b.afoot && !b.onIt && near < LIGHT_UP && near > BIKE.board.reach;
@@ -543,7 +564,9 @@ export function createBikeView(haze: HazeUniforms): BikeView {
     },
     drawn: () => shown,
     dispose() {
-      built.dispose();
+      disposed = true;
+      if (built.root.parent) built.dispose();
+      for (const m of modelMats) m.dispose();
       call.material.dispose();
     },
   };

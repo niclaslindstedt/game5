@@ -146,6 +146,43 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "on their hinges; the sliding door); the code's stand-in is the same airframe faceted",
   },
   {
+    asset: "Downhill bike",
+    ids: ["bike"],
+    source: "blender",
+    code: ["pwa/src/game/bike-view.ts"],
+    drawnBy: "pwa/src/game/bike-view.ts",
+    blender: {
+      builder: "scripts/blender/bike.py",
+      files: ["bike.glb"],
+      pattern: "bike.glb",
+      switch: "VITE_MODEL_BIKE",
+    },
+    note:
+      "the summer free ride's downhill bike, built off `BIKE` and the class's look " +
+      "(`bike-look.ts`): a coil-sprung frame, a dual-crown fork, knobbed tyres on spoked wheels, " +
+      "and rigid nodes on their pivots (`bike-rig.ts`'s `BIKE_NODES`: the bars, the fork's " +
+      "lowers, both wheels, the swingarm, the shock and its body and rod, the cranks and " +
+      "pedals) with the rig's clips baked; the code's bike is the same layout faceted",
+  },
+  {
+    asset: "Downhill bike rider",
+    ids: ["rider"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts"],
+    drawnBy: "pwa/src/game/bike-rider.ts",
+    blender: {
+      builder: "scripts/blender/rider.py",
+      files: ["rider.glb"],
+      pattern: "rider.glb",
+      switch: "VITE_MODEL_BIKE",
+    },
+    note:
+      "the rider on the downhill bike in a downhill kit (a full-face helmet with its peak and " +
+      "goggles, a loose jersey, baggy shorts over knee and shin pads, flat shoes, gloves), " +
+      "skinned on the skier's own bones and bound on the dressed figure's skeleton, so every " +
+      "pose of his moves it; switched off, he rides in his outfit",
+  },
+  {
     asset: "Hot air balloon",
     ids: ["balloon"],
     source: "code",

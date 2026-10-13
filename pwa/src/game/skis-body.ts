@@ -113,6 +113,7 @@ import {
 import type { WingsuitShape } from "./skier-wingsuit.ts";
 import { flyerSnow, poseFlyer, STOOD } from "./wingsuit-body.ts";
 import { createWingsuitWings } from "./wingsuit-figure.ts";
+import { bikeRiderNow, dressBikeRider, loadBikeRider } from "./bike-rider.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
@@ -434,7 +435,20 @@ export function createSkisModel(
     if (on === unbooted) return;
     unbooted = on;
     for (const m of bootParts) m.visible = !on;
-    for (const b of walkBoots) b.visible = on;
+    for (const b of walkBoots) b.visible = on && !riderOn;
+  };
+  // ON THE BIKE, the modelled rider (`bike-rider.ts`) where this build
+  // draws one: his skin bound on the figure's own skeleton, fetched the
+  // first time he gets on, shown in place of the outfit's cloth and boots.
+  let riderMeshes: THREE.SkinnedMesh[] = [];
+  let riderAsked = false;
+  let riderOn = false;
+  let gone = false;
+  const showRider = (): void => {
+    riderOn = biking && riderMeshes.length > 0;
+    for (const m of riderMeshes) m.visible = riderOn;
+    for (const m of figure.dressed.meshes) m.visible = !riderOn;
+    if (riderOn) for (const b of walkBoots) b.visible = false;
   };
   // Hung after the merge, so it stays out of the one draw: a lamp of its
   // own, on whichever helmet he wears.
@@ -657,7 +671,7 @@ export function createSkisModel(
         thrown.setFromRotationMatrix(trunk);
         figure.group.quaternion.copy(toRoot).multiply(thrown);
         figure.sprawl(handed(p, "thrown"), goreLost, goreCrush);
-        bootsOn(walkBoots, p, unbooted, goreLost);
+        bootsOn(walkBoots, p, unbooted && !riderOn, goreLost);
         wings?.pose(p, { pressure: 0, unzip: 0, t: run?.t ?? 0 });
         bound.radius = BOUND + figure.group.position.length();
       } else if (afoot) {
@@ -685,7 +699,7 @@ export function createSkisModel(
         // (picking the pair up, setting off, clicking in) is eased over.
         const way = stood ? "stood" : town ? `town ${town.phase}` : `fetch ${skier.fetch!.phase}`;
         figure.sprawl(handed(p, way), 0, 0, town !== null);
-        bootsOn(walkBoots, p, unbooted, goreLost);
+        bootsOn(walkBoots, p, unbooted && !riderOn, goreLost);
       } else {
         if (bound.radius !== BOUND) {
           figure.group.position.set(0, 0, 0);
@@ -889,6 +903,18 @@ export function createSkisModel(
     },
     setBiking(on) {
       biking = on;
+      if (on && !riderAsked) {
+        riderAsked = true;
+        const now = bikeRiderNow();
+        if (now) riderMeshes = dressBikeRider(now, figure.dressed, wrap);
+        else
+          void loadBikeRider().then((g) => {
+            if (!g || gone) return;
+            riderMeshes = dressBikeRider(g, figure.dressed, wrap);
+            showRider();
+          });
+      }
+      showRider();
     },
     setBasket(on, walk) {
       basket = on;
@@ -917,6 +943,9 @@ export function createSkisModel(
       merged.update();
     },
     dispose() {
+      gone = true;
+      // The rider's geometries are shared by every figure; his materials are this one's.
+      for (const m of riderMeshes) (m.material as THREE.Material).dispose();
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
       merged.dispose();

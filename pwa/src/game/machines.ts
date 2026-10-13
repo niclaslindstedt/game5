@@ -30,6 +30,7 @@ import type { LensPose, RigPose, Vec3 } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
+import { loadBikeRider } from "./bike-rider.ts";
 import { riderPose, walkingPose } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
@@ -313,9 +314,17 @@ export function createMachines(
       return balloon;
     },
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready, hover?.ready]).then(
-        () => undefined,
-      ),
+      Promise.all([
+        heli?.ready,
+        sled?.ready,
+        groomers?.ready,
+        plane?.ready,
+        hover?.ready,
+        bike?.ready,
+        // The modelled rider it is ridden by (`bike-rider.ts`), skinned
+        // onto the figure the first frame he is on it.
+        bike ? loadBikeRider() : undefined,
+      ]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {

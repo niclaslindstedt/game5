@@ -3,7 +3,9 @@
 // `models/<id>.glb`, the heli-ski helicopter's as `models/heli.glb` (and
 // its air ambulance's as `models/rescue.glb`, under the same switch), the
 // mountain snowmobile's as `models/sled.glb`, the night's piste machine's
-// as `models/groomer.glb` and the jump plane's as `models/plane.glb`,
+// as `models/groomer.glb`, the jump plane's as `models/plane.glb` and the
+// summer's downhill bike and its rider as `models/bike.glb` and
+// `models/rider.glb`,
 // emitted into the
 // bundle (so the service worker precaches them with everything else) and
 // served the same way by the dev server. They are COMMITTED, in
@@ -24,7 +26,9 @@
 // no helicopter and no air ambulance (`src/game/heli-view.ts` draws its code-built stand-in) and
 // `VITE_MODEL_SLED=0` no snowmobile (`src/game/sled-view.ts`'s stand-in)
 // and `VITE_MODEL_GROOMER=0` no piste machine (`src/game/groomer-build.ts`)
-// and `VITE_MODEL_PLANE=0` no jump plane (`src/game/plane-standin.ts`).
+// and `VITE_MODEL_PLANE=0` no jump plane (`src/game/plane-standin.ts`)
+// and `VITE_MODEL_BIKE=0` no bike and no rider on it (`src/game/bike-view.ts`'s
+// code-built bike, the dressed skier on it).
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -40,6 +44,7 @@ export type ModelSwitches = {
   sled: boolean;
   groomer: boolean;
   plane: boolean;
+  bike: boolean;
 };
 
 /** Every switch on — what a build draws unless told otherwise. */
@@ -49,6 +54,7 @@ export const ALL_MODELS: ModelSwitches = {
   sled: true,
   groomer: true,
   plane: true,
+  bike: true,
 };
 
 /** Where the committed models are, from the repository's root. */
@@ -71,6 +77,11 @@ export const GROOMER_FILE = "groomer.glb";
 /** The jump plane's one file (`make blender KIND=plane`'s LOD0). */
 export const PLANE_FILE = "plane.glb";
 
+/** The downhill bike's one file (`make blender KIND=bike`'s LOD0) and its
+ * rider's (`make blender KIND=rider`'s), packed under one switch. */
+export const BIKE_FILE = "bike.glb";
+export const RIDER_FILE = "rider.glb";
+
 /** Every file a build with these switches packs, by its published name —
  * or only one half's (`MODEL_HALVES`). */
 export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
@@ -83,6 +94,7 @@ export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
     ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
     ...(on.groomer && (!half || half === "groomer") ? [GROOMER_FILE] : []),
     ...(on.plane && (!half || half === "plane") ? [PLANE_FILE] : []),
+    ...(on.bike && (!half || half === "bike") ? [BIKE_FILE, RIDER_FILE] : []),
   ];
 }
 
@@ -159,10 +171,29 @@ export const PLANE_SOURCES = [
   "engine/game/defs/plane.ts",
 ];
 
+/** WHAT THE DOWNHILL BIKE AND ITS RIDER ARE MADE FROM: both builders and
+ * their data modules, the shelf and the driver, `BIKE` and the class's
+ * look, the rig both are posed by (the nodes, the clips, the rider's bones
+ * off the attack stance) and the skeleton the rider is skinned on. */
+export const BIKE_SOURCES = [
+  "scripts/blender.mjs",
+  "scripts/blender/kinds/bike.mjs",
+  "scripts/blender/kinds/rider.mjs",
+  "scripts/blender/lib.py",
+  "scripts/blender/bike.py",
+  "scripts/blender/rider.py",
+  "engine/game/defs/bike.ts",
+  "pwa/src/game/bike-look.ts",
+  "pwa/src/game/bike-rig.ts",
+  "pwa/src/game/skier-bike.ts",
+  "pwa/src/game/skier-rig.ts",
+];
+
 /** Every half's stamp in `sources.json`, and the sources it hashes: the
  * skis (`sources`, its name from when they were the only models), the
  * helicopter (`heli`), the air ambulance (`rescue`), the snowmobile
- * (`sled`), the piste machine (`groomer`) and the jump plane (`plane`). */
+ * (`sled`), the piste machine (`groomer`), the jump plane (`plane`) and
+ * the downhill bike with its rider (`bike`). */
 export const MODEL_HALVES = {
   sources: MODEL_SOURCES,
   heli: HELI_SOURCES,
@@ -170,6 +201,7 @@ export const MODEL_HALVES = {
   sled: SLED_SOURCES,
   groomer: GROOMER_SOURCES,
   plane: PLANE_SOURCES,
+  bike: BIKE_SOURCES,
 } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
@@ -196,7 +228,7 @@ export function gameModels(on: ModelSwitches, root: string): Plugin {
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
             "(VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0, VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, " +
-            "VITE_MODEL_PLANE=0)",
+            "VITE_MODEL_PLANE=0, VITE_MODEL_BIKE=0)",
         );
       }
     },

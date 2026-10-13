@@ -106,7 +106,7 @@ describe("the bike's geometry as drawn (bike-look.ts)", () => {
     expect(LIFT_HOOK.y - frontAxle(0, 0).y).toBeCloseTo(BIKE.front.radius, 9);
   });
 
-  it("names every node a lab-built model is posed by", () => {
+  it("names every node the modelled bike is posed by", () => {
     expect(Object.keys(BIKE_NODES).sort()).toEqual(
       [
         "bars",
@@ -116,6 +116,8 @@ describe("the bike's geometry as drawn (bike-look.ts)", () => {
         "pedalL",
         "pedalR",
         "shock",
+        "shockBody",
+        "shockRod",
         "swingarm",
         "wheelF",
         "wheelR",

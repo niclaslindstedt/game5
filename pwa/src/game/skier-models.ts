@@ -58,6 +58,7 @@ export const MODELS = {
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
   plane: modelSwitch(ENV.VITE_MODEL_PLANE),
+  bike: modelSwitch(ENV.VITE_MODEL_BIKE),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -129,6 +130,17 @@ export const PLANE_NODES = {
  * switched off (`VITE_MODEL_PLANE=0`) and the build packs none. */
 export function planeModelUrl(): string | null {
   return MODELS.plane ? `${String(ENV.BASE_URL ?? "/")}models/plane.glb` : null;
+}
+
+/** Where this build serves the downhill bike's glTF (its nodes
+ * `bike-rig.ts`'s `BIKE_NODES`) and its rider's (a skinned figure on the
+ * skier's own bones), or `null` when they are switched off
+ * (`VITE_MODEL_BIKE=0`) and the build packs neither. */
+export function bikeModelUrl(): string | null {
+  return MODELS.bike ? `${String(ENV.BASE_URL ?? "/")}models/bike.glb` : null;
+}
+export function riderModelUrl(): string | null {
+  return MODELS.bike ? `${String(ENV.BASE_URL ?? "/")}models/rider.glb` : null;
 }
 
 /** Where this build serves the piste machine's glTF, or `null` when it is

@@ -23,18 +23,33 @@ export function backdropHeld(): boolean {
 /** HANDS ON THE PICTURE: a finger or a button held down on a card's own
  * picture (the rider turned round on the gear stage). Work stood up behind
  * the cards ahead of a ride (`free-stage.ts`, the world's renderer building
- * cold) waits between its pieces while it is held, so the frames under the
- * player's hand are never the ones a heavy piece lands on. */
+ * cold) waits between its pieces while it is held — and for a moment after
+ * it is lifted, or after the picture is first shown, since a player turns
+ * the rider in flicks and reaches for him as the card opens — so the frames
+ * under the player's hand are never the ones a heavy piece lands on. */
 let hands = 0;
+/** When a hand was last lifted, or the picture last shown, ms. */
+let stirred = -Infinity;
+/** How long the picture stays held after a hand is lifted or it is shown, ms. */
+const QUIET_MS = 900;
+
+const now = (): number => (typeof performance === "undefined" ? 0 : performance.now());
 
 /** A hand down on the picture (`true`), or lifted (`false`). */
 export function holdHands(on: boolean): void {
+  if (!on && hands > 0) stirred = now();
   hands = Math.max(0, hands + (on ? 1 : -1));
 }
 
-/** Whether a hand is down on a card's picture. */
+/** The picture has just come up under the player: hold off as if a hand
+ * had just been lifted from it. */
+export function stirHands(): void {
+  stirred = now();
+}
+
+/** Whether a hand is down on a card's picture, or was a moment ago. */
 export function handsHeld(): boolean {
-  return hands > 0;
+  return hands > 0 || now() - stirred < QUIET_MS;
 }
 
 /** Resolves once no hand is down, looking every `ms` — at once when none is. */

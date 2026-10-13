@@ -20,7 +20,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { pairById, type PairId } from "@engine";
 
-import { holdBackdrop } from "./backdrop-hold.ts";
+import { holdBackdrop, stirHands } from "./backdrop-hold.ts";
 import type { GearStage, StageShot } from "./gear-stage.ts";
 import { freeOf } from "./stage-free.ts";
 import type { Outfit } from "./outfit.ts";
@@ -134,6 +134,9 @@ export function MenuStage({
       // The stage fills the screen: nothing behind it need be drawn.
       covering = true;
       holdBackdrop(true);
+      // The player reaches for him as the card opens: nothing staged
+      // behind starts a heavy piece under that first turn.
+      stirHands();
     });
     return () => {
       disposed = true;

@@ -98,7 +98,7 @@ for (const flow of String(args.flow).split(",")) {
     if (i > 0) {
       await watch(page);
       const at = Date.now();
-      await page.locator("[data-nav-next]").first().click();
+      await page.locator("[data-nav-next]").first().click({ timeout: 180000 });
       const stage = page.locator(".menu-stage[data-ready]");
       await stage.waitFor({ timeout: 60000 });
       const ready = Date.now() - at;
@@ -122,7 +122,7 @@ for (const flow of String(args.flow).split(",")) {
         // frame — what was stood up ahead is what it no longer waits for.
         await watch(page);
         const at = Date.now();
-        await page.locator("[data-nav-next]").first().click();
+        await page.locator("[data-nav-next]").first().click({ timeout: 180000 });
         await page.waitForFunction(() => globalThis.__SH_READY__ === true, null, {
           timeout: 300000,
           polling: 250,
@@ -139,6 +139,7 @@ for (const flow of String(args.flow).split(",")) {
       // The first card: its own load, watched for the settle — a chart, a
       // map being raised, and the stage warmed behind it.
       await watch(page);
+      await page.locator("[data-nav-next]").first().waitFor({ timeout: 120000 });
       await page.waitForTimeout(args.settle * 1000);
       rows.push({ flow, card, ready: Date.now() - t0, arrive: sum(await stop(page)), drag: null });
       // Long enough for the warm-up behind the card to have been asked for.

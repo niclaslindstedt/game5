@@ -200,6 +200,9 @@ export const CRASH = {
     // skis taken out from under him, pitched over backward off the rope
     // and dropped to the snow on a side.
     cable: { pitch: -0.8, side: 0.6, up: 0.4 },
+    // Come down astride a lift's rope (`cable.ts`): stopped on it by the
+    // crotch and tipped over it, off onto a side and down to the snow.
+    straddle: { pitch: 0.15, side: 1, up: 0 },
     // Into an A-net: the skis taken by the mesh and the body thrown on
     // into it, turned over toward it — it catches him low, so he barely
     // leaves the snow.

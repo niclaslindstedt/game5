@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CABLE,
+  LYNX,
   NEUTRAL_INPUT,
   createGame,
   liftPlans,
@@ -21,6 +22,7 @@ import {
   type GameState,
   type LiftPlan,
   type SkierInput,
+  type SkiSpec,
 } from "@engine";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
@@ -28,12 +30,20 @@ const level = levelFor(LEVEL_SEEDS[0]);
 const plans = liftPlans(level);
 
 /** A free ride dropped onto `plan`'s rope `side` half way up its line,
- * feet a little over it, going down the line at `speed`. */
-function dropped(plan: LiftPlan, side: 0 | 1, speed = 6, at = 0.5): GameState {
-  const run = createGame({ level, mode: "free", quiet: true });
+ * feet a little over it, going down the line at `speed` — his skis square
+ * across it, or `along` it. */
+function dropped(
+  plan: LiftPlan,
+  side: 0 | 1,
+  speed = 6,
+  at = 0.5,
+  turn = Math.PI / 2,
+  spec?: SkiSpec,
+): GameState {
+  const run = createGame({ level, mode: "free", quiet: true, ...(spec ? { spec } : {}) });
   const u = plan.length * at;
   const p = ropeOver(plan, side, u);
-  standSkier(run, p.x, p.z, plan.heading + Math.PI);
+  standSkier(run, p.x, p.z, plan.heading + Math.PI + turn);
   const c = run.skier;
   c.y = p.y + c.spec.cogHeight + 0.2;
   c.vx = -plan.dx * speed;
@@ -126,6 +136,33 @@ describe("the cable grind (cable.ts)", () => {
     c.popped = 0.05;
     ride(run, 1 / 120);
     expect(c.grind).toBeTruthy();
+  });
+
+  it("puts a rope come down onto along the skis between his legs: he tips off it, hurt", () => {
+    const run = dropped(chair, 1, 6, 0.5, 0);
+    const events = ride(run, 0.2);
+    expect(run.skier.grind ?? null).toBe(null);
+    expect(events.some((e) => e.kind === "grind" && e.phase === "straddle")).toBe(true);
+    const wipe = events.find((e) => e.kind === "wipeout");
+    expect(wipe && wipe.kind === "wipeout" ? wipe.cause : null).toBe("straddle");
+    expect(run.skier.thrown).not.toBe(null);
+    // The steel up into the crotch: the pelvis hurt at once.
+    expect(run.skier.body.injuries.some((i) => i.part === "pelvis")).toBe(true);
+  });
+
+  it("lets a board land along the rope: no legs apart to come down astride", () => {
+    const run = dropped(chair, 1, 6, 0.5, 0, LYNX);
+    ride(run, 0.3);
+    expect(run.skier.grind).toBeTruthy();
+  });
+
+  it("swaps the skis half round on a tap, never along the rope", () => {
+    const run = dropped(chair, 1);
+    ride(run, 0.3);
+    const before = run.skier.grind!.target;
+    ride(run, 0.1, () => ({ ...NEUTRAL_INPUT, steer: 1 }));
+    expect(Math.abs(Math.cos(run.skier.grind!.target))).toBeLessThan(0.01);
+    expect(Math.abs(run.skier.grind!.target - before)).toBeCloseTo(Math.PI, 3);
   });
 
   it("drops nobody onto a rope he is climbing past", () => {

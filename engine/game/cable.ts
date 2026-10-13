@@ -12,8 +12,14 @@
 // Coulomb friction of his bases on the steel against the ROPE'S OWN WAY —
 // a lift runs, the up rope up the line and the down rope down it, so the
 // rope drags whoever is slower than it along with it — and the air's drag.
-// The edge TAPPED over swaps him a quarter turn (a 50-50 to a slide and
-// back), the lean held hard presses an end of the skis onto it.
+// The edge TAPPED over swaps him a quarter turn on a board (a 50-50 to a
+// slide and back), half a turn on skis (slide to slide), the lean held hard
+// presses an end of the skis onto it.
+//
+// ON SKIS HE MUST COME DOWN ACROSS IT. Two skis stand apart: landed along
+// the rope rather than square across it, it goes up between his legs, he
+// is stopped on it by the crotch (`CABLE.straddle`), tips over and drops to
+// the snow — the `straddle` crash cause, and a blow `body.ts` judges.
 //
 // OFF IT. The jump let go POPS him off it where he is, on his speed along
 // it and `CABLE.pop` up: in the air the strokes and the grabs are his as
@@ -102,11 +108,60 @@ function mount(run: GameState, events: GameEvent[]): boolean {
       const over = feet - ropeAt(plan, u);
       const under = ollie ? -CABLE.ollie.reach : -CABLE.below;
       if (over < under || over > CABLE.above) continue;
-      put(run, i, plan, side, u, events);
+      if (along(run, plan, u) && !c.spec.board) straddle(run, plan, side, u, ollie, events);
+      else put(run, i, plan, side, u, events);
       return true;
     }
   }
   return false;
+}
+
+/** His speed along the rope `u` m up the line, m/s (up the line positive). */
+function speedAlong(run: GameState, plan: LiftPlan, u: number): number {
+  const c = run.skier;
+  const grade = gradeAt(plan, u);
+  const cos = 1 / Math.sqrt(1 + grade * grade);
+  return (c.vx * plan.dx + c.vz * plan.dz) * cos + c.vy * grade * cos;
+}
+
+/** His skis' turn off the way he slides along the rope, rad. */
+function offWay(run: GameState, plan: LiftPlan, v: number): number {
+  const way = plan.heading + (v < 0 ? Math.PI : 0);
+  return wrap(angleDiff(way, run.skier.heading));
+}
+
+/** Whether his skis come down nearer ALONG the rope than across it. */
+function along(run: GameState, plan: LiftPlan, u: number): boolean {
+  return Math.abs(Math.cos(offWay(run, plan, speedAlong(run, plan, u)))) > Math.SQRT1_2;
+}
+
+/** ASTRIDE IT: the rope up between his legs, his fall stopped on it by the
+ * crotch, and over he goes, off it and down onto the snow. */
+function straddle(
+  run: GameState,
+  plan: LiftPlan,
+  side: 0 | 1,
+  u: number,
+  ollie: boolean,
+  events: GameEvent[],
+): void {
+  const c = run.skier;
+  const S = CABLE.straddle;
+  const close = Math.max(S.least, Math.abs(c.vy));
+  const at = ropeOver(plan, side, u);
+  // Hung on it by the crotch: his legs either side of it, under it.
+  c.x = at.x;
+  c.z = at.z;
+  c.y = at.y + c.spec.cogHeight - S.crotch;
+  const keep = S.keep * speedAlong(run, plan, u);
+  events.push({ kind: "grind", t: run.t, id: plan.lift.id, phase: "straddle" });
+  throwRider(
+    run,
+    "straddle",
+    { x: plan.dx * keep, y: ollie ? 0 : -0.5, z: plan.dz * keep },
+    events,
+    { blow: close },
+  );
 }
 
 /** ON IT: his speed along the rope kept, his skis to the nearest quarter
@@ -120,12 +175,8 @@ function put(
   events: GameEvent[],
 ): void {
   const c = run.skier;
-  const grade = gradeAt(plan, u);
-  const cos = 1 / Math.sqrt(1 + grade * grade);
-  const along = (c.vx * plan.dx + c.vz * plan.dz) * cos + c.vy * grade * cos;
-  const v = along;
-  const way = plan.heading + (v < 0 ? Math.PI : 0);
-  const off = wrap(angleDiff(way, c.heading));
+  const v = speedAlong(run, plan, u);
+  const off = offWay(run, plan, v);
   const target = Math.round(off / QUARTER) * QUARTER;
   const ride: CableRide = {
     lift: index,
@@ -182,9 +233,11 @@ function ride(run: GameState, input: SkierInput, events: GameEvent[]): "ride" | 
   }
   r.u += r.v * cos * dt;
   r.time += dt;
-  // THE SWAP: the edge tapped over turns him a quarter on it.
+  // THE SWAP: the edge tapped over turns him a quarter on it — on skis a
+  // half, slide to slide, never along it.
   const over = Math.abs(input.steer) >= CABLE.tap;
-  if (over && !r.tapped) r.target += Math.sign(input.steer) * QUARTER;
+  const swap = c.spec.board ? QUARTER : 2 * QUARTER;
+  if (over && !r.tapped) r.target += Math.sign(input.steer) * swap;
   r.tapped = over;
   // THE PRESS: the lean held hard, an end of the skis on it.
   r.press = input.lean >= CABLE.press ? "tail" : input.lean <= -CABLE.press ? "nose" : null;

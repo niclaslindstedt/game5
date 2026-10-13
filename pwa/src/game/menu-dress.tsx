@@ -41,6 +41,8 @@ const STOPS = Object.fromEntries(
 /** The rows on the rider card: every slot but the POLES, which go with the
  * skis on the gear card. */
 const RIDER_SLOTS = GEAR_SLOTS.filter((slot) => slot !== "poles");
+/** A LOOK is its own body and kit: only the build is still the rider's. */
+const RETRO_SLOTS = RIDER_SLOTS.filter((slot) => slot === "weight");
 
 /** The LOOK row's stops: the modern kit, then each eighties colourway. */
 const LOOK_STOPS: Stop<string>[] = LOOKS.map((id) => ({
@@ -97,7 +99,7 @@ export function DressPage({
               onPick={(id) => onOutfit({ ...outfit, look: id === "modern" ? undefined : id })}
             />
             {/* The POLES are the gear card's, with the skis. */}
-            {RIDER_SLOTS.map((slot) => (
+            {(outfit.look ? RETRO_SLOTS : RIDER_SLOTS).map((slot) => (
               <StepRow
                 key={slot}
                 label={STRINGS.dressSlots[slot]}

@@ -19,7 +19,6 @@
 //     a race on the map built off `seed`, `t` seconds of it already ridden
 //     by the bot, held still once drawn so nothing moves under the shutter.
 //   ?paused=1        ...held under the pause card instead.
-//   ?look=<look>    the rider's LOOK for the visit (--look).
 //   ?camera=<rung>   the run's camera: tips, helmet, chase, far, high.
 //   ?mode=tricks     ...or a TRICKS run on the seed's trick field (--tricks).
 //   ?mode=downhill   ...or a DOWNHILL's training run (--downhill; with
@@ -625,10 +624,7 @@ const args = parseArgs(
       help: "seconds into the race, or a riding surface (overrides the scene's own)",
     },
     camera: { kind: "string", help: "tips, helmet, chase, far, high" },
-    look: {
-      kind: "string",
-      help: "the rider's LOOK (modern, retro-magenta, retro-canary, retro-cobalt)",
-    },
+    look: { kind: "string", help: "the rider's LOOK: modern or retro-<colourway> (?look=)" },
     pose: {
       kind: "string",
       help: "stand the player's skis at x,z,heading,speed (m, m, rad, m/s) once the pre-roll is ridden (?pose=)",

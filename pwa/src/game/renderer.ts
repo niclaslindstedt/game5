@@ -130,9 +130,7 @@ import { setRetroClock } from "./retro-model.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
-export async function loadModels(): Promise<void> {
-  await loadSkierModels();
-}
+export const loadModels = (): Promise<void> => loadSkierModels();
 
 export type RendererOptions = {
   /** The picture to open on (`settings-video.ts`); `setVideo` moves it. Its

@@ -69,7 +69,7 @@ import { isTraining } from "./game/downhill-run.ts";
 import { NO_PRESSES, type Presses } from "./game/app-presses.ts";
 import { pinnedFor, pinnedPress, type PinnedSkier } from "./game/pinned.ts";
 import { raceMapsOf } from "./game/race-maps.ts";
-import { carriesPoles } from "./game/outfit.ts";
+import { carriesPoles, withLook } from "./game/outfit.ts";
 import { mapPicks } from "./game/map-picks.ts";
 import { isTrickRun, tricksTile } from "./game/trick-maps.ts";
 import { cardPick } from "./game/jump-hills.ts";
@@ -184,14 +184,12 @@ export function App() {
   const [loadingPhase, setLoadingPhase] = useState<LoadPhase | null>(null);
   const [loadLeaving, setLoadLeaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
-  /** True once the race has drawn a frame (over the title: once booted) —
-   * what the attract card waits on before it will take a press. */
+  /** True once the race has drawn a frame — what the attract card waits on. */
   const [warm, setWarm] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
     if (params.page === "dev") s.developer = true;
-    if (params.look)
-      s.outfit = { ...s.outfit, look: params.look === "modern" ? undefined : params.look };
+    s.outfit = withLook(s.outfit, params.look);
     return params.camera ? { ...s, camera: params.camera, craftCamera: params.camera } : s;
   });
   /** Which page of the front door is up. */

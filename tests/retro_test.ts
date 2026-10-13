@@ -111,3 +111,14 @@ describe("the wind on the scarf", () => {
     }
   });
 });
+
+describe("the wind on a still picture", () => {
+  it("lays the tails where they hang before any time has passed", () => {
+    const wind = createRetroWind([TAIL], []);
+    wind.step([frameAt(2, 1.4, 5)], 0);
+    const p = wind.points()[0];
+    expect(p).toHaveLength(7);
+    expect(p[6].y).toBeCloseTo(1.4 - 0.66, 5);
+    expect(p[6].x).toBeCloseTo(2, 5);
+  });
+});

@@ -402,6 +402,12 @@ export const LOOKS: readonly string[] = ["modern", ...RETRO_COLOURWAYS.map((c) =
 
 /** An outfit read off anything stored: every slot a known id, the default
  * kit's where it is not. */
+/** An outfit in a link's LOOK for the visit (`?look=`): "modern" the
+ * default kit, nothing asked the outfit as it is. */
+export function withLook(o: Outfit, look: string | null): Outfit {
+  return look ? { ...o, look: look === "modern" ? undefined : look } : o;
+}
+
 export function outfitOf(blob: unknown): Outfit {
   const o = (blob && typeof blob === "object" ? blob : {}) as Record<string, unknown>;
   const out = { ...DEFAULT_OUTFIT };

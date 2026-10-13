@@ -115,7 +115,13 @@ export function createRetroWind(
 
   return {
     step(bones, dt, air = { x: 0, y: 0, z: 0 }) {
-      if (dt <= 1e-5) return;
+      if (dt <= 1e-5) {
+        // A still picture (a card's stage held, the first frame): the
+        // chains laid as they hang on him, so they never trail behind.
+        if (fresh) for (const r of ropes) lay(r, bones[r.rest.anchor]);
+        fresh = false;
+        return;
+      }
       const h = Math.min(dt, 1 / 30);
       const spheres = colliders.map((c) => ({ at: apply(bones[c.bone], c.at), r: c.r }));
       for (const [ri, r] of ropes.entries()) {

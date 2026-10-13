@@ -59,6 +59,7 @@ export const MODELS = {
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
   plane: modelSwitch(ENV.VITE_MODEL_PLANE),
+  rider: modelSwitch(ENV.VITE_MODEL_RIDER),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -173,7 +174,7 @@ export function loadModels(): Promise<void> {
     }
   }
   // The retro skier, worn when the RIDER card's LOOK is an eighties one.
-  jobs.push(loadRetroModel());
+  if (MODELS.rider) jobs.push(loadRetroModel());
   loading = Promise.all(jobs).then(() => undefined);
   return loading;
 }

@@ -255,12 +255,12 @@ export function createRetroDressed(
   });
   // His trunk and head as spheres, in their bones' frames (y along, z ahead).
   const colliders: Collider[] = [
-    bodyAt("pelvis", 0, 0.1, -0.02, 0.2),
-    bodyAt("chest", 0, 0.06, -0.01, 0.21),
-    bodyAt("chest", 0, 0.24, -0.04, 0.2),
+    bodyAt("pelvis", 0, 0.1, -0.02, 0.16),
+    bodyAt("chest", 0, 0.06, -0.01, 0.15),
+    bodyAt("chest", 0, 0.24, -0.03, 0.14),
     bodyAt("head", 0, -0.01, 0, 0.13),
-    bodyAt("shoulder_l", 0, 0, 0, 0.09),
-    bodyAt("shoulder_r", 0, 0, 0, 0.09),
+    bodyAt("shoulder_l", 0, 0, 0, 0.06),
+    bodyAt("shoulder_r", 0, 0, 0, 0.06),
     // The thighs, which a front tail streams along in a tuck.
     bodyAt("thigh_l", 0, 0.12, 0, 0.11),
     bodyAt("thigh_l", 0, 0.3, 0, 0.1),

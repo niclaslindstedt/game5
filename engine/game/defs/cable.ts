@@ -29,7 +29,16 @@ export const CABLE = {
    * air's share of his slow (a jib's). */
   drag: 0.7,
   mass: 80,
-  /** THE SWAP, THE PRESS AND THE TURN, as on a rail (`JIBS`). */
+  /** THE STRADDLE: skis come down along the rope rather than across it
+   * put it between his legs — stopped on it by the crotch, he tips over
+   * and drops to the snow. The least closing speed the blow is judged at,
+   * m/s (a drop onto a steel rope is never soft — est.), and the share of
+   * his speed along it he keeps as he goes over, and how high his crotch
+   * stands over his feet, m (a man's inseam in ski boots). A board has no legs
+   * apart to come down astride, so lands on it any way round. */
+  straddle: { least: 6, keep: 0.5, crotch: 0.85 },
+  /** THE SWAP, THE PRESS AND THE TURN, as on a rail (`JIBS`) — on skis a
+   * tap turns him half round, slide to slide, never along the rope. */
   tap: 0.6,
   rate: 12,
   press: 0.5,

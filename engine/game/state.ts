@@ -419,7 +419,8 @@ export type BodyState = {
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */
-export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car";
+export type ImpactSource =
+  "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car" | "cable";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether
@@ -695,7 +696,17 @@ export type GameEvent =
       distance?: number;
     }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
-  | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
+  | {
+      kind: "wipeout";
+      t: number;
+      cause: CrashCause;
+      speed: number;
+      x: number;
+      z: number;
+      /** How fast he met what threw him, m/s, where it is not his speed —
+       * a rope come down astride (`cable.ts`). */
+      blow?: number;
+    }
   | GrimbearEvent
   | AvalancheEvent
   | AfterskiEvent
@@ -757,7 +768,7 @@ export type GameEvent =
     }
   /** ON A LIFT'S ROPE (`cable.ts`) by the lift's id: come down onto it,
    * or off it (popped, off its end, or thrown off by a carrier). */
-  | { kind: "grind"; t: number; id: string; phase: "on" | "off" }
+  | { kind: "grind"; t: number; id: string; phase: "on" | "off" | "straddle" }
   /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone,
    * taken by his carrier (a T-bar behind him, sat in his chair or cabin),
    * his carrier run over a tower's sheaves, or stood off it at the top. */

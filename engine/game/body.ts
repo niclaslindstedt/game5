@@ -580,12 +580,28 @@ function fall(c: SkierState, cause: string, speed: number): void {
     steel(speed, GROOMER.strike, "groomer");
   } else if (cause === "car") {
     steel(speed, { least: TRAFFIC_STRIKE.least, hard: 1, give: TRAFFIC_STRIKE.give }, "car");
+  } else if (cause === "straddle") {
+    astride(speed);
   } else if (cause === "nose") {
     for (const s of [-1, 1]) {
       charge(sided("shin", s), "bend", speed);
       charge(sided("knee", s), "twist", speed * I.noseTwist);
     }
   }
+}
+
+/** COME DOWN ASTRIDE A LIFT'S ROPE (`cable.ts`) at `v` m/s: the steel
+ * square up into the crotch — the front of the pelvis' ring and the bladder
+ * behind it, the inside of both thighs, the belly over it and the spine
+ * jarred — against the rope's next to nothing. */
+function astride(v: number): void {
+  const give = I.solid.steel;
+  const g = blow("pelvis", v, give, true);
+  strike("pelvis", g, "front");
+  for (const s of [-1, 1]) strike(sided("thigh", s), blow(sided("thigh", s), v, give, true, 0.6));
+  strike("abdomen", blow("abdomen", v, give, true, I.share.trunk), "front");
+  strike("back", blow("back", v, give, true, I.share.trunk * 0.5));
+  offer(g, "pelvis", "cable");
 }
 
 /** RIDDEN INTO A PISTE MACHINE (`groomer.ts`), or met by its blade: the
@@ -754,7 +770,7 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
     for (const e of events) {
       if (e.kind === "hit") trunkOnSkis(c, e.speed, e.x, e.z, e.stuff, e.radius);
       else if (e.kind === "land") landing(state, e.g, e.airTime, e.impact);
-      else if (e.kind === "wipeout") fall(c, e.cause, e.speed);
+      else if (e.kind === "wipeout") fall(c, e.cause, e.blow ?? e.speed);
       else if (e.kind === "chute" && e.phase === "malfunction" && state.chute?.mal === "hard") {
         hardOpening(e.g ?? 0);
       }

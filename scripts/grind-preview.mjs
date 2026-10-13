@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE CABLE GRIND LAB — a free ride with the skier dropped onto a lift's
-// rope and ridden on a script (the 50-50, a slide, a press, a pop with a
+// rope square across it and ridden on a script (a slide, a swap, a press, a pop with a
 // 360 and back onto the rope, then on until a carrier throws him off),
 // drawn through the game's own renderer and photographed a row a lens, a
 // column a moment: `previews/grind-<lift>-<seed>.png`.
@@ -13,6 +13,7 @@
 //
 //   node scripts/grind-preview.mjs
 //   node scripts/grind-preview.mjs --skis=lynx          (the snowboard)
+//   node scripts/grind-preview.mjs --land=along         (astride the rope: the straddle)
 //   node scripts/grind-preview.mjs --lift=drag --views=side,chase
 //   node scripts/grind-preview.mjs --at=0.5,1.5,3.3 --skip-build
 
@@ -59,6 +60,11 @@ const args = parseArgs(
       kind: "string",
       default: "",
       help: "the pair he rides by its id (lynx: the snowboard); the reference skis when left out",
+    },
+    land: {
+      kind: "string",
+      default: "across",
+      help: "how the skis come down onto the rope: across (a slide) or along (astride it, the straddle)",
     },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
@@ -152,6 +158,7 @@ const query = new URLSearchParams({
   h: String(args.height),
   scale: String(args.scale),
   ...(args.skis ? { skis: args.skis } : {}),
+  land: args.land,
 }).toString();
 await page.goto(`${server.url}grind-preview.html?${query}`);
 await page.waitForFunction("window.__grind !== undefined");
@@ -160,7 +167,9 @@ const t0 = Date.now();
 const shot = await page.evaluate(() => globalThis.__grind.sheet());
 if (crashed) process.exit(1);
 const tag =
-  (args.region === "alpine" ? "" : `-${args.region}`) + (args.skis ? `-${args.skis}` : "");
+  (args.region === "alpine" ? "" : `-${args.region}`) +
+  (args.skis ? `-${args.skis}` : "") +
+  (args.land === "along" ? "-along" : "");
 const out = join(outDir, `${args.out || `grind-${args.lift}-${args.seed}${tag}`}.png`);
 await page.locator("#sheet").screenshot({ path: out });
 console.log(

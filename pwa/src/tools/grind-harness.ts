@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE CABLE GRIND LAB's page (`scripts/grind-preview.mjs`): a free ride with
 // the skier (or the rider, `?skis=lynx`) dropped onto a lift's rope half way
-// up its line, then ridden on a script — the 50-50 down the rope, a tap of
-// the edge into a slide, a press, the jump let go and a 360 in the air, back
+// up its line, square across it (or along it, `?land=along`: astride it,
+// the straddle), then ridden on a script — the slide down the rope, a tap
+// of the edge half round into the other slide, a press, the jump let go and a 360 in the air, back
 // down onto the rope, and on until a carrier comes along it and throws him
 // off — drawn through the game's own renderer every sixtieth of a second and
 // photographed a row a lens (`?views=`: `side`, `back`, `front`, `top`, the
@@ -56,6 +57,7 @@ const width = Number(params.get("w") ?? 1280);
 const height = Number(params.get("h") ?? 720);
 const scale = Number(params.get("scale") ?? 0.3);
 const pair = labPair(params);
+const along = params.get("land") === "along";
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 canvas.style.width = `${width}px`;
@@ -81,7 +83,7 @@ function dropped(): GameState | null {
   const plan = liftPlans(state.level).find((p) => p.lift.kind === kind);
   if (!plan) return null;
   const p = ropeOver(plan, 1, plan.length * 0.5);
-  standSkier(state, p.x, p.z, plan.heading + Math.PI);
+  standSkier(state, p.x, p.z, plan.heading + Math.PI + (along ? 0 : Math.PI / 2));
   const c = state.skier;
   c.y = p.y + c.spec.cogHeight + 0.2;
   c.vx = -plan.dx * 5;
@@ -91,7 +93,7 @@ function dropped(): GameState | null {
   return state;
 }
 
-/** THE SCRIPT, s from the drop: the edge tapped into a slide at 0.6, the
+/** THE SCRIPT, s from the drop: the edge tapped half round at 0.6, the
  * lean pressed at 1, the jump held and let go at 1.6 with the edge held
  * over for a spin, then nothing until a carrier takes him. */
 function scripted(t: number): SkierInput {

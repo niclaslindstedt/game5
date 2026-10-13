@@ -52,7 +52,7 @@ import {
   type PinnedSkier,
 } from "./pinned.ts";
 import { recipeOf } from "./replay.ts";
-import type { Settings } from "./settings.ts";
+import { camerasOf, type Settings } from "./settings.ts";
 import { trainingOf } from "./downhill-run.ts";
 import { heatAfter, heatOf, secondRunOf, twoRunMode } from "./slalom-heat.ts";
 import { nextBracket } from "./ski-cross-run.ts";
@@ -130,7 +130,7 @@ export function createPinnedRuns(world: {
           last = { ...opts, level: game.level };
           return game;
         },
-        camera: s.camera,
+        camera: camerasOf(s),
         done: world.done,
       });
     },
@@ -164,7 +164,7 @@ export function createPinnedRuns(world: {
           // A ski jump's contest is dealt on the hill set over the map.
           return createGame(mode === "tricks" ? opts : withJumpContest({ ...opts, mode, plan }));
         },
-        camera: s.camera,
+        camera: camerasOf(s),
         done: world.done,
       });
     },
@@ -210,7 +210,7 @@ export function createPinnedRuns(world: {
         world.setMode("downhill");
         world.loader.begin({
           build: () => createGame({ ...recipeOf(now, "downhill"), training: false }),
-          camera: world.settings().camera,
+          camera: camerasOf(world.settings()),
           done: world.done,
         });
         return;
@@ -227,7 +227,7 @@ export function createPinnedRuns(world: {
               skiJumpContest: contest,
             });
           },
-          camera: world.settings().camera,
+          camera: camerasOf(world.settings()),
           done: world.done,
         });
         return;
@@ -240,7 +240,7 @@ export function createPinnedRuns(world: {
           build: () => {
             return createGame({ ...recipeOf(now, "slopestyle"), slopestyle: slope });
           },
-          camera: world.settings().camera,
+          camera: camerasOf(world.settings()),
           done: world.done,
         });
         return;
@@ -253,7 +253,7 @@ export function createPinnedRuns(world: {
           build: () => {
             return createGame({ ...recipeOf(now, "aerials"), aerials: jumps });
           },
-          camera: world.settings().camera,
+          camera: camerasOf(world.settings()),
           done: world.done,
         });
         return;
@@ -266,7 +266,7 @@ export function createPinnedRuns(world: {
           build: () => {
             return createGame({ ...recipeOf(now, "moguls"), moguls: bumps });
           },
-          camera: world.settings().camera,
+          camera: camerasOf(world.settings()),
           done: world.done,
         });
         return;
@@ -279,7 +279,7 @@ export function createPinnedRuns(world: {
           build: () => {
             return createGame({ ...recipeOf(now, "halfpipe"), halfpipe: pipe });
           },
-          camera: world.settings().camera,
+          camera: camerasOf(world.settings()),
           done: world.done,
         });
         return;
@@ -298,7 +298,7 @@ export function createPinnedRuns(world: {
               countdown: undefined,
             });
           },
-          camera: world.settings().camera,
+          camera: camerasOf(world.settings()),
           done: world.done,
         });
         return;
@@ -312,7 +312,7 @@ export function createPinnedRuns(world: {
         build: () => {
           return createGame({ ...recipeOf(now, mode), heat });
         },
-        camera: world.settings().camera,
+        camera: camerasOf(world.settings()),
         done: world.done,
       });
     },

@@ -491,6 +491,7 @@ export function OptionsPage({
             onSettings({
               ...freshSettings(),
               camera: settings.camera,
+              craftCamera: settings.craftCamera,
               probed: settings.probed,
               developer: settings.developer,
               dev: settings.dev,

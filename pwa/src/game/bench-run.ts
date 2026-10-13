@@ -129,7 +129,7 @@ export function createBenchRun(world: BenchWorld): BenchRun {
           level: benchmarkLevel(),
           sky: BENCHMARK.sky,
         }),
-      camera: BENCHMARK.camera,
+      camera: { rider: BENCHMARK.camera, craft: BENCHMARK.camera },
       after: [
         {
           id: "lights",

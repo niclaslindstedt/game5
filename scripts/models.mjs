@@ -39,7 +39,7 @@ const args = parseArgs(
     kind: {
       kind: "string",
       default: "all",
-      help: "publish only this kind (skis, heli, rescue, sled, groomer, plane) — the others' files and stamps are kept",
+      help: "publish only this kind (skis, heli, rescue, sled, groomer, plane, player) — the others' files and stamps are kept",
     },
     from: {
       kind: "string",
@@ -47,7 +47,7 @@ const args = parseArgs(
       help: "where make blender left the glTFs",
     },
   },
-  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|rescue|sled|groomer|plane] [--from=previews/blender]",
+  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|rescue|sled|groomer|plane|player] [--from=previews/blender]",
 );
 
 const out = join(root, MODELS_DIR);
@@ -73,6 +73,7 @@ const HALF_OF = {
   sled: "sled",
   groomer: "groomer",
   plane: "plane",
+  player: "player",
 };
 if (args.kind !== "all" && !HALF_OF[args.kind]) {
   console.error(`unknown kind "${args.kind}" (all, ${Object.keys(HALF_OF).join(", ")})`);
@@ -81,7 +82,8 @@ if (args.kind !== "all" && !HALF_OF[args.kind]) {
 const half = args.kind === "all" ? undefined : HALF_OF[args.kind];
 
 /** Each published name and the file `make blender` wrote it as: its LOD0. */
-const made = (name) => join(root, args.from, name.replace(".glb", "-lod0.glb"));
+const MADE_AS = { "player.glb": "mountaineer-lod0.glb" };
+const made = (name) => join(root, args.from, MADE_AS[name] ?? name.replace(".glb", "-lod0.glb"));
 const names = modelFiles(ALL_MODELS, half);
 const missing = names.filter((n) => !existsSync(made(n)));
 if (missing.length) {

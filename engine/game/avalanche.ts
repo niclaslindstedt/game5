@@ -225,6 +225,8 @@ export function stepAvalanche(state: GameState, events: GameEvent[], input?: Ski
       if (slide.involved && !slide.caught && !slide.escaped) escape(state, slide, events);
     }
   }
+  // Its debris at rest, ploughed into.
+  if (slide && !slide.running && !slide.caught) meetDebris(state, a, slide, events);
   if (a.victim) stepVictim(state, a, a.victim, events);
   // THE SEARCH AND THE PATROL (`avalanche-rescue.ts`).
   stepRescue(state, a, input, events);
@@ -522,6 +524,8 @@ function meetFlow(state: GameState, a: AvalancheState, s: Slide, events: GameEve
     catchSkier(state, a, s, k / S, events);
     return;
   }
+  // Skied into the flow's body, deep enough, at speed: taken.
+  if (engulfed(state, a, s, events)) return;
   if (close) {
     s.involved = true;
     s.away = 0;
@@ -529,6 +533,33 @@ function meetFlow(state: GameState, a: AvalancheState, s: Slide, events: GameEve
     s.away += dt;
     if (s.away >= K.escapeAfter) escape(state, s, events);
   }
+}
+
+/** Skied into its DEBRIS at rest: taken as by the flow, and buried there. */
+function meetDebris(state: GameState, a: AvalancheState, s: Slide, events: GameEvent[]): void {
+  if (state.skier.thrown || a.victim) return;
+  engulfed(state, a, s, events);
+}
+
+/** Whether snow `engulf` m deep lies under him and he runs into it faster
+ * than `plough` — and if so he is caught by the parcel nearest him. */
+function engulfed(state: GameState, a: AvalancheState, s: Slide, events: GameEvent[]): boolean {
+  const on = loading(state);
+  if (!on || on.speed < K.plough) return false;
+  if (debrisDepth(s, on.x, on.z) < K.engulf) return false;
+  const c = s.cells;
+  let best = -1;
+  let near = Infinity;
+  for (let k = 0; k < c.length; k += S) {
+    const d = hypot(c[k + CELL.x] - on.x, c[k + CELL.z] - on.z);
+    if (d < near) {
+      near = d;
+      best = k / S;
+    }
+  }
+  if (best < 0) return false;
+  catchSkier(state, a, s, best, events);
+  return true;
 }
 
 function escape(state: GameState, s: Slide, events: GameEvent[]): void {
@@ -549,7 +580,9 @@ function catchSkier(
   const vz = s.cells[parcel * S + CELL.vz];
   s.caught = true;
   s.involved = true;
-  throwRider(state, "avalanche", { x: (c.vx + vx) / 2, y: c.vy, z: (c.vz + vz) / 2 }, events);
+  // Never thrown UP: the snow takes him down into it.
+  const up = Math.min(c.vy, 0);
+  throwRider(state, "avalanche", { x: (c.vx + vx) / 2, y: up, z: (c.vz + vz) / 2 }, events);
   a.victim = {
     slide: s.id,
     parcel,
@@ -597,6 +630,7 @@ function stepVictim(
     // Carried in the parcel that took him: at its speed, and drawn back
     // into it where the snow under him has held him back.
     const k = v.parcel * S;
+    const top = s ? debrisDepth(s, b.x, b.z) : 0;
     if (s && s.cells[k + CELL.run] === 1) {
       const c = s.cells;
       v.clear = 0;
@@ -605,10 +639,14 @@ function stepVictim(
         b.last,
         c[k + CELL.vx] + (c[k + CELL.x] - b.x) * K.hold,
         c[k + CELL.vz] + (c[k + CELL.z] - b.z) * K.hold,
+        state.level,
+        top,
       );
       // The snow closes over him a few seconds in, wherever the flow is.
       if (v.t < K.carryMost) return;
     } else {
+      // Stopped dead in the snow at rest round him.
+      carryBody(b.points, b.last, 0, 0, state.level, top);
       v.clear += dt;
       if (v.clear < K.settleFor) return;
     }
@@ -622,15 +660,30 @@ function stepVictim(
     const c = s.cells;
     v.x = b.x;
     v.z = b.z;
-    carryBody(b.points, b.last, c[k + CELL.vx], c[k + CELL.vz]);
+    carryBody(
+      b.points,
+      b.last,
+      c[k + CELL.vx],
+      c[k + CELL.vz],
+      state.level,
+      debrisDepth(s, b.x, b.z),
+    );
     return;
   }
   holdBody(b.points, b.last);
 }
 
-/** Every point of the body taken toward the flow's velocity, and held up
- * in it (Verlet: a point's step is `points − last`). */
-export function carryBody(points: number[], last: number[], vx: number, vz: number): void {
+/** Every point of the body taken toward the flow's velocity, and held down
+ * IN it — drawn toward `ride` of the snow's depth `top` (m) over the ground
+ * under it (Verlet: a point's step is `points − last`). */
+export function carryBody(
+  points: number[],
+  last: number[],
+  vx: number,
+  vz: number,
+  level: Level,
+  top: number,
+): void {
   const k = 1 - Math.exp(-K.drag * dt);
   for (let i = 0; i < RAGDOLL.count; i++) {
     const j = 3 * i;
@@ -638,8 +691,12 @@ export function carryBody(points: number[], last: number[], vx: number, vz: numb
     const sy = points[j + 1] - last[j + 1];
     const sz = points[j + 2] - last[j + 2];
     const nx = sx + (vx * dt - sx) * k;
-    const ny = Math.max(sy, K.lift * dt * k);
     const nz = sz + (vz * dt - sz) * k;
+    // Down the slope with the ground under where it goes next, and the gap
+    // to the snow's depth closed besides.
+    const ahead = level.groundAt(points[j] + nx, points[j + 2] + nz) + top * K.ride;
+    const fall = ahead - level.groundAt(points[j], points[j + 2]) - top * K.ride;
+    const ny = sy + (fall + (ahead - points[j + 1]) * K.sink * dt - sy) * k;
     last[j] = points[j] - nx;
     last[j + 1] = points[j + 1] - ny;
     last[j + 2] = points[j + 2] - nz;

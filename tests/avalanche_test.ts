@@ -17,6 +17,7 @@ import {
   avalancheHazard,
   avalancheHolds,
   createGame,
+  debrisDepth,
   placeRun,
   releaseAvalanche,
   step,
@@ -42,6 +43,7 @@ import { RESTART_AFTER } from "../pwa/src/game/settings.ts";
 import { buriedOf, deathOver, diedOf } from "../pwa/src/game/hud-wreck.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
+import { OVER_SNOW, lensGround } from "../pwa/src/game/camera-buried.ts";
 
 const line = (id: string) => AVALANCHE_LINES.find((l) => l.id === id)!;
 
@@ -260,6 +262,90 @@ describe("the skier in it", () => {
     step(s, NEUTRAL_INPUT);
     expect(s.skier.thrown).toBeNull();
     expect(s.avalanche!.victim).toBeNull();
+  });
+});
+
+describe("taken INTO the snow", () => {
+  /** Step until the slide has him buried, keeping how far the body's middle
+   * ever rose over the snow's top while it carried him (past the first
+   * half second, the throw's own). */
+  function ride(s: GameState, input = NEUTRAL_INPUT, seconds = 30) {
+    let caught = -1;
+    let buried = -1;
+    let over = -Infinity;
+    for (let i = 0; i < 120 * seconds && buried < 0; i++) {
+      step(s, input);
+      for (const e of s.events) {
+        if (e.kind !== "avalanche") continue;
+        if (e.phase === "caught") caught = s.t;
+        if (e.phase === "buried") buried = s.t;
+      }
+      const b = s.skier.thrown;
+      const slide = s.avalanche!.slide;
+      if (b && slide && s.avalanche!.victim?.phase === "carried" && s.t - caught > 0.5) {
+        over = Math.max(over, b.y - s.level.groundAt(b.x, b.z) - debrisDepth(slide, b.x, b.z));
+      }
+    }
+    return { caught, buried, over };
+  }
+
+  it("carried, he rides down in the snow and is never thrown up out of it", () => {
+    const s = avalancheRide();
+    placeRun(s, { x: LEE.x, z: LEE.slab, heading: Math.PI / 2, speed: 0 });
+    releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
+    const r = ride(s, { ...NEUTRAL_INPUT, brake: 1 });
+    expect(r.caught).toBeGreaterThan(0);
+    expect(r.buried).toBeGreaterThan(r.caught);
+    expect(r.over).toBeLessThan(0.5);
+  });
+
+  it("while it has him, every lens stands over the snow, never inside its blocks", () => {
+    const s = avalancheRide();
+    placeRun(s, { x: LEE.x, z: LEE.slab, heading: Math.PI / 2, speed: 0 });
+    const slide = releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
+    expect(lensGround(s, s.level.groundAt)).toBe(s.level.groundAt);
+    for (let i = 0; i < 120 * 10 && s.avalanche!.victim?.phase !== "carried"; i++) {
+      step(s, { ...NEUTRAL_INPUT, brake: 1 });
+    }
+    const b = s.skier.thrown!;
+    const over = lensGround(s, s.level.groundAt);
+    const want = s.level.groundAt(b.x, b.z) + debrisDepth(slide, b.x, b.z) + OVER_SNOW;
+    expect(over(b.x, b.z)).toBeCloseTo(want, 6);
+  });
+
+  it("skied into the running flow from above, he is taken and buried", () => {
+    const s = avalancheRide();
+    placeRun(s, { x: LEE.x, z: LEE.slab - 60, heading: 0, speed: 20 });
+    releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
+    const r = ride(s, { ...NEUTRAL_INPUT, tuck: 1 });
+    expect(r.caught).toBeGreaterThan(0);
+    expect(r.buried).toBeGreaterThan(r.caught);
+    expect(r.over).toBeLessThan(0.5);
+  });
+
+  it("skied into its debris at rest, he is taken and buried there", () => {
+    const s = avalancheRide();
+    placeRun(s, { x: LEE.x + 300, z: 200, heading: Math.PI / 2, speed: 0 });
+    const slide = releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
+    for (let i = 0; i < 120 * AVALANCHE.runMost && slide.running; i++) {
+      step(s, { ...NEUTRAL_INPUT, brake: 1 });
+    }
+    expect(slide.running).toBe(false);
+    expect(s.avalanche!.victim).toBeNull();
+    // The deepest of the deposit, skied into from above at 60 km/h.
+    const c = slide.cells;
+    let at = { x: 0, z: 0, d: 0 };
+    for (let k = 0; k < c.length; k += AVALANCHE_CELL.stride) {
+      const x = c[k + AVALANCHE_CELL.x];
+      const z = c[k + AVALANCHE_CELL.z];
+      const d = debrisDepth(slide, x, z);
+      if (d > at.d) at = { x, z, d };
+    }
+    expect(at.d).toBeGreaterThan(AVALANCHE.engulf);
+    placeRun(s, { x: at.x, z: at.z - 40, heading: 0, speed: 17 });
+    const r = ride(s, { ...NEUTRAL_INPUT, tuck: 1 }, 10);
+    expect(r.caught).toBeGreaterThan(0);
+    expect(r.buried).toBeGreaterThan(r.caught);
   });
 });
 

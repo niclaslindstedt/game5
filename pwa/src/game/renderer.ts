@@ -10,8 +10,7 @@
 //   lifts.ts        the resort's lifts, its wind tunnels and its cabins (cabins-view.ts)
 //   skis-body.ts    the four pairs of skis and their skiers
 //   spray.ts        the skis' sheet and wall; snow-cloud.ts, the fine powder
-//   machines.ts     the free ride's helicopter, snowmobile and piste machines
-//   snowfall.ts     the snow falling round the lens, the spindrift
+//   machines.ts     the free ride's machines; snowfall.ts the falling snow, the spindrift
 //   ghost-model.ts  a ghost, see-through and trail-less (no mode keeps one now)
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
@@ -82,6 +81,7 @@ import { hideSlices, runsOf, SLICE_OF_GROUP, thrownEffects, type Rider } from ".
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
+import { setRacerClock } from "./racer-model.ts";
 import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
 import { suitOf } from "./wingsuit-look.ts";
@@ -770,13 +770,13 @@ export function createWorldRenderer(
       timer.pop();
       setRunSnow(env.haze, state.fresh, state.piste, pack?.age, pack?.tracks);
       const trailed = performance.now();
-      // THE VIEW ALOFT (`view-aloft.ts`): the reach grows with the height over the snow.
-      const eyeAt = lens.camera.position;
+      const eyeAt = lens.camera.position; // the view's reach grows aloft (`view-aloft.ts`)
       const aloft = aloftLook(video.distance, eyeAt.y - level.groundAt(eyeAt.x, eyeAt.z));
       env.setAloft(aloft);
       forest?.setAloft(aloft.trees, aloft.lift, aloft.view);
       gates?.guns?.setReach(aloft.trees, aloft.lift); // the guns as far as the woods
       terrain.tick(state.t);
+      setRacerClock(state.t); // the racer's cloth moves on the run's clock
       terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);

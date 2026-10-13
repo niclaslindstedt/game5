@@ -117,6 +117,8 @@ import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
 
+import type { RacerKit } from "./racer-model.ts";
+
 export { REST_SAG } from "./ski-gear.ts";
 export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
 
@@ -156,11 +158,21 @@ export const SLOT_DRESS: readonly SkierDress[] = [
   ...RIVAL_OUTFITS.map(({ tone, ...outfit }) => ({ outfit, tone })),
 ];
 
+/** The modelled racer's kit a pair is raced in (`KIT_PARTS`): no gate
+ * guards on a giant slalom's or a ski cross's pair, nothing on a speed pair. */
+const KITS: Partial<Record<string, RacerKit>> = {
+  chough: "gs",
+  wolverine: "gs",
+  eagle: "speed",
+  falcon: "speed",
+  peregrine: "speed",
+};
+
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
   // A ski jumper (only a jump rides the Albatross) in his suit (`jumpKit`).
   const dress = spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit) } : skier;
-  return styleIn(TOPSHEETS[drawnAs(spec)], dress);
+  return styleIn(TOPSHEETS[drawnAs(spec)], { kit: KITS[spec.id], ...dress });
 }
 
 /** The snow the skis are drawn over: the ground a flight is read over and,

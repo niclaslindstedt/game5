@@ -463,7 +463,7 @@ describe("the racer model", () => {
 
   it("names its materials as the builder does, the suit and the bib the wind moves", () => {
     const named = new Set([...matNames("racer.py"), ...matNames("racer_print.py")]);
-    for (const n of ["suit", "bib", "guard", "helmet", "lens"]) {
+    for (const n of ["suit", "bib", "shin_guard", "helmet", "lens"]) {
       expect(named.has(n), `racer.py names "${n}"`).toBe(true);
     }
     for (const m of gltf.materials) expect(named.has(m.name), m.name).toBe(true);

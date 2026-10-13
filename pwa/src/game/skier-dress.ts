@@ -15,12 +15,20 @@ import * as THREE from "three";
 
 import { dressOutfit } from "./dress.ts";
 import { bindPose, type DressPart } from "./dress-loft.ts";
-import { dealtOutfit, type Outfit } from "./outfit.ts";
+import { dealtOutfit, WEIGHTS, type Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
 import { suitDress } from "./wingsuit-dress.ts";
-import { createRacerWind, graftWind, paleRacer, racerParts } from "./racer-model.ts";
+import {
+  createRacerWind,
+  graftWind,
+  KIT_PARTS,
+  paleRacer,
+  racerParts,
+  type RacerKit,
+} from "./racer-model.ts";
+import { BUILT_PARTS, builtRacer } from "./racer-build.ts";
 import type { RiderId } from "@engine";
 
 export type Dressed = {
@@ -52,6 +60,9 @@ export type SkierDress = {
   /** In a WINGSUIT, its colourway (`wingsuit-look.ts`): the body cut as
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
+  /** The modelled racer's kit for the discipline his pair is raced in
+   * (`KIT_PARTS`); the whole slalom kit when not given. */
+  kit?: RacerKit;
 };
 
 /** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
@@ -105,6 +116,19 @@ function setBone(bone: THREE.Bone, f: BoneFrame): void {
   bone.position.set(f.head.x, f.head.y, f.head.z);
 }
 
+/** The racer's parts cut to a build, made once a part and a build. */
+const builts = new Map<string, THREE.BufferGeometry>();
+function builtOnce(
+  name: string,
+  g: THREE.BufferGeometry,
+  build: (typeof WEIGHTS)[number],
+): THREE.BufferGeometry {
+  const key = `${name}:${build.id}`;
+  let made = builts.get(key);
+  if (!made) builts.set(key, (made = builtRacer(g, build)));
+  return made.clone();
+}
+
 /** THE SKIER IN HIS OUTFIT, skinned and ready to pose. */
 export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   const group = new THREE.Group();
@@ -124,13 +148,18 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   // THE MODELLED RACER (`racer-model.ts`), when the outfit is his and the
   // model is in: his parts on these very bones, his bib and suit in the air.
   const racer =
-    dress.outfit.body === "racer" && dress.suit === undefined && !dress.bare ? racerParts() : null;
+    dress.outfit.body === "racer" && dress.suit === undefined && !dress.bare
+      ? (racerParts()?.filter((p) => !KIT_PARTS[dress.kit ?? "slalom"].has(p.name)) ?? null)
+      : null;
   const wind = racer ? createRacerWind() : null;
   const ghost = !!dress.ghost;
   let geos: THREE.BufferGeometry[];
   let mats: THREE.Material[];
   if (racer && wind) {
-    geos = racer.map((p) => p.geometry.clone());
+    const build = WEIGHTS.find((w) => w.id === dress.outfit.weight);
+    geos = racer.map((p) =>
+      build && BUILT_PARTS.has(p.name) ? builtOnce(p.name, p.geometry, build) : p.geometry.clone(),
+    );
     mats = racer.map((p) => {
       const m = p.material.clone();
       if (ghost) paleRacer(m);
@@ -172,7 +201,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   });
   if (wind) {
     const chest = bones[SKIER_BONES.indexOf("chest")];
-    meshes[0].onBeforeRender = () => wind.update(group, chest, performance.now());
+    meshes[0].onBeforeRender = () => wind.update(group, chest);
   }
   const clothGeo = racer
     ? geos[

@@ -105,26 +105,35 @@ def design(P, N, G):
         rgb[line] = np.array(C["dark"], dtype=np.float32)
         return np.where(mask, depth * np.exp(-((d / (w * 1.4)) ** 2)), 0.0)
 
-    # THE TRUNK: red, the dark panel down each flank, white below the waist
-    # band across the hips.
+    def fade(mask, k):
+        """THE TEAM'S FADE where `mask` holds: red at `k` 0, through the
+        coral to white at 1 — one soft gradient, its middle warm."""
+        k = np.clip(k, 0, 1)
+        k = k * k * (3 - 2 * k)
+        red, coral, white = (np.array(C[n], dtype=np.float32) for n in ("red", "coral", "white"))
+        lo = (k < 0.5)[..., None]
+        u = np.where(k < 0.5, k * 2, k * 2 - 1)[..., None]
+        col = np.where(lo, red + (coral - red) * u, coral + (white - coral) * u)
+        rgb[mask] = col[mask]
+
+    # THE TRUNK: red, its collar's rim dark; low on the hips the red already
+    # starts to warm toward the legs' fade, and the seat a shade deeper.
     spine = frame("spine")
     hc, SX, UP, AH, sl = v3(spine[0]), v3(spine[1]), v3(spine[2]), v3(spine[3]), spine[4]
     rel = P - hc
     up = rel @ UP
     trunk = on("spine")
-    flank = np.abs(N @ SX)
-    WAIST = 0.06 * sl
     paint(trunk, C["red"])
-    paint(trunk & (up < WAIST), C["white"])
-    paint(trunk & (flank > 0.82) & (up < 0.86 * sl), C["dark"])
-    H += pipe(up - WAIST, 0.004, trunk & (flank < 0.82))
-    H += pipe(flank - 0.82, 0.05, trunk & (up < 0.86 * sl))
-    # The collar's dark rim.
+    fade(trunk & (up < 0.08 * sl), (0.08 * sl - up) / (0.5 * sl) * 0.18)
+    # The side seams: a fine welt down each flank, no panel.
+    flank = np.abs(N @ SX)
+    H += np.where(trunk & (up < 0.86 * sl), -0.12 * np.exp(-(((flank - 0.97) / 0.02) ** 2)), 0.0)
+    # The collar's dark rim and its zip's welt down the back of the neck.
     paint(trunk & (up > 0.985 * sl), C["dark"])
+    back = (N @ AH) < -0.6
+    H += np.where(trunk & back & (up > 0.7 * sl), -0.15 * np.exp(-((rel @ SX) / 0.003) ** 2), 0.0)
 
     for i, s in enumerate("lr"):
-        # THE ARMS: the upper arm red to the elbow; the forearm white with a
-        # red stripe down its outside and a dark padded panel over the guard.
         for part in ("upperarm", "forearm", "thigh", "shin"):
             n = f"{part}_{s}"
             head, x, y, z, length = segs[n]
@@ -137,37 +146,36 @@ def design(P, N, G):
             rr = P - v3(head)
             # The angle round the limb: 0 dead ahead (+z), +90° outward.
             ang = np.degrees(np.arctan2(rr @ o, rr @ f))
+            # How far round to the limb's inside (toward his middle), 0..1.
+            inside = np.clip(-np.sin(np.radians(ang)), 0, 1)
             if part == "upperarm":
+                # Red all the way, but a thread of white down its outside —
+                # where the team prints its name.
                 paint(mask, C["red"])
+                paint(mask & (np.abs(ang - 90) < 6) & (t > 0.15) & (t < 0.85), C["white"])
             elif part == "forearm":
-                paint(mask, C["white"])
-                stripe = np.abs(ang - 90) < 26
-                paint(mask & stripe, C["red"])
-                H += pipe(np.abs(ang - 90) - 26, 0.6 * 0.004 / 0.04 * 57, mask) * 0.0
-                paint(mask & (t > 0.86), C["dark"])
+                # Red on the outside to the cuff; the inside fades to white
+                # toward the wrist.
+                k = np.clip((t - 0.15) / 0.75, 0, 1) * (0.35 + 0.65 * inside)
+                fade(mask, k * 1.1)
+                paint(mask & (t > 0.9), C["dark"])
             elif part == "thigh":
-                # THE SWEEP: red from the hip's outside, swinging forward
-                # down the thigh to the front of the knee, narrowing.
-                paint(mask, C["white"])
-                centre = 95 - 85 * np.clip(t, 0, 1)
-                width = 48 - 28 * np.clip(t, 0, 1)
-                d = np.abs(((ang - centre + 180) % 360) - 180) - width
-                paint(mask & (d < 0) & (t < 0.92), C["red"])
-                H += pipe(d * 0.0015, 0.0035, mask & (t < 0.92))
-                # The dark side panel down the back of the outside.
-                side = np.abs(((ang - 125 + 180) % 360) - 180) < 14
-                paint(mask & side & (t < 0.85), C["dark"])
+                # THE FADE: red at the hip, warm coral by mid-thigh, white by
+                # the knee — lower behind than in front, as the print runs.
+                lag = 0.12 * np.cos(np.radians(ang))
+                fade(mask, (t - 0.3 - lag) / 0.7)
             else:
-                # THE SHIN: the padded panel down its front, darker, under
-                # the guard; the calf white.
+                # THE SHIN: white, a cool grey cast low on the calf.
                 paint(mask, C["white"])
+                mist = np.clip((t - 0.25) / 0.5, 0, 1) * (np.cos(np.radians(ang)) < 0.3)
+                rgb[mask] = (rgb * (1 - mist[..., None]) + np.array(C["mist"], dtype=np.float32) * mist[..., None])[mask]
+                # The padding under the guard down its front.
                 pad = (np.abs(ang) < 70) & (t > 0.08)
-                paint(mask & pad, (0.06, 0.065, 0.075))
                 H += np.where(mask & pad, 0.12, 0.0)
-                H += pipe(np.abs(ang) - 70, 0.6, mask & (t > 0.08)) * 0.0
             # The wrinkle of a stretch suit at the back of each crook: a few
             # soft ridges across the bone where the limb folds.
-            crook = mask & ((part == "forearm") & (t < 0.18) | (part == "shin") & (t < 0.16))
+            crook = mask & ((part == "forearm") & (t < 0.18) | (part == "shin") & (t < 0.16)
+                            | (part == "thigh") & (t > 0.85))
             H += np.where(crook & (np.cos(np.radians(ang)) < -0.3),
                           0.08 * np.sin(2 * np.pi * (rr @ ax) / 0.022), 0.0)
     # The fine knit of the fabric.
@@ -191,8 +199,9 @@ def _digit_seven(X, Y):
 
 
 def bib_image(C, size=512):
-    """THE BIB'S PRINT: yellow, a dark band over its top, the number in black
-    on both panels, a white band of the race's marks along its foot."""
+    """THE BIB'S PRINT: yellow, the race's name in a row of small dark marks
+    across its top, the number big in black on both panels, and a white band
+    along its foot carrying the race's marks."""
     W, Hh = size * 2, size
     u = (np.arange(W) + 0.5) / W
     v = (np.arange(Hh) + 0.5) / Hh
@@ -202,19 +211,22 @@ def bib_image(C, size=512):
     img[..., 3] = 1.0
     dark = np.array(C["dark"], dtype=np.float32)
     white = np.array(C["white"], dtype=np.float32)
-    band = (V > 0.7)
-    img[band, :3] = dark
-    foot = (V < 0.12) & (V > 0.03)
+    red = np.array(C["red"], dtype=np.float32)
+    foot = (V < 0.17) & (V > 0.03)
     img[foot, :3] = white
     for c0 in (0.25, 0.75):
-        # The race's marks: three dark blocks along the foot's band.
-        for k in (-1, 0, 1):
-            blk = foot & (np.abs(U - (c0 + k * 0.11)) < 0.04) & (V > 0.055) & (V < 0.095)
+        # The race's marks: a red chevron and a row of dark blocks on the foot.
+        chev = foot & (np.abs(U - (c0 - 0.15)) < 0.03 - np.abs(V - 0.1) * 0.25) & (V > 0.06) & (V < 0.14)
+        img[chev, :3] = red
+        for k in range(4):
+            blk = foot & (np.abs(U - (c0 - 0.07 + k * 0.055)) < 0.022) & (V > 0.08) & (V < 0.12)
             img[blk, :3] = dark
-        # A thin white rule under the band.
-        img[(np.abs(V - 0.68) < 0.008) & (np.abs(U - c0) < 0.24), :3] = white
+        # The race's name over the number: a row of small dark letters.
+        for k in range(7):
+            ch = (np.abs(U - (c0 - 0.12 + k * 0.04)) < 0.014) & (np.abs(V - 0.8) < 0.035)
+            img[ch, :3] = dark
         X = (U - (c0 - 0.1)) / 0.2
-        Y = (V - 0.18) / 0.46
+        Y = (V - 0.24) / 0.46
         box = (X >= 0) & (X <= 1) & (Y >= 0) & (Y <= 1)
         seven = box & _digit_seven(np.clip(X, 0, 1), np.clip(Y, 0, 1))
         img[seven, :3] = dark

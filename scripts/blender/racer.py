@@ -10,26 +10,31 @@
 # right, y up, z forward) laid as Blender's (-x, z, y), so the glTF's frame
 # is the body frame turned half round about y.
 #
-# WHAT A TECHNICAL RACER WEARS, after the start lists' photographs (a
-# slalom's finish area seen side-on and from behind) and the federation's
-# equipment rules:
+# WHAT A TECHNICAL RACER WEARS, after a national team's start lists and
+# finish areas seen side-on and from behind (a slalom's racers at the finish,
+# on the podium and in the course), and the federation's equipment rules:
 #
-#   * a ONE-PIECE SUIT, skin tight, printed in a team's panels: the trunk
-#     and the shoulders in the team's red, the forearms and the legs white,
-#     a red sweep down the outside of each thigh and a dark side panel down
-#     each flank, the knees and shins padded under darker panels;
+#   * a ONE-PIECE SUIT, skin tight, printed in the team's colours: the
+#     trunk, the shoulders and the arms in the team's red, the red FADING
+#     down the thighs through a warm coral into white by the knee, the
+#     forearms' inside fading to white toward the cuff, the shins and calves
+#     white with a cool grey cast — one soft gradient, no hard panels;
 #   * a BACK PROTECTOR under it, the hard plate from the shoulder blades
-#     to the small of the back the speed events require, lifting the suit
-#     in a long low hump;
+#     to the small of the back, lifting the suit in a long low hump;
 #   * the BIB over it, a yellow tabard open at the sides, its number big on
-#     the chest and the back under a dark band;
-#   * SHIN GUARDS, a hard black shell down the front of each shin from
-#     under the knee over the boot's cuff, its rim piped in yellow, two
-#     straps round the calf; ARM GUARDS, low hard pads down the outside of
-#     each forearm; HAND GUARDS, the red shields the slalom pole carries in
-#     front of each fist;
-#   * a SLALOM HELMET, gloss red, with its CHIN GUARD, and mirrored goggles;
-#     race gloves.
+#     the chest and the back, a white band of the race's marks along its
+#     foot;
+#   * SHIN GUARDS, a hard FLUORESCENT YELLOW shell down the front of each
+#     shin from under the knee over the boot's cuff, black along both edges
+#     and at the foot, two straps round the calf; ARM GUARDS, low black pads
+#     down the outside of each forearm; HAND GUARDS, fluorescent yellow
+#     shields the slalom pole carries in front of each fist;
+#   * a SLALOM HELMET, gloss red with a white band over its crown, with its
+#     CHIN GUARD, and mirrored goggles; red race gloves, black in the palm.
+#
+# A giant slalom's racer leaves the shin guards, the pole's shields and the
+# chin guard off; a speed racer the arm guards too: the game hides those
+# parts by their materials' names (`racer-model.ts`' `KIT_PARTS`).
 #
 # How the game wears him (`racer-model.ts`): his geometry, his materials and
 # their baked maps are this file's; his SKIN WEIGHTS are re-cut in the game
@@ -61,22 +66,30 @@ def colour(hexa):
     return tuple(((c / 255 + 0.055) / 1.055) ** 2.4 for c in ((hexa >> 16) & 255, (hexa >> 8) & 255, hexa & 255))
 
 
-# THE TEAM'S COLOURS (sRGB): its red, the suit's white, the dark of the side
-# panels and the guards, the bib's yellow.
-RED, WHITE, DARK, YELLOW = 0xD3141E, 0xF2F3F5, 0x15171C, 0xF3D51C
+# THE TEAM'S COLOURS (sRGB): its red, the coral the red fades through, the
+# suit's white and the cool grey low on the legs, the dark of the piping and
+# the guards' edges, the bib's yellow and the guards' fluorescent yellow.
+RED, CORAL, WHITE, MIST, DARK = 0xD9101C, 0xF06A55, 0xF4F5F7, 0xD9DEE6, 0x15171C
+YELLOW, NEON = 0xF3D51C, 0xC6EC00
 
 # ---------------------------------------------------------------- materials
-SUIT = mat("suit", (1, 1, 1), rough=0.34)
+SUIT = mat("suit", (1, 1, 1), rough=0.42)
 BIB = mat("bib", (1, 1, 1), rough=0.7)
-GUARD = mat("guard", colour(0x0E0F12), rough=0.22, coat=1.0)
-EDGE = mat("guard_edge", colour(YELLOW), rough=0.4)
-SHIELD = mat("shield", colour(RED), rough=0.25, coat=1.0)
+# The SHIN GUARDS' shell and its edges, its straps; the forearms' pads; the
+# pole's shields; the chin guard — each a material of its own, so the game
+# can leave off what a discipline does not wear (`racer-model.ts`).
+SHIN = mat("shin_guard", colour(NEON), rough=0.28, coat=1.0)
+EDGE = mat("guard_edge", colour(0x101114), rough=0.35, coat=0.5)
+GSTRAP = mat("guard_strap", colour(0x101114), rough=0.7)
+GUARD = mat("arm_guard", colour(0x0E0F12), rough=0.22, coat=1.0)
+SHIELD = mat("shield", colour(NEON), rough=0.25, coat=1.0)
 STRAP = mat("strap", colour(0x101114), rough=0.7)
-GLOVE = mat("glove", colour(0xB5121B), rough=0.55)
+GLOVE = mat("glove", colour(0xC8141C), rough=0.55)
 PALM = mat("palm", colour(0x1A1B1F), rough=0.8)
 HELMET = mat("helmet", colour(RED), rough=0.18, coat=1.0)
 PEAK = mat("peak", colour(WHITE), rough=0.22, coat=1.0)
 CHIN = mat("chin", colour(0x121316), rough=0.3, coat=0.6)
+CHIN_GUARD = mat("chin_guard", colour(0x121316), rough=0.3, coat=0.6)
 LENS = mat("lens", colour(0x3FA9F5), metal=0.75, rough=0.06)
 LINER = mat("liner", colour(0x2B2E34), rough=0.85)
 SKIN = mat("skin", colour(0xC68863), rough=0.6)
@@ -508,9 +521,9 @@ for part in HELM["game" if GAME else "fine"]:
 chin = [head_point(p) for p in ((-0.106, -0.062, 0.0), (-0.09, -0.09, 0.06), (-0.05, -0.112, 0.112),
                                 (0, -0.12, 0.132), (0.05, -0.112, 0.112), (0.09, -0.09, 0.06),
                                 (0.106, -0.062, 0.0))]
-tube("chin_guard", chin, 0.017, CHIN, smooth_n=0 if GAME else 2)
+tube("chin_guard", chin, 0.017, CHIN_GUARD, smooth_n=0 if GAME else 2)
 for sx in (-1, 1):
-    ellipsoid("chin_hinge", head_point((0.106 * sx, -0.062, 0.0)), (0.022, 0.026, 0.026), CHIN)
+    ellipsoid("chin_hinge", head_point((0.106 * sx, -0.062, 0.0)), (0.022, 0.026, 0.026), CHIN_GUARD)
 
 
 # ---------------------------------------------------------------- the GUARDS
@@ -544,12 +557,14 @@ for i, s in enumerate("lr"):
     _, _, _, _, sl = frame(f"shin_{s}")
     ca, lt = r_of(ANSUR["calf"]), r_of(ANSUR["lower_thigh"])
     calf = lambda t: (lt * (1 - t) + ca * 0.82 * t) if t < 0.5 else ca * 0.78
-    _, rim = shell("shin_guard", f"shin_{s}", 0.1, 0.98, 9, math.radians(72), calf, 0.018, GUARD, flare=0.008)
-    # Its rim piped in yellow: up both edges and across the top.
-    tube("shin_edge", [rw[0] for rw in rim], 0.0042, EDGE)
-    tube("shin_edge", [rw[-1] for rw in rim], 0.0042, EDGE)
-    tube("shin_edge", rim[-1], 0.0042, EDGE)
-    tube("shin_edge", rim[0], 0.005, EDGE)
+    _, rim = shell("shin_guard", f"shin_{s}", 0.1, 0.98, 9, math.radians(72), calf, 0.018, SHIN, flare=0.008)
+    # Its rim edged in black: up both edges and across the top, and a deeper
+    # black boot-end at its foot.
+    tube("shin_edge", [rw[0] for rw in rim], 0.0065, EDGE)
+    tube("shin_edge", [rw[-1] for rw in rim], 0.0065, EDGE)
+    tube("shin_edge", rim[-1], 0.0055, EDGE)
+    tube("shin_edge", rim[0], 0.0055, EDGE)
+    tube("shin_edge", rim[-2], 0.0062, EDGE)
     # Two straps round the calf behind.
     h_, x_, y_, z_, _ = frame(f"shin_{s}")
     for t in (0.3, 0.62):
@@ -557,7 +572,7 @@ for i, s in enumerate("lr"):
         r = calf(t) + 0.012
         ring = [c + x_ * (math.cos(a) * r) + z_ * (math.sin(a) * r)
                 for a in (math.pi + math.pi * k / 10 for k in range(11))]
-        tube("shin_strap", ring, 0.008, STRAP)
+        tube("shin_strap", ring, 0.008, GSTRAP)
     # ARM GUARDS: low pads down the outside of each forearm.
     rides(f"forearm_lo_{s}")
     _, fx, _, _, fl = frame(f"forearm_{s}")
@@ -631,7 +646,8 @@ import racer_print  # noqa: E402
 
 racer_print.paint(suit, bib, SUIT, BIB, dict(
     GAME=GAME, frame=frame, knees=knees, hips=hips, neck=neck, shoulders=shoulders, elbows=elbows,
-    colours=dict(red=colour(RED), white=colour(WHITE), dark=colour(DARK), yellow=colour(YELLOW)),
+    colours=dict(red=colour(RED), coral=colour(CORAL), white=colour(WHITE), mist=colour(MIST),
+                 dark=colour(DARK), yellow=colour(YELLOW)),
     COL=COL))
 
 # ---------------------------------------------------------------- the CLIPS

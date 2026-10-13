@@ -10,17 +10,22 @@
 //              through the day to after sunset and into the night at a
 //              fixed step of the clock (`--step`, game minutes) — the
 //              sunrise, the golden hour, the sunset, the blue hour, the
-//              night coming on.
+//              night coming on. With `clock` it is the RUN'S OWN CLOCK
+//              that moves the sun (`sky-clock.ts`): the sky stood at the
+//              first hour once, then `state.t` walked on a few run seconds
+//              a frame at the game's rate (or `rate`), every frame between
+//              two cells drawn — the mountain's shadow baked ahead and
+//              blended as in a run, never re-cut cell by cell.
 //   tiers      every picture preset (rows) at a few hours (columns): what
 //              LOW, MEDIUM and HIGH each draw of the same sky.
 //
 // The map, the day and the latitude stay the seed's; the sky moves through
-// `renderer.setSky` (the engine's `withSky`): the hour and the weather. The
-// sun stands still over a run today, so the time-lapse sets the hour cell
-// by cell; once the clock moves the sun it walks the run's own clock
-// instead.
+// `renderer.setSky` (the engine's `withSky`): the hour and the weather.
+// The page holds the sky's clock still (its default) except in the clock
+// time-lapse.
 
 import {
+  SKY_CLOCK,
   botInput,
   createGame,
   step,
@@ -34,6 +39,7 @@ import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { skyLookAt } from "../game/sky.ts";
+import { setSkyClock, skyHourNow } from "../game/sky-clock.ts";
 import { evalFrame, type SkyEval } from "./sky-eval.ts";
 
 /** One row of the weathers sheet: a label, the sky it asks for, and the
@@ -82,6 +88,11 @@ const only = (params.get("weathers") ?? "").split(",").filter(Boolean);
 const view = params.get("view") ?? "chase";
 const stepMin = Number(params.get("step") ?? 20);
 const cols = Number(params.get("cols") ?? 8);
+/** The time-lapse walks the run's own clock at this rate (0: hour by hour). */
+const clockRate =
+  params.get("clock") === "1" ? Number(params.get("rate") ?? SKY_CLOCK.rate) || SKY_CLOCK.rate : 0;
+/** The most run seconds a frame between two clock cells moves the clock. */
+const CLOCK_TICK = 2;
 const rows = only.length ? ROWS.filter((r) => only.includes(r.label.toLowerCase())) : ROWS;
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
@@ -186,14 +197,8 @@ const fmtHour = (h: number): string => {
   return `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 };
 
-/** Draw one cell under `sky` into the sheet at (x, y) and measure it. */
-async function cell(
-  ctx: CanvasRenderingContext2D,
-  sky: SkyOverride,
-  x: number,
-  y: number,
-  id: string,
-): Promise<SkyCell> {
+/** Stand the sky at `sky` and let the scene settle under it. */
+async function standSky(sky: SkyOverride): Promise<void> {
   renderer.setSky(sky);
   // The mountain's shadow is baked again off the thread for a new
   // bearing of the sun: one frame to ask, then wait for it.
@@ -201,6 +206,25 @@ async function cell(
   await renderer.shadeSettled();
   // A few frames unseen, so the spindrift is up and the lens settled.
   for (let i = 0; i < 20; i++) renderer.draw(state, 0, FRAME, false);
+}
+
+/** Draw one cell under `sky` into the sheet at (x, y) and measure it — or,
+ * `sky` null, under the sky the clock has walked to. */
+async function cell(
+  ctx: CanvasRenderingContext2D,
+  sky: SkyOverride | null,
+  x: number,
+  y: number,
+  id: string,
+  under: SkyOverride = sky ?? {},
+): Promise<SkyCell> {
+  if (sky !== null) await standSky(sky);
+  else {
+    // The clock's own walk: a bake still in flight lands before the cell is
+    // measured, as it would a few frames on in a run.
+    await renderer.shadeSettled();
+    renderer.draw(state, 0, FRAME, false);
+  }
   const gl = renderer.gl.getContext();
   gl.finish();
   const t0 = performance.now();
@@ -209,7 +233,7 @@ async function cell(
   const ms = performance.now() - t0;
   ctx.drawImage(stage, x, y, cellW, cellH);
   const bytes = ctx.getImageData(x, y, cellW, cellH).data;
-  const look = skyLookAt(withSky(level, sky), state.t);
+  const look = skyLookAt(withSky(level, under), state.t);
   // Let the page breathe between cells: a long sheet is minutes of
   // software rasterizing.
   await new Promise((done) => setTimeout(done, 0));
@@ -285,17 +309,43 @@ async function timelapse(): Promise<{ note: string; r: number; c: number; cells:
   const ctx = frame(
     cols * cellW,
     headH + r * (cellH + 16),
-    `${row.label} · ${view} · ${tier} · sunrise ${fmtHour(rise)} sunset ${fmtHour(set)} · every ${stepMin} min`,
+    `${row.label} · ${view} · ${tier} · sunrise ${fmtHour(rise)} sunset ${fmtHour(set)} · every ${stepMin} min` +
+      (clockRate > 0 ? ` · the run's clock ×${clockRate}` : ""),
   );
   renderer.setOverride(lensFor(view));
   state.fresh = row.fresh ?? 0;
   const cells: SkyCell[] = [];
+  // THE RUN'S CLOCK: the sky stood at the first hour at run time `t0`, then
+  // walked on with `state.t` (`clockRate`).
+  const start = { weather: row.sky, hour: hours[0] };
+  const t0 = state.t;
+  if (clockRate > 0) {
+    setSkyClock(clockRate);
+    await standSky(start);
+  }
   for (let i = 0; i < hours.length; i++) {
     const x = (i % cols) * cellW;
     const y = headH + Math.floor(i / cols) * (cellH + 16);
-    const c = await cell(ctx, { weather: row.sky, hour: hours[i] }, x, y + 16, fmtHour(hours[i]));
+    if (clockRate > 0) {
+      const due = t0 + ((hours[i] - hours[0]) * 3600) / clockRate;
+      while (state.t < due) {
+        state.t = Math.min(due, state.t + CLOCK_TICK);
+        renderer.draw(state, 0, FRAME, false);
+        // Let the worker's bakes land as a run's would, a frame at a time.
+        await new Promise((done) => setTimeout(done, 0));
+      }
+    }
+    const at = clockRate > 0 ? skyHourNow(withSky(level, start), state.t) : hours[i];
+    const c = await cell(
+      ctx,
+      clockRate > 0 ? null : { weather: row.sky, hour: hours[i] },
+      x,
+      y + 16,
+      fmtHour(at),
+      clockRate > 0 ? start : undefined,
+    );
     ctx.fillStyle = "#e8eef4";
-    ctx.fillText(`${fmtHour(hours[i])}  ${c.elev.toFixed(1)}°`, x + 6, y + 8);
+    ctx.fillText(`${fmtHour(at)}  ${c.elev.toFixed(1)}°`, x + 6, y + 8);
     cells.push(c);
   }
   return {

@@ -23,6 +23,7 @@
 
 import * as THREE from "three";
 import { clockHourOf, type GameState, type SledState } from "@engine";
+import { skyHourNow } from "./sky-clock.ts";
 
 import { altitudeAt } from "./altitude.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -837,9 +838,10 @@ export function createSledCockpit(haze: HazeUniforms): SledCockpit {
       if (screen && since >= 1 / PAINT_HZ) {
         const level = state.level;
         // The display's clock reads the place's clock, not the sun's.
-        const hour = clockHourOf(level, level.sun.hour + state.t / 3600);
+        const solar = skyHourNow(level, state.t) % 24;
+        const hour = clockHourOf(level, solar);
         const r = gaugeOf(s, mem, Math.min(since, 1), altitudeAt(level, s.x, s.y, s.z), hour);
-        paintScreen(screen.ctx, r, level.sun.hour >= 18 || level.sun.hour < 7);
+        paintScreen(screen.ctx, r, solar >= 18 || solar < 7);
         screen.tex.needsUpdate = true;
         since = 0;
       }

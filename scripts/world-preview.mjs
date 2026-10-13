@@ -329,6 +329,11 @@ const args = parseArgs(
       default: -1,
       help: "the sun's solar hour (withSky, as the app's ?hour=); the map's own when left out",
     },
+    skyclock: {
+      kind: "number",
+      default: 0,
+      help: "the sky's clock, sky s a run s (12 the game's: chase-<s> views then walk the sun on); 0 holds it",
+    },
     grade: {
       kind: "string",
       help: "the piste grade (R23): green, blue, red, black — the seed's own when left out",
@@ -480,6 +485,7 @@ const query = new URLSearchParams({
   ...(args.grimbear ? { grimbear: "1" } : {}),
   ...(args.skis ? { skis: args.skis } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
+  ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),
   w: String(args.width),
   h: String(args.height),
 }).toString();
@@ -533,7 +539,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${view}.png`,
+    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

@@ -159,7 +159,7 @@ export function createBirds(level: Level, haze: HazeUniforms, look: WildLook): B
     eyeZ = z;
     for (const roster of rosters.values()) for (const slot of roster.slots) slot.n = 0;
     const t = state.t;
-    const activity = activityAt(level);
+    const activity = activityAt(level, t);
     plan.flocks.forEach((flock, f) => {
       flushed[f] = flushAt(flock, state, flushed[f]);
       const roster = rosters.get(flock.species);

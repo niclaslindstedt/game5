@@ -4,11 +4,24 @@
 // everything that reads the sun — the sky, the snow's glitter, the shadows,
 // the birds — reads the same one.
 //
-// THE SUN STANDS STILL. A run is ridden at the hour its map was dealt (R15)
-// or a rider picked, from the green to the flag: the light a map is met in
-// is the light it is raced in. The dark is the EVENING R19 deals some of the
-// maps (R15's exception) — an hour round or after sunset, and the moon then
-// the only light in the sky.
+// THE SUN MOVES WITH THE RUN'S OWN CLOCK. A run STARTS at the hour its map
+// was dealt (R15) or a rider picked, and the sky's hour then runs on with
+// `state.t` at `SKY_CLOCK.rate` — twelve times real time, so five minutes
+// on the snow are an hour of the sun's: a long free ride sees the sun go
+// down, the lamps come on and the stars come out (`skyHourAt`). The dark
+// is the EVENING R19 deals some of the maps (R15's exception) — an hour
+// round or after sunset, and the moon then the only light in the sky.
+//
+// THE MOVING HOUR IS PRESENTATION. Nothing the physics reads takes `t`:
+// with `t` left out, `sunAtRun` and `moonAtRun` are the sun and the moon at
+// the map's START hour, and every decision a run deals when it is created
+// off them — the night crowd (`nightOver`), the piste machines
+// (`groomersOut`), the snow guns (`snowGunsOut`), the piste's day
+// (`pisteDayOf`), the generator's R15 and R19 — stays as dealt for the
+// whole run, so no digest moves. The sky, the light, the stars, the birds,
+// the sound and the people on foot read the moving hour; the app owns the
+// rate (`?skyclock=`, 0 holding the sun still for a lab or a link) and a
+// replay, re-skiing `state.t`, is met under the same sky.
 //
 // THE SKY IS THE REAL ONE. The generator deals its day with a textbook
 // cosine of the season (`declinationOf`, R15 — what a seed BUILDS, held by
@@ -39,6 +52,25 @@ import type { Level } from "../mapgen/index.ts";
  * swings furthest north and south — a winter's full moon rides highest. */
 export const SKY_YEAR = 2026;
 
+/** THE SKY'S CLOCK: how many seconds of the sun's day pass in one second
+ * of the run — five real minutes an hour of sun. Not engine state: the app
+ * hands its own rate to every reader (0 holds the sun at the start hour). */
+export const SKY_CLOCK = { rate: 12 } as const;
+
+/** THE SKY'S HOUR at run time `t`, s, on `level`: the start hour run on at
+ * `rate` (apparent solar hours; past 24 it is the next day's, which the
+ * ephemeris reads as such). */
+export function skyHourAt(level: Pick<Level, "sun">, t = 0, rate: number = SKY_CLOCK.rate): number {
+  return level.sun.hour + (t * rate) / 3600;
+}
+
+/** `level` with its hour run on to run time `t` at `rate` — the map as
+ * the sky stands over it at that moment (itself when the hour stands). */
+export function skyLevelAt<L extends Pick<Level, "sun">>(level: L, t = 0, rate?: number): L {
+  const hour = skyHourAt(level, t, rate);
+  return hour === level.sun.hour ? level : { ...level, sun: { ...level.sun, hour } };
+}
+
 /** The Julian day at 0h UT of `level`'s date in the sky's year. */
 export function skyDateOf(level: Pick<Level, "sun">): number {
   return julianDayOfYear(SKY_YEAR, level.sun.dayOfYear);
@@ -54,9 +86,12 @@ export function worldHeadingOf(level: Pick<Level, "sun">, bearing: number): numb
 
 /** Where the sun stands over a run on `level` — its elevation the APPARENT
  * one (lifted by the air's refraction; `trueElevation` the geometric),
- * its azimuth a WORLD heading, the face's bearing taken out (R15). */
-export function sunAtRun(level: Pick<Level, "sun">): DatedSunPlace {
-  const { hour, latitude, longitude } = level.sun;
+ * its azimuth a WORLD heading, the face's bearing taken out (R15). At the
+ * START hour when `t` is left out (what every create-time decision reads);
+ * at run time `t` on the sky's clock (`skyHourAt`) for the picture. */
+export function sunAtRun(level: Pick<Level, "sun">, t?: number, rate?: number): DatedSunPlace {
+  const { latitude, longitude } = level.sun;
+  const hour = t === undefined ? level.sun.hour : skyHourAt(level, t, rate);
   const at = sunOnDate(hour, latitude, longitude ?? 0, skyDateOf(level));
   return level.sun.facing ? { ...at, azimuth: worldHeadingOf(level, at.azimuth) } : at;
 }
@@ -82,9 +117,11 @@ export function moonAgeOn(dayOfYear: number): number {
 
 /** Where the moon stands over a run on `level`, how much of it is lit and
  * how old it is — off its real orbit on the map's date, its azimuth a WORLD
- * heading, like the sun's. */
-export function moonAtRun(level: Pick<Level, "sun">): DatedMoonPlace {
-  const { hour, latitude, longitude } = level.sun;
+ * heading, like the sun's; at the start hour, or at run time `t` on the
+ * sky's clock, as `sunAtRun`. */
+export function moonAtRun(level: Pick<Level, "sun">, t?: number, rate?: number): DatedMoonPlace {
+  const { latitude, longitude } = level.sun;
+  const hour = t === undefined ? level.sun.hour : skyHourAt(level, t, rate);
   const at = moonOnDate(hour, latitude, longitude ?? 0, skyDateOf(level));
   return level.sun.facing ? { ...at, azimuth: worldHeadingOf(level, at.azimuth) } : at;
 }

@@ -159,7 +159,6 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
   const group = new THREE.Group();
   group.name = "dogs";
   const plan = dogPlanFor(level);
-  const hour = civilianHour(level);
   if (!plan) {
     return { group, update() {}, dispose() {} };
   }
@@ -311,6 +310,7 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
 
   const update: DogsView["update"] = (state, eye, cull) => {
     const t = state.t;
+    const hour = civilianHour(level, t); // the sky's clock's (`sky-clock.ts`)
     for (const slot of slots.values()) slot.n = 0;
     // The owners' hands first.
     hands.fill(Number.NaN);

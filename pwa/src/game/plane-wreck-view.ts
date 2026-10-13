@@ -25,13 +25,13 @@ import * as THREE from "three";
 import {
   planeFireOf,
   poolHeat,
-  sunAtRun,
   windAt,
   type GameState,
   type PlaneFire,
   type PlaneWreck,
   type Wind,
 } from "@engine";
+import { sunNow } from "./sky-clock.ts";
 
 import { frameCrash, startCrashCam, wooded, type CrashCam } from "./camera-crash.ts";
 import type { LensPose } from "./camera-rigs.ts";
@@ -295,7 +295,7 @@ export function createPlaneWreckView(): PlaneWreckView {
           ? startCrashCam(lens, at, groundAt, (e, a) => wooded(state.level, e, a), {
               ball: fire.diameter,
               ballAt: { x: w.x, y: g, z: w.z },
-              sun: sunAtRun(state.level),
+              sun: sunNow(state.level, state.t),
             })
           : null;
       clock = 0;

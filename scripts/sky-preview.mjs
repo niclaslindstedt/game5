@@ -9,7 +9,10 @@
 //   timelapse  one weather (the first of `--weathers`, CLEAR by default)
 //              and one view, the sun swept from an hour and a half before
 //              sunrise to two and a half after sunset every `--step` game
-//              minutes — `previews/sky-<seed>-timelapse[-<view>].png`
+//              minutes — `previews/sky-<seed>-timelapse[-<view>].png`;
+//              with `--clock` the RUN'S OWN CLOCK moves the sun (the sky's
+//              clock at `--rate`, every frame between two cells drawn) —
+//              `previews/sky-<seed>-timelapse-clock[-<view>].png`
 //   tiers      every picture preset at dawn, the golden hour, noon, the low
 //              sun, sunset, the blue hour and night —
 //              `previews/sky-<seed>-tiers[-<view>].png`
@@ -36,6 +39,7 @@
 //   node scripts/sky-preview.mjs --seed=12 --hours=6,9,12,15,18 --view=vista
 //   node scripts/sky-preview.mjs --weathers=overcast,blizzard,fog --skip-build
 //   node scripts/sky-preview.mjs --sheet=timelapse --view=antisun --step=20
+//   node scripts/sky-preview.mjs --sheet=timelapse --clock --step=5   # the run's own clock
 //   node scripts/sky-preview.mjs --sheet=tiers --json=previews/sky-tiers-before.json
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -62,6 +66,11 @@ const args = parseArgs(
       help: "the hours, solar, comma-separated (each sheet has its own default)",
     },
     step: { kind: "number", default: 20, help: "the time-lapse's step, game minutes" },
+    clock: {
+      kind: "flag",
+      help: "the time-lapse walks the RUN'S OWN CLOCK (the sky's clock, sky-clock.ts), every frame between cells drawn",
+    },
+    rate: { kind: "number", default: 12, help: "the clock time-lapse's rate, sky s a run s" },
     cols: { kind: "number", default: 8, help: "the time-lapse's frames a row" },
     weathers: {
       kind: "string",
@@ -138,6 +147,8 @@ const query = new URLSearchParams({
   cols: String(args.cols),
   weathers: args.weathers,
   view: args.view,
+  clock: args.clock ? "1" : "0",
+  rate: String(args.rate),
 }).toString();
 console.log(`sky — seed ${args.seed}, ${args.sheet}, ${args.view}, ${args.quality} quality`);
 const t0 = Date.now();
@@ -147,7 +158,8 @@ await page.evaluate("window.__sky.ready");
 if (crashed) process.exit(1);
 const drawn = await page.evaluate(() => globalThis.__sky.sheet());
 if (crashed) process.exit(1);
-const sheetPart = args.sheet === "weathers" ? "" : `-${args.sheet}`;
+const sheetPart =
+  (args.sheet === "weathers" ? "" : `-${args.sheet}`) + (args.clock ? "-clock" : "");
 const viewPart = args.view === "chase" ? "" : `-${args.view}`;
 const out = join(outDir, `sky-${args.seed}${sheetPart}${viewPart}.png`);
 await page.locator("#sheet").screenshot({ path: out });

@@ -72,6 +72,7 @@ import {
   type Home,
 } from "./bird-defs.ts";
 import { planBirds } from "./bird-roost.ts";
+import { sunNow } from "./sky-clock.ts";
 
 /** The plan a map was dealt, kept against the level itself: the renderer
  * and the audio both ask, and the ear and the eye agree by construction. */
@@ -264,10 +265,11 @@ export function smooth(t: number): number {
 /**
  * HOW MUCH DAY THERE IS for a bird on this map, 0..1: nothing below civil
  * twilight, everything with the sun a few degrees up. Read off the same sun
- * the sky is lit by (`sunAtRun`).
+ * the sky is lit by — at run time `t` on the sky's clock (`sky-clock.ts`),
+ * at the map's start hour when `t` is left out.
  */
-export function activityAt(level: Pick<Level, "sun">): number {
-  const sun = sunAtRun(level);
+export function activityAt(level: Pick<Level, "sun">, t?: number): number {
+  const sun = t === undefined ? sunAtRun(level) : sunNow(level, t);
   return smooth((sun.elevation - NIGHT_BELOW) / (DAY_ABOVE - NIGHT_BELOW));
 }
 

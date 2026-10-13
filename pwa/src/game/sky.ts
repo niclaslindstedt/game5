@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WINTER SKY, as numbers. Where the sun and the moon stand at the hour
-// the run has reached (`sunAtRun`, `moonAtRun` — one engine clock), what
+// the run has reached (`sunAtRun`, `moonAtRun` on the sky's clock — the
+// start hour run on with `state.t`, `sky-clock.ts`), what
 // weather R19 dealt, and what colour everything the sky lights is at that
 // hour under that weather: the dome's zenith and horizon, the sun's own
 // colour through the air it has to cross, the key light (the sun by day,
@@ -52,6 +53,7 @@
 import {
   CLEAR_WEATHER,
   moonAtRun,
+  skyLevelAt,
   snowAt,
   snows,
   sunAtRun,
@@ -61,7 +63,9 @@ import {
   type Weather,
 } from "@engine";
 
+import { skyClock } from "./sky-clock.ts";
 import { DEFAULT_TURN, skyTurnOf, type SkyTurn } from "./starfield.ts";
+import { TERRAIN_SHADOW } from "./terrain-shadow.ts";
 
 export type Rgb = [number, number, number];
 
@@ -382,11 +386,18 @@ export function skyLookFor(
 
 const fallNow = { fall: 0, visibility: 0 };
 
-/** The look at run time `t` on `level`: the sun and the moon where the
- * map's hour puts them, and the fall as the squalls have it at `t`. */
-export function skyLookAt(level: Pick<Level, "seed" | "sun" | "weather">, t = 0): SkyLook {
-  const sun = sunAtRun(level);
-  const moon = moonAtRun(level);
+/** The look at run time `t` on `level`: the sun, the moon and the stars
+ * where the SKY'S CLOCK has them at `t` (the map's start hour run on at
+ * `rate` — the app's, `sky-clock.ts`; 0 holds them at the start hour), and
+ * the fall as the squalls have it at `t`. */
+export function skyLookAt(
+  level: Pick<Level, "seed" | "sun" | "weather">,
+  t = 0,
+  rate: number = skyClock(),
+): SkyLook {
+  const sky = skyLevelAt(level, t, rate);
+  const sun = sunAtRun(sky);
+  const moon = moonAtRun(sky);
   const look = skyLookFor(
     sun.azimuth,
     sun.elevation,
@@ -394,6 +405,19 @@ export function skyLookAt(level: Pick<Level, "seed" | "sun" | "weather">, t = 0)
     weatherOf(level),
     snowAt(level, t, fallNow).fall,
   );
-  look.turn = skyTurnOf(level);
+  look.turn = skyTurnOf(sky);
   return look;
+}
+
+/** WHERE THE KEY WILL STAND `lead` s of run on (the sun's or the moon's
+ * direction, as `skyLookAt` deals it), or null while the sky's clock stands
+ * — what the mountain's shadow is baked ahead to (`terrain-shadow.ts`'s
+ * `HorizonBlend`). */
+export function keyAheadAt(
+  level: Pick<Level, "seed" | "sun" | "weather">,
+  t: number,
+  lead: number = TERRAIN_SHADOW.lead,
+  rate: number = skyClock(),
+): Dir | null {
+  return rate > 0 ? skyLookAt(level, t + lead, rate).key : null;
 }

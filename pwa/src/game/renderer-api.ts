@@ -82,6 +82,9 @@ export interface WorldRenderer {
    * shot on the wall's clock (the hurt body's lens, the eye on a rotor)
    * reads it back off this. */
   setPace(pace: number): void;
+  /** THE EXIT CUT's pace (`camera-exit.ts`): the run slowed for the leap out
+   * of a craft, 1 the run's own — the app multiplies it into its rate. */
+  exitPace(): number;
   /** Wait for the GPU to finish everything asked of it, and say how long
    * that took, ms — what the first-visit probe times a frame with. */
   drain(): number;

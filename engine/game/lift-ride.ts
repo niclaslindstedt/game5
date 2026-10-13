@@ -250,6 +250,8 @@ function boardLift(run: GameState, events: GameEvent[]): void {
   const plans = liftPlans(run.level);
   for (let i = 0; i < plans.length; i++) {
     const plan = plans[i];
+    // IN SUMMER the drags stand still: no snow to be towed up (`summer.ts`).
+    if (run.summer && plan.lift.kind === "drag") continue;
     // On foot, the pair on his shoulder, only a gondola's door takes him.
     if (c.town && (plan.lift.kind !== "gondola" || c.town.phase !== "walk")) continue;
     const e = plan.look.entry;
@@ -816,6 +818,7 @@ export function arriveByLift(run: GameState, x: number, z: number, pin?: string)
     if (r.kind !== "piste" || (pin !== undefined && r.id !== pin)) return;
     const l = plans.findIndex((p) => p.lift.id === r.from);
     if (l < 0 || (pin === undefined && plans[l].lift.kind !== "chair")) return;
+    if (run.summer && plans[l].lift.kind === "drag") return;
     const joins = off.get(plans[l])?.has(i) ?? false;
     for (const p of r.points) {
       const d = hypot(p.x - x, p.z - z) + (joins ? 0 : K.noJoin);

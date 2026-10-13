@@ -112,6 +112,7 @@ import {
   type VillageBuildings,
 } from "./village-cuts.ts";
 import { createInteriors } from "./interiors-view.ts";
+import { summerShown } from "./season-look.ts";
 import { createWindTunnels } from "./wind-tunnels.ts";
 
 /** How near the rider's own cabin a clock's cabin is left out, m. */
@@ -221,6 +222,8 @@ export function createLifts(
   const lifts = level.resort?.lifts ?? [];
   const tunnels = createWindTunnels(level, haze, budget);
   group.add(tunnels.group);
+  // Shut and taken down for the summer.
+  tunnels.group.visible = !summerShown();
   const houses = createCabins(level, haze);
   group.add(houses.group);
   // THE ROOMS inside the buildings near the lens (`interiors-view.ts`).

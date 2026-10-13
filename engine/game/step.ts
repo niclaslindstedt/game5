@@ -14,6 +14,7 @@
 // grimbear, on a free ride he was dealt to (`grimbear.ts`), and the
 // avalanches, on one that asked for them (`avalanche.ts`).
 
+import { drySummer, summerOf } from "./summer.ts";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
   PARK_VERSION,
@@ -54,6 +55,7 @@ import {
   skiCrossHeatRules,
   clampResilience,
   clampSnowDepth,
+  SNOW_DIAL,
   type Assist,
   type GameMode,
   type RunRules,
@@ -298,6 +300,10 @@ export type CreateGameOptions = {
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's. 1 when left out. */
   snowDepth?: number;
+  /** THE SUMMER SEASON (`summer.ts`): the mountain in midsummer, its snow
+   * gone, its sky never snowing, its drags stopped and no machine, gun,
+   * avalanche or crowd of skiers on it. A free ride's alone. */
+  summer?: boolean;
   /** New snow already lying when the run is stood up, m (`GameState.fresh`)
    * — a lab's or a test's; when left out, the loose snow the day has left
    * on the runs (`piste`), or 0. */
@@ -355,6 +361,8 @@ function planOf(options: CreateGameOptions): string {
 /** The rules a run is dealt from what it asked for. */
 export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
   const laps = options.laps ?? level.laps;
+  // IN SUMMER no skier, machine, gun or slab is out on the snow (`summer.ts`).
+  const summer = summerOf(options);
   const cross = crossOf(options);
   const base =
     options.mode === "skiCross" && cross
@@ -376,22 +384,24 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     airGravity: base.airGravity,
     // AFTER DARK the crowd has gone in (`enthusiasts.ts`); asked for, it
     // is out whatever the hour.
-    crowd: Math.max(0, Math.round(options.crowd ?? (nightOver(level) ? 0 : base.crowd))),
+    crowd: summer
+      ? 0
+      : Math.max(0, Math.round(options.crowd ?? (nightOver(level) ? 0 : base.crowd))),
     lifts: base.lifts,
     heli: base.heli,
-    sled: base.sled,
+    sled: summer ? false : base.sled,
     afterski: options.sfw ? false : base.afterski,
     ...(base.doors ? { doors: true } : {}),
     // ...and its lifts' ropes ground (`cable.ts`): the free ride's alone.
     ...(base.cables ? { cables: true } : {}),
-    groomer: base.groomer,
+    groomer: summer ? false : base.groomer,
     // THE VILLAGE'S TRAFFIC met (`traffic-contact.ts`): the free ride's alone.
     ...(base.traffic ? { traffic: true } : {}),
     // ...and its skis off in the village (`town.ts`): the free ride's alone.
     ...(base.town ? { town: true } : {}),
     // ...and its slopes' avalanches (`avalanche.ts`): the free ride's alone,
     // and only when asked for.
-    ...(base.avalanche && options.avalanche ? { avalanche: true } : {}),
+    ...(base.avalanche && options.avalanche && !summer ? { avalanche: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -514,7 +524,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // mountain is the one the seed built.
   const placed = withPlace(course, course.face ? realFacePlace(course.face) : null);
   const dayed = options.day ? withDay(placed, options.day) : placed;
-  const skied = options.sky ? withSky(dayed, options.sky) : dayed;
+  const sky = options.sky ? withSky(dayed, options.sky) : dayed;
+  const summer = summerOf(options);
+  const skied = summer ? drySummer(sky) : sky;
   const rules = rulesFor(options, skied);
   // A RACE is run only in the weather its jury allows (`jury.ts`) — a sky
   // picked by hand included.
@@ -522,13 +534,15 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // THE TREE WELLS the run's powder has left round the trunks
   // (`tree-well.ts`): none at the ordinary snow, where this is the map.
   // ...and THE ROCK on its walls the surface a body meets (`rock-ground.ts`).
-  const level = withRock(withWells(judged, wellShareOf(clampSnowDepth(options.snowDepth))));
+  // In SUMMER the dial stands at its least and lays no wells.
+  const depth = summer ? SNOW_DIAL.min : clampSnowDepth(options.snowDepth);
+  const level = withRock(withWells(judged, wellShareOf(depth)));
   const seed = options.seed ?? level.seed;
   // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
   // machines work its runs, the runs are as the hour and the sky have left
   // them since the night's pass — and the loose snow on them is the new
   // snow the run starts with.
-  const piste = (options.piste ?? rules.groomer) ? pisteDayOf(level) : undefined;
+  const piste = !summer && (options.piste ?? rules.groomer) ? pisteDayOf(level) : undefined;
   const state: GameState = {
     seed,
     rng: createRng(seed),
@@ -547,8 +561,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
     ...(options.gore ? { gore: freshGore() } : {}),
-    snowDepth: clampSnowDepth(options.snowDepth),
-    fresh: Math.max(0, options.fresh ?? piste?.fresh ?? 0),
+    snowDepth: depth,
+    fresh: summer ? 0 : Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],
     tricks: freshTricks(),
     countdown: rules.countdown,
@@ -557,6 +571,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     gatePoles: freshGatePoles(level),
   };
   if (piste) state.piste = piste;
+  if (summer) state.summer = true;
   const free = options.mode === "free";
   // A FREE RIDE STARTED AGAIN stands at the top of the run named.
   const head =
@@ -651,7 +666,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // ...and the few keen skiers still lapping the lit runs instead.
   const keen =
     options.enthusiasts ??
-    (free && options.crowd === undefined && nightOver(level) ? ENTHUSIASTS.count : 0);
+    (free && options.crowd === undefined && nightOver(level) && !summer ? ENTHUSIASTS.count : 0);
   if (free && keen > 0) dealEnthusiasts(state, keen);
   if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.

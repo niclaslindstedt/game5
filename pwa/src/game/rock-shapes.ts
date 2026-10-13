@@ -19,6 +19,7 @@
 // draw (`rocks.ts`) hands the GPU and the suite counts.
 
 import { ROCKS, rockDraw as unit, rockHash, rockShare, type CliffWall, type Level } from "@engine";
+import { summerShown } from "./season-look.ts";
 
 /** How dark the rock is where it goes into the snow, of its own colour. */
 const FOOT = 0.45;
@@ -51,6 +52,9 @@ export function rockTone(tone: Tone): Tone {
 }
 /** Snow on rock, linear — a shade under the open snow's glare, lying thin. */
 const SNOW: Tone = [0.86, 0.89, 0.94];
+/** IN SUMMER the up-facing facets carry turf and lichen, not snow, and
+ * only half cover them: a grey-green, linear. */
+const LEDGE: Tone = [0.15, 0.17, 0.1];
 
 /** The triangles a run of outcrops makes: positions, flat normals and
  * colours, three floats a vertex, three vertices a triangle — and the
@@ -212,12 +216,15 @@ function calmPaint(stone: Tone, holds = SNOW_HOLDS): (ny: number) => Tone {
 /** `rock` with snow over it by the up share `ny`, whole past `holds`. */
 function snowOver(holds: number, rock: Tone): (ny: number) => Tone {
   const slides = holds - (SNOW_HOLDS - SNOW_SLIDES);
+  const summer = summerShown();
+  const cover = summer ? LEDGE : SNOW;
+  const most = summer ? 0.5 : 1;
   return (ny) => {
-    const snow = Math.max(0, Math.min(1, (ny - slides) / (holds - slides)));
+    const snow = most * Math.max(0, Math.min(1, (ny - slides) / (holds - slides)));
     return [
-      rock[0] + (SNOW[0] - rock[0]) * snow,
-      rock[1] + (SNOW[1] - rock[1]) * snow,
-      rock[2] + (SNOW[2] - rock[2]) * snow,
+      rock[0] + (cover[0] - rock[0]) * snow,
+      rock[1] + (cover[1] - rock[1]) * snow,
+      rock[2] + (cover[2] - rock[2]) * snow,
     ];
   };
 }

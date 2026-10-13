@@ -585,6 +585,7 @@ export const STRINGS = {
     mid: "MIDWINTER",
     late: "LATE WINTER",
     spring: "SPRING",
+    summer: "SUMMER",
   },
   startTime: "TIME",
   timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },

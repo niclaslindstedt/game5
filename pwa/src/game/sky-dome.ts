@@ -9,8 +9,9 @@
 //
 // THE CLOUD is read off the field along the view from the lens itself: on
 // LOW one read where the view crosses each layer's middle (the shell), on
-// MEDIUM and HIGH the slab `clouds.ts` marched at half resolution before
-// the frame, read where this pixel stands on the screen. Either way a heap
+// MEDIUM the slab `clouds.ts` marched at half resolution before the frame,
+// on HIGH the raymarched volume's kept picture (`cloud-volume.ts`), read
+// where this pixel stands on the screen. Either way a heap
 // near the horizon is foreshortened into the band it is in a real sky and
 // goes into the air's colour with distance. Under a lid the gaps in the
 // deck show the deck's own grey (`SkyLook.view`). The stars, the Milky Way
@@ -87,7 +88,10 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         // where this pixel stands on the screen (MEDIUM, HIGH), or the
         // shell's layers read here (LOW) — premultiplied, and the share of
         // what is behind it hidden.
-        #ifdef CLOUD_SLAB
+        #if defined(CLOUD_SLAB) && CLOUD_SLAB == 2
+          // HIGH's volume: its picture read where this pixel stands.
+          vec4 cl = texture(uCloudTex, vClip.xy / vClip.w * 0.5 + 0.5);
+        #elif defined(CLOUD_SLAB)
           // A linear read on a texel CORNER is the even mean of the 2 x 2
           // texels round it — the slab's 2 x 2 dither averaged away. Four
           // corners round this pixel, blended by where it stands among them.
@@ -159,7 +163,8 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         // view under the level, going into the haze's colour far off.
         if (uSeaK > 0.0 && d.y < 0.0 && cameraPosition.y > uSea.w) {
           float t = (uSea.w - cameraPosition.y) / d.y;
-          vec3 sea = mix(uSea.rgb, hazeColour(d), 1.0 - exp(-t / 40000.0));
+          vec2 sp = cameraPosition.xz + d.xz * t;
+          vec3 sea = mix(uSea.rgb * seaLumps(sp, t), hazeColour(d), 1.0 - exp(-t / 40000.0));
           c = mix(c, sea, smoothstep(0.0, -0.004, d.y));
         }
         gl_FragColor = vec4(c, 1.0);
@@ -183,8 +188,9 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
     update(look) {
       // The slab is read (a program of its own) only when it is drawn.
       const slab = clouds.slab() && clouds.uniforms.uCloudTex.value !== null;
-      if (Boolean(material.defines.CLOUD_SLAB) !== slab) {
-        if (slab) material.defines.CLOUD_SLAB = 1;
+      const want = slab ? (clouds.volume() ? 2 : 1) : 0;
+      if ((material.defines.CLOUD_SLAB ?? 0) !== want) {
+        if (want) material.defines.CLOUD_SLAB = want;
         else delete material.defines.CLOUD_SLAB;
         material.needsUpdate = true;
       }

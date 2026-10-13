@@ -108,6 +108,13 @@ export const PICTURE_PRICES: PriceList = {
   // aerial-perspective volume every frame. Timed on a software GPU at about
   // 0.1 ms, 0.7 ms and 0.1 ms a pass — not a real price; these rows wait
   // for `make bench ARGS="--gpu --costs"` on a machine with a GPU.
+  // The row's CLOUD (`CLOUD_TIER`) rides it too: MEDIUM's slab of four
+  // steps, HIGH's and MAX's raymarched volume carried frame to frame (a
+  // sixteenth and a quarter of its pixels marched a frame). Timed alone in
+  // the same software GL at 1280 × 720 (`make sky ARGS=--sheet=cloudmotion`,
+  // SOFTWARE-MEASURED, not a price): LOW 5, MEDIUM 137, HIGH 69 (277 on a
+  // cut's frame), MAX 138 (318) ms — HIGH's steady frame under MEDIUM's, so
+  // the costs below are left for the GPU bench to move.
   distance: {
     low: { cost: 0, benefit: 0 },
     medium: { cost: 0.52, benefit: 25 },

@@ -29,6 +29,7 @@
 // heap's few minutes, a deck's quarter of an hour.
 
 import { weatherOf, windFromOf, type Level, type WeatherKind } from "@engine";
+import { dealLowDeck, LOW_DECK, type LowDeck } from "./low-deck.ts";
 
 /** The kinds of cloud a layer can be. */
 export type CloudKind =
@@ -266,9 +267,21 @@ export type CloudField = {
   /** The valley floor's world height, m, and its altitude over the sea. */
   floorY: number;
   floorAltitude: number;
-  /** THE VALLEY FOG'S TOP over the floor, m (0: no sea). */
+  /** THE SEA'S TOP over the floor, m (0: no sea): the low deck's. */
   seaTop: number;
+  /** THE LOW DECK (`low-deck.ts`), or null; on any weather but the valley
+   * fog it is a layer of `layers` too (`deckLayer`). */
+  deck: LowDeck | null;
+  /** Which of `layers` is the deck (−1: none). */
+  deckLayer: number;
 };
+
+/** A test's or a lab's deck, in place of the dealt one (undefined: dealt;
+ * null: none). */
+let forcedDeck: LowDeck | null | undefined;
+export function forceLowDeck(deck: LowDeck | null | undefined): void {
+  forcedDeck = deck;
+}
 
 /** A hash of the map's seed and a salt to 0..1. */
 export function cloudHash(seed: number, salt: number): number {
@@ -343,11 +356,40 @@ export function cloudFieldOf(
 ): CloudField {
   const w = weatherOf(level);
   const m = level.mountain;
+  const from = windFromOf(level);
+  const lat = level.sun.latitude;
+  let layers = cloudLayersFor(w.kind, level.seed, w.wind, from, lat);
+  const dealt = dealLowDeck(
+    w.kind,
+    (k) => cloudHash(level.seed, 907 + k),
+    m?.vertical ?? 0,
+    seaTopOf(w.fog),
+  );
+  const deck = forcedDeck === undefined ? dealt : forcedDeck;
+  let deckLayer = -1;
+  if (deck && w.kind !== "fog") {
+    // The deck is the overcast's stratocumulus brought down (dry, clear air
+    // over it: the altostratus gone), or one laid under a fair day's heaps.
+    const strato = cloudLayersFor("overcast", level.seed, w.wind, from, lat)[0];
+    const depth = deck.top - deck.base;
+    const sheet: CloudLayer = {
+      ...strato,
+      base: deck.base,
+      depth,
+      cover: LOW_DECK.cover,
+      cut: coverCut(LOW_DECK.cover),
+      speed: windAloft(w.wind, deck.base + depth / 2, 3),
+    };
+    layers = w.kind === "overcast" ? [sheet] : [sheet, ...layers].slice(0, CLOUD_LAYERS);
+    deckLayer = 0;
+  }
   return {
-    layers: cloudLayersFor(w.kind, level.seed, w.wind, windFromOf(level), level.sun.latitude),
+    layers,
     floorY: m ? m.base.y : 0,
     floorAltitude: m ? m.base.y - m.sea : 400,
-    seaTop: w.kind === "fog" ? seaTopOf(w.fog) : 0,
+    seaTop: deck ? deck.top : 0,
+    deck,
+    deckLayer,
   };
 }
 

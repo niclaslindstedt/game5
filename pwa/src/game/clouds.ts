@@ -7,11 +7,16 @@
 //     map at that layer's own height, slid along the sun so the box covers
 //     the ground it shades (a channel a layer, `cloud-glsl.ts`'s
 //     `cloudShadow` reads it in every world material, `haze.ts`).
-//   * THE SLAB (MEDIUM and HIGH, `CLOUD_TIER`): the layers marched at half
-//     the picture's resolution through the lens the frame is drawn with,
-//     which the dome (`sky-dome.ts`) lays over its sky. LOW draws the shell
-//     in the dome itself and runs no pass. A machine that cannot render
-//     into half floats draws the shell whatever the row says.
+//   * THE SLAB (MEDIUM, `CLOUD_TIER`): the layers marched at half the
+//     picture's resolution through the lens the frame is drawn with, which
+//     the dome (`sky-dome.ts`) lays over its sky. LOW draws the shell in
+//     the dome itself and runs no pass. A machine that cannot render into
+//     half floats draws the shell whatever the row says.
+//   * THE VOLUME (HIGH and MAX): the heaps and decks raymarched through
+//     their Perlin-Worley puffs, a sixteenth of a half-resolution picture
+//     a frame and the rest carried over (`cloud-volume.ts`). Until its
+//     noise lands — made off the thread the first time it is asked for —
+//     HIGH draws the slab of eight steps.
 //
 // The field moves only with the run's clock and the map: the noise's
 // offsets wrapped to its period on the CPU, so a float on the GPU never
@@ -35,13 +40,19 @@ import {
   CLOUD_SLAB_GLSL,
   cloudStackGlsl,
 } from "./cloud-glsl.ts";
+import { createCloudVolume, type CloudVolume } from "./cloud-volume.ts";
+import { carveOf, carveOffsets } from "./cloud-volume-plan.ts";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { CloudTier } from "./settings-video.ts";
 import { fieldOf, type SkyLook } from "./sky.ts";
 
+type SlabTier = "slab4" | "slab8";
+const isVolume = (t: CloudTier): t is "volume" | "volumeFine" =>
+  t === "volume" || t === "volumeFine";
+
 /** A slab's `steps` through each layer and its `light` reads toward the
- * sun (`settings-video.ts`'s `CLOUD_TIER`: MEDIUM 4 + 1, HIGH 8 + 2). */
-export const CLOUD_STEPS: Record<Exclude<CloudTier, "shell">, { steps: number; light: number }> = {
+ * sun (MEDIUM 4 + 1; 8 + 2 the stand-in while HIGH's volume is made). */
+export const CLOUD_STEPS: Record<SlabTier, { steps: number; light: number }> = {
   slab4: { steps: 4, light: 1 },
   slab8: { steps: 8, light: 2 },
 };
@@ -54,6 +65,13 @@ export const CLOUD_SHADOW = { size: 256, span: 24000 } as const;
 let forcedTier: CloudTier | null = null;
 export function forceCloudTier(next: CloudTier | null): void {
   forcedTier = next;
+}
+
+/** A lab's hand on the volume: march every pixel on the next frame (the
+ * carried picture's reference). */
+let refreshAsked = false;
+export function refreshCloudVolume(): void {
+  refreshAsked = true;
 }
 
 export type CloudUniforms = ReturnType<typeof cloudUniforms>;
@@ -78,8 +96,13 @@ function cloudUniforms() {
 
 export type Clouds = {
   uniforms: CloudUniforms;
-  /** Whether the dome reads the slab (true) or draws the shell. */
+  /** Whether the dome reads a pass's picture (true) or draws the shell. */
   slab(): boolean;
+  /** Whether that picture is the volume's (read as it is) rather than the
+   * slab's (its dither resolved on texel corners). */
+  volume(): boolean;
+  /** Whether the last frame's volume was marched whole (a cut): the labs'. */
+  whole(): boolean;
   setTier(tier: CloudTier): void;
   /** The field over `level` at run time `t`, lit by `look`; the passes
    * drawn through `camera`. */
@@ -201,6 +224,10 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
   };
   let slabMat: THREE.ShaderMaterial | null = null;
   let slabRt: THREE.WebGLRenderTarget | null = null;
+  // HIGH's volume, made the first time it is asked for.
+  let volume: CloudVolume | null = null;
+  let volumeOn = false;
+  let fieldKey = 0;
   const size = new THREE.Vector2();
   const vp = new THREE.Matrix4();
   let order: CloudLayer[] = [];
@@ -215,7 +242,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     gl!.render(scene, camera);
   }
 
-  function slabFor(t: Exclude<CloudTier, "shell">): THREE.ShaderMaterial {
+  function slabFor(t: SlabTier): THREE.ShaderMaterial {
     const { steps, light } = CLOUD_STEPS[t];
     if (slabMat?.defines.STEPS === steps && slabMat.defines.LIGHT === light) return slabMat;
     slabMat?.dispose();
@@ -234,6 +261,8 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
   return {
     uniforms: u,
     slab: slabOn,
+    volume: () => volumeOn,
+    whole: () => volume?.whole() ?? false,
     setTier(next) {
       tier = next;
     },
@@ -245,7 +274,15 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       if (layers !== ordered) {
         order = [...layers].sort((a, b) => a.base - b.base).slice(0, CLOUD_LAYERS);
         ordered = layers;
+        fieldKey++;
       }
+      // The volume is wanted (HIGH, MAX) and its noise has landed.
+      const want = slabOn() && isVolume(tierNow());
+      if (want && !volume && gl) volume = createCloudVolume(gl, slabU);
+      const vol = want && volume !== null && volume.ready() ? volume : null;
+      if (vol && refreshAsked) vol.refresh();
+      refreshAsked = false;
+      const vu = volume?.uniforms;
       const floorY = field?.floorY ?? 0;
       const L = look.key;
       const sinE = Math.max(L.y, 0.05);
@@ -254,6 +291,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       const cz = g ? g.originZ + ((g.rows - 1) * g.cell) / 2 : 0;
       const groundMid = floorY + (level?.mountain?.vertical ?? 0) / 2;
       const texel = CLOUD_SHADOW.span / CLOUD_SHADOW.size;
+      if (vu) vu.uEarth.value.set(cx, cz, 1 / (2 * 6371000), floorY);
       let mean = 1;
       u.uCloudOn.value.set(order.length, look.clouds.show, look.clouds.halo, 0);
       haze.uCloudTau.value.set(0, 0, 0, order.length > 0 ? 1 : 0);
@@ -280,6 +318,23 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
           u.uCloudTop.value[k].set(...lit.top);
           u.uCloudBase.value[k].set(...lit.base);
         }
+        if (vu) {
+          vu.uCloudMoon.value.set(...look.clouds.moon);
+          const carve = carveOf(l);
+          const off = carveOffsets(l, carve, t);
+          vu.uVolA.value[k].set(
+            1 / carve.shapeTile,
+            1 / carve.detailTile,
+            carve.marched ? 1 : 0,
+            carve.bite,
+          );
+          vu.uVolB.value[k].set(...off.shape, l.cover);
+          vu.uVolC.value[k].set(...off.detail, 0);
+          if (lit) {
+            vu.uCloudSunLo.value[k].set(...lit.lo);
+            vu.uCloudSunHi.value[k].set(...lit.hi);
+          }
+        }
         // The shadow's box at the layer's middle, slid along the key over
         // the ground's middle and snapped to whole texels.
         const mid = floorY + l.base + l.depth / 2;
@@ -288,9 +343,12 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
         const bz = Math.round((cz + L.z * lean) / texel) * texel - CLOUD_SHADOW.span / 2;
         boxes[k].set(bx, bz, 1 / CLOUD_SHADOW.span, mid);
         haze.uCloudBox.value[k].copy(boxes[k]);
-        const pass = layerPass(l, L.y);
+        // A low deck under the eye shades nothing the look's key counts
+        // (`SkyLook.clouds.shade`): its share out of both.
+        const shade = look.clouds.shade[i] ?? 1;
+        const pass = 1 + (layerPass(l, L.y) - 1) * shade;
         mean *= pass;
-        haze.uCloudTau.value.setComponent(k, l.tau * look.clouds.show);
+        haze.uCloudTau.value.setComponent(k, l.tau * look.clouds.show * shade);
         haze.uCloudMean.value.setComponent(k, look.clouds.show ? pass : 1);
       }
       haze.uCloudMean.value.w = look.clouds.show ? mean : 1;
@@ -301,7 +359,21 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       const before = gl.getRenderTarget();
       if (shadow && order.length > 0) draw(shadowMat, shadow);
       u.uCloudTex.value = null;
-      if (slabOn() && order.length > 0 && look.clouds.show > 0) {
+      volumeOn = false;
+      if (vol && order.length > 0 && look.clouds.show > 0) {
+        lens.updateMatrixWorld();
+        vp.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
+        slabU.uInvViewProj.value.copy(vp).invert();
+        lens.getWorldPosition(slabU.uEye.value);
+        u.uCloudTex.value = vol.draw(
+          tierNow() as "volume" | "volumeFine",
+          lens,
+          t,
+          haze.uSunPos.value,
+          String(fieldKey),
+        );
+        volumeOn = true;
+      } else if (slabOn() && order.length > 0 && look.clouds.show > 0) {
         gl.getDrawingBufferSize(size);
         const w = Math.max(1, Math.round(size.x / 2));
         const h = Math.max(1, Math.round(size.y / 2));
@@ -313,7 +385,8 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
         vp.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
         slabU.uInvViewProj.value.copy(vp).invert();
         lens.getWorldPosition(slabU.uEye.value);
-        draw(slabFor(tierNow() as Exclude<CloudTier, "shell">), slabRt);
+        const now = tierNow();
+        draw(slabFor(isVolume(now) ? "slab8" : (now as SlabTier)), slabRt);
         u.uCloudTex.value = slabRt.texture;
       }
       gl.setRenderTarget(before);
@@ -323,6 +396,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       shadow?.dispose();
       slabRt?.dispose();
       slabMat?.dispose();
+      volume?.dispose();
       shadowMat.dispose();
       quad.geometry.dispose();
       haze.uCloudShadow.value = null;

@@ -10,26 +10,28 @@
 # right, y up, z forward) laid as Blender's (-x, z, y), so the glTF's frame
 # is the body frame turned half round about y.
 #
-# WHAT A TECHNICAL RACER WEARS, after the start lists' photographs (a
-# slalom's finish area seen side-on and from behind) and the federation's
-# equipment rules:
+# WHAT A TECHNICAL RACER WEARS, after a national team's start-list
+# photographs (the finish area seen side-on and from behind) and the
+# federation's equipment rules:
 #
-#   * a ONE-PIECE SUIT, skin tight, printed in a team's panels: the trunk
-#     and the shoulders in the team's red, the forearms and the legs white,
-#     a red sweep down the outside of each thigh and a dark side panel down
-#     each flank, the knees and shins padded under darker panels;
+#   * a ONE-PIECE SUIT, skin tight, WHITE and printed with a sheet of BLUE
+#     ICE broken into floes: the blue over the left arm, the left half of
+#     the trunk and the belly and down the inside of both legs, its coast
+#     ragged, white floes adrift in it and blue shards out in the white,
+#     shaded pale to cobalt to navy by depth and cracked near the coast; a
+#     navy collar, a welt down each side seam, the shins padded under navy;
 #   * a BACK PROTECTOR under it, the hard plate from the shoulder blades
 #     to the small of the back the speed events require, lifting the suit
 #     in a long low hump;
-#   * the BIB over it, a yellow tabard open at the sides, its number big on
-#     the chest and the back under a dark band;
-#   * SHIN GUARDS, a hard black shell down the front of each shin from
-#     under the knee over the boot's cuff, its rim piped in yellow, two
-#     straps round the calf; ARM GUARDS, low hard pads down the outside of
-#     each forearm; HAND GUARDS, the red shields the slalom pole carries in
-#     front of each fist;
-#   * a SLALOM HELMET, gloss red, with its CHIN GUARD, and mirrored goggles;
-#     race gloves.
+#   * the BIB over it, a silver tabard open at the sides under a navy yoke
+#     ruled in red, its number big on the chest and the back;
+#   * SHIN GUARDS, a hard white shell down the front of each shin from
+#     under the knee over the boot's cuff, its rim piped in navy, two
+#     straps round the calf; ARM GUARDS, low hard pads in signal green down
+#     the outside of each forearm; HAND GUARDS, the red shields the slalom
+#     pole carries in front of each fist;
+#   * a SLALOM HELMET, gloss blue, with its CHIN GUARD, and orange
+#     mirrored goggles; navy race gloves.
 #
 # How the game wears him (`racer-model.ts`): his geometry, his materials and
 # their baked maps are this file's; his SKIN WEIGHTS are re-cut in the game
@@ -61,23 +63,26 @@ def colour(hexa):
     return tuple(((c / 255 + 0.055) / 1.055) ** 2.4 for c in ((hexa >> 16) & 255, (hexa >> 8) & 255, hexa & 255))
 
 
-# THE TEAM'S COLOURS (sRGB): its red, the suit's white, the dark of the side
-# panels and the guards, the bib's yellow.
-RED, WHITE, DARK, YELLOW = 0xD3141E, 0xF2F3F5, 0x15171C, 0xF3D51C
+# THE TEAM'S COLOURS (sRGB): the suit's white, the floe's pale ice, its
+# cobalt and its navy, the bib's silver, the pole guards' red and the arm
+# guards' signal yellow-green.
+WHITE, ICE, BLUE, NAVY = 0xF4F7FA, 0x9FD3F2, 0x2F72D0, 0x10306F
+SILVER, RED, SIGNAL, DARK = 0xDDE2E8, 0xD3141E, 0xC9E83A, 0x15171C
 
 # ---------------------------------------------------------------- materials
 SUIT = mat("suit", (1, 1, 1), rough=0.34)
 BIB = mat("bib", (1, 1, 1), rough=0.7)
-GUARD = mat("guard", colour(0x0E0F12), rough=0.22, coat=1.0)
-EDGE = mat("guard_edge", colour(YELLOW), rough=0.4)
+GUARD = mat("guard", colour(0xECEFF3), rough=0.2, coat=1.0)
+ARM = mat("arm_guard", colour(SIGNAL), rough=0.3, coat=1.0)
+EDGE = mat("guard_edge", colour(NAVY), rough=0.4)
 SHIELD = mat("shield", colour(RED), rough=0.25, coat=1.0)
-STRAP = mat("strap", colour(0x101114), rough=0.7)
-GLOVE = mat("glove", colour(0xB5121B), rough=0.55)
+STRAP = mat("strap", colour(0x0D1A3A), rough=0.7)
+GLOVE = mat("glove", colour(0x12214A), rough=0.55)
 PALM = mat("palm", colour(0x1A1B1F), rough=0.8)
-HELMET = mat("helmet", colour(RED), rough=0.18, coat=1.0)
+HELMET = mat("helmet", colour(0x1D5BC8), rough=0.16, coat=1.0)
 PEAK = mat("peak", colour(WHITE), rough=0.22, coat=1.0)
 CHIN = mat("chin", colour(0x121316), rough=0.3, coat=0.6)
-LENS = mat("lens", colour(0x3FA9F5), metal=0.75, rough=0.06)
+LENS = mat("lens", colour(0xFF6A1F), metal=0.75, rough=0.06)
 LINER = mat("liner", colour(0x2B2E34), rough=0.85)
 SKIN = mat("skin", colour(0xC68863), rough=0.6)
 
@@ -485,7 +490,7 @@ lens_tex.image = ramp
 lens_mix = lens_nt.nodes.new("ShaderNodeMix")
 lens_mix.data_type, lens_mix.blend_type = "RGBA", "MULTIPLY"
 lens_mix.inputs["Factor"].default_value = 1.0
-lens_mix.inputs[7].default_value = (*colour(0x3FA9F5), 1.0)
+lens_mix.inputs[7].default_value = (*colour(0xFF6A1F), 1.0)
 lens_nt.links.new(lens_tex.outputs["Color"], lens_mix.inputs[6])
 lens_nt.links.new(lens_mix.outputs[2], lens_nt.nodes.get("Principled BSDF").inputs["Base Color"])
 
@@ -545,7 +550,7 @@ for i, s in enumerate("lr"):
     ca, lt = r_of(ANSUR["calf"]), r_of(ANSUR["lower_thigh"])
     calf = lambda t: (lt * (1 - t) + ca * 0.82 * t) if t < 0.5 else ca * 0.78
     _, rim = shell("shin_guard", f"shin_{s}", 0.1, 0.98, 9, math.radians(72), calf, 0.018, GUARD, flare=0.008)
-    # Its rim piped in yellow: up both edges and across the top.
+    # Its rim piped in navy: up both edges and across the top.
     tube("shin_edge", [rw[0] for rw in rim], 0.0042, EDGE)
     tube("shin_edge", [rw[-1] for rw in rim], 0.0042, EDGE)
     tube("shin_edge", rim[-1], 0.0042, EDGE)
@@ -565,7 +570,7 @@ for i, s in enumerate("lr"):
     out_ = fx if fx.dot(shoulders[i] - neck) > 0 else -fx
     arm_face = 1.0
     shell("arm_guard", f"forearm_{s}", 0.52, 0.8, 5, math.radians(60),
-          lambda t: fr * (1 - 0.25 * (t - 0.52) / 0.28), 0.008, GUARD, face=arm_face)
+          lambda t: fr * (1 - 0.25 * (t - 0.52) / 0.28), 0.008, ARM, face=arm_face)
     # THE HAND: a race glove closed round the grip, and the pole's HAND
     # GUARD — a red shield bowed in front of the knuckles.
     rides(f"forearm_lo_{s}")
@@ -631,7 +636,8 @@ import racer_print  # noqa: E402
 
 racer_print.paint(suit, bib, SUIT, BIB, dict(
     GAME=GAME, frame=frame, knees=knees, hips=hips, neck=neck, shoulders=shoulders, elbows=elbows,
-    colours=dict(red=colour(RED), white=colour(WHITE), dark=colour(DARK), yellow=colour(YELLOW)),
+    colours=dict(white=colour(WHITE), ice=colour(ICE), blue=colour(BLUE), navy=colour(NAVY),
+                 silver=colour(SILVER), red=colour(RED), dark=colour(DARK)),
     COL=COL))
 
 # ---------------------------------------------------------------- the CLIPS

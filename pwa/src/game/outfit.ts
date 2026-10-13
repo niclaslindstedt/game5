@@ -296,7 +296,7 @@ export const GEAR_SLOTS: readonly GearSlot[] = [
 ];
 
 /** The kit before anyone has dressed: a racer in the gate red, on the
- * loom's man (a new player's settings put him in the modelled racer). */
+ * loom's man. */
 export const DEFAULT_OUTFIT: Outfit = {
   body: "man",
   weight: "medium",

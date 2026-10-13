@@ -137,6 +137,8 @@ const SCENES = {
  * page loads (a card that reads a stored pick); `prime` is a race stood
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
+const STAGE = { wait: ".menu-stage[data-ready]", settle: 1800 }; // a card over the gear stage
+const [SETTINGS, RACER] = ["fall-line.settings.v1", JSON.stringify({ outfit: { body: "racer" } })];
 const SURFACES = {
   ...WINGSUIT_SURFACES,
   ...SUMMER_SURFACES,
@@ -349,12 +351,10 @@ const SURFACES = {
   // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
   // him — the first card after a map is picked, the gear card after it.
   dress: { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 },
+  // ...in the modelled racer, picked as his body.
+  "dress-racer": { params: { menu: "dress" }, ...STAGE, storage: { [SETTINGS]: RACER } },
   // ...and dressing a snowboarder: no poles row.
-  "dress-board": {
-    params: { menu: "dress", mode: "tricks", skis: "lynx" },
-    wait: ".menu-stage[data-ready]",
-    settle: 1800,
-  },
+  "dress-board": { params: { menu: "dress", mode: "tricks", skis: "lynx" }, ...STAGE },
   // THE FREE RIDE'S WHERE STEPS: the world map flown onto a range (its
   // outline a download of its own, waited on), and an area's mountains.
   where: {

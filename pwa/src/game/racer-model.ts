@@ -10,14 +10,26 @@
 // name, so every pose, clip and animation the game plays moves him bone
 // for bone, unchanged.
 //
-// WHAT THE AIR DOES TO HIM is the shader's (`graftWind`): his bib is a
-// tabard open at the sides, so its hem and free edges stream back in the
-// air past him and flutter, the faster he goes; his suit is skin tight, so
-// all it does is RIPPLE in a fine shiver on its lee side, where the flow
-// leaves it. Both read his airflow — his own motion through still air,
-// taken off the skeleton's world place frame by frame — turned into the
-// frame his chest was bound in, so the bib streams back whichever way he
-// is folded.
+// WHAT THE AIR AND HIS OWN MOTION DO TO HIM (`createRacerWind`, drawn by
+// `graftWind`). His bib is a tabard open at the sides, pinned only over his
+// shoulders, so it does three things a real one does on a racer:
+//   * it SWINGS — its hem a damped pendulum hung off his chest, driven by
+//     what his chest feels (its acceleration against gravity): thrown out
+//     in a turn, dropped off his chest as he folds into a tuck, kicked on
+//     a landing, settling after;
+//   * it STREAMS and FLAGS — the lee side lifted off and laid back along
+//     the air past him, a wave running down it from the shoulders to the
+//     hem, faster the faster he goes, its slope shading the cloth;
+//   * it BILLOWS — the air caught under the back panel's hem lifting it
+//     off the back protector between its open sides.
+// His suit is skin tight, so all it does is RIPPLE: fine waves running
+// downstream over its lee side (his limbs most, the trunk over the
+// protector least), seen as much in the light on it as in its shape.
+// Everything reads his airflow — his own motion through still air, taken
+// off the skeleton's world place frame by frame — turned into the frame
+// his chest was bound in, so it acts the same whichever way he is folded;
+// and all of it runs on the RUN'S CLOCK when there is a run (`clock`), so
+// a slowed replay slows it and a held frame holds it.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -29,17 +41,35 @@ import { SKIER_BONES, type BoneFrame } from "./skier-rig.ts";
 export const RACER_WIND = {
   /** The airflow, m/s, at which the bib streams fully back. */
   full: 22,
-  /** How far its hem streams back at full stream, m, and flutters off the
-   * suit along its normal. */
+  /** How far its hem streams back at full stream, m; how far it flags off
+   * the suit along its normal; how far the back panel billows. */
   stream: 0.06,
-  flutter: 0.022,
-  /** The flutter's beat, rad/s, at rest and gained per m/s of air. */
-  beat: 8,
-  beatPerMs: 0.42,
-  /** The suit's lee-side ripple, m at full stream, and its beat's gain. */
-  ripple: 0.0018,
+  flutter: 0.032,
+  billow: 0.04,
+  /** The flag's beat, rad/s, at rest and gained per m/s of air, and the
+   * wave's length down the panel, m. */
+  beat: 9,
+  beatPerMs: 0.55,
+  wave: 0.24,
+  /** The suit's lee-side ripple, m at full stream, its wave's length, m,
+   * and its beat, rad/s, at rest and per m/s. */
+  ripple: 0.0016,
+  rippleWave: 0.055,
+  rippleBeat: 26,
+  rippleBeatPerMs: 1.4,
   /** How quickly the airflow read off his motion settles, 1/s. */
   settle: 6,
+  /** THE SWING: the hem's pendulum — its natural frequency, Hz, its
+   * damping ratio, how far it hangs per m/s² felt, m, the share of that
+   * along his spine (the bib cannot stretch, only bunch), and the most it
+   * swings, m. */
+  swingHz: 2.1,
+  swingDamp: 0.16,
+  swingPer: 0.0042,
+  swingUp: 0.3,
+  swingMost: 0.075,
+  /** How quickly the chest's acceleration read off his motion settles, 1/s. */
+  feel: 24,
 } as const;
 
 /** One part of the model: its geometry in the body frame's bind pose,
@@ -89,6 +119,15 @@ export function bibFreedom(p: THREE.Vector3, chest: BoneFrame, pelvis: BoneFrame
   const down = smoothstep((top - p.y) / Math.max(0.1, top - hem));
   const across = Math.min(1, Math.abs(p.x) / 0.16);
   return down ** 1.4 * (0.55 + 0.45 * across * across);
+}
+
+/** HOW FREE THE SUIT IS over a bone: loose enough to ripple over the
+ * limbs, held flat over the back protector and the chest, not at all at
+ * the hands, the feet and the head. */
+export function suitFreedom(bone: string): number {
+  if (/arm|thigh|shin|knee|elbow|hip|shoulder/.test(bone)) return 1;
+  if (bone === "pelvis" || bone === "chest") return 0.4;
+  return 0;
 }
 
 /** The model's skinned meshes, read off its glTF scene into the body
@@ -147,7 +186,12 @@ export function racerFrom(scene: THREE.Object3D): RacerPart[] {
     const free = new Float32Array(pos.count);
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
-      free[i] = wind === "bib" ? bibFreedom(v, bind.chest, bind.pelvis) : wind === "suit" ? 1 : 0;
+      free[i] =
+        wind === "bib"
+          ? bibFreedom(v, bind.chest, bind.pelvis)
+          : wind === "suit"
+            ? suitFreedom(SKIER_BONES[idx[i * 4]] ?? "pelvis")
+            : 0;
     }
     g.setAttribute("flap", new THREE.BufferAttribute(free, 1));
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 2.2);
@@ -159,21 +203,43 @@ export function racerFrom(scene: THREE.Object3D): RacerPart[] {
 
 /** The wind's uniforms, one set a dressed racer. */
 export type RacerWind = {
-  uniforms: { uAir: { value: THREE.Vector3 }; uTime: { value: number } };
-  /** Read his airflow off the skeleton's world place: call once a frame
-   * after the pose is laid. */
-  update(group: THREE.Object3D, chest: THREE.Bone, now: number): void;
+  uniforms: {
+    uAir: { value: THREE.Vector3 };
+    uSwing: { value: THREE.Vector3 };
+    uTime: { value: number };
+  };
+  /** The run's clock, s, for the next `update` — `null` off a run (a card's
+   * stage), when the wall clock is read instead. */
+  clock(t: number | null): void;
+  /** Read his airflow and what his chest feels off the skeleton's world
+   * place: call once a frame after the pose is laid. */
+  update(group: THREE.Object3D, chest: THREE.Bone, wall: number): void;
 };
 
-/** THE AIRFLOW past him, taken off his own motion: the chest bone's world
- * velocity, smoothed, turned into the frame his chest was bound in. */
+/** THE AIR AND THE SWING read off his own motion: the chest bone's world
+ * velocity and acceleration, smoothed, turned into the frame his chest was
+ * bound in; the bib's hem stepped as a damped pendulum on what the chest
+ * feels. */
 export function createRacerWind(): RacerWind {
-  const uniforms = { uAir: { value: new THREE.Vector3() }, uTime: { value: 0 } };
+  const W = RACER_WIND;
+  const uniforms = {
+    uAir: { value: new THREE.Vector3() },
+    uSwing: { value: new THREE.Vector3() },
+    uTime: { value: 0 },
+  };
   const last = new THREE.Vector3();
   const now3 = new THREE.Vector3();
   const vel = new THREE.Vector3();
+  const lastVel = new THREE.Vector3();
+  const acc = new THREE.Vector3();
   const air = new THREE.Vector3();
+  const felt = new THREE.Vector3();
+  const target = new THREE.Vector3();
+  const x = new THREE.Vector3();
+  const xv = new THREE.Vector3();
+  const pull = new THREE.Vector3();
   const q = new THREE.Quaternion();
+  const toBind = new THREE.Quaternion();
   const bindQ = new THREE.Quaternion();
   const basis = new THREE.Matrix4();
   const c = bindPose().frames.chest;
@@ -183,71 +249,149 @@ export function createRacerWind(): RacerWind {
     new THREE.Vector3(c.z.x, c.z.y, c.z.z),
   );
   bindQ.setFromRotationMatrix(basis);
+  const GRAVITY = 9.81;
+  const w = 2 * Math.PI * W.swingHz;
+  let runT: number | null = null;
   let at = -1;
+  let fresh = true;
+  const rest = (): void => {
+    x.set(0, 0, 0);
+    xv.set(0, 0, 0);
+    acc.set(0, 0, 0);
+    air.set(0, 0, 0);
+    uniforms.uAir.value.set(0, 0, 0);
+    uniforms.uSwing.value.set(0, 0, 0);
+    fresh = true;
+  };
   return {
     uniforms,
-    update(group, chest, now) {
-      if (now === at) return;
+    clock(t) {
+      runT = t;
+    },
+    update(group, chest, wall) {
+      const now = runT ?? wall / 1000;
       chest.getWorldPosition(now3);
-      const dt = at < 0 ? 0 : (now - at) / 1000;
+      const dt = at < 0 ? 0 : now - at;
+      // Backwards (a restart, a replay rewound) or a long gap: laid at rest.
+      if (at >= 0 && (dt < 0 || dt > 0.25)) rest();
       at = now;
-      uniforms.uTime.value = (now / 1000) % 1000;
-      if (dt <= 0 || dt > 0.25) {
+      uniforms.uTime.value = now % 1000;
+      if (!(dt > 0) || dt > 0.25) {
         last.copy(now3);
         return;
       }
       vel.copy(now3).sub(last).divideScalar(dt);
       last.copy(now3);
-      if (vel.lengthSq() > 120 * 120) vel.set(0, 0, 0);
+      // A teleport (a reset, the camera's cut to another skier) lays him at rest.
+      if (vel.lengthSq() > 120 * 120) {
+        rest();
+        return;
+      }
+      if (fresh) lastVel.copy(vel);
+      // What his chest feels: its acceleration, smoothed (a frame's
+      // difference of a difference is noise), against gravity.
+      const kA = 1 - Math.exp(-W.feel * dt);
+      acc.lerp(pull.copy(vel).sub(lastVel).divideScalar(dt), fresh ? 0 : kA);
+      lastVel.copy(vel);
+      fresh = false;
       // The air past him is his motion reversed, smoothed over a few frames.
-      const k = 1 - Math.exp(-RACER_WIND.settle * dt);
-      air.lerp(vel.negate(), k);
-      // Into the group's frame, then out of the chest's present turn into
-      // the turn it was bound in.
+      const k = 1 - Math.exp(-W.settle * dt);
+      air.lerp(pull.copy(vel).negate(), k);
+      // World → the group's frame → out of the chest's present turn into the
+      // turn it was bound in.
       group.getWorldQuaternion(q).invert();
-      const local = uniforms.uAir.value.copy(air).applyQuaternion(q);
-      local.applyQuaternion(q.copy(chest.quaternion).invert()).applyQuaternion(bindQ);
+      toBind.copy(chest.quaternion).invert().premultiply(bindQ);
+      uniforms.uAir.value.copy(air).applyQuaternion(q).applyQuaternion(toBind);
+      // The hem hangs along gravity less the acceleration, from where it
+      // hangs stood still (straight down his chest, in the bind's frame).
+      felt
+        .set(-acc.x, -acc.y - GRAVITY, -acc.z)
+        .applyQuaternion(q)
+        .applyQuaternion(toBind);
+      target.set(felt.x, (felt.y + GRAVITY) * W.swingUp, felt.z).multiplyScalar(W.swingPer);
+      // The damped pendulum, stepped in pieces no longer than the engine's.
+      const n = Math.max(1, Math.ceil(dt * 240));
+      const h = dt / n;
+      for (let i = 0; i < n; i++) {
+        pull
+          .copy(target)
+          .sub(x)
+          .multiplyScalar(w * w)
+          .addScaledVector(xv, -2 * W.swingDamp * w);
+        xv.addScaledVector(pull, h);
+        x.addScaledVector(xv, h);
+      }
+      if (x.length() > W.swingMost) {
+        x.setLength(W.swingMost);
+        xv.multiplyScalar(0.5);
+      }
+      uniforms.uSwing.value.copy(x);
     },
   };
 }
 
-/** The wind's graft on a part's material, after the world's own wrap: the
- * bib streamed back and fluttering, the suit rippling on its lee side. */
+/** The wind's graft on a part's material, after the world's own wrap. The
+ * bib's every point moved off the suit (never into it) and its normal
+ * tilted with the flag's wave; the suit's lee side rippling, its normal
+ * tilted the more. */
 export function graftWind(material: THREE.Material, kind: "bib" | "suit", wind: RacerWind): void {
   const inner = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey.bind(material);
   material.customProgramCacheKey = () => `${key()}:racer-${kind}`;
   const W = RACER_WIND;
   const f = (n: number) => n.toFixed(5);
+  const top = (() => {
+    const b = bindPose().frames.chest;
+    return b.head.y + b.y.y * b.length * 0.75;
+  })();
   material.onBeforeCompile = (shader, renderer) => {
     inner(shader, renderer);
     shader.uniforms.uAir = wind.uniforms.uAir;
+    shader.uniforms.uSwing = wind.uniforms.uSwing;
     shader.uniforms.uTime = wind.uniforms.uTime;
     const body =
       kind === "bib"
         ? `
-  float air = length(uAir);
-  vec3 wd = air > 0.05 ? uAir / air : vec3(0.0);
-  // The windward cloth is pressed onto him and keeps still; the lee side
-  // lifts off and streams with the air, and only OUT, never into the suit.
-  float lee = smoothstep(-0.2, 0.6, dot(objectNormal, wd));
-  float a = flap * lee * smoothstep(0.0, ${f(W.full)}, air);
-  float ph = uTime * (${f(W.beat)} + air * ${f(W.beatPerMs)}) + position.y * 21.0 + position.x * 13.0;
-  transformed += wd * a * ${f(W.stream)} * (0.75 + 0.25 * sin(ph * 0.47));
-  transformed += objectNormal * a * ${f(W.flutter)} * (0.5 + 0.5 * sin(ph)) * (0.4 + 0.6 * a);`
+  float rAirS = length(uAir);
+  vec3 rWd = rAirS > 0.05 ? uAir / rAirS : vec3(0.0);
+  float rSp = smoothstep(0.0, ${f(W.full)}, rAirS);
+  // The windward cloth is pressed onto him; the lee side lifts off.
+  float rLee = smoothstep(-0.2, 0.6, dot(objectNormal, rWd));
+  float rK = ${f((2 * Math.PI) / W.wave)};
+  float rPh = uTime * (${f(W.beat)} + rAirS * ${f(W.beatPerMs)}) - rK * (${f(top)} - position.y) + position.x * 9.0;
+  float rFl = flap * rSp * (0.3 + 0.7 * rLee) * ${f(W.flutter)};
+  rWind = rWd * flap * rLee * rSp * ${f(W.stream)} * (0.8 + 0.2 * sin(rPh * 0.37));
+  rWind += objectNormal * rFl * (0.55 + 0.45 * sin(rPh));
+  // The air caught under the back panel's hem, lifting it off his back
+  // between its open sides.
+  float rMid = 1.0 - smoothstep(0.08, 0.2, abs(position.x));
+  rWind += objectNormal * rLee * rSp * pow(flap, 0.7) * rMid * ${f(W.billow)} * (0.8 + 0.2 * sin(uTime * 2.7 + position.y * 5.0));
+  // The swing: the hem's pendulum, never into the suit.
+  vec3 rSw = uSwing * flap;
+  rSw -= objectNormal * min(0.0, dot(rSw, objectNormal));
+  rWind += rSw;
+  // The flag's slope in the light.
+  objectNormal = normalize(objectNormal - vec3(0.0, 1.0, 0.0) * clamp(rFl * 0.45 * rK * cos(rPh), -0.6, 0.6));`
         : `
-  float air = length(uAir);
-  vec3 wd = air > 0.05 ? uAir / air : vec3(0.0);
-  float lee = max(0.0, dot(objectNormal, wd));
-  float a = flap * lee * smoothstep(4.0, ${f(W.full * 1.6)}, air);
-  float ph = uTime * (${f(W.beat * 3)} + air * ${f(W.beatPerMs * 2)}) + dot(position, vec3(31.0, 47.0, 23.0));
-  transformed += objectNormal * a * ${f(W.ripple)} * sin(ph);`;
+  float rAirS = length(uAir);
+  vec3 rWd = rAirS > 0.05 ? uAir / rAirS : vec3(0.0);
+  float rLee = smoothstep(0.05, 0.7, dot(objectNormal, rWd));
+  float rA = flap * rLee * smoothstep(5.0, ${f(W.full * 1.5)}, rAirS);
+  float rK = ${f((2 * Math.PI) / W.rippleWave)};
+  float rPh = rK * dot(position, rWd) - uTime * (${f(W.rippleBeat)} + rAirS * ${f(W.rippleBeatPerMs)}) + 2.5 * sin(dot(position, vec3(17.0, 23.0, 11.0)));
+  rWind = objectNormal * rA * ${f(W.ripple)} * sin(rPh);
+  vec3 rAlong = rWd - objectNormal * dot(objectNormal, rWd);
+  objectNormal = normalize(objectNormal - rAlong * clamp(rA * ${f(W.ripple)} * rK * cos(rPh) * 1.6, -0.45, 0.45));`;
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
-        "#include <common>\nattribute float flap;\nuniform vec3 uAir;\nuniform float uTime;",
+        "#include <common>\nattribute float flap;\nuniform vec3 uAir;\nuniform vec3 uSwing;\nuniform float uTime;",
       )
-      .replace("#include <begin_vertex>", `#include <begin_vertex>${body}`);
+      .replace(
+        "#include <beginnormal_vertex>",
+        `#include <beginnormal_vertex>\n  vec3 rWind = vec3(0.0);${body}`,
+      )
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n  transformed += rWind;");
   };
   material.needsUpdate = true;
 }

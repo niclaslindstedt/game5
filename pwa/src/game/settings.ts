@@ -273,9 +273,9 @@ export function freshSettings(): Settings {
     craftCamera: DEFAULT_CAMERA,
     skis: SKIS.id,
     kept: { skis: SKIS.id, board: LYNX.id as BoardId },
-    // A new player rides as the modelled racer (`racer-model.ts`); the
-    // title's art and every lab keep the loom's skier (`DEFAULT_OUTFIT`).
-    outfit: { ...DEFAULT_OUTFIT, body: "racer" },
+    // The loom's skier; the modelled racer (`racer-model.ts`) is the BODY
+    // row's RACER, picked on the rider card.
+    outfit: { ...DEFAULT_OUTFIT },
     sound: true,
     audio: { master: 1, engine: 1, effects: 1 },
     video: { ...DEFAULT_VIDEO },

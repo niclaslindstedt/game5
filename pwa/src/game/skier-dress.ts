@@ -36,6 +36,10 @@ export type Dressed = {
   /** The cloth's vertex colours, the bind pose's positions and its weights
    * — what a wound soaks red (`gore-view.ts`). */
   cloth: THREE.BufferGeometry;
+  /** The run's clock, s, the cloth moves on (the modelled racer's wind,
+   * `racer-model.ts`) — `null` off a run, when it reads the wall clock —
+   * and the wind stepped to it off the last pose: called once a frame. */
+  clock(t: number | null): void;
   dispose(): void;
 };
 
@@ -170,9 +174,15 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     group.add(m);
     return m;
   });
+  // The wind is stepped where the figure is posed (`clock`, every frame
+  // drawn or not — a lab rides on without drawing); a figure nobody clocks
+  // steps it as it is drawn.
+  const chest = bones[SKIER_BONES.indexOf("chest")];
+  let clocked = false;
   if (wind) {
-    const chest = bones[SKIER_BONES.indexOf("chest")];
-    meshes[0].onBeforeRender = () => wind.update(group, chest, performance.now());
+    meshes[0].onBeforeRender = () => {
+      if (!clocked) wind.update(group, chest, performance.now());
+    };
   }
   const clothGeo = racer
     ? geos[
@@ -211,6 +221,12 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     },
     last: () => lastFrames,
     cloth: clothGeo,
+    clock(t) {
+      if (!wind) return;
+      clocked = true;
+      wind.clock(t);
+      wind.update(group, chest, performance.now());
+    },
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();

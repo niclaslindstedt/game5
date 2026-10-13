@@ -50,7 +50,8 @@ import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
 import { createRocks } from "./rocks.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
-import { buildTree, treePaint, type TreeLod } from "./tree-shapes.ts";
+import { summerShown } from "./season-look.ts";
+import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
 import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
@@ -310,7 +311,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
     side: material.side,
   });
-  const paint = treePaint(regionLookOf(regionOf(level).id));
+  const region = treePaint(regionLookOf(regionOf(level).id));
+  const paint = summerShown() ? summerPaint(region) : region;
 
   /** A band's meshes, and each one's instance arrays held once: a refill
    * writes thousands of trees a frame, and an attribute looked up or a

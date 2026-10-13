@@ -194,7 +194,14 @@ export type ForestLook = {
    * from the lens an animal or a bird is drawn at its NEAR cut, m, before
    * the FAR one takes over. */
   wild: WildLook;
+  /** THE SUMMER GRASS rides the row too (the meadow is the summer's woods
+   * to a rider's eye, `summer-grass.ts`): how far from the lens the tufts
+   * stand, m, and the share of the cells that grow one, 0..1. Its price in
+   * `PICTURE_PRICES` is an ESTIMATE until a GPU bench measures it. */
+  grass: GrassLook;
 };
+
+export type GrassLook = { readonly reach: number; readonly share: number };
 
 export type WildLook = { readonly forms: number; readonly near: number };
 
@@ -208,6 +215,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 2,
     casters: "sketch",
     wild: { forms: 1, near: 35 },
+    grass: { reach: 18, share: 0.5 },
   },
   medium: {
     full: 80,
@@ -216,6 +224,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 5,
     casters: "sketch",
     wild: { forms: 2, near: 60 },
+    grass: { reach: 28, share: 0.75 },
   },
   high: {
     full: 110,
@@ -224,6 +233,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 10,
     casters: "full",
     wild: { forms: 3, near: 90 },
+    grass: { reach: 40, share: 1 },
   },
 };
 

@@ -22,6 +22,13 @@
 //     over the skis — or back on them — has chosen his line through the
 //     air, and the arms say so: set forward, a little lower and narrower
 //     than a spot, the chest over them.
+//   * PRESSED FORWARD (the lean held forward, `AIR_FORE`): the legs turn
+//     the skis tips-down under him and the body turns against them — the
+//     trunk held back toward the vertical, the knees drawn up to the chest,
+//     the feet shoved out ahead, the hands kept up in front of it and wide,
+//     the eyes down on the landing — never the chest flung down after the
+//     tips. Chosen in `make air-lean` against the cliff and kicker
+//     photographs studied for it.
 //   * REACH (the last few tenths before the snow, every flight): the arms
 //     brought forward and down ahead of the knees, the legs extended toward
 //     the snow so they have the stroke to take it — further the bigger the
@@ -65,6 +72,13 @@ export type Flight = {
   commitRate: number;
   /** How big a fall this is, 0..1 — what the reach extends the legs by. */
   size: number;
+  /** How far he is PRESSED FORWARD — the forward lean he holds, eased,
+   * 0..1 (`AIR_FORE`). */
+  fore: number;
+  foreRate: number;
+  /** How far the skis' tips are down in the world, rad (the engine's pitch
+   * read, tips-down positive). */
+  tip: number;
 };
 
 export function createFlight(): Flight {
@@ -77,6 +91,9 @@ export function createFlight(): Flight {
     commit: 0,
     commitRate: 0,
     size: 0,
+    fore: 0,
+    foreRate: 0,
+    tip: 0,
   };
 }
 
@@ -122,6 +139,46 @@ const BODY = {
   reachBig: 0.11,
   /** …and committed, the chest driven a little further over the knees. */
   commit: 0.06,
+};
+
+/** LEANED FORWARD IN THE AIR (the engine's lean below zero): the shape a
+ * skier pressing over his tips flies in. `from` and `full` the forward
+ * lean it comes in over, `follow` its spring, rad/s; `pitch` the trunk's
+ * extra pitch over the skis, rad (below zero held back toward the world's
+ * vertical as the skis tip down under him); `keep` the share of the
+ * stance's own forward lean of the trunk (`skier-pose.ts`) kept in the
+ * air; `hips` the hips carried forward along the skis, m; `gather` the
+ * knees drawn up under him, m; `nod` the head carried forward over the
+ * chest, m, and `bow` the head bowed onto the landing, rad (less the
+ * further the tips are held down past `holdFrom`); `arms` where the
+ * arms are set (as `ARMS`'), and `armShare` how much of them the lean
+ * alone takes, however low the flight. `hold` is the share of the skis'
+ * tips going down in the world past `holdFrom` rad that the trunk is held
+ * back from (the body turning against the legs as the legs turn the skis —
+ * what a body in the air does, its spin its own), at most `holdMost` rad,
+ * and `fold` how far the knees are drawn up for each radian of it, m (the
+ * thighs come up to the chest the trunk is held back over), `back` how
+ * far the hips go back along the skis for each radian, m (the feet shoved
+ * out ahead of him), and `raise` how far the arms come up for each, rad
+ * (the hands kept up at his chest as it is held back). */
+export const AIR_FORE = {
+  from: 0.1,
+  full: 0.6,
+  follow: 7,
+  hold: 0.95,
+  holdFrom: 0.2,
+  holdMost: 0.9,
+  fold: 0.27,
+  back: 0.58,
+  raise: 0.95,
+  pitch: -0.275,
+  keep: 0.3,
+  hips: -0.1,
+  gather: 0.01,
+  nod: 0.4,
+  bow: 0.325,
+  arms: { a: 0.975, out: 0.55, span: 0.71 },
+  armShare: 1,
 };
 
 /** One value followed on a critically damped spring of `w` rad/s. */
@@ -173,8 +230,10 @@ export function stepFlight(
   dt: number,
   gravity = 14.7,
   lean = 0,
+  pitch = 0,
 ): void {
   if (!(dt > 0)) return;
+  f.tip = airborne ? -pitch : 0;
   const clearance = read ? read.clearance : 0.5 * gravity * airTime * airTime;
   const ahead = read ? read.ahead : Number.POSITIVE_INFINITY;
   if (airborne) f.t += dt * smooth((clearance - HIGH.from) / (HIGH.full - HIGH.from));
@@ -186,6 +245,9 @@ export function stepFlight(
     : 0;
   [f.commit, f.commitRate] = follow(f.commit, f.commitRate, commitTo, dt, FOLLOW.commit);
   f.commit = clamp01(f.commit);
+  const foreTo = airborne ? smooth((-lean - AIR_FORE.from) / (AIR_FORE.full - AIR_FORE.from)) : 0;
+  [f.fore, f.foreRate] = follow(f.fore, f.foreRate, foreTo, dt, AIR_FORE.follow);
+  f.fore = clamp01(f.fore);
   if (airborne) f.size = Math.max(f.size, clamp01(f.t / SIZE));
   else if (f.reach < 0.02) f.size = 0;
   [f.spot, f.spotRate] = follow(f.spot, f.spotRate, spotTo, dt, FOLLOW.spot);
@@ -213,6 +275,12 @@ export type FlightShape = {
   pitch: number;
   nod: number;
   lift: number;
+  /** Pressed forward: the hips carried along the skis, m, and the share of
+   * the stance's own forward lean of the trunk kept (1 when not). */
+  along?: number;
+  keep?: number;
+  /** ...and the head bowed to look down at the landing, rad. */
+  bow?: number;
 };
 
 /** The fall at this frame, `air` how far into the air his body is. */
@@ -222,18 +290,42 @@ export function flightShape(f: Flight, air: number): FlightShape {
   const mix = (a: number, b: number, k: number) => a + (b - a) * k;
   // Spotting forward (set a little lower when committed), or reaching down
   // ahead of the knees for the landing — both arms alike, and still.
+  // Pressed forward, the arms are set where that lean puts them, at any
+  // height of flight.
+  const fore = f.fore * air;
+  // How far past `holdFrom` the tips have gone down, rad.
+  const held = Math.min(AIR_FORE.holdMost, Math.max(0, f.tip - AIR_FORE.holdFrom));
+  const foreArms = Math.max(f.spot * fore, AIR_FORE.armShare * fore);
   const set = (k: "a" | "out" | "span") =>
-    mix(mix(ARMS.spot[k], ARMS.commit[k], f.commit), ARMS.reach[k], f.reach);
+    mix(
+      mix(
+        mix(ARMS.spot[k], ARMS.commit[k], f.commit),
+        AIR_FORE.arms[k] + (k === "a" ? AIR_FORE.raise * held : 0),
+        fore,
+      ),
+      ARMS.reach[k],
+      f.reach,
+    );
   return {
-    w: Math.max(f.spot, f.reach),
+    w: Math.max(f.spot, f.reach, foreArms),
     arm: set("a"),
     out: set("out"),
     span: set("span"),
     // The chest and the head let go of on their own springs, never in the
     // step the snow comes: he lands over his knees and looks up out of it.
-    pitch: BODY.spot * f.spot + BODY.commit * f.commit * f.spot + BODY.reachPitch * f.reach,
-    nod: BODY.nod * Math.max(f.spot, f.reach),
-    lift: (BODY.reach + BODY.reachBig * f.size) * reach - BODY.gather * spot * (1 - f.reach),
+    pitch:
+      BODY.spot * f.spot +
+      BODY.commit * f.commit * f.spot +
+      BODY.reachPitch * f.reach +
+      (AIR_FORE.pitch - AIR_FORE.hold * held) * fore * (1 - f.reach),
+    nod: BODY.nod * Math.max(f.spot, f.reach) + AIR_FORE.nod * fore * (1 - f.reach),
+    lift:
+      (BODY.reach + BODY.reachBig * f.size) * reach -
+      BODY.gather * spot * (1 - f.reach) -
+      (AIR_FORE.gather + AIR_FORE.fold * held) * fore * (1 - f.reach),
+    along: (AIR_FORE.hips - AIR_FORE.back * held) * fore * (1 - f.reach),
+    keep: 1 - (1 - AIR_FORE.keep) * fore,
+    bow: AIR_FORE.bow * fore * Math.max(0, 1 - held) * (1 - f.reach),
   };
 }
 

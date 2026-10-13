@@ -210,7 +210,7 @@ export function Hud({
   ) : snap.skiJump ? (
     <JumpPad touch={input.touch} side={lever} />
   ) : (
-    <LeverZone touch={input.touch} feel={feel} side={lever} />
+    <LeverZone touch={input.touch} feel={feel} side={lever} suit={snap.pad === "suit"} />
   );
   const barZone = flown ? (
     <StickZone touch={input.touch} feel={feel} side={barSide} role="cyclic" />
@@ -221,6 +221,7 @@ export function Hud({
       touch={input.touch}
       feel={edgeFeel(feel, snap.race?.discipline ?? null)}
       side={barSide}
+      glyph={snap.pad}
     />
   );
   // Indoors there is nothing to ski: the room's tap is the whole glass.

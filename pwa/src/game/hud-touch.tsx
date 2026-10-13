@@ -2,7 +2,7 @@
 // THE TOUCH CONTROLS — the two thumb zones the phone skis with: the EDGE
 // THUMB on the lower left, the TUCK LEVER on the lower right (swapped for
 // a skier who has asked for the lever on the left) — wide open the moment a
-// thumb lands, eased off by sliding UP, and the brake further up still. Both
+// thumb lands, eased off by sliding DOWN, and the brake further down still. Both
 // stop short of the top of the screen so the readouts and their presses keep
 // their own glass; styles.css owns where the line falls.
 //
@@ -45,6 +45,7 @@ import {
   type TouchFeel,
 } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
+import { leverSpread, suitPlanform, type PadGlyph } from "./thumb-glyphs.ts";
 import { createThumbGuard } from "@niclaslindstedt/oss-game-framework/input/thumb-guard";
 
 /** Capture the pointer so a drag that leaves the zone keeps steering; a
@@ -93,10 +94,13 @@ export function BarZone({
   touch,
   feel,
   side,
+  glyph = "skis",
 }: {
   touch: InputManager["touch"];
   feel: TouchFeel;
   side: ZoneSide;
+  /** What is drawn under the thumb (`thumb-glyphs.ts`). */
+  glyph?: PadGlyph;
 }) {
   /** The reach ring's half-height in the drawing's own units — the lean's
    * throw — and its half-width, the edge's (shorter on a slalom)... */
@@ -198,14 +202,7 @@ export function BarZone({
               and full lean up and down. */}
           <ellipse cx="50" cy="50" rx={edgeUnits} ry={reachUnits} class="hud-bar-reach" />
           <g ref={rotorRef}>
-            {/* THE SKIS under the thumb, seen from above — drawn CENTRED
-                on the box, so that a lean slides them the same distance
-                each way and reaches the ring at both ends; the pair turns
-                about the boots with the edge asked for. */}
-            <rect x="36" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
-            <rect x="54" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
-            <rect x="34" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
-            <rect x="52" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
+            <PadArt glyph={glyph} />
           </g>
         </svg>
       </div>
@@ -213,17 +210,79 @@ export function BarZone({
   );
 }
 
-/** The lever's drawing: the whole throw runs UP from the anchor — the
+/** THE DRAWING UNDER THE EDGE THUMB, seen from above and CENTRED on the
+ * box, so that a lean slides it the same distance each way and reaches the
+ * ring at both ends, and the edge turns it about its middle. */
+function PadArt({ glyph }: { glyph: PadGlyph }) {
+  if (glyph === "suit") {
+    // THE WINGSUIT: the arm wings out to the hands, the leg wing between
+    // the feet, the helmet in the bindings' colour.
+    return (
+      <>
+        <path d={suitPlanform(0)} class="hud-bar-wing" />
+        <circle cx="50" cy="19" r="5" class="hud-bar-grip" />
+      </>
+    );
+  }
+  if (glyph === "canopy") {
+    // THE CANOPY over him: its cells across, the lines down to the flyer.
+    return (
+      <>
+        <path d="M18 64L50 76L82 64" class="hud-bar-line" />
+        <path d="M14 46Q50 30 86 46L84 60Q50 50 16 60Z" class="hud-bar-wing" />
+        {[26, 38, 50, 62, 74].map((x) => (
+          <line
+            key={x}
+            x1={x}
+            y1={x === 50 ? 38 : 40}
+            x2={x}
+            y2={x === 50 ? 55 : 56}
+            class="hud-bar-line"
+          />
+        ))}
+        <circle cx="50" cy="76" r="5" class="hud-bar-grip" />
+      </>
+    );
+  }
+  if (glyph === "boots") {
+    // HIS BOOTS, walked on: two shells seen from above, the toes up the
+    // glass and turned a little out, the cuffs in the bindings' colour.
+    return (
+      <>
+        {[-1, 1].map((side) => (
+          <g key={side} transform={`translate(${side * 8} 0) rotate(${side * 6} 50 60)`}>
+            <path
+              d="M43.5 42Q43.5 25 50 25Q56.5 25 56.5 42L55.5 65Q50 73 44.5 65Z"
+              class="hud-bar-wing"
+            />
+            <rect x="44.5" y="52" width="11" height="12" rx="3" class="hud-bar-grip" />
+          </g>
+        ))}
+      </>
+    );
+  }
+  // THE SKIS, the pair turning about the boots with the edge asked for.
+  return (
+    <>
+      <rect x="36" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
+      <rect x="54" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
+      <rect x="34" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
+      <rect x="52" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
+    </>
+  );
+}
+
+/** The lever's drawing: the whole throw runs DOWN from the anchor — the
  * tuck easing off to the shut mark, then the brake's past it — with room
  * round the track for the knob and its stroke, px. */
-const LEVER_UP_PX = LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX;
+const LEVER_DOWN_PX = LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX;
 const LEVER_PAD_PX = 22;
-const LEVER_TOP_PX = -LEVER_UP_PX - LEVER_PAD_PX;
-const LEVER_BOX_PX = LEVER_UP_PX + LEVER_PAD_PX * 2;
+const LEVER_TOP_PX = -LEVER_PAD_PX;
+const LEVER_BOX_PX = LEVER_DOWN_PX + LEVER_PAD_PX * 2;
 
 /** The right thumb: touching anywhere in the zone anchors the LEVER, WIDE
- * OPEN, under the finger. Sliding UP eases the tuck off over
- * `LEVER_EASE_PX` to shut; further up, past a small dead band, pulls the
+ * OPEN, under the finger. Sliding DOWN eases the tuck off over
+ * `LEVER_EASE_PX` to shut; further down, past a small dead band, pulls the
  * BRAKE over `LEVER_BRAKE_PX`. A TAP and then the thumb held straight back
  * down LOADS THE JUMP (`jumpTapDown`) — the lever still under it — and
  * lifting it springs him. Analogue the whole way, held while the finger
@@ -232,12 +291,16 @@ export function LeverZone({
   touch,
   feel,
   side,
+  suit = false,
 }: {
   touch: InputManager["touch"];
   feel: TouchFeel;
   side: ZoneSide;
+  /** Flying a wingsuit: the knob is the suit, swept and spread. */
+  suit?: boolean;
 }) {
   const leverRef = useRef<HTMLDivElement>(null);
+  const armsRef = useRef<SVGPathElement>(null);
   const knobRef = useRef<SVGGElement>(null);
   const fillRef = useRef<SVGRectElement>(null);
   const originRef = useRef(0);
@@ -247,21 +310,22 @@ export function LeverZone({
     touch.tuck = tuck;
     touch.brake = brake;
     // The knob rides the thumb: the anchor at 0 is wide open, the shut mark
-    // `LEVER_EASE_PX` above it, the brake's travel above that. The fill spans
-    // the shut mark to the knob either way — below it it is the tuck
-    // that is open, above it the brake, drawn in the alarm colour so a thumb
+    // `LEVER_EASE_PX` below it, the brake's travel below that. The fill spans
+    // the shut mark to the knob either way — above it it is the tuck
+    // that is open, below it the brake, drawn in the alarm colour so a thumb
     // never has to ask which half of the throw it is in.
     const px =
       tuck > 0
-        ? -(1 - tuck) * LEVER_EASE_PX
+        ? (1 - tuck) * LEVER_EASE_PX
         : brake > 0
-          ? -(LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + brake * LEVER_BRAKE_PX)
-          : -LEVER_EASE_PX;
+          ? LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + brake * LEVER_BRAKE_PX
+          : LEVER_EASE_PX;
     knobRef.current?.setAttribute("transform", `translate(0 ${px.toFixed(1)})`);
+    armsRef.current?.setAttribute("d", suitPlanform(leverSpread(tuck, brake)));
     const fill = fillRef.current;
     if (!fill) return;
-    fill.setAttribute("y", Math.min(-LEVER_EASE_PX, px).toFixed(1));
-    fill.setAttribute("height", Math.abs(px + LEVER_EASE_PX).toFixed(1));
+    fill.setAttribute("y", Math.min(LEVER_EASE_PX, px).toFixed(1));
+    fill.setAttribute("height", Math.abs(px - LEVER_EASE_PX).toFixed(1));
     fill.classList.toggle("hud-lever-fill-reverse", brake > 0);
   };
   const letGo = (): void => {
@@ -322,27 +386,22 @@ export function LeverZone({
           // silently stops agreeing the day a throw changes length.
           style={{ top: `${LEVER_TOP_PX}px` }}
         >
-          <rect
-            class="hud-lever-track"
-            x="-6"
-            y={-LEVER_UP_PX}
-            width="12"
-            height={LEVER_UP_PX}
-            rx="6"
-          />
+          <rect class="hud-lever-track" x="-6" y="0" width="12" height={LEVER_DOWN_PX} rx="6" />
           <rect ref={fillRef} class="hud-lever-fill" x="-6" y="0" width="12" height="0" rx="6" />
-          {/* The SHUT mark, an easing-off above the anchor: above it the
-              brake, below it the tuck, so the two read as two levers
+          {/* The SHUT mark, an easing-off below the anchor: below it the
+              brake, above it the tuck, so the two read as two levers
               rather than one. */}
-          <line
-            class="hud-lever-neutral"
-            x1="-11"
-            y1={-LEVER_EASE_PX}
-            x2="11"
-            y2={-LEVER_EASE_PX}
-          />
+          <line class="hud-lever-neutral" x1="-11" y1={LEVER_EASE_PX} x2="11" y2={LEVER_EASE_PX} />
           <g ref={knobRef}>
             <circle class="hud-lever-knob" cx="0" cy="0" r="15" />
+            {suit && (
+              // The suit inside the knob, its arms swept back at a full
+              // tuck and spread wide on the back key.
+              <g class="hud-lever-suit" transform="scale(0.32) translate(-50 -53)">
+                <path ref={armsRef} d={suitPlanform(-1)} />
+                <circle cx="50" cy="19" r="5" />
+              </g>
+            )}
           </g>
         </svg>
       </div>

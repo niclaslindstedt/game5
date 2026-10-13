@@ -2,6 +2,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ECHO_MS,
+  isEcho,
   isSecondTap,
   isTap,
   loupeAction,
@@ -31,5 +33,25 @@ describe("the loupe guard", () => {
     expect(loupeAction({ ...end, tap: false })).toBe("leave");
     expect(loupeAction({ ...end, second: false })).toBe("leave");
     expect(loupeAction({ ...end, editable: true })).toBe("leave");
+  });
+});
+
+describe("the loupe guard's echo", () => {
+  const given = { at: 1000 };
+  const click = { at: 1010, trusted: true, same: true };
+
+  it("swallows the browser's own click after a click given back, so a quick tap steps once", () => {
+    expect(isEcho(given, click)).toBe(true);
+  });
+
+  it("lets every other click through", () => {
+    // Nothing given back: the browser's click is the only one.
+    expect(isEcho(null, click)).toBe(false);
+    // The guard's own click, and the menu cursor's.
+    expect(isEcho(given, { ...click, trusted: false })).toBe(false);
+    // A press somewhere else.
+    expect(isEcho(given, { ...click, same: false })).toBe(false);
+    // Long after: no browser takes that long, so it is a press of its own.
+    expect(isEcho(given, { ...click, at: given.at + ECHO_MS })).toBe(false);
   });
 });

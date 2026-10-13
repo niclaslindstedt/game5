@@ -103,9 +103,9 @@ import process from "node:process";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
-
 import { challengeShots } from "./lib/challenge-shots.mjs";
 import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
+import { holdThumbs } from "./lib/hold-thumbs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
@@ -568,10 +568,8 @@ const SURFACES = {
   // new browser context has none, so what this photographs is the empty
   // state — which is the surface most players see first.
   gallery: { params: { menu: "gallery" }, wait: ".menu-card-gallery", settle: 700 },
-  // ...and with a picture in it: a race ridden fourteen seconds, P pressed
-  // (the whole shutter — the grab, the HUD layer, the stamp, the encode, the
-  // roll), and the gallery opened in the same tab, so the store is the one
-  // the picture was filed in.
+  // ...and with a picture in it: a race ridden 14 s, P pressed (the whole
+  // shutter), and the gallery opened in the same tab, on the store it filed in.
   "gallery-roll": {
     prime: { params: { start: "race", t: "14", shot: "1" }, key: "KeyP" },
     params: { menu: "gallery" },
@@ -812,6 +810,8 @@ async function capture(name, params, viewportName, surface) {
       if (until)
         await page.mouse.click(page.viewportSize().width * tx, page.viewportSize().height * ty);
       if (until) await page.waitForSelector(until, { timeout: args.timeout * 1000 });
+      // Thumbs held on the glass for the pads under them (`hold-thumbs.mjs`).
+      if (surface.thumbs) await holdThumbs(page, surface.thumbs);
       await page.waitForTimeout(surface.settle);
     } else {
       await page.waitForFunction("window.__SH_READY__ === true", null, {

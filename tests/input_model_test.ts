@@ -107,26 +107,26 @@ describe("the keyboard's ramps", () => {
   });
 });
 
-describe("the tuck lever (full on touch, ease off UP, brake further UP)", () => {
-  it("is wide open at the anchor and below it, and eases off to shut up the glass", () => {
+describe("the tuck lever (full on touch, ease off DOWN, brake further DOWN)", () => {
+  it("is wide open at the anchor and above it, and eases off to shut down the glass", () => {
     expect(leverTuck(0)).toBe(1);
-    expect(leverTuck(40)).toBe(1);
-    expect(leverTuck(-LEVER_EASE_PX / 2)).toBeCloseTo(0.5);
-    expect(leverTuck(-LEVER_EASE_PX)).toBe(0);
-    expect(leverTuck(-LEVER_EASE_PX * 3)).toBe(0);
+    expect(leverTuck(-40)).toBe(1);
+    expect(leverTuck(LEVER_EASE_PX / 2)).toBeCloseTo(0.5);
+    expect(leverTuck(LEVER_EASE_PX)).toBe(0);
+    expect(leverTuck(LEVER_EASE_PX * 3)).toBe(0);
   });
 
-  it("pulls the brake only past a dead band over the shut point, and never with the tuck", () => {
+  it("pulls the brake only past a dead band under the shut point, and never with the tuck", () => {
     const shut = LEVER_EASE_PX;
     expect(leverBrake(0)).toBe(0);
-    expect(leverBrake(-shut)).toBe(0);
-    expect(leverBrake(-(shut + LEVER_BRAKE_DEAD_PX))).toBe(0);
-    expect(leverBrake(-(shut + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX / 2))).toBeCloseTo(0.5);
-    expect(leverBrake(-(shut + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX))).toBe(1);
+    expect(leverBrake(shut)).toBe(0);
+    expect(leverBrake(shut + LEVER_BRAKE_DEAD_PX)).toBe(0);
+    expect(leverBrake(shut + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX / 2)).toBeCloseTo(0.5);
+    expect(leverBrake(shut + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX)).toBe(1);
     for (let dy = -200; dy <= 200; dy += 5) {
       expect(leverTuck(dy) > 0 && leverBrake(dy) > 0, `dy ${dy}`).toBe(false);
     }
-    expect(Object.is(leverBrake(10), -0)).toBe(false);
+    expect(Object.is(leverBrake(-10), -0)).toBe(false);
   });
 });
 
@@ -175,9 +175,9 @@ describe("the thumbs' feel (OPTIONS ▸ CONTROLS)", () => {
     expect(barSteer(BAR_REACH_PX / 1.5, quick)).toBeCloseTo(1);
     expect(barSteer(BAR_REACH_PX / 1.5)).toBeLessThan(1);
     expect(barReachPx(quick)).toBeCloseTo(BAR_REACH_PX / 1.5);
-    expect(leverTuck(-LEVER_EASE_PX / 1.5, quick)).toBeCloseTo(0);
+    expect(leverTuck(LEVER_EASE_PX / 1.5, quick)).toBeCloseTo(0);
     expect(
-      leverBrake(-(LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX) / 1.5, quick),
+      leverBrake((LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX) / 1.5, quick),
     ).toBeCloseTo(1);
   });
 
@@ -186,7 +186,7 @@ describe("the thumbs' feel (OPTIONS ▸ CONTROLS)", () => {
     expect(barLean(BAR_REACH_PX, flipped)).toBeCloseTo(-barLean(BAR_REACH_PX));
     expect(barLean(-BAR_REACH_PX, flipped)).toBeGreaterThan(0);
     expect(barSteer(40, flipped)).toBe(barSteer(40));
-    expect(leverTuck(-25, flipped)).toBe(leverTuck(-25));
+    expect(leverTuck(25, flipped)).toBe(leverTuck(25));
   });
 });
 

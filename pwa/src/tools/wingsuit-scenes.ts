@@ -230,6 +230,44 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     st.run(s, 0.4, still);
     for (const r of RUNGS) st.shoot(s, r, r);
   },
+  // THE SENSE OF SPEED on the chase (`camera-pace.ts`, `make speed-cam`):
+  // the launch flown round behind him frame by frame, then the same lens
+  // at a flare's crawl, a glide and a dive.
+  "speed-launch": (st) => {
+    const s = st.fresh();
+    st.camera("chase");
+    ride(st, s, (x) => x.chute?.mode === "exit", 5);
+    let at = 0;
+    for (const t of [0.2, 0.6, 1.0, 1.4, 2.0, 3.0]) {
+      st.run(s, t - at, bot);
+      at = t;
+      st.shoot(s, `launch ${t.toFixed(1)} s`, "chase");
+    }
+  },
+  "speed-flight": (st) => {
+    for (const [name, drive, t] of [
+      ["flare", keys({ brake: 1, lean: 1 }), 2.5],
+      ["glide", still, 3],
+      ["dive 2 s", keys({ tuck: 1, lean: -1 }), 2],
+      ["dive 6 s", keys({ tuck: 1, lean: -1 }), 6],
+    ] as const) {
+      const s = gliding(st, 600);
+      st.camera("chase");
+      st.run(s, t, drive);
+      st.shoot(s, `${name} · chase`, "chase");
+      st.shoot(s, `${name} · far`, "far");
+    }
+  },
+  // ...and low over the face, where the ground is near enough to rush.
+  "speed-low": (st) => {
+    const s = st.fresh();
+    st.camera("chase");
+    ride(st, s, (x) => x.chute?.mode === "freefall", 20);
+    for (const t of [8, 4, 4]) {
+      st.run(s, t, bot);
+      st.shoot(s, `low · ${Math.round(s.chute?.agl ?? 0)} m`, "chase");
+    }
+  },
   // AFTER DARK.
   "night-exit": async (st) => {
     await st.sky({ hour: 21 });
@@ -254,4 +292,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   poses: ["poses"],
   chase: ["chase-glide", "chase-face", "chase-swing", "chase-canopy", "chase-exit"],
   night: ["night-exit", "night-glide"],
+  speed: ["speed-launch", "speed-flight", "speed-low"],
 };

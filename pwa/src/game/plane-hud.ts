@@ -126,8 +126,8 @@ export type HudChute = {
   /** The canopy over him (or opening) is the reserve. */
   reserve: boolean;
   /** What the machine key does now: jump (off a wingsuit's exit), open the
-   * main, cut it away, or — cut away — pull the reserve (never under it:
-   * there is no other). */
+   * main, cut away whatever canopy is over him (opening, flying or caught,
+   * the reserve too), or — the main cut away — pull the reserve. */
   press: "jump" | "open" | "release" | "reserve" | null;
   /** In a wingsuit, flying it (or stood ready): its strip; null in the box
    * and under the canopy. */
@@ -161,7 +161,7 @@ export function chuteOf(state: GameState): HudChute | null {
         ? "jump"
         : (ch.mode === "exit" && ch.since >= clear) || ch.mode === "freefall"
           ? "open"
-          : ch.mode === "open" && spare
+          : !suited && (ch.mode === "open" || ch.mode === "deploying" || ch.mode === "snagged")
             ? "release"
             : ch.mode === "released" && spare && ch.agl > CHUTE.handover
               ? "reserve"

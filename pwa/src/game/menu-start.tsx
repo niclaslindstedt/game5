@@ -62,6 +62,10 @@
 //           its typical numbers (`weatherFor`). It names no hour: the hour
 //           is TIME's alone, so the two rows cannot disagree.
 //
+// THE DAY'S ROWS ARE PUT AWAY behind the SKY press in the head, a cloud
+// over a sun: the chart and the two rows that say where the ride starts are
+// the card, and the day is asked only by whoever goes looking for it.
+//
 // THE DAY'S ROWS DEFER TO THE MAP until they are moved (`free-ride.ts`):
 // SEASON, TIME and WEATHER show what the map was dealt (`dealtDay`), in a
 // colour of their own, and stepping one pins a word. There is no AS DEALT
@@ -76,7 +80,8 @@ import { useState } from "preact/hooks";
 
 import { GENERATED, rangeOf } from "./face-picks.ts";
 import { SEASONS, SNOW_STOPS, runPicked, type FreeRide } from "./free-ride.ts";
-import { Caption, MenuBody, MenuHead, NumberRow, StepRow, type Hint } from "./menu-knobs.tsx";
+import { Glyph } from "./menu-glyphs.tsx";
+import { MenuBody, MenuHead, NumberRow, StepRow } from "./menu-knobs.tsx";
 import { startChosen, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
@@ -121,7 +126,8 @@ export function StartPage({
   /** On to the skis card, which is where RIDE is. */
   onNext: () => void;
 }) {
-  const [hint, setHint] = useState<Hint | null>(null);
+  /** The day's rows are out (the SKY press) in place of the ride's. */
+  const [sky, setSky] = useState(false);
   const ride = settings.ride;
   const setRide = (patch: Partial<FreeRide>): void =>
     onSettings({ ...settings, ride: { ...ride, ...patch } });
@@ -133,69 +139,51 @@ export function StartPage({
   const pick = useRunPick(settings, seed);
 
   return (
-    <div class="menu-card menu-card-start" onPointerLeave={() => setHint(null)}>
+    <div class="menu-card menu-card-start">
       <MenuHead
         back={onBack}
         backLabel={STRINGS.menuBack}
         title={STRINGS.startTitle}
         /* THE WAY ON STANDS IN THE HEAD, opposite the way back: a press
            under the chart and the rows would be the part of the card that
-           hangs off the bottom of a phone. */
+           hangs off the bottom of a phone. The SKY press beside it puts
+           the day's rows out. */
         action={
-          <button
-            type="button"
-            class="menu-item menu-item-start menu-head-go"
-            data-menu="next"
-            data-nav-next
-            data-nav-focus
-            onClick={onNext}
-          >
-            <span class="menu-item-name">{STRINGS.startNext}</span>
-          </button>
+          <div class="menu-head-acts">
+            <button
+              type="button"
+              class={`menu-chip start-sky${sky ? " start-sky-on" : ""}`}
+              data-menu="sky"
+              aria-label={STRINGS.startSky}
+              aria-pressed={sky}
+              onClick={() => setSky((on) => !on)}
+            >
+              <Glyph name="weather" />
+            </button>
+            <button
+              type="button"
+              class="menu-item menu-item-start menu-head-go"
+              data-menu="next"
+              data-nav-next
+              data-nav-focus
+              onClick={onNext}
+            >
+              <span class="menu-item-name">{STRINGS.startNext}</span>
+            </button>
+          </div>
         }
       />
       <MenuBody>
         <div class="start-cols">
-          <div class="start-col">
-            <div class="knob-rows">
-              {generated && (
-                <NumberRow
-                  label={STRINGS.startMap}
-                  value={seed}
-                  min={SEED_RANGE.min}
-                  max={SEED_RANGE.max}
-                  onValue={(next) => setRide({ seed: next })}
-                  onHint={setHint}
-                />
-              )}
-              <StepRow
-                label={STRINGS.startStart}
-                hint={STRINGS.startStartHint}
-                stops={pick.starts}
-                value={pick.start}
-                extra={STRINGS.startRunWaiting}
-                onPick={(id) => onSettings(startChosen(settings, seed, id))}
-                onHint={setHint}
-              />
-              <StepRow
-                label={STRINGS.startRun}
-                stops={pick.stops}
-                value={pick.value}
-                extra={pick.machine ? STRINGS.startRunOff : STRINGS.startRunWaiting}
-                onPick={(id) => setRide(runPicked(ride, seed, id))}
-                onHint={setHint}
-              />
-            </div>
-            <SeedPreview
-              chart={pick.chart}
-              entry={pick.marked}
-              machine={pick.machine}
-              spot={pick.spot}
-              onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
-            />
-          </div>
-          <div class="start-col">
-            <div class="knob-rows">
+          <SeedPreview
+            chart={pick.chart}
+            entry={pick.marked}
+            machine={pick.machine}
+            spot={pick.spot}
+            onSpot={(at) => setRide({ spot: { seed, x: at.x, z: at.z } })}
+          />
+          {sky ? (
+            <div class="knob-rows start-rows">
               <StepRow
                 label={STRINGS.startSeason}
                 stops={SEASON_STOPS}
@@ -203,7 +191,6 @@ export function StartPage({
                 dealt={ride.season === null}
                 extra={STRINGS.startRunWaiting}
                 onPick={(season) => setRide({ season })}
-                onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startTime}
@@ -212,39 +199,57 @@ export function StartPage({
                 dealt={ride.time === null}
                 extra={STRINGS.startRunWaiting}
                 onPick={(time) => setRide({ time })}
-                onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startWeather}
-                hint={STRINGS.startWeatherHint}
                 stops={WEATHER_STOPS}
                 value={ride.weather ?? pick.dealt?.weather ?? ""}
                 dealt={ride.weather === null}
                 extra={STRINGS.startRunWaiting}
                 onPick={(weather) => setRide({ weather })}
-                onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startSnow}
-                hint={STRINGS.startSnowHint}
                 stops={SNOW_ROW}
                 value={ride.snow}
                 onPick={(snow) => setRide({ snow })}
-                onHint={setHint}
               />
               <StepRow
                 label={STRINGS.startAvalanche}
-                hint={STRINGS.startAvalancheHint}
                 stops={AVALANCHE_ROW}
                 value={ride.avalanche ? "on" : "off"}
                 onPick={(id) => setRide({ avalanche: id === "on" })}
-                onHint={setHint}
               />
             </div>
-          </div>
+          ) : (
+            <div class="knob-rows start-rows">
+              {generated && (
+                <NumberRow
+                  label={STRINGS.startMap}
+                  value={seed}
+                  min={SEED_RANGE.min}
+                  max={SEED_RANGE.max}
+                  onValue={(next) => setRide({ seed: next })}
+                />
+              )}
+              <StepRow
+                label={STRINGS.startStart}
+                stops={pick.starts}
+                value={pick.start}
+                extra={STRINGS.startRunWaiting}
+                onPick={(id) => onSettings(startChosen(settings, seed, id))}
+              />
+              <StepRow
+                label={STRINGS.startRun}
+                stops={pick.stops}
+                value={pick.value}
+                extra={pick.machine ? STRINGS.startRunOff : STRINGS.startRunWaiting}
+                onPick={(id) => setRide(runPicked(ride, seed, id))}
+              />
+            </div>
+          )}
         </div>
       </MenuBody>
-      <Caption hint={hint} fallback={STRINGS.startCaption} />
     </div>
   );
 }

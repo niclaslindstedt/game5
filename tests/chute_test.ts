@@ -266,6 +266,31 @@ describe("cut away, caught and begun again", () => {
     expect(low.y).toBeCloseTo(t.level.groundAt(low.x, low.z), 3);
   });
 
+  it("cuts away at any height: low over the snow, and while it is still opening", () => {
+    for (const agl of [2000, 300, 30, 6]) {
+      const s = dive(agl, { mode: "open" });
+      fly(s, 0.1, N);
+      step(s, ask({ machine: true }));
+      expect(said(s, "release")).toBe(true);
+      expect(s.chute!.mode).toBe("released");
+    }
+    for (const agl of [1500, 120]) {
+      const s = dive(agl);
+      step(s, ask({ machine: true }));
+      fly(s, 1, N);
+      expect(s.chute!.mode).toBe("deploying");
+      step(s, ask({ machine: true }));
+      expect(said(s, "release")).toBe(true);
+      expect(s.chute!.mode).toBe("released");
+      expect(s.chute!.piece).not.toBeNull();
+      // ...and the press after it pulls the reserve.
+      fly(s, 0.5, N);
+      step(s, ask({ machine: true }));
+      expect(s.chute!.mode).toBe("deploying");
+      expect(s.chute!.reserve).toBe(true);
+    }
+  });
+
   it("throws him at the snow after a cut-away high up, and begins the ride again in the door", () => {
     const s = dive(400, { mode: "open" });
     fly(s, 2, N);
@@ -318,6 +343,11 @@ describe("cut away, caught and begun again", () => {
     expect(s.chute!.snag!.on).toBe("rope");
     fly(s, 3, N);
     expect(s.chute!.agl).toBeGreaterThan(1);
+    // Cut away, he drops off it.
+    step(s, ask({ machine: true }));
+    expect(said(s, "release")).toBe(true);
+    expect(s.chute!.mode).toBe("released");
+    expect(s.chute!.snag).toBeNull();
   });
 });
 
@@ -404,13 +434,17 @@ describe("the reserve", () => {
     expect(res.glide).toBeGreaterThan(2.2);
   });
 
-  it("is never cut away: the press under it does nothing", () => {
+  it("is cut away on the press too, and the press after it pulls nothing", () => {
     const s = dive(800, { mode: "open", reserve: true });
     fly(s, 2, N);
     step(s, ask({ machine: true }));
-    expect(said(s, "release")).toBe(false);
-    expect(s.chute!.mode).toBe("open");
-    expect(s.chute!.sparePiece).toBeNull();
+    expect(said(s, "release")).toBe(true);
+    expect(s.chute!.mode).toBe("released");
+    expect(s.chute!.sparePiece).not.toBeNull();
+    fly(s, 1, N);
+    step(s, ask({ machine: true }));
+    expect(said(s, "reserve")).toBe(false);
+    expect(s.chute!.mode).toBe("released");
   });
 
   it("lets itself go on the skis as the main does, flared on the bot's hands", () => {

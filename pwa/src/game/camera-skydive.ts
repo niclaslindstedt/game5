@@ -5,14 +5,14 @@
 // and a body falling at fifty metres a second belly to the earth is seen
 // the way the camera flyer who jumps with him sees him.
 //
-//   * FREEFALL, rung by rung: CHASE the camera flyer, a few metres off his
-//     right side and over him, looking down past him at the ground; FAR
-//     the same flyer further out; HIGH from straight over him looking down
+//   * FREEFALL, rung by rung: CHASE the camera flyer straight behind him
+//     and over him, looking past him to where he is falling — the ground
+//     coming up ahead and under him; FAR the same flyer further back; HIGH from straight over him looking down
 //     on his back and the mountain under him; ORBIT the flyer slowly
 //     flying round him; HELMET his own eyes, ahead and down over the snow
 //     coming up; TIPS first person looking down and back past his own
 //     skis at the snow.
-//   * THE OPENING: the lens pulls back and up off his side to keep him and
+//   * THE OPENING: the lens pulls back and up behind him to keep him and
 //     the pieces over him — the pilot chute, the bag, the canopy — in one
 //     frame, opening out as they stream up away from him; through his own
 //     eyes (HELMET, TIPS) he looks up the lines at the canopy filling.
@@ -31,21 +31,22 @@ type P = { x: number; y: number; z: number };
 /** The camera flyer's places, m: off the jumper's right, over him, behind
  * him (along his heading), and the lens's field, deg. */
 export const FLYER = {
-  chase: { right: 3.6, up: 1.6, back: 1.4, fov: 58 },
-  far: { right: 9, up: 6, back: 6, fov: 50 },
-  high: { right: 0.4, up: 13, back: 2.5, fov: 55 },
+  chase: { right: 0, up: 1.2, back: 5.6, fov: 60 },
+  far: { right: 0, up: 5.5, back: 9.5, fov: 52 },
+  high: { right: 0, up: 13, back: 2.5, fov: 55 },
   orbit: { radius: 6.5, up: 2.5, rate: 0.22, fov: 55 },
 } as const;
-/** How far below him the flyer's look falls, m: past him onto the ground. */
-const LOOK_DOWN = 0.4;
+/** Where the flyer's look falls, m: `ahead` of him along his heading and
+ * `down` under him — past him to the ground he is falling toward. */
+const LOOK = { ahead: 6, down: 2.2 };
 /** The opening's pull-back: off his side by the pieces' reach times this,
  * plus this many metres, and its field, deg. */
 const OPENING = { reach: 1.15, plus: 7, up: 1.5, fov: 52 };
 /** How long the door's own lens holds him falling away before the camera
  * flyer's takes over, s (`plane-scene.ts` holds it). */
-const EXIT_HELD = 1.2;
+const EXIT_HELD = 0.6;
 /** How long a lens takes to fly in from the ladder and back out to it, s. */
-export const SKYDIVE_HAND = { in: 0.9, out: 1.4 };
+export const SKYDIVE_HAND = { in: 0.6, out: 1.4 };
 
 /** Whether the skydive's lens is wanted for `ch`: out of the door, in
  * freefall and through the opening — not under a full canopy, cut away
@@ -114,19 +115,19 @@ export function skydiveLens(
     };
   }
   if (opening) {
-    // Pulled back off his side to hold him and every piece over him.
+    // Pulled back behind him to hold him and every piece over him.
     const mid = { x: (at.x + top.x) / 2, y: (at.y + top.y) / 2, z: (at.z + top.z) / 2 };
     const reach = Math.hypot(top.x - at.x, top.y - at.y, top.z - at.z);
     const d = (reach * OPENING.reach + OPENING.plus) * wide;
     const far = rung === "far" ? 1.8 : 1;
     const eye = keepUp({
-      x: mid.x + (rx * 0.9 - fx * 0.45) * d * far,
+      x: mid.x - fx * d * far,
       y: mid.y + OPENING.up,
-      z: mid.z + (rz * 0.9 - fz * 0.45) * d * far,
+      z: mid.z - fz * d * far,
     });
     return { eye, target: mid, fov: OPENING.fov, roll: 0 };
   }
-  const below = { x: at.x, y: at.y - LOOK_DOWN, z: at.z };
+  const below = { x: at.x + fx * LOOK.ahead, y: at.y - LOOK.down, z: at.z + fz * LOOK.ahead };
   if (rung === "orbit") {
     const O = FLYER.orbit;
     const a = ch.since * O.rate;

@@ -20,10 +20,11 @@
 import { type RegionId, realFacePlace, realFaceRegion } from "@engine";
 import { useEffect, useState } from "preact/hooks";
 
-import { areaStats, loadFaceStats, type FaceStats } from "./face-stats.ts";
+import { areaStats, loadFaceStats, type FaceStats, type RunFigures } from "./face-stats.ts";
 import { areaIds, areaOf, GENERATED, rangeIds, rangeOf, wherePicked } from "./face-picks.ts";
 import type { FreeRide } from "./free-ride.ts";
 import { MenuBody, MenuHead, StepRow } from "./menu-knobs.tsx";
+import { useSeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
 import { areaMarks, areaTarget, markOf, partMarks, worldTarget } from "./where-steps.ts";
@@ -36,12 +37,15 @@ const HALO_KM = 2.5;
 export function WherePage({
   step,
   settings,
+  seed,
   onSettings,
   onBack,
   onNext,
 }: {
   step: "world" | "area";
   settings: Settings;
+  /** The map the start card will chart: the stored seed, or the door's. */
+  seed: number;
   onSettings: (settings: Settings) => void;
   onBack: () => void;
   onNext: () => void;
@@ -83,6 +87,16 @@ export function WherePage({
   // the one mountainside's on the area step.
   const billed = world ? (area?.faces ?? []) : face && place ? [face] : [];
   const stats = useStats(billed);
+  // THE MAP THE RIDE WILL BE STOOD UP ON, asked for here so it is built
+  // while the place is picked — the start card's chart and the ride both
+  // want it — and read for what only a built map knows: how many runs it
+  // lays, and a generated mountain's figures.
+  const chart = useSeedPreview(seed, ride.region, ride.grade, face);
+  const built = chart.fresh && chart.shown?.ok ? chart.shown : null;
+  const runs: RunFigures | null = built?.figures ?? null;
+  // A count only where the reading is one mountainside's: an area of several
+  // has only the picked one built.
+  const slopes = built && billed.length <= 1 ? built.runs.length : null;
 
   return (
     <div class="menu-card menu-card-where">
@@ -162,7 +176,7 @@ export function WherePage({
                   <p class="where-read-line">
                     {STRINGS.rangeName(place.range)}
                     {world ? ` · ${STRINGS.whereParts(area.faces.length)}` : ""}
-                    {stats ? ` · ${STRINGS.whereSlopes(stats.pistes)}` : ""}
+                    {slopes !== null ? ` · ${STRINGS.whereSlopes(slopes)}` : ""}
                   </p>
                   <dl class="where-figures">
                     <Figure
@@ -186,8 +200,25 @@ export function WherePage({
                 </>
               ) : (
                 <>
-                  <p class="where-read-name">{STRINGS.rangeGenerated}</p>
-                  <p class="where-read-line">{STRINGS.whereGenerated}</p>
+                  <p class="where-read-name">{STRINGS.whereNumber(seed)}</p>
+                  <p class="where-read-line">
+                    {STRINGS.regionNames[ride.region]}
+                    {slopes !== null ? ` · ${STRINGS.whereSlopes(slopes)}` : ""}
+                  </p>
+                  <dl class="where-figures">
+                    <Figure
+                      label={STRINGS.whereDrop}
+                      value={runs && STRINGS.whereMetres(runs.drop)}
+                    />
+                    <Figure
+                      label={STRINGS.whereSteepest}
+                      value={runs && STRINGS.wherePitch(runs.steepest)}
+                    />
+                    <Figure
+                      label={STRINGS.whereMean}
+                      value={runs && STRINGS.wherePitch(runs.mean)}
+                    />
+                  </dl>
                 </>
               )}
             </div>

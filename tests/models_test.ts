@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { GROOMER, HELI, PLANE, SKI_CATALOG } from "@engine";
 
+import { SKIER_BONES } from "../pwa/src/game/skier-rig.ts";
 import {
   ALL_MODELS,
   MODELS_DIR,
@@ -37,6 +38,7 @@ import {
   heliModelUrl,
   PLANE_NODES,
   planeModelUrl,
+  racerModelUrl,
   rescueModelUrl,
   SLED_NODES,
   sledModelUrl,
@@ -54,7 +56,7 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine and the jump plane", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the racer", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
@@ -63,9 +65,19 @@ describe("the models the game ships", () => {
         "sled.glb",
         "groomer.glb",
         "plane.glb",
+        "racer.glb",
       ].sort(),
     );
-    const none = { skis: false, heli: false, sled: false, groomer: false, plane: false };
+    const none = {
+      skis: false,
+      heli: false,
+      sled: false,
+      groomer: false,
+      plane: false,
+      racer: false,
+    };
+    expect(modelFiles({ ...none, racer: true })).toEqual(["racer.glb"]);
+    expect(modelFiles(ALL_MODELS, "racer")).toEqual(["racer.glb"]);
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
     expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
@@ -80,7 +92,7 @@ describe("the models the game ships", () => {
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
   });
 
-  it("are nothing but the skis and the free ride's machines — the skier is dressed in code", () => {
+  it("are nothing but the skis, the free ride's machines and the racer — the skier is dressed in code", () => {
     expect(existsSync(join(root, MODELS_DIR, "skier.glb"))).toBe(false);
     for (const dir of ["birds", "beasts", "gates"]) {
       expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
@@ -93,6 +105,7 @@ describe("the models the game ships", () => {
       "groomer",
       "heli",
       "plane",
+      "racer",
       "rescue",
       "sled",
       "sources",
@@ -425,5 +438,43 @@ describe("the jump plane model", () => {
     // 20k: the traced skin with its windows and livery, the cabin behind
     // the open door, the wing and tail, the gear on its skis.
     expect(tris).toBeLessThan(20_000);
+  });
+});
+
+// THE WORLD CUP RACER (`racer.py`): one skinned body on the game's own
+// skeleton, its suit and bib swept by the wind in the shader
+// (`racer-model.ts`), drawn in place of the dressed skin on the RACER body.
+describe("the racer model", () => {
+  const glb = readFileSync(join(root, MODELS_DIR, "racer.glb"));
+  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+    nodes: { name: string }[];
+    materials: { name: string }[];
+    meshes: { name: string; primitives: { indices: number }[] }[];
+    accessors: { count: number }[];
+    skins: { joints: number[] }[];
+  };
+
+  it("is skinned on the game's own bones, every one of them by name", () => {
+    expect(gltf.skins).toHaveLength(1);
+    const joints = new Set(gltf.skins[0].joints.map((j) => gltf.nodes[j].name));
+    for (const b of SKIER_BONES) expect(joints.has(b), b).toBe(true);
+    expect(racerModelUrl()).toBe("/models/racer.glb");
+  });
+
+  it("names its materials as the builder does, the suit and the bib the wind moves", () => {
+    const named = new Set([...matNames("racer.py"), ...matNames("racer_print.py")]);
+    for (const n of ["suit", "bib", "guard", "helmet", "lens"]) {
+      expect(named.has(n), `racer.py names "${n}"`).toBe(true);
+    }
+    for (const m of gltf.materials) expect(named.has(m.name), m.name).toBe(true);
+  });
+
+  it("stays inside the game's triangle budget", () => {
+    const tris = gltf.meshes
+      .flatMap((m) => m.primitives)
+      .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
+    // 14k: the printed suit, the bib, the guards, the chin-guard helmet,
+    // the gloves and the boots' liners — a dressed skin is about 9k.
+    expect(tris).toBeLessThan(14_000);
   });
 });

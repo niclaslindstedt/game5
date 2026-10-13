@@ -40,6 +40,7 @@ export type ModelSwitches = {
   sled: boolean;
   groomer: boolean;
   plane: boolean;
+  racer: boolean;
 };
 
 /** Every switch on — what a build draws unless told otherwise. */
@@ -49,6 +50,7 @@ export const ALL_MODELS: ModelSwitches = {
   sled: true,
   groomer: true,
   plane: true,
+  racer: true,
 };
 
 /** Where the committed models are, from the repository's root. */
@@ -71,6 +73,9 @@ export const GROOMER_FILE = "groomer.glb";
 /** The jump plane's one file (`make blender KIND=plane`'s LOD0). */
 export const PLANE_FILE = "plane.glb";
 
+/** The World Cup racer's one file (`make blender KIND=racer`'s LOD0). */
+export const RACER_FILE = "racer.glb";
+
 /** Every file a build with these switches packs, by its published name —
  * or only one half's (`MODEL_HALVES`). */
 export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
@@ -83,6 +88,7 @@ export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
     ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
     ...(on.groomer && (!half || half === "groomer") ? [GROOMER_FILE] : []),
     ...(on.plane && (!half || half === "plane") ? [PLANE_FILE] : []),
+    ...(on.racer && (!half || half === "racer") ? [RACER_FILE] : []),
   ];
 }
 
@@ -159,6 +165,19 @@ export const PLANE_SOURCES = [
   "engine/game/defs/plane.ts",
 ];
 
+/** WHAT THE WORLD CUP RACER IS MADE FROM: his builder and its print, his
+ * data module, the shelf and the driver, and the game's own rig, pose and
+ * helmet he is laid on. */
+export const RACER_SOURCES = [
+  "scripts/blender.mjs",
+  "scripts/blender/kinds/racer.mjs",
+  "scripts/blender/lib.py",
+  "scripts/blender/racer.py",
+  "scripts/blender/racer_print.py",
+  "pwa/src/game/skier-rig.ts",
+  "pwa/src/game/helmet-shape.ts",
+];
+
 /** Every half's stamp in `sources.json`, and the sources it hashes: the
  * skis (`sources`, its name from when they were the only models), the
  * helicopter (`heli`), the air ambulance (`rescue`), the snowmobile
@@ -170,6 +189,7 @@ export const MODEL_HALVES = {
   sled: SLED_SOURCES,
   groomer: GROOMER_SOURCES,
   plane: PLANE_SOURCES,
+  racer: RACER_SOURCES,
 } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
@@ -196,7 +216,7 @@ export function gameModels(on: ModelSwitches, root: string): Plugin {
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
             "(VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0, VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, " +
-            "VITE_MODEL_PLANE=0)",
+            "VITE_MODEL_PLANE=0, VITE_MODEL_RACER=0)",
         );
       }
     },

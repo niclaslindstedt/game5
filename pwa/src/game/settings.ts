@@ -273,7 +273,9 @@ export function freshSettings(): Settings {
     craftCamera: DEFAULT_CAMERA,
     skis: SKIS.id,
     kept: { skis: SKIS.id, board: LYNX.id as BoardId },
-    outfit: { ...DEFAULT_OUTFIT },
+    // A new player rides as the modelled racer (`racer-model.ts`); the
+    // title's art and every lab keep the loom's skier (`DEFAULT_OUTFIT`).
+    outfit: { ...DEFAULT_OUTFIT, body: "racer" },
     sound: true,
     audio: { master: 1, engine: 1, effects: 1 },
     video: { ...DEFAULT_VIDEO },
@@ -356,7 +358,7 @@ export function mergeSettings(parsed: unknown): Settings {
   } else if (rung(blob.camera)) out.craftCamera = blob.camera;
   if (typeof blob.skis === "string" && isPairId(blob.skis)) out.skis = blob.skis;
   out.kept = mergeKept(blob.kept, out.skis);
-  out.outfit = outfitOf(blob.outfit);
+  if (blob.outfit !== undefined) out.outfit = outfitOf(blob.outfit);
   if (typeof blob.sound === "boolean") out.sound = blob.sound;
   const audio = record(blob.audio);
   for (const k of ["master", "engine", "effects"] as const) {

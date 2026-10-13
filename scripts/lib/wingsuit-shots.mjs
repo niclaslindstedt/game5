@@ -29,7 +29,7 @@ export const WINGSUIT_SURFACES = {
   // THE THUMBS FLYING THE SUIT (phone): the edge thumb's pad drawn as the
   // suit seen from above, turned with the bank and slid with the lean, and
   // the lever's knob the suit again, swept at a full tuck — and eased up
-  // into the back key, spread. Stood on the exit too (`ready`).
+  // into the back key, spread.
   "wingsuit-thumbs": {
     params: { start: "free", wingsuit: "1", chute: "500", t: "6", shot: "1" },
     wait: ".hud",
@@ -45,15 +45,6 @@ export const WINGSUIT_SURFACES = {
     thumbs: [
       [0.22, 0.72, -20, 30],
       [0.8, 0.75, 0, -150],
-    ],
-    settle: 1200,
-  },
-  "wingsuit-thumbs-canopy": {
-    params: { start: "free", wingsuit: "1", chute: "300", t: "30", shot: "1" },
-    wait: ".hud",
-    thumbs: [
-      [0.22, 0.72, 30, 0],
-      [0.8, 0.72, 0, -60],
     ],
     settle: 1200,
   },

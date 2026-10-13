@@ -245,13 +245,19 @@ function PadArt({ glyph }: { glyph: PadGlyph }) {
     );
   }
   if (glyph === "boots") {
-    // HIS BOOTS, walked on: two shells, the toes up the glass.
+    // HIS BOOTS, walked on: two shells seen from above, the toes up the
+    // glass and turned a little out, the cuffs in the bindings' colour.
     return (
       <>
-        <rect x="36" y="30" width="11" height="40" rx="5.5" class="hud-bar-tube" />
-        <rect x="53" y="30" width="11" height="40" rx="5.5" class="hud-bar-tube" />
-        <rect x="35" y="56" width="13" height="10" rx="3" class="hud-bar-grip" />
-        <rect x="52" y="56" width="13" height="10" rx="3" class="hud-bar-grip" />
+        {[-1, 1].map((side) => (
+          <g key={side} transform={`translate(${side * 8} 0) rotate(${side * 6} 50 60)`}>
+            <path
+              d="M43.5 42Q43.5 25 50 25Q56.5 25 56.5 42L55.5 65Q50 73 44.5 65Z"
+              class="hud-bar-wing"
+            />
+            <rect x="44.5" y="52" width="11" height="12" rx="3" class="hud-bar-grip" />
+          </g>
+        ))}
       </>
     );
   }

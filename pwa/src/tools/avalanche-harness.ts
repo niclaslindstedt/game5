@@ -9,7 +9,8 @@
 //            at 3, 6, 10 and 15 s;
 //   debris   the deposit once the flow has stopped, close and far, and
 //            the crown and the bed from below it;
-//   caught   a skier crossing the slab when it goes, from the chase;
+//   caught   a skier crossing the slab when it goes, from the chase: caught,
+//            carried, buried, and the BURIED card over it;
 //   night    the flow and the debris at hour 21, under the headlamp.
 //
 // The face is the most avalanche-prone open slope on the map off the
@@ -39,9 +40,12 @@ import {
   type WeatherKind,
 } from "@engine";
 
-import { render, type ComponentChild } from "preact";
+import { h, render, type ComponentChild } from "preact";
 
 import "../beacon.css";
+import "../wreck.css";
+import { DeathCard } from "../game/hud-glass.tsx";
+import { buriedOf, wreckOf } from "../game/hud-wreck.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
@@ -603,7 +607,10 @@ const VIEWS: Record<string, () => Promise<void>> = {
   },
   async caught() {
     const s = fresh();
-    // Stood on the slope's middle, crossing it at 15 km/h.
+    // Stood on the slope's middle, crossing it at 15 km/h, when it goes
+    // under him: caught as it breaks up and runs, carried a few seconds,
+    // and buried — the BURIED card coming up over the debris and the
+    // picture going dark (`hud-wreck.ts`'s timeline at its default).
     const n = { x: 0, y: 1, z: 0 };
     s.level.normalAt(face.x, face.z, n);
     const fall = Math.atan2(n.x, n.z);
@@ -612,16 +619,28 @@ const VIEWS: Record<string, () => Promise<void>> = {
     const events: GameEvent[] = [];
     releaseAvalanche(s, s.avalanche!, s.skier.x, s.skier.z, events);
     shoot(s, "0.0 s, the slab goes under him", "chase");
-    for (const [dt, t] of [
-      [1.5, "1.5"],
-      [2, "3.5"],
-      [3, "6.5"],
-    ] as const) {
-      run(s, dt);
-      shoot(s, `${t} s`, "chase");
-    }
-    for (let t = 0; t < 60 && s.avalanche?.slide?.running; t += 1) run(s, 1);
-    shoot(s, "at rest", "chase");
+    const phase = () => s.avalanche?.victim?.phase ?? "free";
+    for (let t = 0; t < 8 && phase() === "free"; t += 1 / 60) run(s, 1 / 60);
+    shoot(s, `caught at ${s.avalanche!.slide!.t.toFixed(1)} s`, "chase");
+    run(s, 1.5);
+    shoot(s, "carried 1.5 s", "chase");
+    run(s, 2);
+    shoot(s, "carried 3.5 s", "chase");
+    for (let t = 0; t < 8 && phase() === "carried"; t += 1 / 60) run(s, 1 / 60);
+    const card = (label: string) => {
+      const since = buriedOf(s) ?? 0;
+      shoot(
+        s,
+        label,
+        "chase",
+        h(DeathCard, { wreck: wreckOf(null, since), cause: "smothered", again: "top" }),
+      );
+    };
+    card("buried");
+    run(s, 1.5);
+    card("buried 1.5 s, the card");
+    run(s, 1.5);
+    card("buried 3 s, going dark");
   },
   async night() {
     renderer.setSky({ hour: 21 });

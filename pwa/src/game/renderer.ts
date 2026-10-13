@@ -44,6 +44,7 @@ import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { aboardCraft } from "./camera-aboard.ts";
 import { figureShown } from "./camera-para.ts";
+import { goneUnder } from "./camera-buried.ts";
 import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
@@ -123,8 +124,7 @@ import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
-import { carveOf, createPen, stampsOf } from "./trail-stamp.ts";
-import type { Stamp } from "./trail-stamp.ts";
+import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
 export async function loadModels(): Promise<void> {
@@ -708,7 +708,8 @@ export function createWorldRenderer(
       machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state, lens.camera.aspect);
-      player.model.setSkierVisible(figureShown(lens.rung(), own, rigPose.airborne));
+      const under = goneUnder(state); // gone under an avalanche: nothing to draw
+      player.model.setSkierVisible(!under && figureShown(lens.rung(), own, rigPose.airborne));
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
       hurt.update(state, player.model.skin());
       // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
@@ -733,7 +734,7 @@ export function createWorldRenderer(
         frameStart(startMoment(state, d), ladder);
       if (planted) {
         aimLens(lens.camera, planted);
-        player.model.setSkierVisible(machines?.figureShown() ?? true);
+        player.model.setSkierVisible(!under && (machines?.figureShown() ?? true));
       }
       // LOOKING ROUND FROM THE LIFT: the lift's lens swung about him by the drags.
       const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);
@@ -952,11 +953,10 @@ export function createWorldRenderer(
       snowfall.setBudget(SPRAY_SHARE[video.spray]);
       forest?.setOptions(forestOptions());
       wildlife?.setLook(FOREST_LOOK[video.forest].wild);
-      // THE GROUND AND ITS TRAILS ARE REBUILT, not adjusted: a grid's pitch,
-      // its reach and a map's size are what their buffers were allocated
-      // at. New trail maps lose the trails cut so far — this is pressed over
-      // a card, where the race behind it is scenery — so only a TRAILS move
-      // pays that; a new ground reads the maps standing.
+      // THE GROUND AND ITS TRAILS ARE REBUILT, not adjusted: a grid's pitch, its
+      // reach and a map's size are what their buffers were allocated at. New trail
+      // maps lose the trails cut so far (pressed over a card, the race behind it
+      // scenery), so only a TRAILS move pays that; a new ground reads them standing.
       const retrail = was.trails !== video.trails;
       const regrid = retrail || was.terrain !== video.terrain;
       if (level && regrid) {

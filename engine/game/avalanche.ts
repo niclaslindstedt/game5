@@ -39,10 +39,11 @@
 // `avalanche` crash cause) and dragged along at the flow's speed, meeting
 // the snow and every trunk in the way through the body's own blows
 // (`body.ts`). Where the flow round him stops he is put down under the
-// debris lying there: a share of its depth, his head out under
-// `headFree` m (he gets up as from any fall), under it BURIED — held, the
-// reset waiting, while a dealt time off the SURVIVAL CURVE (compressed for
-// play) runs out. OUTSKIED: a skier who gets out of the flow's way —
+// debris lying there — or a few seconds in (`carryMost`), wherever the
+// flow has him — BURIED under a share of its depth, never less than
+// `buriedLeast`, and gone: the app's BURIED card and a new run (the
+// crowd's and the keen skiers' burials keep the SURVIVAL CURVE and the
+// patrol, `avalanche-rescue.ts`). OUTSKIED: a skier who gets out of the flow's way —
 // across and out of the flank, or ahead faster than it comes — is never
 // taken, and once he is clear of it he has escaped.
 
@@ -57,7 +58,7 @@ import { treesNear } from "./upright-grid.ts";
 import { windFromOf } from "./wind.ts";
 import { RAGDOLL } from "./ragdoll.ts";
 import { smother } from "./gore.ts";
-import { addBurial, catchOthers, freshBeacon, stepRescue } from "./avalanche-rescue.ts";
+import { catchOthers, freshBeacon, stepRescue } from "./avalanche-rescue.ts";
 import {
   CELL,
   type AvalancheState,
@@ -502,11 +503,20 @@ function meetFlow(state: GameState, a: AvalancheState, s: Slide, events: GameEve
     const vx = cells[k + CELL.vx];
     const vz = cells[k + CELL.vz];
     const sp = hypot(vx, vz);
-    if (sp < K.catchSpeed) continue;
-    // Coming on at him: its speed less his own along its way — running
-    // ahead of it as fast as it comes, he stays ahead of it.
+    if (sp < K.rest) continue;
+    // Coming on at him (or skied INTO it, however slowly it runs): its
+    // speed less his own along its way past `catchSpeed`.
     const along = (c.vx * vx + c.vz * vz) / sp;
-    if (sp - along < K.catchSpeed) continue;
+    if (sp - along < K.catchSpeed) {
+      // ...or IN it once it tumbles past `tumble`: riding the flow down at
+      // its own speed is no way out of it. He is clear only outrunning its
+      // front, or skiing out across its way, away from it, past
+      // `catchSpeed`.
+      if (sp < K.tumble || along >= sp) continue;
+      const side = ((x - cells[k + CELL.x]) * vz - (z - cells[k + CELL.z]) * vx) / sp;
+      const across = ((c.vx * vz - c.vz * vx) / sp) * Math.sign(side);
+      if (across >= K.catchSpeed) continue;
+    }
     // Riding the snowmobile, he is thrown off it as off his skis — the
     // machine left where the flow took him off it (`sled.ts`).
     catchSkier(state, a, s, k / S, events);
@@ -596,22 +606,26 @@ function stepVictim(
         c[k + CELL.vx] + (c[k + CELL.x] - b.x) * K.hold,
         c[k + CELL.vz] + (c[k + CELL.z] - b.z) * K.hold,
       );
-      return;
+      // The snow closes over him a few seconds in, wherever the flow is.
+      if (v.t < K.carryMost) return;
+    } else {
+      v.clear += dt;
+      if (v.clear < K.settleFor) return;
     }
-    v.clear += dt;
-    if (v.clear < K.settleFor) return;
     bury(state, a, v, events);
     return;
   }
-  // Held where he lies under the snow.
-  holdBody(b.points, b.last);
-  if (v.phase === "buried" && v.t >= v.air) {
-    v.phase = "lost";
-    v.t = 0;
-    push(state, events, "lost", s, v.x, v.z, v.depth);
-    // On a run that carries its injuries he dies of it (`gore.ts`).
-    smother(state, events);
+  // Buried in a flow still running, he goes on down in it to where it
+  // stops; then held where he lies under the snow.
+  const k = v.parcel * S;
+  if (s && s.cells[k + CELL.run] === 1) {
+    const c = s.cells;
+    v.x = b.x;
+    v.z = b.z;
+    carryBody(b.points, b.last, c[k + CELL.vx], c[k + CELL.vz]);
+    return;
   }
+  holdBody(b.points, b.last);
 }
 
 /** Every point of the body taken toward the flow's velocity, and held up
@@ -637,29 +651,24 @@ export function holdBody(points: number[], last: number[]): void {
   for (let i = 0; i < 3 * RAGDOLL.count; i++) last[i] = points[i];
 }
 
-/** PUT DOWN where the flow round him stopped: under a share of the debris
- * lying there, or with his head out of it. */
+/** PUT DOWN where the flow round him stopped, or where the snow closed
+ * over him: BURIED under a share of the debris lying there — never less
+ * than `buriedLeast` m, the flow that takes the player always burying him
+ * — and gone. The app reads it as his death (`hud-wreck.ts`'s BURIED card)
+ * and starts the run again; a run with no app stands him up `lostFor` s
+ * on. The survival clock and the patrol are the others' (`avalanche-
+ * rescue.ts`). */
 function bury(state: GameState, a: AvalancheState, v: AvalancheVictim, events: GameEvent[]): void {
   const s = a.slide;
   const lying = s ? debrisDepth(s, v.x, v.z) : 0;
-  const depth = lying * a.rng.range(K.under[0], K.under[1]);
-  if (depth < K.headFree) {
-    push(state, events, "surfaced", s, v.x, v.z, depth);
-    a.victim = null;
-    return;
-  }
-  v.phase = "buried";
+  const depth = Math.max(K.buriedLeast, lying * a.rng.range(K.under[0], K.under[1]));
+  v.phase = "lost";
   v.t = 0;
   v.depth = depth;
-  v.air = (survivalMinutes(a.rng.next(), depth) * 60) / K.timeScale;
-  // On the list the patrol works from (`avalanche-rescue.ts`).
-  const b = addBurial(a, "player", -1, s, v.parcel, v.x, v.z);
-  if (b) {
-    b.phase = "buried";
-    b.depth = depth;
-    b.air = v.air;
-  }
+  v.air = 0;
   push(state, events, "buried", s, v.x, v.z, depth);
+  // On a run that carries its injuries he dies of it (`gore.ts`).
+  smother(state, events);
 }
 
 /** THE MINUTES A BURIED SKIER LIVES, off the survival curve at a share `u`

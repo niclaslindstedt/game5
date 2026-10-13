@@ -1,6 +1,6 @@
 # The avalanche
 
-On a **free ride** the snow off the groomed runs can slide. A skier crossing a loaded slope in the release band can set a **slab** off. It breaks, runs down the mountain as a dense flow, and takes him if he does not get out of its way. Caught, he is thrown onto his own ragdoll and carried. Where the flow round him stops, he is put down in the debris: his head out, or **buried**, with a dealt time to live off the survival curve.
+On a **free ride** the snow off the groomed runs can slide. A skier crossing a loaded slope in the release band can set a **slab** off. It breaks, runs down the mountain as a dense flow, and takes him if he does not get out of its way. Caught, he is thrown onto his own ragdoll and carried. Where the flow round him stops, or after a few seconds of it, he is put down in the debris: his head out, or **buried**. Buried, he is gone: the picture follows the snow that took him for a moment, then the **BURIED** card comes up and the run starts again.
 
 The ENGINE half (part A) is the hazard, the trigger, the slab, the flow, the catch, the burial and the clock. The slab, the flow, the powder cloud and the debris as pictures are part B (§ As drawn). The others a slide takes, the player's transceiver search, the probe, the shovel and the ski patrol are part C (§ The search and the patrol).
 
@@ -121,16 +121,18 @@ On the international scale, a size 2 runs **50–200 m** with about **1000 m³**
    - **The pile-up.** A running parcel within **5 m** of one already at rest ploughs into it at **10 m/s²** and rests on it under **2.5 m/s**. The rested ones are found through a plan hash of **6 m** buckets (`pile`).
    - **The end.** The flow is over when every parcel rests, or after **60 s** (`runMost`).
 4. **The skier against the flow.**
-   - **Caught.** A running parcel within **5.5 m** (`reach`) coming on faster than **7 m/s** (`catchSpeed`) takes him. Its speed is measured less his own along its way, so a slab sliding as a block can be ridden and skied off, while broken blocks running faster than he is going its way take him.
+   - **Caught.** A running parcel within **5.5 m** (`reach`) coming on faster than **7 m/s** (`catchSpeed`) takes him. Its speed is measured less his own along its way, so broken blocks running faster than he is going its way take him.
+   - **Ridden.** A parcel running faster than **9 m/s** (`tumble`) is no block to stand on: within reach of one he is caught even going its speed, unless he is skiing out across its way at `catchSpeed` or more, which is how the flank is outskied.
    - **Escaped.** Within **18 m** (`near`) of the flow he is involved, and once he has been clear of it for **2 s** (`escapeAfter`) he has escaped.
    - **Never on the snowmobile.** He is not caught while riding the snowmobile.
 5. **Carried.**
    - **Thrown.** Caught, he is thrown onto his ragdoll (`throwRider`, the `avalanche` crash cause). The cause's own spin (`defs/crash.ts`) tumbles him forward and to the side.
    - **Dragged.** His body's points are dragged toward the flow's speed at **6/s** (`drag`) and held up at **0.6 m/s** (`lift`), and he is drawn back into the parcel that took him at **1.5/s** (`hold`).
    - **The blows.** The ragdoll meets the snow and every trunk as it always does, so the blows go through `body.ts` and count as injuries like any fall's.
-6. **Buried.** **0.6 s** (`settleFor`) after his parcel rests, he is put down at his share of the debris' depth there.
+6. **Buried.** **0.6 s** (`settleFor`) after his parcel rests, or **5 s** (`carryMost`) after he was caught, whichever comes first, he is put down at his share of the debris' depth there.
    - **Surfaced.** Under the head-free depth he has surfaced and the ordinary reset takes him.
-   - **Buried.** Otherwise he is buried and held (`avalancheHolds` stops the run's automatic reset) until his air runs out, then lost.
+   - **Buried.** Otherwise he is under, at least **0.6 m** deep (`buriedLeast`), and gone (`lost` at once): the `buried` event fires and, with INJURIES on, the death flow too (the `smothered` cause). His body goes on with the debris while it runs and is no longer drawn.
+   - **The card.** The HUD's wreck comes up on it whatever the INJURIES switch says: **BURIED** in place of DIED, the picture going dark, and the app's restart after its own wait (OPTIONS' 2–10 s). `avalancheHolds` keeps the automatic reset off for **10 s** (`lostFor`), past the longest of those waits.
    - **A reset** pressed by the player frees him at any time.
 
 ### The event
@@ -246,7 +248,7 @@ The terrain's shader pays a few branches a pixel everywhere (`uSlideOn`), and th
 - **release:** the crown cracking and the slab breaking into plates, 0–2 s, with the same lens on the map with no slide as the cost's baseline, and the crown's wall from the bed at 7 s.
 - **flow:** the front and its cloud from beside and from below, at 3, 6, 10 and 15 s, the lenses set off the head along the way it is going.
 - **debris:** the deposit close, from its toe and from far, and the bed and the crown from below.
-- **caught:** a skier crossing the slab when it goes, from the chase.
+- **caught:** a skier crossing the slab when it goes, from the chase: caught, carried a few seconds, buried, and the BURIED card over the frames after it going dark.
 - **night:** the flow and the debris at hour 21, under the headlamp.
 
 Each frame's draw time, draw calls and triangles are printed under its sheet.
@@ -257,8 +259,8 @@ A slide that buries somebody starts a search. The player can search for others w
 
 - `engine/game/avalanche-rescue.ts` is the model: the others caught, the player's transceiver, probe and shovel, and the patrol. Its state (`Burial`, `Beacon`, `Patrol`) is in `avalanche-state.ts`.
 - `engine/game/defs/avalanche-rescue.ts` (`AVALANCHE_RESCUE`) holds every number, with its unit and its source.
-- `pwa/src/game/beacon-read.ts` is what the HUD reads (DOM-free). `hud-beacon.tsx` draws the transceiver and the veil over a buried player.
-- `patrol-view.ts` and `patrol-crew.ts` draw the patrol. `dig-pit.ts` shapes the hole. `camera-buried.ts` is the lens under the snow.
+- `pwa/src/game/beacon-read.ts` is what the HUD reads (DOM-free). `hud-beacon.tsx` draws the transceiver.
+- `patrol-view.ts` and `patrol-crew.ts` draw the patrol. `dig-pit.ts` shapes the hole. `camera-buried.ts` says when the player is under and not drawn.
 - `audio/rescue-bank.ts` and `audio/rescue-bed.ts` are the sound.
 - `tests/avalanche_rescue_test.ts` and `tests/dig_pit_test.ts` hold it.
 
@@ -300,10 +302,7 @@ A slide that buries somebody starts a search. The player can search for others w
   - **The work.** It searches on foot for **6 s** (three minutes), probes for **3 s** (a minute and a half), and digs at the team's **0.1 m/s** from downhill. It stands by **25 s**, then goes on to the next burial or skis off.
   - **Who first.** The player comes first, then the oldest still under.
 - **The player buried.**
-  - **What he sees.** The picture is his own: dark and close, the veil over it with his air draining, how deep he lies and what the patrol is doing (called, coming, searching, probing, digging). The world outside is muffled to almost nothing.
-  - **As they reach him.** When the shovels reach him, the lens pulls up out of the hole, the veil lifts and the sound comes back.
-  - **Dug out in time,** he is stood up and skis on.
-  - **Too late,** with INJURIES on, he dies of the run's own death flow (`death`, the `smothered` cause). With it off, part A's lost-and-reset takes him.
+  - **He is gone.** No patrol is called for him and no air is dealt: the lens follows the snow that took him, the **BURIED** card comes up and the run starts again (see *Buried* above). The world outside is muffled to almost nothing meanwhile.
   - **No new slab** releases while anybody is still under.
 - **The events.** The `avalanche` event gains a `who` (`player`, `amateur` or `keen`) and the phases `beacon` (the unit switched; `alive` carries search or send), `probe`, `strike`, `dug` (`alive` how he came out) and `patrol` (the team arriving). The news line reads them (`run-news.ts`). The sound bank answers `probe` and a `strike` (`probe_in`, `probe_strike`).
 
@@ -326,8 +325,7 @@ A slide that buries somebody starts a search. The player can search for others w
   - It goes down through the drawn debris by the share dug, to where the body lies once he is out.
   - Its walls and floor are drawn in snow's own shade, the deeper the bluer. The ground's shader cuts the snow out of the same rectangle (`room-cuts.ts`'s `setHoleCuts`, sharing the rooms' eight slots).
 - **The spoil heap** beside the ramp grows with the snow dug out: a lumpy ball, flattened onto the slope.
-- **The buried player's lens** (`camera-buried.ts`) starts **0.25 m** over the debris above his head. It rises to **3.2 m** and backs **3.4 m** uphill as the hole goes down, looking down into it at him and the diggers.
-- **The sound.** The unit's beep (a short square pip at 2.35 kHz, pitched up in the fine search, every `beep` seconds), the probe's rasp and the tap of the hard bed or the soft thud of a strike, and the shovel's bite. Buried, he hears the outside at **6 %** at first; the patrol's shovels grow louder as they dig down to him.
+- **The sound.** The unit's beep (a short square pip at 2.35 kHz, pitched up in the fine search, every `beep` seconds), the probe's rasp and the tap of the hard bed or the soft thud of a strike, and the shovel's bite. Buried, he hears the outside at **6 %**.
 
 ### The keys
 
@@ -341,7 +339,7 @@ A slide that buries somebody starts a search. The player can search for others w
 | --- | --- |
 | A run with avalanches off | nothing: no state, no view, no sound |
 | The engine's step, the patrol at work and the slide at rest | **≈ 5 µs** (Node, this container) |
-| The HUD's read | **0.1–0.5 µs** a frame (`beaconRead`, `buriedRead`) |
+| The HUD's read | **0.1–0.5 µs** a frame (`beaconRead`) |
 | Draw calls, the patrol at work | **+2 to +8** over the same lens: a figure each (its bare or its shovel copy), their skis and probe, a marker's pole and flag, a heap and a pit a burial |
 | Triangles | **+6–9 k**: about 700 a figure, 20 a pit, 320 a heap |
 | Memory, the patrol | about **1.4 MB**: the two figures' geometry, built the first time a patrol shows or a body is struck (2,061 and 2,097 vertices with twelve morph targets, about 670 KB each). Each dressed copy shares that geometry and adds only its colours |
@@ -350,12 +348,11 @@ A slide that buries somebody starts a search. The player can search for others w
 
 ### The lab (`make avalanche`, the rescue sheets)
 
-`pwa/src/tools/avalanche-rescue-lab.ts` adds four sheets to the avalanche lab. Each frame's cost is printed as the others are.
+`pwa/src/tools/avalanche-rescue-lab.ts` adds three sheets to the avalanche lab. Each frame's cost is printed as the others are.
 
 - **search:** the transceiver at every phase over the game's own frame, with the HUD drawn in: sending, the signal search, the coarse search at 30 m and at 8 m, the fine search over him, a strike and the dig. Then a probe that misses, one that strikes, and the probe left in.
 - **hole:** the hole dug to an amateur at a third, two thirds and out.
 - **patrol:** skiing in, searching, bracketing, the probe spiral, digging from downhill, almost down to him, and standing by.
-- **buried:** the player under the snow from the call to being stood up, the lens pulled up out of the hole as they dig.
 
 The amateur is placed in the slide's way and buried; the player is stood and held where each frame wants him; the clock runs headless between frames.
 

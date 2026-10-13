@@ -2,10 +2,9 @@
 // THE SEARCH AND THE PATROL (`avalanche-rescue.ts`): the others a slide
 // takes, carried and buried on its own stream; the player's transceiver
 // switching itself to search, the probe striking a body only within its
-// reach and length, the shovel's time growing with the depth; the patrol
-// coming for a buried player, finding him, digging him out and standing
-// him up — or too late, the death flow; and the transceiver's face as the
-// HUD draws it (`beacon-read.ts`).
+// reach and length, the shovel's time growing with the depth; the player
+// buried gone at once, no patrol called for him; and the transceiver's
+// face as the HUD draws it (`beacon-read.ts`).
 
 import { describe, expect, it } from "vitest";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
@@ -40,50 +39,32 @@ const phasesOf = (seen: GameEvent[]): string[] =>
   );
 
 /** The player caught on the bench's slab and stepped until he is buried. */
-function buryPlayer(state: GameState): void {
+function buryPlayer(state: GameState, seen: GameEvent[] = []): void {
   placeRun(state, { x: LEE.x, z: LEE.slab, heading: Math.PI / 2, speed: 0 });
   releaseAvalanche(state, state.avalanche!, LEE.x, LEE.slab, []);
-  for (let i = 0; i < 120 * 40 && state.avalanche!.victim?.phase !== "buried"; i++) {
+  for (let i = 0; i < 120 * 40 && state.avalanche!.victim?.phase !== "lost"; i++) {
     step(state, { ...NEUTRAL_INPUT, brake: 1 });
+    for (const e of state.events) if (e.kind === "avalanche" || e.kind === "death") seen.push(e);
   }
-  expect(state.avalanche!.victim?.phase).toBe("buried");
+  expect(state.avalanche!.victim?.phase).toBe("lost");
 }
 
-describe("the patrol comes for a buried player", () => {
-  it("is called, skis in, searches, probes, digs and stands him up alive", () => {
+describe("the player buried is gone", () => {
+  it("calls no patrol for him: the run starts again instead", () => {
     const s = avalancheRide();
-    buryPlayer(s);
-    const a = s.avalanche!;
-    // Staged: air enough to outlast the rescue.
-    a.victim!.air = 1e6;
     const seen: GameEvent[] = [];
-    const acts = new Set<string>();
-    const man: PatrolMan = { shown: false, x: 0, z: 0, heading: 0, act: "stand", work: 0 };
-    let t = 0;
-    for (; t < 120 * 200; t++) {
+    buryPlayer(s, seen);
+    for (let i = 0; i < 120 * 5; i++) {
       step(s, NEUTRAL_INPUT);
       for (const e of s.events) if (e.kind === "avalanche") seen.push(e);
-      if (a.patrol) acts.add(`${a.patrol.phase}:${patrolMan(a.patrol, 0, man).act}`);
-      if (!s.skier.thrown) break;
     }
     const phases = phasesOf(seen);
-    expect(phases).toContain("patrol");
-    expect(phases).toContain("strike");
-    expect(phases).toContain("dug");
-    const dug = seen.find((e) => e.kind === "avalanche" && e.phase === "dug");
-    expect(dug && dug.kind === "avalanche" && dug.alive).toBe(true);
-    expect(s.skier.thrown).toBeNull();
-    expect(a.victim).toBeNull();
-    // Not before a team could get there, nor long after.
-    expect(t / 120).toBeGreaterThan(R.patrol.respond[0] + R.patrol.search + R.patrol.probe);
-    expect(t / 120).toBeLessThan(R.patrol.respond[1] + 60);
-    for (const want of ["coming:ski", "search:search", "dig:dig"]) expect(acts).toContain(want);
-    // ...and he skis on.
-    step(s, { ...NEUTRAL_INPUT, tuck: 1 });
-    expect(s.skier.thrown).toBeNull();
+    expect(phases).toContain("buried");
+    expect(phases).not.toContain("patrol");
+    expect(s.avalanche!.burials.some((b) => b.who === "player")).toBe(false);
   });
 
-  it("too late: his air runs out and the run's death flow takes him", () => {
+  it("on a run that carries its injuries, the death flow takes him as he goes under", () => {
     const s = createGame({
       level: leeLevel(),
       mode: "free",
@@ -92,18 +73,11 @@ describe("the patrol comes for a buried player", () => {
       avalanche: true,
       gore: true,
     });
-    buryPlayer(s);
-    const v = s.avalanche!.victim!;
-    v.air = v.t + 2;
     const seen: GameEvent[] = [];
-    for (let i = 0; i < 120 * 4; i++) {
-      step(s, NEUTRAL_INPUT);
-      for (const e of s.events) if (e.kind === "avalanche" || e.kind === "death") seen.push(e);
-    }
+    buryPlayer(s, seen);
     const phases = phasesOf(seen);
-    expect(phases).toContain("lost");
-    expect(phases).toContain("death:smothered");
-    expect(phases).not.toContain("dug");
+    expect(phases.indexOf("death:smothered")).toBeGreaterThan(phases.indexOf("buried"));
+    expect(s.gore!.dead).toBeCloseTo(s.t, 1);
   });
 
   it("is never called on a run without avalanches, and nothing of it is kept", () => {
@@ -178,6 +152,28 @@ describe("the others a slide takes", () => {
     // Switched back by hand, it stays so for the same burial.
     stepBy(s);
     expect(B.search).toBe(false);
+  });
+
+  it("the patrol is called for him, skis in, searches, probes and digs him out alive", () => {
+    const { s, b } = buriedAmateur();
+    b.air = 1e6;
+    const a = s.avalanche!;
+    const seen: GameEvent[] = [];
+    const acts = new Set<string>();
+    const man: PatrolMan = { shown: false, x: 0, z: 0, heading: 0, act: "stand", work: 0 };
+    let t = 0;
+    for (; t < 120 * 200 && b.phase === "buried"; t++) {
+      stepBy(s, NEUTRAL_INPUT, seen);
+      if (a.patrol) acts.add(`${a.patrol.phase}:${patrolMan(a.patrol, 0, man).act}`);
+    }
+    const phases = phasesOf(seen);
+    expect(phases).toContain("patrol");
+    expect(phases).toContain("dug");
+    expect(b.alive).toBe(true);
+    // Not before a team could get there, nor long after.
+    expect(t / 120).toBeGreaterThan(R.patrol.respond[0] + R.patrol.search + R.patrol.probe);
+    expect(t / 120).toBeLessThan(R.patrol.respond[1] + 60);
+    for (const want of ["coming:ski", "search:search", "dig:dig"]) expect(acts).toContain(want);
   });
 
   it("left buried past his air, he is dug out dead", () => {

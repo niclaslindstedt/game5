@@ -1,7 +1,6 @@
-/* THE AVALANCHE TRANSCEIVER AND THE VIEW FROM UNDER THE SNOW
-   (`hud-beacon.tsx`): a rugged unit held low in the middle of the picture
-   with its monochrome display, the next step under it and its two presses
-   on touch; and the dark veil over a buried skier with his air on it. */
+/* THE AVALANCHE TRANSCEIVER (`hud-beacon.tsx`): a rugged unit held low in
+   the middle of the picture with its monochrome display, the next step
+   under it and its two presses on touch. */
 .hud-beacon {
   position: absolute;
   left: 50%;
@@ -184,85 +183,4 @@
 .hud-beacon-held {
   background: rgb(240 138 18 / 95%);
   transform: scale(0.96);
-}
-
-/* UNDER THE SNOW: the cold dark of the debris over him, breathing. */
-.hud-buried {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse at 50% 42%,
-    rgb(40 62 88 / 35%),
-    rgb(8 14 24 / 82%) 55%,
-    rgb(2 4 8 / 96%)
-  );
-  animation: hud-buried-breathe 3.4s ease-in-out infinite;
-}
-
-.hud-buried-low {
-  animation-duration: 1.4s;
-}
-
-.hud-buried-dark {
-  position: absolute;
-  inset: 0;
-  background: rgb(3 6 12);
-}
-
-@keyframes hud-buried-breathe {
-  50% {
-    filter: brightness(1.18);
-  }
-}
-
-.hud-buried-read {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  color: #dfe8f3;
-  text-shadow: 0 0.05rem 0.2rem rgb(0 0 0 / 70%);
-}
-
-.hud-buried-label {
-  font-size: 0.75rem;
-  font-weight: 900;
-  letter-spacing: 0.3em;
-}
-
-.hud-buried-air {
-  display: block;
-  width: clamp(9rem, 40vmin, 16rem);
-  height: 0.5rem;
-  border-radius: 0.25rem;
-  background: rgb(255 255 255 / 15%);
-  overflow: hidden;
-}
-
-.hud-buried-air span {
-  display: block;
-  height: 100%;
-  background: #cfe6f7;
-}
-
-.hud-buried-low .hud-buried-air span {
-  background: var(--hud-bad);
-}
-
-.hud-buried-depth {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  opacity: 0.8;
-}
-
-.hud-buried-stage {
-  font-size: clamp(0.9rem, 3vmin, 1.2rem);
-  font-weight: 900;
-  letter-spacing: 0.12em;
 }

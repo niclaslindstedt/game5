@@ -767,6 +767,8 @@ export function createWorldRenderer(
       const aloft = aloftLook(video.distance, eyeAt.y - level.groundAt(eyeAt.x, eyeAt.z));
       env.setAloft(aloft);
       forest?.setAloft(aloft.trees, aloft.lift, aloft.view);
+      // The snow guns and their plumes stand out as far as the woods do.
+      gates?.guns?.setReach(aloft.trees, aloft.lift);
       terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);

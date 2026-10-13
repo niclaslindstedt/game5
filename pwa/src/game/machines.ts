@@ -373,14 +373,16 @@ export function createMachines(
         shown: rung === "helmet" && ridingSled(s.sled, !!s.skier.thrown),
         outfit: fx.wearing?.(),
       });
-      heli?.frame(s, alpha, dt, player, rung, flying, fx.cloud, fx.snowAt, aspect);
+      // In summer nothing lies loose to be blown up: no wash cloud, no puff.
+      const cloud = s.summer ? null : fx.cloud;
+      heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
-      plane?.frame(s, alpha, dt, rung, flying, aspect, fx.cloud, fx.snowAt);
+      plane?.frame(s, alpha, dt, rung, flying, aspect, cloud, fx.snowAt);
       chute?.frame(s, alpha, chute && rigWorn(s) ? seated?.skin() : null);
       hover?.frame(
         s,
         dt,
-        (x, y, z, vx, vy, vz, size) => fx.cloud.blow(x, y, z, vx, vy, vz, size),
+        (x, y, z, vx, vy, vz, size) => cloud?.blow(x, y, z, vx, vy, vz, size),
         (x, z) => fx.snowAt(x, z).loose,
       );
       const at = chute?.jumper();

@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { regionOf, type Level } from "@engine";
 
 import { gradeOf, isNeutral, type ColourGrade } from "./colour-grade.ts";
+import { summerShown } from "./season-look.ts";
 import type { GpuTimer } from "./gpu-timer.ts";
 import { createGradePass, gradeSupported, type GradePass } from "./grade-pass.ts";
 
@@ -42,7 +43,7 @@ export function createRegionPicture(gl: THREE.WebGLRenderer, samples: number): R
   const last = { calls: 0, triangles: 0, points: 0 };
   return {
     load(level) {
-      grade = gradeOf(regionOf(level).id);
+      grade = gradeOf(regionOf(level).id, summerShown());
       graded = !isNeutral(grade) && gradeSupported(gl);
       pass?.setGrade(grade);
       if (!graded) return null;

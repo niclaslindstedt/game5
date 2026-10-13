@@ -26,7 +26,9 @@
 //           KICKER marked on it, which is what a free skier is hunting.
 //
 //   SEASON  early winter, midwinter, late winter or spring (`SEASONS`): how
-//           high the sun climbs and how long the shadows lie.
+//           high the sun climbs and how long the shadows lie — or SUMMER,
+//           the snow gone (`summer.ts`): no SNOW or AVALANCHES row, a sky
+//           that never snows, and a START row of the ways into the air.
 //   TIME    morning, day, evening or night — a WORD, whose hour is the
 //           ENGINE's answer on that date at that map's latitude
 //           (`hourOfTime`), never hours written down here. The sun
@@ -75,11 +77,11 @@
 // What the rows WRITE is `settings.ride` — so a ride stood up from here and
 // one a `?start=free` link boots into are the same ride read the same way.
 
-import { TIMES_OF_DAY, WEATHER_KINDS, type WeatherKind } from "@engine";
+import { TIMES_OF_DAY, WEATHER_KINDS, snows, summerSky, type WeatherKind } from "@engine";
 import { useState } from "preact/hooks";
 
 import { GENERATED, rangeOf } from "./face-picks.ts";
-import { SEASONS, SNOW_STOPS, runPicked, type FreeRide } from "./free-ride.ts";
+import { SEASONS, SNOW_STOPS, runPicked, summerOn, type FreeRide } from "./free-ride.ts";
 import { Glyph } from "./menu-glyphs.tsx";
 import { MenuBody, MenuHead, NumberRow, StepRow } from "./menu-knobs.tsx";
 import { startChosen, useRunPick } from "./run-pick.ts";
@@ -97,7 +99,10 @@ const WEATHER_STOPS: { id: WeatherKind; label: string }[] = WEATHER_KINDS.map((k
   label: STRINGS.weatherNames[kind],
 }));
 
-/** The SEASON row's stops: the four. */
+/** ...and in summer, the skies that do not snow. */
+const SUMMER_WEATHER = WEATHER_STOPS.filter((s) => !snows(s.id));
+
+/** The SEASON row's stops: the four winters and the summer. */
 const SEASON_STOPS = SEASONS.map(({ id }) => ({ id, label: STRINGS.seasonNames[id] }));
 
 /** The TIME row's stops: the four. */
@@ -134,9 +139,11 @@ export function StartPage({
 
   /** A GENERATED mountain asks its number here. */
   const generated = rangeOf(ride.face) === GENERATED;
+  const summer = summerOn(ride);
 
   // THE RUN ROW AND ITS CHART, as the pause card's PISTE MAP asks them too.
   const pick = useRunPick(settings, seed);
+  const weather: WeatherKind | "" = ride.weather ?? pick.dealt?.weather ?? "";
 
   return (
     <div class="menu-card menu-card-start">
@@ -202,24 +209,28 @@ export function StartPage({
               />
               <StepRow
                 label={STRINGS.startWeather}
-                stops={WEATHER_STOPS}
-                value={ride.weather ?? pick.dealt?.weather ?? ""}
+                stops={summer ? SUMMER_WEATHER : WEATHER_STOPS}
+                value={weather === "" || !summer ? weather : summerSky(weather)}
                 dealt={ride.weather === null}
                 extra={STRINGS.startRunWaiting}
                 onPick={(weather) => setRide({ weather })}
               />
-              <StepRow
-                label={STRINGS.startSnow}
-                stops={SNOW_ROW}
-                value={ride.snow}
-                onPick={(snow) => setRide({ snow })}
-              />
-              <StepRow
-                label={STRINGS.startAvalanche}
-                stops={AVALANCHE_ROW}
-                value={ride.avalanche ? "on" : "off"}
-                onPick={(id) => setRide({ avalanche: id === "on" })}
-              />
+              {!summer && (
+                <StepRow
+                  label={STRINGS.startSnow}
+                  stops={SNOW_ROW}
+                  value={ride.snow}
+                  onPick={(snow) => setRide({ snow })}
+                />
+              )}
+              {!summer && (
+                <StepRow
+                  label={STRINGS.startAvalanche}
+                  stops={AVALANCHE_ROW}
+                  value={ride.avalanche ? "on" : "off"}
+                  onPick={(id) => setRide({ avalanche: id === "on" })}
+                />
+              )}
             </div>
           ) : (
             <div class="knob-rows start-rows">

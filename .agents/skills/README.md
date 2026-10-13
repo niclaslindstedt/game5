@@ -80,6 +80,7 @@ sibling's the day one lands, and add its registry row.
 | `debug-game` | Deterministic repros, classifying by layer, the failing test first |
 | `debug-tools` | The developer page behind the title's seven-second hold: the overlay's instruments, the free camera, the REPRO line, and the BENCHMARK with its report and history; `make bench` |
 | `simulate-run` | `make sim`: the `RunReport` table, its columns, which movements are regressions |
+| `eval-labs` | A contest over one goal: five agents, five approaches, shared lab scenes, a fresh judge and one side-by-side page; the owner decides what merges or goes to another round |
 | `level-rating` | Whether a generated mountain is any GOOD and how HARD: `engine/rating/`'s eight axes and the index, the ladder scorer, `make rate` and `make difficulty` |
 | `pinned-maps` | The pinned maps — every discipline's nine race maps and the trick maps, the level card a measured run picks its map on, the generator-version contract and the digest a pinned map stands on |
 | `bot-improvement` | The piste-reading bot in `engine/sim/bot.ts` — the player's stand-in and every rival — measured with `make sim` |

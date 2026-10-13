@@ -84,7 +84,7 @@ export function heavyShare(snow: SnowProps | undefined, packed: number): number 
  * almost nothing to give. */
 export function cutShare(snow: SnowProps | undefined, packed: number): number {
   const bite = snow ? Math.min(1, snow.loose * 5) : 1;
-  return 0.45 * bite + heavyShare(snow, packed);
+  return 0.3 * bite + heavyShare(snow, packed);
 }
 
 /** ONE EDGE ON THE SNOW: where it runs (tip to tail, world m), its share
@@ -180,6 +180,12 @@ export const SPRAY = {
    * 50°, steeper the harder the edge is set. */
   shove: [0.75, 0.55],
   rise: [0.26, 0.6],
+  /** What a groomer's bare skin keeps of that rise: its edge SCRAPES chips
+   * off the hard pack along the snow, a low flat fan knee high (`make
+   * snow-ref`, the photographs of a stop on a groomer); the rise is whole
+   * from `riseLoose` of loose snow over the groomer's. */
+  riseBare: 0.55,
+  riseLoose: 0.45,
   /** The fan's spread across the slide, as a share of the chips' speed. */
   fan: 0.32,
   /** Chips a second off a carving tail at a full edge, per m/s of speed. */
@@ -421,6 +427,7 @@ export function createSprayPool(capacity = 6000, watch: SprayWatch = {}): SprayP
       heavyNow = heavy;
       // The fines hang out of loose snow; a groomer's cut is chips.
       looseNow = snow ? Math.min(1, snow.loose) : 1;
+      const bare = SPRAY.riseBare + (1 - SPRAY.riseBare) * Math.min(1, lift / SPRAY.riseLoose);
       const slow = 1 - 0.35 * heavy;
       const flat = 1 - 0.3 * heavy;
       const edge = Math.min(1, Math.abs(skier.edge) / 0.9);
@@ -448,7 +455,7 @@ export function createSprayPool(capacity = 6000, watch: SprayWatch = {}): SprayP
           const sp = e.slide * (SPRAY.shove[0] + SPRAY.shove[1] * fs) * slow * (1 + 0.15 * lift);
           const rise = Math.min(
             1.25,
-            (SPRAY.rise[0] + SPRAY.rise[1] * (0.4 * edge + 0.6 * fr)) * flat + 0.25 * lift,
+            (SPRAY.rise[0] + SPRAY.rise[1] * (0.4 * edge + 0.6 * fr)) * flat * bare + 0.25 * lift,
           );
           let out = sp * Math.cos(rise);
           let side = (ff - 0.5) * 2 * SPRAY.fan * sp;

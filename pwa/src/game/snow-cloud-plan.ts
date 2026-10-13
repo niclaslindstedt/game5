@@ -42,7 +42,7 @@ export const CLOUD = {
   skiPlough: 25,
   /** The skid's wall's climb off the skis, m/s: the least, and what a
    * full push of loose snow adds. */
-  lift: { min: 2, loose: 5.5 },
+  lift: { min: 2, loose: 6.5 },
   /** Thrown out across the way off a skid, m/s, relative to the skier. */
   back: { min: 2.5, skid: 4, most: 9 },
   /** A puff's radius at birth, m, and what it swells by over its life. */
@@ -71,7 +71,41 @@ export const CLOUD = {
     full: 14,
     keep: { rate: 0.15, size: 0.6, grow: 0.4, hang: 0.45, lift: 0.55 },
   },
+  /** THE SKIN: how deep the loose snow is decides how high and how far its
+   * cloud can go, measured off photographs (`spray-film.ts`, `make
+   * snow-ref`): a groomer's centimetre of loose snow under a hockey stop
+   * lifts a fan to the knee, two metres out; the same stop in powder a wall
+   * to the head. The loose share over which the skin thickens from nothing
+   * to whole, and what a bare skin keeps of the climb, the throw out, the
+   * puff at birth and its swell. */
+  skin: {
+    from: 0.1,
+    full: 0.7,
+    lift: 0.3,
+    back: 0.4,
+    size: 0.7,
+    grow: 0.45,
+    rate: 0.55,
+    hang: 0.6,
+  },
+  /** A BOARD'S STOP against a ski's: the whole rider on one long edge
+   * shoves more snow, higher — a board's slash reads about twice a ski
+   * stop's plume in the photographs. What the rate and the climb take. */
+  board: { rate: 1.8, lift: 1.35 },
 } as const;
+
+/** HOW DEEP A SKIN OF LOOSE SNOW the surface has to throw, 0..1: a groomer's
+ * next to none, settled powder whole. */
+export function skinOf(snow: SnowProps): number {
+  const t = Math.min(
+    1,
+    Math.max(0, (snow.loose - CLOUD.skin.from) / (CLOUD.skin.full - CLOUD.skin.from)),
+  );
+  return t * t * (3 - 2 * t);
+}
+
+/** `least` at a bare skin, 1 at a whole one. */
+const bySkin = (snow: SnowProps, least: number) => least + (1 - least) * skinOf(snow);
 
 /** HOW MUCH OF THE SNOW A SKI THROWS BECOMES CLOUD at `speed` m/s, 0..1.
  * A walking-pace ski in powder shoves it aside and it falls straight back:
@@ -177,9 +211,9 @@ function puffOf(snow: SnowProps, out: CloudRecipe): CloudRecipe {
   // A thin skin of loose snow (the groomer's) lifts a low, small mist, not
   // the billows a deep powder throws.
   const body = bodyOf(snow);
-  out.size = (CLOUD.size.min + CLOUD.size.fine * fine) * body;
-  out.grow = (CLOUD.grow.min + CLOUD.grow.fine * fine) * body;
-  out.hang = CLOUD.hang.min + CLOUD.hang.fine * fine * fine;
+  out.size = (CLOUD.size.min + CLOUD.size.fine * fine) * body * bySkin(snow, CLOUD.skin.size);
+  out.grow = (CLOUD.grow.min + CLOUD.grow.fine * fine) * body * bySkin(snow, CLOUD.skin.grow);
+  out.hang = (CLOUD.hang.min + CLOUD.hang.fine * fine * fine) * bySkin(snow, CLOUD.skin.hang);
   out.settle = CLOUD.settle.coarse + (CLOUD.settle.fine - CLOUD.settle.coarse) * fine;
   out.tau = CLOUD.tau.coarse + (CLOUD.tau.fine - CLOUD.tau.coarse) * fine;
   out.opacity = CLOUD.opacity * (0.55 + 0.45 * fine);
@@ -208,10 +242,17 @@ export function skidCloud(
   // air under a fast skier sweeps the loose top off.
   const sweep = drive.grounded ? Math.min(1, drive.speed / 30) * 0.25 : 0;
   // Smaller puffs off a thin skin, more of them: the same snow in the air.
-  out.rate = (CLOUD.skidRate * (push + sweep) * Math.min(1.8, loose) * snow.fine) / bodyOf(snow);
-  out.lift = (CLOUD.lift.min + CLOUD.lift.loose * Math.min(1.5, loose)) * (0.35 + 0.65 * push);
+  out.rate =
+    ((CLOUD.skidRate * (push + sweep) * Math.min(1.8, loose) * snow.fine) / bodyOf(snow)) *
+    bySkin(snow, CLOUD.skin.rate);
+  out.lift =
+    (CLOUD.lift.min + CLOUD.lift.loose * Math.min(1.5, loose)) *
+    (0.35 + 0.65 * push) *
+    bySkin(snow, CLOUD.skin.lift);
   out.back =
-    Math.min(CLOUD.back.most, CLOUD.back.min + drive.skid * CLOUD.back.skid) * (0.5 + push);
+    Math.min(CLOUD.back.most, CLOUD.back.min + drive.skid * CLOUD.back.skid) *
+    (0.5 + push) *
+    bySkin(snow, CLOUD.skin.back);
   return lofted(out, loftSpeed);
 }
 
@@ -231,7 +272,7 @@ export function skiCloud(
   const loose = Math.min(1.8, Math.max(0, snow.loose));
   out.rate =
     (CLOUD.skiCarve * Math.max(0, carve) + CLOUD.skiPlough * Math.max(0, sink)) * loose * snow.fine;
-  out.lift = 1 + 1.6 * Math.min(1.5, loose);
+  out.lift = (1 + 1.6 * Math.min(1.5, loose)) * bySkin(snow, CLOUD.skin.lift);
   out.back = 1.5;
   out.size *= 0.8;
   return lofted(out, speed);

@@ -8,6 +8,7 @@ import type { GameState } from "@engine";
 import type { FrameCost, GpuMode, GpuTotals, Hideable, SceneShare } from "./benchmark-report.ts";
 import type { LensPose } from "./camera-rigs.ts";
 import type { PickRay } from "./machine-pick.ts";
+import type { PlumeBit } from "./spray-film.ts";
 import type { Outfit } from "./outfit.ts";
 import type { ReplayView } from "./camera-replay.ts";
 import type { VideoSettings } from "./settings-video.ts";
@@ -100,6 +101,9 @@ export interface DevRenderer {
   /** The scene walked and bucketed by subsystem (`scene-tally.ts`) — a walk
    * of the whole graph, so never from a frame being timed. */
   sceneTally(): SceneShare[];
+  /** The snow in the air the last frame drew — the spray's grains and the
+   * cloud's puffs (`plume-probe.ts`) — for the snow-reference lab. */
+  plumes(): PlumeBit[];
   /** The drawing buffer, device pixels. */
   bufferSize(): { w: number; h: number };
   /** THE GPU'S TIMER (`gpu-timer.ts`): cut every frame from here on at

@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Snow reference harness</title>
+    <!-- Tooling page for scripts/snowref-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It rides the
+         snow-reference lab's shared scenes through the game's own renderer
+         and lays the measured film references over them. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+      }
+      #stage {
+        position: absolute;
+        left: -10000px;
+      }
+      #sheet {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <canvas id="sheet"></canvas>
+    <script type="module" src="/src/tools/snowref-harness.ts"></script>
+  </body>
+</html>

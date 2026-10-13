@@ -650,7 +650,10 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       const ax = along ? e.across.x : 0;
       const az = along ? e.across.z : 0;
       const slide = along ? e.slide : 0;
-      owed[0] += wall.rate * dt * share;
+      // One edge is a board's: the whole rider on it.
+      const board = edges === 1;
+      if (board) wall.lift *= CLOUD.board.lift;
+      owed[0] += wall.rate * dt * share * (board ? CLOUD.board.rate : 1);
       while (owed[0] >= 1) {
         owed[0] -= 1;
         // Spread along the frame's path, so a fast skier's plume is a

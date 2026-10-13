@@ -33,6 +33,7 @@ import * as THREE from "three";
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import type { Level } from "@engine";
 
+import { bikeSigns } from "./bike-sign-plan.ts";
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { storedBump } from "./print-bump.ts";
@@ -413,7 +414,7 @@ export type RunSigns = { group: THREE.Group; dispose(): void };
 /** Every piste-head sign of `level`'s ski area; an empty group off one. */
 export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
   const group = new THREE.Group();
-  const posts = [...signPlan(level), ...summitSigns(level)];
+  const posts = [...signPlan(level), ...summitSigns(level), ...bikeSigns(level)];
   const boards = posts.flatMap((p) => p.boards.map((b) => ({ post: p, board: b })));
   if (boards.length === 0) return { group, dispose: () => {} };
   const look = signLookOf(level.region);

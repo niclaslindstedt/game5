@@ -81,6 +81,7 @@ import { bulgeAt, hasNets, netDents, type NetDent } from "./net-bulge.ts";
 import { createPisteLights } from "./piste-lights.ts";
 import { streetLampMasts } from "./street-furniture-build.ts";
 import { createVillageStreets } from "./streets-view.ts";
+import { createBikeTrails } from "./bike-trails-view.ts";
 import { InstanceReach } from "./instance-reach.ts";
 import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
 import { createWater, type WaterView } from "./water-view.ts";
@@ -769,6 +770,9 @@ export function createGates(
   // the masts'.
   const streets = createVillageStreets(level, haze);
   if (streets) group.add(streets.group);
+  // A SUMMER BIKE PARK's trails over the engine's own surface (R44, R45).
+  const bike = createBikeTrails(level, haze);
+  if (bike) group.add(bike.group);
   const lights = createPisteLights(level, haze, [
     ...streetLampMasts(level),
     ...skiJumpMasts(level),
@@ -909,6 +913,7 @@ export function createGates(
       challenges?.dispose();
       lights.dispose();
       streets?.dispose();
+      bike?.dispose();
       guns?.dispose();
       water?.dispose();
       slalomPoles?.dispose();

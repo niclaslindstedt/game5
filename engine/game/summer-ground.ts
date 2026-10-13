@@ -22,6 +22,7 @@ import { noiseField, sampleNoise } from "@niclaslindstedt/oss-game-framework/cor
 import type { Level } from "../mapgen/types.ts";
 import { regionOf } from "../mapgen/regions.ts";
 import { inWater } from "../mapgen/real-water.ts";
+import { bikeTreadAt } from "../mapgen/bike-park-query.ts";
 import { onStreet } from "./village.ts";
 import { treesNear } from "./upright-grid.ts";
 import { hashOf } from "./rocks.ts";
@@ -104,6 +105,10 @@ const scratch: number[] = [];
 export function summerGroundAt(level: Level, x: number, z: number): SummerKind {
   if (inWater(level.water, x, z)) return "water";
   if (level.resort && onStreet(level, x, z)) return "street";
+  if (level.bikePark) {
+    const tread = bikeTreadAt(level, x, z);
+    if (tread) return tread === "shoulder" ? "dirt" : tread;
+  }
   const f = summerFieldOf(level);
   if (summerShareAt(f, "a", 2, x, z) > 0.5) return "road";
   if (summerShareAt(f, "a", 0, x, z) > 0.5) return "snow";
@@ -218,6 +223,15 @@ function bake(level: Level): SummerField {
       if (run.kind === "road") {
         stampDisc(a, cols, rows, cell, 2, p.x, p.z, Math.min(p.width, G.road) / 2);
       }
+    }
+  }
+  // A BIKE PARK's trails (R44, R45) are bare tread: stamped as a track so
+  // no grass grows on them or their inner shoulders (the trails are drawn
+  // over it by the renderer at their own width).
+  for (const t of level.bikePark?.trails ?? []) {
+    for (let k = 0; k < t.points.length; k += 2) {
+      const p = t.points[k];
+      stampDisc(a, cols, rows, cell, 2, p.x, p.z, p.width / 2 + 1.5);
     }
   }
   const pisted = runs.some((r) => r.kind === "piste");

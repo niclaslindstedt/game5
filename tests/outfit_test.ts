@@ -52,7 +52,9 @@ describe("the gear", () => {
       expect(new Set(list.map((g) => g.id)).size).toBe(list.length);
       expect(new Set(list.map((g) => g.name)).size).toBe(list.length);
     }
-    expect(BODIES.map((b) => b.female)).toEqual([false, true]);
+    // A man and a woman cut on the loom, and the modelled racer beside them.
+    expect(BODIES.filter((b) => !b.model).map((b) => b.female)).toEqual([false, true]);
+    expect(BODIES.filter((b) => b.model).map((b) => b.id)).toEqual(["racer"]);
   });
 
   it("dresses each rival in his slot's colour, so his dot is his jacket", () => {

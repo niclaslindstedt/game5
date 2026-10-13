@@ -178,6 +178,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "`make blender KIND=skier` still models one suit, the labs' comparison (`make gear`)",
   },
   {
+    asset: "Speed-suit racer",
+    ids: ["racer"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
+    drawnBy: "pwa/src/game/racer-model.ts",
+    blender: {
+      builder: "scripts/blender/racer.py",
+      files: ["racer.glb"],
+      pattern: "racer.glb",
+      switch: "VITE_MODEL_RACER",
+    },
+    note:
+      "the DRESS card's RACER body: a printed one-piece race suit over a back protector, the bib, " +
+      "shin, arm and hand guards and a slalom helmet, skinned on the code's own skeleton; the bib " +
+      "streams and flutters and the suit ripples in the air in the shader (`graftWind`); switched " +
+      "off, the RACER is the code's dressed skier",
+  },
+  {
     asset: "Trees",
     ids: [...TREE_KINDS],
     source: "code",

@@ -499,6 +499,10 @@ export type TrickState = {
   spinGoal: number;
   flipDone: number;
   spinDone: number;
+  /** THE LOOP'S OWN RATE, rad/s, back positive: what the held lean has
+   * gathered and the let-go loop is shedding (`strokes.ts`), kept apart
+   * from the body's `wx` so the air's own hand never eats into it. */
+  flipSpeed: number;
   /** Whether the lean and the edge are still held across their gates from
    * a stroke they bought — the throw's, not the air control's, until let
    * go (`strokes.ts`'s `poseInput`). */

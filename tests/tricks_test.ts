@@ -21,6 +21,7 @@ import {
   analyzeLevel,
   botInput,
   createGame,
+  flipLean,
   generateLevel,
   landingGrade,
   lengthPointsPerMetre,
@@ -63,11 +64,15 @@ function staged(
 }
 
 /** Ride `seconds` with the controls `at(t)` asks for; every event kept. */
-function ride(state: GameState, seconds: number, at: (t: number) => Partial<SkierInput>) {
+function ride(
+  state: GameState,
+  seconds: number,
+  at: (t: number, state: GameState) => Partial<SkierInput>,
+) {
   const events: GameEvent[] = [];
   const steps = Math.round(seconds * TUNING.physicsHz);
   for (let i = 0; i < steps; i++) {
-    step(state, { ...NEUTRAL_INPUT, tuck: 1, ...at(i * TUNING.dt) });
+    step(state, { ...NEUTRAL_INPUT, tuck: 1, ...at(i * TUNING.dt, state) });
     events.push(...state.events);
   }
   return events;
@@ -75,7 +80,8 @@ function ride(state: GameState, seconds: number, at: (t: number) => Partial<Skie
 
 const tricksOf = (events: GameEvent[]): string[] =>
   events.flatMap((e) => (e.kind === "trick" ? [e.trick] : []));
-const BACKFLIP = (t: number): Partial<SkierInput> => ({ lean: t < 1.2 ? 1 : 0 });
+/** A loop held and let go in time to come round onto the skis. */
+const BACKFLIP = (_t: number, s: GameState): Partial<SkierInput> => ({ lean: flipLean(s, 1, 1) });
 
 /** The terrain park (R20) is laid on a map of ONE piste — the generator
  * the six trick maps stand on (`trick-maps.ts`); a resort (R25) lays none. */
@@ -124,13 +130,39 @@ describe("a staged backflip", () => {
     expect(state.tricks.flipGoal).toBe(0);
   });
 
-  it("is one whole turn a tap, to a double at the most", () => {
-    const state = staged();
-    const tap = (t: number): Partial<SkierInput> => ({
-      lean: Math.floor(t / 0.05) % 2 === 0 ? 1 : 0,
+  it("is held, not tapped: a tap tips him, and the lean held goes on round past his feet", () => {
+    const tapped = staged();
+    ride(tapped, 0.08, () => ({ lean: 1 }));
+    ride(tapped, 1, () => ({}));
+    expect(tapped.tricks.rotation).toBeGreaterThan(0);
+    expect(tapped.tricks.rotation).toBeLessThan(Math.PI / 2);
+    // Held on past one loop: nothing stands him up on his feet and stops.
+    const held = staged("tricks", { ...LAUNCH, height: 30, vy: 6 });
+    ride(held, 1, () => ({ lean: 1 }));
+    expect(held.tricks.rotation).toBeGreaterThan(2 * Math.PI + 0.5);
+    expect(-held.skier.wx).toBeGreaterThan(TUNING.tricks.flipRate * 0.9);
+  });
+
+  it("is let go of before a flight's most, and stops near it", () => {
+    const state = staged("tricks", { ...LAUNCH, height: 40, vy: 6 });
+    ride(state, 3.5, () => ({ lean: 1 }));
+    expect(state.tricks.rotation).toBeLessThan(TUNING.tricks.flipMost + 0.3);
+    expect(state.tricks.rotation).toBeGreaterThan(TUNING.tricks.flipMost - 1);
+  });
+
+  it("gathers and sheds its rate smoothly, never a snap", () => {
+    const state = staged("tricks", { ...LAUNCH, height: 30, vy: 6 });
+    const rates: number[] = [];
+    ride(state, 1.6, (t, s) => {
+      rates.push(-s.skier.wx);
+      return { lean: t < 0.7 ? 1 : 0 };
     });
-    ride(state, 0.3, tap);
-    expect(Math.abs(state.tricks.flipGoal)).toBeCloseTo(TUNING.tricks.flipMost, 6);
+    const jumps = rates.slice(1).map((r, i) => Math.abs(r - rates[i]));
+    // No step changes the rate by more than the throw's own pull allows
+    // (the lean's torque before the gate aside).
+    expect(Math.max(...jumps.slice(4))).toBeLessThan(TUNING.tricks.flipAccel * 1.5 * TUNING.dt);
+    // ...and let go, the loop dies away to the air's control.
+    expect(Math.abs(rates[rates.length - 1])).toBeLessThan(1);
   });
 });
 
@@ -153,11 +185,11 @@ describe("a free ride's flight that was never meant", () => {
   });
 
   it("throws a loop on the lean in a BIG one, off a crest or a drop he never jumped", () => {
-    // Off the crest: the lean thrown once he is up is a backflip, not the
+    // Off the crest: the lean held once he is up is a backflip, not the
     // lean's slow topple.
     const crest = staged("free", LAUNCH, LANDING);
     const lean = (state: GameState) => (): Partial<SkierInput> => ({
-      lean: state.skier.airborne && state.skier.airTime > 0.25 ? 1 : 0,
+      lean: state.skier.airborne && state.skier.airTime > 0.25 ? flipLean(state, 1, 1) : 0,
     });
     const events = ride(crest, 3, lean(crest));
     expect(events.some((e) => e.kind === "wipeout")).toBe(false);
@@ -166,17 +198,16 @@ describe("a free ride's flight that was never meant", () => {
     // Off a drop: 14 m over the snow and not climbing at all.
     const drop = staged("free", { ...ROLLING, height: 14, vy: 0 });
     const rates: number[] = [];
-    for (let i = 0; i < 1.2 * TUNING.physicsHz; i++) {
+    for (let i = 0; i < 1.6 * TUNING.physicsHz; i++) {
       step(drop, { ...NEUTRAL_INPUT, tuck: 1, ...lean(drop)() });
       rates.push(-drop.skier.wx);
     }
-    // One loop turned, a tad over half a second at its cruise, and stopped.
+    // One loop turned, held and let go to come round, in about a second.
     const turned = rates.reduce((a, r) => a + r * TUNING.dt, 0);
-    // (The lean's own torque has tipped him a little before the gate.)
-    expect(turned).toBeGreaterThan(2 * Math.PI - 0.05);
-    expect(turned).toBeLessThan(2 * Math.PI + 0.4);
-    expect(rates.filter((r) => r > 1).length * TUNING.dt).toBeLessThan(0.7);
-    expect(Math.max(...rates)).toBeGreaterThan(TUNING.tricks.flipRate * 0.9);
+    expect(turned).toBeGreaterThan(2 * Math.PI - 0.3);
+    expect(turned).toBeLessThan(2 * Math.PI + 0.3);
+    expect(rates.filter((r) => r > 1).length * TUNING.dt).toBeLessThan(1.4);
+    expect(Math.max(...rates)).toBeGreaterThan(TUNING.tricks.flipRate * 0.8);
   });
 
   it("throws a snowboarder's loop the same way, back and forward", () => {
@@ -191,12 +222,13 @@ describe("a free ride's flight that was never meant", () => {
       });
       placeRun(board, { ...ROLLING, height: 14, vy: 0 });
       let turned = 0;
-      for (let i = 0; i < 1.2 * TUNING.physicsHz; i++) {
-        step(board, { ...NEUTRAL_INPUT, lean: board.skier.airTime > 0.25 ? lean : 0 });
+      for (let i = 0; i < 1.6 * TUNING.physicsHz; i++) {
+        const held = board.skier.airTime > 0.25 ? flipLean(board, 1, lean) : 0;
+        step(board, { ...NEUTRAL_INPUT, lean: held });
         turned -= board.skier.wx * TUNING.dt;
       }
       expect(board.skier.board).toBeTruthy();
-      expect(Math.abs(turned)).toBeGreaterThan(2 * Math.PI - 0.05);
+      expect(Math.abs(turned)).toBeGreaterThan(2 * Math.PI - 0.3);
       expect(Math.sign(turned)).toBe(lean);
     }
   });
@@ -252,8 +284,15 @@ describe("a stroke is a throw, not a snap", () => {
     expect(state.skier.way).toBeLessThan(-5);
   });
 
-  it("held, it is still one stroke; tapped twice, a 360", () => {
-    expect(spun(1.2, () => ({ steer: 1 })).yaw).toBeCloseTo(Math.PI, 1);
+  it("held, it keeps on spinning and settles square once let go; tapped twice, a 360", () => {
+    const held = spun(1.6, (t) => ({ steer: t < 0.7 ? 1 : 0 }));
+    expect(held.yaw).toBeGreaterThan(1.5 * Math.PI);
+    expect(held.yaw / Math.PI).toBeCloseTo(Math.round(held.yaw / Math.PI), 1);
+    expect(held.rates[held.rates.length - 1]).toBe(0);
+    // ...the edge pushed only just across its gate spins him slower.
+    const soft = spun(0.5, () => ({ steer: 0.62 }));
+    const hard = spun(0.5, () => ({ steer: 1 }));
+    expect(soft.yaw).toBeLessThan(hard.yaw * 0.8);
     const twice = spun(1.2, (t) => ({ steer: t < 0.05 || (t > 0.1 && t < 0.15) ? 1 : 0 }));
     expect(twice.yaw).toBeCloseTo(2 * Math.PI, 1);
   });
@@ -267,8 +306,8 @@ describe("a stroke is a throw, not a snap", () => {
 describe("the other elements", () => {
   it("a front flip: the lean forward", () => {
     const state = staged();
-    const events = ride(state, 4, (t) => ({
-      lean: t < 1.2 ? -1 : 0,
+    const events = ride(state, 4, (_t, s) => ({
+      lean: flipLean(s, 1, -1),
       tuck: 0,
     }));
     expect(tricksOf(events)).toContain("frontflip");

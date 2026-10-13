@@ -250,7 +250,7 @@ function ski(move) {
   // Every other step: the page steps his legs' spring at 60 Hz through it.
   for (let i = 0; i < steps; i++) {
     const t = state.t - t0;
-    E.step(state, move.input(t, state));
+    E.step(state, move.input(t, state, E));
     if (i % 2 === 1) frames.push({ ...frameOf(state), t: state.t - t0 });
   }
   const [from, to] = move.window;

@@ -10,26 +10,29 @@
 # right, y up, z forward) laid as Blender's (-x, z, y), so the glTF's frame
 # is the body frame turned half round about y.
 #
-# WHAT A TECHNICAL RACER WEARS, after the start lists' photographs (a
-# slalom's finish area seen side-on and from behind) and the federation's
-# equipment rules:
+# WHAT A SPEED RACER WEARS, after a national team's current race suit seen
+# from the front, the side and behind (local reference photographs, never
+# committed) and the federation's equipment rules:
 #
-#   * a ONE-PIECE SUIT, skin tight, printed in a team's panels: the trunk
-#     and the shoulders in the team's red, the forearms and the legs white,
-#     a red sweep down the outside of each thigh and a dark side panel down
-#     each flank, the knees and shins padded under darker panels;
+#   * a ONE-PIECE SUIT, skin tight, sublimated in the team's colours: a deep
+#     wine red all over, broken by a CAMOUFLAGE OF TORN SHARDS in brighter
+#     reds — angular fragments laid over one another, thickest on the chest,
+#     the hips and the thighs — a WHITE PANEL down the outside of each upper
+#     arm from the shoulder seam to just past the elbow, a brighter red band
+#     round each knee over its padding, a short ZIP down the chest in a dark
+#     placket, a dark stand collar, a few white marks on the thigh, the shin
+#     and the arm where the sponsors' would be (plain bars — no lettering);
 #   * a BACK PROTECTOR under it, the hard plate from the shoulder blades
 #     to the small of the back the speed events require, lifting the suit
 #     in a long low hump;
-#   * the BIB over it, a yellow tabard open at the sides, its number big on
-#     the chest and the back under a dark band;
-#   * SHIN GUARDS, a hard black shell down the front of each shin from
-#     under the knee over the boot's cuff, its rim piped in yellow, two
-#     straps round the calf; ARM GUARDS, low hard pads down the outside of
-#     each forearm; HAND GUARDS, the red shields the slalom pole carries in
-#     front of each fist;
-#   * a SLALOM HELMET, gloss red, with its CHIN GUARD, and mirrored goggles;
-#     race gloves.
+#   * the BIB over it, a white tabard open at the sides, its number big on
+#     the chest and the back under a red band;
+#   * a SPEED HELMET, gloss red with a white band over its crown (no chin
+#     guard: that is the slalom's), gold-mirrored goggles on a white strap;
+#     race gloves, red with a white knuckle shell.
+#
+# No shin, arm or hand guards: those are the slalom's, and a speed racer
+# goes without them.
 #
 # How the game wears him (`racer-model.ts`): his geometry, his materials and
 # their baked maps are this file's; his SKIN WEIGHTS are re-cut in the game
@@ -61,23 +64,23 @@ def colour(hexa):
     return tuple(((c / 255 + 0.055) / 1.055) ** 2.4 for c in ((hexa >> 16) & 255, (hexa >> 8) & 255, hexa & 255))
 
 
-# THE TEAM'S COLOURS (sRGB): its red, the suit's white, the dark of the side
-# panels and the guards, the bib's yellow.
-RED, WHITE, DARK, YELLOW = 0xD3141E, 0xF2F3F5, 0x15171C, 0xF3D51C
+# THE TEAM'S COLOURS (sRGB): the suit's wine red and the reds of its shards,
+# the white of its arm panels, the bib and the helmet's band, the darks of
+# the collar and the zip's placket and of the gloves' palms.
+WINE, MID, BRIGHT, FLARE = 0x6E1020, 0x8E1726, 0xB3202C, 0xCC3338
+RED, WHITE, DARK, MAROON, GOLD = 0xB81A24, 0xF2F3F5, 0x15171C, 0x4A0C14, 0xE8A53A
 
 # ---------------------------------------------------------------- materials
 SUIT = mat("suit", (1, 1, 1), rough=0.34)
 BIB = mat("bib", (1, 1, 1), rough=0.7)
-GUARD = mat("guard", colour(0x0E0F12), rough=0.22, coat=1.0)
-EDGE = mat("guard_edge", colour(YELLOW), rough=0.4)
-SHIELD = mat("shield", colour(RED), rough=0.25, coat=1.0)
 STRAP = mat("strap", colour(0x101114), rough=0.7)
 GLOVE = mat("glove", colour(0xB5121B), rough=0.55)
+KNUCKLE = mat("knuckle", colour(WHITE), rough=0.3, coat=0.8)
 PALM = mat("palm", colour(0x1A1B1F), rough=0.8)
 HELMET = mat("helmet", colour(RED), rough=0.18, coat=1.0)
 PEAK = mat("peak", colour(WHITE), rough=0.22, coat=1.0)
-CHIN = mat("chin", colour(0x121316), rough=0.3, coat=0.6)
-LENS = mat("lens", colour(0x3FA9F5), metal=0.75, rough=0.06)
+BAND = mat("goggle_band", colour(WHITE), rough=0.6)
+LENS = mat("lens", colour(GOLD), metal=0.8, rough=0.06)
 LINER = mat("liner", colour(0x2B2E34), rough=0.85)
 SKIN = mat("skin", colour(0xC68863), rough=0.6)
 
@@ -316,7 +319,10 @@ for i, s in enumerate("lr"):
         (-0.05, lt + l, lt + l, lt + l),
         (0.3, ca * 0.88 + l, ca * 0.78 + l, ca * 1.12 + l),
         (0.55, ca * 0.8 + l, ca * 0.74 + l, ca * 0.92 + l),
-        (0.68, an * 1.15 + l, an * 1.1 + l, an * 1.15 + l)]))
+        (0.72, an * 1.18 + l, an * 1.12 + l, an * 1.2 + l),
+        # Down into the boot's shaft: no guard over it now, so the suit
+        # runs on until the shell hides its hem.
+        (0.94, an * 1.05 + l, an * 1.02 + l, an * 1.08 + l)]))
     pieces.append(ellipsoid("knee", knees[i], (lt + l + 0.003,) * 3, SUIT))
 
 bpy.context.view_layer.objects.active = pieces[0]
@@ -333,7 +339,7 @@ smooth.factor, smooth.iterations = 0.6, 3 if GAME else 4
 bpy.ops.object.convert(target="MESH")
 if GAME:
     thin = suit.modifiers.new("budget", "DECIMATE")
-    thin.ratio = 3600 / max(1, len(suit.data.polygons) * 2)
+    thin.ratio = 5200 / max(1, len(suit.data.polygons) * 2)
     bpy.ops.object.convert(target="MESH")
 for p in suit.data.polygons:
     p.use_smooth = True
@@ -352,8 +358,8 @@ def trunk_at(t):
     return [a[j] + (b[j] - a[j]) * k for j in range(4)]
 
 
-BIB_ROWS = (0.1, 0.2, 0.32, 0.44, 0.56, 0.66, 0.74, 0.8, 0.85, 0.88)
-BIB_COLS = 9 if GAME else 17
+BIB_ROWS = (0.1, 0.16, 0.22, 0.28, 0.35, 0.42, 0.49, 0.56, 0.62, 0.68, 0.74, 0.8, 0.85, 0.88)
+BIB_COLS = 13 if GAME else 21
 BIB_OFF = 0.013
 
 
@@ -463,7 +469,7 @@ weights(bib, bib_weights)
 # ---------------------------------------------------------------- the HELMET
 rides("head")
 hc, hx, hy, hz, _ = frame("head")
-PAINT = {"shell": HELMET, "stripe": PEAK, "frame": PEAK, "band": CHIN, "trim": STRAP, "strap": STRAP,
+PAINT = {"shell": HELMET, "stripe": PEAK, "frame": STRAP, "band": BAND, "trim": STRAP, "strap": STRAP,
          "foam": STRAP, "liner": LINER, "knit": LINER, "lens": LENS, "skin": SKIN}
 
 
@@ -485,7 +491,7 @@ lens_tex.image = ramp
 lens_mix = lens_nt.nodes.new("ShaderNodeMix")
 lens_mix.data_type, lens_mix.blend_type = "RGBA", "MULTIPLY"
 lens_mix.inputs["Factor"].default_value = 1.0
-lens_mix.inputs[7].default_value = (*colour(0x3FA9F5), 1.0)
+lens_mix.inputs[7].default_value = (*colour(GOLD), 1.0)
 lens_nt.links.new(lens_tex.outputs["Color"], lens_mix.inputs[6])
 lens_nt.links.new(lens_mix.outputs[2], lens_nt.nodes.get("Principled BSDF").inputs["Base Color"])
 
@@ -503,71 +509,15 @@ for part in HELM["game" if GAME else "fine"]:
             k = loop.vertex_index
             layer.data[loop.index].uv = (uv[k * 2], uv[k * 2 + 1])
 
-# THE CHIN GUARD: a bar from ear cover to ear cover round the chin (the
-# path the code's slalom helmet draws, `dress-head.ts`), on two struts.
-chin = [head_point(p) for p in ((-0.106, -0.062, 0.0), (-0.09, -0.09, 0.06), (-0.05, -0.112, 0.112),
-                                (0, -0.12, 0.132), (0.05, -0.112, 0.112), (0.09, -0.09, 0.06),
-                                (0.106, -0.062, 0.0))]
-tube("chin_guard", chin, 0.017, CHIN, smooth_n=0 if GAME else 2)
-for sx in (-1, 1):
-    ellipsoid("chin_hinge", head_point((0.106 * sx, -0.062, 0.0)), (0.022, 0.026, 0.026), CHIN)
+# A SPEED HELMET has no chin guard: its shell runs down over the ears and
+# the jaw is open, as the code's race helmet draws it (`helmet-shape.ts`).
 
 
-# ---------------------------------------------------------------- the GUARDS
-def shell(name, bone_name, t0, t1, rows, half_angle, radius, standoff, m, face=1.0, flare=0.0):
-    """A HARD SHELL down a bone: an open arc round its front (`face` +1 its
-    +z, −1 its back) from `t0` to `t1` along it, `radius(t)` m off its line
-    plus `standoff`, flared outward `flare` m at both ends; solidified. Its
-    rim's every row returned for the piping."""
-    head, x, y, z, length = frame(bone_name)
-    cols = 9 if GAME else 17
-    rings = []
-    for r in range(rows):
-        u = r / (rows - 1)
-        t = t0 + (t1 - t0) * u
-        c = head + y * (t * length)
-        rr = radius(t) + standoff + flare * (max(0.0, 1 - u * 6) + max(0.0, u * 6 - 5))
-        ring = []
-        for k in range(cols):
-            a = math.pi / 2 + (k / (cols - 1) - 0.5) * 2 * half_angle
-            ring.append(c + x * (math.cos(a) * rr) + z * (math.sin(a) * rr * face))
-        rings.append(ring)
-    ob = loft(name, rings, [m], closed=False, cap=False)
-    sd = ob.modifiers.new("shell", "SOLIDIFY")
-    sd.thickness, sd.offset = 0.004, 1.0
-    return ob, rings
-
-
+# ---------------------------------------------------------------- the HANDS
 for i, s in enumerate("lr"):
-    # SHIN GUARDS: from a hand under the knee down over the boot's cuff.
-    rides(f"shin_{s}")
-    _, _, _, _, sl = frame(f"shin_{s}")
-    ca, lt = r_of(ANSUR["calf"]), r_of(ANSUR["lower_thigh"])
-    calf = lambda t: (lt * (1 - t) + ca * 0.82 * t) if t < 0.5 else ca * 0.78
-    _, rim = shell("shin_guard", f"shin_{s}", 0.1, 0.98, 9, math.radians(72), calf, 0.018, GUARD, flare=0.008)
-    # Its rim piped in yellow: up both edges and across the top.
-    tube("shin_edge", [rw[0] for rw in rim], 0.0042, EDGE)
-    tube("shin_edge", [rw[-1] for rw in rim], 0.0042, EDGE)
-    tube("shin_edge", rim[-1], 0.0042, EDGE)
-    tube("shin_edge", rim[0], 0.005, EDGE)
-    # Two straps round the calf behind.
-    h_, x_, y_, z_, _ = frame(f"shin_{s}")
-    for t in (0.3, 0.62):
-        c = h_ + y_ * (t * sl)
-        r = calf(t) + 0.012
-        ring = [c + x_ * (math.cos(a) * r) + z_ * (math.sin(a) * r)
-                for a in (math.pi + math.pi * k / 10 for k in range(11))]
-        tube("shin_strap", ring, 0.008, STRAP)
-    # ARM GUARDS: low pads down the outside of each forearm.
-    rides(f"forearm_lo_{s}")
-    _, fx, _, _, fl = frame(f"forearm_{s}")
-    fr = r_of(ANSUR["forearm"]) * 0.93
-    out_ = fx if fx.dot(shoulders[i] - neck) > 0 else -fx
-    arm_face = 1.0
-    shell("arm_guard", f"forearm_{s}", 0.52, 0.8, 5, math.radians(60),
-          lambda t: fr * (1 - 0.25 * (t - 0.52) / 0.28), 0.008, GUARD, face=arm_face)
-    # THE HAND: a race glove closed round the grip, and the pole's HAND
-    # GUARD — a red shield bowed in front of the knuckles.
+    # THE GLOVE: a race glove closed round the grip, its gauntlet over the
+    # suit's cuff, a hard white shell over the knuckles and the back of
+    # the hand (the speed racer's guard against a gate or the snow).
     rides(f"forearm_lo_{s}")
     ee, fx_, fy_, fz_, fl_ = frame(f"forearm_{s}")
     wrist_t = ANSUR["forearm_length"] * MM / fl_
@@ -584,19 +534,17 @@ for i, s in enumerate("lr"):
         tube("finger", arc, 0.009 - 0.0008 * k, PALM if k else GLOVE, smooth_n=0 if GAME else 2)
     tube("thumb", [c - hy_ * 0.03 - outh * 0.018 + hz_ * 0.03, c - outh * 0.02 + hz_ * 0.046,
                    c + hy_ * 0.02 - outh * 0.012 + hz_ * 0.048], 0.0105, GLOVE, smooth_n=0 if GAME else 2)
-    # The guard: a bowed plate ahead of the fist (the way +y of the hand
-    # faces — the forearm's line, squared to the shaft), round the knuckles
-    # from the shaft's top to the little finger.
+    # The knuckle shell: a low white plate bowed over the back of the fist.
     rows = []
-    for v in (-0.055, -0.02, 0.015, 0.05):
+    for v in (-0.04, -0.012, 0.016, 0.04):
         row = []
-        for u in (-0.95, -0.5, 0.0, 0.5, 0.95):
-            bow = 0.062 - 0.012 * u * u
-            row.append(c + hz_ * (v * 0.95 - 0.004) + hy_ * (bow * math.cos(u * 0.9)) + outh * (bow * math.sin(u * 0.9) + 0.01))
+        for u in (-0.9, -0.45, 0.0, 0.45, 0.9):
+            row.append(c + hz_ * (v - 0.004) + outh * (0.03 + 0.008 * math.cos(u * 1.4))
+                       + hy_ * (0.022 * u - 0.004))
         rows.append(row)
-    g_ = loft("hand_guard", rows, [SHIELD], closed=False, cap=False)
-    sd = g_.modifiers.new("shell", "SOLIDIFY")
-    sd.thickness, sd.offset = 0.004, 0.0
+    k_ = loft("knuckle", rows, [KNUCKLE], closed=False, cap=False)
+    sd = k_.modifiers.new("shell", "SOLIDIFY")
+    sd.thickness, sd.offset = 0.004, 1.0
 
     # THE FOOT IN THE BOOT'S LINER (`skier.py`'s): hidden in the shell on
     # the skis, his own when a crash throws him off them.
@@ -631,7 +579,8 @@ import racer_print  # noqa: E402
 
 racer_print.paint(suit, bib, SUIT, BIB, dict(
     GAME=GAME, frame=frame, knees=knees, hips=hips, neck=neck, shoulders=shoulders, elbows=elbows,
-    colours=dict(red=colour(RED), white=colour(WHITE), dark=colour(DARK), yellow=colour(YELLOW)),
+    colours=dict(wine=colour(WINE), mid=colour(MID), bright=colour(BRIGHT), flare=colour(FLARE), red=colour(RED),
+                 white=colour(WHITE), dark=colour(DARK), maroon=colour(MAROON)),
     COL=COL))
 
 # ---------------------------------------------------------------- the CLIPS

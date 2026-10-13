@@ -190,9 +190,10 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       switch: "VITE_MODEL_RACER",
     },
     note:
-      "the DRESS card's RACER body: a printed one-piece race suit over a back protector, the bib, " +
-      "shin, arm and hand guards and a slalom helmet, skinned on the code's own skeleton; the bib " +
-      "streams and flutters and the suit ripples in the air in the shader (`graftWind`); switched " +
+      "the DRESS card's RACER body: a speed racer's printed one-piece suit over a back protector, the " +
+      "bib, race gloves and a speed helmet, skinned on the code's own skeleton; the bib streams and " +
+      "flutters, the suit's slack shakes, ripples run down its lee side and its folds crease in the " +
+      "shader (`graftWind`); switched " +
       "off, the RACER is the code's dressed skier",
   },
   {

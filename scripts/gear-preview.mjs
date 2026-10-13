@@ -48,7 +48,18 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".gear-preview");
 const outDir = join(root, "previews");
-const SHEETS = ["catalog", "outfits", "poses", "game", "wire", "compare", "hands", "boots", "refs"];
+const SHEETS = [
+  "catalog",
+  "outfits",
+  "poses",
+  "game",
+  "wire",
+  "compare",
+  "hands",
+  "boots",
+  "wind",
+  "refs",
+];
 const SLOTS = ["body", "weight", "jacket", "pants", "helmet", "gloves", "poles"];
 
 const args = parseArgs(
@@ -57,7 +68,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: `the sheets (${SHEETS.join(", ")}), comma-separated; every one but refs when left out`,
+      help: `the sheets (${SHEETS.join(", ")}), comma-separated; every one but refs and wind when left out`,
     },
     slots: {
       kind: "string",
@@ -87,12 +98,15 @@ const args = parseArgs(
     },
     cell: { kind: "number", default: 300, help: "a cell's width, px" },
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
+    bare: { kind: "flag", help: "the wind sheet's racer alone, his skis and poles hidden" },
     timeout: { kind: "number", default: 180, help: "seconds a sheet may take" },
   },
   "usage: node scripts/gear-preview.mjs [--sheet=catalog,outfits,poses,game,wire,compare,hands,boots,refs] [--pairs=chamois,swift] [--slots=jacket] [--outfits=0,1] [--model=a.glb] [--refs=DIR]",
 );
 
-const sheets = args.sheet ? args.sheet.split(",") : SHEETS.filter((s) => s !== "refs");
+const sheets = args.sheet
+  ? args.sheet.split(",")
+  : SHEETS.filter((s) => s !== "refs" && s !== "wind");
 const bad = sheets.find((s) => !SHEETS.includes(s));
 if (bad) {
   console.error(`unknown sheet "${bad}" (${SHEETS.join(", ")})`);
@@ -187,6 +201,7 @@ for (const sheet of sheets) {
     skis: args.skis,
     pairs: args.pairs,
     cell: String(args.cell),
+    ...(args.bare ? { bare: "1" } : {}),
   }).toString();
   const t0 = Date.now();
   await page.goto(`${server.url}gear-preview.html?${query}`);

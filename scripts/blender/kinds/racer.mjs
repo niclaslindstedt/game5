@@ -5,7 +5,7 @@
 // game's own pose (`skier-rig.ts`) — the skier kind's data — and the
 // break lengths the arms' lower bones take over at (`skier-broken.ts`),
 // so the model's skin is weighted as the game's own dress is. His kit is
-// his own (a printed one-piece suit, the bib, the guards), so no slot's
+// his own (a printed one-piece suit, the bib, the gloves), so no slot's
 // colours are handed in: the colours are the builder's.
 export const kind = {
   ids: async () => ["racer"],
@@ -31,5 +31,5 @@ export const kind = {
   },
   builder: "racer.py",
   fallback: "racer",
-  help: "racer, the speed-suit racer in his printed suit, bib and guards",
+  help: "racer, the speed racer in his printed suit, bib and speed helmet",
 };

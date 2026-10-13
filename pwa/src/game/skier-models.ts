@@ -45,6 +45,7 @@ import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
 import { loadRacer } from "./racer-model.ts";
+export { setRacerClock } from "./racer-model.ts";
 import type { Stand } from "./ski-stand.ts";
 
 /** The build's environment — Vite's, where this runs in the app; none

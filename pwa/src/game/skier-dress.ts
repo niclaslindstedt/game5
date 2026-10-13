@@ -171,8 +171,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     return m;
   });
   if (wind) {
-    const chest = bones[SKIER_BONES.indexOf("chest")];
-    meshes[0].onBeforeRender = () => wind.update(group, chest, performance.now());
+    meshes[0].onBeforeRender = () => wind.update(group, bones);
   }
   const clothGeo = racer
     ? geos[

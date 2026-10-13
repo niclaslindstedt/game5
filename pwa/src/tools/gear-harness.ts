@@ -24,6 +24,10 @@
 //   compare   the dressed figure and every model asked for, a row each, in
 //             the same kit through the same moves, with each one's
 //             triangles and what it costs to make
+//   wind      the modelled RACER in the air: tucked at 0, 40, 80 and 120
+//             km/h of airflow held from ahead, the creases of his folds
+//             through the moves, and a filmstrip of his back at 100 km/h
+//             over half a second of the wind's clock
 //   refs      the local REFERENCE photographs the driver was pointed at
 //             (`--refs`, never committed), a row a slot, beside that slot's
 //             pieces as drawn — real gear and ours side by side
@@ -44,6 +48,7 @@ import {
 } from "../game/outfit.ts";
 import { dressOf } from "../game/skier-models.ts";
 import { loadModels } from "../game/skier-models.ts";
+import { holdRacerAir, setRacerClock } from "../game/racer-model.ts";
 import { skierPose, type SkierPoseInput } from "../game/skier-pose.ts";
 import { rigSkier } from "../game/skier-rig.ts";
 import { createSkier } from "../game/skier-figure.ts";
@@ -661,6 +666,61 @@ function drawRefs(): Drawn {
   return { rows, cols: maxPhotos + maxPieces, note: "refs", table: [] };
 }
 
+/** THE RACER IN THE AIR: the wind sheet. */
+function drawWind(): Drawn {
+  const subject = figureSubject({ outfit: { ...DEFAULT_OUTFIT, body: "racer" } }, "racer");
+  const tuck = MOMENTS.find((m) => m.name === "tuck")!;
+  const views = [...BODY_VIEWS, CLOSE.jacket!, CLOSE.pants!];
+  type Row = { label: string; moment: Moment; kmh: number; times?: number[] };
+  const film = [0, 0.1, 0.2, 0.3, 0.4, 0.5];
+  const rowsOf: Row[] = [
+    { label: "stood · still air", moment: MOMENTS[0], kmh: 0 },
+    ...[40, 80, 120].map((kmh) => ({ label: `tuck · ${kmh} km/h`, moment: tuck, kmh })),
+    ...MOMENTS.slice(1, 7)
+      .filter((m) => m.name !== "tuck")
+      .map((m) => ({ label: `${m.name} · 70 km/h`, moment: m, kmh: 70 })),
+    { label: "tuck · 100 km/h · back", moment: tuck, kmh: 100, times: film },
+    { label: "carve right · 100 km/h · legs", moment: MOMENTS[2], kmh: 100, times: film },
+  ];
+  const cols = Math.max(views.length, film.length);
+  const rows = rowsOf.length;
+  const w = cell;
+  const h = Math.round(cell * 1.15);
+  const top = layout(rows, cols, w, h);
+  label(
+    "wind — the modelled racer in the air: tucked by speed, the moves' creases, two filmstrips",
+    0,
+    0,
+    true,
+  );
+  rowsOf.forEach((r, row) => {
+    subject.pose(r.moment);
+    only(subject.root);
+    holdRacerAir(new THREE.Vector3(0, 0, -r.kmh / 3.6));
+    const cells = r.times
+      ? r.times.map((t) => ({ t, v: r.label.endsWith("legs") ? CLOSE.pants! : CLOSE.jacket! }))
+      : views.map((v) => ({ t: 1.234 + row * 0.01, v }));
+    cells.forEach(({ t, v }, col) => {
+      setRacerClock(t);
+      // `?bare=1`: the racer alone, his skis and poles hidden.
+      if (params.get("bare")) {
+        subject.root.traverse((o) => {
+          if (o instanceof THREE.Mesh) o.visible = o.name.startsWith("racer-");
+        });
+      }
+      cellAt(col, row, rows, w, h);
+      renderer.render(scene, aim(subject.root, v, w, h));
+      label(
+        col === 0 ? `${r.label} · ${v.name}` : r.times ? `+${t.toFixed(1)} s` : v.name,
+        col * w,
+        top + row * h,
+      );
+    });
+  });
+  holdRacerAir(null);
+  return { rows, cols, note: "wind", table: [] };
+}
+
 async function load(): Promise<void> {
   await loadModels();
   compared = [figureSubject(dresses[0], "code · dressed")];
@@ -688,6 +748,8 @@ window.__gear = {
         return drawHands();
       case "boots":
         return drawBoots();
+      case "wind":
+        return drawWind();
       default:
         return drawCatalog();
     }

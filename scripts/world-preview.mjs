@@ -392,6 +392,11 @@ const args = parseArgs(
       default: "",
       help: "the pair he rides by its id (lynx: the snowboard); the reference skis when left out",
     },
+    body: {
+      kind: "string",
+      default: "",
+      help: "the BODY he is dressed in by its id (racer: the modelled racer); the default kit when left out",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
@@ -485,6 +490,7 @@ const query = new URLSearchParams({
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
   ...(args.skis ? { skis: args.skis } : {}),
+  ...(args.body ? { body: args.body } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),
   w: String(args.width),
@@ -542,7 +548,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
+    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.body ? `${args.body}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

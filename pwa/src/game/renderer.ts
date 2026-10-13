@@ -38,6 +38,7 @@ import {
   type Wind,
 } from "@engine";
 
+import { createBreath } from "./backdrop-hold.ts";
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
@@ -377,14 +378,13 @@ export function createWorldRenderer(
     snowfall.clear();
   }
 
-  const breathe = () => new Promise<void>((done) => setTimeout(done, 0));
   /** Loads begun: one superseded stops at its next breath, adding nothing. */
   let loads = 0;
-  /** A breath between two heavy builders; false once the load is superseded. */
+  const breathe = createBreath(() => !warmed);
+  /** A breath between two heavy builders (paced while cold); false once superseded. */
   const rest = (mine: number): Promise<boolean> => breathe().then(() => mine === loads);
   /** Whether the world standing has had its shaders compiled. */
   let warmed = true;
-
   /** The trail maps and the ground that reads them, built for the picture in
    * force. One step, because the ground's shader holds the maps' uniforms by
    * reference: new maps are a new ground. */

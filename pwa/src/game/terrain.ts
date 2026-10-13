@@ -62,10 +62,16 @@ import type { TerrainLook } from "./settings-video.ts";
 import type { TrailUniforms } from "./trail-map.ts";
 import { createTreeWells } from "./tree-wells.ts";
 import { trackFrameOf } from "./piste-tracks.ts";
+import { SUMMER_CHUNKS, type SummerTerrain } from "./summer-terrain.ts";
+import type { Grass, GrassLook } from "./summer-grass.ts";
 
 /** The grid's size, pitch and depth — a TERRAIN stop, `terrainLook` in
  * `settings-video.ts`. */
-export type TerrainOptions = TerrainLook;
+export type TerrainOptions = TerrainLook & {
+  /** A SUMMER map's ground (`summer-terrain.ts`), and its grass's reach. */
+  summer?: SummerTerrain;
+  grass?: GrassLook;
+};
 
 export type Terrain = {
   group: THREE.Group;
@@ -75,6 +81,8 @@ export type Terrain = {
    * `view-aloft.ts`), and none too fine to be seen from `over` m up
    * (`FINE_UNDER`). */
   follow(x: number, z: number, lens?: THREE.Camera, reach?: number, over?: number): void;
+  /** The run's clock, s: what a summer's grass sways to. */
+  tick(t: number): void;
   dispose(): void;
 };
 
@@ -478,7 +486,10 @@ export function createTerrain(
     uCell: { value: f.cell },
     uGridHalf: { value: options.n / 2 },
     uBaseSpacing: { value: options.spacing },
+    ...options.summer?.uniforms,
   };
+  // IN SUMMER the ground is grass, earth and rock (`summer-glsl.ts`).
+  const summer = options.summer;
   const n = options.n;
   const vertices = gridVertices(n);
   const fullIndex = new THREE.BufferAttribute(clipmapIndices(n, 0, 0), 1);
@@ -599,24 +610,34 @@ export function createTerrain(
       roughness: 0.8,
       metalness: 0,
     });
-    hazeMaterial(material, haze, cut ? "terrain-cut" : "terrain", (shader) => {
+    const name = `${cut ? "terrain-cut" : "terrain"}${summer ? "-summer" : ""}`;
+    hazeMaterial(material, haze, name, (shader) => {
       Object.assign(shader.uniforms, shared, own, trail, roomCutUniforms);
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", `#include <common>\n${SNOW_VERTEX_PARS}`)
         .replace("#include <beginnormal_vertex>", SNOW_VERTEX_PLACE)
         .replace("#include <begin_vertex>", SNOW_VERTEX_BEGIN);
-      // The snow lights itself by the lamps, glitter and all.
-      shader.fragmentShader = `#define OWN_LAMPS\n${shader.fragmentShader}`
-        .replace("#include <common>", `#include <common>\n${SNOW_FRAGMENT_PARS}\n${ROOM_CUT_PARS}`)
+      // The snow lights itself by the lamps, glitter and all; summer's
+      // ground takes them as everything else does.
+      const lamps = summer ? "" : "#define OWN_LAMPS\n";
+      const chunk = {
+        pars: SNOW_FRAGMENT_PARS + (summer ? SUMMER_CHUNKS.pars : ""),
+        sample: summer ? SUMMER_CHUNKS.sample : SNOW_FRAGMENT_SAMPLE,
+        colour: summer ? SUMMER_CHUNKS.colour : SNOW_FRAGMENT_COLOUR,
+        roughness: summer ? SUMMER_CHUNKS.roughness : SNOW_FRAGMENT_ROUGHNESS,
+        light: summer ? SUMMER_CHUNKS.light : SNOW_FRAGMENT_LIGHT,
+      };
+      shader.fragmentShader = `${lamps}${shader.fragmentShader}`
+        .replace("#include <common>", `#include <common>\n${chunk.pars}\n${ROOM_CUT_PARS}`)
         // No snow inside a room that is built (`room-cuts.ts`).
         .replace(
           "#include <clipping_planes_fragment>",
-          `#include <clipping_planes_fragment>\n${cut ? "if (inRoomCut(vSnowWorld.xz)) discard;\n" : ""}${SNOW_FRAGMENT_SAMPLE}`,
+          `#include <clipping_planes_fragment>\n${cut ? "if (inRoomCut(vSnowWorld.xz)) discard;\n" : ""}${chunk.sample}`,
         )
-        .replace("#include <color_fragment>", `#include <color_fragment>\n${SNOW_FRAGMENT_COLOUR}`)
+        .replace("#include <color_fragment>", `#include <color_fragment>\n${chunk.colour}`)
         .replace(
           "#include <roughnessmap_fragment>",
-          `#include <roughnessmap_fragment>\n${SNOW_FRAGMENT_ROUGHNESS}`,
+          `#include <roughnessmap_fragment>\n${chunk.roughness}`,
         )
         .replace(
           "#include <normal_fragment_maps>",
@@ -624,11 +645,17 @@ export function createTerrain(
         )
         .replace(
           "#include <lights_fragment_end>",
-          `#include <lights_fragment_end>\n${SNOW_FRAGMENT_LIGHT}`,
+          `#include <lights_fragment_end>\n${chunk.light}`,
         );
     });
     return material;
   }
+
+  // THE GRASS round the lens, on the ground's own uniforms.
+  const grass: Grass | null =
+    summer && options.grass ? summer.grass(haze, shared, options.grass) : null;
+  if (grass) group.add(grass.group);
+  let clock = 0;
 
   const frustum = new THREE.Frustum();
   const view = new THREE.Matrix4();
@@ -684,8 +711,16 @@ export function createTerrain(
   };
   return {
     group,
+    tick(t) {
+      clock = t;
+    },
     follow(x, z, lens, reach = Infinity, over = 0) {
       wells.follow(x, z);
+      if (grass) {
+        // Not a blade is seen from a craft's height.
+        grass.group.visible = over < 60;
+        grass.follow(x, z, clock);
+      }
       const cut = roomCutUniforms.uRoomCuts.value > 0;
       if (lens) {
         view.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
@@ -732,6 +767,8 @@ export function createTerrain(
       }
       warm?.geometry.dispose();
       wells.dispose();
+      grass?.dispose();
+      summer?.dispose();
       const live = liveGrounds.get(level);
       if (live)
         liveGrounds.set(

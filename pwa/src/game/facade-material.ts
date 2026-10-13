@@ -14,6 +14,7 @@
 import * as THREE from "three";
 
 import { FACADE, FACADE_LAYERS, FACADE_SIZE, paintFacades } from "./facade-paint.ts";
+import { SUMMER_UNIFORM } from "./season-look.ts";
 
 let stack: { albedo: THREE.DataArrayTexture; normal: THREE.DataArrayTexture } | null = null;
 let users = 0;
@@ -61,6 +62,7 @@ export function holdFacades(): { release(): void } {
 }
 
 const VERTEX_PARS = `
+uniform float uSummer;
 attribute vec2 facadeUv;
 attribute float facadeLayer;
 varying vec2 vFacadeUv;
@@ -91,11 +93,17 @@ export function graftFacade(shader: THREE.WebGLProgramParametersWithUniforms): v
   const s = facadeStack();
   shader.uniforms.uFacadeAlbedo = { value: s.albedo };
   shader.uniforms.uFacadeNormal = { value: s.normal };
+  // IN SUMMER the snow layer is not there: its faces (a roof's cap, a
+  // windrow, a ledge's sill of snow) fold to a point and draw nothing.
+  shader.uniforms.uSummer = SUMMER_UNIFORM;
   shader.vertexShader = shader.vertexShader
     .replace("#include <common>", `#include <common>\n${VERTEX_PARS}`)
     .replace(
       "#include <begin_vertex>",
-      "#include <begin_vertex>\nvFacadeUv = facadeUv;\nvFacadeLayer = facadeLayer;",
+      `#include <begin_vertex>
+vFacadeUv = facadeUv;
+vFacadeLayer = facadeLayer;
+if (uSummer > 0.5 && abs(facadeLayer - ${FACADE.snow.toFixed(1)}) < 0.5) transformed = vec3(0.0);`,
     );
   shader.fragmentShader = shader.fragmentShader
     .replace("#include <common>", `#include <common>\n${FRAGMENT_PARS}`)

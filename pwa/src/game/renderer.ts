@@ -119,6 +119,7 @@ import {
 import { aloftLook } from "./view-aloft.ts";
 import { tallyScene } from "./scene-tally.ts";
 import { createTerrain, type Terrain } from "./terrain.ts";
+import { setSummerLook, summerOptions, summerShown as summer } from "./summer-terrain.ts";
 import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
@@ -395,7 +396,7 @@ export function createWorldRenderer(
   }
   function buildTerrain(lv: Level, map: TrailMap): Terrain {
     const look = terrainLook(video.terrain); // the whole reach: aloft draws past the stop's view
-    const ground = createTerrain(lv, env.haze, map.uniforms, look);
+    const ground = createTerrain(lv, env.haze, map.uniforms, summerOptions(look, lv, video));
     ground.group.name = "terrain";
     scene.add(ground.group);
     return ground;
@@ -491,6 +492,7 @@ export function createWorldRenderer(
       unload();
       warmed = !cold;
       level = state.level;
+      setSummerLook(!!state.summer); // the ground green, the snow shed, nothing thrown
       skyLevel = skyOverride ? withSky(level, skyOverride) : level;
       const lv = level;
       trail = buildTrail(lv);
@@ -644,7 +646,7 @@ export function createWorldRenderer(
           run.plane?.rider ? true : inStartGate(run),
           run.tricks,
         );
-        if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp) {
+        if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp && !summer()) {
           stampsOf(
             skier.contacts,
             r.pen,
@@ -656,18 +658,17 @@ export function createWorldRenderer(
             carveOf(skier),
           );
         }
-        // The landing puff: grounded now, in the air at the last frame. A
-        // rider on a lift's rope is "down" on steel, not snow: he throws none.
+        // The landing puff (none off a lift's rope: that is steel, not snow).
         const onRope = !!skier.grind;
         let landed = 0;
         if (r.wasAirborne && !skier.airborne && r.airTime > 0.25 && !onRope) {
           landed = Math.abs(r.vy) + r.airTime * 2;
         }
-        if ((simDt > 0 || landed > 0) && !run.plane?.rider && !onRope) {
+        if ((simDt > 0 || landed > 0) && !run.plane?.rider && !onRope && !summer()) {
           spray.emit(skier, level, simDt, landed, thrownSnow(skier.x, skier.z));
           cloud.emit(skier, simDt, landed, thrownSnow);
         }
-        if (level && spray && cloud) {
+        if (level && spray && cloud && !summer()) {
           const stamp = TRAIL_LOOK[video.trails].stamp ? stamps : null;
           const off = skier.thrown;
           const at = thrownSnow(off ? off.x : skier.x, off ? off.z : skier.z);
@@ -775,8 +776,8 @@ export function createWorldRenderer(
       const aloft = aloftLook(video.distance, eyeAt.y - level.groundAt(eyeAt.x, eyeAt.z));
       env.setAloft(aloft);
       forest?.setAloft(aloft.trees, aloft.lift, aloft.view);
-      // The snow guns and their plumes stand out as far as the woods do.
-      gates?.guns?.setReach(aloft.trees, aloft.lift);
+      gates?.guns?.setReach(aloft.trees, aloft.lift); // the guns as far as the woods
+      terrain.tick(state.t);
       terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);
@@ -953,12 +954,11 @@ export function createWorldRenderer(
       snowfall.setBudget(SPRAY_SHARE[video.spray]);
       forest?.setOptions(forestOptions());
       wildlife?.setLook(FOREST_LOOK[video.forest].wild);
-      // THE GROUND AND ITS TRAILS ARE REBUILT, not adjusted: a grid's pitch, its
-      // reach and a map's size are what their buffers were allocated at. New trail
-      // maps lose the trails cut so far (pressed over a card, the race behind it
-      // scenery), so only a TRAILS move pays that; a new ground reads them standing.
+      // THE GROUND AND ITS TRAILS ARE REBUILT (their buffers are sized to them); new trail
+      // maps lose the trails cut so far, so only a TRAILS move pays. Grass rides FOREST.
       const retrail = was.trails !== video.trails;
-      const regrid = retrail || was.terrain !== video.terrain;
+      const regrass = summer() && was.forest !== video.forest;
+      const regrid = retrail || was.terrain !== video.terrain || regrass;
       if (level && regrid) {
         if (terrain) {
           scene.remove(terrain.group);

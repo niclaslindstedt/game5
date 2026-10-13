@@ -17,6 +17,8 @@
 //               of it, the one row that changes the WEATHER, which is how the
 //               cut-off stays out of sight. LOW is only what a skier needs
 //               to ski; MAX alone draws the mountain to the summit ridge, unmisted.
+//               The SKY rides it too (`SKY_TIER`): the baked table on LOW,
+//               the GPU's on MEDIUM, and its aerial perspective on HIGH.
 //   TERRAIN     the ground's clipmap (`terrain.ts`): the near grid's pitch
 //               and how many cells a level carries. Every stop reaches the
 //               DISTANCE row's view, so a cheaper ground is a coarser one
@@ -268,6 +270,18 @@ export function mistFor(distance: DistanceLevel): number {
   const look = DISTANCE_LOOK[distance];
   return look.mist ? look.view : 0;
 }
+
+/** THE SKY rides the DISTANCE row (the sky and the air the ground fades
+ * into ARE the far view — `sky-gpu-plan.ts`): LOW the baked table, MEDIUM
+ * and HIGH the GPU's sky-view, HIGH with the aerial-perspective volume.
+ * MAX draws the HIGH sky. Its own row waits on a real GPU's price
+ * (PLAN decision 5): the presets keep it in step either way. */
+export const SKY_TIER: Record<DistanceLevel, Tier> = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  max: "high",
+};
 
 export type ShadowLook = {
   /** The key light's map, texels a side; 0 is no shadow at all. */

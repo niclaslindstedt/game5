@@ -21,6 +21,14 @@ import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier
 import type { Collapse } from "./gore-cut.ts";
 import { suitDress } from "./wingsuit-dress.ts";
 import type { RiderId } from "@engine";
+import {
+  createSprings,
+  flutterUniforms,
+  playerModel,
+  SPRING_BONES,
+  withFlutter,
+  type ModelPart,
+} from "./player-model.ts";
 
 export type Dressed = {
   /** What the figure's group carries: the bones and the two meshes. */
@@ -51,6 +59,9 @@ export type SkierDress = {
   /** In a WINGSUIT, its colourway (`wingsuit-look.ts`): the body cut as
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
+  /** The player's MODELLED kit (`player-model.ts`) in place of the
+   * outfit's cut, once it is loaded — never in a suit or indoors. */
+  model?: boolean;
 };
 
 /** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
@@ -68,8 +79,10 @@ export function dealtKit(kits: Map<string, SkierDress>, look: number, rider: Rid
 /** A ghost's colours: the kit's own light, lifted toward a pale ice blue. */
 const PALE = new THREE.Color(0xdcecff).convertSRGBToLinear();
 
-function geometryOf(part: DressPart, ghost: boolean): THREE.BufferGeometry {
+function geometryOf(part: DressPart | ModelPart, ghost: boolean): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
+  if ("flutter" in part)
+    g.setAttribute("flutter", new THREE.Float32BufferAttribute(part.flutter, 1));
   g.setAttribute("position", new THREE.Float32BufferAttribute(part.position, 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute(part.normal, 3));
   const colour = Float32Array.from(part.color);
@@ -117,14 +130,29 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   // Bound in the rig's own standing pose, the frame the loom cut him in.
   const bind = bindPose().frames;
   SKIER_BONES.forEach((name, i) => setBone(bones[i], bind[name]));
+  // The modelled kit's SPRING BONES after the rig's own, bound with the
+  // chest's axes at their heads (`player-model.ts`).
+  const model = dress.model && dress.suit === undefined && !dress.bare ? playerModel() : null;
+  const springs = model ? createSprings(bind, model.heads) : null;
+  const fx = model
+    ? SPRING_BONES.map((s) => {
+        const b = new THREE.Bone();
+        b.name = s.name;
+        group.add(b);
+        setBone(b, { ...bind.chest, head: model.heads[s.name], length: s.length });
+        return b;
+      })
+    : [];
   group.updateMatrixWorld(true);
-  const skeleton = new THREE.Skeleton(bones);
+  const skeleton = new THREE.Skeleton([...bones, ...fx]);
 
-  const cut =
-    dress.suit === undefined
+  const cut = model
+    ? model
+    : dress.suit === undefined
       ? dressOutfit(dress.outfit, dress.tone, dress.bare)
       : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
   const ghost = !!dress.ghost;
+  const flutter = flutterUniforms();
   const geos = [geometryOf(cut.cloth, ghost), geometryOf(cut.hard, ghost)];
   const mats = [
     wrap(
@@ -144,6 +172,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       "skier-hard",
     ),
   ];
+  if (model) withFlutter(mats[0], flutter);
   const meshes = geos.map((g, i) => {
     const m = new THREE.SkinnedMesh(g, mats[i]);
     m.name = i === 0 ? "skier-cloth" : "skier-hard";
@@ -172,6 +201,18 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
         b.scale.set(1 + 0.35 * k, 1 - 0.45 * k, 1 + 0.25 * k);
       } else b.scale.setScalar(1);
     });
+    if (!springs) return;
+    const swung = springs.step(frames, group.matrixWorld, performance.now() / 1000);
+    const torn = cut?.bones.get("chest");
+    fx.forEach((b, i) => {
+      setBone(b, swung.frames[i]);
+      if (torn) {
+        b.position.set(torn.x, torn.y, torn.z);
+        b.scale.setScalar(1e-4);
+      } else b.scale.setScalar(1);
+    });
+    flutter.uFlow.value.set(swung.flow.x, swung.flow.y, swung.flow.z);
+    flutter.uFlTime.value = performance.now() / 1000;
   };
 
   return {

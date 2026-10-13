@@ -160,6 +160,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
   },
   {
+    asset: "Player's kit",
+    ids: ["player"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
+    drawnBy: "pwa/src/game/player-model.ts",
+    blender: {
+      builder: "scripts/blender/mountaineer.py",
+      files: ["player.glb"],
+      pattern: "player.glb",
+      switch: "VITE_MODEL_PLAYER",
+    },
+    note:
+      "the player as a ski mountaineer (softshell, harness, pack, ice axe, rope coil, climbing " +
+      "helmet, glacier glasses), skinned on the dressed skier's rig so every pose moves it, " +
+      "with spring bones on the pack, the coil and the rope's tail and a flutter on the loose " +
+      "cloth; switched off, the player is dressed in code as every other skier",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

@@ -43,6 +43,13 @@ import type { SkyLook } from "./sky.ts";
 import { SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import type { Tier } from "./settings-video.ts";
 
+/** The night's glow in a look's rows, summed — what moves the table. */
+function nightGlow(rows: Float32Array): number {
+  let sum = 0;
+  for (const x of rows) sum += x;
+  return sum;
+}
+
 export type SkyGpu = {
   /** The tier asked for (the DISTANCE row's `SKY_TIER`). */
   setTier(tier: Tier): void;
@@ -152,9 +159,18 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     uElevation: { value: 0 },
     uRadius: { value: 6360 },
     uExpose: { value: new THREE.Vector4() },
+    uNightRows: { value: Array.from({ length: SKY_VIEW_EL }, () => new THREE.Vector3()) },
   };
   /** What the sky-view table was last drawn for. */
-  const drawn = { elevation: NaN, radius: NaN, exposure: NaN, mean: NaN, night: NaN, veil: NaN };
+  const drawn = {
+    elevation: NaN,
+    radius: NaN,
+    exposure: NaN,
+    mean: NaN,
+    night: NaN,
+    veil: NaN,
+    glow: NaN,
+  };
 
   let ap: THREE.WebGLRenderTarget | null = null;
   const apU = {
@@ -257,8 +273,13 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
           moved(look.exposure, drawn.exposure) ||
           moved(look.domeMean, drawn.mean) ||
           Math.abs(look.night - drawn.night) > SKY_REDRAW.share ||
-          Math.abs(look.veil - drawn.veil) > SKY_REDRAW.share
+          Math.abs(look.veil - drawn.veil) > SKY_REDRAW.share ||
+          moved(nightGlow(look.nightRows), drawn.glow)
         ) {
+          const rows = look.nightRows;
+          viewU.uNightRows.value.forEach((r, j) =>
+            r.set(rows[j * 3], rows[j * 3 + 1], rows[j * 3 + 2]),
+          );
           viewU.uElevation.value = look.elevation;
           viewU.uRadius.value = radius;
           viewU.uExpose.value.set(look.exposure, look.domeMean, look.night, look.veil);
@@ -270,6 +291,7 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
             mean: look.domeMean,
             night: look.night,
             veil: look.veil,
+            glow: nightGlow(look.nightRows),
           });
         }
         haze.uSkyView.value = view!.texture;

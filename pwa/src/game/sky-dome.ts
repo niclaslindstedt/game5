@@ -26,13 +26,13 @@ import * as THREE from "three";
 import { DOME_CLOUD_GLSL, type Clouds } from "./clouds.ts";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
+import { MOON_GLSL } from "./moon-glsl.ts";
+import { DISC, surfaceSurge } from "./night-sky.ts";
 import { STARFIELD_GLSL, turnBasis } from "./starfield.ts";
 
 /** The sun's apparent radius, rad — a touch over the real 0.27° so the disc
  * is more than a pixel on a phone. */
 const SUN_RADIUS = 0.0085;
-/** The moon's: drawn a little larger again, for the same reason. */
-const MOON_RADIUS = 0.011;
 
 export type SkyDome = {
   mesh: THREE.Mesh;
@@ -51,8 +51,10 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
     uTurn: { value: new THREE.Matrix3() },
     uStarTime: { value: 0 },
     uMoonDir: { value: new THREE.Vector3(0, -1, 0) },
-    uMoonLit: { value: 0 },
-    uNight: { value: 0 },
+    uMoonDisc: { value: new THREE.Vector4() },
+    uMoonCol: { value: new THREE.Vector3() },
+    uMoonGlow: { value: new THREE.Vector3() },
+    uStarSky: { value: new THREE.Vector4() },
   };
   const material = new THREE.ShaderMaterial({
     uniforms: { ...haze, ...clouds.uniforms, ...own },
@@ -75,11 +77,14 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
       uniform mat3 uTurn;
       uniform float uStarTime;
       uniform vec3 uMoonDir;
-      uniform float uMoonLit;
-      uniform float uNight;
+      uniform vec4 uMoonDisc;
+      uniform vec3 uMoonCol;
+      uniform vec3 uMoonGlow;
+      uniform vec4 uStarSky;
       varying vec3 vDir;
       varying vec4 vClip;
       ${STARFIELD_GLSL}
+      ${MOON_GLSL}
 
       void main() {
         vec3 d = normalize(vDir);
@@ -109,13 +114,27 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         float hide = cl.a;
         float clearSky = 1.0 - hide;
 
+        // THE MOON'S SKY close round it: the air's forward glow, warmer
+        // and brighter toward the moon than the dome's rows can hold.
+        vec3 mo = d - uMoonDir * dot(d, uMoonDir);
+        float th = dot(d, uMoonDir) > 0.0 ? length(mo) : 3.0;
+        vec3 moonAir = uMoonGlow * (0.035 * exp(-th * 3.0) + 0.08 * exp(-th * th * 900.0));
+        c += moonAir * clearSky;
+        // THE MOON'S DISC (\`moonDisc\`): what of it covers this pixel.
+        vec3 pole = vec3(uTurn[0][2], uTurn[1][2], uTurn[2][2]);
+        vec4 moon = moonDisc(d, uMoonDir, uSunPos, pole, uMoonDisc, uMoonCol);
+
         // THE NIGHT SKY, behind everything: the stars and the Milky Way on
-        // the sphere the map's hour has turned (starfield.ts), washed out
-        // round the moon and taken by the cloud in front.
+        // the sphere the map's hour has turned (starfield.ts), as many as
+        // the sky's own brightness here lets through, taken by the cloud
+        // and the moon in front.
         if (uStars > 0.001 || uGalaxy > 0.001) {
-          float toMoon = acos(clamp(dot(d, uMoonDir), -1.0, 1.0));
-          float glare = exp(-toMoon * toMoon * 7.0) * uMoonLit * step(-0.02, uMoonDir.y);
-          c += nightSky(uTurn * d, d, d.y, glare, uStars, uGalaxy, uStarTime) * clearSky;
+          float glare = clamp(dot(uMoonGlow, vec3(0.2126, 0.7152, 0.0722)) * 2.0, 0.0, 1.0)
+                      * exp(-th * th * 7.0) * step(-0.02, uMoonDir.y);
+          float rel = dot(c, vec3(0.2126, 0.7152, 0.0722)) / max(uStarSky.y, 1e-6);
+          float limit = uStarSky.x - uStarSky.z * log2(max(rel, 1e-3)) * 0.30103;
+          c += nightSky(uTurn * d, d, d.y, glare, uStars, uGalaxy, uStarTime, limit)
+             * clearSky * (1.0 - moon.a);
         }
 
         // THE SUN'S DISC.
@@ -130,24 +149,18 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         float aureole = exp(-(1.0 - mu) * 900.0) * 0.6 + exp(-(1.0 - mu) * 90.0) * 0.12;
         c += uSunCol * aureole * clearSky * smoothstep(-0.03, 0.01, uSunPos.y);
 
-        // THE MOON: a disc lit on the sun's side as far as its phase says,
-        // a faint halo round it, behind the cloud.
-        float mm = dot(d, uMoonDir);
-        float mr = cos(${MOON_RADIUS.toFixed(5)});
-        if (mm > mr - 0.0005 && uMoonDir.y > -0.02) {
-          vec3 o = d - uMoonDir * mm;
-          vec3 sunSide = uSunPos - uMoonDir * dot(uSunPos, uMoonDir);
-          float r = ${MOON_RADIUS.toFixed(5)};
-          float side = dot(o, normalize(sunSide + 1e-5)) / r;
-          float lit = smoothstep(-0.08, 0.08, side + (2.0 * uMoonLit - 1.0));
-          float edge = smoothstep(mr - 0.00004, mr + 0.00002, mm);
-          c += vec3(0.95, 0.96, 1.0) * edge * (0.03 + 1.9 * lit) * mix(0.35, 1.0, uNight) * (1.0 - hide * 0.9);
-        }
-        c += vec3(0.5, 0.6, 0.8) * pow(max(mm, 0.0), 900.0) * 0.12 * uMoonLit * uNight * clearSky;
+        // THE MOON in front of the sky behind it (the air's own light is
+        // in front of it, so it adds), dimmed by any cloud before it.
+        c += moon.rgb * (1.0 - hide * 0.93);
 
         c = c * clearSky + cl.rgb;
-        // THE 22° HALO in a veil of ice round the sun.
+        // THE 22° HALO in a veil of ice round the sun, and round the moon.
         c += cloudHalo(d, uSunPos, uSunCol, uCloudOn.z) * (1.0 - 0.6 * hide);
+        c += cloudHalo(d, uMoonDir, uMoonGlow * 1.6, uCloudOn.z) * (1.0 - 0.6 * hide);
+        // THE CORONA where thin cloud stands in front of the moon: the
+        // droplets' diffraction — a bluish-white aureole a few degrees
+        // across and a reddish ring round it.
+        c += moonCorona(th, hide, uMoonGlow);
         // UNDER THE TRUE HORIZON (\`uFar.x\` under the level: the Earth
         // curving away under a raised lens) the sky, its sun, moon, stars
         // and cloud end, and the far ground stands seen through the air
@@ -202,8 +215,22 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
       // the precision a twinkle needs. Presentation only.
       own.uStarTime.value = (performance.now() / 1000) % 3600;
       own.uMoonDir.value.set(look.moon.x, look.moon.y, look.moon.z);
-      own.uMoonLit.value = look.moonLit;
-      own.uNight.value = look.night;
+      const md = look.moonDisc;
+      own.uMoonDisc.value.set(
+        md.radius,
+        md.phase,
+        Math.pow(surfaceSurge(md.phase), DISC.span),
+        md.earthshine,
+      );
+      own.uMoonCol.value.set(...md.colour);
+      own.uMoonGlow.value.set(...md.glow);
+      // The faintest star seen at the zenith, the zenith's drawn luminance
+      // it is reckoned against, and how many magnitudes a decade of the
+      // drawn sky's brightness costs: the twilight's sky is pressed (twice
+      // the decades), the night's drawn as it is.
+      const zl = 0.2126 * look.zenith[0] + 0.7152 * look.zenith[1] + 0.0722 * look.zenith[2];
+      const twilight = Math.min(1, Math.max(0, (look.elevation + 0.245) / 0.14));
+      own.uStarSky.value.set(look.starLimit, zl, 1.7 + 3.3 * twilight, 0);
     },
     dispose() {
       geometry.dispose();

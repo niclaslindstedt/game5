@@ -49,7 +49,7 @@ import type { SkyCell } from "./sky-harness.ts";
 /** What the harness lends the cloud sheets. */
 export type CloudSheetHost = {
   level(): Level;
-  state(): { t: number };
+  state(): { t: number; skier: { heading: number } };
   setT(t: number): void;
   cellW: number;
   cellH: number;

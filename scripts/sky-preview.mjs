@@ -28,6 +28,11 @@
 //              low sun, sunset and dusk, each cell timed with the ranges
 //              and without them (the msOff column), every row's rings built
 //              and counted at each tier — `previews/sky-<seed>-far.png`
+//   moon       THE MOON (`pwa/src/tools/sky-night-sheet.ts`): a lunation
+//              on a long lens, the perigee's and apogee's full moons at one
+//              zoom (the drawn diameter measured), the full moon rising, the
+//              snow and the sky under a full, a quarter and no moon —
+//              `previews/sky-<seed>-moon.png`
 //   clouds, cloudlapse, sunclouds, cloudshadow, cloudmotion, lowdeck
 //              THE CLOUD FIELD (`pwa/src/tools/sky-cloud-sheets.ts` says
 //              what each draws): every weather under each sky tier; two
@@ -85,7 +90,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "weathers",
-      help: "weathers, timelapse, tiers, skytier (the sky's own tiers against LOW, in ΔE, and the GPU passes timed), far (the far ranges, a map a row), or the cloud sheets: clouds, cloudlapse, sunclouds, cloudshadow, cloudmotion, lowdeck (a run down through a low cloud deck, every tier, and its sea at sunset)",
+      help: "weathers, timelapse, tiers, skytier (the sky's own tiers against LOW, in ΔE, and the GPU passes timed), far (the far ranges, a map a row), or the cloud sheets: clouds, cloudlapse, sunclouds, cloudshadow, cloudmotion, lowdeck (a run down through a low cloud deck, every tier, and its sea at sunset), or moon (the moon through the year and the nights under it)",
     },
     maps: {
       kind: "string",
@@ -127,7 +132,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1200, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers|skytier|far|clouds|cloudlapse|sunclouds|cloudshadow|cloudmotion|lowdeck] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build]",
+  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers|skytier|far|clouds|cloudlapse|sunclouds|cloudshadow|cloudmotion|lowdeck|moon] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });

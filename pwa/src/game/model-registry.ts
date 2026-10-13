@@ -160,22 +160,23 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
   },
   {
-    asset: "Player's kit",
-    ids: ["player"],
+    asset: "Skimo racer",
+    ids: ["skimo"],
     source: "blender",
     code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
-    drawnBy: "pwa/src/game/player-model.ts",
+    drawnBy: "pwa/src/game/skimo-model.ts",
     blender: {
-      builder: "scripts/blender/mountaineer.py",
-      files: ["player.glb"],
-      pattern: "player.glb",
-      switch: "VITE_MODEL_PLAYER",
+      builder: "scripts/blender/skimo.py",
+      files: ["skimo.glb"],
+      pattern: "skimo.glb",
+      switch: "VITE_MODEL_SKIMO",
     },
     note:
-      "the player as a ski mountaineer (softshell, harness, pack, ice axe, rope coil, climbing " +
-      "helmet, glacier glasses), skinned on the dressed skier's rig so every pose moves it, " +
-      "with spring bones on the pack, the coil and the rope's tail and a flutter on the loose " +
-      "cloth; switched off, the player is dressed in code as every other skier",
+      "the rider card's skimo racer (a one-piece race suit, the number on his thigh, the stowed " +
+      "hood, a neck gaiter, a slim race pack, a race helmet and wrap glasses), skinned on the " +
+      "dressed skier's rig, the arms' lower halves included, so every pose and a broken arm " +
+      "move it, with spring bones on the pack, the hood and the ski strap and a flutter on " +
+      "the loose cloth, both on the run's clock; switched off, the card does not offer him",
   },
   {
     asset: "Skier",

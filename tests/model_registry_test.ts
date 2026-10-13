@@ -55,7 +55,7 @@ describe("the model registry", () => {
     }
   });
 
-  it("keeps only the skis, the machines and the player's kit as models — every other skier is dressed in code, the rest built in it", () => {
+  it("keeps only the skis, the machines and the skimo racer as models — every other skier is dressed in code, the rest built in it", () => {
     const modelled = MODEL_REGISTRY.filter((r) => r.source === "blender").map((r) => r.asset);
     expect(modelled).toEqual([
       "Skis",
@@ -64,7 +64,7 @@ describe("the model registry", () => {
       "Snowmobile",
       "Piste machine",
       "Jump plane",
-      "Player's kit",
+      "Skimo racer",
     ]);
   });
 

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE PLAYER'S MODELLED KIT (`pwa/models/player.glb`, read by
-// `player-model.ts`): bound on the dressed skier's own rig so it is posed
-// by every animation the game has, sized as the code's skier is, its loose
-// parts marked for the flutter, and its spring bones swung by what he
-// feels and settled when he stands.
+// THE SKIMO RACER'S MODELLED KIT (`pwa/models/skimo.glb`, read by
+// `skimo-model.ts`): bound on the dressed skier's own rig so it is posed
+// by every animation the game has — the arms' lower halves too, so a broken
+// arm hangs from its break — sized as the code's skier is, its loose parts
+// marked for the flutter, and its spring bones swung by what he feels and
+// settled when he stands.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -18,20 +19,20 @@ import { DEFAULT_OUTFIT } from "../pwa/src/game/outfit.ts";
 import {
   boneIndexOf,
   createSprings,
-  readPlayerModel,
+  readSkimoModel,
   SPRING_BONES,
   type ModelPart,
-  type PlayerModel,
-} from "../pwa/src/game/player-model.ts";
+  type SkimoModel,
+} from "../pwa/src/game/skimo-model.ts";
 import { SKIER_BONES } from "../pwa/src/game/skier-rig.ts";
 
 const root = join(import.meta.dirname, "..");
 
-async function load(): Promise<PlayerModel> {
-  const buf = readFileSync(join(root, "pwa", "models", "player.glb"));
+async function load(): Promise<SkimoModel> {
+  const buf = readFileSync(join(root, "pwa", "models", "skimo.glb"));
   const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
   const g = await new GLTFLoader().parseAsync(ab, "");
-  return readPlayerModel(g.scene);
+  return readSkimoModel(g.scene);
 }
 
 const bounds = (p: number[]) => {
@@ -45,7 +46,7 @@ const bounds = (p: number[]) => {
   return { lo, hi };
 };
 
-describe("the player's modelled kit", () => {
+describe("the skimo racer's modelled kit", () => {
   const model = load();
 
   it("is skinned on the dressed skier's bones and its own spring bones", async () => {
@@ -61,7 +62,20 @@ describe("the player's modelled kit", () => {
     }
     const used = new Set(m.cloth.skinIndex);
     for (const s of SPRING_BONES) expect(used.has(boneIndexOf(s.name)), s.name).toBe(true);
-    expect(boneIndexOf("upperarm_lo_l")).toBe(SKIER_BONES.indexOf("upperarm_l"));
+  });
+
+  it("weights the skin past each arm's break onto the arm's lower half", async () => {
+    const m = await model;
+    const used = new Set([...m.cloth.skinIndex, ...m.hard.skinIndex]);
+    const weighted = new Set<number>();
+    for (const part of [m.cloth, m.hard] as ModelPart[])
+      for (let i = 0; i < part.skinIndex.length; i++)
+        if (part.skinWeight[i] > 0.5) weighted.add(part.skinIndex[i]);
+    for (const b of ["upperarm_lo_l", "upperarm_lo_r", "forearm_lo_l", "forearm_lo_r"] as const) {
+      expect(boneIndexOf(b)).toBe(SKIER_BONES.indexOf(b));
+      expect(used.has(boneIndexOf(b)), b).toBe(true);
+      expect(weighted.has(boneIndexOf(b)), b).toBe(true);
+    }
   });
 
   it("stands where the code's skier stands, in the body frame", async () => {
@@ -69,15 +83,16 @@ describe("the player's modelled kit", () => {
     const ours = bounds([...m.cloth.position, ...m.hard.position]);
     const code = dressOutfit(DEFAULT_OUTFIT);
     const theirs = bounds([...code.cloth.position, ...code.hard.position]);
-    // The same height to a few centimetres, the pack behind (−z).
+    // The same height to a few centimetres, the pack behind (−z) — a race
+    // pack, slim, but proud of the code's jacket.
     expect(Math.abs(ours.hi[1] - theirs.hi[1])).toBeLessThan(0.06);
     expect(Math.abs(ours.lo[1] - theirs.lo[1])).toBeLessThan(0.08);
-    expect(ours.lo[2]).toBeLessThan(theirs.lo[2] - 0.1);
+    expect(ours.lo[2]).toBeLessThan(theirs.lo[2] - 0.02);
     const pack = m.heads.fx_pack;
     expect(pack.z).toBeLessThan(bindPose().frames.chest.head.z);
   });
 
-  it("marks the hem, the straps' tails and the rope's tail loose, and the rest held", async () => {
+  it("marks the hood's rim, the ski strap's loop and the bib's corners loose, and the rest held", async () => {
     const m = await model;
     const loose = m.cloth.flutter.filter((f) => f > 0.05).length;
     expect(loose).toBeGreaterThan(50);

@@ -35,6 +35,7 @@
 import * as THREE from "three";
 import { pairById, type SkierState, type TrickPose } from "@engine";
 
+import { outfitOf } from "../game/outfit.ts";
 import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
@@ -56,6 +57,8 @@ type Moment = { name: string; say?: string; frames: Frame[] };
 type Data = {
   skis: string;
   slot: number;
+  /** The body he is dressed as (`outfit.ts`'s `BodyId`), the slot's when empty. */
+  body?: string;
   /** The flight's gravity, m/s². */
   gravity: number;
   moves: Move[];
@@ -148,9 +151,11 @@ async function load(): Promise<void> {
   data = frames;
   const plain = <M extends THREE.Material>(m: M): M => m;
   const spec = pairById(data.skis);
-  // Slot 0 is the player: in his modelled kit where the build has it.
-  const slot = data.slot % SLOT_DRESS.length;
-  model = createSkisModel(spec, pairStyle(spec, { ...SLOT_DRESS[slot], model: slot === 0 }), plain);
+  const slot = SLOT_DRESS[data.slot % SLOT_DRESS.length];
+  const dress = data.body
+    ? { ...slot, outfit: { ...slot.outfit, body: outfitOf({ body: data.body }).body } }
+    : slot;
+  model = createSkisModel(spec, pairStyle(spec, dress), plain);
   model.root.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = true;
   });

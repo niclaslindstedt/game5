@@ -21,6 +21,7 @@ import {
   BODIES,
   coloursOf,
   DEFAULT_OUTFIT,
+  dealtOutfit,
   GEAR,
   GEAR_SLOTS,
   gearOf,
@@ -52,7 +53,21 @@ describe("the gear", () => {
       expect(new Set(list.map((g) => g.id)).size).toBe(list.length);
       expect(new Set(list.map((g) => g.name)).size).toBe(list.length);
     }
-    expect(BODIES.map((b) => b.female)).toEqual([false, true]);
+    // The code's two bodies, a man and a woman; a modelled body beside them
+    // (`BodyDef.model`) is the player's to pick and never cut on the loom.
+    expect(BODIES.filter((b) => !b.model).map((b) => b.female)).toEqual([false, true]);
+  });
+
+  it("keeps a modelled body the player's own: picked and kept, never dealt", () => {
+    const modelled = BODIES.filter((b) => b.model).map((b) => b.id);
+    expect(modelled).toEqual(["skimo"]);
+    const worn: Outfit = { ...DEFAULT_OUTFIT, body: "skimo" };
+    expect(mergeSettings(JSON.parse(JSON.stringify({ outfit: worn }))).outfit).toEqual(worn);
+    expect(freshSettings().outfit.body).not.toBe("skimo");
+    for (let look = 0; look < 400; look++)
+      for (const w of ["light", "medium", "solid", "heavy"] as const)
+        expect(modelled).not.toContain(dealtOutfit(look, w).body);
+    for (const o of RIVAL_OUTFITS) expect(modelled).not.toContain(o.body);
   });
 
   it("dresses each rival in his slot's colour, so his dot is his jacket", () => {

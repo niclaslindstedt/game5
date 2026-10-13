@@ -15,7 +15,7 @@ import * as THREE from "three";
 
 import { dressOutfit } from "./dress.ts";
 import { bindPose, type DressPart } from "./dress-loft.ts";
-import { dealtOutfit, type Outfit } from "./outfit.ts";
+import { dealtOutfit, gearOf, type Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
@@ -24,11 +24,11 @@ import type { RiderId } from "@engine";
 import {
   createSprings,
   flutterUniforms,
-  playerModel,
+  skimoModel,
   SPRING_BONES,
   withFlutter,
   type ModelPart,
-} from "./player-model.ts";
+} from "./skimo-model.ts";
 
 export type Dressed = {
   /** What the figure's group carries: the bones and the two meshes. */
@@ -43,6 +43,11 @@ export type Dressed = {
   /** The cloth's vertex colours, the bind pose's positions and its weights
    * — what a wound soaks red (`gore-view.ts`). */
   cloth: THREE.BufferGeometry;
+  /** The RUN'S CLOCK the next pose is at, s (`GameState.t`) — what a
+   * modelled kit's springs and flutter run on, so a paused run holds them,
+   * slow motion slows them and a lab's stepped still shows them as skied;
+   * `null` off a run (the rider card), where they run on the wall clock. */
+  clock(t: number | null): void;
   dispose(): void;
 };
 
@@ -59,9 +64,6 @@ export type SkierDress = {
   /** In a WINGSUIT, its colourway (`wingsuit-look.ts`): the body cut as
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
-  /** The player's MODELLED kit (`player-model.ts`) in place of the
-   * outfit's cut, once it is loaded — never in a suit or indoors. */
-  model?: boolean;
 };
 
 /** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
@@ -130,9 +132,16 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   // Bound in the rig's own standing pose, the frame the loom cut him in.
   const bind = bindPose().frames;
   SKIER_BONES.forEach((name, i) => setBone(bones[i], bind[name]));
-  // The modelled kit's SPRING BONES after the rig's own, bound with the
-  // chest's axes at their heads (`player-model.ts`).
-  const model = dress.model && dress.suit === undefined && !dress.bare ? playerModel() : null;
+  // THE MODELLED KIT (`skimo-model.ts`) where the outfit's body is one and
+  // the model is in — never in a jumper's or a wing suit, nor indoors —
+  // its SPRING BONES after the rig's own, bound with the chest's axes at
+  // their heads.
+  const modelled =
+    gearOf("body", dress.outfit.body).model &&
+    !dress.outfit.suit &&
+    dress.suit === undefined &&
+    !dress.bare;
+  const model = modelled ? skimoModel() : null;
   const springs = model ? createSprings(bind, model.heads) : null;
   const fx = model
     ? SPRING_BONES.map((s) => {
@@ -187,6 +196,14 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   });
 
   let lastFrames = bind;
+  // The run's clock, and when it was last handed in (a stale one — the
+  // rider card after a run — gives way to the wall clock).
+  let runT: number | null = null;
+  let runAt = -Infinity;
+  const now = (): number => {
+    const wall = performance.now() / 1000;
+    return runT !== null && wall - runAt < 0.3 ? runT : wall;
+  };
   const lay = (frames: Record<SkierBone, BoneFrame>, cut: Collapse | null | undefined): void => {
     lastFrames = frames;
     SKIER_BONES.forEach((name, i) => {
@@ -202,7 +219,11 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     if (!springs) return;
-    const swung = springs.step(frames, group.matrixWorld, performance.now() / 1000);
+    const t = now();
+    // Posed before it is drawn (a lab's stepped frame is never drawn): its
+    // place in the world read fresh.
+    group.updateWorldMatrix(true, false);
+    const swung = springs.step(frames, group.matrixWorld, t);
     const torn = cut?.bones.get("chest");
     fx.forEach((b, i) => {
       setBone(b, swung.frames[i]);
@@ -212,7 +233,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     flutter.uFlow.value.set(swung.flow.x, swung.flow.y, swung.flow.z);
-    flutter.uFlTime.value = performance.now() / 1000;
+    flutter.uFlTime.value = t;
   };
 
   return {
@@ -226,6 +247,10 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     },
     last: () => lastFrames,
     cloth: geos[0],
+    clock(t) {
+      runT = t;
+      runAt = performance.now() / 1000;
+    },
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();

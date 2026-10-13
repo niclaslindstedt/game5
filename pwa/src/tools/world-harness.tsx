@@ -31,6 +31,7 @@ import { beastById } from "../game/beast-defs.ts";
 import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-plan.ts";
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
+import { DEFAULT_OUTFIT, outfitOf } from "../game/outfit.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
 import { labPairOption } from "./lab-pair.ts";
@@ -100,6 +101,9 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
+// THE PLAYER'S BODY (`?body=skimo`: the rider card's modelled racer).
+const body = params.get("body");
+if (body) renderer.dress({ ...DEFAULT_OUTFIT, body: outfitOf({ body }).body });
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
 /** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */

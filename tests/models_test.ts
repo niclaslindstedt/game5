@@ -63,7 +63,7 @@ describe("the models the game ships", () => {
         "sled.glb",
         "groomer.glb",
         "plane.glb",
-        "player.glb",
+        "skimo.glb",
       ].sort(),
     );
     const none = {
@@ -72,10 +72,10 @@ describe("the models the game ships", () => {
       sled: false,
       groomer: false,
       plane: false,
-      player: false,
+      skimo: false,
     };
-    expect(modelFiles({ ...none, player: true })).toEqual(["player.glb"]);
-    expect(modelFiles(ALL_MODELS, "player")).toEqual(["player.glb"]);
+    expect(modelFiles({ ...none, skimo: true })).toEqual(["skimo.glb"]);
+    expect(modelFiles(ALL_MODELS, "skimo")).toEqual(["skimo.glb"]);
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
     expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
@@ -103,8 +103,8 @@ describe("the models the game ships", () => {
       "groomer",
       "heli",
       "plane",
-      "player",
       "rescue",
+      "skimo",
       "sled",
       "sources",
     ]);

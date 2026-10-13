@@ -41,7 +41,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine";
 
 import { modelSwitch } from "./model-switch.ts";
-import { readPlayerModel, setPlayerModel } from "./player-model.ts";
+import { readSkimoModel, setSkimoModel } from "./skimo-model.ts";
 import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
@@ -59,7 +59,7 @@ export const MODELS = {
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
   plane: modelSwitch(ENV.VITE_MODEL_PLANE),
-  player: modelSwitch(ENV.VITE_MODEL_PLAYER),
+  skimo: modelSwitch(ENV.VITE_MODEL_SKIMO),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -173,12 +173,12 @@ export function loadModels(): Promise<void> {
       );
     }
   }
-  // The player's modelled kit (`player-model.ts`): read into the dressed
+  // The player's modelled kit (`skimo-model.ts`): read into the dressed
   // skin's buffers once, here, so dressing him is as cheap as the code's.
-  if (MODELS.player) {
+  if (MODELS.skimo) {
     jobs.push(
-      loader.loadAsync(at("player.glb")).then(
-        (g) => setPlayerModel(readPlayerModel(g.scene)),
+      loader.loadAsync(at("skimo.glb")).then(
+        (g) => setSkimoModel(readSkimoModel(g.scene)),
         () => undefined,
       ),
     );

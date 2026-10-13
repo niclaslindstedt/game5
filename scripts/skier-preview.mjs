@@ -117,6 +117,11 @@ const args = parseArgs(
     },
     skis: { kind: "string", default: "chamois", help: "the pair he skis on" },
     slot: { kind: "number", default: 0, help: "the start-line slot's kit, 0..3" },
+    body: {
+      kind: "string",
+      default: "",
+      help: "the body he is dressed as by its id (skimo: the rider card's modelled racer); the slot's when left out",
+    },
     frames: { kind: "number", default: 9, help: "moments a move is shown at" },
     views: {
       kind: "string",
@@ -200,7 +205,10 @@ const injuries = brokenWords.flatMap((w, i) =>
       ]
     : [],
 );
-const tag = (args.broken ? `-broken-${brokenWords.join("-")}` : "") + (args.wire ? "-wire" : "");
+const tag =
+  (args.body ? `-${args.body}` : "") +
+  (args.broken ? `-broken-${brokenWords.join("-")}` : "") +
+  (args.wire ? "-wire" : "");
 
 // ── Ski every move through the real engine ────────────────────────────────
 const S = await import(join(root, "tests/support/synthetic.ts"));
@@ -296,6 +304,7 @@ const CLOSE = ["closeup", "detail", "game", "stretch"];
 const data = {
   skis: spec.id,
   slot: args.slot,
+  body: args.body,
   // The flight's gravity, m/s² — what the page reads his falls by.
   gravity: E.flightGravity(E.MODE_RULES.slalom(1)),
   moves: sheets.includes("moves") || sheets.includes("path") ? moves.map(ski) : [],

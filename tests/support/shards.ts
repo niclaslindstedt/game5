@@ -33,6 +33,8 @@ import { BaseSequencer, type TestSpecification } from "vitest/node";
  * to `DEFAULT_WEIGHT`. */
 export const SHARD_WEIGHTS: Readonly<Record<string, number>> = {
   "tests/resort_test.ts": 152,
+  "tests/bike_park_test.ts": 110,
+  "tests/bike_park_regions_test.ts": 210,
   "tests/real_faces_test.ts": 20,
   "tests/real_water_village_test.ts": 35,
   "tests/challenges_test.ts": 45,

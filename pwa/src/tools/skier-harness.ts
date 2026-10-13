@@ -148,7 +148,9 @@ async function load(): Promise<void> {
   data = frames;
   const plain = <M extends THREE.Material>(m: M): M => m;
   const spec = pairById(data.skis);
-  model = createSkisModel(spec, pairStyle(spec, SLOT_DRESS[data.slot % SLOT_DRESS.length]), plain);
+  // Slot 0 is the player: in his modelled kit where the build has it.
+  const slot = data.slot % SLOT_DRESS.length;
+  model = createSkisModel(spec, pairStyle(spec, { ...SLOT_DRESS[slot], model: slot === 0 }), plain);
   model.root.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = true;
   });

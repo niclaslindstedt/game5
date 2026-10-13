@@ -503,6 +503,7 @@ export function createSkisModel(
   const broken = createBrokenFeel();
   const toBody = new THREE.Quaternion();
   const reachAt = new THREE.Vector3();
+  const airPast = new THREE.Vector3();
   // Whether his legs' spring has been set back to rest since he was thrown.
   let rested = false;
   // THE HAND-OFF between the ways he is drawn — riding, thrown, on his
@@ -809,6 +810,12 @@ export function createSkisModel(
       // The skis drawn on the skid's pivot as his body carries it — the
       // figure's boots stand on the same one.
       gear.pose(skier, sink, angle, stand);
+      // THE AIR PAST HIM on the modelled freerider's cloth (`rider-model.ts`),
+      // in the dressed skin's own frame.
+      airPast
+        .set(-skier.vx, -skier.vy, -skier.vz)
+        .applyQuaternion(toBody.copy(root.quaternion).multiply(figure.group.quaternion).invert());
+      figure.dressed.wind(airPast.x, airPast.y, airPast.z, skier.speed);
       // The chatter's (and a dangling leg's) flap and rock on the code's
       // skis, about each ski's own across and then its length (tips up a
       // negative turn about +x) — the order the model's rig turns them in.

@@ -369,15 +369,17 @@ blender:
 
 # The models the game ships: every pair of skis, the heli-ski helicopter
 # and its air ambulance,
-# the mountain snowmobile, the night's piste machine and the jump plane, game quality (no
+# the mountain snowmobile, the night's piste machine, the jump plane and the
+# player's freerider, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer or KIND=plane makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer, KIND=plane or KIND=freerider (the player) makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
-# VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0). The skier
-# (dressed in code, `make gear`), the trees, the wildlife and the course's
+# VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0,
+# VITE_MODEL_RIDER=0 — the player then dressed in code, `make gear`). The
+# field's skiers (dressed in code), the trees, the wildlife and the course's
 # marks are built in code and have no models; `make blender KIND=skier`
 # still models the skier for the labs.
 models:
@@ -387,6 +389,7 @@ models:
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	$(if $(filter all plane,$(or $(KIND),all)),npm run blender -- --kind plane --quality=game --views=none,)
+	$(if $(filter all freerider,$(or $(KIND),all)),npm run blender -- --kind freerider --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender

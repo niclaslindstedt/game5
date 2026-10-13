@@ -44,6 +44,7 @@ import {
 } from "../game/outfit.ts";
 import { dressOf } from "../game/skier-models.ts";
 import { loadModels } from "../game/skier-models.ts";
+import { riderParts, type Flutter } from "../game/rider-model.ts";
 import { skierPose, type SkierPoseInput } from "../game/skier-pose.ts";
 import { rigSkier } from "../game/skier-rig.ts";
 import { createSkier } from "../game/skier-figure.ts";
@@ -168,7 +169,7 @@ type Subject = {
 const figures = new Map<string, SkisModel>();
 /** The dressed figure on the pair, built once per outfit. */
 function figureOf(d: SkierDress, on: SkiSpec = spec): { model: SkisModel; ms: number } {
-  const key = `${on.id}:${outfitKey(d.outfit, d.tone)}`;
+  const key = `${on.id}:${outfitKey(d.outfit, d.tone)}${d.model ? ":model" : ""}`;
   let m = figures.get(key);
   let ms = 0;
   if (!m) {
@@ -474,6 +475,74 @@ function drawPoses(): Drawn {
   );
 }
 
+/** THE PLAYER'S MODELLED FREERIDER (`rider-model.ts`) on the pair, its
+ * cloth's flutter held at a speed, km/h, and a phase of its ripple. */
+function riderSubject(kmh: number, phase: number): Subject {
+  const { model } = figureOf({ outfit: DEFAULT_OUTFIT, model: true });
+  const parts = riderParts();
+  return {
+    label: `freerider · ${kmh} km/h`,
+    root: model.root,
+    tris: parts ? (parts.cloth.index.length + parts.hard.index.length) / 3 : 0,
+    cost: "made by Blender",
+    pose: (m) => {
+      model.poseSkier(inputOf(m));
+      const cloth = model.root.getObjectByName("skier-cloth");
+      const flutter = cloth?.userData.flutter as Flutter | undefined;
+      flutter?.set(0, 0, -1, kmh / 3.6);
+      flutter?.hold(phase);
+    },
+  };
+}
+
+/** THE RIDER SHEET: the modelled freerider beside the code's dressed
+ * figure, through the moves the rig is posed in, and its cloth's flutter
+ * at a run of speeds (the side and behind, two phases of the ripple). */
+function drawRider(): Drawn {
+  const pick = (n: string) => MOMENTS.find((m) => m.name === n)!;
+  const rowsOf: { label: string; subject: Subject; moment: Moment }[] = [
+    { label: "code · dressed", subject: figureSubject(dresses[0], "code"), moment: pick("stood") },
+  ];
+  for (const [n, kmh] of [
+    ["stood", 0],
+    ["carve left", 45],
+    ["tuck", 90],
+    ["air", 50],
+    ["grab", 40],
+    ["lean back", 30],
+  ] as const) {
+    rowsOf.push({ label: `freerider · ${n}`, subject: riderSubject(kmh, 0), moment: pick(n) });
+  }
+  for (const [kmh, phase] of [
+    [0, 0],
+    [30, 0],
+    [60, 0],
+    [100, 0],
+    [100, 1.6],
+    [100, 3.2],
+  ] as const) {
+    rowsOf.push({
+      label: `wind · ${kmh} km/h · phase ${phase}`,
+      subject: riderSubject(kmh, phase),
+      moment: pick(kmh > 60 ? "tuck" : "stood"),
+    });
+  }
+  const poses = rowsOf.length - 6;
+  return drawRows(
+    "rider — the modelled backcountry freerider on the game's rig, and its cloth in the wind",
+    rowsOf,
+    (row) =>
+      row < poses
+        ? [BODY_VIEWS[0], BODY_VIEWS[1], BODY_VIEWS[2], BODY_VIEWS[3]]
+        : [
+            BODY_VIEWS[2],
+            CLOSE.jacket!,
+            { ...CLOSE.jacket!, name: "hem side", bearing: 100 },
+            CLOSE.pants!,
+          ],
+  );
+}
+
 let compared: Subject[] = [];
 function drawCompare(): Drawn {
   const pick = ["stood", "carve left", "tuck", "air", "daffy"];
@@ -688,6 +757,8 @@ window.__gear = {
         return drawHands();
       case "boots":
         return drawBoots();
+      case "rider":
+        return drawRider();
       default:
         return drawCatalog();
     }

@@ -20,6 +20,7 @@ import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
 import { suitDress } from "./wingsuit-dress.ts";
+import { flutterOf, riderParts, type Flutter, type RiderPart } from "./rider-model.ts";
 import type { RiderId } from "@engine";
 
 export type Dressed = {
@@ -35,6 +36,9 @@ export type Dressed = {
   /** The cloth's vertex colours, the bind pose's positions and its weights
    * — what a wound soaks red (`gore-view.ts`). */
   cloth: THREE.BufferGeometry;
+  /** The air past him (`rider-model.ts`'s flutter): its direction in the
+   * group's frame and his speed. A no-op on a cut outfit. */
+  wind(ax: number, ay: number, az: number, speed: number): void;
   dispose(): void;
 };
 
@@ -51,6 +55,9 @@ export type SkierDress = {
   /** In a WINGSUIT, its colourway (`wingsuit-look.ts`): the body cut as
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
+  /** The PLAYER: in the modelled freerider (`rider-model.ts`) when this
+   * build has it and he is neither indoors nor in a suit. */
+  model?: boolean;
 };
 
 /** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
@@ -68,7 +75,7 @@ export function dealtKit(kits: Map<string, SkierDress>, look: number, rider: Rid
 /** A ghost's colours: the kit's own light, lifted toward a pale ice blue. */
 const PALE = new THREE.Color(0xdcecff).convertSRGBToLinear();
 
-function geometryOf(part: DressPart, ghost: boolean): THREE.BufferGeometry {
+function geometryOf(part: DressPart | RiderPart, ghost: boolean): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(part.position, 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute(part.normal, 3));
@@ -84,6 +91,10 @@ function geometryOf(part: DressPart, ghost: boolean): THREE.BufferGeometry {
   g.setAttribute("color", new THREE.BufferAttribute(colour, 3));
   g.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(part.skinIndex, 4));
   g.setAttribute("skinWeight", new THREE.Float32BufferAttribute(part.skinWeight, 4));
+  if ("uv" in part) {
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(part.uv, 2));
+    g.setAttribute("flap", new THREE.Float32BufferAttribute(part.flap, 1));
+  }
   g.setIndex(part.index);
   // The skier stands inside a couple of metres of his root at any pose.
   g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 2.2);
@@ -120,10 +131,12 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
 
+  const rider = dress.model && !dress.bare && dress.suit === undefined ? riderParts() : null;
   const cut =
-    dress.suit === undefined
+    rider ??
+    (dress.suit === undefined
       ? dressOutfit(dress.outfit, dress.tone, dress.bare)
-      : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
+      : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare));
   const ghost = !!dress.ghost;
   const geos = [geometryOf(cut.cloth, ghost), geometryOf(cut.hard, ghost)];
   const mats = [
@@ -133,9 +146,12 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       // through it.
       new THREE.MeshStandardMaterial({
         vertexColors: true,
-        roughness: 0.78,
+        roughness: rider ? 0.7 : 0.78,
         metalness: 0,
         side: THREE.DoubleSide,
+        // The model's baked folds and seams, and their relief.
+        map: rider?.map ?? null,
+        normalMap: rider?.normalMap ?? null,
       }),
       "skier-cloth",
     ),
@@ -156,6 +172,9 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     group.add(m);
     return m;
   });
+  const flutter: Flutter | null = rider ? flutterOf(mats[0], meshes[0]) : null;
+  // A lab reaches the flutter through the cloth (`gear-harness.ts`'s rider sheet).
+  if (flutter) meshes[0].userData.flutter = flutter;
 
   let lastFrames = bind;
   const lay = (frames: Record<SkierBone, BoneFrame>, cut: Collapse | null | undefined): void => {
@@ -185,7 +204,11 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     },
     last: () => lastFrames,
     cloth: geos[0],
+    wind(ax, ay, az, speed) {
+      flutter?.set(ax, ay, az, speed);
+    },
     dispose() {
+      flutter?.dispose();
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
       skeleton.dispose();

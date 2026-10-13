@@ -160,6 +160,25 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
   },
   {
+    asset: "Player (backcountry freerider)",
+    ids: ["freerider"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
+    drawnBy: "pwa/src/game/rider-model.ts",
+    blender: {
+      builder: "scripts/blender/freerider.py",
+      files: ["freerider.glb"],
+      pattern: "freerider.glb",
+      switch: "VITE_MODEL_RIDER",
+    },
+    note:
+      "the player's figure: a long loose hardshell over baggy bibs, an avalanche airbag pack, " +
+      "leather gloves and the game's own helmet, bound in the dressed skin's pose and re-skinned " +
+      "onto the game's own bones by name, so every pose the game has drives it; its shell and " +
+      "bibs flutter in the air he skis through (a vertex term, `rider-model.ts`); the code's " +
+      "dressed skin is the other side of the switch, and still dresses every rival",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

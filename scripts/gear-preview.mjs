@@ -35,6 +35,7 @@
 //   node scripts/gear-preview.mjs --sheet=poses --outfits=woman.puffer.baggy.visor.mitten.powder
 //   node scripts/gear-preview.mjs --sheet=compare --model=previews/blender/skier0-lod0.glb
 //   node scripts/gear-preview.mjs --sheet=refs --refs=/path/to/scratch/refs
+//   node scripts/gear-preview.mjs --sheet=rider     the modelled freerider and its cloth in the wind
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -48,7 +49,18 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".gear-preview");
 const outDir = join(root, "previews");
-const SHEETS = ["catalog", "outfits", "poses", "game", "wire", "compare", "hands", "boots", "refs"];
+const SHEETS = [
+  "catalog",
+  "outfits",
+  "poses",
+  "game",
+  "wire",
+  "compare",
+  "hands",
+  "boots",
+  "rider",
+  "refs",
+];
 const SLOTS = ["body", "weight", "jacket", "pants", "helmet", "gloves", "poles"];
 
 const args = parseArgs(
@@ -89,7 +101,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 180, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/gear-preview.mjs [--sheet=catalog,outfits,poses,game,wire,compare,hands,boots,refs] [--pairs=chamois,swift] [--slots=jacket] [--outfits=0,1] [--model=a.glb] [--refs=DIR]",
+  "usage: node scripts/gear-preview.mjs [--sheet=catalog,outfits,poses,game,wire,compare,hands,boots,rider,refs] [--pairs=chamois,swift] [--slots=jacket] [--outfits=0,1] [--model=a.glb] [--refs=DIR]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS.filter((s) => s !== "refs");

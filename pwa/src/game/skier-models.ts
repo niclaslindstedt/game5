@@ -13,9 +13,10 @@
 // trim, the sidewalls, the boots, the poles) — the topsheet's pattern is
 // the code pair's only.
 //
-// THE SKIER IS NOT A MODEL: he is dressed in code, his outfit cut onto the
-// rig (`skier-dress.ts`), since a modelled skier is one suit and the gear
-// is a catalog to be mixed. A Blender skier (`make blender KIND=skier`) is
+// THE SKIER IS DRESSED IN CODE, his outfit cut onto the rig
+// (`skier-dress.ts`), since the gear is a catalog to be mixed — except the
+// PLAYER, who wears the modelled backcountry freerider (`freerider.glb`,
+// `rider-model.ts`, `VITE_MODEL_RIDER`) skinned onto the same rig. A Blender skier (`make blender KIND=skier`) is
 // still the labs' comparison, dressed by `dressOf` in an outfit's colours.
 //
 // Loaded once, before the renderer's kit is handed out (`use-render-kit.ts`),
@@ -44,6 +45,7 @@ import { modelSwitch } from "./model-switch.ts";
 import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
+import { takeRider } from "./rider-model.ts";
 import type { Stand } from "./ski-stand.ts";
 
 /** The build's environment — Vite's, where this runs in the app; none
@@ -58,6 +60,7 @@ export const MODELS = {
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
   plane: modelSwitch(ENV.VITE_MODEL_PLANE),
+  rider: modelSwitch(ENV.VITE_MODEL_RIDER),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -170,6 +173,9 @@ export function loadModels(): Promise<void> {
         ),
       );
     }
+  }
+  if (MODELS.rider) {
+    jobs.push(loader.loadAsync(at("freerider.glb")).then(takeRider, () => undefined));
   }
   loading = Promise.all(jobs).then(() => undefined);
   return loading;

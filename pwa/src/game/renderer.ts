@@ -125,13 +125,11 @@ import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
-import { loadModels as loadSkierModels } from "./skier-models.ts";
+import { loadModels as loadSkierModels, tickPark } from "./skier-models.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
-export async function loadModels(): Promise<void> {
-  await loadSkierModels();
-}
+export const loadModels = (): Promise<void> => loadSkierModels();
 
 export type RendererOptions = {
   /** The picture to open on (`settings-video.ts`); `setVideo` moves it. Its
@@ -416,7 +414,7 @@ export function createWorldRenderer(
   const dealtKits = new Map<string, SkierDress>();
   let suited = false; // A wingsuit's run: the player in his suit.
   const dressOf = (i: number): SkierDress => {
-    if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit };
+    if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit, model: "park" };
     const free = field[i - 1]?.free;
     return free
       ? dealtKit(dealtKits, free.look, free.rider)
@@ -424,7 +422,7 @@ export function createWorldRenderer(
   };
   const kitOf = (i: number): string => {
     const d = dressOf(i);
-    return `${outfitKey(d.outfit, d.tone)}${d.suit ?? ""}`;
+    return `${outfitKey(d.outfit, d.tone)}${d.suit ?? ""}${d.model ?? ""}`;
   };
   function riderFor(i: number, spec: SkiSpec): Rider {
     const model = createSkisModel(spec, pairStyle(spec, dressOf(i)), wrap);
@@ -567,6 +565,7 @@ export function createWorldRenderer(
     },
 
     draw(state: GameState, alpha: number, dt: number, present = true) {
+      tickPark(dt);
       if (!level || state.level !== level || !terrain || !trail || !spray || !cloud) return;
       const opened = performance.now();
       const runs = runsOf(state);

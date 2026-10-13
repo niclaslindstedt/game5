@@ -34,6 +34,11 @@
 // (`sledModelUrl`, `VITE_MODEL_SLED`) and the night's piste machine
 // (`groomerModelUrl`, `VITE_MODEL_GROOMER`) and the jump plane
 // (`planeModelUrl`, `VITE_MODEL_PLANE`), each fetched by its drawer.
+//
+// THE PARK RIDER (`models/park.glb`, `make models KIND=park`, switched by
+// `VITE_MODEL_PARK`) is the one skier who IS a model: fetched with the
+// skis and skinned on the dressed skier's rig in his place when the outfit
+// wears the Park hoodie (`park-rider.ts`).
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -45,6 +50,9 @@ import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
 import type { Stand } from "./ski-stand.ts";
+
+// The park rider's cloth is stepped once a frame by whoever draws him.
+export { tickPark } from "./park-rider.ts";
 
 /** The build's environment — Vite's, where this runs in the app; none
  * where the suite reads the module (the root program knows no Vite). */
@@ -58,6 +66,7 @@ export const MODELS = {
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
   plane: modelSwitch(ENV.VITE_MODEL_PLANE),
+  park: modelSwitch(ENV.VITE_MODEL_PARK),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -151,8 +160,14 @@ export function rescueModelUrl(): string | null {
   return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/rescue.glb` : null;
 }
 
-const loaded: { skis: Map<SkiId, GLTF> } = { skis: new Map() };
+const loaded: { skis: Map<SkiId, GLTF>; park: GLTF | null } = { skis: new Map(), park: null };
 let loading: Promise<void> | null = null;
+
+/** THE PARK RIDER's glTF (`park-rider.ts` skins it), once `loadModels`
+ * has it — `null` while it is out, switched off or failed. */
+export function parkModel(): GLTF | null {
+  return loaded.park;
+}
 
 /** Fetch every model this build draws, once; resolves when all are in (or
  * given up on — a missing one leaves its pair to the code). */
@@ -170,6 +185,14 @@ export function loadModels(): Promise<void> {
         ),
       );
     }
+  }
+  if (MODELS.park) {
+    jobs.push(
+      loader.loadAsync(at("park.glb")).then(
+        (g) => (loaded.park = g),
+        () => undefined,
+      ),
+    );
   }
   loading = Promise.all(jobs).then(() => undefined);
   return loading;

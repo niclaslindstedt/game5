@@ -14,12 +14,14 @@
 import * as THREE from "three";
 
 import { dressOutfit } from "./dress.ts";
-import { bindPose, type DressPart } from "./dress-loft.ts";
+import { bindPose, type DressMesh, type DressPart } from "./dress-loft.ts";
 import { dealtOutfit, type Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
 import { suitDress } from "./wingsuit-dress.ts";
+import { flapCloth, parkDress, type ParkMesh } from "./park-rider.ts";
+import { parkModel } from "./skier-models.ts";
 import type { RiderId } from "@engine";
 
 export type Dressed = {
@@ -51,6 +53,10 @@ export type SkierDress = {
   /** In a WINGSUIT, its colourway (`wingsuit-look.ts`): the body cut as
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
+  /** The PARK RIDER modelled in Blender (`park-rider.ts`) in place of the
+   * loom's cut, when the build has the model — the player's, out of a
+   * wingsuit. */
+  model?: "park";
 };
 
 /** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
@@ -120,8 +126,11 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
 
-  const cut =
-    dress.suit === undefined
+  const park = dress.model === "park" && dress.suit === undefined ? parkModel() : null;
+  const rider: ParkMesh | null = park ? parkDress(park, dress.bare) : null;
+  const cut: DressMesh = rider
+    ? rider
+    : dress.suit === undefined
       ? dressOutfit(dress.outfit, dress.tone, dress.bare)
       : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
   const ghost = !!dress.ghost;
@@ -156,6 +165,11 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     group.add(m);
     return m;
   });
+  // The park rider's loose cloth moves in the air past him.
+  const unflap =
+    rider && !ghost
+      ? flapCloth(meshes[0], mats[0] as THREE.MeshStandardMaterial, rider.flap)
+      : null;
 
   let lastFrames = bind;
   const lay = (frames: Record<SkierBone, BoneFrame>, cut: Collapse | null | undefined): void => {
@@ -186,6 +200,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     last: () => lastFrames,
     cloth: geos[0],
     dispose() {
+      unflap?.();
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();
       skeleton.dispose();

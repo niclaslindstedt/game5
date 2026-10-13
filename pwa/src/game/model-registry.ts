@@ -160,6 +160,23 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
   },
   {
+    asset: "Park rider",
+    ids: ["park"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress-loft.ts"],
+    drawnBy: "pwa/src/game/park-rider.ts",
+    blender: {
+      builder: "scripts/blender/park.py",
+      files: ["park.glb"],
+      pattern: "park.glb",
+      switch: "VITE_MODEL_PARK",
+    },
+    note:
+      "the player's figure: a tall hoodie over a shell, baggy pants, a beanie and goggles, " +
+      "weighted in the game on the dressed skin's own rig and flapped in its shader; " +
+      "the rivals keep the code's dress",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

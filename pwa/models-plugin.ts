@@ -24,7 +24,8 @@
 // no helicopter and no air ambulance (`src/game/heli-view.ts` draws its code-built stand-in) and
 // `VITE_MODEL_SLED=0` no snowmobile (`src/game/sled-view.ts`'s stand-in)
 // and `VITE_MODEL_GROOMER=0` no piste machine (`src/game/groomer-build.ts`)
-// and `VITE_MODEL_PLANE=0` no jump plane (`src/game/plane-standin.ts`).
+// and `VITE_MODEL_PLANE=0` no jump plane (`src/game/plane-standin.ts`)
+// and `VITE_MODEL_PARK=0` no park rider (the player in the loom's outfit instead).
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -40,6 +41,7 @@ export type ModelSwitches = {
   sled: boolean;
   groomer: boolean;
   plane: boolean;
+  park: boolean;
 };
 
 /** Every switch on — what a build draws unless told otherwise. */
@@ -49,6 +51,7 @@ export const ALL_MODELS: ModelSwitches = {
   sled: true,
   groomer: true,
   plane: true,
+  park: true,
 };
 
 /** Where the committed models are, from the repository's root. */
@@ -71,6 +74,11 @@ export const GROOMER_FILE = "groomer.glb";
 /** The jump plane's one file (`make blender KIND=plane`'s LOD0). */
 export const PLANE_FILE = "plane.glb";
 
+/** The park rider's one file (`make blender KIND=park`'s LOD0): the
+ * player in the Park hoodie, skinned in the game on the dressed skier's
+ * own rig (`src/game/park-rider.ts`). */
+export const PARK_FILE = "park.glb";
+
 /** Every file a build with these switches packs, by its published name —
  * or only one half's (`MODEL_HALVES`). */
 export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
@@ -83,6 +91,7 @@ export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
     ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
     ...(on.groomer && (!half || half === "groomer") ? [GROOMER_FILE] : []),
     ...(on.plane && (!half || half === "plane") ? [PLANE_FILE] : []),
+    ...(on.park && (!half || half === "park") ? [PARK_FILE] : []),
   ];
 }
 
@@ -159,6 +168,19 @@ export const PLANE_SOURCES = [
   "engine/game/defs/plane.ts",
 ];
 
+/** WHAT THE PARK RIDER IS MADE FROM: its builder, its data module, the
+ * shelf and the driver, and the game's own data it reads — the body's
+ * measure and bind pose, the rig, and his bare head's triangles. */
+export const PARK_SOURCES = [
+  "scripts/blender.mjs",
+  "scripts/blender/kinds/park.mjs",
+  "scripts/blender/lib.py",
+  "scripts/blender/park.py",
+  "pwa/src/game/dress-loft.ts",
+  "pwa/src/game/skier-rig.ts",
+  "pwa/src/game/helmet-shape.ts",
+];
+
 /** Every half's stamp in `sources.json`, and the sources it hashes: the
  * skis (`sources`, its name from when they were the only models), the
  * helicopter (`heli`), the air ambulance (`rescue`), the snowmobile
@@ -170,6 +192,7 @@ export const MODEL_HALVES = {
   sled: SLED_SOURCES,
   groomer: GROOMER_SOURCES,
   plane: PLANE_SOURCES,
+  park: PARK_SOURCES,
 } as const;
 export type ModelHalf = keyof typeof MODEL_HALVES;
 
@@ -196,7 +219,7 @@ export function gameModels(on: ModelSwitches, root: string): Plugin {
           `${gone.map((f) => `${MODELS_DIR}/${f}`).join(", ")} is missing — run \`make models\` ` +
             "(it needs Blender), or switch the build back to the code-built ones " +
             "(VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0, VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, " +
-            "VITE_MODEL_PLANE=0)",
+            "VITE_MODEL_PLANE=0, VITE_MODEL_PARK=0)",
         );
       }
     },

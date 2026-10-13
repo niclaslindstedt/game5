@@ -37,6 +37,7 @@ import { pairById, type SkierState, type TrickPose } from "@engine";
 
 import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
+import { tickPark } from "../game/park-rider.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
 import { drawPath } from "./skier-path.ts";
 import { uprightSkier } from "../game/skier-somersault.ts";
@@ -56,6 +57,10 @@ type Moment = { name: string; say?: string; frames: Frame[] };
 type Data = {
   skis: string;
   slot: number;
+  /** The park rider (`park-rider.ts`) in place of the slot's kit. */
+  park?: boolean;
+  /** The park rider's cloth held still (the flap's before). */
+  still?: boolean;
   /** The flight's gravity, m/s². */
   gravity: number;
   moves: Move[];
@@ -148,7 +153,12 @@ async function load(): Promise<void> {
   data = frames;
   const plain = <M extends THREE.Material>(m: M): M => m;
   const spec = pairById(data.skis);
-  model = createSkisModel(spec, pairStyle(spec, SLOT_DRESS[data.slot % SLOT_DRESS.length]), plain);
+  const dress = SLOT_DRESS[data.slot % SLOT_DRESS.length];
+  model = createSkisModel(
+    spec,
+    pairStyle(spec, data.park ? { ...dress, model: "park" } : dress),
+    plain,
+  );
   model.root.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = true;
   });
@@ -170,6 +180,10 @@ function poseAt(f: Frame, dt: number): { centre: THREE.Vector3; heading: number 
     data.gravity,
   );
   model.pose(c, { x: c.x, y: c.y, z: c.z, q: c.q }, 0, f.trick, dt, undefined, f.waiting, f.flip);
+  // The park rider's cloth stepped through every recorded state, as the
+  // renderer's frames step it.
+  model.root.updateMatrixWorld(true);
+  if (!data.still) tickPark(dt);
   const off = c.thrown;
   const cx = off ? off.x : c.x;
   const cz = off ? off.z : c.z;

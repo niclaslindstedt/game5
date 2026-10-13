@@ -43,6 +43,7 @@ import {
 } from "../pwa/src/game/skier-models.ts";
 import { coloursOf, RIVAL_OUTFITS } from "../pwa/src/game/outfit.ts";
 import { pairStyle } from "../pwa/src/game/skis-body.ts";
+import { PARK_GOGGLES, PARK_HARD, PARK_TAGS } from "../pwa/src/game/park-rider.ts";
 import { GROOMER_LOOK } from "../pwa/src/game/groomer-look.ts";
 
 const root = join(import.meta.dirname, "..");
@@ -54,7 +55,7 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine and the jump plane", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the park rider", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
@@ -63,9 +64,19 @@ describe("the models the game ships", () => {
         "sled.glb",
         "groomer.glb",
         "plane.glb",
+        "park.glb",
       ].sort(),
     );
-    const none = { skis: false, heli: false, sled: false, groomer: false, plane: false };
+    const none = {
+      skis: false,
+      heli: false,
+      sled: false,
+      groomer: false,
+      plane: false,
+      park: false,
+    };
+    expect(modelFiles({ ...none, park: true })).toEqual(["park.glb"]);
+    expect(modelFiles(ALL_MODELS, "park")).toEqual(["park.glb"]);
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
     expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
@@ -80,7 +91,7 @@ describe("the models the game ships", () => {
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
   });
 
-  it("are nothing but the skis and the free ride's machines — the skier is dressed in code", () => {
+  it("are nothing but the skis, the free ride's machines and the park rider — the rivals are dressed in code", () => {
     expect(existsSync(join(root, MODELS_DIR, "skier.glb"))).toBe(false);
     for (const dir of ["birds", "beasts", "gates"]) {
       expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
@@ -92,6 +103,7 @@ describe("the models the game ships", () => {
       "blender",
       "groomer",
       "heli",
+      "park",
       "plane",
       "rescue",
       "sled",
@@ -425,5 +437,29 @@ describe("the jump plane model", () => {
     // 20k: the traced skin with its windows and livery, the cabin behind
     // the open door, the wing and tail, the gear on its skis.
     expect(tris).toBeLessThan(20_000);
+  });
+});
+
+describe("the park rider model", () => {
+  const glb = readFileSync(join(root, MODELS_DIR, "park.glb"));
+  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+    materials: { name: string }[];
+  };
+  const builder = readFileSync(join(root, "scripts", "blender", "park.py"), "utf8");
+
+  it("tags what each vertex rides as the builder does", () => {
+    const row = /TAGS = \{([^}]+)\}/.exec(builder)?.[1] ?? "";
+    const tags = Object.fromEntries(
+      [...row.matchAll(/"(\w+)": (\d+)/g)].map((m) => [m[1], Number(m[2])]),
+    );
+    expect(tags).toEqual(PARK_TAGS);
+  });
+
+  it("names its materials as the builder does, the hard ones and the goggles among them", () => {
+    const named = new Set(matNames("park.py"));
+    for (const n of [...PARK_HARD, ...PARK_GOGGLES]) {
+      expect(named.has(n), `park.py names "${n}"`).toBe(true);
+    }
+    for (const m of gltf.materials) expect(named.has(m.name), m.name).toBe(true);
   });
 });

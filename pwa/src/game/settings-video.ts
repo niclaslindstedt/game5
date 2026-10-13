@@ -283,6 +283,18 @@ export const SKY_TIER: Record<DistanceLevel, Tier> = {
   max: "high",
 };
 
+/** THE CLOUD rides it too (`clouds.ts`): LOW one read a layer in the
+ * dome (the shell), MEDIUM a slab of four steps and a read toward the sun,
+ * HIGH and MAX eight and two — both at half the picture's resolution.
+ * Part 7's true volume is a row of its own. */
+export type CloudTier = "shell" | "slab4" | "slab8";
+export const CLOUD_TIER: Record<DistanceLevel, CloudTier> = {
+  low: "shell",
+  medium: "slab4",
+  high: "slab8",
+  max: "slab8",
+};
+
 export type ShadowLook = {
   /** The key light's map, texels a side; 0 is no shadow at all. */
   size: number;

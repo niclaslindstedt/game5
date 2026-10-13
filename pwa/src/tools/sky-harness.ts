@@ -64,7 +64,14 @@ import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-vi
 import { skyLookAt } from "../game/sky.ts";
 import { createSkyGpu, forceSkyTier } from "../game/sky-gpu.ts";
 import { setSkyClock, skyHourNow } from "../game/sky-clock.ts";
-import { evalFrame, frameDiff, type FrameDiff, type SkyEval } from "./sky-eval.ts";
+import {
+  cloudlapseSheet,
+  cloudsSheet,
+  cloudshadowSheet,
+  suncloudsSheet,
+  type CloudSheetHost,
+} from "./sky-cloud-sheets.ts";
+import { evalFrame, frameDiff, type CloudEval, type FrameDiff, type SkyEval } from "./sky-eval.ts";
 
 /** One row of the weathers sheet: a label, the sky it asks for, and the
  * new snow lying under it, m (`GameState.fresh`; none when left out). */
@@ -88,7 +95,7 @@ const ROWS: Row[] = [
 
 /** One measured cell — on the sky-tier sheet with its difference from the
  * LOW sky's cell over it. */
-export type SkyCell = { id: string } & SkyEval & Partial<FrameDiff>;
+export type SkyCell = { id: string } & SkyEval & Partial<FrameDiff> & Partial<CloudEval>;
 
 declare global {
   interface Window {
@@ -666,6 +673,54 @@ async function far(): Promise<{ note: string; r: number; c: number; cells: SkyCe
   return { note: notes.join(" | "), r: maps.length, c: 5, cells };
 }
 
+/** What the cloud sheets (`sky-cloud-sheets.ts`) are lent. */
+const host: CloudSheetHost = {
+  level: () => level,
+  state: () => state,
+  setT: (t) => void (state.t = t),
+  cellW,
+  cellH,
+  stepMin,
+  rate: Number(params.get("rate") ?? SKY_CLOCK.rate) || SKY_CLOCK.rate,
+  cols,
+  only,
+  hoursAsked,
+  frame,
+  cell,
+  standSky,
+  tick: () => renderer.draw(state, 0, FRAME, false),
+  grab() {
+    const gl = renderer.gl.getContext();
+    renderer.draw(state, 0, FRAME, true);
+    gl.finish();
+    const c = document.createElement("canvas");
+    c.width = cellW;
+    c.height = cellH;
+    const g = c.getContext("2d", { willReadFrequently: true })!;
+    g.drawImage(stage, 0, 0, cellW, cellH);
+    return g.getImageData(0, 0, cellW, cellH).data;
+  },
+  setOverride: (v) => renderer.setOverride(v),
+  ridgeTop,
+  horizonHour,
+  fmtHour,
+};
+
+/** Every sheet by its name; the weathers sheet is the default. */
+const SHEETS: Record<
+  string,
+  () => Promise<{ note: string; r: number; c: number; cells: SkyCell[] }>
+> = {
+  timelapse,
+  tiers,
+  skytier,
+  far,
+  clouds: () => cloudsSheet(host),
+  cloudlapse: () => cloudlapseSheet(host),
+  sunclouds: () => suncloudsSheet(host),
+  cloudshadow: () => cloudshadowSheet(host),
+};
+
 window.__sky = {
   ready: (async () => {
     await renderer.load(state);
@@ -674,16 +729,7 @@ window.__sky = {
     renderer.setCamera("chase", true);
   })(),
   async sheet() {
-    const done =
-      kind === "timelapse"
-        ? await timelapse()
-        : kind === "tiers"
-          ? await tiers()
-          : kind === "skytier"
-            ? await skytier()
-            : kind === "far"
-              ? await far()
-              : await weathers();
+    const done = await (SHEETS[kind] ?? weathers)();
     renderer.setSky(null);
     renderer.setOverride(null);
     return { rows: done.r, cols: done.c, note: done.note, cells: done.cells };

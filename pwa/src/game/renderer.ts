@@ -26,9 +26,7 @@ import {
   SKIS,
   TUNING,
   totalMass,
-  weatherOf,
   windAt,
-  windFromOf,
   withSky,
   type GameState,
   type Level,
@@ -172,9 +170,6 @@ export type WorldRendererExt = WorldRenderer &
 
 const NEAR = 0.1;
 const FAR = 6000;
-/** The cloud layer's height over the lens, m: the wind carries the dome's
- * cloud this many metres for one unit of its plane. */
-const CLOUD_HEIGHT = 1400;
 /** How much of the player's own snow cloud the chase lens sees between
  * itself and him (`snow-cloud.ts`'s veil). */
 const CLOUD_VEIL = 0.12;
@@ -779,16 +774,13 @@ export function createWorldRenderer(
       terrain.tick(state.t);
       terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
-      const look = skyLookAt(sky, state.t);
+      const look = skyLookAt(sky, state.t, undefined, eyeAt.y); // over a valley fog, its sea
       windAt(sky, state.t, wind);
-      // The cloud goes with the MEAN wind — its gusts are the air down here.
-      const carried = (weatherOf(sky).wind * state.t) / CLOUD_HEIGHT;
-      const from = windFromOf(sky);
-      const drift = { x: -Math.sin(from) * carried, z: -Math.cos(from) * carried };
       // The sun's map may stand a frame while only he moves under the lens (`sunDue`).
       const lone = !hidden.has("hero") && !own && !planted && !skier.thrown;
       const far = heightOverFar(level, eyeAt.x, eyeAt.y, eyeAt.z); // the true horizon's
-      env.update(look, lens.camera, d.y, drift, lone, keyAheadAt(sky, state.t), far);
+      const overMap = { level: sky, t: state.t }; // the cloud field over the map, at the run's clock
+      env.update(look, lens.camera, d.y, overMap, lone, keyAheadAt(sky, state.t), far);
       crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {

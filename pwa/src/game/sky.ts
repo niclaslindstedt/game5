@@ -76,8 +76,9 @@ import {
   atmosphereRow,
   EXPOSURE,
   exposureOf,
-  sunTransmittance,
 } from "./sky-atmosphere.ts";
+import { cloudFieldOf, cloudLayersFor, meanPass, type CloudField } from "./cloud-field.ts";
+import { lightClouds, type CloudSky } from "./cloud-light.ts";
 import { skyClock } from "./sky-clock.ts";
 import { SKY_GRID, SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import { DEFAULT_TURN, skyTurnOf, type SkyTurn } from "./starfield.ts";
@@ -88,16 +89,13 @@ export type Rgb = [number, number, number];
 /** A unit vector in the world frame. */
 export type Dir = { x: number; y: number; z: number };
 
-/** The cloud over the dome: which genus, how much of the sky it covers,
- * and its two colours. */
+/** The cloud over the dome, in a word: which genus leads, and how much of
+ * the sky it covers. What each layer is and how it is lit is `clouds`'. */
 export type CloudLook = {
   /** 0 none, 1 cumulus (heaps), 2 cirrus (high streaks), 3 a lid. */
   genus: 0 | 1 | 2 | 3;
   /** Share of the sky covered, 0..1. */
   cover: number;
-  /** The sunward tops, and the shaded sides and bases. */
-  lit: Rgb;
-  shade: Rgb;
 };
 
 export type SkyLook = {
@@ -166,6 +164,14 @@ export type SkyLook = {
   hazeLift: number;
   /** The cloud over the dome. */
   cloud: CloudLook;
+  /** THE CLOUD FIELD'S LIGHT (`cloud-light.ts`): every layer's sun, top and
+   * base, the halo, a fog's top from above; and how much of the field is
+   * drawn at all (0 inside a valley fog, which hides it). */
+  clouds: CloudSky & { show: number };
+  /** A VALLEY FOG SEEN FROM ABOVE (`skyLookAt` with the eye over its top):
+   * its lit colour, its top's world height, m, and its density, 1/m (0: no
+   * sea — the fog, if any, is all round the lens). */
+  sea: { colour: Rgb; top: number; k: number };
   /** How dark it is, 0 (day) … 1 (full night). */
   night: number;
   /** How much of the Milky Way shows, 0..1 — only a dark sky's: past
@@ -245,25 +251,45 @@ const MOONLIGHT: Rgb = [0.6, 0.72, 1.0];
 const MOON_KEY = 0.75;
 
 /**
- * WHAT A SKY OF EACH KIND DOES to the clear day under it: the cloud it
- * draws, how much of the key gets through, and what the snow is told. The
- * fall and the fog scale their own rows further by how heavy they are.
+ * WHICH GENUS A SKY OF EACH KIND LEADS WITH, and how much of the dome it
+ * covers, in a word. How much of the key gets through and how flat the
+ * light is are the CLOUD FIELD's (`cloud-field.ts`'s `meanPass`: the
+ * stack's own columns against the sun) — save inside a valley fog, which is
+ * no layer of the field and keeps its own numbers (`FOG`).
  */
-const LID: Record<
-  Weather["kind"],
-  { genus: CloudLook["genus"]; cover: number; key: number; flat: number; glitter: number }
-> = {
-  clear: { genus: 0, cover: 0, key: 1, flat: 0, glitter: 1 },
-  fair: { genus: 1, cover: 0.4, key: 0.95, flat: 0, glitter: 1 },
-  // A few heaps and the sun between them: the flakes glint in it.
-  flurries: { genus: 1, cover: 0.26, key: 0.9, flat: 0.04, glitter: 1 },
-  high: { genus: 2, cover: 0.6, key: 0.78, flat: 0.2, glitter: 0.7 },
-  // A lid with the sun a pale disc behind it: soft shadows, not none.
-  overcast: { genus: 3, cover: 1, key: 0.22, flat: 0.68, glitter: 0.12 },
-  snow: { genus: 3, cover: 1, key: 0.1, flat: 0.85, glitter: 0.05 },
-  storm: { genus: 3, cover: 1, key: 0.03, flat: 0.92, glitter: 0 },
-  fog: { genus: 3, cover: 1, key: 0.3, flat: 0.7, glitter: 0.25 },
+const LID: Record<Weather["kind"], { genus: CloudLook["genus"]; cover: number }> = {
+  clear: { genus: 0, cover: 0 },
+  fair: { genus: 1, cover: 0.4 },
+  flurries: { genus: 1, cover: 0.26 },
+  high: { genus: 2, cover: 0.6 },
+  overcast: { genus: 3, cover: 1 },
+  snow: { genus: 3, cover: 1 },
+  storm: { genus: 3, cover: 1 },
+  fog: { genus: 3, cover: 1 },
 };
+/** Inside a valley fog: the key it lets through, the light's flatness and
+ * the glitter left. */
+const FOG = { key: 0.3, flat: 0.7, glitter: 0.25 };
+/** The sun's sine the field's FLATNESS is read at (its pass at a winter
+ * noon's 20°): a property of the cloud, not of the hour. */
+const FLAT_SIN = 0.34;
+/** How flat a light the field's thickness (1 − its pass at `FLAT_SIN`)
+ * leaves: none under broken heaps, most of the way to a whiteout under a
+ * deck — the old rows' 0.2 under a high veil, 0.68 under an overcast. */
+const flatOf = (thick: number): number =>
+  0.95 * Math.pow(Math.min(1, Math.max(0, (thick - 0.42) / 0.55)), 0.75);
+
+/** The stack a weather deals when no map names one (a card's, a test's). */
+const STOCK = new Map<string, Pick<CloudField, "layers" | "floorAltitude" | "seaTop">>();
+function fieldFor(weather: Weather, altitude: number) {
+  const key = `${weather.kind}:${altitude}`;
+  let f = STOCK.get(key);
+  if (!f) {
+    f = { layers: cloudLayersFor(weather.kind), floorAltitude: altitude - 700, seaTop: 0 };
+    STOCK.set(key, f);
+  }
+  return f;
+}
 
 /** A lid's own greys at full day, per kind: the deck overhead and the air
  * at the horizon under it. The deck is DARKER than the snow it hangs over —
@@ -315,13 +341,6 @@ export const NIGHT_HORIZON: Rgb = [0.014, 0.022, 0.05];
  * toward the row a degree and a half over it: in the mountains the far
  * ground stands in front of that path, and what the haze shows is the air
  * of the valleys, not of the whole curve of the Earth. */
-/** The cloud layers' heights over the sea, m: a fair day's heaps and a
- * high veil's ice. */
-const CLOUD_HEIGHT = { heap: 2500, streak: 8000 } as const;
-/** A white cloud's radiance per unit of the sun's light on it (a thick
- * cloud's sunward face, ~0.9 of it sent back over a hemisphere: 0.9/π). */
-const CLOUD_WHITE = 0.28;
-const CLOUD_SUN: Rgb = [0, 0, 0];
 
 /** THE FAR GROUND'S REFLECTANCE, linear RGB: winter country seen from
  * tens of kilometres — snowfields (0.8 and more) mixed with conifer woods
@@ -377,6 +396,7 @@ export function skyLookFor(
   weather: Weather = CLEAR_WEATHER,
   now?: number,
   altitude: number = DEFAULT_ALTITUDE,
+  field: Pick<CloudField, "layers" | "floorAltitude" | "seaTop"> = fieldFor(weather, altitude),
 ): SkyLook {
   // How "high" the day is, 0 at the horizon to 1 at 45° and over.
   const high = smooth(0.0, 0.8, elevation);
@@ -434,7 +454,13 @@ export function skyLookFor(
   const lid = LID[weather.kind];
   const fall = snows(weather.kind) ? (now ?? weather.snowfall) : 0;
   const fog = weather.kind === "fog" ? weather.fog : 0;
-  const pass = lid.key * (1 - 0.6 * fall) * (1 - 0.6 * fog);
+  // THE CLOUD BETWEEN: the field's mean over the map (each place takes its
+  // own share of it, `cloud-glsl.ts`'s `cloudShadow`), and the flatness and
+  // the glitter its thickness leaves.
+  const inFog = weather.kind === "fog";
+  const cloudPass = inFog ? FOG.key : meanPass(field.layers, Math.sin(elevation));
+  const thick = inFog ? 0 : 1 - meanPass(field.layers, FLAT_SIN);
+  const pass = cloudPass * (1 - 0.6 * fall) * (1 - 0.6 * fog);
   const sunKey = exposure * sunMax;
   const moonKey = MOON_KEY * (0.2 + 0.8 * moonAt.lit) * moonUp * night;
   const byMoon = moonKey > sunKey;
@@ -520,33 +546,23 @@ export function skyLookFor(
   if (weather.kind === "fog") haze = LID_HAZE * (5 + 40 * fog);
   if (fall > 0) haze = Math.max(haze, KOSCHMIEDER / visibilityIn(fall));
 
-  // A cloud is lit by the sun THROUGH THE AIR TO IT (`sunTransmittance` at
-  // the layer's height — a heap's 2.5 km, a streak's 8 km, which keeps the
-  // sun after the snow has lost it): white at noon, gold, then orange and
-  // red as the sun goes down, a high veil pink a while after sunset. Its
-  // sunward top takes that light on white over the sky's own; its base the
-  // sky's light, and a low sun's from below. Under a lid the two are the
-  // deck's own greys, far enough apart that its underside reads as cloud
-  // and not as paint — and furthest in a storm, whose deck boils.
-  const rough = weather.kind === "storm" ? 1.9 : 1.5;
-  sunTransmittance(elevation, lid.genus === 2 ? CLOUD_HEIGHT.streak : CLOUD_HEIGHT.heap, CLOUD_SUN);
-  // Pressed as the dome is (`DOME`), so a cloud in a low sun under a
-  // twilight's open eye stays orange rather than clipping to cream.
-  const cloudY = lum(CLOUD_SUN) * CLOUD_WHITE * pass;
-  const cloudPress = cloudY > 0 ? DOME.gain * Math.pow(cloudY / skyMean, DOME.span - 1) : 0;
-  const cloudSun: Rgb = scale(CLOUD_SUN, exposure * cloudPress * CLOUD_WHITE * pass);
-  const under = smooth(0.2, 0.01, elevation);
-  const cloudLit: Rgb = lidded
-    ? scale(zenith, rough)
-    : [cloudSun[0] + zenith[0] * 0.7, cloudSun[1] + zenith[1] * 0.7, cloudSun[2] + zenith[2] * 0.7];
-  const skyUnder = mix(scale(zenith, 1.1), horizon, 0.5);
-  const cloudShade: Rgb = lidded
-    ? scale(zenith, 0.62)
-    : [
-        skyUnder[0] + cloudSun[0] * (0.12 + 0.5 * under),
-        skyUnder[1] + cloudSun[1] * (0.12 + 0.5 * under),
-        skyUnder[2] + cloudSun[2] * (0.12 + 0.5 * under),
-      ];
+  // THE LIGHT ON EACH LAYER (`cloud-light.ts`): the sun through the air to
+  // its own height, pressed as the dome is; the sky's on its shaded parts —
+  // under a lid the deck's own greys, furthest apart in a storm, whose deck
+  // boils; the moon's by night.
+  const clouds = lightClouds(field.layers, {
+    elevation,
+    exposure,
+    skyMean,
+    dome: DOME,
+    zenith,
+    horizon,
+    lidded,
+    rough: weather.kind === "storm" ? 1.9 : 1.5,
+    moon: scale(MOONLIGHT, moonKey * 0.05),
+    floorAltitude: field.floorAltitude,
+    seaTop: field.seaTop,
+  });
 
   // How much of the night sky the cloud leaves: a lid takes all of it, a
   // veil of cirrus some, and heaps only where they stand — which the dome
@@ -600,14 +616,16 @@ export function skyLookFor(
     veil,
     haze,
     hazeLift: fog > 0 ? 90 + 120 * (1 - fog) : 700,
-    cloud: { genus: lid.genus, cover: lid.cover, lit: cloudLit, shade: cloudShade },
+    cloud: { genus: lid.genus, cover: lid.cover },
+    clouds: { ...clouds, show: inFog ? 0 : 1 },
+    sea: { colour: clouds.sea, top: 0, k: 0 },
     night,
     stars: smooth(0.1, 0.26, -elevation) * (1 - 0.5 * moonUp * moonAt.lit) * clearNight,
     galaxy:
       smooth(0.2, 0.34, -elevation) * (1 - 0.85 * moonUp * moonAt.lit) * clearNight * clearNight,
     turn: DEFAULT_TURN,
-    flat: Math.min(1, lid.flat + 0.08 * fall),
-    glitter: lid.glitter,
+    flat: Math.min(1, (inFog ? FOG.flat : flatOf(thick)) + 0.08 * fall),
+    glitter: inFog ? FOG.glitter : Math.pow(Math.min(1, (1 - thick) / 0.65), 1.4),
     lamps,
     snowfall: fall,
     fog,
@@ -632,20 +650,71 @@ export function skyLookAt(
   level: Pick<Level, "seed" | "sun" | "weather" | "mountain">,
   t = 0,
   rate: number = skyClock(),
+  eyeY?: number,
 ): SkyLook {
   const sky = skyLevelAt(level, t, rate);
   const sun = sunAtRun(sky);
   const moon = moonAtRun(sky);
-  const look = skyLookFor(
-    sun.azimuth,
-    sun.elevation,
-    moon,
-    weatherOf(level),
-    snowAt(level, t, fallNow).fall,
-    lensAltitude(level),
-  );
-  look.turn = skyTurnOf(sky);
-  return look;
+  const weather = weatherOf(level);
+  const field = fieldOf(level);
+  const at = (w: Weather): SkyLook => {
+    const look = skyLookFor(
+      sun.azimuth,
+      sun.elevation,
+      moon,
+      w,
+      snowAt(level, t, fallNow).fall,
+      lensAltitude(level),
+      field,
+    );
+    look.turn = skyTurnOf(sky);
+    return look;
+  };
+  // A VALLEY FOG IS AN INVERSION: over its top the air is clear and the
+  // sun out, and the fog lies below as a sea of cloud, its top lit (`sea`,
+  // drawn by the dome and the haze) — eased across the top's few metres.
+  const top = field.floorY + field.seaTop;
+  const over = field.seaTop > 0 && eyeY !== undefined ? smooth(top - 40, top + 40, eyeY) : 0;
+  const under = over < 1 ? at(weather) : null;
+  if (over <= 0 && under) return under;
+  const clear = at({ ...weather, kind: "clear", fog: 0 });
+  clear.sea = { colour: clear.clouds.sea, top, k: SEA_DENSITY };
+  return under ? blendLook(under, clear, over) : clear;
+}
+
+/** A valley fog's density seen from above, 1/m: a few tens of metres of
+ * it hide the ground. */
+const SEA_DENSITY = 0.03;
+
+const FIELDS = new WeakMap<object, CloudField>();
+/** THE CLOUD FIELD over a map, dealt once a map. */
+export function fieldOf(level: Pick<Level, "seed" | "sun" | "weather" | "mountain">): CloudField {
+  let f = FIELDS.get(level);
+  if (!f) {
+    f = cloudFieldOf(level);
+    FIELDS.set(level, f);
+  }
+  return f;
+}
+
+/** Two looks mixed `s` of the way from `a` to `b`, field by field: every
+ * number and every list of numbers mixed, anything else `b`'s past half. */
+function blendLook<T>(a: T, b: T, s: number): T {
+  if (typeof a === "number" && typeof b === "number") return (a + (b - a) * s) as T;
+  if (a instanceof Float32Array && b instanceof Float32Array) {
+    const out = new Float32Array(a.length);
+    for (let i = 0; i < a.length; i++) out[i] = a[i] + (b[i] - a[i]) * s;
+    return out as T;
+  }
+  if (Array.isArray(a) && Array.isArray(b))
+    return a.map((v: unknown, i) => blendLook(v, b[i] as unknown, s)) as T;
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(b))
+      out[k] = blendLook((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], s);
+    return out as T;
+  }
+  return s < 0.5 ? a : b;
 }
 
 /** WHERE THE KEY WILL STAND `lead` s of run on (the sun's or the moon's

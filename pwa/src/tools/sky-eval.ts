@@ -35,6 +35,8 @@ export type SkyEval = {
   sunK: number | null;
   keyI: number;
   amb: number;
+  /** The share of the key the weather's cloud lets through (`keyPass`). */
+  pass: number;
   /** The drawn sky at the top of the frame. */
   skyL: number;
   skyK: number | null;
@@ -141,6 +143,7 @@ export function evalFrame(
     sunK: look.elevation > -0.02 ? colourTemperature(look.sunColour) : null,
     keyI: r3(look.keyIntensity),
     amb: r3(look.ambient),
+    pass: r3(look.keyPass),
     skyL: r3(luminance(skyMean)),
     skyK: colourTemperature(skyMean),
     litL: litL === null ? null : r3(litL),
@@ -198,5 +201,47 @@ export function frameDiff(
     dE: r2(mean),
     dSky: r2(sky / Math.max(1, skyN)),
     dE95: r2(all[Math.floor(all.length * 0.95)] ?? 0),
+  };
+}
+
+/** THE CLOUD'S NUMBERS off a drawn frame's upper half (the sky over the
+ * horizon, in the cloud sheets' lenses): its mean red over blue (`skyRB`,
+ * linear — a clear noon sky well under 1, a sunset's clouds over it), the
+ * share of it warmer than 1.25 and not near black (`warm`), and the spread
+ * of its luminance (`skySd`: a bare sky's gradient is small, broken cloud's
+ * large). `dFrame` and `jitter` are the time-lapse's: how far the picture
+ * moved from the frame before, and between two frames a thirtieth of a
+ * second apart (the 95th percentile, ΔE). */
+export type CloudEval = {
+  skyRB: number;
+  warm: number;
+  skySd: number;
+  dFrame?: number;
+  jitter?: number;
+};
+
+export function cloudEval(rgba: Uint8ClampedArray, w: number, h: number): CloudEval {
+  let rb = 0;
+  let warm = 0;
+  let n = 0;
+  let s1 = 0;
+  let s2 = 0;
+  for (let y = 0; y < Math.floor(h * 0.5); y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const c: Rgb = [toLinear(rgba[i]), toLinear(rgba[i + 1]), toLinear(rgba[i + 2])];
+      const l = luminance(c);
+      const ratio = c[0] / Math.max(c[2], 1e-3);
+      rb += Math.min(ratio, 8);
+      if (ratio > 1.25 && l > 0.01) warm++;
+      s1 += l;
+      s2 += l * l;
+      n++;
+    }
+  const mean = s1 / Math.max(1, n);
+  return {
+    skyRB: r3(rb / Math.max(1, n)),
+    warm: r3(warm / Math.max(1, n)),
+    skySd: r3(Math.sqrt(Math.max(0, s2 / Math.max(1, n) - mean * mean))),
   };
 }

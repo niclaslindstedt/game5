@@ -19,6 +19,7 @@
 
 import * as THREE from "three";
 
+import { CLOUD_SHADOW_GLSL } from "./cloud-glsl.ts";
 import { FAR_RADIUS } from "./horizon.ts";
 import { AERIAL_GLSL } from "./sky-gpu-glsl.ts";
 import type { Tracks } from "./piste-tracks.ts";
@@ -188,6 +189,19 @@ export type HazeUniforms = {
    * seconds since the release. */
   uSlabCrack: { value: THREE.Vector4 };
   uSlide: { value: THREE.Texture | null };
+  /** THE CLOUDS' SHADOW (`clouds.ts`, read by `cloud-glsl.ts`'s
+   * `cloudShadow`): the map of every layer's columns, each layer's box on
+   * it (first corner, one over its span, its middle's height), each
+   * layer's optical depth (`w` 1 with a field), and each layer's mean pass
+   * (`w` the stack's) — what the key is the mean of. */
+  uCloudShadow: { value: THREE.Texture | null };
+  uCloudBox: { value: THREE.Vector4[] };
+  uCloudTau: { value: THREE.Vector4 };
+  uCloudMean: { value: THREE.Vector4 };
+  /** A VALLEY FOG SEEN FROM ABOVE (`SkyLook.sea`): its lit colour and its
+   * top's height, m; and its density, 1/m (0: none). */
+  uSea: { value: THREE.Vector4 };
+  uSeaK: { value: number };
 };
 
 /** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`), the
@@ -279,6 +293,12 @@ export function createHazeUniforms(): HazeUniforms {
     uSlideOn: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSlabCrack: { value: new THREE.Vector4(0, 0, 1, 1e3) },
     uSlide: { value: null },
+    uCloudShadow: { value: null },
+    uCloudBox: { value: [0, 1, 2].map(() => new THREE.Vector4(0, 0, 1, 0)) },
+    uCloudTau: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uCloudMean: { value: new THREE.Vector4(1, 1, 1, 1) },
+    uSea: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uSeaK: { value: 0 },
   };
 }
 
@@ -338,6 +358,8 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
   u.uHazeFloor.value = look.fog > 0 ? 0.12 : 0.55;
   u.uFlat.value = look.flat;
   u.uGlitter.value = look.glitter;
+  u.uSea.value.set(...look.sea.colour, look.sea.top);
+  u.uSeaK.value = look.sea.k;
 }
 
 /** The sky along a direction, in linear light — the dome's own colour. */
@@ -367,6 +389,8 @@ uniform float uMistAloft;
 uniform float uMistOpen;
 uniform float uHazeLift;
 uniform float uHazeFloor;
+uniform vec4 uSea;
+uniform float uSeaK;
 
 // The physical sky (\`uSkyView\`, the LOW grid or the GPU sky's table of
 // \`uSkyViewSize\` texels on the same layout): its grid is the azimuth from the sun
@@ -581,6 +605,19 @@ export const HAZE_FRAGMENT = /* glsl */ `
   float hzMist = hazeMist(hzDist, hzRay.y);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, max(hzAir, vec3(hzMist * uMistOpen)));
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hzMist * (1.0 - uMistOpen));
+  // A VALLEY FOG SEEN FROM ABOVE (\`uSeaK\`): the length of the view under
+  // its top, its lit top's colour over what is under it.
+  if (uSeaK > 0.0) {
+    float hzLo = min(cameraPosition.y, vHazeWorld.y);
+    float hzSpan = abs(cameraPosition.y - vHazeWorld.y);
+    float hzUnder = clamp((uSea.w - hzLo) / max(hzSpan, 1e-3), 0.0, 1.0);
+    vec3 hzSea = uSea.rgb;
+    #if defined(TONE_MAPPING)
+      hzSea = toneMapping(hzSea);
+    #endif
+    hzSea = linearToOutputTexel(vec4(hzSea, 1.0)).rgb;
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, hzSea, 1.0 - exp(-uSeaK * hzDist * hzUnder));
+  }
 }
 `;
 
@@ -650,6 +687,7 @@ float heroShadowed(float shadow, vec3 viewNormal) {
 
 const DIR_SHADOW_OPEN = "? getShadow( directionalShadowMap[ i ]";
 const DIR_SHADOW_CLOSE = "vDirectionalShadowCoord[ i ] ) : 1.0;";
+const DIR_INFO = "getDirectionalLightInfo( directionalLight, directLight );";
 
 /** Three's `lights_fragment_begin` with the directional light's shadow
  * passed through `shadowFaded` (and not read at all past the ridge, where the
@@ -666,7 +704,13 @@ export function lightsWithFade(): string {
   if (!chunk.includes(DIR_SHADOW_OPEN) || !chunk.includes(DIR_SHADOW_CLOSE)) {
     throw new Error("haze.ts: three's directional shadow line moved; re-graft shadowFaded");
   }
+  if (!chunk.includes(DIR_INFO)) {
+    throw new Error("haze.ts: three's directional light info moved; re-graft cloudShadow");
+  }
   fadedLights = chunk
+    // THE CLOUDS between the point and the key (`cloud-glsl.ts`), whatever
+    // the SHADOWS row: a heap's shadow is miles across.
+    .replace(DIR_INFO, `${DIR_INFO}\n\t\tdirectLight.color *= cloudShadow( vHazeWorld );`)
     .replace(
       DIR_SHADOW_OPEN,
       "? min( terrainLit( vHazeWorld ), heroShadowed( shadowFaded( shadowGone() ? 1.0 : getShadow( directionalShadowMap[ i ]",
@@ -713,7 +757,7 @@ export function hazeMaterial<M extends THREE.Material>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SKY_GLSL}\n${AERIAL_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
+        `#include <common>\n${SKY_GLSL}\n${AERIAL_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}\n${CLOUD_SHADOW_GLSL}`,
       )
       .replace(
         "#include <shadowmap_pars_fragment>",

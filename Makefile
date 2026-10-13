@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike-park bike-look bike-ride title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
+.PHONY: bike-park bike-look bike-ride title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
 
 build:
 	npm run build
@@ -532,6 +532,25 @@ spray-metrics:
 # ARGS="--models=drag,sheet", "--detail=sheet" (run by run), "--ages".
 spray-eval:
 	npm run spray-eval -- $(ARGS)
+
+# THE SNOW EVAL LAB: the snow a skier and a snowboarder throw and leave on
+# fixed scenes — a carve on the groomer, a hockey stop on skis, a board's
+# heelside and toeside stops, a powder turn, a fall's crater in powder, the
+# line a run cuts from the chase lens — by day and under a low sun, through
+# the game's own renderer, and what the spray and the cloud cost at the LOW,
+# MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
+# perf.json. ARGS="--scenes=hockey,board-heel", "--model=sheet" (another
+# spray model, the before), "--no-perf", "--out=DIR".
+snow-eval:
+	npm run snow-eval -- $(ARGS)
+
+# THE SNOW MASS LAB: the spray WEIGHED — the kilograms a stop or a carve
+# throws off groomed, hard, icy, wet, soft and new snow, how deep the edge
+# cut, how high and far it flew, each row held to the band a real one sits
+# in (spray-mass.ts). Pure Node, seconds. ARGS="--rows=stop/ice",
+# "--json=a.json" / "--compare=a.json".
+snow-mass:
+	npm run snow-mass -- $(ARGS)
 
 # THE SPRAY LAB: the snow a turn throws off the skis AND off a board, as the
 # game draws it — the turns lab (below) ridden on the Chamois and the Lynx

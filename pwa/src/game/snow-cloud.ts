@@ -48,6 +48,7 @@ import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import { skiShares, stationOf } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import { edgeSlips, emptySlip, type EdgeSlip } from "./spray-sim.ts";
+import { dustOf, MASS } from "./spray-mass.ts";
 import {
   flyPuff,
   carveOf,
@@ -644,6 +645,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       // skis) — the fine part of the same sheet the grains are, so the
       // cloud rises where the spray flies and never behind it.
       skidCloud(drive, snow, wall);
+      // THE SPRAY WEIGHED (`spray-mass.ts`): the wall is the dust the edges
+      // actually threw — a groomer's stop a low mist, powder's a cloud.
+      const dust = dustOf(skier);
+      if (dust !== undefined) {
+        const f = Math.min(1.2, Math.sqrt(dust / MASS.dustRef));
+        wall.rate *= f;
+        wall.lift *= 0.5 + 0.5 * Math.min(1, f);
+      }
       const edges = edgeSlips(skier, slips);
       const e = edges > 1 && slips[1].share > slips[0].share ? slips[1] : slips[0];
       const along = e.share > 0;

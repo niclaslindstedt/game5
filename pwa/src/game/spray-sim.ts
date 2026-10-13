@@ -37,6 +37,7 @@
 import { rotate, type Level, type SkierState } from "@engine";
 
 import { skiShares, stationOf } from "./ski-stand.ts";
+import { createMassPool, type MassPool } from "./spray-mass.ts";
 import type { AgedSnow, SnowProps } from "./snowpack.ts";
 
 /** HOW A GRAIN FLIES — the four candidates `make spray-eval` scores:
@@ -52,9 +53,9 @@ import type { AgedSnow, SnowProps } from "./snowpack.ts";
  *   * `sheet`: `drag`'s flight, the chips thrown off the edge in ROWS that
  *     leave together — one launch along the whole edge each, so the spray
  *     leaves as a curtain before it tears into grains. */
-export type SprayModel = "puff" | "streak" | "drag" | "sheet";
+export type SprayModel = "puff" | "streak" | "drag" | "sheet" | "mass";
 
-export const SPRAY_MODELS: readonly SprayModel[] = ["puff", "streak", "drag", "sheet"];
+export const SPRAY_MODELS: readonly SprayModel[] = ["puff", "streak", "drag", "sheet", "mass"];
 
 export function isSprayModel(value: unknown): value is SprayModel {
   return typeof value === "string" && (SPRAY_MODELS as readonly string[]).includes(value);
@@ -64,7 +65,7 @@ export function isSprayModel(value: unknown): value is SprayModel {
  * each other and far over `streak` and `puff` (`make spray-eval`); the
  * sheet is flown for its curtain — the thinnest spray just thrown, and the
  * fan that reads off the edge in the lab's pictures. */
-export const SPRAY_MODEL: SprayModel = "sheet";
+export const SPRAY_MODEL: SprayModel = "mass";
 
 /** What the age of the snow adds to what it throws (`ageSnow`), none when
  * nothing says. */
@@ -286,7 +287,79 @@ const FALL = {
   wet: [2, 3],
 } as const;
 
+/** THE POOL a spray is flown from, by whichever `model` it is set to: the
+ * weighed `mass` model's own pool, or the counted models' (made when first
+ * asked for, so a game flying one never pays for the other). */
 export function createSprayPool(capacity = 6000, watch: SprayWatch = {}): SprayPool {
+  let counted: SprayPool | null = null;
+  let weighed: MassPool | null = null;
+  let budget = 1;
+  let model: SprayModel = SPRAY_MODEL;
+  const active = (): SprayPool => {
+    if (model === "mass") {
+      weighed ??= createMassPool(capacity, watch);
+      return weighed;
+    }
+    if (!counted) {
+      counted = createCountedPool(capacity, watch);
+      counted.setBudget(budget);
+    }
+    counted.model = model;
+    return counted;
+  };
+  active().setBudget(budget);
+  return {
+    capacity,
+    get pos() {
+      return active().pos;
+    },
+    get vel() {
+      return active().vel;
+    },
+    get size() {
+      return active().size;
+    },
+    get alpha() {
+      return active().alpha;
+    },
+    get hard() {
+      return active().hard;
+    },
+    get glint() {
+      return active().glint;
+    },
+    get age() {
+      return active().age;
+    },
+    get term() {
+      return active().term;
+    },
+    get cap() {
+      return active().cap;
+    },
+    get model() {
+      return model;
+    },
+    set model(next: SprayModel) {
+      if (next === model) return;
+      active().clear();
+      model = next;
+      active().setBudget(budget);
+    },
+    emit: (...a) => active().emit(...a),
+    burst: (...a) => active().burst(...a),
+    fling: (...a) => active().fling(...a),
+    step: (...a) => active().step(...a),
+    setBudget(share) {
+      budget = share;
+      active().setBudget(share);
+    },
+    clear: () => active().clear(),
+    stats: () => active().stats(),
+  };
+}
+
+function createCountedPool(capacity: number, watch: SprayWatch): SprayPool {
   const pos = new Float32Array(capacity * 3);
   const vel = new Float32Array(capacity * 3);
   const age = new Float32Array(capacity);

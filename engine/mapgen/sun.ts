@@ -195,6 +195,27 @@ export function withPlace<
   },
 >(level: L, place: GlobePlace | null): L {
   if (!place) return level;
+  // The same map at the same place is the same object: everything a run
+  // memoizes off its map (the hashes, the solids, the village) is kept
+  // across every run created on it.
+  const key = `${place.lat},${place.lon},${place.bearing}`;
+  const kept = PLACED.get(level)?.get(key);
+  if (kept) return kept as L;
+  const placed = placeAt(level, place);
+  let byPlace = PLACED.get(level);
+  if (!byPlace) PLACED.set(level, (byPlace = new Map()));
+  byPlace.set(key, placed);
+  return placed;
+}
+
+/** Every map stood at a place, by the map and the place (`withPlace`). */
+const PLACED = new WeakMap<object, Map<string, object>>();
+
+function placeAt<
+  L extends {
+    sun: { hour: number; dayOfYear: number; latitude: number; facing?: number; longitude?: number };
+  },
+>(level: L, place: GlobePlace): L {
   const facing = compass((place.bearing * Math.PI) / 180);
   const sun = level.sun;
   if (sun.latitude === place.lat && sun.longitude === place.lon && sun.facing === facing) {

@@ -21,12 +21,12 @@ import {
   airflowAt,
   depthUnder,
   snowCoverOf,
-  sunAtRun,
   topSpeedOf,
   type Airflow,
   type GameState,
   type Level,
 } from "@engine";
+import { sunNow } from "../sky-clock.ts";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 
@@ -131,6 +131,7 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
   // once per map under its own sky and sun, its new snow moved every frame.
   let pack: Snowpack | null = null;
   let packLevel: Level | null = null;
+  let packSun = 0;
   const under = emptyMix();
   const air: Rack<WindLayer> = createRack(voice, WIND_LAYERS, WIND_GLIDE);
   const snow: Rack<SnowLayer> = createRack(synth, SNOW_LAYERS, SNOW_GLIDE);
@@ -185,12 +186,12 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       // WHAT LIES UNDER THEM: the six kinds as the picture mixes them at
       // his boots — the map's groomer, crust and ice, the new snow the sky
       // has laid and is laying, the thaw under a high sun.
-      if (pack === null || packLevel !== state.level) {
-        pack = snowpackOf(state.level, {
-          elevation: sunAtRun(state.level).elevation,
-          depth: state.snowDepth,
-        });
+      // Packed again as the sky's clock moves the sun (the thaw follows it).
+      const sun = sunNow(state.level, state.t).elevation;
+      if (pack === null || packLevel !== state.level || Math.abs(sun - packSun) > 0.005) {
+        pack = snowpackOf(state.level, { elevation: sun, depth: state.snowDepth });
         packLevel = state.level;
+        packSun = sun;
       }
       pack.fresh = state.fresh;
       pack.depth = state.snowDepth;

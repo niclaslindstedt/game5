@@ -161,6 +161,7 @@ function mount(run: GameState, jibs: readonly Jib[], events: GameEvent[]): boole
     k.flipGoal = 0;
     k.spinDone = 0;
     k.flipDone = 0;
+    k.flipSpeed = 0;
     events.push({ kind: "jib", t: run.t, id: jib.id, jib: jib.kind, phase: "on", whole: false });
     hold(run, jib, ride, 0);
     return true;

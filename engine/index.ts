@@ -65,6 +65,8 @@ export {
 // THE WORLD (engine/mapgen/): the generator, the Level contract, the queries.
 export * from "./mapgen/index.ts";
 export { jibAt, jibLength, stepJib } from "./game/jib.ts";
+export { lowestRope, ropeOver, ropeSide, stepCable } from "./game/cable.ts";
+export { CABLE } from "./game/defs/cable.ts";
 export {
   SLOPE_JUDGING,
   jibDifficulty,
@@ -474,6 +476,7 @@ export {
   type FlightRecord,
   type JibRecord,
   type JibRide,
+  type CableRide,
   type JibStance,
 } from "./game/state.ts";
 export { freshSkier, derive } from "./game/skier.ts";
@@ -891,9 +894,21 @@ export {
   lengthPointsPerMetre,
   stepTricks,
 } from "./game/tricks.ts";
-export { poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
+export { flipLean, flipPace, poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
-export { moonAgeOn, moonAtRun, sunAtRun, worldHeadingOf } from "./game/clock.ts";
+export {
+  SKY_CLOCK,
+  SKY_YEAR,
+  clockHourOf,
+  moonAgeOn,
+  moonAtRun,
+  skyDateOf,
+  skyHourAt,
+  skyLevelAt,
+  sunAtRun,
+  sunWindowOf,
+  worldHeadingOf,
+} from "./game/clock.ts";
 export {
   BODY_HEIGHT,
   GUST_PEAK,

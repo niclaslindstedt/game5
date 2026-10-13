@@ -12,7 +12,11 @@ import { sunDirection } from "../pwa/src/game/sky.ts";
 import {
   bakedFor,
   bakeHorizon,
+  createHorizonBlend,
   horizonAt,
+  landBlend,
+  steerBlend,
+  turnBetween,
   keyBearing,
   keyElevation,
   sameBearing,
@@ -165,4 +169,107 @@ describe("the mountain's shadow (terrain-shadow.ts)", () => {
     expect(TERRAIN_SHADOW_GLSL).toContain(TERRAIN_SHADOW.bias.toFixed(4));
     expect(TERRAIN_SHADOW_GLSL).toContain("float terrainLit(vec3 world)");
   });
+
+  // A TURNING KEY: the sun on the sky's clock, a winter's few degrees of
+  // azimuth a real minute, bakes landing a few frames after they are asked.
+  // A winter sun at ×12, and a high summer one swinging through the south.
+  it.each([0.0009, 0.004])("draws a key turning %f rad/s between two maps, never off", (rate) => {
+    const blend = createHorizonBlend();
+    const dt = 1 / 60;
+    const late = 20; // frames a bake takes to come back
+    const flight: { at: number; bearing: number }[] = [];
+    let drawnWas: number | null = null;
+    let worstJump = 0;
+    let off = 0;
+    let bakes = 0;
+    for (let f = 0; f < 60 * 120; f++) {
+      const t = f * dt;
+      const bearing = 1 + rate * t;
+      const ahead = 1 + rate * (t + TERRAIN_SHADOW.lead);
+      for (const job of flight.filter((j) => j.at <= f)) {
+        landBlend(blend, { ...bakeStub, bearing: job.bearing });
+      }
+      flight.splice(0, flight.length, ...flight.filter((j) => j.at > f));
+      const ask = steerBlend(blend, bearing, ahead);
+      if (ask !== null) {
+        flight.push({ at: f + late, bearing: ask });
+        bakes++;
+      }
+      if (!blend.on) {
+        if (f > late) off++;
+        continue;
+      }
+      // The bearing the drawn horizon stands for: the pair mixed by share.
+      const drawn =
+        blend.from!.bearing + blend.share * turnBetween(blend.from!.bearing, blend.to!.bearing);
+      expect(Math.abs(turnBetween(drawn, bearing))).toBeLessThanOrEqual(TERRAIN_SHADOW.rebake);
+      // (From the first pair on: the first map ahead lands over a lone map
+      // a bake's latency of turn behind — under a tenth of `rebake`.)
+      if (blend.from === blend.to) continue;
+      if (drawnWas !== null) worstJump = Math.max(worstJump, Math.abs(drawn - drawnWas));
+      drawnWas = drawn;
+    }
+    // Never off once the first bake is in, and every frame a glide of the
+    // sun's own frame's turn, never a bake's step.
+    expect(off).toBe(0);
+    expect(worstJump).toBeLessThan(rate * dt * 4);
+    // A bake every few seconds of run, not one a frame.
+    expect(bakes).toBeLessThan(120 / 4);
+    expect(bakes).toBeGreaterThan(3);
+  });
+
+  it("hands the sun's shadow to the moon's with no gap, and follows the moon on", () => {
+    const blend = createHorizonBlend();
+    const land = (b: number | null) => b !== null && landBlend(blend, { ...bakeStub, bearing: b });
+    land(steerBlend(blend, 1, null));
+    // The sun at 1 rad, sinking; the moon will be the key at -0.5, turning
+    // the other way.
+    land(steerBlend(blend, 1.0001, -0.5)); // the moon's bearing baked ahead
+    expect(blend.to?.bearing).toBe(-0.5);
+    steerBlend(blend, 1.0002, -0.5);
+    expect(blend.on).toBe(true);
+    // The key passes to the moon: the map ahead is already its own.
+    steerBlend(blend, -0.5, -0.501);
+    expect(blend.on).toBe(true);
+    expect(blend.share).toBe(1);
+    // The moon turns on, the other way: the next map goes its way.
+    let off = 0;
+    for (let i = 1; i <= 200; i++) {
+      const b = -0.5 - i * 0.0005;
+      land(steerBlend(blend, b, b - 0.009));
+      if (!blend.on) off++;
+    }
+    expect(off).toBe(0);
+  });
+
+  it("cuts to a fresh bake when the key jumps", () => {
+    const blend = createHorizonBlend();
+    const first = steerBlend(blend, 0.5, null);
+    expect(first).toBe(0.5);
+    landBlend(blend, { ...bakeStub, bearing: 0.5 });
+    expect(steerBlend(blend, 0.5, null)).toBeNull();
+    expect(blend.on).toBe(true);
+    // The moon taking over a quarter of the sky away.
+    const ask = steerBlend(blend, 2.1, null);
+    expect(ask).toBe(2.1);
+    expect(blend.on).toBe(false);
+    // A stale bake for the old bearing is dropped.
+    landBlend(blend, { ...bakeStub, bearing: 0.5 });
+    expect(blend.on).toBe(false);
+    landBlend(blend, { ...bakeStub, bearing: 2.1 });
+    steerBlend(blend, 2.1, null);
+    expect(blend.on).toBe(true);
+    expect(blend.from).toBe(blend.to);
+  });
 });
+
+/** A baked map's shape with no horizon in it — the blend reads bearings. */
+const bakeStub = {
+  originX: 0,
+  originZ: 0,
+  cell: 4,
+  cols: 1,
+  rows: 1,
+  bearing: 0,
+  data: new Float32Array(1),
+};

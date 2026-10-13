@@ -20,6 +20,7 @@ import { weatherOf, type GameMode, type GameState } from "@engine";
 
 import type { FrameCost } from "./benchmark-report.ts";
 import type { CameraRung } from "./renderer-api.ts";
+import { skyClock } from "./sky-clock.ts";
 
 /** Everything a repro link names. */
 export type ReproFacts = {
@@ -32,6 +33,9 @@ export type ReproFacts = {
   weather: string;
   /** The start hour the map's sun was dealt (or asked for). */
   hour: number;
+  /** The sky's clock's rate (`sky-clock.ts`): with the start hour and `t`,
+   * the sky the frame was under. */
+  skyclock: number;
   pose: SkisPose;
   /** False for a run skied without poles (the hard mode, `?poles=0`). */
   poles?: boolean;
@@ -51,6 +55,7 @@ export function reproOf(state: GameState, mode: GameMode, camera: CameraRung): R
     camera,
     weather: weatherOf(state.level).kind,
     hour: state.level.sun.hour,
+    skyclock: skyClock(),
     pose: { x: s.x, z: s.z, heading: s.heading, speed: s.way },
     poles: s.poles,
   };
@@ -71,6 +76,7 @@ export function reproQuery(f: ReproFacts): string {
   q.set("camera", f.camera);
   q.set("weather", f.weather);
   q.set("hour", String(round(f.hour, 2)));
+  q.set("skyclock", String(f.skyclock));
   const p = f.pose;
   q.set("pose", [round(p.x, 1), round(p.z, 1), round(p.heading, 3), round(p.speed, 1)].join(","));
   if (f.poles === false) q.set("poles", "0");

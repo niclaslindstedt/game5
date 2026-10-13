@@ -840,14 +840,18 @@ export const SCENARIOS = [
   },
   trick(
     "backflip",
-    "a backflip off a staged launch onto a landing slope: one tap of the lean back",
-    (t) => ({
-      lean: t < 0.1 ? 1 : 0,
+    "a backflip off a staged launch onto a landing slope: the lean back held, let go to come round",
+    (t, st, E) => ({
+      lean: E.flipLean(st, 1, 1),
     }),
   ),
-  trick("frontflip", "a front flip onto a landing slope: one tap of the lean forward", (t) => ({
-    lean: t < 0.1 ? -1 : 0,
-  })),
+  trick(
+    "frontflip",
+    "a front flip onto a landing slope: the lean forward held, let go to come round",
+    (t, st, E) => ({
+      lean: E.flipLean(st, 1, -1),
+    }),
+  ),
   trick("spin", "a 360 onto a landing slope: the edge tapped over twice", (t) => ({
     steer: t < 0.05 || (t > 0.1 && t < 0.15) ? 1 : 0,
   })),
@@ -876,9 +880,9 @@ export const SCENARIOS = [
     place: (S) => atKicker(S, 70, 75),
     seconds: 6,
     view: "profile",
-    // The lean held from the foot of the ramp — one stroke at the lip,
-    // however long it is held — and let go past half the loop.
-    input: (t, st) => ({ ...TUCK, lean: st.tricks.rotation < 3 && t < 3.2 ? 1 : 0 }),
+    // The lean held from the foot of the ramp — the loop takes hold at the
+    // lip — and let go to come round onto the skis.
+    input: (t, st, E) => ({ ...TUCK, lean: t < 3.2 ? E.flipLean(st, 1, 1) : 0 }),
     measure: tricked,
   },
 ];

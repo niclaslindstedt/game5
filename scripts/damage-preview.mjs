@@ -133,7 +133,7 @@ function ride(id, title, scenario) {
   let rank = [0, 0];
   const steps = Math.round(Math.max(scenario.seconds, 4) * E.TUNING.physicsHz);
   for (let i = 0; i < steps; i++) {
-    E.step(state, scenario.input(state.t - t0, state));
+    E.step(state, scenario.input(state.t - t0, state, E));
     const b = state.skier.body;
     const r = [E.severityOf(b), b.injuries.length];
     // A worse body, or the same one with a fracture struck harder since.

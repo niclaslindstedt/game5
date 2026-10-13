@@ -39,7 +39,8 @@ import { createChuteScene, type ChuteScene } from "./chute-scene.ts";
 import { rigWorn } from "./chute-rig-plan.ts";
 import { createSkydiveCam, skydiveFramed, skydiveLens } from "./camera-skydive.ts";
 import { colourwayOf, suitOf } from "./wingsuit-look.ts";
-import { createWingsuitCam, wingsuitFramed, wingsuitLens } from "./camera-wingsuit.ts";
+import { createWingsuitCam, flightWay, wingsuitFramed, wingsuitLens } from "./camera-wingsuit.ts";
+import { createFlightPace } from "./camera-pace.ts";
 import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
 import { lineLightOf, type LineLight } from "./para-motor.ts";
@@ -214,6 +215,8 @@ export function createMachines(
   const skyCam = chute ? createSkydiveCam() : null;
   // ...and a wingsuit's (`camera-wingsuit.ts`), its changes flown round him.
   const suitCam = chute && state.wingsuit ? createWingsuitCam() : null;
+  // ...and the sense of speed both fold in (`camera-pace.ts`).
+  const pace = chute ? createFlightPace() : null;
   let suitRung: CameraRung | null = null;
   let skyState: GameState | null = null;
   // Looking out of his own eyes (TIPS, HELMET): this frame's ask, and
@@ -381,6 +384,21 @@ export function createMachines(
             aspect,
           );
         ownEyes = (framed && (rung === "tips" || rung === "helmet")) || doorEyes;
+      }
+      if (want && pace && at && s.chute) {
+        const v = { x: s.skier.vx, y: s.skier.vy, z: s.skier.vz };
+        want = pace.apply(
+          want,
+          {
+            at,
+            way: flightWay(s.chute.heading, v),
+            speed: Math.hypot(v.x, v.y, v.z),
+            bank: s.chute.wing?.bank ?? 0,
+            worn: ownEyes || rung === "tips" || rung === "helmet",
+          },
+          dt,
+          s !== skyState,
+        );
       }
       suitRung = rung;
       ownLook = false;

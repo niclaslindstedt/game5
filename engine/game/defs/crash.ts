@@ -196,6 +196,13 @@ export const CRASH = {
     // An empty chair run into the backs of his legs on the unload ramp:
     // the legs swept out forward, down on his back and over onto a side.
     chair: { pitch: -0.6, side: 0.5, up: 0.5 },
+    // A carrier met on a lift's rope he was grinding (`cable.ts`): the
+    // skis taken out from under him, pitched over backward off the rope
+    // and dropped to the snow on a side.
+    cable: { pitch: -0.8, side: 0.6, up: 0.4 },
+    // Come down astride a lift's rope (`cable.ts`): stopped on it by the
+    // crotch and tipped over it, off onto a side and down to the snow.
+    straddle: { pitch: 0.15, side: 1, up: 0 },
     // Into an A-net: the skis taken by the mesh and the body thrown on
     // into it, turned over toward it — it catches him low, so he barely
     // leaves the snow.
@@ -243,6 +250,11 @@ export const CRASH = {
     mass: { hip: 14, shoulder: 11, head: 5, knee: 5, foot: 4, elbow: 2, hand: 1.5 },
     head: 0.13,
     limb: 0.06,
+    /** THE AIR ON IT: the drag area of a body tumbling through the air,
+     * Cd·A, m² — a skydiver's belly-to-earth 0.5 (`CHUTE`), which brings
+     * 80 kg to some 55 m/s, falling, and slows a body flung off anything
+     * fast as the air does. */
+    drag: 0.5,
   },
   radius: 0.11,
   /** Passes over the body's joints a step: enough that no limb is seen to

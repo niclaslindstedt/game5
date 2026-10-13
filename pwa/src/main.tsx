@@ -25,7 +25,10 @@ import "./title.css";
 import { loadRealFace } from "@engine";
 import { App } from "./App.tsx";
 import { guardAgainstLoupe } from "./game/no-loupe.ts";
+import { fullscreenOnTouch } from "./game/touch-fullscreen.ts";
 import { loadSettings } from "./game/settings.ts";
+import { setSkyClock } from "./game/sky-clock.ts";
+import { readParams } from "./game/url-params.ts";
 import { watchVisibleViewport } from "@niclaslindstedt/oss-game-framework/display/visible-viewport";
 
 // In dev no worker registers (`usePwaUpdate` runs disabled), but a worker
@@ -47,6 +50,14 @@ watchVisibleViewport();
 // No loupe, no double-tap zoom, no selection on any screen (`no-loupe.ts`);
 // for the life of the page, before anything can be touched.
 guardAgainstLoupe();
+
+// The whole screen on a phone's browser, at its first touch.
+fullscreenOnTouch();
+
+// THE SKY'S CLOCK for the visit (`sky-clock.ts`): the sun moving with every
+// run at the game's own rate, or as the link asks (`?skyclock=`, an `?hour=`
+// held still).
+setSkyClock(readParams(location.search).skyClock);
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root element");

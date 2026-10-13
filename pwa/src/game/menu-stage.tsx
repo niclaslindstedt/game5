@@ -16,10 +16,16 @@
 // opens the rider card, which takes the canvas over (`claim`). One not
 // taken soon after the cards that asked for it close is let go, so no
 // second context outlives the menu.
+//
+// IT GOES FIRST: anything heavy staged behind these cards — the free ride's
+// world, a race's — waits for the stage to stand (`stageSettled`), so the
+// rider is built and compiled before the mountain is, and is never turned
+// round on a frame the mountain is being built on.
 
 import { useEffect, useRef } from "preact/hooks";
 import { pairById, type PairId } from "@engine";
 
+import { holdBackdrop, stirHands } from "./backdrop-hold.ts";
 import type { GearStage, StageShot } from "./gear-stage.ts";
 import { freeOf } from "./stage-free.ts";
 import type { Outfit } from "./outfit.ts";
@@ -28,6 +34,23 @@ import type { Outfit } from "./outfit.ts";
 type Warm = { canvas: HTMLCanvasElement; stage: Promise<GearStage | null>; dropped: boolean };
 let warm: Warm | null = null;
 let letGo = 0;
+/** The stage last asked for, warmed or shown: settled once it stands. */
+let settling: Promise<unknown> = Promise.resolve();
+/** How long anything waits on a stage that never stands, ms. */
+const SETTLE_MOST_MS = 8000;
+
+/** Resolved once the stage asked for last stands, built and compiled — at
+ * once where none was asked for. Never rejects. */
+export function stageSettled(): Promise<void> {
+  const most = new Promise<void>((done) => setTimeout(done, SETTLE_MOST_MS));
+  return Promise.race([
+    settling.then(
+      () => undefined,
+      () => undefined,
+    ),
+    most,
+  ]);
+}
 
 const build = async (canvas: HTMLCanvasElement, skis: PairId, outfit: Outfit) => {
   const { createGearStage, loadModels } = await import("./gear-stage.ts");
@@ -37,9 +60,10 @@ const build = async (canvas: HTMLCanvasElement, skis: PairId, outfit: Outfit) =>
   return stage;
 };
 
-/** Stand the stage up ahead of its card, held off the page. Asked again,
- * it keeps the one it has. */
-export function warmStage(skis: PairId, outfit: Outfit): void {
+/** Stand the stage up ahead of its card, held off the page, the other
+ * kind's pair (`spare`: the board beside the skis, where boards are
+ * offered) built with it. Asked again, it keeps the one it has. */
+export function warmStage(skis: PairId, outfit: Outfit, spare: PairId | null = null): void {
   clearTimeout(letGo);
   if (warm || typeof document === "undefined") return;
   const canvas = document.createElement("canvas");
@@ -51,12 +75,14 @@ export function warmStage(skis: PairId, outfit: Outfit): void {
         stage.dispose();
         return null;
       }
+      stage.spare(spare === null ? null : pairById(spare));
       stage.hold(true);
       return stage;
     },
     () => null,
   );
   warm = w;
+  settling = w.stage;
 }
 
 /** The cards that asked for a stage are closing: let it go unless a stage
@@ -100,6 +126,7 @@ export function MenuStage({
     const box = boxRef.current;
     if (!canvas || !box) return;
     let disposed = false;
+    let covering = false;
     let raf = 0;
     // The covers are measured every frame: a card's height changes with
     // its rows, and a resize event is not the only way a layout moves.
@@ -118,6 +145,7 @@ export function MenuStage({
     if (taken) canvas.replaceWith(taken.canvas);
     const fresh = (on: HTMLCanvasElement) => build(on, wanted.current.skis, wanted.current.outfit);
     const ready = taken ? taken.stage.then((stage) => stage ?? fresh(taken.canvas)) : fresh(canvas);
+    settling = ready;
     void ready.then((stage) => {
       if (!stage) return;
       if (disposed) {
@@ -129,9 +157,16 @@ export function MenuStage({
       stage.set(w.shot, pairById(w.skis), w.outfit);
       stage.hold(false);
       box.dataset.ready = "1";
+      // The stage fills the screen: nothing behind it need be drawn.
+      covering = true;
+      holdBackdrop(true);
+      // The player reaches for him as the card opens: nothing staged
+      // behind starts a heavy piece under that first turn.
+      stirHands();
     });
     return () => {
       disposed = true;
+      if (covering) holdBackdrop(false);
       cancelAnimationFrame(raf);
       stageRef.current?.dispose();
       stageRef.current = null;

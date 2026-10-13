@@ -32,9 +32,14 @@ export interface WorldRenderer {
   draw(state: GameState, alpha: number, dt: number): void;
   /** Which camera a RUN is seen through; menus use "orbit". `cut` skips
    * the flown hand-over; `chosen` says the player picked it (a ski jump's
-   * broadcast director gives way to his pick until the run begins again). */
-  setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean): void;
+   * broadcast director gives way to his pick until the run begins again);
+   * `craft` the rung kept for a machine he rides, if not `rung` too. */
+  setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean, craft?: CameraRung): void;
+  /** The rung he is seen on now — the machine's while he rides one. */
   camera(): CameraRung;
+  /** Whether he rides a machine, so the lens is on its rung (`camera.ts`'s
+   * `aboard`). */
+  riding(): boolean;
   /** The ray through a point of the picture, normalized device coordinates
    * (−1..1 right and up) — what a tap on a machine is tested along
    * (`machine-pick.ts`). */

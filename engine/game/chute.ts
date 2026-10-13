@@ -28,7 +28,8 @@
 //     cloth and lies where it comes down; he falls on) and the press again
 //     pulls THE RESERVE (`CHUTE.reserve`: its spring pilot chute, its free
 //     bag and its own shorter stages to a smaller 7-cell canopy flown the
-//     same way — and never cut away, there being no second one), his skis on the snow
+//     same way, and cut away on the press as the main is — at any height, the
+//     canopy opening, flying or caught — with nothing after it), his skis on the snow
 //     under it let it go (`landed`: he skis on), and the cloth or a line met
 //     by a crown or a lift's rope, tower or carrier holds it there
 //     (`snagged`: he hangs under it, swinging, until he starts again).
@@ -344,21 +345,28 @@ export function stepChute(state: GameState, input: SkierInput, events: GameEvent
     restart(state, events);
     return true;
   }
+  if (ch.suit === "wingsuit") {
+    if (ch.mode === "snagged") {
+      hang(state, ch, events);
+      return true;
+    }
+    return suitStep(state, ch, input, events);
+  }
+  // THE CUT-AWAY, at any height: whatever canopy is over him — opening,
+  // flying, the reserve too, or caught in a crown or on a lift — let go of
+  // on the press, and he falls on.
+  const canopy = ch.mode === "open" || ch.mode === "deploying" || ch.mode === "snagged";
+  if (input.machine && canopy) {
+    cutAway(ch);
+    enter(ch, "released");
+    say(state, events, "release");
+    return false;
+  }
   if (ch.mode === "snagged") {
     hang(state, ch, events);
     return true;
   }
-  if (ch.suit === "wingsuit") return suitStep(state, ch, input, events);
-  if (ch.mode === "open") {
-    // The main cut away on the press; under the reserve there is nothing
-    // left to cut away to.
-    if (input.machine && !ch.reserve) {
-      cutAway(ch);
-      enter(ch, "released");
-      say(state, events, "release");
-    }
-    return false;
-  }
+  if (ch.mode === "open") return false;
   // In the air on his body (out of the door, falling, opening, or cut
   // away): his to the snow's last couple of metres, where the skier's own
   // step and its landing take him.

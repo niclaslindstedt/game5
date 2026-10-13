@@ -28,6 +28,26 @@ export type TrickTile = {
 /** The tile, on a run that counts tricks; null on any other. */
 export function comboTile(state: GameState): TrickTile | null {
   if (!state.rules.tricks) return null;
+  return tileOf(state);
+}
+
+/** ...and A FREE RIDE'S: the score the engine keeps on every run, read
+ * where the mountain may be tricked and nothing is raced (`stunts` on,
+ * `course` and `tricks` off) — no buzzer over it. */
+export function freeTile(state: GameState): TrickTile | null {
+  const r = state.rules;
+  if (r.tricks || r.course || !r.stunts) return null;
+  // A hop's air alone is no trick to call out on a ride: the combo is put
+  // up once an element is won in it.
+  const tile = tileOf(state);
+  return {
+    ...tile,
+    combo: state.tricks.parts.length > 0 ? tile.combo : null,
+    last: state.tricks.lastParts.length > 0 ? tile.last : null,
+  };
+}
+
+function tileOf(state: GameState): TrickTile {
   const k = state.tricks;
   const fresh = k.lastAt > 0 && state.t - k.lastAt < LAST_HOLD;
   return {

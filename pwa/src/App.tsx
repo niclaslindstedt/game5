@@ -13,7 +13,7 @@
 // rather than tearing anything down, which is why the menu comes up over the map the player was
 // just on. Until the first run the door stands over the TITLE SCENE instead (`title-app.tsx`), and
 // no map is built. Under a card the camera is the slow ORBIT round the skis; over a run it is the
-// rung the skier chose (`cameraFor`).
+// rung the skier chose — his own, or the one he keeps for his machines (`cameraFor`).
 //
 // THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player rides is armed with a ticket
 // — its seed, skis, mode and length — before its first step; every input the engine is handed
@@ -113,14 +113,17 @@ import { PauseMenu } from "./game/menu-pause.tsx";
 import { createPinnedRuns, secondRunOff } from "./game/pinned-run.ts";
 import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
+import { useAhead } from "./game/use-ahead.ts";
+import { backdropHeld } from "./game/backdrop-hold.ts";
 import { createRunActions } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
 import { shotLabel } from "./game/run-news.ts";
 import { createNewsFeed } from "./game/run-watch.ts";
-import { wireLook } from "./game/app-look.ts";
+import { showCameras, wireLook, withRung } from "./game/app-look.ts";
 import {
   assistOf,
+  camerasOf,
   injuriesShown,
   loadSettings,
   mixOf,
@@ -132,7 +135,6 @@ import { withPreset, type VideoSettings } from "./game/settings-video.ts";
 import { boundLabel } from "./game/settings-input.ts";
 import {
   appDraws,
-  cameraFor,
   canPause,
   hudOver,
   playerRides,
@@ -188,7 +190,7 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
     if (params.page === "dev") s.developer = true;
-    return params.camera ? { ...s, camera: params.camera } : s;
+    return params.camera ? { ...s, camera: params.camera, craftCamera: params.camera } : s;
   });
   /** Which page of the front door is up. */
   const [page, setPage] = useState<MenuPage>(params.page);
@@ -388,7 +390,7 @@ export function App() {
       shellRef.current = next;
       setShell(next);
       title.shellIs(next);
-      renderer.setCamera(cameraFor(next, settingsRef.current.camera));
+      showCameras(renderer, next, settingsRef.current);
       hudClock = HUD_TICK; // the readouts at once, never a tick late
     };
 
@@ -464,7 +466,7 @@ export function App() {
     }
     if (params.rides && params.pose) placeRun(state, params.pose);
     const holdRide = heldRide(params.rides ? params.hold : null); // `?hold=`, as the map stands
-    renderer.setCamera(cameraFor(shellRef.current, settingsRef.current.camera));
+    showCameras(renderer, shellRef.current, settingsRef.current);
     // Over the title nothing is built until the first run (`title-app.tsx`).
     if (!title.raced()) setWarm(true);
     else
@@ -516,6 +518,17 @@ export function App() {
       setShellNow("run");
     };
 
+    /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
+    const frees = createFreeRides({
+      world,
+      loader,
+      current: () => state,
+      // The live race behind the door again; over the title nothing stands.
+      restore: () => void (title.raced() && build(state)),
+      outfit: () => outfitKey(settingsRef.current.outfit),
+      plan: () => ({ camera: camerasOf(settingsRef.current), done: lift }),
+      stood: (again) => (freeAgain = again),
+    });
     const pinned = createPinnedRuns({
       loader,
       current: () => state,
@@ -523,6 +536,7 @@ export function App() {
       skier: skierOf,
       setMode: (asked) => (mode = asked),
       done: lift,
+      stage: frees.pinned,
     });
     // DEVELOPER's instruments and its BENCHMARK (`dev-app.tsx`).
     const devRig = dev.attach({
@@ -545,19 +559,6 @@ export function App() {
       benchFrames: params.frames,
       benchVista: params.view === "vista",
     });
-
-    /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
-    const frees = createFreeRides({
-      world,
-      loader,
-      current: () => state,
-      // The live race behind the door again; over the title nothing stands.
-      restore: () => void (title.raced() && build(state)),
-      outfit: () => outfitKey(settingsRef.current.outfit),
-      plan: () => ({ camera: settingsRef.current.camera, done: lift }),
-      stood: (again) => (freeAgain = again),
-    });
-
     pressRef.current = {
       stageFree: frees.stageFree,
       race: (seed, asked) => {
@@ -569,7 +570,7 @@ export function App() {
           // a free ride's, the seed's map on another day); else a worker builds it.
           map: () => (under ? null : gameOrder({ seed, mode, ...linkWorld(params) })),
           build: (level) => playerGame(level ?? under, seed),
-          camera: settingsRef.current.camera,
+          camera: camerasOf(settingsRef.current),
           done: lift,
         });
       },
@@ -580,6 +581,7 @@ export function App() {
       },
       tricks: pinned.tricks,
       pinned: pinned.press,
+      mapAhead: (pick, covered) => pinned.ahead(loader.busy() ? null : pick, covered),
       restart,
       second: pinned.second,
       pause: () => {
@@ -707,10 +709,12 @@ export function App() {
       devRig.frame(frameMs, dtFrame, performance.now() - simAt);
       if (!shown || !appDraws(shellRef.current)) return;
       const still = frozen || held || clock.paused() || rate === 0;
+      // Raced but not drawn under a card whose picture covers it (`backdrop-hold.ts`).
+      const covered = !playerRides(shellRef.current) && backdropHeld();
       const quiet = !playerRides(shellRef.current) && !loader.busy() && !still && title.raced();
-      const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet);
+      const timing = pictureAuto.wants(settingsRef.current.autoPicture, quiet && !covered);
       const drawAt = performance.now();
-      renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
+      if (!covered) renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
       feedHudLive(hudLive, state);
       shots.serve();
       if (timing) {
@@ -832,17 +836,17 @@ export function App() {
     if (!here && params.seed === null) setNextSeed(dealSeed());
   };
 
-  /** The map on the start card: the one it stored, or the first of the
-   * free ride's own mountains (`FREE_SEEDS`). */
+  /** The start card's map: its own, or the free ride's first (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
-  // The free ride's rider and gear cards stage its world (the start card keeps it).
-  useEffect(() => {
-    const free = modeRef.current === "free" && shell === "menu";
-    const opts = () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free"));
-    const cards = page === "dress" || page === "skis";
-    pressRef.current.stageFree(free && cards ? opts() : free && page === "start" ? "keep" : null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the ride's own fields
-  }, [page, shell, settings.ride, settings.outfit, startSeed]);
+  useAhead({
+    page,
+    shell,
+    settings,
+    mode: modeRef,
+    linkSeed: params.seed,
+    freeOptions: () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free")),
+    presses: pressRef,
+  });
   /** Onto the snow on a FREE RIDE: the start card's map, day and snow (or the
    * pause card's PISTE MAP's), on the pair the ski card holds. */
   const freeRide = (ride = settings.ride): void => {
@@ -922,9 +926,12 @@ export function App() {
           snap={snap}
           settings={settings}
           onSettings={setSettings}
+          rung={rendererRef.current?.camera()}
           onCamera={(camera) => {
-            setSettings((s) => ({ ...s, camera }));
-            rendererRef.current?.setCamera(camera);
+            const r = rendererRef.current;
+            const s = withRung(settingsRef.current, camera, !!r?.riding());
+            setSettings(() => s);
+            r?.setCamera(s.camera, false, undefined, s.craftCamera);
           }}
           onResume={() => pressRef.current.resume()}
           onRestart={() => pressRef.current.restart()}

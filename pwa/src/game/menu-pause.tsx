@@ -93,11 +93,13 @@ const CAMERA_STOPS: Stop<CameraRung>[] = RUN_CAMERAS.map((id) => ({
  * mid-race is exactly the one with a moment to read what a row does. */
 function PauseOptions({
   settings,
+  rung,
   onSettings,
   onCamera,
   onBack,
 }: {
   settings: Settings;
+  rung: CameraRung;
   onSettings: (settings: Settings) => void;
   onCamera: (rung: CameraRung) => void;
   onBack: () => void;
@@ -118,7 +120,7 @@ function PauseOptions({
               label={STRINGS.optCamera}
               hint={STRINGS.optCameraHint}
               stops={CAMERA_STOPS}
-              value={settings.camera}
+              value={rung}
               onPick={onCamera}
               onHint={setHint}
             />
@@ -148,6 +150,7 @@ export function pauseOnSlopes(): void {
 export function PauseMenu({
   snap,
   settings,
+  rung = settings.camera,
   onSettings,
   onCamera,
   onResume,
@@ -161,6 +164,8 @@ export function PauseMenu({
    * card bills it by, the figures chosen from it by rule (`pause-stats.ts`). */
   snap: HudSnapshot;
   settings: Settings;
+  /** The rung he is seen on now: his own, or his machine's while he rides one. */
+  rung?: CameraRung;
   onSettings: (settings: Settings) => void;
   /** A rung picked on the panel: stored AND put on the lens now, so the held
    * frame behind the card is the answer. */
@@ -196,6 +201,7 @@ export function PauseMenu({
       {panel === "options" ? (
         <PauseOptions
           settings={settings}
+          rung={rung}
           onSettings={onSettings}
           onCamera={onCamera}
           onBack={back}

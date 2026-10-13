@@ -84,7 +84,8 @@ const n: Vec3 = { x: 0, y: 1, z: 0 };
  * or walking in town. */
 function onOwnSkis(state: GameState): boolean {
   const c = state.skier;
-  if (c.airborne || c.thrown || c.lift || c.tunnel || c.jib || c.town || c.fetch) return false;
+  if (c.airborne || c.thrown || c.lift || c.tunnel || c.jib || c.grind || c.town || c.fetch)
+    return false;
   if (state.heli?.rider || state.sled?.mode === "ridden" || state.balloon?.aboard) return false;
   if (state.para && state.para.mode !== "dropped") return false;
   if (state.afterski?.inside) return false;

@@ -349,13 +349,12 @@ canvas {
 }
 
 /* The chart's reading, led by the sign of the colour that came out. */
-.seed-preview-read {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.seed-preview-bit {
+  white-space: nowrap;
 }
 
 .seed-preview-read .seed-preview-grade {
+  display: inline-block;
   width: 1.2em;
   height: 1.2em;
   margin-right: 0.4em;
@@ -1916,6 +1915,23 @@ canvas {
   fill: var(--hud-good);
 }
 
+/* A wingsuit's or a canopy's cloth under the thumb, and the canopy's
+   lines. */
+.hud-bar-wing {
+  fill: rgb(255 255 255 / 22%);
+  stroke: currentcolor;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.hud-bar-line {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
 /* The tuck lever: a track UP the glass from the anchor (wide open) to
    the shut mark and the brake past it, the knob on the thumb, the fill how
    open the tuck is. */
@@ -1962,6 +1978,14 @@ canvas {
   fill: var(--hud-ink);
   stroke: rgb(var(--hud-plate) / 70%);
   stroke-width: 2;
+}
+
+/* The wingsuit in the knob, swept or spread with the lever. */
+.hud-lever-suit {
+  fill: rgb(var(--hud-plate) / 85%);
+  stroke: rgb(var(--hud-plate) / 85%);
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 
 /* THE JUMP LOADING under the lever's thumb (the tap-and-hold): the knob
@@ -2293,7 +2317,10 @@ canvas {
   flex: none;
 }
 
+/* Never shrunk: a long value word must not take its room off the arrows,
+   or the targets move with the word. */
 .knob-arrow {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2358,18 +2385,24 @@ canvas {
    a narrow value leaving the middle of the row empty. Stated with three
    classes so it outranks every card's own fixed width. */
 .knob.knob-step .knob-label {
-  flex: 0 0 45%;
+  flex: 0 1 45%;
 }
 
+/* ...but never narrower than its longest word and its two arrows, where
+   the NAME gives instead (it truncates): the word is held in a cell sized
+   by every stop's word, so that floor is the same whichever is shown. */
 .knob.knob-step .knob-ctl {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: min-content;
 }
 
+/* From nothing, not from its word: a basis read off the word's length
+   would make every row's value as wide as what it says, and the arrows
+   step sideways each press. */
 .knob.knob-step .knob-value {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   width: auto;
-  min-width: 0;
+  min-width: min-content;
 }
 
 .knob-value .knob-word {
@@ -2377,9 +2410,26 @@ canvas {
   text-align: center;
 }
 
+.knob-word-held {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+}
+
+.knob-word-held > * {
+  grid-area: 1 / 1;
+}
+
+.knob-word-sizer {
+  visibility: hidden;
+}
+
+/* A pip's height even with no pips: a ladder still waiting on its stops
+   (the start card's MOUNTAIN, TIME) is as tall as one that has them. */
 .knob-pips {
   display: flex;
   gap: 0.26rem;
+  min-height: 0.36rem;
 }
 
 /* A long ladder's window fades its pips out at an end with more beyond it:
@@ -3012,6 +3062,12 @@ canvas {
   font-size: 0.82rem;
   line-height: 1.35;
   color: rgb(244 248 251 / 88%);
+}
+
+/* A note held in its place, unseen, so its coming and going moves
+   nothing. */
+.dress-note-held {
+  visibility: hidden;
 }
 
 /* A PHONE HELD UPRIGHT: no panel. The card is the whole screen and clear
@@ -3824,32 +3880,51 @@ canvas {
   background: rgb(232 65 44 / 16%);
 }
 
-/* THE START CARD, WHOSE LAYOUT IS DECIDED BY THE CHART. The chart is square,
-   so every pixel of its width is a pixel of card height: beside the rows it
-   costs the card nothing, so the card takes the width and the map is drawn
-   big enough to find a kicker on. */
+/* THE START CARD, WHOSE LAYOUT IS DECIDED BY THE CHART. The chart is the
+   card: it takes what the window has and the rows stand beside it (under
+   it, held upright). The rows are the ride's two — where it starts — or,
+   with the SKY press lit, the day's five in their place. */
 .menu-card-start {
   gap: 0.6rem;
   text-align: left;
 }
 
-.start-cols,
-.start-col {
+.start-cols {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-.start-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  justify-content: center;
+.menu-card-start .seed-preview-plate {
+  max-width: min(100%, 52dvh);
 }
 
-.start-actions .menu-chip:disabled {
-  opacity: 0.4;
-  cursor: default;
+/* The head's two presses: the SKY press, a round chip with the day's mark,
+   and the way on. */
+.menu-head-acts {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.start-sky {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.start-sky .menu-glyph {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.start-sky-on {
+  border-color: var(--flag);
+  background: rgb(232 65 44 / 22%);
+  color: var(--snow);
 }
 
 @media (max-width: 30rem) {
@@ -3861,18 +3936,20 @@ canvas {
 
 @media (min-width: 48rem) {
   .menu-card-start {
-    width: min(48rem, 100%);
+    --chart: clamp(16rem, calc(100dvh - 12.6rem), 40rem);
+    width: min(calc(var(--chart) + 26rem), 100%);
   }
 
   .start-cols {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
     gap: 0.4rem 1.1rem;
   }
 
   .menu-card-start .seed-preview-plate {
-    max-width: min(20rem, 46vh);
+    width: var(--chart);
+    max-width: none;
   }
 
   .menu-card-start .knob-value {
@@ -3880,48 +3957,25 @@ canvas {
   }
 }
 
-/* A phone on its side: the least height of all, so the CHART takes a column
-   of its own down the left, as tall as the body, and the rows stand in two
-   columns beside it — where and what on the left, the day's rows on the
-   right. Nothing on the card is
-   below the fold, and nothing that is a picture scrolls. */
+/* A phone on its side: the least height of all, so the CHART takes the
+   whole height of the body down the left and the rows stand beside it. Its
+   column is cut to it, or the line of figures under it would widen the
+   column to its own length. */
 @media (orientation: landscape) and (max-height: 34rem) {
-  /* THE CHART'S SIDE: square, and sized off what the window has left under
-     the head, over the caption and its own line of figures — the body is
-     that tall, and the chart is the reason the card exists. Its column is
-     cut to it, or the line of figures under it would widen the column to
-     its own length and squeeze the rows' names out. */
   .menu-card-start {
-    --chart: clamp(8rem, calc(100dvh - 12rem), 13rem);
-    width: min(52rem, 100%);
+    --chart: clamp(8rem, calc(100dvh - 6.8rem - max(0.5rem, env(safe-area-inset-bottom))), 24rem);
+    width: min(calc(var(--chart) + 24rem), 100%);
   }
 
   .start-cols {
     display: grid;
-    grid-template-columns: calc(var(--chart) + 0.5rem + 4px) minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    grid-template-columns: calc(var(--chart) + 0.5rem + 4px) minmax(0, 1fr);
     align-items: start;
     gap: 0.4rem 0.6rem;
   }
 
-  .start-col {
-    display: contents;
-  }
-
-  .start-col:first-child > .knob-rows {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
   .start-cols .seed-preview {
-    grid-column: 1;
-    grid-row: 1 / span 2;
     padding: 0.25rem;
-  }
-
-  .start-col:last-child > .knob-rows {
-    grid-column: 3;
-    grid-row: 1 / span 2;
   }
 
   .menu-card-start .seed-preview-plate {
@@ -3930,28 +3984,21 @@ canvas {
   }
 
   .menu-card-start .seed-preview-read {
+    min-height: 1.4em;
     font-size: 0.5rem;
     letter-spacing: 0.06em;
     text-align: center;
   }
 
-  /* The two chips under the left column's rows share one line. */
-  .start-actions {
-    flex-wrap: nowrap;
-    gap: 0.3rem;
+  .start-sky {
+    width: 2.1rem;
+    height: 2.1rem;
   }
 
-  .start-actions .menu-chip {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0.4rem 0.4rem;
-    font-size: 0.58rem;
-    letter-spacing: 0.08em;
-    text-indent: 0;
+  .start-rows {
+    gap: 0.35rem;
   }
 
-  /* Two columns of rows beside a chart: the name, the value and the arrows
-     each give a little width, so every row still says what it is. */
   .menu-card-start .knob {
     gap: 0.25rem;
     padding-left: 0.55rem;
@@ -3963,8 +4010,19 @@ canvas {
     letter-spacing: 0.08em;
   }
 
-  .menu-card-start .knob-value {
-    width: 5.2rem;
+  /* The control is ONE width on every row, not its longest word's — a row
+     whose stops are still on their way is as wide as when they come, and
+     every row's arrows stand on the same two x's. */
+  .menu-card-start .knob .knob-ctl {
+    flex: none;
+    justify-content: space-between;
+    width: 9.8rem;
+    min-width: 0;
+  }
+
+  .menu-card-start .knob.knob-step .knob-value {
+    min-width: 0;
+    width: 6rem;
   }
 
   .menu-card-start .knob-ctl {
@@ -4069,13 +4127,26 @@ canvas {
   opacity: 0.8;
 }
 
+/* THE READING NEVER SIZES THE PANEL: its figures change with every run
+   picked, and a line that widened the chart's box by its own length would
+   shove the box and the rows beside it a few pixels each press. So it is
+   contained to the plate's width (its own length counts for nothing), wraps
+   there, keeps two lines' room whether it needs them or not, and sets its
+   digits on one width. */
 .seed-preview-read {
+  display: grid;
+  align-content: center;
+  align-self: stretch;
+  contain: inline-size;
   margin: 0;
-  min-height: 1.4em;
+  min-height: 2.8em;
   font-size: 0.64rem;
   line-height: 1.4;
   font-weight: 700;
   letter-spacing: 0.14em;
+  text-align: center;
+  text-wrap: balance;
+  font-variant-numeric: tabular-nums;
   color: var(--hud-info);
 }
 

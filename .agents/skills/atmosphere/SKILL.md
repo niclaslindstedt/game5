@@ -1,6 +1,6 @@
 ---
 name: atmosphere
-description: "Use when working on the SKY and the air under it — where the sun stands at the map's hour (still for the whole run) on its day at its latitude (R15, `sunAtRun`), what colour it makes the dome, the two lights and the blue in the snow's shadows, the haze every far slope dissolves into (one sky function read along each surface's own direction), and the key light's one shadow map over a circle ahead of the lens that every shadow fades out at the rim of — and over that the WEATHER R19 deals (clear, fair, flurries, high cloud, overcast, a steady fall, a storm, valley fog), its cloud, its falling snow in squalls and the new snow it lays (`snowAt`, `GameState.fresh`), its spindrift, its flat light, and the NIGHT an evening map rides into (the moon as the key, the stars and the Milky Way — `starfield.ts` — the floodlight masts down every run — `piste-light-plan.ts`, `piste-lights.ts` — the finish arena's floodlights and every skier's headlamp — `headlamp.ts`). Owns `pwa/src/game/sky.ts` (the colour model, three-free), `haze.ts`, `sky-dome.ts`, `environment.ts`, `snowfall.ts` (over `snowfall-plan.ts`: the fall's velocity past the lens), `starfield.ts`, and on the engine side `engine/game/clock.ts` (the sun and the moon), `engine/game/wind.ts`, `engine/game/snowfall.ts`, R15 in `mapgen/sun.ts` and R19 in `mapgen/weather.ts`; and `make sky`, the contact sheet that is the only honest way to judge any of it, with `make snowfall` for the fall at speed. Not the snow the light lands on (`snow-look`), not the trees (`nature`), not what the skis throw (`visual-effects`)."
+description: "Use when working on the SKY and the air under it — where the sun stands at the hour the run has reached (the start hour run on by the sky's clock, five minutes an hour) on its day at its latitude (R15, `sunAtRun`), what colour it makes the dome, the two lights and the blue in the snow's shadows, the haze every far slope dissolves into (one sky function read along each surface's own direction), and the key light's one shadow map over a circle ahead of the lens that every shadow fades out at the rim of — and over that the WEATHER R19 deals (clear, fair, flurries, high cloud, overcast, a steady fall, a storm, valley fog), its cloud, its falling snow in squalls and the new snow it lays (`snowAt`, `GameState.fresh`), its spindrift, its flat light, and the NIGHT an evening map rides into (the moon as the key, the stars and the Milky Way — `starfield.ts` — the floodlight masts down every run — `piste-light-plan.ts`, `piste-lights.ts` — the finish arena's floodlights and every skier's headlamp — `headlamp.ts`). Owns `pwa/src/game/sky.ts` (the colour model, three-free), `haze.ts`, `sky-dome.ts`, `environment.ts`, `snowfall.ts` (over `snowfall-plan.ts`: the fall's velocity past the lens), `starfield.ts`, and on the engine side `engine/game/clock.ts` (the sun and the moon), `engine/game/wind.ts`, `engine/game/snowfall.ts`, R15 in `mapgen/sun.ts` and R19 in `mapgen/weather.ts`; and `make sky`, the contact sheet that is the only honest way to judge any of it, with `make snowfall` for the fall at speed. Not the snow the light lands on (`snow-look`), not the trees (`nature`), not what the skis throw (`visual-effects`)."
 ---
 
 # The atmosphere: the sun, the sky and the haze
@@ -13,9 +13,12 @@ here moves every picture in the game.
 
 **A MAP IS DEALT ONE SKY AT ONE HOUR** (R15, R19): a seeded day at a seeded
 latitude, one of eight weathers off a stream of its own (the bright ones most
-days), and on a quarter of the maps an evening start at or after sunset. The
-sun does not move over a run; what changes is the fall, in squalls, and the
-new snow it lays. A
+days), and on a quarter of the maps an evening start at or after sunset.
+THE SUN MOVES WITH THE RUN: the hour is the START hour, and the sky's clock
+runs it on with `state.t` at twelve times real time (five minutes on the
+snow an hour of sun — `SKY_CLOCK`), so a long free ride sees the sun go
+down, the lamps come on and the stars come out; the fall breathes in
+squalls and lays new snow. A
 season's cast is NOT BUILT — `game3`'s `SEASON_LOOKS` is where it starts.
 
 **Read this skill's lessons first** — `npx ogf-skill-lessons
@@ -30,12 +33,14 @@ engine has an opinion about colour.
 | Fact | Where |
 | --- | --- |
 | The map's day: a latitude in the region's band (R21 — the alpine's 44–48°N, the fell's 60–69°N, the continental's 39–52°N, the maritime's 36–44°N), a day of the year (January to March) and a starting solar hour (9–16 h) at which the sun is at least `sun.minElevation` up (R15) | `engine/mapgen/sun.ts` (`dealSun`, `declinationOf`), `LEVEL_RULES.sun`, `regions.ts`'s `sun` |
-| Where the sun stands over a run — at the map's hour, STILL from the green to the flag | `sunAtRun(level)` in `engine/game/clock.ts` |
-| The moon: its place and its phase off the map's day (a nominal year, so R15's two months carry two lunations) | `moonAtRun(level)`, `moonAgeOn` in `clock.ts` over the framework's `core/solar` `moonAt` |
+| Where the sun stands over a run — at the map's START hour when no time is named (what every create-time decision reads), and at run time `t` on the SKY'S CLOCK (`skyHourAt`, `skyLevelAt`: the start hour run on at `SKY_CLOCK.rate`, past 24 h into the next day) for the picture — reckoned for a REAL INSTANT: the map's day a date in one nominal year (`SKY_YEAR`), its hour local apparent solar time, the declination and the equation of time off NOAA's series, the elevation the APPARENT one (lifted by the refraction; `trueElevation` beside it). The generator's R15 keeps its own cosine (`declinationOf`) — what a seed builds never moves for the sky | `sunAtRun(level, t?, rate?)`, `SKY_CLOCK`, `skyHourAt`, `skyLevelAt`, `skyDateOf` in `engine/game/clock.ts`; the app's rate and its readers' one door `pwa/src/game/sky-clock.ts` (`setSkyClock` off `?skyclock=`, `sunNow`, `moonNow`, `skyHourNow`, `skyLevelNow`) over the framework's `core/solar` `sunOnDate` |
+| Sunrise and sunset as an almanac states them (the upper limb, the refraction counted) and any twilight's window — the whole clock under the midnight sun, null in the polar night | `sunWindowOf(level, depth?)` in `clock.ts` (`sunWindowOnDate`) |
+| The moon: its place off its REAL ORBIT (Schlyter's series: its ecliptic latitude, the major standstill's ±28° swing, the parallax) and its real phase on the map's date | `moonAtRun(level, t?, rate?)`, `moonAgeOn` in `clock.ts` over the framework's `core/solar` `moonOnDate` |
+| WHERE A MAP IS ON THE GLOBE: a generated map at its dealt latitude on the prime meridian; a REAL FACE stood at its own latitude, longitude and true north when a run is created (`withPlace` off `realFacePlace` — the sky only, nothing rebuilt), half a year on south of the equator (`seasonDay`, and the free ride's SEASON stops with it, `seasonOn`); a clock shown to the player reads the place's (`clockHourOf`: the equation of time and the zone's meridian off the solar hour) | `withPlace`, `seasonDay` in `engine/mapgen/sun.ts`; `clockHourOf` in `clock.ts`; `pwa/src/game/free-ride.ts`'s `seasonOn` |
 | THE WEATHER (R19): the sky, the fall, the fog, the mean wind and its bearing, the evening — dealt last off its own stream so it moves nothing the map builds | `engine/mapgen/weather.ts` (`dealWeather`, `weatherOf`, `weatherFor`, `withSky`), `LEVEL_RULES.weather` |
 | The wind at a moment: the mean breathing in gusts, veering, NEVER UP THE MOUNTAIN (a bearing up the fall line mirrored across it, `downhillFrom`; the mean as anything drawn reads it, `windFromOf`) — a PURE function of (level, t) at 10 m over open ground, drawing nothing from `state.rng`; and the AIR WHERE A SKIER IS — the log law down to his body, the mountain's exposure, the woods' shelter — which his drag is against (`air.ts`) and which he hears and the HUD reads | `windAt`, `windFromOf`, `downhillFrom`, `airAt`, `airflowAt` in `engine/game/wind.ts`, `TUNING.wind` |
 | The fall at a moment (the squalls, a storm's blown snow) and the view it leaves — pure the same way — and the NEW SNOW it lays at a real fall's rate (`GameState.fresh`), the one thing a sky does to the physics | `snowAt`, `visibilityIn`, `freshRate` in `engine/game/snowfall.ts`; `packedUnder` / `depthUnder` in `snow.ts` |
-| The astronomy: the sun's elevation and bearing at an hour, a latitude and a declination | the framework's `core/solar` (`sunAt`) — the generic pool |
+| The astronomy: the sun's elevation and bearing at an hour, a latitude and a declination (`sunAt`); and on a real date at a longitude — the declination and equation of time, the refraction, upper-limb sunrise, the twilights, the moon's orbit (`sunOnDate`, `sunWindowOnDate`, `moonOnDate`). `make sky-solar` holds the game's sky to a NOAA reference at the real faces' places and the bands' edges through the year | the framework's `core/solar` — the generic pool |
 
 ## The files, one direction of flow
 
@@ -51,11 +56,31 @@ engine has an opinion about colour.
 | `pwa/src/game/piste-light-plan.ts` | THE PISTE LIGHTS' LAYOUT, three-free, RESEARCHED (the sources' numbers are in its header): masts some 50 m apart down every run on one side (both past 70 m of width), `out` m past the edge, a light point of 10–18 m by the width, one to three 4000 K LED floods each sized for 30 lx and aimed down and across the run; the ASYMMETRIC beam (`beamShare`: thrown out at its aim from the nadir, slow toward the mast's foot, cut off sharply above the aim — the cut-off is what leaves the woods past the far edge dark; a round 60° beam tipped down throws its top edge nearly level and lights the trees tens of metres off); and the BAKE (`bakePisteLight`): the vector irradiance on the ground over the whole map, 4 m a texel, a crest between lamp and snow its shadow. `tests/piste_lights_test.ts` holds it to the recreational class (20 lx mean, 4 lx minimum) and the snow 30 m past the edge under 1 lx |
 | `pwa/src/game/piste-lights.ts` | The masts as drawn (four instanced draws: pole, crossarm, housing, glass), the haloes (one instanced quad a glass, turned to the lens, a few pixels at least so a lit run reads across the valley) and the bake uploaded the first time the lamps come on, as one half-float texture every shader reads through `LAMP_GLSL`'s `pisteLight` — never through the six lamp slots, which are the moving lamps'. One lux is `LUX_TO_LAMP` in the slots' units, set so a headlamp's spot and a mast's pool sit on one scale. Built by `gates.ts`, lit by its `setLamps` |
 | `pwa/src/game/shadow-box.ts` | WHERE THE SHADOW STANDS, three-free: the circle ahead of the lens (`aimShadow`), its fade (`shadowFade`), how long a tree's shadow is at this sun (`shadowLength`) and whether it reaches the circle (`castsInto` — what `forest.ts` picks its casters by). The fade itself is a graft on three's `lights_fragment_begin` inside `hazeMaterial`, so every world material fades the same shadow at the same rim |
-| `pwa/src/game/terrain-shadow.ts` | THE MOUNTAIN'S OWN SHADOW, three-free: the HORIZON every texel of a grid over the whole map sees along the key's bearing, baked by one convex-hull sweep of the engine's heightfield (`bakeHorizon`), and the share of the key a point under it takes (`sunlitShare`, a band as soft as the sun's disc) — and the same in GLSL (`TERRAIN_SHADOW_GLSL`'s `terrainLit`). The key stands still over a run, so it is baked once a map and again only when the key's BEARING moves (`bakedFor`); its elevation is compared per pixel |
+| `pwa/src/game/terrain-shadow.ts` | THE MOUNTAIN'S OWN SHADOW, three-free: the HORIZON every texel of a grid over the whole map sees along the key's bearing, baked by one convex-hull sweep of the engine's heightfield (`bakeHorizon`), and the share of the key a point under it takes (`sunlitShare`, a band as soft as the sun's disc) — and the same in GLSL (`TERRAIN_SHADOW_GLSL`'s `terrainLit`). Its elevation is compared per pixel, so only a new BEARING needs a bake — and a TURNING key is drawn between TWO maps (`HorizonBlend`: one behind the key, one baked `lead` s of run AHEAD of it, mixed by where the key stands between them, the next one queued before the key arrives), so a ridge's shadow glides with the sun and never blinks; a key that jumps (a sky picked by hand, the moon taking over) is a cut, off until its bake lands |
 | `pwa/src/game/terrain-shade.ts` | The horizon on the GPU: asked of `terrain-shadow-worker.ts` (off the thread — a million samples), uploaded as one half-float texture, on while the SHADOWS row casts at all; and `shadeDepth` / `castInLight`, the depth every caster draws into the key's map and the skiers' own through, which throws away what the mountain already shades |
 | `pwa/src/game/hero-shadow.ts` | THE SKIERS' OWN SHADOWS (SHADOWS HIGH): every skier and his skis — the player and the field, a quadrant of one atlas each — cast into a map of their own, a box in the key light's frame just round their bound (`heroFrame` in `shadow-box.ts`) following them exactly — millimetres a texel where the wide map's are centimetres — and are taken OUT of the wide map, so no blurred copy swims round the sharp one. Every world material takes the darkest of them (`haze.ts`'s `heroShadowed`) |
 
 ## The rules
+
+- **THE SKY RUNS ON THE RUN'S OWN CLOCK, and nothing the race reads does.**
+  Every reader of the hour asks `sky-clock.ts` (`sunNow`, `moonNow`,
+  `skyHourNow`, `skyLookAt(level, state.t)`) — the sky, the stars, the
+  snow's thaw (re-packed as the sun moves), the birds, the sound, the people
+  on foot, the cockpits' clocks — and never `level.sun.hour` or a bare
+  `sunAtRun(level)`, which are the START hour. What a run DEALS off the sun
+  when it is created (the night crowd, the piste machines, the snow guns,
+  the piste's day) reads the start hour and stays as dealt: flipped mid-run
+  it would move a digest and pop people out of the world. The rate is the
+  app's, never engine state — 12 in the game, held (0) on every lab page
+  that does not ask and on a link that names an `?hour=` — and a replay,
+  re-skiing `state.t`, is met under the same sky. Anything that must follow
+  the light as it changes reads it EVERY FRAME (or re-reads when the sun has
+  moved a step); a value worked out once at load off the sun is a bug now.
+- **A turning sun moves no edge in steps.** The mountain's shadow is drawn
+  between a map behind the key and one ahead of it (`HorizonBlend`); the
+  shadow box's key is stepped (`steadyKey`, a thousandth of a radian) so its
+  frame stands between steps and the texel snap still holds a tree's edge.
+  A per-frame continuous direction in a texel-snapped frame is a crawl.
 
 - **The sun is the single input, and it is asked every frame.** Anything
   that needs to know how bright, how warm or where the light is reads the
@@ -116,7 +141,12 @@ every three hours on one seed from one place, as one sheet
 (`previews/sky-<seed>.png`; `ARGS="--hours=10,17,22 --weathers=fair,blizzard
 --width=640 --height=360"` to zoom a few cells). A map is dealt one sky at one
 hour, so a race's screenshot can only say whether that one is wrong; the
-ladder is judged side by side. A change to the FALLING SNOW (how it moves,
+ladder is judged side by side. The time-lapse (`--sheet=timelapse`) sets the
+hour cell by cell; with `--clock` it walks the RUN'S OWN CLOCK instead (the
+sky's clock at `--rate`, every frame between two cells drawn, the mountain's
+shadow baked ahead and blended as in a run) — what a player sees as the sun
+goes down; `make world ARGS="--free --hour=<h> --skyclock=12
+--views=chase-0,chase-60,…"` is the same through a bot's run. A change to the FALLING SNOW (how it moves,
 how a flake is drawn) owes **`make snowfall`** before and after as well: each
 falling sky ridden into, with and across its wind at 0–140 km/h, the game's
 frame (`previews/snowfall-<seed>.png`) and the flakes alone laid over several

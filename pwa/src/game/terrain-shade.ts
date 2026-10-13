@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MOUNTAIN'S SHADOW ON THE GPU: the horizon map `terrain-shadow.ts`
-// bakes, asked of a worker once a map and again only when the key light's
-// bearing moves, uploaded as one half-float texture over the whole map and
-// read by every world material through the shared haze uniforms
+// THE MOUNTAIN'S SHADOW ON THE GPU: the horizon maps `terrain-shadow.ts`
+// bakes, asked of a worker once a map and again as the key light's bearing
+// turns — one behind the key and one ahead of it, mixed by where the key
+// stands between them (`HorizonBlend`) — uploaded as one half-float pair
+// over the whole map and read by every world material through the shared
+// haze uniforms
 // (`haze.ts`'s `terrainLit`, taken with the key's shadow map, the darker of
 // the two). Off while the SHADOWS row is: the map is the key light's shadow
 // like any other, and a picture with no shadows has none of it either.
@@ -22,9 +24,10 @@ import type { Heightfield } from "@engine";
 import type { HazeUniforms } from "./haze.ts";
 import {
   bakeHorizon,
-  bakedFor,
+  createHorizonBlend,
   keyBearing,
-  sameBearing,
+  landBlend,
+  steerBlend,
   TERRAIN_SHADOW_GLSL,
   type HorizonMap,
   type KeyDir,
@@ -36,10 +39,12 @@ export type TerrainShade = {
    * casts at all; resolves when the first map is on the GPU (at once when
    * there is nothing to bake). */
   setGround(ground: Heightfield | null, key: KeyDir | null, casting: boolean): Promise<void>;
-  /** The key this frame, and whether the key casts at all (the SHADOWS
-   * row): a new bearing asks for a new bake, and until it lands the old
-   * one — cast along another bearing — is not drawn. */
-  update(key: KeyDir, on: boolean): void;
+  /** The key this frame, whether the key casts at all (the SHADOWS row),
+   * and where the key will stand `TERRAIN_SHADOW.lead` s of run on (null
+   * while the sky's clock stands): a TURNING key is drawn between a map
+   * behind it and one baked ahead of it, never off (`HorizonBlend`); a key
+   * that JUMPS is not drawn until the bake for it lands. */
+  update(key: KeyDir, on: boolean, ahead?: KeyDir | null): void;
   /** Resolves once the last bake asked for is drawn (a lab's cell waits on
    * it after moving the sky). */
   settled(): Promise<void>;
@@ -89,59 +94,81 @@ function bake(ground: Heightfield, bearing: number): Promise<HorizonMap> {
 export function createTerrainShade(haze: HazeUniforms): TerrainShade {
   let ground: Heightfield | null = null;
   let texture: THREE.DataTexture | null = null;
-  /** The map on the GPU, and the bearing a bake in flight is for. */
-  let map: HorizonMap | null = null;
-  let pending: number | null = null;
+  /** The two maps drawn and the bakes between them (`HorizonBlend`). */
+  let blend = createHorizonBlend();
   let on = false;
-  /** The key last asked about, and the last bake asked for. */
-  let key: KeyDir | null = null;
   let latest: Promise<void> = Promise.resolve();
 
-  const show = (): void => {
-    const fresh = map !== null && key !== null && bakedFor(map, key);
-    haze.uTerrainShadeOn.value.x = on && fresh ? 1 : 0;
+  const halvesOf = (map: HorizonMap): Uint16Array => {
+    if (!map.halves) {
+      map.halves = new Uint16Array(map.data.length);
+      for (let i = 0; i < map.data.length; i++) {
+        map.halves[i] = THREE.DataUtils.toHalfFloat(map.data[i]);
+      }
+    }
+    return map.halves;
   };
-  const upload = (next: HorizonMap): void => {
-    map = next;
-    const halves = new Uint16Array(next.data.length);
-    for (let i = 0; i < halves.length; i++) halves[i] = THREE.DataUtils.toHalfFloat(next.data[i]);
-    texture?.dispose();
-    texture = new THREE.DataTexture(
-      halves,
-      next.cols,
-      next.rows,
-      THREE.RedFormat,
-      THREE.HalfFloatType,
-    );
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.needsUpdate = true;
+  /** The pair onto the GPU, the map behind the key red and the one ahead
+   * green — one texture, one fetch a pixel, reused while the grid stands. */
+  const upload = (): void => {
+    blend.dirty = false;
+    const { from, to } = blend;
+    if (!from || !to) return;
+    const a = halvesOf(from);
+    const b = halvesOf(to);
+    const n = from.cols * from.rows;
+    const fits = texture && texture.image.width === from.cols && texture.image.height === from.rows;
+    if (!fits) {
+      texture?.dispose();
+      texture = new THREE.DataTexture(
+        new Uint16Array(n * 2),
+        from.cols,
+        from.rows,
+        THREE.RGFormat,
+        THREE.HalfFloatType,
+      );
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    }
+    const rg = texture!.image.data as Uint16Array;
+    for (let i = 0; i < n; i++) {
+      rg[2 * i] = a[i];
+      rg[2 * i + 1] = b[i];
+    }
+    texture!.needsUpdate = true;
     haze.uTerrainShade.value = texture;
     haze.uTerrainShadeBox.value.set(
-      next.originX - next.cell / 2,
-      next.originZ - next.cell / 2,
-      1 / (next.cols * next.cell),
-      1 / (next.rows * next.cell),
+      from.originX - from.cell / 2,
+      from.originZ - from.cell / 2,
+      1 / (from.cols * from.cell),
+      1 / (from.rows * from.cell),
     );
-    show();
   };
-  const ask = (toward: KeyDir): Promise<void> => {
+  const show = (): void => {
+    if (blend.dirty) upload();
+    haze.uTerrainShadeOn.value.x = on && blend.on ? 1 : 0;
+    haze.uTerrainShadeOn.value.y = blend.share;
+  };
+  const ask = (bearing: number): Promise<void> => {
     const land = ground;
+    const mine = blend;
     if (!land) return Promise.resolve();
-    const bearing = keyBearing(toward);
-    pending = bearing;
     latest = bake(land, bearing).then((next) => {
-      // A map that changed, or a newer ask, while this one baked.
-      if (ground !== land || pending !== bearing) return;
-      pending = null;
-      upload(next);
+      // A map that changed while this one baked.
+      if (ground !== land || blend !== mine) return;
+      landBlend(blend, next);
+      show();
     });
     return latest;
   };
+  const steer = (toward: KeyDir, ahead: KeyDir | null): Promise<void> | null => {
+    const bearing = steerBlend(blend, keyBearing(toward), ahead ? keyBearing(ahead) : null);
+    show();
+    return bearing === null ? null : ask(bearing);
+  };
   const clear = (): void => {
-    map = null;
-    pending = null;
+    blend = createHorizonBlend();
     texture?.dispose();
     texture = null;
     haze.uTerrainShade.value = null;
@@ -153,16 +180,13 @@ export function createTerrainShade(haze: HazeUniforms): TerrainShade {
       clear();
       ground = next;
       on = casting;
-      key = toward;
-      return next && toward && on ? ask(toward) : Promise.resolve();
+      if (!next || !toward || !on) return Promise.resolve();
+      return steer(toward, null) ?? latest;
     },
-    update(toward, casting) {
+    update(toward, casting, ahead = null) {
       on = casting;
-      key = toward;
-      show();
-      if (!on || !ground || bakedFor(map, toward)) return;
-      if (pending !== null && sameBearing(pending, keyBearing(toward))) return;
-      void ask(toward);
+      if (!on || !ground) return void show();
+      void steer(toward, ahead);
     },
     settled: () => latest,
     dispose() {

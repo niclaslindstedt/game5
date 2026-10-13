@@ -194,3 +194,34 @@ export function sunDue(c: SunCadence, box: ShadowBox, steady: boolean): boolean 
   c.since = 0;
   return true;
 }
+
+// THE KEY STEPPED AS THE SKY TURNS. The sun moves with the sky's clock
+// (`sky-clock.ts`), so the box's frame would turn a hair every frame — and
+// the snap to whole texels, which holds a tree's shadow edge still while
+// the lens moves, only holds in a frame that stands. So the direction the
+// box is aimed along moves in steps of `KEY_STEP` in bearing and in
+// elevation: a step throws a twenty-metre tree's shadow a couple of
+// centimetres, under a texel, and between steps the frame stands still.
+
+/** The step the key's direction moves in, rad. */
+export const KEY_STEP = 0.001;
+/** The lowest the box's key stands, rad: a hair over the horizon, so the
+ * box has a light to stand under. */
+export const KEY_FLOOR = 0.02;
+
+/** The key `key` (unit, toward the light) as the box is aimed along it:
+ * kept a hair over the horizon and stepped (`KEY_STEP`), written into
+ * `out`. */
+export function steadyKey<V extends { x: number; y: number; z: number }>(
+  key: { x: number; y: number; z: number },
+  out: V,
+): V {
+  const elevation = Math.max(KEY_FLOOR, Math.atan2(key.y, Math.hypot(key.x, key.z)));
+  const bearing = Math.atan2(key.x, key.z);
+  const e = Math.round(elevation / KEY_STEP) * KEY_STEP;
+  const b = Math.round(bearing / KEY_STEP) * KEY_STEP;
+  out.x = Math.sin(b) * Math.cos(e);
+  out.y = Math.sin(e);
+  out.z = Math.cos(b) * Math.cos(e);
+  return out;
+}

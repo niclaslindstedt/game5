@@ -6,7 +6,7 @@
 // `App.tsx` routes them with one element: which card is up is the page, and
 // what each press does is the app's, handed in.
 
-import type { GameMode, PairId } from "@engine";
+import { isBoardId, type GameMode, type PairId } from "@engine";
 import { useEffect } from "preact/hooks";
 
 import type { DevApp } from "./dev-app.tsx";
@@ -28,7 +28,7 @@ import { stepAfter, stepBefore } from "./where-steps.ts";
 import { wingsuitOn } from "./free-ride.ts";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
-import type { Settings } from "./settings.ts";
+import { boardAllowed, kindPair, type Settings } from "./settings.ts";
 import type { StatsBook } from "./stats.ts";
 import { STRINGS } from "./strings.ts";
 import type { MenuPage } from "./url-params.ts";
@@ -68,10 +68,12 @@ export function MenuPages(p: {
     page === "start" ||
     page === "levels" ||
     page === "tricks";
+  // The other kind's pair is built with it where the gear card offers both.
+  const spare = boardAllowed(p.mode) ? kindPair(settings, !isBoardId(p.skis)) : null;
   useEffect(() => {
-    if (ahead) warmStage(p.skis, settings.outfit);
+    if (ahead) warmStage(p.skis, settings.outfit, spare);
     else if (page !== "dress" && page !== "skis") coolStage();
-  }, [ahead, page, p.skis, settings.outfit]);
+  }, [ahead, page, p.skis, settings.outfit, spare]);
   useEffect(() => coolStage, []);
   const back = (): void => setPage("root");
   /** The three ways onto the snow go back to PLAY's page, which opened them. */
@@ -168,6 +170,7 @@ export function MenuPages(p: {
         <WherePage
           step={page}
           settings={settings}
+          seed={p.startSeed}
           onSettings={setSettings}
           onBack={() => setPage(stepBefore(page, settings.ride.face))}
           onNext={() => setPage(stepAfter(page, settings.ride.face))}

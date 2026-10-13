@@ -126,4 +126,10 @@ export const AUTOROTATION = {
   most: 1.12,
   /** The low-rotor horn: under this share of the rpm. */
   horn: 0.92,
+  /** The blades' pitch at the top of the collective's travel, rad (18°,
+   * a light helicopter's stop): the most the blades can lift in the air
+   * meeting them (`thrustMost`), so a disc moving along its own thrust —
+   * climbing hard, or turned over and falling — runs out of lift once
+   * that air takes their angle of attack, by some 45 m/s through it. */
+  pitchMost: 0.32,
 } as const;

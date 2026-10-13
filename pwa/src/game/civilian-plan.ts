@@ -55,6 +55,7 @@ import {
   type Spot,
 } from "./civilian-spots.ts";
 import { SNOWBALL } from "./civilian-moves.ts";
+import { skyHourNow } from "./sky-clock.ts";
 import { freshRouteAt, routeAside, routeAt, routeOf, type Route } from "./civilian-route.ts";
 import { wildGround } from "./wild-ground.ts";
 
@@ -222,10 +223,10 @@ export function hasCivilians(rules: Pick<RunRules, "crowd" | "afterski">): boole
   return rules.crowd > 0 || rules.afterski === true;
 }
 
-/** The hour a map's civilians live at: the map's own (the sun stands at it
- * for the whole run). */
-export function civilianHour(level: Pick<Level, "sun">): number {
-  return level.sun.hour;
+/** The hour a map's civilians live at, at run time `t`: the sky's
+ * (`sky-clock.ts` — the map's start hour run on with the run), 0..24. */
+export function civilianHour(level: Pick<Level, "sun">, t = 0): number {
+  return skyHourNow(level, t) % 24;
 }
 
 function dealRoutine(rng: Rng, role: Role): { routine: Held[]; total: number } {

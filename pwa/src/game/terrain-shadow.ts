@@ -11,15 +11,26 @@
 // shadow is a kilometre long and has to reach across the whole face. And
 // drawing the clipmap into that map would be every vertex of the ground a
 // second time a frame, with acne on every slope the low sun grazes. But the
-// key stands STILL for the whole run (`sunAtRun` — the moon's the same),
-// and so does the ground, so the question "can this point see the key?" has
-// one answer a point for the whole run. The map stores, for every texel of
-// a grid over the whole map, the HORIZON: the highest elevation angle the
-// ground rises to seen from that point, looking along the key's bearing.
-// A point is lit when the key stands over its horizon — and since the angle
-// is stored rather than the verdict, the key's ELEVATION may change (a sky
-// picked on a card, the evening's moon) without a new bake; only a new
-// BEARING needs one.
+// ground stands still, and the key only turns slowly (the sky's clock,
+// `sky-clock.ts`: a few degrees a real minute), so the question "can this
+// point see the key?" is asked of a map baked for the key's bearing. The
+// map stores, for every texel of a grid over the whole map, the HORIZON:
+// the highest elevation angle the ground rises to seen from that point,
+// looking along the key's bearing. A point is lit when the key stands over
+// its horizon — and since the angle is stored rather than the verdict, the
+// key's ELEVATION may change (the sun climbing, the evening's moon) without
+// a new bake; only a new BEARING needs one.
+//
+// A TURNING KEY NEVER BLINKS (`HorizonBlend`). Two maps are drawn at once,
+// one baked for a bearing behind the key and one AHEAD of it (where the key
+// will stand `lead` seconds of run on), and the horizon a pixel reads is the
+// two mixed by where the key stands between their bearings — so a shadow's
+// edge glides with the sun instead of stepping a bake at a time. Before the
+// key reaches the map ahead, the next one is already baking further on; it
+// waits, queued, until the key gets there, and only then is the pair moved
+// up — at that instant the picture is the map ahead alone, and so it stays.
+// A key that jumps (a sky picked by hand, the moon taking over) is a cut:
+// the shade is off until the bake for it lands, as it always was.
 //
 // THE BAKE IS ONE SWEEP (Stewart's horizon by convex hull): the grid is
 // walked in lines parallel to the key's bearing, each from the end nearest
@@ -54,9 +65,18 @@ export const TERRAIN_SHADOW = {
    * half, rad: the ground's cell is coarser than the drawn snow, and a
    * slope the key grazes must not break into speckled shade. */
   bias: 0.006,
-  /** How far the key's bearing may move, rad, before the map is baked again
-   * (a sky picked by hand, the moon taking over from the sun). */
+  /** How far the key's bearing may stand off the bearings the drawn maps
+   * were baked for, rad, before they no longer stand for it (a sky picked by
+   * hand, the moon taking over from the sun) — a cut, and a new bake. */
   rebake: 0.004,
+  /** How far ahead the next map is baked, s of run: the bearing the key will
+   * stand at then (`sky.ts`'s `keyAheadAt`). Ten seconds is a sixth of a
+   * degree of a winter sun — a couple of degrees of a high summer one — and
+   * leaves the worker seconds for each bake. */
+  lead: 10,
+  /** The share of the way to the map ahead the key reaches before the next
+   * one is asked for, so it has landed by the time the key gets there. */
+  askAt: 0.5,
   /** Past the map's edge the ground is the rim's own noise, which the bake
    * never saw: the shade fades out over this many metres beyond the edge. */
   rim: 60,
@@ -74,6 +94,8 @@ export type HorizonMap = {
   /** The key's plan bearing, rad — heading convention, 0 along +z. */
   bearing: number;
   data: Float32Array;
+  /** The same horizon as half floats, for the GPU (the worker's). */
+  halves?: Uint16Array;
 };
 
 /** A direction toward the key light, world frame. */
@@ -99,6 +121,127 @@ export function sameBearing(a: number, b: number): boolean {
 /** Whether a map baked along `map.bearing` still stands for `key`. */
 export function bakedFor(map: HorizonMap | null, key: KeyDir): boolean {
   return map !== null && sameBearing(map.bearing, keyBearing(key));
+}
+
+/** The signed turn from bearing `a` to bearing `b`, rad, in (−π, π]. */
+export function turnBetween(a: number, b: number): number {
+  let d = (b - a) % (2 * Math.PI);
+  if (d > Math.PI) d -= 2 * Math.PI;
+  if (d <= -Math.PI) d += 2 * Math.PI;
+  return d;
+}
+
+/** THE TWO MAPS DRAWN FOR A TURNING KEY, and the bakes between them — a
+ * pure plan the GPU half (`terrain-shade.ts`) drives: `steerBlend` every
+ * frame with where the key stands, `landBlend` when a bake comes back. */
+export type HorizonBlend = {
+  /** The map behind the key (drawn in the texture's red) and the one ahead
+   * of it (green); the same map in both while there is nothing ahead. */
+  from: HorizonMap | null;
+  to: HorizonMap | null;
+  /** A bake past `to`, landed and waiting for the key to reach `to`. */
+  queued: HorizonMap | null;
+  /** The bearing a bake in flight is for, and whether it is a CUT (the key
+   * left the drawn pair: the shade is off until it lands). */
+  pending: number | null;
+  cut: boolean;
+  /** How much of `to` is drawn, 0..1, and whether the shade is drawn. */
+  share: number;
+  on: boolean;
+  /** The pair changed since the GPU last took it. */
+  dirty: boolean;
+};
+
+export function createHorizonBlend(): HorizonBlend {
+  return {
+    from: null,
+    to: null,
+    queued: null,
+    pending: null,
+    cut: false,
+    share: 0,
+    on: false,
+    dirty: false,
+  };
+}
+
+/** Where the key's `bearing` stands on the pair: the share of `to`, and how
+ * far off the span between the two bearings it stands, rad. */
+function placeOn(from: number, to: number, bearing: number): { share: number; off: number } {
+  const span = turnBetween(from, to);
+  const d = turnBetween(from, bearing);
+  if (Math.abs(span) < 1e-9) return { share: 0, off: Math.abs(d) };
+  const share = d / span;
+  if (share < 0) return { share: 0, off: Math.abs(d) };
+  if (share > 1) return { share: 1, off: Math.abs(turnBetween(to, bearing)) };
+  return { share, off: 0 };
+}
+
+/**
+ * THE KEY AT `bearing` THIS FRAME (and at `ahead`, `lead` seconds of run on,
+ * or null when the sky's clock stands): moves the pair up once the key has
+ * reached the map ahead and a further one waits, sets what is drawn, and
+ * returns the bearing a new bake should be asked for, or null.
+ */
+export function steerBlend(s: HorizonBlend, bearing: number, ahead: number | null): number | null {
+  const { rebake, askAt } = TERRAIN_SHADOW;
+  if (s.from === null || s.to === null) {
+    s.on = false;
+    if (s.pending !== null && sameBearing(s.pending, bearing)) return null;
+    s.pending = bearing;
+    s.cut = true;
+    return bearing;
+  }
+  let at = placeOn(s.from.bearing, s.to.bearing, bearing);
+  if (at.share >= 1 && s.queued !== null) {
+    s.from = s.to;
+    s.to = s.queued;
+    s.queued = null;
+    s.dirty = true;
+    at = placeOn(s.from.bearing, s.to.bearing, bearing);
+  }
+  if (at.off > rebake) {
+    // Off the pair: a cut, drawn again once the bake for the key lands.
+    s.on = false;
+    if (s.cut && s.pending !== null && sameBearing(s.pending, bearing)) return null;
+    s.pending = bearing;
+    s.cut = true;
+    s.queued = null;
+    return bearing;
+  }
+  s.on = true;
+  s.share = at.share;
+  if (ahead === null || s.pending !== null || s.queued !== null) return null;
+  const single = s.from === s.to;
+  if (!single && at.share < askAt) return null;
+  if (Math.abs(turnBetween(s.to.bearing, ahead)) <= rebake) return null;
+  // Only on past the map ahead, never back across the pair — unless the key
+  // has reached it (a pair laid across the moon taking over from the sun:
+  // the next map ahead goes the moon's way, and the pair moves up at once).
+  const across = turnBetween(s.from.bearing, s.to.bearing) * turnBetween(s.to.bearing, ahead);
+  if (!single && across <= 0 && at.share < 1) return null;
+  s.pending = ahead;
+  s.cut = false;
+  return ahead;
+}
+
+/** A bake for `map.bearing` landed: the pair after a cut, the map ahead of
+ * a lone map, or queued behind the map ahead. A bake no longer asked for is
+ * dropped. */
+export function landBlend(s: HorizonBlend, map: HorizonMap): void {
+  if (s.pending === null || s.pending !== map.bearing) return;
+  s.pending = null;
+  if (s.cut || s.from === null || s.to === null) {
+    s.from = s.to = map;
+    s.queued = null;
+    s.cut = false;
+  } else if (s.from === s.to) {
+    s.to = map;
+  } else {
+    s.queued = map;
+    return;
+  }
+  s.dirty = true;
 }
 
 /** The slope stored where nothing rises toward the key: steep enough to
@@ -259,10 +402,12 @@ export function terrainLitAt(map: HorizonMap, x: number, z: number, key: KeyDir)
 }
 
 /** THE SAME ANSWER IN GLSL, for every world material (`haze.ts`) and every
- * caster's depth pass. `uTerrainShade` is the horizon map (R16F, linear);
+ * caster's depth pass. `uTerrainShade` is the horizon pair (RG16F, linear:
+ * the map behind the key in red, the one ahead in green, `HorizonBlend`);
  * `uTerrainShadeBox` maps a world plan point to its uv (the origin less
  * half a texel, and one over the grid's span); `uTerrainShadeOn.x` is 0
- * while there is no map, and every point is then lit. `uSunDir` is the
+ * while there is no map, and every point is then lit, and `.y` the share of
+ * the map ahead drawn. `uSunDir` is the
  * KEY's direction (`SKY_GLSL`). */
 export const TERRAIN_SHADOW_GLSL = /* glsl */ `
 uniform sampler2D uTerrainShade;
@@ -271,7 +416,8 @@ uniform vec4 uTerrainShadeOn;
 float terrainLit(vec3 world) {
   if (uTerrainShadeOn.x < 0.5) return 1.0;
   vec2 uv = (world.xz - uTerrainShadeBox.xy) * uTerrainShadeBox.zw;
-  float horizon = texture2D(uTerrainShade, uv).r;
+  vec2 pair = texture2D(uTerrainShade, uv).rg;
+  float horizon = mix(pair.r, pair.g, uTerrainShadeOn.y);
   float elevation = asin(clamp(uSunDir.y, -1.0, 1.0));
   float lit = smoothstep(-${TERRAIN_SHADOW.band.toFixed(4)}, ${TERRAIN_SHADOW.band.toFixed(4)},
     elevation - horizon + ${TERRAIN_SHADOW.bias.toFixed(4)});

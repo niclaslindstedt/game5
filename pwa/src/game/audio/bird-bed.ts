@@ -112,7 +112,7 @@ export function createBirdBed(synth: Synth): BirdBed {
       }
       const t0 = Math.max(lastT, t - LONGEST_WINDOW);
       lastT = t;
-      const activity = activityAt(level);
+      const activity = activityAt(level, t);
       const y = state.skier.y;
 
       plan.flocks.forEach((flock, f) => {

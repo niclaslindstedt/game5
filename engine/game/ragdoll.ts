@@ -52,6 +52,7 @@ import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { liftedOnRock } from "./rock-ground.ts";
 import { holdStance } from "./board-crash.ts";
+import { airDrag } from "./ragdoll-air.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
 
@@ -224,6 +225,9 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   const L = b.last;
   const spine0 = spineOf(P);
   drive(P, L, b);
+  // The air, but not while the helicopter carries his fall over its disc
+  // (`HELI_BLADES.carry`): the carry is his way through the air then.
+  if (b !== state.skier.thrown || !state.heli || state.heli.shed < 0) airDrag(P, L, MASS, TOTAL);
   const g = TUNING.g * dt * dt;
   for (let i = 0; i < 3 * N; i++) {
     const v = P[i] - L[i];

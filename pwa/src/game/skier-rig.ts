@@ -198,7 +198,7 @@ const limbBend = (root: V3, mid: V3, tip: V3, fold: V3): V3 =>
  * than the shoulders and looking into the turn — three's "YXZ" Euler of
  * (−0.2 + pitch × 0.3, look × 0.5, −headRoll), as axes. */
 function headAxes(p: SkierPose): { x: V3; y: V3; z: V3 } {
-  const [a, b, c] = [-0.2 + p.pitch * 0.3, p.look * 0.5, -p.headRoll];
+  const [a, b, c] = [-0.2 + p.pitch * 0.3 + (p.bow ?? 0), p.look * 0.5, -p.headRoll];
   const rx = (v: V3): V3 => ({
     x: v.x,
     y: v.y * Math.cos(a) - v.z * Math.sin(a),
@@ -409,6 +409,7 @@ function mix(a: SkierPose, b: SkierPose, k: number): SkierPose {
     pitch: n(a.pitch, b.pitch),
     roll: n(a.roll, b.roll),
     headRoll: n(a.headRoll, b.headRoll),
+    ...(a.bow != null || b.bow != null ? { bow: n(a.bow ?? 0, b.bow ?? 0) } : {}),
     knees: pair(a.knees, b.knees),
     feet: pair(a.feet, b.feet),
     boots: [0, 1].map((i) => ({

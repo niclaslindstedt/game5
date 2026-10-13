@@ -43,7 +43,8 @@ import type { MapJob, MapOrder } from "./map-order.ts";
 
 import type { PinnedSkier } from "./pinned.ts";
 import { withJumpContest } from "./ski-jump-run.ts";
-import type { CameraRung, WorldRenderer } from "./renderer-api.ts";
+import type { WorldRenderer } from "./renderer-api.ts";
+import type { Cameras } from "./settings.ts";
 import {
   advanceLoad,
   createLoad,
@@ -77,8 +78,9 @@ export type LoadPlan = {
    * chunk of their own, fetched on this thread before the race is stood
    * up (the run reads its real houses). */
   face?: string;
-  /** The rung the camera opens on once the card lifts. */
-  camera: CameraRung;
+  /** The rungs the camera opens on once the card lifts: his own and his
+   * machines'. */
+  camera: Cameras;
   /** Run on the frame the card lifts. */
   done: () => void;
   /** Steps paid for under the card after the three every load makes — the
@@ -181,7 +183,7 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
       id: "warm",
       label: STRINGS.loadWarm,
       run: () => {
-        renderer.setCamera(plan.camera);
+        renderer.setCamera(plan.camera.rider, false, undefined, plan.camera.craft);
         renderer.draw(world.current(), 0, 0);
         return false;
       },

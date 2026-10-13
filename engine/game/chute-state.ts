@@ -213,8 +213,8 @@ export type ChuteState = {
   controls: ChuteControls;
   /** The MAIN let go of — cut away or landed under — once it is. */
   piece: ChutePiece | null;
-  /** The RESERVE let go of — landed under, or brought down onto the snow —
-   * once it is (it is never cut away). */
+  /** The RESERVE let go of — cut away, landed under, or brought down onto
+   * the snow — once it is. */
   sparePiece: ChutePiece | null;
   /** What the canopy is caught on, while it is. */
   snag: ChuteSnag | null;

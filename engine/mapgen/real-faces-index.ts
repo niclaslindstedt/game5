@@ -32,6 +32,9 @@ export type FaceEntry = {
    * neighbour to neighbour off it. */
   readonly lat: number;
   readonly lon: number;
+  /** The compass bearing its map's +z — the fall line — runs to, ° clockwise
+   * from north: the map's own true north, which the sky is turned by. */
+  readonly bearing: number;
 };
 
 /** The grid's samples a side and their spacing, m, and a height's step, m. */
@@ -46,6 +49,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Val Thorens",
     lat: 45.3,
     lon: 6.59,
+    bearing: -4,
   },
   {
     id: "alpine-2",
@@ -55,6 +59,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Courchevel",
     lat: 45.4,
     lon: 6.62,
+    bearing: 42,
   },
   {
     id: "alpine-3",
@@ -64,6 +69,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Val-Claret",
     lat: 45.45,
     lon: 6.9,
+    bearing: 28,
   },
   {
     id: "alpine-4",
@@ -73,6 +79,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "La Daille",
     lat: 45.44,
     lon: 6.97,
+    bearing: 68,
   },
   {
     id: "alpine-5",
@@ -82,6 +89,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Plagne Centre",
     lat: 45.5,
     lon: 6.68,
+    bearing: 6,
   },
   {
     id: "alpine-6",
@@ -91,6 +99,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "L'Alpe d'Huez",
     lat: 45.11,
     lon: 6.09,
+    bearing: 226,
   },
   {
     id: "alpine-7",
@@ -100,6 +109,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Zermatt",
     lat: 46.02,
     lon: 7.77,
+    bearing: 288,
   },
   {
     id: "alpine-8",
@@ -109,6 +119,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "La Chaux",
     lat: 46.09,
     lon: 7.25,
+    bearing: 226,
   },
   {
     id: "alpine-9",
@@ -118,6 +129,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "St. Anton am Arlberg",
     lat: 47.14,
     lon: 10.24,
+    bearing: 148,
   },
   {
     id: "alpine-10",
@@ -127,6 +139,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Ischgl",
     lat: 47,
     lon: 10.31,
+    bearing: 270,
   },
   {
     id: "alpine-11",
@@ -136,6 +149,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Sölden",
     lat: 46.96,
     lon: 10.99,
+    bearing: 52,
   },
   {
     id: "alpine-12",
@@ -145,6 +159,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Breuil-Cervinia",
     lat: 45.94,
     lon: 7.65,
+    bearing: -70,
   },
   {
     id: "alpine-13",
@@ -154,6 +169,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Courmayeur",
     lat: 45.8,
     lon: 6.94,
+    bearing: 0,
   },
   {
     id: "alpine-14",
@@ -163,6 +179,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Livigno",
     lat: 46.54,
     lon: 10.14,
+    bearing: 80,
   },
   {
     id: "alpine-15",
@@ -172,6 +189,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Bormio",
     lat: 46.46,
     lon: 10.37,
+    bearing: -30,
   },
   {
     id: "alpine-16",
@@ -181,6 +199,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Selva",
     lat: 46.56,
     lon: 11.76,
+    bearing: 10,
   },
   {
     id: "alpine-17",
@@ -190,6 +209,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Corvara",
     lat: 46.54,
     lon: 11.84,
+    bearing: 20,
   },
   {
     id: "alpine-18",
@@ -199,6 +219,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Cortina d'Ampezzo",
     lat: 46.54,
     lon: 12.12,
+    bearing: 120,
   },
   {
     id: "alpine-19",
@@ -208,6 +229,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Madonna di Campiglio",
     lat: 46.23,
     lon: 10.83,
+    bearing: 120,
   },
   {
     id: "alpine-20",
@@ -217,6 +239,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Sestriere",
     lat: 44.96,
     lon: 6.88,
+    bearing: -50,
   },
   {
     id: "alpine-21",
@@ -226,6 +249,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Argentière",
     lat: 45.97,
     lon: 6.95,
+    bearing: -60,
   },
   {
     id: "alpine-22",
@@ -235,6 +259,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Le Brévent",
     lat: 45.93,
     lon: 6.85,
+    bearing: 120,
   },
   {
     id: "alpine-23",
@@ -244,6 +269,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Arc 1800",
     lat: 45.57,
     lon: 6.8,
+    bearing: -40,
   },
   {
     id: "alpine-24",
@@ -253,6 +279,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Méribel",
     lat: 45.4,
     lon: 6.57,
+    bearing: -60,
   },
   {
     id: "alpine-25",
@@ -262,6 +289,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Les Deux Alpes",
     lat: 45.01,
     lon: 6.12,
+    bearing: -80,
   },
   {
     id: "alpine-26",
@@ -271,6 +299,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Chantemerle",
     lat: 44.94,
     lon: 6.56,
+    bearing: 30,
   },
   {
     id: "alpine-27",
@@ -280,6 +309,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Avoriaz",
     lat: 46.19,
     lon: 6.78,
+    bearing: -40,
   },
   {
     id: "alpine-28",
@@ -289,6 +319,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Les Menuires",
     lat: 45.32,
     lon: 6.54,
+    bearing: -110,
   },
   {
     id: "alpine-29",
@@ -298,6 +329,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "La Clusaz",
     lat: 45.91,
     lon: 6.42,
+    bearing: -40,
   },
   {
     id: "continental-1",
@@ -307,6 +339,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Vail",
     lat: 39.62,
     lon: -106.36,
+    bearing: -6,
   },
   {
     id: "continental-2",
@@ -316,6 +349,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Breckenridge",
     lat: 39.48,
     lon: -106.07,
+    bearing: 70,
   },
   {
     id: "continental-3",
@@ -325,6 +359,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Park City",
     lat: 40.64,
     lon: -111.53,
+    bearing: 28,
   },
   {
     id: "continental-4",
@@ -334,6 +369,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Aspen",
     lat: 39.17,
     lon: -106.82,
+    bearing: 32,
   },
   {
     id: "continental-5",
@@ -343,6 +379,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Teton Village",
     lat: 43.59,
     lon: -110.84,
+    bearing: 120,
   },
   {
     id: "continental-6",
@@ -352,6 +389,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Big Sky",
     lat: 45.28,
     lon: -111.43,
+    bearing: 100,
   },
   {
     id: "continental-7",
@@ -361,6 +399,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Telluride",
     lat: 37.92,
     lon: -107.83,
+    bearing: -30,
   },
   {
     id: "continental-8",
@@ -370,6 +409,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Steamboat Springs",
     lat: 40.46,
     lon: -106.79,
+    bearing: -60,
   },
   {
     id: "continental-9",
@@ -379,6 +419,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Alta",
     lat: 40.59,
     lon: -111.64,
+    bearing: -30,
   },
   {
     id: "continental-10",
@@ -388,6 +429,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Bald Mountain",
     lat: 43.67,
     lon: -114.39,
+    bearing: 90,
   },
   {
     id: "continental-11",
@@ -397,6 +439,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Lake Louise",
     lat: 51.45,
     lon: -116.15,
+    bearing: -150,
   },
   {
     id: "continental-12",
@@ -406,6 +449,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Kicking Horse",
     lat: 51.29,
     lon: -117.07,
+    bearing: 30,
   },
   {
     id: "continental-13",
@@ -415,6 +459,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Fernie",
     lat: 49.46,
     lon: -115.1,
+    bearing: 60,
   },
   {
     id: "continental-14",
@@ -424,6 +469,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Sunshine Village",
     lat: 51.08,
     lon: -115.78,
+    bearing: -50,
   },
   {
     id: "continental-15",
@@ -433,6 +479,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Big White",
     lat: 49.72,
     lon: -118.94,
+    bearing: 150,
   },
   {
     id: "continental-16",
@@ -442,6 +489,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Sun Peaks",
     lat: 50.89,
     lon: -119.9,
+    bearing: 170,
   },
   {
     id: "continental-17",
@@ -451,6 +499,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Red Mountain",
     lat: 49.11,
     lon: -117.85,
+    bearing: 80,
   },
   {
     id: "continental-18",
@@ -460,6 +509,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Panorama",
     lat: 50.46,
     lon: -116.26,
+    bearing: -20,
   },
   {
     id: "continental-19",
@@ -469,6 +519,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Valle Nevado",
     lat: -33.34,
     lon: -70.24,
+    bearing: 170,
   },
   {
     id: "continental-20",
@@ -478,6 +529,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Farellones",
     lat: -33.34,
     lon: -70.3,
+    bearing: -100,
   },
   {
     id: "continental-21",
@@ -487,6 +539,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Portillo",
     lat: -32.84,
     lon: -70.13,
+    bearing: 130,
   },
   {
     id: "continental-22",
@@ -496,6 +549,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Las Leñas",
     lat: -35.14,
     lon: -70.09,
+    bearing: 110,
   },
   {
     id: "maritime-1",
@@ -505,6 +559,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Whistler Creekside",
     lat: 50.09,
     lon: -122.95,
+    bearing: 316,
   },
   {
     id: "maritime-2",
@@ -514,6 +569,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Hirafu",
     lat: 42.87,
     lon: 140.68,
+    bearing: 148,
   },
   {
     id: "maritime-3",
@@ -523,6 +579,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Happo-one",
     lat: 36.7,
     lon: 137.82,
+    bearing: 94,
   },
   {
     id: "fell-1",
@@ -532,6 +589,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Åre by",
     lat: 63.42,
     lon: 13.09,
+    bearing: 192,
   },
   {
     id: "fell-2",
@@ -541,8 +599,18 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Hemsedal",
     lat: 60.86,
     lon: 8.45,
+    bearing: 60,
   },
-  { id: "fell-3", region: "fell", range: "SE", area: "Åre", part: "Duved", lat: 63.4, lon: 12.94 },
+  {
+    id: "fell-3",
+    region: "fell",
+    range: "SE",
+    area: "Åre",
+    part: "Duved",
+    lat: 63.4,
+    lon: 12.94,
+    bearing: -180,
+  },
   {
     id: "fell-4",
     region: "fell",
@@ -551,6 +619,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Vemdalsskalet",
     lat: 62.48,
     lon: 13.96,
+    bearing: -50,
   },
   {
     id: "fell-5",
@@ -560,6 +629,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Björnrike",
     lat: 62.42,
     lon: 13.96,
+    bearing: -110,
   },
   {
     id: "fell-6",
@@ -569,6 +639,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Klövsjö",
     lat: 62.5,
     lon: 14.17,
+    bearing: 30,
   },
   {
     id: "fell-7",
@@ -578,6 +649,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Kittelfjäll",
     lat: 65.26,
     lon: 15.49,
+    bearing: 135,
   },
   {
     id: "fell-8",
@@ -587,6 +659,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Ramundberget",
     lat: 62.7,
     lon: 12.38,
+    bearing: 25,
   },
   {
     id: "fell-9",
@@ -596,6 +669,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Björkliden",
     lat: 68.4,
     lon: 18.66,
+    bearing: 65,
   },
   {
     id: "fell-10",
@@ -605,6 +679,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Lindvallen",
     lat: 61.16,
     lon: 13.19,
+    bearing: 60,
   },
   {
     id: "fell-11",
@@ -614,6 +689,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Tandådalen",
     lat: 61.17,
     lon: 13,
+    bearing: -10,
   },
   {
     id: "fell-12",
@@ -623,6 +699,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Geilo",
     lat: 60.53,
     lon: 8.2,
+    bearing: 165,
   },
   {
     id: "fell-13",
@@ -632,6 +709,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Branäs",
     lat: 60.65,
     lon: 12.95,
+    bearing: 70,
   },
   {
     id: "fell-14",
@@ -641,6 +719,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Hemavan",
     lat: 65.83,
     lon: 15.1,
+    bearing: -120,
   },
   {
     id: "fell-15",
@@ -650,6 +729,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Tärnaby",
     lat: 65.72,
     lon: 15.27,
+    bearing: 145,
   },
   {
     id: "fell-16",
@@ -659,6 +739,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Riksgränsen",
     lat: 68.42,
     lon: 18.12,
+    bearing: 60,
   },
   {
     id: "fell-17",
@@ -668,6 +749,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Trysil",
     lat: 61.31,
     lon: 12.21,
+    bearing: 80,
   },
   {
     id: "fell-18",
@@ -677,6 +759,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Hafjell",
     lat: 61.24,
     lon: 10.49,
+    bearing: -85,
   },
   {
     id: "fell-19",
@@ -686,6 +769,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Kvitfjell",
     lat: 61.46,
     lon: 10.13,
+    bearing: 60,
   },
   {
     id: "fell-20",
@@ -695,6 +779,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Vangslia",
     lat: 62.61,
     lon: 9.65,
+    bearing: -175,
   },
   {
     id: "fell-21",
@@ -704,6 +789,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Ylläsjärvi",
     lat: 67.57,
     lon: 24.23,
+    bearing: 140,
   },
   {
     id: "maritime-4",
@@ -713,6 +799,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Narvik",
     lat: 68.43,
     lon: 17.45,
+    bearing: -45,
   },
   {
     id: "fell-22",
@@ -722,6 +809,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Idre",
     lat: 61.89,
     lon: 12.83,
+    bearing: -140,
   },
   {
     id: "fell-23",
@@ -731,6 +819,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Lofsdalen",
     lat: 62.12,
     lon: 13.31,
+    bearing: -160,
   },
   {
     id: "fell-24",
@@ -740,6 +829,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Tänndalen",
     lat: 62.56,
     lon: 12.24,
+    bearing: 50,
   },
   {
     id: "fell-25",
@@ -749,6 +839,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Storlien",
     lat: 63.32,
     lon: 12.09,
+    bearing: -90,
   },
   {
     id: "fell-26",
@@ -758,6 +849,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Stöten",
     lat: 61.26,
     lon: 12.89,
+    bearing: 0,
   },
   {
     id: "fell-27",
@@ -767,6 +859,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Hovfjället",
     lat: 60.29,
     lon: 12.97,
+    bearing: 80,
   },
   {
     id: "fell-28",
@@ -776,6 +869,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Norefjell",
     lat: 60.22,
     lon: 9.56,
+    bearing: 150,
   },
   {
     id: "fell-29",
@@ -785,6 +879,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Beitostølen",
     lat: 61.25,
     lon: 8.91,
+    bearing: -170,
   },
   {
     id: "fell-30",
@@ -794,6 +889,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Skeikampen",
     lat: 61.35,
     lon: 10.08,
+    bearing: -170,
   },
   {
     id: "fell-31",
@@ -803,6 +899,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Hovden",
     lat: 59.57,
     lon: 7.33,
+    bearing: 140,
   },
   {
     id: "fell-32",
@@ -812,6 +909,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Vassfjellet",
     lat: 63.27,
     lon: 10.39,
+    bearing: 90,
   },
   {
     id: "maritime-5",
@@ -821,6 +919,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Myrkdalen",
     lat: 60.86,
     lon: 6.47,
+    bearing: 140,
   },
   {
     id: "maritime-6",
@@ -830,6 +929,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Voss",
     lat: 60.65,
     lon: 6.4,
+    bearing: 130,
   },
   {
     id: "maritime-7",
@@ -839,6 +939,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Røldal",
     lat: 59.83,
     lon: 6.73,
+    bearing: 160,
   },
   {
     id: "maritime-8",
@@ -848,6 +949,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Sirdal",
     lat: 58.92,
     lon: 6.84,
+    bearing: 110,
   },
   {
     id: "maritime-9",
@@ -857,6 +959,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Hodlekve",
     lat: 61.29,
     lon: 6.97,
+    bearing: 100,
   },
   {
     id: "maritime-10",
@@ -866,6 +969,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Mammoth Lakes",
     lat: 37.64,
     lon: -119.03,
+    bearing: 30,
   },
   {
     id: "maritime-11",
@@ -875,6 +979,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Revelstoke",
     lat: 50.96,
     lon: -118.15,
+    bearing: -60,
   },
   {
     id: "maritime-12",
@@ -884,6 +989,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Blackcomb",
     lat: 50.11,
     lon: -122.93,
+    bearing: -30,
   },
   {
     id: "maritime-13",
@@ -893,6 +999,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Rusutsu",
     lat: 42.73,
     lon: 140.92,
+    bearing: 20,
   },
   {
     id: "maritime-14",
@@ -902,6 +1009,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Furano",
     lat: 43.33,
     lon: 142.34,
+    bearing: 100,
   },
   {
     id: "maritime-15",
@@ -911,6 +1019,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Kiroro",
     lat: 43.06,
     lon: 141.01,
+    bearing: -90,
   },
   {
     id: "maritime-16",
@@ -920,6 +1029,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Akakura",
     lat: 36.88,
     lon: 138.17,
+    bearing: 90,
   },
   {
     id: "maritime-17",
@@ -929,6 +1039,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Nozawa Onsen",
     lat: 36.92,
     lon: 138.46,
+    bearing: -60,
   },
   {
     id: "maritime-18",
@@ -938,6 +1049,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Yakebitai",
     lat: 36.78,
     lon: 138.51,
+    bearing: 40,
   },
   {
     id: "maritime-19",
@@ -947,6 +1059,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Goryu",
     lat: 36.67,
     lon: 137.83,
+    bearing: 50,
   },
   {
     id: "maritime-20",
@@ -956,6 +1069,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Zao Onsen",
     lat: 38.16,
     lon: 140.42,
+    bearing: -60,
   },
   {
     id: "maritime-21",
@@ -965,6 +1079,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Appi",
     lat: 39.99,
     lon: 140.97,
+    bearing: 50,
   },
   {
     id: "maritime-22",
@@ -974,6 +1089,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Nevados de Chillán",
     lat: -36.9,
     lon: -71.41,
+    bearing: -120,
   },
   {
     id: "maritime-23",
@@ -983,6 +1099,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Cerro Catedral",
     lat: -41.17,
     lon: -71.46,
+    bearing: 70,
   },
   {
     id: "alpine-30",
@@ -992,6 +1109,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Engelberg",
     lat: 46.81,
     lon: 8.4,
+    bearing: -30,
   },
   {
     id: "alpine-31",
@@ -1001,6 +1119,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Saas-Fee",
     lat: 46.09,
     lon: 7.92,
+    bearing: 20,
   },
   {
     id: "alpine-32",
@@ -1010,6 +1129,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Mürren",
     lat: 46.56,
     lon: 7.86,
+    bearing: 100,
   },
   {
     id: "alpine-33",
@@ -1019,6 +1139,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Gudauri",
     lat: 42.49,
     lon: 44.5,
+    bearing: -160,
   },
   {
     id: "maritime-24",
@@ -1028,6 +1149,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Krasnaya Polyana",
     lat: 43.65,
     lon: 40.3,
+    bearing: 20,
   },
   {
     id: "continental-23",
@@ -1037,6 +1159,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "The Remarkables",
     lat: -45.05,
     lon: 168.82,
+    bearing: -10,
   },
   {
     id: "continental-24",
@@ -1046,6 +1169,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Treble Cone",
     lat: -44.63,
     lon: 168.89,
+    bearing: 80,
   },
   {
     id: "maritime-25",
@@ -1055,6 +1179,7 @@ export const FACE_INDEX: readonly FaceEntry[] = [
     part: "Mount Hutt",
     lat: -43.49,
     lon: 171.54,
+    bearing: 100,
   },
 ];
 

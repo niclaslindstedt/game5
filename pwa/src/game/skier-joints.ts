@@ -25,6 +25,9 @@ export type SkierPose = {
   /** The head's roll in the pair's frame, rad, right side down positive —
    * nearer the horizon than the trunk's. */
   headRoll: number;
+  /** The head bowed further than its share of the trunk's pitch, rad (his
+   * eyes put down on the landing in the air); none when left out. */
+  bow?: number;
   knees: [V3, V3];
   /** Each leg's end where the figure's own cloth stops: the top of the
    * boot's cuff. */

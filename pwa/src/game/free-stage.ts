@@ -8,8 +8,9 @@
 // the loading card was standing the race up on it (`createGame` — a second
 // on a phone) and the world's renderer building every mesh of it (several
 // more). Both are a function of what is decided — so they are paid for here,
-// behind the rider and gear cards, whose own stage covers the whole screen
-// (`menu-stage.tsx`), and the press on RIDE finds them done.
+// behind the start card once its rows have been still a moment, and behind
+// the rider and gear cards, whose own stage covers the whole screen
+// (`menu-stage.tsx`) — and the press on RIDE finds them done.
 //
 // WHAT IS STAGED IS THE WORLD, NOT THE RUN. The run RIDE stands up is a new
 // one (`take`), on the pair and the help picked by then, on the map staged
@@ -45,8 +46,10 @@ export function sceneKey(options: CreateGameOptions, outfit: string): string {
 const RUN_ONLY = new Set(["spec", "assist", "poles", "gore", "grimbear", "mishaps", "level"]);
 
 export type FreeStage = {
-  /** The free ride's rider or gear card is up for `options`: stage it. */
-  want: (options: CreateGameOptions, outfit: string) => void;
+  /** The free ride's start, rider or gear card is up for `options`: stage
+   * it, once the cards have been still `after` ms (`later`'s own wait when
+   * left out). */
+  want: (options: CreateGameOptions, outfit: string, after?: number) => void;
   /** The cards are down (any card but those and the start card): throw the
    * stage away. */
   drop: () => void;
@@ -69,13 +72,14 @@ export function createFreeStage(deps: {
   busy: () => boolean;
   /** Put the backdrop back after a stage is thrown away. */
   restore: () => void;
-  /** Wait a moment before the heavy work: the card's own stage first. */
-  later: (run: () => void) => () => void;
+  /** Wait a moment (`ms`, or its own) before the heavy work: the card's
+   * own stage first. */
+  later: (run: () => void, ms?: number) => () => void;
 }): FreeStage {
   /** The stage standing or being stood up: its key, and its map. */
   let held: { key: string; base: Level; level: Level } | null = null;
   /** What the cards want staged, while it waits on its map or its moment. */
-  let pending: { key: string; options: CreateGameOptions } | null = null;
+  let pending: { key: string; options: CreateGameOptions; after?: number } | null = null;
   let stopMaps: (() => void) | null = null;
   let cancel: (() => void) | null = null;
 
@@ -113,15 +117,18 @@ export function createFreeStage(deps: {
       deps.stage(game).catch(() => {
         if (held?.level === game.level) held = null;
       });
-    });
+    }, want.after);
   };
 
   return {
-    want: (options, outfit) => {
+    want: (options, outfit, after) => {
       const key = sceneKey(options, outfit);
-      if (held?.key === key || pending?.key === key) return;
+      if (held?.key === key) return;
+      // The same ride still waiting: from the rider card it no longer waits
+      // on the start card's stillness.
+      if (pending?.key === key && (after ?? 0) >= (pending.after ?? 0)) return;
       settle();
-      pending = { key, options };
+      pending = { key, options, after };
       attempt();
     },
     drop: () => {

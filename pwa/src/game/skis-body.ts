@@ -114,6 +114,7 @@ import type { WingsuitShape } from "./skier-wingsuit.ts";
 import { flyerSnow, poseFlyer, STOOD } from "./wingsuit-body.ts";
 import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
+import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
@@ -495,6 +496,8 @@ export function createSkisModel(
   let sky: SkydiveShape | null = null;
   let lastPerch: number | null = null;
   const dangle = createDangle();
+  // ON A LIFT'S ROPE (`skier-grind.ts`): the rail stance's share, eased.
+  let grinding = 0;
   const react = createPerchReact();
   // HIS BROKEN ARMS swinging from their breaks (`skier-broken.ts`).
   const broken = createBrokenFeel();
@@ -684,7 +687,11 @@ export function createSkisModel(
           figure.group.quaternion.identity();
           bound.radius = BOUND;
         }
-        const pose = poseInputOf(skier, legs, mounts, trick, waiting, stand, riding);
+        grinding = easeGrind(grinding, skier.grind != null, dt);
+        const pose = grindInput(
+          poseInputOf(skier, legs, mounts, trick, waiting, stand, riding),
+          grinding,
+        );
         tuck.lay(pose); // a loop owning his body while it turns
         // Hung, the stand is moved with the boots below, after the figure's
         // input has read it: the input keeps the stand as it stood.
@@ -781,6 +788,9 @@ export function createSkisModel(
           skydive ? `sky ${run?.chute?.mode ?? ""}` : "",
           jumper ? `jump ${jump?.stage ?? ""}` : "",
         ].join(" ");
+        const look = grindLook(skier.grind);
+        const railed =
+          grinding > 0.001 ? (p: SkierPose) => grindArms(arms ? arms(p) : p, look, grinding) : arms;
         // A hand on a door (`door-reach.ts`), in his body's frame.
         const door = run && run.skier === skier ? doorReach(run) : null;
         if (door) {
@@ -790,9 +800,9 @@ export function createSkisModel(
             .applyQuaternion(toBody.copy(root.quaternion).invert());
           const at = { x: reachAt.x, y: reachAt.y, z: reachAt.z };
           figure.pose(input, seat, (p) =>
-            handed(reachPose(arms ? arms(p) : p, at, door.weight), way),
+            handed(reachPose(railed ? railed(p) : p, at, door.weight), way),
           );
-        } else figure.pose(input, seat, (p) => handed(arms ? arms(p) : p, way));
+        } else figure.pose(input, seat, (p) => handed(railed ? railed(p) : p, way));
         if (swung.skis) swingStand(stand, swung.skis, swung.yaw);
         if (swung.pose) bootsOn(walkBoots, swung.pose, unbooted, goreLost);
       }

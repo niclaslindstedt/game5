@@ -75,12 +75,12 @@ export function rampToward(
  * thumb: a thumb on the glass is a skier folded out of the wind, which is
  * what a race asks of him nearly all the time, and a lever that tucked only
  * as it was dragged made every start and every exit a hand-over. Anywhere
- * at or below the anchor is the full tuck; sliding UP stands the skier up
- * over `LEVER_EASE_PX`, and he is standing tall at the top of that throw.
+ * at or above the anchor is the full tuck; sliding DOWN stands the skier up
+ * over `LEVER_EASE_PX`, and he is standing tall at the foot of that throw.
  * Anchoring at the touch point rather than at a fixed zero means the lever
  * works wherever the thumb lands. */
 export const LEVER_EASE_PX = 60;
-/** ...and further UP again is the SKID: past a small dead band over the
+/** ...and further DOWN again is the SKID: past a small dead band under the
  * standing point, so a thumb standing up never throws it by accident, this
  * much more travel is the skis pivoted all the way across. */
 export const LEVER_BRAKE_DEAD_PX = 12;
@@ -102,18 +102,18 @@ export type TouchFeel = {
 export const PLAIN_FEEL: TouchFeel = { sensitivity: 1, invertLean: false };
 
 /** How deep the tuck is for a thumb `dyPx` below its anchor (screen y
- * grows downward): the full tuck at the anchor and below it, standing up
- * analogue over `LEVER_EASE_PX` of travel up, standing tall past that. */
+ * grows downward): the full tuck at the anchor and above it, standing up
+ * analogue over `LEVER_EASE_PX` of travel down, standing tall past that. */
 export function leverTuck(dyPx: number, feel: TouchFeel = PLAIN_FEEL): number {
-  return clamp(1 + (dyPx * feel.sensitivity) / LEVER_EASE_PX, 0, 1);
+  return clamp(1 - (dyPx * feel.sensitivity) / LEVER_EASE_PX, 0, 1);
 }
 
-/** ...and how far the skid is thrown for the same thumb: the travel above
+/** ...and how far the skid is thrown for the same thumb: the travel below
  * the standing point past the dead band, 0..1. One throw carries both, so
  * a skier can never be asking for the tuck and the skid with the same
  * thumb. */
 export function leverBrake(dyPx: number, feel: TouchFeel = PLAIN_FEEL): number {
-  const past = -dyPx * feel.sensitivity - LEVER_EASE_PX - LEVER_BRAKE_DEAD_PX;
+  const past = dyPx * feel.sensitivity - LEVER_EASE_PX - LEVER_BRAKE_DEAD_PX;
   if (past <= 0) return 0;
   return clamp(past / LEVER_BRAKE_PX, 0, 1);
 }

@@ -76,6 +76,7 @@ import { trapOf, type TrapReading } from "./downhill-run.ts";
 import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
 import { skyLookAt } from "./sky.ts";
+import { padGlyphOf, type PadGlyph } from "./thumb-glyphs.ts";
 import { crossOf, type CrossHud } from "./ski-cross-run.ts";
 import { skiJumpOf, type SkiJumpHud } from "./ski-jump-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
@@ -360,6 +361,9 @@ export type HudSnapshot = {
   /** DOWN OUT OF A WINGSUIT on his boots (`suitLandedOf`): the plate asks
    * what next — he has no skis to ski on. */
   suitLanded?: boolean;
+  /** What the edge thumb draws under the finger (`thumb-glyphs.ts`): the
+   * skis, or the wingsuit, the canopy or the boots. */
+  pad?: PadGlyph;
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
@@ -820,6 +824,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     plane: balloonAboard(state) ? null : planeOf(state),
     chute: chuteOf(state),
     suitLanded: suitLandedOf(state),
+    pad: padGlyphOf(state),
     afterski: aloft ? null : afterskiOf(state),
     door: aloft ? null : doorCallOf(state),
     buzz: c.buzz ?? 0,

@@ -34,6 +34,8 @@ import {
   setSkiJump,
   setSlopestyle,
   withDay,
+  withPlace,
+  realFacePlace,
   withSky,
 } from "../mapgen/index.ts";
 import type { RunGrade } from "../mapgen/grades.ts";
@@ -507,7 +509,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                         : options.mode === "skiJump"
                           ? setSkiJump(built, options.hill ?? SKI_JUMP.hill)
                           : original;
-  const dayed = options.day ? withDay(course, options.day) : course;
+  // A REAL FACE is skied at its own place on the globe (`withPlace`): its
+  // real latitude and longitude, its true north — the sky only; the
+  // mountain is the one the seed built.
+  const placed = withPlace(course, course.face ? realFacePlace(course.face) : null);
+  const dayed = options.day ? withDay(placed, options.day) : placed;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
   // A RACE is run only in the weather its jury allows (`jury.ts`) — a sky

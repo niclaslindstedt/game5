@@ -213,8 +213,13 @@ export interface Level {
    * and, on a map the graded generator built, the FACE'S BEARING: the
    * compass heading (radians, 0 north, clockwise) the world's +z — the fall
    * line — points to. Absent, the face falls due north. Read the sun's place
-   * through `sunAtRun`, which turns it into the world's headings. */
-  sun: { hour: number; dayOfYear: number; latitude: number; facing?: number };
+   * through `sunAtRun`, which turns it into the world's headings. A map
+   * raised on a REAL FACE is stood at the face's own place when a run is
+   * created (`withPlace`): its real latitude, its true north as `facing`
+   * and its LONGITUDE (° east) — the one map that has one; the hour stays
+   * apparent solar time, and the longitude only dates the sky's instant
+   * and turns that hour into a clock (`clockHourOf`). */
+  sun: { hour: number; dayOfYear: number; latitude: number; facing?: number; longitude?: number };
   /** Always 1: a run is skied once, top to bottom (R16). */
   laps: number;
 

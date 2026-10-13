@@ -25,7 +25,6 @@ import * as THREE from "three";
 import {
   SKIS,
   TUNING,
-  sunAtRun,
   totalMass,
   weatherOf,
   windAt,
@@ -85,7 +84,8 @@ import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
 import { suitOf } from "./wingsuit-look.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
-import { skyLookAt } from "./sky.ts";
+import { keyAheadAt, skyLookAt } from "./sky.ts";
+import { sunNow } from "./sky-clock.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { rideSink } from "./ride-sink.ts";
 import { castInLight } from "./terrain-shade.ts";
@@ -246,6 +246,7 @@ export function createWorldRenderer(
   let gore: GoreView | null = null;
   /** WHAT SNOW LIES WHERE (`snowpack.ts`), a lab's forced kind, and its samples. */
   let pack: Snowpack | null = null;
+  let packSun = 0;
   let snowForce: Pick<SnowpackOptions, "force" | "age"> = {};
   const sampled: SnowProps = { ...SNOW.soft };
   const sampleSnow = (x: number, z: number): SnowProps =>
@@ -451,8 +452,9 @@ export function createWorldRenderer(
   /** THE RUN'S SNOWPACK: the map under its sky, the dial, the new snow, the day. */
   function packFor(state: GameState): Snowpack {
     const sky = skyLevel ?? state.level;
+    packSun = sunNow(sky, state.t).elevation; // re-packed as the sky's clock moves it
     return snowpackOf(sky, {
-      elevation: sunAtRun(sky).elevation,
+      elevation: packSun,
       fresh: state.fresh,
       depth: state.snowDepth,
       ...snowForce,
@@ -601,6 +603,9 @@ export function createWorldRenderer(
         lens.snap();
         lastTick = -1;
         lastState = state;
+        pack = packFor(state);
+      }
+      if (pack && Math.abs(sunNow(skyLevel ?? state.level, state.t).elevation - packSun) > 0.005) {
         pack = packFor(state);
       }
       if (pack) pack.fresh = state.fresh;
@@ -781,7 +786,7 @@ export function createWorldRenderer(
       const drift = { x: -Math.sin(from) * carried, z: -Math.cos(from) * carried };
       // The sun's map may stand a frame while only he moves under the lens (`sunDue`).
       const lone = !hidden.has("hero") && !own && !planted && !skier.thrown;
-      env.update(look, lens.camera, d.y, drift, lone);
+      env.update(look, lens.camera, d.y, drift, lone, keyAheadAt(sky, state.t));
       crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {

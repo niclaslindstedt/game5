@@ -6,6 +6,7 @@
 // it is baked here, the snow keeps its frame rate and the new shade lands
 // when it lands. The map's horizons come back as a transferred buffer.
 
+import { DataUtils } from "three";
 import type { Heightfield } from "@engine";
 
 import { bakeHorizon, type HorizonMap } from "./terrain-shadow.ts";
@@ -16,5 +17,13 @@ export type ShadeReply = { id: number; map: HorizonMap };
 self.onmessage = (e: MessageEvent<ShadeRequest>) => {
   const { id, ground, bearing } = e.data;
   const map = bakeHorizon(ground, bearing);
-  (self as unknown as Worker).postMessage({ id, map } satisfies ShadeReply, [map.data.buffer]);
+  // The half floats the GPU takes, made here so the page's thread never
+  // converts a million of them mid-run.
+  const halves = new Uint16Array(map.data.length);
+  for (let i = 0; i < halves.length; i++) halves[i] = DataUtils.toHalfFloat(map.data[i]);
+  map.halves = halves;
+  (self as unknown as Worker).postMessage({ id, map } satisfies ShadeReply, [
+    map.data.buffer,
+    halves.buffer,
+  ]);
 };

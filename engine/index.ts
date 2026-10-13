@@ -896,7 +896,19 @@ export {
 } from "./game/tricks.ts";
 export { flipLean, flipPace, poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
-export { moonAgeOn, moonAtRun, sunAtRun, worldHeadingOf } from "./game/clock.ts";
+export {
+  SKY_CLOCK,
+  SKY_YEAR,
+  clockHourOf,
+  moonAgeOn,
+  moonAtRun,
+  skyDateOf,
+  skyHourAt,
+  skyLevelAt,
+  sunAtRun,
+  sunWindowOf,
+  worldHeadingOf,
+} from "./game/clock.ts";
 export {
   BODY_HEIGHT,
   GUST_PEAK,

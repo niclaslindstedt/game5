@@ -35,6 +35,7 @@ import {
   type Rng,
   type TrafficPlan,
 } from "@engine";
+import { skyHourNow } from "./sky-clock.ts";
 
 import {
   DOG_COATS,
@@ -506,7 +507,8 @@ function buildWalk(plan: DogPlan, h: number, k: number, t0: number): Walk {
   const line = lineOf(plan.net, way);
   const v = villageOf(level);
   const traffic = trafficOf(level);
-  const night = level.sun.hour < 7 || level.sun.hour > 18;
+  const hour = skyHourNow(level, t0) % 24; // the sky's clock's, as the walk sets out
+  const night = hour < 7 || hour > 18;
   const taken: number[] = [];
   let stops: Stop[] = [];
   hh.dogs.forEach((_, d) => (stops = stops.concat(stopsOn(rng, level, line, hh, d, taken))));

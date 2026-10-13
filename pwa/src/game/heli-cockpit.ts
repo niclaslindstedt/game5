@@ -26,7 +26,8 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { HELI, type HeliState, type Level } from "@engine";
+import { HELI, clockHourOf, type HeliState, type Level } from "@engine";
+import { skyHourNow } from "./sky-clock.ts";
 
 import {
   COCKPIT,
@@ -873,7 +874,8 @@ export function createCockpit(
         // Ahead `f` and to the right as seen `r` — the engine's left.
         (f, r) => level.groundAt(h.x + s * f - c * r, h.z + c * f + s * r),
         h.y,
-        level.sun.hour + t / 3600,
+        // The panel's clock reads the place's clock, not the sun's.
+        clockHourOf(level, skyHourNow(level, t)),
       );
       panelCanvas.texture.needsUpdate = true;
       if (compassAt === null || Math.abs(compassAt - g.heading) > 0.25) {

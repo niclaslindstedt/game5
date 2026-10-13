@@ -105,6 +105,7 @@ import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 import { challengeShots } from "./lib/challenge-shots.mjs";
 import { SUMMER_SURFACES } from "./lib/summer-shots.mjs";
+import { TOURER_SURFACES } from "./lib/tourer-shots.mjs";
 import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
 import { holdThumbs } from "./lib/hold-thumbs.mjs";
 
@@ -140,6 +141,7 @@ const SCENES = {
 const SURFACES = {
   ...WINGSUIT_SURFACES,
   ...SUMMER_SURFACES,
+  ...TOURER_SURFACES,
   // The title and the invitation, over the title scene's first frames.
   splash: { params: { splash: "1" }, wait: ".splash-prompt", settle: 900 },
   // The front door over the title scene (a visit's first)...

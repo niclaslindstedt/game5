@@ -41,6 +41,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine";
 
 import { modelSwitch } from "./model-switch.ts";
+import { readTourerModel, setTourerModel } from "./tourer-model.ts";
 import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
@@ -58,6 +59,7 @@ export const MODELS = {
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
   plane: modelSwitch(ENV.VITE_MODEL_PLANE),
+  tourer: modelSwitch(ENV.VITE_MODEL_TOURER),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -170,6 +172,16 @@ export function loadModels(): Promise<void> {
         ),
       );
     }
+  }
+  // The player's modelled kit (`tourer-model.ts`): read into the dressed
+  // skin's buffers once, here, so dressing him is as cheap as the code's.
+  if (MODELS.tourer) {
+    jobs.push(
+      loader.loadAsync(at("tourer.glb")).then(
+        (g) => setTourerModel(readTourerModel(g.scene)),
+        () => undefined,
+      ),
+    );
   }
   loading = Promise.all(jobs).then(() => undefined);
   return loading;

@@ -64,6 +64,7 @@ import {
 import { doorReach, reachPose } from "./door-reach.ts";
 import { kickStand } from "./slalom-start.ts";
 import { attachModels, isBootPart } from "./skier-models.ts";
+import { setTourerClock, tourerModel } from "./tourer-model.ts";
 import {
   createSkierSpring,
   drawnSkiAngle,
@@ -434,7 +435,12 @@ export function createSkisModel(
   };
   // Hung after the merge, so it stays out of the one draw: a lamp of its
   // own, on whichever helmet he wears.
-  const lamp = buildHeadlamp(figure.head, mat, (g) => {
+  // The modelled tourer's beanie has no helmet to strap it to: his lamp
+  // lights the snow unseen.
+  const strap = new THREE.Group();
+  strap.visible = !(style.skier.outfit.body === "tourer" && tourerModel());
+  figure.head.add(strap);
+  const lamp = buildHeadlamp(strap, mat, (g) => {
     geos.push(g);
     return g;
   });
@@ -524,6 +530,7 @@ export function createSkisModel(
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
       const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
       handDt = dt;
+      if (run) setTourerClock(run.t); // the modelled tourer's cloth on the run's clock
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // In the suit the flyer's figure, but the rider's own on a craft before the jump.

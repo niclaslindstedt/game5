@@ -53,7 +53,7 @@ import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
 
 import type { BuildShape } from "./dress-body.ts";
 
-export type BodyId = "man" | "woman";
+export type BodyId = "man" | "woman" | "tourer";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
 export type HelmetId = "race" | "freeride" | "visor" | "slalom";
@@ -91,6 +91,11 @@ export type BodyDef = {
   hair: number;
   /** The shadowed partings between a braid's strands. */
   plait: number;
+  /** A WHOLE KIT MODELLED in Blender (`tourer-model.ts`): a man's measure
+   * in his own clothes, beanie, gloves and pack — the jacket, pants,
+   * helmet and gloves rows are his already, and only the WEIGHT row
+   * reshapes him. Never dealt to the field. */
+  model?: boolean;
 };
 
 /** A garment's colours: the MAIN body of it, its SECOND colour (a yoke, a
@@ -127,6 +132,17 @@ export type PoleDef = {
 export const BODIES: readonly BodyDef[] = [
   { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e, plait: 0x241910 },
   { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232, plait: 0x6a4020 },
+  // A Nordic ski tourer, modelled; dressed in code as the man is where the
+  // model is switched off.
+  {
+    id: "tourer",
+    name: "Tourer",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x5a3c26,
+    plait: 0x3a2818,
+    model: true,
+  },
 ];
 
 const WEIGHT_LOOK: Record<RiderId, { name: string; belly: number; chest: number }> = {
@@ -352,7 +368,10 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
     return kept[dealt(look, k, kept.length)].id;
   };
   return {
-    body: of(BODIES, 0),
+    body: of(
+      BODIES.filter((b) => !b.model),
+      0,
+    ),
     weight,
     jacket: of(JACKETS, 1),
     pants: of(PANTS, 2),
@@ -368,7 +387,9 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
  * shell's helmet in the suit's colours, his own gloves — and NO POLES,
  * which a jumper never carries. */
 export function jumpKit(o: Outfit): Outfit {
-  return { ...o, pants: "race", helmet: "race", poles: "none", suit: true };
+  // A modelled body's own kit is no jumper's: he is cut as the man is.
+  const body = gearOf("body", o.body).model ? "man" : o.body;
+  return { ...o, body, pants: "race", helmet: "race", poles: "none", suit: true };
 }
 
 /** A suit's legs in its jacket's colours (`jumpKit`). */

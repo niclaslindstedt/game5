@@ -32,6 +32,7 @@ import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { DEFAULT_OUTFIT, type Outfit } from "../game/outfit.ts";
 import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
 import { labPairOption } from "./lab-pair.ts";
 import { markView } from "./mark-view.ts";
@@ -100,6 +101,14 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
+// THE BODY he is dressed in and its build (`?body=tourer&weight=heavy`, the
+// modelled tourer); the default kit when left out.
+if (params.get("body") || params.get("weight"))
+  renderer.dress({
+    ...DEFAULT_OUTFIT,
+    body: (params.get("body") ?? DEFAULT_OUTFIT.body) as Outfit["body"],
+    weight: (params.get("weight") ?? DEFAULT_OUTFIT.weight) as Outfit["weight"],
+  });
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
 /** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */
@@ -447,7 +456,7 @@ let trackAt = -1;
 const APPROACH = [140, 90, 60, 40];
 
 /** THE RUN FROM THE CHASE BOOM at `t` s down the whole mountain (the view
- * `chase-<t>`, any whole second) — what a shadow that drifts as the skier
+ * `chase-<t>`, any second, tenths too) — what a shadow that drifts as the skier
  * descends looks like at each height of the face. */
 function chaseAt(t: number): string {
   renderer.setCamera("chase", true);
@@ -911,7 +920,7 @@ const shots: Record<string, () => string> = {
 window.__world = {
   ready: renderer.load(state),
   async shoot(name) {
-    const chase = /^chase-(\d+)$/.exec(name);
+    const chase = /^chase-(\d+(?:\.\d+)?)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
     const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
     const crash = /^crash-(net-)?(\d+(?:\.\d+)?)$/.exec(name);

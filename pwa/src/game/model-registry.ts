@@ -160,6 +160,25 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
   },
   {
+    asset: "Tourer",
+    ids: ["tourer"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
+    drawnBy: "pwa/src/game/tourer-model.ts",
+    blender: {
+      builder: "scripts/blender/tourer.py",
+      files: ["tourer.glb"],
+      pattern: "tourer.glb",
+      switch: "VITE_MODEL_TOURER",
+    },
+    note:
+      "the rider card's TOURER body, a Nordic ski tourer (an anorak, touring pants and gaiters, " +
+      "a wool beanie, sunglasses, leather gloves, a pack with a shovel and a sit pad), skinned " +
+      "on the dressed skier's rig so every pose and a broken arm move it, with spring bones on " +
+      "the pack, the hood and the pompom and a flutter on the loose cloth; switched off, the " +
+      "tourer is dressed in code as the man is",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

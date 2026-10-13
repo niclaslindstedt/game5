@@ -8,6 +8,13 @@
 // now, and the next load is a different map more often than not. A map
 // this thread can already stand up in milliseconds — off the ski area it
 // built last (`levelIsCached`) — is never sent: it is built here, at once.
+//
+// A MAP CAN BE ORDERED AHEAD (`buildAhead`): the level card and the trick
+// map card know which map RIDE will stand up, so its worker starts on it
+// while the player picks the map, the body, the kit and the pair, and the
+// loading card's own order for the same map takes that job over rather
+// than starting it again. One is held at a time; another order, or none,
+// lets it go.
 
 import {
   boundLevel,
@@ -42,9 +49,35 @@ function settled(level: Level | undefined, failed: string | null): MapJob {
   };
 }
 
+/** The map ordered ahead of its load, if any. */
+let ahead: { key: string; job: MapJob } | null = null;
+const keyOf = (order: MapOrder): string => JSON.stringify(order);
+
+/** Start building `order`'s map ahead of the load that will ask for it — or,
+ * with null, let the one held go. Asked again for the same map, it keeps
+ * the job it has. A map this thread already holds is never ordered. */
+export function buildAhead(order: MapOrder | null): void {
+  const key = order === null || cachedHere(order) ? null : keyOf(order);
+  if (ahead?.key === key) return;
+  ahead?.job.cancel();
+  ahead =
+    order && key !== null && typeof Worker !== "undefined" ? { key, job: onWorker(order) } : null;
+}
+
+/** The map ordered ahead, once it is built, where it is `seed`'s. */
+export function aheadLevel(seed: number): Level | null {
+  const level = ahead?.job.level();
+  return level && level.seed === seed ? level : null;
+}
+
 /** Build the map `order` names: here where it costs nothing, on a worker
- * where it costs seconds. */
+ * where it costs seconds — or the job ordered ahead for it. */
 export function buildMap(order: MapOrder): MapJob {
+  const held = ahead;
+  if (held && held.key === keyOf(order) && !held.job.failed()) {
+    ahead = null;
+    return held.job;
+  }
   if (cachedHere(order) || typeof Worker === "undefined") {
     try {
       const level =
@@ -56,6 +89,11 @@ export function buildMap(order: MapOrder): MapJob {
       return settled(undefined, e instanceof Error ? e.message : String(e));
     }
   }
+  return onWorker(order);
+}
+
+/** A worker of its own building `order`'s map. */
+function onWorker(order: MapOrder): MapJob {
   let share = 0;
   let level: Level | undefined;
   let failed: string | null = null;

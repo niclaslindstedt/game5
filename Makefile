@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky sky-solar cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky sky-solar cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town
 
 build:
 	npm run build
@@ -1067,6 +1067,16 @@ snow:
 # ARGS="--fps=60,45 --at=25"; ARGS="--json=a.json" / "--compare=a.json".
 judder:
 	npm run judder -- $(if $(SEED),--seed $(SEED),) $(if $(MACHINE),--machine $(MACHINE),) $(ARGS)
+
+# THE MENU STALLS: how long the page's own thread is blocked on each card on
+# the way onto the snow — the free ride's start card and a race's level
+# card, then the rider and gear cards (on arriving, and under a finger
+# turning the rider round) and RIDE's loading card — on a phone held on its
+# side with its processor throttled. Drives the BUILT site, so `make build`
+# first. ARGS="--flow=race", "--cpu=6", "--json=a.json" / "--compare=a.json"
+# a before and after.
+menu-stalls:
+	node scripts/menu-stalls.mjs $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

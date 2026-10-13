@@ -112,6 +112,7 @@ describe("the free ride's stage", () => {
     let held: Level | null = null;
     const listeners = new Set<() => void>();
     const timers: (() => void)[] = [];
+    const waits: (number | undefined)[] = [];
     let restored = 0;
     let busy = false;
     const stage = createFreeStage({
@@ -122,7 +123,11 @@ describe("the free ride's stage", () => {
       unstage: world.unstage,
       busy: () => busy,
       restore: () => void restored++,
-      later: (run) => (timers.push(run), () => timers.splice(timers.indexOf(run), 1)),
+      later: (run, ms) => (
+        waits.push(ms),
+        timers.push(run),
+        () => timers.splice(timers.indexOf(run), 1)
+      ),
     });
     return {
       stage,
@@ -135,6 +140,7 @@ describe("the free ride's stage", () => {
       tick: () => timers.splice(0).forEach((run) => run()),
       restored: () => restored,
       setBusy: (b: boolean) => (busy = b),
+      waits,
     };
   }
 
@@ -179,5 +185,19 @@ describe("the free ride's stage", () => {
     r.stage.drop();
     expect(r.calls).toEqual(["cold 7"]);
     expect(r.restored()).toBe(0);
+  });
+
+  it("waits on the start card's stillness, and no longer once the rider card is up", () => {
+    const r = rig();
+    r.arrive(map(7));
+    r.stage.want(ride(), "kit", 1500);
+    // The same ride asked again from the start card: one wait, not two.
+    r.stage.want(ride(), "kit", 1500);
+    expect(r.waits).toEqual([1500]);
+    // NEXT before it was still long enough: the rider card's own wait.
+    r.stage.want(ride(), "kit");
+    expect(r.waits).toEqual([1500, undefined]);
+    r.tick();
+    expect(r.calls).toEqual(["cold 7"]);
   });
 });

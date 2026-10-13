@@ -122,7 +122,6 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   const group = new THREE.Group();
   group.name = "civilians";
   const plan: CivilianPlan = civilianPlanFor(level);
-  const hour = civilianHour(level);
   const material = civilianMaterial(haze);
   const depth = civilianDepth(createShadeDepth(haze));
   const kits: CivilianKit[] = plan.people.map((c) => civilianKit(c, level.seed));
@@ -355,7 +354,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   // THE KNOCKED (`civilian-hits.ts`): everyone on foot, the knocks kept,
   // and the pool of meshes a person on his ragdoll is drawn with — by body,
   // cut and whether he is on skis — and how many of each this frame takes.
-  const people = peopleOf(level, hour);
+  const people = peopleOf(level);
   const knocks = createKnocks();
   type Down = {
     mesh: THREE.InstancedMesh;
@@ -445,6 +444,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
     updateKnocks(knocks, state, people);
     let nBalls = 0;
     const t = state.t;
+    const hour = civilianHour(level, t); // the sky's clock's (`sky-clock.ts`)
     for (let i = 0; i < plan.people.length; i++) {
       const c = plan.people[i];
       const knock = knocks.map.get(i);

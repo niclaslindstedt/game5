@@ -65,6 +65,7 @@
     "sidestep": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sidestep-lab.mjs",
     "blender": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/blender.mjs",
     "sky": "node scripts/sky-preview.mjs",
+    "sky-solar": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sky-solar-lab.mjs",
     "cloud": "node scripts/cloud-preview.mjs",
     "snowfall": "node scripts/snowfall-preview.mjs",
     "shimmer": "node scripts/shimmer-preview.mjs",
@@ -79,6 +80,7 @@
     "audience": "node scripts/audience-preview.mjs",
     "civilians": "node scripts/civilians-preview.mjs",
     "lift-ride": "node scripts/lift-ride-preview.mjs",
+    "grind": "node scripts/grind-preview.mjs",
     "lift-flow": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-flow-lab.mjs",
     "lift-path": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-path-lab.mjs",
     "heli": "node scripts/heli-preview.mjs",
@@ -138,7 +140,7 @@
     "town": "node scripts/town-preview.mjs"
   },
   "dependencies": {
-    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.1.3"
+    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

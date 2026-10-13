@@ -42,6 +42,7 @@ const GROUPS = {
   plume: ["side", "down-run", "whale", "chase"],
   whale: ["whale-near"],
   night: ["night-side", "night-run"],
+  reach: ["reach"],
 } as const;
 
 declare global {
@@ -263,6 +264,30 @@ const VIEWS: Record<string, () => Promise<void>> = {
     shoot(s, "2s", "chase");
     run(s, 2);
     shoot(s, "4s", "chase");
+  },
+  /** How far out the guns and their plumes are drawn beside the woods:
+   * down a gun's run from the snow and from a helicopter's height. */
+  async reach() {
+    const g = gunOf("carriage");
+    const s = fresh();
+    run(s, 0.5);
+    const { down } = frameOf(g);
+    for (const [label, back, up] of [
+      ["snow", 30, 2],
+      ["aloft-110", 150, 110],
+      ["aloft-300", 300, 300],
+    ] as const) {
+      const ex = g.x - Math.sin(down) * back;
+      const ez = g.z - Math.cos(down) * back;
+      const tx = g.x + Math.sin(down) * 600;
+      const tz = g.z + Math.cos(down) * 600;
+      shoot(s, label, {
+        eye: { x: ex, y: level.groundAt(ex, ez) + up, z: ez },
+        target: { x: tx, y: level.groundAt(tx, tz), z: tz },
+        fov: 60,
+        roll: 0,
+      });
+    }
   },
   async "night-side"() {
     renderer.setSky({ hour: 20, weather });

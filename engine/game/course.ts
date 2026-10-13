@@ -428,6 +428,7 @@ export function standSkier(state: GameState, x: number, z: number, heading: numb
   c.bodySide = 0;
   c.save = null;
   c.thrown = null;
+  if (c.grind) c.grind = null;
   if (c.fetch) c.fetch = null;
   if (c.town) c.town = null;
   c.hitCooldown = 0;

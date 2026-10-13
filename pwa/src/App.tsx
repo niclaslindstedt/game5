@@ -13,7 +13,7 @@
 // rather than tearing anything down, which is why the menu comes up over the map the player was
 // just on. Until the first run the door stands over the TITLE SCENE instead (`title-app.tsx`), and
 // no map is built. Under a card the camera is the slow ORBIT round the skis; over a run it is the
-// rung the skier chose (`cameraFor`).
+// rung the skier chose — his own, or the one he keeps for his machines (`cameraFor`).
 //
 // THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player rides is armed with a ticket
 // — its seed, skis, mode and length — before its first step; every input the engine is handed
@@ -120,9 +120,10 @@ import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
 import { shotLabel } from "./game/run-news.ts";
 import { createNewsFeed } from "./game/run-watch.ts";
-import { wireLook } from "./game/app-look.ts";
+import { showCameras, wireLook, withRung } from "./game/app-look.ts";
 import {
   assistOf,
+  camerasOf,
   injuriesShown,
   loadSettings,
   mixOf,
@@ -134,7 +135,6 @@ import { withPreset, type VideoSettings } from "./game/settings-video.ts";
 import { boundLabel } from "./game/settings-input.ts";
 import {
   appDraws,
-  cameraFor,
   canPause,
   hudOver,
   playerRides,
@@ -190,7 +190,7 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
     if (params.page === "dev") s.developer = true;
-    return params.camera ? { ...s, camera: params.camera } : s;
+    return params.camera ? { ...s, camera: params.camera, craftCamera: params.camera } : s;
   });
   /** Which page of the front door is up. */
   const [page, setPage] = useState<MenuPage>(params.page);
@@ -390,7 +390,7 @@ export function App() {
       shellRef.current = next;
       setShell(next);
       title.shellIs(next);
-      renderer.setCamera(cameraFor(next, settingsRef.current.camera));
+      showCameras(renderer, next, settingsRef.current);
       hudClock = HUD_TICK; // the readouts at once, never a tick late
     };
 
@@ -466,7 +466,7 @@ export function App() {
     }
     if (params.rides && params.pose) placeRun(state, params.pose);
     const holdRide = heldRide(params.rides ? params.hold : null); // `?hold=`, as the map stands
-    renderer.setCamera(cameraFor(shellRef.current, settingsRef.current.camera));
+    showCameras(renderer, shellRef.current, settingsRef.current);
     // Over the title nothing is built until the first run (`title-app.tsx`).
     if (!title.raced()) setWarm(true);
     else
@@ -526,10 +526,9 @@ export function App() {
       // The live race behind the door again; over the title nothing stands.
       restore: () => void (title.raced() && build(state)),
       outfit: () => outfitKey(settingsRef.current.outfit),
-      plan: () => ({ camera: settingsRef.current.camera, done: lift }),
+      plan: () => ({ camera: camerasOf(settingsRef.current), done: lift }),
       stood: (again) => (freeAgain = again),
     });
-
     const pinned = createPinnedRuns({
       loader,
       current: () => state,
@@ -560,7 +559,6 @@ export function App() {
       benchFrames: params.frames,
       benchVista: params.view === "vista",
     });
-
     pressRef.current = {
       stageFree: frees.stageFree,
       race: (seed, asked) => {
@@ -572,7 +570,7 @@ export function App() {
           // a free ride's, the seed's map on another day); else a worker builds it.
           map: () => (under ? null : gameOrder({ seed, mode, ...linkWorld(params) })),
           build: (level) => playerGame(level ?? under, seed),
-          camera: settingsRef.current.camera,
+          camera: camerasOf(settingsRef.current),
           done: lift,
         });
       },
@@ -838,8 +836,7 @@ export function App() {
     if (!here && params.seed === null) setNextSeed(dealSeed());
   };
 
-  /** The map on the start card: the one it stored, or the first of the
-   * free ride's own mountains (`FREE_SEEDS`). */
+  /** The start card's map: its own, or the free ride's first (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
   useAhead({
     page,
@@ -929,9 +926,12 @@ export function App() {
           snap={snap}
           settings={settings}
           onSettings={setSettings}
+          rung={rendererRef.current?.camera()}
           onCamera={(camera) => {
-            setSettings((s) => ({ ...s, camera }));
-            rendererRef.current?.setCamera(camera);
+            const r = rendererRef.current;
+            const s = withRung(settingsRef.current, camera, !!r?.riding());
+            setSettings(() => s);
+            r?.setCamera(s.camera, false, undefined, s.craftCamera);
           }}
           onResume={() => pressRef.current.resume()}
           onRestart={() => pressRef.current.restart()}

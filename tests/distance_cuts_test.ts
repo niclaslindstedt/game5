@@ -84,6 +84,17 @@ describe("instance reach", () => {
     expect(mesh.count).toBe(2);
     expect(xOf(mesh, 0)).toBe(800);
   });
+
+  it("repacks at once when its reach is moved (the woods' reach, handed over)", () => {
+    const { mesh, points } = row(10, 100);
+    const reach = new InstanceReach([mesh], points, 150, 10);
+    reach.update({ x: 0, y: 0, z: 0 });
+    expect(mesh.count).toBe(2);
+    reach.setReach(450);
+    expect(reach.reach).toBe(450);
+    reach.update({ x: 0, y: 0, z: 0 });
+    expect(mesh.count).toBe(5);
+  });
 });
 
 describe("rock cuts", () => {

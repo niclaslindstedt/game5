@@ -35,6 +35,7 @@ import {
 
 import {
   civilianAt,
+  civilianHour,
   civilianPlanFor,
   freshCivilianPose,
   type CivilianPose,
@@ -122,7 +123,7 @@ export type Person = {
   at: (t: number, out: CivilianPose) => CivilianPose;
 };
 
-export function peopleOf(level: Level, hour: number): Person[] {
+export function peopleOf(level: Level): Person[] {
   const plan = civilianPlanFor(level);
   const out: Person[] = plan.people.map((c, i) => {
     let rx = c.home.x;
@@ -142,7 +143,7 @@ export function peopleOf(level: Level, hour: number): Person[] {
       rx,
       rz,
       rr: rr + 2,
-      at: (t, o) => civilianAt(plan, i, t, hour, o),
+      at: (t, o) => civilianAt(plan, i, t, civilianHour(level, t), o),
     };
   });
   const dogs = dogPlanFor(level);
@@ -161,7 +162,7 @@ export function peopleOf(level: Level, hour: number): Person[] {
         rx: 0,
         rz: 0,
         rr: Infinity,
-        at: (t, o) => dogWalkerAt(dogs!, hh.id, member, t, hour, o),
+        at: (t, o) => dogWalkerAt(dogs!, hh.id, member, t, civilianHour(level, t), o),
       });
     }
   }

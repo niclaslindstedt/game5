@@ -170,7 +170,7 @@ function record(scenario, asked) {
     if (i > 0) {
       const x0 = c.x;
       const z0 = c.z;
-      E.step(state, scenario.input(t, state));
+      E.step(state, scenario.input(t, state, E));
       dist += Math.hypot(c.x - x0, c.z - z0);
       for (const e of state.events) events.push({ ...e, t: e.t - t0 });
     }

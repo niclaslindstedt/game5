@@ -52,7 +52,8 @@ export const PLUME = {
     alpha: 0.45,
     puffs: 160,
   },
-  /** Past this from the lens a plume is not drawn, m. */
+  /** Past this from the lens a plume is not drawn, m, until the woods'
+   * reach is handed over (`Plumes.setReach`). */
   reach: 900,
 } as const;
 
@@ -60,6 +61,8 @@ export type Plumes = {
   mesh: THREE.Mesh;
   /** One frame: the run's clock, the sky, the wind, the lens. */
   update(t: number, look: SkyLook, wind: Wind, eye: THREE.Vector3, pixels: number): void;
+  /** Draw out to `reach` m from the lens, faded over its last 30 %. */
+  setReach(reach: number): void;
   dispose(): void;
 };
 
@@ -280,6 +283,9 @@ export function createPlumes(level: Level, guns: readonly SnowGun[], haze: HazeU
         look.keyColour[1] * k * 0.35 + look.skyLight[1] * a,
         look.keyColour[2] * k * 0.35 + look.skyLight[2] * a,
       );
+    },
+    setReach(reach) {
+      U.uReach.value = reach;
     },
     dispose() {
       geo.dispose();

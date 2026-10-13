@@ -67,25 +67,18 @@ export function handsFree(ms = 120): Promise<void> {
 const PACE_MOST_MS = 250;
 
 /** A BREATH BETWEEN TWO HEAVY PIECES of a build, held while a hand is down
- * on a card's own picture (`handsFree`). PACED (a world built cold behind
- * the cards), each breath also rests as long as the piece before it ran, up
- * to `PACE_MOST_MS`: the build takes about half the processor at the most,
- * and the card's own frames always have the other half. */
-export function createBreath(): { breathe: () => Promise<void>; pace: (on: boolean) => void } {
-  let paced = false;
+ * on a card's own picture (`handsFree`). PACED (`paced()`: a world built
+ * cold behind the cards), each breath also rests as long as the piece
+ * before it ran, up to `PACE_MOST_MS`: the build takes about half the
+ * processor at the most, and the card's own frames always have the rest. */
+export function createBreath(paced: () => boolean): () => Promise<void> {
   let ran = now();
-  return {
-    breathe: () => {
-      const rest = paced ? Math.min(PACE_MOST_MS, Math.max(0, now() - ran)) : 0;
-      return new Promise<void>((done) => setTimeout(done, rest))
-        .then(() => handsFree())
-        .then(() => {
-          ran = now();
-        });
-    },
-    pace: (on) => {
-      paced = on;
-      ran = now();
-    },
+  return () => {
+    const rest = paced() ? Math.min(PACE_MOST_MS, Math.max(0, now() - ran)) : 0;
+    return new Promise<void>((done) => setTimeout(done, rest))
+      .then(() => handsFree())
+      .then(() => {
+        ran = now();
+      });
   };
 }

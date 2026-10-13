@@ -40,12 +40,16 @@ const ROOF = 2.6;
 
 export const PLANE_COCKPIT = {
   /** THE PILOT'S EYES in the left seat (`PLANE.pilotEye`, mirrored); how
-   * far the head looks down off the fuselage line in the air and on the
-   * snow (the nose high on its tail ski, he looks down over the cowling's
-   * side), how far it turns into a turn per rad/s of yaw rate and per rad
+   * far the lens looks down off the fuselage line in the air and on the
+   * snow (down far enough that the whole panel is in the frame under the
+   * horizon — the instruments are what he flies by), how far it turns into a turn per rad/s of yaw rate and per rad
    * of bank, rad, at most `turnMost`. */
   eye: { x: -PLANE.pilotEye.x, y: PLANE.pilotEye.y, z: PLANE.pilotEye.z },
-  look: { air: 0.13, ground: 0.1, turn: 0.32, bank: 0.12, turnMost: 0.36 },
+  /** THE LENS (the TIPS rung), engine body frame: at the pilot's eye
+   * height and along, but on the CENTRE LINE, so the panel and the nose
+   * stand square ahead rather than off to one side. */
+  lens: { x: 0, y: PLANE.pilotEye.y, z: PLANE.pilotEye.z },
+  look: { air: 0.3, ground: 0.26, turn: 0.32, bank: 0.12, turnMost: 0.36 },
   /** The lens's vertical fov, deg, and the least horizontal fov a tall
    * screen is widened to, deg, up to `tallMost`. */
   fov: 70,

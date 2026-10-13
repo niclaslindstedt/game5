@@ -424,7 +424,7 @@ export type OverHow = { readonly pitch: number; readonly side: number; readonly 
 /** What a throw may be told beyond its cause: another way over than the
  * cause's own (`how`), and the skis kept where they are rather than let
  * go — a snowmobile's rider, whose pair is on its rack (`keepSkis`). */
-export type ThrowOptions = { how?: OverHow; keepSkis?: boolean };
+export type ThrowOptions = { how?: OverHow; keepSkis?: boolean; blow?: number };
 
 /** A lone ski's two ends, as `outOfRock` is handed them. */
 const SKI_ENDS = [0.02, 0.02];
@@ -479,7 +479,15 @@ export function throwRider(
   else if (!opts.keepSkis) thrown.skis = letGo(state, c, side, speed);
   for (const ski of thrown.skis) outOfRock(state.level, ski.ends, ski.last, SKI_ENDS);
   c.thrown = thrown;
-  events.push({ kind: "wipeout", t: state.t, cause, speed, x: c.x, z: c.z });
+  events.push({
+    kind: "wipeout",
+    t: state.t,
+    cause,
+    speed,
+    x: c.x,
+    z: c.z,
+    ...(opts.blow !== undefined ? { blow: opts.blow } : {}),
+  });
   return thrown;
 }
 

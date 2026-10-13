@@ -20,13 +20,13 @@ import {
   HELI,
   TUNING,
   airAt,
-  sunAtRun,
   unrotate,
   washAt,
   type GameState,
   type Level,
   type Wash,
 } from "@engine";
+import { sunNow } from "./sky-clock.ts";
 
 import { frameCrash, startCrashCam, wooded, type CrashCam } from "./camera-crash.ts";
 import { createHeliCam, frameHeli, heliMiddleOf, orbitBlend } from "./camera-heli.ts";
@@ -188,7 +188,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
         crash =
           h.wreck.aboard && shown && rung !== "orbit"
             ? startCrashCam(shown, { x, y, z }, groundAt, (e, a) => wooded(state.level, e, a), {
-                sun: sunAtRun(state.level),
+                sun: sunNow(state.level, state.t),
               })
             : null;
       }

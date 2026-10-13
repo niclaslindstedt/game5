@@ -111,7 +111,13 @@
 //                   dealt it (clear, fair, high, overcast, snow, fog) —
 //                   how a lab photographs every weather on one seed.
 //   ?hour=<h>       ...and from this solar start hour (0–24), so a lab can
-//                   stand a race in the dark.
+//                   stand a race in the dark — the sun HELD at it unless
+//                   `?skyclock=` says otherwise, so a link's picture is
+//                   the hour it names.
+//   ?skyclock=<r>   the sky's clock this visit: sky seconds a run second
+//                   (`sky-clock.ts`; the game's own is 12 — five minutes
+//                   an hour of sun), 0 holding the sun at the start hour,
+//                   60 a lab's fast forward.
 //   ?region=<id>    build a seed's mountain in this kind of snow country
 //                   (R21: alpine, fell, continental, maritime) — a free ride over the
 //                   start card's AREA row under GENERATED, and a race a `?seed=` link
@@ -171,6 +177,7 @@
 // reads every rule here without a browser.
 
 import {
+  SKY_CLOCK,
   WEATHER_KINDS,
   isAerialCode,
   isRunGrade,
@@ -287,6 +294,10 @@ export type UrlParams = {
   /** A sky and a start hour for this visit's races, over the dealt ones;
    * null when the link names neither. */
   sky: SkyOverride | null;
+  /** The SKY'S CLOCK this visit (`sky-clock.ts`): the link's `?skyclock=`,
+   * else held (0) when the link names an `?hour=`, else the game's own
+   * (`SKY_CLOCK.rate`). */
+  skyClock: number;
   /** The kind of snow country a seed's map is built in, over the card's. */
   region: RegionId | null;
   /** The real face a seed's resort is raised on, over the card's. */
@@ -354,6 +365,14 @@ function skyOf(q: URLSearchParams): SkyOverride | null {
   }
   if (q.get("hour") !== null && Number.isFinite(hour) && hour >= 0 && hour <= 24) sky.hour = hour;
   return sky.weather === undefined && sky.hour === undefined ? null : sky;
+}
+
+/** The sky's clock a link names (`?skyclock=`), held when it names only an
+ * hour, the game's own when it names neither. */
+function skyClockOf(q: URLSearchParams): number {
+  const asked = Number(q.get("skyclock") ?? NaN);
+  if (q.get("skyclock") !== null && Number.isFinite(asked) && asked >= 0) return asked;
+  return q.get("hour") !== null ? 0 : SKY_CLOCK.rate;
 }
 
 /** A benchmark's stretch a link may name: whole frames, from a second's
@@ -464,6 +483,7 @@ export function readParams(search: string): UrlParams {
     picture: readPicture(q.get("picture")),
     probe: q.get("probe") !== "0",
     sky: skyOf(q),
+    skyClock: skyClockOf(q),
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
     face: realFaceRegion(q.get("face") ?? "") ? q.get("face") : null,
     grade: isRunGrade(q.get("grade")) ? (q.get("grade") as RunGrade) : null,

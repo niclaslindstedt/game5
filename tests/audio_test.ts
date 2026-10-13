@@ -196,6 +196,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   plane: { kind: "plane", t: 1, phase: "jump", x: 0, y: 0, z: 0, speed: 37 },
   chute: { kind: "chute", t: 1, phase: "open", x: 0, y: 0, z: 0, speed: 14, g: 4 },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
+  grind: { kind: "grind", t: 1, id: "L1", phase: "on" },
 };
 
 /** The kinds the bank says nothing about, with the reason: the lip is the

@@ -176,7 +176,7 @@ export function moveLength(move: DoorMove): number {
 export function doorNear(run: GameState): BuildingDoor | null {
   if (!run.rules.doors || run.doorway?.move) return null;
   const c = run.skier;
-  if (c.thrown || c.fetch || c.lift || c.tunnel || c.jib) return null;
+  if (c.thrown || c.fetch || c.lift || c.tunnel || c.jib || c.grind) return null;
   // On foot in town, only while he walks — not mid-way out of his skis.
   if (c.town && c.town.phase !== "walk") return null;
   if (run.afterski?.inside || run.heli?.rider || run.sled?.rider) return null;

@@ -56,6 +56,7 @@ export const TRICK_WORDS: Readonly<Record<TrickKind, string>> = {
   half: "180",
   twist: "TWIST",
   landing: "CLEAN LANDING",
+  grind: "CABLE GRIND",
   daffy: "DAFFY",
   spread: "SPREAD EAGLE",
   grab: "MUTE GRAB",
@@ -289,6 +290,8 @@ export const STRINGS = {
       | "sled"
       | "stake"
       | "chair"
+      | "cable"
+      | "straddle"
       | "net"
       | "maul"
       | "groomer"
@@ -316,27 +319,31 @@ export const STRINGS = {
                     ? "LOST HIS GRIP!"
                     : cause === "chair"
                       ? "SWEPT BY THE CHAIR!"
-                      : cause === "net"
-                        ? "INTO THE NETS!"
-                        : cause === "stake"
-                          ? "YARD SALE! STAKE"
-                          : cause === "sled"
-                            ? "OFF THE SLED!"
-                            : cause === "tree"
-                              ? "YARD SALE! TREE"
-                              : cause === "skier"
-                                ? "YARD SALE! TAKEN OUT"
-                                : cause === "nose"
-                                  ? "OVER THE TIPS"
-                                  : cause === "roll"
-                                    ? "YARD SALE"
-                                    : cause === "landing"
-                                      ? "CRASH LANDING"
-                                      : cause === "slam"
-                                        ? "SLAMMED! HEEL EDGE"
-                                        : cause === "faceplant"
-                                          ? "FACEPLANT! TOE EDGE"
-                                          : "EDGE CAUGHT",
+                      : cause === "cable"
+                        ? "KNOCKED OFF THE CABLE!"
+                        : cause === "straddle"
+                          ? "RACKED ON THE CABLE!"
+                          : cause === "net"
+                            ? "INTO THE NETS!"
+                            : cause === "stake"
+                              ? "YARD SALE! STAKE"
+                              : cause === "sled"
+                                ? "OFF THE SLED!"
+                                : cause === "tree"
+                                  ? "YARD SALE! TREE"
+                                  : cause === "skier"
+                                    ? "YARD SALE! TAKEN OUT"
+                                    : cause === "nose"
+                                      ? "OVER THE TIPS"
+                                      : cause === "roll"
+                                        ? "YARD SALE"
+                                        : cause === "landing"
+                                          ? "CRASH LANDING"
+                                          : cause === "slam"
+                                            ? "SLAMMED! HEEL EDGE"
+                                            : cause === "faceplant"
+                                              ? "FACEPLANT! TOE EDGE"
+                                              : "EDGE CAUGHT",
   /** A snowboarder's skis-off word: nothing comes off a board, so a
    * YARD SALE is a WIPEOUT. */
   newsBoardDown: "WIPEOUT",

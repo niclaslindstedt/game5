@@ -249,9 +249,10 @@ describe("what the game remembers (settings.ts)", () => {
   it("merges a stored blob field by field and checks every value", () => {
     expect(mergeSettings(null)).toEqual(freshSettings());
     expect(mergeSettings("junk")).toEqual(freshSettings());
-    expect(mergeSettings({ camera: "far", sound: false })).toEqual({
+    expect(mergeSettings({ camera: "far", craftCamera: "tips", sound: false })).toEqual({
       ...freshSettings(),
       camera: "far",
+      craftCamera: "tips",
       sound: false,
     });
     // Off the ladder, and the wrong type: back to the defaults.

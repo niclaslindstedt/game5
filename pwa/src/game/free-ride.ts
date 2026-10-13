@@ -50,6 +50,8 @@ import {
   type SkiSpec,
   regionOf,
   realFaceRegion,
+  realFacePlace,
+  seasonDay,
   SKIS,
   isBoard,
 } from "@engine";
@@ -375,6 +377,16 @@ export type FreeRunInfo = {
   head: { x: number; y: number; z: number; heading: number };
 };
 
+/** The day the ride's SEASON stop means on its mountain — half a year on
+ * for a real face south of the equator, where deep winter is July — or null
+ * for the map's own date. */
+export function seasonOn(ride: Pick<FreeRide, "season" | "face">): number | null {
+  const day = SEASONS.find((s) => s.id === ride.season)?.day;
+  if (day === undefined) return null;
+  const place = ride.face ? realFacePlace(ride.face) : null;
+  return seasonDay(day, place?.lat ?? 0);
+}
+
 /** THE DAY A MAP WAS DEALT, in the start card's own words: the season
  * nearest its date, the time of day nearest its hour, and its sky. The
  * SEASON, TIME and WEATHER rows show these (in a colour of their own) until
@@ -389,7 +401,10 @@ export function dealtDay(level: Pick<Level, "sun" | "weather">): DealtDay {
   };
   const nearest = <T>(items: readonly T[], off: (t: T) => number): T =>
     items.reduce((best, t) => (off(t) < off(best) ? t : best));
-  const season = nearest(SEASONS, (s) => apart(dayOfYearOf(s.day), dayOfYear, 365)).id;
+  // South of the equator a season is half a year on (`seasonDay`).
+  const season = nearest(SEASONS, (s) =>
+    apart(dayOfYearOf(seasonDay(s.day, latitude)), dayOfYear, 365),
+  ).id;
   const time = nearest(TIMES_OF_DAY, (t) => apart(hourOfTime(latitude, dayOfYear, t), hour, 24));
   return { season, time, weather: weatherOf(level).kind };
 }
@@ -515,7 +530,7 @@ export function freeGameOptions(
     // cannot disagree.
     day: {
       time: ride.time,
-      dayOfYear: SEASONS.find((s) => s.id === ride.season)?.day ?? null,
+      dayOfYear: seasonOn(ride),
     },
     sky: ride.weather === null ? undefined : { weather: ride.weather },
     spawn: spot ?? undefined,

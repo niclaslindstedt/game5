@@ -12,8 +12,10 @@
 //                pole standing due north at the map's own latitude (R15).
 //                The hour spins it and the DAY OF THE YEAR offsets it, so a
 //                January midnight and a March one look out at different
-//                parts of the sky. The sun stands still over a run
-//                (`clock.ts`), so the sphere does too.
+//                parts of the sky. The sun moves with the run's own clock
+//                (`clock.ts`'s `skyHourAt`), and the sphere with it: the
+//                turn is read off the map AS THE SKY STANDS (`sky.ts`
+//                hands it `skyLevelAt`), so the stars wheel too.
 //   THE GALAXY   A great circle tilted 63° to that pole, at the real
 //                inclination, so the band rises steeply out of one horizon
 //                instead of lying round the ridge like a ring — its core a

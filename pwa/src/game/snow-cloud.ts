@@ -193,8 +193,10 @@ void main() {
   vSnow = iSnow;
   vRight = R;
   vUp = U;
-  vRadius = iPos.w;
-  vec3 w = iPos.xyz + (R * position.x + U * position.y) * iPos.w;
+  vRadius = iPos.w * 1.2;
+  // Drawn a fifth wider than it flies, its alpha thinned to match: its soft
+  // rim reaches the next puff's, and a row of them is one veil.
+  vec3 w = iPos.xyz + (R * position.x + U * position.y) * iPos.w * 1.2;
   vWorld = w;
   // A puff too faint to see is not drawn at all: the veiled and the near
   // ones are the biggest on the screen, and fill is what a cloud costs.
@@ -239,11 +241,18 @@ float density(vec2 uv, vec2 spin, vec2 o, float age) {
   // The fine curl that keeps a puff filling the lens from going smooth.
   float n3 = texture2D(uNoise, spin * 2.3 - o + vec2(age * 0.7, age * 0.2)).b;
   float n = n1 * 0.52 + n2 * 0.3 + n3 * 0.18;
-  float body = 1.0 - r2;
+  // The ball's own outline WARPED by the noise before it is measured: a
+  // puff of fine snow is a lobed, torn thing whose edge wanders, never a
+  // disc with a frayed rim.
+  vec2 w = uv + (vec2(n1, n2) - 0.5) * (0.55 + 0.35 * age);
+  float rw = dot(w, w);
+  float body = 1.0 - rw;
   float erode = 0.15 + 0.55 * age;
-  // A crisp billow edge young, torn wisps old.
+  // A soft billow edge young, torn wisps old: fine snow in the air has no
+  // surface, and a puff cut off crisp reads as a ball of cotton — most of
+  // all against a low sun, where its glow outlines it.
   float v = body * (0.5 + 1.15 * n) - erode * (1.0 - n);
-  return smoothstep(0.0, 0.5 - 0.25 * age, v) * (1.0 - r2 * r2 * 0.5);
+  return smoothstep(-0.05, 0.62 - 0.27 * age, v) * exp(-2.6 * rw) * (1.0 - r2 * r2);
 }
 
 void main() {
@@ -261,7 +270,7 @@ void main() {
   // lens looking down would see cut off into a crescent.
   vec3 surface = vWorld + toEye * z * vRadius;
   float ground = smoothstep(vLook.w - 0.02, vLook.w + vRadius * 0.3, surface.y);
-  float alpha = d * vLook.x * ground;
+  float alpha = d * vLook.x * ground * 0.9;
   if (alpha < 0.004) discard;
   // A normal off the ball, bent by the noise so the lit side has relief.
   float bx = texture2D(uNoise, vSpin * 0.6 + o + 0.13).b - 0.5;
@@ -285,17 +294,29 @@ void main() {
   float wrap = mix(0.45, 0.2, min(deep, 1.0));
   float lambert = clamp((dot(N, uKey) + wrap) / (1.0 + wrap), 0.0, 1.0);
 
-  // FORWARD SCATTER (Henyey–Greenstein, g 0.6), strongest through the thin
-  // parts: a cloud against the sun lights up at its edges.
-  float g = 0.7;
+  // FORWARD SCATTER, two lobes of Henyey–Greenstein: a SHARP one (g 0.86)
+  // — the ice crystals' own halo, a plume crossing the sun lit white-hot
+  // round it — and a BROAD one (g 0.45) that is the whole cloud's glow
+  // toward the light. Strongest where the sun's path through the cloud is
+  // short (\`shade\`): against a low sun the thin side of a plume lines
+  // itself in silver while its core stays a soft grey. It is the whole
+  // plume's lit share that glows, never a rim drawn per puff, or a string of
+  // puffs lights up as a string of rings.
   float mu = dot(-toEye, uKey);
-  float hg = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * mu, 1.5);
-  // Thin CLOUD, not a thin rim: the glow is the whole plume's (its lit
-  // share), or a string of puffs lights up as a string of rings.
-  float thin = 1.0 - d * 0.25;
-  float forward = hg * 0.3 * thin * mix(1.0, vSnow.w, 0.6);
+  float g1 = 0.86;
+  float g2 = 0.45;
+  float hg1 = (1.0 - g1 * g1) / pow(1.0 + g1 * g1 - 2.0 * g1 * mu, 1.5);
+  float hg2 = (1.0 - g2 * g2) / pow(1.0 + g2 * g2 - 2.0 * g2 * mu, 1.5);
+  float hg = 0.35 * hg1 + 0.65 * hg2;
+  float thin = 1.0 - d * 0.3;
+  float forward = (0.06 * hg1 + 0.25 * hg2) * thin * mix(0.35, 1.25, shade);
 
   float direct = (lambert * shade * (1.0 - 0.7 * uFlat) + forward * (1.0 - 0.8 * uFlat));
+  // MANY SCATTERINGS: fine snow is nearly white to the light it holds, so
+  // what does not come straight through is not lost but bounced on — the
+  // shaded core of a plume is a lit grey-white, powdered sugar, never the
+  // dull grey of a lump.
+  direct += (1.0 - shade) * 0.22 * (0.5 + 0.5 * lambert) * (1.0 - 0.7 * uFlat);
   // A deep billow's shaded side darker than a thin puff's, and its foot
   // darker still, under the rest of the cloud.
   vec3 amb = mix(uGroundCol, uSkyCol, N.y * 0.5 + 0.5) * mix(0.6 - 0.12 * deep, 1.0, shade);

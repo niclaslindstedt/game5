@@ -42,7 +42,7 @@ export type PowderLab = {
 
 /** An open, gentle stretch of virgin powder near the skier: forty metres
  * of it clear of the loop and the trees, and the heading along it. */
-function meadow(state: GameState): { x: number; z: number; heading: number } | null {
+export function meadow(state: GameState): { x: number; z: number; heading: number } | null {
   const level = state.level;
   const s = state.skier;
   const open = (x: number, z: number) =>

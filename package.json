@@ -81,6 +81,7 @@
     "cloud-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/cloud-metrics.mjs",
     "spray-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/spray-metrics.mjs",
     "spray-eval": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/spray-eval.mjs",
+    "snow-eval": "node scripts/snow-eval-preview.mjs",
     "birds": "node scripts/birds-preview.mjs",
     "crowd": "node scripts/crowd-preview.mjs",
     "audience": "node scripts/audience-preview.mjs",

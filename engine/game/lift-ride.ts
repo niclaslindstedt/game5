@@ -247,29 +247,12 @@ function skipUp(run: GameState, plan: LiftPlan, ride: LiftRide, input: SkierInpu
 function boardLift(run: GameState, events: GameEvent[]): void {
   const c = run.skier;
   if (c.thrown || c.airborne || c.tunnel || c.fetch) return;
-  const plans = liftPlans(run.level);
-  for (let i = 0; i < plans.length; i++) {
-    const plan = plans[i];
-    // IN SUMMER the drags stand still: no snow to be towed up (`summer.ts`).
-    if (run.summer && plan.lift.kind === "drag") continue;
-    // On foot, the pair on his shoulder, only a gondola's door takes him.
-    if (c.town && (plan.lift.kind !== "gondola" || c.town.phase !== "walk")) continue;
+  const at = liftZoneAt(run);
+  if (at) {
+    const i = at.index;
+    const plan = liftPlans(run.level)[i];
     const e = plan.look.entry;
-    const rx = c.x - plan.lift.bottom.x;
-    const rz = c.z - plan.lift.bottom.z;
-    const u = rx * plan.dx + rz * plan.dz;
-    const v = rx * plan.dz - rz * plan.dx;
-    const zoned =
-      Math.abs(u - e.at) <= e.along &&
-      Math.abs(v - e.side) <= e.across &&
-      c.speed <= e.fastest &&
-      Math.abs(angleDiff(c.heading, plan.heading)) <= e.turned;
-    const ring = boardingRing(plan);
-    const ringed =
-      !zoned &&
-      hypot(c.x - ring.x, c.z - ring.z) <= BOARDING_RING.radius &&
-      c.speed <= BOARDING_RING.fastest;
-    if (!zoned && !ringed) continue;
+    const ringed = at.ringed;
     const ride: LiftRide = {
       index: i,
       id: plan.lift.id,
@@ -288,8 +271,42 @@ function boardLift(run: GameState, events: GameEvent[]): void {
     };
     c.lift = ride;
     events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "board" });
-    return;
   }
+}
+
+/** THE LIFT WHOSE LOAD ZONE OR BOARDING RING THE SKIER IS IN — inside the
+ * zone, slow enough and facing up the line, or inside the ring, slow enough
+ * and facing any way — or null. The question boarding asks, and the bike's
+ * (`bike.ts`), which is taken up the same way. */
+export function liftZoneAt(run: GameState): { index: number; ringed: boolean } | null {
+  const c = run.skier;
+  const plans = liftPlans(run.level);
+  for (let i = 0; i < plans.length; i++) {
+    const plan = plans[i];
+    // IN SUMMER the drags stand still: no snow to be towed up (`summer.ts`).
+    if (run.summer && plan.lift.kind === "drag") continue;
+    // On foot, the pair on his shoulder, only a gondola's door takes him.
+    if (c.town && (plan.lift.kind !== "gondola" || c.town.phase !== "walk")) continue;
+    const e = plan.look.entry;
+    const rx = c.x - plan.lift.bottom.x;
+    const rz = c.z - plan.lift.bottom.z;
+    const u = rx * plan.dx + rz * plan.dz;
+    const v = rx * plan.dz - rz * plan.dx;
+    const zoned =
+      Math.abs(u - e.at) <= e.along &&
+      Math.abs(v - e.side) <= e.across &&
+      c.speed <= e.fastest &&
+      Math.abs(angleDiff(c.heading, plan.heading)) <= e.turned;
+    if (zoned) return { index: i, ringed: false };
+    const ring = boardingRing(plan);
+    if (
+      hypot(c.x - ring.x, c.z - ring.z) <= BOARDING_RING.radius &&
+      c.speed <= BOARDING_RING.fastest
+    ) {
+      return { index: i, ringed: true };
+    }
+  }
+  return null;
 }
 
 /** BOARDING DONE: a drag's track stands him waiting for his bar, and a

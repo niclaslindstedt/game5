@@ -91,6 +91,7 @@ import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
+import { freshBikeRide, startBike } from "./bike.ts";
 import { startPara } from "./para.ts";
 import { startBalloon } from "./balloon.ts";
 import { freshPlane, startPlane } from "./plane.ts";
@@ -305,6 +306,12 @@ export type CreateGameOptions = {
    * gone, its sky never snowing, its drags stopped and no machine, gun,
    * avalanche or crowd of skiers on it. A free ride's alone. */
   summer?: boolean;
+  /** A SUMMER FREE RIDE begun ON THE DOWNHILL BIKE (`bike.ts`): at rest on
+   * the head of the bike park's trail `bikeTrail` (else its easiest), the
+   * rider on it. Ignored off a summer free ride, and where an aircraft or
+   * the lodge starts it. */
+  bike?: boolean;
+  bikeTrail?: string;
   /** New snow already lying when the run is stood up, m (`GameState.fresh`)
    * — a lab's or a test's; when left out, the loose snow the day has left
    * on the runs (`piste`), or 0. */
@@ -606,6 +613,14 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (state.sled && options.sled && !(state.heli && options.heli) && !other) {
     startSled(state, []);
   }
+  // THE DOWNHILL BIKE (`bike.ts`): a summer free ride begun on it at its
+  // trail head — absent on every other run, so no digest moves.
+  const bike =
+    summer && options.bike === true && !other && !options.inLodge && !(state.heli && options.heli);
+  if (bike) {
+    state.bike = freshBikeRide(state, options.bikeTrail ?? null);
+    startBike(state, []);
+  }
   if (wingsuit) state.wingsuit = { from: craft ? "craft" : "cliff" };
   if (para) startPara(state, []);
   if (plane) startPlane(state, []);
@@ -624,7 +639,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     !(options.inLodge && state.afterski && lodgesOf(level).length > 0) &&
     !other &&
     !(state.heli && options.heli) &&
-    !(state.sled && options.sled)
+    !(state.sled && options.sled) &&
+    !bike
       ? options.spawn
         ? arriveByLift(state, options.spawn.x, options.spawn.z)
         : arriveByLift(

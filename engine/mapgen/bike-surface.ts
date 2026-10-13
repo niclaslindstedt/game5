@@ -124,7 +124,11 @@ export function treadAt(park: BikePark, ti: number, s: number, a: number): numbe
 
 /** WHERE (x, z) IS ON THE PARK: the trail whose surface it stands most
  * on, or null off every footprint. `ground` is the map's own ground there
- * (the base it is eased into). */
+ * (the base it is eased into). Where two TREADS overlap — a CROSSING — the
+ * height is the two blended by how far into each the point stands (a
+ * tread's weight falls to nothing at its edge), so the ground runs on
+ * through the crossing with no step where one tread meets the other; a
+ * tread always stands over another trail's shoulder. */
 export function bikeHit(
   park: BikePark,
   x: number,
@@ -135,6 +139,8 @@ export function bikeHit(
   const list = idx.cells.get(keyOf(Math.floor(x / CELL), Math.floor(z / CELL)));
   if (!list) return null;
   let best: (BikeTrailHit & { y: number }) | null = null;
+  let sum = 0;
+  let sumY = 0;
   // The nearest segment of each trail, then the trail stood on most.
   const near = new Map<number, { k: number; d: number; t: number; lateral: number }>();
   for (const code of list) {
@@ -166,9 +172,11 @@ export function bikeHit(
     if (n.d > half + B.bench.widest) continue;
     let y: number;
     let weight: number;
+    let blend: number;
     if (n.d <= half) {
       y = treadAt(park, ti, s, n.lateral);
       weight = 1;
+      blend = Math.max(1e-3, (half - n.d) / Math.max(half, 0.1));
     } else {
       const side = n.lateral >= 0 ? half : -half;
       const edge = treadAt(park, ti, s, side);
@@ -182,7 +190,10 @@ export function bikeHit(
       const k = smoothstep(0, 1, t);
       y = edge + (ground - edge) * k;
       weight = 1 - k;
+      blend = 0;
     }
+    sum += blend;
+    sumY += blend * y;
     if (
       !best ||
       weight > best.weight ||
@@ -191,6 +202,7 @@ export function bikeHit(
       best = { trail, index: n.k, s, lateral: n.lateral, half, weight, y };
     }
   }
+  if (best && sum > 0) best.y = sumY / sum;
   return best;
 }
 

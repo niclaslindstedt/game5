@@ -209,6 +209,7 @@ export {
 export { LAKE_ICE } from "./game/defs/lake-ice.ts";
 export * from "./game/summer-api.ts";
 export * from "./game/bike-park-api.ts";
+export * from "./game/bike-api.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
@@ -796,6 +797,7 @@ export {
 } from "./game/sled-drive.ts";
 export { sledSpotOf, type SledSpot } from "./game/sled-pad.ts";
 export { sledPilot, type SledAim } from "./game/sled-pilot.ts";
+export { BIKE_PILOT, bikeAim, bikePilot, type BikeAim } from "./sim/bike-pilot.ts";
 export { PARA, pilotMass as paraPilotMass } from "./game/defs/para.ts";
 export {
   freshPara,

@@ -63,8 +63,19 @@ export const MISHAP_SETTINGS: readonly MishapSetting[] = ["off", "rare", "often"
 export const RUN_CAMERAS: readonly CameraRung[] = ["tips", "helmet", "chase", "far", "high"];
 
 /** The rung a first visit rides on — behind and above, the seat the HUD and
- * the sound are tuned at. */
+ * the sound are tuned at — on his skis and aboard a machine alike. */
 export const DEFAULT_CAMERA: CameraRung = "chase";
+
+/** THE TWO RUNGS a run is seen on: the skier's own (`rider`) and the one
+ * kept for whatever machine he rides (`craft` — the plane, the helicopter,
+ * the snowmobile, the balloon, the paramotor, a piste machine). A cockpit
+ * picked in the air is never his own eyes once he jumps out. */
+export type Cameras = { rider: CameraRung; craft: CameraRung };
+
+/** The two rungs settings keep. */
+export function camerasOf(s: Pick<Settings, "camera" | "craftCamera">): Cameras {
+  return { rider: s.camera, craft: s.craftCamera };
+}
 
 /** The rung after `rung` on the ladder, wrapping — and back onto the ladder
  * from anywhere off it. */
@@ -148,8 +159,10 @@ export function assistOf(assist: AssistSettings): Assist {
 }
 
 export type Settings = {
-  /** The run's camera rung (`RUN_CAMERAS`). */
+  /** The skier's camera rung (`RUN_CAMERAS`). */
   camera: CameraRung;
+  /** The rung kept for a machine he rides (`Cameras.craft`). */
+  craftCamera: CameraRung;
   /** The pair the player rides (`SKI_CATALOG`), or his snowboard
    * (`BOARD_CATALOG`) — a board only where a run lets a free choice of pair
    * (`boardAllowed`). */
@@ -257,6 +270,7 @@ export const DEV_SWITCHES = ["fps", "cost", "physics", "trails", "log", "freefly
 export function freshSettings(): Settings {
   return {
     camera: DEFAULT_CAMERA,
+    craftCamera: DEFAULT_CAMERA,
     skis: SKIS.id,
     kept: { skis: SKIS.id, board: LYNX.id as BoardId },
     outfit: { ...DEFAULT_OUTFIT },
@@ -332,9 +346,14 @@ export function mergeSettings(parsed: unknown): Settings {
   const out = freshSettings();
   if (!parsed || typeof parsed !== "object") return out;
   const blob = parsed as Record<string, unknown>;
-  if (typeof blob.camera === "string" && RUN_CAMERAS.includes(blob.camera as CameraRung)) {
-    out.camera = blob.camera as CameraRung;
-  }
+  const rung = (v: unknown): v is CameraRung =>
+    typeof v === "string" && RUN_CAMERAS.includes(v as CameraRung);
+  // A blob from before the machines had a rung of their own: the one rung it
+  // kept goes to the machines, and the skier starts on the default seat.
+  if (rung(blob.craftCamera)) {
+    out.craftCamera = blob.craftCamera;
+    if (rung(blob.camera)) out.camera = blob.camera;
+  } else if (rung(blob.camera)) out.craftCamera = blob.camera;
   if (typeof blob.skis === "string" && isPairId(blob.skis)) out.skis = blob.skis;
   out.kept = mergeKept(blob.kept, out.skis);
   out.outfit = outfitOf(blob.outfit);

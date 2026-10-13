@@ -46,7 +46,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (carriage, carriage-mouth, tower, lance, side, down-run, whale, chase, night-side, night-run)",
+      help: "only these views, comma-separated (carriage, carriage-mouth, tower, lance, side, down-run, whale, chase, night-side, night-run, reach)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     day: {

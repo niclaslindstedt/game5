@@ -9,6 +9,7 @@ import { useSeedPreview, type SeedChart } from "./seed-preview.tsx";
 import {
   AFTERSKI_RUN,
   BALLOON_RUN,
+  BIKE_RUN,
   HELI_RUN,
   PARA_RUN,
   PLANE_RUN,
@@ -20,6 +21,7 @@ import {
   SLED_RUN,
   afterskiOn,
   balloonOn,
+  bikeOn,
   heliOn,
   markedRun,
   paraOn,
@@ -37,7 +39,8 @@ import { shellContent } from "../shell-host.ts";
 import { STRINGS } from "./strings.ts";
 
 /** What the chart marks a machine's start with, or null for a run's. */
-export type RunMachine = "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit" | "afterski";
+export type RunMachine =
+  "bike" | "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit" | "afterski";
 
 export type RunPick = {
   chart: SeedChart;
@@ -79,21 +82,23 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
       : null;
   // SAFE FOR WORK (the INJURIES switch off) the lodges are shut.
   const sfw = !injuriesShown(settings, shellContent());
-  const machine: RunMachine | null = heliOn(ride, seed)
-    ? "heli"
-    : sledOn(ride, seed)
-      ? "sled"
-      : paraOn(ride, seed)
-        ? "para"
-        : balloonOn(ride, seed)
-          ? "balloon"
-          : planeOn(ride, seed)
-            ? "plane"
-            : wingsuitOn(ride, seed)
-              ? "wingsuit"
-              : !sfw && afterskiOn(ride, seed)
-                ? "afterski"
-                : null;
+  const machine: RunMachine | null = bikeOn(ride, seed)
+    ? "bike"
+    : heliOn(ride, seed)
+      ? "heli"
+      : sledOn(ride, seed)
+        ? "sled"
+        : paraOn(ride, seed)
+          ? "para"
+          : balloonOn(ride, seed)
+            ? "balloon"
+            : planeOn(ride, seed)
+              ? "plane"
+              : wingsuitOn(ride, seed)
+                ? "wingsuit"
+                : !sfw && afterskiOn(ride, seed)
+                  ? "afterski"
+                  : null;
   const marked = list && machine === null ? markedRun(ride, seed, list) : null;
   // The RUN row walks EVERY run of the map, whatever its colour: a slope
   // is all it ever names.
@@ -111,6 +116,8 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     ...(list
       ? [
           { id: SKIS_START, label: STRINGS.startOnSlope },
+          // ...and in summer the downhill bike, first.
+          { id: BIKE_RUN, label: STRINGS.startRunBike },
           { id: PARA_RUN, label: STRINGS.startRunPara },
           { id: BALLOON_RUN, label: STRINGS.startRunBalloon },
           { id: SLED_RUN, label: STRINGS.startRunSled },
@@ -125,9 +132,12 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
         ]
       : []),
   ];
-  // ...and in SUMMER only the ways into the air (`SUMMER_STARTS`): no snow
-  // to ski, board or sled on, no lodge to start the night in.
-  const starts = summer ? all.filter((s) => SUMMER_STARTS.includes(s.id)) : all;
+  // ...and in SUMMER the bike and the ways into the air (`SUMMER_STARTS`),
+  // in that order: no snow to ski, board or sled on, no lodge to start the
+  // night in. The bike is summer's alone.
+  const starts = summer
+    ? SUMMER_STARTS.flatMap((id) => all.filter((s) => s.id === id))
+    : all.filter((s) => s.id !== BIKE_RUN);
   const value = marked?.id ?? "";
   const start = list === null ? "" : machine === null ? SKIS_START : MACHINE_RUN[machine];
   return {
@@ -138,7 +148,8 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
     start,
     marked,
     machine,
-    spot: machine === null ? spotOn(ride, seed) : null,
+    // On the bike the spot picks the trail whose head is nearest it.
+    spot: machine === null || machine === "bike" ? spotOn(ride, seed) : null,
     dealt: list?.dealt ?? null,
   };
 }
@@ -151,6 +162,7 @@ export function startChosen(s: Settings, seed: number, id: string): Settings {
 
 /** The RUN row's stop each machine stands on. */
 const MACHINE_RUN: Record<RunMachine, string> = {
+  bike: BIKE_RUN,
   heli: HELI_RUN,
   sled: SLED_RUN,
   para: PARA_RUN,

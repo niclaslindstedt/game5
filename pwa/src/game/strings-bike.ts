@@ -5,9 +5,11 @@
 // a green's a gentle word, a blue's the flow and the berms, a red's the
 // roots and the rocks of the woods it drops through, a black's fearsome;
 // the race line is the DOWNHILL. Dealt off a hash of the map's seed and
-// the trail's id, never the stream.
+// the trail's id, never the stream. And below them THE WORDS OF THE RIDE
+// ITSELF (`bike.ts`), spread into `STRINGS` as `BIKE_STRINGS` as the
+// snowmobile's are: the START row's stop, the news a ride earns, its HUD.
 
-import type { TrailGrade } from "@engine";
+import type { BikeCrash, BikeLanding, TrailGrade } from "@engine";
 
 export const BIKE_TRAIL_NAMES: Readonly<Record<TrailGrade, readonly string[]>> = {
   green: ["EASY FLOW", "MEADOW LINE", "FIRST TURNS", "LAZY BERMS", "VALLEY WAY", "SUNNY SIDE"],
@@ -18,3 +20,48 @@ export const BIKE_TRAIL_NAMES: Readonly<Record<TrailGrade, readonly string[]>> =
 
 /** The race line's name on its start sign. */
 export const BIKE_RACE_NAME = "DOWNHILL";
+
+const LANDINGS: Record<BikeLanding, string> = {
+  clean: "CLEAN",
+  cased: "CASED IT",
+  nosed: "NOSED IN",
+  overshot: "OVERSHOT",
+  flat: "TO FLAT",
+};
+
+const CRASHES: Record<BikeCrash, string> = {
+  bars: "OVER THE BARS!",
+  washout: "FRONT WASHED OUT!",
+  lowside: "LOWSIDED!",
+  landing: "CRASH LANDING",
+  hit: "BIKE HIT!",
+  down: "OFF THE BIKE!",
+};
+
+export const BIKE_STRINGS = {
+  /** The START row's summer stop: the ride begun on the downhill bike. */
+  startRunBike: "BIKE",
+
+  /* ── THE NEWS (run-news.ts) ────────────────────────────────────────── */
+  newsBikeBoard: "BACK ON THE BIKE",
+  newsBikeHop: "OFF THE BIKE",
+  newsBikeRight: "BACK ON THE TRAIL",
+  newsBikeRestart: "AT THE TRAIL HEAD",
+  newsBikeLift: "BIKE HOOKED ON",
+  /** A landing judged, with the body's peak load past a clean one. */
+  newsBikeLand: (landing: BikeLanding, air: number): string =>
+    landing === "clean" ? `${LANDINGS.clean} ${air.toFixed(1)} S` : LANDINGS[landing],
+  /** How he came off it. */
+  newsBikeCrash: (how: BikeCrash | undefined): string => CRASHES[how ?? "down"],
+
+  /* ── THE HUD (hud-bike.tsx) ────────────────────────────────────────── */
+  /** How far is left of the trail he rides. */
+  bikeToGo: (m: number): string =>
+    m >= 1000 ? `${(m / 1000).toFixed(1)} KM` : `${Math.round(m / 10) * 10} M`,
+  bikeFalls: (n: number): string => (n === 1 ? "1 FALL" : `${n} FALLS`),
+  /** The way to it, walking; and how to get on, stood beside it. */
+  bikeCall: "BIKE",
+  bikeAway: (m: number): string => `${Math.round(m)} M`,
+  bikeTake: (touch: boolean, key: string): string =>
+    touch ? "TAP TO RIDE" : `${key} OR CLICK TO RIDE`,
+};

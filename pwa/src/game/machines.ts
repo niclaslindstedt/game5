@@ -15,12 +15,22 @@
 // plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
-import { planeBoxes, stripBoxes, type GameState, type Level, type StripBox } from "@engine";
+import {
+  bikePose,
+  planeBoxes,
+  stripBoxes,
+  type GameState,
+  type Level,
+  type StripBox,
+} from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import { heliHull, type SolidBox } from "./camera-clear.ts";
 import type { LensPose, RigPose, Vec3 } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
+import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
+import { createBikeView, type BikeView } from "./bike-view.ts";
+import { riderPose, walkingPose } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
@@ -178,6 +188,9 @@ export function createMachines(
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
   const sled: SledScene | null = state.rules.sled ? createSledScene(haze) : null;
+  // THE DOWNHILL BIKE (`bike-view.ts`), on a summer ride begun on it.
+  const bike: BikeView | null = state.bike ? createBikeView(haze) : null;
+  if (bike) group.add(bike.group);
   // The paramotor rides every free ride's rules, drawn only while a run
   // carries the rig (`GameState.para`) — and the hot air balloon while a
   // run carries one (`GameState.balloon`). A run begun with neither never
@@ -310,6 +323,20 @@ export function createMachines(
       seated = model;
       model.setPerch(heli?.perch(s) ?? para?.perch(s) ?? null);
       model.setSled(sled ? sled.stand(s) : null);
+      // ON THE BIKE (`skier-bike.ts`): on it in the attack stance, or
+      // walking beside it — his skis and poles put away all ride long.
+      const b = s.bike;
+      if (b) {
+        const thrown = !!s.skier.thrown;
+        model.setBiking?.(true);
+        model.setStood?.(
+          b.onIt && !thrown
+            ? riderPose(bikePose(b))
+            : b.afoot && !s.skier.lift && !thrown
+              ? walkingPose(b.afoot)
+              : null,
+        );
+      }
       // Out of the plane's door and under the canopy, every stage of the
       // jump is a shape of his limbs (`skier-skydive.ts`).
       // ...or in a WINGSUIT, no skis on: the flyer's own (`skier-wingsuit.ts`).
@@ -332,6 +359,7 @@ export function createMachines(
       const h = s.heli;
       hull = h && !h.rider && h.mode !== "wreck" ? heliHull(h, hullBox) : null;
       sledFx.stamps = stamps;
+      bike?.update(s, alpha, dt, player);
       sled?.frame(s, alpha, dt, simDt, player, sledFx, {
         shown: rung === "helmet" && ridingSled(s.sled, !!s.skier.thrown),
         outfit: fx.wearing?.(),
@@ -541,6 +569,10 @@ export function createMachines(
         paraRigPose(pose, chute.canopy(), 1, CHUTE_LIFT);
         return CHUTE_RIGS;
       }
+      if (bike && ridingBike(s.bike, !!s.skier.thrown)) {
+        bikeRigPose(pose, s.bike, bike.drawn());
+        return BIKE_RIGS;
+      }
       if (!ridingSled(s.sled, !!s.skier.thrown)) return undefined;
       sledRigPose(pose, s.sled, sled?.drawn() ?? null, s.skier.spec.cogHeight);
       return SLED_RIGS;
@@ -573,6 +605,7 @@ export function createMachines(
       haze.uMistAloft.value = 0;
       heli?.dispose();
       sled?.dispose();
+      bike?.dispose();
       groomers?.dispose();
       traffic?.dispose();
       doors?.dispose();

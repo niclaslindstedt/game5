@@ -64,6 +64,9 @@ export function creakAt(slot: number): { size: number; pitch: number } | null {
  * the snow, 0..1 each — what a machine, a skydive or a ski jump's own bed
  * owns instead. */
 export function rideShares(state: GameState): { air: number; snow: number } {
+  // On the downhill bike there are no skis on any snow: the ground is the
+  // bike's bed (`bike-bed.ts`).
+  if (state.bike) return { air: 1, snow: 0 };
   if (state.plane?.rider) return { air: 0, snow: 0 };
   // On a ski jump's bar and tracks the skis are in the tracks' grooves and
   // in its air the wind is the flight's — both the jump bed's

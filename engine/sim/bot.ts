@@ -25,6 +25,7 @@ import { chutePilot } from "../game/chute-pilot.ts";
 import { sledPilot } from "../game/sled-pilot.ts";
 import { paraPilot } from "../game/para-pilot.ts";
 import { balloonPilot } from "../game/balloon-pilot.ts";
+import { bikeAim, bikePilot, type BikeAim } from "./bike-pilot.ts";
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import {
@@ -618,6 +619,10 @@ function blockedSide(
   return side;
 }
 
+/** THE BIKE BOT'S MEMO a run (`bike-pilot.ts`'s `BikeAim`: how far down
+ * its trail it has got), kept beside the state and never in it. */
+const bikeAims = new WeakMap<GameState, BikeAim>();
+
 /** The bot's controls for this step. `lane` is the line it holds down the
  * piste, m right of the centreline — a rival's own slot's (`rivals.ts`); the
  * centreline, the racing line, when nothing says (the player's stand-in in
@@ -647,6 +652,13 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   if (state.para && state.para.mode !== "dropped" && !c.thrown) return paraPilot(state);
   // ...and in a hot air balloon's basket, the bot flies it (`balloon-pilot.ts`).
   if (state.balloon?.aboard) return balloonPilot(state);
+  // ...and on a summer free ride's downhill bike it rides the trail it was
+  // begun on (`bike-pilot.ts`), down to its foot.
+  if (state.bike) {
+    let aim = bikeAims.get(state);
+    if (!aim) bikeAims.set(state, (aim = bikeAim(state)));
+    return bikePilot(state, aim);
+  }
   // ...and on a ski jumping hill, the jump (`ski-jump-steer.ts`).
   const jumped = skiJumpInput(state);
   if (jumped) return jumped;

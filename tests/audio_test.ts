@@ -207,11 +207,9 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * trunk or the edges' scrape that started it — and a body found too hurt to
  * get up has nothing more to say than the fall that did it; a ski jump's
  * moments are heard in the events beside them (the take-off's `air`, the
- * touch's `land`); and the downhill bike is built in the engine alone so
- * far — its sounds come with its drawing. */
+ * touch's `land`). */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
-  "bike",
   "stuck",
   "damage",
   "save",

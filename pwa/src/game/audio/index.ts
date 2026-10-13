@@ -24,6 +24,7 @@ import { createBirdBed, type BirdBed } from "./bird-bed.ts";
 import { engineSfx, sfx } from "./bus.ts";
 import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { createSledBed, type SledBed } from "./sled-bed.ts";
+import { createBikeBed, type BikeBed } from "./bike-bed.ts";
 import { createParaBed, type ParaBed } from "./para-bed.ts";
 import { createBalloonBed, type BalloonBed } from "./balloon-bed.ts";
 import { createPlaneBed, type PlaneBed } from "./plane-bed.ts";
@@ -71,6 +72,9 @@ export function createRunAudio(): RunAudio {
   // THE FREE RIDE'S SNOWMOBILE (`sled-bed.ts`), heard from the skier,
   // through the effects' fader as the helicopter is.
   const sled: SledBed = createSledBed(sfx);
+  // THE SUMMER FREE RIDE'S DOWNHILL BIKE (`bike-bed.ts`): its tyres, hub,
+  // chain and brakes under him.
+  const bike: BikeBed = createBikeBed(sfx);
   // THE FREE RIDE'S PARAMOTOR (`para-bed.ts`), on the skier's back.
   const para: ParaBed = createParaBed(sfx);
   // THE FREE RIDE'S HOT AIR BALLOON (`balloon-bed.ts`): its burner over
@@ -114,6 +118,7 @@ export function createRunAudio(): RunAudio {
         if (
           (event.kind === "heli" ||
             event.kind === "sled" ||
+            event.kind === "bike" ||
             event.kind === "para" ||
             event.kind === "balloon" ||
             event.kind === "plane" ||
@@ -159,6 +164,7 @@ export function createRunAudio(): RunAudio {
       birds.update(state, dt, outside);
       heli.update(state, dt, outside);
       sled.update(state, dt, outside);
+      bike.update(state, dt, outside);
       para.update(state, dt, outside);
       balloon.update(state, dt, outside);
       plane.update(state, dt, outside);
@@ -172,6 +178,7 @@ export function createRunAudio(): RunAudio {
       birds.setView(view);
       heli.setView(view);
       sled.setView(view);
+      bike.setView(view);
       para.setView(view);
       balloon.setView(view);
       plane.setView(view);
@@ -184,6 +191,7 @@ export function createRunAudio(): RunAudio {
       birds.silence();
       heli.silence();
       sled.silence();
+      bike.silence();
       para.silence();
       balloon.silence();
       plane.silence();
@@ -197,6 +205,7 @@ export function createRunAudio(): RunAudio {
       birds.reset();
       heli.reset();
       sled.reset();
+      bike.reset();
       para.reset();
       balloon.reset();
       plane.reset();

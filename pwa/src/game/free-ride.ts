@@ -683,6 +683,19 @@ export function standingFor(
   return same ? level : undefined;
 }
 
+/** The map a free ride was stood up on, and the ask it answered
+ * (`seed-maps.ts`'s `askKey`: the seed, the country or real face, the grade). */
+export type RiddenMap = { ask: string; level: Level };
+
+/** THE MOUNTAIN BEING RIDDEN, kept for another free ride on it: `ridden`'s
+ * map where it is still the one standing (`current`) and the ride asks for
+ * the same mountain — the pause card's PISTE MAP picking another run or
+ * start. Ridden again as it is (`freeAgainOptions`), so nothing is generated
+ * or built and the ride only moves the rider. */
+export function rideKept(ridden: RiddenMap | null, current: Level, ask: string): Level | undefined {
+  return ridden && ridden.level === current && ridden.ask === ask ? current : undefined;
+}
+
 /** A ride stood on a link's real `face` — a link to one of the free
  * ride's cards opens it there — (in the face's own country), or
  * the ride as it is where the link names none this build has. */

@@ -651,12 +651,14 @@ export function createWorldRenderer(
             carveOf(skier),
           );
         }
-        // The landing puff: grounded now, in the air at the last frame.
+        // The landing puff: grounded now, in the air at the last frame. A
+        // rider on a lift's rope is "down" on steel, not snow: he throws none.
+        const onRope = !!skier.grind;
         let landed = 0;
-        if (r.wasAirborne && !skier.airborne && r.airTime > 0.25) {
+        if (r.wasAirborne && !skier.airborne && r.airTime > 0.25 && !onRope) {
           landed = Math.abs(r.vy) + r.airTime * 2;
         }
-        if ((simDt > 0 || landed > 0) && !run.plane?.rider) {
+        if ((simDt > 0 || landed > 0) && !run.plane?.rider && !onRope) {
           spray.emit(skier, level, simDt, landed, thrownSnow(skier.x, skier.z));
           cloud.emit(skier, simDt, landed, thrownSnow);
         }

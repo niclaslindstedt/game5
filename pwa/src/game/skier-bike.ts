@@ -16,10 +16,10 @@
 //
 // Three-free, so the suite reads it.
 
-import { BIKE, type BikePose } from "@engine";
+import { BIKE, BIKE_BB, type BikePose } from "@engine";
 
-import { bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
-import { ANKLE, keyPoints, movePose, type Key } from "./party-pose.ts";
+import { GRIPS, bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
+import { ANKLE, keyOf, keyPoints, movePose, type Key } from "./party-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import type { SkierPose } from "./skier-pose.ts";
 
@@ -75,14 +75,36 @@ export function riderPose(pose: BikePose): (ground: number, frame: BodyFrame) =>
   return (_ground, frame) => ragdollPose(points, frame);
 }
 
+/** WHERE HIS NEAR HAND HOLDS THE BIKE HE PUSHES, in his own frame (x his
+ * right, y up off the ground, z ahead), m: the bike's near grip, the bike
+ * stood `BIKE.walk.push` from him with nobody on its springs — the bottom
+ * bracket at its static 0.355 m, the grips `GRIPS` over it. */
+export function pushGrip(): V3 {
+  const P = BIKE.walk.push;
+  const side = Math.sign(P.across) || -1;
+  // The grip on his side of the bike: the bike's own −x when it stands to
+  // his right, +x to his left.
+  const grip = GRIPS[side < 0 ? 1 : 0];
+  return v(P.across + grip.x, 0.355 + grip.y, P.ahead + grip.z + BIKE_BB.z);
+}
+
 /** OFF THE BIKE, WALKING beside it (`BikeState.afoot`): the walk of a body
- * off its skis, its stride paced to his; stood still, stood. */
+ * off its skis, its stride paced to his; stood still, stood. PUSHING it,
+ * his near hand is on its near grip (`pushGrip`) and his head turned a
+ * little to it; the other arm swings with his stride. */
 export function walkingPose(walk: {
   walked: number;
   pace: number;
+  push?: boolean;
 }): (ground: number, frame: BodyFrame) => SkierPose {
   const pace = Math.min(1, Math.abs(walk.pace) / BIKE.walk.speed);
   // The stride's phase off the ground covered (a full stride ~1.6 m).
   const t = walk.walked / 1.36;
-  return (ground, frame) => movePose({ kind: "walk", t, pace }, ground, frame);
+  if (!walk.push) return (ground, frame) => movePose({ kind: "walk", t, pace }, ground, frame);
+  const key = keyOf({ kind: "walk", t, pace });
+  const near = BIKE.walk.push.across < 0 ? 0 : 1;
+  key.hands[near] = pushGrip();
+  key.twist += 0.12 * Math.sign(BIKE.walk.push.across);
+  key.pitch += 0.06;
+  return (ground, frame) => ragdollPose(keyPoints(key, ground), frame);
 }

@@ -173,9 +173,11 @@ export type BikeState = {
   hitCooldown: number;
   lift: string | null;
   /** OFF THE BIKE ON FOOT (`bike.ts`): how far he has walked, m, and his
-   * pace, m/s — the gait the drawing reads — or null while he rides, is
-   * carried or lies thrown. */
-  afoot: { walked: number; pace: number } | null;
+   * pace, m/s — the gait the drawing reads — and whether he is PUSHING the
+   * bike beside him by its bars (it stood upright on its wheels at his
+   * side, `BIKE.walk.push`), or null while he rides, is carried or lies
+   * thrown. */
+  afoot: { walked: number; pace: number; push: boolean } | null;
   /** The trail the ride was begun at the head of (`startBike`), begun there
    * again on a restart. */
   trail: string | null;

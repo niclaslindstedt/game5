@@ -710,8 +710,10 @@ function onSkisAgain(again: CreateGameOptions): CreateGameOptions {
  * (`freeTopOptions`) put him, read in the order `createGame` reads them —
  * the balloon's basket, the paramotor's summit, the plane's door on its
  * strip, the helicopter's pad, the snowmobile, the wingsuit's own exit,
- * then the top of the last piste skied, else the start line. */
-export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip" | "exit";
+ * the downhill bike at its trail's head, then the top of the last piste
+ * skied, else the start line. */
+export type AgainAt =
+  "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip" | "exit" | "trail";
 
 export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainAt {
   if (rules.course || rules.tricks || !next) return "start";
@@ -721,6 +723,7 @@ export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainA
   if (rules.heli && next.heli) return "pad";
   if (rules.sled && next.sled) return "sled";
   if (next.wingsuit && !next.inLodge) return "exit";
+  if (next.bike && !next.inLodge) return "trail";
   return next.run !== undefined ? "top" : "start";
 }
 

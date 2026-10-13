@@ -348,7 +348,27 @@ function handsAim(b: BikeState, ctl: BikeControls, ride: BikeRide, dt: number): 
   // assist's hands ease the correction by how far past it is.
   let fix = kp * (phi - want) + kd * phiRate;
   if (b.front.over > 1) fix /= 1 + (b.front.over - 1) * ride.yaw;
+  // At a crawl his knees, hips and a dabbed foot hold it up (`substep`'s
+  // own help), so his hands no longer steer it upright: the bars are held
+  // to the turn asked. Steered to balance there, a gain that grows as the
+  // speed's square falls swings them to the lock off any lean — a cross
+  // slope, a rut — and turns a bike rolled into a load zone off its line.
+  // Laid over past what a knee holds (`hands.crawlLean`, a slow turn's
+  // lean), the hands steer it up again as at speed.
+  const upright = clamp(1 - Math.abs(phi) / H.crawlLean, 0, 1);
+  fix *= 1 - crawlHeld(Math.abs(b.way), ride) * upright;
   return clamp(sign * (kin + fix), -BIKE.steer.lock, BIKE.steer.lock);
+}
+
+/** HOW MUCH OF HIS BALANCE HIS KNEES, HIPS AND A FOOT TAKE at `speed` m/s,
+ * 0..1: the assist's share under `hands.slow`, faded out by `hands.fast`,
+ * and all of it once a foot is down under `hands.dab`. */
+function crawlHeld(speed: number, ride: BikeRide): number {
+  if (!ride.hands) return 0;
+  return Math.min(
+    1,
+    ride.yaw * clamp((H.fast - speed) / (H.fast - H.slow), 0, 1) + (speed < H.dab ? 1 : 0),
+  );
 }
 
 /** The height of the ground under the bike, m, off the wheels' planes. */
@@ -660,12 +680,11 @@ function substep(
   if (anyTouch && ride.hands) {
     // At a crawl his knees and hips hold it up, the assist's share of it —
     // and under `dab` a foot goes down.
-    const share =
-      ride.yaw * clamp((H.fast - speed) / (H.fast - H.slow), 0, 1) + (speed < H.dab ? 1 : 0);
+    const share = crawlHeld(speed, ride);
     if (share > 0) {
       const phi = rollOf();
       const rate = -(ww.x * fwd.x + ww.y * fwd.y + ww.z * fwd.z);
-      const t = Math.min(share, 1) * (H.knees.rate * (phi - b.aimLean) + H.knees.damping * rate);
+      const t = share * (H.knees.rate * (phi - b.aimLean) + H.knees.damping * rate);
       tx += fwd.x * t;
       ty += fwd.y * t;
       tz += fwd.z * t;

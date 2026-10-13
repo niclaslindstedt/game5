@@ -54,6 +54,9 @@ const villages = new WeakMap<Level, Village | null>();
 
 /** THE VILLAGE of `level` with its streets, or null where it has none. */
 export function villageOf(level: Level): Village | null {
+  // A summer map's BIKE PARK (R44) is a copy of the map it was laid on, whose
+  // cabins — and so whose streets — are the base's (`cabinsOf`).
+  if (level.bikePark) return villageOf(level.bikePark.base);
   const had = villages.get(level);
   if (had !== undefined) return had;
   cabinsOf(level);

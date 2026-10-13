@@ -20,6 +20,7 @@
 import * as THREE from "three";
 
 import type { Tracks } from "./piste-tracks.ts";
+import { SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import type { SkyLook } from "./sky.ts";
 import type { SnowAge } from "./snow-age.ts";
 import { TERRAIN_SHADOW_GLSL } from "./terrain-shadow.ts";
@@ -44,6 +45,15 @@ export type HazeUniforms = {
   uHorizon: { value: THREE.Color };
   uGlow: { value: THREE.Color };
   uSunCol: { value: THREE.Color };
+  /** THE DOME'S RADIANCE (`SkyLook.view`): the physical sky by the azimuth
+   * from the sun and the view's elevation, exposed — what `skyColour(dir)`
+   * reads. The LOW sky's from the baked table; the GPU sky (MEDIUM, HIGH)
+   * renders into the same slot. */
+  uSkyView: { value: THREE.DataTexture };
+  /** THE LOW AIR IN EARTH'S SHADOW (`SkyLook.hazeShadow`): rgb the
+   * shadowed air's colour, w the share of the haze over the ground it
+   * takes — none while the sun is up, all of it a few degrees under. */
+  uHazeShadow: { value: THREE.Vector4 };
   uHaze: { value: number };
   /** THE MIST the DISTANCE row closes on (`mistFor`): its wall, m, past
    * which nothing is seen and nothing is drawn; 0 is no mist. */
@@ -173,6 +183,8 @@ export function createHazeUniforms(): HazeUniforms {
     uHorizon: { value: new THREE.Color() },
     uGlow: { value: new THREE.Color() },
     uSunCol: { value: new THREE.Color() },
+    uSkyView: { value: skyViewTexture() },
+    uHazeShadow: { value: new THREE.Vector4(0, 0, 0, 0) },
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },
     uMistAloft: { value: 0 },
@@ -214,6 +226,40 @@ export function createHazeUniforms(): HazeUniforms {
   };
 }
 
+/** The dome's radiance grid as a texture: half floats, filtered, clamped. */
+function skyViewTexture(): THREE.DataTexture {
+  const data = new Uint16Array(SKY_VIEW_AZ * SKY_VIEW_EL * 4);
+  const tex = new THREE.DataTexture(
+    data,
+    SKY_VIEW_AZ,
+    SKY_VIEW_EL,
+    THREE.RGBAFormat,
+    THREE.HalfFloatType,
+  );
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearFilter;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.colorSpace = THREE.NoColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/** The look's radiance grid into the dome's texture — only when it moved. */
+function writeSkyView(tex: THREE.DataTexture, view: Float32Array): void {
+  const data = tex.image.data as Uint16Array;
+  let moved = false;
+  for (let k = 0, n = view.length / 3; k < n; k++)
+    for (let c = 0; c < 3; c++) {
+      const h = THREE.DataUtils.toHalfFloat(Math.min(65000, view[k * 3 + c]));
+      if (data[k * 4 + c] !== h) {
+        data[k * 4 + c] = h;
+        moved = true;
+      }
+    }
+  if (moved) tex.needsUpdate = true;
+}
+
 /** Write a `SkyLook` into the shared uniforms. Colours are LINEAR, so they
  * are set channel by channel rather than through `Color.set`, which would
  * treat them as sRGB. */
@@ -224,6 +270,8 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
   u.uHorizon.value.setRGB(...look.horizon);
   u.uGlow.value.setRGB(...look.glow);
   u.uSunCol.value.setRGB(...look.sunColour);
+  writeSkyView(u.uSkyView.value, look.view);
+  u.uHazeShadow.value.set(...look.hazeShadow);
   u.uHaze.value = look.haze;
   u.uHazeLift.value = look.hazeLift;
   // A valley fog is thick at the floor and gone over the peaks.
@@ -240,28 +288,39 @@ uniform vec3 uZenith;
 uniform vec3 uHorizon;
 uniform vec3 uGlow;
 uniform vec3 uSunCol;
+uniform sampler2D uSkyView;
+uniform vec4 uHazeShadow;
 uniform float uHaze;
 uniform float uMist;
 uniform float uMistAloft;
 uniform float uHazeLift;
 uniform float uHazeFloor;
 
+// The physical sky (\`uSkyView\`): its grid is the azimuth from the sun
+// packed toward it (u = sqrt(az / pi)) by the view's elevation packed toward
+// the horizon (v = sqrt(el / (pi / 2))) — sky-table-format.ts's layout.
+// Under the horizon the dome is the horizon's own air.
 vec3 skyColour(vec3 dir) {
-  float up = clamp(dir.y, 0.0, 1.0);
-  vec3 c = mix(uHorizon, uZenith, pow(up, 0.5));
-  float mu = max(dot(normalize(dir), uSunPos), 0.0);
-  // The aureole round the sun, strongest low on the dome.
-  c += uGlow * (0.22 * pow(mu, 6.0) + 0.5 * pow(mu, 48.0)) * (1.0 - 0.6 * up);
-  // Under the horizon the dome is the far snow's glare in the air.
-  if (dir.y < 0.0) c = mix(c, uHorizon * 1.04, clamp(-dir.y * 6.0, 0.0, 1.0));
-  return c;
+  vec3 d = normalize(dir);
+  float up = clamp(d.y, 0.0, 1.0);
+  float hl = length(d.xz);
+  float sl = length(uSunPos.xz);
+  float ca = (hl > 1e-4 && sl > 1e-4) ? dot(d.xz, uSunPos.xz) / (hl * sl) : 1.0;
+  float u = sqrt(acos(clamp(ca, -1.0, 1.0)) / 3.14159265);
+  float v = sqrt(asin(up) / 1.57079633);
+  vec2 uv = vec2(
+    (u * ${(SKY_VIEW_AZ - 1).toFixed(1)} + 0.5) / ${SKY_VIEW_AZ.toFixed(1)},
+    (v * ${(SKY_VIEW_EL - 1).toFixed(1)} + 0.5) / ${SKY_VIEW_EL.toFixed(1)});
+  return texture2D(uSkyView, uv).rgb;
 }
 
 // The colour a far surface fades into along \`dir\`: the sky just over the
 // horizon on that bearing.
 vec3 hazeColour(vec3 dir) {
   vec3 d = normalize(vec3(dir.x, clamp(dir.y, -0.02, 0.06), dir.z));
-  return skyColour(d);
+  // After sunset the valleys' air is in Earth's shadow: the far ridges
+  // stand dark against the glow, not lit by it.
+  return mix(skyColour(d), uHazeShadow.rgb, uHazeShadow.w);
 }
 
 // How much of that colour stands between the lens and a point \`dist\` m

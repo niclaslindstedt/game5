@@ -14,20 +14,26 @@
 // turns a `SkyLook` into lights and uniforms every frame; nothing else
 // decides what colour the air is.
 //
-// The CLEAR DAY is the model everything else is laid over, and it is a
-// function of the sun's height alone:
+// The CLEAR DAY is the model everything else is laid over, and it is
+// PHYSICAL: Hillaire's atmosphere (`atmosphere-model.ts` — Rayleigh's air,
+// the aerosol's Mie haze, the ozone, multiple scattering, the planet's
+// shadow, a ground of fresh snow under it) baked offline into a table
+// (`make sky-table`) that `sky-atmosphere.ts` reads for the sun's height
+// and the lens's altitude:
 //
-//   * THE SUN'S COLOUR is the air it crossed. Transmittance per channel is
-//     `exp(-k · airmass)` with the Rayleigh-leaning extinction below and the
-//     Kasten–Young air mass, so a noon sun is a hair warm of white and a sun
-//     ten degrees up is gold — without a table of hand-picked oranges.
-//   * THE SKY OVER SNOW IS BRIGHT. Fresh snow sends most of the light back
-//     up, and a winter sky's horizon is a pale, almost white blue because of
-//     it; the zenith deepens as the sun climbs.
-//   * THE SHADOWS ARE BLUE. What fills a snow shadow is the sky, so the
-//     hemisphere's upper colour is a real blue and the ground bounce under
-//     it is near-white — which is what makes shade on snow read as snow in
-//     shade rather than grey paint.
+//   * THE SKY by direction (`view`, the dome's texture): a blue zenith over
+//     a white horizon at noon, the glow round a low sun, the Belt of Venus
+//     and Earth's shadow under it after sunset, a blue twilight zenith —
+//     none of it painted, all of it in the table.
+//   * THE SUN'S COLOUR is its transmittance through the air it crossed:
+//     near white at noon, gold at ten degrees, orange-red on the horizon.
+//   * THE SHADOWS ARE BLUE: the sky's irradiance on a surface (`irradiance`,
+//     L2 harmonics turned to the sun's bearing) is the hemisphere light —
+//     blue from above, the snow's near-white bounce from below.
+//   * THE EYE ADAPTS: the physics spans ten decades from noon to night, so
+//     the look is EXPOSED by the light on the snow (`exposureOf`) — a little
+//     by day, much more through the twilights, and the dome alone pressed
+//     about its own mean (`DOME`), as an eye looking at the sky sees it.
 //
 // Over that, two things:
 //
@@ -63,7 +69,17 @@ import {
   type Weather,
 } from "@engine";
 
+import { shIrradiance, shRotateY } from "./atmosphere-model.ts";
+import {
+  adaptingLight,
+  AMBIENT_LIFT,
+  atmosphereRow,
+  EXPOSURE,
+  exposureOf,
+  sunTransmittance,
+} from "./sky-atmosphere.ts";
 import { skyClock } from "./sky-clock.ts";
+import { SKY_GRID, SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import { DEFAULT_TURN, skyTurnOf, type SkyTurn } from "./starfield.ts";
 import { TERRAIN_SHADOW } from "./terrain-shadow.ts";
 
@@ -97,6 +113,9 @@ export type SkyLook = {
   horizon: Rgb;
   /** The horizon's glow around the sun (and after it has set). */
   glow: Rgb;
+  /** The low air in Earth's shadow, and the share of the haze over the
+   * ground it takes (`haze.ts`'s `hazeColour`): rgb, share. */
+  hazeShadow: [number, number, number, number];
   /** The sun's own colour through the air it crossed — its disc. */
   sunColour: Rgb;
   /** THE KEY LIGHT: toward it (the sun by day, the moon by night), its
@@ -109,6 +128,18 @@ export type SkyLook = {
   skyLight: Rgb;
   groundLight: Rgb;
   ambient: number;
+  /** THE DOME as the physical sky gives it (LOW reads it as it is): the
+   * radiance by the azimuth from the sun and the view's elevation on
+   * `sky-table-format.ts`'s grid, linear RGB, exposed — the weather's lid
+   * or veil laid over it. `haze.ts` uploads it as the texture
+   * `skyColour(dir)` reads. */
+  view: Float32Array;
+  /** THE SKY'S LIGHT ON A SURFACE: L2 irradiance harmonics in the world
+   * frame (27: nine coefficients, RGB each), exposed — `skyIrradiance(n)`
+   * on the GPU, `shIrradiance` here. */
+  irradiance: number[];
+  /** The eye's adaptation the look is exposed at (`exposureOf`). */
+  exposure: number;
   /** The haze's density, 1/m — the distance the far rim is lost over. */
   haze: number;
   /** How low the haze lies: its thinning height, m (a valley fog's is low,
@@ -248,38 +279,128 @@ const LID_HAZE = 1 / 1500;
  * 3.912 / V. */
 const KOSCHMIEDER = 3.912;
 
+/** The lens's altitude over the sea a look is reckoned at when none is
+ * named, m: a generated mountain's middle. */
+const DEFAULT_ALTITUDE = 800;
+
+/** The night sky's own floor (starlight, airglow) at the zenith and the
+ * horizon, linear — what is left when the twilight has gone. */
+const NIGHT_ZENITH: Rgb = [0.004, 0.008, 0.024];
+const NIGHT_HORIZON: Rgb = [0.014, 0.022, 0.05];
+
+/** THE DOME'S OWN TONE: the sky's span pressed to this power of itself
+ * about its mean, and lifted by `gain` (the sky is looked at, and the eye
+ * opens to it). The lights are never pressed: only what the dome shows.
+ * `horizon` pulls the grazing row (the sky through hundreds of kilometres
+ * of air, the haze's colour too) that share of the way, in the logarithm,
+ * toward the row a degree and a half over it: in the mountains the far
+ * ground stands in front of that path, and what the haze shows is the air
+ * of the valleys, not of the whole curve of the Earth. */
+/** The cloud layers' heights over the sea, m: a fair day's heaps and a
+ * high veil's ice. */
+const CLOUD_HEIGHT = { heap: 2500, streak: 8000 } as const;
+/** A white cloud's radiance per unit of the sun's light on it (a thick
+ * cloud's sunward face, ~0.9 of it sent back over a hemisphere: 0.9/π). */
+const CLOUD_WHITE = 0.28;
+const CLOUD_SUN: Rgb = [0, 0, 0];
+
+export const DOME = { span: 0.5, gain: 2.3, horizon: 0.5 } as const;
+
+const UP = { x: 0, y: 1, z: 0 };
+const DOWN = { x: 0, y: -1, z: 0 };
+const lum = (c: Rgb): number => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+const lumAt = (g: Float32Array, k: number): number =>
+  0.2126 * g[k] + 0.7152 * g[k + 1] + 0.0722 * g[k + 2];
+const ROW = atmosphereRow(0, 0);
+const UP_IRR: Rgb = [0, 0, 0];
+const DOWN_IRR: Rgb = [0, 0, 0];
+/** The last physical row read, kept while the sun has moved less than
+ * `PHYS_STEP` rad (a hundredth of a degree — at the sky's clock a tenth of
+ * a second of run), so a frame reads the table only when the sky changed. */
+const PHYS = { elevation: NaN, altitude: NaN, mean: 1 };
+const PHYS_STEP = 2e-4;
+
+/** THE PHYSICAL SKY for this sun and lens (`atmosphereRow`), with the
+ * grazing row pulled toward the one over it (`DOME.horizon`), the sky's
+ * mean luminance and the irradiance up and down — in `ROW`, `PHYS`,
+ * `UP_IRR` and `DOWN_IRR`. */
+function physicalSky(elevation: number, altitude: number): typeof ROW {
+  if (Math.abs(elevation - PHYS.elevation) < PHYS_STEP && altitude === PHYS.altitude) return ROW;
+  const phys = atmosphereRow(elevation, altitude, ROW);
+  for (let k = 0; k < SKY_VIEW_AZ * 3; k++) {
+    const up = k + SKY_VIEW_AZ * 3;
+    if (phys.grid[k] > 0 && phys.grid[up] > 0)
+      phys.grid[k] *= Math.pow(phys.grid[up] / phys.grid[k], DOME.horizon);
+  }
+  let mean = 0;
+  for (let k = 0; k < SKY_GRID; k += 3) mean += Math.log(Math.max(1e-30, lumAt(phys.grid, k)));
+  PHYS.mean = Math.exp(mean / (SKY_GRID / 3));
+  shIrradiance(phys.sh, UP, UP_IRR);
+  shIrradiance(phys.sh, DOWN, DOWN_IRR);
+  PHYS.elevation = elevation;
+  PHYS.altitude = altitude;
+  return phys;
+}
+
 /** THE WHOLE LOOK for a sun at `azimuth`, `elevation`, a moon, a weather —
- * and the fall at this moment (`snowAt`), the dealt mean when left out. */
+ * and the fall at this moment (`snowAt`), the dealt mean when left out —
+ * seen from `altitude` m over the sea. */
 export function skyLookFor(
   azimuth: number,
   elevation: number,
   moonAt: MoonInput = NO_MOON,
   weather: Weather = CLEAR_WEATHER,
   now?: number,
+  altitude: number = DEFAULT_ALTITUDE,
 ): SkyLook {
   // How "high" the day is, 0 at the horizon to 1 at 45° and over.
   const high = smooth(0.0, 0.8, elevation);
   // How much day there is: 1 with the sun up, 0 by twelve degrees under.
   const day = smooth(-0.21, 0.04, elevation);
   const night = 1 - day;
-  // The band around sunset where the low sky burns.
-  const dusk = smooth(-0.2, -0.01, elevation) * (1 - smooth(0.02, 0.22, elevation));
-  const tint = sunTint(elevation);
-  // Total transmittance (not normalised) is what dims a low sun.
-  const m = Math.min(airMass(elevation), 38);
-  const through = Math.exp(-0.16 * m);
-
-  // THE CLEAR DAY.
-  const zenithDay = mix([0.06, 0.19, 0.62], [0.022, 0.1, 0.46], high);
-  const horizonCool: Rgb = [0.46, 0.64, 0.92];
-  const horizonDay = mix(mix(horizonCool, [0.8, 0.78, 0.8], (1 - high) * 0.35), horizonCool, high);
-  // THE NIGHT, and the twilight between.
   const lightUp = Math.pow(day, 1.6);
-  let zenith = mix([0.004, 0.008, 0.024], zenithDay, lightUp);
-  let horizon = mix([0.014, 0.022, 0.05], horizonDay, lightUp);
-  horizon = mix(horizon, [0.55, 0.38, 0.42], dusk * 0.45 * (1 - high));
-  let glow = mix([1.0, 0.72, 0.45], [1.0, 0.95, 0.88], high);
-  glow = scale(mix(glow, [1.0, 0.42, 0.16], dusk), 0.15 + 0.85 * day);
+
+  // THE CLEAR DAY, out of the physics (`sky-atmosphere.ts`): the sky's
+  // radiance by direction, the sun through the air, the sky's light on a
+  // surface — exposed by the eye's adaptation to the light on the snow.
+  const phys = physicalSky(elevation, altitude);
+  const exposure = exposureOf(adaptingLight(lum(phys.sun), elevation, lum(UP_IRR)));
+  const view = new Float32Array(SKY_GRID);
+  // The dome as the eye LOOKING AT IT sees it: adapted to the sky's own
+  // mean rather than the snow's light, and pressing the sky's own span (a
+  // physical clear sky is near ten times as bright at the horizon as the
+  // zenith; a photograph of one, or an eye on it, shows nearer three) —
+  // every texel's colour kept, its luminance pulled toward the mean.
+  const skyMean = PHYS.mean;
+  for (let j = 0; j < SKY_VIEW_EL; j++) {
+    const v = j / (SKY_VIEW_EL - 1);
+    for (let i = 0; i < SKY_VIEW_AZ; i++) {
+      const k = (j * SKY_VIEW_AZ + i) * 3;
+      const Y = lumAt(phys.grid, k);
+      const press = Y > 0 ? DOME.gain * Math.pow(Y / skyMean, DOME.span - 1) : 0;
+      for (let c = 0; c < 3; c++) {
+        const floor = NIGHT_HORIZON[c] + (NIGHT_ZENITH[c] - NIGHT_HORIZON[c]) * v;
+        view[k + c] = phys.grid[k + c] * exposure * press + floor * night;
+      }
+    }
+  }
+  const cell = (i: number, j: number): Rgb => {
+    const k = (j * SKY_VIEW_AZ + i) * 3;
+    return [view[k], view[k + 1], view[k + 2]];
+  };
+  let zenith = cell(0, SKY_VIEW_EL - 1);
+  // The horizon away from the sun, a little over it (under the Belt).
+  let horizon = cell(SKY_VIEW_AZ - 1, 1);
+  let glow = cell(0, 1);
+  // The air of the valleys falls into Earth's shadow as the sun goes
+  // under: its colour the anti-solar horizon's, under the Belt.
+  const shadowAir = cell(SKY_VIEW_AZ - 1, 0);
+  const shadowShare = smooth(0.01, -0.05, elevation);
+  const sunMax = Math.max(phys.sun[0], phys.sun[1], phys.sun[2]);
+  const tint: Rgb =
+    sunMax > 1e-6
+      ? [phys.sun[0] / sunMax, phys.sun[1] / sunMax, phys.sun[2] / sunMax]
+      : sunTint(elevation);
 
   const moon = sunDirection(moonAt.azimuth, moonAt.elevation);
   const moonUp = smooth(-0.02, 0.18, moonAt.elevation);
@@ -289,17 +410,31 @@ export function skyLookFor(
   const fall = snows(weather.kind) ? (now ?? weather.snowfall) : 0;
   const fog = weather.kind === "fog" ? weather.fog : 0;
   const pass = lid.key * (1 - 0.6 * fall) * (1 - 0.6 * fog);
-  const sunKey = 3.1 * (0.35 + 0.65 * through) * smooth(-0.04, 0.08, elevation);
+  const sunKey = exposure * sunMax;
   const moonKey = MOON_KEY * (0.2 + 0.8 * moonAt.lit) * moonUp * night;
   const byMoon = moonKey > sunKey;
   const keyIntensity = (byMoon ? moonKey : sunKey) * pass;
   const key = byMoon ? moon : sunDirection(azimuth, elevation);
 
-  let skyLight = mix([0.3, 0.42, 0.95], mix([0.42, 0.58, 0.95], [0.36, 0.55, 1.0], high), day);
-  let groundLight: Rgb = [0.86, 0.9, 0.96];
-  // Snow reflects the night as well as the day: a floor of blue light off
-  // the whole sky, raised by the moon.
-  let ambient = (1.25 + 0.35 * high) * lightUp + (0.16 + 0.22 * moonUp * moonAt.lit) * night;
+  // THE SKY'S LIGHT, off the harmonics: blue over a low warm sun because
+  // the sky is, and the snow's bounce under it near-white.
+  const upMax = Math.max(UP_IRR[0], UP_IRR[1], UP_IRR[2], 1e-12);
+  const physAmbient = exposure * AMBIENT_LIFT * upMax;
+  const nightAmbient = (0.16 + 0.22 * moonUp * moonAt.lit) * night;
+  const nightShare = nightAmbient / Math.max(1e-6, physAmbient + nightAmbient);
+  let skyLight = mix(
+    [UP_IRR[0] / upMax, UP_IRR[1] / upMax, UP_IRR[2] / upMax],
+    [0.3, 0.42, 0.95],
+    nightShare,
+  );
+  let groundLight = mix(
+    [DOWN_IRR[0] / upMax, DOWN_IRR[1] / upMax, DOWN_IRR[2] / upMax],
+    [0.86, 0.9, 0.96],
+    nightShare,
+  );
+  let ambient = physAmbient + nightAmbient;
+  const irradiance = shRotateY(phys.sh, azimuth);
+  for (let k = 0; k < 27; k++) irradiance[k] *= exposure * AMBIENT_LIFT;
 
   // THE WEATHER.
   const lidded = lid.genus === 3;
@@ -312,13 +447,36 @@ export function skyLookFor(
     zenith = scale(deck.zenith, light * heavy);
     horizon = scale(deck.horizon, light * heavy);
     glow = scale(glow, 0.12 + 0.3 * fog);
+    // The deck over the whole dome: its grey from the horizon up, a pale
+    // patch where the sun is behind it.
+    for (let j = 0; j < SKY_VIEW_EL; j++) {
+      const v = j / (SKY_VIEW_EL - 1);
+      const up = Math.pow(Math.sin(v * v * (Math.PI / 2)), 0.5);
+      for (let i = 0; i < SKY_VIEW_AZ; i++) {
+        const u = i / (SKY_VIEW_AZ - 1);
+        const mu = Math.max(0, Math.cos(u * u * Math.PI) * Math.cos(v * v * (Math.PI / 2)));
+        const halo = 0.06 * Math.pow(mu, 6) * pass * lightUp;
+        const k = (j * SKY_VIEW_AZ + i) * 3;
+        for (let c = 0; c < 3; c++)
+          view[k + c] = horizon[c] + (zenith[c] - horizon[c]) * up + halo * tint[c];
+      }
+    }
     skyLight = mix(skyLight, [0.8, 0.85, 0.93], day);
     groundLight = mix(groundLight, [0.9, 0.92, 0.95], day);
     // What the lid takes off the key it gives back as a flat, skylit glow —
     // all of it under a thin deck, half under a storm's.
     ambient *= 1 + (LID_LIGHT[kind] - 1) * day;
+    for (let k = 0; k < 27; k++) irradiance[k] *= 1 + (LID_LIGHT[kind] - 1) * day;
   } else if (lid.cover > 0) {
-    zenith = mix(zenith, horizon, lid.cover * (lid.genus === 2 ? 0.35 : 0.12));
+    // A veil or heaps between: the blue thinned toward the horizon's white.
+    const share = lid.cover * (lid.genus === 2 ? 0.35 : 0.12);
+    for (let j = 0; j < SKY_VIEW_EL; j++)
+      for (let i = 0; i < SKY_VIEW_AZ; i++)
+        for (let c = 0; c < 3; c++) {
+          const k = (j * SKY_VIEW_AZ + i) * 3 + c;
+          view[k] += (view[i * 3 + c] - view[k]) * share;
+        }
+    zenith = mix(zenith, horizon, share);
     ambient *= 1 + 0.08 * lid.cover * day;
   }
 
@@ -332,26 +490,46 @@ export function skyLookFor(
   if (weather.kind === "fog") haze = LID_HAZE * (5 + 40 * fog);
   if (fall > 0) haze = Math.max(haze, KOSCHMIEDER / visibilityIn(fall));
 
-  // A heap's sunward top is the sun's colour on white; its base the sky's
-  // own under-light. Under a lid the two are the deck's own greys, far
-  // enough apart that its underside reads as cloud and not as paint — and
-  // furthest in a storm, whose deck boils.
+  // A cloud is lit by the sun THROUGH THE AIR TO IT (`sunTransmittance` at
+  // the layer's height — a heap's 2.5 km, a streak's 8 km, which keeps the
+  // sun after the snow has lost it): white at noon, gold, then orange and
+  // red as the sun goes down, a high veil pink a while after sunset. Its
+  // sunward top takes that light on white over the sky's own; its base the
+  // sky's light, and a low sun's from below. Under a lid the two are the
+  // deck's own greys, far enough apart that its underside reads as cloud
+  // and not as paint — and furthest in a storm, whose deck boils.
   const rough = weather.kind === "storm" ? 1.9 : 1.5;
+  sunTransmittance(elevation, lid.genus === 2 ? CLOUD_HEIGHT.streak : CLOUD_HEIGHT.heap, CLOUD_SUN);
+  // Pressed as the dome is (`DOME`), so a cloud in a low sun under a
+  // twilight's open eye stays orange rather than clipping to cream.
+  const cloudY = lum(CLOUD_SUN) * CLOUD_WHITE * pass;
+  const cloudPress = cloudY > 0 ? DOME.gain * Math.pow(cloudY / skyMean, DOME.span - 1) : 0;
+  const cloudSun: Rgb = scale(CLOUD_SUN, exposure * cloudPress * CLOUD_WHITE * pass);
+  const under = smooth(0.2, 0.01, elevation);
   const cloudLit: Rgb = lidded
     ? scale(zenith, rough)
-    : mix(scale(zenith, 1.6), [1.05 * tint[0], 1.02 * tint[1], tint[2]], lightUp * 0.9);
+    : [cloudSun[0] + zenith[0] * 0.7, cloudSun[1] + zenith[1] * 0.7, cloudSun[2] + zenith[2] * 0.7];
+  const skyUnder = mix(scale(zenith, 1.1), horizon, 0.5);
   const cloudShade: Rgb = lidded
     ? scale(zenith, 0.62)
-    : mix(scale(zenith, 1.2), mix(horizon, [0.6, 0.66, 0.76], 0.5), lightUp);
+    : [
+        skyUnder[0] + cloudSun[0] * (0.12 + 0.5 * under),
+        skyUnder[1] + cloudSun[1] * (0.12 + 0.5 * under),
+        skyUnder[2] + cloudSun[2] * (0.12 + 0.5 * under),
+      ];
 
   // How much of the night sky the cloud leaves: a lid takes all of it, a
   // veil of cirrus some, and heaps only where they stand — which the dome
   // draws over the stars itself.
   const clearNight = 1 - lid.cover * (lidded ? 1 : lid.genus === 2 ? 0.6 : 0.25);
 
-  // The lamps come on as the light goes: nothing under a clear noon, all of
-  // it by the time the sun is a few degrees under or a blizzard shuts in.
-  const lamps = 1 - smooth(1.0, 1.9, keyIntensity + ambient * 0.6);
+  // The lamps come on as the light goes — reckoned on the light ITSELF
+  // (the unexposed sun and sky, at the day's exposure), never on the
+  // eye's adaptation: nothing under a clear noon, all of it by the time the
+  // sun is a degree or two up or a blizzard shuts in.
+  const lidLight = lidded ? LID_LIGHT[weather.kind as keyof typeof LID_LIGHT] : 1;
+  const real = EXPOSURE.key * (lum(phys.sun) * pass + 0.6 * AMBIENT_LIFT * upMax * lidLight);
+  const lamps = 1 - smooth(0.4, 1.0, real);
 
   return {
     sun: sunDirection(azimuth, elevation),
@@ -361,6 +539,7 @@ export function skyLookFor(
     zenith,
     horizon,
     glow,
+    hazeShadow: [shadowAir[0], shadowAir[1], shadowAir[2], shadowShare],
     sunColour: tint,
     key,
     keyColour: byMoon ? MOONLIGHT : tint,
@@ -368,6 +547,9 @@ export function skyLookFor(
     skyLight,
     groundLight,
     ambient,
+    view,
+    irradiance,
+    exposure,
     haze,
     hazeLift: fog > 0 ? 90 + 120 * (1 - fog) : 700,
     cloud: { genus: lid.genus, cover: lid.cover, lit: cloudLit, shade: cloudShade },
@@ -386,12 +568,20 @@ export function skyLookFor(
 
 const fallNow = { fall: 0, visibility: 0 };
 
+/** The altitude over the sea the sky of `level` is reckoned at, m: its
+ * mountain's middle (a valley lens sees a little more air, a summit's a
+ * little less — the table has both). */
+export function lensAltitude(level: Pick<Level, "mountain">): number {
+  const m = level.mountain;
+  return m ? m.altitude + m.vertical / 2 : DEFAULT_ALTITUDE;
+}
+
 /** The look at run time `t` on `level`: the sun, the moon and the stars
  * where the SKY'S CLOCK has them at `t` (the map's start hour run on at
  * `rate` — the app's, `sky-clock.ts`; 0 holds them at the start hour), and
  * the fall as the squalls have it at `t`. */
 export function skyLookAt(
-  level: Pick<Level, "seed" | "sun" | "weather">,
+  level: Pick<Level, "seed" | "sun" | "weather" | "mountain">,
   t = 0,
   rate: number = skyClock(),
 ): SkyLook {
@@ -404,6 +594,7 @@ export function skyLookAt(
     moon,
     weatherOf(level),
     snowAt(level, t, fallNow).fall,
+    lensAltitude(level),
   );
   look.turn = skyTurnOf(sky);
   return look;
@@ -414,7 +605,7 @@ export function skyLookAt(
  * — what the mountain's shadow is baked ahead to (`terrain-shadow.ts`'s
  * `HorizonBlend`). */
 export function keyAheadAt(
-  level: Pick<Level, "seed" | "sun" | "weather">,
+  level: Pick<Level, "seed" | "sun" | "weather" | "mountain">,
   t: number,
   lead: number = TERRAIN_SHADOW.lead,
   rate: number = skyClock(),

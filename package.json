@@ -66,6 +66,7 @@
     "blender": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/blender.mjs",
     "sky": "node scripts/sky-preview.mjs",
     "sky-solar": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sky-solar-lab.mjs",
+    "sky-table": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sky-table.mjs",
     "cloud": "node scripts/cloud-preview.mjs",
     "snowfall": "node scripts/snowfall-preview.mjs",
     "shimmer": "node scripts/shimmer-preview.mjs",

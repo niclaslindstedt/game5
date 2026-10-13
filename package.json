@@ -100,6 +100,7 @@
     "skijump-hills": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skijump-hills-lab.mjs",
     "plane": "node scripts/plane-preview.mjs",
     "skydive": "node scripts/skydive-preview.mjs",
+    "exit-cam": "node scripts/exit-preview.mjs",
     "skydive-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skydive-flight-lab.mjs",
     "wingsuit": "node scripts/wingsuit-preview.mjs",
     "wingsuit-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/wingsuit-flight-lab.mjs",

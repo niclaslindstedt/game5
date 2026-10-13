@@ -899,7 +899,7 @@ export function createWorldRenderer(
     setGhost(run) {
       ghostRun = run;
     },
-
+    exitPace: () => machines?.exitPace() ?? 1,
     setOverride: (view) => void (override = view),
 
     lookAround: gaze.drag,

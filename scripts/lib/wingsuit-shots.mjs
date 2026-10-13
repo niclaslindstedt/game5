@@ -26,4 +26,35 @@ export const WINGSUIT_SURFACES = {
     wait: ".hud-result-landed",
     settle: 1500,
   },
+  // THE THUMBS FLYING THE SUIT (phone): the edge thumb's pad drawn as the
+  // suit seen from above, turned with the bank and slid with the lean, and
+  // the lever's knob the suit again, swept at a full tuck — and eased up
+  // into the back key, spread. Stood on the exit too (`ready`).
+  "wingsuit-thumbs": {
+    params: { start: "free", wingsuit: "1", chute: "500", t: "6", shot: "1" },
+    wait: ".hud",
+    thumbs: [
+      [0.22, 0.72, 34, -26],
+      [0.8, 0.72, 0, 0],
+    ],
+    settle: 1200,
+  },
+  "wingsuit-thumbs-spread": {
+    params: { start: "free", wingsuit: "1", chute: "500", t: "6", shot: "1" },
+    wait: ".hud",
+    thumbs: [
+      [0.22, 0.72, -20, 30],
+      [0.8, 0.75, 0, -150],
+    ],
+    settle: 1200,
+  },
+  "wingsuit-thumbs-canopy": {
+    params: { start: "free", wingsuit: "1", chute: "300", t: "8", shot: "1" },
+    wait: ".hud",
+    thumbs: [
+      [0.22, 0.72, 30, 0],
+      [0.8, 0.72, 0, -60],
+    ],
+    settle: 1200,
+  },
 };

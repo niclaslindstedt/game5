@@ -45,6 +45,7 @@ import {
   type TouchFeel,
 } from "./input-model.ts";
 import type { InputManager } from "./input.ts";
+import { leverSpread, suitPlanform, type PadGlyph } from "./thumb-glyphs.ts";
 import { createThumbGuard } from "@niclaslindstedt/oss-game-framework/input/thumb-guard";
 
 /** Capture the pointer so a drag that leaves the zone keeps steering; a
@@ -93,10 +94,13 @@ export function BarZone({
   touch,
   feel,
   side,
+  glyph = "skis",
 }: {
   touch: InputManager["touch"];
   feel: TouchFeel;
   side: ZoneSide;
+  /** What is drawn under the thumb (`thumb-glyphs.ts`). */
+  glyph?: PadGlyph;
 }) {
   /** The reach ring's half-height in the drawing's own units — the lean's
    * throw — and its half-width, the edge's (shorter on a slalom)... */
@@ -198,18 +202,67 @@ export function BarZone({
               and full lean up and down. */}
           <ellipse cx="50" cy="50" rx={edgeUnits} ry={reachUnits} class="hud-bar-reach" />
           <g ref={rotorRef}>
-            {/* THE SKIS under the thumb, seen from above — drawn CENTRED
-                on the box, so that a lean slides them the same distance
-                each way and reaches the ring at both ends; the pair turns
-                about the boots with the edge asked for. */}
-            <rect x="36" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
-            <rect x="54" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
-            <rect x="34" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
-            <rect x="52" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
+            <PadArt glyph={glyph} />
           </g>
         </svg>
       </div>
     </div>
+  );
+}
+
+/** THE DRAWING UNDER THE EDGE THUMB, seen from above and CENTRED on the
+ * box, so that a lean slides it the same distance each way and reaches the
+ * ring at both ends, and the edge turns it about its middle. */
+function PadArt({ glyph }: { glyph: PadGlyph }) {
+  if (glyph === "suit") {
+    // THE WINGSUIT: the arm wings out to the hands, the leg wing between
+    // the feet, the helmet in the bindings' colour.
+    return (
+      <>
+        <path d={suitPlanform(0)} class="hud-bar-wing" />
+        <circle cx="50" cy="19" r="5" class="hud-bar-grip" />
+      </>
+    );
+  }
+  if (glyph === "canopy") {
+    // THE CANOPY over him: its cells across, the lines down to the flyer.
+    return (
+      <>
+        <path d="M18 64L50 76L82 64" class="hud-bar-line" />
+        <path d="M14 46Q50 30 86 46L84 60Q50 50 16 60Z" class="hud-bar-wing" />
+        {[26, 38, 50, 62, 74].map((x) => (
+          <line
+            key={x}
+            x1={x}
+            y1={x === 50 ? 38 : 40}
+            x2={x}
+            y2={x === 50 ? 55 : 56}
+            class="hud-bar-line"
+          />
+        ))}
+        <circle cx="50" cy="76" r="5" class="hud-bar-grip" />
+      </>
+    );
+  }
+  if (glyph === "boots") {
+    // HIS BOOTS, walked on: two shells, the toes up the glass.
+    return (
+      <>
+        <rect x="36" y="30" width="11" height="40" rx="5.5" class="hud-bar-tube" />
+        <rect x="53" y="30" width="11" height="40" rx="5.5" class="hud-bar-tube" />
+        <rect x="35" y="56" width="13" height="10" rx="3" class="hud-bar-grip" />
+        <rect x="52" y="56" width="13" height="10" rx="3" class="hud-bar-grip" />
+      </>
+    );
+  }
+  // THE SKIS, the pair turning about the boots with the edge asked for.
+  return (
+    <>
+      <rect x="36" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
+      <rect x="54" y="14" width="10" height="72" rx="5" class="hud-bar-tube" />
+      <rect x="34" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
+      <rect x="52" y="44" width="14" height="12" rx="3" class="hud-bar-grip" />
+    </>
   );
 }
 
@@ -232,12 +285,16 @@ export function LeverZone({
   touch,
   feel,
   side,
+  suit = false,
 }: {
   touch: InputManager["touch"];
   feel: TouchFeel;
   side: ZoneSide;
+  /** Flying a wingsuit: the knob is the suit, swept and spread. */
+  suit?: boolean;
 }) {
   const leverRef = useRef<HTMLDivElement>(null);
+  const armsRef = useRef<SVGPathElement>(null);
   const knobRef = useRef<SVGGElement>(null);
   const fillRef = useRef<SVGRectElement>(null);
   const originRef = useRef(0);
@@ -258,6 +315,7 @@ export function LeverZone({
           ? -(LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + brake * LEVER_BRAKE_PX)
           : -LEVER_EASE_PX;
     knobRef.current?.setAttribute("transform", `translate(0 ${px.toFixed(1)})`);
+    armsRef.current?.setAttribute("d", suitPlanform(leverSpread(tuck, brake)));
     const fill = fillRef.current;
     if (!fill) return;
     fill.setAttribute("y", Math.min(-LEVER_EASE_PX, px).toFixed(1));
@@ -343,6 +401,14 @@ export function LeverZone({
           />
           <g ref={knobRef}>
             <circle class="hud-lever-knob" cx="0" cy="0" r="15" />
+            {suit && (
+              // The suit inside the knob, its arms swept back at a full
+              // tuck and spread wide on the back key.
+              <g class="hud-lever-suit" transform="scale(0.32) translate(-50 -53)">
+                <path ref={armsRef} d={suitPlanform(-1)} />
+                <circle cx="50" cy="19" r="5" />
+              </g>
+            )}
           </g>
         </svg>
       </div>

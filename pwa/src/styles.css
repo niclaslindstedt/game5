@@ -1915,6 +1915,23 @@ canvas {
   fill: var(--hud-good);
 }
 
+/* A wingsuit's or a canopy's cloth under the thumb, and the canopy's
+   lines. */
+.hud-bar-wing {
+  fill: rgb(255 255 255 / 22%);
+  stroke: currentcolor;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.hud-bar-line {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
 /* The tuck lever: a track UP the glass from the anchor (wide open) to
    the shut mark and the brake past it, the knob on the thumb, the fill how
    open the tuck is. */
@@ -1961,6 +1978,14 @@ canvas {
   fill: var(--hud-ink);
   stroke: rgb(var(--hud-plate) / 70%);
   stroke-width: 2;
+}
+
+/* The wingsuit in the knob, swept or spread with the lever. */
+.hud-lever-suit {
+  fill: rgb(var(--hud-plate) / 85%);
+  stroke: rgb(var(--hud-plate) / 85%);
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 
 /* THE JUMP LOADING under the lever's thumb (the tap-and-hold): the knob

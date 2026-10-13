@@ -79,6 +79,7 @@ import {
 } from "./sky-atmosphere.ts";
 import { cloudFieldOf, cloudLayersFor, meanPass, type CloudField } from "./cloud-field.ts";
 import { lightClouds, type CloudSky } from "./cloud-light.ts";
+import { deckZone } from "./low-deck.ts";
 import { skyClock } from "./sky-clock.ts";
 import { SKY_GRID, SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import { DEFAULT_TURN, skyTurnOf, type SkyTurn } from "./starfield.ts";
@@ -166,12 +167,17 @@ export type SkyLook = {
   cloud: CloudLook;
   /** THE CLOUD FIELD'S LIGHT (`cloud-light.ts`): every layer's sun, top and
    * base, the halo, a fog's top from above; and how much of the field is
-   * drawn at all (0 inside a valley fog, which hides it). */
-  clouds: CloudSky & { show: number };
-  /** A VALLEY FOG SEEN FROM ABOVE (`skyLookAt` with the eye over its top):
-   * its lit colour, its top's world height, m, and its density, 1/m (0: no
-   * sea — the fog, if any, is all round the lens). */
-  sea: { colour: Rgb; top: number; k: number };
+   * drawn at all (0 inside a valley fog, which hides it); and how much
+   * each layer shades the snow (`shade`, one a layer of the field: 0 for a
+   * LOW DECK the eye stands over, whose shadow falls under it). */
+  clouds: CloudSky & { show: number; shade: number[] };
+  /** THE LOW DECK OR VALLEY FOG round the mountain (`low-deck.ts`, read by
+   * `skyLookAt` against the eye's height): its colour, its top's and its
+   * base's world heights, m, and its density, 1/m (0: none — or the eye
+   * inside it, where the look's own haze is the cloud). The haze lays it
+   * over whatever of a view passes through it; the dome fills the view
+   * under its top from over it. */
+  sea: { colour: Rgb; top: number; base: number; k: number };
   /** How dark it is, 0 (day) … 1 (full night). */
   night: number;
   /** How much of the Milky Way shows, 0..1 — only a dark sky's: past
@@ -617,8 +623,8 @@ export function skyLookFor(
     haze,
     hazeLift: fog > 0 ? 90 + 120 * (1 - fog) : 700,
     cloud: { genus: lid.genus, cover: lid.cover },
-    clouds: { ...clouds, show: inFog ? 0 : 1 },
-    sea: { colour: clouds.sea, top: 0, k: 0 },
+    clouds: { ...clouds, show: inFog ? 0 : 1, shade: field.layers.map(() => 1) },
+    sea: { colour: clouds.sea, top: 0, base: NO_BASE, k: 0 },
     night,
     stars: smooth(0.1, 0.26, -elevation) * (1 - 0.5 * moonUp * moonAt.lit) * clearNight,
     galaxy:
@@ -657,7 +663,7 @@ export function skyLookAt(
   const moon = moonAtRun(sky);
   const weather = weatherOf(level);
   const field = fieldOf(level);
-  const at = (w: Weather): SkyLook => {
+  const at = (w: Weather, f: typeof field = field): SkyLook => {
     const look = skyLookFor(
       sun.azimuth,
       sun.elevation,
@@ -665,26 +671,56 @@ export function skyLookAt(
       w,
       snowAt(level, t, fallNow).fall,
       lensAltitude(level),
-      field,
+      f,
     );
     look.turn = skyTurnOf(sky);
     return look;
   };
-  // A VALLEY FOG IS AN INVERSION: over its top the air is clear and the
-  // sun out, and the fog lies below as a sea of cloud, its top lit (`sea`,
-  // drawn by the dome and the haze) — eased across the top's few metres.
-  const top = field.floorY + field.seaTop;
-  const over = field.seaTop > 0 && eyeY !== undefined ? smooth(top - 40, top + 40, eyeY) : 0;
-  const under = over < 1 ? at(weather) : null;
-  if (over <= 0 && under) return under;
-  const clear = at({ ...weather, kind: "clear", fog: 0 });
-  clear.sea = { colour: clear.clouds.sea, top, k: SEA_DENSITY };
-  return under ? blendLook(under, clear, over) : clear;
+  const deck = field.deck;
+  if (!deck || deck.top <= 0 || eyeY === undefined) return at(weather);
+  // THE LOW DECK IS AN INVERSION (`low-deck.ts`): over its top the air is
+  // clear and the sun out, and the deck lies below as a sea of cloud, its
+  // top lit; inside it the view closes in a fog; under its base a grey
+  // ceiling — each eased across its few metres of the eye's height.
+  const top = field.floorY + deck.top;
+  const base = deck.base > 0 ? field.floorY + deck.base : NO_BASE;
+  const zone = deckZone(deck, eyeY - field.floorY);
+  const fogDay = weather.kind === "fog";
+  const looks: [SkyLook, number][] = [];
+  if (zone.inside < 1) {
+    // Under the base: the day's own sky with the deck for a lid — a fair
+    // day's heaps hidden over it.
+    const under = at(weather.kind === "fair" ? { ...weather, kind: "overcast" } : weather);
+    under.sea = { colour: under.zenith, top, base, k: SEA_DENSITY };
+    looks.push([under, 1]);
+  }
+  if (zone.inside > 0 && zone.over < 1) {
+    const inside = at(fogDay ? weather : { ...weather, kind: "fog", fog: deck.fog });
+    inside.sea = { colour: inside.clouds.sea, top, base, k: 0 };
+    looks.push([inside, zone.inside]);
+  }
+  if (zone.over > 0) {
+    // Over the top the deck is under the eye: it no longer dims the sun.
+    const d = field.deckLayer;
+    const f =
+      d < 0
+        ? field
+        : { ...field, layers: field.layers.map((l, i) => (i === d ? { ...l, tau: 0 } : l)) };
+    const over = at({ ...weather, kind: weather.kind === "fair" ? "fair" : "clear", fog: 0 }, f);
+    if (d >= 0) over.clouds.shade[d] = 0;
+    over.sea = { colour: over.clouds.sea, top, base, k: SEA_DENSITY };
+    looks.push([over, zone.over]);
+  }
+  let look = looks[0][0];
+  for (let i = 1; i < looks.length; i++) look = blendLook(look, looks[i][0], looks[i][1]);
+  return look;
 }
 
-/** A valley fog's density seen from above, 1/m: a few tens of metres of
- * it hide the ground. */
+/** A deck's density seen from outside it, 1/m: a few tens of metres of it
+ * hide the ground. */
 const SEA_DENSITY = 0.03;
+/** The base of a deck lying on the floor: under anything. */
+const NO_BASE = -1e6;
 
 const FIELDS = new WeakMap<object, CloudField>();
 /** THE CLOUD FIELD over a map, dealt once a map. */

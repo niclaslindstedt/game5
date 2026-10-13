@@ -59,6 +59,9 @@ import { createFarRanges, forceFar } from "../game/far-ranges.ts";
 import { farFaceGrid } from "../game/far-faces.ts";
 import { FAR_RINGS } from "../game/far-ranges-plan.ts";
 import { createHazeUniforms } from "../game/haze.ts";
+import { volumeNoise } from "../game/cloud-volume.ts";
+import { timeClouds } from "./sky-cloud-cost.ts";
+import { lowdeckSheet } from "./sky-deck-sheet.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { skyLookAt } from "../game/sky.ts";
@@ -68,6 +71,7 @@ import {
   cloudlapseSheet,
   cloudsSheet,
   cloudshadowSheet,
+  cloudmotionSheet,
   suncloudsSheet,
   type CloudSheetHost,
 } from "./sky-cloud-sheets.ts";
@@ -155,6 +159,8 @@ async function standOnMap(name: string): Promise<void> {
   });
   level = state.level;
   await renderer.load(state);
+  // HIGH's cloud volume draws the slab until its noise lands: wait for it.
+  await volumeNoise();
   for (let i = 0; i < 180; i++) step(state, botInput(state));
   renderer.setCamera("chase", true);
 }
@@ -701,6 +707,11 @@ const host: CloudSheetHost = {
     return g.getImageData(0, 0, cellW, cellH).data;
   },
   setOverride: (v) => renderer.setOverride(v),
+  timeClouds: () =>
+    timeClouds(renderer.gl, level, ridgeTop(), [
+      [cellW, cellH],
+      [1280, 720],
+    ]),
   ridgeTop,
   horizonHour,
   fmtHour,
@@ -719,11 +730,14 @@ const SHEETS: Record<
   cloudlapse: () => cloudlapseSheet(host),
   sunclouds: () => suncloudsSheet(host),
   cloudshadow: () => cloudshadowSheet(host),
+  cloudmotion: () => cloudmotionSheet(host),
+  lowdeck: () => lowdeckSheet(host),
 };
 
 window.__sky = {
   ready: (async () => {
     await renderer.load(state);
+    await volumeNoise();
     // Onto the grid and a moment into the lights, so the field is standing.
     for (let i = 0; i < 180; i++) step(state, botInput(state));
     renderer.setCamera("chase", true);

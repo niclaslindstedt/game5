@@ -265,10 +265,14 @@ uniform vec4 uCloudTau;
 uniform vec4 uCloudMean;
 float cloudLayerShadow(vec3 p, vec4 box, float F0, float tau, float mean, vec3 L) {
   if (tau <= 0.0) return 1.0;
+  // Ground standing up out of a layer (a summit over a low deck) is in the
+  // sun over it: its shadow eased out across the layer's middle.
+  float out1 = smoothstep(box.w - 60.0, box.w + 60.0, p.y);
+  if (out1 >= 1.0) return 1.0;
   vec2 q = p.xz + L.xz * (box.w - p.y) / L.y;
   vec2 uv = (q - box.xy) * box.z;
-  if (uv.x <= 0.0 || uv.y <= 0.0 || uv.x >= 1.0 || uv.y >= 1.0) return mean;
-  return exp(-F0 * tau / max(L.y, 0.08));
+  if (uv.x <= 0.0 || uv.y <= 0.0 || uv.x >= 1.0 || uv.y >= 1.0) return mix(mean, 1.0, out1);
+  return mix(exp(-F0 * tau / max(L.y, 0.08)), 1.0, out1);
 }
 float cloudShadow(vec3 p) {
   vec3 L = uSunDir;

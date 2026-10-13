@@ -19,6 +19,7 @@
 
 import * as THREE from "three";
 
+import { FAR_RADIUS } from "./horizon.ts";
 import type { Tracks } from "./piste-tracks.ts";
 import { SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import type { SkyLook } from "./sky.ts";
@@ -54,6 +55,16 @@ export type HazeUniforms = {
    * shadowed air's colour, w the share of the haze over the ground it
    * takes — none while the sun is up, all of it a few degrees under. */
   uHazeShadow: { value: THREE.Vector4 };
+  /** THE TRUE HORIZON AND THE FAR GROUND UNDER IT: `x` how far the
+   * horizon dips under the level for this lens, rad (`horizonDip`), `y`
+   * the lens's height over the far ground, m — written every frame off the
+   * lens's altitude (`renderer.ts`). */
+  uFar: { value: THREE.Vector2 };
+  /** The far ground's own light (`SkyLook.farGround`, `.farKey`), linear,
+   * exposed: what shows under the horizon where the air between is thin —
+   * the sky's share, and the key's on a face square to it. */
+  uFarGround: { value: THREE.Color };
+  uFarKey: { value: THREE.Color };
   uHaze: { value: number };
   /** THE MIST the DISTANCE row closes on (`mistFor`): its wall, m, past
    * which nothing is seen and nothing is drawn; 0 is no mist. */
@@ -185,6 +196,9 @@ export function createHazeUniforms(): HazeUniforms {
     uSunCol: { value: new THREE.Color() },
     uSkyView: { value: skyViewTexture() },
     uHazeShadow: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uFar: { value: new THREE.Vector2(0, 0) },
+    uFarGround: { value: new THREE.Color() },
+    uFarKey: { value: new THREE.Color() },
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },
     uMistAloft: { value: 0 },
@@ -272,6 +286,8 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
   u.uSunCol.value.setRGB(...look.sunColour);
   writeSkyView(u.uSkyView.value, look.view);
   u.uHazeShadow.value.set(...look.hazeShadow);
+  u.uFarGround.value.setRGB(...look.farGround);
+  u.uFarKey.value.setRGB(...look.farKey);
   u.uHaze.value = look.haze;
   u.uHazeLift.value = look.hazeLift;
   // A valley fog is thick at the floor and gone over the peaks.
@@ -290,6 +306,9 @@ uniform vec3 uGlow;
 uniform vec3 uSunCol;
 uniform sampler2D uSkyView;
 uniform vec4 uHazeShadow;
+uniform vec2 uFar;
+uniform vec3 uFarGround;
+uniform vec3 uFarKey;
 uniform float uHaze;
 uniform float uMist;
 uniform float uMistAloft;
@@ -299,15 +318,17 @@ uniform float uHazeFloor;
 // The physical sky (\`uSkyView\`): its grid is the azimuth from the sun
 // packed toward it (u = sqrt(az / pi)) by the view's elevation packed toward
 // the horizon (v = sqrt(el / (pi / 2))) — sky-table-format.ts's layout.
-// Under the horizon the dome is the horizon's own air.
+// The elevation is counted from the TRUE horizon, \`uFar.x\` under the
+// level (the Earth curving away under a lens up a mountain), so the sky
+// reaches down to it; under it the dome is the horizon's own air.
 vec3 skyColour(vec3 dir) {
   vec3 d = normalize(dir);
-  float up = clamp(d.y, 0.0, 1.0);
+  float up = clamp((asin(clamp(d.y, -1.0, 1.0)) + uFar.x) / (1.57079633 + uFar.x), 0.0, 1.0);
   float hl = length(d.xz);
   float sl = length(uSunPos.xz);
   float ca = (hl > 1e-4 && sl > 1e-4) ? dot(d.xz, uSunPos.xz) / (hl * sl) : 1.0;
   float u = sqrt(acos(clamp(ca, -1.0, 1.0)) / 3.14159265);
-  float v = sqrt(asin(up) / 1.57079633);
+  float v = sqrt(up);
   vec2 uv = vec2(
     (u * ${(SKY_VIEW_AZ - 1).toFixed(1)} + 0.5) / ${SKY_VIEW_AZ.toFixed(1)},
     (v * ${(SKY_VIEW_EL - 1).toFixed(1)} + 0.5) / ${SKY_VIEW_EL.toFixed(1)});
@@ -315,40 +336,86 @@ vec3 skyColour(vec3 dir) {
 }
 
 // The colour a far surface fades into along \`dir\`: the sky just over the
-// horizon on that bearing.
+// true horizon on that bearing — the air's own light, seen through the
+// whole of it.
 vec3 hazeColour(vec3 dir) {
-  vec3 d = normalize(vec3(dir.x, clamp(dir.y, -0.02, 0.06), dir.z));
+  vec3 d = normalize(vec3(dir.x, clamp(dir.y, -0.02 - uFar.x, 0.06), dir.z));
   // After sunset the valleys' air is in Earth's shadow: the far ridges
   // stand dark against the glow, not lit by it.
   return mix(skyColour(d), uHazeShadow.rgb, uHazeShadow.w);
 }
 
+// How far the ray along \`dir\` runs to the far ground, m: a sphere under
+// the lens by \`uFar.y\` with the Earth's radius stretched by the air's
+// bending (\`FAR_RADIUS\`), reckoned in the form that keeps a float's
+// digits — 1e9 over the true horizon, where it never comes down.
+float farDistance(vec3 dir) {
+  float s = -normalize(dir).y;
+  float q = s * s - 2.0 * uFar.y / ${FAR_RADIUS.toFixed(1)};
+  if (s <= 0.0 || q < 0.0) return 1e9;
+  return 2.0 * uFar.y / (s + sqrt(q));
+}
+
+// WHAT LIES UNDER THE HORIZON, as the dome and the mist's wall show it:
+// the far ground — valleys and ranges beyond the map — seen through the
+// air to it. Right under the horizon the ray runs a hundred kilometres
+// and more through the low air, so it is the air's colour; looking further
+// down the way shortens and the ground shows through, darker than the
+// sky by day and dim at dusk. \`shadow\` is how much of Earth's shadow on
+// the low air to take (none at the horizon itself, so the dome meets the
+// sky there with no step).
+vec3 farColour(vec3 dir, float shadow) {
+  vec3 d = normalize(vec3(dir.x, clamp(dir.y, -0.02 - uFar.x, 0.06), dir.z));
+  vec3 air = mix(skyColour(d), uHazeShadow.rgb, uHazeShadow.w * shadow);
+  // The way down runs half its length over the valleys' haze, where the
+  // air thins toward \`uHazeFloor\` of its density (\`hazeAir\`'s law, at the
+  // way's mean height over the far ground).
+  float thin = mix(uHazeFloor, 1.0, exp(-0.5 * uFar.y / uHazeLift));
+  float seen = exp(-farDistance(dir) * uHaze * thin);
+  // The faces seen are the ones turned toward the lens, a mountain's
+  // steepness up: in shade looking into a low sun, lit — the alpenglow on
+  // the far ranges — looking away from it.
+  vec3 face = normalize(vec3(-d.x, 0.75, -d.z));
+  // Between them lie level snowfields and valleys.
+  float lit = 0.7 * max(dot(face, uSunDir), 0.0) + 0.3 * max(uSunDir.y, 0.0);
+  vec3 ground = uFarGround + uFarKey * lit;
+  return mix(air, ground, seen);
+}
+
 // How much of that colour stands between the lens and a point \`dist\` m
 // away whose height over the lens is \`rise\` m: exponential, thinning with
 // altitude so the peaks keep their shape a little longer than the valleys.
-// Over it, the DISTANCE row's MIST: clear round the skier, thickening with
-// the square of the distance and closed whole at its wall, at any height —
-// the ground and the woods stop there, and nothing past it may show.
-float hazeAmount(float dist, float rise) {
+float hazeAir(float dist, float rise) {
   float thin = exp(-max(rise, 0.0) / uHazeLift);
-  float air = 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
-  if (uMist <= 0.0) return air;
-  // Aloft (\`uMistAloft\`), across the ground, melting it into the haze
-  // over most of the way out and whole a little inside the wall — where
-  // the woods stop — so neither the woods nor the ground ends on a rim.
+  return 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
+}
+
+// The DISTANCE row's MIST: clear round the skier, thickening with the
+// square of the distance and closed whole at its wall, at any height —
+// the ground and the woods stop there, and nothing past it may show.
+// Aloft (\`uMistAloft\`), across the ground, melting it into the haze over
+// most of the way out and whole a little inside the wall — where the woods
+// stop — so neither the woods nor the ground ends on a rim.
+float hazeMist(float dist, float rise) {
+  if (uMist <= 0.0) return 0.0;
   float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
   float m = across / uMist;
   float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
-  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
-  return max(air, mist);
+  return mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
 }
 
-// The mist on the dome: a band over the horizon as deep as a mist some
-// forty metres thick stands at its wall, so a hill past the ground's edge
-// is sky the colour it would have faded into.
+// Both together, for what is drawn into the haze's colour alone (the spray,
+// the snow's cloud, the water's far hill).
+float hazeAmount(float dist, float rise) {
+  return max(hazeAir(dist, rise), hazeMist(dist, rise));
+}
+
+// The mist on the dome: a band over the true horizon as deep as a mist
+// some forty metres thick stands at its wall, so a hill past the ground's
+// edge is sky the colour it would have faded into.
 float mistBand(vec3 dir) {
   if (uMist <= 0.0) return 0.0;
-  return 1.0 - smoothstep(0.0, 40.0 / uMist, max(dir.y, 0.0));
+  return 1.0 - smoothstep(0.0, 40.0 / uMist, max(normalize(dir).y + uFar.x, 0.0));
 }
 `;
 
@@ -434,12 +501,21 @@ export const HAZE_FRAGMENT = /* glsl */ `
 {
   vec3 hzRay = vHazeWorld - cameraPosition;
   float hzDist = length(hzRay);
-  vec3 hzCol = hazeColour(hzRay / max(hzDist, 1e-3));
+  vec3 hzDir = hzRay / max(hzDist, 1e-3);
+  vec3 hzCol = hazeColour(hzDir);
+  // Into the air's own light by the air between; then, where the DISTANCE
+  // row's mist closes the ground, into what the dome shows behind it — so
+  // the ground's last ring meets the far ground under the horizon, not a
+  // band of sky.
+  vec3 hzFar = farColour(hzDir, 1.0);
   #if defined(TONE_MAPPING)
     hzCol = toneMapping(hzCol);
+    hzFar = toneMapping(hzFar);
   #endif
   hzCol = linearToOutputTexel(vec4(hzCol, 1.0)).rgb;
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, hazeAmount(hzDist, hzRay.y));
+  hzFar = linearToOutputTexel(vec4(hzFar, 1.0)).rgb;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, hazeAir(hzDist, hzRay.y));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hazeMist(hzDist, hzRay.y));
 }
 `;
 

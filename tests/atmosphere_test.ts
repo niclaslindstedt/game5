@@ -20,6 +20,7 @@ import {
   sunThrough,
   type Rgb,
 } from "../pwa/src/game/atmosphere-model.ts";
+import { FAR_RADIUS, horizonDip, horizonDistance } from "../pwa/src/game/horizon.ts";
 import { atmosphereRow, exposureOf } from "../pwa/src/game/sky-atmosphere.ts";
 import {
   decodeRadiance,
@@ -177,5 +178,38 @@ describe("the look built on it", () => {
     expect(lumOf(-5)).toBeGreaterThan(lumOf(30) * 0.05);
     expect(lumOf(-5)).toBeLessThan(lumOf(30));
     expect(lumOf(-20)).toBeLessThan(lumOf(-5) * 0.4);
+  });
+});
+
+describe("the true horizon", () => {
+  it("dips under the level as the lens climbs, as the almanacs give it", () => {
+    expect(horizonDip(0)).toBe(0);
+    expect(horizonDip(-50)).toBe(0);
+    // Geometric 1.93′·√h; the standard bending takes some 7 % off it.
+    for (const h of [10, 100, 1000, 2500]) {
+      const arcmin = (horizonDip(h) * 180 * 60) / Math.PI;
+      expect(arcmin).toBeGreaterThan(1.76 * Math.sqrt(h) * 0.98);
+      expect(arcmin).toBeLessThan(1.93 * Math.sqrt(h));
+    }
+    // From a summit 1.6 km up: a little over a degree, the edge ~150 km off.
+    expect((horizonDip(1600) * 180) / Math.PI).toBeCloseTo(1.2, 1);
+    expect(horizonDistance(1600) / 1000).toBeGreaterThan(140);
+    expect(horizonDistance(1600) / 1000).toBeLessThan(160);
+    expect(FAR_RADIUS).toBeGreaterThan(6_371_000);
+  });
+
+  it("stands the far ground darker than the horizon's air by day and unlit at dusk", () => {
+    for (const deg of [10, 27, 45]) {
+      const look = skyLookFor(Math.PI, rad(deg));
+      // Even a face of it square to the sun.
+      const lit = look.farGround.map((g, c) => g + look.farKey[c]) as Rgb;
+      expect(lum(lit)).toBeLessThan(lum(look.horizon));
+      expect(lum(look.farGround)).toBeGreaterThan(0);
+      // Its shade is the sky's light: bluer than it is red.
+      expect(look.farGround[2]).toBeGreaterThan(look.farGround[0]);
+    }
+    const dusk = skyLookFor(Math.PI, rad(-2));
+    expect(lum(dusk.farKey)).toBe(0);
+    expect(lum(dusk.farGround)).toBeLessThan(lum(dusk.horizon));
   });
 });

@@ -13,7 +13,9 @@
 // gone, in units of the layer's height. Under a lid the layer is the whole
 // sky: its grey is the look's zenith, broken only by the texture of the
 // deck's underside. The stars, the Milky Way (`starfield.ts`) and the moon
-// are drawn behind the cloud and dimmed by it.
+// are drawn behind the cloud and dimmed by it. Under the TRUE horizon —
+// the level less the dip a raised lens sees (`horizon.ts`) — the dome is
+// the far ground through the air (`haze.ts`'s `farColour`).
 
 import * as THREE from "three";
 
@@ -181,7 +183,17 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
         c += vec3(0.5, 0.6, 0.8) * pow(max(mm, 0.0), 900.0) * 0.12 * uMoonLit * uNight * clearSky;
 
         c = mix(c, cloud, hide);
-        c = mix(c, hazeColour(d), mistBand(d));
+        // UNDER THE TRUE HORIZON (\`uFar.x\` under the level: the Earth
+        // curving away under a raised lens) the sky, its sun, moon, stars
+        // and cloud end, and the far ground stands seen through the air
+        // (\`farColour\`) — the horizon's own colour where it meets it,
+        // darker the further down the view looks.
+        // Over it the mist's band (\`mistBand\`), the colour the ground at
+        // the mist's wall fades into, so the two meet with no seam.
+        float below = -asin(clamp(d.y, -1.0, 1.0)) - uFar.x;
+        float band = mistBand(d);
+        float under = smoothstep(-0.0004, 0.0004, below);
+        c = mix(c, farColour(d, max(smoothstep(0.0, 0.01, below), band)), max(under, band));
         gl_FragColor = vec4(c, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

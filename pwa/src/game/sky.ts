@@ -116,6 +116,12 @@ export type SkyLook = {
   /** The low air in Earth's shadow, and the share of the haze over the
    * ground it takes (`haze.ts`'s `hazeColour`): rgb, share. */
   hazeShadow: [number, number, number, number];
+  /** THE FAR GROUND under the true horizon (`horizon.ts`, `haze.ts`'s
+   * `farColour`): country of `FAR_ALBEDO` under this sky's light, and the
+   * key's light on a face of it turned square to the key — linear,
+   * exposed as the snow is. The shader turns the faces toward the lens. */
+  farGround: Rgb;
+  farKey: Rgb;
   /** The sun's own colour through the air it crossed — its disc. */
   sunColour: Rgb;
   /** THE KEY LIGHT: toward it (the sun by day, the moon by night), its
@@ -304,6 +310,12 @@ const CLOUD_HEIGHT = { heap: 2500, streak: 8000 } as const;
 const CLOUD_WHITE = 0.28;
 const CLOUD_SUN: Rgb = [0, 0, 0];
 
+/** THE FAR GROUND'S REFLECTANCE, linear RGB: winter country seen from
+ * tens of kilometres — snowfields (0.8 and more) mixed with conifer woods
+ * (under 0.1), rock and the faces turned from the light — comes to a
+ * third or so, a shade bluer than grey for the snow's share of the sky. */
+export const FAR_ALBEDO: Rgb = [0.27, 0.29, 0.33];
+
 export const DOME = { span: 0.5, gain: 2.3, horizon: 0.5 } as const;
 
 const UP = { x: 0, y: 1, z: 0 };
@@ -394,7 +406,7 @@ export function skyLookFor(
   let glow = cell(0, 1);
   // The air of the valleys falls into Earth's shadow as the sun goes
   // under: its colour the anti-solar horizon's, under the Belt.
-  const shadowAir = cell(SKY_VIEW_AZ - 1, 0);
+  let shadowAir = cell(SKY_VIEW_AZ - 1, 0);
   const shadowShare = smooth(0.01, -0.05, elevation);
   const sunMax = Math.max(phys.sun[0], phys.sun[1], phys.sun[2]);
   const tint: Rgb =
@@ -447,6 +459,9 @@ export function skyLookFor(
     zenith = scale(deck.zenith, light * heavy);
     horizon = scale(deck.horizon, light * heavy);
     glow = scale(glow, 0.12 + 0.3 * fog);
+    // Under a deck there is no Earth's shadow to see: the low air is the
+    // deck's grey, dimming with the light.
+    shadowAir = horizon;
     // The deck over the whole dome: its grey from the horizon up, a pale
     // patch where the sun is behind it.
     for (let j = 0; j < SKY_VIEW_EL; j++) {
@@ -531,6 +546,18 @@ export function skyLookFor(
   const real = EXPOSURE.key * (lum(phys.sun) * pass + 0.6 * AMBIENT_LIFT * upMax * lidLight);
   const lamps = 1 - smooth(0.4, 1.0, real);
 
+  // THE FAR GROUND under the horizon: albedo over π of the sky's light on
+  // it, as three lights a level face, and of the key's on a face square to
+  // it — gone as the key sinks under the far country's own horizon.
+  const farGround: Rgb = [0, 0, 0];
+  const farKey: Rgb = [0, 0, 0];
+  const keyCol = byMoon ? MOONLIGHT : tint;
+  const farLight = keyIntensity * smooth(-0.01, 0.01, key.y);
+  for (let c = 0; c < 3; c++) {
+    farGround[c] = (FAR_ALBEDO[c] / Math.PI) * skyLight[c] * ambient;
+    farKey[c] = (FAR_ALBEDO[c] / Math.PI) * keyCol[c] * farLight;
+  }
+
   return {
     sun: sunDirection(azimuth, elevation),
     elevation,
@@ -540,6 +567,8 @@ export function skyLookFor(
     horizon,
     glow,
     hazeShadow: [shadowAir[0], shadowAir[1], shadowAir[2], shadowShare],
+    farGround,
+    farKey,
     sunColour: tint,
     key,
     keyColour: byMoon ? MOONLIGHT : tint,

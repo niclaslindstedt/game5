@@ -441,6 +441,86 @@ digest moves and nothing is drawn from `state.rng`.
   hour 21. `tests/dog_walkers_test.ts` and `tests/dog_figure_test.ts` hold
   them.
 
+## Summer
+
+A free ride in midsummer (`GameState.summer`, `docs/summer.md`) has the
+same ski area with the snow gone, and the people on foot about it are a
+summer's: far fewer, and dressed and carrying for walking, riding and
+sitting in the sun.
+
+### What the research says
+
+- **How busy summer is.** Summer at a ski area is a fraction of its winter
+  on every measure that has been published. One alpine country's cable-car
+  companies take about a quarter of their traffic revenue in summer (a 2024
+  survey of 77 companies), and for each winter guest who does not come,
+  between 1.3 and 4.2 summer guests are needed to fill the gap. Another
+  alpine country's older study put about nine in ten of its lifts'
+  passengers in the winter. A large North American resort takes about 15 %
+  of its revenue in summer. Single ski areas' summer visits run from a few
+  per cent of their winter's (a ski hill with little summer offer) through
+  about a sixth to about two thirds (a mountain with a gondola, a toll road
+  and a summit restaurant), over a season of about as many days.
+- **Who is out.** Hikers with day packs and walking poles, families among
+  them, on the service roads and paths and resting at the tops; riders in
+  full-face helmets, long-sleeved jerseys, baggy shorts over knee pads and
+  often packs, standing about in groups of two to five at a lift's foot and
+  the trail heads; people at the restaurant's terrace tables in the sun;
+  the lift crew at the lifts that run, a trail crew at work, and few patrol.
+  Drag lifts do not run.
+- **What they wear.** T-shirts and short-sleeved shirts, shorts or walking
+  trousers, light boots or trainers, sun hats and caps, sunglasses; staff in
+  their uniform shirts and caps.
+
+### The design
+
+`SUMMER_GUESTS` (`civilian-summer.ts`) is **0.25**: a quarter of a winter's
+day's guests on foot, the busy end of the typical ski area, since the game's
+people stand where it is busiest (the base, the tops, the terraces). Every
+guest role's budget is scaled by it.
+
+- **The roles** are a table of their own (`SUMMER_ROLES`) dealt by the same
+  planner on a salt of its own (`SUMMER_CIVILIAN_SALT`), so the winter's
+  plan and every digest are untouched. Its lift crew are one at every foot
+  and top of a lift that runs; nobody is dealt to a drag's foot or top. The
+  skiing, the snow and the ski school are winter-only (`WINTER_ONLY`): no
+  instructor, pupils, snowball fights, snowmen, skaters or anyone carrying
+  skis. In their place: a HIKING PARTY resting at a top with packs and
+  poles; RIDERS in their kit at a running lift's foot (never by the shop
+  fronts); a PICNIC sat on a checked blanket on the grass; walkers with
+  poles, a drink stood in a knot, the terraces and deck chairs. Everyone
+  walks at an ordinary walking pace (`SUMMER_GAIT`), not a ski boot's.
+- **The cat tracks** (`civilian-hikers.ts`): three to six parties of one to
+  four walk a few hundred metres of a ski area's cat tracks (its gentlest
+  runs where it has none), up and back through the track's bends, resting
+  at the far end only (`routeOf`'s `through`).
+- **The kit** (`civilian-dress.ts`'s summer kit): a shirt (a t-shirt's
+  short sleeve or a long one), shorts or trousers, a sun hat, a cap or
+  bare hair, sunglasses and a day pack, each dealt by a share of its own by
+  who the person is (a hiker, a rider, a guest, a terrace sitter, a child,
+  the old). A rider wears a full-face helmet, a long jersey and black pads
+  under his shorts. The staff wear their uniform shirts and caps, the
+  patrol's cross on the shirt.
+- **The figure** (`civilian-summer-shapes.ts`): a slimmer body with no
+  coat, the lower leg and the forearm in slots of their own (bare skin, the
+  trousers' colour or the jersey's), ankle-high shoes, bare hands, the
+  summer heads, the walking poles and the pack. It is a figure of its own,
+  built and cached apart from the winter's.
+- **The dogs** (`dog-walk.ts`'s `DOG_SUMMER`): the same households and dogs,
+  half of them away, no dog in a coat, nothing steaming and no yellow
+  patches in the snow.
+- **The amateurs** stay off: a summer's run deals no crowd (`summer.ts`).
+- **The streets** in summer are asphalt with a dashed centre line and edge
+  lines, the car park's bays painted white and its crossings on the bare
+  road, and the sidewalks and the square bare setts
+  (`street-paint-summer.ts`); the snow poles are taken in and the parked
+  cars carry no snow (`docs/buildings.md`).
+
+`make civilians ARGS=--sheet=summer` photographs every body in each kind of
+summer kit, and `ARGS="--sheet=resort --summer"` the ski area in midsummer
+at its own views (`trackHikers`, `summitHikers`, `riders`, `picnic`) and the
+winter's. `tests/summer_people_test.ts` holds it.
+
 ## Sources
 
 - Lift attendant and operator job descriptions from several ski areas, and a
@@ -458,3 +538,8 @@ digest moves and nothing is drawn from `state.rng`.
   bands), studies of quadruped gait (the walk–trot change at a common Froude
   number, stride against size in dogs), and surveys of dog owners' pick-up
   behaviour.
+- For the summer: a 2024 survey of an alpine country's cable-car companies'
+  summer and winter revenue; an older economic study of another alpine
+  country's lifts' seasons; a state's ski areas' published summer and winter
+  visits; a large resort's reported summer share of revenue; and bike park
+  and hiking guides on what riders and hikers wear.

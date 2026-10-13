@@ -25,13 +25,16 @@
 //             (the base's busiest place, wide), `walker` (a walker close up),
 //             `skier` (a guest skating between the lifts' feet), `cocoa` (a
 //             ring with mugs), `kids`, `snowball` (one in the air across a
-//             fight), `roller` (a ball rolled to a snowman), `overview`.
+//             fight), `roller` (a ball rolled to a snowman), `overview`;
+//             `?summer=1` the ski area in midsummer, with the summer's
+//             own views (`summer-people-sheet.ts`);
+//   summer    every body in each kind of summer kit (`summer-people-sheet.ts`).
 //
 // Sets `window.__done` when a sheet is on screen; the resort sheet sets it
 // once loaded and answers `__civilians.shoot`.
 
 import * as THREE from "three";
-import { CROWD_BODIES, NEUTRAL_INPUT, createGame, step, type CrowdBody } from "@engine";
+import { CROWD_BODIES, NEUTRAL_INPUT, SUMMER_DAY, createGame, step, type CrowdBody } from "@engine";
 
 import { PART, civilianKit, kitParts, type Head } from "../game/civilian-dress.ts";
 import {
@@ -57,12 +60,14 @@ import {
   civilianMaterial,
   civilianTriangles,
 } from "../game/civilian-shapes.ts";
+import { CROWD_LOOKS } from "../game/crowd-rig.ts";
 import { CROWD_LODS, type CrowdLod } from "../game/crowd-shapes.ts";
 import { createHazeUniforms } from "../game/haze.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
 import { dogCells, dogShots } from "./dogs-sheet.ts";
 import { KNOCK_COLS, knockCells } from "./knocks-sheet.ts";
+import { bench, summerCells, summerShots } from "./summer-people-sheet.ts";
 
 declare global {
   interface Window {
@@ -74,6 +79,8 @@ declare global {
 const params = new URLSearchParams(location.search);
 const sheet = params.get("sheet") ?? "figures";
 const seed = Number(params.get("seed") ?? 38);
+/** `?summer=1`: the resort in midsummer (`civilian-summer.ts`). */
+const summer = params.get("summer") === "1";
 const only = params.get("bodies");
 const bodies: readonly CrowdBody[] = only
   ? CROWD_BODIES.filter((b) => only.split(",").includes(b))
@@ -222,30 +229,13 @@ const SEATS: Partial<Record<CivilianTarget, number>> = {
   benchTalk: 0.47,
 };
 
-/** A bench under a sitter: a plank on two legs, 0.47 m high. */
-function bench(scene: THREE.Scene, x: number, z: number, heading: number): void {
-  const wood = new THREE.MeshLambertMaterial({ color: 0x8a6a45 });
-  const g = new THREE.Group();
-  const top = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.3), wood);
-  top.position.set(0, 0.445, -0.04);
-  g.add(top);
-  for (const sx of [-0.4, 0.4]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.26), wood);
-    leg.position.set(sx, 0.21, -0.04);
-    g.add(leg);
-  }
-  g.position.set(x, 0, z);
-  g.rotation.y = heading;
-  scene.add(g);
-}
-
 function figureCells(): Cell[] {
   const names = ["stand", ...CIVILIAN_POSES] as const;
   return bodies.flatMap((body, row) =>
     names.map((target, k) => ({
       name: k === 0 ? `${body} — ${target}` : target,
       foot:
-        k === 0 ? `${CROWD_LOOKS_HEIGHT(body)} m · ${civilianTriangles(body, "near")} tris` : "",
+        k === 0 ? `${CROWD_LOOKS[body].height} m · ${civilianTriangles(body, "near")} tris` : "",
       draw(scene: THREE.Scene) {
         const w = new Array<number>(TARGETS).fill(0);
         if (k > 0) w[k - 1] = 1;
@@ -268,19 +258,6 @@ function figureCells(): Cell[] {
       },
     })),
   );
-}
-
-function CROWD_LOOKS_HEIGHT(body: CrowdBody): string {
-  return {
-    man: "1.8",
-    woman: "1.68",
-    teen: "1.66",
-    child: "1.18",
-    oldMan: "1.75",
-    oldWoman: "1.62",
-    freerider: "1.82",
-    retro: "1.72",
-  }[body];
 }
 
 /** Deck chairs at `[x, z, heading]`, built as the game builds them. */
@@ -732,7 +709,11 @@ async function resort(): Promise<void> {
     seed,
     mode: "free",
     quiet: true,
-    ...(hourParam !== null ? { sky: { hour: Number(hourParam) } } : {}),
+    ...(summer
+      ? { summer: true, day: { dayOfYear: SUMMER_DAY, hour: Number(hourParam ?? 13) } }
+      : hourParam !== null
+        ? { sky: { hour: Number(hourParam) } }
+        : {}),
   });
   await renderer.load(state);
   const FRAME = 1 / 60;
@@ -742,7 +723,7 @@ async function resort(): Promise<void> {
     renderer.draw(state, 0, FRAME, false);
   }
   const level = state.level;
-  const plan = civilianPlanFor(level);
+  const plan = civilianPlanFor(level, summer);
   const hour = civilianHour(level);
   const spots = spotsOf(level);
   const look = (eye: [number, number, number], at: [number, number, number], fov = 50): void => {
@@ -805,6 +786,7 @@ async function resort(): Promise<void> {
   };
   const shots: Record<string, () => string> = {
     ...dogShots({ state, hour, from, until }),
+    ...summerShots({ state, plan, hour, from, until }),
     lift() {
       const crew = out().find((q) => plan.people[q.i].role === "liftAttendant");
       if (!crew) return "no lift crew out";
@@ -992,8 +974,18 @@ if (sheet === "resort") {
 } else if (sheet === "knocks") {
   drawSheet(knockCells(haze, seed), KNOCK_COLS);
 } else {
-  const pick = { moves: moveCells, props: propCells, dogs: () => dogCells(haze, stage) };
+  const pick = {
+    moves: moveCells,
+    props: propCells,
+    dogs: () => dogCells(haze, stage),
+    summer: () => summerCells(haze, stage, seed),
+  };
   const cells = (pick[sheet as keyof typeof pick] ?? figureCells)();
-  const cols = sheet === "moves" ? FRAMES : sheet === "props" || sheet === "dogs" ? 8 : TARGETS + 1;
+  const cols =
+    sheet === "moves"
+      ? FRAMES
+      : sheet === "props" || sheet === "dogs" || sheet === "summer"
+        ? 8
+        : TARGETS + 1;
   drawSheet(cells, cols);
 }

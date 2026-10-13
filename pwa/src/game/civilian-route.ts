@@ -30,6 +30,9 @@ export type Route = {
   readonly cycle: number;
   /** Out through the stops, m (back is the same). */
   readonly length: number;
+  /** Walked THROUGH its stops: a pause only at the two ends (a hike along a
+   * track's bends), not at every stop. */
+  readonly through?: boolean;
 };
 
 /** Where a route has him at a moment — refilled by `routeAt`. `stop` is
@@ -71,6 +74,7 @@ export function routeOf(
   speed: number,
   pause: number,
   side = 0,
+  through = false,
 ): Route {
   const lengths: number[] = [];
   for (let k = 0; k + 1 < points.length; k++) {
@@ -84,8 +88,9 @@ export function routeOf(
     speed,
     pause,
     side,
-    cycle: 2 * (length / speed + legs * pause),
+    cycle: 2 * (length / speed + (through ? 1 : legs) * pause),
     length,
+    ...(through ? { through } : {}),
   };
 }
 
@@ -144,14 +149,16 @@ export function routeAt(r: Route, u: number, out: RouteAt = freshRouteAt()): Rou
       }
       w -= walk;
       walked += len;
-      if (w < r.pause) {
+      // Walked through, he stops only at the far end and back home.
+      const pause = !r.through || (back ? k === 0 : k === legs - 1) ? r.pause : 0;
+      if (w < pause) {
         // Stood at the stop the line ended at, eased to the next line's
         // side over the pause.
         const stop = back ? k : k + 1;
         const next = back ? k - 1 : k + 1;
         place(r, k, back ? 0 : len, out);
         if (next >= 0 && next < legs && r.side !== 0) {
-          const f = ease(w / r.pause);
+          const f = ease(w / pause);
           const a = rightOf(r, k);
           const b = rightOf(r, next);
           const p = r.points[stop];
@@ -166,7 +173,7 @@ export function routeAt(r: Route, u: number, out: RouteAt = freshRouteAt()): Rou
         out.walked = walked;
         return out;
       }
-      w -= r.pause;
+      w -= pause;
     }
   }
   // Round the end of the cycle to its first stop.

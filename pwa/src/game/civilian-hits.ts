@@ -123,8 +123,8 @@ export type Person = {
   at: (t: number, out: CivilianPose) => CivilianPose;
 };
 
-export function peopleOf(level: Level): Person[] {
-  const plan = civilianPlanFor(level);
+export function peopleOf(level: Level, summer = false): Person[] {
+  const plan = civilianPlanFor(level, summer);
   const out: Person[] = plan.people.map((c, i) => {
     let rx = c.home.x;
     let rz = c.home.z;
@@ -146,7 +146,7 @@ export function peopleOf(level: Level): Person[] {
       at: (t, o) => civilianAt(plan, i, t, civilianHour(level, t), o),
     };
   });
-  const dogs = dogPlanFor(level);
+  const dogs = dogPlanFor(level, summer);
   for (const hh of dogs?.households ?? []) {
     const members: [0 | 1, CrowdBody | null][] = [
       [0, hh.walker],

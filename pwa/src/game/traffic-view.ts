@@ -44,6 +44,7 @@ import { outfitOf } from "./crowd-dress.ts";
 import { glow } from "./glow-sprite.ts";
 import type { Flood } from "./headlamp.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { summerShown } from "./season-look.ts";
 import { lampLayout, lampLevels, vehicleLook, type VehicleLook } from "./traffic-look.ts";
 import { PEDAL_POSES, pedalDials, pedalTargets } from "./traffic-rider.ts";
 import { buildBikeWheel, buildVehicle, buildWheel, type TrafficCut } from "./traffic-shapes.ts";
@@ -463,7 +464,8 @@ export function createTrafficScene(level: Level, haze: HazeUniforms): TrafficSce
         put(bodies.get(`${d.kind}:${cut}`), body, d.look.paint, l);
         if (d.pose && dark > 0.02) glowOf(d, body, l);
         if (!near) return;
-        if (d.look.snow !== "none")
+        // No snow on a car in summer (`summerShown`).
+        if (d.look.snow !== "none" && !summerShown())
           put(snow.get(d.kind), body, null, [d.look.snow === "all" ? 1 : 0, 0, 0, 0]);
         if (d.look.roof === "box") put(boxes.get(d.kind), body, d.look.box, off);
         if (d.look.roof === "rack") put(racks.get(d.kind), body, null, off);

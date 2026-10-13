@@ -63,8 +63,9 @@ export type Activity =
 /** What a civilian has in his hands. `skis`: a pair on one shoulder, tips
  * forward and down, a hand in front on them, the bindings behind the
  * shoulder (the poles in the other hand). `lead`: a dog's lead in the
- * right hand, held low in front (`dog-walk.ts`). */
-export type Carry = "none" | "skis" | "mug" | "beer" | "shovel" | "broom" | "lead";
+ * right hand, held low in front (`dog-walk.ts`). `poles`: a summer
+ * hiker's two walking poles, one in each hand (`civilian-summer.ts`). */
+export type Carry = "none" | "skis" | "mug" | "beer" | "shovel" | "broom" | "lead" | "poles";
 
 /** What he wears: a staff uniform (`STAFF_DRESS`) or a guest's own kit. */
 export type Dress = "lift" | "patrol" | "school" | "worker" | "host" | "guest";
@@ -93,7 +94,11 @@ export type RoleId =
   | "builder"
   | "roller"
   | "dogWalker"
-  | "dogChild";
+  | "dogChild"
+  // The summer's own (`civilian-summer.ts`).
+  | "hiker"
+  | "biker"
+  | "picnic";
 
 /** One step of a routine: the activity, how long it is held (dealt between
  * the two, s), what is in his hands meanwhile (the role's own if unsaid). */
@@ -180,8 +185,8 @@ export const STAFF_DRESS: Readonly<
  * two; `cadence` steps a second at the middle of the pace. */
 export const BOOT_GAIT = { speed: [0.8, 1.1] as const, step: 0.55, cadence: 1.7 } as const;
 
-const ADULTS: readonly CrowdBody[] = ["man", "woman", "man", "woman", "freerider"];
-const GUESTS: readonly CrowdBody[] = [
+export const ADULTS: readonly CrowdBody[] = ["man", "woman", "man", "woman", "freerider"];
+export const GUESTS: readonly CrowdBody[] = [
   "man",
   "woman",
   "man",
@@ -193,7 +198,7 @@ const GUESTS: readonly CrowdBody[] = [
   "retro",
 ];
 const PARTY: readonly CrowdBody[] = ["man", "woman", "man", "woman", "teen", "freerider", "retro"];
-const KIDS: readonly CrowdBody[] = ["child"];
+export const KIDS: readonly CrowdBody[] = ["child"];
 
 /** THE HOURS each kind of person is out (share by the hour). The lifts
  * turn from about half past eight to half past four, and here always run,
@@ -202,7 +207,7 @@ const KIDS: readonly CrowdBody[] = ["child"];
  * paths before the first chair; the ski school runs a morning and an
  * afternoon class; lunch on the snow is late morning to early afternoon;
  * the terrace starts as the lifts close and runs into the night. */
-const H = {
+export const CIVILIAN_HOURS = {
   lift: [
     [0, 0.5],
     [7, 0.5],
@@ -340,6 +345,7 @@ const H = {
     [24, 0],
   ],
 } as const satisfies Readonly<Record<string, Hours>>;
+const H = CIVILIAN_HOURS;
 
 /** THE ROLES, the staff first, the children at play next and the walkers
  * after them: dealt in this order, so a full map's cap is met by a knot at

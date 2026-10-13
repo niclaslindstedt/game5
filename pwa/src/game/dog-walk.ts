@@ -172,7 +172,15 @@ export type DogPlan = {
    * `messes` was gathered from. */
   dealt: number;
   gathered: number;
+  /** A summer's walks (`DOG_SUMMER`): no dog in a coat, nothing steaming,
+   * no patch to see on the dry ground, half the households away. */
+  readonly summer: boolean;
 };
+
+/** THE VILLAGE'S DOGS IN SUMMER: the share of its households at home (the
+ * holiday homes and the season's staff flats stand empty), out at the
+ * same hours on the same streets. */
+export const DOG_SUMMER = { home: 0.5 } as const;
 
 /** A small integer hash. */
 function hash(a: number, b: number, c = 0): number {
@@ -207,8 +215,10 @@ const WALKERS: readonly CrowdBody[] = [
 ];
 
 /** THE DOG WALKS OF `level`'s VILLAGE, or null where it has no
- * sidewalks. Deterministic in the map's seed on a stream of its own. */
-export function planDogWalks(level: Level): DogPlan | null {
+ * sidewalks. Deterministic in the map's seed on a stream of its own — in
+ * `summer` the same households and dogs, fewer of them out (`DOG_SUMMER`)
+ * and none in a coat. */
+export function planDogWalks(level: Level, summer = false): DogPlan | null {
   const net = walkNetOf(level);
   if (!net || net.doors.length === 0) return null;
   const rng = createRng((level.seed ^ (DOG_SALT * 0x10001)) >>> 0);
@@ -231,7 +241,7 @@ export function planDogWalks(level: Level): DogPlan | null {
         kind,
         scale: rng.range(0.92, 1.08),
         coat: rng.int(0, spec.coats.length - 1),
-        dressed: rng.chance(spec.dressed),
+        dressed: rng.chance(spec.dressed) && !summer,
         garment: rng.int(0, DOG_COATS.length - 1),
         collar: rng.int(0, DOG_COLLARS.length - 1),
         male: rng.chance(0.5),
@@ -244,7 +254,8 @@ export function planDogWalks(level: Level): DogPlan | null {
     households.push({
       id: h,
       door,
-      keen: rng.next(),
+      // Away for the summer: never out.
+      keen: rng.next() + (summer && (h * 0.618034) % 1 >= DOG_SUMMER.home ? 2 : 0),
       walker: rng.pick(WALKERS),
       child: family ? "child" : null,
       dogs,
@@ -260,16 +271,20 @@ export function planDogWalks(level: Level): DogPlan | null {
     messes: [],
     dealt: -Infinity,
     gathered: 0,
+    summer,
   };
 }
 
 const plans = new WeakMap<Level, DogPlan | null>();
+const summers = new WeakMap<Level, DogPlan | null>();
 
-/** The map's dog walks, dealt once a map and shared by everything that
- * draws or reads them (the walkers, the dogs, what they leave). */
-export function dogPlanFor(level: Level): DogPlan | null {
-  if (!plans.has(level)) plans.set(level, planDogWalks(level));
-  return plans.get(level) ?? null;
+/** The map's dog walks, dealt once a map and season and shared by
+ * everything that draws or reads them (the walkers, the dogs, what they
+ * leave). */
+export function dogPlanFor(level: Level, summer = false): DogPlan | null {
+  const kept = summer ? summers : plans;
+  if (!kept.has(level)) kept.set(level, planDogWalks(level, summer));
+  return kept.get(level) ?? null;
 }
 
 /** The share of the dog walkers out at `hour`. */

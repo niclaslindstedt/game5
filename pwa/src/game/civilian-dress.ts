@@ -16,6 +16,7 @@ import type { Civilian, CivilianPose } from "./civilian-plan.ts";
 import { STAFF_DRESS, type Carry, type Dress } from "./civilian-roles.ts";
 import { holdsSnowball } from "./civilian-moves.ts";
 import { CROWD_PALETTE } from "./crowd-dress.ts";
+import { SUMMER_COLOURS } from "./civilian-summer.ts";
 
 /** The slots a civilian's vertex takes its colour from (`aSlot`): the
  * crowd's (`DRESS_SLOT`) and the VEST over the jacket's middle — the lift
@@ -32,6 +33,12 @@ export const CIVILIAN_SLOT = {
   vest: 8,
 } as const;
 
+/** The same slots as a SUMMER figure reads them (`civilian-summer-shapes.ts`):
+ * no skis, so the skis' slot is the LOWER LEG (bare under shorts, the
+ * trousers' own colour, a rider's pads) and the vest's the FOREARM (bare
+ * under a t-shirt's sleeve, the shirt's colour in a long one). */
+export const SUMMER_SLOT = { ...CIVILIAN_SLOT, shin: 4, forearm: 8 } as const;
+
 /** The figure's parts an instance may fold away (`aPart`): 0 is the body,
  * always drawn; one head, one carry, one extra and one mark are shown. */
 export const PART = {
@@ -39,29 +46,55 @@ export const PART = {
   helmet: 1,
   beanie: 2,
   hair: 3,
+  // The summer's heads: a brimmed sun hat, a cap, a rider's full-face helmet.
+  sunhat: 4,
+  cap: 5,
+  fullface: 6,
   skis: 11,
   mug: 12,
   beer: 13,
   shovel: 14,
   broom: 15,
+  /** A summer hiker's two walking poles. */
+  poles: 16,
   snowball: 21,
   bag: 22,
+  /** Sunglasses. */
+  glasses: 23,
   cross: 31,
+  /** A day pack on his back. */
+  pack: 32,
 } as const;
-export type Head = "helmet" | "beanie" | "hair";
+export type Head = "helmet" | "beanie" | "hair" | "sunhat" | "cap" | "fullface";
 
 const STAFF = ["lift", "patrol", "school", "worker", "host"] as const;
 
 /** THE PALETTE: the crowd's, then each staff dress's jacket, mark, pants
- * and bib (its jacket when it wears none). */
+ * and bib (its jacket when it wears none), then the summer's shirts,
+ * bottoms, hats and packs (`SUMMER_COLOURS`). */
 export const CIVILIAN_PALETTE: readonly number[] = [
   ...CROWD_PALETTE,
   ...STAFF.flatMap((d) => {
     const s = STAFF_DRESS[d];
     return [s.jacket, s.mark, s.pants, s.bib ?? s.jacket];
   }),
+  ...SUMMER_COLOURS.shirts,
+  ...SUMMER_COLOURS.bottoms,
+  ...SUMMER_COLOURS.hats,
+  ...SUMMER_COLOURS.packs,
 ];
 const STAFF_AT = CROWD_PALETTE.length;
+const S_AT = STAFF_AT + STAFF.length * 4;
+const S = {
+  shirt: S_AT,
+  bottom: S_AT + SUMMER_COLOURS.shirts.length,
+  hat: S_AT + SUMMER_COLOURS.shirts.length + SUMMER_COLOURS.bottoms.length,
+  pack:
+    S_AT +
+    SUMMER_COLOURS.shirts.length +
+    SUMMER_COLOURS.bottoms.length +
+    SUMMER_COLOURS.hats.length,
+} as const;
 
 // The crowd's palette, laid out (`crowd-dress.ts`): jackets 16, pants 8,
 // heads 8, skis 8, skins 4, hairs 4.
@@ -81,8 +114,11 @@ function hash(a: number, b: number): number {
 }
 
 /** A civilian's colours: eight indices into `CIVILIAN_PALETTE` — jacket,
- * pants, head, skis, accent, skin, hair, vest — and the head he wears. */
-export type CivilianKit = { colours: number[]; head: Head; mark: number };
+ * pants, head, skis, accent, skin, hair, vest (in summer the shirt, the
+ * bottoms, the hat, the lower leg, the accent and pack, skin, hair, the
+ * forearm — `SUMMER_SLOT`) — the head he wears, his mark (the patrol's
+ * cross, a day pack) and, in summer, his sunglasses. */
+export type CivilianKit = { colours: number[]; head: Head; mark: number; glasses?: boolean };
 
 /** The heads a role's people wear, as shares of helmet, beanie and hair:
  * the patrol and the class going skiing in helmets, the crew and the
@@ -124,9 +160,11 @@ function headOf(c: Civilian, h: number): Head {
 }
 
 /** THE KIT a civilian is dealt: staff in their uniform, a guest in his
- * own colours off his `tint`, as the crowd is dressed. */
-export function civilianKit(c: Civilian, seed: number): CivilianKit {
+ * own colours off his `tint`, as the crowd is dressed — in summer, the
+ * summer's (`summerKit`). */
+export function civilianKit(c: Civilian, seed: number, summer = false): CivilianKit {
   const h = hash(Math.floor(c.tint * 0x7fffffff), seed);
+  if (summer) return summerKit(c, h);
   const at = (shift: number, n: number): number => (h >>> shift) % n;
   const skin = P.skin + at(20, 4);
   const hair = P.hair + (c.body === "oldMan" || c.body === "oldWoman" ? 3 : at(23, 3));
@@ -170,6 +208,99 @@ export function civilianKit(c: Civilian, seed: number): CivilianKit {
   };
 }
 
+/** How a SUMMER's person dresses, by his role: the shares of a t-shirt
+ * (else a long sleeve or a light shell), of shorts (else walking
+ * trousers), of a sun hat and of a cap (else bare-headed), of sunglasses
+ * and of a day pack. */
+type SummerWear = {
+  tee: number;
+  shorts: number;
+  sunhat: number;
+  cap: number;
+  glasses: number;
+  pack: number;
+};
+const WEAR: Readonly<
+  Record<"hiker" | "biker" | "guest" | "terrace" | "child" | "old", SummerWear>
+> = {
+  hiker: { tee: 0.7, shorts: 0.5, sunhat: 0.35, cap: 0.35, glasses: 0.6, pack: 0.9 },
+  // Riders in their kit: a long jersey, baggy shorts over knee pads, a
+  // full-face helmet on (`fullface` stands in the sun hat's share).
+  biker: { tee: 0, shorts: 1, sunhat: 0.7, cap: 0.15, glasses: 0, pack: 0.45 },
+  guest: { tee: 0.75, shorts: 0.5, sunhat: 0.15, cap: 0.25, glasses: 0.5, pack: 0.25 },
+  terrace: { tee: 0.8, shorts: 0.45, sunhat: 0.12, cap: 0.15, glasses: 0.55, pack: 0.05 },
+  child: { tee: 0.9, shorts: 0.8, sunhat: 0.35, cap: 0.4, glasses: 0.2, pack: 0.3 },
+  old: { tee: 0.45, shorts: 0.25, sunhat: 0.5, cap: 0.25, glasses: 0.6, pack: 0.5 },
+};
+
+/** THE SUMMER KIT: staff in their shirts (the lift crew's and the host's in
+ * the area's colour, the patrol's red with its cross, the trail crew's
+ * high-visibility orange), every one in a cap; a guest in a t-shirt or a
+ * long sleeve, shorts or walking trousers, a sun hat, a cap or his own
+ * hair, sunglasses and a day pack by who he is — a rider in his jersey,
+ * pads and full-face helmet. No skis, no ski boots, no beanie. */
+function summerKit(c: Civilian, h: number): CivilianKit {
+  const at = (shift: number, n: number): number => (h >>> shift) % n;
+  const roll = (shift: number): number => ((h >>> shift) % 997) / 997;
+  const skin = P.skin + at(20, 4);
+  const hair = P.hair + (c.body === "oldMan" || c.body === "oldWoman" ? 3 : at(23, 3));
+  if (c.dress !== "guest") {
+    const d = STAFF_AT + STAFF.indexOf(c.dress as Exclude<Dress, "guest">) * 4;
+    // Shorts on the trail crew and the lift crew now and then.
+    const legs = roll(3) < 0.3 ? skin : d + 2;
+    return {
+      colours: [d, d + 2, d, legs, d + 1, skin, hair, skin],
+      head: roll(9) < 0.8 ? "cap" : "hair",
+      mark: c.dress === "patrol" ? PART.cross : 0,
+      glasses: roll(13) < 0.4,
+    };
+  }
+  const old = c.body === "oldMan" || c.body === "oldWoman";
+  const wear =
+    c.role === "biker"
+      ? WEAR.biker
+      : c.role === "hiker"
+        ? old
+          ? WEAR.old
+          : WEAR.hiker
+        : c.body === "child"
+          ? WEAR.child
+          : old
+            ? WEAR.old
+            : c.role === "terraceSitter" ||
+                c.role === "terraceKnot" ||
+                c.role === "partier" ||
+                c.role === "lounger"
+              ? WEAR.terrace
+              : WEAR.guest;
+  const shirt = S.shirt + at(0, SUMMER_COLOURS.shirts.length);
+  const bottom = S.bottom + at(5, SUMMER_COLOURS.bottoms.length);
+  const tee = roll(1) < wear.tee;
+  const shorts = roll(4) < wear.shorts;
+  const hat = roll(7);
+  const biker = c.role === "biker";
+  const head: Head =
+    hat < wear.sunhat
+      ? biker
+        ? "fullface"
+        : "sunhat"
+      : hat < wear.sunhat + wear.cap
+        ? "cap"
+        : "hair";
+  const hatColour = biker ? S.shirt + at(11, SUMMER_COLOURS.shirts.length) : S.hat + at(11, 6);
+  // A rider's pads and long socks under his shorts: black.
+  const shin = biker ? S.bottom + 3 : shorts ? skin : bottom;
+  // The freerider's own pack is part of his body (`emitTrunk`).
+  const pack = c.body !== "freerider" && roll(15) < wear.pack;
+  const packColour = S.pack + at(17, SUMMER_COLOURS.packs.length);
+  return {
+    colours: [shirt, bottom, hatColour, shin, packColour, skin, hair, tee ? skin : shirt],
+    head,
+    mark: pack ? PART.pack : 0,
+    glasses: roll(19) < wear.glasses,
+  };
+}
+
 const CARRY_PART: Readonly<Record<Carry, number>> = {
   none: 0,
   skis: PART.skis,
@@ -178,11 +309,15 @@ const CARRY_PART: Readonly<Record<Carry, number>> = {
   shovel: PART.shovel,
   broom: PART.broom,
   lead: 0,
+  poles: PART.poles,
 };
 const HEAD_PART: Readonly<Record<Head, number>> = {
   helmet: PART.helmet,
   beanie: PART.beanie,
   hair: PART.hair,
+  sunhat: PART.sunhat,
+  cap: PART.cap,
+  fullface: PART.fullface,
 };
 
 /** The parts a civilian shows this moment, as the instance's `aKit`:
@@ -190,7 +325,13 @@ const HEAD_PART: Readonly<Record<Head, number>> = {
 export function kitParts(kit: CivilianKit, pose: CivilianPose, out: number[]): number[] {
   out[0] = HEAD_PART[kit.head];
   out[1] = CARRY_PART[pose.carry];
-  out[2] = holdsSnowball(pose) ? PART.snowball : pose.bag ? PART.bag : 0;
+  out[2] = holdsSnowball(pose)
+    ? PART.snowball
+    : pose.bag
+      ? PART.bag
+      : kit.glasses
+        ? PART.glasses
+        : 0;
   out[3] = kit.mark;
   return out;
 }

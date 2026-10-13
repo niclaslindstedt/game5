@@ -32,6 +32,7 @@ import { FACADE } from "./facade-paint.ts";
 import type { FacadeKit } from "./facade-kit.ts";
 import { solidOf, type PisteLamp, type PisteMast } from "./piste-light-plan.ts";
 import { idHash, signBoard, solid, type Skin } from "./resort-props.ts";
+import { summerShown } from "./season-look.ts";
 import { KERB, roadY } from "./street-plan.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
@@ -49,7 +50,8 @@ export function buildStreetFurniture(kit: FacadeKit, level: Level): void {
   if (!v) return;
   for (const l of v.lamps) lamp(kit, level, l);
   busStop(kit, level, v);
-  for (const p of v.poles) snowPole(kit, level, p.x, p.z);
+  // The road's snow poles are taken in for the summer.
+  if (!summerShown()) for (const p of v.poles) snowPole(kit, level, p.x, p.z);
   signs(kit, level, v);
 }
 

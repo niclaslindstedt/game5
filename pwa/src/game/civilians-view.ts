@@ -118,13 +118,19 @@ type Skater = Pick<
   | "turnHeld"
 >;
 
-export function createCiviliansView(level: Level, haze: HazeUniforms): CiviliansView {
+export function createCiviliansView(
+  level: Level,
+  haze: HazeUniforms,
+  summer = false,
+): CiviliansView {
   const group = new THREE.Group();
   group.name = "civilians";
-  const plan: CivilianPlan = civilianPlanFor(level);
+  // IN SUMMER the summer's people (`civilian-summer.ts`), in summer kit.
+  const plan: CivilianPlan = civilianPlanFor(level, summer);
+  const figure = (body: CrowdBody, lod: CrowdLod) => buildCivilianFigure(body, lod, summer);
   const material = civilianMaterial(haze);
   const depth = civilianDepth(createShadeDepth(haze));
-  const kits: CivilianKit[] = plan.people.map((c) => civilianKit(c, level.seed));
+  const kits: CivilianKit[] = plan.people.map((c) => civilianKit(c, level.seed, summer));
   const ids = plan.people.map((_, i) => i);
   /** Every skater's kit, a crowd outfit off a stand-in id past the crowd's. */
   const outfits = new Map<number, Outfit>();
@@ -146,7 +152,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   for (const c of plan.people) (c.skis ? skiCounts : counts)[c.body] += 1;
   // THE DOG WALKERS (`dog-walk.ts`): each household's owner with the lead
   // and the child who comes along, dressed as guests off a stand-in each.
-  const dogs = dogPlanFor(level);
+  const dogs = dogPlanFor(level, summer);
   const walkers = (dogs?.households ?? []).flatMap((hh) => {
     const out: { h: number; member: 0 | 1; body: CrowdBody; kit: CivilianKit }[] = [];
     const members: [0 | 1, CrowdBody | null][] = [
@@ -161,7 +167,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
         dress: "guest",
         tint: ((hh.id * 7919 + member * 104729) % 1000) / 1000,
       } as Civilian;
-      out.push({ h: hh.id, member, body, kit: civilianKit(stand, level.seed + 0xd09) });
+      out.push({ h: hh.id, member, body, kit: civilianKit(stand, level.seed + 0xd09, summer) });
       counts[body] += 1;
     }
     return out;
@@ -180,7 +186,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   const makeSlot = (body: CrowdBody, lod: CrowdLod): Slot | undefined => {
     const capacity = counts[body];
     if (capacity === 0) return undefined;
-    const geometry = sharing(buildCivilianFigure(body, lod));
+    const geometry = sharing(figure(body, lod));
     const attr = () => {
       const a = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
       a.setUsage(THREE.DynamicDrawUsage);
@@ -283,7 +289,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
     // man to come close costs a mesh and its upload, never a figure built
     // mid-ride.
     for (const lod of CROWD_LODS) {
-      if (counts[body] > 0) buildCivilianFigure(body, lod);
+      if (counts[body] > 0) figure(body, lod);
       if (skiCounts[body] > 0) buildCrowdFigure(body, lod);
     }
   }
@@ -354,7 +360,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
   // THE KNOCKED (`civilian-hits.ts`): everyone on foot, the knocks kept,
   // and the pool of meshes a person on his ragdoll is drawn with — by body,
   // cut and whether he is on skis — and how many of each this frame takes.
-  const people = peopleOf(level);
+  const people = peopleOf(level, summer);
   const knocks = createKnocks();
   type Down = {
     mesh: THREE.InstancedMesh;
@@ -368,7 +374,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
     let pool = downs.get(key);
     if (!pool) downs.set(key, (pool = { meshes: [], n: 0 }));
     if (pool.n < pool.meshes.length) return pool.meshes[pool.n++];
-    const geometry = (skis ? buildCrowdFigure(body, lod) : buildCivilianFigure(body, lod)).clone();
+    const geometry = (skis ? buildCrowdFigure(body, lod) : figure(body, lod)).clone();
     geometry.morphAttributes = {};
     const attr = () => new THREE.InstancedBufferAttribute(new Float32Array(4), 4);
     const dress = attr();
@@ -408,7 +414,7 @@ export function createCiviliansView(level: Level, haze: HazeUniforms): Civilians
     const d = downMesh(body, lod, skis);
     const posed = knockedPose(b.points, body, [b.x, b.y, b.z]);
     if (skis) poseCrowdFigure(body, lod, posed, d.mesh.geometry);
-    else poseCivilianFigure(body, lod, posed, d.mesh.geometry);
+    else poseCivilianFigure(body, lod, posed, d.mesh.geometry, undefined, summer);
     d.mesh.setMatrixAt(0, m.makeTranslation(b.x, b.y, b.z));
     d.mesh.instanceMatrix.needsUpdate = true;
     d.dress.setXYZW(0, colours[0], colours[1], colours[2], colours[3]);

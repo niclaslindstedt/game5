@@ -527,7 +527,7 @@ export function createWorldRenderer(
       wildlife.group.name = "wildlife";
       scene.add(wildlife.group);
       if (!(await rest(mine))) return;
-      crowd = createPeopleView(lv, env.haze, state.rules, env.cull);
+      crowd = createPeopleView(lv, env.haze, state.rules, env.cull, !!state.summer);
       scene.add(crowd.group);
       if (!(await rest(mine))) return;
       spray = createSpray(env.haze);

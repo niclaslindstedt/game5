@@ -155,10 +155,10 @@ void main() {
   });
 }
 
-export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
+export function createDogsView(level: Level, haze: HazeUniforms, summer = false): DogsView {
   const group = new THREE.Group();
   group.name = "dogs";
-  const plan = dogPlanFor(level);
+  const plan = dogPlanFor(level, summer);
   if (!plan) {
     return { group, update() {}, dispose() {} };
   }
@@ -417,7 +417,8 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
         nPiles++;
         // Steaming its first minute.
         const age = t - it.at;
-        if (age < DOG_WALK.steam && nSteam + STEAM.puffs <= steamCap) {
+        // ...in the cold: a summer's does not.
+        if (!plan.summer && age < DOG_WALK.steam && nSteam + STEAM.puffs <= steamCap) {
           const fade = 1 - age / DOG_WALK.steam;
           for (let q = 0; q < STEAM.puffs; q++) {
             const u = (age / STEAM.rise + q / STEAM.puffs) % 1;
@@ -430,7 +431,8 @@ export function createDogsView(level: Level, haze: HazeUniforms): DogsView {
             nSteam++;
           }
         }
-      } else {
+      } else if (!plan.summer) {
+        // A yellow patch reads on snow; on a summer's dry ground it is gone.
         const r = 0.18 + 0.22 * size;
         quat.setFromAxisAngle(yAxis, it.seed % 5);
         m.compose(pos.set(it.x, it.y + 0.006, it.z), quat, scale.set(r, 1, r * 0.85));

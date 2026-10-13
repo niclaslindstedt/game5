@@ -255,7 +255,7 @@ function cutaway() {
 /** THE RESERVE: the main flown 2 s from `agl` m, cut away, `delay` s of
  * freefall, the reserve pulled — the seconds to line stretch and to full,
  * the height from the cut-away to full, the peak load; then the press
- * under it (which must do nothing). */
+ * under it (which cuts it away too). */
 function reserve(agl, delay) {
   const s = dive(agl, { mode: "open" });
   for (let i = 0; i < steps(2); i++) E.step(s, N);
@@ -275,8 +275,8 @@ function reserve(agl, delay) {
   const lost = y0 - s.skier.y;
   for (let i = 0; i < steps(1.5); i++) E.step(s, N);
   E.step(s, { ...N, machine: true });
-  const kept = s.chute.mode === "open" && s.chute.reserve;
-  return { pulled, fall, stretch, full, lost, peak: s.chute.peak, kept };
+  const cut = s.chute.mode === "released" && s.chute.reserve;
+  return { pulled, fall, stretch, full, lost, peak: s.chute.peak, cut };
 }
 
 /** INTO A CROWN: a canopy flown at a lone tree, caught, hanging, swung,
@@ -554,7 +554,7 @@ const rows = [
     value: RC.glide,
     unit: ":1",
     band: "2.2–2.8",
-    note: `hands off; the press under it ${R0.kept && R10.kept ? "does nothing" : "CUT IT AWAY"}`,
+    note: `hands off; the press under it ${R0.cut && R10.cut ? "cuts it away" : "DID NOT CUT IT AWAY"}`,
   },
   {
     id: "reserve-land",

@@ -64,7 +64,7 @@ import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
 import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
 import { hazeMaterial, setRunSnow } from "./haze.ts";
-import { dealLamps } from "./headlamp.ts";
+import { adaptLamps, dealLamps } from "./headlamp.ts";
 import { createHeroShadow } from "./hero-shadow.ts";
 import {
   createBodyTrack,
@@ -812,6 +812,7 @@ export function createWorldRenderer(
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);
+      adaptLamps(env.haze, look.lampLight);
       spray.setScale(pixels);
       spray.update(Math.min(dt, 0.1), look, level);
       // The ladder's lens looks through his own tail; a planted one sees it whole.

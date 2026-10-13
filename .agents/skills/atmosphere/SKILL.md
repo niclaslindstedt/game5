@@ -103,9 +103,16 @@ engine has an opinion about colour.
   look across a frame: a card or a lab can change the sky under a live
   scene, and the fall breathes in squalls.
 - **THE SHADOWS ARE BLUE, AND THAT IS THE SKY'S JOB.** What fills a shadow on
-  snow is the sky, so the hemisphere's upper colour is a real blue and the
-  bounce under it near-white. Shade that reads grey is a hemisphere light
-  that lost its blue, not a snow shader that needs a tint.
+  snow is the sky: every world material reads the physical sky's irradiance
+  harmonics on its normal (`sky-light.ts`'s `skyIrradiance`, `uSkySh`), so
+  shade is the zenith's blue by a low sun and the Belt's pink after it.
+  Shade that reads grey is harmonics that lost their blue, not a shader
+  that needs a tint. THE KEY HAS A HEIGHT (`keyAtHeight`, `keyBandsFor`):
+  the peaks keep a red sun minutes after the valley loses it — alpenglow is
+  the transmittance at each band's own horizon, never a paint. The world's
+  light is `SkyLook.light` (the exposure lifted through the twilight, the
+  dome left as it is), and the lamps are scaled by `lampLight` so a
+  floodlight is lost under a twilight sky and is the night's whole light.
 - **The sky over snow is bright.** Fresh snow sends most of the light back
   up; a winter horizon is a pale, almost white blue. A saturated horizon
   reads as summer.

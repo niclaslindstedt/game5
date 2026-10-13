@@ -12,7 +12,7 @@
 //     the map still stands in front of the ranges behind it.
 //
 // Both are lit as the snow is — the key light through the air DOWN TO THE
-// HEIGHT of the face it lands on (`sunTransmittance`: the peaks keep a
+// HEIGHT of the face it lands on (`sky-light.ts`'s `sunAtHeight`: the peaks keep a
 // warm sun after the valleys lose it, and Earth's shadow climbs them at
 // dusk), cut off where the key is under the horizon that point sees toward
 // it (a range shading the next), and the sky's hemisphere over all — then
@@ -45,7 +45,7 @@ import {
 } from "./far-ranges-plan.ts";
 import { regionLookOf } from "./region-look.ts";
 import type { Tier } from "./settings-video.ts";
-import { sunTransmittance } from "./sky-atmosphere.ts";
+import { sunAtHeight } from "./sky-light.ts";
 import { AERIAL_GLSL } from "./sky-gpu-glsl.ts";
 import type { Dir, SkyLook } from "./sky.ts";
 import { TERRAIN_REACH } from "./settings-video.ts";
@@ -349,8 +349,8 @@ export function createFarRanges(haze: HazeUniforms): FarRanges {
       const bySun = look.key !== look.moon;
       [ys.x, ys.y, ys.z, ys.w].forEach((y, i) => {
         if (bySun) {
-          sunTransmittance(look.elevation, Math.max(0, y - sea), band);
-          const s = look.exposure * look.keyPass;
+          sunAtHeight(look.elevation, Math.max(0, y - sea), band);
+          const s = look.light * look.keyPass;
           bands[i].set(band[0] * s, band[1] * s, band[2] * s);
         } else {
           bands[i].set(...look.keyColour).multiplyScalar(look.keyIntensity);

@@ -281,3 +281,13 @@ export function dealLamps(
     w.deal();
   }
 }
+
+/** THE LAMPS AGAINST THE SKY (`SkyLook.lampLight`): every slot's light and
+ * the piste lights' scaled by how much of it the eye, adapted to the sky,
+ * still sees — after `dealLamps` has dealt the dark; the piste lights' share
+ * rides `uPisteOn.y`, so what reads `.x` as the night's switch (the cabins'
+ * and the rooms' windows) is left alone. */
+export function adaptLamps(u: HazeUniforms, share: number): void {
+  for (let i = 0; i < LAMP_SLOTS; i++) u.uLampOn.value[i] *= share;
+  u.uPisteOn.value.y = share;
+}

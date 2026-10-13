@@ -23,6 +23,7 @@ import { CLOUD_SHADOW_GLSL } from "./cloud-glsl.ts";
 import { FAR_RADIUS } from "./horizon.ts";
 import { AERIAL_GLSL } from "./sky-gpu-glsl.ts";
 import type { Tracks } from "./piste-tracks.ts";
+import { KEY_BANDS, SKY_LIGHT_GLSL } from "./sky-light.ts";
 import { SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import type { SkyLook } from "./sky.ts";
 import type { SnowAge } from "./snow-age.ts";
@@ -90,6 +91,11 @@ export type HazeUniforms = {
   uFarRimBox: { value: THREE.Vector4 };
   uFarRimSpan: { value: THREE.Vector2 };
   uFarKey: { value: THREE.Color };
+  /** THE SKY'S LIGHT ON A SURFACE and THE KEY BY HEIGHT (`sky-light.ts`):
+   * the irradiance harmonics, and the bands' heights and shares. */
+  uSkySh: { value: THREE.Vector3[] };
+  uKeyBandY: { value: THREE.Vector4 };
+  uKeyBand: { value: THREE.Vector3[] };
   uHaze: { value: number };
   /** THE MIST the DISTANCE row closes on (`mistFor`): its wall, m, past
    * which nothing is seen and nothing is drawn; 0 is no mist. */
@@ -171,7 +177,9 @@ export type HazeUniforms = {
    * the ground over the whole map — a vector irradiance a texel, lux — the
    * world-to-uv of its grid (the origin less half a texel, and one over its
    * span), `x` how far on in the lamp slots' units a lux (0: dark, or no
-   * map baked) and the colour of the light, linear. Read by `pisteLight`. */
+   * map baked), `y` the share of it the eye sees against the sky
+   * (`headlamp.ts`'s `adaptLamps`), and the colour of the light, linear.
+   * Read by `pisteLight`. */
   uPisteLight: { value: THREE.Texture | null };
   uPisteBox: { value: THREE.Vector4 };
   uPisteOn: { value: THREE.Vector4 };
@@ -255,6 +263,9 @@ export function createHazeUniforms(): HazeUniforms {
     uFarRimBox: { value: new THREE.Vector4(0, 0, 1, 0) },
     uFarRimSpan: { value: new THREE.Vector2(0, 0) },
     uFarKey: { value: new THREE.Color() },
+    uSkySh: { value: Array.from({ length: 9 }, () => new THREE.Vector3()) },
+    uKeyBandY: { value: new THREE.Vector4(0, 1, 2, 3) },
+    uKeyBand: { value: Array.from({ length: KEY_BANDS }, () => new THREE.Vector3(1, 1, 1)) },
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },
     uMistAloft: { value: 0 },
@@ -285,7 +296,7 @@ export function createHazeUniforms(): HazeUniforms {
     uLampGlint: { value: 1 },
     uPisteLight: { value: null },
     uPisteBox: { value: new THREE.Vector4(0, 0, 1, 1) },
-    uPisteOn: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uPisteOn: { value: new THREE.Vector4(0, 1, 0, 0) },
     uPisteCol: { value: new THREE.Vector3(1, 1, 1) },
     uSlab0: { value: new THREE.Vector4(0, 0, 0, 1) },
     uSlab1: { value: new THREE.Vector4(0, 0, 1, 0) },
@@ -354,6 +365,13 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
   u.uHazeShadow.value.set(...look.hazeShadow);
   u.uFarGround.value.setRGB(...look.farGround);
   u.uFarKey.value.setRGB(...look.farKey);
+  const sh = look.irradiance;
+  for (let k = 0; k < 9; k++) u.uSkySh.value[k].set(sh[k * 3], sh[k * 3 + 1], sh[k * 3 + 2]);
+  const by = look.keyBandY;
+  u.uKeyBandY.value.set(by[0], by[1], by[2], by[3]);
+  const kb = look.keyBand;
+  for (let i = 0; i < KEY_BANDS; i++)
+    u.uKeyBand.value[i].set(kb[i * 3], kb[i * 3 + 1], kb[i * 3 + 2]);
   u.uHaze.value = look.haze;
   u.uHazeLift.value = look.hazeLift;
   // A valley fog is thick at the floor and gone over the peaks.
@@ -556,7 +574,7 @@ vec3 pisteLight(vec3 at) {
   if (uPisteOn.x <= 0.0) return vec3(0.0);
   vec2 uv = (at.xz - uPisteBox.xy) * uPisteBox.zw;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
-  return texture2D(uPisteLight, uv).rgb * uPisteOn.x;
+  return texture2D(uPisteLight, uv).rgb * (uPisteOn.x * uPisteOn.y);
 }
 `;
 
@@ -741,8 +759,12 @@ export function lightsWithFade(): string {
   }
   fadedLights = chunk
     // THE CLOUDS between the point and the key (`cloud-glsl.ts`), whatever
-    // the SHADOWS row: a heap's shadow is miles across.
-    .replace(DIR_INFO, `${DIR_INFO}\n\t\tdirectLight.color *= cloudShadow( vHazeWorld );`)
+    // the SHADOWS row: a heap's shadow is miles across; and the key's share
+    // at the point's own height (`sky-light.ts`): the peaks' alpenglow.
+    .replace(
+      DIR_INFO,
+      `${DIR_INFO}\n\t\tdirectLight.color *= cloudShadow( vHazeWorld ) * keyAtHeight( vHazeWorld.y );`,
+    )
     .replace(
       DIR_SHADOW_OPEN,
       "? min( terrainLit( vHazeWorld ), heroShadowed( shadowFaded( shadowGone() ? 1.0 : getShadow( directionalShadowMap[ i ]",
@@ -789,7 +811,7 @@ export function hazeMaterial<M extends THREE.Material>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SKY_GLSL}\n${AERIAL_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}\n${CLOUD_SHADOW_GLSL}`,
+        `#include <common>\n${SKY_GLSL}\n${AERIAL_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}\n${CLOUD_SHADOW_GLSL}\n${SKY_LIGHT_GLSL}`,
       )
       .replace(
         "#include <shadowmap_pars_fragment>",

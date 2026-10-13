@@ -20,6 +20,7 @@
 import * as THREE from "three";
 
 import { FAR_RADIUS } from "./horizon.ts";
+import { AERIAL_GLSL } from "./sky-gpu-glsl.ts";
 import type { Tracks } from "./piste-tracks.ts";
 import { SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import type { SkyLook } from "./sky.ts";
@@ -50,7 +51,22 @@ export type HazeUniforms = {
    * from the sun and the view's elevation, exposed — what `skyColour(dir)`
    * reads. The LOW sky's from the baked table; the GPU sky (MEDIUM, HIGH)
    * renders into the same slot. */
-  uSkyView: { value: THREE.DataTexture };
+  uSkyView: { value: THREE.Texture };
+  /** THE LOW GRID itself, written every frame whichever sky is drawn, so a
+   * tier moved down has it current (not read by any shader). */
+  uSkyGrid: { value: THREE.DataTexture };
+  /** The sky-view texture's texels, azimuth × elevation: the LOW grid's or
+   * the GPU sky's (`sky-gpu.ts`). */
+  uSkyViewSize: { value: THREE.Vector2 };
+  /** THE HAZE'S EXTINCTION PER CHANNEL (`sky-gpu-plan.ts`'s `hazeTint`):
+   * 1 in every channel under the LOW sky, the model's own on MEDIUM and
+   * HIGH. */
+  uHazeTint: { value: THREE.Vector3 };
+  /** THE AERIAL-PERSPECTIVE VOLUME (HIGH, `sky-gpu.ts`): the atlas, the
+   * view-projection it was built through, and `x` whether to read it. */
+  uAp: { value: THREE.Texture | null };
+  uApViewProj: { value: THREE.Matrix4 };
+  uApOn: { value: THREE.Vector4 };
   /** THE LOW AIR IN EARTH'S SHADOW (`SkyLook.hazeShadow`): rgb the
    * shadowed air's colour, w the share of the haze over the ground it
    * takes — none while the sun is up, all of it a few degrees under. */
@@ -185,6 +201,7 @@ export function setRunSnow(
 }
 
 export function createHazeUniforms(): HazeUniforms {
+  const grid = skyViewTexture();
   const vectors = (): THREE.Vector3[] =>
     Array.from({ length: LAMP_SLOTS }, () => new THREE.Vector3(0, 0, 1));
   return {
@@ -194,7 +211,13 @@ export function createHazeUniforms(): HazeUniforms {
     uHorizon: { value: new THREE.Color() },
     uGlow: { value: new THREE.Color() },
     uSunCol: { value: new THREE.Color() },
-    uSkyView: { value: skyViewTexture() },
+    uSkyView: { value: grid },
+    uSkyGrid: { value: grid },
+    uSkyViewSize: { value: new THREE.Vector2(SKY_VIEW_AZ, SKY_VIEW_EL) },
+    uHazeTint: { value: new THREE.Vector3(1, 1, 1) },
+    uAp: { value: null },
+    uApViewProj: { value: new THREE.Matrix4() },
+    uApOn: { value: new THREE.Vector4(0, 0, 0, 0) },
     uHazeShadow: { value: new THREE.Vector4(0, 0, 0, 0) },
     uFar: { value: new THREE.Vector2(0, 0) },
     uFarGround: { value: new THREE.Color() },
@@ -284,7 +307,9 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
   u.uHorizon.value.setRGB(...look.horizon);
   u.uGlow.value.setRGB(...look.glow);
   u.uSunCol.value.setRGB(...look.sunColour);
-  writeSkyView(u.uSkyView.value, look.view);
+  // The GPU sky (`sky-gpu.ts`) swaps its own table into the slot; the
+  // LOW grid is written into its own texture whichever is drawn.
+  writeSkyView(u.uSkyGrid.value, look.view);
   u.uHazeShadow.value.set(...look.hazeShadow);
   u.uFarGround.value.setRGB(...look.farGround);
   u.uFarKey.value.setRGB(...look.farKey);
@@ -305,6 +330,8 @@ uniform vec3 uHorizon;
 uniform vec3 uGlow;
 uniform vec3 uSunCol;
 uniform sampler2D uSkyView;
+uniform vec2 uSkyViewSize;
+uniform vec3 uHazeTint;
 uniform vec4 uHazeShadow;
 uniform vec2 uFar;
 uniform vec3 uFarGround;
@@ -315,7 +342,8 @@ uniform float uMistAloft;
 uniform float uHazeLift;
 uniform float uHazeFloor;
 
-// The physical sky (\`uSkyView\`): its grid is the azimuth from the sun
+// The physical sky (\`uSkyView\`, the LOW grid or the GPU sky's table of
+// \`uSkyViewSize\` texels on the same layout): its grid is the azimuth from the sun
 // packed toward it (u = sqrt(az / pi)) by the view's elevation packed toward
 // the horizon (v = sqrt(el / (pi / 2))) — sky-table-format.ts's layout.
 // The elevation is counted from the TRUE horizon, \`uFar.x\` under the
@@ -329,9 +357,7 @@ vec3 skyColour(vec3 dir) {
   float ca = (hl > 1e-4 && sl > 1e-4) ? dot(d.xz, uSunPos.xz) / (hl * sl) : 1.0;
   float u = sqrt(acos(clamp(ca, -1.0, 1.0)) / 3.14159265);
   float v = sqrt(up);
-  vec2 uv = vec2(
-    (u * ${(SKY_VIEW_AZ - 1).toFixed(1)} + 0.5) / ${SKY_VIEW_AZ.toFixed(1)},
-    (v * ${(SKY_VIEW_EL - 1).toFixed(1)} + 0.5) / ${SKY_VIEW_EL.toFixed(1)});
+  vec2 uv = (vec2(u, v) * (uSkyViewSize - 1.0) + 0.5) / uSkyViewSize;
   return texture2D(uSkyView, uv).rgb;
 }
 
@@ -502,7 +528,12 @@ export const HAZE_FRAGMENT = /* glsl */ `
   vec3 hzRay = vHazeWorld - cameraPosition;
   float hzDist = length(hzRay);
   vec3 hzDir = hzRay / max(hzDist, 1e-3);
-  vec3 hzCol = hazeColour(hzDir);
+  // The air's own light on that bearing, shaded where the sun does not
+  // reach the air along the way (HIGH's aerial-perspective volume — 1
+  // elsewhere), and how much of it stands in front, per channel by the
+  // model's extinction (1: grey — LOW).
+  vec3 hzCol = hazeColour(hzDir) * aerialShade(vHazeWorld);
+  vec3 hzAir = 1.0 - pow(vec3(1.0 - hazeAir(hzDist, hzRay.y)), uHazeTint);
   // Into the air's own light by the air between; then, where the DISTANCE
   // row's mist closes the ground, into what the dome shows behind it — so
   // the ground's last ring meets the far ground under the horizon, not a
@@ -514,7 +545,7 @@ export const HAZE_FRAGMENT = /* glsl */ `
   #endif
   hzCol = linearToOutputTexel(vec4(hzCol, 1.0)).rgb;
   hzFar = linearToOutputTexel(vec4(hzFar, 1.0)).rgb;
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, hazeAir(hzDist, hzRay.y));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, hzAir);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hazeMist(hzDist, hzRay.y));
 }
 `;
@@ -648,7 +679,7 @@ export function hazeMaterial<M extends THREE.Material>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SKY_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
+        `#include <common>\n${SKY_GLSL}\n${AERIAL_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}`,
       )
       .replace(
         "#include <shadowmap_pars_fragment>",

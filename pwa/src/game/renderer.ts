@@ -221,7 +221,7 @@ export function createWorldRenderer(
   const replayCam = createReplayCamera(() => (level && clear ? { level, clear } : null));
   const broadcast = createJumpBroadcast(); // a ski jump's director (`camera-skijump.ts`)
   let watched: ReplayView | null = null;
-  const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9);
+  const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
   env.setDistance(video.distance);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);

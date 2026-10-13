@@ -103,6 +103,11 @@ export const PICTURE_PRICES: PriceList = {
     "90": { cost: 0.78, benefit: 75 },
     "100": { cost: 1.02, benefit: 85 },
   },
+  // MEDIUM and up also draw the GPU SKY (`sky-gpu.ts`, `SKY_TIER`): the
+  // sky-view table only as the sun moves and, on HIGH and MAX, the
+  // aerial-perspective volume every frame. Timed on a software GPU at about
+  // 0.1 ms, 0.7 ms and 0.1 ms a pass — not a real price; these rows wait
+  // for `make bench ARGS="--gpu --costs"` on a machine with a GPU.
   distance: {
     low: { cost: 0, benefit: 0 },
     medium: { cost: 0.52, benefit: 25 },

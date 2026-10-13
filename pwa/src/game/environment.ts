@@ -25,7 +25,8 @@ import type { Heightfield } from "@engine";
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { horizonDip } from "./horizon.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
-import { mistFor, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
+import { mistFor, SKY_TIER, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
+import { createSkyGpu, type SkyGpu } from "./sky-gpu.ts";
 import type { AloftLook } from "./view-aloft.ts";
 import {
   aimShadow,
@@ -48,6 +49,9 @@ export type Environment = {
   haze: HazeUniforms;
   sun: THREE.DirectionalLight;
   dome: SkyDome;
+  /** THE GPU SKY (MEDIUM and HIGH, `sky-gpu.ts`): its tier rides the
+   * DISTANCE row; `update` draws what is due. */
+  gpu: SkyGpu;
   /** Apply a look, and aim the shadow ahead of `camera`, its box standing
    * at height `y` (the skier's: what the depth range is centred on);
    * `drift` is how far the wind has carried the cloud (`sky-dome.ts`);
@@ -198,8 +202,10 @@ export function createEnvironment(
   scene: THREE.Scene,
   shadowLook: ShadowLook,
   domeRadius: number,
+  gl: THREE.WebGLRenderer | null = null,
 ): Environment {
   const haze = createHazeUniforms();
+  const gpu = createSkyGpu(gl, haze);
   const terrain = createTerrainShade(haze);
   const dome = createSkyDome(haze, domeRadius);
   dome.mesh.name = "sky";
@@ -261,9 +267,11 @@ export function createEnvironment(
     haze,
     sun,
     dome,
+    gpu,
     update(sky, camera, y, drift, steady = false, ahead = null, far = 0) {
       writeHaze(haze, sky);
       haze.uFar.value.set(horizonDip(far), far);
+      gpu.update(sky, camera);
       dome.update(sky, drift?.x ?? 0, drift?.z ?? 0);
       // The key is the sun by day and the moon by night (`sky.ts`).
       sun.color.setRGB(...sky.keyColour);
@@ -307,12 +315,14 @@ export function createEnvironment(
     setShadow,
     setDistance(next) {
       haze.uMist.value = mistFor(next);
+      gpu.setTier(SKY_TIER[next]);
     },
     setAloft(look) {
       haze.uMist.value = look.mist;
       haze.uMistAloft.value = look.aloft;
     },
     setGround(ground, key) {
+      gpu.setGround(ground);
       return terrain.setGround(ground, key, sun.castShadow);
     },
     shadeSettled: () => terrain.settled(),
@@ -321,6 +331,7 @@ export function createEnvironment(
       warmPicture(gl, scene, camera);
     },
     dispose() {
+      gpu.dispose();
       terrain.dispose();
       dome.dispose();
       sun.shadow.map?.dispose();

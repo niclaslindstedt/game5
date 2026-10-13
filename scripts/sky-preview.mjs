@@ -16,6 +16,13 @@
 //   tiers      every picture preset at dawn, the golden hour, noon, the low
 //              sun, sunset, the blue hour and night —
 //              `previews/sky-<seed>-tiers[-<view>].png`
+//   skytier    the SKY's own tiers alone (LOW the baked table, MEDIUM and
+//              HIGH the GPU's — `sky-gpu.ts`) at dawn, noon, a low sun,
+//              sunset, the anti-solar sky and the blue hour, each from its
+//              own view, every GPU cell's ΔE from the LOW cell over it
+//              (the dE, dSky and dE95 columns) and the HIGH − LOW
+//              difference drawn ×4; the GPU's passes timed in the title —
+//              `previews/sky-<seed>-skytier.png`
 //
 // Every cell is measured (`pwa/src/tools/sky-eval.ts`): the model's zenith
 // and horizon luminance and colour temperature, the sun's disc's, the key
@@ -59,7 +66,11 @@ const args = parseArgs(
   process.argv.slice(2),
   {
     seed: { kind: "number", default: 38, help: "the map's seed (its day and latitude are kept)" },
-    sheet: { kind: "string", default: "weathers", help: "weathers, timelapse or tiers" },
+    sheet: {
+      kind: "string",
+      default: "weathers",
+      help: "weathers, timelapse, tiers or skytier (the sky's own tiers against LOW, in ΔE, and the GPU passes timed)",
+    },
     hours: {
       kind: "string",
       default: "",
@@ -94,7 +105,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1200, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build]",
+  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers|skytier] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -174,6 +185,7 @@ await server.close();
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;
 const COLS = [
   "id",
+  ...(args.sheet === "skytier" ? ["dE", "dSky", "dE95"] : []),
   "elev",
   "zenL",
   "horL",

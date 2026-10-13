@@ -397,6 +397,8 @@ const VIEW_STEPS = 80;
  * per unit of the sun's illuminance. The sun's own disc is not in it (that
  * is the key light). A view into the ground stops at the ground, and the
  * snow there is not added: the dome below the horizon is the terrain's.
+ * `steps` is how many steps the march takes (the GPU sky's tiers take
+ * fewer — `sky-gpu-plan.ts` — on the same spacing).
  */
 export function skyRadiance(
   atmo: Atmosphere,
@@ -404,6 +406,7 @@ export function skyRadiance(
   view: Vec,
   sun: Vec,
   out: Rgb = [0, 0, 0],
+  steps: number = VIEW_STEPS,
 ): Rgb {
   const p = atmo.params;
   const r = radiusAt(atmo, altitude);
@@ -421,8 +424,8 @@ export function skyRadiance(
   // Steps packed toward the lens (where the air is thick), ending at the
   // ray's far end: t_i = len · (i / N)².
   let prev = 0;
-  for (let s = 1; s <= VIEW_STEPS; s++) {
-    const f = s / VIEW_STEPS;
+  for (let s = 1; s <= steps; s++) {
+    const f = s / steps;
     const t1 = len * f * f;
     const dt = t1 - prev;
     const t = prev + 0.5 * dt;

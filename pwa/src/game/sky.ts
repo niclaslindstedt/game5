@@ -146,6 +146,15 @@ export type SkyLook = {
   irradiance: number[];
   /** The eye's adaptation the look is exposed at (`exposureOf`). */
   exposure: number;
+  /** WHAT THE GPU SKY (MEDIUM, HIGH — `sky-gpu.ts`) needs to expose its own
+   * sky-view table exactly as `view` is: the lens's altitude over the sea
+   * the sky is reckoned at, m; the clear sky's mean luminance the dome is
+   * pressed about (`DOME`); and the share a veil or heaps thin the blue
+   * toward the horizon's white (0 for a clear sky and under a lid, whose
+   * dome is the deck's and drawn off `view` at every tier). */
+  altitude: number;
+  domeMean: number;
+  veil: number;
   /** The haze's density, 1/m — the distance the far rim is lost over. */
   haze: number;
   /** How low the haze lies: its thinning height, m (a valley fog's is low,
@@ -291,8 +300,8 @@ const DEFAULT_ALTITUDE = 800;
 
 /** The night sky's own floor (starlight, airglow) at the zenith and the
  * horizon, linear — what is left when the twilight has gone. */
-const NIGHT_ZENITH: Rgb = [0.004, 0.008, 0.024];
-const NIGHT_HORIZON: Rgb = [0.014, 0.022, 0.05];
+export const NIGHT_ZENITH: Rgb = [0.004, 0.008, 0.024];
+export const NIGHT_HORIZON: Rgb = [0.014, 0.022, 0.05];
 
 /** THE DOME'S OWN TONE: the sky's span pressed to this power of itself
  * about its mean, and lifted by `gain` (the sky is looked at, and the eye
@@ -482,9 +491,11 @@ export function skyLookFor(
     // all of it under a thin deck, half under a storm's.
     ambient *= 1 + (LID_LIGHT[kind] - 1) * day;
     for (let k = 0; k < 27; k++) irradiance[k] *= 1 + (LID_LIGHT[kind] - 1) * day;
-  } else if (lid.cover > 0) {
+  }
+  const veil = !lidded && lid.cover > 0 ? lid.cover * (lid.genus === 2 ? 0.35 : 0.12) : 0;
+  if (veil > 0) {
     // A veil or heaps between: the blue thinned toward the horizon's white.
-    const share = lid.cover * (lid.genus === 2 ? 0.35 : 0.12);
+    const share = veil;
     for (let j = 0; j < SKY_VIEW_EL; j++)
       for (let i = 0; i < SKY_VIEW_AZ; i++)
         for (let c = 0; c < 3; c++) {
@@ -579,6 +590,9 @@ export function skyLookFor(
     view,
     irradiance,
     exposure,
+    altitude,
+    domeMean: skyMean,
+    veil,
     haze,
     hazeLift: fog > 0 ? 90 + 120 * (1 - fog) : 700,
     cloud: { genus: lid.genus, cover: lid.cover, lit: cloudLit, shade: cloudShade },

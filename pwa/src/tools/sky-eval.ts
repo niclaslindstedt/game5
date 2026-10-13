@@ -151,3 +151,52 @@ export function evalFrame(
     ms: Math.round(ms * 10) / 10,
   };
 }
+
+/** A linear sRGB colour in CIE L*a*b* (D65). */
+function labOf(c: Rgb): Rgb {
+  const X = (0.4124 * c[0] + 0.3576 * c[1] + 0.1805 * c[2]) / 0.95047;
+  const Y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const Z = (0.0193 * c[0] + 0.1192 * c[1] + 0.9505 * c[2]) / 1.08883;
+  const f = (t: number): number => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f(X);
+  const fy = f(Y);
+  const fz = f(Z);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+/** How far two cells' pictures are apart, in CIE76 ΔE (1 is about the
+ * smallest step an eye sees side by side; 2–3 a step seen when looked for;
+ * past 5 a different colour): the mean over the whole frame, over its sky
+ * (the top two fifths), and the 95th percentile. */
+export type FrameDiff = { dE: number; dSky: number; dE95: number };
+
+export function frameDiff(
+  a: Uint8ClampedArray,
+  b: Uint8ClampedArray,
+  w: number,
+  h: number,
+): FrameDiff {
+  const all: number[] = [];
+  let sky = 0;
+  let skyN = 0;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const la = labOf([toLinear(a[i]), toLinear(a[i + 1]), toLinear(a[i + 2])]);
+      const lb = labOf([toLinear(b[i]), toLinear(b[i + 1]), toLinear(b[i + 2])]);
+      const d = Math.hypot(la[0] - lb[0], la[1] - lb[1], la[2] - lb[2]);
+      all.push(d);
+      if (y < h * 0.4) {
+        sky += d;
+        skyN++;
+      }
+    }
+  const mean = all.reduce((s, d) => s + d, 0) / Math.max(1, all.length);
+  all.sort((p, q) => p - q);
+  const r2 = (x: number): number => Math.round(x * 100) / 100;
+  return {
+    dE: r2(mean),
+    dSky: r2(sky / Math.max(1, skyN)),
+    dE95: r2(all[Math.floor(all.length * 0.95)] ?? 0),
+  };
+}

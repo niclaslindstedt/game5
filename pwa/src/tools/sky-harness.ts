@@ -18,6 +18,13 @@
 //              blended as in a run, never re-cut cell by cell.
 //   tiers      every picture preset (rows) at a few hours (columns): what
 //              LOW, MEDIUM and HIGH each draw of the same sky.
+//   skytier    the SKY's own tiers alone (rows; `sky-gpu.ts`'s
+//              `forceSkyTier`, the rest of the picture the asked preset's)
+//              at dawn, noon, a low sun, sunset, the anti-solar sky and the
+//              blue hour, each cell's difference from the LOW cell over it
+//              in ΔE, a last row the HIGH − LOW difference ×4; and the GPU
+//              passes timed (the tables once, a sky-view at each tier, the
+//              aerial-perspective volume).
 //
 // The map, the day and the latitude stay the seed's; the sky moves through
 // `renderer.setSky` (the engine's `withSky`): the hour and the weather.
@@ -35,12 +42,16 @@ import {
   type SkyOverride,
 } from "@engine";
 
+import * as THREE from "three";
+
 import type { LensPose } from "../game/camera-rigs.ts";
+import { createHazeUniforms } from "../game/haze.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { skyLookAt } from "../game/sky.ts";
+import { createSkyGpu, forceSkyTier } from "../game/sky-gpu.ts";
 import { setSkyClock, skyHourNow } from "../game/sky-clock.ts";
-import { evalFrame, type SkyEval } from "./sky-eval.ts";
+import { evalFrame, frameDiff, type FrameDiff, type SkyEval } from "./sky-eval.ts";
 
 /** One row of the weathers sheet: a label, the sky it asks for, and the
  * new snow lying under it, m (`GameState.fresh`; none when left out). */
@@ -62,8 +73,9 @@ const ROWS: Row[] = [
   { label: "FAIR +8CM", sky: "fair", fresh: 0.08 },
 ];
 
-/** One measured cell. */
-export type SkyCell = { id: string } & SkyEval;
+/** One measured cell — on the sky-tier sheet with its difference from the
+ * LOW sky's cell over it. */
+export type SkyCell = { id: string } & SkyEval & Partial<FrameDiff>;
 
 declare global {
   interface Window {
@@ -399,6 +411,119 @@ async function tiers(): Promise<{ note: string; r: number; c: number; cells: Sky
   };
 }
 
+/** The GPU sky's passes timed on this context, ms each (software GL here:
+ * comparable only with itself). */
+function timePasses(): string {
+  forceSkyTier(null);
+  const gl = renderer.gl;
+  const ctx = gl.getContext();
+  const sky = createSkyGpu(gl, createHazeUniforms());
+  sky.setGround(level.ground);
+  const lens = new THREE.PerspectiveCamera(68, cellW / cellH, 0.5, 60000);
+  const top = ridgeTop();
+  lens.position.set(top.x, top.y + 8, top.z);
+  lens.lookAt(top.x + 400, top.y - 25, top.z);
+  const look = skyLookAt(withSky(level, { weather: "clear", hour: horizonHour(false) - 1 }), 0);
+  const timed = (n: number, body: (i: number) => void): number => {
+    ctx.finish();
+    const t0 = performance.now();
+    for (let i = 0; i < n; i++) body(i);
+    ctx.finish();
+    return (performance.now() - t0) / n;
+  };
+  const e0 = look.elevation;
+  const jiggle = (i: number): void => {
+    look.elevation = e0 + (i % 2 ? 3e-4 : -3e-4);
+    sky.update(look, lens);
+  };
+  sky.setTier("medium");
+  const first = timed(1, () => sky.update(look, lens));
+  const mediumView = timed(8, jiggle);
+  sky.setTier("high");
+  look.sun.y = -1; // the volume off: the sky-view alone
+  const highView = timed(6, jiggle);
+  look.sun.y = Math.sin(e0);
+  look.elevation = e0;
+  sky.update(look, lens);
+  const froxels = timed(8, () => sky.update(look, lens));
+  sky.dispose();
+  const r = (x: number): string => x.toFixed(1);
+  return `tables+first ${r(first)} ms · sky-view MEDIUM ${r(mediumView)} ms · HIGH ${r(highView)} ms · froxels ${r(froxels)} ms`;
+}
+
+async function skytier(): Promise<{ note: string; r: number; c: number; cells: SkyCell[] }> {
+  const row = rows[0];
+  const rise = horizonHour(true);
+  const set = horizonHour(false);
+  const shots = [
+    { label: "dawn", hour: rise + 0.3, view: "sunrise" },
+    { label: "noon", hour: 12, view: "vista" },
+    { label: "low sun", hour: set - 1, view: "sunset" },
+    { label: "sunset", hour: set, view: "sunset" },
+    { label: "antisun", hour: set + 0.15, view: "antisun" },
+    { label: "blue hour", hour: set + 0.5, view: "antisun" },
+  ];
+  const sheetRows = TIERS.length + 1;
+  const ctx = frame(
+    labelW + cellW * shots.length,
+    headH + cellH * sheetRows,
+    `${row.label} · the sky's tiers · the rest ${tier}`,
+  );
+  shots.forEach((s, c) =>
+    ctx.fillText(`${s.label} ${fmtHour(s.hour)}`, labelW + c * cellW + 6, 26),
+  );
+  state.fresh = row.fresh ?? 0;
+  const cells: SkyCell[] = [];
+  const low: Uint8ClampedArray[] = [];
+  for (let t = 0; t < TIERS.length; t++) {
+    forceSkyTier(TIERS[t]);
+    ctx.fillStyle = "#e8eef4";
+    ctx.fillText(`SKY ${TIERS[t].toUpperCase()}`, 8, headH + t * cellH + cellH / 2);
+    for (let c = 0; c < shots.length; c++) {
+      renderer.setOverride(lensFor(shots[c].view));
+      const x = labelW + c * cellW;
+      const y = headH + t * cellH;
+      const id = `${TIERS[t]}@${shots[c].label.replace(/ /g, "-")}`;
+      const got = await cell(ctx, { weather: row.sky, hour: shots[c].hour }, x, y, id);
+      const bytes = ctx.getImageData(x, y, cellW, cellH).data;
+      if (t === 0) low[c] = bytes;
+      else {
+        Object.assign(got, frameDiff(low[c], bytes, cellW, cellH));
+        if (t === TIERS.length - 1) {
+          // THE DIFFERENCE, ×4 about mid-grey.
+          const img = ctx.createImageData(cellW, cellH);
+          for (let i = 0; i < bytes.length; i += 4) {
+            for (let k = 0; k < 3; k++)
+              img.data[i + k] = Math.max(
+                0,
+                Math.min(255, 128 + 4 * (bytes[i + k] - low[c][i + k])),
+              );
+            img.data[i + 3] = 255;
+          }
+          ctx.putImageData(img, x, headH + TIERS.length * cellH);
+        }
+        ctx.fillStyle = "#0b1116";
+        ctx.fillRect(x + 2, y + cellH - 16, 132, 14);
+        ctx.fillStyle = "#e8eef4";
+        ctx.fillText(`ΔE ${got.dE} sky ${got.dSky} p95 ${got.dE95}`, x + 6, y + cellH - 9);
+      }
+      cells.push(got);
+    }
+  }
+  ctx.fillStyle = "#e8eef4";
+  ctx.fillText("HIGH−LOW ×4", 8, headH + TIERS.length * cellH + cellH / 2);
+  forceSkyTier(null);
+  renderer.setVideo(withPreset(DEFAULT_VIDEO, tier));
+  const cost = timePasses();
+  ctx.fillText(cost, 420, 10);
+  return {
+    note: `${TIERS.join(", ")} skies × ${shots.length} · ${cost}`,
+    r: sheetRows,
+    c: shots.length,
+    cells,
+  };
+}
+
 window.__sky = {
   ready: (async () => {
     await renderer.load(state);
@@ -412,7 +537,9 @@ window.__sky = {
         ? await timelapse()
         : kind === "tiers"
           ? await tiers()
-          : await weathers();
+          : kind === "skytier"
+            ? await skytier()
+            : await weathers();
     renderer.setSky(null);
     renderer.setOverride(null);
     return { rows: done.r, cols: done.c, note: done.note, cells: done.cells };

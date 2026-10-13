@@ -62,7 +62,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (gear, worn, exit, freefall, deploy, canopy, shape, cutaway, reserve, snag, lenses, night, stages); every one when left out",
+      help: "which sheets, comma-separated (gear, worn, exit, freefall, deploy, canopy, shape, cutaway, reserve, snag, lenses, night, stages, speed); every one when left out",
     },
     views: {
       kind: "string",

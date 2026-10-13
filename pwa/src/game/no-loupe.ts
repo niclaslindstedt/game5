@@ -13,12 +13,15 @@
 // itself — a quick second press of a menu row still lands. It cancels an end
 // only when it will give that click back (`loupeAction`): an end it cannot
 // cancel, or a touch that is no tap, is the browser's whole, or a stepper
-// tapped quickly steps twice or not at all.
+// tapped quickly steps twice or not at all. And because a cancelled end
+// has been seen to click anyway, the browser's own click on the element the
+// guard just clicked is swallowed (`isEcho`): one tap, one step, whatever
+// the browser does.
 //
 // A field that MEANS to take typed text (an input, a text area, anything
 // editable) is left to the browser entirely: it needs its caret.
 
-import { isSecondTap, isTap, loupeAction } from "./no-loupe-tap.ts";
+import { isEcho, isSecondTap, isTap, loupeAction } from "./no-loupe-tap.ts";
 
 function editable(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -33,8 +36,11 @@ function editable(target: EventTarget | null): boolean {
 export function guardAgainstLoupe(doc: Document = document): () => void {
   let lastEnd = -Infinity;
   let start: { target: EventTarget | null; x: number; y: number } | null = null;
+  /** The click this guard last gave back, until the next touch begins. */
+  let given: { target: EventTarget; at: number } | null = null;
 
   const onTouchStart = (e: TouchEvent): void => {
+    given = null;
     const t = e.touches.length === 1 ? e.touches[0] : undefined;
     start = t ? { target: e.target, x: t.clientX, y: t.clientY } : null;
   };
@@ -60,10 +66,25 @@ export function guardAgainstLoupe(doc: Document = document): () => void {
     if (action === "leave") return;
     // The cancelled end takes the browser's click with it: give it back.
     e.preventDefault();
+    if (e.target === null) return;
+    given = { target: e.target, at: e.timeStamp };
     if (e.target instanceof HTMLElement) e.target.click();
     else if (e.target instanceof Element) {
       e.target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     }
+  };
+
+  // The browser's own click for a touch whose click was already given back.
+  const onClick = (e: MouseEvent): void => {
+    const same =
+      given !== null &&
+      e.target instanceof Node &&
+      given.target instanceof Node &&
+      given.target.contains(e.target);
+    if (!isEcho(given, { at: e.timeStamp, trusted: e.isTrusted, same })) return;
+    given = null;
+    e.preventDefault();
+    e.stopImmediatePropagation();
   };
 
   // Selection and the long-press menu, refused outright wherever no field
@@ -76,6 +97,7 @@ export function guardAgainstLoupe(doc: Document = document): () => void {
   const opts = { passive: false, capture: true } as const;
   doc.addEventListener("touchstart", onTouchStart, opts);
   doc.addEventListener("touchend", onTouchEnd, opts);
+  doc.addEventListener("click", onClick, opts);
   doc.addEventListener("selectstart", refuse, opts);
   doc.addEventListener("contextmenu", refuse, opts);
   doc.addEventListener("gesturestart", refuse, opts);
@@ -83,6 +105,7 @@ export function guardAgainstLoupe(doc: Document = document): () => void {
   return () => {
     doc.removeEventListener("touchstart", onTouchStart, opts);
     doc.removeEventListener("touchend", onTouchEnd, opts);
+    doc.removeEventListener("click", onClick, opts);
     doc.removeEventListener("selectstart", refuse, opts);
     doc.removeEventListener("contextmenu", refuse, opts);
     doc.removeEventListener("gesturestart", refuse, opts);

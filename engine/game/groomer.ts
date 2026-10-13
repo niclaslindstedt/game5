@@ -43,6 +43,12 @@ import { derive } from "./skier.ts";
 import type { GameEvent, GameState, SkierInput } from "./state.ts";
 
 const K = GROOMER;
+
+/** THE SWATH KEPT, segments: at twice this the oldest are dropped down to
+ * it — some forty minutes of a machine's work, far more than a night's head
+ * start, so the renderer has stamped every one long before. Kept here, not in
+ * `GROOMER`, which the machine's model is built off. */
+export const SWATH_KEPT = 4096;
 const dt = TUNING.dt;
 
 /** The machines' stream's salt off the run's seed — no other shares it. */
@@ -120,6 +126,7 @@ export function freshGroomers(state: GameState): GroomerState[] {
       speed: K.work,
       tiller: true,
       swath: [],
+      swathFrom: 0,
       lastX: Number.NaN,
       lastZ: Number.NaN,
       turn: { x0: 0, z0: 0, h0: 0, x1: 0, z1: 0, h1: 0, k: 0 },
@@ -187,6 +194,11 @@ function lay(state: GameState, g: GroomerState): void {
   }
   if (hypot(tx - g.lastX, tz - g.lastZ) < K.step) return;
   g.swath.push(g.lastX, g.lastZ, tx, tz);
+  if (g.swath.length >= SWATH_KEPT * 8) {
+    const drop = g.swath.length - SWATH_KEPT * 4;
+    g.swath.splice(0, drop);
+    g.swathFrom += drop;
+  }
   if (state.groomed) {
     groomSegment(state.groomed, g.lastX, g.lastZ, tx, tz, K.tiller.width / 2, state.fresh);
   }
@@ -267,7 +279,7 @@ function pivot(g: GroomerState, r: NetRun): void {
  * lift, a tunnel's wind, a rail or another machine. */
 export function onSkis(state: GameState): boolean {
   const c = state.skier;
-  if (c.thrown || c.lift || c.tunnel || c.jib) return false;
+  if (c.thrown || c.lift || c.tunnel || c.jib || c.grind) return false;
   if (state.heli?.rider || state.sled?.rider) return false;
   // Under a paramotor's wing the press releases the rig (`para.ts`).
   if (state.para && state.para.mode !== "dropped") return false;

@@ -6,11 +6,13 @@
 // `App.tsx` routes them with one element: which card is up is the page, and
 // what each press does is the app's, handed in.
 
-import type { GameMode, PairId } from "@engine";
+import { isBoardId, type GameMode, type PairId } from "@engine";
+import { useEffect } from "preact/hooks";
 
 import type { DevApp } from "./dev-app.tsx";
 import { DevPages } from "./menu-dev.tsx";
 import { SkisCards } from "./menu-dress.tsx";
+import { coolStage, warmStage } from "./menu-stage.tsx";
 import { GalleryPage } from "./menu-gallery.tsx";
 import { StatsPage } from "./menu-stats.tsx";
 import { KeysPage } from "./menu-keys.tsx";
@@ -23,12 +25,12 @@ import { FreestylePage } from "./menu-freestyle.tsx";
 import { StartPage } from "./menu-start.tsx";
 import { WherePage } from "./menu-where.tsx";
 import { stepAfter, stepBefore } from "./where-steps.ts";
+import { wingsuitOn } from "./free-ride.ts";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
-import type { Settings } from "./settings.ts";
+import { boardAllowed, kindPair, type Settings } from "./settings.ts";
 import type { StatsBook } from "./stats.ts";
 import { STRINGS } from "./strings.ts";
-import { nextFreeSeed } from "./free-ride.ts";
 import type { MenuPage } from "./url-params.ts";
 
 export function MenuPages(p: {
@@ -57,6 +59,22 @@ export function MenuPages(p: {
   onResetStats: () => void;
 }) {
   const { page, setPage, settings, setSettings, picks } = p;
+  // THE RIDER AND GEAR CARDS' STAGE, stood up while the cards before them
+  // are picked on (the WHERE steps, the start card, a level or trick map
+  // card), and let go on any other card or when the menu closes.
+  const ahead =
+    page === "world" ||
+    page === "area" ||
+    page === "start" ||
+    page === "levels" ||
+    page === "tricks";
+  // The other kind's pair is built with it where the gear card offers both.
+  const spare = boardAllowed(p.mode) ? kindPair(settings, !isBoardId(p.skis)) : null;
+  useEffect(() => {
+    if (ahead) warmStage(p.skis, settings.outfit, spare);
+    else if (page !== "dress" && page !== "skis") coolStage();
+  }, [ahead, page, p.skis, settings.outfit, spare]);
+  useEffect(() => coolStage, []);
   const back = (): void => setPage("root");
   /** The three ways onto the snow go back to PLAY's page, which opened them. */
   const toPlay = (): void => setPage("play");
@@ -138,26 +156,21 @@ export function MenuPages(p: {
             setPage(to === "root" && race ? "races" : to === "root" && trick ? "freestyle" : to);
           }}
           onRide={p.mode === "free" ? p.onFreeRide : p.onRide}
+          noSkis={p.mode === "free" && wingsuitOn(settings.ride, settings.ride.seed ?? p.startSeed)}
         />
       ) : page === "start" ? (
         <StartPage
           settings={settings}
           seed={p.startSeed}
           onSettings={setSettings}
-          onReroll={() =>
-            setSettings((s) => ({
-              ...s,
-              ride: { ...s.ride, seed: nextFreeSeed(p.startSeed), spot: null },
-            }))
-          }
           onBack={() => setPage(stepBefore("start", settings.ride.face))}
-          onMap={() => setPage("world")}
           onNext={() => setPage("dress")}
         />
       ) : page === "world" || page === "area" ? (
         <WherePage
           step={page}
           settings={settings}
+          seed={p.startSeed}
           onSettings={setSettings}
           onBack={() => setPage(stepBefore(page, settings.ride.face))}
           onNext={() => setPage(stepAfter(page, settings.ride.face))}
@@ -174,7 +187,7 @@ export function MenuPages(p: {
           onSettings={setSettings}
           onPage={setPage}
           onBack={back}
-          onBenchmark={() => p.dev.rig.current?.startBench()}
+          onBenchmark={(ab) => p.dev.rig.current?.startBench(ab)}
         />
       ) : page === "options" ? (
         <OptionsPage

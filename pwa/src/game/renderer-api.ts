@@ -19,15 +19,27 @@ export type CameraRung = "tips" | "helmet" | "chase" | "far" | "high" | "orbit";
 export interface WorldRenderer {
   /** Build (or rebuild, for a new level) everything that depends on the map.
    * Heavy: the loading card calls it behind a frame so the card can paint. */
-  load(state: GameState): Promise<void>;
+  load(state: GameState, cold?: boolean): Promise<void>;
+  /** Compile a world built `cold` — `load` with `cold` builds everything but
+   * leaves its shaders for here, so the free ride's cards can stand the
+   * world up while they are up and the loading card pays only for this. A
+   * world not built cold (or another map) is loaded whole. */
+  finish(state: GameState): Promise<void>;
+  /** Throw the world away, and any load of one in flight. */
+  clear(): void;
   /** Draw one frame of `state`. `alpha` is the accumulator's leftover share of
    * a step (0..1) for interpolation; `dt` is wall seconds since the last frame. */
   draw(state: GameState, alpha: number, dt: number): void;
   /** Which camera a RUN is seen through; menus use "orbit". `cut` skips
    * the flown hand-over; `chosen` says the player picked it (a ski jump's
-   * broadcast director gives way to his pick until the run begins again). */
-  setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean): void;
+   * broadcast director gives way to his pick until the run begins again);
+   * `craft` the rung kept for a machine he rides, if not `rung` too. */
+  setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean, craft?: CameraRung): void;
+  /** The rung he is seen on now — the machine's while he rides one. */
   camera(): CameraRung;
+  /** Whether he rides a machine, so the lens is on its rung (`camera.ts`'s
+   * `aboard`). */
+  riding(): boolean;
   /** The ray through a point of the picture, normalized device coordinates
    * (−1..1 right and up) — what a tap on a machine is tested along
    * (`machine-pick.ts`). */
@@ -49,8 +61,10 @@ export interface WorldRenderer {
    * camera ladder. Only a replay ever sets one (`replay-run.ts`). */
   setReplayCam(view: ReplayView | null): void;
   /** LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): a drag of `dx`, `dy`
-   * CSS px over the picture, taken while the lift carries the player. */
-  lookAround(dx: number, dy: number): void;
+   * CSS px over the picture, taken while the lift carries the player — and
+   * a MOUSE's (`mouse`) on any run, while its button is held (`holdLook`). */
+  lookAround(dx: number, dy: number, mouse?: boolean): void;
+  holdLook(on: boolean): void;
   /** THE DEATH CAM (`camera-death.ts`): whether it may take the lens when
    * the player is thrown — only while the player rides, never under a card
    * or over a replay. */

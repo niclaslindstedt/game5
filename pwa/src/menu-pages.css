@@ -478,4 +478,15 @@
   .menu-card-pause-slopes .knob-value {
     width: 5.2rem;
   }
+
+  /* The rows' column is narrow beside the chart: the names are short
+     (START, RUN), so they give the value the room its longest stop wants
+     (SNOWMOBILE), and every row's arrows stand on the same two x's. */
+  .menu-card-pause-slopes .knob.knob-step .knob-label {
+    flex-basis: 25%;
+  }
+
+  .menu-card-pause-slopes .knob-arrow {
+    width: 1.8rem;
+  }
 }

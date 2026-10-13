@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky cloud snowfall shimmer cloud-metrics turns technique skis skier revert hop-switch poleless skate-turns sidestep helmet damage injuries hud-body gear skier-metrics board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight skijump-flight plane skijump skydive-flight skydive exit-cam balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky sky-solar cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam
 
 build:
 	npm run build
@@ -158,6 +158,16 @@ poleless:
 skate-turns:
 	npm run skate-turns -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
 
+# THE SKATE CLIMB LAB: how a skater's stride changes up a rise — off a
+# crawl with the tuck held up each grade, his speed, the hill's pull,
+# strides a second, metres a stride and the push's and poles' shares of
+# it; then the climb's moves photographed over the same two seconds on
+# the flat and up 8, 16 and 24 % (previews/skier-climb-*.png).
+# ARGS=--no-shots the table alone; ARGS="--json=a.json" / "--compare=a.json"
+# before and after.
+skate-climb:
+	npm run skate-climb -- $(ARGS)
+
 sidestep:
 	npm run sidestep -- $(ARGS)
 
@@ -216,6 +226,18 @@ hud-body:
 gear:
 	npm run gear -- $(if $(SLOTS),--slots $(SLOTS),) $(if $(OUTFITS),--outfits $(OUTFITS),) $(ARGS)
 
+# THE GLOVE METRICS LAB: is every glove a real glove's size on the hand in
+# it? Each glove cut on the loom in pure Node and measured in the fist's own
+# frame (the knuckles' girth, breadth and thickness, the fingers, the middle
+# finger's length round the grip, the thumb, the wrist, the cuff's mouth,
+# flare and length) against bands off a real hand's survey and real gloves,
+# and every jacket's sleeve at every build checked for a point poking out
+# through the cuff (GLOVES=gauntlet,race, BODY=man, ARGS=--profile the
+# girth every centimetre, ARGS=--where each poke, ARGS="--json=a.json" /
+# "--compare=a.json").
+glove-metrics:
+	npm run glove-metrics -- $(if $(GLOVES),--gloves $(GLOVES),) $(if $(BODY),--body $(BODY),) $(ARGS)
+
 # THE SKIER METRICS LAB: is his pose a real skier's? Every move skied by the
 # engine in pure Node, the game's pose measured frame by frame (the knees,
 # the hips, the shins in their boots, the centre of mass over the feet, the
@@ -226,6 +248,16 @@ gear:
 # ARGS="--json=a.json" / "--compare=a.json" a before and after.
 skier-metrics:
 	npm run skier-metrics -- $(if $(MOVE),--move $(MOVE),) $(ARGS)
+
+# THE AIR-LEAN LAB: the body in the air with the lean held FORWARD — a
+# kicker flown fully and half forward, a cliff dropped forward, the kicker
+# unleaned and leaned back as controls — skied by the engine in pure Node,
+# each candidate shape of `skier-flight.ts`'s `AIR_FORE` measured side on
+# in the world against a skier's bands and drawn as stick figures
+# (previews/air-lean.png). ARGS="--json=a.json" / "--compare=a.json" a
+# before and after; ARGS=--search walks the knobs to the best score.
+air-lean:
+	npm run air-lean -- $(ARGS)
 
 # THE BOARD LAB: the snowboard as the game draws it (`board-body.ts`) — the
 # deck's top, base and profile and bowed by a carve, the deck dressed with
@@ -374,14 +406,32 @@ ci-models:
 	esac
 	@gh variable list | grep VITE_MODEL || true
 
-# THE SKY LAB: every weather (R19) against every three hours of the clock,
-# day and night, on one seed seen from one place, as one labelled contact
-# sheet — previews/sky-<seed>.png. Its own one-off bundle from
-# pwa/sky-preview.html (never deployed); needs a Chromium like `world`.
-# SEED=n picks the map (its day and latitude are kept);
-# ARGS="--hours=6,12,18 --view=vista --weathers=overcast,fog" narrows it.
+# THE SKY LAB: the sky over one seed from one place through the game's own
+# renderer, as a labelled contact sheet, every cell measured (the zenith's
+# and horizon's luminance and colour temperature, the sun's, the drawn sky,
+# the lit and shaded snow and their ratio, the frame's ms). Three sheets:
+# every weather (R19) against every three hours (previews/sky-<seed>.png);
+# ARGS=--sheet=timelapse one weather swept from before sunrise into the
+# night every --step game minutes (-timelapse[-<view>].png); and
+# ARGS=--sheet=tiers every picture preset at dawn, noon, sunset and night.
+# Its own one-off bundle from pwa/sky-preview.html (never deployed); needs a
+# Chromium like `world`. SEED=n picks the map (its day and latitude are
+# kept); ARGS="--hours=6,12,18 --view=vista|sunset|sunrise|antisun
+# --weathers=overcast,fog" narrows it; --json=FILE before a change,
+# --compare=FILE after.
 sky:
 	npm run sky -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE SUN AND MOON LAB: the game's sun and moon (`sunAtRun`, `moonAtRun`)
+# held against a reference (the NOAA arithmetic after Meeus with
+# refraction; the almanacs' low-precision moon) at the real faces' own
+# latitudes and longitudes and the generated bands' edges, through the
+# season — the declination, the elevation and azimuth over the day, the
+# sunrise, the day length, civil and nautical twilight, the equation of
+# time and the moon. Pure Node, seconds. ARGS=--json=FILE before,
+# --compare=FILE after.
+sky-solar:
+	npm run sky-solar -- $(ARGS)
 
 # THE CLOUD LAB: the snow a skier throws up and the groove he leaves, as one
 # labelled contact sheet — previews/cloud-<seed>.png. Each row one ride
@@ -421,6 +471,18 @@ snowfall:
 shimmer:
 	npm run shimmer -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
+# THE ALOFT LAB: what a lens high over the snow sees at each DISTANCE stop
+# (`view-aloft.ts`: the reach growing with the height, the ground's fine
+# levels left out under it, the woods cut by their slant distance), as a
+# grid — a row a height over the snow, a column a stop — each frame
+# captioned with its draw calls, triangles, the ground's and the woods'
+# triangles and the world phase's ms (previews/aloft-<seed>.png) and a
+# table. Its own one-off bundle from pwa/aloft-preview.html (never
+# deployed); needs a Chromium like `world`. SEED=n;
+# ARGS="--heights=2,300,1500 --distances=low,max --json=FILE --compare=FILE".
+aloft:
+	npm run aloft -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
 # THE CLOUD METRICS LAB: how MUCH snow cloud a skier raises — each kind of
 # snow × move × speed skied by the engine in pure Node and every frame read
 # as snow-cloud.ts reads it: the puffs a second, the cloud alive behind him
@@ -430,6 +492,37 @@ shimmer:
 # --speeds=10,20,40"; ARGS="--json=a.json" / "--compare=a.json".
 cloud-metrics:
 	npm run cloud-metrics -- $(ARGS)
+
+# THE SPRAY METRICS LAB: how much SNOW a turn throws, how fast, how high,
+# how far and which way — a pair of skis and a board × a kind of snow × a
+# move (straight, carve, skid, check, stop) × a speed, skied by the engine in
+# pure Node and every frame flown through the game's own spray pool
+# (spray-sim.ts). Seconds, no browser. ARGS="--skis=lynx --moves=stop
+# --speeds=20,40,60"; ARGS="--json=a.json" / "--compare=a.json".
+spray-metrics:
+	npm run spray-metrics -- $(ARGS)
+
+# THE SPRAY EVAL: which way of flying the spray is best — the four models
+# spray-sim.ts carries (puff, streak, drag, sheet) flown through the same
+# carves, skids and stops on the groomer and in powder, each scored against
+# what a real turn throws (which way, how fast, how high and far, how a
+# carve's compares with a skid's, how the fines hang, how thin the curtain,
+# how a grain is drawn, the cost) — and the game's model through a stop on
+# every age of snow at three depths. Pure Node, seconds.
+# ARGS="--models=drag,sheet", "--detail=sheet" (run by run), "--ages".
+spray-eval:
+	npm run spray-eval -- $(ARGS)
+
+# THE SPRAY LAB: the snow a turn throws off the skis AND off a board, as the
+# game draws it — the turns lab (below) ridden on the Chamois and the Lynx
+# through linked carves, a skidded turn and a hockey stop, from a lens close
+# in front of the skis and from the chase lens, on the groomer and in the
+# meadow's powder: previews/turns-<seed>[-lynx]-close.png and -chase.png
+# (the meadow's written over the piste's — WHERE=meadow alone for those).
+# SEED=n; WHERE=piste|meadow; ARGS="--speeds=30,60 --times=0.5,1";
+# ARGS="--spray=puff" another model, "--age=wet" a snow age, "--depth=2".
+spray:
+	for pair in chamois lynx; do npm run turns -- --skis=$$pair --where=$(or $(WHERE),piste) --moves=carve,skid,stop --speeds=45 --times=0.6,1,1.4 --views=close,chase --width=480 --height=320 $(if $(SEED),--seed $(SEED),) $(ARGS) || exit 1; done
 
 # THE TURNS LAB: the skier TURNING AND STOPPING as the game draws him — one
 # turn held, linked carves, a skidded turn and a hockey stop (the held moves
@@ -523,6 +616,15 @@ civilians:
 # like `world`. SEED=n REGION=id; ARGS="--camera=far --at=-3,0,1,2,4,8".
 lift-ride:
 	npm run lift-ride -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE CABLE GRIND: a free ride dropped onto a lift's rope and ridden on a
+# script (the slide, a press, a pop and a spin back onto it, a carrier
+# throwing him off) through the game's own renderer, a row a lens, as one
+# sheet, previews/grind-<lift>-<seed>.png (`ARGS=--skis=lynx` on a board,
+# `--lift=drag|gondola`). Its own bundle from pwa/grind-preview.html; needs
+# a Chromium (CHROMIUM_PATH).
+grind:
+	npm run grind -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE GETTING ON AND OFF LAB, as filmed: every way on and off a lift — a
 # chair's load and unload, a T-bar's pick-up and release, a gondola's
@@ -684,6 +786,13 @@ balloon-flight:
 plane-flight:
 	npm run plane-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
+# THE AIRSTRIP LAB: where the jump plane's strip lies on each map, from the
+# engine alone (`scripts/airstrip-lab.mjs`): the piste map round it, the
+# room the search reads, the strip and its site, a picture a map, a sheet
+# and a table. ARGS="--faces all" every real face, --seeds 1-8 generated.
+airstrip:
+	npm run airstrip -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
 # THE SKI JUMP'S FLIGHT LAB: the in-run's speed over the edge at every few
 # gates, then jumps off the ski jumping hill (R43) jumped by the real engine —
 # the take-off early, late and never, the wind along the hill, the lean, the
@@ -692,6 +801,16 @@ plane-flight:
 # before, --compare=FILE after; SEED= another map's hill).
 skijump-flight:
 	npm run skijump-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE SKI JUMPING HILLS LAB: what the hill R43 cuts makes of a map — the
+# earth it moves under the landing hill and the out-run, the in-run's deck
+# over the ground and the cut under it, the ground beside the out-run for
+# the stadium, the bot's jump — over a sweep of seeds and countries, or the
+# committed hills audited against their digests, in pure Node
+# (`scripts/skijump-hills-lab.mjs`; ARGS="--seeds=1-30 --regions=fell
+# --hill=normal --bot", ARGS="--pinned --bot").
+skijump-hills:
+	npm run skijump-hills -- $(ARGS)
 
 # THE JUMP PLANE LAB: the free ride's jump plane — the Blender model where
 # the build packs it (`make models KIND=plane`), the code's stand-in where it
@@ -727,6 +846,15 @@ skijump:
 skydive-flight:
 	npm run skydive-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
+# THE WINGSUIT'S FLIGHT LAB: the glide, the dive, the flare, the short
+# period and the phugoid, the turn, the exit off the mountain and out of the
+# plane's door, the pull and the BASE canopy, the landing on his boots, the
+# map's edge and the bot's whole flight, beside the class's bands — pure
+# Node (`scripts/wingsuit-flight-lab.mjs`; ARGS=--json=FILE before,
+# --compare=FILE after; SEED= the exit's and the whole flight's map).
+wingsuit-flight:
+	npm run wingsuit-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
 # THE SKYDIVE LAB: the free ride's skydive through the game's own renderer —
 # the harness-container on him, poised in the plane's door and the exit
 # frame by frame, belly to earth, the turns, the track and head down, the
@@ -750,6 +878,34 @@ skydive:
 # Its own one-off bundle from pwa/exit-preview.html; needs a Chromium.
 exit-cam:
 	npm run exit-cam -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE WINGSUIT LAB: the free ride's wingsuit through the game's own renderer
+# — the suit round a turntable flying and stood slack, the bot's ride frame
+# by frame (the exit off a ledge or a hovering helicopter's skid, the suit
+# pressurising, the glide, the pull, the BASE canopy and its arm wings
+# unzipped, the flare, landed and walking), the turns, the dive and the
+# flare, every camera rung and after dark. One contact sheet a group,
+# previews/wingsuit-<group>.png, and every frame alone,
+# previews/wingsuit-<view>-<label>.png. Its own one-off bundle from
+# pwa/wingsuit-preview.html (never deployed); needs a Chromium like
+# `world`. ARGS="--sheet=suit,poses" a few sheets.
+wingsuit:
+	npm run wingsuit -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE SPEED LAB (`camera-pace.ts`, the chase lenses' sense of speed): the
+# same lens at several speeds, as screenshot sequences through the game's
+# own renderer — the wingsuit's launch flown round behind him and its
+# flare, glide and dive (previews/wingsuit-speed.png), the skydive's fall
+# from the door's speed to terminal and its track (previews/skydive-
+# speed.png), and the chase down a downhill and on a snowboard at four
+# moments of a run (previews/world-downhill-chase-<s>.png, previews/
+# world-lynx-chase-<s>.png). Run it before and after a change to how speed
+# reads. SEED= another map.
+speed-cam:
+	npm run wingsuit -- $(if $(SEED),--seed=$(SEED),) --sheet=speed
+	npm run skydive -- $(if $(SEED),--seed=$(SEED),) --sheet=speed
+	npm run world -- $(if $(SEED),--seed $(SEED),) --downhill --views=chase-4,chase-10,chase-20,chase-35
+	npm run world -- $(if $(SEED),--seed $(SEED),) --skis=lynx --views=chase-4,chase-10,chase-20
 
 # THE BALLOON LAB: the free ride's hot air balloon staged at every moment it
 # has — tethered on the valley floor, in flight over the mountain, the
@@ -900,6 +1056,16 @@ trails:
 piste-day:
 	npm run piste-day -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE SNOW LAB: one spot of a mountain's loose snow beside its piste at
+# every age of the snow — the map's own, new, settled, old, wind-packed,
+# sun-crusted, hoar and wet (snow-age.ts) — through the game's own renderer,
+# from the same place under the same sun. One contact sheet a lens
+# (down, sun — the glare — away, near, far), previews/snow-<lens>.png, and
+# every frame alone. Its own one-off bundle from pwa/snow-preview.html (never
+# deployed); needs a Chromium. ARGS="--sheet=sun --hour=15", "--weather=fair".
+snow:
+	npm run snow -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
 # THE JUDDER LAB: how smoothly a free ride's machine (the snowmobile or the
 # helicopter) and its rider are DRAWN from frame to frame — the bot rides
 # it, the app's run clock is fed frames at each frame rate with a display's
@@ -911,6 +1077,16 @@ piste-day:
 # ARGS="--fps=60,45 --at=25"; ARGS="--json=a.json" / "--compare=a.json".
 judder:
 	npm run judder -- $(if $(SEED),--seed $(SEED),) $(if $(MACHINE),--machine $(MACHINE),) $(ARGS)
+
+# THE MENU STALLS: how long the page's own thread is blocked on each card on
+# the way onto the snow — the free ride's start card and a race's level
+# card, then the rider and gear cards (on arriving, and under a finger
+# turning the rider round) and RIDE's loading card — on a phone held on its
+# side with its processor throttled. Drives the BUILT site, so `make build`
+# first. ARGS="--flow=race", "--cpu=6", "--json=a.json" / "--compare=a.json"
+# a before and after.
+menu-stalls:
+	node scripts/menu-stalls.mjs $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

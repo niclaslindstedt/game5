@@ -111,6 +111,20 @@ export const POLES = {
    * least share of a skate stride the poles bite for (`poleDuty` —
    * measured 0.34 s slow to 0.22 s fast, a quarter of a stroke). */
   cadence: { slow: 0.85, fast: 1.3, from: 3.5, to: 6.3 },
+  /** UP A RISE THE GLIDE IS SHORT (`skateCadence`): a skater pushes again
+   * once the gliding ski has slowed by as much as it does over a flat
+   * stride's glide, and up a rise gravity's pull along his skis, g·sin θ,
+   * is added to the glide's own slowing — the base's rolling resistance
+   * (`snow.crrPacked`) and the air's on a skier stood up (`area` m² of
+   * him at `mass` kg). So the glide is cut by the flat's deceleration over
+   * the climb's, the leg's push keeps its time, and the strides come
+   * quicker the steeper it is — measured, a skater's cycle rate rises and
+   * his cycle shortens with the incline at the same speed, and the share
+   * of the cycle he spends pushing grows (some 0.85 cycles a second, two
+   * strides each, in the offset skate up a steep climb). `most` strides a
+   * second is the quickest a skater's legs turn over (a cycle a second);
+   * `duty` the most of a stride the leg's push may fill. */
+  climb: { area: 0.55, mass: 78, most: 2, duty: 0.72 },
   cadencePole: 1.05,
   duty: 0.45,
   floor: 0.3,

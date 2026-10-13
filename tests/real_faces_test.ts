@@ -79,7 +79,7 @@ describe("the real faces", () => {
   beforeAll(loadAllRealFaces);
 
   it("are listed, each keyed by its region and a number", () => {
-    expect(REAL_FACE_IDS).toHaveLength(65);
+    expect(REAL_FACE_IDS).toHaveLength(114);
     for (const id of REAL_FACE_IDS) {
       const region = realFaceRegion(id);
       expect(region && REGION_IDS.includes(region)).toBe(true);
@@ -145,12 +145,17 @@ describe("the real faces", () => {
       const face = realFace(id)!;
       const trees = realFaceTrees(face);
       if (!trees) continue;
-      wooded++;
       expect(trees!.bands, id).toHaveLength(HINT_TREES_BANDS);
       for (const b of trees!.bands) expect(b >= 0 && b <= 1, id).toBe(true);
       expect(trees!.line, id).toBeGreaterThanOrEqual(trees!.lo);
       expect(trees!.line, id).toBeLessThanOrEqual(trees!.hi);
-      expect(Math.max(...trees!.bands), id).toBeGreaterThan(0);
+      // A BARE face (its crop's `bare`: wholly above its trees) has no band
+      // wooded and its tree line at its lowest sample.
+      if (Math.max(...trees!.bands) === 0) {
+        expect(trees!.line, id).toBe(trees!.lo);
+        continue;
+      }
+      wooded++;
       // The cover read between the bands stays within them.
       for (let h = trees!.lo; h <= trees!.hi; h += 25) {
         const c = faceCoverAt(trees!, h);

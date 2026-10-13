@@ -75,12 +75,12 @@ export function rampToward(
  * thumb: a thumb on the glass is a skier folded out of the wind, which is
  * what a race asks of him nearly all the time, and a lever that tucked only
  * as it was dragged made every start and every exit a hand-over. Anywhere
- * at or below the anchor is the full tuck; sliding UP stands the skier up
- * over `LEVER_EASE_PX`, and he is standing tall at the top of that throw.
+ * at or above the anchor is the full tuck; sliding DOWN stands the skier up
+ * over `LEVER_EASE_PX`, and he is standing tall at the foot of that throw.
  * Anchoring at the touch point rather than at a fixed zero means the lever
  * works wherever the thumb lands. */
 export const LEVER_EASE_PX = 60;
-/** ...and further UP again is the SKID: past a small dead band over the
+/** ...and further DOWN again is the SKID: past a small dead band under the
  * standing point, so a thumb standing up never throws it by accident, this
  * much more travel is the skis pivoted all the way across. */
 export const LEVER_BRAKE_DEAD_PX = 12;
@@ -102,18 +102,18 @@ export type TouchFeel = {
 export const PLAIN_FEEL: TouchFeel = { sensitivity: 1, invertLean: false };
 
 /** How deep the tuck is for a thumb `dyPx` below its anchor (screen y
- * grows downward): the full tuck at the anchor and below it, standing up
- * analogue over `LEVER_EASE_PX` of travel up, standing tall past that. */
+ * grows downward): the full tuck at the anchor and above it, standing up
+ * analogue over `LEVER_EASE_PX` of travel down, standing tall past that. */
 export function leverTuck(dyPx: number, feel: TouchFeel = PLAIN_FEEL): number {
-  return clamp(1 + (dyPx * feel.sensitivity) / LEVER_EASE_PX, 0, 1);
+  return clamp(1 - (dyPx * feel.sensitivity) / LEVER_EASE_PX, 0, 1);
 }
 
-/** ...and how far the skid is thrown for the same thumb: the travel above
+/** ...and how far the skid is thrown for the same thumb: the travel below
  * the standing point past the dead band, 0..1. One throw carries both, so
  * a skier can never be asking for the tuck and the skid with the same
  * thumb. */
 export function leverBrake(dyPx: number, feel: TouchFeel = PLAIN_FEEL): number {
-  const past = -dyPx * feel.sensitivity - LEVER_EASE_PX - LEVER_BRAKE_DEAD_PX;
+  const past = dyPx * feel.sensitivity - LEVER_EASE_PX - LEVER_BRAKE_DEAD_PX;
   if (past <= 0) return 0;
   return clamp(past / LEVER_BRAKE_PX, 0, 1);
 }
@@ -340,6 +340,10 @@ export type InputModel = {
    * IN THE AIR is told apart from a hold carried off the snow by. */
   wasTuck: boolean;
   wasBrake: boolean;
+  /** The jump key as the last step saw it, and whether it is the GRAB this
+   * flight (`airGrab`). */
+  wasJump: boolean;
+  jumpGrabs: boolean;
   /** Whether each of them is leaning the skier this flight (`airLean`). */
   tuckLeans: boolean;
   brakeLeans: boolean;
@@ -355,6 +359,8 @@ export function createInputModel(): InputModel {
     lean: 0,
     wasTuck: false,
     wasBrake: false,
+    wasJump: false,
+    jumpGrabs: false,
     tuckLeans: false,
     brakeLeans: false,
     back: "none",
@@ -393,6 +399,25 @@ export function airLean(model: InputModel, keys: KeysHeld, airborne: boolean): n
   return (model.brakeLeans ? 1 : 0) - (model.tuckLeans ? 1 : 0);
 }
 
+/**
+ * THE JUMP KEY GRABS IN THE AIR. SPACE is held to load the jump on the snow
+ * and let go at the lip; pressed again while he flies, it is the TRICK key —
+ * the grab on a tricks run, the telemark made ready on a ski jump, the tuck
+ * in an aerial — so one hand pops and grabs without reaching for F. The
+ * dedicated trick key still works beside it.
+ *
+ * ONLY A PRESS MADE IN THE AIR GRABS, as `airLean`'s keys lean: a skier
+ * still holding the key as he rolls off a lip he never popped is not asking
+ * to grab, and a landing hands the key back to the jump (held on through it,
+ * it loads the next one).
+ */
+export function airGrab(model: InputModel, keys: KeysHeld, airborne: boolean): boolean {
+  const pressed = keys.jump && !model.wasJump;
+  model.wasJump = keys.jump;
+  model.jumpGrabs = airborne && keys.jump && (model.jumpGrabs || pressed);
+  return model.jumpGrabs;
+}
+
 /** One step's input: advance the keyboard ramps by `dt`, merge the thumbs
  * in, apply the sign flip and hand the engine its structure. `reset` is the
  * edge the caller has banked since the last step (§37.1: a press is never
@@ -419,6 +444,7 @@ export function sampleInput(
 ): SkierInput {
   const aloft = airborne && !flying;
   const keyAir = airLean(model, keys, aloft);
+  const jumpGrab = airGrab(model, keys, aloft);
   const steerTarget = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   const steerAttack = aloft ? KEY_AIR_ATTACK : KEY_STEER_ATTACK;
   model.steer = rampToward(model.steer, steerTarget, dt, steerAttack, KEY_STEER_RELEASE);
@@ -459,7 +485,7 @@ export function sampleInput(
     brake,
     lean: clamp(lean, -1, 1),
     reset,
-    trick: keys.trick || touch.trick,
+    trick: keys.trick || touch.trick || jumpGrab,
     carve: back === "carve",
     jump: keys.jump || (touch.lever && touch.jump),
   });

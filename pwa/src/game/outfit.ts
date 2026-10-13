@@ -68,8 +68,12 @@ export type Outfit = {
   helmet: HelmetId;
   gloves: GloveId;
   poles: PoleId;
+  /** A SKI JUMPER'S KIT (`jumpKit`): the jacket and pants cut as one tight
+   * suit in the jacket's own colours, the helmet painted to match. Never a
+   * slot of the DRESS card — the ski jump puts it on him. */
+  suit?: boolean;
 };
-export type GearSlot = keyof Outfit;
+export type GearSlot = Exclude<keyof Outfit, "suit">;
 
 /** A BUILD: its name and its shape (`dress-body.ts`' `builtTo`) — the
  * GIRTH, the body's breadth and depth as a share of the medium build's at
@@ -103,7 +107,11 @@ export type HelmetDef = {
   trim: number;
   lens: number;
 };
-export type GloveDef = Colours & { id: GloveId; name: string };
+/** A glove's shell (`main`), its straps and pads (`second`), its cuff's
+ * lining or knit (`third`), its PALM — the leather or the synthetic grip
+ * sewn over the palm, the fingers' insides and the thumb — and the ACCENT
+ * of its piping and the cuff's binding. */
+export type GloveDef = Colours & { id: GloveId; name: string; palm: number; accent: number };
 export type PoleDef = {
   id: PoleId;
   name: string;
@@ -159,10 +167,42 @@ export const HELMETS: readonly HelmetDef[] = [
 ];
 
 export const GLOVES: readonly GloveDef[] = [
-  { id: "gauntlet", name: "Gauntlet", main: 0x17191d, second: 0x2c2f35, third: 0x0d0e10 },
-  { id: "mitten", name: "Mittens", main: 0xb3261b, second: 0x17191d, third: 0xe9e4da },
-  { id: "undercuff", name: "Undercuff", main: 0x7a4a2a, second: 0x4a2c18, third: 0x1d1a17 },
-  { id: "race", name: "Race", main: 0x17191d, second: 0xd8e021, third: 0x3a3d43 },
+  {
+    id: "gauntlet",
+    name: "Gauntlet",
+    main: 0x1b1d22,
+    second: 0x34373e,
+    third: 0x0d0e10,
+    palm: 0x5a3f2c,
+    accent: 0xd23a26,
+  },
+  {
+    id: "mitten",
+    name: "Mittens",
+    main: 0xb3261b,
+    second: 0x17191d,
+    third: 0xe9e4da,
+    palm: 0x2a2523,
+    accent: 0xe9e4da,
+  },
+  {
+    id: "undercuff",
+    name: "Undercuff",
+    main: 0x8a5a33,
+    second: 0x4a2c18,
+    third: 0x1d1a17,
+    palm: 0xb98a55,
+    accent: 0x4a2c18,
+  },
+  {
+    id: "race",
+    name: "Race",
+    main: 0x17191d,
+    second: 0xd8e021,
+    third: 0x3a3d43,
+    palm: 0x45484f,
+    accent: 0xd8e021,
+  },
 ];
 
 export const POLES: readonly PoleDef[] = [
@@ -321,6 +361,29 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
     poles: of(POLES, 5),
     tone: TONES[dealt(look, 6, TONES.length)],
   };
+}
+
+/** THE SKI JUMPER'S KIT off the player's (or a rival's) own: the one-piece
+ * suit in his jacket's colours over the race softshell's legs, the race
+ * shell's helmet in the suit's colours, his own gloves — and NO POLES,
+ * which a jumper never carries. */
+export function jumpKit(o: Outfit): Outfit {
+  return { ...o, pants: "race", helmet: "race", poles: "none", suit: true };
+}
+
+/** A suit's legs in its jacket's colours (`jumpKit`). */
+export function suitPants(o: Outfit): Colours {
+  const j = gearOf("jacket", o.jacket);
+  return { main: j.main, second: j.second, third: j.third };
+}
+
+/** The helmet as worn: its catalog entry, or on a jumper's suit the race
+ * shell painted in the suit's main and second colours. */
+export function helmetOf(o: Outfit): HelmetDef {
+  const h = gearOf("helmet", o.helmet);
+  if (!o.suit) return h;
+  const j = gearOf("jacket", o.jacket);
+  return { ...h, shell: j.main, trim: j.second };
 }
 
 /** One slot's catalog entry for an id — its first when the id is unknown. */

@@ -19,7 +19,9 @@
 
 import * as THREE from "three";
 
+import type { Tracks } from "./piste-tracks.ts";
 import type { SkyLook } from "./sky.ts";
+import type { SnowAge } from "./snow-age.ts";
 import { TERRAIN_SHADOW_GLSL } from "./terrain-shadow.ts";
 
 /** How many lamps light the world at once: the player's headlamp first,
@@ -46,6 +48,14 @@ export type HazeUniforms = {
   /** THE MIST the DISTANCE row closes on (`mistFor`): its wall, m, past
    * which nothing is seen and nothing is drawn; 0 is no mist. */
   uMist: { value: number };
+  /** HOW FAR ALOFT the lens is, 0..1 — 0 on the snow and on every ride but
+   * a wingsuit's, whose lens high over the snow (`machines.ts`) sets it: the
+   * mist is then measured across the ground rather than through the air
+   * down to it, thin under him and thickening out to close a little
+   * inside its wall — so a flyer hundreds of metres up sees the mountain
+   * under him melt into the haze, with no rim where the ground or the
+   * woods end. At 0 the mist is exactly the DISTANCE row's. */
+  uMistAloft: { value: number };
   /** Where the sun's shadow stands (`shadow-box.ts`): the circle's centre
    * in plan, and the plan distances the fade runs between. Written by
    * `environment.ts`; not the sky's, but it rides the same shared object
@@ -82,6 +92,15 @@ export type HazeUniforms = {
    * in `w` on a run dealt it — all nought on one that was not. The
    * renderer writes it. */
   uPiste: { value: THREE.Vector4 };
+  /** HOW OLD THE LOOSE SNOW IS (`snow-age.ts`): `uSnowAge` how new, how
+   * old, how wind-packed and how sun-crusted; `uSnowAge2` the surface hoar,
+   * the thaw, and the level direction toward the noon sun (x, z). The
+   * renderer writes them off the run's snowpack. */
+  uSnowAge: { value: THREE.Vector4 };
+  uSnowAge2: { value: THREE.Vector4 };
+  /** THE OTHER SKIERS' TRACKS on the piste (`piste-tracks.ts`): how many
+   * lines, 0..1, and how churned, 0..1. */
+  uTracks: { value: THREE.Vector2 };
   /** THE LAMPS: each slot's lamp — a flood or a skier's headlamp — where
    * it is, where it points, how far on (0 for a slot with no lamp), the
    * colour of its light (linear) and its BEAM (`lampReach`): the spot's
@@ -119,17 +138,29 @@ export type HazeUniforms = {
   uSlide: { value: THREE.Texture | null };
 };
 
-/** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`) and the
+/** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`), the
  * piste through the day (`uPiste`: worn, soft, hard, and 1 in `w` on a run
- * dealt it — `GameState.piste`). */
+ * dealt it — `GameState.piste`) and how old the loose snow is (`uSnowAge`,
+ * `uSnowAge2` — settled powder when there is no age to read) and the other
+ * skiers' tracks on the piste (`uTracks`). */
 export function setRunSnow(
   u: HazeUniforms,
   fresh: number,
   day: { worn: number; soft: number; hard: number } | undefined,
+  age?: SnowAge | null,
+  tracks?: Tracks,
 ): void {
   u.uFresh.value = fresh;
+  u.uTracks.value.set(tracks?.many ?? 0, tracks?.churn ?? 0);
   if (day) u.uPiste.value.set(day.worn, day.soft, day.hard, 1);
   else u.uPiste.value.set(0, 0, 0, 0);
+  if (age) {
+    u.uSnowAge.value.set(age.fresh, age.old, age.wind, age.crust);
+    u.uSnowAge2.value.set(age.hoar, age.wet, age.noon.x, age.noon.z);
+  } else {
+    u.uSnowAge.value.set(0, 0, 0, 0);
+    u.uSnowAge2.value.set(0, 0, 0, -1);
+  }
 }
 
 export function createHazeUniforms(): HazeUniforms {
@@ -144,6 +175,7 @@ export function createHazeUniforms(): HazeUniforms {
     uSunCol: { value: new THREE.Color() },
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },
+    uMistAloft: { value: 0 },
     uShadowFade: { value: new THREE.Vector4(0, 0, 1e9, 2e9) },
     uHeroMap: { value: null },
     uHeroMatrix: { value: Array.from({ length: HERO_SLOTS }, () => new THREE.Matrix4()) },
@@ -159,6 +191,9 @@ export function createHazeUniforms(): HazeUniforms {
     uGlitter: { value: 1 },
     uFresh: { value: 0 },
     uPiste: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uSnowAge: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uSnowAge2: { value: new THREE.Vector4(0, 0, 0, -1) },
+    uTracks: { value: new THREE.Vector2(0, 0) },
     uLampPos: { value: vectors() },
     uLampDir: { value: vectors() },
     uLampOn: { value: new Array<number>(LAMP_SLOTS).fill(0) },
@@ -207,6 +242,7 @@ uniform vec3 uGlow;
 uniform vec3 uSunCol;
 uniform float uHaze;
 uniform float uMist;
+uniform float uMistAloft;
 uniform float uHazeLift;
 uniform float uHazeFloor;
 
@@ -238,8 +274,13 @@ float hazeAmount(float dist, float rise) {
   float thin = exp(-max(rise, 0.0) / uHazeLift);
   float air = 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
   if (uMist <= 0.0) return air;
-  float m = dist / uMist;
+  // Aloft (\`uMistAloft\`), across the ground, melting it into the haze
+  // over most of the way out and whole a little inside the wall — where
+  // the woods stop — so neither the woods nor the ground ends on a rim.
+  float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
+  float m = across / uMist;
   float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
+  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
   return max(air, mist);
 }
 
@@ -493,6 +534,6 @@ export function hazeMaterial<M extends THREE.Material>(
 export const PAST_THE_WALL = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
   shader.fragmentShader = shader.fragmentShader.replace(
     "void main() {",
-    "void main() {\n  if (uMist > 0.0 && length(vHazeWorld - cameraPosition) > uMist) discard;",
+    "void main() {\n  vec3 hzW = vHazeWorld - cameraPosition;\n  if (uMist > 0.0 && mix(length(hzW), length(hzW.xz), uMistAloft) > uMist) discard;",
   );
 };

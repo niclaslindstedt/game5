@@ -43,6 +43,7 @@
 //     already aimed at a button.
 
 import type { RunGrade, RegionId } from "@engine";
+import { Fragment } from "preact";
 import { useEffect, useState } from "preact/hooks";
 
 import type { FreeRunInfo } from "./free-ride.ts";
@@ -352,7 +353,7 @@ export function SeedPreview({
   /** The machine the ride begins on, when the RUN row picked one: marked
    * where it waits on the valley floor (the paramotor on the summit)
    * rather than at any run's head; the afterski at its lodge's door. */
-  machine?: "heli" | "sled" | "para" | "balloon" | "plane" | "afterski" | null;
+  machine?: "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit" | "afterski" | null;
   /** The picked start, m on the snow; null is the start line. */
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;
@@ -484,15 +485,33 @@ export function SeedPreview({
       {/* Always rendered, empty until there is a reading: the line holds its
           own height, so the chart's arrival adds nothing under the plate. */}
       <p class="seed-preview-read">
-        {drawn && <GradeMark grade={entry?.grade ?? drawn.colour} className="seed-preview-grade" />}
-        {drawn
-          ? STRINGS.seedRead(
+        {/* The figures break only between them (each a run that never
+            splits), the mark held to the first, so a wrapped reading never
+            leaves the mark or half a figure on a line of its own. */}
+        <span>
+          {drawn &&
+            STRINGS.seedRead(
               STRINGS.gradeNames[entry?.grade ?? drawn.colour],
               entry?.length ?? drawn.length,
               entry?.vertical ?? drawn.vertical,
               drawn.schematic.kickers.length,
             )
-          : ""}
+              .split(" · ")
+              .map((bit, i) => (
+                <Fragment key={i}>
+                  {i > 0 && " · "}
+                  <span class="seed-preview-bit">
+                    {i === 0 && (
+                      <GradeMark
+                        grade={entry?.grade ?? drawn.colour}
+                        className="seed-preview-grade"
+                      />
+                    )}
+                    {bit}
+                  </span>
+                </Fragment>
+              ))}
+        </span>
       </p>
     </div>
   );

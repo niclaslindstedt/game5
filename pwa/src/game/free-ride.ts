@@ -14,7 +14,7 @@
 // THE DAY'S TWO ROWS DEFER TO THE MAP UNTIL THEY ARE MOVED. A generated map
 // is a whole day, and a card that arrived with an opinion about it would
 // quietly take that away from every skier who never touched it. So both
-// store NULL until moved, and null is the seed's own answer (AS DEALT).
+// store NULL until moved, and null is the seed's own answer (`dealtDay`, shown in orange).
 //
 // THE SPOT BELONGS TO ITS SEED. A place picked on one map's chart is a
 // meaningless coordinate on the next, so it is kept with the seed it was
@@ -24,6 +24,9 @@ import {
   CURRENT_GENERATOR_VERSION,
   DEFAULT_REGION,
   TIMES_OF_DAY,
+  dayOfYearOf,
+  hourOfTime,
+  weatherOf,
   freeRuns,
   skiRoutesOf,
   pickFreeRun,
@@ -47,8 +50,13 @@ import {
   type SkiSpec,
   regionOf,
   realFaceRegion,
+  realFacePlace,
+  seasonDay,
+  SKIS,
+  isBoard,
 } from "@engine";
 
+import { DEFAULT_FACE } from "./face-picks.ts";
 import { runNumbers } from "./run-names.ts";
 
 /** THE FREE RIDE'S MOUNTAINS, IN ORDER: the map the start card opens on
@@ -145,6 +153,9 @@ export type FreeRide = {
   /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
    * (`avalanche.ts`). On unless the player turns them off. */
   avalanche: boolean;
+  /** Whether the WHERE steps have been opened on this ride: the first time
+   * they are, the ride is stood on the first real range (`firstWhere`). */
+  placed: boolean;
 };
 
 export function freshRide(): FreeRide {
@@ -160,6 +171,7 @@ export function freshRide(): FreeRide {
     grade: null,
     run: null,
     avalanche: true,
+    placed: false,
   };
 }
 
@@ -193,6 +205,7 @@ export function mergeRide(blob: unknown): FreeRide {
   }
   if (isRegionId(b.region)) out.region = b.region;
   if (typeof b.avalanche === "boolean") out.avalanche = b.avalanche;
+  if (typeof b.placed === "boolean") out.placed = b.placed;
   // A face is kept only in its own country: a face stored under another
   // region (or one this build has not baked) is the dealt massif.
   if (typeof b.face === "string" && realFaceRegion(b.face) === out.region) out.face = b.face;
@@ -291,21 +304,27 @@ export function afterskiOn(ride: FreeRide, seed: number): boolean {
   return runOn(ride, seed) === AFTERSKI_RUN;
 }
 
-/** THE START ROW'S FIRST STOP: on skis, carried by the lift to the RUN
- * row's run — no run id of its own: it is the run picked, or none. */
+/** THE START ROW'S WINGSUIT STOP, after the plane: the WINGSUIT with no
+ * skis on, stood on its exit high on the mountain (`wingsuit-start.ts`) —
+ * the edge over the drop, or a hover off the helicopter's skid over it. */
+export const WINGSUIT_RUN = "wingsuit";
+
+/** Whether the ride on `seed` begins on the wingsuit's own exit. */
+export function wingsuitOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === WINGSUIT_RUN;
+}
+
+/** THE START ROW'S FIRST STOP: SLOPE, carried by the lift to the RUN
+ * row's run on whatever the gear card picks, skis or a snowboard — no run
+ * id of its own: it is the run picked, or none. */
 export const SKIS_START = "skis";
 
-/** ...and its second: ON A SNOWBOARD, the same lift ride on the board the
- * gear card last picked — not a run id either; which pair is ridden is the
- * settings' (`Settings.skis`), and the row follows it. */
-export const BOARD_START = "board";
-
-/** What the START row writes when `id` is picked on `seed`: ON SKIS or ON
- * A SNOWBOARD hands the ride back to the RUN row's first run, anything
- * else is its machine (or the lodge), kept as a run id of the map as
+/** What the START row writes when `id` is picked on `seed`: SLOPE hands the
+ * ride back to the RUN row's first run, anything else is its machine (or
+ * the lodge, or the wingsuit's exit), kept as a run id of the map as
  * before. */
 export function startPicked(ride: FreeRide, seed: number, id: string): Partial<FreeRide> {
-  return id === SKIS_START || id === BOARD_START
+  return id === SKIS_START
     ? { run: null }
     : { run: { seed, region: ride.region, face: ride.face, id } };
 }
@@ -357,6 +376,38 @@ export type FreeRunInfo = {
   vertical: number;
   head: { x: number; y: number; z: number; heading: number };
 };
+
+/** The day the ride's SEASON stop means on its mountain — half a year on
+ * for a real face south of the equator, where deep winter is July — or null
+ * for the map's own date. */
+export function seasonOn(ride: Pick<FreeRide, "season" | "face">): number | null {
+  const day = SEASONS.find((s) => s.id === ride.season)?.day;
+  if (day === undefined) return null;
+  const place = ride.face ? realFacePlace(ride.face) : null;
+  return seasonDay(day, place?.lat ?? 0);
+}
+
+/** THE DAY A MAP WAS DEALT, in the start card's own words: the season
+ * nearest its date, the time of day nearest its hour, and its sky. The
+ * SEASON, TIME and WEATHER rows show these (in a colour of their own) until
+ * the skier steps one. */
+export type DealtDay = { season: SeasonId; time: TimeOfDay; weather: WeatherKind };
+
+export function dealtDay(level: Pick<Level, "sun" | "weather">): DealtDay {
+  const { hour, dayOfYear, latitude } = level.sun;
+  const apart = (a: number, b: number, round: number): number => {
+    const d = Math.abs(a - b) % round;
+    return Math.min(d, round - d);
+  };
+  const nearest = <T>(items: readonly T[], off: (t: T) => number): T =>
+    items.reduce((best, t) => (off(t) < off(best) ? t : best));
+  // South of the equator a season is half a year on (`seasonDay`).
+  const season = nearest(SEASONS, (s) =>
+    apart(dayOfYearOf(seasonDay(s.day, latitude)), dayOfYear, 365),
+  ).id;
+  const time = nearest(TIMES_OF_DAY, (t) => apart(hourOfTime(latitude, dayOfYear, t), hour, 24));
+  return { season, time, weather: weatherOf(level).kind };
+}
 
 /** Every run of `level` a free ride can be carried to the top of, billed
  * (`FreeRunInfo`), and the run that is when nothing is asked — the first
@@ -437,13 +488,17 @@ export function freeGameOptions(
   const para = paraOn(ride, seed);
   const balloon = balloonOn(ride, seed);
   const plane = planeOn(ride, seed);
+  const wingsuit = wingsuitOn(ride, seed);
   // SAFE FOR WORK the lodges are shut: no ride begins at the party.
   const party = !skier.sfw && afterskiOn(ride, seed);
-  const vehicle = heli || sled || para || balloon || plane || party;
+  const vehicle = heli || sled || para || balloon || plane || party || wingsuit;
   const spot = vehicle ? null : spotOn(ride, seed);
   return {
     seed,
-    spec: skier.spec,
+    // NOTHING ON HIS FEET IN A WINGSUIT: a board picked on the gear card is
+    // not his figure in the suit (a board is drawn as its own model, with no
+    // wings), so the ride is stood up on the reference pair, never shown.
+    spec: wingsuit && isBoard(skier.spec) ? SKIS : skier.spec,
     assist: skier.assist,
     poles: skier.poles ?? true,
     ...(skier.gore ? { gore: true } : {}),
@@ -463,6 +518,9 @@ export function freeGameOptions(
     balloon,
     // THE JUMP PLANE: stood in its door on the strip, the engine running.
     plane,
+    // THE WINGSUIT: on its own exit high on the mountain, or worn up the
+    // craft picked — no skis on, every jump flown in it.
+    ...(wingsuit ? { wingsuit: true } : {}),
     // THE AFTERSKI: inside the valley's lodge, the party under way.
     inLodge: party,
     snowDepth: depthOf(ride.snow),
@@ -472,7 +530,7 @@ export function freeGameOptions(
     // cannot disagree.
     day: {
       time: ride.time,
-      dayOfYear: SEASONS.find((s) => s.id === ride.season)?.day ?? null,
+      dayOfYear: seasonOn(ride),
     },
     sky: ride.weather === null ? undefined : { weather: ride.weather },
     spawn: spot ?? undefined,
@@ -482,7 +540,7 @@ export function freeGameOptions(
     // whose run passes nearest the start line, led off its top onto that run.
     // (The afterski asks for the chair too: a map with no lodge — which
     // the card never offers it on — comes onto the mountain by lift.)
-    byLift: spot === null && !(heli || sled || para || balloon || plane),
+    byLift: spot === null && !vehicle,
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
@@ -540,18 +598,62 @@ export function freeRestart(
   state: GameState,
   again: CreateGameOptions | null,
 ): CreateGameOptions | null {
-  return !state.rules.course && !state.rules.tricks && again
-    ? freeTopOptions(again, lastPiste(state), state.grimbear, state.mishaps)
-    : null;
+  if (state.rules.course || state.rules.tricks || !again) return null;
+  // ON HIS FEET ON THE SLOPE, a ride begun on a machine starts again at the
+  // top of that slope on his skis, never back on the machine he left.
+  const ride = onTheSlope(state) && !again.wingsuit ? onSkisAgain(again) : again;
+  return freeTopOptions(ride, lastPiste(state), state.grimbear, state.mishaps);
+}
+
+/** The crashes a machine throws its rider in: down off one of these, he is
+ * still the machine's, and its restart stands him back on it. */
+const CRAFT_CRASHES: ReadonlySet<string> = new Set([
+  "heli",
+  "sled",
+  "balloon",
+  "plane",
+  "wingsuit",
+]);
+
+/** WHETHER THE RIDER IS ON HIS OWN FEET ON THE MOUNTAIN — skiing, stood or
+ * down on the snow off his own skis, or riding a lift — rather than in, on
+ * or under a machine: the helicopter's skid, the snowmobile, the plane, the
+ * balloon's basket, the paramotor's wing, a canopy or freefall, a piste
+ * machine's cab, the lodge — or thrown by one of them. */
+export function onTheSlope(state: GameState): boolean {
+  const c = state.skier;
+  if (c.thrown && CRAFT_CRASHES.has(c.thrown.cause)) return false;
+  if (state.heli?.rider || state.plane?.rider || state.sled?.rider) return false;
+  if (state.balloon?.aboard) return false;
+  if (state.para && state.para.mode !== "dropped") return false;
+  const ch = state.chute;
+  if (ch && !ch.done && ch.mode !== "landed" && ch.mode !== "released") return false;
+  if (state.afterski?.inside) return false;
+  return !state.groomers?.some((g) => g.rider);
+}
+
+/** The ride `again` with every machine it was begun on left out: stood on
+ * the snow on his skis, the helicopter and the snowmobile parked where the
+ * ski area keeps them. */
+function onSkisAgain(again: CreateGameOptions): CreateGameOptions {
+  return {
+    ...again,
+    heli: undefined,
+    sled: undefined,
+    para: undefined,
+    balloon: undefined,
+    plane: undefined,
+    chute: undefined,
+  };
 }
 
 /** WHERE THE NEXT RIDER STANDS once this one is dead: the start of a race
  * or a tricks run; on a free ride, wherever the restart's options `next`
  * (`freeTopOptions`) put him, read in the order `createGame` reads them —
  * the balloon's basket, the paramotor's summit, the plane's door on its
- * strip, the helicopter's pad, the snowmobile, then the top of the last piste
- * skied, else the start line. */
-export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip";
+ * strip, the helicopter's pad, the snowmobile, the wingsuit's own exit,
+ * then the top of the last piste skied, else the start line. */
+export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip" | "exit";
 
 export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainAt {
   if (rules.course || rules.tricks || !next) return "start";
@@ -560,6 +662,7 @@ export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainA
   if (next.plane && !next.inLodge) return "strip";
   if (rules.heli && next.heli) return "pad";
   if (rules.sled && next.sled) return "sled";
+  if (next.wingsuit && !next.inLodge) return "exit";
   return next.run !== undefined ? "top" : "start";
 }
 
@@ -595,6 +698,19 @@ export function standingFor(
   return same ? level : undefined;
 }
 
+/** The map a free ride was stood up on, and the ask it answered
+ * (`seed-maps.ts`'s `askKey`: the seed, the country or real face, the grade). */
+export type RiddenMap = { ask: string; level: Level };
+
+/** THE MOUNTAIN BEING RIDDEN, kept for another free ride on it: `ridden`'s
+ * map where it is still the one standing (`current`) and the ride asks for
+ * the same mountain — the pause card's PISTE MAP picking another run or
+ * start. Ridden again as it is (`freeAgainOptions`), so nothing is generated
+ * or built and the ride only moves the rider. */
+export function rideKept(ridden: RiddenMap | null, current: Level, ask: string): Level | undefined {
+  return ridden && ridden.level === current && ridden.ask === ask ? current : undefined;
+}
+
 /** A ride stood on a link's real `face` — a link to one of the free
  * ride's cards opens it there — (in the face's own country), or
  * the ride as it is where the link names none this build has. */
@@ -602,4 +718,12 @@ export function rideOnFace(ride: FreeRide, face: string | null): FreeRide {
   const region = face ? realFaceRegion(face) : null;
   if (!face || !region || face === ride.face) return ride;
   return { ...ride, face, region, spot: null, run: null };
+}
+
+/** THE WHERE STEPS OPENED FOR THE FIRST TIME: the ride is stood on the first
+ * real range's first mountain (`DEFAULT_FACE`) rather than on
+ * GENERATED; after that, wherever the skier last left it. */
+export function firstWhere(ride: FreeRide): FreeRide {
+  if (ride.placed) return ride;
+  return { ...(DEFAULT_FACE ? rideOnFace(ride, DEFAULT_FACE) : ride), placed: true };
 }

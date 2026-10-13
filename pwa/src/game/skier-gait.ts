@@ -7,6 +7,7 @@
 
 import {
   driveReach,
+  glideSlowing,
   glideYaw,
   pivotSteps,
   poleDuty,
@@ -15,6 +16,7 @@ import {
   sideSteps,
   skateAngle,
   skateShare,
+  skateDuty,
   skateWork,
   type SkierState,
   stepQuick,
@@ -130,6 +132,22 @@ const STRIDE = { back: 0.3, ahead: 0.24, kick: 0.04 };
  * racer makes out of the gate — because a diagonal stride there is a man
  * walking on skis, upright with the poles trailing. */
 const CLIMB = { from: 0.03, span: 0.05 };
+
+/** DRIVING UP A RISE: the most the trunk is bent further forward, rad, and
+ * the body lowered on the push, m, once the climb has cut his glide to
+ * nothing (`climbDrive` 1) — a skater on a steep climb works bent well
+ * over his skis, sinking into each push and driving the poles down with
+ * his trunk rather than his arms alone. */
+const CLIMB_DRIVE = { pitch: 0.22, sink: 0.07 };
+
+/** HOW HARD A CLIMB MAKES HIM WORK, 0..1, at `way` m/s up a pull of `hill`
+ * m/s² (downhill positive): the share of a flat stride's glide the climb
+ * takes away — gravity's pull along his skis over it and the glide's own
+ * slowing (`glideSlowing`). 0 on the flat and down a pitch. */
+export function climbDrive(way: number, hill = 0): number {
+  if (hill >= 0) return 0;
+  return -hill / (glideSlowing(way) - hill);
+}
 
 export const STILL_GAIT: Gait = {
   stride: 0,
@@ -291,6 +309,10 @@ export function gaitOf(
      * out. With none he never double-poles: he walks his skis off a
      * standstill wherever he is and skates once rolling. */
     poles?: boolean;
+    /** The hill's pull along his way, m/s², downhill positive
+     * (`SkierState.hill`); the flat when left out. Up a rise his strides
+     * come quicker, the push fills more of each and he drives harder. */
+    hill?: number;
     airTime?: number;
     popped?: number;
   },
@@ -331,13 +353,18 @@ export function gaitOf(
   const push = (Math.floor(s.stride) % 2) as 0 | 1;
   const glide = (1 - push) as 0 | 1;
   const lead = glideYaw(0, s.speed, 0, step);
-  const duty = TUNING.poles.duty;
-  const poleShare = poleDuty(s.speed, step);
+  const hill = s.hill ?? 0;
+  const duty = skateDuty(s.speed, hill);
+  const poleShare = poleDuty(s.speed, step, hill);
+  // UP A RISE HE DRIVES: bent further over his skis, lower on them, the
+  // poles planted and pushed through with the trunk — how hard by how
+  // much the climb has cut his glide (`climbDrive`).
+  const driven = climbDrive(s.speed, hill) * (skate + stride);
   // The snow passed in a stride — the engine counts one at `strideRate` ×
   // the drive a second — and how much of it one push sweeps.
   const pass =
     Math.abs(s.way ?? s.speed) /
-    (strideRate(s.speed, poles, step) * stepQuick(step, s.speed) * Math.max(0.2, s.drive));
+    (strideRate(s.speed, poles, step, hill) * stepQuick(step, s.speed) * Math.max(0.2, s.drive));
   const poling = skate + work * Math.max(0, 1 - striding - skating);
   const sweep =
     (poling > 0
@@ -393,8 +420,8 @@ export function gaitOf(
     keep: poleKeepUp(s.speed, step) * smooth01((fit - 0.8) / 0.15),
     duty: poleShare,
     roll: WEIGHT.roll * across,
-    sink: skate * (WEIGHT.stoop + WEIGHT.sink * (low - 0.5)),
-    pitch: WEIGHT.pitch * skate,
+    sink: skate * (WEIGHT.stoop + WEIGHT.sink * (low - 0.5)) + CLIMB_DRIVE.sink * driven * low,
+    pitch: WEIGHT.pitch * skate + CLIMB_DRIVE.pitch * driven,
     twist: WEIGHT.twist * glideYaw(s.stride, s.speed, skate, step),
     pivot: 0,
     sidestep: 0,

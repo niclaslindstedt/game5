@@ -18,7 +18,14 @@ import { altitudeAt, overBase } from "./altitude.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import { beaconRead, buriedRead, type BeaconRead, type BuriedRead } from "./beacon-read.ts";
-import { aloftInPlane, chuteOf, planeOf, type HudChute, type HudPlane } from "./plane-hud.ts";
+import {
+  aloftInPlane,
+  chuteOf,
+  planeOf,
+  suitLandedOf,
+  type HudChute,
+  type HudPlane,
+} from "./plane-hud.ts";
 import {
   airflowAt,
   bearingToNext,
@@ -69,13 +76,14 @@ import { trapOf, type TrapReading } from "./downhill-run.ts";
 import { TIMING_HOLD, boardOf, timingSplit } from "./slalom-board.ts";
 import { secondRunOf, type SecondRun } from "./slalom-heat.ts";
 import { skyLookAt } from "./sky.ts";
+import { padGlyphOf, type PadGlyph } from "./thumb-glyphs.ts";
 import { crossOf, type CrossHud } from "./ski-cross-run.ts";
 import { skiJumpOf, type SkiJumpHud } from "./ski-jump-run.ts";
 import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
 import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
 import { aerialsOf, type AerialsHud } from "./aerials-run.ts";
-import { comboTile, type TrickTile } from "./trick-tile.ts";
+import { comboTile, freeTile, type TrickTile } from "./trick-tile.ts";
 import {
   challengeRows,
   challengeTile,
@@ -314,6 +322,10 @@ export type HudSnapshot = {
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
+  /** ...and A FREE RIDE'S, where the mountain is tricked for its own sake:
+   * the points banked and the combo in hand, with no buzzer (`left` 0);
+   * null on any run that is not one. */
+  freeTricks: TrickTile | null;
   /** THE PISTE'S GRADE (R23): the colour on its signs, beside the gates. */
   grade: PisteGrade;
   /** THE COUNTRY the mountain is raised in (R21) — with the seed and the
@@ -350,6 +362,12 @@ export type HudSnapshot = {
   /** THE SKYDIVE (`plane-hud.ts`): the altimeter and the next press from
    * the door to the snow, or null. */
   chute: HudChute | null;
+  /** DOWN OUT OF A WINGSUIT on his boots (`suitLandedOf`): the plate asks
+   * what next — he has no skis to ski on. */
+  suitLanded?: boolean;
+  /** What the edge thumb draws under the finger (`thumb-glyphs.ts`): the
+   * skis, or the wingsuit, the canopy or the boots. */
+  pad?: PadGlyph;
   /** THE AFTERSKI (`afterski-hud.ts`): the way to a lodge, the room, the
    * skis to fetch after a buzzed fall — or null. */
   afterski: HudAfterski | null;
@@ -794,6 +812,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     died: diedLine(state),
     injured: injuredLine(state),
     tricks: comboTile(state),
+    freeTricks: freeTile(state),
     grade: gradeOfLevel(state.level),
     region: regionOf(state.level).id,
     face: state.level.face ?? null,
@@ -809,6 +828,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     buried: buriedRead(state),
     plane: balloonAboard(state) ? null : planeOf(state),
     chute: chuteOf(state),
+    suitLanded: suitLandedOf(state),
+    pad: padGlyphOf(state),
     afterski: aloft ? null : afterskiOf(state),
     door: aloft ? null : doorCallOf(state),
     buzz: c.buzz ?? 0,

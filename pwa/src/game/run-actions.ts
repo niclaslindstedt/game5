@@ -41,6 +41,8 @@ export type RunActionWorld = {
   restart: () => void;
   /** One rung along the camera ladder. */
   camera: () => void;
+  /** Straight to the helmet camera and back (`firstPersonCamera`). */
+  firstPerson?: () => void;
   /** Put the skis back at the last checkpoint — the R key's edge. */
   reset: () => void;
   /** Leave a recording being watched (`replay-run.ts`). */
@@ -84,6 +86,7 @@ export function createRunActions(world: RunActionWorld): (press: RunPress) => vo
     if (shell !== "run") return;
     if (press === "restart") world.restart();
     else if (press === "camera") world.camera();
+    else if (press === "firstPerson") world.firstPerson?.();
     else if (press === "reset") world.reset();
   };
 }

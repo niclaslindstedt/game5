@@ -43,7 +43,7 @@ type Cell = {
   name: string;
   /** What is drawn: the bare deck, the deck dressed, a binding, a boot in
    * its binding. */
-  subject: "deck" | "dressed" | "binding" | "boot";
+  subject: "deck" | "dressed" | "binding" | "boot" | "shoe";
   /** The lens: orthographic straight on (`ortho`, the axis it looks down
    * and the half height it spans, m), or a perspective one about the
    * subject (azimuth from its +x, deg, clockwise from above; elevation,
@@ -90,6 +90,12 @@ const ONE: Cell[][] = [
     { name: "boot — side", subject: "boot", az: 90, el: 10, dist: 0.8 },
     { name: "boot — front", subject: "boot", az: 180, el: 20, dist: 0.8 },
     { name: "boot — 3/4", subject: "boot", az: 140, el: 28, dist: 0.85 },
+  ],
+  [
+    { name: "boot alone — front", subject: "shoe", az: 180, el: 15, dist: 0.85 },
+    { name: "boot alone — side", subject: "shoe", az: 90, el: 10, dist: 0.85 },
+    { name: "boot alone — front 3/4", subject: "shoe", az: 140, el: 25, dist: 0.85 },
+    { name: "boot alone — back 3/4", subject: "shoe", az: 30, el: 25, dist: 0.85 },
   ],
 ];
 
@@ -184,7 +190,8 @@ async function main(): Promise<void> {
     const boot = buildSoftBoot(sheet, paint, keep);
     boot.position.y = BINDING.plate;
     booted.add(boot);
-    const groups = { deck: deckOnly, dressed, binding, boot: booted };
+    const shoe = buildSoftBoot(sheet, paint, keep);
+    const groups = { deck: deckOnly, dressed, binding, boot: booted, shoe };
     for (const g of Object.values(groups)) scene.add(g);
     return { deck, deckOnly, dressed, binding, boot, groups };
   };

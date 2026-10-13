@@ -59,6 +59,7 @@ function pressReady(c: SkierState): boolean {
     c.lift === null &&
     c.tunnel === null &&
     c.jib == null &&
+    c.grind == null &&
     c.sidestep === 0 &&
     c.jumpLoad === 0 &&
     c.revert == null &&

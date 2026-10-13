@@ -25,11 +25,13 @@ import type { Heightfield } from "@engine";
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
 import { mistFor, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
+import type { AloftLook } from "./view-aloft.ts";
 import {
   aimShadow,
   createSunCadence,
   SHADOW_MARGIN,
   shadowFade,
+  steadyKey,
   sunDue,
   type ShadowBox,
 } from "./shadow-box.ts";
@@ -48,13 +50,17 @@ export type Environment = {
   /** Apply a look, and aim the shadow ahead of `camera`, its box standing
    * at height `y` (the skier's: what the depth range is centred on);
    * `drift` is how far the wind has carried the cloud (`sky-dome.ts`);
-   * `steady`, that the sun's map may stand a frame (`sunDue`). */
+   * `steady`, that the sun's map may stand a frame (`sunDue`); `ahead`,
+   * where the key will stand `TERRAIN_SHADOW.lead` s of run on (`sky.ts`'s
+   * `keyAheadAt` — null while the sky's clock stands), which the
+   * mountain's shadow is baked ahead to. */
   update(
     look: SkyLook,
     camera: THREE.Camera,
     y: number,
     drift?: { x: number; z: number },
     steady?: boolean,
+    ahead?: Dir | null,
   ): void;
   /** Where the shadow stands this frame, or null while the SHADOWS row is
    * off — what `forest.ts` picks its casters by. */
@@ -66,6 +72,8 @@ export type Environment = {
   setShadow(look: ShadowLook): void;
   /** The DISTANCE row, whose mist is `mistFor`'s. */
   setDistance(distance: DistanceLevel): void;
+  /** The mist as a lens over the snow sees it (`view-aloft.ts`), every frame. */
+  setAloft(look: Pick<AloftLook, "mist" | "aloft">): void;
   /** The map's ground the mountain's shadow is baked off (null: none), and
    * the key it is baked for first; resolves once that shade is drawn. */
   setGround(ground: Heightfield | null, key: Dir | null): Promise<void>;
@@ -249,7 +257,7 @@ export function createEnvironment(
     haze,
     sun,
     dome,
-    update(sky, camera, y, drift, steady = false) {
+    update(sky, camera, y, drift, steady = false, ahead = null) {
       writeHaze(haze, sky);
       dome.update(sky, drift?.x ?? 0, drift?.z ?? 0);
       // The key is the sun by day and the moon by night (`sky.ts`).
@@ -262,8 +270,10 @@ export function createEnvironment(
       aimShadow(box, camera.position.x, camera.position.z, look.x, look.z, box.reach);
       box.y = y;
       // The key's direction, kept a hair over the horizon so the box has a
-      // light to stand under.
-      dir.set(sky.key.x, Math.max(sky.key.y, 0.02), sky.key.z).normalize();
+      // light to stand under, and STEPPED as it turns with the sky's clock
+      // (`steadyKey`), so the box's frame stands between steps and its
+      // texel snap holds the shadows' edges still.
+      steadyKey(sky.key, dir);
       box.sx = dir.x;
       box.sy = dir.y;
       box.sz = dir.z;
@@ -281,7 +291,7 @@ export function createEnvironment(
       sun.target.position.copy(at);
       sun.position.copy(at).addScaledVector(dir, KEY_DISTANCE);
       sun.target.updateMatrixWorld();
-      terrain.update(sky.key, sun.castShadow);
+      terrain.update(sky.key, sun.castShadow, ahead);
       dome.follow(camera);
       cull.aim(camera, sun.castShadow ? box : null);
     },
@@ -292,6 +302,10 @@ export function createEnvironment(
     setShadow,
     setDistance(next) {
       haze.uMist.value = mistFor(next);
+    },
+    setAloft(look) {
+      haze.uMist.value = look.mist;
+      haze.uMistAloft.value = look.aloft;
     },
     setGround(ground, key) {
       return terrain.setGround(ground, key, sun.castShadow);

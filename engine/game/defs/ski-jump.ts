@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SKI JUMP'S NUMBERS — the contest (R43 builds its hill), from
-// `docs/freestyle.md` § *Ski jumping* and `docs/specs/SKI_JUMPING.md`.
+// `docs/freestyle.md` § *Ski jumping* (its research and what the game models).
 // Stated beside `modes.ts`, which re-exports them, so the modes' file stays
 // under its cap; it imports nothing from `modes.ts` but types, so the two
 // load in either order.
@@ -26,7 +26,7 @@ export const SKI_JUMP = {
   window: 10,
   /** THE PAIR: the jumping ski. */
   skis: "albatross" as SkiId,
-  /** THE JURY'S WEATHER (est., `docs/specs/SKI_JUMPING.md`): a jumper is
+  /** THE JURY'S WEATHER (est., `docs/freestyle.md` § *Ski jumping*): a jumper is
    * held on the bar while the wind is outside its window — a gust past
    * 40 km/h — and the contest is held in no more than a steady fall. The
    * tail wind's own window (past 3 m/s) is the jury's on the bar, a later

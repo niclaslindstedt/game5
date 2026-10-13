@@ -72,9 +72,19 @@ export const CHUTE_STRINGS = {
     touch ? "DOUBLE TAP FOR THE RESERVE" : `${key} FOR THE RESERVE`,
   /** Hanging from a crown or a lift: only a reset brings him down. */
   chuteSnagged: "HANGING · RESET TO START AGAIN",
+  /** Down out of a wingsuit on his boots, with no skis to ski on: the
+   * plate's title, its note and its three presses (`hud-result.tsx`). */
+  /** The rider card's way on when the ride is flown in a wingsuit: no
+   * skis are picked, the ride starts there (`menu-dress.tsx`). */
+  dressFly: "FLY",
+  suitLandedTitle: "LANDED",
+  suitLandedNote: "No skis in a wingsuit: fly again, pick a run, or call it a day.",
+  suitLandedAgain: "FLY AGAIN",
+  suitLandedSlopes: "PISTE MAP",
+  suitLandedQuit: "QUIT",
 
   /* ── OPTIONS ▸ KEYS (menu-keys.tsx) ────────────────────────────────── */
   keysChuteTitle: "SKYDIVE",
   chuteKeysNote:
-    "Out of the plane the skier's own keys fly you. In freefall the edge turns you, the lean forward tracks across the sky and back slides you back, the tuck dives head down. Under the canopy the edge is the toggles, the skid both brakes (a flare to land) and the lean the risers. The machine key jumps from the door, opens the canopy, then cuts it away, then pulls the reserve, which cannot be cut away; land on your skis and either lets go by itself.",
+    "Out of the plane the skydive's own keys above fly you — by default the skier's. In freefall the edge turns you, the lean forward tracks across the sky and back slides you back, the tuck dives head down. Under the canopy the edge is the toggles, the skid both brakes (a flare to land) and the lean the risers. The machine key jumps from the door, opens the canopy, then cuts it away, then pulls the reserve, which cuts away too; land on your skis and either lets go by itself.",
 };

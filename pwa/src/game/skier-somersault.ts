@@ -268,6 +268,9 @@ export function withFlip(
     pitch: (fall?.pitch ?? 0) * (1 - own),
     nod: (fall?.nod ?? 0) * (1 - own),
     lift: (fall?.lift ?? 0) * (1 - own),
+    along: (fall?.along ?? 0) * (1 - own),
+    keep: 1 - (1 - (fall?.keep ?? 1)) * (1 - own),
+    bow: (fall?.bow ?? 0) * (1 - own),
   };
 }
 

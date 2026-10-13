@@ -103,8 +103,9 @@ import process from "node:process";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
-
 import { challengeShots } from "./lib/challenge-shots.mjs";
+import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
+import { holdThumbs } from "./lib/hold-thumbs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
@@ -131,10 +132,12 @@ const SCENES = {
  * card being in the DOM. `settle` is the beat after it the card's arrival
  * animation needs. `press` is a button pressed on the way in, for a surface
  * reached by a press rather than by a URL, and `keys` are keys pressed once
- * the card is up; `prime` is a race stood
+ * the card is up; `storage` is what the game remembers, laid in before the
+ * page loads (a card that reads a stored pick); `prime` is a race stood
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
 const SURFACES = {
+  ...WINGSUIT_SURFACES,
   // The title and the invitation, over the title scene's first frames.
   splash: { params: { splash: "1" }, wait: ".splash-prompt", settle: 900 },
   // The front door over the title scene (a visit's first)...
@@ -205,6 +208,16 @@ const SURFACES = {
     press: ".hud-replay-offer",
     wait: ".hud-replay",
     settle: 6000,
+  },
+  // PUT AWAY by a tap on the picture, paused.
+  "replay-away": {
+    params: { paused: "1", t: "20" },
+    press: ".pause-replay",
+    pressAfter: 700,
+    wait: ".hud-replay",
+    keys: ["Space"],
+    tap: [0.5, 0.35, ".hud-replay-layer.is-idle"],
+    settle: 12000,
   },
   "replay-idle": {
     params: { paused: "1", t: "20" },
@@ -294,50 +307,50 @@ const SURFACES = {
   "bench-history": { params: { menu: "benchHistory" }, wait: ".dev-line", settle: 900 },
   // THE SKI CARD, straight off the URL; the rack is its own chunk and
   // builds the pair on its first frame, so it is given a moment.
-  skis: { params: { menu: "skis" }, wait: ".skis-pick-canvas", settle: 1800 },
+  skis: { params: { menu: "skis" }, wait: ".menu-stage[data-ready]", settle: 1800 },
   "skis-powder": {
     params: { menu: "skis", skis: "marmot" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on the super-G pair, the one SPEED CARVE fills.
   "skis-superg": {
     params: { menu: "skis", skis: "falcon" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on the ski-cross pair, the one BERM fills.
   "skis-cross": {
     params: { menu: "skis", skis: "wolverine" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on the speed ski, the one TOP SPEED fills.
   "skis-speed": {
     params: { menu: "skis", skis: "peregrine" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and on its SNOWBOARD side, where a run lets a free pick of pair (the
   // park run here, as the free ride): the all-mountain twin...
   "skis-board": {
     params: { menu: "skis", mode: "tricks", skis: "lynx" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // ...and the alpine carver, the range's far end.
   "skis-carver": {
     params: { menu: "skis", mode: "tricks", skis: "goshawk" },
-    wait: ".skis-pick-canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
   // him — the first card after a map is picked, the gear card after it.
-  dress: { params: { menu: "dress" }, wait: ".dress-stage canvas", settle: 1800 },
+  dress: { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
     params: { menu: "dress", mode: "tricks", skis: "lynx" },
-    wait: ".dress-stage canvas",
+    wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
   // THE FREE RIDE'S WHERE STEPS: the world map flown onto a range (its
@@ -522,6 +535,18 @@ const SURFACES = {
     wait: ".hud-plane",
     settle: 1500,
   },
+  // THE WINGSUIT (`wingsuit.ts`, `?wingsuit=1`): stood on its exit high on
+  // the mountain, and flying the suit's glide (`?chute=` with `wingsuit=1`).
+  "wingsuit-ready": {
+    params: { start: "free", wingsuit: "1", t: "1", shot: "1" },
+    wait: ".hud-chute",
+    settle: 1500,
+  },
+  wingsuit: {
+    params: { start: "free", wingsuit: "1", chute: "500", t: "6", shot: "1" },
+    wait: ".hud-chute",
+    settle: 1500,
+  },
   "chute-free": {
     params: { start: "free", chute: "1500", t: "4", shot: "1" },
     wait: ".hud-chute",
@@ -543,10 +568,8 @@ const SURFACES = {
   // new browser context has none, so what this photographs is the empty
   // state — which is the surface most players see first.
   gallery: { params: { menu: "gallery" }, wait: ".menu-card-gallery", settle: 700 },
-  // ...and with a picture in it: a race ridden fourteen seconds, P pressed
-  // (the whole shutter — the grab, the HUD layer, the stamp, the encode, the
-  // roll), and the gallery opened in the same tab, so the store is the one
-  // the picture was filed in.
+  // ...and with a picture in it: a race ridden 14 s, P pressed (the whole
+  // shutter), and the gallery opened in the same tab, on the store it filed in.
   "gallery-roll": {
     prime: { params: { start: "race", t: "14", shot: "1" }, key: "KeyP" },
     params: { menu: "gallery" },
@@ -744,6 +767,13 @@ async function capture(name, params, viewportName, surface) {
         { timeout: args.timeout * 1000 },
       );
     }
+    if (surface?.storage) {
+      // A surface that reads what the game remembers: laid in before any of
+      // the page's own scripts run.
+      await page.addInitScript((kept) => {
+        for (const [k, v] of Object.entries(kept)) localStorage.setItem(k, v);
+      }, surface.storage);
+    }
     await page.goto(url, { waitUntil: "load" });
     if (surface) {
       // A surface reached by keys pressed once the run's HUD is up (`open`): the
@@ -775,6 +805,13 @@ async function capture(name, params, viewportName, surface) {
       }
       await page.waitForSelector(surface.wait, { timeout: args.timeout * 1000 });
       for (const key of surface.keys ?? []) await page.keyboard.press(key);
+      // A tap, then its effect waited for: a software frame can take seconds.
+      const [tx, ty, until] = surface.tap ?? [];
+      if (until)
+        await page.mouse.click(page.viewportSize().width * tx, page.viewportSize().height * ty);
+      if (until) await page.waitForSelector(until, { timeout: args.timeout * 1000 });
+      // Thumbs held on the glass for the pads under them (`hold-thumbs.mjs`).
+      if (surface.thumbs) await holdThumbs(page, surface.thumbs);
       await page.waitForTimeout(surface.settle);
     } else {
       await page.waitForFunction("window.__SH_READY__ === true", null, {

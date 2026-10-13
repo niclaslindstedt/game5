@@ -104,6 +104,8 @@ function palette(o: Outfit): Set<string> {
     const g = gearOf(slot, o[slot]);
     for (const c of [g.main, g.second, g.third]) out.add(c);
   }
+  const gl = gearOf("gloves", o.gloves);
+  for (const c of [gl.palm, gl.accent]) out.add(c);
   const h = gearOf("helmet", o.helmet);
   for (const c of [h.shell, h.trim, h.lens, ...lensShades(h.lens)]) out.add(c);
   return new Set(
@@ -167,13 +169,19 @@ describe("the dress", () => {
   });
 
   it("dresses a woman to her measure: a narrower waist and shoulders", () => {
+    // The trunk's own cloth: a vertex ridden mostly by an arm's or a
+    // hand's bone is the sleeve or the glove hanging beside it.
+    const limb = (b: number) => /arm|hand/.test(SKIER_BONES[b]);
     const width = (o: Outfit, y0: number, y1: number) => {
       const m = dressOutfit(o).cloth;
       let w = 0;
       each(m, (i) => {
         const y = m.position[i * 3 + 1];
         const x = Math.abs(m.position[i * 3]);
-        if (y > y0 && y < y1 && x < 0.22) w = Math.max(w, x);
+        let arm = 0;
+        for (let k = 0; k < 4; k++)
+          if (limb(m.skinIndex[i * 4 + k])) arm += m.skinWeight[i * 4 + k];
+        if (y > y0 && y < y1 && arm < 0.5) w = Math.max(w, x);
       });
       return w;
     };

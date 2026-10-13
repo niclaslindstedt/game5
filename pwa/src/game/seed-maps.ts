@@ -408,8 +408,9 @@ export function freeRideLevel(
   quietSeedMaps(ask);
   const has = (): Level | undefined => standing() ?? came ?? undefined;
   return {
-    ready: () => came !== undefined,
-    readyShare: () => (came !== undefined ? 1 : (seedShare(ask) ?? 0)),
+    // A map standing (or staged) is ridden at once, the worker never awaited.
+    ready: () => came !== undefined || standing() !== undefined,
+    readyShare: () => (came !== undefined || standing() ? 1 : (seedShare(ask) ?? 0)),
     map: () => (has() ? null : gameOrder(options)),
     has,
     face: options.face,

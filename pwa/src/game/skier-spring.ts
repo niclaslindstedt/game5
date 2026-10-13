@@ -182,6 +182,9 @@ export type SpringRide = {
   way?: number;
   /** The step turn he is making (`SkierState.step`); none when left out. */
   step?: number;
+  /** The hill's pull along his way, m/s² (`SkierState.hill`); the flat
+   * when left out — up a rise his strides come quicker. */
+  hill?: number;
   /** The pair's pitch, rad, and the body thrown off it (`SkierState`) —
    * what the gait is read off. */
   pitch?: number;
@@ -501,6 +504,7 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
     speed: ride.speed,
     way: ride.way,
     step: ride.step,
+    hill: ride.hill,
     crouch: ride.crouch,
     pitch: ride.pitch ?? 0,
     airborne,
@@ -519,7 +523,9 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   if (n !== s.poledStride || !(ride.drive > 0)) {
     const step = ride.step ?? 0;
     const rate =
-      strideRate(ride.speed, true, step) * stepQuick(step, ride.speed) * Math.max(0.2, ride.drive);
+      strideRate(ride.speed, true, step, ride.hill) *
+      stepQuick(step, ride.speed) *
+      Math.max(0.2, ride.drive);
     s.poled = ((ride.stride - n) * way) / rate;
     s.poledStride = n;
   } else s.poled += way * dt;
@@ -603,7 +609,16 @@ export function stepSkierSpring(
     stepBody(s, ride, airborne, dt);
     work = stepPoled(s, ride, airborne, dt);
   }
-  stepFlight(s.flight, airborne, fall?.read, ride?.airTime ?? 0, dt, fall?.gravity, ride?.lean);
+  stepFlight(
+    s.flight,
+    airborne,
+    fall?.read,
+    ride?.airTime ?? 0,
+    dt,
+    fall?.gravity,
+    ride?.lean,
+    ride?.pitch,
+  );
   // A HOP is not a flight (`flying`): he goes compact only once he is
   // really flying.
   const into = flying({ airborne, airTime: ride?.airTime, popped: ride?.popped }) ? 1 : 0;

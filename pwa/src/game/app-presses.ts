@@ -15,11 +15,22 @@ import type { TrickMap, TrickRun } from "./trick-maps.ts";
 export type Presses = {
   race: (seed: number, mode: GameMode) => void;
   free: (options: CreateGameOptions) => void;
+  /** The free ride's cards: stage the world of the ride they are on
+   * (`free-stage.ts`) once they have been still `after` ms, or throw it
+   * away (null). */
+  stageFree: (options: CreateGameOptions | null, after?: number) => void;
   /** A TRICKS run on a trick map (`trick-maps.ts`), or a freestyle
    * contest (ski jumping and the rest) built over one. */
   tricks: (map: TrickMap, mode?: TrickRun) => void;
   /** A pinned map off the level card. */
   pinned: (pin: PinnedLevel, mode: PinnedLevel["mode"]) => void;
+  /** The cards before RIDE on a pinned or trick map: order its map ahead
+   * and, `covered` by the rider and gear cards' stage, stage a race's world
+   * (`pinned-run.ts`) — or let both go (null). */
+  mapAhead: (
+    pick: { pin: PinnedLevel; mode: PinnedLevel["mode"] } | { map: TrickMap } | null,
+    covered: boolean,
+  ) => void;
   restart: () => void;
   /** A slalom's SECOND RUN, off the first run's plate (`pinned-run.ts`). */
   second: () => void;
@@ -37,8 +48,10 @@ export type Presses = {
 export const NO_PRESSES: Presses = {
   race: () => {},
   free: () => {},
+  stageFree: () => {},
   tricks: () => {},
   pinned: () => {},
+  mapAhead: () => {},
   restart: () => {},
   second: () => {},
   pause: () => {},

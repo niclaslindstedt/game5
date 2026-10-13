@@ -171,3 +171,37 @@ describe("the fall", () => {
     }
   });
 });
+
+describe("pressed forward in the air (AIR_FORE)", () => {
+  // A long flight high over the snow with the lean held, the tips `pitch`
+  // rad down in the world; the shape after a second of it.
+  const shapeOf = (lean: number, pitch: number) => {
+    const f = createFlight();
+    const read = { clearance: 4, ahead: Number.POSITIVE_INFINITY };
+    for (let t = 0; t < 1; t += DT) stepFlight(f, true, read, t, DT, G, lean, pitch);
+    return flightShape(f, 1);
+  };
+
+  it("is nothing with the lean let go or held back", () => {
+    for (const lean of [0, 1]) {
+      const s = shapeOf(lean, -0.8);
+      expect(Math.abs(s.along ?? 0)).toBe(0);
+      expect(s.keep ?? 1).toBe(1);
+      expect(Math.abs(s.bow ?? 0)).toBe(0);
+    }
+  });
+
+  it("holds the trunk back and draws the knees up as the skis tip down under him", () => {
+    const level = shapeOf(-1, 0);
+    const tipped = shapeOf(-1, -0.8);
+    // Held back against the tips: the trunk pitched back, the hips lowered
+    // and back along the skis, the hands raised.
+    expect(tipped.pitch).toBeLessThan(level.pitch - 0.3);
+    expect(tipped.lift).toBeLessThan(level.lift - 0.1);
+    expect(tipped.along ?? 0).toBeLessThan((level.along ?? 0) - 0.2);
+    expect(tipped.arm).toBeGreaterThan(level.arm + 0.3);
+    // The stance's own forward pitch mostly let go, the eyes down on the landing.
+    expect(level.keep ?? 1).toBeLessThan(0.5);
+    expect(level.bow ?? 0).toBeGreaterThan(0.2);
+  });
+});

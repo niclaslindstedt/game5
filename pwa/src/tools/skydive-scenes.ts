@@ -158,6 +158,31 @@ function openTo(st: Stage, s: GameState, t: number): void {
 const DEPLOY_SHOTS = [0.2, 0.36, 0.55, 0.85, 1.1, 1.32, 1.8, 2.4, 2.9, 3.25, 3.5];
 
 export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
+  // THE SENSE OF SPEED on the chase (`camera-pace.ts`, `make speed-cam`):
+  // freefall from a standstill's exit speed to terminal, belly to earth and
+  // tracking, then the opening and the canopy pulled up behind him.
+  speed(st) {
+    const s = st.fresh();
+    const at = overPiste(st.level);
+    skydiveAt(s, { ...at, agl: 2200, fall: 8, mode: "freefall" });
+    st.camera("chase");
+    let t = 0;
+    for (const sec of [0.5, 2, 5, 10]) {
+      st.run(s, sec - t, still);
+      t = sec;
+      st.shoot(
+        s,
+        `freefall ${sec} s · ${Math.round((s.chute?.airspeed ?? 0) * 3.6)} km/h`,
+        "chase",
+      );
+    }
+    st.run(s, 4, keys({ tuck: 1, lean: -1 }));
+    st.shoot(s, `tracking · ${Math.round((s.chute?.airspeed ?? 0) * 3.6)} km/h`, "chase");
+    const o = opening(st);
+    st.camera("chase");
+    openTo(st, o, 1.4);
+    st.shoot(o, "opening · chase", "chase");
+  },
   // ── THE RIG ON HIM: from behind, the side and the front ───────────────
   gear(st) {
     const s = dive(st, 1800);
@@ -607,6 +632,12 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.run(c, 1, still);
     st.shoot(c, "canopy", around(8, 2, 4, 48, 2.5));
     st.shoot(c, "canopy chase", "chase");
+    // ...and under a lid of cloud, no moon or stars: the lines as dark as the cloth.
+    await st.sky({ hour: 21, weather: "overcast" });
+    const d = dive(st, 400, "open");
+    st.run(d, 1, still);
+    st.shoot(d, "overcast canopy", around(8, 2, 4, 48, 2.5));
+    st.shoot(d, "overcast chase", "chase");
     await st.sky(null);
   },
 };
@@ -628,4 +659,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   night: ["night"],
   stages: ["stages"],
   craft: ["craft"],
+  speed: ["speed"],
 };

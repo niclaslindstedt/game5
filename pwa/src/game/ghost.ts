@@ -83,6 +83,12 @@ export const GHOST_FORMAT = 2;
  * settings; a tape over the cap is dropped rather than risking the store. */
 export const GHOST_CAP = 400_000;
 
+/** ALL THE TAPES TOGETHER, characters of JSON: past it the tapes saved
+ * longest ago are let go before a new one is written. Without it every map
+ * beaten adds a tape for good, until the store is full and the record book,
+ * the settings and the statistics can no longer be saved at all. */
+export const GHOST_BUDGET = 1_500_000;
+
 /** ONE STEP'S CONTROLS, ON THE GRID THE TAPE WRITES — in place, and
  * returned. Applying it twice is free: a value on the grid snaps to itself. */
 export function snapInput(input: SkierInput): SkierInput {
@@ -301,11 +307,61 @@ export function loadGhost(stage: GhostStage): GhostRun | null {
   }
 }
 
+/** The order the tapes were saved in, oldest first: the ids, under a key
+ * of its own (a tape saved before it was kept counts as oldest of all). */
+export const GHOST_ORDER = "fall-line.ghost-order.v1";
+
+function ghostOrder(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(GHOST_ORDER) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Every tape on file but `keep`, oldest first, with its size. */
+function tapesOnFile(keep: string): { key: string; size: number }[] {
+  const order = ghostOrder();
+  const rank = (key: string): number => order.indexOf(key.slice(GHOST_PREFIX.length));
+  const out: { key: string; size: number }[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key === null || !key.startsWith(GHOST_PREFIX) || key === keep) continue;
+    out.push({ key, size: localStorage.getItem(key)?.length ?? 0 });
+  }
+  return out.sort((a, b) => rank(a.key) - rank(b.key));
+}
+
 export function saveGhost(run: GhostRun): void {
   try {
     const text = JSON.stringify(run);
     if (text.length > GHOST_CAP) return;
-    localStorage.setItem(GHOST_PREFIX + run.id, text);
+    const key = GHOST_PREFIX + run.id;
+    const others = tapesOnFile(key);
+    let total = text.length;
+    for (const t of others) total += t.size;
+    // The oldest let go until the new one fits the budget…
+    while (total > GHOST_BUDGET && others.length > 0) {
+      const old = others.shift()!;
+      localStorage.removeItem(old.key);
+      total -= old.size;
+    }
+    // …and, should the store be full all the same, until it fits there.
+    for (;;) {
+      try {
+        localStorage.setItem(key, text);
+        break;
+      } catch (err) {
+        const old = others.shift();
+        if (!old) throw err;
+        localStorage.removeItem(old.key);
+      }
+    }
+    const kept = new Set(others.map((t) => t.key.slice(GHOST_PREFIX.length)));
+    const order = ghostOrder().filter((id) => id !== run.id && kept.has(id));
+    order.push(run.id);
+    localStorage.setItem(GHOST_ORDER, JSON.stringify(order));
   } catch {
     // Storage unavailable or full — the time is still in the book.
   }

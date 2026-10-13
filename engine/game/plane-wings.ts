@@ -24,6 +24,7 @@ import {
   type Vec3,
 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { treesNear } from "./collision.ts";
+import { felledTrees } from "./felled.ts";
 import { PLANE } from "./defs/plane.ts";
 import { PLANE_WINGS } from "./defs/plane-wings.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -217,7 +218,10 @@ function treeWings(run: GameState, p: PlaneState, events: GameEvent[]): void {
   const cy = p.y + cog.y;
   const cz = p.z + cog.z;
   const speed = hypot3(p.vx, p.vy, p.vz);
+  // A tree felled for the village or the strip stands nowhere.
+  const gone = felledTrees(level);
   for (const i of treesNear(level, cx, cz, 14, near)) {
+    if (gone[i]) continue;
     const t = level.trees[i];
     const top = t.y + t.height;
     for (const b of WING_TREE_POINTS) {

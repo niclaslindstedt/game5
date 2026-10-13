@@ -28,7 +28,7 @@ import { cellKey, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/
 import type { Level, TreeWell, Vec3, WellField } from "../mapgen/types.ts";
 import { TREE_WELLS } from "./defs/tree-wells.ts";
 import { bottomlessOf } from "./snow.ts";
-import { felledTrees } from "./village.ts";
+import { felledTrees } from "./felled.ts";
 
 const W = TREE_WELLS;
 const RINGED: ReadonlySet<string> = new Set(W.ringed);

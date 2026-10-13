@@ -423,7 +423,7 @@ describe("the skydive's lenses", () => {
     expect(skydiveFramed(dive("open").chute, false)).toBe(false);
   });
 
-  it("flies beside and over him looking past him at the ground, and pulls back for the opening", () => {
+  it("flies behind and over him looking where he falls, and pulls back for the opening", () => {
     const s = dive();
     fly(s, 1);
     const c = s.skier;
@@ -432,6 +432,11 @@ describe("the skydive's lenses", () => {
     const chase = skydiveLens("chase", s.chute!, at, null, ground);
     expect(chase.eye.y).toBeGreaterThan(at.y);
     expect(chase.target.y).toBeLessThan(at.y);
+    // Behind him along his heading, not off his side.
+    const h = s.chute!.heading;
+    const back = -((chase.eye.x - at.x) * Math.sin(h) + (chase.eye.z - at.z) * Math.cos(h));
+    const side = (chase.eye.x - at.x) * Math.cos(h) - (chase.eye.z - at.z) * Math.sin(h);
+    expect(back).toBeGreaterThan(Math.abs(side) * 3);
     const far = skydiveLens("far", s.chute!, at, null, ground);
     const d = (l: typeof chase) => Math.hypot(l.eye.x - at.x, l.eye.y - at.y, l.eye.z - at.z);
     expect(d(far)).toBeGreaterThan(d(chase));

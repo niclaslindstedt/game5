@@ -130,6 +130,7 @@ export function StepRow<T extends string>({
   stops,
   value,
   extra,
+  dealt = false,
   hint,
   onPick,
   onHint,
@@ -139,6 +140,9 @@ export function StepRow<T extends string>({
   value: T | string;
   /** The word for a value that is on no stop. */
   extra?: string;
+  /** The value is the map's own, not one picked: shown in a colour of its
+   * own until a step picks one. */
+  dealt?: boolean;
   hint?: string;
   onPick: (id: T) => void;
   onHint?: OnHint;
@@ -159,7 +163,7 @@ export function StepRow<T extends string>({
   };
   return (
     <div
-      class="knob"
+      class="knob knob-step"
       data-nav-steps
       {...carries(label, hint)}
       onPointerEnter={describe}
@@ -176,8 +180,24 @@ export function StepRow<T extends string>({
         >
           ‹
         </button>
-        <span class="knob-value">
-          <span class="knob-word">{current?.label ?? extra ?? STRINGS.optUnset}</span>
+        <span class={`knob-value${dealt ? " knob-dealt" : ""}`}>
+          {/* Every stop's word is laid in the same cell, unseen, so the
+              cell is as tall as the longest of them wraps to: a two-line
+              word picked does not make the row taller and push every row
+              under it down. */}
+          <span class="knob-word knob-word-held">
+            <span>{current?.label ?? extra ?? STRINGS.optUnset}</span>
+            {stops.map((stop) => (
+              <span key={stop.id} class="knob-word-sizer" aria-hidden="true">
+                {stop.label}
+              </span>
+            ))}
+            {extra !== undefined && (
+              <span class="knob-word-sizer" aria-hidden="true">
+                {extra}
+              </span>
+            )}
+          </span>
           <span class={pipsClass(stops.length, shown)} aria-hidden="true">
             {shown.map((i) => (
               <i key={stops[i].id} class={`knob-pip${i === at ? " knob-pip-on" : ""}`} />
@@ -499,7 +519,9 @@ export function KnobGroup({
 }
 
 /** The page's ONE sentence — the row being looked at, named and then
- * explained, or the page's own line while no row is. Written as the card's
+ * explained, or the page's own line while no row is (a page with nothing
+ * worth saying until a row is looked at has none, and the bar stands
+ * empty and unseen). Written as the card's
  * last child, after its `MenuBody`: the body scrolls and this does not, so
  * the sentence is on screen whichever row is being read.
  *
@@ -512,7 +534,7 @@ export function KnobGroup({
  * (`carries`) is laid in the same cell, unseen, and the one being read is
  * drawn over them: the bar's height is decided before the first touch and
  * never moves after it. */
-export function Caption({ hint, fallback }: { hint: Hint | null; fallback: string }) {
+export function Caption({ hint, fallback = "" }: { hint: Hint | null; fallback?: string }) {
   const bar = useRef<HTMLDivElement>(null);
   const [all, setAll] = useState<Hint[]>([]);
   useLayoutEffect(() => {
@@ -549,7 +571,11 @@ export function Caption({ hint, fallback }: { hint: Hint | null; fallback: strin
       </>
     );
   return (
-    <div ref={bar} class={`knob-caption${hint ? " knob-caption-on" : ""}`} aria-live="polite">
+    <div
+      ref={bar}
+      class={`knob-caption${hint ? " knob-caption-on" : ""}${!hint && !fallback ? " knob-caption-idle" : ""}`}
+      aria-live="polite"
+    >
       <span class="knob-caption-line">{line(hint)}</span>
       <span class="knob-caption-line knob-caption-sizer" aria-hidden="true">
         {fallback}

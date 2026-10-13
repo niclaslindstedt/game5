@@ -137,15 +137,6 @@ function rotateBy(q: Quat, v: V3): V3 {
   return { x: t.x, y: t.y, z: t.z };
 }
 
-/** The shorter turn taking unit vector `a` onto unit vector `b`. */
-function fromTo(a: V3, b: V3): Quat {
-  const c = cross(a, b);
-  const q = { w: 1 + dot(a, b), x: c.x, y: c.y, z: c.z };
-  if (q.w < 1e-6) return { w: 0, x: 1, y: 0, z: 0 };
-  const l = Math.hypot(q.w, q.x, q.y, q.z);
-  return { w: q.w / l, x: q.x / l, y: q.y / l, z: q.z / l };
-}
-
 /** THE REST the half bones turn from: every bone in the pose the model is
  * bound in (`STANDING`), found once. */
 let rest: Record<string, BoneFrame> | null = null;
@@ -190,7 +181,7 @@ const bend = (root: V3, mid: V3, tip: V3): V3 => sub(mid, scale(add(root, tip), 
  * than the shoulders and looking into the turn — three's "YXZ" Euler of
  * (−0.2 + pitch × 0.3, look × 0.5, −headRoll), as axes. */
 function headAxes(p: SkierPose): { x: V3; y: V3; z: V3 } {
-  const [a, b, c] = [-0.2 + p.pitch * 0.3, p.look * 0.5, -p.headRoll];
+  const [a, b, c] = [-0.2 + p.pitch * 0.3 + (p.bow ?? 0), p.look * 0.5, -p.headRoll];
   const rx = (v: V3): V3 => ({
     x: v.x,
     y: v.y * Math.cos(a) - v.z * Math.sin(a),
@@ -276,28 +267,27 @@ export function skierBones(p: SkierPose, halves = true): Record<SkierBone, BoneF
     // THE HAND, CLOSED ROUND THE POLE'S GRIP: its +z up the shaft (from the
     // basket to the fist), its +y the forearm's line squared to it — so the
     // pole runs through the fist whatever the stroke does to it, the wrist
-    // turning to hold it. A thrown skier's hand has let go: it lies along
-    // the forearm.
+    // turning to hold it. A hand with no pole in it (let go, thrown, stood
+    // in his boots) is the same fist round no pole: along its forearm (or
+    // hanging off a broken wrist), the thumb turned up his front — ahead of
+    // him on an arm hung at his side, up on one reached forward — so the
+    // back of the hand faces out and the glove cut round the grip stays on
+    // the wrist, never swung off it about the grip's top.
     const fore = out[`forearm_lo_${s}`];
     const pole = p.dropped?.[i] ? null : p.poles?.[i];
-    if (kink?.bone === "wrist") {
-      // THE HAND HANGING OFF A BROKEN WRIST: the empty hand's frame turned
-      // about the wrist from along the forearm to the way it hangs.
-      const turn = fromTo(fore.y, norm(sub(p.hands[i], kink.at)));
-      out[`hand_${s}`] = {
-        head: p.hands[i],
-        x: rotateBy(turn, fore.x),
-        y: rotateBy(turn, fore.y),
-        z: rotateBy(turn, fore.z),
-        length: 0.08,
-      };
-    } else if (pole) {
+    const fistAlong = (yy: V3, thumb: V3): BoneFrame => {
+      let zz = sub(thumb, scale(yy, dot(thumb, yy)));
+      zz = dot(zz, zz) < 1e-8 ? fore.z : norm(zz);
+      return { head: p.hands[i], x: cross(yy, zz), y: yy, z: zz, length: 0.08 };
+    };
+    if (pole && kink?.bone !== "wrist") {
       const zz = norm(sub(p.hands[i], pole));
       let yy = sub(fore.y, scale(zz, dot(fore.y, zz)));
       yy = dot(yy, yy) < 1e-8 ? fore.z : norm(yy);
       out[`hand_${s}`] = { head: p.hands[i], x: cross(yy, zz), y: yy, z: zz, length: 0.08 };
     } else {
-      out[`hand_${s}`] = { ...fore, head: p.hands[i], length: 0.08 };
+      const hung = kink?.bone === "wrist" ? norm(sub(p.hands[i], kink.at)) : fore.y;
+      out[`hand_${s}`] = fistAlong(hung, norm(add(chest, up)));
     }
     if (!halves) return;
     out[`hip_${s}`] = halfway("pelvis", `thigh_${s}`, out, hip);
@@ -395,6 +385,7 @@ function mix(a: SkierPose, b: SkierPose, k: number): SkierPose {
     pitch: n(a.pitch, b.pitch),
     roll: n(a.roll, b.roll),
     headRoll: n(a.headRoll, b.headRoll),
+    ...(a.bow != null || b.bow != null ? { bow: n(a.bow ?? 0, b.bow ?? 0) } : {}),
     knees: pair(a.knees, b.knees),
     feet: pair(a.feet, b.feet),
     boots: [0, 1].map((i) => ({

@@ -60,6 +60,8 @@ const CAUSE_NAMES: Record<CrashCause, string> = {
   sled: "SNOWMOBILE",
   stake: "STAKES",
   chair: "CHAIRLIFTS",
+  cable: "LIFT CABLES",
+  straddle: "CABLE STRADDLES",
   net: "NETS",
   maul: "THE GRIMBEAR",
   avalanche: "AVALANCHES",
@@ -67,6 +69,7 @@ const CAUSE_NAMES: Record<CrashCause, string> = {
   car: "TRAFFIC",
   balloon: "BALLOON CRASHES",
   plane: "PLANE CRASHES",
+  wingsuit: "WINGSUIT IMPACTS",
 };
 
 const DEATH_NAMES: Record<DeathCause, string> = {
@@ -175,6 +178,7 @@ export const STATS_STRINGS = {
   statsLifts: "LIFT RIDES",
   statsHeli: "HELICOPTER",
   statsPara: "UNDER A WING",
+  statsSuit: "FLOWN IN A WINGSUIT",
   statsSled: "SNOWMOBILE",
   statsGroomer: "PISTE MACHINE",
   statsBeers: "BEERS",

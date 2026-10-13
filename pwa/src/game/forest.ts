@@ -51,7 +51,7 @@ import { regionLookOf } from "./region-look.ts";
 import { createRocks } from "./rocks.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
 import { buildTree, treePaint, type TreeLod } from "./tree-shapes.ts";
-import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
+import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
 import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
 
@@ -154,11 +154,18 @@ export type Forest = {
   invalidate(): void;
   /** New bands (a picture row moved); takes effect on the next update. */
   setOptions(next: ForestOptions): void;
+  /** THE VIEW ALOFT (`view-aloft.ts`): the woods out to `far` m in plan,
+   * each tree's cut chosen at its slant distance from a lens `lift` m over
+   * the snow, the crags out to `view` m — none of it under the row's own. */
+  setAloft(far: number, lift: number, view: number): void;
   dispose(): void;
 };
 
 export function createForest(level: Level, haze: HazeUniforms, initial: ForestOptions): Forest {
   let options = { ...initial };
+  // The view aloft over the row's own (`setAloft`); on the snow, the row's.
+  const aloft = { far: options.far, lift: 0, view: options.view };
+  const edges = { full: 0, mid: 0, far: 0 };
   const group = new THREE.Group();
   // THE CRAGS on the drops stand with the woods, out to the whole view,
   // and the far share is the share of their blocks (`rocks.ts`).
@@ -490,6 +497,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const lastAt = new THREE.Vector3(Infinity, 0, 0);
   const lastLook = new THREE.Vector3();
   let lastFov = 0;
+  let lastFar = 0;
   /** Where the casters were last filled for. */
   const lastShadow: ShadowBox = { x: Infinity, y: 0, z: 0, reach: 0, sx: 0, sy: 0, sz: 0 };
   let castersOn = false;
@@ -594,7 +602,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   return {
     group,
     update(camera, shadow) {
-      rocks.update(camera.position, options.view);
+      rocks.update(camera.position, aloft.view);
       // The casters, when the circle has moved, turned with the sun or
       // changed size — a metre, or a few hundredths of a degree.
       if (
@@ -616,13 +624,15 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         !dissolving &&
         camera.position.distanceToSquared(lastAt) < 0.5 &&
         look.dot(lastLook) > 0.9998 &&
-        camera.fov === lastFov
+        camera.fov === lastFov &&
+        aloft.far === lastFar
       ) {
         return;
       }
       lastAt.copy(camera.position);
       lastLook.copy(look);
       lastFov = camera.fov;
+      lastFar = aloft.far;
       pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       frustum.setFromProjectionMatrix(pv);
       const cx = camera.position.x;
@@ -633,14 +643,21 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         b.fill.fill(0);
         b.from.fill(Infinity);
       }
-      const reach = Math.ceil(options.far / CELL) + 1;
+      // Aloft, a tree's cut is chosen at its SLANT distance from the lens
+      // (`lift` over the snow), so the far edge is the plan reach's slant.
+      const lift = aloft.lift;
+      const lift2 = lift * lift;
+      edges.full = options.full;
+      edges.mid = options.mid;
+      edges.far = lift > 0 ? Math.hypot(aloft.far, lift) + 2 * HYSTERESIS : aloft.far;
+      const reach = Math.ceil(aloft.far / CELL) + 1;
       const c0 = Math.floor(cx / CELL);
       const r0 = Math.floor(cz / CELL);
       const lens2 = LENS_REACH * LENS_REACH;
       const plan = Math.hypot(look.x, look.z);
       const ux = plan > 1e-6 ? look.x / plan : 0;
       const uz = plan > 1e-6 ? look.z / plan : 0;
-      const far2 = options.far * options.far;
+      const far2 = aloft.far * aloft.far;
       const bands = [full, mid, far];
       const now = performance.now();
       tick++;
@@ -675,7 +692,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
             )
               continue;
             const inFar = thin[i] < options.farShare;
-            if (handOver(hand, i, Math.sqrt(e2), options, inFar, now, tick, draw)) {
+            const d = Math.sqrt(lift > 0 ? e2 + lift2 : e2);
+            if (handOver(hand, i, d, lift > 0 ? edges : options, inFar, now, tick, draw)) {
               dissolving = true;
             }
             if (draw.from >= 0) place(bands[draw.from], i, 0, draw.split);
@@ -717,12 +735,18 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       lastAt.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },
+    setAloft(far, lift, view) {
+      aloft.far = Math.max(far, options.far);
+      aloft.lift = lift;
+      aloft.view = Math.max(view, options.view);
+    },
     setOptions(next) {
       if (next.variants !== options.variants) {
         dropShapes(shapes);
         shapes = buildShapes(next.variants);
       }
       options = { ...next };
+      Object.assign(aloft, { far: options.far, lift: 0, view: options.view });
       rocks.setShare(options.farShare);
       tick++;
       lastAt.set(Infinity, 0, 0);

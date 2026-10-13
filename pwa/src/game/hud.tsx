@@ -210,7 +210,7 @@ export function Hud({
   ) : snap.skiJump ? (
     <JumpPad touch={input.touch} side={lever} />
   ) : (
-    <LeverZone touch={input.touch} feel={feel} side={lever} />
+    <LeverZone touch={input.touch} feel={feel} side={lever} suit={snap.pad === "suit"} />
   );
   const barZone = flown ? (
     <StickZone touch={input.touch} feel={feel} side={barSide} role="cyclic" />
@@ -221,6 +221,7 @@ export function Hud({
       touch={input.touch}
       feel={edgeFeel(feel, snap.race?.discipline ?? null)}
       side={barSide}
+      glyph={snap.pad}
     />
   );
   // Indoors there is nothing to ski: the room's tap is the whole glass.
@@ -305,6 +306,13 @@ export function Hud({
               </span>
               <span class="hud-chip-sub">{STRINGS.seedLabel}</span>
             </div>
+            {/* THE POINTS the mountain has paid him so far, once it has. */}
+            {snap.freeTricks && snap.freeTricks.score > 0 && (
+              <div class="hud-chip hud-score" key={snap.freeTricks.score}>
+                <span>{STRINGS.score(snap.freeTricks.score)}</span>
+                <span class="hud-chip-sub">{STRINGS.scoreLabel}</span>
+              </div>
+            )}
           </div>
           {snap.challenge?.chip && (
             <div class="hud-top-row">
@@ -806,6 +814,7 @@ export function Hud({
 
       {/* THE COMBO, over the nose (`hud-combo.tsx`). */}
       {snap.tricks && <ComboTile tile={snap.tricks} />}
+      {snap.freeTricks && <ComboTile tile={snap.freeTricks} />}
 
       <div class="hud-right">
         <div class="hud-flashes">

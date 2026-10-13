@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE TRICK MAP CARD — which of the six trick maps (`trick-maps.ts`) a
 // TRICKS run or a freestyle contest is ridden on, opened off the tricks card
-// (`menu-freestyle.tsx`) before the skis card. A contest builds its venue
-// over the map (R37, R43's hill); the map gives it its mountain, its day
-// and its sky.
+// (`menu-freestyle.tsx`) before the skis card — or, for SKI JUMPING, which
+// of its own hills (`jump-hills.ts`). A contest builds its venue over the
+// map (R37, R43's hill); the map gives it its mountain, its day and its
+// sky.
 //
 // It wears the level card's silhouette and classes — the boxes, the piste
 // behind each — because a map should look like itself wherever it is
@@ -15,23 +16,15 @@
 // THE RING is on the map the settings stand on (`Settings.trickMap`) — where
 // the cursor lands and what RIDE in the head takes.
 
-import {
-  AERIALS,
-  aerialJump,
-  HALFPIPE,
-  SKI_JUMP,
-  SKI_JUMP_RULE,
-  SLOPESTYLE,
-  TRICKS_RUN,
-  type GameMode,
-} from "@engine";
+import { AERIALS, aerialJump, HALFPIPE, SLOPESTYLE, TRICKS_RUN, type GameMode } from "@engine";
 
 import { CourseMap } from "./course-map.tsx";
 import { Glyph } from "./menu-glyphs.tsx";
 import { MenuBody, MenuHead, StepRow } from "./menu-knobs.tsx";
 import { AERIAL_PICKS } from "./aerials-run.ts";
 import { STRINGS } from "./strings.ts";
-import { TRICK_MAPS, trickDayLine, trickMapFor, type TrickMap } from "./trick-maps.ts";
+import { trickDayLine, type TrickMap } from "./trick-maps.ts";
+import { cardMaps, cardPick, hillBilling } from "./jump-hills.ts";
 
 function TrickBox({
   map,
@@ -88,8 +81,9 @@ export function TrickMapsPage({
    * contest (SKI JUMPING — its hill built over the map, R43; a SLOPESTYLE
    * run — its course built over it, R38; the others likewise). */
   mode: GameMode;
-  /** The map the settings already stand on, if any. */
-  chosen: string | null;
+  /** The maps the settings already stand on, if any: the trick map, and
+   * ski jumping's hill. */
+  chosen: { trickMap: string | null; jumpHill: string | null };
   /** AERIALS: the jump its first jump declares, and the picker's press. */
   plan?: string;
   onPlan?: (plan: string) => void;
@@ -97,23 +91,21 @@ export function TrickMapsPage({
   /** On to the skis card, which is where RIDE is. */
   onPick: (map: TrickMap) => void;
 }) {
-  const pick = trickMapFor(chosen);
+  const pick = cardPick(mode, chosen);
   const jump = mode === "skiJump";
   const slope = mode === "slopestyle";
   const pipe = mode === "halfpipe";
   const bumps = mode === "moguls";
   const aerials = mode === "aerials";
-  const billing = jump
-    ? STRINGS.skiJumpBilling(SKI_JUMP_RULE.hills[SKI_JUMP.hill].hs, SKI_JUMP.trial)
-    : slope
-      ? STRINGS.slopestyleBilling(SLOPESTYLE.qualification, SLOPESTYLE.final)
-      : pipe
-        ? STRINGS.halfpipeBilling(HALFPIPE.qualification, HALFPIPE.final)
-        : bumps
-          ? STRINGS.mogulsBilling
-          : aerials
-            ? STRINGS.aerialsBilling
-            : STRINGS.tricksBilling(TRICKS_RUN.limit);
+  const billing = slope
+    ? STRINGS.slopestyleBilling(SLOPESTYLE.qualification, SLOPESTYLE.final)
+    : pipe
+      ? STRINGS.halfpipeBilling(HALFPIPE.qualification, HALFPIPE.final)
+      : bumps
+        ? STRINGS.mogulsBilling
+        : aerials
+          ? STRINGS.aerialsBilling
+          : STRINGS.tricksBilling(TRICKS_RUN.limit);
   const title = jump
     ? STRINGS.skiJumpOn
     : slope
@@ -153,11 +145,11 @@ export function TrickMapsPage({
           />
         )}
         <div class="menu-levels">
-          {TRICK_MAPS.map((map) => (
+          {cardMaps(mode).map((map) => (
             <TrickBox
               key={map.id}
               map={map}
-              billing={billing}
+              billing={jump ? hillBilling(map) : billing}
               chosen={map === pick}
               onPick={() => onPick(map)}
             />

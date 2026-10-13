@@ -75,7 +75,9 @@ export type BenchWorld = {
 };
 
 export type BenchRun = {
-  start: () => void;
+  /** `ab` asks for the interleaved A/B over the URL's `?ab=` — the
+   * developer page's press for a machine no lab drives. */
+  start: (ab?: boolean) => void;
   /** Take the pump off the machine (leaving the card, or the app going). */
   stop: () => void;
 };
@@ -108,7 +110,7 @@ export function runRows(world: Pick<BenchWorld, "frames" | "vista">): ReportRow[
 export function createBenchRun(world: BenchWorld): BenchRun {
   let stop: (() => void) | null = null;
 
-  const start = (): void => {
+  const start = (ab = world.ab): void => {
     stop?.();
     stop = null;
     world.setStatus(null);
@@ -127,7 +129,7 @@ export function createBenchRun(world: BenchWorld): BenchRun {
           level: benchmarkLevel(),
           sky: BENCHMARK.sky,
         }),
-      camera: BENCHMARK.camera,
+      camera: { rider: BENCHMARK.camera, craft: BENCHMARK.camera },
       after: [
         {
           id: "lights",
@@ -150,8 +152,8 @@ export function createBenchRun(world: BenchWorld): BenchRun {
           renderer: world.renderer,
           hidden: world.hide,
           frames: world.frames ?? undefined,
-          plan: runRows(world),
-          cycle: world.ab ? HIDEABLE.filter((h) => !world.hide.includes(h)) : undefined,
+          plan: ab ? [...runRows(world), { label: "a/b", value: "by part" }] : runRows(world),
+          cycle: ab ? HIDEABLE.filter((h) => !world.hide.includes(h)) : undefined,
           onStatus: (status) => {
             world.setStatus(status);
             // KEPT AT THE END, by the app rather than the card: a score is
@@ -173,6 +175,7 @@ export function createBenchRun(world: BenchWorld): BenchRun {
               scene: status.scene,
               totals: status.totals,
               gpu: status.gpu,
+              fence: status.fence,
               hidden: status.hidden,
               machine: status.machine,
               step: BENCHMARK.step,

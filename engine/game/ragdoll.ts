@@ -52,6 +52,7 @@ import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { liftedOnRock } from "./rock-ground.ts";
 import { holdStance } from "./board-crash.ts";
+import { airDrag } from "./ragdoll-air.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
 
@@ -203,6 +204,7 @@ export function centreOf(p: readonly number[]): Vec3 {
 // Scratch, per point: the floor under it, its powder, the snow's normal,
 // how far the snow has pushed it up this step and how fast it came in.
 const floor = new Float64Array(N);
+const hold = new Float64Array(N);
 const soft = new Float64Array(N);
 const packed = new Float64Array(N);
 const pushed = new Float64Array(N);
@@ -223,6 +225,9 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   const L = b.last;
   const spine0 = spineOf(P);
   drive(P, L, b);
+  // The air, but not while the helicopter carries his fall over its disc
+  // (`HELI_BLADES.carry`): the carry is his way through the air then.
+  if (b !== state.skier.thrown || !state.heli || state.heli.shed < 0) airDrag(P, L, MASS, TOTAL);
   const g = TUNING.g * dt * dt;
   for (let i = 0; i < 3 * N; i++) {
     const v = P[i] - L[i];
@@ -238,7 +243,19 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
     const p = packedSnow(state, x, z);
     packed[i] = p;
     soft[i] = (1 - p) * depth;
-    floor[i] = level.groundAt(x, z) - K.sink * soft[i] + RADIUS[i];
+    const ground = level.groundAt(x, z);
+    floor[i] = ground - K.sink * soft[i] + RADIUS[i];
+    // A point already UNDER that floor — a body thrown from skis sunk to
+    // the knees, its feet down where the boots were — is held where it is:
+    // the loose snow under it is pressed, and nothing lifts it back up out
+    // of the hole. Lifted, it would drag the rest of the body after it by
+    // the joints, and a Verlet body's way is where it was put: a body in
+    // deep powder flung a metre and a half into the air. Only the settled
+    // base under the loose snow (`snow.cover` of it a unit of depth) is
+    // never gone through.
+    const base = ground - TUNING.snow.cover * soft[i] + RADIUS[i];
+    const j = 3 * i;
+    hold[i] = Math.min(floor[i], Math.max(P[j + 1], L[j + 1], base));
     level.normalAt(x, z, n);
     nx[i] = n.x;
     ny[i] = n.y;
@@ -246,7 +263,6 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
     pushed[i] = 0;
     // The way into the snow it brings to this step, m/s — what the
     // arrival adds to the weight it bears.
-    const j = 3 * i;
     arrive[i] = Math.max(
       0,
       -((P[j] - L[j]) * n.x + (P[j + 1] - L[j + 1]) * n.y + (P[j + 2] - L[j + 2]) * n.z) / dt,
@@ -290,10 +306,10 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         P[j] = tree.x + (dx / d) * reach;
         P[j + 2] = tree.z + (dz / d) * reach;
       }
-      if (P[j + 1] < floor[i]) {
-        liftedOnRock(level, P[j], P[j + 2], floor[i] - P[j + 1], L, j);
-        pushed[i] += floor[i] - P[j + 1];
-        P[j + 1] = floor[i];
+      if (P[j + 1] < hold[i]) {
+        liftedOnRock(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
+        pushed[i] += hold[i] - P[j + 1];
+        P[j + 1] = hold[i];
       }
     }
   }

@@ -28,7 +28,7 @@ export const TITLE_PLATES = {
  * lab's driver and shelf, the scene's builder and its kind, the skier as
  * the game dresses him (the exporter, the loom and every piece cut on it,
  * the kit, the body, the helmet) and his rig, the carve he is posed from,
- * the palette, the mark cut into the snow, the woods, and the committed
+ * the palette, the woods, and the committed
  * pair he rides. A
  * change to any of them leaves the stamp stale until the scene is
  * rendered again. */
@@ -50,12 +50,12 @@ export const TITLE_SOURCES = [
   "pwa/src/game/dress-loft.ts",
   "pwa/src/game/dress-garments.ts",
   "pwa/src/game/dress-head.ts",
+  "pwa/src/game/dress-gloves.ts",
   "pwa/src/game/dress-face.ts",
   "pwa/src/game/dress-body.ts",
   "pwa/src/game/helmet-shape.ts",
   "pwa/src/game/skier-pose.ts",
   "pwa/src/game/skier-rig.ts",
-  "pwa/src/game/app-mark.ts",
   "pwa/src/game/tree-variants.ts",
   "pwa/models/chamois.glb",
 ] as const;

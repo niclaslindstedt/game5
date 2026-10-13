@@ -30,7 +30,7 @@ import { throwRider } from "./crash.ts";
 import { treesNear } from "./upright-grid.ts";
 import type { GrimbearPhase, GrimbearState } from "./grimbear-state.ts";
 import type { GameEvent, GameState } from "./state.ts";
-import { felledTrees } from "./village.ts";
+import { felledTrees } from "./felled.ts";
 
 const K = GRIMBEAR;
 const dt = TUNING.dt;
@@ -70,7 +70,7 @@ export function freshGrimbear(seed: number, ask: GrimbearAsk): GrimbearState {
  * balloon's basket. */
 function skiing(state: GameState): boolean {
   const c = state.skier;
-  if (c.thrown || c.lift || c.tunnel || c.jib) return false;
+  if (c.thrown || c.lift || c.tunnel || c.jib || c.grind) return false;
   if (state.heli?.rider) return false;
   if (state.sled?.mode === "ridden") return false;
   if (state.para && state.para.mode !== "dropped") return false;

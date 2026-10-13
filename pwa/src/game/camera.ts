@@ -33,19 +33,18 @@ export type Ladder = Record<Rung, Rig>;
 export type Lens = {
   camera: THREE.PerspectiveCamera;
   rung(): Rung;
-  /** The rung the player chose: `rung()` but while a stand-in holds it
-   * (`bail`). */
+  /** The rung the player chose for where he is now: on his skis or aboard
+   * a machine (`aboard`). */
   chosen(): Rung;
-  /** Change rung; `cut` skips the hand-over (and lets any stand-in go). */
-  set(rung: Rung, cut?: boolean): void;
-  /** LEAVING A MACHINE FROM ITS COCKPIT: a skier who leaves a machine
-   * he rode on a worn rung (TIPS, HELMET — the helicopter's nose and its
-   * cockpit) into the air or thrown off it would be left in his own head,
-   * the machine and he both out of the picture; the lens flies out to the
-   * CHASE instead, and back to the rung he chose once he has stood on his
-   * skis for `BAIL_HOLD` s or is aboard again. `aboard` whether he rides
-   * a machine, `airborne` and `thrown` his body's, `dt` the frame's. */
-  bail(aboard: boolean, airborne: boolean, thrown: boolean, dt: number): void;
+  /** Change rung — both the skier's and the machines', or `craft` the
+   * machines' apart from his; `cut` skips the hand-over. */
+  set(rung: Rung, cut?: boolean, craft?: Rung): void;
+  /** ON OR OFF A MACHINE: `on` whether he rides one this frame. The lens
+   * flies to the rung kept for it — a cockpit picked in the air is never
+   * his own eyes once he jumps out, nor his chase the plane's. */
+  aboard(on: boolean): void;
+  /** Whether he rode a machine as last told (`aboard`). */
+  riding(): boolean;
   /** Snap the booms onto the skier on the next frame (a new run, a reset). */
   snap(): void;
   /** Whether a change of rung is being flown rather than cut — what a
@@ -67,14 +66,6 @@ export type Lens = {
 /** `keepOut` puts a FLOWN lens's eye back out of what it may not pass
  * through on its way between two rungs (the balloon's basket and envelope,
  * `camera-balloon.ts`'s `keepOutOfBalloon`). */
-/** How long a skier stands on his skis before a stand-in lets the lens
- * back to the rung he chose, s. */
-export const BAIL_HOLD = 1.5;
-
-/** How long after leaving a machine a skier still on his feet can yet go
- * up into the air and take the lens out with him, s. */
-const LEFT_FOR = 0.3;
-
 export function createLens(near: number, far: number, keepOut?: (eye: Vec3) => void): Lens {
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, near, far);
   let current: Rung = "chase";
@@ -86,12 +77,10 @@ export function createLens(near: number, far: number, keepOut?: (eye: Vec3) => v
   // Whether a frame has been framed since the lens was made or snapped: a
   // run that STARTS on a machine cuts to its ladder rather than flying in.
   let framed = false;
-  // THE STAND-IN (`bail`): the rung he chose while the chase holds it, and
-  // whether he rode a machine last frame and how long he has stood.
-  let chosen: Rung | null = null;
-  let aboardWas = false;
-  let left = 0;
-  let stood = 0;
+  // THE TWO RUNGS (`aboard`): the skier's own and the machines', and which
+  // of them the lens is on.
+  const rungs: { rider: Rung; craft: Rung } = { rider: current, craft: current };
+  let riding = false;
   const ladders = new Map<Ladder, Map<Rung, BoomState>>();
   const stateOf = (l: Ladder, r: Rung) => {
     let states = ladders.get(l);
@@ -107,39 +96,30 @@ export function createLens(near: number, far: number, keepOut?: (eye: Vec3) => v
     return s;
   };
 
+  const go = (rung: Rung, cut: boolean): void => {
+    if (rung === current) return;
+    previous = cut ? null : { ladder: table, rung: current };
+    since = cut ? HANDOVER : 0;
+    current = rung;
+    if (cut) stateOf(table, rung).fresh = true;
+  };
+
   return {
     camera,
     rung: () => current,
-    chosen: () => chosen ?? current,
-    set(rung, cut = false) {
-      chosen = null;
-      if (rung === current) return;
-      previous = cut ? null : { ladder: table, rung: current };
-      since = cut ? HANDOVER : 0;
-      current = rung;
-      if (cut) stateOf(table, rung).fresh = true;
+    chosen: () => current,
+    set(rung, cut = false, craft = rung) {
+      rungs.rider = rung;
+      rungs.craft = craft;
+      go(riding ? craft : rung, cut);
     },
+    aboard(on) {
+      if (on === riding) return;
+      riding = on;
+      go(on ? rungs.craft : rungs.rider, !framed);
+    },
+    riding: () => riding,
     flying: () => previous !== null,
-    bail(aboard, airborne, thrown, dt) {
-      const worn = current === "tips" || current === "helmet";
-      const up = airborne || thrown;
-      // Just off a machine: a step or two can pass before the body reads
-      // as in the air, so the leaving is held while he is on his feet for
-      // a moment (`LEFT_FOR`) — and kept for as long as he is in the air.
-      if (aboard) left = 0;
-      else if (aboardWas) left = LEFT_FOR;
-      else if (!up) left = Math.max(0, left - dt);
-      if (!aboard && left > 0 && worn && chosen === null && up) {
-        const back = current;
-        this.set("chase");
-        chosen = back;
-        stood = 0;
-      } else if (chosen !== null) {
-        stood = up ? 0 : stood + dt;
-        if (aboard || stood >= BAIL_HOLD) this.set(chosen);
-      }
-      aboardWas = aboard;
-    },
     snap() {
       for (const states of ladders.values()) for (const s of states.values()) s.fresh = true;
       since = HANDOVER;
@@ -151,7 +131,9 @@ export function createLens(near: number, far: number, keepOut?: (eye: Vec3) => v
         // On or off a machine: its booms start from where he is now, and
         // the lens is flown across from the ladder it was on — or cut, on
         // a run's first frame.
-        previous = framed ? { ladder: table, rung: current } : null;
+        // (A change of rung this same frame — `aboard` — flies from its own.)
+        const from = since === 0 && previous ? previous : { ladder: table, rung: current };
+        previous = framed ? from : null;
         since = framed ? 0 : HANDOVER;
         table = ladder;
         for (const s of ladders.get(ladder)?.values() ?? []) s.fresh = true;

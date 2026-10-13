@@ -34,6 +34,8 @@ import {
   setSkiJump,
   setSlopestyle,
   withDay,
+  withPlace,
+  realFacePlace,
   withSky,
 } from "../mapgen/index.ts";
 import type { RunGrade } from "../mapgen/grades.ts";
@@ -90,6 +92,7 @@ import { startPara } from "./para.ts";
 import { startBalloon } from "./balloon.ts";
 import { freshPlane, startPlane } from "./plane.ts";
 import { skydiveAt } from "./chute.ts";
+import { standOnExit } from "./wingsuit-start.ts";
 import { jumpSpotOf } from "./plane-pilot.ts";
 import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
@@ -271,6 +274,15 @@ export type CreateGameOptions = {
    * without the climb. Ignored where the balloon, the paramotor or the
    * lodge start, and by every mode but the free ride. */
   chute?: number;
+  /** A FREE RIDE IN A WINGSUIT (`wingsuit.ts`): every jump of it in the
+   * suit over a one-canopy BASE rig, NO SKIS on — up a craft with it
+   * (`plane` crouched in its door, `heli` on its skid, `balloon` in its
+   * basket, `para` under its wing), every way off it the suit's start arc
+   * (`chute.ts`'s `craftFreefall`); with `chute`, flying the suit's glide
+   * that high; else STOOD ON THE CLIFF EXIT high on the mountain
+   * (`wingsuitExitOf`), facing out over the drop, the press the jump.
+   * Ignored where the lodge starts, and by every mode but the free ride. */
+  wingsuit?: boolean;
   /** A FREE RIDE begun INSIDE the valley's afterski lodge (`afterski.ts`),
    * the party under way and his skis in the rack. Wins over every other
    * start. Ignored by every mode without lodges. */
@@ -370,6 +382,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     sled: base.sled,
     afterski: options.sfw ? false : base.afterski,
     ...(base.doors ? { doors: true } : {}),
+    // ...and its lifts' ropes ground (`cable.ts`): the free ride's alone.
+    ...(base.cables ? { cables: true } : {}),
     groomer: base.groomer,
     // THE VILLAGE'S TRAFFIC met (`traffic-contact.ts`): the free ride's alone.
     ...(base.traffic ? { traffic: true } : {}),
@@ -495,7 +509,11 @@ export function createGame(options: CreateGameOptions = {}): GameState {
                         : options.mode === "skiJump"
                           ? setSkiJump(built, options.hill ?? SKI_JUMP.hill)
                           : original;
-  const dayed = options.day ? withDay(course, options.day) : course;
+  // A REAL FACE is skied at its own place on the globe (`withPlace`): its
+  // real latitude and longitude, its true north — the sky only; the
+  // mountain is the one the seed built.
+  const placed = withPlace(course, course.face ? realFacePlace(course.face) : null);
+  const dayed = options.day ? withDay(placed, options.day) : placed;
   const skied = options.sky ? withSky(dayed, options.sky) : dayed;
   const rules = rulesFor(options, skied);
   // A RACE is run only in the weather its jury allows (`jury.ts`) — a sky
@@ -560,19 +578,23 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     free && options.chute !== undefined && !balloon && !para && !options.inLodge
       ? options.chute
       : -1;
-  const other = para || balloon || plane || chute >= 0;
+  const wingsuit = free && options.wingsuit === true && !options.inLodge;
+  // In the suit up a craft, or — asked for no craft — off its own exit.
+  const craft = para || balloon || plane || chute >= 0 || !!(state.heli && options.heli);
+  const other = para || balloon || plane || chute >= 0 || (wingsuit && !craft);
   if (state.heli && options.heli && !other) startAgain(state, []);
   if (state.sled && options.sled && !(state.heli && options.heli) && !other) {
     startSled(state, []);
   }
+  if (wingsuit) state.wingsuit = { from: craft ? "craft" : "cliff" };
   if (para) startPara(state, []);
   if (plane) startPlane(state, []);
   if (balloon) startBalloon(state, []);
   if (chute >= 0) {
     if (!state.plane) state.plane = freshPlane(state);
     const spot = jumpSpotOf(state);
-    skydiveAt(state, { x: spot.x, z: spot.z, agl: chute });
-  }
+    skydiveAt(state, { x: spot.x, z: spot.z, agl: chute, suit: wingsuit ? "wingsuit" : "box" });
+  } else if (wingsuit && !craft) standOnExit(state, []);
   // Up a lift: to the chair whose run passes nearest the spot, or with no
   // spot to the top of the run picked — the one the start card marks —
   // whatever kind of lift serves it.

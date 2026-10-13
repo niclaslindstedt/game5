@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE VILLAGE'S TRAFFIC, as the engine's public surface re-exports it
 // (`engine/index.ts`): the plan and a vehicle at a moment (`traffic.ts`),
-// a skier met by one (`traffic-contact.ts`) and the numbers it is all
+// a skier met by one (`traffic-contact.ts`), where people go
+// (`traffic-demand.ts`) and the numbers it is all
 // dealt and driven by (`defs/traffic.ts`).
 
 export {
@@ -28,3 +29,4 @@ export {
   type VehicleSize,
 } from "./defs/traffic.ts";
 export { TRAFFIC_SALT } from "./traffic-plan.ts";
+export { bayPulls, kerbShare, loopBusy } from "./traffic-demand.ts";

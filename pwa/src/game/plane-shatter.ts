@@ -368,7 +368,6 @@ export function createPlaneShatter(): PlaneShatter {
   group.matrixAutoUpdate = false;
   let pieces: Piece[] = [];
   let builtFor: THREE.Object3D | null = null;
-  let builtTorn = "";
   /** The wreck's materials: a clone of each of the airframe's for each
    * heat a piece lies in (`Piece.sets`), with their colours as built. */
   const hot = new Map<THREE.Material, THREE.MeshStandardMaterial>();
@@ -427,7 +426,7 @@ export function createPlaneShatter(): PlaneShatter {
 
   /** Every mesh under `parts.root`, cut into cells in the frame of
    * `machine`. */
-  function build(machine: THREE.Object3D, parts: WreckParts, torn: readonly boolean[]): void {
+  function build(machine: THREE.Object3D, parts: WreckParts): void {
     for (const p of pieces) {
       group.remove(p.mesh);
       p.mesh.geometry.dispose();
@@ -441,9 +440,10 @@ export function createPlaneShatter(): PlaneShatter {
     const mid = new THREE.Vector3();
     parts.root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
-      // A wing torn off before the crash lies apart (`plane-wing-cut.ts`).
-      const cut = o.userData.wingCut as number | undefined;
-      if (cut !== undefined ? torn[cut] : !o.visible) return;
+      // Both wings are cut in, the one put away for having been torn off
+      // in the air (`plane-wing-cut.ts`) too: a burst leaves that side's
+      // pieces out rather than cutting the airframe again.
+      if (o.userData.wingCut === undefined && !o.visible) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       if (!mats.every((x) => x instanceof THREE.MeshStandardMaterial)) return;
       let node: "body" | "prop" | "door" = "body";
@@ -497,7 +497,6 @@ export function createPlaneShatter(): PlaneShatter {
       .map(([key, cell]) => pieceOf(key, cell));
     for (const p of pieces) group.add(p.mesh);
     builtFor = parts.root;
-    builtTorn = torn.join();
   }
 
   function pieceOf(key: string, cell: Map<THREE.Material, number[]>): Piece {
@@ -645,11 +644,11 @@ export function createPlaneShatter(): PlaneShatter {
   return {
     group,
     prime(machine, parts) {
-      if (parts.root !== builtFor) build(machine, parts, [false, false]);
+      if (parts.root !== builtFor) build(machine, parts);
     },
     burst(machine, parts, w, groundAt) {
       const torn = w.torn ?? [false, false];
-      if (parts.root !== builtFor || torn.join() !== builtTorn) build(machine, parts, torn);
+      if (parts.root !== builtFor) build(machine, parts);
       const random = makeRandom(
         Math.floor(w.x * 131 + w.z * 977 + w.speed * 7919) ^ Math.floor(w.fuel * 37),
       );
@@ -688,7 +687,10 @@ export function createPlaneShatter(): PlaneShatter {
       landed = false;
       // THE PIECES' FATES for this kind.
       for (const p of pieces) {
-        p.mesh.visible = true;
+        // A wing torn off before it went in lies where it came down: its
+        // pieces (every one of them its cut triangles, `wingSideOf`) left out.
+        const gone = (p.part === "wingIn" || p.part === "wingOut") && torn[p.side > 0 ? 0 : 1];
+        p.mesh.visible = !gone;
         p.free = false;
         p.rest = true;
         p.parent = -1;

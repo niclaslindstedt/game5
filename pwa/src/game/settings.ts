@@ -45,9 +45,11 @@ import type { ShellContent } from "../shell-host.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
 import { freshHeliKeys, mergeHeliKeys, type HeliBindings } from "./settings-heli-keys.ts";
 import { freshPlaneKeys, mergePlaneKeys, type PlaneBindings } from "./settings-plane-keys.ts";
+import { freshRideKeys, mergeRideKeys, type RideBindings } from "./settings-ride-keys.ts";
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
 import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
+import { isJumpHill } from "./jump-hills.ts";
 
 /** How often things go wrong on a free ride: never, or a `MishapRate`. */
 export type MishapSetting = "off" | MishapRate;
@@ -61,14 +63,64 @@ export const MISHAP_SETTINGS: readonly MishapSetting[] = ["off", "rare", "often"
 export const RUN_CAMERAS: readonly CameraRung[] = ["tips", "helmet", "chase", "far", "high"];
 
 /** The rung a first visit rides on — behind and above, the seat the HUD and
- * the sound are tuned at. */
+ * the sound are tuned at — on his skis and aboard a machine alike. */
 export const DEFAULT_CAMERA: CameraRung = "chase";
+
+/** THE TWO RUNGS a run is seen on: the skier's own (`rider`) and the one
+ * kept for whatever machine he rides (`craft` — the plane, the helicopter,
+ * the snowmobile, the balloon, the paramotor, a piste machine). A cockpit
+ * picked in the air is never his own eyes once he jumps out. */
+export type Cameras = { rider: CameraRung; craft: CameraRung };
+
+/** The two rungs settings keep. */
+export function camerasOf(s: Pick<Settings, "camera" | "craftCamera">): Cameras {
+  return { rider: s.camera, craft: s.craftCamera };
+}
 
 /** The rung after `rung` on the ladder, wrapping — and back onto the ladder
  * from anywhere off it. */
 export function nextCamera(rung: CameraRung): CameraRung {
   const at = RUN_CAMERAS.indexOf(rung);
   return at < 0 ? DEFAULT_CAMERA : RUN_CAMERAS[(at + 1) % RUN_CAMERAS.length];
+}
+
+/** The rung `dir` along the ladder from `rung` — the wheel rolled out (+1)
+ * or in (−1) — held at either end rather than wrapped round. */
+export function zoomCamera(rung: CameraRung, dir: 1 | -1): CameraRung {
+  const at = RUN_CAMERAS.indexOf(rung);
+  if (at < 0) return DEFAULT_CAMERA;
+  return RUN_CAMERAS[Math.max(0, Math.min(RUN_CAMERAS.length - 1, at + dir))];
+}
+
+/** THE FIRST-PERSON PRESS (G): onto the helmet's own eyes from any rung,
+ * and from the helmet back to `back`, the rung it was pressed from — or the
+ * default seat when that was the helmet too. */
+export function firstPersonCamera(rung: CameraRung, back: CameraRung): CameraRung {
+  if (rung !== "helmet") return "helmet";
+  return back !== "helmet" && RUN_CAMERAS.includes(back) ? back : DEFAULT_CAMERA;
+}
+
+/** THE CAMERA'S PRESSES over a run: C (`next`), G (`firstPerson`) and the
+ * mouse wheel (`zoom`), each handing `set` the rung it lands on — G
+ * remembering the rung it left so its second press goes back there. */
+export function createCameraPresses(
+  get: () => CameraRung,
+  set: (rung: CameraRung) => void,
+): { next: () => void; firstPerson: () => void; zoom: (dir: 1 | -1) => void } {
+  let back = get();
+  return {
+    next: () => set(nextCamera(get())),
+    firstPerson: () => {
+      const rung = get();
+      const next = firstPersonCamera(rung, back);
+      if (rung !== "helmet") back = rung;
+      set(next);
+    },
+    zoom: (dir) => {
+      const next = zoomCamera(get(), dir);
+      if (next !== get()) set(next);
+    },
+  };
 }
 
 /** The three faders, each 0..1: everything, the skier's own noise (the
@@ -107,8 +159,10 @@ export function assistOf(assist: AssistSettings): Assist {
 }
 
 export type Settings = {
-  /** The run's camera rung (`RUN_CAMERAS`). */
+  /** The skier's camera rung (`RUN_CAMERAS`). */
   camera: CameraRung;
+  /** The rung kept for a machine he rides (`Cameras.craft`). */
+  craftCamera: CameraRung;
   /** The pair the player rides (`SKI_CATALOG`), or his snowboard
    * (`BOARD_CATALOG`) — a board only where a run lets a free choice of pair
    * (`boardAllowed`). */
@@ -136,6 +190,9 @@ export type Settings = {
   heliKeys: HeliBindings;
   /** The jump plane's own keys (`settings-plane-keys.ts`). */
   planeKeys: PlaneBindings;
+  /** The machines' own keys — the snowmobile's, the piste machine's, the
+   * paramotor's, the skydive's and the balloon's (`settings-ride-keys.ts`). */
+  rideKeys: RideBindings;
   touch: TouchSettings;
   assist: AssistSettings;
   /** Whether blows dull an edge or hurt the legs (`damage.ts`) — the next
@@ -172,6 +229,9 @@ export type Settings = {
   /** THE TRICK MAP CARD's answer: the park a TRICKS run skis
    * (`trick-maps.ts`) — its id, or null for the first. */
   trickMap: string | null;
+  /** THE SAME CARD's answer for SKI JUMPING: the hill its contest jumps
+   * (`jump-hills.ts`) — its id, or null for the first. */
+  jumpHill: string | null;
   /** THE JUMP an AERIALS contest's first jump declares, picked on the trick
    * map card (a code of the chart, `defs/aerial-jumps.ts`). */
   aerialPlan: string;
@@ -210,6 +270,7 @@ export const DEV_SWITCHES = ["fps", "cost", "physics", "trails", "log", "freefly
 export function freshSettings(): Settings {
   return {
     camera: DEFAULT_CAMERA,
+    craftCamera: DEFAULT_CAMERA,
     skis: SKIS.id,
     kept: { skis: SKIS.id, board: LYNX.id as BoardId },
     outfit: { ...DEFAULT_OUTFIT },
@@ -221,6 +282,7 @@ export function freshSettings(): Settings {
     keys: freshKeys(),
     heliKeys: freshHeliKeys(),
     planeKeys: freshPlaneKeys(),
+    rideKeys: freshRideKeys(),
     touch: { lever: "right", sensitivity: 1, invertLean: false },
     assist: { steer: "full", air: "full" },
     damage: false,
@@ -232,6 +294,7 @@ export function freshSettings(): Settings {
     ride: freshRide(),
     raceMap: {},
     trickMap: null,
+    jumpHill: null,
     aerialPlan: AERIALS.plan,
     hud: true,
     developer: false,
@@ -283,9 +346,14 @@ export function mergeSettings(parsed: unknown): Settings {
   const out = freshSettings();
   if (!parsed || typeof parsed !== "object") return out;
   const blob = parsed as Record<string, unknown>;
-  if (typeof blob.camera === "string" && RUN_CAMERAS.includes(blob.camera as CameraRung)) {
-    out.camera = blob.camera as CameraRung;
-  }
+  const rung = (v: unknown): v is CameraRung =>
+    typeof v === "string" && RUN_CAMERAS.includes(v as CameraRung);
+  // A blob from before the machines had a rung of their own: the one rung it
+  // kept goes to the machines, and the skier starts on the default seat.
+  if (rung(blob.craftCamera)) {
+    out.craftCamera = blob.craftCamera;
+    if (rung(blob.camera)) out.camera = blob.camera;
+  } else if (rung(blob.camera)) out.craftCamera = blob.camera;
   if (typeof blob.skis === "string" && isPairId(blob.skis)) out.skis = blob.skis;
   out.kept = mergeKept(blob.kept, out.skis);
   out.outfit = outfitOf(blob.outfit);
@@ -302,6 +370,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.keys = mergeKeys(blob.keys);
   out.heliKeys = mergeHeliKeys(blob.heliKeys);
   out.planeKeys = mergePlaneKeys(blob.planeKeys);
+  out.rideKeys = mergeRideKeys(blob.rideKeys);
   const touch = record(blob.touch);
   out.touch.lever = onLadder(touch.lever, LEVER_SIDES, out.touch.lever);
   const T = TOUCH_SENSITIVITY;
@@ -322,6 +391,7 @@ export function mergeSettings(parsed: unknown): Settings {
   out.ride = mergeRide(blob.ride);
   out.raceMap = mergeRacePicks(blob.raceMap);
   if (isTrickMap(blob.trickMap)) out.trickMap = blob.trickMap;
+  if (isJumpHill(blob.jumpHill)) out.jumpHill = blob.jumpHill;
   if (isAerialCode(blob.aerialPlan)) out.aerialPlan = blob.aerialPlan;
   if (typeof blob.hud === "boolean") out.hud = blob.hud;
   if (typeof blob.developer === "boolean") out.developer = blob.developer;

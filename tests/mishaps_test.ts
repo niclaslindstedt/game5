@@ -107,7 +107,8 @@ describe("the parachute's malfunctions", () => {
     if (draws) s.mishaps = rigged(draws);
     skydiveAt(s, { x: SIZE / 2, z: SIZE / 2 - 1000, agl: 1600, fall: 52 });
     const events = run(s, 1, N);
-    events.push(...run(s, 8, ask({ machine: true }), (r) => r.chute!.mode === "open"));
+    events.push(...run(s, TUNING.dt, ask({ machine: true })));
+    events.push(...run(s, 8, N, (r) => r.chute!.mode === "open"));
     return { s, events };
   }
 
@@ -142,14 +143,10 @@ describe("the parachute's malfunctions", () => {
     expect(s.chute!.mal).toBe("lineover");
     run(s, 12, ask({ steer: -1 }));
     expect(-s.skier.vy).toBeGreaterThan(fine * 1.8);
-    run(s, 0.1, ask({ machine: true }));
-    run(s, 0.2, N);
-    const out = run(
-      s,
-      8,
-      ask({ machine: true }),
-      (r) => r.chute!.reserve && r.chute!.mode === "open",
-    );
+    run(s, TUNING.dt, ask({ machine: true }));
+    run(s, 0.3, N);
+    const out = run(s, TUNING.dt, ask({ machine: true }));
+    out.push(...run(s, 8, N, (r) => r.chute!.reserve && r.chute!.mode === "open"));
     expect(chuteSaid(out, "open")).toBe(true);
     expect(s.chute!.over).toBeUndefined();
     run(s, 10, N);

@@ -415,6 +415,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     rest.z -
     input.hipAft * 0.8 -
     0.05 * lean +
+    (F?.along ?? 0) +
     0.03 * lone -
     0.06 * load -
     POLE_BODY.back * crunch +
@@ -553,7 +554,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const pitch =
     S.pitch +
     (tuckPitch(S, inTurn) - S.pitch) * crouch -
-    0.3 * lean * (1 - crouch) +
+    0.3 * lean * (1 - crouch) * (F?.keep ?? 1) +
     taken * 1.4 +
     POLE_FOLD * crunch +
     POLE_BODY.lean * arms +
@@ -986,6 +987,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     pitch,
     roll,
     headRoll,
+    ...(F?.bow ? { bow: F.bow } : {}),
     knees,
     feet,
     boots: [bootOn(0), bootOn(1)],

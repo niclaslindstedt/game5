@@ -107,13 +107,16 @@ float trailFineWeight(vec2 p) {
   return smoothstep(0.0, 0.06, min(edge.x, edge.y));
 }
 
+// Inside the window's blend only the fine map is read, outside it only the
+// coarse: most of the snow on screen is round the skis, inside the window.
 vec2 trailAt(vec2 p) {
-  vec2 coarse = textureLod(uTrailCoarse, p / uMapSize, 0.0).rg;
   float w = trailFineWeight(p);
-  vec2 v = coarse;
-  if (w > 0.0) {
-    vec2 fine = textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).rg;
-    v = mix(coarse, fine, w);
+  vec2 v;
+  if (w >= 1.0) {
+    v = textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).rg;
+  } else {
+    v = textureLod(uTrailCoarse, p / uMapSize, 0.0).rg;
+    if (w > 0.0) v = mix(v, textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).rg, w);
   }
   return v * uTrailScale;
 }
@@ -121,8 +124,9 @@ vec2 trailAt(vec2 p) {
 // THE GROOMED SWATH at \`p\`: how freshly groomed (x, 0 none … 1 just
 // now) and the comb's axis (y, over π).
 vec2 trailGroomAt(vec2 p) {
-  vec2 coarse = textureLod(uTrailCoarse, p / uMapSize, 0.0).ba;
   float w = trailFineWeight(p);
+  if (w >= 1.0) return textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).ba;
+  vec2 coarse = textureLod(uTrailCoarse, p / uMapSize, 0.0).ba;
   if (w <= 0.0) return coarse;
   vec2 fine = textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).ba;
   return mix(coarse, fine, w);

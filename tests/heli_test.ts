@@ -16,6 +16,7 @@ import {
   pilotInput,
   standSkier,
   step,
+  throwRider,
   thrustMost,
   washAt,
   type GameEvent,
@@ -212,6 +213,51 @@ describe("the helicopter", () => {
     const again = fly(s, 1 / 120, ask({ machine: true }));
     expect(again.some((e) => e.kind === "heli" && e.phase === "board")).toBe(true);
     expect(s.heli!.rider).toBe(true);
+  });
+
+  it("turned over, its rotor's thrust fades: it falls on its own drag, never driven down", () => {
+    const s = ride();
+    fly(s, 20, hands({ collective: 0.95 }));
+    const W = (HELI.mass + 90) * 9.81;
+    let fastest = 0;
+    let pushed = 0;
+    const h = s.heli!;
+    for (let i = 0; i < 25 * 120; i++) {
+      // Rolled over with the cyclic and held there, the collective held up.
+      step(s, hands({ collective: 0.9, roll: Math.abs(h.disc.roll) < 2.5 ? 1 : 0 }));
+      if (s.heli!.mode === "wreck") break;
+      const v = Math.hypot(h.vx, h.vy, h.vz);
+      fastest = Math.max(fastest, v);
+      // Falling fast, the air meets the rotor from its top: no lift left.
+      if (v > 45 && h.mode === "flown") pushed = Math.max(pushed, h.thrust / W);
+    }
+    expect(s.heli!.mode).toBe("wreck");
+    expect(pushed).toBeLessThan(0.05);
+    // A heavy machine falling on its drag alone: near a skydiver's speed,
+    // never the 85 m/s a rotor pushing it down drove it to.
+    expect(fastest).toBeLessThan(62);
+  });
+
+  it("slows a body flung off it on the air's drag", () => {
+    const s = createGame({ level, mode: "free", crowd: 0, quiet: true });
+    s.skier.y += 600;
+    const b = throwRider(s, "roll", { x: 60, y: 0, z: 0 }, []);
+    const v0 = Math.hypot(b.vx, b.vz);
+    fly(s, 2, ask());
+    // Flung across at some 50 m/s, slowed as a tumbling body's drag area
+    // slows it — never carried on at the speed it left with.
+    const flat = Math.hypot(s.skier.thrown!.vx, s.skier.thrown!.vz);
+    expect(flat).toBeLessThan(0.8 * v0);
+    expect(flat).toBeGreaterThan(0.6 * v0);
+    // Dropped from rest, five seconds of fall short of the 49 m/s a fall
+    // through no air would reach: a body nearing its terminal speed.
+    const d = createGame({ level, mode: "free", crowd: 0, quiet: true });
+    d.skier.y += 600;
+    throwRider(d, "roll", { x: 0, y: 0, z: 0 }, []);
+    fly(d, 5, ask());
+    const t = d.skier.thrown!;
+    expect(Math.hypot(t.vx, t.vy, t.vz)).toBeLessThan(44);
+    expect(Math.hypot(t.vx, t.vy, t.vz)).toBeGreaterThan(36);
   });
 
   it("lets the skier go on the machine press with its way, and lurches up lighter", () => {

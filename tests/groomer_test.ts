@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import {
   GORE,
+  SWATH_KEPT,
   GROOMER,
   NEUTRAL_INPUT,
   createGame,
@@ -131,6 +132,24 @@ describe("the swath", () => {
     expect(s.groomed!.cells.size).toBeGreaterThan(cells);
     const n = g.swath.length;
     expect(groomedFresh(s.groomed!, g.swath[n - 2], g.swath[n - 1])).toBeDefined();
+  });
+
+  it("keeps only the newest segments, counting the ones it dropped", () => {
+    const s = ride();
+    const g = s.groomers![0];
+    expect(g.swathFrom).toBe(0);
+    // A night's whole run of work already laid: one more segment and the
+    // oldest go, down to the kept share.
+    const full = SWATH_KEPT * 8 - 4;
+    g.swath = Array.from({ length: full }, (_, i) => i);
+    const before = g.swath.length;
+    run(s, 4, NEUTRAL_INPUT);
+    expect(g.swath.length).toBeLessThan(before);
+    expect(g.swath.length).toBeLessThanOrEqual(SWATH_KEPT * 4 + 64);
+    expect(g.swath.length % 4).toBe(0);
+    // Index i of the run's swath is swath[i - swathFrom]: the numbers kept
+    // are the newest of the ones laid before, in order.
+    expect(g.swath[0]).toBe(g.swathFrom);
   });
 
   it("grooms the cells whose middles the tiller covers, at the new snow there was", () => {

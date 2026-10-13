@@ -13,10 +13,10 @@
 //   HIGH   high over it looking down, turned only with its heading — the
 //          snow under it and how far down it is;
 //   ORBIT  swung slowly round it, level;
-//   TIPS   THE COCKPIT: the pilot's eye in the left seat (`PLANE.pilotEye`),
-//          bolted to the airframe — it pitches, rolls and loops with it —
-//          looking out over the long nose, a little down off the fuselage
-//          line, and turned a little into a turn as a pilot's head is
+//   TIPS   THE COCKPIT: at the pilot's eye height on the centre line
+//          (`PLANE_COCKPIT.lens`), bolted to the airframe — it pitches,
+//          rolls and loops with it — looking out over the long nose, tipped
+//          down off the fuselage line so the whole panel is read, and turned a little into a turn as a pilot's head is
 //          (`planeHeadOf`); its fov opened on a tall screen
 //          (`planeCockpitFov`). The cockpit it sees is `plane-cockpit.ts`.
 //          It is the airframe's own lens, as the helicopter's TIPS is its
@@ -38,7 +38,7 @@ import { PLANE, rotate, type PlaneState, type Quat } from "@engine";
 import { TALL } from "./camera-balloon.ts";
 import { HANDOVER, type LensPose } from "./camera-rigs.ts";
 import { orbitBlend, rollFor } from "./camera-heli.ts";
-import { planeCockpitFov, planeHeadOf } from "./plane-cockpit-plan.ts";
+import { PLANE_COCKPIT, planeCockpitFov, planeHeadOf } from "./plane-cockpit-plan.ts";
 import type { CameraRung } from "./renderer-api.ts";
 
 /** Per boom: the standoff behind the plane's middle, m, and what each m/s
@@ -211,7 +211,7 @@ export function planeLens(
       y: -Math.sin(head.down),
       z: Math.cos(head.turn) * Math.cos(head.down),
     };
-    return bolted(at, PLANE.pilotEye, look, planeCockpitFov(aspect));
+    return bolted(at, PLANE_COCKPIT.lens, look, planeCockpitFov(aspect));
   }
   const centre = planeMiddleOf(at);
   const keep = (eye: Vec): Vec => {

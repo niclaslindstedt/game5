@@ -10,6 +10,11 @@
 // until the line is open). A replay that frames the mountain with him
 // somewhere behind it is a replay that has lost the one thing it is for.
 //
+// AND IN THE MIDDLE OF IT. Every lens looks straight at him — no lead
+// ahead of him, no drop under him, no easing of the aim behind him — so
+// wherever the lens itself stands or is still swinging to, he is at the
+// centre of the frame. Only where it STANDS is eased.
+//
 // AND CLOSE. A replay is watched to see what HE did, so every lens stands a
 // few metres off him and comes further away only where the distance is the
 // point: the aerial lens, and the long lens a kicker's flight is framed in,
@@ -47,6 +52,7 @@ import { angleDiff, type Level } from "@engine";
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { LensPose, LineClear, RigPose, Vec3 } from "./camera-rigs.ts";
 import type { ReplayShot } from "./replay-shots.ts";
+import { HOUSE, START_SHOT, startHousePlan } from "./start-house-plan.ts";
 
 /** The replay's own lenses: the broadcast and the four it cuts between. */
 export const REPLAY_ANGLES = ["tv", "close", "side", "front", "aerial"] as const;
@@ -57,21 +63,22 @@ export function isReplayAngle(rung: string): rung is ReplayAngle {
 }
 
 /** One follow lens, in the frame of the way he is going: `back` m behind
- * him (negative ahead), `side` m to the side, `up` m over his hips; it
- * looks `lead` m ahead of him and `drop` m under his hips; `fov` deg. */
-type Follow = { back: number; side: number; up: number; lead: number; drop: number; fov: number };
+ * him (negative ahead), `side` m to the side, `up` m over his hips; `fov`
+ * deg. It looks at his hips. */
+type Follow = { back: number; side: number; up: number; fov: number };
 
 /** THE WHOLE CAMERA, as numbers. Metres, seconds and degrees. */
 export const REPLAY_LENS = {
-  close: { back: 3.6, side: 1.1, up: 0.9, lead: 2.2, drop: 0.35, fov: 64 },
-  side: { back: -0.8, side: 5.2, up: 0.4, lead: 0.9, drop: 0.2, fov: 54 },
-  front: { back: -6.5, side: 1.4, up: 0.8, lead: 0, drop: 0.25, fov: 50 },
-  aerial: { back: 9, side: 0, up: 7.5, lead: 3, drop: 0.6, fov: 52 },
+  close: { back: 3.6, side: 1.1, up: 0.9, fov: 64 },
+  side: { back: -0.8, side: 5.2, up: 0.4, fov: 54 },
+  front: { back: -6.5, side: 1.4, up: 0.8, fov: 50 },
+  aerial: { back: 9, side: 0, up: 7.5, fov: 52 },
   /** The aerial lens circles him, rad/s, never more than this far round
    * from behind, rad. */
   circle: 0.16,
   swing: 1.1,
-  /** Where on him the aim sits on his skis, m over the skis (his hips). */
+  /** His hips over the snow, m: where a planted lens aims at the moment's
+   * spot. On him the aim is his own centre of gravity, the rig's `y`. */
   hips: 0.9,
   /** The broadcast's cut between follow lenses, s of the run, and the
    * lenses it cuts between, in order. */
@@ -102,13 +109,18 @@ export const REPLAY_LENS = {
   /** A planted lens is given up for the follow lens once he is this far
    * from it, m — it has done its work. */
   leave: 28,
-  /** How fast the lens follows its place and its aim, 1/s; the way he is
+  /** How fast the lens follows its place, 1/s; the way he is
    * going is turned toward his travel at `turn`, slower once thrown, so a
    * tumble does not spin the lens. */
   follow: 5.5,
-  aim: 11,
   turn: 3,
   turnThrown: 1.2,
+  /** IN THE START HOUSE every lens behind him would stand in its walls, so
+   * until he is this far out of the door, m, the lens is the television's
+   * own inside the house at his back (`START_SHOT.behind`), still aimed at
+   * him; and how far round the house he counts as in it, m. */
+  houseOut: 5,
+  houseRound: 1.5,
   /** A jump of the run's clock past this, s, is a seek: a cut. */
   jump: 0.5,
   /** Under this speed, m/s, his facing is the way he is going. */
@@ -222,8 +234,8 @@ export function standFor(shot: ReplayShot, level: Level, clear: LineClear): Vec3
   return null;
 }
 
-/** Where a follow lens wants to stand and look, for a subject going `way`
- * (rad), on `side` (±1), `t` s into the run. Pure. */
+/** Where a follow lens wants to stand, for a subject going `way` (rad),
+ * on `side` (±1), `t` s into the run; it looks at him. Pure. */
 export function followPose(
   angle: Exclude<ReplayAngle, "tv">,
   at: Vec3,
@@ -243,9 +255,9 @@ export function followPose(
   eye.x = at.x - fx * f.back + rx * f.side * side;
   eye.y = at.y + f.up;
   eye.z = at.z - fz * f.back + rz * f.side * side;
-  target.x = at.x + Math.sin(way) * f.lead;
-  target.y = at.y - f.drop;
-  target.z = at.z + Math.cos(way) * f.lead;
+  target.x = at.x;
+  target.y = at.y;
+  target.z = at.z;
   return f.fov;
 }
 
@@ -283,7 +295,7 @@ export function subjectOf(rig: RigPose, body: ThrownBody | null, out: Subject): 
     out.vz = body.vz;
   } else {
     out.x = rig.x;
-    out.y = rig.y + REPLAY_LENS.hips;
+    out.y = rig.y; // his centre of gravity, at his hips — never over it
     out.z = rig.z;
     out.vx = rig.vx;
     out.vz = rig.vz;
@@ -359,6 +371,21 @@ export function createReplayCamera(world: ReplayWorld): ReplayCamera {
           }
         }
       }
+      // IN THE START HOUSE: the lens at his back inside it, looking out.
+      const house = startHousePlan(level);
+      let inHouse = false;
+      if (house) {
+        const ox = at.x - house.x;
+        const oz = at.z - house.z;
+        const along = ox * house.fx + oz * house.fz;
+        const across = ox * house.rx + oz * house.rz;
+        const round = REPLAY_LENS.houseRound;
+        inHouse =
+          along < REPLAY_LENS.houseOut &&
+          along > -HOUSE.depth - round &&
+          Math.abs(across) < round + 1;
+        if (inHouse) key = "house";
+      }
       const cut = key !== was;
       was = key;
       if (cut) {
@@ -372,7 +399,13 @@ export function createReplayCamera(world: ReplayWorld): ReplayCamera {
       }
 
       let want: number;
-      if (lens === "plant") {
+      if (inHouse) {
+        Object.assign(wantEye, house!.shots.behind.lens);
+        wantAim.x = at.x;
+        wantAim.y = at.y;
+        wantAim.z = at.z;
+        want = START_SHOT.behind.fov;
+      } else if (lens === "plant") {
         const s = stand!;
         wantEye.x = s.x;
         wantEye.y = s.y;
@@ -401,19 +434,16 @@ export function createReplayCamera(world: ReplayWorld): ReplayCamera {
 
       if (cut) {
         Object.assign(eye, wantEye);
-        Object.assign(aim, wantAim);
         fov = want;
       } else {
-        const f = lens === "plant" ? 1 : clamp(REPLAY_LENS.follow * dt, 0, 1);
-        const a = clamp(REPLAY_LENS.aim * dt, 0, 1);
+        const f = lens === "plant" || inHouse ? 1 : clamp(REPLAY_LENS.follow * dt, 0, 1);
         eye.x += (wantEye.x - eye.x) * f;
         eye.y += (wantEye.y - eye.y) * f;
         eye.z += (wantEye.z - eye.z) * f;
-        aim.x += (wantAim.x - aim.x) * a;
-        aim.y += (wantAim.y - aim.y) * a;
-        aim.z += (wantAim.z - aim.z) * a;
         fov += (want - fov) * clamp(REPLAY_LENS.zoom * dt, 0, 1);
       }
+      // CENTRED: the aim is on him every frame, never eased behind him.
+      Object.assign(aim, wantAim);
       // The eased lens may have drifted under a crest the wanted one cleared.
       const floor = level.groundAt(eye.x, eye.z) + REPLAY_LENS.clearance;
       if (eye.y < floor) eye.y = floor;

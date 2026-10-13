@@ -10,6 +10,7 @@
 
 import { raceRiderOf, raceSkisOf, type GameMode } from "@engine";
 
+import { firstWhere } from "./free-ride.ts";
 import type { PinnedLevel } from "./pinned.ts";
 import { disciplineOf, findRaceMap } from "./race-maps.ts";
 import type { Settings } from "./settings.ts";
@@ -23,7 +24,8 @@ export type MapPicks = {
    * on to the rider card, then the gear card. */
   choose: (level: PinnedLevel) => void;
   /** A trick map picked on the trick map card, kept as the one the TRICKS
-   * run rides, on to the rider card, then the gear card. */
+   * run rides (a jump hill as the one SKI JUMPING jumps), on to the rider
+   * card, then the gear card. */
   chooseTrick: (map: TrickMap) => void;
 };
 
@@ -46,6 +48,8 @@ export function mapPicks(world: {
     openCard: (mode, page) => {
       world.mode.current = mode;
       raceSkis(mode);
+      // A first free ride stands on a real range rather than GENERATED.
+      if (mode === "free") world.setSettings((s) => ({ ...s, ride: firstWhere(s.ride) }));
       world.setPage(page);
     },
     choose: (level) => {
@@ -57,7 +61,9 @@ export function mapPicks(world: {
       world.setPage("dress");
     },
     chooseTrick: (map) => {
-      world.setSettings((s) => ({ ...s, trickMap: map.id }));
+      world.setSettings((s) =>
+        map.hill ? { ...s, jumpHill: map.id } : { ...s, trickMap: map.id },
+      );
       world.setPage("dress");
     },
   };

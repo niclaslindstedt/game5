@@ -43,9 +43,11 @@ export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-s
 export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type { Amateur, AmateurMode, CrowdGroup, CrowdState } from "./crowd-state.ts";
 export type { LiftRide, TunnelRide } from "./ride-state.ts";
+import type { CableRide } from "./cable-state.ts";
 import type { JibRecord, JibRide } from "./jib-state.ts";
 import type { Revert } from "./switch.ts";
 export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
+export type { CableRide } from "./cable-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord, PipeHit } from "./flight-record.ts";
 export type * from "./sled-state.ts";
@@ -206,6 +208,12 @@ export type SkierState = {
    * the push and the pose are both on. */
   drive: number;
   stride: number;
+  /** THE HILL'S PULL along the way he is going, m/s², downhill positive —
+   * the ground's over `poles.hill.span` m about him (`poles.ts`'s
+   * `hillPull`), written every step on the snow. Up a rise (negative) it
+   * cuts a skater's glide short and quickens his strides
+   * (`skateCadence`); the pose reads it to draw him driving harder. */
+  hill: number;
   /** THE LINE HE GLIDES ON, rad off his heading, clockwise positive: 0
    * but skating, when it is the gliding ski's — the V's other arm each
    * stride, carried across by the push (`poles.ts`'s `glideYaw`). The
@@ -335,6 +343,9 @@ export type SkierState = {
   /** THE JIB he is sliding (`jib.ts`), or null — on a map with rails and
    * boxes (R38). Left out, he is on none. */
   jib?: JibRide | null;
+  /** THE LIFT'S ROPE he is grinding (`cable.ts`), or null — on a free
+   * ride. Left out, he is on none. */
+  grind?: CableRide | null;
   /** THE CHAIR HE STOOD UP OFF, running on empty over the unload ramp to
    * the wheel at the terminal's speed (`lift-ride.ts`'s `emptyChairAt`):
    * the lift, how far up its line it let him go, m, and when, s (and which
@@ -408,7 +419,8 @@ export type BodyState = {
 
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */
-export type ImpactSource = "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car";
+export type ImpactSource =
+  "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car" | "cable";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether
@@ -433,9 +445,10 @@ export type Impact = {
  * - `backflip` / `frontflip` — a revolution tips over tails, either way;
  * - `spin` — a revolution about the skier's own up axis (the 360);
  * - `twist` — a flip and a spin both come round in ONE flight;
+ * - `grind` — a lift's rope come down onto and slid (`cable.ts`);
  * - the three GRABS (`TrickPose`), the skier's body held off the controls. */
 export type TrickKind =
-  "air" | "backflip" | "frontflip" | "spin" | "half" | "twist" | "landing" | TrickPose;
+  "air" | "backflip" | "frontflip" | "spin" | "half" | "twist" | "landing" | "grind" | TrickPose;
 
 /** THE SKIER'S GRABS, picked with the trick button held in the air by what
  * the lean and the edge say (`strokes.ts`'s `poseOf`): the DAFFY, one ski
@@ -493,6 +506,10 @@ export type TrickState = {
   spinGoal: number;
   flipDone: number;
   spinDone: number;
+  /** THE LOOP'S OWN RATE, rad/s, back positive: what the held lean has
+   * gathered and the let-go loop is shedding (`strokes.ts`), kept apart
+   * from the body's `wx` so the air's own hand never eats into it. */
+  flipSpeed: number;
   /** Whether the lean and the edge are still held across their gates from
    * a stroke they bought — the throw's, not the air control's, until let
    * go (`strokes.ts`'s `poseInput`). */
@@ -679,7 +696,17 @@ export type GameEvent =
       distance?: number;
     }
   /** THE SKIER THROWN: why, how fast he was going, and where. */
-  | { kind: "wipeout"; t: number; cause: CrashCause; speed: number; x: number; z: number }
+  | {
+      kind: "wipeout";
+      t: number;
+      cause: CrashCause;
+      speed: number;
+      x: number;
+      z: number;
+      /** How fast he met what threw him, m/s, where it is not his speed —
+       * a rope come down astride (`cable.ts`). */
+      blow?: number;
+    }
   | GrimbearEvent
   | AvalancheEvent
   | AfterskiEvent
@@ -739,6 +766,9 @@ export type GameEvent =
       phase: "on" | "off";
       whole: boolean;
     }
+  /** ON A LIFT'S ROPE (`cable.ts`) by the lift's id: come down onto it,
+   * or off it (popped, off its end, or thrown off by a carrier). */
+  | { kind: "grind"; t: number; id: string; phase: "on" | "off" | "straddle" }
   /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone,
    * taken by his carrier (a T-bar behind him, sat in his chair or cabin),
    * his carrier run over a tower's sheaves, or stood off it at the top. */
@@ -877,6 +907,12 @@ export type GameState = ContestState & {
   balloon?: import("./balloon-state.ts").BalloonState;
   plane?: import("./plane-state.ts").PlaneState;
   chute?: import("./chute-state.ts").ChuteState;
+  /** A WINGSUIT RIDE (`wingsuit-start.ts`): every jump of it in the suit,
+   * begun again where it began — on the cliff exit (`cliff`, and a lab's
+   * moment in the air, `air`), or in the craft he rode up in (`craft`: the
+   * plane's door, the helicopter's skid, the balloon's basket, the
+   * paramotor's harness). Absent, he jumps in the box. */
+  wingsuit?: { from: "cliff" | "craft" | "air"; hover?: number };
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;

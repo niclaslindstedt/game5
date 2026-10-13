@@ -10,8 +10,10 @@
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { felledTrees } from "./felled.ts";
 import { treesNear } from "./upright-grid.ts";
 import type { Level } from "../mapgen/types.ts";
+import { CHUTE } from "./defs/chute.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { derive } from "./skier.ts";
 import type { GameState } from "./state.ts";
@@ -190,10 +192,13 @@ const trees: number[] = [];
 
 /** THE CROWN the cloth at (x, y, z) is in — under the tree's top and
  * within `reach` m of its crown's edge — by its index into `level.trees`,
- * or −1. */
+ * or −1. A tree felled for the village or the strip (`felledTrees`) is no
+ * crown. */
 export function crownAt(level: Level, x: number, y: number, z: number, reach: number): number {
   const near = treesNear(level, x, z, 12, trees);
+  const gone = felledTrees(level);
   for (let i = 0; i < near.length; i++) {
+    if (gone[near[i]]) continue;
     const t = level.trees[near[i]];
     if (y < t.y + t.height && hypot(x - t.x, z - t.z) < t.crown + reach) return near[i];
   }
@@ -277,4 +282,25 @@ export function hangUnder(
   c.q = fromEuler(h, pitch, roll);
   c.wx = c.wy = c.wz = 0;
   derive(c, level);
+}
+
+/** THE SKIER'S OWN AXES while a body in the air has him (the skydive, the
+ * wingsuit): facing `heading`, pitched over toward the snow by `attitude`
+ * (0 upright, π/2 belly to earth, π head down) as far as his skier's frame
+ * can say (`CHUTE.freefall.pitchMost` — short of straight down, where a
+ * heading has no meaning; the drawing reads the whole attitude off the
+ * state) — and off the snow. */
+export function airPose(state: GameState, heading: number, attitude: number): void {
+  const c = state.skier;
+  c.q = fromEuler(heading, -Math.min(attitude, CHUTE.freefall.pitchMost), 0);
+  c.wx = c.wy = c.wz = 0;
+  c.airborne = true;
+  c.airTime = 0;
+  for (const contact of c.contacts) {
+    contact.touching = false;
+    contact.load = 0;
+  }
+  derive(c, state.level);
+  c.overFor = 0;
+  c.stuckFor = 0;
 }

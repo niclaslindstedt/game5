@@ -19,6 +19,7 @@ import {
   hasAreaStep,
   markOf,
   nearestMark,
+  tappedMark,
   partMarks,
   stepAfter,
   stepBefore,
@@ -42,6 +43,9 @@ import {
   minScale,
   panBy,
   pathOf,
+  SHEET_OVER,
+  SHEET_SHARP,
+  sheetMove,
   placeLabels,
   project,
   scaleBar,
@@ -320,6 +324,15 @@ describe("the world map's markers", () => {
     // A tap picks the marker within reach, the nearest of two.
     expect(nearestMark({ x: 103, y: 100 }, marks, 20)).toBe(0);
     expect(nearestMark({ x: 200, y: 20 }, marks, 20)).toBe(-1);
+    // A tap on a marker's NAME picks it too, even far from its dot; a tap
+    // on a dot beats a label lying over it.
+    const named = [
+      { at: { x: 100, y: 100 }, label: { x: 110, y: 90, w: 80, h: 16 } },
+      { at: { x: 196, y: 98 }, label: null },
+    ];
+    expect(tappedMark({ x: 180, y: 96 }, named, 20)).toBe(0);
+    expect(tappedMark({ x: 193, y: 98 }, named, 20)).toBe(1);
+    expect(tappedMark({ x: 300, y: 300 }, named, 20)).toBe(-1);
   });
 
   it("stand GENERATED over the whole world", () => {
@@ -365,5 +378,48 @@ describe("the WHERE steps", () => {
     expect(rideOnFace(ride, null)).toBe(ride);
     expect(rideOnFace(ride, "nowhere-9")).toBe(ride);
     expect(rideOnFace(on, "fell-3")).toBe(on);
+  });
+});
+
+describe("the outline's sheet under a pinch", () => {
+  const view = { w: 390, h: 380 };
+  const base: Camera = { x: 520, y: 300, scale: 40 };
+  /** Where a plane point lands on the screen when the sheet painted under
+   * `base` is moved by the CSS transform (a scale about the view's middle,
+   * then a shift). */
+  const carried = (cam: Camera, p: { x: number; y: number }) => {
+    const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(
+      sheetMove(base, cam, view)!,
+    )!;
+    const [tx, ty, k] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const s = toScreen(base, view, p);
+    return {
+      x: view.w / 2 + k * (s.x - view.w / 2) + tx,
+      y: view.h / 2 + k * (s.y - view.h / 2) + ty,
+    };
+  };
+
+  it("carries the painted outline to where the live camera shows it", () => {
+    const p = { x: 523, y: 298 };
+    for (const cam of [
+      zoomAbout(base, view, { x: 100, y: 250 }, 1.3),
+      zoomAbout(base, view, { x: 300, y: 40 }, 0.8),
+      panBy(base, view, 60, -30),
+    ]) {
+      const want = toScreen(cam, view, p);
+      const got = carried(cam, p);
+      expect(got.x).toBeCloseTo(want.x, 1);
+      expect(got.y).toBeCloseTo(want.y, 1);
+    }
+  });
+
+  it("asks for a repaint once the sheet would leave a gap or blur", () => {
+    expect(sheetMove(base, base, view)).toBe("translate(0px, 0px) scale(1)");
+    expect(sheetMove(base, { ...base, scale: base.scale * (SHEET_SHARP + 0.1) }, view)).toBeNull();
+    const out = 1 / (1 + 2 * SHEET_OVER);
+    expect(sheetMove(base, { ...base, scale: base.scale * (out + 0.02) }, view)).not.toBeNull();
+    expect(sheetMove(base, { ...base, scale: base.scale * (out - 0.02) }, view)).toBeNull();
+    expect(sheetMove(base, panBy(base, view, view.w * SHEET_OVER - 1, 0), view)).not.toBeNull();
+    expect(sheetMove(base, panBy(base, view, view.w * SHEET_OVER + 1, 0), view)).toBeNull();
   });
 });

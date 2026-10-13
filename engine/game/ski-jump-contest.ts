@@ -57,7 +57,7 @@ export type SkiJumpRound = "trial" | "first" | "final";
  * of head wind buys and of tail wind costs. */
 export const SKI_JUMP_PAR = {
   large: { at: 126, inRun: 3.6, head: 5.5, tail: 5.5 },
-  normal: { at: 99.5, inRun: 3.1, head: 3.2, tail: 3.0 },
+  normal: { at: 96, inRun: 3.3, head: 3.3, tail: 3.2 },
 } as const satisfies Record<
   SkiJumpHillId,
   { at: number; inRun: number; head: number; tail: number }

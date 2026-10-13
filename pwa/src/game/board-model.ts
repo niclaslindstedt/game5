@@ -37,6 +37,7 @@ import { buildBinding, buildDeck, buildSoftBoot, type Paint } from "./board-body
 import { sheetOf } from "./board-look.ts";
 import { boardPose, frontIndex, type BoardFrame, type BoardPose } from "./board-pose.ts";
 import { boardUnderFeet } from "./board-thrown.ts";
+import { createLimbEase, easeLimbs, resetLimbEase } from "./board-ease.ts";
 import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
 import { createTuck, uprightSkier } from "./skier-somersault.ts";
 import {
@@ -62,7 +63,7 @@ import { boardTownPose, rideLift, streetOver, townLift, townMove } from "./town-
 import { buildHeadlamp } from "./headlamp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
-import { boardInputOf, boardOf, easeFree } from "./board-input.ts";
+import { boardInputOf, boardOf, easeFakie, easeFree } from "./board-input.ts";
 import { outfitKey } from "./dress.ts";
 import { createSkier } from "./skier-figure.ts";
 import { createSkierSpring, restSkierSpring, stepSkierSpring } from "./skier-pose.ts";
@@ -205,6 +206,10 @@ export function createBoardModel(
   let rested = false;
   // How far the rear foot is drawn out of its binding (`easeFree`).
   let freeShare = 0;
+  // The hands, elbows and knees carried from the last frame (`board-ease.ts`).
+  const limbs = createLimbEase();
+  // How far round he is drawn to ride fakie (`easeFakie`).
+  let fakieShare = 1;
   let grabEase: GrabEase = { grab: null, share: 0 };
   const tuck = createTuck();
   // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
@@ -365,6 +370,8 @@ export function createBoardModel(
       // The rear foot drawn out of its binding or back in over a moment.
       freeShare = easeFree(freeShare, input.free, dt);
       input.freeShare = freeShare;
+      fakieShare = easeFakie(fakieShare, input.switched, dt);
+      input.fakieShare = fakieShare;
       // The grab held in the air drawn in, and let go, over a moment.
       grabEase = easeGrab(grabEase, isBoardGrab(trick) ? trick : null, dt);
       // ...and a LOOP the lean has thrown turned tucked, a hand on the board
@@ -397,6 +404,8 @@ export function createBoardModel(
       const racked = cabin ? (skier.lift?.skis ?? null) : null;
       deckGroup.visible = !(boarded || inBasket || (cabin && !racked));
 
+      // The limbs eased from frame to frame only while he rides.
+      if (off || town || skydive || boarded || inBasket || hung) resetLimbEase(limbs);
       if (off) {
         // THROWN, the board kept on between his feet.
         const p = ragdollPose(off.points, frame);
@@ -483,6 +492,7 @@ export function createBoardModel(
             cabin,
           };
           bp = boardLiftPose(input, seat);
+          bp = { ...bp, pose: easeLimbs(limbs, bp.pose, dt) };
         }
         // A hop lifts all of him, the board with him, off the snow.
         v.set(-Math.sin(r), Math.cos(r), 0).multiplyScalar(bp.rise);

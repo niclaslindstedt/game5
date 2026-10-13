@@ -93,11 +93,13 @@ const CAMERA_STOPS: Stop<CameraRung>[] = RUN_CAMERAS.map((id) => ({
  * mid-race is exactly the one with a moment to read what a row does. */
 function PauseOptions({
   settings,
+  rung,
   onSettings,
   onCamera,
   onBack,
 }: {
   settings: Settings;
+  rung: CameraRung;
   onSettings: (settings: Settings) => void;
   onCamera: (rung: CameraRung) => void;
   onBack: () => void;
@@ -118,7 +120,7 @@ function PauseOptions({
               label={STRINGS.optCamera}
               hint={STRINGS.optCameraHint}
               stops={CAMERA_STOPS}
-              value={settings.camera}
+              value={rung}
               onPick={onCamera}
               onHint={setHint}
             />
@@ -128,14 +130,27 @@ function PauseOptions({
           </KnobGroup>
         </div>
       </MenuBody>
-      <Caption hint={hint} fallback={STRINGS.pauseOptionsCaption} />
+      <Caption hint={hint} />
     </div>
   );
+}
+
+type PausePanel = "card" | "options" | "slopes" | "challenges";
+
+/** The face the NEXT pause card opens on, taken once by it: the card's own
+ * face unless a press asked for another (`pauseOnSlopes`). */
+let nextPanel: PausePanel = "card";
+
+/** The next pause card opens on the PISTE MAP — the wingsuit's landed
+ * plate's press (`hud-result.tsx`), so the map is one press from the snow. */
+export function pauseOnSlopes(): void {
+  nextPanel = "slopes";
 }
 
 export function PauseMenu({
   snap,
   settings,
+  rung = settings.camera,
   onSettings,
   onCamera,
   onResume,
@@ -149,6 +164,8 @@ export function PauseMenu({
    * card bills it by, the figures chosen from it by rule (`pause-stats.ts`). */
   snap: HudSnapshot;
   settings: Settings;
+  /** The rung he is seen on now: his own, or his machine's while he rides one. */
+  rung?: CameraRung;
   onSettings: (settings: Settings) => void;
   /** A rung picked on the panel: stored AND put on the lens now, so the held
    * frame behind the card is the answer. */
@@ -166,7 +183,11 @@ export function PauseMenu({
 }) {
   // Which of the card's faces is up. Local, and dropped the moment the
   // card is: coming back to a held race costs the same one press every time.
-  const [panel, setPanel] = useState<"card" | "options" | "slopes" | "challenges">("card");
+  const [panel, setPanel] = useState<PausePanel>(() => {
+    const first = nextPanel;
+    nextPanel = "card";
+    return first;
+  });
   const back = (): void => setPanel("card");
   const stats = pauseStats(snap);
   return (
@@ -180,6 +201,7 @@ export function PauseMenu({
       {panel === "options" ? (
         <PauseOptions
           settings={settings}
+          rung={rung}
           onSettings={onSettings}
           onCamera={onCamera}
           onBack={back}

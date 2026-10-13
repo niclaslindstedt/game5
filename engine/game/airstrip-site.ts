@@ -18,9 +18,10 @@
 // the runway, never past either end (so the approach and the climb-out are
 // clear), outside the strip's own clearance (a wingtip on the centre line
 // clears it), inside the map, on snow flat enough for a plinth, and clear
-// of every trunk, street, building, lift and machine's place the strip
-// itself keeps off (`keepOffs`). The other side is tried when one is full,
-// and a lean-to stands in for the hangar where nothing bigger fits.
+// of every trunk, street, building, run, lift, water and machine's place
+// the strip itself keeps off (`keepOffs`, `stripRoomAt`). The other side
+// is tried when one is full, and a lean-to stands in for the hangar where
+// nothing bigger fits.
 //
 // NOTHING ELSE AVOIDS ANY OF IT: the site is worked out after every other
 // placement and asked by none, so no map, no village and no digest moves.
@@ -28,6 +29,8 @@
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { airstripOf, keepOffs, type Airstrip, type Keep } from "./airstrip.ts";
+import { CORRIDOR } from "./airstrip-corridor.ts";
+import { stripRoomAt } from "./airstrip-room.ts";
 import { liftPlans } from "./lift-line.ts";
 import type { Stuff } from "./upright-grid.ts";
 import { treesNear } from "./upright-grid.ts";
@@ -152,6 +155,98 @@ export function stripFrame(
   return { along: dx * fx + dz * fz, across: dx * fz - dz * fx };
 }
 
+const felled = new WeakMap<Level, Uint8Array>();
+
+/** Whether `level` is a map a strip is laid on: a ski area's, with no race
+ * course or freestyle venue set over it (`createGame` sets one for every
+ * mode but the free ride's and the field's) — the maps a jump plane may
+ * fly from. A race's map fells nothing for a strip it never shows. */
+export function stripLaid(level: Level): boolean {
+  return (
+    !!level.resort &&
+    !level.slalom &&
+    !level.downhill &&
+    !level.superG &&
+    !level.giantSlalom &&
+    !level.speedSki &&
+    !level.skiCross &&
+    !level.slopestyle &&
+    !level.halfpipe &&
+    !level.moguls &&
+    !level.aerials &&
+    !level.skiJump
+  );
+}
+
+/** THE AIR CLEARED OFF EACH END: a tree whose top stands into the surface
+ * a strip's approach and climb-out are kept clear under — rising one in
+ * twenty off the end (a small field's approach surface), as wide as the
+ * corridor (`CORRIDOR`'s half-width, widening as it goes), read out as far
+ * as `reach` m — is felled, as a field's owner tops the wood off its ends.
+ * A wood left standing there took the wings off a plane climbing out at
+ * fifteen metres (`plane-wings.ts`). */
+export const STRIP_AIR = { rise: 1 / 20, reach: 600 } as const;
+
+/** THE CANOPIES' LANDING AREA: the strip's middle is where a skydiver's
+ * canopy is flown to (`chute-pilot.ts`), and a drop zone keeps a licensed
+ * jumper's landing area this far from any hazard, m — every crown reaching
+ * inside it is felled, so a canopy set down a few tens of metres off the
+ * centre line in a crosswind is down on the snow, never in a tree. */
+export const STRIP_DROP = 30;
+
+/** THE TREES FELLED FOR THE STRIP: 1 for each of `level.trees` standing
+ * within the strip's clearance of its centre line (`Airstrip.clear`) — a
+ * clearing cut through the wood where the floor's only room is wooded —
+ * up into the air off either end (`STRIP_AIR`), round the canopies'
+ * landing area at its middle (`STRIP_DROP`), or inside a margin round
+ * one of its buildings. */
+export function stripFelled(level: Level): Uint8Array {
+  let out = felled.get(level);
+  if (out) return out;
+  out = new Uint8Array(level.trees.length);
+  const site = stripSiteOf(level);
+  const s = site.strip;
+  if (s.tier !== "village") {
+    const half = s.length / 2;
+    const need = s.width / 2 + s.clear;
+    for (const i of treesNear(level, s.x, s.z, half + need, near)) {
+      const t = level.trees[i];
+      const f = stripFrame(s, t.x, t.z);
+      const along = Math.max(-half, Math.min(half, f.along));
+      if (hypot(f.along - along, f.across) <= need) out[i] = 1;
+    }
+    for (const i of treesNear(level, s.x, s.z, STRIP_DROP + 10, near)) {
+      const t = level.trees[i];
+      if (hypot(t.x - s.x, t.z - s.z) - t.crown <= STRIP_DROP) out[i] = 1;
+    }
+    const ends = [
+      {
+        y: level.groundAt(s.x + Math.sin(s.heading) * half, s.z + Math.cos(s.heading) * half),
+        way: 1,
+      },
+      {
+        y: level.groundAt(s.x - Math.sin(s.heading) * half, s.z - Math.cos(s.heading) * half),
+        way: -1,
+      },
+    ];
+    for (let i = 0; i < level.trees.length; i++) {
+      const t = level.trees[i];
+      const f = stripFrame(s, t.x, t.z);
+      for (const e of ends) {
+        const d = f.along * e.way - half;
+        if (d < 0 || d > STRIP_AIR.reach) continue;
+        if (Math.abs(f.across) > CORRIDOR.half + CORRIDOR.widen * d + t.crown) continue;
+        if (t.y + t.height > e.y + STRIP_AIR.rise * d) out[i] = 1;
+      }
+    }
+  }
+  for (const b of site.buildings) {
+    for (const i of treesNear(level, b.x, b.z, hypot(b.width, b.depth) / 2 + 3, near)) out[i] = 1;
+  }
+  felled.set(level, out);
+  return out;
+}
+
 /** Whether (x, z) is on the apron's packed snow. */
 export function onApron(site: StripSite, x: number, z: number): boolean {
   const f = stripFrame(site.strip, x, z);
@@ -170,19 +265,25 @@ function layOut(level: Level): StripSite {
   const toward = stripFrame(strip, home.x, home.z).across >= 0 ? 1 : -1;
   const placed: StripBuilding[] = [];
   let side = toward;
-  for (const s of [toward, -toward]) {
-    const hangar =
-      place(level, strip, keep, placed, s, "hangar") ??
-      place(level, strip, keep, placed, s, "leanTo");
-    if (!hangar) continue;
-    side = s;
-    placed.push(hangar);
-    break;
+  // Each first where it fells no tree, then where a clearing is cut for it
+  // (`stripFelled`).
+  found: for (const fell of [false, true]) {
+    for (const s of [toward, -toward]) {
+      const hangar =
+        place(level, strip, keep, placed, s, "hangar", fell) ??
+        place(level, strip, keep, placed, s, "leanTo", fell);
+      if (!hangar) continue;
+      side = s;
+      placed.push(hangar);
+      break found;
+    }
   }
   for (const kind of ["fuel", "hut"] as const) {
     const b =
-      place(level, strip, keep, placed, side, kind) ??
-      place(level, strip, keep, placed, -side, kind);
+      place(level, strip, keep, placed, side, kind, false) ??
+      place(level, strip, keep, placed, -side, kind, false) ??
+      place(level, strip, keep, placed, side, kind, true) ??
+      place(level, strip, keep, placed, -side, kind, true);
     if (b) placed.push(b);
   }
   // The apron: from the strip's edge out to the fronts of the buildings on
@@ -250,27 +351,25 @@ function place(
   placed: readonly StripBuilding[],
   side: number,
   kind: StripBuildingKind,
+  fell: boolean,
 ): StripBuilding | null {
   const size = SIZES[kind];
   const half = strip.length / 2;
   // The front stands outside the strip's clearance (a wingtip on the centre
   // line clears it by a span), the small buildings a step further out.
   const front =
-    strip.width / 2 + clearOf(strip) + T.gap + (kind === "hangar" || kind === "leanTo" ? 0 : 1);
+    strip.width / 2 +
+    Math.max(6, strip.clear) +
+    T.gap +
+    (kind === "hangar" || kind === "leanTo" ? 0 : 1);
   const across = side * (front + size.depth / 2);
   const heading = Math.atan2(-Math.cos(strip.heading) * side, Math.sin(strip.heading) * side);
   for (let along = -half + size.width / 2 + 6; along <= half - size.width / 2; along += 4) {
     const p = stripPoint(strip, along, across);
-    const b = fits(level, p.x, p.z, heading, size, keep, placed);
+    const b = fits(level, p.x, p.z, heading, size, keep, placed, fell);
     if (b) return { kind, x: p.x, z: p.z, heading, ...size, ...b };
   }
   return null;
-}
-
-/** The strip's clearance either side of its packed edge, m — what its
- * search kept free of trunks and buildings. */
-function clearOf(strip: Airstrip): number {
-  return strip.fallback ? 6 : 14;
 }
 
 /** Whether a footprint `size` faced `heading` at (x, z) stands on room
@@ -283,13 +382,16 @@ function fits(
   size: { width: number; depth: number; eave: number; rise: number },
   keep: readonly Keep[],
   placed: readonly StripBuilding[],
+  fell: boolean,
 ): { base: number; floor: number } | null {
   const hw = size.width / 2;
   const hd = size.depth / 2;
   const reach = hypot(hw, hd);
   const m = T.edge + reach;
   if (x < m || z < m || x > level.size - m || z > level.size - m) return null;
-  if (treesNear(level, x, z, reach + 3, near).length > 0) return null;
+  if (!fell && treesNear(level, x, z, reach + 3, near).length > 0) return null;
+  // Off every run, the hub, the water and every building by its size.
+  if (stripRoomAt(level, x, z) < reach) return null;
   for (const b of placed) {
     if (hypot(b.x - x, b.z - z) < reach + hypot(b.width, b.depth) / 2 + T.apart) return null;
   }

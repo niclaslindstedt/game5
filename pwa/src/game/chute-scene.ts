@@ -35,8 +35,11 @@ import {
 } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { litLine, type LineLight } from "./para-motor.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import {
+  BASE_PAINT,
+  BASE_WING,
   RESERVE_PAINT,
   RESERVE_WING,
   SKY_PAINT,
@@ -52,6 +55,7 @@ import {
   type SkyLine,
   type SkyPaint,
 } from "./chute-canopy.ts";
+import { meshSliderMaterial, paintBase, SLIDER_UV } from "./base-rig.ts";
 import { createGear, GEAR, layOnBone } from "./chute-gear.ts";
 import type { CanopyLayout, WingShape } from "./para-canopy.ts";
 import {
@@ -63,10 +67,22 @@ import {
   laidPoint,
   overCanopy,
   pilotOpen,
+  rigWorn,
   ropeDrape,
+  CAUGHT_BOUGHS,
+  CAUGHT_DEPTH,
+  FIST,
+  FREE_BAG,
+  FREE_GONE,
+  RISER,
+  SPRING,
+  THROW,
+  TWIST,
   type P3,
 } from "./chute-rig-plan.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
+import { wingsuitShapeOf } from "./skier-wingsuit.ts";
+import { colourwayOf, type SuitColourway } from "./wingsuit-look.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 
 /** His dressed figure as last posed (`SkisModel.skin`): its bones' frames
@@ -100,15 +116,6 @@ export type ChuteScene = {
 /** His eyes: the point, his face's way and his head's up, the world's frame. */
 export type Eyes = { at: THREE.Vector3; face: THREE.Vector3; up: THREE.Vector3 };
 
-/** WHETHER HE WEARS THE RIG: in the skydive, and on every ride in the air
- * he could jump from with it (`craftFreefall`) — in the plane's door, on
- * the helicopter's skid, a balloon ride and a paramotor ride whole. */
-export function rigWorn(state: GameState): boolean {
-  return (
-    !!state.chute || !!state.plane?.rider || !!state.heli?.rider || !!state.balloon || !!state.para
-  );
-}
-
 /** His eyes off the head bone's root, m: up the skull and out of the face. */
 const EYES = { up: 0.11, out: 0.12 };
 
@@ -138,36 +145,16 @@ type Kit = {
   feetOn: boolean;
   cutAt: number;
 };
-/** LINE TWISTS as drawn: where the bundle the lines are wound into starts
- * and ends along the way from over the risers up to the slider (shares),
- * and how thick it is, m — a twisted set of lines reads as a rope a hand
- * wide some way over the jumper's head. */
-const TWIST = { top: 0.3, low: 0.04, radius: 0.05 };
-
-/** How far the four risers stand up off the three rings, m, and apart fore
- * and aft (the front riser to the nose). */
-const RISER = { length: 0.55, apart: 0.05 };
-/** The pull (`skier-skydive.ts`'s): the pilot chute in his fist until the
- * throw lets it go, s after the press, and how long it takes to reach the
- * place the engine has it. */
-const THROW = { from: 0.14, out: 0.42, catch: 0.2 };
-/** The reserve's spring pilot chute out of its tray, s; the free bag's
- * climb off over the canopy after line stretch, m/s, and when it is gone
- * from the picture, s after line stretch. */
-const SPRING = 0.12;
-const FREE_BAG = 5;
-const FREE_GONE = 2.5;
-/** The fist down the hand bone from the wrist, m. */
-const FIST = 0.08;
-/** A canopy caught in a crown lies over its top this far down, m, held
- * this far out past the foliage by the boughs' tips, m. */
-const CAUGHT_DEPTH = 3.2;
-const CAUGHT_BOUGHS = 0.6;
-
 const UP = new THREE.Vector3(0, 1, 0);
 const v3 = (): THREE.Vector3 => new THREE.Vector3();
 
-export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
+export function createChuteScene(
+  haze: HazeUniforms,
+  level: Level,
+  base = false,
+  suit: SuitColourway | null = null,
+  light: LineLight = { value: new THREE.Color(1, 1, 1) },
+): ChuteScene {
   const group = new THREE.Group();
   group.name = "skydive";
   group.visible = false;
@@ -182,8 +169,31 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     mats.push(m);
     return m;
   };
+  // A wingsuit's run wears the BASE rig (`createGear`'s `base`), soft and
+  // in the suit's colours (`base-rig.ts`).
+  const soft = (color: number, roughness: number): THREE.MeshStandardMaterial => {
+    const m = hazeMaterial(new THREE.MeshStandardMaterial({ color, roughness }), haze, "chute");
+    mats.push(m);
+    return m;
+  };
+  const baseColours = base
+    ? {
+        cloth: soft(0x1d2128, 0.8),
+        flap: soft(0x7a7f86, 0.7),
+        binding: soft(0xe8e8e2, 0.7),
+        bridle: soft(0xd8432c, 0.7),
+      }
+    : null;
+  if (baseColours) paintBase(baseColours, suit ?? colourwayOf(0));
   const webMat = std(0x2a2d33, 0.8);
-  const gear = createGear(std(0x1d2128, 0.75), std(0x3a6fb4, 0.65), webMat, std);
+  const gear = createGear(
+    std(0x1d2128, 0.75),
+    std(base ? 0x7a7f86 : 0x3a6fb4, 0.65),
+    webMat,
+    std,
+    base,
+    baseColours,
+  );
   group.add(gear.body, ...gear.legs);
 
   // THE PILOT CHUTE: a dome of cloth over a mesh skirt drawn to the bridle.
@@ -209,12 +219,19 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
 
   // THE CANOPIES: the sport main and the reserve, each its own cloth, slider
   // and lines (`Kit`), the one over him (or let go of) drawn in its turn.
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xd2d2c8 });
+  // Lit by the sky as the paramotor's are (`litLine`), never glowing at night.
+  const lineMat = litLine(
+    new THREE.LineBasicMaterial({ color: 0xd2d2c8 }),
+    haze,
+    "chute-line",
+    light,
+  );
   const makeKit = (
     wing: WingShape,
     size: ChuteWing["canopy"],
     paint: SkyPaint,
     sliderColor: number,
+    mesh = false,
   ): Kit => {
     const layout = skyLayout(wing);
     const geo = new THREE.BufferGeometry();
@@ -230,7 +247,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     const cloth = hazeMaterial(
       new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0, side: THREE.DoubleSide }),
       haze,
-      wing === SKY_WING ? "sky-cloth" : "sky-cloth-reserve",
+      wing === SKY_WING ? "sky-cloth" : wing === BASE_WING ? "sky-cloth-base" : "sky-cloth-reserve",
       (shader) => {
         shader.vertexShader = shader.vertexShader
           .replace(
@@ -254,7 +271,12 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     const sliderGeo = new THREE.BufferGeometry();
     sliderGeo.setAttribute("position", new THREE.BufferAttribute(sliderPos, 3));
     sliderGeo.setIndex([0, 1, 2, 0, 2, 3]);
-    const sliderMat = std(sliderColor, 0.7);
+    // A BASE rig's slider is open mesh (`base-rig.ts`), a sport rig's cloth.
+    sliderGeo.setAttribute("uv", new THREE.BufferAttribute(SLIDER_UV, 2));
+    const sliderMat = mesh
+      ? hazeMaterial(meshSliderMaterial(), haze, "chute-mesh")
+      : std(sliderColor, 0.7);
+    if (mesh) mats.push(sliderMat);
     sliderMat.side = THREE.DoubleSide;
     const slider = new THREE.Mesh(sliderGeo, sliderMat);
     slider.frustumCulled = false;
@@ -292,7 +314,11 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
   };
   const mainKit = makeKit(SKY_WING, CHUTE.canopy, SKY_PAINT, 0xe0b030);
   const reserveKit = makeKit(RESERVE_WING, CHUTE.reserve.canopy, RESERVE_PAINT, 0x8a8f96);
-  const kits = [mainKit, reserveKit];
+  // ...and a wingsuit's one canopy, the BASE rig's (`CHUTE.base`).
+  const baseKit = base
+    ? makeKit(BASE_WING, CHUTE.base.canopy, BASE_PAINT, 0x2a2d33, true)
+    : mainKit;
+  const kits = base ? [mainKit, reserveKit, baseKit] : [mainKit, reserveKit];
   /** The kit every canopy function below draws with. */
   let cur = mainKit;
 
@@ -301,7 +327,12 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
   const bridlePos = new Float32Array((BRIDLE + 1) * 3 * 2);
   const bridleGeo = new THREE.BufferGeometry();
   bridleGeo.setAttribute("position", new THREE.BufferAttribute(bridlePos, 3));
-  const bridleMat = new THREE.LineBasicMaterial({ color: 0xe8d8a0 });
+  const bridleMat = litLine(
+    new THREE.LineBasicMaterial({ color: 0xe8d8a0 }),
+    haze,
+    "chute-bridle",
+    light,
+  );
   const bridle = new THREE.Line(bridleGeo, bridleMat);
   bridle.frustumCulled = false;
   group.add(bridle);
@@ -583,7 +614,12 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
     if (tmp.lengthSq() < 1e-6) tmp.copy(UP);
     pilot.quaternion.setFromUnitVectors(UP, tmp.normalize());
     // The reserve's spring pilot chute is the smaller.
-    const size = cur === reserveKit ? CHUTE.reserve.pilot.diameter / CHUTE.pilot.diameter : 1;
+    const size =
+      (cur === reserveKit
+        ? CHUTE.reserve.pilot.diameter
+        : base
+          ? CHUTE.base.pilot.diameter
+          : CHUTE.pilot.diameter) / CHUTE.pilot.diameter;
     pilot.scale.set(open * size, (0.35 + 0.65 * open) * size, open * size);
   }
 
@@ -799,19 +835,20 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       wear();
       gear.body.visible = !ownEyes && (!c.thrown || !!ch);
       hideAll();
-      const shape = skydiveShapeOf(ch ?? null, !!p?.rider);
+      const shape = base ? null : skydiveShapeOf(ch ?? null, !!p?.rider);
       // The red pad punched out is carried off in his right hand.
       gear.pad.position.set(GEAR.webs + 0.012, GEAR.pads, GEAR.front + 0.016);
-      gear.pad.visible = true;
+      gear.pad.visible = !base;
       if (shape && shape.punch > 0.5)
         gear.pad.position.copy(gear.body.worldToLocal(tmp.copy(hands[1])));
       if (ch?.mode === "released" && ch.t > 1.3) gear.pad.visible = false;
-      gear.handle.visible = !ch || ch.mode === "exit" || ch.mode === "freefall";
+      gear.handle.visible =
+        !ch || ch.mode === "ready" || ch.mode === "exit" || ch.mode === "freefall";
       // The reserve's handle in his left fist as he pulls it, then let go;
       // its tray's flap thrown open by the spring and left hanging open.
       const pulled = !!ch?.reserve;
       gear.reserveHandle.position.set(-GEAR.webs - 0.01, GEAR.pads, GEAR.front + 0.012);
-      gear.reserveHandle.visible = !pulled || (!!shape && shape.reserve > 0.3);
+      gear.reserveHandle.visible = !base && (!pulled || (!!shape && shape.reserve > 0.3));
       if (pulled && gear.reserveHandle.visible)
         gear.reserveHandle.position.copy(gear.body.worldToLocal(tmp.copy(hands[0])));
       gear.reserveFlap.rotation.x = pulled ? -1.9 : 0;
@@ -820,7 +857,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       // Each canopy let go of — the main cut away, the reserve landed under
       // — falling as cloth or lying on the snow, on its own clock.
       for (const [kit, piece] of [
-        [mainKit, ch.piece],
+        [base ? baseKit : mainKit, ch.piece],
         [reserveKit, ch.sparePiece],
       ] as const) {
         cur = kit;
@@ -829,7 +866,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
           cutaway(piece, state.t - kit.cutAt);
         } else kit.cutAt = -1;
       }
-      cur = ch.reserve ? reserveKit : mainKit;
+      cur = base ? baseKit : ch.reserve ? reserveKit : mainKit;
       if (ch.mode === "snagged") {
         drape(ch);
         return;
@@ -839,7 +876,9 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
       observe(canopyTrack, { x: ch.x, y: ch.y, z: ch.z, q: jumper.q }, state.tick);
       sample(canopyTrack, alpha, canopyAt);
       const box = onChest(0, GEAR.mainTray.y, GEAR.mainTray.z, v3());
-      const toggles = !!shape && shape.hang > 0.5;
+      const toggles = base
+        ? (wingsuitShapeOf(ch, false)?.hang ?? 0) > 0.5
+        : !!shape && shape.hang > 0.5;
       if (ch.mode === "deploying" && d && ch.reserve) {
         reserveOpening(ch, d, box, toggles);
         return;
@@ -876,7 +915,7 @@ export function createChuteScene(haze: HazeUniforms, level: Level): ChuteScene {
         }
         farthest = { x: atPilot.x, y: atPilot.y, z: atPilot.z };
         if (!out) {
-          drawBridle(lifted ? atBag : box, atPilot, CHUTE.pilot.bridle, t);
+          drawBridle(lifted ? atBag : box, atPilot, (base ? CHUTE.base : CHUTE).pilot.bridle, t);
           // The lines paying out of the bag, bundled from the risers' rings.
           if (lifted) {
             let o = 0;

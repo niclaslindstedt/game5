@@ -110,7 +110,9 @@ export function chassisContacts(
     const px = c.x + r.x;
     const py = c.y + r.y;
     const pz = c.z + r.z;
-    const floor = level.groundAt(px, pz) - powderFloor(packedSnow(snow, px, pz), sink, snowDepth);
+    const packed = packedSnow(snow, px, pz);
+    const ground = level.groundAt(px, pz);
+    const floor = ground - powderFloor(packed, sink, snowDepth);
     const pen = floor - py;
     if (pen <= 0) continue;
     touched = true;
@@ -130,7 +132,17 @@ export function chassisContacts(
         c.bodySide = Math.sign(h.x);
       }
     }
-    const target = Math.min(depth * H.pushRate, H.pushOut);
+    // A KNEE, A HIP, A SHOULDER OR THE HELMET in loose snow is not pushed
+    // back out of it: the powder it went into is pressed under it, and it
+    // lies in the hole it made — the way into the snow taken, and nothing
+    // more. Pushed out at `pushOut` a point, a skier down on his side in
+    // deep powder had his hips, shoulders and helmet each hand him the push
+    // in turn, and was fired up out of the snow before he was thrown off
+    // his skis. Only the groomer's share pushes back, and the settled base
+    // under the loose snow (`snow.cover` of it a unit of depth) always does.
+    const base = ground - TUNING.snow.cover * snowDepth * (1 - packed) - py;
+    const give = ski || base > 0 ? 1 : packed;
+    const target = Math.min(depth * H.pushRate, H.pushOut) * give;
     if (vn >= target) continue;
     if (-vn > worst) worst = -vn;
     // The effective mass along the normal at this point.

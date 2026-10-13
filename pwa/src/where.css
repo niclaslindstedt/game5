@@ -50,6 +50,16 @@
   display: block;
 }
 
+.where-map-sheet {
+  position: absolute;
+  display: block;
+  transform-origin: 50% 50%;
+  /* Its own layer: a pinch moves it in the compositor, never repainting
+     the outline (world-map-view.tsx). */
+  will-change: transform;
+  pointer-events: none;
+}
+
 .where-map-word {
   position: absolute;
   inset: 0;
@@ -204,6 +214,29 @@
   color: var(--hud-info);
 }
 
+/* The reading's figures: the drop, the steepest pitch and the mean, three
+   captions over three values. */
+.where-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.3rem;
+}
+
+.where-figure dt {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--hud-info);
+}
+
+.where-figure dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 @media (max-width: 30rem) {
   .menu-card-where {
     padding-top: 0.7rem;
@@ -214,15 +247,19 @@
 /* A wide screen: the map on the left, as tall as the window allows, the
    rows and the reading beside it. */
 @media (min-width: 48rem) {
+  .menu-card-where {
+    width: min(84rem, 100%);
+  }
+
   .where-cols {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2.4fr) minmax(16rem, 1fr);
     align-items: start;
     gap: 0.4rem 1.1rem;
   }
 
   .where-map {
-    height: clamp(16rem, calc(100dvh - 15rem), 32rem);
+    height: clamp(16rem, calc(100dvh - 10rem), 52rem);
   }
 
   .menu-card-where .knob-value {
@@ -231,21 +268,22 @@
 }
 
 /* A phone on its side: the least height of all, so the map takes the left
-   and the body's whole height, and the rows stand beside it. */
+   and the body's whole height — the whole screen less the head — and the
+   rows stand beside it. */
 @media (orientation: landscape) and (max-height: 34rem) {
   .menu-card-where {
-    width: min(52rem, 100%);
+    width: 100%;
   }
 
   .where-cols {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 17rem;
     align-items: start;
     gap: 0.4rem 0.6rem;
   }
 
   .where-map {
-    height: clamp(9rem, calc(100dvh - 10.5rem), 22rem);
+    height: clamp(9rem, calc(100dvh - 6.4rem - max(0.5rem, env(safe-area-inset-bottom))), 30rem);
   }
 
   .where-side {

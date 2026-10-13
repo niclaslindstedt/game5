@@ -25,13 +25,13 @@ import * as THREE from "three";
 import {
   planeFireOf,
   poolHeat,
-  sunAtRun,
   windAt,
   type GameState,
   type PlaneFire,
   type PlaneWreck,
   type Wind,
 } from "@engine";
+import { sunNow } from "./sky-clock.ts";
 
 import { frameCrash, startCrashCam, wooded, type CrashCam } from "./camera-crash.ts";
 import type { LensPose } from "./camera-rigs.ts";
@@ -148,8 +148,8 @@ function gougeTexture(): THREE.Texture {
 }
 
 /** The fire a wreck burns with, sized off its fuel. */
-function explosionOf(fire: ReturnType<typeof planeFireOf>): Explosion {
-  return createExplosion({
+function fireLook(fire: ReturnType<typeof planeFireOf>) {
+  return {
     pool: {
       radius: fire.radius,
       flame: fire.flame,
@@ -162,7 +162,7 @@ function explosionOf(fire: ReturnType<typeof planeFireOf>): Explosion {
     },
     scorch: fire.radius * WRECK_LOOK.scorch,
     melt: true,
-  });
+  };
 }
 
 export function createPlaneWreckView(): PlaneWreckView {
@@ -170,10 +170,13 @@ export function createPlaneWreckView(): PlaneWreckView {
   group.name = "plane-wreck";
   const shatter = createPlaneShatter();
   group.add(shatter.group);
+  /** THE ONE FIRE, made ready under the loading card (`prime`) and sized
+   * afresh for each wreck — never one made at the crash: its light, added
+   * to the scene then, had every lit program in the scene compiled again,
+   * seconds on a phone with the picture stopped. */
   let boom: Explosion | null = null;
-  /** A fire never lit, kept for as long as the view: its programs stay
-   * compiled for the one a crash lights (`prime`). */
-  let spare: Explosion | null = null;
+  /** Whether the wreck under way burns. */
+  let burns = false;
   let fire: PlaneFire | null = null;
   let wreck: PlaneWreck | null = null;
   let since = 0;
@@ -269,15 +272,19 @@ export function createPlaneWreckView(): PlaneWreckView {
       fire = planeFireOf(w.fuel, w.speed, w.kind, w.fire);
       const groundAt = (x: number, z: number) => state.level.groundAt(x, z);
       shatter.burst(machine, parts, w, groundAt);
-      boom?.dispose();
-      if (boom) group.remove(boom.group);
-      boom = w.fire ? explosionOf(fire) : null;
+      if (!boom) {
+        boom = createExplosion(fireLook(fire));
+        group.add(boom.group);
+      }
+      boom.clear();
+      burns = w.fire;
       const g = groundAt(w.x, w.z);
-      if (boom) group.add(boom.group);
-      boom?.burst(w.x, Math.max(g, w.y - 0.5), w.z, w.speed, w.vx, w.vz, {
-        diameter: fire.diameter,
-        life: fire.life,
-      });
+      if (burns) boom.resize(fireLook(fire));
+      if (burns)
+        boom.burst(w.x, Math.max(g, w.y - 0.5), w.z, w.speed, w.vx, w.vz, {
+          diameter: fire.diameter,
+          life: fire.life,
+        });
       layGouge(state, w);
       // THE CRASH'S LENS: only when he went in with it — planted off where
       // the hulk will lie.
@@ -288,17 +295,17 @@ export function createPlaneWreckView(): PlaneWreckView {
           ? startCrashCam(lens, at, groundAt, (e, a) => wooded(state.level, e, a), {
               ball: fire.diameter,
               ballAt: { x: w.x, y: g, z: w.z },
-              sun: sunAtRun(state.level),
+              sun: sunNow(state.level, state.t),
             })
           : null;
       clock = 0;
     },
     prime(machine, parts) {
       shatter.prime(machine, parts);
-      if (spare) return;
-      spare = explosionOf(planeFireOf(100, 40));
-      spare.clear();
-      group.add(spare.group);
+      if (boom) return;
+      boom = createExplosion(fireLook(planeFireOf(100, 40)));
+      boom.clear();
+      group.add(boom.group);
     },
     frame(state, dt, eye, cloud, snowAt) {
       if (!wreck || !fire) return;
@@ -313,7 +320,7 @@ export function createPlaneWreckView(): PlaneWreckView {
       }
       clock += dt;
       const groundAt = (x: number, z: number) => state.level.groundAt(x, z);
-      const b = boom;
+      const b = burns ? boom : null;
       const snow = (x: number, z: number) => (snowAt ? snowAt(x, z) : null);
       hooks = {
         flame: (x, y, z, heat, step) => b?.flame(x, y, z, heat, step),
@@ -385,7 +392,6 @@ export function createPlaneWreckView(): PlaneWreckView {
     dispose() {
       shatter.dispose();
       boom?.dispose();
-      spare?.dispose();
       gougeTex.dispose();
       gougeGeo.dispose();
       gougeMat.dispose();

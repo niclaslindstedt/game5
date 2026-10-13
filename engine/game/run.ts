@@ -68,6 +68,7 @@ import { heldInHouse, stepStartPush } from "./start-push.ts";
 import { inRunInput } from "./in-run.ts";
 import { hockeyStop, stopMade } from "./hockey-stop.ts";
 import { stepJib } from "./jib.ts";
+import { stepCable } from "./cable.ts";
 import { afterSkiJump, stepSkiJump } from "./ski-jump.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -234,8 +235,15 @@ export function stepRun(
   // ON A JIB (`jib.ts`): a bead on a wire, and the snow's step is not his.
   // ...or up an aerials kicker, a bead on a wire too (`aerial-kicker.ts`).
   // ...or on a ski jump's bar, down its tracks or in its air (`ski-jump.ts`).
+  // ...or on a lift's rope, ground (`cable.ts`) — or thrown off it: the
+  // player's alone.
+  const cabled = player && !off && !rigged ? stepCable(run, held, events) : null;
   const railed =
-    !off && (stepJib(run, held, events) || stepKicker(run) || stepSkiJump(run, asked, events));
+    !off &&
+    (cabled !== null ||
+      stepJib(run, held, events) ||
+      stepKicker(run) ||
+      stepSkiJump(run, asked, events));
   // Thrown, there is no pair on legs to step: the skis are each their own
   // (`lone-skis.ts`), stepped with his body below.
   if (!off && !railed) {

@@ -26,6 +26,9 @@
 // steps out of the picture after a few seconds and leaves a hairline of
 // progress along the bottom edge — the run is what is being watched, not the
 // bar — and comes back on any move of the pointer, any touch, any key.
+// A TAP ON THE PICTURE (anywhere off the bar and off every press) puts it
+// away at once, playing or paused, as a video player's does, and the next
+// such tap brings it back; nothing but that tap or a key brings it back.
 //
 // THE KEYS are a player's: SPACE plays and pauses, the arrows skip and change
 // speed, the comma and the full stop step a frame, HOME goes back to the
@@ -122,6 +125,13 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
   );
 }
 
+/** Whether a press landed on the picture itself — off the bar and off
+ * every press over it (a chip, the minimap), which keep their own. */
+function onPicture(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return true;
+  return !target.closest(".hud-replay, button, a, input, [role='slider'], [role='button']");
+}
+
 export function ReplayBar(props: ReplayBarProps) {
   const { bill, first, end, at, playing, speed, slow, seeking, rung, marks, moment, back } = props;
   const { controls, onLeave, touch } = props;
@@ -137,24 +147,39 @@ export function ReplayBar(props: ReplayBarProps) {
     return Math.round(first + ((clientX - box.left) / Math.max(1, box.width)) * span);
   };
 
-  // THE BAR STEPS OUT OF THE PICTURE while it plays untouched.
+  // THE BAR STEPS OUT OF THE PICTURE while it plays untouched, and at once
+  // on a tap on the picture.
   const [idle, setIdle] = useState(false);
-  const wake = useRef<() => void>(() => {});
+  const [away, setAway] = useState(false);
+  const wake = useRef<(key?: boolean) => void>(() => {});
   useEffect(() => {
     let timer = 0;
-    const poke = (): void => {
+    let gone = false;
+    const show = (): void => {
       setIdle(false);
       window.clearTimeout(timer);
       timer = window.setTimeout(() => setIdle(true), IDLE_MS);
     };
-    wake.current = poke;
-    poke();
+    const put = (next: boolean): void => {
+      gone = next;
+      setAway(next);
+      if (!next) show();
+    };
+    const poke = (): void => {
+      if (!gone) show();
+    };
+    const tap = (e: PointerEvent): void => {
+      if (onPicture(e.target)) put(!gone);
+      else poke();
+    };
+    wake.current = (key) => (key ? put(false) : poke());
+    show();
     window.addEventListener("pointermove", poke, { passive: true });
-    window.addEventListener("pointerdown", poke, { passive: true });
+    window.addEventListener("pointerdown", tap, { passive: true });
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("pointermove", poke);
-      window.removeEventListener("pointerdown", poke);
+      window.removeEventListener("pointerdown", tap);
     };
   }, []);
 
@@ -164,7 +189,7 @@ export function ReplayBar(props: ReplayBarProps) {
   useEffect(() => {
     holdNav(true);
     const onKey = (e: KeyboardEvent): void => {
-      wake.current();
+      wake.current(true);
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const press = KEYS[e.code];
       if (e.code === "Home") live.current.seek(-Infinity);
@@ -182,7 +207,7 @@ export function ReplayBar(props: ReplayBarProps) {
 
   const shown = drag ?? at;
   const over = !playing && at >= end;
-  const hidden = idle && playing && drag === null;
+  const hidden = drag === null && (away || (idle && playing));
   return (
     <div class={`hud hud-replay-layer${hidden ? " is-idle" : ""}`}>
       <div class="hud-replay-hairline" style={{ transform: `scaleX(${share(at)})` }} />

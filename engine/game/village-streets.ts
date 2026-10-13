@@ -222,7 +222,7 @@ type Clear = (x: number, z: number, hubPad?: number) => boolean;
 /** An open place reaches up to the hub's groomed snow, which fades out
  * past its edge: the packed field is not asked there. */
 
-function clearanceOf(level: Level, avoid: readonly Cabin[], dry: boolean): Clear {
+function clearanceOf(level: Level, avoid: readonly Cabin[]): Clear {
   const C = V.clear;
   const resort = level.resort;
   const hub = resort?.hub;
@@ -257,7 +257,7 @@ function clearanceOf(level: Level, avoid: readonly Cabin[], dry: boolean): Clear
   return (x, z, hubPad = C.hub) => {
     if (x < 0 || z < 0 || x > level.size || z > level.size) return false;
     if (hubPad >= C.hub && groomed(x, z)) return false;
-    if ((level.iceAt?.(x, z) ?? 0) > 0 || (dry && inWater(level.water, x, z))) return false;
+    if ((level.iceAt?.(x, z) ?? 0) > 0 || inWater(level.water, x, z)) return false;
     if (!clearOfLifts(level, x, z)) return false;
     if (hub && outsideHub(hub, x, z) < hubPad) return false;
     for (const line of lines) {
@@ -362,13 +362,6 @@ type Draft = {
  * has no ski area or no loop fits near its village.
  */
 export function planVillageStreets(level: Level, avoid: readonly Cabin[]): VillageStreets | null {
-  // Off a real face's water where it fits; on its ice where not (a town on its lake's shore).
-  const wet = (level.water?.length ?? 0) > 0;
-  return planStreets(level, avoid, true) ?? (wet ? planStreets(level, avoid, false) : null);
-}
-
-/** The street plan, held off the water where `dry`. */
-function planStreets(level: Level, avoid: readonly Cabin[], dry: boolean): VillageStreets | null {
   const resort = level.resort;
   const hub = resort?.hub;
   if (!resort || !hub || hub.top.length < 2) return null;
@@ -380,7 +373,7 @@ function planStreets(level: Level, avoid: readonly Cabin[], dry: boolean): Villa
   // The valley's side of the hub: away from the summit.
   const summitZ = level.mountain?.summit.z ?? 0;
   const valley: 1 | -1 = summitZ < (mid.top + mid.bottom) / 2 ? 1 : -1;
-  const clear = clearanceOf(level, avoid, dry);
+  const clear = clearanceOf(level, avoid);
   const village = resort.village;
   // The main lift: of the lifts leaving the hub, the one whose bottom
   // station stands nearest the village — the square stands below it.
@@ -470,9 +463,14 @@ function planStreets(level: Level, avoid: readonly Cabin[], dry: boolean): Villa
   // upper edge where it is nearest) has its village tried there first.
   const at = town ? hubAt(hub, Math.min(hx1, Math.max(hx0, town.town.x))) : null;
   const up = !!at && (town!.town.z - (valley > 0 ? at.top : at.bottom)) * valley < 0;
-  if (up) return onSide(-valley as 1 | -1, false) ?? onSide(valley, true);
+  // Never on a real face's water: where every road out down the valley
+  // would cross it (a river, a lake's arm), the valley's side is tried
+  // last with none — a village on the shore, its way out along it.
+  const shore = (level.water?.length ?? 0) > 0 ? () => onSide(valley, false) : () => null;
+  if (up) return onSide(-valley as 1 | -1, false) ?? onSide(valley, true) ?? shore();
   const plan = onSide(valley, true);
-  return plan || !town ? plan : onSide(-valley as 1 | -1, false);
+  if (plan) return plan;
+  return (town ? onSide(-valley as 1 | -1, false) : null) ?? shore();
 }
 
 /** The main and back streets' lines tried for one village: on a real face

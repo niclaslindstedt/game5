@@ -69,6 +69,25 @@
   font-size: clamp(1rem, 3.4vmin, 1.5rem);
 }
 
+/* THE WINGSUIT'S STRIP: the height warm as it closes on the pull, and the
+   air speed beside the glide under it. */
+.hud-suit-warn .hud-chute-num {
+  color: #ffb43c;
+}
+
+.hud-suit-row {
+  display: flex;
+  gap: 0.9em;
+  font-size: clamp(0.85rem, 2.8vmin, 1.25rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.hud-suit-glide {
+  opacity: 0.85;
+}
+
 /* On a phone held upright the hint wraps rather than running off both
    edges, and the skydive's readout stands higher than the helicopter's —
    over the falling skier the chase frames in the middle of the screen. */

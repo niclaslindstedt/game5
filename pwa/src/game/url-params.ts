@@ -111,7 +111,13 @@
 //                   dealt it (clear, fair, high, overcast, snow, fog) —
 //                   how a lab photographs every weather on one seed.
 //   ?hour=<h>       ...and from this solar start hour (0–24), so a lab can
-//                   stand a race in the dark.
+//                   stand a race in the dark — the sun HELD at it unless
+//                   `?skyclock=` says otherwise, so a link's picture is
+//                   the hour it names.
+//   ?skyclock=<r>   the sky's clock this visit: sky seconds a run second
+//                   (`sky-clock.ts`; the game's own is 12 — five minutes
+//                   an hour of sun), 0 holding the sun at the start hour,
+//                   60 a lab's fast forward.
 //   ?region=<id>    build a seed's mountain in this kind of snow country
 //                   (R21: alpine, fell, continental, maritime) — a free ride over the
 //                   start card's AREA row under GENERATED, and a race a `?seed=` link
@@ -171,6 +177,7 @@
 // reads every rule here without a browser.
 
 import {
+  SKY_CLOCK,
   WEATHER_KINDS,
   isAerialCode,
   isRunGrade,
@@ -287,6 +294,10 @@ export type UrlParams = {
   /** A sky and a start hour for this visit's races, over the dealt ones;
    * null when the link names neither. */
   sky: SkyOverride | null;
+  /** The SKY'S CLOCK this visit (`sky-clock.ts`): the link's `?skyclock=`,
+   * else held (0) when the link names an `?hour=`, else the game's own
+   * (`SKY_CLOCK.rate`). */
+  skyClock: number;
   /** The kind of snow country a seed's map is built in, over the card's. */
   region: RegionId | null;
   /** The real face a seed's resort is raised on, over the card's. */
@@ -315,6 +326,14 @@ export type UrlParams = {
   sled: boolean;
   /** A free ride begun in the jump plane's door, over the card's START row. */
   plane: boolean;
+  /** A free ride in the WINGSUIT off its own exit (`?wingsuit=1`), over the
+   * card's START row. */
+  wingsuit: boolean;
+  /** What he jumps in up a craft (`?suit=wing` the wingsuit, `?suit=rig`
+   * the skydiver's rig) — a lab's way to fly a craft's jump in the suit;
+   * the cards offer the wingsuit only as its own START stop. Null when the
+   * link names neither. */
+  suit: "wing" | "rig" | null;
   /** A free ride begun IN FREEFALL this many metres over the snow under the
    * plane's jump run (`?chute=<m>`, a lab's and a screenshot's way into the
    * skydive), or null. */
@@ -346,6 +365,14 @@ function skyOf(q: URLSearchParams): SkyOverride | null {
   }
   if (q.get("hour") !== null && Number.isFinite(hour) && hour >= 0 && hour <= 24) sky.hour = hour;
   return sky.weather === undefined && sky.hour === undefined ? null : sky;
+}
+
+/** The sky's clock a link names (`?skyclock=`), held when it names only an
+ * hour, the game's own when it names neither. */
+function skyClockOf(q: URLSearchParams): number {
+  const asked = Number(q.get("skyclock") ?? NaN);
+  if (q.get("skyclock") !== null && Number.isFinite(asked) && asked >= 0) return asked;
+  return q.get("hour") !== null ? 0 : SKY_CLOCK.rate;
 }
 
 /** A benchmark's stretch a link may name: whole frames, from a second's
@@ -421,7 +448,7 @@ export function readParams(search: string): UrlParams {
       camera !== null && RUN_CAMERAS.includes(camera as CameraRung) ? (camera as CameraRung) : null,
     skis: skis !== null && isPairId(skis) ? skis : null,
     mode:
-      start === "free" || freeRidePage(q.get("menu") ?? "")
+      start === "free" || q.get("mode") === "free" || freeRidePage(q.get("menu") ?? "")
         ? "free"
         : start === "downhill" || q.get("mode") === "downhill"
           ? "downhill"
@@ -456,6 +483,7 @@ export function readParams(search: string): UrlParams {
     picture: readPicture(q.get("picture")),
     probe: q.get("probe") !== "0",
     sky: skyOf(q),
+    skyClock: skyClockOf(q),
     region: isRegionId(q.get("region")) ? (q.get("region") as RegionId) : null,
     face: realFaceRegion(q.get("face") ?? "") ? q.get("face") : null,
     grade: isRunGrade(q.get("grade")) ? (q.get("grade") as RunGrade) : null,
@@ -468,6 +496,8 @@ export function readParams(search: string): UrlParams {
     balloon: q.get("balloon") === "1",
     sled: q.get("sled") === "1",
     plane: q.get("plane") === "1",
+    wingsuit: q.get("wingsuit") === "1",
+    suit: q.get("suit") === "wing" ? "wing" : q.get("suit") === "rig" ? "rig" : null,
     chute: chuteOf(q.get("chute")),
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
@@ -509,14 +539,15 @@ export function linkWorld(params: UrlParams): Pick<
 }
 
 /** A free ride's options with a link's sky, region, grade, helicopter,
- * snowmobile, paramotor, balloon, jump plane and skydive laid over the
- * card's. */
+ * snowmobile, paramotor, balloon, jump plane, skydive and wingsuit laid
+ * over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   // A link naming a machine is the start, whatever the card picked — and
   // names that one alone.
   const sky = params.chute !== null;
   const plane = params.plane || sky;
-  const named = params.heli || params.sled || params.para || params.balloon || plane;
+  const named =
+    params.heli || params.sled || params.para || params.balloon || plane || params.wingsuit;
   const only = (mine: boolean, card: boolean | undefined): boolean =>
     named ? mine : (card ?? false);
   return {
@@ -527,6 +558,17 @@ export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGame
     balloon: only(params.balloon, ride.balloon),
     plane: only(plane && !params.para && !params.balloon, ride.plane),
     chute: params.chute ?? ride.chute,
+    // THE WINGSUIT: its own exit on `?wingsuit=1`; up a craft on `?suit=wing`
+    // (and never on `?suit=rig`); a link naming another start drops the
+    // card's.
+    wingsuit:
+      params.suit === "rig"
+        ? false
+        : params.wingsuit || params.suit === "wing"
+          ? true
+          : named
+            ? false
+            : (ride.wingsuit ?? false),
     byLift: named ? false : ride.byLift,
     sky: params.sky ? { ...ride.sky, ...params.sky } : ride.sky,
     region: params.region ?? ride.region,

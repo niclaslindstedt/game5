@@ -42,7 +42,8 @@ import {
   underCanopy,
   underWing,
 } from "./camera-para.ts";
-import { createChuteScene, rigWorn, type ChuteScene } from "./chute-scene.ts";
+import { createChuteScene, type ChuteScene } from "./chute-scene.ts";
+import { rigWorn } from "./chute-rig-plan.ts";
 import { createSkydiveCam, skydiveFramed, skydiveLens } from "./camera-skydive.ts";
 import {
   createExitCut,
@@ -53,10 +54,16 @@ import {
   exitLens,
   exitOwnEyes,
 } from "./camera-exit.ts";
+import { colourwayOf, suitOf } from "./wingsuit-look.ts";
+import { createWingsuitCam, flightWay, wingsuitFramed, wingsuitLens } from "./camera-wingsuit.ts";
+import { createFlightPace } from "./camera-pace.ts";
 import { createPlaneScene, type PlaneScene } from "./plane-scene.ts";
 import { createParaScene, type ParaScene } from "./para-scene.ts";
+import { lineLightOf, type LineLight } from "./para-motor.ts";
 import type { Outfit } from "./outfit.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
+import { wingsuitShapeOf } from "./skier-wingsuit.ts";
+import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
 import { buriedLens } from "./camera-buried.ts";
@@ -76,6 +83,15 @@ import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { Spray } from "./spray.ts";
 import type { SnowSampler, Stamp } from "./trail-stamp.ts";
+
+/** The level way out from a machine at `m` to the flyer at `at`. */
+function awayFrom(m: { x: number; z: number } | null, at: Vec3): Vec3 | null {
+  if (!m) return null;
+  const x = at.x - m.x;
+  const z = at.z - m.z;
+  const n = Math.hypot(x, z);
+  return n > 0.2 ? { x: x / n, y: 0, z: z / n } : null;
+}
 
 export type Machines = {
   group: THREE.Group;
@@ -196,7 +212,19 @@ export function createMachines(
   // ...and the jump plane and the skydive out of its door, drawn while a
   // run carries them (`GameState.plane`, `.chute`).
   const plane: PlaneScene | null = state.rules.heli ? createPlaneScene(haze) : null;
-  const chute: ChuteScene | null = state.rules.heli ? createChuteScene(haze, level) : null;
+  const chuteLight: LineLight = { value: new THREE.Color(1, 1, 1) };
+  const chute: ChuteScene | null = state.rules.heli
+    ? createChuteScene(
+        haze,
+        level,
+        !!state.wingsuit,
+        state.wingsuit && fx.wearing ? colourwayOf(suitOf(fx.wearing())) : null,
+        chuteLight,
+      )
+    : null;
+  // ...and a wingsuit's hover exit: the helicopter it steps off.
+  const hover: HoverScene | null = state.wingsuit ? createHoverScene(level, haze) : null;
+  if (hover) group.add(hover.group);
   if (plane) group.add(plane.group);
   if (chute) group.add(chute.group);
   // ...and the strip it flies from: its snow, markers, buildings and sock.
@@ -208,9 +236,15 @@ export function createMachines(
   const planeSolids: StripBox[] = [];
   // The skydive's own lens out of the door and through the opening.
   const skyCam = chute ? createSkydiveCam() : null;
-  // ...and the leap out of a craft shot as a film shoots it, before that.
-  const exitCut = chute ? createExitCut() : null;
+  // ...and the leap out of a craft shot as a film shoots it, before that
+  // (a wingsuit's exit is its own lens's, below).
+  const exitCut = chute && !state.wingsuit ? createExitCut() : null;
   let exitEyes = false;
+  // ...and a wingsuit's (`camera-wingsuit.ts`), its changes flown round him.
+  const suitCam = chute && state.wingsuit ? createWingsuitCam() : null;
+  // ...and the sense of speed both fold in (`camera-pace.ts`).
+  const pace = chute ? createFlightPace() : null;
+  let suitRung: CameraRung | null = null;
   let skyState: GameState | null = null;
   // Looking out of his own eyes (TIPS, HELMET): this frame's ask, and
   // whether the lens handed back was it.
@@ -287,7 +321,9 @@ export function createMachines(
       return balloon;
     },
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready]).then(() => undefined),
+      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready, hover?.ready]).then(
+        () => undefined,
+      ),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
@@ -297,7 +333,14 @@ export function createMachines(
       model.setSled(sled ? sled.stand(s) : null);
       // Out of the plane's door and under the canopy, every stage of the
       // jump is a shape of his limbs (`skier-skydive.ts`).
-      model.setSkydive(chute ? skydiveShapeOf(s.chute ?? null, !!s.plane?.rider) : null);
+      // ...or in a WINGSUIT, no skis on: the flyer's own (`skier-wingsuit.ts`).
+      const suit = !!s.wingsuit;
+      model.setSkydive(chute && !suit ? skydiveShapeOf(s.chute ?? null, !!s.plane?.rider) : null);
+      model.setWingsuit?.(
+        suit
+          ? wingsuitShapeOf(s.chute ?? null, !!s.plane?.rider, (s.wingsuit?.hover ?? 0) > 0)
+          : null,
+      );
       // In the balloon's basket his pair is racked in its corner, and he
       // steps as he walks about it (or turns where he stands).
       const b = s.balloon;
@@ -334,20 +377,76 @@ export function createMachines(
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, fx.cloud, fx.snowAt);
       chute?.frame(s, alpha, chute && rigWorn(s) ? seated?.skin() : null);
+      hover?.frame(
+        s,
+        dt,
+        (x, y, z, vx, vy, vz, size) => fx.cloud.blow(x, y, z, vx, vy, vz, size),
+        (x, z) => fx.snowAt(x, z).loose,
+      );
       const at = chute?.jumper();
-      const framed =
-        !!chute && !!at && !!s.chute && skydiveFramed(s.chute, s.skier.thrown !== null);
+      const thrown = s.skier.thrown !== null;
+      const framed = !!chute && !!at && !!s.chute && skydiveFramed(s.chute, thrown);
+      // In a wingsuit, its own lenses from the exit through the opening.
+      const suited =
+        !!suitCam &&
+        !!at &&
+        !!s.chute &&
+        (wingsuitFramed(s.chute, s.wingsuit?.from, thrown) ||
+          (framed && s.chute.mode === "deploying"));
       // In the plane's door HELMET is his own eyes too (`camera-plane.ts`).
       doorEyes = !!s.plane?.rider && rung === "helmet";
-      ownEyes = (framed && (rung === "tips" || rung === "helmet")) || doorEyes;
+      let want: LensPose | null = null;
+      if (suited && chute && at && s.chute && suitCam) {
+        const opening = s.chute.mode === "deploying";
+        const first = rung === "helmet" || (opening && rung === "tips");
+        const lens = opening
+          ? skydiveLens(rung, s.chute, at, chute.opening(), level.groundAt, chute.eyes(), aspect)
+          : wingsuitLens(rung, s.chute, {
+              at,
+              v: { x: s.skier.vx, y: s.skier.vy, z: s.skier.vz },
+              ground: level.groundAt,
+              eyes: chute.eyes(),
+              hover: (s.wingsuit?.hover ?? 0) > 0,
+              away: awayFrom(hover?.at() ?? null, at),
+              aspect,
+            });
+        const key = opening ? `${rung}:open` : rung;
+        // A rung changed with nothing flying it (a lab's, a restart's) is cut.
+        const cut = s !== skyState || (!flying && rung !== suitRung);
+        want = suitCam.frame(key, first, at, lens, cut, dt);
+        ownEyes = suitCam.inside();
+      } else {
+        if (framed && chute && at && s.chute)
+          want = skydiveLens(
+            rung,
+            s.chute,
+            at,
+            chute.opening(),
+            level.groundAt,
+            chute.eyes(),
+            aspect,
+          );
+        ownEyes = (framed && (rung === "tips" || rung === "helmet")) || doorEyes;
+      }
+      if (want && pace && at && s.chute) {
+        const v = { x: s.skier.vx, y: s.skier.vy, z: s.skier.vz };
+        want = pace.apply(
+          want,
+          {
+            at,
+            way: flightWay(s.chute.heading, v),
+            speed: Math.hypot(v.x, v.y, v.z),
+            bank: s.chute.wing?.bank ?? 0,
+            worn: ownEyes || rung === "tips" || rung === "helmet",
+          },
+          dt,
+          s !== skyState,
+        );
+      }
+      suitRung = rung;
       ownLook = false;
       chute?.setOwnEyes(ownEyes);
-      skyCam?.want(
-        chute && at && s.chute && framed
-          ? skydiveLens(rung, s.chute, at, chute.opening(), level.groundAt, chute.eyes(), aspect)
-          : null,
-        s !== skyState,
-      );
+      skyCam?.want(want, s !== skyState);
       skyState = s;
       // THE EXIT CUT: the craft he left as drawn, and the shot it wants.
       const cut = exitCut?.want(s.chute, s.skier.thrown !== null, rung) ?? null;
@@ -415,6 +514,7 @@ export function createMachines(
     light(look) {
       para?.light(look);
       balloon?.light(look);
+      if (chute) lineLightOf(look, chuteLight.value);
     },
     lamps(lit, eye, others) {
       // The eye settled for this frame: the helicopter's and the jump
@@ -495,15 +595,19 @@ export function createMachines(
       else planeSolids.length = 0;
       const more = stripSolids.length + planeSolids.length > 0;
       const out = more ? [...all, ...stripSolids, ...planeSolids] : all;
-      return hull ? [...out, hull] : out;
+      const over = hover?.hull();
+      const withHull = hull ? [...out, hull] : out;
+      return over ? [...withHull, over] : withHull;
     },
     setPace(pace) {
       heli?.setPace(pace);
+      hover?.setPace(pace);
     },
     slideLift: (x, z) => slide?.liftAt(x, z) ?? 0,
     exitPace: () => exitCut?.pace() ?? 1,
     dispose() {
       if (exitCut) exitHud(0);
+      haze.uMistAloft.value = 0;
       heli?.dispose();
       sled?.dispose();
       groomers?.dispose();
@@ -515,6 +619,7 @@ export function createMachines(
       strip?.dispose();
       balloon?.dispose();
       rescue?.dispose();
+      hover?.dispose();
       slide?.dispose();
       patrol?.dispose();
     },

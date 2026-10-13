@@ -22,9 +22,11 @@ import {
   boundLevel,
   cabinsOf,
   doorOf,
+  freeRuns,
   generateLevel,
   gradeOf,
   helipadOf,
+  wingsuitExitOf,
   airstripOf,
   balloonSiteOf,
   loadRealFace,
@@ -39,7 +41,8 @@ import {
   type RegionId,
 } from "@engine";
 
-import { freeRunList, type FreeRunInfo } from "./free-ride.ts";
+import { profileOf, profileStats, type RunFigures } from "./face-stats.ts";
+import { dealtDay, freeRunList, type DealtDay, type FreeRunInfo } from "./free-ride.ts";
 import { boardKey } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE, bakeMinimap, minimapSource } from "./minimap-bake.ts";
 import {
@@ -94,8 +97,14 @@ export type PreviewPainted = {
   length: number;
   /** The mountain's vertical, m — the summit to the base (R2). */
   vertical: number;
+  /** What the WHERE steps bill a mountain by, read off the runs the map
+   * lays (`profileStats`): their drop, steepest and mean pitch, and how
+   * many — null on a map with no runs. */
+  figures: RunFigures | null;
   /** The colour the piste came out (R23, `gradeOf`). */
   colour: PisteGrade;
+  /** The season, time of day and sky the map was dealt (`dealtDay`). */
+  dealt: DealtDay;
   /** What names the map built (`boardKey`): the boards at its lifts'
    * tops are painted with this panorama. */
   board: string;
@@ -109,9 +118,9 @@ export type PreviewPainted = {
    * door of the valley's afterski lodge (`lodgesOf`), null on a map with
    * none, where the RUN row offers no afterski — and the jump plane's strip
    * (`airstripOf`): its middle, and its two ends the chart draws it
-   * between. */
+   * between — and the wingsuit's exit (`wingsuitExitOf`). */
   machines: Record<
-    "heli" | "sled" | "para" | "balloon" | "plane",
+    "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit",
     { x: number; y: number; z: number }
   > & {
     afterski: { x: number; y: number; z: number } | null;
@@ -238,7 +247,9 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         panorama,
         length: level.track.length,
         vertical: level.mountain?.vertical ?? 0,
+        figures: profileStats(freeRuns(level).map((r) => profileOf(r.points))),
         colour: gradeOf(level),
+        dealt: dealtDay(level),
         board: boardKey(level),
         ...freeRunList(level),
         machines: {
@@ -247,6 +258,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
           para: summitOf(level),
           balloon: placeOf(balloonSiteOf(level)),
           plane: placeOf(airstripOf(level)),
+          wingsuit: placeOf(wingsuitExitOf(level)),
           afterski: lodgeDoorOf(level),
         },
         strip: { a: placeOf(airstripOf(level).start), b: placeOf(airstripOf(level).end) },

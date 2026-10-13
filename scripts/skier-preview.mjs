@@ -69,18 +69,27 @@ import { REVERT_MOMENTS, REVERT_MOVES } from "./lib/revert-moves.mjs";
 import { FLIP_MOVES } from "./lib/flip-moves.mjs";
 import { BOARD_MOMENTS, BOARD_MOVES } from "./lib/board-figure-moves.mjs";
 import { POLE_MOVES } from "./lib/pole-moves.mjs";
+import { CLIMB_MOVES } from "./lib/climb-moves.mjs";
+import { AIR_LEAN_MOMENTS, AIR_LEAN_MOVES } from "./lib/air-lean-moves.mjs";
 
 // The skier lab's moves and the revert lab's (`make revert`), the hop's,
-// the double pole's and the loops' beside them.
+// the double pole's, the climb's and the loops' beside them.
 const SKI_MOVES = [
   ...SKIER.MOVES,
   ...REVERT_MOVES,
   ...HOP_SWITCH_MOVES,
   ...POLE_MOVES,
+  ...CLIMB_MOVES,
   ...FLIP_MOVES,
+  ...AIR_LEAN_MOVES,
 ];
 const MOVE_IDS = SKI_MOVES.map((m) => m.id);
-const SKI_MOMENTS = [...SKIER.MOMENTS, ...REVERT_MOMENTS, ...HOP_SWITCH_MOMENTS];
+const SKI_MOMENTS = [
+  ...SKIER.MOMENTS,
+  ...REVERT_MOMENTS,
+  ...HOP_SWITCH_MOMENTS,
+  ...AIR_LEAN_MOMENTS,
+];
 const MOMENT_IDS = SKI_MOMENTS.map((m) => m.id);
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -241,7 +250,7 @@ function ski(move) {
   // Every other step: the page steps his legs' spring at 60 Hz through it.
   for (let i = 0; i < steps; i++) {
     const t = state.t - t0;
-    E.step(state, move.input(t, state));
+    E.step(state, move.input(t, state, E));
     if (i % 2 === 1) frames.push({ ...frameOf(state), t: state.t - t0 });
   }
   const [from, to] = move.window;

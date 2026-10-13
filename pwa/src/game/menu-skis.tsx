@@ -6,8 +6,9 @@
 // MARMOT / HARE" asks a skier to choose between pairs they have never seen
 // by picking one of the words, and the catalog is answers to a kind of
 // snow. So it takes a card, the way the sibling games give the car and the
-// pair theirs: the gear turning on its rack, drawn by the builder the race
-// draws with, with the numbers beside it.
+// pair theirs: the rider stood on the gear on the snow, drawn by the
+// builder the race draws with (the stage behind the card,
+// `menu-stage.tsx`), with the numbers beside him.
 //
 // IT COMES AFTER THE RIDER. The rider card (`menu-dress.tsx`) is first: who
 // rides, his build and his kit; this card is what he rides, and then goes —
@@ -89,11 +90,16 @@ function PolesRow({ outfit, onOutfit }: { outfit: Outfit; onOutfit: (o: Outfit) 
         value={outfit.poles}
         onPick={(poles) => onOutfit({ ...outfit, poles })}
       />
-      {!carriesPoles(outfit) && (
-        <p class="dress-note" role="note" data-menu="dress-no-poles">
-          {STRINGS.dressNoPoles}
-        </p>
-      )}
+      {/* Always laid out, and only SEEN with no poles: a note that came
+          and went would grow the card and move everything on it. */}
+      <p
+        class={carriesPoles(outfit) ? "dress-note dress-note-held" : "dress-note"}
+        role="note"
+        aria-hidden={carriesPoles(outfit) ? "true" : undefined}
+        data-menu={carriesPoles(outfit) ? undefined : "dress-no-poles"}
+      >
+        {STRINGS.dressNoPoles}
+      </p>
     </div>
   );
 }
@@ -184,44 +190,50 @@ export function SkisPage({
   const board = spec.board !== undefined;
   const [busy, ride] = useBusyPress(onRide);
   return (
-    <div class={boards ? "menu-card menu-card-skis menu-card-gear" : "menu-card menu-card-skis"}>
-      <MenuHead
-        back={onBack}
-        backLabel={STRINGS.menuBack}
-        title={boards ? STRINGS.gearTitle : board ? STRINGS.boardTitle : STRINGS.skisTitle}
-        /* The press that rides stands in the head opposite the way back, as
-           on every card a run is picked on, wearing the way-on's weight and
-           marked as this surface's `next` — so START from anywhere on the
-           card is the start line, and the pair below can take the height. */
-        action={
-          <button
-            type="button"
-            class="menu-item menu-item-start menu-head-go skis-done"
-            data-menu="ride"
-            data-nav-next
-            data-busy={busy ? "1" : undefined}
-            aria-busy={busy}
-            onClick={ride}
-          >
-            <span class="menu-item-name">{board ? STRINGS.boardRide : STRINGS.skisRide}</span>
-            {busy && <span class="menu-busy" aria-hidden="true" />}
-          </button>
-        }
-      />
-      {boards && <KindSwitch board={board} onKind={onKind} />}
-      <MenuBody>
-        <div class="skis-pick-body">
-          {/* THE GEAR takes the room: it is the only thing on this card that
-            cannot be said in words. */}
-          <div class="skis-stage-col">
-            <SkisPicker skis={skis} outfit={outfit} board={board} onPick={onPick} />
-            <p class="skis-blurb">{spec.blurb}</p>
-          </div>
+    <div
+      class={
+        boards
+          ? "menu-card menu-card-skis menu-card-gear menu-card-staged"
+          : "menu-card menu-card-skis menu-card-staged"
+      }
+    >
+      <div class="stage-top" data-stage-cover>
+        <MenuHead
+          back={onBack}
+          backLabel={STRINGS.menuBack}
+          title={boards ? STRINGS.gearTitle : board ? STRINGS.boardTitle : STRINGS.skisTitle}
+          /* The press that rides stands in the head opposite the way back,
+             as on every card a run is picked on, wearing the way-on's weight
+             and marked as this surface's `next` — so START from anywhere on
+             the card is the start line. */
+          action={
+            <button
+              type="button"
+              class="menu-item menu-item-start menu-head-go skis-done"
+              data-menu="ride"
+              data-nav-next
+              data-busy={busy ? "1" : undefined}
+              aria-busy={busy}
+              onClick={ride}
+            >
+              <span class="menu-item-name">{board ? STRINGS.boardRide : STRINGS.skisRide}</span>
+              {busy && <span class="menu-busy" aria-hidden="true" />}
+            </button>
+          }
+        />
+        {boards && <KindSwitch board={board} onKind={onKind} />}
+      </div>
+      <div class="stage-sheet" data-stage-cover>
+        <MenuBody>
+          {/* THE GEAR is on the snow under him, behind the card: here, its
+            name between the arrows, its billing and its sheet. */}
+          <SkisPicker skis={skis} board={board} onPick={onPick} />
+          <p class="skis-blurb">{spec.blurb}</p>
           <SkisReadings skis={skis} outfit={outfit}>
             {!board && <PolesRow outfit={outfit} onOutfit={onOutfit} />}
           </SkisReadings>
-        </div>
-      </MenuBody>
+        </MenuBody>
+      </div>
     </div>
   );
 }

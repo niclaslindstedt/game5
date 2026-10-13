@@ -105,6 +105,7 @@ function revertDue(state: GameState, below: number, least = 0): boolean {
     c.lift === null &&
     c.tunnel === null &&
     c.jib == null &&
+    c.grind == null &&
     c.sidestep === 0 &&
     c.trench === 0 &&
     c.speed < below &&
@@ -127,6 +128,7 @@ export function hopSwitch(state: GameState, steer: number): void {
     c.lift !== null ||
     c.tunnel !== null ||
     c.jib != null ||
+    c.grind != null ||
     c.sidestep !== 0 ||
     c.trench !== 0 ||
     c.speed >= HOP.below ||

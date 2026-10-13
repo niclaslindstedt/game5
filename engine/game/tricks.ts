@@ -147,6 +147,7 @@ export function freshTricks(): TrickState {
     spinGoal: 0,
     flipDone: 0,
     spinDone: 0,
+    flipSpeed: 0,
     flipHeld: false,
     spinHeld: false,
     meant: false,

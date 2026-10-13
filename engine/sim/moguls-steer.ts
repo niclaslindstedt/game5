@@ -14,6 +14,7 @@
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fieldCoords, mogulShare, mogulsAt } from "../mapgen/mogul-field.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
+import { flipLean } from "../game/strokes.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { edgeLockAt, edgeMostOf } from "../game/limits.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "../game/state.ts";
@@ -70,7 +71,7 @@ export function mogulsInput(state: GameState, on: TrackHit): SkierInput | null {
       const t0 = K.tapFrom + n * K.tapEvery;
       if (c.airTime > t0 && c.airTime < t0 + 0.08) steer = 1;
     }
-    if (plan.flips > 0 && c.airTime > K.tapFrom && c.airTime < K.tapFrom + 0.08) lean = 1;
+    if (plan.flips > 0 && c.airTime > K.tapFrom) lean = flipLean(state, plan.flips, 1);
     return { ...NEUTRAL_INPUT, steer, lean, trick: plan.grab && c.airTime > K.tapFrom };
   }
   const v = Math.max(1, c.speed);

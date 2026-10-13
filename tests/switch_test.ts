@@ -12,6 +12,7 @@ import {
   NEUTRAL_INPUT,
   SKI_CATALOG,
   createGame,
+  flipLean,
   placeRun,
   skisById,
   step,
@@ -54,10 +55,14 @@ function backward(
 /** Riding backward at 30 km/h: past a drift, as off a 180. */
 const RIDING = 30 / 3.6;
 
-function ride(state: GameState, seconds: number, at: (t: number) => Partial<SkierInput>) {
+function ride(
+  state: GameState,
+  seconds: number,
+  at: (t: number, state: GameState) => Partial<SkierInput>,
+) {
   const events: GameEvent[] = [];
   for (let i = 0; i < Math.round(seconds * 120); i++) {
-    step(state, { ...NEUTRAL_INPUT, ...at(i / 120) });
+    step(state, { ...NEUTRAL_INPUT, ...at(i / 120, state) });
     events.push(...state.events);
   }
   return events;
@@ -130,10 +135,10 @@ describe("riding switch", () => {
 describe("the strokes off the jump key on a free ride", () => {
   /** The jump key held two seconds rolling at 40 km/h over flat groomer,
    * let go, and `at(t)` from the pop. */
-  function popped(at: (t: number) => Partial<SkierInput>) {
+  function popped(at: (t: number, state: GameState) => Partial<SkierInput>) {
     const state = createGame({ level: flatLevel({ packed: 1 }), mode: "free", quiet: true });
     placeRun(state, { x: 1500, z: 200, heading: 0, speed: 11 });
-    const events = ride(state, 5, (t) => ({ jump: t < 2, ...at(t - 2) }));
+    const events = ride(state, 5, (t, s) => ({ jump: t < 2, ...at(t - 2, s) }));
     const tricks = events.flatMap((e) => (e.kind === "trick" ? [e] : []));
     const line = comboLine(tricks.map((e) => ({ kind: e.trick, spins: e.spins, flight: 1 })));
     return { state, events, line };
@@ -157,12 +162,12 @@ describe("the strokes off the jump key on a free ride", () => {
     expect(state.skier.switched).toBe(false);
   });
 
-  it("a tap of the lean is a loop, back or forward", () => {
+  it("the lean held and let go in time is a loop, back or forward", () => {
     for (const [lean, word] of [
       [1, "BACKFLIP"],
       [-1, "FRONT FLIP"],
     ] as const) {
-      const { events, line } = popped(tap(0.2, 0.25, { lean }));
+      const { events, line } = popped((t, s) => (t >= 0.05 ? { lean: flipLean(s, 1, lean) } : {}));
       expect(wipeouts(events)).toHaveLength(0);
       expect(line).toBe(`BIG AIR + ${word} + CLEAN LANDING`);
     }

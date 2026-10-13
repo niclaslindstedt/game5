@@ -113,40 +113,55 @@ export const TRICKS = {
   spinGate: 0.6,
   /** WHAT ONE STROKE TURNS, rad: a tap on the edge is HALF A TURN about
    * the skier's own up axis — once, and the skis come down backward (a
-   * 180, ridden away switch); twice, a whole 360 — and a tap on the lean a
-   * WHOLE TURN nose over tail, a loop. A tap the other way takes one back
-   * off what is still owed. */
+   * 180, ridden away switch); twice, a whole 360. Thrown the other way
+   * it turns the spin back. (The lean is no stroke of a
+   * set size: it is the LOOP held, `flipRate` below.) */
   spinStep: Math.PI,
-  flipStep: 2 * Math.PI,
-  /** ...and the most a flight's strokes may have owed at once on each
-   * axis, rad: a 720 and a double. */
+  /** ...and the most a flight may turn on each axis, rad: a 720 and a
+   * double. A loop held on toward it is let go of in time to stop on it. */
   spinMost: 4 * Math.PI,
   flipMost: 4 * Math.PI,
-  /** HOW A STROKE IS TURNED: not handed over in a step but THROWN — the
-   * rate gathered at `spinAccel` / `flipAccel` rad/s² up to a cruise of
-   * `spinRate` / `flipRate` rad/s, and taken off again at the same
-   * acceleration so the body stops square on the angle bought (a 180
-   * stops with the skis straight backward, a loop with them level). The
-   * accelerations are the reference pair's, scaled by the root of each
-   * pair's own inertia against it (a long downhill ski is slower to throw
-   * round, the short park ski quicker). An arcade's numbers: a 180 in
-   * about 0.36 s, a loop in 0.5–0.65, so both come round off the jump key's
-   * own pop on the flat — a real skier wants a kicker for the loop. A tight
-   * tuck is how a body turns a somersault quickly (its inertia about the
-   * side axis a fraction of a laid-out one's), and a skier tucked for a
-   * backflip off a big kicker brings it round in well under a second; the
-   * loop's cruise of 12 rad/s (a loop in about 0.62 s) is that, a shade
-   * quick. */
-  spinRate: 12,
-  flipRate: 12,
-  spinAccel: 120,
-  flipAccel: 120,
-  /** THE THROW IS PACED TO THE SNOW: whatever is owed is turned by
+  /** HOW A TWIRL IS TURNED: HELD, as a loop is, and SETTLED. The edge
+   * held across its gate gathers the spin at `spinAccel` rad/s² toward a
+   * cruise of `spinRate` rad/s — half of it at the gate, the whole at the
+   * edge's end, so a thumb dragged further across spins him harder — for
+   * as long as it is held. Let go, the spin is carried on to the next half
+   * turn it can still stop square on and stopped there at the same
+   * acceleration, so a TAP is a 180 (the skis straight backward, ridden
+   * away switch), a quick second tap a 360, and a held spin comes round
+   * onto the skis forward or switch, wherever he let go. The acceleration
+   * is the reference pair's, scaled by the root of each pair's own inertia
+   * against it (a long downhill ski is slower to throw round, the short
+   * park ski quicker): a 180 from a tap in about 0.4 s — a park
+   * skier's spin, wound up at the lip and carried by the shoulders — so it
+   * still comes round off the jump key's own pop on the flat. */
+  spinRate: 10,
+  spinAccel: 80,
+  /** HOW A LOOP IS TURNED: HELD, not bought. A flip is set going at the
+   * take-off and carried by the body in the air — tucked tight it turns
+   * quickly, opened out it slows, and nothing brings it back to its feet
+   * but the skier himself. So the lean held across its gate turns him
+   * nose over tail, the rate gathering at `flipAccel` rad/s² (scaled by
+   * the pair's pitch inertia, as the twirl's is) to a cruise of
+   * `flipRate`, for as long as it is held — one loop, two, or round past
+   * his feet into a crash; LET GO, he opens out and the rotation dies
+   * away at `flipBrake` rad/s², carrying him on about `flipRate² /
+   * (2·flipBrake)` rad — a little over a third of a turn — before the
+   * air's own control is his again. Landing it is the skier's: let go
+   * upside down, with the snow coming into view, and he comes round onto
+   * his skis; held too long, he goes over. A loop held from rest and let
+   * go to stop square takes about a second — a park skier's backflip, the
+   * pace film of one shows (a turn in about a second, wound up at the lip,
+   * the tucked middle the quickest) — so the jump key's own pop on the
+   * flat, about 1.1 s up, has just the air for one thrown at once. */
+  flipRate: 10,
+  flipAccel: 40,
+  flipBrake: 20,
+  /** THE TWIRL IS PACED TO THE SNOW: whatever is owed is turned by
    * `finish` s before the flight comes back down (`flight.ts`'s
    * `landingAhead`), the cruise raised to fit up to `rateMost` rad/s —
-   * and a stroke that could not be turned in the air left, at that rate,
-   * is not taken at all: a lean thrown for the landing is the lean, not a
-   * loop the skier would land half way round. */
+   * and a twirl that could not be turned in the air left, at that rate,
+   * is not taken at all. (A loop is the skier's to time.) */
   finish: 0.08,
   rateMost: 18,
   /** A flight a stroke may be thrown in: one that LEFT the snow climbing at

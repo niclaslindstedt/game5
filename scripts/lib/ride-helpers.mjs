@@ -385,7 +385,7 @@ export function trick(id, title, input) {
     place: () => LAUNCH,
     seconds: 4,
     view: "profile",
-    input: (t) => ({ ...TUCK, ...input(t) }),
+    input: (t, st, E) => ({ ...TUCK, ...input(t, st, E) }),
     measure: tricked,
   };
 }

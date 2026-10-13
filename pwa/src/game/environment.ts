@@ -27,8 +27,15 @@ import { createFarRanges, type FarRanges } from "./far-ranges.ts";
 import { FAR_TIER } from "./far-ranges-plan.ts";
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { horizonDip } from "./horizon.ts";
+import { createClouds, type Clouds } from "./clouds.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
-import { mistFor, SKY_TIER, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
+import {
+  CLOUD_TIER,
+  mistFor,
+  SKY_TIER,
+  type DistanceLevel,
+  type ShadowLook,
+} from "./settings-video.ts";
 import { createSkyGpu, type SkyGpu } from "./sky-gpu.ts";
 import type { AloftLook } from "./view-aloft.ts";
 import {
@@ -55,10 +62,13 @@ export type Environment = {
   /** THE GPU SKY (MEDIUM and HIGH, `sky-gpu.ts`): its tier rides the
    * DISTANCE row; `update` draws what is due. */
   gpu: SkyGpu;
+  /** THE CLOUD FIELD on the GPU (`clouds.ts`): its tier rides the DISTANCE
+   * row too. */
+  clouds: Clouds;
   /** Apply a look, and aim the shadow ahead of `camera`, its box standing
    * at height `y` (the skier's: what the depth range is centred on);
-   * `drift` is how far the wind has carried the cloud (`sky-dome.ts`);
-   * `steady`, that the sun's map may stand a frame (`sunDue`); `ahead`,
+   * `cloud` the map the cloud field stands over and the run's clock it
+   * has moved to (`clouds.ts`); `steady`, that the sun's map may stand a frame (`sunDue`); `ahead`,
    * where the key will stand `TERRAIN_SHADOW.lead` s of run on (`sky.ts`'s
    * `keyAheadAt` — null while the sky's clock stands), which the
    * mountain's shadow is baked ahead to. `far` is the lens's height over
@@ -68,7 +78,7 @@ export type Environment = {
     look: SkyLook,
     camera: THREE.Camera,
     y: number,
-    drift?: { x: number; z: number },
+    cloud?: { level: Level | null; t: number },
     steady?: boolean,
     ahead?: Dir | null,
     far?: number,
@@ -213,7 +223,8 @@ export function createEnvironment(
   const haze = createHazeUniforms();
   const gpu = createSkyGpu(gl, haze);
   const terrain = createTerrainShade(haze);
-  const dome = createSkyDome(haze, domeRadius);
+  const clouds = createClouds(gl, haze);
+  const dome = createSkyDome(haze, domeRadius, clouds);
   dome.mesh.name = "sky";
   scene.add(dome.mesh);
   const ranges = createFarRanges(haze);
@@ -276,11 +287,13 @@ export function createEnvironment(
     sun,
     dome,
     gpu,
-    update(sky, camera, y, drift, steady = false, ahead = null, far = 0) {
+    clouds,
+    update(sky, camera, y, cloud, steady = false, ahead = null, far = 0) {
       writeHaze(haze, sky);
       haze.uFar.value.set(horizonDip(far), far);
       gpu.update(sky, camera);
-      dome.update(sky, drift?.x ?? 0, drift?.z ?? 0);
+      clouds.update(sky, cloud?.level ?? null, cloud?.t ?? 0, camera);
+      dome.update(sky);
       ranges.update(sky);
       // The key is the sun by day and the moon by night (`sky.ts`).
       sun.color.setRGB(...sky.keyColour);
@@ -325,6 +338,7 @@ export function createEnvironment(
     setDistance(next) {
       haze.uMist.value = mistFor(next);
       gpu.setTier(SKY_TIER[next]);
+      clouds.setTier(CLOUD_TIER[next]);
       ranges.setTier(FAR_TIER[next]);
     },
     setAloft(look) {
@@ -346,6 +360,7 @@ export function createEnvironment(
     },
     dispose() {
       gpu.dispose();
+      clouds.dispose();
       terrain.dispose();
       dome.dispose();
       ranges.dispose();

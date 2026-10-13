@@ -1,24 +1,28 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE DOME — a sphere round the lens painted with `skyColour` (haze.ts),
 // and over it what the weather and the hour put there: the sun's disc, the
-// moon's (lit as its phase says), the stars, and one layer of cloud of the
-// genus R19's sky calls for — fair-weather heaps, high streaks, or a lid.
+// moon's (lit as its phase says), the stars, and the CLOUD FIELD
+// (`cloud-field.ts`, `clouds.ts`) — the layers R19's sky stacks at their
+// own heights, carried by the wind aloft and lit by the sun at each one.
 // It goes through the same tone mapping and output conversion as every lit
 // surface, which is what lets the haze meet it without a seam.
 //
-// THE CLOUD IS A PLANE, not a volume: a direction is carried up to a layer a
-// fixed height over the lens and the layer's noise read where it lands, so a
-// heap near the horizon is foreshortened into the band it is in a real sky,
-// and the layer moves with the WIND (`windAt`) — `drift` is how far it has
-// gone, in units of the layer's height. Under a lid the layer is the whole
-// sky: its grey is the look's zenith, broken only by the texture of the
-// deck's underside. The stars, the Milky Way (`starfield.ts`) and the moon
-// are drawn behind the cloud and dimmed by it. Under the TRUE horizon —
-// the level less the dip a raised lens sees (`horizon.ts`) — the dome is
-// the far ground through the air (`haze.ts`'s `farColour`).
+// THE CLOUD is read off the field along the view from the lens itself: on
+// LOW one read where the view crosses each layer's middle (the shell), on
+// MEDIUM and HIGH the slab `clouds.ts` marched at half resolution before
+// the frame, read where this pixel stands on the screen. Either way a heap
+// near the horizon is foreshortened into the band it is in a real sky and
+// goes into the air's colour with distance. Under a lid the gaps in the
+// deck show the deck's own grey (`SkyLook.view`). The stars, the Milky Way
+// (`starfield.ts`) and the moon are drawn behind the cloud and dimmed by
+// it; a veil of ice rings the sun with its 22° halo. Under the TRUE
+// horizon — the level less the dip a raised lens sees (`horizon.ts`) — the
+// dome is the far ground through the air (`haze.ts`'s `farColour`), or,
+// over a valley fog, the fog's lit top.
 
 import * as THREE from "three";
 
+import { DOME_CLOUD_GLSL, type Clouds } from "./clouds.ts";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 import { STARFIELD_GLSL, turnBasis } from "./starfield.ts";
@@ -33,19 +37,14 @@ export type SkyDome = {
   mesh: THREE.Mesh;
   /** Keep the dome centred on the lens. */
   follow(camera: THREE.Camera): void;
-  /** The weather's half of a look, and how far the cloud has drifted. */
-  update(look: SkyLook, driftX: number, driftZ: number): void;
+  /** The night's half of a look; the cloud's is `clouds`'s uniforms. */
+  update(look: SkyLook): void;
   dispose(): void;
 };
 
-export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
+export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds): SkyDome {
   const geometry = new THREE.SphereGeometry(radius, 48, 24);
   const own = {
-    uCloudGenus: { value: 0 },
-    uCloudCover: { value: 0 },
-    uCloudLit: { value: new THREE.Color() },
-    uCloudShade: { value: new THREE.Color() },
-    uDrift: { value: new THREE.Vector2() },
     uStars: { value: 0 },
     uGalaxy: { value: 0 },
     uTurn: { value: new THREE.Matrix3() },
@@ -55,23 +54,21 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
     uNight: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...haze, ...own },
+    uniforms: { ...haze, ...clouds.uniforms, ...own },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
+      varying vec4 vClip;
       void main() {
         vDir = position;
         vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         // Pinned to the far plane so nothing is ever clipped by the sky.
         gl_Position = p.xyww;
+        vClip = p;
       }
     `,
     fragmentShader: /* glsl */ `
       ${SKY_GLSL}
-      uniform float uCloudGenus;
-      uniform float uCloudCover;
-      uniform vec3 uCloudLit;
-      uniform vec3 uCloudShade;
-      uniform vec2 uDrift;
+      ${DOME_CLOUD_GLSL}
       uniform float uStars;
       uniform float uGalaxy;
       uniform mat3 uTurn;
@@ -80,70 +77,32 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
       uniform float uMoonLit;
       uniform float uNight;
       varying vec3 vDir;
-
-      float dh(vec2 p) {
-        p = fract(p * vec2(127.1, 311.7));
-        p += dot(p, p + 19.19);
-        return fract(p.x * p.y);
-      }
-      float dn(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        vec2 u = f * f * (3.0 - 2.0 * f);
-        return mix(mix(dh(i), dh(i + vec2(1, 0)), u.x), mix(dh(i + vec2(0, 1)), dh(i + vec2(1, 1)), u.x), u.y);
-      }
-      float fbm(vec2 p) {
-        float s = 0.0;
-        float a = 0.5;
-        for (int i = 0; i < 5; i++) {
-          s += a * dn(p);
-          p = p * 2.03 + vec2(17.3, 9.1);
-          a *= 0.5;
-        }
-        return s;
-      }
+      varying vec4 vClip;
       ${STARFIELD_GLSL}
 
       void main() {
         vec3 d = normalize(vDir);
         vec3 c = skyColour(d);
-        float up = max(d.y, 0.0);
-        // How much of this direction the cloud hides, 0..1.
-        float hide = 0.0;
-        vec3 cloud = vec3(0.0);
-        if (uCloudGenus > 0.5 && d.y > -0.02) {
-          // Carried up to the layer: a unit of the plane is the layer's height.
-          vec2 p = d.xz / (up + 0.06) + uDrift;
-          float fade = smoothstep(0.0, 0.1, up);
-          if (uCloudGenus < 1.5) {
-            // HEAPS: flat bases, bright sunward tops.
-            float n = fbm(p * 1.3);
-            float cov = smoothstep(1.0 - uCloudCover - 0.02, 1.0 - uCloudCover + 0.22, n);
-            vec2 toSun = normalize(uSunPos.xz + 1e-4) * 0.08;
-            float lit = clamp((n - fbm((p + toSun) * 1.3)) * 6.0 + 0.5, 0.0, 1.0);
-            cloud = mix(uCloudShade, uCloudLit, lit);
-            hide = cov * fade;
-          } else if (uCloudGenus < 2.5) {
-            // STREAKS: high ice cloud, drawn out along the wind.
-            vec2 q = vec2(p.x * 0.35, p.y * 2.4);
-            float n = fbm(q * 0.9) * 0.7 + fbm(p * 3.1) * 0.3;
-            float cov = smoothstep(1.0 - uCloudCover, 1.12 - uCloudCover * 0.4, n) * 0.75;
-            cloud = mix(uCloudShade, uCloudLit, 0.7);
-            hide = cov * fade;
-          } else {
-            // THE LID: the whole sky, textured by the deck's underside.
-            float n = fbm(p * 0.8);
-            cloud = mix(uCloudShade, uCloudLit, smoothstep(0.25, 0.75, n));
-            // Down at the horizon the lid is the haze's own grey.
-            cloud = mix(uHorizon, cloud, smoothstep(0.0, 0.25, up));
-            hide = 1.0;
-          }
-        }
-        // Heaps and streaks low over the horizon are seen through a long
-        // path of air: they take its colour — the glow's warmth toward a low
-        // sun, the haze's blue away from it.
-        if (uCloudGenus > 0.5 && uCloudGenus < 2.5)
-          cloud = mix(c, cloud, 0.3 + 0.7 * smoothstep(0.0, 0.3, up));
+        // THE CLOUD FIELD in front (\`clouds.ts\`): the slab's picture read
+        // where this pixel stands on the screen (MEDIUM, HIGH), or the
+        // shell's layers read here (LOW) — premultiplied, and the share of
+        // what is behind it hidden.
+        #ifdef CLOUD_SLAB
+          // A linear read on a texel CORNER is the even mean of the 2 x 2
+          // texels round it — the slab's 2 x 2 dither averaged away. Four
+          // corners round this pixel, blended by where it stands among them.
+          vec2 sz = vec2(textureSize(uCloudTex, 0));
+          vec2 g = (vClip.xy / vClip.w * 0.5 + 0.5) * sz;
+          vec2 c0 = floor(g);
+          vec2 fr = g - c0;
+          vec4 cl = mix(
+            mix(texture(uCloudTex, c0 / sz), texture(uCloudTex, (c0 + vec2(1.0, 0.0)) / sz), fr.x),
+            mix(texture(uCloudTex, (c0 + vec2(0.0, 1.0)) / sz), texture(uCloudTex, (c0 + 1.0) / sz), fr.x),
+            fr.y);
+        #else
+          vec4 cl = cloudStack(cameraPosition, d, uSunPos, c, 0.0);
+        #endif
+        float hide = cl.a;
         float clearSky = 1.0 - hide;
 
         // THE NIGHT SKY, behind everything: the stars and the Milky Way on
@@ -182,7 +141,9 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
         }
         c += vec3(0.5, 0.6, 0.8) * pow(max(mm, 0.0), 900.0) * 0.12 * uMoonLit * uNight * clearSky;
 
-        c = mix(c, cloud, hide);
+        c = c * clearSky + cl.rgb;
+        // THE 22° HALO in a veil of ice round the sun.
+        c += cloudHalo(d, uSunPos, uSunCol, uCloudOn.z) * (1.0 - 0.6 * hide);
         // UNDER THE TRUE HORIZON (\`uFar.x\` under the level: the Earth
         // curving away under a raised lens) the sky, its sun, moon, stars
         // and cloud end, and the far ground stands seen through the air
@@ -194,6 +155,13 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
         float band = mistBand(d);
         float under = smoothstep(-0.0004, 0.0004, below);
         c = mix(c, farColour(d, max(smoothstep(0.0, 0.01, below), band)), max(under, band));
+        // A VALLEY FOG SEEN FROM ABOVE (\`uSeaK\`): its lit top fills the
+        // view under the level, going into the haze's colour far off.
+        if (uSeaK > 0.0 && d.y < 0.0 && cameraPosition.y > uSea.w) {
+          float t = (uSea.w - cameraPosition.y) / d.y;
+          vec3 sea = mix(uSea.rgb, hazeColour(d), 1.0 - exp(-t / 40000.0));
+          c = mix(c, sea, smoothstep(0.0, -0.004, d.y));
+        }
         gl_FragColor = vec4(c, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -212,12 +180,14 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
     follow(camera) {
       mesh.position.copy(camera.position);
     },
-    update(look, driftX, driftZ) {
-      own.uCloudGenus.value = look.cloud.genus;
-      own.uCloudCover.value = look.cloud.cover;
-      own.uCloudLit.value.setRGB(...look.cloud.lit);
-      own.uCloudShade.value.setRGB(...look.cloud.shade);
-      own.uDrift.value.set(driftX, driftZ);
+    update(look) {
+      // The slab is read (a program of its own) only when it is drawn.
+      const slab = clouds.slab() && clouds.uniforms.uCloudTex.value !== null;
+      if (Boolean(material.defines.CLOUD_SLAB) !== slab) {
+        if (slab) material.defines.CLOUD_SLAB = 1;
+        else delete material.defines.CLOUD_SLAB;
+        material.needsUpdate = true;
+      }
       own.uStars.value = look.stars;
       own.uGalaxy.value = look.galaxy;
       const m = turnBasis(look.turn, basis);

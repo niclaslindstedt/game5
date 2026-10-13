@@ -30,6 +30,10 @@
 //              dawn, noon, a low sun, sunset and dusk, each from its own
 //              view; every cell drawn with the ranges and timed without
 //              them, and each row's rings built and counted at every tier.
+//   moon       THE MOON through the year (`sky-night-sheet.ts`): a
+//              lunation on a long lens, the perigee's and apogee's full
+//              moons at one zoom, the full moon rising, and the snow and
+//              the sky under a full, a quarter and no moon.
 //
 // Any sheet with `far=0` draws without the far ranges (the before).
 //
@@ -62,6 +66,7 @@ import { createHazeUniforms } from "../game/haze.ts";
 import { volumeNoise } from "../game/cloud-volume.ts";
 import { timeClouds } from "./sky-cloud-cost.ts";
 import { lowdeckSheet } from "./sky-deck-sheet.ts";
+import { moonSheet } from "./sky-night-sheet.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { skyLookAt } from "../game/sky.ts";
@@ -732,6 +737,7 @@ const SHEETS: Record<
   cloudshadow: () => cloudshadowSheet(host),
   cloudmotion: () => cloudmotionSheet(host),
   lowdeck: () => lowdeckSheet(host),
+  moon: () => moonSheet(host),
 };
 
 window.__sky = {

@@ -89,6 +89,7 @@ import {
   keyRatios,
   type Relief,
 } from "./sky-light.ts";
+import { moonDistance, nightOf, type MoonDisc } from "./night-sky.ts";
 import { SKY_GRID, SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import { DEFAULT_TURN, skyTurnOf, type SkyTurn } from "./starfield.ts";
 import { TERRAIN_SHADOW } from "./terrain-shadow.ts";
@@ -115,6 +116,9 @@ export type SkyLook = {
   /** Toward the moon, and how much of its disc is lit, 0..1. */
   moon: Dir;
   moonLit: number;
+  /** THE MOON AS DRAWN (`night-sky.ts`): its true angular radius, its
+   * phase angle, its colour through the air, its earthshine and glow. */
+  moonDisc: MoonDisc;
   /** The dome overhead and at the horizon away from the sun. */
   zenith: Rgb;
   horizon: Rgb;
@@ -202,9 +206,18 @@ export type SkyLook = {
   galaxy: number;
   /** Where the sphere of stars has turned to (`starfield.ts`). */
   turn: SkyTurn;
-  /** How many stars show, 0..1 — the night, less the moon's glare and the
-   * cloud. */
+  /** Whether any star shows, 0..1 — the sky dark enough for the brightest,
+   * less the cloud. */
   stars: number;
+  /** THE FAINTEST STAR SEEN at the zenith, magnitudes, and the zenith's
+   * surface brightness it is reckoned off, mag/arcsec² (`night-sky.ts`) —
+   * the twilight's, the moon's sky's and the dark sky's own. */
+  starLimit: number;
+  skyMagnitude: number;
+  /** The night sky's own glow by the dome's elevation rows, drawn (RGB, the
+   * horizon's row first): the airglow's band and the moon's sky — laid into
+   * `view` and handed to the GPU sky as it is. */
+  nightRows: Float32Array;
   /** How FLAT the light is, 0 (a hard sun) … 1 (a whiteout) — the snow
    * shader's cue to keep its relief readable without a shadow. */
   flat: number;
@@ -265,18 +278,16 @@ export function sunTint(elevation: number): Rgb {
   return [t[0] / top, t[1] / top, t[2] / top];
 }
 
-/** Where the moon is, for `skyLookFor`: its place and its phase. */
-export type MoonInput = { azimuth: number; elevation: number; lit: number };
+/** Where the moon is, for `skyLookFor`: its place, its phase and its
+ * distance from the lens, km (its mean when left out). */
+export type MoonInput = { azimuth: number; elevation: number; lit: number; distance?: number };
 
 /** No moon in the sky (under the horizon, new). */
 const NO_MOON: MoonInput = { azimuth: 0, elevation: -1, lit: 0 };
 
-/** Moonlight's colour: the sun's, bluer to the eye's night vision. */
+/** Moonlight's colour: the sun's, bluer to the eye's night vision — and
+ * reddened as the air the moon shines through says (`night-sky.ts`). */
 const MOONLIGHT: Rgb = [0.6, 0.72, 1.0];
-/** The key a full moon high in the sky gives, three's units — lifted far
- * past the honest four-hundred-thousandth of the sun so moonlit snow reads
- * at speed. */
-const MOON_KEY = 0.75;
 
 /**
  * WHICH GENUS A SKY OF EACH KIND LEADS WITH, and how much of the dome it
@@ -376,11 +387,6 @@ const KOSCHMIEDER = 3.912;
  * named, m: a generated mountain's middle. */
 const DEFAULT_ALTITUDE = 800;
 
-/** The night sky's own floor (starlight, airglow) at the zenith and the
- * horizon, linear — what is left when the twilight has gone. */
-export const NIGHT_ZENITH: Rgb = [0.004, 0.008, 0.024];
-export const NIGHT_HORIZON: Rgb = [0.014, 0.022, 0.05];
-
 /** THE DOME'S OWN TONE: the sky's span pressed to this power of itself
  * about its mean, and lifted by `gain` (the sky is looked at, and the eye
  * opens to it). The lights are never pressed: only what the dome shows.
@@ -460,6 +466,19 @@ export function skyLookFor(
   const phys = physicalSky(elevation, altitude);
   const exposure = exposureOf(adaptingLight(lum(phys.sun), elevation, lum(UP_IRR)));
   const light = exposure * twilightLift(elevation);
+  // THE NIGHT (`night-sky.ts`): the moon's light and disc, the sky's own
+  // glow by the dome's rows, the stars that sky lets through.
+  const dark = nightOf({
+    moon: moonAt,
+    elevation,
+    altitude,
+    zenith: lumAt(phys.grid, (SKY_VIEW_EL - 1) * SKY_VIEW_AZ * 3),
+    exposure,
+    domeMean: PHYS.mean,
+    domeGain: DOME.gain,
+    domeSpan: DOME.span,
+    night,
+  });
   const view = new Float32Array(SKY_GRID);
   // The dome as the eye LOOKING AT IT sees it: adapted to the sky's own
   // mean rather than the snow's light, and pressing the sky's own span (a
@@ -468,15 +487,12 @@ export function skyLookFor(
   // every texel's colour kept, its luminance pulled toward the mean.
   const skyMean = PHYS.mean;
   for (let j = 0; j < SKY_VIEW_EL; j++) {
-    const v = j / (SKY_VIEW_EL - 1);
     for (let i = 0; i < SKY_VIEW_AZ; i++) {
       const k = (j * SKY_VIEW_AZ + i) * 3;
       const Y = lumAt(phys.grid, k);
       const press = Y > 0 ? DOME.gain * Math.pow(Y / skyMean, DOME.span - 1) : 0;
-      for (let c = 0; c < 3; c++) {
-        const floor = NIGHT_HORIZON[c] + (NIGHT_ZENITH[c] - NIGHT_HORIZON[c]) * v;
-        view[k + c] = phys.grid[k + c] * exposure * press + floor * night;
-      }
+      for (let c = 0; c < 3; c++)
+        view[k + c] = phys.grid[k + c] * exposure * press + dark.rows[j * 3 + c];
     }
   }
   const cell = (i: number, j: number): Rgb => {
@@ -510,7 +526,11 @@ export function skyLookFor(
     keyMax > 1e-6 ? [keySun[0] / keyMax, keySun[1] / keyMax, keySun[2] / keyMax] : tint;
 
   const moon = sunDirection(moonAt.azimuth, moonAt.elevation);
-  const moonUp = smooth(-0.02, 0.18, moonAt.elevation);
+  // The moon's light: the eye's blue night vision over the colour the air
+  // it crossed leaves it — an orange moon rising lights the snow warm.
+  const mc = [0, 1, 2].map((c) => MOONLIGHT[c] * dark.keyTint[c]);
+  const mcMax = Math.max(mc[0], mc[1], mc[2], 1e-9);
+  const moonColour: Rgb = [mc[0] / mcMax, mc[1] / mcMax, mc[2] / mcMax];
 
   // THE KEY: whichever of the two lights is the stronger, through the cloud.
   const lid = LID[weather.kind];
@@ -524,7 +544,7 @@ export function skyLookFor(
   const thick = inFog ? 0 : 1 - meanPass(field.layers, FLAT_SIN);
   const pass = cloudPass * (1 - 0.6 * fall) * (1 - 0.6 * fog);
   const sunKey = light * keyMax;
-  const moonKey = MOON_KEY * (0.2 + 0.8 * moonAt.lit) * moonUp * night;
+  const moonKey = dark.key;
   const byMoon = moonKey > sunKey;
   const keyIntensity = (byMoon ? moonKey : sunKey) * pass;
   const key = byMoon ? moon : sunDirection(azimuth, elevation);
@@ -533,7 +553,7 @@ export function skyLookFor(
   // the sky is, and the snow's bounce under it near-white.
   const upMax = Math.max(UP_IRR[0], UP_IRR[1], UP_IRR[2], 1e-12);
   const physAmbient = light * AMBIENT_LIFT * upMax;
-  const nightAmbient = (0.16 + 0.22 * moonUp * moonAt.lit) * night;
+  const nightAmbient = dark.ambient;
   const nightShare = nightAmbient / Math.max(1e-6, physAmbient + nightAmbient);
   let skyLight = mix(
     [UP_IRR[0] / upMax, UP_IRR[1] / upMax, UP_IRR[2] / upMax],
@@ -627,7 +647,7 @@ export function skyLookFor(
     horizon,
     lidded,
     rough: weather.kind === "storm" ? 1.9 : 1.5,
-    moon: scale(MOONLIGHT, moonKey * 0.05),
+    moon: scale(moonColour, moonKey * 0.05),
     floorAltitude: field.floorAltitude,
     seaTop: field.seaTop,
   });
@@ -652,7 +672,7 @@ export function skyLookFor(
   // it — gone as the key sinks under the far country's own horizon.
   const farGround: Rgb = [0, 0, 0];
   const farKey: Rgb = [0, 0, 0];
-  const keyCol = byMoon ? MOONLIGHT : keyTint;
+  const keyCol = byMoon ? moonColour : keyTint;
   const farLight = keyIntensity * smooth(-0.01, 0.01, key.y);
   for (let c = 0; c < 3; c++) {
     farGround[c] = (FAR_ALBEDO[c] / Math.PI) * skyLight[c] * ambient;
@@ -664,6 +684,7 @@ export function skyLookFor(
     elevation,
     moon,
     moonLit: moonAt.lit,
+    moonDisc: dark.disc,
     zenith,
     horizon,
     glow,
@@ -695,9 +716,11 @@ export function skyLookFor(
     clouds: { ...clouds, show: inFog ? 0 : 1, shade: field.layers.map(() => 1) },
     sea: { colour: clouds.sea, top: 0, base: NO_BASE, k: 0 },
     night,
-    stars: smooth(0.1, 0.26, -elevation) * (1 - 0.5 * moonUp * moonAt.lit) * clearNight,
-    galaxy:
-      smooth(0.2, 0.34, -elevation) * (1 - 0.85 * moonUp * moonAt.lit) * clearNight * clearNight,
+    stars: smooth(-1.6, 0, dark.starLimit) * clearNight,
+    starLimit: dark.starLimit,
+    skyMagnitude: dark.skyMagnitude,
+    nightRows: dark.rows,
+    galaxy: smooth(19.4, 21.2, dark.skyMagnitude) * clearNight * clearNight,
     turn: DEFAULT_TURN,
     flat: Math.min(1, (inFog ? FOG.flat : flatOf(thick)) + 0.08 * fall),
     glitter: inFog ? FOG.glitter : Math.pow(Math.min(1, (1 - thick) / 0.65), 1.4),
@@ -737,7 +760,9 @@ export function skyLookAt(
 ): SkyLook {
   const sky = skyLevelAt(level, t, rate);
   const sun = sunAtRun(sky);
-  const moon = moonAtRun(sky);
+  const at0 = moonAtRun(sky);
+  // The moon's distance that instant: its size and its light.
+  const moon = { ...at0, distance: moonDistance(sky, at0.elevation) };
   const weather = weatherOf(level);
   const field = fieldOf(level);
   const at = (w: Weather, f: typeof field = field): SkyLook => {

@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Snow lab harness</title>
+    <!-- Tooling page for scripts/snowlab-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It rides
+         the snow lab's scenes (a carve, stops on skis and a board, a powder
+         turn, a fall's crater, the track from the chase lens) through the
+         game's own renderer under two suns, with the deformable snow on or
+         off, and photographs them as one labelled sheet. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+      }
+      #stage {
+        position: absolute;
+        left: -10000px;
+      }
+      #sheet {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <canvas id="sheet"></canvas>
+    <script type="module" src="/src/tools/snowlab-harness.ts"></script>
+  </body>
+</html>

@@ -77,6 +77,7 @@ import {
 import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
 import { hideSlices, runsOf, SLICE_OF_GROUP, thrownEffects, type Rider } from "./renderer-rider.ts";
+import { hideBehind } from "./rider-cull.ts";
 import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
@@ -119,6 +120,7 @@ import { aloftLook } from "./view-aloft.ts";
 import { tallyScene } from "./scene-tally.ts";
 import { createTerrain, type Terrain } from "./terrain.ts";
 import { setSummerLook, summerOptions, summerShown as summer } from "./summer-terrain.ts";
+import { createDeformSnow, DEFORM_LOOK, deformShown, type DeformSnow } from "./deform-snow.ts";
 import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
@@ -173,13 +175,6 @@ const FAR = 6000;
 /** How much of the player's own snow cloud the chase lens sees between
  * itself and him (`snow-cloud.ts`'s veil). */
 const CLOUD_VEIL = 0.12;
-/** A RIVAL is drawn until he is this far BEHIND the lens, m, along its
- * axis: a rider passing the lens is seen going by and out of the frame's
- * edge, never dropped out of the middle of the picture while he is still in
- * it. Past this he is wholly behind the near plane and costs a draw for
- * nothing. */
-const LENS_BEHIND = 1;
-const lensAxis = new THREE.Vector3();
 
 export function createWorldRenderer(
   canvas: HTMLCanvasElement,
@@ -238,6 +233,7 @@ export function createWorldRenderer(
   let gates: Gates | null = null;
   let lifts: Lifts | null = null;
   let trail: TrailMap | null = null;
+  let deform: DeformSnow | null = null; // the snow round him as a volume (`deform-snow.ts`)
   let spray: Spray | null = null;
   let cloud: SnowCloud | null = null;
   /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
@@ -333,6 +329,8 @@ export function createWorldRenderer(
     gates?.dispose();
     lifts?.dispose();
     trail?.dispose();
+    deform?.dispose();
+    deform = null;
     spray?.dispose();
     cloud?.dispose();
     wildlife?.dispose();
@@ -391,7 +389,11 @@ export function createWorldRenderer(
   }
   function buildTerrain(lv: Level, map: TrailMap): Terrain {
     const look = terrainLook(video.terrain); // the whole reach: aloft draws past the stop's view
-    const ground = createTerrain(lv, env.haze, map.uniforms, summerOptions(look, lv, video));
+    deform?.dispose();
+    const on = TRAIL_LOOK[video.trails].stamp && !summer() && deformShown();
+    deform = on ? createDeformSnow(DEFORM_LOOK[video.terrain], map.uniforms) : null;
+    const options = { ...summerOptions(look, lv, video), deform: deform?.look };
+    const ground = createTerrain(lv, env.haze, map.uniforms, options);
     ground.group.name = "terrain";
     scene.add(ground.group);
     return ground;
@@ -586,6 +588,7 @@ export function createWorldRenderer(
         filled = state.fresh;
         if (lastState !== null) {
           trail.clear(gl);
+          deform?.clear();
           spray.clear();
           cloud.clear();
           wildlife?.reset();
@@ -640,6 +643,7 @@ export function createWorldRenderer(
           run.plane?.rider ? true : inStartGate(run),
           run.tricks,
         );
+        const own = i === 0 ? stamps.length : -1; // where his own stamps begin
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp && !summer()) {
           stampsOf(
             skier.contacts,
@@ -659,9 +663,11 @@ export function createWorldRenderer(
           landed = Math.abs(r.vy) + r.airTime * 2;
         }
         if ((simDt > 0 || landed > 0) && !run.plane?.rider && !onRope && !summer()) {
-          spray.emit(skier, level, simDt, landed, thrownSnow(skier.x, skier.z));
+          const sheet = own >= 0 && deform ? 0 : simDt; // his is his cut's (`deform-snow.ts`)
+          spray.emit(skier, level, sheet, landed, thrownSnow(skier.x, skier.z));
           cloud.emit(skier, simDt, landed, thrownSnow);
         }
+        const skis = own >= 0 ? stamps.slice(own) : null;
         if (level && spray && cloud && !summer()) {
           const stamp = TRAIL_LOOK[video.trails].stamp ? stamps : null;
           const off = skier.thrown;
@@ -674,6 +680,10 @@ export function createWorldRenderer(
             stamps: stamp,
             sampleSnow,
           });
+        }
+        if (skis && deform && simDt > 0) {
+          const body = stamps.slice(own + skis.length);
+          deform.press(skier, level, skis, body, thrownSnow, spray.fling);
         }
         r.wasAirborne = skier.airborne;
         r.airTime = skier.airborne ? skier.airTime : r.airTime * (skier.airborne ? 1 : 0);
@@ -736,15 +746,8 @@ export function createWorldRenderer(
       if (looked && !planted && lens.rung() !== "orbit") aimLens(lens.camera, looked);
       afterski.sway(lens.camera, state, lens.rung(), planted !== null);
 
-      // A rival clear behind the lens is left out of this frame.
       const eye = lens.camera.position;
-      lensAxis.set(0, 0, -1).applyQuaternion(lens.camera.quaternion);
-      for (let i = 1; i < riders.length; i++) {
-        const at = riders[i].drawn;
-        const ahead =
-          (at.x - eye.x) * lensAxis.x + (at.y - eye.y) * lensAxis.y + (at.z - eye.z) * lensAxis.z;
-        riders[i].model.root.visible = ahead > -LENS_BEHIND;
-      }
+      hideBehind(riders, lens.camera); // a rival clear behind the lens is left out
 
       const posed = performance.now();
       const fine = trail.uniforms;
@@ -757,6 +760,7 @@ export function createWorldRenderer(
       );
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
+      deform?.update(skier, !hidden.has("trail"));
       // THE NEW SNOW: it settles into every trail and buries the groomer.
       if (state.fresh > filled && !hidden.has("trail")) {
         trail.fill(gl, state.fresh - filled);

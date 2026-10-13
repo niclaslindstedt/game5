@@ -65,6 +65,8 @@
 import { FAR_RIM_GLSL } from "./far-ranges-plan.ts";
 import { LAMP_SLOTS } from "./haze.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
+import { DEFORM_SHADE_GLSL } from "./deform-glsl.ts";
+import { SNOW_GLINTS_GLSL, SNOW_NOISE_GLSL } from "./snow-noise-glsl.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
 import { PISTE_TRACKS_GLSL } from "./piste-tracks.ts";
@@ -99,6 +101,10 @@ uniform float uGridHalf;
 uniform float uBaseSpacing;
 uniform vec4 uHole;
 uniform sampler2D uGround;
+// 1 on the deformable snow's own mesh (\`deform-snow.ts\`); the relief's
+// filter is level 0's everywhere (\`uReliefHalf\`), so its rim meets it.
+uniform float uDeformMesh;
+uniform float uReliefHalf;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
@@ -151,7 +157,7 @@ export const SNOW_VERTEX_PLACE = /* glsl */ `
 vec2 snowGrid = position.xz;
 vec2 snowLocal = (snowGrid - uGridHalf) * uSpacing;
 float snowEdge = max(abs(snowLocal.x), abs(snowLocal.y)) / (uGridHalf * uSpacing);
-float snowMorph = clamp((snowEdge - 0.72) / 0.2, 0.0, 1.0);
+float snowMorph = clamp((snowEdge - 0.72) / 0.2, 0.0, 1.0) * (1.0 - uDeformMesh);
 vec2 snowXZ = uLevelCentre + snowLocal - mod(snowGrid, 2.0) * uSpacing * snowMorph;
 // The furrow, low-passed to what the mesh can carry here. Close in, a tent
 // filter over the fine map a vertex's spacing wide — enough for the skis's
@@ -160,7 +166,7 @@ vec2 snowXZ = uLevelCentre + snowLocal - mod(snowGrid, 2.0) * uSpacing * snowMor
 // per-pixel normal (fragment half) draws everything this leaves out. The
 // filter's width is a function of the DISTANCE, not of the level, so two
 // levels meeting at a vertex compute the same height there.
-float snowR = max(uBaseSpacing, distance(snowXZ, cameraPosition.xz) / uGridHalf);
+float snowR = max(uBaseSpacing, distance(snowXZ, cameraPosition.xz) / uReliefHalf);
 float snowRelief;
 {
   vec2 t = textureLod(uTrailCoarse, snowXZ / uMapSize, 0.0).rg * uTrailScale;
@@ -176,6 +182,12 @@ float snowRelief;
     }
   }
   snowRelief = mix(coarseRelief, fineRelief, nearW);
+  // ON THE DEFORMABLE SNOW'S MESH: the field itself, a vertex a cell —
+  // every cut, heap and crater as the geometry it is.
+  if (uDeformMesh > 0.5) {
+    float dwv = deformWeight(snowXZ);
+    if (dwv > 0.0) snowRelief = mix(snowRelief, trailRelief(snowXZ), dwv);
+  }
 }
 // THE LOOSE COVER: powder stands a hand higher than the groomed track, so
 // the track's shoulders are a real edge the light picks out. (The engine's
@@ -200,7 +212,9 @@ float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - s
 // of its edge (the morph's last 8 %), so the seam is one surface.
 if (uHole.w > 0.5) {
   vec2 dh = abs(snowXZ - uHole.xy);
-  if (max(dh.x, dh.y) <= uHole.z - uSpacing + 0.01 * uSpacing) snowY -= 2.0 * uSpacing;
+  // Sunk at least a metre and a half under the deformable snow's mesh
+  // (\`uHole.w\` past 1: a crater goes deeper than two cells of level 0).
+  if (max(dh.x, dh.y) <= uHole.z - uSpacing + 0.01 * uSpacing) snowY -= max(2.0 * uSpacing, uHole.w - 1.0);
 }
 // THE MESH'S NORMAL. The snow's shading never reads it — the fragment
 // half lights every pixel by its own normal off the GROUND map's slope —
@@ -252,53 +266,14 @@ uniform vec2 uWindDir;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
+${DEFORM_SHADE_GLSL}
 ${WELL_GLSL}
 ${SLIDE_GLSL}
 
-vec3 snowHash3(vec3 p) {
-  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
-  p += dot(p, p.yxz + 33.33);
-  return fract((p.xxy + p.yxx) * p.zyx);
-}
-float snowHash1(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
-}
-float snowNoise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(snowHash1(i), snowHash1(i + vec2(1, 0)), u.x),
-             mix(snowHash1(i + vec2(0, 1)), snowHash1(i + vec2(1, 1)), u.x), u.y);
-}
-// The gradient of value noise, by finite difference — cheap enough for the
-// three octaves the micro-relief uses.
-vec2 snowNoiseGrad(vec2 p, float e) {
-  return vec2(snowNoise(p + vec2(e, 0.0)) - snowNoise(p - vec2(e, 0.0)),
-              snowNoise(p + vec2(0.0, e)) - snowNoise(p - vec2(0.0, e))) / (2.0 * e);
-}
+${SNOW_NOISE_GLSL}
 ${SLIDE_LUMPS}
 
-// ONE LAYER OF CRYSTALS: a cell of world space holds at most one, at a
-// random place in it with a random facet; it flares when that facet lines
-// the sun up with the eye. Drawn as a POINT — a disc at least a pixel
-// across, its brightness scaled down as it is widened — rather than as the
-// whole cell, which reads as confetti.
-float snowGlints(vec3 wp, float scale, float sharp, float keep, vec3 N, vec3 H, float seed) {
-  vec3 q = wp * scale;
-  vec3 cell = floor(q);
-  vec3 r = snowHash3(cell + seed);
-  if (r.z > keep) return 0.0;
-  vec3 facet = normalize(N + (snowHash3(cell + seed + 7.13) * 2.0 - 1.0) * 0.6);
-  float g = pow(max(dot(facet, H), 0.0), sharp);
-  vec3 f = fract(q) - (0.2 + 0.6 * r);
-  float rad = max(0.14, length(fwidth(q)) * 0.75);
-  float spot = 1.0 - smoothstep(rad * 0.45, rad, length(f));
-  float k = 0.14 / rad;
-  return g * spot * k * k;
-}
-
+${SNOW_GLINTS_GLSL}
 // Per-fragment state the later grafts read.
 vec3 snowN;          // world normal
 float snowDist;      // metres from the lens
@@ -312,6 +287,7 @@ float snowCrust;     // 0 powder .. 1 a wind slab (R21)
 float snowIce;       // 0 snow .. 1 a frozen river's bare ice (R21)
 float snowRock;      // 0 snow .. 1 rock showing through a steep face
 float snowGroomed;   // 0 .. 1 a piste machine's fresh swath (trailPackAt)
+float snowSelf;      // 0 .. 1 the sun let through by the deformable snow's own relief
 float snowBelt;      // 0 .. 1 a snowmobile's belt-packed floor (trailPackAt)
 float snowLug;       // 0 .. 1 down in a paddle's imprint across that floor
 float snowWorked;    // 0 .. 1 the day's skied-up piste (the hour's, or a night they groom)
@@ -442,7 +418,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   snowWallUp = vec2(0.0);
   if (snowDist < 220.0) {
     float fineW = trailFineWeight(p);
-    float e = mix(uCoarseTexel, uFineTexel * 0.75, fineW);
+    float e = mix(mix(uCoarseTexel, uFineTexel * 0.75, fineW), uDeformBox.w, deformWeight(p));
     vec2 tg = vec2(trailRelief(p + vec2(e, 0.0)) - trailRelief(p - vec2(e, 0.0)),
                    trailRelief(p + vec2(0.0, e)) - trailRelief(p - vec2(0.0, e))) / (2.0 * e);
     tg *= 1.0 - smoothstep(120.0, 220.0, snowDist);
@@ -450,6 +426,9 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     snowWallUp = tg;
     grad += tg;
   }
+
+  // The sun the deformable snow's own relief hides (\`deform-glsl.ts\`).
+  snowSelf = deformSelf(p, uSunDir, g.rg, snowDist);
 
   // THE THREE DEPTHS OF A TRAIL, off the depth the map holds here: a
   // groomer's or a crust's SCUFF a centimetre or two deep — two pencil lines
@@ -862,6 +841,10 @@ normal = normalize((viewMatrix * vec4(snowN, 0.0)).xyz);
  * snow in a beam glitters toward the lamp as it does toward the sun, which
  * is what makes a lit pool of snow read as snow at night. */
 export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
+// The sun the deformable snow's relief hides (\`snowSelf\`): only the key
+// has been gathered into the direct terms yet.
+reflectedLight.directDiffuse *= snowSelf;
+reflectedLight.directSpecular *= snowSelf;
 {
   vec3 lidDir = normalize(vec3(uSunPos.x, 2.2, uSunPos.z));
   float facing = clamp(dot(snowN, lidDir) / lidDir.y, 0.0, 1.3);
@@ -930,7 +913,7 @@ export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
 }
 #if NUM_DIR_LIGHTS > 0
 {
-  vec3 sunLit = directLight.color;
+  vec3 sunLit = directLight.color * snowSelf;
   float ndl = dot(snowN, uSunDir);
   // Wrap: what the terminator gains, tinted the blue of light that has been
   // through a few centimetres of ice.

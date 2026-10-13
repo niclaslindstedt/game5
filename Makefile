@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike-park bike-look bike-ride title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
+.PHONY: bike-park bike-look bike-ride title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns snowlab technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
 
 build:
 	npm run build
@@ -557,6 +557,17 @@ spray:
 # ARGS="--where=meadow --moves=carve".
 turns:
 	npm run turns -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE SNOW LAB: the snow as skis and a board work it, through the game's
+# own renderer — a carve on the groomer, a hockey stop on skis, a board's
+# heel and toe stops, a powder turn, a fall's crater and the track from the
+# chase lens, under the day's sun and a low one — with the deformable snow
+# (deform-snow.ts) on and off: previews/snowlab-<seed>-on.png and -off.png.
+# ARGS=--perf times a frame at each preset, on and off. Its own one-off
+# bundle from pwa/snowlab-preview.html; needs a Chromium like `world`.
+# SEED=n; ARGS="--scenes=stop,powder --suns=26".
+snowlab:
+	npm run snowlab -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE TECHNIQUE LAB: how each riding technique (defs/technique.ts — free,
 # slalom, giant slalom, super-G, downhill) LOOKS and MEASURES, skied by the

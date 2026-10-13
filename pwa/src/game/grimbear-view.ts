@@ -10,7 +10,14 @@
 import * as THREE from "three";
 import type { GameState, Level } from "@engine";
 
-import { freshGrimbearPose, grimbearPose } from "./grimbear-pose.ts";
+import {
+  GRIMBEAR_BLEND,
+  freshGrimbearPose,
+  grimbearMove,
+  grimbearPose,
+  mixGrimbearPose,
+  type GrimbearMove,
+} from "./grimbear-pose.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 
 export type GrimbearView = {
@@ -27,6 +34,31 @@ const SHIN = 0.5;
 const TRUNK = 0.86;
 const UPPER = 0.48;
 const FORE = 0.46;
+/** How fast the way he is drawn facing follows the way the engine has him
+ * facing, rad/s: a critically damped spring, so a turn the engine makes
+ * in a step (the dive's aim, the pull-up turned on the skier) is drawn
+ * swung round over a moment, never in a frame. */
+const TURN_RATE = 9;
+/** The fastest he turns, rad/s (`GRIMBEAR.turn` and a margin): a turn
+ * faster than this between two frames is a jump. */
+const TURN_MOST = 7;
+/** How fast the place he is drawn at follows the engine's, 1/s: a spring
+ * on the gap fed his own velocity, so a steady run is drawn where he is
+ * and a change of course made in a step (the dive aimed aside, the clear
+ * gap kept off the skier) is drawn as a swerve. */
+const FOLLOW = 10;
+/** A frame further apart than this, s (a pause, a replay's seek), is a cut:
+ * the figure is drawn as the engine has him. */
+const CUT = 0.25;
+
+function smooth(x: number): number {
+  const u = x < 0 ? 0 : x > 1 ? 1 : x;
+  return u * u * (3 - 2 * u);
+}
+
+function wrap(a: number): number {
+  return a - Math.round(a / (Math.PI * 2)) * Math.PI * 2;
+}
 
 export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearView {
   const geometries: THREE.BufferGeometry[] = [];
@@ -76,8 +108,18 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     m.castShadow = true;
     return m;
   };
-  const joint = (x: number, y: number, z: number, parent: THREE.Object3D): THREE.Group => {
+  /** A pivot, NAMED (`hips`, `knee_l`, …) so a lab can read where each of
+   * his joints is drawn (the jolt lab's `wild` family) — a name and an
+   * empty marker draw nothing. */
+  const joint = (
+    x: number,
+    y: number,
+    z: number,
+    parent: THREE.Object3D,
+    name = "",
+  ): THREE.Group => {
     const g = new THREE.Group();
+    g.name = name;
     g.position.set(x, y, z);
     parent.add(g);
     return g;
@@ -115,12 +157,12 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     m.rotation.z = x * 1.2;
     parent.add(m);
   };
-  const hips = joint(0, HIP, 0, group);
+  const hips = joint(0, HIP, 0, group, "hips");
   hips.add(mesh(lump(0.34, 0.22, 0.27), fur, 0, 0.02, 0));
   // THE TRUNK, leant from the hips: a bear's pot belly and barrel chest, the
   // grizzled hump over the shoulders, a ruff at the throat and shag down
   // the flanks and the back.
-  const trunk = joint(0, 0.05, 0, hips);
+  const trunk = joint(0, 0.05, 0, hips, "trunk");
   trunk.add(mesh(lump(0.44, 0.4, 0.4), fur, 0, TRUNK * 0.32, 0.06));
   trunk.add(mesh(lump(0.5, 0.38, 0.4), fur, 0, TRUNK * 0.7, 0.02));
   trunk.add(mesh(lump(0.44, 0.19, 0.34), mantle, 0, TRUNK * 0.9, -0.08));
@@ -134,7 +176,8 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   // bear's is: the broad skull, the brow, the long pale muzzle, the round
   // ears.
   trunk.add(mesh(lump(0.22, 0.2, 0.24), fur, 0, TRUNK * 0.86, 0.2));
-  const head = joint(0, TRUNK * 0.92, 0.32, trunk);
+  const head = joint(0, TRUNK * 0.92, 0.32, trunk, "head");
+  joint(0, 0.07, 0.44, head, "snout");
   // The neck's root inside the head, so the head can nod off the trunk
   // without a gap opening at the nape.
   head.add(mesh(lump(0.19, 0.17, 0.2), fur, 0, -0.02, -0.08));
@@ -170,7 +213,7 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     small.scale.setScalar(0.55);
     head.add(small);
   }
-  const jaw = joint(0, -0.03, 0.14, head);
+  const jaw = joint(0, -0.03, 0.14, head, "jaw");
   jaw.add(mesh(lump(0.1, 0.045, 0.14), pale, 0, -0.02, 0.1));
   for (const side of [-1, 1]) {
     const m = mesh(tusk, ivory, side * 0.11, 0.05, 0.2);
@@ -184,13 +227,14 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
   claw.rotateX(Math.PI);
   geometries.push(claw);
   const arms = [-1, 1].map((side) => {
-    const spread = joint(side * 0.5, TRUNK * 0.74, 0, trunk);
+    const lr = side > 0 ? "l" : "r";
+    const spread = joint(side * 0.5, TRUNK * 0.74, 0, trunk, `shoulder_${lr}`);
     // The shoulder: a ball the arm turns in, rounded into the trunk.
     ball(spread, 0.18);
     const swing = joint(0, 0, 0, spread);
     swing.add(mesh(limb(0.15, 0.12, UPPER), fur, 0, 0, 0));
     swing.add(mesh(lump(0.14, 0.21, 0.14), fur, 0, -UPPER * 0.4, 0));
-    const elbow = joint(0, -UPPER, 0, swing);
+    const elbow = joint(0, -UPPER, 0, swing, `elbow_${lr}`);
     ball(elbow, 0.125);
     elbow.add(mesh(limb(0.12, 0.1, FORE), fur, 0, 0, 0));
     elbow.add(mesh(lump(0.1, 0.1, 0.1), fur, 0, -FORE, 0.01));
@@ -199,16 +243,18 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
     for (let k = 0; k < 4; k++) {
       elbow.add(mesh(claw, horn, (k - 1.5) * 0.045, -FORE - 0.15, 0.09));
     }
+    joint(0, -FORE - 0.15, 0.09, elbow, `claws_${lr}`);
     return { spread, swing, elbow, side };
   });
   // THE LEGS: a man's, to run on — the long thigh, the knee, the shin — in
   // a bear's heavy hams and shaggy calves, on broad clawed feet.
   const legs = [-1, 1].map((side) => {
-    const hip = joint(side * 0.19, 0, 0, hips);
+    const lr = side > 0 ? "l" : "r";
+    const hip = joint(side * 0.19, 0, 0, hips, `hip_${lr}`);
     ball(hip, 0.2);
     hip.add(mesh(limb(0.19, 0.13, THIGH), fur, 0, 0, 0));
     hip.add(mesh(lump(0.17, 0.24, 0.18), fur, 0, -THIGH * 0.42, 0));
-    const knee = joint(0, -THIGH, 0, hip);
+    const knee = joint(0, -THIGH, 0, hip, `knee_${lr}`);
     ball(knee, 0.135);
     knee.add(mesh(limb(0.13, 0.1, SHIN), fur, 0, 0, 0));
     // The calf's belly behind the shin, so the leg is round, not a plank.
@@ -221,19 +267,120 @@ export function createGrimbearView(level: Level, haze: HazeUniforms): GrimbearVi
       m.rotation.x = -Math.PI / 2;
       knee.add(m);
     }
+    joint(0, -SHIN, 0, knee, `ankle_${lr}`);
+    joint(0, -SHIN - 0.04, 0.28, knee, `toes_${lr}`);
     return { hip, knee };
   });
 
   const pose = freshGrimbearPose();
+  const was = freshGrimbearPose();
+  /** THE HAND-OFF between moves: every move he was drawn in lately, the
+   * newest last, each faded in over `GRIMBEAR_BLEND` s from when it began —
+   * so a burst, a dive, a catch or a pull-up is a move rather than a jump,
+   * and a move cut short mid-fade (a dive's stumble pulled up) still
+   * fades. A move given up is carried on at the stride, pace and clock it
+   * had, whatever the engine does with them next. */
+  type Layer = {
+    move: GrimbearMove;
+    start: number;
+    ended: number;
+    t: number;
+    stride: number;
+    speed: number;
+  };
+  const layers: Layer[] = [];
+  /** The figure's own clock, s: the run's, but a cut starts it afresh. */
+  let now = 0;
+  let shown: GrimbearMove = "away";
+  /** The heading drawn and how fast it is turning, rad and rad/s. */
+  let face = 0;
+  let turn = 0;
+  let aim = 0;
+  /** The place drawn and its velocity, m and m/s. */
+  let px = 0;
+  let pz = 0;
+  let pvx = 0;
+  let pvz = 0;
+  let clock = -Infinity;
   return {
     group,
     update(state) {
       const b = state.grimbear;
       group.visible = b !== undefined && b.phase !== "away";
-      if (!b || !group.visible) return;
-      group.position.set(b.x, level.groundAt(b.x, b.z), b.z);
-      group.rotation.y = b.heading;
-      grimbearPose(b.phase, b.stride, b.speed, b.t, pose);
+      if (!b || !group.visible) {
+        shown = "away";
+        return;
+      }
+      const dt = state.t - clock;
+      clock = state.t;
+      const cut = !(dt >= 0 && dt <= CUT) || shown === "away";
+      const move = grimbearMove(b.phase, b.speed);
+      if (cut) {
+        layers.length = 0;
+        now = 0;
+      } else now += dt;
+      const top = layers[layers.length - 1];
+      if (move !== shown || !top) {
+        if (top) top.ended = now - dt;
+        // The oldest is dropped once nothing under the newest shows.
+        if (layers.length === 4) layers.shift();
+        layers.push({
+          move,
+          start: cut ? now - GRIMBEAR_BLEND : now - dt,
+          ended: Infinity,
+          t: 0,
+          stride: 0,
+          speed: 0,
+        });
+        shown = move;
+      }
+      while (layers.length > 1 && now - layers[1].start >= GRIMBEAR_BLEND) layers.shift();
+      const live = layers[layers.length - 1];
+      const ux = Math.sin(b.heading) * b.speed;
+      const uz = Math.cos(b.heading) * b.speed;
+      if (cut) {
+        face = b.heading;
+        turn = 0;
+        px = b.x;
+        pz = b.z;
+        pvx = ux;
+        pvz = uz;
+      } else {
+        const n = Math.max(1, Math.ceil(dt * 240));
+        const h = dt / n;
+        for (let i = 0; i < n; i++) {
+          pvx += (FOLLOW * FOLLOW * (b.x - px) + 2 * FOLLOW * (ux - pvx)) * h;
+          pvz += (FOLLOW * FOLLOW * (b.z - pz) + 2 * FOLLOW * (uz - pvz)) * h;
+          px += pvx * h;
+          pz += pvz * h;
+        }
+        // His own turning fed forward — a turn faster than he can run one
+        // is a jump the engine made in a step, and is swung round instead.
+        let rate = dt > 0 ? wrap(b.heading - aim) / dt : 0;
+        if (Math.abs(rate) > TURN_MOST) rate = 0;
+        const k = TURN_RATE;
+        for (let i = 0; i < n; i++) {
+          const err = wrap(b.heading - face);
+          turn += (k * k * err + 2 * k * (rate - turn)) * h;
+          face += turn * h;
+        }
+      }
+      aim = b.heading;
+      group.position.set(px, level.groundAt(px, pz), pz);
+      group.rotation.y = face;
+      for (let i = 0; i < layers.length; i++) {
+        const l = layers[i];
+        const into = i === 0 ? pose : was;
+        if (l === live) grimbearPose(l.move, b.stride, b.speed, b.t, into);
+        else {
+          const on = now - l.ended;
+          grimbearPose(l.move, l.stride + l.speed * on, l.speed, l.t + on, into);
+        }
+        if (i > 0) mixGrimbearPose(pose, was, smooth((now - l.start) / GRIMBEAR_BLEND));
+      }
+      live.t = b.t;
+      live.stride = b.stride;
+      live.speed = b.speed;
       // The hips come down as the knees fold under him.
       hips.position.y = HIP + pose.bob;
       trunk.rotation.x = pose.lean;

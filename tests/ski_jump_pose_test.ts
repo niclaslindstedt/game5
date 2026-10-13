@@ -202,6 +202,8 @@ describe("every other mode, unmoved", () => {
 });
 
 // Taken off the tree before the jumper was drawn (the dress re-cut when the
-// gauntlet cuff was fitted over the sleeve).
+// gauntlet cuff was fitted over the sleeve, and again when a straight limb's
+// bone kept the face its knee or elbow folds to — `skier-rig.ts`'s
+// `limbBend`, which re-seats the legs' and cuffs' rings a few cm).
 const POSES_HASH = "49773418";
-const DRESS_HASH = "15d7bd71";
+const DRESS_HASH = "c040fa6d";

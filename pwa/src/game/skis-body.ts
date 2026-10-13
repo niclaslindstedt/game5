@@ -55,7 +55,12 @@ import { createChatter, shakeStand, stepChatter } from "./ski-chatter.ts";
 import { outfitKey } from "./dress.ts";
 import { DEFAULT_OUTFIT, jumpKit, RIVAL_OUTFITS } from "./outfit.ts";
 import { PATTERNS, TOPSHEETS, type PatternId, type Topsheet } from "./ski-topsheets.ts";
-import { createSkier, type SkierDress, type SkierFigure } from "./skier-figure.ts";
+import {
+  createFigureHandOff,
+  createSkier,
+  type SkierDress,
+  type SkierFigure,
+} from "./skier-figure.ts";
 import { doorReach, reachPose } from "./door-reach.ts";
 import { kickStand } from "./slalom-start.ts";
 import { attachModels, isBootPart } from "./skier-models.ts";
@@ -467,7 +472,10 @@ export function createSkisModel(
     y: { x: 0, y: 1, z: 0 },
     z: { x: 0, y: 0, z: 1 },
   };
-  const lay = (p: SkierPose) => figure.sprawl(p); // A wingsuit flyer's (`wingsuit-body.ts`).
+  // A wingsuit flyer's (`wingsuit-body.ts`), each stage of his jump its own
+  // way of drawing him, handed to the next over a moment.
+  let flyerWay = "";
+  const lay = (p: SkierPose) => figure.sprawl(handed(p, flyerWay));
   const flight = wings && { root, group: figure.group, lay, dressed: figure.dressed, frame, wings };
   // The merged draw's bound: the pair's own, grown while he lies away from it.
   const bound = merged.mesh.geometry.boundingSphere!;
@@ -497,6 +505,11 @@ export function createSkisModel(
   const reachAt = new THREE.Vector3();
   // Whether his legs' spring has been set back to rest since he was thrown.
   let rested = false;
+  // THE HAND-OFF between the ways he is drawn — riding, thrown, on his
+  // feet (`pose-handoff.ts`): the last frame's body eased into the next.
+  const hand = createFigureHandOff(root, figure.group);
+  let handDt = 0;
+  const handed = (p: SkierPose, mode: string): SkierPose => hand.handed(p, mode, handDt);
 
   return {
     root,
@@ -510,6 +523,7 @@ export function createSkisModel(
     },
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
       const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
+      handDt = dt;
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // In the suit the flyer's figure, but the rider's own on a craft before the jump.
@@ -518,6 +532,7 @@ export function createSkisModel(
         const shape = flyer ?? STOOD;
         const ground = fall ? fall.ground.groundAt(at.x, at.z) : null;
         const snow = flyerSnow(shape, root.position.y, ground, at.y);
+        flyerWay = `suit ${run?.chute?.mode ?? "ready"}`;
         poseFlyer(flight, shape, snow, run?.t ?? 0);
         bound.radius = BOUND + 1.2;
         merged.update();
@@ -636,7 +651,7 @@ export function createSkisModel(
         );
         thrown.setFromRotationMatrix(trunk);
         figure.group.quaternion.copy(toRoot).multiply(thrown);
-        figure.sprawl(p, goreLost, goreCrush);
+        figure.sprawl(handed(p, "thrown"), goreLost, goreCrush);
         bootsOn(walkBoots, p, unbooted, goreLost);
         wings?.pose(p, { pressure: 0, unzip: 0, t: run?.t ?? 0 });
         bound.radius = BOUND + figure.group.position.length();
@@ -661,7 +676,10 @@ export function createSkisModel(
           axis.z.set(frame.z.x, frame.z.y, frame.z.z),
         );
         figure.group.quaternion.setFromRotationMatrix(trunk);
-        figure.sprawl(p, 0, 0, town !== null);
+        // Each way of walking its own drawing, so a stage handed to the next
+        // (picking the pair up, setting off, clicking in) is eased over.
+        const way = stood ? "stood" : town ? `town ${town.phase}` : `fetch ${skier.fetch!.phase}`;
+        figure.sprawl(handed(p, way), 0, 0, town !== null);
         bootsOn(walkBoots, p, unbooted, goreLost);
       } else {
         if (bound.radius !== BOUND) {
@@ -758,6 +776,18 @@ export function createSkisModel(
                 return r.pose;
               }
             : broke;
+        // EACH WAY OF DRAWING HIM ON HIS SKIS its own (`pose-handoff.ts`): on a
+        // snowmobile's boards, hung off a skid or a harness, in a basket, a
+        // skydive's stage, a jumper's — so one handed to the next is eased
+        // over rather than switched in a frame (`make jolt`'s rides).
+        const way = [
+          "ride",
+          boarded ? "sled" : "",
+          hung ? "perch" : "",
+          inBasket ? "basket" : "",
+          skydive ? `sky ${run?.chute?.mode ?? ""}` : "",
+          jumper ? `jump ${jump?.stage ?? ""}` : "",
+        ].join(" ");
         const look = grindLook(skier.grind);
         const railed =
           grinding > 0.001 ? (p: SkierPose) => grindArms(arms ? arms(p) : p, look, grinding) : arms;
@@ -769,8 +799,10 @@ export function createSkisModel(
             .sub(root.position)
             .applyQuaternion(toBody.copy(root.quaternion).invert());
           const at = { x: reachAt.x, y: reachAt.y, z: reachAt.z };
-          figure.pose(input, seat, (p) => reachPose(railed ? railed(p) : p, at, door.weight));
-        } else figure.pose(input, seat, railed);
+          figure.pose(input, seat, (p) =>
+            handed(reachPose(railed ? railed(p) : p, at, door.weight), way),
+          );
+        } else figure.pose(input, seat, (p) => handed(railed ? railed(p) : p, way));
         if (swung.skis) swingStand(stand, swung.skis, swung.yaw);
         if (swung.pose) bootsOn(walkBoots, swung.pose, unbooted, goreLost);
       }

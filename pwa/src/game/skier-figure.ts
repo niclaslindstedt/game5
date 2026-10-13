@@ -16,6 +16,7 @@
 // or a powder pole's big basket.
 
 import * as THREE from "three";
+import { createHandOff, handOff, resetHandOff } from "./pose-handoff.ts";
 
 import { gearOf } from "./outfit.ts";
 import { createDressed, type Dressed, type SkierDress } from "./skier-dress.ts";
@@ -141,8 +142,9 @@ export function createSkier(
     }
     basketGeo.computeVertexNormals();
   }
-  const poleMeshes = [0, 1].map(() => {
+  const poleMeshes = [0, 1].map((i) => {
     const g = new THREE.Group();
+    g.name = i === 0 ? "pole_l" : "pole_r"; // what the labs find it by
     group.add(g);
     part(shaftGeo.clone(), shaft, g);
     part(gripGeo.clone(), grip, g);
@@ -223,5 +225,38 @@ export function createSkier(
       for (const m of mats) m.dispose();
       dressed.dispose();
     },
+  };
+}
+
+/** THE HAND-OFF for a figure whose `group` hangs off `root` (`pose-handoff.ts`):
+ * `handed(p, mode, dt)` is `p` as drawn the way `mode` names, `dt` s after
+ * the last frame — read off both objects' place and turn as they stand when
+ * it is called, so call it once they are set. */
+export function createFigureHandOff(
+  root: THREE.Object3D,
+  group: THREE.Object3D,
+): { handed(p: SkierPose, mode: string, dt: number): SkierPose; reset(): void } {
+  const hand = createHandOff();
+  const at = new THREE.Vector3();
+  const back = new THREE.Quaternion();
+  const toWorld = (v: V3): V3 => {
+    at.set(v.x, v.y, v.z)
+      .applyQuaternion(group.quaternion)
+      .add(group.position)
+      .applyQuaternion(root.quaternion)
+      .add(root.position);
+    return { x: at.x, y: at.y, z: at.z };
+  };
+  const toLocal = (v: V3): V3 => {
+    at.set(v.x, v.y, v.z)
+      .sub(root.position)
+      .applyQuaternion(back.copy(root.quaternion).invert())
+      .sub(group.position)
+      .applyQuaternion(back.copy(group.quaternion).invert());
+    return { x: at.x, y: at.y, z: at.z };
+  };
+  return {
+    handed: (p, mode, dt) => handOff(hand, p, mode, dt, toWorld, toLocal),
+    reset: () => resetHandOff(hand),
   };
 }

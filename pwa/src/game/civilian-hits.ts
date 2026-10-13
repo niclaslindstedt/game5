@@ -40,7 +40,8 @@ import {
   freshCivilianPose,
   type CivilianPose,
 } from "./civilian-plan.ts";
-import { knockOf, startTarget, stepKnock, strike, type Knock } from "./civilian-knock.ts";
+import { KNOCK, knockOf, startTarget, stepKnock, strike, type Knock } from "./civilian-knock.ts";
+import { CIVILIAN_POSES, civilianDials, dialsPoints, settled } from "./civilian-moves.ts";
 import { CROWD_LOOKS } from "./crowd-rig.ts";
 import { dogWalkerAt } from "./dog-walk-pose.ts";
 import { dogPlanFor } from "./dog-walk.ts";
@@ -114,6 +115,9 @@ export type Hitter = {
  * a moment and the circle he stays within (his round, or his place). */
 export type Person = {
   key: number;
+  /** His own phase as the view draws him (`civilianDials`' `id`; his key
+   * when left out). */
+  id?: number;
   body: CrowdBody;
   skis: boolean;
   /** Where he lives, for the cheap cull: a circle round all his round. */
@@ -138,6 +142,7 @@ export function peopleOf(level: Level, summer = false): Person[] {
     }
     return {
       key: i,
+      id: i,
       body: c.body,
       skis: c.skis,
       rx,
@@ -156,6 +161,7 @@ export function peopleOf(level: Level, summer = false): Person[] {
       if (!body) continue;
       out.push({
         key: out.length,
+        id: 9000 + hh.id * 2 + member,
         body,
         skis: false,
         // A dog walk goes round the village: no cull but the village's.
@@ -184,11 +190,20 @@ export function personOf(body: CrowdBody): Build {
 }
 
 /** The knocks a view keeps: every person knocked, by key, and the engine's
- * clock they were last stepped to. */
-export type Knocks = { map: Map<number, Knock>; t: number };
+ * clock they were last stepped to — and the ones lately over, when each
+ * person got home and the knock as it ended, so the view eases him back
+ * into his routine (kept `HOME_KEPT`). */
+export type Knocks = {
+  map: Map<number, Knock>;
+  t: number;
+  home: Map<number, { at: number; knock: Knock }>;
+};
+
+/** How long a knock over is kept in `Knocks.home`, s. */
+export const HOME_KEPT = 2;
 
 export function createKnocks(): Knocks {
-  return { map: new Map(), t: NaN };
+  return { map: new Map(), t: NaN, home: new Map() };
 }
 
 const round = (h: Partial<Hitter>): Hitter => ({
@@ -386,6 +401,7 @@ function overlaps(h: Hitter, hx: number, hz: number, px: number, pz: number, pr:
 }
 
 const pose = freshCivilianPose();
+const struckDials = new Float32Array(CIVILIAN_POSES.length);
 const hitters: Hitter[] = [];
 
 /** Each person's pose at the clock `collide` last asked, by key: a person
@@ -420,6 +436,7 @@ export function updateKnocks(knocks: Knocks, state: GameState, people: readonly 
   const t = state.t;
   if (!(t >= knocks.t)) {
     knocks.map.clear();
+    knocks.home.clear();
     knocks.t = t;
   }
   const span = Math.min(0.2, t - knocks.t);
@@ -443,10 +460,14 @@ export function stepKnocks(
         people[key].at(at, pose);
         home = pose.shown ? { x: pose.x, z: pose.z } : null;
       }
-      if (!stepKnock(state, k, home)) knocks.map.delete(key);
+      if (!stepKnock(state, k, home)) {
+        knocks.map.delete(key);
+        knocks.home.set(key, { at, knock: k });
+      }
     }
   }
   knocks.t += steps * dt;
+  for (const [key, h] of knocks.home) if (knocks.t - h.at > HOME_KEPT) knocks.home.delete(key);
 }
 
 /**
@@ -534,15 +555,14 @@ export function collide(
       if (!knock) {
         if (knocks.map.size >= KNOCK_HIT.most || Math.hypot(dvx, dvz) < 0.05) continue;
         const o = poseAt(people, person, t);
-        knock = knockOf(
-          state,
-          px,
-          pz,
-          o.heading,
-          startTarget(o.activity, o.seat),
-          person.skis,
-          person.body,
-        );
+        const target = startTarget(o.activity, o.seat);
+        // Stood on his feet, the ragdoll takes over the pose he was drawn in.
+        let drawn: number[] | null = null;
+        if (target === "stand" && !person.skis) {
+          civilianDials(o, t, person.id ?? person.key, struckDials);
+          drawn = dialsPoints(struckDials);
+        }
+        knock = knockOf(state, px, pz, o.heading, target, person.skis, person.body, drawn);
         knocks.map.set(person.key, knock);
       }
       strike(knock, dvx, dvz, h.high, h.lift);
@@ -565,4 +585,70 @@ export function collide(
  * camera's and the labs'. */
 export function knockCentre(k: Knock): { x: number; y: number; z: number } {
   return centreOf(k.rag.points);
+}
+
+/** WALKING BACK TO HIS ROUTINE: a knocked person up again drawn as a
+ * civilian walking where he walks (`floor` his feet's height), into `out`. */
+export function walkBackPose(k: Knock, floor: number, out: CivilianPose): CivilianPose {
+  out.x = k.bx;
+  out.z = k.bz;
+  out.y = floor;
+  out.heading = k.heading;
+  out.activity = "walk";
+  out.walked = k.walked;
+  out.clock = k.walked;
+  out.span = 1;
+  out.carry = "none";
+  out.seat = null;
+  out.bag = false;
+  out.shown = true;
+  out.since = Infinity;
+  return out;
+}
+
+/** UP AND SETTING OFF BACK: the walk back eased in from the stood he got
+ * up to, over its first moment — `from` filled with him stood, and the
+ * share of the walk returned (1 past it, `from` left alone). */
+export function backFrom(k: Knock, pose: CivilianPose, from: CivilianPose): number {
+  const share = settled(k.t);
+  if (share >= 1) return 1;
+  walkBackPose(k, pose.y, from);
+  // Stood square, as the get-up left him: no move begun (a stoop at its
+  // start draws the stance itself, where a stand would sway him).
+  from.activity = "stoop";
+  from.clock = 0;
+  return share;
+}
+
+/** How long a person home from a knock is eased back into his routine, s:
+ * where he stands, the way he faces and his pose. */
+export const HOME_SETTLE = 0.6;
+
+const turnTo = (a: number, b: number): number => Math.atan2(Math.sin(b - a), Math.cos(b - a));
+
+/**
+ * HOME FROM A KNOCK: person `key`, whose routine has him at `pose` at `t`,
+ * eased in from the walk back that brought him there — `pose`'s place and
+ * heading blended from where the walk ended, `from` filled with the walk
+ * (its stride carried on), and the share of `pose` returned (1 when he was
+ * not lately knocked, and `from` left alone).
+ */
+export function homeFrom(
+  knocks: Knocks,
+  key: number,
+  t: number,
+  pose: CivilianPose,
+  from: CivilianPose,
+): number {
+  const h = knocks.home.get(key);
+  if (!h || t < h.at) return 1;
+  const share = settled(t - h.at, HOME_SETTLE);
+  if (share >= 1) return 1;
+  walkBackPose(h.knock, pose.y, from);
+  from.walked += KNOCK.back * (t - h.at) * (1 - share);
+  from.clock = from.walked;
+  pose.x = from.x + (pose.x - from.x) * share;
+  pose.z = from.z + (pose.z - from.z) * share;
+  pose.heading = from.heading + turnTo(from.heading, pose.heading) * share;
+  return share;
 }

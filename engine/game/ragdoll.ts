@@ -815,19 +815,23 @@ function holdJoints(P: number[], L: number[]): void {
     // the line from the shoulder to the hand — the arm turns in its socket
     // far enough to point the elbow out, down, back or in, never forward.
     // Measured against the chest square to that line, and only where the
-    // line leaves the chest a direction to be square in.
+    // line leaves the chest a direction to be square in — taken in as that
+    // direction firms up, so an elbow left ahead while the line ran along
+    // the chest is turned back over steps, never thrown across the arm in
+    // one (`make jolt`'s wipeout: the elbow a third of a metre in a frame).
     const ch = (chest.x * hx + chest.y * hy + chest.z * hz) / (reach * reach);
     const sx = chest.x - ch * hx;
     const sy = chest.y - ch * hy;
     const sz = chest.z - ch * hz;
-    if (sx * sx + sy * sy + sz * sz > 0.09) {
+    const firm = clamp((sx * sx + sy * sy + sz * sz - 0.09) / 0.16, 0, 1);
+    if (firm > 0) {
       unit(bend, sx, sy, sz);
       const ahead =
         (P[elbow] - (P[shoulder] + P[hand]) / 2) * bend.x +
         (P[elbow + 1] - (P[shoulder + 1] + P[hand + 1]) / 2) * bend.y +
         (P[elbow + 2] - (P[shoulder + 2] + P[hand + 2]) / 2) * bend.z;
       if (ahead > 0 && reach < STRAIGHT * (B.upperArm + B.forearm))
-        shift(P, L, R.elbowL + s, R.shoulderL + s, R.handL + s, bend, -ahead);
+        shift(P, L, R.elbowL + s, R.shoulderL + s, R.handL + s, bend, -ahead * firm * firm);
     }
   }
   keepOut(P, L);

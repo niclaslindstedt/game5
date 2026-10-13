@@ -88,6 +88,9 @@ export const KNOCK = {
   spring: { trunk: 24, legs: 34, arms: 13, damp: 0.85 },
   /** Losing his feet: the springs let go over this long, s. */
   let: 0.22,
+  /** Struck, his balance's pose is eased in from the pose he was drawn in
+   * over this long, s. */
+  into: 0.25,
   /** A body faster than this off the front of what hit it is FLOWN, m/s. */
   fly: 3.2,
   /** Down: he lies once still this long, s — and at the latest this long
@@ -165,6 +168,9 @@ export type Knock = {
   /** The targets the springs pull toward, last step's and this one's. */
   target: number[];
   was: number[];
+  /** The pose he was drawn in when struck, in his own frame (`keyPoints`),
+   * that his balance's pose is eased in from (`KNOCK.into`); null: none. */
+  start: readonly number[] | null;
 };
 
 const right = (h: number): XZ => ({ x: Math.cos(h), z: -Math.sin(h) });
@@ -212,8 +218,9 @@ export function startTarget(activity: string, seat: number | null): CivilianTarg
 
 /**
  * A PERSON STRUCK where he stands (`x`, `z`) facing `heading`, in the pose
- * `target`: his body stood up as the ragdoll at that pose, at rest — the
- * blow is `strike`'s.
+ * `target`: his body stood up as the ragdoll at that pose (or at `drawn`,
+ * the points of the pose he was drawn in), at rest — the blow is
+ * `strike`'s.
  */
 export function knockOf(
   state: GameState,
@@ -223,8 +230,11 @@ export function knockOf(
   target: CivilianTarget | "stand",
   skis: boolean,
   body: CrowdBody = "man",
+  drawn: readonly number[] | null = null,
 ): Knock {
-  const pts = laid(state, keyPoints(moveOf(target).key, 0), x, z, heading);
+  // The body as he was drawn when struck (`dialsPoints`), when it is
+  // given, so the ragdoll takes over the pose on screen without a jump.
+  const pts = laid(state, drawn ?? keyPoints(moveOf(target).key, 0), x, z, heading);
   const com = centreOf(pts);
   const r = right(heading);
   const f = ahead(heading);
@@ -289,6 +299,7 @@ export function knockOf(
     walked: 0,
     target: pts.slice(),
     was: pts.slice(),
+    start: drawn,
   };
 }
 
@@ -638,6 +649,18 @@ function pull(k: Knock, share: number): void {
   }
 }
 
+/** His balance's pose in his own frame, eased in over `KNOCK.into` from
+ * the pose he was drawn in when struck, so his arms go out from where they
+ * were rather than starting there. */
+function balanced(k: Knock): number[] {
+  const to = keyPoints(standKey(k), 0);
+  const e = k.start ? smooth(k.age / KNOCK.into) : 1;
+  if (e >= 1) return to;
+  const from = k.start!;
+  for (let j = 0; j < to.length; j++) to[j] = from[j] + (to[j] - from[j]) * e;
+  return to;
+}
+
 /** The whip: the trunk thrown by the blow springing back. */
 function whip(k: Knock): void {
   const w = k.whip;
@@ -672,7 +695,7 @@ export function stepKnock(state: GameState, k: Knock, home: XZ | null): boolean 
       // Sat, he keeps the seat's shape as he goes over; stood, his
       // balance's.
       k.was = k.target;
-      if (!k.sat) k.target = laid(state, keyPoints(standKey(k), 0), k.ox, k.oz, k.heading);
+      if (!k.sat) k.target = laid(state, balanced(k), k.ox, k.oz, k.heading);
       pull(k, k.hold);
       b.t += dt;
       stepRagdoll(state, b);
@@ -774,7 +797,14 @@ export function stepKnock(state: GameState, k: Knock, home: XZ | null): boolean 
 /** The get-up at `k` of the way from the sit to his feet: the afterski's
  * own (`party-pose.ts`'s rise move), sat on the snow to stood. */
 function risePoints(k: number): number[] {
-  return movePoints({ kind: "rise", t: 0, k }, 0);
+  const pts = movePoints({ kind: "rise", t: 0, k }, 0);
+  // Up the last of the way into the stance he is drawn walking off from,
+  // so the hand-over to his figure on foot is the same pose.
+  const e = smooth((k - 0.7) / 0.3);
+  if (e <= 0) return pts;
+  const to = keyPoints(moveOf("stand").key, 0);
+  for (let j = 0; j < pts.length; j++) pts[j] += (to[j] - pts[j]) * e;
+  return pts;
 }
 
 /** Whether a knock is drawn as the ragdoll (on his feet staggering, down,

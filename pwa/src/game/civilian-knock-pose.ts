@@ -13,8 +13,28 @@
 
 import { RAGDOLL as R, type CrowdBody } from "@engine";
 
+import { civilianPosed, moveOf } from "./civilian-moves.ts";
 import { lyingPose } from "./crowd-fall.ts";
 import { mapPosed, type Posed, type V3 } from "./crowd-rig.ts";
+import { keyPoints } from "./party-pose.ts";
+
+/** Where a body's ankles stand off the ragdoll's feet when he is drawn on
+ * his feet (`keyPosed`: lifted onto his soles, a little forward) — so a
+ * person stood on the ragdoll is drawn exactly as stood in his routine,
+ * and the hand-overs between the two ways of drawing him do not jump. */
+const SOLES = new Map<CrowdBody, V3>();
+function solesOf(body: CrowdBody): V3 {
+  let off = SOLES.get(body);
+  if (!off) {
+    const p = keyPoints(moveOf("stand").key, 0);
+    const posed = civilianPosed(body, "stand");
+    const f = (i: number): number => (p[3 * R.footL + i] + p[3 * R.footR + i]) / 2;
+    const a = (i: number): number => (posed.ankleL[i] + posed.ankleR[i]) / 2;
+    off = [a(0) - f(0), a(1) - f(1), a(2) - f(2)];
+    SOLES.set(body, off);
+  }
+  return off;
+}
 
 /** HIS FIGURE on the ragdoll's `points` (world), in the world less
  * `anchor`. */
@@ -32,7 +52,19 @@ export function knockedPose(points: readonly number[], body: CrowdBody, anchor: 
   if (stood <= 0) return posed;
   // The ragdoll's ankles, and the figure's.
   const feet = mid(at(R.footL), at(R.footR));
-  const want: V3 = [feet[0] - anchor[0], feet[1] - anchor[1], feet[2] - anchor[2]];
+  // Stood onto his soles, the offset turned to the way he faces (his
+  // right off the hips, ahead square to it).
+  const sole = solesOf(body);
+  const hr = at(R.hipR);
+  const hl = at(R.hipL);
+  const rl = Math.hypot(hr[0] - hl[0], hr[2] - hl[2]) || 1;
+  const rx = (hr[0] - hl[0]) / rl;
+  const rz = (hr[2] - hl[2]) / rl;
+  const want: V3 = [
+    feet[0] - anchor[0] + rx * sole[0] - rz * sole[2],
+    feet[1] - anchor[1] + sole[1],
+    feet[2] - anchor[2] + rz * sole[0] + rx * sole[2],
+  ];
   const has = mid(posed.ankleL, posed.ankleR);
   const dx = (want[0] - has[0]) * stood;
   const dy = (want[1] - has[1]) * stood;

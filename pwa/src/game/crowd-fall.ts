@@ -14,9 +14,9 @@
 // GETTING UP is the one motion the physics has no body for: from where the
 // ragdoll came to rest he gathers into a crouch on his skis — set across
 // the fall line where his feet lay, as the engine stood him — and rises
-// out of it into his stance (`RISE`). Each half is a blend of the joints,
-// every bone held to its own length after it, so a limb swings between
-// the two rather than shrinking through them.
+// out of it into his stance (`RISE`). Each half is a blend of the bones,
+// each swung from its way in the one to its way in the other, so a limb
+// swings between the two rather than shrinking or flipping through them.
 
 import { CROWD, type Amateur } from "@engine";
 
@@ -30,6 +30,11 @@ import { smooth } from "./skier-stroke.ts";
 /** The player's figure is the reference man's, this tall, m — the
  * ragdoll's measures are his. */
 const REFERENCE_HEIGHT = 1.8;
+
+/** How level a ski's way must be before it is laid flat on the snow,
+ * from the share of it that is level (`from`, laid not at all) to the
+ * share it is laid wholly from (`to`). */
+const LAY = { from: 0.1, to: 0.7 };
 
 /** The share of the get-up spent gathering into the crouch; the rest is
  * rising out of it. */
@@ -128,14 +133,16 @@ function laidSkis(p: Posed): Posed {
     const al = len(ahead) || 1;
     const was = mul(ahead, 1 / al);
     // Square to the shin and as level as that allows: the way it points
-    // laid onto the snow's level and squared back to the shin — or, where
-    // it points straight up, across the shin and the vertical.
-    let f: V3 = [was[0], 0, was[2]];
-    if (len(f) < 0.2) {
-      f = [-u0[2], 0, u0[0]];
-      if (len(f) < 1e-4) continue;
-    }
+    // laid onto the snow's level and squared back to the shin. Where it
+    // points nearly straight up or down, no level way is any likelier than
+    // another, so it is laid over only as far as it leans — down to the way
+    // the thrown pose has it — rather than switched to some way across: a
+    // ski swung round through a frame (`make jolt`'s crowd `fall-ski`).
+    const level = Math.hypot(was[0], was[2]);
+    const lay = smooth((level - LAY.from) / (LAY.to - LAY.from));
+    let f: V3 = [was[0], was[1] * (1 - lay), was[2]];
     f = sub(f, mul(u0, f[0] * u0[0] + f[1] * u0[1] + f[2] * u0[2]));
+    if (len(f) < 1e-4) continue;
     f = mul(f, 1 / (len(f) || 1));
     const cuff = len(sub(p[ankle], s.mid));
     const mid = sub(p[ankle], mul(u0, cuff));
@@ -163,41 +170,40 @@ function placed(p: Posed, f: StandFrame, anchor: V3): Posed {
   );
 }
 
-/** Hold `to` at `length` from `from` along the way it lies now. */
-function reach(from: V3, to: V3, length: number): V3 {
-  const d = sub(to, from);
-  const l = len(d);
-  return l < 1e-6 ? to : add(from, mul(d, length / l));
+/** The bone from `a0` to `a1` swung toward the bone from `b0` to `b1` by
+ * `t` (0 the first, 1 the second): its way turned through the angle
+ * between the two, its length blended — never a point blended and the
+ * bone stretched back onto it, which flips the bone round wherever the
+ * blend passes near its root. A bone of no length takes the other's way. */
+function swing(a0: V3, a1: V3, b0: V3, b1: V3, t: number): V3 {
+  const da = sub(a1, a0);
+  const db = sub(b1, b0);
+  const la = len(da);
+  const lb = len(db);
+  const l = la + (lb - la) * t;
+  if (la < 1e-6 && lb < 1e-6) return [0, 0, 0];
+  const ua = la < 1e-6 ? mul(db, 1 / lb) : mul(da, 1 / la);
+  const ub = lb < 1e-6 ? ua : mul(db, 1 / lb);
+  const cos = Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1] + ua[2] * ub[2]));
+  const angle = Math.acos(cos);
+  const sin = Math.sin(angle);
+  const u =
+    sin < 1e-4
+      ? mix(ua, ub, t)
+      : add(mul(ua, Math.sin((1 - t) * angle) / sin), mul(ub, Math.sin(t * angle) / sin));
+  return mul(u, l / (len(u) || 1));
 }
 
-/** Two poses blended at `t` (0 `a`, 1 `b`), every bone then held to its
- * length in `b` — the trunk out from the pelvis, the legs and the arms
+/** Two poses blended at `t` (0 `a`, 1 `b`): the pelvis moved between the
+ * two, and every bone out from it swung from its way in `a` to its way in
+ * `b` (`swing`) — the trunk out from the pelvis, the legs and the arms
  * down their chains, each ski about its middle. */
 function blendPosed(a: Posed, b: Posed, t: number): Posed {
   const out = mapPosed(a, (q) => q);
-  const keys = [
-    "ankleL",
-    "ankleR",
-    "kneeL",
-    "kneeR",
-    "hipL",
-    "hipR",
-    "pelvis",
-    "waist",
-    "neck",
-    "head",
-    "shoulderL",
-    "shoulderR",
-    "elbowL",
-    "elbowR",
-    "handL",
-    "handR",
-    "basketL",
-    "basketR",
-  ] as const;
-  for (const key of keys) out[key] = mix(a[key], b[key], t);
-  const bone = (from: keyof typeof b & (typeof keys)[number], to: (typeof keys)[number]): void => {
-    out[to] = reach(out[from], out[to], len(sub(b[to], b[from])));
+  type Joint = Exclude<keyof Posed, "skiL" | "skiR">;
+  out.pelvis = mix(a.pelvis, b.pelvis, t);
+  const bone = (from: Joint, to: Joint): void => {
+    out[to] = add(out[from], swing(a[from], a[to], b[from], b[to], t));
   };
   bone("pelvis", "waist");
   bone("waist", "neck");
@@ -222,24 +228,12 @@ function blendPosed(a: Posed, b: Posed, t: number): Posed {
   ] as const) {
     const sa = a[ski];
     const sb = b[ski];
-    const mid = reach(out[ankle], mix(sa.mid, sb.mid, t), len(sub(sb.mid, b[ankle])));
+    const mid = add(out[ankle], swing(a[ankle], sa.mid, b[ankle], sb.mid, t));
     out[ski] = {
       mid,
-      tail: reach(
-        mid,
-        add(mid, mix(sub(sa.tail, sa.mid), sub(sb.tail, sb.mid), t)),
-        len(sub(sb.tail, sb.mid)),
-      ),
-      tip: reach(
-        mid,
-        add(mid, mix(sub(sa.tip, sa.mid), sub(sb.tip, sb.mid), t)),
-        len(sub(sb.tip, sb.mid)),
-      ),
-      side: reach(
-        mid,
-        add(mid, mix(sub(sa.side, sa.mid), sub(sb.side, sb.mid), t)),
-        len(sub(sb.side, sb.mid)),
-      ),
+      tail: add(mid, swing(sa.mid, sa.tail, sb.mid, sb.tail, t)),
+      tip: add(mid, swing(sa.mid, sa.tip, sb.mid, sb.tip, t)),
+      side: add(mid, swing(sa.mid, sa.side, sb.mid, sb.side, t)),
     };
   }
   return out;

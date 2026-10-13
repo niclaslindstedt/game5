@@ -18,6 +18,7 @@ import { SLED, type GameState, type SledState } from "@engine";
 import type { RackLoad } from "./board-rack.ts";
 import type { HazeUniforms } from "./haze.ts";
 import type { Outfit } from "./outfit.ts";
+import { sledStandOf } from "./ride-perch.ts";
 import { createSledView, type SledView } from "./sled-view.ts";
 import { SLED_LOOK, sledFrame } from "./sled-look.ts";
 import type { SledStand } from "./skis-body.ts";
@@ -301,38 +302,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
       } else if (!wasAir) airTime = 0;
       wasAir = s.airborne;
     },
-    stand(state) {
-      const s = state.sled;
-      if (!s?.rider || state.skier.thrown) return null;
-      const c = state.skier;
-      // The boards' middle in the sled's frame, which his figure is stood
-      // over, and where the engine has his weight off it (`riderFrame`).
-      const oy = SLED.boards.y + c.spec.cogHeight;
-      const hang = { x: s.riderRight * 0.5, z: -s.riderAft * 0.5 };
-      // The grips turned with the bars about the post.
-      const post = sledFrame(SLED_LOOK.post);
-      const a = s.skiAngle * 0.8;
-      const ca = Math.cos(a);
-      const sa = Math.sin(a);
-      const grip = (side: number) => {
-        const gx = side * SLED.grips.x;
-        const gz = SLED.grips.z - post[0];
-        return {
-          x: gx * ca + gz * sa,
-          y: SLED.grips.y - oy,
-          z: post[0] + gz * ca - gx * sa - SLED.boards.z,
-        };
-      };
-      const half = c.spec.stance / 2;
-      return {
-        out: [-(SLED.boards.x - half), SLED.boards.x - half],
-        board: {
-          grips: [grip(-1), grip(1)],
-          lean: 0.42 - 0.3 * s.controls.lean + 0.15 * s.controls.throttle,
-          hang,
-        },
-      };
-    },
+    stand: sledStandOf,
     stowRack(load) {
       view.stowRack(load);
     },

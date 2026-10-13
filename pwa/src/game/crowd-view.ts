@@ -24,6 +24,13 @@
 // he gets up (`crowd-fall.ts`) — the same mesh at the same cut, its
 // positions written afresh each frame into a mesh of its own, kept in a
 // small pool. A fall is rare, so a few such meshes at a time cost nothing.
+//
+// NOTHING IS SWITCHED IN A FRAME. The engine's amateur is rough on
+// purpose, so whatever it jumps — a pose gated on or off, his place moved
+// by a lift, his heading set by a queue — is eased out per instance
+// (`crowd-ease.ts`), and the hand-off between his figure on his skis and
+// on his ragdoll is carried as joints (`crowd-handoff.ts`) — `make jolt
+// ARGS=--family=crowd` holds both.
 
 import * as THREE from "three";
 import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -41,10 +48,20 @@ import {
   type Level,
 } from "@engine";
 
-import { BOARD_POSES, boardDialsOf, boardSeatHeight } from "./crowd-board.ts";
+import { BOARD_POSES, boardDialsOf, boardSeatHeight, boardTargets } from "./crowd-board.ts";
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
+import { createCrowdEase, easeCrowd, targetReach, type CrowdEase } from "./crowd-ease.ts";
+import { createCrowdHandOff, type CrowdHandOff } from "./crowd-handoff.ts";
 import { fallenPose, standFrame } from "./crowd-fall.ts";
-import { CROWD_LOOKS, CROWD_POSES, dialsOf, seatHeight } from "./crowd-rig.ts";
+import {
+  CROWD_LOOKS,
+  CROWD_POSES,
+  crowdTargets,
+  dialsOf,
+  mapPosed,
+  seatHeight,
+  type Posed,
+} from "./crowd-rig.ts";
 import {
   CROWD_LODS,
   buildCrowdFigure,
@@ -90,11 +107,29 @@ export type CrowdView = {
   /** Pose and draw every amateur within sight of the lens at `eye` — and,
    * handed `cull`, only those in its frustum or shadowing into view. */
   update: (state: GameState, eye: THREE.Vector3, cull?: ViewCull) => void;
+  /** The joints amateur `id` was drawn at as joints this frame (down, or
+   * handed over between down and up), in the world — for the labs. */
+  shownOf?: (id: number) => Posed | null;
   dispose: () => void;
 };
 
 const TARGETS = CROWD_POSES.length;
 const BOARD_TARGETS = BOARD_POSES.length;
+const WIDTH = Math.max(TARGETS, BOARD_TARGETS);
+
+/** Each body's targets as joints, on skis and on a board, and how far
+ * each moves the figure (`targetReach`), built the first time a view asks. */
+const figures = new Map<string, { targets: Posed[]; reach: Float32Array }>();
+function figureOf(body: CrowdBody, gear: Gear): { targets: Posed[]; reach: Float32Array } {
+  const key = `${body}:${gear}`;
+  let f = figures.get(key);
+  if (!f) {
+    const look = CROWD_LOOKS[body];
+    const targets = gear === "board" ? boardTargets(look) : crowdTargets(look);
+    figures.set(key, (f = { targets, reach: targetReach(targets, WIDTH) }));
+  }
+  return f;
+}
 
 export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   const group = new THREE.Group();
@@ -204,6 +239,15 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   const lift = new THREE.Vector3();
   /** When each amateur was last sat on a chair, s of the engine's clock. */
   let satAt = new Float64Array(0);
+  /** Each amateur's hand-offs, eased (`crowd-ease.ts`). */
+  let ease: CrowdEase = createCrowdEase(0, WIDTH);
+  /** Each amateur's hand-off between down and up (`crowd-handoff.ts`), and
+   * the joints those drawn as joints were drawn at this frame. */
+  let handOff: CrowdHandOff = createCrowdHandOff(0, WIDTH);
+  const shown = new Map<number, Posed>();
+  const raw = new Float32Array(WIDTH);
+  const place = [0, 0, 0];
+  const turn = [0, 0, 0, 1];
   const dials = new Float32Array(TARGETS);
   const boardDials = new Float32Array(BOARD_TARGETS);
   /** How far under a chair's seat each body's figure is set, m, on skis
@@ -238,9 +282,27 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       }
       outfits = crowd.amateurs.map((a) => outfitOf(a, crowd.groups[a.group], level.seed));
       satAt = new Float64Array(crowd.amateurs.length).fill(-Infinity);
+      ease = createCrowdEase(crowd.amateurs.length, WIDTH);
+      handOff = createCrowdHandOff(crowd.amateurs.length, WIDTH);
     }
     for (const slot of slots.values()) slot.n = 0;
     for (const pool of fallen.values()) pool.n = 0;
+    shown.clear();
+    /** Amateur `a` drawn as joints (`p`, in the world) on a mesh of the
+     * down pool. */
+    const drawJoints = (a: (typeof crowd.amateurs)[number], lod: CrowdLod, p: Posed): void => {
+      shown.set(a.id, p);
+      const f = fallenMesh(a.body, lod, gearOf(a));
+      const local = mapPosed(p, (q) => [q[0] - a.x, q[1] - a.y, q[2] - a.z]);
+      poseCrowdFigure(a.body, lod, local, f.mesh.geometry, a.board !== null);
+      f.mesh.setMatrixAt(0, m.makeTranslation(a.x, a.y, a.z));
+      f.mesh.instanceMatrix.needsUpdate = true;
+      const o = outfits[a.id];
+      f.dress.setXYZW(0, o[0], o[1], o[2], o[3]);
+      f.dress2.setXYZW(0, o[4], o[5], o[6], 0);
+      f.dress.needsUpdate = true;
+      f.dress2.needsUpdate = true;
+    };
     const reach2 = CROWD_CUTS.far * CROWD_CUTS.far;
     const plans = liftPlans(level);
     const mine = state.skier.lift;
@@ -298,23 +360,14 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       fwd.crossVectors(right, up).normalize();
       if (a.thrown) {
         // DOWN: hung on his ragdoll, or getting up off it.
-        const pose = fallenPose(a, standFrame(a, normal), [a.x, a.y, a.z]);
+        const pose = fallenPose(a, standFrame(a, normal), [0, 0, 0]);
         if (!pose) continue;
-        const f = fallenMesh(a.body, lod, gearOf(a));
-        poseCrowdFigure(a.body, lod, pose, f.mesh.geometry, a.board !== null);
-        f.mesh.setMatrixAt(0, m.makeTranslation(a.x, a.y, a.z));
-        f.mesh.instanceMatrix.needsUpdate = true;
-        const o = outfits[a.id];
-        f.dress.setXYZW(0, o[0], o[1], o[2], o[3]);
-        f.dress2.setXYZW(0, o[4], o[5], o[6], 0);
-        f.dress.needsUpdate = true;
-        f.dress2.needsUpdate = true;
+        drawJoints(a, lod, handOff.frame(a.id, state.t, { down: pose }) ?? pose);
         continue;
       }
       const gear = gearOf(a);
       const slot = slots.get(`${a.body}:${gear}:${lod}`);
       if (!slot || slot.n >= slot.capacity) continue;
-      const i = slot.n;
       basis.makeBasis(right, up, fwd);
       quat.setFromRotationMatrix(basis);
       // A rider on a T-bar rides it stood, his rear foot out on the pad.
@@ -330,14 +383,38 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
         pos.set(0, -(CROWD.ride.under + drop), 0).applyQuaternion(quat);
         pos.add(lift.set(a.x, a.y + CROWD.ride.under, a.z));
       } else pos.set(a.x, a.y - (kind && seat > 0 ? drop : 0), a.z);
+      // A switch of pose, place or turn eased out rather than drawn in a
+      // frame (`crowd-ease.ts`).
+      const from = gear === "board" ? boardDials : dials;
+      raw.fill(0);
+      raw.set(from);
+      place[0] = pos.x;
+      place[1] = pos.y;
+      place[2] = pos.z;
+      turn[0] = quat.x;
+      turn[1] = quat.y;
+      turn[2] = quat.z;
+      turn[3] = quat.w;
+      const figure = figureOf(a.body, gear);
+      easeCrowd(ease, a.id, state.t, raw, figure.reach, place, turn);
+      // Just up off the ragdoll: handed over from it as joints.
+      const joints = handOff.frame(a.id, state.t, {
+        stood: { targets: figure.targets, w: raw, pos: place, quat: turn, mirror },
+      });
+      if (joints) {
+        drawJoints(a, lod, joints);
+        continue;
+      }
+      const i = slot.n;
+      pos.set(place[0], place[1], place[2]);
+      quat.set(turn[0], turn[1], turn[2], turn[3]).normalize();
       m.compose(pos, quat, size.set(mirror, 1, 1));
       slot.mesh.setMatrixAt(i, m);
       // The morph texture: the base's influence, then each target's.
       const w = slot.weights;
-      const from = gear === "board" ? boardDials : dials;
       const at = i * (slot.targets + 1);
       w[at] = 1;
-      for (let k = 0; k < slot.targets; k++) w[at + 1 + k] = from[k];
+      for (let k = 0; k < slot.targets; k++) w[at + 1 + k] = raw[k];
       const o = outfits[a.id];
       slot.dress.setXYZW(i, o[0], o[1], o[2], o[3]);
       slot.dress2.setXYZW(i, o[4], o[5], o[6], 0);
@@ -360,6 +437,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   return {
     group,
     update,
+    shownOf: (id) => shown.get(id) ?? null,
     dispose() {
       clear();
       material.dispose();

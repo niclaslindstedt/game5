@@ -502,11 +502,21 @@ export function birdPose(
   const dz = next.z - here.z;
   const dy = next.y - here.y;
   const run = Math.hypot(dx, dz);
-  const heading =
-    run > 0.01 ? Math.atan2(dx, dz) : flock.facing + (jitter(flock.scatter, i, 10) - 0.5) * 0.7;
-  let pitch = run > 0.01 || Math.abs(dy) > 0.01 ? Math.atan2(dy, Math.max(run, 1e-6)) : 0;
-  if (pitch > MAX_PITCH) pitch = MAX_PITCH;
-  else if (pitch < -MAX_PITCH) pitch = -MAX_PITCH;
+  // Sat, a bird faces into the wind; flying, the way it goes — and it is
+  // turned from the one to the other as it gets up (`open`), never in the
+  // first frame it moves.
+  const sat = flock.facing + (jitter(flock.scatter, i, 10) - 0.5) * 0.7;
+  const open = smooth(w * 3);
+  let heading = sat;
+  let pitch = 0;
+  if (run > 1e-6 || Math.abs(dy) > 1e-6) {
+    const way = run > 1e-6 ? Math.atan2(dx, dz) : sat;
+    heading = sat + Math.atan2(Math.sin(way - sat), Math.cos(way - sat)) * open;
+    pitch = Math.atan2(dy, Math.max(run, 1e-6));
+    if (pitch > MAX_PITCH) pitch = MAX_PITCH;
+    else if (pitch < -MAX_PITCH) pitch = -MAX_PITCH;
+    pitch *= open;
+  }
   const meanR = flock.loop.radius * (0.5 + 0.5 * flock.loop.ovality);
   const roll =
     w >= 1 ? -flock.loop.sense * BANK * ((spec.speed * spec.speed) / Math.max(5, meanR)) : 0;
@@ -521,7 +531,6 @@ export function birdPose(
   const swing = swingAt(t * spec.beatHz + phase / TAU, spec.stroke);
   const rock = spec.glide > 0.5 ? Math.sin(t * 1.3 + phase * 1.7) * 0.06 : 0;
   const flyFlap = spec.dihedral + rock * (1 - gate) + swing * gate;
-  const open = smooth(w * 3);
   out.flap = REST_FLAP + (flyFlap - REST_FLAP) * open;
   out.fold = 1 - open;
   out.airborne = w;

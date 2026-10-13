@@ -65,7 +65,7 @@ import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
 import { boardInputOf, boardOf, easeFakie, easeFree } from "./board-input.ts";
 import { outfitKey } from "./dress.ts";
-import { createSkier } from "./skier-figure.ts";
+import { createFigureHandOff, createSkier } from "./skier-figure.ts";
 import { createSkierSpring, restSkierSpring, stepSkierSpring } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead } from "./skier-flight.ts";
@@ -102,6 +102,10 @@ function restInput(out: readonly [number, number]): SkierPoseInput {
     spread: out,
   };
 }
+
+/** How long his legs take to carry him up to a deck come up under him, s
+ * (a time constant). */
+const SAG_EASE = 0.12;
 
 export function createBoardModel(
   spec: SkiSpec,
@@ -204,12 +208,16 @@ export function createBoardModel(
   const BOUND = Math.max(bound.radius, spec.length / 2 + 0.3);
   bound.radius = BOUND;
   let rested = false;
+  // THE HAND-OFF onto the ragdoll and back (`pose-handoff.ts`).
+  const hand = createFigureHandOff(root, figure.group);
   // How far the rear foot is drawn out of its binding (`easeFree`).
   let freeShare = 0;
   // The hands, elbows and knees carried from the last frame (`board-ease.ts`).
   const limbs = createLimbEase();
   // How far round he is drawn to ride fakie (`easeFakie`).
   let fakieShare = 1;
+  /** The feet's lift as his legs carry him up to it (`SAG_EASE`), m. */
+  let carried = Number.NaN;
   let grabEase: GrabEase = { grab: null, share: 0 };
   const tuck = createTuck();
   // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
@@ -367,6 +375,15 @@ export function createBoardModel(
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride" && !town;
       const still = off || town || boarded || inBasket || hung || skydive || seatEase.seated > 0;
       const { input, incline: lean, lift } = boardInputOf(skier, legs, at.q);
+      // THE DECK COME UP UNDER HIM: a landing stops the deck in a step and
+      // the engine's legs take it at once, but his hips are drawn off the
+      // deck — so the lift is carried up to over `SAG_EASE` s and what is
+      // still owed is folded into his knees (`BoardPoseInput.sag`), never
+      // a hop of the whole body in a frame.
+      const mean = (lift[0] + lift[1]) / 2;
+      if (still || Number.isNaN(carried) || mean < carried) carried = mean;
+      else carried += (mean - carried) * (1 - Math.exp(-Math.max(0, dt) / SAG_EASE));
+      input.sag = mean - carried;
       // The rear foot drawn out of its binding or back in over a moment.
       freeShare = easeFree(freeShare, input.free, dt);
       input.freeShare = freeShare;
@@ -408,7 +425,7 @@ export function createBoardModel(
       if (off || town || skydive || boarded || inBasket || hung) resetLimbEase(limbs);
       if (off) {
         // THROWN, the board kept on between his feet.
-        const p = ragdollPose(off.points, frame);
+        const thrown = ragdollPose(off.points, frame);
         toRoot.set(at.q.x, at.q.y, at.q.z, at.q.w).invert();
         figure.group.position
           .set(frame.origin.x - at.x, frame.origin.y - (at.y - sink), frame.origin.z - at.z)
@@ -420,6 +437,7 @@ export function createBoardModel(
         );
         thrownQ.setFromRotationMatrix(trunk);
         figure.group.quaternion.copy(toRoot).multiply(thrownQ);
+        const p = hand.handed(thrown, "thrown", dt);
         const deckAt = boardUnderFeet(p, board);
         figure.sprawl(p, goreLost, goreCrush);
         layBoard(deckAt, p.feet, p.boots, null);
@@ -454,7 +472,7 @@ export function createBoardModel(
         const deckNow = k < 1 && lastRide ? mixDeck(lastRide.deck, d, k) : d;
         figure.group.position.copy(townAt).multiplyScalar(k);
         figure.group.quaternion.slerpQuaternions(still0, townQ, k);
-        figure.sprawl(pose, 0, 0);
+        figure.sprawl(hand.handed(pose, "ride", dt), 0, 0);
         layBoard(deckNow, pose.feet, pose.boots, null, true);
         lastTown = { pose: p, deck: d, at: townAt.clone(), q: townQ.clone() };
         bound.radius = BOUND + 1;
@@ -466,7 +484,7 @@ export function createBoardModel(
         const { pose: p, deck: d } = boardSkydivePose(stand, skydive, board, skyMounts);
         figure.group.position.set(0, 0, 0);
         figure.group.quaternion.setFromAxisAngle(UP, boardSkydiveYaw(skydive, board.lead));
-        figure.sprawl(p, 0, 0);
+        figure.sprawl(hand.handed(p, "ride", dt), 0, 0);
         layBoard(d, p.feet, p.boots, null);
         bound.radius = BOUND + 1;
       } else {
@@ -507,6 +525,7 @@ export function createBoardModel(
           figure.group.position.lerp(lastTown.at, k);
           figure.group.quaternion.slerpQuaternions(still0, lastTown.q, k);
         }
+        bp = { ...bp, pose: hand.handed(bp.pose, "ride", dt) };
         figure.sprawl(bp.pose, 0, 0);
         const deckAt = racked ? rackedDeck(racked) : bp.board;
         layBoard(deckAt, bp.pose.feet, bp.pose.boots, bp.free, boarded || inBasket || cabin);

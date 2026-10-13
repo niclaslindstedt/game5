@@ -25,12 +25,14 @@
 import {
   boardingRing,
   createGame,
+  levelFor,
   liftPlans,
   NEUTRAL_INPUT,
   queueLane,
   standSkier,
   step,
   type GameState,
+  type Level,
   type LiftKind,
   type RegionId,
   type SkiSpec,
@@ -39,6 +41,21 @@ import {
 /** The pair every stage is stood up on — the reference skis unless a lab
  * asks for another (`--skis=lynx`, the snowboard). */
 let stagePair: SkiSpec | undefined;
+
+/** The map a seed and a region build, built once and handed to every stage
+ * stood up on it: the generator keeps its build, but a map handed back
+ * fresh loses everything a run works out once a map and keeps on it, which
+ * would be paid again for every stage. */
+const levels = new Map<string, Level>();
+function stageLevel(seed: number, region: RegionId | undefined): Level {
+  const key = `${seed}:${region ?? ""}`;
+  let level = levels.get(key);
+  if (!level) {
+    level = levelFor({ seed, region, mode: "free" });
+    levels.set(key, level);
+  }
+  return level;
+}
 
 /** Stand every stage after this on `spec` (undefined: the reference pair). */
 export function setStagePair(spec: SkiSpec | undefined): void {
@@ -79,8 +96,7 @@ export function atFoot(
   crowd?: number,
 ): GameState | null {
   const state = createGame({
-    seed,
-    region,
+    level: stageLevel(seed, region),
     mode: "free",
     quiet: true,
     ...(crowd !== undefined ? { crowd } : {}),
@@ -115,13 +131,17 @@ export function onLift(
   kind: LiftKind,
   crowd?: number,
 ): GameState | null {
-  const probe = createGame({ seed, region, mode: "free", quiet: true, crowd: 0 });
+  const probe = createGame({
+    level: stageLevel(seed, region),
+    mode: "free",
+    quiet: true,
+    crowd: 0,
+  });
   const lift = probe.level.resort?.lifts.find((l) => l.kind === kind);
   const run = probe.level.resort?.runs.find((r) => r.from === lift?.id && r.kind === "piste");
   if (!lift || !run) return null;
   const state = createGame({
-    seed,
-    region,
+    level: stageLevel(seed, region),
     mode: "free",
     byLift: true,
     run: run.id,

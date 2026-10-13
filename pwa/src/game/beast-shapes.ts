@@ -873,11 +873,12 @@ function gaitGraft(
   spec: BeastSpec,
   pivot: { y: number; z: number },
 ): (shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> }) => void {
+  const g = gaitOf(spec, pivot);
   const gait = {
-    uLegSwing: { value: LEG_SWING[spec.gait] },
-    uLegLift: { value: spec.height * 0.12 },
-    uLegReach: { value: spec.height },
-    uHeadPivot: { value: new THREE.Vector2(pivot.y, pivot.z) },
+    uLegSwing: { value: g.swing },
+    uLegLift: { value: g.lift },
+    uLegReach: { value: g.reach },
+    uHeadPivot: { value: new THREE.Vector2(g.pivotY, g.pivotZ) },
   };
   return (shader) => {
     Object.assign(shader.uniforms, gait);
@@ -912,4 +913,61 @@ ${shader.vertexShader}`.replace(
 \t}`,
     );
   };
+}
+
+/** A species' gait as `gaitGraft` hands it to the shader: how far a leg
+ * swings at a full stride, rad, how high a foot lifts and the leg's reach,
+ * m, and the point the head grazes about (its height and how far forward). */
+export type GaitOf = { swing: number; lift: number; reach: number; pivotY: number; pivotZ: number };
+
+export function gaitOf(spec: BeastSpec, pivot: { y: number; z: number }): GaitOf {
+  return {
+    swing: LEG_SWING[spec.gait],
+    lift: spec.height * 0.12,
+    reach: spec.height,
+    pivotY: pivot.y,
+    pivotZ: pivot.z,
+  };
+}
+
+/**
+ * A POINT OF A BEAST as `gaitGraft` moves it, on the processor: the point
+ * (`x`, `y`, `z`) of the stood figure in its own frame, marked `leg` (0, or
+ * 1 + its phase share), `hip` and `head` (its `aPart`), at the instance's
+ * `gait`, `stride` and `graze` (its `aMotion`). The legs' swing and lift
+ * and the head's graze in the same sums as the GLSL above — the rack's
+ * growth left out — for what reads a drawn animal without a GPU (the jolt
+ * lab).
+ */
+export function gaitPoint(
+  x: number,
+  y: number,
+  z: number,
+  leg: number,
+  hip: number,
+  head: number,
+  gait: number,
+  stride: number,
+  graze: number,
+  g: GaitOf,
+): [number, number, number] {
+  let ty = y;
+  let tz = z;
+  if (leg > 0.5) {
+    const ph = gait + (leg - 1) * 6.2831853;
+    const swing = Math.sin(ph) * stride * g.swing;
+    const dy = ty - hip;
+    const lift =
+      Math.max(0, Math.cos(ph)) * stride * g.lift * Math.min(1, Math.max(0, -dy / g.reach));
+    ty = hip + dy * Math.cos(swing) + lift;
+    tz += dy * Math.sin(swing);
+  }
+  if (head > 0.5) {
+    const a = graze * GRAZE_ANGLE;
+    const hy = ty - g.pivotY;
+    const hz = tz - g.pivotZ;
+    ty = g.pivotY + hy * Math.cos(a) - hz * Math.sin(a);
+    tz = g.pivotZ + hy * Math.sin(a) + hz * Math.cos(a);
+  }
+  return [x, ty, tz];
 }

@@ -14,18 +14,7 @@
 // and the ride begun again after a crash cut to it.
 
 import * as THREE from "three";
-import {
-  HANG_AIR,
-  HANG_GROUND,
-  HELI,
-  TUNING,
-  airAt,
-  unrotate,
-  washAt,
-  type GameState,
-  type Level,
-  type Wash,
-} from "@engine";
+import { HELI, type GameState, type Level } from "@engine";
 import { sunNow } from "./sky-clock.ts";
 
 import { frameCrash, startCrashCam, wooded, type CrashCam } from "./camera-crash.ts";
@@ -37,6 +26,7 @@ import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
 import type { Perch } from "./skier-dangle.ts";
+import { createHeliPerch } from "./ride-perch.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { SnowProps } from "./snowpack.ts";
@@ -89,9 +79,6 @@ const DROP_HOLD = 1.2;
 const DROP_TURN = 0.45;
 const HAND_IN = 1.1;
 const HAND_OUT = 1.3;
-/** How quickly the seat's acceleration is followed, s — the steps'
- * difference of its velocity smoothed of their jitter. */
-const ACCEL_LAG = 0.06;
 /** THE CABIN no snow falls in, in the machine's frame, m: floor to roof,
  * side to side inside the doors, the rear bench to the windscreen. */
 const CABIN = (() => {
@@ -103,11 +90,6 @@ const CABIN = (() => {
     half: { x: B.width / 2 - 0.04, y: (hi.y - lo.y) / 2, z: (hi.z - lo.z) / 2 },
   };
 })();
-/** How far under his body origin his boots hang, m, where the air is read,
- * and the height over the snow his skis rest at below which they are laid
- * down on it rather than dangled, m. */
-const FEET = 0.9;
-const REST = 0.15;
 
 export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   const group = new THREE.Group();
@@ -151,10 +133,6 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   let strikeCloud: ((x: number, y: number, z: number, speed: number) => void) | null = null;
   // THE SEAT'S ACCELERATION, world frame, m/s²: its velocity differenced
   // between the engine's steps (the tick it was read at, and the velocity).
-  const accel = { x: 0, y: 0, z: 0 };
-  const lastV = { x: 0, y: 0, z: 0 };
-  let lastTick = -1;
-  const wash: Wash = { x: 0, y: 0, z: 0 };
   return {
     group,
     ready: view.ready,
@@ -297,56 +275,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       else shelterOff();
     },
     drawn: () => view.drawn(),
-    perch(state) {
-      const h = state.heli;
-      if (!h?.rider) {
-        lastTick = -1;
-        return null;
-      }
-      const c = state.skier;
-      if (state.tick !== lastTick) {
-        const span = (state.tick - lastTick) * TUNING.dt;
-        if (lastTick >= 0 && span > 0) {
-          const k = 1 - Math.exp(-span / ACCEL_LAG);
-          accel.x += ((c.vx - lastV.x) / span - accel.x) * k;
-          accel.y += ((c.vy - lastV.y) / span - accel.y) * k;
-          accel.z += ((c.vz - lastV.z) / span - accel.z) * k;
-        } else accel.x = accel.y = accel.z = 0;
-        lastTick = state.tick;
-        lastV.x = c.vx;
-        lastV.y = c.vy;
-        lastV.z = c.vz;
-      }
-      // The air at his boots: the weather's wind at their height over the
-      // snow and the rotor's wash there, less his own way.
-      const level = state.level;
-      const feet = c.y - FEET;
-      const over = feet - level.groundAt(c.x, c.z);
-      const wind = airAt(level, state.t, c.x, c.z, Math.max(0.5, over));
-      washAt(level, h, c.x, feet, c.z, wash);
-      const air = unrotate(c.q, {
-        x: wind.x + wash.x - c.vx,
-        y: wash.y - c.vy,
-        z: wind.z + wash.z - c.vz,
-      });
-      const gravity = unrotate(c.q, { x: -accel.x, y: -TUNING.g - accel.y, z: -accel.z });
-      // His skis hang free as the engine lowers them off the snow, and are
-      // laid back down on it near the snow.
-      const hang = (HANG_GROUND - h.hang) / (HANG_GROUND - HANG_AIR);
-      const near = (over - REST) / 0.5;
-      return {
-        y: -h.hang,
-        gravity,
-        air,
-        spool: h.spool,
-        rotor: h.rotor,
-        hanging: Math.max(0, Math.min(1, hang, near)),
-        t: state.t,
-        up: unrotate(c.q, { x: 0, y: 1, z: 0 }),
-        hung: h.hung,
-        load: h.load,
-      };
-    },
+    perch: createHeliPerch(),
     dispose() {
       view.dispose();
       boom.dispose();

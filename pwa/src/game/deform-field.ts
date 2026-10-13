@@ -446,19 +446,21 @@ export function createDeformField(look: DeformLook): DeformField {
           vy = 1.2 + Math.abs(motion.vy) * 0.45;
           spread = 0.9;
         } else if (slideThrow >= plough) {
-          // Shaved by the sliding edge: flung the way it slides, up off the
-          // blade the edge makes, carried some of the way the ski runs.
-          vx = tx * slide * 1.25 + motion.vx * 0.25;
-          vz = tz * slide * 1.25 + motion.vz * 0.25;
-          vy = 0.6 + slide * 0.55;
-          spread = 0.35;
+          // Shaved by the sliding edge and PRESSED AHEAD of it: the snow
+          // keeps most of the speed the ski was going and runs on forward
+          // and down the slope from under the skis, low over the snow, a
+          // little out the way the edge slides — never up off the blade.
+          vx = motion.vx * 0.85 + tx * slide * 0.3;
+          vz = motion.vz * 0.85 + tz * slide * 0.3;
+          vy = 0.25 + slide * 0.12;
+          spread = 0.3;
         } else {
-          // Ploughed by a ski running through loose snow: up and out over
-          // the tips, falling back behind.
-          vx = motion.vx * 0.3 + tx * speed * 0.3;
-          vz = motion.vz * 0.3 + tz * speed * 0.3;
-          vy = 1.2 + speed * 0.3;
-          spread = 0.55;
+          // Ploughed by a ski running through loose snow: pushed ahead of
+          // the ski and down the slope, out over the snow in front of it.
+          vx = motion.vx * 0.9 + tx * speed * 0.1;
+          vz = motion.vz * 0.9 + tz * speed * 0.1;
+          vy = 0.5 + speed * 0.08;
+          spread = 0.45;
         }
         out.push({
           x,

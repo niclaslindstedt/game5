@@ -118,6 +118,12 @@ export const HELI = {
     yawDamping: 1.5,
     torque: 1.2,
     lag: 0.3,
+    /** The blades' pitch at the top of the collective's travel, rad (18°,
+     * a light helicopter's stop): the most the blades can lift in the air
+     * meeting them (`thrustMost`), so a disc moving along its own thrust —
+     * climbing hard, or turned over and falling — runs out of lift once
+     * that air takes their angle of attack, by some 45 m/s through it. */
+    pitchMost: 0.32,
   },
 
   /** THE BOT'S HANDS on the same controls (`heli-pilot.ts`) — what a link's

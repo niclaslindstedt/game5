@@ -6,6 +6,7 @@
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler, rotate, type Quat } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { HELI } from "./defs/heli.ts";
+import { AUTOROTATION } from "./defs/mishaps.ts";
 import { totalMass } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import type { GameState, HeliState } from "./state.ts";
@@ -46,13 +47,29 @@ export function heliMass(run: GameState): number {
   return K.mass + (run.heli?.rider ? totalMass(run.skier.spec) : 0);
 }
 
+/** The rotor's tip speed at full rpm, m/s. */
+const TIP = (K.rotor.rpm / 60) * 2 * Math.PI * K.rotor.radius;
+/** The blade element's thrust at full rpm per unit of (θ/3 − λ/2),
+ * ρA(ΩR)²·σa/2, N, and the blades' pitch at the collective's stop, rad. */
+const BLADE_LIFT =
+  K.density * ROTOR_AREA * TIP ** 2 * ((AUTOROTATION.solidity * AUTOROTATION.slope) / 2);
+const PITCH_MOST = K.flight.pitchMost;
+
 /** WHAT THE ROTOR CAN GIVE, N, at full rpm: the thrust momentum theory
  * says the power buys going `along` m/s through the air and climbing `vc`
  * m/s — P = T·(v_c + v_i), the induced velocity off Glauert's relation
  * v_i = v_h² / √(V² + (v_c + v_i)²), v_h² = T / 2ρA, the parasite power
- * ½ρfV³ at speed taken off first — in ground effect `over` m of hub height
- * over the snow (Cheeseman & Bennett, 1 / (1 − (R / 4z)²)). */
-export function thrustMost(along: number, vc: number, over: number): number {
+ * ½ρfV³ at speed taken off first — and never more than the blades give at
+ * their full pitch in the air meeting them, T = ρA(ΩR)²·σa/2·(θ/3 − λ/2),
+ * λ = (v_n + v_i) / ΩR, `through` (v_n) the disc's own way along its
+ * thrust axis, m/s (climbing positive; `vc` unless given). For a machine
+ * turned over and falling that is a climb — the air meets the rotor from
+ * its top, takes the blades' angle of attack, and by v_n + v_i ≈ ⅔θ·ΩR
+ * (some 45 m/s) they lift nothing at all, where the momentum balance alone,
+ * read as a descent, would hand it more thrust the faster it fell. In
+ * ground effect `over` m of hub height over the snow (Cheeseman & Bennett,
+ * 1 / (1 − (R / 4z)²)). */
+export function thrustMost(along: number, vc: number, over: number, through: number = vc): number {
   const rho = K.density;
   const avail = Math.max(K.power * 0.25, K.power - 0.5 * rho * K.flatPlate * along ** 3);
   let t = K.mass * TUNING.g * 1.3;
@@ -66,6 +83,13 @@ export function thrustMost(along: number, vc: number, over: number): number {
     const need = t * Math.max(0.5, c + vi);
     t *= (avail / need) ** (2 / 3);
   }
+  // The blades' own inflow: the same relation, through the disc's way.
+  const vh = Math.sqrt(t / (2 * rho * ROTOR_AREA));
+  const n = Math.max(through, -vh);
+  let vb = vh;
+  for (let j = 0; j < 6; j++)
+    vb = 0.5 * (vb + (vh * vh) / Math.max(0.5 * vh, hypot(along, n + vb)));
+  t = Math.min(t, Math.max(0, BLADE_LIFT * (PITCH_MOST / 3 - (n + vb) / TIP / 2)));
   const R = K.rotor.radius;
   const z = Math.max(over, (R / 4) * 1.05);
   const ground = Math.min(K.groundMost, 1 / (1 - (R / (4 * z)) ** 2));

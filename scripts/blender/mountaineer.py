@@ -51,26 +51,33 @@ def srgb(hexa):
 
 
 # ---------------------------------------------------------------- materials
-# A guide's kit after the photographs: the shell a strong signal orange so a
-# rope team reads him on a glacier, the shoulders, forearms and hem band
-# reinforced in charcoal, slate softshell pants with dark scuff guards, a
-# blue harness, a dark teal pack, a cyan rope. Each material's colour is
-# baked into the vertex colours (`paint`), and the game reads those; the
-# names say which draw a part joins (`player-model.ts`: the HARD goods a
-# shine of their own).
+# A valley guide's kit after the photographs of guides at work on the big
+# glaciers: a HARDSHELL in a deep signal red (a client finds the guide by it
+# on a glacier in cloud), its yoke over the shoulders and its forearms in
+# black where the pack and the rope wear it; slim charcoal touring pants
+# with grey scuff guards inside the ankles where a crampon catches; a
+# lime-green light alpine harness racked with screws and carabiners; a
+# graphite pack with the crampons strapped on its face and the ice axe in
+# its loop; an orange 8 mm glacier rope carried COILED OVER THE SHOULDER
+# and tied off across the chest; a radio on the left shoulder strap; worn
+# tan leather work gloves; a pale grey helmet and black glacier glasses.
+# Each material's colour is baked into the vertex colours (`paint`), and
+# the game reads those; the names say which draw a part joins
+# (`player-model.ts`: the HARD goods a shine of their own).
 KIT = {
-    "shell": (0xD9531E, 0.65, 0.0), "panel": (0x2A2E34, 0.7, 0.0), "pants": (0x4A535C, 0.85, 0.0),
-    "scuff": (0x1C1F23, 0.8, 0.0), "zip": (0x15171A, 0.5, 0.0), "glove": (0x30353A, 0.75, 0.0),
-    "palm": (0x8A6B4B, 0.7, 0.0), "liner": (0x2B2E34, 0.85, 0.0), "webbing": (0x2F68A8, 0.6, 0.0),
-    "pack": (0x24414A, 0.7, 0.0), "pack_dark": (0x161B1F, 0.75, 0.0), "rope": (0x19B3C8, 0.6, 0.0),
-    "rope_fleck": (0xF2F0E6, 0.6, 0.0), "skin": (0xC68863, 0.6, 0.0), "knit": (0x4A3526, 0.9, 0.0),
-    "trim": (0x15110E, 0.6, 0.0),
+    "shell": (0xA3161F, 0.55, 0.0), "panel": (0x17181B, 0.65, 0.0), "pants": (0x2E3136, 0.85, 0.0),
+    "scuff": (0x6A7078, 0.8, 0.0), "zip": (0x0E0F11, 0.5, 0.0), "glove": (0x9C7650, 0.75, 0.0),
+    "palm": (0x7A5A3A, 0.7, 0.0), "liner": (0x2B2E34, 0.85, 0.0), "webbing": (0x8CC63F, 0.6, 0.0),
+    "pack": (0x43474D, 0.7, 0.0), "pack_dark": (0x1A1C1F, 0.75, 0.0), "rope": (0xF07A1E, 0.6, 0.0),
+    "rope_fleck": (0x1E1E22, 0.6, 0.0), "skin": (0xC68863, 0.6, 0.0), "knit": (0x4A3526, 0.9, 0.0),
+    "trim": (0x15110E, 0.6, 0.0), "cord": (0x2F7FD6, 0.6, 0.0),
     # The hard goods.
-    "helmet": (0xF1F0EA, 0.3, 0.0), "helmet_dark": (0x23262A, 0.4, 0.0), "lamp": (0x1E1F22, 0.35, 0.0),
-    "lamp_lens": (0xE9F4FF, 0.1, 0.0), "glasses": (0x121212, 0.3, 0.0), "glass_lens": (0x1E2C40, 0.08, 0.6),
-    "shield": (0x3B2A1E, 0.6, 0.0), "metal": (0xB8BDC3, 0.3, 0.85), "steel": (0x7E848A, 0.35, 0.9),
-    "axe_shaft": (0x2E6FB3, 0.35, 0.6), "grip": (0x141618, 0.8, 0.0),
+    "helmet": (0xB1B6BC, 0.35, 0.0), "helmet_dark": (0x23262A, 0.4, 0.0), "lamp": (0x1E1F22, 0.35, 0.0),
+    "lamp_lens": (0xE9F4FF, 0.1, 0.0), "glasses": (0x121212, 0.3, 0.0), "glass_lens": (0x181A1E, 0.08, 0.6),
+    "shield": (0x1A1A1A, 0.6, 0.0), "metal": (0xB8BDC3, 0.3, 0.85), "steel": (0x8A9096, 0.35, 0.9),
+    "axe_shaft": (0x8A9096, 0.35, 0.6), "grip": (0x141618, 0.8, 0.0),
     "biner_gold": (0xC9A43C, 0.3, 0.85), "biner_red": (0xC2402F, 0.3, 0.7), "biner_blue": (0x2D7BD1, 0.3, 0.7),
+    "radio": (0x202226, 0.5, 0.0),
 }
 M = {}
 for name, (hexa, rough, metal) in KIT.items():
@@ -371,31 +378,28 @@ bm.free()
 # higher in front. The charcoal reinforcement covers the shoulders and the
 # yoke where a pack's straps wear (`YOKE`), the forearms past the elbow
 # (`CUFFS`, set further up than a piste jacket's cuff) and a band at the
-# hem; the pants carry dark scuff guards round the inside of each ankle
-# (where a crampon or the other boot catches) and a guard over each knee.
-HEM_UP = (UP - CHEST * 0.32).normalized()
-HEM = (hips - UP * 0.11, HEM_UP)
-HEM_BAND = (hips - UP * 0.11 + HEM_UP * 0.035, HEM_UP)
+# hem; the pants carry grey scuff guards round the inside of each ankle,
+# where a crampon or the other boot catches.
+HEM_UP = (UP - CHEST * 0.16).normalized()
+HEM = (hips - UP * 0.05, HEM_UP)
+HEM_BAND = (hips - UP * 0.05 + HEM_UP * 0.03, HEM_UP)
 YOKE = (neck - UP * 0.12, (UP + CHEST * 0.12).normalized())
 ZIP = [(neck + SX * 0.006, SX), (neck - SX * 0.006, -SX)]
 CUFFS = [(frame(f"forearm_{s}")[0] + frame(f"forearm_{s}")[2] * frame(f"forearm_{s}")[4] * 0.35,
           frame(f"forearm_{s}")[2]) for s in "lr"]
 LAPS = [(frame(f"thigh_{s}")[0] + frame(f"thigh_{s}")[2] * frame(f"thigh_{s}")[4] * 0.22,
          frame(f"thigh_{s}")[2]) for s in "lr"]
-SCUFF = [(frame(f"shin_{s}")[0] + frame(f"shin_{s}")[2] * frame(f"shin_{s}")[4] * 0.42, frame(f"shin_{s}")[2]) for s in "lr"]
+SCUFF = [(frame(f"shin_{s}")[0] + frame(f"shin_{s}")[2] * frame(f"shin_{s}")[4] * 0.7, frame(f"shin_{s}")[2]) for s in "lr"]
 INSIDE = []
 for i, s in enumerate("lr"):
     sh = frame(f"shin_{s}")
     inward = -sh[1] if sh[1].dot(feet[i] - hips) > 0 else sh[1]
     INSIDE.append((sh[0] + inward * 0.0, inward))
-KNEE_GUARD = [((frame(f"shin_{s}")[0] + frame(f"shin_{s}")[3] * 0.02), frame(f"shin_{s}")[3]) for s in "lr"]
 ARMS = [(frame(f"upperarm_{s}")[0] + frame(f"upperarm_{s}")[2] * frame(f"upperarm_{s}")[4] * 0.3,
          frame(f"upperarm_{s}")[2]) for s in "lr"]
-KNEE_HI = [(frame(f"thigh_{s}")[0] + frame(f"thigh_{s}")[2] * frame(f"thigh_{s}")[4] * 0.86, frame(f"thigh_{s}")[2]) for s in "lr"]
-KNEE_LO = [(frame(f"shin_{s}")[0] + frame(f"shin_{s}")[2] * frame(f"shin_{s}")[4] * 0.2, frame(f"shin_{s}")[2]) for s in "lr"]
 bm = bmesh.new()
 bm.from_mesh(suit.data)
-for co, no in [HEM, HEM_BAND, YOKE] + CUFFS + LAPS + ZIP + SCUFF + INSIDE + KNEE_GUARD + KNEE_HI + KNEE_LO + ARMS:
+for co, no in [HEM, HEM_BAND, YOKE] + CUFFS + LAPS + ZIP + SCUFF + INSIDE + ARMS:
     bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=co, plane_no=no)
 bm.to_mesh(suit.data)
 bm.free()
@@ -407,10 +411,6 @@ def above(co, plane):
 
 def cloth_of(co):
     b = nearest(co)
-    if b.startswith(("thigh", "shin")):
-        i = "lr".index(b[-1])
-        if above(co, KNEE_HI[i]) and not above(co, KNEE_LO[i]) and above(co, KNEE_GUARD[i]):
-            return "scuff"
     if b.startswith(("shin", "boot")) or not above(co, HEM):
         if b.startswith("shin"):
             i = "lr".index(b[-1])
@@ -533,7 +533,6 @@ PACK_LO, PACK_HI = 0.2, 1.02
 pack_back = cd * 0.5 + E["chest_back"] + 0.004   # the pack's face against his back, behind the spine's line
 pack_top = T(PACK_HI, 0.0, -(pack_back + 0.07))
 bone("fx_pack", pack_top, pack_top + UP * 0.1, parent="chest", roll_to=-CHEST)
-bone("fx_coil", pack_top + UP * 0.05, pack_top + UP * 0.15, parent="fx_pack", roll_to=-CHEST)
 rides("fx_pack")
 SECTIONS = [  # level, half across, depth
     (PACK_LO, 0.11, 0.1), (PACK_LO + 0.06, 0.135, 0.15), (0.45, 0.14, 0.17), (0.75, 0.14, 0.165),
@@ -560,8 +559,8 @@ for lv in (0.42, 0.66):
 # loop at its foot — a straight 50 cm shaft of anodised alloy with a rubber
 # grip and a steel head (a pick and an adze), its head turned so the pick
 # points across his back.
-axe_up = (UP + SX * 0.12).normalized()
-axe_head = T(PACK_HI + 0.05, -0.07, -(pack_back + 0.175))
+axe_up = (UP - SX * 0.12).normalized()
+axe_head = T(PACK_HI + 0.05, 0.07, -(pack_back + 0.175))
 axe_foot = axe_head - axe_up * 0.52
 cyl("axe_shaft", axe_foot + axe_up * 0.15, axe_head, 0.0125, M["axe_shaft"], seg=12)
 cyl("axe_grip", axe_foot + axe_up * 0.02, axe_foot + axe_up * 0.15, 0.0135, M["grip"], seg=12)
@@ -576,34 +575,50 @@ box("axe_cap", axe_head + axe_up * 0.008, (0.03, 0.03, 0.03), M["steel"], bevel=
 box("tool_loop", axe_foot + axe_up * 0.05, (0.04, 0.025, 0.014), M["pack_dark"], bevel=0)
 box("axe_strap", axe_head - axe_up * 0.2, (0.05, 0.02, 0.012), M["pack_dark"], bevel=0)
 
-# THE ROPE'S COIL, lashed across the top of the pack under the lid strap:
-# a butterfly coil of 9 mm rope, a dozen loops folded across the top and
-# hanging down either side, on its own spring bone (`fx_coil`).
-rides("fx_coil")
-coil_c = T(PACK_HI + 0.02, 0.0, -(pack_back + 0.085))
-N_LOOP = 12 if GAME else 16
-for j in range(N_LOOP):
-    dz = (j - (N_LOOP - 1) / 2) * 0.0105
+# THE CRAMPONS, strapped flat on the pack's face low on his left, points
+# out, as a guide carries them down a glacier: two steel frames, each a
+# toe section and a heel section joined by one flat link bar along the
+# middle (a real crampon's adjustable bar, so it reads as a crampon and
+# never as a ladder), their front points and down points turned out from
+# the pack, an elastic strap across both.
+cr_c = T(0.4, -0.06, -(pack_back + 0.168))
+cr_up = (UP + SX * 0.08).normalized()
+cr_across = cr_up.cross(-CHEST).normalized()
+
+
+def cr_rail(base, sd, t0, t1, w0, w1, n=5):
+    """One side rail of a section, zigzagged as a crampon's pressed frame."""
     pts = []
-    K = 14 if GAME else 26
-    for k in range(K):
-        a = 2 * math.pi * k / K
-        u, v = math.cos(a), math.sin(a)
-        # A loop folded over the top: its two strands a finger apart in
-        # depth, draped down both sides of the pack, the outer loops a
-        # little longer than the inner ones as a real coil hangs.
-        x = (0.2 + 0.004 * abs(j - N_LOOP / 2)) * u
-        droop = 0.17 * (abs(u) ** 2.4)
-        pts.append(coil_c + SX * x + UP * (0.004 * (j % 3) - droop + 0.004 * math.sin(3 * a + j)) - CHEST * (dz * 0.7 + 0.011 * v))
-    tube("rope", pts, 0.0062, M["rope" if j % 4 else "rope_fleck"], closed=True)
-# The lid strap over the coil, and the rope's tail let out of it.
-box("coil_strap", coil_c + UP * 0.032, (0.03, 0.03, 0.15), M["pack_dark"], bevel=0)
-tail_root = coil_c + SX * 0.25 - UP * 0.12
-bone("fx_tail", tail_root, tail_root - UP * 0.3, parent="fx_coil", roll_to=-CHEST)
-rides("fx_tail")
-tail = [tail_root + SX * (0.01 * math.sin(k)) - UP * (0.034 * k) - CHEST * (0.004 * k) for k in range(10)]
-tail_ob = tube("rope_tail", tail, 0.0048, M["rope"], smooth_n=2)
-FLUTTER["rope_tail"] = lambda co: min(1.0, max(0.0, (tail_root - co).dot(UP) / 0.3)) * 0.6
+    for q in range(n + 1):
+        f = q / n
+        w = w0 + (w1 - w0) * f + (0.006 if q % 2 else 0.0)
+        pts.append(base + cr_up * (t0 + (t1 - t0) * f) + cr_across * (sd * w))
+    tube("crampon_rail", pts, 0.0035, M["steel"])
+
+
+for k, dz in enumerate((0.0, 0.016)):
+    base = cr_c - CHEST * dz
+    for sd in (-1, 1):
+        cr_rail(base, sd, 0.01, 0.15, 0.036, 0.03)
+        cr_rail(base, sd, -0.15, -0.07, 0.034, 0.034, n=3)
+    cyl("crampon_bar", base - cr_up * 0.08, base + cr_up * 0.02, 0.005, M["steel"], seg=6)
+    cyl("crampon_bar", base + cr_up * 0.01 - cr_across * 0.036, base + cr_up * 0.01 + cr_across * 0.036, 0.0035, M["steel"], seg=6)
+    cyl("crampon_bar", base - cr_up * 0.07 - cr_across * 0.034, base - cr_up * 0.07 + cr_across * 0.034, 0.0035, M["steel"], seg=6)
+    if k == 1:
+        for t in (-0.14, -0.09, 0.03, 0.08, 0.12):
+            for sd in (-1, 1):
+                foot = base + cr_up * t + cr_across * (sd * 0.036)
+                cyl("crampon_point", foot, foot - CHEST * 0.036, 0.005, M["steel"], seg=6, r2=0.0006)
+        for sd in (-1, 1):
+            tip = base + cr_up * 0.15 + cr_across * (sd * 0.016)
+            cyl("crampon_point", tip, tip + cr_up * 0.03 - CHEST * 0.012, 0.0045, M["steel"], seg=6, r2=0.0006)
+# The bails: a wire over each toe and a lever at each heel.
+for dz in (0.0, 0.016):
+    base = cr_c - CHEST * dz
+    toe = [base + cr_up * 0.13 + cr_across * (0.036 * math.cos(math.pi * q / 6)) + cr_up * (0.032 * math.sin(math.pi * q / 6)) for q in range(7)]
+    tube("crampon_bail", toe, 0.0025, M["steel"])
+    box("crampon_heel", base - cr_up * 0.15, (0.075, 0.012, 0.02), M["steel"], bevel=0)
+box("crampon_strap", cr_c - CHEST * 0.03 + cr_up * 0.02, (0.17, 0.012, 0.03), M["pack_dark"], bevel=0)
 
 # THE SHOULDER STRAPS, riding him as the cloth does: from the pack's top
 # over each shoulder and down his chest to the lower ribs, a sternum strap
@@ -631,6 +646,96 @@ for o in straps:
     if o.name.startswith("strap_tail"):
         top = max(v.co.dot(UP) for v in o.data.vertices)
         FLUTTER[o.name] = (lambda t: (lambda co: min(1.0, max(0.0, (t - co.dot(UP)) / 0.15))))(top)
+
+# ---------------------------------------------------------------- the ROPE
+# THE GLACIER ROPE CARRIED AS A GUIDE CARRIES IT: most of a 30 m length of
+# 8 mm rope taken up in COILS OVER HIS LEFT SHOULDER, a bandolier across
+# his chest to under his right arm (the pack's straps under it in front,
+# the pack worn over it behind, as a guide puts it on), the coils bound
+# together by a few turns at the right hip — the tie-off — and the end
+# clipped short to his harness. Each loop is laid round his trunk: `phi`
+# goes round him (0 his right side, a quarter his chest), its level up the
+# spine falling from his left shoulder to his right hip, its reach the
+# jacket's own outline there and the clearance over the straps.
+N_COIL = 11 if GAME else 14
+ROPE_R = 0.0042
+COIL_HI, COIL_LO = 1.02, 0.36
+TIE_PHI = math.radians(22)        # the tie-off: low on his right, a little ahead
+
+
+def coil_point(phi, j):
+    """Loop `j`'s point at `phi` round him."""
+    # The level: highest over the left shoulder, lowest at the tie-off.
+    c = math.cos(phi - TIE_PHI)
+    lv = (COIL_HI + COIL_LO) / 2 - (COIL_HI - COIL_LO) / 2 * c
+    lv += 0.006 * (j - N_COIL / 2) / SPINE_L
+    hx, fr, bk = trunk_r(lv)
+    cp, sp = math.cos(phi), math.sin(phi)
+    n = 2.7
+    u = math.copysign(abs(cp) ** (2 / n), cp) * hx
+    v = math.copysign(abs(sp) ** (2 / n), sp) * (fr if sp > 0 else bk)
+    out = SX * u + CHEST * v
+    d = out.length
+    # Off the jacket by the straps' depth and the bundle's own (each loop
+    # a rope's width outside the last), a touch more over the shoulder.
+    over = 0.026 + 0.0075 * (j % 4) + 0.01 * max(0.0, -c) ** 4
+    # The bundle's loops a little apart along its length, and sagging
+    # where they hang free below the tie-off's side.
+    sag = 0.012 * max(0.0, c) ** 3
+    return T(lv) + out * ((d + over) / d) - UP * sag + UP * (0.004 * math.sin(3 * phi + j))
+
+
+rides("chest")
+coil_parts = []
+K = 30 if GAME else 56
+for j in range(N_COIL):
+    pts = [coil_point(2 * math.pi * k / K, j) for k in range(K)]
+    coil_parts.append(tube("rope", pts, ROPE_R, M["rope" if j % 5 else "rope_fleck"], closed=True))
+# The tie-off: a few turns round the bundle at the hip, and the end let out
+# of it, clipped to the belay loop in front with a slack bight hanging.
+tie_c = coil_point(TIE_PHI, N_COIL // 2)
+tie_dir = (coil_point(TIE_PHI + 0.05, N_COIL // 2) - coil_point(TIE_PHI - 0.05, N_COIL // 2)).normalized()
+tie_o = (tie_c - T(COIL_LO)).normalized()
+tie_w = tie_dir.cross(tie_o).normalized()
+for k in range(4):
+    c0 = tie_c + tie_dir * (0.012 * (k - 1.5))
+    turn = [c0 + tie_o * (0.019 * math.cos(2 * math.pi * q / 10)) + tie_w * (0.015 * math.sin(2 * math.pi * q / 10)) for q in range(10)]
+    coil_parts.append(tube("rope_tie", turn, ROPE_R, M["rope"], closed=True))
+bone("fx_coil", tie_c, tie_c - UP * 0.12, parent="chest", roll_to=-CHEST)
+for o in coil_parts:
+    # The coils ride his chest and, toward their low side, his hips — the
+    # bight under the tie-off swung on its own spring (`fx_coil`).
+    def coil_w(co):
+        w = suit_weights(co, ["spine"])
+        k = max(0.0, 1.0 - (co - tie_c).length / 0.14)
+        k = k * k * 0.6
+        out = {b: v * (1 - k) for b, v in w.items()}
+        if k > 0:
+            out["fx_coil"] = k
+        return out
+    weights(o, coil_w)
+# The end: from the tie-off down and round to the harness's belay loop, a
+# loose bight of it hanging below — and the short tail past the knot,
+# loosest of all, on its spring (`fx_tail`).
+bight = [tie_c - UP * 0.01, tie_c - UP * 0.07 + CHEST * 0.02, (tie_c + buckle_at) / 2 - UP * 0.09 + CHEST * 0.04,
+         buckle_at - UP * 0.04 + CHEST * 0.02, buckle_at - UP * 0.015]
+end = tube("rope_end", bight, ROPE_R, M["rope"], smooth_n=4)
+weights(end, lambda co: suit_weights(co, ["spine"]))
+tail_root = tie_c - UP * 0.015 + tie_o * 0.02
+bone("fx_tail", tail_root, tail_root - UP * 0.22, parent="fx_coil", roll_to=-CHEST)
+rides("fx_tail")
+tail = [tail_root + tie_o * (0.006 * k) - UP * (0.026 * k) + CHEST * (0.004 * math.sin(k)) for k in range(9)]
+tube("rope_tail", tail, ROPE_R * 0.95, M["rope"], smooth_n=2)
+FLUTTER["rope_tail"] = lambda co: min(1.0, max(0.0, (tail_root - co).dot(UP) / 0.22)) * 0.7
+
+# THE RADIO on the left shoulder strap, where a guide's handset is clipped
+# to talk to the rope team and the valley: a dark box with its antenna.
+rides("chest")
+rd = T(0.8, -0.1, cd * 0.53 + E["chest_front"] + 0.03)
+radio = [box("radio", rd, (0.055, 0.03, 0.1), M["radio"], bevel=0 if GAME else 0.004),
+         cyl("radio_aerial", rd + UP * 0.05 + SX * 0.015, rd + UP * 0.12 + SX * 0.02, 0.0045, M["radio"], seg=8)]
+for o in radio:
+    weights(o, lambda co: suit_weights(co, ["spine"]))
 
 # ---------------------------------------------------------------- the HEAD
 # His head, face and hair are the game's own triangles (`bareHeadParts`),

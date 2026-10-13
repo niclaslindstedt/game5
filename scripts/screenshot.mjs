@@ -137,6 +137,7 @@ const SCENES = {
  * page loads (a card that reads a stored pick); `prime` is a race stood
  * up and a key pressed on it FIRST, in the same tab, for a card that shows
  * what a run left behind (the gallery's roll). */
+const DRESS = { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 };
 const SURFACES = {
   ...WINGSUIT_SURFACES,
   ...SUMMER_SURFACES,
@@ -348,7 +349,9 @@ const SURFACES = {
   },
   // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
   // him — the first card after a map is picked, the gear card after it.
-  dress: { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 },
+  dress: DRESS,
+  // ...with the modelled guide picked (`player-model.ts`).
+  "dress-guide": { ...DRESS, storage: { "fall-line.settings.v1": '{"outfit":{"body":"guide"}}' } },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
     params: { menu: "dress", mode: "tricks", skis: "lynx" },

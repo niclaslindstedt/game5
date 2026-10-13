@@ -116,6 +116,7 @@ import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
+import { setPlayerClock } from "./player-model.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
@@ -523,6 +524,7 @@ export function createSkisModel(
       return out;
     },
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+      setPlayerClock(run ? run.t : null); // the modelled kit on the run's clock
       const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
       handDt = dt;
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);

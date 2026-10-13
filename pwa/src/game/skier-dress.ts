@@ -15,7 +15,7 @@ import * as THREE from "three";
 
 import { dressOutfit } from "./dress.ts";
 import { bindPose, type DressPart } from "./dress-loft.ts";
-import { dealtOutfit, type Outfit } from "./outfit.ts";
+import { dealtOutfit, gearOf, type Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
@@ -25,6 +25,7 @@ import {
   createSprings,
   flutterUniforms,
   playerModel,
+  playerNow,
   SPRING_BONES,
   withFlutter,
   type ModelPart,
@@ -60,7 +61,8 @@ export type SkierDress = {
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
   /** The player's MODELLED kit (`player-model.ts`) in place of the
-   * outfit's cut, once it is loaded — never in a suit or indoors. */
+   * outfit's cut, once it is loaded and when his outfit's body is the
+   * modelled one (the guide) — never in a suit or indoors. */
   model?: boolean;
 };
 
@@ -75,6 +77,9 @@ export function dealtKit(kits: Map<string, SkierDress>, look: number, rider: Rid
   kits.set(key, made);
   return made;
 }
+
+/** Whether `outfit` is a modelled body's (the guide, `player-model.ts`). */
+const modelled = (outfit: Outfit): boolean => !!gearOf("body", outfit.body).model;
 
 /** A ghost's colours: the kit's own light, lifted toward a pale ice blue. */
 const PALE = new THREE.Color(0xdcecff).convertSRGBToLinear();
@@ -132,7 +137,10 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   SKIER_BONES.forEach((name, i) => setBone(bones[i], bind[name]));
   // The modelled kit's SPRING BONES after the rig's own, bound with the
   // chest's axes at their heads (`player-model.ts`).
-  const model = dress.model && dress.suit === undefined && !dress.bare ? playerModel() : null;
+  const model =
+    dress.model && modelled(dress.outfit) && dress.suit === undefined && !dress.bare
+      ? playerModel()
+      : null;
   const springs = model ? createSprings(bind, model.heads) : null;
   const fx = model
     ? SPRING_BONES.map((s) => {
@@ -202,7 +210,11 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     if (!springs) return;
-    const swung = springs.step(frames, group.matrixWorld, performance.now() / 1000);
+    // On the run's clock (`setPlayerClock`), the figure's place brought up
+    // to date here: a lab poses him without drawing a frame.
+    const now = playerNow();
+    group.updateWorldMatrix(true, false);
+    const swung = springs.step(frames, group.matrixWorld, now);
     const torn = cut?.bones.get("chest");
     fx.forEach((b, i) => {
       setBone(b, swung.frames[i]);
@@ -212,7 +224,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     flutter.uFlow.value.set(swung.flow.x, swung.flow.y, swung.flow.z);
-    flutter.uFlTime.value = performance.now() / 1000;
+    flutter.uFlTime.value = now;
   };
 
   return {

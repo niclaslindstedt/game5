@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import { bindPose } from "../pwa/src/game/dress-loft.ts";
 import { dressOutfit } from "../pwa/src/game/dress.ts";
-import { DEFAULT_OUTFIT } from "../pwa/src/game/outfit.ts";
+import { BODIES, DEFAULT_OUTFIT, dealtOutfit } from "../pwa/src/game/outfit.ts";
 import {
   boneIndexOf,
   createSprings,
@@ -110,5 +110,25 @@ describe("the player's modelled kit", () => {
     for (let i = 0; i < 400; i++, t += 1 / 60) tailAt();
     const after = tailAt().y;
     expect(after.x * still.x + after.y * still.y + after.z * still.z).toBeGreaterThan(0.999);
+  });
+
+  it("hangs a broken arm from its break: the sleeve past it rides the lower bones", async () => {
+    const m = await model;
+    for (const side of ["l", "r"] as const)
+      for (const bone of ["upperarm", "forearm"] as const) {
+        const lo = SKIER_BONES.indexOf(`${bone}_lo_${side}`);
+        let past = 0;
+        for (let i = 0; i < m.cloth.skinIndex.length; i++)
+          if (m.cloth.skinIndex[i] === lo && m.cloth.skinWeight[i] > 0.5) past++;
+        expect(past, `${bone}_lo_${side}`).toBeGreaterThan(10);
+      }
+  });
+
+  it("is a body picked on the rider card, never one dealt to a rival", () => {
+    const guide = BODIES.filter((b) => b.model);
+    expect(guide.length).toBeGreaterThan(0);
+    expect(guide.some((b) => b.id === DEFAULT_OUTFIT.body)).toBe(false);
+    for (let i = 0; i < 64; i++)
+      expect(guide.some((b) => b.id === dealtOutfit(i * 7919 + 13, "medium").body)).toBe(false);
   });
 });

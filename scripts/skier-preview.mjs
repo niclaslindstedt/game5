@@ -117,6 +117,11 @@ const args = parseArgs(
     },
     skis: { kind: "string", default: "chamois", help: "the pair he skis on" },
     slot: { kind: "number", default: 0, help: "the start-line slot's kit, 0..3" },
+    body: {
+      kind: "string",
+      default: "",
+      help: "slot 0's body by its outfit id (guide: the modelled mountain guide)",
+    },
     frames: { kind: "number", default: 9, help: "moments a move is shown at" },
     views: {
       kind: "string",
@@ -200,7 +205,10 @@ const injuries = brokenWords.flatMap((w, i) =>
       ]
     : [],
 );
-const tag = (args.broken ? `-broken-${brokenWords.join("-")}` : "") + (args.wire ? "-wire" : "");
+const tag =
+  (args.body ? `-${args.body}` : "") +
+  (args.broken ? `-broken-${brokenWords.join("-")}` : "") +
+  (args.wire ? "-wire" : "");
 
 // ── Ski every move through the real engine ────────────────────────────────
 const S = await import(join(root, "tests/support/synthetic.ts"));
@@ -364,6 +372,7 @@ for (const job of jobs) {
     views: args.views,
     cell: String(args.cell),
     ...(args.wire ? { wire: "1" } : {}),
+    ...(args.body ? { body: args.body } : {}),
   }).toString();
   const t0 = Date.now();
   await page.goto(`${server.url}skier-preview.html?${query}`);

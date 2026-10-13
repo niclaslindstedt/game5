@@ -24,7 +24,8 @@
 
 import * as THREE from "three";
 
-import type { DressPart } from "./dress-loft.ts";
+import { bindPose, type DressPart } from "./dress-loft.ts";
+import { BREAK } from "./skier-broken.ts";
 import { SKIER_BONES, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
 
@@ -38,8 +39,8 @@ export type ModelPart = DressPart & { flutter: number[] };
  * much of the force reaches it (a pack strapped tight takes little). */
 export const SPRING_BONES = [
   { name: "fx_pack", parent: "chest", length: 0.3, hz: 2.8, zeta: 0.4, most: 0.09, gain: 0.25 },
-  { name: "fx_coil", parent: "fx_pack", length: 0.16, hz: 2.0, zeta: 0.22, most: 0.32, gain: 0.6 },
-  { name: "fx_tail", parent: "fx_coil", length: 0.3, hz: 1.3, zeta: 0.14, most: 0.85, gain: 1 },
+  { name: "fx_coil", parent: "chest", length: 0.12, hz: 2.4, zeta: 0.3, most: 0.22, gain: 0.5 },
+  { name: "fx_tail", parent: "fx_coil", length: 0.22, hz: 1.5, zeta: 0.14, most: 0.85, gain: 1 },
 ] as const;
 export type SpringBone = (typeof SPRING_BONES)[number]["name"];
 
@@ -78,6 +79,38 @@ export function boneIndexOf(name: string): number {
   const base = name === "body" ? "pelvis" : name.replace("_lo_", "_");
   const i = SKIER_BONES.indexOf(base as SkierBone);
   return i >= 0 ? i : 0;
+}
+
+/** How far either side of a break the two halves of an arm bone share a
+ * point, m: the loom's own seam (`dress-loft.ts`). */
+const SEAM = 0.03;
+
+/** PAST A BREAK (`skier-broken.ts`), as the loom weights the code's dress:
+ * an arm bone's share past where it would break moved to the bone below
+ * the break (`upperarm_lo_l` and the rest), eased over the seam. On a
+ * sound arm the two halves move as one; on a broken one the sleeve hangs
+ * from the break with the arm in it, rather than folding at the joint. */
+function splitAtBreaks(at: V3, w: Map<number, number>): void {
+  const frames = bindPose().frames;
+  for (const s of ["l", "r"] as const) {
+    for (const [bone, cut] of [
+      [`upperarm_${s}`, BREAK.upper],
+      [`forearm_${s}`, BREAK.fore],
+    ] as const) {
+      const i = SKIER_BONES.indexOf(bone);
+      const share = w.get(i);
+      if (!share) continue;
+      const f = frames[bone];
+      const m = (at.x - f.head.x) * f.y.x + (at.y - f.head.y) * f.y.y + (at.z - f.head.z) * f.y.z;
+      const x = Math.max(0, Math.min(1, (m - cut + SEAM) / (2 * SEAM)));
+      const c = x * x * (3 - 2 * x);
+      if (c <= 0) continue;
+      const lo = SKIER_BONES.indexOf(bone.replace("arm_", "arm_lo_") as SkierBone);
+      if (c >= 1) w.delete(i);
+      else w.set(i, share * (1 - c));
+      w.set(lo, (w.get(lo) ?? 0) + share * c);
+    }
+  }
 }
 
 const empty = (): ModelPart => ({
@@ -141,6 +174,7 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
         const j = joints[ji.getComponent(i, k)];
         w.set(j, (w.get(j) ?? 0) + wk);
       }
+      splitAtBreaks(at, w);
       const top = [...w].sort((a, b) => b[1] - a[1]).slice(0, 4);
       const sum = top.reduce((s, [, x]) => s + x, 0) || 1;
       for (let k = 0; k < 4; k++) {
@@ -156,6 +190,18 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
 }
 
 let held: PlayerModel | null = null;
+let runClock: number | null = null;
+
+/** THE CLOCK THE KIT MOVES ON: the run's own (`GameState.t`), handed in
+ * where the player is posed, so a lab's stepped stills, a paused frame, a
+ * replay's slow motion and its seeks all show the cloth as the run had it;
+ * `null` off a run (the rider card), when it is the wall clock. */
+export function setPlayerClock(t: number | null): void {
+  runClock = t;
+}
+export function playerNow(): number {
+  return runClock ?? performance.now() / 1000;
+}
 
 /** The model, once `skier-models.ts`'s `loadModels` has read it — or
  * `null` (switched off, not packed, failed to load, or not in yet), when
@@ -203,11 +249,11 @@ export function createSprings(
   // arithmetic from the chest down.
   const chest = bind.chest;
   const offsets: V3[] = [];
-  let parentHead = chest.head;
+  const headOf = (name: string): V3 =>
+    name === "chest" ? chest.head : (heads[name as SpringBone] ?? chest.head);
   for (const s of SPRING_BONES) {
-    const d = sub(heads[s.name] ?? parentHead, parentHead);
+    const d = sub(heads[s.name] ?? headOf(s.parent), headOf(s.parent));
     offsets.push(v3(dot(d, chest.x), dot(d, chest.y), dot(d, chest.z)));
-    parentHead = heads[s.name] ?? parentHead;
   }
   // Gravity as the chest is stood in the bind pose: the share of it the
   // springs hang against at rest, so the model's own drape is their zero.
@@ -233,7 +279,11 @@ export function createSprings(
   return {
     rest,
     step(frames, world, now) {
-      const dt = last < 0 ? 0 : Math.min(0.05, now - last);
+      // A clock run back or jumped on (a restart, a replay's seek, the
+      // card's wall clock handed over to a run's) is no motion: let go.
+      const gap = now - last;
+      if (last >= 0 && (gap < 0 || gap > 0.5)) rest();
+      const dt = last < 0 || gap < 0 || gap > 0.5 ? 0 : Math.min(0.05, gap);
       last = now;
       // The pack's head in the world: its velocity and acceleration,
       // smoothed over a few frames (a frame's jitter is not a jolt).
@@ -263,8 +313,13 @@ export function createSprings(
       flow.copy(vel).negate().applyMatrix4(inv);
 
       const out: BoneFrame[] = [];
-      let parent: BoneFrame = frames.chest;
       SPRING_BONES.forEach((s, i) => {
+        // Each spring hangs off its own parent: the chest, or a spring
+        // before it in the list.
+        const parent =
+          s.parent === "chest"
+            ? frames.chest
+            : out[SPRING_BONES.findIndex((b) => b.name === s.parent)];
         const head = inFrame(parent, offsets[i]);
         const w = swings[i];
         if (dt > 1e-4) {
@@ -293,7 +348,6 @@ export function createSprings(
         const y2 = add(mul(parent.x, -sr), mul(y1, cr));
         const frame: BoneFrame = { head, x: x2, y: y2, z: z1, length: s.length };
         out.push(frame);
-        parent = frame;
       });
       ax.set(flow.x, flow.y, flow.z);
       return { frames: out, flow: v3(ax.x, ax.y, ax.z) };

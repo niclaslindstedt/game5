@@ -55,6 +55,7 @@ import {
   type Tier,
 } from "../game/settings-video.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
+import { BODIES, DEFAULT_OUTFIT } from "../game/outfit.ts";
 import { wildGround } from "../game/wild-ground.ts";
 import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
 
@@ -100,6 +101,9 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
+// `?body=guide`: the player in the modelled guide (`player-model.ts`).
+const bodyAsked = BODIES.find((b) => b.id === params.get("body"));
+if (bodyAsked) renderer.dress({ ...DEFAULT_OUTFIT, body: bodyAsked.id });
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
 /** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */
@@ -911,7 +915,7 @@ const shots: Record<string, () => string> = {
 window.__world = {
   ready: renderer.load(state),
   async shoot(name) {
-    const chase = /^chase-(\d+)$/.exec(name);
+    const chase = /^chase-(\d+(?:\.\d+)?)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
     const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
     const crash = /^crash-(net-)?(\d+(?:\.\d+)?)$/.exec(name);

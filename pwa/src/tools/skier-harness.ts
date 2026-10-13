@@ -40,6 +40,7 @@ import { gaitOf } from "../game/skier-pose.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
 import { drawPath } from "./skier-path.ts";
 import { uprightSkier } from "../game/skier-somersault.ts";
+import { BODIES } from "../game/outfit.ts";
 
 type Frame = {
   t: number;
@@ -150,7 +151,11 @@ async function load(): Promise<void> {
   const spec = pairById(data.skis);
   // Slot 0 is the player: in his modelled kit where the build has it.
   const slot = data.slot % SLOT_DRESS.length;
-  model = createSkisModel(spec, pairStyle(spec, { ...SLOT_DRESS[slot], model: slot === 0 }), plain);
+  // `?body=guide`: slot 0 in the modelled guide (`player-model.ts`).
+  const kit = SLOT_DRESS[slot];
+  const body = BODIES.find((b) => b.id === params.get("body"));
+  const dress = slot === 0 && body ? { ...kit, outfit: { ...kit.outfit, body: body.id } } : kit;
+  model = createSkisModel(spec, pairStyle(spec, { ...dress, model: slot === 0 }), plain);
   model.root.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = true;
   });

@@ -61,25 +61,32 @@ def colour(hexa):
     return tuple(((c / 255 + 0.055) / 1.055) ** 2.4 for c in ((hexa >> 16) & 255, (hexa >> 8) & 255, hexa & 255))
 
 
-# THE TEAM'S COLOURS (sRGB): its red, the suit's white, the dark of the side
-# panels and the guards, the bib's yellow.
-RED, WHITE, DARK, YELLOW = 0xD3141E, 0xF2F3F5, 0x15171C, 0xF3D51C
+# THE TEAM'S COLOURS (sRGB), after the azure team's suits and kit: the
+# suit's white and its two azures (the light one the fade starts in, the
+# deep one it ends in), the navy of the guards, helmet and collar, the
+# tricolour's green, white and red, the bib's red and the print's black.
+WHITE, AZURE, DEEP, NAVY = 0xF4F6F8, 0x4C86E4, 0x1638A6, 0x141C3E
+GREEN, FLAG_RED, BIB_RED, DARK = 0x009246, 0xCE2B37, 0xC4122F, 0x121318
 
 # ---------------------------------------------------------------- materials
-SUIT = mat("suit", (1, 1, 1), rough=0.34)
+SUIT = mat("suit", (1, 1, 1), rough=0.3)
 BIB = mat("bib", (1, 1, 1), rough=0.7)
-GUARD = mat("guard", colour(0x0E0F12), rough=0.22, coat=1.0)
-EDGE = mat("guard_edge", colour(YELLOW), rough=0.4)
-SHIELD = mat("shield", colour(RED), rough=0.25, coat=1.0)
+GUARD = mat("guard", colour(NAVY), rough=0.2, coat=1.0)
+EDGE = mat("guard_edge", colour(WHITE), rough=0.4)
+SHIELD = mat("shield", colour(AZURE), rough=0.22, coat=1.0)
 STRAP = mat("strap", colour(0x101114), rough=0.7)
-GLOVE = mat("glove", colour(0xB5121B), rough=0.55)
+GLOVE = mat("glove", colour(NAVY), rough=0.55)
 PALM = mat("palm", colour(0x1A1B1F), rough=0.8)
-HELMET = mat("helmet", colour(RED), rough=0.18, coat=1.0)
+HELMET = mat("helmet", colour(0x1A2A66), rough=0.16, coat=1.0)
 PEAK = mat("peak", colour(WHITE), rough=0.22, coat=1.0)
-CHIN = mat("chin", colour(0x121316), rough=0.3, coat=0.6)
-LENS = mat("lens", colour(0x3FA9F5), metal=0.75, rough=0.06)
+CHIN = mat("chin", colour(0x10131C), rough=0.3, coat=0.6)
+LENS = mat("lens", colour(0xF2A83A), metal=0.8, rough=0.05)
 LINER = mat("liner", colour(0x2B2E34), rough=0.85)
 SKIN = mat("skin", colour(0xC68863), rough=0.6)
+FLAG_GREEN = mat("flag_green", colour(GREEN), rough=0.18, coat=1.0)
+FLAG_WHITE = mat("flag_white", colour(WHITE), rough=0.18, coat=1.0)
+FLAG_RED_M = mat("flag_red", colour(FLAG_RED), rough=0.18, coat=1.0)
+FLAG = {"green": FLAG_GREEN, "white": FLAG_WHITE, "red": FLAG_RED_M}
 
 
 # ---------------------------------------------------------------- the RIG
@@ -308,8 +315,9 @@ for i, s in enumerate("lr"):
     th, lt = r_of(ANSUR["thigh"]) * 0.97, r_of(ANSUR["lower_thigh"])
     pieces.append(lofted("leg", f"thigh_{s}", [
         (-0.12, th * 1.04 + l, th + l, th * 1.1 + l),
-        (0.2, th + l, th + l, th + l),
-        (0.6, (th + lt) / 2 + l, (th + lt) / 2 + l, (th + lt) / 2 + l),
+        # A racer's thigh: the quadriceps full down its front to the knee.
+        (0.2, th * 1.02 + l, th * 1.07 + l, th + l),
+        (0.6, (th + lt) / 2 * 1.02 + l, (th + lt) / 2 * 1.1 + l, (th + lt) / 2 * 0.97 + l),
         (0.95, lt + l, lt + l, lt + l)]))
     ca, an = r_of(ANSUR["calf"]), r_of(ANSUR["ankle"])
     pieces.append(lofted("leg", f"shin_{s}", [
@@ -485,7 +493,7 @@ lens_tex.image = ramp
 lens_mix = lens_nt.nodes.new("ShaderNodeMix")
 lens_mix.data_type, lens_mix.blend_type = "RGBA", "MULTIPLY"
 lens_mix.inputs["Factor"].default_value = 1.0
-lens_mix.inputs[7].default_value = (*colour(0x3FA9F5), 1.0)
+lens_mix.inputs[7].default_value = (*colour(0xF2A83A), 1.0)
 lens_nt.links.new(lens_tex.outputs["Color"], lens_mix.inputs[6])
 lens_nt.links.new(lens_mix.outputs[2], lens_nt.nodes.get("Principled BSDF").inputs["Base Color"])
 
@@ -511,6 +519,51 @@ chin = [head_point(p) for p in ((-0.106, -0.062, 0.0), (-0.09, -0.09, 0.06), (-0
 tube("chin_guard", chin, 0.017, CHIN, smooth_n=0 if GAME else 2)
 for sx in (-1, 1):
     ellipsoid("chin_hinge", head_point((0.106 * sx, -0.062, 0.0)), (0.022, 0.026, 0.026), CHIN)
+
+
+# THE TRICOLOUR over the crown: a ribbon of green, white and red laid on the
+# shell from the brow over the top to the nape, as the team's helmets carry
+# it — each point found by casting at the shell from outside, so it lies on
+# whatever shape the game's helmet has.
+shells = [o for o in bpy.data.objects if o.name.split(".")[0] in ("helmet_shell", "helmet_stripe")]
+
+
+from mathutils.bvhtree import BVHTree  # noqa: E402
+
+TREES = [BVHTree.FromPolygons([o.matrix_world @ v.co for v in o.data.vertices],
+                              [tuple(f.vertices) for f in o.data.polygons]) for o in shells]
+
+
+def on_shell(p):
+    best = None
+    centre = head_point((0.0, 0.03, -0.01))
+    d = (p - centre).normalized()
+    for tree in TREES:
+        at, n, _, _ = tree.ray_cast(centre + d * 0.4, -d)
+        if at is not None:
+            n = n if n.dot(d) > 0 else -n
+            if best is None or (at - centre).length > (best[0] - centre).length:
+                best = (at, n)
+    return best
+
+
+if shells:
+    for k, c in enumerate(("green", "white", "red")):
+        x0, x1 = -0.021 + k * 0.014, -0.021 + (k + 1) * 0.014
+        rows = []
+        for j in range(25 if not GAME else 13):
+            th = math.radians(55 - 165 * j / (24 if not GAME else 12))
+            row = []
+            for x in (x0, x1):
+                at = on_shell(head_point((x, 0.03 + 0.2 * math.cos(th), -0.01 + 0.2 * math.sin(th))))
+                if at:
+                    row.append(at[0] + at[1] * 0.0018)
+            if len(row) == 2:
+                rows.append(row)
+        if len(rows) > 2:
+            ob = loft("helmet_flag", rows, [FLAG[c]], closed=False, cap=False)
+            sd = ob.modifiers.new("shell", "SOLIDIFY")
+            sd.thickness, sd.offset = 0.001, 0.0
 
 
 # ---------------------------------------------------------------- the GUARDS
@@ -631,7 +684,8 @@ import racer_print  # noqa: E402
 
 racer_print.paint(suit, bib, SUIT, BIB, dict(
     GAME=GAME, frame=frame, knees=knees, hips=hips, neck=neck, shoulders=shoulders, elbows=elbows,
-    colours=dict(red=colour(RED), white=colour(WHITE), dark=colour(DARK), yellow=colour(YELLOW)),
+    colours=dict(white=colour(WHITE), azure=colour(AZURE), deep=colour(DEEP), navy=colour(NAVY),
+                 green=colour(GREEN), red=colour(FLAG_RED), bib=colour(BIB_RED), dark=colour(DARK)),
     COL=COL))
 
 # ---------------------------------------------------------------- the CLIPS

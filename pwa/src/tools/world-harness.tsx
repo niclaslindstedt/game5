@@ -55,6 +55,7 @@ import {
   type Tier,
 } from "../game/settings-video.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
+import { BODIES, DEFAULT_OUTFIT } from "../game/outfit.ts";
 import { wildGround } from "../game/wild-ground.ts";
 import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
 
@@ -100,6 +101,9 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
+// `?body=racer`: the player in another BODY row (the modelled racer), the rest the default kit.
+const body = BODIES.find((b) => b.id === params.get("body"));
+if (body) renderer.dress({ ...DEFAULT_OUTFIT, body: body.id });
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
 /** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */
@@ -454,6 +458,27 @@ function chaseAt(t: number): string {
   rideUntil(() => state.t >= t && !state.skier.airborne, t + 30);
   settle(30);
   return `chase at t ${state.t.toFixed(1)} s, y ${state.skier.y.toFixed(0)} m`;
+}
+
+/** HIM FROM BESIDE HIS LINE at `t` s down the run (the view `side-<t>`, any
+ * time): a lens 3.2 m off his right, a little behind him and over his back,
+ * so a run of them reads as frames of the air on his clothes. */
+function sideAt(t: number): string {
+  rideUntil(() => state.t >= t, t + 30);
+  const s = state.skier;
+  const h = Math.atan2(s.vx, s.vz);
+  const ex = s.x + Math.cos(h) * 3.2 - Math.sin(h) * 1.6;
+  const ez = s.z - Math.sin(h) * 3.2 - Math.cos(h) * 1.6;
+  const chest = { x: s.x, y: s.y + 0.6, z: s.z };
+  renderer.setOverride({
+    eye: { x: ex, y: Math.max(level.groundAt(ex, ez) + 0.6, chest.y + 0.35), z: ez },
+    target: chest,
+    fov: 40,
+    roll: 0,
+  });
+  still();
+  renderer.setOverride(null);
+  return `beside him at t ${state.t.toFixed(2)} s, ${(s.speed * 3.6).toFixed(0)} km/h${s.airborne ? ", in the air" : ""}`;
 }
 
 /** THE FALL AS A SEQUENCE (the views `fall-<s>`, any time off the skis):
@@ -913,18 +938,21 @@ window.__world = {
   async shoot(name) {
     const chase = /^chase-(\d+)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
+    const side = /^side-(\d+(?:\.\d+)?)$/.exec(name);
     const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
     const crash = /^crash-(net-)?(\d+(?:\.\d+)?)$/.exec(name);
     const run = crash
       ? () =>
           crashShot(state, renderer, Number(crash[2]), crash[1] ? intoNet : intoTrunk, !crash[1])
-      : chase
-        ? () => chaseAt(Number(chase[1]))
-        : fall
-          ? () => fallAt(Number(fall[2]), fall[1] === "yard")
-          : net
-            ? () => netAt(Number(net[1]))
-            : (shots[name] ?? powder.view(name));
+      : side
+        ? () => sideAt(Number(side[1]))
+        : chase
+          ? () => chaseAt(Number(chase[1]))
+          : fall
+            ? () => fallAt(Number(fall[2]), fall[1] === "yard")
+            : net
+              ? () => netAt(Number(net[1]))
+              : (shots[name] ?? powder.view(name));
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${face ? ` · ${face}` : region ? ` · ${region}` : ""} · ${note}`;

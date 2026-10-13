@@ -346,9 +346,14 @@ const SURFACES = {
     wait: ".menu-stage[data-ready]",
     settle: 1800,
   },
-  // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
-  // him — the first card after a map is picked, the gear card after it.
+  // THE RIDER CARD (the DRESS card), the first after a map: -racer with the modelled racer picked.
   dress: { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 },
+  "dress-racer": {
+    params: { menu: "dress" },
+    wait: ".menu-stage[data-ready]",
+    settle: 2400,
+    storage: { "fall-line.settings.v1": JSON.stringify({ outfit: { body: "racer" } }) },
+  },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
     params: { menu: "dress", mode: "tricks", skis: "lynx" },

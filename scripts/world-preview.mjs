@@ -50,7 +50,7 @@
 // switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
 // chase boom a minute, a minute and a half and two minutes down the run —
 // the skier's shadow at every height of the face; `chase-<s>` at any
-// second), orbit, and last, staged rather
+// second; `side-<s>` him from beside his line at any time), orbit, and last, staged rather
 // than ridden to: wipeout and wipeout-lie (the player put into the nearest
 // trunk flat out, then where the skier came to rest) — and before them,
 // `fall-<s>` at any time off the skis (`fall-0.2,fall-0.5,fall-1`): the same
@@ -347,7 +347,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, fall-<s>, yard-<s>, crash-<s> and plunge-<s>, plunge-chase-<s>, plunge-top-<s>, chute-land-<s>, chute-fall-<s>, chute-fall-top-<s>, chute-fall-chase-<s>, chute-tree-<s> at any time; crash-net-<s> with --downhill)`,
+      help: `only these views, comma-separated (${VIEWS.join(",")}; chase-<s>, side-<s>, fall-<s>, yard-<s>, crash-<s> and plunge-<s>, plunge-chase-<s>, plunge-top-<s>, chute-land-<s>, chute-fall-<s>, chute-fall-top-<s>, chute-fall-chase-<s>, chute-tree-<s> at any time; crash-net-<s> with --downhill)`,
     },
     quality: {
       kind: "string",
@@ -392,10 +392,15 @@ const args = parseArgs(
       default: "",
       help: "the pair he rides by its id (lynx: the snowboard); the reference skis when left out",
     },
+    body: {
+      kind: "string",
+      default: "",
+      help: "the player's BODY row by its id (racer: the modelled racer); the default outfit's when left out",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skis=id] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skis=id] [--body=id] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -485,6 +490,7 @@ const query = new URLSearchParams({
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
   ...(args.skis ? { skis: args.skis } : {}),
+  ...(args.body ? { body: args.body } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),
   w: String(args.width),
@@ -503,8 +509,11 @@ const wanted = args.views ? args.views.split(",").map((v) => v.trim()) : VIEWS;
 // before it, so the list is walked in the lab's own order.
 // A chase view at any second (`chase-45`) rides in the chase series' place,
 // in the order of its clock.
-const isChase = (v) => /^chase-\d+$/.test(v);
-const chases = wanted.filter(isChase).sort((a, b) => Number(a.slice(6)) - Number(b.slice(6)));
+// A side view (`side-10.2`) rides among them in the order of its clock too.
+const isChase = (v) => /^chase-\d+$/.test(v) || /^side-\d+(\.\d+)?$/.test(v);
+const chases = wanted
+  .filter(isChase)
+  .sort((a, b) => Number(a.split("-")[1]) - Number(b.split("-")[1]));
 // A fall view (`fall-0.4`, `yard-0.4`) rides just before the wipeout's, in
 // the order of its clock: the frames of one fall.
 const isFall = (v) => /^(fall|yard)-\d+(\.\d+)?$/.test(v);
@@ -542,7 +551,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
+    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.body ? `${args.body}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

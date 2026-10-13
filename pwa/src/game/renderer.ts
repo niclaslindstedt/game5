@@ -125,14 +125,13 @@ import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
-import { loadModels as loadSkierModels } from "./skier-models.ts";
+import { loadModels as loadSkierModels, setRacerClock } from "./skier-models.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
 export async function loadModels(): Promise<void> {
   await loadSkierModels();
 }
-
 export type RendererOptions = {
   /** The picture to open on (`settings-video.ts`); `setVideo` moves it. Its
    * ANTIALIAS row is read here and only here — a canvas's multisampling is
@@ -777,6 +776,7 @@ export function createWorldRenderer(
       forest?.setAloft(aloft.trees, aloft.lift, aloft.view);
       gates?.guns?.setReach(aloft.trees, aloft.lift); // the guns as far as the woods
       terrain.tick(state.t);
+      setRacerClock(state.t - (1 - alpha) * TUNING.dt); // the racer's cloth on the run's clock
       terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);

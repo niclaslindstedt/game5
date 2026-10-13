@@ -125,7 +125,10 @@ vec4 cloudLayerShell(int i, vec3 e, vec3 d, vec3 L, vec3 sky) {
   // The pixel's footprint on the layer, in the noise's units (a pixel about
   // two thousandths of a radian, drawn out along a low view).
   float foot = t * 0.002 / max(abs(d.y), 0.03) * max(uCloudB[i].z, uCloudB[i].w);
-  vec2 col = cloudColumnSoft(i, cloudNoise(i, p.xz), min(foot * 6.0, 0.6));
+  // A sheet read once has no depth to fade its rim through, as the slab's
+  // and the march's steps do: its edge is let out over more of the noise,
+  // so thin ice frays into the blue instead of standing cut out of it.
+  vec2 col = cloudColumnSoft(i, cloudNoise(i, p.xz), min(foot * 6.0, 0.6) + 0.12 * (1.0 - uCloudC[i].w));
   float F = col.y - col.x;
   if (F <= 0.0) return vec4(0.0);
   // Lit as its upper part (what of a heap shows round its base), and thin

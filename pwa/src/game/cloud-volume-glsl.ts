@@ -37,6 +37,12 @@
 
 import { CLOUD_LAYERS } from "./cloud-field.ts";
 
+/** How far the shape's noise moves a column's edge, in the field's noise
+ * units (its edge is `EDGE`, 0.1, wide): enough to bulge and tuck a
+ * heap's side, never to stand a cloud up in clear sky. */
+const WALL = 0.07;
+const f = (x: number): string => x.toFixed(5);
+
 /** The volume's own uniforms and its density and light. Needs
  * `CLOUD_FIELD_GLSL` and `CLOUD_SHELL_GLSL` before it, and `STEPS` (the
  * steps through a layer) and `LIGHT` (the reads toward the sun) defined. */
@@ -119,7 +125,21 @@ float volBiteK = 1.0;
 
 float volDensity(int i, vec3 p, float hm, bool fine, out float k) {
   k = -1.0;
-  vec2 col = cloudColumn(i, cloudNoise(i, p.xz));
+  float n = cloudNoise(i, p.xz);
+  // Nothing stands here even at the most the carve below can raise it.
+  vec2 most = cloudColumn(i, n + ${f(WALL)});
+  if (most.y - most.x <= 0.002) return 0.0;
+  k = 0.0;
+  // The shape's tile shifted by the field (whose own two reads never line
+  // up), so its puffs do not repeat across a heap or from heap to heap.
+  vec3 q = vec3(p.x, hm * uCloudA[i].y + uCloudA[i].x, p.z);
+  q.xz += (n - 0.5) * vec2(0.83, -0.61) / uVolA[i].x;
+  vec4 s = texture(uVolShape, q * uVolA[i].x + uVolB[i].xyz);
+  float fbm = s.g * 0.625 + s.b * 0.25 + s.a * 0.125;
+  // THE COLUMN CARVED IN 3D: the field's noise nudged by the shape's at
+  // this height, so a heap's edge bulges and tucks in up its side rather
+  // than standing as a wall straight up off its footprint (streaks).
+  vec2 col = cloudColumn(i, n + (fbm - 0.55) * ${f(2 * WALL)});
   float span = col.y - col.x;
   if (span <= 0.002) return 0.0;
   k = (hm - col.x) / span;
@@ -134,9 +154,6 @@ float volDensity(int i, vec3 p, float hm, bool fine, out float k) {
   float lo = smoothstep(0.0, mix(0.3, 0.07, dome), k);
   float hi = smoothstep(1.0, mix(0.6, 0.45, dome), k);
   float inside = lo * hi * smoothstep(0.0, 0.45, span);
-  vec3 q = vec3(p.x, hm * uCloudA[i].y + uCloudA[i].x, p.z);
-  vec4 s = texture(uVolShape, q * uVolA[i].x + uVolB[i].xyz);
-  float fbm = s.g * 0.625 + s.b * 0.25 + s.a * 0.125;
   float shape = clamp(volRemap(s.r, fbm - 1.0, 1.0, 0.0, 1.0), 0.0, 1.0);
   float dens = clamp(volRemap(shape, 1.0 - inside, 1.0, 0.0, 1.0), 0.0, 1.0);
   if (fine && dens > 0.0) {
@@ -202,6 +219,9 @@ vec4 cloudLayerVolume(int i, vec3 e, vec3 d, vec3 L, vec3 sky, float jit, out fl
   float phase2 = 0.8 + 0.06 * cloudHg(mu, 0.4);
   float powderOn = 0.5 - 0.5 * mu;
   float lightStep = clamp(depth * 0.04, 15.0, 60.0);
+  float deck = smoothstep(0.55, 0.95, uVolB[i].w);
+  float odS = uCloudA[i].w * 0.12 * 0.3 / max(abs(L.y), 0.06);
+  float slabT = mix(0.3 * exp(-0.2 * odS), max(exp(-odS), 0.3 * exp(-0.2 * odS)), smoothstep(-0.05, 0.05, L.y));
   vec3 acc = vec3(0.0);
   float T = 1.0;
   float wsum = 0.0;
@@ -232,11 +252,22 @@ vec4 cloudLayerVolume(int i, vec3 e, vec3 d, vec3 L, vec3 sky, float jit, out fl
     // a deck's base is grey, never black.
     beer = max(beer, 0.8 / ((1.0 + 0.19 * od) * phase));
     float powder = mix(1.0, 1.0 - exp(-sigma * dens * 120.0), powderOn);
+    // A CLOSED DECK is lit as MEDIUM's slab lights it — as its upper part,
+    // the sun through the top three tenths of it at the slab's scale — so
+    // a snowfall's or a storm's lid is the same grey on both tiers, never
+    // darker for being marched (its base, seen from under, is all the march
+    // sees, and a light read of a few hundred metres cannot carry the many
+    // scatterings that bring a deck's light down through it).
+    // Shaded by how high in the column the point stands, so the lumps of
+    // its base still read darker where they hang lower.
     float kl = clamp(hm, 0.0, 1.0);
-    vec3 sun = max(mix(uCloudSunLo[i], uCloudSunHi[i], kl) - uCloudMoon, 0.0);
+    beer = max(beer, deck * slabT * (0.75 + 0.6 * kl) / (0.75 * max(powder, 0.25)));
     // The sky on it: the top's light over a heap, the base's grey under,
-    // dimmer the deeper in the column the point stands.
-    vec3 amb = mix(uCloudBase[i], uCloudTop[i], kl) * (0.72 + 0.28 * kc) + uCloudMoon * (0.3 + 0.3 * kl);
+    // dimmer the deeper in the column the point stands (a deck's as the
+    // slab's, read at its upper part).
+    float ka = mix(kl, 0.55 + 0.45 * kl, deck);
+    vec3 sun = max(mix(uCloudSunLo[i], uCloudSunHi[i], ka) - uCloudMoon, 0.0);
+    vec3 amb = mix(uCloudBase[i], uCloudTop[i], ka) * (0.72 + 0.28 * mix(kc, 0.55 + 0.45 * kc, deck)) + uCloudMoon * (0.3 + 0.3 * kl);
     vec3 c = sun * beer * phase * powder * 0.75 + amb;
     float a = 1.0 - exp(-sigma * dens * dt);
     vec3 air = cloudAir(tc, e.y - uCloudSeaLevel, p.y - uCloudSeaLevel);

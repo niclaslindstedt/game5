@@ -18,6 +18,13 @@
 //            coming round (the first chair of the map, which a bike once
 //            rolled past)
 //   lift     hooked on the chair, the two going up together
+//   closeup  the riding moment from close beside him: the bike and the kit
+//   whip     a jump the freeride style whips, at the whip's peak, from
+//            behind and beside (`?bikelook=freeride`; the trail look never
+//            whips — the bot rides the race line, `DH`, for the air)
+//   table    the same for a table
+//   footout  the inside foot out in a slide, from ahead
+//   brake    both levers pulled hard at speed, from beside
 //
 // It exposes `window.__bike.sheet(views)`, which shoots the views, lays them
 // out as a contact sheet for the driver to photograph, and hands back every
@@ -43,6 +50,8 @@ import {
   type SkierInput,
 } from "@engine";
 
+import { rideStyleOf } from "../game/bike-ride-style.ts";
+import { bikeLookOf, setBikeLook } from "../game/bike-variant.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
@@ -72,6 +81,7 @@ const cols = Number(params.get("cols") ?? 4);
 const scale = Number(params.get("scale") ?? 0.5);
 const hour = Number(params.get("hour") ?? 11);
 const rideFor = Number(params.get("at") ?? 9);
+setBikeLook(bikeLookOf(params.get("bikelook")) ?? "trail");
 
 const VIEWS = [
   "chase",
@@ -87,6 +97,11 @@ const VIEWS = [
   "push",
   "queue",
   "lift",
+  "closeup",
+  "whip",
+  "table",
+  "footout",
+  "brake",
 ] as const;
 type ViewId = (typeof VIEWS)[number];
 
@@ -221,6 +236,31 @@ async function scene(id: ViewId): Promise<Shot | null> {
       const lens = id === "side" ? planted(s, -3.2, 0.3, 0.6) : planted(s, 0.5, 4.5, 0.9, 50);
       return { state: s, lens, caption: `${id} — ${caption(s, t)}` };
     }
+    case "closeup": {
+      const { s, t } = await ridden();
+      return {
+        state: s,
+        lens: planted(s, -2.1, 0.9, 0.45, 42),
+        caption: `closeup — ${caption(s, t)}`,
+      };
+    }
+    case "whip":
+    case "table":
+    case "footout":
+      return styled(id);
+    case "brake": {
+      const s = bikeRide();
+      await onMap(s);
+      const aim = bikeAim(s, trail);
+      renderer.setCamera("chase", true);
+      const t = ride(
+        s,
+        (r, tt) => (tt < 6 ? bikePilot(r, aim) : { ...bikePilot(r, aim), tuck: 0, brake: 1 }),
+        (r, tt) => tt > 6.35 && !r.bike!.airborne,
+        12,
+      );
+      return { state: s, lens: planted(s, -3, 0.6, 0.5, 45), caption: `brake — ${caption(s, t)}` };
+    }
     case "air": {
       const s = bikeRide();
       await onMap(s);
@@ -311,6 +351,47 @@ async function scene(id: ViewId): Promise<Shot | null> {
       return null;
     }
   }
+}
+
+/** The bot down the race line (or the trail asked for, where there is none)
+ * until the freeride style shows `id` well into it. */
+async function styled(id: "whip" | "table" | "footout"): Promise<Shot | null> {
+  const line = level.bikePark?.trails.some((t) => t.id === "DH") && id !== "footout" ? "DH" : trail;
+  const s = createGame({
+    level,
+    mode: "free",
+    summer: true,
+    bike: true,
+    bikeTrail: line,
+    sky: { weather: "fair", hour },
+    crowd: 0,
+    quiet: true,
+  });
+  await onMap(s);
+  const aim = bikeAim(s, line);
+  renderer.setCamera("chase", true);
+  let best = 0;
+  const t = ride(
+    s,
+    (r) => bikePilot(r, aim),
+    (r) => {
+      const st = rideStyleOf(r.bike!, r.level, r.t);
+      const k = id === "footout" ? st.footOut : st.trick === id ? st.amount : 0;
+      // Past the peak: shot at the frame it turns back.
+      if (k < best - 0.02 && best > 0.55) return true;
+      best = Math.max(best, k);
+      return false;
+    },
+    120,
+  );
+  if (best <= 0.55) return null;
+  const st = rideStyleOf(s.bike!, s.level, s.t);
+  const lens = id === "footout" ? planted(s, 1.6, 4.2, 0.8, 50) : planted(s, -4.2, -3.2, 1.0, 50);
+  return {
+    state: s,
+    lens,
+    caption: `${id} — ${line} ${caption(s, t)} ${st.trick} ${st.amount.toFixed(2)} foot ${st.footOut.toFixed(2)}`,
+  };
 }
 
 /** Rolled into `plan`'s load zone from 8 m short of it at a walking pace

@@ -35,11 +35,12 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (chase, tips, helmet, far, side, front, air, crash, tree, afoot, push, queue, lift)",
+      help: "only these views, comma-separated (chase, tips, helmet, far, side, front, air, crash, tree, afoot, push, queue, lift, closeup, whip, table, footout, brake)",
     },
     hour: { kind: "number", default: 11, help: "the solar hour" },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     trail: { kind: "string", default: "B1", help: "the trail the bot rides (B1, B2, …)" },
+    look: { kind: "string", default: "trail", help: "the bike and its rider: trail or freeride" },
     at: {
       kind: "number",
       default: 9,
@@ -119,6 +120,7 @@ const query = new URLSearchParams({
   hour: String(args.hour),
   trail: args.trail,
   at: String(args.at),
+  bikelook: args.look,
 }).toString();
 /** `work`, or a failure the moment the page throws — never the timeout
  * burnt on a page that died. */

@@ -43,7 +43,17 @@ import {
   type V3,
 } from "./dress-loft.ts";
 import { gauntletMouth, overSleeve } from "./dress-gloves.ts";
-import { gearOf, suitPants, type JacketId, type Outfit, type PantsId } from "./outfit.ts";
+import { cutFeet, cutPadsAndSocks, JERSEY, shortsOf, SHORTS_HEM } from "./dress-bike.ts";
+import {
+  gearOf,
+  jacketOf,
+  RIDE_KIT,
+  suitPants,
+  type Colours,
+  type JacketId,
+  type Outfit,
+  type PantsId,
+} from "./outfit.ts";
 
 const TAU = Math.PI * 2;
 const FRONT = Math.PI / 2;
@@ -149,7 +159,7 @@ function shoulderLine(m: BodyMeasure, ease: number): TrunkLevel[] {
 }
 
 /** The cut of a jacket. */
-type JacketCut = {
+export type JacketCut = {
   hem: number;
   ease: number;
   /** More ease at the hem (a shell's swing) or less (an elastic waist). */
@@ -330,13 +340,13 @@ function seams(a: number, b: number, pitch: number): number[] {
 /** A jacket's colour on the trunk at `level`, `t` round, `p` in the body. */
 function jacketTrunkColour(
   id: JacketId,
+  j: Colours,
   cut: JacketCut,
   level: number,
   t: number,
   p: V3,
   female: boolean,
 ): number {
-  const j = gearOf("jacket", id);
   const front = gap(t, FRONT);
   const zip = front < 0.045;
   switch (id) {
@@ -412,8 +422,8 @@ function drape(
 
 function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.jacket;
-  const cut = o.suit ? SUIT.jacket : JACKET_CUT[id];
-  const j = gearOf("jacket", id);
+  const cut = o.suit ? SUIT.jacket : o.bike ? JERSEY : JACKET_CUT[id];
+  const j = jacketOf(o);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
   const quilt = cut.quilt;
@@ -582,7 +592,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
       f -= BACK_EASE * low * Math.sin(2 * t) ** 2 * (Math.sin(t) < 0 ? 1 : 0);
       return f;
     },
-    colour: (s, t, p) => jacketTrunkColour(id, cut, line.L(s), t, p, female),
+    colour: (s, t, p) => jacketTrunkColour(id, j, cut, line.L(s), t, p, female),
     cap: [false, true],
     // Below the chest the jacket rides the trunk alone: an arm's share,
     // however small, swings the hem as the arm comes forward.
@@ -793,7 +803,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
 function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.pants;
   const cut = o.suit ? SUIT.pants : PANTS_CUT[id];
-  const pd = o.suit ? suitPants(o) : gearOf("pants", id);
+  const pd = o.suit ? suitPants(o) : o.bike ? RIDE_KIT.shorts : gearOf("pants", id);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
   // THE SEAT, from the crotch (dropped, on a baggy pair) to the waist
@@ -873,6 +883,8 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
         b: cut.hem + (baggy ? 0.016 : 0.006),
       },
     ];
+    // A freerider's SHORTS end over the knee pad's top.
+    if (o.bike) shortsOf(sections, K, m.lowerThigh + ek);
     const ringZ = norm(sub(th.z, mul(th.y, dot(th.z, th.y))));
     const ringX = cross(th.y, ringZ);
     const out = { x: side, y: 0, z: 0 };
@@ -909,7 +921,8 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
           k += 0.014 * Math.sin((Math.PI * (sl - pocket.a)) / (pocket.b - pocket.a)) ** 0.5;
         }
         // A baggy leg stacks in rolls over the boot.
-        if (baggy && sl > C - 0.16) k += 0.008 * Math.sin(((sl - C) / 0.05) * TAU + t * 2);
+        if (baggy && !o.bike && sl > C - 0.16)
+          k += 0.008 * Math.sin(((sl - C) / 0.05) * TAU + t * 2);
         return k;
       },
       colour: (sl, t) => {
@@ -919,54 +932,13 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
         }
         // A baggy pair's reinforced cuff all round its foot, every other
         // pair's kick patch inside the ankle, where the other boot scuffs.
+        if (o.bike) return sl > K + SHORTS_HEM - 0.03 ? pd.second : pd.main;
         if (baggy && sl > C - 0.1) return pd.third;
         if (sl > C - 0.1 && sl < E - 0.04 && gap(t, tIn) < 0.5) return pd.third;
         return pd.main;
       },
       cap: [false, false],
       among: ["spine", `thigh_${s}`, `shin_${s}`],
-    });
-  }
-}
-
-// ---------------------------------------------------------------- the feet
-
-/** HIS FEET, in the boots' padded liners — hidden in the shells while he
- * stands on his skis, his own when he is thrown off them. */
-function cutFeet(loom: Loom): void {
-  const { pose: P } = bindPose();
-  for (let i = 0; i < 2; i++) {
-    const s = i === 0 ? "l" : "r";
-    const bt = P.boots[i];
-    const n = { x: bt.n.x, y: bt.n.y, z: bt.n.z };
-    const f = { x: bt.f.x, y: bt.f.y, z: bt.f.z };
-    const top = P.feet[i];
-    loom.tube({
-      path: [top, add(top, mul(n, -0.24))],
-      face: [f, f],
-      sections: [
-        { s: 0, w: 0.05, f: 0.055, b: 0.052 },
-        { s: 0.24, w: 0.046, f: 0.05, b: 0.05 },
-      ],
-      step: 0.12,
-      segments: 8,
-      colour: () => 0x26282c,
-      weights: () => rides(`boot_${s}`),
-    });
-    const sole = add(top, mul(n, -0.275));
-    loom.tube({
-      path: [add(sole, mul(f, -0.11)), add(sole, mul(f, 0.16))],
-      face: [n, n],
-      sections: [
-        { s: 0, w: 0.035, f: 0.03, b: 0.02 },
-        { s: 0.06, w: 0.044, f: 0.045, b: 0.03 },
-        { s: 0.2, w: 0.045, f: 0.035, b: 0.03 },
-        { s: 0.27, w: 0.03, f: 0.015, b: 0.02 },
-      ],
-      step: 0.08,
-      segments: 8,
-      colour: () => 0x26282c,
-      weights: () => rides(`boot_${s}`),
     });
   }
 }
@@ -979,5 +951,6 @@ export function cutClothes(loom: Loom, o: Outfit): void {
   );
   cutPants(loom, m, o);
   cutJacket(loom, m, o);
-  cutFeet(loom);
+  cutFeet(loom, o);
+  if (o.bike) cutPadsAndSocks(loom, m);
 }

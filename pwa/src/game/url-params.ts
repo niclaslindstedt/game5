@@ -141,6 +141,9 @@
 //                   (`bike.ts`) at a bike park trail's head — the one
 //                   nearest the card's spot, else the park's easiest — over
 //                   the start card's START row; it implies `?summer=1`.
+//   ?bikelook=freeride  the downhill bike DRAWN as the freerider's
+//                   (`bike-variant.ts`): the freeride bike, the rider in
+//                   his kit riding it with style.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
@@ -208,6 +211,7 @@ import { BENCHMARK } from "./benchmark-plan.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
 import { isHoldMove, type HoldMove } from "./hold-input.ts";
+import { bikeLookOf, type BikeLook } from "./bike-variant.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { RUN_CAMERAS } from "./settings.ts";
 import { readPicture, TIERS, type Tier, type VideoSettings } from "./settings-video.ts";
@@ -357,6 +361,8 @@ export type UrlParams = {
   /** A free ride the grimbear hunts (true) or never shows on (false), over
    * the odds; null when the link names neither. */
   grimbear: boolean | null;
+  /** The downhill bike's look this visit (`bike-variant.ts`), or null. */
+  bikeLook: BikeLook | null;
   /** A free ride whose loaded slopes may avalanche (true) or never do
    * (false); null when the link names neither — they may. */
   avalanche: boolean | null;
@@ -518,6 +524,7 @@ export function readParams(search: string): UrlParams {
     suit: q.get("suit") === "wing" ? "wing" : q.get("suit") === "rig" ? "rig" : null,
     chute: chuteOf(q.get("chute")),
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
+    bikeLook: bikeLookOf(q.get("bikelook")),
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
     avalanche: q.get("avalanche") === "1" ? true : q.get("avalanche") === "0" ? false : null,
     afterski: q.get("afterski") === "1",

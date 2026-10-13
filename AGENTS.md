@@ -674,6 +674,7 @@ Skills live in `.agents/skills/` (`.claude/skills` and `.gemini/skills` symlink 
 - **`debug-tools`** — the developer page behind the title's hold: the instruments over the picture, the free camera, the REPRO line and the URL that reads it back, and the BENCHMARK — its plan, its report, its history, `make bench`.
 - **`debug-game`** — deterministic repros, classifying by layer, the failing test first.
 - **`simulate-run`** — `make sim`: the `RunReport` table, its columns, which movements are regressions.
+- **`eval-labs`** — a CONTEST over one goal: five agents build it five different ways in screenshot labs on the same scenes, a fresh judge ranks them side by side on one page, and the owner decides what merges or which style goes to another round; the round's setup, the briefs, the judging and the rules between rounds.
 - **`level-rating`** — whether a generated mountain is any GOOD and how HARD: `engine/rating/`'s eight axes and the index, the bands calibrated off a sweep (`make rate ARGS=--stats`), the ladder scorer, and `make difficulty`'s schematic.
 - **`pinned-maps`** — the pinned maps (`race-maps.ts`, `trick-maps.ts`, `pinned-levels.ts`, `pinned.ts`, the cards): curating a map with `make rate RACE=…` and the bot, the generator-version contract a pinned map stands on, and which map a measured run is on.
 - **`bot-improvement`** — the piste-reading bot in `engine/sim/bot.ts` — the player's stand-in and every rival — measured with `make sim`.

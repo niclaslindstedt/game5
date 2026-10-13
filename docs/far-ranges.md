@@ -1,7 +1,7 @@
 # The far ranges
 
-A map is 4 × 4 km of one mountain face. The eye on a real one sees much more: from a summit in the
-Alps, on a clear winter day, range after range stands to the horizon a hundred kilometres and more
+A map is 4 × 4 km of one mountain face. The eye on a real one sees much more: from a summit in a
+high range, on a clear winter day, range after range stands to the horizon a hundred kilometres and more
 away. The far ranges are that country — real ground, low in detail, lit by the run's own sun, drawn
 from the map's edge out to the horizon — never a painted skybox, because the sun moves.
 
@@ -43,7 +43,7 @@ standard refraction (about 7,430 km):
 | 3 km | 100 km | 673 m | 1.3° |
 
 **Alpenglow and Earth's shadow.** A point h metres up sees the sun √(2h/R′) under the level longer
-than the valley does — 1.6° from 3 km, eight to ten minutes at the Alps' latitudes in winter. So at
+than the valley does — 1.6° from 3 km, eight to ten minutes at mid-latitudes in winter. So at
 dusk the valley falls into shade first, the peaks keep a deep orange sun that reddens as it crosses
 more air, and the shadow line climbs the faces until only the highest summits are lit.
 

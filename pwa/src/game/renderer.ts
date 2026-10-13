@@ -85,6 +85,7 @@ import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
 import { suitOf } from "./wingsuit-look.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
+import { heightOverFar } from "./horizon.ts";
 import { keyAheadAt, skyLookAt } from "./sky.ts";
 import { sunNow } from "./sky-clock.ts";
 import { createSnowfall } from "./snowfall.ts";
@@ -306,8 +307,7 @@ export function createWorldRenderer(
     sliceOf.set(object, slice);
     return slice;
   };
-  // SPLIT cuts the scene's pass wherever its draw calls pass from one
-  // subsystem to the next; the sun's map is a slice of its own either way.
+  // SPLIT cuts the scene's pass between subsystems; the sun's map is a slice of its own.
   const direct = gl.renderBufferDirect.bind(gl);
   gl.renderBufferDirect = (camera, sc, geometry, material, object, group) => {
     if (timer.mode === "split" && timer.inScene()) timer.enter(bucket(object));
@@ -473,8 +473,7 @@ export function createWorldRenderer(
     lens.camera.position.set(skier.x, skier.y + 3, skier.z - 6);
     lens.camera.lookAt(skier.x, skier.y, skier.z);
     terrain.follow(skier.x, skier.z);
-    // A part of the scene at a time (`scene-compile.ts`), against the
-    // target the frame is drawn into, the trail maps' passes beside it.
+    // A part of the scene at a time (`scene-compile.ts`), its trail maps' passes beside it.
     gl.setRenderTarget(picture.load(lv));
     // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
     const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
@@ -787,7 +786,8 @@ export function createWorldRenderer(
       const drift = { x: -Math.sin(from) * carried, z: -Math.cos(from) * carried };
       // The sun's map may stand a frame while only he moves under the lens (`sunDue`).
       const lone = !hidden.has("hero") && !own && !planted && !skier.thrown;
-      env.update(look, lens.camera, d.y, drift, lone, keyAheadAt(sky, state.t));
+      const far = heightOverFar(level, eyeAt.x, eyeAt.y, eyeAt.z); // the true horizon's
+      env.update(look, lens.camera, d.y, drift, lone, keyAheadAt(sky, state.t), far);
       crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {

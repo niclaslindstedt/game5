@@ -23,6 +23,7 @@ import * as THREE from "three";
 import type { Heightfield } from "@engine";
 
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
+import { horizonDip } from "./horizon.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
 import { mistFor, type DistanceLevel, type ShadowLook } from "./settings-video.ts";
 import type { AloftLook } from "./view-aloft.ts";
@@ -53,7 +54,9 @@ export type Environment = {
    * `steady`, that the sun's map may stand a frame (`sunDue`); `ahead`,
    * where the key will stand `TERRAIN_SHADOW.lead` s of run on (`sky.ts`'s
    * `keyAheadAt` — null while the sky's clock stands), which the
-   * mountain's shadow is baked ahead to. */
+   * mountain's shadow is baked ahead to. `far` is the lens's height over
+   * the far country, m (`horizon.ts`'s `heightOverFar`): where the true
+   * horizon dips to. */
   update(
     look: SkyLook,
     camera: THREE.Camera,
@@ -61,6 +64,7 @@ export type Environment = {
     drift?: { x: number; z: number },
     steady?: boolean,
     ahead?: Dir | null,
+    far?: number,
   ): void;
   /** Where the shadow stands this frame, or null while the SHADOWS row is
    * off — what `forest.ts` picks its casters by. */
@@ -257,8 +261,9 @@ export function createEnvironment(
     haze,
     sun,
     dome,
-    update(sky, camera, y, drift, steady = false, ahead = null) {
+    update(sky, camera, y, drift, steady = false, ahead = null, far = 0) {
       writeHaze(haze, sky);
+      haze.uFar.value.set(horizonDip(far), far);
       dome.update(sky, drift?.x ?? 0, drift?.z ?? 0);
       // The key is the sun by day and the moon by night (`sky.ts`).
       sun.color.setRGB(...sky.keyColour);

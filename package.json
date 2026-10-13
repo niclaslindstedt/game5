@@ -139,7 +139,7 @@
     "town": "node scripts/town-preview.mjs"
   },
   "dependencies": {
-    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#8a850bb72ff33892926c33e26395a8442adca4a1"
+    "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

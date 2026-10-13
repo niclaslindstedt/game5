@@ -72,8 +72,13 @@ export type Outfit = {
    * suit in the jacket's own colours, the helmet painted to match. Never a
    * slot of the DRESS card — the ski jump puts it on him. */
   suit?: boolean;
+  /** A DOWNHILL RIDER'S KIT (`bikeKit`): the jacket cut as a loose jersey,
+   * the pants as loose riding pants over knee pads, a full-face helmet with
+   * its peak, flat shoes. Never a slot of the DRESS card — the bike puts it
+   * on him. */
+  bike?: boolean;
 };
-export type GearSlot = Exclude<keyof Outfit, "suit">;
+export type GearSlot = Exclude<keyof Outfit, "suit" | "bike">;
 
 /** A BUILD: its name and its shape (`dress-body.ts`' `builtTo`) — the
  * GIRTH, the body's breadth and depth as a share of the medium build's at
@@ -369,6 +374,14 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
  * which a jumper never carries. */
 export function jumpKit(o: Outfit): Outfit {
   return { ...o, pants: "race", helmet: "race", poles: "none", suit: true };
+}
+
+/** THE DOWNHILL RIDER'S KIT off the player's own (`Outfit.bike`): his
+ * jacket's colours cut as a jersey, the race pants' colours cut as riding
+ * pants, a full-face helmet (the freeride shell with its peak, a chin guard
+ * added), thin gloves and NO POLES. */
+export function bikeKit(o: Outfit): Outfit {
+  return { ...o, pants: "race", helmet: "freeride", gloves: "race", poles: "none", bike: true };
 }
 
 /** A suit's legs in its jacket's colours (`jumpKit`). */

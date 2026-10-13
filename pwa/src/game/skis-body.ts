@@ -116,6 +116,7 @@ import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
+import { addBikeShoes } from "./bike-shoes.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
@@ -429,6 +430,15 @@ export function createSkisModel(
     return g;
   });
   for (const b of walkBoots) figure.group.add(b);
+  const shoes = addBikeShoes(
+    walkBoots,
+    look.boot.height,
+    (p) => mat(p, "shoes"),
+    (g) => {
+      geos.push(g);
+      return g;
+    },
+  );
   let unbooted = false;
   const unboot = (on: boolean): void => {
     if (on === unbooted) return;
@@ -889,6 +899,7 @@ export function createSkisModel(
     },
     setBiking(on) {
       biking = on;
+      shoes.show(on);
     },
     setBasket(on, walk) {
       basket = on;

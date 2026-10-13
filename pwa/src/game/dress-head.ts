@@ -198,7 +198,9 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
         weights: () => rides("head"),
       });
     }
-    // THE PEAK: a short brim standing out over the goggles.
+    // THE PEAK: a short brim standing out over the goggles — a full-face's
+    // twice as long (`Outfit.bike`).
+    const reach = o.bike ? 2.1 : 1;
     const pts: V3[] = [];
     const faces: V3[] = [];
     for (let k = -4; k <= 4; k++) {
@@ -214,9 +216,9 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
       round: 0.02,
       sections: [
         { s: 0, w: 0.004, f: 0.006, b: 0.002 },
-        { s: 0.05, w: 0.004, f: 0.03, b: 0.002 },
-        { s: 0.17, w: 0.004, f: 0.034, b: 0.002 },
-        { s: 0.29, w: 0.004, f: 0.03, b: 0.002 },
+        { s: 0.05, w: 0.004, f: 0.03 * reach, b: 0.002 },
+        { s: 0.17, w: 0.004, f: 0.034 * reach, b: 0.002 },
+        { s: 0.29, w: 0.004, f: 0.03 * reach, b: 0.002 },
         { s: 0.34, w: 0.004, f: 0.006, b: 0.002 },
       ],
       step: 0.03,
@@ -274,30 +276,34 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
     }
   }
 
-  if (o.helmet === "slalom") {
-    // THE CHIN GUARD: a bar from ear cover to ear cover round the chin.
+  if (o.helmet === "slalom" || o.bike) {
+    // THE CHIN GUARD: a bar from ear cover to ear cover round the chin — on
+    // a downhill rider's full-face the shell itself carried down round his
+    // jaw, deep and standing well out ahead of his mouth.
+    const k = o.bike ? 1 : 0;
     const path = [
-      H(-0.106, -0.062, 0.0),
-      H(-0.082, -0.098, 0.082),
-      H(0, -0.118, 0.13),
-      H(0.082, -0.098, 0.082),
-      H(0.106, -0.062, 0.0),
+      H(-0.106 - 0.006 * k, -0.062 - 0.01 * k, 0.0),
+      H(-0.082 - 0.006 * k, -0.098 - 0.012 * k, 0.082 + 0.012 * k),
+      H(0, -0.118 - 0.016 * k, 0.13 + 0.03 * k),
+      H(0.082 + 0.006 * k, -0.098 - 0.012 * k, 0.082 + 0.012 * k),
+      H(0.106 + 0.006 * k, -0.062 - 0.01 * k, 0.0),
     ];
+    const deep = 1 + 0.9 * k;
     const toward = (p: V3) => norm(sub(p, H(0, -0.03, 0.02)));
     loom.tube({
       path,
       face: path.map(toward),
       round: 0.05,
       sections: [
-        { s: 0, w: 0.014, f: 0.012, b: 0.012 },
-        { s: 0.1, w: 0.019, f: 0.016, b: 0.012 },
-        { s: 0.24, w: 0.02, f: 0.018, b: 0.012 },
-        { s: 0.38, w: 0.019, f: 0.016, b: 0.012 },
-        { s: 0.48, w: 0.014, f: 0.012, b: 0.012 },
+        { s: 0, w: 0.014 * deep, f: 0.012, b: 0.012 },
+        { s: 0.1, w: 0.019 * deep, f: 0.016, b: 0.012 },
+        { s: 0.24, w: 0.02 * deep, f: 0.018, b: 0.012 },
+        { s: 0.38, w: 0.019 * deep, f: 0.016, b: 0.012 },
+        { s: 0.48 + 0.04 * k, w: 0.014 * deep, f: 0.012, b: 0.012 },
       ],
       step: 0.03,
       segments: 8,
-      colour: () => h.trim,
+      colour: () => (o.bike ? h.shell : h.trim),
       weights: () => rides("head"),
       hard: true,
     });

@@ -42,6 +42,7 @@ import {
   type Section,
   type V3,
 } from "./dress-loft.ts";
+import { kitJacket, kitPants, type JacketCut, type PantsCut } from "./dress-cuts.ts";
 import { gauntletMouth, overSleeve } from "./dress-gloves.ts";
 import { gearOf, suitPants, type JacketId, type Outfit, type PantsId } from "./outfit.ts";
 
@@ -148,22 +149,6 @@ function shoulderLine(m: BodyMeasure, ease: number): TrunkLevel[] {
   ];
 }
 
-/** The cut of a jacket. */
-type JacketCut = {
-  hem: number;
-  ease: number;
-  /** More ease at the hem (a shell's swing) or less (an elastic waist). */
-  hemFlare: number;
-  collar: number;
-  square: number;
-  sleeve: number;
-  /** How straight it hangs from the chest to the hips (`drape`): a puffer
-   * or a shell wholly, a fitted race shell much less. */
-  drape: number;
-  /** A quilt's baffles: their pitch, m along the cloth, and their bulge. */
-  quilt?: { pitch: number; depth: number };
-};
-
 const JACKET_CUT: Record<JacketId, JacketCut> = {
   race: {
     hem: -0.13,
@@ -213,30 +198,11 @@ const JACKET_CUT: Record<JacketId, JacketCut> = {
   },
 };
 
-/** The cut of a pair of pants: the ease over the thigh and at the hem, the
- * hem's radius over the boot, how far the seat drops. */
-type PantsCut = { ease: number; knee: number; hem: number; drop: number; square: number };
 const PANTS_CUT: Record<PantsId, PantsCut> = {
   insulated: { ease: 0.024, knee: 0.022, hem: 0.088, drop: 0, square: 2.3 },
   race: { ease: 0.012, knee: 0.01, hem: 0.08, drop: 0, square: 2.2 },
   baggy: { ease: 0.05, knee: 0.05, hem: 0.11, drop: 0.06, square: 2.2 },
   cargo: { ease: 0.034, knee: 0.032, hem: 0.096, drop: 0.02, square: 2.3 },
-};
-
-/** A SKI JUMPER'S ONE-PIECE SUIT (`Outfit.suit`): close over the body
- * with no swing at the hem and narrow sleeves, the legs as close, cut down
- * over the boot. */
-const SUIT: { jacket: JacketCut; pants: PantsCut } = {
-  jacket: {
-    hem: -0.1,
-    ease: 0.014,
-    hemFlare: -0.008,
-    collar: 0.07,
-    square: 2.2,
-    sleeve: 0.016,
-    drape: 0.2,
-  },
-  pants: { ease: 0.012, knee: 0.01, hem: 0.074, drop: 0, square: 2.2 },
 };
 
 /** How far the thighs' tops are drawn in toward the middle under the seat,
@@ -412,7 +378,7 @@ function drape(
 
 function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.jacket;
-  const cut = o.suit ? SUIT.jacket : JACKET_CUT[id];
+  const cut = kitJacket(o) ?? JACKET_CUT[id];
   const j = gearOf("jacket", id);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
@@ -426,7 +392,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const flare = (level: number) =>
     legs(level) + cut.hemFlare * Math.max(0, 1 - (level - cut.hem) / 0.15);
   // Clear of the pants wherever it hangs over them.
-  const pc = o.suit ? SUIT.pants : PANTS_CUT[o.pants];
+  const pc = kitPants(o) ?? PANTS_CUT[o.pants];
   // A woman's cut is TAILORED: taken in at the waist and let out over the
   // hips, where a man's hangs straight.
   const female = gearOf("body", o.body).female;
@@ -792,7 +758,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
 
 function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.pants;
-  const cut = o.suit ? SUIT.pants : PANTS_CUT[id];
+  const cut = kitPants(o) ?? PANTS_CUT[id];
   const pd = o.suit ? suitPants(o) : gearOf("pants", id);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
@@ -841,6 +807,7 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
     const e = cut.ease;
     const ek = cut.knee;
     const baggy = id === "baggy";
+    const pad = cut.pad ?? 0;
     // At the top the leg is the seat's, cut as close as it.
     const et = Math.min(e, SEAT_EASE);
     const sections: Section[] = [
@@ -857,8 +824,8 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
         f: (m.thigh + m.lowerThigh) / 2 + e,
         b: (m.thigh + m.lowerThigh) / 2 + e,
       },
-      { s: K, w: m.lowerThigh + ek, f: m.lowerThigh + ek + 0.006, b: m.lowerThigh + ek },
-      { s: K + 0.1, w: m.calf * 0.9 + ek, f: m.calf * 0.8 + ek, b: m.calf * 1.12 + ek },
+      { s: K, w: m.lowerThigh + ek, f: m.lowerThigh + ek + 0.006 + pad, b: m.lowerThigh + ek },
+      { s: K + 0.1, w: m.calf * 0.9 + ek, f: m.calf * 0.8 + ek + pad * 0.7, b: m.calf * 1.12 + ek },
       {
         s: C - 0.06,
         w: Math.max(m.calf * 0.85 + ek, cut.hem - 0.006),

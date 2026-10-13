@@ -31,8 +31,8 @@ const add = (a: V3, b: V3): V3 => v(a.x + b.x, a.y + b.y, a.z + b.z);
  * trunk's bend, the head's lift, and where the ankle stands off a pedal's
  * middle (the ball of the foot on the pedal, the heel dropped). */
 export const ATTACK = {
-  hips: v(0, -0.03, -0.11),
-  pitch: 0.82,
+  hips: v(0, -0.05, -0.13),
+  pitch: 0.92,
   /** More bend as he folds for a pop, less hung off the back. */
   crouchPitch: 0.25,
   backPitch: 0.12,
@@ -41,6 +41,10 @@ export const ATTACK = {
   /** The share of the bike's lean his trunk does not follow: riders lay
    * the bike over under a body held nearer upright. */
   upright: 0.45,
+  /** How far his hips bob with the pedal strokes, m. */
+  bob: 0.012,
+  /** How far his heels drop on the brakes, m. */
+  brace: 0.018,
 };
 
 /** THE KEY that lays him on the bike posed `pose`, in the root's frame. */
@@ -50,9 +54,14 @@ export function riderKey(pose: BikePose): Key {
   const [p0, p1] = pedalsAt(pose.crank);
   const hips = ATTACK.hips;
   const back = Math.max(0, pose.shift);
+  // Pedalling, his hips rise and fall twice a turn with the down stroke;
+  // braking, his heels drop to brace against the pedals.
+  const bob = pose.pedalling ? ATTACK.bob * Math.cos(2 * pose.crank) : 0;
+  const brace = ATTACK.brace * Math.max(pose.front, pose.rear);
+  const ankle = add(ATTACK.ankle, v(0, -brace, -brace * 0.5));
   return {
     hipX: hips.x,
-    hipY: hips.y,
+    hipY: hips.y + bob,
     hipZ: hips.z,
     pitch:
       ATTACK.pitch +
@@ -62,7 +71,7 @@ export function riderKey(pose: BikePose): Key {
     roll: -pose.roll * ATTACK.upright,
     twist: -pose.steer * 0.3,
     nod: ATTACK.nod - 0.2 * pose.crouch,
-    feet: [add(add(bb, p0), ATTACK.ankle), add(add(bb, p1), ATTACK.ankle)],
+    feet: [add(add(bb, p0), ankle), add(add(bb, p1), ankle)],
     hands: [add(bb, g0), add(bb, g1)],
   };
 }

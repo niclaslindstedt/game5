@@ -37,6 +37,7 @@ import {
   swingAt,
   type V3,
 } from "./bike-look.ts";
+import { buildPhotoBike } from "./bike-build.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
@@ -71,6 +72,12 @@ export const BIKE_NODES = {
 } as const;
 
 export type BikeNodes = Record<keyof typeof BIKE_NODES, THREE.Object3D>;
+
+const ENV = (import.meta as { env?: Record<string, string | boolean | undefined> }).env ?? {};
+/** WHICH BIKE IS DRAWN: the one matched to its photographs
+ * (`bike-build.ts`) unless `VITE_BIKE_LOOK=code` asks for the plain
+ * placeholder below. */
+export const PHOTO_BIKE = String(ENV.VITE_BIKE_LOOK ?? "").toLowerCase() !== "code";
 
 /** How near the parked bike a walker is for its halo to call him, m. */
 const LIGHT_UP = 30;
@@ -462,7 +469,9 @@ const HANG = { back: 0.55, down: 0.05, pitch: 1.35 };
 export function createBikeView(haze: HazeUniforms): BikeView {
   const group = new THREE.Group();
   group.name = "downhill-bike";
-  const built = buildBike(haze);
+  const built = PHOTO_BIKE
+    ? buildPhotoBike((p) => hazeMaterial(new THREE.MeshStandardMaterial(p), haze, "bike"))
+    : buildBike(haze);
   group.add(built.root);
   const call = new THREE.Sprite(
     new THREE.SpriteMaterial({

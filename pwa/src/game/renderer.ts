@@ -125,7 +125,7 @@ import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
-import { loadModels as loadSkierModels } from "./skier-models.ts";
+import { loadModels as loadSkierModels, setRacerClock } from "./skier-models.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
@@ -210,7 +210,6 @@ export function createWorldRenderer(
     const most = gl.capabilities.maxTextureSize;
     return { ...look, size: Math.min(look.size, most), hero: Math.min(look.hero, most) };
   };
-
   const scene = new THREE.Scene();
   // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
   const picture = createRegionPicture(gl, video.antialias ? 4 : 0);
@@ -777,6 +776,7 @@ export function createWorldRenderer(
       forest?.setAloft(aloft.trees, aloft.lift, aloft.view);
       gates?.guns?.setReach(aloft.trees, aloft.lift); // the guns as far as the woods
       terrain.tick(state.t);
+      setRacerClock(state.t); // the racer's bib and suit move on the run's clock
       terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);

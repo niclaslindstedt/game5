@@ -10,32 +10,34 @@
 # right, y up, z forward) laid as Blender's (-x, z, y), so the glTF's frame
 # is the body frame turned half round about y.
 #
-# WHAT A TECHNICAL RACER WEARS, after the start lists' photographs (a
-# slalom's finish area seen side-on and from behind) and the federation's
-# equipment rules:
+# WHAT A TECHNICAL RACER WEARS, after a northern team's race photographs
+# (a slalom's and a giant slalom's start, finish and course, seen from the
+# front, the side and behind) and the federation's equipment rules:
 #
-#   * a ONE-PIECE SUIT, skin tight, printed in a team's panels: the trunk
-#     and the shoulders in the team's red, the forearms and the legs white,
-#     a red sweep down the outside of each thigh and a dark side panel down
-#     each flank, the knees and shins padded under darker panels;
+#   * a ONE-PIECE SUIT, skin tight over an athlete's build (the quads, the
+#     calves, the glutes and the shoulders swelled out of the rings — see
+#     `ATHLETE` and `lofted`'s muscles), printed in the team's navy with a
+#     darker mottle, a white roll neck, a thin red and white PINSTRIPE down
+#     the outside of each leg, a LADDER of white slanted bars down the
+#     outside of each sleeve and a white patch on the left thigh;
 #   * a BACK PROTECTOR under it, the hard plate from the shoulder blades
 #     to the small of the back the speed events require, lifting the suit
 #     in a long low hump;
-#   * the BIB over it, a yellow tabard open at the sides, its number big on
-#     the chest and the back under a dark band;
-#   * SHIN GUARDS, a hard black shell down the front of each shin from
-#     under the knee over the boot's cuff, its rim piped in yellow, two
-#     straps round the calf; ARM GUARDS, low hard pads down the outside of
-#     each forearm; HAND GUARDS, the red shields the slalom pole carries in
-#     front of each fist;
-#   * a SLALOM HELMET, gloss red, with its CHIN GUARD, and mirrored goggles;
-#     race gloves.
+#   * the BIB over it, a red tabard open at the sides, a white band of
+#     dark blocks over its number;
+#   * SHIN GUARDS, a red hard shell down the front of each shin from under
+#     the knee over the boot's cuff, piped white, two straps round the calf;
+#     ARM GUARDS, low hard pads down the outside of each forearm; HAND
+#     GUARDS, the dark shields the slalom pole carries in front of each
+#     fist; orange race gloves;
+#   * a SLALOM HELMET, gloss navy with a white peak, with its CHIN GUARD,
+#     and violet mirrored goggles.
 #
 # How the game wears him (`racer-model.ts`): his geometry, his materials and
 # their baked maps are this file's; his SKIN WEIGHTS are re-cut in the game
 # off the loom's own rule (`dress-loft.ts`' `clothWeights`), so he bends
-# bone for bone exactly as the code's dress does, and the bib's flutter and
-# the suit's ripple are the game's shader off his airflow. The weights laid
+# bone for bone exactly as the code's dress does, and the bib's swing and
+# flutter and the suit's ripple are the game's shader off his motion. The weights laid
 # here serve the studio's clips.
 
 import json, math, os, sys
@@ -61,23 +63,28 @@ def colour(hexa):
     return tuple(((c / 255 + 0.055) / 1.055) ** 2.4 for c in ((hexa >> 16) & 255, (hexa >> 8) & 255, hexa & 255))
 
 
-# THE TEAM'S COLOURS (sRGB): its red, the suit's white, the dark of the side
-# panels and the guards, the bib's yellow.
-RED, WHITE, DARK, YELLOW = 0xD3141E, 0xF2F3F5, 0x15171C, 0xF3D51C
+# THE TEAM'S COLOURS (sRGB), after a northern team's technical suit seen at
+# a slalom's finish: the suit a deep NAVY all over (a darker mottle printed
+# into it), a PINSTRIPE of white and red down the outside of each leg, a
+# ladder of fine white bars down the outside of each sleeve, a white roll
+# neck; the shin guards' shells RED with white piping; orange-red race
+# gloves; a navy helmet; and a red race bib with its number in white.
+NAVY, NAVY_DEEP, RED, WHITE, ORANGE = 0x1D2744, 0x121A30, 0xC8102E, 0xF2F3F5, 0xE5481F
+DARK = 0x111318
 
 # ---------------------------------------------------------------- materials
 SUIT = mat("suit", (1, 1, 1), rough=0.34)
 BIB = mat("bib", (1, 1, 1), rough=0.7)
-GUARD = mat("guard", colour(0x0E0F12), rough=0.22, coat=1.0)
-EDGE = mat("guard_edge", colour(YELLOW), rough=0.4)
-SHIELD = mat("shield", colour(RED), rough=0.25, coat=1.0)
+GUARD = mat("guard", colour(0xA50B20), rough=0.22, coat=1.0)
+EDGE = mat("guard_edge", colour(WHITE), rough=0.35)
+SHIELD = mat("shield", colour(DARK), rough=0.3, coat=0.6)
 STRAP = mat("strap", colour(0x101114), rough=0.7)
-GLOVE = mat("glove", colour(0xB5121B), rough=0.55)
-PALM = mat("palm", colour(0x1A1B1F), rough=0.8)
-HELMET = mat("helmet", colour(RED), rough=0.18, coat=1.0)
+GLOVE = mat("glove", colour(ORANGE), rough=0.55)
+PALM = mat("palm", colour(DARK), rough=0.8)
+HELMET = mat("helmet", colour(NAVY), rough=0.16, coat=1.0)
 PEAK = mat("peak", colour(WHITE), rough=0.22, coat=1.0)
-CHIN = mat("chin", colour(0x121316), rough=0.3, coat=0.6)
-LENS = mat("lens", colour(0x3FA9F5), metal=0.75, rough=0.06)
+CHIN = mat("chin", colour(DARK), rough=0.3, coat=0.6)
+LENS = mat("lens", colour(0x9B6BE0), metal=0.75, rough=0.06)
 LINER = mat("liner", colour(0x2B2E34), rough=0.85)
 SKIN = mat("skin", colour(0xC68863), rough=0.6)
 
@@ -226,14 +233,40 @@ def section(hx, front, back, n, a):
     return u, v
 
 
-def lofted(name, bone_name, sections, n=2.4, m=None):
+def lofted(name, bone_name, sections, n=2.4, m=None, muscles=(), out=None):
+    """A sleeve of rings down a bone, each a superellipse — and over it the
+    MUSCLES an athlete carries: each `(t, ang, reach, spread, lift)` a swell
+    `lift` m high centred `t` along the bone and `ang` degrees round it (0
+    dead ahead, +90 the limb's outside), falling off over `reach` along it
+    and `spread` degrees round it. `out` is the limb's outward direction, so
+    a left and a right limb swell alike."""
     head, x, y, z, length = frame(bone_name)
+    side = 1.0 if out is None or x.dot(out) >= 0 else -1.0
     rings = []
     for t, hx, front, back in sections:
         c = head + y * (t * length)
-        rings.append([c + x * u + z * v for u, v in (section(hx, front, back, n, 2 * math.pi * k / SEG)
-                                                      for k in range(SEG))])
+        ring = []
+        for k in range(SEG):
+            a = 2 * math.pi * k / SEG
+            u, v = section(hx, front, back, n, a)
+            ang = math.degrees(math.atan2(side * math.cos(a), math.sin(a)))
+            swell = 0.0
+            for mt, ma, reach, spread, lift in muscles:
+                da = (ang - ma + 180) % 360 - 180
+                swell += lift * math.exp(-((t - mt) / reach) ** 2 - (da / spread) ** 2)
+            r = math.hypot(u, v)
+            if r > 1e-6:
+                u, v = u * (1 + swell / r), v * (1 + swell / r)
+            ring.append(c + x * u + z * v)
+        rings.append(ring)
     return loft(name, rings, [m or SUIT])
+
+
+# AN ATHLETE'S BUILD: a racer is no mean man — a technical skier carries
+# heavy quads and a broad back on a lean waist. The ANSUR means are his
+# frame; these are what training lays over it (circumference ratios a
+# racer's measures run to against the survey's means).
+ATHLETE = {"thigh": 1.07, "lower_thigh": 1.05, "calf": 1.04, "biceps": 1.04, "chest": 1.05, "waist": 0.95}
 
 
 rides("chest")
@@ -245,13 +278,15 @@ cb, cd = ANSUR["chest_breadth"] / 2 * MM, ANSUR["chest_depth"] * MM
 e = EASE["trunk"]
 TRUNK = [
     (level(ANSUR["crotch"]) - 0.04, bh * 0.8 + e, bd * 0.3 + e, bd * 0.45 + e),
-    (level(ANSUR["crotch"]) + 0.05, bh + e, bd * 0.4 + e, bd * 0.52 + e),
-    (0.08, bh * 0.98 + e, bd * 0.4 + e, bd * 0.53 + e),
-    (level(ANSUR["waist_h"]), wb * 0.96 + e, wd * 0.5 + e, wd * 0.45 + e),
-    (level(ANSUR["tenth_rib_h"]), wb * 0.95 + e, wd * 0.53 + e, wd * 0.46 + e),
-    (0.52, cb * 1.04 + e, cd * 0.5 + e, cd * 0.48 + e),
-    (level(ANSUR["chest_h"]), cb * 1.1 + e, cd * 0.5 + e, cd * 0.5 + e),
-    (level(ANSUR["axilla_h"]), cb * 1.16 + e, cd * 0.46 + e, cd * 0.5 + e),
+    # The seat: the glutes round and high behind.
+    (level(ANSUR["crotch"]) + 0.05, bh + e, bd * 0.4 + e, bd * 0.56 + e),
+    (0.08, bh * 0.98 + e, bd * 0.4 + e, bd * 0.57 + e),
+    (level(ANSUR["waist_h"]), wb * ATHLETE["waist"] + e, wd * 0.48 + e, wd * 0.45 + e),
+    (level(ANSUR["tenth_rib_h"]), wb * 0.97 + e, wd * 0.52 + e, wd * 0.47 + e),
+    # The V: the lats flaring out from the waist to the armpits.
+    (0.52, cb * 1.08 + e, cd * 0.52 + e, cd * 0.5 + e),
+    (level(ANSUR["chest_h"]), cb * 1.15 * ATHLETE["chest"] + e, cd * 0.53 + e, cd * 0.52 + e),
+    (level(ANSUR["axilla_h"]), cb * 1.2 * ATHLETE["chest"] + e, cd * 0.48 + e, cd * 0.52 + e),
     (level(ANSUR["acromion_h"]) - 0.05, ANSUR["biacromial"] / 2 * MM * 0.88, cd * 0.38 + e, cd * 0.42 + e),
     (0.95, r_of(ANSUR["neck_base"]) * 1.4 + 0.01, 0.085, 0.085),
     (1.0, r_of(ANSUR["neck_base"]) + 0.012, 0.072, 0.072),
@@ -291,32 +326,59 @@ for i, s in enumerate("lr"):
     pieces.append(ellipsoid("shoulder", shoulders[i] + frame("spine")[2] * 0.008 + out * 0.003,
                             (reach + EASE["cap"] + 0.004, reach + EASE["cap"] + 0.008, reach + EASE["cap"] + 0.006), SUIT))
     l = EASE["limb"]
-    b = r_of(ANSUR["biceps"]) * 0.93
+    b = r_of(ANSUR["biceps"]) * 0.93 * ATHLETE["biceps"]
+    arm_out = out
     pieces.append(lofted("sleeve", f"upperarm_{s}", [
         (-0.05, b * 1.22 + l, b * 1.18 + l, b * 1.18 + l),
+        (0.2, b * 1.04 + l, b + l, b * 1.06 + l),
         (0.35, b + l, b + l, b * 1.04 + l),
+        (0.55, b * 0.96 + l, b * 0.95 + l, b * 0.98 + l),
         (0.7, b * 0.9 + l, b * 0.88 + l, b * 0.93 + l),
-        (1.05, b * 0.82 + l, b * 0.86 + l, b * 0.78 + l)]))
+        (1.05, b * 0.82 + l, b * 0.86 + l, b * 0.78 + l)],
+        # The deltoid's cap over the shoulder's outside, the biceps ahead,
+        # the triceps' long head behind.
+        muscles=((0.08, 90, 0.16, 70, 0.006), (0.55, 0, 0.18, 45, 0.004), (0.4, 180, 0.2, 50, 0.005)),
+        out=arm_out))
     f, w = r_of(ANSUR["forearm"]) * 0.93, r_of(ANSUR["wrist"])
     wrist_t = ANSUR["forearm_length"] * MM / frame(f"forearm_{s}")[4]
     pieces.append(lofted("sleeve", f"forearm_{s}", [
         (-0.08, f * 1.02 + l, f + l, f * 1.08 + l),
+        (0.12, f * 1.04 + l, f * 1.02 + l, f * 1.04 + l),
         (0.3, f + l, f + l, f + l),
         (wrist_t - 0.2, (f + w) / 2 + l, (f + w) / 2 + l, (f + w) / 2 + l),
-        (wrist_t - 0.04, w + l, w + l, w + l)]))
+        (wrist_t - 0.04, w + l, w + l, w + l)],
+        # The forearm's flexors and the brachioradialis high on its outside.
+        muscles=((0.18, 60, 0.14, 50, 0.004),), out=arm_out))
     pieces.append(ellipsoid("elbow", elbows[i], (b * 0.86 + l,) * 3, SUIT))
-    th, lt = r_of(ANSUR["thigh"]) * 0.97, r_of(ANSUR["lower_thigh"])
+    th = r_of(ANSUR["thigh"]) * 0.97 * ATHLETE["thigh"]
+    lt = r_of(ANSUR["lower_thigh"]) * ATHLETE["lower_thigh"]
+    leg_out = (knees[i] - hips).normalized()
+    leg_out = Vector((leg_out.x, leg_out.y, 0)).normalized() if abs(leg_out.x) > 1e-3 else Vector((1 if i else -1, 0, 0))
     pieces.append(lofted("leg", f"thigh_{s}", [
         (-0.12, th * 1.04 + l, th + l, th * 1.1 + l),
         (0.2, th + l, th + l, th + l),
+        (0.4, th * 0.97 + l, th * 0.98 + l, th * 0.96 + l),
         (0.6, (th + lt) / 2 + l, (th + lt) / 2 + l, (th + lt) / 2 + l),
-        (0.95, lt + l, lt + l, lt + l)]))
-    ca, an = r_of(ANSUR["calf"]), r_of(ANSUR["ankle"])
+        (0.8, lt * 1.03 + l, lt + l, lt + l),
+        (0.95, lt + l, lt + l, lt + l)],
+        # THE QUADS: the rectus down the front, the vastus lateralis' long
+        # swell down the outside, the medialis' teardrop low on the inside
+        # above the knee; the hamstrings behind.
+        muscles=((0.45, 5, 0.3, 40, 0.008), (0.5, 75, 0.32, 35, 0.007), (0.82, -50, 0.12, 30, 0.008),
+                 (0.4, 180, 0.3, 50, 0.004)),
+        out=leg_out))
+    ca, an = r_of(ANSUR["calf"]) * ATHLETE["calf"], r_of(ANSUR["ankle"])
     pieces.append(lofted("leg", f"shin_{s}", [
         (-0.05, lt + l, lt + l, lt + l),
+        (0.15, ca * 0.86 + l, ca * 0.76 + l, ca * 1.02 + l),
         (0.3, ca * 0.88 + l, ca * 0.78 + l, ca * 1.12 + l),
+        (0.45, ca * 0.84 + l, ca * 0.76 + l, ca * 1.02 + l),
         (0.55, ca * 0.8 + l, ca * 0.74 + l, ca * 0.92 + l),
-        (0.68, an * 1.15 + l, an * 1.1 + l, an * 1.15 + l)]))
+        (0.68, an * 1.15 + l, an * 1.1 + l, an * 1.15 + l)],
+        # THE CALF: the gastrocnemius' inner head lower and fuller than its
+        # outer one.
+        muscles=((0.26, -150, 0.12, 35, 0.006), (0.22, 150, 0.1, 30, 0.004)),
+        out=leg_out))
     pieces.append(ellipsoid("knee", knees[i], (lt + l + 0.003,) * 3, SUIT))
 
 bpy.context.view_layer.objects.active = pieces[0]
@@ -463,7 +525,7 @@ weights(bib, bib_weights)
 # ---------------------------------------------------------------- the HELMET
 rides("head")
 hc, hx, hy, hz, _ = frame("head")
-PAINT = {"shell": HELMET, "stripe": PEAK, "frame": PEAK, "band": CHIN, "trim": STRAP, "strap": STRAP,
+PAINT = {"shell": HELMET, "stripe": PEAK, "frame": CHIN, "band": CHIN, "trim": STRAP, "strap": STRAP,
          "foam": STRAP, "liner": LINER, "knit": LINER, "lens": LENS, "skin": SKIN}
 
 
@@ -485,7 +547,7 @@ lens_tex.image = ramp
 lens_mix = lens_nt.nodes.new("ShaderNodeMix")
 lens_mix.data_type, lens_mix.blend_type = "RGBA", "MULTIPLY"
 lens_mix.inputs["Factor"].default_value = 1.0
-lens_mix.inputs[7].default_value = (*colour(0x3FA9F5), 1.0)
+lens_mix.inputs[7].default_value = (*colour(0x9B6BE0), 1.0)
 lens_nt.links.new(lens_tex.outputs["Color"], lens_mix.inputs[6])
 lens_nt.links.new(lens_mix.outputs[2], lens_nt.nodes.get("Principled BSDF").inputs["Base Color"])
 
@@ -542,7 +604,7 @@ for i, s in enumerate("lr"):
     # SHIN GUARDS: from a hand under the knee down over the boot's cuff.
     rides(f"shin_{s}")
     _, _, _, _, sl = frame(f"shin_{s}")
-    ca, lt = r_of(ANSUR["calf"]), r_of(ANSUR["lower_thigh"])
+    ca, lt = r_of(ANSUR["calf"]) * ATHLETE["calf"], r_of(ANSUR["lower_thigh"]) * ATHLETE["lower_thigh"]
     calf = lambda t: (lt * (1 - t) + ca * 0.82 * t) if t < 0.5 else ca * 0.78
     _, rim = shell("shin_guard", f"shin_{s}", 0.1, 0.98, 9, math.radians(72), calf, 0.018, GUARD, flare=0.008)
     # Its rim piped in yellow: up both edges and across the top.
@@ -554,14 +616,14 @@ for i, s in enumerate("lr"):
     h_, x_, y_, z_, _ = frame(f"shin_{s}")
     for t in (0.3, 0.62):
         c = h_ + y_ * (t * sl)
-        r = calf(t) + 0.012
+        r = calf(t) + 0.02
         ring = [c + x_ * (math.cos(a) * r) + z_ * (math.sin(a) * r)
                 for a in (math.pi + math.pi * k / 10 for k in range(11))]
         tube("shin_strap", ring, 0.008, STRAP)
     # ARM GUARDS: low pads down the outside of each forearm.
     rides(f"forearm_lo_{s}")
     _, fx, _, _, fl = frame(f"forearm_{s}")
-    fr = r_of(ANSUR["forearm"]) * 0.93
+    fr = r_of(ANSUR["forearm"]) * 0.93 + 0.003
     out_ = fx if fx.dot(shoulders[i] - neck) > 0 else -fx
     arm_face = 1.0
     shell("arm_guard", f"forearm_{s}", 0.52, 0.8, 5, math.radians(60),
@@ -631,7 +693,7 @@ import racer_print  # noqa: E402
 
 racer_print.paint(suit, bib, SUIT, BIB, dict(
     GAME=GAME, frame=frame, knees=knees, hips=hips, neck=neck, shoulders=shoulders, elbows=elbows,
-    colours=dict(red=colour(RED), white=colour(WHITE), dark=colour(DARK), yellow=colour(YELLOW)),
+    colours=dict(red=colour(RED), white=colour(WHITE), dark=colour(DARK), navy=colour(NAVY), deep=colour(NAVY_DEEP)),
     COL=COL))
 
 # ---------------------------------------------------------------- the CLIPS

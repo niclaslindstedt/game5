@@ -47,6 +47,7 @@ import {
   freeTopOptions,
   freshRide,
   HELI_RUN,
+  BIKE_RUN,
   heliOn,
   markedRun,
   mergeRide,
@@ -395,23 +396,41 @@ describe("what the rows ask for", () => {
     expect(depthOf("medium")).toBeCloseTo(1, 9);
   });
 
-  it("stands a summer ride up on an aircraft, in midsummer", () => {
+  it("stands a summer ride up on the bike, in midsummer", () => {
     const ride = { ...freshRide(), season: "summer" as const };
-    // A slope picked (or none) is no summer start: the helicopter.
+    // A slope picked (or none) is no summer start: the downhill bike.
     const on = (id: string) => ({
       ...ride,
       run: { seed: 9, region: ride.region, face: ride.face, id },
     });
     const stood = seasonRide(on("4"), 9);
-    expect(runOn(stood, 9)).toBe(HELI_RUN);
-    // An aircraft picked is kept.
+    expect(runOn(stood, 9)).toBe(BIKE_RUN);
+    expect(SUMMER_STARTS[0]).toBe(BIKE_RUN);
+    // The bike or an aircraft picked is kept.
     for (const id of SUMMER_STARTS) {
       expect(runOn(seasonRide(on(id), 9), 9)).toBe(id);
     }
     const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.summer).toBe(true);
-    expect(opts.heli).toBe(true);
+    expect(opts.bike).toBe(true);
+    expect(opts.heli).toBeFalsy();
     expect(opts.avalanche).toBeFalsy();
+    // The spot tapped on the chart goes with it: the trail head nearest it.
+    const tapped = { ...ride, spot: { seed: 9, x: 120, z: -40 } };
+    const there = freeGameOptions(tapped, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(there.spawn).toEqual({ x: 120, z: -40 });
+    expect(there.byLift).toBeFalsy();
+    // An aircraft picked in summer flies, and no bike is asked.
+    const flown = freeGameOptions(on(HELI_RUN), 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(flown.heli).toBe(true);
+    expect(flown.bike).toBeFalsy();
+    // In winter there is no bike, whatever the ride kept.
+    expect(
+      freeGameOptions({ ...on(BIKE_RUN), season: null }, 9, {
+        spec: SKIS,
+        assist: { yaw: 1, air: 1 },
+      }).bike,
+    ).toBeFalsy();
     expect(opts.day?.dayOfYear).toBe(SUMMER_DAY);
     // A winter ride asks no summer of the engine.
     expect(

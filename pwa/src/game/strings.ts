@@ -29,6 +29,7 @@ import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
 import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
 import { SKI_CROSS_STRINGS } from "./strings-skicross.ts";
 import { SLED_STRINGS } from "./strings-sled.ts";
+import { BIKE_STRINGS } from "./strings-bike.ts";
 import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
@@ -120,6 +121,7 @@ export const STRINGS = {
   ...SPEED_SKI_STRINGS,
   ...SKI_CROSS_STRINGS,
   ...SLED_STRINGS,
+  ...BIKE_STRINGS,
   ...AFTERSKI_STRINGS,
   ...PARA_STRINGS,
   ...WHERE_STRINGS,

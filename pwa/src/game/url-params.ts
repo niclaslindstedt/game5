@@ -135,8 +135,12 @@
 //                   map's SKI ROUTE.
 //   ?summer=1       a free ride in SUMMER (`summer.ts`): the start card's
 //                   SEASON row's last stop — the snow gone, the sky never
-//                   snowing, and begun on the helicopter unless the link or
-//                   the card names another way into the air.
+//                   snowing, and begun on the downhill bike unless the link
+//                   or the card names a way into the air.
+//   ?bike=1         a SUMMER free ride begun ON THE DOWNHILL BIKE
+//                   (`bike.ts`) at a bike park trail's head — the one
+//                   nearest the card's spot, else the park's easiest — over
+//                   the start card's START row; it implies `?summer=1`.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
@@ -181,8 +185,10 @@
 // reads every rule here without a browser.
 
 import {
+  SKIS,
   SKY_CLOCK,
   SUMMER_DAY,
+  isBoard,
   WEATHER_KINDS,
   isAerialCode,
   isRunGrade,
@@ -323,6 +329,9 @@ export type UrlParams = {
   hill: "large" | "normal" | null;
   /** A free ride in summer, over the card's SEASON row. */
   summer: boolean;
+  /** A summer free ride begun on the downhill bike, over the card's START
+   * row (`?bike=1`, summer implied). */
+  bike: boolean;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
   /** A free ride begun under the paramotor, over the card's RUN row. */
@@ -499,6 +508,7 @@ export function readParams(search: string): UrlParams {
     round: q.get("round") === "1" ? "first" : null,
     hill: q.get("hill") === "normal" ? "normal" : q.get("hill") === "large" ? "large" : null,
     summer: q.get("summer") === "1",
+    bike: q.get("bike") === "1",
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
     balloon: q.get("balloon") === "1",
@@ -551,12 +561,12 @@ export function linkWorld(params: UrlParams): Pick<
  * over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   const out = overCard(ride, params);
-  return params.summer || out.summer ? inSummer(out) : out;
+  return params.summer || params.bike || out.summer ? inSummer(out) : out;
 }
 
 /** A free ride's options moved into SUMMER (a `?summer=1` link): the
  * season's day, no avalanches, and — where the ride begins on no way into
- * the air — on the helicopter, as the start card's own summer does. */
+ * the air — on the downhill bike, as the start card's own summer does. */
 function inSummer(ride: CreateGameOptions): CreateGameOptions {
   const aloft =
     ride.heli ||
@@ -572,7 +582,15 @@ function inSummer(ride: CreateGameOptions): CreateGameOptions {
     avalanche: false,
     sled: false,
     inLodge: false,
-    ...(aloft ? {} : { heli: true, byLift: false, spawn: undefined, run: undefined }),
+    // On the bike his figure is the skis' (`free-ride.ts`): a board put away.
+    ...(aloft
+      ? { bike: false }
+      : {
+          bike: true,
+          byLift: false,
+          run: undefined,
+          spec: ride.spec && isBoard(ride.spec) ? SKIS : ride.spec,
+        }),
   };
 }
 
@@ -582,11 +600,18 @@ function overCard(ride: CreateGameOptions, params: UrlParams): CreateGameOptions
   const sky = params.chute !== null;
   const plane = params.plane || sky;
   const named =
-    params.heli || params.sled || params.para || params.balloon || plane || params.wingsuit;
+    params.bike ||
+    params.heli ||
+    params.sled ||
+    params.para ||
+    params.balloon ||
+    plane ||
+    params.wingsuit;
   const only = (mine: boolean, card: boolean | undefined): boolean =>
     named ? mine : (card ?? false);
   return {
     ...ride,
+    bike: only(params.bike, ride.bike),
     heli: only(params.heli && !params.para && !params.balloon && !plane, ride.heli),
     sled: only(params.sled && !params.para && !params.heli && !params.balloon && !plane, ride.sled),
     para: only(params.para && !params.balloon, ride.para),

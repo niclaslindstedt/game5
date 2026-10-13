@@ -210,6 +210,10 @@ export type SkisModel = {
    * the root's frame, the pair out of sight — or null back on them. Read
    * at the next pose. Only the skis' model stands a rider off them. */
   setStood?(stood: StoodPose | null): void;
+  /** ON THE DOWNHILL BIKE'S RIDE (`bike.ts`): his skis and poles put away
+   * wherever he is drawn — on it, walking, sat on a chair — and his boots
+   * on him. Read at the next pose. */
+  setBiking?(on: boolean): void;
   /** SKYDIVING (`chute.ts`): his limbs as the jump's stage lays them, his
    * skis carried with his boots and his drawing pitched past what his
    * skier's frame says (`skier-skydive.ts`), or null — read at the next pose. */
@@ -493,6 +497,7 @@ export function createSkisModel(
   let basket = false;
   let basketWalk: BasketWalk | null = null;
   let stoodPose: StoodPose | null = null;
+  let biking = false;
   let sky: SkydiveShape | null = null;
   let lastPerch: number | null = null;
   const dangle = createDangle();
@@ -593,10 +598,10 @@ export function createSkisModel(
       const hillK = run?.level.skiJump?.w;
       const jumper = jump && hillK !== undefined ? jumperShapeOf(jump, run!.t, hillK) : null;
       if (!wings) {
-        rack(boarded || (cabin && !racked) || inBasket || bare || stood !== null);
+        rack(boarded || (cabin && !racked) || inBasket || bare || stood !== null || biking);
         // A binding lets the BOOT out, buckled to his foot (`town-boots.ts`):
         // with the pair not under him, his boots are on him.
-        unboot(off !== null || afoot !== null || racked !== null || jumper !== null);
+        unboot(off !== null || afoot !== null || racked !== null || jumper !== null || biking);
       }
       const angle = hung ? 0 : drawnSkiAngle(legs, skier);
       const ground = off || afoot ? 0 : groundOf(skier, legs);
@@ -708,7 +713,9 @@ export function createSkisModel(
         // A BROKEN ARM drops its pole: both broken, he rides with none.
         const breaks = armBreaks(skier.body.injuries);
         const bare =
-          inBasket || jumper || (breaks[0] && breaks[1]) ? { ...held, poles: false } : held;
+          inBasket || jumper || biking || (breaks[0] && breaks[1])
+            ? { ...held, poles: false }
+            : held;
         // A skydive's body is laid from a square stand: no turn, fall or trick in it.
         const input = skydive ? squareStand(bare) : bare;
         // ON A CHAIR (`skier-seat.ts`): sat on its seat, and stood up off it
@@ -879,6 +886,9 @@ export function createSkisModel(
     },
     setStood(next) {
       stoodPose = next;
+    },
+    setBiking(on) {
+      biking = on;
     },
     setBasket(on, walk) {
       basket = on;

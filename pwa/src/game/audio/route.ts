@@ -487,6 +487,40 @@ export function soundForEvent(
       if (event.phase === "off") return { id: "lift_off" };
       return null;
 
+    // THE DOWNHILL BIKE (`bike-bank.ts`), heard from where the ear is: on
+    // and off it, picked up, hooked onto a chair, a landing on the
+    // suspension (bottomed out past 3 g or cased), and the crash, as loud
+    // as he came off fast.
+    case "bike": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      switch (event.phase) {
+        case "board":
+        case "restart":
+          return { id: "bike_board", shape: heard };
+        case "hop":
+          return { id: "bike_hop", shape: heard };
+        case "right":
+          return { id: "bike_right", shape: heard };
+        case "lift":
+          return { id: "bike_lift", shape: heard };
+        case "land": {
+          const g = event.g ?? 1;
+          const hard = g > 3 || event.landing === "cased" || event.landing === "flat";
+          return {
+            id: hard ? "bike_bottom" : "bike_land",
+            shape: { ...heard, gain: heard.gain! * (0.5 + 0.5 * ramp(g, 1, 4)) },
+          };
+        }
+        case "crash":
+          return {
+            id: "bike_crash",
+            shape: { ...heard, gain: heard.gain! * (0.6 + 0.6 * ramp(event.speed, 0, 14)) },
+          };
+        default:
+          return null;
+      }
+    }
+
     // THE SNOWMOBILE (`sled-bank.ts`), heard from where the ear is: the
     // boots on the boards and the engine starting, the boots off them, the
     // machine heaved back up, and the crash of it going over.

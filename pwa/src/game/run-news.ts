@@ -71,6 +71,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // A stake bent over is nothing to say; one snapped is.
       return e.broke ? { text: STRINGS.newsStake, tone: "info" } : null;
     case "land":
+      // On the bike its own verdict says it (the `bike` event's).
+      if (state.bike) return null;
       // A landing the legs paid for, or one that loaded them past what a
       // clean landing asks (`TUNING.landing.clean`): its load, in g.
       if (e.harsh) return { text: STRINGS.newsHarsh(e.g), tone: "bad" };
@@ -83,6 +85,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     case "wipeout":
       // Taken by an avalanche: the avalanche's own word says so.
       if (e.cause === "avalanche") return null;
+      // Off the bike: its own `crash` says how he came off.
+      if (e.cause === "bike") return null;
       // Over the leading end riding switch is over the TAILS (`switch.ts`).
       if (e.cause === "nose" && state.skier.switched)
         return { text: STRINGS.newsTailDug, tone: "bad" };
@@ -203,6 +207,19 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "hop") return { text: STRINGS.newsSledHop, tone: "good" };
       if (e.phase === "right") return { text: STRINGS.newsSledRight, tone: "info" };
       return e.phase === "restart" ? { text: STRINGS.newsSledRestart, tone: "info" } : null;
+    case "bike":
+      // The downhill bike: a landing judged, how he came off it, back on.
+      if (e.phase === "land" && e.landing)
+        return {
+          text: STRINGS.newsBikeLand(e.landing, e.air ?? 0),
+          tone: e.landing === "clean" ? "good" : "bad",
+        };
+      if (e.phase === "crash") return { text: STRINGS.newsBikeCrash(e.how), tone: "bad" };
+      if (e.phase === "board") return { text: STRINGS.newsBikeBoard, tone: "info" };
+      if (e.phase === "hop") return { text: STRINGS.newsBikeHop, tone: "info" };
+      if (e.phase === "right") return { text: STRINGS.newsBikeRight, tone: "info" };
+      if (e.phase === "lift") return { text: STRINGS.newsBikeLift, tone: "info" };
+      return e.phase === "restart" ? { text: STRINGS.newsBikeRestart, tone: "info" } : null;
     case "afterski":
       // The lodge: in, each beer (the first said loudest), out again.
       if (e.phase === "in") return { text: STRINGS.newsAfterskiIn, tone: "good" };

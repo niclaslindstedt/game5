@@ -41,6 +41,7 @@ import {
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
+import { aboardCraft } from "./camera-aboard.ts";
 import { figureShown } from "./camera-para.ts";
 import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
@@ -148,7 +149,7 @@ export type WorldRendererExt = WorldRenderer &
   DevRenderer & {
     /** Change rung; `cut` skips the flown hand-over; `chosen` whether the
      * player picked it (a ski jump's broadcast gives way to his pick). */
-    setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean): void;
+    setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean, craft?: CameraRung): void;
     /** `present` false does everything a frame does — the trails stamped,
      * the spray flown, the lens moved — except draw the picture: how a lab
      * fast-forwards a run without losing the furrows it cut. */
@@ -700,12 +701,7 @@ export function createWorldRenderer(
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
       // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
-      lens.bail(
-        !!state.heli?.rider, // out of the plane's door the skydive has its own eyes
-        skier.airborne,
-        skier.thrown !== null,
-        Math.min(dt, 0.1),
-      );
+      lens.aboard(aboardCraft(state)); // a machine's rung or his own
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
@@ -776,6 +772,8 @@ export function createWorldRenderer(
       const aloft = aloftLook(video.distance, eyeAt.y - level.groundAt(eyeAt.x, eyeAt.z));
       env.setAloft(aloft);
       forest?.setAloft(aloft.trees, aloft.lift, aloft.view);
+      // The snow guns and their plumes stand out as far as the woods do.
+      gates?.guns?.setReach(aloft.trees, aloft.lift);
       terrain.follow(eyeAt.x, eyeAt.z, lens.camera, aloft.reach, aloft.lift);
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t);
@@ -923,11 +921,12 @@ export function createWorldRenderer(
       if (lastState && level) pack = packFor(lastState);
     },
 
-    setCamera(rung: CameraRung, cut: boolean = false, chosen?: boolean) {
-      lens.set(rung, cut);
+    setCamera(rung: CameraRung, cut: boolean = false, chosen?: boolean, craft?: CameraRung) {
+      lens.set(rung, cut, craft);
       if (chosen !== undefined) broadcast.pick(chosen);
     },
     camera: () => lens.chosen(),
+    riding: () => lens.riding(),
     pickRay: (x, y) => lensRay(lens.camera, x, y),
     resize(width, height, pixelRatio) {
       box = { width, height, pixelRatio };

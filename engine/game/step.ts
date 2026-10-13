@@ -382,6 +382,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     sled: base.sled,
     afterski: options.sfw ? false : base.afterski,
     ...(base.doors ? { doors: true } : {}),
+    // ...and its lifts' ropes ground (`cable.ts`): the free ride's alone.
+    ...(base.cables ? { cables: true } : {}),
     groomer: base.groomer,
     // THE VILLAGE'S TRAFFIC met (`traffic-contact.ts`): the free ride's alone.
     ...(base.traffic ? { traffic: true } : {}),

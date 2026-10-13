@@ -70,7 +70,7 @@ export function freshGrimbear(seed: number, ask: GrimbearAsk): GrimbearState {
  * balloon's basket. */
 function skiing(state: GameState): boolean {
   const c = state.skier;
-  if (c.thrown || c.lift || c.tunnel || c.jib) return false;
+  if (c.thrown || c.lift || c.tunnel || c.jib || c.grind) return false;
   if (state.heli?.rider) return false;
   if (state.sled?.mode === "ridden") return false;
   if (state.para && state.para.mode !== "dropped") return false;

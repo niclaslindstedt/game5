@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky sky-solar cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town
+.PHONY: title-scene title world buildings interiors lifts sky sky-solar cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow judder trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town
 
 build:
 	npm run build
@@ -616,6 +616,15 @@ civilians:
 # like `world`. SEED=n REGION=id; ARGS="--camera=far --at=-3,0,1,2,4,8".
 lift-ride:
 	npm run lift-ride -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE CABLE GRIND: a free ride dropped onto a lift's rope and ridden on a
+# script (the slide, a press, a pop and a spin back onto it, a carrier
+# throwing him off) through the game's own renderer, a row a lens, as one
+# sheet, previews/grind-<lift>-<seed>.png (`ARGS=--skis=lynx` on a board,
+# `--lift=drag|gondola`). Its own bundle from pwa/grind-preview.html; needs
+# a Chromium (CHROMIUM_PATH).
+grind:
+	npm run grind -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE GETTING ON AND OFF LAB, as filmed: every way on and off a lift — a
 # chair's load and unload, a T-bar's pick-up and release, a gondola's

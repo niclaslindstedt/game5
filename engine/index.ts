@@ -65,6 +65,8 @@ export {
 // THE WORLD (engine/mapgen/): the generator, the Level contract, the queries.
 export * from "./mapgen/index.ts";
 export { jibAt, jibLength, stepJib } from "./game/jib.ts";
+export { lowestRope, ropeOver, ropeSide, stepCable } from "./game/cable.ts";
+export { CABLE } from "./game/defs/cable.ts";
 export {
   SLOPE_JUDGING,
   jibDifficulty,
@@ -474,6 +476,7 @@ export {
   type FlightRecord,
   type JibRecord,
   type JibRide,
+  type CableRide,
   type JibStance,
 } from "./game/state.ts";
 export { freshSkier, derive } from "./game/skier.ts";

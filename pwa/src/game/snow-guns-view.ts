@@ -45,7 +45,8 @@ import { createPlumes, type Plumes } from "./snow-gun-plume.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
 const F = SNOW_GUN.fan;
-/** How far off a gun's small parts are drawn, and its body, m. */
+/** How far off a gun's small parts are drawn, and its body, m — the body's
+ * until the renderer hands over the woods' reach (`SnowGuns.setReach`). */
 export const GUN_REACH = { DETAIL: 220, WHOLE: 900 } as const;
 const L = SNOW_GUN.lance;
 
@@ -79,6 +80,10 @@ export type SnowGuns = {
   /** One frame: whether they run (the run's own machine snow), the drums'
    * sweep, the plumes and the whales. */
   update(state: GameState, look: SkyLook, wind: Wind, eye: THREE.Vector3, pixels: number): void;
+  /** THE WOODS' REACH (`forest.ts`): the guns and their plumes drawn as
+   * far out as the trees — `far` m in plan with the lens `lift` m
+   * over the snow (`view-aloft.ts`), so read at the slant distance. */
+  setReach(far: number, lift: number): void;
   dispose(): void;
 };
 
@@ -468,6 +473,7 @@ export function createSnowGuns(level: Level, haze: HazeUniforms): SnowGuns | nul
     new InstanceReach([tube], lanceAt, WHOLE),
     new InstanceReach([pit, pole, poleTop], placesOf(guns), DETAIL),
   );
+  const small = new Set(reaches.filter((r) => r.reach === DETAIL));
 
   // THE WHALES and THE PLUMES, while the guns run.
   const whaleGeo = whaleGeometry(level, guns);
@@ -490,6 +496,11 @@ export function createSnowGuns(level: Level, haze: HazeUniforms): SnowGuns | nul
       placeDrums(state.t, running);
       for (const r of reaches) r.update(eye);
       if (running) plumes.update(state.t, look, wind, eye, pixels);
+    },
+    setReach(far, lift) {
+      const whole = lift > 0 ? Math.hypot(far, lift) : far;
+      for (const r of reaches) r.setReach(small.has(r) ? Math.min(GUN_REACH.DETAIL, whole) : whole);
+      plumes.setReach(whole);
     },
     dispose() {
       for (const g of geos) g.dispose();

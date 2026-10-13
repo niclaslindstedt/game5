@@ -140,8 +140,11 @@ describe("a helicopter crashed with the skier on its skid", () => {
   });
 
   it("throws him along the skid flank first, nose or tail down", () => {
-    const nose = crashedAt(0, -1.2);
-    const tail = crashedAt(0, 1.2);
+    // Stood on its nose or tail (80°): a rotor that far over holds nothing
+    // up, so it comes down hard, and only its stop across him spares his
+    // spine — at 70° a third of a fall that fast still runs up it.
+    const nose = crashedAt(0, -1.4);
+    const tail = crashedAt(0, 1.4);
     expect(Math.sign(nose.w.across)).toBe(-Math.sign(tail.w.across));
     for (const { w, hurt } of [nose, tail]) {
       expect(spineLoad(hurt)).toHaveLength(0);

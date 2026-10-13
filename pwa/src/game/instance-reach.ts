@@ -43,7 +43,7 @@ type Kept = {
 };
 
 export class InstanceReach {
-  readonly reach: number;
+  private _reach: number;
   private readonly again: number;
   private readonly points: Float32Array;
   private readonly kept: Kept[] = [];
@@ -59,7 +59,7 @@ export class InstanceReach {
     reach: number,
     again = 8,
   ) {
-    this.reach = reach;
+    this._reach = reach;
     this.again = again;
     this.points = points;
     const n = points.length / 3;
@@ -73,6 +73,18 @@ export class InstanceReach {
           : null,
       });
     }
+  }
+
+  /** How far out a thing is drawn, m. */
+  get reach(): number {
+    return this._reach;
+  }
+
+  /** Draw out to `reach` m from the next `update` on. */
+  setReach(reach: number): void {
+    if (reach === this._reach) return;
+    this._reach = reach;
+    this.dirty = true;
   }
 
   /** Place thing `i`'s part `mesh` anew (it moves): kept, and handed out
@@ -96,7 +108,7 @@ export class InstanceReach {
     }
     const l = this.last;
     if (!this.dirty && l && Math.hypot(eye.x - l.x, eye.y - l.y, eye.z - l.z) < this.again) return;
-    this.fill(nearOf(this.points, eye, this.reach, this.near));
+    this.fill(nearOf(this.points, eye, this._reach, this.near));
     this.last = { x: eye.x, y: eye.y, z: eye.z };
   }
 

@@ -31,9 +31,9 @@ type P = { x: number; y: number; z: number };
 /** The camera flyer's places, m: off the jumper's right, over him, behind
  * him (along his heading), and the lens's field, deg. */
 export const FLYER = {
-  chase: { right: 0.3, up: 1.6, back: 4.6, fov: 60 },
-  far: { right: 0.8, up: 5.5, back: 9.5, fov: 52 },
-  high: { right: 0.4, up: 13, back: 2.5, fov: 55 },
+  chase: { right: 0, up: 1.2, back: 5.6, fov: 60 },
+  far: { right: 0, up: 5.5, back: 9.5, fov: 52 },
+  high: { right: 0, up: 13, back: 2.5, fov: 55 },
   orbit: { radius: 6.5, up: 2.5, rate: 0.22, fov: 55 },
 } as const;
 /** Where the flyer's look falls, m: `ahead` of him along his heading and
@@ -44,9 +44,9 @@ const LOOK = { ahead: 6, down: 2.2 };
 const OPENING = { reach: 1.15, plus: 7, up: 1.5, fov: 52 };
 /** How long the door's own lens holds him falling away before the camera
  * flyer's takes over, s (`plane-scene.ts` holds it). */
-const EXIT_HELD = 1.2;
+const EXIT_HELD = 0.6;
 /** How long a lens takes to fly in from the ladder and back out to it, s. */
-export const SKYDIVE_HAND = { in: 0.9, out: 1.4 };
+export const SKYDIVE_HAND = { in: 0.6, out: 1.4 };
 
 /** Whether the skydive's lens is wanted for `ch`: out of the door, in
  * freefall and through the opening — not under a full canopy, cut away
@@ -121,9 +121,9 @@ export function skydiveLens(
     const d = (reach * OPENING.reach + OPENING.plus) * wide;
     const far = rung === "far" ? 1.8 : 1;
     const eye = keepUp({
-      x: mid.x + (rx * 0.3 - fx * 0.95) * d * far,
+      x: mid.x - fx * d * far,
       y: mid.y + OPENING.up,
-      z: mid.z + (rz * 0.3 - fz * 0.95) * d * far,
+      z: mid.z - fz * d * far,
     });
     return { eye, target: mid, fov: OPENING.fov, roll: 0 };
   }

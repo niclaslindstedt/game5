@@ -87,14 +87,14 @@ describe("chuteOf", () => {
     expect(chuteOf(s)?.pull).toBe(true);
   });
 
-  it("names CUT AWAY under the open canopy, and nothing while it opens", () => {
+  it("names CUT AWAY while the canopy opens and under it once open", () => {
     const s = ride({ chute: 1500 });
     step(s, { ...NEUTRAL_INPUT, machine: true });
     let opening = false;
     const mode = (): string => s.chute!.mode;
     for (let i = 0; i < Math.round(8 / dt) && mode() !== "open"; i++) {
       step(s, NEUTRAL_INPUT);
-      if (mode() !== "freefall" && mode() !== "open") opening ||= chuteOf(s)?.press === null;
+      if (mode() === "deploying") opening ||= chuteOf(s)?.press === "release";
     }
     expect(opening).toBe(true);
     expect(s.chute!.mode).toBe("open");

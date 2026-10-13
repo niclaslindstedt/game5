@@ -125,7 +125,7 @@ Load **`skill-reflection`** at both ends, **`write-code`** beside this one,
   Likewise the cloth: `para-canopy.ts` without a `WingShape` is the
   paramotor's, byte for byte (`para_look_test`).
 - **THE PRESS IS THE NEXT THING.** Jump, open, cut away, reserve; the
-  landing releases by itself, and the reserve is never cut away. The HUD names the next press. A press in the exit's first
+  landing releases by itself. The cut-away works at any height on any canopy over him — opening, flying, caught, the reserve too. The HUD names the next press. A press in the exit's first
   `CHUTE.exit.clear` s does nothing (the tail passes over).
 - **A fall ends as any fall does.** A freefall or a cut-away is handed to the
   skier's own step 2.5 m over the snow and judged by the crash code; thrown,

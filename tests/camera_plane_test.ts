@@ -89,11 +89,11 @@ describe("the plane's lenses", () => {
     expect(look.z).toBeGreaterThan(0);
   });
 
-  it("puts the cockpit lens (TIPS: the airframe's own) at the pilot's eye, looking forward", () => {
+  it("puts the cockpit lens (TIPS: the airframe's own) on the centre line at the pilot's eye height, looking forward", () => {
     const { s, at } = flying();
     const lens = planeLens(createPlaneCam(), s.plane!, at, "tips", ground);
     const eye = body(at, lens.eye);
-    expect(eye.x).toBeCloseTo(PLANE.pilotEye.x, 6);
+    expect(eye.x).toBeCloseTo(0, 6);
     expect(eye.y).toBeCloseTo(PLANE.pilotEye.y, 6);
     expect(eye.z).toBeCloseTo(PLANE.pilotEye.z, 6);
   });

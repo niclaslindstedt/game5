@@ -40,6 +40,11 @@ const args = parseArgs(
     hour: { kind: "number", default: 11, help: "the solar hour" },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     trail: { kind: "string", default: "B1", help: "the trail the bot rides (B1, B2, …)" },
+    look: {
+      kind: "string",
+      default: "",
+      help: "the bike drawn (`bike-looks.ts`: placeholder, worldcup); the build's otherwise",
+    },
     at: {
       kind: "number",
       default: 9,
@@ -108,7 +113,7 @@ page.on("console", (msg) => {
 });
 page.setDefaultTimeout(args.timeout * 1000);
 
-const stem = args.out || `bike-${args.seed}`;
+const stem = args.out || `bike-${args.seed}${args.look ? `-${args.look}` : ""}`;
 const query = new URLSearchParams({
   seed: String(args.seed),
   quality: args.quality,
@@ -119,6 +124,7 @@ const query = new URLSearchParams({
   hour: String(args.hour),
   trail: args.trail,
   at: String(args.at),
+  ...(args.look ? { bikelook: args.look } : {}),
 }).toString();
 /** `work`, or a failure the moment the page throws — never the timeout
  * burnt on a page that died. */

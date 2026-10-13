@@ -43,7 +43,17 @@ import {
   type V3,
 } from "./dress-loft.ts";
 import { gauntletMouth, overSleeve } from "./dress-gloves.ts";
-import { gearOf, suitPants, type JacketId, type Outfit, type PantsId } from "./outfit.ts";
+import { cutBrace, cutFeet } from "./dress-racer.ts";
+import {
+  gearOf,
+  jacketColours,
+  RACER_KIT,
+  suitPants,
+  type Colours,
+  type JacketId,
+  type Outfit,
+  type PantsId,
+} from "./outfit.ts";
 
 const TAU = Math.PI * 2;
 const FRONT = Math.PI / 2;
@@ -239,6 +249,22 @@ const SUIT: { jacket: JacketCut; pants: PantsCut } = {
   pants: { ease: 0.012, knee: 0.01, hem: 0.074, drop: 0, square: 2.2 },
 };
 
+/** A DOWNHILL RACER'S KIT (`Outfit.bike`): a loose jersey worn out over
+ * the pants, its sleeves loose to the wrist; riding pants roomy over the
+ * knee pads under them and tapered to the shoe. */
+const RACER: { jacket: JacketCut; pants: PantsCut } = {
+  jacket: {
+    hem: -0.05,
+    ease: 0.026,
+    hemFlare: 0.004,
+    collar: 0.035,
+    square: 2.3,
+    sleeve: 0.03,
+    drape: 0.85,
+  },
+  pants: { ease: 0.026, knee: 0.04, hem: 0.066, drop: 0.01, square: 2.3 },
+};
+
 /** How far the thighs' tops are drawn in toward the middle under the seat,
  * m: the rig's hip joints stand a stance apart (`BODY.hip`), wider than a
  * body's, and a thigh lofted round them would bulge out past the hips. */
@@ -330,13 +356,13 @@ function seams(a: number, b: number, pitch: number): number[] {
 /** A jacket's colour on the trunk at `level`, `t` round, `p` in the body. */
 function jacketTrunkColour(
   id: JacketId,
+  j: Colours,
   cut: JacketCut,
   level: number,
   t: number,
   p: V3,
   female: boolean,
 ): number {
-  const j = gearOf("jacket", id);
   const front = gap(t, FRONT);
   const zip = front < 0.045;
   switch (id) {
@@ -412,8 +438,8 @@ function drape(
 
 function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.jacket;
-  const cut = o.suit ? SUIT.jacket : JACKET_CUT[id];
-  const j = gearOf("jacket", id);
+  const cut = o.suit ? SUIT.jacket : o.bike ? RACER.jacket : JACKET_CUT[id];
+  const j = jacketColours(o);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
   const quilt = cut.quilt;
@@ -426,7 +452,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const flare = (level: number) =>
     legs(level) + cut.hemFlare * Math.max(0, 1 - (level - cut.hem) / 0.15);
   // Clear of the pants wherever it hangs over them.
-  const pc = o.suit ? SUIT.pants : PANTS_CUT[o.pants];
+  const pc = o.suit ? SUIT.pants : o.bike ? RACER.pants : PANTS_CUT[o.pants];
   // A woman's cut is TAILORED: taken in at the waist and let out over the
   // hips, where a man's hangs straight.
   const female = gearOf("body", o.body).female;
@@ -582,7 +608,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
       f -= BACK_EASE * low * Math.sin(2 * t) ** 2 * (Math.sin(t) < 0 ? 1 : 0);
       return f;
     },
-    colour: (s, t, p) => jacketTrunkColour(id, cut, line.L(s), t, p, female),
+    colour: (s, t, p) => jacketTrunkColour(id, j, cut, line.L(s), t, p, female),
     cap: [false, true],
     // Below the chest the jacket rides the trunk alone: an arm's share,
     // however small, swings the hem as the arm comes forward.
@@ -792,8 +818,8 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
 
 function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.pants;
-  const cut = o.suit ? SUIT.pants : PANTS_CUT[id];
-  const pd = o.suit ? suitPants(o) : gearOf("pants", id);
+  const cut = o.suit ? SUIT.pants : o.bike ? RACER.pants : PANTS_CUT[id];
+  const pd = o.suit ? suitPants(o) : o.bike ? RACER_KIT.pants : gearOf("pants", id);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();
   // THE SEAT, from the crotch (dropped, on a baggy pair) to the waist
@@ -929,48 +955,6 @@ function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
   }
 }
 
-// ---------------------------------------------------------------- the feet
-
-/** HIS FEET, in the boots' padded liners — hidden in the shells while he
- * stands on his skis, his own when he is thrown off them. */
-function cutFeet(loom: Loom): void {
-  const { pose: P } = bindPose();
-  for (let i = 0; i < 2; i++) {
-    const s = i === 0 ? "l" : "r";
-    const bt = P.boots[i];
-    const n = { x: bt.n.x, y: bt.n.y, z: bt.n.z };
-    const f = { x: bt.f.x, y: bt.f.y, z: bt.f.z };
-    const top = P.feet[i];
-    loom.tube({
-      path: [top, add(top, mul(n, -0.24))],
-      face: [f, f],
-      sections: [
-        { s: 0, w: 0.05, f: 0.055, b: 0.052 },
-        { s: 0.24, w: 0.046, f: 0.05, b: 0.05 },
-      ],
-      step: 0.12,
-      segments: 8,
-      colour: () => 0x26282c,
-      weights: () => rides(`boot_${s}`),
-    });
-    const sole = add(top, mul(n, -0.275));
-    loom.tube({
-      path: [add(sole, mul(f, -0.11)), add(sole, mul(f, 0.16))],
-      face: [n, n],
-      sections: [
-        { s: 0, w: 0.035, f: 0.03, b: 0.02 },
-        { s: 0.06, w: 0.044, f: 0.045, b: 0.03 },
-        { s: 0.2, w: 0.045, f: 0.035, b: 0.03 },
-        { s: 0.27, w: 0.03, f: 0.015, b: 0.02 },
-      ],
-      step: 0.08,
-      segments: 8,
-      colour: () => 0x26282c,
-      weights: () => rides(`boot_${s}`),
-    });
-  }
-}
-
 /** The jacket, the pants and the feet of an outfit, cut onto `loom`. */
 export function cutClothes(loom: Loom, o: Outfit): void {
   const m = builtTo(
@@ -979,5 +963,6 @@ export function cutClothes(loom: Loom, o: Outfit): void {
   );
   cutPants(loom, m, o);
   cutJacket(loom, m, o);
-  cutFeet(loom);
+  cutFeet(loom, o);
+  if (o.bike) cutBrace(loom);
 }

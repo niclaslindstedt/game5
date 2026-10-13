@@ -72,8 +72,13 @@ export type Outfit = {
    * suit in the jacket's own colours, the helmet painted to match. Never a
    * slot of the DRESS card — the ski jump puts it on him. */
   suit?: boolean;
+  /** A DOWNHILL RACER'S KIT (`racerKit`): a loose jersey and riding pants
+   * in a factory team's colours, a full-face helmet with its peak, MX
+   * goggles and a neck brace, flat-pedal shoes. Never a slot of the DRESS
+   * card — the race bike puts it on him (`bike-looks.ts`). */
+  bike?: boolean;
 };
-export type GearSlot = Exclude<keyof Outfit, "suit">;
+export type GearSlot = Exclude<keyof Outfit, "suit" | "bike">;
 
 /** A BUILD: its name and its shape (`dress-body.ts`' `builtTo`) — the
  * GIRTH, the body's breadth and depth as a share of the medium build's at
@@ -371,6 +376,37 @@ export function jumpKit(o: Outfit): Outfit {
   return { ...o, pants: "race", helmet: "race", poles: "none", suit: true };
 }
 
+/** THE DOWNHILL RACER'S KIT off the player's own: his body, build and
+ * gloves' fit kept, the race jersey and pants in the team's colours, the
+ * full-face — and no poles. */
+export function racerKit(o: Outfit): Outfit {
+  return {
+    ...o,
+    jacket: "race",
+    pants: "race",
+    helmet: "slalom",
+    gloves: "race",
+    poles: "none",
+    bike: true,
+  };
+}
+
+/** THE TEAM'S KIT: the jersey (a navy body, the accent's yoke and side
+ * panels, a white stripe), the pants, and the full-face's shell, its
+ * graphics and the goggles' mirrored lens. */
+export const RACER_KIT = {
+  jersey: { main: 0x1a2a46, second: 0xff5a1a, third: 0xf3f3f0 } as Colours,
+  pants: { main: 0x17191d, second: 0xff5a1a, third: 0x2a2d33 } as Colours,
+  helmet: { shell: 0xf2f2ee, trim: 0x1a2a46, lens: 0xff7a22 },
+  brace: { body: 0x16171a, accent: 0xff5a1a },
+  shoe: { upper: 0x23252a, sole: 0x8a6a48, accent: 0xff5a1a },
+};
+
+/** A jacket's colours as worn: the racer's jersey on the bike. */
+export function jacketColours(o: Outfit): Colours {
+  return o.bike ? RACER_KIT.jersey : gearOf("jacket", o.jacket);
+}
+
 /** A suit's legs in its jacket's colours (`jumpKit`). */
 export function suitPants(o: Outfit): Colours {
   const j = gearOf("jacket", o.jacket);
@@ -381,6 +417,7 @@ export function suitPants(o: Outfit): Colours {
  * shell painted in the suit's main and second colours. */
 export function helmetOf(o: Outfit): HelmetDef {
   const h = gearOf("helmet", o.helmet);
+  if (o.bike) return { ...h, ...RACER_KIT.helmet };
   if (!o.suit) return h;
   const j = gearOf("jacket", o.jacket);
   return { ...h, shell: j.main, trim: j.second };

@@ -141,6 +141,8 @@
 //                   (`bike.ts`) at a bike park trail's head — the one
 //                   nearest the card's spot, else the park's easiest — over
 //                   the start card's START row; it implies `?summer=1`.
+//   ?bikelook=<id> the downhill bike DRAWN (`bike-looks.ts`: placeholder,
+//                   worldcup) — a look only; its rider dresses to match.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
@@ -204,6 +206,7 @@ import {
   type WeatherKind,
 } from "@engine";
 
+import { isBikeLook, type BikeLookId } from "./bike-looks.ts";
 import { BENCHMARK } from "./benchmark-plan.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
@@ -332,6 +335,9 @@ export type UrlParams = {
   /** A summer free ride begun on the downhill bike, over the card's START
    * row (`?bike=1`, summer implied). */
   bike: boolean;
+  /** The downhill bike drawn this visit (`?bikelook=<id>`, `bike-looks.ts`),
+   * or null for the build's. */
+  bikeLook: BikeLookId | null;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
   /** A free ride begun under the paramotor, over the card's RUN row. */
@@ -509,6 +515,7 @@ export function readParams(search: string): UrlParams {
     hill: q.get("hill") === "normal" ? "normal" : q.get("hill") === "large" ? "large" : null,
     summer: q.get("summer") === "1",
     bike: q.get("bike") === "1",
+    bikeLook: isBikeLook(q.get("bikelook")) ? (q.get("bikelook") as BikeLookId) : null,
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
     balloon: q.get("balloon") === "1",

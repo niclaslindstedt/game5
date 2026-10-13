@@ -31,6 +31,7 @@ import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
 import { riderPose, walkingPose } from "./skier-bike.ts";
+import { racesInKit } from "./bike-looks.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
@@ -331,7 +332,7 @@ export function createMachines(
         model.setBiking?.(true);
         model.setStood?.(
           b.onIt && !thrown
-            ? riderPose(bikePose(b))
+            ? riderPose(bikePose(b), racesInKit())
             : b.afoot && !s.skier.lift && !thrown
               ? walkingPose(b.afoot)
               : null,

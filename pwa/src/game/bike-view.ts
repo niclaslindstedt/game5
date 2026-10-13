@@ -37,6 +37,8 @@ import {
   swingAt,
   type V3,
 } from "./bike-look.ts";
+import { bikeLook } from "./bike-looks.ts";
+import { buildWorldCup } from "./bike-wc-build.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
@@ -453,6 +455,19 @@ export type BikeView = {
   dispose(): void;
 };
 
+/** The bike this visit draws (`bike-looks.ts`), with the hand that poses
+ * it: the placeholder posed by `poseBike`, a replacement by its own. */
+function buildFor(haze: HazeUniforms): {
+  root: THREE.Group;
+  nodes: BikeNodes;
+  pose(p: BikePose): void;
+  dispose(): void;
+} {
+  if (bikeLook() === "worldcup") return buildWorldCup(haze);
+  const b = buildBike(haze);
+  return { ...b, pose: (p) => poseBike(b.nodes, p) };
+}
+
 /** THE BIKE ON A LIFT, as drawn: hung by its front wheel off the back of
  * his chair (the hook `HANG` behind and under his seat), nose up, swinging
  * with the chair; inside a gondola's cabin, out of sight; stood beside him
@@ -462,7 +477,7 @@ const HANG = { back: 0.55, down: 0.05, pitch: 1.35 };
 export function createBikeView(haze: HazeUniforms): BikeView {
   const group = new THREE.Group();
   group.name = "downhill-bike";
-  const built = buildBike(haze);
+  const built = buildFor(haze);
   group.add(built.root);
   const call = new THREE.Sprite(
     new THREE.SpriteMaterial({
@@ -533,7 +548,7 @@ export function createBikeView(haze: HazeUniforms): BikeView {
       built.root.position.set(x, y, z);
       built.root.quaternion.copy(q);
       shown = { x, y, z, q };
-      poseBike(built.nodes, bikePose(b));
+      built.pose(bikePose(b));
       // THE CALL while it lies waiting near him on foot.
       const near = Math.hypot(player.x - b.x, player.z - b.z);
       const waiting = !!b.afoot && !b.onIt && near < LIGHT_UP && near > BIKE.board.reach;

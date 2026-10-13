@@ -8,6 +8,8 @@
 //   helmet   the same moment through his own eyes
 //   far      the same moment from the far boom
 //   side     the same moment from beside him, close: the bike and the stance
+//   drive    the same from his other side (the chain's)
+//   close    the same from ahead and to his left, closer: the cockpit and the kit
 //   front    the same moment from ahead of him
 //   air      off the first jump the bot leaves the ground on, from the side
 //   crash    the bars turned hard at speed until he is thrown — the bike loose
@@ -43,6 +45,7 @@ import {
   type SkierInput,
 } from "@engine";
 
+import { isBikeLook, setBikeLook } from "../game/bike-looks.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
@@ -72,6 +75,8 @@ const cols = Number(params.get("cols") ?? 4);
 const scale = Number(params.get("scale") ?? 0.5);
 const hour = Number(params.get("hour") ?? 11);
 const rideFor = Number(params.get("at") ?? 9);
+const look = params.get("bikelook");
+if (isBikeLook(look)) setBikeLook(look);
 
 const VIEWS = [
   "chase",
@@ -79,6 +84,8 @@ const VIEWS = [
   "helmet",
   "far",
   "side",
+  "drive",
+  "close",
   "front",
   "air",
   "crash",
@@ -216,9 +223,18 @@ async function scene(id: ViewId): Promise<Shot | null> {
       return { state: s, rung: id, caption: `${id} — ${caption(s, t)}` };
     }
     case "side":
+    case "drive":
+    case "close":
     case "front": {
       const { s, t } = await ridden();
-      const lens = id === "side" ? planted(s, -3.2, 0.3, 0.6) : planted(s, 0.5, 4.5, 0.9, 50);
+      const lens =
+        id === "side"
+          ? planted(s, -3.2, 0.3, 0.6)
+          : id === "drive"
+            ? planted(s, 3.2, 0.3, 0.6)
+            : id === "close"
+              ? planted(s, -1.5, 1.5, 0.45, 50)
+              : planted(s, 0.5, 4.5, 0.9, 50);
       return { state: s, lens, caption: `${id} — ${caption(s, t)}` };
     }
     case "air": {

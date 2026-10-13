@@ -41,6 +41,7 @@ import {
   type V3,
 } from "./dress-loft.ts";
 import { cutFace } from "./dress-face.ts";
+import { cutFullFace } from "./dress-racer.ts";
 import { gearOf, helmetOf, type Outfit } from "./outfit.ts";
 
 const DARK = 0x101114;
@@ -274,7 +275,8 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
     }
   }
 
-  if (o.helmet === "slalom") {
+  if (o.bike) cutFullFace(loom, o);
+  else if (o.helmet === "slalom") {
     // THE CHIN GUARD: a bar from ear cover to ear cover round the chin.
     const path = [
       H(-0.106, -0.062, 0.0),

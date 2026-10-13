@@ -43,25 +43,48 @@ export const ATTACK = {
   upright: 0.45,
 };
 
-/** THE KEY that lays him on the bike posed `pose`, in the root's frame. */
-export function riderKey(pose: BikePose): Key {
+/** A RACER'S RIDING (`race`, the race kit's bike — `bike-looks.ts`): out of
+ * the saddle sprinting, the hips rocking over the down stroke and the bike's
+ * weight thrown from side to side under them; on the brakes the hips
+ * pushed back and down against the stop; head and chest low. */
+export const RACE = {
+  /** The sprint: the hips' sway across, m, and the trunk's roll with it,
+   * rad, a full swing each down stroke; the hips lifted off the saddle. */
+  sway: 0.028,
+  rock: 0.09,
+  lift: 0.025,
+  /** The brakes: hips back and down, m, at a full pull, the trunk raised. */
+  brakeBack: 0.05,
+  brakeDown: 0.02,
+  brakePitch: -0.1,
+  /** The chest held lower over the stem, rad. */
+  pitch: 0.06,
+};
+
+/** THE KEY that lays him on the bike posed `pose`, in the root's frame —
+ * riding as a racer does where `race`. */
+export function riderKey(pose: BikePose, race = false): Key {
   const bb = bracketFromRider(pose);
   const [g0, g1] = gripsAt(pose.steer);
   const [p0, p1] = pedalsAt(pose.crank);
   const hips = ATTACK.hips;
   const back = Math.max(0, pose.shift);
+  // The racer's sprint swings with the cranks; his stop pushes him back.
+  const sprint = race && pose.pedalling && !pose.airborne ? Math.sin(pose.crank) : 0;
+  const pulled = race ? Math.max(pose.front, pose.rear) : 0;
   return {
-    hipX: hips.x,
-    hipY: hips.y,
-    hipZ: hips.z,
+    hipX: hips.x + RACE.sway * sprint,
+    hipY: hips.y + (race && pose.pedalling ? RACE.lift : 0) - RACE.brakeDown * pulled,
+    hipZ: hips.z - RACE.brakeBack * pulled,
     pitch:
       ATTACK.pitch +
       ATTACK.crouchPitch * pose.crouch +
       ATTACK.backPitch * back -
-      0.1 * Math.max(0, -pose.shift),
-    roll: -pose.roll * ATTACK.upright,
+      0.1 * Math.max(0, -pose.shift) +
+      (race ? RACE.pitch + RACE.brakePitch * pulled : 0),
+    roll: -pose.roll * ATTACK.upright - RACE.rock * sprint,
     twist: -pose.steer * 0.3,
-    nod: ATTACK.nod - 0.2 * pose.crouch,
+    nod: ATTACK.nod - 0.2 * pose.crouch - (race ? 0.08 : 0),
     feet: [add(add(bb, p0), ATTACK.ankle), add(add(bb, p1), ATTACK.ankle)],
     hands: [add(bb, g0), add(bb, g1)],
   };
@@ -70,8 +93,11 @@ export function riderKey(pose: BikePose): Key {
 /** THE RIDER ON THE BIKE as a stood pose (`SkisModel.setStood`): the root's
  * frame is his own centre of mass on the bike's attitude, so the snow under
  * him is never read. */
-export function riderPose(pose: BikePose): (ground: number, frame: BodyFrame) => SkierPose {
-  const points = keyPoints(riderKey(pose), 0);
+export function riderPose(
+  pose: BikePose,
+  race = false,
+): (ground: number, frame: BodyFrame) => SkierPose {
+  const points = keyPoints(riderKey(pose, race), 0);
   return (_ground, frame) => ragdollPose(points, frame);
 }
 

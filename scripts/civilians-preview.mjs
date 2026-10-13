@@ -29,6 +29,13 @@
 //             overview, and the dog walks' dogs, dogpoop, piles, street)
 //             by day, and `--night` of them
 //             at `--night-hour`                       → previews/civilians/resort-<seed>-<view>[-night].png
+//   summer    the summer's people (`civilian-summer.ts`): every body as a
+//             hiker, a guest in a t-shirt, a rider, a terrace sitter, a
+//             picnic, the lift crew and the patrol, and the cuts
+//                                                     → previews/civilians/summer.png
+//             — and `--summer` puts the resort in midsummer, with its
+//             own views trackHikers, summitHikers, riders and picnic
+//                                                     → previews/civilians/resort-<seed>-<view>-summer.png
 //
 // The page does the drawing (`pwa/src/tools/civilians-harness.ts`); this
 // builds it into a one-off bundle (never deployed), serves it and
@@ -52,7 +59,7 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".civilians-preview");
 
-const SHEETS = ["figures", "moves", "props", "dogs", "knocks", "resort"];
+const SHEETS = ["figures", "moves", "props", "dogs", "knocks", "summer", "resort"];
 const VIEWS = [
   "lift",
   "terrace",
@@ -70,6 +77,10 @@ const VIEWS = [
   "dogpoop",
   "piles",
   "street",
+  "trackHikers",
+  "summitHikers",
+  "riders",
+  "picnic",
 ];
 
 const args = parseArgs(
@@ -101,6 +112,10 @@ const args = parseArgs(
       default: "terrace,base",
       help: "the resort's views again after dark (empty for none)",
     },
+    summer: {
+      kind: "flag",
+      help: "the resort in midsummer (civilian-summer.ts): its views at --hour (13 by default), no night",
+    },
     "night-hour": { kind: "number", default: 21, help: "the hour the night views are at" },
     out: { kind: "string", default: "previews/civilians", help: "where the pictures go" },
     tag: { kind: "string", default: "", help: "a suffix on every file name (a round's name)" },
@@ -109,7 +124,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,dogs,knocks,resort] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build]",
+  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,dogs,knocks,summer,resort] [--summer] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());
@@ -202,15 +217,17 @@ for (const sheet of sheets) {
   if (sheet === "resort") {
     for (const [names, hour, suffix] of [
       [views, args.hour, ""],
-      [nights, args["night-hour"], "-night"],
+      [args.summer ? [] : nights, args["night-hour"], "-night"],
     ]) {
       if (names.length === 0) continue;
       const extra = { w: String(args.width), h: String(args.height) };
       if (hour >= 0) extra.hour = String(hour);
+      if (args.summer) extra.summer = "1";
       const page = await open("resort", extra, { width: args.width, height: args.height });
       for (const view of names) {
         const note = await page.evaluate((v) => globalThis.__civilians.shoot(v), view);
-        const out = join(outDir, `resort-${args.seed}-${view}${suffix}${tag}.png`);
+        const season = args.summer ? "-summer" : "";
+        const out = join(outDir, `resort-${args.seed}-${view}${suffix}${season}${tag}.png`);
         await page.locator("canvas#stage").screenshot({ path: out });
         console.log(`${rel(out)}  ${note}`);
       }

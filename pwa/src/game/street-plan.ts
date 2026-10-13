@@ -163,7 +163,7 @@ function roadSection(st: Street): { lat: number; u: number; crown: number }[] {
 }
 
 /** THE SURFACES of `level`'s village, or null where it has none. */
-export function planStreets(level: Level): StreetSurfaces | null {
+export function planStreets(level: Level, summer = false): StreetSurfaces | null {
   const v = villageOf(level);
   if (!v) return null;
   const out: StreetSurfaces = {
@@ -193,8 +193,8 @@ export function planStreets(level: Level): StreetSurfaces | null {
   junctions(level, v, out.area);
   areas(level, v, out);
   walks(level, v, out.walk);
-  crossings(level, v, out.marks);
-  bays(level, v, out.marks);
+  crossings(level, v, out.marks, summer);
+  bays(level, v, out.marks, summer);
   return out;
 }
 
@@ -379,7 +379,7 @@ function walks(level: Level, v: Village, g: StreetGeo): void {
 /** THE CROSSINGS: the road under each swept to its darker grit, then the
  * stripes — bars along the street half a metre wide, half a metre apart,
  * across its carriageway — their paint worn through where the tyres run. */
-function crossings(level: Level, v: Village, g: StreetGeo): void {
+function crossings(level: Level, v: Village, g: StreetGeo, summer = false): void {
   const at: StreetPoint = { x: 0, y: 0, z: 0, s: 0, heading: 0 };
   for (const c of v.crossings) {
     const st = v.streets.find((s) => s.id === c.street);
@@ -399,7 +399,8 @@ function crossings(level: Level, v: Village, g: StreetGeo): void {
       }
       rows.push(row);
     }
-    ribbon(g, rows);
+    // No snow to sweep in summer: the bars on the bare asphalt.
+    if (!summer) ribbon(g, rows);
     // The bars.
     const bar = 0.5;
     const n = Math.floor((2 * half + bar) / (2 * bar));
@@ -436,8 +437,9 @@ function crossings(level: Level, v: Village, g: StreetGeo): void {
 }
 
 /** THE CAR PARK'S BAYS, scraped into its snow: the line between two bays
- * a darker groove the tyres keep open. */
-function bays(level: Level, v: Village, g: StreetGeo): void {
+ * a darker groove the tyres keep open — in summer, a white painted line. */
+function bays(level: Level, v: Village, g: StreetGeo, summer = false): void {
+  const line = summer ? [0.86, 0.86, 0.82] : [0.68, 0.67, 0.66];
   for (const b of v.bays) {
     if (b.kind !== "lot") continue;
     const fx = Math.sin(b.heading);
@@ -453,7 +455,7 @@ function bays(level: Level, v: Village, g: StreetGeo): void {
       for (const w of [-0.06, 0.06]) {
         const x = ox + fx * d + rx * w;
         const z = oz + fz * d + rz * w;
-        row.push([x, roadY(level, x, z) + 0.01, z, 0, 0, 0.68, 0.67, 0.66]);
+        row.push([x, roadY(level, x, z) + 0.01, z, 0, 0, ...line]);
       }
       rows.push(row);
     }

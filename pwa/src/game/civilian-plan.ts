@@ -58,9 +58,19 @@ import { SNOWBALL } from "./civilian-moves.ts";
 import { skyHourNow } from "./sky-clock.ts";
 import { freshRouteAt, routeAside, routeAt, routeOf, type Route } from "./civilian-route.ts";
 import { wildGround } from "./wild-ground.ts";
+import {
+  SUMMER_GAIT,
+  SUMMER_ROLES,
+  TRACK_CHILD,
+  TRACK_HIKER,
+  summerRoleOf,
+} from "./civilian-summer.ts";
+import { dealTrackHikes } from "./civilian-hikers.ts";
 
 /** The salt on the map's seed the civilians are dealt off. */
 export const CIVILIAN_SALT = 0x5c1a;
+/** ...and the summer's people (`civilian-summer.ts`), off their own. */
+export const SUMMER_CIVILIAN_SALT = 0x5c1b5;
 
 /** How many civilians a map holds at the most. */
 export const CIVILIAN_MOST = 360;
@@ -120,7 +130,8 @@ const CLASS_ARC = 2.6;
 /** What a place holds besides its people: a deck chair set out for a
  * lounger, a snowman the children are building. */
 export type CivilianProp = {
-  kind: "deckchair" | "snowman";
+  /** A summer's picnic lays a BLANKET on the grass. */
+  kind: "deckchair" | "snowman" | "blanket";
   /** A snowman's stage: 1 the bottom ball, 2 two, 3 finished. */
   stage?: 1 | 2 | 3;
   x: number;
@@ -166,6 +177,8 @@ export type CivilianPlan = {
   /** The map it was dealt over — a walker's feet are read off its snow. */
   readonly level: Level;
   readonly seed: number;
+  /** Dealt for a summer's run (`civilian-summer.ts`): its roles, its kit. */
+  readonly summer: boolean;
   readonly people: readonly Civilian[];
   readonly props: readonly CivilianProp[];
 };
@@ -413,18 +426,38 @@ function shuffled<T>(rng: Rng, list: readonly T[]): T[] {
   return out;
 }
 
-/** A boot's pace for a body, m/s: the old and the children at the slow end. */
-function paceOf(rng: Rng, body: CrowdBody): number {
-  const [lo, hi] = BOOT_GAIT.speed;
+/** The role `id` a plan deals: the summer's in summer. */
+export function roleIn(summer: boolean, id: RoleId): Role {
+  return summer ? summerRoleOf(id) : roleOf(id);
+}
+
+/** A boot's pace for a body, m/s: the old and the children at the slow end
+ * — in summer a shoe's, freer. */
+function paceOf(rng: Rng, body: CrowdBody, summer = false): number {
+  const [lo, hi] = summer ? SUMMER_GAIT.speed : BOOT_GAIT.speed;
   const slow = body === "oldMan" || body === "oldWoman" || body === "child";
   return slow ? rng.range(lo * 0.85, (lo + hi) / 2) : rng.range(lo, hi);
 }
 
 /** LAY EVERY CIVILIAN OVER THE MAP. Deterministic in the map's seed on a
- * generator of its own; reads the map and never writes it. */
-export function planCivilians(level: Level): CivilianPlan {
-  const rng = createRng((level.seed ^ CIVILIAN_SALT) >>> 0);
-  const spots = spotsOf(level);
+ * generator of its own; reads the map and never writes it. In SUMMER the
+ * summer's roles (`civilian-summer.ts`) on a stream of their own: far
+ * fewer, nobody at a drag lift that stands still, and the hikers on the
+ * tracks. */
+export function planCivilians(level: Level, summer = false): CivilianPlan {
+  const rng = createRng((level.seed ^ (summer ? SUMMER_CIVILIAN_SALT : CIVILIAN_SALT)) >>> 0);
+  const drags = new Set(
+    summer ? (level.resort?.lifts ?? []).filter((l) => l.kind === "drag").map((l) => l.id) : [],
+  );
+  const spots = spotsOf(level).filter(
+    (s) => !(drags.has(s.of) && (s.kind === "liftFoot" || s.kind === "liftTop")),
+  );
+  // The summer's riders wait at a running lift's foot, not by the shops.
+  const running = new Set(
+    (level.resort?.lifts ?? []).map((l) => l.id).filter((id) => !drags.has(id)),
+  );
+  const roles = summer ? SUMMER_ROLES : CIVILIAN_ROLES;
+  const pace = (body: CrowdBody): number => paceOf(rng, body, summer);
   const people: Civilian[] = [];
   const props: CivilianProp[] = [];
   /** Who stands at each place already. */
@@ -511,7 +544,7 @@ export function planCivilians(level: Level): CivilianPlan {
     gaps: number,
     keen: number,
   ): void => {
-    const kid = roleOf("roller");
+    const kid = roleIn(summer, "roller");
     for (let k = 0; k < 16; k++) {
       // Into a gap between two builders, any of them.
       const a = a0 + (TAU * (k % gaps)) / gaps + (k < gaps ? 0 : rng.range(-0.3, 0.3));
@@ -535,7 +568,7 @@ export function planCivilians(level: Level): CivilianPlan {
     }
   };
 
-  for (const role of CIVILIAN_ROLES) {
+  for (const role of roles) {
     // A role with a budget is dealt over its places in an order of the
     // map's own, so the budget is spread over all of them.
     const order = role.most === undefined ? spots : shuffled(rng, spots);
@@ -544,6 +577,7 @@ export function planCivilians(level: Level): CivilianPlan {
       if (full()) break;
       if (role.most !== undefined && dealt() >= role.most) break;
       if (!role.at.includes(spot.kind)) continue;
+      if (role.id === "biker" && !running.has(spot.of)) continue;
       if (!rng.chance(role.chance)) continue;
       const want = rng.int(role.count[0], role.count[1]);
       const taken = takenAt(spot);
@@ -610,8 +644,8 @@ export function planCivilians(level: Level): CivilianPlan {
           const speed = skis
             ? rng.range(skis[0], skis[1]) * (body === "child" || body.startsWith("old") ? 0.8 : 1)
             : companions > 0
-              ? Math.min(paceOf(rng, body), paceOf(rng, "child"))
-              : paceOf(rng, body);
+              ? Math.min(pace(body), pace("child"))
+              : pace(body);
           const l =
             role.moves === "route"
               ? (dealRound(rng, level, spots, spot, p.x, p.z, speed, skis !== undefined, takenAt) ??
@@ -625,10 +659,11 @@ export function planCivilians(level: Level): CivilianPlan {
             continue;
           }
           // Skis on a shoulder for most, empty hands for the rest.
-          const hands = !skis && role.carry === "skis" && rng.chance(EMPTY_HANDED);
+          const hands =
+            !skis && (role.carry === "skis" || role.carry === "poles") && rng.chance(EMPTY_HANDED);
           add(role, spot, home, deck, keen, l, body, hands ? "none" : undefined);
           if (companions > 0 && role.party) {
-            const kid = roleOf(role.party.role);
+            const kid = roleIn(summer, role.party.role);
             for (let k = 0; k < companions && !full(); k++) {
               const side = (k % 2 === 0 ? 1 : -1) * ALONGSIDE * (1 + Math.floor(k / 2));
               if (!routeClear(level, l, side)) continue;
@@ -668,9 +703,17 @@ export function planCivilians(level: Level): CivilianPlan {
             });
             roll = stage < 3;
           }
-          const mate = role.party ? roleOf(role.party.role) : role;
+          const mate = role.party ? roleIn(summer, role.party.role) : role;
+          // A picnic sits round its blanket.
+          const picnic = role.id === "picnic";
+          if (picnic) {
+            const heading = rng.range(0, TAU);
+            const y = floorAt(level, spot, p.x, p.z);
+            props.push({ kind: "blanket", x: p.x, y, z: p.z, heading });
+          }
           homes.forEach((h, k) => {
-            if (!full()) add(k < want - n ? role : mate, spot, h, deck, keen, null);
+            const home = picnic ? { ...h, seat: 0 } : h;
+            if (!full()) add(k < want - n ? role : mate, spot, home, deck, keen, null);
           });
           // Not finished: a child rolls the next ball over to it, coming in
           // between two of the builders.
@@ -687,7 +730,7 @@ export function planCivilians(level: Level): CivilianPlan {
         if (role.party && rng.chance(role.party.chance)) {
           // A class on an arc before its instructor, facing him.
           const kids = rng.int(role.party.count[0], role.party.count[1]);
-          const mate = roleOf(role.party.role);
+          const mate = roleIn(summer, role.party.role);
           for (let k = 0; k < kids && !full(); k++) {
             const a = facing + ((k + 0.5) / kids - 0.5) * 1.8;
             const x = leader.home.x + Math.sin(a) * CLASS_ARC;
@@ -700,7 +743,35 @@ export function planCivilians(level: Level): CivilianPlan {
       }
     }
   }
-  return { level, seed: level.seed, people, props };
+  if (summer) {
+    // THE HIKERS ON THE TRACKS: a party a route, walked through its bends,
+    // the rest of it a step behind and aside.
+    for (const hike of dealTrackHikes(rng, level)) {
+      if (full()) break;
+      const a = hike.route.points[0];
+      const spot: Spot = {
+        id: `track-${hike.run}`,
+        kind: "base",
+        x: a.x,
+        z: a.z,
+        heading: 0,
+        area: { x0: 0, x1: 0, z0: 0, z1: 0 },
+        keepOut: [],
+        seats: [],
+        of: hike.run,
+      };
+      const keen = rng.next();
+      for (let k = 0; k < hike.size && !full(); k++) {
+        const role = k > 0 && rng.chance(0.25) ? TRACK_CHILD : TRACK_HIKER;
+        const side = k === 0 ? 0 : (k % 2 === 1 ? 1 : -1) * ALONGSIDE * Math.ceil(k / 2);
+        const r = side === 0 ? hike.route : routeAside(hike.route, side);
+        const at0 = routeAt(r, 0, freshRouteAt());
+        const home = standAt(spot, at0.x, at0.z, at0.heading);
+        add(role, spot, home, false, keen, r, rng.pick(role.bodies));
+      }
+    }
+  }
+  return { level, seed: level.seed, summer, people, props };
 }
 
 /** A world point in a place's frame. */
@@ -713,13 +784,15 @@ function intoLocal(spot: Spot, x: number, z: number): { lx: number; lz: number }
 }
 
 const plans = new WeakMap<Level, CivilianPlan>();
+const summers = new WeakMap<Level, CivilianPlan>();
 
-/** THE PLAN FOR A MAP, laid once and kept against it. */
-export function civilianPlanFor(level: Level): CivilianPlan {
-  let hit = plans.get(level);
+/** THE PLAN FOR A MAP, laid once a season and kept against it. */
+export function civilianPlanFor(level: Level, summer = false): CivilianPlan {
+  const kept = summer ? summers : plans;
+  let hit = kept.get(level);
   if (hit === undefined) {
-    hit = planCivilians(level);
-    plans.set(level, hit);
+    hit = planCivilians(level, summer);
+    kept.set(level, hit);
   }
   return hit;
 }
@@ -749,7 +822,7 @@ export function civilianAt(
   out: CivilianPose = freshCivilianPose(),
 ): CivilianPose {
   const c = plan.people[i];
-  out.shown = c.keen < shareAt(roleOf(c.role).hours, hour);
+  out.shown = c.keen < shareAt(roleIn(plan.summer, c.role).hours, hour);
   const u = t + c.offset;
   const { held, into } = stepAt(c, u);
   out.carry = held.carry;
@@ -822,6 +895,6 @@ export function rolledBall(plan: CivilianPlan, i: number, t: number, out: Ball):
 /** How many of a plan are out at `hour` — an instance budget. */
 export function civiliansOut(plan: CivilianPlan, hour: number): number {
   let n = 0;
-  for (const c of plan.people) if (c.keen < shareAt(roleOf(c.role).hours, hour)) n++;
+  for (const c of plan.people) if (c.keen < shareAt(roleIn(plan.summer, c.role).hours, hour)) n++;
   return n;
 }

@@ -232,11 +232,13 @@ export function createPeopleView(
   haze: HazeUniforms,
   rules: RunRules,
   cull?: ViewCull,
+  summer = false,
 ): CrowdView {
   const views: CrowdView[] = [createCrowdView(level, haze)];
   if (hasCivilians(rules)) {
-    views.push(createCiviliansView(level, haze));
-    views.push(createDogsView(level, haze));
+    // In SUMMER the summer's people, fewer and dressed for it.
+    views.push(createCiviliansView(level, haze, summer));
+    views.push(createDogsView(level, haze, summer));
   }
   if (hasSpectators(rules)) views.push(createSpectators(level, haze));
   if (views.length === 1) {

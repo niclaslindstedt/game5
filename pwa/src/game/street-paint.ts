@@ -25,7 +25,7 @@ import { TILE } from "./street-plan.ts";
 export type Paint = { width: number; height: number; data: Uint8Array };
 
 /** A hash of an integer lattice point to 0..1. */
-function hash(i: number, j: number, salt: number): number {
+export function hash(i: number, j: number, salt: number): number {
   let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(salt, 2246822519);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
@@ -33,7 +33,14 @@ function hash(i: number, j: number, salt: number): number {
 }
 
 /** Value noise on a lattice `cell` px wide, wrapped every `wx` × `wy` px. */
-function noise(x: number, y: number, cell: number, wx: number, wy: number, salt: number): number {
+export function noise(
+  x: number,
+  y: number,
+  cell: number,
+  wx: number,
+  wy: number,
+  salt: number,
+): number {
   const nx = Math.max(1, Math.round(wx / cell));
   const ny = Math.max(1, Math.round(wy / cell));
   const fx = x / cell;
@@ -51,7 +58,14 @@ function noise(x: number, y: number, cell: number, wx: number, wy: number, salt:
 }
 
 /** Fractal noise: four octaves of `noise`, 0..1. */
-function fbm(x: number, y: number, cell: number, wx: number, wy: number, salt: number): number {
+export function fbm(
+  x: number,
+  y: number,
+  cell: number,
+  wx: number,
+  wy: number,
+  salt: number,
+): number {
   let sum = 0;
   let amp = 0.5;
   let c = cell;
@@ -65,7 +79,7 @@ function fbm(x: number, y: number, cell: number, wx: number, wy: number, salt: n
   return sum / total;
 }
 
-function smooth(a: number, b: number, x: number): number {
+export function smooth(a: number, b: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 }
@@ -81,7 +95,7 @@ const GRIT_PALE = [150, 136, 118];
 const SETT = [138, 138, 142];
 const JOINT = [84, 82, 84];
 
-function mix(a: readonly number[], b: readonly number[], t: number): number[] {
+export function mix(a: readonly number[], b: readonly number[], t: number): number[] {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
@@ -97,7 +111,7 @@ function grit(c: number[], x: number, y: number, density: number, salt: number):
   return mix(c, pale ? GRIT_PALE : GRIT_DARK, 0.12 + 0.3 * k * k);
 }
 
-function put(d: Uint8Array, k: number, c: readonly number[]): void {
+export function put(d: Uint8Array, k: number, c: readonly number[]): void {
   d[k * 4] = Math.max(0, Math.min(255, c[0]));
   d[k * 4 + 1] = Math.max(0, Math.min(255, c[1]));
   d[k * 4 + 2] = Math.max(0, Math.min(255, c[2]));

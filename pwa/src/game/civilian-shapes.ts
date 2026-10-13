@@ -47,6 +47,7 @@ import {
 } from "./crowd-shapes.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape } from "./tree-mesh.ts";
+import { emitSummer, summerBlanket } from "./civilian-summer-shapes.ts";
 
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -73,7 +74,16 @@ const PAINT = {
 
 /** A box from `a` to `b`, `w` across along `side` and `h` thick along
  * `up` (each made square to the length), one colour, six faces. */
-function box(fig: Figure, a: V3, b: V3, side: V3, up: V3, w: number, h: number, c: THREE.Color) {
+export function box(
+  fig: Figure,
+  a: V3,
+  b: V3,
+  side: V3,
+  up: V3,
+  w: number,
+  h: number,
+  c: THREE.Color,
+) {
   const f = norm(sub(b, a));
   let u = sub(up, mul(f, dot(up, f)));
   if (len(u) < 1e-5) u = sub(side, mul(f, dot(side, f)));
@@ -266,7 +276,7 @@ function emitHead(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod, chest: 
 }
 
 /** THE PATROL'S CROSS, white on the red front and back. */
-function emitCross(fig: Figure, P: Posed, look: CrowdLook, chest: Frame): void {
+export function emitCross(fig: Figure, P: Posed, look: CrowdLook, chest: Frame): void {
   const k = look.height / 1.8;
   fig.part(PART.cross);
   fig.slot(SLOT.accent);
@@ -290,18 +300,30 @@ function emitCross(fig: Figure, P: Posed, look: CrowdLook, chest: Frame): void {
   fig.part(PART.body);
 }
 
-/** THE PROPS in his hands and on his shoulder, as this target holds them. */
-function emitProps(
+/** THE PROPS in his hands and on his shoulder, as this target holds them —
+ * in `summer` no skis and no snowball. */
+export function emitProps(
   fig: Figure,
   P: Posed,
   look: CrowdLook,
   lod: CrowdLod,
   chest: Frame,
   holding: Holding,
+  summer = false,
 ): void {
-  const k = look.height / 1.8;
   const small = cutOf(lod).small;
-  const world: V3 = [0, 1, 0];
+  if (!summer) emitSkisCarried(fig, P, look, lod, chest);
+  // Past the near cuts a cup, a ball or a shaft is under a pixel.
+  if (lod === "far") {
+    fig.part(PART.body);
+    return;
+  }
+  emitHeld(fig, P, chest, small, holding, summer);
+}
+
+/** SKIS ON THE LEFT SHOULDER. */
+function emitSkisCarried(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod, chest: Frame) {
+  const k = look.height / 1.8;
   // SKIS ON THE LEFT SHOULDER: the pair side by side, the bindings behind
   // the shoulder, the tips forward and down, the left hand on them.
   const L = look.ski;
@@ -361,11 +383,20 @@ function emitProps(
       PAINT.binding,
     );
   }
-  // Past the near cuts a cup, a ball or a shaft is under a pixel.
-  if (lod === "far") {
-    fig.part(PART.body);
-    return;
-  }
+  fig.part(PART.body);
+}
+
+/** What is in his hands: a cup, a glass, a snowball (never in `summer`),
+ * a shovel, a broom, a dog's bag. */
+function emitHeld(
+  fig: Figure,
+  P: Posed,
+  chest: Frame,
+  small: boolean,
+  holding: Holding,
+  summer: boolean,
+): void {
+  const world: V3 = [0, 1, 0];
   // THE CUP in the right fist: upright, tipped to his mouth when he drinks.
   const hand = P.handR;
   const axis = norm(add(mul(world, 1 - 0.5 * holding.tip), mul(chest.f, -0.75 * holding.tip)));
@@ -404,17 +435,19 @@ function emitProps(
     true,
   );
   // A SNOWBALL in the right fist.
-  fig.part(PART.snowball);
-  fig.limb(
-    sub(hand, mul(world, 0.05)),
-    add(hand, mul(world, 0.04)),
-    chest.r,
-    0.05,
-    0.03,
-    4,
-    PAINT.snow,
-    true,
-  );
+  if (!summer) {
+    fig.part(PART.snowball);
+    fig.limb(
+      sub(hand, mul(world, 0.05)),
+      add(hand, mul(world, 0.04)),
+      chest.r,
+      0.05,
+      0.03,
+      4,
+      PAINT.snow,
+      true,
+    );
+  }
   // THE LONG TOOLS: held upright in the right hand at rest, its foot on the
   // snow; worked with both hands, the right on the grip.
   const tool = (length: number): { top: V3; foot: V3; shaft: V3 } => {
@@ -476,8 +509,19 @@ function emitProps(
 }
 
 /** One pose of a civilian body at a cut: the same calls in the same order
- * for every pose. */
-function emit(fig: Figure, P: Posed, look: CrowdLook, lod: CrowdLod, holding: Holding): void {
+ * for every pose — in `summer`, the summer's figure (`civilian-summer-shapes.ts`). */
+function emit(
+  fig: Figure,
+  P: Posed,
+  look: CrowdLook,
+  lod: CrowdLod,
+  holding: Holding,
+  summer = false,
+): void {
+  if (summer) {
+    emitSummer(fig, P, look, lod, holding);
+    return;
+  }
   const { hips, chest } = bodyFrames(P);
   fig.part(PART.body);
   emitBoots(fig, P, look, lod, hips);
@@ -502,12 +546,17 @@ const built = new Map<string, THREE.BufferGeometry>();
 
 /** ONE CIVILIAN BODY AT ONE CUT, stood, with every pose of
  * `CIVILIAN_POSES` as a relative morph target, `aSlot` and `aPart` on
- * every vertex. Built once a session and shared. */
-export function buildCivilianFigure(body: CrowdBody, lod: CrowdLod): THREE.BufferGeometry {
-  const key = `${body}:${lod}`;
+ * every vertex — dressed for `summer` when asked. Built once a session and
+ * shared. */
+export function buildCivilianFigure(
+  body: CrowdBody,
+  lod: CrowdLod,
+  summer = false,
+): THREE.BufferGeometry {
+  const key = `${body}:${lod}${summer ? ":summer" : ""}`;
   const cached = built.get(key);
   if (cached) return cached;
-  const base = buildPosedFigure(body, lod, civilianTargets(body), key);
+  const base = buildPosedFigure(body, lod, civilianTargets(body), key, summer);
   built.set(key, base);
   return base;
 }
@@ -520,11 +569,12 @@ export function buildPosedFigure(
   lod: CrowdLod,
   targets: readonly { posed: Posed; holding: Holding }[],
   name = `${body}:${lod}`,
+  summer = false,
 ): THREE.BufferGeometry {
   const look = CROWD_LOOKS[body];
   const shapes = targets.map(({ posed, holding }) => {
     const fig = new Figure(true);
-    emit(fig, posed, look, lod, holding);
+    emit(fig, posed, look, lod, holding, summer);
     return fig.s.geometry();
   });
   const base = shapes[0];
@@ -559,9 +609,10 @@ export function poseCivilianFigure(
   pose: Posed,
   into: THREE.BufferGeometry,
   holding: Holding = moveOf("stand").holding,
+  summer = false,
 ): void {
   const fig = new Figure(true);
-  emit(fig, pose, CROWD_LOOKS[body], lod, holding);
+  emit(fig, pose, CROWD_LOOKS[body], lod, holding, summer);
   const g = fig.s.geometry();
   for (const name of ["position", "normal"] as const) {
     const to = into.getAttribute(name) as THREE.BufferAttribute;
@@ -575,8 +626,8 @@ export function poseCivilianFigure(
 }
 
 /** How many triangles a civilian body's cut is, folded parts and all. */
-export function civilianTriangles(body: CrowdBody, lod: CrowdLod): number {
-  return buildCivilianFigure(body, lod).getAttribute("position").count / 3;
+export function civilianTriangles(body: CrowdBody, lod: CrowdLod, summer = false): number {
+  return buildCivilianFigure(body, lod, summer).getAttribute("position").count / 3;
 }
 
 /** The vertex shader's slot picker, the vest's slot the ninth. */
@@ -743,6 +794,7 @@ export function buildCivilianProps(plan: CivilianPlan, origin: V3): THREE.Buffer
   plan.props.forEach((p, i) => {
     const o: V3 = [p.x - origin[0], p.y - origin[1], p.z - origin[2]];
     if (p.kind === "deckchair") deckchair(s, o, p.heading, stripes[i % stripes.length]);
+    else if (p.kind === "blanket") summerBlanket(s, o, p.heading, stripes[i % stripes.length]);
     else snowman(s, o, p.heading, p.stage);
   });
   return s.geometry();

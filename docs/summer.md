@@ -131,6 +131,8 @@ The bottom station gets a bike-wash area (hose stands and a concrete pad), a hir
 - **Paragliders:** take off from a grassy launch near a top station.
 - **Others:** trail crews with mini-excavators and rakes; lift staff; cattle, sheep or reindeer grazing the runs.
 
+The game's people on foot in summer, a quarter as many as a winter's day and dressed for it, are `docs/civilians.md` § *Summer*.
+
 ## What the game needs
 
 ### The day

@@ -14,7 +14,9 @@ import * as THREE from "three";
 import type { Level } from "@engine";
 
 import { hazeMaterial, PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
+import { summerShown } from "./season-look.ts";
 import { paintArea, paintRoad, paintWalk, type Paint } from "./street-paint.ts";
+import { paintSummerArea, paintSummerRoad, paintSummerWalk } from "./street-paint-summer.ts";
 import { planStreets, TILE, type StreetGeo } from "./street-plan.ts";
 
 export type VillageStreetsView = {
@@ -45,9 +47,12 @@ function geometry(g: StreetGeo): THREE.BufferGeometry {
   return geo;
 }
 
-/** The streets of `level`'s village as drawn, or null where it has none. */
+/** The streets of `level`'s village as drawn, or null where it has none:
+ * on the snow, or in a summer's run (`summerShown`) on asphalt and bare
+ * setts (`street-paint-summer.ts`). */
 export function createVillageStreets(level: Level, haze: HazeUniforms): VillageStreetsView | null {
-  const plan = planStreets(level);
+  const summer = summerShown();
+  const plan = planStreets(level, summer);
   if (!plan) return null;
   const group = new THREE.Group();
   group.name = "village-streets";
@@ -81,10 +86,12 @@ export function createVillageStreets(level: Level, haze: HazeUniforms): VillageS
     mesh.renderOrder = step;
     group.add(mesh);
   };
-  const road = texture(paintRoad());
-  const area = texture(paintArea());
-  const walk = texture(paintWalk());
-  const square = texture(paintWalk(512, TILE.square, 0.62));
+  const road = texture(summer ? paintSummerRoad() : paintRoad());
+  const area = texture(summer ? paintSummerArea() : paintArea());
+  const walk = texture(summer ? paintSummerWalk() : paintWalk());
+  const square = texture(
+    summer ? paintSummerWalk(512, TILE.square) : paintWalk(512, TILE.square, 0.62),
+  );
   texs.push(road, area, walk, square);
   layer(plan.area, area, 1, "street-area");
   layer(plan.road, road, 2, "street-road");

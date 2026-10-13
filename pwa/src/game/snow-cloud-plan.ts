@@ -41,15 +41,17 @@ export const CLOUD = {
   skiCarve: 1.1,
   skiPlough: 25,
   /** The skid's wall's climb off the skis, m/s: the least, and what a
-   * full push of loose snow adds. */
-  lift: { min: 2, loose: 6.5 },
+   * full push of loose snow adds — whole at `deep` of loose snow and no
+   * more past it: deeper snow throws more, not higher (a powder morning's
+   * wall stands at the head in the photographs, never the treetops). */
+  lift: { min: 2, loose: 6.5, deep: 1 },
   /** Thrown out across the way off a skid, m/s, relative to the skier. */
   back: { min: 2.5, skid: 4, most: 9 },
   /** A puff's radius at birth, m, and what it swells by over its life. */
-  size: { min: 0.25, fine: 0.25 },
-  grow: { min: 0.6, fine: 1.4 },
+  size: { min: 0.25, fine: 0.15 },
+  grow: { min: 0.5, fine: 0.7 },
   /** How long a puff hangs, s: the heavy snow's, and what fine snow adds. */
-  hang: { min: 0.7, fine: 4.6 },
+  hang: { min: 0.7, fine: 2.4 },
   /** The settling speed, m/s: the finest's and the heaviest's. */
   settle: { fine: 0.3, coarse: 1.2 },
   /** How fast a puff slows to the air round it, s. */
@@ -246,7 +248,7 @@ export function skidCloud(
     ((CLOUD.skidRate * (push + sweep) * Math.min(1.8, loose) * snow.fine) / bodyOf(snow)) *
     bySkin(snow, CLOUD.skin.rate);
   out.lift =
-    (CLOUD.lift.min + CLOUD.lift.loose * Math.min(1.5, loose)) *
+    (CLOUD.lift.min + CLOUD.lift.loose * Math.min(CLOUD.lift.deep, loose)) *
     (0.35 + 0.65 * push) *
     bySkin(snow, CLOUD.skin.lift);
   out.back =
@@ -272,7 +274,7 @@ export function skiCloud(
   const loose = Math.min(1.8, Math.max(0, snow.loose));
   out.rate =
     (CLOUD.skiCarve * Math.max(0, carve) + CLOUD.skiPlough * Math.max(0, sink)) * loose * snow.fine;
-  out.lift = (1 + 1.6 * Math.min(1.5, loose)) * bySkin(snow, CLOUD.skin.lift);
+  out.lift = (1 + 1.6 * Math.min(CLOUD.lift.deep, loose)) * bySkin(snow, CLOUD.skin.lift);
   out.back = 1.5;
   out.size *= 0.8;
   return lofted(out, speed);

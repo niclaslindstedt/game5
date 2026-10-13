@@ -76,6 +76,8 @@ const SHADOW_REACH = 5;
 /** How much deeper an avalanche's billow shades itself than a skier's
  * puff: its far side and its underside go the sky's grey-blue. */
 const BILLOW_DENSE = 2.4;
+/** How high over the snow, m, the air still follows the slope under it. */
+const AIR_HUG = 12;
 
 function cell(u: number, v: number): number {
   return (Math.imul(u, 73856093) ^ Math.imul(v, 19349663)) & (SHADOW_CELLS - 1);
@@ -239,10 +241,15 @@ float density(vec2 uv, vec2 spin, vec2 o, float age) {
   // The fine curl that keeps a puff filling the lens from going smooth.
   float n3 = texture2D(uNoise, spin * 2.3 - o + vec2(age * 0.7, age * 0.2)).b;
   float n = n1 * 0.52 + n2 * 0.3 + n3 * 0.18;
+  // THE GRAIN: thrown snow is grains and clumps in the air, never smoke —
+  // its rim in the photographs is ragged and hairy, its body speckled. A
+  // fine noise gnaws the rim (the further out, the harder) so no puff
+  // reads as a ball of cotton.
+  float n4 = texture2D(uNoise, spin * 5.7 + o * 3.1 + vec2(age * 1.3, -age)).b;
   float body = 1.0 - r2;
   float erode = 0.15 + 0.55 * age;
   // A crisp billow edge young, torn wisps old.
-  float v = body * (0.5 + 1.15 * n) - erode * (1.0 - n);
+  float v = body * (0.5 + 1.15 * n) - erode * (1.0 - n) - 0.42 * r2 * (1.0 - n4);
   return smoothstep(0.0, 0.5 - 0.25 * age, v) * (1.0 - r2 * r2 * 0.5);
 }
 
@@ -616,6 +623,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   const drive = { speed: 0, skid: 0, edge: 0, grounded: false };
   const shares: [number, number] = [0.5, 0.5];
   const slips: [EdgeSlip, EdgeSlip] = [emptySlip(), emptySlip()];
+  const slope = { x: 0, y: 1, z: 0 };
 
   const api: SnowCloud = {
     mesh,
@@ -836,7 +844,13 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
           continue;
         }
         const k = i * 3;
-        flyPuff(vel, k, wind.x, 0, wind.z, tau[i], settle[i], dt);
+        // The air near the snow follows it: a breeze down (or up) the face
+        // carries the cloud down (or up) with the ground, not out level
+        // over a slope falling away under it — faded out with height.
+        level.normalAt(pos[k], pos[k + 2], slope);
+        const hug = Math.max(0, 1 - (pos[k + 1] - ground[i]) / AIR_HUG);
+        const airY = (-(slope.x * wind.x + slope.z * wind.z) / Math.max(0.3, slope.y)) * hug;
+        flyPuff(vel, k, wind.x, airY, wind.z, tau[i], settle[i], dt);
         pos[k] += vel[k] * dt;
         pos[k + 1] += vel[k + 1] * dt;
         pos[k + 2] += vel[k + 2] * dt;

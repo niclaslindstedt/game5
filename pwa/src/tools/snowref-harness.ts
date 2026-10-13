@@ -301,7 +301,16 @@ const LAID_DOWN: SkierInput = { ...NEUTRAL_INPUT, steer: 1, brake: 1, lean: 1 };
 async function marksSheet(ctx: CanvasRenderingContext2D, labelW: number, headH: number) {
   const titles = ["FALL IN POWDER", "TRACK LINE"];
   // Row 0: the fall, beside at three moments and over the hole.
-  const fall = createGame({ level, mode: "free", rivals: 0, quiet: true, spec: CHAMOIS });
+  // Deep enough to lay him down (the world lab's powder views' dial).
+  renderer.setSnow(null, "fresh");
+  const fall = createGame({
+    level,
+    mode: "free",
+    rivals: 0,
+    quiet: true,
+    spec: CHAMOIS,
+    snowDepth: 2.5,
+  });
   placeRun(fall, { x: field.x, z: field.z, heading: field.heading, speed: 12 / 3.6 });
   await settle(fall);
   const until = fall.t + 8;
@@ -348,12 +357,13 @@ async function marksSheet(ctx: CanvasRenderingContext2D, labelW: number, headH: 
     label(
       ctx,
       [
-        `${shots[c].t} s down · ${shots[c].top ? "over the hole" : "beside"} · middle ${under.toFixed(2)} m under`,
+        `${shots[c].t} s down in deep powder · ${shots[c].top ? "over the hole" : "beside"} · middle ${under.toFixed(2)} m under`,
       ],
       x0,
       headH,
     );
   }
+  renderer.setSnow(null);
   // Row 1: the track line behind six seconds of carves, groomer and powder.
   const tracks: { powder: boolean; lens: "chase" | "low" }[] = [
     { powder: false, lens: "chase" },
@@ -461,7 +471,12 @@ window.__snowref = {
     ctx.fillStyle = "#e8eef4";
     ctx.font = "12px monospace";
     ctx.textBaseline = "middle";
-    renderer.setSky({ weather: "clear", hour: hourAt(level, sunDeg * DEG) });
+    // The photographs are of still air: a clear sky and a breath of wind, so a
+    // low sun's hour and a high one's differ only in the light.
+    renderer.setSky({
+      weather: { kind: "clear", wind: Number(params.get("wind") ?? 1) },
+      hour: hourAt(level, sunDeg * DEG),
+    });
     const note = `SNOW REFERENCE · ${kind.toUpperCase()} · seed ${seed}${region ? ` ${region}` : ""} · sun ${sunDeg}°`;
     ctx.fillText(
       `${note}${kind === "spray" ? " · dashed amber the film, solid cyan the game (top × reach, side-on to the throw)" : ""}`,

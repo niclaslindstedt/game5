@@ -2,7 +2,7 @@
 // THE TOUCH CONTROLS — the two thumb zones the phone skis with: the EDGE
 // THUMB on the lower left, the TUCK LEVER on the lower right (swapped for
 // a skier who has asked for the lever on the left) — wide open the moment a
-// thumb lands, eased off by sliding UP, and the brake further up still. Both
+// thumb lands, eased off by sliding DOWN, and the brake further down still. Both
 // stop short of the top of the screen so the readouts and their presses keep
 // their own glass; styles.css owns where the line falls.
 //
@@ -272,17 +272,17 @@ function PadArt({ glyph }: { glyph: PadGlyph }) {
   );
 }
 
-/** The lever's drawing: the whole throw runs UP from the anchor — the
+/** The lever's drawing: the whole throw runs DOWN from the anchor — the
  * tuck easing off to the shut mark, then the brake's past it — with room
  * round the track for the knob and its stroke, px. */
-const LEVER_UP_PX = LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX;
+const LEVER_DOWN_PX = LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + LEVER_BRAKE_PX;
 const LEVER_PAD_PX = 22;
-const LEVER_TOP_PX = -LEVER_UP_PX - LEVER_PAD_PX;
-const LEVER_BOX_PX = LEVER_UP_PX + LEVER_PAD_PX * 2;
+const LEVER_TOP_PX = -LEVER_PAD_PX;
+const LEVER_BOX_PX = LEVER_DOWN_PX + LEVER_PAD_PX * 2;
 
 /** The right thumb: touching anywhere in the zone anchors the LEVER, WIDE
- * OPEN, under the finger. Sliding UP eases the tuck off over
- * `LEVER_EASE_PX` to shut; further up, past a small dead band, pulls the
+ * OPEN, under the finger. Sliding DOWN eases the tuck off over
+ * `LEVER_EASE_PX` to shut; further down, past a small dead band, pulls the
  * BRAKE over `LEVER_BRAKE_PX`. A TAP and then the thumb held straight back
  * down LOADS THE JUMP (`jumpTapDown`) — the lever still under it — and
  * lifting it springs him. Analogue the whole way, held while the finger
@@ -310,22 +310,22 @@ export function LeverZone({
     touch.tuck = tuck;
     touch.brake = brake;
     // The knob rides the thumb: the anchor at 0 is wide open, the shut mark
-    // `LEVER_EASE_PX` above it, the brake's travel above that. The fill spans
-    // the shut mark to the knob either way — below it it is the tuck
-    // that is open, above it the brake, drawn in the alarm colour so a thumb
+    // `LEVER_EASE_PX` below it, the brake's travel below that. The fill spans
+    // the shut mark to the knob either way — above it it is the tuck
+    // that is open, below it the brake, drawn in the alarm colour so a thumb
     // never has to ask which half of the throw it is in.
     const px =
       tuck > 0
-        ? -(1 - tuck) * LEVER_EASE_PX
+        ? (1 - tuck) * LEVER_EASE_PX
         : brake > 0
-          ? -(LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + brake * LEVER_BRAKE_PX)
-          : -LEVER_EASE_PX;
+          ? LEVER_EASE_PX + LEVER_BRAKE_DEAD_PX + brake * LEVER_BRAKE_PX
+          : LEVER_EASE_PX;
     knobRef.current?.setAttribute("transform", `translate(0 ${px.toFixed(1)})`);
     armsRef.current?.setAttribute("d", suitPlanform(leverSpread(tuck, brake)));
     const fill = fillRef.current;
     if (!fill) return;
-    fill.setAttribute("y", Math.min(-LEVER_EASE_PX, px).toFixed(1));
-    fill.setAttribute("height", Math.abs(px + LEVER_EASE_PX).toFixed(1));
+    fill.setAttribute("y", Math.min(LEVER_EASE_PX, px).toFixed(1));
+    fill.setAttribute("height", Math.abs(px - LEVER_EASE_PX).toFixed(1));
     fill.classList.toggle("hud-lever-fill-reverse", brake > 0);
   };
   const letGo = (): void => {
@@ -386,25 +386,12 @@ export function LeverZone({
           // silently stops agreeing the day a throw changes length.
           style={{ top: `${LEVER_TOP_PX}px` }}
         >
-          <rect
-            class="hud-lever-track"
-            x="-6"
-            y={-LEVER_UP_PX}
-            width="12"
-            height={LEVER_UP_PX}
-            rx="6"
-          />
+          <rect class="hud-lever-track" x="-6" y="0" width="12" height={LEVER_DOWN_PX} rx="6" />
           <rect ref={fillRef} class="hud-lever-fill" x="-6" y="0" width="12" height="0" rx="6" />
-          {/* The SHUT mark, an easing-off above the anchor: above it the
-              brake, below it the tuck, so the two read as two levers
+          {/* The SHUT mark, an easing-off below the anchor: below it the
+              brake, above it the tuck, so the two read as two levers
               rather than one. */}
-          <line
-            class="hud-lever-neutral"
-            x1="-11"
-            y1={-LEVER_EASE_PX}
-            x2="11"
-            y2={-LEVER_EASE_PX}
-          />
+          <line class="hud-lever-neutral" x1="-11" y1={LEVER_EASE_PX} x2="11" y2={LEVER_EASE_PX} />
           <g ref={knobRef}>
             <circle class="hud-lever-knob" cx="0" cy="0" r="15" />
             {suit && (

@@ -53,7 +53,7 @@ import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
 
 import type { BuildShape } from "./dress-body.ts";
 
-export type BodyId = "man" | "woman";
+export type BodyId = "man" | "woman" | "racer";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
 export type HelmetId = "race" | "freeride" | "visor" | "slalom";
@@ -91,6 +91,10 @@ export type BodyDef = {
   hair: number;
   /** The shadowed partings between a braid's strands. */
   plait: number;
+  /** A WHOLE KIT MODELLED in Blender (`racer-model.ts`): a man's measure in
+   * his own suit, bib, guards and helmet — the jacket, pants and helmet
+   * rows are his already. Never dealt to the field. */
+  model?: boolean;
 };
 
 /** A garment's colours: the MAIN body of it, its SECOND colour (a yoke, a
@@ -127,6 +131,15 @@ export type PoleDef = {
 export const BODIES: readonly BodyDef[] = [
   { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e, plait: 0x241910 },
   { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232, plait: 0x6a4020 },
+  {
+    id: "racer",
+    name: "Racer",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x3a2a1e,
+    plait: 0x241910,
+    model: true,
+  },
 ];
 
 const WEIGHT_LOOK: Record<RiderId, { name: string; belly: number; chest: number }> = {
@@ -284,7 +297,7 @@ export const GEAR_SLOTS: readonly GearSlot[] = [
 
 /** The player's kit before they have dressed: a racer in the gate red. */
 export const DEFAULT_OUTFIT: Outfit = {
-  body: "man",
+  body: "racer",
   weight: "medium",
   jacket: "race",
   pants: "insulated",
@@ -352,7 +365,10 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
     return kept[dealt(look, k, kept.length)].id;
   };
   return {
-    body: of(BODIES, 0),
+    body: of(
+      BODIES.filter((b) => !b.model),
+      0,
+    ),
     weight,
     jacket: of(JACKETS, 1),
     pants: of(PANTS, 2),

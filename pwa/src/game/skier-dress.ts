@@ -20,6 +20,7 @@ import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
 import { suitDress } from "./wingsuit-dress.ts";
+import { createRacerWind, graftWind, paleRacer, racerParts } from "./racer-model.ts";
 import type { RiderId } from "@engine";
 
 export type Dressed = {
@@ -120,42 +121,67 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
 
-  const cut =
-    dress.suit === undefined
-      ? dressOutfit(dress.outfit, dress.tone, dress.bare)
-      : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
+  // THE MODELLED RACER (`racer-model.ts`), when the outfit is his and the
+  // model is in: his parts on these very bones, his bib and suit in the air.
+  const racer =
+    dress.outfit.body === "racer" && dress.suit === undefined && !dress.bare ? racerParts() : null;
+  const wind = racer ? createRacerWind() : null;
   const ghost = !!dress.ghost;
-  const geos = [geometryOf(cut.cloth, ghost), geometryOf(cut.hard, ghost)];
-  const mats = [
-    wrap(
-      // Both sides of the cloth: a hem, a cuff and a collar are open, and
-      // a lens under one sees the inside of the garment, not the snow
-      // through it.
-      new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.78,
-        metalness: 0,
-        side: THREE.DoubleSide,
-      }),
-      "skier-cloth",
-    ),
-    wrap(
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.15 }),
-      "skier-hard",
-    ),
-  ];
+  let geos: THREE.BufferGeometry[];
+  let mats: THREE.Material[];
+  if (racer && wind) {
+    geos = racer.map((p) => p.geometry.clone());
+    mats = racer.map((p) => {
+      const m = p.material.clone();
+      if (ghost) paleRacer(m);
+      const out = wrap(m, `racer-${p.name}`);
+      if (p.wind) graftWind(out, p.wind, wind);
+      return out;
+    });
+  } else {
+    const cut =
+      dress.suit === undefined
+        ? dressOutfit(dress.outfit, dress.tone, dress.bare)
+        : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
+    geos = [geometryOf(cut.cloth, ghost), geometryOf(cut.hard, ghost)];
+    mats = [
+      wrap(
+        new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          roughness: 0.78,
+          metalness: 0,
+          side: THREE.DoubleSide,
+        }),
+        "skier-cloth",
+      ),
+      wrap(
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.15 }),
+        "skier-hard",
+      ),
+    ];
+  }
   const meshes = geos.map((g, i) => {
     const m = new THREE.SkinnedMesh(g, mats[i]);
-    m.name = i === 0 ? "skier-cloth" : "skier-hard";
+    m.name = racer ? `racer-${racer[i].name}` : i === 0 ? "skier-cloth" : "skier-hard";
     m.bind(skeleton, new THREE.Matrix4());
     m.castShadow = true;
     m.receiveShadow = true;
-    // A skinned mesh's bound is its bind pose's; the skier is small and on
-    // screen whenever he matters.
     m.frustumCulled = false;
     group.add(m);
     return m;
   });
+  if (wind) {
+    const chest = bones[SKIER_BONES.indexOf("chest")];
+    meshes[0].onBeforeRender = () => wind.update(group, chest, performance.now());
+  }
+  const clothGeo = racer
+    ? geos[
+        Math.max(
+          0,
+          racer.findIndex((p) => p.name === "suit"),
+        )
+      ]
+    : geos[0];
 
   let lastFrames = bind;
   const lay = (frames: Record<SkierBone, BoneFrame>, cut: Collapse | null | undefined): void => {
@@ -184,7 +210,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       lay(f, cut);
     },
     last: () => lastFrames,
-    cloth: geos[0],
+    cloth: clothGeo,
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();

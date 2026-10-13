@@ -44,6 +44,7 @@ import { modelSwitch } from "./model-switch.ts";
 import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
+import { loadRacer } from "./racer-model.ts";
 import type { Stand } from "./ski-stand.ts";
 
 /** The build's environment — Vite's, where this runs in the app; none
@@ -58,6 +59,7 @@ export const MODELS = {
   sled: modelSwitch(ENV.VITE_MODEL_SLED),
   groomer: modelSwitch(ENV.VITE_MODEL_GROOMER),
   plane: modelSwitch(ENV.VITE_MODEL_PLANE),
+  racer: modelSwitch(ENV.VITE_MODEL_RACER),
 };
 
 /** The helicopter model's nodes, as `scripts/blender/heli.py` names them:
@@ -137,6 +139,13 @@ export function groomerModelUrl(): string | null {
   return MODELS.groomer ? `${String(ENV.BASE_URL ?? "/")}models/groomer.glb` : null;
 }
 
+/** Where this build serves the speed-suit racer's glTF (`racer-model.ts`),
+ * or `null` when it is switched off (`VITE_MODEL_RACER=0`) — the RACER
+ * body is then the code's dressed skier. */
+export function racerModelUrl(): string | null {
+  return MODELS.racer ? `${String(ENV.BASE_URL ?? "/")}models/racer.glb` : null;
+}
+
 /** Where this build serves the helicopter's glTF, or `null` when it is
  * switched off (`VITE_MODEL_HELI=0`) and the build packs none. */
 export function heliModelUrl(): string | null {
@@ -171,6 +180,7 @@ export function loadModels(): Promise<void> {
       );
     }
   }
+  jobs.push(loadRacer(racerModelUrl()));
   loading = Promise.all(jobs).then(() => undefined);
   return loading;
 }

@@ -24,6 +24,7 @@
     "sim": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/simulate-run.mjs",
     "bike-look": "node scripts/bike-park-preview.mjs",
     "bike-park": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-park-map.mjs",
+    "bike-ride": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-ride-lab.mjs",
     "resort": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/resort-map.mjs",
     "lift-tops": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-tops.mjs",
     "challenges-table": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/challenges-lab.mjs",

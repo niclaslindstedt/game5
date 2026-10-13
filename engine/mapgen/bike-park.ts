@@ -27,6 +27,7 @@ import type {
   BikeTrailHead,
   BikeTrailPoint,
 } from "./bike-park-types.ts";
+import { crossingMiss, levelCrossings } from "./bike-crossings.ts";
 import { layFeatures } from "./bike-features.ts";
 import { withBikeSurface } from "./bike-surface.ts";
 import { benchOf, turnsOf } from "./bike-trail-shape.ts";
@@ -34,6 +35,10 @@ import { fallAt, walkFailure, walkTrail, type WalkSlot } from "./bike-trail-walk
 import type { Level } from "./types.ts";
 
 const RAD = Math.PI / 180;
+/** A try's score lost a metre its crossings miss the trails already laid
+ * by (they are levelled after, `levelCrossings`, but a big miss is
+ * levelled only by long ramps on both, or not at all). */
+const CROSS_COST = 2;
 const laid = new WeakMap<Level, Level>();
 
 /** A lab's ear on the walk: every try's outcome, or nothing. */
@@ -102,7 +107,7 @@ function planPark(level: Level): BikePark | null {
   // THE RACE LINE first, so it has the pick of the face (R45).
   let raceId: string | null = null;
   for (const race of raceSlots(level)) {
-    const t = layTrail(level, race, keep, rng);
+    const t = layTrail(level, race, keep, rng, trails);
     if (t) {
       trails.push(t);
       raceId = t.id;
@@ -111,10 +116,11 @@ function planPark(level: Level): BikePark | null {
   }
   for (const slot of slots) {
     if (trails.length >= B.park.most + (raceId ? 1 : 0)) break;
-    const t = layTrail(level, slot, keep, rng);
+    const t = layTrail(level, slot, keep, rng, trails);
     if (t) trails.push(t);
   }
   if (trails.length === 0) return null;
+  levelCrossings(trails);
   return {
     base: level,
     trails,
@@ -181,8 +187,16 @@ function raceSlots(level: Level): Slot[] {
     }));
 }
 
-/** One slot laid: the best of its tries, kept in `keep`, or null. */
-function layTrail(level: Level, slot: Slot, keep: ParkKeep, rng: Rng): BikeTrail | null {
+/** One slot laid: the best of its tries, kept in `keep`, or null — a try
+ * that crosses one of the `laid` trails far above or below it scored down
+ * by `CROSS_COST` a metre it misses by (`crossingMiss`). */
+function layTrail(
+  level: Level,
+  slot: Slot,
+  keep: ParkKeep,
+  rng: Rng,
+  laid: readonly BikeTrail[],
+): BikeTrail | null {
   const rule: TrailRule = B.grades[slot.grade];
   const lift = slot.plan.lift;
   const P = slot.plan;
@@ -283,7 +297,8 @@ function layTrail(level: Level, slot: Slot, keep: ParkKeep, rng: Rng): BikeTrail
     const score =
       share * (slot.grade === "red" || slot.grade === "black" ? 3 : 1) -
       verdict.cut * 0.4 -
-      Math.abs(verdict.mean - target) * 8;
+      Math.abs(verdict.mean - target) * 8 -
+      crossingMiss(trail, laid) * CROSS_COST;
     if (!best || score > best.score) best = { trail, score };
   }
   if (!best) return null;

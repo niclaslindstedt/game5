@@ -39,6 +39,7 @@ import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { rotorStrike } from "./heli-grip.ts";
 import { stepSled } from "./sled.ts";
+import { stepBike } from "./bike.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { planeAboard, planeDown, stepPlane } from "./plane.ts";
@@ -153,6 +154,10 @@ export function stepRun(
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
   if (stepSled(run, out, events)) return forgetRun(run);
+  // THE DOWNHILL BIKE (`bike.ts`): ridden, walked beside, carried up a lift
+  // with him or lying where it threw him — and while he rides it or walks
+  // the step is its own.
+  if (stepBike(run, out, events)) return forgetRun(run);
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
   if (stepLift(run, out, events)) return forgetRun(run);
   // THE HOT AIR BALLOON (`balloon.ts`): flown, adrift without him or down

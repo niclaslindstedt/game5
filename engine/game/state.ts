@@ -51,6 +51,7 @@ export type { CableRide } from "./cable-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord, PipeHit } from "./flight-record.ts";
 export type * from "./sled-state.ts";
+export type * from "./bike-state.ts";
 export type * from "./para-state.ts";
 export type * from "./balloon-state.ts";
 
@@ -797,7 +798,8 @@ export type GameEvent =
   | import("./balloon-state.ts").BalloonEvent
   | import("./plane-state.ts").PlaneEvent
   | import("./chute-state.ts").ChuteEvent
-  | import("./door-state.ts").DoorEvent;
+  | import("./door-state.ts").DoorEvent
+  | import("./bike-state.ts").BikeEvent;
 
 /** A RUN'S FLEX POLES (`gate-poles.ts`), one entry a pole, in the order
  * `polePlan` lists them: how far over it lies, rad (negative past upright,
@@ -908,6 +910,9 @@ export type GameState = ContestState & {
   /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
   heli?: HeliState;
   sled?: SledState;
+  /** On a summer free ride that asked for one, THE DOWNHILL BIKE (`bike.ts`);
+   * else absent, so no digest moves. */
+  bike?: import("./bike-state.ts").BikeState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;
   plane?: import("./plane-state.ts").PlaneState;

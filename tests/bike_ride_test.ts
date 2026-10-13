@@ -1,0 +1,178 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// THE DOWNHILL BIKE IN THE GAME (`bike.ts`): only a summer free ride that
+// asks for it carries one (and a run that does not is untouched); it is
+// begun on a trail head; the machine press steps him off and on; a fall
+// throws him as the `bike` crash cause and stands him back on it; a
+// chair's load zone carries the bike up with him; and the ride is
+// deterministic — the same keys, the same ride.
+import { describe, expect, it } from "vitest";
+import {
+  bikeAim,
+  bikePilot,
+  bikeTrailById,
+  bikeTrailHeads,
+  bikeWithin,
+  createGame,
+  fromEuler,
+  liftPlans,
+  NEUTRAL_INPUT,
+  step,
+  TUNING,
+  type GameEvent,
+  type GameState,
+  type SkierInput,
+} from "@engine";
+import { bikeRun, summerMap } from "./support/bike-bot.ts";
+
+const SEED = 38;
+const level = () => summerMap(SEED);
+
+/** `n` steps of `run` under `input` (a function of the step), every
+ * event kept. */
+function ride(run: GameState, n: number, input: (s: GameState, i: number) => SkierInput) {
+  const events: GameEvent[] = [];
+  let s = run;
+  for (let i = 0; i < n; i++) {
+    s = step(s, input(s, i));
+    events.push(...s.events);
+  }
+  return { s, events };
+}
+
+describe("the bike is a summer free ride's alone", () => {
+  it("no bike on a winter free ride that asks for one, and the run is untouched", () => {
+    const asked = createGame({ level: level(), mode: "free", bike: true, quiet: true });
+    const plain = createGame({ level: level(), mode: "free", quiet: true });
+    expect(asked.bike).toBeUndefined();
+    const go = (_s: GameState, i: number): SkierInput => ({
+      ...NEUTRAL_INPUT,
+      tuck: i % 240 < 120 ? 1 : 0,
+    });
+    const a = ride(asked, 240, go).s;
+    const b = ride(plain, 240, go).s;
+    expect(JSON.stringify(a.skier)).toBe(JSON.stringify(b.skier));
+  });
+  it("no bike on a summer free ride that does not ask", () => {
+    expect(
+      createGame({ level: level(), mode: "free", summer: true, quiet: true }).bike,
+    ).toBeUndefined();
+  });
+  it("on one that asks, he is on it at rest at a trail head", () => {
+    const s = bikeRun(level(), "B2");
+    const b = s.bike!;
+    expect(b.onIt).toBe(true);
+    expect(b.mode).toBe("ridden");
+    expect(b.trail).toBe("B2");
+    const head = bikeTrailHeads(s.level).find((h) => h.trail === "B2")!;
+    expect(Math.hypot(b.x - head.x, b.z - head.z)).toBeLessThan(2);
+    expect(b.speed).toBeLessThan(0.5);
+    expect(Math.hypot(s.skier.x - b.rider.x, s.skier.z - b.rider.z)).toBeLessThan(1e-6);
+  });
+});
+
+describe("the machine press", () => {
+  it("steps him off onto his feet and back on beside it", () => {
+    let s = bikeRun(level());
+    s = step(s, { ...NEUTRAL_INPUT, machine: true });
+    expect(s.bike!.onIt).toBe(false);
+    expect(s.bike!.afoot).not.toBeNull();
+    expect(s.events.some((e) => e.kind === "bike" && e.phase === "hop")).toBe(true);
+    // A few steps on his feet, the bike lying where he left it.
+    s = ride(s, 60, () => ({ ...NEUTRAL_INPUT })).s;
+    expect(s.bike!.mode).toBe("parked");
+    expect(bikeWithin(s)).toBe(true);
+    s = step(s, { ...NEUTRAL_INPUT, machine: true });
+    expect(s.bike!.onIt).toBe(true);
+    expect(s.events.some((e) => e.kind === "bike" && e.phase === "board")).toBe(true);
+  });
+  it("walking away from it puts it out of reach", () => {
+    let s = bikeRun(level());
+    s = step(s, { ...NEUTRAL_INPUT, machine: true });
+    s = ride(s, 6 / TUNING.dt, () => ({ ...NEUTRAL_INPUT, tuck: 1 })).s;
+    expect(s.bike!.afoot!.walked).toBeGreaterThan(3);
+    expect(bikeWithin(s)).toBe(false);
+  });
+});
+
+describe("a fall", () => {
+  it("throws him as the `bike` crash cause, the bike left down, and stands him back on it", () => {
+    let s = bikeRun(level(), "B1");
+    s = ride(s, 120, () => ({ ...NEUTRAL_INPUT, tuck: 1 })).s;
+    // Laid over far past what the bars can hold.
+    const b = s.bike!;
+    b.q = fromEuler(b.heading, b.pitch, 1.3);
+    const { s: after, events } = ride(s, 60, () => ({ ...NEUTRAL_INPUT }));
+    const crash = events.find((e) => e.kind === "bike" && e.phase === "crash");
+    expect(crash).toBeDefined();
+    expect(after.skier.thrown?.cause ?? null).toBe("bike");
+    expect(after.bike!.thrown).toBe(true);
+    // Left to lie, he is stood back up on it on the trail.
+    const back = ride(after, 30 / TUNING.dt, () => ({ ...NEUTRAL_INPUT }));
+    expect(back.events.some((e) => e.kind === "bike" && e.phase === "right")).toBe(true);
+    expect(back.s.bike!.onIt).toBe(true);
+  });
+});
+
+describe("a lift carries the bike", () => {
+  it("ridden into a chair's or a gondola's load zone, they go up together", () => {
+    const s0 = bikeRun(level());
+    const plan = liftPlans(s0.level).find((p) => p.lift.kind !== "drag")!;
+    const e = plan.look.entry;
+    // Stood at the load zone's back, facing the way it boards, rolling in.
+    const u = e.at - e.along * 0.8;
+    const x = plan.lift.bottom.x + u * plan.dx + e.side * plan.dz;
+    const z = plan.lift.bottom.z + u * plan.dz - e.side * plan.dx;
+    const s = createGame({
+      level: s0.level,
+      mode: "free",
+      summer: true,
+      bike: true,
+      spawn: { x, z },
+      quiet: true,
+    });
+    // Put on its line facing up it.
+    const b = s.bike!;
+    const y0 = s.level.groundAt(x, z);
+    b.q = fromEuler(plan.heading, 0, 0);
+    let st = s;
+    let lifted = false;
+    let top = -Infinity;
+    for (let i = 0; i < 90 / TUNING.dt; i++) {
+      if (i === 0) {
+        // Moved there by the bike's own placing.
+        const p = st.bike!;
+        const dx = x - p.x;
+        const dz = z - p.z;
+        p.x += dx;
+        p.z += dz;
+        p.rider.x += dx;
+        p.rider.z += dz;
+      }
+      st = step(st, { ...NEUTRAL_INPUT, tuck: lifted ? 0 : 0.3 });
+      if (st.bike!.mode === "lift") lifted = true;
+      if (lifted) top = Math.max(top, st.skier.y);
+      if (lifted && top > y0 + 20) break;
+    }
+    expect(lifted).toBe(true);
+    expect(top).toBeGreaterThan(y0 + 20);
+  });
+});
+
+describe("the bot", () => {
+  it("rides a trail's first stretch from its head", () => {
+    let s = bikeRun(level(), "B1");
+    const t = bikeTrailById(s.level, "B1")!;
+    const aim = bikeAim(s, "B1");
+    for (let i = 0; i < 60 / TUNING.dt && aim.s < 200; i++) s = step(s, bikePilot(s, aim));
+    expect(aim.s).toBeGreaterThan(Math.min(200, t.length) - 1);
+  });
+  it("is deterministic: the same ride twice", () => {
+    const go = () => {
+      let s = bikeRun(level(), "B2");
+      const aim = bikeAim(s, "B2");
+      for (let i = 0; i < 20 / TUNING.dt; i++) s = step(s, bikePilot(s, aim));
+      return JSON.stringify({ b: s.bike, c: s.skier.x, z: s.skier.z, t: s.t });
+    };
+    expect(go()).toBe(go());
+  });
+});

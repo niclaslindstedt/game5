@@ -557,6 +557,50 @@ export function bodyStampOf(
   }
 }
 
+/** THE IMPACT CRATER a body leaves where it comes down out of the air
+ * onto the snow (`craterStampOf`): the speed into the snow, m/s, at which
+ * it starts to show and at which it is as big as it gets; its half-width,
+ * m, from the first to the last; and how much deeper than the body's own
+ * gouge it is pressed at the hardest, as a share. The snow it shoves out
+ * stands round it as a rim, `rim` times the furrow's own berm. */
+export const CRATER = { from: 3, full: 14, half: [0.45, 1.05], deep: 2.6, rim: 1.8 };
+
+/** THE CRATER: a body met by the snow at `impact` m/s into it, a round
+ * pit at (x, z) — wider and deeper the harder it came down, its walls
+ * slumped by the snow, its rim the snow it threw out — the mark a fall
+ * out of the air leaves before the slide's gouge leads away from it. A
+ * groomer takes a shallow dish; powder a hole. Nothing under `CRATER.from`. */
+export function craterStampOf(
+  x: number,
+  z: number,
+  impact: number,
+  packed: number,
+  out: Stamp[],
+  snow?: SnowProps,
+): void {
+  if (impact < CRATER.from) return;
+  const power = Math.min(1, (impact - CRATER.from) / (CRATER.full - CRATER.from));
+  const p = Math.min(1, Math.max(0, packed));
+  const own = snow
+    ? Math.max(TRAIL.packedDepth * 2, TRAIL.bodyDepth * snow.give)
+    : TRAIL.bodyDepth * (1 - p) + TRAIL.packedDepth * 2 * p;
+  const depth = Math.min(TRAIL.maxDepth * 0.6, own * (1 + CRATER.deep * power));
+  const half = CRATER.half[0] + (CRATER.half[1] - CRATER.half[0]) * power;
+  const wall = snow ? snow.wall : TRAIL.wall;
+  const berm = Math.min(TRAIL.maxBerm, depth * (snow ? snow.berm : TRAIL.bermShare) * CRATER.rim);
+  out.push({
+    ax: x,
+    az: z,
+    bx: x,
+    bz: z + 1e-3,
+    half,
+    depth,
+    berm,
+    wall,
+    slough: sloughOf(half, depth, wall),
+  });
+}
+
 /** HOW DEEP A BONE'S HOLE IS DRAWN, m: from the drawn snow over the bone's
  * middle (`x`, `z` — the ground and the loose snow `LOOSE` stands over it)
  * down to the underside of the bone, whose lower end's centre is at `y`

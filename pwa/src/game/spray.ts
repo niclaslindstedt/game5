@@ -24,9 +24,12 @@ import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import type { SkyLook } from "./sky.ts";
 import type { AgedSnow, SnowProps } from "./snowpack.ts";
+import { createGpuSpray } from "./gpu-spray.ts";
 import { createSprayPool, SPRAY_MODEL, type SprayModel } from "./spray-sim.ts";
+import { SPRAY_STATS } from "./spray-stats.ts";
 
 export { heavyShare } from "./spray-sim.ts";
+export { SPRAY_STATS } from "./spray-stats.ts";
 
 const CAPACITY = 6000;
 /** The shutter a streak is drawn over, s: long enough that a chip thrown
@@ -74,6 +77,13 @@ export type Spray = {
     hard: number,
   ): void;
   update(dt: number, look: SkyLook, level: Level): void;
+  /** The wind at the snow, m/s — what carries the veil (the GPU spray's;
+   * the CPU pool flies in still air). */
+  setWind?(x: number, z: number): void;
+  /** The share of the snow cloud's skid wall — its rate and its opacity —
+   * left to the cloud beside this spray (`snow-cloud.ts`'s `setWall`); none
+   * means all of it. */
+  cloudWall?: readonly [number, number];
   /** Pixels per metre at one metre from the lens (the projection's scale)
    * — the streak keeps a grain at least about a pixel across. */
   setScale(pixelsPerMetre: number): void;
@@ -96,7 +106,22 @@ export function flySprayAs(model: SprayModel): void {
   flown = model;
 }
 
+/** Whether the spray is flown on the GPU (`gpu-spray.ts`) or on the CPU
+ * (`spray-sim.ts`, drawn here) — on unless a lab or a link says `0`. */
+let onGpu = true;
+
+/** A LAB'S SWITCH: make every spray after this on the GPU or the CPU. */
+export function setGpuSpray(on: boolean): void {
+  onGpu = on;
+}
+
 export function createSpray(haze: HazeUniforms): Spray {
+  return onGpu ? createGpuSpray(haze) : createCpuSpray(haze);
+}
+
+/** THE CPU SPRAY: `spray-sim.ts`'s pool flown in plain arrays, its live
+ * grains packed into the instance buffer every frame. */
+export function createCpuSpray(haze: HazeUniforms): Spray {
   const pool = createSprayPool(CAPACITY);
   pool.model = flown;
   // Per grain: where and how big (xyz, size), how it moves and how opaque
@@ -242,6 +267,7 @@ export function createSpray(haze: HazeUniforms): Spray {
         look.skyLight[2] * sky * 1.25,
       );
       material.uniforms.uTime.value += dt;
+      const began = performance.now();
       pool.step(dt, level);
       // Pack the live grains to the front of the instance buffer: the draw
       // pays for what is flying, never for the pool's empty slots.
@@ -263,6 +289,9 @@ export function createSpray(haze: HazeUniforms): Spray {
         n++;
       }
       geometry.instanceCount = n;
+      SPRAY_STATS.updateMs = performance.now() - began;
+      SPRAY_STATS.live = n;
+      SPRAY_STATS.bytes = n * 40;
       if (n > 0) {
         at0.clearUpdateRanges();
         at1.clearUpdateRanges();

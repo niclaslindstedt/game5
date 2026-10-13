@@ -440,6 +440,7 @@ export function createWorldRenderer(
       wasThrown: false,
       bodyDown: false,
       plume: 0,
+      bodyFall: 0,
       bodyPen: createPen(1),
       body: createBodyTrack(),
     };
@@ -532,6 +533,7 @@ export function createWorldRenderer(
       cloud = createSnowCloud(env.haze);
       cloud.mesh.name = "snow-cloud";
       cloud.setBudget(SPRAY_SHARE[video.spray]);
+      if (spray.cloudWall) cloud.setWall(spray.cloudWall[0], spray.cloudWall[1]);
       scene.add(cloud.mesh);
       machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
@@ -813,6 +815,7 @@ export function createWorldRenderer(
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);
       spray.setScale(pixels);
+      spray.setWind?.(wind.x, wind.z);
       spray.update(Math.min(dt, 0.1), look, level);
       // The ladder's lens looks through his own tail; a planted one sees it whole.
       cloud.setFocus(d.x, d.y + 0.6, d.z, planted ? 1 : CLOUD_VEIL);

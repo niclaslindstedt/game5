@@ -386,6 +386,11 @@ export type SnowCloud = {
   setFocus(x: number, y: number, z: number, veil: number): void;
   /** The SPRAY row's share of the rates and of the pool. */
   setBudget(share: number): void;
+  /** How much of the skid's wall (and of the skis' own sheet, by its rate)
+   * this cloud raises, as shares of its rate
+   * and its puffs' opacity — less where a spray flies the near part of
+   * that wall itself (`gpu-spray.ts`'s veil). */
+  setWall(rate: number, opacity: number): void;
   clear(): void;
   dispose(): void;
 };
@@ -422,6 +427,8 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   const reach = new Float32Array(SHADOW_CELLS);
   let head = 0;
   let share = 1;
+  let wallRate = 1;
+  let wallOpacity = 1;
   let cap = CAPACITY;
   let clock = 0;
   const random = makeRandom(0x5c10d);
@@ -644,13 +651,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       // skis) — the fine part of the same sheet the grains are, so the
       // cloud rises where the spray flies and never behind it.
       skidCloud(drive, snow, wall);
+      wall.opacity *= wallOpacity;
       const edges = edgeSlips(skier, slips);
       const e = edges > 1 && slips[1].share > slips[0].share ? slips[1] : slips[0];
       const along = e.share > 0;
       const ax = along ? e.across.x : 0;
       const az = along ? e.across.z : 0;
       const slide = along ? e.slide : 0;
-      owed[0] += wall.rate * dt * share;
+      owed[0] += wall.rate * dt * share * wallRate;
       while (owed[0] >= 1) {
         owed[0] -= 1;
         // Spread along the frame's path, so a fast skier's plume is a
@@ -701,7 +709,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         const mid = stationOf(skier.contacts, k, 1);
         if (!mid || !mid.touching) continue;
         skiCloud(carve, tip?.touching ? tip.sink : 0, snowAt(mid.x, mid.z), ski, drive.speed);
-        owed[1 + k] += ski.rate * dt * share * 2 * shares[k];
+        owed[1 + k] += ski.rate * dt * share * wallRate * 2 * shares[k];
         while (owed[1 + k] >= 1) {
           owed[1 + k] -= 1;
           const c = random() < 0.5 && tip?.touching ? tip : mid;
@@ -894,6 +902,10 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
     },
     setFocus(x, y, z, veil) {
       (material.uniforms.uFocus.value as THREE.Vector4).set(x, y, z, veil);
+    },
+    setWall(rate, opacity) {
+      wallRate = Math.max(0, rate);
+      wallOpacity = Math.max(0, opacity);
     },
     setBudget(next) {
       share = Math.max(0, Math.min(1, next));

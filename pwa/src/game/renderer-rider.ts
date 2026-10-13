@@ -12,7 +12,13 @@ import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { SnowProps } from "./snowpack.ts";
 import type { Spray } from "./spray.ts";
-import { bodyStampOf, type SnowSampler, type Stamp, type TrailPen } from "./trail-stamp.ts";
+import {
+  bodyStampOf,
+  craterStampOf,
+  type SnowSampler,
+  type Stamp,
+  type TrailPen,
+} from "./trail-stamp.ts";
 
 export type Rider = {
   model: SkisModel;
@@ -35,6 +41,9 @@ export type Rider = {
   wasThrown: boolean;
   bodyDown: boolean;
   plume: number;
+  /** The body's speed down into the snow at the last frame he was off it,
+   * m/s — what the crater he lands in is sized by. */
+  bodyFall: number;
   bodyPen: TrailPen;
   /** The thrown body between two steps (`interp.ts`). */
   body: BodyTrack;
@@ -123,6 +132,16 @@ export function thrownEffects(
   // anywhere high in the air there is none under him to throw.
   if (!r.wasThrown && off.y - fx.level.groundAt(off.x, off.z) < 1.5) puff(0.4, 1);
   const sliding = Math.hypot(off.vx, off.vz);
+  // COMING DOWN ON THE SNOW: the crater, and the snow it throws out round it.
+  if (off.touching && (!r.bodyDown || !r.wasThrown)) {
+    // Thrown on the snow itself, he came down at the speed he fell on his skis.
+    const fall =
+      (r.wasThrown ? r.bodyFall : r.wasAirborne ? Math.max(0, -r.vy) : 0) + 0.25 * sliding;
+    if (fx.stamps)
+      craterStampOf(off.x, off.z, fall, fx.level.packedAt(off.x, off.z), fx.stamps, fx.snow);
+    if (fall > 4) puff(0.25, Math.min(1.4, fall / 9));
+  }
+  if (!off.touching) r.bodyFall = Math.max(0, -off.vy);
   if (off.touching && !r.bodyDown && sliding > 2) puff(0.3, Math.min(0.6, sliding / 20));
   r.plume = off.touching && sliding > 3 ? r.plume + simDt : 0;
   if (r.plume > 0.15) {

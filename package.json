@@ -77,6 +77,7 @@
     "shimmer": "node scripts/shimmer-preview.mjs",
     "aloft": "node scripts/aloft-preview.mjs",
     "turns": "node scripts/turns-preview.mjs",
+    "snow-eval": "node scripts/snow-eval.mjs",
     "technique": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/technique-preview.mjs",
     "cloud-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/cloud-metrics.mjs",
     "spray-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/spray-metrics.mjs",

@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Snow eval harness</title>
+    <!-- Tooling page for scripts/snow-eval.mjs — not part of the app
+         build and never deployed. It rides the snow eval lab's shared
+         scenes through the game's own renderer and photographs them as one
+         labelled contact sheet, and times the spray at three pictures. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+      }
+      #stage {
+        position: absolute;
+        left: -10000px;
+      }
+      #sheet {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <canvas id="sheet"></canvas>
+    <script type="module" src="/src/tools/snow-eval-harness.ts"></script>
+  </body>
+</html>

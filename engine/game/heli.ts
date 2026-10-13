@@ -355,15 +355,19 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
   // THE COLLECTIVE: its share of what the rotor gives (at the rotor's speed
   // squared), answered in `flight.lag` — so a skier pushing off the skid
   // leaves a machine lifting for his weight too.
+  // The air through the disc in the DISC'S frame — `vn` along its thrust
+  // (the machine moving that way, climbing positive) and `flat` across it:
+  // what the blades meet, so a machine turned over and falling meets the
+  // air on its rotor's top and the thrust fades rather than grows.
   const along = hypot(ax, az);
+  const vn = ax * thrustUp.x + ay * thrustUp.y + az * thrustUp.z;
+  const flat = Math.sqrt(Math.max(0, ax * ax + ay * ay + az * az - vn * vn));
   // ...or, the engine failing, what the blades give at their pitch, the
   // rpm the rotor still has and the air through it (`bladeThrust`).
   const off = failing(h);
-  const vn = off ? ax * thrustUp.x + ay * thrustUp.y + az * thrustUp.z : 0;
-  const flat = off ? Math.sqrt(Math.max(0, ax * ax + ay * ay + az * az - vn * vn)) : 0;
   const most = off
     ? bladeThrust(h, 1, flat, vn)
-    : thrustMost(along, Math.max(-20, ay), h.agl) * h.spool * h.spool;
+    : thrustMost(along, Math.max(-20, ay), h.agl, vn) * h.spool * h.spool;
   const want = off ? bladeThrust(h, c.collective, flat, vn) : c.collective * most;
   const thrust = clamp(h.thrust + (want - h.thrust) * (1 - Math.exp(-dt / F.lag)), 0, most);
   h.thrust = thrust;

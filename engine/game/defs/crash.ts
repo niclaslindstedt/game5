@@ -247,6 +247,11 @@ export const CRASH = {
     mass: { hip: 14, shoulder: 11, head: 5, knee: 5, foot: 4, elbow: 2, hand: 1.5 },
     head: 0.13,
     limb: 0.06,
+    /** THE AIR ON IT: the drag area of a body tumbling through the air,
+     * Cd·A, m² — a skydiver's belly-to-earth 0.5 (`CHUTE`), which brings
+     * 80 kg to some 55 m/s, falling, and slows a body flung off anything
+     * fast as the air does. */
+    drag: 0.5,
   },
   radius: 0.11,
   /** Passes over the body's joints a step: enough that no limb is seen to

@@ -28,13 +28,15 @@
 //              low sun, sunset and dusk, each cell timed with the ranges
 //              and without them (the msOff column), every row's rings built
 //              and counted at each tier — `previews/sky-<seed>-far.png`
-//   clouds, cloudlapse, sunclouds, cloudshadow
+//   clouds, cloudlapse, sunclouds, cloudshadow, cloudmotion, lowdeck
 //              THE CLOUD FIELD (`pwa/src/tools/sky-cloud-sheets.ts` says
 //              what each draws): every weather under each sky tier; two
 //              hours of game time a weather on the run's own clock
 //              (`--step` game minutes, `--rate`, the `dFrame` and `jitter`
 //              columns); the sunset close-up on a long lens; the clouds'
-//              shadows crossing the face
+//              shadows crossing the face; HIGH's carried volume at speed
+//              against the same frame marched whole (`dE`, `dE95`, and the
+//              carried frames' `ms` beside a whole march's and MEDIUM's)
 //
 // `--no-far` draws any sheet without the far ranges (the before picture).
 //
@@ -83,7 +85,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "weathers",
-      help: "weathers, timelapse, tiers, skytier (the sky's own tiers against LOW, in ΔE, and the GPU passes timed), far (the far ranges, a map a row), or the cloud sheets: clouds, cloudlapse, sunclouds, cloudshadow",
+      help: "weathers, timelapse, tiers, skytier (the sky's own tiers against LOW, in ΔE, and the GPU passes timed), far (the far ranges, a map a row), or the cloud sheets: clouds, cloudlapse, sunclouds, cloudshadow, cloudmotion, lowdeck (a run down through a low cloud deck, every tier, and its sea at sunset)",
     },
     maps: {
       kind: "string",
@@ -125,7 +127,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1200, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers|skytier|far|clouds|cloudlapse|sunclouds|cloudshadow] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build]",
+  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers|skytier|far|clouds|cloudlapse|sunclouds|cloudshadow|cloudmotion|lowdeck] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -206,11 +208,12 @@ await browser.close();
 await server.close();
 
 // THE NUMBERS: every cell, and its change against `--compare`.
-const CLOUD_SHEETS = ["clouds", "cloudlapse", "sunclouds", "cloudshadow"];
+const CLOUD_SHEETS = ["clouds", "cloudlapse", "sunclouds", "cloudshadow", "cloudmotion", "lowdeck"];
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;
 const COLS = [
   "id",
   ...(args.sheet === "skytier" ? ["dE", "dSky", "dE95"] : []),
+  ...(args.sheet === "cloudmotion" ? ["dE", "dE95", "ms", "msWhole", "msMed"] : []),
   "elev",
   "zenL",
   "horL",
@@ -227,7 +230,7 @@ const COLS = [
   "ratio",
   "shadeBlue",
   "litWarm",
-  "ms",
+  ...(args.sheet === "cloudmotion" ? [] : ["ms"]),
   ...(args.sheet === "far" ? ["msOff"] : []),
   ...(CLOUD_SHEETS.includes(args.sheet) ? ["skyRB", "warm", "skySd"] : []),
   ...(args.sheet === "cloudlapse" ? ["dFrame", "jitter"] : []),

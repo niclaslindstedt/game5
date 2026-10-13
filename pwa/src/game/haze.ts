@@ -198,10 +198,11 @@ export type HazeUniforms = {
   uCloudBox: { value: THREE.Vector4[] };
   uCloudTau: { value: THREE.Vector4 };
   uCloudMean: { value: THREE.Vector4 };
-  /** A VALLEY FOG SEEN FROM ABOVE (`SkyLook.sea`): its lit colour and its
-   * top's height, m; and its density, 1/m (0: none). */
+  /** THE LOW DECK OR VALLEY FOG (`SkyLook.sea`): its colour and its top's
+   * height, m; its density, 1/m (0: none); its base's height, m. */
   uSea: { value: THREE.Vector4 };
   uSeaK: { value: number };
+  uSeaBase: { value: number };
 };
 
 /** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`), the
@@ -299,6 +300,7 @@ export function createHazeUniforms(): HazeUniforms {
     uCloudMean: { value: new THREE.Vector4(1, 1, 1, 1) },
     uSea: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSeaK: { value: 0 },
+    uSeaBase: { value: -1e6 },
   };
 }
 
@@ -360,6 +362,7 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
   u.uGlitter.value = look.glitter;
   u.uSea.value.set(...look.sea.colour, look.sea.top);
   u.uSeaK.value = look.sea.k;
+  u.uSeaBase.value = look.sea.base;
 }
 
 /** The sky along a direction, in linear light — the dome's own colour. */
@@ -370,6 +373,25 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
 export const MIST_OPEN = 0.45;
 
 export const SKY_GLSL = /* glsl */ `
+// THE SEA OF CLOUD'S TOP (\`uSea\`) as lumps: two octaves of a value
+// noise over its plane — a stratus deck's rolls a few hundred metres
+// across and their puffs — shading its colour 0.75..1.1, eased flat with
+// distance (\`far\`, m) before the puffs fall under a pixel.
+float seaHash(vec2 c) {
+  return fract(sin(dot(c, vec2(127.1, 311.7))) * 43758.5453);
+}
+float seaNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = p - i;
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(seaHash(i), seaHash(i + vec2(1.0, 0.0)), f.x),
+             mix(seaHash(i + vec2(0.0, 1.0)), seaHash(i + 1.0), f.x), f.y);
+}
+float seaLumps(vec2 p, float far) {
+  float n = 0.65 * seaNoise(p / 420.0) + 0.35 * seaNoise(p / 110.0 + 17.0);
+  float k = exp(-far / 25000.0);
+  return mix(0.93, mix(0.75, 1.1, smoothstep(0.25, 0.8, n)), k);
+}
 uniform vec3 uSunDir;
 uniform vec3 uSunPos;
 uniform vec3 uZenith;
@@ -391,6 +413,7 @@ uniform float uHazeLift;
 uniform float uHazeFloor;
 uniform vec4 uSea;
 uniform float uSeaK;
+uniform float uSeaBase;
 
 // The physical sky (\`uSkyView\`, the LOW grid or the GPU sky's table of
 // \`uSkyViewSize\` texels on the same layout): its grid is the azimuth from the sun
@@ -605,13 +628,22 @@ export const HAZE_FRAGMENT = /* glsl */ `
   float hzMist = hazeMist(hzDist, hzRay.y);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, max(hzAir, vec3(hzMist * uMistOpen)));
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hzMist * (1.0 - uMistOpen));
-  // A VALLEY FOG SEEN FROM ABOVE (\`uSeaK\`): the length of the view under
-  // its top, its lit top's colour over what is under it.
+  // THE LOW DECK OR VALLEY FOG SEEN FROM OUTSIDE IT (\`uSeaK\`): the
+  // length of the view between its base and its top, its colour over what
+  // lies in or beyond it (a level view a metre's grace either way).
   if (uSeaK > 0.0) {
     float hzLo = min(cameraPosition.y, vHazeWorld.y);
-    float hzSpan = abs(cameraPosition.y - vHazeWorld.y);
-    float hzUnder = clamp((uSea.w - hzLo) / max(hzSpan, 1e-3), 0.0, 1.0);
+    float hzHi = max(cameraPosition.y, vHazeWorld.y);
+    float hzSpan = hzHi - hzLo;
+    float hzUnder = clamp((min(hzHi, uSea.w) - max(hzLo, uSeaBase) + 1.0) / (hzSpan + 1.0), 0.0, 1.0);
     vec3 hzSea = uSea.rgb;
+    // Seen from over it the sea's top is lumps: the puffs standing up lit,
+    // the hollows between them in their shade (\`seaLumps\`).
+    if (cameraPosition.y > uSea.w && vHazeWorld.y < uSea.w) {
+      vec3 hzR = vHazeWorld - cameraPosition;
+      vec2 hzP = cameraPosition.xz + hzR.xz * (uSea.w - cameraPosition.y) / min(hzR.y, -1e-3);
+      hzSea *= seaLumps(hzP, distance(hzP, cameraPosition.xz));
+    }
     #if defined(TONE_MAPPING)
       hzSea = toneMapping(hzSea);
     #endif

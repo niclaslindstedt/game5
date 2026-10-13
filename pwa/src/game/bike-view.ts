@@ -37,6 +37,9 @@ import {
   swingAt,
   type V3,
 } from "./bike-look.ts";
+import { buildDhBike } from "./bike-dh-build.ts";
+import { createBikeRiderView, type BikeRiderView } from "./bike-rider-view.ts";
+import { bikeRigIk } from "./bike-rig-switch.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
@@ -449,6 +452,8 @@ export type BikeView = {
   drawn(): { x: number; y: number; z: number; q: THREE.Quaternion } | null;
   /** The nodes posed — a lab's, and a model's plug. */
   nodes: BikeNodes;
+  /** THE PROCEDURAL RIG's rider (`bike-rig-switch.ts`), when it is on. */
+  rider: BikeRiderView | null;
   ready: Promise<void>;
   dispose(): void;
 };
@@ -462,8 +467,10 @@ const HANG = { back: 0.55, down: 0.05, pitch: 1.35 };
 export function createBikeView(haze: HazeUniforms): BikeView {
   const group = new THREE.Group();
   group.name = "downhill-bike";
-  const built = buildBike(haze);
+  const ik = bikeRigIk();
+  const built = ik ? buildDhBike(haze) : buildBike(haze);
   group.add(built.root);
+  const rider = ik ? createBikeRiderView(haze) : null;
   const call = new THREE.Sprite(
     new THREE.SpriteMaterial({
       map: glow(),
@@ -491,10 +498,12 @@ export function createBikeView(haze: HazeUniforms): BikeView {
   return {
     group,
     nodes: built.nodes,
+    rider,
     ready: Promise.resolve(),
     update(state, alpha, dt, player) {
       const b: BikeState | undefined = state.bike;
       group.visible = !!b;
+      rider?.clear();
       if (!b) return;
       clock += dt;
       observe(track, b, state.tick);
@@ -533,7 +542,11 @@ export function createBikeView(haze: HazeUniforms): BikeView {
       built.root.position.set(x, y, z);
       built.root.quaternion.copy(q);
       shown = { x, y, z, q };
-      poseBike(built.nodes, bikePose(b));
+      const pose = bikePose(b);
+      // The procedural rig's rider, solved on the bike as drawn; the cranks
+      // drawn where his feet are (eased level while he coasts).
+      if (rider) pose.crank = rider.update(state, pose, built.nodes.frame, group, dt);
+      poseBike(built.nodes, pose);
       // THE CALL while it lies waiting near him on foot.
       const near = Math.hypot(player.x - b.x, player.z - b.z);
       const waiting = !!b.afoot && !b.onIt && near < LIGHT_UP && near > BIKE.board.reach;
@@ -543,6 +556,7 @@ export function createBikeView(haze: HazeUniforms): BikeView {
     },
     drawn: () => shown,
     dispose() {
+      rider?.dispose();
       built.dispose();
       call.material.dispose();
     },

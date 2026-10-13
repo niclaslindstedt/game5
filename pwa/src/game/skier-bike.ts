@@ -97,14 +97,27 @@ export function walkingPose(walk: {
   pace: number;
   push?: boolean;
 }): (ground: number, frame: BodyFrame) => SkierPose {
+  if (!walk.push) {
+    const pace = Math.min(1, Math.abs(walk.pace) / BIKE.walk.speed);
+    const t = walk.walked / 1.36;
+    return (ground, frame) => movePose({ kind: "walk", t, pace }, ground, frame);
+  }
+  const key = walkingKey(walk);
+  return (ground, frame) => ragdollPose(keyPoints(key, ground), frame);
+}
+
+/** THE KEY of that walk, in his own frame (x his right, y up off the
+ * ground, z ahead) — what `walkingPose` lays the dressed figure with, and
+ * what a rider drawn on its own skeleton walks by. */
+export function walkingKey(walk: { walked: number; pace: number; push?: boolean }): Key {
   const pace = Math.min(1, Math.abs(walk.pace) / BIKE.walk.speed);
   // The stride's phase off the ground covered (a full stride ~1.6 m).
   const t = walk.walked / 1.36;
-  if (!walk.push) return (ground, frame) => movePose({ kind: "walk", t, pace }, ground, frame);
   const key = keyOf({ kind: "walk", t, pace });
+  if (!walk.push) return key;
   const near = BIKE.walk.push.across < 0 ? 0 : 1;
   key.hands[near] = pushGrip();
   key.twist += 0.12 * Math.sign(BIKE.walk.push.across);
   key.pitch += 0.06;
-  return (ground, frame) => ragdollPose(keyPoints(key, ground), frame);
+  return key;
 }

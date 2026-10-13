@@ -120,6 +120,10 @@ export type Machines = {
   /** Whether his own figure is drawn under the lens `lens` handed back:
    * not while the skydive looks out of his own eyes. */
   figureShown(): boolean;
+  /** THE PROCEDURAL RIG'S RIDER (`bike-rider-view.ts`) drawn this frame in
+   * place of the dressed skier — and shown by the lens as the skier would
+   * be (`fig`), his head hidden while the lens is inside it (`head`). */
+  bikeRider(fig: boolean, head: boolean): boolean;
   /** WHILE HE RIDES THE SNOWMOBILE (or drives a piste machine, hangs under
    * the paramotor's wing, stands in the balloon's basket), the ladder the
    * lens is framed on — its own rows (`camera-sled.ts`, `camera-groomer.ts`,
@@ -545,6 +549,12 @@ export function createMachines(
       return x ?? h ?? c ?? p;
     },
     figureShown: () => !ownLook,
+    bikeRider(fig, head) {
+      const r = bike?.rider;
+      if (!r?.drawn()) return false;
+      r.show(fig, head);
+      return true;
+    },
     ladder(pose, s, screen = 16 / 9) {
       aspect = screen;
       pose.lift = null;

@@ -23,6 +23,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "sim": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/simulate-run.mjs",
     "bike": "node scripts/bike-preview.mjs",
+    "bike-rig": "node scripts/bike-rig-preview.mjs",
     "bike-look": "node scripts/bike-park-preview.mjs",
     "bike-park": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-park-map.mjs",
     "bike-ride": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-ride-lab.mjs",

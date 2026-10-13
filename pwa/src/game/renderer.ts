@@ -703,7 +703,9 @@ export function createWorldRenderer(
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state, lens.camera.aspect);
       const under = goneUnder(state); // gone under an avalanche: nothing to draw
-      player.model.setSkierVisible(!under && figureShown(lens.rung(), own, rigPose.airborne));
+      const fig = !under && figureShown(lens.rung(), own, rigPose.airborne);
+      const ikRider = machines?.bikeRider(fig, lens.rung() !== "helmet") ?? false;
+      player.model.setSkierVisible(fig && !ikRider);
       const over = lensGround(state, level.groundAt); // over an avalanche's snow
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), over, boomClear, trunks, own);
       hurt.update(state, player.model.skin());
@@ -729,7 +731,9 @@ export function createWorldRenderer(
         frameStart(startMoment(state, d), ladder);
       if (planted) {
         aimLens(lens.camera, planted);
-        player.model.setSkierVisible(!under && (machines?.figureShown() ?? true));
+        const shown = !under && (machines?.figureShown() ?? true);
+        const ik = machines?.bikeRider(shown, true) ?? false;
+        player.model.setSkierVisible(shown && !ik);
       }
       // LOOKING ROUND FROM THE LIFT: the lift's lens swung about him by the drags.
       const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);

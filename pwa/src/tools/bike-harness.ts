@@ -80,6 +80,9 @@ const VIEWS = [
   "far",
   "side",
   "front",
+  "close",
+  "rear",
+  "left",
   "air",
   "crash",
   "tree",
@@ -157,6 +160,16 @@ function ride(
   return s.t - t0;
 }
 
+/** A few frames ridden and drawn one after another before a shot, so what
+ * is eased between frames (the lens, a rider's lag on his bike) has caught
+ * up with the moment rather than with the last frame drawn seconds ago. */
+function settle(s: GameState, input: (s: GameState) => SkierInput, frames = 12): void {
+  for (let f = 0; f < frames; f++) {
+    for (let i = 0; i < STEPS; i++) step(s, input(s));
+    renderer.draw(s, 1, FRAME);
+  }
+}
+
 /** A lens planted round the bike in its own frame: `side` m to its right
  * (negative its left), `ahead` m along it, `up` m over it. */
 function planted(s: GameState, side: number, ahead: number, up: number, fov = 45): LensPose {
@@ -202,7 +215,8 @@ async function ridden(): Promise<{ s: GameState; t: number }> {
     () => false,
     rideFor,
   );
-  riding = { s, t };
+  settle(s, (r) => bikePilot(r, aim));
+  riding = { s, t: t + 12 * FRAME };
   return riding;
 }
 
@@ -221,6 +235,21 @@ async function scene(id: ViewId): Promise<Shot | null> {
       const lens = id === "side" ? planted(s, -3.2, 0.3, 0.6) : planted(s, 0.5, 4.5, 0.9, 50);
       return { state: s, lens, caption: `${id} — ${caption(s, t)}` };
     }
+    case "close":
+    case "rear":
+    case "left": {
+      // Close on the rider and the bike: three-quarters ahead of him, three-
+      // quarters behind, and square from his other side.
+      const { s, t } = await ridden();
+      const lens =
+        id === "close"
+          ? planted(s, -1.6, 1.9, 0.9, 42)
+          : id === "rear"
+            ? planted(s, 1.7, -2.2, 1.1, 42)
+            : planted(s, 2.6, 0.25, 0.55, 45);
+      lens.target = { ...lens.target, y: lens.target.y + 0.25 };
+      return { state: s, lens, caption: `${id} — ${caption(s, t)}` };
+    }
     case "air": {
       const s = bikeRide();
       await onMap(s);
@@ -229,9 +258,10 @@ async function scene(id: ViewId): Promise<Shot | null> {
       const t = ride(
         s,
         (r) => bikePilot(r, aim),
-        (r) => r.bike!.airborne && r.bike!.airTime > 0.25,
+        (r) => r.bike!.airborne && r.bike!.airTime > 0.12,
         90,
       );
+      settle(s, (r) => bikePilot(r, aim), 8);
       if (!s.bike!.airborne) return null;
       return { state: s, lens: planted(s, -5, 0, 0.3, 50), caption: `air — ${caption(s, t)}` };
     }

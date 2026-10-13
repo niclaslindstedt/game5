@@ -79,9 +79,13 @@ faces at dusk. The sky's hemisphere fills the shade.
 map's few kilometres. A far range is hazed by it over the first 4 km of the way and by a fifth of it
 past that — 1/30,000 on a clear day, inside the clear winter air's band above — so a range 30 km off
 keeps a fifth of its contrast and one at 100 km is nearly the sky behind it. A weather's own
-thickening (a fall, a fog) carries through. The DISTANCE row's mist closes on the ranges at its wall
-as on the ground, then lets them go again with every 2.5 km past it: the far ranges are no draw
-distance's.
+thickening (a fall, a fog) carries through. While the ranges stand, the map's coarse disc carries
+the ground on past the DISTANCE row's wall, so the mist need not close there: it is LET OPEN
+(`haze.ts`'s `uMistOpen`) — the air's own colour, at most `MIST_OPEN` (0.45) of it, and a floor under
+the haze rather than a second colour over it — and the disc and the rings keep the same floor, so the
+haze only ever thickens outward and the ground, the disc and the rings fade on one curve with no band
+of mist between them. Drawn without the ranges, the mist closes whole at its wall as before, and the
+ranges' own mist is let go again with every 2.5 km past it.
 
 **Tiers.** The DISTANCE row picks the rings: LOW 96 spokes × 14 rings to 60 km, MEDIUM 192 × 30 to
 80 km, HIGH (and MAX) 320 × 46 to 100 km; the disc is 64 × 64 at every tier. A real face's country

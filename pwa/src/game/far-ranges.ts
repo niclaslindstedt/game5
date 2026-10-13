@@ -130,9 +130,12 @@ float farAir(float dist) {
   return min(dist, ${FAR_AIR.near.toFixed(1)}) + max(dist - ${FAR_AIR.near.toFixed(1)}, 0.0) * ${FAR_AIR.thin.toFixed(3)};
 }
 
-// The DISTANCE row's mist, let go again past its wall.
+// The DISTANCE row's mist, let go again past its wall — unless it is let
+// open (\`uMistOpen\`, the disc standing past the wall), when it is only a
+// floor under the air and is held, so the haze never thins outward.
 float farMist(float dist, float rise) {
-  return hazeMist(dist, rise) * exp(-max(dist - uMist, 0.0) / ${FAR_MIST_FADE.toFixed(1)});
+  float go = exp(-max(dist - uMist, 0.0) / ${FAR_MIST_FADE.toFixed(1)});
+  return hazeMist(dist, rise) * mix(go, 1.0, uMistOpen);
 }
 
 void main() {
@@ -336,6 +339,8 @@ export function createFarRanges(haze: HazeUniforms): FarRanges {
       own.uGroundLight.value.set(...look.groundLight);
       own.uAmbient.value = look.ambient;
       discMaterial.uniforms.uNear.value = discNear(haze.uMist.value);
+      // The mist need close only where nothing stands past its wall.
+      haze.uMistOpen.value = group.visible && disc ? 1 : 0;
       // The key at each band's height: the sun through the air down to it
       // (by day and through the twilights), the moon's as it is.
       const bands = own.uBand.value;

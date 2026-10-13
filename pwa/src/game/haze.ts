@@ -101,6 +101,13 @@ export type HazeUniforms = {
    * under him melt into the haze, with no rim where the ground or the
    * woods end. At 0 the mist is exactly the DISTANCE row's. */
   uMistAloft: { value: number };
+  /** THE MIST LET OPEN, 0..1: 1 while the far ranges' disc carries the
+   * ground on past the wall (`far-ranges.ts`), so the wall hides no hole
+   * and the mist need not close — it is then the air's own colour, held
+   * to `MIST_OPEN` at the most and taken as a floor under the haze rather
+   * than over it (`HAZE_FRAGMENT`), so the ground fades into the far
+   * country as the rings do. 0: the wall closes whole, as without them. */
+  uMistOpen: { value: number };
   /** Where the sun's shadow stands (`shadow-box.ts`): the circle's centre
    * in plan, and the plan distances the fade runs between. Written by
    * `environment.ts`; not the sky's, but it rides the same shared object
@@ -236,6 +243,7 @@ export function createHazeUniforms(): HazeUniforms {
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },
     uMistAloft: { value: 0 },
+    uMistOpen: { value: 0 },
     uShadowFade: { value: new THREE.Vector4(0, 0, 1e9, 2e9) },
     uHeroMap: { value: null },
     uHeroMatrix: { value: Array.from({ length: HERO_SLOTS }, () => new THREE.Matrix4()) },
@@ -333,6 +341,12 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
 }
 
 /** The sky along a direction, in linear light — the dome's own colour. */
+/** THE MIST LET OPEN (`uMistOpen`): the most of the air's own colour the
+ * DISTANCE row's mist lays over the ground while the far ranges carry it on
+ * past the wall — enough to soften where the woods and the clipmap's
+ * detail end, never so much that the far country under it is lost. */
+export const MIST_OPEN = 0.45;
+
 export const SKY_GLSL = /* glsl */ `
 uniform vec3 uSunDir;
 uniform vec3 uSunPos;
@@ -350,6 +364,7 @@ uniform vec3 uFarKey;
 uniform float uHaze;
 uniform float uMist;
 uniform float uMistAloft;
+uniform float uMistOpen;
 uniform float uHazeLift;
 uniform float uHazeFloor;
 
@@ -438,7 +453,10 @@ float hazeMist(float dist, float rise) {
   float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
   float m = across / uMist;
   float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
-  return mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
+  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
+  // Let open (\`uMistOpen\`), the ground goes on past the wall: the mist
+  // thickens the air only so far, and the far country shows through it.
+  return mix(mist, min(mist, ${MIST_OPEN.toFixed(2)}), uMistOpen);
 }
 
 // Both together, for what is drawn into the haze's colour alone (the spray,
@@ -452,7 +470,7 @@ float hazeAmount(float dist, float rise) {
 // edge is sky the colour it would have faded into.
 float mistBand(vec3 dir) {
   if (uMist <= 0.0) return 0.0;
-  return 1.0 - smoothstep(0.0, 40.0 / uMist, max(normalize(dir).y + uFar.x, 0.0));
+  return (1.0 - uMistOpen) * (1.0 - smoothstep(0.0, 40.0 / uMist, max(normalize(dir).y + uFar.x, 0.0)));
 }
 `;
 
@@ -556,8 +574,13 @@ export const HAZE_FRAGMENT = /* glsl */ `
   #endif
   hzCol = linearToOutputTexel(vec4(hzCol, 1.0)).rgb;
   hzFar = linearToOutputTexel(vec4(hzFar, 1.0)).rgb;
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, hzAir);
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hazeMist(hzDist, hzRay.y));
+  // Let open (\`uMistOpen\`) the mist is the air's own and a FLOOR under
+  // it — never over it — so the haze only ever thickens outward: the
+  // ground, the disc past the wall and the rings past the map all fade on
+  // one curve, with no band of mist between them.
+  float hzMist = hazeMist(hzDist, hzRay.y);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, max(hzAir, vec3(hzMist * uMistOpen)));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hzMist * (1.0 - uMistOpen));
 }
 `;
 

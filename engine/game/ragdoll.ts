@@ -225,7 +225,9 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   const L = b.last;
   const spine0 = spineOf(P);
   drive(P, L, b);
-  airDrag(P, L, MASS, TOTAL);
+  // The air, but not while the helicopter carries his fall over its disc
+  // (`HELI_BLADES.carry`): the carry is his way through the air then.
+  if (b !== state.skier.thrown || !state.heli || state.heli.shed < 0) airDrag(P, L, MASS, TOTAL);
   const g = TUNING.g * dt * dt;
   for (let i = 0; i < 3 * N; i++) {
     const v = P[i] - L[i];

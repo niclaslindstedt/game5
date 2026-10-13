@@ -53,7 +53,7 @@ const TIP = (K.rotor.rpm / 60) * 2 * Math.PI * K.rotor.radius;
  * ρA(ΩR)²·σa/2, N, and the blades' pitch at the collective's stop, rad. */
 const BLADE_LIFT =
   K.density * ROTOR_AREA * TIP ** 2 * ((AUTOROTATION.solidity * AUTOROTATION.slope) / 2);
-const PITCH_MOST = K.flight.pitchMost;
+const PITCH_MOST = AUTOROTATION.pitchMost;
 
 /** WHAT THE ROTOR CAN GIVE, N, at full rpm: the thrust momentum theory
  * says the power buys going `along` m/s through the air and climbing `vc`

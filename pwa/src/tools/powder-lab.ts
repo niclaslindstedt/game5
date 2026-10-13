@@ -13,13 +13,21 @@
 //                       player sees it through
 //   plunge-top-<s>      ...and from over him: the hole and the snow thrown
 //                       round it
+//   chute-land-<s>      UNDER A CANOPY into the meadow (`skydiveAt`, open a
+//                       dozen metres up), `s` s after his skis meet the snow,
+//                       from a lens beside where they did
+//   chute-fall-<s>      ...and out of the sky with none, 120 m of freefall
+//                       into it, `s` s after he hits; `-top` over him,
+//                       `-chase` through the lens the player falls with
+//   chute-tree-<s>      ...and caught in a crown, cut away and dropped into
+//                       the snow under it
 //
 // Every view's note says how deep the body lies under the untouched snow and
 // the fastest it has risen since it left the skis — the bounce this lab was
 // built to catch (a body thrown up out of the powder) reads there as a number
 // before it reads in the picture.
 
-import { NEUTRAL_INPUT, placeRun, step, type GameState } from "@engine";
+import { NEUTRAL_INPUT, placeRun, skydiveAt, step, type GameState } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { wildGround } from "../game/wild-ground.ts";
@@ -128,6 +136,81 @@ export function powderShots(
     const under = level.groundAt(off.x, off.z) - off.y;
     return `${off.cause}, ${off.t.toFixed(2)} s off his skis, his middle ${under.toFixed(2)} m under the untouched snow, rose at most ${rose.toFixed(2)} m/s, dial ${state.snowDepth}`;
   };
+  // THE SKYDIVE INTO THE POWDER: where he met the snow, and when.
+  let met: { x: number; z: number; t: number; heading: number } | null = null;
+  const dropped = (
+    t: number,
+    how: "land" | "fall" | "tree",
+    lens: "beside" | "top" | "chase",
+  ): string => {
+    if (!met && how === "tree") {
+      // Flown into a crown, hung in it a moment, and cut away (the machine
+      // press): down into the snow under the tree.
+      const c = state.skier;
+      for (let k = 0; k < level.trees.length && !met; k += 97) {
+        const tree = level.trees[k];
+        if (tree.height < 12 || level.packedAt(tree.x, tree.z) > 0.02) continue;
+        skydiveAt(state, { x: tree.x, z: tree.z - 25, agl: 30, heading: 0, mode: "open" });
+        lab.setCamera("chase");
+        const until = state.t + 20;
+        while (state.t < until && state.chute?.mode !== "snagged" && !c.thrown && c.airborne) {
+          onward(NEUTRAL_INPUT);
+        }
+        if (state.chute?.mode !== "snagged") continue;
+        for (let i = 0; i < 60; i++) onward(NEUTRAL_INPUT);
+        step(state, { ...NEUTRAL_INPUT, machine: true });
+        while (state.t < until + 10 && c.airborne && !c.thrown) onward(NEUTRAL_INPUT);
+        const at = c.thrown ?? c;
+        met = { x: at.x, z: at.z, t: state.t, heading: c.heading };
+      }
+      if (!met) return "no crown caught the canopy";
+    }
+    if (!met) {
+      const spot = meadow(state);
+      if (!spot) return "no open meadow on this map";
+      const open = how === "land";
+      // Under the canopy he glides a few metres for each he sinks: begun
+      // back up the meadow so he comes down on it.
+      const back = open ? -18 : 20;
+      skydiveAt(state, {
+        x: spot.x + Math.sin(spot.heading) * back,
+        z: spot.z + Math.cos(spot.heading) * back,
+        agl: open ? 7 : 120,
+        heading: spot.heading,
+        mode: open ? "open" : "freefall",
+      });
+      lab.setCamera("chase");
+      const until = state.t + 30;
+      const c = state.skier;
+      while (state.t < until && c.airborne && !c.thrown) onward(NEUTRAL_INPUT);
+      const at = c.thrown ?? c;
+      met = { x: at.x, z: at.z, t: state.t, heading: c.heading };
+    }
+    while (state.t < met.t + t - 1e-9) onward(NEUTRAL_INPUT);
+    const c = state.skier;
+    const at = c.thrown ?? c;
+    if (lens === "chase") {
+      // The lens the player falls in with, as the run has carried it.
+      lab.setOverride(null);
+      lab.still();
+    } else {
+      const ground = wildGround(level);
+      const across = met.heading + Math.PI / 2;
+      const far = lens === "top" ? 1.2 : 3.4;
+      const ex = met.x + Math.sin(across) * far;
+      const ez = met.z + Math.cos(across) * far;
+      lab.setOverride({
+        eye: { x: ex, y: ground.snowY(ex, ez) + (lens === "top" ? 4.2 : 1.1), z: ez },
+        target: { x: at.x, y: level.groundAt(at.x, at.z) - 0.2, z: at.z },
+        fov: 50,
+        roll: 0,
+      });
+      lab.still();
+      lab.setOverride(null);
+    }
+    const under = level.groundAt(at.x, at.z) - at.y;
+    return `${c.thrown ? c.thrown.cause : "on his skis"}, ${(state.t - met.t).toFixed(2)} s after the snow, his middle ${under.toFixed(2)} m under the untouched snow, the tail ${c.sinks[c.sinks.length - 1].toFixed(2)} m down, dial ${state.snowDepth}`;
+  };
   const shots: Record<string, () => string> = {
     deep() {
       // THE SKIER DOWN IN THE POWDER (`--snow`): stood in the nearest open
@@ -167,6 +250,11 @@ export function powderShots(
   return {
     shots,
     view(name) {
+      const d = /^chute-(land|fall|tree)(?:-(top|chase))?-(\d+(?:\.\d+)?)$/.exec(name);
+      if (d) {
+        const lens = (d[2] as "top" | "chase" | undefined) ?? "beside";
+        return () => dropped(Number(d[3]), d[1] as "land" | "fall" | "tree", lens);
+      }
       const m = /^plunge(?:-(chase|top))?-(\d+(?:\.\d+)?)$/.exec(name);
       if (!m) return undefined;
       return () => plunge(Number(m[2]), (m[1] as "chase" | "top" | undefined) ?? "beside");

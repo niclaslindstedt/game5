@@ -353,7 +353,8 @@ export function SeedPreview({
   /** The machine the ride begins on, when the RUN row picked one: marked
    * where it waits on the valley floor (the paramotor on the summit)
    * rather than at any run's head; the afterski at its lodge's door. */
-  machine?: "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit" | "afterski" | null;
+  machine?:
+    "bike" | "heli" | "sled" | "para" | "balloon" | "plane" | "wingsuit" | "afterski" | null;
   /** The picked start, m on the snow; null is the start line. */
   spot: { x: number; z: number } | null;
   onSpot: (spot: { x: number; z: number }) => void;
@@ -385,7 +386,10 @@ export function SeedPreview({
   // The head of the run picked, where the lift sets him down — or the
   // machine he begins on, at the bottom — drawn even where a ridge hides it
   // from the valley, since it is where he starts.
-  const start = drawn && machine ? (drawn.machines[machine] ?? null) : (entry?.head ?? null);
+  const start =
+    drawn && machine && machine !== "bike"
+      ? (drawn.machines[machine] ?? null)
+      : (entry?.head ?? null);
   const head =
     drawn && start
       ? view === "plan"

@@ -207,6 +207,9 @@ export const BIKE = {
     fast: 4,
     knees: { rate: 900, damping: 260 },
     dab: 0.8,
+    /** The lean, rad, the knees hold a crawl at with the bars left to the
+     * turn asked: laid over further, the hands steer it up again. */
+    crawlLean: 0.3,
   },
 
   /** THE AIR: the pitch his body English asks at full lean, rad/s (nose up
@@ -255,8 +258,12 @@ export const BIKE = {
   /** GETTING ON AND OFF: within `reach` m of a bike stood still, slower than
    * `fastest` m/s; a remount is put back on the trail within `back` m. */
   board: { reach: 2.5, fastest: 1.5, back: 60 },
-  /** WALKING beside it, off the bike: m/s and how fast he turns, rad/s. */
-  walk: { speed: 1.4, turn: 2 },
+  /** WALKING beside it, off the bike: m/s and how fast he turns, rad/s;
+   * and PUSHING it, the bike's middle `across` m to his side (negative: his
+   * left — he steps off on its right, away from the chain) and `ahead` m in
+   * front of him, his near hand on the near grip and the far one reaching
+   * across the stem to the other. */
+  walk: { speed: 1.4, turn: 2, push: { across: -0.55, ahead: 0.25 } },
   /** A flight shorter than this is not called one, s. */
   airCounts: 0.25,
   /** How the landing is read: the window after touchdown its peak is taken

@@ -203,6 +203,7 @@ export const BODY_STRINGS = {
     basket: "A NEW RIDER IN THE BALLOON'S BASKET",
     strip: "A NEW RIDER IN THE PLANE'S DOOR",
     exit: "A NEW FLYER ON THE WINGSUIT EXIT",
+    trail: "A NEW RIDER ON THE BIKE AT THE TRAIL'S HEAD",
   } satisfies Record<AgainAt, string>,
   /** HURT TOO BADLY TO SKI ON (`rescue.ts`): the word and what comes next
    * — what keeps him down is his worst such injury's own line. */

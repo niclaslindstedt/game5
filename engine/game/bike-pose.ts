@@ -50,9 +50,10 @@ export type BikePose = {
   crouch: number;
   lean: number;
   /** Whether he is on it, and walking beside it (the walked distance, m,
-   * and the pace, m/s, the gait's). */
+   * the pace, m/s, the gait's, and whether he pushes it by its bars —
+   * the bike stood at `BIKE.walk.push` from him, facing his way). */
   onIt: boolean;
-  walking: { walked: number; pace: number } | null;
+  walking: { walked: number; pace: number; push: boolean } | null;
   /** In the air, and how long for, s. */
   airborne: boolean;
   airTime: number;

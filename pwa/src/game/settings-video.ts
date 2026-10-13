@@ -284,15 +284,18 @@ export const SKY_TIER: Record<DistanceLevel, Tier> = {
 };
 
 /** THE CLOUD rides it too (`clouds.ts`): LOW one read a layer in the
- * dome (the shell), MEDIUM a slab of four steps and a read toward the sun,
- * HIGH and MAX eight and two — both at half the picture's resolution.
- * Part 7's true volume is a row of its own. */
-export type CloudTier = "shell" | "slab4" | "slab8";
+ * dome (the shell), MEDIUM a slab of four steps and a read toward the sun
+ * at half the picture's resolution, HIGH the raymarched VOLUME
+ * (`cloud-volume.ts`: a sixteenth of a half-resolution picture marched a
+ * frame, the rest carried over) and MAX the same marched finer and a
+ * quarter of it a frame. `slab8` is what HIGH draws until the volume's
+ * noise has landed. */
+export type CloudTier = "shell" | "slab4" | "slab8" | "volume" | "volumeFine";
 export const CLOUD_TIER: Record<DistanceLevel, CloudTier> = {
   low: "shell",
   medium: "slab4",
-  high: "slab8",
-  max: "slab8",
+  high: "volume",
+  max: "volumeFine",
 };
 
 export type ShadowLook = {

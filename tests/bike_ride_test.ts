@@ -2,8 +2,9 @@
 // THE DOWNHILL BIKE IN THE GAME (`bike.ts`): only a summer free ride that
 // asks for it carries one (and a run that does not is untouched); it is
 // begun on a trail head; the machine press steps him off and on; a fall
-// throws him as the `bike` crash cause and stands him back on it; a
-// chair's load zone carries the bike up with him; and the ride is
+// throws him as the `bike` crash cause and stands him back on it; walked,
+// he pushes it beside him; every chair's and gondola's load zone carries
+// the bike up with him; and the ride is
 // deterministic — the same keys, the same ride.
 import { describe, expect, it } from "vitest";
 import {
@@ -12,10 +13,12 @@ import {
   bikeTrailById,
   bikeTrailHeads,
   bikeWithin,
+  bikeWorldOf,
   createGame,
   fromEuler,
   liftPlans,
   NEUTRAL_INPUT,
+  placeBike,
   step,
   TUNING,
   type GameEvent,
@@ -85,12 +88,18 @@ describe("the machine press", () => {
     expect(s.bike!.onIt).toBe(true);
     expect(s.events.some((e) => e.kind === "bike" && e.phase === "board")).toBe(true);
   });
-  it("walking away from it puts it out of reach", () => {
+  it("walking off, he pushes it beside him, and gets back on it where he stops", () => {
     let s = bikeRun(level());
     s = step(s, { ...NEUTRAL_INPUT, machine: true });
     s = ride(s, 6 / TUNING.dt, () => ({ ...NEUTRAL_INPUT, tuck: 1 })).s;
-    expect(s.bike!.afoot!.walked).toBeGreaterThan(3);
-    expect(bikeWithin(s)).toBe(false);
+    const b = s.bike!;
+    expect(b.afoot!.walked).toBeGreaterThan(3);
+    expect(b.afoot!.push).toBe(true);
+    // At his left hand, a little ahead of him (`BIKE.walk.push`).
+    expect(Math.hypot(b.x - s.skier.x, b.z - s.skier.z)).toBeLessThan(1);
+    expect(bikeWithin(s)).toBe(true);
+    s = step(s, { ...NEUTRAL_INPUT, machine: true });
+    expect(s.bike!.onIt).toBe(true);
   });
 });
 
@@ -107,55 +116,64 @@ describe("a fall", () => {
     expect(after.skier.thrown?.cause ?? null).toBe("bike");
     expect(after.bike!.thrown).toBe(true);
     // Left to lie, he is stood back up on it on the trail.
-    const back = ride(after, 30 / TUNING.dt, () => ({ ...NEUTRAL_INPUT }));
-    expect(back.events.some((e) => e.kind === "bike" && e.phase === "right")).toBe(true);
-    expect(back.s.bike!.onIt).toBe(true);
+    // (Read the moment he is: coasted on hands-off down a black for the
+    // rest of 30 s, he will meet something else.)
+    let back = after;
+    let right = false;
+    for (let i = 0; i < 30 / TUNING.dt && !right; i++) {
+      back = step(back, NEUTRAL_INPUT);
+      right = back.events.some((e) => e.kind === "bike" && e.phase === "right");
+    }
+    expect(right).toBe(true);
+    expect(back.bike!.onIt).toBe(true);
   });
 });
 
 describe("a lift carries the bike", () => {
-  it("ridden into a chair's or a gondola's load zone, they go up together", () => {
-    const s0 = bikeRun(level());
-    const plan = liftPlans(s0.level).find((p) => p.lift.kind !== "drag")!;
-    const e = plan.look.entry;
-    // Stood at the load zone's back, facing the way it boards, rolling in.
-    const u = e.at - e.along * 0.8;
-    const x = plan.lift.bottom.x + u * plan.dx + e.side * plan.dz;
-    const z = plan.lift.bottom.z + u * plan.dz - e.side * plan.dx;
-    const s = createGame({
-      level: s0.level,
-      mode: "free",
-      summer: true,
-      bike: true,
-      spawn: { x, z },
-      quiet: true,
-    });
-    // Put on its line facing up it.
-    const b = s.bike!;
-    const y0 = s.level.groundAt(x, z);
-    b.q = fromEuler(plan.heading, 0, 0);
-    let st = s;
-    let lifted = false;
-    let top = -Infinity;
-    for (let i = 0; i < 90 / TUNING.dt; i++) {
-      if (i === 0) {
-        // Moved there by the bike's own placing.
-        const p = st.bike!;
-        const dx = x - p.x;
-        const dz = z - p.z;
-        p.x += dx;
-        p.z += dz;
-        p.rider.x += dx;
-        p.rider.z += dz;
+  // Every chair and gondola of two maps, rolled into from 8 m short of its
+  // load zone at a walking pace (pedalled up to 1.5 m/s, never past it):
+  // the bike is placed by `placeBike`, so it stands on the ground there
+  // rather than at the trail head's height, and at that crawl the rider's
+  // knees hold the bars to the line (`bike-body.ts`'s `crawlHeld`) — the
+  // seed 38 chair a bike once rolled 133 m past.
+  for (const seed of [38, 7]) {
+    it(`boards every chair and gondola on seed ${seed} at a walking pace`, () => {
+      const map = summerMap(seed);
+      const plans = liftPlans(map).filter((p) => p.lift.kind !== "drag");
+      expect(plans.length).toBeGreaterThan(0);
+      const missed: string[] = [];
+      for (const plan of plans) {
+        const e = plan.look.entry;
+        const u = e.at - e.along - 8;
+        const x = plan.lift.bottom.x + u * plan.dx + e.side * plan.dz;
+        const z = plan.lift.bottom.z + u * plan.dz - e.side * plan.dx;
+        let st = createGame({
+          level: map,
+          mode: "free",
+          summer: true,
+          bike: true,
+          spawn: { x, z },
+          quiet: true,
+        });
+        const b = st.bike!;
+        placeBike(b, bikeWorldOf(st.level, 0), x, z, plan.heading, 1.5);
+        st.skier.x = b.rider.x;
+        st.skier.y = b.rider.y;
+        st.skier.z = b.rider.z;
+        const y0 = map.groundAt(x, z);
+        let lifted = false;
+        let top = -Infinity;
+        for (let i = 0; i < 60 / TUNING.dt && !(lifted && top > y0 + 20); i++) {
+          const pedal = !lifted && st.bike!.speed < 1.6 ? 1 : 0;
+          st = step(st, { ...NEUTRAL_INPUT, tuck: pedal });
+          if (st.bike!.mode === "lift") lifted = true;
+          if (lifted) top = Math.max(top, st.skier.y);
+        }
+        if (!lifted || top < y0 + 20) missed.push(`${plan.lift.id} ${plan.lift.kind}`);
       }
-      st = step(st, { ...NEUTRAL_INPUT, tuck: lifted ? 0 : 0.3 });
-      if (st.bike!.mode === "lift") lifted = true;
-      if (lifted) top = Math.max(top, st.skier.y);
-      if (lifted && top > y0 + 20) break;
-    }
-    expect(lifted).toBe(true);
-    expect(top).toBeGreaterThan(y0 + 20);
-  });
+      expect(missed).toEqual([]);
+    });
+  }
 });
 
 describe("the bot", () => {

@@ -66,6 +66,21 @@ export function bikeTrailHeads(level: Level, lift?: string): BikeTrailHead[] {
   return park.aprons.filter((a) => lift === undefined || a.lift === lift).flatMap((a) => a.heads);
 }
 
+/** THE TRAIL WHOSE HEAD IS NEAREST (x, z) — a spot picked on the start
+ * card — or null on a map with no park. */
+export function nearestBikeHead(level: Level, x: number, z: number): string | null {
+  let best: string | null = null;
+  let near = Infinity;
+  for (const h of bikeTrailHeads(level)) {
+    const d = (h.x - x) * (h.x - x) + (h.z - z) * (h.z - z);
+    if (d < near) {
+      near = d;
+      best = h.trail;
+    }
+  }
+  return best;
+}
+
 /** A trail of the park by its id. */
 export function bikeTrailById(level: Level, id: string): BikeTrail | null {
   return level.bikePark?.trails.find((t) => t.id === id) ?? null;

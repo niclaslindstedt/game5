@@ -74,6 +74,7 @@ import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
 import { SledReadout } from "./hud-sled.tsx";
+import { BikeReadout } from "./hud-bike.tsx";
 import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
 import { MachinePress } from "./hud-machine-press.tsx";
 import { GroomerReadout } from "./hud-groomer.tsx";
@@ -567,14 +568,18 @@ export function Hud({
           the edge, his own wind and the height are the strip's. */}
       {!indoors && (
         <div class="hud-speed">
-          {!snap.balloon && snap.plane?.kind !== "flown" && !snap.chute && !snap.skiJump && (
-            <div class="hud-revs-row">
-              <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
-              <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
-                {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
-              </span>
-            </div>
-          )}
+          {!snap.balloon &&
+            snap.plane?.kind !== "flown" &&
+            !snap.chute &&
+            !snap.skiJump &&
+            snap.bike?.kind !== "ridden" && (
+              <div class="hud-revs-row">
+                <EdgeBar edge={snap.edge} tuck={snap.tuck} braking={snap.braking} />
+                <span class={`hud-chip-sub ${snap.braking ? "hud-brake" : ""}`}>
+                  {snap.braking ? STRINGS.brake : snap.cutting ? STRINGS.cut : STRINGS.edge}
+                </span>
+              </div>
+            )}
           <div class="hud-cluster">
             {/* Flying the plane or under the skydive, its own panel reads
                 the speed (knots, the fall, the air through the canopy):
@@ -715,6 +720,17 @@ export function Hud({
         <HeliReadout
           heli={snap.heli}
           live={live}
+          touch={touch}
+          machineKey={machineKey}
+          onBoard={input.requestMachine}
+        />
+      )}
+
+      {/* THE DOWNHILL BIKE (`hud-bike.tsx`): the trail while he rides it,
+          the call back to it while he is off it on foot. */}
+      {snap.bike && !snap.heli && !snap.para && snap.airTime === 0 && (
+        <BikeReadout
+          bike={snap.bike}
           touch={touch}
           machineKey={machineKey}
           onBoard={input.requestMachine}

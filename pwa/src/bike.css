@@ -1,0 +1,48 @@
+/* THE DOWNHILL BIKE'S STRIP (`hud-bike.tsx`): top centre, in the air
+   clock's place — the trail's mark and name, what is left of it and the
+   falls; and, off it on foot, the call back to it. */
+.hud-bike {
+  position: absolute;
+  top: max(0.4rem, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--hud-ink);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.hud-bike-trail {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.hud-bike-grade {
+  width: clamp(0.9rem, 3vmin, 1.3rem);
+  height: clamp(0.9rem, 3vmin, 1.3rem);
+}
+
+.hud-bike-word {
+  font-size: clamp(0.85rem, 2.8vmin, 1.3rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.hud-bike-sub {
+  margin-top: 0.25rem;
+  font-size: clamp(0.66rem, 2vmin, 0.9rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+
+.hud-bike-call {
+  top: 22%;
+  animation: hud-sled-pulse 1.2s ease-in-out infinite alternate;
+}

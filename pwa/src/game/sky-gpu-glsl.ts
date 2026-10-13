@@ -16,7 +16,7 @@
 
 import { EARTH } from "./atmosphere-model.ts";
 import { FROXEL_ATLAS, FROXELS, SKY_TABLES } from "./sky-gpu-plan.ts";
-import { DOME, NIGHT_HORIZON, NIGHT_ZENITH } from "./sky.ts";
+import { DOME } from "./sky.ts";
 import { SKY_VIEW_EL } from "./sky-table-format.ts";
 
 const f = (x: number): string => {
@@ -239,6 +239,13 @@ uniform float uElevation;
 uniform float uRadius;
 // The exposure, the dome's mean luminance, the night, the veil's share.
 uniform vec4 uExpose;
+// The night sky's own glow by the grid's rows, drawn (\`SkyLook.nightRows\`).
+uniform vec3 uNightRows[${SKY_VIEW_EL}];
+vec3 nightAt(float v) {
+  float x = clamp(v, 0.0, 1.0) * ${f(SKY_VIEW_EL - 1)};
+  int k = int(min(floor(x), ${f(SKY_VIEW_EL - 2)}));
+  return mix(uNightRows[k], uNightRows[k + 1], x - float(k));
+}
 float lumOf(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 vec3 dirOf(float u, float v) {
   float az = u * u * PI;
@@ -260,8 +267,7 @@ vec3 pulled(float u, float v, vec3 sun) {
 vec3 exposed(vec3 L, float v) {
   float Y = lumOf(L);
   float press = Y > 0.0 ? ${f(DOME.gain)} * pow(Y / uExpose.y, ${f(DOME.span - 1)}) : 0.0;
-  vec3 floorC = mix(${v3(NIGHT_HORIZON)}, ${v3(NIGHT_ZENITH)}, v);
-  return L * uExpose.x * press + floorC * uExpose.z;
+  return L * uExpose.x * press + nightAt(v);
 }
 void main() {
   float u = (gl_FragCoord.x - 0.5) / (uSize.x - 1.0);

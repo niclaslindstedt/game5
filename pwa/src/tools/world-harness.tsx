@@ -55,6 +55,7 @@ import {
   type Tier,
 } from "../game/settings-video.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
+import { volumeNoise } from "../game/cloud-volume.ts";
 import { wildGround } from "../game/wild-ground.ts";
 import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
 
@@ -909,7 +910,8 @@ const shots: Record<string, () => string> = {
 };
 
 window.__world = {
-  ready: renderer.load(state),
+  // HIGH's cloud volume waits on its noise (made off the main thread).
+  ready: renderer.load(state).then(async () => void (await volumeNoise())),
   async shoot(name) {
     const chase = /^chase-(\d+)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);

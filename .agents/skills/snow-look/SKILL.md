@@ -105,6 +105,18 @@ of the frame.
   (`make snow ARGS="--sheet=sun --hour=15"`) — it must shine, never clip a
   whole field to flat white.
 
+- **The snow is the colour of the light on it** (`snow-sky-glsl.ts`). Its
+  indirect light is the physical sky by direction (`skyIrradiance(n)` on the
+  snow's own normal, never three's two-colour hemisphere): shade blue under
+  a clear sky, warm toward a low sun, pink after sunset off the Belt, grey
+  under a lid. A low key throws the soft long shadow of every swell and
+  groove (`snowBumpLit`, marched on the same relief the normal is bent by),
+  and a thin edge — a track's wall, a windrow — glows ice-blue looked at
+  against the sun. Never tint the shade in the snow shader: if it reads
+  wrong, the sky's harmonics are wrong. Judge it on `make sky
+  ARGS=--sheet=timelapse --view=chase` (`shadeBlue`, `litWarm`) and `make
+  snow ARGS="--sheet=sun,away --hour=16.4"`.
+
 - **What is drawn IS what is simulated — with one deliberate exaggeration,
   stated once.** The ground is the generator's heightfield, sampled on the
   GPU. The groove is `drawnDepth`: never SHALLOWER than the physics' sink (a

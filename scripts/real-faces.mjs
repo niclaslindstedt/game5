@@ -35,17 +35,16 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { inflateSync } from "node:zlib";
 import process from "node:process";
 
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 
+import { createDem } from "./lib/dem-tiles.mjs";
 import { FACES, SIZE, globeAt, mapAt } from "./lib/real-face-crops.mjs";
 import { FACE_DIR, FACE_INDEX, writeFaceFile, writeFaceIndex } from "./lib/real-face-files.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = join(root, "previews", ".dem");
-const BUCKET = "https://copernicus-dem-30m.s3.amazonaws.com";
 /** Where the search keeps each face's real lifts' ends (off the map data,
  * fetched with `--fetch --search`), and the API it reads them from. */
 const LIFTS = join(root, "previews", ".osm");
@@ -87,123 +86,7 @@ const args = parseArgs(
 
 // ── The tiles ───────────────────────────────────────────────────────────
 
-/** The tile a point falls in, by its south-west corner's name. */
-function tileName(lat, lon) {
-  const la = Math.floor(lat);
-  const lo = Math.floor(lon);
-  const ns = la >= 0 ? `N${String(la).padStart(2, "0")}` : `S${String(-la).padStart(2, "0")}`;
-  const ew = lo >= 0 ? `E${String(lo).padStart(3, "0")}` : `W${String(-lo).padStart(3, "0")}`;
-  return { name: `${ns}_00_${ew}_00`, la, lo };
-}
-
-async function fetchTile(name) {
-  const file = join(CACHE, `${name}.tif`);
-  if (existsSync(file)) return;
-  const key = `Copernicus_DSM_COG_10_${name}_DEM`;
-  const url = `${BUCKET}/${key}/${key}.tif`;
-  process.stdout.write(`fetching ${name}… `);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url}: ${res.status}`);
-  mkdirSync(CACHE, { recursive: true });
-  writeFileSync(file, Buffer.from(await res.arrayBuffer()));
-  console.log("kept");
-}
-
-/** A tiled, deflated, float32 GeoTIFF with the floating-point predictor —
- * the shape every tile of the model comes in — read a tile at a time. */
-function openTiff(file) {
-  const buf = readFileSync(file);
-  const le = buf.toString("latin1", 0, 2) === "II";
-  if (!le) throw new Error(`${file}: big-endian TIFF`);
-  const u16 = (o) => buf.readUInt16LE(o);
-  const u32 = (o) => buf.readUInt32LE(o);
-  const ifd = u32(4);
-  const count = u16(ifd);
-  const tags = new Map();
-  for (let i = 0; i < count; i++) {
-    const e = ifd + 2 + i * 12;
-    const tag = u16(e);
-    const type = u16(e + 2);
-    const n = u32(e + 4);
-    const size = type === 3 ? 2 : type === 16 ? 8 : 4;
-    const at = n * size <= 4 ? e + 8 : u32(e + 8);
-    const values = [];
-    for (let k = 0; k < n; k++) {
-      const o = at + k * size;
-      values.push(size === 2 ? u16(o) : size === 8 ? Number(buf.readBigUInt64LE(o)) : u32(o));
-    }
-    tags.set(tag, values);
-  }
-  const width = tags.get(256)[0];
-  const height = tags.get(257)[0];
-  const tw = tags.get(322)[0];
-  const th = tags.get(323)[0];
-  const offsets = tags.get(324);
-  const counts = tags.get(325);
-  if (tags.get(259)[0] !== 8 || tags.get(317)?.[0] !== 3) {
-    throw new Error(`${file}: not a deflated tile with the floating-point predictor`);
-  }
-  const across = Math.ceil(width / tw);
-  const kept = new Map();
-  const tile = (i) => {
-    let t = kept.get(i);
-    if (t) return t;
-    const raw = inflateSync(buf.subarray(offsets[i], offsets[i] + counts[i]));
-    t = new Float32Array(tw * th);
-    const row = new Uint8Array(tw * 4);
-    const view = new DataView(row.buffer);
-    for (let r = 0; r < th; r++) {
-      const src = raw.subarray(r * tw * 4, (r + 1) * tw * 4);
-      // Undo the byte differencing, then gather each sample's bytes back out
-      // of their four planes (most significant first).
-      let acc = 0;
-      const undiff = new Uint8Array(tw * 4);
-      for (let k = 0; k < tw * 4; k++) undiff[k] = acc = (acc + src[k]) & 0xff;
-      for (let c = 0; c < tw; c++) {
-        row[c * 4] = undiff[c];
-        row[c * 4 + 1] = undiff[tw + c];
-        row[c * 4 + 2] = undiff[2 * tw + c];
-        row[c * 4 + 3] = undiff[3 * tw + c];
-        t[r * tw + c] = view.getFloat32(c * 4, false);
-      }
-    }
-    kept.set(i, t);
-    return t;
-  };
-  const at = (r, c) => {
-    const rr = Math.min(height - 1, Math.max(0, r));
-    const cc = Math.min(width - 1, Math.max(0, c));
-    return tile(Math.floor(rr / th) * across + Math.floor(cc / tw))[(rr % th) * tw + (cc % tw)];
-  };
-  return { width, height, at };
-}
-
-const tiffs = new Map();
-function tiffOf(name) {
-  let t = tiffs.get(name);
-  if (!t) {
-    const file = join(CACHE, `${name}.tif`);
-    if (!existsSync(file)) throw new Error(`${file} missing: run with --fetch`);
-    t = openTiff(file);
-    tiffs.set(name, t);
-  }
-  return t;
-}
-
-/** The model's height at a point, bilinear between its samples. */
-function heightAt(lat, lon) {
-  const { name, la, lo } = tileName(lat, lon);
-  const t = tiffOf(name);
-  const r = (la + 1 - lat) * t.height - 0.5;
-  const c = (lon - lo) * t.width - 0.5;
-  const r0 = Math.floor(r);
-  const c0 = Math.floor(c);
-  const fr = r - r0;
-  const fc = c - c0;
-  const a = t.at(r0, c0) * (1 - fc) + t.at(r0, c0 + 1) * fc;
-  const b = t.at(r0 + 1, c0) * (1 - fc) + t.at(r0 + 1, c0 + 1) * fc;
-  return a * (1 - fr) + b * fr;
-}
+const { tileName, fetchTile, heightAt } = createDem({ cache: CACHE, arcsec: 1 });
 
 // ── A face cropped ──────────────────────────────────────────────────────
 

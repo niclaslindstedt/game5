@@ -25,6 +25,13 @@
 //              in ΔE, a last row the HIGH − LOW difference ×4; and the GPU
 //              passes timed (the tables once, a sky-view at each tier, the
 //              aerial-perspective volume).
+//   far        THE FAR RANGES (`far-ranges.ts`): a map a row (`maps`: a
+//              region's dealt country, or `face:<id>` a real face's) at
+//              dawn, noon, a low sun, sunset and dusk, each from its own
+//              view; every cell drawn with the ranges and timed without
+//              them, and each row's rings built and counted at every tier.
+//
+// Any sheet with `far=0` draws without the far ranges (the before).
 //
 // The map, the day and the latitude stay the seed's; the sky moves through
 // `renderer.setSky` (the engine's `withSky`): the hour and the weather.
@@ -35,16 +42,22 @@ import {
   SKY_CLOCK,
   botInput,
   createGame,
+  isRegionId,
+  loadRealFace,
   step,
   sunAtRun,
   withSky,
   type GameState,
+  type RegionId,
   type SkyOverride,
 } from "@engine";
 
 import * as THREE from "three";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { createFarRanges, forceFar } from "../game/far-ranges.ts";
+import { farFaceGrid } from "../game/far-faces.ts";
+import { FAR_RINGS } from "../game/far-ranges-plan.ts";
 import { createHazeUniforms } from "../game/haze.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
@@ -114,8 +127,30 @@ const renderer = createWorldRenderer(stage, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(cellW, cellH, 1);
-const state: GameState = createGame({ seed, quiet: true });
-const level = state.level;
+let state: GameState = createGame({ seed, quiet: true });
+let level = state.level;
+if (params.get("far") === "0") forceFar(false);
+/** The far sheet's maps: a region, or `face:<id>`. */
+const maps = (params.get("maps") ?? "alpine,fell,continental,maritime,face:alpine-1")
+  .split(",")
+  .filter(Boolean);
+
+/** Stand the lab on another map: a region's at the seed, or a real face. */
+async function standOnMap(name: string): Promise<void> {
+  const face = name.startsWith("face:") ? name.slice(5) : undefined;
+  const region = !face && isRegionId(name) ? (name as RegionId) : undefined;
+  if (face && !(await loadRealFace(face))) throw new Error(`no real face ${face}`);
+  state = createGame({
+    seed,
+    quiet: true,
+    ...(region ? { region } : {}),
+    ...(face ? { face } : {}),
+  });
+  level = state.level;
+  await renderer.load(state);
+  for (let i = 0; i < 180; i++) step(state, botInput(state));
+  renderer.setCamera("chase", true);
+}
 
 /** The sun's elevation on this map's day at `hour`, rad. */
 const elevationAt = (hour: number): number => sunAtRun(withSky(level, { hour })).elevation;
@@ -195,8 +230,37 @@ function bearing(heading: number): LensPose {
   };
 }
 
+/** From the valley floor at the map's foot, looking out along the valley
+ * (+x) a little over the level — the ranges across and along it. */
+function valley(): LensPose {
+  const m = level.mountain;
+  const z = m ? m.base.z : level.size * 0.92;
+  const x = level.size * 0.06;
+  const y = level.groundAt(x, z);
+  return {
+    eye: { x, y: y + 40, z },
+    target: { x: x - 400, y: y + 70, z: z + 60 },
+    fov: 68,
+    roll: 0,
+  };
+}
+
+/** From the summit ridge along it (+x), level — the ranges behind and
+ * across. */
+function ridge(): LensPose {
+  const top = ridgeTop();
+  return {
+    eye: { x: top.x, y: top.y + 8, z: top.z },
+    target: { x: top.x + 400, y: top.y - 4, z: top.z - 150 },
+    fov: 68,
+    roll: 0,
+  };
+}
+
 function lensFor(name: string): LensPose {
   if (name === "vista") return vista();
+  if (name === "valley") return valley();
+  if (name === "ridge") return ridge();
   if (name === "sunset") return bearing(azimuthAt(horizonHour(false)));
   if (name === "sunrise") return bearing(azimuthAt(horizonHour(true)));
   if (name === "antisun") return bearing(azimuthAt(horizonHour(false)) + Math.PI);
@@ -457,7 +521,7 @@ async function skytier(): Promise<{ note: string; r: number; c: number; cells: S
   const set = horizonHour(false);
   const shots = [
     { label: "dawn", hour: rise + 0.3, view: "sunrise" },
-    { label: "noon", hour: 12, view: "vista" },
+    { label: "noon", hour: 12, view: "ridge" },
     { label: "low sun", hour: set - 1, view: "sunset" },
     { label: "sunset", hour: set, view: "sunset" },
     { label: "antisun", hour: set + 0.15, view: "antisun" },
@@ -524,6 +588,84 @@ async function skytier(): Promise<{ note: string; r: number; c: number; cells: S
   };
 }
 
+/** THE FAR RANGES' SHEET: a map a row, five moments, each cell timed with
+ * the ranges and without; every row's build timed and counted by tier. */
+async function far(): Promise<{ note: string; r: number; c: number; cells: SkyCell[] }> {
+  const shots = (rise: number, set: number) => [
+    { label: "dawn", hour: rise + 0.3, view: "sunrise" },
+    { label: "noon", hour: 12, view: "vista" },
+    { label: "valley", hour: 13, view: "valley" },
+    { label: "sunset", hour: set - 0.05, view: "sunset" },
+    { label: "dusk", hour: set + 0.2, view: "antisun" },
+  ];
+  const ctx = frame(
+    labelW + cellW * 5,
+    headH + (cellH + 16) * maps.length,
+    `THE FAR RANGES · ${tier}`,
+  );
+  ["dawn", "noon (along the ridge)", "valley 13:00", "sunset", "dusk (away)"].forEach((l, c) =>
+    ctx.fillText(l, labelW + c * cellW + 6, 26),
+  );
+  const cells: SkyCell[] = [];
+  const notes: string[] = [];
+  for (let r = 0; r < maps.length; r++) {
+    await standOnMap(maps[r]);
+    const y = headH + r * (cellH + 16);
+    // The rings built apart from the picture, timed and counted per tier.
+    const counts = TIERS.map((t) => {
+      const ranges = createFarRanges(createHazeUniforms());
+      ranges.setTier(t);
+      return { t, ranges };
+    });
+    const grid = await farFaceGrid(level);
+    const key = skyLookAt(level, 0).key;
+    const built = counts.map(({ t, ranges }) => {
+      const t0 = performance.now();
+      ranges.setLevel(level, key, grid);
+      const ms = performance.now() - t0;
+      const { triangles } = ranges.stats();
+      ranges.dispose();
+      return `${t[0].toUpperCase()} ${(triangles / 1000).toFixed(1)}k ${ms.toFixed(0)}ms`;
+    });
+    const name = maps[r].toUpperCase();
+    ctx.fillStyle = "#e8eef4";
+    ctx.fillText(name, 8, y + 16 + cellH / 2);
+    ctx.fillText(
+      `${grid ? "real country" : "dealt"} · tris/build ${built.join(" · ")} · rings ${FAR_RINGS[tier].bearings}×${FAR_RINGS[tier].rows}`,
+      labelW + 6,
+      y + 8,
+    );
+    notes.push(`${name}: ${built.join(", ")}`);
+    const list = shots(horizonHour(true), horizonHour(false));
+    for (let c = 0; c < list.length; c++) {
+      renderer.setOverride(lensFor(list[c].view));
+      const x = labelW + c * cellW;
+      const sky = { weather: "clear" as const, hour: list[c].hour };
+      const got = await cell(ctx, sky, x, y + 16, `${maps[r]}@${list[c].label.replace(/ /g, "-")}`);
+      // The same frame without the ranges, timed.
+      forceFar(false);
+      renderer.draw(state, 0, FRAME, false);
+      const gl = renderer.gl.getContext();
+      gl.finish();
+      const t0 = performance.now();
+      renderer.draw(state, 0, FRAME, true);
+      gl.finish();
+      const off = performance.now() - t0;
+      forceFar(null);
+      ctx.fillStyle = "#0b1116";
+      ctx.fillRect(x + 2, y + 16 + cellH - 16, 150, 14);
+      ctx.fillStyle = "#e8eef4";
+      ctx.fillText(
+        `${fmtHour(list[c].hour)} ${got.ms.toFixed(0)} ms (off ${off.toFixed(0)})`,
+        x + 6,
+        y + 16 + cellH - 9,
+      );
+      cells.push({ ...got, msOff: Math.round(off * 10) / 10 } as SkyCell);
+    }
+  }
+  return { note: notes.join(" | "), r: maps.length, c: 5, cells };
+}
+
 window.__sky = {
   ready: (async () => {
     await renderer.load(state);
@@ -539,7 +681,9 @@ window.__sky = {
           ? await tiers()
           : kind === "skytier"
             ? await skytier()
-            : await weathers();
+            : kind === "far"
+              ? await far()
+              : await weathers();
     renderer.setSky(null);
     renderer.setOverride(null);
     return { rows: done.r, cols: done.c, note: done.note, cells: done.cells };

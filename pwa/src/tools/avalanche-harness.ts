@@ -61,7 +61,7 @@ const GROUPS: Record<string, readonly string[]> = {
   release: ["release"],
   flow: ["beside", "below"],
   debris: ["debris"],
-  caught: ["caught"],
+  caught: ["caught", "plough"],
   night: ["night"],
   ...RESCUE_GROUPS,
 };
@@ -641,6 +641,37 @@ const VIEWS: Record<string, () => Promise<void>> = {
     card("buried 1.5 s, the card");
     run(s, 1.5);
     card("buried 3 s, going dark");
+  },
+  async plough() {
+    const s = fresh();
+    // Skiing down the fall line at 70 km/h into a slab let go below him:
+    // taken as he meets it, carried down IN the snow, and buried.
+    const n = { x: 0, y: 1, z: 0 };
+    s.level.normalAt(face.x, face.z, n);
+    const fall = Math.atan2(n.x, n.z);
+    const up = 70;
+    placeRun(s, {
+      x: face.x - Math.sin(fall) * up,
+      z: face.z - Math.cos(fall) * up,
+      heading: fall,
+      speed: 19,
+    });
+    const events: GameEvent[] = [];
+    releaseAvalanche(s, s.avalanche!, face.x, face.z, events);
+    const ride = { ...NEUTRAL_INPUT, tuck: 1 };
+    run(s, 1, ride);
+    shoot(s, "1 s, skiing down into it", "chase");
+    const phase = () => s.avalanche?.victim?.phase ?? "free";
+    for (let t = 0; t < 10 && phase() === "free"; t += 1 / 60) run(s, 1 / 60, ride);
+    shoot(s, `taken at ${s.avalanche!.slide!.t.toFixed(1)} s`, "chase");
+    run(s, 0.5);
+    shoot(s, "carried 0.5 s", "chase");
+    run(s, 1.5);
+    shoot(s, "carried 2 s", "chase");
+    run(s, 2);
+    shoot(s, "carried 4 s", "chase");
+    for (let t = 0; t < 8 && phase() === "carried"; t += 1 / 60) run(s, 1 / 60);
+    shoot(s, "buried", "chase");
   },
   async night() {
     renderer.setSky({ hour: 21 });

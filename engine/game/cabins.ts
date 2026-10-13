@@ -129,6 +129,9 @@ const cache = new WeakMap<Level, Cabin[]>();
 
 /** EVERY CABIN of `level`, worked out once. */
 export function cabinsOf(level: Level): readonly Cabin[] {
+  // A summer map's BIKE PARK (R44) felled trees, which the cabins must not
+  // see: they stand where they stand on the map it was laid on.
+  if (level.bikePark) return cabinsOf(level.bikePark.base);
   let list = cache.get(level);
   if (!list) {
     list = placeCabins(level);

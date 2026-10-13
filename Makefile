@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
+.PHONY: bike-park bike-look title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
 
 build:
 	npm run build
@@ -1292,6 +1292,25 @@ challenges-table:
 junctions:
 	npm run junctions -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
+# THE BIKE PARK LAB (R44, R45): a summer ski area's bike park from the
+# engine alone — the plan (every trail in its grade's colour, its features
+# marked, the race line taped, the junctions), every trail's profile over
+# the ground it is benched into, and a table a trail with the analyzer's
+# findings, to previews/bike-park-<seed>*; COUNT sweeps, one row a seed.
+# `make bike-park SEED=7` · `make bike-park COUNT=24` · `ARGS=--face=alpine-1`
+bike-park:
+	npm run bike-park -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE BIKE PARK'S PICTURE LAB: a summer free ride's bike park through the
+# game's own renderer at named views found off the park — a berm close, a
+# tabletop from the side, a flow trail from above, a rock garden, a drop,
+# the race line between its tapes, the trail heads on a lift's apron:
+# previews/bike-look-<seed>.png and every frame alone. Its own one-off
+# bundle from pwa/bike-park-preview.html; needs a Chromium.
+# `make bike-look SEED=38` · `ARGS="--views=berm,table --face=continental-2"`
+bike-look:
+	npm run bike-look -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
 # THE RESORT LAB: the whole ski area a seed builds (R25–R28), from the engine
 # alone — the piste map from above (every run in its colour, the lifts, the
 # course raced), the panorama over the valley, every course's profile, and a
@@ -1337,6 +1356,14 @@ routes:
 # `make real-faces ARGS="--fetch --search --only id"` · `ARGS="--only id --write"`
 real-faces:
 	npm run real-faces -- $(ARGS)
+
+# THE FAR COUNTRY round each real face: the real ranges to 60 km off the
+# 90 m elevation model, on the far ranges' polar layout, baked into
+# pwa/src/game/far-faces/far-<id>.ts, a file a face (generated;
+# docs/far-ranges.md). The tiles are fetched once into previews/.dem90/.
+# `make far-faces ARGS=--fetch` · `ARGS="--only id --write"`
+far-faces:
+	npm run far-faces -- $(ARGS)
 
 # The real faces' HINTS: the real ski area's lifts, pistes and houses on
 # each face, read off OpenStreetMap and baked coarsely into

@@ -81,6 +81,14 @@ import { cloudFieldOf, cloudLayersFor, meanPass, type CloudField } from "./cloud
 import { lightClouds, type CloudSky } from "./cloud-light.ts";
 import { deckZone } from "./low-deck.ts";
 import { skyClock } from "./sky-clock.ts";
+import {
+  KEY_BANDS,
+  addHemisphere,
+  brightestBand,
+  keyBandsFor,
+  keyRatios,
+  type Relief,
+} from "./sky-light.ts";
 import { SKY_GRID, SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import { DEFAULT_TURN, skyTurnOf, type SkyTurn } from "./starfield.ts";
 import { TERRAIN_SHADOW } from "./terrain-shadow.ts";
@@ -147,8 +155,17 @@ export type SkyLook = {
    * frame (27: nine coefficients, RGB each), exposed — `skyIrradiance(n)`
    * on the GPU, `shIrradiance` here. */
   irradiance: number[];
+  /** THE KEY BY HEIGHT (`sky-light.ts`): the world heights of its bands and
+   * the share of `keyColour` × `keyIntensity` each takes, colour by colour
+   * (12) — the peaks keeping a red sun after the valley has lost it. */
+  keyBandY: number[];
+  keyBand: number[];
   /** The eye's adaptation the look is exposed at (`exposureOf`). */
   exposure: number;
+  /** The exposure the WORLD'S light is drawn at — the sun, the sky's light
+   * and the lamps on the snow: `exposure` lifted through the twilight
+   * (`TWILIGHT`), the dome left as it is. */
+  light: number;
   /** WHAT THE GPU SKY (MEDIUM, HIGH — `sky-gpu.ts`) needs to expose its own
    * sky-view table exactly as `view` is: the lens's altitude over the sea
    * the sky is reckoned at, m; the clear sky's mean luminance the dome is
@@ -195,6 +212,11 @@ export type SkyLook = {
   glitter: number;
   /** How far on the arena's floods are, 0 (off: broad day) … 1. */
   lamps: number;
+  /** How much of the lamps' light on the world the eye sees against the
+   * sky's, 0..1: a floodlight's tens of lux are lost under a twilight sky
+   * of hundreds and a storm's day of thousands, and are the whole light of
+   * the night — the eye's adaptation over the lamps' fixed power. */
+  lampLight: number;
   /** How hard it is snowing and how thick the fog is (R19), 0..1. */
   snowfall: number;
   fog: number;
@@ -317,6 +339,26 @@ const LID_LIGHT: Record<"overcast" | "snow" | "storm" | "fog", number> = {
   fog: 1.35,
 };
 
+/** THE TWILIGHT'S LIFT: from the sun a few degrees up to some nine under,
+ * the eye looking at the snow adapts to the snow — to the sky's light on
+ * it, now the whole light — further than `exposureOf`'s law, read off the
+ * sky it looks up at, carries it; so the world's light is drawn this much
+ * over the dome's at the bottom of the dusk, eased in and out. */
+const TWILIGHT = { most: 1.2, from: 0.05, full: -0.02, gone: -0.16, under: -0.08 } as const;
+function twilightLift(elevation: number): number {
+  return (
+    1 +
+    TWILIGHT.most *
+      smooth(TWILIGHT.from, TWILIGHT.full, elevation) *
+      smooth(TWILIGHT.gone, TWILIGHT.under, elevation)
+  );
+}
+
+/** The eye's exposure the lamps' light is reckoned at as it is drawn: by
+ * nine degrees under the horizon the night has taken the sky's light and
+ * the lamps are the light (`SkyLook.lampLight`). */
+const LAMP_FULL = 1400;
+
 /** The haze's density on a clear day, 1/m. Cold dry winter air over a
  * mountain sees fifty kilometres and more; from the summit the valley
  * floor three kilometres off reads crisp with a blue cast (four parts in
@@ -403,6 +445,7 @@ export function skyLookFor(
   now?: number,
   altitude: number = DEFAULT_ALTITUDE,
   field: Pick<CloudField, "layers" | "floorAltitude" | "seaTop"> = fieldFor(weather, altitude),
+  relief: Relief | null = null,
 ): SkyLook {
   // How "high" the day is, 0 at the horizon to 1 at 45° and over.
   const high = smooth(0.0, 0.8, elevation);
@@ -416,6 +459,7 @@ export function skyLookFor(
   // surface — exposed by the eye's adaptation to the light on the snow.
   const phys = physicalSky(elevation, altitude);
   const exposure = exposureOf(adaptingLight(lum(phys.sun), elevation, lum(UP_IRR)));
+  const light = exposure * twilightLift(elevation);
   const view = new Float32Array(SKY_GRID);
   // The dome as the eye LOOKING AT IT sees it: adapted to the sky's own
   // mean rather than the snow's light, and pressing the sky's own span (a
@@ -452,6 +496,18 @@ export function skyLookFor(
     sunMax > 1e-6
       ? [phys.sun[0] / sunMax, phys.sun[1] / sunMax, phys.sun[2] / sunMax]
       : sunTint(elevation);
+  // THE SUN BY HEIGHT: with the map's relief, the key three is handed is
+  // the sun where it is brightest — on the peaks, at a low sun — and every
+  // height takes its own share of it (`keyBand`); without, the lens's.
+  const bands = relief ? keyBandsFor(elevation, relief, altitude) : null;
+  let keySun: Rgb = phys.sun;
+  if (bands) {
+    const b = brightestBand(bands);
+    keySun = [bands.sun[b * 3], bands.sun[b * 3 + 1], bands.sun[b * 3 + 2]];
+  }
+  const keyMax = Math.max(keySun[0], keySun[1], keySun[2]);
+  const keyTint: Rgb =
+    keyMax > 1e-6 ? [keySun[0] / keyMax, keySun[1] / keyMax, keySun[2] / keyMax] : tint;
 
   const moon = sunDirection(moonAt.azimuth, moonAt.elevation);
   const moonUp = smooth(-0.02, 0.18, moonAt.elevation);
@@ -467,7 +523,7 @@ export function skyLookFor(
   const cloudPass = inFog ? FOG.key : meanPass(field.layers, Math.sin(elevation));
   const thick = inFog ? 0 : 1 - meanPass(field.layers, FLAT_SIN);
   const pass = cloudPass * (1 - 0.6 * fall) * (1 - 0.6 * fog);
-  const sunKey = exposure * sunMax;
+  const sunKey = light * keyMax;
   const moonKey = MOON_KEY * (0.2 + 0.8 * moonAt.lit) * moonUp * night;
   const byMoon = moonKey > sunKey;
   const keyIntensity = (byMoon ? moonKey : sunKey) * pass;
@@ -476,7 +532,7 @@ export function skyLookFor(
   // THE SKY'S LIGHT, off the harmonics: blue over a low warm sun because
   // the sky is, and the snow's bounce under it near-white.
   const upMax = Math.max(UP_IRR[0], UP_IRR[1], UP_IRR[2], 1e-12);
-  const physAmbient = exposure * AMBIENT_LIFT * upMax;
+  const physAmbient = light * AMBIENT_LIFT * upMax;
   const nightAmbient = (0.16 + 0.22 * moonUp * moonAt.lit) * night;
   const nightShare = nightAmbient / Math.max(1e-6, physAmbient + nightAmbient);
   let skyLight = mix(
@@ -490,8 +546,11 @@ export function skyLookFor(
     nightShare,
   );
   let ambient = physAmbient + nightAmbient;
-  const irradiance = shRotateY(phys.sh, azimuth);
-  for (let k = 0; k < 27; k++) irradiance[k] *= exposure * AMBIENT_LIFT;
+  // The whole sky's light by direction: the physical sky's, the night's
+  // glow (moon and stars, airglow) laid under it as a hemisphere.
+  let irradiance = shRotateY(phys.sh, azimuth);
+  for (let k = 0; k < 27; k++) irradiance[k] *= light * AMBIENT_LIFT;
+  addHemisphere(irradiance, [0.3, 0.42, 0.95], [0.86, 0.9, 0.96], nightAmbient);
 
   // THE WEATHER.
   const lidded = lid.genus === 3;
@@ -526,7 +585,9 @@ export function skyLookFor(
     // What the lid takes off the key it gives back as a flat, skylit glow —
     // all of it under a thin deck, half under a storm's.
     ambient *= 1 + (LID_LIGHT[kind] - 1) * day;
-    for (let k = 0; k < 27; k++) irradiance[k] *= 1 + (LID_LIGHT[kind] - 1) * day;
+    // Under a deck the sky has no direction but up: its grey, the snow's
+    // bounce under it.
+    irradiance = addHemisphere(new Array<number>(27).fill(0), skyLight, groundLight, ambient);
   }
   const veil = !lidded && lid.cover > 0 ? lid.cover * (lid.genus === 2 ? 0.35 : 0.12) : 0;
   if (veil > 0) {
@@ -540,6 +601,7 @@ export function skyLookFor(
         }
     zenith = mix(zenith, horizon, share);
     ambient *= 1 + 0.08 * lid.cover * day;
+    for (let k = 0; k < 27; k++) irradiance[k] *= 1 + 0.08 * lid.cover * day;
   }
 
   // THE HAZE: the clear day's, thickened by the lid, and closed to the
@@ -582,13 +644,15 @@ export function skyLookFor(
   const lidLight = lidded ? LID_LIGHT[weather.kind as keyof typeof LID_LIGHT] : 1;
   const real = EXPOSURE.key * (lum(phys.sun) * pass + 0.6 * AMBIENT_LIFT * upMax * lidLight);
   const lamps = 1 - smooth(0.4, 1.0, real);
+  const realClear = EXPOSURE.key * (lum(phys.sun) + 0.6 * AMBIENT_LIFT * upMax);
+  const lampLight = Math.min(1, (light * (realClear / Math.max(real, 1e-12))) / LAMP_FULL);
 
   // THE FAR GROUND under the horizon: albedo over π of the sky's light on
   // it, as three lights a level face, and of the key's on a face square to
   // it — gone as the key sinks under the far country's own horizon.
   const farGround: Rgb = [0, 0, 0];
   const farKey: Rgb = [0, 0, 0];
-  const keyCol = byMoon ? MOONLIGHT : tint;
+  const keyCol = byMoon ? MOONLIGHT : keyTint;
   const farLight = keyIntensity * smooth(-0.01, 0.01, key.y);
   for (let c = 0; c < 3; c++) {
     farGround[c] = (FAR_ALBEDO[c] / Math.PI) * skyLight[c] * ambient;
@@ -608,7 +672,7 @@ export function skyLookFor(
     farKey,
     sunColour: tint,
     key,
-    keyColour: byMoon ? MOONLIGHT : tint,
+    keyColour: keyCol,
     keyIntensity,
     keyPass: pass,
     skyLight,
@@ -616,7 +680,12 @@ export function skyLookFor(
     ambient,
     view,
     irradiance,
+    keyBandY: bands ? bands.y : [0, 1, 2, 3],
+    keyBand: bands
+      ? keyRatios(bands, light * pass, keyCol, keyIntensity, !byMoon)
+      : new Array<number>(KEY_BANDS * 3).fill(1),
     exposure,
+    light,
     altitude,
     domeMean: skyMean,
     veil,
@@ -633,6 +702,7 @@ export function skyLookFor(
     flat: Math.min(1, (inFog ? FOG.flat : flatOf(thick)) + 0.08 * fall),
     glitter: inFog ? FOG.glitter : Math.pow(Math.min(1, (1 - thick) / 0.65), 1.4),
     lamps,
+    lampLight,
     snowfall: fall,
     fog,
   };
@@ -646,6 +716,13 @@ const fallNow = { fall: 0, visibility: 0 };
 export function lensAltitude(level: Pick<Level, "mountain">): number {
   const m = level.mountain;
   return m ? m.altitude + m.vertical / 2 : DEFAULT_ALTITUDE;
+}
+
+/** The heights the key is reckoned between on `level` (`sky-light.ts`), or
+ * null for a map with no mountain. */
+export function reliefOf(level: Pick<Level, "mountain">): Relief | null {
+  const m = level.mountain;
+  return m ? { sea: m.sea, low: m.base.y, high: m.summit.y } : null;
 }
 
 /** The look at run time `t` on `level`: the sun, the moon and the stars
@@ -672,6 +749,7 @@ export function skyLookAt(
       snowAt(level, t, fallNow).fall,
       lensAltitude(level),
       f,
+      reliefOf(level),
     );
     look.turn = skyTurnOf(sky);
     return look;

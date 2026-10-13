@@ -184,6 +184,9 @@ export type SkyLook = {
   /** How low the haze lies: its thinning height, m (a valley fog's is low,
    * so the peaks stand out of it). */
   hazeLift: number;
+  /** The sky's light in the mountain's own shadow drawn this share over the
+   * rest of the snow's (0 but for the first degrees of a low sun). */
+  shadeLift: number;
   /** The cloud over the dome. */
   cloud: CloudLook;
   /** THE CLOUD FIELD'S LIGHT (`cloud-light.ts`): every layer's sun, top and
@@ -198,7 +201,7 @@ export type SkyLook = {
    * inside it, where the look's own haze is the cloud). The haze lays it
    * over whatever of a view passes through it; the dome fills the view
    * under its top from over it. */
-  sea: { colour: Rgb; top: number; base: number; k: number };
+  sea: { colour: Rgb; sun: Rgb; top: number; base: number; k: number };
   /** How dark it is, 0 (day) … 1 (full night). */
   night: number;
   /** How much of the Milky Way shows, 0..1 — only a dark sky's: past
@@ -362,6 +365,22 @@ function twilightLift(elevation: number): number {
     TWILIGHT.most *
       smooth(TWILIGHT.from, TWILIGHT.full, elevation) *
       smooth(TWILIGHT.gone, TWILIGHT.under, elevation)
+  );
+}
+
+/** THE LOW SUN'S SHADE: for the first few degrees of a sun up, the slopes
+ * in the mountain's shadow are lit by the sky alone, and an eye standing in
+ * them has adapted to them — never to the thin red key on the peaks that
+ * `exposureOf` reads. Their sky light is drawn this share over the day's
+ * law (`SkyLook.shadeLift`, most at a sun two to eight degrees up, gone by
+ * fourteen and under the horizon, where the twilight's lift takes over) —
+ * in the mountain's own shadow only (`haze.ts`), so a run started in a
+ * valley's dawn shade reads blue and shaded, never near black, while the
+ * sunlit snow keeps its golden key and the air its warmth. */
+const SHADE = { most: 0.8, from: 0.14, full: 0.04, dawn: -0.02, up: 0.015 } as const;
+function shadeLift(elevation: number): number {
+  return (
+    SHADE.most * smooth(SHADE.from, SHADE.full, elevation) * smooth(SHADE.dawn, SHADE.up, elevation)
   );
 }
 
@@ -712,9 +731,10 @@ export function skyLookFor(
     veil,
     haze,
     hazeLift: fog > 0 ? 90 + 120 * (1 - fog) : 700,
+    shadeLift: shadeLift(elevation),
     cloud: { genus: lid.genus, cover: lid.cover },
     clouds: { ...clouds, show: inFog ? 0 : 1, shade: field.layers.map(() => 1) },
-    sea: { colour: clouds.sea, top: 0, base: NO_BASE, k: 0 },
+    sea: { colour: clouds.sea, sun: clouds.seaSun, top: 0, base: NO_BASE, k: 0 },
     night,
     stars: smooth(-1.6, 0, dark.starLimit) * clearNight,
     starLimit: dark.starLimit,
@@ -794,12 +814,12 @@ export function skyLookAt(
     // Under the base: the day's own sky with the deck for a lid — a fair
     // day's heaps hidden over it.
     const under = at(weather.kind === "fair" ? { ...weather, kind: "overcast" } : weather);
-    under.sea = { colour: under.zenith, top, base, k: SEA_DENSITY };
+    under.sea = { colour: under.zenith, sun: [0, 0, 0], top, base, k: SEA_DENSITY };
     looks.push([under, 1]);
   }
   if (zone.inside > 0 && zone.over < 1) {
     const inside = at(fogDay ? weather : { ...weather, kind: "fog", fog: deck.fog });
-    inside.sea = { colour: inside.clouds.sea, top, base, k: 0 };
+    inside.sea = { colour: inside.clouds.sea, sun: [0, 0, 0], top, base, k: 0 };
     looks.push([inside, zone.inside]);
   }
   if (zone.over > 0) {
@@ -811,7 +831,7 @@ export function skyLookAt(
         : { ...field, layers: field.layers.map((l, i) => (i === d ? { ...l, tau: 0 } : l)) };
     const over = at({ ...weather, kind: weather.kind === "fair" ? "fair" : "clear", fog: 0 }, f);
     if (d >= 0) over.clouds.shade[d] = 0;
-    over.sea = { colour: over.clouds.sea, top, base, k: SEA_DENSITY };
+    over.sea = { colour: over.clouds.sea, sun: over.clouds.seaSun, top, base, k: SEA_DENSITY };
     looks.push([over, zone.over]);
   }
   let look = looks[0][0];

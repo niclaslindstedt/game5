@@ -36,8 +36,10 @@ export type CloudSky = {
   layers: LayerLight[];
   /** The 22° halo's strength (a veil of ice in front of the sun), 0..1. */
   halo: number;
-  /** A valley fog's top seen from above: its lit colour. */
+  /** A valley fog's top seen from above: its lit colour, and the sun's
+   * share of it (the rest the sky's — the lumps light them apart). */
   sea: Rgb;
+  seaSun: Rgb;
   /** The moon's share of every layer's sun light (`sunOn` adds it): HIGH's
    * volume takes it back out and lays it on as a soft light of its own,
    * since it does not come from the sun's side. */
@@ -112,10 +114,16 @@ export function lightClouds(layers: readonly CloudLayer[], i: CloudLightInput): 
   // only, the rest in their own shade under the sky's light.
   const graze = 0.35 + 0.65 * Math.min(1, Math.max(0, sinE / 0.2));
   const flat = (0.3 + 0.7 * Math.sqrt(Math.max(0, sinE))) * graze;
+  // The sky's light on a level top is the whole dome's, the horizon's
+  // ring as much as the zenith — the zenith's deep blue alone, added to a
+  // red sun, made the sea magenta.
+  const seaSun: Rgb = [lit[0] * flat, lit[1] * flat, lit[2] * flat];
+  const seaSky = (c: number): number => z[c] * 0.4 + h[c] * 0.34;
   return {
     layers: out,
     halo: veil ? veil.cover * up : 0,
-    sea: [lit[0] * flat + z[0] * 0.6, lit[1] * flat + z[1] * 0.6, lit[2] * flat + z[2] * 0.6],
+    sea: [seaSun[0] + seaSky(0), seaSun[1] + seaSky(1), seaSun[2] + seaSky(2)],
+    seaSun,
     moon: [i.moon[0], i.moon[1], i.moon[2]],
   };
 }

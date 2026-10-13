@@ -142,10 +142,14 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         float disc = smoothstep(cos(${SUN_RADIUS.toFixed(5)}) - 0.00002, cos(${SUN_RADIUS.toFixed(5)}) + 0.00001, mu);
         // Its brightness follows the air it shines through, so a sun on the
         // horizon is a deep orange disc rather than a white one the tone
-        // map clipped; and round it the AUREOLE, the aerosol's forward
-        // glow, finer than the sky's grid can hold.
+        // map clipped — and the disc IS the sun: its radiance swamps the
+        // sky in front of it, so over a low sun it takes the sun's own red
+        // rather than the yellow glow round it (added, the glow's green
+        // whitened it). Round it the AUREOLE, the aerosol's forward glow,
+        // finer than the sky's grid can hold.
         float lift = 2.5 + 27.5 * smoothstep(0.0, 0.3, uSunPos.y);
-        c += uSunCol * disc * lift * (1.0 - hide * 0.97);
+        float own = smoothstep(0.02, 0.12, uSunPos.y);
+        c = mix(c, uSunCol * lift + c * mix(0.15, 1.0, own), disc * (1.0 - hide * 0.97));
         float aureole = exp(-(1.0 - mu) * 900.0) * 0.6 + exp(-(1.0 - mu) * 90.0) * 0.12;
         c += uSunCol * aureole * clearSky * smoothstep(-0.03, 0.01, uSunPos.y);
 
@@ -177,7 +181,7 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         if (uSeaK > 0.0 && d.y < 0.0 && cameraPosition.y > uSea.w) {
           float t = (uSea.w - cameraPosition.y) / d.y;
           vec2 sp = cameraPosition.xz + d.xz * t;
-          vec3 sea = mix(uSea.rgb * seaLumps(sp, t), hazeColour(d), 1.0 - exp(-t / 40000.0));
+          vec3 sea = mix(seaTop(sp, t), hazeColour(d), 1.0 - exp(-t / 40000.0));
           c = mix(c, sea, smoothstep(0.0, -0.004, d.y));
         }
         gl_FragColor = vec4(c, 1.0);

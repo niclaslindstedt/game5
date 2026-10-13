@@ -49,7 +49,7 @@ export const WINGSUIT_SURFACES = {
     settle: 1200,
   },
   "wingsuit-thumbs-canopy": {
-    params: { start: "free", wingsuit: "1", chute: "300", t: "8", shot: "1" },
+    params: { start: "free", wingsuit: "1", chute: "300", t: "30", shot: "1" },
     wait: ".hud",
     thumbs: [
       [0.22, 0.72, 30, 0],

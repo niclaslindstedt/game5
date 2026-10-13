@@ -123,13 +123,14 @@ On the international scale, a size 2 runs **50–200 m** with about **1000 m³**
 4. **The skier against the flow.**
    - **Caught.** A running parcel within **5.5 m** (`reach`) coming on faster than **7 m/s** (`catchSpeed`) takes him. Its speed is measured less his own along its way, so broken blocks running faster than he is going its way take him.
    - **Ridden.** A parcel running faster than **9 m/s** (`tumble`) is no block to stand on: within reach of one he is caught even going its speed, unless he is skiing out across its way at `catchSpeed` or more, which is how the flank is outskied.
+   - **Skied into.** Snow at least **0.4 m** deep under him (`engulf`, the debris' depth the flow's parcels lay) while he goes faster than **4 m/s** (`plough`) takes him, the flow's body while it runs and the debris it left once it rests: at speed the set blocks stop his skis dead and the snow closes over him. Skiing through it is no way past it.
    - **Escaped.** Within **18 m** (`near`) of the flow he is involved, and once he has been clear of it for **2 s** (`escapeAfter`) he has escaped.
    - **Never on the snowmobile.** He is not caught while riding the snowmobile.
 5. **Carried.**
-   - **Thrown.** Caught, he is thrown onto his ragdoll (`throwRider`, the `avalanche` crash cause). The cause's own spin (`defs/crash.ts`) tumbles him forward and to the side.
-   - **Dragged.** His body's points are dragged toward the flow's speed at **6/s** (`drag`) and held up at **0.6 m/s** (`lift`), and he is drawn back into the parcel that took him at **1.5/s** (`hold`).
+   - **Thrown.** Caught, he is thrown onto his ragdoll (`throwRider`, the `avalanche` crash cause), never upward: the snow takes him down into it. The cause's own spin (`defs/crash.ts`) tumbles him forward and to the side.
+   - **Dragged.** His body's points are dragged toward the flow's speed at **6/s** (`drag`) and drawn back into the parcel that took him at **1.5/s** (`hold`). Each point rides IN the snow: it follows the ground down the slope and is pulled toward **half** (`ride`) of the debris' depth over the ground at **6 m/s per m** (`sink`), so nothing he was thrown with carries him up out of it. Caught by debris at rest, he is stopped dead in it.
    - **The blows.** The ragdoll meets the snow and every trunk as it always does, so the blows go through `body.ts` and count as injuries like any fall's.
-6. **Buried.** **0.6 s** (`settleFor`) after his parcel rests, or **5 s** (`carryMost`) after he was caught, whichever comes first, he is put down at his share of the debris' depth there.
+6. **Buried.** **0.6 s** (`settleFor`) after his parcel rests (or after he ploughed into debris at rest), or **5 s** (`carryMost`) after he was caught, whichever comes first, he is put down at his share of the debris' depth there.
    - **Surfaced.** Under the head-free depth he has surfaced and the ordinary reset takes him.
    - **Buried.** Otherwise he is under, at least **0.6 m** deep (`buriedLeast`), and gone (`lost` at once): the `buried` event fires and, with INJURIES on, the death flow too (the `smothered` cause). His body goes on with the debris while it runs and is no longer drawn.
    - **The card.** The HUD's wreck comes up on it whatever the INJURIES switch says: **BURIED** in place of DIED, the picture going dark, and the app's restart after its own wait (OPTIONS' 2–10 s). `avalancheHolds` keeps the automatic reset off for **10 s** (`lostFor`), past the longest of those waits.
@@ -249,6 +250,7 @@ The terrain's shader pays a few branches a pixel everywhere (`uSlideOn`), and th
 - **flow:** the front and its cloud from beside and from below, at 3, 6, 10 and 15 s, the lenses set off the head along the way it is going.
 - **debris:** the deposit close, from its toe and from far, and the bed and the crown from below.
 - **caught:** a skier crossing the slab when it goes, from the chase: caught, carried a few seconds, buried, and the BURIED card over the frames after it going dark.
+- **plough:** a skier coming down the fall line at 70 km/h into a slab let go below him, from the chase: taken as he meets it, carried down in the snow, and buried.
 - **night:** the flow and the debris at hour 21, under the headlamp.
 
 Each frame's draw time, draw calls and triangles are printed under its sheet.

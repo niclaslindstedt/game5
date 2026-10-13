@@ -80,6 +80,14 @@ export type HazeUniforms = {
    * exposed: what shows under the horizon where the air between is thin —
    * the sky's share, and the key's on a face square to it. */
   uFarGround: { value: THREE.Color };
+  /** THE RIM past the map's edge (`far-ranges-plan.ts`'s `FAR_RIM_GLSL`):
+   * the ground the far ranges stand on, as a float texture; its box (the
+   * first sample's x and z, the spacing, the samples a side — 0: none);
+   * and the most it rises over / drops under the edge, m (the clipmap's
+   * bounds). Written by `far-ranges.ts`. */
+  uFarRim: { value: THREE.DataTexture | null };
+  uFarRimBox: { value: THREE.Vector4 };
+  uFarRimSpan: { value: THREE.Vector2 };
   uFarKey: { value: THREE.Color };
   uHaze: { value: number };
   /** THE MIST the DISTANCE row closes on (`mistFor`): its wall, m, past
@@ -221,6 +229,9 @@ export function createHazeUniforms(): HazeUniforms {
     uHazeShadow: { value: new THREE.Vector4(0, 0, 0, 0) },
     uFar: { value: new THREE.Vector2(0, 0) },
     uFarGround: { value: new THREE.Color() },
+    uFarRim: { value: null },
+    uFarRimBox: { value: new THREE.Vector4(0, 0, 1, 0) },
+    uFarRimSpan: { value: new THREE.Vector2(0, 0) },
     uFarKey: { value: new THREE.Color() },
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },

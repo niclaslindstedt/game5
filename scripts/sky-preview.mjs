@@ -23,6 +23,13 @@
 //              (the dE, dSky and dE95 columns) and the HIGH − LOW
 //              difference drawn ×4; the GPU's passes timed in the title —
 //              `previews/sky-<seed>-skytier.png`
+//   far        THE FAR RANGES round a map a row (`--maps`: a region's
+//              dealt country, `face:<id>` a real face's) at dawn, noon, a
+//              low sun, sunset and dusk, each cell timed with the ranges
+//              and without them (the msOff column), every row's rings built
+//              and counted at each tier — `previews/sky-<seed>-far.png`
+//
+// `--no-far` draws any sheet without the far ranges (the before picture).
 //
 // Every cell is measured (`pwa/src/tools/sky-eval.ts`): the model's zenith
 // and horizon luminance and colour temperature, the sun's disc's, the key
@@ -69,8 +76,14 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "weathers",
-      help: "weathers, timelapse, tiers or skytier (the sky's own tiers against LOW, in ΔE, and the GPU passes timed)",
+      help: "weathers, timelapse, tiers, skytier (the sky's own tiers against LOW, in ΔE, and the GPU passes timed) or far (the far ranges, a map a row)",
     },
+    maps: {
+      kind: "string",
+      default: "alpine,fell,continental,maritime,face:alpine-1",
+      help: "the far sheet's rows: regions, or face:<id> for a real face",
+    },
+    "no-far": { kind: "flag", help: "draw without the far ranges (the before picture)" },
     hours: {
       kind: "string",
       default: "",
@@ -160,6 +173,8 @@ const query = new URLSearchParams({
   view: args.view,
   clock: args.clock ? "1" : "0",
   rate: String(args.rate),
+  maps: args.maps,
+  far: args["no-far"] ? "0" : "1",
 }).toString();
 console.log(`sky — seed ${args.seed}, ${args.sheet}, ${args.view}, ${args.quality} quality`);
 const t0 = Date.now();
@@ -170,7 +185,9 @@ if (crashed) process.exit(1);
 const drawn = await page.evaluate(() => globalThis.__sky.sheet());
 if (crashed) process.exit(1);
 const sheetPart =
-  (args.sheet === "weathers" ? "" : `-${args.sheet}`) + (args.clock ? "-clock" : "");
+  (args.sheet === "weathers" ? "" : `-${args.sheet}`) +
+  (args.clock ? "-clock" : "") +
+  (args["no-far"] ? "-nofar" : "");
 const viewPart = args.view === "chase" ? "" : `-${args.view}`;
 const out = join(outDir, `sky-${args.seed}${sheetPart}${viewPart}.png`);
 await page.locator("#sheet").screenshot({ path: out });
@@ -202,6 +219,7 @@ const COLS = [
   "shadeBlue",
   "litWarm",
   "ms",
+  ...(args.sheet === "far" ? ["msOff"] : []),
 ];
 const show = (v) => (v === null || v === undefined ? "—" : String(v));
 const delta = (now, old) => {

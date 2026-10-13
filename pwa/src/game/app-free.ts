@@ -10,6 +10,7 @@ import type { LoadPlan, Loader } from "./app-load.ts";
 import { freeAgainOptions, rideKept, standingFor, type RiddenMap } from "./free-ride.ts";
 import { handsFree } from "./backdrop-hold.ts";
 import { createFreeStage } from "./free-stage.ts";
+import { stageSettled } from "./menu-stage.tsx";
 import { aheadLevel } from "./map-build.ts";
 import { askKey, freeAsk, freeRideLevel, heldLevel, onSeedMaps } from "./seed-maps.ts";
 import type { WorldBuild } from "./world-build.ts";
@@ -43,8 +44,16 @@ export function createFreeRides(deps: {
   };
   const later = (run: () => void, ms = STAGE_AFTER_MS): (() => void) => {
     let live = true;
-    // Never begun under a hand turning the rider round (`handsFree`).
-    const t = window.setTimeout(() => void handsFree().then(() => live && run()), ms);
+    // After the rider's stage stands (`stageSettled`: the rider, then his
+    // gear, then the mountain), and never begun under a hand turning him
+    // round (`handsFree`).
+    const t = window.setTimeout(
+      () =>
+        void stageSettled()
+          .then(() => handsFree())
+          .then(() => live && run()),
+      ms,
+    );
     return () => {
       live = false;
       window.clearTimeout(t);

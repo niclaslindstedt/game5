@@ -78,6 +78,10 @@ export type GearStage = {
    * start again; a held stage builds what it was last asked to at once
    * and draws one frame, so its shaders are compiled before it is shown. */
   hold: (held: boolean) => void;
+  /** The other kind's pair on the gear card — the board where skis are
+   * picked, the skis where a board is — built and compiled by a held
+   * stage too, so the SKIS / SNOWBOARD switch builds nothing either. */
+  spare: (spec: SkiSpec | null) => void;
   dispose: () => void;
 };
 
@@ -133,6 +137,10 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
    * gear card, two models; the one waiting is built ahead (`hold`), so
    * NEXT never builds a skier. */
   const kept = new Map<string, { model: SkisModel; rest: SkierState }>();
+  /** The other kind's pair for the gear card, and the keys built for it —
+   * kept through every build until the stage goes (`spare`). */
+  let other: SkiSpec | null = null;
+  const spares = new Set<string>();
   let pending: { shot: StageShot; spec: SkiSpec; outfit: Outfit } | null = null;
   let shot: StageShot = "rider";
   let free: FreeRect = { x: 0, y: 0, w: 1, h: 1 };
@@ -153,7 +161,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   };
   const dropKept = (...but: string[]): void => {
     for (const [k, m] of kept) {
-      if (but.includes(k)) continue;
+      if (but.includes(k) || spares.has(k)) continue;
       m.model.dispose();
       kept.delete(k);
     }
@@ -195,19 +203,23 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       pivot.add(model.root);
       return;
     }
+    ({ model, rest } = make(s, given, outfit));
+    dress(s, outfit);
+    pivot.add(model.root);
+  };
+  /** A model of `given` for card `s`, stood at rest, not yet on the stage. */
+  function make(s: StageShot, given: SkiSpec, outfit: Outfit) {
     const spec = drawnSpec(s, given);
-    model = createSkisModel(spec, pairStyle(spec, { outfit }), (m) => m);
+    const made = createSkisModel(spec, pairStyle(spec, { outfit }), (m) => m);
     const fresh = freshSkier(spec);
     fresh.skiCompression[0] = REST_SAG;
     fresh.skiCompression[1] = REST_SAG;
-    rest = fresh;
-    dress(s, outfit);
-    for (const m of model.casters) m.castShadow = true;
-    model.root.traverse((o) => {
+    for (const m of made.casters) m.castShadow = true;
+    made.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.castShadow = true;
     });
-    pivot.add(model.root);
-  };
+    return { model: made, rest: fresh };
+  }
 
   // THE LENS: eased toward the framing the card asks for, round him by the
   // drag.
@@ -363,6 +375,17 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       frame(now);
       renderer.compile(scene, camera);
     }
+    // The other kind's pair, built and compiled beside him, then put by.
+    if (!other) return;
+    const key = keyOf("gear", other, kit);
+    if (key === shown || kept.has(key)) return;
+    const made = make("gear", other, kit);
+    made.rest.poles = carriesPoles(kit);
+    pivot.add(made.model.root);
+    renderer.compile(scene, camera);
+    pivot.remove(made.model.root);
+    kept.set(key, made);
+    spares.add(key);
   };
 
   return {
@@ -391,8 +414,12 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       last = performance.now();
       raf = requestAnimationFrame(tick);
     },
+    spare: (spec) => {
+      other = spec;
+    },
     dispose: () => {
       cancelAnimationFrame(raf);
+      spares.clear();
       onUp();
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);

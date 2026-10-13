@@ -516,8 +516,8 @@ export function createTerrain(
   const span = { low: 0, high: 0 };
   /** The ground's heights over the plan [x0, x1] × [z0, z1], m, with a
    * furrow's depth under them and the loose cover over them — and, where
-   * the plan runs off the map, the rim's rise over the edge (`rimRise`,
-   * under 370 m). */
+   * the plan runs off the map, the rim's rise over and drop under the
+   * edge (`FAR_RIM_GLSL`, `uFarRimSpan`). */
   const heightsOver = (x0: number, z0: number, x1: number, z1: number): typeof span => {
     // The samples either side of each edge: the ground between two is
     // their blend, never outside them.
@@ -540,8 +540,9 @@ export function createTerrain(
       z0 < f.originZ ||
       x1 > f.originX + (f.cols - 1) * f.cell ||
       z1 > f.originZ + (f.rows - 1) * f.cell;
-    span.low -= 5;
-    span.high += off ? 380 : 5;
+    const rim = haze.uFarRimSpan.value;
+    span.low -= off ? 5 + rim.y : 5;
+    span.high += off ? 5 + rim.x : 5;
     return span;
   };
 

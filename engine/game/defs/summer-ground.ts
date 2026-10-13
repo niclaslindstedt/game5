@@ -29,8 +29,15 @@ export type SummerKind =
   | "rock"
   /** A snow patch left lying in July. */
   | "snow"
-  /** A bike trail's tread (laid by the bike park, `docs/bike-park.md`). */
+  /** A technical bike trail's tread of natural dirt, or the race line's
+   * (R44, R45, `bike-park.ts`). */
   | "trail"
+  /** A flow trail's machine-built tread of pale gravel fines (R44). */
+  | "flow"
+  /** A rock garden set in a trail's tread (R44). */
+  | "rocks"
+  /** Roots across a trail's tread (R44). */
+  | "roots"
   /** A cat track: the gravel service road a ski area's machines use. */
   | "road"
   /** The village's sealed streets and sidewalks. */
@@ -55,6 +62,9 @@ export const SUMMER_KINDS: readonly SummerKind[] = [
   "rock",
   "snow",
   "trail",
+  "flow",
+  "rocks",
+  "roots",
   "road",
   "street",
   "bog",
@@ -89,6 +99,12 @@ export const SURFACES = {
   loam: { grip: 1.05, slide: 0.82, roll: 0.065 },
   /** Loose gravel over hardpack: μ 0.5–0.7, sliding 0.45–0.55, Crr 0.03–0.05. */
   gravel: { grip: 0.6, slide: 0.5, roll: 0.04 },
+  /** A flow trail's packed gravel fines: crushed rock rolled firm over a
+   * hardpack bed — between loose gravel and hardpack (our estimate). */
+  fines: { grip: 0.75, slide: 0.6, roll: 0.035, estimate: true },
+  /** Roots across a tread: wet or dry, a slick ridge the tyre slides off
+   * across its grain (our estimate). */
+  roots: { grip: 0.45, slide: 0.35, roll: 0.04, estimate: true },
   /** Dry rock: μ 0.9–1.1, sliding 0.7–0.9, Crr 0.02–0.03. */
   rock: { grip: 1.0, slide: 0.8, roll: 0.025 },
   /** Scree: loose rock that rolls under the tyre — gravel's grip, worse. */
@@ -120,6 +136,9 @@ export const KIND_SURFACE: Readonly<Record<SummerKind, SurfaceId>> = {
   rock: "rock",
   snow: "snow",
   trail: "hardpack",
+  flow: "fines",
+  rocks: "rock",
+  roots: "roots",
   road: "gravel",
   street: "asphalt",
   bog: "mud",

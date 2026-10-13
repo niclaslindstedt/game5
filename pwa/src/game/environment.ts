@@ -20,8 +20,11 @@
 // the key's bearing, on while the SHADOWS row casts at all.
 
 import * as THREE from "three";
-import type { Heightfield } from "@engine";
+import type { Level } from "@engine";
 
+import { farFaceGrid } from "./far-faces.ts";
+import { createFarRanges, type FarRanges } from "./far-ranges.ts";
+import { FAR_TIER } from "./far-ranges-plan.ts";
 import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { horizonDip } from "./horizon.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
@@ -82,9 +85,12 @@ export type Environment = {
   setDistance(distance: DistanceLevel): void;
   /** The mist as a lens over the snow sees it (`view-aloft.ts`), every frame. */
   setAloft(look: Pick<AloftLook, "mist" | "aloft">): void;
-  /** The map's ground the mountain's shadow is baked off (null: none), and
-   * the key it is baked for first; resolves once that shade is drawn. */
-  setGround(ground: Heightfield | null, key: Dir | null): Promise<void>;
+  /** The map the mountain's shadow is baked off and the far ranges are
+   * raised round (null: none), and the key it is baked for first;
+   * resolves once that shade is drawn and the ranges stand. */
+  setGround(level: Level | null, key: Dir | null): Promise<void>;
+  /** THE FAR RANGES round the map (`far-ranges.ts`). */
+  far: FarRanges;
   /** Resolves once the mountain's shadow for the key last seen is drawn. */
   shadeSettled(): Promise<void>;
   /** Link every program the sun's shadow pass can ask for, now, behind the
@@ -210,6 +216,8 @@ export function createEnvironment(
   const dome = createSkyDome(haze, domeRadius);
   dome.mesh.name = "sky";
   scene.add(dome.mesh);
+  const ranges = createFarRanges(haze);
+  scene.add(ranges.group);
 
   const hemi = new THREE.HemisphereLight(0x88aaff, 0xffffff, 1);
   scene.add(hemi);
@@ -273,6 +281,7 @@ export function createEnvironment(
       haze.uFar.value.set(horizonDip(far), far);
       gpu.update(sky, camera);
       dome.update(sky, drift?.x ?? 0, drift?.z ?? 0);
+      ranges.update(sky);
       // The key is the sun by day and the moon by night (`sky.ts`).
       sun.color.setRGB(...sky.keyColour);
       sun.intensity = sky.keyIntensity;
@@ -316,14 +325,19 @@ export function createEnvironment(
     setDistance(next) {
       haze.uMist.value = mistFor(next);
       gpu.setTier(SKY_TIER[next]);
+      ranges.setTier(FAR_TIER[next]);
     },
     setAloft(look) {
       haze.uMist.value = look.mist;
       haze.uMistAloft.value = look.aloft;
     },
-    setGround(ground, key) {
+    far: ranges,
+    async setGround(level, key) {
+      const ground = level?.ground ?? null;
       gpu.setGround(ground);
-      return terrain.setGround(ground, key, sun.castShadow);
+      const shade = terrain.setGround(ground, key, sun.castShadow);
+      ranges.setLevel(level, key, level ? await farFaceGrid(level) : null);
+      await shade;
     },
     shadeSettled: () => terrain.settled(),
     warm(gl, scene, camera, span) {
@@ -334,6 +348,7 @@ export function createEnvironment(
       gpu.dispose();
       terrain.dispose();
       dome.dispose();
+      ranges.dispose();
       sun.shadow.map?.dispose();
     },
   };

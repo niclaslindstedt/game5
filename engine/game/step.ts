@@ -15,6 +15,7 @@
 // avalanches, on one that asked for them (`avalanche.ts`).
 
 import { drySummer, summerOf } from "./summer.ts";
+import { setBikePark } from "../mapgen/bike-park.ts";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
   PARK_VERSION,
@@ -492,6 +493,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.moguls?.base ??
     built.aerials?.base ??
     built.skiJump?.base ??
+    built.bikePark?.base ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; a FREESTYLE VENUE builds one of its own (R37).
@@ -522,7 +524,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // A REAL FACE is skied at its own place on the globe (`withPlace`): its
   // real latitude and longitude, its true north — the sky only; the
   // mountain is the one the seed built.
-  const placed = withPlace(course, course.face ? realFacePlace(course.face) : null);
+  // IN SUMMER the ski area is a BIKE PARK (R44, R45): its trails laid over
+  // the map off a stream of their own, so the map itself is not moved.
+  const parked = summerOf(options) ? setBikePark(course) : course;
+  const placed = withPlace(parked, parked.face ? realFacePlace(parked.face) : null);
   const dayed = options.day ? withDay(placed, options.day) : placed;
   const sky = options.sky ? withSky(dayed, options.sky) : dayed;
   const summer = summerOf(options);

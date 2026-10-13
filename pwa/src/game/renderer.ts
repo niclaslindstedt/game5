@@ -44,7 +44,7 @@ import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { aboardCraft } from "./camera-aboard.ts";
 import { figureShown } from "./camera-para.ts";
-import { goneUnder } from "./camera-buried.ts";
+import { goneUnder, lensGround } from "./camera-buried.ts";
 import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
@@ -476,7 +476,7 @@ export function createWorldRenderer(
     // A part of the scene at a time (`scene-compile.ts`), its trail maps' passes beside it.
     gl.setRenderTarget(picture.load(lv));
     // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
-    const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
+    const shade = env.setGround(lv, skyLookAt(skyLevel, state.t).key);
     const parts = compileByParts(gl, scene, lens.camera, () => mine === loads);
     await Promise.all([parts, compiled(gl, trail.compile(gl)), shade]);
     if (mine === loads) hero.render(gl, scene, [], null);
@@ -702,15 +702,15 @@ export function createWorldRenderer(
       rigPose.summit = summitShare(level, rigPose.x, rigPose.z);
       rigPose.ride = stepRideLook(rideMem, skier.lift, Math.min(dt, 0.1), state.tick < 3);
       if (liftCut(skier.lift)) lens.snap(); // cut to his carrier under the station's fade
-      // THE MACHINES (`machines.ts`): the helicopter's lens; the snowmobile's own ladder.
-      lens.aboard(aboardCraft(state)); // a machine's rung or his own
+      lens.aboard(aboardCraft(state)); // THE MACHINES (`machines.ts`): a craft's rung or his own
       const marks = stepped > 0 && TRAIL_LOOK[video.trails].stamp ? stamps : null;
       machines?.setPace(pace);
       machines?.frame(state, alpha, dt, simDt, d, lens.rung(), lens.flying(), marks);
       const own = machines?.ladder(rigPose, state, lens.camera.aspect);
       const under = goneUnder(state); // gone under an avalanche: nothing to draw
       player.model.setSkierVisible(!under && figureShown(lens.rung(), own, rigPose.airborne));
-      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), level.groundAt, boomClear, trunks, own);
+      const over = lensGround(state, level.groundAt); // over an avalanche's snow
+      const ladder = lens.frame(rigPose, Math.min(dt, 0.1), over, boomClear, trunks, own);
       hurt.update(state, player.model.skin());
       // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
       const allowed = !override && !watched && lens.rung() !== "orbit" && !wrecked(state);
@@ -719,7 +719,7 @@ export function createWorldRenderer(
         body,
         ladder,
         Math.min(dt / pace, 0.1), // its lens flies on the WALL clock
-        level.groundAt,
+        over,
         clear,
         () => lens.snap(),
       );

@@ -83,6 +83,12 @@ describe("the wingsuit's lenses in flight", () => {
     expect(down(high)).toBeGreaterThan(0.6);
   });
 
+  it("stays straight behind his heading when a crosswind carries him sideways", () => {
+    const l = wingsuitLens("chase", chute("freefall"), subject({ v: { x: 12, y: -13, z: 45 } }));
+    expect(Math.abs(l.eye.x - at.x)).toBeLessThan(0.05);
+    expect(l.eye.z).toBeLessThan(at.z - 2);
+  });
+
   it("closes in on him in a dive", () => {
     const reach = (l: LensPose): number =>
       Math.hypot(l.eye.x - at.x, l.eye.y - at.y, l.eye.z - at.z);

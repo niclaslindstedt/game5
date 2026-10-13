@@ -41,8 +41,8 @@ type P = { x: number; y: number; z: number };
  * (`ahead` m along his way and `down` m under him), and the field, deg. */
 export const SUIT_FLYER = {
   chase: { back: 3.6, up: 1.1, right: 0, ahead: 30, down: 2.5, fov: 60 },
-  far: { back: 9, up: 3.2, right: 0.8, ahead: 30, down: 3, fov: 54 },
-  high: { back: 6, up: 11, right: 1.5, ahead: 4, down: 3, fov: 56 },
+  far: { back: 9, up: 3.2, right: 0, ahead: 30, down: 3, fov: 54 },
+  high: { back: 6, up: 11, right: 0, ahead: 4, down: 3, fov: 56 },
   orbit: { radius: 6, up: 2.8, rate: 0.16, ahead: 1, down: 0.6, fov: 54 },
 } as const;
 /** THE DIVE: past a glide's airspeed (m/s, `from`) the booms close in on
@@ -70,9 +70,9 @@ export const SUIT_EXIT = {
  * hover, the exit's own lens off his side; off a ledge or a door, a lens
  * out in front of him and under his line, looking back up at him diving
  * off (`LAUNCH_LENS`) — held `hold` s, then flown round behind him into
- * the chase over `fly` s, so within two seconds the picture is where he
- * is going. */
-export const SUIT_LAUNCH = { hold: 0.6, fly: 1.3 } as const;
+ * the chase over `fly` s, so within a second and a quarter the picture is
+ * where he is going. */
+export const SUIT_LAUNCH = { hold: 0.35, fly: 0.8 } as const;
 /** The launch lens off a ledge or a door, m: `ahead` along his facing,
  * `right` off it, `up` over his middle (under it, negative), and the field. */
 export const LAUNCH_LENS = { ahead: 6, right: 3.2, up: -1.6, fov: 64 } as const;
@@ -87,7 +87,7 @@ const STEEP = { chase: 0.3, far: 0.55, high: 0.75, orbit: 0.75 } as const;
 const CLIMB = { chase: 0, far: 0, high: 0.6, orbit: 0.6 } as const;
 /** How long a change of rung is flown, s (the helicopter's ladder's own
  * pace, `camera-heli.ts`). */
-export const SUIT_HAND = 1.1;
+export const SUIT_HAND = 0.7;
 /** How far back down his body from his eyes his middle is, m. */
 const MID = 0.75;
 /** The snow kept under every lens, m. */
@@ -155,19 +155,14 @@ export function flightWay(heading: number, v: P): P {
  * flare's. */
 export const CHASE_TIP = { down: 0.55, up: 0.12 } as const;
 
-/** THE WAY THE BOOMS STAND BEHIND HIM: his way `d` with its climb or dive
- * held inside `CHASE_TIP`, across along his own course — his heading `h`
- * where he is falling too steeply to have one. */
+/** THE WAY THE BOOMS STAND BEHIND HIM: straight back along his heading
+ * `h` — the way his body points, never his course over the ground, which
+ * a crosswind carries off to one side of it — tipped by his way `d`'s
+ * climb or dive held inside `CHASE_TIP`. */
 export function chaseWay(d: P, h: number): P {
   const level = Math.hypot(d.x, d.z);
-  const k = Math.max(0, Math.min(1, level / 0.35));
-  let hx = Math.sin(h) * (1 - k) + (level > 1e-6 ? (d.x / level) * k : 0);
-  let hz = Math.cos(h) * (1 - k) + (level > 1e-6 ? (d.z / level) * k : 0);
-  const hn = Math.hypot(hx, hz) || 1;
-  hx /= hn;
-  hz /= hn;
   const tip = Math.max(-CHASE_TIP.down, Math.min(CHASE_TIP.up, Math.atan2(d.y, level)));
-  return { x: hx * Math.cos(tip), y: Math.sin(tip), z: hz * Math.cos(tip) };
+  return { x: Math.sin(h) * Math.cos(tip), y: Math.sin(tip), z: Math.cos(h) * Math.cos(tip) };
 }
 
 /** THE LENS ON `rung` for the flyer in flight (or stepping off), his way

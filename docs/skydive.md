@@ -14,10 +14,10 @@ The machine press (**Enter**, a double tap on touch) does the next thing, and th
 
 1. In the door: **JUMP**.
 2. Out of the door (after 1.5 s, the tail passed over) and in freefall: **OPEN** — the throw.
-3. Under the canopy: **CUT AWAY**.
+3. Under the canopy — or while it opens, or caught in a crown or on a lift: **CUT AWAY**, at any height.
 4. Cut away and still above the 600 m deck's handover height: **RESERVE** — the left hand pulls the metal handle.
 
-The reserve is never cut away: under it the press does nothing. A canopy not cut away is **released by itself** when his skis meet the snow under it.
+The reserve is cut away the same way, and with nothing after it he falls to the snow. A canopy not cut away is **released by itself** when his skis meet the snow under it.
 
 ## Out of another craft
 

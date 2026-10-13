@@ -86,5 +86,5 @@ export const CHUTE_STRINGS = {
   /* ── OPTIONS ▸ KEYS (menu-keys.tsx) ────────────────────────────────── */
   keysChuteTitle: "SKYDIVE",
   chuteKeysNote:
-    "Out of the plane the skydive's own keys above fly you — by default the skier's. In freefall the edge turns you, the lean forward tracks across the sky and back slides you back, the tuck dives head down. Under the canopy the edge is the toggles, the skid both brakes (a flare to land) and the lean the risers. The machine key jumps from the door, opens the canopy, then cuts it away, then pulls the reserve, which cannot be cut away; land on your skis and either lets go by itself.",
+    "Out of the plane the skydive's own keys above fly you — by default the skier's. In freefall the edge turns you, the lean forward tracks across the sky and back slides you back, the tuck dives head down. Under the canopy the edge is the toggles, the skid both brakes (a flare to land) and the lean the risers. The machine key jumps from the door, opens the canopy, then cuts it away, then pulls the reserve, which cuts away too; land on your skis and either lets go by itself.",
 };

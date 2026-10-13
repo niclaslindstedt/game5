@@ -43,7 +43,7 @@ import {
   type V3,
 } from "./dress-loft.ts";
 import { gauntletMouth, overSleeve } from "./dress-gloves.ts";
-import { cutFeet, cutPadsAndSocks, JERSEY, shortsOf, SHORTS_HEM } from "./dress-bike.ts";
+import { cutFeet, cutPadsAndSocks, JERSEY, SHORTS, shortsOf, SHORTS_HEM } from "./dress-bike.ts";
 import {
   gearOf,
   jacketOf,
@@ -225,7 +225,7 @@ const JACKET_CUT: Record<JacketId, JacketCut> = {
 
 /** The cut of a pair of pants: the ease over the thigh and at the hem, the
  * hem's radius over the boot, how far the seat drops. */
-type PantsCut = { ease: number; knee: number; hem: number; drop: number; square: number };
+export type PantsCut = { ease: number; knee: number; hem: number; drop: number; square: number };
 const PANTS_CUT: Record<PantsId, PantsCut> = {
   insulated: { ease: 0.024, knee: 0.022, hem: 0.088, drop: 0, square: 2.3 },
   race: { ease: 0.012, knee: 0.01, hem: 0.08, drop: 0, square: 2.2 },
@@ -436,7 +436,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const flare = (level: number) =>
     legs(level) + cut.hemFlare * Math.max(0, 1 - (level - cut.hem) / 0.15);
   // Clear of the pants wherever it hangs over them.
-  const pc = o.suit ? SUIT.pants : PANTS_CUT[o.pants];
+  const pc = o.suit ? SUIT.pants : o.bike ? SHORTS : PANTS_CUT[o.pants];
   // A woman's cut is TAILORED: taken in at the waist and let out over the
   // hips, where a man's hangs straight.
   const female = gearOf("body", o.body).female;
@@ -802,7 +802,7 @@ function cutJacket(loom: Loom, m: BodyMeasure, o: Outfit): void {
 
 function cutPants(loom: Loom, m: BodyMeasure, o: Outfit): void {
   const id = o.pants;
-  const cut = o.suit ? SUIT.pants : PANTS_CUT[id];
+  const cut = o.suit ? SUIT.pants : o.bike ? SHORTS : PANTS_CUT[id];
   const pd = o.suit ? suitPants(o) : o.bike ? RIDE_KIT.shorts : gearOf("pants", id);
   const line = trunkLine();
   const { frames: F, pose: P } = bindPose();

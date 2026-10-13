@@ -386,7 +386,12 @@ async function styled(id: "whip" | "table" | "footout"): Promise<Shot | null> {
   );
   if (best <= 0.55) return null;
   const st = rideStyleOf(s.bike!, s.level, s.t);
-  const lens = id === "footout" ? planted(s, 1.6, 4.2, 0.8, 50) : planted(s, -4.2, -3.2, 1.0, 50);
+  // The foot out from inside the turn, ahead of him; a trick from behind
+  // and beside.
+  const lens =
+    id === "footout"
+      ? planted(s, Math.sign(s.bike!.roll) * 2.4, 3.2, 0.5, 50)
+      : planted(s, -4.2, -3.2, 1.0, 50);
   return {
     state: s,
     lens,

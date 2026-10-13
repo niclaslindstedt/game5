@@ -74,7 +74,7 @@ const F = FREERIDE_LOOK;
  * swingarm, an orange coil and orange accents, gold stanchions on black
  * lowers, white decals. */
 export const FREERIDE_PAINT = {
-  frame: 0x0e6e78,
+  frame: 0x169ea0,
   arm: 0x16181b,
   accent: 0xff6a13,
   decal: 0xeef0ea,

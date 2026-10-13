@@ -149,7 +149,6 @@ import { readHudLayer } from "@niclaslindstedt/oss-game-framework/shots/shot-hud
 import { createShotRequest } from "./game/shot-request.ts";
 import { takeSnapshot, type HudSnapshot } from "./game/snapshot.ts";
 import { dealSeed, linkWorld, overLink, readParams, type MenuPage } from "./game/url-params.ts";
-import { setBikeLook } from "./game/bike-variant.ts";
 import { createPictureAuto } from "./game/picture-auto.ts";
 import { UpdateButton } from "./game/update-button.tsx";
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -165,11 +164,7 @@ const CARD_DUCK = 0.5;
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [params] = useState(() => {
-    const read = readParams(location.search);
-    if (read.bikeLook) setBikeLook(read.bikeLook);
-    return read;
-  });
+  const [params] = useState(() => readParams(location.search));
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
   const [hudLive] = useState(createHudLive);
   const [flashes, setFlashes] = useState<HudFlash[]>([]);

@@ -148,7 +148,8 @@ export function rideStyleOf(b: BikeState, level: Level, t: number): RideStyle {
     smooth(S.foot.lean[0], S.foot.lean[1], lean) *
     smooth(S.foot.over[0], S.foot.over[1], over) *
     pace;
-  // Roll right side down is a lean to the engine's +x: the +x foot inside.
+  // Roll right side down is a lean to the bike's +x: the +x foot
+  // (`skier-bike.ts`' feet[1], the pedal then up) is the inside one.
   out.foot = b.roll > 0 ? 1 : 0;
   return out;
 }

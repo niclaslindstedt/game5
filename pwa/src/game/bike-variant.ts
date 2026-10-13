@@ -25,8 +25,17 @@ export function bikeLookOf(value: unknown): BikeLook | null {
   return (BIKE_LOOKS as readonly string[]).includes(v) ? (v as BikeLook) : null;
 }
 
+/** The page's own link's word, read once as the module loads (the same
+ * `?bikelook=` `url-params.ts` parses), over the build's. */
+const linked =
+  typeof location === "undefined"
+    ? null
+    : bikeLookOf(new URLSearchParams(location.search).get("bikelook"));
+
 let look: BikeLook =
-  bikeLookOf((import.meta as { env?: Record<string, unknown> }).env?.VITE_BIKE_LOOK) ?? "trail";
+  linked ??
+  bikeLookOf((import.meta as { env?: Record<string, unknown> }).env?.VITE_BIKE_LOOK) ??
+  "trail";
 
 /** The look the bike is drawn in. */
 export const bikeLook = (): BikeLook => look;

@@ -89,7 +89,7 @@ export function underHim(p: V3, yaw: number, roll: number): V3 {
 export const FREERIDE = {
   kneesOut: 0.55,
   elbowsOut: 0.6,
-  hips: v(0, -0.06, -0.15),
+  hips: v(0, -0.035, -0.08),
   pitch: 0.1,
   nod: 0.12,
   /** Under the levers: his weight further back and down. */
@@ -101,7 +101,7 @@ export const FREERIDE = {
   /** His inside foot out of a slide, from the bottom bracket in the
    * bike's frame: out to the side, low over the dirt and ahead of the
    * cranks, the sole skimming it. */
-  foot: v(0.42, -0.24, 0.32),
+  foot: v(0.5, -0.2, 0.45),
 };
 
 /** THE KEY that lays the FREERIDER on the bike posed `pose`, riding it as

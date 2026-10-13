@@ -17,7 +17,7 @@
 // lays over them. Three-free, on the same loom.
 
 import type { BodyMeasure } from "./dress-body.ts";
-import type { JacketCut } from "./dress-garments.ts";
+import type { JacketCut, PantsCut } from "./dress-garments.ts";
 import { add, bindPose, dot, mul, rides, sub, type Loom, type Section } from "./dress-loft.ts";
 import { RIDE_KIT, type Outfit } from "./outfit.ts";
 
@@ -40,14 +40,19 @@ export const JERSEY: JacketCut = {
   drape: 0.95,
 };
 
-/** How far past the knee the shorts' hem falls, m along the leg. */
-export const SHORTS_HEM = 0.07;
+/** BAGGY SHORTS: roomy over the thigh, but cut for pedalling, never a
+ * park pant's dropped seat. */
+export const SHORTS: PantsCut = { ease: 0.026, knee: 0.024, hem: 0.1, drop: 0.015, square: 2.3 };
+
+/** How far past the knee the shorts' hem falls, m along the leg: to the
+ * kneecap's top, the pad's cap out under it. */
+export const SHORTS_HEM = 0.01;
 
 /** A pair of pants' leg `sections` cut off as shorts: everything past the
  * knee dropped, a wide hem `SHORTS_HEM` past it. `r` is the leg's radius
  * at the knee with the cut's ease. */
 export function shortsOf(sections: Section[], K: number, r: number): void {
-  const kept = sections.filter((q) => q.s <= K);
+  const kept = sections.filter((q) => q.s < K + SHORTS_HEM - 0.04);
   sections.length = 0;
   sections.push(
     ...kept,
@@ -174,8 +179,8 @@ export function cutPadsAndSocks(loom: Loom, m: BodyMeasure): void {
       round: 0.07,
       sections: [
         { s: K - 0.12, w: r0 - 0.002, f: r0 + 0.002, b: r0 - 0.004 },
-        { s: K - 0.09, w: r0 + 0.004, f: r0 + 0.012, b: r0 },
-        { s: K - 0.02, w: r0 + 0.008, f: r0 + 0.03, b: r0 },
+        { s: K - 0.06, w: r0 + 0.002, f: r0 + 0.008, b: r0 },
+        { s: K, w: r0 + 0.008, f: r0 + 0.03, b: r0 },
         { s: K + 0.05, w: r1 + 0.008, f: r1 + 0.036, b: r1 },
         { s: K + 0.14, w: r1 + 0.004, f: r1 + 0.018, b: r1 - 0.002 },
         { s: K + 0.18, w: r1, f: r1 + 0.006, b: r1 - 0.004 },
@@ -187,14 +192,14 @@ export function cutPadsAndSocks(loom: Loom, m: BodyMeasure): void {
       square: 2.5,
       fold: (sl, t) =>
         // Ribbed across the cap, a pad's sewn segments.
-        gap(t, FRONT) < 0.85 && sl > K - 0.07 && sl < K + 0.13
+        gap(t, FRONT) < 0.85 && sl > K - 0.03 && sl < K + 0.13
           ? 0.003 * Math.cos(((sl - K) / 0.045) * TAU)
           : 0,
       colour: (sl, t) => {
         if ((sl > K - 0.1 && sl < K - 0.08) || (sl > K + 0.15 && sl < K + 0.165)) {
           return pads.strap;
         }
-        return gap(t, FRONT) < 0.85 && sl > K - 0.07 && sl < K + 0.13 ? pads.cap : pads.main;
+        return gap(t, FRONT) < 0.85 && sl > K - 0.03 && sl < K + 0.13 ? pads.cap : pads.main;
       },
       cap: [false, false],
       among: [`thigh_${s}`, `shin_${s}`],

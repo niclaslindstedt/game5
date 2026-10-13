@@ -84,10 +84,16 @@ export function poseOf(input: SkierInput, c?: SkierState): TrickPose {
 }
 
 /** Whether the skier is grabbing this step: the trick button, on a run
- * that counts tricks, off the snow and still on his skis. */
+ * that counts tricks or lets him trick the mountain (a free ride), off
+ * the snow and still on his skis. */
 function posing(state: GameState, input: SkierInput): boolean {
   const c = state.skier;
-  return state.rules.tricks && input.trick === true && c.airborne && c.thrown === null;
+  return (
+    (state.rules.tricks || state.rules.stunts) &&
+    input.trick === true &&
+    c.airborne &&
+    c.thrown === null
+  );
 }
 
 const posed: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };

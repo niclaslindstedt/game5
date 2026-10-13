@@ -194,7 +194,7 @@ function loading(state: GameState): { x: number; z: number; speed: number; weigh
     const s = state.sled;
     return { x: s.x, z: s.z, speed: hypot(s.vx, s.vz), weight: K.trigger.sled };
   }
-  if (c.thrown || c.lift || c.tunnel || c.jib || c.airborne) return null;
+  if (c.thrown || c.lift || c.tunnel || c.jib || c.grind || c.airborne) return null;
   if (state.heli?.rider) return null;
   if (state.para && state.para.mode !== "dropped") return null;
   if (state.balloon?.aboard) return null;

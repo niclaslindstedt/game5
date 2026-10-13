@@ -60,6 +60,7 @@ const CAUSE_NAMES: Record<CrashCause, string> = {
   sled: "SNOWMOBILE",
   stake: "STAKES",
   chair: "CHAIRLIFTS",
+  cable: "LIFT CABLES",
   net: "NETS",
   maul: "THE GRIMBEAR",
   avalanche: "AVALANCHES",

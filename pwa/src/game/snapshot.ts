@@ -83,7 +83,7 @@ import { slopestyleOf, type SlopestyleHud } from "./slopestyle-run.ts";
 import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
 import { aerialsOf, type AerialsHud } from "./aerials-run.ts";
-import { comboTile, type TrickTile } from "./trick-tile.ts";
+import { comboTile, freeTile, type TrickTile } from "./trick-tile.ts";
 import {
   challengeRows,
   challengeTile,
@@ -322,6 +322,10 @@ export type HudSnapshot = {
   /** THE SCORE over the nose (`trick-tile.ts`), on a tricks run; null on
    * any other. */
   tricks: TrickTile | null;
+  /** ...and A FREE RIDE'S, where the mountain is tricked for its own sake:
+   * the points banked and the combo in hand, with no buzzer (`left` 0);
+   * null on any run that is not one. */
+  freeTricks: TrickTile | null;
   /** THE PISTE'S GRADE (R23): the colour on its signs, beside the gates. */
   grade: PisteGrade;
   /** THE COUNTRY the mountain is raised in (R21) — with the seed and the
@@ -808,6 +812,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     died: diedLine(state),
     injured: injuredLine(state),
     tricks: comboTile(state),
+    freeTricks: freeTile(state),
     grade: gradeOfLevel(state.level),
     region: regionOf(state.level).id,
     face: state.level.face ?? null,

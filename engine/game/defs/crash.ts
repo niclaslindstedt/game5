@@ -196,6 +196,10 @@ export const CRASH = {
     // An empty chair run into the backs of his legs on the unload ramp:
     // the legs swept out forward, down on his back and over onto a side.
     chair: { pitch: -0.6, side: 0.5, up: 0.5 },
+    // A carrier met on a lift's rope he was grinding (`cable.ts`): the
+    // skis taken out from under him, pitched over backward off the rope
+    // and dropped to the snow on a side.
+    cable: { pitch: -0.8, side: 0.6, up: 0.4 },
     // Into an A-net: the skis taken by the mesh and the body thrown on
     // into it, turned over toward it — it catches him low, so he barely
     // leaves the snow.

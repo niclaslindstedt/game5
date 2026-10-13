@@ -24,7 +24,8 @@
 
 import * as THREE from "three";
 
-import type { DressPart } from "./dress-loft.ts";
+import { pastBreak, type DressPart } from "./dress-loft.ts";
+import { BREAK } from "./skier-broken.ts";
 import { SKIER_BONES, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
 
@@ -38,7 +39,7 @@ export type ModelPart = DressPart & { flutter: number[] };
  * much of the force reaches it (a pack strapped tight takes little). */
 export const SPRING_BONES = [
   { name: "fx_pack", parent: "chest", length: 0.3, hz: 2.8, zeta: 0.4, most: 0.09, gain: 0.25 },
-  { name: "fx_coil", parent: "fx_pack", length: 0.16, hz: 2.0, zeta: 0.22, most: 0.32, gain: 0.6 },
+  { name: "fx_coil", parent: "chest", length: 0.16, hz: 2.0, zeta: 0.22, most: 0.32, gain: 0.6 },
   { name: "fx_tail", parent: "fx_coil", length: 0.3, hz: 1.3, zeta: 0.14, most: 0.85, gain: 1 },
 ] as const;
 export type SpringBone = (typeof SPRING_BONES)[number]["name"];
@@ -78,6 +79,39 @@ export function boneIndexOf(name: string): number {
   const base = name === "body" ? "pelvis" : name.replace("_lo_", "_");
   const i = SKIER_BONES.indexOf(base as SkierBone);
   return i >= 0 ? i : 0;
+}
+
+/** The arm bones a break can lie on, their index in the dressed skeleton,
+ * their lower half's and where along each the break is. */
+const ARM_CUTS = (["l", "r"] as const).flatMap((s) =>
+  (
+    [
+      [`upperarm_${s}`, BREAK.upper],
+      [`forearm_${s}`, BREAK.fore],
+    ] as const
+  ).map(([bone, at]) => ({
+    bone,
+    at,
+    i: SKIER_BONES.indexOf(bone as SkierBone),
+    lo: SKIER_BONES.indexOf(bone.replace("arm_", "arm_lo_") as SkierBone),
+  })),
+);
+
+/** PAST A BREAK: a vertex's share on an arm bone below where it would
+ * break moves to the bone below the break, as the code's dress does
+ * (`dress-loft.ts`'s `pastBreak`) — on a sound arm the two move as one,
+ * on a broken one the sleeve and the hand hang from the break rather than
+ * folding at the joint. */
+function splitAtBreaks(w: Map<number, number>, p: V3): void {
+  for (const { bone, at, i, lo } of ARM_CUTS) {
+    const share = w.get(i);
+    if (!share) continue;
+    const c = pastBreak(bone, at, p);
+    if (c <= 0) continue;
+    if (c >= 1) w.delete(i);
+    else w.set(i, share * (1 - c));
+    w.set(lo, (w.get(lo) ?? 0) + share * c);
+  }
 }
 
 const empty = (): ModelPart => ({
@@ -141,6 +175,7 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
         const j = joints[ji.getComponent(i, k)];
         w.set(j, (w.get(j) ?? 0) + wk);
       }
+      splitAtBreaks(w, at);
       const top = [...w].sort((a, b) => b[1] - a[1]).slice(0, 4);
       const sum = top.reduce((s, [, x]) => s + x, 0) || 1;
       for (let k = 0; k < 4; k++) {
@@ -203,11 +238,12 @@ export function createSprings(
   // arithmetic from the chest down.
   const chest = bind.chest;
   const offsets: V3[] = [];
-  let parentHead = chest.head;
+  const at = new Map<string, V3>([["chest", chest.head]]);
   for (const s of SPRING_BONES) {
+    const parentHead = at.get(s.parent) ?? chest.head;
     const d = sub(heads[s.name] ?? parentHead, parentHead);
     offsets.push(v3(dot(d, chest.x), dot(d, chest.y), dot(d, chest.z)));
-    parentHead = heads[s.name] ?? parentHead;
+    at.set(s.name, heads[s.name] ?? parentHead);
   }
   // Gravity as the chest is stood in the bind pose: the share of it the
   // springs hang against at rest, so the model's own drape is their zero.
@@ -233,7 +269,11 @@ export function createSprings(
   return {
     rest,
     step(frames, world, now) {
-      const dt = last < 0 ? 0 : Math.min(0.05, now - last);
+      // A clock that ran back (a restart, a replay sought) or leapt ahead
+      // (a card held, a cut) is no motion: the springs are let go.
+      const gap = last < 0 ? -1 : now - last;
+      if (gap < 0 || gap > 0.25) rest();
+      const dt = gap < 0 || gap > 0.25 ? 0 : Math.min(0.05, gap);
       last = now;
       // The pack's head in the world: its velocity and acceleration,
       // smoothed over a few frames (a frame's jitter is not a jolt).
@@ -263,8 +303,9 @@ export function createSprings(
       flow.copy(vel).negate().applyMatrix4(inv);
 
       const out: BoneFrame[] = [];
-      let parent: BoneFrame = frames.chest;
+      const posed = new Map<string, BoneFrame>([["chest", frames.chest]]);
       SPRING_BONES.forEach((s, i) => {
+        const parent = posed.get(s.parent) ?? frames.chest;
         const head = inFrame(parent, offsets[i]);
         const w = swings[i];
         if (dt > 1e-4) {
@@ -293,7 +334,7 @@ export function createSprings(
         const y2 = add(mul(parent.x, -sr), mul(y1, cr));
         const frame: BoneFrame = { head, x: x2, y: y2, z: z1, length: s.length };
         out.push(frame);
-        parent = frame;
+        posed.set(s.name, frame);
       });
       ax.set(flow.x, flow.y, flow.z);
       return { frames: out, flow: v3(ax.x, ax.y, ax.z) };

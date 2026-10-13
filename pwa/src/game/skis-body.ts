@@ -524,6 +524,7 @@ export function createSkisModel(
     },
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
       const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
+      figure.dressed.clock(run ? run.t : null); // the kit's cloth on the run's clock
       handDt = dt;
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;

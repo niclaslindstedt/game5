@@ -38,6 +38,7 @@ import { pairById, type SkierState, type TrickPose } from "@engine";
 import { loadModels } from "../game/skier-models.ts";
 import { gaitOf } from "../game/skier-pose.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/skis-body.ts";
+import type { BodyId } from "../game/outfit.ts";
 import { drawPath } from "./skier-path.ts";
 import { uprightSkier } from "../game/skier-somersault.ts";
 
@@ -82,6 +83,7 @@ const cell = Number(params.get("cell") ?? 260);
 const views = (params.get("views") ?? "back,back3,side,front3,front").split(",") as View[];
 /** `--wire`: the figure's wireframe laid over each cell, the snow left out. */
 const wire = params.has("wire");
+const body = params.get("body");
 
 /** Where each view's lens stands in the skier's heading frame — x to his
  * right, y up, z ahead — m from his centre, and its field. */
@@ -150,7 +152,11 @@ async function load(): Promise<void> {
   const spec = pairById(data.skis);
   // Slot 0 is the player: in his modelled kit where the build has it.
   const slot = data.slot % SLOT_DRESS.length;
-  model = createSkisModel(spec, pairStyle(spec, { ...SLOT_DRESS[slot], model: slot === 0 }), plain);
+  // `?body=guide`: the player in a body of the rider card (a modelled one,
+  // `player-model.ts`), the default kit's otherwise.
+  const dress = SLOT_DRESS[slot];
+  const outfit = slot === 0 && body ? { ...dress.outfit, body: body as BodyId } : dress.outfit;
+  model = createSkisModel(spec, pairStyle(spec, { ...dress, outfit, model: slot === 0 }), plain);
   model.root.traverse((o) => {
     if (o instanceof THREE.Mesh) o.castShadow = true;
   });

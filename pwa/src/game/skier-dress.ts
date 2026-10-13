@@ -15,7 +15,7 @@ import * as THREE from "three";
 
 import { dressOutfit } from "./dress.ts";
 import { bindPose, type DressPart } from "./dress-loft.ts";
-import { dealtOutfit, type Outfit } from "./outfit.ts";
+import { dealtOutfit, gearOf, type Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
@@ -43,6 +43,11 @@ export type Dressed = {
   /** The cloth's vertex colours, the bind pose's positions and its weights
    * — what a wound soaks red (`gore-view.ts`). */
   cloth: THREE.BufferGeometry;
+  /** The run's clock, s, the modelled kit's springs and flutter move on
+   * (`player-model.ts`) — `null` off a run (a card's stage), when they read
+   * the wall clock — so a lab's still, a replay's slow motion and a held
+   * pause show the cloth as the run had it. */
+  clock(t: number | null): void;
   dispose(): void;
 };
 
@@ -132,8 +137,15 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   SKIER_BONES.forEach((name, i) => setBone(bones[i], bind[name]));
   // The modelled kit's SPRING BONES after the rig's own, bound with the
   // chest's axes at their heads (`player-model.ts`).
-  const model = dress.model && dress.suit === undefined && !dress.bare ? playerModel() : null;
+  const model =
+    dress.model &&
+    gearOf("body", dress.outfit.body).model &&
+    dress.suit === undefined &&
+    !dress.bare
+      ? playerModel()
+      : null;
   const springs = model ? createSprings(bind, model.heads) : null;
+  let runClock: number | null = null;
   const fx = model
     ? SPRING_BONES.map((s) => {
         const b = new THREE.Bone();
@@ -202,7 +214,11 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     if (!springs) return;
-    const swung = springs.step(frames, group.matrixWorld, performance.now() / 1000);
+    const now = runClock ?? performance.now() / 1000;
+    // Stood up on the world's frame as it is now: a lab steps without
+    // drawing, and a frame left over from the last draw is no motion.
+    group.updateWorldMatrix(true, false);
+    const swung = springs.step(frames, group.matrixWorld, now);
     const torn = cut?.bones.get("chest");
     fx.forEach((b, i) => {
       setBone(b, swung.frames[i]);
@@ -212,7 +228,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     flutter.uFlow.value.set(swung.flow.x, swung.flow.y, swung.flow.z);
-    flutter.uFlTime.value = performance.now() / 1000;
+    flutter.uFlTime.value = now;
   };
 
   return {
@@ -226,6 +242,9 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     },
     last: () => lastFrames,
     cloth: geos[0],
+    clock(t) {
+      runClock = t;
+    },
     dispose() {
       for (const g of geos) g.dispose();
       for (const m of mats) m.dispose();

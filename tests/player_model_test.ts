@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import { bindPose } from "../pwa/src/game/dress-loft.ts";
 import { dressOutfit } from "../pwa/src/game/dress.ts";
-import { DEFAULT_OUTFIT } from "../pwa/src/game/outfit.ts";
+import { BODIES, DEFAULT_OUTFIT, dealtOutfit, gearOf } from "../pwa/src/game/outfit.ts";
 import {
   boneIndexOf,
   createSprings,
@@ -110,5 +110,18 @@ describe("the player's modelled kit", () => {
     for (let i = 0; i < 400; i++, t += 1 / 60) tailAt();
     const after = tailAt().y;
     expect(after.x * still.x + after.y * still.y + after.z * still.z).toBeGreaterThan(0.999);
+  });
+  it("hangs a broken arm from its break: the sleeve past it rides the bone below", async () => {
+    const m = await model;
+    const used = new Set([...m.cloth.skinIndex, ...m.hard.skinIndex]);
+    for (const b of ["upperarm_lo_l", "forearm_lo_l", "upperarm_lo_r", "forearm_lo_r"] as const)
+      expect(used.has(SKIER_BONES.indexOf(b)), b).toBe(true);
+  });
+
+  it("is worn only by its own body on the rider card, never dealt", () => {
+    const guide = BODIES.find((b) => b.model);
+    expect(guide?.id).toBe("guide");
+    for (let slot = 0; slot < 30; slot++)
+      expect(gearOf("body", dealtOutfit(slot, "medium").body).model).toBeFalsy();
   });
 });

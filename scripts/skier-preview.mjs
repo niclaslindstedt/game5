@@ -125,6 +125,11 @@ const args = parseArgs(
     },
     cell: { kind: "number", default: 260, help: "a cell's width, px" },
     code: { kind: "flag", default: false, help: "draw the code's figure, not the models" },
+    body: {
+      kind: "string",
+      default: "",
+      help: "the rider card's body the player is dressed as (guide: the modelled mountain guide); the default kit when left out",
+    },
     "no-poles": {
       kind: "flag",
       default: false,
@@ -200,7 +205,10 @@ const injuries = brokenWords.flatMap((w, i) =>
       ]
     : [],
 );
-const tag = (args.broken ? `-broken-${brokenWords.join("-")}` : "") + (args.wire ? "-wire" : "");
+const tag =
+  (args.body ? `-${args.body}` : "") +
+  (args.broken ? `-broken-${brokenWords.join("-")}` : "") +
+  (args.wire ? "-wire" : "");
 
 // ── Ski every move through the real engine ────────────────────────────────
 const S = await import(join(root, "tests/support/synthetic.ts"));
@@ -364,6 +372,7 @@ for (const job of jobs) {
     views: args.views,
     cell: String(args.cell),
     ...(args.wire ? { wire: "1" } : {}),
+    ...(args.body ? { body: args.body } : {}),
   }).toString();
   const t0 = Date.now();
   await page.goto(`${server.url}skier-preview.html?${query}`);

@@ -55,6 +55,7 @@ import {
   type Tier,
 } from "../game/settings-video.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
+import { DEFAULT_OUTFIT, type BodyId } from "../game/outfit.ts";
 import { wildGround } from "../game/wild-ground.ts";
 import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
 
@@ -100,6 +101,9 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
+// `?body=guide`: the player dressed as a body of the rider card (a modelled
+// one, `player-model.ts`), the default kit's otherwise.
+if (params.get("body")) renderer.dress({ ...DEFAULT_OUTFIT, body: params.get("body") as BodyId });
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
 /** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */

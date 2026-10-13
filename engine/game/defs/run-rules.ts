@@ -65,6 +65,11 @@ export type RunRules = {
    * stopped at one, the skier reaches for its lever and goes through. On a
    * FREE RIDE only; left out, every door stays shut. */
   doors?: boolean;
+  /** WHETHER A LIFT'S ROPES MAY BE GROUND (`cable.ts`): a skier come down
+   * onto one from above is put on it and slides it until he pops off, runs
+   * out of rope or a carrier takes him off it. On a FREE RIDE only; left
+   * out, the ropes are out of reach. */
+  cables?: boolean;
   /** WHETHER THE PISTE MACHINES WORK THE RUNS AT NIGHT (`groomer.ts`):
    * driven into, one is the player's to drive. On a FREE RIDE only. */
   groomer: boolean;

@@ -464,6 +464,11 @@ export function soundForEvent(
         },
       };
 
+    // A LIFT'S ROPE (`cable.ts`): the bases met by the steel — a rail's
+    // ring, pitched higher for a thin rope's — and softer as he leaves it.
+    case "grind":
+      return { id: "pole", shape: { gain: event.phase === "on" ? 1 : 0.5, pitch: 0.82 } };
+
     // A WIND TUNNEL'S MOUTH: sucked in, and let go at the far end
     // (`tunnel-voice.ts`'s two sweeps); the gale between is the bed's.
     case "tunnel":

@@ -76,6 +76,11 @@
 //    perfect one — a flip put down on the landing slope is worth more than
 //    one slammed onto the flat. A landing well sideways is neither.
 //
+// 8. A LIFT'S ROPE GROUND IS AN ELEMENT, AND IT PAYS BY THE SECOND
+//    (`cable.ts`, `CABLE.element`, `.perSecond`): the combo holds open on
+//    it as in the air, and a flight that comes down onto the rope lands its
+//    turns there — so pop, flip, and the rope again is one combo.
+//
 // The engine only ever says what happened: `trick`, `combo` and `bail`
 // events carry the beat a presentation pulses on, and `TrickState` carries
 // the numbers and the element list it reads. No word for any of it is here
@@ -85,6 +90,7 @@
 import { pipeHit } from "./pipe-air.ts";
 import { spinTag, takeOff } from "./board-tricks.ts";
 import type { SpinTag } from "./board-state.ts";
+import { CABLE } from "./defs/cable.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { harshShare } from "./damage.ts";
 import { hurtLanding } from "./hurt.ts";
@@ -368,6 +374,21 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
   }
   if (c.thrown !== null) return;
   if (!finished && (state.phase !== "racing" || state.progress.finished)) return;
+
+  // ON A LIFT'S ROPE (`cable.ts`, rule 8): come down onto it out of a
+  // flight, the flight's turns are landed there; the grind is an element
+  // the moment he is on, every second on it pays, and the combo stays open
+  // while he slides — so a pop, a trick and the rope again is ONE combo.
+  if (c.grind) {
+    if (k.inAir) {
+      turnsLanded(state, events);
+      endFlight(k);
+    }
+    if (c.grind.time === 0) win(state, events, "grind", 1, CABLE.element);
+    k.base += CABLE.perSecond * dt;
+    k.link = T.linkWindow;
+    return;
+  }
 
   if (c.airborne) {
     if (!k.inAir) {

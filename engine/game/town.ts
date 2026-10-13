@@ -96,7 +96,8 @@ function walksTown(run: GameState): boolean {
  * carrying him and on the snow: where his skis come off. */
 function onSkisInTown(run: GameState): boolean {
   const c = run.skier;
-  if (!walksTown(run) || c.thrown || c.fetch || c.town || c.lift || c.tunnel || c.jib) return false;
+  if (!walksTown(run) || c.thrown || c.fetch || c.town || c.lift || c.tunnel || c.jib || c.grind)
+    return false;
   if (c.airborne) return false;
   return onStreet(run.level, c.x, c.z);
 }

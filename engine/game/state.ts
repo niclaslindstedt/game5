@@ -43,9 +43,11 @@ export type { HeliControls, HeliMode, HeliPhaseEvent, HeliState } from "./heli-s
 export type { LoneSki, Thrown } from "./thrown-state.ts";
 export type { Amateur, AmateurMode, CrowdGroup, CrowdState } from "./crowd-state.ts";
 export type { LiftRide, TunnelRide } from "./ride-state.ts";
+import type { CableRide } from "./cable-state.ts";
 import type { JibRecord, JibRide } from "./jib-state.ts";
 import type { Revert } from "./switch.ts";
 export type { JibRecord, JibRide, JibStance } from "./jib-state.ts";
+export type { CableRide } from "./cable-state.ts";
 import type { FlightRecord } from "./flight-record.ts";
 export type { FlightRecord, PipeHit } from "./flight-record.ts";
 export type * from "./sled-state.ts";
@@ -341,6 +343,9 @@ export type SkierState = {
   /** THE JIB he is sliding (`jib.ts`), or null — on a map with rails and
    * boxes (R38). Left out, he is on none. */
   jib?: JibRide | null;
+  /** THE LIFT'S ROPE he is grinding (`cable.ts`), or null — on a free
+   * ride. Left out, he is on none. */
+  grind?: CableRide | null;
   /** THE CHAIR HE STOOD UP OFF, running on empty over the unload ramp to
    * the wheel at the terminal's speed (`lift-ride.ts`'s `emptyChairAt`):
    * the lift, how far up its line it let him go, m, and when, s (and which
@@ -439,9 +444,10 @@ export type Impact = {
  * - `backflip` / `frontflip` — a revolution tips over tails, either way;
  * - `spin` — a revolution about the skier's own up axis (the 360);
  * - `twist` — a flip and a spin both come round in ONE flight;
+ * - `grind` — a lift's rope come down onto and slid (`cable.ts`);
  * - the three GRABS (`TrickPose`), the skier's body held off the controls. */
 export type TrickKind =
-  "air" | "backflip" | "frontflip" | "spin" | "half" | "twist" | "landing" | TrickPose;
+  "air" | "backflip" | "frontflip" | "spin" | "half" | "twist" | "landing" | "grind" | TrickPose;
 
 /** THE SKIER'S GRABS, picked with the trick button held in the air by what
  * the lean and the edge say (`strokes.ts`'s `poseOf`): the DAFFY, one ski
@@ -749,6 +755,9 @@ export type GameEvent =
       phase: "on" | "off";
       whole: boolean;
     }
+  /** ON A LIFT'S ROPE (`cable.ts`) by the lift's id: come down onto it,
+   * or off it (popped, off its end, or thrown off by a carrier). */
+  | { kind: "grind"; t: number; id: string; phase: "on" | "off" }
   /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone,
    * taken by his carrier (a T-bar behind him, sat in his chair or cabin),
    * his carrier run over a tower's sheaves, or stood off it at the top. */

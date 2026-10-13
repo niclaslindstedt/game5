@@ -15,6 +15,7 @@
 
 import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
 import { altitudeAt, overBase } from "./altitude.ts";
+import { bikeOf, type HudBike } from "./bike-hud.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
 import { beaconRead, type BeaconRead } from "./beacon-read.ts";
@@ -341,6 +342,9 @@ export type HudSnapshot = {
   /** THE SNOWMOBILE (`sledOf`): its engine while he rides it, the way to it
    * while it waits for him, or null. */
   sled: HudSled | null;
+  /** THE DOWNHILL BIKE (`bike-hud.ts`): the trail while he rides it, the
+   * way back to it while he is off it on foot, or null. */
+  bike: HudBike | null;
   /** THE PISTE MACHINE (`groomerOf`): driven, or the nearest's way while
    * he is near one, or null. */
   groomer: HudGroomer | null;
@@ -818,6 +822,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     // machine on the snow calls him.
     heli: aloft ? null : heliOf(state),
     sled: aloft ? null : sledOf(state),
+    bike: aloft ? null : bikeOf(state),
     groomer: aloft ? null : groomerOf(state),
     para: paraOf(state),
     balloon: balloonOf(state),

@@ -16,6 +16,7 @@
 
 import { drySummer, summerOf } from "./summer.ts";
 import { setBikePark } from "../mapgen/bike-park.ts";
+import { nearestBikeHead } from "../mapgen/bike-park-query.ts";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
   PARK_VERSION,
@@ -618,7 +619,12 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const bike =
     summer && options.bike === true && !other && !options.inLodge && !(state.heli && options.heli);
   if (bike) {
-    state.bike = freshBikeRide(state, options.bikeTrail ?? null);
+    // On the trail asked for, else the one whose head is nearest the spot
+    // picked, else the park's easiest.
+    const near = options.spawn
+      ? nearestBikeHead(state.level, options.spawn.x, options.spawn.z)
+      : null;
+    state.bike = freshBikeRide(state, options.bikeTrail ?? near);
     startBike(state, []);
   }
   if (wingsuit) state.wingsuit = { from: craft ? "craft" : "cliff" };

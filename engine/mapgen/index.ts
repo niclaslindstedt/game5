@@ -51,6 +51,9 @@ export {
   hourOfTime,
   sunWindow,
   withDay,
+  withPlace,
+  seasonDay,
+  type GlobePlace,
   type TimeOfDay,
 } from "./sun.ts";
 export {

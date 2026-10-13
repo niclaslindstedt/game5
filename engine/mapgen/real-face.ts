@@ -54,13 +54,21 @@ export function realFaceRegion(id: string): RegionId | null {
 
 /** Where a face is: its RANGE (a key the start card names — a country's
  * code, or a range across borders), its AREA (the place its ski area is
- * known by), the PART of the area it is, and its latitude and longitude
- * (°). Null for an id no face has. */
-export function realFacePlace(
-  id: string,
-): { range: string; area: string; part: string; lat: number; lon: number } | null {
+ * known by), the PART of the area it is, its latitude and longitude (°) and
+ * the compass bearing its map's fall line runs to (°, clockwise from north
+ * — the map's true north). Null for an id no face has. */
+export function realFacePlace(id: string): {
+  range: string;
+  area: string;
+  part: string;
+  lat: number;
+  lon: number;
+  bearing: number;
+} | null {
   const f = FACE_INDEX.find((e) => e.id === id);
-  return f ? { range: f.range, area: f.area, part: f.part, lat: f.lat, lon: f.lon } : null;
+  return f
+    ? { range: f.range, area: f.area, part: f.part, lat: f.lat, lon: f.lon, bearing: f.bearing }
+    : null;
 }
 
 /** A face's WOODS BY HEIGHT, read off the forest the real map draws: the

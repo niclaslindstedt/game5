@@ -126,7 +126,11 @@ export function hourOfTime(latitude: number, dayOfYear: number, time: TimeOfDay)
   const doy = dayOfYearOf(dayOfYear);
   if (time === "night") {
     const set = daylightWindow(latitude, 0, declinationOf(doy));
-    return (set ? set.max : 12) + NIGHT_AFTER_SUNSET;
+    // Under the MIDNIGHT SUN (a sun that never sets) and in the POLAR NIGHT
+    // (one that never rises) there is no sunset to count from: NIGHT is
+    // midnight, the lowest the sun goes.
+    if (!set || set.max >= 24) return 24;
+    return set.max + NIGHT_AFTER_SUNSET;
   }
   const w = freeHours(latitude, doy);
   if (!w) return 12;
@@ -159,4 +163,60 @@ export function withDay<L extends { sun: { hour: number; dayOfYear: number; lati
   }
   if (hour === level.sun.hour && dayOfYear === level.sun.dayOfYear) return level;
   return { ...level, sun: { ...level.sun, hour, dayOfYear } };
+}
+
+/** HALF A YEAR, days: a season's day in the other hemisphere. */
+const HALF_YEAR = 182;
+
+/** THE DAY OF A SEASON at `latitude`: a season named by its northern day
+ * (`day`, a count off 1 January) is half a year on south of the equator,
+ * where deep winter is July. */
+export function seasonDay(day: number, latitude: number): number {
+  return latitude < 0 ? day + HALF_YEAR : day;
+}
+
+/** Where a map stands on the globe: latitude and longitude (°) and the
+ * compass bearing its fall line runs to (°, clockwise from north). */
+export type GlobePlace = { lat: number; lon: number; bearing: number };
+
+/** THE SAME MAP AT ITS REAL PLACE: a copy of `level` stood at `place` — a
+ * real face's latitude and longitude, and its true north as the face's
+ * bearing (`facing`) — and nothing else rebuilt. The generator deals a real
+ * face's day off its region's bands like any map's (what a seed BUILDS
+ * stays the digests'); a run is then created at the face's own place.
+ * Moved across the equator, the day moves half a year with it
+ * (`seasonDay`), so a map dealt a February is skied in the southern
+ * August; and the hour keeps its place in the day — the same share of the
+ * way from sunrise to sunset, or the same time after sunset on an evening
+ * map. Null leaves the map where it is; a map already there is returned. */
+export function withPlace<
+  L extends {
+    sun: { hour: number; dayOfYear: number; latitude: number; facing?: number; longitude?: number };
+  },
+>(level: L, place: GlobePlace | null): L {
+  if (!place) return level;
+  const facing = compass((place.bearing * Math.PI) / 180);
+  const sun = level.sun;
+  if (sun.latitude === place.lat && sun.longitude === place.lon && sun.facing === facing) {
+    return level;
+  }
+  const crossed = sun.latitude >= 0 !== place.lat >= 0;
+  const dayOfYear = crossed ? dayOfYearOf(sun.dayOfYear + HALF_YEAR) : sun.dayOfYear;
+  const was = daylightWindow(sun.latitude, 0, declinationOf(sun.dayOfYear));
+  const now = daylightWindow(place.lat, 0, declinationOf(dayOfYear));
+  let hour = sun.hour;
+  if (was && now && was.max < 24 && now.max < 24) {
+    if (hour >= was.min && hour <= was.max) {
+      const share = (hour - was.min) / Math.max(1e-6, was.max - was.min);
+      hour = now.min + share * (now.max - now.min);
+    } else if (hour > was.max) {
+      hour = now.max + (hour - was.max);
+    } else {
+      hour = now.min - (was.min - hour);
+    }
+  }
+  return {
+    ...level,
+    sun: { ...sun, latitude: place.lat, longitude: place.lon, facing, dayOfYear, hour },
+  };
 }

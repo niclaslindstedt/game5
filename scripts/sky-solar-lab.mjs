@@ -4,15 +4,20 @@
 // from the real one. Every row is a place and a date — the real faces'
 // own latitudes and longitudes (north and south of the equator, the far
 // north where the winter sun barely clears the ridge) and the generated
-// maps' dealt bands — and the game's sun (`sunAtRun`: the framework's
-// `core/solar` under the game's `declinationOf`, read at an APPARENT SOLAR
-// hour) is held against a reference (`scripts/lib/solar-reference.mjs`:
-// the NOAA arithmetic after Meeus, with refraction; the almanacs' low-
-// precision moon). Pure Node, seconds, deterministic.
+// maps' dealt bands — and the game's sky (`sunAtRun`, `moonAtRun`,
+// `sunWindowOf`: the framework's `core/solar` ephemeris on the map's date
+// in the sky's year, `SKY_YEAR`, read at an APPARENT SOLAR hour) is held
+// against a reference (`scripts/lib/solar-reference.mjs`: the NOAA
+// arithmetic after Meeus, with refraction; the almanacs' low-precision
+// moon). A real face's rows go through the game's own path: a map dealt
+// in its region's band, then stood at the face's place (`withPlace`, off
+// the generated index's latitude, longitude and bearing — and half a year
+// on south of the equator). Pure Node, seconds, deterministic.
 //
 // The columns:
 //
-//   decl     the sun's declination, the game's less the reference's, °
+//   decl     the sun's declination at the place's solar noon, the game's
+//            less the reference's, °
 //   eot      the equation of time that day, min — how far apparent solar
 //            noon stands off mean (clock) noon at the zone's meridian
 //   noon     the sun's height at solar noon, the reference's (refracted), °
@@ -20,14 +25,15 @@
 //            hours, against the reference's REFRACTED elevation, °
 //   dAz      the most its azimuth is off over the daylight hours, °
 //   rise/set the reference's sunrise and sunset, apparent solar hours
-//   dRise    the game's sunrise less the reference's, minutes (the game
-//            has no refraction and reads the centre, not the upper limb)
+//   dRise    the game's sunrise less the reference's, minutes (both the
+//            upper limb on the horizon, the refraction counted)
 //   day      the reference's day length, h
 //   civil    the reference's evening civil twilight (sunset to −6°), min,
 //            and the game's less it
 //   naut     the same to −12°, min
-//   moon     the most the game's moon is off in elevation over the night,
-//            given the moon's TRUE age that day (°), and the share lit
+//   moon     the most the game's moon is off in elevation over the day
+//            while it is up (°), the reference's share lit at the end of
+//            the day, and dLit the most the game's share lit is off
 //
 //   node scripts/sky-solar-lab.mjs
 //   node scripts/sky-solar-lab.mjs --json=previews/sky-solar-before.json
@@ -40,7 +46,6 @@ import process from "node:process";
 
 import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
-import { moonAt } from "@niclaslindstedt/oss-game-framework/core/solar";
 
 import {
   crossing,
@@ -59,18 +64,25 @@ const E = await import(join(root, "engine/index.ts"));
 const args = parseArgs(
   process.argv.slice(2),
   {
-    year: { kind: "number", default: 2026, help: "the civil year the dates are read in" },
+    year: {
+      kind: "number",
+      default: 0,
+      help: "the civil year the dates are read in (the game's SKY_YEAR)",
+    },
     json: { kind: "string", default: "", help: "write the table to this JSON file" },
     compare: { kind: "string", default: "", help: "a JSON table to print the change against" },
   },
   "usage: node scripts/sky-solar-lab.mjs [--year=2026] [--json=file] [--compare=file]",
 );
 
+const year = args.year || E.SKY_YEAR;
+if (year !== E.SKY_YEAR) console.log(`(the game's sky is dated in ${E.SKY_YEAR}, not ${year})`);
+
 /** A face's place by its id, off the crops (the one place a real face's
- * latitude and longitude are written). */
+ * latitude and longitude are written); the game reads it off the index. */
 const face = (id) => {
   const f = FACES.find((x) => x.id === id);
-  return { id, lat: f.lat, lon: f.lon };
+  return { id, lat: f.lat, lon: f.lon, face: id };
 };
 const southern = FACES.filter((f) => f.lat < 0).sort((a, b) => a.lat - b.lat)[0];
 const northmost = FACES.reduce((a, b) => (b.lat > a.lat ? b : a));
@@ -79,8 +91,9 @@ const PLACES = [
   face("continental-1"),
   face("maritime-1"),
   face("fell-1"),
-  { id: northmost.id, lat: northmost.lat, lon: northmost.lon },
-  { id: southern.id, lat: southern.lat, lon: southern.lon },
+  face(northmost.id),
+  face(southern.id),
+  face("maritime-23"),
   // The generated maps: a band's edge each (R15, R21) on the zone meridian.
   { id: "gen-alpine-44", lat: 44, lon: 15 },
   { id: "gen-fell-69", lat: 69, lon: 15 },
@@ -116,72 +129,87 @@ const angDiff = (a, b) => {
   return d - 180;
 };
 
-/** The game's sun on a day at a latitude at a solar hour: elevation and
- * compass azimuth, °. */
-function gameSun(hour, doy, lat) {
-  const at = E.sunAtRun({ sun: { hour, dayOfYear: doy, latitude: lat } });
-  return { el: deg(at.elevation), az: ((deg(at.azimuth) % 360) + 360) % 360 };
+/** THE GAME'S MAP OF A PLACE ON A DAY: a generated one's sun at the
+ * place's latitude and longitude; a real face's dealt in the north and
+ * stood at its place by the game (`withPlace`, which moves a southern
+ * face's day half a year on — so it is dealt half a year back). */
+function gameLevel(p, doy) {
+  if (!p.face) return { sun: { hour: 12, dayOfYear: doy, latitude: p.lat, longitude: p.lon } };
+  const dealt = p.lat < 0 ? E.dayOfYearOf(doy - 182) : doy;
+  const level = { sun: { hour: 12, dayOfYear: dealt, latitude: 45 } };
+  const placed = E.withPlace(level, E.realFacePlace(p.face));
+  if (placed.sun.dayOfYear !== doy)
+    throw new Error(`${p.id}: placed on day ${placed.sun.dayOfYear}`);
+  return placed;
 }
 
-function gameCrossing(doy, lat, depth, rising) {
-  const step = 1 / 60;
-  const from = rising ? 0 : 12;
-  let was = gameSun(from, doy, lat).el - depth;
-  for (let h = from + step; h <= from + 12 + 1e-9; h += step) {
-    const now = gameSun(h, doy, lat).el - depth;
-    if ((rising && was < 0 && now >= 0) || (!rising && was > 0 && now <= 0))
-      return h - step + (was / (was - now)) * step;
-    was = now;
-  }
-  return null;
+/** The game's sun over `level` at a solar hour: apparent elevation and
+ * compass azimuth (the face's true north put back), °. */
+function gameSun(level, hour) {
+  const at = E.sunAtRun({ sun: { ...level.sun, hour } });
+  const az = deg(at.azimuth + (level.sun.facing ?? 0));
+  return { el: deg(at.elevation), az: ((az % 360) + 360) % 360 };
+}
+
+/** The game's crossing of a depth (° true; sunrise its upper limb), solar
+ * hours, off its own windows. */
+function gameCrossing(level, depth, rising) {
+  const w = depth === "rise" ? E.sunWindowOf(level) : E.sunWindowOf(level, (depth * Math.PI) / 180);
+  if (!w || w.min <= 0 || w.max >= 24) return null;
+  return rising ? w.min : w.max;
 }
 
 const rows = [];
 for (const p of PLACES) {
   const dates = p.lat < 0 ? SOUTH_DATES : NORTH_DATES;
   for (const [m, d] of dates) {
-    const jd0 = julianDay(args.year, m, d);
-    const doy = dayOfYear(args.year, m, d);
-    const { decl, eot } = sunCoords(jd0 + 0.5);
-    const gameDecl = E.declinationOf(doy);
+    const jd0 = julianDay(year, m, d);
+    const doy = dayOfYear(year, m, d);
+    const { eot } = sunCoords(jd0 + 0.5);
+    const level = gameLevel(p, doy);
+    const gameDecl = E.sunAtRun(level).declination;
     const noon = sunAtSolar(jd0, 12, p.lat, p.lon);
     let dEl = 0;
     let dAz = 0;
     for (let h = 0; h < 24; h += 0.25) {
       const ref = sunAtSolar(jd0, h, p.lat, p.lon);
       if (ref.seen < -18) continue;
-      const g = gameSun(h, doy, p.lat);
+      const g = gameSun(level, h);
       if (Math.abs(g.el - ref.seen) > Math.abs(dEl)) dEl = g.el - ref.seen;
       if (ref.seen > 0 && Math.abs(angDiff(g.az, ref.az)) > Math.abs(dAz))
         dAz = angDiff(g.az, ref.az);
     }
     const rise = crossing(jd0, p.lat, p.lon, -0.833, true);
     const set = crossing(jd0, p.lat, p.lon, -0.833, false);
-    const gRise = gameCrossing(doy, p.lat, 0, true);
+    const gRise = gameCrossing(level, "rise", true);
     const civil = crossing(jd0, p.lat, p.lon, -6, false);
     const naut = crossing(jd0, p.lat, p.lon, -12, false);
-    const gSet = gameCrossing(doy, p.lat, 0, false);
-    const gCivil = gameCrossing(doy, p.lat, -6, false);
-    const gNaut = gameCrossing(doy, p.lat, -12, false);
+    const gSet = gameCrossing(level, "rise", false);
+    const gCivil = gameCrossing(level, -6, false);
+    const gNaut = gameCrossing(level, -12, false);
     const span = (a, b) => (a === null || b === null ? null : (b - a) * 60);
     const refCivil = span(set, civil);
     const refNaut = span(set, naut);
-    // The moon over the night: the game's model handed the TRUE age.
+    // The moon through the day, while it is up: the game's own moon on its
+    // own date.
     let dMoon = 0;
     let lit = 0;
+    let dLit = 0;
     for (let h = 0; h < 24; h += 0.5) {
       const utc = h - p.lon / 15 - eot / 60;
       const ref = moonAtUtc(jd0, utc, p.lat, p.lon);
       lit = ref.lit;
-      if (ref.el < 0 && ref.el < -5) continue;
-      const g = moonAt(h, p.lat, gameDecl, ref.age);
+      const g = E.moonAtRun({ sun: { ...level.sun, hour: h } });
+      if (Math.abs(g.lit - ref.lit) > Math.abs(dLit)) dLit = g.lit - ref.lit;
+      if (ref.el < -5) continue;
       const ge = deg(g.elevation);
       if (Math.abs(ge - ref.el) > Math.abs(dMoon)) dMoon = ge - ref.el;
     }
     rows.push({
       id: `${p.id} ${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
       lat: r2(p.lat),
-      decl: r2(gameDecl - decl),
+      // At the same instant: the place's solar noon.
+      decl: r2(gameDecl - noon.decl),
       eot: r1(eot),
       noon: r1(noon.seen),
       dEl: r2(dEl),
@@ -198,6 +226,7 @@ for (const p of PLACES) {
         refNaut === null || span(gSet, gNaut) === null ? null : r1(span(gSet, gNaut) - refNaut),
       moon: r1(dMoon),
       lit: r2(lit),
+      dLit: r2(dLit),
     });
   }
 }
@@ -224,9 +253,10 @@ const worst = (k) => rows.reduce((a, r) => Math.max(a, Math.abs(r[k] ?? 0)), 0);
 console.log(
   `\nworst: decl ${worst("decl")}°, elevation ${worst("dEl")}°, azimuth ${worst("dAz")}°, ` +
     `sunrise ${worst("dRise")} min, civil twilight ${worst("dCivil")} min, ` +
-    `moon ${worst("moon")}°; |equation of time| up to ${worst("eot")} min`,
+    `naut ${worst("dNaut")} min, moon ${worst("moon")}° (lit ${worst("dLit")}); ` +
+    `|equation of time| up to ${worst("eot")} min`,
 );
 if (args.json) {
-  writeFileSync(args.json, JSON.stringify({ year: args.year, rows }, null, 2));
+  writeFileSync(args.json, JSON.stringify({ year, rows }, null, 2));
   console.log(`wrote ${args.json}`);
 }

@@ -106,6 +106,9 @@ export function writeFaceIndex(faces, grid) {
     "   * neighbour to neighbour off it. */",
     "  readonly lat: number;",
     "  readonly lon: number;",
+    "  /** The compass bearing its map's +z — the fall line — runs to, ° clockwise",
+    "   * from north: the map's own true north, which the sky is turned by. */",
+    "  readonly bearing: number;",
     "};",
     "",
     `/** The grid's samples a side and their spacing, m, and a height's step, m. */`,
@@ -115,7 +118,7 @@ export function writeFaceIndex(faces, grid) {
     ...faces.flatMap((f) => {
       const lat = Math.round(f.lat * 100) / 100;
       const lon = Math.round(f.lon * 100) / 100;
-      const one = `  { id: "${f.id}", region: "${f.region}", range: "${f.range}", area: "${f.area}", part: "${f.part}", lat: ${lat}, lon: ${lon} },`;
+      const one = `  { id: "${f.id}", region: "${f.region}", range: "${f.range}", area: "${f.area}", part: "${f.part}", lat: ${lat}, lon: ${lon}, bearing: ${f.bearing} },`;
       // As the formatter lays a row too long for one line.
       return one.length <= 100
         ? [one]
@@ -128,6 +131,7 @@ export function writeFaceIndex(faces, grid) {
             `    part: "${f.part}",`,
             `    lat: ${lat},`,
             `    lon: ${lon},`,
+            `    bearing: ${f.bearing},`,
             "  },",
           ];
     }),

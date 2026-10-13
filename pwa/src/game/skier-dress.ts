@@ -21,6 +21,7 @@ import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier
 import type { Collapse } from "./gore-cut.ts";
 import { suitDress } from "./wingsuit-dress.ts";
 import type { RiderId } from "@engine";
+import { createRetroDressed, retroReady } from "./retro-model.ts";
 
 export type Dressed = {
   /** What the figure's group carries: the bones and the two meshes. */
@@ -106,6 +107,15 @@ function setBone(bone: THREE.Bone, f: BoneFrame): void {
 
 /** THE SKIER IN HIS OUTFIT, skinned and ready to pose. */
 export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
+  // The retro LOOK is the Blender model; the code's cut cloth still goes
+  // with it, for what a wound reads off a skin (`gore-view.ts`).
+  if (retroReady(dress)) {
+    const cloth = geometryOf(
+      dressOutfit(dress.outfit, dress.tone, dress.bare).cloth,
+      !!dress.ghost,
+    );
+    return createRetroDressed(dress, wrap, cloth);
+  }
   const group = new THREE.Group();
   group.name = "dressed";
   const bones = SKIER_BONES.map((name) => {

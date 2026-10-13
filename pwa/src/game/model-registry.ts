@@ -160,6 +160,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
   },
   {
+    asset: "Retro skier",
+    ids: ["retro-magenta", "retro-canary", "retro-cobalt"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts"],
+    drawnBy: "pwa/src/game/retro-model.ts",
+    blender: {
+      builder: "scripts/blender/retro.py",
+      files: ["retro.glb"],
+      pattern: "retro.glb",
+      switch: "VITE_MODEL_RIDER",
+    },
+    note:
+      "the RIDER card's eighties LOOK: a one-piece, a knit bobble hat, a long scarf and mirrored " +
+      "shades, bound on the game's rig in the dressed skin's bind pose so every pose drives it, " +
+      "recoloured per colourway by material name; the scarf's tails and the bobble are bones " +
+      "the game swings in the wind (`retro-wind.ts`). Switched off, the code's dressed skin",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

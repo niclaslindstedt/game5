@@ -19,6 +19,7 @@
 //     a race on the map built off `seed`, `t` seconds of it already ridden
 //     by the bot, held still once drawn so nothing moves under the shutter.
 //   ?paused=1        ...held under the pause card instead.
+//   ?look=<look>    the rider's LOOK for the visit (--look).
 //   ?camera=<rung>   the run's camera: tips, helmet, chase, far, high.
 //   ?mode=tricks     ...or a TRICKS run on the seed's trick field (--tricks).
 //   ?mode=downhill   ...or a DOWNHILL's training run (--downhill; with
@@ -624,6 +625,10 @@ const args = parseArgs(
       help: "seconds into the race, or a riding surface (overrides the scene's own)",
     },
     camera: { kind: "string", help: "tips, helmet, chase, far, high" },
+    look: {
+      kind: "string",
+      help: "the rider's LOOK (modern, retro-magenta, retro-canary, retro-cobalt)",
+    },
     pose: {
       kind: "string",
       help: "stand the player's skis at x,z,heading,speed (m, m, rad, m/s) once the pre-roll is ridden (?pose=)",
@@ -889,6 +894,7 @@ if (args.surface) {
     if (args.video !== undefined) params.video = String(args.video);
     if (args.update) params.update = "1";
     if (args.camera !== undefined) params.camera = String(args.camera);
+    if (args.look !== undefined) params.look = String(args.look);
     if (args["no-poles"]) params.poles = "0";
     // A surface that rides a run (`free`) is held at `--t` when given, under
     // `--hour`, and stood at `--pose` — a spot on the map, which a free
@@ -912,6 +918,7 @@ if (args.surface) {
             `${params.weather !== undefined ? `-${args.weather}` : ""}` +
             `${params.hour !== undefined ? `-h${args.hour}` : ""}${params.pose !== undefined ? "-posed" : ""}` +
             `${args.camera !== undefined ? `-${args.camera}` : ""}` +
+            `${args.look !== undefined ? `-${args.look}` : ""}` +
             `${params.hold !== undefined ? `-hold${hold}-${args.move}-${args["hold-for"]}` : ""}`,
           params,
           v,
@@ -948,6 +955,7 @@ if (args.surface) {
           shot: "1",
         };
         if (args.camera !== undefined) params.camera = String(args.camera);
+        if (args.look !== undefined) params.look = String(args.look);
         if (args.video !== undefined) params.video = String(args.video);
         if (args.update) params.update = "1";
         if (sky !== undefined) params.weather = sky;
@@ -980,6 +988,7 @@ if (args.surface) {
           `${args.grade !== undefined ? `-${args.grade}` : ""}` +
           `${args.t !== undefined ? `-t${args.t}` : ""}` +
           `${args.camera !== undefined ? `-${args.camera}` : ""}` +
+          `${args.look !== undefined ? `-${args.look}` : ""}` +
           `${args.video !== undefined ? `-${args.video}` : ""}${args.update ? "-update" : ""}` +
           `${args["no-poles"] ? "-nopoles" : ""}` +
           `${args.pose !== undefined ? "-posed" : ""}${hold !== undefined ? `-hold${hold}-${args.move}` : ""}`;

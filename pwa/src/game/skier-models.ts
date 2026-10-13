@@ -45,6 +45,7 @@ import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
 import type { Stand } from "./ski-stand.ts";
+import { loadRetroModel } from "./retro-model.ts";
 
 /** The build's environment — Vite's, where this runs in the app; none
  * where the suite reads the module (the root program knows no Vite). */
@@ -171,6 +172,8 @@ export function loadModels(): Promise<void> {
       );
     }
   }
+  // The retro skier, worn when the RIDER card's LOOK is an eighties one.
+  jobs.push(loadRetroModel());
   loading = Promise.all(jobs).then(() => undefined);
   return loading;
 }

@@ -116,6 +116,7 @@ import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
+import { retroOf } from "./retro-model.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
@@ -434,10 +435,15 @@ export function createSkisModel(
   };
   // Hung after the merge, so it stays out of the one draw: a lamp of its
   // own, on whichever helmet he wears.
-  const lamp = buildHeadlamp(figure.head, mat, (g) => {
-    geos.push(g);
-    return g;
-  });
+  const lamp = buildHeadlamp(
+    figure.head,
+    mat,
+    (g) => {
+      geos.push(g);
+      return g;
+    },
+    retroOf(style.skier.outfit.look) !== null,
+  );
 
   // IN A WINGSUIT: no skis, boots or poles; the wings lofted (`wingsuit-figure.ts`).
   const suit = style.skier.suit;

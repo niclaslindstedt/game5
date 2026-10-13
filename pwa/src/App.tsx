@@ -190,6 +190,8 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
     if (params.page === "dev") s.developer = true;
+    if (params.look)
+      s.outfit = { ...s.outfit, look: params.look === "modern" ? undefined : params.look };
     return params.camera ? { ...s, camera: params.camera, craftCamera: params.camera } : s;
   });
   /** Which page of the front door is up. */

@@ -20,7 +20,7 @@ const cut = new Map<string, DressMesh>();
 
 /** The key an outfit (and a skin's tone) is kept under. */
 export const outfitKey = (o: Outfit, tone?: number): string =>
-  `${GEAR_SLOTS.map((s) => o[s]).join(".")}${o.suit ? ".suit" : ""}:${tone ?? ""}`;
+  `${GEAR_SLOTS.map((s) => o[s]).join(".")}${o.suit ? ".suit" : ""}${o.look && o.look !== "modern" ? `.${o.look}` : ""}:${tone ?? ""}`;
 
 /** THE SKIER IN AN OUTFIT, as the two meshes he is drawn in (shared: never
  * written to). */

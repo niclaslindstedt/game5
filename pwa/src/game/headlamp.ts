@@ -116,12 +116,14 @@ const toEye = new THREE.Vector3();
  * THE LAMP, strapped to the helmet on `head` (the head's frame: z forward,
  * y up). `mat` makes (and keeps) a material, `keep` every geometry made,
  * for the caller to dispose. Never merged into the skier's one draw: its
- * lens is a lamp, not paint.
+ * lens is a lamp, not paint. `nightOnly`: the band and housing drawn only
+ * once it is lit (a rider in a knit hat, `retro-model.ts`, wears none by day).
  */
 export function buildHeadlamp(
   head: THREE.Object3D,
   mat: (params: THREE.MeshStandardMaterialParameters, name: string) => THREE.Material,
   keep: <G extends THREE.BufferGeometry>(g: G) => G,
+  nightOnly = false,
 ): Headlamp {
   const housing = mat({ color: 0x1b1d21, roughness: 0.6, metalness: 0.1 }, "headlamp");
   const lens = mat(
@@ -142,8 +144,14 @@ export function buildHeadlamp(
       .translate((side * HOUSING.apart) / 2, y, front + 0.001),
   );
   const strapped = [band(MOUNT.band[0], MOUNT.band[1], MOUNT.lift), box];
-  head.add(new THREE.Mesh(keep(mergeGeometries(strapped)!), housing));
-  head.add(new THREE.Mesh(keep(mergeGeometries(discs)!), lens));
+  const worn = [
+    new THREE.Mesh(keep(mergeGeometries(strapped)!), housing),
+    new THREE.Mesh(keep(mergeGeometries(discs)!), lens),
+  ];
+  for (const m of worn) {
+    m.visible = !nightOnly;
+    head.add(m);
+  }
   for (const g of [...strapped, ...discs]) g.dispose();
 
   // THE BEAM leaves the lens tipped down by the dip; the halo stands a
@@ -178,6 +186,7 @@ export function buildHeadlamp(
       way.set(0, 0, 1).transformDirection(anchor.matrixWorld);
       const on = Math.min(1, Math.max(0, level));
       lens.emissiveIntensity = LIT.day + LIT.night * on;
+      if (nightOnly) for (const m of worn) m.visible = on > 0.05;
       // Seen from ahead it blazes; from beside, less; from behind, not at all.
       const facing = way.dot(toEye.subVectors(eye, at).normalize());
       const o = on * THREE.MathUtils.smoothstep(facing, -0.1, 0.7);

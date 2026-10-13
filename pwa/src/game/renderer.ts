@@ -126,6 +126,7 @@ import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
+import { setRetroClock } from "./retro-model.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
@@ -569,6 +570,7 @@ export function createWorldRenderer(
     draw(state: GameState, alpha: number, dt: number, present = true) {
       if (!level || state.level !== level || !terrain || !trail || !spray || !cloud) return;
       const opened = performance.now();
+      setRetroClock(state.t);
       const runs = runsOf(state);
       field = state.rivals;
       suited = !!state.wingsuit;

@@ -52,6 +52,7 @@
 import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
 
 import type { BuildShape } from "./dress-body.ts";
+import { RETRO_COLOURWAYS } from "./retro-look.ts";
 
 export type BodyId = "man" | "woman";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
@@ -72,8 +73,12 @@ export type Outfit = {
    * suit in the jacket's own colours, the helmet painted to match. Never a
    * slot of the DRESS card — the ski jump puts it on him. */
   suit?: boolean;
+  /** THE LOOK he is drawn in: absent the kit the rows pick, cut in code;
+   * an eighties colourway (`retro-look.ts`, `retro-<id>`) the modelled
+   * retro skier in its colours (`retro-model.ts`). Presentation only. */
+  look?: string;
 };
-export type GearSlot = Exclude<keyof Outfit, "suit">;
+export type GearSlot = Exclude<keyof Outfit, "suit" | "look">;
 
 /** A BUILD: its name and its shape (`dress-body.ts`' `builtTo`) — the
  * GIRTH, the body's breadth and depth as a share of the medium build's at
@@ -392,6 +397,9 @@ export function gearOf<S extends GearSlot>(slot: S, id: string): (typeof GEAR)[S
   return (list.find((g) => g.id === id) ?? list[0]) as (typeof GEAR)[S][number];
 }
 
+/** Every LOOK the RIDER card offers, the modern kit first. */
+export const LOOKS: readonly string[] = ["modern", ...RETRO_COLOURWAYS.map((c) => `retro-${c.id}`)];
+
 /** An outfit read off anything stored: every slot a known id, the default
  * kit's where it is not. */
 export function outfitOf(blob: unknown): Outfit {
@@ -404,6 +412,7 @@ export function outfitOf(blob: unknown): Outfit {
       (out as Record<GearSlot, string>)[slot] = id;
     }
   }
+  if (typeof o.look === "string" && LOOKS.includes(o.look)) out.look = o.look;
   return out;
 }
 

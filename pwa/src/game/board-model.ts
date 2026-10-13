@@ -71,6 +71,7 @@ import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead } from "./skier-flight.ts";
 import type { SkisModel, SkiStyle, SledStand, SnowGround } from "./skis-body.ts";
 import type { V3 } from "./skier-vec.ts";
+import { retroOf } from "./retro-model.ts";
 
 /** How long the figure takes to step from the riding pose into the town's,
  * or back, s — about a beat of the town's own steps. */
@@ -185,7 +186,7 @@ export function createBoardModel(
     parts,
     mat({ vertexColors: true, roughness: 0.55, metalness: 0.05 }, "skis-merged"),
   );
-  const lamp = buildHeadlamp(figure.head, mat, keep);
+  const lamp = buildHeadlamp(figure.head, mat, keep, retroOf(style.skier.outfit.look) !== null);
 
   let goreLost = 0;
   let goreCrush = 0;

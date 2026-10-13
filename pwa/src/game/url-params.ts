@@ -50,6 +50,8 @@
 //                   screenshot's shutter.
 //   ?paused=1       ...or held under the pause card.
 //   ?camera=<rung>  the run's camera (tips, helmet, chase, far, high).
+//   ?look=<look>    the RIDER card's LOOK for this visit (modern, retro-magenta,
+//                   retro-canary, retro-cobalt — `outfit.ts`'s `LOOKS`).
 //   ?skis=<id>      the player's pair for this visit (chamois, swift,
 //                   chough, falcon, eagle, wolverine, peregrine, marmot,
 //                   hare, raven, ibex, kestrel — or lynx, the snowboard,
@@ -205,6 +207,7 @@ import { isHoldMove, type HoldMove } from "./hold-input.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { RUN_CAMERAS } from "./settings.ts";
 import { readPicture, TIERS, type Tier, type VideoSettings } from "./settings-video.ts";
+import { LOOKS } from "./outfit.ts";
 
 /** The developer's pages (`menu-dev.tsx`). */
 export type DevPage = "dev" | "benchHistory";
@@ -275,6 +278,8 @@ export type UrlParams = {
   shot: boolean;
   paused: boolean;
   camera: CameraRung | null;
+  /** The rider's LOOK for this visit (`Outfit.look`), never stored. */
+  look: string | null;
   /** The player's pair for this visit. */
   skis: PairId | null;
   /** The mode a booted run is ridden in. */
@@ -417,6 +422,7 @@ export function readParams(search: string): UrlParams {
   const paused = q.get("paused") === "1";
   const t = Number(q.get("t") ?? 0);
   const camera = q.get("camera");
+  const look = q.get("look");
   const skis = q.get("skis");
   return {
     seed: seedOf(q.get("seed")),
@@ -453,6 +459,7 @@ export function readParams(search: string): UrlParams {
     paused,
     camera:
       camera !== null && RUN_CAMERAS.includes(camera as CameraRung) ? (camera as CameraRung) : null,
+    look: look !== null && LOOKS.includes(look) ? look : null,
     skis: skis !== null && isPairId(skis) ? skis : null,
     mode:
       start === "free" || q.get("mode") === "free" || freeRidePage(q.get("menu") ?? "")

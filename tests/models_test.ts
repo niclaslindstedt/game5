@@ -54,7 +54,7 @@ const matNames = (file: string): string[] =>
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine and the jump plane", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the retro skier", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
@@ -63,9 +63,17 @@ describe("the models the game ships", () => {
         "sled.glb",
         "groomer.glb",
         "plane.glb",
+        "retro.glb",
       ].sort(),
     );
-    const none = { skis: false, heli: false, sled: false, groomer: false, plane: false };
+    const none = {
+      skis: false,
+      heli: false,
+      sled: false,
+      groomer: false,
+      plane: false,
+      rider: false,
+    };
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
     expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
@@ -77,10 +85,12 @@ describe("the models the game ships", () => {
     expect(modelFiles(ALL_MODELS, "rescue")).toEqual(["rescue.glb"]);
     expect(modelFiles(ALL_MODELS, "sled")).toEqual(["sled.glb"]);
     expect(modelFiles(ALL_MODELS, "groomer")).toEqual(["groomer.glb"]);
+    expect(modelFiles({ ...none, rider: true })).toEqual(["retro.glb"]);
+    expect(modelFiles(ALL_MODELS, "rider")).toEqual(["retro.glb"]);
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
   });
 
-  it("are nothing but the skis and the free ride's machines — the skier is dressed in code", () => {
+  it("are nothing but the skis, the free ride's machines and the retro look — the skier is dressed in code", () => {
     expect(existsSync(join(root, MODELS_DIR, "skier.glb"))).toBe(false);
     for (const dir of ["birds", "beasts", "gates"]) {
       expect(existsSync(join(root, MODELS_DIR, dir)), `${MODELS_DIR}/${dir}`).toBe(false);
@@ -94,6 +104,7 @@ describe("the models the game ships", () => {
       "heli",
       "plane",
       "rescue",
+      "rider",
       "sled",
       "sources",
     ]);

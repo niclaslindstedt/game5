@@ -501,6 +501,14 @@ export const STRINGS = {
   dressTitle: "RIDER",
   /** Its way on: to the gear card. */
   dressDone: "NEXT",
+  /** The LOOK row: the kit the rows pick, or an eighties one-piece. */
+  dressLook: "LOOK",
+  dressLooks: {
+    modern: "MODERN",
+    "retro-magenta": "RETRO MAGENTA",
+    "retro-canary": "RETRO CANARY",
+    "retro-cobalt": "RETRO COBALT",
+  } as Record<string, string>,
   dressSlots: {
     body: "BODY",
     weight: "WEIGHT",

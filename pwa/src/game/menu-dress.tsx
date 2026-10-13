@@ -22,7 +22,7 @@ import { isBoardId, raceSkisOf, type GameMode, type PairId } from "@engine";
 import { MenuBody, MenuHead, StepRow, type Stop } from "./menu-knobs.tsx";
 import { SkisPage } from "./menu-skis.tsx";
 import { boardAllowed, kindPair, pickPair, type Settings } from "./settings.ts";
-import { GEAR, GEAR_SLOTS, type GearSlot, type Outfit } from "./outfit.ts";
+import { GEAR, GEAR_SLOTS, LOOKS, type GearSlot, type Outfit } from "./outfit.ts";
 import { MenuStage } from "./menu-stage.tsx";
 import { useBusyPress } from "./busy-press.ts";
 import { STRINGS } from "./strings.ts";
@@ -41,6 +41,12 @@ const STOPS = Object.fromEntries(
 /** The rows on the rider card: every slot but the POLES, which go with the
  * skis on the gear card. */
 const RIDER_SLOTS = GEAR_SLOTS.filter((slot) => slot !== "poles");
+
+/** The LOOK row's stops: the modern kit, then each eighties colourway. */
+const LOOK_STOPS: Stop<string>[] = LOOKS.map((id) => ({
+  id,
+  label: STRINGS.dressLooks[id] ?? id.toUpperCase(),
+}));
 
 export function DressPage({
   outfit,
@@ -84,6 +90,12 @@ export function DressPage({
       <div class="stage-sheet" data-stage-cover>
         <MenuBody>
           <div class="dress-rows">
+            <StepRow
+              label={STRINGS.dressLook}
+              stops={LOOK_STOPS}
+              value={outfit.look ?? "modern"}
+              onPick={(id) => onOutfit({ ...outfit, look: id === "modern" ? undefined : id })}
+            />
             {/* The POLES are the gear card's, with the skis. */}
             {RIDER_SLOTS.map((slot) => (
               <StepRow

@@ -50,7 +50,8 @@
 // switched on by the lens coming nearer), chase-60, chase-90, chase-120 (the
 // chase boom a minute, a minute and a half and two minutes down the run —
 // the skier's shadow at every height of the face; `chase-<s>` at any
-// second), orbit, and last, staged rather
+// second), orbit, the retro LOOK's close views (`--look=retro-magenta`:
+// retro-stand, retro-back, retro-side, retro-front, retro-air), and last, staged rather
 // than ridden to: wipeout and wipeout-lie (the player put into the nearest
 // trunk flat out, then where the skier came to rest) — and before them,
 // `fall-<s>` at any time off the skis (`fall-0.2,fall-0.5,fall-1`): the same
@@ -213,6 +214,12 @@ const VIEWS = [
   "chase-90",
   "chase-120",
   "orbit",
+  "retro-stand",
+  "retro-back",
+  "retro-side",
+  "retro-top",
+  "retro-front",
+  "retro-air",
   "wipeout",
   "wipeout-lie",
   "herd",
@@ -387,6 +394,10 @@ const args = parseArgs(
       kind: "flag",
       help: "with --free, the grimbear hunts the ride (the grimbear-lurk, -chase, -run, -maul and -leave views)",
     },
+    look: {
+      kind: "string",
+      help: "the player's LOOK (modern, retro-magenta, retro-canary, retro-cobalt — outfit.ts's LOOKS)",
+    },
     skis: {
       kind: "string",
       default: "",
@@ -485,6 +496,7 @@ const query = new URLSearchParams({
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
   ...(args.skis ? { skis: args.skis } : {}),
+  ...(args.look ? { look: args.look } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),
   w: String(args.width),

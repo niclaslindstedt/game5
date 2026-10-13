@@ -39,6 +39,7 @@ import { ringView } from "./ring-view.ts";
 import { intoNet, netLens } from "./net-view.ts";
 import { crashShot } from "./crash-view.ts";
 import { enthusiastShots } from "./enthusiast-lab.ts";
+import { retroShots } from "./retro-lab.ts";
 import { grimbearShots } from "./grimbear-lab.ts";
 import { challengeShots } from "./challenge-lab.ts";
 import { ROUTE_VIEWS, routeView } from "./route-view.ts";
@@ -55,6 +56,7 @@ import {
   type Tier,
 } from "../game/settings-video.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
+import { DEFAULT_OUTFIT, LOOKS } from "../game/outfit.ts";
 import { wildGround } from "../game/wild-ground.ts";
 import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
 
@@ -120,6 +122,9 @@ const state: GameState = createGame({
   ...(free && Number.isFinite(hour) ? { sky: { hour } } : {}),
 });
 if (Number.isFinite(hour)) renderer.setSky({ hour });
+/** The player's LOOK (`?look=`), the default kit's otherwise. */
+const look = params.get("look");
+if (look && LOOKS.includes(look) && look !== "modern") renderer.dress({ ...DEFAULT_OUTFIT, look });
 // THE SKY'S CLOCK (`?skyclock=`, `sky-clock.ts`): held unless asked, so a
 // view's picture is the hour named whatever second of the run it stands at.
 setSkyClock(Number(params.get("skyclock") ?? 0));
@@ -590,6 +595,7 @@ const shots: Record<string, () => string> = {
   ...grimbearShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   ...challengeShots(state, renderer),
   ...enthusiastShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
+  ...retroShots(state, { rideUntil, still, setOverride: (p) => renderer.setOverride(p) }),
   ...buildingShots({ level, still, setOverride: (p) => renderer.setOverride(p), canvas, state }),
   ...powder.shots,
   spawn() {

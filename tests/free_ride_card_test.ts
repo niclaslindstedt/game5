@@ -27,6 +27,7 @@ import {
   TIMES_OF_DAY,
   WEATHER_KINDS,
   hourOfTime,
+  SUMMER_DAY,
 } from "@engine";
 
 import {
@@ -34,6 +35,8 @@ import {
   afterskiOn,
   SEASONS,
   SNOW_STOPS,
+  SUMMER_STARTS,
+  seasonRide,
   depthOf,
   againAt,
   freeAgainOptions,
@@ -137,7 +140,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(ride.time).toBe("night");
     expect(ride.snow).toBe("deep");
     expect(ride.spot).toEqual({ seed: 42, x: 100, z: 200 });
-    const junk = mergeRide({ seed: -3, season: "summer", time: 11, snow: "slush", spot: { x: 1 } });
+    const junk = mergeRide({ seed: -3, season: "autumn", time: 11, snow: "slush", spot: { x: 1 } });
     expect(junk.seed).toBeNull();
     expect(junk.season).toBeNull();
     expect(junk.time).toBeNull();
@@ -392,11 +395,37 @@ describe("what the rows ask for", () => {
     expect(depthOf("medium")).toBeCloseTo(1, 9);
   });
 
-  it("puts the seasons in winter's order, December to April", () => {
-    const days = SEASONS.map((s) => s.day);
-    expect(days).toEqual([...days].sort((a, b) => a - b));
-    expect(days[0]).toBeLessThan(0);
-    expect(days[days.length - 1]).toBeLessThanOrEqual(105);
+  it("stands a summer ride up on an aircraft, in midsummer", () => {
+    const ride = { ...freshRide(), season: "summer" as const };
+    // A slope picked (or none) is no summer start: the helicopter.
+    const on = (id: string) => ({
+      ...ride,
+      run: { seed: 9, region: ride.region, face: ride.face, id },
+    });
+    const stood = seasonRide(on("4"), 9);
+    expect(runOn(stood, 9)).toBe(HELI_RUN);
+    // An aircraft picked is kept.
+    for (const id of SUMMER_STARTS) {
+      expect(runOn(seasonRide(on(id), 9), 9)).toBe(id);
+    }
+    const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    expect(opts.summer).toBe(true);
+    expect(opts.heli).toBe(true);
+    expect(opts.avalanche).toBeFalsy();
+    expect(opts.day?.dayOfYear).toBe(SUMMER_DAY);
+    // A winter ride asks no summer of the engine.
+    expect(
+      "summer" in freeGameOptions(freshRide(), 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+    ).toBe(false);
+  });
+
+  it("puts the seasons in winter's order, December to April, then summer", () => {
+    const winter = SEASONS.filter((s) => s.id !== "summer").map((s) => s.day);
+    expect(winter).toEqual([...winter].sort((a, b) => a - b));
+    expect(winter[0]).toBeLessThan(0);
+    expect(winter[winter.length - 1]).toBeLessThanOrEqual(105);
+    // The last stop is midsummer, the summer ground's own day.
+    expect(SEASONS[SEASONS.length - 1]).toEqual({ id: "summer", day: SUMMER_DAY });
   });
 });
 

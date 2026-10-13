@@ -133,6 +133,10 @@
 //                   `?seed=` link boots into; never a race map. `orange`
 //                   (R42) races the black and rides the lift up to the
 //                   map's SKI ROUTE.
+//   ?summer=1       a free ride in SUMMER (`summer.ts`): the start card's
+//                   SEASON row's last stop — the snow gone, the sky never
+//                   snowing, and begun on the helicopter unless the link or
+//                   the card names another way into the air.
 //   ?heli=1         a free ride begun ON THE HELICOPTER on its pad
 //                   (`heli.ts`), over the start card's RUN row.
 //   ?sled=1         a free ride begun ON THE SNOWMOBILE parked at the
@@ -178,6 +182,7 @@
 
 import {
   SKY_CLOCK,
+  SUMMER_DAY,
   WEATHER_KINDS,
   isAerialCode,
   isRunGrade,
@@ -316,6 +321,8 @@ export type UrlParams = {
   /** The hill a SKI JUMP link is jumped on (`?hill=normal`), or null for
    * the contest's own (the large hill). */
   hill: "large" | "normal" | null;
+  /** A free ride in summer, over the card's SEASON row. */
+  summer: boolean;
   /** A free ride begun on the helicopter, over the card's RUN row. */
   heli: boolean;
   /** A free ride begun under the paramotor, over the card's RUN row. */
@@ -491,6 +498,7 @@ export function readParams(search: string): UrlParams {
     gate: gateOf(q.get("gate")),
     round: q.get("round") === "1" ? "first" : null,
     hill: q.get("hill") === "normal" ? "normal" : q.get("hill") === "large" ? "large" : null,
+    summer: q.get("summer") === "1",
     heli: q.get("heli") === "1",
     para: q.get("para") === "1",
     balloon: q.get("balloon") === "1",
@@ -542,6 +550,33 @@ export function linkWorld(params: UrlParams): Pick<
  * snowmobile, paramotor, balloon, jump plane, skydive and wingsuit laid
  * over the card's. */
 export function overLink(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
+  const out = overCard(ride, params);
+  return params.summer || out.summer ? inSummer(out) : out;
+}
+
+/** A free ride's options moved into SUMMER (a `?summer=1` link): the
+ * season's day, no avalanches, and — where the ride begins on no way into
+ * the air — on the helicopter, as the start card's own summer does. */
+function inSummer(ride: CreateGameOptions): CreateGameOptions {
+  const aloft =
+    ride.heli ||
+    ride.para ||
+    ride.balloon ||
+    ride.plane ||
+    ride.wingsuit ||
+    ride.chute !== undefined;
+  return {
+    ...ride,
+    summer: true,
+    day: { ...ride.day, dayOfYear: SUMMER_DAY },
+    avalanche: false,
+    sled: false,
+    inLodge: false,
+    ...(aloft ? {} : { heli: true, byLift: false, spawn: undefined, run: undefined }),
+  };
+}
+
+function overCard(ride: CreateGameOptions, params: UrlParams): CreateGameOptions {
   // A link naming a machine is the start, whatever the card picked — and
   // names that one alone.
   const sky = params.chute !== null;

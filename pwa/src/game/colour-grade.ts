@@ -125,9 +125,48 @@ export const COLOUR_GRADES: Readonly<Record<RegionId, ColourGrade>> = {
   },
 };
 
-/** The grade for a region. */
-export function gradeOf(region: RegionId): ColourGrade {
-  return COLOUR_GRADES[region] ?? NEUTRAL_GRADE;
+/** THE SUMMER'S GRADES. The winter rows are graded for snow — the fell's
+ * drained steel and its lift of blowing snow in the shadows turn a green
+ * hillside to grey felt — so a summer's run takes rows of its own: each
+ * country's cast kept, the colour left in the grass and no snow in the air.
+ * The alpine stays the identity. */
+export const SUMMER_GRADES: Readonly<Record<RegionId, ColourGrade>> = {
+  alpine: COLOUR_GRADES.alpine,
+  // Soft and long-lit, a little cool, the midnight sun's warmth on the light.
+  fell: {
+    contrast: 0.98,
+    lift: 0.008,
+    saturation: 0.96,
+    tint: "#f6f6f2",
+    shade: "#5a6a8c",
+    glow: "#ffe4c8",
+    split: [0.1, 0.08],
+  },
+  // Dry and hard: the straw grass and the blue shadows of high summer.
+  continental: {
+    contrast: 1.08,
+    lift: 0,
+    saturation: 1.02,
+    tint: "#fbfaf4",
+    shade: "#36589e",
+    glow: "#fff4e2",
+    split: [0.12, 0.06],
+  },
+  // Damp and green: soft, the darks barely lifted, the greens kept.
+  maritime: {
+    contrast: 0.97,
+    lift: 0.01,
+    saturation: 0.96,
+    tint: "#f2f5f2",
+    shade: "#5f7284",
+    glow: "#f6f2ea",
+    split: [0.1, 0.06],
+  },
+};
+
+/** The grade for a region — in summer, its summer row. */
+export function gradeOf(region: RegionId, summer = false): ColourGrade {
+  return (summer ? SUMMER_GRADES : COLOUR_GRADES)[region] ?? NEUTRAL_GRADE;
 }
 
 /** Whether a grade changes nothing — the renderer then draws no pass. */

@@ -95,7 +95,15 @@ export const SEASONS = [
   { id: "mid", day: 20 }, // 20 Jan
   { id: "late", day: 56 }, // 25 Feb
   { id: "spring", day: 91 }, // 1 Apr: a high sun and long days
+  // 15 Jul: SUMMER, the snow gone but for the patches high in the hollows
+  // (`summer.ts`) — the engine's `SUMMER_DAY`.
+  { id: "summer", day: 196 },
 ] as const;
+
+/** Whether the ride is stood up in SUMMER. */
+export function summerOn(ride: Pick<FreeRide, "season">): boolean {
+  return ride.season === "summer";
+}
 
 export type SeasonId = (typeof SEASONS)[number]["id"];
 
@@ -319,6 +327,35 @@ export function wingsuitOn(ride: FreeRide, seed: number): boolean {
  * id of its own: it is the run picked, or none. */
 export const SKIS_START = "skis";
 
+/** THE START ROW IN SUMMER: no snow to ski or ride on, so only the ways
+ * into the air — the paramotor, the balloon, the helicopter, the plane and
+ * the wingsuit. THE DOWNHILL BIKE, when it is built, is this row's first
+ * stop (its own run id beside these), and the summer's default. */
+export const SUMMER_STARTS: readonly string[] = [
+  PARA_RUN,
+  BALLOON_RUN,
+  HELI_RUN,
+  PLANE_RUN,
+  WINGSUIT_RUN,
+];
+
+/** The start a summer ride stands on when the one picked is not a summer
+ * start (a slope, the snowmobile, the lodge): the helicopter on its pad. */
+export const SUMMER_DEFAULT = HELI_RUN;
+
+/** THE RIDE AS IT IS STOOD UP: itself, except in summer, where a start that
+ * is not one of `SUMMER_STARTS` on `seed` is the helicopter (`SUMMER_DEFAULT`). */
+export function seasonRide(ride: FreeRide, seed: number): FreeRide {
+  if (!summerOn(ride)) return ride;
+  const at = runOn(ride, seed);
+  if (at !== null && SUMMER_STARTS.includes(at)) return ride;
+  return {
+    ...ride,
+    spot: null,
+    run: { seed, region: ride.region, face: ride.face, id: SUMMER_DEFAULT },
+  };
+}
+
 /** What the START row writes when `id` is picked on `seed`: SLOPE hands the
  * ride back to the RUN row's first run, anything else is its machine (or
  * the lodge, or the wingsuit's exit), kept as a run id of the map as
@@ -471,7 +508,7 @@ export function markedRun(
 export const GRIMBEAR_ODDS = 1 / 3;
 
 export function freeGameOptions(
-  ride: FreeRide,
+  picked: FreeRide,
   seed: number,
   skier: {
     spec: SkiSpec;
@@ -483,6 +520,8 @@ export function freeGameOptions(
   },
   random: () => number = Math.random,
 ): CreateGameOptions {
+  const summer = summerOn(picked);
+  const ride = seasonRide(picked, seed);
   const heli = heliOn(ride, seed);
   const sled = sledOn(ride, seed);
   const para = paraOn(ride, seed);
@@ -546,8 +585,10 @@ export function freeGameOptions(
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
     groomer: "night",
     // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
-    // unless the start card's row turned them off.
-    avalanche: ride.avalanche,
+    // unless the start card's row turned them off — and never in summer.
+    avalanche: ride.avalanche && !summer,
+    // SUMMER: the mountain with its snow gone (`summer.ts`).
+    ...(summer ? { summer: true } : {}),
     // THINGS GO WRONG (`mishaps.ts`): a canopy's malfunction, an engine
     // stopping — dealt off a stream of their own, salted by the app.
     ...(skier.mishapRate && skier.mishapRate !== "off"
@@ -601,7 +642,8 @@ export function freeRestart(
   if (state.rules.course || state.rules.tricks || !again) return null;
   // ON HIS FEET ON THE SLOPE, a ride begun on a machine starts again at the
   // top of that slope on his skis, never back on the machine he left.
-  const ride = onTheSlope(state) && !again.wingsuit ? onSkisAgain(again) : again;
+  // In SUMMER there is no slope to ski: he starts again on what he left.
+  const ride = onTheSlope(state) && !again.wingsuit && !again.summer ? onSkisAgain(again) : again;
   return freeTopOptions(ride, lastPiste(state), state.grimbear, state.mishaps);
 }
 

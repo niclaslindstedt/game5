@@ -7,9 +7,10 @@
 // THE BIKE — its centre of mass as drawn, its attitude, its way and its own
 // flight — on rows of its own, and handed back the moment he is off it:
 //
-//   TIPS    THE BAR-CAM: a lens clamped on the bar beside the stem, the
-//           front tyre and the fork's crown at the foot of the frame and
-//           the trail coming at it, pitching and rolling with the bike;
+//   TIPS    THE BAR-CAM: a wide lens on the stem's cap, behind the bar,
+//           the bar and both grips across the foot of the frame (his
+//           gloves on them), the front tyre under it and the trail coming
+//           at it, pitching and rolling with the bike;
 //   HELMET  his own eyes, over the bars in the attack stance, tipped down
 //           to the trail a few metres ahead;
 //   CHASE   the close chase a filmer on a bike rides: a few metres behind
@@ -31,13 +32,16 @@ import type { RigPose, Rig, Rung } from "./camera-rigs.ts";
 export const BIKE_RIGS: Record<Rung, Rig> = {
   tips: {
     kind: "bolted",
-    // Beside the stem on the bar, a hand over it: the crown and the front
-    // tyre under the frame's foot.
-    eye: { x: 0.09, y: 0.6, z: 0.42 },
+    // On the stem's cap, 0.2 m behind the bar's middle and 0.1 m over it
+    // (the bar is at y 0.55, z 0.38; the grips 0.34 m out each side): a
+    // wide action lens, so the bar runs across the foot of the frame from
+    // grip to grip on a screen on its side — some 60° out each way, inside
+    // the half-width a 96° lens has on 16:9 — the tyre and the trail over it.
+    eye: { x: 0, y: 0.66, z: 0.17 },
     look: 22,
-    down: 0.22,
-    fov: 80,
-    fovPerSpeed: 0.25,
+    down: 0.28,
+    fov: 96,
+    fovPerSpeed: 0.15,
     rollShare: 0.75,
     tremor: 1,
   },

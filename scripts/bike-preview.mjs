@@ -35,7 +35,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (chase, tips, helmet, far, side, front, air, crash, afoot, queue, lift)",
+      help: "only these views, comma-separated (chase, tips, helmet, far, side, front, air, crash, tree, afoot, push, queue, lift)",
     },
     hour: { kind: "number", default: 11, help: "the solar hour" },
     seed: { kind: "number", default: 38, help: "the map's seed" },

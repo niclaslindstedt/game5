@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike bike-park bike-look bike-ride title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
+.PHONY: bike bike-park bike-look bike-ride bike-hit title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
 
 build:
 	npm run build
@@ -1332,6 +1332,21 @@ bike:
 # "--compare=a.json" after.
 bike-ride:
 	npm run bike-ride -- $(ARGS)
+
+# THE BIKE AGAINST THE WORLD: the downhill bike ridden by the real engine
+# into everything a summer mountain stands in its way, one row a meeting
+# (tests/support/bike-hits.ts) — a 30 cm trunk head-on and glancing at 10,
+# 20 and 35 km/h, a trunk beside a trail, a black's rock garden on the
+# bot's line and coasted into, a lift's tower, a mast, a building's wall, a
+# parked car, the race line's taped edge, a bench's cut and fill, a steep
+# meadow, a pond — each read for the throw and its how, the closing speed,
+# the peak g and the part, the injuries and their severity score, any solid
+# stood inside, the bike frozen or not, and the restart; then the throws'
+# injuries by region beside the bike-park surveys'. Pure Node; exits
+# non-zero on a row at fault. ARGS="--json=a.json" before,
+# "--compare=a.json" after; ARGS=--only=trunk,tower.
+bike-hit:
+	npm run bike-hit -- $(ARGS)
 
 # THE RESORT LAB: the whole ski area a seed builds (R25–R28), from the engine
 # alone — the piste map from above (every run in its colour, the lifts, the

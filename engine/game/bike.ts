@@ -29,20 +29,27 @@ import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { bikeTrailById, bikeTrailHeads } from "../mapgen/bike-park-query.ts";
 import type { BikeTrailHead } from "../mapgen/bike-park-types.ts";
 import { rideBike, type BikeRide, type BikeStepReport } from "./bike-body.ts";
-import { bikeToWorld, derive as deriveBike } from "./bike-frame.ts";
+import { derive as deriveBike } from "./bike-frame.ts";
 import { crashOf, startLanding, stepLanding } from "./bike-judge.ts";
 import { freshBike, placeBike } from "./bike-place.ts";
 import { keepTrail, restartPoint } from "./bike-trail.ts";
 import { bikeWorldOf } from "./bike-world.ts";
+import {
+  BIKE_PLAN,
+  barThrows,
+  bikeInBounds,
+  meetSolids,
+  outOfSolids,
+  shiftBike,
+} from "./bike-solids.ts";
 import { mendBody, stepBody } from "./body.ts";
-import { standing } from "./building-walls.ts";
 import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
+import { trafficStrike } from "./traffic-contact.ts";
 import { BIKE } from "./defs/bike.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { liftZoneAt } from "./lift-ride.ts";
 import { liftPlans } from "./lift-line.ts";
-import { solidsNear, solidsOf } from "./posts.ts";
 import { rockStrike } from "./rock-ground.ts";
 import { derive } from "./skier.ts";
 import type {
@@ -61,9 +68,6 @@ const G = 9.81;
 const IDLE: BikeControls = { pedal: 0, front: 0, rear: 0, steer: 0, lean: 0, crouch: 0 };
 /** A trunk met slower than this is a nudge, not a hit worth saying, m/s. */
 const HIT_SAY = 2;
-/** The bike's plan as the trunks meet it: a capsule down its length, m. */
-const HALF_L = 1.05;
-const HALF_W = 0.3;
 /** A riderless bike lying on its side: its centre over the ground, m, how
  * far over it lies, rad, how fast it goes over, rad/s, and the friction of
  * its bars, pedals and tyres sliding on the ground. */
@@ -200,11 +204,16 @@ export function stepBike(run: GameState, input: SkierInput, events: GameEvent[])
   }
   if (b.mode === "lift") return carried(run, b, events);
   if (!b.onIt) {
-    loose(run, b);
+    // PUSHED beside him, the bike is where his hands hold it (`walk`);
+    // let go of — he is thrown or carried off — it lies down on its own.
+    if (b.afoot && (c.thrown || c.lift)) b.afoot.push = false;
+    if (!b.afoot?.push) loose(run, b);
     if (!b.afoot || c.thrown || c.lift) return false;
     if (input.machine && bikeWithin(run)) {
-      if (b.mode === "down" || Math.abs(b.roll) > 0.3)
-        placeBike(b, bikeWorldOf(run.level, run.t), b.x, b.z, b.heading, 0);
+      const world = bikeWorldOf(run.level, run.t);
+      if (b.afoot.push) placeBike(b, world, b.x, b.z, b.heading, Math.max(0, b.afoot.pace));
+      else if (b.mode === "down" || Math.abs(b.roll) > 0.3)
+        placeBike(b, world, b.x, b.z, b.heading, 0);
       mount(run, b);
       say(run, events, "board");
       return true;
@@ -233,6 +242,9 @@ export function stepBike(run: GameState, input: SkierInput, events: GameEvent[])
   ride(run, b, bikeControls(input), events);
   if (!b.onIt) return false;
   hold(run, b);
+  // THE VILLAGE'S TRAFFIC (`traffic-contact.ts`): a car, the bus, a bicycle
+  // or a parked car met — held off it at a shuffle, knocked off past it.
+  if (traffic(run, b, events)) return false;
   // The blows of the ride on his body (`body.ts`): the landings' loads, a
   // trunk's blow — as on his skis.
   stepBody(run, events, null);
@@ -265,7 +277,8 @@ function ride(run: GameState, b: BikeState, ctl: BikeControls, events: GameEvent
   }
   const done = stepLanding(b, dt);
   if (done) landed(run, b, events, done);
-  const hit = trees(run, b);
+  const met = meetSolids(run, b);
+  const hit = Math.max(met.frame, met.bar);
   if (hit > HIT_SAY && b.hitCooldown <= 0) {
     b.hitCooldown = 0.5;
     events.push({ kind: "hit", t: run.t, speed: hit, x: b.x, z: b.z });
@@ -280,9 +293,10 @@ function ride(run: GameState, b: BikeState, ctl: BikeControls, events: GameEvent
     C.rock.reach,
     C.rock.climb,
   );
-  bounds(run, b);
+  bikeInBounds(run, b);
   keepTrail(run.level, b);
-  const how: BikeCrash | null = hit > C.hit || rock > C.rock.strike ? "hit" : crashOf(b, world, dt);
+  const struck = met.frame > C.hit || barThrows(met.bar) || rock > C.rock.strike;
+  const how: BikeCrash | null = struck ? "hit" : crashOf(b, world, dt);
   if (!how) return;
   // A landing he could not hold is said before he goes down off it.
   if (b.landing) landed(run, b, events, b.landing);
@@ -360,12 +374,23 @@ function mount(run: GameState, b: BikeState): void {
   hold(run, b);
 }
 
-/** OFF IT ONTO HIS FEET on the machine press: stepped off on its left, the
- * bike let go to lie down where it rolls to, and he walks. */
+/** OFF IT ONTO HIS FEET on the machine press: stepped off on its right
+ * (away from the chain) and stood beside it, its bars in his hands — he
+ * walks it (`walk`). */
 function hopOff(run: GameState, b: BikeState, events: GameEvent[]): void {
   const c = run.skier;
-  const left = bikeToWorld(b.q, { x: -0.7, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
-  standSkier(run, b.x + left.x, b.z + left.z, b.heading);
+  const P = BIKE.walk.push;
+  const fx = Math.sin(b.heading);
+  const fz = Math.cos(b.heading);
+  // His spot: the bike's middle less the push's offset (`across` is his
+  // side of it, so he stands the other way), clear of what stands there.
+  const at = outOfSolids(
+    run,
+    b.x - fz * P.across - fx * P.ahead,
+    b.z + fx * P.across - fz * P.ahead,
+    WALKER,
+  );
+  standSkier(run, at.x, at.z, b.heading);
   c.vx = b.vx;
   c.vz = b.vz;
   derive(c, run.level);
@@ -373,8 +398,43 @@ function hopOff(run: GameState, b: BikeState, events: GameEvent[]): void {
   b.mode = "parked";
   b.t = 0;
   b.controls = { ...IDLE };
-  b.afoot = { walked: 0, pace: hypot(b.vx, b.vz) };
+  b.afoot = { walked: 0, pace: Math.min(BIKE.walk.speed, hypot(b.vx, b.vz)), push: true };
+  pushed(run, b);
   say(run, events, "hop");
+}
+
+/** A walker's reach round his middle, m: what he is held out of solids by. */
+const WALKER = 0.3;
+
+/** THE BIKE PUSHED BESIDE HIM: stood upright on its wheels at his side
+ * (`BIKE.walk.push`), facing his way, rolling at his pace — and where a
+ * trunk or a wall stands in its way, he is held back with it. */
+function pushed(run: GameState, b: BikeState): void {
+  const c = run.skier;
+  const a = b.afoot!;
+  const P = BIKE.walk.push;
+  const fx = Math.sin(c.heading);
+  const fz = Math.cos(c.heading);
+  // The engine's right of heading h is (cos h, −sin h).
+  const want = {
+    x: c.x + fz * P.across + fx * P.ahead,
+    z: c.z - fx * P.across + fz * P.ahead,
+  };
+  const clear = outOfSolids(run, want.x, want.z, BIKE_PLAN.wide);
+  const dx = clear.x - want.x;
+  const dz = clear.z - want.z;
+  if (dx !== 0 || dz !== 0) {
+    standSkier(run, c.x + dx, c.z + dz, c.heading);
+    derive(c, run.level);
+  }
+  const spins = { f: b.front.turn, r: b.rear.turn };
+  placeBike(b, bikeWorldOf(run.level, run.t), clear.x, clear.z, c.heading, a.pace);
+  // ...its wheels turning on as it rolls, unridden: nobody on its springs.
+  b.front.turn = spins.f + b.front.spin * dt;
+  b.rear.turn = spins.r + b.rear.spin * dt;
+  b.front.comp = 0;
+  b.rear.comp = 0;
+  b.mode = "parked";
 }
 
 /** WHETHER THE MACHINE PRESS PUTS HIM ON IT: walking beside his bike —
@@ -388,7 +448,7 @@ export function bikeWithin(run: GameState): boolean {
   return (
     hypot(c.x - b.x, c.z - b.z) <= BIKE.board.reach &&
     hypot3(c.vx, c.vy, c.vz) <= BIKE.board.fastest &&
-    b.speed <= 1
+    (b.afoot.push || b.speed <= 1)
   );
 }
 
@@ -406,14 +466,39 @@ function walk(run: GameState, b: BikeState, input: SkierInput): void {
   let x = clamp(c.x + Math.sin(heading) * a.pace * dt, lo, hi);
   let z = clamp(c.z + Math.cos(heading) * a.pace * dt, lo, hi);
   // Held out of the trunks and the walls as the bike is.
-  const pushed = outOf(run, x, z, 0, 0.3);
-  x = pushed.x;
-  z = pushed.z;
+  const clear = outOfSolids(run, x, z, WALKER);
+  x = clear.x;
+  z = clear.z;
   a.walked += Math.abs(a.pace) * dt;
   standSkier(run, x, z, heading);
   c.vx = Math.sin(heading) * a.pace;
   c.vz = Math.cos(heading) * a.pace;
   derive(c, run.level);
+  if (a.push) pushed(run, b);
+}
+
+/** THE TRAFFIC against the rider on the bike (`trafficStrike`, which meets
+ * the skier where `hold` stood him): held off a vehicle at a shuffle, the
+ * bike moved with him; knocked off it past one — the `car` crash cause, the
+ * bike left down where it was. True when it threw him. */
+function traffic(run: GameState, b: BikeState, events: GameEvent[]): boolean {
+  const c = run.skier;
+  const x = c.x;
+  const z = c.z;
+  const vx = c.vx;
+  const vz = c.vz;
+  const car = trafficStrike(run, events);
+  if (car) {
+    leave(run, b, events, "hit");
+    throwRider(run, "car", car.v, events, { keepSkis: true });
+    return true;
+  }
+  if (c.x !== x || c.z !== z) shiftBike(b, c.x - x, c.z - z);
+  b.vx += c.vx - vx;
+  b.vz += c.vz - vz;
+  b.rider.vx = c.vx;
+  b.rider.vz = c.vz;
+  return false;
 }
 
 /** THE RIDER THROWN `how`: his body off where it was, with the velocity it
@@ -549,10 +634,22 @@ function loose(run: GameState, b: BikeState): void {
   b.vz = vz;
   b.x += vx * dt;
   b.z += vz * dt;
-  const pushed = outOf(run, b.x, b.z, HALF_L * 0.5, HALF_W);
+  const pushed = outOfSolids(run, b.x, b.z, BIKE_PLAN.wide);
+  // Pushed out of a trunk or a post, its way into it is gone: a bike thrown
+  // against one lies against it rather than sliding on into it every step.
+  const px = pushed.x - b.x;
+  const pz = pushed.z - b.z;
+  const pd = hypot(px, pz);
+  if (pd > 1e-6) {
+    const toward = (b.vx * px + b.vz * pz) / pd;
+    if (toward < 0) {
+      b.vx -= (toward * px) / pd;
+      b.vz -= (toward * pz) / pd;
+    }
+  }
   b.x = pushed.x;
   b.z = pushed.z;
-  bounds(run, b);
+  bikeInBounds(run, b);
   b.y = level.groundAt(b.x, b.z) + LYING.y;
   // Laid down on the side it leant to (the left, its chain's other side,
   // when it stood upright).
@@ -581,89 +678,4 @@ function loose(run: GameState, b: BikeState): void {
   }
   b.cadence = 0;
   deriveBike(b);
-}
-
-// ---- trunks and edges ------------------------------------------------------
-
-const near: number[] = [];
-
-/** THE TRUNKS AND THE POSTS (`posts.ts`) against the bike's plan — a
- * capsule down its length — pushed out of, the closing speed taken off.
- * Returns the hardest closing speed met, m/s. */
-function trees(run: GameState, b: BikeState): number {
-  const level = run.level;
-  const solids = solidsOf(level);
-  if (solids.length === 0) return 0;
-  solidsNear(level, b.x, b.z, HALF_L + 1, near);
-  const fx = Math.sin(b.heading);
-  const fz = Math.cos(b.heading);
-  let worst = 0;
-  for (const i of near) {
-    const t = solids[i];
-    if (b.y < t.y - 1 || b.y > t.y + t.height || !standing(run, t)) continue;
-    const u = clamp((t.x - b.x) * fx + (t.z - b.z) * fz, -HALF_L, HALF_L);
-    const dx = b.x + fx * u - t.x;
-    const dz = b.z + fz * u - t.z;
-    const d = hypot(dx, dz);
-    const reach = HALF_W + t.radius;
-    if (d >= reach) continue;
-    const nx = d > 1e-6 ? dx / d : -fx;
-    const nz = d > 1e-6 ? dz / d : -fz;
-    shift(b, nx * (reach - d), nz * (reach - d));
-    const vn = b.vx * nx + b.vz * nz;
-    if (vn >= 0) continue;
-    b.vx -= 1.3 * vn * nx;
-    b.vz -= 1.3 * vn * nz;
-    b.rider.vx -= 0.5 * vn * nx;
-    b.rider.vz -= 0.5 * vn * nz;
-    b.wy += u * (nx * fz - nz * fx) * -vn * 0.3;
-    worst = Math.max(worst, -vn);
-  }
-  return worst;
-}
-
-/** (x, z) pushed out of every trunk and post within `half` m along nothing
- * and `width` m across: a walker's or a lying bike's plan. */
-function outOf(
-  run: GameState,
-  x: number,
-  z: number,
-  half: number,
-  width: number,
-): { x: number; z: number } {
-  const level = run.level;
-  const solids = solidsOf(level);
-  solidsNear(level, x, z, half + width + 1, near);
-  for (const i of near) {
-    const t = solids[i];
-    if (!standing(run, t)) continue;
-    const dx = x - t.x;
-    const dz = z - t.z;
-    const d = hypot(dx, dz);
-    const reach = width + t.radius;
-    if (d >= reach || d < 1e-6) continue;
-    x = t.x + (dx / d) * reach;
-    z = t.z + (dz / d) * reach;
-  }
-  return { x, z };
-}
-
-/** The bike, its rider and its wheels moved by (dx, dz). */
-function shift(b: BikeState, dx: number, dz: number): void {
-  b.x += dx;
-  b.z += dz;
-  b.rider.x += dx;
-  b.rider.z += dz;
-}
-
-/** The map's edge: held inside it. */
-function bounds(run: GameState, b: BikeState): void {
-  const lo = TUNING.bounds.margin;
-  const hi = run.level.size - lo;
-  const dx = clamp(b.x, lo, hi) - b.x;
-  const dz = clamp(b.z, lo, hi) - b.z;
-  if (dx === 0 && dz === 0) return;
-  shift(b, dx, dz);
-  if (dx !== 0) b.vx = dx > 0 ? Math.max(0, b.vx) : Math.min(0, b.vx);
-  if (dz !== 0) b.vz = dz > 0 ? Math.max(0, b.vz) : Math.min(0, b.vz);
 }

@@ -374,6 +374,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(againAt({ ...rules, sled: true }, { ...free, sled: true })).toBe("sled");
     expect(againAt(rules, { ...free, para: true })).toBe("summit");
     expect(againAt(rules, { ...free, balloon: true })).toBe("basket");
+    expect(againAt(rules, { ...free, summer: true, bike: true })).toBe("trail");
     // A race starts again at its start, whatever the free ride was.
     expect(againAt(slalomRules(1), free)).toBe("start");
     expect(freeRestart({ ...first, rules: slalomRules(1) }, free)).toBeNull();

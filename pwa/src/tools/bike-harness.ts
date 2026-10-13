@@ -11,8 +11,12 @@
 //   front    the same moment from ahead of him
 //   air      off the first jump the bot leaves the ground on, from the side
 //   crash    the bars turned hard at speed until he is thrown — the bike loose
-//   afoot    stepped off and walking away from the bike lying on its side
-//   queue    rolled into a chair's load zone, waiting for the chair
+//   tree     ridden into a trunk beside the trail at 25 km/h, a moment after
+//   afoot    stepped off and walking, pushing the bike at his left hand
+//   push     the same walk from beside him, close
+//   queue    rolled into a chair's load zone at a walking pace, the chair
+//            coming round (the first chair of the map, which a bike once
+//            rolled past)
 //   lift     hooked on the chair, the two going up together
 //
 // It exposes `window.__bike.sheet(views)`, which shoots the views, lays them
@@ -22,11 +26,15 @@
 import {
   bikeAim,
   bikePilot,
+  bikeWorldOf,
   createGame,
   fromEuler,
   generateLevel,
   liftPlans,
   NEUTRAL_INPUT,
+  placeBike,
+  solidsNear,
+  solidsOf,
   step,
   TUNING,
   type GameState,
@@ -74,7 +82,9 @@ const VIEWS = [
   "front",
   "air",
   "crash",
+  "tree",
   "afoot",
+  "push",
   "queue",
   "lift",
 ] as const;
@@ -257,7 +267,10 @@ async function scene(id: ViewId): Promise<Shot | null> {
         caption: `crash — ${caption(s, t)} (thrown at ${thrownAt.toFixed(1)} s)`,
       };
     }
-    case "afoot": {
+    case "tree":
+      return intoTree();
+    case "afoot":
+    case "push": {
       const s = bikeRide();
       await onMap(s);
       renderer.setCamera("chase", true);
@@ -279,11 +292,18 @@ async function scene(id: ViewId): Promise<Shot | null> {
         () => false,
         2.5,
       );
+      if (id === "push")
+        return {
+          state: s,
+          lens: planted(s, -2.6, 0.6, 0.5, 50),
+          caption: `push — ${caption(s, t)}`,
+        };
       return { state: s, rung: "chase", caption: `afoot — ${caption(s, t)}` };
     }
     case "queue":
     case "lift": {
-      // The first chair a rider rolled into its load zone is taken by.
+      // The map's first chair (on seed 38 the one a bike once rolled 133 m
+      // past), or the next that takes him.
       for (const plan of liftPlans(level).filter((p) => p.lift.kind === "chair")) {
         const shot = await onLift(plan, id);
         if (shot) return shot;
@@ -293,28 +313,23 @@ async function scene(id: ViewId): Promise<Shot | null> {
   }
 }
 
-/** Rolled into `plan`'s load zone and ridden until he is on the chair
- * (`queue`) or well up the rope (`lift`); null if the chair never takes him. */
+/** Rolled into `plan`'s load zone from 8 m short of it at a walking pace
+ * and ridden until he is on the chair (`queue`) or well up the rope
+ * (`lift`); null if the chair never takes him. The bike is stood there by
+ * `placeBike` — moved by hand it keeps the height it had and falls. */
 async function onLift(plan: LiftPlan, id: "queue" | "lift"): Promise<Shot | null> {
   const e = plan.look.entry;
-  const u = e.at - e.along * 0.8;
+  const u = e.at - e.along - 8;
   const x = plan.lift.bottom.x + u * plan.dx + e.side * plan.dz;
   const z = plan.lift.bottom.z + u * plan.dz - e.side * plan.dx;
   const s = bikeRide({ x, z });
   await onMap(s);
-  const b = s.bike!;
-  const dx = x - b.x;
-  const dz = z - b.z;
-  b.x += dx;
-  b.z += dz;
-  b.rider.x += dx;
-  b.rider.z += dz;
-  b.q = fromEuler(plan.heading, 0, 0);
+  stand(s, x, z, plan.heading, 1.5);
   renderer.setCamera("chase", true);
   const y0 = level.groundAt(x, z);
   const t = ride(
     s,
-    (r) => ({ ...NEUTRAL_INPUT, tuck: r.bike!.mode === "lift" ? 0 : 0.3 }),
+    (r) => ({ ...NEUTRAL_INPUT, tuck: r.bike!.mode !== "lift" && r.bike!.speed < 1.6 ? 1 : 0 }),
     (r) =>
       id === "queue"
         ? !!r.skier.lift && r.bike!.mode === "lift"
@@ -324,6 +339,73 @@ async function onLift(plan: LiftPlan, id: "queue" | "lift"): Promise<Shot | null
   if (s.bike!.mode !== "lift") return null;
   const lens = id === "lift" ? planted(s, -6, -2, -1, 50) : planted(s, -4, 2, 1.2, 55);
   return { state: s, lens, caption: `${id} — ${caption(s, t)} ${s.skier.lift?.phase ?? ""}` };
+}
+
+/** The bike stood at (x, z) facing `heading` rolling at `speed` m/s, the
+ * rider on it. */
+function stand(s: GameState, x: number, z: number, heading: number, speed: number): void {
+  const b = s.bike!;
+  placeBike(b, bikeWorldOf(s.level, s.t), x, z, heading, speed);
+  s.skier.x = b.rider.x;
+  s.skier.y = b.rider.y;
+  s.skier.z = b.rider.z;
+}
+
+/** Into a trunk beside the ridden trail at 25 km/h, from 8 m short of it
+ * with a clear run-up, shot from beside 0.6 s after it threw him. */
+async function intoTree(): Promise<Shot | null> {
+  const s0 = bikeRide();
+  await onMap(s0);
+  const t0 = level.bikePark?.trails.find((t) => t.id === trail);
+  if (!t0) return null;
+  const solids = solidsOf(level);
+  const near: number[] = [];
+  for (let k = 40; k < t0.points.length; k += 6) {
+    const p = t0.points[k];
+    for (const i of solidsNear(level, p.x, p.z, 6, near)) {
+      if (i >= level.trees.length || level.trees[i].radius < 0.12) continue;
+      const tr = level.trees[i];
+      const d = Math.hypot(tr.x - p.x, tr.z - p.z);
+      if (d < 2) continue;
+      const heading = Math.atan2(tr.x - p.x, tr.z - p.z);
+      const fx = Math.sin(heading);
+      const fz = Math.cos(heading);
+      const x = tr.x - fx * 8;
+      const z = tr.z - fz * 8;
+      if (Math.abs(level.groundAt(x, z) - level.groundAt(tr.x, tr.z)) > 3) continue;
+      let clear = true;
+      for (let a = 1; a <= 7.5 && clear; a += 0.5) {
+        for (const j of solidsNear(level, x + fx * a, z + fz * a, 1.6, [])) {
+          const o = solids[j];
+          if (j !== i && Math.hypot(o.x - x - fx * a, o.z - z - fz * a) < o.radius + 1.2)
+            clear = false;
+        }
+      }
+      if (!clear) continue;
+      const s = bikeRide({ x, z });
+      await onMap(s);
+      stand(s, x, z, heading, 25 / 3.6);
+      renderer.setCamera("chase", true);
+      let thrownAt = -1;
+      const t = ride(
+        s,
+        () => NEUTRAL_INPUT,
+        (r, tt) => {
+          if (r.skier.thrown && thrownAt < 0) thrownAt = tt;
+          return thrownAt >= 0 && tt > thrownAt + 0.6;
+        },
+        4,
+      );
+      if (thrownAt < 0) continue;
+      return {
+        state: s,
+        // From over the slope beside it: a lens a metre up is in the hill.
+        lens: planted(s, -3.5, 2.5, 3.2, 55),
+        caption: `tree — ${caption(s, t)} (thrown at ${thrownAt.toFixed(2)} s)`,
+      };
+    }
+  }
+  return null;
 }
 
 const ready = (async () => {

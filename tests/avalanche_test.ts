@@ -3,8 +3,9 @@
 // nothing of it in a run that did not; a slab only on a steep, open, loaded
 // slope — more on the lee — never on a groomed run, a gentle one or in the
 // woods; the flow at rest on the flat; a skier out of its flank escaped,
-// one stopped on it caught, carried and buried, the reset held while he
-// lies under it and his air running out on the survival curve; every draw
+// one stopped on it caught, carried a few seconds and buried — gone, the
+// BURIED card up and the run started again, the reset held till then; the
+// survival curve the others' burials keep; every draw
 // off its own stream, so a run replays and no race moves.
 
 import { describe, expect, it } from "vitest";
@@ -37,6 +38,10 @@ import { newsFor } from "../pwa/src/game/run-news.ts";
 import { readParams, overLink } from "../pwa/src/game/url-params.ts";
 import { freeGameOptions, freshRide } from "../pwa/src/game/free-ride.ts";
 import { SKIS, FULL_ASSIST } from "@engine";
+import { RESTART_AFTER } from "../pwa/src/game/settings.ts";
+import { buriedOf, deathOver, diedOf } from "../pwa/src/game/hud-wreck.ts";
+import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
+import { STRINGS } from "../pwa/src/game/strings.ts";
 
 const line = (id: string) => AVALANCHE_LINES.find((l) => l.id === id)!;
 
@@ -200,36 +205,45 @@ describe("the skier in it", () => {
     });
   }
 
-  it("caught, he is thrown, held buried, and stood up once his air is out", () => {
+  it("caught, he is carried a few seconds, buried, and held past the app's longest restart", () => {
     const s = avalancheRide();
     placeRun(s, { x: LEE.x, z: LEE.slab, heading: Math.PI / 2, speed: 0 });
     releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
     const seen: GameEvent[] = [];
+    let caughtAt = -1;
+    let buriedAt = -1;
     let held = 0;
-    for (let i = 0; i < 120 * 160; i++) {
+    for (let i = 0; i < 120 * 60; i++) {
       step(s, { ...NEUTRAL_INPUT, brake: 1 });
-      for (const e of s.events) if (e.kind === "avalanche" || e.kind === "wipeout") seen.push(e);
-      if (s.avalanche!.victim?.phase === "buried") {
+      for (const e of s.events) {
+        if (e.kind === "avalanche" || e.kind === "wipeout") seen.push(e);
+        if (e.kind === "avalanche" && e.phase === "caught") caughtAt = s.t;
+        if (e.kind === "avalanche" && e.phase === "buried") buriedAt = s.t;
+      }
+      const v = s.avalanche!.victim;
+      if (v?.phase === "lost" && v.t < AVALANCHE.lostFor) {
         held++;
         expect(s.skier.thrown).not.toBeNull();
         expect(avalancheHolds(s)).toBe(true);
       }
-      if (seen.some((e) => e.kind === "avalanche" && e.phase === "lost") && !s.skier.thrown) break;
+      if (buriedAt >= 0 && !s.skier.thrown) break;
     }
     const phases = seen.map((e) =>
       e.kind === "avalanche" ? e.phase : e.kind === "wipeout" ? `wipeout:${e.cause}` : e.kind,
     );
     expect(phases).toContain("wipeout:avalanche");
     expect(phases).toContain("caught");
-    expect(phases).toContain("buried");
-    expect(phases).toContain("lost");
+    expect(phases).not.toContain("surfaced");
     const buried = seen.find((e) => e.kind === "avalanche" && e.phase === "buried");
     expect(buried && buried.kind === "avalanche" && buried.depth).toBeGreaterThanOrEqual(
-      AVALANCHE.headFree,
+      AVALANCHE.buriedLeast,
     );
-    // Held under the snow for the air he was dealt — far past the lie of
-    // an ordinary fall.
-    expect(held / 120).toBeGreaterThan(10);
+    // Swept along a few seconds, never longer than the snow takes to close.
+    expect(buriedAt - caughtAt).toBeGreaterThan(0.5);
+    expect(buriedAt - caughtAt).toBeLessThanOrEqual(AVALANCHE.carryMost + 0.01);
+    // Held under the snow until the app's longest RESTART AFTER has run.
+    expect(AVALANCHE.lostFor).toBeGreaterThanOrEqual(RESTART_AFTER.max);
+    expect(held / 120).toBeGreaterThanOrEqual(AVALANCHE.lostFor - 0.1);
     expect(s.skier.thrown).toBeNull();
     expect(s.avalanche!.victim).toBeNull();
   });
@@ -238,14 +252,40 @@ describe("the skier in it", () => {
     const s = avalancheRide();
     placeRun(s, { x: LEE.x, z: LEE.slab, heading: Math.PI / 2, speed: 0 });
     releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
-    for (let i = 0; i < 120 * 40 && s.avalanche!.victim?.phase !== "buried"; i++) {
+    for (let i = 0; i < 120 * 40 && s.avalanche!.victim?.phase !== "lost"; i++) {
       step(s, { ...NEUTRAL_INPUT, brake: 1 });
     }
-    expect(s.avalanche!.victim?.phase).toBe("buried");
+    expect(s.avalanche!.victim?.phase).toBe("lost");
     step(s, { ...NEUTRAL_INPUT, reset: true });
     step(s, NEUTRAL_INPUT);
     expect(s.skier.thrown).toBeNull();
     expect(s.avalanche!.victim).toBeNull();
+  });
+});
+
+describe("the BURIED card", () => {
+  it("comes up on every run, the injuries off too, and starts the run again", () => {
+    const s = avalancheRide();
+    expect(s.gore).toBeUndefined();
+    placeRun(s, { x: LEE.x, z: LEE.slab, heading: Math.PI / 2, speed: 0 });
+    releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
+    for (let i = 0; i < 120 * 40 && s.avalanche!.victim?.phase !== "carried"; i++) {
+      step(s, { ...NEUTRAL_INPUT, brake: 1 });
+    }
+    // Carried, he is not dead yet: the lens follows him in the snow.
+    expect(buriedOf(s)).toBeNull();
+    expect(takeSnapshot(s).died).toBeNull();
+    for (let i = 0; i < 120 * 40 && s.avalanche!.victim?.phase !== "lost"; i++) {
+      step(s, NEUTRAL_INPUT);
+    }
+    for (let i = 0; i < 240; i++) step(s, NEUTRAL_INPUT);
+    expect(buriedOf(s)).toBeCloseTo(2, 1);
+    expect(diedOf(s)).toBeCloseTo(2, 1);
+    expect(takeSnapshot(s).died?.cause).toBe("smothered");
+    expect(deathOver(s, 5)).toBe(false);
+    for (let i = 0; i < 120 * 3.1; i++) step(s, NEUTRAL_INPUT);
+    expect(deathOver(s, 5)).toBe(true);
+    expect(STRINGS.buriedWord).toBe("BURIED");
   });
 });
 

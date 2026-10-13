@@ -46,8 +46,12 @@ engine has an opinion about colour.
 
 | File | Owns |
 | --- | --- |
-| `pwa/src/game/sky.ts` | WHAT COLOUR THE AIR IS: `skyLookAt(level, t)` → a `SkyLook` — the dome's zenith and horizon, the sun's own colour through the air it crossed (per-channel transmittance `exp(−k · airmass)` over the Kasten–Young air mass, `airMass`, `sunTint`), the two halves of the hemisphere light, the haze. Linear RGB throughout. THREE-FREE, so `tests/world_render_test.ts` reads the whole model |
+| `pwa/src/game/atmosphere-model.ts` | THE PHYSICAL ATMOSPHERE, three-free: Hillaire's model (2020) — the transmittance table on Bruneton's parametrisation, the multiple-scattering table (the infinite series summed as Ψ = L₂/(1 − f_ms), the snow's albedo in it), the sky's radiance marched with the planet's shadow, the sun through the air, the sky's irradiance as L2 harmonics (the sky above and the lit snow below). EARTH's constants per km: Rayleigh (5.802, 13.558, 33.1)·10⁻³ on 8 km, the aerosol's scattering 3.996·10⁻³ and extinction 4.4·10⁻³ on 1.2 km with g 0.8, ozone (0.65, 1.881, 0.085)·10⁻³ in a tent round 25 km; `SKY_GROUND_ALBEDO` the ground's parameter (snow 0.85; a summer's meadow beside it). Never runs in a frame — `make sky-table` bakes it |
+| `pwa/src/game/sky-table-format.ts`, `sky-table.ts` (GENERATED) | The table's layout (38 sun elevations, a degree apart through the twilights, × the sea and 3 km; each row a 10 × 9 grid of radiance by the azimuth from the sun and the view's elevation, the sun's transmittance and 27 harmonics) and the table itself, 16-bit log codes. `make sky-table ARGS=--write` after any change to the model; `tests/atmosphere_test.ts` holds it to the model |
+| `pwa/src/game/sky-atmosphere.ts` | The table read at run time (`atmosphereRow`: log-mixed between rows, a few hundred exponentials, read again only when the sun has moved a hundredth of a degree) and THE EYE'S ADAPTATION (`EXPOSURE`, `exposureOf` over `adaptingLight`: a little by day, much more through the twilights, capped so the night falls), and `AMBIENT_LIFT` (the sunlit slopes round the lens the model's level floor does not see) |
+| `pwa/src/game/sky.ts` | WHAT COLOUR THE AIR IS: `skyLookAt(level, t)` → a `SkyLook` built on the physical row — the dome's exposed radiance grid (`view`, pressed about its own mean by `DOME` as an eye on the sky sees it, its grazing row pulled toward the one over it), the zenith and horizon read off it, the sun's colour its transmittance, the key exposed, the sky's light (`skyLight`, `groundLight`, `ambient` and the world-turned `irradiance` harmonics), the haze and after sunset the low air in Earth's shadow (`hazeShadow`); the night, the moon and the weather's LID laid over it. Linear RGB throughout. THREE-FREE, so `tests/world_render_test.ts` and `tests/atmosphere_test.ts` read the whole model |
 | `pwa/src/game/haze.ts` | ONE SKY FUNCTION IN GLSL (`SKY_GLSL`, `skyColour(dir)`) and the haze every world material fades into, drawn from it along that surface's own direction (`HAZE_FRAGMENT`, `hazeMaterial`) — replacing three's one-colour fog; the uniforms ONE object shared by reference (`createHazeUniforms`, `writeHaze`) |
+| `pwa/src/game/horizon.ts` | THE TRUE HORIZON: the dip a raised lens sees (`horizonDip`, acos(R′/(R′+h)) on a sphere stretched by the standard refraction — 1.1° from a 1.45 km summit, never the level), the lens's height over the far country (`heightOverFar`, written into `uFar` every frame). Under it the dome and the mist's wall are `haze.ts`'s `farColour`: the far ground (`SkyLook.farGround` / `.farKey`, a third's albedo, its faces turned to the lens) seen through the air by the length of the way down to it — the horizon's colour where it meets the sky, darker further down. Never a sky-coloured wall under the level |
 | `pwa/src/game/starfield.ts` | THE NIGHT SKY: the sphere of stars turned to the map's hour, day and latitude (`skyTurnOf`, `turnBasis`), two shells of stars SIZED IN PIXELS off the ray's derivative, the twinkle, the Milky Way at its real tilt with its rift, the moon's glare washing the faint sky out — the sibling jet-ski game's design, retyped |
 | `pwa/src/game/sky-dome.ts` | The dome: `skyColour` painted on a sphere round the lens with the sun's disc on it, through the same tone mapping and output conversion as every lit surface, so the haze meets it with no seam |
 | `pwa/src/game/snowfall.ts` | THE SNOW IN THE AIR: a wrapped box of flakes round the lens moved by one vector a frame (how hard it snows is the draw range; the SPRAY row caps the pool; a flake in the player's beam or the arena's floodlights lights up), and the spindrift lifted off the crests on the CPU when the wind can lift dry snow |
@@ -98,6 +102,15 @@ engine has an opinion about colour.
 - **The sun's colour is the air it crossed**, not a table of hand-picked
   oranges: a low February sun at 62°N is gold because of the air mass, and
   the model says so.
+- **THE CLEAR SKY IS THE PHYSICS; WHAT IS TUNED IS THE EYE.** The glow, the
+  Belt of Venus, Earth's shadow and the blue hour come out of
+  `atmosphere-model.ts` and its researched constants — never paint one into
+  `sky.ts`. What a look change may move is the exposure (`EXPOSURE`), the
+  dome's tone (`DOME`) and the lift (`AMBIENT_LIFT`); a constant of the
+  model moved owes its source and `make sky-table ARGS=--write`.
+- **After sunset the valleys' air is in Earth's shadow.** The far ridges
+  stand dark against the glow (`hazeShadow`); a haze that takes the glow's
+  orange onto the ground reads as a fire, not a dusk.
 - **The haze is the sky in that direction.** A ridge two kilometres off
   dissolves into exactly the sky behind it — warmer toward the sun, bluer
   away. A flat fog colour stands in the picture as a grey band; never
@@ -136,7 +149,10 @@ engine has an opinion about colour.
 
 ## The loop
 
-**`make sky` FIRST** — every weather (with a light fall and a blizzard) against
+**`make sky-table`** prints the physical sky row by row (the zenith's and
+the anti-solar horizon's luminance and blueness, the sun's transmittance)
+before any picture: a model change is read there first.
+**`make sky` FIRST** for the picture — every weather (with a light fall and a blizzard) against
 every three hours on one seed from one place, as one sheet
 (`previews/sky-<seed>.png`; `ARGS="--hours=10,17,22 --weathers=fair,blizzard
 --width=640 --height=360"` to zoom a few cells). A map is dealt one sky at one

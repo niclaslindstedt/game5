@@ -68,7 +68,8 @@ function readAt(t: WindTunnel, x: number, z: number, from: number, to: number): 
  * before he is stepped. `events` is the run's own list. */
 export function stepTunnel(run: GameState, events: GameEvent[]): void {
   const c = run.skier;
-  const tunnels = run.level.resort?.tunnels;
+  // A wind tunnel is winter kit: in summer it is shut and blows nobody.
+  const tunnels = run.summer ? undefined : run.level.resort?.tunnels;
   const T = TUNING.tunnel;
   const ride = c.tunnel;
   const over = c.y - c.spec.cogHeight - run.level.groundAt(c.x, c.z) > T.roof;

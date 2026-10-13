@@ -184,10 +184,13 @@ export function pisteIce(
  * anywhere else it is the map's own packed field under the whole fall, as
  * skied up as the day has made it (`packedUnder`, `PisteDay.loose`). */
 export function packedSnow(
-  state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow">,
+  state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow" | "summer">,
   x: number,
   z: number,
 ): number {
+  // IN SUMMER (`summer.ts`) the snow is gone: the ground is as hard as the
+  // hardest packed snow, and nothing sinks into it.
+  if (state.summer) return 1;
   const p = snowPacked(state, x, z);
   // A wall's ROCK (`rock-ground.ts`) is as hard as anything gets: nothing
   // sinks into it, whatever has fallen on it — it slides off a wall.

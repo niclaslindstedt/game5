@@ -36,7 +36,14 @@ import type { TreeKind } from "@engine";
 
 import type { RegionLook } from "./region-look.ts";
 import { BREAST, Shape, TRUNK_REF, jitter, smooth, trunkProfile, type V3 } from "./tree-mesh.ts";
-import type { BirchForm, ConiferForm, LarchForm, PineForm, TreeVariant } from "./tree-variants.ts";
+import {
+  crownAt,
+  type BirchForm,
+  type ConiferForm,
+  type LarchForm,
+  type PineForm,
+  type TreeVariant,
+} from "./tree-variants.ts";
 
 /** The snow on the boughs, lit and in shade. */
 export const SNOW = new THREE.Color(0xeef4fb);
@@ -50,7 +57,17 @@ export type TreePaint = {
   readonly birchBark: THREE.Color;
   readonly birchTwigs: THREE.Color;
   readonly load: number;
+  /** IN SUMMER: the leaves a broadleaf's and a larch's sprays carry in
+   * place of their bare twigs (`summerPaint`). */
+  readonly leaf?: THREE.Color;
 };
+
+/** The SUMMER'S paint over a region's: no snow on the boughs, and the
+ * broadleaves' and the larches' sprays in leaf — a mid green, each kind's
+ * own twig colour kept in a quarter of it so the woods are not one tone. */
+export function summerPaint(paint: TreePaint): TreePaint {
+  return { ...paint, load: 0, leaf: new THREE.Color(0x4f6b2c) };
+}
 
 export function treePaint(look: RegionLook): TreePaint {
   return {
@@ -115,6 +132,9 @@ export type KindPaint = {
   /** Dark marks on the bark. */
   readonly marks: THREE.Color;
   readonly load: number;
+  /** In summer, the colour a broadleaf's and a larch's crown is in leaf;
+   * null in winter, when they stand bare. */
+  readonly leaf: THREE.Color | null;
 };
 
 export function kindPaint(paint: TreePaint, kind: TreeKind): KindPaint {
@@ -131,13 +151,14 @@ export function kindPaint(paint: TreePaint, kind: TreeKind): KindPaint {
     dark,
     bark,
     upper: t.upper === undefined ? bark : new THREE.Color(t.upper),
-    twigs:
-      t.twigs === null || t.twigs === undefined
-        ? paint.birchTwigs.clone()
-        : new THREE.Color(t.twigs),
+    twigs: (t.twigs === null || t.twigs === undefined
+      ? paint.birchTwigs.clone()
+      : new THREE.Color(t.twigs)
+    ).lerp(paint.leaf ?? new THREE.Color(), paint.leaf ? 0.75 : 0),
     accent: new THREE.Color(t.accent ?? 0x6a4a36),
     marks: bark.clone().multiplyScalar(0.25),
     load: paint.load,
+    leaf: paint.leaf ? leafOf(paint.leaf, kind) : null,
   };
 }
 
@@ -288,7 +309,7 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
     // clean white planes, the rest of a bough is needle green (every other
     // one a shade darker, so the facets read), and the skirt's underside
     // is the dark inside of the tree.
-    const capped = jitter(seed * 7 + ti * 3) < 0.35 + snow;
+    const capped = p.load > 0 && jitter(seed * 7 + ti * 3) < 0.35 + snow;
     const cap = capped ? SNOW : needle;
     for (let i = 0; i < sides; i++) {
       const j = (i + 1) % sides;
@@ -328,7 +349,7 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
         const p0: V3 = [off + Math.cos(a) * r, t.bottom, Math.sin(a) * r];
         const p1: V3 = [off + Math.cos(b) * r, t.bottom, Math.sin(b) * r];
         const apex: V3 = [off, t.top, 0];
-        s.push(apex, SNOW, [0, 1, 0]);
+        s.push(apex, p.load > 0 ? SNOW : needle, [0, 1, 0]);
         s.push(p1, needle, [Math.cos(b), 0.4, Math.sin(b)]);
         s.push(p0, i % 2 ? dark : needle, [Math.cos(a), 0.4, Math.sin(a)]);
       }
@@ -442,7 +463,7 @@ function pine(v: TreeVariant, form: PineForm, p: KindPaint, lod: TreeLod, seed: 
     // Flat colour a face, as the conifer's: a cap of snow (or of needles
     // where none lies) over a rim of green, every other face a shade
     // darker; a sketch's pad is the cap straight to the rim.
-    const cap = snowy ? SNOW : p.needle.clone().lerp(SNOW, 0.25);
+    const cap = snowy ? SNOW : p.needle.clone().lerp(SNOW, p.load > 0 ? 0.25 : 0);
     for (let j = 0; j < sides; j++) {
       const q = (j + 1) % sides;
       const out = (w: V3, up: number): V3 => [w[0] - cx, up, w[2] - cz];
@@ -534,6 +555,7 @@ function larch(v: TreeVariant, form: LarchForm, p: KindPaint, lod: TreeLod, seed
       }
     }
   }
+  if (p.leaf && !form.dead) leafCrown(s, v, p.leaf, lod, seed, 0.8);
   return s.geometry();
 }
 
@@ -687,7 +709,63 @@ function broadleaf(v: TreeVariant, form: BirchForm, p: KindPaint, lod: TreeLod, 
       }
     }
   }
+  if (p.leaf) leafCrown(s, v, p.leaf, lod, seed, 0.95);
   return s.geometry();
+}
+
+/** A kind's leaf: a birch's and an aspen's lighter, a larch's soft
+ * yellow-green needles lighter still, a beech's and a maple's deeper. */
+function leafOf(leaf: THREE.Color, kind: TreeKind): THREE.Color {
+  const c = leaf.clone();
+  if (kind === "larch") return c.lerp(new THREE.Color(0x7d9a3c), 0.6);
+  if (kind === "birch" || kind === "aspen") return c.lerp(new THREE.Color(0x6f8f34), 0.45);
+  return c.multiplyScalar(0.9);
+}
+
+/** A crown IN LEAF: a faceted, lumpy body of revolution filling the
+ * variant's own crown outline (`crownAt`) from its base to its top, its
+ * facets dealt a shade each and its underside darker — the mass a summer
+ * broadleaf or larch is from any distance, the limbs and sprays inside it.
+ * `fill` is how far out to the outline it reaches: a larch's is thinner. */
+function leafCrown(
+  s: Shape,
+  v: TreeVariant,
+  leaf: THREE.Color,
+  lod: TreeLod,
+  seed: number,
+  fill: number,
+): void {
+  const rings = [7, 5, 3][lod];
+  const sides = [9, 7, 5][lod];
+  const span = v.top - v.base;
+  const lo = v.base + span * 0.08;
+  const hi = v.top - span * 0.06;
+  const ringAt: V3[][] = [];
+  const centres: V3[] = [];
+  for (let k = 0; k < rings; k++) {
+    const f = lo + ((hi - lo) * k) / (rings - 1);
+    const r = Math.max(0.04, crownAt(v, f)) * fill;
+    const ring: V3[] = [];
+    for (let j = 0; j < sides; j++) {
+      const a = (j / sides) * Math.PI * 2 + k * 0.7 + seed;
+      const lump = 0.78 + 0.38 * jitter(seed * 31 + k * 13 + j);
+      ring.push([
+        Math.cos(a) * r * lump,
+        f + (jitter(seed + k * 7 + j * 3) - 0.5) * span * 0.05,
+        Math.sin(a) * r * lump,
+      ]);
+    }
+    ringAt.push(ring);
+    centres.push([0, f, 0]);
+  }
+  const shade = (k: number, j: number): THREE.Color =>
+    leaf
+      .clone()
+      .multiplyScalar((0.72 + 0.3 * (k / rings)) * (0.85 + 0.3 * jitter(seed * 5 + k * 17 + j)));
+  s.facet = 0.5;
+  s.loft(ringAt, centres, shade);
+  s.cap(ringAt[rings - 1], [0, v.top, 0], shade(rings, 0), [0, 1, 0], true);
+  s.cap(ringAt[0], [0, v.base, 0], leaf.clone().multiplyScalar(0.55), [0, -1, 0]);
 }
 
 function lerp3(a: V3, b: V3, t: number): V3 {

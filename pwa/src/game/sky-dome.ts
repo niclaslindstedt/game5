@@ -13,7 +13,9 @@
 // gone, in units of the layer's height. Under a lid the layer is the whole
 // sky: its grey is the look's zenith, broken only by the texture of the
 // deck's underside. The stars, the Milky Way (`starfield.ts`) and the moon
-// are drawn behind the cloud and dimmed by it.
+// are drawn behind the cloud and dimmed by it. Under the TRUE horizon —
+// the level less the dip a raised lens sees (`horizon.ts`) — the dome is
+// the far ground through the air (`haze.ts`'s `farColour`).
 
 import * as THREE from "three";
 
@@ -137,6 +139,11 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
             hide = 1.0;
           }
         }
+        // Heaps and streaks low over the horizon are seen through a long
+        // path of air: they take its colour — the glow's warmth toward a low
+        // sun, the haze's blue away from it.
+        if (uCloudGenus > 0.5 && uCloudGenus < 2.5)
+          cloud = mix(c, cloud, 0.3 + 0.7 * smoothstep(0.0, 0.3, up));
         float clearSky = 1.0 - hide;
 
         // THE NIGHT SKY, behind everything: the stars and the Milky Way on
@@ -151,7 +158,14 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
         // THE SUN'S DISC.
         float mu = dot(d, uSunPos);
         float disc = smoothstep(cos(${SUN_RADIUS.toFixed(5)}) - 0.00002, cos(${SUN_RADIUS.toFixed(5)}) + 0.00001, mu);
-        c += uSunCol * disc * 30.0 * (1.0 - hide * 0.97);
+        // Its brightness follows the air it shines through, so a sun on the
+        // horizon is a deep orange disc rather than a white one the tone
+        // map clipped; and round it the AUREOLE, the aerosol's forward
+        // glow, finer than the sky's grid can hold.
+        float lift = 2.5 + 27.5 * smoothstep(0.0, 0.3, uSunPos.y);
+        c += uSunCol * disc * lift * (1.0 - hide * 0.97);
+        float aureole = exp(-(1.0 - mu) * 900.0) * 0.6 + exp(-(1.0 - mu) * 90.0) * 0.12;
+        c += uSunCol * aureole * clearSky * smoothstep(-0.03, 0.01, uSunPos.y);
 
         // THE MOON: a disc lit on the sun's side as far as its phase says,
         // a faint halo round it, behind the cloud.
@@ -169,7 +183,17 @@ export function createSkyDome(haze: HazeUniforms, radius: number): SkyDome {
         c += vec3(0.5, 0.6, 0.8) * pow(max(mm, 0.0), 900.0) * 0.12 * uMoonLit * uNight * clearSky;
 
         c = mix(c, cloud, hide);
-        c = mix(c, hazeColour(d), mistBand(d));
+        // UNDER THE TRUE HORIZON (\`uFar.x\` under the level: the Earth
+        // curving away under a raised lens) the sky, its sun, moon, stars
+        // and cloud end, and the far ground stands seen through the air
+        // (\`farColour\`) — the horizon's own colour where it meets it,
+        // darker the further down the view looks.
+        // Over it the mist's band (\`mistBand\`), the colour the ground at
+        // the mist's wall fades into, so the two meet with no seam.
+        float below = -asin(clamp(d.y, -1.0, 1.0)) - uFar.x;
+        float band = mistBand(d);
+        float under = smoothstep(-0.0004, 0.0004, below);
+        c = mix(c, farColour(d, max(smoothstep(0.0, 0.01, below), band)), max(under, band));
         gl_FragColor = vec4(c, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

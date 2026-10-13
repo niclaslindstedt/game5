@@ -124,16 +124,21 @@ export const AVALANCHE = {
    * stopped. */
   settle: 0.55,
   spread: 9,
-  /** CAUGHT: a parcel within `reach` m of the skier coming on at him
-   * faster than `catchSpeed` m/s — its speed less his own along its way —
-   * takes him off his feet. A slab sliding slowly as a block can be skied
+  /** CAUGHT: a parcel within `reach` m of the skier closing on him faster
+   * than `catchSpeed` m/s (coming on at him, or skied into), or tumbling
+   * past `tumble` with him in it, takes him off his feet. A slab sliding slowly as a block can be skied
    * off (a skier on it rides it, and gets off it across the flank); once
-   * it has broken into tumbling blocks and runs faster than he is going
-   * its way, it takes him. Skied out ahead faster than it comes, or out
-   * of its path, he is never taken. `reach` is a dial for the flow's
-   * width round a parcel's point. */
+   * it has broken into tumbling blocks running past that, it takes him
+   * even riding down with it. Skied out of its path, or out ahead of its
+   * front, he is never taken. `reach` is a dial for the flow's width
+   * round a parcel's point. */
   catchSpeed: 7,
   reach: 5.5,
+  /** IN IT: a skier inside the flow's reach riding down with it is taken
+   * once it runs past this, m/s — the blocks broken up and tumbling, past
+   * what a skier stands in (a dial: a little over `catchSpeed`, so one
+   * skiing hard across a slab just broken gets off its flank). */
+  tumble: 9,
   /** Within this far of a running parcel a skier not caught is INVOLVED,
    * m, and once he has been clear of every running parcel by it for
    * `escapeAfter` s (or the flow is over) he has ESCAPED. */
@@ -149,6 +154,15 @@ export const AVALANCHE = {
    * `settleFor` s after it comes to rest. */
   hold: 1.5,
   settleFor: 0.6,
+  /** THE SNOW CLOSING OVER HIM: carried this long, s, he is buried where
+   * the flow has him even while it runs on (a dial for play: a few seconds
+   * of being swept along, followed by the lens, before the card). */
+  carryMost: 5,
+  /** THE PLAYER IS ALWAYS BURIED: never under less debris than this, m (a
+   * dial: the game buries whoever its flow takes — in the case series a
+   * caught skier is completely buried about half the time, at a mean
+   * depth near a metre). */
+  buriedLeast: 0.6,
   /** BURIED: the share of the debris' depth over him he lies at, dealt
    * between the two (a body rides low in a dense flow and is laid at the
    * bottom of its column more often than not); under `headFree` m he is
@@ -176,7 +190,9 @@ export const AVALANCHE = {
    * for while he is buried (a dial: 30 makes the 18 minutes of good odds
    * 36 s, long enough for a search, short enough to matter). */
   timeScale: 30,
-  /** How long a skier whose air has run out lies before the run takes him
-   * back, s (a dial). */
-  lostFor: 6,
+  /** How long a skier whose air has run out — the player at once, buried —
+   * lies before the run takes him back, s (a dial, no shorter than the
+   * app's longest RESTART AFTER, `settings.ts`'s `RESTART_AFTER.max`, so
+   * the app's BURIED card always runs its course first). */
+  lostFor: 10,
 } as const;

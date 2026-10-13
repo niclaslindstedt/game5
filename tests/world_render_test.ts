@@ -95,7 +95,13 @@ describe("the sky", () => {
     const lum = (c: number[]) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     expect(lum(look.horizon)).toBeGreaterThan(lum(look.zenith));
     expect(look.skyLight[2]).toBeGreaterThan(look.skyLight[0]);
-    expect(look.keyIntensity).toBeGreaterThan(skyLookFor(Math.PI, 0.05).keyIntensity);
+    // The key on LEVEL snow: the eye adapts to a low sun (its light on a
+    // face turned to it is golden-hour bright), but the level snow under
+    // it takes the sine of its height.
+    const low = skyLookFor(Math.PI, 0.05);
+    expect(look.keyIntensity * Math.sin(0.4)).toBeGreaterThan(
+      low.keyIntensity * Math.sin(0.05) * 3,
+    );
   });
 
   it("reads the level's own sun off the run's clock", () => {

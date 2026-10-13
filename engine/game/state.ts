@@ -870,6 +870,11 @@ export type GameState = ContestState & {
    * ordinary snow's, 1 unless the run asked otherwise. Read, never written,
    * during a run, and shared with the field. */
   snowDepth: number;
+  /** THE SUMMER SEASON (`summer.ts`): present (and true) on a free ride in
+   * midsummer, when the snow is gone — `packedSnow` reads the surface hard
+   * and the picture draws the summer ground (`summer-ground.ts`). Absent
+   * on every other run. */
+  summer?: true;
   /** THE NEW SNOW, m: what the fall (`snowfall.ts`) has laid since the run
    * was stood up — 0 under a sky that does not snow, centimetres an hour
    * under one that does. Written once a step by `step`, shared with the

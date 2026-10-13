@@ -120,6 +120,11 @@ export const PICTURE_PRICES: PriceList = {
     medium: { cost: 0.16, benefit: 58 },
     high: { cost: 0.24, benefit: 62 },
   },
+  // Measured on a winter race. A SUMMER free ride also draws the grass the
+  // row reaches (`FOREST_LOOK[...].grass`): ESTIMATED, not measured, at about
+  // 0.1, 0.2 and 0.35 ms for LOW, MEDIUM and HIGH (the tufts' triangles at
+  // the patch's density against the trees' own) and left out of these
+  // prices until a GPU bench times a summer frame.
   forest: {
     low: { cost: 0, benefit: 0 },
     medium: { cost: 0.65, benefit: 12 },

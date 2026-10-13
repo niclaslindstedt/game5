@@ -14,6 +14,9 @@ import {
   PLANE_RUN,
   WINGSUIT_RUN,
   SKIS_START,
+  SUMMER_STARTS,
+  seasonRide,
+  summerOn,
   SLED_RUN,
   afterskiOn,
   balloonOn,
@@ -57,7 +60,10 @@ export type RunPick = {
 };
 
 export function useRunPick(settings: Settings, seed: number): RunPick {
-  const ride: FreeRide = settings.ride;
+  // IN SUMMER a start that is not a way into the air stands on the
+  // helicopter (`seasonRide`), as the ride is stood up.
+  const ride: FreeRide = seasonRide(settings.ride, seed);
+  const summer = summerOn(ride);
   const chart = useSeedPreview(seed, ride.region, ride.grade, ride.face);
   // THE RUNS ON THIS MAP: a ski area's runs are the seed's and the
   // country's, whatever colour is asked of it, so the answer for another
@@ -101,7 +107,7 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
   // snowmobile on the valley floor, the helicopter on its pad and the jump
   // plane on its strip below the village — or the wingsuit, no skis on,
   // off its exit high on the mountain.
-  const starts = [
+  const all = [
     ...(list
       ? [
           { id: SKIS_START, label: STRINGS.startOnSlope },
@@ -119,6 +125,9 @@ export function useRunPick(settings: Settings, seed: number): RunPick {
         ]
       : []),
   ];
+  // ...and in SUMMER only the ways into the air (`SUMMER_STARTS`): no snow
+  // to ski, board or sled on, no lodge to start the night in.
+  const starts = summer ? all.filter((s) => SUMMER_STARTS.includes(s.id)) : all;
   const value = marked?.id ?? "";
   const start = list === null ? "" : machine === null ? SKIS_START : MACHINE_RUN[machine];
   return {

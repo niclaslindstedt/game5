@@ -104,6 +104,7 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 import { challengeShots } from "./lib/challenge-shots.mjs";
+import { SUMMER_SURFACES } from "./lib/summer-shots.mjs";
 import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
 import { holdThumbs } from "./lib/hold-thumbs.mjs";
 
@@ -138,6 +139,7 @@ const SCENES = {
  * what a run left behind (the gallery's roll). */
 const SURFACES = {
   ...WINGSUIT_SURFACES,
+  ...SUMMER_SURFACES,
   // The title and the invitation, over the title scene's first frames.
   splash: { params: { splash: "1" }, wait: ".splash-prompt", settle: 900 },
   // The front door over the title scene (a visit's first)...
@@ -766,13 +768,6 @@ async function capture(name, params, viewportName, surface) {
         null,
         { timeout: args.timeout * 1000 },
       );
-    }
-    if (surface?.storage) {
-      // A surface that reads what the game remembers: laid in before any of
-      // the page's own scripts run.
-      await page.addInitScript((kept) => {
-        for (const [k, v] of Object.entries(kept)) localStorage.setItem(k, v);
-      }, surface.storage);
     }
     await page.goto(url, { waitUntil: "load" });
     if (surface) {

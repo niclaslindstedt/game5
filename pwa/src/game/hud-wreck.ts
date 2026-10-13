@@ -14,6 +14,9 @@
 //     starts again from the top, a new rider and a new try — after the
 //     player's OPTIONS ▸ RESTART AFTER (`DEATH.again` the default, the
 //     timeline fitted into it by `timelineOf`, read by `App.tsx`).
+//   * BURIED BY AN AVALANCHE (`avalanche.ts`) it clears the same way, on
+//     every run whatever the INJURIES switch: the word BURIED over the
+//     debris he went under, the picture going dark, a new rider.
 //   * HURT TOO BADLY TO SKI ON (`rescue.ts`) it clears the same way, on the
 //     same timeline: the word INJURED and what keeps him down come up, the
 //     picture goes WHITE rather than dark, and the run starts again from
@@ -114,10 +117,18 @@ export function wreckOf(
 }
 
 /** Seconds since the player died, or null: alive, or a run without the
- * wounds that kill (`GameState.gore`). */
+ * wounds that kill (`GameState.gore`) — but for the avalanche's burial,
+ * which is his death on every run (`buriedOf`). */
 export function diedOf(state: GameState): number | null {
   const g = state.gore;
-  return g && g.dead >= 0 ? Math.max(0, state.t - g.dead) : null;
+  return g && g.dead >= 0 ? Math.max(0, state.t - g.dead) : buriedOf(state);
+}
+
+/** Seconds since an avalanche buried the player, or null: it has not, or
+ * a reset has taken him out of it. */
+export function buriedOf(state: GameState): number | null {
+  const v = state.avalanche?.victim;
+  return v && v.phase === "lost" && state.skier.thrown ? v.t : null;
 }
 
 /** Seconds since the player was found too hurt to ski on, or null: he

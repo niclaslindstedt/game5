@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // HIS DEATH (`hud-wreck.ts` decides, this draws): the word DIED over a
 // picture going dark — or INJURED over one going white. Only with the INJURIES switch on; `hud.tsx` leaves it
-// out otherwise.
+// out otherwise — but for BURIED, an avalanche's, which every run shows.
 
 import type { ComponentChildren, JSX } from "preact";
 import type { BodyPart, DeathCause, InjuryKind } from "@engine";
@@ -27,7 +27,7 @@ export function DeathCard({
   return (
     <WreckCard
       wreck={wreck}
-      word={STRINGS.died}
+      word={cause === "smothered" ? STRINGS.buriedWord : STRINGS.died}
       line={STRINGS.diedOf[cause]}
       again={STRINGS.diedAgain[again]}
       offer={offer}

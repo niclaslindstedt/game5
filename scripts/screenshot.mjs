@@ -128,6 +128,8 @@ const SCENES = {
   late: 60,
 };
 
+const SKIMO = { "fall-line.settings.v1": JSON.stringify({ outfit: { body: "skimo" } }) };
+const STAGE = ".menu-stage[data-ready]";
 /** THE CARDS, and how to photograph each one. A card is not a race's frame,
  * so these do not wait on `__SH_READY__` — what says a card is up is the
  * card being in the DOM. `settle` is the beat after it the card's arrival
@@ -349,6 +351,9 @@ const SURFACES = {
   // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
   // him — the first card after a map is picked, the gear card after it.
   dress: { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 },
+  // ...as the modelled SKIMO RACER (`BodyDef.model`), and his gear card.
+  "dress-skimo": { params: { menu: "dress" }, storage: SKIMO, wait: STAGE, settle: 2400 },
+  "skis-skimo": { params: { menu: "skis" }, storage: SKIMO, wait: STAGE, settle: 2400 },
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
     params: { menu: "dress", mode: "tricks", skis: "lynx" },

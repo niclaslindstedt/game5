@@ -313,8 +313,10 @@ pieces.append(lofted("trunk", "spine", TRUNK, n=2.7))
 for i, s in enumerate("lr"):
     reach = ANSUR["bideltoid"] / 2 * MM - ANSUR["biacromial"] / 2 * MM
     out = (shoulders[i] - neck.lerp(hips, 0.12)).normalized()
-    pieces.append(ellipsoid("shoulder", shoulders[i] + UP * 0.006 + out * 0.003,
-                            (reach + E["cap"] + 0.006, reach + E["cap"] + 0.008, reach + E["cap"] + 0.007), M["black"]))
+    # A race suit's shoulder is the deltoid under a few millimetres of knit:
+    # a cap smaller than a jacket's, so the arm hangs off a narrow shoulder.
+    pieces.append(ellipsoid("shoulder", shoulders[i] + UP * 0.002,
+                            (reach + E["cap"] - 0.004, reach + E["cap"] - 0.002, reach + E["cap"] - 0.003), M["black"]))
     b = r_of(ANSUR["biceps"]) * 0.95
     pieces.append(lofted("sleeve", f"upperarm_{s}", [
         (-0.05, b * 1.18 + E["sleeve"], b * 1.12 + E["sleeve"], b * 1.12 + E["sleeve"]),

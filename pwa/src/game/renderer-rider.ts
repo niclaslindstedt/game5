@@ -44,6 +44,7 @@ export type Rider = {
  * (`gpu-timer.ts`); anything under none of them is the scene's own. */
 export const SLICE_OF_GROUP: Readonly<Record<string, GpuSlice & Hideable>> = {
   sky: "sky",
+  "far-ranges": "sky",
   terrain: "terrain",
   water: "water",
   forest: "forest",

@@ -34,6 +34,7 @@
     "difficulty": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/difficulty-preview.mjs",
     "routes": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/map-routes.mjs",
     "real-faces": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/real-faces.mjs",
+    "far-faces": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/far-faces.mjs",
     "real-hints": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/real-hints.mjs",
     "world-map": "node scripts/world-map.mjs",
     "model-registry": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/model-registry.mjs",

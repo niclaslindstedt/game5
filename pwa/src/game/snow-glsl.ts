@@ -62,6 +62,7 @@
 // grey. So the tone is pushed past white and the tone mapper takes the lit
 // side down to a bright, unclipped white.
 
+import { FAR_RIM_GLSL } from "./far-ranges-plan.ts";
 import { LAMP_SLOTS } from "./haze.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
@@ -117,20 +118,10 @@ float snowNoise(vec2 p) {
              mix(snowHash1(i + vec2(0, 1)), snowHash1(i + vec2(1, 1)), u.x), u.y);
 }
 
-// THE MOUNTAINS PAST THE MAP. The generator's world ends at its edge, but
-// the eye does not: a rim that stopped dead would stand the whole basin on
-// a table. So past the edge the ground keeps climbing on noise of its own,
-// steeper the further out, into peaks the haze takes.
-float rimRise(vec2 p, vec2 q) {
-  float beyond = length(p - q);
-  if (beyond <= 0.0) return 0.0;
-  float big = snowNoise(p * 0.0021) * 0.65 + snowNoise(p * 0.0057) * 0.35;
-  float ridge = 1.0 - abs(snowNoise(p * 0.009) * 2.0 - 1.0);
-  // Climbs steeply off the edge and saturates: a range of peaks a couple
-  // of hundred metres over the ridge, not a wall to the sky.
-  float climb = 240.0 * (1.0 - exp(-beyond / 380.0)) * (0.45 + 0.9 * big);
-  return climb + ridge * ridge * 45.0 * smoothstep(0.0, 250.0, beyond);
-}
+// THE MOUNTAINS PAST THE MAP: the generator's world ends at its edge, the
+// eye's does not — past it the ground is the far ranges' rim
+// (far-ranges-plan.ts), so the clipmap's last ring meets them.
+${FAR_RIM_GLSL}
 
 float heightTexel(ivec2 c) {
   ivec2 top = ivec2(uHeightCount) - 1;

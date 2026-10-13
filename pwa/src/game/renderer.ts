@@ -476,7 +476,7 @@ export function createWorldRenderer(
     // A part of the scene at a time (`scene-compile.ts`), its trail maps' passes beside it.
     gl.setRenderTarget(picture.load(lv));
     // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
-    const shade = env.setGround(lv.ground, skyLookAt(skyLevel, state.t).key);
+    const shade = env.setGround(lv, skyLookAt(skyLevel, state.t).key);
     const parts = compileByParts(gl, scene, lens.camera, () => mine === loads);
     await Promise.all([parts, compiled(gl, trail.compile(gl)), shade]);
     if (mine === loads) hero.render(gl, scene, [], null);

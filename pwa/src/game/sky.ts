@@ -129,6 +129,10 @@ export type SkyLook = {
   key: Dir;
   keyColour: Rgb;
   keyIntensity: number;
+  /** The share of the key the weather lets through (the lid, the fall,
+   * the fog) — what a face lit by the sun at another height than the
+   * lens's (`far-ranges.ts`) is dimmed by. */
+  keyPass: number;
   /** The hemisphere light: the sky half and the snow-bounce half, and how
    * strong the pair is. */
   skyLight: Rgb;
@@ -584,6 +588,7 @@ export function skyLookFor(
     key,
     keyColour: byMoon ? MOONLIGHT : tint,
     keyIntensity,
+    keyPass: pass,
     skyLight,
     groundLight,
     ambient,

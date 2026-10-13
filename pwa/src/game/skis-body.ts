@@ -159,8 +159,7 @@ export const SLOT_DRESS: readonly SkierDress[] = [
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
   // A ski jumper (only a jump rides the Albatross) in his suit (`jumpKit`).
-  const dress =
-    spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit), model: false } : skier;
+  const dress = spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit) } : skier;
   return styleIn(TOPSHEETS[drawnAs(spec)], dress);
 }
 
@@ -525,6 +524,7 @@ export function createSkisModel(
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
       const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
       handDt = dt;
+      if (run) figure.dressed.clock(run.t); // the modelled kit's cloth on the run's clock
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;
       // In the suit the flyer's figure, but the rider's own on a craft before the jump.

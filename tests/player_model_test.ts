@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import { bindPose } from "../pwa/src/game/dress-loft.ts";
 import { dressOutfit } from "../pwa/src/game/dress.ts";
-import { DEFAULT_OUTFIT } from "../pwa/src/game/outfit.ts";
+import { BODIES, DEFAULT_OUTFIT, dealtOutfit } from "../pwa/src/game/outfit.ts";
 import {
   boneIndexOf,
   createSprings,
@@ -59,7 +59,7 @@ describe("the player's modelled kit", () => {
         for (let k = 0; k < 4; k++) expect(part.skinIndex[i + k]).toBeLessThan(most);
       }
     }
-    const used = new Set(m.cloth.skinIndex);
+    const used = new Set([...m.cloth.skinIndex, ...m.hard.skinIndex]);
     for (const s of SPRING_BONES) expect(used.has(boneIndexOf(s.name)), s.name).toBe(true);
     expect(boneIndexOf("upperarm_lo_l")).toBe(SKIER_BONES.indexOf("upperarm_l"));
   });
@@ -75,6 +75,14 @@ describe("the player's modelled kit", () => {
     expect(ours.lo[2]).toBeLessThan(theirs.lo[2] - 0.1);
     const pack = m.heads.fx_pack;
     expect(pack.z).toBeLessThan(bindPose().frames.chest.head.z);
+  });
+
+  it("hands the arms past the break to the bones below it, so a broken arm hangs", async () => {
+    const m = await model;
+    const used = new Set([...m.cloth.skinIndex, ...m.hard.skinIndex]);
+    for (const s of "lr")
+      for (const bone of [`upperarm_lo_${s}`, `forearm_lo_${s}`])
+        expect(used.has(SKIER_BONES.indexOf(bone as never)), bone).toBe(true);
   });
 
   it("marks the hem, the straps' tails and the rope's tail loose, and the rest held", async () => {
@@ -110,5 +118,14 @@ describe("the player's modelled kit", () => {
     for (let i = 0; i < 400; i++, t += 1 / 60) tailAt();
     const after = tailAt().y;
     expect(after.x * still.x + after.y * still.y + after.z * still.z).toBeGreaterThan(0.999);
+  });
+});
+
+describe("the guide body", () => {
+  it("is the player's own, on the rider card and never dealt to a rival", () => {
+    const guide = BODIES.find((b) => b.id === "guide");
+    expect(guide?.model).toBe(true);
+    for (let seed = 0; seed < 200; seed++)
+      expect(dealtOutfit(seed, "medium").body).not.toBe("guide");
   });
 });

@@ -1,30 +1,35 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE PLAYER'S MODELLED KIT: the ski mountaineer made in Blender
-// (`scripts/blender/mountaineer.py`, `make models KIND=player`) — a touring
-// guide's softshell, harness, pack, ice axe, rope coil, climbing helmet and
-// glacier glasses — skinned on the very rig the dressed skier is bound on
-// (`dress-loft.ts`'s `bindPose`, bone for bone by name). So it is handed to
-// `skier-dress.ts` as the dressed skin's two parts and every pose the game
-// has (a carve, the tuck, a landing, a grab, thrown, a torn piece) moves it
-// with no animation of its own.
+// THE PLAYER'S MODELLED KIT: the mountain guide made in Blender
+// (`scripts/blender/mountaineer.py`, `make models KIND=player`) — a
+// backcountry guide's black hardshell with a mustard yoke and sleeves, a
+// white avalanche pack with its shovel, probe and flagging tape, a radio on
+// a chest harness, a helmet and goggles — skinned on the very rig the
+// dressed skier is bound on (`dress-loft.ts`'s `bindPose`, bone for bone by
+// name). It is the GUIDE body on the rider card (`outfit.ts`), the player's
+// only: handed to `skier-dress.ts` as the dressed skin's two parts, so
+// every pose the game has (a carve, the tuck, a landing, a grab, thrown, a
+// torn piece, an arm hanging from a break) moves it with no animation of
+// its own.
 //
-// Two things move it beyond the rig, both presentation only:
+// Two things move it beyond the rig, both presentation only and both on
+// the run's own clock (`Dressed.clock`):
 //
 // - THE SPRING BONES. The pack (`fx_pack`, hung off the chest at its top),
-//   the rope's coil on it (`fx_coil`) and the coil's loose tail (`fx_tail`)
-//   are each a damped pendulum about its own head, swung by the specific
-//   force there — his acceleration less gravity, read in the parent's frame
-//   — so a landing bobs the coil, a hard turn swings the tail out and a
-//   tuck lets it hang down past his back.
+//   the radio's antenna (`fx_ant`, standing off the chest harness) and the
+//   flagging tape tied to the pack (`fx_flag`) are each a damped pendulum
+//   about its own head, swung by the specific force there — his
+//   acceleration less gravity, read in the parent's frame — so a landing
+//   bobs the pack, the antenna whips on a hard edge and the tape streams.
 // - THE FLUTTER. Every vertex carries how loose it is (the builder's
 //   `FLUTTER`, carried as the UV's u): the jacket's dropped hem, the
-//   straps' tails, the rope's tail. The cloth's vertex shader trails those
-//   points down the air past him and flaps them along their normal, harder
-//   the faster he goes.
+//   straps' tails, the tape. The cloth's vertex shader trails those points
+//   down the air past him and flaps them along their normal, harder the
+//   faster he goes.
 
 import * as THREE from "three";
 
-import type { DressPart } from "./dress-loft.ts";
+import { bindPose, type DressPart } from "./dress-loft.ts";
+import { BREAK } from "./skier-broken.ts";
 import { SKIER_BONES, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
 
@@ -37,9 +42,14 @@ export type ModelPart = DressPart & { flutter: number[] };
  * frequency (Hz) and damping ratio, how far it may swing (rad), and how
  * much of the force reaches it (a pack strapped tight takes little). */
 export const SPRING_BONES = [
+  // The pack, strapped tight: it settles a little behind him and no more.
   { name: "fx_pack", parent: "chest", length: 0.3, hz: 2.8, zeta: 0.4, most: 0.09, gain: 0.25 },
-  { name: "fx_coil", parent: "fx_pack", length: 0.16, hz: 2.0, zeta: 0.22, most: 0.32, gain: 0.6 },
-  { name: "fx_tail", parent: "fx_coil", length: 0.3, hz: 1.3, zeta: 0.14, most: 0.85, gain: 1 },
+  // The radio's whip antenna out of its chest pouch: stiff and quick, a
+  // flick on a landing and a nod into a turn.
+  { name: "fx_ant", parent: "chest", length: 0.15, hz: 4.2, zeta: 0.12, most: 0.45, gain: 0.5 },
+  // A streamer of flagging tape tied to the pack's tool loop: light and
+  // loose, it swings wide and hangs back in the air past him.
+  { name: "fx_flag", parent: "fx_pack", length: 0.32, hz: 1.2, zeta: 0.12, most: 1.0, gain: 1 },
 ] as const;
 export type SpringBone = (typeof SPRING_BONES)[number]["name"];
 
@@ -52,21 +62,18 @@ export type PlayerModel = {
 };
 
 /** The materials `mountaineer.py` names that are drawn with a shine: the
- * helmet and its lamp, the glasses, the metal. The rest is cloth. */
+ * helmet, the goggles, the radio and its antenna, the tools. The rest is cloth. */
 export const HARD_GOODS = new Set([
   "helmet",
   "helmet_dark",
-  "lamp",
-  "lamp_lens",
-  "glasses",
-  "glass_lens",
+  "helmet_accent",
+  "goggle",
+  "goggle_lens",
+  "radio",
+  "antenna",
   "metal",
-  "steel",
-  "axe_shaft",
+  "tool",
   "grip",
-  "biner_gold",
-  "biner_red",
-  "biner_blue",
 ]);
 
 /** Each bone's index in the dressed skeleton: `SKIER_BONES`, then the
@@ -141,6 +148,7 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
         const j = joints[ji.getComponent(i, k)];
         w.set(j, (w.get(j) ?? 0) + wk);
       }
+      splitAtBreak(at, w);
       const top = [...w].sort((a, b) => b[1] - a[1]).slice(0, 4);
       const sum = top.reduce((s, [, x]) => s + x, 0) || 1;
       for (let k = 0; k < 4; k++) {
@@ -153,6 +161,38 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
     else for (let i = 0; i < pos.count; i++) into.index.push(base + i);
   });
   return { ...parts, heads };
+}
+
+/** How far either side of a break the skin is eased from the bone above
+ * it to the bone below, m — the loom's own (`dress-loft.ts`). */
+const CUT = 0.03;
+
+/** PAST A BREAK (`skier-broken.ts`): an arm bone's share past where it
+ * would break handed to the bone below the break (`upperarm_lo_*`,
+ * `forearm_lo_*`), eased over a few centimetres, as the loom weights the
+ * dressed skin — on a sound arm the two move as one, and a broken one
+ * hangs from the break rather than folding at the joint. */
+function splitAtBreak(at: V3, w: Map<number, number>): void {
+  const bind = bindPose().frames;
+  for (const s of ["l", "r"] as const) {
+    for (const [bone, cut] of [
+      [`upperarm_${s}`, BREAK.upper],
+      [`forearm_${s}`, BREAK.fore],
+    ] as const) {
+      const i = SKIER_BONES.indexOf(bone);
+      const share = w.get(i);
+      if (!share) continue;
+      const f = bind[bone];
+      const m = Math.max(0, Math.min(f.length, dot(sub(at, f.head), f.y)));
+      const x = Math.max(0, Math.min(1, (m - cut + CUT) / (2 * CUT)));
+      const c = x * x * (3 - 2 * x);
+      if (c <= 0) continue;
+      const lo = SKIER_BONES.indexOf(bone.replace("arm_", "arm_lo_") as SkierBone);
+      w.set(i, share * (1 - c));
+      w.set(lo, (w.get(lo) ?? 0) + share * c);
+      if (c >= 1) w.delete(i);
+    }
+  }
 }
 
 let held: PlayerModel | null = null;
@@ -203,11 +243,11 @@ export function createSprings(
   // arithmetic from the chest down.
   const chest = bind.chest;
   const offsets: V3[] = [];
-  let parentHead = chest.head;
+  const headOf = (name: string): V3 =>
+    name === "chest" ? chest.head : (heads[name as SpringBone] ?? chest.head);
   for (const s of SPRING_BONES) {
-    const d = sub(heads[s.name] ?? parentHead, parentHead);
+    const d = sub(heads[s.name] ?? headOf(s.parent), headOf(s.parent));
     offsets.push(v3(dot(d, chest.x), dot(d, chest.y), dot(d, chest.z)));
-    parentHead = heads[s.name] ?? parentHead;
   }
   // Gravity as the chest is stood in the bind pose: the share of it the
   // springs hang against at rest, so the model's own drape is their zero.
@@ -233,8 +273,12 @@ export function createSprings(
   return {
     rest,
     step(frames, world, now) {
-      const dt = last < 0 ? 0 : Math.min(0.05, now - last);
+      // The run's clock: a step back (a replay sought) or a gap past a
+      // quarter second (a card, a cut) lets the springs go.
+      const gap = last < 0 ? 0 : now - last;
       last = now;
+      if (gap < 0 || gap > 0.25) rest();
+      const dt = gap < 0 || gap > 0.25 ? 0 : gap;
       // The pack's head in the world: its velocity and acceleration,
       // smoothed over a few frames (a frame's jitter is not a jolt).
       const top = inFrame(frames.chest, offsets[0]);
@@ -263,8 +307,9 @@ export function createSprings(
       flow.copy(vel).negate().applyMatrix4(inv);
 
       const out: BoneFrame[] = [];
-      let parent: BoneFrame = frames.chest;
       SPRING_BONES.forEach((s, i) => {
+        const up = SPRING_BONES.findIndex((o) => o.name === s.parent);
+        const parent = up >= 0 ? out[up] : frames.chest;
         const head = inFrame(parent, offsets[i]);
         const w = swings[i];
         if (dt > 1e-4) {
@@ -274,12 +319,18 @@ export function createSprings(
           // Linearised pendulum: the thing below the head hangs away from
           // the force (a push ahead swings it back, toward −z; a push to
           // the right swings it left), sprung back to its drape.
-          w.wp += (-om * om * w.pitch - 2 * s.zeta * om * w.wp + az / s.length) * dt;
-          w.wr += (-om * om * w.roll - 2 * s.zeta * om * w.wr - axl / s.length) * dt;
-          w.pitch = Math.max(-s.most, Math.min(s.most, w.pitch + w.wp * dt));
-          w.roll = Math.max(-s.most, Math.min(s.most, w.roll + w.wr * dt));
-          if (Math.abs(w.pitch) >= s.most) w.wp *= 0.5;
-          if (Math.abs(w.roll) >= s.most) w.wr *= 0.5;
+          // Substepped at 240 Hz, so a stiff whip stays stable whatever
+          // the frame (a lab's step can be a tenth of a second).
+          const n = Math.ceil(dt * 240);
+          const h = dt / n;
+          for (let k = 0; k < n; k++) {
+            w.wp += (-om * om * w.pitch - 2 * s.zeta * om * w.wp + az / s.length) * h;
+            w.wr += (-om * om * w.roll - 2 * s.zeta * om * w.wr - axl / s.length) * h;
+            w.pitch = Math.max(-s.most, Math.min(s.most, w.pitch + w.wp * h));
+            w.roll = Math.max(-s.most, Math.min(s.most, w.roll + w.wr * h));
+            if (Math.abs(w.pitch) >= s.most) w.wp *= 0.5;
+            if (Math.abs(w.roll) >= s.most) w.wr *= 0.5;
+          }
         }
         // The parent's axes turned by the swing: about x by the pitch,
         // then about z by the roll.
@@ -293,7 +344,6 @@ export function createSprings(
         const y2 = add(mul(parent.x, -sr), mul(y1, cr));
         const frame: BoneFrame = { head, x: x2, y: y2, z: z1, length: s.length };
         out.push(frame);
-        parent = frame;
       });
       ax.set(flow.x, flow.y, flow.z);
       return { frames: out, flow: v3(ax.x, ax.y, ax.z) };

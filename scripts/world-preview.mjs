@@ -387,6 +387,11 @@ const args = parseArgs(
       kind: "flag",
       help: "with --free, the grimbear hunts the ride (the grimbear-lurk, -chase, -run, -maul and -leave views)",
     },
+    body: {
+      kind: "string",
+      default: "",
+      help: "the body the player's kit is worn on (man, woman, guide — the modelled guide); his own when left out",
+    },
     skis: {
       kind: "string",
       default: "",
@@ -484,6 +489,7 @@ const query = new URLSearchParams({
   ...(args.slalom ? { slalom: "1" } : {}),
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
+  ...(args.body ? { body: args.body } : {}),
   ...(args.skis ? { skis: args.skis } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),

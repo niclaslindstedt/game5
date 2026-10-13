@@ -172,10 +172,11 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       switch: "VITE_MODEL_PLAYER",
     },
     note:
-      "the player as a ski mountaineer (softshell, harness, pack, ice axe, rope coil, climbing " +
-      "helmet, glacier glasses), skinned on the dressed skier's rig so every pose moves it, " +
-      "with spring bones on the pack, the coil and the rope's tail and a flutter on the loose " +
-      "cloth; switched off, the player is dressed in code as every other skier",
+      "the rider card's GUIDE body: a backcountry mountain guide (hardshell, avalanche pack " +
+      "with shovel, probe and flagging tape, chest radio, helmet, goggles), skinned on the " +
+      "dressed skier's rig so every pose moves it, with spring bones on the pack, the " +
+      "antenna and the tape and a flutter on the loose cloth; switched off, the guide is " +
+      "dressed in code as every other skier",
   },
   {
     asset: "Skier",

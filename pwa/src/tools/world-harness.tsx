@@ -32,6 +32,7 @@ import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { BODIES, DEFAULT_OUTFIT, type Outfit } from "../game/outfit.ts";
 import { SITE_VIEWS, cabinView } from "./cabin-view.ts";
 import { labPairOption } from "./lab-pair.ts";
 import { markView } from "./mark-view.ts";
@@ -100,6 +101,10 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
+// `?body=guide`: the player in the modelled guide's kit (`player-model.ts`).
+const body = params.get("body");
+if (BODIES.some((b) => b.id === body))
+  renderer.dress({ ...DEFAULT_OUTFIT, body: body as Outfit["body"] });
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
 /** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */

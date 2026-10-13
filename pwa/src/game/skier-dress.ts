@@ -15,7 +15,7 @@ import * as THREE from "three";
 
 import { dressOutfit } from "./dress.ts";
 import { bindPose, type DressPart } from "./dress-loft.ts";
-import { dealtOutfit, type Outfit } from "./outfit.ts";
+import { dealtOutfit, gearOf, type Outfit } from "./outfit.ts";
 import type { SkierPose } from "./skier-pose.ts";
 import { SKIER_BONES, skierBones, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { Collapse } from "./gore-cut.ts";
@@ -43,8 +43,17 @@ export type Dressed = {
   /** The cloth's vertex colours, the bind pose's positions and its weights
    * — what a wound soaks red (`gore-view.ts`). */
   cloth: THREE.BufferGeometry;
+  /** THE RUN'S CLOCK, s, handed in before each pose: what the modelled
+   * kit's springs and flutter run on, so a lab's still, a replay's slow
+   * motion and a paused frame show the cloth as the run had it. Unset, or
+   * not handed for a while (a card's stage), the wall clock stands in. */
+  clock(t: number): void;
   dispose(): void;
 };
+
+/** How long a handed clock holds, s of wall time, before the wall clock
+ * stands in again (the rider card's stage hands none). */
+const CLOCK_HOLD = 0.3;
 
 type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 
@@ -59,9 +68,6 @@ export type SkierDress = {
   /** In a WINGSUIT, its colourway (`wingsuit-look.ts`): the body cut as
    * the suit's (`wingsuit-dress.ts`) and the wings hung on the figure. */
   suit?: number;
-  /** The player's MODELLED kit (`player-model.ts`) in place of the
-   * outfit's cut, once it is loaded — never in a suit or indoors. */
-  model?: boolean;
 };
 
 /** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
@@ -130,9 +136,13 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   // Bound in the rig's own standing pose, the frame the loom cut him in.
   const bind = bindPose().frames;
   SKIER_BONES.forEach((name, i) => setBone(bones[i], bind[name]));
+  // Only an outfit on the GUIDE's body (`outfit.ts`), the player's pick —
+  // never in a wingsuit or a jumper's suit, which are cut by the loom.
+  const modelled =
+    gearOf("body", dress.outfit.body).model && dress.suit === undefined && !dress.outfit.suit;
+  const model = modelled && !dress.bare ? playerModel() : null;
   // The modelled kit's SPRING BONES after the rig's own, bound with the
   // chest's axes at their heads (`player-model.ts`).
-  const model = dress.model && dress.suit === undefined && !dress.bare ? playerModel() : null;
   const springs = model ? createSprings(bind, model.heads) : null;
   const fx = model
     ? SPRING_BONES.map((s) => {
@@ -187,6 +197,8 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   });
 
   let lastFrames = bind;
+  let runAt: number | null = null;
+  let handedAt = -Infinity;
   const lay = (frames: Record<SkierBone, BoneFrame>, cut: Collapse | null | undefined): void => {
     lastFrames = frames;
     SKIER_BONES.forEach((name, i) => {
@@ -202,7 +214,9 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     if (!springs) return;
-    const swung = springs.step(frames, group.matrixWorld, performance.now() / 1000);
+    const wall = performance.now() / 1000;
+    const now = runAt !== null && wall - handedAt < CLOCK_HOLD ? runAt : wall;
+    const swung = springs.step(frames, group.matrixWorld, now);
     const torn = cut?.bones.get("chest");
     fx.forEach((b, i) => {
       setBone(b, swung.frames[i]);
@@ -212,7 +226,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       } else b.scale.setScalar(1);
     });
     flutter.uFlow.value.set(swung.flow.x, swung.flow.y, swung.flow.z);
-    flutter.uFlTime.value = performance.now() / 1000;
+    flutter.uFlTime.value = now;
   };
 
   return {
@@ -225,6 +239,10 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       lay(f, cut);
     },
     last: () => lastFrames,
+    clock(t) {
+      runAt = t;
+      handedAt = performance.now() / 1000;
+    },
     cloth: geos[0],
     dispose() {
       for (const g of geos) g.dispose();

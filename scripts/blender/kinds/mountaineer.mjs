@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE SKI MOUNTAINEER, as the Blender lab is handed him: a touring guide's
-// kit (`mountaineer.py`) over the skier's own body, bound in the very pose
+// THE MOUNTAIN GUIDE, as the Blender lab is handed him: a backcountry
+// guide's kit (`mountaineer.py`) over the skier's own body, bound in the very pose
 // the dressed skier is bound in (`dress-loft.ts`'s `bindPose`), so the game
 // poses him bone for bone as it poses the dressed one — and his head, its
 // face and hair, as the game's own triangles (`helmet-shape.ts`'s
-// `bareHeadParts`), the mountaineering helmet and the glacier glasses laid
+// `bareHeadParts`), the helmet and the goggles laid
 // over them in the builder.
 export const kind = {
   ids: async () => ["mountaineer"],
@@ -21,5 +21,5 @@ export const kind = {
   },
   builder: "mountaineer.py",
   fallback: "mountaineer",
-  help: "mountaineer, the touring guide's kit",
+  help: "mountaineer, the backcountry guide's kit",
 };

@@ -117,6 +117,11 @@ const args = parseArgs(
     },
     skis: { kind: "string", default: "chamois", help: "the pair he skis on" },
     slot: { kind: "number", default: 0, help: "the start-line slot's kit, 0..3" },
+    body: {
+      kind: "string",
+      default: "",
+      help: "the body the slot's kit is worn on (man, woman, guide); the slot's own when left out",
+    },
     frames: { kind: "number", default: 9, help: "moments a move is shown at" },
     views: {
       kind: "string",
@@ -296,6 +301,7 @@ const CLOSE = ["closeup", "detail", "game", "stretch"];
 const data = {
   skis: spec.id,
   slot: args.slot,
+  body: args.body || undefined,
   // The flight's gravity, m/s² — what the page reads his falls by.
   gravity: E.flightGravity(E.MODE_RULES.slalom(1)),
   moves: sheets.includes("moves") || sheets.includes("path") ? moves.map(ski) : [],

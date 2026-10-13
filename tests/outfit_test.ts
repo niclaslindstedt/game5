@@ -65,7 +65,8 @@ describe("the gear", () => {
   });
 
   it("keeps the player's outfit, and nothing but real pieces", () => {
-    expect(freshSettings().outfit).toEqual(DEFAULT_OUTFIT);
+    // A new player rides as the modelled racer, in the default kit.
+    expect(freshSettings().outfit).toEqual({ ...DEFAULT_OUTFIT, body: "racer" });
     const worn: Outfit = { ...DEFAULT_OUTFIT, body: "woman", jacket: "anorak", poles: "speed" };
     expect(mergeSettings(JSON.parse(JSON.stringify({ outfit: worn }))).outfit).toEqual(worn);
     expect(outfitOf({ body: "yeti", jacket: 3, pants: "cargo" })).toEqual({

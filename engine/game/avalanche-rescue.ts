@@ -276,6 +276,8 @@ function stepOthers(state: GameState, a: AvalancheState, events: GameEvent[]): v
           body.last,
           c[k + CELL.vx] + (c[k + CELL.x] - body.x) * K.hold,
           c[k + CELL.vz] + (c[k + CELL.z] - body.z) * K.hold,
+          state.level,
+          debrisDepth(s, body.x, body.z),
         );
         continue;
       }

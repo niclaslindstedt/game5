@@ -146,9 +146,21 @@ export const AVALANCHE = {
   escapeAfter: 2,
   /** CARRIED: the share of the gap between the body's points' speed and the
    * flow's taken up each second (a dense flow drags a body along at
-   * nearly its own speed), and the lift it holds him at, m/s up. */
+   * nearly its own speed). He rides IN the snow, never over it: each
+   * point is drawn toward `ride` of the debris' depth over the ground
+   * under it at `sink` m/s per m of the gap — a dense flow holds a body
+   * low in its column, so nothing he was thrown with carries him up out
+   * of it. */
   drag: 6,
-  lift: 0.6,
+  ride: 0.5,
+  sink: 6,
+  /** SKIED INTO IT: snow at least `engulf` m deep under a skier going
+   * faster than `plough` m/s — the flow's body while it runs, or the
+   * debris it left — takes him as surely as a parcel coming on at him: at
+   * speed the heaped, set blocks stop his skis dead and the snow closes
+   * over him (a dial for play: the game buries whoever runs into it). */
+  engulf: 0.4,
+  plough: 4,
   /** He rides in the parcel that took him, drawn back into it at `hold`
    * per second of the gap (m/s per m), and is put down under the debris
    * `settleFor` s after it comes to rest. */

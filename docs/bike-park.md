@@ -173,3 +173,47 @@ And for the park as a whole:
   - a start hut at the top, a finish arena on the flat, a big jump within the last 200 m;
   - taped edges, which judge "out" as the race gates do in winter.
 - **A FOUR-CROSS** course, where wanted: ~6 m wide, under 1 km, built as the ski cross's course is.
+
+## What is built
+
+The rules above are built as R44 (the park) and R45 (the race line), stated once in `engine/mapgen/bike-park-rules.ts` (`BIKE_PARK_RULES`, its prose mirrored in [`level-generator.md`](level-generator.md)). `setBikePark(level)` lays the park over a built map on a summer free ride (`createGame` with `summer: true`, `mode: "free"`); no other run carries one.
+
+- **Off its own stream.** The park draws from a stream of its own (`park.salt`) and reads the map without writing it. The map it is laid on is kept whole as `park.base`, and `levelDigest` of a summer map is its winter one's. The cabins are read off the base, so none moves.
+- **Which lifts.** Bikes ride the chairs and gondolas with at least 120 m of vertical. The three lowest lifts within 820 m carry them, or the lowest one when none is that low. The grades are dealt per lift, lowest first: green, blue and red off the first; blue, red and black off the second; red and black off the third. A park of one lift gets one of each. There are at most nine trails, plus the race line.
+- **The walk** (`bike-trail-walk.ts`). Each trail leaves its head on the staging apron's rim, 30 m from the top station's middle. On a leg it holds the heading at which the ground falls at the grade's target, eased up or down so its mean comes out at the target. It turns through the fall line at the end of a dealt leg, at its corridor's edge, or where the ground ahead is blocked. Blocking is water, a station, a tower, a cabin, the map's edge, ground past 38°, or another trail or run running the same way within 9 m. A turn is made only where its whole arc is clear. Where it can neither go on nor turn, it skirts along the contour for up to 300 m. Near its end, a ring 40 m up the slope from the bottom station, it is drawn straight home. A head whose first metres meet something is moved 12° round the rim. Each slot tries six lines and keeps the best: the most in the woods (a red's and a black's thrice over), the least cut, and the mean nearest its target.
+- **The bench** (`bike-trail-shape.ts`). This is the tread's height down the line: the ground eased over 16 m and held never to rise and never to fall past the grade's steepest. Across the tread it is outsloped 5 % toward the downhill side, and it eases into the ground over a shoulder 1 m wide plus 1.2 m for every metre of cut or fill, 4 m at most. A trail cut or filled more than 3.5 m at its centre line is refused.
+- **The features** (`bike-features.ts`), each in its grade's band. Berms bank the turns. Rollers come every 8–16 m down a green's and a blue's legs, and dips every 12–25 m down a red's. Tabletops come in lines, with gaps on a red and a black. Drops, step-downs and rock gardens come from a blue up, and root sections on a red, a black and the race line. Every feature is kept clear of the trail's first and last metres, of the next turn and of the next feature's run-out.
+- **The race line (R45).** It is laid first, off the lift with the most vertical, or the next one where it cannot be laid. It is walked at 25 % to the bottom station, with its start 700 m of height above the finish. It is taped down both edges and carries a black's technical features and a finish jump. It is kept only if its mean lies within 18–32 %, its length within 1.5–3.5 km and its drop within 400–700 m.
+- **The surface: a layered analytic one** (`bike-surface.ts`'s `withBikeSurface`). This is the halfpipe's answer, not a regraded grid. A tread is 0.5–2.5 m wide, and a table's lip, a drop's ledge, a rock or a root is decimetres. The map's 2 m grid cannot hold any of that, and regrading it would smear every trail into a ramp and move what the winter builds on. So inside a trail's footprint, `groundAt` and `normalAt` answer off the trail's own shape: the bench, its outslope, the features, and the shoulder eased into the ground. Everywhere else they answer off the base map. The grid under each footprint is cut 12 cm below that surface, so the terrain mesh never pokes through. The renderer lays the true surface over it as a ribbon (`bike-trail-plan.ts`, `bike-trails-view.ts`). Trees on a tread or in its fall zone are felled, and a tree on a shoulder is stood on it.
+- **The treads to a tyre.** The summer ground (`summer-ground.ts`) asks `bikeTreadAt` first and reports the trail kinds with surfaces of their own (`defs/summer-ground.ts`):
+  - `flow` — a flow trail's crushed-stone fines;
+  - `trail` — a technical trail's and the race line's loam;
+  - `rocks` — on a rock;
+  - `roots` — on a root;
+  - `dirt` — the raw earth of a shoulder.
+- **The questions** (`bike-park-query.ts`, exported through `engine/game/bike-park-api.ts`):
+  - `bikeTrailAt` — which trail a point is on, at what arc, how far off its centre and how much on its surface;
+  - `bikeTreadAt` — the tread there;
+  - `nearestBikeTrailPoint` — the nearest point of any trail;
+  - `bikeTrailHeads` — the heads off a lift's top;
+  - `bikeTrailById` and `featuresAt`.
+- **Held by** `engine/analysis/bike-park.ts` (`analyzeBikePark`). It reads only what the park publishes and checks:
+  - every trail's mean, steepest, rise, cut and width;
+  - each feature's size, place and run-out;
+  - that no trunk stands on a tread or in its fall zone;
+  - that the ground is the bench away from features;
+  - that every head is on a carrying lift's apron and every end is beside a bottom station.
+
+  A park with no green, blue or red is a warning, not an error. `tests/bike_park_test.ts` and `bike_park_regions_test.ts` hold it on generated mountains, every region and two real faces.
+- **As drawn.** The ribbon is pale gravel or dark loam, with the tyre lines worn darker. The shoulders are raw earth fading into the grass. The rocks and roots are pieces of their own, and the race line is staked and taped red and white. Each head has a sign with the grade's mark and a trail name (`bike-sign-plan.ts`, drawn by `run-signs.ts`). The trails are also on the run's minimap in their grades' colours.
+- **Labs.** `make bike-park` is the plan, the profiles, the table and the sweep, pure Node. `make bike-look` is the park through the game's renderer at named views.
+
+**Still open:**
+
+- **Real faces.** They are steeper and rougher than dealt ones, so a green or a blue does not fit on every face (two of the three tried carry a park).
+- **Woods.** The woods share is scored, never required.
+- **Race furniture.** No start hut on its ramp, no finish arena and no timing yet.
+- **Junctions and crossings.** They are found and published (`park.junctions`), but not flattened, widened or signed. Neither are the crossings of a piste or a road.
+- **Four-cross.** There is no four-cross.
+- **The start card's chart.** It does not draw the trails, because the chart is baked off the winter map in a worker, and laying the park there costs seconds.
+- **The bike.** Riding the trails is part C's.

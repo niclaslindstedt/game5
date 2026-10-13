@@ -5,6 +5,7 @@
 import type { PipeFrame } from "./pipe.ts";
 import type { MogulField } from "./mogul-field.ts";
 import type { Heightfield } from "@niclaslindstedt/oss-game-framework/core/heightfield";
+import type { BikePark } from "./bike-park-types.ts";
 import type { PisteGrade, RunGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
 import type { GeneratorVersion } from "./versions.ts";
@@ -285,6 +286,11 @@ export interface Level {
   /** THE SKI AREA (R25–R28) on a map built by a generator from the resorts
    * on: every run, lift and course, and which course `track` is. */
   resort?: Resort;
+  /** A SUMMER map's BIKE PARK (R44, R45, `setBikePark`): its trails, aprons
+   * and race line, laid as a surface over the map — `groundAt` and
+   * `normalAt` answer off the trails inside their footprints. Absent on
+   * every map the generator builds and every winter run. */
+  bikePark?: BikePark;
   /** A SLALOM set on the map (R31, `setSlalom`): its gates are this map's
    * `checkpoints`, its start hut the `spawn`. Absent on every map the
    * generator builds — a slalom is set over one. */

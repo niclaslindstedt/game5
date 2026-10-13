@@ -59,7 +59,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (release, beside, below, debris, caught, night, hud, probe, hole, patrol, buried)",
+      help: "only these views, comma-separated (release, beside, below, debris, caught, plough, night, hud, probe, hole, patrol, buried)",
     },
     seed: {
       kind: "number",

@@ -7,8 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { generateLevel, type GeneratedLevel, type RegionId } from "@engine";
-import { FACE_INDEX } from "../engine/mapgen/real-faces-index.ts";
+import { generateLevel, type GeneratedLevel, REAL_FACE_IDS, type RegionId } from "@engine";
 
 import { decodeFarFace, encodeFarFace, FAR_FACE } from "../pwa/src/game/far-face-codec.ts";
 import { farFaceIds, loadFarFace } from "../pwa/src/game/far-faces.ts";
@@ -198,7 +197,7 @@ describe("the real country", () => {
   it("is baked for real faces only, each on the layout, standing as real ranges do", async () => {
     const ids = farFaceIds();
     expect(ids.length).toBeGreaterThan(0);
-    const known = new Set(FACE_INDEX.map((f) => f.id));
+    const known = new Set(REAL_FACE_IDS);
     for (const id of ids) {
       expect(known.has(id), id).toBe(true);
       const far = (await loadFarFace(id))!;

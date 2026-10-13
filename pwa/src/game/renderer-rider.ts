@@ -118,7 +118,9 @@ export function thrownEffects(
     fx.spray.burst(off.x, off.y - y, off.z, off.vx, off.vz, size, fx.snow);
     fx.cloud.burst(off.x, off.y - y, off.z, off.vx, off.vz, size, fx.snow);
   };
-  if (!r.wasThrown) puff(0.4, 1);
+  // The burst a fall throws is snow kicked up: thrown off a lift's rope or
+  // anywhere high in the air there is none under him to throw.
+  if (!r.wasThrown && off.y - fx.level.groundAt(off.x, off.z) < 1.5) puff(0.4, 1);
   const sliding = Math.hypot(off.vx, off.vz);
   if (off.touching && !r.bodyDown && sliding > 2) puff(0.3, Math.min(0.6, sliding / 20));
   r.plume = off.touching && sliding > 3 ? r.plume + simDt : 0;

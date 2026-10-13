@@ -81,7 +81,7 @@ import { ParaReadout } from "./hud-para.tsx";
 import { ChuteReadout, PlaneReadout } from "./hud-plane.tsx";
 import { BalloonPad, BalloonReadout } from "./hud-balloon.tsx";
 import { JumpPad, SkiJumpBar, SkiJumpCues } from "./hud-skijump.tsx";
-import { BeaconUnit, BuriedVeil } from "./hud-beacon.tsx";
+import { BeaconUnit } from "./hud-beacon.tsx";
 
 export type { HudFlash };
 
@@ -241,9 +241,17 @@ export function Hud({
   // where his injuries are drawn at all.
   const died = replaying ? null : snap.died;
   const injured = replaying ? null : snap.injured;
-  const wreck = injuries
-    ? wreckOf(snap.body.blow, died?.since ?? null, injured?.since ?? null, restartAfter)
-    : null;
+  // Buried by an avalanche, the card comes up whatever the switch says.
+  const buried = died?.cause === "smothered";
+  const wreck =
+    injuries || buried
+      ? wreckOf(
+          injuries ? snap.body.blow : null,
+          died?.since ?? null,
+          injuries ? (injured?.since ?? null) : null,
+          restartAfter,
+        )
+      : null;
   // THE CRASH OFFERED AGAIN (`hud-replay-offer.tsx`): small print under a
   // card's words, else a chip in the corner under the presses.
   const onCard = wreck !== null && (died !== null || injured !== null);
@@ -780,8 +788,7 @@ export function Hud({
       )}
       {/* THE AVALANCHE TRANSCEIVER (`hud-beacon.tsx`) while somebody is
           under the snow, and the dark over him when it is he who is. */}
-      {snap.buried && <BuriedVeil buried={snap.buried} />}
-      {snap.beacon && !snap.buried && (
+      {snap.beacon && (
         <BeaconUnit
           read={snap.beacon}
           touch={touch}

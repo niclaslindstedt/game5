@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AVALANCHE TRANSCEIVER IN HIS HAND, AND THE VIEW FROM UNDER THE SNOW
-// (`beacon-read.ts` decides every figure).
+// THE AVALANCHE TRANSCEIVER IN HIS HAND (`beacon-read.ts` decides every
+// figure).
 //
 // THE UNIT — low in the middle of the picture, where a searcher holds his
 // out in front of him: a rugged case with a lamp that blinks with every
@@ -12,17 +12,13 @@
 // between brackets. Under it, what to do next with the key that does it.
 // On touch, its two presses beside it: BEACON (send / search) and PROBE /
 // DIG (pressed a probe, held a dig).
-//
-// THE VEIL — buried, the screen is the dark of the snow over him, breathing,
-// with his AIR running down and the patrol's progress written over it; it
-// lifts as the shovels reach him.
 
 import { useEffect, useMemo, useRef } from "preact/hooks";
 
 import { createHudPress, pressHandlers } from "@niclaslindstedt/oss-game-framework/input/hud-press";
 import { createThumbGuard } from "@niclaslindstedt/oss-game-framework/input/thumb-guard";
 
-import type { BeaconRead, BuriedRead } from "./beacon-read.ts";
+import type { BeaconRead } from "./beacon-read.ts";
 import { capturePointer, stillDown } from "./hud-touch.tsx";
 import { STRINGS } from "./strings.ts";
 
@@ -229,38 +225,5 @@ function HoldPress({ label, on }: { label: string; on: (down: boolean) => void }
     >
       {label}
     </button>
-  );
-}
-
-/** UNDER THE SNOW: the dark, his air, what he can hear of the patrol. */
-export function BuriedVeil({ buried }: { buried: BuriedRead }) {
-  const stage =
-    buried.stage === "coming"
-      ? STRINGS.buriedComing
-      : buried.stage === "search"
-        ? STRINGS.buriedSearch
-        : buried.stage === "probe"
-          ? STRINGS.buriedProbe
-          : buried.stage === "dig"
-            ? STRINGS.buriedDig
-            : STRINGS.buriedWait;
-  const dark = Math.max(0, 1 - buried.light * 1.15);
-  const low = buried.air < 0.25;
-  return (
-    <div
-      class={low ? "hud-buried hud-buried-low" : "hud-buried"}
-      style={{ opacity: (0.25 + 0.75 * dark).toFixed(3) }}
-      role="status"
-    >
-      <div class="hud-buried-dark" style={{ opacity: dark.toFixed(3) }} />
-      <div class="hud-buried-read">
-        <span class="hud-buried-label">{STRINGS.buriedAir}</span>
-        <span class="hud-buried-air">
-          <span style={{ width: `${Math.round(buried.air * 100)}%` }} />
-        </span>
-        <span class="hud-buried-depth">{STRINGS.buriedDepth(buried.depth)}</span>
-        <span class="hud-buried-stage">{stage}</span>
-      </div>
-    </div>
   );
 }

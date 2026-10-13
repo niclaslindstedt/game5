@@ -176,6 +176,8 @@ export const BODY_STRINGS = {
   /** HIS DEATH, on an injuries run (`hud-wreck.ts`): the word, what of,
    * and what comes next. */
   died: "DIED",
+  /** The avalanche's death card's word (`hud-glass.tsx`). */
+  buriedWord: "BURIED",
   diedOf: {
     head: "HEAD TORN OFF",
     crush: "SKULL CRUSHED",

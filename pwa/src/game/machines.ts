@@ -66,7 +66,6 @@ import { wingsuitShapeOf } from "./skier-wingsuit.ts";
 import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
-import { buriedLens } from "./camera-buried.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
 import { createAvalancheView, type AvalancheView } from "./avalanche-view.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
@@ -304,15 +303,6 @@ export function createMachines(
   // THE SKI PATROL AND THE SEARCH (`patrol-view.ts`), built when the first
   // patrol skis in or the first body is struck.
   let patrol: PatrolView | null = null;
-  // The lens under the snow while he lies buried (`camera-buried.ts`).
-  const buriedPose: LensPose = {
-    eye: { x: 0, y: 0, z: 0 },
-    target: { x: 0, y: 0, z: 0 },
-    fov: 60,
-    roll: 0,
-  };
-  const surfaceAt = (x: number, z: number): number =>
-    level.groundAt(x, z) + (slide?.liftAt(x, z) ?? 0);
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
@@ -551,9 +541,7 @@ export function createMachines(
       const x = exitCut?.lens(h ?? c ?? p ?? ladder, dt) ?? null;
       if (exitCut) exitHud(exitBar(aspect, exitCut.share()));
       if (x) ownLook = exitEyes;
-      // Under the snow, the picture is his until the patrol digs him out.
-      const u = h || c || p || x || !slide ? null : buriedLens(current, surfaceAt, buriedPose);
-      return x ?? h ?? c ?? p ?? u;
+      return x ?? h ?? c ?? p;
     },
     figureShown: () => !ownLook,
     ladder(pose, s, screen = 16 / 9) {

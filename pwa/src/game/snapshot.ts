@@ -17,7 +17,7 @@ import { afterskiOf, type HudAfterski } from "./afterski-hud.ts";
 import { altitudeAt, overBase } from "./altitude.ts";
 import { doorCallOf, type HudDoor } from "./door-hud.ts";
 import { balloonOf, type HudBalloon } from "./balloon-hud.ts";
-import { beaconRead, buriedRead, type BeaconRead, type BuriedRead } from "./beacon-read.ts";
+import { beaconRead, type BeaconRead } from "./beacon-read.ts";
 import {
   aloftInPlane,
   chuteOf,
@@ -64,7 +64,7 @@ import {
   type BodyPart,
   type InjuryKind,
 } from "@engine";
-import { diedOf, injuredOf } from "./hud-wreck.ts";
+import { buriedOf, diedOf, injuredOf } from "./hud-wreck.ts";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
 import { SCREEN_TO_ENGINE } from "./input-model.ts";
@@ -353,9 +353,6 @@ export type HudSnapshot = {
   /** THE AVALANCHE TRANSCEIVER (`beacon-read.ts`): its face while somebody
    * is under the snow or it is switched to search, or null. */
   beacon: BeaconRead | null;
-  /** UNDER THE SNOW HIMSELF (`beacon-read.ts`): his air, his depth and the
-   * patrol's progress while he lies buried, or null. */
-  buried: BuriedRead | null;
   /** THE JUMP PLANE (`plane-hud.ts`): its instruments while he flies it
    * from the door, its call while it stands parked near him, or null. */
   plane: HudPlane | null;
@@ -825,7 +822,6 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     para: paraOf(state),
     balloon: balloonOf(state),
     beacon: aloft ? null : beaconRead(state, state.t),
-    buried: buriedRead(state),
     plane: balloonAboard(state) ? null : planeOf(state),
     chute: chuteOf(state),
     suitLanded: suitLandedOf(state),
@@ -847,5 +843,7 @@ function injuredLine(state: GameState): HudSnapshot["injured"] {
 /** His death, as the HUD reads it. */
 function diedLine(state: GameState): HudSnapshot["died"] {
   const since = diedOf(state);
-  return since === null || !state.gore?.cause ? null : { since, cause: state.gore.cause };
+  // Buried with no wounds on the run, the debris is still what killed him.
+  const cause = state.gore?.cause ?? (buriedOf(state) !== null ? "smothered" : null);
+  return since === null || !cause ? null : { since, cause };
 }

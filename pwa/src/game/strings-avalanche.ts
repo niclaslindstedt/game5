@@ -28,15 +28,6 @@ export const AVALANCHE_STRINGS = {
   touchProbe: "PROBE",
   touchDig: "DIG",
 
-  /* ── UNDER THE SNOW (hud-buried.tsx) ───────────────────────────────── */
-  buriedAir: "AIR",
-  buriedDepth: (m: number): string => `${m.toFixed(1)} M UNDER`,
-  buriedWait: "THE PATROL IS CALLED",
-  buriedComing: "THE PATROL IS COMING",
-  buriedSearch: "THEY ARE SEARCHING",
-  buriedProbe: "A PROBE IN THE SNOW",
-  buriedDig: "THEY ARE DIGGING",
-
   /* ── THE NEWS (run-news.ts) ────────────────────────────────────────── */
   newsOtherCaught: "A SKIER TAKEN BY THE SLIDE!",
   newsOtherBuried: "SOMEONE BURIED — SEARCH!",

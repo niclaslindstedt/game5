@@ -10,10 +10,7 @@
 //            strike and the dig;
 //   probe    a probe that misses and one that strikes, the probe left in;
 //   hole     the hole dug from downhill, a third, two thirds and out;
-//   patrol   the patrol skiing in, searching, probing, digging, done;
-//   buried   the player himself under the snow: the dark and his air, the
-//            patrol's search over him, the lens pulled up out of the hole
-//            as they dig, and stood up again.
+//   patrol   the patrol skiing in, searching, probing, digging, done.
 //
 // Staged as `test-scenario` stages a moment: the amateur placed and thrown
 // before the flow reaches him, the player stood where each frame wants
@@ -33,9 +30,9 @@ import {
   type SkierInput,
 } from "@engine";
 
-import { beaconRead, buriedRead } from "../game/beacon-read.ts";
+import { beaconRead } from "../game/beacon-read.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
-import { BeaconUnit, BuriedVeil } from "../game/hud-beacon.tsx";
+import { BeaconUnit } from "../game/hud-beacon.tsx";
 import type { CameraRung } from "../game/renderer-api.ts";
 
 type Spot = { x: number; z: number };
@@ -56,7 +53,6 @@ export const RESCUE_GROUPS: Record<string, readonly string[]> = {
   search: ["hud", "probe"],
   hole: ["hole"],
   patrol: ["patrol"],
-  buried: ["buried"],
 };
 
 const STEP = TUNING.dt;
@@ -348,53 +344,6 @@ export function rescueViews(lab: RescueLab): Record<string, () => Promise<void>>
       lab.shoot(s, "almost down to him", look);
       until("leave", 3);
       lab.shoot(s, `out ${b.alive ? "alive" : "dead"}, standing by`, look);
-    },
-    async buried() {
-      const face = lab.face();
-      let s: GameState | null = null;
-      for (const down of [6, 0, 12, 20, 30]) {
-        const t = lab.fresh(0);
-        const f = fallAt(t, face.x, face.z);
-        placeRun(t, {
-          x: face.x + f.x * down,
-          z: face.z + f.z * down,
-          heading: Math.atan2(f.z, -f.x),
-          speed: 0,
-        });
-        releaseAvalanche(t, t.avalanche!, t.skier.x, t.skier.z, []);
-        skip(t, 60, { ...NEUTRAL_INPUT, brake: 1 }, () => t.avalanche!.victim?.phase === "buried");
-        if (t.avalanche!.victim?.phase === "buried") {
-          s = t;
-          break;
-        }
-      }
-      if (!s) throw new Error("the player was never buried on the lab's face");
-      const a = s.avalanche!;
-      // Air enough for the patrol to come in time, his bar draining as it does.
-      a.victim!.air = 130;
-      const veil = (): ComponentChild => {
-        const r = buriedRead(s!);
-        return r ? h(BuriedVeil, { buried: r }) : null;
-      };
-      lab.play(s, 0.4);
-      lab.shoot(s, `under ${a.victim!.depth.toFixed(2)} m: the patrol called`, "chase", veil());
-      const until = (want: string, share: number): void => {
-        skip(s!, 200, NEUTRAL_INPUT, () => {
-          const p = a.patrol;
-          if (!p || p.phase !== want) return false;
-          return want === "dig" ? p.dug >= share * p.depth : p.t >= share;
-        });
-        lab.play(s!, 0.3);
-      };
-      until("search", 3);
-      lab.shoot(s, "they are searching over him", "chase", veil());
-      until("dig", 0.3);
-      lab.shoot(s, "the shovels coming down: the lens pulled up", "chase", veil());
-      until("dig", 0.7);
-      lab.shoot(s, "nearly out", "chase", veil());
-      skip(s, 60, NEUTRAL_INPUT, () => !s!.skier.thrown);
-      lab.play(s, 1);
-      lab.shoot(s, "dug out and stood up", "chase", veil());
     },
   };
 }

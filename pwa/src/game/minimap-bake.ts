@@ -90,6 +90,10 @@ export type MinimapSource = {
    * runway and its apron as (ax, az, bx, bz, half their width) quintuples,
    * m — the packed snow a piste map draws a strip as; empty elsewhere. */
   strip?: Float32Array;
+  /** A summer bike park's trails (R44, R45) as (ax, az, bx, bz, r, g, b)
+   * septuples, m and sRGB 0..255 — each piece of a trail's line in its
+   * grade's colour; absent off a park. */
+  bike?: Float32Array;
 };
 
 type Rgb = [number, number, number];
@@ -160,7 +164,33 @@ export function minimapSource(level: Level, extras: MinimapExtras = {}): Minimap
     cabins: extras.strip ? withStripRoofs(level, cabins) : cabins,
     streets: streetsOf(level),
     ...(extras.strip ? { strip: stripOf(level) } : {}),
+    ...(level.bikePark ? { bike: bikeOf(level) } : {}),
   };
+}
+
+/** A bike trail's ink on the chart by its grade, sRGB 0..255; the race
+ * line's the tape's red. */
+const BIKE_INK: Readonly<Record<string, Rgb>> = {
+  green: [40, 150, 70],
+  blue: [30, 90, 200],
+  red: [210, 40, 40],
+  black: [20, 20, 20],
+  race: [235, 110, 20],
+};
+
+/** The bike park's trails as coloured pieces (`MinimapSource.bike`), a
+ * piece every four metres. */
+function bikeOf(level: Level): Float32Array {
+  const out: number[] = [];
+  for (const t of level.bikePark?.trails ?? []) {
+    const ink = BIKE_INK[t.kind === "race" ? "race" : t.grade];
+    for (let k = 4; k < t.points.length; k += 4) {
+      const a = t.points[k - 4];
+      const b = t.points[k];
+      out.push(a.x, a.z, b.x, b.z, ink[0], ink[1], ink[2]);
+    }
+  }
+  return new Float32Array(out);
 }
 
 /** The strip's runway and apron as bands (`MinimapSource.strip`). */
@@ -392,6 +422,7 @@ export function bakeMinimap(
   stampTrees(out, px, step, src.trees);
   stampStreets(out, px, step, src.streets);
   if (src.strip) stampStrip(out, px, step, src.strip);
+  if (src.bike) stampBike(out, px, step, src.bike);
   stampCabins(out, px, step, src.cabins);
   return out;
 }
@@ -503,6 +534,37 @@ function stampStreets(
     out[o] += (STREET[0] - out[o]) * a;
     out[o + 1] += (STREET[1] - out[o + 1]) * a;
     out[o + 2] += (STREET[2] - out[o + 2]) * a;
+  }
+}
+
+/** A bike park's trails as lines a pixel wide (whatever the scale), each
+ * in its grade's ink, soft by half a pixel. */
+function stampBike(out: Uint8ClampedArray, px: number, step: number, bike: Float32Array): void {
+  const r = Math.max(0.6, 1.2 / step);
+  for (let n = 0; n < bike.length; n += 7) {
+    const ax = bike[n] / step - 0.5;
+    const az = bike[n + 1] / step - 0.5;
+    const bx = bike[n + 2] / step - 0.5;
+    const bz = bike[n + 3] / step - 0.5;
+    const ex = bx - ax;
+    const ez = bz - az;
+    const ee = Math.max(1e-9, ex * ex + ez * ez);
+    const i0 = Math.max(0, Math.floor(Math.min(ax, bx) - r - 1));
+    const i1 = Math.min(px - 1, Math.ceil(Math.max(ax, bx) + r + 1));
+    const j0 = Math.max(0, Math.floor(Math.min(az, bz) - r - 1));
+    const j1 = Math.min(px - 1, Math.ceil(Math.max(az, bz) + r + 1));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const h = Math.max(0, Math.min(1, ((i - ax) * ex + (j - az) * ez) / ee));
+        const d = Math.hypot(i - ax - ex * h, j - az - ez * h);
+        const a = Math.min(1, Math.max(0, r + 0.5 - d)) * 0.9;
+        if (a <= 0) continue;
+        const o = (j * px + i) * 4;
+        out[o] += (bike[n + 4] - out[o]) * a;
+        out[o + 1] += (bike[n + 5] - out[o + 1]) * a;
+        out[o + 2] += (bike[n + 6] - out[o + 2]) * a;
+      }
+    }
   }
 }
 

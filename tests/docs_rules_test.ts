@@ -12,16 +12,21 @@
 // The book is four files read as one: `rules.ts` states R1–R24, the
 // resort's rule book (`resort-rules.ts`) R25–R30, the disciplines'
 // (`discipline-rules.ts`) R31–R36 and the freestyle venues'
-// (`trick-rules.ts`) R37 onward.
+// (`trick-rules.ts`) R37–R43 and the summer bike park's
+// (`bike-park-rules.ts`) R44 onward.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const BOOKS = ["rules.ts", "resort-rules.ts", "discipline-rules.ts", "trick-rules.ts"].map((file) =>
-  readFileSync(join(ROOT, "engine", "mapgen", file), "utf8"),
-);
+const BOOKS = [
+  "rules.ts",
+  "resort-rules.ts",
+  "discipline-rules.ts",
+  "trick-rules.ts",
+  "bike-park-rules.ts",
+].map((file) => readFileSync(join(ROOT, "engine", "mapgen", file), "utf8"));
 const doc = readFileSync(join(ROOT, "docs", "level-generator.md"), "utf8");
 
 const squash = (s: string): string => s.replace(/\s+/g, " ").trim();

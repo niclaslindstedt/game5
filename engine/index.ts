@@ -208,6 +208,7 @@ export {
 } from "./game/lake-ice.ts";
 export { LAKE_ICE } from "./game/defs/lake-ice.ts";
 export * from "./game/summer-api.ts";
+export * from "./game/bike-park-api.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";

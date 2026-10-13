@@ -114,6 +114,10 @@ On a map raised on a face (and only then), the generator lays the water on the g
 
 Measured over the forty on seed 1: 224 bodies are laid (114 on the mountain, more than 60 m over the village, and 110 down on the valley floor and below the town) on 38 faces, and 843 streams; the largest laid is 0.66 km², a valley lake cut along the floor's rows. The attempts and the build time are those of the maps without water to within a few per cent (88 attempts against 90, 582 s against 586 s). With the guard off, about 13,000 trees and one lift tower would stand in the water; none does. Laid again (seed 1): 15 faces had ground under a body off its surface, by up to 20.7 m (`fell-8`, beside a top station's pad), 18.3 m (`fell-2`) and 16.7 m (`alpine-5`); after, none does but where two bodies touch at different levels (`fell-12`, 0.6 m on three cells of a shared shore). 13 bodies are left off (211 laid), every stream is kept, and the attempts and the build time are unchanged (90 attempts; 694 s against 759 s). The village's streets met the water on 16 faces and then on 9, the whole village on the ice on 5 fells where no loop fits off it; with the village's room kept dry and the roadless shore tried, none does on any of the 93 faces (seeds 1 and 2).
 
+## The real country round it
+
+A face's skyline is the real country round it, out to 60 km. It is baked off the 90 m model (Copernicus DEM GLO-90, under the same notice as below) by `make far-faces` (`scripts/far-faces.mjs`, with its tiles kept in `previews/.dem90/`) into a generated file a face, `pwa/src/game/far-faces/far-<id>.ts` (about 10 KB). The file is fetched with the face and drawn by the far ranges (`docs/far-ranges.md`). It is presentation only, and no digest moves.
+
 ## The data
 
 The heights come from the **Copernicus DEM GLO-30**, a global 30 m surface model. It is free to use and redistribute with this notice:

@@ -42,6 +42,11 @@ import { summerShown } from "./season-look.ts";
 
 /** How dark the rock is where it goes into the snow, of its own colour. */
 const FOOT = 0.45;
+/** The snow the beds' treads hold on the mean (`snowShare`'s `held`
+ * over a bed, its riser and the beds that shed it): the even cover a
+ * calmed far face is painted with. */
+const CALM_HELD = 0.06;
+
 /** A CLIFF WALL'S BEDS: about `WALL_BED` m thick (0.55..1.45 of it), each
  * jutting `WALL_JUT` m out of the face at its top (the least and the most)
  * and its foot up to `WALL_CUT` m further in or a little further out; its
@@ -258,8 +263,13 @@ export function buildSkin(
       // Streaked down the fall line: wet and iron stains off the joints.
       const s = streakOf(st, x, z);
       const k0 = (1 - snow) * shade * s * dark;
-      const c0 = (1 - snow) * dark;
       level.normalAt(x, z, g);
+      // Calmed far out, the snow is the face's even cover (the beds' mean
+      // share on the ground's slope), not ledge by ledge: a white lip a
+      // pixel or two tall crawls as the lens moves.
+      const even =
+        SNOW_MOST * Math.max(0, Math.min(1, (g.y + CALM_HELD - S.slides) / (S.holds - S.slides)));
+      const c0 = (1 - even) * dark;
       m.pos.push(x, y, z);
       m.nrm.push(nx, ny, nz);
       m.col.push(
@@ -269,9 +279,9 @@ export function buildSkin(
       );
       m.soft.push(g.x, g.y, g.z);
       m.calm.push(
-        stone[0] * c0 + over[0] * snow,
-        stone[1] * c0 + over[1] * snow,
-        stone[2] * c0 + over[2] * snow,
+        stone[0] * c0 + over[0] * even,
+        stone[1] * c0 + over[1] * even,
+        stone[2] * c0 + over[2] * even,
       );
       m.zone.push(zone);
       m.bed.push(v[p + 3], jointOf(st, x, z));

@@ -111,7 +111,7 @@ const STRATA_COLOUR = /* glsl */ `
   rkRock = 1.0 - smoothstep(0.3, 0.55, lum);
   float t = vStrata.x / ${LAYER.toFixed(2)} + 0.18 * sin(vStrata.y * 9.42);
   float fwT = fwidth(t);
-  float fade = 1.0 - smoothstep(0.2, 0.55, fwT);
+  float fade = 1.0 - smoothstep(0.03, 0.12, fwT);
   float p = fract(t);
   float part = 1.0 - smoothstep(0.0, 0.04 + fwT, min(p, 1.0 - p));
   // Not every layer parts cleanly: some run into the next unbroken.
@@ -133,13 +133,13 @@ const STRATA_COLOUR = /* glsl */ `
   float crack = (1.0 - smoothstep(0.0, 0.02 + 3.0 * fwU, min(q3, 1.0 - q3)))
     * step(0.72, rkHash(vec2(floor(t * 0.5), floor(u3))));
   crack = max(crack * 0.6, jointMain);
-  float fadeU = 1.0 - smoothstep(0.2, 0.55, fwU);
+  float fadeU = 1.0 - smoothstep(0.03, 0.12, fwU);
   rkDetail = fade * rkRock;
   float tone = (0.86 + 0.28 * layer) * (1.0 - 0.2 * part);
   tone = mix(1.0, tone, fade) * mix(1.0, 1.0 - 0.35 * crack, fadeU);
   diffuseColor.rgb *= mix(1.0, tone, rkRock);
   // Each layer a hand proud at its top, its parting and the cracks cut in.
-  rkHeight = rkRock * (fade * (0.05 * p - 0.03 * part) - fadeU * 0.06 * crack);
+  rkHeight = rkRock * (fade * fade * (0.05 * p - 0.03 * part) - fadeU * fadeU * 0.06 * crack);
 }
 `;
 const STRATA_NORMAL = /* glsl */ `

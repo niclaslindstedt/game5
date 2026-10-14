@@ -158,6 +158,10 @@ export type ShotCollector = {
   /** Everything worth watching so far, ranked and spaced (`planShots`);
    * callable mid-run, which is what the pause card's offer is built on. */
   plan: () => ReplayShot[];
+  /** Everything that earned a mark, unranked and unspaced, in the order it
+   * was filed — what the film director's look-ahead reads
+   * (`cinema-ahead.ts`), which keeps two jumps a second apart. */
+  all: () => readonly ReplayShot[];
 };
 
 type Pose = Omit<ReplayShot, "kind" | "runs" | "weight">;
@@ -168,7 +172,9 @@ function poseInto(out: Pose, state: GameState, at: number): Pose {
   out.x = s.x;
   out.y = s.y;
   out.z = s.z;
-  out.heading = s.heading;
+  // The way he is GOING, not the way his skis point: a spin in the air or
+  // a skid turns the skis off his line, and a lens is planted along it.
+  out.heading = Math.hypot(s.vx, s.vz) > 1 ? Math.atan2(s.vx, s.vz) : s.heading;
   out.speed = s.speed;
   return out;
 }
@@ -194,6 +200,7 @@ export function createShotCollector(): ShotCollector {
 
   return {
     plan: () => planShots(found),
+    all: () => found,
     step: (state, at) => {
       // The tricks first: a revolution the touchdown finished is won on the
       // landing's own step, after its `land`.

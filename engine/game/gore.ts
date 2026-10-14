@@ -525,12 +525,23 @@ function slide(_state: GameState, g: GoreState, b: Thrown): void {
   b.pin.y = at.y - at.sunk;
 }
 
+/** Whether a body summed to `iss` dies of it on this run
+ * (`GORE.frailty`): the trauma ward's chance at that score against the
+ * run's frailty, drawn once off a hash. */
+export function diesOf(state: GameState, iss: number): boolean {
+  const F = GORE.frailty;
+  if (iss < F.least) return false;
+  const chance = 1 / (1 + Math.exp((F.half - iss) / F.spread));
+  return hash2(state.seed | 0, 0x7a11, SALT + 3) < chance;
+}
+
 /** Mortal, and dead. */
 function mortality(state: GameState, g: GoreState, events: GameEvent[]): void {
   const body = state.skier.body;
   if (g.mortal < 0) {
     if (body.injuries.some((h) => h.ais >= GORE.mortalAis)) mortalBy(state, g, "trauma");
     else if (severityOf(body) >= GORE.mortalIss) mortalBy(state, g, "trauma");
+    else if (diesOf(state, severityOf(body))) mortalBy(state, g, "trauma");
     else if (body.injuries.some((h) => h.kind === "airwayBurn")) mortalBy(state, g, "fire");
     else if (state.skier.thrown?.cause === "maul") mortalBy(state, g, "maul");
   }

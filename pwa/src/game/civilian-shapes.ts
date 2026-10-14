@@ -48,6 +48,7 @@ import {
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape } from "./tree-mesh.ts";
 import { emitSummer, summerBlanket } from "./civilian-summer-shapes.ts";
+import { stuckSkis } from "./fire-helds.ts";
 
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -795,6 +796,7 @@ export function buildCivilianProps(plan: CivilianPlan, origin: V3): THREE.Buffer
     const o: V3 = [p.x - origin[0], p.y - origin[1], p.z - origin[2]];
     if (p.kind === "deckchair") deckchair(s, o, p.heading, stripes[i % stripes.length]);
     else if (p.kind === "blanket") summerBlanket(s, o, p.heading, stripes[i % stripes.length]);
+    else if (p.kind === "skis") stuckSkis(s, o, p.heading, i);
     else snowman(s, o, p.heading, p.stage);
   });
   return s.geometry();

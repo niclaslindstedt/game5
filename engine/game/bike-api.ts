@@ -14,6 +14,8 @@ export {
 } from "./bike-geometry.ts";
 export {
   absorbOf,
+  bikeSteerFor,
+  bikeTurnAsked,
   rideBike,
   type BikeRide,
   type BikeStepReport,

@@ -104,8 +104,10 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 import { challengeShots } from "./lib/challenge-shots.mjs";
+import { FILM_SURFACES } from "./lib/film-shots.mjs";
 import { SUMMER_SURFACES } from "./lib/summer-shots.mjs";
 import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
+import { DRESS, RIDER_SURFACES } from "./lib/rider-shots.mjs";
 import { holdThumbs } from "./lib/hold-thumbs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -140,6 +142,8 @@ const SCENES = {
 const SURFACES = {
   ...WINGSUIT_SURFACES,
   ...SUMMER_SURFACES,
+  ...FILM_SURFACES,
+  ...RIDER_SURFACES,
   // The title and the invitation, over the title scene's first frames.
   splash: { params: { splash: "1" }, wait: ".splash-prompt", settle: 900 },
   // The front door over the title scene (a visit's first)...
@@ -348,7 +352,7 @@ const SURFACES = {
   },
   // THE RIDER CARD (the DRESS card): the skier on the same stand, framed on
   // him — the first card after a map is picked, the gear card after it.
-  dress: { params: { menu: "dress" }, wait: ".menu-stage[data-ready]", settle: 1800 },
+  dress: DRESS,
   // ...and dressing a snowboarder: no poles row.
   "dress-board": {
     params: { menu: "dress", mode: "tricks", skis: "lynx" },

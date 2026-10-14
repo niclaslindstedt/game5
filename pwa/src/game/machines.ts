@@ -73,6 +73,8 @@ import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
+import { burnShown } from "./burn-plan.ts";
+import { createBurnView, type BurnView } from "./burn-view.ts";
 import { createAvalancheView, type AvalancheView } from "./avalanche-view.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -307,6 +309,8 @@ export function createMachines(
   // THE SKI PATROL AND THE SEARCH (`patrol-view.ts`), built when the first
   // patrol skis in or the first body is struck.
   let patrol: PatrolView | null = null;
+  // HIM ON FIRE (`burn-view.ts`), built the first time a run sets him alight.
+  let burn: BurnView | null = null;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
@@ -505,6 +509,11 @@ export function createMachines(
         group.add(patrol.group);
       }
       patrol?.frame(s, dt, slide ? slide.liftAt : () => 0);
+      if (!burn && burnShown(s)) {
+        burn = createBurnView(haze);
+        group.add(burn.group);
+      }
+      burn?.frame(s, seated, simDt);
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
       if (seated && groomers) seated.root.visible = !drivenGroomer(s);
@@ -512,6 +521,7 @@ export function createMachines(
     light(look) {
       para?.light(look);
       balloon?.light(look);
+      burn?.light(look);
       if (chute) lineLightOf(look, chuteLight.value);
     },
     lamps(lit, eye, others) {
@@ -525,6 +535,8 @@ export function createMachines(
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
+      // ...and a skier alight, his own.
+      burn?.lamps(lit, floods);
       rescue?.lamps(lit, floods);
       plane?.lamps(lit, floods);
       strip?.frame(current, lit, eye);
@@ -623,6 +635,7 @@ export function createMachines(
       hover?.dispose();
       slide?.dispose();
       patrol?.dispose();
+      burn?.dispose();
     },
   };
 }

@@ -116,6 +116,7 @@ import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
+import { setPlayerClock } from "./player-model.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
@@ -159,7 +160,8 @@ export const SLOT_DRESS: readonly SkierDress[] = [
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
   // A ski jumper (only a jump rides the Albatross) in his suit (`jumpKit`).
-  const dress = spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit) } : skier;
+  const dress =
+    spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit), model: false } : skier;
   return styleIn(TOPSHEETS[drawnAs(spec)], dress);
 }
 
@@ -528,6 +530,7 @@ export function createSkisModel(
       return out;
     },
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+      setPlayerClock(run ? run.t : null); // the modelled kit on the run's clock
       const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
       handDt = dt;
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);

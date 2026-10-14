@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // A FREE RIDE'S HAZARDS OFF THE PISTE, as the engine's public surface
 // re-exports them (`engine/index.ts`): the grimbear in the woods
-// (`grimbear.ts`) and the avalanche on a loaded slope (`avalanche.ts`), each
-// with its numbers and its state.
+// (`grimbear.ts`), the avalanche on a loaded slope (`avalanche.ts`) and the
+// camp fires and bonfires a skier can ride into (`fires.ts`,
+// `fire-burn.ts`), each with its numbers and its state.
 
 export { GRIMBEAR } from "./defs/grimbear.ts";
 export { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
@@ -37,3 +38,6 @@ export {
   type SlabFrame,
   type Slide,
 } from "./avalanche-state.ts";
+export { firesNear, firesOf, type Fire, type FireSeat } from "./fires.ts";
+export { fireStrike, stepBurn, type BurnState } from "./fire-burn.ts";
+export { FIRE_BURN, FIRE_KINDS, FIRE_LAYOUT, type FireDef, type FireKind } from "./defs/fires.ts";

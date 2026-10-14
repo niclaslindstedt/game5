@@ -188,6 +188,21 @@ const POLE_BODY = { sink: 0.1, back: 0.07, rise: 0.03, forward: 0.03, lean: 0.36
 const POLE_WIDE = 0.06;
 /** How far out the elbows flare at the double pole's plant. */
 const PLANT_FLARE = 0.35;
+/** Where a working arm's elbow is bent toward: up and back, in his own
+ * frame (`elbows`). */
+const POLE_ELBOW = { up: 0.6, back: 0.8 };
+/** The band, m, over which the hips' sink to the boots' reach is let in
+ * and out (`softAbove`). */
+const CUFF_EASE = 0.045;
+
+/** `max(0, x)` with its corner rounded over ±`band`: the value and its
+ * rate carried through, so whatever rides it starts and stops as a motion. */
+function softAbove(x: number, band: number): number {
+  if (x <= -band) return 0;
+  if (x >= band) return x;
+  return ((x + band) * (x + band)) / (4 * band);
+}
+
 /** THE START GATE (`ready`): how far the hips sink and sit back over the
  * boots, m, how far the trunk tips over them, rad, and how far out from
  * the centre the baskets are planted, m — ahead of the boots, over the
@@ -479,7 +494,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     });
     return over;
   };
-  const sink = Math.max(0, cuffOver(hips));
+  // ...let into softly: a pushing leg drawn back in lets the hips up as a
+  // motion, never stopped dead at the moment the knee can reach.
+  const sink = softAbove(cuffOver(hips), CUFF_EASE);
   hips = { x: hips.x, y: hips.y - sink, z: hips.z };
   // THE KNEES FOLD ONLY AS FAR AS KNEES DO (`kneeRoom`): the hips lift
   // instead, and the trunk folds forward at the hips by as much below.
@@ -871,12 +888,19 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     const flare =
       Math.max(0.08, 0.6 - 0.4 * crouch - 0.5 * working) +
       PLANT_FLARE * (arms * (1 - swing) + gateW);
+    // WORKING THE POLES the elbow rides up and behind the arm the whole
+    // stroke — over the grip at the plant, back past the hips at the end
+    // of the push — never swung from under the arm round behind it as the
+    // fist passes the shoulder, which threw it through a quarter turn in
+    // a few frames on every push.
+    const pushBend = { x: 0, y: POLE_ELBOW.up, z: -POLE_ELBOW.back };
+    const poling = bare ? 0 : clamp01(arms + gait.stride);
     return solveLimb(
       shoulders[i],
       hands[i],
       BODY.upperArm,
       BODY.forearm,
-      add(bendTo, scale(across, side * flare)),
+      add(mix(bendTo, pushBend, poling), scale(across, side * flare)),
     );
   }) as [V3, V3];
   // THE POLES (`skier-poles.ts`).

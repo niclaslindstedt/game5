@@ -12,8 +12,8 @@
 // input manager under a run. Leaving a race for the front door hands the same skis back to the bot
 // rather than tearing anything down, which is why the menu comes up over the map the player was
 // just on. Until the first run the door stands over the TITLE SCENE instead (`title-app.tsx`), and
-// no map is built. Under a card the camera is the slow ORBIT round the skis; over a run it is the
-// rung the skier chose — his own, or the one he keeps for his machines (`cameraFor`).
+// no map is built. Under a card the race is cut as a FILM (`cinema-run.ts`); over a run the camera
+// is the rung the skier chose — his own, or the one he keeps for his machines (`cameraFor`).
 //
 // THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player rides is armed with a ticket
 // — its seed, skis, mode and length — before its first step; every input the engine is handed
@@ -25,9 +25,8 @@
 // a copy up under the `replay` surface, setting the run aside and handing it back to the surface
 // it was watched from (on the bar's way out, or at the end of the crash an instant replay shows).
 //
-// THE URL: every parameter the app reads is listed in `game/url-params.ts`.
-// A URL that names a race (`start`, `shot`, `paused`) boots into one;
-// anything else opens on the attract card or the front door.
+// THE URL: every parameter the app reads is in `game/url-params.ts`. A URL that names a race
+// (`start`, `shot`, `paused`) boots into one; anything else opens on the attract card or the door.
 //
 // THE LOOP: `requestAnimationFrame` hands the clock (the framework's `loop/run-clock`) the wall
 // time; the clock says how many fixed steps to take; each step samples the input (§37.1, once per
@@ -115,6 +114,7 @@ import { useRenderKit } from "./game/use-render-kit.ts";
 import { useAhead } from "./game/use-ahead.ts";
 import { backdropHeld } from "./game/backdrop-hold.ts";
 import { backdropInput, backdropNext, backdropTaken } from "./game/backdrop-run.ts";
+import { createCinemaRun } from "./game/cinema-run.ts";
 import { createRunActions } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
@@ -288,8 +288,7 @@ export function App() {
     const renderer = renderKit.createWorldRenderer(canvas, { video: videoOf(settingsRef.current) });
     rendererRef.current = renderer;
     const cams = wireLook(manager, renderer, settingsRef, setSettings, shellRef);
-    const book = createRunBook({ show: (ghost) => renderer.setGhost(ghost) });
-    bookRef.current = book;
+    const book = (bookRef.current = createRunBook({ show: (ghost) => renderer.setGhost(ghost) }));
     const replays = (replayRef.current = createReplayRun({
       renderer,
       show: (s) => show(s),
@@ -297,6 +296,7 @@ export function App() {
       done: () => pressRef.current.unwatch(),
     }));
     const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current);
+    const cinema = createCinemaRun(renderer, backdropInput);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -414,8 +414,7 @@ export function App() {
       for (const k of Object.keys(tally)) delete tally[k];
     };
 
-    /** What this step is ridden on: the player's hands on a run, the DARING bot under a card
-     * (`backdrop-run.ts`), and the plain one through a link's pre-roll and `?bot=1`. */
+    /** The step's hands: the player's on a run, else a bot's (`backdrop-run.ts`'s DARING one). */
     const inputFor = () =>
       playerRides(shellRef.current) && !preroll && !params.bot
         ? manager.ride(state)
@@ -686,11 +685,12 @@ export function App() {
       }
       const held = !simulates(shellRef.current);
       const shown = drawable();
-      // SLOW MOTION is fewer steps a frame: the replay director's, the X-ray cam's, the exit cut's.
+      // SLOW MOTION is fewer steps a frame: the film's, the replay's, the X-ray cam's, the exit cut's.
       const xrayOn = playerRides(shellRef.current) && !frozen && !held && shown;
       renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
       const exit = xrayOn ? renderer.exitPace() : 1;
-      const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn) * exit;
+      const film = cinema.frame(state, backdrop && !held && title.raced()); // `cinema-run.ts`
+      const rate = film * replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn) * exit;
       const dtRun = dtFrame * rate;
       renderer.setPace(rate);
       const simAt = performance.now();

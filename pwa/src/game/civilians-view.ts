@@ -70,6 +70,7 @@ import {
   poseCivilianFigure,
 } from "./civilian-shapes.ts";
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
+import { createFireHelds } from "./fire-helds.ts";
 import { dogPlanFor } from "./dog-walk.ts";
 import { dogWalkerAt } from "./dog-walk-pose.ts";
 import { CROWD_POSES, dialsOf } from "./crowd-rig.ts";
@@ -249,6 +250,10 @@ export function createCiviliansView(
     props.name = "civilian-props";
     group.add(props);
   }
+
+  // What the people at the fires hold: the sausage sticks and the bread.
+  const helds = createFireHelds(plan, haze);
+  if (helds) group.add(helds.group);
 
   // The skaters: the crowd's skiing figure, a mesh a body and cut.
   const skiMaterial = crowdMaterial(haze);
@@ -460,6 +465,7 @@ export function createCiviliansView(
     for (const slot of skiSlots.values()) slot.n = 0;
     for (const pool of downs.values()) pool.n = 0;
     updateKnocks(knocks, state, people);
+    helds?.begin();
     let nBalls = 0;
     const t = state.t;
     const hour = civilianHour(level, t); // the sky's clock's (`sky-clock.ts`)
@@ -551,6 +557,7 @@ export function createCiviliansView(
       m.compose(pos.set(pose.x, pose.y, pose.z), quat, one);
       slot.mesh.setMatrixAt(k, m);
       dialsAt(t, ids[i], share);
+      if (helds && c.fire && far < CIVILIAN_CUTS.mid) helds.add(c, i, pose, dials, t);
       const w = slot.weights;
       const at = k * (TARGETS + 1);
       w[at] = 1;
@@ -617,6 +624,7 @@ export function createCiviliansView(
     for (const pool of downs.values()) {
       pool.meshes.forEach((d, k) => (d.mesh.visible = k < pool.n));
     }
+    helds?.end();
     balls.count = nBalls;
     balls.visible = nBalls > 0;
     if (nBalls > 0) balls.instanceMatrix.needsUpdate = true;
@@ -643,6 +651,7 @@ export function createCiviliansView(
         }
       }
       downs.clear();
+      helds?.dispose();
       balls.geometry.dispose();
       (balls.material as THREE.Material).dispose();
       balls.dispose();

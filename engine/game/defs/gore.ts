@@ -65,6 +65,17 @@ export const GORE = {
    * to this injury severity score (`severityOf`). */
   mortalAis: 5,
   mortalIss: 50,
+  /** ...and short of them, MORTAL BY THE WHOLE BODY as often as a trauma
+   * ward's patients die of the same score: many injuries each short of
+   * critical kill together. A logistic with its even chance at `half` and
+   * its odds growing e-fold every `spread` points: one in ten at a score of
+   * 33, three in ten at 41 and over half at 48 — the major-trauma outcome
+   * series' curve for young, fit patients (a skier on the snow is one),
+   * which runs below the all-ages ward's. Drawn once a
+   * run off a hash (the run's FRAILTY), never the stream: a run that
+   * lives through a score lives through any lesser one, and dies of the
+   * blow that takes him past it. A score under `least` never kills. */
+  frailty: { half: 46, spread: 6, least: 16 },
   /** RUN THROUGH: a point of the body coming down onto a spike's tip — a
    * tree's top, or a post's of no more than `post` m radius — inside
    * `reach` m of its axis and no more than `above` m over it nor `below`

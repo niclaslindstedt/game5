@@ -37,7 +37,8 @@
 import { rotate, type Level, type SkierState } from "@engine";
 
 import { skiShares, stationOf } from "./ski-stand.ts";
-import { createMassPool, type MassPool } from "./spray-mass.ts";
+import { createMassPool, type MassPool } from "./spray-mass-pool.ts";
+import type { Launch } from "./spray-flight.ts";
 import type { AgedSnow, SnowProps } from "./snowpack.ts";
 
 /** HOW A GRAIN FLIES — the four candidates `make spray-eval` scores:
@@ -209,6 +210,9 @@ export type SprayStats = {
  * probe (`make spray-eval`); the game passes none. */
 export type SprayWatch = {
   spawn?(i: number): void;
+  /** A weighed parcel's launch (`spray-flight.ts`), as the slot `i` was
+   * filled — before its plane is known. */
+  launch?(i: number, l: Launch): void;
   /** `peak` its highest over the snow, m; `reach` how far it came down
    * from where it was thrown, m. */
   retire?(i: number, peak: number, reach: number): void;

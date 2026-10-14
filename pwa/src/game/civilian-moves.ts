@@ -86,6 +86,14 @@ export const CIVILIAN_POSES = [
   "loungeSip",
   "lead",
   "stoop",
+  "grill",
+  "eat",
+  "bite",
+  "warm",
+  "benchGrill",
+  "benchEat",
+  "benchBite",
+  "benchWarm",
 ] as const;
 export type CivilianTarget = (typeof CIVILIAN_POSES)[number];
 
@@ -229,6 +237,38 @@ const LOUNGE = at({
   nod: -0.4,
   feet: [v(-0.14, 0.24, 0.8), v(0.15, 0.22, 0.78)],
   hands: [v(-0.26, 0.42, 0.1), v(0.26, 0.42, 0.12)],
+});
+
+// AT A FIRE (`civilian-fires.ts`): the stick held out low over the embers
+// in the right hand, the eyes on the sausage; a sausage in bread held
+// before the chest, and the bite; both hands held out to the heat.
+const GRILL = at({
+  pitch: 0.12,
+  nod: -0.32,
+  feet: [v(-0.17, A, 0.08), v(0.15, A, -0.02)],
+  hands: [v(-0.2, 0.92, 0.18), v(0.17, 0.98, 0.42)],
+});
+const EAT = at({
+  nod: -0.08,
+  hands: [v(-0.24, 0.86, 0.14), v(0.08, 1.12, 0.3)],
+});
+const WARM = at({
+  pitch: 0.12,
+  nod: -0.1,
+  hands: [v(-0.17, 1.16, 0.42), v(0.17, 1.16, 0.42)],
+});
+const BENCH_GRILL = at({
+  ...BENCH,
+  pitch: 0.28,
+  nod: -0.3,
+  hands: [v(-0.18, 0.66, 0.3), v(0.17, 0.76, 0.5)],
+});
+const BENCH_EAT = at({ ...BENCH, nod: -0.05, hands: [BENCH.hands[0], v(0.08, 0.88, 0.34)] });
+const BENCH_WARM = at({
+  ...BENCH,
+  pitch: 0.3,
+  nod: -0.1,
+  hands: [v(-0.16, 0.92, 0.46), v(0.16, 0.92, 0.46)],
 });
 
 /** Every target's key and how it holds what it holds. */
@@ -428,6 +468,14 @@ const MOVES: Readonly<Record<CivilianTarget, { key: Key } & Partial<Holding>>> =
   },
   lounge: { key: LOUNGE },
   loungeSip: { key: sip(LOUNGE), tip: 1 },
+  grill: { key: GRILL },
+  eat: { key: EAT },
+  bite: { key: sip(EAT) },
+  warm: { key: WARM },
+  benchGrill: { key: BENCH_GRILL },
+  benchEat: { key: BENCH_EAT },
+  benchBite: { key: sip(BENCH_EAT) },
+  benchWarm: { key: BENCH_WARM },
 };
 
 /** A target's key, and how it holds a tool and a cup. */
@@ -515,6 +563,17 @@ const DANCE_B = ["danceB0", "danceB1", "danceB2", "danceB3"] as const;
 const WALK = ["walk0", "walk1", "walk2", "walk3"] as const;
 const ROLL = ["roll0", "roll1", "roll2", "roll3"] as const;
 
+/** EATING: a bite every `every` s (his own phase off `id`), the bread
+ * raised to the mouth over `rise` s, held `hold` s and lowered. */
+const BITE = { every: 6.5, rise: 0.45, hold: 0.7 };
+
+/** How far into a bite he is at `clock` s into eating, 0..1. */
+export function biteOf(clock: number, id: number): number {
+  const c = (((clock + id * 1.37) % BITE.every) + BITE.every) % BITE.every;
+  const up = BITE.rise;
+  return ease(c / up) * (1 - ease((c - up - BITE.hold) / up));
+}
+
 /** The seat a pose is drawn on: stood, on the snow, laid back in a deck
  * chair, or on a bench. */
 export type Seated = "stood" | "snow" | "lounge" | "bench";
@@ -545,6 +604,10 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
       const talk: CivilianTarget = seated === "snow" ? "snowTalk" : "benchTalk";
       const w = 0.5 + 0.5 * Math.sin((2 * Math.PI * p.clock) / CYCLE.talk + id);
       share(out, talk, w * swing(u, 0.1, 0.1), base);
+    } else if (seated === "bench" && (act === "grill" || act === "warm")) {
+      out[AT[act === "grill" ? "benchGrill" : "benchWarm"]] = 1;
+    } else if (seated === "bench" && act === "eat") {
+      share(out, "benchBite", biteOf(p.clock, id), "benchEat");
     } else out[AT[base]] = 1;
     return;
   }
@@ -626,6 +689,15 @@ export function civilianDials(p: CivilianPose, t: number, id: number, out: Float
     }
     case "stoop":
       out[AT.stoop] += stoop;
+      break;
+    case "grill":
+      out[AT.grill] += 1;
+      break;
+    case "warm":
+      out[AT.warm] += 1;
+      break;
+    case "eat":
+      share(out, "bite", biteOf(p.clock, id), "eat");
       break;
     default: {
       // STOOD ("stand", "lounge" off a chair): alive, his weight swung from

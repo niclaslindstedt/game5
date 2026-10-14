@@ -299,7 +299,7 @@ export function soundForEvent(
             ? "wipeout_catch"
             : event.cause === "chair" || event.cause === "maul"
               ? "wipeout_skier"
-              : event.cause === "net" || event.cause === "balloon"
+              : event.cause === "net" || event.cause === "balloon" || event.cause === "fire"
                 ? "wipeout_roll"
                 : `wipeout_${event.cause}`,
         shape: intoSnow(
@@ -756,6 +756,12 @@ export function soundForEvent(
       return event.phase === "stop" || event.phase === "away"
         ? null
         : { id: `town_${event.phase}` };
+
+    // A SKIER SET ALIGHT (`fire-bank.ts`): his own clothes, heard where he
+    // is — the whoomph as they catch, the hiss as the burn goes out. The
+    // fire between is the bed's (`burn-bed.ts`).
+    case "fire":
+      return { id: event.what === "caught" ? "fire_catch" : "fire_out" };
 
     // A BUILDING'S DOOR (`door-bank.ts`): opened and shut, by what its leaf
     // is made of — heard at the door from the skier's head.

@@ -523,7 +523,7 @@ export function createSkisModel(
 
   return {
     root,
-    bases: gear.bases,
+    bases: gear.skis.map(skiMesh),
     lamp,
     casters: [merged.mesh, ...figure.skin, ...(models?.meshes ?? [])],
     bound(out) {
@@ -934,4 +934,15 @@ export function createSkisModel(
       models?.dispose();
     },
   };
+}
+
+/** A ski's own mesh in its gear group: the first mesh under it (`buildGear`
+ * adds the ski before its decals, plate and binding). */
+function skiMesh(group: THREE.Group): THREE.Mesh {
+  let found: THREE.Mesh | null = null;
+  group.traverse((o) => {
+    if (!found && (o as THREE.Mesh).isMesh) found = o as THREE.Mesh;
+  });
+  if (!found) throw new Error("a ski's gear group holds no mesh");
+  return found;
 }

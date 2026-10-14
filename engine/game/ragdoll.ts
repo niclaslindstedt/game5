@@ -65,7 +65,6 @@ const dt = TUNING.dt;
 
 const N = RAGDOLL.count;
 const T = K.tone;
-const M = B.mass;
 const W = MASS.map((m) => 1 / m);
 const TOTAL = MASS.reduce((a, m) => a + m, 0);
 

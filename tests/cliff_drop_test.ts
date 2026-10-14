@@ -54,3 +54,54 @@ describe("a skier off a cliff", () => {
     }
   }
 });
+
+// NOR IS HE SHOVED SIDEWAYS (`collision.ts`, `cliff-wall.ts`): a rocky
+// cliff's wall is met as columns inside its face, and a column's top once
+// stood level out over the air in front of the face, so a skier falling
+// past it was put metres sideways in one step the moment his body dropped
+// under that top. The rock now falls with the face. Every cliff of a free
+// ride's mountain, dropped off slowly, close to the face.
+describe("a skier off a rocky cliff", () => {
+  it("is never shoved off his own way in the air", () => {
+    const { level } = createGame({
+      seed: 2,
+      mode: "free",
+      rivals: 0,
+      countdown: 0,
+      crowd: 0,
+      quiet: true,
+    });
+    let worst = 0;
+    for (const cliff of level.cliffs ?? []) {
+      for (const kmh of [10, 30]) {
+        const state = createGame({
+          level,
+          mode: "free",
+          rivals: 0,
+          countdown: 0,
+          crowd: 0,
+          quiet: true,
+        });
+        const fx = Math.sin(cliff.heading);
+        const fz = Math.cos(cliff.heading);
+        placeRun(state, {
+          x: cliff.x - fx * 6,
+          z: cliff.z - fz * 6,
+          heading: cliff.heading,
+          speed: kmh / 3.6,
+        });
+        const c = state.skier;
+        for (let i = 0; i < 3 * TUNING.physicsHz && !c.thrown; i++) {
+          const x0 = c.x;
+          const z0 = c.z;
+          const vx = c.vx;
+          const vz = c.vz;
+          step(state, TUCK);
+          if (c.thrown || c.y - level.groundAt(c.x, c.z) < 1) continue;
+          worst = Math.max(worst, Math.hypot(c.x - x0 - vx * TUNING.dt, c.z - z0 - vz * TUNING.dt));
+        }
+      }
+    }
+    expect(worst).toBeLessThan(0.2);
+  });
+});

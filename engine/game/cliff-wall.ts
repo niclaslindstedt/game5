@@ -173,7 +173,13 @@ export function wallSolids(level: Level): readonly Upright[] {
       const lip = level.groundAt(c.x - fx * 0.3 + fz * v, c.z - fz * 0.3 - fx * v);
       const height = lip - y - ROCKS.lip;
       if (c.drop * faceShare(c, v) < W.least || height < ROCKS.least) continue;
-      out.push({ x, z, y, height, radius, stuff: "rock" });
+      // The face as the skin draws it: a straight fall from the column's
+      // top at the lip to the snow at its foot.
+      const lx = c.x + fz * v;
+      const lz = c.z - fx * v;
+      const run = c.face + W.foot;
+      const fall = y + height - level.groundAt(lx + fx * run, lz + fz * run);
+      out.push({ x, z, y, height, radius, stuff: "rock", face: { lx, lz, fx, fz, run, fall } });
     }
   }
   return out;

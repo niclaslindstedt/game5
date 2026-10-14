@@ -32,7 +32,8 @@ import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
 import { rideStyleOf } from "./bike-ride-style.ts";
 import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
-import { riderPose, walkingPose } from "./skier-bike.ts";
+import { createRiderMotion } from "./bike-rider-match.ts";
+import { riderMotionPose, riderPose, walkingPose } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
@@ -200,6 +201,8 @@ export function createMachines(
   // built for a run stood up with it, behind the loading card, or at the
   // first frame of one on a map already standing (`carried`).
   let para: ParaScene | null = null;
+  /** The freerider on the bike, matched and blended frame to frame. */
+  const riderMotion = createRiderMotion();
   let balloon: BalloonScene | null = null;
   const carried = (s: GameState): void => {
     if (!s.rules.heli) return;
@@ -333,10 +336,9 @@ export function createMachines(
         model.setBiking?.(true);
         model.setStood?.(
           b.onIt && !thrown
-            ? riderPose(
-                bikePose(b),
-                bikeLook() === "freeride" ? rideStyleOf(b, s.level, s.t) : undefined,
-              )
+            ? bikeLook() === "freeride"
+              ? riderMotionPose(riderMotion.points(bikePose(b), rideStyleOf(b, s.level, s.t), s.t))
+              : riderPose(bikePose(b))
             : b.afoot && !s.skier.lift && !thrown
               ? walkingPose(b.afoot)
               : null,

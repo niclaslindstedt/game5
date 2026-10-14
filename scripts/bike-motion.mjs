@@ -74,6 +74,7 @@ const C = await import(join(root, "pwa/src/tools/bike-clips.ts"));
 const SB = await import(join(root, "pwa/src/game/skier-bike.ts"));
 const BL = await import(join(root, "pwa/src/game/bike-look.ts"));
 const ST = await import(join(root, "pwa/src/game/bike-ride-style.ts"));
+const RM = await import(join(root, "pwa/src/game/bike-rider-match.ts"));
 const Q = await import("@niclaslindstedt/oss-game-framework/core/quat");
 
 const R = E.RAGDOLL;
@@ -124,7 +125,7 @@ const CHARTS = [
 ];
 
 /** One frame measured: the figures, and the joints in the world. */
-function measure(s, t) {
+function measure(s, t, motion) {
   const b = s.bike;
   const pose = E.bikePose(b);
   const style = styled ? ST.rideStyleOf(b, s.level, s.t) : undefined;
@@ -132,7 +133,9 @@ function measure(s, t) {
   // Off it (thrown, afoot, on the chair) he is not measured against the
   // bike: a gap in every line.
   if (!on) return { t, on: false };
-  const pts = SB.riderPoints(pose, style);
+  // The freeride rider is a MOTION (`bike-rider-match.ts`): matched and
+  // blended frame to frame, so each clip rides one of its own.
+  const pts = style ? motion.points(pose, style, s.t) : SB.riderPoints(pose);
   const at = (i) => ({ x: pts[3 * i], y: pts[3 * i + 1], z: pts[3 * i + 2] });
   const bb = BL.bracketFromRider(pose);
   const turn = (p) =>
@@ -215,7 +218,8 @@ for (const clip of clips) {
     continue;
   }
   const frames = [];
-  await C.rideClip(clip, win, (s, t) => frames.push(measure(s, t)));
+  const motion = RM.createRiderMotion();
+  await C.rideClip(clip, win, (s, t) => frames.push(measure(s, t, motion)));
   const on = frames.filter((f) => f.on);
   if (on.length) {
     const mean = on.reduce((a, f) => a + f.headY, 0) / on.length;

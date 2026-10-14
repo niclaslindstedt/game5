@@ -47,6 +47,9 @@ export type RideStyle = {
   foot: 0 | 1;
   /** The levers pulled, 0..1. */
   brake: number;
+  /** In the air, the share of the flight flown (the air so far over the
+   * air so far plus the fall left), 0..1; 0 on the ground. */
+  flight: number;
 };
 
 /** THE NUMBERS, after the riders' own photographs and the coaching guides
@@ -118,11 +121,13 @@ export function rideStyleOf(b: BikeState, level: Level, t: number): RideStyle {
     footOut: 0,
     foot: 0,
     brake,
+    flight: 0,
   };
   if (!b.onIt || b.mode !== "ridden") return out;
   if (b.airborne) {
     const left = fallLeft(b, level, t);
     const flight = b.airTime + left;
+    out.flight = flight > 0 ? b.airTime / flight : 0;
     const size = smooth(S.least, S.full, flight);
     if (size <= 0) return out;
     const deal = dealt(t - b.airTime);

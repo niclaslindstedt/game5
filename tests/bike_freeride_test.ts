@@ -110,6 +110,7 @@ describe("the freerider's style (bike-ride-style.ts)", () => {
       footOut: 0,
       foot: 0,
       brake: 0,
+      flight: 0,
     } as const;
     const still = freerideKey(pose, none);
     const yaw = -RIDE_STYLE.whip.yaw;

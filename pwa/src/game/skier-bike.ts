@@ -152,6 +152,13 @@ export function riderPose(
   return (_ground, frame) => ragdollPose(points, frame);
 }
 
+/** THE FREERIDER AS A MOTION: the joints a `RiderMotion`
+ * (`bike-rider-match.ts`) matched and blended this frame, hung as
+ * `riderPose` hangs its own. */
+export function riderMotionPose(points: number[]): (ground: number, frame: BodyFrame) => SkierPose {
+  return (_ground, frame) => ragdollPose(points, frame);
+}
+
 /** THE RIDER'S JOINTS on the bike posed `pose` (the ragdoll's thirteen
  * points, `RAGDOLL`'s order, in the root's frame — the bike's attitude about
  * his centre of mass): what `riderPose` hangs the figure on, and what the

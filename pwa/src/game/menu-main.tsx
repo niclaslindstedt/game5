@@ -33,7 +33,7 @@ import { DISCIPLINES, SLALOM } from "@engine";
 import { REPO_URL } from "../identity.ts";
 import { Glyph } from "./menu-glyphs.tsx";
 import { NO_HOLD, holdWait, tickHold, type HoldState } from "./menu-hold.ts";
-import { DEV_HOLD_MS } from "./settings.ts";
+import { DEV_HOLD_MS, racesOpen } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
 import { TitleLogo } from "./title-logo.tsx";
 import type { MenuPage } from "./url-params.ts";
@@ -77,7 +77,6 @@ export function MainMenu({
   onStats,
   tricks,
   onTricks,
-  modes,
   developer,
   onDeveloper,
   onHeld,
@@ -102,9 +101,6 @@ export function MainMenu({
   /** The TRICKS slab: the map it rides and how long the run lasts, s. */
   tricks?: { map: string; seconds: number };
   onTricks?: () => void;
-  /** Whether the races and tricks are let out (`racesOpen`): PLAY opens
-   * its page of three ways onto the snow, else straight onto the free ride. */
-  modes: boolean;
   /** Whether the DEVELOPER chip is out, the press that opens its page, and
    * what a seven-second hold on the title does (let it out). */
   developer?: boolean;
@@ -113,6 +109,9 @@ export function MainMenu({
 }) {
   const hold = useTitleHold(onHeld);
   const lean = useLean();
+  // With the races and tricks let out (`racesOpen`), PLAY opens its page
+  // of three ways onto the snow; shut, it goes straight onto the free ride.
+  const modes = racesOpen({ developer: !!developer });
   const play = modes && page === "play";
   return (
     <div class="menu menu-door" {...lean}>

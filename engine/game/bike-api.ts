@@ -16,6 +16,7 @@ export {
   absorbOf,
   bikeSteerFor,
   bikeTurnAsked,
+  coastCrank,
   rideBike,
   type BikeRide,
   type BikeStepReport,

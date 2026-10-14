@@ -184,6 +184,17 @@ export const BIKE = {
    * the rear wheel, 120 rpm — spun out near 55 km/h). */
   pedal: { power: 900, critical: 350, reserve: 20_000, push: 330, rollout: 7.7, cadence: 120 },
 
+  /** THE CRANKS ON A COAST: a downhill rider stops pedalling with his
+   * cranks LEVEL, his lead foot forward (the left here, a regular stance),
+   * and drops the outside pedal into a hard flat turn. `rate` the most the
+   * cranks are turned to that, rad/s (a quarter turn in about half a
+   * second, freewheeling backward or turned forward the short way);
+   * `settle` how fast they close on it, 1/s; `drop` the bike's roll at
+   * which the outside pedal is all the way down, rad, and `share` how far
+   * down it goes there (a berm is ridden near level, a flat turn foot
+   * down). Drawn only: nothing in the physics reads the cranks. */
+  coast: { rate: 3, settle: 6, drop: 0.75, share: 0.85 },
+
   /** THE HANDS: what the rider does with the bars to keep it up — the steer
    * aimed at a lean, which the bars are held to by `hold` N·m/rad and
    * `still` N·m·s/rad up to `most` N·m; the balance's natural frequency,

@@ -287,17 +287,38 @@ export function rideBike(
   derive(b);
   // THE CRANKS: turned while the legs pedal, at the cadence of the gear
   // the speed asks (never under a low gear's 50 rpm); left where they
-  // stand, freewheeling, on a coast.
+  // stand, freewheeling, on a coast — and there turned LEVEL, the lead
+  // foot forward, the outside pedal let down into a hard lean
+  // (`BIKE.coast`).
   const P = BIKE.pedal;
   if (ctl.pedal > 0.05 && b.way > 0) {
     b.cadence = clamp((b.way / P.rollout) * 60, 50, P.cadence);
     b.crank = (b.crank + (b.cadence / 60) * 2 * Math.PI * dt) % (2 * Math.PI);
-  } else b.cadence = 0;
+  } else {
+    b.cadence = 0;
+    b.crank = coastCrank(b.crank, b.roll, dt);
+  }
   const touching = b.front.touching || b.rear.touching;
   b.airborne = !touching;
   if (b.airborne) b.airTime += dt;
   if (wasAir && touching) report.touchdown = true;
   return report;
+}
+
+/** THE CRANKS ON A COAST, turned a step toward level (0, the left crank
+ * forward) and, into a lean, the outside pedal down: a right lean (roll +)
+ * lets the left pedal down (+π/2), a left lean the right (−π/2). */
+export function coastCrank(crank: number, roll: number, dt: number): number {
+  const C = BIKE.coast;
+  const lean = clamp(roll / C.drop, -1, 1);
+  const aim = (Math.PI / 2) * C.share * lean * Math.abs(lean);
+  // The short way round to it, never more than half a turn.
+  let gap = (aim - crank) % (2 * Math.PI);
+  if (gap > Math.PI) gap -= 2 * Math.PI;
+  if (gap < -Math.PI) gap += 2 * Math.PI;
+  const turn = clamp(gap * Math.min(1, C.settle * dt), -C.rate * dt, C.rate * dt);
+  const next = (crank + turn) % (2 * Math.PI);
+  return next < 0 ? next + 2 * Math.PI : next;
 }
 
 /** The steer the hands aim the bars at this step, rad: the turn asked, made

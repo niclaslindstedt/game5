@@ -98,7 +98,7 @@ const args = parseArgs(
     },
     scenes: { kind: "string", default: "", help: "only these scenes in each group" },
     quality: { kind: "string", default: "high", help: "the picture preset: low, medium, high" },
-    frames: { kind: "number", default: 3, help: "frames timed for each half of a scene's price" },
+    frames: { kind: "number", default: 2, help: "frames timed for each half of a scene's price" },
     approach: { kind: "flag", help: "only the approach walk (with the alpine group)" },
     "no-approach": { kind: "flag", help: "skip the approach walk" },
     "no-cost": { kind: "flag", help: "pictures only, no prices" },

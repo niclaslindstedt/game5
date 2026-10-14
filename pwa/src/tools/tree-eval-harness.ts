@@ -386,29 +386,37 @@ function shoot(name: string): string {
   return note;
 }
 
+/** Waits for the GPU: a pixel read back blocks until every draw before it is
+ * done, which `gl.finish` does not promise (the software rasterizer returns
+ * at once). */
+const pixel = new Uint8Array(4);
+function sync(): void {
+  const gl = renderer.gl.getContext();
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+}
+
 function timed(frames: number): { ms: number; calls: number; triangles: number; worldMs: number } {
   still();
-  const gl = renderer.gl.getContext();
-  gl.finish();
+  sync();
   let world = 0;
   const t0 = performance.now();
   for (let i = 0; i < frames; i++) {
     still();
     world += renderer.cost().worldMs;
+    sync();
   }
-  gl.finish();
   const ms = (performance.now() - t0) / frames;
   const c = renderer.cost();
   return { ms, calls: c.calls, triangles: c.triangles, worldMs: world / frames };
 }
 
-/** The scene priced: three rounds of `frames` frames with the woods and
+/** The scene priced: two rounds of `frames` frames with the woods and
  * without them, interleaved so a slow spell of the machine lands on both,
  * each side's quickest round kept. */
 function cost(frames: number): SceneCost {
   let all = timed(frames);
   let bare = all;
-  for (let round = 0; round < 3; round++) {
+  for (let round = 0; round < 2; round++) {
     renderer.setHidden([]);
     const a = timed(frames);
     if (round === 0 || a.ms < all.ms) all = { ...a, worldMs: Math.min(a.worldMs, all.worldMs) };

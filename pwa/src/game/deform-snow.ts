@@ -55,6 +55,9 @@ const DEFORM_TIERS: Record<
   high: { cell: 0.05, half: 6, march: 14, grow: 1.33 },
 };
 
+/** A frame longer than this, s, settles the walls twice. */
+const SETTLE_TWICE = 1 / 45;
+
 /** How far behind the player the window is centred, as a share of its
  * half-extent along the way he goes: more of the track he left in it. */
 const LAG = 0.35;
@@ -83,8 +86,9 @@ export type DeformSnow = {
     takes: readonly SnowTake[],
     n: number,
   ): void;
-  /** Follow the player, let the walls settle and upload what changed. */
-  update(skier: SkierState, on: boolean): void;
+  /** Follow the player, let the walls settle over `dt` s of the run, and
+   * upload what changed. */
+  update(skier: SkierState, on: boolean, dt?: number): void;
   /** Kilograms of thrown snow the field has dug since the run began. */
   thrown(): number;
   clear(): void;
@@ -144,7 +148,7 @@ export function createDeformSnow(look: DeformTier, uniforms: TrailUniforms): Def
       }
       for (let i = 0; i < n; i++) field.take(takes[i]);
     },
-    update(skier, on) {
+    update(skier, on, dt = 0) {
       const off = skier.thrown;
       const x = off ? off.x : skier.x;
       const z = off ? off.z : skier.z;
@@ -153,7 +157,11 @@ export function createDeformSnow(look: DeformTier, uniforms: TrailUniforms): Def
       const v = Math.hypot(vx, vz);
       const lag = v > 0.5 ? (LAG * look.half) / v : 0;
       field.follow(x - vx * lag, z - vz * lag);
+      // The walls settle by the run's time, not the frame's count: a frame
+      // that stood for two of the run's sixtieths settles twice (no more —
+      // a slow machine is not handed more work for being slow).
       field.relax();
+      if (dt > SETTLE_TWICE) field.relax();
       const d = field.dirty;
       texture.clearUpdateRanges();
       if (d.all || (d.any && d.r1 - d.r0 > size / 3)) {

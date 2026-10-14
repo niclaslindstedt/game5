@@ -154,6 +154,10 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
   // triangles and bytes built. An instrument: nothing draws off it.
   const stats = { buildMs: 0, owed: 0, triangles: 0, bytes: 0 };
   group.userData.rockStats = stats;
+  // And, for the same lab, every tile owed at the last lens built whole at
+  // once, so a still is taken of the rock as it settles, never mid-build.
+  let lastEye: THREE.Vector3 | null = null;
+  let lastReach = 0;
   const band = regionLookOf(regionOf(level).id).rock;
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
@@ -275,9 +279,27 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     t.mesh = null;
   };
 
+  group.userData.rockSettle = (): void => {
+    if (!lastEye) return;
+    const half = TILE / 2;
+    for (const t of tiles) {
+      const dx = Math.max(0, Math.abs(lastEye.x - t.cx) - half);
+      const dz = Math.max(0, Math.abs(lastEye.z - t.cz) - half);
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= lastReach * lastReach) continue;
+      const k = cutOf(Math.sqrt(d2), t.cut);
+      if (k === t.cut) continue;
+      while (!step(t, k));
+      if (t.mesh) t.mesh.visible = true;
+    }
+    stats.owed = 0;
+  };
+
   return {
     group,
     update(eye, reach) {
+      lastEye = eye.clone();
+      lastReach = reach;
       // The tile's corner nearest the lens, so a tile is shown as soon as
       // any of it is in reach.
       const half = TILE / 2;

@@ -30,6 +30,7 @@ import {
   createGame,
   isRegionId,
   loadRealFace,
+  onAnyCliff,
   rockShare,
   withRock,
   type GameState,
@@ -72,7 +73,8 @@ export type SceneCost = {
   worldMsBare: number;
 };
 
-/** The drawn rock against the rock a body meets, m. */
+/** The drawn rock against the rock a body meets, m: every visible point
+read (a triangle's corners and middle), off the cliffs. */
 export type Gap = { triangles: number; mean: number; p95: number; worst: number; over25: number };
 
 /** What the rock is holding, off `rocks.ts`'s `userData.rockStats`. */
@@ -201,11 +203,24 @@ function sees(
   return true;
 }
 
-/** The rockiest face from `off` m out along the way it falls, `high` m
- * over the snow there — lifted until it sees the face over any rise. */
-function faceView(off: number, high: number, fov: number): LensPose {
-  const ex = fall.x + fx * off;
-  const ez = fall.z + fz * off;
+/** THE FOOT of the rockiest face: down the way it falls from its heart
+ * until the rock has given out for 6 m running (the snow under the wall),
+ * m from the heart. */
+const footOff = (() => {
+  let run = 0;
+  for (let d = 0; d < 400; d += 2) {
+    run = rockShare(bed, fall.x + fx * d, fall.z + fz * d) > 0 ? 0 : run + 2;
+    if (run >= 6) return d - 6;
+  }
+  return 0;
+})();
+
+/** The rockiest face from `off` m out along the way it falls (past its
+ * FOOT with `fromFoot`, else past its heart), `high` m over the snow
+ * there — lifted until it sees the face over any rise. */
+function faceView(off: number, high: number, fov: number, fromFoot = false): LensPose {
+  const ex = fall.x + fx * (off + (fromFoot ? footOff : 0));
+  const ez = fall.z + fz * (off + (fromFoot ? footOff : 0));
   const target = { x: fall.x, y: bed.groundAt(fall.x, fall.z) + 4, z: fall.z };
   let eye = { x: ex, y: ridden.groundAt(ex, ez) + high, z: ez };
   for (let k = 0; k < 20 && !sees(eye, target); k++) eye = { ...eye, y: eye.y + 5 };
@@ -316,8 +331,8 @@ function valleyView(): LensPose {
 /** THE SCENES, in order. Each returns its lens. The face's field of view
  * narrows with range so the crag fills about as much of the frame. */
 const SCENES: Record<string, () => LensPose | null> = {
-  foot: () => faceView(14, 1.8, 70),
-  "face-40": () => faceView(40, 2, 62),
+  foot: () => faceView(14, 1.8, 70, true),
+  "face-40": () => faceView(40, 2, 62, true),
   "face-150": () => faceView(150, 6, 45),
   "face-400": () => faceView(400, 20, 28),
   "face-1200": () => faceView(1200, 40, 12),
@@ -328,8 +343,8 @@ const SCENES: Record<string, () => LensPose | null> = {
   valley: valleyView,
 };
 const NOTES: Record<string, string> = {
-  foot: "at the foot of the rockiest face, 14 m out, a skier's eye",
-  "face-40": "the rockiest face from 40 m",
+  foot: "14 m out from the foot of the rockiest face, a skier's eye",
+  "face-40": "the rockiest face from 40 m out past its foot",
   "face-150": "the rockiest face from 150 m",
   "face-400": "the rockiest face from 400 m",
   "face-1200": "the rockiest face from 1200 m (the far cut)",
@@ -346,14 +361,15 @@ function stats(): RockStats {
   return s ? { ...s } : { buildMs: 0, owed: 0, triangles: 0, bytes: 0 };
 }
 
-/** Draw until every tile in reach is built at its cut (at most `most`
- * frames), and the ms it took. */
-function settle(most = 600): number {
-  const t0 = performance.now();
-  for (let i = 0; i < 3; i++) still();
-  for (let i = 0; i < most && stats().owed > 0; i++) still();
+/** Draw a frame (the lens moved), build every tile it owes whole
+(`rocks.ts`'s `rockSettle`) and draw again: the ms the rock spent
+building, off its own clock. */
+function settle(): number {
+  const before = stats().buildMs;
+  still();
+  (renderer.group("rocks")?.userData.rockSettle as (() => void) | undefined)?.();
   for (let i = 0; i < 2; i++) still();
-  return performance.now() - t0;
+  return stats().buildMs - before;
 }
 
 /** Within this of the lens the drawn rock is held to the ridden. */
@@ -387,14 +403,20 @@ function gap(eye: { x: number; y: number; z: number }): Gap | null {
         .add(pts[2])
         .multiplyScalar(1 / 3);
       if (Math.hypot(p.x - eye.x, p.z - eye.z) > GAP_REACH) continue;
-      for (const q of [p, ...pts]) errs.push(Math.abs(q.y - ridden.groundAt(q.x, q.z)));
+      // The skin a body meets, never a cliff's face (met as columns,
+      // `wallSolids`) nor rock tucked under the snow (drawn hidden).
+      if (onAnyCliff(bed, p.x, p.z, 2)) continue;
+      for (const q of [p, ...pts]) {
+        if (q.y < bed.groundAt(q.x, q.z) - 0.02) continue;
+        errs.push(Math.abs(q.y - ridden.groundAt(q.x, q.z)));
+      }
     }
   });
   if (!errs.length) return null;
   errs.sort((a, b) => a - b);
   const mean = errs.reduce((a, b) => a + b, 0) / errs.length;
   return {
-    triangles: errs.length / 4,
+    triangles: Math.round(errs.length / 4),
     mean,
     p95: errs[Math.floor(errs.length * 0.95)],
     worst: errs[errs.length - 1],
@@ -527,7 +549,7 @@ function approach(from: number, to: number, stepM: number): number[] {
   let last: Float32Array | null = null;
   for (let d = from; d >= to; d -= stepM) {
     renderer.setOverride(faceView(d, 6 + d * 0.03, Math.max(14, Math.min(60, 7000 / d))));
-    settle(200);
+    settle();
     const now = sample();
     if (last) {
       let sum = 0;

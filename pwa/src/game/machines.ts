@@ -15,14 +15,7 @@
 // plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
-import {
-  bikePose,
-  planeBoxes,
-  stripBoxes,
-  type GameState,
-  type Level,
-  type StripBox,
-} from "@engine";
+import { planeBoxes, stripBoxes, type GameState, type Level, type StripBox } from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import { heliHull, type SolidBox } from "./camera-clear.ts";
@@ -32,7 +25,7 @@ import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
 import { animatedStyle } from "./bike-anim.ts";
 import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
-import { riderPose, walkingPose } from "./skier-bike.ts";
+import { bikeStood, createRiderHold } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
@@ -289,6 +282,8 @@ export function createMachines(
   if (doors) group.add(doors.group);
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
   let seated: SkisModel | null = null;
+  // The bike's rider's body carried between steps (`holdRider`).
+  const riderHold = createRiderHold();
   let current: GameState = state;
   // How far into the flight the pilot's own cameras are (`hangIn`), 0..1.
   let hung = 0;
@@ -333,18 +328,15 @@ export function createMachines(
       // walking beside it — his skis and poles put away all ride long.
       const b = s.bike;
       if (b) {
-        const thrown = !!s.skier.thrown;
         model.setBiking?.(true);
-        model.setStood?.(
-          b.onIt && !thrown
-            ? riderPose(
-                bikePose(b),
-                bikeLook() === "freeride" ? animatedStyle(b, s.level, s.t) : undefined,
-              )
-            : b.afoot && !s.skier.lift && !thrown
-              ? walkingPose(b.afoot)
-              : null,
+        const stood = bikeStood(
+          s,
+          riderHold,
+          b.onIt && !s.skier.thrown && bikeLook() === "freeride"
+            ? animatedStyle(b, s.level, s.t)
+            : undefined,
         );
+        model.setStood?.(stood?.pose ?? null, stood?.way);
       }
       // Out of the plane's door and under the canopy, every stage of the
       // jump is a shape of his limbs (`skier-skydive.ts`).

@@ -82,6 +82,11 @@ const args = parseArgs(
       default: false,
       help: "leave the shaded and wire filmstrips out (the bones, onion skins and charts alone; much faster)",
     },
+    "bike-look": {
+      kind: "string",
+      default: "trail",
+      help: "the bike family's rider: trail (the attack stance) or freeride (the animator, `bike-anim.ts`)",
+    },
     "no-sheets": { kind: "flag", default: false, help: "the table alone, no pictures" },
     "out-dir": {
       kind: "string",
@@ -126,6 +131,9 @@ const ctx = {
   G: await import(join(root, "pwa/src/game/skis-body.ts")),
   BIKE: await import(join(root, "pwa/src/game/skier-bike.ts")),
   LOOK: await import(join(root, "pwa/src/game/bike-look.ts")),
+  FOLLOW: await import(join(root, "pwa/src/game/rider-follow.ts")),
+  ANIM: await import(join(root, "pwa/src/game/bike-anim.ts")),
+  bikeLook: args["bike-look"],
 };
 
 const asked = args.family ? args.family.split(",") : DEFAULT_FAMILIES;

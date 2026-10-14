@@ -72,6 +72,12 @@ export function createRunActions(world: RunActionWorld): (press: RunPress) => vo
     if (shell === "replay") {
       if (press === "camera") world.camera();
       else if (press === "pause") world.leave?.();
+      // The reset or the restart pressed over a replay: out of it, and the
+      // run begun again.
+      else if (press === "reset" || press === "restart") {
+        world.leave?.();
+        world.restart();
+      }
       return;
     }
     if (press === "pause") {

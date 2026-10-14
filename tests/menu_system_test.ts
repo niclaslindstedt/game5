@@ -506,11 +506,18 @@ describe("the game's own buttons (run-actions.ts)", () => {
     }
   });
 
-  it("over a replay walks the camera, leaves on PAUSE and takes a picture, and nothing else", () => {
+  it("over a replay walks the camera, leaves on PAUSE, takes a picture, and restarts out of it", () => {
     const { did, act } = rig("replay");
-    for (const command of SHELL_COMMANDS) act(command as RunPress);
-    act("reset");
+    for (const command of SHELL_COMMANDS)
+      if (command !== "restart" && command !== "reset") act(command as RunPress);
     expect(did.sort()).toEqual(["camera", "leave", "shot"]);
+    // The reset or the restart (the HUD's button, the key, the menu row):
+    // out of the replay, and the run begun again.
+    for (const press of ["reset", "restart"] as RunPress[]) {
+      const { did, act } = rig("replay");
+      act(press);
+      expect(did, press).toEqual(["leave", "restart"]);
+    }
   });
 });
 

@@ -115,7 +115,7 @@ import { useAhead } from "./game/use-ahead.ts";
 import { backdropHeld } from "./game/backdrop-hold.ts";
 import { backdropInput, backdropNext, backdropTaken } from "./game/backdrop-run.ts";
 import { createCinemaRun } from "./game/cinema-run.ts";
-import { createRunActions } from "./game/run-actions.ts";
+import { createRunActions, type RunPress } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
 import { shotLabel } from "./game/run-news.ts";
@@ -251,6 +251,7 @@ export function App() {
   const nextSeedRef = useRef(nextSeed);
   nextSeedRef.current = nextSeed;
   const pressRef = useRef<Presses>(NO_PRESSES);
+  const actRef = useRef<(press: RunPress) => void>(() => {});
   /** The two flags the loop raises at most once a frame, as refs beside the
    * state, so the loop can ask "have I already said this?" without waiting
    * for a render to answer. */
@@ -630,7 +631,7 @@ export function App() {
     };
 
     /** One of the game's own buttons, wherever the press came from. */
-    const act = createRunActions({
+    const act = (actRef.current = createRunActions({
       shell: () => shellRef.current,
       pause: () => pressRef.current.pause(),
       resume: () => pressRef.current.resume(),
@@ -642,7 +643,7 @@ export function App() {
       replay: () => pressRef.current.watch(replays.crash() ? "crash" : "recent"),
       shoot: shots.take,
       toggleHud: () => setSettings((s) => ({ ...s, hud: !s.hud })),
-    });
+    }));
     manager.onAction(act);
     // A MENU ROW, PRESSED: the desktop shell's menu bar reaches the game by
     // NAME (shell-host.ts), and every word lands on the handler its key does.
@@ -872,7 +873,7 @@ export function App() {
           feel={settings.touch}
           lever={settings.touch.lever}
           away={away}
-          onReset={() => playerRides(shell) && input?.requestReset()}
+          onReset={() => actRef.current("reset")}
           onCamera={() => pressRef.current.camera()}
           onPause={() => pressRef.current.pause()}
           bare={!settings.hud}

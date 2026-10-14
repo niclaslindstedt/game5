@@ -12,9 +12,11 @@ import {
   BIKE_REAR_AXLE,
   bikeFrontAxleAt,
   bikePose,
+  coastCrank,
   freshBike,
   LYNX,
   NEUTRAL_INPUT,
+  RAGDOLL as R,
   SKIS,
   step,
 } from "@engine";
@@ -34,7 +36,15 @@ import {
   BIKE_LOOK,
 } from "../pwa/src/game/bike-look.ts";
 import { BIKE_RIGS, ridingBike } from "../pwa/src/game/camera-bike.ts";
-import { riderKey } from "../pwa/src/game/skier-bike.ts";
+import {
+  ATTACK,
+  createRiderHold,
+  gaitKey,
+  holdRider,
+  mountKey,
+  riderKey,
+} from "../pwa/src/game/skier-bike.ts";
+import { keyPoints } from "../pwa/src/game/party-pose.ts";
 import { bikeOf } from "../pwa/src/game/bike-hud.ts";
 import { BIKE_NODES } from "../pwa/src/game/bike-view.ts";
 import { bikeRun, summerMap } from "./support/bike-bot.ts";
@@ -155,6 +165,86 @@ describe("the rider on it (skier-bike.ts)", () => {
       expect(f.y).toBeLessThan(key.hipY - 0.4);
     }
     for (const h of key.hands) expect(h.z).toBeGreaterThan(key.hipZ + 0.2);
+  });
+
+  it("never locks a knee: a pedal carried far off the hip brings the hips down", () => {
+    const most = 0.94 * (0.44 + 0.46) + 0.01;
+    for (const crouch of [0, 1])
+      for (const shift of [-1, 0, 1])
+        for (const crank of [0, Math.PI / 2, Math.PI, 1.5 * Math.PI]) {
+          const k = riderKey({ ...pose, crouch, shift, crank });
+          k.feet.forEach((f, i) => {
+            const hip = { x: k.hipX + (i === 0 ? -0.12 : 0.12), y: k.hipY, z: k.hipZ };
+            expect(dist(f, hip)).toBeLessThan(most);
+          });
+        }
+  });
+
+  it("holds the body on springs: the engine's crouch step comes on over frames, not at once", () => {
+    const hold = createRiderHold();
+    holdRider(hold, { ...pose, crouch: 0 }, 0);
+    const a = holdRider(hold, { ...pose, crouch: 1 }, 1 / 60).pose.crouch;
+    expect(a).toBeGreaterThan(0);
+    expect(a).toBeLessThan(0.2);
+    let c = 0;
+    for (let i = 2; i < 60; i++) c = holdRider(hold, { ...pose, crouch: 1 }, i / 60).pose.crouch;
+    expect(c).toBeGreaterThan(0.95);
+  });
+
+  it("mounts from the walking key to the riding key, ending on the pedals and grips", () => {
+    const ride = riderKey(pose);
+    const walk = gaitKey(0, 0);
+    const bb = { x: -pose.rider.x, y: -pose.rider.y, z: -pose.rider.z };
+    const end = mountKey(walk, ride, 1, bb);
+    for (const i of [0, 1]) {
+      expect(dist(end.hands[i], ride.hands[i])).toBeLessThan(1e-6);
+      expect(dist(end.feet[i], ride.feet[i])).toBeLessThan(1e-6);
+    }
+    const start = mountKey(walk, ride, 0, bb);
+    for (const i of [0, 1]) expect(dist(start.hands[i], walk.hands[i])).toBeLessThan(1e-6);
+    // The freerider's knees and elbows let out over the mount, never
+    // snapped out at its end.
+    const wide = { ...ride, kneesOut: 0.55, elbowsOut: 0.6 };
+    expect(mountKey(walk, wide, 0, bb).kneesOut).toBeCloseTo(0, 6);
+    expect(mountKey(walk, wide, 0.999, bb).kneesOut).toBeCloseTo(0.55, 2);
+    expect(mountKey(walk, wide, 0.999, bb).elbowsOut).toBeCloseTo(0.6, 2);
+  });
+
+  it("looks up the trail, not down at the front wheel", () => {
+    expect(ATTACK.bow).toBeLessThan(0);
+  });
+});
+
+describe("the walk beside the bike (gaitKey)", () => {
+  it("keeps the knees soft through the stride, never locked and never folded", () => {
+    for (let w = 0; w < 2.5; w += 0.02) {
+      const p = keyPoints(gaitKey(w, 1), 0);
+      const at = (j: number) => ({ x: p[3 * j], y: p[3 * j + 1], z: p[3 * j + 2] });
+      for (const [h, k, f] of [
+        [R.hipL, R.kneeL, R.footL],
+        [R.hipR, R.kneeR, R.footR],
+      ]) {
+        const a = { x: at(h).x - at(k).x, y: at(h).y - at(k).y, z: at(h).z - at(k).z };
+        const b = { x: at(f).x - at(k).x, y: at(f).y - at(k).y, z: at(f).z - at(k).z };
+        const cos =
+          (a.x * b.x + a.y * b.y + a.z * b.z) /
+          (Math.hypot(a.x, a.y, a.z) * Math.hypot(b.x, b.y, b.z));
+        const bend = 180 - (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI;
+        expect(bend).toBeGreaterThan(5);
+        expect(bend).toBeLessThan(80);
+      }
+    }
+  });
+});
+
+describe("the cranks on a coast (coastCrank)", () => {
+  it("come level on the flat, the outside pedal down in a hard lean", () => {
+    let c = 1;
+    for (let i = 0; i < 240; i++) c = coastCrank(c, 0, 1 / 120);
+    expect(Math.min(c, 2 * Math.PI - c)).toBeLessThan(0.02);
+    let d = 0;
+    for (let i = 0; i < 360; i++) d = coastCrank(d, BIKE.coast.drop, 1 / 120);
+    expect(Math.abs(d - (Math.PI / 2) * BIKE.coast.share)).toBeLessThan(0.02);
   });
 });
 

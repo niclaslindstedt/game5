@@ -18,6 +18,20 @@
 /** The bones whose far end is read too (the tips of him). */
 /** The seconds a staged scene is left to settle before it is read. */
 const SETTLE = 0.15;
+/** THE ROOT'S JUMPS: where the engine moves the skier's root in a step by
+ * more than `JUMP` m off his own velocity (a remount puts him on a bike's
+ * frame a metre over, a step off stands him beside it) but less than a
+ * cut's 2.5 m, the renderer's hand-off (`pose-handoff.ts`) eases his drawn
+ * body across over its 0.25 s — so the frame he is read in is eased
+ * across the same way, or the lab would measure the root's jump as his
+ * limbs'. */
+const JUMP = 0.25;
+const JUMP_CUT = 2.5;
+const JUMP_EASE = 0.25;
+const smoother = (k) => {
+  const x = Math.max(0, Math.min(1, k));
+  return x * x * x * (x * (6 * x - 15) + 10);
+};
 
 const TIPS = new Set(["head", "hand_l", "hand_r", "boot_l", "boot_r"]);
 
@@ -119,6 +133,11 @@ export function createRiderReader(ctx) {
     const every = Math.max(1, Math.round(E.TUNING.physicsHz / ctx.hz));
     let steps = 0;
     let last = null;
+    // The root last read in, and a jump being eased out (`JUMP`).
+    let was = null;
+    let carry = null;
+    const qa = new ctx.THREE.Quaternion();
+    const qb = new ctx.THREE.Quaternion();
     while (state.t - t0 < scene.seconds) {
       E.step(state, scene.input(state.t - t0, state, E));
       scene.each?.(model, state);
@@ -145,7 +164,43 @@ export function createRiderReader(ctx) {
       if (!c.thrown) {
         Object.assign(ref, { x: c.x, y: c.y, z: c.z, q: c.q, vx: c.vx, vy: c.vy, vz: c.vz, t });
       }
-      const at = c.thrown ? { x: c.x, y: c.y, z: c.z, q: ref.q } : c;
+      let at = c.thrown ? { x: c.x, y: c.y, z: c.z, q: ref.q } : c;
+      if (was && !!c.thrown === was.thrown) {
+        const h = t - was.t;
+        const miss = Math.hypot(
+          at.x - (was.x + c.vx * h),
+          at.y - (was.y + c.vy * h),
+          at.z - (was.z + c.vz * h),
+        );
+        if (miss > JUMP && miss < JUMP_CUT) {
+          carry = { x: was.rx - at.x, y: was.ry - at.y, z: was.rz - at.z, q: was.rq, t };
+        }
+      }
+      was = {
+        x: at.x,
+        y: at.y,
+        z: at.z,
+        t,
+        thrown: !!c.thrown,
+        rx: at.x,
+        ry: at.y,
+        rz: at.z,
+        rq: at.q,
+      };
+      if (carry) {
+        const k = smoother((t - carry.t) / JUMP_EASE);
+        qa.set(carry.q.x, carry.q.y, carry.q.z, carry.q.w);
+        qb.set(at.q.x, at.q.y, at.q.z, at.q.w);
+        qa.slerp(qb, k);
+        at = {
+          x: at.x + carry.x * (1 - k),
+          y: at.y + carry.y * (1 - k),
+          z: at.z + carry.z * (1 - k),
+          q: { x: qa.x, y: qa.y, z: qa.z, w: qa.w },
+        };
+        Object.assign(was, { rx: at.x, ry: at.y, rz: at.z, rq: at.q });
+        if (k >= 1) carry = null;
+      }
       samples.push({
         t,
         joints: read(model, at, ctx.world || scene.world === true),

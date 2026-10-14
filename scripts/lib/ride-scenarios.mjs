@@ -840,26 +840,26 @@ export const SCENARIOS = [
   },
   trick(
     "backflip",
-    "a backflip off a staged launch onto a landing slope: the lean back held, let go to come round",
+    "a backflip off a staged launch onto a landing slope: the lean back thrown, opened to come round",
     (t, st, E) => ({
       lean: E.flipLean(st, 1, 1),
     }),
   ),
   trick(
     "frontflip",
-    "a front flip onto a landing slope: the lean forward held, let go to come round",
+    "a front flip onto a landing slope: the lean forward thrown, opened to come round",
     (t, st, E) => ({
       lean: E.flipLean(st, 1, -1),
     }),
   ),
-  trick("spin", "a 360 onto a landing slope: the edge tapped over twice", (t) => ({
-    steer: t < 0.05 || (t > 0.1 && t < 0.15) ? 1 : 0,
+  trick("spin", "a 360 onto a landing slope: the edge thrown over, spotted square", (t, st, E) => ({
+    steer: E.spinSteer(st, 2, 1),
   })),
   trick(
     "half",
-    "a 180 onto a landing slope: the edge tapped over once, ridden away switch",
-    (t) => ({
-      steer: t < 0.05 ? 1 : 0,
+    "a 180 onto a landing slope: the edge thrown over, ridden away switch",
+    (t, st, E) => ({
+      steer: E.spinSteer(st, 1, 1),
     }),
   ),
   switchRide("switch", "turned round on a 14° groomer, ridden backward, then steered right", 1),

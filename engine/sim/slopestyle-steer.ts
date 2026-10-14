@@ -18,6 +18,7 @@
 // strokes refuse what the air left cannot turn, so a short flight is a
 // smaller trick, never a crash.
 
+import { spinSteer } from "../game/strokes.ts";
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { SLOPESTYLE_RULE } from "../mapgen/trick-rules.ts";
@@ -72,13 +73,7 @@ export function slopestyleInput(state: GameState, on: TrackHit): SkierInput | nu
   if (c.airborne && here?.kind === "jump" && here.lip !== undefined && on.s > here.lip - 2) {
     const j = course.sections.filter((s) => s.kind === "jump").indexOf(here);
     const spin = SPINS[j] ?? SPINS[0];
-    const t = c.airTime;
-    let tap = false;
-    for (let n = 0; n < spin.taps; n++) {
-      const at = 0.15 + n * 0.22;
-      if (t > at && t < at + 0.1) tap = true;
-    }
-    return { ...NEUTRAL_INPUT, steer: tap ? spin.way : 0 };
+    return { ...NEUTRAL_INPUT, steer: spinSteer(state, spin.taps, spin.way) };
   }
   if (c.airborne) return { ...NEUTRAL_INPUT };
   // THE LINE: the rail of the next rail section whose rail is still ahead

@@ -759,7 +759,12 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   // the pitch alone read, never a carve's lean.)
   const wu = input.worldUp;
   const upright = smooth(-0.3, 0.9, wu.y / Math.max(1e-6, Math.hypot(wu.y, wu.z)));
-  const moving = smooth(0.6, 2.5, Math.hypot(travelFlat.x, travelFlat.z)) * upright;
+  // (...and only while the travel lies in his own plane: pitched over in a
+  // flip it runs along his body, its flat part swinging through nothing.)
+  const flatSpeed = Math.hypot(travelFlat.x, travelFlat.z);
+  const along =
+    flatSpeed / Math.max(1e-6, Math.hypot(input.travel.x, input.travel.y, input.travel.z));
+  const moving = smooth(0.6, 2.5, flatSpeed) * smooth(0.25, 0.6, along) * upright;
   // (Turning from the nose to the tail the look swings round past his toes.)
   const lead = norm(add(scale(nose, fakie), scale(F, 1 - Math.abs(fakie))));
   let want = moving > 0 ? norm(mix(lead, norm(add(travelFlat, scale(lead, 1e-3))), moving)) : lead;

@@ -104,66 +104,66 @@ export const TRICKS = {
 
   /** ── THE STROKES (`strokes.ts`) ─────────────────────────────────────
    * THE GATES: how far toward the top of its axis an input has to be
-   * carried for it to be a stroke rather than trim — the lean's (both
+   * carried in the take-off's window for it to be a stroke rather than trim — the lean's (both
    * ways: back is the backflip, forward the front flip) and the edge's.
    * The edge's is the lower: a key tapped left or right is ramped
    * (`input-model.ts`) and a quick tap must still reach it. Below them the
    * lean and the edge are the ordinary air control of `flight.ts`. */
   flipGate: 0.8,
   spinGate: 0.6,
-  /** WHAT ONE STROKE TURNS, rad: a tap on the edge is HALF A TURN about
-   * the skier's own up axis — once, and the skis come down backward (a
-   * 180, ridden away switch); twice, a whole 360. Thrown the other way
-   * it turns the spin back. (The lean is no stroke of a
-   * set size: it is the LOOP held, `flipRate` below.) */
-  spinStep: Math.PI,
   /** ...and the most a flight may turn on each axis, rad: a 720 and a
-   * double. A loop held on toward it is let go of in time to stop on it. */
+   * double. Winding a throw up stops short of what would carry past it in
+   * the air there is, the body open. */
   spinMost: 4 * Math.PI,
   flipMost: 4 * Math.PI,
-  /** HOW A TWIRL IS TURNED: HELD, as a loop is, and SETTLED. The edge
-   * held across its gate gathers the spin at `spinAccel` rad/s² toward a
-   * cruise of `spinRate` rad/s — half of it at the gate, the whole at the
-   * edge's end, so a thumb dragged further across spins him harder — for
-   * as long as it is held. Let go, the spin is carried on to the next half
-   * turn it can still stop square on and stopped there at the same
-   * acceleration, so a TAP is a 180 (the skis straight backward, ridden
-   * away switch), a quick second tap a 360, and a held spin comes round
-   * onto the skis forward or switch, wherever he let go. The acceleration
-   * is the reference pair's, scaled by the root of each pair's own inertia
-   * against it (a long downhill ski is slower to throw round, the short
-   * park ski quicker): a 180 from a tap in about 0.4 s — a park
-   * skier's spin, wound up at the lip and carried by the shoulders — so it
-   * still comes round off the jump key's own pop on the flat. */
-  spinRate: 10,
-  spinAccel: 80,
-  /** HOW A LOOP IS TURNED: HELD, not bought. A flip is set going at the
-   * take-off and carried by the body in the air — tucked tight it turns
-   * quickly, opened out it slows, and nothing brings it back to its feet
-   * but the skier himself. So the lean held across its gate turns him
-   * nose over tail, the rate gathering at `flipAccel` rad/s² (scaled by
-   * the pair's pitch inertia, as the twirl's is) to a cruise of
-   * `flipRate`, for as long as it is held — one loop, two, or round past
-   * his feet into a crash; LET GO, he opens out and the rotation dies
-   * away at `flipBrake` rad/s², carrying him on about `flipRate² /
-   * (2·flipBrake)` rad — a little over a third of a turn — before the
-   * air's own control is his again. Landing it is the skier's: let go
-   * upside down, with the snow coming into view, and he comes round onto
-   * his skis; held too long, he goes over. A loop held from rest and let
-   * go to stop square takes about a second — a park skier's backflip, the
-   * pace film of one shows (a turn in about a second, wound up at the lip,
-   * the tucked middle the quickest) — so the jump key's own pop on the
-   * flat, about 1.1 s up, has just the air for one thrown at once. */
+  /** THE TAKE-OFF'S WINDOW, s past `air.counts`: the only time an axis
+   * thrown across its gate SETS a turn going — a skier's rotation comes off
+   * the lip, wound up into it and released as he leaves the snow, and once
+   * he is up the body can change its shape but not the turn it carries. */
+  setFor: 0.3,
+  /** HOW A THROW IS SET: held across its gate in the window, the open
+   * body's rate gathers at `flipSet` / `spinSet` rad/s² (the reference
+   * pair's, scaled by the root of each pair's own inertia against it) toward
+   * a cruise of `flipRate` / `spinRate` rad/s — the spin's half of it at the
+   * gate and the whole at the edge's end. A tap a twentieth of a second
+   * long sets a spin of about 2 rad/s, a 180 off a park kicker's two
+   * seconds; the whole window held, a fast double. A backflip off the jump
+   * key's own pop on the flat, about 1.1 s up, wants the lean held about
+   * half the window. */
   flipRate: 10,
-  flipAccel: 40,
-  flipBrake: 20,
-  /** THE TWIRL IS PACED TO THE SNOW: whatever is owed is turned by
-   * `finish` s before the flight comes back down (`flight.ts`'s
-   * `landingAhead`), the cruise raised to fit up to `rateMost` rad/s —
-   * and a twirl that could not be turned in the air left, at that rate,
-   * is not taken at all. (A loop is the skier's to time.) */
+  flipSet: 25,
+  spinRate: 10,
+  spinSet: 25,
+  /** WHAT THE BODY'S SHAPE DOES TO IT: the inertia about the side axis
+   * tucked is about two thirds of the body laid out, so the lean held the
+   * loop's way turns it `tuckForm` times as fast and held against it
+   * `openForm` times; the arms pulled in and thrown wide do the same to a
+   * spin (`spinIn`, `spinOut`) — a smaller change, since the skis and the
+   * legs are most of the inertia about the up axis. The body changes shape
+   * at `formRate` of the whole range a second. */
+  tuckForm: 1.5,
+  openForm: 0.6,
+  spinIn: 1.35,
+  spinOut: 0.65,
+  formRate: 6,
+  /** THE SPOT: with the snow no more than `catchLook` s away and his body
+   * not tucked, a skier coming round within `flipCatch` rad of his feet
+   * under him (or `spinCatch` of a line he can ride, forward or switch)
+   * opens out and slows the turn by no more than `flipCatchBrake` /
+   * `spinCatchBrake` rad/s² to stop on it — the reach a skier has to save
+   * a landing. Outside it he does not try: he lands on what is under him. */
+  catchLook: 0.4,
+  flipCatch: 0.7,
+  flipCatchBrake: 10,
+  spinCatch: 0.6,
+  spinCatchBrake: 15,
+  /** What the lean's own torque is left in the air once the window has
+   * shut on a run that tricks (`flight.ts`): a skier trims his landing with
+   * his arms and his hips, which turn him very little. */
+  trim: 0.5,
+  /** THE AERIALS' PACE (`aerial-flight.ts`): a declared jump is turned by
+   * `finish` s before the snow. */
   finish: 0.08,
-  rateMost: 18,
   /** A flight a stroke may be thrown in: one that LEFT the snow climbing at
    * least this fast, m/s, and has been up `air.counts` — a skier dropping off
    * a crest is not a launch. */

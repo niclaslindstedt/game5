@@ -54,6 +54,7 @@ import { riderOf } from "./defs/riders.ts";
 import { SKIS, inertiaOf, totalMass } from "./defs/skis.ts";
 import { techniqueOf } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { setting } from "./strokes.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
 import { chassisContacts } from "./chassis.ts";
 import {
@@ -811,15 +812,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   } else {
     const back = state.rules.stunts && c.way < 0;
     const assist = level.pipe ? 0 : state.assist.air;
-    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back);
+    const trim = state.rules.stunts && !setting(c.airTime) ? TUNING.tricks.trim : 1;
+    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back, trim);
   }
-  // Euler's equations with a diagonal inertia: τ − ω × Iω. Only on the
-  // snow: a skier in the air is no rigid rod — he holds his shape with his
-  // limbs — and a body as thin as his (its yaw inertia a third of its
-  // pitch and roll) spun for a 360 fed every wobble the levelling hands
-  // made back through the coupling until the spin was a tumble. Thrown,
-  // the ragdoll has its own physics and this body is the skis'. A body
-  // going over on the snow is on the snow (`airborne`, as the hips above).
+  // Euler's equations with a diagonal inertia: τ − ω × Iω, only on the snow.
+  // In the air he holds his shape with his limbs, and a body as thin as his
+  // (yaw inertia a third of pitch and roll) spun for a 360 fed every wobble
+  // of the levelling hands back through the coupling into a tumble. Thrown,
+  // the ragdoll is its own physics; going over on the snow is on the snow.
   const gyro = c.airborne && c.thrown === null ? 0 : 1;
   const gx = gyro * (I.z - I.y) * c.wy * c.wz;
   const gy = gyro * (I.x - I.z) * c.wz * c.wx;

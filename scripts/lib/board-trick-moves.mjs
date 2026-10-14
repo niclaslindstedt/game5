@@ -140,7 +140,7 @@ export const BOARD_TRICK_MOVES = [
   })),
   {
     id: "spin-held",
-    title: "a 540 off the big kicker: the edge thrown over, spotted switch",
+    title: "a 360 off the big kicker: the edge thrown over, spotted square",
     level: kickerLevel(KICKERS.big),
     place: runIn(KICKERS.big),
     mode: "tricks",
@@ -148,7 +148,7 @@ export const BOARD_TRICK_MOVES = [
     window: [1.0, 3.8],
     input: (_t, st, E) => ({
       ...IDLE,
-      steer: st.skier.airborne ? E.spinSteer(st, 3, 1) : 0,
+      steer: st.skier.airborne ? E.spinSteer(st, 2, 1) : 0,
       lean: levelled(KICKERS.big, 0.9)(st, E),
     }),
   },

@@ -38,7 +38,7 @@ import {
   type V3,
 } from "./bike-look.ts";
 import { buildFreerideBike } from "./bike-freeride.ts";
-import { rideStyleOf } from "./bike-ride-style.ts";
+import { animatedStyle } from "./bike-anim.ts";
 import type { BikeLook } from "./bike-variant.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -548,7 +548,7 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
       // THE FREERIDER'S STYLE: the bike thrown under him in the air, turned
       // about his centre of mass so his body stays where the engine has it
       // (the lens follows the bike as the engine has it, unturned).
-      const style = look === "freeride" ? rideStyleOf(b, state.level, state.t) : null;
+      const style = look === "freeride" ? animatedStyle(b, state.level, state.t) : null;
       if (style && (style.yaw !== 0 || style.roll !== 0)) {
         whipTurn.setFromAxisAngle(Y_AXIS, style.yaw);
         whipRoll.setFromAxisAngle(Z_AXIS, style.roll);
@@ -562,7 +562,7 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
       }
       built.root.position.set(x, y, z);
       built.root.quaternion.copy(q);
-      poseBike(built.nodes, pose);
+      poseBike(built.nodes, style ? { ...pose, crank: style.crank } : pose);
       // THE CALL while it lies waiting near him on foot.
       const near = Math.hypot(player.x - b.x, player.z - b.z);
       const waiting = !!b.afoot && !b.onIt && near < LIGHT_UP && near > BIKE.board.reach;

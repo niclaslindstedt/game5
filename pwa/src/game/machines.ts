@@ -29,7 +29,7 @@ import { heliHull, type SolidBox } from "./camera-clear.ts";
 import type { LensPose, RigPose, Vec3 } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
-import { rideStyleOf } from "./bike-ride-style.ts";
+import { animatedStyle } from "./bike-anim.ts";
 import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
 import { riderPose, walkingPose } from "./skier-bike.ts";
@@ -335,7 +335,7 @@ export function createMachines(
           b.onIt && !thrown
             ? riderPose(
                 bikePose(b),
-                bikeLook() === "freeride" ? rideStyleOf(b, s.level, s.t) : undefined,
+                bikeLook() === "freeride" ? animatedStyle(b, s.level, s.t) : undefined,
               )
             : b.afoot && !s.skier.lift && !thrown
               ? walkingPose(b.afoot)

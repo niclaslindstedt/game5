@@ -16,9 +16,10 @@
 //
 // Three-free, so the suite reads it.
 
-import { BIKE, BIKE_BB, type BikePose } from "@engine";
+import { BIKE, BIKE_BB, RAGDOLL as R, type BikePose } from "@engine";
 
 import { GRIPS, bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
+import type { AnimatedStyle } from "./bike-anim.ts";
 import type { RideStyle } from "./bike-ride-style.ts";
 import { ANKLE, keyOf, keyPoints, movePose, type Key } from "./party-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
@@ -106,16 +107,31 @@ export const FREERIDE = {
 
 /** THE KEY that lays the FREERIDER on the bike posed `pose`, riding it as
  * `style` says: whipped, tabled, a foot out, on the brakes. */
-export function freerideKey(pose: BikePose, style: RideStyle): Key {
+export function freerideKey(pose: BikePose, style: RideStyle | AnimatedStyle): Key {
+  // ANIMATED (`bike-anim.ts`): the cranks as drawn, the pop's crouch eased,
+  // and the key poses' offsets laid on below in place of the brake's.
+  const body = "body" in style ? style.body : null;
+  if ("crank" in style) pose = { ...pose, crank: style.crank, crouch: body!.crouch };
   const key = riderKey(pose);
   const F = FREERIDE;
   const bb = bracketFromRider(pose);
   key.kneesOut = F.kneesOut;
   key.elbowsOut = F.elbowsOut;
-  key.hipY = F.hips.y - F.brake.down * style.brake;
-  key.hipZ = F.hips.z - F.brake.back * style.brake;
-  key.pitch += F.pitch + F.brake.pitch * style.brake;
+  key.hipY = F.hips.y - (body ? 0 : F.brake.down * style.brake);
+  key.hipZ = F.hips.z - (body ? 0 : F.brake.back * style.brake);
+  key.pitch += F.pitch + (body ? 0 : F.brake.pitch * style.brake);
   key.nod += F.nod;
+  if (body) {
+    key.hipX += body.hipX;
+    key.hipY += body.hipY;
+    key.hipZ += body.hipZ;
+    key.pitch += body.pitch;
+    key.roll = body.roll;
+    key.twist = body.twist;
+    key.nod += body.nod;
+    key.kneesOut += body.kneesOut;
+    key.elbowsOut += body.elbowsOut;
+  }
   // THE WHIP: the bike under him turned, his hands and feet with it, his
   // hips following a share of it and his shoulders kept square.
   const { yaw, roll } = style;
@@ -134,9 +150,12 @@ export function freerideKey(pose: BikePose, style: RideStyle): Key {
     const k = style.footOut;
     const f = key.feet[i];
     key.feet[i] = v(f.x + (out.x - f.x) * k, f.y + (out.y - f.y) * k, f.z + (out.z - f.z) * k);
-    // His weight onto the outside foot, the trunk dropped over it.
-    key.hipY -= 0.03 * k;
-    key.roll += side * 0.12 * k;
+    // His weight onto the outside foot, the trunk dropped over it (the
+    // animator lays its own, eased).
+    if (!body) {
+      key.hipY -= 0.03 * k;
+      key.roll += side * 0.12 * k;
+    }
   }
   return key;
 }
@@ -146,7 +165,7 @@ export function freerideKey(pose: BikePose, style: RideStyle): Key {
  * him is never read. With a `style`, the freerider (`freerideKey`). */
 export function riderPose(
   pose: BikePose,
-  style?: RideStyle,
+  style?: RideStyle | AnimatedStyle,
 ): (ground: number, frame: BodyFrame) => SkierPose {
   const points = riderPoints(pose, style);
   return (_ground, frame) => ragdollPose(points, frame);
@@ -157,8 +176,43 @@ export function riderPose(
  * his centre of mass): what `riderPose` hangs the figure on, and what the
  * bike motion lab (`make bike-motion`) measures against the grips and the
  * pedals. */
-export function riderPoints(pose: BikePose, style?: RideStyle): number[] {
-  return keyPoints(style ? freerideKey(pose, style) : riderKey(pose), 0);
+export function riderPoints(pose: BikePose, style?: RideStyle | AnimatedStyle): number[] {
+  if (!style) return keyPoints(riderKey(pose), 0);
+  const key = freerideKey(pose, style);
+  return "body" in style ? reachKept(key) : keyPoints(key, 0);
+}
+
+/** THE REACH KEPT: a key pose an animator laid that would pull a hand off
+ * its grip or a foot off its pedal (the limb straight and still short) is
+ * eased toward them — the hips brought forward and the chest down for a
+ * hand, the hips down for a foot — a few times over, the joints of the
+ * last. */
+export function reachKept(key: Key): number[] {
+  let pts = keyPoints(key, 0);
+  const at = (i: number): V3 => v(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]);
+  for (let n = 0; n < 8; n++) {
+    const hands = [R.handL, R.handR].map((j, i) => {
+      const p = at(j);
+      const to = key.hands[i];
+      return v(to.x - p.x, to.y - p.y, to.z - p.z);
+    });
+    const feet = [R.footL, R.footR].map((j, i) => {
+      const p = at(j);
+      const to = key.feet[i];
+      return Math.hypot(to.x - p.x, to.y - p.y, to.z - p.z);
+    });
+    const [hl, hr] = hands.map((d) => Math.hypot(d.x, d.y, d.z));
+    const foot = Math.max(feet[0], feet[1]);
+    if (Math.max(hl, hr) < 0.003 && foot < 0.003) break;
+    // The whole trunk moved toward the hand left short (the shoulders go
+    // with the hips), the hips lowered for a foot left short.
+    const d = hl > hr ? hands[0] : hands[1];
+    key.hipX += d.x * 0.8;
+    key.hipY += d.y * 0.8 - foot * 1.1;
+    key.hipZ += d.z * 0.8;
+    pts = keyPoints(key, 0);
+  }
+  return pts;
 }
 
 /** WHERE HIS NEAR HAND HOLDS THE BIKE HE PUSHES, in his own frame (x his

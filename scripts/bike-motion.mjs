@@ -73,7 +73,9 @@ const E = await import(join(root, "engine/index.ts"));
 const C = await import(join(root, "pwa/src/tools/bike-clips.ts"));
 const SB = await import(join(root, "pwa/src/game/skier-bike.ts"));
 const BL = await import(join(root, "pwa/src/game/bike-look.ts"));
-const ST = await import(join(root, "pwa/src/game/bike-ride-style.ts"));
+// The rider as the game draws him: the animated style (`bike-anim.ts`) —
+// the bike's turn, the foot out, the cranks as drawn and the body's keys.
+const ST = await import(join(root, "pwa/src/game/bike-anim.ts"));
 const Q = await import("@niclaslindstedt/oss-game-framework/core/quat");
 
 const R = E.RAGDOLL;
@@ -127,7 +129,7 @@ const CHARTS = [
 function measure(s, t) {
   const b = s.bike;
   const pose = E.bikePose(b);
-  const style = styled ? ST.rideStyleOf(b, s.level, s.t) : undefined;
+  const style = styled ? ST.animatedStyle(b, s.level, s.t) : undefined;
   const on = b.onIt && !s.skier.thrown && b.mode !== "lift";
   // Off it (thrown, afoot, on the chair) he is not measured against the
   // bike: a gap in every line.
@@ -138,7 +140,7 @@ function measure(s, t) {
   const turn = (p) =>
     style && (style.yaw !== 0 || style.roll !== 0) ? SB.underHim(p, style.yaw, style.roll) : p;
   const grips = BL.gripsAt(pose.steer).map((g) => turn(add(bb, g)));
-  const pedals = BL.pedalsAt(pose.crank).map((p) => turn(add(bb, p)));
+  const pedals = BL.pedalsAt(style?.crank ?? pose.crank).map((p) => turn(add(bb, p)));
   const hipMid = {
     x: (at(R.hipL).x + at(R.hipR).x) / 2,
     y: (at(R.hipL).y + at(R.hipR).y) / 2,

@@ -22,7 +22,7 @@
 
 import { bikePose, type GameState } from "@engine";
 
-import { rideStyleOf } from "../game/bike-ride-style.ts";
+import { animatedStyle } from "../game/bike-anim.ts";
 import { bikeLookOf, setBikeLook } from "../game/bike-variant.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
@@ -106,7 +106,7 @@ function lensOf(s: GameState, angle: Angle): LensPose | null {
 function caption(s: GameState, t: number): string {
   const b = s.bike!;
   const p = bikePose(b);
-  const st = styled ? rideStyleOf(b, s.level, s.t) : null;
+  const st = styled ? animatedStyle(b, s.level, s.t) : null;
   const what = s.skier.thrown
     ? "thrown"
     : b.mode === "lift"

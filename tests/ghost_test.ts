@@ -124,13 +124,16 @@ describe("the codec", () => {
     const inputs: SkierInput[] = [
       snapInput({ steer: 0.3, tuck: 1, brake: 0, lean: -0.2, reset: false }),
       snapInput({ steer: -1, tuck: 0, brake: 0.5, lean: 1, reset: true }),
+      // A flick: the jump pressed and its pop, on the tape's grid.
+      snapInput({ steer: 0, tuck: 1, brake: 0, lean: 0, reset: false, jump: true, pop: 0.6 }),
       { ...NEUTRAL_INPUT },
     ];
     for (const input of inputs) rec.record(input);
     const tape = readControls(rec.seal());
-    expect(tape.steps).toBe(3);
+    expect(tape.steps).toBe(4);
     for (let i = 0; i < inputs.length; i++) expect({ ...tape.at(i) }).toEqual(inputs[i]);
-    expect({ ...tape.at(3) }).toEqual(NEUTRAL_INPUT);
+    expect(tape.at(2).pop).toBeCloseTo(4 / 7, 6);
+    expect({ ...tape.at(4) }).toEqual(NEUTRAL_INPUT);
   });
 
   it("a lap is a few kilobytes", () => {

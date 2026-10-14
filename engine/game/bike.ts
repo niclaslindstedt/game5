@@ -90,7 +90,8 @@ export function bikeControls(input: SkierInput): BikeControls {
     rear: Math.max(brake, skid),
     steer: clamp(input.steer, -1, 1),
     lean: clamp(input.lean, -1, 1),
-    crouch: input.jump ? 1 : 0,
+    crouch: input.jump || (input.pop ?? 0) > 0 ? 1 : 0,
+    charge: input.pop,
   };
 }
 

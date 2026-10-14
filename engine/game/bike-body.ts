@@ -275,7 +275,7 @@ export function rideBike(
   // release with the wheels on the ground.
   // His weight moved toward the lean asked.
   b.shift += clamp(ctl.lean - b.shift, -dt / R.shift, dt / R.shift);
-  if (ctl.crouch > 0.5) b.loaded = Math.min(1, b.loaded + dt / 0.25);
+  if (ctl.crouch > 0.5) b.loaded = Math.min(1, Math.max(b.loaded + dt / 0.25, ctl.charge ?? 0));
   else if (b.loaded > 0 && b.pop === 0) {
     if (b.front.touching || b.rear.touching) b.pop = R.pop.time;
     else b.loaded = 0;

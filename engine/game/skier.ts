@@ -217,7 +217,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   let loaded = 0;
   c.popped += dt;
   const sprung = !c.airborne || c.airTime <= J.grace;
-  if (input.jump === true && c.thrown === null) {
+  const charge = (input.pop ?? 0) > 0 ? Math.min(1, input.pop ?? 0) * J.full : 0;
+  if (charge > 0) {
+    // A flick: sprung this step, as loaded as the flick asked (or as the
+    // jump already held, whichever is more).
+    loaded = Math.max(c.jumpLoad, charge);
+    if (sprung && c.thrown === null) pop = J.popMin + ((J.popMax - J.popMin) * loaded) / J.full;
+    c.jumpLoad = 0;
+  } else if (input.jump === true && c.thrown === null) {
     if (!c.airborne) c.jumpLoad = Math.min(J.full, c.jumpLoad + dt);
   } else if (c.jumpLoad > 0) {
     loaded = c.jumpLoad;

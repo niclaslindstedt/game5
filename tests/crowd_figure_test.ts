@@ -21,6 +21,7 @@ import {
 import { CROWD_LODS, buildCrowdFigure, crowdTriangles } from "../pwa/src/game/crowd-shapes.ts";
 import { skierPose } from "../pwa/src/game/skier-pose.ts";
 import { PLANT, plantLength } from "../pwa/src/game/skier-spring.ts";
+import { TURN_PLANT } from "../pwa/src/game/skier-stroke.ts";
 
 const sub = (a: V3, b: { x: number; y: number; z: number } | V3): V3 =>
   Array.isArray(b) ? [a[0] - b[0], a[1] - b[1], a[2] - b[2]] : [a[0] - b.x, a[1] - b.y, a[2] - b.z];
@@ -201,15 +202,16 @@ describe("an amateur's weights and kit", () => {
       w({ ...turning, turnSide: 1, turnHeld: 1, turnT, fallSide: 1, ...over });
     // A turn to the right plants the right pole, swung to the touch and
     // trailed back, and is over when the player's plant would be.
-    const touch = into(0.2);
+    const at = TURN_PLANT.touch * plantLength(8);
+    const touch = into(at);
     expect(touch.of("plantRight")).toBeGreaterThan(0.5);
     expect(touch.of("plantLeft") + touch.of("trailLeft")).toBe(0);
-    expect(into(0.5).of("trailRight")).toBeGreaterThan(touch.of("trailRight"));
+    expect(into(0.85 * plantLength(8)).of("trailRight")).toBeGreaterThan(touch.of("trailRight"));
     const over = into(plantLength(8) + 0.01);
     for (const k of ["plantRight", "trailRight"] as const) expect(over.of(k)).toBe(0);
     // ...the left one on a turn to the left, and the other again mirrored.
-    expect(into(0.2, { turnSide: -1 }).of("plantLeft")).toBeGreaterThan(0.5);
-    expect(into(0.2, { fallSide: -1 }).of("plantLeft")).toBeGreaterThan(0.5);
+    expect(into(at, { turnSide: -1 }).of("plantLeft")).toBeGreaterThan(0.5);
+    expect(into(at, { fallSide: -1 }).of("plantLeft")).toBeGreaterThan(0.5);
     // None after a turn that never held, too slow, in a wedge, or down.
     for (const not of [
       { turnHeld: PLANT.held / 2 },

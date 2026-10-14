@@ -167,7 +167,7 @@ const REFERENCE = { height: 1.8, shoulder: 0.2 };
 const LEAN_ROLL = 0.55;
 /** Where in a turn's plant the basket trails back behind the touch, 0..1
  * of the plant — the second of its two shapes. */
-const TRAIL = 0.7;
+const TRAIL = 0.85;
 /** The two moments of the player's own wait (`idle.t`, s) his weight is
  * furthest over to one side and his look furthest round — and then the
  * other — and the period the crowd's wait swings between them on, s (the

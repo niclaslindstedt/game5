@@ -91,20 +91,19 @@ export const ANGLES = [
       id: `knee_${s}`,
       say: `knee ${s}`,
       group: "legs",
-      of: (j) => bend(j[`thigh_${s}`], j[`shin_${s}`], j[`boot_${s}`]),
+      pair: (j) => [sub(j[`shin_${s}`], j[`thigh_${s}`]), sub(j[`boot_${s}`], j[`shin_${s}`])],
     },
     {
       id: `hip_${s}`,
       say: `hip ${s}`,
       group: "legs",
-      of: (j) => between(sub(j.pelvis, j.chest), sub(j[`shin_${s}`], j[`thigh_${s}`])),
+      pair: (j) => [sub(j.pelvis, j.chest), sub(j[`shin_${s}`], j[`thigh_${s}`])],
     },
     {
       id: `ankle_${s}`,
       say: `ankle ${s}`,
       group: "legs",
-      of: (j) =>
-        between(sub(j[`shin_${s}`], j[`boot_${s}`]), sub(j[`boot_${s}.tip`], j[`boot_${s}`])),
+      pair: (j) => [sub(j[`shin_${s}`], j[`boot_${s}`]), sub(j[`boot_${s}.tip`], j[`boot_${s}`])],
     },
   ]),
   ...["l", "r"].flatMap((s) => [
@@ -112,19 +111,25 @@ export const ANGLES = [
       id: `elbow_${s}`,
       say: `elbow ${s}`,
       group: "arms",
-      of: (j) => bend(j[`upperarm_${s}`], j[`forearm_${s}`], j[`hand_${s}`]),
+      pair: (j) => [
+        sub(j[`forearm_${s}`], j[`upperarm_${s}`]),
+        sub(j[`hand_${s}`], j[`forearm_${s}`]),
+      ],
     },
     {
       id: `shoulder_${s}`,
       say: `shoulder ${s}`,
       group: "arms",
-      of: (j) => between(sub(j.pelvis, j.chest), sub(j[`forearm_${s}`], j[`upperarm_${s}`])),
+      pair: (j) => [sub(j.pelvis, j.chest), sub(j[`forearm_${s}`], j[`upperarm_${s}`])],
     },
     {
       id: `wrist_${s}`,
       say: `wrist ${s}`,
       group: "arms",
-      of: (j) => bend(j[`forearm_${s}`], j[`hand_${s}`], j[`hand_${s}.tip`]),
+      pair: (j) => [
+        sub(j[`hand_${s}`], j[`forearm_${s}`]),
+        sub(j[`hand_${s}.tip`], j[`hand_${s}`]),
+      ],
     },
   ]),
   {
@@ -210,10 +215,12 @@ export function measure(samples, opts = {}) {
   // ANGLES and how they move.
   const angles = {};
   for (const a of ANGLES) {
-    const v = samples.map((s) => {
-      const x = a.of(s.joints, s.axes);
-      return x === null || !Number.isFinite(x) ? null : x;
-    });
+    const v = a.pair
+      ? signedBends(samples.map((s) => a.pair(s.joints)))
+      : samples.map((s) => {
+          const x = a.of(s.joints, s.axes);
+          return x === null || !Number.isFinite(x) ? null : x;
+        });
     if (v.every((x) => x === null)) continue;
     const rate = diff(
       t,
@@ -343,6 +350,36 @@ const sub = (a, b) => (a && b ? { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z } : n
 const len = (a) => Math.hypot(a.x, a.y, a.z);
 const wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
 
+/** A joint's bend frame by frame, degrees, SIGNED: the angle between each
+ * frame's two directions, its sign held to the side its bend first lay
+ * to (the cross product of the two, tracked frame to frame). An unsigned
+ * bend is a V wherever a joint swings through straight — a cusp of the
+ * measure, not of the joint, which reads as a snap it never made; signed,
+ * a joint through straight is a smooth curve through zero. */
+function signedBends(pairs) {
+  let n = null;
+  return pairs.map((p) => {
+    if (!p || !p[0] || !p[1]) return null;
+    const x = between(p[0], p[1]);
+    if (x === null) return null;
+    const c = cross(p[0], p[1]);
+    const lc = len(c) / (len(p[0]) * len(p[1]));
+    if (!n) {
+      if (lc > 1e-3) n = c;
+      return x;
+    }
+    const sign = c.x * n.x + c.y * n.y + c.z * n.z < 0 ? -1 : 1;
+    if (lc > 0.05) n = sign > 0 ? c : { x: -c.x, y: -c.y, z: -c.z };
+    return sign * x;
+  });
+}
+
+const cross = (a, b) => ({
+  x: a.y * b.z - a.z * b.y,
+  y: a.z * b.x - a.x * b.z,
+  z: a.x * b.y - a.y * b.x,
+});
+
 /** The angle between two directions, degrees. */
 function between(a, b) {
   if (!a || !b) return null;
@@ -351,11 +388,6 @@ function between(a, b) {
   if (la < 1e-6 || lb < 1e-6) return null;
   const c = (a.x * b.x + a.y * b.y + a.z * b.z) / (la * lb);
   return Math.acos(Math.max(-1, Math.min(1, c))) * DEG;
-}
-
-/** How far a chain a → b → c is bent at b, degrees (0 straight). */
-function bend(a, b, c) {
-  return between(sub(b, a), sub(c, b));
 }
 
 /** The trunk's lean from plumb toward +z (`axis` z) or +x, degrees. */

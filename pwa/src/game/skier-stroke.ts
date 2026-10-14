@@ -123,14 +123,20 @@ export function pinnedSwing(zAt: (s: number) => number, plant: number, passed: n
  * trails back up to its hang. Where the basket touches (`x` out from the
  * centre, m — the rod's own length puts it on the snow ahead of the fist);
  * how far the fist reaches for it — forward, down and out, m — a flick of
- * the wrist and the forearm, the arm never thrown; and how far off the
- * straight swing the rod is lifted going forward and trailing back, rad. */
+ * the wrist and the forearm, the arm never thrown; how far off the
+ * straight swing the rod is lifted going forward and trailing back, rad;
+ * and how far out past his side it is carried as it passes under the fist,
+ * as a share of the touch's lean, and how high its basket is carried over
+ * the snow at the middle of the swing, m — a flick that lifts it clear,
+ * never a basket dragged along the snow. */
 export const TURN_PLANT = {
-  touch: 0.35,
+  touch: 0.55,
   basket: { x: 0.42 },
   reach: { z: 0.14, y: -0.05, x: 0.04 },
   swingLift: 0.12,
   trailLift: 0.2,
+  pass: 1,
+  clear: 0.05,
 };
 /** How a pole swings through the recovery: how far over the snow it is
  * carried, m, and the least tilt off straight down it steps round the
@@ -380,27 +386,56 @@ export function plantPole(
   u: number,
   pole: number,
 ): V3 {
-  // A rod of the pole's own length from a fist nearer the snow than
-  // that cannot stand vertical, so it swings round the OUTSIDE: its
-  // heading turned from trailing behind, out past his side, to the
-  // basket ahead and back again, and its angle off the vertical never
-  // less than the one that just puts the basket on the snow — which it
-  // reaches at the touch.
+  // The rod swings FORE AND AFT, as a wrist flicks it: its lean along his
+  // way going from the hang's (behind, negative) to the touch's, where its
+  // basket just meets the snow ahead. A rod of the pole's own length from a
+  // fist nearer the snow than that cannot pass under the fist upright, so
+  // through the middle of the swing it is carried a little OUT past his
+  // side, just enough to keep the basket off the snow, and back in to the
+  // touch — a short swing beside the boot, never the long way round. The
+  // hang's own set (how far out and across it leans) is carried in at the
+  // start and let go of by the touch, so the swing leaves the hang without
+  // a jump and comes back to it.
   const down = Math.min(1, (hand.y - ground) / pole);
   const touchTilt = Math.acos(down);
-  const hangTilt = Math.acos(Math.max(-1, Math.min(1, -hang.y)));
-  const hangHeading = Math.atan2(side * hang.x, hang.z);
-  const touchHeading = Math.atan2(TURN_PLANT.basket.x - side * hand.x, pole * Math.sin(touchTilt));
+  const sinTilt = Math.sin(touchTilt);
+  const along = (d: V3): number => Math.atan2(d.z, -d.y);
+  const rodAt = (a: number, out: number): V3 => {
+    const t = Math.min(Math.PI / 2, Math.hypot(a, out));
+    const h = t > 1e-6 ? Math.atan2(Math.abs(out), a) : 0;
+    return { x: side * Math.sin(t) * Math.sin(h), y: -Math.cos(t), z: Math.sin(t) * Math.cos(h) };
+  };
+  const a0 = along(hang);
+  const set = sub(hang, rodAt(a0, 0));
   const [r, lift] =
     u < TURN_PLANT.touch
       ? [smooth(u / TURN_PLANT.touch), TURN_PLANT.swingLift]
       : [1 - smooth((u - TURN_PLANT.touch) / (1 - TURN_PLANT.touch)), TURN_PLANT.trailLift];
-  const tilt = hangTilt + (touchTilt - hangTilt) * r + lift * Math.sin(Math.PI * r);
-  const heading = hangHeading + (touchHeading - hangHeading) * r;
-  const dir = {
-    x: side * Math.sin(tilt) * Math.sin(heading),
-    y: -Math.cos(tilt),
-    z: Math.sin(tilt) * Math.cos(heading),
-  };
-  return dir;
+  const a = a0 + (touchTilt - a0) * r + lift * Math.sin(Math.PI * r);
+  const out = TURN_PLANT.pass * touchTilt * Math.sin(Math.PI * r) * Math.min(1, sinTilt * 4);
+  const clear = TURN_PLANT.clear * Math.sin(Math.PI * r);
+  return clearSnow(
+    norm(add(rodAt(a, out), scale(set, (1 - r) * (1 - r)))),
+    hand,
+    ground + clear,
+    pole,
+  );
+}
+
+/** How softly a rod is held off the snow (`clearSnow`), as a share of its
+ * length: the basket eased up onto the surface over about a centimetre
+ * rather than stopped on it in a frame. */
+const SNOW_SOFT = 0.008;
+
+/** A rod `dir` (unit) out of the fist at `hand`, its basket kept on or
+ * over the snow at `ground`: lifted smoothly (a softplus) where it would
+ * go under, its heading kept. */
+function clearSnow(dir: V3, hand: V3, ground: number, pole: number): V3 {
+  const least = Math.max(-1, (ground - hand.y) / pole);
+  const k = (dir.y - least) / SNOW_SOFT;
+  const y = least + SNOW_SOFT * (k > 20 ? k : Math.log1p(Math.exp(k)));
+  if (y === dir.y || y >= 1) return dir;
+  const flat = Math.hypot(dir.x, dir.z);
+  const f = flat > 1e-9 ? Math.sqrt(Math.max(0, 1 - y * y)) / flat : 0;
+  return { x: dir.x * f, y, z: dir.z * f };
 }

@@ -40,6 +40,7 @@ import {
   liftPlans,
   NEUTRAL_INPUT,
   placeBike,
+  RAGDOLL,
   solidsNear,
   solidsOf,
   step,
@@ -102,6 +103,9 @@ const VIEWS = [
   "table",
   "footout",
   "brake",
+  "snag",
+  "torn",
+  "safe",
 ] as const;
 type ViewId = (typeof VIEWS)[number];
 
@@ -127,8 +131,9 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 /** Frames ridden for each one drawn while a scene is ridden to its moment. */
 const DRAW_EVERY = 240;
 
-function bikeRide(spawn?: { x: number; z: number }): GameState {
+function bikeRide(spawn?: { x: number; z: number }, gore = false): GameState {
   const s = createGame({
+    gore,
     level,
     mode: "free",
     summer: true,
@@ -307,6 +312,10 @@ async function scene(id: ViewId): Promise<Shot | null> {
         caption: `crash — ${caption(s, t)} (thrown at ${thrownAt.toFixed(1)} s)`,
       };
     }
+    case "snag":
+    case "torn":
+    case "safe":
+      return caughtInWheel(id);
     case "tree":
       return intoTree();
     case "afoot":
@@ -504,6 +513,53 @@ const ready = (async () => {
     ? `seed ${seed}, trail ${trail}: ${park.trails.map((t) => `${t.id} ${t.kind === "race" ? "race" : t.grade}`).join(", ")}`
     : "NO BIKE PARK";
 })();
+
+/** HURT BY HIS OWN BIKE (`bike-tangle.ts`): the bot to speed down the
+ * trail, the bike laid down at it, and at the throw his left foot put into
+ * the rear wheel's spokes as the crash deals it — at the crash's speed for
+ * `torn` (INJURIES on: the shin comes off), and at the same speed on a safe
+ * run for `safe` (no gore: it only breaks); `snag` the moment it is held. */
+async function caughtInWheel(id: "snag" | "torn" | "safe"): Promise<Shot | null> {
+  const s = bikeRide(undefined, id !== "safe");
+  await onMap(s);
+  const aim = bikeAim(s, trail);
+  renderer.setCamera("chase", true);
+  let thrownAt = -1;
+  let laid = false;
+  let yank = 0;
+  const after = id === "snag" ? 0.25 : 1.6;
+  const t = ride(
+    s,
+    (r, tt) => {
+      if (tt < 7) return bikePilot(r, aim);
+      if (!laid) {
+        laid = true;
+        r.bike!.q = fromEuler(r.bike!.heading, r.bike!.pitch, 1.3);
+      }
+      return NEUTRAL_INPUT;
+    },
+    (r, tt) => {
+      const tg = r.bike?.tangle;
+      if (r.skier.thrown && thrownAt < 0 && tg) {
+        thrownAt = tt;
+        yank = Math.max(16, r.bike!.pace ?? 0);
+        const foot = RAGDOLL.footL;
+        tg.snag = { point: foot, part: "rear", x: 0, y: 0.35, z: -0.6, left: 1 };
+        tg.ignore &= ~(1 << foot);
+        tg.dealt.push({ point: foot, v: yank, part: "rear", kind: "yank", nx: 0, ny: 1, nz: 0 });
+      }
+      return thrownAt >= 0 && tt > thrownAt + after;
+    },
+    20,
+  );
+  if (thrownAt < 0) return null;
+  const torn = s.gore?.torn?.length ?? 0;
+  return {
+    state: s,
+    lens: planted(s, -3.2, 0.8, 1.4, 50),
+    caption: `${id} — foot in the spokes at ${(yank * 3.6).toFixed(0)} km/h, ${caption(s, t)}${s.gore ? `, ${torn} torn` : ", injuries off"}`,
+  };
+}
 
 async function sheet(views: string[]): Promise<{ frames: Frame[] }> {
   const note = await ready;

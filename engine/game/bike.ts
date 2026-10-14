@@ -31,6 +31,7 @@ import type { BikeTrailHead } from "../mapgen/bike-park-types.ts";
 import { rideBike, type BikeRide, type BikeStepReport } from "./bike-body.ts";
 import { derive as deriveBike } from "./bike-frame.ts";
 import { crashOf, startLanding, stepLanding } from "./bike-judge.ts";
+import { dealtStrikes, freshTangle, stepTangle } from "./bike-tangle.ts";
 import { freshBike, placeBike } from "./bike-place.ts";
 import { keepTrail, restartPoint } from "./bike-trail.ts";
 import { bikeWorldOf } from "./bike-world.ts";
@@ -40,6 +41,7 @@ import {
   bikeInBounds,
   meetSolids,
   outOfSolids,
+  planOut,
   shiftBike,
 } from "./bike-solids.ts";
 import { mendBody, stepBody } from "./body.ts";
@@ -47,6 +49,7 @@ import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
 import { trafficStrike } from "./traffic-contact.ts";
 import { BIKE } from "./defs/bike.ts";
+import { BIKE_TANGLE } from "./defs/bike-tangle.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { liftZoneAt } from "./lift-ride.ts";
 import { liftPlans } from "./lift-line.ts";
@@ -192,6 +195,7 @@ export function stepBike(run: GameState, input: SkierInput, events: GameEvent[])
   const c = run.skier;
   // THROWN OFF IT and stood back up: back on it.
   if (b.thrown && !c.thrown) {
+    b.tangle = null;
     backOnTrail(run, b);
     b.thrown = false;
     mount(run, b);
@@ -208,6 +212,9 @@ export function stepBike(run: GameState, input: SkierInput, events: GameEvent[])
     // PUSHED beside him, the bike is where his hands hold it (`walk`);
     // let go of — he is thrown or carried off — it lies down on its own.
     if (b.afoot && (c.thrown || c.lift)) b.afoot.push = false;
+    // Thrown into it: the two tangled while they lie together — before the
+    // bike's own step, which keeps it out of what it lies against.
+    if (b.thrown && c.thrown) stepTangle(run, b, events);
     if (!b.afoot?.push) loose(run, b);
     if (!b.afoot || c.thrown || c.lift) return false;
     if (input.machine && bikeWithin(run)) {
@@ -269,6 +276,7 @@ function ride(run: GameState, b: BikeState, ctl: BikeControls, events: GameEvent
   const world = bikeWorldOf(run.level, run.t);
   const v0 = { x: b.rider.vx, y: b.rider.vy, z: b.rider.vz };
   const air = b.airTime;
+  b.pace = Math.max(b.speed, (b.pace ?? 0) - BIKE_TANGLE.pace * dt);
   b.controls = ctl;
   rideBike(b, ctl, world, rideOf(run), dt, report);
   if (report.touchdown) startLanding(b, report, world);
@@ -524,11 +532,15 @@ function throwOff(
     c.wz = b.wz;
   }
   leave(run, b, events, how);
-  throwRider(run, "bike", v0, events, { how: C.over[how], keepSkis: true });
+  const off = throwRider(run, "bike", v0, events, { how: C.over[how], keepSkis: true });
+  // INTO HIS OWN BIKE (`bike-tangle.ts`): what the crash deals at the throw.
+  b.tangle = freshTangle(b, off);
+  dealtStrikes(run, b, how, Math.max(hypot3(v0.x, v0.y, v0.z), b.pace ?? 0), events);
 }
 
 /** The bike left to itself, its rider thrown: down, waiting for him. */
 function leave(run: GameState, b: BikeState, events: GameEvent[], how: BikeCrash): void {
+  if (run.skier.thrown) b.tangle = freshTangle(b, run.skier.thrown);
   b.onIt = false;
   b.mode = "down";
   b.thrown = true;
@@ -545,6 +557,7 @@ function backOnTrail(run: GameState, b: BikeState): void {
   const p = restartPoint(run.level, b, BIKE.board.back);
   if (p) placeBike(b, world, p.x, p.z, p.heading, 0);
   else placeBike(b, world, b.x, b.z, b.heading, 0);
+  planOut(run, b);
 }
 
 // ---- a lift ---------------------------------------------------------------
@@ -643,6 +656,8 @@ function loose(run: GameState, b: BikeState): void {
   b.vx = vx;
   b.vy = vy;
   b.vz = vz;
+  const x0 = b.x;
+  const z0 = b.z;
   b.x += vx * dt;
   b.z += vz * dt;
   const pushed = outOfSolids(run, b.x, b.z, BIKE_PLAN.wide);
@@ -660,7 +675,16 @@ function loose(run: GameState, b: BikeState): void {
   }
   b.x = pushed.x;
   b.z = pushed.z;
+  planOut(run, b);
   bikeInBounds(run, b);
+  // Held against something (shoved there by the rider tangled in it), it
+  // goes only as far as it went.
+  const wx = b.x - x0 - vx * dt;
+  const wz = b.z - z0 - vz * dt;
+  if (wx * wx + wz * wz > 1e-10) {
+    b.vx = (b.x - x0) / dt;
+    b.vz = (b.z - z0) / dt;
+  }
   b.y = level.groundAt(b.x, b.z) + LYING.y;
   // Laid down on the side it leant to (the left, its chain's other side,
   // when it stood upright).

@@ -222,6 +222,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
           tone: e.landing === "clean" ? "good" : "bad",
         };
       if (e.phase === "crash") return { text: STRINGS.newsBikeCrash(e.how), tone: "bad" };
+      if (e.phase === "snag") return { text: STRINGS.newsBikeSnag(e.part), tone: "bad" };
+      if (e.phase === "struck") return { text: STRINGS.newsBikeStruck(e.part), tone: "bad" };
       if (e.phase === "board") return { text: STRINGS.newsBikeBoard, tone: "info" };
       if (e.phase === "hop") return { text: STRINGS.newsBikeHop, tone: "info" };
       if (e.phase === "right") return { text: STRINGS.newsBikeRight, tone: "info" };

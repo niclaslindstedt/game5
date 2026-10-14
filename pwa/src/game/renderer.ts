@@ -36,6 +36,8 @@ import {
   type Wind,
 } from "@engine";
 
+// What is drawn on the snow is solid (`drawn-solids.ts`), in every page that draws a run.
+import "./drawn-solids.ts";
 import { createBreath } from "./backdrop-hold.ts";
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";

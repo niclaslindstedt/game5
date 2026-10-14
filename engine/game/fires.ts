@@ -34,7 +34,8 @@ import { CABINS, type CabinKind } from "./defs/cabins.ts";
 import { FIRE_KINDS, FIRE_LAYOUT, type FireKind } from "./defs/fires.ts";
 import { helipadOf } from "./heli-pad.ts";
 import { clearOfLifts } from "./lift-line.ts";
-import { solidsNear, solidsOf } from "./posts.ts";
+import { mapSolidsOf } from "./posts.ts";
+import { uprightsNear } from "./upright-grid.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { onStreet } from "./village.ts";
 
@@ -133,7 +134,7 @@ function placeFires(level: Level): Fire[] {
   if (!level.resort) return [];
   const seed = level.seed >>> 0;
   const groomed = groomedAt(level);
-  const solids = solidsOf(level);
+  const solids = mapSolidsOf(level);
   const fires: Fire[] = [];
   const cabins = cabinsOf(level);
 
@@ -161,7 +162,7 @@ function placeFires(level: Level): Fire[] {
       if (!clearOfLifts(level, px, pz)) return false;
       if (onStreet(level, px, pz)) return false;
     }
-    for (const i of solidsNear(level, x, z, ring + FIRE_LAYOUT.clear + 1, near)) {
+    for (const i of uprightsNear(solids, x, z, ring + FIRE_LAYOUT.clear + 1, near)) {
       const s = solids[i];
       if (s.radius <= 0 || s.height <= 0) continue;
       if (hypot(s.x - x, s.z - z) < ring + FIRE_LAYOUT.clear + s.radius) return false;

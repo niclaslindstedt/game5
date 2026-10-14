@@ -56,6 +56,9 @@ import {
   type LoadStep,
 } from "./run-loader.ts";
 import { STRINGS } from "./strings.ts";
+// What is drawn on the snow is solid (`drawn-solids.ts`), registered
+// before any run is stood up.
+import "./drawn-solids.ts";
 
 /** One thing a load is asked to stand up. */
 export type LoadPlan = {

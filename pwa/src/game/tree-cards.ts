@@ -542,7 +542,9 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
  * tufts and tufts reaching out round it. */
 function pine(v: TreeVariant, form: PineForm, p: KindPaint, lod: TreeLod, seed: number) {
   const s = cardShape(v);
-  const snowy = Math.min(1.4, form.snow * p.load * 1.5);
+  // Barely past the laden mark: a pine's flat tufts crusted whole read as
+  // grey plates, so its snow stays in the brushes.
+  const snowy = Math.min(0.95, form.snow * p.load * 1.5);
   const kinkX = (y: number): number =>
     form.kink > 0 && y > form.kink ? Math.min(1, (y - form.kink) / 0.12) * form.kinkBy : 0;
   const stems = lod === 2 ? Math.min(2, form.stems) : form.stems;

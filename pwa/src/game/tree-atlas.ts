@@ -350,9 +350,9 @@ function tuft(cv: Canvas, seed: number): void {
     cv.snow(
       x0 + (ex - x0) * 0.8,
       y0 + (ey - y0) * 0.8,
-      h * 0.15,
-      0.9,
-      w * 0.1,
+      h * 0.09,
+      0.75,
+      w * 0.07,
       a * 0.42,
       rnd() * 6.3,
     );
@@ -457,7 +457,9 @@ function disc(cv: Canvas, seed: number, kind: "spruce" | "tuft" | "twig"): void 
     const len = c * (0.82 + 0.16 * rnd());
     stamp(cv, sub, c, c, t, len, len * 0.5);
   }
-  if (kind !== "twig") cv.snow(c, c, c * 0.35, 0.9, c * 0.35, 0, seed);
+  // A spruce's tier is capped in the middle; a pine's tufts hold snow only
+  // in their brushes, the dark needles showing between.
+  if (kind === "spruce") cv.snow(c, c, c * 0.35, 0.9, c * 0.35, 0, seed);
 }
 
 /** Lay `src` onto `cv` with its root (its left edge's middle) at

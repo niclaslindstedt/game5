@@ -96,7 +96,7 @@ const CARD_MAP = `
   bool cardUnder = vCard.y > 0.5 && !gl_FrontFacing;
   float cardSky = 0.45 + 0.55 * clamp(vCardUp, 0.0, 1.0);
   cardSnow = smoothstep(0.16, 0.36, max(cardTex.g, 0.36 * cardTex.a * smoothstep(0.8, 1.4, vCard.x)) * vCard.x * vCardLoad * cardSky)
-    * (cardUnder ? 0.55 : 1.0);
+    * (cardUnder ? 0.25 : 1.0);
   cardThin = cardTex.b;
   diffuseColor.rgb *= mix(0.75, 1.3, cardTex.r) * (cardUnder ? 0.78 : 1.0);
   diffuseColor.a *= max(cardTex.a, cardSnow);

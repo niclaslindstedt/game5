@@ -36,6 +36,8 @@ import {
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { holdInput } from "../game/hold-input.ts";
+import type { SnowAgeKind } from "../game/snow-age.ts";
+import type { SnowKind } from "../game/snowpack.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { flySprayAs } from "../game/spray.ts";
 import { SPRAY_MODELS, type SprayModel } from "../game/spray-sim.ts";
@@ -154,6 +156,14 @@ type Scene = {
   /** Counted from the moment he was thrown, not from the start. */
   afterFall?: boolean;
 };
+
+/** THE SNOW A SCENE IS RIDDEN IN: the meadow's scenes in the film's
+ * "settled powder" (soft snow, a few days old) — the map's own (seed 38's:
+ * old and sun-crusted, and thawed wet under a 32° sun) throws no fines to
+ * make a cloud of — and the piste's the map's own. */
+function snowOf(scene: Scene): [SnowKind | null, SnowAgeKind | null] {
+  return scene.where === "meadow" ? ["soft", "settled"] : [null, null];
+}
 
 const ALL_SCENES: Scene[] = [
   {
@@ -411,6 +421,7 @@ window.__snowEval = {
       const y0 = headH + r * cellH;
       for (const light of lights) {
         renderer.setSky(LIGHTS[light].sky());
+        renderer.setSnow(...snowOf(scene));
         const shots = light === "day" ? scene.shots : [scene.shots[0]];
         const order = shots.map((s, i) => ({ ...s, i })).sort((a, b) => a.t - b.t);
         let hole: { x: number; z: number } | null = null;
@@ -450,6 +461,7 @@ window.__snowEval = {
       ctx.fillText(`${scene.skis} · ${scene.kmh} km/h`, 8, y0 + cellH / 2 + 8);
     }
     renderer.setSky(null);
+    renderer.setSnow(null, null);
     return { w: sheet.width, h: sheet.height, cells };
   },
   async perf() {
@@ -523,6 +535,7 @@ window.__snowEval = {
     }
     renderer.setVideo(withPreset(DEFAULT_VIDEO, "high"));
     renderer.setSky(null);
+    renderer.setSnow(null, null);
     return rows;
   },
   async film() {
@@ -574,6 +587,7 @@ window.__snowEval = {
             snowDepth: scene.depth,
           });
           await loaded(state);
+          renderer.setSnow(...snowOf(scene));
           const spot = spotOf(scene);
           placeRun(state, { x: spot.x, z: spot.z, heading: spot.heading, speed: kmh / 3.6 });
           renderer.setOverride(null);
@@ -588,6 +602,7 @@ window.__snowEval = {
       headH,
     );
     renderer.setSky(null);
+    renderer.setSnow(null, null);
     return { w: sheet.width, h: sheet.height, cells, means: filmMeans(cells) };
   },
 };

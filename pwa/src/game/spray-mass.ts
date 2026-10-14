@@ -129,7 +129,7 @@ export const MASS = {
    * along the snow and slides on under gravity down the fall line against
    * the snow's friction `mu` for `time` s (a clump `clump` s) — the heap a
    * stop shoves rolling on down the slope. */
-  roll: { keep: 0.8, mu: 0.5, time: 0.45, clump: 0.7 },
+  roll: { keep: 0.8, mu: 0.5, time: 0.12, clump: 0.6 },
   /** THE BERM: what the edge planes off and does not throw (1 − `cutFly`)
    * is the snow pressed up in front of the base — a wedge of it riding the
    * sliding ski as machining's dead zone rides a negative-rake tool — and
@@ -137,7 +137,7 @@ export const MASS = {
    * spread), sliding on down the slope (`roll`) when the ski lets it go:
    * the heap a stop pushes ahead of its skis. Drawn low, `life` s, its
    * parcels spreading at `eddy` m²/s. Never counted as thrown. */
-  berm: { carry: [0.85, 0.2], life: 0.75, eddy: 0.0012 },
+  berm: { carry: [0.85, 0.2], life: 0.25, eddy: 0.0012 },
   /** The share of its sink a carving base sweeps out of its arc a metre
    * of way. */
   sweep: 0.5,

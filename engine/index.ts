@@ -900,15 +900,7 @@ export {
   lengthPointsPerMetre,
   stepTricks,
 } from "./game/tricks.ts";
-export {
-  flipLean,
-  flipPace,
-  poseInput,
-  poseOf,
-  setting,
-  spinSteer,
-  stepStrokes,
-} from "./game/strokes.ts";
+export { flipLean, flipPace, poseInput, poseOf, spinSteer, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
 export {
   SKY_CLOCK,

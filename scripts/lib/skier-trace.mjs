@@ -60,7 +60,7 @@ export function traceMove(mods, move, spec, opts = {}) {
   const frames = [];
   let lastT = null;
   for (let i = 0; i < steps; i++) {
-    E.step(state, move.input(state.t - t0, state, E));
+    E.step(state, move.input(state.t - t0, state));
     if (i % 2 === 0) continue;
     const c = state.skier;
     const now = state.t - t0;

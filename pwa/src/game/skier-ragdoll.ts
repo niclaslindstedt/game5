@@ -6,7 +6,7 @@
 import { RAGDOLL as R } from "@engine";
 
 import { BODY, LUMBAR, SHIN_ABOVE_CUFF, type SkierPose } from "./skier-pose.ts";
-import { CUFF, type Boot } from "./skier-limbs.ts";
+import { CUFF, keepLengths, type Boot } from "./skier-limbs.ts";
 import { add, dot, len, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 
 /** A body's own frame in the world: the origin between the hips, `x`
@@ -46,8 +46,28 @@ export function ragdollPose(points: readonly number[], frame: BodyFrame): SkierP
   // the knee; the figure's cloth stops at the boot's cuff up that shin, and
   // the foot below it is squared to the shin with the cuff's own forward
   // lean, the toes the way his chest faces.
-  const knees: [V3, V3] = [local(at(R.kneeL)), local(at(R.kneeR))];
-  const ankles = [local(at(R.footL)), local(at(R.footR))];
+  const hips: [V3, V3] = [local(hipL), local(hipR)];
+  const shoulders: [V3, V3] = [local(shL), local(shR)];
+  const legs = [0, 1].map((i) =>
+    keepLengths(
+      hips[i],
+      local(at(i ? R.kneeR : R.kneeL)),
+      local(at(i ? R.footR : R.footL)),
+      BODY.thigh,
+      BODY.shin,
+    ),
+  );
+  const arms = [0, 1].map((i) =>
+    keepLengths(
+      shoulders[i],
+      local(at(i ? R.elbowR : R.elbowL)),
+      local(at(i ? R.handR : R.handL)),
+      BODY.upperArm,
+      BODY.forearm,
+    ),
+  );
+  const knees: [V3, V3] = [legs[0].mid, legs[1].mid];
+  const ankles = [legs[0].end, legs[1].end];
   const feet = [0, 1].map((i) => mix(knees[i], ankles[i], SHIN_ABOVE_CUFF / BODY.shin)) as [V3, V3];
   const boots = [0, 1].map((i) => {
     const up = norm(sub(knees[i], ankles[i]));
@@ -62,7 +82,7 @@ export function ragdollPose(points: readonly number[], frame: BodyFrame): SkierP
   }) as [Boot, Boot];
   return {
     hips: { x: 0, y: 0, z: 0 },
-    hipJoints: [local(hipL), local(hipR)],
+    hipJoints: hips,
     waist: scale(local(neckW), LUMBAR),
     neck: local(neckW),
     head: local(at(R.head)),
@@ -72,9 +92,9 @@ export function ragdollPose(points: readonly number[], frame: BodyFrame): SkierP
     knees,
     feet,
     boots,
-    shoulders: [local(shL), local(shR)],
-    elbows: [local(at(R.elbowL)), local(at(R.elbowR))],
-    hands: [local(at(R.handL)), local(at(R.handR))],
+    shoulders,
+    elbows: [arms[0].mid, arms[1].mid],
+    hands: [arms[0].end, arms[1].end],
     poles: null,
     look: 0,
   };

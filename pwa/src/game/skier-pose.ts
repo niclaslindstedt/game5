@@ -91,7 +91,7 @@ import { joltHand, NO_JOLT } from "./skier-save.ts";
 import { bareRest, placeBare } from "./skier-bare.ts";
 import { flightHands } from "./skier-flight.ts";
 import { holdShins, trickFeet, tuckOf } from "./skier-somersault.ts";
-import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
+import { add, clamp01, mix, norm, scale, sub, turnTo, type V3 } from "./skier-vec.ts";
 import {
   bootFrame,
   bootKnee,
@@ -937,7 +937,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       // a stroke blended with the hang lifts a planted basket and drags
       // it. Beside the diagonal stride it is shared by the arms as ever.
       const w = clamp01(2 * arms) + (arms - clamp01(2 * arms)) * clamp01(4 * gait.stride);
-      tip = add(hands[i], scale(norm(mix(norm(sub(tip, hands[i])), dir, w)), M.pole));
+      tip = add(hands[i], scale(turnTo(norm(sub(tip, hands[i])), dir, w), M.pole));
       // A POLE THE PUSH CANNOT PLANT is held clear of the snow, never
       // skimming along it — the rod tipped up at the fist just enough,
       // its heading kept.

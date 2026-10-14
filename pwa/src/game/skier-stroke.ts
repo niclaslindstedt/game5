@@ -73,9 +73,11 @@ export function armAt(
   span = 1,
 ): { y: number; z: number } {
   const angle = a.plant.angle + (a.finish.angle - a.plant.angle) * swing;
-  const u = Math.min(1, swing / Math.max(1e-3, span));
+  // Swung ahead of the plant (a swing under 0, the fists coming down into
+  // it) the arm is as it is at the plant.
+  const u = clamp01(swing / Math.max(1e-3, span));
   const give = pushing
-    ? -a.bend * Math.sin(Math.PI * swing)
+    ? -a.bend * Math.sin(Math.PI * clamp01(swing))
     : a.lift * Math.sin(Math.PI * u) - a.bend * Math.sin(Math.PI * Math.min(1, span)) * u;
   const reach = a.plant.reach + (a.finish.reach - a.plant.reach) * swing + give;
   return { y: -Math.cos(angle) * reach, z: Math.sin(angle) * reach };
@@ -172,14 +174,51 @@ export function easeFist(shoulder: V3, hand: V3, length: number): V3 {
   return eased < l ? add(shoulder, scale(d, eased / l)) : hand;
 }
 
-/** The share of a push the pin is eased in over at the plant; and THE
- * FOLLOW-THROUGH — an arm let go of its pole at speed is still going back,
- * and carries on behind him, slowing, before it swings forward: the most
- * of a swing's rate it may carry on with, as the recovery's own pace. Held to the
- * snow to the release and stopped there instead, the fist went from the
- * snow's speed to rest in two frames. */
+/** THE PUSH'S TWO ENDS, swung as a body swings them rather than started
+ * and stopped. THE PLANT: the arms come down into it out of the recovery
+ * already driving back at the pace the planted basket asks, swung up a
+ * little ahead of the plant first — the most of a swing they may go ahead
+ * of it (`ahead`) — and the pin is eased in over the first `PIN_EASE.in`
+ * of the push. THE FINISH: a pole held to the snow sweeps the arm back as
+ * fast as the snow passes, and the arm can only go so far; over the last
+ * `knee` of its swing it lets the basket go, slowing onto its finish —
+ * held to the snow to its very end instead, the fist went from the snow's
+ * speed to rest in two frames. A basket that bit ahead of
+ * where the arm would put it takes the arm `lead` ahead at the most.
+ * THE FOLLOW-THROUGH — an arm let go of its pole at speed is still going
+ * back, and carries on behind him, slowing, before it swings forward: the
+ * most of a swing's rate it may carry on with, as the recovery's own pace. */
+const PIN = { knee: 0.55, ahead: 0.08, lead: 0.05 };
 const PIN_EASE = { in: 0.3 };
 const FOLLOW = { most: 1.2 };
+
+/** How far through its swing a push is with the basket held to the snow
+ * `passed` m behind where it bit (`pinnedSwing`), eased past the knee onto
+ * the arm's finish and softly ahead of its plant. */
+function heldSwing(zAt: (s: number) => number, plant: number, passed: number): number {
+  const knee = 1 - PIN.knee;
+  const rest = plant - zAt(knee);
+  if (passed > rest) {
+    // Past the knee the swing closes on its end at an exponential, its
+    // pace at the knee carried in: the arm slowing as the pole lets go,
+    // never stopped.
+    const rate = 1 / slopeAt(zAt, knee);
+    return knee + PIN.knee * (1 - Math.exp(-((passed - rest) * rate) / PIN.knee));
+  }
+  const ahead = plant - Math.max(0, passed) - zAt(0);
+  if (ahead > 0) return -PIN.lead * (1 - Math.exp(-ahead / slopeAt(zAt, 0) / PIN.lead));
+  return pinnedSwing(zAt, plant, passed);
+}
+
+/** How far a basket goes back along him for a share of the swing at `s`,
+ * m — the push's gearing from the snow passed to the arm's swing. */
+function slopeAt(zAt: (s: number) => number, s: number): number {
+  const a = Math.min(0.98, s);
+  return Math.max(1e-3, (zAt(a) - zAt(a + 0.02)) / 0.02);
+}
+
+/** A stroke held to the snow: its swing now and where its push ends. */
+export type Held = { push: number; end: number };
 
 /** What a push held to the snow makes of the arms (`holdPush`): each
  * fist, each arm's swing off its shoulder as posed, and each stroke's
@@ -187,7 +226,7 @@ const FOLLOW = { most: 1.2 };
 export type HeldPush = {
   hands: [V3, V3];
   arm: [{ y: number; z: number }, { y: number; z: number }];
-  held: [{ push: number; end: number }, { push: number; end: number }];
+  held: [Held, Held];
 };
 
 /**
@@ -230,46 +269,53 @@ export function holdPush(o: {
     y: from.y + arms * armLength * (at.y - base.y),
     z: from.z + arms * armLength * (at.z - base.z),
   });
-  // The snow passed as the view kept it, handed over to the gait's
-  // reckoning by the push's end — which is where the recovery starts.
-  const reckoned = o.pass * phase;
-  const passed =
-    o.poled === undefined
-      ? reckoned
-      : o.poled + (reckoned - o.poled) * smooth((phase / duty - 0.75) / 0.25);
+  // The snow passed since the plant as the view kept it (the gait's own
+  // reckoning without it), held at the release through the recovery, and
+  // where the push lets go: that, on from here at the stride's pace — the
+  // release reckoned off the snow actually passed, so a skier gathering
+  // speed is never swept on to a release the snow has not reached in the
+  // push's last frames.
+  const passed = o.poled ?? o.pass * Math.min(phase, duty);
+  const release = pushing ? passed + (duty - phase) * o.pass : passed;
   const out = [-1, 1].map((side, i) => {
     const zAt = (s: number): number => {
       const h = swungTo(o.hands[i], o.arm, armAt(DOUBLE_ARM, s, true));
       return bitePoint(DOUBLE_BASKET, side, ground, easeFist(o.shoulders[i], h, o.reach), pole).z;
     };
-    // The pin eased in over the plant and out over the release: the fist
-    // comes to each end of its push at rest, as it leaves the recovery and
-    // goes into it, rather than at the snow's speed in a frame.
+    // The push: the basket's place along him as the snow carries it
+    // (`heldSwing`), scaled onto the stroke's own end, so a part-biting
+    // push (`bites`) still lets go exactly where the recovery takes it
+    // from (`end`).
     const plant = o.plant ? o.plant[i].z : zAt(0);
-    const release = o.pass * duty;
-    const end = 1 + (pinnedSwing(zAt, plant, release) - 1) * bites;
+    const pRel = heldSwing(zAt, plant, release);
+    const end = 1 + (pRel - 1) * bites;
+    const k = pRel > 1e-3 ? end / pRel : 1;
+    const pinAt = (p: number): number => k * heldSwing(zAt, plant, p);
+    // THE PLANT (`PIN`): the pace, a share of the swing a phase, the snow
+    // will drive the arm back at once the basket bites — what the recovery
+    // arrives at and the push sets off at, the pin eased in over it.
+    const pace = Math.min((6.75 * PIN.ahead) / (1 - duty), (bites * k * o.pass) / slopeAt(zAt, 0));
     const u = phase / duty;
+    const timed = end * (3 * u * u - 2 * u * u * u) + pace * duty * (u * u * u - 2 * u * u + u);
     const held = bites * smooth(u / PIN_EASE.in);
-    const timed = end * strokeSwing(phase, duty);
     // THE RECOVERY carries on from the release at the pace the push let
     // go at — back behind him, slowing — and swings forward to the next
-    // plant, arriving at rest: a cubic off the swing and its rate there.
-    const lag = 0.02 * release;
-    const rate =
-      ((end - (1 + (pinnedSwing(zAt, plant, release - lag) - 1) * bites)) / lag) * o.pass;
-    // ...never past the arm's own finish: the cubic carries on some 4/27
-    // of its rate past where the push let go.
+    // plant, arriving at that plant's pace: a cubic off the swing and its
+    // rate at each end. ...never past the arm's own reach behind: the
+    // cubic carries on some 4/27 of its rate past where the push let go.
+    const r = (phase - duty) / (1 - duty);
+    const lag = 0.02 * Math.max(1e-3, release);
+    const rate = ((bites * (end - pinAt(release - lag))) / lag) * o.pass;
     const follow = Math.min(
       FOLLOW.most,
       6.75 * Math.max(0, 1 - end),
       Math.max(0, rate * (1 - duty)),
     );
-    const r = (phase - duty) / (1 - duty);
-    // Pinned as far as the pole bites (`bites`), so a part-biting push
-    // still lets go exactly where the recovery takes it from (`end`).
     const at = pushing
-      ? timed + (1 + (pinnedSwing(zAt, plant, passed) - 1) * bites - timed) * held
-      : end * (2 * r * r * r - 3 * r * r + 1) + follow * (r * r * r - 2 * r * r + r);
+      ? timed + (pinAt(passed) - timed) * held
+      : end * (2 * r * r * r - 3 * r * r + 1) +
+        follow * (r * r * r - 2 * r * r + r) +
+        pace * (1 - duty) * (r * r * r - r * r);
     const arm = armAt(DOUBLE_ARM, at, pushing, end);
     return {
       hand: easeFist(o.shoulders[i], swungTo(o.hands[i], o.arm, arm), o.reach),
@@ -313,7 +359,7 @@ export function strokePole(
   duty: number,
   handAt: (swing: number) => V3,
   pole: number,
-  held?: { push: number; end: number },
+  held?: Held,
   fist?: V3,
 ): V3 {
   const toBasket = (swing: number): V3 => {
@@ -333,7 +379,14 @@ export function strokePole(
   const end = held ? held.end : 1;
   const hand = fist ?? handAt(end * (1 - smooth(r)));
   const from = toBasket(end);
-  const to = toBasket(0);
+  // ...the plant's rod taken, by the plant, off the fist itself: the arms
+  // come into the plant already driving back (`holdPush`), so the rod
+  // meets the snow as the push will hold it rather than carried along at
+  // the fist's pace.
+  const own = held && fist ? norm(sub(bitePoint(basket, side, ground, fist, pole), fist)) : null;
+  const to = own
+    ? norm(add(scale(toBasket(0), 1 - smooth(r)), scale(own, smooth(r))))
+    : toBasket(0);
   const heading = (d: V3): number => Math.atan2(side * d.x, d.z);
   const tilt = (d: V3): number => Math.acos(Math.max(-1, Math.min(1, -d.y)));
   const t0 = tilt(from);

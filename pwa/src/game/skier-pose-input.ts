@@ -81,8 +81,9 @@ export type SkierPoseInput = {
   plantAt?: { side: 0 | 1; t: number; weight: number };
   /** THE GAIT the skier is working in at a crawl (`gaitOf`). */
   gait?: Gait;
-  /** The snow passed since the stroke's plant, m, as the view kept it
-   * (`SkierSpring.poled`) — the gait's own reckoning when left out. */
+  /** The snow passed since the stroke's plant, m, as the view kept it, held
+   * at the release (`SkierSpring.poled`) — the gait's own reckoning when
+   * left out. */
   poled?: number;
   /** How far into the air his body is, 0..1, eased (`SkierSpring.air`);
    * `airborne` as 0 or 1 when left out. */

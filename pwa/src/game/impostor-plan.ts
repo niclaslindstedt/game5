@@ -21,13 +21,7 @@
 import type { TreeKind } from "@engine";
 
 import type { ImpostorLook } from "./settings-video.ts";
-import {
-  VARIANTS,
-  crownAt,
-  treeVariant,
-  variantAt,
-  type TreeVariant,
-} from "./tree-variants.ts";
+import { VARIANTS, crownAt, treeVariant, variantAt, type TreeVariant } from "./tree-variants.ts";
 
 export type V3 = [number, number, number];
 

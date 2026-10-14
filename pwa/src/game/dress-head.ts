@@ -176,7 +176,8 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
     );
   }
 
-  if (o.helmet === "freeride") {
+  if (o.bike) fullFace(loom, h.shell, h.trim);
+  if (o.helmet === "freeride" && !o.bike) {
     // SOFT EAR PADS: a fabric disc over each ear cover.
     for (const side of [-1, 1]) {
       const c = toV(shellAt(-0.035, (side * Math.PI) / 2));
@@ -304,6 +305,46 @@ export function cutHead(loom: Loom, o: Outfit, tone?: number, bare = false): voi
   }
 
   braid(loom, body);
+}
+
+/** A FULL-FACE HELMET'S CHIN BAR (`Outfit.bike`): a deep guard in the
+ * shell's colour from behind each ear cover round in front of the mouth,
+ * its vent a dark band across the front. */
+function fullFace(loom: Loom, shell: number, vent: number): void {
+  const path = [
+    H(-0.114, -0.02, -0.03),
+    H(-0.112, -0.085, 0.045),
+    H(-0.078, -0.128, 0.118),
+    H(0, -0.146, 0.156),
+    H(0.078, -0.128, 0.118),
+    H(0.112, -0.085, 0.045),
+    H(0.114, -0.02, -0.03),
+  ];
+  const toward = (p: V3) => norm(sub(p, H(0, -0.04, 0.0)));
+  const L = 0.62;
+  loom.tube({
+    path,
+    face: path.map(toward),
+    round: 0.05,
+    sections: [
+      { s: 0, w: 0.03, f: 0.012, b: 0.008 },
+      { s: 0.1, w: 0.04, f: 0.016, b: 0.01 },
+      { s: L / 2, w: 0.038, f: 0.02, b: 0.012 },
+      { s: L - 0.1, w: 0.04, f: 0.016, b: 0.01 },
+      { s: L, w: 0.03, f: 0.012, b: 0.008 },
+    ],
+    step: 0.025,
+    cuts: [L / 2 - 0.05, L / 2 + 0.05],
+    segments: 10,
+    square: 2.8,
+    cap: [true, true],
+    colour: (sl, t) =>
+      Math.abs(sl - L / 2) < 0.05 && Math.abs(Math.sin(t)) > 0.5 && Math.cos(t) > -0.3
+        ? vent
+        : shell,
+    weights: () => rides("head"),
+    hard: true,
+  });
 }
 
 /** A WOMAN'S BRAID: out from under the helmet's nape, over the collar and

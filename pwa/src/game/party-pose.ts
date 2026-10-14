@@ -55,6 +55,10 @@ export type Key = {
   nod: number;
   feet: [V3, V3];
   hands: [V3, V3];
+  /** How far the knees and the elbows are bent OUT to the sides past a
+   * walker's (a rider's knees and elbows out over a bike), 0 a walker's. */
+  kneesOut?: number;
+  elbowsOut?: number;
 };
 
 export const v = (x: number, y: number, z: number): V3 => ({ x, y, z });
@@ -331,7 +335,13 @@ export function keyPoints(k: Key, ground: number): number[] {
   for (const i of [0, 1] as const) {
     const side = i ? 1 : -1;
     const foot = add(k.feet[i], v(0, g, 0));
-    const [knee, ankle] = reach(hips[i], foot, BODY.thigh, BODY.shin, v(side * 0.15, 0, 1));
+    const [knee, ankle] = reach(
+      hips[i],
+      foot,
+      BODY.thigh,
+      BODY.shin,
+      v(side * (0.15 + (k.kneesOut ?? 0)), 0, 1),
+    );
     out[i ? R.kneeR : R.kneeL] = knee;
     out[i ? R.footR : R.footL] = ankle;
     const hand = add(k.hands[i], v(0, g, 0));
@@ -340,7 +350,7 @@ export function keyPoints(k: Key, ground: number): number[] {
       hand,
       BODY.upperArm,
       BODY.forearm,
-      v(side * 0.6, -0.4, -0.7),
+      v(side * (0.6 + (k.elbowsOut ?? 0)), -0.4 + 0.5 * (k.elbowsOut ?? 0), -0.7),
     );
     out[i ? R.elbowR : R.elbowL] = elbow;
     out[i ? R.handR : R.handL] = at;

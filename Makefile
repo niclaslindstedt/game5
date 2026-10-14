@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike bike-park bike-look bike-ride bike-steer bike-hit title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -1425,6 +1425,28 @@ bike-look:
 # `make bike` · `make bike SEED=7 ARGS="--views=chase,side --trail=B2"`
 bike:
 	npm run bike -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE DOWNHILL RIDER IN MOTION: the fixed clips of a ride (the pedal, a
+# pair of turns, the hardest lean, a pump, the longest jump, the whip, the
+# table, the hardest landing, the brake, the foot out, the crash, the push
+# and the lift — pwa/src/tools/bike-clips.ts) ridden on the engine in pure
+# Node, the rider's pose on the bike measured every frame against the attack
+# stance's bands (knees, elbows, trunk, hips over the bracket, hands to the
+# grips, feet to the pedals, the head's bob) with its snaps:
+# previews/bike-motion.png and a table a clip.
+# `make bike-motion` · `ARGS="--clip=jump,whip --json=a.json"` · `ARGS=--compare=a.json`
+bike-motion:
+	npm run bike-motion -- $(ARGS)
+
+# THE SAME CLIPS AS FILMSTRIPS through the game's own renderer, every frame
+# drawn: a sheet a clip, a row an angle (side, front, rear, chase, orbit), a
+# column a moment — previews/bike-film-<clip>.png; `--gif` an animated GIF a
+# clip (ffmpeg), `--refs=DIR` local reference photographs beside the rows
+# (never committed). Its own bundle from pwa/bike-film-preview.html; needs a
+# Chromium.
+# `make bike-film ARGS="--clip=jump,land --angles=side,rear,chase --gif --slow=3"`
+bike-film:
+	npm run bike-film -- $(ARGS)
 
 # THE DOWNHILL BIKE LAB: the bike (engine/game/bike*.ts) ridden by the real
 # engine through every bench row tests/support/bike-rides.ts names — the

@@ -42,10 +42,15 @@ import {
   createReadingEase,
   easeLimbs,
   easeReadings,
+  follow,
+  TUCK_EASE,
+  type Follow,
   resetLimbEase,
+  carryDeck,
+  type DeckCarry,
 } from "./board-ease.ts";
 import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
-import { createTuck, uprightSkier } from "./skier-somersault.ts";
+import { createTuck, uprightSkier, type SomersaultShape } from "./skier-somersault.ts";
 import {
   BOARD_SEAT_Y,
   boardLiftPose,
@@ -108,10 +113,6 @@ function restInput(out: readonly [number, number]): SkierPoseInput {
     spread: out,
   };
 }
-
-/** How long his legs take to carry him up to a deck come up under him, s
- * (a time constant). */
-const SAG_EASE = 0.12;
 
 export function createBoardModel(
   spec: SkiSpec,
@@ -224,12 +225,14 @@ export function createBoardModel(
   let fakieShare = 1;
   // The readings the pose is shaped by, eased (`easeReadings`).
   const readings = createReadingEase();
-  /** The feet's lift as his legs carry him up to it (`SAG_EASE`), m. */
-  let carried = Number.NaN;
+  /** The feet's lift as his legs carry him up to it (`carryDeck`). */
+  let carried: DeckCarry | null = null;
   /** Each foot's lift as drawn last frame (`easeDrop`), m. */
   let dropped: [number, number] | null = null;
   let grabEase: GrabEase = { grab: null, share: 0 };
   const tuck = createTuck();
+  let tucked: Follow | null = null;
+  let lastShape: SomersaultShape | undefined;
   // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
   // basket and the helicopter's skid he is on, if any; the run he rides.
   const seatEase = createSeatEase();
@@ -391,13 +394,12 @@ export function createBoardModel(
       input.lift = lift;
       // THE DECK COME UP UNDER HIM: a landing stops the deck in a step and
       // the engine's legs take it at once, but his hips are drawn off the
-      // deck — so the lift is carried up to over `SAG_EASE` s and what is
+      // deck — so the lift is carried on a spring (`carryDeck`) and what is
       // still owed is folded into his knees (`BoardPoseInput.sag`), never
       // a hop of the whole body in a frame.
       const mean = (lift[0] + lift[1]) / 2;
-      if (still || Number.isNaN(carried) || mean < carried) carried = mean;
-      else carried += (mean - carried) * (1 - Math.exp(-Math.max(0, dt) / SAG_EASE));
-      input.sag = mean - carried;
+      carried = carryDeck(carried, mean, dt, Boolean(still));
+      input.sag = mean - carried.at;
       // The rear foot drawn out of its binding or back in over a moment.
       freeShare = easeFree(freeShare, input.free, dt);
       input.freeShare = freeShare;
@@ -409,7 +411,10 @@ export function createBoardModel(
       // ...and a LOOP the lean has thrown turned tucked, a hand on the board
       // (`skier-somersault.ts`): an indy backward, a mute forward.
       tuck.step(off || town ? null : flip, dt);
-      const fs = grabEase.share > 0 ? undefined : tuck.shape();
+      const shaped = grabEase.share > 0 ? undefined : tuck.shape();
+      tucked = follow(tucked, shaped?.tuck ?? 0, TUCK_EASE, still ? 0 : dt);
+      if (shaped) lastShape = shaped;
+      const fs = tucked.at > 1e-3 && lastShape ? { ...lastShape, tuck: tucked.at } : undefined;
       input.grab = fs ? (fs.dir < 0 ? "mute" : "indy") : grabEase.grab;
       input.grabShare = fs ? fs.tuck : grabEase.share;
       // ...the knees pulled up into it with the hand, let down to open.

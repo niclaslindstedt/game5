@@ -25,6 +25,7 @@
 
 import {
   createGame,
+  summerSky,
   placeRun,
   step,
   windAt,
@@ -98,6 +99,7 @@ const speeds = list("speeds", "0,30,60,100,140").map(Number);
 const rung = (params.get("camera") ?? "chase") as CameraRung;
 const strobe = Math.max(1, Number(params.get("strobe") ?? 8));
 const warm = Number(params.get("ride") ?? 1);
+const summer = params.get("summer") === "1";
 
 /** A WEATHER: the sky set for it, a fall in the middle of its band (CLEAR
  * is the air's crystals alone). */
@@ -121,7 +123,7 @@ const renderer = createWorldRenderer(stage, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(cellW, cellH, 1);
-const first: GameState = createGame({ seed, mode: "free", rivals: 0, quiet: true });
+const first: GameState = createGame({ seed, mode: "free", rivals: 0, quiet: true, summer });
 const level = first.level;
 let spot = { x: 0, z: 0, room: 0 };
 let filled: SnowfallCell[] = [];
@@ -155,7 +157,10 @@ window.__snowfall = {
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r];
       const y0 = headH + r * cellH;
-      const sky: SkyOverride = { weather: SKIES[row.weather] ?? "clear", hour: 12 };
+      // A summer's sky never snows, as the game dries it (`drySummer`).
+      const raw = SKIES[row.weather] ?? "clear";
+      const asked = typeof raw === "string" ? raw : raw.kind;
+      const sky: SkyOverride = { weather: summer ? summerSky(asked ?? "clear") : raw, hour: 12 };
       renderer.setSky(sky);
       const skied = withSky(level, sky);
       const label: string[] = [row.weather.toUpperCase(), `${row.ride.toUpperCase()} THE WIND`];
@@ -163,7 +168,7 @@ window.__snowfall = {
         const kmh = speeds[c];
         const wind: Wind = windAt(skied, 0);
         const heading = Math.atan2(wind.x, wind.z) + (TURN[row.ride] ?? 0);
-        const state = createGame({ level, mode: "free", rivals: 0, quiet: true });
+        const state = createGame({ level, mode: "free", rivals: 0, quiet: true, summer });
         // From the meadow's far side, so the ride crosses its middle.
         const lead = Math.min(40, (kmh / 3.6) * warm * 0.6);
         placeRun(state, {

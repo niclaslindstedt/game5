@@ -165,16 +165,17 @@ export const ANGLES = [
     id: "head_yaw",
     say: "head yaw",
     group: "head",
-    of: (j, a) => (a?.head ? Math.atan2(a.head.x, a.head.z) * DEG : null),
+    of: (j, a) => flatYaw(a?.head),
   },
   {
     id: "head_on_chest",
     say: "head off the chest",
     group: "head",
-    of: (j, a) =>
-      a?.head && a?.chest
-        ? wrap((Math.atan2(a.head.x, a.head.z) - Math.atan2(a.chest.x, a.chest.z)) * DEG)
-        : null,
+    of: (j, a) => {
+      const h = flatYaw(a?.head);
+      const c = flatYaw(a?.chest);
+      return h === null || c === null ? null : wrap(h - c);
+    },
   },
   {
     id: "hips_height",
@@ -341,6 +342,12 @@ export function cleanOf(v, m) {
 const round2 = (x) => Math.round(x * 100) / 100;
 const sub = (a, b) => (a && b ? { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z } : null);
 const len = (a) => Math.hypot(a.x, a.y, a.z);
+/** A facing's yaw about his up, degrees — none while it points within 60°
+ * of straight up or down (a chest folded over a flip), where the yaw of
+ * what is left of it swings round in a frame and reads as a snap the
+ * figure never made. */
+const flatYaw = (v) => (v && Math.hypot(v.x, v.z) > 0.5 ? Math.atan2(v.x, v.z) * DEG : null);
+
 const wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
 
 /** The angle between two directions, degrees. */

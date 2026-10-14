@@ -22,7 +22,7 @@ import { TREE_TABLES } from "./tree-glsl.ts";
 import type { TreeUniforms } from "./tree-shader.ts";
 
 /** How many steps a far ray takes through its tree's cylinder. */
-const STEPS = 18;
+const STEPS = 12;
 
 const FAR_VERTEX_PARS = /* glsl */ `
 attribute vec3 tree;

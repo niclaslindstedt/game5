@@ -66,6 +66,7 @@
     "sag": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sag-lab.mjs",
     "landing": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/landing-lab.mjs",
     "injuries": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/injury-lab.mjs",
+    "falls": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/fall-lab.mjs",
     "lean": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lean-lab.mjs",
     "poleless": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/poleless-lab.mjs",
     "skate-turns": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skate-turns-lab.mjs",

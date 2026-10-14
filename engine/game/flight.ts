@@ -180,8 +180,9 @@ export function carriedThrough(impact: number, g: number): number {
  * (`hold`, `RiderSpec.hold`: a heavy rider's legs less) — and the snow's
  * give, `loose` m of unpressed snow under the skis (`landing.give` of it
  * presses). On a face `slope` rad steep, what falls past
- * `landing.steep.over` m is drawn out down it (`landing.steep`). One g is
- * standing. */
+ * `landing.steep.over` m is drawn out down it (`landing.steep`) — in loose
+ * snow, which the skis plane down into; never on the groomer or ice. One g
+ * is standing. */
 export function landingLoad(
   impact: number,
   crouch: number,
@@ -194,7 +195,10 @@ export function landingLoad(
   const efh = fallHeight(impact);
   const S = LD.steep;
   const u = clamp((slope - S.from) / (S.full - S.from), 0, 1);
-  const along = 1 + S.gain * u * u * (3 - 2 * u);
+  // ...only as far as there is loose snow for the skis to run on down
+  // into: on the groomer or ice the stop is the legs' alone, however steep.
+  const soft = clamp(loose / S.loose, 0, 1);
+  const along = 1 + S.gain * soft * u * u * (3 - 2 * u);
   const past = Math.max(0, efh - S.over);
   return 1 + (efh - past + past / along) / stroke;
 }

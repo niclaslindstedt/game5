@@ -35,21 +35,21 @@ import type { SnowProps } from "./snowpack.ts";
 /** THE CLOUD'S NUMBERS, set by looking (`make cloud`). */
 export const CLOUD = {
   /** Puffs a second off a full skid at speed in settled powder. */
-  skidRate: 90,
+  skidRate: 240,
   /** Puffs a second off one ski, per m/s of carve (the edge times the
    * speed), and per metre of ploughing sink, in settled powder. */
   skiCarve: 1.1,
-  skiPlough: 25,
+  skiPlough: 60,
   /** The skid's wall's climb off the skis, m/s: the least, and what a
    * full push of loose snow adds. */
-  lift: { min: 2, loose: 5.5 },
+  lift: { min: 2, loose: 3.5 },
   /** Thrown out across the way off a skid, m/s, relative to the skier. */
   back: { min: 2.5, skid: 4, most: 9 },
   /** A puff's radius at birth, m, and what it swells by over its life. */
-  size: { min: 0.25, fine: 0.25 },
-  grow: { min: 0.6, fine: 1.4 },
+  size: { min: 0.14, fine: 0.14 },
+  grow: { min: 0.25, fine: 0.6 },
   /** How long a puff hangs, s: the heavy snow's, and what fine snow adds. */
-  hang: { min: 0.7, fine: 4.6 },
+  hang: { min: 0.7, fine: 6.5 },
   /** The settling speed, m/s: the finest's and the heaviest's. */
   settle: { fine: 0.3, coarse: 1.2 },
   /** How fast a puff slows to the air round it, s. */
@@ -62,7 +62,7 @@ export const CLOUD = {
    * air while the heavy snow round it drags the air along. */
   jet: 1.2,
   /** A puff's opacity at its thickest. */
-  opacity: 0.7,
+  opacity: 0.32,
   /** The landing's cloud: puffs per unit of landing, and the most. */
   landing: { per: 4, most: 60 },
   /** THE LOFT: the speed, m/s, under which a ski only shoves the powder

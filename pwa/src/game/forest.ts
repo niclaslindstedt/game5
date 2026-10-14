@@ -35,6 +35,20 @@
 // terrain's own forest tint (`snow-glsl.ts`) carries the woods to the
 // ridge.
 //
+// THE NEAREST TREES IN NEEDLE CARDS, on the richest FOREST row (its
+// `cards`, the nearest 30 m): there a tree is drawn as its card tree
+// (`tree-cards.ts` — its boughs as sprays of needles on cards over an atlas
+// painted in code, a dark opaque core in every crown, its snow laid in the
+// world's up, a glow against a low sun) in a SECOND BATCH over the same
+// table of trees, so it stands where its solid cuts stand, with its kind,
+// variant, girth, lean, tint and load. An alpha-tested card is costly where
+// its needles overlap, so the card batch draws twice: a DEPTH PRE-PASS
+// first, the cards' coverage and nothing else, then the picture's pass,
+// which shades only the needles in front. The card tree hands over to its
+// full cut as every band does, dissolved in time (`tree-bands.ts`). The
+// cards cast nothing of their own: the casters' list below is the same
+// whatever band a tree is drawn in.
+//
 // THE SHADOWS ARE A SECOND LIST, NOT A BAND. No band casts. Every tree whose
 // shadow can land in the sun's circle (`shadow-box.ts`'s `castsInto`) is
 // listed for the shadow map, the same batch's other pass — whatever band
@@ -64,7 +78,15 @@ import {
 } from "./forest-batch.ts";
 import { summerShown } from "./season-look.ts";
 import { buildTree, kindPaint, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
-import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
+import {
+  CARDS as CARD_BAND,
+  HYSTERESIS,
+  createHandOver,
+  handOver,
+  type TreeDraw,
+} from "./tree-bands.ts";
+import { buildCardTree, packCards } from "./tree-cards.ts";
+import { atlasBytes, atlasTexture, cardMaterial } from "./tree-card-material.ts";
 import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import {
   TREE_SNOW_PARS,
@@ -85,6 +107,9 @@ export type ForestOptions = Omit<ForestLook, "casters"> & {
   far: number;
   view: number;
   casters: TreeCasters | "none";
+  /** Whether the picture is multisampled, so the card trees' edges are cut
+   * by alpha-to-coverage (`tree-card-material.ts`). */
+  coverage?: boolean;
 };
 
 const CELL = 64;
@@ -111,6 +136,39 @@ function graftTree(
     .replace(
       "#include <begin_vertex>",
       `#include <begin_vertex>\n${GIRTH_VERTEX}\n${TREE_WIND_VERTEX}\n  vFade = tbFade;\n${TREE_SNOW_VERTEX}`,
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", "#include <common>\nvarying vec2 vFade;")
+    .replace(
+      "void main() {",
+      `void main() {
+  float lodDither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (lodDither < vFade.x || lodDither >= vFade.y) discard;`,
+    );
+}
+
+/** THE CARD TREE IN THE BATCH: the trunk to its girth, swayed as the tree
+ * is, its colours under the tree's own tint and tone (its snow is the card
+ * material's to lay, off the tree's load), and the hand-over's dither — the
+ * same lines as the solid cuts', so a card tree dissolves into its full
+ * cut with nothing moved. */
+function graftCardTree(
+  shader: {
+    vertexShader: string;
+    fragmentShader: string;
+    uniforms: Record<string, THREE.IUniform>;
+  },
+  wind: THREE.IUniform<THREE.Vector4>,
+): void {
+  shader.uniforms.uTreeWind = wind;
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      `#include <common>\nattribute vec3 stem;\n${TREE_WIND_PARS}\nvarying vec2 vFade;`,
+    )
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>\n${GIRTH_VERTEX}\n${TREE_WIND_VERTEX}\n  vFade = tbFade;\n  vColor.rgb *= tbMore.rgb * tbData.z;`,
     );
   shader.fragmentShader = shader.fragmentShader
     .replace("#include <common>", "#include <common>\nvarying vec2 vFade;")
@@ -183,6 +241,10 @@ function atLens(
  * full tree drawn over it is not shaded blotchy by its own stand-in. */
 const SKETCH_INSET = 0.85;
 
+/** How far the lens may move between two fills before it is taken for a
+ * cut, m: far past any lens's travel in a frame, a craft's included. */
+const JUMP = 25;
+
 /** How far the lens has to stand from a tree before it cannot be inside
  * it, m — past this, `atLens` is not asked. */
 const LENS_REACH = 24;
@@ -209,7 +271,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   let options = { ...initial };
   // The view aloft over the row's own (`setAloft`); on the snow, the row's.
   const aloft = { far: options.far, lift: 0, view: options.view };
-  const edges = { full: 0, mid: 0, far: 0 };
+  const edges = { cards: 0, full: 0, mid: 0, far: 0 };
   const group = new THREE.Group();
   // THE CRAGS on the drops stand with the woods, out to the whole view,
   // and the far share is the share of their blocks (`rocks.ts`).
@@ -371,6 +433,25 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     graftBatch(shader, casterU);
     graftCaster(shader, wind);
   };
+  // THE CARD TREES' atlas and materials (`tree-card-material.ts`): painted
+  // and made the first time a row asks for the card band, kept after.
+  const cardU = batchUniforms();
+  let atlas: THREE.Texture | null = null;
+  let cardKit: { colour: THREE.Material; early: THREE.Material } | null = null;
+  const cardsKit = (): NonNullable<typeof cardKit> & { atlas: THREE.Texture } => {
+    atlas ??= atlasTexture();
+    if (cardKit) return { ...cardKit, atlas };
+    const graft = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
+      graftBatch(shader, cardU);
+      graftCardTree(shader, wind);
+    };
+    const coverage = options.coverage ?? false;
+    cardKit = {
+      colour: cardMaterial(haze, atlas, coverage, graft),
+      early: cardMaterial(haze, atlas, coverage, graft, "early"),
+    };
+    return { ...cardKit, atlas };
+  };
   const region = treePaint(regionLookOf(regionOf(level).id));
   const paint = summerShown() ? summerPaint(region) : region;
 
@@ -387,6 +468,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
      * casters' first shape. */
     first: [number, number, number, number, number];
     batch: TreeBatch;
+    /** The card trees' batch over the same table, nearest of all (none
+     * when the row draws no card band): one shape a near row, its full
+     * cut, drawn behind its own depth pre-pass. */
+    cards: TreeBatch | null;
     geometries: THREE.BufferGeometry[];
   };
 
@@ -396,7 +481,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
    * cuts — all packed into ONE batch. The far band and the casters draw ONE
    * shape a kind (its lead variant: the sketch, or the mid cut when the
    * casters are full). */
-  function buildShapes(variants: number): Shapes {
+  function buildShapes(variants: number, cardBand: boolean): Shapes {
     const variantOf: TreeVariant[] = new Array<TreeVariant>(count);
     const near = new Uint16Array(count);
     const far = new Uint16Array(count);
@@ -446,6 +531,28 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     );
     batch.bind(colourU, casterU);
     group.add(batch.mesh);
+    let cards: TreeBatch | null = null;
+    // Its own list: the batch above keeps reading `geometries` as its shapes.
+    let cardGeometries: THREE.BufferGeometry[] = [];
+    if (cardBand) {
+      const kit = cardsKit();
+      cardGeometries = nearRows.map((v) => packCards(buildCardTree(v, paint, 0)));
+      const cardShapes = cardGeometries;
+      cards = createTreeBatch(
+        cardShapes,
+        count,
+        matrices,
+        data,
+        { colour: count, casters: 0 },
+        kit.colour,
+        casterDepth,
+        { table: batch.table, early: kit.early },
+      );
+      cards.bind(cardU, batchUniforms());
+      cards.mesh.userData.gpuBytes += atlasBytes(kit.atlas);
+      if (cards.early) group.add(cards.early);
+      group.add(cards.mesh);
+    }
     return {
       variants,
       variantOf,
@@ -453,17 +560,23 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       far,
       first: [0, nN, 2 * nN, 2 * nN + nF, 2 * nN + 2 * nF],
       batch,
-      geometries,
+      cards,
+      geometries: cards ? [...geometries, ...cardGeometries] : geometries,
     };
   }
 
   function dropShapes(old: Shapes): void {
+    if (old.cards) {
+      if (old.cards.early) group.remove(old.cards.early);
+      group.remove(old.cards.mesh);
+      old.cards.dispose();
+    }
     group.remove(old.batch.mesh);
     old.batch.dispose();
     for (const g of old.geometries) g.dispose();
   }
 
-  let shapes = buildShapes(options.variants);
+  let shapes = buildShapes(options.variants, options.cards > 0);
   /** The tallest tree, for how far up-sun a caster can stand. */
   let tallest = 0;
   for (const t of trees) tallest = Math.max(tallest, t.height);
@@ -484,10 +597,14 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const lastShadow: ShadowBox = { x: Infinity, y: 0, z: 0, reach: 0, sx: 0, sy: 0, sz: 0 };
   let castersOn = false;
 
-  /** Tree `i` listed in `band` (0 full, 1 mid, 2 far), kept in the dither
-   * window `[lo, hi)`. */
+  /** Tree `i` listed in `band` (0 full, 1 mid, 2 far, 3 the card tree),
+   * kept in the dither window `[lo, hi)`. */
   function place(band: number, i: number, lo: number, hi: number) {
     if (hi <= lo) return;
+    if (band === CARD_BAND) {
+      shapes.cards?.push(COLOUR, shapes.near[i], i, lo, hi);
+      return;
+    }
     const row = band < 2 ? shapes.near[i] : shapes.far[i];
     shapes.batch.push(COLOUR, shapes.first[band] + row, i, lo, hi);
   }
@@ -564,6 +681,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       ) {
         return;
       }
+      // A CUT — the lens put down somewhere else in one frame (a restart, a
+      // camera rung, a replay's new shot) — is a new frame of reference:
+      // every tree takes its cut at once rather than dissolving into it in
+      // plain sight of the new shot.
+      if (camera.position.distanceToSquared(lastAt) > JUMP * JUMP) tick++;
       lastAt.copy(camera.position);
       lastLook.copy(look);
       lastFov = camera.fov;
@@ -575,10 +697,12 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const cz = camera.position.z;
       const batch = shapes.batch;
       batch.begin(COLOUR);
+      shapes.cards?.begin(COLOUR);
       // Aloft, a tree's cut is chosen at its SLANT distance from the lens
       // (`lift` over the snow), so the far edge is the plan reach's slant.
       const lift = aloft.lift;
       const lift2 = lift * lift;
+      edges.cards = shapes.cards ? options.cards : 0;
       edges.full = options.full;
       edges.mid = options.mid;
       edges.far = lift > 0 ? Math.hypot(aloft.far, lift) + 2 * HYSTERESIS : aloft.far;
@@ -590,6 +714,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const ux = plan > 1e-6 ? look.x / plan : 0;
       const uz = plan > 1e-6 ? look.z / plan : 0;
       const far2 = aloft.far * aloft.far;
+      // On the snow the row's own edges, the card band only where it was
+      // built.
+      const bands = { ...options, cards: edges.cards };
       const now = performance.now();
       tick++;
       dissolving = false;
@@ -627,7 +754,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
               continue;
             const inFar = thin[i] < options.farShare;
             const d = Math.sqrt(lift > 0 ? e2 + lift2 : e2);
-            if (handOver(hand, i, d, lift > 0 ? edges : options, inFar, now, tick, draw)) {
+            if (handOver(hand, i, d, lift > 0 ? edges : bands, inFar, now, tick, draw)) {
               dissolving = true;
             }
             if (draw.from >= 0) place(draw.from, i, 0, draw.split);
@@ -636,6 +763,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         }
       }
       batch.end(COLOUR);
+      shapes.cards?.end(COLOUR);
     },
     invalidate() {
       // A new frame of reference: every tree takes its cut at once.
@@ -653,9 +781,22 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       aloft.view = Math.max(view, options.view);
     },
     setOptions(next) {
-      if (next.variants !== options.variants) {
+      const wantCards = next.cards > 0;
+      const coverageMoved = (next.coverage ?? false) !== (options.coverage ?? false);
+      if (cardKit && coverageMoved) {
+        // The card materials are cut for one kind of picture: made again.
+        cardKit.colour.dispose();
+        cardKit.early.dispose();
+        cardKit = null;
+      }
+      if (
+        next.variants !== options.variants ||
+        wantCards !== (shapes.cards !== null) ||
+        (wantCards && coverageMoved)
+      ) {
+        options = { ...next };
         dropShapes(shapes);
-        shapes = buildShapes(next.variants);
+        shapes = buildShapes(next.variants, next.cards > 0);
       }
       options = { ...next };
       Object.assign(aloft, { far: options.far, lift: 0, view: options.view });
@@ -669,6 +810,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       dropShapes(shapes);
       material.dispose();
       casterDepth.dispose();
+      atlas?.dispose();
+      if (cardKit) {
+        cardKit.colour.dispose();
+        cardKit.early.dispose();
+      }
     },
   };
 }

@@ -134,8 +134,25 @@ type PassList = {
   readonly per: Int32Array;
 };
 
+/** The tree table's two textures: every tree's matrix and its own numbers.
+ * One batch builds them; another may draw over the same table (the near
+ * band's card trees, `forest.ts`). */
+export type TreeTable = { readonly matrix: THREE.DataTexture; readonly data: THREE.DataTexture };
+
+/** What a batch may be built with beside its shapes: another batch's
+ * `table` to read instead of building its own, and an `early` material — a
+ * DEPTH PRE-PASS: the same shapes, the same list, drawn first with no colour
+ * so the picture's own pass is depth-tested against the nearest surface
+ * before its fragments are shaded (`tree-card-material.ts`). A batch with a
+ * pre-pass casts no shadow. */
+export type BatchExtras = { table?: TreeTable; early?: THREE.Material };
+
 export type TreeBatch = {
   readonly mesh: THREE.BatchedMesh;
+  /** The pre-pass drawn ahead of `mesh`, when there is one. */
+  readonly early: THREE.BatchedMesh | null;
+  /** The tree table this batch reads. */
+  readonly table: TreeTable;
   /** Triangles a shape has. */
   readonly triangles: Int32Array;
   /** Point the materials' uniforms at this batch. */
@@ -151,31 +168,10 @@ export type TreeBatch = {
   dispose(): void;
 };
 
-/** Pack `shapes` into one batch drawn with `material` (and `depth` into the
- * shadow map), over a table of `count` trees: `matrices` 16 floats a tree,
- * `data` `TREE_DATA` floats a tree. `room` is how many trees each pass may
- * draw at most. */
-export function createTreeBatch(
-  shapes: readonly THREE.BufferGeometry[],
-  count: number,
-  matrices: Float32Array,
-  data: Float32Array,
-  room: { colour: number; casters: number },
-  material: THREE.Material,
-  depth: THREE.Material,
-): TreeBatch {
-  if (count >= MAX_TREES) throw new Error(`forest batch: ${count} trees past ${MAX_TREES}`);
-  const vertices = shapes.reduce((n, g) => n + g.getAttribute("position").count, 0);
-  const mesh = new THREE.BatchedMesh(1, Math.max(3, vertices), 0, material);
-  const ids = shapes.map((g) => mesh.addGeometry(g));
-  type Info = { start: number; count: number };
-  const info = (mesh as unknown as { _geometryInfo: Info[] })._geometryInfo;
-  const starts = ids.map((id) => info[id].start);
-  const lengths = ids.map((id) => info[id].count);
-  const triangles = Int32Array.from(lengths, (l) => l / 3);
-
-  // THE TABLE: the matrices, four texels a tree, rows a multiple of four
-  // wide so a tree's four never wrap; the data two texels a tree.
+/** THE TREE TABLE as two float textures: `matrices` 16 floats a tree, four
+ * texels, rows a multiple of four wide so a tree's four never wrap; `data`
+ * `TREE_DATA` floats a tree, two texels. */
+function buildTable(count: number, matrices: Float32Array, data: Float32Array): TreeTable {
   const mw = Math.max(4, Math.ceil(Math.sqrt(count * 4) / 4) * 4);
   const mh = Math.max(1, Math.ceil((count * 4) / mw));
   const mArr = new Float32Array(mw * mh * 4);
@@ -188,6 +184,43 @@ export function createTreeBatch(
   dArr.set(data.subarray(0, count * TREE_DATA));
   const table = new THREE.DataTexture(dArr, dw, dh, THREE.RGBAFormat, THREE.FloatType);
   table.needsUpdate = true;
+  return { matrix, data: table };
+}
+
+/** Pack `shapes` into one batch drawn with `material` (and `depth` into the
+ * shadow map), over a table of `count` trees: `matrices` 16 floats a tree,
+ * `data` `TREE_DATA` floats a tree. `room` is how many trees each pass may
+ * draw at most. */
+export function createTreeBatch(
+  shapes: readonly THREE.BufferGeometry[],
+  count: number,
+  matrices: Float32Array,
+  data: Float32Array,
+  room: { colour: number; casters: number },
+  material: THREE.Material,
+  depth: THREE.Material,
+  extras: BatchExtras = {},
+): TreeBatch {
+  if (count >= MAX_TREES) throw new Error(`forest batch: ${count} trees past ${MAX_TREES}`);
+  const vertices = shapes.reduce((n, g) => n + g.getAttribute("position").count, 0);
+  const mesh = new THREE.BatchedMesh(1, Math.max(3, vertices), 0, material);
+  const ids = shapes.map((g) => mesh.addGeometry(g));
+  type Info = { start: number; count: number };
+  const info = (mesh as unknown as { _geometryInfo: Info[] })._geometryInfo;
+  const starts = ids.map((id) => info[id].start);
+  const lengths = ids.map((id) => info[id].count);
+  const triangles = Int32Array.from(lengths, (l) => l / 3);
+
+  // THE TABLE: the matrices, four texels a tree, rows a multiple of four
+  // wide so a tree's four never wrap; the data two texels a tree — or
+  // another batch's, read as it is.
+  const own = extras.table === undefined;
+  const tree = extras.table ?? buildTable(count, matrices, data);
+  const matrix = tree.matrix;
+  const table = tree.data;
+  const tableBytes = own
+    ? (matrix.image.data as Float32Array).byteLength + (table.image.data as Float32Array).byteLength
+    : 0;
 
   // THE LIST: the picture's run first, the casters' after it.
   const total = room.colour + room.casters;
@@ -256,7 +289,38 @@ export function createTreeBatch(
   mesh.onAfterRender = (renderer) => done(renderer, COLOUR);
   mesh.onBeforeShadow = (renderer) => hand(renderer, CASTERS);
   mesh.onAfterShadow = (renderer) => done(renderer, CASTERS);
-  mesh.castShadow = true;
+  mesh.castShadow = extras.early === undefined;
+  // THE PRE-PASS: a second object over the SAME geometry (three draws an
+  // object's own `geometry`, so nothing is copied), drawn ahead of the
+  // picture's pass with the same list.
+  let early: THREE.BatchedMesh | null = null;
+  if (extras.early) {
+    early = new THREE.BatchedMesh(1, 3, 0, extras.early);
+    early.geometry = mesh.geometry;
+    const pre = early as unknown as Drawn;
+    early.onBeforeRender = (renderer) => {
+      hand(renderer, COLOUR);
+      pre._multiDrawStarts = drawn._multiDrawStarts;
+      pre._multiDrawCounts = drawn._multiDrawCounts;
+      pre._multiDrawCount = drawn._multiDrawCount;
+    };
+    early.onAfterRender = (renderer) => done(renderer, COLOUR);
+    early.castShadow = false;
+    early.receiveShadow = false;
+    early.frustumCulled = false;
+    early.perObjectFrustumCulled = false;
+    early.sortObjects = false;
+    // Ahead of every opaque thing, so the ground behind a near tree is
+    // depth-tested against it too.
+    early.renderOrder = -1;
+    pre._multiDrawCount = 0;
+    early.userData.drawnTriangles = (): number => {
+      const l = lists[COLOUR];
+      let tris = 0;
+      for (let k = 0; k < l.draws; k++) tris += (l.counts[k] / 3) * l.instances[k];
+      return tris;
+    };
+  }
   mesh.receiveShadow = true;
   mesh.customDepthMaterial = depth;
   mesh.frustumCulled = false;
@@ -271,8 +335,7 @@ export function createTreeBatch(
     for (let k = 0; k < l.draws; k++) tris += (l.counts[k] / 3) * l.instances[k];
     return tris;
   };
-  mesh.userData.gpuBytes =
-    mArr.byteLength + dArr.byteLength + slotArr.byteLength + 2 * 4 * Math.max(1, shapes.length);
+  mesh.userData.gpuBytes = tableBytes + slotArr.byteLength + 2 * 4 * Math.max(1, shapes.length);
   mesh.userData.drawnBytes = (): Uint8Array[] =>
     lists.map((l) => {
       const n = l.n;
@@ -281,6 +344,8 @@ export function createTreeBatch(
 
   return {
     mesh,
+    early,
+    table: tree,
     triangles,
     bind(colour, casters) {
       for (const [u, base] of [
@@ -342,9 +407,13 @@ export function createTreeBatch(
       return { trees: l.n, triangles: tris };
     },
     dispose() {
+      // The pre-pass shares the geometry: let it go first.
+      early?.dispose();
       mesh.dispose();
-      matrix.dispose();
-      table.dispose();
+      if (own) {
+        matrix.dispose();
+        table.dispose();
+      }
       slots.dispose();
       lists[COLOUR].base.dispose();
       lists[CASTERS].base.dispose();

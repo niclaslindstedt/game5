@@ -402,6 +402,7 @@ export function createWorldRenderer(
     far: DISTANCE_LOOK[video.distance].trees,
     view: DISTANCE_LOOK[video.distance].view,
     casters: SHADOW_LOOK[video.shadows].trees ? FOREST_LOOK[video.forest].casters : "none",
+    coverage: video.antialias,
   });
 
   /** The player's outfit: slot 0 wears it, the field its slots' own. */

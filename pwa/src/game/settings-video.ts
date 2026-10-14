@@ -177,6 +177,12 @@ export type ForestLook = {
    * switched on by riding closer to its tree. */
   full: number;
   mid: number;
+  /** THE CARD TREES run out to here, m, inside the full cut (0: none): the
+   * nearest trees drawn with their needles on cards over a painted atlas
+   * (`tree-cards.ts`) — the boughs, their snow, the dark gaps between them,
+   * the glow against a low sun — behind a depth pre-pass that keeps their
+   * hidden layers from being shaded. Only the richest row affords them. */
+  cards: number;
   /** The share of the far band's sketches that stand, 0..1. */
   farShare: number;
   /** HOW MANY VARIANTS OF EACH KIND are drawn, 1..10 (`tree-variants.ts`,
@@ -213,6 +219,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
   low: {
     full: 50,
     mid: 140,
+    cards: 0,
     farShare: 0.5,
     variants: 2,
     casters: "sketch",
@@ -222,6 +229,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
   medium: {
     full: 80,
     mid: 220,
+    cards: 0,
     farShare: 0.75,
     variants: 5,
     casters: "sketch",
@@ -231,6 +239,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
   high: {
     full: 110,
     mid: 320,
+    cards: 30,
     farShare: 1,
     variants: 10,
     casters: "full",

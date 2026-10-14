@@ -171,12 +171,12 @@ export type TreeLod = 0 | 1 | 2;
 export const LOD_NAMES = ["full", "mid", "far"] as const;
 
 /** The trunk's sides at each level. */
-const TRUNK_SIDES = [5, 4, 3] as const;
+export const TRUNK_SIDES = [5, 4, 3] as const;
 
 /** A trunk up `heights` (shares of the tree's height), tagged so the
  * tree's girth sizes it: `share` of the reference radius (a stem of
  * several), tapering to `tip` at the last joint, each joint coloured. */
-function trunk(
+export function trunk(
   s: Shape,
   heights: readonly number[],
   share: number,
@@ -202,16 +202,16 @@ function trunk(
 
 /** The joints a trunk to `top` is built of at each level: the flare at the
  * foot always, breast height, and the rest of the way. */
-function joints(top: number, lod: TreeLod): number[] {
+export function joints(top: number, lod: TreeLod): number[] {
   if (lod === 2) return [0, top];
   if (lod === 1) return [0, BREAST, top];
   return [0, BREAST, BREAST + (top - BREAST) * 0.45, top];
 }
 
-type Tier = { bottom: number; top: number; radius: number };
+export type Tier = { bottom: number; top: number; radius: number };
 
 /** The tiers from `base` to `top`, narrowing by `taper`. */
-function tiersOf(count: number, base: number, top: number, taper: number): Tier[] {
+export function tiersOf(count: number, base: number, top: number, taper: number): Tier[] {
   const out: Tier[] = [];
   const span = top - base;
   for (let i = 0; i < count; i++) {

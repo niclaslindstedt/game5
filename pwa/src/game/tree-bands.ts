@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HAND-OVER between the forest's bands (`forest.ts`), three-free. A
 // tree is the same tree cut lighter with distance — FULL, MID, the FAR
-// sketch — and a band that simply ended at its edge swapped one cut for the
+// sketch, and on the richest FOREST row the CARD tree nearest of all (its
+// needles on cards, `tree-cards.ts`) — and a band that simply ended at its edge swapped one cut for the
 // next in a single frame, in plain sight: the boughs thinned as the skier
 // watched, and at the far edge the tree turned into its kind's lead variant
 // (and, on a thinner FOREST row, went out altogether).
@@ -22,9 +23,10 @@
 // Where the bands end is the FOREST and DISTANCE rows' and is not moved
 // here.
 
-/** The bands' edges, m: the FOREST row's `full` and `mid`, the DISTANCE
- * row's `far` (where the trees stop). */
-export type BandEdges = { full: number; mid: number; far: number };
+/** The bands' edges, m: the FOREST row's `cards` (where the card trees end;
+ * none when 0 or missing), `full` and `mid`, the DISTANCE row's `far`
+ * (where the trees stop). */
+export type BandEdges = { cards?: number; full: number; mid: number; far: number };
 
 /** How long a tree takes to dissolve from one cut into the next, ms. */
 export const HAND_OVER_MS = 400;
@@ -32,14 +34,19 @@ export const HAND_OVER_MS = 400;
 /** How far past an edge, m, a tree has to stand before it changes its cut. */
 export const HYSTERESIS = 3;
 
-/** The cut a tree is drawn in: 0 FULL, 1 MID, 2 the FAR sketch, -1 none. */
-export type BandIndex = -1 | 0 | 1 | 2;
+/** The cut a tree is drawn in: 0 FULL, 1 MID, 2 the FAR sketch, 3 the CARD
+ * tree nearer than the full cut, -1 none. */
+export type BandIndex = -1 | 0 | 1 | 2 | 3;
+
+/** The card band's index. */
+export const CARDS: BandIndex = 3;
 
 /** The cut a tree `d` m from the lens in plan belongs in. `inFar` is
  * whether the far band keeps this tree (the FOREST row's `farShare`); the
  * mid band never runs past where the trees stop. */
 export function bandAt(d: number, e: BandEdges, inFar: boolean): BandIndex {
   if (d >= e.far) return -1;
+  if (e.cards !== undefined && d < e.cards) return CARDS;
   if (d < e.full) return 0;
   if (d < e.mid) return 1;
   return inFar ? 2 : -1;

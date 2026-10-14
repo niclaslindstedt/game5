@@ -658,6 +658,8 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         wall.lift *= 0.5 + 0.5 * Math.min(1, f);
       }
       const edges = edgeSlips(skier, slips);
+      // Ridden on the jet of the snow the skis shove on (`CLOUD.jet`).
+      if (slips[0].share > 0 || (edges > 1 && slips[1].share > 0)) wall.tau *= CLOUD.jet;
       const e = edges > 1 && slips[1].share > slips[0].share ? slips[1] : slips[0];
       const along = e.share > 0;
       const ax = along ? e.across.x : 0;
@@ -670,23 +672,30 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         // stream and not a string of beads a frame apart — and along the
         // loaded edge, tip to tail, as the sheet is.
         const back = random() * dt;
-        const u = 0.2 + 0.8 * random();
+        const u = 0.1 + 0.85 * random();
+        // Born where the spray is: low, just ahead of the base's leading
+        // side, the way the skis slide (`spray-mass.ts`'s `MASS.push`).
+        const lead = 0.25 + 0.5 * random();
         const at = along
           ? {
-              x: e.tip.x + (e.tail.x - e.tip.x) * u - ux + ax * 0.25,
-              y: 0.1 + (random() - 0.5) * 0.2,
-              z: e.tip.z + (e.tail.z - e.tip.z) * u - uz + az * 0.25,
+              x: e.tip.x + (e.tail.x - e.tip.x) * u - ux + ax * lead,
+              y: 0.06 + 0.12 * random(),
+              z: e.tip.z + (e.tail.z - e.tip.z) * u - uz + az * lead,
             }
           : rotate(skier.q, {
               x: (random() - 0.5) * 0.7 + out * 0.3,
               y: 0.1 + (random() - 0.5) * 0.2,
               z: (random() - 0.5) * 0.8,
             });
-        const throwOut = wall.back * (0.6 + 0.8 * random()) + slide * 0.3;
+        // Along: the skis' slide carried on — the dust is the finest of
+        // the snow they shoved FORWARD, so it leaves ahead of them at the
+        // slide and a little over (the shove's own), low, and swells up
+        // as it slows; nothing of the slide is left behind.
+        const throwOut = wall.back * (0.3 + 0.5 * random()) + slide * (0.35 + 0.4 * random());
         const kick = along
           ? {
               x: ax * throwOut + (random() - 0.5) * 1.2,
-              y: wall.lift * (0.55 + 0.7 * random()),
+              y: wall.lift * (0.25 + 0.4 * random()),
               z: az * throwOut + (random() - 0.5) * 1.2,
             }
           : rotate(skier.q, {
@@ -696,13 +705,18 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
             });
         const x = ux + at.x - skier.vx * back;
         const z = uz + at.z - skier.vz * back;
+        // The skier's own velocity carried whole across the skis (the
+        // slide the snow ahead is brought up to) and in part along them.
+        const vAcross = along ? skier.vx * ax + skier.vz * az : 0;
+        const keepX = skier.vx - vAcross * ax;
+        const keepZ = skier.vz - vAcross * az;
         spawn(
           x,
           uy + at.y - skier.vy * back,
           z,
-          skier.vx * 0.45 + kick.x,
+          (along ? vAcross * ax : 0) + keepX * 0.45 + kick.x,
           skier.vy * 0.3 + kick.y,
-          skier.vz * 0.45 + kick.z,
+          (along ? vAcross * az : 0) + keepZ * 0.45 + kick.z,
           wall,
           groundOf(x, z),
         );

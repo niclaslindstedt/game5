@@ -37,11 +37,21 @@
 // stone's arc and BREAKS on the snow it lands on (the splash, a few grains
 // thrown back at a third of its speed).
 //
-// HOW IT LEAVES. The chips leave the edge the way it slides at about its
-// sliding speed and up its base's plane, fast ones low and slow ones steep
-// (as grains splashed off a snow bed do), and carry a share of the ski's
-// own way along it. In the air every parcel feels the drag against the
-// AIR (the run's wind, `windAt`), not against the ground.
+// HOW IT LEAVES: FORWARD, FROM UNDER THE SKIS, DOWN THE SLOPE. A sliding
+// ski is a cutting tool whose rake face is its base, tipped the edge angle
+// off the snow (machining theory's picture of a side-slip: a rake angle of
+// θ − 90°, deeply negative). The snow in front of the base is pressed up
+// to the ski's own slide and shoved on; what the edge cuts flows up the
+// base and off its leading side. So the chips leave from under the base's
+// leading half, the way the ski slides, at the slide plus their flow up
+// the base (`MASS.push`, `.rake`) — 10–30° off the snow for cut chips,
+// loose snow steeper as it rides further up the base — and carry most of
+// the ski's own way along it. What the edge planes off and does not throw
+// is the BERM, pressed ahead of the base and shoved on over the snow with
+// the ski (`MASS.berm`); and whatever comes down slides on down the fall
+// line a moment against the snow's friction (`MASS.roll`). In the air
+// every parcel feels the drag against the AIR (the run's wind, `windAt`),
+// not against the ground.
 //
 // HOW IT IS DRAWN. Snow is thrown as PARCELS of grains, each a few grams,
 // spreading as it flies (turbulent dispersion: its radius grows as √(2·K·t))
@@ -101,7 +111,33 @@ export const MASS = {
   sheet: 0.06,
   /** How much steeper shoved loose snow leaves than cut chips, rad (it
    * rides up the tilted base and off it). */
-  steep: 0.55,
+  steep: 0.75,
+  /** WHICH WAY IT GOES. A sliding ski is a cutting tool whose rake face is
+   * its BASE, tipped the edge angle θ off the snow (the rake angle θ − 90°,
+   * deeply negative — machining theory's picture of a side-slip): the snow
+   * in front of the base is brought up to the ski's own slide and SHOVED
+   * ON, and what the edge cuts flows up the base and off its leading side.
+   * In the ground's frame a chip carries the slide (`push`: the share of it
+   * the snow ahead is brought up to, least and spread, the first-shoved the
+   * fastest) plus its flow up the base (`rake`: its speed against the base
+   * as a share of the slide — brittle snow breaks off in a spray rather
+   * than a chip, so well under one). Together: ahead of the ski the way it
+   * slides, 10–30° off the snow. */
+  push: [0.6, 0.45],
+  rake: 0.96,
+  /** WHAT LANDS RUNS ON: a parcel come down keeps this share of its speed
+   * along the snow and slides on under gravity down the fall line against
+   * the snow's friction `mu` for `time` s (a clump `clump` s) — the heap a
+   * stop shoves rolling on down the slope. */
+  roll: { keep: 0.8, mu: 0.5, time: 0.12, clump: 0.6 },
+  /** THE BERM: what the edge planes off and does not throw (1 − `cutFly`)
+   * is the snow pressed up in front of the base — a wedge of it riding the
+   * sliding ski as machining's dead zone rides a negative-rake tool — and
+   * shoved on over the snow at the ski's own velocity (`carry`, least and
+   * spread), sliding on down the slope (`roll`) when the ski lets it go:
+   * the heap a stop pushes ahead of its skis. Drawn low, `life` s, its
+   * parcels spreading at `eddy` m²/s. Never counted as thrown. */
+  berm: { carry: [0.85, 0.2], life: 0.25, eddy: 0.0012 },
   /** The share of its sink a carving base sweeps out of its arc a metre
    * of way. */
   sweep: 0.5,
@@ -329,7 +365,15 @@ function normal(random: () => number): number {
 
 export type MassPool = SprayPool & {
   /** Kilograms thrown since the last read (the lab's tally), by source. */
-  weighed(): { cut: number; shove: number; bow: number; lip: number; burst: number; dust: number };
+  weighed(): {
+    cut: number;
+    shove: number;
+    bow: number;
+    lip: number;
+    burst: number;
+    dust: number;
+    berm: number;
+  };
 };
 
 export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPool {
@@ -353,13 +397,15 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
   const ox = new Float32Array(capacity);
   const oz = new Float32Array(capacity);
   const peak = new Float32Array(capacity);
+  const fell = new Float32Array(capacity);
+  const berm = new Uint8Array(capacity);
   let head = 0;
   let share = 1;
   let cap = capacity;
   let clock = 0;
   const random = makeRandom(0x5a17);
   const tally: SprayStats = { thrown: 0, launch: 0, high: 0, reach: 0, done: 0 };
-  const kilos = { cut: 0, shove: 0, bow: 0, lip: 0, burst: 0, dust: 0 };
+  const kilos = { cut: 0, shove: 0, bow: 0, lip: 0, burst: 0, dust: 0, berm: 0 };
   const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
   const cutG: Grit = {
     d50: 0,
@@ -373,9 +419,19 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
   const looseG: Grit = { ...cutG, clumpD: [0, 0] };
   const flux: EdgeFlux = { cut: 0, shove: 0, lip: 0, depth: 0 };
   let glints = 0.5;
+  const slope = { x: 0, y: 1, z: 0 };
 
   function retire(i: number) {
-    const reach = Math.hypot(pos[i * 3] - ox[i], pos[i * 3 + 2] - oz[i]);
+    if (berm[i]) {
+      life[i] = 0;
+      alpha[i] = 0;
+      size[i] = 0;
+      berm[i] = 0;
+      return;
+    }
+    // How far it came DOWN from where it was thrown: where it landed, not
+    // where it slid on to after.
+    const reach = down[i] ? fell[i] : Math.hypot(pos[i * 3] - ox[i], pos[i * 3 + 2] - oz[i]);
     tally.done++;
     tally.high += peak[i];
     tally.reach += reach;
@@ -400,6 +456,7 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
     clump: boolean,
     lifetime: number = MASS.life,
     lumpy = 0,
+    pushed = false,
   ) {
     const i = head;
     head = (head + 1) % cap;
@@ -414,7 +471,10 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
     life[i] = lifetime;
     mass[i] = m;
     term[i] = Math.max(0.05, settleSpeed(d, rho));
-    down[i] = 0;
+    // A berm's snow is on the snow from the first: it slides, never flies.
+    down[i] = pushed ? 1 : 0;
+    berm[i] = pushed ? 1 : 0;
+    fell[i] = 0;
     if (clump) {
       rad0[i] = d / 2;
       eddy[i] = 0;
@@ -423,7 +483,7 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
     } else {
       // A heavier parcel drawn larger, so its grains' opacity is the same.
       rad0[i] = MASS.radius * Math.sqrt(m / MASS.parcel);
-      eddy[i] = MASS.eddy * Math.hypot(vx, vy, vz);
+      eddy[i] = pushed ? MASS.berm.eddy : MASS.eddy * Math.hypot(vx, vy, vz);
       area[i] = 1.5 / (rho * d);
       hard[i] = Math.max(lumpy, 0.12 * random());
     }
@@ -433,6 +493,7 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
     ox[i] = x;
     oz[i] = z;
     peak[i] = 0;
+    if (pushed) return;
     tally.thrown++;
     tally.launch += Math.hypot(vx, vy, vz);
     watch.spawn?.(i);
@@ -453,6 +514,7 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
     slot: number,
     place: (u: number, out: typeof at) => void,
     launch: (s: number, out: typeof kick) => void,
+    pushed = false,
   ) {
     if (kg <= 0) return;
     const parcel = MASS.parcel / Math.max(0.05, share);
@@ -470,7 +532,21 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
       const s = random();
       place(random(), at);
       launch(s, kick);
-      spawn(at.x, at.y, at.z, kick.x, kick.y, kick.z, each, grainOf(grit), grit.rho, false);
+      spawn(
+        at.x,
+        at.y,
+        at.z,
+        kick.x,
+        kick.y,
+        kick.z,
+        each,
+        grainOf(grit),
+        grit.rho,
+        false,
+        pushed ? MASS.berm.life * (0.7 + 0.6 * random()) : MASS.life,
+        0,
+        pushed,
+      );
     }
     // THE CLUMPS: each one whole.
     const d = grit.clumpD[0] + grit.clumpD[1] * random();
@@ -484,7 +560,21 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
       place(random(), at);
       // A clump leaves a little slower than the grains round it.
       launch(0.25 + 0.5 * s, kick);
-      spawn(at.x, at.y, at.z, kick.x, kick.y, kick.z, m, dc, grit.clumpRho, true);
+      spawn(
+        at.x,
+        at.y,
+        at.z,
+        kick.x,
+        kick.y,
+        kick.z,
+        m,
+        dc,
+        grit.clumpRho,
+        true,
+        pushed ? MASS.berm.life * (0.7 + 0.6 * random()) : MASS.life,
+        0,
+        pushed,
+      );
     }
   }
 
@@ -532,7 +622,7 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
     emit(skier, level, dt, landed, snow) {
       let owed = debt.get(skier);
       if (!owed) {
-        owed = new Array(16).fill(0);
+        owed = new Array(20).fill(0);
         debt.set(skier, owed);
       }
       glints = Math.min(1, (snow ? snow.sparkle : 0.5) + (snow?.flake ?? 0));
@@ -566,24 +656,34 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
         // New snow is so light the base lifts it off almost straight up.
         const light = clamp01((220 - (snow ? snow.density : 480)) / 140);
         const slide = e.slide;
-        // THE CUT AND THE SHOVE off the side, the way it slides: up the
-        // base's plane, fast grains low and slow ones steep.
-        const rise0 = Math.min(1.0, 0.22 + 0.5 * theta);
+        // THE CUT AND THE SHOVE leave FROM UNDER THE BASE, ITS LEADING
+        // HALF — between the ski's line and the edge it slides toward —
+        // down at the snow, along the ski from near its tip to its tail.
+        const half = board ? 0.13 : 0.5 * skier.spec.waist;
         const place = (u: number, out: typeof at) => {
-          const v = 0.12 + 0.88 * Math.sqrt(u);
-          out.x = e.tip.x + (e.tail.x - e.tip.x) * v + e.across.x * 0.05;
-          out.y = e.tip.y + (e.tail.y - e.tip.y) * v + 0.02;
-          out.z = e.tip.z + (e.tail.z - e.tip.z) * v + e.across.z * 0.05;
+          const v = 0.1 + 0.85 * u;
+          const lead = half * random();
+          out.x = e.tip.x + (e.tail.x - e.tip.x) * v + e.across.x * lead;
+          out.y = e.tip.y + (e.tail.y - e.tip.y) * v + 0.01;
+          out.z = e.tip.z + (e.tail.z - e.tip.z) * v + e.across.z * lead;
         };
+        // And go FORWARD, THE WAY THE SKI SLIDES (`MASS.push`, `.rake`):
+        // the slide the snow ahead is brought up to, plus its flow up the
+        // base tipped `tilt` off the snow — low and fast where it was
+        // shoved hardest, a little steeper and slower behind it; loose
+        // snow rides further up the base (`steep`), powder off it faster.
         const sideKick = (steep: number, fast: number) => (s: number, out: typeof kick) => {
-          const sp = slide * fast * (0.35 + 0.75 * s);
-          const rise = Math.min(1.35, (rise0 + steep) * (1.45 - 0.8 * s) + 0.12 * normal(random));
-          const flat = sp * Math.cos(rise);
-          const fan = 0.22 * sp * normal(random);
-          const carry = way * (0.2 + 0.35 * random());
-          out.x = e.across.x * flat + e.along.x * (carry + fan);
-          out.y = sp * Math.sin(rise) + skier.vy * 0.3;
-          out.z = e.across.z * flat + e.along.z * (carry + fan);
+          const tilt = Math.min(1.3, Math.max(0.5, theta) + steep);
+          // (Slush sticks: wet snow leaves slower, short and heavy.)
+          const pushed = slide * (MASS.push[0] + MASS.push[1] * s) * (1 - 0.25 * wet);
+          const flow =
+            slide * MASS.rake * fast * Math.max(0.2, 1.05 - 0.75 * s + 0.15 * normal(random));
+          const ahead = pushed + flow * Math.cos(tilt);
+          const fan = 0.16 * ahead * normal(random);
+          const carry = way * (0.6 + 0.3 * random());
+          out.x = e.across.x * ahead + e.along.x * (carry + fan);
+          out.y = flow * Math.sin(tilt) + skier.vy * 0.3;
+          out.z = e.across.z * ahead + e.along.z * (carry + fan);
         };
         const cutKg = flux.cut * dt;
         const shoveKg = flux.shove * dt;
@@ -594,9 +694,29 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
           owed,
           4 * k + 2,
           place,
-          sideKick(MASS.steep * (1 - 0.6 * wet) * (1 + 0.6 * light), 1 + 0.9 * powder * (1 - wet)),
+          sideKick(
+            MASS.steep * (0.5 + 0.5 * powder) * (1 - 0.6 * wet) * (1 + 0.6 * light),
+            1 + 1.5 * powder * (1 - wet),
+          ),
         );
         kilos.cut += cutKg * (1 - cutG.dust);
+        // THE BERM pressed up ahead of the base and shoved on with the ski.
+        const bermKg = (cutKg * (1 - MASS.cutFly)) / MASS.cutFly;
+        if (bermKg > 0) {
+          const front = (u: number, out: typeof at) => {
+            place(u, out);
+            out.x += e.across.x * (half + 0.06 * random());
+            out.z += e.across.z * (half + 0.06 * random());
+          };
+          const shoved = (s: number, out: typeof kick) => {
+            const c = MASS.berm.carry[0] + MASS.berm.carry[1] * s;
+            out.x = vx0 * c;
+            out.y = 0;
+            out.z = vz0 * c;
+          };
+          throwMass(bermKg, cutG, owed, 16 + 2 * k, front, shoved, true);
+          kilos.berm += bermKg;
+        }
         kilos.shove += shoveKg * (1 - looseG.dust);
         dust += flux.cut * cutG.dust + flux.shove * looseG.dust;
         // THE LIP off a railed tail: out of the arc and up, off its rear third.
@@ -764,6 +884,7 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
         if (over > peak[i]) peak[i] = over;
         if (!down[i] && over < 0.02) {
           down[i] = 1;
+          fell[i] = Math.hypot(pos[k] - ox[i], pos[k + 2] - oz[i]);
           pos[k + 1] = gnd + 0.02;
           // A CLUMP SPLASHES: broken into grains thrown back up at a third
           // of the speed it came in at, the way grains off a snow bed are.
@@ -790,9 +911,29 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
               );
             }
           }
-          vel[k] = vel[k + 1] = vel[k + 2] = 0;
-          // Lying on the snow it is the snow: gone in a moment.
-          life[i] = Math.min(life[i], age[i] + (area[i] === 0 ? 0.45 : 0.12));
+          // WHAT LANDS RUNS ON (`MASS.roll`): a share of its speed along
+          // the snow kept, then gone in a moment — lying on the snow, it is
+          // the snow.
+          vel[k] *= MASS.roll.keep;
+          vel[k + 2] *= MASS.roll.keep;
+          vel[k + 1] = 0;
+          life[i] = Math.min(life[i], age[i] + (area[i] === 0 ? MASS.roll.clump : MASS.roll.time));
+        } else if (down[i]) {
+          // Sliding on down the fall line: the slope's pull along the snow
+          // (gravity's share off the normal) against the snow's friction.
+          level.normalAt(pos[k], pos[k + 2], slope);
+          let vx = vel[k] + G * slope.y * slope.x * dt;
+          let vz = vel[k + 2] + G * slope.y * slope.z * dt;
+          const sp = Math.hypot(vx, vz);
+          const brake = MASS.roll.mu * G * slope.y * dt;
+          const keep = sp > brake ? (sp - brake) / sp : 0;
+          vx *= keep;
+          vz *= keep;
+          vel[k] = vx;
+          vel[k + 2] = vz;
+          pos[k] += vx * dt;
+          pos[k + 2] += vz * dt;
+          pos[k + 1] = level.groundAt(pos[k], pos[k + 2]) + 0.02;
         }
         // THE PARCEL SPREADS: its radius grows as the eddies mix it, its
         // grains' area over its disc its optical depth.
@@ -830,7 +971,7 @@ export function createMassPool(capacity = 6000, watch: SprayWatch = {}): MassPoo
     },
     weighed() {
       const out = { ...kilos };
-      kilos.cut = kilos.shove = kilos.bow = kilos.lip = kilos.burst = kilos.dust = 0;
+      kilos.cut = kilos.shove = kilos.bow = kilos.lip = kilos.burst = kilos.dust = kilos.berm = 0;
       return out;
     },
   };

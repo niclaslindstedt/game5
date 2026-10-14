@@ -80,3 +80,71 @@ describe("what a stop throws", () => {
     expect(third.kg).toBeLessThan(whole.kg * 1.15);
   });
 });
+
+describe("which way the snow goes", () => {
+  it("a stop shoves its snow FORWARD, from under the skis, low, and down the slope", () => {
+    // A hockey stop straight down a 30 % slope (downhill is +z).
+    const level = flatLevel({ packed: 1, grade: 0.3, slopeFrom: 0 });
+    const state = createGame({
+      level,
+      spec: pairById("chamois"),
+      rivals: 0,
+      countdown: 0,
+      quiet: true,
+    });
+    placeRun(state, { x: 1500, z: 200, heading: 0, speed: 40 / 3.6 });
+    let ahead = 0;
+    let outrun = 0;
+    let n = 0;
+    let under = 0;
+    const rises: number[] = [];
+    let downhill = 0;
+    let landed = 0;
+    const from = new Float32Array(30000);
+    const pool = createMassPool(30000, {
+      spawn(i) {
+        const vx = pool.vel[i * 3];
+        const vy = pool.vel[i * 3 + 1];
+        const vz = pool.vel[i * 3 + 2];
+        const flat = Math.hypot(vx, vz);
+        if (flat < 0.5) return;
+        n++;
+        // Off the travel (+z), along the snow.
+        if (Math.acos(vz / flat) < Math.PI / 4) ahead++;
+        // Pressed on ahead of the skis: faster down his way than he goes.
+        if (vz > state.skier.vz) outrun++;
+        rises.push(Math.atan2(vy, flat));
+        const x = pool.pos[i * 3];
+        const z = pool.pos[i * 3 + 2];
+        from[i] = z;
+        if (pool.pos[i * 3 + 1] - level.groundAt(x, z) < 0.05) under++;
+      },
+      retire(i) {
+        // Where it ended up against where it left.
+        landed++;
+        if (pool.pos[i * 3 + 2] > from[i]) downhill++;
+      },
+    });
+    const t0 = state.t;
+    for (let i = 0; i < 2.4 * TUNING.physicsHz; i++) {
+      step(state, holdInput(state, 40, 0, "stop", state.t - t0));
+      if (i % 2) continue;
+      pool.emit(state.skier, level, 1 / 60, 0, SNOW.groomed);
+      pool.step(1 / 60, level);
+    }
+    expect(n).toBeGreaterThan(500);
+    // Nearly all of it leaves within 45° of the way he was going…
+    expect(ahead / n).toBeGreaterThan(0.85);
+    // …a good share of it faster than he goes, shoved on ahead of him…
+    expect(outrun / n).toBeGreaterThan(0.35);
+    // …from down at the snow under the base…
+    expect(under / n).toBeGreaterThan(0.95);
+    // …shallow: the median a cut chip's 10–30° off the snow.
+    rises.sort((a, b) => a - b);
+    const median = (rises[rises.length >> 1] * 180) / Math.PI;
+    expect(median).toBeGreaterThan(10);
+    expect(median).toBeLessThan(30);
+    // And what comes down lies down the slope, never back up it.
+    expect(downhill / Math.max(1, landed)).toBeGreaterThan(0.7);
+  });
+});

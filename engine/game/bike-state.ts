@@ -184,4 +184,9 @@ export type BikeState = {
   /** The trail the ride was begun at the head of (`startBike`), begun there
    * again on a restart. */
   trail: string | null;
+  /** WHERE IT WAS LAST RIDDEN ON A TRAIL: the trail's id and the arc, m,
+   * of the last step it was on that trail's tread (`keepTrail`) — where a
+   * fall or the reset puts it back (`restartPoint`) — or null: not ridden
+   * on a trail since the ride began or a lift let it off at the top. */
+  ridden: { trail: string; s: number } | null;
 };

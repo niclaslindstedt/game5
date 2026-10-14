@@ -583,10 +583,20 @@ function carried(run: GameState, b: BikeState, events: GameEvent[]): boolean {
     b.rider.y = c.y;
     b.rider.z = c.z;
     deriveBike(b);
-    if (c.thrown) b.mode = "down";
+    // Down off the carrier (dropped off its seat, the fall thrown), the
+    // bike lies where he does, waiting for him as after any fall: stood
+    // up, he is put back on it.
+    if (c.thrown) {
+      b.mode = "down";
+      b.thrown = true;
+      b.t = 0;
+    }
     return false;
   }
   placeBike(b, bikeWorldOf(run.level, run.t), c.x, c.z, c.heading, Math.max(0, c.way));
+  // Let off at the top, the trail he rode below is behind him: a fall up
+  // here puts him on the trail nearest it.
+  b.ridden = null;
   mount(run, b);
   say(run, events, "board");
   return true;

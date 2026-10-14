@@ -41,16 +41,20 @@ function nearestOn(t: BikeTrail, x: number, z: number): { index: number; distanc
 }
 
 /** THE TRAIL THE BIKE IS ON moved on: kept until it stands on another's
- * tread and is off its own past the tread's edge. */
+ * tread and is off its own past the tread's edge — and, on its own trail's
+ * tread, the place it was last ridden there kept (`BikeState.ridden`). */
 export function keepTrail(level: Level, b: BikeState): void {
   const hit = bikeTrailAt(level, b.x, b.z);
-  if (!hit || Math.abs(hit.lateral) > hit.half || hit.trail.id === b.trail) return;
-  const own = b.trail ? bikeTrailById(level, b.trail) : null;
-  if (own) {
-    const near = nearestOn(own, b.x, b.z);
-    if (near.distance <= own.points[near.index].width / 2 + LEFT) return;
+  if (!hit || Math.abs(hit.lateral) > hit.half) return;
+  if (hit.trail.id !== b.trail) {
+    const own = b.trail ? bikeTrailById(level, b.trail) : null;
+    if (own) {
+      const near = nearestOn(own, b.x, b.z);
+      if (near.distance <= own.points[near.index].width / 2 + LEFT) return;
+    }
+    b.trail = hit.trail.id;
   }
-  b.trail = hit.trail.id;
+  b.ridden = { trail: hit.trail.id, s: hit.s };
 }
 
 /** Whether arc `s` of `t` stands clear of every feature. */
@@ -72,14 +76,26 @@ function startAt(t: BikeTrail, i: number): boolean {
   return true;
 }
 
-/** WHERE A FALL PUTS THE BIKE BACK: its own trail's nearest point within
- * `within` m (any trail's when its own is further), moved down the trail
- * clear of a feature (up it when nothing below is clear) — or null, with
- * no trail that near. */
+/** WHERE A FALL PUTS THE BIKE BACK: the place on a trail it was last
+ * ridden (`BikeState.ridden`) — wherever the fall threw it — or with none,
+ * its own trail's nearest point within `within` m (any trail's when its own
+ * is further); moved down the trail clear of a feature (up it when nothing
+ * below is clear) — or null, with no trail to go back to. */
 export function restartPoint(level: Level, b: BikeState, within: number): BikeTrailPoint | null {
   let t = b.trail ? bikeTrailById(level, b.trail) : null;
   let index = -1;
-  if (t) {
+  const last = b.ridden ? bikeTrailById(level, b.ridden.trail) : null;
+  if (last) {
+    t = last;
+    b.trail = last.id;
+    const p = last.points;
+    index = p.length - 1;
+    for (let i = 0; i < p.length; i++)
+      if (p[i].s >= b.ridden!.s) {
+        index = i;
+        break;
+      }
+  } else if (t) {
     const near = nearestOn(t, b.x, b.z);
     if (near.distance <= within) index = near.index;
   }

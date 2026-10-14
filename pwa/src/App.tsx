@@ -872,7 +872,11 @@ export function App() {
           feel={settings.touch}
           lever={settings.touch.lever}
           away={away}
-          onReset={() => playerRides(shell) && input?.requestReset()}
+          onReset={() =>
+            watching(shell)
+              ? (pressRef.current.unwatch(), pressRef.current.restart())
+              : playerRides(shell) && input?.requestReset()
+          }
           onCamera={() => pressRef.current.camera()}
           onPause={() => pressRef.current.pause()}
           bare={!settings.hud}

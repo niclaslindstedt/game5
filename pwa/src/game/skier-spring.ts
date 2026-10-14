@@ -141,9 +141,13 @@ export type SkierSpring = {
    * on (the engine's stride count, floored; NaN before the first) — how
    * far behind him a planted basket is, kept as he went rather than
    * guessed off his speed now, which overshoots while a push is speeding
-   * him up. */
+   * him up. Held where the push let go through the recovery: reckoned
+   * back off a stride's length that grows as the stroke dies away, the
+   * release ran on behind him and swung the recovering arm with it. */
   poled: number;
   poledStride: number;
+  /** ...and where in its stride he was at the last frame, 0..1. */
+  poledAt: number;
   /** HOW MUCH HE WORKS THE POLES as his arms carry it (`Gait.keep`), and
    * its rate — giving the stroke up for the tuck, and taking it back, as
    * a motion (NaN until the first ride is read). */
@@ -295,8 +299,9 @@ export const plantLength = (speed: number): number =>
  * jumper's landing is some 0.19 s, and the fold here peaks a quarter of a
  * second after the skis stop. `fold` and `extend` are how far the legs can
  * fold below and stretch above the stance in all, m — the engine's own
- * compression spent first (`stepSkierSpring`'s `lift`), stiffening over
- * the last `stop.zone` m of the fold at `stop.omega` rad/s — and `flight`
+ * compression spent first (`stepSkierSpring`'s `lift`); `brake` how much
+ * harder than just enough a body falling into the fold is braked, so the
+ * braking eases off to nothing as it comes to rest; and `flight`
  * how long in the air, s, makes a hop a flight, landed against the snow
  * he comes down on rather than the line he left. */
 export const LEGS = {
@@ -305,7 +310,7 @@ export const LEGS = {
   line: 0.8,
   fold: 0.4,
   extend: 0.1,
-  stop: { zone: 0.12, omega: 45 },
+  brake: 2,
   flight: 0.3,
 };
 /** How fast the body goes into the air and comes back to the snow, and
@@ -403,6 +408,7 @@ export function createSkierSpring(offset = 0): SkierSpring {
     platformRate: 0,
     poled: 0,
     poledStride: Number.NaN,
+    poledAt: 0,
     keep: Number.NaN,
     keepRate: 0,
     flight: createFlight(),
@@ -557,16 +563,22 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   const way = Math.abs(ride.way);
   // A new stride's plant — or no stride running (coasting, carried up a
   // lift): the snow passed is the gait's own reckoning again, never the
-  // metres glided since a plant long gone.
-  if (n !== s.poledStride || !(ride.drive > 0)) {
-    const step = ride.step ?? 0;
-    const rate =
-      strideRate(ride.speed, true, step, ride.hill) *
+  // metres glided since a plant long gone. After that it runs on with the
+  // way until the push lets go — through that frame only the snow passed
+  // up to the release — and is held there over the recovery.
+  const step = ride.step ?? 0;
+  const pass =
+    way /
+    (strideRate(ride.speed, true, step, ride.hill) *
       stepQuick(step, ride.speed) *
-      Math.max(0.2, ride.drive);
-    s.poled = ((ride.stride - n) * way) / rate;
+      Math.max(0.2, ride.drive));
+  const at = ride.stride - n;
+  if (n !== s.poledStride || !(ride.drive > 0)) {
+    s.poled = Math.min(at, gait.duty) * pass;
     s.poledStride = n;
-  } else s.poled += way * dt;
+  } else if (s.poledAt < gait.duty)
+    s.poled += Math.max(0, way * dt - Math.max(0, at - gait.duty) * pass);
+  s.poledAt = at;
   return Math.min(1, gait.stride + gait.skate + gait.pole);
 }
 
@@ -749,19 +761,20 @@ function stepLegs(
   // legs bring him back over them as they fly.
   const give = airborne ? 0 : own * (vy - s.slope);
   // The legs' reach: what the engine's compression has folded them by is
-  // spent. Over the last of it the knees stiffen (`LEGS.stop`), so a hard
-  // landing is slowed into the deepest fold rather than stopped dead at it.
+  // spent.
   const fold = LEGS.fold - Math.max(0, lift);
   const extend = -LEGS.extend - Math.min(0, lift);
-  const deep = fold - LEGS.stop.zone;
   const n = Math.max(1, Math.ceil(dt / (1 / 120)));
   const h = dt / n;
   for (let i = 0; i < n; i++) {
-    let acc =
-      kick - LEGS.omega * LEGS.omega * s.bump - 2 * LEGS.zeta * LEGS.omega * (s.rate - give);
-    if (s.bump > deep) {
-      const w = LEGS.stop.omega;
-      acc -= w * w * (s.bump - deep) + 2 * w * Math.max(0, s.rate);
+    s.rate += kick * h;
+    let acc = -LEGS.omega * LEGS.omega * s.bump - 2 * LEGS.zeta * LEGS.omega * (s.rate - give);
+    // A body coming down faster than the spring would stop it inside the
+    // fold left is braked as legs brake it (`LEGS.brake`): hardest at
+    // once, easing off to nothing as it comes to rest at the end.
+    if (s.rate > 0) {
+      const most = (LEGS.brake * s.rate * s.rate) / (2 * Math.max(1e-3, fold - s.bump));
+      acc = Math.min(acc, -most);
     }
     s.rate += acc * h;
     s.bump += s.rate * h;

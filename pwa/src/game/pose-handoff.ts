@@ -17,7 +17,8 @@
 // (`skier-figure.ts`' `createFigureHandOff` does, for a figure on a root).
 
 import type { SkierPose } from "./skier-joints.ts";
-import type { V3 } from "./skier-vec.ts";
+import { keepLengths } from "./skier-limbs.ts";
+import { len, sub, type V3 } from "./skier-vec.ts";
 
 /** How long a hand-off between two ways of drawing him takes, s. */
 export const HAND_OFF = 0.25;
@@ -167,7 +168,40 @@ export function handOff(
     moved(`${name}0`, v[0]),
     moved(`${name}1`, v[1]),
   ];
-  const feet = pair("feet", p.feet);
+  // ...and every limb set back to the new pose's own lengths: each point
+  // carried on its own gap, a thigh between a hip and a knee carried apart
+  // grew half as long again over the hand-off.
+  const limb = (
+    root: [V3, V3],
+    mid: [V3, V3],
+    end: [V3, V3],
+    i: number,
+    was: SkierPose["knees"][],
+  ) =>
+    keepLengths(
+      root[i],
+      mid[i],
+      end[i],
+      len(sub(was[1][i], was[0][i])),
+      len(sub(was[2][i], was[1][i])),
+    );
+  const hipJoints = pair("hipJoints", p.hipJoints);
+  const shoulders = pair("shoulders", p.shoulders);
+  const legs = [0, 1].map((i) =>
+    limb(hipJoints, pair("knees", p.knees), pair("feet", p.feet), i, [
+      p.hipJoints,
+      p.knees,
+      p.feet,
+    ]),
+  );
+  const arms = [0, 1].map((i) =>
+    limb(shoulders, pair("elbows", p.elbows), pair("hands", p.hands), i, [
+      p.shoulders,
+      p.elbows,
+      p.hands,
+    ]),
+  );
+  const feet: [V3, V3] = [legs[0].end, legs[1].end];
   const boots = [0, 1].map((i) => ({
     ...p.boots[i],
     f: toward(feet[i], moved(`bootF${i}`, along(p.feet[i], p.boots[i].f))),
@@ -180,12 +214,12 @@ export function handOff(
     waist: moved("waist", p.waist),
     neck: moved("neck", p.neck),
     head: moved("head", p.head),
-    hipJoints: pair("hipJoints", p.hipJoints),
-    knees: pair("knees", p.knees),
+    hipJoints,
+    knees: [legs[0].mid, legs[1].mid],
     feet,
-    shoulders: pair("shoulders", p.shoulders),
-    elbows: pair("elbows", p.elbows),
-    hands: pair("hands", p.hands),
+    shoulders,
+    elbows: [arms[0].mid, arms[1].mid],
+    hands: [arms[0].end, arms[1].end],
     poles: p.poles ? pair("poles", p.poles) : null,
   };
 }

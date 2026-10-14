@@ -4,8 +4,9 @@ A free ride's ski area keeps FIRES: a CAMP FIRE outside a share of its huts,
 where skiers stop to grill sausages and warm their hands, and a few BONFIRES
 on the valley floor at the bottom of the runs. This page is what they are
 modelled on and what is built. The engine half is built: where every fire
-stands and what riding into one does; and the fires are drawn. The people
-grilling round them and the skier burning are the parts still to come.
+stands and what riding into one does; the fires are drawn; and the people
+round them are out on the free ride. The skier burning is the part still to
+come.
 
 ## What they are modelled on
 
@@ -83,3 +84,34 @@ grilling round them and the skier burning are the parts still to come.
   with its milliseconds, draw calls and triangles).
 
 `tests/fires_test.ts` and `tests/fires_look_test.ts` hold it.
+
+## The people round them
+
+Skiers stop at a fire to warm up and eat (`civilian-fires.ts`, dealt by
+`civilian-plan.ts` on a salt of its own, so no digest moves — presentation
+only). A camp fire gathers two to five, a bonfire four to ten, every one
+facing the fire:
+
+- **Sat on the benches**, the hips on the seat itself: a sitter's floor is
+  the bench's top less the bench pose's seat height, so the figure sits on
+  the log and never on the air beside it.
+- **Grilling**: stood (or, at a camp fire, sat on a bench no higher than the
+  hearth) with a 1.2 m stick held out low, a sausage at its tip over the
+  embers — a third of a metre out from a camp fire's middle, 1.9 m from a
+  bonfire's, a quarter to seven tenths of a metre over the hearth — turned
+  slowly and browned in stripes (`civilian-fires.ts`'s `stickTip`, drawn by `fire-helds.ts`).
+- **Eating** the sausage in its bread, a bite every few seconds; **warming
+  the hands** palms out to the heat; talking, a mug or a beer.
+- A pair or a few of **skis and poles stuck upright** in the snow behind them.
+
+They come by the hour (`FIRE_HOURS` in `civilian-fire-roles.ts`): a camp
+fire fullest round lunch (11–14) and thin late at night, a bonfire filling
+toward evening and the afterski. They are the civilians' own figures and
+poses (the `grill`, `eat`, `bite` and `warm` targets and their bench forms,
+`civilian-moves.ts`) in the same instanced draw; the sticks and the bread are
+two instanced meshes beside it, drawn only near the lens. Every other person
+on foot is kept out of a fire's ring (`fireKeepOut`), and nobody stands in a
+hearth or on a bench he is not sat on. `make fires ARGS=--sheet=people` is
+the lab (a group close and from above, the view from a bench, a griller's
+hand, stick and sausage close up, an eater and a warmer, a bonfire's ring,
+and the same at hour 21); `tests/fire_people_test.ts` holds it.

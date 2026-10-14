@@ -8,7 +8,12 @@
 //   * BONFIRE — a bonfire close, from 20 m and from 60 m;
 //   * NIGHT — both at hour 21: the light on the snow, the benches, the hut
 //     and the trees, the sparks;
-//   * MAP — the base from the air, its bonfires and a hut's fire far off.
+//   * MAP — the base from the air, its bonfires and a hut's fire far off;
+//   * PEOPLE — the skiers round them (`civilian-fires.ts`): a camp fire's
+//     group close and from above, the view from a bench, a griller's hand,
+//     stick and sausage close up, one eating and one warming his hands, a
+//     bonfire's ring, and the camp fire and the bonfire at hour 21 lit by
+//     the fire (the run's clock carried on to the night's people).
 //
 // Every frame is captioned with what it cost: the milliseconds, the draw
 // calls and the triangles. It exposes `window.__fires.sheet(group, views)`,
@@ -21,6 +26,7 @@ import {
   firesOf,
   generateLevel,
   NEUTRAL_INPUT,
+  SKY_CLOCK,
   step,
   TUNING,
   windAt,
@@ -32,6 +38,17 @@ import {
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { snowFloor } from "../game/fire-plan.ts";
+import { setSkyClock } from "../game/sky-clock.ts";
+import { heldHand, stickTip } from "../game/civilian-fires.ts";
+import { CIVILIAN_POSES, civilianDials } from "../game/civilian-moves.ts";
+import {
+  civilianAt,
+  civilianHour,
+  civilianPlanFor,
+  freshCivilianPose,
+  type CivilianPlan,
+} from "../game/civilian-plan.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 
@@ -42,6 +59,17 @@ const GROUPS = {
   bonfire: ["bonfire-close", "bonfire-20", "bonfire-60"],
   night: ["night-camp", "night-bench", "night-bonfire", "night-map"],
   map: ["map-base", "map-hut"],
+  people: [
+    "people-camp",
+    "people-above",
+    "people-bench",
+    "people-grill",
+    "people-eat",
+    "people-bonfire",
+    "people-ring",
+    "people-night-camp",
+    "people-night-bonfire",
+  ],
 } as const;
 
 declare global {
@@ -166,6 +194,86 @@ const need = (f: Fire | undefined, what: string): Fire => {
   return f;
 };
 
+/** THE PEOPLE: the plan of the run's map, and who of it is at fire `f`
+ * and out at `t`. */
+function fireside(state: GameState, f: Fire): { plan: CivilianPlan; at: number[] } {
+  const plan = civilianPlanFor(state.level);
+  const hour = civilianHour(state.level, state.t);
+  const pose = freshCivilianPose();
+  const at: number[] = [];
+  plan.people.forEach((c, i) => {
+    if (c.fire?.id === f.id && civilianAt(plan, i, state.t, hour, pose).shown) at.push(i);
+  });
+  return { plan, at };
+}
+
+/** The hour the people views' people are out at: the map's own, or the
+ * night's for the night views — the run's clock carried on until the sky's
+ * clock (`civilianHour`) reaches it, the people being a pure function of
+ * that clock. */
+let peopleHour: number | null = null;
+
+/** A fresh run a second in, its clock carried on to `peopleHour`. */
+function settle(state: GameState): void {
+  run(state, 1);
+  if (peopleHour === null) return;
+  const t0 = state.t;
+  for (let k = 0; k < 24 * 3600; k += 5) {
+    const h = civilianHour(state.level, t0 + k);
+    if (Math.abs(h - peopleHour) < 0.05) {
+      state.t = t0 + k;
+      return;
+    }
+  }
+}
+
+/** `shots` with the people of the night hour, at its busiest fires. */
+async function atNight(shots: () => Promise<void>): Promise<void> {
+  const [camp0, bonfire0] = [campPeople, bonfirePeople];
+  peopleHour = nightHour;
+  // The lab's sky clock stands (`sky-clock.ts`): run it at the game's rate
+  // for the people to be at the night's hour — the sky itself is held by
+  // `under`.
+  setSkyClock(SKY_CLOCK.rate);
+  campPeople = busiest("camp") ?? camp0;
+  bonfirePeople = busiest("bonfire") ?? bonfire0;
+  try {
+    await shots();
+  } finally {
+    peopleHour = null;
+    setSkyClock(0);
+    campPeople = camp0;
+    bonfirePeople = bonfire0;
+  }
+}
+
+/** The fire of `kind` with the most people out at it at the map's hour. */
+function busiest(kind: Fire["kind"]): Fire | undefined {
+  const s = fresh();
+  settle(s);
+  let best: Fire | undefined;
+  let most = -1;
+  for (const f of fires.filter((g) => g.kind === kind)) {
+    const n = fireside(s, f).at.length;
+    if (n > most) {
+      most = n;
+      best = f;
+    }
+  }
+  return best;
+}
+
+/** A lens from (ex, ey, ez) at (tx, ty, tz). */
+const lens = (e: number[], t: number[], fov = 50): LensPose => ({
+  eye: { x: e[0], y: e[1], z: e[2] },
+  target: { x: t[0], y: t[1], z: t[2] },
+  fov,
+  roll: 0,
+});
+
+let campPeople: Fire | undefined;
+let bonfirePeople: Fire | undefined;
+
 const VIEWS: Record<string, () => Promise<void>> = {
   async "camp-close"() {
     const f = need(camp, "camp fire");
@@ -239,6 +347,150 @@ const VIEWS: Record<string, () => Promise<void>> = {
     const a = Math.atan2(f.x - v.x, f.z - v.z) + Math.PI;
     shoot(s, "base", round(f, a, 140, 70, 0, 55));
   },
+  async "people-camp"() {
+    const f = need(campPeople, "camp fire with people");
+    const s = fresh();
+    settle(s);
+    shoot(s, "group", round(f, hutWay(f) + 2.4, 5.5, 1.6, 0.7, 50));
+  },
+  async "people-above"() {
+    const f = need(campPeople, "camp fire with people");
+    const s = fresh();
+    settle(s);
+    shoot(s, "above", round(f, hutWay(f) + 0.3, 3.5, 7, 0, 55));
+  },
+  async "people-bench"() {
+    // From where a sitter's eyes are, on the bench furthest round from
+    // anyone at the fire, looking across it at the others.
+    const f = need(campPeople, "camp fire with people");
+    const s = fresh();
+    settle(s);
+    const { plan, at } = fireside(s, f);
+    const pose = freshCivilianPose();
+    const hour = civilianHour(s.level, s.t);
+    const off = (a: number): number => Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
+    const bearings = at.map((i) => {
+      civilianAt(plan, i, s.t, hour, pose);
+      return Math.atan2(pose.x - f.x, pose.z - f.z);
+    });
+    let best = f.seats[0];
+    let room = -1;
+    for (const b of f.seats) {
+      const a = Math.atan2(b.x - f.x, b.z - f.z);
+      const gap = Math.min(Math.PI, ...bearings.map((q) => off(q - a)));
+      if (gap > room) {
+        room = gap;
+        best = b;
+      }
+    }
+    const a = Math.atan2(best.x - f.x, best.z - f.z);
+    const r = Math.hypot(best.x - f.x, best.z - f.z) + 0.15;
+    const ex = f.x + Math.sin(a) * r;
+    const ez = f.z + Math.cos(a) * r;
+    const ey = snowFloor(s.level, best.x, best.z) + 1.2;
+    shoot(s, "bench", lens([ex, ey, ez], [f.x, f.y + 0.6, f.z], 70));
+  },
+  async "people-eat"() {
+    // One eating his sausage in its bread and one warming his hands, each
+    // seen from the fire's side of him.
+    const f = need(campPeople, "camp fire with people");
+    const s = fresh();
+    settle(s);
+    const plan = civilianPlanFor(s.level);
+    const pose = freshCivilianPose();
+    const t0 = s.t;
+    for (const want of ["eat", "warm"] as const) {
+      let found = -1;
+      let when = t0;
+      for (const g of [f, ...fires.filter((q) => q !== f)]) {
+        for (let k = 0; k < 600 && found < 0; k++) {
+          const t = t0 + k * 2;
+          const hour = civilianHour(s.level, t);
+          plan.people.forEach((c, i) => {
+            if (found >= 0 || c.fire?.id !== g.id) return;
+            const p = civilianAt(plan, i, t, hour, pose);
+            if (p.shown && p.activity === want) {
+              found = i;
+              when = t;
+            }
+          });
+        }
+        if (found >= 0) break;
+      }
+      if (found < 0) throw new Error(`nobody at a fire to ${want}`);
+      s.t = when;
+      civilianAt(plan, found, when, civilianHour(s.level, when), pose);
+      const ch = Math.cos(pose.heading);
+      const sh = Math.sin(pose.heading);
+      const seated = plan.people[found].home.seat !== null;
+      const hy = pose.y + (seated ? 0.85 : 1.1);
+      // In front of him, out to his right, a little over his hands.
+      const ex = pose.x + sh * 1.5 + ch * 0.9;
+      const ez = pose.z + ch * 1.5 - sh * 0.9;
+      shoot(
+        s,
+        want,
+        lens([ex, hy + 0.15, ez], [pose.x + sh * 0.2, hy - 0.1, pose.z + ch * 0.2], 45),
+      );
+    }
+  },
+  async "people-grill"() {
+    // A griller's hand, stick and sausage, from his side.
+    const f = need(campPeople, "camp fire with people");
+    const s = fresh();
+    settle(s);
+    const { plan, at } = fireside(s, f);
+    const hour = civilianHour(s.level, s.t);
+    const pose = freshCivilianPose();
+    const w = new Float32Array(CIVILIAN_POSES.length);
+    const hand: [number, number, number] = [0, 0, 0];
+    const i = at.find((k) => civilianAt(plan, k, s.t, hour, pose).activity === "grill");
+    if (i === undefined) throw new Error(`nobody grilling at ${f.id}`);
+    civilianAt(plan, i, s.t, hour, pose);
+    civilianDials(pose, s.t, i, w);
+    heldHand(plan.people[i].body, w, hand);
+    const ch = Math.cos(pose.heading);
+    const sh = Math.sin(pose.heading);
+    const hx = pose.x + hand[0] * ch + hand[2] * sh;
+    const hy = pose.y + hand[1];
+    const hz = pose.z - hand[0] * sh + hand[2] * ch;
+    const tip = stickTip({ x: hx, y: hy, z: hz }, f.kind, f.x, f.y, f.z, { x: 0, y: 0, z: 0 });
+    const mx = (hx + tip.x) / 2;
+    const mz = (hz + tip.z) / 2;
+    // Square to the stick, on his right, a little above.
+    const ex = mx + ch * 1.4 - sh * 0.3;
+    const ez = mz - sh * 1.4 - ch * 0.3;
+    shoot(s, "grill", lens([ex, (hy + tip.y) / 2 + 0.35, ez], [mx, (hy + tip.y) / 2, mz], 50));
+    // And the sausage itself, close.
+    shoot(
+      s,
+      "sausage",
+      lens([tip.x + ch * 0.55, tip.y + 0.25, tip.z - sh * 0.55], [tip.x, tip.y, tip.z], 40),
+    );
+  },
+  async "people-bonfire"() {
+    const f = need(bonfirePeople, "bonfire with people");
+    const s = fresh();
+    settle(s);
+    shoot(s, "ring", round(f, 0.9, 8.5, 1.8, 1.2, 58));
+  },
+  async "people-ring"() {
+    const f = need(bonfirePeople, "bonfire with people");
+    const s = fresh();
+    settle(s);
+    shoot(s, "above", round(f, 2.0, 7, 10, 0, 60));
+  },
+  async "people-night-camp"() {
+    await under(nightHour);
+    await atNight(async () => {
+      await VIEWS["people-camp"]();
+      await VIEWS["people-bench"]();
+    });
+  },
+  async "people-night-bonfire"() {
+    await under(nightHour);
+    await atNight(() => VIEWS["people-bonfire"]());
+  },
   async "map-hut"() {
     const f = need(camp, "camp fire");
     const s = fresh();
@@ -253,6 +505,8 @@ const ready = (async () => {
   await under(hour);
   renderer.draw(first, 1, FRAME);
   await renderer.shadeSettled();
+  campPeople = busiest("camp");
+  bonfirePeople = busiest("bonfire");
   const kinds = new Map<string, number>();
   for (const f of camps) {
     const kind = cabins.find((c) => c.id === f.building)?.kind ?? "?";
@@ -260,7 +514,8 @@ const ready = (async () => {
   }
   return (
     `${camps.length} camp fires (${[...kinds].map(([k, n]) => `${n} ${k}`).join(", ")}), ` +
-    `${bonfires.length} bonfires; the camp views' ${camp?.id ?? "-"} by ${camp?.building ?? "-"}`
+    `${bonfires.length} bonfires; the camp views' ${camp?.id ?? "-"} by ${camp?.building ?? "-"}; ` +
+    `people at ${campPeople?.id ?? "-"} and ${bonfirePeople?.id ?? "-"}`
   );
 })();
 

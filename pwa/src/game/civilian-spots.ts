@@ -32,6 +32,7 @@ import {
   CORRAL_TAIL,
   boardingRing,
   cabinsOf,
+  firesOf,
   isMountainBuilding,
   isResortBuilding,
   onCarriageway,
@@ -49,6 +50,7 @@ import {
   type LiftPlan,
 } from "@engine";
 
+import { fireKeepOut } from "./civilian-fires.ts";
 import { DECK, DECK_END, GAP, TERRACE, TERRACE_TABLES } from "./lodge-measure.ts";
 import { layStations } from "./station-plan.ts";
 import { wildGround } from "./wild-ground.ts";
@@ -168,6 +170,9 @@ type Obstacles = {
     z1: number;
   }[];
   cabins: readonly Cabin[];
+  /** Each fire's ring — its hearth, benches and the skis by it — kept to
+   * the people dealt round it (`civilian-fires.ts`). */
+  fires: { x: number; z: number; r: number }[];
 };
 
 const obstacles = new WeakMap<Level, Obstacles>();
@@ -215,7 +220,8 @@ function obstaclesOf(level: Level): Obstacles {
     }
     return { points: t.points, half: t.width / 2, x0, x1, z0, z1 };
   });
-  const out: Obstacles = { houses, lanes, rings, pads, tunnels, cabins: cabinsOf(level) };
+  const fires = firesOf(level).map((f) => ({ x: f.x, z: f.z, r: fireKeepOut(f) }));
+  const out: Obstacles = { houses, lanes, rings, pads, tunnels, cabins: cabinsOf(level), fires };
   obstacles.set(level, out);
   return out;
 }
@@ -258,7 +264,8 @@ function inBuilding(level: Level, x: number, z: number, pad: number): boolean {
  * who stands inside the lift's own clearance and beside its load line.
  * `spare`: metres more kept from everything — a line checked every
  * `2 × spare` m is then clear between its samples too, every clearance
- * here being a distance.
+ * here being a distance. `fires`: kept out of every fire's ring, its
+ * hearth and benches (false for the people dealt round one).
  */
 export function civilianClear(
   level: Level,
@@ -266,6 +273,7 @@ export function civilianClear(
   z: number,
   post = false,
   spare = 0,
+  fires = true,
 ): boolean {
   const C = CIVILIAN_CLEAR;
   const ground = wildGround(level);
@@ -283,6 +291,7 @@ export function civilianClear(
     if (Math.abs(u) < h.hl + house && Math.abs(v) < h.hw + house) return false;
   }
   for (const p of o.pads) if (Math.hypot(p.x - x, p.z - z) < p.r + spare) return false;
+  if (fires) for (const f of o.fires) if (Math.hypot(f.x - x, f.z - z) < f.r + spare) return false;
   if (post) return true;
   if (ground.slope(x, z) > C.slope) return false;
   if (pisteGap(level, x, z, 40) < C.piste + spare) return false;

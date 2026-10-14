@@ -32,7 +32,16 @@
 // children) shares its leader's keenness, so it comes and goes together;
 // the first of the crew at a lift's post is out whenever any of it is.
 
-import { TAU, createRng, type CrowdBody, type Level, type Rng, type RunRules } from "@engine";
+import {
+  TAU,
+  createRng,
+  pisteGap,
+  type CrowdBody,
+  type Fire,
+  type Level,
+  type Rng,
+  type RunRules,
+} from "@engine";
 
 import {
   BOOT_GAIT,
@@ -46,6 +55,7 @@ import {
   type RoleId,
 } from "./civilian-roles.ts";
 import {
+  CIVILIAN_CLEAR,
   civilianClear,
   frameAt,
   pastHub,
@@ -55,6 +65,7 @@ import {
   type Spot,
 } from "./civilian-spots.ts";
 import { SNOWBALL } from "./civilian-moves.ts";
+import { dealFirePeople } from "./civilian-fires.ts";
 import { skyHourNow } from "./sky-clock.ts";
 import { freshRouteAt, routeAside, routeAt, routeOf, type Route } from "./civilian-route.ts";
 import { wildGround } from "./wild-ground.ts";
@@ -124,6 +135,9 @@ const THROW_RING = SNOWBALL.reach / 2;
 /** One guest behind the next in a queue, m: a body and a pair of skis on
  * a shoulder. */
 const QUEUE_STEP = 0.95;
+/** What a person at a fire keeps from a run's edge, m: the fire's own
+ * place stands off the runs already. */
+const FIRE_PISTE = 1.6;
 /** A class stands on an arc this far before its instructor, m. */
 const CLASS_ARC = 2.6;
 
@@ -131,7 +145,7 @@ const CLASS_ARC = 2.6;
  * lounger, a snowman the children are building. */
 export type CivilianProp = {
   /** A summer's picnic lays a BLANKET on the grass. */
-  kind: "deckchair" | "snowman" | "blanket";
+  kind: "deckchair" | "snowman" | "blanket" | "skis";
   /** A snowman's stage: 1 the bottom ball, 2 two, 3 finished. */
   stage?: 1 | 2 | 3;
   x: number;
@@ -168,6 +182,9 @@ export type Civilian = {
   /** On his skis, skating his round (drawn on the crowd's figure). */
   readonly skis: boolean;
   readonly routine: readonly Held[];
+  /** At a fire (`civilian-fires.ts`): its id and its hearth's middle, the
+   * point a griller holds his sausage over. */
+  readonly fire?: { id: string; kind: Fire["kind"]; x: number; y: number; z: number };
   /** The routine's whole length, s, and where in it he starts. */
   readonly total: number;
   readonly offset: number;
@@ -747,6 +764,41 @@ export function planCivilians(level: Level, summer = false): CivilianPlan {
         }
       }
     }
+  }
+  if (!summer) {
+    // THE PEOPLE AT THE FIRES, after everyone else on a stream of their
+    // own: sat on the benches, grilling, eating, warming their hands.
+    // A fire's ring is its own place (`fires.ts` stood it off the runs, the
+    // trunks and the walls): on clear snow a man stands on, off the runs.
+    const ground = wildGround(level);
+    const fireside = dealFirePeople(
+      level,
+      (x, z) =>
+        civilianClear(level, x, z, true, 0, false) &&
+        ground.slope(x, z) <= CIVILIAN_CLEAR.slope &&
+        pisteGap(level, x, z, 40) > FIRE_PISTE,
+    );
+    for (const h of fireside.homes) {
+      const f = h.fire;
+      const spot: Spot = {
+        id: `fire-${f.id}`,
+        kind: "base",
+        x: f.x,
+        z: f.z,
+        heading: 0,
+        area: { x0: 0, x1: 0, z0: 0, z1: 0 },
+        keepOut: [],
+        seats: [],
+        of: f.building ?? f.id,
+      };
+      const { x, y, z, heading, seat } = h;
+      const c = add(roleOf(h.role), spot, { x, y, z, heading, seat }, false, h.keen, null, h.body);
+      people[people.length - 1] = {
+        ...c,
+        fire: { id: f.id, kind: f.kind, x: f.x, y: f.y, z: f.z },
+      };
+    }
+    for (const s of fireside.skis) props.push({ kind: "skis", ...s });
   }
   if (summer) {
     // THE HIKERS ON THE TRACKS: a party a route, walked through its bends,

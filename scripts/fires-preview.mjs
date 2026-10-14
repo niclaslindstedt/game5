@@ -12,6 +12,10 @@
 //   night    night-camp, night-bench, night-bonfire, night-map (at hour 21:
 //            the light on the snow, the benches, the hut and the trees)
 //   map      map-base (the base from the air), map-hut (a hut's fire off)
+//   people   people-camp, people-above, people-bench, people-grill (a
+//            griller's hand, stick and sausage close), people-bonfire,
+//            people-ring, people-night-camp, people-night-bonfire (the
+//            skiers round the fires, `civilian-fires.ts`)
 //
 // Each frame is captioned with its milliseconds, draw calls and triangles.
 // Each GROUP is one contact sheet, previews/fires-<group>.png, and every
@@ -44,12 +48,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (camp, bonfire, night, map); every one when left out",
+      help: "which sheets, comma-separated (camp, bonfire, night, map, people); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (camp-close, camp-eye, camp-bench, camp-above, bonfire-close, bonfire-20, bonfire-60, night-camp, night-bench, night-bonfire, night-map, map-base, map-hut)",
+      help: "only these views, comma-separated (camp-close, camp-eye, camp-bench, camp-above, bonfire-close, bonfire-20, bonfire-60, night-camp, night-bench, night-bonfire, night-map, map-base, map-hut, people-camp, people-above, people-bench, people-grill, people-eat, people-bonfire, people-ring, people-night-camp, people-night-bonfire)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

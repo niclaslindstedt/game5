@@ -126,7 +126,18 @@ itself, so it may be crossed, held off its run lines like everywhere else.
 The crew at a lift's post is the one exception: it stands beside the load line,
 inside the lift's own clearance. A walker's whole line is held to the same
 test, sampled every metre with half a metre more kept off everything, so the
-snow between two samples is clear too.
+snow between two samples is clear too. A FIRE's ring (its hearth, its benches
+and a metre round them, `fireKeepOut`) is off limits to everyone but the
+people at that fire.
+
+### At the fires
+
+The camp fires and bonfires (`docs/fires.md`) keep people of their own, dealt
+after everyone else on a salt of their own and counted outside the cap
+(`civilian-fires.ts`, the roles in `civilian-fire-roles.ts`): sitters on the
+benches, grillers with a sausage on a stick, eaters, and others warming their
+hands, each facing the fire, out by the hour — a camp fire round lunch, a
+bonfire toward evening.
 
 ### Who: the roles
 

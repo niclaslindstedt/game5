@@ -31,6 +31,7 @@ import {
   type Ball,
 } from "../pwa/src/game/civilian-plan.ts";
 import { BOOT_GAIT, roleOf } from "../pwa/src/game/civilian-roles.ts";
+import { FIRESIDE } from "../pwa/src/game/civilian-fires.ts";
 import { SNOWBALL, snowballAt } from "../pwa/src/game/civilian-moves.ts";
 import { routeAt } from "../pwa/src/game/civilian-route.ts";
 import { civilianClear, pastHub, spotsOf } from "../pwa/src/game/civilian-spots.ts";
@@ -55,7 +56,10 @@ afterEach(() => {
 describe("the civilians' plan", () => {
   it("is a ski area's worth of people, under the cap", () => {
     expect(plan.people.length).toBeGreaterThan(40);
-    expect(plan.people.length).toBeLessThanOrEqual(CIVILIAN_MOST);
+    // The people at the fires on a budget of their own (`fire_people_test`).
+    const fireside = plan.people.filter((c) => c.fire).length;
+    expect(fireside).toBeLessThanOrEqual(FIRESIDE.most);
+    expect(plan.people.length - fireside).toBeLessThanOrEqual(CIVILIAN_MOST);
   });
 
   it("is dealt the same off the same map, and off nothing random", () => {
@@ -131,6 +135,8 @@ describe("where a civilian stands", () => {
     const pose = freshCivilianPose();
     for (let i = 0; i < plan.people.length; i++) {
       civilianAt(plan, i, 55, NOON, pose);
+      // Sat on a fire's bench, his floor is the bench's (`fire_people_test`).
+      if (plan.people[i].fire && plan.people[i].home.seat !== null) continue;
       if (plan.people[i].deck) {
         expect(lodges.some((l) => Math.abs(pose.y - (l.y + DECK.top)) < 1e-6)).toBe(true);
       } else {
@@ -180,7 +186,7 @@ describe("who is where", () => {
     }
   });
 
-  it("thins out at night to the partiers, a few staff and the odd walker", () => {
+  it("thins out at night to the partiers, a few staff, the fires and the odd walker", () => {
     expect(civiliansOut(plan, NIGHT)).toBeLessThan(civiliansOut(plan, NOON));
     expect(civiliansOut(plan, 6)).toBeLessThan(civiliansOut(plan, NOON));
     const pose = freshCivilianPose();
@@ -190,7 +196,7 @@ describe("who is where", () => {
       const c = plan.people[i];
       if (!civilianAt(plan, i, 0, NIGHT, pose).shown) continue;
       all++;
-      if (roleOf(c.role).staff || c.deck) continue;
+      if (roleOf(c.role).staff || c.deck || c.fire) continue;
       expect(["walker", "stroller", "baseSkier", "child"]).toContain(c.role);
       walkers++;
     }

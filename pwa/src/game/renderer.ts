@@ -790,7 +790,10 @@ export function createWorldRenderer(
       cloud.setFocus(d.x, d.y + 0.6, d.z, planted ? 1 : CLOUD_VEIL);
       cloud.update(Math.min(dt, 0.1), look, level, wind, lens.camera.position);
       snowfall.setScale(pixels);
-      snowfall.update(look, wind, lens.camera, level, dt);
+      // A summer's air holds no crystals and its ground no snow to lift: the
+      // motes streaking past at pace read as dark dashes on the sky.
+      snowfall.group.visible = !summer();
+      if (!summer()) snowfall.update(look, wind, lens.camera, level, dt);
       gates?.air(state, look, wind, lens.camera.position, pixels);
 
       const built = performance.now();

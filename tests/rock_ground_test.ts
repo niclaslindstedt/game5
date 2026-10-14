@@ -110,6 +110,34 @@ describe("the rock underfoot", () => {
     expect(on / checked).toBeGreaterThan(0.95);
   });
 
+  it("is met wherever it is drawn, on a summer bike park's map too: no facet stands over the surface", () => {
+    for (const summer of [false, true]) {
+      const s = createGame({ seed: 38, mode: "free", summer, bike: summer, crowd: 0, quiet: true });
+      const level = s.level;
+      const band = regionLookOf(regionOf(level).id).rock!;
+      const m = rockMesh();
+      const cell = ROCKS.skin.cell;
+      const n = Math.round(level.size / cell);
+      buildSkin(m, level, band.tone, rockHash(level.seed, SKIN_SALT), cell, 0, 0, n, n);
+      let worst = 0;
+      for (let t = 0; t < m.pos.length; t += 9) {
+        for (const [a, b, c] of [
+          [1 / 3, 1 / 3, 1 / 3],
+          [0.6, 0.2, 0.2],
+          [0.2, 0.6, 0.2],
+          [0.2, 0.2, 0.6],
+        ]) {
+          const x = a * m.pos[t] + b * m.pos[t + 3] + c * m.pos[t + 6];
+          const y = a * m.pos[t + 1] + b * m.pos[t + 4] + c * m.pos[t + 7];
+          const z = a * m.pos[t + 2] + b * m.pos[t + 5] + c * m.pos[t + 8];
+          worst = Math.max(worst, y - level.groundAt(x, z));
+        }
+      }
+      expect(m.pos.length).toBeGreaterThan(9000);
+      expect(worst).toBeLessThan(0.02);
+    }
+  }, 120_000);
+
   it("leaves the snow alone: off the walls the ground is the map's", () => {
     for (let k = 0; k < base.track.points.length; k += 37) {
       const p = base.track.points[k];

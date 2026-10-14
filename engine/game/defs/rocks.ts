@@ -23,7 +23,10 @@ export const ROCKS = {
   /** A wall's rock SKIN (drawn, `buildSkin`): a corner every `cell` m
    * (the middle distance's cut `cheap` m), jittered `jitter` of a cell
    * in plan; a bare corner stands `proud` m over the ground plus up to
-   * `rough` m by how bare it is, a corner where the snow holds is tucked
+   * `rough` m by how bare it is — `own` of that the corner's own draw, the
+   * rest a smooth swell over `swell` cells its neighbours share, so the
+   * skin breaks into tilted slabs rather than a field of spikes (the rise
+   * is `rocks.ts`' `cornerRise`) — a corner where the snow holds is tucked
    * `sink` m under it; a cell is laid where a corner is bare past `from`.
    * No corner within `clear` m of packed snow or a bike trail is bare:
    * every facet that can hold a point is laid off corners that near it
@@ -36,7 +39,9 @@ export const ROCKS = {
     cheap: 6,
     jitter: 0.35,
     proud: 0.15,
-    rough: 0.75,
+    rough: 0.5,
+    own: 0.3,
+    swell: 3,
     sink: 0.35,
     from: 0.15,
     /** A facet's up share (its normal's y) snow lies whole on, and the

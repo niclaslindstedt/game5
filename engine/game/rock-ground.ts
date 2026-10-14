@@ -29,7 +29,7 @@ import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { regionOf } from "../mapgen/regions.ts";
 import type { Level } from "../mapgen/types.ts";
 import { ROCKS } from "./defs/rocks.ts";
-import { hashOf, rockShare, unit } from "./rocks.ts";
+import { cornerRise, hashOf, rockShare, unit } from "./rocks.ts";
 
 /** The salt a wall's skin is dealt off (`hashOf(level.seed, SKIN_SALT)`),
  * the drawing's and the physics' alike. */
@@ -121,7 +121,7 @@ function cornerAt(s: Skin, i: number, j: number, k: number): void {
   const bare = CB[k];
   CX[k] = x;
   CZ[k] = z;
-  CY[k] = bare > 0 ? ground + S.proud + S.rough * bare * unit(h, 2) : ground - S.sink;
+  CY[k] = bare > 0 ? ground + cornerRise(s.seed, i, j, bare) : ground - S.sink;
   CS[k] = 1;
 }
 

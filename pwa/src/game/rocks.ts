@@ -37,6 +37,14 @@ import {
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
+import {
+  ROCK_FRAGMENT_COLOUR,
+  ROCK_FRAGMENT_HEAD,
+  ROCK_FRAGMENT_NORMAL,
+  ROCK_VERTEX_HEAD,
+  ROCK_VERTEX_MAIN,
+  rockUniformsOf,
+} from "./rock-material.ts";
 import { buildSkin, buildWall, rockMesh, type RockMesh } from "./rock-shapes.ts";
 
 /** A tile's side, m. */
@@ -85,6 +93,7 @@ vec3 objectNormal = normalize(mix(normal, soft, rockCalm));
 #ifdef USE_TANGENT
   vec3 objectTangent = vec3(tangent.xyz);
 #endif
+${ROCK_VERTEX_MAIN}
 `;
 
 /** AND PULLED TOWARD THE LENS, IN DEPTH ALONE: `PULL` m for every metre
@@ -159,13 +168,21 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
   let lastEye: THREE.Vector3 | null = null;
   let lastReach = 0;
   const band = regionLookOf(regionOf(level).id).rock;
+  // The rock's own shading (`rock-material.ts`): the beds, joints, cracks,
+  // grain, streaks and snow, procedural, no texture.
+  const rockU = rockUniformsOf(level);
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
     "rock",
     (shader) => {
       PAST_THE_WALL(shader);
-      shader.vertexShader = (CALM_HEAD + shader.vertexShader)
+      Object.assign(shader.uniforms, rockU);
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", `#include <common>\n${ROCK_FRAGMENT_HEAD}`)
+        .replace("#include <color_fragment>", ROCK_FRAGMENT_COLOUR)
+        .replace("#include <normal_fragment_maps>", ROCK_FRAGMENT_NORMAL);
+      shader.vertexShader = (CALM_HEAD + ROCK_VERTEX_HEAD + shader.vertexShader)
         .replace("#include <beginnormal_vertex>", CALM_NORMAL)
         .replace("#include <color_vertex>", CALM_COLOUR)
         .replace("#include <project_vertex>", PULL_GLSL);
@@ -247,12 +264,20 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     g.setAttribute("position", new THREE.Float32BufferAttribute(part.pos, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(part.nrm, 3));
     g.setAttribute("color", new THREE.Float32BufferAttribute(part.col, 3));
+    g.setAttribute("snow", new THREE.Float32BufferAttribute(part.snow, 1));
+    g.setAttribute("bare", new THREE.Float32BufferAttribute(part.bare, 1));
     g.setAttribute("soft", new THREE.Float32BufferAttribute(part.soft, 3));
     g.setAttribute("calm", new THREE.Float32BufferAttribute(part.calm, 3));
     g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, material);
     mesh.userData.bytes =
-      (part.pos.length + part.nrm.length + part.col.length + part.soft.length + part.calm.length) *
+      (part.pos.length +
+        part.nrm.length +
+        part.col.length +
+        part.snow.length +
+        part.bare.length +
+        part.soft.length +
+        part.calm.length) *
       4;
     stats.triangles += part.pos.length / 9;
     stats.bytes += mesh.userData.bytes;

@@ -53,6 +53,36 @@ const smooth = (a: number, b: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
+/** HOW PROUD A WALL'S SKIN CORNER STANDS over the ground, m, where it is
+ * `bare` (0..1): `ROCKS.skin.proud` and up to `rough` more by how bare,
+ * that `rough` shared between the corner's own draw (`own` of it) and a
+ * smooth swell over `swell` cells, so neighbouring corners rise and fall
+ * together into planes and slabs rather than each standing up a pyramid of
+ * its own. The ONE place the rise is decided: the drawn skin
+ * (`rock-shapes.ts`) and the ridden one (`rock-ground.ts`) both ask it. */
+export function cornerRise(seed: number, i: number, j: number, bare: number): number {
+  const S = ROCKS.skin;
+  return (
+    S.proud +
+    S.rough * bare * (S.own * unit(hashOf(seed, i, j), 2) + (1 - S.own) * swellAt(seed, i, j))
+  );
+}
+
+/** A value noise over the lattice, 0..1, one draw every `ROCKS.skin.swell`
+ * cells eased between: the slow rise and fall a wall's skin follows. */
+function swellAt(seed: number, i: number, j: number): number {
+  const n = ROCKS.skin.swell;
+  const fi = Math.floor(i / n);
+  const fj = Math.floor(j / n);
+  const ease = (t: number): number => t * t * (3 - 2 * t);
+  const u = ease(i / n - fi);
+  const v = ease(j / n - fj);
+  const at = (a: number, b: number): number => unit(hashOf(seed, a, b, 11), 0);
+  const top = at(fi, fj) + (at(fi + 1, fj) - at(fi, fj)) * u;
+  const bottom = at(fi, fj + 1) + (at(fi + 1, fj + 1) - at(fi, fj + 1)) * u;
+  return top + (bottom - top) * v;
+}
+
 /** How much of a wall the ground is at a normal, 0..1: none under
  * `ROCKS.wall`, all of it past `ROCKS.whole`. */
 export function wallOf(n: Vec3): number {

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE ROCK AS BUILT — the DROPS' whole surface as coarse, faceted rock in
-// the world frame: few triangles, all of them carrying the shape (no
-// texture does it), flat-lit a facet at a time so a plane catches the sun
-// and the next goes dark.
+// THE ROCK AS BUILT — the DROPS' whole surface as coarse rock in the world
+// frame: few triangles carrying the big shape, SMOOTH-LIT across the gentle
+// folds and CREASED only where two facets meet at a sharp angle (past
+// `CREASE`), so the eye reads slabs and edges rather than a lattice; the
+// rest — the beds, the joints, the cracks, the grain, the streaks, the snow
+// on the ledges — is the rock's own material's (`rock-material.ts`), drawn
+// in its shader without a texture.
 //
 // A WALL'S SKIN (`buildSkin`): a jittered lattice of corners over the
 // natural walls too steep to hold snow (the engine's `rockShare`), each
@@ -13,13 +16,23 @@
 // skin of corners over a rocky cliff's face (`cliffWalls`), lip to foot.
 // Two triangles a cell of either.
 //
-// SNOW HOLDS ON A FACET THAT FACES UP: past `SNOW_HOLDS` of the sky the
-// facet is painted snow, between it and `SNOW_SLIDES` a mix, the rest the
-// region's rock in a shade of its own a facet. Three-free: plain arrays the
-// draw (`rocks.ts`) hands the GPU and the suite counts.
+// WHAT A VERTEX CARRIES: the region's rock tone darkened where it goes into
+// the snow and in a CAVITY (a corner sunk below its neighbours: a crack, the
+// underside of a ledge), never a shade of its own a facet — the colour that
+// varies, varies by the rock's structure in the shader. The snow is laid
+// there too, off the facet's own tilt, so it lies where the ridden skin
+// (`rock-ground.ts`) is snow. Three-free: plain arrays the draw (`rocks.ts`)
+// hands the GPU and the suite counts.
 
-import { ROCKS, rockDraw as unit, rockHash, rockShare, type CliffWall, type Level } from "@engine";
-import { summerShown } from "./season-look.ts";
+import {
+  ROCKS,
+  cornerRise,
+  rockDraw as unit,
+  rockHash,
+  rockShare,
+  type CliffWall,
+  type Level,
+} from "@engine";
 
 /** How dark the rock is where it goes into the snow, of its own colour. */
 const FOOT = 0.45;
@@ -28,13 +41,9 @@ const FOOT = 0.45;
 export type Tone = readonly [number, number, number];
 
 /** The facet's up share (its normal's y) snow lies whole on, and the one
- * it slides off below. */
-export const SNOW_HOLDS = 0.62;
-export const SNOW_SLIDES = 0.42;
-/** A wall's skin lies at 50° and more, so snow holds only on its ledges:
- * whole past this up share (a facet tipped under 30°) — the engine's, so
- * the rock a skier rides is bare where it is drawn bare. */
-const SKIN_HOLDS = ROCKS.skin.holds;
+ * it slides off below — the shader's ledge snow (`rock-material.ts`). */
+export const SNOW_HOLDS = ROCKS.skin.holds;
+export const SNOW_SLIDES = ROCKS.skin.slides;
 /** The region's rock tone as the crags paint it: the region's hue, warmed
  * a little and brought to one VALUE (`ROCK_VALUE`, linear luminance) —
  * the shader's tone is that rock seen through a skin of snow and
@@ -50,46 +59,71 @@ export function rockTone(tone: Tone): Tone {
   const k = ROCK_VALUE / Math.max(1e-3, 0.2126 * r + 0.7152 * g + 0.0722 * b);
   return [r * k, g * k, b * k];
 }
-/** Snow on rock, linear — a shade under the open snow's glare, lying thin. */
-const SNOW: Tone = [0.86, 0.89, 0.94];
-/** IN SUMMER the up-facing facets carry turf and lichen, not snow, and
- * only half cover them: a grey-green, linear. */
-const LEDGE: Tone = [0.15, 0.17, 0.1];
 
-/** The triangles a run of outcrops makes: positions, flat normals and
- * colours, three floats a vertex, three vertices a triangle — and the
- * same rock CALMED for the distance (`soft`, `calm`): the smooth normal of
- * the ground under each corner and the colour a facet of the rock's mean
- * shade would wear facing that way. Far out a facet is a few pixels and
- * its own shade and lighting only twinkle as the lens moves, so the draw
- * eases each corner over to its calm pair with distance (`rocks.ts`). */
+/** A facet folded more than this off its corner's smooth normal, rad,
+ * keeps its own there, so a hard edge; gentler folds are lit smooth across
+ * (about 45° between two facets meeting). Real rock has hard edges at a
+ * block's arrises and smooth-ish planes within one. */
+const CREASE = (32 * Math.PI) / 180;
+const CREASE_COS = Math.cos(CREASE);
+/** The share of a facet's own normal kept where it is lit smooth. */
+const FACET = 0.4;
+/** How far a corner sunk below its neighbours (m, along its normal) darkens
+ * it, and the darkest a cavity goes, of the rock's own colour; a corner
+ * standing proud of them lightens a little, to `PROUD_MOST`. */
+const CAVITY = 0.9;
+const CAVITY_MOST = 0.55;
+const PROUD_MOST = 1.08;
+
+/** The triangles a run of outcrops makes: positions, normals (smooth, but
+ * creased past `CREASE`) and colours, three floats a vertex, three vertices
+ * a triangle; `snow` how much of the vertex's facet holds snow and
+ * `bare` how bare its corner's ground is (`rockShare`: the skin's edge
+ * runs out into the snow), one each a vertex — and the same rock CALMED for the distance (`soft`, `calm`): the
+ * smooth normal of the ground under each corner and the rock's colour with
+ * no cavity. Far out a facet is a few pixels and its own lighting only
+ * twinkles as the lens moves, so the draw eases each corner over to its
+ * calm pair with distance (`rocks.ts`). */
 export type RockMesh = {
   readonly pos: number[];
   readonly nrm: number[];
   readonly col: number[];
+  readonly snow: number[];
+  readonly bare: number[];
   readonly soft: number[];
   readonly calm: number[];
 };
 
 type P = [number, number, number];
 
-/** A triangle, wound so its normal points away from `inside`. */
-function tri(
-  m: RockMesh,
-  a: P,
-  b: P,
-  c: P,
-  inside: P,
-  paint: (ny: number) => Tone,
-  shadeAt: (p: P) => number,
-  calmOf: (p: P, n: P) => { n: P; col: Tone },
-): void {
-  const ex = b[0] - a[0];
-  const ey = b[1] - a[1];
-  const ez = b[2] - a[2];
-  const fx = c[0] - a[0];
-  const fy = c[1] - a[1];
-  const fz = c[2] - a[2];
+/** A corner of the rock: where it stands, its smooth normal (outward), the
+ * shade its cavity and its foot give it (`k`) and its foot's alone
+ * (`foot`: far out the cavity's speckle is a facet's own shade again), and
+ * the calmed normal far out. */
+type Vert = {
+  readonly p: P;
+  readonly n: P;
+  readonly k: number;
+  readonly foot: number;
+  readonly bare: number;
+  readonly soft: P;
+};
+
+/** How much of a facet facing up by `ny` holds snow, 0..1. */
+function snowOf(ny: number): number {
+  return Math.max(0, Math.min(1, (ny - SNOW_SLIDES) / (SNOW_HOLDS - SNOW_SLIDES)));
+}
+
+/** A triangle, wound so its normal points away from `inside`; each vertex
+ * lit by its corner's smooth normal unless the facet folds away from it
+ * past `CREASE`, where the facet's own is kept. */
+function tri(m: RockMesh, a: Vert, b: Vert, c: Vert, inside: P, stone: Tone): void {
+  const ex = b.p[0] - a.p[0];
+  const ey = b.p[1] - a.p[1];
+  const ez = b.p[2] - a.p[2];
+  const fx = c.p[0] - a.p[0];
+  const fy = c.p[1] - a.p[1];
+  const fz = c.p[2] - a.p[2];
   let nx = ey * fz - ez * fy;
   let ny = ez * fx - ex * fz;
   let nz = ex * fy - ey * fx;
@@ -97,9 +131,9 @@ function tri(
   nx /= l;
   ny /= l;
   nz /= l;
-  const mx = (a[0] + b[0] + c[0]) / 3 - inside[0];
-  const my = (a[1] + b[1] + c[1]) / 3 - inside[1];
-  const mz = (a[2] + b[2] + c[2]) / 3 - inside[2];
+  const mx = (a.p[0] + b.p[0] + c.p[0]) / 3 - inside[0];
+  const my = (a.p[1] + b.p[1] + c.p[1]) / 3 - inside[1];
+  const mz = (a.p[2] + b.p[2] + c.p[2]) / 3 - inside[2];
   let q = b;
   let r = c;
   if (nx * mx + ny * my + nz * mz < 0) {
@@ -109,16 +143,60 @@ function tri(
     q = c;
     r = b;
   }
-  const col = paint(ny);
-  for (const p of [a, q, r]) {
-    const k = shadeAt(p);
-    const calm = calmOf(p, [nx, ny, nz]);
-    m.pos.push(p[0], p[1], p[2]);
-    m.nrm.push(nx, ny, nz);
-    m.col.push(col[0] * k, col[1] * k, col[2] * k);
-    m.soft.push(calm.n[0], calm.n[1], calm.n[2]);
-    m.calm.push(calm.col[0] * k, calm.col[1] * k, calm.col[2] * k);
+  const snow = snowOf(ny);
+  for (const v of [a, q, r]) {
+    const smooth = v.n[0] * nx + v.n[1] * ny + v.n[2] * nz > CREASE_COS;
+    m.pos.push(v.p[0], v.p[1], v.p[2]);
+    if (smooth) {
+      // Smooth across the fold, with a share of the facet kept so a slab
+      // still catches the sun as a plane.
+      const sx = v.n[0] * (1 - FACET) + nx * FACET;
+      const sy = v.n[1] * (1 - FACET) + ny * FACET;
+      const sz = v.n[2] * (1 - FACET) + nz * FACET;
+      const sl = Math.hypot(sx, sy, sz) || 1;
+      m.nrm.push(sx / sl, sy / sl, sz / sl);
+    } else m.nrm.push(nx, ny, nz);
+    m.col.push(stone[0] * v.k, stone[1] * v.k, stone[2] * v.k);
+    m.snow.push(snow);
+    m.bare.push(v.bare);
+    m.soft.push(v.soft[0], v.soft[1], v.soft[2]);
+    m.calm.push(stone[0] * v.foot, stone[1] * v.foot, stone[2] * v.foot);
   }
+}
+
+/** The smooth normal of a grid of corners at one of them, off its four
+ * neighbours (central differences: seamless across tiles that share them),
+ * turned to face away from `inside`, and how far the corner stands off
+ * their mean along it (negative: sunk, a cavity). */
+function lattice(c: P, w: P, e: P, s: P, n: P, out: P): { n: P; off: number } {
+  const ax = e[0] - w[0];
+  const ay = e[1] - w[1];
+  const az = e[2] - w[2];
+  const bx = n[0] - s[0];
+  const by = n[1] - s[1];
+  const bz = n[2] - s[2];
+  let nx = ay * bz - az * by;
+  let ny = az * bx - ax * bz;
+  let nz = ax * by - ay * bx;
+  const l = Math.hypot(nx, ny, nz) || 1;
+  nx /= l;
+  ny /= l;
+  nz /= l;
+  if (nx * out[0] + ny * out[1] + nz * out[2] < 0) {
+    nx = -nx;
+    ny = -ny;
+    nz = -nz;
+  }
+  const mx = (w[0] + e[0] + s[0] + n[0]) / 4;
+  const my = (w[1] + e[1] + s[1] + n[1]) / 4;
+  const mz = (w[2] + e[2] + s[2] + n[2]) / 4;
+  const off = (c[0] - mx) * nx + (c[1] - my) * ny + (c[2] - mz) * nz;
+  return { n: [nx, ny, nz], off };
+}
+
+/** A cavity's shade off a corner's offset from its neighbours, m. */
+function cavityShade(off: number): number {
+  return Math.max(CAVITY_MOST, Math.min(PROUD_MOST, 1 + CAVITY * off));
 }
 
 /** A corner of a wall's skin: where it stands and how bare it is there. */
@@ -128,13 +206,13 @@ type Corner = { readonly p: P; readonly bare: number };
  * (exclusive ends, the lattice `cell` m and global, so two tiles share
  * the corners on their seam) to `m`, its rock `tone`: a corner every
  * cell, jittered in plan off a hash of the map's `seed` and its place,
- * standing over the ground where it is bare (`rockShare`) — `proud` and up
- * to `rough` more by how bare — and tucked under the snow where it is not;
- * every cell with a bare corner laid as two flat facets, split along a
- * diagonal of its own. So the rock is the whole steep surface, from where
- * the slope turns too steep for snow to where it eases at the top, broken
- * into big flat planes at odd angles, with the snow on every facet that
- * faces the sky. */
+ * standing over the ground where it is bare (`rockShare`) by the engine's
+ * `cornerRise` — a slow swell its neighbours share and a little of its own
+ * — and tucked under the snow where it is not; every cell with a bare
+ * corner laid as two facets, split along a diagonal of its own. So the
+ * rock is the whole steep surface, from where the slope turns too steep
+ * for snow to where it eases at the top, broken into tilted slabs, lit
+ * smooth across a fold and hard at an arris. */
 export function buildSkin(
   m: RockMesh,
   level: Level,
@@ -150,10 +228,13 @@ export function buildSkin(
   // Laid off the map under the skin the physics rides (`withRock`).
   level = level.bedrock ?? level;
   const stone = rockTone(tone);
-  const w = i1 - i0 + 1;
-  const corners: (Corner | null)[] = new Array(w * (j1 - j0 + 1)).fill(null);
+  // One corner of margin round the cells: a corner's smooth normal is read
+  // off its neighbours, the same on both sides of a tile's seam.
+  const w = i1 - i0 + 3;
+  const corners: (Corner | null)[] = new Array(w * (j1 - j0 + 3)).fill(null);
+  const verts: (Vert | null)[] = new Array(corners.length).fill(null);
   const cornerAt = (i: number, j: number): Corner => {
-    const k = (j - j0) * w + (i - i0);
+    const k = (j - j0 + 1) * w + (i - i0 + 1);
     const had = corners[k];
     if (had) return had;
     const h = rockHash(seed, i, j);
@@ -161,19 +242,31 @@ export function buildSkin(
     const z = (j + (unit(h, 1) - 0.5) * 2 * S.jitter) * cell;
     const bare = rockShare(level, x, z);
     const ground = level.groundAt(x, z);
-    const y = bare > S.from ? ground + S.proud + S.rough * bare * unit(h, 2) : ground - S.sink;
+    const y = bare > S.from ? ground + cornerRise(seed, i, j, bare) : ground - S.sink;
     const c: Corner = { p: [x, y, z], bare };
     corners[k] = c;
     return c;
   };
-  const shadeAt = (p: P): number => (p[1] < level.groundAt(p[0], p[2]) ? FOOT + 0.2 : 1);
-  // Calm: the ground's own normal under the corner, snow on it as a facet
-  // facing that way would hold it.
-  const calm = calmPaint(stone, SKIN_HOLDS);
   const g = { x: 0, y: 1, z: 0 };
-  const calmOf = (p: P): { n: P; col: Tone } => {
-    level.normalAt(p[0], p[2], g);
-    return { n: [g.x, g.y, g.z], col: calm(g.y) };
+  const vertAt = (i: number, j: number): Vert => {
+    const k = (j - j0 + 1) * w + (i - i0 + 1);
+    const had = verts[k];
+    if (had) return had;
+    const c = cornerAt(i, j);
+    level.normalAt(c.p[0], c.p[2], g);
+    const soft: P = [g.x, g.y, g.z];
+    const l = lattice(
+      c.p,
+      cornerAt(i - 1, j).p,
+      cornerAt(i + 1, j).p,
+      cornerAt(i, j - 1).p,
+      cornerAt(i, j + 1).p,
+      soft,
+    );
+    const foot = c.p[1] < level.groundAt(c.p[0], c.p[2]) ? FOOT + 0.2 : 1;
+    const v: Vert = { p: c.p, n: l.n, k: cavityShade(l.off) * foot, foot, bare: c.bare, soft };
+    verts[k] = v;
+    return v;
   };
   for (let j = j0; j < j1; j++) {
     for (let i = i0; i < i1; i++) {
@@ -182,101 +275,101 @@ export function buildSkin(
       const c = cornerAt(i + 1, j + 1);
       const d = cornerAt(i, j + 1);
       if (Math.max(a.bare, b.bare, c.bare, d.bare) <= S.from) continue;
+      const va = vertAt(i, j);
+      const vb = vertAt(i + 1, j);
+      const vc = vertAt(i + 1, j + 1);
+      const vd = vertAt(i, j + 1);
       const h = rockHash(seed, i, j, 7);
       const mx = (a.p[0] + b.p[0] + c.p[0] + d.p[0]) / 4;
       const mz = (a.p[2] + b.p[2] + c.p[2] + d.p[2]) / 4;
       // Under the ground at the cell's middle: inside the hill.
       const inside: P = [mx, level.groundAt(mx, mz) - 3, mz];
       if (unit(h, 0) < 0.5) {
-        tri(m, a.p, b.p, c.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
-        tri(m, a.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
+        tri(m, va, vb, vc, inside, stone);
+        tri(m, va, vc, vd, inside, stone);
       } else {
-        tri(m, a.p, b.p, d.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
-        tri(m, b.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
+        tri(m, va, vb, vd, inside, stone);
+        tri(m, vb, vc, vd, inside, stone);
       }
     }
   }
 }
 
-/** A facet's paint off hash `h`'s draws from `n`: its own shade of the
- * rock `stone`, snow over it by how much it faces the sky. */
-function paintOf(stone: Tone, h: number, n: number, holds = SNOW_HOLDS): (ny: number) => Tone {
-  const f = 0.72 + 0.5 * unit(h, n);
-  const warm = (unit(h, n + 1) - 0.5) * 0.05;
-  return snowOver(holds, [stone[0] * f * (1 + warm), stone[1] * f, stone[2] * f * (1 - warm)]);
-}
-
-/** The paint of a facet of the rock's MEAN shade (`paintOf`'s middle draw,
- * no warmth): what the calmed rock wears. */
-function calmPaint(stone: Tone, holds = SNOW_HOLDS): (ny: number) => Tone {
-  const f = 0.72 + 0.5 * 0.5;
-  return snowOver(holds, [stone[0] * f, stone[1] * f, stone[2] * f]);
-}
-
-/** `rock` with snow over it by the up share `ny`, whole past `holds`. */
-function snowOver(holds: number, rock: Tone): (ny: number) => Tone {
-  const slides = holds - (SNOW_HOLDS - SNOW_SLIDES);
-  const summer = summerShown();
-  const cover = summer ? LEDGE : SNOW;
-  const most = summer ? 0.5 : 1;
-  return (ny) => {
-    const snow = most * Math.max(0, Math.min(1, (ny - slides) / (holds - slides)));
-    return [
-      rock[0] + (cover[0] - rock[0]) * snow,
-      rock[1] + (cover[1] - rock[1]) * snow,
-      rock[2] + (cover[2] - rock[2]) * snow,
-    ];
-  };
-}
-
 /** Append cliff `w`'s ROCK WALL to `m` (`cliff-wall.ts`' skin of corners),
- * its rock `tone`: two flat facets a cell of the skin, each cell split
- * along a diagonal of its own so no two read alike, every facet its own
- * shade of the rock, snow on the ones up at the lip that face the sky, and
- * the foot darkened where it goes into the snow. Two triangles a cell, a
- * few hundred a cliff. */
+ * its rock `tone`: two facets a cell of the skin, each cell split along a
+ * diagonal of its own so no two read alike, lit smooth across the grid's
+ * folds and hard past `CREASE`, the snow on the ones up at the lip that
+ * face the sky, a cavity darkened, and the foot darkened where it goes into
+ * the snow. Two triangles a cell, a few hundred a cliff. */
 export function buildWall(m: RockMesh, w: CliffWall, tone: Tone): void {
   const stone = rockTone(tone);
   const { rows, cols, pos } = w;
   const fx = Math.sin(w.heading);
   const fz = Math.cos(w.heading);
   const corner = (r: number, j: number): P => {
-    const i = (r * cols + j) * 3;
+    const rr = Math.max(0, Math.min(rows - 1, r));
+    const jj = Math.max(0, Math.min(cols - 1, j));
+    const i = (rr * cols + jj) * 3;
     return [pos[i], pos[i + 1], pos[i + 2]];
   };
   // Darker toward the foot: the sky hidden from the bottom of the wall.
   const lipY = (j: number): number => corner(1, j)[1];
-  // Calm: a wall has no ground under it to borrow a normal from, so its
-  // facets keep their own and wear the rock's mean shade.
-  const calm = calmPaint(stone);
-  const calmOf = (_p: P, n: P): { n: P; col: Tone } => ({ n, col: calm(n[1]) });
   const footY = (j: number): number => corner(rows - 1, j)[1];
+  // Out of the face: away from the hill behind it.
+  const out: P = [-fx, 0.3, -fz];
+  const verts: (Vert | null)[] = new Array(rows * cols).fill(null);
+  const vertAt = (r: number, j: number): Vert => {
+    const had = verts[r * cols + j];
+    if (had) return had;
+    const p = corner(r, j);
+    const l = lattice(
+      p,
+      corner(r, j - 1),
+      corner(r, j + 1),
+      corner(r - 1, j),
+      corner(r + 1, j),
+      out,
+    );
+    const top = lipY(j);
+    const bottom = footY(j);
+    const foot =
+      FOOT + (1 - FOOT) * Math.min(1, Math.max(0, (p[1] - bottom) / Math.max(0.5, top - bottom)));
+    // A wall has no ground under it to borrow a normal from: far out its
+    // corners keep their own smooth one.
+    const v: Vert = { p, n: l.n, k: cavityShade(l.off) * foot, foot, bare: 1, soft: l.n };
+    verts[r * cols + j] = v;
+    return v;
+  };
   for (let r = 0; r < rows - 1; r++) {
     for (let j = 0; j < cols - 1; j++) {
       const h = (w.hash ^ Math.imul(r + 1, 0x9e3779b1) ^ Math.imul(j + 1, 0x85ebca6b)) >>> 0;
-      const a = corner(r, j);
-      const b = corner(r, j + 1);
-      const c = corner(r + 1, j + 1);
-      const d = corner(r + 1, j);
-      const mx = (a[0] + b[0] + c[0] + d[0]) / 4;
-      const my = (a[1] + b[1] + c[1] + d[1]) / 4;
-      const mz = (a[2] + b[2] + c[2] + d[2]) / 4;
+      const a = vertAt(r, j);
+      const b = vertAt(r, j + 1);
+      const c = vertAt(r + 1, j + 1);
+      const d = vertAt(r + 1, j);
+      const mx = (a.p[0] + b.p[0] + c.p[0] + d.p[0]) / 4;
+      const my = (a.p[1] + b.p[1] + c.p[1] + d.p[1]) / 4;
+      const mz = (a.p[2] + b.p[2] + c.p[2] + d.p[2]) / 4;
       // Behind the face: back into the hill and down.
       const inside: P = [mx - fx * 3, my - 2, mz - fz * 3];
-      const top = Math.max(lipY(j), lipY(j + 1));
-      const bottom = Math.min(footY(j), footY(j + 1));
-      const shadeAt = (p: P): number =>
-        FOOT + (1 - FOOT) * Math.min(1, Math.max(0, (p[1] - bottom) / Math.max(0.5, top - bottom)));
       if (unit(h, 0) < 0.5) {
-        tri(m, a, b, c, inside, paintOf(stone, h, 1), shadeAt, calmOf);
-        tri(m, a, c, d, inside, paintOf(stone, h, 3), shadeAt, calmOf);
+        tri(m, a, b, c, inside, stone);
+        tri(m, a, c, d, inside, stone);
       } else {
-        tri(m, a, b, d, inside, paintOf(stone, h, 1), shadeAt, calmOf);
-        tri(m, b, c, d, inside, paintOf(stone, h, 3), shadeAt, calmOf);
+        tri(m, a, b, d, inside, stone);
+        tri(m, b, c, d, inside, stone);
       }
     }
   }
 }
 
 /** A fresh, empty mesh. */
-export const rockMesh = (): RockMesh => ({ pos: [], nrm: [], col: [], soft: [], calm: [] });
+export const rockMesh = (): RockMesh => ({
+  pos: [],
+  nrm: [],
+  col: [],
+  snow: [],
+  bare: [],
+  soft: [],
+  calm: [],
+});

@@ -4,6 +4,7 @@
 // and the skin made the surface a body meets (`rock-ground.ts`).
 
 export {
+  cornerRise,
   hashOf as rockHash,
   onAnyCliff,
   rockShare,

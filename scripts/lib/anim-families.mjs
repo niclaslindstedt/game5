@@ -168,6 +168,7 @@ function bikeFamily(ctx) {
       const steps = Math.round(sc.from * E.TUNING.physicsHz);
       for (let i = 0; i < steps; i++) E.step(state, E.bikePilot(state, aim));
       sc.aim = aim;
+      sc.hold = BIKE.createRiderHold();
       return state;
     },
     input: (t, s) => (sc.script ? sc.script(t, s, E, sc.aim) : E.bikePilot(s, sc.aim)),
@@ -176,15 +177,13 @@ function bikeFamily(ctx) {
     seat: (model, s) => {
       const b = s.bike;
       if (!b) return;
-      const thrown = !!s.skier.thrown;
       model.setBiking?.(true);
-      model.setStood?.(
-        b.onIt && !thrown
-          ? BIKE.riderPose(E.bikePose(b))
-          : b.afoot && !s.skier.lift && !thrown
-            ? BIKE.walkingPose(b.afoot)
-            : null,
-      );
+      const style =
+        ctx.bikeLook === "freeride" && b.onIt && !s.skier.thrown
+          ? ctx.ANIM.animatedStyle(b, s.level, s.t)
+          : undefined;
+      const stood = BIKE.bikeStood(s, sc.hold, style);
+      model.setStood?.(stood?.pose ?? null, stood?.way);
     },
   }));
   return {

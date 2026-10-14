@@ -39,7 +39,14 @@ uses) exactly as the renderer poses it — `model.pose(...)`, with the
 scene's `seat` called first as `machines.ts`'s `seat` is. It then reads every
 bone of the dressed skin in the SKIER'S BODY FRAME (x his right, y up, z
 forward; the engine's place and turn taken off), so a carve's lean or a
-spin is not a jolt, and whatever the drawing does over it is.
+spin is not a jolt, and whatever the drawing does over it is. Where the
+engine JUMPS that root a quarter metre to a couple of metres in one step (a
+remount onto a bike's frame, a step off beside it), the renderer's hand-off
+(`pose-handoff.ts`) eases the drawn body across over 0.25 s, so the reader
+eases the frame it reads in across the same way (`JUMP`, `JUMP_EASE`) —
+otherwise the root's jump is billed to the limbs. The bike family rides the
+trail look's rider by default; `--bike-look=freeride` measures the freerider
+the animator carries (`bike-anim.ts`'s `animatedStyle`) instead.
 
 A scene is `{ id, title, seconds, window?, game(), place?(), input(t,
 state), seat?(model, state, dt), bike? }`:

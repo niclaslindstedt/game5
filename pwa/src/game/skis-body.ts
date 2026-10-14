@@ -210,8 +210,10 @@ export type SkisModel = {
   /** STOOD OFF HIS SKIS in his boots, his hands empty (the rider card's
    * idle, `rider-idle.ts`): the body as `stood` lays it over the snow in
    * the root's frame, the pair out of sight — or null back on them. Read
-   * at the next pose. Only the skis' model stands a rider off them. */
-  setStood?(stood: StoodPose | null): void;
+   * at the next pose. Only the skis' model stands a rider off them. `way`
+   * names the way he is stood (on a bike, walking beside it): a change of
+   * it is eased over (`pose-handoff.ts`) rather than switched in a frame. */
+  setStood?(stood: StoodPose | null, way?: string): void;
   /** ON THE DOWNHILL BIKE'S RIDE (`bike.ts`): his skis and poles put away
    * wherever he is drawn — on it, walking, sat on a chair — and his boots
    * on him. Read at the next pose. */
@@ -500,6 +502,7 @@ export function createSkisModel(
   let basket = false;
   let basketWalk: BasketWalk | null = null;
   let stoodPose: StoodPose | null = null;
+  let stoodWay = "";
   let biking = false;
   let sky: SkydiveShape | null = null;
   let lastPerch: number | null = null;
@@ -690,7 +693,11 @@ export function createSkisModel(
         figure.group.quaternion.setFromRotationMatrix(trunk);
         // Each way of walking its own drawing, so a stage handed to the next
         // (picking the pair up, setting off, clicking in) is eased over.
-        const way = stood ? "stood" : town ? `town ${town.phase}` : `fetch ${skier.fetch!.phase}`;
+        const way = stood
+          ? `stood ${stoodWay}`
+          : town
+            ? `town ${town.phase}`
+            : `fetch ${skier.fetch!.phase}`;
         figure.sprawl(handed(p, way), 0, 0, town !== null);
         bootsOn(walkBoots, p, unbooted, goreLost);
       } else {
@@ -891,8 +898,9 @@ export function createSkisModel(
     setWingsuit(shape) {
       flyer = shape;
     },
-    setStood(next) {
+    setStood(next, way = "") {
       stoodPose = next;
+      stoodWay = way;
     },
     setBiking(on) {
       biking = on;

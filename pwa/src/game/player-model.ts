@@ -522,7 +522,8 @@ export function createSprings(
       last = now;
       // The pack's head in the world: its velocity and acceleration,
       // smoothed over a few frames (a frame's jitter is not a jolt).
-      const top = inFrame(frames.chest, offsets[0]);
+      // A kit with no spring bones (the racer's) reads the chest's head.
+      const top = offsets.length ? inFrame(frames.chest, offsets[0]) : frames.chest.head;
       here.set(top.x, top.y, top.z).applyMatrix4(world);
       if (pos && dt > 1e-4) {
         const v = here.clone().sub(pos).divideScalar(dt);

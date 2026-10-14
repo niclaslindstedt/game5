@@ -98,6 +98,27 @@ describe.each(PLAYER_MODELS)("the player's modelled kit %s", (key) => {
     if (!kit.raced) expect(m.cloth.shiver.every((x) => x === 0)).toBe(true);
   });
 
+  it("floats a loose bib while he is light and settles it on the snow", async () => {
+    const m = await model;
+    const frames = bindPose().frames;
+    const swing = createSprings(frames, m.heads, springs);
+    const world = new THREE.Matrix4();
+    let t = 0;
+    let y = 0;
+    let v = 0;
+    let float = 0;
+    for (let i = 0; i < 60; i++, t += 1 / 60) float = swing.step(frames, world, t).float;
+    expect(Math.abs(float)).toBeLessThan(0.05);
+    // Half a second falling free: his kit feels no weight, so it floats.
+    for (let i = 0; i < 30; i++, t += 1 / 60) {
+      v -= 9.81 / 60;
+      y += v / 60;
+      world.makeTranslation(0, y, 0);
+      float = swing.step(frames, world, t).float;
+    }
+    expect(float).toBeGreaterThan(0.5);
+  });
+
   it("swings its springs under a jolt and settles stood still", async () => {
     if (!springs.length) return;
     const m = await model;

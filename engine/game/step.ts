@@ -428,6 +428,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     ...(base.traffic ? { traffic: true } : {}),
     // ...and its skis off in the village (`town.ts`): the free ride's alone.
     ...(base.town ? { town: true } : {}),
+    // ...and its fires ridden into (`fire-burn.ts`): the same.
+    ...(base.fires ? { fires: true } : {}),
     // ...and its slopes' avalanches (`avalanche.ts`): the free ride's alone,
     // and only when asked for.
     ...(base.avalanche && options.avalanche && !summer ? { avalanche: true } : {}),

@@ -127,6 +127,7 @@
     "xray-body": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/xray-body.mjs",
     "groomer": "node scripts/groomer-preview.mjs",
     "snowguns": "node scripts/snowguns-preview.mjs",
+    "fires": "node scripts/fires-preview.mjs",
     "water": "node scripts/water-preview.mjs",
     "tree-wells": "node scripts/tree-wells-preview.mjs",
     "avalanche": "node scripts/avalanche-preview.mjs",

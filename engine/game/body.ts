@@ -76,6 +76,7 @@ import {
 } from "./defs/anatomy.ts";
 import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
+import { FIRE_BURN } from "./defs/fires.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
@@ -806,6 +807,19 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   wreckSeat(state, events);
   judge(state, events, cap);
   wreckFire(state, events);
+  aflame(state, events);
+}
+
+/** HIS CLOTHES ALIGHT (`fire-burn.ts`): the heat on him summed into the
+ * dose every step, and judged every `FIRE_BURN.judge` s while it burns. */
+function aflame(state: GameState, events: GameEvent[]): void {
+  const flux = state.burn?.flux ?? 0;
+  if (flux <= 0) return;
+  state.skier.body.heat += flux ** (4 / 3) * dt;
+  if (state.tick % Math.round(FIRE_BURN.judge / dt) !== 0) return;
+  clear();
+  for (const part of BODY_PARTS) charge(part, "heat", state.skier.body.heat);
+  judge(state, events, PARTS);
 }
 
 /** A HARD OPENING (`mishaps.ts`): the canopy's load at `g` through the

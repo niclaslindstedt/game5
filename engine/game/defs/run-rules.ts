@@ -82,6 +82,11 @@ export type RunRules = {
    * street he stops, steps out of his bindings, shoulders the pair and
    * walks; off the streets he steps back in. On a FREE RIDE only. */
   town?: boolean;
+  /** WHETHER ITS FIRES BURN (`fire-burn.ts`): a camp fire or a bonfire
+   * (`fires.ts`) ridden into sets the skier alight — or, safe for work,
+   * holds him off. On a FREE RIDE only; left out, a fire is nothing to the
+   * physics. */
+  fires?: boolean;
   /** WHETHER THE MOUNTAIN'S SLOPES CAN AVALANCHE (`avalanche.ts`): a loaded
    * slope off the groomed runs crossed may release a slab that takes the
    * skier. On a FREE RIDE only, and there only when the run asks for them

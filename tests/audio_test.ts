@@ -188,6 +188,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   combo: { kind: "combo", t: 1, points: 2000, base: 700, mult: 3, sketchy: false },
   bail: { kind: "bail", t: 1, lost: 2000, cause: "wipeout" },
   tunnel: { kind: "tunnel", t: 1, id: "W1", phase: "in" },
+  fire: { kind: "fire", t: 1, what: "caught", fire: "C1", x: 0, z: 0 },
   lift: { kind: "lift", t: 1, id: "C1", lift: "chair", phase: "tower" },
   heli: { kind: "heli", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
   sled: { kind: "sled", t: 1, phase: "crash", x: 0, y: 0, z: 0, speed: 12 },
@@ -217,6 +218,8 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "death",
   "injured",
   "skiJump",
+  // A skier set alight (`fire-burn.ts`): heard once the fire's sound lands.
+  "fire",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */

@@ -104,6 +104,9 @@ export function createSpray(haze: HazeUniforms): Spray {
   const a0 = new Float32Array(CAPACITY * 4);
   const a1 = new Float32Array(CAPACITY * 4);
   const a2 = new Float32Array(CAPACITY * 2);
+  // Each drawn grain's age, s, in draw order: never uploaded — the snow
+  // eval lab's measure reads it off `geometry.userData` (`plume-probe.ts`).
+  const ages = new Float32Array(CAPACITY);
 
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.setAttribute(
@@ -118,6 +121,7 @@ export function createSpray(haze: HazeUniforms): Spray {
   geometry.setAttribute("aMove", at1);
   geometry.setAttribute("aKind", at2);
   geometry.instanceCount = 0;
+  geometry.userData.age = ages;
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -245,7 +249,7 @@ export function createSpray(haze: HazeUniforms): Spray {
       pool.step(dt, level);
       // Pack the live grains to the front of the instance buffer: the draw
       // pays for what is flying, never for the pool's empty slots.
-      const { pos, vel, size, alpha, hard, glint } = pool;
+      const { pos, vel, size, alpha, hard, glint, age } = pool;
       let n = 0;
       for (let i = 0; i < pool.cap; i++) {
         if (alpha[i] <= 0.004 || size[i] <= 0) continue;
@@ -260,6 +264,7 @@ export function createSpray(haze: HazeUniforms): Spray {
         a1[n * 4 + 3] = alpha[i];
         a2[n * 2] = hard[i];
         a2[n * 2 + 1] = glint[i];
+        ages[n] = age[i];
         n++;
       }
       geometry.instanceCount = n;

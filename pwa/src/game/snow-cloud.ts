@@ -441,6 +441,10 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   geometry.setAttribute("iLook", iLook);
   geometry.setAttribute("iSnow", iSnow);
   geometry.instanceCount = 0;
+  // Each drawn puff's age, s, in draw order, for the snow eval lab's
+  // measure (`plume-probe.ts`) — never uploaded.
+  const drawnAge = new Float32Array(CAPACITY);
+  geometry.userData.age = drawnAge;
 
   const noise = noiseTexture();
   const material = new THREE.ShaderMaterial({
@@ -882,6 +886,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         const i = order[n];
         const a01 = age[i] / life[i];
         const r = puffRadius(size0[i], grow[i], a01);
+        drawnAge[n] = age[i];
         P[n * 4] = pos[i * 3];
         P[n * 4 + 1] = pos[i * 3 + 1];
         P[n * 4 + 2] = pos[i * 3 + 2];

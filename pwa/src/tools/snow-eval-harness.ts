@@ -13,6 +13,12 @@
 //   crater       a fall in deep powder: the hole, from over it and the chase
 //   track        five seconds of carves, the line they cut looked back on
 //
+// Under LIGHTS (`?lights=`): `day` (a clear sky, the sun 32° up), `low` (the
+// sun 7° up), `overcast` (the day's hour under a lid) and `night` (hour
+// 21, the headlamp's). The FILM SCORE (`snow-eval-film.ts`, `?film=`) rides
+// the scenes a real one was measured for and scores the drawn snow against
+// it, moment by moment (`spray-film.ts`).
+//
 // Every ride is deterministic (the engine's own stream, the held inputs),
 // so a candidate's picture differs from another's only by how it draws the
 // snow. The cells carry their names, so the script cuts each one out too.
@@ -35,6 +41,7 @@ import { flySprayAs } from "../game/spray.ts";
 import { SPRAY_MODELS, type SprayModel } from "../game/spray-sim.ts";
 import { DEFAULT_VIDEO, withPreset, type Tier } from "../game/settings-video.ts";
 import { hourAt, meadow, pisteSpot } from "./stage.ts";
+import { FILM_SCENES, filmMeans, filmSheet, type FilmCell } from "./snow-eval-film.ts";
 
 declare global {
   interface Window {
@@ -42,12 +49,19 @@ declare global {
       ready: Promise<void>;
       sheet(): Promise<SheetOut>;
       perf(): Promise<PerfRow[]>;
+      film(): Promise<FilmOut>;
     };
   }
 }
 
 type Cell = { name: string; x: number; y: number; w: number; h: number; note: string };
 type SheetOut = { w: number; h: number; cells: Cell[] };
+type FilmOut = {
+  w: number;
+  h: number;
+  cells: FilmCell[];
+  means: ReturnType<typeof filmMeans>;
+};
 type PerfRow = {
   tier: Tier;
   /** The whole frame, ms (swiftshader: a CPU's raster, far slower than a
@@ -69,6 +83,23 @@ const only = (params.get("scenes") ?? "").split(",").filter(Boolean);
 const DEG = Math.PI / 180;
 const FRAME = 1 / 60;
 const SUN = { day: 32 * DEG, low: 7 * DEG };
+const list = (name: string, fallback: string) =>
+  (params.get(name) || fallback).split(",").filter(Boolean);
+/** The lights the sheet is shot under, the day first. */
+const LIGHTS: Record<string, { caption: string; sky: () => SkyOverride }> = {
+  day: {
+    caption: "DAY (sun 32°)",
+    sky: () => ({ weather: "clear", hour: hourAt(level, SUN.day) }),
+  },
+  low: { caption: "LOW SUN (7°)", sky: () => ({ weather: "clear", hour: hourAt(level, SUN.low) }) },
+  overcast: {
+    caption: "OVERCAST",
+    sky: () => ({ weather: "overcast", hour: hourAt(level, SUN.day) }),
+  },
+  night: { caption: "NIGHT (21 h)", sky: () => ({ weather: "clear", hour: 21 }) },
+};
+const lights = ["day", ...list("lights", "day,low").filter((l) => l !== "day" && l in LIGHTS)];
+const filmLights = list("film", "day,low").filter((l) => l in LIGHTS);
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
@@ -81,7 +112,7 @@ const renderer = createWorldRenderer(stage, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(cellW, cellH, 1);
-const base = createGame({ seed, mode: "free", rivals: 0, quiet: true });
+const base = createGame({ seed, mode: "free", rivals: 0, quiet: true, crowd: 0, enthusiasts: 0 });
 const level = base.level;
 
 /** A hockey stop to one side: the brake, then the edge laid over to `side`
@@ -283,6 +314,8 @@ async function rideTo(
     mode: "free",
     rivals: 0,
     quiet: true,
+    crowd: 0,
+    enthusiasts: 0,
     spec: pairById(scene.skis),
     snowDepth: scene.depth,
   });
@@ -357,7 +390,7 @@ window.__snowEval = {
   async sheet() {
     const labelW = 170;
     const headH = 34;
-    const cols = 3;
+    const cols = 1 + lights.length;
     sheet.width = labelW + cellW * cols;
     sheet.height = headH + cellH * SCENES.length;
     const ctx = sheet.getContext("2d")!;
@@ -367,16 +400,17 @@ window.__snowEval = {
     ctx.font = "12px monospace";
     ctx.textBaseline = "middle";
     ctx.fillText(`SNOW EVAL · seed ${seed} · HIGH preset`, 8, 10);
-    ["DAY (sun 32°) · lens A", "DAY · lens B", "LOW SUN (7°) · lens A"].forEach((t, c) =>
-      ctx.fillText(t, labelW + c * cellW + 6, 26),
-    );
+    [
+      `${LIGHTS.day.caption} · lens A`,
+      "DAY · lens B",
+      ...lights.slice(1).map((l) => `${LIGHTS[l].caption} · lens A`),
+    ].forEach((t, c) => ctx.fillText(t, labelW + c * cellW + 6, 26));
     const cells: Cell[] = [];
     for (let r = 0; r < SCENES.length; r++) {
       const scene = SCENES[r];
       const y0 = headH + r * cellH;
-      for (const light of ["day", "low"] as const) {
-        const sky: SkyOverride = { weather: "clear", hour: hourAt(level, SUN[light]) };
-        renderer.setSky(sky);
+      for (const light of lights) {
+        renderer.setSky(LIGHTS[light].sky());
         const shots = light === "day" ? scene.shots : [scene.shots[0]];
         const order = shots.map((s, i) => ({ ...s, i })).sort((a, b) => a.t - b.t);
         let hole: { x: number; z: number } | null = null;
@@ -389,7 +423,7 @@ window.__snowEval = {
               hole = { x: state.skier.thrown.x, z: state.skier.thrown.z };
             if (state.skier.thrown) hole = { x: state.skier.thrown.x, z: state.skier.thrown.z };
             const shot = order[k];
-            const col = light === "day" ? shot.i : 2;
+            const col = light === "day" ? shot.i : 1 + lights.indexOf(light);
             photo(lensOf(shot.lens, state, hole));
             const x0 = labelW + col * cellW;
             ctx.drawImage(stage, x0, y0, cellW, cellH);
@@ -433,6 +467,8 @@ window.__snowEval = {
         mode: "free",
         rivals: 0,
         quiet: true,
+        crowd: 0,
+        enthusiasts: 0,
         spec: pairById(scene.skis),
       });
       await loaded(state);
@@ -452,6 +488,11 @@ window.__snowEval = {
       for (const row of renderer.sceneTally()) {
         if (row.name === "spray") spray = row.triangles / 2;
         if (row.name === "snow-cloud") cloud = row.triangles / 2;
+      }
+      // Warm both ways first: a draw's first frame compiles its shaders.
+      for (const hide of [["spray", "cloud"], []] as const) {
+        renderer.setHidden([...hide]);
+        for (let w = 0; w < 2; w++) renderer.draw(state, 0, 0, true);
       }
       const timed = { on: 0, off: 0, n: 0 };
       let calls = 0;
@@ -483,5 +524,70 @@ window.__snowEval = {
     renderer.setVideo(withPreset(DEFAULT_VIDEO, "high"));
     renderer.setSky(null);
     return rows;
+  },
+  async film() {
+    const scenes = FILM_SCENES.filter((f) => only.length === 0 || only.includes(f.id));
+    const labelW = 190;
+    const headH = 34;
+    const cols = 6;
+    sheet.width = labelW + cellW * cols;
+    sheet.height = headH + cellH * scenes.length * filmLights.length;
+    const ctx = sheet.getContext("2d")!;
+    ctx.fillStyle = "#0b1116";
+    ctx.fillRect(0, 0, sheet.width, sheet.height);
+    ctx.fillStyle = "#e8eef4";
+    ctx.font = "12px monospace";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      `SNOW EVAL · FILM SCORE · seed ${seed} · HIGH · film dashed amber, game cyan, side-on to the throw`,
+      8,
+      10,
+    );
+    const cells = await filmSheet(
+      ctx,
+      {
+        renderer,
+        stage,
+        groundAt: level.groundAt,
+        fallAt(x, z) {
+          const n = { x: 0, y: 1, z: 0 };
+          level.normalAt(x, z, n);
+          const l = Math.hypot(n.x, n.z) || 1;
+          return { x: n.x / l, z: n.z / l };
+        },
+        cellW,
+        cellH,
+        light(name) {
+          renderer.setSky(LIGHTS[name].sky());
+          return LIGHTS[name].caption;
+        },
+        async begin(film, kmh) {
+          const scene = ALL_SCENES.find((s) => s.id === film.id)!;
+          const state = createGame({
+            level,
+            mode: "free",
+            rivals: 0,
+            quiet: true,
+            crowd: 0,
+            enthusiasts: 0,
+            spec: pairById(scene.skis),
+            snowDepth: scene.depth,
+          });
+          await loaded(state);
+          const spot = spotOf(scene);
+          placeRun(state, { x: spot.x, z: spot.z, heading: spot.heading, speed: kmh / 3.6 });
+          renderer.setOverride(null);
+          renderer.setCamera("chase", true);
+          renderer.draw(state, 0, FRAME, false);
+          return { state, input: (st, t) => scene.ride(st, kmh, spot.heading, t) };
+        },
+      },
+      scenes,
+      filmLights,
+      labelW,
+      headH,
+    );
+    renderer.setSky(null);
+    return { w: sheet.width, h: sheet.height, cells, means: filmMeans(cells) };
   },
 };

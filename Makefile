@@ -536,10 +536,13 @@ spray-eval:
 # THE SNOW EVAL LAB: the snow a skier and a snowboarder throw and leave on
 # fixed scenes — a carve on the groomer, a hockey stop on skis, a board's
 # heelside and toeside stops, a powder turn, a fall's crater in powder, the
-# line a run cuts from the chase lens — by day and under a low sun, through
-# the game's own renderer, and what the spray and the cloud cost at the LOW,
-# MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
-# perf.json. ARGS="--scenes=hockey,board-heel", "--model=sheet" (another
+# line a run cuts from the chase lens — by day and under other lights, through
+# the game's own renderer; the FILM SCORE (each throw's top, reach and area
+# against a film's, 0–100, and the way it went off the travel and the fall
+# line: film.png, film.json); and what the spray and the cloud cost at the
+# LOW, MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
+# perf.json. ARGS="--scenes=hockey,board-heel", "--lights=low,overcast,night",
+# "--film=day,low" ("none" skips it), "--no-sheet", "--model=sheet" (another
 # spray model, the before), "--no-perf", "--out=DIR".
 snow-eval:
 	npm run snow-eval -- $(ARGS)

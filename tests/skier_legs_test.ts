@@ -32,6 +32,7 @@ import {
   stepSkierSpring,
 } from "../pwa/src/game/skier-pose.ts";
 import { legsLift } from "../pwa/src/game/skis-body.ts";
+import { armsLag } from "../pwa/src/game/skier-spring.ts";
 import { flatLevel } from "./support/synthetic.ts";
 
 const base = {
@@ -187,6 +188,25 @@ describe("his legs are springs", () => {
     // Hanging in the air with his legs long, his hips come down toward them.
     const hung = skierPose({ ...base, lift: [-0.08, -0.08] });
     expect(hung.hips.y).toBeLessThan(stood.hips.y - 0.03);
+  });
+
+  it("lets his fists lag a landing: a dip of 5–15 cm, back within the half second", () => {
+    const s = createSkierSpring();
+    const ride = { way: 15, pitch: 0, airTime: 1 };
+    stepSkierSpring(s, -6, true, 1 / 60, 0, { ...RIDE, ...ride });
+    let deepest = 0;
+    let at = 0;
+    for (let i = 1; i <= 60; i++) {
+      stepSkierSpring(s, 0, false, 1 / 60, 0, { ...RIDE, ...ride, airTime: 0 });
+      if (armsLag(s) > deepest) {
+        deepest = armsLag(s);
+        at = i / 60;
+      }
+    }
+    expect(deepest).toBeGreaterThan(0.05);
+    expect(deepest).toBeLessThan(0.15);
+    expect(at).toBeLessThan(0.3);
+    expect(Math.abs(armsLag(s))).toBeLessThan(0.02);
   });
 
   it("takes a landing in his legs and comes back up within the second", () => {

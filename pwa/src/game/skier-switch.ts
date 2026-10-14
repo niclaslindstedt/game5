@@ -118,6 +118,8 @@ export type SwitchShape = {
   sink: number;
   /** The tuck he is in, 0..1 — where his fists go. */
   crouch: number;
+  /** How far his fists and poles are carried switch, 0..1. */
+  carry: number;
 };
 
 /** The look back as the pose lays it on, for `switched` −1..1 — how far
@@ -132,6 +134,7 @@ export function switchShape(
   air: number,
   crouch = 0,
   windUp = 0,
+  carry?: number,
 ): SwitchShape {
   const k = Math.max(-1, Math.min(1, switched ?? 0)) * (1 - air);
   const w = Math.abs(k);
@@ -143,6 +146,7 @@ export function switchShape(
     hips: SWITCH_LOOK.hips * k,
     sink: SWITCH_LOOK.sink * w,
     crouch,
+    carry: carry === undefined ? w : Math.max(0, Math.min(1, carry)),
   };
 }
 
@@ -160,32 +164,37 @@ function turned(v: P3, a: number): P3 {
  * to low by his side, off the hips, carried round a share of the
  * shoulders' turn. */
 export function switchHand(h: P3, hips: P3, side: number, sw: SwitchShape): P3 {
-  if (sw.w === 0) return h;
+  if (sw.carry === 0) return h;
   const C = SWITCH_CARRY;
   const fore = C.fore + C.tuckFore * sw.crouch;
   const off = turned({ x: side * C.out, y: C.up, z: fore }, C.turn * sw.twist);
   const to = { x: hips.x + off.x, y: hips.y + off.y, z: hips.z + off.z };
   return {
-    x: h.x + (to.x - h.x) * sw.w,
-    y: h.y + (to.y - h.y) * sw.w,
-    z: h.z + (to.z - h.z) * sw.w,
+    x: h.x + (to.x - h.x) * sw.carry,
+    y: h.y + (to.y - h.y) * sw.carry,
+    z: h.z + (to.z - h.z) * sw.carry,
   };
 }
 
 /** A pole's hang carried switch: blended from the pose's own to low and
  * back toward his tips, a little out to its side (unit). */
 export function switchPole(dir: P3, side: number, sw: SwitchShape): P3 {
-  if (sw.w === 0) return dir;
+  if (sw.carry === 0) return dir;
   const C = SWITCH_CARRY;
-  const back = turned(
+  const to = turned(
     { x: side * C.splay, y: -Math.cos(C.lean), z: Math.sin(C.lean) },
     C.turn * sw.twist,
   );
-  const v = {
-    x: dir.x + (back.x - dir.x) * sw.w,
-    y: dir.y + (back.y - dir.y) * sw.w,
-    z: dir.z + (back.z - dir.z) * sw.w,
-  };
-  const n = Math.hypot(v.x, v.y, v.z) || 1;
-  return { x: v.x / n, y: v.y / n, z: v.z / n };
+  // Swung round at an even rate (the two hangs are a right angle and more
+  // apart: blended straight, the rod turned slowly at the ends and whipped
+  // through the middle).
+  const a = Math.hypot(dir.x, dir.y, dir.z) || 1;
+  const u = { x: dir.x / a, y: dir.y / a, z: dir.z / a };
+  const cos = Math.max(-1, Math.min(1, u.x * to.x + u.y * to.y + u.z * to.z));
+  const ang = Math.acos(cos);
+  if (ang < 1e-6) return u;
+  const sin = Math.sin(ang);
+  const p = Math.sin((1 - sw.carry) * ang) / sin;
+  const q = Math.sin(sw.carry * ang) / sin;
+  return { x: u.x * p + to.x * q, y: u.y * p + to.y * q, z: u.z * p + to.z * q };
 }

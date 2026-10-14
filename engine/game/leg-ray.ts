@@ -21,6 +21,9 @@ import type { Level, Vec3 } from "../mapgen/types.ts";
  * closing per metre of ray) to count as meeting it. */
 const RAY_STEPS = 3;
 const RAY_GRAZE = 0.15;
+/** How far over the snow the ray's last step may end and still be on it,
+ * m: Newton closes a smooth slope to millimetres in its three steps. */
+const MISS = 0.1;
 /** On a wall: the reach searched, m along the ray, its step and the
  * bisection's halvings. */
 const WALL_FROM = -0.5;
@@ -73,5 +76,13 @@ export function castLeg(
   // A root far behind the hips is no snow under the leg: Newton walked the
   // ray's line backward onto a face above (a kicker's, under a skier high
   // in the air over its back).
-  return t < -reach ? NaN : t;
+  if (t < -reach) return NaN;
+  // NOR IS A ROOT THE RAY NEVER REACHES. Over a cliff's face the snow's
+  // normal under the hips lies nearly level, the ray runs out along it, and
+  // three Newton steps off a face that steep jump between its top and its
+  // foot without closing: a step that ends metres over the snow is no leg
+  // on it — taken as one, a skier falling past the face was stood on its
+  // foot from the air and sprung back up (`MISS`).
+  const gap = ay + dy * t - (level.groundAt(cx, cz) - sink);
+  return gap > MISS ? NaN : t;
 }

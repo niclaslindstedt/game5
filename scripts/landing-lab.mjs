@@ -17,6 +17,8 @@
 //   make landing ARGS="--seeds 16 --json"   a baseline to keep
 //   make landing ARGS="--compare previews/landing.json"
 //   make landing ARGS=--attitudes        the attitude sweep (below)
+//   make landing ARGS=--cliffs           off every cliff: pushed up in the
+//                                        air? (`lib/landing-cliffs.mjs`)
 //
 // THE ATTITUDE SWEEP (`--attitudes`, `lib/landing-attitudes.mjs`) is the
 // other half: what a player who MEANS to land badly gets. Drops staged on
@@ -57,6 +59,14 @@ const args = parseArgs(
     attitudes: {
       kind: "flag",
       help: "the ATTITUDE SWEEP: drops staged on the bench, the skis held off true (tips down, tails down, rolled, sideways) — which he rides away",
+    },
+    cliffs: {
+      kind: "flag",
+      help: "the CLIFF SWEEP: skied off every cliff of the free ride's mountains — is he pushed up on the way down? (previews/landing-cliff.png)",
+    },
+    cliff: {
+      kind: "string",
+      help: "with --cliffs, the drop drawn: seed:cliff:kmh (the worst when left out)",
     },
     skis: {
       kind: "string",
@@ -131,6 +141,12 @@ function startsOf(level) {
 if (args.attitudes) {
   const { attitudeSweep } = await import("./lib/landing-attitudes.mjs");
   attitudeSweep(E, await import(join(root, "tests/support/synthetic.ts")), args, root, spec);
+  process.exit(0);
+}
+
+if (args.cliffs) {
+  const { cliffSweep } = await import("./lib/landing-cliffs.mjs");
+  cliffSweep(E, args, root, spec);
   process.exit(0);
 }
 

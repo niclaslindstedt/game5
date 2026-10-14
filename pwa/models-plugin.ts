@@ -73,9 +73,9 @@ export const GROOMER_FILE = "groomer.glb";
 /** The jump plane's one file (`make blender KIND=plane`'s LOD0). */
 export const PLANE_FILE = "plane.glb";
 
-/** The player's modelled kit's one file (`make blender KIND=mountaineer`'s
- * LOD0, published under the player's name). */
-export const PLAYER_FILE = "player.glb";
+/** The player's modelled kits' files, a man's and a woman's (`make blender
+ * KIND=hiker ID=all`'s LOD0s; `player-model.ts`'s `PLAYER_MODELS`). */
+export const PLAYER_FILES = ["hiker.glb", "hiker-woman.glb"];
 
 /** Every file a build with these switches packs, by its published name —
  * or only one half's (`MODEL_HALVES`). */
@@ -89,7 +89,7 @@ export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
     ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
     ...(on.groomer && (!half || half === "groomer") ? [GROOMER_FILE] : []),
     ...(on.plane && (!half || half === "plane") ? [PLANE_FILE] : []),
-    ...(on.player && (!half || half === "player") ? [PLAYER_FILE] : []),
+    ...(on.player && (!half || half === "player") ? PLAYER_FILES : []),
   ];
 }
 
@@ -166,15 +166,17 @@ export const PLANE_SOURCES = [
   "engine/game/defs/plane.ts",
 ];
 
-/** WHAT THE PLAYER'S KIT IS MADE FROM: its builder, its data module, the
- * shelf and the driver, and the game's own rig and head it is bound on. */
+/** WHAT THE PLAYER'S KITS ARE MADE FROM: the builder, its data module, the
+ * shelf and the driver, the game's own rig and head they are bound on, and
+ * the survey the bodies are cut to. */
 export const PLAYER_SOURCES = [
   "scripts/blender.mjs",
-  "scripts/blender/kinds/mountaineer.mjs",
+  "scripts/blender/kinds/hiker.mjs",
   "scripts/blender/lib.py",
-  "scripts/blender/mountaineer.py",
+  "scripts/blender/hiker.py",
   "pwa/src/game/skier-rig.ts",
   "pwa/src/game/helmet-shape.ts",
+  "pwa/src/game/dress-body.ts",
 ];
 
 /** Every half's stamp in `sources.json`, and the sources it hashes: the

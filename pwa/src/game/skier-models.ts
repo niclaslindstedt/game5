@@ -41,7 +41,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine";
 
 import { modelSwitch } from "./model-switch.ts";
-import { readPlayerModel, setPlayerModel } from "./player-model.ts";
+import { PLAYER_MODELS, readPlayerModel, setPlayerModel } from "./player-model.ts";
 import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
@@ -173,15 +173,18 @@ export function loadModels(): Promise<void> {
       );
     }
   }
-  // The player's modelled kit (`player-model.ts`): read into the dressed
-  // skin's buffers once, here, so dressing him is as cheap as the code's.
+  // The player's modelled kits (`player-model.ts`), the man's and the
+  // woman's: read into the dressed skin's buffers once, here, so dressing
+  // the player in one is as cheap as the code's.
   if (MODELS.player) {
-    jobs.push(
-      loader.loadAsync(at("player.glb")).then(
-        (g) => setPlayerModel(readPlayerModel(g.scene)),
-        () => undefined,
-      ),
-    );
+    for (const key of PLAYER_MODELS) {
+      jobs.push(
+        loader.loadAsync(at(`${key}.glb`)).then(
+          (g) => setPlayerModel(key, readPlayerModel(g.scene)),
+          () => undefined,
+        ),
+      );
+    }
   }
   loading = Promise.all(jobs).then(() => undefined);
   return loading;

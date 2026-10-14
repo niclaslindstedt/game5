@@ -120,7 +120,12 @@ const args = parseArgs(
     body: {
       kind: "string",
       default: "",
-      help: "slot 0's body by its outfit id (guide: the modelled mountain guide)",
+      help: "slot 0's body by its outfit id (hiker, hikerWoman: the modelled hiker)",
+    },
+    weight: {
+      kind: "string",
+      default: "",
+      help: "the player's build by its outfit id (light, medium, solid, heavy)",
     },
     frames: { kind: "number", default: 9, help: "moments a move is shown at" },
     views: {
@@ -207,6 +212,7 @@ const injuries = brokenWords.flatMap((w, i) =>
 );
 const tag =
   (args.body ? `-${args.body}` : "") +
+  (args.weight ? `-${args.weight}` : "") +
   (args.broken ? `-broken-${brokenWords.join("-")}` : "") +
   (args.wire ? "-wire" : "");
 
@@ -373,6 +379,7 @@ for (const job of jobs) {
     cell: String(args.cell),
     ...(args.wire ? { wire: "1" } : {}),
     ...(args.body ? { body: args.body } : {}),
+    ...(args.weight ? { weight: args.weight } : {}),
   }).toString();
   const t0 = Date.now();
   await page.goto(`${server.url}skier-preview.html?${query}`);

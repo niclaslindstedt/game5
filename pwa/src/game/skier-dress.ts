@@ -24,11 +24,13 @@ import type { RiderId } from "@engine";
 import {
   createSprings,
   flutterUniforms,
+  modelKey,
   playerModel,
   playerNow,
   SPRING_BONES,
   withFlutter,
   type ModelPart,
+  type PlayerModel,
 } from "./player-model.ts";
 
 export type Dressed = {
@@ -62,7 +64,7 @@ export type SkierDress = {
   suit?: number;
   /** The player's MODELLED kit (`player-model.ts`) in place of the
    * outfit's cut, once it is loaded and when his outfit's body is the
-   * modelled one (the guide) — never in a suit or indoors. */
+   * modelled one (the hiker) — never in a suit or indoors. */
   model?: boolean;
 };
 
@@ -78,8 +80,15 @@ export function dealtKit(kits: Map<string, SkierDress>, look: number, rider: Rid
   return made;
 }
 
-/** Whether `outfit` is a modelled body's (the guide, `player-model.ts`). */
-const modelled = (outfit: Outfit): boolean => !!gearOf("body", outfit.body).model;
+/** Whether `outfit` is a modelled body's (the hiker, `player-model.ts`). */
+/** The modelled kit `outfit`'s body wears (the hiker, `player-model.ts`),
+ * at its build — or `null` for a body dressed in code. */
+const modelOf = (outfit: Outfit): PlayerModel | null => {
+  const body = gearOf("body", outfit.body);
+  return body.model
+    ? playerModel(modelKey(body.model, body.female), outfit.weight, gearOf("weight", outfit.weight))
+    : null;
+};
 
 /** A ghost's colours: the kit's own light, lifted toward a pale ice blue. */
 const PALE = new THREE.Color(0xdcecff).convertSRGBToLinear();
@@ -138,9 +147,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   // The modelled kit's SPRING BONES after the rig's own, bound with the
   // chest's axes at their heads (`player-model.ts`).
   const model =
-    dress.model && modelled(dress.outfit) && dress.suit === undefined && !dress.bare
-      ? playerModel()
-      : null;
+    dress.model && dress.suit === undefined && !dress.bare ? modelOf(dress.outfit) : null;
   const springs = model ? createSprings(bind, model.heads) : null;
   const fx = model
     ? SPRING_BONES.map((s) => {

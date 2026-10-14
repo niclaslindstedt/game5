@@ -82,8 +82,7 @@ if (args.kind !== "all" && !HALF_OF[args.kind]) {
 const half = args.kind === "all" ? undefined : HALF_OF[args.kind];
 
 /** Each published name and the file `make blender` wrote it as: its LOD0. */
-const MADE_AS = { "player.glb": "mountaineer-lod0.glb" };
-const made = (name) => join(root, args.from, MADE_AS[name] ?? name.replace(".glb", "-lod0.glb"));
+const made = (name) => join(root, args.from, name.replace(".glb", "-lod0.glb"));
 const names = modelFiles(ALL_MODELS, half);
 const missing = names.filter((n) => !existsSync(made(n)));
 if (missing.length) {

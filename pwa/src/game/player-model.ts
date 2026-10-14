@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE PLAYER'S MODELLED KIT: the ski mountaineer made in Blender
-// (`scripts/blender/mountaineer.py`, `make models KIND=player`) — a touring
-// guide's softshell, harness, pack, ice axe, rope coil, climbing helmet and
-// glacier glasses — skinned on the very rig the dressed skier is bound on
+// THE PLAYER'S MODELLED KITS: the HIKER made in Blender
+// (`scripts/blender/hiker.py`, `make models KIND=player`), a man
+// (`hiker.glb`) and a woman (`hiker-woman.glb`) — a mountain guide's
+// hardshell, reinforced touring pants, harness, pack, ice axe, rope coil,
+// climbing helmet and glacier glasses — skinned on the very rig the dressed
+// skier is bound on
 // (`dress-loft.ts`'s `bindPose`, bone for bone by name). So it is handed to
 // `skier-dress.ts` as the dressed skin's two parts and every pose the game
 // has (a carve, the tuck, a landing, a grab, thrown, a torn piece) moves it
-// with no animation of its own.
+// with no animation of its own. The WEIGHT row reshapes it as it does the
+// code's dress (`builtModel`, off `dress-body.ts`'s `builtTo` numbers).
 //
 // Two things move it beyond the rig, both presentation only:
 //
@@ -24,7 +27,11 @@
 
 import * as THREE from "three";
 
-import { bindPose, type DressPart } from "./dress-loft.ts";
+import type { RiderId } from "@engine";
+
+import { bindPose, pastBreak, type DressPart } from "./dress-loft.ts";
+import type { BuildShape } from "./dress-body.ts";
+import type { ModelKit } from "./outfit.ts";
 import { BREAK } from "./skier-broken.ts";
 import { SKIER_BONES, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
@@ -52,7 +59,7 @@ export type PlayerModel = {
   heads: Record<SpringBone, V3>;
 };
 
-/** The materials `mountaineer.py` names that are drawn with a shine: the
+/** The materials `hiker.py` names that are drawn with a shine: the
  * helmet and its lamp, the glasses, the metal. The rest is cloth. */
 export const HARD_GOODS = new Set([
   "helmet",
@@ -81,35 +88,36 @@ export function boneIndexOf(name: string): number {
   return i >= 0 ? i : 0;
 }
 
-/** How far either side of a break the two halves of an arm bone share a
- * point, m: the loom's own seam (`dress-loft.ts`). */
-const SEAM = 0.03;
-
-/** PAST A BREAK (`skier-broken.ts`), as the loom weights the code's dress:
- * an arm bone's share past where it would break moved to the bone below
- * the break (`upperarm_lo_l` and the rest), eased over the seam. On a
- * sound arm the two halves move as one; on a broken one the sleeve hangs
- * from the break with the arm in it, rather than folding at the joint. */
-function splitAtBreaks(at: V3, w: Map<number, number>): void {
-  const frames = bindPose().frames;
-  for (const s of ["l", "r"] as const) {
-    for (const [bone, cut] of [
+/** Each arm bone that can break, the bone below its break and where along
+ * it the break is (`skier-broken.ts`'s `BREAK`). */
+const ARM_CUTS = (["l", "r"] as const).flatMap((s) =>
+  (
+    [
       [`upperarm_${s}`, BREAK.upper],
       [`forearm_${s}`, BREAK.fore],
-    ] as const) {
-      const i = SKIER_BONES.indexOf(bone);
-      const share = w.get(i);
-      if (!share) continue;
-      const f = frames[bone];
-      const m = (at.x - f.head.x) * f.y.x + (at.y - f.head.y) * f.y.y + (at.z - f.head.z) * f.y.z;
-      const x = Math.max(0, Math.min(1, (m - cut + SEAM) / (2 * SEAM)));
-      const c = x * x * (3 - 2 * x);
-      if (c <= 0) continue;
-      const lo = SKIER_BONES.indexOf(bone.replace("arm_", "arm_lo_") as SkierBone);
-      if (c >= 1) w.delete(i);
-      else w.set(i, share * (1 - c));
-      w.set(lo, (w.get(lo) ?? 0) + share * c);
-    }
+    ] as const
+  ).map(([bone, at]) => ({
+    bone,
+    at,
+    i: SKIER_BONES.indexOf(bone as SkierBone),
+    lo: SKIER_BONES.indexOf(bone.replace("arm_", "arm_lo_") as SkierBone),
+  })),
+);
+
+/** PAST A BREAK: a vertex's share on an arm bone below where it would
+ * break moves to the bone below the break, by the code dress's own rule
+ * (`dress-loft.ts`'s `pastBreak`) — on a sound arm the two halves move as
+ * one; on a broken one the sleeve hangs from the break with the arm in it,
+ * rather than folding at the joint. */
+function splitAtBreaks(at: V3, w: Map<number, number>): void {
+  for (const { bone, at: cut, i, lo } of ARM_CUTS) {
+    const share = w.get(i);
+    if (!share) continue;
+    const c = pastBreak(bone, cut, at);
+    if (c <= 0) continue;
+    if (c >= 1) w.delete(i);
+    else w.set(i, share * (1 - c));
+    w.set(lo, (w.get(lo) ?? 0) + share * c);
   }
 }
 
@@ -189,7 +197,17 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
   return { ...parts, heads };
 }
 
-let held: PlayerModel | null = null;
+/** Which model of a kit: a man's or a woman's. */
+export type ModelKey = `${ModelKit}${"" | "-woman"}`;
+export const modelKey = (kit: ModelKit, female: boolean): ModelKey =>
+  female ? `${kit}-woman` : kit;
+
+/** Every model the build packs, each its own file (`<key>.glb`). */
+export const PLAYER_MODELS: readonly ModelKey[] = ["hiker", "hiker-woman"];
+
+const held = new Map<ModelKey, PlayerModel>();
+const builds = new Map<string, PlayerModel>();
+
 let runClock: number | null = null;
 
 /** THE CLOCK THE KIT MOVES ON: the run's own (`GameState.t`), handed in
@@ -203,22 +221,114 @@ export function playerNow(): number {
   return runClock ?? performance.now() / 1000;
 }
 
-/** The model, once `skier-models.ts`'s `loadModels` has read it — or
- * `null` (switched off, not packed, failed to load, or not in yet), when
- * the player is dressed in code as any other skier. */
-export function playerModel(): PlayerModel | null {
-  return held;
+/** A kit's model, a man's or a woman's, at the build its WEIGHT row picks
+ * (`builtModel`, made once a build) — once `skier-models.ts`'s
+ * `loadModels` has read it; or `null` (switched off, not packed, failed to
+ * load, or not in yet), when the player is dressed in code as any other
+ * skier. */
+export function playerModel(
+  key: ModelKey,
+  weight?: RiderId,
+  shape?: BuildShape,
+): PlayerModel | null {
+  const m = held.get(key) ?? null;
+  if (!m || !weight || !shape) return m;
+  const id = `${key}:${weight}`;
+  let made = builds.get(id);
+  if (!made) {
+    made = builtModel(m, shape, bindPose().frames);
+    builds.set(id, made);
+  }
+  return made;
 }
-export function setPlayerModel(m: PlayerModel | null): void {
-  held = m;
+export function setPlayerModel(key: ModelKey, m: PlayerModel | null): void {
+  if (m) held.set(key, m);
+  else held.delete(key);
+  for (const id of [...builds.keys()]) if (id.startsWith(`${key}:`)) builds.delete(id);
 }
 
-// ---------------------------------------------------------------- springs
+// ---------------------------------------------------------------- the build
 const v3 = (x: number, y: number, z: number): V3 => ({ x, y, z });
 const add = (a: V3, b: V3): V3 => v3(a.x + b.x, a.y + b.y, a.z + b.z);
 const sub = (a: V3, b: V3): V3 => v3(a.x - b.x, a.y - b.y, a.z - b.z);
 const mul = (a: V3, k: number): V3 => v3(a.x * k, a.y * k, a.z * k);
 const dot = (a: V3, b: V3): number => a.x * b.x + a.y * b.y + a.z * b.z;
+
+/** The bones the trunk's girth moves, and the limbs' (which take 0.7 of
+ * it, as `builtTo`'s do); the rest (the head, the hands, the boots) is a
+ * heavier skier's as the medium one's. */
+const TRUNK_BONES = new Set<string>(["pelvis", "chest"]);
+const LIMB_BONES = new Set<string>(
+  SKIER_BONES.filter((b) => /^(thigh|shin|upperarm|forearm|hip|knee|shoulder|elbow)/.test(b)),
+);
+
+/** THE MODEL AT A BUILD (the WEIGHT row, `outfit.ts`'s `WEIGHTS`): every
+ * vertex moved off the line of the bone that carries most of it by the
+ * build's share — the loom's own numbers (`dress-body.ts`'s `builtTo`):
+ * the trunk by its girth, a heavy skier's STOMACH carried ahead over the
+ * belt and a solid one's CHEST and upper arms, the limbs by 0.7 of it —
+ * and the pack and the coil on the chest set back or out as far as the
+ * trunk has grown. The medium build is the model as it is. */
+export function builtModel(
+  m: PlayerModel,
+  b: BuildShape,
+  bind: Record<SkierBone, BoneFrame>,
+): PlayerModel {
+  if (b.girth === 1 && b.belly === 0 && b.chest === 0) return m;
+  const limb = 1 + (b.girth - 1) * 0.7;
+  const spine = bind.pelvis;
+  const chest = bind.chest;
+  // The back grows by the girth's share of its depth behind the spine.
+  const shift = mul(chest.z, -(b.girth - 1) * 0.11);
+  // The stomach's level: a hand above the hips' head, gone by the crotch
+  // and under the ribs; the chest's from the lowest rib up.
+  const gut = (y: number): number => {
+    const u = Math.max(0, 1 - Math.abs(y - (spine.head.y + 0.16)) / 0.2);
+    return u * u * (3 - 2 * u);
+  };
+  const pecs = (y: number): number => Math.max(0, Math.min(1, (y - chest.head.y + 0.05) / 0.2));
+  const reshape = (part: ModelPart): ModelPart => {
+    const position = part.position.slice();
+    for (let i = 0; i < position.length / 3; i++) {
+      let j = 0;
+      for (let k = 1; k < 4; k++)
+        if (part.skinWeight[i * 4 + k] > part.skinWeight[i * 4 + j]) j = k;
+      const bone = part.skinIndex[i * 4 + j];
+      const p = v3(position[i * 3], position[i * 3 + 1], position[i * 3 + 2]);
+      let to = p;
+      if (bone >= SKIER_BONES.length) {
+        // The pack and the coil ride his back and chest.
+        if (SPRING_BONES[bone - SKIER_BONES.length].parent === "chest") to = add(p, shift);
+      } else {
+        const name = SKIER_BONES[bone];
+        const f = bind[name];
+        if (TRUNK_BONES.has(name) || LIMB_BONES.has(name)) {
+          const t = Math.max(0, Math.min(f.length, dot(sub(p, f.head), f.y)));
+          const on = add(f.head, mul(f.y, t));
+          const off = sub(p, on);
+          let k = TRUNK_BONES.has(name) ? b.girth : limb;
+          if (TRUNK_BONES.has(name)) {
+            const ahead = dot(off, chest.z) > 0;
+            k *= 1 + (ahead ? b.belly : 0.2 * b.belly) * gut(p.y) * 0.3;
+            k *= 1 + (ahead ? 0.6 : 1) * b.chest * pecs(p.y);
+          } else if (name.startsWith("upperarm") || name.startsWith("shoulder")) {
+            k *= 1 + b.chest;
+          }
+          to = add(on, mul(off, k));
+        }
+      }
+      position[i * 3] = to.x;
+      position[i * 3 + 1] = to.y;
+      position[i * 3 + 2] = to.z;
+    }
+    return { ...part, position };
+  };
+  const heads = { ...m.heads };
+  for (const s of SPRING_BONES) if (s.parent === "chest") heads[s.name] = add(heads[s.name], shift);
+  return { cloth: reshape(m.cloth), hard: reshape(m.hard), heads };
+}
+
+// ---------------------------------------------------------------- springs
 
 /** A point stated in a frame's axes, from the frame's head. */
 const inFrame = (f: BoneFrame, o: V3): V3 =>

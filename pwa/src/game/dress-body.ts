@@ -161,6 +161,10 @@ function measure(A: typeof MAN, female: boolean): BodyMeasure {
   };
 }
 
+/** The survey's means themselves, mm — what the modelled kits are cut to
+ * too (`scripts/blender/hiker.py`, handed them by `kinds/hiker.mjs`). */
+export const SURVEY = { man: MAN, woman: WOMAN } as const;
+
 export const BODY_MEASURES = { man: measure(MAN, false), woman: measure(WOMAN, true) } as const;
 
 /** A BUILD'S SHAPE over the medium one's (`WeightDef`): `girth` the

@@ -161,23 +161,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
   },
   {
     asset: "Player's kit",
-    ids: ["player"],
+    ids: ["hiker", "hiker-woman"],
     source: "blender",
     code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
     drawnBy: "pwa/src/game/player-model.ts",
     blender: {
-      builder: "scripts/blender/mountaineer.py",
-      files: ["player.glb"],
-      pattern: "player.glb",
+      builder: "scripts/blender/hiker.py",
+      files: ["hiker.glb", "hiker-woman.glb"],
+      pattern: "<id>.glb",
       switch: "VITE_MODEL_PLAYER",
     },
     note:
-      "the GUIDE body on the rider card, a mountain guide (hardshell, harness, rope coiled " +
-      "round the chest, pack with crampons and ice axe, radio, helmet), skinned on the " +
-      "dressed skier's rig so every pose moves it and a broken arm hangs from its break, with " +
-      "spring bones on the pack, the coil and the rope's tail and a flutter on the loose cloth " +
-      "on the run's clock; never dealt to a rival, and switched off the guide is the man's " +
-      "dress in code",
+      "the HIKER bodies on the rider card, a man and a woman: a mountain guide (hardshell, " +
+      "touring pants with reinforced knees and kick patches, harness, a two-colour rope coiled " +
+      "round the chest, a pack with a pale face and an ice axe, radio, helmet; her braid over the " +
+      "right shoulder), skinned on the dressed skier's rig so every pose moves it, reshaped by the " +
+      "WEIGHT row and a broken arm hangs from its break, with spring bones on the pack, the coil " +
+      "and the rope's tail and a flutter on the loose cloth on the run's clock; never dealt to a " +
+      "rival, and switched off the hiker is the man's or the woman's dress in code",
   },
   {
     asset: "Skier",

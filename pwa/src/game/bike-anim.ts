@@ -65,7 +65,12 @@ export type BodyAnim = {
 
 /** THE ANIMATED STYLE: the freerider's style with the bike's turn eased,
  * the foot out timed, the cranks as drawn and the body's offsets. */
-export type AnimatedStyle = RideStyle & { body: BodyAnim; crank: number };
+export type AnimatedStyle = RideStyle & {
+  body: BodyAnim;
+  crank: number;
+  /** How far the cranks are driven by his own stroke, 0..1. */
+  pedal: number;
+};
 
 /** A key on a clip's timeline: its time, s, and the channels it sets. */
 type ClipKey = [number, Partial<BodyAnim>];
@@ -140,7 +145,12 @@ export const ANIM = {
    * chased to the engine's own angle, which a stroke of a frame or two would
    * spin them half a turn after. `cadence` the slow mean the rate is read
    * off, s; PEDALLING held on `hold` s after the engine's last stroke, so
-   * strokes ratcheted a few frames apart read as one bout of pedalling. */
+   * strokes ratcheted a few frames apart read as one bout of pedalling. The
+   * drive is let go on its own spring once he stops (`release`, rad/s), and
+   * a stroke he is `finish` rad past level is finished forward to the next
+   * level, never pedalled back: a rider stops a stroke with his cranks
+   * level, so he never coasts into a turn or off a lip with one foot at
+   * the top of the stroke. */
   crank: {
     coast: 7,
     air: 12,
@@ -150,6 +160,8 @@ export const ANIM = {
     landed: [0.35, 0.8] as const,
     cadence: 0.35,
     hold: 0.35,
+    release: 18,
+    finish: 0.5,
   },
   /** The pedalling's rock: the hips up and down twice a turn, side to side
    * once, the trunk twisting with the stroke. */
@@ -178,7 +190,7 @@ export const ANIM = {
    * spring (rad/s: the knee's quick, the trunk's slow, since a pitched
    * trunk swings the hands' elbows about). */
   limbs: {
-    knee: [90, 155] as const,
+    knee: [93, 155] as const,
     elbow: [84, 150] as const,
     hipsMost: 0.835,
     pitch: [0.42, 1.18] as const,
@@ -348,8 +360,8 @@ function kneeGuard(pose: BikePose, style: AnimatedStyle): number {
   let d = 0;
   if (Math.max(...now) > hi) d = -least(0, 0.25, (x) => Math.max(...legs(-x)) <= hi);
   if (Math.min(...legs(d)) < lo) {
-    const open = least(0, Math.min(0.12, room - d), (x) => Math.min(...legs(d + x)) >= lo);
-    const lock = least(0, 0.12, (x) => Math.max(...legs(d + x)) > hi);
+    const open = least(0, Math.min(0.2, room - d), (x) => Math.min(...legs(d + x)) >= lo);
+    const lock = least(0, 0.2, (x) => Math.max(...legs(d + x)) > hi);
     d += Math.min(open, lock);
   }
   return d;
@@ -401,6 +413,9 @@ export class BikeAnimator {
   private sincePedal = Infinity;
   private pedal = 0;
   private pedalV = 0;
+  /** The cranks' drive at the engine's cadence, 0..1. */
+  private drive = 0;
+  private driveV = 0;
   private wasAir = false;
   private landAt = -1;
   private landScale = 1;
@@ -579,7 +594,12 @@ export class BikeAnimator {
     // foot nearer the inside forward) by as much as he is laid over, and not
     // until the legs have taken a landing on level feet — the two blended
     // by the pedalling's share, so a stroke begun or let go never kicks them.
-    if (Math.abs(wrap(this.crank - this.crankBase)) > Math.PI / 2 + 0.3)
+    [this.drive, this.driveV] = fresh
+      ? [pedalling ? 1 : 0, 0]
+      : spring(this.drive, this.driveV, pedalling ? 1 : 0, C.release, dt);
+    const past = wrap(this.crank - this.crankBase);
+    const finishing = !pedalling && this.crankV > 1 && past > C.finish;
+    if (finishing || Math.abs(past) > Math.PI / 2 + 0.3)
       this.crankBase = this.crankBase === 0 ? Math.PI : 0;
     const settled = this.landAt < 0 ? 1 : smooth(C.landed[0], C.landed[1], t - this.landAt);
     const lean = air
@@ -589,7 +609,7 @@ export class BikeAnimator {
     if (!fresh) {
       const w = air ? C.air : C.coast;
       const rate = (this.cadence / 60) * 2 * Math.PI;
-      const share = clamp01(this.pedal);
+      const share = clamp01(this.drive);
       const n = Math.max(1, Math.ceil(dt * 240));
       const h = dt / n;
       for (let i = 0; i < n; i++) {
@@ -606,7 +626,12 @@ export class BikeAnimator {
     // THE HEAD HELD: where the head stands over the bike's middle (the
     // motion lab's own measure), a slow mean of it the eye line; a share of
     // the difference taken off the hips, quickly but eased.
-    const draft: AnimatedStyle = { ...raw, body: this.body, crank: this.crank };
+    const draft: AnimatedStyle = {
+      ...raw,
+      body: this.body,
+      crank: this.crank,
+      pedal: clamp01(this.drive),
+    };
     const pts = keyPoints(freerideKey(pose, draft), 0);
     const q = pose.q;
     const [hx, hy, hz] = [pts[3 * HEAD], pts[3 * HEAD + 1], pts[3 * HEAD + 2]];
@@ -646,6 +671,7 @@ export class BikeAnimator {
       foot: this.footSide,
       body: { ...this.body, hipY: this.body.hipY + this.headFix },
       crank: this.crank,
+      pedal: clamp01(this.drive),
     };
     const L = ANIM.limbs;
     const kneeWant = ridden ? kneeGuard(pose, out) : 0;
@@ -654,7 +680,7 @@ export class BikeAnimator {
       : spring(this.kneeFix, this.kneeFixV, kneeWant, L.omega, dt);
     out.body.hipY += this.kneeFix;
     // Through a trick the arms are the trick's (the bike turned under him).
-    const armWant = ridden ? armGuard(pose, out) * (1 - clamp01(out.amount)) : 0;
+    const armWant = ridden && !air ? armGuard(pose, out) * (1 - clamp01(out.amount)) : 0;
     [this.armFix, this.armFixV] = fresh
       ? [armWant, 0]
       : spring(this.armFix, this.armFixV, armWant, L.armOmega, dt);

@@ -50,9 +50,16 @@ import {
 import { rideStyleOf } from "../game/bike-ride-style.ts";
 
 /** THE MAP every clip is ridden on, its trails (the race line, the trail
- * most clips ride, the one the bot throws a table off and rides away from),
- * and its fair midday sky. */
-export const CLIP_MAP = { seed: 38, trail: "B1", race: "DH", table: "B2", hour: 11 } as const;
+ * most clips ride, the ones the bot throws a table and a whip off and rides
+ * away from clean), and its fair midday sky. */
+export const CLIP_MAP = {
+  seed: 38,
+  trail: "B1",
+  race: "DH",
+  table: "B4",
+  whip: "B3",
+  hour: 11,
+} as const;
 
 /** Frames a second a clip is read at. */
 export const CLIP_HZ = 60;
@@ -246,7 +253,7 @@ export const CLIPS: readonly Clip[] = [
   {
     id: "whip",
     about: "the freerider's whip, through the whole flight",
-    ...bot(CLIP_MAP.race),
+    ...bot(CLIP_MAP.whip),
     limit: 120,
     pick: (sig) => flight(sig, (g) => (g.trick === "whip" ? g.amount : 0)),
   },

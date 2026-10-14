@@ -49,6 +49,7 @@ aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
 const S = await import(join(root, "tests/support/synthetic.ts"));
 const M = await import(join(root, "pwa/src/game/spray-mass.ts"));
+const MP = await import(join(root, "pwa/src/game/spray-mass-pool.ts"));
 const P = await import(join(root, "pwa/src/game/spray-sim.ts"));
 const { SNOW } = await import(join(root, "pwa/src/game/snowpack.ts"));
 const H = await import(join(root, "pwa/src/game/hold-input.ts"));
@@ -195,7 +196,7 @@ function measure(row) {
   let ahead = 0;
   let thrown = 0;
   const rises = [];
-  const pool = M.createMassPool(30000, {
+  const pool = MP.createMassPool(30000, {
     spawn: (i) => {
       const vx = pool.vel[i * 3];
       const vy = pool.vel[i * 3 + 1];

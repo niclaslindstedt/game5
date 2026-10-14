@@ -4,7 +4,7 @@
 // half, over its own loader and world, kept out of `App.tsx`. A PINNED
 // RUN's world is staged by the same machine (`pinned`).
 
-import { createGame, type CreateGameOptions, type GameState } from "@engine";
+import { createGame, type CreateGameOptions, type GameState, type Level } from "@engine";
 
 import type { LoadPlan, Loader } from "./app-load.ts";
 import { freeAgainOptions, rideKept, standingFor, type RiddenMap } from "./free-ride.ts";
@@ -12,7 +12,15 @@ import { handsFree } from "./backdrop-hold.ts";
 import { createFreeStage } from "./free-stage.ts";
 import { stageSettled } from "./menu-stage.tsx";
 import { aheadLevel } from "./map-build.ts";
-import { askKey, freeAsk, freeRideLevel, heldLevel, onSeedMaps } from "./seed-maps.ts";
+import {
+  askKey,
+  freeAsk,
+  freeRideLevel,
+  heldLevel,
+  keepRidden,
+  onSeedMaps,
+  riddenLevel,
+} from "./seed-maps.ts";
 import type { WorldBuild } from "./world-build.ts";
 
 /** How long the rider card is up before its free ride's world is staged
@@ -60,7 +68,7 @@ export function createFreeRides(deps: {
     };
   };
   const stage = createFreeStage({
-    held: (o) => heldLevel(freeAsk(o)) ?? standing(o) ?? null,
+    held: (o) => heldLevel(freeAsk(o)) ?? riddenLevel(freeAsk(o)) ?? standing(o) ?? null,
     onMaps: onSeedMaps,
     stand: createGame,
     stage: world.stage,
@@ -96,24 +104,36 @@ export function createFreeRides(deps: {
       // so nothing is generated or built — only the rider is moved.
       const ask = askKey(freeAsk(asked));
       const kept = rideKept(ridden, deps.current().level, ask);
-      const stood = (game: GameState): GameState => {
+      // The map it stands up on is kept past the ride (`keepRidden`): the
+      // main menu and PLAY again on the same mountain raise nothing.
+      const stood = (game: GameState, base: Level): GameState => {
         ridden = { ask, level: game.level };
+        keepRidden(freeAsk(asked), base);
         deps.stood(freeAgainOptions(asked, game.level));
         return game;
       };
       if (kept) {
         const options = freeAgainOptions(asked, kept);
-        loader.begin({ build: () => stood(createGame(options)), ...deps.plan() });
+        loader.begin({
+          build: () => stood(createGame(options), riddenLevel(freeAsk(asked)) ?? kept),
+          ...deps.plan(),
+        });
         return;
       }
       // The map staged behind the cards, the one standing, or the one the
       // start card's worker built or is building (`seed-maps.ts`); else
-      // built on the card's own worker.
+      // built on the card's own worker. The map as the generator raised it, kept rather than a staged one
+      // that carries this ride's day and sky.
+      const raised = heldLevel(freeAsk(asked)) ?? riddenLevel(freeAsk(asked));
       const staged = stage.take(asked, deps.outfit());
       const made = freeRideLevel(asked, () => staged?.level ?? standing(asked));
       loader.begin({
         ...made,
-        build: (built) => stood(createGame({ ...(staged ?? asked), level: built ?? made.has() })),
+        build: (built) => {
+          const base = built ?? made.has();
+          const game = createGame({ ...(staged ?? asked), level: base });
+          return stood(game, raised ?? base ?? game.level);
+        },
         ...deps.plan(),
       });
     },

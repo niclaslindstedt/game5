@@ -22,6 +22,9 @@ import {
   riddenLevel,
 } from "./seed-maps.ts";
 import type { WorldBuild } from "./world-build.ts";
+// What is drawn on the snow is solid (`drawn-solids.ts`), registered
+// before any run is stood up.
+import "./drawn-solids.ts";
 
 /** How long the rider card is up before its free ride's world is staged
  * behind it: its own stage comes up first. */

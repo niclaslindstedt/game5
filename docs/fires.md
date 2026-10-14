@@ -5,8 +5,7 @@ where skiers stop to grill sausages and warm their hands, and a few BONFIRES
 on the valley floor at the bottom of the runs. This page is what they are
 modelled on and what is built. The engine half is built: where every fire
 stands and what riding into one does; the fires are drawn; and the people
-round them are out on the free ride. The skier burning is the part still to
-come.
+round them are out on the free ride. The skier burning is drawn and heard.
 
 ## What they are modelled on
 
@@ -83,7 +82,8 @@ come.
   its lab (sheets `camp`, `bonfire`, `night`, `map`, each frame captioned
   with its milliseconds, draw calls and triangles).
 
-`tests/fires_test.ts` and `tests/fires_look_test.ts` hold it.
+`tests/fires_test.ts`, `tests/fires_look_test.ts` and `tests/burn_look_test.ts`
+hold it.
 
 ## The people round them
 
@@ -115,3 +115,30 @@ hearth or on a bench he is not sat on. `make fires ARGS=--sheet=people` is
 the lab (a group close and from above, the view from a bench, a griller's
 hand, stick and sausage close up, an eater and a warmer, a bonfire's ring,
 and the same at hour 21); `tests/fire_people_test.ts` holds it.
+
+## The skier burning
+
+- **As drawn** (`pwa/src/game/burn-plan.ts` decides it,
+  three-free; `burn-view.ts` draws it, built by `machines.ts` the first time
+  a run's `GameState.burn` is shown; nothing at all on a run kept safe for
+  work): flames stand on patches of him laid along his bones — his shins,
+  thighs, pelvis, chest, arms and helmet — and follow the posed body or the
+  ragdoll; the fire CLIMBS him from his boots to his crown over four
+  seconds, the jacket burning tallest and the helmet least, and dies down
+  over the burn's last half. Thick black smoke off the melting shell rises
+  and drifts off on the wind, sparks fly off him (a burst as he goes
+  through the hearth), and his clothes CHAR behind the fire — black,
+  browned where the shell ran — in the dressed skin's own colours. Once the
+  flames are out he smoulders for forty seconds: embers in the char and
+  thin grey wisps. His light is a lamp slot of its own, flickering orange,
+  so after dark the snow round him is lit. Four draw calls (the flames, the
+  glow, the sparks, the smoke). The X-ray cam leaves a fire death to the
+  death cam.
+- **As heard**: a whoomph as his clothes catch and a hiss as the burn goes
+  out (`audio/fire-bank.ts`), and under them a roar, a tear and a hiss with
+  the crackle of the burning cloth (`audio/burn-bed.ts`), fading into a few
+  embers' pops in the smoulder. No voice of his. The news reads ON FIRE! as
+  he catches and BURNT OUT as the burn ends on his body; the death card
+  reads BURNED. `make burn` is its lab (sheets `catch`, `burn`, `char`,
+  `night`, `sfw`, each frame captioned with the time since he caught, the
+  burnt share, its milliseconds, draw calls and triangles).

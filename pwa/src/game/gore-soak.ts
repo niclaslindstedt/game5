@@ -12,6 +12,21 @@ type Rgb = readonly [number, number, number];
 /** Blood soaked into cloth: near black-red where it is soaked through. */
 const SOAKED: Rgb = [0.11, 0.004, 0.004];
 
+/** A CLOTH'S OWN COLOURS, before anything stains it — copied the first time
+ * anything paints it, and shared by everything that does (the blood here,
+ * the char of a body burnt, `burn-view.ts`), so whichever paints it first,
+ * every one of them gives it back clean. */
+const CLEAN = new WeakMap<THREE.BufferGeometry, Float32Array>();
+export function cleanColours(g: THREE.BufferGeometry): Float32Array {
+  let orig = CLEAN.get(g);
+  if (!orig) {
+    const col = g.getAttribute("color") as THREE.BufferAttribute;
+    orig = Float32Array.from(col.array as Float32Array);
+    CLEAN.set(g, orig);
+  }
+  return orig;
+}
+
 export type Soak = {
   /** Soak cloth `g` red round the wounds `at` (the bind pose's frame), each
    * reaching `r`, as wet as `wet` (0 … 1); `force` keeps its colours even
@@ -28,8 +43,6 @@ export type Soak = {
 };
 
 export function createSoak(): Soak {
-  /** His clothes' own colours, before any blood: a copy a cloth. */
-  const clean = new WeakMap<THREE.BufferGeometry, Float32Array>();
   const soaked = new Set<THREE.BufferGeometry>();
   function cloth(
     g: THREE.BufferGeometry,
@@ -38,11 +51,7 @@ export function createSoak(): Soak {
     force = false,
   ) {
     const col = g.getAttribute("color") as THREE.BufferAttribute;
-    let orig = clean.get(g);
-    if (!orig) {
-      orig = Float32Array.from(col.array as Float32Array);
-      clean.set(g, orig);
-    }
+    const orig = cleanColours(g);
     if (!force && wounds.length === 0) return;
     soaked.add(g);
     const pos = g.getAttribute("position");
@@ -73,12 +82,10 @@ export function createSoak(): Soak {
 
   const clear = () => {
     for (const g of soaked) {
-      const orig = clean.get(g);
+      const orig = cleanColours(g);
       const col = g.getAttribute("color") as THREE.BufferAttribute;
-      if (orig) {
-        (col.array as Float32Array).set(orig);
-        col.needsUpdate = true;
-      }
+      (col.array as Float32Array).set(orig);
+      col.needsUpdate = true;
     }
     soaked.clear();
   };

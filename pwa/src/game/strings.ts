@@ -39,6 +39,7 @@ import { CHUTE_STRINGS } from "./strings-chute.ts";
 import { WINGSUIT_STRINGS } from "./strings-wingsuit.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
+import { FIRE_STRINGS } from "./strings-fire.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 import { FREESTYLE_STRINGS } from "./strings-freestyle.ts";
 import { SKI_JUMP_STRINGS } from "./strings-skijump.ts";
@@ -132,6 +133,7 @@ export const STRINGS = {
   ...WINGSUIT_STRINGS,
   ...GROOMER_STRINGS,
   ...TRAFFIC_STRINGS,
+  ...FIRE_STRINGS,
   ...FREESTYLE_STRINGS,
   ...SKI_JUMP_STRINGS,
   ...SLOPESTYLE_STRINGS,

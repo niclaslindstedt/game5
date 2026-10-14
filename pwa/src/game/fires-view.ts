@@ -35,7 +35,14 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { firesOf, type Level, type Wind } from "@engine";
 
-import { FIRE_COLOURS } from "./fireball.ts";
+import {
+  COLOURS,
+  FADE,
+  FLAME_FRAGMENT,
+  NOISE,
+  SMOKE_FRAGMENT,
+  SPARK_FRAGMENT,
+} from "./fire-glsl.ts";
 import {
   FIRE_LOOK,
   fireHash,
@@ -51,8 +58,8 @@ import type { SkyLook } from "./sky.ts";
 
 /** A fire's light, linear: the warm orange of wood flames, and its beam —
  * every way at once (`lampReach`'s spot opened past a full turn). */
-const FIRE_LIGHT = [1.0, 0.5, 0.17] as const;
-const ALL_ROUND = [-2, -1.5, -3, 0] as const;
+export const FIRE_LIGHT = [1.0, 0.5, 0.17] as const;
+export const ALL_ROUND = [-2, -1.5, -3, 0] as const;
 /** How far off the flames, sparks and smoke are drawn, m. */
 const REACH = 1400;
 
@@ -74,46 +81,6 @@ export type FiresView = {
   lamps(eye: THREE.Vector3, t: number, out: Flood[]): void;
   dispose(): void;
 };
-
-const NOISE = /* glsl */ `
-float fHash(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
-}
-float fNoise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(fHash(i), fHash(i + vec2(1.0, 0.0)), f.x),
-             mix(fHash(i + vec2(0.0, 1.0)), fHash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-float fFbm(vec2 p) {
-  float s = 0.0;
-  float a = 0.5;
-  for (int i = 0; i < 4; i++) {
-    s += a * fNoise(p);
-    p *= 2.03;
-    a *= 0.5;
-  }
-  return s;
-}
-`;
-
-const v3 = (c: readonly number[]): string => `vec3(${c.map((x) => x.toFixed(3)).join(", ")})`;
-const COLOURS = /* glsl */ `
-const vec3 F_WHITE = ${v3(FIRE_COLOURS.white)};
-const vec3 F_ORANGE = ${v3(FIRE_COLOURS.orange)};
-const vec3 F_RED = ${v3(FIRE_COLOURS.red)};
-`;
-
-const FADE = /* glsl */ `
-uniform float uHaze;
-uniform float uReach;
-float fadeAt(float dist) {
-  return smoothstep(uReach, uReach * 0.7, dist) * exp(-dist * uHaze * 0.6);
-}
-`;
 
 /** A quad from (-1, `y0`) to (1, 1), one per instance. */
 function quad(y0: number): THREE.InstancedBufferGeometry {
@@ -457,34 +424,7 @@ export function createFires(level: Level, haze: HazeUniforms): FiresView | null 
         vFade = fadeAt(length(cameraPosition - p));
         gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
       }`,
-      /* glsl */ `
-      uniform float uTime;
-      ${NOISE}
-      ${COLOURS}
-      varying vec2 vUv;
-      varying float vSeed;
-      varying float vFade;
-      void main() {
-        float v = vUv.y;
-        float t = uTime;
-        float n = fFbm(vec2(vUv.x * 1.8 + vSeed * 7.0, v * 2.6 - t * 3.0 + vSeed * 3.0));
-        float n2 = fNoise(vec2(vUv.x * 5.0 + vSeed * 13.0, v * 7.0 - t * 6.0));
-        // Licking side to side, the more the higher.
-        float u = vUv.x + (n - 0.5) * 1.0 * v + 0.18 * sin(v * 7.0 - t * 8.0 + vSeed * 20.0) * v;
-        // Widest low, drawn to a point at the top.
-        float prof = (1.0 - pow(v, 1.15)) * mix(0.65, 1.0, smoothstep(0.0, 0.15, v));
-        // Its tongues torn off the top.
-        float d = prof - abs(u) + (n2 - 0.5) * 0.55 * v * v + (n - 0.5) * 0.35;
-        float a = smoothstep(0.0, 0.1, d);
-        if (a < 0.01) discard;
-        float heat = clamp(d * 2.4 * (1.2 - v), 0.0, 1.0);
-        vec3 col = mix(F_RED, F_ORANGE, smoothstep(0.04, 0.4, heat));
-        col = mix(col, F_WHITE, smoothstep(0.5, 0.95, heat));
-        float alpha = a * mix(0.55, 1.0, heat) * smoothstep(0.0, 0.05, v) * vFade;
-        gl_FragColor = vec4(col, alpha);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`,
+      FLAME_FRAGMENT,
       THREE.NormalBlending,
     ),
     5,
@@ -612,19 +552,7 @@ export function createFires(level: Level, haze: HazeUniforms): FiresView | null 
           * (0.6 + 0.4 * sin(uTime * 23.0 + a)) * fadeAt(dist) * smoothstep(250.0, 120.0, dist);
         gl_Position = projectionMatrix * mv;
       }`,
-      /* glsl */ `
-      ${COLOURS}
-      varying vec2 vUv;
-      varying float vAlpha;
-      varying float vHeat;
-      void main() {
-        float r = dot(vUv, vUv);
-        if (r > 1.0) discard;
-        vec3 col = mix(F_RED * 2.2, F_ORANGE * 1.6, vHeat);
-        col = mix(col, F_WHITE * 1.3, smoothstep(0.85, 1.0, vHeat));
-        gl_FragColor = vec4(col * (1.0 - r) * vAlpha, 1.0);
-        #include <colorspace_fragment>
-      }`,
+      SPARK_FRAGMENT,
       THREE.AdditiveBlending,
     ),
     7,
@@ -676,21 +604,7 @@ export function createFires(level: Level, haze: HazeUniforms): FiresView | null 
         vCol = uLit * vec3(0.2, 0.2, 0.2) + vec3(1.0, 0.42, 0.12) * uNight * 0.5 * exp(-tau * 1.4);
         gl_Position = projectionMatrix * mv;
       }`,
-      /* glsl */ `
-      ${NOISE}
-      varying vec2 vUv;
-      varying float vAlpha;
-      varying vec3 vCol;
-      varying float vSeed;
-      void main() {
-        float r = dot(vUv, vUv);
-        if (r > 1.0) discard;
-        float soft = (1.0 - r) * (1.0 - r);
-        float wisp = 0.55 + 0.6 * fNoise(vUv * 2.5 + vSeed * 30.0);
-        gl_FragColor = vec4(vCol, vAlpha * soft * wisp);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`,
+      SMOKE_FRAGMENT,
       THREE.NormalBlending,
     ),
     4,

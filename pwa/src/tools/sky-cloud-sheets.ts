@@ -18,6 +18,14 @@
 //                of an hour before sunset to forty minutes after (columns) —
 //                the sunward edges and the bases turning gold, orange, red
 //                and pink, the bases lit from below after sunset.
+//   cloudmotion  HIGH'S CARRIED PICTURE AT SPEED: the lens on the summit
+//                held still, run at a chase's 30 m/s straight and turning
+//                and whipped round (rows), every frame a sixtieth of a
+//                second on — the picture carried frame to frame (a
+//                sixteenth marched afresh), the same frame marched whole,
+//                and their difference ×4 (columns); `dE` / `dE95` the
+//                carry's error, `ms` the mean of the carried frames' time
+//                (MEDIUM's slab timed on the same run beside it, `msMed`).
 //   cloudshadow  over the face from above the summit at noon, the broken
 //                weathers (rows), three frames twenty run seconds apart
 //                (columns): the clouds' shadows crossing the snow.
@@ -32,7 +40,7 @@ import { SKY_CLOCK, sunAtRun, withSky, type Level, type SkyOverride } from "@eng
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { CLOUD_TIER, TIERS } from "../game/settings-video.ts";
-import { forceCloudTier } from "../game/clouds.ts";
+import { forceCloudTier, refreshCloudVolume } from "../game/clouds.ts";
 import { forceSkyTier } from "../game/sky-gpu.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
 import { cloudEval, frameDiff } from "./sky-eval.ts";
@@ -41,7 +49,7 @@ import type { SkyCell } from "./sky-harness.ts";
 /** What the harness lends the cloud sheets. */
 export type CloudSheetHost = {
   level(): Level;
-  state(): { t: number };
+  state(): { t: number; skier: { heading: number } };
   setT(t: number): void;
   cellW: number;
   cellH: number;
@@ -65,6 +73,8 @@ export type CloudSheetHost = {
   /** Draw a frame into the stage and read its bytes. */
   grab(): Uint8ClampedArray;
   setOverride(view: LensPose | null): void;
+  /** The cloud passes timed alone, every tier (`sky-cloud-cost.ts`). */
+  timeClouds(): string;
   ridgeTop(): { x: number; y: number; z: number };
   horizonHour(rising: boolean): number;
   fmtHour(h: number): string;
@@ -313,4 +323,140 @@ export async function cloudshadowSheet(host: CloudSheetHost): Promise<Sheet> {
   }
   host.setT(0);
   return { note: `${names.join(", ")} × ${gaps.length}`, r: names.length, c: gaps.length, cells };
+}
+
+/** HIGH'S CARRIED PICTURE AT SPEED against the same frame marched whole. */
+export async function cloudmotionSheet(host: CloudSheetHost): Promise<Sheet> {
+  const level = host.level();
+  const names = pick(host, ["fair"]);
+  const runs = [
+    { label: "still", speed: 0, turn: 0 },
+    { label: "chase 30 m/s", speed: 30, turn: 0 },
+    { label: "30 m/s, turn 40°/s", speed: 30, turn: 40 },
+    { label: "whip 150°/s", speed: 10, turn: 150 },
+  ];
+  const cols = ["carried", "whole", "diff ×4"];
+  const { cellW, cellH } = host;
+  const ctx = host.frame(
+    LABEL_W + 40 + cellW * cols.length,
+    HEAD_H + cellH * runs.length * names.length,
+    "HIGH's carried cloud at speed · 48 frames at 60 Hz, then the same frame marched whole",
+  );
+  cols.forEach((c, i) => ctx.fillText(c, LABEL_W + 40 + i * cellW + 6, 26));
+  const cells: SkyCell[] = [];
+  const top = host.ridgeTop();
+  const sunAz = azimuthAt(level, 12);
+  const put = (bytes: Uint8ClampedArray, x: number, y: number): void => {
+    const img = ctx.createImageData(cellW, cellH);
+    img.data.set(bytes);
+    ctx.putImageData(img, x, y);
+  };
+  const timed = (frames: number, pose: (i: number) => LensPose): number => {
+    let ms = 0;
+    for (let i = 0; i < frames; i++) {
+      host.setOverride(pose(i));
+      host.setT(host.state().t + 1 / 60);
+      const t0 = performance.now();
+      host.grab();
+      ms += performance.now() - t0;
+    }
+    return ms / frames;
+  };
+  for (const [n, name] of names.entries()) {
+    for (let r = 0; r < runs.length; r++) {
+      const run = runs[r];
+      const row = n * runs.length + r;
+      const y = HEAD_H + row * cellH;
+      ctx.fillStyle = "#e8eef4";
+      ctx.fillText(`${name.toUpperCase()}`, 8, y + cellH / 2 - 8);
+      ctx.fillText(run.label, 8, y + cellH / 2 + 8);
+      await host.standSky({ weather: SKIES[name], hour: 12 });
+      host.setT(0);
+      // Down the face from the summit, the lens a little over the level.
+      const pose = (i: number): LensPose => {
+        const s = i / 60;
+        const head = sunAz + 1.1 + ((run.turn * Math.PI) / 180) * s;
+        const along = run.speed * s;
+        const eye = {
+          x: top.x + Math.sin(sunAz + 1.1) * along,
+          y: top.y + 8 - along * 0.3,
+          z: top.z + Math.cos(sunAz + 1.1) * along,
+        };
+        const p = (10 * Math.PI) / 180;
+        return {
+          eye,
+          target: {
+            x: eye.x + Math.sin(head) * Math.cos(p) * 400,
+            y: eye.y + Math.sin(p) * 400,
+            z: eye.z + Math.cos(head) * Math.cos(p) * 400,
+          },
+          fov: 68,
+          roll: 0,
+        };
+      };
+      // MEDIUM's slab over the same run, timed.
+      forceCloudTier("slab4");
+      host.setOverride(pose(0));
+      host.tick();
+      const msMed = timed(16, pose);
+      // HIGH's volume: a frame marched whole, then carried along the run.
+      forceCloudTier("volume");
+      host.setT(0);
+      host.setOverride(pose(0));
+      refreshCloudVolume();
+      host.tick();
+      const frames = 48;
+      const msWhole = timed(1, () => pose(0));
+      host.setT(0);
+      host.setOverride(pose(0));
+      refreshCloudVolume();
+      host.tick();
+      const ms = timed(frames, (i) => pose(i + 1));
+      host.setT(host.state().t - 1 / 60);
+      host.setOverride(pose(frames));
+      const carried = host.grab();
+      refreshCloudVolume();
+      const whole = host.grab();
+      const x0 = LABEL_W + 40;
+      put(carried, x0, y);
+      put(whole, x0 + cellW, y);
+      const diff = new Uint8ClampedArray(carried.length);
+      for (let i = 0; i < diff.length; i += 4) {
+        for (let c = 0; c < 3; c++)
+          diff[i + c] = Math.min(255, Math.abs(carried[i + c] - whole[i + c]) * 4);
+        diff[i + 3] = 255;
+      }
+      put(diff, x0 + 2 * cellW, y);
+      const d = frameDiff(carried, whole, cellW, cellH);
+      const look = cloudEval(carried, cellW, cellH);
+      const cell = {
+        id: `${name}@${run.label.replace(/[^a-z0-9]+/gi, "-")}`,
+        dE: d.dE,
+        dE95: d.dE95,
+        ms,
+        msWhole,
+        msMed,
+        ...look,
+      } as unknown as SkyCell;
+      ctx.fillStyle = "#e8eef4";
+      ctx.fillText(
+        `dE ${d.dE.toFixed(2)} dE95 ${d.dE95.toFixed(1)} · ${ms.toFixed(0)} ms (whole ${msWhole.toFixed(0)}, MED ${msMed.toFixed(0)})`,
+        x0 + 2 * cellW + 6,
+        y + 14,
+      );
+      cells.push(cell);
+    }
+  }
+  forceCloudTier(null);
+  host.setOverride(null);
+  host.setT(0);
+  const cost = host.timeClouds();
+  ctx.fillStyle = "#e8eef4";
+  ctx.fillText(cost, 8, HEAD_H - 4);
+  return {
+    note: `${names.join(", ")} × ${runs.length} · passes alone: ${cost}`,
+    r: runs.length * names.length,
+    c: cols.length,
+    cells,
+  };
 }

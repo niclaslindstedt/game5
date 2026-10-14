@@ -43,6 +43,13 @@ import type { SkyLook } from "./sky.ts";
 import { SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import type { Tier } from "./settings-video.ts";
 
+/** The night's glow in a look's rows, summed — what moves the table. */
+function nightGlow(rows: Float32Array): number {
+  let sum = 0;
+  for (const x of rows) sum += x;
+  return sum;
+}
+
 export type SkyGpu = {
   /** The tier asked for (the DISTANCE row's `SKY_TIER`). */
   setTier(tier: Tier): void;
@@ -152,9 +159,18 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     uElevation: { value: 0 },
     uRadius: { value: 6360 },
     uExpose: { value: new THREE.Vector4() },
+    uNightRows: { value: Array.from({ length: SKY_VIEW_EL }, () => new THREE.Vector3()) },
   };
   /** What the sky-view table was last drawn for. */
-  const drawn = { elevation: NaN, radius: NaN, exposure: NaN, mean: NaN, night: NaN, veil: NaN };
+  const drawn = {
+    elevation: NaN,
+    radius: NaN,
+    exposure: NaN,
+    mean: NaN,
+    night: NaN,
+    veil: NaN,
+    glow: NaN,
+  };
 
   let ap: THREE.WebGLRenderTarget | null = null;
   const apU = {
@@ -237,7 +253,12 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     update(look, lens) {
       const tier = tierNow();
       const want = SKY_TIER_LOOK[tier];
-      const lidded = look.cloud.genus === 3;
+      // Under a lid the deck is the LOW grid's. Under a moving sky
+      // (`front.ts`) the grid — itself the two skies' grids mixed, so
+      // continuous — takes over as soon as any of a lid is coming in or
+      // still going, and the air's volume is let go half way.
+      const lidded = look.cloud.lid > 0;
+      const lidHalf = look.cloud.lid >= 0.5;
       if (!gl || !want.lut) {
         showGrid();
         haze.uHazeTint.value.set(1, 1, 1);
@@ -257,8 +278,13 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
           moved(look.exposure, drawn.exposure) ||
           moved(look.domeMean, drawn.mean) ||
           Math.abs(look.night - drawn.night) > SKY_REDRAW.share ||
-          Math.abs(look.veil - drawn.veil) > SKY_REDRAW.share
+          Math.abs(look.veil - drawn.veil) > SKY_REDRAW.share ||
+          moved(nightGlow(look.nightRows), drawn.glow)
         ) {
+          const rows = look.nightRows;
+          viewU.uNightRows.value.forEach((r, j) =>
+            r.set(rows[j * 3], rows[j * 3 + 1], rows[j * 3 + 2]),
+          );
           viewU.uElevation.value = look.elevation;
           viewU.uRadius.value = radius;
           viewU.uExpose.value.set(look.exposure, look.domeMean, look.night, look.veil);
@@ -270,6 +296,7 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
             mean: look.domeMean,
             night: look.night,
             veil: look.veil,
+            glow: nightGlow(look.nightRows),
           });
         }
         haze.uSkyView.value = view!.texture;
@@ -279,7 +306,7 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       hazeTint(look.haze, look.altitude, tint);
       haze.uHazeTint.value.set(tint[0], tint[1], tint[2]);
       // THE AERIAL-PERSPECTIVE VOLUME, the lens's own, every frame.
-      const air = want.froxels && !lidded && look.sun.y > -0.05;
+      const air = want.froxels && !lidHalf && look.sun.y > -0.05;
       if (air && (lens as THREE.PerspectiveCamera).isPerspectiveCamera) {
         if (!ap) ap = target(FROXEL_ATLAS.width, FROXEL_ATLAS.height);
         lens.updateMatrixWorld();

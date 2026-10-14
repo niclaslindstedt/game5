@@ -16,6 +16,7 @@
 
 import { drySummer, summerOf } from "./summer.ts";
 import { setBikePark } from "../mapgen/bike-park.ts";
+import { nearestBikeHead } from "../mapgen/bike-park-query.ts";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
   PARK_VERSION,
@@ -38,6 +39,7 @@ import {
   withDay,
   withPlace,
   realFacePlace,
+  withFront,
   withSky,
 } from "../mapgen/index.ts";
 import type { RunGrade } from "../mapgen/grades.ts";
@@ -53,6 +55,7 @@ import {
   MODE_RULES,
   RACE,
   fieldRules,
+  showcaseRules,
   skiCrossHeatRules,
   clampResilience,
   clampSnowDepth,
@@ -91,6 +94,7 @@ import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
 import { freshHeli, startAgain } from "./heli.ts";
 import { freshSled, startSled } from "./sled.ts";
+import { freshBikeRide, startBike } from "./bike.ts";
 import { startPara } from "./para.ts";
 import { startBalloon } from "./balloon.ts";
 import { freshPlane, startPlane } from "./plane.ts";
@@ -190,6 +194,12 @@ export type CreateGameOptions = {
   /** How many rivals stand on the start line (`RACE.rivals` when left out;
    * 0 is a solo run — what the sim and the labs ski). */
   rivals?: number;
+  /** THE SHOWCASE (`showcaseRules`): the menu's backdrop run, the whole
+   * mountain the daring bot's to roam and trick on, nobody else out — its
+   * TAKE, how many times it has been stood up on this map before
+   * (`GameState.showcase`). Read only when no `mode` is asked; the field on
+   * the start line when left out. */
+  showcase?: number;
   /** Runs to the finish; the level's own (one) when left out. */
   laps?: number;
   /** Seconds of lights before GO (`RACE.countdown`; 0 for none). */
@@ -245,6 +255,11 @@ export type CreateGameOptions = {
    * (the app asks for it only without a spot: a spot picked is where the
    * ride starts). */
   byLift?: boolean;
+  /** THE PLAYER'S CHAIRS LEFT ONLY BY HAND (`chair-hands.ts`): sat on until
+   * forward is pressed with the safety bar up — stood up over the unload,
+   * thrown off anywhere else — and ridden round and back down untouched.
+   * Left out, a chair stands him up at the top as ever. */
+  chairHands?: boolean;
   /** A FREE RIDE begun ON THE HELICOPTER (`heli.ts`): sat on its skid on
    * its pad on the valley floor, the rotor turning, the controls the
    * helicopter's. Wins over `byLift` and `spawn`. Ignored by every mode
@@ -305,6 +320,12 @@ export type CreateGameOptions = {
    * gone, its sky never snowing, its drags stopped and no machine, gun,
    * avalanche or crowd of skiers on it. A free ride's alone. */
   summer?: boolean;
+  /** A SUMMER FREE RIDE begun ON THE DOWNHILL BIKE (`bike.ts`): at rest on
+   * the head of the bike park's trail `bikeTrail` (else its easiest), the
+   * rider on it. Ignored off a summer free ride, and where an aircraft or
+   * the lodge starts it. */
+  bike?: boolean;
+  bikeTrail?: string;
   /** New snow already lying when the run is stood up, m (`GameState.fresh`)
    * — a lab's or a test's; when left out, the loose snow the day has left
    * on the runs (`piste`), or 0. */
@@ -345,6 +366,11 @@ export type CreateGameOptions = {
    * the groomed runs may slide under the skier. None when left out.
    * Ignored by every other mode. */
   avalanche?: boolean;
+  /** THE WEATHER OVER THE RUN (`mapgen/front.ts`) on a FREE RIDE: the
+   * dealt sky (or the one picked) turning into others over the sky's clock.
+   * The dealt sky holds when left out. Ignored by every other mode and in
+   * summer. */
+  front?: boolean;
 };
 
 /** The ski-cross heat a run asks for: named, or its bracket's next. */
@@ -370,7 +396,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
       ? skiCrossHeatRules(laps, crossCountdown(options.seed ?? level.seed, cross))
       : options.mode
         ? MODE_RULES[options.mode](laps)
-        : fieldRules(laps);
+        : options.showcase !== undefined
+          ? showcaseRules(laps)
+          : fieldRules(laps);
   return {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
@@ -400,9 +428,13 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     ...(base.traffic ? { traffic: true } : {}),
     // ...and its skis off in the village (`town.ts`): the free ride's alone.
     ...(base.town ? { town: true } : {}),
+    // ...and its fires ridden into (`fire-burn.ts`): the same.
+    ...(base.fires ? { fires: true } : {}),
     // ...and its slopes' avalanches (`avalanche.ts`): the free ride's alone,
     // and only when asked for.
     ...(base.avalanche && options.avalanche && !summer ? { avalanche: true } : {}),
+    // ...and its weather moving over the ride (`front.ts`): the same.
+    ...(base.front && options.front && !summer ? { front: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -541,7 +573,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // ...and THE ROCK on its walls the surface a body meets (`rock-ground.ts`).
   // In SUMMER the dial stands at its least and lays no wells.
   const depth = summer ? SNOW_DIAL.min : clampSnowDepth(options.snowDepth);
-  const level = withRock(withWells(judged, wellShareOf(depth)));
+  const welled = withRock(withWells(judged, wellShareOf(depth)));
+  // THE WEATHER OVER THE RUN (`front.ts`): laid on last, once a map, so a
+  // ride started again on the map it built keeps the very same map.
+  const level = rules.front ? withFront(welled) : welled;
   const seed = options.seed ?? level.seed;
   // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
   // machines work its runs, the runs are as the hour and the sky have left
@@ -577,6 +612,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   };
   if (piste) state.piste = piste;
   if (summer) state.summer = true;
+  if (options.showcase !== undefined && !options.mode) state.showcase = options.showcase;
   const free = options.mode === "free";
   // A FREE RIDE STARTED AGAIN stands at the top of the run named.
   const head =
@@ -588,6 +624,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       ? freeSpawn(level, options.spawn.x, options.spawn.z)
       : (head ?? gridSlot(state, 0));
   standSkier(state, at.x, at.z, at.heading);
+  if (options.chairHands) state.chairHands = true;
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
   if (rules.afterski) state.afterski = freshAfterski();
@@ -605,6 +642,19 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (state.heli && options.heli && !other) startAgain(state, []);
   if (state.sled && options.sled && !(state.heli && options.heli) && !other) {
     startSled(state, []);
+  }
+  // THE DOWNHILL BIKE (`bike.ts`): a summer free ride begun on it at its
+  // trail head — absent on every other run, so no digest moves.
+  const bike =
+    summer && options.bike === true && !other && !options.inLodge && !(state.heli && options.heli);
+  if (bike) {
+    // On the trail asked for, else the one whose head is nearest the spot
+    // picked, else the park's easiest.
+    const near = options.spawn
+      ? nearestBikeHead(state.level, options.spawn.x, options.spawn.z)
+      : null;
+    state.bike = freshBikeRide(state, options.bikeTrail ?? near);
+    startBike(state, []);
   }
   if (wingsuit) state.wingsuit = { from: craft ? "craft" : "cliff" };
   if (para) startPara(state, []);
@@ -624,7 +674,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     !(options.inLodge && state.afterski && lodgesOf(level).length > 0) &&
     !other &&
     !(state.heli && options.heli) &&
-    !(state.sled && options.sled)
+    !(state.sled && options.sled) &&
+    !bike
       ? options.spawn
         ? arriveByLift(state, options.spawn.x, options.spawn.z)
         : arriveByLift(

@@ -30,6 +30,7 @@ import { PLANE_BANK } from "./plane-bank.ts";
 import { CHUTE_BANK } from "./chute-bank.ts";
 import { BALLOON_BANK } from "./balloon-bank.ts";
 import { SLED_BANK } from "./sled-bank.ts";
+import { BIKE_BANK } from "./bike-bank.ts";
 import { LIFT_BANK } from "./lift-voice.ts";
 import { TUNNEL_BANK } from "./tunnel-voice.ts";
 import { JUMP_BANK } from "./jump-bank.ts";
@@ -759,6 +760,9 @@ export const RUN_BANK: SoundBank = {
   ...PLANE_BANK,
   ...CHUTE_BANK,
   ...SLED_BANK,
+  // THE DOWNHILL BIKE (`bike-bank.ts`): on and off it, picked up, hooked
+  // on a chair, a landing taken on the suspension and the crash.
+  ...BIKE_BANK,
   ...AFTERSKI_BANK,
   ...DOOR_BANK,
   // THE SKIS OFF IN TOWN (`town-bank.ts`): out, clapped, shouldered, the

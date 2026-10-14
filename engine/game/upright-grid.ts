@@ -36,7 +36,27 @@ export type Upright = {
   /** The id of the building whose DOOR this post shuts: no solid while
    * the run has that door open (`building-walls.ts`'s `standing`). */
   door?: string;
+  /** A cliff's rock wall stood as a column (`cliff-wall.ts`'s
+   * `wallSolids`): the face it stands in, so the rock's top falls with the
+   * face rather than standing level out over the air in front of it.
+   * (`lx`, `lz`): the lip on the column's line; (`fx`, `fz`): down the
+   * face; the top falls `fall` m over the `run` m from the lip to the
+   * foot. */
+  face?: { lx: number; lz: number; fx: number; fz: number; run: number; fall: number };
 };
+
+/** HOW HIGH A SOLID STANDS at a plan point, m: its top, or on a cliff's
+ * wall the face's own line there — the rock under a skier falling past
+ * the face is the face, never the column's top carried out into the air
+ * over its foot. (`back`): how far back toward the lip the body reaches,
+ * m — its highest rock. */
+export function solidTopAt(t: Upright, x: number, z: number, back = 0): number {
+  const top = t.y + t.height;
+  const f = t.face;
+  if (!f) return top;
+  const u = (x - f.lx) * f.fx + (z - f.lz) * f.fz - back;
+  return top - f.fall * Math.max(0, Math.min(1, u / f.run));
+}
 
 type Grid = { cells: Map<number, number[]>; maxRadius: number };
 

@@ -215,17 +215,23 @@ describe("a steep face takes a long fall", () => {
     expect(landingLoad(small, 0, 0, 1, 0.8)).toBeCloseTo(landingLoad(small, 0, 0, 1, 0), 9);
   });
 
-  it("draws out what falls past it, the more the steeper the face", () => {
+  it("draws out what falls past it in loose snow, the more the steeper the face", () => {
     const big = efh(12);
-    const flatLoad = landingLoad(big, 0, 0, 1, 0);
-    const blue = landingLoad(big, 0, 0, 1, 0.35);
-    const red = landingLoad(big, 0, 0, 1, 0.6);
-    const black = landingLoad(big, 0, 0, 1, S.full);
+    const loose = S.loose;
+    const flatLoad = landingLoad(big, 0, loose, 1, 0);
+    const blue = landingLoad(big, 0, loose, 1, 0.35);
+    const red = landingLoad(big, 0, loose, 1, 0.6);
+    const black = landingLoad(big, 0, loose, 1, S.full);
     expect(blue).toBeCloseTo(flatLoad, 9);
     expect(red).toBeLessThan(flatLoad);
     expect(black).toBeLessThan(red);
     // ...and a bigger fall is never the lighter landing.
-    expect(landingLoad(efh(20), 0, 0, 1, S.full)).toBeGreaterThan(black);
+    expect(landingLoad(efh(20), 0, loose, 1, S.full)).toBeGreaterThan(black);
+  });
+
+  it("never on the groomer or ice: a steep hard face stops a fall as the flat does", () => {
+    const big = efh(12);
+    expect(landingLoad(big, 0, 0, 1, S.full)).toBeCloseTo(landingLoad(big, 0, 0, 1, 0), 9);
   });
 
   it("rides thirty metres onto a 45° face away down it, where onto the flat it folds him", () => {

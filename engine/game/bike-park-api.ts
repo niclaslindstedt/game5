@@ -12,6 +12,7 @@ export {
   bikeTreadAt,
   bikeTrailById,
   bikeTrailHeads,
+  nearestBikeHead,
   featuresAt,
   nearestBikeTrailPoint,
   type BikeTread,

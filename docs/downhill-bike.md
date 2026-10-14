@@ -231,3 +231,147 @@ Each eval is a lab row before and after (`make bike-ride`). The bike is held to:
 14. **Surface:** coasting down the same 10% pitch, grass is slower than hardpack, and mud slower still, in the Crr order above.
 15. **Low speed:** below ~4 m/s with no balance input the bike falls; with the rider's hand on the bars it is held up.
 16. **Determinism:** two runs on one seed and input tape give the same digest, and no existing mode's digest moves.
+
+## What is built
+
+The bike is built in the engine (part C1): the bodies, the game's handling of it, the bot and the lab. It is ridden in the app too (part C2, *As drawn, heard and played* below): the start card's row, the drawing, the rider, the lens, the HUD and the sound.
+
+- **The numbers** — `engine/game/defs/bike.ts` (`BIKE`), every one from the table above, each with its unit. The geometry they make (the axles, the steer axis, the trail, the rear axle's path) is `bike-geometry.ts`.
+- **The bodies** (`bike-body.ts`'s `rideBike`, over `bike-tyre.ts` and `bike-frame.ts`). A rigid frame, the bars and fork turning on the steer axis, two wheels on rising-rate springs and digressive dampers (bump stop, tyre and rim past the travel), and the RIDER as a second body on his legs and arms — four-fifths of the mass. The steps are split into `BIKE.substeps` substeps.
+  - **The tyre** gives one grip budget along and across the wheel, off the summer ground's surface under each patch (`summer-ground.ts`): the cornering and camber stiffness, the peak and sliding μ, the rolling resistance.
+  - **The steering.** The front's force about the steer axis turns the bars, against the rider's hands and with the wheel's gyroscope. The hands ask a LEAN; the bars countersteer into it. The assist's hands (`GameState.assist`) help: its yaw hold keeps the lean inside the grip, holds him up at a crawl and eases a brake that would lock, and its air hold levels him in the air.
+  - **Weight** is shared between the axles by where the rider stands. Leaning back holds an endo off; the crouch and its release are the pop.
+  - **The brakes** are capped by each tyre's grip; a wheel locks and skids, and the front alone pitches him over the bars past `b/h`.
+  - **Pedalling** is power-limited (`BIKE.pedal`), with aero drag on the rider's stance.
+  - **In the air** his body English pitches and yaws the bike; a brake stops a spinning wheel and pitches it.
+- **Landings judged** (`bike-judge.ts`): clean, cased (the rear short of the landing), nosed (front first, past a pitch), overshot (past the landing onto the flat) or flat. A landing past what the legs take, a washout, a lowside, a trip over the bars, a trunk, post or rock hit, or the body put on the ground THROWS him — the `bike` crash cause on the skier's own ragdoll, his injuries the body's like any fall's. The bike goes on as a loose body sliding on its side and lies where it stops.
+- **In the game** (`bike.ts`; `CreateGameOptions.bike` / `.bikeTrail`, `GameState.bike`). Only a SUMMER FREE RIDE that asks for it carries one; every other run has no `bike` field and moves no digest. The ride begins on the bike at rest at a trail head on a lift's top (`bikeTrail`, else the easiest).
+  - **The keys** are read in one place, `bikeControls`: the tuck the pedals, the back key both brakes, the trick key the rear alone (a skid), the edge the bars, the lean his weight fore and aft, the jump a crouch and pop. `bikeInput` is its inverse, for the bot.
+  - **The machine press** steps him off onto his feet; he WALKS, the bike lying where he left it (`BikeState.afoot`). Within `BIKE.board.reach` of it, the same press puts him back on.
+  - **Ridden into a chair's or a gondola's load zone**, the lift takes him as it takes a skier, and the bike rides up with him (mode `lift`); he is back on it at the top. The drags stand still in summer.
+  - **The restart, as the snowmobile's.** Stood up after a fall, he is back on the bike on the trail he was riding (kept by `bike-trail.ts`; a crossing is ridden through on its own trail), at its nearest point within `BIKE.board.back` m that is clear of a feature, with a run-up before it. Off every trail, he is stood up where the bike lies.
+  - **Events:** `board`, `hop`, `crash` (with `how`), `right`, `restart`, `lift` and `land` (with `landing`, `g` and `air`).
+  - **Nothing here draws from the stream.**
+- **The trails underfoot.** On a bike trail's tread the rock skin is not stood on (`rock-ground.ts`), as on a groomed run: the trail is the tread. Two trails' crossings are levelled to one height ([bike parks](bike-park.md)).
+- **The pose the drawing reads** — `bike-pose.ts`'s `bikePose`. This is a plain, three-free and DOM-free record a frame: the frame's place and attitude, each wheel's turn, the bars' steer, each end's compression and share of its travel, the cranks, and the rider's body on the frame.
+- **The bot** (`engine/sim/bike-pilot.ts`, `BIKE_PILOT`). It rides a trail from its head to its foot on the same keys a player has:
+  - **Speed.** It takes each bend at a share of the tread's grip (more on a berm's bank), braked to in time. It reckons its brakes weaker on a steep pitch, where they also fight the fall line.
+  - **Jumps.** It holds a jump's approach speed (`featureSpeed`, off the projectile and the landing), crouches and pops at the lip, pitches to the landing's slope in the air, and rolls a drop off slowly, its weight back.
+  - **Steering.** It asks the bend half a breath ahead and reads its heading and offset errors where they will be once the lean it asks has come (`line.predict`).
+  - **Wariness.** After a fall it rides the same stretch slower each time (`BikeAim.wary`), as a rider takes a section that threw him.
+- **The lab** — `make bike-ride` (`scripts/bike-ride-lab.mjs`) rides every eval above as a row against its band, on synthetic ground (`tests/support/bike-rides.ts`, `bike-worlds.ts`). `ARGS=--bot` adds the bot down every trail of seeds 38 and 7's parks (`tests/support/bike-bot.ts`). A bot row is in band when it gets home with its falls a km at most `BOT_FALLS` for its grade: green 2, blue 3, red 5, black 8, the race line 8. `tests/bike_test.ts` holds every bench row, and `tests/bike_ride_test.ts` the game's handling of it.
+
+### The bot measured
+
+`make bike-ride ARGS=--bot` (round 3) gets the bot home on all ten trails of seeds 38 and 7:
+
+| Seed | Trail | Grade | Length m | Time s | Mean km/h | Top km/h | Falls a km |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 38 | DH | race | 4663 | 917 | 18.3 | 67.5 | 8.0 |
+| 38 | B1 | green | 6340 | 1365 | 16.7 | 27.0 | 1.4 |
+| 38 | B2 | blue | 4436 | 933 | 17.1 | 52.8 | 8.4 |
+| 38 | B3 | red | 3175 | 654 | 17.4 | 40.0 | 11.4 |
+| 38 | B4 | black | 2476 | 1383 | 6.4 | 55.3 | 38.9 |
+| 7 | B1 | green | 4944 | 1025 | 17.3 | 28.6 | 1.6 |
+| 7 | B2 | blue | 3457 | 749 | 16.6 | 30.8 | 7.8 |
+| 7 | B3 | red | 2781 | 636 | 15.7 | 38.6 | 11.6 |
+| 7 | B4 | blue | 7923 | 1497 | 19.0 | 31.6 | 7.2 |
+| 7 | B6 | black | 3899 | 887 | 15.8 | 66.5 | 10.0 |
+
+**Still open (the bot, not the bike):**
+
+- **It falls far more often than a real rider.** Most of its falls are its body put on the ground off a narrow tread's edge, or lowsides. They come where:
+  - rock gardens of half-metre boulders lie across the line, since it rides one centre line with no line choice through the rocks;
+  - steep, tight switchbacks run on treads a metre wide;
+  - a table is built into a bend.
+- **Its mean speed is low.** It averages 16–19 km/h, under eval 13's 25–33 km/h; the parks' trails are longer, narrower and twistier than that profile.
+
+## As drawn, heard and played
+
+Part C2 puts the engine's bike in the player's hands on a summer free ride.
+
+- **The start.** BIKE is the summer START row's first stop and its default (`free-ride.ts`'s `BIKE_RUN`, `SUMMER_STARTS`); `?bike=1` asks for it on a link, and a summer link that names no start gets it. The spot tapped on the start card's chart picks the trail: the ride begins at the trail head nearest it (`nearestBikeHead`). A snowboard picked on the gear card is swapped for skis under a bike ride, since the board's figure has no seated or riding pose.
+- **The bike as drawn** (`bike-look.ts`, three-free; `bike-view.ts`). A code-built PLACEHOLDER that reads as a downhill bike at chase range: a long, low frame, a dual-crown fork, a single-pivot swingarm with a coil shock in the front triangle, a wide flat bar, flat pedals, big rotors and two knobbly wheels. Its places are decided off the engine's own geometry (`BIKE`, `bike-geometry.ts`): the front axle is `bikeFrontAxleAt`; the rear swings on an arc through the engine's straight path, within two centimetres of it at full travel. A modelled bike is to be built later by a separate lab; the drawing is keyed on NAMED NODES so a model can take its place:
+  - `bike_frame` — rigid, its origin the bottom bracket;
+  - `bike_bars` — the steered side (crowns, stanchions, stem, bar, grips), its origin on the steer axis (`STEER_AT`), turned about `STEER_AXIS` by `BikePose.steer`;
+  - `bike_fork` — the lowers, a child of the bars, slid up the steer axis by `BikePose.fork`;
+  - `bike_wheel_f` — a child of the fork at the extended front axle, turned about +x by `frontSpin`;
+  - `bike_swingarm` — its origin the main pivot, turned about +x by `swingAt(BikePose.shock)`;
+  - `bike_wheel_r` — a child of the swingarm at the extended rear axle, turned by `rearSpin`;
+  - `bike_shock` — its origin the front eye, its +z aimed at the rear eye and stretched to the eyes' length (`shockAt`);
+  - `bike_cranks` — about +x through the bottom bracket by `crank`, with `bike_pedal_l` and `bike_pedal_r` at the arms' ends, kept level.
+
+  The frame is the engine's body frame (x the engine's right, y up, z forward, metres) with its origin at the bottom bracket, carried onto the bike's centre of mass by `BIKE_BB`. The drive side stands on −x.
+- **The rider on it** (`skier-bike.ts`). His dressed figure is laid on the bike with the keys a body off its skis is laid with (`party-pose.ts`, `ragdollPose`): his hands round the grips (`gripsAt`), the balls of his feet on the pedals (`pedalsAt`), his hips back and his trunk bent in the ATTACK STANCE, moved where the engine's rider body moves — back, down for a pop, across into a turn — his trunk nearer upright than the bike he lays over. His skis and poles are put away (`setBiking`). Off it he walks PUSHING IT (`walkingPose`): the bike rolls at his left hand, a little ahead of him (`BIKE.walk.push`), his near hand on its grip, his trunk turned to it and leant over the push; on a lift he is seated as a skier is; thrown, he is the skier's ragdoll and the bike lies loose on its side where it stopped.
+- **On a lift.** On a chair the bike hangs off the back of his chair by its front wheel (`LIFT_HOOK`), in a gondola it is out of sight, and in the queue it stands beside him on its wheels.
+- **The lens** (`camera-bike.ts`'s `BIKE_RIGS`). While he rides, the ladder is framed off the bike, not his body: TIPS a wide bar-cam on the stem's cap, 0.2 m behind the bar's middle and 0.1 m over it, the bar and both grips across the foot of the frame (on a screen on its side; a portrait phone keeps the bar's middle), HELMET his own eyes over the bars, CHASE a close chase a few metres behind and just over his helmet (the rung a ride starts on), FAR, HIGH and ORBIT further out. Off it, the skier's own ladder.
+- **The HUD** (`bike-hud.ts`, DOM-free; `hud-bike.tsx`; words in `strings-bike.ts`). Top centre, in the air clock's place: the trail's grade mark and the name on its head's sign, how far is left of it, and his falls this ride. Off it on foot, the call back to it and how far; stood beside it, the machine press. A landing's verdict and a crash's cause are the news line's (`run-news.ts`). Touch is the skier's own thumbs: the lever's full throw is the pedals, dragged down the brakes.
+- **The sound** (`audio/bike-voice.ts`, `bike-bed.ts`, `bike-bank.ts`). Seven layers that never stop while he rides: the tyres' roar in a band set by the summer ground under them (`summerGroundAt`: a hum on tarmac, a hush on grass, a crunch on gravel and scree, a rattle on rock and roots), the knobs' buzz on hard ground, the grit thrown, the FREEHUB ticking at 54 points a turn while he coasts and silent under the pedals, the chain slapping as the ground works the rear, a locked or sliding tyre's skid, and the rotors' squeal under a hard pull at a trot. One-shots on the `bike` event: getting on and off, the bike picked up, hooked on a chair, a landing's thunk on the suspension (bottoming out past 3 g, cased or flat) and the crash. On the bike the snow bed is silent.
+- **The lab** — `make bike` (`scripts/bike-preview.mjs`, `pwa/src/tools/bike-harness.ts`): the bot down a trail through the game's own renderer, photographed on every rung of the ladder, close beside and ahead of him, in the air, thrown with the bike loose, ridden into a trunk beside the trail (`tree`), afoot pushing it (`afoot`, and `push` from beside him), rolled into the map's first chair's load zone at a walking pace (`queue`) and up the lift. `tests/bike_look_test.ts` holds the drawing's geometry to the engine's, the rider's reach, the lens and the HUD; `tests/bike_audio_test.ts` the voice.
+
+## Against the world: collisions and crashes
+
+Part F set the bike against everything a summer mountain stands in its way. It is measured by `make bike-hit` (`scripts/bike-hit-lab.mjs` over `tests/support/bike-hits.ts`, held by `tests/bike_hit_test.ts`).
+
+**What it meets** (`bike-solids.ts`):
+- **The frame.** Its plan is a capsule 2.1 m long and 0.3 m across, pushed out of every trunk, lift tower, mast, gun, a building's wall posts and a street lamp (`solidsOf`). The closing speed into one past `crash.hit` (3.5 m/s) throws him (`hit`).
+- **The bar ends.** The bar is 0.8 m wide, and each end is read beside the line. An end hooked 2 cm or more into a solid snatches the bar: the bike's way is cut to 55% and it is yawed and steered toward that side. Past `crash.hit` it throws him; under it, he is turned off the trunk and rides on.
+- **A bike thrown** against a solid lies against it, its way into it gone.
+- **A parked or moving car** is the village traffic's own (`trafficStrike`): knocked down, it is the `car` crash cause. The bike park's level is a copy of the map it was laid on, so the village is read off the base map (`villageOf`). Before, a summer bike ride had no village to meet.
+- **Not modelled.** A rock garden's rocks are the trail's ground, never solids. The race line's tape and its stakes are drawn only. Water is a surface (Crr 0.5), never deep.
+
+**The sweep** (seed 38 in midsummer; the trunk rows on a 4% meadow). "Before" is the engine as Part C left it:
+
+| Meeting | Thrown | Peak g (part) | ISS | What came of it | Before |
+| --- | --- | --- | --- | --- | --- |
+| 30 cm trunk head-on, 10 km/h | no | 11 (shoulder) | 0 | stopped against it | same |
+| 30 cm trunk head-on, 20 km/h | over the bars | 67 (head) | 8 | broken collarbone, neck sprain, thumb ligament | same |
+| 30 cm trunk head-on, 35 km/h | over the bars | 251 (head) | 43 | skull, neck, ribs and pelvis broken | same |
+| bar end clips the trunk, 10 km/h | no | 0 | 0 | turned off it, rides on | passed through |
+| bar end clips the trunk, 20 km/h | thrown | 55 (shoulder) | 4 | broken collarbone | passed through |
+| bar end clips the trunk, 35 km/h | thrown | 178 (shoulder) | 22 | collarbone, arm, lung | passed through |
+| a trunk beside a trail, 25 km/h | over the bars | 187 (head) | 33 | lies against it, stood up clear | bike pinned |
+| a black's rock garden, the bot's line | lowside | 27 | 1 | — | down |
+| the same coasted in at 25 km/h | lowside | 62 (head) | 6 | concussion | same |
+| a lift tower, 25 km/h | over the bars | 187 (head) | 33 | stood up clear | same |
+| a mast, 25 km/h | over the bars | 150 (head) | 33 | — | same |
+| a building's wall, 20 km/h | over the bars | 95 (head) | 29 | — | no village found |
+| a parked car's side, 20 km/h | `car` | 30 (shoulder) | 1 | bruises, a sprained wrist | no traffic |
+| the race line's taped edge, 30 km/h | no | 0 | 0 | 24 m clean | — |
+| into a bench's cut, or off its fill, 15 km/h | no | 0 | 0 | stopped on the bank | same |
+| across a 32–39° meadow, 15 km/h | down | 5 | 0 | slid out | same |
+| into a pond, 20 km/h | no | 0 | 0 | stopped 3 m in | same |
+
+No row has the bike or the rider standing inside a solid, and every restart stands clear.
+
+**Against the research** (*Crashes and injuries* above). Over all the throws the injuries fall:
+
+| Region | Throws | Lift-served parks |
+| --- | --- | --- |
+| Arm, wrist and hand | 29% | 26% |
+| Shoulder and collarbone | 23% | 34% |
+| Trunk | 16% | — |
+| Leg and knee | 12% | — |
+| Head and face | 11% | 17% |
+| Neck and spine | 10% | — |
+
+The broken collarbone is the commonest single break, as the cohorts have it. Riders go over the bars into anything square from about 20 km/h.
+
+**The chair that never boarded.** On seed 38 a bike rolled into the first chair's load zone ran 133 m past it, for two reasons:
+1. The staging moved the bike's `x` and `z` and not its height, so the bike fell from the trail head's height. A bike is stood with `placeBike`.
+2. At a walking pace the balance steering, whose gain grows as 1/v², flopped the bars to lock. At a crawl the rider's knees and a dabbed foot hold it up, so the hands hold the bars to the turn asked (`bike-body.ts`'s `crawlHeld`). Once it is laid over past 0.3 rad (`hands.crawlLean`) the hands steer it up again, or a slow, steep traverse falls into its own turn. That traverse is the black on seed 38 where the bot once fell 171 times on one spot.
+
+Every chair and gondola on seeds 38 and 7 now boards, rolled in at 1.5 m/s from 8 m short of its zone (`tests/bike_ride_test.ts`).
+
+**Afoot**, the machine press steps him off on the bike's right. He walks pushing it at his left hand, 0.55 m across and 0.25 m ahead (`BIKE.walk.push`). It rolls with him, is pushed off solids and turns with him. The press puts him back on it, rolling at the pace he walked. Taken by a lift or thrown, he lets go of it.
+
+**In the crash cams.** With INJURIES on, a bike's blow is read ahead by the X-ray cam's forecast like any other. The trunk at 35 km/h is forecast fatal 0.57 s out, a `trauma` death that the X-ray and death cams take. The restart word names the bike: "A NEW RIDER ON THE BIKE AT THE TRAIL'S HEAD" (`free-ride.ts`'s `againAt`, `"trail"`). The news line says OFF THE BIKE!.
+
+**Still open:**
+- **Neck and spine are too often hurt.** Head-first into a trunk, tower or mast at 25 km/h is an AIS-5 broken neck in the lab's dealt rows. The cohorts name no such share. The ladder is the body's (`defs/anatomy.ts`), shared with skiing, and is left as it is.
+- **The rocks and roots are ground.** A wheel is stopped by their height, never by their face, so a rock garden is ridden up rather than struck.
+- **The tape and its stakes** are drawn only; the line can be ridden through.
+- **Water is a sticky surface.** A pond stops the bike within a few metres; nobody sinks in it.
+- **The thrown body slides on grass** as on the groomer (μ 0.45), near a body's on grass and under its on dirt (0.6–0.8).
+- **The bot** still falls in rock gardens: a lowside on a black's garden on its own line.
+- **The model.** The code's bike is a placeholder until the modelled bike and rider are built.

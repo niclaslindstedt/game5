@@ -11,6 +11,7 @@ import "./body.css";
 import "./wreck.css";
 import "./heli.css";
 import "./sled.css";
+import "./bike.css";
 import "./afterski.css";
 import "./para.css";
 import "./balloon.css";

@@ -68,6 +68,7 @@ import { TRAIL_GLSL } from "./trail-map.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
 import { PISTE_TRACKS_GLSL } from "./piste-tracks.ts";
+import { SNOW_SKY_LIGHT, SNOW_SKY_PARS } from "./snow-sky-glsl.ts";
 import { SLIDE_ALBEDO, SLIDE_GLSL, SLIDE_LUMPS, SLIDE_NORMAL } from "./avalanche-glsl.ts";
 
 /** How much brighter than white snow's albedo is painted. */
@@ -339,7 +340,8 @@ float snowHoar;      // 0 .. 1 surface hoar on the shaded snow
 float snowWet;       // 0 .. 1 thawed snow: grey, glossy, sun-cupped
 float snowCup;       // 0 .. 1 down in a sun cup's hollow
 float snowScour;     // 0 .. 1 a patch the wind has scoured to its slab
-${PISTE_TRACKS_GLSL}`;
+${PISTE_TRACKS_GLSL}
+${SNOW_SKY_PARS}`;
 
 /** Straight after `clipping_planes_fragment`: throw away what the finer
  * level already covers, and work out everything about this bit of snow. */
@@ -862,6 +864,7 @@ normal = normalize((viewMatrix * vec4(snowN, 0.0)).xyz);
  * snow in a beam glitters toward the lamp as it does toward the sun, which
  * is what makes a lit pool of snow read as snow at night. */
 export const SNOW_FRAGMENT_LIGHT = /* glsl */ `
+${SNOW_SKY_LIGHT}
 {
   vec3 lidDir = normalize(vec3(uSunPos.x, 2.2, uSunPos.z));
   float facing = clamp(dot(snowN, lidDir) / lidDir.y, 0.0, 1.3);

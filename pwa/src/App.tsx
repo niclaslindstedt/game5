@@ -47,7 +47,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   TUNING,
-  botInput,
   createGame,
   error,
   placeRun,
@@ -115,6 +114,7 @@ import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
 import { useAhead } from "./game/use-ahead.ts";
 import { backdropHeld } from "./game/backdrop-hold.ts";
+import { backdropInput, backdropNext, backdropTaken } from "./game/backdrop-run.ts";
 import { createRunActions } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
@@ -340,6 +340,7 @@ export function App() {
         );
     // A link's SECOND RUN (`?run=2`): the first skied by the bot to its flag.
     if (params.rides && params.run === 2) state = secondRunOff(state);
+    else if (!params.rides && !params.free) state = backdropTaken(state) ?? state;
     /** The mode the player's runs are ridden in, until a tile says otherwise. */
     let mode: GameMode = params.mode;
     /** The player's run, in `mode` on his pair and help: on this map or a fresh one. */
@@ -413,13 +414,12 @@ export function App() {
       for (const k of Object.keys(tally)) delete tally[k];
     };
 
-    /** What this step is ridden on: the player's hands on a run, and the BOT
-     * everywhere else — the race behind a card is still being raced — and
-     * through a link's pre-roll, so a picture of a race is of one moving. */
+    /** What this step is ridden on: the player's hands on a run, the DARING bot under a card
+     * (`backdrop-run.ts`), and the plain one through a link's pre-roll and `?bot=1`. */
     const inputFor = () =>
-      preroll || params.bot || !playerRides(shellRef.current)
-        ? botInput(state)
-        : manager.ride(state);
+      playerRides(shellRef.current) && !preroll && !params.bot
+        ? manager.ride(state)
+        : backdropInput(state, preroll || params.bot);
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {
@@ -613,6 +613,8 @@ export function App() {
         stats.rig.flush();
         pinned.clear();
         replays.clear();
+        const taken = backdropTaken(state); // a plain mountain's run: a showcase
+        if (taken) adopt(taken);
         setPage("root");
         frozen = false;
         clock.resume();
@@ -676,14 +678,11 @@ export function App() {
       loader.frame(frameMs);
       if (walk.walked()) nav.sync();
 
-      // THE BACKDROP RACES ON: a race behind a card that the bot has taken
-      // to the flag is stood back up on the same map, never left coasting.
+      // THE BACKDROP RACES ON, never left coasting: over, a showcase (`backdrop-run.ts`).
       const backdrop = !playerRides(shellRef.current) && !watching(shellRef.current);
       if (backdrop && shellRef.current !== "pause" && !loader.busy()) {
-        if (state.progress.finished) {
-          book.clear();
-          adopt(createGame({ level: state.level, seed: state.seed }));
-        }
+        const next = backdropNext(state);
+        if (next) adopt(next);
       }
       const held = !simulates(shellRef.current);
       const shown = drawable();

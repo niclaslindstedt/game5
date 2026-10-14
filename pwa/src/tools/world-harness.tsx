@@ -13,6 +13,7 @@
 import {
   botInput,
   createGame,
+  DARING_BOT,
   isPisteGrade,
   isRegionId,
   loadRealFace,
@@ -25,7 +26,9 @@ import {
   type Thrown,
   planLift,
   ropeAt,
+  showcaseSkis,
 } from "@engine";
+import type { CameraRung } from "../game/renderer-api.ts";
 
 import { beastById } from "../game/beast-defs.ts";
 import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-plan.ts";
@@ -56,6 +59,7 @@ import {
 } from "../game/settings-video.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
 import { BODIES, DEFAULT_OUTFIT } from "../game/outfit.ts";
+import { volumeNoise } from "../game/cloud-volume.ts";
 import { wildGround } from "../game/wild-ground.ts";
 import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
 
@@ -110,6 +114,9 @@ const snow = Number(params.get("snow"));
 const [downhill, free, slalom] = ["downhill", "free", "slalom"].map((m) => params.get(m) === "1");
 /** The sun's solar hour (`withSky`), the map's own unless named. */
 const hour = Number(params.get("hour") ?? Number.NaN);
+/** THE MENU'S BACKDROP (`?daring=1`): a showcase of the map ridden by the
+ * daring bot (`engine/sim/showcase.ts`), its pair the showcase's. */
+const daring = params.get("daring") === "1";
 const state: GameState = createGame({
   seed,
   region,
@@ -122,6 +129,7 @@ const state: GameState = createGame({
   ...(Number.isFinite(snow) && snow > 0 ? { snowDepth: snow } : {}),
   // A free ride's crowd is the hour's (`enthusiasts.ts`).
   ...(free && Number.isFinite(hour) ? { sky: { hour } } : {}),
+  ...(daring ? { showcase: 0, spec: showcaseSkis() } : {}),
 });
 if (Number.isFinite(hour)) renderer.setSky({ hour });
 // THE SKY'S CLOCK (`?skyclock=`, `sky-clock.ts`): held unless asked, so a
@@ -132,9 +140,18 @@ const FRAME = 1 / 60;
 
 /** One display frame: two engine steps, then a frame drawn (or not). */
 function frame(present: boolean) {
-  for (let i = 0; i < 2; i++) step(state, botInput(state));
+  for (let i = 0; i < 2; i++) {
+    const wasUp = state.skier.airTime >= AIR_SHOT;
+    step(state, daring ? botInput(state, DARING_BOT) : botInput(state));
+    if (state.skier.airborne && !wasUp && state.skier.airTime >= AIR_SHOT) flights++;
+  }
   renderer.draw(state, 0, FRAME, present);
 }
+
+/** THE FLIGHTS SO FAR that have been in the air `AIR_SHOT` s (the views
+ * `air-<n>` and `air-<n>-<rung>`: the nth of them, that far into it). */
+const AIR_SHOT = 0.45;
+let flights = 0;
 
 /** Ride on until `done` holds or the clock reaches `limit`. */
 function rideUntil(done: () => boolean, limit: number): boolean {
@@ -913,22 +930,32 @@ const shots: Record<string, () => string> = {
 };
 
 window.__world = {
-  ready: renderer.load(state),
+  // HIGH's cloud volume waits on its noise (made off the main thread).
+  ready: renderer.load(state).then(async () => void (await volumeNoise())),
   async shoot(name) {
     const chase = /^chase-(\d+(?:\.\d+)?)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
     const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
     const crash = /^crash-(net-)?(\d+(?:\.\d+)?)$/.exec(name);
-    const run = crash
-      ? () =>
-          crashShot(state, renderer, Number(crash[2]), crash[1] ? intoNet : intoTrunk, !crash[1])
-      : chase
-        ? () => chaseAt(Number(chase[1]))
-        : fall
-          ? () => fallAt(Number(fall[2]), fall[1] === "yard")
-          : net
-            ? () => netAt(Number(net[1]))
-            : (shots[name] ?? powder.view(name));
+    const air = /^air-(\d+)(?:-(\w+))?$/.exec(name);
+    const run = air
+      ? () => {
+          renderer.setCamera((air[2] ?? "chase") as CameraRung, true);
+          const n = Number(air[1]);
+          if (!rideUntil(() => flights >= n, state.t + 240)) return "no such flight";
+          frame(true);
+          return `flight ${n}, ${state.skier.airTime.toFixed(2)} s up, ${(state.skier.y - level.groundAt(state.skier.x, state.skier.z)).toFixed(1)} m over the snow, ${(state.skier.speed * 3.6).toFixed(0)} km/h`;
+        }
+      : crash
+        ? () =>
+            crashShot(state, renderer, Number(crash[2]), crash[1] ? intoNet : intoTrunk, !crash[1])
+        : chase
+          ? () => chaseAt(Number(chase[1]))
+          : fall
+            ? () => fallAt(Number(fall[2]), fall[1] === "yard")
+            : net
+              ? () => netAt(Number(net[1]))
+              : (shots[name] ?? powder.view(name));
     if (!run) throw new Error(`no view "${name}" — known: ${Object.keys(shots).join(", ")}`);
     const note = run();
     label.textContent = `${name.toUpperCase()} · seed ${seed}${face ? ` · ${face}` : region ? ` · ${region}` : ""} · ${note}`;

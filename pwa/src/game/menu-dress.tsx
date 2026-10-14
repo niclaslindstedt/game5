@@ -20,6 +20,7 @@
 import { isBoardId, raceSkisOf, type GameMode, type PairId } from "@engine";
 
 import { MenuBody, MenuHead, StepRow, type Stop } from "./menu-knobs.tsx";
+import { BikePage } from "./menu-bike.tsx";
 import { SkisPage } from "./menu-skis.tsx";
 import { boardAllowed, kindPair, pickPair, type Settings } from "./settings.ts";
 import { GEAR, GEAR_SLOTS, gearOf, type GearSlot, type Outfit } from "./outfit.ts";
@@ -127,6 +128,10 @@ export function SkisCards(p: {
   /** A free ride flown in a WINGSUIT (`wingsuitOn`): no skis go with him, so
    * the rider card rides and the gear card is never shown. */
   noSkis?: boolean;
+  /** A SUMMER free ride: the stage stands him in summer. */
+  summer?: boolean;
+  /** ...begun on the DOWNHILL BIKE: the gear card is the bike's. */
+  bike?: boolean;
 }) {
   const boards = boardAllowed(p.mode);
   const skis = !boards && isBoardId(p.skis) ? (raceSkisOf(p.mode) ?? p.settings.kept.skis) : p.skis;
@@ -142,6 +147,7 @@ export function SkisCards(p: {
         shot={p.page === "dress" ? "rider" : "gear"}
         skis={skis}
         outfit={p.settings.outfit}
+        look={{ summer: !!p.summer, bike: !!p.bike }}
       />
       {p.page === "dress" ? (
         <DressPage
@@ -151,6 +157,8 @@ export function SkisCards(p: {
           onNext={() => p.onPage("skis")}
           fly={p.noSkis ? p.onRide : null}
         />
+      ) : p.bike ? (
+        <BikePage onBack={() => p.onPage("dress")} onRide={p.onRide} />
       ) : (
         <SkisPage
           skis={skis}

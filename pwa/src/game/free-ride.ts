@@ -327,11 +327,22 @@ export function wingsuitOn(ride: FreeRide, seed: number): boolean {
  * id of its own: it is the run picked, or none. */
 export const SKIS_START = "skis";
 
-/** THE START ROW IN SUMMER: no snow to ski or ride on, so only the ways
- * into the air — the paramotor, the balloon, the helicopter, the plane and
- * the wingsuit. THE DOWNHILL BIKE, when it is built, is this row's first
- * stop (its own run id beside these), and the summer's default. */
+/** THE START ROW'S SUMMER STOP: the DOWNHILL BIKE (`bike.ts`), the ride
+ * begun on it at the head of a bike park trail — the one whose head is
+ * nearest the spot picked on the chart, else the park's easiest. A run id
+ * of its own, as the machines' are. */
+export const BIKE_RUN = "bike";
+
+/** Whether the ride on `seed` begins on the downhill bike. */
+export function bikeOn(ride: FreeRide, seed: number): boolean {
+  return runOn(ride, seed) === BIKE_RUN;
+}
+
+/** THE START ROW IN SUMMER: no snow to ski or ride on, so THE DOWNHILL BIKE
+ * first, then the ways into the air — the paramotor, the balloon, the
+ * helicopter, the plane and the wingsuit. */
 export const SUMMER_STARTS: readonly string[] = [
+  BIKE_RUN,
   PARA_RUN,
   BALLOON_RUN,
   HELI_RUN,
@@ -340,18 +351,18 @@ export const SUMMER_STARTS: readonly string[] = [
 ];
 
 /** The start a summer ride stands on when the one picked is not a summer
- * start (a slope, the snowmobile, the lodge): the helicopter on its pad. */
-export const SUMMER_DEFAULT = HELI_RUN;
+ * start (a slope, the snowmobile, the lodge): the downhill bike. */
+export const SUMMER_DEFAULT = BIKE_RUN;
 
 /** THE RIDE AS IT IS STOOD UP: itself, except in summer, where a start that
- * is not one of `SUMMER_STARTS` on `seed` is the helicopter (`SUMMER_DEFAULT`). */
+ * is not one of `SUMMER_STARTS` on `seed` is the bike (`SUMMER_DEFAULT`) —
+ * the spot picked kept, since it picks the bike's trail. */
 export function seasonRide(ride: FreeRide, seed: number): FreeRide {
   if (!summerOn(ride)) return ride;
   const at = runOn(ride, seed);
   if (at !== null && SUMMER_STARTS.includes(at)) return ride;
   return {
     ...ride,
-    spot: null,
     run: { seed, region: ride.region, face: ride.face, id: SUMMER_DEFAULT },
   };
 }
@@ -528,16 +539,19 @@ export function freeGameOptions(
   const balloon = balloonOn(ride, seed);
   const plane = planeOn(ride, seed);
   const wingsuit = wingsuitOn(ride, seed);
+  const bike = summer && bikeOn(ride, seed);
   // SAFE FOR WORK the lodges are shut: no ride begins at the party.
   const party = !skier.sfw && afterskiOn(ride, seed);
-  const vehicle = heli || sled || para || balloon || plane || party || wingsuit;
-  const spot = vehicle ? null : spotOn(ride, seed);
+  const vehicle = heli || sled || para || balloon || plane || party || wingsuit || bike;
+  // On the bike the spot picks its trail: the head nearest it.
+  const spot = vehicle && !bike ? null : spotOn(ride, seed);
   return {
     seed,
     // NOTHING ON HIS FEET IN A WINGSUIT: a board picked on the gear card is
     // not his figure in the suit (a board is drawn as its own model, with no
-    // wings), so the ride is stood up on the reference pair, never shown.
-    spec: wingsuit && isBoard(skier.spec) ? SKIS : skier.spec,
+    // wings), so the ride is stood up on the reference pair, never shown —
+    // and on the bike, whose rider is the skis' figure with the pair put away.
+    spec: (wingsuit || bike) && isBoard(skier.spec) ? SKIS : skier.spec,
     assist: skier.assist,
     poles: skier.poles ?? true,
     ...(skier.gore ? { gore: true } : {}),
@@ -560,6 +574,8 @@ export function freeGameOptions(
     // THE WINGSUIT: on its own exit high on the mountain, or worn up the
     // craft picked — no skis on, every jump flown in it.
     ...(wingsuit ? { wingsuit: true } : {}),
+    // THE DOWNHILL BIKE: at rest on a trail head, the rider on it.
+    ...(bike ? { bike: true } : {}),
     // THE AFTERSKI: inside the valley's lodge, the party under way.
     inLodge: party,
     snowDepth: depthOf(ride.snow),
@@ -580,6 +596,10 @@ export function freeGameOptions(
     // (The afterski asks for the chair too: a map with no lodge — which
     // the card never offers it on — comes onto the mountain by lift.)
     byLift: spot === null && !vehicle,
+    // ON A CHAIR HE SITS until he moves (`chair-hands.ts`): forward with the
+    // bar up takes him off — stood up over the unload, thrown off anywhere
+    // else — and untouched he rides round and back down.
+    chairHands: true,
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
@@ -587,6 +607,10 @@ export function freeGameOptions(
     // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
     // unless the start card's row turned them off — and never in summer.
     avalanche: ride.avalanche && !summer,
+    // THE WEATHER OVER THE RIDE (`front.ts`): the sky it starts under — the
+    // map's, or the one the card picked — turns into others over the sky's
+    // clock, and the fall and the wind follow it. Never in summer.
+    front: !summer,
     // SUMMER: the mountain with its snow gone (`summer.ts`).
     ...(summer ? { summer: true } : {}),
     // THINGS GO WRONG (`mishaps.ts`): a canopy's malfunction, an engine
@@ -694,8 +718,10 @@ function onSkisAgain(again: CreateGameOptions): CreateGameOptions {
  * (`freeTopOptions`) put him, read in the order `createGame` reads them —
  * the balloon's basket, the paramotor's summit, the plane's door on its
  * strip, the helicopter's pad, the snowmobile, the wingsuit's own exit,
- * then the top of the last piste skied, else the start line. */
-export type AgainAt = "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip" | "exit";
+ * the downhill bike at its trail's head, then the top of the last piste
+ * skied, else the start line. */
+export type AgainAt =
+  "start" | "top" | "pad" | "sled" | "summit" | "basket" | "strip" | "exit" | "trail";
 
 export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainAt {
   if (rules.course || rules.tricks || !next) return "start";
@@ -705,6 +731,7 @@ export function againAt(rules: RunRules, next: CreateGameOptions | null): AgainA
   if (rules.heli && next.heli) return "pad";
   if (rules.sled && next.sled) return "sled";
   if (next.wingsuit && !next.inLodge) return "exit";
+  if (next.bike && !next.inLodge) return "trail";
   return next.run !== undefined ? "top" : "start";
 }
 

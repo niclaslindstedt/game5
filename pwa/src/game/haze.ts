@@ -23,6 +23,7 @@ import { CLOUD_SHADOW_GLSL } from "./cloud-glsl.ts";
 import { FAR_RADIUS } from "./horizon.ts";
 import { AERIAL_GLSL } from "./sky-gpu-glsl.ts";
 import type { Tracks } from "./piste-tracks.ts";
+import { KEY_BANDS, SKY_LIGHT_GLSL } from "./sky-light.ts";
 import { SKY_VIEW_AZ, SKY_VIEW_EL } from "./sky-table-format.ts";
 import type { SkyLook } from "./sky.ts";
 import type { SnowAge } from "./snow-age.ts";
@@ -90,6 +91,11 @@ export type HazeUniforms = {
   uFarRimBox: { value: THREE.Vector4 };
   uFarRimSpan: { value: THREE.Vector2 };
   uFarKey: { value: THREE.Color };
+  /** THE SKY'S LIGHT ON A SURFACE and THE KEY BY HEIGHT (`sky-light.ts`):
+   * the irradiance harmonics, and the bands' heights and shares. */
+  uSkySh: { value: THREE.Vector3[] };
+  uKeyBandY: { value: THREE.Vector4 };
+  uKeyBand: { value: THREE.Vector3[] };
   uHaze: { value: number };
   /** THE MIST the DISTANCE row closes on (`mistFor`): its wall, m, past
    * which nothing is seen and nothing is drawn; 0 is no mist. */
@@ -134,6 +140,15 @@ export type HazeUniforms = {
   /** The haze's thinning height, m, and the share of it left up there. */
   uHazeLift: { value: number };
   uHazeFloor: { value: number };
+  /** THE AIR'S SHARE OF THE TWILIGHT'S LIFT (`SkyLook.light` over
+   * `.exposure`): the world's light is drawn over the dome's through the
+   * dusk, and the air in front of the ground is lit by the same sun and
+   * sky — so the haze over the near ground takes the lift with it, easing
+   * back to the dome's own as the air thickens to the horizon. */
+  uAirLift: { value: number };
+  /** The sky's light in the mountain's own shadow lifted by this share
+   * (`SkyLook.shadeLift`). */
+  uShadeLift: { value: number };
   /** The snow's cues: how flat the light is, how much it glitters. */
   uFlat: { value: number };
   uGlitter: { value: number };
@@ -171,7 +186,9 @@ export type HazeUniforms = {
    * the ground over the whole map — a vector irradiance a texel, lux — the
    * world-to-uv of its grid (the origin less half a texel, and one over its
    * span), `x` how far on in the lamp slots' units a lux (0: dark, or no
-   * map baked) and the colour of the light, linear. Read by `pisteLight`. */
+   * map baked), `y` the share of it the eye sees against the sky
+   * (`headlamp.ts`'s `adaptLamps`), and the colour of the light, linear.
+   * Read by `pisteLight`. */
   uPisteLight: { value: THREE.Texture | null };
   uPisteBox: { value: THREE.Vector4 };
   uPisteOn: { value: THREE.Vector4 };
@@ -198,10 +215,13 @@ export type HazeUniforms = {
   uCloudBox: { value: THREE.Vector4[] };
   uCloudTau: { value: THREE.Vector4 };
   uCloudMean: { value: THREE.Vector4 };
-  /** A VALLEY FOG SEEN FROM ABOVE (`SkyLook.sea`): its lit colour and its
-   * top's height, m; and its density, 1/m (0: none). */
+  /** THE LOW DECK OR VALLEY FOG (`SkyLook.sea`): its colour and its top's
+   * height, m; its density, 1/m (0: none); its base's height, m. */
   uSea: { value: THREE.Vector4 };
+  /** The sun's share of the sea's colour (the rest the sky's light). */
+  uSeaSun: { value: THREE.Vector3 };
   uSeaK: { value: number };
+  uSeaBase: { value: number };
 };
 
 /** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`), the
@@ -254,6 +274,9 @@ export function createHazeUniforms(): HazeUniforms {
     uFarRimBox: { value: new THREE.Vector4(0, 0, 1, 0) },
     uFarRimSpan: { value: new THREE.Vector2(0, 0) },
     uFarKey: { value: new THREE.Color() },
+    uSkySh: { value: Array.from({ length: 9 }, () => new THREE.Vector3()) },
+    uKeyBandY: { value: new THREE.Vector4(0, 1, 2, 3) },
+    uKeyBand: { value: Array.from({ length: KEY_BANDS }, () => new THREE.Vector3(1, 1, 1)) },
     uHaze: { value: 1 / 1500 },
     uMist: { value: 0 },
     uMistAloft: { value: 0 },
@@ -268,6 +291,8 @@ export function createHazeUniforms(): HazeUniforms {
     uTerrainShadeBox: { value: new THREE.Vector4(0, 0, 1, 1) },
     uTerrainShadeOn: { value: new THREE.Vector4(0, 0, 0, 0) },
     uHazeLift: { value: 700 },
+    uAirLift: { value: 1 },
+    uShadeLift: { value: 0 },
     uHazeFloor: { value: 0.55 },
     uFlat: { value: 0 },
     uGlitter: { value: 1 },
@@ -284,7 +309,7 @@ export function createHazeUniforms(): HazeUniforms {
     uLampGlint: { value: 1 },
     uPisteLight: { value: null },
     uPisteBox: { value: new THREE.Vector4(0, 0, 1, 1) },
-    uPisteOn: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uPisteOn: { value: new THREE.Vector4(0, 1, 0, 0) },
     uPisteCol: { value: new THREE.Vector3(1, 1, 1) },
     uSlab0: { value: new THREE.Vector4(0, 0, 0, 1) },
     uSlab1: { value: new THREE.Vector4(0, 0, 1, 0) },
@@ -298,7 +323,9 @@ export function createHazeUniforms(): HazeUniforms {
     uCloudTau: { value: new THREE.Vector4(0, 0, 0, 0) },
     uCloudMean: { value: new THREE.Vector4(1, 1, 1, 1) },
     uSea: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uSeaSun: { value: new THREE.Vector3(0, 0, 0) },
     uSeaK: { value: 0 },
+    uSeaBase: { value: -1e6 },
   };
 }
 
@@ -352,14 +379,25 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
   u.uHazeShadow.value.set(...look.hazeShadow);
   u.uFarGround.value.setRGB(...look.farGround);
   u.uFarKey.value.setRGB(...look.farKey);
+  const sh = look.irradiance;
+  for (let k = 0; k < 9; k++) u.uSkySh.value[k].set(sh[k * 3], sh[k * 3 + 1], sh[k * 3 + 2]);
+  const by = look.keyBandY;
+  u.uKeyBandY.value.set(by[0], by[1], by[2], by[3]);
+  const kb = look.keyBand;
+  for (let i = 0; i < KEY_BANDS; i++)
+    u.uKeyBand.value[i].set(kb[i * 3], kb[i * 3 + 1], kb[i * 3 + 2]);
   u.uHaze.value = look.haze;
   u.uHazeLift.value = look.hazeLift;
+  u.uAirLift.value = look.light / Math.max(look.exposure, 1e-12);
+  u.uShadeLift.value = look.shadeLift;
   // A valley fog is thick at the floor and gone over the peaks.
   u.uHazeFloor.value = look.fog > 0 ? 0.12 : 0.55;
   u.uFlat.value = look.flat;
   u.uGlitter.value = look.glitter;
   u.uSea.value.set(...look.sea.colour, look.sea.top);
+  u.uSeaSun.value.set(...look.sea.sun);
   u.uSeaK.value = look.sea.k;
+  u.uSeaBase.value = look.sea.base;
 }
 
 /** The sky along a direction, in linear light — the dome's own colour. */
@@ -370,6 +408,32 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
 export const MIST_OPEN = 0.45;
 
 export const SKY_GLSL = /* glsl */ `
+// THE SEA OF CLOUD'S TOP (\`uSea\`) as a field of lumps (\`seaTop\`): a
+// value noise over its plane in three octaves — the deck's long billows a
+// couple of kilometres across, its rolls a few hundred metres, their
+// puffs — read as a HEIGHT whose slopes face the sun or turn from it.
+float seaHash(vec2 c) {
+  return fract(sin(dot(c, vec2(127.1, 311.7))) * 43758.5453);
+}
+float seaNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = p - i;
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(seaHash(i), seaHash(i + vec2(1.0, 0.0)), f.x),
+             mix(seaHash(i + vec2(0.0, 1.0)), seaHash(i + 1.0), f.x), f.y);
+}
+// The deck's top at \`p\`, 0..1: its billows and rolls, the rolls eased
+// out with distance (\`far\`, m) before they fall under a pixel. The
+// puffs on them (\`seaPuffs\`) only shade, finer still.
+float seaHeight(vec2 p, float far) {
+  float big = seaNoise(p / 2300.0 + 5.0);
+  float k = exp(-far / 30000.0);
+  float roll = 0.6 * seaNoise(p / 760.0 + 11.0) + 0.4 * seaNoise(p / 330.0 + 3.0);
+  return mix(big, 0.5 * big + 0.5 * roll, k);
+}
+float seaPuffs(vec2 p, float far) {
+  return mix(0.5, seaNoise(p / 120.0 + 17.0), exp(-far / 9000.0));
+}
 uniform vec3 uSunDir;
 uniform vec3 uSunPos;
 uniform vec3 uZenith;
@@ -389,8 +453,37 @@ uniform float uMistAloft;
 uniform float uMistOpen;
 uniform float uHazeLift;
 uniform float uHazeFloor;
+uniform float uAirLift;
+uniform float uShadeLift;
 uniform vec4 uSea;
+uniform vec3 uSeaSun;
 uniform float uSeaK;
+uniform float uSeaBase;
+
+// THE SEA'S TOP LIT: its colour (\`uSea.rgb\`, the mean) is the sky's light
+// on it and the sun's (\`uSeaSun\`); the sky lights the crests more than
+// the troughs between them, and a low sun lights only the faces turned to
+// it and the crests over the rest — so a golden-hour sea is warm-lit tops
+// over cool blue-grey hollows, never one pink sheet. Kept to the mean on
+// the whole, so far off, where the lumps are gone, it is \`uSea\` again.
+vec3 seaTop(vec2 p, float far) {
+  float e = 60.0 + far * 0.01;
+  float n = seaHeight(p, far);
+  float nx = seaHeight(p + vec2(e, 0.0), far) - n;
+  float nz = seaHeight(p + vec2(0.0, e), far) - n;
+  // The relief, m of rise a unit of the noise, over the step.
+  float relief = 90.0 / e;
+  vec3 nrm = normalize(vec3(-nx * relief, 1.0, -nz * relief));
+  vec3 L = normalize(vec3(uSunDir.x, max(uSunDir.y, 0.0), uSunDir.z));
+  float graze = 1.0 - smoothstep(0.04, 0.4, L.y);
+  float face = clamp(dot(nrm, L) / max(L.y, 0.06), 0.0, 2.2);
+  // The crests stand out of the hollows' shade at a graze.
+  float lit = mix(1.0, face * mix(0.45, 1.55, n * n * (3.0 - 2.0 * n)), graze);
+  vec3 sky = max(uSea.rgb - uSeaSun, vec3(0.0));
+  float puff = seaPuffs(p, far);
+  vec3 shaded = (sky * mix(0.8, 1.12, n) + uSeaSun * lit) * mix(0.93, 1.07, puff);
+  return mix(uSea.rgb, shaded, mix(0.55, 1.0, exp(-far / 25000.0)));
+}
 
 // The physical sky (\`uSkyView\`, the LOW grid or the GPU sky's table of
 // \`uSkyViewSize\` texels on the same layout): its grid is the azimuth from the sun
@@ -533,7 +626,7 @@ vec3 pisteLight(vec3 at) {
   if (uPisteOn.x <= 0.0) return vec3(0.0);
   vec2 uv = (at.xz - uPisteBox.xy) * uPisteBox.zw;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
-  return texture2D(uPisteLight, uv).rgb * uPisteOn.x;
+  return texture2D(uPisteLight, uv).rgb * (uPisteOn.x * uPisteOn.y);
 }
 `;
 
@@ -587,6 +680,10 @@ export const HAZE_FRAGMENT = /* glsl */ `
   // model's extinction (1: grey — LOW).
   vec3 hzCol = hazeColour(hzDir) * aerialShade(vHazeWorld);
   vec3 hzAir = 1.0 - pow(vec3(1.0 - hazeAir(hzDist, hzRay.y)), uHazeTint);
+  // The twilight's lift (\`uAirLift\`) on the air before the ground, as on
+  // the ground behind it — or the lifted ground drowns the low sun's warm
+  // air; gone where the air is thick enough to be the dome's horizon.
+  hzCol *= pow(vec3(uAirLift), 1.0 - hzAir * hzAir * hzAir * hzAir);
   // Into the air's own light by the air between; then, where the DISTANCE
   // row's mist closes the ground, into what the dome shows behind it — so
   // the ground's last ring meets the far ground under the horizon, not a
@@ -605,13 +702,22 @@ export const HAZE_FRAGMENT = /* glsl */ `
   float hzMist = hazeMist(hzDist, hzRay.y);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, max(hzAir, vec3(hzMist * uMistOpen)));
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hzMist * (1.0 - uMistOpen));
-  // A VALLEY FOG SEEN FROM ABOVE (\`uSeaK\`): the length of the view under
-  // its top, its lit top's colour over what is under it.
+  // THE LOW DECK OR VALLEY FOG SEEN FROM OUTSIDE IT (\`uSeaK\`): the
+  // length of the view between its base and its top, its colour over what
+  // lies in or beyond it (a level view a metre's grace either way).
   if (uSeaK > 0.0) {
     float hzLo = min(cameraPosition.y, vHazeWorld.y);
-    float hzSpan = abs(cameraPosition.y - vHazeWorld.y);
-    float hzUnder = clamp((uSea.w - hzLo) / max(hzSpan, 1e-3), 0.0, 1.0);
+    float hzHi = max(cameraPosition.y, vHazeWorld.y);
+    float hzSpan = hzHi - hzLo;
+    float hzUnder = clamp((min(hzHi, uSea.w) - max(hzLo, uSeaBase) + 1.0) / (hzSpan + 1.0), 0.0, 1.0);
     vec3 hzSea = uSea.rgb;
+    // Seen from over it the sea's top is lumps: the puffs standing up lit,
+    // the hollows between them in their shade (\`seaTop\`).
+    if (cameraPosition.y > uSea.w && vHazeWorld.y < uSea.w) {
+      vec3 hzR = vHazeWorld - cameraPosition;
+      vec2 hzP = cameraPosition.xz + hzR.xz * (uSea.w - cameraPosition.y) / min(hzR.y, -1e-3);
+      hzSea = seaTop(hzP, distance(hzP, cameraPosition.xz));
+    }
     #if defined(TONE_MAPPING)
       hzSea = toneMapping(hzSea);
     #endif
@@ -685,6 +791,13 @@ float heroShadowed(float shadow, vec3 viewNormal) {
 #endif
 `;
 
+/** The low sun's shade lifted (`uShadeLift`) where the mountain's own
+ * shadow (`terrainLit`) keeps the key off: after every material's sky light
+ * (the snow's own included), before the lamps. */
+const SHADE_LIFT = /* glsl */ `
+  if (uShadeLift > 0.0) reflectedLight.indirectDiffuse *= 1.0 + uShadeLift * (1.0 - terrainLit( vHazeWorld ));
+`;
+
 const DIR_SHADOW_OPEN = "? getShadow( directionalShadowMap[ i ]";
 const DIR_SHADOW_CLOSE = "vDirectionalShadowCoord[ i ] ) : 1.0;";
 const DIR_INFO = "getDirectionalLightInfo( directionalLight, directLight );";
@@ -709,8 +822,12 @@ export function lightsWithFade(): string {
   }
   fadedLights = chunk
     // THE CLOUDS between the point and the key (`cloud-glsl.ts`), whatever
-    // the SHADOWS row: a heap's shadow is miles across.
-    .replace(DIR_INFO, `${DIR_INFO}\n\t\tdirectLight.color *= cloudShadow( vHazeWorld );`)
+    // the SHADOWS row: a heap's shadow is miles across; and the key's share
+    // at the point's own height (`sky-light.ts`): the peaks' alpenglow.
+    .replace(
+      DIR_INFO,
+      `${DIR_INFO}\n\t\tdirectLight.color *= cloudShadow( vHazeWorld ) * keyAtHeight( vHazeWorld.y );`,
+    )
     .replace(
       DIR_SHADOW_OPEN,
       "? min( terrainLit( vHazeWorld ), heroShadowed( shadowFaded( shadowGone() ? 1.0 : getShadow( directionalShadowMap[ i ]",
@@ -757,14 +874,17 @@ export function hazeMaterial<M extends THREE.Material>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${SKY_GLSL}\n${AERIAL_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}\n${CLOUD_SHADOW_GLSL}`,
+        `#include <common>\n${SKY_GLSL}\n${AERIAL_GLSL}\n${LAMP_GLSL}\n${TERRAIN_SHADOW_GLSL}\n${HAZE_VERTEX}\n${SHADOW_FADE_GLSL}\n${CLOUD_SHADOW_GLSL}\n${SKY_LIGHT_GLSL}`,
       )
       .replace(
         "#include <shadowmap_pars_fragment>",
         `#include <shadowmap_pars_fragment>\n${HERO_SHADOW_GLSL}`,
       )
       .replace("#include <lights_fragment_begin>", lightsWithFade())
-      .replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${LAMP_FRAGMENT}`)
+      .replace(
+        "#include <lights_fragment_end>",
+        `#include <lights_fragment_end>\n${SHADE_LIFT}\n${LAMP_FRAGMENT}`,
+      )
       .replace("#include <fog_fragment>", HAZE_FRAGMENT);
     extra?.(shader);
   };

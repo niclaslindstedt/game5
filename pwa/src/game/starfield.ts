@@ -9,10 +9,12 @@
 // Three ideas, and the whole module is them:
 //
 //   THE TURN     The stars are on a sphere that wheels once a day about a
-//                pole standing due north at the map's own latitude (R15).
-//                The hour spins it and the DAY OF THE YEAR offsets it, so a
-//                January midnight and a March one look out at different
-//                parts of the sky. The sun moves with the run's own clock
+//                pole standing due north at the map's own latitude (R15),
+//                turned to the LOCAL SIDEREAL TIME of the map's hour on its
+//                date (the sun's right ascension and its hour angle), so a
+//                January midnight and a July one look out at the parts of
+//                the sky they really do — the Milky Way's core low in the
+//                south on a summer night, under the horizon on a winter's. The sun moves with the run's own clock
 //                (`clock.ts`'s `skyHourAt`), and the sphere with it: the
 //                turn is read off the map AS THE SKY STANDS (`sky.ts`
 //                hands it `skyLevelAt`), so the stars wheel too.
@@ -31,7 +33,9 @@
 // derivative, every screen gets the same sky and the grid only decides how
 // MANY there are.
 
-import { SOUTH, type Level } from "@engine";
+import { solarCoordinates, universalHourOf } from "@niclaslindstedt/oss-game-framework/core/solar";
+
+import { SOUTH, skyDateOf, type Level } from "@engine";
 
 const DEG = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -46,17 +50,32 @@ export type SkyTurn = {
   spin: number;
 };
 
-/** The turn a map's night is ridden under: its hour on its day at its
- * latitude. A whole turn a day, and a whole turn a year on top — so a
- * quarter of the year is a quarter of the sky. */
+/** The turn a map's night is ridden under: the LOCAL SIDEREAL TIME at its
+ * hour on its date at its place — the sun's right ascension plus its hour
+ * angle, which is what apparent solar time is (`clock.ts`) — so the sky
+ * stands as it really does over that place that night, the Milky Way
+ * where it is. At sidereal time 0 the sphere's first axis (right
+ * ascension 0) points at the celestial equator's meridian point; the spin
+ * carries it west as the night goes. */
 export function skyTurnOf(level: Pick<Level, "sun">): SkyTurn {
-  const { hour, dayOfYear, latitude } = level.sun;
+  const { hour, latitude } = level.sun;
+  const jd0 = skyDateOf(level);
+  const jd = jd0 + universalHourOf(jd0, hour, level.sun.longitude ?? 0) / 24;
+  const sun = solarCoordinates(jd);
+  const lon = sun.longitude * DEG;
+  const ra = Math.atan2(Math.cos(sun.obliquity * DEG) * Math.sin(lon), Math.cos(lon));
   return {
     pole: latitude * DEG,
     // Due north as a WORLD heading: the face's bearing (R15) taken out.
     bearing: SOUTH + Math.PI - (level.sun.facing ?? 0),
-    spin: -TAU * (hour / 24 + dayOfYear / 365),
+    spin: Math.PI / 2 - siderealOf(ra, hour),
   };
+}
+
+/** The local sidereal time, rad: the sun's right ascension `ra` (rad) and
+ * its hour angle at apparent solar `hour`. */
+export function siderealOf(ra: number, hour: number): number {
+  return ra + ((hour - 12) / 24) * TAU;
 }
 
 /** A turn for a sky with no map behind it (a unit test's, a card's). */
@@ -103,7 +122,7 @@ export function turnBasis(turn: SkyTurn, out: number[] = []): number[] {
  * north galactic pole 63° off the celestial one, the centre in the band 90°
  * from it, the third axis closing the set. */
 const GAL_POLE = [-0.86767, -0.19807, 0.45598] as const;
-const GAL_CENTRE = [-0.054878, -0.873439, -0.483831] as const;
+export const GAL_CENTRE = [-0.054878, -0.873439, -0.483831] as const;
 const GAL_SIDE = [0.494103, -0.444829, 0.746987] as const;
 
 const vec3 = (v: readonly number[]): string => `vec3(${v.map((n) => n.toFixed(6)).join(", ")})`;
@@ -116,6 +135,21 @@ const GALAXY_CORE = [0.69, 0.46, 0.24] as const;
 /** How much band there is at all — the one number to move when the Milky
  * Way is too much or not enough (`make sky`'s night columns). */
 const BAND_GAIN = 0.6;
+
+/** THE SKY'S CENSUS: the stars brighter than magnitude m over the whole
+ * sky number about 10^(a + b·m) — a score brighter than the first
+ * magnitude, some five hundred to the fourth, ten thousand to the 6.5th
+ * a dark sky shows. */
+export const STAR_COUNT = { a: 0.69, b: 0.51 } as const;
+export const starCount = (m: number): number => Math.pow(10, STAR_COUNT.a + STAR_COUNT.b * m);
+
+/** The air's toll on a star, magnitudes an air mass (a dry winter night
+ * over a mountain, in the eye's band). */
+export const STAR_EXTINCTION = 0.2;
+/** How bright a star is drawn a magnitude over the faintest seen (linear,
+ * before the tone map): the magnitude scale is the eye's own, so the drawn
+ * light grows by one step a magnitude. */
+export const STAR_GAIN = 0.18;
 
 /** The band's field WRAPS round the galaxy's longitude, a whole number of
  * noise cells to the turn, or the arc tangent's cut rules a line down the
@@ -185,26 +219,36 @@ vec3 starTone(float t) {
 }
 
 // ONE SHELL OF STARS: the sphere cut into cells, one star to a cell that
-// rolls high enough, jittered off its middle, a pixel and a bit across for
-// the faintest and two and a half for the brightest.
-vec3 starShell(vec3 sky, float cells, float thresh, float pixel, float time, float scint) {
+// rolls high enough, jittered off its middle. Its MAGNITUDE is read off
+// the sky's own census (\`STAR_COUNT\`: the stars brighter than m number
+// 10^(a + b m)) — the cell's roll a place in the count between \`n.x\` and
+// \`n.y\` — dimmed by the air it is seen through (\`air.x\` magnitudes) and
+// reddened by it; it shows by how far it is over the faintest the sky
+// lets through (\`limit\`), a magnitude at a time: the eye's own scale.
+vec3 starShell(vec3 sky, float cells, float thresh, vec2 n, float pixel, float time,
+               float limit, vec3 air) {
   vec3 sd = sky * cells;
   vec3 cell = floor(sd);
   float h = sfHash3(cell, 0.0);
   if (h < thresh) return vec3(0.0);
   float rank = (h - thresh) / max(1.0 - thresh, 1e-4);
+  float m = max((log2(mix(n.x, n.y, rank)) * 0.30103 - ${STAR_COUNT.a.toFixed(3)}) / ${STAR_COUNT.b.toFixed(3)}, -1.5);
+  float over = limit - m - air.x;
+  if (over <= 0.0) return vec3(0.0);
   float g = sfHash3(cell, 37.0);
   vec3 jitter = vec3(fract(g * 13.0), fract(g * 71.0), fract(g * 191.0));
-  float mag = pow(rank, 2.1);
   float d = length(fract(sd) - mix(vec3(0.28), vec3(0.72), jitter));
-  float radius = min(pixel * cells * (1.15 + 1.35 * mag), 0.42);
+  float radius = min(pixel * cells * min(1.0 + 0.2 * over, 2.6), 0.42);
   float disc = smoothstep(radius, 0.0, d);
   if (disc <= 0.0) return vec3(0.0);
-  // SCINTILLATION: the air, not the star — its own rate each, stronger
-  // toward the horizon.
+  // SCINTILLATION: the air, not the star — its own rate each, stronger the
+  // more air (\`air.y\`), and in colour low down (\`air.z\`).
   float rate = 2.0 + fract(h * 53.0) * 6.0;
-  float twinkle = 1.0 + scint * sin(time * rate + g * 40.0);
-  return starTone(pow(fract(g * 29.0), 0.7)) * disc * (0.55 + 1.15 * mag) * twinkle;
+  vec3 twinkle = 1.0 + air.y * sin(time * rate + g * 40.0 + vec3(0.0, 1.7, 3.4) * air.z);
+  // Reddened by the air: blue lost first, per magnitude of air mass.
+  vec3 redden = exp(-vec3(0.0, 0.05, 0.14) * 0.921 * air.x / ${STAR_EXTINCTION.toFixed(2)});
+  float bright = ${STAR_GAIN.toFixed(3)} * over * smoothstep(0.0, 0.7, over);
+  return starTone(pow(fract(g * 29.0), 0.7)) * redden * disc * bright * max(twinkle, 0.0);
 }
 
 // THE BAND: how much galaxy is behind this ray, and its colour.
@@ -231,26 +275,35 @@ vec3 milkyWay(vec3 sky) {
   return tone * band * ${BAND_GAIN.toFixed(2)};
 }
 
-vec3 nightSky(vec3 sky, vec3 ray, float up, float glare, float stars, float galaxy, float time) {
+// THE NIGHT SKY behind a ray: \`sky\` the ray in celestial coordinates,
+// \`up\` its world elevation's sine, \`glare\` how deep in the moon's glare it
+// is (0..1), the two strengths, the twinkle's clock, and \`limit\` the
+// faintest star the sky in this direction lets through at the zenith's
+// air (the caller reads it off the sky's own brightness there).
+vec3 nightSky(vec3 sky, vec3 ray, float up, float glare, float stars, float galaxy, float time,
+              float limit) {
   // How big a pixel is, rad — off the ray, so every screen gets one sky.
   float pixel = max(length(fwidth(ray)), 1e-5);
-  // The air at the ridge takes most of a star and all of the band.
-  float air = smoothstep(-0.005, 0.10, up);
-  air *= 0.42 + 0.58 * smoothstep(0.03, 0.42, up);
-  if (air <= 0.0) return vec3(0.0);
-  // The moon's own sky glow: the faint sky does not survive it.
+  if (up < -0.01) return vec3(0.0);
+  // THE AIR: Kasten–Young's air mass to this elevation; a star is dimmed
+  // \`STAR_EXTINCTION\` magnitudes an air mass past the zenith's, so the
+  // horizon's air puts out all but the brightest.
+  float el = degrees(asin(clamp(up, 0.0, 1.0)));
+  float X = 1.0 / (max(up, 0.0) + 0.50572 * pow(el + 6.07995, -1.6364));
+  vec3 air = vec3(${STAR_EXTINCTION.toFixed(2)} * (X - 1.0), min(0.85, 0.07 * X), smoothstep(3.0, 10.0, X));
+  // The band takes the same air, and the moon's glare washes it.
+  float band = exp(-0.921 * air.x) * smoothstep(-0.005, 0.06, up);
   float wash = 1.0 - 0.85 * glare;
-  float scint = 0.14 + 0.55 * pow(1.0 - min(up, 1.0), 7.0);
   vec3 col = vec3(0.0);
-  if (galaxy > 0.0) col += milkyWay(sky) * galaxy * air * wash * wash;
+  if (galaxy > 0.0) col += milkyWay(sky) * galaxy * band * wash * wash;
   if (stars > 0.0) {
-    // Two shells: a naked eye's few hundred bright stars, and the
-    // thousands of faint ones the band thickens.
+    // Two shells: the few hundred brightest, to the fourth magnitude, and
+    // the thousands of faint ones the band thickens, to the 6.6th.
     float lat = dot(sky, GAL_POLE);
     float crowd = exp(-lat * lat * 9.0);
-    col += starShell(sky, 70.0, 0.9925, pixel, time, scint) * stars * air;
-    col += starShell(sky, 150.0, 0.9790 - 0.0120 * crowd, pixel, time, scint)
-         * stars * air * wash * (0.50 + 0.30 * crowd);
+    col += starShell(sky, 70.0, 0.9925, vec2(1.0, ${starCount(4).toFixed(1)}), pixel, time, limit, air) * stars;
+    col += starShell(sky, 150.0, 0.9790 - 0.0120 * crowd,
+                     vec2(${starCount(4).toFixed(1)}, ${starCount(6.6).toFixed(1)}), pixel, time, limit, air) * stars;
   }
   return col;
 }

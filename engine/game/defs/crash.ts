@@ -230,6 +230,13 @@ export const CRASH = {
     // flies, head over heels along the way he went and over onto a side,
     // barely off the snow he skims.
     wingsuit: { pitch: 1, side: 0.4, up: 0.4 },
+    // Thrown off the downhill bike (`bike.ts`): over the bars, the row a
+    // throw says nothing else of — each way off it is `BIKE.crash.over`.
+    bike: { pitch: 1, side: 0.15, up: 1.4 },
+    // Ridden into a camp fire or a bonfire (`fire-burn.ts`): the boots
+    // caught on its ring or its bed and the body stumbled on into it, low,
+    // barely off the snow.
+    fire: { pitch: 0.6, side: 0.2, up: 0.2 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,

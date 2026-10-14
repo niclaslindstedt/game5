@@ -7,6 +7,7 @@
 
 import { revertShare, stepQuick, strideRate, TUNING, type Save, type SkierState } from "@engine";
 import { hopLook, revertLook, WIND_UP } from "./skier-switch.ts";
+import { TURN_PLANT } from "./skier-stroke.ts";
 
 import { flying, gaitOf } from "./skier-gait.ts";
 
@@ -29,6 +30,10 @@ export type SkierSpring = {
    * it, the knees folded by as much), and its rate, m/s. */
   bump: number;
   rate: number;
+  /** THE ARMS' LAG on a landing (`ARMS_LAG`), m (positive the fists below
+   * where his stance carries them), and its rate, m/s. */
+  arms: number;
+  armsRate: number;
   /** The pair's climb at the last frame, m/s, or NaN before the first. */
   lastVy: number;
   /** THE LINE HE RIDES: the pair's climb taken slowly (`LEGS.line`), m/s
@@ -58,6 +63,19 @@ export type SkierSpring = {
    * (0..1, eased — none tucked, working, in the air or at a crawl). */
   turnSide: -1 | 0 | 1;
   turnHeld: number;
+  /** HIS FISTS AND POLES CARRIED SWITCH, 0..1 (`switchHand`), and its
+   * rate: in as he rides switch, out over a revert's turn — never through
+   * the look's swing across from one shoulder to the other, which passes
+   * through square and would drop the poles to their hang and back. */
+  carry: number;
+  carryRate: number;
+  /** The look back as a revert found it (signed, `back` × `backSide`),
+   * NaN with none under way — what a swing across to the other shoulder
+   * starts from. */
+  revertFrom: number;
+  /** How long the last whole turn lasted, s (0 before one has) — the
+   * rhythm the next plant is timed to. */
+  turnLast: number;
   /** HOW FAR HE HAS BEEN EDGING LATELY, rad: the edge's size taken over
    * `SWING_SPAN` s (NaN until the first ride is read) — linked turns hold
    * it up through each edge change, a straight run lets it go, so a flat
@@ -133,9 +151,13 @@ export type SkierSpring = {
    * on (the engine's stride count, floored; NaN before the first) — how
    * far behind him a planted basket is, kept as he went rather than
    * guessed off his speed now, which overshoots while a push is speeding
-   * him up. */
+   * him up. Held where the push let go through the recovery: reckoned
+   * back off a stride's length that grows as the stroke dies away, the
+   * release ran on behind him and swung the recovering arm with it. */
   poled: number;
   poledStride: number;
+  /** ...and where in its stride he was at the last frame, 0..1. */
+  poledAt: number;
   /** HOW MUCH HE WORKS THE POLES as his arms carry it (`Gait.keep`), and
    * its rate — giving the stroke up for the tuck, and taking it back, as
    * a motion (NaN until the first ride is read). */
@@ -260,8 +282,8 @@ export const PLANT = {
   slow: 3,
   fast: 26,
   length: 6.5,
-  least: 0.42,
-  most: 0.85,
+  least: 0.7,
+  most: 0.9,
 };
 
 /** How long the edge is remembered over for `SkierSpring.swing`, s — a
@@ -287,8 +309,9 @@ export const plantLength = (speed: number): number =>
  * jumper's landing is some 0.19 s, and the fold here peaks a quarter of a
  * second after the skis stop. `fold` and `extend` are how far the legs can
  * fold below and stretch above the stance in all, m — the engine's own
- * compression spent first (`stepSkierSpring`'s `lift`), stiffening over
- * the last `stop.zone` m of the fold at `stop.omega` rad/s — and `flight`
+ * compression spent first (`stepSkierSpring`'s `lift`); `brake` how much
+ * harder than just enough a body falling into the fold is braked, so the
+ * braking eases off to nothing as it comes to rest; and `flight`
  * how long in the air, s, makes a hop a flight, landed against the snow
  * he comes down on rather than the line he left. */
 export const LEGS = {
@@ -297,9 +320,25 @@ export const LEGS = {
   line: 0.8,
   fold: 0.4,
   extend: 0.1,
-  stop: { zone: 0.12, omega: 45 },
+  brake: 2,
   flight: 0.3,
 };
+/** THE ARMS LAG THE TRUNK: hung off his shoulders, the fists are a mass
+ * of their own, so as the legs brake his body's fall into a landing's
+ * fold the hands go on down a little and come back once the fold has
+ * stopped — measured landings show the hands dip some 5–15 cm and come
+ * a little forward, back within a quarter of a second. A damped spring of
+ * `omega` rad/s (about 2.5 Hz) and `zeta`, driven by the legs' braking
+ * (the fold's own deceleration, never the skis' every rattle, which the
+ * fold has already taken out), eased into `most` m down and `least` m up
+ * (`armsLag`) — never stopped at either in a frame. */
+export const ARMS_LAG = { omega: 16, zeta: 0.55, most: 0.15, least: 0.05 };
+
+/** The fists' lag as drawn, m: the spring's, eased into its reach. */
+export function armsLag(s: SkierSpring): number {
+  const reach = s.arms > 0 ? ARMS_LAG.most : ARMS_LAG.least;
+  return reach * Math.tanh(s.arms / reach);
+}
 /** How fast the body goes into the air and comes back to the snow, and
  * how fast a load is taken and let go, rad/s — critically damped springs,
  * so each starts as a motion rather than at full speed in a step: a fifth
@@ -313,9 +352,19 @@ const READY = { in: 9, out: 20 };
  * and back round once he faces his skis' way again, rad/s — some third of
  * a second: a deliberate turn of the head and shoulders, never a flick. */
 const BACK_FOLLOW = 7;
-/** How fast the look follows a revert's, 1/s — a head held on the line,
- * and a quick swing across when the turn is to the other shoulder. */
-const REVERT_SWING = 14;
+/** How fast the look follows a revert's, rad/s (critically damped) — a
+ * head held on the line, and a quick swing across when the turn is to the
+ * other shoulder. */
+const REVERT_SWING = 22;
+/** How far into a revert the head has swung across to the other
+ * shoulder, 0..1 of it. */
+const REVERT_ACROSS = 0.6;
+
+/** Ease in and out over 0..1. */
+const smoothStep = (x: number): number => {
+  const k = Math.max(0, Math.min(1, x));
+  return k * k * (3 - 2 * k);
+};
 /** How quickly he winds up against a hop into switch as the legs load,
  * and unwinds out of it at the pop, rad/s — the unwinding is the throw. */
 const WIND = { in: 10, out: 30 };
@@ -343,6 +392,10 @@ export function createSkierSpring(offset = 0): SkierSpring {
   return {
     bump: 0,
     rate: 0,
+    arms: 0,
+    armsRate: 0,
+    carry: 0,
+    carryRate: 0,
     lastVy: Number.NaN,
     slope: Number.NaN,
     slopeRate: 0,
@@ -353,6 +406,8 @@ export function createSkierSpring(offset = 0): SkierSpring {
     clock: offset,
     turnSide: 0,
     turnHeld: 0,
+    revertFrom: Number.NaN,
+    turnLast: 0,
     swing: Number.NaN,
     plantSide: 0,
     plantT: Number.POSITIVE_INFINITY,
@@ -383,6 +438,7 @@ export function createSkierSpring(offset = 0): SkierSpring {
     platformRate: 0,
     poled: 0,
     poledStride: Number.NaN,
+    poledAt: 0,
     keep: Number.NaN,
     keepRate: 0,
     flight: createFlight(),
@@ -462,9 +518,13 @@ function stepBody(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numbe
   [s.skiAngle, s.skiAngleRate] = follow(s.skiAngle, s.skiAngleRate, ride.skiAngle ?? 0, dt);
 }
 
-/** Read the turns off the run and start a plant on each new one — the
- * pole on the inside of the turn being begun, the downhill pole of the
- * last — the way a skier times his turns on his poles. */
+/** Read the turns off the run and plant a pole for each: the way a skier
+ * times his turns on his poles. The swing forward is a long, unhurried
+ * flick of the wrist through the second half of a turn, so the TOUCH comes
+ * as the turn ends and the next begins, with the pole on the inside of the
+ * turn to come — the downhill pole of the one ending. Timed off the
+ * rhythm of the last turn; with no rhythm yet (the first turn), the plant
+ * starts as the new turn begins, on its inside. */
 function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): void {
   s.plantT += dt;
   s.turnHeld += dt;
@@ -472,11 +532,24 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   s.swing = Number.isNaN(s.swing)
     ? size
     : s.swing + (size - s.swing) * (1 - Math.exp(-dt / SWING_SPAN));
+  // Riding switch his hands are low by his sides and his poles trail: he
+  // plants nothing.
   const ok =
-    airborne || ride.speed < PLANT.slow || ride.speed > PLANT.fast
+    airborne || ride.switched || ride.speed < PLANT.slow || ride.speed > PLANT.fast
       ? 0
       : Math.max(0, 1 - ride.crouch * 1.6) * Math.max(0, 1 - ride.drive * 6);
   s.plantOk = ok + (s.plantOk - ok) * Math.exp(-8 * dt);
+  const free = s.plantT > s.plantLength && s.plantOk > 0.5;
+  // AHEAD OF THE NEXT TURN: the swing begun so the touch lands where the
+  // rhythm says this turn ends.
+  if (free && s.turnSide !== 0 && s.turnLast > PLANT.held && s.turnHeld > PLANT.held) {
+    const length = plantLength(ride.speed);
+    if (s.turnHeld >= s.turnLast - TURN_PLANT.touch * length) {
+      s.plantSide = s.turnSide > 0 ? 0 : 1;
+      s.plantT = 0;
+      s.plantLength = length;
+    }
+  }
   // A turn is over when the next one begins, not when the skis pass flat
   // between them.
   const e = ride.edge;
@@ -487,6 +560,7 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
     s.plantT = 0;
     s.plantLength = plantLength(ride.speed);
   }
+  s.turnLast = s.turnSide !== 0 && s.turnHeld > PLANT.held ? s.turnHeld : 0;
   s.turnSide = side;
   s.turnHeld = 0;
 }
@@ -519,16 +593,22 @@ function stepPoled(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   const way = Math.abs(ride.way);
   // A new stride's plant — or no stride running (coasting, carried up a
   // lift): the snow passed is the gait's own reckoning again, never the
-  // metres glided since a plant long gone.
-  if (n !== s.poledStride || !(ride.drive > 0)) {
-    const step = ride.step ?? 0;
-    const rate =
-      strideRate(ride.speed, true, step, ride.hill) *
+  // metres glided since a plant long gone. After that it runs on with the
+  // way until the push lets go — through that frame only the snow passed
+  // up to the release — and is held there over the recovery.
+  const step = ride.step ?? 0;
+  const pass =
+    way /
+    (strideRate(ride.speed, true, step, ride.hill) *
       stepQuick(step, ride.speed) *
-      Math.max(0.2, ride.drive);
-    s.poled = ((ride.stride - n) * way) / rate;
+      Math.max(0.2, ride.drive));
+  const at = ride.stride - n;
+  if (n !== s.poledStride || !(ride.drive > 0)) {
+    s.poled = Math.min(at, gait.duty) * pass;
     s.poledStride = n;
-  } else s.poled += way * dt;
+  } else if (s.poledAt < gait.duty)
+    s.poled += Math.max(0, way * dt - Math.max(0, at - gait.duty) * pass);
+  s.poledAt = at;
   return Math.min(1, gait.stride + gait.skate + gait.pole);
 }
 
@@ -581,17 +661,36 @@ export function stepSkierSpring(
       ? Math.sign(steer) * Math.max(0, Math.min(1, (ride.jumpLoad ?? 0) / WIND_UP.full))
       : 0;
   [s.wind, s.windRate] = follow(s.wind, s.windRate, winding, dt, winding ? WIND.in : WIND.out);
+  if (!revert) s.revertFrom = Number.NaN;
+  else if (Number.isNaN(s.revertFrom)) s.revertFrom = s.back * s.backSide;
   if (revert) {
-    const to =
+    const line =
       revert.to === "switch"
         ? hopLook(revert.u, revert.turn, revertShare)
         : revertLook(revert.u, revert.turn, revertShare);
-    const at = s.back * s.backSide;
-    const look = at + (to - at) * Math.min(1, REVERT_SWING * dt);
+    // Turning round toward the OTHER shoulder than the one he looked over,
+    // the head swings across through the front over the first part of the
+    // revert as the body comes round, never flicked over in a frame.
+    const across = Math.sign(s.revertFrom) * Math.sign(line) < 0;
+    const to = across
+      ? line + (s.revertFrom - line) * (1 - smoothStep(revert.u / REVERT_ACROSS))
+      : line;
+    // Followed as a spring, its rate carried in and out of the revert, so
+    // the head is never set moving or stopped in one frame.
+    const [look, rate] = follow(s.back * s.backSide, s.backRate * s.backSide, to, dt, REVERT_SWING);
     s.back = Math.min(1, Math.abs(look));
     if (look !== 0) s.backSide = look > 0 ? 1 : -1;
-    s.backRate = 0;
+    s.backRate = rate * s.backSide;
   }
+  // The carry: whole riding switch (and a hop's landing held), eased out
+  // across a revert to his front and in across a hop into switch.
+  const carry = revert
+    ? revert.to === "switch"
+      ? smoothStep(revert.u)
+      : 1 - smoothStep(revert.u)
+    : back;
+  [s.carry, s.carryRate] = follow(s.carry, s.carryRate, carry, dt, BACK_FOLLOW);
+  s.carry = Math.max(0, Math.min(1, s.carry));
   let work = 0;
   if (ride) {
     const climbing = ride.sidestep && ride.stride !== undefined && ride.stride % 1 > 1e-6 ? 1 : 0;
@@ -701,22 +800,29 @@ function stepLegs(
   // legs bring him back over them as they fly.
   const give = airborne ? 0 : own * (vy - s.slope);
   // The legs' reach: what the engine's compression has folded them by is
-  // spent. Over the last of it the knees stiffen (`LEGS.stop`), so a hard
-  // landing is slowed into the deepest fold rather than stopped dead at it.
+  // spent.
   const fold = LEGS.fold - Math.max(0, lift);
   const extend = -LEGS.extend - Math.min(0, lift);
-  const deep = fold - LEGS.stop.zone;
   const n = Math.max(1, Math.ceil(dt / (1 / 120)));
   const h = dt / n;
   for (let i = 0; i < n; i++) {
-    let acc =
-      kick - LEGS.omega * LEGS.omega * s.bump - 2 * LEGS.zeta * LEGS.omega * (s.rate - give);
-    if (s.bump > deep) {
-      const w = LEGS.stop.omega;
-      acc -= w * w * (s.bump - deep) + 2 * w * Math.max(0, s.rate);
+    s.rate += kick * h;
+    let acc = -LEGS.omega * LEGS.omega * s.bump - 2 * LEGS.zeta * LEGS.omega * (s.rate - give);
+    // A body coming down faster than the spring would stop it inside the
+    // fold left is braked as legs brake it (`LEGS.brake`): hardest at
+    // once, easing off to nothing as it comes to rest at the end.
+    if (s.rate > 0) {
+      const most = (LEGS.brake * s.rate * s.rate) / (2 * Math.max(1e-3, fold - s.bump));
+      acc = Math.min(acc, -most);
     }
     s.rate += acc * h;
     s.bump += s.rate * h;
+    // The fists, braked only through the arms: the fold's deceleration is
+    // the push that leaves them behind (`ARMS_LAG`).
+    const brake = airborne ? 0 : Math.max(0, -acc);
+    const A = ARMS_LAG;
+    s.armsRate += (brake - A.omega * A.omega * s.arms - 2 * A.zeta * A.omega * s.armsRate) * h;
+    s.arms += s.armsRate * h;
   }
   // ...and a body run to the very end of it is carried with the skis.
   if (s.bump > fold) {

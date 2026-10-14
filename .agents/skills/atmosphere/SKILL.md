@@ -1,216 +1,246 @@
 ---
 name: atmosphere
-description: "Use when working on the SKY and the air under it — where the sun stands at the hour the run has reached (the start hour run on by the sky's clock, five minutes an hour) on its day at its latitude (R15, `sunAtRun`), what colour it makes the dome, the two lights and the blue in the snow's shadows, the haze every far slope dissolves into (one sky function read along each surface's own direction), and the key light's one shadow map over a circle ahead of the lens that every shadow fades out at the rim of — and over that the WEATHER R19 deals (clear, fair, flurries, high cloud, overcast, a steady fall, a storm, valley fog), its cloud, its falling snow in squalls and the new snow it lays (`snowAt`, `GameState.fresh`), its spindrift, its flat light, and the NIGHT an evening map rides into (the moon as the key, the stars and the Milky Way — `starfield.ts` — the floodlight masts down every run — `piste-light-plan.ts`, `piste-lights.ts` — the finish arena's floodlights and every skier's headlamp — `headlamp.ts`). Owns `pwa/src/game/sky.ts` (the colour model, three-free), `haze.ts`, `sky-dome.ts`, `environment.ts`, `snowfall.ts` (over `snowfall-plan.ts`: the fall's velocity past the lens), `starfield.ts`, and on the engine side `engine/game/clock.ts` (the sun and the moon), `engine/game/wind.ts`, `engine/game/snowfall.ts`, R15 in `mapgen/sun.ts` and R19 in `mapgen/weather.ts`; and `make sky`, the contact sheet that is the only honest way to judge any of it, with `make snowfall` for the fall at speed. Not the snow the light lands on (`snow-look`), not the trees (`nature`), not what the skis throw (`visual-effects`)."
+description: "Use when working on the SKY and the air under it — the sun and the moon for a map's place and date at the hour the run has reached (R15, `sunAtRun`, the SKY'S CLOCK: five minutes on the snow an hour of sun), the physical atmosphere they shine through (Hillaire's model, baked for LOW, on the GPU for MEDIUM and HIGH, `SkyLook` the one look every frame reads), the sky's light on the ground (the harmonics, the key by height, alpenglow, the twilight's lift and the dawn shade's), the haze and the aerial perspective, the true horizon and the FAR RANGES to it, the mountain's own shadow and the shadow box — and over that the WEATHER R19 deals and a free ride's FRONT that turns it (its cloud field by tier: shell, slab, raymarched volume; the low deck and the sea of cloud; the fall in squalls and the new snow it lays; the spindrift; the flat light), and the NIGHT (the moon at its true size, phase and light, the stars by local sidereal time, the airglow, the piste lights, the floods and every headlamp). Owns `pwa/src/game/sky*.ts`, `atmosphere-model.ts`, `haze.ts`, `horizon.ts`, the cloud's files (`clouds.ts`, `cloud-field.ts`, `cloud-light.ts`, `cloud-glsl.ts`, `cloud-volume*.ts`, `cloud-front.ts`), `low-deck.ts`, `far-ranges*.ts`, `night-sky.ts`, `moon-glsl.ts`, `starfield.ts`, `snowfall*.ts`, `headlamp.ts`, `piste-light*.ts`, `shadow-box.ts`, `terrain-shadow.ts`, `environment.ts`; on the engine side `clock.ts`, `wind.ts`, `snowfall.ts`, R15 (`mapgen/sun.ts`), R19 (`mapgen/weather.ts`) and the front (`mapgen/front.ts`); and the labs `make sky`, `make sky-table`, `make sky-solar`, `make snowfall`. Not the snow the light lands on (`snow-look`), not the trees (`nature`), not what the skis throw (`visual-effects`)."
 ---
 
-# The atmosphere: the sun, the sky and the haze
+# The atmosphere: the sun, the sky, the air and the weather
 
-Everything over the snow and in the air between the lens and the far ridges.
-The picture is set here before a single track is drawn: the sun's elevation
-decides the palette, the sky's blue decides what colour a shadow on snow is,
-the haze decides how far the valley floor and the far ridges read. A change
-here moves every picture in the game.
+Everything over the snow and in the air between the lens and the horizon.
+The picture is set here before a single track is drawn: the sun's height
+decides the palette, the sky's colour decides what colour a shadow on snow
+is, the air decides how far the far ridges read. A change here moves every
+picture in the game.
 
-**A MAP IS DEALT ONE SKY AT ONE HOUR** (R15, R19): a seeded day at a seeded
-latitude, one of eight weathers off a stream of its own (the bright ones most
-days), and on a quarter of the maps an evening start at or after sunset.
-THE SUN MOVES WITH THE RUN: the hour is the START hour, and the sky's clock
-runs it on with `state.t` at twelve times real time (five minutes on the
-snow an hour of sun — `SKY_CLOCK`), so a long free ride sees the sun go
-down, the lamps come on and the stars come out; the fall breathes in
-squalls and lays new snow. A
-season's cast is NOT BUILT — `game3`'s `SEASON_LOOKS` is where it starts.
+**Read the lessons first** (`npx ogf-skill-lessons atmosphere --list`); load
+**`skill-reflection`** at both ends and **`write-code`** beside this one for
+any code change. `snow-look` owns what the light does once it is on the
+snow; `picture-pricing` owns what the sky's tiers cost.
 
-**Read this skill's lessons first** — `npx ogf-skill-lessons
-atmosphere --list`. Load **`skill-reflection`** at both ends and
-**`write-code`** beside this one for any code change.
+## What a map is dealt, and what moves
 
-## The engine's half, and the app's
+A MAP IS DEALT ONE SKY AT ONE HOUR (R15, R19): a seeded day at a seeded
+latitude in its region's band, a start hour, one of eight weathers off a
+stream of its own, and on a quarter of the maps an evening start. A REAL
+FACE is stood at its own latitude, longitude and true north (`withPlace`),
+half a year on south of the equator. Then, ALL OF IT PRESENTATION:
 
-The engine decides the FACTS and the app decides the PICTURE; nothing in the
-engine has an opinion about colour.
+- **The sun moves with the run.** The sky's clock runs the start hour on
+  with `state.t` (`SKY_CLOCK`, 12 — five real minutes an hour of sun), so a
+  long free ride sees the sun set, the lamps come on and the stars come out.
+- **A free ride's weather can change.** Its map carries a FRONT
+  (`Level.front`, dealt off the seed on its own salt): the dealt sky turning
+  into up to three others over game hours, the fall and the wind following
+  it, the cloud field morphing rather than swapping. Never on a race, a
+  tricks run or in summer; `?front=0` holds the weather.
+- **The fall breathes in squalls** and lays NEW SNOW at a real fall's rate
+  (`GameState.fresh`) — the one thing a sky does to the physics.
+
+## The engine's half (the FACTS)
+
+The engine decides the facts and has no opinion about colour.
 
 | Fact | Where |
 | --- | --- |
-| The map's day: a latitude in the region's band (R21 — the alpine's 44–48°N, the fell's 60–69°N, the continental's 39–52°N, the maritime's 36–44°N), a day of the year (January to March) and a starting solar hour (9–16 h) at which the sun is at least `sun.minElevation` up (R15) | `engine/mapgen/sun.ts` (`dealSun`, `declinationOf`), `LEVEL_RULES.sun`, `regions.ts`'s `sun` |
-| Where the sun stands over a run — at the map's START hour when no time is named (what every create-time decision reads), and at run time `t` on the SKY'S CLOCK (`skyHourAt`, `skyLevelAt`: the start hour run on at `SKY_CLOCK.rate`, past 24 h into the next day) for the picture — reckoned for a REAL INSTANT: the map's day a date in one nominal year (`SKY_YEAR`), its hour local apparent solar time, the declination and the equation of time off NOAA's series, the elevation the APPARENT one (lifted by the refraction; `trueElevation` beside it). The generator's R15 keeps its own cosine (`declinationOf`) — what a seed builds never moves for the sky | `sunAtRun(level, t?, rate?)`, `SKY_CLOCK`, `skyHourAt`, `skyLevelAt`, `skyDateOf` in `engine/game/clock.ts`; the app's rate and its readers' one door `pwa/src/game/sky-clock.ts` (`setSkyClock` off `?skyclock=`, `sunNow`, `moonNow`, `skyHourNow`, `skyLevelNow`) over the framework's `core/solar` `sunOnDate` |
-| Sunrise and sunset as an almanac states them (the upper limb, the refraction counted) and any twilight's window — the whole clock under the midnight sun, null in the polar night | `sunWindowOf(level, depth?)` in `clock.ts` (`sunWindowOnDate`) |
-| The moon: its place off its REAL ORBIT (Schlyter's series: its ecliptic latitude, the major standstill's ±28° swing, the parallax) and its real phase on the map's date | `moonAtRun(level, t?, rate?)`, `moonAgeOn` in `clock.ts` over the framework's `core/solar` `moonOnDate` |
-| WHERE A MAP IS ON THE GLOBE: a generated map at its dealt latitude on the prime meridian; a REAL FACE stood at its own latitude, longitude and true north when a run is created (`withPlace` off `realFacePlace` — the sky only, nothing rebuilt), half a year on south of the equator (`seasonDay`, and the free ride's SEASON stops with it, `seasonOn`); a clock shown to the player reads the place's (`clockHourOf`: the equation of time and the zone's meridian off the solar hour) | `withPlace`, `seasonDay` in `engine/mapgen/sun.ts`; `clockHourOf` in `clock.ts`; `pwa/src/game/free-ride.ts`'s `seasonOn` |
-| THE WEATHER (R19): the sky, the fall, the fog, the mean wind and its bearing, the evening — dealt last off its own stream so it moves nothing the map builds | `engine/mapgen/weather.ts` (`dealWeather`, `weatherOf`, `weatherFor`, `withSky`), `LEVEL_RULES.weather` |
-| The wind at a moment: the mean breathing in gusts, veering, NEVER UP THE MOUNTAIN (a bearing up the fall line mirrored across it, `downhillFrom`; the mean as anything drawn reads it, `windFromOf`) — a PURE function of (level, t) at 10 m over open ground, drawing nothing from `state.rng`; and the AIR WHERE A SKIER IS — the log law down to his body, the mountain's exposure, the woods' shelter — which his drag is against (`air.ts`) and which he hears and the HUD reads | `windAt`, `windFromOf`, `downhillFrom`, `airAt`, `airflowAt` in `engine/game/wind.ts`, `TUNING.wind` |
-| The fall at a moment (the squalls, a storm's blown snow) and the view it leaves — pure the same way — and the NEW SNOW it lays at a real fall's rate (`GameState.fresh`), the one thing a sky does to the physics | `snowAt`, `visibilityIn`, `freshRate` in `engine/game/snowfall.ts`; `packedUnder` / `depthUnder` in `snow.ts` |
-| The astronomy: the sun's elevation and bearing at an hour, a latitude and a declination (`sunAt`); and on a real date at a longitude — the declination and equation of time, the refraction, upper-limb sunrise, the twilights, the moon's orbit (`sunOnDate`, `sunWindowOnDate`, `moonOnDate`). `make sky-solar` holds the game's sky to a NOAA reference at the real faces' places and the bands' edges through the year | the framework's `core/solar` — the generic pool |
+| The day (R15): latitude in the region's band, a day January–March, a start hour with the sun at least `sun.minElevation` up; the generator keeps its own cosine (`declinationOf`), so nothing a seed builds moves for the sky | `engine/mapgen/sun.ts` (`dealSun`, `withPlace`, `seasonDay`), `LEVEL_RULES.sun` |
+| The sun and moon at a moment, for a REAL INSTANT: local apparent solar time on a date in one nominal year, NOAA's declination and equation of time, the apparent (refracted) elevation; the moon off its real orbit and phase; sunrise, sunset and the twilights as an almanac states them; a clock shown to the player (`clockHourOf`) | `engine/game/clock.ts` (`sunAtRun(level, t?, rate?)`, `moonAtRun`, `skyHourAt`, `skyLevelAt`, `skyDateOf`, `sunWindowOf`, `clockHourOf`, `SKY_CLOCK`) over the framework's `core/solar` |
+| The weather (R19), dealt last off its own stream; a sky picked by hand (`withSky`) | `engine/mapgen/weather.ts` (`dealWeather`, `weatherOf`, `withSky`) |
+| A free ride's FRONT: dealt (`dealFront`, `FRONT_TURNS`), laid on by `createGame` only under `RunRules.front`, asked at a moment (`frontAt`: the two skies and the eased share; `weatherAt`: the fall, fog and wind mixed); with no front both hand back the dealt sky itself, bit for bit | `engine/mapgen/front.ts`; `tests/weather_front_test.ts` |
+| The wind: a pure function of (level, t) at 10 m over open ground, never up the mountain; the AIR WHERE A SKIER IS (log law, exposure, the woods' shelter) | `engine/game/wind.ts` (`windAt`, `airAt`, `airflowAt`), `TUNING.wind` |
+| The fall at a moment, the view it leaves, the new snow it lays | `engine/game/snowfall.ts` (`snowAt`, `visibilityIn`, `freshRate`); `snow.ts`'s `packedUnder` / `depthUnder` |
 
-## The files, one direction of flow
+## The app's half (the PICTURE), by subject
 
-| File | Owns |
-| --- | --- |
-| `pwa/src/game/atmosphere-model.ts` | THE PHYSICAL ATMOSPHERE, three-free: Hillaire's model (2020) — the transmittance table on Bruneton's parametrisation, the multiple-scattering table (the infinite series summed as Ψ = L₂/(1 − f_ms), the snow's albedo in it), the sky's radiance marched with the planet's shadow, the sun through the air, the sky's irradiance as L2 harmonics (the sky above and the lit snow below). EARTH's constants per km: Rayleigh (5.802, 13.558, 33.1)·10⁻³ on 8 km, the aerosol's scattering 3.996·10⁻³ and extinction 4.4·10⁻³ on 1.2 km with g 0.8, ozone (0.65, 1.881, 0.085)·10⁻³ in a tent round 25 km; `SKY_GROUND_ALBEDO` the ground's parameter (snow 0.85; a summer's meadow beside it). Never runs in a frame — `make sky-table` bakes it |
-| `pwa/src/game/sky-table-format.ts`, `sky-table.ts` (GENERATED) | The table's layout (38 sun elevations, a degree apart through the twilights, × the sea and 3 km; each row a 10 × 9 grid of radiance by the azimuth from the sun and the view's elevation, the sun's transmittance and 27 harmonics) and the table itself, 16-bit log codes. `make sky-table ARGS=--write` after any change to the model; `tests/atmosphere_test.ts` holds it to the model |
-| `pwa/src/game/sky-atmosphere.ts` | The table read at run time (`atmosphereRow`: log-mixed between rows, a few hundred exponentials, read again only when the sun has moved a hundredth of a degree) and THE EYE'S ADAPTATION (`EXPOSURE`, `exposureOf` over `adaptingLight`: a little by day, much more through the twilights, capped so the night falls), and `AMBIENT_LIFT` (the sunlit slopes round the lens the model's level floor does not see) |
-| `pwa/src/game/sky-gpu-plan.ts`, `sky-gpu-glsl.ts`, `sky-gpu.ts` | THE GPU SKY (the DISTANCE row's MEDIUM and up, `settings-video.ts`'s `SKY_TIER`): the same Hillaire model rendered in WebGL2 — the transmittance (256 × 64) and multiple-scattering (32 × 32) tables once, a SKY-VIEW table on the baked grid's own layout (u = √(az/π), v = √(el/(π/2)), the TRUE horizon's convention) redrawn only as the sun, the exposure, the dome's mean, the night or the veil move (`SKY_REDRAW`): 96 × 50 on 8 steps (MEDIUM), 192 × 108 on 30 (HIGH and MAX), exposed and pressed in the shader exactly as `sky.ts` exposes the grid, so a tier changes the DETAIL and never the colours. Under a lid it hands `uSkyView` back to the grid (`uSkyGrid`, always written). AERIAL PERSPECTIVE: the haze's DENSITY stays the game's; its extinction is the model's per channel (`hazeTint` → `uHazeTint`), and on HIGH a FROXEL volume (32 × 32 × 32, cubed slices to `FROXELS.depth`, 100 km, one 1024 × 32 atlas) of the share of the air's light the SUN gives, marched toward the sun through the map's ground (`setGround`), read by `AERIAL_GLSL`'s `aerialShade(world)` in `HAZE_FRAGMENT`. Every tier works: no WebGL2 or no float render target falls back to LOW (`gpuSkyAvailable`); `forceSkyTier` is the lab's |
-| `pwa/src/game/sky.ts` | WHAT COLOUR THE AIR IS: `skyLookAt(level, t)` → a `SkyLook` built on the physical row — the dome's exposed radiance grid (`view`, pressed about its own mean by `DOME` as an eye on the sky sees it, its grazing row pulled toward the one over it), the zenith and horizon read off it, the sun's colour its transmittance, the key exposed, the sky's light (`skyLight`, `groundLight`, `ambient` and the world-turned `irradiance` harmonics), the haze and after sunset the low air in Earth's shadow (`hazeShadow`); the night, the moon and the weather's LID laid over it. Linear RGB throughout. THREE-FREE, so `tests/world_render_test.ts` and `tests/atmosphere_test.ts` read the whole model |
-| `pwa/src/game/haze.ts` | ONE SKY FUNCTION IN GLSL (`SKY_GLSL`, `skyColour(dir)`) and the haze every world material fades into, drawn from it along that surface's own direction (`HAZE_FRAGMENT`, `hazeMaterial`) — replacing three's one-colour fog; the uniforms ONE object shared by reference (`createHazeUniforms`, `writeHaze`) |
-| `pwa/src/game/horizon.ts` | THE TRUE HORIZON: the dip a raised lens sees (`horizonDip`, acos(R′/(R′+h)) on a sphere stretched by the standard refraction — 1.1° from a 1.45 km summit, never the level), the lens's height over the far country (`heightOverFar`, written into `uFar` every frame). Under it the dome and the mist's wall are `haze.ts`'s `farColour`: the far ground (`SkyLook.farGround` / `.farKey`, a third's albedo, its faces turned to the lens) seen through the air by the length of the way down to it — the horizon's colour where it meets the sky, darker further down. Never a sky-coloured wall under the level |
-| `pwa/src/game/starfield.ts` | THE NIGHT SKY: the sphere of stars turned to the map's hour, day and latitude (`skyTurnOf`, `turnBasis`), two shells of stars SIZED IN PIXELS off the ray's derivative, the twinkle, the Milky Way at its real tilt with its rift, the moon's glare washing the faint sky out — the sibling jet-ski game's design, retyped |
-| `pwa/src/game/sky-dome.ts` | The dome: `skyColour` painted on a sphere round the lens with the sun's disc on it, through the same tone mapping and output conversion as every lit surface, so the haze meets it with no seam |
-| `pwa/src/game/snowfall.ts` | THE SNOW IN THE AIR: a wrapped box of flakes round the lens moved by one vector a frame (how hard it snows is the draw range; the SPRAY row caps the pool; a flake in the player's beam or the arena's floodlights lights up), and the spindrift lifted off the crests on the CPU when the wind can lift dry snow |
-| `pwa/src/game/environment.ts` | Hangs it in the scene: the key light and the hemisphere light, the dome, the haze, re-read EVERY FRAME off the run's own clock; the key light's shadow box, aimed at a circle `SHADOW_LOOK[row].reach` (SKIERS: tight, the figures alone; MEDIUM and HIGH: every tree's too) round a point ahead of the lens and snapped to whole texels so a tree's shadow edge does not crawl, its normal bias scaled with the texel; at night the finish arena's FLOODLIGHTS on the run-out |
-| `pwa/src/game/cloud-field.ts` | THE CLOUD FIELD (three-free): each weather's layers at their genera's real heights over the valley floor, dealt off the map's seed, carried by `windAloft` / `veerAloft`, evolving over a few-minute life; the tileable 3D noise and its CPU twin; a column's bottom and top; the mean pass the key is dimmed by (`meanPass`) |
-| `pwa/src/game/cloud-light.ts` | The light on each layer (three-free): the sun through the air to that layer's height, pressed as the dome is; the sky on its top and base; the halo's strength; the fog sea's colour |
-| `pwa/src/game/cloud-glsl.ts` | The field in GLSL: LOW's shell, MEDIUM's and HIGH's slab, the 22° halo, and `cloudShadow` every world material multiplies into its key |
-| `pwa/src/game/clouds.ts` | The passes: the noise texture, the shadow map laid over the map, the half-resolution slab (`CLOUD_TIER`), the uniforms each frame; part 7's volume takes HIGH's place here |
-| `pwa/src/game/headlamp.ts` | THE LAMPS AFTER DARK: every skier's HEADLAMP, strapped to the brow of his helmet on the head's own frame (so on the code's helmet and the model's alike — one shell, `helmet-shape.ts`'s `helmetReach`) — a narrow SPOT and a WIDE FLOOD round it, a neutral-white LED, its lens glowing and its halo seen from ahead — and `dealLamps`, which deals the `LAMP_SLOTS` (`haze.ts`) every frame: the player's lamp first, then the floods, then the field's within reach of the lens. Each slot carries its own colour and beam; `LAMP_GLSL`'s `lampReach` is the one beam every shader reads (the snow with its glitter, the trees, gates and skiers through `hazeMaterial`'s lamp term, the falling flakes, the snow cloud) |
-| `pwa/src/game/piste-light-plan.ts` | THE PISTE LIGHTS' LAYOUT, three-free, RESEARCHED (the sources' numbers are in its header): masts some 50 m apart down every run on one side (both past 70 m of width), `out` m past the edge, a light point of 10–18 m by the width, one to three 4000 K LED floods each sized for 30 lx and aimed down and across the run; the ASYMMETRIC beam (`beamShare`: thrown out at its aim from the nadir, slow toward the mast's foot, cut off sharply above the aim — the cut-off is what leaves the woods past the far edge dark; a round 60° beam tipped down throws its top edge nearly level and lights the trees tens of metres off); and the BAKE (`bakePisteLight`): the vector irradiance on the ground over the whole map, 4 m a texel, a crest between lamp and snow its shadow. `tests/piste_lights_test.ts` holds it to the recreational class (20 lx mean, 4 lx minimum) and the snow 30 m past the edge under 1 lx |
-| `pwa/src/game/piste-lights.ts` | The masts as drawn (four instanced draws: pole, crossarm, housing, glass), the haloes (one instanced quad a glass, turned to the lens, a few pixels at least so a lit run reads across the valley) and the bake uploaded the first time the lamps come on, as one half-float texture every shader reads through `LAMP_GLSL`'s `pisteLight` — never through the six lamp slots, which are the moving lamps'. One lux is `LUX_TO_LAMP` in the slots' units, set so a headlamp's spot and a mast's pool sit on one scale. Built by `gates.ts`, lit by its `setLamps` |
-| `pwa/src/game/shadow-box.ts` | WHERE THE SHADOW STANDS, three-free: the circle ahead of the lens (`aimShadow`), its fade (`shadowFade`), how long a tree's shadow is at this sun (`shadowLength`) and whether it reaches the circle (`castsInto` — what `forest.ts` picks its casters by). The fade itself is a graft on three's `lights_fragment_begin` inside `hazeMaterial`, so every world material fades the same shadow at the same rim |
-| `pwa/src/game/terrain-shadow.ts` | THE MOUNTAIN'S OWN SHADOW, three-free: the HORIZON every texel of a grid over the whole map sees along the key's bearing, baked by one convex-hull sweep of the engine's heightfield (`bakeHorizon`), and the share of the key a point under it takes (`sunlitShare`, a band as soft as the sun's disc) — and the same in GLSL (`TERRAIN_SHADOW_GLSL`'s `terrainLit`). Its elevation is compared per pixel, so only a new BEARING needs a bake — and a TURNING key is drawn between TWO maps (`HorizonBlend`: one behind the key, one baked `lead` s of run AHEAD of it, mixed by where the key stands between them, the next one queued before the key arrives), so a ridge's shadow glides with the sun and never blinks; a key that jumps (a sky picked by hand, the moon taking over) is a cut, off until its bake lands |
-| `pwa/src/game/terrain-shade.ts` | The horizon on the GPU: asked of `terrain-shadow-worker.ts` (off the thread — a million samples), uploaded as one half-float texture, on while the SHADOWS row casts at all; and `shadeDepth` / `castInLight`, the depth every caster draws into the key's map and the skiers' own through, which throws away what the mountain already shades |
-| `pwa/src/game/hero-shadow.ts` | THE SKIERS' OWN SHADOWS (SHADOWS HIGH): every skier and his skis — the player and the field, a quadrant of one atlas each — cast into a map of their own, a box in the key light's frame just round their bound (`heroFrame` in `shadow-box.ts`) following them exactly — millimetres a texel where the wide map's are centimetres — and are taken OUT of the wide map, so no blurred copy swims round the sharp one. Every world material takes the darkest of them (`haze.ts`'s `heroShadowed`) |
-| `pwa/src/game/far-ranges-field.ts`, `far-ranges-plan.ts`, `far-ranges.ts` | THE FAR RANGES (`docs/far-ranges.md`): real ground from the map's edge to the horizon, never a skybox — the country dealt off the seed in the region's character on a salt of its own (`FAR_SALT`, no digest moves) or a real face's own off the 90 m model (`far-faces.ts`, `make far-faces`), eased out of the map's edge with no step; the RINGS (LOW 96 × 14 to 60 km, MEDIUM 192 × 30 to 80, HIGH 320 × 46 to 100) drawn as the backdrop after the dome and the map's coarse DISC behind the clipmap; each vertex lit by the key through the air down to its OWN height (`sunTransmittance` — the alpenglow, Earth's shadow climbing the faces) and cut under the horizon it sees toward the key (marched again a millisecond a frame as the sun turns); the haze the game's over the first 4 km and a fifth of it past (`FAR_AIR`), the DISTANCE row's mist let go again past its wall (`FAR_MIST_FADE`); and the RIM the clipmap carries past the map's edge (`FAR_RIM_GLSL`, `uFarRim`) so the two meet. `make sky ARGS=--sheet=far` is its lab |
+Every file below is three-free unless it names a pass or a mesh; the
+three-free ones are what the suite reads.
+
+| Subject | Files | Owns |
+| --- | --- | --- |
+| THE CLOCK | `sky-clock.ts` | The app's rate (`setSkyClock`, off `?skyclock=`) and the one door every reader of the hour asks: `sunNow`, `moonNow`, `skyHourNow`, `skyLevelNow` |
+| THE MODEL | `atmosphere-model.ts`, `sky-table-format.ts`, `sky-table.ts` (GENERATED), `sky-atmosphere.ts` | Hillaire's model (2020) with Earth's researched constants and `SKY_GROUND_ALBEDO`; never run in a frame — `make sky-table ARGS=--write` bakes it; `atmosphereRow` reads the table, `EXPOSURE` / `exposureOf` is the eye's adaptation, `AMBIENT_LIFT` |
+| THE LOOK | `sky.ts` | `skyLookAt(level, t, rate?, eyeY?)` → the ONE `SkyLook`: the dome's exposed grid pressed by `DOME`, the sun's colour, the key, the sky light (`irradiance` harmonics), the haze and Earth's shadow on the low air (`hazeShadow`), the twilight's lift (`light`, `TWILIGHT`), the dawn shade's lift (`shadeLift`), the lamps' share (`lampLight`), the night, the cloud and the deck laid over it; under a front, the two skies' looks mixed (`blendLook`) |
+| THE GPU SKY | `sky-gpu-plan.ts`, `sky-gpu-glsl.ts`, `sky-gpu.ts` | The same model in WebGL2 on MEDIUM and up (`SKY_TIER`): transmittance and multiple scattering once a weather, a sky-view table on LOW's own layout redrawn only when the sun, the exposure or the veil move (`SKY_REDRAW`); HIGH's aerial-perspective froxels (`aerialShade`); no WebGL2 falls back to LOW; `forceSkyTier` is the lab's |
+| THE LIGHT ON THE GROUND | `sky-light.ts` (and `snow-sky-glsl.ts`, `snow-look`'s) | `skyIrradiance(n)` off the harmonics; THE KEY BY HEIGHT (`sunAtHeight`, `keyBandsFor`, `keyAtHeight`) — alpenglow is the transmittance at each band's own horizon |
+| THE AIR | `haze.ts`, `horizon.ts` | `SKY_GLSL` and every world material's haze (`hazeMaterial`, `HAZE_FRAGMENT`); the uniforms shared by reference (`createHazeUniforms`); the true horizon's dip (`horizonDip`, `uFar`) and the far ground under it (`farColour`) |
+| THE DOME | `sky-dome.ts`, `environment.ts` | The dome with the sun and moon discs and the 22° halo, through the same tone mapping as the world; the scene's key and hemisphere, re-read every frame; the shadow box aimed; the arena's floods |
+| THE FAR RANGES | `far-ranges-field.ts`, `far-ranges-plan.ts`, `far-ranges.ts`, `far-faces.ts` (+ GENERATED `far-faces/`) | Real ground to the horizon, dealt or a real face's; rings by tier (`FAR_RINGS`, `FAR_TIER`) as the backdrop, the map's own coarse disc, each vertex lit through the air to its height and cut under its own horizon; the clipmap's rim (`FAR_RIM_GLSL`); `docs/far-ranges.md` |
+| THE CLOUD | `cloud-field.ts`, `cloud-light.ts`, `cloud-glsl.ts`, `clouds.ts` | Each weather's layers at their genera's real heights, dealt, carried by the wind aloft, living a few minutes; the light on each layer (the sun's transmitted colour); LOW's shell, MEDIUM's slab (`CLOUD_TIER`), the halo, `cloudShadow`; `meanPass` the key is dimmed by |
+| THE VOLUME | `cloud-volume-plan.ts`, `cloud-volume-noise.ts`, `cloud-noise-worker.ts`, `cloud-volume-glsl.ts`, `cloud-volume.ts` | HIGH's and MAX's raymarch (`VOLUME_LOOK`): Perlin-Worley noise made in a worker, Beer and powder light, a quarter-resolution picture reprojected with a block of pixels marched afresh a frame, a CUT (`isCut`) marching it whole; MEDIUM's slab until the noise lands |
+| THE FRONT AS DRAWN | `cloud-front.ts` | The field morphed slot by slot (low, mid, high), a genus easing into the next under a dip, each slot's drift the INTEGRAL of its speed (`frontEaseArea`) |
+| THE LOW DECK | `low-deck.ts` | The inversion's stratus (`dealLowDeck`), where an eye stands against it (`deckZone`): under (a ceiling), inside (fog), over (the sea, `haze.ts`'s `seaTop`) |
+| THE MOUNTAIN'S SHADOW | `terrain-shadow.ts`, `terrain-shade.ts`, `terrain-shadow-worker.ts`, `shadow-box.ts`, `hero-shadow.ts` | The horizon map toward the key (`bakeHorizon`, `terrainLit`, blended across a turning sun by `HorizonBlend`); the shadow box ahead of the lens and its fade; the casters by where their shadow falls (`castsInto`); the skiers' own maps |
+| THE NIGHT | `night-sky.ts`, `moon-glsl.ts`, `starfield.ts` | The moon's true size, phase, light and colour, earthshine, the eye's partial adaptation (`NIGHT`), the moonlit sky and airglow, the limiting magnitude; the disc drawn as a lit sphere; the stars turned to local sidereal time, sized in pixels, drawn past the faintest the sky lets through |
+| THE LAMPS | `headlamp.ts`, `piste-light-plan.ts`, `piste-lights.ts`, `glow-sprite.ts` | Every headlamp and `dealLamps` into `LAMP_SLOTS` (scaled by `lampLight`); the piste lights' researched layout, asymmetric beam and baked light (`bakePisteLight`, read as `pisteLight`) |
+| THE FALL | `snowfall-plan.ts`, `snowfall.ts` | The flakes as the smear of their velocity past the lens, the spindrift off the crests |
 
 ## The rules
 
+- **ONE `SkyLook`, ONE SUN.** Anything that needs how bright, how warm or
+  where the light is reads the look; nothing restates an elevation or a sun
+  colour, and nothing caches a look across a frame.
 - **THE SKY RUNS ON THE RUN'S OWN CLOCK, and nothing the race reads does.**
-  Every reader of the hour asks `sky-clock.ts` (`sunNow`, `moonNow`,
-  `skyHourNow`, `skyLookAt(level, state.t)`) — the sky, the stars, the
-  snow's thaw (re-packed as the sun moves), the birds, the sound, the people
-  on foot, the cockpits' clocks — and never `level.sun.hour` or a bare
-  `sunAtRun(level)`, which are the START hour. What a run DEALS off the sun
-  when it is created (the night crowd, the piste machines, the snow guns,
-  the piste's day) reads the start hour and stays as dealt: flipped mid-run
-  it would move a digest and pop people out of the world. The rate is the
-  app's, never engine state — 12 in the game, held (0) on every lab page
-  that does not ask and on a link that names an `?hour=` — and a replay,
-  re-skiing `state.t`, is met under the same sky. Anything that must follow
-  the light as it changes reads it EVERY FRAME (or re-reads when the sun has
-  moved a step); a value worked out once at load off the sun is a bug now.
-- **A turning sun moves no edge in steps.** The mountain's shadow is drawn
-  between a map behind the key and one ahead of it (`HorizonBlend`); the
-  shadow box's key is stepped (`steadyKey`, a thousandth of a radian) so its
-  frame stands between steps and the texel snap still holds a tree's edge.
-  A per-frame continuous direction in a texel-snapped frame is a crawl.
-
-- **The sun is the single input, and it is asked every frame.** Anything
-  that needs to know how bright, how warm or where the light is reads the
-  `SkyLook` — the snow's glitter and sheen, the haze, the shadows. Nothing
-  restates an elevation or picks its own sun colour, and nothing caches a
-  look across a frame: a card or a lab can change the sky under a live
-  scene, and the fall breathes in squalls.
-- **THE SHADOWS ARE BLUE, AND THAT IS THE SKY'S JOB.** What fills a shadow on
-  snow is the sky, so the hemisphere's upper colour is a real blue and the
-  bounce under it near-white. Shade that reads grey is a hemisphere light
-  that lost its blue, not a snow shader that needs a tint.
-- **The sky over snow is bright.** Fresh snow sends most of the light back
-  up; a winter horizon is a pale, almost white blue. A saturated horizon
-  reads as summer.
-- **The sun's colour is the air it crossed**, not a table of hand-picked
-  oranges: a low February sun at 62°N is gold because of the air mass, and
-  the model says so.
+  Every reader of the hour asks `sky-clock.ts` — the sky, the stars, the
+  snow's thaw, the birds, the sound, the people on foot, the cockpits — and
+  never `level.sun.hour` or a bare `sunAtRun(level)`, which are the START
+  hour. What a run DEALS off the sun at create (the night crowd, the piste
+  machines, the snow guns, the piste's day) reads the start hour and stays
+  as dealt: flipped mid-run it would move a digest and pop people out of
+  the world. The rate is the app's, never engine state — 12 in the game,
+  held (0) on every lab page that does not ask and on a link that names an
+  `?hour=` — and a replay, re-skiing `state.t`, meets the same sky.
+  Anything that follows the light reads it every frame, or when the sun has
+  moved a step; a value worked out once at load is a bug.
+- **THE FRONT IS THE ENGINE'S, AND ONLY A FREE RIDE'S.** `frontAt` /
+  `weatherAt` are pure in (level, t) off their own salt; races never read
+  them and `make sim` must not move. What is still read off the DEALT sky
+  at create (the snowpack, the snow's age, the avalanche's load, the
+  paramotor's turbulence) stays so on purpose until a part moves it.
+- **A MIXED LOOK MIXES ITS SWITCHES.** `blendLook` mixes every number, and
+  some numbers are switches: an `=== n` or `> n` against a mixed field puts
+  the pop wherever it crosses n, often at the end of the change. A switch
+  gets a share of its own (`CloudLook.lid`, 0..1). And anything placed by
+  `speed · t` (a cloud slot's drift, a cell's life) is the integral of its
+  speed, or a changed speed multiplies the run's whole time and the field
+  races kilometres.
+- **NOTHING MOVES IN STEPS.** The mountain's shadow is drawn between a map
+  behind the key and one ahead (`HorizonBlend`); the shadow box's key is
+  stepped (`steadyKey`) so its texel snap holds; a front's change and a
+  deck's zones are blended over a margin. A per-frame continuous direction
+  in a texel-snapped frame is a crawl; a jump of a threshold is a pop.
 - **THE CLEAR SKY IS THE PHYSICS; WHAT IS TUNED IS THE EYE.** The glow, the
-  Belt of Venus, Earth's shadow and the blue hour come out of
-  `atmosphere-model.ts` and its researched constants — never paint one into
-  `sky.ts`. What a look change may move is the exposure (`EXPOSURE`), the
-  dome's tone (`DOME`) and the lift (`AMBIENT_LIFT`); a constant of the
-  model moved owes its source and `make sky-table ARGS=--write`.
-- **ONE MODEL, THREE SKIES — a tier buys detail, never colour.** LOW's
-  baked grid and the GPU's MEDIUM and HIGH tables are the same march on the
-  same layout, exposed by the same `SkyLook` numbers (`exposure`,
-  `domeMean`, `veil`, `altitude`); a change to how `sky.ts` exposes or
-  presses the grid is made in `VIEW_FRAGMENT` too, or the tiers part
-  (`make sky ARGS=--sheet=skytier`: mean ΔE against LOW stays near 2 or
-  under). The light on the snow is the table's at every tier. Far ground
-  drawn with `hazeMaterial` gets the aerial perspective for nothing — never
-  a second haze path.
-- **After sunset the valleys' air is in Earth's shadow.** The far ridges
-  stand dark against the glow (`hazeShadow`); a haze that takes the glow's
-  orange onto the ground reads as a fire, not a dusk.
-- **The haze is the sky in that direction.** A ridge two kilometres off
-  dissolves into exactly the sky behind it — warmer toward the sun, bluer
-  away. A flat fog colour stands in the picture as a grey band; never
-  reintroduce three's own fog in a world material, use `hazeMaterial`.
-- **Linear light, and every hand-written shader closes the loop.** `sky.ts`
-  authors linear RGB; a `ShaderMaterial` that writes straight to
-  `gl_FragColor` skips the output conversion and hands out a picture half as
-  bright as authored — which reads as a far slope glowing brighter than the
-  sky, never as "too dark". Every custom one ends with
-  `#include <colorspace_fragment>` (and the tone mapping the dome shares).
-- **The shadow stands ahead of the lens, not round the skier**, and FADES at
-  its rim. A chase camera puts the skier at the bottom of the frame, so a
-  box round him spends half its texels behind the lens; and a map that
-  simply stops is a straight line across the snow that shadows pop over as
-  it travels. Past the circle the haze and the terrain's forest tint carry
-  the woods. Widening it to shadow the whole face is a blurred shadow for
-  every tree.
-- **The mountain shades itself, and what stands in its shade casts
-  nothing.** A face turned from a low sun is in the shade of the ground
-  above it; the key's shadow map cannot say so (the ground is not drawn
-  into it, and could not be at its reach), so the horizon map does, taken
-  with the map the darker of the two — one shadow model, the key taken away
-  and the sky left. And a caster's depth pass discards what the mountain
-  already shades (`shadeDepth`): without it a skier in a face's shade still
-  takes the sun on his body and throws a long, thin shadow down-sun onto the
-  first sunlit crest ahead — tens of metres from his feet, closing in as he
-  skis toward it. A caster added anywhere goes through `castInLight`.
-- **What casts is decided by where the shadow falls**, never by how near
-  its tree is to the lens (`castsInto`). A caster set cut by distance to the
-  lens, or by the view frustum, is a shadow that appears as the skier
-  closes on a wood, and one that vanishes when the lens turns away from the
-  tree standing behind it. The casters are their own shadow-only set —
-  three picks its shadow pass off the MAIN camera's layers, so a layer
-  cannot hide them from the picture; their material clips every vertex
-  instead.
+  Belt of Venus, Earth's shadow, the blue hour and the sun's colour come out
+  of `atmosphere-model.ts` — never paint one into `sky.ts`. A look change
+  may move the exposure (`EXPOSURE`), the dome's press (`DOME`), the lifts
+  (`AMBIENT_LIFT`, `TWILIGHT`, the shade lift) and the night's eye
+  (`NIGHT`). A model constant moved owes its source and `make sky-table
+  ARGS=--write`.
+- **ONE MODEL, THREE SKIES — a tier buys detail, never colour.** LOW's grid
+  and the GPU's tables are the same march on the same layout, exposed by the
+  same look numbers; a change to how `sky.ts` presses the grid is made in
+  `VIEW_FRAGMENT` too, or the tiers part (`--sheet=skytier`, mean ΔE against
+  LOW near 2 or under). The light on the snow is the table's at every tier.
+  The SKY and the CLOUD ride the DISTANCE row (`SKY_TIER`, `CLOUD_TIER`,
+  `FAR_TIER`); a row of their own waits on a real GPU's price saying HIGH
+  against MEDIUM is over a millisecond.
+- **THE SHADOWS ARE BLUE, AND THAT IS THE SKY'S JOB.** Shade is the sky's
+  harmonics on the normal; grey shade is harmonics that lost their blue,
+  never a shader wanting a tint. The key has a HEIGHT: the peaks keep a red
+  sun after the valley loses it. The world's light is `SkyLook.light` (the
+  exposure lifted through the twilight, the dome left alone); the lamps are
+  scaled by `lampLight`, so a floodlight is lost under a twilight sky and
+  is the whole light at night.
+- **A DARK DAWN SHADE IS LIFTED IN THE SHADOW ONLY.** The low sun's lift
+  multiplies the sky light only where `terrainLit` is low (`shadeLift`,
+  `SHADE_LIFT`); laid on all the sky light it also cooled the sunset's
+  golden key and greyed the dawn haze. Sunrise and sunset share elevations,
+  so no profile by elevation alone can tell them apart — check both.
+- **A LID IS DARKER THAN THE SNOW UNDER IT**, or overcast reads as a white
+  sheet; and a deck brought to a target grey keeps its RELIEF (shade its
+  floor by the point's height in the column). Judge a deck at noon and on a
+  crop of its lumps, never by its mean alone.
+- **THE SKY OVER SNOW IS BRIGHT** and its horizon a pale blue; a saturated
+  horizon reads as summer. **The sun's colour is the air it crossed.**
+- **CLOUDS TAKE THE SUN'S TRANSMITTED COLOUR** along their own path to
+  their own height (`cloud-light.ts`): at golden hour the sunward edges and
+  bases glow orange and red, the far ones warmest, the cirrus pink after
+  sunset. A cloud lit by a constant key is the cold sunset the revamp
+  replaced.
+- **THE AIR IS THE SKY IN THAT DIRECTION.** Every world material fades
+  through `hazeMaterial` into `skyColour` along its own direction (times
+  `aerialShade` on HIGH); never three's fog, never a second haze path. After
+  sunset the valleys' air is in Earth's shadow (`hazeShadow`), and a far
+  ridge stands dark against the glow.
+- **REAL GROUND TO THE HORIZON, never a skybox.** The far ranges are lit by
+  the moving sun; under the true horizon's dip the fill is `farColour`, and
+  the DISTANCE mist releases the rings and lets the ground past its wall be
+  ground (`uMistOpen`), never a grey band.
+- **THE NIGHT IS RECKONED, NOT PAINTED.** The moon's size, phase, light and
+  colour and the stars the sky lets through come off `night-sky.ts`; the
+  stars come out by the sky's brightness (`starLimit`), never by a sun
+  elevation, and are SIZED IN PIXELS. Judge moonlight on a face AWAY from
+  every lamp by the snow's MEAN — under a floodlight the moon cannot show —
+  and fit the night's ambient to the RENDERED ratio (three's ambient reads
+  about a sixth as bright as the key on snow).
+- **MANY STILL LAMPS ARE A BAKE, NOT SLOTS.** The six `LAMP_SLOTS` are for
+  lamps that move; the piste lights are one vector irradiance texture baked
+  the first time the lamps come on. A slope flood is cut off above its aim
+  (`beamShare`) or it lights the woods. A lamp on a skier hangs on the
+  HEAD's frame, aimed off the head's own forward; `helmet-shape.ts` is a
+  model source, so build off its exports and never edit it for a lamp.
+- **ANYTHING IN THE AIR THE LENS RUNS THROUGH IS A SMEAR** of its velocity
+  past the lens, measured off the camera frame to frame (`createLensTrack`),
+  its light spread along the smear; a dot at speed strobes and reads as
+  riding along.
+- **THE SHADOW STANDS AHEAD OF THE LENS AND FADES AT ITS RIM**; what casts
+  is decided by where its shadow falls (`castsInto`), never by distance or
+  the frustum; the mountain shades itself (`terrainLit`) and a caster's
+  depth pass drops what the mountain already shades (`castInLight`).
+- **LINEAR LIGHT, AND EVERY HAND-WRITTEN SHADER CLOSES THE LOOP** with
+  `#include <colorspace_fragment>` (and the dome's tone mapping), or it is
+  half as bright as authored. GLSL ES reserves `half`, `input`, `output`,
+  `filter`, `sample`: a local so named fails only on the GPU, where three
+  logs it and draws nothing — only a lab that draws the material catches it.
 
-## The loop
+## The seams the summer thread stands on
 
-**`make sky-table`** prints the physical sky row by row (the zenith's and
-the anti-solar horizon's luminance and blueness, the sun's transmittance)
-before any picture: a model change is read there first.
-**`make sky` FIRST** for the picture — every weather (with a light fall and a blizzard) against
-every three hours on one seed from one place, as one sheet
-(`previews/sky-<seed>.png`; `ARGS="--hours=10,17,22 --weathers=fair,blizzard
---width=640 --height=360"` to zoom a few cells). A map is dealt one sky at one
-hour, so a race's screenshot can only say whether that one is wrong; the
-ladder is judged side by side. The time-lapse (`--sheet=timelapse`) sets the
-hour cell by cell; with `--clock` it walks the RUN'S OWN CLOCK instead (the
-sky's clock at `--rate`, every frame between two cells drawn, the mountain's
-shadow baked ahead and blended as in a run) — what a player sees as the sun
-goes down. `--sheet=skytier` sets the three SKY TIERS (LOW's baked grid, the GPU's MEDIUM and HIGH, forced) over six suns from dawn to the blue hour, with a HIGH − LOW difference row and each cell's ΔE against LOW (`dE`, `dSky` the sky's, `dE95`) — a change to the GPU sky owes it before and after, and the passes' ms in its caption; `make world ARGS="--free --hour=<h> --skyclock=12
---views=chase-0,chase-60,…"` is the same through a bot's run. A change to the FALLING SNOW (how it moves,
-how a flake is drawn) owes **`make snowfall`** before and after as well: each
-falling sky ridden into, with and across its wind at 0–140 km/h, the game's
-frame (`previews/snowfall-<seed>.png`) and the flakes alone laid over several
-frames (`-flow.png`, every flake's way across the picture a track — at speed
-they run out of the heading point, unbroken), with the table of the air past
-the lens off `snowfall-plan.ts`. Then:
+The summer ground (`summer-glsl.ts`) reads the sky ONLY through these, which
+are extended and never renamed: GLSL `skyColour(dir)`, `hazeColour(dir)`,
+`hazeAmount(dist, rise)`, `mistBand(dir)`, `terrainLit(...)`,
+`skyIrradiance(n)`, `cloudShadow(worldPos)`; three's key
+DirectionalLight; and the uniforms `uSunDir`, `uSunPos`, `uSunCol`, `uFlat`,
+`uGlitter` in `HazeUniforms`. New sky code for the snow goes in
+`snow-sky-glsl.ts`, hooked into `snow-glsl.ts` by ONE call where the light
+is summed. Nothing in the sky assumes snow under it: the ground's albedo is
+a parameter (`SKY_GROUND_ALBEDO`), and any day of the year at any latitude
+must hold (a 77° noon sun, the midnight sun, the polar night — `make
+sky-solar` carries those rows).
 
-1. `make world SEED=<n> ARGS=--views=vista,powder,forest` at seeds with an
-   EARLY and a LATE hour (`make level SEED=<n>` prints the day; a low sun is
-   where a palette change breaks; `ARGS=--hour=15.3` puts any map under one)
-   — the dome, the haze on the rim, the blue in the shadows. A shadow that
-   changes as the skier descends is the chase series: `chase-<s>` views at
-   any second of the run (`chase-60,chase-90,chase-120` by default).
-2. `npx vitest run tests/terrain_shadow_test.ts` — the mountain's shadow on
-   hand-built ground: a wall's shade as long as the key throws it, a face
-   turned from the key.
-3. Sample a column of pixels through the skyline when a picture is "somehow
-   flat" rather than arguing about it — the step at the horizon is a number.
-4. `npx vitest run tests/world_render_test.ts` — the colour model.
-5. `make build`, `make screenshots` — the game's framing at every viewport;
-   `make profile` if the shadow or a pass changed.
+## The labs, and how to read them
 
-## What the change obliges elsewhere
+The sky is judged on SHEETS, side by side, with numbers: a map is dealt one
+sky at one hour, so a race's screenshot can only say whether that one is
+wrong. Run each sheet `--json=FILE` before and `--compare=FILE` after; the
+pictures land under `previews/`.
 
-- `make world` pictures at an early and a late hour, before and after, in the
-  PR; `make profile` for a shadow or pass change.
-- A change to R15's bands → `docs/level-generator.md` (verbatim), `make
-  analyze`, `tests/mapgen_test.ts`.
-- The renderer bullet in `docs/architecture.md`.
+| Lab | For | Read |
+| --- | --- | --- |
+| `make sky-table` (`ARGS=--write`) | a model change, read before any picture | the zenith's and anti-solar horizon's luminance and blueness, the sun's transmittance, row by row |
+| `make sky-solar` | the sun and moon | the worst rows against the NOAA reference: declination and elevation ≤ 0.05°, sunrise ≤ 1 min, moon ≤ 1° |
+| `make sky` (`--sheet=weathers`, the default) | every weather × hours on one seed | the look as a whole; `ARGS="--hours=10,17 --weathers=fair,storm --width=640"` zooms |
+| `make sky ARGS=--sheet=timelapse` (`--view=chase\|vista\|sunrise\|sunset\|antisun`, `--step=`, `--clock`, `--front`) | the day through, one view | each cell's `elev`, the model's `zenL`/`horL`, the drawn `skyL`/`skyK`, the snow's `litL`, `shadeL`, `ratio`, `shadeBlue`, `litWarm`, and `ms`. At sunrise and sunset the lit snow must read warm and the shade blue — `litWarm` and `shadeBlue` well apart from noon's; `--clock` walks the run's own clock (every frame drawn, the shadow baked ahead) and `--front` shows a front coming in (`a→b NN%` on each cell) |
+| `--sheet=tiers`, `--sheet=skytier` | the presets, and the sky's own tiers forced | `dE`, `dSky`, `dE95` against LOW (stay near 2 or under) and the GPU passes' `ms` |
+| `--sheet=far` (`--maps=`, `--no-far`) | the far ranges, a region or `face:<id>` a row | dawn, noon, sunset, dusk; `ms` against `msOff` and the tiers' triangles |
+| `--sheet=clouds`, `cloudlapse`, `sunclouds`, `cloudshadow` | the cloud by tier, its motion, the sunset close-up, its shadow | `skyRB` and `warm` on the golden cells; the close-up must glow |
+| `--sheet=cloudmotion` | the volume's reprojection | `dE` / `dE95` of the carried picture against a whole march, still to a whip pan; its header times every tier's pass alone (`sky-cloud-cost.ts`, a 1-pixel `readPixels` as the fence, because `finish` does not block headless) |
+| `--sheet=lowdeck` | a run down through a deck | over, at the top, inside, at the base, under, and the sea at sunset |
+| `--sheet=moon` | the night | the drawn disc against its true angle (perigee, apogee), and the snow's mean on a lamp-free face under a full, a quarter and no moon (about 3× and 8× apart) |
+| `make snowfall` | the fall at speed | the flow sheet's tracks running out of the heading point |
+| `make world ARGS="--hour=<h> --views=vista,chase-60"` (and `--free --skyclock=12`) | the same in a bot's run | an EARLY and a LATE hour, and `--hour=21` for the night |
+
+Then `npx vitest run tests/atmosphere_test.ts tests/world_render_test.ts
+tests/sky_light_test.ts tests/night_sky_test.ts tests/cloud_field_test.ts
+tests/cloud_volume_test.ts tests/low_deck_test.ts tests/far_ranges_test.ts
+tests/terrain_shadow_test.ts tests/weather_front_test.ts` for what the
+change reaches, and `make sim` (digests unmoved) for anything under
+`engine/`. Software GL (SwiftShader) times STRUCTURE, never speed: a lab's
+`ms` is relative, and a price is `picture-pricing`'s, on a real GPU. When a
+picture is "somehow flat", sample a column of pixels through the skyline —
+the step at the horizon is a number.
+
+## What a change owes elsewhere
+
+- `make sky` sheets (and `make world` at an early and a late hour) before
+  and after, in the PR; a pass's cost re-measured, and a stop's price
+  (`picture-pricing`) when it moves.
+- R15's bands → `docs/level-generator.md` (verbatim), `make analyze`;
+  R19 or the front → `make sim` unmoved, `tests/weather_front_test.ts`.
+- `docs/architecture.md`'s renderer bullet and `docs/configuration.md`'s
+  `hour`, `skyclock`, `weather` and `front` rows; `docs/far-ranges.md` for
+  the far country.
 - A `.changes/unreleased/` fragment — the sky is what the player looks at.
 
 ## Skill self-improvement
 
-Load **`skill-reflection`** before this session commits. Worth a fragment: a
-colour that only read right in linear light, an hour at which the palette
-broke while the rest held, a shadow artefact and its cause.
+Load **`skill-reflection`** before this session commits. Worth a fragment:
+a colour that only read right in linear light, an hour at which the palette
+broke while the rest held, a pop at a threshold, a lab that measured the
+wrong pixels.

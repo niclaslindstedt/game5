@@ -50,7 +50,14 @@ export function tallyScene(root: THREE.Object3D, camera?: THREE.Camera): SceneSh
       const whole = index ? index.count : (position?.count ?? 0);
       const range = geometry.drawRange;
       const verts = Math.max(0, Math.min(whole, range.start + range.count) - range.start);
-      const instances = (object as Partial<THREE.InstancedMesh>).count ?? 1;
+      // An instanced mesh's count, or an instanced geometry's (the spray's
+      // and the cloud's quads, drawn as many as are alive).
+      const drawn = (geometry as Partial<THREE.InstancedBufferGeometry>).instanceCount;
+      // (A plain mesh carries a `count` of 1 too: the geometry's own wins.)
+      const instances =
+        drawn !== undefined && Number.isFinite(drawn)
+          ? drawn
+          : ((object as Partial<THREE.InstancedMesh>).count ?? 1);
       // Points and lines draw no triangles; they are still objects.
       const isMesh = (object as Partial<THREE.Mesh>).isMesh === true;
       if (isMesh) share.triangles += Math.floor(verts / 3) * instances;

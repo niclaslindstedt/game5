@@ -52,6 +52,7 @@ sibling's the day one lands, and add its registry row.
 | `blender-assets` | A game asset modelled in Blender off the game's own data: `make blender`, the budget and its LODs, the asset sheet beside the game's own, headless Blender; the models in the game |
 | `skier` | The figure on the skis: the stance from the engine's readings, the limbs solved to the bindings and the pole grips; judged from behind |
 | `skier-gear` | What the skier wears: the catalog (two bodies, jackets, pants, helmets, gloves, poles — each in its own colours), the loom that cuts a piece onto the rig, the DRESS card, and `make gear` (every piece, every outfit, the moves, the game's pixels, a Blender skier and local references beside them) |
+| `animation-lab` | Any animation debugged by its smoothness: `make anim` — every scene of the rider on skis, a board and the bike ridden by the real engine, the real model drawn as filmstrips, wireframes, bones and onion skins, with every joint angle, its acceleration, the jolt, the stretch, the tips' speeds and the clips charted; the loop and setting it up for a new animation |
 | `skier-improvement` | Making the skier more realistic: the loop and its harnesses — `make skier-metrics` (the pose against a skier's bands), the skier lab's closeup, detail, game-pixel and skin-stretch sheets, the model rebuilt and published — and what the first pass learned |
 | `collision` | The skier meeting what is not snow — trunks, rivals, the edge of the map — and the course counting: gates, misses, the finish, the reset |
 | `crash` | The skier past saving and off his skis: the wipeout (a trunk, over the tips, a fall, an edge caught) and his tumble, bogged in the powder and poling out, damage when it is on (the rally game's `crash`, by way of the snowmobile game's) |
@@ -80,6 +81,7 @@ sibling's the day one lands, and add its registry row.
 | `debug-game` | Deterministic repros, classifying by layer, the failing test first |
 | `debug-tools` | The developer page behind the title's seven-second hold: the overlay's instruments, the free camera, the REPRO line, and the BENCHMARK with its report and history; `make bench` |
 | `simulate-run` | `make sim`: the `RunReport` table, its columns, which movements are regressions |
+| `eval-labs` | A contest over one goal: five agents, five approaches, shared lab scenes, a fresh judge and one side-by-side page; the owner decides what merges or goes to another round |
 | `level-rating` | Whether a generated mountain is any GOOD and how HARD: `engine/rating/`'s eight axes and the index, the ladder scorer, `make rate` and `make difficulty` |
 | `pinned-maps` | The pinned maps — every discipline's nine race maps and the trick maps, the level card a measured run picks its map on, the generator-version contract and the digest a pinned map stands on |
 | `bot-improvement` | The piste-reading bot in `engine/sim/bot.ts` — the player's stand-in and every rival — measured with `make sim` |

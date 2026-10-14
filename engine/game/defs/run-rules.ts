@@ -82,11 +82,23 @@ export type RunRules = {
    * street he stops, steps out of his bindings, shoulders the pair and
    * walks; off the streets he steps back in. On a FREE RIDE only. */
   town?: boolean;
+  /** WHETHER ITS FIRES BURN (`fire-burn.ts`): a camp fire or a bonfire
+   * (`fires.ts`) ridden into sets the skier alight — or, safe for work,
+   * holds him off. On a FREE RIDE only; left out, a fire is nothing to the
+   * physics. */
+  fires?: boolean;
   /** WHETHER THE MOUNTAIN'S SLOPES CAN AVALANCHE (`avalanche.ts`): a loaded
    * slope off the groomed runs crossed may release a slab that takes the
    * skier. On a FREE RIDE only, and there only when the run asks for them
    * (`CreateGameOptions.avalanche`); left out, nothing slides. */
   avalanche?: boolean;
+  /** WHETHER THE WEATHER MOVES OVER THE RUN (`mapgen/front.ts`): a FRONT
+   * dealt off the map's seed turns the dealt sky into others over the sky's
+   * clock — high cloud, a lid, snow; a storm passing, a fog burnt off — and
+   * the fall and the wind follow it. On a FREE RIDE only, and there only
+   * when the run asks (`CreateGameOptions.front`); left out, the dealt sky
+   * holds, so no race, trick run or lab moves. */
+  front?: boolean;
   /** HOW THE FIELD STARTS: `"line"` — every skier on the start line at once,
    * the lights, GO; `"interval"` — ONE RACER ON THE COURSE AT A TIME, out of
    * the start hut: the field has skied it before the player, and its times

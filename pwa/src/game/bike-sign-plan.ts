@@ -61,3 +61,17 @@ export function bikeSigns(level: Level): SignPost[] {
   }
   return posts;
 }
+
+const NAMES = new WeakMap<Level, Map<string, string>>();
+
+/** The name burned on trail `id`'s sign on `level` (the HUD's word for the
+ * trail ridden), or the id itself off a park. Memoized a map. */
+export function bikeTrailName(level: Level, id: string): string {
+  let names = NAMES.get(level);
+  if (!names) {
+    names = new Map();
+    for (const post of bikeSigns(level)) for (const b of post.boards) names.set(b.run, b.name);
+    NAMES.set(level, names);
+  }
+  return names.get(id) ?? id;
+}

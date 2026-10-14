@@ -24,7 +24,7 @@
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 
 import type { Level, TreeDef } from "../mapgen/index.ts";
-import { weatherOf } from "../mapgen/index.ts";
+import { weatherAt, weatherOf } from "../mapgen/index.ts";
 import { TUNING } from "./defs/tuning.ts";
 
 /** The air at a moment: which way it moves and how fast. */
@@ -78,13 +78,14 @@ function phase(seed: number, salt: number): number {
   return ((h >>> 0) / 4294967296) * Math.PI * 2;
 }
 
-/** The wind on `level` at run time `t`. */
+/** The wind on `level` at run time `t` — on a map carrying a FRONT
+ * (`front.ts`), its mean the front's at `t` (`weatherAt`). */
 export function windAt(
-  level: Pick<Level, "seed" | "weather">,
+  level: Pick<Level, "seed" | "weather" | "front">,
   t: number,
   out: Wind = { x: 0, z: 0, speed: 0, gust: 0 },
 ): Wind {
-  const w = weatherOf(level);
+  const w = weatherAt(level, t);
   let g = 0;
   let total = 0;
   for (let i = 0; i < GUSTS.length; i++) {

@@ -209,6 +209,7 @@ export {
 export { LAKE_ICE } from "./game/defs/lake-ice.ts";
 export * from "./game/summer-api.ts";
 export * from "./game/bike-park-api.ts";
+export * from "./game/bike-api.ts";
 
 // The run.
 export { createGame, rulesFor, step, FIELD_SIZE, type CreateGameOptions } from "./game/step.ts";
@@ -258,6 +259,7 @@ export {
   raceRiderOf,
   timeTrialRules,
   tricksRules,
+  showcaseRules,
   type Assist,
   type Discipline,
   type GameMode,
@@ -796,6 +798,7 @@ export {
 } from "./game/sled-drive.ts";
 export { sledSpotOf, type SledSpot } from "./game/sled-pad.ts";
 export { sledPilot, type SledAim } from "./game/sled-pilot.ts";
+export { BIKE_PILOT, bikeAim, bikePilot, type BikeAim } from "./sim/bike-pilot.ts";
 export { PARA, pilotMass as paraPilotMass } from "./game/defs/para.ts";
 export {
   freshPara,
@@ -888,6 +891,7 @@ export {
   stepLift,
   teeSide,
 } from "./game/lift-ride.ts";
+export { CHAIR_BAR_SWING, chairBarDown } from "./game/chair-hands.ts";
 export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {
   airPointsPerSecond,
@@ -968,7 +972,8 @@ export {
 } from "./rating/index.ts";
 
 // The bot skier and the headless simulator.
-export { botInput, RIDER_BOT, type BotProfile } from "./sim/bot.ts";
+export { botInput, DARING_BOT, RIDER_BOT, type BotProfile } from "./sim/bot.ts";
+export { DARING, roamAt, type Daring } from "./sim/daring.ts";
 export { simulateRun, SIM_SECONDS, type RunReport, type SimOptions } from "./sim/simulate.ts";
 export {
   afterskiNear,
@@ -991,3 +996,4 @@ export {
 export { AFTERSKI, BUZZ } from "./game/defs/afterski.ts";
 export { TOWN } from "./game/defs/town.ts";
 export { TOWN_KEYS, strideBob, stridePace, townEase, townShare } from "./game/town.ts";
+export * from "./sim/showcase.ts";

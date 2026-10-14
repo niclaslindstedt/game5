@@ -22,13 +22,16 @@ import {
 } from "./skier-pose.ts";
 import { flightShape } from "./skier-flight.ts";
 import { lookBack } from "./skier-seat.ts";
+import { armsLag } from "./skier-spring.ts";
 import { type Riding } from "./technique-pose.ts";
 import { revertRise } from "./skier-switch.ts";
 
 /** Coming down off a hop into switch (`SkierState.hopHeld`): still in its
- * little flight, round already — the look back held for the landing. */
+ * little flight or just down off it, round already — the look back held
+ * through the landing, never let go for the frames the drawn air takes to
+ * ease off the snow. */
 export function hopLanding(skier: SkierState): boolean {
-  return skier.airborne && (skier.hopHeld ?? 0) > 0;
+  return (skier.hopHeld ?? 0) > 0;
 }
 
 /** How far he stands on the snow as drawn, 0..1: the view's eased air, or
@@ -99,12 +102,14 @@ export function poseInputOf(
     // RIDING SWITCH: looking back over the shoulder his body has turned to
     // — or, waiting for a chair or a T-bar, over his inside one for it.
     switched: legs.back * legs.backSide + lookBack(skier.lift),
+    switchCarry: skier.lift ? undefined : legs.carry,
     windUp: legs.wind,
     turningRound: skier.revert != null || hopLanding(skier),
     airborne: skier.airborne,
     landing: skier.landing,
     // ...lengthened a little through a revert, the skis light (`skier-switch.ts`).
     bump: legs.bump - (skier.revert ? revertRise(skier.revert.u) : 0),
+    armsLag: armsLag(legs),
     // THE POLE PLANT the view times on his turns (`skier-spring.ts`).
     plantAt:
       legs.plantT < legs.plantLength

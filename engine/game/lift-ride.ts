@@ -76,6 +76,7 @@ import {
 import { PISTE_GRADES, type RunGrade } from "../mapgen/grades.ts";
 import { skiRoutesOf } from "../mapgen/ski-routes.ts";
 import { carrierSwingAt } from "./carrier-swing.ts";
+import { byHand, chairAsk, chairNow, holdRound, overRamp, shoveOff } from "./chair-hands.ts";
 import { TOWN } from "./defs/town.ts";
 import { carryOut, doorIn, inRack, offForDoor, rackSkis, standOnFoot } from "./lift-skis.ts";
 import { stepTown } from "./town.ts";
@@ -126,6 +127,7 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
   ride.t += TUNING.dt;
   if (input.reset) {
     // A skier who will not wait is put at the top.
+    delete ride.round;
     ride.phase = "ride";
     ride.u = offAt(plan);
     ride.from = { ...ride.from, y: Number.NaN };
@@ -148,7 +150,23 @@ export function stepLift(run: GameState, input: SkierInput, events: GameEvent[])
     letGo(run, plan, ride, events);
     return false;
   }
-  if (ride.phase === "ride") skipUp(run, plan, ride, input);
+  // A CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): the bar down, the tuck
+  // skips the ride as ever; up, a fresh press takes him off it — stood up
+  // over the unload ramp, thrown off the seat anywhere else.
+  let skip = ride.phase === "ride";
+  if (byHand(run, ride) && ride.stand === undefined) {
+    const { spot, bar } = chairNow(run, plan, ride);
+    const ask = chairAsk(ride, input.tuck, bar);
+    skip = ask === "skip";
+    if (ask === "off" && overRamp(plan, spot)) standOff(run, plan, ride, spot.u, events);
+    else if (ask === "off") {
+      letGo(run, plan, ride, events);
+      shoveOff(run);
+      return false;
+    }
+  }
+  if (skip) skipUp(run, plan, ride, input);
+  else if (ride.held) ride.held = 0;
   if (ride.phase === "board") {
     // A gondola's last metres to its door walked, the pair on his shoulder.
     if (plan.lift.kind === "gondola" && c.town) {
@@ -202,7 +220,7 @@ function letGo(run: GameState, plan: LiftPlan, ride: LiftRide, events: GameEvent
  * what the HUD's ring fills by. */
 export function skipShare(run: GameState): number {
   const ride = run.skier.lift;
-  if (!ride || ride.phase !== "ride") return 0;
+  if (!ride || ride.phase !== "ride" || ride.round) return 0;
   if (ride.skip !== undefined) return 1;
   const held = ride.held ?? 0;
   if (held <= 0) return 0;
@@ -239,6 +257,7 @@ function skipUp(run: GameState, plan: LiftPlan, ride: LiftRide, input: SkierInpu
   ride.faded = true;
   ride.from = { ...ride.from, y: Number.NaN };
   delete ride.skip;
+  delete ride.armed;
   ride.held = 0;
 }
 
@@ -247,29 +266,12 @@ function skipUp(run: GameState, plan: LiftPlan, ride: LiftRide, input: SkierInpu
 function boardLift(run: GameState, events: GameEvent[]): void {
   const c = run.skier;
   if (c.thrown || c.airborne || c.tunnel || c.fetch) return;
-  const plans = liftPlans(run.level);
-  for (let i = 0; i < plans.length; i++) {
-    const plan = plans[i];
-    // IN SUMMER the drags stand still: no snow to be towed up (`summer.ts`).
-    if (run.summer && plan.lift.kind === "drag") continue;
-    // On foot, the pair on his shoulder, only a gondola's door takes him.
-    if (c.town && (plan.lift.kind !== "gondola" || c.town.phase !== "walk")) continue;
+  const at = liftZoneAt(run);
+  if (at) {
+    const i = at.index;
+    const plan = liftPlans(run.level)[i];
     const e = plan.look.entry;
-    const rx = c.x - plan.lift.bottom.x;
-    const rz = c.z - plan.lift.bottom.z;
-    const u = rx * plan.dx + rz * plan.dz;
-    const v = rx * plan.dz - rz * plan.dx;
-    const zoned =
-      Math.abs(u - e.at) <= e.along &&
-      Math.abs(v - e.side) <= e.across &&
-      c.speed <= e.fastest &&
-      Math.abs(angleDiff(c.heading, plan.heading)) <= e.turned;
-    const ring = boardingRing(plan);
-    const ringed =
-      !zoned &&
-      hypot(c.x - ring.x, c.z - ring.z) <= BOARDING_RING.radius &&
-      c.speed <= BOARDING_RING.fastest;
-    if (!zoned && !ringed) continue;
+    const ringed = at.ringed;
     const ride: LiftRide = {
       index: i,
       id: plan.lift.id,
@@ -288,8 +290,42 @@ function boardLift(run: GameState, events: GameEvent[]): void {
     };
     c.lift = ride;
     events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "board" });
-    return;
   }
+}
+
+/** THE LIFT WHOSE LOAD ZONE OR BOARDING RING THE SKIER IS IN — inside the
+ * zone, slow enough and facing up the line, or inside the ring, slow enough
+ * and facing any way — or null. The question boarding asks, and the bike's
+ * (`bike.ts`), which is taken up the same way. */
+export function liftZoneAt(run: GameState): { index: number; ringed: boolean } | null {
+  const c = run.skier;
+  const plans = liftPlans(run.level);
+  for (let i = 0; i < plans.length; i++) {
+    const plan = plans[i];
+    // IN SUMMER the drags stand still: no snow to be towed up (`summer.ts`).
+    if (run.summer && plan.lift.kind === "drag") continue;
+    // On foot, the pair on his shoulder, only a gondola's door takes him.
+    if (c.town && (plan.lift.kind !== "gondola" || c.town.phase !== "walk")) continue;
+    const e = plan.look.entry;
+    const rx = c.x - plan.lift.bottom.x;
+    const rz = c.z - plan.lift.bottom.z;
+    const u = rx * plan.dx + rz * plan.dz;
+    const v = rx * plan.dz - rz * plan.dx;
+    const zoned =
+      Math.abs(u - e.at) <= e.along &&
+      Math.abs(v - e.side) <= e.across &&
+      c.speed <= e.fastest &&
+      Math.abs(angleDiff(c.heading, plan.heading)) <= e.turned;
+    if (zoned) return { index: i, ringed: false };
+    const ring = boardingRing(plan);
+    if (
+      hypot(c.x - ring.x, c.z - ring.z) <= BOARDING_RING.radius &&
+      c.speed <= BOARDING_RING.fastest
+    ) {
+      return { index: i, ringed: true };
+    }
+  }
+  return null;
 }
 
 /** BOARDING DONE: a drag's track stands him waiting for his bar, and a
@@ -404,6 +440,14 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     standUp(run, plan, ride);
     return;
   }
+  // Left only by hand, his chair carries him on past the unload, round the
+  // wheel and back down untouched (`chair-hands.ts`).
+  const hands = byHand(run, ride);
+  if (hands) {
+    const at = carrierAt(plan, ride.carrier ?? 0, run.t);
+    const past = at.side !== 0 || at.turn !== undefined || at.u >= offAt(plan) - K.hands.stand;
+    if ((ride.round || past) && holdRound(run, plan, ride)) return;
+  }
   const c = run.skier;
   const dt = TUNING.dt;
   const look = plan.look;
@@ -447,7 +491,7 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     setOff(run, p.x, p.z, plan.heading, ride.speed);
   } else if (ride.rack !== undefined) racking(run, plan, ride, events);
   else hold(run, plan, ride);
-  if (ride.u < off) return;
+  if (ride.u < off || hands) return;
   // AT THE TOP.
   events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "off" });
   if (plan.lift.kind === "gondola") {
@@ -461,20 +505,36 @@ function stepCarried(run: GameState, plan: LiftPlan, ride: LiftRide, events: Gam
     ride.stand = 0;
     return;
   } else if (plan.lift.kind === "chair") {
-    // His skis on the ramp, he stands up off the seat (`standUp`) — and
-    // the chair he sat on runs on empty behind him.
-    c.chairLeft = {
-      index: ride.index,
-      u: off,
-      t: run.t,
-      ...(ride.carrier !== undefined ? { carrier: ride.carrier } : {}),
-    };
-    ride.stand = 0;
-    ride.swing = 0;
+    standOff(run, plan, ride, off);
     return;
   }
   // Stood off it, the skis are his.
   c.lift = null;
+}
+
+/** OFF A CHAIR OVER ITS UNLOAD RAMP, `u` m up the line: his skis on the
+ * ramp, he stands up off the seat (`standUp`) — and the chair he sat on
+ * runs on empty behind him. `events` given, the lift says so (the top's
+ * own way off says it as it comes). */
+function standOff(
+  run: GameState,
+  plan: LiftPlan,
+  ride: LiftRide,
+  u: number,
+  events?: GameEvent[],
+): void {
+  if (events)
+    events.push({ kind: "lift", t: run.t, id: plan.lift.id, lift: plan.lift.kind, phase: "off" });
+  run.skier.chairLeft = {
+    index: ride.index,
+    u,
+    t: run.t,
+    ...(ride.carrier !== undefined ? { carrier: ride.carrier } : {}),
+  };
+  ride.stand = 0;
+  ride.swing = 0;
+  ride.u = Math.min(u, plan.length);
+  delete ride.round;
 }
 
 /** STOOD UP OFF A CHAIR at the unload, a step of it: his skis on the ramp,

@@ -29,6 +29,7 @@ import { GIANT_SLALOM_STRINGS } from "./strings-giantslalom.ts";
 import { SPEED_SKI_STRINGS } from "./strings-speedski.ts";
 import { SKI_CROSS_STRINGS } from "./strings-skicross.ts";
 import { SLED_STRINGS } from "./strings-sled.ts";
+import { BIKE_STRINGS } from "./strings-bike.ts";
 import { AFTERSKI_STRINGS } from "./strings-afterski.ts";
 import { PARA_STRINGS } from "./strings-para.ts";
 import { BALLOON_STRINGS } from "./strings-balloon.ts";
@@ -120,6 +121,7 @@ export const STRINGS = {
   ...SPEED_SKI_STRINGS,
   ...SKI_CROSS_STRINGS,
   ...SLED_STRINGS,
+  ...BIKE_STRINGS,
   ...AFTERSKI_STRINGS,
   ...PARA_STRINGS,
   ...WHERE_STRINGS,
@@ -299,51 +301,54 @@ export const STRINGS = {
       | "balloon"
       | "plane"
       | "rock"
-      | "wingsuit",
+      | "wingsuit"
+      | "bike",
   ): string =>
-    cause === "wingsuit"
-      ? "FLOWN INTO THE SNOW!"
-      : cause === "rock"
-        ? "YARD SALE! ROCK"
-        : cause === "car"
-          ? TRAFFIC_STRINGS.newsCar
-          : cause === "balloon"
-            ? BALLOON_STRINGS.newsBalloonCrash
-            : cause === "maul"
-              ? "TAKEN BY THE GRIMBEAR"
-              : cause === "groomer"
-                ? "BONK! PISTE MACHINE"
-                : cause === "heli" || cause === "plane"
-                  ? "THROWN CLEAR!"
-                  : cause === "grip"
-                    ? "LOST HIS GRIP!"
-                    : cause === "chair"
-                      ? "SWEPT BY THE CHAIR!"
-                      : cause === "cable"
-                        ? "KNOCKED OFF THE CABLE!"
-                        : cause === "straddle"
-                          ? "RACKED ON THE CABLE!"
-                          : cause === "net"
-                            ? "INTO THE NETS!"
-                            : cause === "stake"
-                              ? "YARD SALE! STAKE"
-                              : cause === "sled"
-                                ? "OFF THE SLED!"
-                                : cause === "tree"
-                                  ? "YARD SALE! TREE"
-                                  : cause === "skier"
-                                    ? "YARD SALE! TAKEN OUT"
-                                    : cause === "nose"
-                                      ? "OVER THE TIPS"
-                                      : cause === "roll"
-                                        ? "YARD SALE"
-                                        : cause === "landing"
-                                          ? "CRASH LANDING"
-                                          : cause === "slam"
-                                            ? "SLAMMED! HEEL EDGE"
-                                            : cause === "faceplant"
-                                              ? "FACEPLANT! TOE EDGE"
-                                              : "EDGE CAUGHT",
+    cause === "bike"
+      ? "OFF THE BIKE!"
+      : cause === "wingsuit"
+        ? "FLOWN INTO THE SNOW!"
+        : cause === "rock"
+          ? "YARD SALE! ROCK"
+          : cause === "car"
+            ? TRAFFIC_STRINGS.newsCar
+            : cause === "balloon"
+              ? BALLOON_STRINGS.newsBalloonCrash
+              : cause === "maul"
+                ? "TAKEN BY THE GRIMBEAR"
+                : cause === "groomer"
+                  ? "BONK! PISTE MACHINE"
+                  : cause === "heli" || cause === "plane"
+                    ? "THROWN CLEAR!"
+                    : cause === "grip"
+                      ? "LOST HIS GRIP!"
+                      : cause === "chair"
+                        ? "SWEPT BY THE CHAIR!"
+                        : cause === "cable"
+                          ? "KNOCKED OFF THE CABLE!"
+                          : cause === "straddle"
+                            ? "RACKED ON THE CABLE!"
+                            : cause === "net"
+                              ? "INTO THE NETS!"
+                              : cause === "stake"
+                                ? "YARD SALE! STAKE"
+                                : cause === "sled"
+                                  ? "OFF THE SLED!"
+                                  : cause === "tree"
+                                    ? "YARD SALE! TREE"
+                                    : cause === "skier"
+                                      ? "YARD SALE! TAKEN OUT"
+                                      : cause === "nose"
+                                        ? "OVER THE TIPS"
+                                        : cause === "roll"
+                                          ? "YARD SALE"
+                                          : cause === "landing"
+                                            ? "CRASH LANDING"
+                                            : cause === "slam"
+                                              ? "SLAMMED! HEEL EDGE"
+                                              : cause === "faceplant"
+                                                ? "FACEPLANT! TOE EDGE"
+                                                : "EDGE CAUGHT",
   /** A snowboarder's skis-off word: nothing comes off a board, so a
    * YARD SALE is a WIPEOUT. */
   newsBoardDown: "WIPEOUT",
@@ -496,6 +501,16 @@ export const STRINGS = {
   skisPrev: "Previous pair",
   skisNext: "Next pair",
   skisOf: (at: number, of: number): string => `${at} / ${of}`,
+  /** ...and the summer's, the DOWNHILL BIKE (`menu-bike.tsx`). */
+  bikeTitle: "BIKE",
+  bikeName: "DOWNHILL BIKE",
+  bikeRide: "RIDE",
+  bikeFacts: {
+    travel: "TRAVEL",
+    head: "HEAD",
+    wheelbase: "WHEELBASE",
+    weight: "WEIGHT",
+  },
 
   /* ── THE RIDER CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
   dressTitle: "RIDER",

@@ -352,6 +352,18 @@ export const INJURIES = {
     bones: ["ribs", "sternum"],
     fracture: "break",
   },
+  // The chest stove in — the wall caved onto the heart and lungs — and the
+  // aorta torn at its root: a fall from a height onto its side or front.
+  crushedChest: {
+    part: "chest",
+    ais: 5,
+    mech: "blunt",
+    at: 340,
+    bones: ["ribs", "sternum"],
+    fracture: "break",
+    organs: ["lung"],
+  },
+  tornAorta: { part: "chest", ais: 5, mech: "blunt", at: 300, face: "front", organs: ["heart"] },
   // THE BACK — the thoracolumbar spine, by a blow on it and by the axial
   // load of a landing the legs did not take.
   bruisedBack: { part: "back", ais: 1, mech: "blunt", at: 24 },
@@ -433,6 +445,22 @@ export const INJURIES = {
     face: "right",
     organs: ["liver"],
   },
+  shatteredSpleen: {
+    part: "abdomen",
+    ais: 5,
+    mech: "blunt",
+    at: 250,
+    face: "left",
+    organs: ["spleen"],
+  },
+  shatteredLiver: {
+    part: "abdomen",
+    ais: 5,
+    mech: "blunt",
+    at: 250,
+    face: "right",
+    organs: ["liver"],
+  },
   lacerated: {
     part: "abdomen",
     ais: 4,
@@ -456,6 +484,15 @@ export const INJURIES = {
     ais: 3,
     mech: "blunt",
     at: 75,
+    bones: ["pelvis"],
+    fracture: "break",
+  },
+  // The ring crushed open — a fall from a height on the hip or the seat.
+  crushedPelvis: {
+    part: "pelvis",
+    ais: 5,
+    mech: "blunt",
+    at: 380,
     bones: ["pelvis"],
     fracture: "break",
   },

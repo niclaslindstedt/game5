@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike-park bike-look title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
+.PHONY: bike bike-park bike-look bike-ride bike-hit title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns fires water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -301,6 +301,20 @@ board-motion:
 jolt:
 	npm run jolt -- $(ARGS)
 
+# THE ANIMATION LAB: every animation of the player's rider — on skis, on a
+# snowboard and on the downhill bike — ridden by the engine in pure Node and
+# the real model posed off every step, then drawn and measured: a sheet a
+# scene under previews/anim/ (the model rasterized shaded, its hidden-line
+# wireframe and its bones coloured by jolt, from the side, behind and the
+# front three-quarter; the onion skins and the tips' paths; every joint
+# angle, the angles' acceleration, each joint's jolt, each limb's stretch,
+# the tips' speeds and the clips against the clock), a table, summary.png
+# and index.html. ARGS="--family=bike", "--family=skier --move=carve,jump",
+# "--family=ride" (the machines and seats), "--no-render" (fast),
+# "--json=a.json" / "--compare=a.json" a before and after.
+anim:
+	npm run anim -- $(ARGS)
+
 # THE SAG LAB: the body PULLED DOWN onto his legs — landings, a pitch run
 # out onto the flat, a stop down a pitch, rollers, a tuck, and generated
 # maps skied fast by the bot — posed with the legs' spring and again
@@ -327,6 +341,17 @@ sag:
 # "--list" every rate, "--json" a baseline, "--compare previews/injuries.json".
 injuries:
 	npm run injuries -- $(ARGS)
+
+# THE FALL LAB: a skier dropped from 3 to 40 m onto faces of 0 to 45° of
+# powder, loose snow, the groomer and ice — on his skis true or crooked, or
+# thrown on his back, side or head — with the INJURIES switch on, many times
+# a cell: how often he died, the worst AIS and the injury severity score, a
+# table a snow and a landing and a chart (previews/falls.png). Pure Node,
+# minutes for the whole matrix. ARGS="--grounds=groomed --how=feet,back",
+# "--heights=5,10,20", "--json previews/falls.json" a baseline,
+# "--compare previews/falls.json".
+falls:
+	npm run falls -- $(ARGS)
 
 # THE LANDING LAB: does he ride away the landings the mountain hands him?
 # Generated mountains skied the way a player does — down the piste and
@@ -535,6 +560,30 @@ spray-metrics:
 spray-eval:
 	npm run spray-eval -- $(ARGS)
 
+# THE SNOW EVAL LAB: the snow a skier and a snowboarder throw and leave on
+# fixed scenes — a carve on the groomer, a hockey stop on skis, a board's
+# heelside and toeside stops, a powder turn, a fall's crater in powder, the
+# line a run cuts from the chase lens — by day and under other lights, through
+# the game's own renderer; the FILM SCORE (each throw's top, reach and area
+# against a film's, 0–100, and the way it went off the travel and the fall
+# line — the PLUME against where the rider is now, the THROW from where he
+# was when each bit left: film.png, film.json); and what the spray and the cloud cost at the
+# LOW, MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
+# perf.json. ARGS="--scenes=hockey,board-heel", "--lights=low,overcast,night",
+# "--film=day,low" ("none" skips it), "--no-sheet", "--model=sheet" (another
+# spray model, the before), "--no-perf", "--out=DIR".
+snow-eval:
+	npm run snow-eval -- $(ARGS)
+
+# THE SNOW MASS LAB: the spray WEIGHED — the kilograms a stop or a carve
+# throws off groomed, hard, icy, wet, soft and new snow, how deep the edge
+# cut, how high and far it flew and which way it left (way° off the travel,
+# rise° over the snow, the share thrown out ahead of him), each row held to
+# the band a real one sits in (spray-mass.ts). Pure Node, seconds. ARGS="--rows=stop/ice",
+# "--json=a.json" / "--compare=a.json".
+snow-mass:
+	npm run snow-mass -- $(ARGS)
+
 # THE SPRAY LAB: the snow a turn throws off the skis AND off a board, as the
 # game draws it — the turns lab (below) ridden on the Chamois and the Lynx
 # through linked carves, a skidded turn and a hockey stop, from a lens close
@@ -639,6 +688,16 @@ civilians:
 lift-ride:
 	npm run lift-ride -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE CHAIR LEFT ONLY BY HAND (`engine/game/chair-hands.ts`): the
+# player's chair ridden untouched round the top and back down with the bar
+# up (previews/chair-stay-<seed>.png, a row a lens), and jumped off on the
+# way down from several heights (previews/chair-jump-<seed>.png, a row a
+# height, each captioned with the blow, the injury score and whether he
+# lived). The lift-ride lab's bundle; needs a Chromium.
+# SEED=n REGION=id; ARGS="--heights=4,8,14,20".
+chair-ride:
+	npm run lift-ride -- --hands=stay,jump $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
 # THE CABLE GRIND: a free ride dropped onto a lift's rope and ridden on a
 # script (the slide, a press, a pop and a spin back onto it, a carrier
 # throwing him off) through the game's own renderer, a row a lens, as one
@@ -741,6 +800,17 @@ sled-turn:
 # "--compare=a.json" after; ARGS=--surface=deep one snow.
 sled-tip:
 	npm run sled-tip -- $(ARGS)
+
+# THE DARING LAB: the menu's backdrop as the daring bot rides it — a
+# showcase (engine/sim/showcase.ts: no course, no field, every trick his)
+# skied for a span on each seed's mountain, stood up at the top again on
+# the restart rule, by the plain rider and by the daring one: the flights,
+# the air, the tricks banked and lost, the wipeouts, the time off the
+# piste, the top speed and why each run ended. Pure Node. ARGS="--seeds=1-8
+# --seconds=180", --only=daring, --json=a.json before and --compare=a.json
+# after.
+daring:
+	npm run daring -- $(ARGS)
 
 # THE AVALANCHE LAB: slabs let go on the bench's lee slope (a loaded 38°
 # powder face onto a flat run-out, tests/support/avalanche-scenes.ts) and
@@ -1035,6 +1105,17 @@ groomer:
 snowguns:
 	npm run snowguns -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
+# THE FIRES LAB: a free ride's camp fires and bonfires through the game's
+# own renderer — a camp fire by its hut close, at eye level, from a bench
+# and from above; a bonfire close, from 20 m and 60 m; both at hour 21 with
+# their light on the snow, the benches, the hut and the trees; the base
+# from the air. Every frame captioned with its ms, draw calls and
+# triangles. One contact sheet a group, previews/fires-<group>.png, and
+# every frame alone. Its own one-off bundle from pwa/fires-preview.html
+# (never deployed); needs a Chromium like `world`. ARGS="--sheet=night".
+fires:
+	npm run fires -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
 # THE WATER LAB: the lakes and the streams through the game's own renderer,
 # on a map with placeholder water laid on it — the valley lake and the tarn
 # through the seasons, open water still and in a wind, the shore ice, black
@@ -1311,6 +1392,44 @@ bike-park:
 # `make bike-look SEED=38` · `ARGS="--views=berm,table --face=continental-2"`
 bike-look:
 	npm run bike-look -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE DOWNHILL BIKE'S PICTURE LAB: the summer free ride's bike and rider
+# ridden by the bot through the game's own renderer — the camera ladder's
+# rungs down a trail (chase, the bar-cam, his eyes, far), close beside and
+# ahead of him, in the air, thrown in a crash with the bike loose, afoot,
+# in a chair's load zone and up the lift: previews/bike-<seed>.png and
+# every frame alone. Its own one-off bundle from pwa/bike-preview.html;
+# needs a Chromium.
+# `make bike` · `make bike SEED=7 ARGS="--views=chase,side --trail=B2"`
+bike:
+	npm run bike -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE DOWNHILL BIKE LAB: the bike (engine/game/bike*.ts) ridden by the real
+# engine through every bench row tests/support/bike-rides.ts names — the
+# sag, the coast on each ground, the pedals, the brakes and the endo, the
+# lean and the turn, the weave and the capsize, the drops, the table landed,
+# cased and overshot, roots, rocks, a berm and a hop — each against its band.
+# ARGS=--bot also rides the bot down every trail of the seeds' parks (home,
+# its falls a km inside its grade's band; a few minutes). Pure Node; exits
+# non-zero on a row out of band. ARGS="--json=a.json" before,
+# "--compare=a.json" after.
+bike-ride:
+	npm run bike-ride -- $(ARGS)
+
+# THE BIKE AGAINST THE WORLD: the downhill bike ridden by the real engine
+# into everything a summer mountain stands in its way, one row a meeting
+# (tests/support/bike-hits.ts) — a 30 cm trunk head-on and glancing at 10,
+# 20 and 35 km/h, a trunk beside a trail, a black's rock garden on the
+# bot's line and coasted into, a lift's tower, a mast, a building's wall, a
+# parked car, the race line's taped edge, a bench's cut and fill, a steep
+# meadow, a pond — each read for the throw and its how, the closing speed,
+# the peak g and the part, the injuries and their severity score, any solid
+# stood inside, the bike frozen or not, and the restart; then the throws'
+# injuries by region beside the bike-park surveys'. Pure Node; exits
+# non-zero on a row at fault. ARGS="--json=a.json" before,
+# "--compare=a.json" after; ARGS=--only=trunk,tower.
+bike-hit:
+	npm run bike-hit -- $(ARGS)
 
 # THE RESORT LAB: the whole ski area a seed builds (R25–R28), from the engine
 # alone — the piste map from above (every run in its colour, the lifts, the

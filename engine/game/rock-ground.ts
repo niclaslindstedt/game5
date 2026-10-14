@@ -22,10 +22,11 @@
 // asked about — a tile with no bare corner is one shared empty mark. A
 // query on packed snow or off every wall reads that and the map itself.
 // A pure function of the map, off hashes of `level.seed`; no wall stands
-// where a run is skied, so no digest moves.
+// where a run is skied or a bike trail ridden, so no digest moves.
 
 import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { bikeTrailAt } from "../mapgen/bike-park-query.ts";
 import { regionOf } from "../mapgen/regions.ts";
 import type { Level } from "../mapgen/types.ts";
 import { ROCKS } from "./defs/rocks.ts";
@@ -177,6 +178,9 @@ function underOf(s: Skin, x: number, z: number): Under {
   // A wall is never packed (`ROCKS.packed`): a run, and everything on it,
   // reads the map alone.
   if (base.packedAt(x, z) > 0.5) return u;
+  // Nor does one stand on a summer bike park's trail: its tread is cut and
+  // its shape the park's (`bike-surface.ts`), so a bike reads that alone.
+  if (base.bikePark && bikeTrailAt(base, x, z)) return u;
   const cell = ROCKS.skin.cell;
   const i0 = Math.floor(x / cell) - 1;
   const j0 = Math.floor(z / cell) - 1;

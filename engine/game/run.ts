@@ -39,6 +39,7 @@ import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { rotorStrike } from "./heli-grip.ts";
 import { stepSled } from "./sled.ts";
+import { stepBike } from "./bike.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
 import { planeAboard, planeDown, stepPlane } from "./plane.ts";
@@ -59,6 +60,7 @@ import { intoTown, stepTown, townBrake } from "./town.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
 import { meetStrip } from "./airstrip-solids.ts";
 import { trafficStrike } from "./traffic-contact.ts";
+import { fireStrike, stepBurn } from "./fire-burn.ts";
 import { stepGatePoles } from "./gate-poles.ts";
 import { catchInNets, stepNets } from "./nets.ts";
 import { stepTrap } from "./speed-trap.ts";
@@ -153,6 +155,10 @@ export function stepRun(
   // THE SNOWMOBILE (`sled.ts`): ridden, left, or lying where it threw him
   // — and while he stands on its boards the step is its own.
   if (stepSled(run, out, events)) return forgetRun(run);
+  // THE DOWNHILL BIKE (`bike.ts`): ridden, walked beside, carried up a lift
+  // with him or lying where it threw him — and while he rides it or walks
+  // the step is its own.
+  if (stepBike(run, out, events)) return forgetRun(run);
   // THE LIFT (`lift-ride.ts`): while one carries him the step is its own.
   if (stepLift(run, out, events)) return forgetRun(run);
   // THE HOT AIR BALLOON (`balloon.ts`): flown, adrift without him or down
@@ -302,15 +308,20 @@ export function stepRun(
     const struck = swept ? null : groomerStrike(run, events);
     // ...or a car, the ski bus or a bicycle in the village (`traffic-contact.ts`).
     const hit = swept || struck ? null : trafficStrike(run, events);
-    const cause = swept || struck || hit ? null : wipeoutCause(run, events, speed0);
+    // ...or a fire he rode into (`fire-burn.ts`), alight — or held off it.
+    const burnt = swept || struck || hit ? null : fireStrike(run, events);
+    const cause = swept || struck || hit || burnt ? null : wipeoutCause(run, events, speed0);
     if (swept) throwRider(run, "chair", { x: c.vx + swept.x, y: c.vy, z: c.vz + swept.z }, events);
     else if (struck) throwRider(run, "groomer", struck, events);
     else if (hit) throwRider(run, "car", hit.v, events);
+    else if (burnt) throwRider(run, "fire", burnt, events);
     else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);
     // Stopped on a street of the village: out of his skis (`town.ts`).
     if (player && !c.thrown) intoTown(run, events);
   }
+  // HIS CLOTHES ALIGHT (`fire-burn.ts`): caught, burning, put out.
+  stepBurn(run, events);
   takeDamage(run, events);
   // THE BODY (`body.ts`): what the blows of this step did to him.
   stepBody(run, events, off);

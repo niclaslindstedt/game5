@@ -111,7 +111,7 @@ function rideTo(m) {
   const dt = 1 / E.TUNING.physicsHz;
   let grab = { grab: null, share: 0 };
   while (state.t - t0 < m.t) {
-    E.step(state, move.input(state.t - t0, state));
+    E.step(state, move.input(state.t - t0, state, E));
     const c = state.skier;
     const held = state.tricks.pose;
     grab = BG.easeGrab(grab, BG.isBoardGrab(held) ? held : null, dt);

@@ -133,7 +133,7 @@ function copy(k: Key): Key {
 }
 
 /** THE KEY a move is at. */
-function keyOf(m: BodyMove): Key {
+export function keyOf(m: BodyMove): Key {
   const t = m.t;
   const sway = m.sway ?? 0;
   let key: Key;

@@ -29,6 +29,7 @@
 // heap's few minutes, a deck's quarter of an hour.
 
 import { weatherOf, windFromOf, type Level, type WeatherKind } from "@engine";
+import { dealLowDeck, LOW_DECK, type LowDeck } from "./low-deck.ts";
 
 /** The kinds of cloud a layer can be. */
 export type CloudKind =
@@ -253,6 +254,10 @@ export type CloudLayer = {
   heading: number;
   /** The noise's cut for its cover (`coverCut`). */
   cut: number;
+  /** How much of a VEIL it is, 0..1 — the thin ice a halo shows in: a
+   * veil's 1 when left out; a layer morphing out of one less
+   * (`cloud-front.ts`). */
+  veil?: number;
   /** Where in the noise this map's layer stands: x, z and time, periods. */
   ox: number;
   oz: number;
@@ -266,9 +271,26 @@ export type CloudField = {
   /** The valley floor's world height, m, and its altitude over the sea. */
   floorY: number;
   floorAltitude: number;
-  /** THE VALLEY FOG'S TOP over the floor, m (0: no sea). */
+  /** THE SEA'S TOP over the floor, m (0: no sea): the low deck's. */
   seaTop: number;
+  /** THE LOW DECK (`low-deck.ts`), or null; on any weather but the valley
+   * fog it is a layer of `layers` too (`deckLayer`). */
+  deck: LowDeck | null;
+  /** Which of `layers` is the deck (−1: none). */
+  deckLayer: number;
 };
+
+/** A test's or a lab's deck, in place of the dealt one (undefined: dealt;
+ * null: none). */
+let forcedDeck: LowDeck | null | undefined;
+export function forceLowDeck(deck: LowDeck | null | undefined): void {
+  forcedDeck = deck;
+}
+
+/** How much of a veil a layer is (`CloudLayer.veil`). */
+export function veilOf(l: Pick<CloudLayer, "kind" | "veil">): number {
+  return l.veil ?? (l.kind === "veil" ? 1 : 0);
+}
 
 /** A hash of the map's seed and a salt to 0..1. */
 export function cloudHash(seed: number, salt: number): number {
@@ -337,17 +359,49 @@ export function seaTopOf(fog: number): number {
   return 220 + 380 * fog;
 }
 
-/** THE FIELD over `level`. */
+/** THE FIELD over `level`. `lowDeck` false deals no inversion deck under
+ * any weather but the valley fog (whose sea it still is): a FRONT's skies
+ * (`cloud-front.ts`), whose layers morph slot by slot. */
 export function cloudFieldOf(
   level: Pick<Level, "seed" | "weather" | "mountain" | "sun">,
+  lowDeck = true,
 ): CloudField {
   const w = weatherOf(level);
   const m = level.mountain;
+  const from = windFromOf(level);
+  const lat = level.sun.latitude;
+  let layers = cloudLayersFor(w.kind, level.seed, w.wind, from, lat);
+  const dealt = dealLowDeck(
+    w.kind,
+    (k) => cloudHash(level.seed, 907 + k),
+    m?.vertical ?? 0,
+    seaTopOf(w.fog),
+  );
+  const deck = !lowDeck && w.kind !== "fog" ? null : forcedDeck === undefined ? dealt : forcedDeck;
+  let deckLayer = -1;
+  if (deck && w.kind !== "fog") {
+    // The deck is the overcast's stratocumulus brought down (dry, clear air
+    // over it: the altostratus gone), or one laid under a fair day's heaps.
+    const strato = cloudLayersFor("overcast", level.seed, w.wind, from, lat)[0];
+    const depth = deck.top - deck.base;
+    const sheet: CloudLayer = {
+      ...strato,
+      base: deck.base,
+      depth,
+      cover: LOW_DECK.cover,
+      cut: coverCut(LOW_DECK.cover),
+      speed: windAloft(w.wind, deck.base + depth / 2, 3),
+    };
+    layers = w.kind === "overcast" ? [sheet] : [sheet, ...layers].slice(0, CLOUD_LAYERS);
+    deckLayer = 0;
+  }
   return {
-    layers: cloudLayersFor(w.kind, level.seed, w.wind, windFromOf(level), level.sun.latitude),
+    layers,
     floorY: m ? m.base.y : 0,
     floorAltitude: m ? m.base.y - m.sea : 400,
-    seaTop: w.kind === "fog" ? seaTopOf(w.fog) : 0,
+    seaTop: deck ? deck.top : 0,
+    deck,
+    deckLayer,
   };
 }
 

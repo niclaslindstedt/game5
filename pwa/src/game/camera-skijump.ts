@@ -266,7 +266,7 @@ export function createJumpDirector(): JumpDirector {
 
 /** THE BROADCAST AS THE RENDERER RUNS IT: the director over a played jump
  * until the player picks a rung of his own (the camera press), and over a
- * replay watched on its BROADCAST angle ("tv") — null everywhere else, so
+ * replay watched on its BROADCAST or FILM angle — null everywhere else, so
  * the ladder, the machines and the start's shots go on as before. */
 export type JumpBroadcast = {
   lens(
@@ -291,7 +291,7 @@ export function createJumpBroadcast(): JumpBroadcast {
       // A run begun again is the broadcast's until he picks.
       if (state.t < last - 1e-6) picked = false;
       last = state.t;
-      const on = watched ? watched.angle === "tv" : !picked;
+      const on = watched ? watched.angle === "tv" || watched.angle === "film" : !picked;
       return director.frame(on ? jumpMoment(state, racer) : null, clear);
     },
     pick: (chosen) => void (picked = chosen),

@@ -32,10 +32,12 @@
 // of the replay's own lenses. Slow motion is fewer steps per frame and
 // nothing else.
 //
-// THE WATCHING LADDER is the replay's own lenses (`camera-replay.ts`: the
-// broadcast, which directs, then CLOSE, SIDE, FRONT and AERIAL) and the
-// skier's own eye last (`WATCHING_CAMERAS`): a replay opens on the
-// broadcast, and the camera key walks the rest and back. DOM-free: the
+// THE WATCHING LADDER is the replay's own lenses (the FILM director's,
+// `camera-cinema.ts`; then `camera-replay.ts`'s broadcast, which directs, and
+// CLOSE, SIDE, FRONT and AERIAL) and the skier's own eye last
+// (`WATCHING_CAMERAS`): a replay opens on the film, and the camera key walks
+// the rest and back. The film is slowed by this director's own slow motion,
+// never a second one of its own. DOM-free: the
 // renderer is reached through `renderer-api.ts` alone.
 
 import { TUNING, type GameMode, type GameState, type SkierInput } from "@engine";
@@ -53,7 +55,7 @@ const HZ = TUNING.physicsHz;
 export type WatchRung = ReplayAngle | CameraRung;
 
 /** The ladder a RECORDING is watched on: the replay's own lenses, opened on
- * the broadcast, and the skier's own eye — the one rung of the ride's
+ * the film, and the skier's own eye — the one rung of the ride's
  * ladder a replay has a reason to offer. */
 export const WATCHING_CAMERAS: readonly WatchRung[] = [...REPLAY_ANGLES, "helmet"];
 
@@ -172,7 +174,7 @@ type Watched = {
 export function createReplayRun(world: ReplayRunWorld): ReplayRun {
   const rig = createReplayRig();
   let watched: Watched | null = null;
-  let rung: WatchRung = "tv";
+  let rung: WatchRung = WATCHING_CAMERAS[0];
   let rate = 1;
   let playing = true;
   let speed = 1;
@@ -226,7 +228,11 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
       const call = replay.call();
       const own = isReplayAngle(rung) ? rung : null;
       world.renderer.setCamera(own ? "chase" : (rung as CameraRung));
-      world.renderer.setReplayCam(own && { angle: own, shot: own === "tv" ? call.shot : null });
+      // THE FILM is handed every moment of the recording and its own clock.
+      const film = own === "film" ? { plan: replay.plan, step: replay.at() - 1 } : null;
+      world.renderer.setReplayCam(
+        own && { angle: own, shot: own === "tv" ? call.shot : null, ...film },
+      );
       const director = own ? call.rate : 1;
       rate = playing && replay.seeking() === null ? speed * director : 0;
       return rate;
@@ -236,7 +242,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
       if (!replay) return false;
       const marks = replay.plan.map((s) => ({ at: s.at, kind: s.kind }));
       watched = { replay, live, back, shown: replay.state, marks };
-      rung = "tv";
+      rung = WATCHING_CAMERAS[0];
       rate = 1;
       ended = null;
       playing = true;

@@ -43,7 +43,8 @@ import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { aboardCraft } from "./camera-aboard.ts";
 import { figureShown } from "./camera-para.ts";
 import { goneUnder, lensGround } from "./camera-buried.ts";
-import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
+import { createWatchCamera } from "./camera-cinema.ts";
+import type { ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { compileByParts, compiled } from "./scene-compile.ts";
@@ -213,8 +214,8 @@ export function createWorldRenderer(
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
-  /** THE REPLAY'S LENSES (`camera-replay.ts`), or null for the ladder's own rung. */
-  const replayCam = createReplayCamera(() => (level && clear ? { level, clear } : null));
+  /** THE REPLAY'S LENSES and THE FILM's (`camera-cinema.ts`) — the menu's too — or null. */
+  const replayCam = createWatchCamera(() => (level && clear ? { level, clear } : null));
   const broadcast = createJumpBroadcast(); // a ski jump's director (`camera-skijump.ts`)
   let watched: ReplayView | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
@@ -885,6 +886,7 @@ export function createWorldRenderer(
         z: cam.position.z,
         yaw: Math.atan2(lensDir.x, lensDir.z),
         pitch: Math.asin(Math.max(-1, Math.min(1, lensDir.y))),
+        fov: cam.fov,
       };
     },
 

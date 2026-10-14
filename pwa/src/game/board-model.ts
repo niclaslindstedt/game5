@@ -37,7 +37,13 @@ import { buildBinding, buildDeck, buildSoftBoot, type Paint } from "./board-body
 import { sheetOf } from "./board-look.ts";
 import { boardPose, frontIndex, type BoardFrame, type BoardPose } from "./board-pose.ts";
 import { boardUnderFeet } from "./board-thrown.ts";
-import { createLimbEase, easeLimbs, resetLimbEase } from "./board-ease.ts";
+import {
+  createLimbEase,
+  createReadingEase,
+  easeLimbs,
+  easeReadings,
+  resetLimbEase,
+} from "./board-ease.ts";
 import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
 import { createTuck, uprightSkier } from "./skier-somersault.ts";
 import {
@@ -216,6 +222,8 @@ export function createBoardModel(
   const limbs = createLimbEase();
   // How far round he is drawn to ride fakie (`easeFakie`).
   let fakieShare = 1;
+  // The readings the pose is shaped by, eased (`easeReadings`).
+  const readings = createReadingEase();
   /** The feet's lift as his legs carry him up to it (`SAG_EASE`), m. */
   let carried = Number.NaN;
   let grabEase: GrabEase = { grab: null, share: 0 };
@@ -387,6 +395,7 @@ export function createBoardModel(
       // The rear foot drawn out of its binding or back in over a moment.
       freeShare = easeFree(freeShare, input.free, dt);
       input.freeShare = freeShare;
+      easeReadings(readings, input, still ? 0 : dt);
       fakieShare = easeFakie(fakieShare, input.switched, dt);
       input.fakieShare = fakieShare;
       // The grab held in the air drawn in, and let go, over a moment.
@@ -398,7 +407,8 @@ export function createBoardModel(
       input.grab = fs ? (fs.dir < 0 ? "mute" : "indy") : grabEase.grab;
       input.grabShare = fs ? fs.tuck : grabEase.share;
       // ...the knees pulled up into it with the hand, let down to open.
-      if (fs) input.crouch = Math.max(input.crouch, fs.tuck);
+      // (A soft union of the two, never a max's kink where one overtakes.)
+      if (fs) input.crouch = 1 - (1 - input.crouch) * (1 - fs.tuck);
       const r = still ? 0 : lean;
       const reach = spec.cogHeight - (lift[0] + lift[1]) / 2 - spec.crouchDrop * skier.crouch;
       pivot.set(reach * Math.sin(r), reach * (1 - Math.cos(r)), 0).applyQuaternion(root.quaternion);

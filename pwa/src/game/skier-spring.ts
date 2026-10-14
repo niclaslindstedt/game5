@@ -7,6 +7,7 @@
 
 import { revertShare, stepQuick, strideRate, TUNING, type Save, type SkierState } from "@engine";
 import { hopLook, revertLook, WIND_UP } from "./skier-switch.ts";
+import { TURN_PLANT } from "./skier-stroke.ts";
 
 import { flying, gaitOf } from "./skier-gait.ts";
 
@@ -58,6 +59,13 @@ export type SkierSpring = {
    * (0..1, eased — none tucked, working, in the air or at a crawl). */
   turnSide: -1 | 0 | 1;
   turnHeld: number;
+  /** The look back as a revert found it (signed, `back` × `backSide`),
+   * NaN with none under way — what a swing across to the other shoulder
+   * starts from. */
+  revertFrom: number;
+  /** How long the last whole turn lasted, s (0 before one has) — the
+   * rhythm the next plant is timed to. */
+  turnLast: number;
   /** HOW FAR HE HAS BEEN EDGING LATELY, rad: the edge's size taken over
    * `SWING_SPAN` s (NaN until the first ride is read) — linked turns hold
    * it up through each edge change, a straight run lets it go, so a flat
@@ -260,8 +268,8 @@ export const PLANT = {
   slow: 3,
   fast: 26,
   length: 6.5,
-  least: 0.42,
-  most: 0.85,
+  least: 0.7,
+  most: 0.9,
 };
 
 /** How long the edge is remembered over for `SkierSpring.swing`, s — a
@@ -313,9 +321,19 @@ const READY = { in: 9, out: 20 };
  * and back round once he faces his skis' way again, rad/s — some third of
  * a second: a deliberate turn of the head and shoulders, never a flick. */
 const BACK_FOLLOW = 7;
-/** How fast the look follows a revert's, 1/s — a head held on the line,
- * and a quick swing across when the turn is to the other shoulder. */
-const REVERT_SWING = 14;
+/** How fast the look follows a revert's, rad/s (critically damped) — a
+ * head held on the line, and a quick swing across when the turn is to the
+ * other shoulder. */
+const REVERT_SWING = 22;
+/** How far into a revert the head has swung across to the other
+ * shoulder, 0..1 of it. */
+const REVERT_ACROSS = 0.6;
+
+/** Ease in and out over 0..1. */
+const smoothStep = (x: number): number => {
+  const k = Math.max(0, Math.min(1, x));
+  return k * k * (3 - 2 * k);
+};
 /** How quickly he winds up against a hop into switch as the legs load,
  * and unwinds out of it at the pop, rad/s — the unwinding is the throw. */
 const WIND = { in: 10, out: 30 };
@@ -353,6 +371,8 @@ export function createSkierSpring(offset = 0): SkierSpring {
     clock: offset,
     turnSide: 0,
     turnHeld: 0,
+    revertFrom: Number.NaN,
+    turnLast: 0,
     swing: Number.NaN,
     plantSide: 0,
     plantT: Number.POSITIVE_INFINITY,
@@ -462,9 +482,13 @@ function stepBody(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numbe
   [s.skiAngle, s.skiAngleRate] = follow(s.skiAngle, s.skiAngleRate, ride.skiAngle ?? 0, dt);
 }
 
-/** Read the turns off the run and start a plant on each new one — the
- * pole on the inside of the turn being begun, the downhill pole of the
- * last — the way a skier times his turns on his poles. */
+/** Read the turns off the run and plant a pole for each: the way a skier
+ * times his turns on his poles. The swing forward is a long, unhurried
+ * flick of the wrist through the second half of a turn, so the TOUCH comes
+ * as the turn ends and the next begins, with the pole on the inside of the
+ * turn to come — the downhill pole of the one ending. Timed off the
+ * rhythm of the last turn; with no rhythm yet (the first turn), the plant
+ * starts as the new turn begins, on its inside. */
 function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: number): void {
   s.plantT += dt;
   s.turnHeld += dt;
@@ -472,11 +496,24 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
   s.swing = Number.isNaN(s.swing)
     ? size
     : s.swing + (size - s.swing) * (1 - Math.exp(-dt / SWING_SPAN));
+  // Riding switch his hands are low by his sides and his poles trail: he
+  // plants nothing.
   const ok =
-    airborne || ride.speed < PLANT.slow || ride.speed > PLANT.fast
+    airborne || ride.switched || ride.speed < PLANT.slow || ride.speed > PLANT.fast
       ? 0
       : Math.max(0, 1 - ride.crouch * 1.6) * Math.max(0, 1 - ride.drive * 6);
   s.plantOk = ok + (s.plantOk - ok) * Math.exp(-8 * dt);
+  const free = s.plantT > s.plantLength && s.plantOk > 0.5;
+  // AHEAD OF THE NEXT TURN: the swing begun so the touch lands where the
+  // rhythm says this turn ends.
+  if (free && s.turnSide !== 0 && s.turnLast > PLANT.held && s.turnHeld > PLANT.held) {
+    const length = plantLength(ride.speed);
+    if (s.turnHeld >= s.turnLast - TURN_PLANT.touch * length) {
+      s.plantSide = s.turnSide > 0 ? 0 : 1;
+      s.plantT = 0;
+      s.plantLength = length;
+    }
+  }
   // A turn is over when the next one begins, not when the skis pass flat
   // between them.
   const e = ride.edge;
@@ -487,6 +524,7 @@ function stepPlant(s: SkierSpring, ride: SpringRide, airborne: boolean, dt: numb
     s.plantT = 0;
     s.plantLength = plantLength(ride.speed);
   }
+  s.turnLast = s.turnSide !== 0 && s.turnHeld > PLANT.held ? s.turnHeld : 0;
   s.turnSide = side;
   s.turnHeld = 0;
 }
@@ -581,16 +619,26 @@ export function stepSkierSpring(
       ? Math.sign(steer) * Math.max(0, Math.min(1, (ride.jumpLoad ?? 0) / WIND_UP.full))
       : 0;
   [s.wind, s.windRate] = follow(s.wind, s.windRate, winding, dt, winding ? WIND.in : WIND.out);
+  if (!revert) s.revertFrom = Number.NaN;
+  else if (Number.isNaN(s.revertFrom)) s.revertFrom = s.back * s.backSide;
   if (revert) {
-    const to =
+    const line =
       revert.to === "switch"
         ? hopLook(revert.u, revert.turn, revertShare)
         : revertLook(revert.u, revert.turn, revertShare);
-    const at = s.back * s.backSide;
-    const look = at + (to - at) * Math.min(1, REVERT_SWING * dt);
+    // Turning round toward the OTHER shoulder than the one he looked over,
+    // the head swings across through the front over the first part of the
+    // revert as the body comes round, never flicked over in a frame.
+    const across = Math.sign(s.revertFrom) * Math.sign(line) < 0;
+    const to = across
+      ? line + (s.revertFrom - line) * (1 - smoothStep(revert.u / REVERT_ACROSS))
+      : line;
+    // Followed as a spring, its rate carried in and out of the revert, so
+    // the head is never set moving or stopped in one frame.
+    const [look, rate] = follow(s.back * s.backSide, s.backRate * s.backSide, to, dt, REVERT_SWING);
     s.back = Math.min(1, Math.abs(look));
     if (look !== 0) s.backSide = look > 0 ? 1 : -1;
-    s.backRate = 0;
+    s.backRate = rate * s.backSide;
   }
   let work = 0;
   if (ride) {

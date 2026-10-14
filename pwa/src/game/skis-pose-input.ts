@@ -26,9 +26,11 @@ import { type Riding } from "./technique-pose.ts";
 import { revertRise } from "./skier-switch.ts";
 
 /** Coming down off a hop into switch (`SkierState.hopHeld`): still in its
- * little flight, round already — the look back held for the landing. */
+ * little flight or just down off it, round already — the look back held
+ * through the landing, never let go for the frames the drawn air takes to
+ * ease off the snow. */
 export function hopLanding(skier: SkierState): boolean {
-  return skier.airborne && (skier.hopHeld ?? 0) > 0;
+  return (skier.hopHeld ?? 0) > 0;
 }
 
 /** How far he stands on the snow as drawn, 0..1: the view's eased air, or

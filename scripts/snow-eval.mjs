@@ -5,7 +5,8 @@
 // heelside and toeside stops, a powder turn, a fall's crater in powder, the
 // line a run cuts seen from the chase lens), by day and under a low sun,
 // through the game's own renderer, and what it costs at the LOW, MEDIUM and
-// HIGH presets. Writes `previews/snow-eval/sheet.png` (every scene a row),
+// HIGH presets — the spray's own CPU work, the bytes it sends, the parcels in
+// the air, each way the spray is flown (`--perf-flight`). Writes `previews/snow-eval/sheet.png` (every scene a row),
 // every cell alone (`<scene>-<light>-<lens>.png`) and `perf.json` — and the
 // FILM SCORE: the scenes a real one was measured for (`spray-film.ts`), six
 // moments each side-on to the throw, the drawn snow scored against the film
@@ -21,6 +22,8 @@
 //   node scripts/snow-eval.mjs --model=sheet --out=previews/snow-eval-before
 //   node scripts/snow-eval.mjs --lights=low,overcast,night --film=none --no-perf
 //   node scripts/snow-eval.mjs --no-sheet --no-perf --film=day,low --scenes=hockey
+//   node scripts/snow-eval.mjs --flight=cpu --out=previews/snow-eval-cpu   (the spray on the CPU)
+//   node scripts/snow-eval.mjs --no-sheet --film=none --perf=hockey --perf-flight=gpu
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -63,6 +66,17 @@ const args = parseArgs(
     width: { kind: "number", default: 480, help: "one cell's width, px" },
     height: { kind: "number", default: 320, help: "one cell's height, px" },
     "no-perf": { kind: "flag", help: "skip the cost at the three presets" },
+    flight: {
+      kind: "string",
+      default: "",
+      help: "fly the weighed spray on the cpu or the gpu at every stop (the SPRAY row's own way unless said)",
+    },
+    perf: { kind: "string", default: "hockey,powder", help: "the scenes the cost is read on" },
+    "perf-flight": {
+      kind: "string",
+      default: "cpu,gpu",
+      help: "the ways the cost is read with (cpu, gpu)",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 2400, help: "how long the sheet may take, s" },
   },
@@ -108,6 +122,9 @@ const query = new URLSearchParams({
   scenes: args.scenes,
   model: args.model,
   lights: args.lights,
+  flight: args.flight,
+  perf: args.perf,
+  perfFlight: args["perf-flight"],
   film: args.film === "none" ? "" : args.film,
   w: String(args.width),
   h: String(args.height),
@@ -157,11 +174,11 @@ if (!args["no-perf"]) {
   const rows = await page.evaluate(() => globalThis.__snowEval.perf());
   writeFileSync(join(outDir, "perf.json"), JSON.stringify(rows, null, 2));
   console.log(
-    "preset   frame ms   without spray+cloud   spray quads  cloud quads  draw calls  (swiftshader)",
+    "scene    preset  flight  spray cpu ms  bytes/frame  in air  spray quads  cloud quads  draw calls  frame ms  without  (frame ms swiftshader)",
   );
   for (const r of rows) {
     console.log(
-      `${r.tier.padEnd(8)} ${r.frameMs.toFixed(1).padStart(8)}  ${r.withoutMs.toFixed(1).padStart(20)}  ${String(Math.round(r.sprayInstances)).padStart(12)}  ${String(Math.round(r.cloudInstances)).padStart(11)}  ${String(r.drawCalls).padStart(10)}`,
+      `${r.scene.padEnd(8)} ${r.tier.padEnd(7)} ${r.flight.padEnd(6)} ${r.sprayCpuMs.toFixed(3).padStart(13)}  ${String(Math.round(r.bytesPerFrame)).padStart(11)}  ${String(r.live).padStart(6)}  ${String(Math.round(r.sprayInstances)).padStart(11)}  ${String(Math.round(r.cloudInstances)).padStart(11)}  ${String(r.drawCalls).padStart(10)}  ${r.frameMs.toFixed(1).padStart(8)}  ${r.withoutMs.toFixed(1).padStart(7)}`,
     );
   }
 }

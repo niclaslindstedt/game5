@@ -318,12 +318,15 @@ function handsAim(b: BikeState, ctl: BikeControls, ride: BikeRide, dt: number): 
   const fl = hypot(m3[6], m3[8]) || 1;
   const across = (-(nF.x + nR.x) * (m3[8] / fl) + (nF.z + nR.z) * (m3[6] / fl)) / 2;
   const bank = Math.asin(clamp(across, -1, 1));
-  // The lean the turn may ask: inside the grip's share with the assist's
-  // hands on, a reach past it without them.
-  const share = H.grip * ride.yaw + H.reach * (1 - ride.yaw);
-  const lean = clamp(Math.atan(share * mu) - Math.sign(ctl.steer) * bank, 0.15, 1.2);
-  const ask = ctl.steer * Math.min(1 / H.tightest, (G * Math.tan(lean)) / (v * v));
-  // The turn eased in: a rider lays a bike over, he does not snap it.
+  // Past the knee the throw goes on only once held there: a quick stab of
+  // full bars is a turn at the grip, a hold lays it past and down.
+  const a = Math.abs(ctl.steer);
+  b.pastKnee = a > H.knee ? b.pastKnee + dt : 0;
+  const P = H.past;
+  const on = clamp((b.pastKnee - P.after) / P.over, 0, 1);
+  const throwOf = Math.sign(ctl.steer) * (a > H.knee ? H.knee + (a - H.knee) * on : a);
+  const ask = bikeTurnAsked(throwOf, v, mu, ride.yaw, bank);
+  // The turn eased in over a blink: the bars answer the hands at once.
   b.turn += (ask - b.turn) * Math.min(1, dt / H.ease);
   const kappa = b.turn;
   const want = Math.atan((v * v * kappa) / G);
@@ -358,6 +361,43 @@ function handsAim(b: BikeState, ctl: BikeControls, ride: BikeRide, dt: number): 
   const upright = clamp(1 - Math.abs(phi) / H.crawlLean, 0, 1);
   fix *= 1 - crawlHeld(Math.abs(b.way), ride) * upright;
   return clamp(sign * (kin + fix), -BIKE.steer.lock, BIKE.steer.lock);
+}
+
+/** THE TURN THE BARS ASK, 1/m, for a throw `steer` (-1..1) at `v` m/s on a
+ * ground of grip `mu`, the assist's hands at `assist` (0..1), on a bank of
+ * `bank` rad across the way (right side up positive): up to `hands.knee`
+ * of the throw the lean asked stays inside `hands.grip` of what the tyres
+ * hold — the whole of a ridden turn — and past it the lean reaches on to
+ * `hands.over` of it (`hands.reach` with the assist off): more than the
+ * tyres hold, so a turn asked that tight slides them out from under him and
+ * puts him down. At a crawl the knee turns the `hands.tightest` radius
+ * and the full lock tighter still. */
+export function bikeTurnAsked(
+  steer: number,
+  v: number,
+  mu: number,
+  assist: number,
+  bank = 0,
+): number {
+  const a = Math.abs(steer);
+  if (a === 0) return 0;
+  const over = H.over * assist + H.reach * (1 - assist);
+  const share =
+    a <= H.knee ? (H.grip * a) / H.knee : H.grip + ((over - H.grip) * (a - H.knee)) / (1 - H.knee);
+  const lean = clamp(Math.atan(share * mu) - Math.sign(steer) * bank, 0.02, 1.2);
+  const vv = Math.max(v, 0.1) ** 2;
+  // At a crawl the bars' own reach: the knee turns `hands.tightest`, a full
+  // lock tighter still.
+  const tight = a / (H.knee * H.tightest);
+  return Math.sign(steer) * Math.min(tight, (G * Math.tan(lean)) / vv);
+}
+
+/** THE THROW THAT ASKS a turn of `kappa` 1/m at `v` m/s (`bikeTurnAsked`
+ * turned round, on the flat), held inside the knee: the bot rides inside
+ * what the tyres hold. */
+export function bikeSteerFor(kappa: number, v: number, mu: number, assist: number): number {
+  const most = bikeTurnAsked(H.knee, v, mu, assist);
+  return clamp((kappa / Math.max(most, 1e-6)) * H.knee, -H.knee, H.knee);
 }
 
 /** HOW MUCH OF HIS BALANCE HIS KNEES, HIPS AND A FOOT TAKE at `speed` m/s,
@@ -681,14 +721,23 @@ function substep(
     // At a crawl his knees and hips hold it up, the assist's share of it —
     // and under `dab` a foot goes down.
     const share = crawlHeld(speed, ride);
-    if (share > 0) {
-      const phi = rollOf();
-      const rate = -(ww.x * fwd.x + ww.y * fwd.y + ww.z * fwd.z);
-      const t = share * (H.knees.rate * (phi - b.aimLean) + H.knees.damping * rate);
-      tx += fwd.x * t;
-      ty += fwd.y * t;
-      tz += fwd.z * t;
-    }
+    const phi = rollOf();
+    const rate = -(ww.x * fwd.x + ww.y * fwd.y + ww.z * fwd.z);
+    let t = 0;
+    if (share > 0) t += share * (H.knees.rate * (phi - b.aimLean) + H.knees.damping * rate);
+    // At any speed he lays the bike over with his body too — the outside
+    // foot weighted, the inside bar pressed down, the bike tipped under him
+    // — so the lean a turn wants comes with less of a countersteer's swing
+    // the wrong way first (`docs/downhill-bike.md`, the turn-in).
+    // A front already pushing at its grip he stops shoving over, and a bike
+    // laid past `body.save` is past what his body levers back up.
+    const push =
+      clamp((H.body.easeOff - b.front.over) / (H.body.easeOff - 0.7), 0, 1) *
+      clamp((H.body.save - Math.abs(phi)) / 0.15, 0, 1);
+    t += push * (H.body.rate * (phi - b.aimLean) + H.body.damping * rate);
+    tx += fwd.x * t;
+    ty += fwd.y * t;
+    tz += fwd.z * t;
   }
   if (!anyTouch)
     airControl(b, ctl, ride, ww, fwd, (t) => {

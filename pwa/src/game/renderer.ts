@@ -43,7 +43,8 @@ import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { aboardCraft } from "./camera-aboard.ts";
 import { figureShown } from "./camera-para.ts";
 import { goneUnder, lensGround } from "./camera-buried.ts";
-import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
+import { createWatchCamera } from "./camera-cinema.ts";
+import type { ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { compileByParts, compiled } from "./scene-compile.ts";
@@ -110,6 +111,7 @@ import {
   FOREST_LOOK,
   RESOLUTION_SHARE,
   SHADOW_LOOK,
+  SPRAY_GPU,
   SPRAY_SHARE,
   TRAIL_LOOK,
   terrainLook,
@@ -213,8 +215,8 @@ export function createWorldRenderer(
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
-  /** THE REPLAY'S LENSES (`camera-replay.ts`), or null for the ladder's own rung. */
-  const replayCam = createReplayCamera(() => (level && clear ? { level, clear } : null));
+  /** THE REPLAY'S LENSES and THE FILM's (`camera-cinema.ts`) — the menu's too — or null. */
+  const replayCam = createWatchCamera(() => (level && clear ? { level, clear } : null));
   const broadcast = createJumpBroadcast(); // a ski jump's director (`camera-skijump.ts`)
   let watched: ReplayView | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
@@ -529,6 +531,7 @@ export function createWorldRenderer(
       spray = createSpray(env.haze);
       spray.points.name = "spray";
       spray.setBudget(SPRAY_SHARE[video.spray]);
+      spray.setFlight?.(SPRAY_GPU[video.spray]);
       scene.add(spray.points);
       cloud = createSnowCloud(env.haze);
       cloud.mesh.name = "snow-cloud";
@@ -723,7 +726,7 @@ export function createWorldRenderer(
       const planted =
         override ??
         broadcast.lens(state, rigPose, watched, clear) ??
-        (watched ? replayCam.update(watched, rigPose, body, state.t, dt) : null) ??
+        (watched ? replayCam.update(watched, rigPose, body, state.t, dt, dt / pace) : null) ??
         (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??
         dead ??
@@ -859,7 +862,7 @@ export function createWorldRenderer(
 
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
-    plumes: () => plumeBits(spray?.points ?? null, cloud?.mesh ?? null),
+    plumes: () => plumeBits(spray, cloud?.mesh ?? null),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {
       overlayOn = on;
@@ -885,6 +888,7 @@ export function createWorldRenderer(
         z: cam.position.z,
         yaw: Math.atan2(lensDir.x, lensDir.z),
         pitch: Math.asin(Math.max(-1, Math.min(1, lensDir.y))),
+        fov: cam.fov,
       };
     },
 
@@ -944,6 +948,7 @@ export function createWorldRenderer(
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
+      spray?.setFlight?.(SPRAY_GPU[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);
       lifts?.setBudget(SPRAY_SHARE[video.spray]);
       snowfall.setBudget(SPRAY_SHARE[video.spray]);

@@ -277,8 +277,8 @@ describe("the running order (replay-shots.ts)", () => {
 });
 
 describe("the replay's lenses (camera-replay.ts)", () => {
-  it("opens on the broadcast, and the ride's own ladder never offers one", () => {
-    expect(WATCHING_CAMERAS[0]).toBe("tv");
+  it("opens on the film, and the ride's own ladder never offers one", () => {
+    expect(WATCHING_CAMERAS[0]).toBe("film");
     for (const a of REPLAY_ANGLES) {
       expect(WATCHING_CAMERAS).toContain(a);
       expect(RUN_CAMERAS as readonly string[]).not.toContain(a);
@@ -348,7 +348,9 @@ describe("the replay's lenses (camera-replay.ts)", () => {
     const level = syntheticLevel();
     const clear = createLineClear(level);
     const pts = level.track.points;
-    for (const angle of REPLAY_ANGLES) {
+    // The FILM angle is the director's own (`tests/cinema_camera_test.ts`):
+    // its wide shots stand further off and its boots look below the hips.
+    for (const angle of REPLAY_ANGLES.filter((a) => a !== "film")) {
       const cam = createReplayCamera(() => ({ level, clear }));
       for (let i = 20; i < pts.length - 20; i += 7) {
         const p = pts[i];

@@ -623,8 +623,10 @@ export const BIKE_ROWS: BikeRow[] = [
     let got = turnAt(30 / KMH, 0.6);
     for (let k = 0; k < 7; k++) {
       const mid = (lo + hi) / 2;
-      got = turnAt(30 / KMH, mid);
-      if (got.R > 10) lo = mid;
+      const at = turnAt(30 / KMH, mid);
+      // A bar past the grip throws him: too tight, as a turn under 10 m is.
+      if (!at.crash) got = at;
+      if (at.R > 10 && !at.crash) lo = mid;
       else hi = mid;
     }
     return {
@@ -646,27 +648,46 @@ export const BIKE_ROWS: BikeRow[] = [
     };
   }),
   ...[10, 20, 30, 40].map((kmh) =>
-    row(`radius-${kmh}`, "turn", `full bars at ${kmh} km/h: radius (lean)`, "m", null, () => {
-      let yaw = 0;
-      let lean = 0;
-      let n = 0;
+    row(
+      `radius-${kmh}`,
+      "turn",
+      `the bars to the grip's knee at ${kmh} km/h: radius (lean)`,
+      "m",
+      null,
+      () => {
+        let yaw = 0;
+        let lean = 0;
+        let n = 0;
+        const s = benchRide(flat(), {
+          speed: kmh / KMH,
+          seconds: 7,
+          hand: (b, t) => ({ ...hold(kmh / KMH)(b), steer: t > 1 ? BIKE.hands.knee : 0 }),
+          watch: ({ t, b }) => {
+            if (t > 4) {
+              yaw += b.wy / Math.cos(b.roll);
+              lean += b.roll;
+              n++;
+            }
+          },
+        });
+        const R = kmh / KMH / Math.max(1e-3, yaw / Math.max(1, n));
+        return {
+          value: R,
+          note: `${((lean / Math.max(1, n)) * DEG).toFixed(0)}°${s.crash ? " " + s.crash : ""}`,
+        };
+      },
+    ),
+  ),
+  // FULL BARS past the knee ask more lean than the tyres hold: at speed the
+  // front lets go and he goes down; at a crawl the bars' own lock is all.
+  ...[20, 30, 40].map((kmh) =>
+    row(`full-${kmh}`, "turn", `full bars at ${kmh} km/h: thrown`, "", null, () => {
       const s = benchRide(flat(), {
         speed: kmh / KMH,
-        seconds: 7,
+        seconds: 4,
         hand: (b, t) => ({ ...hold(kmh / KMH)(b), steer: t > 1 ? 1 : 0 }),
-        watch: ({ t, b }) => {
-          if (t > 4) {
-            yaw += b.wy / Math.cos(b.roll);
-            lean += b.roll;
-            n++;
-          }
-        },
       });
-      const R = kmh / KMH / Math.max(1e-3, yaw / Math.max(1, n));
-      return {
-        value: R,
-        note: `${((lean / Math.max(1, n)) * DEG).toFixed(0)}°${s.crash ? " " + s.crash : ""}`,
-      };
+      return { value: s.crash ? 1 : 0, note: s.crash ?? "held", pass: s.crash !== null };
     }),
   ),
 

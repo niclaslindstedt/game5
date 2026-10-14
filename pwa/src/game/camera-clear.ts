@@ -238,7 +238,7 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
     return false;
   };
 
-  return (from: Vec3, to: Vec3): number => {
+  const line = (from: Vec3, to: Vec3): number => {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dz = to.z - from.z;
@@ -269,6 +269,14 @@ export function createLineClear(level: Level, opts: LineClearOptions = {}): Line
     }
     return 1;
   };
+  /** Whether `p` itself stands inside a solid: the same solids, asked at a point. */
+  const at = (p: Vec3): boolean => {
+    movers = opts.movers?.() ?? [];
+    if (trees) treesNear(level, p.x, p.z, 5 + LENS_PAD, near);
+    else near.length = 0;
+    return inside(p.x, p.y, p.z);
+  };
+  return Object.assign(line, { inside: at });
 }
 
 /** The trunks the ridden booms are pushed off: every tree's trunk as the

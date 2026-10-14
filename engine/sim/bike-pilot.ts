@@ -24,6 +24,7 @@ import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/cor
 import { bikeTrailById } from "../mapgen/bike-park-query.ts";
 import type { BikeFeature, BikeTrail, BikeTrailPoint } from "../mapgen/bike-park-types.ts";
 import { bikeInput, bikeWithin } from "../game/bike.ts";
+import { bikeSteerFor, bikeTurnAsked } from "../game/bike-body.ts";
 import {
   NEUTRAL_INPUT,
   type BikeControls,
@@ -54,8 +55,17 @@ export const BIKE_PILOT = {
   speed: { over: 0.2, under: 1, squeeze: 0.15, gain: 0.3, most: 0.8, ease: 0.12 },
   /** The bars: the bend read `preview` s of way ahead, the heading's and
    * the line's errors fed back (1/s and 1/s²), and the lateral g the hands
-   * are asked the share of. */
-  line: { preview: 0.9, heading: 1.2, lateral: 0.6, fix: 0.6, pursuit: 0, near: 3, predict: 0.7 },
+   * are asked the share of; `ease` the time its hands take onto a new ask, s. */
+  line: {
+    ease: 0.15,
+    preview: 0.9,
+    heading: 1.2,
+    lateral: 0.6,
+    fix: 0.6,
+    pursuit: 0,
+    near: 3,
+    predict: 0.7,
+  },
   /** How far before a lip the approach speed is held, m, and how far past
    * its landing's end the bot rides on as it would anywhere. */
   approach: 35,
@@ -83,6 +93,8 @@ export type BikeAim = {
   wary: number;
   fell: number;
   down: boolean;
+  /** The bars it last asked, -1..1, eased toward the line's ask. */
+  steer: number;
 };
 
 /** How wary a fall makes the bot: the share given up a fall, the most, how
@@ -104,6 +116,7 @@ export function bikeAim(run: GameState, trail?: string): BikeAim {
     wary: 0,
     fell: -1,
     down: false,
+    steer: 0,
   };
 }
 
@@ -304,8 +317,7 @@ export function bikePilot(run: GameState, aim: BikeAim): SkierInput {
   // The hands lay it over inside what the tread holds (`bike-body.ts`): the
   // turn asked as a share of that.
   const mu = summerSurfaceAt(run.level, b.x, b.z).grip;
-  const reach = BIKE.hands.grip * run.assist.yaw + BIKE.hands.reach * (1 - run.assist.yaw);
-  const most = Math.min(1 / BIKE.hands.tightest, (G * reach * mu) / (ve * ve));
+  const most = bikeTurnAsked(BIKE.hands.knee, ve, mu, run.assist.yaw);
   // The way back onto the line asks at most `P.fix` of what the bars can.
   let kappa = kff + clamp(fix, -P.fix * most, P.fix * most);
   if (P.pursuit > 0) {
@@ -319,7 +331,11 @@ export function bikePilot(run: GameState, aim: BikeAim): SkierInput {
     const alpha = angleDiff(b.heading, Math.atan2(tx, tz));
     kappa = (2 * Math.sin(alpha)) / Math.max(1, hypot(tx, tz));
   }
-  ctl.steer = b.airborne ? 0 : clamp(kappa / most, -1, 1);
+  // Its hands ease the bars onto the line's ask: the line's read jumps a
+  // little station to station, a rider's hands do not.
+  const bars = b.airborne ? 0 : bikeSteerFor(clamp(kappa, -most, most), ve, mu, run.assist.yaw);
+  aim.steer += (bars - aim.steer) * Math.min(1, TUNING.dt / P.ease);
+  ctl.steer = aim.steer;
   // THE SPEED.
   if (aim.wary > 0 && aim.s > aim.fell + WARY.past) aim.wary = 0;
   const near = aim.wary > 0 && aim.s > aim.fell - WARY.before;

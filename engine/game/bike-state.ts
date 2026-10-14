@@ -121,6 +121,9 @@ export type BikeState = {
    * bars asked, and the lean it wants, rad. */
   turn: number;
   aimLean: number;
+  /** How long the bars have been asked past the grip's knee, s
+   * (`hands.past`): a quick stab is held to the grip, a hold goes on past. */
+  pastKnee: number;
   /** Where his weight is fore and aft, −1..1 (+1 back): the lean asked,
    * moved to over `BIKE.rider.shift` s — a body shifts, it does not jump. */
   shift: number;

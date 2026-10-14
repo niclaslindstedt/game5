@@ -63,7 +63,7 @@ function lensFor(run: GameState, v: string, ctx: HandsCtx): void {
     const sh = Math.sin(c.heading);
     const ch = Math.cos(c.heading);
     ctx.renderer.setOverride({
-      eye: { x: c.x - sh * 0.35, y: c.y + 1.15, z: c.z - ch * 0.35 },
+      eye: { x: c.x + sh * 0.3, y: c.y + 0.95, z: c.z + ch * 0.3 },
       target: { x: c.x + sh * 30, y: c.y - 6, z: c.z + ch * 30 },
       fov: 70,
       roll: 0,

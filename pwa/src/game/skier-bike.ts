@@ -19,6 +19,7 @@
 import { BIKE, BIKE_BB, type BikePose } from "@engine";
 
 import { GRIPS, bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
+import type { RideStyle } from "./bike-ride-style.ts";
 import { ANKLE, keyOf, keyPoints, movePose, type Key } from "./party-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import type { SkierPose } from "./skier-pose.ts";
@@ -67,11 +68,87 @@ export function riderKey(pose: BikePose): Key {
   };
 }
 
+/** A point of the bike turned under him by the style's `yaw` then `roll`
+ * (`bike-ride-style.ts`) about his centre of mass — the root's origin. */
+export function underHim(p: V3, yaw: number, roll: number): V3 {
+  // Rolled about the bike's forward axis (−y toward +x), then yawed about
+  // its up axis (+z toward +x).
+  const cr = Math.cos(roll);
+  const sr = Math.sin(roll);
+  const x1 = p.x * cr - p.y * sr;
+  const y1 = p.x * sr + p.y * cr;
+  const cy = Math.cos(yaw);
+  const sy = Math.sin(yaw);
+  return v(x1 * cy + p.z * sy, y1, -x1 * sy + p.z * cy);
+}
+
+/** THE FREERIDER'S STANCE (`bike-variant.ts`'s freeride look): the attack
+ * stance ridden wider and lower — the knees and the elbows OUT, the hips
+ * back and down over the saddle, the chest over the stem and the eyes up
+ * the trail. */
+export const FREERIDE = {
+  kneesOut: 0.55,
+  elbowsOut: 0.6,
+  hips: v(0, -0.035, -0.08),
+  pitch: 0.1,
+  nod: 0.12,
+  /** Under the levers: his weight further back and down. */
+  brake: { back: 0.07, down: 0.04, pitch: -0.08 },
+  /** How much of the bike's whip his hips follow (his shoulders and eyes
+   * stay down the trail), and how far his knees draw up in a table. */
+  follow: { twist: 0.35, roll: 0.3 },
+  tuck: 0.12,
+  /** His inside foot out of a slide, from the bottom bracket in the
+   * bike's frame: out to the side, low over the dirt and ahead of the
+   * cranks, the sole skimming it. */
+  foot: v(0.5, -0.2, 0.45),
+};
+
+/** THE KEY that lays the FREERIDER on the bike posed `pose`, riding it as
+ * `style` says: whipped, tabled, a foot out, on the brakes. */
+export function freerideKey(pose: BikePose, style: RideStyle): Key {
+  const key = riderKey(pose);
+  const F = FREERIDE;
+  const bb = bracketFromRider(pose);
+  key.kneesOut = F.kneesOut;
+  key.elbowsOut = F.elbowsOut;
+  key.hipY = F.hips.y - F.brake.down * style.brake;
+  key.hipZ = F.hips.z - F.brake.back * style.brake;
+  key.pitch += F.pitch + F.brake.pitch * style.brake;
+  key.nod += F.nod;
+  // THE WHIP: the bike under him turned, his hands and feet with it, his
+  // hips following a share of it and his shoulders kept square.
+  const { yaw, roll } = style;
+  if (yaw !== 0 || roll !== 0) {
+    key.hands = [underHim(key.hands[0], yaw, roll), underHim(key.hands[1], yaw, roll)];
+    key.feet = [underHim(key.feet[0], yaw, roll), underHim(key.feet[1], yaw, roll)];
+    key.twist += yaw * F.follow.twist;
+    key.roll += roll * F.follow.roll;
+    if (style.trick === "table") key.hipY -= F.tuck * style.amount;
+  }
+  // THE FOOT OUT: the inside foot off its pedal toward the dirt.
+  if (style.footOut > 0) {
+    const i = style.foot;
+    const side = i ? 1 : -1;
+    const out = add(bb, v(side * F.foot.x, F.foot.y, F.foot.z));
+    const k = style.footOut;
+    const f = key.feet[i];
+    key.feet[i] = v(f.x + (out.x - f.x) * k, f.y + (out.y - f.y) * k, f.z + (out.z - f.z) * k);
+    // His weight onto the outside foot, the trunk dropped over it.
+    key.hipY -= 0.03 * k;
+    key.roll += side * 0.12 * k;
+  }
+  return key;
+}
+
 /** THE RIDER ON THE BIKE as a stood pose (`SkisModel.setStood`): the root's
  * frame is his own centre of mass on the bike's attitude, so the snow under
- * him is never read. */
-export function riderPose(pose: BikePose): (ground: number, frame: BodyFrame) => SkierPose {
-  const points = keyPoints(riderKey(pose), 0);
+ * him is never read. With a `style`, the freerider (`freerideKey`). */
+export function riderPose(
+  pose: BikePose,
+  style?: RideStyle,
+): (ground: number, frame: BodyFrame) => SkierPose {
+  const points = keyPoints(style ? freerideKey(pose, style) : riderKey(pose), 0);
   return (_ground, frame) => ragdollPose(points, frame);
 }
 

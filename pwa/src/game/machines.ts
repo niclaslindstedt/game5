@@ -29,6 +29,8 @@ import { heliHull, type SolidBox } from "./camera-clear.ts";
 import type { LensPose, RigPose, Vec3 } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
+import { rideStyleOf } from "./bike-ride-style.ts";
+import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
 import { riderPose, walkingPose } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
@@ -189,7 +191,7 @@ export function createMachines(
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
   const sled: SledScene | null = state.rules.sled ? createSledScene(haze) : null;
   // THE DOWNHILL BIKE (`bike-view.ts`), on a summer ride begun on it.
-  const bike: BikeView | null = state.bike ? createBikeView(haze) : null;
+  const bike: BikeView | null = state.bike ? createBikeView(haze, bikeLook()) : null;
   if (bike) group.add(bike.group);
   // The paramotor rides every free ride's rules, drawn only while a run
   // carries the rig (`GameState.para`) — and the hot air balloon while a
@@ -331,7 +333,10 @@ export function createMachines(
         model.setBiking?.(true);
         model.setStood?.(
           b.onIt && !thrown
-            ? riderPose(bikePose(b))
+            ? riderPose(
+                bikePose(b),
+                bikeLook() === "freeride" ? rideStyleOf(b, s.level, s.t) : undefined,
+              )
             : b.afoot && !s.skier.lift && !thrown
               ? walkingPose(b.afoot)
               : null,

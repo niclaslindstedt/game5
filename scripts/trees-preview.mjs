@@ -50,6 +50,11 @@ const args = parseArgs(
       help: "the cut drawn: 0 full, 1 mid, 2 the far band's sketch",
     },
     sketch: { kind: "flag", help: "draw the far band's sketches instead (--lod=2)" },
+    zoom: { kind: "number", default: 1, help: "every cell this many times larger" },
+    faceted: {
+      kind: "flag",
+      help: "the faceted builder the shadows are cast with, not the card trees",
+    },
     ages: {
       kind: "flag",
       help: "each kind's lead variant at the ages a wood holds, sapling to veteran",
@@ -109,6 +114,8 @@ const lod = args.sketch ? 2 : Math.max(0, Math.min(2, Math.round(args.lod)));
 params.set("lod", String(lod));
 params.set("age", String(args.age));
 if (args.ages) params.set("ages", "1");
+if (args.faceted) params.set("faceted", "1");
+if (args.zoom > 1) params.set("zoom", String(args.zoom));
 const query = `?${params}`;
 const cut = ["", "-mid", "-sketch"][lod];
 const out =

@@ -43,7 +43,7 @@
 import * as THREE from "three";
 import { felledTrees, regionOf, type Level, type Vec3 } from "@engine";
 
-import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import type { HazeUniforms } from "./haze.ts";
 import { createShadeDepth } from "./terrain-shade.ts";
 import type { ForestLook, TreeCasters } from "./settings-video.ts";
 import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
@@ -52,6 +52,8 @@ import { createRocks } from "./rocks.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
 import { summerShown } from "./season-look.ts";
 import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
+import { buildCardTree } from "./tree-cards.ts";
+import { atlasTexture, cardMaterial } from "./tree-card-material.ts";
 import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
 import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
@@ -66,7 +68,18 @@ export type ForestOptions = Omit<ForestLook, "casters"> & {
   far: number;
   view: number;
   casters: TreeCasters | "none";
+  /** Whether the picture is multisampled, so the needle cards' edges are
+   * cut by alpha-to-coverage (`tree-card-material.ts`); read when the
+   * woods are made. */
+  coverage?: boolean;
 };
+
+/** How many of a kind's variants are clothed in cards for the FOREST row's
+ * `variants` — fewer than the faceted builder drew, since a card tree's
+ * look is in its needles more than its outline, and every variant is a
+ * draw call a band. */
+export const cardVariants = (variants: number): number =>
+  Math.min(variants, Math.round(1 + variants * 0.3));
 
 const CELL = 64;
 
@@ -262,10 +275,14 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     // is drawn as nothing: its matrix squashed to its foot.
     if (gone[i]) s.set(0, 0, 0);
     m.compose(p, q, s).toArray(matrices, i * 16);
-    const tone = 0.9 + hash(t.z, t.x) * 0.2;
-    colours[i * 3] = tone;
-    colours[i * 3 + 1] = tone;
-    colours[i * 3 + 2] = tone;
+    // Every tree its own shade and a touch of its own hue — one a little
+    // yellower, one a little bluer — so a wood of one variant is not a
+    // wood of one tree.
+    const tone = 0.88 + hash(t.z, t.x) * 0.24;
+    const hue = (hash(t.x * 0.73 - 2, t.z * 1.31 + 9) - 0.5) * 0.12;
+    colours[i * 3] = tone * (1 + hue);
+    colours[i * 3 + 1] = tone * (1 + hue * 0.35);
+    colours[i * 3 + 2] = tone * (1 - hue);
   }
   const binTop = new Float32Array(cols * cols).fill(-Infinity);
   const binLow = new Float32Array(cols * cols).fill(Infinity);
@@ -282,15 +299,13 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     }
   }
 
-  const material = hazeMaterial(
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
-    haze,
-    "tree",
-    (shader) => {
-      graftGirth(shader);
-      graftFade(shader);
-    },
-  );
+  // THE NEEDLE CARDS' atlas, painted in code once a forest, and the
+  // material every card tree is drawn with (`tree-card-material.ts`).
+  const atlas = atlasTexture();
+  const material = cardMaterial(haze, atlas, options.coverage ?? false, (shader) => {
+    graftGirth(shader);
+    graftFade(shader);
+  });
   // The casters' depth, with the same girth: a veteran's trunk throws a
   // veteran's shadow.
   const casterDepth = createShadeDepth(haze);
@@ -309,7 +324,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const casterMaterial = new THREE.ShaderMaterial({
     vertexShader: "void main() { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }",
     fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
-    side: material.side,
+    // The casters are the faceted solids (closed): one side is enough.
+    side: THREE.FrontSide,
   });
   const region = treePaint(regionLookOf(regionOf(level).id));
   const paint = summerShown() ? summerPaint(region) : region;
@@ -393,15 +409,18 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const i = rank[k];
       const t = trees[i];
       const kind = t.kind ?? "spruce";
-      const v = treeVariant(kind, t.x, t.z, variants);
+      const v = treeVariant(kind, t.x, t.z, cardVariants(variants));
       variantOf[i] = v;
       nearShape[i] = indexOf(v, nearRows, nearCount);
       farShape[i] = indexOf(leadVariant(kind), farRows, farCount);
     }
+    // The picture's trees in cards; the shadow's in the faceted solids,
+    // which throw a crown's shadow at a fraction of a card tree's cost.
+    const cards = (v: TreeVariant, lod: TreeLod) => buildCardTree(v, paint, lod);
     const shape = (v: TreeVariant, lod: TreeLod) => buildTree(v, paint, lod);
-    const full = nearRows.map((v) => shape(v, 0));
-    const mid = nearRows.map((v) => shape(v, 1));
-    const sketch = farRows.map((v) => shape(v, 2));
+    const full = nearRows.map((v) => cards(v, 0));
+    const mid = nearRows.map((v) => cards(v, 1));
+    const sketch = farRows.map((v) => cards(v, 2));
     const leads = farRows.map((v) => shape(v, 1));
     const insetSketch = farRows.map((v) => inset(shape(v, 2), SKETCH_INSET));
     const makeBand = (geos: THREE.BufferGeometry[], shape: Uint8Array, room: number[]): Band => {
@@ -758,6 +777,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       rocks.dispose();
       dropShapes(shapes);
       material.dispose();
+      atlas.dispose();
       casterMaterial.dispose();
       casterDepth.dispose();
     },

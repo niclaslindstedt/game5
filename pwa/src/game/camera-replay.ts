@@ -54,8 +54,9 @@ import type { LensPose, LineClear, RigPose, Vec3 } from "./camera-rigs.ts";
 import type { ReplayShot } from "./replay-shots.ts";
 import { HOUSE, START_SHOT, startHousePlan } from "./start-house-plan.ts";
 
-/** The replay's own lenses: the broadcast and the four it cuts between. */
-export const REPLAY_ANGLES = ["tv", "close", "side", "front", "aerial"] as const;
+/** The replay's own lenses: the FILM director's (`camera-cinema.ts`), the
+ * broadcast and the four it cuts between. A replay opens on the first. */
+export const REPLAY_ANGLES = ["film", "tv", "close", "side", "front", "aerial"] as const;
 export type ReplayAngle = (typeof REPLAY_ANGLES)[number];
 
 export function isReplayAngle(rung: string): rung is ReplayAngle {
@@ -85,7 +86,7 @@ export const REPLAY_LENS = {
   cycle: 4.5,
   cuts: ["close", "side", "front", "close", "aerial", "side"] as readonly Exclude<
     ReplayAngle,
-    "tv"
+    "tv" | "film"
   >[],
   /** A PLANTED lens: how far to the side of his line it stands, m (and how
    * much further each retry, how many), how far along from the moment, m —
@@ -237,7 +238,7 @@ export function standFor(shot: ReplayShot, level: Level, clear: LineClear): Vec3
 /** Where a follow lens wants to stand, for a subject going `way` (rad),
  * on `side` (±1), `t` s into the run; it looks at him. Pure. */
 export function followPose(
-  angle: Exclude<ReplayAngle, "tv">,
+  angle: Exclude<ReplayAngle, "tv" | "film">,
   at: Vec3,
   way: number,
   side: 1 | -1,
@@ -261,8 +262,18 @@ export function followPose(
   return f.fov;
 }
 
-/** What a recording is watched on: the angle, and the broadcast's moment. */
-export type ReplayView = { angle: ReplayAngle; shot: ReplayShot | null };
+/** What a recording is watched on: the angle, and the broadcast's moment.
+ * The FILM angle is handed more (`camera-cinema.ts`): every moment known
+ * (`plan`), the clock those moments are on (`step`), and, where the run has
+ * been read ahead under the menu (`cinema-ahead.ts`), where it has him at a
+ * step (`path`). */
+export type ReplayView = {
+  angle: ReplayAngle;
+  shot: ReplayShot | null;
+  plan?: readonly ReplayShot[];
+  step?: number;
+  path?: (step: number) => Vec3 | null;
+};
 
 /** The body thrown off his skis, as the renderer draws it (`interp.ts`). */
 export type ThrownBody = { x: number; y: number; z: number; vx: number; vz: number };
@@ -353,9 +364,11 @@ export function createReplayCamera(world: ReplayWorld): ReplayCamera {
 
       // WHICH LENS: the broadcast plants one for a moment and cuts between
       // the follow lenses otherwise.
-      let lens: Exclude<ReplayAngle, "tv"> | "plant" = angle === "tv" ? "close" : angle;
+      // FILM is `camera-cinema.ts`'s (`createWatchCamera`); asked here, the broadcast.
+      const tv = angle === "tv" || angle === "film";
+      let lens: Exclude<ReplayAngle, "tv" | "film"> | "plant" = tv ? "close" : angle;
       let key: string = angle;
-      if (angle === "tv") {
+      if (tv) {
         const n = Math.floor(Math.max(0, t) / REPLAY_LENS.cycle);
         lens = REPLAY_LENS.cuts[n % REPLAY_LENS.cuts.length];
         key = `tv:${n}`;

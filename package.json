@@ -122,6 +122,7 @@
     "gore": "node scripts/gore-preview.mjs",
     "bones": "node scripts/bones-preview.mjs",
     "replay-cam": "node scripts/replaycam-preview.mjs",
+    "cinema": "node scripts/cinema-preview.mjs",
     "xray": "node scripts/xray-preview.mjs",
     "xray-body": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/xray-body.mjs",
     "groomer": "node scripts/groomer-preview.mjs",

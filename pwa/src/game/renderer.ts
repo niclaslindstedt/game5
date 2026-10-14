@@ -78,7 +78,7 @@ import {
 import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
 import { hideSlices, runsOf, SLICE_OF_GROUP, thrownEffects, type Rider } from "./renderer-rider.ts";
-import type { CameraRung, DevRenderer, WorldRenderer } from "./renderer-api.ts";
+import type { CameraRung } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
@@ -94,13 +94,16 @@ import { castInLight } from "./terrain-shade.ts";
 import { createSpray, type Spray } from "./spray.ts";
 import { createSnowCloud, type SnowCloud } from "./snow-cloud.ts";
 import { plumeBits } from "./plume-probe.ts";
+import { cullBehind } from "./rider-cull.ts";
+import { createDeformRig } from "./renderer-deform.ts";
+import { createSnowUnder } from "./snow-under.ts";
+import { createSkiClear, skiClearUniforms, type SkiClear } from "./ski-clear.ts";
 import {
   NEW_COVER,
   SNOW,
   snowAt,
   snowpackOf,
   thrownAt,
-  type SnowKind,
   type Snowpack,
   type SnowpackOptions,
   type SnowProps,
@@ -133,55 +136,14 @@ export async function loadModels(): Promise<void> {
   await loadSkierModels();
 }
 
-export type RendererOptions = {
-  /** The picture to open on (`settings-video.ts`); `setVideo` moves it. Its
-   * ANTIALIAS row is read here and only here — a canvas's multisampling is
-   * fixed when its context is made. */
-  video?: VideoSettings;
-  /** Keep the last frame in the canvas after it is shown (a lab that reads
-   * the pixels back). */
-  preserveDrawingBuffer?: boolean;
-};
-
-/** What the renderer can say about its own last frame. */
-export type FrameInfo = { calls: number; triangles: number; points: number };
-
-/** The seam, plus what a lab, the developer page and the benchmark may also
- * ask. */
-export type WorldRendererExt = WorldRenderer &
-  DevRenderer & {
-    /** Change rung; `cut` skips the flown hand-over; `chosen` whether the
-     * player picked it (a ski jump's broadcast gives way to his pick). */
-    setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean, craft?: CameraRung): void;
-    /** `present` false does everything a frame does — the trails stamped,
-     * the spray flown, the lens moved — except draw the picture: how a lab
-     * fast-forwards a run without losing the furrows it cut. */
-    draw(state: GameState, alpha: number, dt: number, present?: boolean): void;
-    info(): FrameInfo;
-    /** Ride the map under another sky, or from another hour, without loading
-     * it again (`withSky`) — a lab's sheet; null hands it back to the map's. */
-    setSky(sky: SkyOverride | null): void;
-    /** Resolves once the mountain's shadow under the sky last drawn is. */
-    shadeSettled(): Promise<void>;
-    /** Lay ONE kind of snow (and one surface age) over the whole map for the
-     * picture (`snowpack.ts`, `snow-age.ts`), or null for the map's own. */
-    setSnow(kind: SnowKind | null, age?: SnowpackOptions["age"]): void;
-    /** The three.js renderer, for a lab that needs to read pixels. */
-    readonly gl: THREE.WebGLRenderer;
-  };
+export type { FrameInfo, RendererOptions, WorldRendererExt } from "./renderer-api.ts";
+import type { RendererOptions, WorldRendererExt } from "./renderer-api.ts";
 
 const NEAR = 0.1;
 const FAR = 6000;
 /** How much of the player's own snow cloud the chase lens sees between
  * itself and him (`snow-cloud.ts`'s veil). */
 const CLOUD_VEIL = 0.12;
-/** A RIVAL is drawn until he is this far BEHIND the lens, m, along its
- * axis: a rider passing the lens is seen going by and out of the frame's
- * edge, never dropped out of the middle of the picture while he is still in
- * it. Past this he is wholly behind the near plane and costs a draw for
- * nothing. */
-const LENS_BEHIND = 1;
-const lensAxis = new THREE.Vector3();
 
 export function createWorldRenderer(
   canvas: HTMLCanvasElement,
@@ -240,6 +202,8 @@ export function createWorldRenderer(
   let gates: Gates | null = null;
   let lifts: Lifts | null = null;
   let trail: TrailMap | null = null;
+  const deform = createDeformRig();
+  let skiClear: SkiClear = createSkiClear(skiClearUniforms()); // the snow round him as a volume (`deform-snow.ts`)
   let spray: Spray | null = null;
   let cloud: SnowCloud | null = null;
   /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
@@ -281,6 +245,7 @@ export function createWorldRenderer(
   /** What the last frame cost (`DevRenderer.cost`), rewritten every frame. */
   const cost = noCost();
   const overlay = createTrailOverlay();
+  const under = createSnowUnder();
   let overlayOn = false;
   /** THE GPU'S TIMER and the A/B reading's hidden subsystems — instruments,
    * both off unless the benchmark asks (`bench-run.ts`). */
@@ -335,6 +300,7 @@ export function createWorldRenderer(
     gates?.dispose();
     lifts?.dispose();
     trail?.dispose();
+    deform.dispose();
     spray?.dispose();
     cloud?.dispose();
     wildlife?.dispose();
@@ -393,7 +359,10 @@ export function createWorldRenderer(
   }
   function buildTerrain(lv: Level, map: TrailMap): Terrain {
     const look = terrainLook(video.terrain); // the whole reach: aloft draws past the stop's view
-    const ground = createTerrain(lv, env.haze, map.uniforms, summerOptions(look, lv, video));
+    const deformed = deform.build(video, look.spacing, summer(), map.uniforms);
+    skiClear = createSkiClear(map.uniforms);
+    const options = { ...summerOptions(look, lv, video), deform: deformed };
+    const ground = createTerrain(lv, env.haze, map.uniforms, options);
     ground.group.name = "terrain";
     scene.add(ground.group);
     return ground;
@@ -584,6 +553,7 @@ export function createWorldRenderer(
         filled = state.fresh;
         if (lastState !== null) {
           trail.clear(gl);
+          deform.clear();
           spray.clear();
           cloud.clear();
           wildlife?.reset();
@@ -638,6 +608,7 @@ export function createWorldRenderer(
           run.plane?.rider ? true : inStartGate(run),
           run.tricks,
         );
+        deform.begin(i, skier, stamps); // his stamps and the spray's takes, for the hole
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp && !summer()) {
           stampsOf(
             skier.contacts,
@@ -673,6 +644,7 @@ export function createWorldRenderer(
             sampleSnow,
           });
         }
+        deform.end(i, skier, stamps, simDt, thrownSnow);
         r.wasAirborne = skier.airborne;
         r.airTime = skier.airborne ? skier.airTime : r.airTime * (skier.airborne ? 1 : 0);
         if (skier.airborne) r.vy = skier.vy;
@@ -734,15 +706,8 @@ export function createWorldRenderer(
       if (looked && !planted && lens.rung() !== "orbit") aimLens(lens.camera, looked);
       afterski.sway(lens.camera, state, lens.rung(), planted !== null);
 
-      // A rival clear behind the lens is left out of this frame.
       const eye = lens.camera.position;
-      lensAxis.set(0, 0, -1).applyQuaternion(lens.camera.quaternion);
-      for (let i = 1; i < riders.length; i++) {
-        const at = riders[i].drawn;
-        const ahead =
-          (at.x - eye.x) * lensAxis.x + (at.y - eye.y) * lensAxis.y + (at.z - eye.z) * lensAxis.z;
-        riders[i].model.root.visible = ahead > -LENS_BEHIND;
-      }
+      cullBehind(lens.camera, riders); // a rival clear behind the lens is left out
 
       const posed = performance.now();
       const fine = trail.uniforms;
@@ -755,6 +720,8 @@ export function createWorldRenderer(
       );
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
+      deform.update(skier, !hidden.has("trail"));
+      skiClear.update(riders[0].model.bases, !skier.thrown && !summer());
       // THE NEW SNOW: it settles into every trail and buries the groomer.
       if (state.fresh > filled && !hidden.has("trail")) {
         trail.fill(gl, state.fresh - filled);
@@ -859,6 +826,11 @@ export function createWorldRenderer(
     sceneTally: () => tallyScene(scene, lens.camera),
     group: (name) => scene.getObjectByName(name),
     plumes: () => plumeBits(spray, cloud?.mesh ?? null),
+    skisUnder: () =>
+      terrain && level && riders[0]
+        ? under.measure(gl, scene, lens.camera, terrain.group, riders[0].model.bases, level)
+        : [],
+    snowDug: () => deform.thrown(),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {
       overlayOn = on;
@@ -981,6 +953,7 @@ export function createWorldRenderer(
     dispose() {
       unload();
       hurt.dispose();
+      under.dispose();
       overlay.dispose();
       snowfall.dispose();
       picture.dispose();

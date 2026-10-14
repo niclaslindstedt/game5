@@ -219,7 +219,11 @@ export type Stamp = {
  * furrow the way it scales the physics' sink: a dusting leaves a scuff, a
  * dump a trench. Given the SNOW (`snowpack.ts`), its `give` is the
  * furrow's share instead — the packed field and the dial are already in
- * it. */
+ * it. Never shallower than the ski rides: the physics' sink under the
+ * ground plus the loose cover drawn over it (`LOOSE`), so the floor of the
+ * drawn furrow is the base the ski stands on — on a crust or settled snow,
+ * whose own furrow is shallow, the cover drawn round a ski at speed stood
+ * over it and hid it. */
 export function drawnDepth(
   contact: SnowContact,
   packed: number,
@@ -238,7 +242,7 @@ export function drawnDepth(
     ? Math.max(TRAIL.packedDepth, base * snow.give)
     : base * depth * (1 - p) + TRAIL.packedDepth * p;
   const drawn = share * Math.min(1, Math.max(0.25, load));
-  return Math.min(TRAIL.maxDepth, Math.max(contact.sink, drawn));
+  return Math.min(TRAIL.maxDepth, Math.max(contact.sink + LOOSE * (1 - p), drawn));
 }
 
 /** THE CUT A BOARD'S STATION DRAWS, m, before the carve's shape: the

@@ -39,6 +39,8 @@ and **`write-code`** beside this one.
 | `pwa/src/game/piste-tracks.ts` | THE OTHER SKIERS' TRACKS ON THE PISTE (three-free): `tracksOf` (how many lines and how churned, off `pisteDayOf`'s hours of traffic on every map), `trackFrameOf` (the piste's own across-and-down frame on a half-float grid — never a frame turned by the local heading, which curls centimetre grooves hundreds of metres from the origin), and `PISTE_TRACKS_GLSL` (the carves, skids and boards, their relief, the snow a carve throws, the churn) — carried as `Snowpack.tracks`; the snow lab's `piste`, `pistenear` and `pistetop` sheets |
 | `pwa/src/game/snow-age.ts` | HOW OLD THE LOOSE SNOW IS (three-free): the days since the last fall dealt off the map's seed and its sky (none under a falling sky), and what they leave — `fresh` and `old`, the `wind`'s slab, a sun `crust` on the faces the NOON sun stands on, surface `hoar` in the shade, the high sun's `wet` — carried as `Snowpack.age` and written into `uSnowAge` / `uSnowAge2` by `haze.ts`'s `setRunSnow`; a lab forces one (`renderer.setSnow(null, age)`) |
 | `pwa/src/game/trail-map.ts` | THE TRAIL MAP, on the GPU in world space: a COARSE map over the whole mountain (every stamp of every skier, for the life of the run — a rival's track across the face is still there when the player comes down it) and a FINE window round the player at a few centimetres a texel, moved when he skis off its centre (the old window copied, the new edge filled from the coarse map). Each stamp an instanced quad with MAX blending: a groove skied twice is as deep as the deeper, and a windrow never fills a trough. `TRAIL_GLSL`'s `trailAt` is the one decoder |
+| `pwa/src/game/deform-field.ts`, `deform-snow.ts`, `renderer-deform.ts`, `deform-glsl.ts` | THE DEFORMABLE SNOW round the player at TRAILS MEDIUM and HIGH: a 5 cm height field in a ring (pressed by the same stamps, compacted or heaped, never made or lost; slumped to the snow's repose along a ragged line; dug by the spray's own takes — `snow-takes.ts`, one snow budget), drawn as a patch mesh of its own (`terrain-deform`) and self-shadowed by a march toward the key whose length is the TRAILS stop's (`uDeformMarch`). OFF and LOW keep the trail map alone; `tests/deform_field_test.ts` |
+| `pwa/src/game/ski-clear.ts` | THE SNOW KEPT UNDER THE PLAYER'S SKIS: the ground's vertex stage lets the mesh down under his posed bases within a grid step of their line, so the low-passed furrow never stands over a ski at any spacing; with `drawnDepth`'s floor (the sink plus the loose cover) it is what `make snow-eval ARGS=--under=all` and `tests/skis_under_test.ts` hold |
 | `pwa/src/game/renderer.ts` | Stamps every skier's stations each frame (even with `present` off, so a fast-forward still cuts its tracks) and hands the terrain the trail uniforms |
 | `pwa/src/identity.ts` | `PALETTE.snow`, `snowShadow`, `track` — the colours the shader is keyed on |
 
@@ -157,6 +159,13 @@ of the frame.
 - **MAX blending, two maps, one decoder.** A new stamp source (a rival, a
   landing crater, an animal's print) goes through `stampsOf` and the same
   instanced quad; a second encoding of depth drifts from `trailAt`.
+- **A ski is never under the snow drawn round it.** The drawn snow stands
+  a hand of loose cover (`LOOSE`) over the engine's ground off the groomer,
+  and the vertex relief is low-passed to its grid: a furrow shallower than
+  the sink plus that cover, or a groove narrower than a grid cell, buries
+  the skis at speed. Fix it in the SURFACE (the furrow's floor, the mesh let
+  down under the bases), never by raising the skier; measure it from the
+  chase lens with `make snow-eval ARGS=--under=all`.
 - **A stamp is continuous and a reset is not a track.** Capsules from the
   last touch to this one, broken on a jump past `TRAIL.jump` — a reset that
   drew a groove across the map is `world_render_test`'s case.

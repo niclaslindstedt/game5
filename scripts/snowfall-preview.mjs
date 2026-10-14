@@ -63,11 +63,12 @@ const args = parseArgs(
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 320, help: "one cell's width, px" },
     height: { kind: "number", default: 180, help: "one cell's height, px" },
+    summer: { kind: "flag", help: "ride the map in midsummer (no crystals, no spindrift)" },
     json: { kind: "flag", help: "print the table as JSON instead" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1200, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/snowfall-preview.mjs [--seed=n] [--weathers=a,b] [--rides=a,b] [--speeds=a,b] [--camera=rung] [--sheets=frame,flow] [--json] [--skip-build]",
+  "usage: node scripts/snowfall-preview.mjs [--seed=n] [--weathers=a,b] [--rides=a,b] [--speeds=a,b] [--camera=rung] [--sheets=frame,flow] [--summer] [--json] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -120,6 +121,7 @@ const query = new URLSearchParams({
   camera: args.camera,
   strobe: String(args.strobe),
   ride: String(args.ride),
+  summer: args.summer ? "1" : "0",
 }).toString();
 const say = args.json ? () => {} : (line) => console.log(line);
 say(

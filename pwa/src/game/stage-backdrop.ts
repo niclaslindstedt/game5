@@ -13,12 +13,17 @@
 // noise cut into flat-shaded facets — so the card is a frame of the same
 // world the race is skied in, not a photograph pasted behind it. It is a
 // scene of its own: no level, no engine, a fog and a sky of its own.
+//
+// IN SUMMER (a free ride whose SEASON is summer) the same place with its
+// snow gone: an alpine meadow round him, a dirt trail where the piste was,
+// the woods in their summer paint (`summerPaint`, the forest's own), snow
+// left only high on the range's gentle faces, and a paler, warmer sky.
 
 import * as THREE from "three";
 import { hash2, valueNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 
 import { regionLookOf } from "./region-look.ts";
-import { buildTree, treePaint, type TreeLod } from "./tree-shapes.ts";
+import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { TREE_VARIANTS } from "./tree-variants.ts";
 
 /** The piste the skier stands on: its half width, m, running down +z. */
@@ -27,10 +32,19 @@ export const PISTE_HALF = 9;
 const BROW = 16;
 
 /** The sky's colours, linear: the zenith, the horizon's haze, and the
- * sun's warmth low in the sky. */
-const ZENITH = new THREE.Color(0x1d58a8);
-const HORIZON = new THREE.Color(0xc9ddef);
-const WARM = new THREE.Color(0xffe2b8);
+ * sun's warmth low in the sky — a winter's and a summer's. */
+const SKIES = {
+  winter: {
+    zenith: new THREE.Color(0x1d58a8),
+    horizon: new THREE.Color(0xc9ddef),
+    warm: new THREE.Color(0xffe2b8),
+  },
+  summer: {
+    zenith: new THREE.Color(0x2a66b8),
+    horizon: new THREE.Color(0xd3e2ea),
+    warm: new THREE.Color(0xfff0d0),
+  },
+} as const;
 
 /** Where the low winter sun stands — behind the viewer's left shoulder, so
  * the skier is lit three-quarters on and the peaks across the valley
@@ -123,8 +137,11 @@ function peakHeight(x: number, z: number): number {
 const SNOW = new THREE.Color(0.9, 0.93, 0.97);
 const ROCK = new THREE.Color(0.17, 0.165, 0.17);
 const ROCK_WARM = new THREE.Color(0.27, 0.23, 0.2);
+/** Summer's range under its snow: the high pasture and the scree. */
+const PASTURE = new THREE.Color(0.2, 0.27, 0.1);
+const SCREE = new THREE.Color(0.36, 0.34, 0.31);
 
-function buildPeaks(): THREE.BufferGeometry {
+function buildPeaks(summer: boolean): THREE.BufferGeometry {
   const rings = 70;
   const spokes = 220;
   const pos: number[] = [];
@@ -160,6 +177,15 @@ function buildPeaks(): THREE.BufferGeometry {
     const scour = 0.35 * smoothstep(900, 1500, mid);
     const rock = Math.min(1, steep + scour * (1 - n.y));
     c.copy(SNOW).lerp(jitter > 0.08 ? ROCK_WARM : ROCK, rock);
+    if (summer) {
+      // In summer the snow holds on only high and gentle; under it scree,
+      // and the pasture low on the gentle faces.
+      const snowy = smoothstep(1250, 1650, mid + jitter * 900) * smoothstep(0.78, 0.9, n.y);
+      const green = (1 - smoothstep(300, 900, mid + jitter * 600)) * smoothstep(0.7, 0.85, n.y);
+      c.copy(jitter > 0.08 ? ROCK_WARM : SCREE)
+        .lerp(PASTURE, green)
+        .lerp(SNOW, snowy);
+    }
     for (const p of [a, b, d]) {
       pos.push(p.x, p.y, p.z);
       col.push(c.r, c.g, c.b);
@@ -255,17 +281,60 @@ totalEmissiveRadiance += vec3(1.0, 0.98, 0.94) * glint * near * 2.2 * max(0.0, u
   return m;
 }
 
+/** THE MEADOW AS SHADED, in summer: grass in tussocks of their own shade
+ * and a dirt trail down the run where
+ * the piste was, wandering a little, its two wheel lines worn darker. */
+function meadowMaterial(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWorld;")
+      .replace(
+        "#include <worldpos_vertex>",
+        "#include <worldpos_vertex>\nvWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+varying vec3 vWorld;
+float stageHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float stageNoise(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(stageHash(i), stageHash(i + vec2(1.0, 0.0)), f.x),
+             mix(stageHash(i + vec2(0.0, 1.0)), stageHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}`,
+      )
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+float tuft = stageNoise(vWorld.xz * 1.7) * 0.6 + stageNoise(vWorld.xz * 0.21) * 0.4;
+vec3 grass = mix(vec3(0.13, 0.21, 0.06), vec3(0.30, 0.38, 0.12), tuft);
+grass = mix(grass, vec3(0.42, 0.40, 0.22), 0.35 * smoothstep(0.62, 0.9, stageNoise(vWorld.xz * 0.05)));
+float wander = 0.9 * sin(vWorld.z * 0.045) + 0.4 * sin(vWorld.z * 0.13 + 1.3);
+float across = abs(vWorld.x - wander);
+float trail = (1.0 - smoothstep(0.75, 1.15, across + (stageNoise(vWorld.xz * 3.0) - 0.5) * 0.3))
+  * (1.0 - smoothstep(180.0, 260.0, vWorld.z));
+vec3 dirt = mix(vec3(0.30, 0.23, 0.16), vec3(0.42, 0.34, 0.25), stageNoise(vWorld.xz * 6.0));
+float ruts = 1.0 - 0.25 * (1.0 - smoothstep(0.05, 0.16, abs(across - 0.32)));
+dirt *= ruts;
+diffuseColor.rgb = mix(grass, dirt, trail);`,
+      );
+  };
+  return m;
+}
+
 /** THE SKY: the deep blue overhead paling to the haze at the horizon, warm
  * toward the sun. */
-function buildSky(): THREE.Mesh {
+function buildSky(sky: (typeof SKIES)[keyof typeof SKIES]): THREE.Mesh {
   const material = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
     uniforms: {
-      uZenith: { value: ZENITH },
-      uHorizon: { value: HORIZON },
-      uWarm: { value: WARM },
+      uZenith: { value: sky.zenith },
+      uHorizon: { value: sky.horizon },
+      uWarm: { value: sky.warm },
       uSun: { value: SUN_DIR },
     },
     vertexShader: `varying vec3 vDir;
@@ -286,10 +355,10 @@ void main() {
   #include <colorspace_fragment>
 }`,
   });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(50000, 32, 16), material);
-  sky.renderOrder = -1;
-  sky.frustumCulled = false;
-  return sky;
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(50000, 32, 16), material);
+  dome.renderOrder = -1;
+  dome.frustumCulled = false;
+  return dome;
 }
 
 /** THE PISTE'S MARKERS down both edges: a post in the run's colour with an
@@ -318,8 +387,13 @@ function buildMarkers(group: THREE.Group, owned: (THREE.BufferGeometry | THREE.M
 
 /** THE WOODS: a stand of spruce and fir to his left on the run's shoulder
  * and the valley's forest below — the forest's own shapes, instanced. */
-function buildWoods(group: THREE.Group, owned: (THREE.BufferGeometry | THREE.Material)[]): void {
-  const paint = treePaint(regionLookOf("alpine"));
+function buildWoods(
+  group: THREE.Group,
+  owned: (THREE.BufferGeometry | THREE.Material)[],
+  summer: boolean,
+): void {
+  const winter = treePaint(regionLookOf("alpine"));
+  const paint = summer ? summerPaint(winter) : winter;
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.9,
@@ -377,26 +451,29 @@ function buildWoods(group: THREE.Group, owned: (THREE.BufferGeometry | THREE.Mat
 
 export type Backdrop = {
   group: THREE.Group;
-  /** The near snow, which takes the skier's shadow. */
+  /** The near snow (or summer's meadow), which takes the skier's shadow. */
   snow: THREE.Mesh;
+  /** The haze the far world dissolves into — the sky's own horizon. */
+  haze: THREE.Color;
   dispose: () => void;
 };
 
-export function createBackdrop(): Backdrop {
+export function createBackdrop(summer = false): Backdrop {
   const group = new THREE.Group();
   const owned: (THREE.BufferGeometry | THREE.Material)[] = [];
-  const sky = buildSky();
+  const colours = summer ? SKIES.summer : SKIES.winter;
+  const sky = buildSky(colours);
   owned.push(sky.geometry, sky.material as THREE.Material);
   group.add(sky);
 
   const groundGeo = buildGround();
-  const groundMat = snowMaterial();
+  const groundMat = summer ? meadowMaterial() : snowMaterial();
   owned.push(groundGeo, groundMat);
   const snow = new THREE.Mesh(groundGeo, groundMat);
   snow.receiveShadow = true;
   group.add(snow);
 
-  const peaksGeo = buildPeaks();
+  const peaksGeo = buildPeaks(summer);
   const peaksMat = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.95,
@@ -406,16 +483,15 @@ export function createBackdrop(): Backdrop {
   owned.push(peaksGeo, peaksMat);
   group.add(new THREE.Mesh(peaksGeo, peaksMat));
 
-  buildMarkers(group, owned);
-  buildWoods(group, owned);
+  // The piste's poles are a winter's: in summer the trail goes unmarked.
+  if (!summer) buildMarkers(group, owned);
+  buildWoods(group, owned, summer);
   return {
     group,
     snow,
+    haze: colours.horizon,
     dispose: () => {
       for (const o of owned) o.dispose();
     },
   };
 }
-
-/** The haze the far world dissolves into — the sky's own horizon. */
-export const HAZE = HORIZON;

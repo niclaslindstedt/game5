@@ -37,9 +37,20 @@ import { buildBinding, buildDeck, buildSoftBoot, type Paint } from "./board-body
 import { sheetOf } from "./board-look.ts";
 import { boardPose, frontIndex, type BoardFrame, type BoardPose } from "./board-pose.ts";
 import { boardUnderFeet } from "./board-thrown.ts";
-import { createLimbEase, easeLimbs, resetLimbEase } from "./board-ease.ts";
+import {
+  createLimbEase,
+  createReadingEase,
+  easeLimbs,
+  easeReadings,
+  follow,
+  TUCK_EASE,
+  type Follow,
+  resetLimbEase,
+  carryDeck,
+  type DeckCarry,
+} from "./board-ease.ts";
 import { easeGrab, isBoardGrab, type GrabEase } from "./board-grab.ts";
-import { createTuck, uprightSkier } from "./skier-somersault.ts";
+import { createTuck, uprightSkier, type SomersaultShape } from "./skier-somersault.ts";
 import {
   BOARD_SEAT_Y,
   boardLiftPose,
@@ -63,7 +74,7 @@ import { boardTownPose, rideLift, streetOver, townLift, townMove } from "./town-
 import { buildHeadlamp } from "./headlamp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
-import { boardInputOf, boardOf, easeFakie, easeFree } from "./board-input.ts";
+import { boardInputOf, boardOf, easeDrop, easeFakie, easeFree } from "./board-input.ts";
 import { outfitKey } from "./dress.ts";
 import { createFigureHandOff, createSkier } from "./skier-figure.ts";
 import { createSkierSpring, restSkierSpring, stepSkierSpring } from "./skier-pose.ts";
@@ -102,10 +113,6 @@ function restInput(out: readonly [number, number]): SkierPoseInput {
     spread: out,
   };
 }
-
-/** How long his legs take to carry him up to a deck come up under him, s
- * (a time constant). */
-const SAG_EASE = 0.12;
 
 export function createBoardModel(
   spec: SkiSpec,
@@ -216,10 +223,16 @@ export function createBoardModel(
   const limbs = createLimbEase();
   // How far round he is drawn to ride fakie (`easeFakie`).
   let fakieShare = 1;
-  /** The feet's lift as his legs carry him up to it (`SAG_EASE`), m. */
-  let carried = Number.NaN;
+  // The readings the pose is shaped by, eased (`easeReadings`).
+  const readings = createReadingEase();
+  /** The feet's lift as his legs carry him up to it (`carryDeck`). */
+  let carried: DeckCarry | null = null;
+  /** Each foot's lift as drawn last frame (`easeDrop`), m. */
+  let dropped: [number, number] | null = null;
   let grabEase: GrabEase = { grab: null, share: 0 };
   const tuck = createTuck();
+  let tucked: Follow | null = null;
+  let lastShape: SomersaultShape | undefined;
   // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
   // basket and the helicopter's skid he is on, if any; the run he rides.
   const seatEase = createSeatEase();
@@ -374,19 +387,23 @@ export function createBoardModel(
       easeSeat(seatEase, skier.lift, false, dt);
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride" && !town;
       const still = off || town || boarded || inBasket || hung || skydive || seatEase.seated > 0;
-      const { input, incline: lean, lift } = boardInputOf(skier, legs, at.q);
+      const { input, incline: lean, lift: raw } = boardInputOf(skier, legs, at.q);
+      // The feet let down over a moment, never rung frame to frame (`easeDrop`).
+      dropped = still ? null : easeDrop(dropped, raw, dt);
+      const lift = dropped ?? raw;
+      input.lift = lift;
       // THE DECK COME UP UNDER HIM: a landing stops the deck in a step and
       // the engine's legs take it at once, but his hips are drawn off the
-      // deck — so the lift is carried up to over `SAG_EASE` s and what is
+      // deck — so the lift is carried on a spring (`carryDeck`) and what is
       // still owed is folded into his knees (`BoardPoseInput.sag`), never
       // a hop of the whole body in a frame.
       const mean = (lift[0] + lift[1]) / 2;
-      if (still || Number.isNaN(carried) || mean < carried) carried = mean;
-      else carried += (mean - carried) * (1 - Math.exp(-Math.max(0, dt) / SAG_EASE));
-      input.sag = mean - carried;
+      carried = carryDeck(carried, mean, dt, Boolean(still));
+      input.sag = mean - carried.at;
       // The rear foot drawn out of its binding or back in over a moment.
       freeShare = easeFree(freeShare, input.free, dt);
       input.freeShare = freeShare;
+      easeReadings(readings, input, still ? 0 : dt);
       fakieShare = easeFakie(fakieShare, input.switched, dt);
       input.fakieShare = fakieShare;
       // The grab held in the air drawn in, and let go, over a moment.
@@ -394,11 +411,15 @@ export function createBoardModel(
       // ...and a LOOP the lean has thrown turned tucked, a hand on the board
       // (`skier-somersault.ts`): an indy backward, a mute forward.
       tuck.step(off || town ? null : flip, dt);
-      const fs = grabEase.share > 0 ? undefined : tuck.shape();
+      const shaped = grabEase.share > 0 ? undefined : tuck.shape();
+      tucked = follow(tucked, shaped?.tuck ?? 0, TUCK_EASE, still ? 0 : dt);
+      if (shaped) lastShape = shaped;
+      const fs = tucked.at > 1e-3 && lastShape ? { ...lastShape, tuck: tucked.at } : undefined;
       input.grab = fs ? (fs.dir < 0 ? "mute" : "indy") : grabEase.grab;
       input.grabShare = fs ? fs.tuck : grabEase.share;
       // ...the knees pulled up into it with the hand, let down to open.
-      if (fs) input.crouch = Math.max(input.crouch, fs.tuck);
+      // (A soft union of the two, never a max's kink where one overtakes.)
+      if (fs) input.crouch = 1 - (1 - input.crouch) * (1 - fs.tuck);
       const r = still ? 0 : lean;
       const reach = spec.cogHeight - (lift[0] + lift[1]) / 2 - spec.crouchDrop * skier.crouch;
       pivot.set(reach * Math.sin(r), reach * (1 - Math.cos(r)), 0).applyQuaternion(root.quaternion);

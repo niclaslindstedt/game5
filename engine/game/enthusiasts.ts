@@ -202,6 +202,7 @@ export function dealEnthusiasts(state: GameState, count: number): void {
     // the player's run: an enthusiast skis.
     run.heli = undefined;
     run.sled = undefined;
+    run.chairHands = undefined;
     run.para = undefined;
     run.balloon = undefined;
     run.plane = undefined;

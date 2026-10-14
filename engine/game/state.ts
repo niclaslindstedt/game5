@@ -877,6 +877,11 @@ export type GameState = ContestState & {
    * and the picture draws the summer ground (`summer-ground.ts`). Absent
    * on every other run. */
   summer?: true;
+  /** THE SHOWCASE'S TAKE (`CreateGameOptions.showcase`): present only on
+   * the menu's backdrop run, counting the times it has been stood up on
+   * this map, so the daring bot (`daring.ts`) roams and tricks a new way
+   * each take. Read, never written, during a run. */
+  showcase?: number;
   /** THE NEW SNOW, m: what the fall (`snowfall.ts`) has laid since the run
    * was stood up — 0 under a sky that does not snow, centimetres an hour
    * under one that does. Written once a step by `step`, shared with the
@@ -907,6 +912,10 @@ export type GameState = ContestState & {
   stakes?: import("./edge-stakes.ts").StakeState;
   /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
+  /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
+   * app asks for it, absent everywhere else — the labs, the suite and every
+   * rival stood off at the top as ever, so no digest moves. */
+  chairHands?: true;
   /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
   heli?: HeliState;
   sled?: SledState;

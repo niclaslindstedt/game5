@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // WHAT THE THUMBS SHOW (`pwa/src/game/thumb-glyphs.ts`): the skis on the
-// snow, and in a wingsuit — which carries none — the suit, under its canopy
+// snow, the downhill bike's handlebar on it, and in a wingsuit — which carries none — the suit, under its canopy
 // the canopy, and down on his boots the boots; and the suit's planform
 // swept and spread with the lever.
 
 import { describe, expect, it } from "vitest";
-import { TUNING, createGame, skydiveAt, step, wingsuitInput } from "@engine";
+import { TUNING, createGame, freshBike, skydiveAt, step, wingsuitInput } from "@engine";
 
 import { leverSpread, padGlyphOf, suitPlanform } from "../pwa/src/game/thumb-glyphs.ts";
 import { flatLevel } from "./support/synthetic.ts";
@@ -31,6 +31,17 @@ describe("padGlyphOf", () => {
     expect(seen.has("canopy")).toBe(true);
     expect(seen.has("skis")).toBe(false);
     expect(s.chute?.mode).toBe("landed");
+    expect(padGlyphOf(s)).toBe("boots");
+  });
+
+  it("draws the handlebar on the downhill bike, and the boots walking beside it", () => {
+    const s = createGame({ level, mode: "free", crowd: 0, quiet: true });
+    const b = freshBike();
+    s.bike = b;
+    b.onIt = true;
+    expect(padGlyphOf(s)).toBe("bike");
+    b.onIt = false;
+    b.afoot = { walked: 0, pace: 0, push: false };
     expect(padGlyphOf(s)).toBe("boots");
   });
 });

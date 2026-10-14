@@ -55,6 +55,7 @@ import {
   MODE_RULES,
   RACE,
   fieldRules,
+  showcaseRules,
   skiCrossHeatRules,
   clampResilience,
   clampSnowDepth,
@@ -193,6 +194,12 @@ export type CreateGameOptions = {
   /** How many rivals stand on the start line (`RACE.rivals` when left out;
    * 0 is a solo run — what the sim and the labs ski). */
   rivals?: number;
+  /** THE SHOWCASE (`showcaseRules`): the menu's backdrop run, the whole
+   * mountain the daring bot's to roam and trick on, nobody else out — its
+   * TAKE, how many times it has been stood up on this map before
+   * (`GameState.showcase`). Read only when no `mode` is asked; the field on
+   * the start line when left out. */
+  showcase?: number;
   /** Runs to the finish; the level's own (one) when left out. */
   laps?: number;
   /** Seconds of lights before GO (`RACE.countdown`; 0 for none). */
@@ -248,6 +255,11 @@ export type CreateGameOptions = {
    * (the app asks for it only without a spot: a spot picked is where the
    * ride starts). */
   byLift?: boolean;
+  /** THE PLAYER'S CHAIRS LEFT ONLY BY HAND (`chair-hands.ts`): sat on until
+   * forward is pressed with the safety bar up — stood up over the unload,
+   * thrown off anywhere else — and ridden round and back down untouched.
+   * Left out, a chair stands him up at the top as ever. */
+  chairHands?: boolean;
   /** A FREE RIDE begun ON THE HELICOPTER (`heli.ts`): sat on its skid on
    * its pad on the valley floor, the rotor turning, the controls the
    * helicopter's. Wins over `byLift` and `spawn`. Ignored by every mode
@@ -384,7 +396,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
       ? skiCrossHeatRules(laps, crossCountdown(options.seed ?? level.seed, cross))
       : options.mode
         ? MODE_RULES[options.mode](laps)
-        : fieldRules(laps);
+        : options.showcase !== undefined
+          ? showcaseRules(laps)
+          : fieldRules(laps);
   return {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
@@ -596,6 +610,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   };
   if (piste) state.piste = piste;
   if (summer) state.summer = true;
+  if (options.showcase !== undefined && !options.mode) state.showcase = options.showcase;
   const free = options.mode === "free";
   // A FREE RIDE STARTED AGAIN stands at the top of the run named.
   const head =
@@ -607,6 +622,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       ? freeSpawn(level, options.spawn.x, options.spawn.z)
       : (head ?? gridSlot(state, 0));
   standSkier(state, at.x, at.z, at.heading);
+  if (options.chairHands) state.chairHands = true;
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
   if (rules.afterski) state.afterski = freshAfterski();

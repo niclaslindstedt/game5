@@ -16,12 +16,13 @@
 //
 // Three-free, so the suite reads it.
 
-import { BIKE, BIKE_BB, type BikePose } from "@engine";
+import { BIKE, BIKE_BB, type BikePose, type BikeState } from "@engine";
 
 import { GRIPS, bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
 import type { RideStyle } from "./bike-ride-style.ts";
 import { ANKLE, keyOf, keyPoints, movePose, type Key } from "./party-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
+import { drawnPose, riddenStyle, riderSpringsOf, springPoints } from "./rider-springs.ts";
 import type { SkierPose } from "./skier-pose.ts";
 
 const v = (x: number, y: number, z: number): V3 => ({ x, y, z });
@@ -159,6 +160,32 @@ export function riderPose(
  * pedals. */
 export function riderPoints(pose: BikePose, style?: RideStyle): number[] {
   return keyPoints(style ? freerideKey(pose, style) : riderKey(pose), 0);
+}
+
+/** THE RIDER ON BIKE `b` AS SPRINGS (`rider-springs.ts`) at the run's
+ * clock `t`: the bike's pose as drawn (its cranks), the style as ridden
+ * (its foot out), and his joints off the sprung body — the stance asked
+ * by the key, what he does between its moments by his body's own physics. */
+export function riderOnBike(
+  b: BikeState,
+  t: number,
+  style?: RideStyle,
+): { pose: BikePose; style?: RideStyle; points: number[] } {
+  const sp = riderSpringsOf(b, t, style);
+  const pose = drawnPose(sp, b);
+  const ridden = style ? riddenStyle(sp, style) : undefined;
+  const key = ridden ? freerideKey(pose, ridden) : riderKey(pose);
+  return { pose, style: ridden, points: springPoints(sp, key) };
+}
+
+/** THE SPRUNG RIDER as a stood pose (`SkisModel.setStood`). */
+export function riderPoseOn(
+  b: BikeState,
+  t: number,
+  style?: RideStyle,
+): (ground: number, frame: BodyFrame) => SkierPose {
+  const points = riderOnBike(b, t, style).points;
+  return (_ground, frame) => ragdollPose(points, frame);
 }
 
 /** WHERE HIS NEAR HAND HOLDS THE BIKE HE PUSHES, in his own frame (x his

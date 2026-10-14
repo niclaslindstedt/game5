@@ -126,13 +126,16 @@ const CHARTS = [
 /** One frame measured: the figures, and the joints in the world. */
 function measure(s, t) {
   const b = s.bike;
-  const pose = E.bikePose(b);
-  const style = styled ? ST.rideStyleOf(b, s.level, s.t) : undefined;
   const on = b.onIt && !s.skier.thrown && b.mode !== "lift";
   // Off it (thrown, afoot, on the chair) he is not measured against the
   // bike: a gap in every line.
   if (!on) return { t, on: false };
-  const pts = SB.riderPoints(pose, style);
+  // The rider as the game draws him, and the bike as drawn under him (its
+  // cranks): `skier-bike.ts`'s `riderOnBike`, stepped once a frame.
+  const rode = SB.riderOnBike(b, s.t, styled ? ST.rideStyleOf(b, s.level, s.t) : undefined);
+  const pose = rode.pose;
+  const style = rode.style;
+  const pts = rode.points;
   const at = (i) => ({ x: pts[3 * i], y: pts[3 * i + 1], z: pts[3 * i + 2] });
   const bb = BL.bracketFromRider(pose);
   const turn = (p) =>

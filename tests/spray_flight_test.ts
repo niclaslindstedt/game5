@@ -3,9 +3,11 @@
 // GPU ring flies in its vertex shader — held to the CPU pool's own flight
 // (`spray-mass-pool.ts`): every parcel a stop throws, launched once and flown
 // both ways, sampled at every frame of its life. The CPU steps at the
-// frame; the clock's form solves a fixed grid of its own; they agree to a
-// few centimetres where a plume is metres across, and a plume's height and
-// reach — what the film score reads — to a few per cent.
+// frame; the clock's form solves a fixed grid of its own and lays the
+// pool's frame on it (its lag, its landing on a frame); they agree to a
+// centimetre or two where a plume is metres across, the fade to a frame,
+// and a plume's height and reach — what the film score reads — to a few
+// per cent.
 
 import { describe, expect, it } from "vitest";
 
@@ -122,9 +124,9 @@ describe("the spray flown off the clock", () => {
         reachGpu.push(Math.hypot(out.x - t.l.x, out.z - t.l.z));
       }
       // Each parcel, every frame: centimetres apart where a plume is metres.
-      expect(q(err, 0.5)).toBeLessThan(0.08);
-      expect(q(err, 0.9)).toBeLessThan(0.25);
-      expect(q(alpha, 0.9)).toBeLessThan(0.03);
+      expect(q(err, 0.5)).toBeLessThan(0.03);
+      expect(q(err, 0.9)).toBeLessThan(0.12);
+      expect(q(alpha, 0.9)).toBeLessThan(0.01);
       // The plume as the film score reads it: its height and its reach.
       for (const p of [0.5, 0.9]) {
         expect(Math.abs(q(highGpu, p) - q(highCpu, p))).toBeLessThan(0.05 + 0.06 * q(highCpu, p));
@@ -138,6 +140,7 @@ describe("the spray flown off the clock", () => {
   it("states the same numbers in its GLSL as in its TypeScript", () => {
     expect(SPRAY_FLIGHT_GLSL).toContain(`const int FLY_STEPS = ${FLIGHT.steps};`);
     expect(SPRAY_FLIGHT_GLSL).toContain(`const int FLY_SLIDE = ${FLIGHT.slide};`);
+    expect(SPRAY_FLIGHT_GLSL).toContain(`const float FLY_FIRST = ${FLIGHT.first};`);
     expect(SPRAY_FLIGHT_GLSL).toContain(`const float FLY_KEEP = ${MASS.roll.keep};`);
     expect(SPRAY_FLIGHT_GLSL).toContain(`const float FLY_MU = ${MASS.roll.mu};`);
     expect(SPRAY_FLIGHT_GLSL).toContain("bool sprayParcel(");

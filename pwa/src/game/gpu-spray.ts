@@ -39,12 +39,21 @@ const SLOT = 20;
 /** The ring's clock is rebased past this, s, so a long ride's birth times
  * keep a 32-bit float's millimetres. */
 const REBASE = 600;
-/** The ring's slots over the CPU pool's at the same SPRAY share. A ring is
- * first in, first out, and a clump's splash is written when it is thrown
- * though born when it lands: at the pool's own size the ring would cut a
- * stop's plume short at its peak (a third fewer grains in the air on a
- * LOW hockey stop); at half as many again it holds what the pool does. */
+/** The ring's slots over the CPU pool's at the same SPRAY share. A clump's
+ * splash is written when it is thrown though born when it lands, so the
+ * ring holds those still to come beside the pool's own count (`uOldest`
+ * cuts it to what the pool holds): at the pool's own size it would cut a
+ * stop's plume short at its peak (a third fewer grains in the air on a LOW
+ * hockey stop). */
 const RING = 1.5;
+
+/** THE POOL'S MEMORY, KEPT: the CPU pool holds its last `keep` parcels —
+ * first in, first out, a clump's splash counted when it is born — and so
+ * does the ring, by the birth of the `keep`-th youngest (`uOldest`), so a
+ * plume saturating the pool is cut where the pool cuts it. Births a frame
+ * shares are counted together (`Born`), the splashes still to be born kept
+ * aside (`pending`). */
+type Born = { birth: number; count: number };
 
 export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: number): Spray {
   const capacity = Math.round(pool0 * RING);
@@ -72,6 +81,7 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
       uStreak: { value: 1 },
       uTime: { value: 0 },
       uNow: { value: 0 },
+      uOldest: { value: -1e9 },
       ...SHELTER,
     },
     vertexShader: sprayVertex(SPRAY_FLIGHT_GLSL),
@@ -97,6 +107,45 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
   let whole = false;
   let level: Level | null = null;
   const n = { x: 0, y: 1, z: 0 };
+  // What the pool would still hold (`Born`): the frames' births, oldest
+  // first, the splashes to come, the launches this frame and the cut.
+  let keep = pool0;
+  let born: Born[] = [];
+  let pending: number[] = [];
+  let thrown = 0;
+  let oldest = -1e9;
+
+  /** The births now due counted, and the cut moved to the `keep`-th
+   * youngest — a frame's launches kept or cut whole, whichever is nearer. */
+  function recount(at: number, frame: number) {
+    if (thrown > 0) born.push({ birth: frame, count: thrown });
+    thrown = 0;
+    if (pending.length) {
+      const due = pending.filter((b) => b <= at).sort((a, b) => a - b);
+      if (due.length) {
+        pending = pending.filter((b) => b > at);
+        for (const b of due) {
+          const last = born[born.length - 1];
+          if (last && last.birth === b) last.count++;
+          else born.push({ birth: b, count: 1 });
+        }
+      }
+    }
+    let total = 0;
+    let k = born.length - 1;
+    for (; k >= 0; k--) {
+      total += born[k].count;
+      if (total >= keep) break;
+    }
+    if (k < 0) {
+      oldest = -1e9;
+      return;
+    }
+    // Over by more with this frame than short without it: cut it.
+    if (total - keep > keep - (total - born[k].count) && k + 1 < born.length) k++;
+    oldest = born[k].birth;
+    if (k > 0) born = born.slice(k);
+  }
 
   function flush() {
     if (dirtyCount <= 0) return;
@@ -137,6 +186,8 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
       d0[k + 1] = l.y;
       d0[k + 2] = l.z;
       d0[k + 3] = now - epoch + delay;
+      if (delay > 0) pending.push(now - epoch + delay);
+      else thrown++;
       d1[k] = l.vx;
       d1[k + 1] = l.vy;
       d1[k + 2] = l.vz;
@@ -157,11 +208,13 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
   };
   const pool = createMassPool(pool0, {}, sink);
 
-  /** Slot `i` read back as a launch, and its age now. */
+  /** Slot `i` read back as a launch, and its age now (−1 cut). */
   const back = emptyLaunch();
   function launchAt(i: number): number {
     const k = i * 4;
     const [d0, d1, d2, d3, d4] = data;
+    // Cut as the pool would have overwritten it: never seen again.
+    if (d0[k + 3] < oldest) return -1;
     back.x = d0[k];
     back.y = d0[k + 1];
     back.z = d0[k + 2];
@@ -205,6 +258,8 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
       level = lv;
       setAirKey(material.uniforms.uKeyCol.value as THREE.Color, look);
       material.uniforms.uTime.value += dt;
+      // This frame's launches were born at the clock before it moves on.
+      let frame = now - epoch;
       now += dt;
       // The wind the next launches leave into.
       pool.step(dt, lv);
@@ -213,9 +268,14 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
         const shift = now - epoch;
         epoch = now;
         for (let i = 0; i < used; i++) data[0][i * 4 + 3] -= shift;
+        for (const b of born) b.birth -= shift;
+        pending = pending.map((b) => b - shift);
+        frame -= shift;
         whole = true;
       }
       material.uniforms.uNow.value = now - epoch;
+      recount(now - epoch, frame);
+      material.uniforms.uOldest.value = oldest;
       if (whole) {
         for (const at of attrs) {
           at.clearUpdateRanges();
@@ -247,6 +307,7 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
     },
     setBudget(next) {
       pool.setBudget(next);
+      keep = Math.max(1, Math.round(pool0 * Math.max(0, Math.min(1, next))));
       cap = Math.max(1, Math.round(capacity * Math.max(0, Math.min(1, next))));
       head %= cap;
       if (used > cap) used = cap;
@@ -260,6 +321,10 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
       whole = true;
       used = 0;
       head = 0;
+      born = [];
+      pending = [];
+      thrown = 0;
+      oldest = -1e9;
       geometry.instanceCount = 0;
     },
     bits(out: PlumeBit[]) {

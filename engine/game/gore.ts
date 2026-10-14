@@ -498,6 +498,21 @@ function impale(state: GameState, g: GoreState, events: GameEvent[]): void {
       const dy = P[j + 1] - top;
       if (L[j + 1] - top < -I.below || dy > I.above || dy < -I.below) continue;
       if (hypot(L[j] - s.x, L[j + 2] - s.z) > I.reach) continue;
+      if (i >= R.head) {
+        // A limb or the head: torn open on the tip and carried on past it.
+        if (!g.gashes.some((h) => h.point === i)) {
+          g.gashes.push({ point: i, t: state.t, x: P[j], y: P[j + 1], z: P[j + 2] });
+          events.push({
+            kind: "gore",
+            t: state.t,
+            what: "gash",
+            x: P[j],
+            y: P[j + 1],
+            z: P[j + 2],
+          });
+        }
+        continue;
+      }
       const sunk = Math.max(0, -dy);
       g.impaled = {
         x: s.x,
@@ -512,8 +527,8 @@ function impale(state: GameState, g: GoreState, events: GameEvent[]): void {
       };
       b.pin = { point: i, x: s.x, y: top - g.impaled.sunk, z: s.z };
       events.push({ kind: "gore", t: state.t, what: "impaled", x: s.x, y: top, z: s.z });
-      // Through the trunk or the head, at once; a limb, slowly.
-      mortalBy(state, g, i <= R.head ? "impaled" : "bled");
+      // Through the trunk: at once.
+      mortalBy(state, g, "impaled");
       return;
     }
   }
@@ -671,6 +686,7 @@ function flowOf(g: GoreState, state: GameState): { spurt: number; ooze: number }
   for (let k = 0; k < GORE_OPEN.length; k++)
     if (g.open & (1 << k)) add(F[GORE_OPEN[k]], state.t - opened);
   if (g.impaled) add(F.impaled, state.t - g.impaled.t);
+  for (const h of g.gashes) add(F.gash, state.t - h.t, false);
   if (g.crushed >= 0) add(F.crush, state.t - g.crushed);
   // A long bone broken out through the skin oozes where it stands out.
   const grades = fracturesOf(state.skier.body);

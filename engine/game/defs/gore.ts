@@ -79,7 +79,9 @@ export const GORE = {
   /** RUN THROUGH: a point of the body coming down onto a spike's tip — a
    * tree's top, or a post's of no more than `post` m radius — inside
    * `reach` m of its axis and no more than `above` m over it nor `below`
-   * under it, going down faster than `speed` m/s. It slides on down the
+   * under it, going down faster than `speed` m/s — the trunk's points
+   * only (the hips and the shoulders); a limb or the head that comes down
+   * so is torn open on it instead (`Gash`). It slides on down the
    * spike, slowed — on a post `sink` m under the tip at the most. */
   impale: {
     post: 0.16,
@@ -115,6 +117,7 @@ export const GORE = {
       abdomen: 0.12,
       crush: 0.22,
       impaled: 0.2,
+      gash: 0.05,
       fracture: 0.03,
     },
     /** A TORN ARTERY CLOSING: the share of a wound's flow that spurts

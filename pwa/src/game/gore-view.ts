@@ -690,13 +690,10 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
         spike = meshOf(spikeGeo);
         group.add(spike);
       }
-      if (g.impaled && spike) {
-        const i = g.impaled;
-        // The bloodied point stands out of him by how far he has slid.
-        const len = Math.min(0.6, 0.18 + i.sunk);
-        spike.scale.set(1, len / 0.6, 1);
-        spike.position.set(i.x, i.y - i.sunk - 0.18, i.z);
-      }
+      // The bloodied point stands out of him by how far he has slid.
+      const i = g.impaled;
+      if (i && spike) spike.scale.set(1, Math.min(0.6, 0.18 + i.sunk) / 0.6, 1);
+      if (i && spike) spike.position.set(i.x, i.y - i.sunk - 0.18, i.z);
       trees.update(state);
 
       // THE BODY'S STUMPS and the opened trunk, carried on his skin.
@@ -845,6 +842,12 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
           ...arterial(GORE.blood.flow.impaled, state.t - i.t),
           key: "spike",
         });
+      }
+      // A limb or the head torn open on a spike's tip welling where it tore.
+      for (const h of g.gashes) {
+        const share = GORE.blood.flow.gash * woundFlow(state.t - h.t, false).ooze;
+        const at = world(f[POINT_BONE[h.point]].head, M);
+        wounds.push({ at, dir: new THREE.Vector3(0, 1, 0), share, key: `gash${h.point}` });
       }
       // Every open fracture bleeds where the bone stands out.
       for (const [bone, mesh] of fractures) {

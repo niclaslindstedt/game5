@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE TREE HE IS RUN THROUGH, RED — a skier come down onto a tree's top
-// (`GoreState.impaled`) sinks down its stem, and the tree takes his blood:
-// red from its tip down past him at once, where he was dragged down it,
-// and running on down the boughs below him until the whole tree is red.
+// THE TREE HE IS RUN THROUGH, RED AT ITS TIP — a skier come down onto a
+// tree's top (`GoreState.impaled`) sinks down its stem, and the stem he
+// was dragged down takes his blood: red from the tip to a little under
+// where he hangs, and green below.
 //
 // The woods are not touched. The tree is drawn a second time over itself —
 // the same variant, place, lean, size and girth (`tree-place.ts`), a hair
 // larger and pulled toward the lens — in a material that paints its own
 // colours as blood (the snow on the boughs a bright red, the needles a
-// dark one, the bark near black) above a ragged front that runs down it
-// and draws nothing below it, so under the front the wood is its own.
+// dark one, the bark near black) above a ragged edge
+// and draws nothing below it, so under it the wood is its own.
 // Only a run with the mortal wounds has it (`gore-view.ts`), so a run
 // with the INJURIES switch off never sees one.
 
@@ -25,17 +25,15 @@ import { treeVariant, VARIANTS } from "./tree-variants.ts";
 
 type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 
-/** How the blood takes the tree: the share of its height red below where
- * he hangs at once (`under`), how fast the front runs on down it (`run`,
- * of the height a second, the tree red to its foot in a few seconds), and
- * how ragged it is (`ragged`, of the height either way). */
-export const BLOOD_TREE = { under: 0.06, run: 0.1, ragged: 0.08, grow: 1.02 } as const;
+/** How the blood takes the tree: `under` m red below where he hangs, how
+ * ragged the edge is (`ragged`, of the height either way), and how much
+ * larger than the tree it is drawn (`grow`). */
+export const BLOOD_TREE = { under: 0.35, ragged: 0.03, grow: 1.02 } as const;
 
-/** The share of the tree red, from its tip down, `since` s after he was
- * run through and hanging `sunk` m under its tip. */
-export function bloodFront(height: number, sunk: number, since: number): number {
-  const B = BLOOD_TREE;
-  return Math.min(1 + B.ragged * 2, sunk / height + B.under + B.run * Math.max(0, since));
+/** The share of the tree red, from its tip down, while he hangs `sunk` m
+ * under its tip. */
+export function bloodFront(height: number, sunk: number): number {
+  return Math.min(1, (sunk + BLOOD_TREE.under) / height);
 }
 
 export type BloodTrees = {
@@ -79,7 +77,7 @@ const BLOOD_GLSL = `
   // Streaked where it ran thick and thin, never one flat paint.
   float bloodStreak = fract(sin(dot(floor(vBloodAt.xz * 31.0 + vBloodAt.y * 3.0), vec2(39.3468, 11.135))) * 24634.6345);
   bloodRed *= mix(0.55, 1.15, bloodStreak * 0.6 + bloodWave * 0.4);
-  // Wetter and darker along the front, where it is still running.
+  // Darker along its edge, where it runs thin.
   bloodRed *= mix(0.62, 1.0, smoothstep(0.0, 0.05, bloodLeft));
   diffuseColor.rgb = bloodRed;`;
 
@@ -166,14 +164,10 @@ export function createBloodTrees(
         }
         if (mine) {
           const h = level.trees[mine.tree].height;
-          mine.front = Math.max(mine.front, bloodFront(h, live.sunk, state.t - live.t));
+          mine.front = Math.max(mine.front, bloodFront(h, live.sunk));
         }
       }
-      // A tree left from a run before this one is red to its foot.
-      for (const s of stains) {
-        if (s !== mine) s.front = bloodFront(1, 1, 1 / BLOOD_TREE.run);
-        s.uniform.value = s.front;
-      }
+      for (const s of stains) s.uniform.value = s.front;
     },
     clear() {
       for (const s of stains) forget(s);

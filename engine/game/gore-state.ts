@@ -83,6 +83,11 @@ export type Impaled = {
   t: number;
 };
 
+/** A LIMB (or the head) come down onto a spike's tip and torn open on it
+ * rather than run through: the ragdoll point, when, and where. It bleeds
+ * (`GORE.blood.flow.gash`, a vein's ooze that clots) and kills nobody. */
+export type Gash = { point: number; t: number; x: number; y: number; z: number };
+
 /** THE PLAYER'S MORTAL WOUNDS. `mortal` is the run clock of the first
  * wound he cannot live through (−1 none) — from then he is never stood back
  * up; `dead` when he died (−1 alive) and `cause` what of. THE HEART:
@@ -99,6 +104,9 @@ export type GoreState = {
   /** When the skull was crushed (−1: it was not). */
   crushed: number;
   impaled: Impaled | null;
+  /** The limbs and the head torn open on a spike's tip they came down
+   * onto (`Gash`): only the trunk is run through. */
+  gashes: Gash[];
   mortal: number;
   dead: number;
   /** THE RESET PRESSED while dying or held down (`holdsHim`): no reset
@@ -128,6 +136,7 @@ export function freshGore(): GoreState {
     open: 0,
     crushed: -1,
     impaled: null,
+    gashes: [],
     mortal: -1,
     dead: -1,
     cause: null,
@@ -156,7 +165,7 @@ export type GoreEvent =
   | {
       kind: "gore";
       t: number;
-      what: "torn" | "crush" | "open" | "impaled";
+      what: "torn" | "crush" | "open" | "impaled" | "gash";
       piece?: GorePiece | GoreOpen;
       x: number;
       y: number;

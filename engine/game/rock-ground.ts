@@ -14,8 +14,8 @@
 // The skin is the drawing's to the corner: the same lattice
 // (`ROCKS.skin.cell`), the same jitter off the same hashes, the same
 // heights over the ground and the same diagonal a cell, so what is met is
-// what is seen. (The FOREST row's cheap picture draws a coarser lattice of
-// the same rock; the physics is never a picture setting's.)
+// what is seen. (Only rock past 300 m of the lens is drawn on a coarser
+// lattice of the same rock, out where nobody rides.)
 //
 // CHEAP: nothing is stored but how bare each lattice corner is, a byte a
 // corner, a tile of corners at a time and only for a tile a body has
@@ -26,7 +26,6 @@
 
 import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { bikeTrailAt } from "../mapgen/bike-park-query.ts";
 import { regionOf } from "../mapgen/regions.ts";
 import type { Level } from "../mapgen/types.ts";
 import { ROCKS } from "./defs/rocks.ts";
@@ -175,12 +174,10 @@ function underOf(s: Skin, x: number, z: number): Under {
   u.y = ground;
   u.on = 0;
   u.bare = 0;
-  // A wall is never packed (`ROCKS.packed`): a run, and everything on it,
-  // reads the map alone.
-  if (base.packedAt(x, z) > 0.5) return u;
-  // Nor does one stand on a summer bike park's trail: its tread is cut and
-  // its shape the park's (`bike-surface.ts`), so a bike reads that alone.
-  if (base.bikePark && bikeTrailAt(base, x, z)) return u;
+  // No facet stands over packed snow or a summer bike trail: no corner
+  // within `ROCKS.skin.clear` of either is bare (`rocks.ts`' `rockShare`),
+  // so a run, a trail and everything on them read the map alone — and the
+  // rock the drawing lays is the rock met, to the corner.
   const cell = ROCKS.skin.cell;
   const i0 = Math.floor(x / cell) - 1;
   const j0 = Math.floor(z / cell) - 1;

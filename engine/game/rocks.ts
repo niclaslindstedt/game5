@@ -23,6 +23,8 @@
 // (`Region.rock`). The numbers are `defs/rocks.ts`'s.
 
 import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { nearestBikeTrailPoint } from "../mapgen/bike-park-query.ts";
+import { BIKE_PARK_RULES } from "../mapgen/bike-park-rules.ts";
 import type { Cliff, Level } from "../mapgen/types.ts";
 import { ROCKS } from "./defs/rocks.ts";
 
@@ -93,6 +95,32 @@ export function rockShare(level: Level, x: number, z: number): number {
   if (level.packedAt(x, z) > ROCKS.packed) return 0;
   level.normalAt(x, z, scratch);
   const bare = wallOf(scratch);
-  if (bare <= 0 || onAnyCliff(level, x, z, 0)) return 0;
+  if (bare <= 0 || onAnyCliff(level, x, z, 0) || nearCut(level, x, z)) return 0;
   return bare;
+}
+
+/** The ring offsets `nearCut` reads the packed snow at: a disc of
+ * `ROCKS.skin.clear` m sampled every 2.5 m, finer than any run's edge. */
+const RING: readonly (readonly [number, number])[] = (() => {
+  const r = ROCKS.skin.clear;
+  const out: [number, number][] = [];
+  for (let dz = -r; dz <= r; dz += 2.5) {
+    for (let dx = -r; dx <= r; dx += 2.5) {
+      if (dx * dx + dz * dz <= r * r) out.push([dx, dz]);
+    }
+  }
+  return out;
+})();
+
+/** Whether (x, z) lies within `ROCKS.skin.clear` m of packed snow or of a
+ * summer bike trail's footprint (its tread and its bench): the rock is
+ * kept off both, so what is drawn there is what is ridden. */
+function nearCut(level: Level, x: number, z: number): boolean {
+  for (const [dx, dz] of RING) {
+    if (level.packedAt(x + dx, z + dz) > ROCKS.packed) return true;
+  }
+  if (!level.bikePark) return false;
+  const reach = ROCKS.skin.clear + BIKE_PARK_RULES.bench.widest;
+  const near = nearestBikeTrailPoint(level, x, z, reach + 4);
+  return near !== null && near.distance < near.half + reach;
 }

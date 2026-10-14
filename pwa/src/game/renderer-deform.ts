@@ -45,6 +45,8 @@ export type DeformRig = {
 export function createDeformRig(): DeformRig {
   let snow: DeformSnow | null = null;
   let own = -1;
+  // The run's time since the last settle, s: a long frame settles twice.
+  let since = 0;
   const skis: Stamp[] = [];
   const body: Stamp[] = [];
   return {
@@ -62,6 +64,7 @@ export function createDeformRig(): DeformRig {
     },
     end(i, skier, stamps, simDt, snowAt) {
       if (i !== 0 || !snow || own < 0) return;
+      since += simDt;
       skis.length = 0;
       body.length = 0;
       // Thrown, his stamps are his body's (`thrownEffects`); else his skis'.
@@ -76,7 +79,8 @@ export function createDeformRig(): DeformRig {
       own = -1;
     },
     update(skier, on) {
-      snow?.update(skier, on);
+      snow?.update(skier, on, since);
+      since = 0;
     },
     thrown: () => snow?.thrown() ?? 0,
     clear() {

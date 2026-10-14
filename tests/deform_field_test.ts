@@ -131,6 +131,81 @@ describe("the deformable snow", () => {
     expect(cellHash(3, 4)).toBe(cellHash(3, 4));
   });
 
+  it("slumps a fresh crater's walls in a few frames, and conserves the snow", () => {
+    const f = createDeformField(LOOK);
+    f.follow(0, 0);
+    const body: Stamp = { ax: 0, az: 0, bx: 0.8, bz: 0, half: 0.31, depth: 0.6, berm: 0, wall: 0.2 };
+    f.press(body, { slide: 0, body: true }, SNOW.new);
+    const before = f.volume();
+    // The steepest wall over the hole, as a tangent, after `frames` frames.
+    const steepest = () => {
+      let s = 0;
+      for (let i = -30; i < 50; i++)
+        for (let j = -30; j < 30; j++) {
+          const h = f.heightAt(i * LOOK.cell, j * LOOK.cell);
+          const dx = f.heightAt((i + 1) * LOOK.cell, j * LOOK.cell) - h;
+          const dz = f.heightAt(i * LOOK.cell, (j + 1) * LOOK.cell) - h;
+          s = Math.max(s, Math.abs(dx) / LOOK.cell, Math.abs(dz) / LOOK.cell);
+        }
+      return s;
+    };
+    expect(steepest()).toBeGreaterThan(3);
+    // Three frames at sixty a second: no wall steeper than 62°.
+    for (let k = 0; k < 3; k++) f.relax();
+    expect(steepest()).toBeLessThan(1.9);
+    for (let k = 0; k < 30; k++) f.relax();
+    const after = f.volume();
+    expect(after.heaped - after.dug).toBeCloseTo(before.heaped - before.dug, 6);
+  });
+
+  it("draws a ski's groove with a smooth edge, not the grid's saw-tooth", () => {
+    // A groove at a shallow angle to the grid, where a cut a cell at a time
+    // steps in and out by a whole cell along its edge.
+    const f = createDeformField(LOOK);
+    f.follow(0, 0);
+    const a = 0.12;
+    const groove: Stamp = {
+      ax: -1.2 * Math.cos(a),
+      az: -1.2 * Math.sin(a),
+      bx: 1.2 * Math.cos(a),
+      bz: 1.2 * Math.sin(a),
+      half: 0.05,
+      depth: 0.1,
+      berm: 0,
+      wall: 0.6,
+    };
+    f.press(groove, still, SNOW.groomed);
+    // Across the groove every few centimetres along it: where its depth
+    // crosses half, read off the field as the mesh draws it (linear between
+    // the cells' centres).
+    const nx = -Math.sin(a);
+    const nz = Math.cos(a);
+    const sample = (x: number, z: number) => {
+      const u = x / LOOK.cell;
+      const v = z / LOOK.cell;
+      const i = Math.floor(u);
+      const j = Math.floor(v);
+      const fu = u - i;
+      const fv = v - j;
+      const h = (p: number, q: number) => f.heightAt(p * LOOK.cell, q * LOOK.cell);
+      return (
+        (h(i, j) * (1 - fu) + h(i + 1, j) * fu) * (1 - fv) +
+        (h(i, j + 1) * (1 - fu) + h(i + 1, j + 1) * fu) * fv
+      );
+    };
+    const edges: number[] = [];
+    for (let t = -0.8; t <= 0.8; t += 0.013) {
+      const cx = t * Math.cos(a);
+      const cz = t * Math.sin(a);
+      let r = 0;
+      while (r < 0.3 && sample(cx + nx * r, cz + nz * r) < -0.05) r += 0.002;
+      edges.push(r);
+    }
+    const mean = edges.reduce((s, r) => s + r, 0) / edges.length;
+    const wobble = Math.sqrt(edges.reduce((s, r) => s + (r - mean) ** 2, 0) / edges.length);
+    expect(wobble).toBeLessThan(0.1 * LOOK.cell);
+  });
+
   it("clears the cells a moved window takes over", () => {
     const f = createDeformField(LOOK);
     f.follow(0, 0);

@@ -131,6 +131,10 @@ export type DeformField = {
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;
 
+/** The relax's strides, cells, pass by pass (the last pass of a round is
+ * always 1): long ones first, so a fresh wall slumps in a few frames. */
+const STRIDES = [4, 2, 1];
+
 /** A cell's hash, 0..1 — the same cell always the same. */
 export function cellHash(i: number, j: number): number {
   let h = (Math.imul(i | 0, 0x27d4eb2d) ^ Math.imul(j | 0, 0x165667b1)) >>> 0;
@@ -178,8 +182,10 @@ export function createDeformField(look: DeformLook): DeformField {
   const firm = new Float32Array(size * size);
   const touched = new Uint8Array(size * size);
   const rgba = new Uint16Array(size * size * 4);
-  // Each cell's repose jitter, fixed to the world cell it holds.
+  // Each cell's repose jitter, and a crater's ragged rim through it, fixed
+  // to the world cell it holds (worked out once, as the cell is claimed).
   const rough = new Float32Array(size * size);
+  const rimOf = new Float32Array(size * size);
   const put = (k: number) => {
     rgba[k * 4] = toHalf(h[k]);
     rgba[k * 4 + 1] = touched[k] ? 0x3c00 : 0;
@@ -214,6 +220,7 @@ export function createDeformField(look: DeformLook): DeformField {
     firm[k] = 0;
     touched[k] = 0;
     rough[k] = 1 + DEFORM.jitter * (2 * cellHash(i, j) - 1);
+    rimOf[k] = 1 / (1 + DEFORM.rim * (2 * valueNoise(i * cell, j * cell, DEFORM.rimCell) - 1));
     put(k);
   };
   const mark = (i: number, j: number) => {
@@ -247,6 +254,13 @@ export function createDeformField(look: DeformLook): DeformField {
     if (ownI[k] !== i || ownJ[k] !== j) own(k, i, j);
     return k;
   };
+  /** A crater's rim radius at a world cell, as a share of its own (its
+   * value noise, cached while the cell is the ring's). */
+  const rimAt = (i: number, j: number): number => {
+    const k = at(i, j);
+    if (k >= 0) return rimOf[k];
+    return 1 / (1 + DEFORM.rim * (2 * valueNoise(i * cell, j * cell, DEFORM.rimCell) - 1));
+  };
   const insideWindow = (i: number, j: number) =>
     i >= lo.i + 4 && j >= lo.j + 4 && i <= lo.i + 4 + span && j <= lo.j + 4 + span;
   /** A cell changed: its texel, the relax's box and the upload's rows. */
@@ -262,6 +276,7 @@ export function createDeformField(look: DeformLook): DeformField {
     }
   };
 
+  let weights = new Float32Array(4096);
   /** Lay `volume` m³ over the cells of a band by their weights `weight(i,
    * j)` (0 off the band): + heaps, − digs; the volume actually moved inside
    * the window. */
@@ -275,17 +290,25 @@ export function createDeformField(look: DeformLook): DeformField {
     wall: number,
   ): number => {
     // Spread over the whole band, laid where it is inside the window: the
-    // share outside is the trail map's to keep.
+    // share outside is the trail map's to keep. Each weight is asked once.
+    const cols = i1 - i0 + 1;
+    const n = cols * (j1 - j0 + 1);
+    if (weights.length < n) weights = new Float32Array(n * 2);
     let sum = 0;
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) sum += weight(i, j);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const w = weight(i, j);
+        weights[(j - j0) * cols + (i - i0)] = w;
+        sum += w;
+      }
+    }
     if (sum <= 0) return 0;
     const per = volume / (sum * cell * cell);
     let moved = 0;
     for (let j = j0; j <= j1; j++) {
       for (let i = i0; i <= i1; i++) {
-        if (!insideWindow(i, j)) continue;
-        const w = weight(i, j);
-        if (w <= 0) continue;
+        const w = weights[(j - j0) * cols + (i - i0)];
+        if (w <= 0 || !insideWindow(i, j)) continue;
         const k = at(i, j);
         if (k < 0) continue;
         touch(k, wall);
@@ -390,11 +413,9 @@ export function createDeformField(look: DeformLook): DeformField {
         const t = l2 > 1e-10 ? Math.max(0, Math.min(1, (px * dx + pz * dz) / l2)) : 0;
         const rx = px - dx * t;
         const rz = pz - dz * t;
-        let d = Math.hypot(rx, rz);
-        if (motion.body) {
-          // The ragged rim: the radius read through value noise.
-          d /= 1 + DEFORM.rim * (2 * valueNoise(i * cell, j * cell, DEFORM.rimCell) - 1);
-        }
+        let d = Math.sqrt(rx * rx + rz * rz);
+        // The ragged rim: the radius read through value noise.
+        if (motion.body) d *= rimAt(i, j);
         off.d = d;
         off.sd = len > 1e-6 ? rx * nx + rz * nz : d;
         return off;
@@ -406,31 +427,52 @@ export function createDeformField(look: DeformLook): DeformField {
           side === 0 ? Math.max(0, 1 - 0.8 * tilt * Math.sign(sd)) : sd * side > 0 ? 1 : 0.08;
         return Math.sin(Math.PI * Math.min(1, v)) * ahead;
       };
+      /** A ski's cut at a cell, the profile AVERAGED over the cell's four
+       * quarters: a groove a cell or two wide whose edge is drawn at the
+       * share of the cell it covers, never stepped along the grid's
+       * diagonals into a saw-tooth. */
+      const skiPress = (i: number, j: number) => {
+        let sum = 0;
+        for (let q = 0; q < 4; q++) {
+          const px = (i + (q & 1 ? 0.25 : -0.25)) * cell - ax;
+          const pz = (j + (q & 2 ? 0.25 : -0.25)) * cell - az;
+          const t = l2 > 1e-10 ? Math.max(0, Math.min(1, (px * dx + pz * dz) / l2)) : 0;
+          const rx = px - dx * t;
+          const rz = pz - dz * t;
+          if (rx * rx + rz * rz >= halfW * halfW) continue;
+          sum += furrowProfile(len > 1e-6 ? rx * nx + rz * nz : 0, halfW, wall, halfW, tilt).press;
+        }
+        return sum / 4;
+      };
+      const edge = motion.body ? 0 : 0.36 * cell;
       let cut = 0;
       for (let j = j0; j <= j1; j++) {
         for (let i = i0; i <= i1; i++) {
           if (!insideWindow(i, j)) continue;
-          const { d, sd } = offOf(i, j);
+          const { d } = offOf(i, j);
           if (d > halfW + reach) continue;
           const k = at(i, j);
           if (k < 0) continue;
-          if (d < halfW) {
-            // A body sinks as a rounded thing, never a flat-floored box.
-            const u = d / halfW;
-            const press = motion.body
-              ? 1 - u * u
-              : furrowProfile(sd, halfW, wall, halfW, tilt).press;
+          // A body sinks as a rounded thing, never a flat-floored box.
+          const press = d >= halfW + edge ? 0 : motion.body ? 1 - (d / halfW) ** 2 : skiPress(i, j);
+          if (press > 0) {
             const floor = -depth * press;
+            const was = touched[k];
             touch(k, wall);
+            let moved = !was;
             if (h[k] > floor) {
               cut += h[k] - floor;
               h[k] = floor;
+              moved = true;
             }
             // A ski packs its floor as firm as the snow pressed is dense; a
             // body only presses loose snow aside.
-            if (motion.body) firm[k] = Math.min(firm[k], 0.15);
-            else if (press > 0.2) firm[k] = Math.max(firm[k], packs * press);
-            changed(k, i, j);
+            const f0 = firm[k];
+            if (motion.body) firm[k] = Math.min(f0, 0.15);
+            else if (press > 0.2) firm[k] = Math.max(f0, packs * press);
+            // Only what moved is the relax's and the upload's to look at:
+            // a body lying still in its hole asks nothing more of either.
+            if (moved || firm[k] !== f0) changed(k, i, j);
           } else if (!touched[k]) {
             // The band round the cut stands as the snow does; a body's
             // hole breaks its rim loose, so it slumps.
@@ -479,10 +521,7 @@ export function createDeformField(look: DeformLook): DeformField {
         const rx = px - dx * s;
         const rz = pz - dz * s;
         // A ring's edge is ragged as a crater's is.
-        const r = t.ring
-          ? Math.hypot(rx, rz) /
-            (1 + DEFORM.rim * (2 * valueNoise(i * cell, j * cell, DEFORM.rimCell) - 1))
-          : Math.hypot(rx, rz);
+        const r = Math.sqrt(rx * rx + rz * rz) * (t.ring ? rimAt(i, j) : 1);
         off.d = r;
         off.sd = dl > 0 ? (rx * t.dirX + rz * t.dirZ) / dl : 0;
         return off;
@@ -530,10 +569,21 @@ export function createDeformField(look: DeformLook): DeformField {
         mark(sx1, sz1);
       }
       if (rx1 < rx0) return;
-      const i0 = rx0 - 3;
-      const i1 = rx1 + 3;
-      const j0 = rz0 - 3;
-      const j1 = rz1 + 3;
+      // The box, held inside the window (every ring cell there is claimed,
+      // so a cell's index is its ring row and column, no lookup).
+      const wi0 = lo.i + 4;
+      const wj0 = lo.j + 4;
+      const wi1 = wi0 + span;
+      const wj1 = wj0 + span;
+      const i0 = Math.max(rx0 - 4, wi0);
+      const i1 = Math.min(rx1 + 4, wi1);
+      const j0 = Math.max(rz0 - 4, wj0);
+      const j1 = Math.min(rz1 + 4, wj1);
+      rx0 = 0;
+      rx1 = -1;
+      rz0 = 0;
+      rz1 = -1;
+      if (i1 < i0 || j1 < j0) return;
       // The box of the cells still moving more than `still` a pass: only
       // they settle on next frame, so the box does not grow down the whole
       // track behind a skier while one wall far back still creeps.
@@ -541,42 +591,47 @@ export function createDeformField(look: DeformLook): DeformField {
       let mi1 = -Infinity;
       let mj0 = Infinity;
       let mj1 = -Infinity;
-      rx0 = 0;
-      rx1 = -1;
-      rz0 = 0;
-      rz1 = -1;
       const { reposeLoose, reposeFirm, slide } = DEFORM;
+      const ring = (a: number, b: number) => mod(b, size) * size + mod(a, size);
       for (let pass = 0; pass < passes; pass++) {
         // Alternate the sweep so no direction is favoured.
         const flip = pass % 2 === 1;
-        for (let jj = j0; jj <= j1; jj++) {
-          const j = flip ? j1 - (jj - j0) : jj;
-          for (let ii = i0; ii <= i1; ii++) {
-            const i = flip ? i1 - (ii - i0) : ii;
-            if (!insideWindow(i, j - 1) || !insideWindow(i + 1, j + 1)) continue;
-            const k = at(i, j);
-            if (k < 0) continue;
+        // THE STRIDE: the first passes of a round weigh a cell against the
+        // one STRIDE cells off, so a fresh wall's snow runs out several
+        // cells a pass instead of one — a crater's walls are down to their
+        // repose in a few frames, not tens — and the last pass is always a
+        // neighbour's, which smooths what the long ones left. Every move is
+        // between a pair, so the snow is conserved whatever the stride.
+        const last = pass === passes - 1;
+        const stride = last ? 1 : STRIDES[Math.min(pass, STRIDES.length - 1)];
+        // A pair needs both its cells in the window.
+        const pi1 = Math.min(i1, wi1 - stride);
+        const pj0 = Math.max(j0, wj0 + stride);
+        const pj1 = Math.min(j1, wj1 - stride);
+        const diag = cell * Math.SQRT2 * stride;
+        const run0 = cell * stride;
+        for (let jj = pj0; jj <= pj1; jj++) {
+          const j = flip ? pj1 - (jj - pj0) : jj;
+          const row = mod(j, size) * size;
+          const up = mod(j + stride, size) * size;
+          const down = mod(j - stride, size) * size;
+          for (let ii = i0; ii <= pi1; ii++) {
+            const i = flip ? pi1 - (ii - i0) : ii;
+            const c = mod(i, size);
+            const cr = mod(i + stride, size);
+            const k = row + c;
             // To the right, the far side and both diagonals: each pair once.
             for (let n = 0; n < 4; n++) {
-              const kn =
-                n === 0
-                  ? at(i + 1, j)
-                  : n === 1
-                    ? at(i, j + 1)
-                    : n === 2
-                      ? at(i + 1, j + 1)
-                      : at(i + 1, j - 1);
-              const run = n < 2 ? cell : cell * Math.SQRT2;
-              if (kn < 0) continue;
+              const kn = n === 0 ? row + cr : n === 1 ? up + c : n === 2 ? up + cr : down + cr;
               const diff = h[k] - h[kn];
               const hi = diff > 0 ? k : kn;
               const low = diff > 0 ? kn : k;
               // The wall stands as firm as the snow at its top, ragged.
               const tan = (reposeLoose + (reposeFirm - reposeLoose) * firm[hi]) * rough[hi];
-              const over = Math.abs(diff) - tan * run;
+              const over = Math.abs(diff) - tan * (n < 2 ? run0 : diag);
               if (over <= 0) continue;
               const m = over * 0.5 * slide;
-              if (m > DEFORM.still && pass === passes - 1) {
+              if (m > DEFORM.still && last) {
                 mi0 = Math.min(mi0, i);
                 mi1 = Math.max(mi1, i + 1);
                 mj0 = Math.min(mj0, j - 1);
@@ -587,15 +642,15 @@ export function createDeformField(look: DeformLook): DeformField {
               touched[low] = 1;
               // What slid down is loose.
               firm[low] = Math.min(firm[low], 0.4);
-              put(hi);
-              put(low);
             }
           }
         }
       }
+      // Every cell a move can have reached, written to its texel once.
       for (let j = j0; j <= j1; j++)
         for (let i = i0; i <= i1; i++) {
-          if (insideWindow(i, j)) markDirty(mod(i, size), mod(j, size));
+          put(ring(i, j));
+          markDirty(mod(i, size), mod(j, size));
         }
       if (mi1 >= mi0) {
         sx0 = mi0;

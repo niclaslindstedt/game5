@@ -859,6 +859,7 @@ export function createWorldRenderer(
 
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
+    group: (name) => scene.getObjectByName(name),
     plumes: () => plumeBits(spray?.points ?? null, cloud?.mesh ?? null),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {

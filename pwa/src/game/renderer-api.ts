@@ -4,6 +4,7 @@
 // drawn and WHICH state it shows; the renderer owns how it looks, and never
 // writes a `GameState`.
 import type { GameState } from "@engine";
+import type { Object3D } from "three";
 
 import type { FrameCost, GpuMode, GpuTotals, Hideable, SceneShare } from "./benchmark-report.ts";
 import type { LensPose } from "./camera-rigs.ts";
@@ -101,6 +102,9 @@ export interface DevRenderer {
   /** The scene walked and bucketed by subsystem (`scene-tally.ts`) — a walk
    * of the whole graph, so never from a frame being timed. */
   sceneTally(): SceneShare[];
+  /** A named subsystem's group (`forest`, `terrain`…) — for a lab that
+   * measures what it holds, never for drawing. */
+  group(name: string): Object3D | undefined;
   /** The snow in the air the last frame drew — the spray's grains and the
    * cloud's puffs (`plume-probe.ts`) — for the snow eval lab's film score. */
   plumes(): PlumeBit[];

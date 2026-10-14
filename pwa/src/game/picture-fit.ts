@@ -73,6 +73,11 @@ export const FLOOR_MS = 3.81;
  * DISTANCE: LOW closes the mist a few seconds ahead, which is a real loss of
  * place; MEDIUM and HIGH push it out; MAX only clears the last haze off the
  * rim mountains.
+ * The sky rides it too: every stop draws the far ranges, MEDIUM a cloud
+ * with some depth to it over LOW's flat shell, HIGH and MAX the clouds as
+ * lit volumes and the air's sun-lit share in a ridge's shadow — a few
+ * points each (+2, +4, +4), since the light on the snow is the same at
+ * every stop and only the far view's detail differs.
  * TERRAIN: the ground's grid under the skis; a coarser one is a blunter
  * furrow, hard to see at speed.
  * TRAILS: the furrows are the game — OFF leaves the snow untouched behind
@@ -103,23 +108,31 @@ export const PICTURE_PRICES: PriceList = {
     "90": { cost: 0.78, benefit: 75 },
     "100": { cost: 1.02, benefit: 85 },
   },
-  // MEDIUM and up also draw the GPU SKY (`sky-gpu.ts`, `SKY_TIER`): the
-  // sky-view table only as the sun moves and, on HIGH and MAX, the
-  // aerial-perspective volume every frame. Timed on a software GPU at about
-  // 0.1 ms, 0.7 ms and 0.1 ms a pass — not a real price; these rows wait
-  // for `make bench ARGS="--gpu --costs"` on a machine with a GPU.
-  // The row's CLOUD (`CLOUD_TIER`) rides it too: MEDIUM's slab of four
-  // steps, HIGH's and MAX's raymarched volume carried frame to frame (a
-  // sixteenth and a quarter of its pixels marched a frame). Timed alone in
-  // the same software GL at 1280 × 720 (`make sky ARGS=--sheet=cloudmotion`,
-  // SOFTWARE-MEASURED, not a price): LOW 5, MEDIUM 137, HIGH 69 (277 on a
-  // cut's frame), MAX 138 (318) ms — HIGH's steady frame under MEDIUM's, so
-  // the costs below are left for the GPU bench to move.
+  // The DISTANCE row also carries the SKY (`SKY_TIER`, `sky-gpu.ts`), the
+  // CLOUD (`CLOUD_TIER`: LOW the shell, MEDIUM the slab, HIGH and MAX the
+  // raymarched volume) and the FAR RANGES' rings (`FAR_TIER`), all added
+  // after the costs below were measured on a GPU. What they add is
+  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE (`make bench
+  // ARGS="--gpu --costs"`): each pass timed alone in software GL at
+  // 1280 × 720 (`make sky ARGS=--sheet=cloudmotion`, `--sheet=skytier`,
+  // `--sheet=far`), scaled to the reference by RESOLUTION's own ratio —
+  // the benchmark race in the same software GL at 1280 × 720, DISTANCE LOW,
+  // the rest at the top, 4539 ms a frame at 100 and 2221 at 50, against
+  // RESOLUTION 100's measured 1.02 ms: 0.00044 reference ms a software ms
+  // of pixel work. The cloud's passes over LOW's shell (5.3 ms): MEDIUM
+  // 110.9, HIGH 50.6 a steady frame (269 on a cut), MAX 99.8 (258) — so
+  // +0.05, +0.02 and +0.04 ms on MEDIUM, HIGH and MAX; the GPU sky's tables
+  // (0.2 ms on HIGH, and only as the sun moves) and the far rings (10–37k
+  // triangles, inside the lab's noise) round to nothing. Scaled by the
+  // whole frame's ratio instead (the race's 4539 ms against its 9.1 ms on
+  // the reference) the same passes would be about five times dearer, which
+  // still moves no stop by a quarter of a millisecond. Each estimate is
+  // added to the GPU-measured cost under it, so a re-price replaces both.
   distance: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.52, benefit: 25 },
-    high: { cost: 1.23, benefit: 35 },
-    max: { cost: 1.46, benefit: 38 },
+    medium: { cost: 0.57, benefit: 27 },
+    high: { cost: 1.25, benefit: 39 },
+    max: { cost: 1.5, benefit: 42 },
   },
   terrain: {
     low: { cost: 0, benefit: 0 },

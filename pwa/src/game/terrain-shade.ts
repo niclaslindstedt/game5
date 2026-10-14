@@ -225,6 +225,9 @@ export function createShadeDepth(
   #ifdef USE_INSTANCING
     sw = instanceMatrix * sw;
   #endif
+  #ifdef USE_BATCHING
+    sw = batchingMatrix * sw;
+  #endif
   vShadeWorld = (modelMatrix * sw).xyz;
 }`,
       );

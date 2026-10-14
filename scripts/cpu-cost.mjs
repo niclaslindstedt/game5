@@ -120,6 +120,11 @@ function hashInstances(group) {
       h.update(new Uint8Array(o.skeleton.boneMatrices.buffer));
       return;
     }
+    // A batch that keeps its own list of what it draws (`forest-batch.ts`).
+    if (o.userData.drawnBytes) {
+      for (const b of o.userData.drawnBytes()) h.update(b);
+      return;
+    }
     if (!o.isInstancedMesh) return;
     h.update(`${o.name}:${o.visible}:${o.count};`);
     if (!o.visible) return;

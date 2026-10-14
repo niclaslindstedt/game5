@@ -664,6 +664,9 @@ const HAZE_VERTEX_MAIN = /* glsl */ `
   #ifdef USE_INSTANCING
     hzw = instanceMatrix * hzw;
   #endif
+  #ifdef USE_BATCHING
+    hzw = batchingMatrix * hzw;
+  #endif
   vHazeWorld = (modelMatrix * hzw).xyz;
 }
 `;

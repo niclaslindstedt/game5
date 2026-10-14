@@ -447,6 +447,8 @@ function forestBytes(): { bytes: number; geometries: number } {
   const seen = new Set<unknown>();
   let bytes = 0;
   root?.traverse((o) => {
+    // What a batch keeps on the card beside its geometry (`forest-batch.ts`).
+    bytes += (o.userData.gpuBytes as number | undefined) ?? 0;
     const g = (
       o as {
         geometry?: {

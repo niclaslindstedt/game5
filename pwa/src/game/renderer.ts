@@ -783,6 +783,7 @@ export function createWorldRenderer(
       const overMap = { level: sky, t: state.t }; // the cloud field over the map, at the run's clock
       env.update(look, lens.camera, d.y, overMap, lone, keyAheadAt(sky, state.t), far);
       crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
+      forest?.setWind(wind.x, wind.z, state.t);
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {
         heroModels.length = 0;

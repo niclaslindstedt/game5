@@ -131,7 +131,9 @@ export function posePoles(p: PolesIn): [V3, V3] {
           const y = Math.max(-1, Math.min(1, floor / M.pole));
           const flat = Math.hypot(d.x, d.z);
           const k = flat > 1e-6 ? Math.sqrt(1 - y * y) / flat : 0;
-          tip = add(hands[i], scale({ x: d.x * k, y, z: d.z * k }, M.pole));
+          // ...as far as the stroke has the pole (a rod the stroke barely
+          // holds is lifted barely: past a frame's worth it flicks).
+          tip = mix(tip, add(hands[i], scale({ x: d.x * k, y, z: d.z * k }, M.pole)), w);
         }
       }
     }

@@ -59,6 +59,9 @@ export type SkierPoseInput = {
    * how far into it, signed to the shoulder he looks over (`skier-switch.ts`),
    * −1..1; none when left out. */
   switched?: number;
+  /** How far his fists and poles are carried switch, 0..1 (`SkierSpring`'s
+   * `carry`); the look's own share of it when left out. */
+  switchCarry?: number;
   /** WOUND UP for a hop into switch (`SkierSpring.wind`), −1..1, signed to
    * the side he means to turn to; none when left out. */
   windUp?: number;

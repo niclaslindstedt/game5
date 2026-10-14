@@ -250,7 +250,13 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const air = clamp01(input.air ?? (input.airborne ? 1 : 0));
   // RIDING SWITCH: turned round to look back over a shoulder (turning
   // round, held through the hop; wound up against a hop into it).
-  const SW = switchShape(input.switched, input.turningRound ? 0 : air, crouch, input.windUp);
+  const SW = switchShape(
+    input.switched,
+    input.turningRound ? 0 : air,
+    crouch,
+    input.windUp,
+    input.switchCarry,
+  );
   const load = input.air === undefined && input.airborne ? 0 : clamp01(input.jumpLoad ?? 0);
   // The pop's spring: straight up out of the crouch for a moment after he
   // leaves the snow off his own legs.

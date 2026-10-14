@@ -102,6 +102,7 @@ export function poseInputOf(
     // RIDING SWITCH: looking back over the shoulder his body has turned to
     // — or, waiting for a chair or a T-bar, over his inside one for it.
     switched: legs.back * legs.backSide + lookBack(skier.lift),
+    switchCarry: skier.lift ? undefined : legs.carry,
     windUp: legs.wind,
     turningRound: skier.revert != null || hopLanding(skier),
     airborne: skier.airborne,

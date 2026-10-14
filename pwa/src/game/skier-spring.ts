@@ -63,6 +63,12 @@ export type SkierSpring = {
    * (0..1, eased — none tucked, working, in the air or at a crawl). */
   turnSide: -1 | 0 | 1;
   turnHeld: number;
+  /** HIS FISTS AND POLES CARRIED SWITCH, 0..1 (`switchHand`), and its
+   * rate: in as he rides switch, out over a revert's turn — never through
+   * the look's swing across from one shoulder to the other, which passes
+   * through square and would drop the poles to their hang and back. */
+  carry: number;
+  carryRate: number;
   /** The look back as a revert found it (signed, `back` × `backSide`),
    * NaN with none under way — what a swing across to the other shoulder
    * starts from. */
@@ -388,6 +394,8 @@ export function createSkierSpring(offset = 0): SkierSpring {
     rate: 0,
     arms: 0,
     armsRate: 0,
+    carry: 0,
+    carryRate: 0,
     lastVy: Number.NaN,
     slope: Number.NaN,
     slopeRate: 0,
@@ -674,6 +682,15 @@ export function stepSkierSpring(
     if (look !== 0) s.backSide = look > 0 ? 1 : -1;
     s.backRate = rate * s.backSide;
   }
+  // The carry: whole riding switch (and a hop's landing held), eased out
+  // across a revert to his front and in across a hop into switch.
+  const carry = revert
+    ? revert.to === "switch"
+      ? smoothStep(revert.u)
+      : 1 - smoothStep(revert.u)
+    : back;
+  [s.carry, s.carryRate] = follow(s.carry, s.carryRate, carry, dt, BACK_FOLLOW);
+  s.carry = Math.max(0, Math.min(1, s.carry));
   let work = 0;
   if (ride) {
     const climbing = ride.sidestep && ride.stride !== undefined && ride.stride % 1 > 1e-6 ? 1 : 0;

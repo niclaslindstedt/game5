@@ -82,6 +82,7 @@
     "cloud": "node scripts/cloud-preview.mjs",
     "snowfall": "node scripts/snowfall-preview.mjs",
     "shimmer": "node scripts/shimmer-preview.mjs",
+    "rock-eval": "node scripts/rock-eval.mjs",
     "aloft": "node scripts/aloft-preview.mjs",
     "turns": "node scripts/turns-preview.mjs",
     "technique": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/technique-preview.mjs",

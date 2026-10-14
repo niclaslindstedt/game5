@@ -141,6 +141,7 @@ export type GpuSlice =
   | "terrain"
   | "water"
   | "forest"
+  | "rocks"
   | "field"
   | "audience"
   | "checkpoints"
@@ -161,6 +162,7 @@ export const GPU_SLICES: readonly { slice: GpuSlice; what: string }[] = [
   { slice: "terrain", what: "the ground: the snow shader over the clipmap" },
   { slice: "water", what: "the lakes and the streams, open or iced" },
   { slice: "forest", what: "the woods, both bands" },
+  { slice: "rocks", what: "the rock on the walls and the cliffs" },
   { slice: "field", what: "the skis and their skiers, the ghost, the free ride's crowd" },
   { slice: "audience", what: "the spectators and the finish arena a race is watched from" },
   { slice: "checkpoints", what: "the poles, the flags, the arch" },
@@ -197,6 +199,7 @@ export type Hideable =
   | "terrain"
   | "water"
   | "forest"
+  | "rocks"
   | "field"
   | "audience"
   | "checkpoints"
@@ -212,6 +215,7 @@ export const HIDEABLE: readonly Hideable[] = [
   "terrain",
   "water",
   "forest",
+  "rocks",
   "field",
   "audience",
   "checkpoints",

@@ -829,6 +829,7 @@ export function createWorldRenderer(
 
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
+    group: (name) => scene.getObjectByName(name),
     plumes: () => plumeBits(spray, cloud?.mesh ?? null),
     skisUnder: () =>
       terrain && level && riders[0]

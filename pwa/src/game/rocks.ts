@@ -149,6 +149,11 @@ type Tile = {
 export function createRocks(level: Level, haze: HazeUniforms): Rocks {
   const group = new THREE.Group();
   group.name = "rocks";
+  // WHAT THE ROCK HOLDS, for the rock eval lab (`make rock-eval`): every ms
+  // spent building it, the tiles in reach still owed their cut, and the
+  // triangles and bytes built. An instrument: nothing draws off it.
+  const stats = { buildMs: 0, owed: 0, triangles: 0, bytes: 0 };
+  group.userData.rockStats = stats;
   const band = regionLookOf(regionOf(level).id).rock;
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
@@ -201,6 +206,12 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
 
   /** Build a few more rows of `t` at cut `k`; true when it is whole. */
   const step = (t: Tile, k: number): boolean => {
+    const t0 = performance.now();
+    const whole = build(t, k);
+    stats.buildMs += performance.now() - t0;
+    return whole;
+  };
+  const build = (t: Tile, k: number): boolean => {
     if (!t.part || t.building !== k) {
       t.part = rockMesh();
       t.building = k;
@@ -220,6 +231,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     // The cut it replaces goes as the new one arrives.
     const old = t.mesh;
     if (old) {
+      forget(old);
       group.remove(old);
       old.geometry.dispose();
       t.mesh = null;
@@ -235,11 +247,20 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     g.setAttribute("calm", new THREE.Float32BufferAttribute(part.calm, 3));
     g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, material);
+    mesh.userData.bytes =
+      (part.pos.length + part.nrm.length + part.col.length + part.soft.length + part.calm.length) *
+      4;
+    stats.triangles += part.pos.length / 9;
+    stats.bytes += mesh.userData.bytes;
     mesh.matrixAutoUpdate = false;
     mesh.receiveShadow = true;
     group.add(mesh);
     t.mesh = mesh;
     return true;
+  };
+  const forget = (m: THREE.Mesh): void => {
+    stats.triangles -= (m.geometry.getAttribute("position")?.count ?? 0) / 3;
+    stats.bytes -= (m.userData.bytes as number | undefined) ?? 0;
   };
   const drop = (t: Tile): void => {
     t.empty = false;
@@ -248,6 +269,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     t.building = -1;
     t.cut = -1;
     if (!t.mesh) return;
+    forget(t.mesh);
     group.remove(t.mesh);
     t.mesh.geometry.dispose();
     t.mesh = null;
@@ -262,6 +284,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
       let next: Tile | null = null;
       let nextK = 0;
       let nextD2 = Infinity;
+      let owed = 0;
       for (const t of tiles) {
         const dx = Math.max(0, Math.abs(eye.x - t.cx) - half);
         const dz = Math.max(0, Math.abs(eye.z - t.cz) - half);
@@ -269,6 +292,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
         const near = d2 < reach * reach;
         const k = near ? cutOf(Math.sqrt(d2), t.cut) : -1;
         if (near && k !== t.cut) {
+          owed++;
           // A tile with nothing on screen yet, or one that close, is built
           // whole now; one changing cut keeps its old one meanwhile.
           if (d2 < NOW * NOW && (t.cut < 0 || k < t.cut)) while (!step(t, k));
@@ -289,6 +313,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
         while (!step(next, nextK) && performance.now() < until);
         if (next.mesh) next.mesh.visible = true;
       }
+      stats.owed = owed;
     },
     dispose() {
       for (const t of tiles) drop(t);

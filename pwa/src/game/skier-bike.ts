@@ -148,8 +148,17 @@ export function riderPose(
   pose: BikePose,
   style?: RideStyle,
 ): (ground: number, frame: BodyFrame) => SkierPose {
-  const points = keyPoints(style ? freerideKey(pose, style) : riderKey(pose), 0);
+  const points = riderPoints(pose, style);
   return (_ground, frame) => ragdollPose(points, frame);
+}
+
+/** THE RIDER'S JOINTS on the bike posed `pose` (the ragdoll's thirteen
+ * points, `RAGDOLL`'s order, in the root's frame — the bike's attitude about
+ * his centre of mass): what `riderPose` hangs the figure on, and what the
+ * bike motion lab (`make bike-motion`) measures against the grips and the
+ * pedals. */
+export function riderPoints(pose: BikePose, style?: RideStyle): number[] {
+  return keyPoints(style ? freerideKey(pose, style) : riderKey(pose), 0);
 }
 
 /** WHERE HIS NEAR HAND HOLDS THE BIKE HE PUSHES, in his own frame (x his

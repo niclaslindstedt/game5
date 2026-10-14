@@ -1,5 +1,6 @@
 ---
 type: Added
+title: The snow gives way under you
 ---
 
 The snow round you now gives way as a volume at TRAILS MEDIUM and HIGH: a

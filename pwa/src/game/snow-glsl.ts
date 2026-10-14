@@ -64,6 +64,7 @@
 
 import { FAR_RIM_GLSL } from "./far-ranges-plan.ts";
 import { LAMP_SLOTS } from "./haze.ts";
+import { SKI_CLEAR_GLSL } from "./ski-clear.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
 import { DEFORM_SHADE_GLSL } from "./deform-glsl.ts";
 import { SNOW_GLINTS_GLSL, SNOW_NOISE_GLSL } from "./snow-noise-glsl.ts";
@@ -109,6 +110,7 @@ uniform float uReliefHalf;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
+${SKI_CLEAR_GLSL}
 ${WELL_GLSL}
 ${SLIDE_GLSL}
 
@@ -201,6 +203,8 @@ float snowPackedV = snowGroundV.b;
 float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ)
   // THE AVALANCHE (\`avalanche-glsl.ts\`): its bed below, its debris above.
   + slideAt(snowXZ);
+// Never over the player's skis (\`ski-clear.ts\`).
+snowY = skiClear(snowXZ, snowY, uSpacing);
 // UNDER THE FINER LEVEL (\`uHole\`: its centre and half extent), the
 // vertices it covers by a whole cell of this one are SUNK, so every
 // triangle of this level the finer one draws over hinges down from where

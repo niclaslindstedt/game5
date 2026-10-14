@@ -57,6 +57,7 @@
 import * as THREE from "three";
 
 import { FRESH_LOOK, recentre, TRAIL, type Stamp } from "./trail-stamp.ts";
+import { skiClearUniforms, type SkiClearUniforms } from "./ski-clear.ts";
 
 /** The maps' sizes — a TRAILS stop, `TRAIL_LOOK` in `settings-video.ts`. */
 export type TrailOptions = {
@@ -94,7 +95,7 @@ export type TrailUniforms = {
   /** The self-shadow's march over the field (`deform-glsl.ts`): its steps
    * and how much each step grows on the last — the TRAILS stop's. */
   uDeformMarch: { value: THREE.Vector2 };
-};
+} & SkiClearUniforms;
 
 /** The GLSL every surface that reads the trail map needs: `trailAt(p)` is
  * the depth (x) and berm (y) in metres at a world plan point, fine where
@@ -372,6 +373,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     uDeformSpan: { value: 1 },
     uDeformOn: { value: 0 },
     uDeformMarch: { value: new THREE.Vector2(0, 1.33) },
+    ...skiClearUniforms(),
   };
 
   // THE STAMP PASS.

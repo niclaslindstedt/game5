@@ -96,6 +96,7 @@ import { plumeBits } from "./plume-probe.ts";
 import { cullBehind } from "./rider-cull.ts";
 import { createDeformRig } from "./renderer-deform.ts";
 import { createSnowUnder } from "./snow-under.ts";
+import { createSkiClear, skiClearUniforms, type SkiClear } from "./ski-clear.ts";
 import {
   NEW_COVER,
   SNOW,
@@ -201,7 +202,8 @@ export function createWorldRenderer(
   let gates: Gates | null = null;
   let lifts: Lifts | null = null;
   let trail: TrailMap | null = null;
-  const deform = createDeformRig(); // the snow round him as a volume (`deform-snow.ts`)
+  const deform = createDeformRig();
+  let skiClear: SkiClear = createSkiClear(skiClearUniforms()); // the snow round him as a volume (`deform-snow.ts`)
   let spray: Spray | null = null;
   let cloud: SnowCloud | null = null;
   /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
@@ -358,6 +360,7 @@ export function createWorldRenderer(
   function buildTerrain(lv: Level, map: TrailMap): Terrain {
     const look = terrainLook(video.terrain); // the whole reach: aloft draws past the stop's view
     const deformed = deform.build(video, look.spacing, summer(), map.uniforms);
+    skiClear = createSkiClear(map.uniforms);
     const options = { ...summerOptions(look, lv, video), deform: deformed };
     const ground = createTerrain(lv, env.haze, map.uniforms, options);
     ground.group.name = "terrain";
@@ -723,6 +726,7 @@ export function createWorldRenderer(
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
       deform.update(skier, !hidden.has("trail"));
+      skiClear.update(riders[0].model.bases, !skier.thrown && !summer());
       // THE NEW SNOW: it settles into every trail and buries the groomer.
       if (state.fresh > filled && !hidden.has("trail")) {
         trail.fill(gl, state.fresh - filled);

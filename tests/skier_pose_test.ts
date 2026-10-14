@@ -157,6 +157,40 @@ describe("the body on its legs", () => {
     }
   });
 
+  it("keeps a working elbow up and behind the arm through the whole stroke", () => {
+    // Double-poling and skating, the elbow rides over the line from the
+    // shoulder to the fist — over the grip at the plant, back past the
+    // hips at the end of the push — never under it, where it had to swing
+    // round behind the arm as the fist passed the shoulder.
+    for (const speed of [4, 7, 9.5]) {
+      for (let k = 0; k <= 240; k++) {
+        const gait = gaitOf({
+          drive: 1,
+          stride: 3 + k / 120,
+          speed,
+          pitch: 0,
+          airborne: false,
+          thrown: null,
+        });
+        const p = skierPose({ ...base, gait });
+        for (const i of [0, 1]) {
+          const s = p.shoulders[i];
+          const h = p.hands[i];
+          const e = p.elbows[i];
+          const arm = { x: h.x - s.x, y: h.y - s.y, z: h.z - s.z };
+          const n = Math.hypot(arm.x, arm.y, arm.z);
+          const t = ((e.x - s.x) * arm.x + (e.y - s.y) * arm.y + (e.z - s.z) * arm.z) / (n * n);
+          const off = {
+            y: e.y - (s.y + arm.y * t),
+            z: e.z - (s.z + arm.z * t),
+          };
+          // Up or back of the arm's line (the push's plane, seen from his side).
+          expect(off.y - off.z, `at ${speed} m/s, stride ${k}, arm ${i}`).toBeGreaterThan(-0.01);
+        }
+      }
+    }
+  });
+
   it("carries the weight across onto the gliding ski and swings the poles as rods", () => {
     const skate = (stride: number) =>
       skierPose({

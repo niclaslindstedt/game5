@@ -52,9 +52,32 @@ import { createRocks } from "./rocks.ts";
 import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
 import { summerShown } from "./season-look.ts";
 import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
-import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
+import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
 import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
+import {
+  CELL,
+  TILE,
+  BLOCK,
+  blockCell,
+  buildShell,
+  createCellLod,
+  createMeshCache,
+  geometryBytes,
+  graftCellLod,
+  graftShellTier,
+  hidden,
+  levelAt,
+  mergeBlock,
+  settleLevel,
+  shellFrom,
+  shellPaintOf,
+  stepLevel,
+  type CellEdges,
+  type CellLevel,
+  type ShellPaint,
+  type ShellTree,
+} from "./forest-patches.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
  * row's `far`, all m), how far the crags stand (the DISTANCE row's `view`:
@@ -67,8 +90,6 @@ export type ForestOptions = Omit<ForestLook, "casters"> & {
   view: number;
   casters: TreeCasters | "none";
 };
-
-const CELL = 64;
 
 /** An instanced shape's girth attribute (`withGirth`). */
 const girthOf = (im: THREE.InstancedMesh): THREE.InstancedBufferAttribute =>
@@ -282,6 +303,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     }
   }
 
+  // EVERY CELL'S LEVEL (`forest-patches.ts`), read by every tree material.
+  const lod = createCellLod(cols);
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
@@ -289,6 +312,27 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     (shader) => {
       graftGirth(shader);
       graftFade(shader);
+      graftCellLod(shader, lod, 0, "floor(instanceMatrix[3].xz / uCellGrid.y)");
+    },
+  );
+  // THE PATCHES (`forest-patches.ts`): a cell's trees merged at the mid cut
+  // and at the sketch, and the canopy shell, each read against its cell's
+  // level in its own material.
+  const patchMaterial = (level: 1 | 2) =>
+    hazeMaterial(
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
+      haze,
+      `tree-patch${level}`,
+      (shader) => graftCellLod(shader, lod, level, blockCell(BLOCK), BLOCK),
+    );
+  const patchMaterials = { 1: patchMaterial(1), 2: patchMaterial(2) };
+  const shellMaterial = hazeMaterial(
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }),
+    haze,
+    "tree-shell",
+    (shader) => {
+      graftCellLod(shader, lod, 3, blockCell(TILE), TILE);
+      graftShellTier(shader);
     },
   );
   // The casters' depth, with the same girth: a veteran's trunk throws a
@@ -342,8 +386,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     variantOf: TreeVariant[];
     full: Band;
     mid: Band;
-    far: Band;
     casters: { full: Casters; sketch: Casters };
+    /** Each near shape's mid cut and its own sketch, for the merged cells. */
+    midGeos: THREE.BufferGeometry[];
+    sketchGeos: THREE.BufferGeometry[];
     geometries: THREE.BufferGeometry[];
   };
 
@@ -398,10 +444,10 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       nearShape[i] = indexOf(v, nearRows, nearCount);
       farShape[i] = indexOf(leadVariant(kind), farRows, farCount);
     }
-    const shape = (v: TreeVariant, lod: TreeLod) => buildTree(v, paint, lod);
+    const shape = (v: TreeVariant, cut: TreeLod) => buildTree(v, paint, cut);
     const full = nearRows.map((v) => shape(v, 0));
     const mid = nearRows.map((v) => shape(v, 1));
-    const sketch = farRows.map((v) => shape(v, 2));
+    const sketch = nearRows.map((v) => shape(v, 2));
     const leads = farRows.map((v) => shape(v, 1));
     const insetSketch = farRows.map((v) => inset(shape(v, 2), SKETCH_INSET));
     const makeBand = (geos: THREE.BufferGeometry[], shape: Uint8Array, room: number[]): Band => {
@@ -464,17 +510,18 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       variantOf,
       full: makeBand(full, nearShape, nearCount),
       mid: makeBand(mid, nearShape, nearCount),
-      far: makeBand(sketch, farShape, farCount),
       casters: {
         full: makeCasters(leads, farShape, farCount),
         sketch: makeCasters(insetSketch, farShape, farCount),
       },
+      midGeos: mid,
+      sketchGeos: sketch,
       geometries: [...full, ...mid, ...sketch, ...leads, ...insetSketch],
     };
   }
 
   function dropShapes(old: Shapes): void {
-    for (const set of [old.full, old.mid, old.far, old.casters.full, old.casters.sketch]) {
+    for (const set of [old.full, old.mid, old.casters.full, old.casters.sketch]) {
       for (const im of set.meshes) {
         group.remove(im);
         im.dispose();
@@ -601,6 +648,252 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     }
   }
 
+  // ---- THE CELLS (`forest-patches.ts`) --------------------------------
+  /** The cells that hold a tree, and each one's box. */
+  const filled: number[] = [];
+  for (let b = 0; b < cols * cols; b++) if (binStart[b + 1] > binStart[b]) filled.push(b);
+  const snowAt = (x: number, z: number): number => level.groundAt(x, z);
+  /** The pass each cell was last seen in (in the frustum, not behind the
+   * mountain), and whether it was hidden at the last horizon test. */
+  const seenAt = new Uint32Array(cols * cols);
+  /** Each cell's distance, level wanted and whether it is in sight, on the
+   * last pass. */
+  const cellD = new Float32Array(cols * cols);
+  const want = new Uint8Array(cols * cols);
+  const sight = new Uint8Array(cols * cols);
+  const behind = new Uint8Array(cols * cols);
+  const horizonAt = new THREE.Vector3(Infinity, 0, 0);
+  let pass = 1;
+  let lastNow = 0;
+  let animating = false;
+  /** Where the bands were last filled for, to tell a jump of the lens. */
+  const lastPass = new THREE.Vector3(Infinity, 0, 0);
+  /** The cells whose trees are drawn one by one (level 0's share). */
+  let nearCells: number[] = [];
+  let nearKey = "";
+  const patches = new THREE.Group();
+  patches.name = "patches";
+  group.add(patches);
+  const budgetOf = (variants: number) =>
+    (variants <= 2 ? 24 : variants <= 5 ? 48 : 96) * 1024 * 1024;
+  let cache = createMeshCache<THREE.Mesh>(budgetOf(options.variants));
+  /** A block's merged mesh at `L` (1 or 2), or a shell tile's, by key. */
+  const keyOf = (L: 1 | 2 | 3, b: number): number => (L - 1) * cols * cols + b;
+  const blocks = Math.ceil(cols / BLOCK);
+  const blockOf = (b: number): number =>
+    Math.floor(Math.floor(b / cols) / BLOCK) * blocks + Math.floor((b % cols) / BLOCK);
+  const tiles = Math.ceil(cols / TILE);
+  const tileOf = (b: number): number =>
+    Math.floor(Math.floor(b / cols) / TILE) * tiles + Math.floor((b % cols) / TILE);
+  /** Each kind's shell paint and crown, once. */
+  const shellKinds = new Map<string, { paint: ShellPaint; spire: boolean }>();
+  const shellKind = (kind: string) => {
+    let k = shellKinds.get(kind);
+    if (!k) {
+      const lead = leadVariant(kind as Parameters<typeof leadVariant>[0]);
+      const g = buildTree(lead, paint, 1);
+      k = {
+        paint: shellPaintOf(g),
+        spire: lead.shape.form === "conifer" || lead.shape.form === "larch",
+      };
+      g.dispose();
+      shellKinds.set(kind, k);
+    }
+    return k;
+  };
+  function buildMesh(L: 1 | 2 | 3, b: number): THREE.Mesh | null {
+    let g: THREE.BufferGeometry | null;
+    let ox: number;
+    let oz: number;
+    if (L === 3) {
+      const tx = b % tiles;
+      const tz = Math.floor(b / tiles);
+      const list: ShellTree[] = [];
+      for (let r = tz * TILE - 1; r <= (tz + 1) * TILE; r++)
+        for (let c = tx * TILE - 1; c <= (tx + 1) * TILE; c++) {
+          if (r < 0 || c < 0 || r >= cols || c >= cols) continue;
+          const cb = r * cols + c;
+          for (let i = binStart[cb]; i < binStart[cb + 1]; i++) {
+            if (gone[i]) continue;
+            const t = trees[i];
+            const k = shellKind(t.kind ?? "spruce");
+            list.push({ ...k, x: t.x, y: t.y, z: t.z, height: t.height, crown: t.crown });
+          }
+        }
+      g = buildShell(tx, tz, list, snowAt);
+      ox = tx * TILE * CELL;
+      oz = tz * TILE * CELL;
+    } else {
+      const geos = L === 1 ? shapes.midGeos : shapes.sketchGeos;
+      const near = shapes.mid.shape;
+      const share = options.farShare;
+      const bx = b % blocks;
+      const bz = Math.floor(b / blocks);
+      g = mergeBlock(cells, bx, bz, (i) => (L === 2 && thin[i] >= share ? null : geos[near[i]]));
+      ox = bx * BLOCK * CELL;
+      oz = bz * BLOCK * CELL;
+    }
+    if (!g) return null;
+    const mesh = new THREE.Mesh(g, L === 3 ? shellMaterial : patchMaterials[L]);
+    mesh.position.set(ox, 0, oz);
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.visible = false;
+    patches.add(mesh);
+    return mesh;
+  }
+  const cells = { cols, binStart, matrices, colours, girths, gone };
+  /** The mesh for `key`, built now if `build` allows — undefined when it
+   * is not built yet, null when there is nothing to draw. */
+  function meshFor(L: 1 | 2 | 3, b: number, build: () => boolean): THREE.Mesh | null | undefined {
+    const key = keyOf(L, b);
+    const have = cache.get(key);
+    if (have !== undefined) return have;
+    if (!build()) return undefined;
+    const mesh = buildMesh(L, b);
+    cache.set(key, mesh, geometryBytes(mesh?.geometry ?? null));
+    return mesh;
+  }
+  function dropMesh(mesh: THREE.Mesh) {
+    patches.remove(mesh);
+    mesh.geometry.dispose();
+  }
+  /** The meshes made visible last pass, to hide on the next. */
+  let shown: THREE.Mesh[] = [];
+  const cellBox = (b: number, into: THREE.Box3) => {
+    const c = b % cols;
+    const r = Math.floor(b / cols);
+    const pad = 4 + binLean[b];
+    into.min.set(c * CELL - pad, binLow[b] - 2, r * CELL - pad);
+    into.max.set((c + 1) * CELL + pad, binTop[b] + 2, (r + 1) * CELL + pad);
+  };
+
+  /** THE CELL PASS: every filled cell's level settled and stepped, its
+   * drawables shown or hidden, the cell texture sent. */
+  function cellPass(camera: THREE.PerspectiveCamera, moved: boolean, jump: boolean) {
+    const now = performance.now();
+    const ms = jump ? 1e9 : Math.min(1000, Math.max(0, now - lastNow));
+    lastNow = now;
+    if (!moved && !animating) return;
+    pass++;
+    const cx = camera.position.x;
+    const cy = camera.position.y;
+    const cz = camera.position.z;
+    const far = aloft.far;
+    const edgesC: CellEdges = {
+      near: Math.min(options.full, far),
+      mid: Math.min(options.mid, far),
+      sketch: Math.min(shellFrom(options.mid), far),
+      view: aloft.view,
+    };
+    // The horizon is tested again once the lens has moved 8 m.
+    const retest = camera.position.distanceToSquared(horizonAt) > 64;
+    if (retest) horizonAt.copy(camera.position);
+    const t0 = performance.now();
+    const room = () => jump || performance.now() - t0 < 3;
+    for (const m of shown) m.visible = false;
+    shown = [];
+    const near: number[] = [];
+    const tilesOn = new Set<number>();
+    const blocksOn = [new Set<number>(), new Set<number>()];
+    animating = false;
+    // First every cell's level and whether it is in sight; then the merged
+    // meshes missing, nearest first, as many as the frame has room for.
+    const wanting: number[] = [];
+    for (const b of filled) {
+      cellBox(b, box);
+      const dx = Math.max(box.min.x - cx, 0, cx - box.max.x);
+      const dy = Math.max(box.min.y - cy, 0, cy - box.max.y);
+      const dz = Math.max(box.min.z - cz, 0, cz - box.max.z);
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      cellD[b] = d;
+      const was = seenAt[b] === pass - 1;
+      const target: CellLevel = was
+        ? settleLevel(lod.target[b] as CellLevel, d, edgesC)
+        : levelAt(d, edgesC);
+      want[b] = target;
+      let inView = target < 4 && frustum.intersectsBox(box);
+      if (inView && d > 160) {
+        if (retest || !was) {
+          const mx = (box.min.x + box.max.x) / 2;
+          const mz = (box.min.z + box.max.z) / 2;
+          const top = binTop[b];
+          behind[b] =
+            hidden(snowAt, cx, cy, cz, mx, top, mz) &&
+            hidden(snowAt, cx, cy, cz, box.min.x, top, box.min.z) &&
+            hidden(snowAt, cx, cy, cz, box.max.x, top, box.min.z) &&
+            hidden(snowAt, cx, cy, cz, box.min.x, top, box.max.z) &&
+            hidden(snowAt, cx, cy, cz, box.max.x, top, box.max.z)
+              ? 1
+              : 0;
+        }
+        if (behind[b]) inView = false;
+      }
+      sight[b] = inView ? 1 : 0;
+      if (inView && (target === 1 || target === 2) && cache.get(keyOf(target, blockOf(b))) === undefined)
+        wanting.push(b);
+    }
+    wanting.sort((p, q) => cellD[p] - cellD[q]);
+    for (const b of wanting) {
+      if (!room()) break;
+      meshFor(want[b] as 1 | 2, blockOf(b), () => true);
+      cache.touch(keyOf(want[b] as 1 | 2, blockOf(b)), pass);
+    }
+    for (const b of filled) {
+      const was = seenAt[b] === pass - 1;
+      const inView = sight[b] === 1;
+      let target = want[b] as CellLevel;
+      // A merged level whose mesh is not built yet is its shell meanwhile.
+      if ((target === 1 || target === 2) && cache.get(keyOf(target, blockOf(b))) === undefined)
+        target = 3;
+      lod.target[b] = target;
+      if (!inView || !was) {
+        // Out of sight: whatever level it belongs at, at once.
+        lod.value[b] = target;
+        if (!inView) continue;
+      }
+      seenAt[b] = pass;
+      if (stepLevel(lod, b, ms)) animating = true;
+      const v = lod.value[b];
+      // Every level whose share of this cell is not nothing.
+      for (let L = Math.max(0, Math.ceil(v - 1 + 1e-6)); L <= Math.min(3, Math.floor(v + 1 - 1e-6)); L++) {
+        if (L === 0) near.push(b);
+        else if (L === 3) tilesOn.add(tileOf(b));
+        else blocksOn[L - 1].add(blockOf(b));
+      }
+    }
+    // Built when their level was settled; built now if the cache dropped one.
+    for (const L of [1, 2] as const)
+      for (const k of blocksOn[L - 1]) {
+        const mesh = meshFor(L, k, () => true);
+        cache.touch(keyOf(L, k), pass);
+        if (mesh) {
+          mesh.visible = true;
+          shown.push(mesh);
+        }
+      }
+    for (const t of tilesOn) {
+      const mesh = meshFor(3, t, () => true);
+      cache.touch(keyOf(3, t), pass);
+      if (mesh) {
+        mesh.visible = true;
+        shown.push(mesh);
+      }
+    }
+    for (const m of cache.trim(pass)) dropMesh(m);
+    lod.texture.needsUpdate = true;
+    if ((globalThis as { __forestDebug?: boolean }).__forestDebug !== false) {
+      const lv = [0, 0, 0, 0];
+      for (const m of shown) lv[m.material === shellMaterial ? 3 : m.material === patchMaterials[1] ? 1 : 2]++;
+      console.error(
+        `[forest] pass ${pass} jump ${jump} anim ${animating} near ${near.length} L1 ${lv[1]} L2 ${lv[2]} tiles ${lv[3]} wanting ${wanting.length} cache ${(cache.bytes() / 1e6).toFixed(1)}MB ms ${(performance.now() - t0).toFixed(1)}`,
+      );
+    }
+    nearCells = near;
+  }
+
   return {
     group,
     update(camera, shadow) {
@@ -619,91 +912,76 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         if (shadow) Object.assign(lastShadow, shadow);
         fillCasters(shadow);
       }
-      // The bands, only when the lens has moved or turned enough to change
-      // the answer — or a tree is still dissolving into its next cut.
       camera.getWorldDirection(look);
-      if (
-        !dissolving &&
+      const moved = !(
         camera.position.distanceToSquared(lastAt) < 0.5 &&
         look.dot(lastLook) > 0.9998 &&
         camera.fov === lastFov &&
         aloft.far === lastFar
-      ) {
-        return;
+      );
+      const jump = camera.position.distanceToSquared(lastPass) > 60 * 60;
+      if (moved) {
+        pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(pv);
       }
+      cellPass(camera, moved, jump);
+      lastPass.copy(camera.position);
+      // The near cells' trees, only when the lens has moved or turned enough
+      // to change the answer, the near cells have changed — or a tree is
+      // still dissolving into its next cut.
+      const key = nearCells.join(",");
+      if (!dissolving && !moved && key === nearKey) return;
+      nearKey = key;
       lastAt.copy(camera.position);
       lastLook.copy(look);
       lastFov = camera.fov;
       lastFar = aloft.far;
-      pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-      frustum.setFromProjectionMatrix(pv);
       const cx = camera.position.x;
       const cy = camera.position.y;
       const cz = camera.position.z;
-      const { full, mid, far } = shapes;
-      for (const b of [full, mid, far]) {
+      const { full, mid } = shapes;
+      for (const b of [full, mid]) {
         b.fill.fill(0);
         b.from.fill(Infinity);
       }
-      // Aloft, a tree's cut is chosen at its SLANT distance from the lens
-      // (`lift` over the snow), so the far edge is the plan reach's slant.
+      // Aloft, a tree's cut is chosen at its SLANT distance from the lens.
       const lift = aloft.lift;
       const lift2 = lift * lift;
       edges.full = options.full;
-      edges.mid = options.mid;
-      edges.far = lift > 0 ? Math.hypot(aloft.far, lift) + 2 * HYSTERESIS : aloft.far;
-      const reach = Math.ceil(aloft.far / CELL) + 1;
-      const c0 = Math.floor(cx / CELL);
-      const r0 = Math.floor(cz / CELL);
+      edges.mid = Infinity;
+      edges.far = Infinity;
       const lens2 = LENS_REACH * LENS_REACH;
       const plan = Math.hypot(look.x, look.z);
       const ux = plan > 1e-6 ? look.x / plan : 0;
       const uz = plan > 1e-6 ? look.z / plan : 0;
-      const far2 = aloft.far * aloft.far;
-      const bands = [full, mid, far];
+      const bands = [full, mid];
       const now = performance.now();
       tick++;
       dissolving = false;
-      for (let r = Math.max(0, r0 - reach); r <= Math.min(cols - 1, r0 + reach); r++) {
-        for (let c = Math.max(0, c0 - reach); c <= Math.min(cols - 1, c0 + reach); c++) {
-          const b = r * cols + c;
-          const lo = binStart[b];
-          const hi = binStart[b + 1];
-          if (lo === hi) continue;
-          const pad = 8 + binLean[b];
-          box.min.set(c * CELL - pad, binLow[b] - 2, r * CELL - pad);
-          box.max.set((c + 1) * CELL + pad, binTop[b] + 2, (r + 1) * CELL + pad);
-          const dx = Math.max(box.min.x - cx, 0, cx - box.max.x);
-          const dz = Math.max(box.min.z - cz, 0, cz - box.max.z);
-          if (dx * dx + dz * dz > far2) continue;
-          if (!frustum.intersectsBox(box)) continue;
-          for (let i = lo; i < hi; i++) {
-            const e2 = (xs[i] - cx) ** 2 + (zs[i] - cz) ** 2;
-            // THE TREES AT THE LENS are drawn while they come at it and while
-            // it passes through them — the boughs across the frame are the
-            // woods closing round a skier off the piste (the booms keep only
-            // off the trunks, `camera-rigs.ts`). Only once the trunk is
-            // `LENS_BEHIND` behind the lens is a tree whose crown is still at
-            // it taken out of the picture, so its boughs do not hang round
-            // the frame's edges. Its caster stays, so the snow under it does
-            // not light up as the lens goes by.
-            if (
-              e2 < lens2 &&
-              (xs[i] - cx) * ux + (zs[i] - cz) * uz < -LENS_BEHIND &&
-              atLens(trees[i], shapes.variantOf[i], cx, cz, cy, leans[i * 2], leans[i * 2 + 1])
-            )
-              continue;
-            const inFar = thin[i] < options.farShare;
-            const d = Math.sqrt(lift > 0 ? e2 + lift2 : e2);
-            if (handOver(hand, i, d, lift > 0 ? edges : options, inFar, now, tick, draw)) {
-              dissolving = true;
-            }
-            if (draw.from >= 0) place(bands[draw.from], i, 0, draw.split);
-            if (draw.band >= 0) place(bands[draw.band], i, draw.split, 1);
-          }
+      for (const b of nearCells) {
+        for (let i = binStart[b]; i < binStart[b + 1]; i++) {
+          const e2 = (xs[i] - cx) ** 2 + (zs[i] - cz) ** 2;
+          // THE TREES AT THE LENS are drawn while they come at it and while
+          // it passes through them — the boughs across the frame are the
+          // woods closing round a skier off the piste (the booms keep only
+          // off the trunks, `camera-rigs.ts`). Only once the trunk is
+          // `LENS_BEHIND` behind the lens is a tree whose crown is still at
+          // it taken out of the picture, so its boughs do not hang round
+          // the frame's edges. Its caster stays, so the snow under it does
+          // not light up as the lens goes by.
+          if (
+            e2 < lens2 &&
+            (xs[i] - cx) * ux + (zs[i] - cz) * uz < -LENS_BEHIND &&
+            atLens(trees[i], shapes.variantOf[i], cx, cz, cy, leans[i * 2], leans[i * 2 + 1])
+          )
+            continue;
+          const d = Math.sqrt(lift > 0 ? e2 + lift2 : e2);
+          if (handOver(hand, i, d, edges, true, now, tick, draw)) dissolving = true;
+          if (draw.from >= 0) place(bands[draw.from], i, 0, draw.split);
+          if (draw.band >= 0) place(bands[draw.band], i, draw.split, 1);
         }
       }
-      for (const b of [full, mid, far]) {
+      for (const b of [full, mid]) {
         b.meshes.forEach((im, k) => {
           const n = b.fill[k];
           im.count = n;
@@ -732,9 +1010,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       }
     },
     invalidate() {
-      // A new frame of reference: every tree takes its cut at once.
+      // A new frame of reference: every tree and every cell takes its cut at once.
       tick++;
+      pass++;
       lastAt.set(Infinity, 0, 0);
+      lastPass.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },
     setAloft(far, lift, view) {
@@ -743,21 +1023,35 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       aloft.view = Math.max(view, options.view);
     },
     setOptions(next) {
-      if (next.variants !== options.variants) {
+      const reshape = next.variants !== options.variants;
+      const rethin = next.farShare !== options.farShare;
+      if (reshape) {
         dropShapes(shapes);
         shapes = buildShapes(next.variants);
+      }
+      if (reshape || rethin) {
+        for (const m of cache.clear()) dropMesh(m);
+        cache = createMeshCache<THREE.Mesh>(budgetOf(next.variants));
+        shown = [];
       }
       options = { ...next };
       Object.assign(aloft, { far: options.far, lift: 0, view: options.view });
       rocks.setShare(options.farShare);
       tick++;
+      pass++;
       lastAt.set(Infinity, 0, 0);
+      lastPass.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },
     dispose() {
       rocks.dispose();
       dropShapes(shapes);
+      for (const m of cache.clear()) dropMesh(m);
       material.dispose();
+      patchMaterials[1].dispose();
+      patchMaterials[2].dispose();
+      shellMaterial.dispose();
+      lod.texture.dispose();
       casterMaterial.dispose();
       casterDepth.dispose();
     },

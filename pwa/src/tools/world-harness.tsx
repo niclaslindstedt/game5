@@ -58,6 +58,7 @@ import {
   type Tier,
 } from "../game/settings-video.ts";
 import { setSkyClock } from "../game/sky-clock.ts";
+import { BODIES, DEFAULT_OUTFIT, WEIGHTS } from "../game/outfit.ts";
 import { volumeNoise } from "../game/cloud-volume.ts";
 import { wildGround } from "../game/wild-ground.ts";
 import { tunnelNear, tunnelPointAt, tunnelsOf, type WindTunnel } from "../game/wind-tunnel-plan.ts";
@@ -104,6 +105,16 @@ const renderer = createWorldRenderer(canvas, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);
+// `?body=hiker` (or `hikerWoman`): the player in the modelled hiker (`player-model.ts`).
+const bodyAsked = BODIES.find((b) => b.id === params.get("body"));
+// `?weight=`: the player's build (the WEIGHT row reshapes the model too).
+const weightAsked = WEIGHTS.find((w) => w.id === params.get("weight"));
+if (bodyAsked || weightAsked)
+  renderer.dress({
+    ...DEFAULT_OUTFIT,
+    body: bodyAsked?.id ?? DEFAULT_OUTFIT.body,
+    weight: weightAsked?.id ?? DEFAULT_OUTFIT.weight,
+  });
 /** The run's snow dial (`SNOW_DIAL`) — the ordinary snow unless named. */
 const snow = Number(params.get("snow"));
 /** A DOWNHILL (`?downhill=1`), a FREE RIDE (`?free=1`) or a SLALOM (`?slalom=1`). */
@@ -929,7 +940,7 @@ window.__world = {
   // HIGH's cloud volume waits on its noise (made off the main thread).
   ready: renderer.load(state).then(async () => void (await volumeNoise())),
   async shoot(name) {
-    const chase = /^chase-(\d+)$/.exec(name);
+    const chase = /^chase-(\d+(?:\.\d+)?)$/.exec(name);
     const fall = /^(fall|yard)-(\d+(?:\.\d+)?)$/.exec(name);
     const net = /^net-(\d+(?:\.\d+)?)$/.exec(name);
     const crash = /^crash-(net-)?(\d+(?:\.\d+)?)$/.exec(name);

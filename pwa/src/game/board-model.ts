@@ -82,6 +82,7 @@ import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead } from "./skier-flight.ts";
 import type { SkisModel, SkiStyle, SledStand, SnowGround } from "./skis-body.ts";
 import type { V3 } from "./skier-vec.ts";
+import { setPlayerClock } from "./player-model.ts";
 
 /** How long the figure takes to step from the riding pose into the town's,
  * or back, s — about a beat of the town's own steps. */
@@ -346,6 +347,7 @@ export function createBoardModel(
       return out;
     },
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+      setPlayerClock(run ? run.t : null); // the modelled kit on the run's clock
       const skier = uprightSkier(engine); // never laid out beside his board over a loop's top
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
       const off = body === undefined ? skier.thrown : body;

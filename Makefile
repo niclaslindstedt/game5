@@ -398,10 +398,11 @@ blender:
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer or KIND=plane makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, man and woman) makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
-# VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0). The skier
+# VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0,
+# VITE_MODEL_PLAYER=0). Every other skier
 # (dressed in code, `make gear`), the trees, the wildlife and the course's
 # marks are built in code and have no models; `make blender KIND=skier`
 # still models the skier for the labs.
@@ -412,6 +413,7 @@ models:
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	$(if $(filter all plane,$(or $(KIND),all)),npm run blender -- --kind plane --quality=game --views=none,)
+	$(if $(filter all player,$(or $(KIND),all)),npm run blender -- --kind hiker --id all --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender

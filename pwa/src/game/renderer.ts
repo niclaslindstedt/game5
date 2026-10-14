@@ -414,7 +414,7 @@ export function createWorldRenderer(
   const dealtKits = new Map<string, SkierDress>();
   let suited = false; // A wingsuit's run: the player in his suit.
   const dressOf = (i: number): SkierDress => {
-    if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit };
+    if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit, model: true };
     const free = field[i - 1]?.free;
     return free
       ? dealtKit(dealtKits, free.look, free.rider)

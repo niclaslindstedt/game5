@@ -159,6 +159,17 @@ function along(p: V3, s: Seg): { t: number; d: number } {
   return { t, d: len(sub(p, add(s.a, mul(d, t)))) };
 }
 
+/** HOW FAR PAST A BREAK a point of an arm bone lies, 0..1: none above
+ * `at` (m down the bone in the bind pose), all of it a few centimetres
+ * below, eased between — the share of its weight the bone below the break
+ * (`arm_lo_`) takes. The one rule for where an arm is split: the code's
+ * dress here and the modelled kits (`player-model.ts`) both ask it. */
+export function pastBreak(bone: string, at: number, p: V3): number {
+  const seg = segs()[bone];
+  const m = along(p, seg).t * len(sub(seg.b, seg.a));
+  return smoothstep((m - at + CUT) / (2 * CUT));
+}
+
 const boneIndex = (n: string): number => (SKIER_BONES as readonly string[]).indexOf(n);
 
 /** Up to four bones a point of the cloth rides, summing to one. */
@@ -216,9 +227,7 @@ export function clothWeights(p: V3, among?: string[]): Influence[] {
     ] as const) {
       const share = out.get(bone);
       if (!share) continue;
-      const seg = S[bone];
-      const m = along(p, seg).t * len(sub(seg.b, seg.a));
-      const c = smoothstep((m - at + CUT) / (2 * CUT));
+      const c = pastBreak(bone, at, p);
       if (c <= 0) continue;
       if (c >= 1) out.delete(bone);
       else out.set(bone, share * (1 - c));

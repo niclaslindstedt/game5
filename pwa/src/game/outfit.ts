@@ -53,7 +53,9 @@ import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
 
 import type { BuildShape } from "./dress-body.ts";
 
-export type BodyId = "man" | "woman";
+export type BodyId = "man" | "woman" | "hiker" | "hikerWoman";
+/** A WHOLE KIT MODELLED in Blender (`player-model.ts`), by its name. */
+export type ModelKit = "hiker";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
 export type HelmetId = "race" | "freeride" | "visor" | "slalom";
@@ -91,6 +93,11 @@ export type BodyDef = {
   hair: number;
   /** The shadowed partings between a braid's strands. */
   plait: number;
+  /** A WHOLE KIT MODELLED in Blender (`player-model.ts`): a man's or a
+   * woman's measure (`female`) in the kit's own clothes, harness, pack and
+   * helmet, so the jacket, pants, helmet and gloves rows are its already.
+   * Never dealt to the field. */
+  model?: ModelKit;
 };
 
 /** A garment's colours: the MAIN body of it, its SECOND colour (a yoke, a
@@ -127,6 +134,26 @@ export type PoleDef = {
 export const BODIES: readonly BodyDef[] = [
   { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e, plait: 0x241910 },
   { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232, plait: 0x6a4020 },
+  // The HIKER: a mountain guide's kit, modelled (`scripts/blender/hiker.py`),
+  // as a man and as a woman with the same skin and hair as the code's.
+  {
+    id: "hiker",
+    name: "Hiker man",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x3a2a1e,
+    plait: 0x241910,
+    model: "hiker",
+  },
+  {
+    id: "hikerWoman",
+    name: "Hiker woman",
+    female: true,
+    skin: 0xe0aa86,
+    hair: 0x9a6232,
+    plait: 0x6a4020,
+    model: "hiker",
+  },
 ];
 
 const WEIGHT_LOOK: Record<RiderId, { name: string; belly: number; chest: number }> = {
@@ -352,7 +379,10 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
     return kept[dealt(look, k, kept.length)].id;
   };
   return {
-    body: of(BODIES, 0),
+    body: of(
+      BODIES.filter((b) => !b.model),
+      0,
+    ),
     weight,
     jacket: of(JACKETS, 1),
     pants: of(PANTS, 2),

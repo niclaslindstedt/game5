@@ -299,7 +299,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   /** A model of `given` for card `s`, stood at rest, not yet on the stage. */
   function make(s: StageShot, given: SkiSpec, outfit: Outfit) {
     const spec = drawnSpec(s, given);
-    const made = createSkisModel(spec, pairStyle(spec, { outfit }), (m) => m);
+    const made = createSkisModel(spec, pairStyle(spec, { outfit, model: true }), (m) => m);
     const fresh = freshSkier(spec);
     fresh.skiCompression[0] = REST_SAG;
     fresh.skiCompression[1] = REST_SAG;

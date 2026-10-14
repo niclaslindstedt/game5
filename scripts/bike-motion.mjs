@@ -261,9 +261,7 @@ const before = args.compare ? JSON.parse(readFileSync(resolve(root, args.compare
 const pad = (s, n) => String(s).padStart(n);
 const pct = (v) => `${Math.round(v * 100)}%`;
 const COLUMNS = [...CHARTS.map((c) => c.id), "snap", "world"];
-console.log(
-  `bike motion · seed ${C.CLIP_MAP.seed} (the table seed 4) · look ${args.look} · ${C.CLIP_HZ} Hz\n`,
-);
+console.log(`bike motion · seed ${C.CLIP_MAP.seed} · look ${args.look} · ${C.CLIP_HZ} Hz\n`);
 console.log(
   `${"clip".padEnd(9)}${"window s".padEnd(13)}${COLUMNS.map((c) => pad(c, 9)).join("")}${pad("travel", 11)}   worst snap`,
 );

@@ -399,7 +399,11 @@ const levels = new Map<string, Level>();
 export function landingLevel(row: SledLanding): Level {
   let lv = levels.get(row.id);
   if (!lv) {
-    lv = shapedLevel(row.ground, { packed: row.packed, size: SIZE });
+    // The bench's ramps, ledges and walls are SNOW shaped by hand: a 4 m
+    // ledge cut sheer is steep enough to be a crag's (`ROCKS.wall`), and a
+    // crag's beds stand metres proud of a feature that small, so the rock
+    // is kept off them (`withRock` lays none on a map that has its own).
+    lv = { ...shapedLevel(row.ground, { packed: row.packed, size: SIZE }), rockAt: () => 0 };
     levels.set(row.id, lv);
   }
   return lv;

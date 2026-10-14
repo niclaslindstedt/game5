@@ -44,6 +44,7 @@ import { flipLean } from "../game/strokes.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import type { GameState, SkierInput } from "../game/state.ts";
 import { solidsNear } from "../game/posts.ts";
+import { bedrockOf } from "../game/rock-ground.ts";
 import { dropSpeed, kickerSpeed } from "./kicker-speed.ts";
 
 export type Daring = {
@@ -277,8 +278,9 @@ export function daringLine(
   }
   let across = c.speed < d.roam.slow ? 0 : roamAt(state, aim.s, d);
   if (across !== 0) {
-    // How steeply the snow out there falls away down the piste's way.
-    const ground = state.level.groundAt;
+    // How steeply the snow out there falls away down the piste's way — the
+    // mountain's own fall, never a wall's ledges (`withRock`).
+    const ground = bedrockOf(state.level).groundAt;
     const ax = aim.x + Math.cos(aim.heading) * across;
     const az = aim.z - Math.sin(aim.heading) * across;
     const b = trackPointAt(state.level, aim.s + d.roam.probe, pt);

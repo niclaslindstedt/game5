@@ -18,6 +18,7 @@ make anim ARGS="--family=skier --move=carve,jump"
 make anim ARGS="--family=ride"                 # the machines and seats (lifts, sled, heli, chute, …)
 make anim ARGS="--no-render"                   # bones, onion skins and charts alone (fast)
 make anim ARGS="--json=previews/anim-before.json"
+make anim ARGS="--family=skier --no-sheets --snaps"  # every angle snap and snapping joint listed by time
 make anim ARGS="--compare=previews/anim-before.json"
 ```
 

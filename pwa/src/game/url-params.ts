@@ -154,6 +154,8 @@
 //                   deals him by (`GRIMBEAR_ODDS`).
 //   ?avalanche=0    a free ride whose slopes never AVALANCHE (`avalanche.ts`)
 //                   — or, with 1, one whose do; left out, they do.
+//   ?front=0        a free ride whose WEATHER HOLDS as dealt (`front.ts`) —
+//                   or, with 1, one whose sky moves; left out, it moves.
 //   ?afterski=1     a free ride begun INSIDE the valley's afterski lodge
 //                   (`afterski.ts`), the party under way.
 //   ?buzz=<0..1>    a free ride begun with that BUZZ (`buzz.ts`), as
@@ -360,6 +362,9 @@ export type UrlParams = {
   /** A free ride whose loaded slopes may avalanche (true) or never do
    * (false); null when the link names neither — they may. */
   avalanche: boolean | null;
+  /** A free ride whose weather moves over the ride (true) or holds as
+   * dealt (false); null when the link names neither — it moves. */
+  front: boolean | null;
   /** A free ride the piste machines work whatever the hour (true) or never
    * (false); null when the link names neither — out after dark. */
   groomer: boolean | null;
@@ -520,6 +525,7 @@ export function readParams(search: string): UrlParams {
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
     avalanche: q.get("avalanche") === "1" ? true : q.get("avalanche") === "0" ? false : null,
+    front: q.get("front") === "1" ? true : q.get("front") === "0" ? false : null,
     afterski: q.get("afterski") === "1",
     buzz: buzzOf(q.get("buzz")),
     titleT: titleTOf(q.get("titleT")),
@@ -580,6 +586,7 @@ function inSummer(ride: CreateGameOptions): CreateGameOptions {
     summer: true,
     day: { ...ride.day, dayOfYear: SUMMER_DAY },
     avalanche: false,
+    front: false,
     sled: false,
     inLodge: false,
     // On the bike his figure is the skis' (`free-ride.ts`): a board put away.
@@ -639,6 +646,7 @@ function overCard(ride: CreateGameOptions, params: UrlParams): CreateGameOptions
     grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
     groomer: params.groomer === null ? ride.groomer : params.groomer ? "on" : "off",
     avalanche: params.avalanche ?? ride.avalanche,
+    front: params.front ?? ride.front,
     inLodge: params.afterski || ride.inLodge,
     buzz: params.buzz ?? ride.buzz,
   };

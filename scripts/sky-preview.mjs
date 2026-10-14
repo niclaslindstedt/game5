@@ -108,6 +108,10 @@ const args = parseArgs(
       kind: "flag",
       help: "the time-lapse walks the RUN'S OWN CLOCK (the sky's clock, sky-clock.ts), every frame between cells drawn",
     },
+    front: {
+      kind: "flag",
+      help: "the map carries a free ride's FRONT (front.ts): with --clock the time-lapse shows its skies coming in",
+    },
     rate: { kind: "number", default: 12, help: "the clock time-lapse's rate, sky s a run s" },
     cols: { kind: "number", default: 8, help: "the time-lapse's frames a row" },
     weathers: {
@@ -186,6 +190,7 @@ const query = new URLSearchParams({
   weathers: args.weathers,
   view: args.view,
   clock: args.clock ? "1" : "0",
+  front: args.front ? "1" : "0",
   rate: String(args.rate),
   maps: args.maps,
   far: args["no-far"] ? "0" : "1",
@@ -201,6 +206,7 @@ if (crashed) process.exit(1);
 const sheetPart =
   (args.sheet === "weathers" ? "" : `-${args.sheet}`) +
   (args.clock ? "-clock" : "") +
+  (args.front ? "-front" : "") +
   (args["no-far"] ? "-nofar" : "");
 const viewPart = args.view === "chase" ? "" : `-${args.view}`;
 const out = join(outDir, `sky-${args.seed}${sheetPart}${viewPart}.png`);

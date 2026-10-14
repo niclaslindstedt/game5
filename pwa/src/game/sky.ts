@@ -58,6 +58,7 @@
 
 import {
   CLEAR_WEATHER,
+  frontAt,
   moonAtRun,
   skyLevelAt,
   snowAt,
@@ -78,6 +79,7 @@ import {
   exposureOf,
 } from "./sky-atmosphere.ts";
 import { cloudFieldOf, cloudLayersFor, meanPass, type CloudField } from "./cloud-field.ts";
+import { frontFieldAt } from "./cloud-front.ts";
 import { lightClouds, type CloudSky } from "./cloud-light.ts";
 import { deckZone } from "./low-deck.ts";
 import { skyClock } from "./sky-clock.ts";
@@ -106,6 +108,10 @@ export type CloudLook = {
   genus: 0 | 1 | 2 | 3;
   /** Share of the sky covered, 0..1. */
   cover: number;
+  /** How much of a LID is over the dome, 0..1: 1 under one, 0 under none,
+   * and between while a moving sky (`front.ts`) brings one in or takes it
+   * away — what the GPU sky hands its dome to the grid by. */
+  lid: number;
 };
 
 export type SkyLook = {
@@ -732,7 +738,7 @@ export function skyLookFor(
     haze,
     hazeLift: fog > 0 ? 90 + 120 * (1 - fog) : 700,
     shadeLift: shadeLift(elevation),
-    cloud: { genus: lid.genus, cover: lid.cover },
+    cloud: { genus: lid.genus, cover: lid.cover, lid: lidded ? 1 : 0 },
     clouds: { ...clouds, show: inFog ? 0 : 1, shade: field.layers.map(() => 1) },
     sea: { colour: clouds.sea, sun: clouds.seaSun, top: 0, base: NO_BASE, k: 0 },
     night,
@@ -773,7 +779,7 @@ export function reliefOf(level: Pick<Level, "mountain">): Relief | null {
  * `rate` — the app's, `sky-clock.ts`; 0 holds them at the start hour), and
  * the fall as the squalls have it at `t`. */
 export function skyLookAt(
-  level: Pick<Level, "seed" | "sun" | "weather" | "mountain">,
+  level: Pick<Level, "seed" | "sun" | "weather" | "mountain" | "front">,
   t = 0,
   rate: number = skyClock(),
   eyeY?: number,
@@ -783,15 +789,38 @@ export function skyLookAt(
   const at0 = moonAtRun(sky);
   // The moon's distance that instant: its size and its light.
   const moon = { ...at0, distance: moonDistance(sky, at0.elevation) };
-  const weather = weatherOf(level);
-  const field = fieldOf(level);
+  const field = fieldAt(level, t);
+  const fall = snowAt(level, t, fallNow).fall;
+  const under = (weather: Weather): SkyLook =>
+    lookUnder(level, sky, sun, moon, weather, field, fall, eyeY);
+  // UNDER A MOVING SKY (`front.ts`): the look under each of the two skies
+  // either side, over the one morphing field and the one fall, mixed by how
+  // far the change has come — never a sky swapped for another.
+  const front = level.front ? frontAt(level, t) : null;
+  if (!front) return under(weatherOf(level));
+  if (front.share <= 0) return under(front.a);
+  return blendLook(under(front.a), under(front.b), front.share);
+}
+
+/** The look under the sky `weather` with the field `field` and the fall
+ * `fall` — over a valley fog's or a low deck's sea, as the eye `eyeY` has it. */
+function lookUnder(
+  level: Pick<Level, "seed" | "sun" | "weather" | "mountain">,
+  sky: Pick<Level, "sun">,
+  sun: { azimuth: number; elevation: number },
+  moon: MoonInput,
+  weather: Weather,
+  field: CloudField,
+  fall: number,
+  eyeY: number | undefined,
+): SkyLook {
   const at = (w: Weather, f: typeof field = field): SkyLook => {
     const look = skyLookFor(
       sun.azimuth,
       sun.elevation,
       moon,
       w,
-      snowAt(level, t, fallNow).fall,
+      fall,
       lensAltitude(level),
       f,
       reliefOf(level),
@@ -846,7 +875,7 @@ const SEA_DENSITY = 0.03;
 const NO_BASE = -1e6;
 
 const FIELDS = new WeakMap<object, CloudField>();
-/** THE CLOUD FIELD over a map, dealt once a map. */
+/** THE CLOUD FIELD over a map, dealt once a map — the dealt sky's. */
 export function fieldOf(level: Pick<Level, "seed" | "sun" | "weather" | "mountain">): CloudField {
   let f = FIELDS.get(level);
   if (!f) {
@@ -854,6 +883,24 @@ export function fieldOf(level: Pick<Level, "seed" | "sun" | "weather" | "mountai
     FIELDS.set(level, f);
   }
   return f;
+}
+
+/** The last field a moving sky was asked for: the look and the cloud's
+ * drawing ask for the same moment each frame. */
+let lastFront: { level: object; t: number; field: CloudField } | null = null;
+
+/** THE CLOUD FIELD over a map at run time `t`: the dealt one (`fieldOf`) on
+ * a map without a FRONT; on one, the field morphing between the skies
+ * either side (`cloud-front.ts`). */
+export function fieldAt(
+  level: Pick<Level, "seed" | "sun" | "weather" | "mountain" | "front">,
+  t: number,
+): CloudField {
+  if (!level.front) return fieldOf(level);
+  if (lastFront && lastFront.level === level && lastFront.t === t) return lastFront.field;
+  const field = frontFieldAt(level, t);
+  lastFront = { level, t, field };
+  return field;
 }
 
 /** Two looks mixed `s` of the way from `a` to `b`, field by field: every
@@ -881,7 +928,7 @@ function blendLook<T>(a: T, b: T, s: number): T {
  * — what the mountain's shadow is baked ahead to (`terrain-shadow.ts`'s
  * `HorizonBlend`). */
 export function keyAheadAt(
-  level: Pick<Level, "seed" | "sun" | "weather" | "mountain">,
+  level: Pick<Level, "seed" | "sun" | "weather" | "mountain" | "front">,
   t: number,
   lead: number = TERRAIN_SHADOW.lead,
   rate: number = skyClock(),

@@ -68,6 +68,20 @@ export {
   weatherOf,
   withSky,
 } from "./weather.ts";
+export {
+  FRONT,
+  FRONT_RATE,
+  FRONT_TURNS,
+  dealFront,
+  frontAt,
+  frontEase,
+  frontEaseArea,
+  weatherAt,
+  withFront,
+  type FrontLeg,
+  type FrontNow,
+  type WeatherFront,
+} from "./front.ts";
 export { gridOnTrack, startGateArc } from "./spawn.ts";
 export { CLEAR as SURFACE_CLEAR } from "./surface.ts";
 export {

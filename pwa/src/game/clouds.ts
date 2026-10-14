@@ -44,7 +44,8 @@ import { createCloudVolume, type CloudVolume } from "./cloud-volume.ts";
 import { carveOf, carveOffsets } from "./cloud-volume-plan.ts";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { CloudTier } from "./settings-video.ts";
-import { fieldOf, type SkyLook } from "./sky.ts";
+import { fieldShape } from "./cloud-front.ts";
+import { fieldAt, type SkyLook } from "./sky.ts";
 
 type SlabTier = "slab4" | "slab8";
 const isVolume = (t: CloudTier): t is "volume" | "volumeFine" =>
@@ -232,6 +233,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
   const vp = new THREE.Matrix4();
   let order: CloudLayer[] = [];
   let ordered: readonly CloudLayer[] | null = null;
+  let shaped = "";
 
   const tierNow = (): CloudTier => forcedTier ?? tier;
   const slabOn = (): boolean => floats && tierNow() !== "shell" && gl !== null;
@@ -267,14 +269,20 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       tier = next;
     },
     update(look, level, t, lens) {
-      const field = level ? fieldOf(level) : null;
+      const field = level ? fieldAt(level, t) : null;
       const layers = field?.layers ?? [];
       // The layers sorted by height, kept with the look's light (one a
-      // layer of the field, in the field's own order).
+      // layer of the field, in the field's own order). Under a moving sky
+      // (`cloud-front.ts`) the field is new every frame: the volume's kept
+      // picture is thrown away only when the genera it stands change.
       if (layers !== ordered) {
         order = [...layers].sort((a, b) => a.base - b.base).slice(0, CLOUD_LAYERS);
         ordered = layers;
-        fieldKey++;
+        const shape = field ? fieldShape(field) : "";
+        if (!level?.front || shape !== shaped) {
+          shaped = shape;
+          fieldKey++;
+        }
       }
       // The volume is wanted (HIGH, MAX) and its noise has landed.
       const want = slabOn() && isVolume(tierNow());

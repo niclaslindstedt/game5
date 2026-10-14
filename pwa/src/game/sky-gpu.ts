@@ -253,7 +253,12 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     update(look, lens) {
       const tier = tierNow();
       const want = SKY_TIER_LOOK[tier];
-      const lidded = look.cloud.genus === 3;
+      // Under a lid the deck is the LOW grid's. Under a moving sky
+      // (`front.ts`) the grid — itself the two skies' grids mixed, so
+      // continuous — takes over as soon as any of a lid is coming in or
+      // still going, and the air's volume is let go half way.
+      const lidded = look.cloud.lid > 0;
+      const lidHalf = look.cloud.lid >= 0.5;
       if (!gl || !want.lut) {
         showGrid();
         haze.uHazeTint.value.set(1, 1, 1);
@@ -301,7 +306,7 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       hazeTint(look.haze, look.altitude, tint);
       haze.uHazeTint.value.set(tint[0], tint[1], tint[2]);
       // THE AERIAL-PERSPECTIVE VOLUME, the lens's own, every frame.
-      const air = want.froxels && !lidded && look.sun.y > -0.05;
+      const air = want.froxels && !lidHalf && look.sun.y > -0.05;
       if (air && (lens as THREE.PerspectiveCamera).isPerspectiveCamera) {
         if (!ap) ap = target(FROXEL_ATLAS.width, FROXEL_ATLAS.height);
         lens.updateMatrixWorld();

@@ -254,6 +254,10 @@ export type CloudLayer = {
   heading: number;
   /** The noise's cut for its cover (`coverCut`). */
   cut: number;
+  /** How much of a VEIL it is, 0..1 — the thin ice a halo shows in: a
+   * veil's 1 when left out; a layer morphing out of one less
+   * (`cloud-front.ts`). */
+  veil?: number;
   /** Where in the noise this map's layer stands: x, z and time, periods. */
   ox: number;
   oz: number;
@@ -281,6 +285,11 @@ export type CloudField = {
 let forcedDeck: LowDeck | null | undefined;
 export function forceLowDeck(deck: LowDeck | null | undefined): void {
   forcedDeck = deck;
+}
+
+/** How much of a veil a layer is (`CloudLayer.veil`). */
+export function veilOf(l: Pick<CloudLayer, "kind" | "veil">): number {
+  return l.veil ?? (l.kind === "veil" ? 1 : 0);
 }
 
 /** A hash of the map's seed and a salt to 0..1. */
@@ -350,9 +359,12 @@ export function seaTopOf(fog: number): number {
   return 220 + 380 * fog;
 }
 
-/** THE FIELD over `level`. */
+/** THE FIELD over `level`. `lowDeck` false deals no inversion deck under
+ * any weather but the valley fog (whose sea it still is): a FRONT's skies
+ * (`cloud-front.ts`), whose layers morph slot by slot. */
 export function cloudFieldOf(
   level: Pick<Level, "seed" | "weather" | "mountain" | "sun">,
+  lowDeck = true,
 ): CloudField {
   const w = weatherOf(level);
   const m = level.mountain;
@@ -365,7 +377,7 @@ export function cloudFieldOf(
     m?.vertical ?? 0,
     seaTopOf(w.fog),
   );
-  const deck = forcedDeck === undefined ? dealt : forcedDeck;
+  const deck = !lowDeck && w.kind !== "fog" ? null : forcedDeck === undefined ? dealt : forcedDeck;
   let deckLayer = -1;
   if (deck && w.kind !== "fog") {
     // The deck is the overcast's stratocumulus brought down (dry, clear air

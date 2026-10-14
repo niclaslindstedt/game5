@@ -39,6 +39,7 @@ import {
   withDay,
   withPlace,
   realFacePlace,
+  withFront,
   withSky,
 } from "../mapgen/index.ts";
 import type { RunGrade } from "../mapgen/grades.ts";
@@ -353,6 +354,11 @@ export type CreateGameOptions = {
    * the groomed runs may slide under the skier. None when left out.
    * Ignored by every other mode. */
   avalanche?: boolean;
+  /** THE WEATHER OVER THE RUN (`mapgen/front.ts`) on a FREE RIDE: the
+   * dealt sky (or the one picked) turning into others over the sky's clock.
+   * The dealt sky holds when left out. Ignored by every other mode and in
+   * summer. */
+  front?: boolean;
 };
 
 /** The ski-cross heat a run asks for: named, or its bracket's next. */
@@ -411,6 +417,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     // ...and its slopes' avalanches (`avalanche.ts`): the free ride's alone,
     // and only when asked for.
     ...(base.avalanche && options.avalanche && !summer ? { avalanche: true } : {}),
+    // ...and its weather moving over the ride (`front.ts`): the same.
+    ...(base.front && options.front && !summer ? { front: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -549,7 +557,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // ...and THE ROCK on its walls the surface a body meets (`rock-ground.ts`).
   // In SUMMER the dial stands at its least and lays no wells.
   const depth = summer ? SNOW_DIAL.min : clampSnowDepth(options.snowDepth);
-  const level = withRock(withWells(judged, wellShareOf(depth)));
+  const welled = withRock(withWells(judged, wellShareOf(depth)));
+  // THE WEATHER OVER THE RUN (`front.ts`): laid on last, once a map, so a
+  // ride started again on the map it built keeps the very same map.
+  const level = rules.front ? withFront(welled) : welled;
   const seed = options.seed ?? level.seed;
   // THE PISTE THROUGH THE DAY (`piste-day.ts`): where the ski area's
   // machines work its runs, the runs are as the hour and the sky have left

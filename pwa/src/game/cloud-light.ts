@@ -21,7 +21,7 @@
 // into its bases once the sun stands under its horizon — is the shader's
 // (`cloud-glsl.ts`), off the sun's direction alone.
 
-import { layerPass, type CloudLayer } from "./cloud-field.ts";
+import { layerPass, veilOf, type CloudLayer } from "./cloud-field.ts";
 import { sunTransmittance } from "./sky-atmosphere.ts";
 import type { Rgb } from "./sky.ts";
 
@@ -107,7 +107,10 @@ export function lightClouds(layers: readonly CloudLayer[], i: CloudLightInput): 
     const by = (c: Rgb): Rgb => [c[0] * shut, c[1] * shut, c[2] * shut];
     return { sun: by(at(0.5)), top, base, lo: by(at(0)), hi: by(at(1)) };
   });
-  const veil = layers.find((l) => l.kind === "veil");
+  // The halo's ice: a veil's whole cover, or the share of one a layer
+  // still is while it thickens into another genus (`cloud-front.ts`).
+  let veil = 0;
+  for (const l of layers) veil = Math.max(veil, l.cover * veilOf(l));
   const up = Math.min(1, Math.max(0, (i.elevation + 0.02) / 0.1));
   const lit = sunOn(i, i.floorAltitude + i.seaTop, 1);
   // A sea's top under a low sun is lit at a graze: its lumps' sunward faces
@@ -121,7 +124,7 @@ export function lightClouds(layers: readonly CloudLayer[], i: CloudLightInput): 
   const seaSky = (c: number): number => z[c] * 0.4 + h[c] * 0.34;
   return {
     layers: out,
-    halo: veil ? veil.cover * up : 0,
+    halo: veil * up,
     sea: [seaSun[0] + seaSky(0), seaSun[1] + seaSky(1), seaSun[2] + seaSky(2)],
     seaSun,
     moon: [i.moon[0], i.moon[1], i.moon[2]],

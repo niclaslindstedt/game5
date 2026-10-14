@@ -489,6 +489,7 @@ export function freeRules(laps: number): RunRules {
     traffic: true,
     town: true,
     avalanche: true,
+    front: true,
     start: "line",
     gates: "arcade",
     window: 0,

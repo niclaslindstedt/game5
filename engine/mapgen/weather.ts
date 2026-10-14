@@ -18,6 +18,7 @@ import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { daylightWindow } from "@niclaslindstedt/oss-game-framework/core/solar";
 import { LEVEL_RULES, inBand } from "./rules.ts";
 import { declinationOf } from "./sun.ts";
+import { dealFront } from "./front.ts";
 import type { Level, SkyOverride, SnowingKind, Weather, WeatherKind } from "./types.ts";
 
 const R = LEVEL_RULES.weather;
@@ -159,5 +160,8 @@ export function withSky<L extends Level>(level: L, sky: SkyOverride): L {
         : weatherFor(kind, { windFrom, ...sky.weather });
   }
   const sun = sky.hour === undefined ? level.sun : { ...level.sun, hour: sky.hour };
-  return { ...level, sun, weather };
+  // A map carrying a FRONT (`front.ts`) has it dealt again off the new sky:
+  // a front starts from the sky the run starts under.
+  const out: L = { ...level, sun, weather };
+  return level.front ? { ...out, front: dealFront(out) } : out;
 }

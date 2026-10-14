@@ -16,7 +16,7 @@
 // in a repro is where the bot's run would have left it. A frame whose bug is
 // in the field's positions is a replay's to show, not a link's.
 
-import { weatherOf, type GameMode, type GameState } from "@engine";
+import { weatherAt, type GameMode, type GameState } from "@engine";
 
 import type { FrameCost } from "./benchmark-report.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -53,7 +53,7 @@ export function reproOf(state: GameState, mode: GameMode, camera: CameraRung): R
     skis: s.spec.id,
     t: state.t,
     camera,
-    weather: weatherOf(state.level).kind,
+    weather: weatherAt(state.level, state.t).kind,
     hour: state.level.sun.hour,
     skyclock: skyClock(),
     pose: { x: s.x, z: s.z, heading: s.heading, speed: s.way },

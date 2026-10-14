@@ -10,6 +10,7 @@ import type { PisteGrade, RunGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
 import type { GeneratorVersion } from "./versions.ts";
 import type { SkiJumpHill } from "./ski-jump-types.ts";
+import type { WeatherFront } from "./front.ts";
 export type { SkiJumpHill } from "./ski-jump-types.ts";
 
 export interface Vec3 {
@@ -243,6 +244,11 @@ export interface Level {
   /** The sky the map is skied under (R19). A hand-built level without one
    * is skied under `CLEAR_WEATHER` — ask `weatherOf`, never this field. */
   weather?: Weather;
+  /** THE WEATHER OVER A RUN (`front.ts`): the skies a free ride's sky
+   * turns into over the sky's clock, laid on by `createGame` when the run's
+   * rules ask (`RunRules.front`) — never by the generator, so no digest
+   * reads it. Ask `weatherAt` / `frontAt`, never this field. */
+  front?: WeatherFront;
   /** WHICH GENERATOR built the map (`versions.ts`): the current rules unless
    * a pinned map named an older row. */
   version?: GeneratorVersion;

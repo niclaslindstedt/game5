@@ -20,7 +20,7 @@
 // fill the furrows.
 
 import type { Level } from "../mapgen/index.ts";
-import { snows, weatherOf } from "../mapgen/index.ts";
+import { frontAt, snows, weatherOf, type Weather } from "../mapgen/index.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { windAt, type Wind } from "./wind.ts";
 
@@ -68,18 +68,34 @@ function phase(seed: number, salt: number): number {
 
 const scratchWind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 
-/** The fall on `level` at run time `t`. */
+/** The fall on `level` at run time `t`. On a map carrying a FRONT
+ * (`front.ts`) the fall is each of the two skies' own at `t`, mixed by how
+ * far the front has come — a snow coming in starts as a few flakes and
+ * thickens; one going out thins to nothing — never a step. */
 export function snowAt(
-  level: Pick<Level, "seed" | "weather">,
+  level: Pick<Level, "seed" | "weather" | "front">,
   t: number,
   out: Fall = { fall: 0, visibility: RANGE.clear },
 ): Fall {
-  const w = weatherOf(level);
-  if (!snows(w.kind) || w.snowfall <= 0) {
-    out.fall = 0;
-    out.visibility = RANGE.clear;
-    return out;
+  let fall: number;
+  if (!level.front) fall = fallUnder(level, weatherOf(level), t);
+  else {
+    const { a, b, share } = frontAt(level, t);
+    const fa = fallUnder(level, a, t);
+    fall = share > 0 ? fa + (fallUnder(level, b, t) - fa) * share : fa;
   }
+  out.fall = fall;
+  out.visibility = fall > 0 ? visibilityIn(fall) : RANGE.clear;
+  return out;
+}
+
+/** The fall at `t` out of the sky `w` over `level`, 0..1. */
+function fallUnder(
+  level: Pick<Level, "seed" | "weather" | "front">,
+  w: Weather,
+  t: number,
+): number {
+  if (!snows(w.kind) || w.snowfall <= 0) return 0;
   let g = 0;
   for (let i = 0; i < SQUALLS.length; i++) {
     const k = SQUALLS[i];
@@ -87,10 +103,7 @@ export function snowAt(
   }
   let fall = w.snowfall * (1 + BREATH[w.kind] * g);
   if (w.kind === "storm") fall += BLOWN * (windAt(level, t, scratchWind).gust - 0.5);
-  fall = Math.min(1, Math.max(0, fall));
-  out.fall = fall;
-  out.visibility = visibilityIn(fall);
-  return out;
+  return Math.min(1, Math.max(0, fall));
 }
 
 /** How far a rider can see through a fall of `fall` 0..1, m. */
@@ -108,6 +121,10 @@ export function freshRate(fall: number): number {
 const scratchFall: Fall = { fall: 0, visibility: RANGE.clear };
 
 /** One step's new snow on `level` at run time `t`, m. */
-export function freshStep(level: Pick<Level, "seed" | "weather">, t: number, dt: number): number {
+export function freshStep(
+  level: Pick<Level, "seed" | "weather" | "front">,
+  t: number,
+  dt: number,
+): number {
   return freshRate(snowAt(level, t, scratchFall).fall) * dt;
 }

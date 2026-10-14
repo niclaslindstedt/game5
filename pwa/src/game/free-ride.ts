@@ -603,6 +603,10 @@ export function freeGameOptions(
     // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
     // unless the start card's row turned them off — and never in summer.
     avalanche: ride.avalanche && !summer,
+    // THE WEATHER OVER THE RIDE (`front.ts`): the sky it starts under — the
+    // map's, or the one the card picked — turns into others over the sky's
+    // clock, and the fall and the wind follow it. Never in summer.
+    front: !summer,
     // SUMMER: the mountain with its snow gone (`summer.ts`).
     ...(summer ? { summer: true } : {}),
     // THINGS GO WRONG (`mishaps.ts`): a canopy's malfunction, an engine

@@ -50,6 +50,8 @@ import {
   loadRealFace,
   step,
   sunAtRun,
+  frontAt,
+  withFront,
   withSky,
   type GameState,
   type RegionId,
@@ -144,6 +146,10 @@ const renderer = createWorldRenderer(stage, {
 });
 renderer.resize(cellW, cellH, 1);
 let state: GameState = createGame({ seed, quiet: true });
+// `front=1`: the map carries a FREE RIDE'S FRONT (`front.ts`) — the
+// time-lapse on the run's clock shows its skies coming in one after another.
+const moving = params.get("front") === "1";
+if (moving) state.level = withFront(state.level);
 let level = state.level;
 if (params.get("far") === "0") forceFar(false);
 /** The far sheet's maps: a region, or `face:<id>`. */
@@ -404,7 +410,8 @@ async function timelapse(): Promise<{ note: string; r: number; c: number; cells:
     cols * cellW,
     headH + r * (cellH + 16),
     `${row.label} · ${view} · ${tier} · sunrise ${fmtHour(rise)} sunset ${fmtHour(set)} · every ${stepMin} min` +
-      (clockRate > 0 ? ` · the run's clock ×${clockRate}` : ""),
+      (clockRate > 0 ? ` · the run's clock ×${clockRate}` : "") +
+      (moving ? " · its weather MOVING (a free ride's front)" : ""),
   );
   renderer.setOverride(lensFor(view));
   state.fresh = row.fresh ?? 0;
@@ -439,7 +446,13 @@ async function timelapse(): Promise<{ note: string; r: number; c: number; cells:
       clockRate > 0 ? start : undefined,
     );
     ctx.fillStyle = "#e8eef4";
-    ctx.fillText(`${fmtHour(at)}  ${c.elev.toFixed(1)}°`, x + 6, y + 8);
+    const sky = moving ? frontAt(withSky(level, start), state.t) : null;
+    const said = !sky
+      ? ""
+      : sky.share > 0
+        ? `  ${sky.a.kind}→${sky.b.kind} ${Math.round(sky.share * 100)}%`
+        : `  ${sky.a.kind}`;
+    ctx.fillText(`${fmtHour(at)}  ${c.elev.toFixed(1)}°${said}`, x + 6, y + 8);
     cells.push(c);
   }
   return {

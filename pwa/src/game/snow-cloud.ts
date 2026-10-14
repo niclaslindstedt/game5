@@ -48,6 +48,7 @@ import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
 import { skiShares, stationOf } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import { edgeSlips, emptySlip, type EdgeSlip } from "./spray-sim.ts";
+import { dustOf, MASS } from "./spray-mass.ts";
 import {
   flyPuff,
   carveOf,
@@ -440,6 +441,10 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
   geometry.setAttribute("iLook", iLook);
   geometry.setAttribute("iSnow", iSnow);
   geometry.instanceCount = 0;
+  // Each drawn puff's age, s, in draw order, for the snow eval lab's
+  // measure (`plume-probe.ts`) — never uploaded.
+  const drawnAge = new Float32Array(CAPACITY);
+  geometry.userData.age = drawnAge;
 
   const noise = noiseTexture();
   const material = new THREE.ShaderMaterial({
@@ -644,6 +649,14 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
       // skis) — the fine part of the same sheet the grains are, so the
       // cloud rises where the spray flies and never behind it.
       skidCloud(drive, snow, wall);
+      // THE SPRAY WEIGHED (`spray-mass.ts`): the wall is the dust the edges
+      // actually threw — a groomer's stop a low mist, powder's a cloud.
+      const dust = dustOf(skier);
+      if (dust !== undefined) {
+        const f = Math.min(1.2, Math.sqrt(dust / MASS.dustRef));
+        wall.rate *= f;
+        wall.lift *= 0.5 + 0.5 * Math.min(1, f);
+      }
       const edges = edgeSlips(skier, slips);
       const e = edges > 1 && slips[1].share > slips[0].share ? slips[1] : slips[0];
       const along = e.share > 0;
@@ -873,6 +886,7 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
         const i = order[n];
         const a01 = age[i] / life[i];
         const r = puffRadius(size0[i], grow[i], a01);
+        drawnAge[n] = age[i];
         P[n * 4] = pos[i * 3];
         P[n * 4 + 1] = pos[i * 3 + 1];
         P[n * 4 + 2] = pos[i * 3 + 2];

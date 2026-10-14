@@ -92,6 +92,7 @@ import { rideSink } from "./ride-sink.ts";
 import { castInLight } from "./terrain-shade.ts";
 import { createSpray, type Spray } from "./spray.ts";
 import { createSnowCloud, type SnowCloud } from "./snow-cloud.ts";
+import { plumeBits } from "./plume-probe.ts";
 import {
   NEW_COVER,
   SNOW,
@@ -858,6 +859,7 @@ export function createWorldRenderer(
 
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
+    plumes: () => plumeBits(spray?.points ?? null, cloud?.mesh ?? null),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {
       overlayOn = on;

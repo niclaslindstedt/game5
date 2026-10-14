@@ -189,8 +189,8 @@ vec3 rkNormal;
   // is the size of what it would draw.
   float far = 1.0 - vRockCalm;
   float fine = far * (1.0 - smoothstep(0.03, 0.1, px));
-  float mid = far * (1.0 - smoothstep(0.12, 0.45, px));
-  float broad = 1.0 - smoothstep(0.35, 1.1, px / ${BED.toFixed(2)});
+  float mid = far * (1.0 - smoothstep(0.07, 0.26, px));
+  float broad = 1.0 - smoothstep(0.2, 0.7, px / ${BED.toFixed(2)});
 
   // THE BEDS: the height through the bedding, warped so a bed's edge
   // wanders, in beds.

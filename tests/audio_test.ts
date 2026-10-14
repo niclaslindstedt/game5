@@ -218,8 +218,6 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "death",
   "injured",
   "skiJump",
-  // A skier set alight (`fire-burn.ts`): heard once the fire's sound lands.
-  "fire",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */

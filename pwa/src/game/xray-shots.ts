@@ -299,6 +299,9 @@ export function createXrayDirector(): XrayDirector {
     seen(f, state) {
       if (!f || (spent && !on) || (body && !on) || state.t < heldTill) return;
       if (!on && (f.in > XRAY.lead || !f.fatal || f.wrecked || wrecked(state))) return;
+      // Burnt to death: nothing a bone shows — his flames are the shot, and
+      // the death cam's (`burn-view.ts`).
+      if (!on && f.cause === "fire") return;
       const at = state.t + f.in;
       // A body coming apart is one shot, from outside: nothing more to
       // look for once it is under way.

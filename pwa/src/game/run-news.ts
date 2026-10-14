@@ -177,6 +177,11 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (field === 0) return { text: STRINGS.newsFinishAlone(e.time), tone: "good" };
       return { text: STRINGS.newsFinish(e.place, field + 1, e.time), tone: "good" };
     }
+    case "fire":
+      // Set alight riding into a fire; burnt out lying there — stood back
+      // up and put out is the reset's own news.
+      if (e.what === "caught") return { text: STRINGS.newsOnFire, tone: "bad" };
+      return state.skier.thrown ? { text: STRINGS.newsBurntOut, tone: "bad" } : null;
     case "tunnel":
       // Blown into a wind tunnel; coming out of the far end is not news,
       // the run carrying on.

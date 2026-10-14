@@ -562,7 +562,7 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
       }
       built.root.position.set(x, y, z);
       built.root.quaternion.copy(q);
-      poseBike(built.nodes, pose);
+      poseBike(built.nodes, style?.shown ? { ...pose, crank: style.shown.crank } : pose);
       // THE CALL while it lies waiting near him on foot.
       const near = Math.hypot(player.x - b.x, player.z - b.z);
       const waiting = !!b.afoot && !b.onIt && near < LIGHT_UP && near > BIKE.board.reach;

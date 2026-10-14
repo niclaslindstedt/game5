@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE FREERIDER'S STYLE ON THE DOWNHILL BIKE — what a big-mountain freerider
 // does with the bike that the physics never asks for, read off the engine's
-// own state as a PURE FUNCTION of it (no memory, no stream), so the bike as
-// drawn and the rider on it read the same answer every frame and a lab's
-// still shows the moment it asks for:
+// own state as a PURE FUNCTION of it (no stream), so the bike as drawn and
+// the rider on it read the same answer every frame and a lab's still shows
+// the moment it asks for — beside it, as `shown`, what the photographs'
+// track (`bike-photo.ts`) presents of it: the one memory, a bike's own,
+// advanced by the run's clock so every reader of a moment agrees:
 //
 //   WHIP     off a jump long enough to be worth it, the bike thrown
 //            sideways under him — the rear swung out and the bike laid
@@ -27,7 +29,9 @@
 // forward); the turn `whip` is about the RIDER'S centre of mass, so his
 // trunk stays where the engine has him and the bike swings under him.
 
-import { bikeWorldOf, TUNING, type BikeState, type Level } from "@engine";
+import { bikePose, bikeWorldOf, TUNING, type BikeState, type Level } from "@engine";
+
+import { photoTrack, type Shown } from "./bike-photo.ts";
 
 export type RideTrick = "none" | "whip" | "table";
 
@@ -47,6 +51,11 @@ export type RideStyle = {
   foot: 0 | 1;
   /** The levers pulled, 0..1. */
   brake: number;
+  /** What the photographs' track shows this frame (`bike-photo.ts`): the
+   * cranks as drawn, the foot out and the levers' weight as a body moves
+   * them, the hips' spring, the tuck — read by the drawing; the fields
+   * above stay the raw moment's. */
+  shown?: Shown;
 };
 
 /** THE NUMBERS, after the riders' own photographs and the coaching guides
@@ -107,6 +116,25 @@ export function fallLeft(b: BikeState, level: Level, t: number): number {
 
 /** THE STYLE of the bike `b` on `level` at the run's time `t`. */
 export function rideStyleOf(b: BikeState, level: Level, t: number): RideStyle {
+  const out = rawStyleOf(b, level, t);
+  if (!b.onIt || b.mode !== "ridden") return out;
+  const pose = bikePose(b);
+  out.shown = photoTrack(
+    b,
+    t,
+    { riderY: pose.rider.y, crank: pose.crank, pedalling: pose.pedalling, roll: pose.roll },
+    {
+      footOut: out.footOut,
+      foot: out.foot,
+      brake: out.brake,
+      left: b.airborne ? fallLeft(b, level, t) : RIDE_STYLE.look,
+    },
+  );
+  return out;
+}
+
+/** The style off the moment alone (`rideStyleOf` adds the track). */
+function rawStyleOf(b: BikeState, level: Level, t: number): RideStyle {
   const S = RIDE_STYLE;
   const brake = b.onIt ? Math.max(b.controls.front, b.controls.rear) : 0;
   const out: RideStyle = {

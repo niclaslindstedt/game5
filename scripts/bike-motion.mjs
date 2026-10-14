@@ -138,7 +138,9 @@ function measure(s, t) {
   const turn = (p) =>
     style && (style.yaw !== 0 || style.roll !== 0) ? SB.underHim(p, style.yaw, style.roll) : p;
   const grips = BL.gripsAt(pose.steer).map((g) => turn(add(bb, g)));
-  const pedals = BL.pedalsAt(pose.crank).map((p) => turn(add(bb, p)));
+  // The pedals where the drawn cranks have them (the photographs' track
+  // back-pedals them level when he coasts — `bike-photo.ts`).
+  const pedals = BL.pedalsAt(style?.shown?.crank ?? pose.crank).map((p) => turn(add(bb, p)));
   const hipMid = {
     x: (at(R.hipL).x + at(R.hipR).x) / 2,
     y: (at(R.hipL).y + at(R.hipR).y) / 2,
@@ -181,7 +183,7 @@ function measure(s, t) {
     headY: joints.head.y - pose.y,
     joints,
     local,
-    foot: style?.footOut > 0.2 ? style.foot : -1,
+    foot: (style?.shown?.footOut ?? style?.footOut) > 0.2 ? (style.shown?.foot ?? style.foot) : -1,
   };
 }
 

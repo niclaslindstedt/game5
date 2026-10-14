@@ -16,12 +16,14 @@
 //
 // Three-free, so the suite reads it.
 
-import { BIKE, BIKE_BB, type BikePose } from "@engine";
+import { BIKE, BIKE_BB, RAGDOLL, type BikePose } from "@engine";
 
+import { PHOTO, type Shown } from "./bike-photo.ts";
 import { GRIPS, bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
 import type { RideStyle } from "./bike-ride-style.ts";
 import { ANKLE, keyOf, keyPoints, movePose, type Key } from "./party-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
+import { BODY } from "./skier-mounts.ts";
 import type { SkierPose } from "./skier-pose.ts";
 
 const v = (x: number, y: number, z: number): V3 => ({ x, y, z });
@@ -105,17 +107,21 @@ export const FREERIDE = {
 };
 
 /** THE KEY that lays the FREERIDER on the bike posed `pose`, riding it as
- * `style` says: whipped, tabled, a foot out, on the brakes. */
+ * `style` says: whipped, tabled, a foot out, on the brakes — and, with the
+ * photographs' track (`style.shown`), placed where the riders' frames
+ * place him (`photoKey`). */
 export function freerideKey(pose: BikePose, style: RideStyle): Key {
-  const key = riderKey(pose);
+  const key = style.shown ? photoKey(pose, style.shown) : riderKey(pose);
   const F = FREERIDE;
   const bb = bracketFromRider(pose);
-  key.kneesOut = F.kneesOut;
-  key.elbowsOut = F.elbowsOut;
-  key.hipY = F.hips.y - F.brake.down * style.brake;
-  key.hipZ = F.hips.z - F.brake.back * style.brake;
-  key.pitch += F.pitch + F.brake.pitch * style.brake;
-  key.nod += F.nod;
+  if (!style.shown) {
+    key.kneesOut = F.kneesOut;
+    key.elbowsOut = F.elbowsOut;
+    key.hipY = F.hips.y - F.brake.down * style.brake;
+    key.hipZ = F.hips.z - F.brake.back * style.brake;
+    key.pitch += F.pitch + F.brake.pitch * style.brake;
+    key.nod += F.nod;
+  }
   // THE WHIP: the bike under him turned, his hands and feet with it, his
   // hips following a share of it and his shoulders kept square.
   const { yaw, roll } = style;
@@ -127,11 +133,12 @@ export function freerideKey(pose: BikePose, style: RideStyle): Key {
     if (style.trick === "table") key.hipY -= F.tuck * style.amount;
   }
   // THE FOOT OUT: the inside foot off its pedal toward the dirt.
-  if (style.footOut > 0) {
-    const i = style.foot;
+  const footOut = style.shown ? style.shown.footOut : style.footOut;
+  if (footOut > 0) {
+    const i = style.shown ? style.shown.foot : style.foot;
     const side = i ? 1 : -1;
     const out = add(bb, v(side * F.foot.x, F.foot.y, F.foot.z));
-    const k = style.footOut;
+    const k = footOut;
     const f = key.feet[i];
     key.feet[i] = v(f.x + (out.x - f.x) * k, f.y + (out.y - f.y) * k, f.z + (out.z - f.z) * k);
     // His weight onto the outside foot, the trunk dropped over it.
@@ -139,6 +146,110 @@ export function freerideKey(pose: BikePose, style: RideStyle): Key {
     key.roll += side * 0.12 * k;
   }
   return key;
+}
+
+/** THE KEY the PHOTOGRAPHS lay him in (`bike-photo.ts`): the hips placed
+ * off the bottom bracket, the trunk bent to hold the head, the hips slid
+ * to hold the elbows' bend, the feet on the cranks as drawn. */
+export function photoKey(pose: BikePose, shown: Shown): Key {
+  const P = PHOTO;
+  const bb = bracketFromRider(pose);
+  const [g0, g1] = gripsAt(pose.steer);
+  const [p0, p1] = pedalsAt(shown.crank);
+  const lean = Math.abs(shown.lean);
+  // THE HIPS' HEIGHT: the track's spring, drawn up in the air and reached
+  // out for the ground, down on the levers and into a turn, and the
+  // stroke's bob as he pedals stood up.
+  const stroke = pose.pedalling ? Math.cos(2 * shown.crank) : 0;
+  const hy =
+    shown.hipsY -
+    P.air.tuck * shown.tuck +
+    P.air.out * shown.reach -
+    P.brake.down * shown.brake -
+    P.turn.drop * lean +
+    P.pedal.bob * stroke;
+  const key: Key = {
+    hipX: bb.x,
+    hipY: bb.y + hy,
+    hipZ: bb.z - P.hips.back - P.brake.back * shown.brake,
+    pitch: 1,
+    roll:
+      -shown.lean * P.turn.upright + P.pedal.sway * (pose.pedalling ? Math.sin(shown.crank) : 0),
+    twist: -pose.steer * 0.3,
+    nod: 0,
+    feet: [add(add(bb, p0), ATTACK.ankle), add(add(bb, p1), ATTACK.ankle)],
+    hands: [add(bb, g0), add(bb, g1)],
+    kneesOut: P.out.knees,
+    elbowsOut: P.out.elbows,
+  };
+  // THE TRUNK AND THE HIPS together: the trunk bent until the head
+  // stands where a rider holds it — over the cranks as the WORLD has it,
+  // so on a nose-down bike he sits back and up and on a nose-up one comes
+  // over the bars — then the hips slid fore and aft until the elbows hold
+  // the photographs' bend; twice, since each moves the other.
+  const headY = P.head.y + P.head.follow * (hy - P.hips.y);
+  const fold = Math.max(0, Math.min(1, (P.hips.y - hy) / 0.18));
+  const air = Math.min(1, shown.tuck + shown.reach);
+  let elbow = P.elbow.attack;
+  elbow += (P.elbow.brake - elbow) * shown.brake;
+  elbow += (P.elbow.fold - elbow) * fold * (1 - air);
+  elbow += (P.elbow.air - elbow) * air;
+  for (let i = 0; i < 2; i++) {
+    key.pitch = photoPitch(key, bb, pose.pitch, headY);
+    key.nod = -0.15 - 0.55 * key.pitch;
+    key.hipZ = photoHips(key, (elbow * Math.PI) / 180, bb.z);
+  }
+  return key;
+}
+
+/** The trunk's bend that stands the head `headY` m over the bottom
+ * bracket `bb` as the world has it — the bike pitched `pitch` rad nose up
+ * — within the photographs' range. */
+export function photoPitch(key: Key, bb: V3, pitch: number, headY: number): number {
+  let lo: number = PHOTO.pitch[0];
+  let hi: number = PHOTO.pitch[1];
+  const c = Math.cos(pitch);
+  const s = Math.sin(pitch);
+  for (let i = 0; i < 14; i++) {
+    const mid = (lo + hi) / 2;
+    key.pitch = mid;
+    key.nod = -0.15 - 0.55 * mid;
+    const pts = keyPoints(key, 0);
+    const y = pts[3 * RAGDOLL.head + 1] - bb.y;
+    const z = pts[3 * RAGDOLL.head + 2] - bb.z;
+    // More bend, a lower head.
+    if (y * c + z * s > headY) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/** The hips' place fore and aft (the key's `hipZ`) that bends the elbows
+ * to `elbow` rad, held within the photographs' reach behind the cranks at
+ * `bbZ`. */
+export function photoHips(key: Key, elbow: number, bbZ: number): number {
+  const pts = keyPoints(key, 0);
+  const at = (i: number): V3 => v(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]);
+  const a = BODY.upperArm;
+  const b = BODY.forearm;
+  const want = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(elbow));
+  let shift = 0;
+  for (const [s, h] of [
+    [RAGDOLL.shoulderL, 0],
+    [RAGDOLL.shoulderR, 1],
+  ] as const) {
+    const sh = at(s);
+    const g = key.hands[h];
+    const dx = g.x - sh.x;
+    const dy = g.y - sh.y;
+    const across = want * want - dx * dx - dy * dy;
+    // Too near across and up and down for the bend: as close as it goes.
+    const dz = across > 0 ? Math.sqrt(across) : 0;
+    shift += g.z - dz - sh.z;
+  }
+  const z = key.hipZ + shift / 2;
+  const [near, far] = PHOTO.reach;
+  return Math.max(bbZ - PHOTO.hips.back - far, Math.min(bbZ - PHOTO.hips.back - near, z));
 }
 
 /** THE RIDER ON THE BIKE as a stood pose (`SkisModel.setStood`): the root's

@@ -24,6 +24,7 @@
     "sim": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/simulate-run.mjs",
     "bike": "node scripts/bike-preview.mjs",
     "bike-film": "node scripts/bike-film.mjs",
+    "bike-photo": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-photo-match.mjs",
     "bike-motion": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-motion.mjs",
     "bike-look": "node scripts/bike-park-preview.mjs",
     "bike-park": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-park-map.mjs",

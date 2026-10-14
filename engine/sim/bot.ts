@@ -35,8 +35,17 @@ import {
   speedLineAt,
   trackPointAt,
 } from "../mapgen/index.ts";
-import type { Cliff, Kicker, Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
+import type { Level, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { solidsNear, solidsOf } from "../game/posts.ts";
+import { dropSpeed, kickerSpeed } from "./kicker-speed.ts";
+import {
+  DARING,
+  daringAir,
+  daringLine,
+  daringSnow,
+  type Daring,
+  type DaringAim,
+} from "./daring.ts";
 import { gateLineAt, lineBendAt } from "../game/course.ts";
 import {
   brakeDecel,
@@ -45,9 +54,7 @@ import {
   cutGrip,
   edgeAskedAt,
   flightGravity,
-  harshSpeedOf,
 } from "../game/limits.ts";
-import type { SkiSpec } from "../game/defs/skis.ts";
 import { lineSpeed, raceLineAt, raceSpanAt } from "../game/race-line.ts";
 import { slalomSteer, type SlalomChoice } from "./slalom-plan.ts";
 import { downhillSteer, steerOf } from "./downhill-steer.ts";
@@ -177,6 +184,11 @@ export type BotProfile = {
    * slowed by its tail sliding, never by the whole board stood across it. */
   boardSkid: number;
   boardSkidPer: number;
+  /** THE DARING KNOB (`daring.ts`): on a run that owes no course, the
+   * roam off the piste, the kickers and drops gone at, the pops and the
+   * tricks in the air. Left out — every profile but `DARING_BOT` — none of
+   * it. */
+  daring?: Daring;
 };
 
 export const RIDER_BOT: BotProfile = {
@@ -223,6 +235,24 @@ export const RIDER_BOT: BotProfile = {
   boardSkid: 0.5,
   boardSkidPer: 1,
 };
+
+/** THE DARING BOT: the menu's backdrop's (`showcase.ts`) — the rider with
+ * the daring knob on, carving harder into the bends and carrying more speed
+ * over the snow it reads. */
+export const DARING_BOT: BotProfile = {
+  ...RIDER_BOT,
+  cornerShare: 0.8,
+  brakeShare: 0.8,
+  skidOver: 2.5,
+  // ...and, off the piste in the woods, reading the trunks further ahead
+  // and passing them wider.
+  treeLook: 36,
+  treeCorridor: 2,
+  dodge: 5,
+  daring: DARING,
+};
+
+const line: DaringAim = { cap: Infinity, lip: Infinity };
 
 const hit: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
 const pa: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
@@ -293,118 +323,6 @@ const LANE_DRIFT = 0.25;
 /** How far short of a kicker's lip the bot is at the speed it takes it at,
  * m — about the length of the ramp. */
 const KICKER_RUNUP = 10;
-
-/** THE SPEED A KICKER WANTS, m/s: the fastest a skier can leave its lip and
- * still come down on its landing rather than past it — found by flying a
- * point off the lip at the ramp's own angle over the real snow, at each
- * speed in turn, until the impact into the slope would fold the legs of
- * the skier on these skis. A skier learns this on his first run; the bot
- * is handed it. Worked out once per kicker per pair. */
-const kickerSpeeds = new WeakMap<SkiSpec, Map<number, WeakMap<Kicker | Cliff, number>>>();
-function knownSpeeds(spec: SkiSpec, fall: number): WeakMap<Kicker | Cliff, number> {
-  let bySpec = kickerSpeeds.get(spec);
-  if (!bySpec) {
-    bySpec = new Map();
-    kickerSpeeds.set(spec, bySpec);
-  }
-  let mine = bySpec.get(fall);
-  if (!mine) {
-    mine = new WeakMap();
-    bySpec.set(fall, mine);
-  }
-  return mine;
-}
-function kickerSpeed(
-  level: Level,
-  k: Kicker,
-  spec: SkiSpec,
-  profile: BotProfile,
-  fall: number,
-): number {
-  const mine = knownSpeeds(spec, fall);
-  const known = mine.get(k);
-  if (known !== undefined) return known;
-  const fx = Math.sin(k.heading);
-  const fz = Math.cos(k.heading);
-  const lip = level.groundAt(k.x, k.z);
-  // The ramp rises as t² (`kickerProfile`), steepest AT the lip, so its
-  // grade over the last 2 m reads flatter than the one the skier leaves on:
-  // the profile's own share of that difference is put back, exactly.
-  const back = Math.min(2, k.ramp);
-  const averaged = (k.height * (1 - (1 - back / k.ramp) ** 2)) / back;
-  const angle = Math.atan(
-    (lip - level.groundAt(k.x - fx * back, k.z - fz * back)) / back +
-      (2 * k.height) / k.ramp -
-      averaged,
-  );
-  const best = flownSpeed(level, k.x, k.z, fx, fz, lip, angle, spec, profile, fall);
-  mine.set(k, best);
-  return best;
-}
-
-/** THE SPEED A DROP WANTS (R24), m/s: the same flight off its edge, which
- * the shelf leaves level with the line — so the skier goes over it along
- * the line's own pitch, read over the last two metres before it. */
-function dropSpeed(
-  level: Level,
-  d: Cliff,
-  spec: SkiSpec,
-  profile: BotProfile,
-  fall: number,
-): number {
-  const mine = knownSpeeds(spec, fall);
-  const known = mine.get(d);
-  if (known !== undefined) return known;
-  const fx = Math.sin(d.heading);
-  const fz = Math.cos(d.heading);
-  const lip = level.groundAt(d.x, d.z);
-  const angle = Math.atan((lip - level.groundAt(d.x - fx * 2, d.z - fz * 2)) / 2);
-  const best = flownSpeed(level, d.x, d.z, fx, fz, lip, angle, spec, profile, fall);
-  mine.set(d, best);
-  return best;
-}
-
-/** The fastest a point flown off a lip at `angle` over the real snow
- * comes down without the impact into the slope folding the legs. */
-function flownSpeed(
-  level: Level,
-  x0: number,
-  z0: number,
-  fx: number,
-  fz: number,
-  lip: number,
-  angle: number,
-  spec: SkiSpec,
-  profile: BotProfile,
-  fall: number,
-): number {
-  const floor = 0.9;
-  const limit = harshSpeedOf(spec) * profile.kickerMargin;
-  const n = { x: 0, y: 1, z: 0 };
-  let best = 8;
-  for (let v = 8; v <= 45; v += 1) {
-    let x = x0;
-    let z = z0;
-    let y = lip + floor;
-    const h = v * Math.cos(angle);
-    let vy = v * Math.sin(angle);
-    let impact = 0;
-    for (let t = 0; t < 5; t += 0.02) {
-      x += fx * h * 0.02;
-      z += fz * h * 0.02;
-      vy -= fall * 0.02;
-      y += vy * 0.02;
-      if (y <= level.groundAt(x, z) + floor) {
-        level.normalAt(x, z, n);
-        impact = -(fx * h * n.x + vy * n.y + fz * h * n.z);
-        break;
-      }
-    }
-    if (impact > limit) break;
-    best = v;
-  }
-  return best;
-}
 
 /** How a pitch is read under a bend, m either side; the share of its pull
  * down the fall line taken off the grip he turns on, and the least of the
@@ -504,7 +422,7 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     if (!k.onTrack || k.s === undefined) continue;
     const d = arcAhead(level, s, k.s);
     if (d < 0 || d > reach) continue;
-    const v = kickerSpeed(level, k, spec, profile, flightGravity(state.rules));
+    const v = kickerSpeed(level, k, spec, profile.kickerMargin, flightGravity(state.rules));
     // At its speed a ramp's length SHORT of the lip, and steady up the ramp:
     // a skier skidding on the lip loads his tips, and with them gone over
     // the crest he pitches onto them before he has left the snow.
@@ -515,7 +433,7 @@ function speedAllowed(state: GameState, s: number, speed: number, profile: BotPr
     if (!c.onTrack || c.s === undefined) continue;
     const d = arcAhead(level, s, c.s);
     if (d < 0 || d > reach) continue;
-    const v = dropSpeed(level, c, spec, profile, flightGravity(state.rules));
+    const v = dropSpeed(level, c, spec, profile.kickerMargin, flightGravity(state.rules));
     const now = Math.sqrt(v * v + 2 * decel * Math.max(0, d - KICKER_RUNUP));
     if (now < allowed) allowed = now;
   }
@@ -750,6 +668,9 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     aim.x += Math.sin(aim.heading) * Math.max(0, over);
     aim.z += Math.cos(aim.heading) * Math.max(0, over);
   }
+  // THE DARING LINE: off the piste, or at a lip (`daring.ts`).
+  const dare = profile.daring && !state.rules.course ? profile.daring : null;
+  if (dare) daringLine(state, on, aim, dare, line);
   const [tx, tz] = dodgeTrees(state, aim.x, aim.z, profile);
   const dodging = tx !== aim.x || tz !== aim.z;
 
@@ -782,6 +703,8 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
         1,
       );
     }
+    // ...and the flight's trick, the levelling kept under the loop's gate.
+    if (dare) daringAir(state, input, dare);
     return input;
   }
 
@@ -790,10 +713,13 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // edge by the time it takes to lay the body over, so the bot looks
   // further ahead along its own yaw and asks for less.
   const bearing = Math.atan2(tx - c.x, tz - c.z);
+  // (Riding SWITCH — off a daring 180 — the steer is read the way he is
+  // GOING, tails first (`switch.ts`): the way his skis point turned round.)
+  const facing = dare && c.switched ? c.heading + Math.PI : c.heading;
   const powder = 1 - c.packed;
   const yaw = rotate(c.q, { x: c.wx, y: c.wy, z: c.wz }).y;
   const error = angleDiff(
-    c.heading + yaw * profile.yawLead * (1 + powder * profile.powderLead),
+    facing + yaw * profile.yawLead * (1 + powder * profile.powderLead),
     bearing,
   );
   input.steer = clamp(profile.steerGain * (1 - powder * profile.powderEase) * error, -1, 1);
@@ -819,7 +745,10 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // THE TUCK AND THE SKID, off the bends within reach — on the piste; out
   // in the powder there is nothing to skid for but the piste itself.
   const onTrack = on.distance <= halfWidth + 2;
-  let allowed = onTrack ? speedAllowed(state, on.s, speed, profile) : Infinity;
+  // (Off it on a daring roam, the piste's own bends still say how fast, and
+  // the lip he is hunting how fast he may come to it.)
+  let allowed = onTrack || dare ? speedAllowed(state, on.s, speed, profile) : Infinity;
+  if (dare) allowed = Math.min(allowed, line.cap);
   // ...and the turn onto the aim itself: pure pursuit's own curvature,
   // 2·sin(error) over the distance to the aim, taken at the grip of the
   // snow the skier is on — which is what slows him for the turn onto the
@@ -834,7 +763,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
     );
   }
   const reach = hypot(tx - c.x, tz - c.z);
-  const bend = (2 * Math.abs(Math.sin(angleDiff(c.heading, bearing)))) / Math.max(reach, 1);
+  const bend = (2 * Math.abs(Math.sin(angleDiff(facing, bearing)))) / Math.max(reach, 1);
   if (bend > 1e-3 && !racing) {
     const grip = cornerGrip(c.spec, c.packed, speed) * profile.cornerShare;
     allowed = Math.min(allowed, Math.max(profile.crawl, Math.sqrt(grip / bend)));
@@ -928,5 +857,7 @@ export function botInput(state: GameState, profile: BotProfile = RIDER_BOT, lane
   // but under a crawl the tuck is the POLES, and a skier poling out of the
   // gate toward the piste's line keeps pushing.
   if (Math.abs(input.steer) > 0.6 && speed >= profile.crawl) input.tuck = Math.min(input.tuck, 0.3);
+  // ...and the jump held into a lip or a crest, let go off it.
+  if (dare) daringSnow(state, input, dare, line);
   return input;
 }

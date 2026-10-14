@@ -877,6 +877,11 @@ export type GameState = ContestState & {
    * and the picture draws the summer ground (`summer-ground.ts`). Absent
    * on every other run. */
   summer?: true;
+  /** THE SHOWCASE'S TAKE (`CreateGameOptions.showcase`): present only on
+   * the menu's backdrop run, counting the times it has been stood up on
+   * this map, so the daring bot (`daring.ts`) roams and tricks a new way
+   * each take. Read, never written, during a run. */
+  showcase?: number;
   /** THE NEW SNOW, m: what the fall (`snowfall.ts`) has laid since the run
    * was stood up — 0 under a sky that does not snow, centimetres an hour
    * under one that does. Written once a step by `step`, shared with the

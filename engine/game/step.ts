@@ -55,6 +55,7 @@ import {
   MODE_RULES,
   RACE,
   fieldRules,
+  showcaseRules,
   skiCrossHeatRules,
   clampResilience,
   clampSnowDepth,
@@ -193,6 +194,12 @@ export type CreateGameOptions = {
   /** How many rivals stand on the start line (`RACE.rivals` when left out;
    * 0 is a solo run — what the sim and the labs ski). */
   rivals?: number;
+  /** THE SHOWCASE (`showcaseRules`): the menu's backdrop run, the whole
+   * mountain the daring bot's to roam and trick on, nobody else out — its
+   * TAKE, how many times it has been stood up on this map before
+   * (`GameState.showcase`). Read only when no `mode` is asked; the field on
+   * the start line when left out. */
+  showcase?: number;
   /** Runs to the finish; the level's own (one) when left out. */
   laps?: number;
   /** Seconds of lights before GO (`RACE.countdown`; 0 for none). */
@@ -384,7 +391,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
       ? skiCrossHeatRules(laps, crossCountdown(options.seed ?? level.seed, cross))
       : options.mode
         ? MODE_RULES[options.mode](laps)
-        : fieldRules(laps);
+        : options.showcase !== undefined
+          ? showcaseRules(laps)
+          : fieldRules(laps);
   return {
     rivals: options.rivals ?? base.rivals,
     laps: base.laps,
@@ -596,6 +605,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   };
   if (piste) state.piste = piste;
   if (summer) state.summer = true;
+  if (options.showcase !== undefined && !options.mode) state.showcase = options.showcase;
   const free = options.mode === "free";
   // A FREE RIDE STARTED AGAIN stands at the top of the run named.
   const head =

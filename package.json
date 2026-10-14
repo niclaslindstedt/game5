@@ -99,6 +99,7 @@
     "sled-land": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-land-lab.mjs",
     "sled-turn": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-turn-lab.mjs",
     "sled-tip": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/sled-tip-lab.mjs",
+    "daring": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/daring-lab.mjs",
     "avalanche-flow": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/avalanche-lab.mjs",
     "para": "node scripts/para-preview.mjs",
     "para-wind": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/para-wind-lab.mjs",

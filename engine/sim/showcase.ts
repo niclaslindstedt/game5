@@ -97,9 +97,10 @@ export function showcaseOver(state: GameState): ShowcaseEnd | null {
   const c = state.skier;
   let w = watches.get(state);
   if (!w) watches.set(state, (w = { low: c.y, lowAt: state.t, downAt: -1 }));
-  // A new low — or stood back up well above the old one (a reset puts him
-  // on the piste up the hill), counted from there.
-  if (c.y < w.low - SHOWCASE.gain || c.y > w.low + SHOWCASE.rise) {
+  // A new low — or stood back up (a reset puts him on the piste up the
+  // hill) or well above the old one, counted from there.
+  const reset = state.events.some((e) => e.kind === "reset");
+  if (reset || c.y < w.low - SHOWCASE.gain || c.y > w.low + SHOWCASE.rise) {
     w.low = c.y;
     w.lowAt = state.t;
   }

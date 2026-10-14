@@ -37,6 +37,11 @@ export const LIFT_GAZE = {
   /** A pointer's travel, px, before it is a look rather than a press — the
    * tuck lever's thumb is a press until it drags this far. */
   slop: 8,
+  /** How long the tuck must be held while carried, s, before the engine
+   * sees it — the tuck lever's thumb on its way to a look must not throw
+   * him off a chair with the bar up (`chair-hands.ts`) in the frames before
+   * it has dragged past the slop. */
+  press: 0.15,
   /** How high over his drawn point the lens is swung about, m: about his
    * chest, so the turn reads as his own. */
   pivot: 0.6,

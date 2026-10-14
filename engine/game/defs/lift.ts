@@ -83,9 +83,15 @@
  * skier's knees on the load line — and climbs back up to the rope over
  * `climb` m past the load line. A skier waiting on the load line is
  * scooped by the chair whose grip comes to `take` m behind his boots
- * (`lift-board.ts`'s `stepChairWait`), and sat on it over `scoop` s. */
+ * (`lift-board.ts`'s `stepChairWait`), and sat on it over `scoop` s.
+ *
+ * A CHAIR LEFT ONLY BY HAND (`hands`, `chair-hands.ts`): forward pressed
+ * with the bar up stands him up within `stand` m of the unload ramp's ends,
+ * and anywhere else throws him off the seat — a shove of `leap.ahead` m/s
+ * on the way he faces and `leap.up` m/s up, on top of the chair's own. */
 export const LIFT = {
   chair: { rail: 2.95, climb: 12, take: 0.7 },
+  hands: { stand: 1.5, leap: { ahead: 1.2, up: 0.9 } },
   cabinBack: 0.65,
   jumpOut: 1.3,
   skip: { hold: 3, fade: 0.5 },

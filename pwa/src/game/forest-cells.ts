@@ -57,7 +57,6 @@ export type CellsContext = {
   options: () => ForestOptions;
   shapes: () => {
     midGeos: THREE.BufferGeometry[];
-    sketchGeos: THREE.BufferGeometry[];
     midShape: Uint8Array;
   };
 };
@@ -177,7 +176,9 @@ export function createForestCells(ctx: CellsContext): ForestCells {
       oz = tz * TILE * CELL;
     } else {
       const shapes = ctx.shapes();
-      const geos = L === 1 ? shapes.midGeos : shapes.sketchGeos;
+      // The far blocks draw the mid cut too, as the instanced band always
+      // has: the sketch cut reads grey from afar, the mid cut snow-white.
+      const geos = shapes.midGeos;
       const near = shapes.midShape;
       const share = ctx.options().farShare;
       const side = sideOf(L);

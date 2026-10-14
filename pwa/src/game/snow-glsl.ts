@@ -67,6 +67,7 @@ import { SNOW_GLINTS_GLSL, SNOW_NOISE_GLSL } from "./snow-noise-glsl.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
 import { TRAIL_GLSL } from "./trail-map.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
+import { SKI_GROOVE_GLSL } from "./ski-clear.ts";
 import { PISTE_TRACKS_GLSL } from "./piste-tracks.ts";
 import { SNOW_SKY_LIGHT, SNOW_SKY_PARS } from "./snow-sky-glsl.ts";
 import { SLIDE_ALBEDO, SLIDE_GLSL, SLIDE_LUMPS, SLIDE_NORMAL } from "./avalanche-glsl.ts";
@@ -115,6 +116,7 @@ uniform vec2 uWindDir;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
+${SKI_GROOVE_GLSL}
 ${DEFORM_SHADE_GLSL}
 ${WELL_GLSL}
 ${SLIDE_GLSL}
@@ -464,6 +466,16 @@ ${SNOW_SKY_LIGHT}
 {
   vec3 lidDir = normalize(vec3(uSunPos.x, 2.2, uSunPos.z));
   float facing = clamp(dot(snowN, lidDir) / lidDir.y, 0.0, 1.3);
-  reflectedLight.indirectDiffuse *= mix(1.0, 0.55 + 0.45 * facing, uFlat);${SNOW_TRAIL_LIGHT}
+  reflectedLight.indirectDiffuse *= mix(1.0, 0.55 + 0.45 * facing, uFlat);
+  // ...and FORM under the lid: a bump's sides, tilted off the slope it
+  // stands on, see less of a lid whose zenith is the brightest of it (an
+  // overcast's sky is some three times as bright overhead as at its rim),
+  // so every swell, track and clod is rimmed a shade darker — the faint
+  // modelling a skier finds in flat light up close, gone by the middle
+  // distance, where the eye finds none.
+  float rel = max(dot(snowN, normalize(vSnowNormal)), 0.0);
+  float rel2 = rel * rel;
+  float rel8 = rel2 * rel2 * rel2 * rel2;
+  reflectedLight.indirectDiffuse *= mix(1.0, 0.68 + 0.32 * rel8 * rel2, uFlat * (1.0 - smoothstep(40.0, 160.0, snowDist)));${SNOW_TRAIL_LIGHT}
 }${SNOW_LAMPS_LIGHT}${SNOW_SUN_LIGHT}
 `;

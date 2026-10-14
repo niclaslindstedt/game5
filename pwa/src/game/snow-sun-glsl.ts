@@ -46,7 +46,17 @@ export const SNOW_SUN_LIGHT = /* glsl */ `
         * smoothstep(near, near + 17.0, snowDist) * (1.0 - smoothstep(50.0, 140.0 + 60.0 * snowHoar, snowDist))
         * (1.0 + 0.6 * snowOld + 4.0 * snowHoar);
     }
-    reflectedLight.directSpecular += sunLit * glint * loose * glaze * 18.0 * uGlitter;
+    // IN THE SUN'S OWN COLOUR: a crystal returns the light that reached it,
+    // so under a low sun it flashes gold, not white. Its flare is eased
+    // toward the clip the warmer the sun is — the tone curve whitens any
+    // channel driven far past it — and its hue taken a little further, as
+    // the eye sees a point of a warm sun against snow lit by the blue sky.
+    float sunMax = max(max(sunLit.r, sunLit.g), max(sunLit.b, 1e-4));
+    vec3 sunTint = sunLit / sunMax;
+    float warmth = clamp(1.0 - sunTint.b / max(sunTint.r, 1e-4), 0.0, 1.0);
+    float flare = sunMax * glint * loose * glaze * 18.0 * uGlitter;
+    flare = mix(flare, flare / (1.0 + flare / 2.5), warmth);
+    reflectedLight.directSpecular += pow(sunTint, vec3(1.0 + 1.5 * warmth)) * flare;
   }
 
   // THE GLARE: the sun scattered forward off the snow, the brighter the

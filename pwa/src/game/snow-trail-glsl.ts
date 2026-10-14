@@ -23,6 +23,16 @@ export const SNOW_TRAIL_SAMPLE = /* glsl */ `
     snowWallUp = tg;
     grad += tg;
   }
+  // THE GROOVE UNDER THE PLAYER'S SKIS (\`ski-clear.ts\`): where the trail
+  // map holds none (TRAILS off, or a groove the grid is too coarse for), the
+  // dip the ground is let down into under each base is drawn as the base's
+  // own pressed groove — its shoulders in the normal, its floor pressed.
+  if (snowDist < 40.0) {
+    vec3 sg = skiGroove(p, vSnowWorld.y);
+    float fade = (1.0 - smoothstep(0.01, 0.03, tr.x)) * (1.0 - smoothstep(20.0, 40.0, snowDist));
+    grad += sg.yz * fade;
+    snowPress = max(snowPress, 0.55 * sg.x * fade);
+  }
 
   // The sun the deformable snow's own relief hides (\`deform-glsl.ts\`).
   snowSelf = deformSelf(p, uSunDir, g.rg, snowDist);
@@ -51,7 +61,9 @@ export const SNOW_TRAIL_SAMPLE = /* glsl */ `
     }
     ring /= 6.0;
     float fade = 1.0 - smoothstep(60.0, 110.0, snowDist);
-    snowHollow = smoothstep(0.06, 0.55, tr.x) * mix(0.45, 1.0, clamp((tr.x - ring) / 0.2, 0.0, 1.0)) * fade;
+    // Eased over the whole depth and the rim's lead, so the shade deepens
+    // smoothly down a wall rather than in steps that follow its terraces.
+    snowHollow = smoothstep(0.04, 0.7, tr.x) * mix(0.45, 1.0, smoothstep(0.0, 0.3, tr.x - ring)) * fade;
     snowSpill = smoothstep(0.12, 0.4, ringMax) * (1.0 - smoothstep(0.03, 0.12, tr.x)) * fade;
   }
   // The trough's walls crumbled; the trench's broken into blocks a hand
@@ -81,8 +93,11 @@ export const SNOW_TRAIL_ALBEDO = /* glsl */ `
   // THE SCUFF: snow pressed to a polish, a cool grey line.
   alb *= mix(vec3(1.0), vec3(0.86, 0.9, 0.96), snowScuff * (0.35 + 0.65 * snowPacked));
   // THE TRENCH: down out of the sky's light, its snow lit through its walls
-  // — the blue of a hole dug in deep snow, the deeper the bluer.
-  alb = mix(alb, vec3(0.56, 0.74, 1.0), 0.65 * snowHollow);
+  // — the blue of a hole dug in deep snow, the deeper the bluer. A boot or a
+  // body deep it is a cool shade, never the cyan of a crevasse: the light
+  // has come through a hand of snow, not metres (the sky's own blue in the
+  // shade is laid on by the sky's light already).
+  alb = mix(alb, vec3(0.78, 0.87, 1.0), 0.55 * snowHollow);
   // ...its broken walls the bluer for the sky they do not see.
   alb *= mix(vec3(1.0), vec3(0.82, 0.9, 1.0), snowWall * snowTrench);
   // THE SPILL: snow turned over and thrown out, fresh white clods.
@@ -97,5 +112,5 @@ export const SNOW_TRAIL_ALBEDO = /* glsl */ `
 export const SNOW_TRAIL_LIGHT = /* glsl */ `
   // DOWN IN A TRENCH the walls hide most of the sky, and all but a high
   // sun: what light there is comes through the snow, and comes out blue.
-  reflectedLight.indirectDiffuse *= mix(vec3(1.0), vec3(0.45, 0.62, 0.92), snowHollow);
+  reflectedLight.indirectDiffuse *= mix(vec3(1.0), vec3(0.6, 0.68, 0.84), snowHollow);
   reflectedLight.directDiffuse *= 1.0 - 0.5 * snowHollow * (1.0 - smoothstep(0.3, 0.9, uSunPos.y / max(length(uSunPos), 1e-3)));`;

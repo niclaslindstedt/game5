@@ -539,7 +539,8 @@ spray-eval:
 # line a run cuts from the chase lens — by day and under other lights, through
 # the game's own renderer; the FILM SCORE (each throw's top, reach and area
 # against a film's, 0–100, and the way it went off the travel and the fall
-# line: film.png, film.json); and what the spray and the cloud cost at the
+# line — the PLUME against where the rider is now, the THROW from where he
+# was when each bit left: film.png, film.json); and what the spray and the cloud cost at the
 # LOW, MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
 # perf.json. ARGS="--scenes=hockey,board-heel", "--lights=low,overcast,night",
 # "--film=day,low" ("none" skips it), "--no-sheet", "--model=sheet" (another
@@ -549,8 +550,9 @@ snow-eval:
 
 # THE SNOW MASS LAB: the spray WEIGHED — the kilograms a stop or a carve
 # throws off groomed, hard, icy, wet, soft and new snow, how deep the edge
-# cut, how high and far it flew, each row held to the band a real one sits
-# in (spray-mass.ts). Pure Node, seconds. ARGS="--rows=stop/ice",
+# cut, how high and far it flew and which way it left (way° off the travel,
+# rise° over the snow, the share thrown out ahead of him), each row held to
+# the band a real one sits in (spray-mass.ts). Pure Node, seconds. ARGS="--rows=stop/ice",
 # "--json=a.json" / "--compare=a.json".
 snow-mass:
 	npm run snow-mass -- $(ARGS)

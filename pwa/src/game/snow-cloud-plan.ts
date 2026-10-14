@@ -57,6 +57,10 @@ export const CLOUD = {
   /** How much of the skier's own velocity a puff is born with — the wake
    * dragging the plume along. */
   carry: 0.45,
+  /** THE SKID'S DUST rides the jet of snow the skis shove forward: born
+   * with their slide, it slows this many times slower than a puff in still
+   * air while the heavy snow round it drags the air along. */
+  jet: 1.2,
   /** A puff's opacity at its thickest. */
   opacity: 0.7,
   /** The landing's cloud: puffs per unit of landing, and the most. */

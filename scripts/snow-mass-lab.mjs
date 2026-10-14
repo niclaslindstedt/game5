@@ -160,6 +160,10 @@ const ROWS = [
 
 const FRAME = 1 / 60;
 const pitchFor = (kmh) => Math.tan(((kmh <= 30 ? 7 : kmh <= 50 ? 10 : 14) * Math.PI) / 180);
+const median = (xs) => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s.length ? s[s.length >> 1] : NaN;
+};
 const p90 = (xs) => {
   if (!xs.length) return 0;
   const s = [...xs].sort((a, b) => a - b);
@@ -183,7 +187,28 @@ function measure(row) {
   );
   const heights = [];
   const reaches = [];
+  // WHICH WAY IT WAS THROWN: every parcel's launch against the ground, off
+  // the way the skier was going when the ride began (+z) — its way along
+  // the snow, summed, and its rise off the snow, each.
+  let wayX = 0;
+  let wayZ = 0;
+  let ahead = 0;
+  let thrown = 0;
+  const rises = [];
   const pool = M.createMassPool(30000, {
+    spawn: (i) => {
+      const vx = pool.vel[i * 3];
+      const vy = pool.vel[i * 3 + 1];
+      const vz = pool.vel[i * 3 + 2];
+      const flat = Math.hypot(vx, vz);
+      if (flat < 0.3) return;
+      wayX += vx / flat;
+      wayZ += vz / flat;
+      // Ahead of the skier: faster down his way than he goes.
+      if (vz > state.skier.vz) ahead++;
+      thrown++;
+      rises.push((Math.atan2(vy, flat) * 180) / Math.PI);
+    },
     retire: (_i, peak, reach) => {
       heights.push(peak);
       reaches.push(reach);
@@ -192,7 +217,7 @@ function measure(row) {
   const slips = [P.emptySlip(), P.emptySlip()];
   const seconds = stop ? 2.6 : 5;
   const t0 = state.t;
-  let kg = { cut: 0, shove: 0, bow: 0, lip: 0, burst: 0, dust: 0 };
+  let kg = { cut: 0, shove: 0, bow: 0, lip: 0, burst: 0, dust: 0, berm: 0 };
   let peakRate = 0;
   let depth = 0;
   let depthN = 0;
@@ -234,11 +259,14 @@ function measure(row) {
   }
   // Let the last of it come down.
   for (let i = 0; i < 180; i++) pool.step(FRAME, level);
-  const thrown = kg.cut + kg.shove + kg.bow + kg.lip;
   return {
     id: `${row.move}/${row.snow}/${row.pair}`,
     kmh: row.kmh,
-    kg: thrown,
+    kg: kg.cut + kg.shove + kg.bow + kg.lip,
+    berm: kg.berm ?? 0,
+    way: thrown ? (Math.atan2(Math.abs(wayX), wayZ) * 180) / Math.PI : NaN,
+    rise: rises.length ? median(rises) : NaN,
+    outrun: thrown ? ahead / thrown : NaN,
     by: { cut: kg.cut, shove: kg.shove, lip: kg.lip, bow: kg.bow },
     peakRate,
     dust: kg.dust,
@@ -275,6 +303,9 @@ console.log(
     "parcels".padStart(8),
     "alive".padStart(6),
     "ms/frame".padStart(9),
+    "way°".padStart(6),
+    "rise°".padStart(6),
+    "ahead".padStart(6),
   ].join(""),
 );
 let out = 0;
@@ -296,7 +327,10 @@ for (const r of rows) {
       String(r.parcels).padStart(8),
       String(r.alive).padStart(6),
       fmt(r.msPerFrame, 3).padStart(9),
-      `  top ${fmt(r.top, 1)} cut ${fmt(r.by.cut, 1)} shove ${fmt(r.by.shove, 1)} lip ${fmt(r.by.lip, 1)} bow ${fmt(r.by.bow, 1)}`,
+      fmt(r.way, 0).padStart(6),
+      fmt(r.rise, 0).padStart(6),
+      fmt(r.outrun, 2).padStart(6),
+      `  top ${fmt(r.top, 1)} cut ${fmt(r.by.cut, 1)} shove ${fmt(r.by.shove, 1)} lip ${fmt(r.by.lip, 1)} bow ${fmt(r.by.bow, 1)} berm ${fmt(r.berm, 1)}`,
     ].join("") +
       (old ? `   was ${fmt(old.kg, 1)} kg, ${fmt(old.high, 2)} / ${fmt(old.reach, 2)} m` : ""),
   );

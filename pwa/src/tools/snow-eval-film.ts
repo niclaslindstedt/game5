@@ -19,6 +19,7 @@ import type { LensPose } from "../game/camera-rigs.ts";
 import type { createWorldRenderer } from "../game/renderer.ts";
 import {
   bornSince,
+  type PlumeBit,
   FILM,
   filmAt,
   frameScore,
@@ -69,7 +70,44 @@ export type FilmCell = {
    * the fall line (0 straight down the slope). */
   toTravel: number;
   toFall: number;
+  /** WHICH WAY IT WAS THROWN, degrees: each drawn bit's way from where the
+   * rider was when it was born (its age read back), weighed as the plume
+   * is — the throw itself, which the rider sliding on past his own snow
+   * does not turn round — off the travel and off the fall line. */
+  throwTravel: number;
+  throwFall: number;
 };
+
+/** Where the rider was, s into the manoeuvre. */
+type Track = { t: number; x: number; z: number }[];
+
+/** The drawn snow's mean way along the snow from where the rider was when
+ * each bit was born (a unit vector), weighed by how much of it is seen;
+ * null when nothing is. */
+export function thrownWay(
+  bits: readonly PlumeBit[],
+  track: Track,
+  now: number,
+): { x: number; z: number } | null {
+  let wx = 0;
+  let wz = 0;
+  for (const b of bits) {
+    if (b.a < 0.03 || b.r <= 0 || b.age === undefined) continue;
+    const born = now - b.age;
+    // The track point at the bit's birth (the track is in time order).
+    let k = track.length - 1;
+    while (k > 0 && track[k].t > born) k--;
+    const dx = b.x - track[k].x;
+    const dz = b.z - track[k].z;
+    const d = Math.hypot(dx, dz);
+    if (d < 1e-3) continue;
+    const seen = b.a * b.r * b.r;
+    wx += (dx / d) * seen;
+    wz += (dz / d) * seen;
+  }
+  const l = Math.hypot(wx, wz);
+  return l > 0 ? { x: wx / l, z: wz / l } : null;
+}
 
 const DEG = Math.PI / 180;
 const FRAME = 1 / 60;
@@ -195,6 +233,7 @@ export async function filmSheet(
       // The turn a carve is in: from the last time its edge changed side.
       let turnAt = 0;
       let side = Math.sign(state.skier.edge);
+      const track: Track = [{ t: 0, x: state.skier.x, z: state.skier.z }];
       const y0 = headH + row * cellH;
       let sum = 0;
       for (let c = 0; c < FILM_TIMES.length; c++) {
@@ -206,6 +245,7 @@ export async function filmSheet(
             side = now;
             turnAt = state.t - t0;
           }
+          track.push({ t: state.t - t0, x: state.skier.x, z: state.skier.z });
           renderer.draw(state, 0, FRAME, false);
         }
         const s = state.skier;
@@ -226,6 +266,7 @@ export async function filmSheet(
         const score = frameScore(game, ref);
         sum += score;
         const thrown = { x: game.wayX, z: game.wayZ };
+        const went = thrownWay(bornSince(renderer.plumes(), window), track, state.t - t0);
         cells.push({
           scene: scene.id,
           light,
@@ -237,6 +278,8 @@ export async function filmSheet(
           score,
           toTravel: game.bits ? angle(thrown, travel) : NaN,
           toFall: game.bits ? angle(thrown, fall) : NaN,
+          throwTravel: went ? angle(went, travel) : NaN,
+          throwFall: went ? angle(went, fall) : NaN,
         });
         const x0 = labelW + c * cellW;
         ctx.drawImage(stage, x0, y0, cellW, cellH);
@@ -245,7 +288,7 @@ export async function filmSheet(
         box(project, s, way, game, x0, y0, "#5fd3ff", false);
         label(
           [
-            `${t.toFixed(1)} s · ${(s.speed * 3.6).toFixed(0)} km/h · score ${score.toFixed(0)} · ${cells[cells.length - 1].toTravel.toFixed(0)}° off travel, ${cells[cells.length - 1].toFall.toFixed(0)}° off fall`,
+            `${t.toFixed(1)} s · ${(s.speed * 3.6).toFixed(0)} km/h · score ${score.toFixed(0)} · plume ${cells[cells.length - 1].toTravel.toFixed(0)}°/${cells[cells.length - 1].toFall.toFixed(0)}° · throw ${cells[cells.length - 1].throwTravel.toFixed(0)}°/${cells[cells.length - 1].throwFall.toFixed(0)}° off travel/fall`,
             `top ${game.top.toFixed(2)}/${ref.top.toFixed(2)} reach ${game.reach.toFixed(1)}/${ref.reach.toFixed(1)} area ${game.area.toFixed(2)}/${ref.area.toFixed(2)}`,
           ],
           x0,
@@ -266,7 +309,15 @@ export async function filmSheet(
 
 /** The mean score of each scene under each light, and over all. */
 export function filmMeans(cells: readonly FilmCell[]): {
-  rows: { scene: string; light: string; mean: number; toTravel: number; toFall: number }[];
+  rows: {
+    scene: string;
+    light: string;
+    mean: number;
+    toTravel: number;
+    toFall: number;
+    throwTravel: number;
+    throwFall: number;
+  }[];
   overall: number;
 } {
   type Sum = {
@@ -277,11 +328,30 @@ export function filmMeans(cells: readonly FilmCell[]): {
     tr: number;
     fl: number;
     m: number;
+    ttr: number;
+    tfl: number;
+    tm: number;
   };
   const by = new Map<string, Sum>();
   for (const c of cells) {
     const k = `${c.scene}/${c.light}`;
-    const r = by.get(k) ?? { scene: c.scene, light: c.light, sum: 0, n: 0, tr: 0, fl: 0, m: 0 };
+    const r = by.get(k) ?? {
+      scene: c.scene,
+      light: c.light,
+      sum: 0,
+      n: 0,
+      tr: 0,
+      fl: 0,
+      m: 0,
+      ttr: 0,
+      tfl: 0,
+      tm: 0,
+    };
+    if (Number.isFinite(c.throwTravel)) {
+      r.ttr += c.throwTravel;
+      r.tfl += c.throwFall;
+      r.tm++;
+    }
     r.sum += c.score;
     r.n++;
     if (Number.isFinite(c.toTravel)) {
@@ -297,6 +367,8 @@ export function filmMeans(cells: readonly FilmCell[]): {
     mean: r.sum / r.n,
     toTravel: r.m ? r.tr / r.m : NaN,
     toFall: r.m ? r.fl / r.m : NaN,
+    throwTravel: r.tm ? r.ttr / r.tm : NaN,
+    throwFall: r.tm ? r.tfl / r.tm : NaN,
   }));
   const overall = rows.length ? rows.reduce((a, r) => a + r.mean, 0) / rows.length : 0;
   return { rows, overall };

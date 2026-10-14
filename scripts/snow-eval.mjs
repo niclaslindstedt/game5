@@ -143,10 +143,12 @@ if (args.film !== "none") {
   console.log(
     `film score (${((Date.now() - t1) / 1000).toFixed(0)} s): 100 the film, ~50 twice off`,
   );
-  console.log("scene        light      mean   throw° off travel   off fall line");
+  console.log(
+    "scene        light      mean   plume° off travel   off fall line   throw° off travel   off fall line",
+  );
   for (const r of film.means.rows) {
     console.log(
-      `${r.scene.padEnd(12)} ${r.light.padEnd(9)} ${r.mean.toFixed(1).padStart(5)}   ${String(Math.round(r.toTravel ?? NaN)).padStart(17)}   ${String(Math.round(r.toFall ?? NaN)).padStart(13)}`,
+      `${r.scene.padEnd(12)} ${r.light.padEnd(9)} ${r.mean.toFixed(1).padStart(5)}   ${String(Math.round(r.toTravel ?? NaN)).padStart(17)}   ${String(Math.round(r.toFall ?? NaN)).padStart(13)}   ${String(Math.round(r.throwTravel ?? NaN)).padStart(17)}   ${String(Math.round(r.throwFall ?? NaN)).padStart(13)}`,
     );
   }
   console.log(`overall                ${film.means.overall.toFixed(1).padStart(5)}`);

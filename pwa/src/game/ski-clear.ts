@@ -40,28 +40,24 @@ uniform float uSkiClear;
  * bases within reach of `p`. Read in the ground's vertex stage after the
  * surface's height is summed. Within the base's half-width and one grid step
  * every vertex goes down to the base, so the triangles spanning the ski all
- * hinge under it; a second step out the cut is eased back up to the snow, so
- * the walls the grid can carry lean over two steps rather than one and the
- * notch reads as a dip the groove is drawn in (`SKI_GROOVE_GLSL`), not a
- * spade's cut. */
+ * hinge under it — and no further: the cut's walls are the grid's own one
+ * step (easing them over a second step was tried, and the chase lens saw
+ * the base stand twice as far over the dip it widened), and the groove is
+ * drawn in the fragment stage (`SKI_GROOVE_GLSL`). */
 export const SKI_CLEAR_GLSL = /* glsl */ `${SKI_LINE_PARS}
 float skiClear(vec2 p, float y, float reach) {
   if (uSkiClear < 0.5) return y;
-  float lowered = y;
   for (int s = 0; s < ${SKI_LINES}; s++) {
     for (int k = 0; k < ${SKI_POINTS - 1}; k++) {
       vec4 a = uSkiLine[s * ${SKI_POINTS} + k];
       vec4 b = uSkiLine[s * ${SKI_POINTS} + k + 1];
       vec2 ab = b.xz - a.xz;
       float t = clamp(dot(p - a.xz, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
-      float d = distance(p, a.xz + ab * t) - mix(a.w, b.w, t) - reach;
-      if (d > reach) continue;
-      float floorY = mix(a.y, b.y, t) - ${CLEAR.toFixed(3)};
-      // Wholly down within reach; eased back to the snow over the next step.
-      lowered = min(lowered, mix(floorY, y, smoothstep(0.0, reach, d)));
+      float d = distance(p, a.xz + ab * t);
+      if (d <= mix(a.w, b.w, t) + reach) y = min(y, mix(a.y, b.y, t) - ${CLEAR.toFixed(3)});
     }
   }
-  return lowered;
+  return y;
 }
 `;
 

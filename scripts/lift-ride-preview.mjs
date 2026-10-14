@@ -40,6 +40,17 @@
 //
 //   node scripts/lift-ride-preview.mjs --strip=all
 //   node scripts/lift-ride-preview.mjs --strip=chair-load --views=side,chase --frames=14
+//
+// With `--hands=` it photographs THE CHAIR LEFT ONLY BY HAND
+// (`engine/game/chair-hands.ts`, `make chair-ride`): `stay` rides it
+// untouched — the bar down, up, the top passed sat on, round the wheel and
+// back down the line — a row a lens (the game's camera, his own look down
+// the line, off the line's flank); `jump` jumps off on the way down at each
+// of `--heights=` m over the snow, a row a height, captioned with the
+// blow's g, the injury severity score and whether he lived:
+// `previews/chair-<stay|jump>-<seed>.png`.
+//
+//   node scripts/lift-ride-preview.mjs --hands=stay,jump --heights=4,8,14,20
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -98,6 +109,16 @@ const args = parseArgs(
       kind: "string",
       default: "",
       help: "film getting on or off frame by frame: chair-load, chair-unload, tbar-pick, tbar-release, gondola-in, gondola-out, or all",
+    },
+    hands: {
+      kind: "string",
+      default: "",
+      help: "the chair left only by hand: stay (untouched round the top and back down), jump (jumped off on the way down), or both: stay,jump",
+    },
+    heights: {
+      kind: "string",
+      default: "3,6,10,15,20",
+      help: "with --hands=jump, the heights over the snow he jumps from, m",
     },
     views: {
       kind: "string",
@@ -206,9 +227,18 @@ const STAGES = [
   "gondola-in",
   "gondola-out",
 ];
-const strips = args.strip === "all" ? STAGES : args.strip ? args.strip.split(",") : [""];
-for (const strip of strips) {
+const strips = args.hands
+  ? args.hands.split(",").map((h) => `hands:${h}`)
+  : args.strip === "all"
+    ? STAGES
+    : args.strip
+      ? args.strip.split(",")
+      : [""];
+for (const entry of strips) {
+  const hand = entry.startsWith("hands:") ? entry.slice(6) : "";
+  const strip = hand ? "" : entry;
   const query = new URLSearchParams({
+    ...(hand ? { hands: hand, heights: args.heights } : {}),
     seed: String(args.seed),
     region: args.region,
     camera: args.camera,
@@ -242,10 +272,12 @@ for (const strip of strips) {
   if (crashed) process.exit(1);
   const region =
     (args.region === "alpine" ? "" : `-${args.region}`) + (args.skis ? `-${args.skis}` : "");
-  const stem = strip
-    ? `lift-strip-${strip}-${args.seed}${region}`
-    : args.out ||
-      `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${region}${args.camera === "chase" ? "" : `-${args.camera}`}${args.view ? `-${args.view}` : ""}${args.approach === "lane" ? "" : `-${args.approach}`}`;
+  const stem = hand
+    ? `chair-${hand}-${args.seed}${region}`
+    : strip
+      ? `lift-strip-${strip}-${args.seed}${region}`
+      : args.out ||
+        `lift-${args.board ? `board-${args.board}-` : "ride-"}${args.seed}${region}${args.camera === "chase" ? "" : `-${args.camera}`}${args.view ? `-${args.view}` : ""}${args.approach === "lane" ? "" : `-${args.approach}`}`;
   const out = join(outDir, `${args.out && strip ? `${args.out}-${strip}` : stem}.png`);
   await page.locator("#sheet").screenshot({ path: out });
   console.log(

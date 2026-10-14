@@ -49,7 +49,7 @@ const POLE_STOPS = POLES.map((p) => ({ id: p.id, label: p.name.toUpperCase() }))
  * the skier has to notice changed; one that rolls to its new value is one
  * they watch change. Its own component, so the frames it asks for repaint a
  * number and not the card. */
-function Figure({ fact }: { fact: SkisFact }) {
+export function Figure({ fact }: { fact: SkisFact }) {
   const shown = useRef(fact.value);
   const [, tick] = useState(0);
   useEffect(() => {

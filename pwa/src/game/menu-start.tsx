@@ -65,8 +65,11 @@
 //           is TIME's alone, so the two rows cannot disagree.
 //
 // THE DAY'S ROWS ARE PUT AWAY behind the SKY press in the head, a cloud
-// over a sun: the chart and the two rows that say where the ride starts are
-// the card, and the day is asked only by whoever goes looking for it.
+// over a sun: the chart, the SEASON and the two rows that say where the
+// ride starts are the card, and the rest of the day is asked only by
+// whoever goes looking for it. SEASON stands out with START because it
+// changes what START offers (summer's bike and aircraft) and what the rider
+// and gear cards after it stand him in.
 //
 // THE DAY'S ROWS DEFER TO THE MAP until they are moved (`free-ride.ts`):
 // SEASON, TIME and WEATHER show what the map was dealt (`dealtDay`), in a
@@ -192,14 +195,6 @@ export function StartPage({
           {sky ? (
             <div class="knob-rows start-rows">
               <StepRow
-                label={STRINGS.startSeason}
-                stops={SEASON_STOPS}
-                value={ride.season ?? pick.dealt?.season ?? ""}
-                dealt={ride.season === null}
-                extra={STRINGS.startRunWaiting}
-                onPick={(season) => setRide({ season })}
-              />
-              <StepRow
                 label={STRINGS.startTime}
                 stops={TIME_STOPS}
                 value={ride.time ?? pick.dealt?.time ?? ""}
@@ -243,6 +238,14 @@ export function StartPage({
                   onValue={(next) => setRide({ seed: next })}
                 />
               )}
+              <StepRow
+                label={STRINGS.startSeason}
+                stops={SEASON_STOPS}
+                value={ride.season ?? pick.dealt?.season ?? ""}
+                dealt={ride.season === null}
+                extra={STRINGS.startRunWaiting}
+                onPick={(season) => setRide({ season })}
+              />
               <StepRow
                 label={STRINGS.startStart}
                 stops={pick.starts}

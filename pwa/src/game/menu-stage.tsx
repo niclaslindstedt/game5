@@ -26,7 +26,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { pairById, type PairId } from "@engine";
 
 import { holdBackdrop, stirHands } from "./backdrop-hold.ts";
-import type { GearStage, StageShot } from "./gear-stage.ts";
+import type { GearStage, StageLook, StageShot } from "./gear-stage.ts";
 import { freeOf } from "./stage-free.ts";
 import type { Outfit } from "./outfit.ts";
 
@@ -52,10 +52,14 @@ export function stageSettled(): Promise<void> {
   ]);
 }
 
-const build = async (canvas: HTMLCanvasElement, skis: PairId, outfit: Outfit) => {
+/** Winter, on the skis: what a stage stands him in unless asked otherwise. */
+const WINTER: StageLook = { summer: false, bike: false };
+
+const build = async (canvas: HTMLCanvasElement, skis: PairId, outfit: Outfit, look: StageLook) => {
   const { createGearStage, loadModels } = await import("./gear-stage.ts");
   await loadModels();
   const stage = createGearStage(canvas);
+  stage.look(look);
   stage.set("rider", pairById(skis), outfit);
   return stage;
 };
@@ -63,13 +67,23 @@ const build = async (canvas: HTMLCanvasElement, skis: PairId, outfit: Outfit) =>
 /** Stand the stage up ahead of its card, held off the page, the other
  * kind's pair (`spare`: the board beside the skis, where boards are
  * offered) built with it. Asked again, it keeps the one it has. */
-export function warmStage(skis: PairId, outfit: Outfit, spare: PairId | null = null): void {
+export function warmStage(
+  skis: PairId,
+  outfit: Outfit,
+  spare: PairId | null = null,
+  look: StageLook = WINTER,
+): void {
   clearTimeout(letGo);
-  if (warm || typeof document === "undefined") return;
+  // A stage already warming takes the season the start card is on now.
+  if (warm) {
+    void warm.stage.then((stage) => stage?.look(look));
+    return;
+  }
+  if (typeof document === "undefined") return;
   const canvas = document.createElement("canvas");
   canvas.className = "menu-stage-canvas";
   const w: Warm = { canvas, stage: Promise.resolve(null), dropped: false };
-  w.stage = build(canvas, skis, outfit).then(
+  w.stage = build(canvas, skis, outfit, look).then(
     (stage) => {
       if (w.dropped) {
         stage.dispose();
@@ -110,16 +124,19 @@ export function MenuStage({
   shot,
   skis,
   outfit,
+  look = WINTER,
 }: {
   shot: StageShot;
   skis: PairId;
   outfit: Outfit;
+  /** The season he is stood in, and whether the gear is the bike. */
+  look?: StageLook;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<GearStage | null>(null);
-  const wanted = useRef({ shot, skis, outfit });
-  wanted.current = { shot, skis, outfit };
+  const wanted = useRef({ shot, skis, outfit, look });
+  wanted.current = { shot, skis, outfit, look };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -143,7 +160,8 @@ export function MenuStage({
     const taken = claim();
     // The warmed canvas stands where this one did, its listeners with it.
     if (taken) canvas.replaceWith(taken.canvas);
-    const fresh = (on: HTMLCanvasElement) => build(on, wanted.current.skis, wanted.current.outfit);
+    const fresh = (on: HTMLCanvasElement) =>
+      build(on, wanted.current.skis, wanted.current.outfit, wanted.current.look);
     const ready = taken ? taken.stage.then((stage) => stage ?? fresh(taken.canvas)) : fresh(canvas);
     settling = ready;
     void ready.then((stage) => {
@@ -154,6 +172,7 @@ export function MenuStage({
       }
       stageRef.current = stage;
       const w = wanted.current;
+      stage.look(w.look);
       stage.set(w.shot, pairById(w.skis), w.outfit);
       stage.hold(false);
       box.dataset.ready = "1";
@@ -173,6 +192,8 @@ export function MenuStage({
     };
   }, []);
 
+  const { summer, bike } = look;
+  useEffect(() => stageRef.current?.look({ summer, bike }), [summer, bike]);
   useEffect(() => stageRef.current?.set(shot, pairById(skis), outfit), [shot, skis, outfit]);
 
   return (

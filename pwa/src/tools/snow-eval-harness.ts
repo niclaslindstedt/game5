@@ -181,7 +181,7 @@ const ALL_SCENES: Scene[] = [
     ride: stopTo(1),
     shots: [
       { lens: "front", t: 0.6 },
-      { lens: "close", t: 0.9 },
+      { lens: "chase", t: 0.9 },
     ],
   },
   {

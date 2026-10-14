@@ -273,6 +273,19 @@ export const INJURY_SCENARIOS: readonly InjuryScenario[] = [
     never: [...SPLEEN, ...KIDNEY],
   },
   {
+    id: "left-groomed-high",
+    title: "on his left side from 20 m onto the groomer — crushed",
+    ground: "groomed",
+    stage: { how: "fall", pose: "left", speed: fallFrom(20) },
+    expect: [
+      ["crushedChest", "tornAorta"],
+      ["shatteredSpleen", "rupturedSpleen"],
+      ["crushedPelvis", "brokenPelvis"],
+    ],
+    never: [...LIVER],
+    worst: [5, 5],
+  },
+  {
     id: "face-groomed",
     title: "face down from 2 m onto the groomer",
     ground: "groomed",

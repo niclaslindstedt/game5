@@ -338,6 +338,7 @@ export function createBoardModel(
 
   const model: SkisModel = {
     root,
+    bases: [deck.mesh],
     lamp,
     casters: [merged.mesh, deck.mesh, ...figure.skin],
     bound(out) {

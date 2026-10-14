@@ -43,6 +43,7 @@ import {
   createPen,
   drawnDepth,
   furrowProfile,
+  LOOSE,
   planeOf,
   recentre,
   stampsOf,
@@ -119,8 +120,10 @@ describe("the trail a skier leaves", () => {
     expect(drawnDepth(ski, 1)).toBeCloseTo(Math.max(0.01, TRAIL.packedDepth), 6);
     const tip = contact({ station: "tip", sink: 0.01 });
     expect(drawnDepth(tip, 0)).toBeGreaterThan(drawnDepth(ski, 0));
-    // A physics sink deeper than the furrow is drawn as it is.
-    expect(drawnDepth(contact({ sink: 0.3 }), 0)).toBeCloseTo(0.3, 6);
+    // A physics sink deeper than the furrow is drawn as it is: its floor
+    // the ski's base, under the loose cover drawn over the ground.
+    expect(drawnDepth(contact({ sink: 0.3 }), 0)).toBeCloseTo(0.3 + LOOSE, 6);
+    expect(drawnDepth(contact({ sink: 0.3 }), 1)).toBeCloseTo(0.3, 6);
     expect(drawnDepth(contact({ sink: 2 }), 0)).toBe(TRAIL.maxDepth);
   });
 

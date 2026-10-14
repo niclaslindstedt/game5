@@ -571,7 +571,10 @@ spray-eval:
 # LOW, MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
 # perf.json. ARGS="--scenes=hockey,board-heel", "--lights=low,overcast,night",
 # "--film=day,low" ("none" skips it), "--no-sheet", "--model=sheet" (another
-# spray model, the before), "--no-perf", "--out=DIR".
+# spray model, the before), "--no-perf", "--out=DIR"; "--under=all" the skis
+# measured against the drawn snow at every TERRAIN, RESOLUTION and TRAILS stop
+# (under.png, under.json), "--deform-perf" the deformable snow's cost by
+# TRAILS stop (deform-perf.json), "--no-deform" the trail map alone.
 snow-eval:
 	npm run snow-eval -- $(ARGS)
 

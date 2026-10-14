@@ -724,7 +724,7 @@ export function createWorldRenderer(
       const planted =
         override ??
         broadcast.lens(state, rigPose, watched, clear) ??
-        (watched ? replayCam.update(watched, rigPose, body, state.t, dt) : null) ??
+        (watched ? replayCam.update(watched, rigPose, body, state.t, dt, dt / pace) : null) ??
         (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??
         dead ??

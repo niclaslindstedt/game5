@@ -10,14 +10,17 @@
 // The renderer is told through the replay's own door (`setReplayCam`, the
 // FILM angle), so nothing on a run's ladder changes; and it is told nothing
 // while a replay is being watched, a run ridden, or the backdrop is not the
-// race (the title scene, the rider and gear cards' stage). DOM-free, kept
-// out of `App.tsx`, which only asks for the rate once a frame.
+// race (the title scene, the rider and gear cards' stage). The picture is
+// letterboxed while it plays (`film-bars.ts`, the one place it touches the
+// page). Kept out of `App.tsx`, which only asks for the rate once a frame.
 
 import type { GameState, SkierInput } from "@engine";
 
 import { backdropHeld } from "./backdrop-hold.ts";
+import { filmPlan } from "./camera-cinema.ts";
 import { createLookAhead } from "./cinema-ahead.ts";
 import { cinemaRate } from "./cinema-director.ts";
+import { filmBars } from "./film-bars.ts";
 import type { WorldRenderer } from "./renderer-api.ts";
 
 /** Milliseconds of each frame the read ahead may spend, and the most steps. */
@@ -45,6 +48,7 @@ export function createCinemaRun(
       if (!on) {
         if (was) {
           renderer.setReplayCam(null);
+          filmBars("menu", false);
           ahead.drop();
         }
         was = false;
@@ -62,7 +66,8 @@ export function createCinemaRun(
         step: state.tick,
         path: ahead.path,
       });
-      return cinemaRate(plan, state.tick);
+      filmBars("menu", true); // the letterbox (`film-bars.ts`)
+      return cinemaRate(filmPlan(plan, ahead.path, state.level), state.tick);
     },
   };
 }

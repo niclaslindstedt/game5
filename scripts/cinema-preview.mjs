@@ -15,7 +15,9 @@
 // (previews/cinema-<mode>-shots.jpg), and a line of the table: the shots
 // cut, the kinds used, the mean shot length in wall seconds, the share of
 // frames with him in the frame, near the middle (12°) and behind the snow,
-// and how many frames had the lens in the snow. `--json=FILE` writes the
+// how many frames had the lens in the snow or inside a solid (a crown, a
+// trunk, a house, a tower), the longest take in wall seconds, and how tall
+// he stands in the jump shots (the median share of the frame's height). `--json=FILE` writes the
 // table, `--compare=FILE` prints it beside one.
 //
 //   node scripts/cinema-preview.mjs                     # both modes, seed 7
@@ -148,8 +150,15 @@ function rowOf(measures) {
   for (const m of measures) if (m.n >= 0) takes.set(m.n, (takes.get(m.n) ?? 0) + 1);
   const kinds = new Set(measures.map((m) => m.kind).filter((k) => k !== "-"));
   const lengths = [...takes.values()].map((f) => f / 60);
+  const jumps = measures
+    .filter((m) => ["hero", "lip", "hang"].includes(m.kind) && m.inFrame)
+    .map((m) => m.size)
+    .sort((a, b) => a - b);
   return {
     shots: takes.size,
+    longest: Math.max(0, ...lengths),
+    jump: jumps.length ? jumps[Math.floor(jumps.length / 2)] : 0,
+    solid: measures.filter((m) => m.solid).length,
     kinds: kinds.size,
     mean: lengths.reduce((a, b) => a + b, 0) / Math.max(1, lengths.length),
     framed: share((m) => m.inFrame),
@@ -198,9 +207,9 @@ for (const mode of modes) {
 const before = args.compare ? JSON.parse(readFileSync(args.compare, "utf8")) : null;
 const pct = (v) => `${Math.round(v * 100)}%`.padStart(5);
 const cell = (r) =>
-  `${String(r.shots).padStart(5)} ${String(r.kinds).padStart(5)} ${r.mean.toFixed(2).padStart(6)} ${pct(r.framed)} ${pct(r.centred)} ${pct(r.snow)} ${String(r.buried).padStart(6)}`;
+  `${String(r.shots).padStart(5)} ${String(r.kinds).padStart(5)} ${r.mean.toFixed(2).padStart(6)} ${(r.longest ?? 0).toFixed(1).padStart(6)} ${pct(r.framed)} ${pct(r.centred)} ${pct(r.snow)} ${String(r.buried).padStart(6)} ${String(r.solid ?? "-").padStart(5)} ${pct(r.jump ?? 0)}`;
 console.log(
-  `\n${"mode".padEnd(8)} shots kinds  mean s  frame  <12°  snow buried${before ? "   | before" : ""}`,
+  `\n${"mode".padEnd(8)} shots kinds  mean s  most s frame  <12°  snow buried solid  jump${before ? "   | before" : ""}`,
 );
 for (const [k, r] of Object.entries(table)) {
   const b = before?.[k];

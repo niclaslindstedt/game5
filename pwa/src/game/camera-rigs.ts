@@ -524,10 +524,10 @@ function surgeAt(st: BoomState, pose: RigPose, share: number, dt: number): numbe
   return st.surge;
 }
 
-/** WHAT THE LENS MAY NOT STAND INSIDE: the share (0..1) of the line from
- * `from` to `to` that is clear before it first runs into something solid —
- * a trunk, a crown, the arch. `camera-clear.ts` answers it for a map. */
-export type LineClear = (from: Vec3, to: Vec3) => number;
+/** WHAT THE LENS MAY NOT STAND INSIDE: the share (0..1) of the line from `from` to `to`
+ * clear before it first runs into something solid — a trunk, a crown, the arch — and `inside`,
+ * whether a point is in one. `camera-clear.ts` answers both for a map. */
+export type LineClear = ((from: Vec3, to: Vec3) => number) & { inside?: (p: Vec3) => boolean };
 
 /** A trunk the lens is kept off: which tree (`id`), where it stands, its
  * radius, and the heights it runs between, m. */

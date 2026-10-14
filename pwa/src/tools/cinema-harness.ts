@@ -30,7 +30,8 @@ import {
 } from "@engine";
 
 import { backdropInput, backdropNext } from "../game/backdrop-run.ts";
-import { filmTake } from "../game/camera-cinema.ts";
+import { filmTake, lensInSolid } from "../game/camera-cinema.ts";
+import { createLineClear } from "../game/camera-clear.ts";
 import { createCinemaRun } from "../game/cinema-run.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { createReplayRun } from "../game/replay-run.ts";
@@ -47,6 +48,10 @@ type Measure = {
   inFrame: boolean;
   blocked: boolean;
   buried: boolean;
+  /** His height's share of the frame's: 1.8 m against the vertical field. */
+  size: number;
+  /** The lens inside a solid (a crown, a trunk, a house, a tower). */
+  solid: boolean;
 };
 
 declare global {
@@ -82,6 +87,7 @@ renderer.resize(width, height, 1);
 renderer.setCamera("orbit", true);
 
 const level = generateLevel(seed);
+const solids = createLineClear(level);
 const fresh = (): GameState =>
   createGame({ level, seed, showcase: take, spec: showcaseSkis(), quiet: true });
 
@@ -92,6 +98,23 @@ const ready = (async () => {
   await renderer.shadeSettled();
   return `${level.kickers?.length ?? 0} kickers, ${level.trees.length} trees`;
 })();
+
+const flat = document.createElement("canvas");
+flat.width = width;
+flat.height = height;
+/** The canvas as a frame, the film's letterbox laid over it as the page
+ * draws it (`film-bars.ts`'s `--film-bar`). */
+function framed(): string {
+  const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--film-bar"));
+  if (!(bar > 0)) return canvas.toDataURL("image/jpeg", 0.85);
+  const g = flat.getContext("2d")!;
+  g.drawImage(canvas, 0, 0, width, height);
+  const h = Math.round((height * bar) / 100);
+  g.fillStyle = "#000";
+  g.fillRect(0, 0, width, h);
+  g.fillRect(0, height - h, width, h);
+  return flat.toDataURL("image/jpeg", 0.85);
+}
 
 /** Where the skier IS: his body when he is thrown, else his hips. */
 function bodyOf(s: GameState): { x: number; y: number; z: number } {
@@ -132,6 +155,8 @@ function measure(s: GameState, t: number): Measure {
     inFrame: off < lens.fov / 2,
     blocked,
     buried: lens.y < level.groundAt(lens.x, lens.z),
+    size: (2 * Math.atan(0.9 / Math.max(0.3, dist))) / ((lens.fov * Math.PI) / 180),
+    solid: lensInSolid(level, solids, lens, 0.1),
   };
 }
 
@@ -207,8 +232,9 @@ async function sheet(
           `${rate < 0.99 ? ` · ×${rate.toFixed(2)}` : ""}\n` +
           `${m.dist.toFixed(1)} m · off ${m.off.toFixed(0)}°${m.inFrame ? "" : " · OUT OF FRAME"}` +
           `${m.blocked ? " · BEHIND SNOW" : ""}${m.buried ? " · LENS IN SNOW" : ""}` +
+          `${m.solid ? " · LENS IN SOLID" : ""} · ${Math.round(m.size * 100)}% tall` +
           `${state.skier.airborne ? " · air" : ""}`,
-        png: canvas.toDataURL("image/jpeg", 0.85),
+        png: framed(),
       });
     }
     if (done()) break;

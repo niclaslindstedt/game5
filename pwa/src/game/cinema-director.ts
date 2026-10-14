@@ -27,7 +27,8 @@ import { TUNING } from "@engine";
 import type { ReplayShot } from "./replay-shots.ts";
 
 /** Every framing the director cuts between. The first eight FOLLOW him; the
- * last five are PLANTED off his line before he arrives. */
+ * ninth, the HANG, follows him too but only through the top of a long
+ * flight; the last five are PLANTED off his line before he arrives. */
 export const FRAMINGS = [
   "establish",
   "heli",
@@ -37,6 +38,7 @@ export const FRAMINGS = [
   "powder",
   "dutch",
   "arc",
+  "hang",
   "headon",
   "rideby",
   "lip",
@@ -44,6 +46,9 @@ export const FRAMINGS = [
   "crash",
 ] as const;
 export type Framing = (typeof FRAMINGS)[number];
+
+/** The framings the snow's own pace is cut between, between the moments. */
+export const FOLLOWS: readonly Framing[] = FRAMINGS.slice(0, 8);
 
 /** THE EDIT, as numbers. Seconds of the run and metres per second. */
 export const DIRECTOR = {
@@ -55,10 +60,20 @@ export const DIRECTOR = {
    * touch-down, s. */
   lead: 1.5,
   hold: 1.1,
-  /** A flight shorter than this is one shot, s; longer, the lip and then
-   * the landing — the cut falling this far past the take-off, s. */
+  /** A flight shorter than this, s, or lower than `high` m over the snow at
+   * its top, is no moment: the shot on the picture follows him over it. A
+   * longer one is the lip and then the landing — the cut falling `liftOff`
+   * s past the take-off — and one of `hang` s or more has a third shot
+   * between them, alongside him through the top of it, cut away to the
+   * landing's lens `hangTo` of the way through the flight. */
   big: 0.9,
+  high: 1,
   liftOff: 0.15,
+  hang: 1.5,
+  hangTo: 0.55,
+  /** No take holds the picture longer than this of WALL time, s — a long
+   * flight in slow motion is cut again rather than held. */
+  wallMost: 4.2,
   /** A crash's lens opens this long before the blow and holds this long
    * after it, s. */
   crashLead: 1.1,
@@ -100,6 +115,8 @@ export type Situation = {
   turn: number;
   airborne: boolean;
   thrown: boolean;
+  /** The wall clock, s — how long a take has truly been on the screen. */
+  wall: number;
 };
 
 /** ONE TAKE: the framing, the steps it holds between, the side of him (±1)
@@ -112,6 +129,8 @@ export type Take = {
   moment: ReplayShot | null;
   /** The take's number in the edit — the hash every choice is dealt off. */
   n: number;
+  /** The wall clock it opened on, s. */
+  wall: number;
 };
 
 export type Director = {
@@ -156,23 +175,26 @@ export function sameMoment(a: ReplayShot, b: ReplayShot): boolean {
   return a.kind === b.kind && Math.abs(a.at - b.at) <= steps(DIRECTOR.same);
 }
 
-/** Whether a moment is one the film frames. */
+/** Whether a moment is one the film frames: a small air is not. */
 function framed(m: ReplayShot): boolean {
-  if (m.kind === "air") return m.runs >= steps(DIRECTOR.airLeast);
+  if (m.kind === "air") return m.runs >= steps(DIRECTOR.big);
   return m.kind === "wipeout" || m.kind === "hit" || m.kind === "finish" || m.kind === "pass";
 }
 
-/** The planted framing a moment is shot in at `step`, given the framing
- * before it. A big flight is two shots — the lip, then the landing. */
+/** The framing a moment is shot in at `step`, given the framing before
+ * it. A big flight is two shots — the lip, then the landing — and a long
+ * one three: the lip, alongside him through the hang, the landing. */
 export function momentFraming(m: ReplayShot, step: number, last: Framing | null): Framing {
   if (m.kind === "wipeout" || m.kind === "hit") return last === "crash" ? "hero" : "crash";
   if (m.kind !== "air") return last === "rideby" ? "lip" : "rideby";
-  if (m.runs >= steps(DIRECTOR.big)) return step < m.at + steps(DIRECTOR.liftOff) ? "lip" : "hero";
-  // One shot: whichever the last take was not.
-  if (last === "hero") return "lip";
-  if (last === "lip") return "hero";
-  return dice(m.at, 3) < 0.6 ? "hero" : "lip";
+  if (step < m.at + steps(DIRECTOR.liftOff)) return "lip";
+  if (m.runs >= steps(DIRECTOR.hang) && step < m.at + Math.round(m.runs * DIRECTOR.hangTo))
+    return "hang";
+  return "hero";
 }
+
+/** The order a flight's shots come in: a cut on the action only forward. */
+const FLIGHT: readonly Framing[] = ["lip", "hang", "hero"];
 
 export function createDirector(): Director {
   let take: Take | null = null;
@@ -184,8 +206,9 @@ export function createDirector(): Director {
   const isSpent = (m: ReplayShot): boolean => spent.some((x) => sameMoment(x, m));
   let ended = false;
 
-  const open = (t: Omit<Take, "n">): Take => {
-    take = { ...t, n: n++ };
+  let wall = 0;
+  const open = (t: Omit<Take, "n" | "wall">): Take => {
+    take = { ...t, n: n++, wall };
     recent.push(t.framing);
     if (recent.length > 3) recent.shift();
     ended = false;
@@ -199,7 +222,7 @@ export function createDirector(): Director {
     if (wide && last !== "establish") pool = ["establish"];
     let fresh = pool.filter((f) => f !== last && !recent.includes(f));
     if (fresh.length === 0) fresh = pool.filter((f) => f !== last);
-    if (fresh.length === 0) fresh = FRAMINGS.slice(0, 8).filter((f) => f !== last);
+    if (fresh.length === 0) fresh = FOLLOWS.filter((f) => f !== last);
     // The first of the pool is the likeliest: the framing that suits best.
     const roll = dice(n, 11);
     const pick = fresh[Math.min(fresh.length - 1, Math.floor(roll * roll * fresh.length))];
@@ -230,6 +253,13 @@ export function createDirector(): Director {
     },
     call: (sit, shots) => {
       const now = sit.step;
+      wall = sit.wall;
+      // HELD TOO LONG on the screen (a slow motion under it): cut, and a
+      // moment's take gives its moment up.
+      if (take && !ended && wall - take.wall > DIRECTOR.wallMost) {
+        ended = true;
+        if (take.moment) spent.push(take.moment);
+      }
       // THE MOMENT whose window is open, the first one not given up.
       let moment: ReplayShot | null = null;
       for (const m of shots) {
@@ -245,10 +275,12 @@ export function createDirector(): Director {
         const w = momentWindow(moment);
         if (take && !ended && take.moment && sameMoment(take.moment, moment)) {
           take.moment = moment; // the latest read of it
-          // The same moment: a cut only ON THE ACTION, the lip to the
-          // landing, and on the same side of him (the 180° rule).
-          if (take.framing !== "lip" || momentFraming(moment, now, null) !== "hero") return take;
-          return open({ framing: "hero", from: now, until: w.until, side: take.side, moment });
+          // The same moment: a cut only ON THE ACTION, the lip to the hang
+          // to the landing, and on the same side of him (the 180° rule).
+          const phase = momentFraming(moment, now, null);
+          const was = FLIGHT.indexOf(take.framing);
+          if (was < 0 || FLIGHT.indexOf(phase) <= was) return take;
+          return open({ framing: phase, from: now, until: w.until, side: take.side, moment });
         }
         let want = momentFraming(moment, now, last);
         if (want === last) want = want === "lip" ? "hero" : "lip";

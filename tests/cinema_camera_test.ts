@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE FILM CAMERA (`cinema-director.ts`, `camera-cinema.ts`, `cinema-ahead.ts`):
-// the edit cuts every two to four seconds and never on the same framing
-// twice running; a flight known ahead gets its lens planted before the
-// take-off and is cut as two shots; the lens keeps him in the frame and stays
-// over the snow; the menu's slow motion is the hang of a long flight alone;
-// and the run read ahead finds the jump before the run gets there without
-// moving the run itself by a hair.
+// THE FILM CAMERA (`cinema-director.ts`, `camera-cinema.ts`, `cinema-ahead.ts`,
+// `film-bars.ts`): the edit cuts every two to four seconds and never on the
+// same framing twice running, and no take outlasts its wall time under a slow
+// motion; a big flight known ahead gets its lens planted before the take-off
+// and is cut as two shots (three for a long one), a small one gets none; the
+// lens keeps him in the frame, BIG in the jump's planted shots, over the snow
+// and out of every solid; the menu's slow motion is the hang of a long flight
+// alone; the letterbox crops a wide screen to the film's frame; and the run
+// read ahead finds the jump before the run gets there without moving the run
+// itself by a hair.
 
 import { describe, expect, it } from "vitest";
 
@@ -20,7 +23,13 @@ import {
 } from "@engine";
 
 import { backdropInput } from "../pwa/src/game/backdrop-run.ts";
-import { createCinemaCamera, filmTake } from "../pwa/src/game/camera-cinema.ts";
+import {
+  CINEMA,
+  createCinemaCamera,
+  filmPlan,
+  filmTake,
+  lensInSolid,
+} from "../pwa/src/game/camera-cinema.ts";
 import { createLineClear } from "../pwa/src/game/camera-clear.ts";
 import { freshRigPose } from "../pwa/src/game/camera-rigs.ts";
 import { createLookAhead } from "../pwa/src/game/cinema-ahead.ts";
@@ -33,6 +42,7 @@ import {
   type Situation,
   type Take,
 } from "../pwa/src/game/cinema-director.ts";
+import { FILM_BARS, filmBar } from "../pwa/src/game/film-bars.ts";
 import type { ReplayShot } from "../pwa/src/game/replay-shots.ts";
 import { syntheticLevel } from "./support/synthetic.ts";
 
@@ -46,6 +56,7 @@ const cruise = (stepAt: number, speed = 14, turn = 0.2): Situation => ({
   turn,
   airborne: false,
   thrown: false,
+  wall: stepAt / HZ,
 });
 
 /** A flight at `at` of `runs` steps, straight down +z. */
@@ -107,14 +118,15 @@ describe("the film director (cinema-director.ts)", () => {
     expect(kinds.size).toBeGreaterThanOrEqual(5);
   });
 
-  it("plants a long flight's lens before the take-off and cuts it lip then landing", () => {
+  it("plants a big flight's lens before the take-off and cuts it lip then landing", () => {
     const at = 20 * HZ;
-    const big = flight(at, Math.round(1.6 * HZ));
+    const big = flight(at, Math.round(1.2 * HZ));
     const takes = edit(30, [big]);
     const lip = takes.find((t) => t.framing === "lip");
     const hero = takes.find((t) => t.framing === "hero");
     expect(lip).toBeDefined();
     expect(hero).toBeDefined();
+    expect(takes.some((t) => t.framing === "hang")).toBe(false);
     // Standing by before he gets there, and the cut on the action.
     expect(lip!.from).toBeLessThanOrEqual(at - Math.round(DIRECTOR.lead * HZ) + 2);
     expect(hero!.from).toBeGreaterThan(at);
@@ -123,6 +135,43 @@ describe("the film director (cinema-director.ts)", () => {
     expect(hero!.take.side).toBe(lip!.take.side);
     // Never a flash: no take shorter than a second around the moment.
     for (const t of takes.slice(0, -1)) expect((t.to - t.from + 2) / HZ).toBeGreaterThan(1);
+  });
+
+  it("cuts a long flight three times: the lip, the hang alongside him, the landing", () => {
+    const at = 20 * HZ;
+    const long = flight(at, Math.round(2.2 * HZ));
+    const takes = edit(30, [long]);
+    const order = takes.map((t) => t.framing);
+    const lip = order.indexOf("lip");
+    expect(lip).toBeGreaterThanOrEqual(0);
+    expect(order.slice(lip, lip + 3)).toEqual(["lip", "hang", "hero"]);
+    const [a, b, c] = takes.slice(lip, lip + 3);
+    expect(b.from).toBeGreaterThan(at);
+    expect(c.from).toBeGreaterThan(at + long.runs * 0.45);
+    expect(new Set([a.take.side, b.take.side, c.take.side]).size).toBe(1);
+  });
+
+  it("plants nothing for a small air: the shot on the picture follows him over it", () => {
+    for (const runs of [0.6, 0.85]) {
+      const takes = edit(30, [flight(15 * HZ, Math.round(runs * HZ))]);
+      for (const t of takes) expect(["lip", "hang", "hero"], `${runs} s`).not.toContain(t.framing);
+    }
+  });
+
+  it("never holds a take past its wall time, however slowly the run goes", () => {
+    const dir = createDirector();
+    const long = flight(10 * HZ, Math.round(2.6 * HZ));
+    let take: Take | null = null;
+    let since = 0;
+    // A third of real time throughout: a wall second is a third of a run's.
+    for (let k = 0; k < 40 * HZ; k++) {
+      const t = dir.call({ ...cruise(k), wall: (k / HZ) * 3 }, [long]);
+      if (t !== take) {
+        take = t;
+        since = k;
+      }
+      expect(((k - since) / HZ) * 3, t.framing).toBeLessThanOrEqual(DIRECTOR.wallMost + 0.05);
+    }
   });
 
   it("frames a crash on the crash zoom", () => {
@@ -158,7 +207,7 @@ describe("the film lens (camera-cinema.ts)", () => {
     const lift = Math.round((kick.s / speed) * HZ);
     const plan = [
       {
-        ...flight(lift, Math.round(1.4 * HZ)),
+        ...flight(lift, Math.round(1.2 * HZ)),
         x: kick.x,
         y: kick.y,
         z: kick.z,
@@ -168,6 +217,7 @@ describe("the film lens (camera-cinema.ts)", () => {
     let inFrame = 0;
     let frames = 0;
     let planted = -1;
+    let biggest = 0;
     for (let wall = 0; wall < (level.track.length - 40) / speed; wall += 1 / 60) {
       const stepAt = Math.round(wall * HZ);
       const p = trackPointAt(level, wall * speed);
@@ -187,10 +237,11 @@ describe("the film lens (camera-cinema.ts)", () => {
       expect(pose).not.toBeNull();
       const take = filmTake()!;
       if (planted < 0 && take.framing === "lip") planted = stepAt;
-      // Over the snow, always.
+      // Over the snow, always, and inside nothing solid.
       expect(pose.eye.y, `${take.framing} at ${wall.toFixed(2)} s`).toBeGreaterThan(
         level.groundAt(pose.eye.x, pose.eye.z),
       );
+      expect(lensInSolid(level, clear, pose.eye, 0.1), take.framing).toBe(false);
       // In the frame: inside the vertical half-field of the look.
       const lx = pose.target.x - pose.eye.x;
       const ly = pose.target.y - pose.eye.y;
@@ -203,11 +254,46 @@ describe("the film lens (camera-cinema.ts)", () => {
       const off = (Math.acos(Math.min(1, Math.max(-1, cos))) * 180) / Math.PI;
       frames++;
       if (off < pose.fov / 2) inFrame++;
+      // How tall he stands in the frame on the landing's lens at the top.
+      if (take.framing === "hero" && Math.abs(f - 0.5) < 0.1) {
+        const dist = Math.hypot(sx, sy, sz);
+        biggest = Math.max(biggest, (2 * Math.atan(0.9 / dist)) / ((pose.fov * Math.PI) / 180));
+      }
     }
     expect(inFrame / frames).toBeGreaterThan(0.9);
+    // A third of the frame and more: a hero shot, not a dot in the sky.
+    expect(biggest).toBeGreaterThan(0.3);
     // The lip's lens was standing before he took off.
     expect(planted).toBeGreaterThan(0);
     expect(planted).toBeLessThan(lift);
+  });
+});
+
+describe("what the film frames (filmPlan) and its letterbox (film-bars.ts)", () => {
+  it("drops a flight too low for a planted lens, where the read has him", () => {
+    const level = syntheticLevel();
+    const p = level.track.points[40];
+    const air = { ...flight(500, Math.round(1.2 * HZ)), x: p.x, z: p.z };
+    const at = (lift: number) => (_: number) => ({
+      x: p.x,
+      y: level.groundAt(p.x, p.z) + 0.85 + lift,
+      z: p.z,
+    });
+    expect(filmPlan([air], at(0.4), level)).toEqual([]);
+    expect(filmPlan([air], at(2.5), level)).toEqual([air]);
+    expect(filmPlan([air], undefined, level)).toEqual([air]);
+  });
+
+  it("crops a wide screen to the film's frame, a tall one by a thin bar", () => {
+    expect(filmBar(16 / 9, 1)).toBeCloseTo((1 - 16 / 9 / FILM_BARS.scope) / 2, 5);
+    expect(filmBar(FILM_BARS.scope, 1)).toBe(0);
+    expect(filmBar(390 / 844, 1)).toBeCloseTo(FILM_BARS.tall, 5);
+    expect(filmBar(16 / 9, 0)).toBe(0);
+    expect(filmBar(4 / 3, 1)).toBeLessThanOrEqual(FILM_BARS.most);
+  });
+
+  it("frames the jump's planted lenses tight", () => {
+    for (const f of ["hero", "lip", "rideby"] as const) expect(CINEMA[f].width).toBeLessThan(5);
   });
 });
 

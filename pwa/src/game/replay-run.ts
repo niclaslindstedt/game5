@@ -43,6 +43,7 @@
 import { TUNING, type GameMode, type GameState, type SkierInput } from "@engine";
 
 import { isReplayAngle, REPLAY_ANGLES, type ReplayAngle } from "./camera-replay.ts";
+import { filmBars } from "./film-bars.ts";
 import type { CameraRung, WorldRenderer } from "./renderer-api.ts";
 import { createReplayRig, type Replay, type ReplayBill, type ReplayFrom } from "./replay.ts";
 import type { ShotKind } from "./replay-shots.ts";
@@ -208,6 +209,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
     crash: () => rig.crash() !== null && world.shell() === "run",
     frame: () => {
       if (!watched) {
+        filmBars("replay", false);
         rate = 1;
         return rate;
       }
@@ -233,6 +235,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
       world.renderer.setReplayCam(
         own && { angle: own, shot: own === "tv" ? call.shot : null, ...film },
       );
+      filmBars("replay", own === "film"); // the letterbox (`film-bars.ts`)
       const director = own ? call.rate : 1;
       rate = playing && replay.seeking() === null ? speed * director : 0;
       return rate;
@@ -295,6 +298,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
       rate = 1;
       rig.clear();
       world.renderer.setReplayCam(null);
+      filmBars("replay", false);
     },
     bar: () => {
       if (!watched) return null;

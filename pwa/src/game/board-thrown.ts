@@ -3,7 +3,8 @@
 // set by something other than the board (the ragdoll, the skydive, the
 // crowd's falls): the deck laid back under them. Three-free.
 
-import type { SkierPose } from "./skier-pose.ts";
+import { BODY, SHIN_ABOVE_CUFF, type SkierPose } from "./skier-pose.ts";
+import { solveLimb } from "./skier-limbs.ts";
 import { add, dot, len, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
   bindingsOf,
@@ -46,9 +47,13 @@ export function boardUnderFeet(pose: SkierPose, board: BoardPoseInput["board"]):
   const cuffMid = mix(cuffOver(sole[0], boot[0]), cuffOver(sole[1], boot[1]), 0.5);
   frame.centre = add(sub(mid, cuffMid), soleMid);
   const placed = bindingsOf(frame, { board });
+  // ...and each knee solved again between its hip and the cuff moved, bent
+  // the way the body's own knee was — never a shin stretched to the binding.
   for (let i = 0; i < 2; i++) {
     pose.boots[i] = placed.boot[i];
     pose.feet[i] = cuffOver(placed.sole[i], placed.boot[i]);
+    const pole = sub(pose.knees[i], mix(pose.hipJoints[i], pose.feet[i], 0.5));
+    pose.knees[i] = solveLimb(pose.hipJoints[i], pose.feet[i], BODY.thigh, SHIN_ABOVE_CUFF, pole);
   }
   return frame;
 }

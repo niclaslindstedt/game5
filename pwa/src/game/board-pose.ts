@@ -76,6 +76,8 @@ import {
   type GrabLook,
 } from "./board-grab.ts";
 import { onEdge } from "./board-carve.ts";
+import { REACH_MOST, V0, arm, drawnIn, heldShare, heldShift, inSpan } from "./board-reach.ts";
+export { REACH_MOST, kneeFlex } from "./board-reach.ts";
 import { headAngles, yawBetween } from "./board-head.ts";
 export { headAngles, headForward } from "./board-head.ts";
 
@@ -371,16 +373,6 @@ export function cuffOver(sole: V3, boot: Boot): V3 {
   return add(add(sole, scale(boot.n, SOFT_BOOT.cuff)), scale(boot.f, -SOFT_BOOT.heel));
 }
 
-/** An arm from `shoulder` toward `target`: the hand eased inside the arm's
- * reach, the elbow bent toward `pole`. */
-function arm(shoulder: V3, target: V3, pole: V3): { elbow: V3; hand: V3 } {
-  const reach = (BODY.upperArm + BODY.forearm) * 0.96;
-  const d = sub(target, shoulder);
-  const l = len(d);
-  const hand = l > reach ? add(shoulder, scale(d, reach / l)) : target;
-  return { elbow: solveLimb(shoulder, hand, BODY.upperArm, BODY.forearm, pole), hand };
-}
-
 /** Level `v` into the body's horizontal plane. */
 const level = (v: V3): V3 => norm({ x: v.x, y: 0, z: v.z });
 
@@ -563,7 +555,11 @@ export function boardPose(input: BoardPoseInput): BoardPose {
       feet[i] = cuffOver(soles[i], boots[i]);
     }
   };
-  if (look && g > 0) standOn(tweakDeck(deck, look, g, face, F));
+  const tweak = (k: number): boolean => (
+    standOn(tweakDeck(deck, look!, k, face, F)),
+    inSpan(hipJoints, feet)
+  );
+  if (look && g > 0) tweak(heldShare(g, tweak)); // no further than the knees fold
   const knees = [V0(), V0()] as [V3, V3];
   const solveKnees = (): void => {
     // Each knee over its toes, and both drawn toward the nose — the front
@@ -668,6 +664,12 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     solveKnees();
   }
 
+  // THE FREE FOOT'S PUSH, drawn in to where its leg reaches (`board-reach.ts`).
+  if (free) {
+    const v = drawnIn(feet[ri], hipJoints[ri]);
+    [soles[ri], feet[ri]] = [add(soles[ri], v), add(feet[ri], v)];
+    solveKnees();
+  }
   // THE LEGS ON AN EDGE, solved shin first (`board-carve.ts`): on the toe
   // edge the ankles flexed over it, both knees bent down it, the hips low.
   // On the heel edge, the shins held by the highbacks and sat down.
@@ -733,8 +735,13 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   // THE HEAD: along his travel, over the front shoulder (the rear one
   // fakie), clamped to what a neck turns.
   const travelFlat = { x: input.travel.x, y: 0, z: input.travel.z };
-  const moving = smooth(0.6, 2.5, Math.hypot(travelFlat.x, travelFlat.z));
-  const lead = scale(nose, fakie);
+  // (Turned over in a flip his travel reads backward: the look holds his nose —
+  // the pitch alone read, never a carve's lean.)
+  const wu = input.worldUp;
+  const upright = smooth(-0.3, 0.9, wu.y / Math.max(1e-6, Math.hypot(wu.y, wu.z)));
+  const moving = smooth(0.6, 2.5, Math.hypot(travelFlat.x, travelFlat.z)) * upright;
+  // (Turning from the nose to the tail the look swings round past his toes.)
+  const lead = norm(add(scale(nose, fakie), scale(F, 1 - Math.abs(fakie))));
   let want = moving > 0 ? norm(mix(lead, norm(add(travelFlat, scale(lead, 1e-3))), moving)) : lead;
   // In a turn the eyes go to its exit: toward the turn's inside.
   const inside = scale(F, toe >= 0 ? 1 : -1);
@@ -745,10 +752,13 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   want = turn(want, UP, clamp(SPIN.head * (input.spin ?? 0), -SPIN.most, SPIN.most) * air);
   const off = yawBetween(chestFace, want);
   const NECK = 1.35;
-  const yaw = clamp(off, -NECK, NECK);
+  // Past the neck's turn the head comes back square as the look goes behind
+  // him, never thrown from one shoulder to the other.
+  const yaw = clamp(off, -NECK, NECK) * (1 - smooth(2.1, Math.PI, Math.abs(off)));
   const flatLook = turn(chestFace, UP, yaw);
   const down = 0.18 + 0.12 * crouch + 0.15 * air + 0.1 * fold;
-  const worldUp = norm(input.worldUp);
+  // (...and his eyes are held level to the world only as he comes upright.)
+  const worldUp = norm(mix(UP, norm(input.worldUp), upright));
   const lookDir = norm(add(scale(flatLook, Math.cos(down)), scale(worldUp, -Math.sin(down))));
   const headUp = norm(mix(upperDir, worldUp, 0.7));
   const angles = headAngles(lookDir, headUp);
@@ -880,8 +890,12 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     const short = sub(want, reached);
     const l = len(short);
     if (l > 0.003) {
-      const shift = scale(short, -Math.min(l, REACH_MOST) / l);
-      standOn({ ...ridden, centre: add(ridden.centre, shift) });
+      const was = ridden;
+      const shift = heldShift(scale(short, -Math.min(l, REACH_MOST) / l), (s) => {
+        standOn({ ...was, centre: add(was.centre, s) });
+        return inSpan(hipJoints, feet);
+      });
+      standOn({ ...was, centre: add(was.centre, shift) });
       solveKnees();
       const spot = mix(want, grabSpot(look, ridden, b, face), g);
       if (grabFront) armF = arm(sF, spot, grabPole(fi));
@@ -919,9 +933,6 @@ export function boardPose(input: BoardPoseInput): BoardPose {
     rise,
   };
 }
-
-/** The most the board is drawn up to a hand that cannot reach it, m. */
-export const REACH_MOST = 0.3;
 
 /** THE DECK A GRAB HOLDS: drawn up toward the hips and across (`lift`,
  * `across`), tweaked (`roll` the heel edge up, `pitch` the nose up, `yaw`
@@ -986,15 +997,4 @@ export function grabGap(bp: BoardPose, input: BoardPoseInput): number {
   const spot = grabSpot(look, bp.board, input.board, face, 0);
   const h = bp.pose.hands[i];
   return Math.max(0, len(sub(h, spot)));
-}
-
-function V0(): V3 {
-  return { x: 0, y: 0, z: 0 };
-}
-
-/** THE KNEE'S FLEXION of leg `i` of a pose, rad (0 straight). */
-export function kneeFlex(p: SkierPose, i: 0 | 1): number {
-  const a = sub(p.hipJoints[i], p.knees[i]);
-  const b = sub(p.feet[i], p.knees[i]);
-  return Math.PI - Math.acos(clamp(dot(norm(a), norm(b)), -1, 1));
 }

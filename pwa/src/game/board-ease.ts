@@ -123,3 +123,46 @@ export function easeLimbs(e: LimbEase, pose: SkierPose, dt: number): SkierPose {
   e.knees = knees;
   return { ...pose, hands, elbows, knees };
 }
+
+/** THE READINGS THE POSE IS SHAPED BY, eased the same way: the engine ramps
+ * a carve cut hard, a tuck, a press or a load on a straight line, and a
+ * pose laid straight off a ramp turns its corners in a frame (the trunk
+ * thrown forward at the ramp's start, stopped dead at its end). Each is
+ * followed on a critically damped spring (`READING_EASE`, rad/s) — a few
+ * hundredths of a second behind, its corners rounded. */
+export const READING_EASE = 30;
+const READINGS = ["carve", "crouch", "load", "lean", "press", "pop", "windup"] as const;
+type Reading = (typeof READINGS)[number];
+export type ReadingEase = {
+  at: Partial<Record<Reading, number>>;
+  speed: Partial<Record<Reading, number>>;
+};
+
+export function createReadingEase(): ReadingEase {
+  return { at: {}, speed: {} };
+}
+
+/** `input`'s readings eased in place from the last frame's, `dt` s on. */
+export function easeReadings(
+  e: ReadingEase,
+  input: Partial<Record<Reading, number>>,
+  dt: number,
+): void {
+  const fresh = !(dt > 0) || dt > LIMB_EASE.gap;
+  const k = Math.exp(-READING_EASE * dt);
+  for (const id of READINGS) {
+    const want = input[id];
+    const was = e.at[id];
+    if (want === undefined || was === undefined || fresh) {
+      e.at[id] = want;
+      e.speed[id] = 0;
+      continue;
+    }
+    const x = was - want;
+    const v = e.speed[id] ?? 0;
+    const c = v + x * READING_EASE;
+    e.at[id] = want + (x + c * dt) * k;
+    e.speed[id] = (v - c * READING_EASE * dt) * k;
+    input[id] = e.at[id];
+  }
+}

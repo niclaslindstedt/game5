@@ -343,6 +343,22 @@ export function shellPaintOf(g: THREE.BufferGeometry): ShellPaint {
   return { needle: mean(needle, 0.06), snow: mean(snow, 0.85) };
 }
 
+/** A far sketch painted as the mid cut reads from afar: what faces up
+ * white with snow, what faces out the boughs' dark — the sketch's own
+ * colours are its shading's, grey at a distance. A copy; the shape is kept. */
+export function whitened(g: THREE.BufferGeometry, paint: ShellPaint): THREE.BufferGeometry {
+  const out = g.clone();
+  const N = out.getAttribute("normal");
+  const C = out.getAttribute("color");
+  const c = new THREE.Color();
+  for (let v = 0; v < C.count; v++) {
+    const up = Math.min(1, Math.max(0, (N.getY(v) - 0.1) / 0.5));
+    c.copy(paint.needle).lerp(paint.snow, 0.25 + 0.65 * up);
+    C.setXYZ(v, c.r, c.g, c.b);
+  }
+  return out;
+}
+
 function hash(x: number, z: number): number {
   const s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
   return s - Math.floor(s);

@@ -55,7 +55,7 @@ import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.t
 import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
 import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
-import { CELL, createCellLod, graftCellLod } from "./forest-patches.ts";
+import { CELL, createCellLod, graftCellLod, shellPaintOf, whitened } from "./forest-patches.ts";
 import { createForestCells } from "./forest-cells.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
@@ -406,7 +406,13 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     const shape = (v: TreeVariant, cut: TreeLod) => buildTree(v, paint, cut);
     const full = nearRows.map((v) => shape(v, 0));
     const mid = nearRows.map((v) => shape(v, 1));
-    const sketch = nearRows.map((v) => shape(v, 2));
+    // The far blocks' sketches, painted white where they face up (`whitened`).
+    const sketch = nearRows.map((v, k) => {
+      const raw = shape(v, 2);
+      const white = whitened(raw, shellPaintOf(mid[k]));
+      raw.dispose();
+      return white;
+    });
     const leads = farRows.map((v) => shape(v, 1));
     const insetSketch = farRows.map((v) => inset(shape(v, 2), SKETCH_INSET));
     const makeBand = (geos: THREE.BufferGeometry[], shape: Uint8Array, room: number[]): Band => {

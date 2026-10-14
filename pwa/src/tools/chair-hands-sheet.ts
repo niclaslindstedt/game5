@@ -44,6 +44,8 @@ const FRAME = 1 / 60;
 const STEPS = Math.round(FRAME / TUNING.dt);
 /** How long before a shot the picture is drawn, s. */
 const WARM = 1;
+/** Every how many frames of that second are drawn. */
+const WARM_EVERY = 12;
 
 /** Where his chair is, and its bar. */
 function chairOf(run: GameState, plan: LiftPlan): { side: number; turn?: number; bar: number } {
@@ -126,12 +128,15 @@ async function film(
 ): Promise<HTMLElement[][]> {
   const rows: HTMLElement[][] = views.map(() => []);
   let next = 0;
+  let frame = 0;
   while (next < times.length) {
+    frame++;
     for (let i = 0; i < STEPS; i++) step(run, pilot(run));
     const due = run.t >= times[next];
     // Drawn only in the second before a shot (the lens settles, the spray
     // and the tracks catch up); a software GL can't draw a whole ride.
     if (run.t < times[next] - WARM) continue;
+    if (!due && frame % WARM_EVERY !== 0) continue;
     ctx.renderer.setOverride(null);
     ctx.renderer.draw(run, 0, FRAME);
     if (!due) continue;

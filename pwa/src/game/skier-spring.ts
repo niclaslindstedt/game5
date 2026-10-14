@@ -30,6 +30,10 @@ export type SkierSpring = {
    * it, the knees folded by as much), and its rate, m/s. */
   bump: number;
   rate: number;
+  /** THE ARMS' LAG on a landing (`ARMS_LAG`), m (positive the fists below
+   * where his stance carries them), and its rate, m/s. */
+  arms: number;
+  armsRate: number;
   /** The pair's climb at the last frame, m/s, or NaN before the first. */
   lastVy: number;
   /** THE LINE HE RIDES: the pair's climb taken slowly (`LEGS.line`), m/s
@@ -313,6 +317,22 @@ export const LEGS = {
   brake: 2,
   flight: 0.3,
 };
+/** THE ARMS LAG THE TRUNK: hung off his shoulders, the fists are a mass
+ * of their own, so as the legs brake his body's fall into a landing's
+ * fold the hands go on down a little and come back once the fold has
+ * stopped — measured landings show the hands dip some 5–15 cm and come
+ * a little forward, back within a quarter of a second. A damped spring of
+ * `omega` rad/s (about 2.5 Hz) and `zeta`, driven by the legs' braking
+ * (the fold's own deceleration, never the skis' every rattle, which the
+ * fold has already taken out), eased into `most` m down and `least` m up
+ * (`armsLag`) — never stopped at either in a frame. */
+export const ARMS_LAG = { omega: 16, zeta: 0.55, most: 0.15, least: 0.05 };
+
+/** The fists' lag as drawn, m: the spring's, eased into its reach. */
+export function armsLag(s: SkierSpring): number {
+  const reach = s.arms > 0 ? ARMS_LAG.most : ARMS_LAG.least;
+  return reach * Math.tanh(s.arms / reach);
+}
 /** How fast the body goes into the air and comes back to the snow, and
  * how fast a load is taken and let go, rad/s — critically damped springs,
  * so each starts as a motion rather than at full speed in a step: a fifth
@@ -366,6 +386,8 @@ export function createSkierSpring(offset = 0): SkierSpring {
   return {
     bump: 0,
     rate: 0,
+    arms: 0,
+    armsRate: 0,
     lastVy: Number.NaN,
     slope: Number.NaN,
     slopeRate: 0,
@@ -778,6 +800,12 @@ function stepLegs(
     }
     s.rate += acc * h;
     s.bump += s.rate * h;
+    // The fists, braked only through the arms: the fold's deceleration is
+    // the push that leaves them behind (`ARMS_LAG`).
+    const brake = airborne ? 0 : Math.max(0, -acc);
+    const A = ARMS_LAG;
+    s.armsRate += (brake - A.omega * A.omega * s.arms - 2 * A.zeta * A.omega * s.armsRate) * h;
+    s.arms += s.armsRate * h;
   }
   // ...and a body run to the very end of it is carried with the skis.
   if (s.bump > fold) {

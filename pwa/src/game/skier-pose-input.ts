@@ -73,6 +73,8 @@ export type SkierPoseInput = {
   /** How far his legs are folded by a hit, m — positive is the body sunk
    * toward the skis (`skierSpring`). */
   bump?: number;
+  /** How far the fists lag below his stance on a landing, m (`ARMS_LAG`). */
+  armsLag?: number;
   /** A pole plant in hand, 0..1 — a lone plant, when no `gait` is given. */
   plant?: number;
   /** THE POLE PLANT a turn is started on (`SkierSpring`): the pole (0

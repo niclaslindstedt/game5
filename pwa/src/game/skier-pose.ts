@@ -198,6 +198,8 @@ const GATE: GateShape = { sink: 0.1, back: 0.03, pitch: 0.3, basket: 0.36 };
  * the weight's shift from ski to ski (m), the glance about (rad of the
  * head's turn) and the hands working the grips (m) — at their fullest. */
 const IDLE = { breath: 0.035, shift: 0.025, glance: 0.3, fidget: 0.012 };
+/** How far forward a landing's lagging fist comes for every metre down. */
+const LAG_FORE = 0.4;
 /** COMPACT IN THE AIR: how far his body sinks toward the skis in flight, m (negative
  * down) — knees bent, skis carried under him, never stood up on long legs. */
 const AIR_SINK = -0.13;
@@ -822,6 +824,13 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   }
   // THE FALL: the fists spotting, circling or reaching for the snow.
   if (F) flightHands(F, shoulders, hands, armLength);
+  // THE FISTS LAG A LANDING (`ARMS_LAG`): down and a little forward,
+  // wherever the stance or the fall has carried them.
+  const lag = (input.armsLag ?? 0) * (1 - armW);
+  if (lag !== 0) {
+    for (const i of [0, 1])
+      hands[i] = { ...hands[i], y: hands[i].y - lag, z: hands[i].z + LAG_FORE * lag };
+  }
   // THE SAVE: the arms flung out for the balance, or a hand put down.
   if (J !== NO_JOLT) {
     for (const i of [0, 1]) hands[i] = joltHand(hands[i], i ? 1 : -1, J, M.ground + drop);

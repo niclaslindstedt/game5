@@ -39,6 +39,7 @@ import {
 } from "./bike-look.ts";
 import { buildFreerideBike } from "./bike-freeride.ts";
 import { rideStyleOf } from "./bike-ride-style.ts";
+import { drawnPose, riderSpringsOf } from "./rider-springs.ts";
 import type { BikeLook } from "./bike-variant.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -544,11 +545,14 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), h);
       }
       shown = { x, y, z, q: shownQ.copy(q) };
-      const pose = bikePose(b);
+      // THE BIKE AS DRAWN under the sprung rider (`rider-springs.ts`): its
+      // cranks eased level as he coasts.
+      const raw = look === "freeride" ? rideStyleOf(b, state.level, state.t) : undefined;
+      const pose = b.onIt ? drawnPose(riderSpringsOf(b, state.t, raw), b) : bikePose(b);
       // THE FREERIDER'S STYLE: the bike thrown under him in the air, turned
       // about his centre of mass so his body stays where the engine has it
       // (the lens follows the bike as the engine has it, unturned).
-      const style = look === "freeride" ? rideStyleOf(b, state.level, state.t) : null;
+      const style = raw ?? null;
       if (style && (style.yaw !== 0 || style.roll !== 0)) {
         whipTurn.setFromAxisAngle(Y_AXIS, style.yaw);
         whipRoll.setFromAxisAngle(Z_AXIS, style.roll);

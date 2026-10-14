@@ -15,14 +15,7 @@
 // plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
-import {
-  bikePose,
-  planeBoxes,
-  stripBoxes,
-  type GameState,
-  type Level,
-  type StripBox,
-} from "@engine";
+import { planeBoxes, stripBoxes, type GameState, type Level, type StripBox } from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import { heliHull, type SolidBox } from "./camera-clear.ts";
@@ -32,7 +25,7 @@ import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
 import { rideStyleOf } from "./bike-ride-style.ts";
 import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
-import { riderPose, walkingPose } from "./skier-bike.ts";
+import { riderPoseOn, walkingPose } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
@@ -333,8 +326,9 @@ export function createMachines(
         model.setBiking?.(true);
         model.setStood?.(
           b.onIt && !thrown
-            ? riderPose(
-                bikePose(b),
+            ? riderPoseOn(
+                b,
+                s.t,
                 bikeLook() === "freeride" ? rideStyleOf(b, s.level, s.t) : undefined,
               )
             : b.afoot && !s.skier.lift && !thrown

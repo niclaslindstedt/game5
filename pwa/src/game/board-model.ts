@@ -69,7 +69,7 @@ import { boardTownPose, rideLift, streetOver, townLift, townMove } from "./town-
 import { buildHeadlamp } from "./headlamp.ts";
 import { mergePosed } from "./posed-merge.ts";
 import { gearLift } from "./ski-gear.ts";
-import { boardInputOf, boardOf, easeFakie, easeFree } from "./board-input.ts";
+import { boardInputOf, boardOf, easeDrop, easeFakie, easeFree } from "./board-input.ts";
 import { outfitKey } from "./dress.ts";
 import { createFigureHandOff, createSkier } from "./skier-figure.ts";
 import { createSkierSpring, restSkierSpring, stepSkierSpring } from "./skier-pose.ts";
@@ -226,6 +226,8 @@ export function createBoardModel(
   const readings = createReadingEase();
   /** The feet's lift as his legs carry him up to it (`SAG_EASE`), m. */
   let carried = Number.NaN;
+  /** Each foot's lift as drawn last frame (`easeDrop`), m. */
+  let dropped: [number, number] | null = null;
   let grabEase: GrabEase = { grab: null, share: 0 };
   const tuck = createTuck();
   // How sat he is drawn on a lift (`easeSeat`); the snowmobile's boards, the
@@ -382,7 +384,11 @@ export function createBoardModel(
       easeSeat(seatEase, skier.lift, false, dt);
       const cabin = skier.lift?.kind === "gondola" && skier.lift.phase === "ride" && !town;
       const still = off || town || boarded || inBasket || hung || skydive || seatEase.seated > 0;
-      const { input, incline: lean, lift } = boardInputOf(skier, legs, at.q);
+      const { input, incline: lean, lift: raw } = boardInputOf(skier, legs, at.q);
+      // The feet let down over a moment, never rung frame to frame (`easeDrop`).
+      dropped = still ? null : easeDrop(dropped, raw, dt);
+      const lift = dropped ?? raw;
+      input.lift = lift;
       // THE DECK COME UP UNDER HIM: a landing stops the deck in a step and
       // the engine's legs take it at once, but his hips are drawn off the
       // deck — so the lift is carried up to over `SAG_EASE` s and what is

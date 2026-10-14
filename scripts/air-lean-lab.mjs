@@ -325,7 +325,7 @@ function ski(move, row) {
   let lastT = 0;
   let first = true;
   for (let i = 0; i < steps; i++) {
-    E.step(state, move.input(state.t - t0, state));
+    E.step(state, move.input(state.t - t0, state, E));
     if (i % 2 === 0) continue;
     const c = state.skier;
     const now = state.t - t0;

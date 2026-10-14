@@ -198,9 +198,11 @@ export const END_IN = 0.08;
  * it closes over, m. */
 export const FIST = 0.035;
 
-/** How fast a grab is drawn in and let go, a share a second — a grab held
- * `poseHold` (0.35 s) is in by then. */
-const GRAB_RATE = 4;
+/** How fast a grab is drawn in and let go, a share a second: in over
+ * 0.4 s, a reach a rider makes rather than a snap (at 4 the hand flew to
+ * the edge in a quarter second and every grab's entry was the lab's worst
+ * jolt). */
+const GRAB_RATE = 2.5;
 
 /** THE GRAB AS DRAWN, eased: the grab last asked for (kept while it is let
  * go) and how far into it, 0..1. */

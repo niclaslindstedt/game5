@@ -56,7 +56,7 @@ export async function familiesOf(ctx, ids) {
     board: () => ({
       id: "board",
       say: "the player on a snowboard (the Lynx) through every move of the board lab",
-      scenes: movesOf(ctx, [...BOARD_MOVES, ...FLIP_MOVES], ctx.E.pairById("lynx")),
+      scenes: movesOf(ctx, BOARD_MOVES, ctx.E.pairById("lynx")),
     }),
     bike: () => bikeFamily(ctx),
     ride: async () => {

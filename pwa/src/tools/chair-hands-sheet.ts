@@ -42,6 +42,8 @@ export type HandsCtx = {
 
 const FRAME = 1 / 60;
 const STEPS = Math.round(FRAME / TUNING.dt);
+/** How long before a shot the picture is drawn, s. */
+const WARM = 1;
 
 /** Where his chair is, and its bar. */
 function chairOf(run: GameState, plan: LiftPlan): { side: number; turn?: number; bar: number } {
@@ -126,8 +128,11 @@ async function film(
   let next = 0;
   while (next < times.length) {
     for (let i = 0; i < STEPS; i++) step(run, pilot(run));
-    ctx.renderer.setOverride(null);
     const due = run.t >= times[next];
+    // Drawn only in the second before a shot (the lens settles, the spray
+    // and the tracks catch up); a software GL can't draw a whole ride.
+    if (run.t < times[next] - WARM) continue;
+    ctx.renderer.setOverride(null);
     ctx.renderer.draw(run, 0, FRAME);
     if (!due) continue;
     views.forEach((v, row) => {

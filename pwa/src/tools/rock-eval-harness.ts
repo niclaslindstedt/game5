@@ -28,6 +28,7 @@
 import {
   cliffWalls,
   createGame,
+  kitTop,
   isRegionId,
   loadRealFace,
   onAnyCliff,
@@ -386,29 +387,58 @@ function gap(eye: { x: number; y: number; z: number }): Gap | null {
   const p = new THREE.Vector3();
   const pts = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   root.updateMatrixWorld(true);
+  const top = { y: 0, nx: 0, ny: 1, nz: 0 };
+  const inst = new THREE.Matrix4();
+  const e1 = new THREE.Vector3();
+  const e2 = new THREE.Vector3();
+  const read = (q: THREE.Vector3): void => {
+    if (q.y < bed.groundAt(q.x, q.z) - 0.02) return;
+    // Inside a stone of the rock kit (`rock-kit.ts`): hidden, as under
+    // the snow — the stone's top is what is drawn and met there.
+    if (kitTop(bed, q.x, q.z, top) && top.y > q.y + 0.02) return;
+    errs.push(Math.abs(q.y - ridden.groundAt(q.x, q.z)));
+  };
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh || !mesh.visible || (mesh as THREE.InstancedMesh).isInstancedMesh) return;
+    if (!mesh.isMesh || !mesh.visible) return;
     const pos = mesh.geometry.getAttribute("position");
     if (!pos) return;
     const index = mesh.geometry.index;
     const count = index ? index.count : pos.count;
-    for (let t = 0; t + 2 < count; t += 3) {
-      for (let k = 0; k < 3; k++) {
-        const v = index ? index.getX(t + k) : t + k;
-        pts[k].fromBufferAttribute(pos, v).applyMatrix4(mesh.matrixWorld);
-      }
-      p.copy(pts[0])
-        .add(pts[1])
-        .add(pts[2])
-        .multiplyScalar(1 / 3);
-      if (Math.hypot(p.x - eye.x, p.z - eye.z) > GAP_REACH) continue;
-      // The skin a body meets, never a cliff's face (met as columns,
-      // `wallSolids`) nor rock tucked under the snow (drawn hidden).
-      if (onAnyCliff(bed, p.x, p.z, 2)) continue;
-      for (const q of [p, ...pts]) {
-        if (q.y < bed.groundAt(q.x, q.z) - 0.02) continue;
-        errs.push(Math.abs(q.y - ridden.groundAt(q.x, q.z)));
+    const im = mesh as THREE.InstancedMesh;
+    // An instanced mesh (the rock kit's stones): every stone in it, its
+    // faces a body can come down on (turned up past 0.2) — never a stone's
+    // underside, which overhangs the surface met.
+    const copies = im.isInstancedMesh ? im.count : 1;
+    for (let c = 0; c < copies; c++) {
+      if (im.isInstancedMesh) {
+        im.getMatrixAt(c, inst);
+        inst.premultiply(mesh.matrixWorld);
+        p.setFromMatrixPosition(inst);
+        if (Math.hypot(p.x - eye.x, p.z - eye.z) > GAP_REACH + 10) continue;
+      } else inst.copy(mesh.matrixWorld);
+      for (let t = 0; t + 2 < count; t += 3) {
+        for (let k = 0; k < 3; k++) {
+          const v = index ? index.getX(t + k) : t + k;
+          pts[k].fromBufferAttribute(pos, v).applyMatrix4(inst);
+        }
+        p.copy(pts[0])
+          .add(pts[1])
+          .add(pts[2])
+          .multiplyScalar(1 / 3);
+        if (Math.hypot(p.x - eye.x, p.z - eye.z) > GAP_REACH) continue;
+        if (im.isInstancedMesh) {
+          e1.subVectors(pts[1], pts[0]);
+          e2.subVectors(pts[2], pts[0]);
+          const n = e1.cross(e2).normalize();
+          if (Math.abs(n.y) < 0.2) continue;
+          // Wound out, so a face turned down is an underside.
+          if (n.y < 0) continue;
+        }
+        // The skin a body meets, never a cliff's face (met as columns,
+        // `wallSolids`) nor rock tucked under the snow (drawn hidden).
+        if (onAnyCliff(bed, p.x, p.z, 2)) continue;
+        for (const q of [p, ...pts]) read(q);
       }
     }
   });

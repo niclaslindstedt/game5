@@ -578,7 +578,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   return {
     group,
     update(camera, shadow) {
-      rocks.update(camera.position, aloft.view);
+      rocks.update(camera.position, aloft.view, camera);
       // The casters, when the circle has moved, turned with the sun or
       // changed size — a metre, or a few hundredths of a degree.
       if (

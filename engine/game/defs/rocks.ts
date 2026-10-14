@@ -36,7 +36,7 @@ export const ROCKS = {
     cheap: 6,
     jitter: 0.35,
     proud: 0.15,
-    rough: 0.75,
+    rough: 0.3,
     sink: 0.35,
     from: 0.15,
     /** A facet's up share (its normal's y) snow lies whole on, and the
@@ -44,6 +44,44 @@ export const ROCKS = {
      * painted (`rock-shapes.ts`) and as ridden (`rock-ground.ts`). */
     holds: 0.87,
     slides: 0.67,
+  },
+  /** THE ROCK KIT (`rock-kit.ts`): the wall built of PIECES — slabs,
+   * buttress prisms, blocks — and the TALUS under it. Candidates every
+   * `step` m in cells of `cell` m (the big blocks every `big` m); a wall
+   * piece stands where the wall is bare past `wall`, `density` of the big
+   * candidates at the most and `rubble` of the small. The wall is
+   * BEDDED: beds `bed` m thick (the least and the most), dipping up to
+   * `dip` rad along the strike; a piece is a STEP, turned `terrace` of
+   * the way from the face toward the vertical about the strike, its riser
+   * `proud` m out of the ground (the least and the most, ribs the most),
+   * the back of its tread `bury` m under it and its foot `foot` m; RIBS and
+   * GULLIES every `rib` m along the face. The TALUS: below a wall within
+   * `reach` m (up the fall line), on ground no steeper than `slope` (m per
+   * m) and no gentler than `gentle`, `scree` of the candidates at the
+   * most, a block `stone` m across at the wall's foot and up to `toe` m
+   * at the reach (sorted by size, the big ones run out furthest), and
+   * `buried` of it under the snow (the least and the most). */
+  kit: {
+    cell: 24,
+    big: 6,
+    step: 4,
+    wall: 0.3,
+    density: 1,
+    rubble: 0.12,
+    bed: [2.4, 4.6] as const,
+    dip: 0.38,
+    terrace: 0.7,
+    proud: [0.7, 2.2] as const,
+    bury: 0.25,
+    foot: 0.4,
+    rib: 34,
+    reach: 40,
+    slope: 1.12,
+    gentle: 0.42,
+    scree: 0.34,
+    stone: 0.7,
+    toe: 3.4,
+    buried: [0.35, 0.6] as const,
   },
   /** THE CLIFFS: a rocky cliff's face clad whole (`cliff-wall.ts`). Its
    * corners every `pitch` m across, out past the full-height edge `ends`

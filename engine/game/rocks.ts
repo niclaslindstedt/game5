@@ -115,7 +115,7 @@ const RING: readonly (readonly [number, number])[] = (() => {
 /** Whether (x, z) lies within `ROCKS.skin.clear` m of packed snow or of a
  * summer bike trail's footprint (its tread and its bench): the rock is
  * kept off both, so what is drawn there is what is ridden. */
-function nearCut(level: Level, x: number, z: number): boolean {
+export function nearCut(level: Level, x: number, z: number): boolean {
   for (const [dx, dz] of RING) {
     if (level.packedAt(x + dx, z + dz) > ROCKS.packed) return true;
   }

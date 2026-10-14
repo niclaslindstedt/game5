@@ -18,7 +18,17 @@
 // region's rock in a shade of its own a facet. Three-free: plain arrays the
 // draw (`rocks.ts`) hands the GPU and the suite counts.
 
-import { ROCKS, rockDraw as unit, rockHash, rockShare, type CliffWall, type Level } from "@engine";
+import {
+  KIT_SALT,
+  ROCKS,
+  bedOf,
+  rockDraw as unit,
+  rockDraw,
+  rockHash,
+  rockShare,
+  type CliffWall,
+  type Level,
+} from "@engine";
 import { summerShown } from "./season-look.ts";
 
 /** How dark the rock is where it goes into the snow, of its own colour. */
@@ -83,6 +93,7 @@ function tri(
   paint: (ny: number) => Tone,
   shadeAt: (p: P) => number,
   calmOf: (p: P, n: P) => { n: P; col: Tone },
+  smooth = false,
 ): void {
   const ex = b[0] - a[0];
   const ey = b[1] - a[1];
@@ -114,7 +125,8 @@ function tri(
     const k = shadeAt(p);
     const calm = calmOf(p, [nx, ny, nz]);
     m.pos.push(p[0], p[1], p[2]);
-    m.nrm.push(nx, ny, nz);
+    if (smooth) m.nrm.push(calm.n[0], calm.n[1], calm.n[2]);
+    else m.nrm.push(nx, ny, nz);
     m.col.push(col[0] * k, col[1] * k, col[2] * k);
     m.soft.push(calm.n[0], calm.n[1], calm.n[2]);
     m.calm.push(calm.col[0] * k, calm.col[1] * k, calm.col[2] * k);
@@ -175,6 +187,25 @@ export function buildSkin(
     level.normalAt(p[0], p[2], g);
     return { n: [g.x, g.y, g.z], col: calm(g.y) };
   };
+  // THE WALL UNDER THE KIT (`rock-kit-view.ts`): the pieces carry the
+  // shape, so the skin between them is lit smooth (the ground's normal at
+  // each corner) and painted in BANDS along the beds the pieces stand in
+  // (`bedOf`), never a shade of its own a facet.
+  const kitSeed = rockHash(level.seed, KIT_SALT);
+  const banded = (
+    h: number,
+    mx: number,
+    my: number,
+    mz: number,
+    n: number,
+  ): ((ny: number) => Tone) => {
+    level.normalAt(mx, mz, g);
+    const l = Math.hypot(g.x, g.z) || 1;
+    const bed = bedOf(kitSeed, mx, my, mz, -g.z / l, g.x / l);
+    const band = rockDraw(rockHash(kitSeed, bed.index, 3), 0);
+    const f = 0.72 + 0.22 * band + 0.06 * unit(h, n);
+    return snowOver(SKIN_HOLDS, [stone[0] * f, stone[1] * f, stone[2] * f]);
+  };
   for (let j = j0; j < j1; j++) {
     for (let i = i0; i < i1; i++) {
       const a = cornerAt(i, j);
@@ -184,15 +215,18 @@ export function buildSkin(
       if (Math.max(a.bare, b.bare, c.bare, d.bare) <= S.from) continue;
       const h = rockHash(seed, i, j, 7);
       const mx = (a.p[0] + b.p[0] + c.p[0] + d.p[0]) / 4;
+      const my = (a.p[1] + b.p[1] + c.p[1] + d.p[1]) / 4;
       const mz = (a.p[2] + b.p[2] + c.p[2] + d.p[2]) / 4;
       // Under the ground at the cell's middle: inside the hill.
       const inside: P = [mx, level.groundAt(mx, mz) - 3, mz];
+      const p1 = banded(h, mx, my, mz, 1);
+      const p3 = banded(h, mx, my, mz, 3);
       if (unit(h, 0) < 0.5) {
-        tri(m, a.p, b.p, c.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
-        tri(m, a.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
+        tri(m, a.p, b.p, c.p, inside, p1, shadeAt, calmOf, true);
+        tri(m, a.p, c.p, d.p, inside, p3, shadeAt, calmOf, true);
       } else {
-        tri(m, a.p, b.p, d.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
-        tri(m, b.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
+        tri(m, a.p, b.p, d.p, inside, p1, shadeAt, calmOf, true);
+        tri(m, b.p, c.p, d.p, inside, p3, shadeAt, calmOf, true);
       }
     }
   }

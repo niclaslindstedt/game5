@@ -309,7 +309,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         P[j + 2] = tree.z + (dz / d) * reach;
       }
       if (P[j + 1] < hold[i]) {
-        liftedOnRock(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
+        liftedOnRock(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j, P[j + 1]);
         pushed[i] += hold[i] - P[j + 1];
         P[j + 1] = hold[i];
       }

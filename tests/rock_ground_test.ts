@@ -5,6 +5,7 @@ import {
   SKIN_SALT,
   bedrockOf,
   createGame,
+  kitTop,
   packedSnow,
   placeRun,
   regionOf,
@@ -88,6 +89,9 @@ describe("the rock underfoot", () => {
     // The drawing of a patch round a few walls, at the physics' lattice.
     let checked = 0;
     let on = 0;
+    let hidden = 0;
+    const bed = bedrockOf(base);
+    const top = { y: 0, nx: 0, ny: 1, nz: 0 };
     for (const p of spots.slice(0, 6)) {
       const i = Math.floor(p.x / cell);
       const j = Math.floor(p.z / cell);
@@ -103,10 +107,18 @@ describe("the rock underfoot", () => {
       // a corner's bareness is kept in rounds its height by a millimetre).
       const at = rocky.groundAt(x, z);
       expect(at).toBeGreaterThan(y - 0.005);
+      // A facet inside one of the kit's stones is hidden by it, and the
+      // stone's top is what is met there instead.
+      if (kitTop(bed, x, z, top) && top.y > y + 0.005) {
+        expect(Math.abs(at - Math.max(top.y, y))).toBeLessThan(0.005);
+        hidden++;
+        continue;
+      }
       if (Math.abs(at - y) < 0.005) on++;
       checked++;
     }
     expect(checked).toBeGreaterThan(100);
+    expect(hidden).toBeGreaterThan(0);
     expect(on / checked).toBeGreaterThan(0.95);
   });
 

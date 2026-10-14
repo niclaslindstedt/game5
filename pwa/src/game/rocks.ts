@@ -37,6 +37,7 @@ import {
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
+import { createRockKit, type RockKit } from "./rock-kit-view.ts";
 import { buildSkin, buildWall, rockMesh, type RockMesh } from "./rock-shapes.ts";
 
 /** A tile's side, m. */
@@ -121,8 +122,9 @@ export function cutOf(d: number, had: number): number {
 
 export type Rocks = {
   readonly group: THREE.Group;
-  /** Show what is within `reach` m of the lens, building what is new. */
-  update(eye: THREE.Vector3, reach: number): void;
+  /** Show what is within `reach` m of the lens, building what is new —
+   * the kit's stones culled against `camera`'s view. */
+  update(eye: THREE.Vector3, reach: number, camera?: THREE.Camera): void;
   dispose(): void;
 };
 
@@ -153,7 +155,6 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
   // spent building it, the tiles in reach still owed their cut, and the
   // triangles and bytes built. An instrument: nothing draws off it.
   const stats = { buildMs: 0, owed: 0, triangles: 0, bytes: 0 };
-  group.userData.rockStats = stats;
   // And, for the same lab, every tile owed at the last lens built whole at
   // once, so a still is taken of the rock as it settles, never mid-build.
   let lastEye: THREE.Vector3 | null = null;
@@ -171,6 +172,10 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
         .replace("#include <project_vertex>", PULL_GLSL);
     },
   );
+  // THE ROCK KIT over the skin (`rock-kit-view.ts`): the walls built of
+  // pieces and the talus under them.
+  const kit: RockKit | null = band ? createRockKit(level, haze, band.tone) : null;
+  if (kit) group.add(kit.group);
   const cols = band ? Math.ceil(level.size / TILE) : 0;
   const tiles: Tile[] = [];
   for (let j = 0; j < cols; j++) {
@@ -292,12 +297,26 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
       while (!step(t, k));
       if (t.mesh) t.mesh.visible = true;
     }
+    kit?.settle();
     stats.owed = 0;
   };
+  // The kit's share of what the rock holds, read when the lab asks.
+  Object.defineProperties(group.userData, {
+    rockStats: {
+      get: () => ({
+        buildMs: stats.buildMs + (kit?.stats.buildMs ?? 0),
+        owed: stats.owed,
+        triangles: stats.triangles + (kit?.stats.triangles ?? 0),
+        bytes: stats.bytes + (kit?.stats.bytes ?? 0),
+      }),
+      configurable: true,
+    },
+  });
 
   return {
     group,
-    update(eye, reach) {
+    update(eye, reach, camera) {
+      kit?.update(eye, camera ?? null);
       lastEye = eye.clone();
       lastReach = reach;
       // The tile's corner nearest the lens, so a tile is shown as soon as
@@ -339,6 +358,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     },
     dispose() {
       for (const t of tiles) drop(t);
+      kit?.dispose();
       material.dispose();
     },
   };

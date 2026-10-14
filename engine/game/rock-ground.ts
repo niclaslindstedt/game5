@@ -29,6 +29,7 @@ import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { regionOf } from "../mapgen/regions.ts";
 import type { Level } from "../mapgen/types.ts";
 import { ROCKS } from "./defs/rocks.ts";
+import { kitTop, type KitTop } from "./rock-kit.ts";
 import { hashOf, rockShare, unit } from "./rocks.ts";
 
 /** The salt a wall's skin is dealt off (`hashOf(level.seed, SKIN_SALT)`),
@@ -163,12 +164,31 @@ function onTri(a: number, b: number, c: number, x: number, z: number, u: Under):
 
 const skinU: Under = { y: 0, on: 0, bare: 0, nx: 0, ny: 1, nz: 0 };
 
-/** The surface at (x, z) into `s.last`. */
+const kitU: KitTop = { y: 0, nx: 0, ny: 1, nz: 0 };
+
+/** The surface at (x, z) into `s.last`: the skin, and over it the ROCK
+ * KIT's pieces (`rock-kit.ts`) wherever one stands higher — its near cut,
+ * as drawn near the lens. */
 function underOf(s: Skin, x: number, z: number): Under {
   const u = s.last;
   if (x === s.lastX && z === s.lastZ) return u;
   s.lastX = x;
   s.lastZ = z;
+  skinUnder(s, x, z, u);
+  if (kitTop(s.base, x, z, kitU) && kitU.y > u.y) {
+    u.y = kitU.y;
+    u.on = 1;
+    u.nx = kitU.nx;
+    u.ny = kitU.ny;
+    u.nz = kitU.nz;
+    const S = ROCKS.skin;
+    u.bare = 1 - Math.max(0, Math.min(1, (kitU.ny - S.slides) / (S.holds - S.slides)));
+  }
+  return u;
+}
+
+/** The skin at (x, z) into `u`. */
+function skinUnder(s: Skin, x: number, z: number, u: Under): Under {
   const base = s.base;
   const ground = base.groundAt(x, z);
   u.y = ground;
@@ -384,6 +404,9 @@ export function outOfRock(
 
 const lifted = { x: 0, y: 1, z: 0 };
 
+/** What a lift onto the rock may keep past the point's own fall, m. */
+const LIFT_SLACK = 0.05;
+
 /**
  * A POINT LIFTED STRAIGHT UP by `d` m onto the rock at (`x`, `z`), as a
  * ragdoll's points and a lone ski's ends are put back on the surface: on a
@@ -399,13 +422,20 @@ export function liftedOnRock(
   d: number,
   last: number[],
   j: number,
+  y0?: number,
 ): void {
   if (d <= 0 || !level.rockAt || level.rockAt(x, z) <= 0) return;
   level.normalAt(x, z, lifted);
   const n = lifted;
-  last[j] -= d * n.y * n.x;
-  last[j + 1] += d * (1 - n.y * n.y);
-  last[j + 2] -= d * n.y * n.z;
+  // Out of the facet it keeps no more than it fell into it this step: a
+  // point that met a stone's riser side-on is put up on its top, never
+  // thrown up off it (the rest of the lift a position corrected).
+  const fell = Math.max(0, last[j + 1] - (y0 ?? last[j + 1]));
+  const keep = y0 === undefined ? 1 : Math.min(1, (fell + LIFT_SLACK) / d);
+  const out = d * n.y * (1 - keep);
+  last[j] -= d * n.y * n.x - out * n.x;
+  last[j + 1] += d * (1 - n.y * n.y) + out * n.y;
+  last[j + 2] -= d * n.y * n.z - out * n.z;
 }
 
 /**

@@ -83,7 +83,7 @@ import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-b
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
-import { suitOf } from "./wingsuit-look.ts";
+import { playerKitOf, playerDress, type PlayerKit } from "./player-dress.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { heightOverFar } from "./horizon.ts";
 import { keyAheadAt, skyLookAt } from "./sky.ts";
@@ -412,9 +412,9 @@ export function createWorldRenderer(
   /** The run's rivals, read for an enthusiast's own kit. */
   let field: readonly Rival[] = [];
   const dealtKits = new Map<string, SkierDress>();
-  let suited = false; // A wingsuit's run: the player in his suit.
+  let kit: PlayerKit = "own"; // His own kit, a wingsuit or a freerider's.
   const dressOf = (i: number): SkierDress => {
-    if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit, model: true };
+    if (i === 0) return playerDress(kit, outfit);
     const free = field[i - 1]?.free;
     return free
       ? dealtKit(dealtKits, free.look, free.rider)
@@ -540,7 +540,7 @@ export function createWorldRenderer(
       machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
       field = state.rivals;
-      suited = !!state.wingsuit;
+      kit = playerKitOf(state);
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
       lastTick = -1;
@@ -570,7 +570,7 @@ export function createWorldRenderer(
       const opened = performance.now();
       const runs = runsOf(state);
       field = state.rivals;
-      suited = !!state.wingsuit;
+      kit = playerKitOf(state);
       while (riders.length < runs.length) {
         riders.push(riderFor(riders.length, runs[riders.length].skier.spec));
       }

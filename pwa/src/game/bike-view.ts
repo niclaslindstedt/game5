@@ -37,6 +37,9 @@ import {
   swingAt,
   type V3,
 } from "./bike-look.ts";
+import { buildFreerideBike } from "./bike-freeride.ts";
+import { animatedStyle } from "./bike-anim.ts";
+import type { BikeLook } from "./bike-variant.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
@@ -458,10 +461,19 @@ export type BikeView = {
  * on its wheels in the queue. */
 const HANG = { back: 0.55, down: 0.05, pitch: 1.35 };
 
-export function createBikeView(haze: HazeUniforms): BikeView {
+/** The bike's turn under the rider (`bike-ride-style.ts`), and the point
+ * it turns about — his centre of mass, from the bike's. */
+const whipTurn = new THREE.Quaternion();
+const whipRoll = new THREE.Quaternion();
+const pivot = new THREE.Vector3();
+const swung = new THREE.Vector3();
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+
+export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): BikeView {
   const group = new THREE.Group();
   group.name = "downhill-bike";
-  const built = buildBike(haze);
+  const built = look === "freeride" ? buildFreerideBike(haze) : buildBike(haze);
   group.add(built.root);
   const call = new THREE.Sprite(
     new THREE.SpriteMaterial({
@@ -485,6 +497,7 @@ export function createBikeView(haze: HazeUniforms): BikeView {
   const hook = new THREE.Vector3();
   let shown: { x: number; y: number; z: number; q: THREE.Quaternion } | null = null;
   let clock = 0;
+  const shownQ = new THREE.Quaternion();
   const hangTurn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -HANG.pitch);
 
   return {
@@ -529,10 +542,26 @@ export function createBikeView(haze: HazeUniforms): BikeView {
         const h = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), h);
       }
+      shown = { x, y, z, q: shownQ.copy(q) };
+      const pose = bikePose(b);
+      // THE FREERIDER'S STYLE: the bike thrown under him in the air, turned
+      // about his centre of mass so his body stays where the engine has it
+      // (the lens follows the bike as the engine has it, unturned).
+      const style = look === "freeride" ? animatedStyle(b, state.level, state.t) : null;
+      if (style && (style.yaw !== 0 || style.roll !== 0)) {
+        whipTurn.setFromAxisAngle(Y_AXIS, style.yaw);
+        whipRoll.setFromAxisAngle(Z_AXIS, style.roll);
+        whipTurn.multiply(whipRoll);
+        pivot.set(pose.rider.x + BIKE_BB.x, pose.rider.y + BIKE_BB.y, pose.rider.z + BIKE_BB.z);
+        swung.copy(pivot).applyQuaternion(whipTurn).sub(pivot).applyQuaternion(q);
+        x -= swung.x;
+        y -= swung.y;
+        z -= swung.z;
+        q.multiply(whipTurn);
+      }
       built.root.position.set(x, y, z);
       built.root.quaternion.copy(q);
-      shown = { x, y, z, q };
-      poseBike(built.nodes, bikePose(b));
+      poseBike(built.nodes, style ? { ...pose, crank: style.crank } : pose);
       // THE CALL while it lies waiting near him on foot.
       const near = Math.hypot(player.x - b.x, player.z - b.z);
       const waiting = !!b.afoot && !b.onIt && near < LIGHT_UP && near > BIKE.board.reach;

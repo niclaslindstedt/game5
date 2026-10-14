@@ -243,60 +243,60 @@ export function mergeBlock(
   const sub = new Uint8Array(n);
   let o = 0;
   cells.forEach((b, cellIndex) => {
-  const lo = w.binStart[b];
-  const hi = w.binStart[b + 1];
-  for (let i = lo; i < hi; i++) {
-    if (w.gone[i]) continue;
-    const g = shapeOf(i);
-    if (!g) continue;
-    const e = w.matrices.subarray(i * 16, i * 16 + 16);
-    m4.fromArray(e);
-    nm.getNormalMatrix(m4);
-    const ne = nm.elements;
-    const P = g.getAttribute("position").array as Float32Array;
-    const N = g.getAttribute("normal").array as Float32Array;
-    const C = g.getAttribute("color").array as Float32Array;
-    const stem = g.getAttribute("stem") as THREE.BufferAttribute | undefined;
-    const S = stem ? (stem.array as Float32Array) : null;
-    const gx = w.girths[i * 2];
-    const gz = w.girths[i * 2 + 1];
-    const tr = w.colours[i * 3];
-    const tg = w.colours[i * 3 + 1];
-    const tb = w.colours[i * 3 + 2];
-    const count = P.length / 3;
-    for (let v = 0; v < count; v++) {
-      let x = P[v * 3];
-      const y = P[v * 3 + 1];
-      let z = P[v * 3 + 2];
-      if (S && S[v * 3 + 2] > 0) {
-        // THE GIRTH, as `GIRTH_VERTEX` pushes it: out from the trunk's axis.
-        const k = S[v * 3 + 2];
-        x = S[v * 3] + (x - S[v * 3]) * (1 + (gx - 1) * k);
-        z = S[v * 3 + 1] + (z - S[v * 3 + 1]) * (1 + (gz - 1) * k);
+    const lo = w.binStart[b];
+    const hi = w.binStart[b + 1];
+    for (let i = lo; i < hi; i++) {
+      if (w.gone[i]) continue;
+      const g = shapeOf(i);
+      if (!g) continue;
+      const e = w.matrices.subarray(i * 16, i * 16 + 16);
+      m4.fromArray(e);
+      nm.getNormalMatrix(m4);
+      const ne = nm.elements;
+      const P = g.getAttribute("position").array as Float32Array;
+      const N = g.getAttribute("normal").array as Float32Array;
+      const C = g.getAttribute("color").array as Float32Array;
+      const stem = g.getAttribute("stem") as THREE.BufferAttribute | undefined;
+      const S = stem ? (stem.array as Float32Array) : null;
+      const gx = w.girths[i * 2];
+      const gz = w.girths[i * 2 + 1];
+      const tr = w.colours[i * 3];
+      const tg = w.colours[i * 3 + 1];
+      const tb = w.colours[i * 3 + 2];
+      const count = P.length / 3;
+      for (let v = 0; v < count; v++) {
+        let x = P[v * 3];
+        const y = P[v * 3 + 1];
+        let z = P[v * 3 + 2];
+        if (S && S[v * 3 + 2] > 0) {
+          // THE GIRTH, as `GIRTH_VERTEX` pushes it: out from the trunk's axis.
+          const k = S[v * 3 + 2];
+          x = S[v * 3] + (x - S[v * 3]) * (1 + (gx - 1) * k);
+          z = S[v * 3 + 1] + (z - S[v * 3 + 1]) * (1 + (gz - 1) * k);
+        }
+        pos[o * 3] = e[0] * x + e[4] * y + e[8] * z + e[12] - ox;
+        pos[o * 3 + 1] = e[1] * x + e[5] * y + e[9] * z + e[13];
+        pos[o * 3 + 2] = e[2] * x + e[6] * y + e[10] * z + e[14] - oz;
+        const nx = N[v * 3];
+        const ny = N[v * 3 + 1];
+        const nz = N[v * 3 + 2];
+        let ax = ne[0] * nx + ne[3] * ny + ne[6] * nz;
+        let ay = ne[1] * nx + ne[4] * ny + ne[7] * nz;
+        let az = ne[2] * nx + ne[5] * ny + ne[8] * nz;
+        const l = 127 / (Math.hypot(ax, ay, az) || 1);
+        ax *= l;
+        ay *= l;
+        az *= l;
+        nrm[o * 3] = Math.round(ax);
+        nrm[o * 3 + 1] = Math.round(ay);
+        nrm[o * 3 + 2] = Math.round(az);
+        col[o * 3] = Math.min(255, Math.round(C[v * 3] * tr * 255));
+        col[o * 3 + 1] = Math.min(255, Math.round(C[v * 3 + 1] * tg * 255));
+        col[o * 3 + 2] = Math.min(255, Math.round(C[v * 3 + 2] * tb * 255));
+        sub[o] = subs[cellIndex];
+        o++;
       }
-      pos[o * 3] = e[0] * x + e[4] * y + e[8] * z + e[12] - ox;
-      pos[o * 3 + 1] = e[1] * x + e[5] * y + e[9] * z + e[13];
-      pos[o * 3 + 2] = e[2] * x + e[6] * y + e[10] * z + e[14] - oz;
-      const nx = N[v * 3];
-      const ny = N[v * 3 + 1];
-      const nz = N[v * 3 + 2];
-      let ax = ne[0] * nx + ne[3] * ny + ne[6] * nz;
-      let ay = ne[1] * nx + ne[4] * ny + ne[7] * nz;
-      let az = ne[2] * nx + ne[5] * ny + ne[8] * nz;
-      const l = 127 / (Math.hypot(ax, ay, az) || 1);
-      ax *= l;
-      ay *= l;
-      az *= l;
-      nrm[o * 3] = Math.round(ax);
-      nrm[o * 3 + 1] = Math.round(ay);
-      nrm[o * 3 + 2] = Math.round(az);
-      col[o * 3] = Math.min(255, Math.round(C[v * 3] * tr * 255));
-      col[o * 3 + 1] = Math.min(255, Math.round(C[v * 3 + 1] * tg * 255));
-      col[o * 3 + 2] = Math.min(255, Math.round(C[v * 3 + 2] * tb * 255));
-      sub[o] = subs[cellIndex];
-      o++;
     }
-  }
   });
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -327,7 +327,9 @@ export function shellPaintOf(g: THREE.BufferGeometry): ShellPaint {
     into[3]++;
   }
   const mean = (a: number[], fall: number) =>
-    a[3] > 0 ? new THREE.Color(a[0] / a[3], a[1] / a[3], a[2] / a[3]) : new THREE.Color(fall, fall, fall);
+    a[3] > 0
+      ? new THREE.Color(a[0] / a[3], a[1] / a[3], a[2] / a[3])
+      : new THREE.Color(fall, fall, fall);
   return { needle: mean(needle, 0.06), snow: mean(snow, 0.85) };
 }
 
@@ -594,7 +596,8 @@ export function createMeshCache<T>(budget: number): MeshCache<T> {
 export function geometryBytes(g: THREE.BufferGeometry | null): number {
   if (!g) return 64;
   let n = 0;
-  for (const a of Object.values(g.attributes)) n += (a.array as ArrayLike<number> & { byteLength: number }).byteLength;
+  for (const a of Object.values(g.attributes))
+    n += (a.array as ArrayLike<number> & { byteLength: number }).byteLength;
   if (g.index) n += (g.index.array as ArrayLike<number> & { byteLength: number }).byteLength;
   return n;
 }

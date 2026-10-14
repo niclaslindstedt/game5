@@ -832,7 +832,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         if (behind[b]) inView = false;
       }
       sight[b] = inView ? 1 : 0;
-      if (inView && (target === 1 || target === 2) && cache.get(keyOf(target, blockOf(b))) === undefined)
+      if (
+        inView &&
+        (target === 1 || target === 2) &&
+        cache.get(keyOf(target, blockOf(b))) === undefined
+      )
         wanting.push(b);
     }
     wanting.sort((p, q) => cellD[p] - cellD[q]);
@@ -858,7 +862,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       if (stepLevel(lod, b, ms)) animating = true;
       const v = lod.value[b];
       // Every level whose share of this cell is not nothing.
-      for (let L = Math.max(0, Math.ceil(v - 1 + 1e-6)); L <= Math.min(3, Math.floor(v + 1 - 1e-6)); L++) {
+      for (
+        let L = Math.max(0, Math.ceil(v - 1 + 1e-6));
+        L <= Math.min(3, Math.floor(v + 1 - 1e-6));
+        L++
+      ) {
         if (L === 0) near.push(b);
         else if (L === 3) tilesOn.add(tileOf(b));
         else blocksOn[L - 1].add(blockOf(b));

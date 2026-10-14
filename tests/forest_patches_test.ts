@@ -97,7 +97,10 @@ describe("a merged block", () => {
 
 describe("the canopy shell", () => {
   const flat = () => 100;
-  const paint = { needle: new THREE.Color(0.05, 0.08, 0.05), snow: new THREE.Color(0.9, 0.9, 0.95) };
+  const paint = {
+    needle: new THREE.Color(0.05, 0.08, 0.05),
+    snow: new THREE.Color(0.9, 0.9, 0.95),
+  };
   const tree = { x: 30, y: 100, z: 30, height: 20, crown: 3, paint, spire: true };
   it("rises to a crown's top over it and drops the bare grid", () => {
     const g = buildShell(0, 0, [tree], flat)!;
@@ -107,7 +110,7 @@ describe("the canopy shell", () => {
     expect(top).toBeGreaterThan(110);
     expect(top).toBeLessThanOrEqual(120);
     const grid = (TILE * CELL) / SHELL_STEP + 1;
-    expect(p.count).toBeLessThan(grid * grid / 20);
+    expect(p.count).toBeLessThan((grid * grid) / 20);
   });
   it("draws nothing over a tile with no trees", () => {
     expect(buildShell(0, 0, [], flat)).toBeNull();

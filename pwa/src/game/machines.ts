@@ -32,6 +32,7 @@ import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
 import { rideStyleOf } from "./bike-ride-style.ts";
 import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
+import { drawnCrank, ikMemory } from "./bike-ik.ts";
 import { riderPose, walkingPose } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
@@ -301,6 +302,8 @@ export function createMachines(
   }
   // THE AIR AMBULANCE on the run after an injured one (`rescue-view.ts`),
   // built with the first run that carries its injuries.
+  // The rider's foot out of a slide, eased over the run (`bike-ik.ts`).
+  const riderIK = ikMemory();
   let rescue: RescueScene | null = null;
   // THE AVALANCHE (`avalanche-view.ts`), built with the run's first slab.
   let slide: AvalancheView | null = null;
@@ -336,6 +339,8 @@ export function createMachines(
             ? riderPose(
                 bikePose(b),
                 bikeLook() === "freeride" ? rideStyleOf(b, s.level, s.t) : undefined,
+                riderIK,
+                s.t,
               )
             : b.afoot && !s.skier.lift && !thrown
               ? walkingPose(b.afoot)
@@ -364,7 +369,7 @@ export function createMachines(
       const h = s.heli;
       hull = h && !h.rider && h.mode !== "wreck" ? heliHull(h, hullBox) : null;
       sledFx.stamps = stamps;
-      bike?.update(s, alpha, dt, player);
+      bike?.update(s, alpha, dt, player, (p) => drawnCrank(riderIK, p, s.t));
       sled?.frame(s, alpha, dt, simDt, player, sledFx, {
         shown: rung === "helmet" && ridingSled(s.sled, !!s.skier.thrown),
         outfit: fx.wearing?.(),

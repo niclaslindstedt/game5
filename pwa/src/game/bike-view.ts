@@ -447,7 +447,15 @@ export type BikeView = {
   group: THREE.Group;
   /** Draw the bike at the state's last step, eased from the step before by
    * `alpha`; `player` is where the rider is drawn (the halo's call). */
-  update(state: GameState, alpha: number, dt: number, player: { x: number; z: number }): void;
+  /** `crank` turns the cranks as the rider's feet have them
+   * (`bike-ik.ts`' `drawnCrank`), else the engine's. */
+  update(
+    state: GameState,
+    alpha: number,
+    dt: number,
+    player: { x: number; z: number },
+    crank?: (pose: BikePose) => number,
+  ): void;
   /** The bike as drawn this frame, its centre of mass and attitude. */
   drawn(): { x: number; y: number; z: number; q: THREE.Quaternion } | null;
   /** The nodes posed — a lab's, and a model's plug. */
@@ -505,7 +513,7 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
     group,
     nodes: built.nodes,
     ready: Promise.resolve(),
-    update(state, alpha, dt, player) {
+    update(state, alpha, dt, player, crank) {
       const b: BikeState | undefined = state.bike;
       group.visible = !!b;
       if (!b) return;
@@ -562,6 +570,7 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
       }
       built.root.position.set(x, y, z);
       built.root.quaternion.copy(q);
+      if (crank) pose.crank = crank(pose);
       poseBike(built.nodes, pose);
       // THE CALL while it lies waiting near him on foot.
       const near = Math.hypot(player.x - b.x, player.z - b.z);

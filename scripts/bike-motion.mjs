@@ -71,7 +71,10 @@ const args = parseArgs(
 aliasEngine(root);
 const E = await import(join(root, "engine/index.ts"));
 const C = await import(join(root, "pwa/src/tools/bike-clips.ts"));
-const SB = await import(join(root, "pwa/src/game/skier-bike.ts"));
+const SB = {
+  ...(await import(join(root, "pwa/src/game/skier-bike.ts"))),
+  ...(await import(join(root, "pwa/src/game/bike-ik.ts"))),
+};
 const BL = await import(join(root, "pwa/src/game/bike-look.ts"));
 const ST = await import(join(root, "pwa/src/game/bike-ride-style.ts"));
 const Q = await import("@niclaslindstedt/oss-game-framework/core/quat");
@@ -124,7 +127,7 @@ const CHARTS = [
 ];
 
 /** One frame measured: the figures, and the joints in the world. */
-function measure(s, t) {
+function measure(s, t, memory) {
   const b = s.bike;
   const pose = E.bikePose(b);
   const style = styled ? ST.rideStyleOf(b, s.level, s.t) : undefined;
@@ -132,13 +135,16 @@ function measure(s, t) {
   // Off it (thrown, afoot, on the chair) he is not measured against the
   // bike: a gap in every line.
   if (!on) return { t, on: false };
-  const pts = SB.riderPoints(pose, style);
+  const pts = SB.riderPoints(pose, style, memory, s.t);
   const at = (i) => ({ x: pts[3 * i], y: pts[3 * i + 1], z: pts[3 * i + 2] });
   const bb = BL.bracketFromRider(pose);
   const turn = (p) =>
     style && (style.yaw !== 0 || style.roll !== 0) ? SB.underHim(p, style.yaw, style.roll) : p;
   const grips = BL.gripsAt(pose.steer).map((g) => turn(add(bb, g)));
-  const pedals = BL.pedalsAt(pose.crank).map((p) => turn(add(bb, p)));
+  // The pedals where the drawn cranks have them (stood level while he
+  // coasts, `bike-ik.ts`' `drawnCrank`) where the rider is solved so.
+  const crank = memory && SB.drawnCrank ? SB.drawnCrank(memory, pose, s.t) : pose.crank;
+  const pedals = BL.pedalsAt(crank).map((p) => turn(add(bb, p)));
   const hipMid = {
     x: (at(R.hipL).x + at(R.hipR).x) / 2,
     y: (at(R.hipL).y + at(R.hipR).y) / 2,
@@ -215,7 +221,8 @@ for (const clip of clips) {
     continue;
   }
   const frames = [];
-  await C.rideClip(clip, win, (s, t) => frames.push(measure(s, t)));
+  const memory = SB.ikMemory ? SB.ikMemory() : undefined;
+  await C.rideClip(clip, win, (s, t) => frames.push(measure(s, t, memory)));
   const on = frames.filter((f) => f.on);
   if (on.length) {
     const mean = on.reduce((a, f) => a + f.headY, 0) / on.length;

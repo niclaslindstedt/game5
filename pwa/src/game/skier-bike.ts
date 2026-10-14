@@ -18,6 +18,7 @@
 
 import { BIKE, BIKE_BB, type BikePose } from "@engine";
 
+import { ikPoints, type IKMemory } from "./bike-ik.ts";
 import { GRIPS, bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
 import type { RideStyle } from "./bike-ride-style.ts";
 import { ANKLE, keyOf, keyPoints, movePose, type Key } from "./party-pose.ts";
@@ -147,8 +148,10 @@ export function freerideKey(pose: BikePose, style: RideStyle): Key {
 export function riderPose(
   pose: BikePose,
   style?: RideStyle,
+  memory?: IKMemory,
+  t = 0,
 ): (ground: number, frame: BodyFrame) => SkierPose {
-  const points = riderPoints(pose, style);
+  const points = riderPoints(pose, style, memory, t);
   return (_ground, frame) => ragdollPose(points, frame);
 }
 
@@ -157,8 +160,11 @@ export function riderPose(
  * his centre of mass): what `riderPose` hangs the figure on, and what the
  * bike motion lab (`make bike-motion`) measures against the grips and the
  * pedals. */
-export function riderPoints(pose: BikePose, style?: RideStyle): number[] {
-  return keyPoints(style ? freerideKey(pose, style) : riderKey(pose), 0);
+export function riderPoints(pose: BikePose, style?: RideStyle, memory?: IKMemory, t = 0): number[] {
+  // Solved from his contacts (`bike-ik.ts`): the keys above are the stance
+  // the solver was drawn from, kept for what reads them. A `memory` eases
+  // the foot out of a slide and the hips over the run's clock `t`.
+  return ikPoints(pose, style, memory, t);
 }
 
 /** WHERE HIS NEAR HAND HOLDS THE BIKE HE PUSHES, in his own frame (x his

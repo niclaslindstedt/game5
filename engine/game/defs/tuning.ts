@@ -618,8 +618,12 @@ export const TUNING = {
      * fold, drawing the stop out. The first `over` m of the equivalent fall
      * height is stopped outright (a kicker's landing is judged as ever);
      * what falls past it over a stroke `1 + gain` times as long on a face
-     * of `full` rad (45°), eased in from `from` (25°). */
-    steep: { over: 3, from: 0.44, full: 0.79, gain: 2 },
+     * of `full` rad (45°), eased in from `from` (25°) — in LOOSE SNOW only,
+     * the whole of it with `loose` m of it under the skis (a day's cover)
+     * and none on the groomer or ice, where nothing gives but the legs:
+     * the big-mountain rider's rule that a big drop wants a steep, soft
+     * landing, never a hard one however steep. */
+    steep: { over: 3, from: 0.44, full: 0.79, gain: 2, loose: 0.4 },
     /** Only a landing that ends a real flight is judged, s in the air. */
     air: 0.3,
   },

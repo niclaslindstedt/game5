@@ -155,6 +155,20 @@ meant to, a flight too short to count as one) as the model wrong. Fix the
 model where a real body would be hurt otherwise, and say which research
 row it answers to.
 
+### The fall lab: `make falls`
+
+The injury lab stages single moments; the FALL LAB sweeps the whole
+question "what does a drop from h metres do" (`tests/support/fall-matrix.ts`):
+3–40 m onto faces of 0–45° of powder, loose snow, the groomer and ice, on
+the skis true or crooked or thrown on the back, side or head, the INJURIES
+switch on, sixteen runs a cell — the death rate, the worst AIS and the ISS,
+a table a panel and `previews/falls.png`. Run it before (`ARGS=--json=…`)
+and after (`ARGS=--compare=…`) any change to the landing's load, the
+injury ladders' blunt or load doses, or what is mortal; `tests/fall_lab_test.ts`
+holds its corners (steep powder ridden away, 5 m taken whole, 20 m onto the
+flat groomer lethal, head first worst). The whole matrix takes minutes —
+narrow it with `--grounds`, `--how` and `--heights` while iterating.
+
 ## The rules
 
 - **A WIPEOUT IS A THRESHOLD ON WHAT THE STEP ALREADY MEASURED.** The trunk's

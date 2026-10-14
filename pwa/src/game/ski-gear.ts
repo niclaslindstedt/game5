@@ -211,6 +211,9 @@ export type Gear = {
   /** The two skis' groups, left then right — the figure's feet stand on
    * their boots. */
   skis: [THREE.Group, THREE.Group];
+  /** Each ski's own mesh, left then right: the base the snow lab measures
+   * against the drawn snow (`snow-under.ts`). */
+  bases: [THREE.Mesh, THREE.Mesh];
   /** Posed off the engine's state, the skid's pivot drawn at `angle` rad
    * (the view's eased one, `drawnSkiAngle`; the engine's when left out),
    * each ski where `stand` puts it on the snow (`ski-stand.ts`; the legs'
@@ -256,6 +259,7 @@ export function buildGear(
   const B = look.binding;
   const H = B.height;
   const skis: THREE.Group[] = [];
+  const bases: THREE.Mesh[] = [];
   for (const side of [-1, 1]) {
     const group = new THREE.Group();
     group.position.set((side * spec.stance) / 2, ground, 0);
@@ -268,6 +272,7 @@ export function buildGear(
     ski.castShadow = true;
     ski.receiveShadow = true;
     body.add(ski);
+    bases.push(ski);
     for (const g of decalGeos) add(g, trim, body);
     if (plate) add(plate, base, body);
     // The base: a dark sheet a hair under the ski, so the underside reads
@@ -322,6 +327,7 @@ export function buildGear(
   const Z = new THREE.Vector3(0, 0, 1);
   return {
     skis: [skis[0], skis[1]],
+    bases: [bases[0], bases[1]],
     pose(skier, sink, angle = skier.skiAngle, stand) {
       const lifts = stand?.lift ?? gearLift(skier);
       const tilt = stand?.tilt ?? skiTilt(skier);

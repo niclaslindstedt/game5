@@ -83,6 +83,17 @@ export type TrailUniforms = {
   uWorked: { value: number };
   /** 1 once a snowmobile's belt has been laid this run, else 0. */
   uBelted: { value: number };
+  /** THE DEFORMABLE SNOW round the player (`deform-snow.ts`): its ring
+   * buffer (height over the untouched snow, touched, firmness), the
+   * window's centre, half-extent and cell, m, the ring's span, m, and 1
+   * while it is on. Off, the trail map alone is read. */
+  uDeform: { value: THREE.Texture };
+  uDeformBox: { value: THREE.Vector4 };
+  uDeformSpan: { value: number };
+  uDeformOn: { value: number };
+  /** The self-shadow's march over the field (`deform-glsl.ts`): its steps
+   * and how much each step grows on the last — the TRAILS stop's. */
+  uDeformMarch: { value: THREE.Vector2 };
 };
 
 /** The GLSL every surface that reads the trail map needs: `trailAt(p)` is
@@ -100,6 +111,26 @@ uniform float uMapSize;
 uniform vec2 uTrailScale;
 uniform float uWorked;
 uniform float uBelted;
+uniform sampler2D uDeform;
+uniform vec4 uDeformBox;
+uniform float uDeformSpan;
+uniform float uDeformOn;
+uniform vec2 uDeformMarch;
+
+// THE DEFORMABLE SNOW (\`deform-snow.ts\`): how much of the field stands
+// for the trail map at \`p\` — all of it inside the window, nothing on its
+// last cell, so the field's rim is the clipmap's own surface.
+float deformWeight(vec2 p) {
+  if (uDeformOn < 0.5) return 0.0;
+  vec2 d = abs(p - uDeformBox.xy);
+  float m = max(d.x, d.y);
+  return 1.0 - smoothstep(uDeformBox.z * 0.82, uDeformBox.z - uDeformBox.w, m);
+}
+// The field at \`p\`: its height over the untouched snow (x, m), whether a
+// tool has touched it (y) and how firm it is (z) — the ring wraps itself.
+vec3 deformAt(vec2 p) {
+  return textureLod(uDeform, p / uDeformSpan + 0.5 * uDeformBox.w / uDeformSpan, 0.0).rgb;
+}
 
 float trailFineWeight(vec2 p) {
   vec2 u = (p - uFineOrigin) / uFineSpan;
@@ -118,7 +149,13 @@ vec2 trailAt(vec2 p) {
     v = textureLod(uTrailCoarse, p / uMapSize, 0.0).rg;
     if (w > 0.0) v = mix(v, textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).rg, w);
   }
-  return v * uTrailScale;
+  v *= uTrailScale;
+  float dw = deformWeight(p);
+  if (dw > 0.0) {
+    vec3 f = deformAt(p);
+    v = mix(v, vec2(max(-f.x, 0.0), max(f.x, 0.0)), dw * clamp(f.y, 0.0, 1.0));
+  }
+  return v;
 }
 
 // THE GROOMED SWATH at \`p\`: how freshly groomed (x, 0 none … 1 just
@@ -144,7 +181,14 @@ vec3 trailPackAt(vec2 p) {
 // the furrow, up by a berm where no furrow has cut it away.
 float trailRelief(vec2 p) {
   vec2 t = trailAt(p);
-  return -t.x + t.y * (1.0 - clamp(t.x / 0.03, 0.0, 1.0));
+  float r = -t.x + t.y * (1.0 - clamp(t.x / 0.03, 0.0, 1.0));
+  // Inside the deformable snow, its own height: a cut and a heap side by side.
+  float dw = deformWeight(p);
+  if (dw > 0.0) {
+    vec3 f = deformAt(p);
+    r = mix(r, f.x, dw * clamp(f.y, 0.0, 1.0));
+  }
+  return r;
 }
 `;
 
@@ -164,6 +208,10 @@ export type TrailMap = {
   compile(renderer: THREE.WebGLRenderer): Promise<unknown>;
   dispose(): void;
 };
+
+/** The deformable snow's stand-in while there is none. */
+const NO_DEFORM = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat);
+NO_DEFORM.needsUpdate = true;
 
 function target(size: number): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(size, size, {
@@ -319,6 +367,11 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     uTrailScale: { value: new THREE.Vector2(TRAIL.maxDepth, TRAIL.maxBerm) },
     uWorked: { value: 0 },
     uBelted: { value: 0 },
+    uDeform: { value: NO_DEFORM },
+    uDeformBox: { value: new THREE.Vector4(0, 0, 0, 1) },
+    uDeformSpan: { value: 1 },
+    uDeformOn: { value: 0 },
+    uDeformMarch: { value: new THREE.Vector2(0, 1.33) },
   };
 
   // THE STAMP PASS.

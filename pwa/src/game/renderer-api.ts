@@ -3,7 +3,9 @@
 // may ask of the renderer, and nothing else. The shell owns WHEN a frame is
 // drawn and WHICH state it shows; the renderer owns how it looks, and never
 // writes a `GameState`.
-import type { GameState } from "@engine";
+import type * as THREE from "three";
+
+import type { GameState, SkyOverride } from "@engine";
 
 import type { FrameCost, GpuMode, GpuTotals, Hideable, SceneShare } from "./benchmark-report.ts";
 import type { LensPose } from "./camera-rigs.ts";
@@ -13,6 +15,8 @@ import type { Outfit } from "./outfit.ts";
 import type { ReplayView } from "./camera-replay.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import type { XrayLook } from "./xray-shots.ts";
+import type { UnderPoint } from "./snow-under.ts";
+import type { SnowKind, SnowpackOptions } from "./snowpack.ts";
 
 /** The camera ladder, nearest first. */
 export type CameraRung = "tips" | "helmet" | "chase" | "far" | "high" | "orbit";
@@ -104,6 +108,13 @@ export interface DevRenderer {
   /** The snow in the air the last frame drew — the spray's grains and the
    * cloud's puffs (`plume-probe.ts`) — for the snow eval lab's film score. */
   plumes(): PlumeBit[];
+  /** How far under the snow drawn round him the player's skis stand, at
+   * each ski's tip, middle and tail, from the lens (`snow-under.ts`) — a
+   * second draw of the ground, so never from a frame being timed. */
+  skisUnder(): UnderPoint[];
+  /** Kilograms of thrown snow the deformable snow has dug this run — the
+   * spray's own, one budget (`snow-takes.ts`); 0 with none. */
+  snowDug(): number;
   /** The drawing buffer, device pixels. */
   bufferSize(): { w: number; h: number };
   /** THE GPU'S TIMER (`gpu-timer.ts`): cut every frame from here on at
@@ -124,3 +135,40 @@ export interface DevRenderer {
    * off from the frame on screen. */
   lensPose(): { x: number; y: number; z: number; yaw: number; pitch: number };
 }
+
+export type RendererOptions = {
+  /** The picture to open on (`settings-video.ts`); `setVideo` moves it. Its
+   * ANTIALIAS row is read here and only here — a canvas's multisampling is
+   * fixed when its context is made. */
+  video?: VideoSettings;
+  /** Keep the last frame in the canvas after it is shown (a lab that reads
+   * the pixels back). */
+  preserveDrawingBuffer?: boolean;
+};
+
+/** What the renderer can say about its own last frame. */
+export type FrameInfo = { calls: number; triangles: number; points: number };
+
+/** The seam, plus what a lab, the developer page and the benchmark may also
+ * ask. */
+export type WorldRendererExt = WorldRenderer &
+  DevRenderer & {
+    /** Change rung; `cut` skips the flown hand-over; `chosen` whether the
+     * player picked it (a ski jump's broadcast gives way to his pick). */
+    setCamera(rung: CameraRung, cut?: boolean, chosen?: boolean, craft?: CameraRung): void;
+    /** `present` false does everything a frame does — the trails stamped,
+     * the spray flown, the lens moved — except draw the picture: how a lab
+     * fast-forwards a run without losing the furrows it cut. */
+    draw(state: GameState, alpha: number, dt: number, present?: boolean): void;
+    info(): FrameInfo;
+    /** Ride the map under another sky, or from another hour, without loading
+     * it again (`withSky`) — a lab's sheet; null hands it back to the map's. */
+    setSky(sky: SkyOverride | null): void;
+    /** Resolves once the mountain's shadow under the sky last drawn is. */
+    shadeSettled(): Promise<void>;
+    /** Lay ONE kind of snow (and one surface age) over the whole map for the
+     * picture (`snowpack.ts`, `snow-age.ts`), or null for the map's own. */
+    setSnow(kind: SnowKind | null, age?: SnowpackOptions["age"]): void;
+    /** The three.js renderer, for a lab that needs to read pixels. */
+    readonly gl: THREE.WebGLRenderer;
+  };

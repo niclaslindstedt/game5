@@ -35,7 +35,7 @@
 //   node scripts/anim-lab.mjs --compare=previews/anim-before.json
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
@@ -90,6 +90,21 @@ const args = parseArgs(
     },
     json: { kind: "string", default: "", help: "write the table as JSON" },
     compare: { kind: "string", default: "", help: "a JSON table to print the change against" },
+    trace: {
+      kind: "string",
+      default: "",
+      help: "a window of seconds (from,to) to print every frame of each scene in: the angles named by --angles and the joints by --joints, with their accelerations",
+    },
+    angles: {
+      kind: "string",
+      default: "",
+      help: "the angles --trace prints (ids off the charts, e.g. head_yaw,wrist_l); the scene's worst when left out",
+    },
+    joints: {
+      kind: "string",
+      default: "",
+      help: "the joints --trace prints the jolt of (e.g. pole_l,hand_l); the scene's worst when left out",
+    },
   },
   "usage: node scripts/anim-lab.mjs [--family=a,b] [--move=a,b] [--no-render] [--json=file] [--compare=file]",
 );
@@ -151,7 +166,7 @@ ctx.onFrame = (model, state, sample, at) => {
 };
 const ride = createRiderReader(ctx);
 
-const before = args.compare ? JSON.parse(readFileSync(join(root, args.compare), "utf8")) : null;
+const before = args.compare ? JSON.parse(readFileSync(resolve(root, args.compare), "utf8")) : null;
 const pad = (s, n) => String(s).padStart(n);
 const pct = (v) => `${Math.round(v * 100)}%`;
 const rows = [];
@@ -183,6 +198,7 @@ for (const fam of families) {
     });
     const v = verdictOf(m);
     const clean = cleanOf(v, m);
+    if (args.trace) traceScene(scene, m, v, samples);
     const row = { family: fam.id, id: scene.id, title: scene.title, ...v, clean };
     if (!args["no-sheets"]) {
       const png = drawSheet({
@@ -214,8 +230,8 @@ const cleanCount = rows.filter((r) => r.clean).length;
 console.log(`\n${cleanCount} of ${rows.length} scenes clean`);
 
 if (args.json) {
-  mkdirSync(dirname(join(root, args.json)), { recursive: true });
-  writeFileSync(join(root, args.json), JSON.stringify(rows, null, 2));
+  mkdirSync(dirname(resolve(root, args.json)), { recursive: true });
+  writeFileSync(resolve(root, args.json), JSON.stringify(rows, null, 2));
   console.log(args.json);
 }
 if (!args["no-sheets"]) {
@@ -272,4 +288,32 @@ function writeSummary(all) {
     y += ROW;
   }
   writeFileSync(join(outDir, "summary.png"), d.toPng());
+}
+
+/** `--trace`: every frame in the window, each named angle (deg) with its
+ * acceleration (deg/s²) and each named joint's jolt (m/s²), the phase
+ * beside — the frame-by-frame view of a snap the table names. */
+function traceScene(scene, m, v, samples) {
+  const [from, to] = args.trace.split(",").map(Number);
+  const angles = (args.angles || v.worstAngleId).split(",").filter((a) => m.angles[a]);
+  const joints = (args.joints || v.worstJoint).split(",").filter((j) => m.perJoint[j]);
+  const head = ["t".padStart(6), "phase".padEnd(8)];
+  for (const a of angles) head.push(`${a}°`.padStart(14), "°/s²".padStart(9));
+  for (const j of joints) head.push(`${j} m/s²`.padStart(14), "x,y,z (m)".padStart(20));
+  console.log(`  ${scene.id}\n  ${head.join(" ")}`);
+  const f = (x, d = 0) => (x === null || x === undefined ? "·" : x.toFixed(d));
+  m.t.forEach((t, k) => {
+    if (t < from || t > to) return;
+    const cells = [t.toFixed(3).padStart(6), (m.phases[k] || "").padEnd(8)];
+    for (const a of angles) {
+      const g = m.angles[a];
+      cells.push(f(g.v[k], 1).padStart(14), f(g.accel[k]).padStart(9));
+    }
+    for (const j of joints) {
+      const p = samples[k].joints[j];
+      const at = p ? `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}` : "·";
+      cells.push(f(m.perJoint[j].jolt[k]).padStart(14), at.padStart(20));
+    }
+    console.log(`  ${cells.join(" ")}`);
+  });
 }

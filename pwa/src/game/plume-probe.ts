@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE SNOW IN THE AIR AS DRAWN — every grain and clump of the spray
-// (`spray.ts`) and every puff of the cloud (`snow-cloud.ts`) the last frame
+// (`spray.ts`, either way it is flown) and every puff of the cloud (`snow-cloud.ts`) the last frame
 // drew, read back off their instanced draws as `spray-film.ts`'s bits, so
 // the snow eval lab's film score measures exactly what the picture shows.
 // An instrument (`DevRenderer.plumes`), never read by the game.
@@ -8,6 +8,7 @@
 import type * as THREE from "three";
 
 import type { PlumeBit } from "./spray-film.ts";
+import type { Spray } from "./spray.ts";
 
 /** The bits one instanced draw holds: `spot` its xyz and size per instance
  * (`across` true when the size is a diameter), `alpha` the attribute and
@@ -40,10 +41,15 @@ function readDraw(
   }
 }
 
-/** The spray's and the cloud's bits, the spray's first. */
-export function plumeBits(spray: THREE.Object3D | null, cloud: THREE.Object3D | null): PlumeBit[] {
+/** The spray's and the cloud's bits, the spray's first — the spray's off
+ * the spray itself, which knows how it flies them (`Spray.bits`: the CPU's
+ * draw read back, or the GPU ring flown to the moment). */
+export function plumeBits(
+  spray: Pick<Spray, "bits"> | null,
+  cloud: THREE.Object3D | null,
+): PlumeBit[] {
   const out: PlumeBit[] = [];
-  readDraw(spray, "aSpot", true, "aMove", 3, out);
+  spray?.bits(out);
   readDraw(cloud, "iPos", false, "iLook", 0, out);
   return out;
 }

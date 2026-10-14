@@ -110,6 +110,7 @@ import {
   FOREST_LOOK,
   RESOLUTION_SHARE,
   SHADOW_LOOK,
+  SPRAY_GPU,
   SPRAY_SHARE,
   TRAIL_LOOK,
   terrainLook,
@@ -529,6 +530,7 @@ export function createWorldRenderer(
       spray = createSpray(env.haze);
       spray.points.name = "spray";
       spray.setBudget(SPRAY_SHARE[video.spray]);
+      spray.setFlight?.(SPRAY_GPU[video.spray]);
       scene.add(spray.points);
       cloud = createSnowCloud(env.haze);
       cloud.mesh.name = "snow-cloud";
@@ -859,7 +861,7 @@ export function createWorldRenderer(
 
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
-    plumes: () => plumeBits(spray?.points ?? null, cloud?.mesh ?? null),
+    plumes: () => plumeBits(spray, cloud?.mesh ?? null),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {
       overlayOn = on;
@@ -944,6 +946,7 @@ export function createWorldRenderer(
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
+      spray?.setFlight?.(SPRAY_GPU[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);
       lifts?.setBudget(SPRAY_SHARE[video.spray]);
       snowfall.setBudget(SPRAY_SHARE[video.spray]);

@@ -89,6 +89,12 @@ export const FLOOR_MS = 3.81;
  * (SKIERS) are what sets a skier on the snow; HIGH only sharpens the
  * skiers'.
  * SPRAY: a share of the roost and the cloud; the lowest still throws some.
+ *   Its grains are flown on the GPU at every stop now (`SPRAY_GPU`): the
+ *   CPU's spray time fell by a third to two thirds and its upload by seven
+ *   eighths under the snow lab's software GPU, while the vertex stage flies
+ *   a ring half as large again as the pool. The prices below were measured
+ *   with the CPU's flight; a `make bench ARGS="--gpu --costs"` on a real GPU
+ *   is owed to re-price the row.
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
  * the lower stops give up, and LOW the snow's glitter in the beams. The

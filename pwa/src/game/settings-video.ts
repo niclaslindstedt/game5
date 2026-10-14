@@ -333,6 +333,16 @@ export const SHADOW_LOOK: Record<ShadowLevel, ShadowLook> = {
 /** SPRAY: the share of every emission rate, and of the particle pool. */
 export const SPRAY_SHARE: Record<Tier, number> = { low: 0.35, medium: 0.65, high: 1 };
 
+/** SPRAY: whether the weighed spray is FLOWN ON THE GPU (`gpu-spray.ts`:
+ * each parcel written once when thrown and flown in the vertex shader) or
+ * stepped and re-sent every frame on the CPU (`spray.ts`'s pool). The same
+ * snow and the same draw either way; the GPU flight spares the CPU its step
+ * and its upload at every stop (`make snow-eval`'s perf rows). Measured on a
+ * 40 km/h stop: the spray's CPU time 1.2–2.3 ms → 0.45–0.9 ms and its upload
+ * 66–173 KB → 9–23 KB a frame, with as many grains in the air and the same
+ * draw calls. LOW's machines gain too, so every stop flies on the GPU. */
+export const SPRAY_GPU: Record<Tier, boolean> = { low: true, medium: true, high: true };
+
 /** LAMPS: how many of the lamp slots (`haze.ts`'s `LAMP_SLOTS`) are dealt
  * after dark (`headlamp.ts`'s `dealLamps`) — his own headlamp first, then
  * the nearest of the rest. Every shader stops at the first empty slot, so a

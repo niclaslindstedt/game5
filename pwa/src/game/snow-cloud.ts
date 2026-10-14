@@ -57,7 +57,8 @@ import { CLOUD_FRAGMENT, CLOUD_VERTEX, makeRandom, noiseTexture } from "./snow-c
 import { skiShares, stationOf } from "./ski-stand.ts";
 import type { SkyLook } from "./sky.ts";
 import { edgeSlips, emptySlip, type EdgeSlip } from "./spray-sim.ts";
-import { dustOf, MASS } from "./spray-mass.ts";
+import { MASS } from "./spray-mass.ts";
+import { dustOf } from "./spray-mass-pool.ts";
 import {
   flyPuff,
   carveOf,

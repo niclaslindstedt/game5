@@ -6,7 +6,10 @@
 // glacier glasses — and the RACER (`scripts/blender/racer.py`) — a national
 // team's printed race suit over a back protector, the bib, the slalom's
 // guards and a race helmet with its chin guard, the parts a discipline does
-// not wear left off (`RACE_KITS`). Each is skinned on the very rig the
+// not wear left off (`RACE_KITS`) — and the FREESTYLE rider
+// (`scripts/blender/freestyle.py`) — a park rider's tall baggy jacket and
+// loose pants stacked over the boots, a soft park helmet and big goggles,
+// his hood up over it and a gaiter, hers down on her back. Each is skinned on the very rig the
 // dressed skier is bound on
 // (`dress-loft.ts`'s `bindPose`, bone for bone by name). So it is handed to
 // `skier-dress.ts` as the dressed skin's two parts and every pose the game
@@ -24,8 +27,9 @@
 //   tuck lets it hang down past his back.
 // - THE FLUTTER. Every vertex carries how loose it is (the builder's
 //   `FLUTTER`, carried as the UV's u): the hiker's dropped hem, straps' and
-//   rope's tails; the racer's bib, its hem and open sides freest, and a
-//   woman's braid. The cloth's vertex shader trails those points down the
+//   rope's tails; the racer's bib, its hem and open sides freest; the
+//   freestyle jacket's long skirt, hood and stacked cuffs; and a woman's
+//   braid. The cloth's vertex shader trails those points down the
 //   air past him and flaps them along their normal, harder the faster he
 //   goes — and, where the kit says (`KitDef.wind.lift`), FLOATS them off
 //   him while he falls free and slaps them down on a landing (`hang`, a
@@ -147,6 +151,18 @@ export const KITS: Record<ModelKit, KitDef> = {
     rough: 0.5,
     wind: { stream: 0.075, flap: 0.03, lift: 0.06, shiver: 0.0022 },
     raced: true,
+  },
+  freestyle: {
+    // The hood: up over the helmet (a man's), or down on the back (a woman's).
+    springs: [
+      { name: "fx_hood", parent: "chest", length: 0.2, hz: 2.2, zeta: 0.22, most: 0.32, gain: 0.7 },
+    ],
+    // The park helmet and its goggles.
+    hard: new Set(["helmet", "helmet_dark", "frame", "lens"]),
+    // Baggy cloth: matt, and it flaps.
+    rough: 0.86,
+    wind: { stream: 0.06, flap: 0.034, lift: 0.025, shiver: 0 },
+    raced: false,
   },
 };
 
@@ -313,7 +329,14 @@ export const modelKey = (kit: ModelKit, female: boolean): ModelKey =>
   female ? `${kit}-woman` : kit;
 
 /** Every model the build packs, each its own file (`<key>.glb`). */
-export const PLAYER_MODELS: readonly ModelKey[] = ["hiker", "hiker-woman", "racer", "racer-woman"];
+export const PLAYER_MODELS: readonly ModelKey[] = [
+  "hiker",
+  "hiker-woman",
+  "racer",
+  "racer-woman",
+  "freestyle",
+  "freestyle-woman",
+];
 
 /** The kit a model's key is of. */
 export const kitOf = (key: ModelKey): ModelKit => key.replace(/-woman$/, "") as ModelKit;

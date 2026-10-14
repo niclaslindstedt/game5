@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE PLAYER'S MODELLED KITS (`pwa/models/hiker.glb`, `racer.glb` and
-// their `-woman` twins, read by `player-model.ts`): bound on the dressed
+// THE PLAYER'S MODELLED KITS (`pwa/models/hiker.glb`, `racer.glb`,
+// `freestyle.glb` and their `-woman` twins, read by `player-model.ts`): bound on the dressed
 // skier's own rig so they are posed by every animation the game has, each
 // sized as the code's skier of that body is, reshaped by the WEIGHT row,
 // their loose parts marked for the flutter, and their spring bones swung
@@ -83,7 +83,7 @@ describe.each(PLAYER_MODELS)("the player's modelled kit %s", (key) => {
     // The same height to a few centimetres; a hiker's pack behind (−z).
     expect(Math.abs(ours.hi[1] - theirs.hi[1])).toBeLessThan(0.06);
     expect(Math.abs(ours.lo[1] - theirs.lo[1])).toBeLessThan(0.08);
-    if (kit.raced) return;
+    if (!springs.some((s) => s.name === "fx_pack")) return;
     expect(ours.lo[2]).toBeLessThan(theirs.lo[2] - 0.1);
     const pack = m.heads.fx_pack;
     expect(pack.z).toBeLessThan(bindPose().frames.chest.head.z);
@@ -126,7 +126,7 @@ describe.each(PLAYER_MODELS)("the player's modelled kit %s", (key) => {
     const swing = createSprings(frames, m.heads, springs);
     const world = new THREE.Matrix4();
     let t = 0;
-    const tailAt = () => swing.step(frames, world, t).frames[2];
+    const tailAt = () => swing.step(frames, world, t).frames[springs.length - 1];
     for (let i = 0; i < 30; i++, t += 1 / 60) tailAt();
     const still = tailAt().y;
     // Up to 10 m/s ahead, then a hard stop over a sixth of a second (six
@@ -181,11 +181,24 @@ describe.each(PLAYER_MODELS)("the player's modelled kit %s", (key) => {
 
   it("is a body picked on the rider card, never one dealt to a rival", () => {
     const hikers = BODIES.filter((b) => b.model);
-    expect(hikers.map((b) => b.id).sort()).toEqual(["hiker", "hikerWoman", "racer", "racerWoman"]);
-    expect(hikers.filter((b) => b.female).map((b) => b.id)).toEqual(["hikerWoman", "racerWoman"]);
-    expect(hikers.some((b) => b.id === DEFAULT_OUTFIT.body)).toBe(false);
+    expect(hikers.map((b) => b.id).sort()).toEqual([
+      "freestyle",
+      "freestyleWoman",
+      "hiker",
+      "hikerWoman",
+      "racer",
+      "racerWoman",
+    ]);
+    expect(hikers.filter((b) => b.female).map((b) => b.id)).toEqual([
+      "hikerWoman",
+      "racerWoman",
+      "freestyleWoman",
+    ]);
+    // The default is the AUTO man, the kit of the run's mode (`rider-pick.ts`).
+    expect(gearOf("body", DEFAULT_OUTFIT.body).auto).toBe(true);
+    const picked = BODIES.filter((b) => b.model || b.auto);
     for (let i = 0; i < 64; i++)
-      expect(hikers.some((b) => b.id === dealtOutfit(i * 7919 + 13, "medium").body)).toBe(false);
+      expect(picked.some((b) => b.id === dealtOutfit(i * 7919 + 13, "medium").body)).toBe(false);
   });
 
   it("wears its discipline's kit: each part a discipline leaves off is the model's own", async () => {

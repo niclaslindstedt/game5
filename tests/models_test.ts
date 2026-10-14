@@ -51,12 +51,19 @@ const matNames = (file: string): string[] =>
     ...readFileSync(join(root, "scripts", "blender", file), "utf8").matchAll(/= mat\("([\w]+)"/g),
   ].map((m) => m[1]);
 
-const PLAYER = ["hiker.glb", "hiker-woman.glb", "racer.glb", "racer-woman.glb"];
+const PLAYER = [
+  "hiker.glb",
+  "hiker-woman.glb",
+  "racer.glb",
+  "racer-woman.glb",
+  "freestyle.glb",
+  "freestyle-woman.glb",
+];
 
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the player's hiker and racer, man and woman", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the player's hiker, racer and freestyle rider, man and woman", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
@@ -69,6 +76,8 @@ describe("the models the game ships", () => {
         "hiker-woman.glb",
         "racer.glb",
         "racer-woman.glb",
+        "freestyle.glb",
+        "freestyle-woman.glb",
       ].sort(),
     );
     const none = {

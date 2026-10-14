@@ -201,6 +201,26 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "air and the suit shivers on its lee side; never dealt to a rival",
   },
   {
+    asset: "Freestyle kit",
+    ids: ["freestyle", "freestyle-woman"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
+    drawnBy: "pwa/src/game/player-model.ts",
+    blender: {
+      builder: "scripts/blender/freestyle.py",
+      files: ["freestyle.glb", "freestyle-woman.glb"],
+      pattern: "<id>.glb",
+      switch: "VITE_MODEL_PLAYER",
+    },
+    note:
+      "the PARK bodies on the rider card, a man and a woman, and the AUTO body's kit on a tricks " +
+      "run and every freestyle contest: a tall baggy jacket to mid-thigh, loose pants stacked " +
+      "over the boots, a soft park helmet and big goggles; his hood up over the helmet with the " +
+      "strap over it and a gaiter, hers down on her back and her braid over the shoulder; the " +
+      "skirt, the hood and the stacked cuffs stream and flap in the air, the hood on a spring " +
+      "bone; never dealt to a rival",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

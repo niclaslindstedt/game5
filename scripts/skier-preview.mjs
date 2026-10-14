@@ -120,7 +120,7 @@ const args = parseArgs(
     body: {
       kind: "string",
       default: "",
-      help: "slot 0's body by its outfit id (hiker, hikerWoman, racer, racerWoman: the modelled kits)",
+      help: "slot 0's body by its outfit id (hiker, hikerWoman, racer, racerWoman, freestyle, freestyleWoman: the modelled kits)",
     },
     weight: {
       kind: "string",

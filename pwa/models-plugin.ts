@@ -74,9 +74,16 @@ export const GROOMER_FILE = "groomer.glb";
 export const PLANE_FILE = "plane.glb";
 
 /** The player's modelled kits' files, a man's and a woman's of each kit
- * (`make blender KIND=hiker ID=all`'s and `KIND=racer ID=all`'s LOD0s;
- * `player-model.ts`'s `PLAYER_MODELS`). */
-export const PLAYER_FILES = ["hiker.glb", "hiker-woman.glb", "racer.glb", "racer-woman.glb"];
+ * (`make blender KIND=hiker ID=all`'s, `KIND=racer ID=all`'s and
+ * `KIND=freestyle ID=all`'s LOD0s; `player-model.ts`'s `PLAYER_MODELS`). */
+export const PLAYER_FILES = [
+  "hiker.glb",
+  "hiker-woman.glb",
+  "racer.glb",
+  "racer-woman.glb",
+  "freestyle.glb",
+  "freestyle-woman.glb",
+];
 
 /** Every file a build with these switches packs, by its published name —
  * or only one half's (`MODEL_HALVES`). */
@@ -174,9 +181,11 @@ export const PLAYER_SOURCES = [
   "scripts/blender.mjs",
   "scripts/blender/kinds/hiker.mjs",
   "scripts/blender/kinds/racer.mjs",
+  "scripts/blender/kinds/freestyle.mjs",
   "scripts/blender/lib.py",
   "scripts/blender/hiker.py",
   "scripts/blender/racer.py",
+  "scripts/blender/freestyle.py",
   "pwa/src/game/skier-rig.ts",
   "pwa/src/game/helmet-shape.ts",
   "pwa/src/game/dress-body.ts",

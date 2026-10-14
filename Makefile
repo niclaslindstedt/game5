@@ -398,7 +398,7 @@ blender:
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker and racer, man and woman) makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, racer and freestyle rider, man and woman) makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0,
@@ -415,6 +415,7 @@ models:
 	$(if $(filter all plane,$(or $(KIND),all)),npm run blender -- --kind plane --quality=game --views=none,)
 	$(if $(filter all player,$(or $(KIND),all)),npm run blender -- --kind hiker --id all --quality=game --views=none,)
 	$(if $(filter all player,$(or $(KIND),all)),npm run blender -- --kind racer --id all --quality=game --views=none,)
+	$(if $(filter all player,$(or $(KIND),all)),npm run blender -- --kind freestyle --id all --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender

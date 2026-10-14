@@ -184,11 +184,28 @@ export const BIKE = {
    * the rear wheel, 120 rpm — spun out near 55 km/h). */
   pedal: { power: 900, critical: 350, reserve: 20_000, push: 330, rollout: 7.7, cadence: 120 },
 
+  /** THE CRANKS ON A COAST: a downhill rider stops pedalling with his
+   * cranks LEVEL, his lead foot forward (the left here, a regular stance),
+   * and drops the outside pedal into a hard flat turn. `rate` the most the
+   * cranks are turned to that, rad/s (a quarter turn in about half a
+   * second, freewheeling backward or turned forward the short way);
+   * `settle` how fast they close on it, 1/s; `drop` the bike's roll at
+   * which the outside pedal is all the way down, rad, and `share` how far
+   * down it goes there (a berm is ridden near level, a flat turn foot
+   * down). Drawn only: nothing in the physics reads the cranks. */
+  coast: { rate: 3, settle: 6, drop: 0.75, share: 0.85 },
+
   /** THE HANDS: what the rider does with the bars to keep it up — the steer
    * aimed at a lean, which the bars are held to by `hold` N·m/rad and
    * `still` N·m·s/rad up to `most` N·m; the balance's natural frequency,
-   * rad/s, and damping ratio; the tightest radius asked of the bars, m;
-   * the share of the grip a turn is asked to lean on. Below `slow` m/s his
+   * rad/s, and damping ratio; the radius the bars' knee asks at a crawl, m
+   * (a full lock tighter); the share of the grip a turn is asked to lean
+   * on up to the bars' `knee`, and past it (`over` with the assist's hands,
+   * `reach` without) — more than the tyres hold, so a turn asked that tight
+   * puts him down; the time the hands take onto a new ask, s; and his BODY
+   * laying the bike over toward the lean asked, N·m/rad and N·m·s/rad —
+   * eased off as the front nears its grip (`easeOff`) and past `save` rad,
+   * where he can no longer lever it back up. Below `slow` m/s his
    * knees and hips help (`docs/downhill-bike.md`: at a crawl riders steer
    * harder and move their knees), faded out by `fast`; under `dab` m/s he
    * puts a foot down. */
@@ -201,8 +218,14 @@ export const BIKE = {
     zeta: 0.8,
     tightest: 2.5,
     grip: 0.8,
-    reach: 1.25,
-    ease: 0.25,
+    knee: 0.75,
+    /** The throw past the knee comes in `after` s after it is reached,
+     * over `over` s. */
+    past: { after: 0.35, over: 0.3 },
+    over: 1.3,
+    reach: 1.5,
+    ease: 0.1,
+    body: { rate: 4000, damping: 700, easeOff: 0.9, save: 0.95 },
     slow: 2.5,
     fast: 4,
     knees: { rate: 900, damping: 260 },

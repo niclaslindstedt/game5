@@ -27,6 +27,7 @@ import { newsFor } from "../pwa/src/game/run-news.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
 import { boardUnderFeet } from "../pwa/src/game/board-thrown.ts";
 import { createLimbEase, easeLimbs } from "../pwa/src/game/board-ease.ts";
+import { LEG_SPAN } from "../pwa/src/game/board-reach.ts";
 import {
   boardPose,
   headForward,
@@ -193,6 +194,25 @@ describe("the snowboarder's pose", () => {
     const along = Math.abs(dot(unit(toes), bp.board.along));
     expect(input.drive).toBeGreaterThan(0.5);
     expect(along).toBeLessThan(Math.sin((25 * Math.PI) / 180));
+  });
+
+  it("keeps every leg its length: the skate's push drawn in, a grab's board stopped at the knees", () => {
+    // A cuff out of a leg's span is a shin the rig stretches (`make anim`).
+    const inLeg = (bp: BoardPose, what: string): void => {
+      for (let i = 0; i < 2; i++) {
+        const d = len(sub(bp.pose.feet[i], bp.pose.hipJoints[i]));
+        expect(d, `${what} leg ${i}`).toBeLessThanOrEqual(LEG_SPAN.most + 1e-6);
+        expect(d, `${what} leg ${i}`).toBeGreaterThanOrEqual(LEG_SPAN.least - 1e-6);
+      }
+    };
+    const { input } = at("skate");
+    for (let k = 0; k < 20; k++) {
+      const stride = Math.floor(input.stride) + k / 20;
+      inLeg(boardPose({ ...input, stride, drive: 1, freeShare: 1 }), `skate at ${k / 20}`);
+    }
+    const air = at("straight").input;
+    for (const grab of ["indy", "mute", "melon", "stalefish", "method", "nose", "tail"] as const)
+      inLeg(boardPose({ ...air, air: 1, grab, grabShare: 1 }), grab);
   });
 
   it("eases the limbs between frames: an elbow flipped comes round, a hand never jumps", () => {

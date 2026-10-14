@@ -11,20 +11,30 @@
 // is a lump with an edge. A streak is thinned by its length, so a fast
 // grain is not brighter than a slow one.
 //
-// They are lit as the snow is — the sun's colour on the lit side, the
-// sky's blue in shade — GLOW against a low sun (a thin sheet of ice
-// scatters forward: spray seen into the sun is silver), GLINT as the
-// crystals turn (more off new snow than wet), and fade into the same haze.
+// A grain is a little VOLUME — a few jittered sub-grains in a haze of fines
+// — and a clump a ragged faceted lump. They are lit by the sky's own names
+// (`snow-air-light.ts`: the key by height, through the weather's cloud and
+// past the mountain, and the sky's irradiance round it), so a spray in the
+// mountain's shade is blue and never glows white; they SCATTER FORWARD
+// (Henyey–Greenstein, g 0.78, weighted to the thin parts: spray seen into a
+// low sun is a silver or gold sheet), GLINT as the crystals turn (more off
+// new snow than wet), take the lamps' light after dark and nothing else,
+// and fade into the same haze.
 // The fine powder that hangs is `snow-cloud.ts`'s.
 
 import * as THREE from "three";
 import type { Level, SkierState } from "@engine";
 
-import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
-import { SHELTER, SHELTER_GLSL } from "./shelter.ts";
+import type { HazeUniforms } from "./haze.ts";
+import { SHELTER } from "./shelter.ts";
 import type { SkyLook } from "./sky.ts";
+import { airLightUniforms, setAirKey } from "./snow-air-light.ts";
+import { SPRAY_FRAGMENT, sprayVertex } from "./spray-glsl.ts";
 import type { AgedSnow, SnowProps } from "./snowpack.ts";
+import { createGpuSpray } from "./gpu-spray.ts";
+import type { PlumeBit } from "./spray-film.ts";
 import { createSprayPool, SPRAY_MODEL, type SprayModel } from "./spray-sim.ts";
+import { SPRAY_STATS } from "./spray-stats.ts";
 
 export { heavyShare } from "./spray-sim.ts";
 
@@ -80,12 +90,28 @@ export type Spray = {
   /** The SPRAY row: the share, 0..1, of every emission rate and of the pool
    * the particles are flown from. */
   setBudget(share: number): void;
+  /** The SPRAY row's other half: fly the weighed spray on the GPU
+   * (`gpu-spray.ts`) or the CPU (the pool here) — the same snow either way.
+   * Only the wrapper `createSpray` makes switches; a lone flyer ignores it. */
+  setFlight?(onGpu: boolean): void;
+  /** Every grain the last frame drew, as the snow eval lab's film score
+   * reads them (`plume-probe.ts`). */
+  bits(out: PlumeBit[]): void;
   /** How a grain flies (`spray-sim.ts`'s `SprayModel`) — the game flies
    * `SPRAY_MODEL`; the labs fly each candidate. */
   setModel(model: SprayModel): void;
   clear(): void;
   dispose(): void;
 };
+
+/** A LAB'S SWITCH over the SPRAY row's flight: `null` the row's own. */
+let flightFor: boolean | null = null;
+
+/** A LAB'S SWITCH: fly every spray made after this on the GPU (`true`), on
+ * the CPU (`false`), or as the SPRAY row says (`null`). */
+export function flySprayOn(onGpu: boolean | null): void {
+  flightFor = onGpu;
+}
 
 /** The model every spray made from now on flies — `SPRAY_MODEL` unless a
  * lab says otherwise (`flySprayAs`, the spray lab's `?spray=`). */
@@ -96,16 +122,100 @@ export function flySprayAs(model: SprayModel): void {
   flown = model;
 }
 
+/** What the CPU's draw reads per grain: its place and size, its motion
+ * and opacity, and what it is. */
+const CPU_SOURCE = /* glsl */ `
+  attribute vec4 aSpot;
+  attribute vec4 aMove;
+  attribute vec3 aKind;
+  bool sprayParcel(out vec3 world, out vec3 move, out float size, out float alpha,
+                   out float hard, out float glint, out float seed) {
+    world = aSpot.xyz;
+    move = aMove.xyz;
+    size = aSpot.w;
+    alpha = aMove.w;
+    hard = aKind.x;
+    glint = aKind.y;
+    seed = aKind.z;
+    return true;
+  }
+`;
+
+/** THE SPRAY: both ways of flying it behind one face, the SPRAY row's
+ * stop choosing (`setFlight`), each made the first time it is asked for.
+ * The counted models (the labs' before) fly on the CPU only. */
 export function createSpray(haze: HazeUniforms): Spray {
+  const group = new THREE.Group();
+  let cpu: Spray | null = null;
+  let gpu: Spray | null = null;
+  let share = 1;
+  let scale = 600;
+  let gpuWanted = false;
+  let current: SprayModel = flown;
+  const model = (): SprayModel => current;
+  const make = (onGpu: boolean): Spray => {
+    const made = onGpu
+      ? (gpu ??= createGpuSpray(haze, CAPACITY, SHUTTER))
+      : (cpu ??= createCpuSpray(haze));
+    made.setBudget(share);
+    made.setScale(scale);
+    return made;
+  };
+  let live = make(false);
+  group.add(live.points);
+  const choose = () => {
+    const onGpu = (flightFor ?? gpuWanted) && model() === "mass";
+    const next = make(onGpu);
+    if (next === live) return;
+    live.clear();
+    group.remove(live.points);
+    live = next;
+    group.add(live.points);
+  };
+  return {
+    points: group,
+    emit: (...a) => live.emit(...a),
+    burst: (...a) => live.burst(...a),
+    fling: (...a) => live.fling(...a),
+    update: (dt, look, level) => live.update(dt, look, level),
+    setScale(v) {
+      scale = v;
+      live.setScale(v);
+    },
+    setBudget(next) {
+      share = next;
+      live.setBudget(next);
+    },
+    setFlight(onGpu) {
+      gpuWanted = onGpu;
+      choose();
+    },
+    setModel(next) {
+      current = next;
+      cpu?.setModel(next);
+      choose();
+    },
+    clear: () => live.clear(),
+    bits: (out) => live.bits(out),
+    dispose() {
+      cpu?.dispose();
+      gpu?.dispose();
+    },
+  };
+}
+
+/** THE CPU SPRAY: the pool flown here in plain arrays, its live grains
+ * packed into the instance buffer every frame. */
+function createCpuSpray(haze: HazeUniforms): Spray {
   const pool = createSprayPool(CAPACITY);
   pool.model = flown;
   // Per grain: where and how big (xyz, size), how it moves and how opaque
-  // (xyz, alpha), and what it is (hardness, glint).
+  // (xyz, alpha), and what it is (hardness, glint, its own seed).
   const a0 = new Float32Array(CAPACITY * 4);
   const a1 = new Float32Array(CAPACITY * 4);
-  const a2 = new Float32Array(CAPACITY * 2);
+  const a2 = new Float32Array(CAPACITY * 3);
   // Each drawn grain's age, s, in draw order: never uploaded — the snow
-  // eval lab's measure reads it off `geometry.userData` (`plume-probe.ts`).
+  // eval lab's measure reads it (`bits`, `plume-probe.ts`).
   const ages = new Float32Array(CAPACITY);
 
   const geometry = new THREE.InstancedBufferGeometry();
@@ -116,18 +226,16 @@ export function createSpray(haze: HazeUniforms): Spray {
   geometry.setIndex([0, 1, 2, 0, 2, 3]);
   const at0 = new THREE.InstancedBufferAttribute(a0, 4).setUsage(THREE.DynamicDrawUsage);
   const at1 = new THREE.InstancedBufferAttribute(a1, 4).setUsage(THREE.DynamicDrawUsage);
-  const at2 = new THREE.InstancedBufferAttribute(a2, 2).setUsage(THREE.DynamicDrawUsage);
+  const at2 = new THREE.InstancedBufferAttribute(a2, 3).setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute("aSpot", at0);
   geometry.setAttribute("aMove", at1);
   geometry.setAttribute("aKind", at2);
   geometry.instanceCount = 0;
-  geometry.userData.age = ages;
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
       ...haze,
-      uLit: { value: new THREE.Color(1, 1, 1) },
-      uShade: { value: new THREE.Color(0.6, 0.7, 0.9) },
+      ...airLightUniforms(),
       uScale: { value: 600 },
       uShutter: { value: SHUTTER },
       // 0 draws every grain round (the `puff` model), 1 streaked.
@@ -135,89 +243,8 @@ export function createSpray(haze: HazeUniforms): Spray {
       uTime: { value: 0 },
       ...SHELTER,
     },
-    vertexShader: /* glsl */ `
-      attribute vec4 aSpot;
-      attribute vec4 aMove;
-      attribute vec2 aKind;
-      uniform float uScale;
-      uniform float uShutter;
-      uniform float uStreak;
-      varying vec2 vUv;
-      varying float vAlpha;
-      varying float vHard;
-      varying float vGlint;
-      varying float vUp;
-      varying vec3 vWorld;
-      void main() {
-        vec3 world = aSpot.xyz;
-        vec4 head = modelViewMatrix * vec4(world, 1.0);
-        // The streak: where it was a shutter ago, a clump streaked less.
-        vec3 back = world - aMove.xyz * uShutter * uStreak * (1.0 - 0.75 * aKind.x);
-        vec4 tail = modelViewMatrix * vec4(back, 1.0);
-        float depth = max(-head.z, 0.1);
-        // Never thinner than about a pixel at its distance, so a far sheet
-        // still reads as a fan rather than vanishing.
-        float r = max(0.5 * aSpot.w, 0.9 * depth / uScale);
-        vec2 d = head.xy - tail.xy;
-        float len = length(d);
-        vec2 axis = len > 1e-4 ? d / len : vec2(0.0, 1.0);
-        vec2 side = vec2(-axis.y, axis.x);
-        vec3 mid = 0.5 * (head.xyz + tail.xyz);
-        float along = r + 0.5 * len;
-        vec3 at = mid + vec3(axis * along * position.x + side * r * position.y, 0.0);
-        vUv = position.xy;
-        // Thinned by its length: the same light spread down a longer stroke —
-        // and let go of close to the lens, where a grain would be an egg
-        // across the picture rather than a grain.
-        vAlpha = aMove.w * sqrt(r / along) * smoothstep(0.7, 2.2, depth);
-        vHard = aKind.x;
-        vGlint = aKind.y;
-        vUp = (axis * along * position.x + side * r * position.y).y / max(along, r);
-        vWorld = world;
-        if (aMove.w <= 0.0) at = vec3(0.0, 0.0, 1.0); // dead: behind the lens
-        gl_Position = projectionMatrix * vec4(at, 1.0);
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      ${SKY_GLSL}
-      ${SHELTER_GLSL}
-      uniform vec3 uLit;
-      uniform vec3 uShade;
-      uniform float uTime;
-      varying vec2 vUv;
-      varying float vAlpha;
-      varying float vHard;
-      varying float vGlint;
-      varying float vUp;
-      varying vec3 vWorld;
-      void main() {
-        float r = dot(vUv, vUv);
-        if (r > 1.0 || sheltered(vWorld)) discard;
-        // A grain is soft to its rim; a clump is a lump with an edge.
-        float soft = mix((1.0 - r) * (1.0 - r), smoothstep(1.0, 0.55, r), vHard);
-        // Its top is lit, its underside in the sky's blue; a clump more so.
-        float lit = clamp(0.45 + vUp * 0.55 * (1.0 + vHard), 0.0, 1.0);
-        vec3 col = mix(uShade * (1.0 - 0.3 * vHard), uLit, lit);
-        // FORWARD SCATTER: grains of ice seen against the sun glow.
-        vec3 ray = vWorld - cameraPosition;
-        float d = length(ray);
-        vec3 view = ray / max(d, 1e-3);
-        float toward = max(dot(view, normalize(uSunDir)), 0.0);
-        col += uSunCol * (0.5 * pow(toward, 6.0) + 0.6 * pow(toward, 40.0)) * (1.0 - vHard) * step(0.0, uSunDir.y);
-        // GLINTS: a crystal catching the sun as it turns, now and then.
-        float flick = fract(sin(dot(floor(vWorld * 40.0), vec3(12.9898, 78.233, 37.719)) + uTime * 3.0) * 43758.5453);
-        col += uSunCol * vGlint * step(0.93, flick) * (1.0 - r) * 1.5;
-        gl_FragColor = vec4(col, soft * vAlpha);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-        vec3 hz = hazeColour(view);
-        #if defined(TONE_MAPPING)
-          hz = toneMapping(hz);
-        #endif
-        hz = linearToOutputTexel(vec4(hz, 1.0)).rgb;
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, hz, hazeAmount(d, ray.y));
-      }
-    `,
+    vertexShader: sprayVertex(CPU_SOURCE),
+    fragmentShader: SPRAY_FRAGMENT,
     transparent: true,
     depthWrite: false,
   });
@@ -227,24 +254,16 @@ export function createSpray(haze: HazeUniforms): Spray {
 
   return {
     points: mesh,
-    emit: pool.emit,
+    emit(skier, level, dt, landed, snow) {
+      const began = SPRAY_STATS.on ? performance.now() : 0;
+      pool.emit(skier, level, dt, landed, snow);
+      if (SPRAY_STATS.on) SPRAY_STATS.cpuMs += performance.now() - began;
+    },
     burst: pool.burst,
     fling: pool.fling,
     update(dt, look, level) {
-      const lit = material.uniforms.uLit.value as THREE.Color;
-      const shade = material.uniforms.uShade.value as THREE.Color;
-      const sun = look.keyIntensity * 0.34;
-      const sky = look.ambient * 0.55;
-      lit.setRGB(
-        look.keyColour[0] * sun + look.skyLight[0] * sky,
-        look.keyColour[1] * sun + look.skyLight[1] * sky,
-        look.keyColour[2] * sun + look.skyLight[2] * sky,
-      );
-      shade.setRGB(
-        look.skyLight[0] * sky * 1.2,
-        look.skyLight[1] * sky * 1.2,
-        look.skyLight[2] * sky * 1.25,
-      );
+      const began = SPRAY_STATS.on ? performance.now() : 0;
+      setAirKey(material.uniforms.uKeyCol.value as THREE.Color, look);
       material.uniforms.uTime.value += dt;
       pool.step(dt, level);
       // Pack the live grains to the front of the instance buffer: the draw
@@ -262,8 +281,11 @@ export function createSpray(haze: HazeUniforms): Spray {
         a1[n * 4 + 1] = vel[k + 1];
         a1[n * 4 + 2] = vel[k + 2];
         a1[n * 4 + 3] = alpha[i];
-        a2[n * 2] = hard[i];
-        a2[n * 2 + 1] = glint[i];
+        a2[n * 3] = hard[i];
+        a2[n * 3 + 1] = glint[i];
+        // Its own seed off its slot, steady for its life: its ragged rim
+        // and its wisp's noise do not boil from frame to frame.
+        a2[n * 3 + 2] = (i * 0.618034) % 1;
         ages[n] = age[i];
         n++;
       }
@@ -274,10 +296,28 @@ export function createSpray(haze: HazeUniforms): Spray {
         at2.clearUpdateRanges();
         at0.addUpdateRange(0, n * 4);
         at1.addUpdateRange(0, n * 4);
-        at2.addUpdateRange(0, n * 2);
+        at2.addUpdateRange(0, n * 3);
         at0.needsUpdate = true;
         at1.needsUpdate = true;
         at2.needsUpdate = true;
+      }
+      if (SPRAY_STATS.on) {
+        SPRAY_STATS.cpuMs += performance.now() - began;
+        // Every live grain sent whole each frame: three attributes of it.
+        SPRAY_STATS.bytes += n * 44;
+        SPRAY_STATS.live = n;
+      }
+    },
+    bits(out) {
+      for (let n = 0; n < geometry.instanceCount; n++) {
+        out.push({
+          x: a0[n * 4],
+          y: a0[n * 4 + 1],
+          z: a0[n * 4 + 2],
+          r: a0[n * 4 + 3] / 2,
+          a: a1[n * 4 + 3],
+          age: ages[n],
+        });
       }
     },
     setScale(v) {

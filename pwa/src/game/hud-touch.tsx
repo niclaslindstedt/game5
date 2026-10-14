@@ -37,6 +37,9 @@ import {
   barSteer,
   createJumpTap,
   edgeReachPx,
+  createFlick,
+  flickDown,
+  flickMove,
   jumpTapDown,
   jumpTapUp,
   leverBrake,
@@ -261,6 +264,24 @@ function PadArt({ glyph }: { glyph: PadGlyph }) {
       </>
     );
   }
+  if (glyph === "bike") {
+    // THE DOWNHILL BIKE from the saddle: the front tyre running up the
+    // glass ahead of the bars, the riser bar across with its grips and the
+    // stem, all turned about the head as the bars are.
+    return (
+      <>
+        <rect x="44" y="4" width="12" height="42" rx="6" class="hud-bar-wing" />
+        {[12, 20, 28, 36].map((y) => (
+          <line key={y} x1="46.5" y1={y} x2="53.5" y2={y} class="hud-bar-line" />
+        ))}
+        <line x1="50" y1="40" x2="50" y2="51" class="hud-bar-tube" />
+        <path d="M10 55Q30 50 50 50Q70 50 90 55" class="hud-bar-handle" />
+        <rect x="6" y="49" width="14" height="10" rx="4" class="hud-bar-grip" />
+        <rect x="80" y="49" width="14" height="10" rx="4" class="hud-bar-grip" />
+        <circle cx="50" cy="51" r="4.5" class="hud-bar-grip" />
+      </>
+    );
+  }
   // THE SKIS, the pair turning about the boots with the edge asked for.
   return (
     <>
@@ -283,8 +304,10 @@ const LEVER_BOX_PX = LEVER_DOWN_PX + LEVER_PAD_PX * 2;
 /** The right thumb: touching anywhere in the zone anchors the LEVER, WIDE
  * OPEN, under the finger. Sliding DOWN eases the tuck off over
  * `LEVER_EASE_PX` to shut; further down, past a small dead band, pulls the
- * BRAKE over `LEVER_BRAKE_PX`. A TAP and then the thumb held straight back
- * down LOADS THE JUMP (`jumpTapDown`) — the lever still under it — and
+ * BRAKE over `LEVER_BRAKE_PX`. A quick FLICK UP JUMPS (`flickMove`): the
+ * jump held for a load the flick's speed sets and let go, whether or not
+ * the thumb stays down. A TAP and then the thumb held straight back down
+ * LOADS THE JUMP too (`jumpTapDown`) — the lever still under it — and
  * lifting it springs him. Analogue the whole way, held while the finger
  * is down and let go on the lift. `input-model.ts` states the maths once. */
 export function LeverZone({
@@ -305,6 +328,8 @@ export function LeverZone({
   const fillRef = useRef<SVGRectElement>(null);
   const originRef = useRef(0);
   const tapRef = useRef(createJumpTap());
+  const flickRef = useRef(createFlick());
+  const flickTimer = useRef(0);
 
   const write = (tuck: number, brake: number): void => {
     touch.tuck = tuck;
@@ -328,6 +353,26 @@ export function LeverZone({
     fill.setAttribute("height", Math.abs(px - LEVER_EASE_PX).toFixed(1));
     fill.classList.toggle("hud-lever-fill-reverse", brake > 0);
   };
+  // A flick's jump is held for its load, then let go, off a timer of its
+  // own: the thumb may already be off the glass.
+  const flickAt = (y: number): void => {
+    const load = flickMove(flickRef.current, y, performance.now() / 1000);
+    if (load <= 0) return;
+    touch.flick = true;
+    leverRef.current?.classList.add("hud-lever-jump");
+    window.clearTimeout(flickTimer.current);
+    flickTimer.current = window.setTimeout(() => {
+      touch.flick = false;
+      if (!touch.jump) leverRef.current?.classList.remove("hud-lever-jump");
+    }, load * 1000);
+  };
+  useEffect(
+    () => () => {
+      window.clearTimeout(flickTimer.current);
+      touch.flick = false;
+    },
+    [touch],
+  );
   const letGo = (): void => {
     jumpTapUp(tapRef.current, performance.now() / 1000);
     touch.lever = false;
@@ -336,7 +381,7 @@ export function LeverZone({
     const lever = leverRef.current;
     if (lever) {
       lever.style.display = "none";
-      lever.classList.remove("hud-lever-jump");
+      if (!touch.flick) lever.classList.remove("hud-lever-jump");
     }
   };
   const letGoRef = useRef(letGo);
@@ -360,6 +405,7 @@ export function LeverZone({
           lever.style.display = "block";
         }
         touch.lever = true;
+        flickDown(flickRef.current, e.clientY, performance.now() / 1000);
         touch.jump = jumpTapDown(tapRef.current, performance.now() / 1000);
         if (touch.jump) touch.tap2 = true;
         lever?.classList.toggle("hud-lever-jump", touch.jump);
@@ -369,8 +415,13 @@ export function LeverZone({
         if (!guard.owns(e.pointerId)) return;
         const dy = e.clientY - originRef.current;
         write(leverTuck(dy, feel), leverBrake(dy, feel));
+        flickAt(e.clientY);
       }}
-      onPointerUp={(e) => guard.release(e.pointerId)}
+      onPointerUp={(e) => {
+        // A flick thrown off the glass ends on the lift: its last height counts.
+        if (guard.owns(e.pointerId)) flickAt(e.clientY);
+        guard.release(e.pointerId);
+      }}
       onPointerCancel={(e) => guard.release(e.pointerId)}
       onLostPointerCapture={(e) => guard.release(e.pointerId)}
     >

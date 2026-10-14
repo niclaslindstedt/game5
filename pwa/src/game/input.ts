@@ -77,7 +77,7 @@ import {
   type RideBindings,
   type RideMachine,
 } from "./settings-ride-keys.ts";
-import { gazeAllowed } from "./lift-gaze.ts";
+import { gazeAllowed, LIFT_GAZE } from "./lift-gaze.ts";
 
 export type { InputAction };
 
@@ -366,6 +366,9 @@ export function createInputManager(
   // LOOKING ROUND FROM THE LIFT (`lift-gaze.ts`): every drag on a run, which
   // the renderer takes only while a lift carries him.
   let carriedNow = false;
+  // How long the tuck has been held while carried, s (−1 once it turned
+  // into a look: nothing until it is let go).
+  let liftPress = 0;
   let onLook: (dx: number, dy: number, mouse: boolean) => void = () => {};
   let onLookHold: (on: boolean) => void = () => {};
   const gaze = watchGazeDrags(target, {
@@ -417,9 +420,20 @@ export function createInputManager(
       // A jump pressed and let go between two steps still reaches one.
       const held = jumped && !hands.jump ? { ...hands, jump: true } : hands;
       const input = sampleInput(model, held, touch, dt, reset, airborne, flying || !!inPlane);
-      // A thumb dragged to look round from the lift is no tuck held to skip it.
+      // A thumb dragged to look round from the lift is no tuck held to skip
+      // it, nor the press that throws him off a chair (`chair-hands.ts`):
+      // carried, the tuck reaches the engine only once it has been held
+      // `LIFT_GAZE.press` s without the finger moving off into a look, and
+      // a press that became a look counts for nothing until it is let go.
       carriedNow = gazeAllowed(lift);
-      if (carriedNow && gaze.dragging()) input.tuck = 0;
+      if (!carriedNow) liftPress = 0;
+      else if (gaze.dragging()) {
+        liftPress = -1;
+        input.tuck = 0;
+      } else if (input.tuck >= 0.5) {
+        if (liftPress >= 0) liftPress += dt;
+        if (liftPress < LIFT_GAZE.press) input.tuck = 0;
+      } else liftPress = 0;
       // Sat on the skid the helicopter's table is the hand: its four
       // controls.
       if (flying) input.heli = sampleHeli(heli, heliKeys, touch, dt);

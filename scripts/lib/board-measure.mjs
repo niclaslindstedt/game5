@@ -52,8 +52,10 @@ export const OWN = {
         hips: [0, 40],
         grab: [0, 0.05],
         // In the air the knees come up and the shins may lie level — all
-        // but a method's, which rise from the knees to the board behind.
-        shin: g === "method" ? [20, 90] : [0, 90],
+        // but a method's, which rise from the knees to the board behind
+        // (a few degrees less to the level off a kicker's lip, the whole
+        // of him still pitched up from the take-off).
+        shin: g === "method" ? [15, 90] : [0, 90],
       },
     ]),
   ),

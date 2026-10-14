@@ -25,10 +25,10 @@ import { FreestylePage } from "./menu-freestyle.tsx";
 import { StartPage } from "./menu-start.tsx";
 import { WherePage } from "./menu-where.tsx";
 import { stepAfter, stepBefore } from "./where-steps.ts";
-import { wingsuitOn } from "./free-ride.ts";
+import { bikeOn, seasonRide, summerOn, wingsuitOn } from "./free-ride.ts";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
-import { boardAllowed, kindPair, type Settings } from "./settings.ts";
+import { boardAllowed, kindPair, racesOpen, type Settings } from "./settings.ts";
 import type { StatsBook } from "./stats.ts";
 import { STRINGS } from "./strings.ts";
 import type { MenuPage } from "./url-params.ts";
@@ -70,10 +70,15 @@ export function MenuPages(p: {
     page === "tricks";
   // The other kind's pair is built with it where the gear card offers both.
   const spare = boardAllowed(p.mode) ? kindPair(settings, !isBoardId(p.skis)) : null;
+  // A SUMMER free ride stands him in summer, and on the bike where the
+  // ride begins on it.
+  const rideSeed = settings.ride.seed ?? p.startSeed;
+  const summer = p.mode === "free" && summerOn(settings.ride);
+  const bike = summer && bikeOn(seasonRide(settings.ride, rideSeed), rideSeed);
   useEffect(() => {
-    if (ahead) warmStage(p.skis, settings.outfit, spare);
+    if (ahead) warmStage(p.skis, settings.outfit, spare, { summer, bike });
     else if (page !== "dress" && page !== "skis") coolStage();
-  }, [ahead, page, p.skis, settings.outfit, spare]);
+  }, [ahead, page, p.skis, settings.outfit, spare, summer, bike]);
   useEffect(() => coolStage, []);
   const back = (): void => setPage("root");
   /** The three ways onto the snow go back to PLAY's page, which opened them. */
@@ -156,7 +161,9 @@ export function MenuPages(p: {
             setPage(to === "root" && race ? "races" : to === "root" && trick ? "freestyle" : to);
           }}
           onRide={p.mode === "free" ? p.onFreeRide : p.onRide}
-          noSkis={p.mode === "free" && wingsuitOn(settings.ride, settings.ride.seed ?? p.startSeed)}
+          noSkis={p.mode === "free" && wingsuitOn(settings.ride, rideSeed)}
+          summer={summer}
+          bike={bike}
         />
       ) : page === "start" ? (
         <StartPage
@@ -172,7 +179,12 @@ export function MenuPages(p: {
           settings={settings}
           seed={p.startSeed}
           onSettings={setSettings}
-          onBack={() => setPage(stepBefore(page, settings.ride.face))}
+          onBack={() => {
+            // PLAY's page stands only while the races are let out; shut,
+            // PLAY came straight here from the door.
+            const to = stepBefore(page, settings.ride.face);
+            setPage(to === "play" && !racesOpen(settings) ? "root" : to);
+          }}
           onNext={() => setPage(stepAfter(page, settings.ride.face))}
         />
       ) : page === "gallery" ? (

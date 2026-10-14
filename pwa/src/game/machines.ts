@@ -15,22 +15,17 @@
 // plane's lenses while he rides them, flown onto them and off them.
 
 import * as THREE from "three";
-import {
-  bikePose,
-  planeBoxes,
-  stripBoxes,
-  type GameState,
-  type Level,
-  type StripBox,
-} from "@engine";
+import { planeBoxes, stripBoxes, type GameState, type Level, type StripBox } from "@engine";
 
 import type { Ladder } from "./camera.ts";
 import { heliHull, type SolidBox } from "./camera-clear.ts";
 import type { LensPose, RigPose, Vec3 } from "./camera-rigs.ts";
 import { ridingSled, sledRigPose, SLED_RIGS } from "./camera-sled.ts";
 import { bikeRigPose, BIKE_RIGS, ridingBike } from "./camera-bike.ts";
+import { animatedStyle } from "./bike-anim.ts";
+import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
-import { riderPose, walkingPose } from "./skier-bike.ts";
+import { bikeStood, createRiderHold } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
@@ -71,6 +66,8 @@ import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
+import { burnShown } from "./burn-plan.ts";
+import { createBurnView, type BurnView } from "./burn-view.ts";
 import { createAvalancheView, type AvalancheView } from "./avalanche-view.ts";
 import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloon.ts";
 import type { CameraRung } from "./renderer-api.ts";
@@ -189,7 +186,7 @@ export function createMachines(
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
   const sled: SledScene | null = state.rules.sled ? createSledScene(haze) : null;
   // THE DOWNHILL BIKE (`bike-view.ts`), on a summer ride begun on it.
-  const bike: BikeView | null = state.bike ? createBikeView(haze) : null;
+  const bike: BikeView | null = state.bike ? createBikeView(haze, bikeLook()) : null;
   if (bike) group.add(bike.group);
   // The paramotor rides every free ride's rules, drawn only while a run
   // carries the rig (`GameState.para`) — and the hot air balloon while a
@@ -285,6 +282,8 @@ export function createMachines(
   if (doors) group.add(doors.group);
   // The player's figure, hidden while he sits in a cab (`seat`, `frame`).
   let seated: SkisModel | null = null;
+  // The bike's rider's body carried between steps (`holdRider`).
+  const riderHold = createRiderHold();
   let current: GameState = state;
   // How far into the flight the pilot's own cameras are (`hangIn`), 0..1.
   let hung = 0;
@@ -305,6 +304,8 @@ export function createMachines(
   // THE SKI PATROL AND THE SEARCH (`patrol-view.ts`), built when the first
   // patrol skis in or the first body is struck.
   let patrol: PatrolView | null = null;
+  // HIM ON FIRE (`burn-view.ts`), built the first time a run sets him alight.
+  let burn: BurnView | null = null;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
@@ -327,15 +328,15 @@ export function createMachines(
       // walking beside it — his skis and poles put away all ride long.
       const b = s.bike;
       if (b) {
-        const thrown = !!s.skier.thrown;
         model.setBiking?.(true);
-        model.setStood?.(
-          b.onIt && !thrown
-            ? riderPose(bikePose(b))
-            : b.afoot && !s.skier.lift && !thrown
-              ? walkingPose(b.afoot)
-              : null,
+        const stood = bikeStood(
+          s,
+          riderHold,
+          b.onIt && !s.skier.thrown && bikeLook() === "freeride"
+            ? animatedStyle(b, s.level, s.t)
+            : undefined,
         );
+        model.setStood?.(stood?.pose ?? null, stood?.way);
       }
       // Out of the plane's door and under the canopy, every stage of the
       // jump is a shape of his limbs (`skier-skydive.ts`).
@@ -500,6 +501,11 @@ export function createMachines(
         group.add(patrol.group);
       }
       patrol?.frame(s, dt, slide ? slide.liftAt : () => 0);
+      if (!burn && burnShown(s)) {
+        burn = createBurnView(haze);
+        group.add(burn.group);
+      }
+      burn?.frame(s, seated, simDt);
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
       if (seated && groomers) seated.root.visible = !drivenGroomer(s);
@@ -507,6 +513,7 @@ export function createMachines(
     light(look) {
       para?.light(look);
       balloon?.light(look);
+      burn?.light(look);
       if (chute) lineLightOf(look, chuteLight.value);
     },
     lamps(lit, eye, others) {
@@ -520,6 +527,8 @@ export function createMachines(
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
+      // ...and a skier alight, his own.
+      burn?.lamps(lit, floods);
       rescue?.lamps(lit, floods);
       plane?.lamps(lit, floods);
       strip?.frame(current, lit, eye);
@@ -618,6 +627,7 @@ export function createMachines(
       hover?.dispose();
       slide?.dispose();
       patrol?.dispose();
+      burn?.dispose();
     },
   };
 }

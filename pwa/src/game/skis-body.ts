@@ -48,9 +48,9 @@ import type { SkierPose } from "./skier-joints.ts";
 import { armBreaks, createBrokenFeel } from "./skier-broken.ts";
 import type { Pose } from "./interp.ts";
 import { mergePosed } from "./posed-merge.ts";
-import { buildGear, cuffHeight } from "./ski-gear.ts";
+import { buildGear, cuffHeight, gearLift } from "./ski-gear.ts";
 import { SKI_LOOKS, drawnAs, lookOf } from "./ski-looks.ts";
-import { emptyStand, inclineAt, standOf } from "./ski-stand.ts";
+import { createDrawnLift, emptyStand, inclineAt, standOf, stepDrawnLift } from "./ski-stand.ts";
 import { createChatter, shakeStand, stepChatter } from "./ski-chatter.ts";
 import { outfitKey } from "./dress.ts";
 import { DEFAULT_OUTFIT, jumpKit, RIVAL_OUTFITS } from "./outfit.ts";
@@ -101,7 +101,7 @@ import {
 } from "./skier-dangle.ts";
 import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./skier-perch.ts";
 import { ridingOf, widenStand } from "./technique-pose.ts";
-import { groundOf, legsLift, poseInputOf } from "./skis-pose-input.ts";
+import { groundOf, poseInputOf } from "./skis-pose-input.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
 import {
   pitchPast,
@@ -116,6 +116,7 @@ import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
+import { setPlayerClock } from "./player-model.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
@@ -159,7 +160,8 @@ export const SLOT_DRESS: readonly SkierDress[] = [
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
   // A ski jumper (only a jump rides the Albatross) in his suit (`jumpKit`).
-  const dress = spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit) } : skier;
+  const dress =
+    spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit), model: false } : skier;
   return styleIn(TOPSHEETS[drawnAs(spec)], dress);
 }
 
@@ -208,8 +210,10 @@ export type SkisModel = {
   /** STOOD OFF HIS SKIS in his boots, his hands empty (the rider card's
    * idle, `rider-idle.ts`): the body as `stood` lays it over the snow in
    * the root's frame, the pair out of sight — or null back on them. Read
-   * at the next pose. Only the skis' model stands a rider off them. */
-  setStood?(stood: StoodPose | null): void;
+   * at the next pose. Only the skis' model stands a rider off them. `way`
+   * names the way he is stood (on a bike, walking beside it): a change of
+   * it is eased over (`pose-handoff.ts`) rather than switched in a frame. */
+  setStood?(stood: StoodPose | null, way?: string): void;
   /** ON THE DOWNHILL BIKE'S RIDE (`bike.ts`): his skis and poles put away
    * wherever he is drawn — on it, walking, sat on a chair — and his boots
    * on him. Read at the next pose. */
@@ -464,6 +468,7 @@ export function createSkisModel(
   const stand = emptyStand();
   // THE CHATTER as drawn (`ski-chatter.ts`): the snow passed and the shake.
   const chatter = createChatter();
+  const drawnLift = createDrawnLift();
   const tuck = createTuck();
   const flap = new THREE.Quaternion();
   const shook = new THREE.Euler();
@@ -497,6 +502,7 @@ export function createSkisModel(
   let basket = false;
   let basketWalk: BasketWalk | null = null;
   let stoodPose: StoodPose | null = null;
+  let stoodWay = "";
   let biking = false;
   let sky: SkydiveShape | null = null;
   let lastPerch: number | null = null;
@@ -527,6 +533,7 @@ export function createSkisModel(
       return out;
     },
     pose(engine, at, sink, trick = null, dt = 0, body, waiting = false, flip = null) {
+      setPlayerClock(run ? run.t : null); // the modelled kit on the run's clock
       const skier = uprightSkier(engine); // never laid out beside his skis over a loop's top
       handDt = dt;
       root.quaternion.set(at.q.x, at.q.y, at.q.z, at.q.w);
@@ -554,6 +561,9 @@ export function createSkisModel(
       // His legs' spring first: how far he stands on the snow is its own —
       // and thrown, they carry nothing, so he is stood back up on them at
       // rest.
+      // ...over the skis' lift as the legs let it out (`stepDrawnLift`).
+      if (off || afoot) drawnLift.lift.fill(Number.NaN);
+      const lift = stepDrawnLift(drawnLift, gearLift(skier), dt);
       if (off || afoot) {
         if (!rested) restSkierSpring(legs);
         rested = true;
@@ -575,7 +585,7 @@ export function createSkisModel(
                 gravity: fall.gravity,
               }
             : undefined,
-          legsLift(skier),
+          (lift[0] + lift[1]) / 2,
         );
       }
       // THE PAIR ON THE SNOW (`ski-stand.ts`): the body turned about its
@@ -612,7 +622,7 @@ export function createSkisModel(
       if (hill !== 0) root.quaternion.multiply(hillTurn.setFromAxisAngle(FORWARD, -hill));
       const skydive = off || afoot ? null : sky;
       if (skydive) root.quaternion.multiply(hillTurn.setFromAxisAngle(ACROSS, pitchPast(skydive)));
-      standOf(skier, ground, stand, inclineAt(skier, at.q) + hill, angle);
+      standOf(skier, ground, stand, inclineAt(skier, at.q) + hill, angle, lift);
       if (hung) stand.tilt = 0;
       if (skydive) squareSkis(stand);
       // ...and SHAKEN at speed: each ski hopping, flapping and rocking on
@@ -683,7 +693,11 @@ export function createSkisModel(
         figure.group.quaternion.setFromRotationMatrix(trunk);
         // Each way of walking its own drawing, so a stage handed to the next
         // (picking the pair up, setting off, clicking in) is eased over.
-        const way = stood ? "stood" : town ? `town ${town.phase}` : `fetch ${skier.fetch!.phase}`;
+        const way = stood
+          ? `stood ${stoodWay}`
+          : town
+            ? `town ${town.phase}`
+            : `fetch ${skier.fetch!.phase}`;
         figure.sprawl(handed(p, way), 0, 0, town !== null);
         bootsOn(walkBoots, p, unbooted, goreLost);
       } else {
@@ -884,8 +898,9 @@ export function createSkisModel(
     setWingsuit(shape) {
       flyer = shape;
     },
-    setStood(next) {
+    setStood(next, way = "") {
       stoodPose = next;
+      stoodWay = way;
     },
     setBiking(on) {
       biking = on;

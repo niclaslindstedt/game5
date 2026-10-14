@@ -117,6 +117,16 @@ const args = parseArgs(
     },
     skis: { kind: "string", default: "chamois", help: "the pair he skis on" },
     slot: { kind: "number", default: 0, help: "the start-line slot's kit, 0..3" },
+    body: {
+      kind: "string",
+      default: "",
+      help: "slot 0's body by its outfit id (hiker, hikerWoman: the modelled hiker)",
+    },
+    weight: {
+      kind: "string",
+      default: "",
+      help: "the player's build by its outfit id (light, medium, solid, heavy)",
+    },
     frames: { kind: "number", default: 9, help: "moments a move is shown at" },
     views: {
       kind: "string",
@@ -153,7 +163,7 @@ const E = await import(join(root, "engine/index.ts"));
 const spec = E.pairById(args.skis);
 const onBoard = E.isBoard(spec);
 // The loops are the board's as well: one lean, one throw (`strokes.ts`).
-const MOVES = onBoard ? [...BOARD_MOVES, ...FLIP_MOVES] : SKI_MOVES;
+const MOVES = onBoard ? BOARD_MOVES : SKI_MOVES;
 const MOMENTS = onBoard ? BOARD_MOMENTS : SKI_MOMENTS;
 const moves = args.move
   ? args.move.split(",").map((id) => {
@@ -200,7 +210,11 @@ const injuries = brokenWords.flatMap((w, i) =>
       ]
     : [],
 );
-const tag = (args.broken ? `-broken-${brokenWords.join("-")}` : "") + (args.wire ? "-wire" : "");
+const tag =
+  (args.body ? `-${args.body}` : "") +
+  (args.weight ? `-${args.weight}` : "") +
+  (args.broken ? `-broken-${brokenWords.join("-")}` : "") +
+  (args.wire ? "-wire" : "");
 
 // ── Ski every move through the real engine ────────────────────────────────
 const S = await import(join(root, "tests/support/synthetic.ts"));
@@ -364,6 +378,8 @@ for (const job of jobs) {
     views: args.views,
     cell: String(args.cell),
     ...(args.wire ? { wire: "1" } : {}),
+    ...(args.body ? { body: args.body } : {}),
+    ...(args.weight ? { weight: args.weight } : {}),
   }).toString();
   const t0 = Date.now();
   await page.goto(`${server.url}skier-preview.html?${query}`);

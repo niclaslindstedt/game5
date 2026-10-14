@@ -126,5 +126,5 @@ export interface DevRenderer {
   setOverride(view: LensPose | null): void;
   /** Where the lens stands and which way it looks, so the free camera takes
    * off from the frame on screen. */
-  lensPose(): { x: number; y: number; z: number; yaw: number; pitch: number };
+  lensPose(): { x: number; y: number; z: number; yaw: number; pitch: number; fov: number };
 }

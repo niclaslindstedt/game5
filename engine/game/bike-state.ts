@@ -121,6 +121,9 @@ export type BikeState = {
    * bars asked, and the lean it wants, rad. */
   turn: number;
   aimLean: number;
+  /** How long the bars have been asked past the grip's knee, s
+   * (`hands.past`): a quick stab is held to the grip, a hold goes on past. */
+  pastKnee: number;
   /** Where his weight is fore and aft, −1..1 (+1 back): the lean asked,
    * moved to over `BIKE.rider.shift` s — a body shifts, it does not jump. */
   shift: number;
@@ -181,4 +184,9 @@ export type BikeState = {
   /** The trail the ride was begun at the head of (`startBike`), begun there
    * again on a restart. */
   trail: string | null;
+  /** WHERE IT WAS LAST RIDDEN ON A TRAIL: the trail's id and the arc, m,
+   * of the last step it was on that trail's tread (`keepTrail`) — where a
+   * fall or the reset puts it back (`restartPoint`) — or null: not ridden
+   * on a trail since the ride began or a lift let it off at the top. */
+  ridden: { trail: string; s: number } | null;
 };

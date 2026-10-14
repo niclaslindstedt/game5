@@ -84,6 +84,8 @@ import { createVillageStreets } from "./streets-view.ts";
 import { createBikeTrails } from "./bike-trails-view.ts";
 import { InstanceReach } from "./instance-reach.ts";
 import { createSnowGuns, type SnowGuns } from "./snow-guns-view.ts";
+import { createFires, type FiresView } from "./fires-view.ts";
+import type { Flood } from "./headlamp.ts";
 import { createWater, type WaterView } from "./water-view.ts";
 import type { SkyLook } from "./sky.ts";
 import { createRouteSigns } from "./route-sign.ts";
@@ -114,8 +116,9 @@ const WAND = { gap: 1.2, height: 0.45, post: 0.6 };
 const STAKE_REACH = 450;
 const FLOOD = { mast: 8, dip: 0.28, glow: 2.6, night: 4, day: 0.15 };
 
-/** One floodlight: where its lamp is and which way it shines, unit. */
-export type Flood = { x: number; y: number; z: number; dx: number; dy: number; dz: number };
+/** One floodlight: where its lamp is and which way it shines, unit — and
+ * a fire's light beside them (`fires-view.ts`). */
+export type { Flood };
 
 export type Gates = {
   group: THREE.Group;
@@ -134,6 +137,9 @@ export type Gates = {
   air(state: GameState, look: SkyLook, wind: Wind, eye: THREE.Vector3, pixels: number): void;
   /** The snow guns standing, for the labs; null where none stand. */
   guns: SnowGuns | null;
+  /** THE CAMP FIRES AND BONFIRES (`fires-view.ts`), drawn on a run whose
+   * rules keep them; null where the map has none. */
+  fires: FiresView | null;
   /** THE MAP'S WATER (`water-view.ts`), its own group: the renderer stands
    * it in the scene beside this one, so the benchmark can weigh it alone. */
   water: WaterView | null;
@@ -783,6 +789,13 @@ export function createGates(
   const guns = createSnowGuns(level, haze);
   if (guns) group.add(guns.group);
 
+  // THE CAMP FIRES AND BONFIRES, on a free ride; their lights join the
+  // floods' list after the arena's own.
+  const fires = createFires(level, haze);
+  if (fires) group.add(fires.group);
+  const arena = floods.length;
+  let night = 0;
+
   // THE LAKES AND THE STREAMS, open or iced on the map's day.
   const water = createWater(level, haze);
   // A JUDGED FREE RIDE'S CHALLENGES on the snow (`challenge-flags.ts`).
@@ -848,6 +861,7 @@ export function createGates(
       panels.visible = raced;
       markers.forEach((m, k) => (m.visible = raced && tops[lit]?.[k] !== undefined));
       if (slalomPoles) slalomPoles.group.visible = raced;
+      if (fires) fires.group.visible = state.rules.fires === true;
       if (crossFlags) crossFlags.group.visible = raced;
       const next = state.progress.nextCheckpoint;
       const t = state.t;
@@ -882,6 +896,7 @@ export function createGates(
     },
     setLamps(level, pixels) {
       const on = Math.min(1, Math.max(0, level));
+      night = on;
       lights.setLamps(on, pixels);
       for (const h of floodHeads) h.emissiveIntensity = FLOOD.day + FLOOD.night * on;
       for (const s of floodGlows) {
@@ -893,6 +908,11 @@ export function createGates(
     },
     air(state, look, wind, eye, pixels) {
       guns?.update(state, look, wind, eye, pixels);
+      if (fires) {
+        fires.update(state.t, look, wind, eye, pixels, night);
+        floods.length = arena;
+        fires.lamps(eye, state.t, floods);
+      }
       water?.update(state.t, wind);
       challenges?.air(state.t, wind);
       stakesNear?.update(eye);
@@ -900,6 +920,7 @@ export function createGates(
       lights.near(eye);
     },
     guns,
+    fires,
     water,
     dispose() {
       for (const g of geos) g.dispose();
@@ -915,6 +936,7 @@ export function createGates(
       streets?.dispose();
       bike?.dispose();
       guns?.dispose();
+      fires?.dispose();
       water?.dispose();
       slalomPoles?.dispose();
       house?.dispose();

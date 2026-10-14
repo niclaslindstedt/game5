@@ -204,6 +204,8 @@ describe("every other mode, unmoved", () => {
 // Taken off the tree before the jumper was drawn (the dress re-cut when the
 // gauntlet cuff was fitted over the sleeve, and again when a straight limb's
 // bone kept the face its knee or elbow folds to — `skier-rig.ts`'s
-// `limbBend`, which re-seats the legs' and cuffs' rings a few cm).
-const POSES_HASH = "49773418";
-const DRESS_HASH = "c040fa6d";
+// `limbBend`, which re-seats the legs' and cuffs' rings a few cm; and again
+// when the skier's moves were smoothed — the knee's soft limit, the poles; and the hips' sink to the
+// boots eased in, the working elbow held up and back).
+const POSES_HASH = "93a941ae";
+const DRESS_HASH = "93ec5bfd";

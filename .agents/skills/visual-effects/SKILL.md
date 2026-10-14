@@ -47,8 +47,10 @@ loaded ski's boot. Judge it with `make turns ARGS=--views=low`.
 | THE EDGE'S SHEET: snow CUT by an edge sliding across its own line (`edgeSlips`: the skier's velocity read across the skis as they stand pivoted) — chips shoved ahead of the edge at about the slide's speed and thrown up off it, along the WHOLE loaded edge (a ski's tip to tail, a board's one long edge), each ski by its share; a hockey stop's wall ahead of him and down the hill, next to nothing off a clean carve | `spray-sim.ts` (three-free, `tests/spray_test.ts`) |
 | THE CARVE'S TAIL: the groove's lip flicked off a railed tail, by the edge and the speed; the powder off the tips (a board's nose) running deep | `spray-sim.ts` |
 | THE GRAINS AS DRAWN: one instanced draw, each grain a STREAK along its motion over a short shutter (a dot cloud reads as foam), thinned by its length, let go of near the lens, glowing against a low sun and glinting | `spray.ts` |
+| THE GRAINS FLOWN ON THE GPU: each parcel written once at its throw into a ring (`gpu-spray.ts`, 1.5× the pool for the splashes written ahead, and cut each frame to the parcels the pool itself would hold, `uOldest` — a bigger ring keeps more of a saturated powder plume than the pool and lowers its film score) and flown off the clock in the vertex shader (`spray-flight.ts`'s `SPRAY_FLIGHT_GLSL` and its TypeScript twin `flyLaunch`, which lay the pool's own 60 Hz frame on their smooth grid: the first frame's drag, the frame-stepped lag, the landing on the frame, gravity raised to the pool's faster fall — without them a stop holds 7 % more snow in the air than the CPU's); the emitter, the kilograms and the look stay the CPU's and part 3's. A change to the CPU flight (`spray-mass-pool.ts`'s `step`) is a change to BOTH, held by `tests/spray_flight_test.ts`; which stops fly on the GPU is `SPRAY_GPU` | `gpu-spray.ts`, `spray-flight.ts`, `spray-glsl.ts` |
 | THE LANDING PUFF: a ring of powder from under a skier coming down, sized by how hard — read off the airborne → grounded TRANSITION rather than the `land` event, so a frame that ran two steps cannot swallow it and a rival's landing throws the same puff | `spray.ts` |
-| THE SNOW CLOUD: the fine powder a skid, a powder turn, a landing and a wipeout raise — the rooster tail that stalls, swells, drifts and hangs. What each source throws out of which snow and how a puff flies, swells and thins is `snow-cloud-plan.ts` (three-free, `tests/snow_cloud_test.ts`) — `driveOf` / `carveOf` read a skier into its inputs, and `loftOf` scales every recipe (rate, size, swell, hang, lift) by how much a speed LOFTS; the flight, the sort, the whole cloud's self-shadow (a sun-first walk through a hashed grid), the shader (noise-carved body, wrap light, Henyey–Greenstein glow, glints, lamps, the soft meeting with the snow) and the chase lens's VEIL through the player's own tail are `snow-cloud.ts` | `snow-cloud-plan.ts`, `snow-cloud.ts` |
+| THE SNOW CLOUD: the fine powder a skid, a powder turn, a landing and a wipeout raise — the rooster tail that stalls, swells, drifts and hangs. What each source throws out of which snow and how a puff flies, swells and thins is `snow-cloud-plan.ts` (three-free, `tests/snow_cloud_test.ts`) — `driveOf` / `carveOf` read a skier into its inputs, and `loftOf` scales every recipe (rate, size, swell, hang, lift) by how much a speed LOFTS; the flight, the sort, the whole cloud's self-shadow (a sun-first walk through a hashed grid), the chase lens's VEIL through the player's own tail are `snow-cloud.ts`; the shader (domain-warped body, two-lobe Henyey–Greenstein glow, a multiple-scattering fill, glints, lamps, the soft meeting with the snow) is `snow-cloud-glsl.ts`, and its SHADOW on the slope `snow-cloud-shadow.ts` | `snow-cloud-plan.ts`, `snow-cloud.ts`, `snow-cloud-glsl.ts`, `snow-cloud-shadow.ts` |
+| HOW SNOW IN THE AIR IS LIT: the key by height, through the weather's cloud and past the mountain, and the sky's irradiance on four faces — one chunk the spray, the cloud and its shadow all read, by the sky's own names | `snow-air-light.ts` |
 | THE KINDS OF SNOW: groomed, hard, soft, new, wet, ice — where each lies (the packed field, the crust, the ice, a snowing sky's new layer and `fresh`, a spring thaw) and what each does to the cloud, the spray's clumps, a groove's depth, WALLS and windrow, and a print (a crust carries a light foot) | `snowpack.ts` (three-free, `tests/snowpack_test.ts`) |
 | THE TRACKS: a capsule per station from its last touch to this one; `drawnDepth` (the sink or the powder's furrow, whichever is deeper, cut narrower and deeper the more edge the ski stands on); `furrowProfile` for the windrow; `TRAIL.jump` breaks the line on a reset; a thrown skier's slide gouges a wider furrow of its own | `trail-stamp.ts`; `tests/world_render_test.ts` |
 | WHAT IS FELT: the CHATTER on hard snow read off `skiCompression` every step, a landing, a trunk, a fall (read off the state — there is no event), a gate's light tick; what does NOT rumble and why | `pwa/src/game/rumble.ts` (DOM-free; `tests/rumble_test.ts`) |
@@ -187,6 +189,34 @@ in code. Snow in the air is:
 - `make spray` (both pairs, close and chase, `WHERE=meadow`; `--age=`,
   `--spray=`, `--depth=`), `make spray-metrics` and `make spray-eval` are
   the labs; the turns lab takes `--skis=lynx`.
+
+## How snow in the air is lit
+
+- **By the sky's own names, never a pair of colours of its own.** The
+  spray and the cloud read `snow-air-light.ts`: the key light taken by
+  height (`keyAtHeight`), through the weather's cloud (`cloudShadow`) and
+  PAST THE MOUNTAIN (`terrainLit`), and the sky's irradiance
+  (`skyIrradiance`) on four faces — up, down, toward the key and away. A
+  lit/shade pair of uniforms of the effect's own lit a stop in the
+  mountain's shade as if in the sun: a white fan glowing over blue snow.
+- **Read once a particle in the vertex stage**, handed on as varyings: a
+  grain or a puff is far smaller than the light's own detail. The lamps
+  are the fragment's (`LAMP_GLSL`'s `lampReach`, `pisteLight`) — a beam is
+  narrower than a plume. After dark nothing else lights it.
+- **A backlit low sun is gold, and that is right.** The air over a slope
+  turned from a grazing sun is still in the sun: the snow on the ground
+  goes blue while what is thrown into the air glows. Do not "fix" it dark.
+- **White over white reads by its SHADOW.** By day a powder plume vanishes
+  against the slope unless it lays its shadow on it
+  (`snow-cloud-shadow.ts`). Lay that shadow on the snow AS DRAWN — the
+  engine's ground plus the loose cover (`LOOSE`) — or it lies under the
+  powder's surface and shows only in the trench. Multiply in the picture's
+  LINEAR light (the grade pass draws to a half-float target), never a
+  gamma'd one.
+- **A lab's map snow may throw no cloud at all.** Seed 38's snow is old,
+  sun-crusted and thawed wet under a 32° sun, so `ageSnow` leaves almost
+  no fines: stage a powder scene's snow (`snow-eval-harness.ts`'s `snowOf`)
+  before tuning the cloud by it.
 
 ## What the cloud taught (the snow cloud's own rules)
 

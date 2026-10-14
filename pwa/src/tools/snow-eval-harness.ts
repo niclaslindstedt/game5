@@ -36,8 +36,11 @@ import {
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { holdInput } from "../game/hold-input.ts";
+import type { SnowAgeKind } from "../game/snow-age.ts";
+import type { SnowKind } from "../game/snowpack.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
-import { flySprayAs } from "../game/spray.ts";
+import { flySprayAs, flySprayOn } from "../game/spray.ts";
+import { SPRAY_STATS } from "../game/spray-stats.ts";
 import { SPRAY_MODELS, type SprayModel } from "../game/spray-sim.ts";
 import { DEFAULT_VIDEO, withPreset, type Tier } from "../game/settings-video.ts";
 import { hourAt, meadow, pisteSpot } from "./stage.ts";
@@ -63,13 +66,23 @@ type FilmOut = {
   means: ReturnType<typeof filmMeans>;
 };
 type PerfRow = {
+  scene: string;
   tier: Tier;
+  /** How the spray is flown: on the CPU or on the GPU. */
+  flight: "cpu" | "gpu";
   /** The whole frame, ms (swiftshader: a CPU's raster, far slower than a
    * GPU's — read the rows against each other, not as a frame rate). */
   frameMs: number;
   /** The same frames with the spray and the cloud hidden, ms: the
    * difference is what they cost. */
   withoutMs: number;
+  /** THE SPRAY'S OWN CPU WORK a frame (its emit and its update), ms — a
+   * real reading, not swiftshader's — and the bytes it sent the GPU a
+   * frame, over the half second the rows are read across. */
+  sprayCpuMs: number;
+  bytesPerFrame: number;
+  /** Parcels and clumps in the air (alive and drawn). */
+  live: number;
   sprayInstances: number;
   cloudInstances: number;
   drawCalls: number;
@@ -107,6 +120,10 @@ const sheet = document.getElementById("sheet") as HTMLCanvasElement;
 // spray made from now on.
 const model = params.get("model");
 if (model && (SPRAY_MODELS as readonly string[]).includes(model)) flySprayAs(model as SprayModel);
+// `?flight=cpu|gpu` flies the weighed spray one way at every stop (the
+// SPRAY row's own way unless said).
+const flight = params.get("flight");
+if (flight === "cpu" || flight === "gpu") flySprayOn(flight === "gpu");
 const renderer = createWorldRenderer(stage, {
   video: withPreset(DEFAULT_VIDEO, "high"),
   preserveDrawingBuffer: true,
@@ -154,6 +171,14 @@ type Scene = {
   /** Counted from the moment he was thrown, not from the start. */
   afterFall?: boolean;
 };
+
+/** THE SNOW A SCENE IS RIDDEN IN: the meadow's scenes in the film's
+ * "settled powder" (soft snow, a few days old) — the map's own (seed 38's:
+ * old and sun-crusted, and thawed wet under a 32° sun) throws no fines to
+ * make a cloud of — and the piste's the map's own. */
+function snowOf(scene: Scene): [SnowKind | null, SnowAgeKind | null] {
+  return scene.where === "meadow" ? ["soft", "settled"] : [null, null];
+}
 
 const ALL_SCENES: Scene[] = [
   {
@@ -411,6 +436,7 @@ window.__snowEval = {
       const y0 = headH + r * cellH;
       for (const light of lights) {
         renderer.setSky(LIGHTS[light].sky());
+        renderer.setSnow(...snowOf(scene));
         const shots = light === "day" ? scene.shots : [scene.shots[0]];
         const order = shots.map((s, i) => ({ ...s, i })).sort((a, b) => a.t - b.t);
         let hole: { x: number; z: number } | null = null;
@@ -450,79 +476,109 @@ window.__snowEval = {
       ctx.fillText(`${scene.skis} · ${scene.kmh} km/h`, 8, y0 + cellH / 2 + 8);
     }
     renderer.setSky(null);
+    renderer.setSnow(null, null);
     return { w: sheet.width, h: sheet.height, cells };
   },
   async perf() {
-    // THE COST: the hockey stop ridden at each preset, drawn unseen to the
-    // thick of the spray, then a few frames timed twice over — with the
-    // spray and the cloud and without them — so the difference is theirs.
-    // The quads off the scene's own tally at the same moment.
+    // THE COST: the hockey stop and the powder turn ridden at each preset,
+    // the spray flown each way. Ridden unseen to the thick of the spray, its
+    // own CPU work read over half a second of frames (`SPRAY_STATS`), then a
+    // few frames timed twice over — with the spray and the cloud and
+    // without them — so the difference is theirs. The quads off the scene's
+    // own tally at the same moment.
     const rows: PerfRow[] = [];
-    const scene = ALL_SCENES.find((s) => s.id === "hockey")!;
     renderer.setSky({ weather: "clear", hour: hourAt(level, SUN.day) });
-    for (const tier of ["low", "medium", "high"] as Tier[]) {
-      renderer.setVideo(withPreset(DEFAULT_VIDEO, tier));
-      const state = createGame({
-        level,
-        mode: "free",
-        rivals: 0,
-        quiet: true,
-        crowd: 0,
-        enthusiasts: 0,
-        spec: pairById(scene.skis),
-      });
-      await loaded(state);
-      const spot = spotOf(scene);
-      placeRun(state, { x: spot.x, z: spot.z, heading: spot.heading, speed: scene.kmh / 3.6 });
-      renderer.setOverride(null);
-      renderer.setCamera("chase", true);
-      const t0 = state.t;
-      const frame = (present: boolean) => {
-        for (let i = 0; i < 2; i++)
-          step(state, scene.ride(state, scene.kmh, spot.heading, state.t - t0));
-        renderer.draw(state, 0, FRAME, present);
-      };
-      while (state.t - t0 < 0.55) frame(false);
-      let spray = 0;
-      let cloud = 0;
-      for (const row of renderer.sceneTally()) {
-        if (row.name === "spray") spray = row.triangles / 2;
-        if (row.name === "snow-cloud") cloud = row.triangles / 2;
-      }
-      // Warm both ways first: a draw's first frame compiles its shaders.
-      for (const hide of [["spray", "cloud"], []] as const) {
-        renderer.setHidden([...hide]);
-        for (let w = 0; w < 2; w++) renderer.draw(state, 0, 0, true);
-      }
-      const timed = { on: 0, off: 0, n: 0 };
-      let calls = 0;
-      for (let f = 0; f < 6; f++) {
-        frame(false);
-        // The same frame drawn both ways, the order swapped each time.
-        for (const on of f % 2 ? [false, true] : [true, false]) {
-          renderer.setHidden(on ? [] : ["spray", "cloud"]);
-          const a = performance.now();
-          renderer.draw(state, 0, 0, true);
-          (stage.getContext("webgl2") as WebGL2RenderingContext | null)?.finish();
-          const ms = performance.now() - a;
-          if (on) timed.on += ms;
-          else timed.off += ms;
-          if (on) calls = Math.max(calls, renderer.cost().calls);
+    const perfScenes = list("perf", "hockey,powder");
+    const flights = list("perfFlight", "cpu,gpu");
+    for (const id of perfScenes) {
+      const scene = ALL_SCENES.find((s) => s.id === id);
+      if (!scene) continue;
+      for (const way of flights) {
+        flySprayOn(way === "gpu");
+        for (const tier of ["low", "medium", "high"] as Tier[]) {
+          renderer.setVideo(withPreset(DEFAULT_VIDEO, tier));
+          const state = createGame({
+            level,
+            mode: "free",
+            rivals: 0,
+            quiet: true,
+            crowd: 0,
+            enthusiasts: 0,
+            spec: pairById(scene.skis),
+            snowDepth: scene.depth,
+          });
+          await loaded(state);
+          renderer.setSnow(...snowOf(scene));
+          const spot = spotOf(scene);
+          placeRun(state, { x: spot.x, z: spot.z, heading: spot.heading, speed: scene.kmh / 3.6 });
+          renderer.setOverride(null);
+          renderer.setCamera("chase", true);
+          const t0 = state.t;
+          const frame = (present: boolean) => {
+            for (let i = 0; i < 2; i++)
+              step(state, scene.ride(state, scene.kmh, spot.heading, state.t - t0));
+            renderer.draw(state, 0, FRAME, present);
+          };
+          while (state.t - t0 < 0.55) frame(false);
+          // The spray's own work over the next half second.
+          SPRAY_STATS.on = true;
+          SPRAY_STATS.cpuMs = 0;
+          SPRAY_STATS.bytes = 0;
+          const n = 30;
+          for (let f = 0; f < n; f++) frame(false);
+          SPRAY_STATS.on = false;
+          const sprayCpuMs = SPRAY_STATS.cpuMs / n;
+          const bytesPerFrame = SPRAY_STATS.bytes / n;
+          const live = SPRAY_STATS.live;
+          let spray = 0;
+          let cloud = 0;
+          for (const row of renderer.sceneTally()) {
+            if (row.name === "spray") spray = row.triangles / 2;
+            if (row.name === "snow-cloud") cloud = row.triangles / 2;
+          }
+          // Warm both ways first: a draw's first frame compiles its shaders.
+          for (const hide of [["spray", "cloud"], []] as const) {
+            renderer.setHidden([...hide]);
+            for (let w = 0; w < 2; w++) renderer.draw(state, 0, 0, true);
+          }
+          const timed = { on: 0, off: 0, n: 0 };
+          let calls = 0;
+          for (let f = 0; f < 4; f++) {
+            frame(false);
+            // The same frame drawn both ways, the order swapped each time.
+            for (const on of f % 2 ? [false, true] : [true, false]) {
+              renderer.setHidden(on ? [] : ["spray", "cloud"]);
+              const a = performance.now();
+              renderer.draw(state, 0, 0, true);
+              (stage.getContext("webgl2") as WebGL2RenderingContext | null)?.finish();
+              const ms = performance.now() - a;
+              if (on) timed.on += ms;
+              else timed.off += ms;
+              if (on) calls = Math.max(calls, renderer.cost().calls);
+            }
+            timed.n++;
+          }
+          renderer.setHidden([]);
+          rows.push({
+            scene: id,
+            tier,
+            flight: way === "gpu" ? "gpu" : "cpu",
+            frameMs: timed.on / timed.n,
+            withoutMs: timed.off / timed.n,
+            sprayCpuMs,
+            bytesPerFrame,
+            live,
+            sprayInstances: spray,
+            cloudInstances: cloud,
+            drawCalls: calls,
+          });
         }
-        timed.n++;
       }
-      renderer.setHidden([]);
-      rows.push({
-        tier,
-        frameMs: timed.on / timed.n,
-        withoutMs: timed.off / timed.n,
-        sprayInstances: spray,
-        cloudInstances: cloud,
-        drawCalls: calls,
-      });
     }
+    flySprayOn(flight === "cpu" || flight === "gpu" ? flight === "gpu" : null);
     renderer.setVideo(withPreset(DEFAULT_VIDEO, "high"));
     renderer.setSky(null);
+    renderer.setSnow(null, null);
     return rows;
   },
   async film() {
@@ -574,6 +630,7 @@ window.__snowEval = {
             snowDepth: scene.depth,
           });
           await loaded(state);
+          renderer.setSnow(...snowOf(scene));
           const spot = spotOf(scene);
           placeRun(state, { x: spot.x, z: spot.z, heading: spot.heading, speed: kmh / 3.6 });
           renderer.setOverride(null);
@@ -588,6 +645,7 @@ window.__snowEval = {
       headH,
     );
     renderer.setSky(null);
+    renderer.setSnow(null, null);
     return { w: sheet.width, h: sheet.height, cells, means: filmMeans(cells) };
   },
 };

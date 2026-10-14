@@ -138,6 +138,26 @@ canvas {
   height: 100%;
 }
 
+/* THE FILM'S LETTERBOX (`film-bars.ts`): while the menu's race and a
+   replay's FILM angle are cut as a film, a black bar over and under the
+   picture, `--film-bar` of its height. Over the canvas and under every card,
+   readout and press laid after it, so nothing a player reads is covered. */
+#root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    #000 0 var(--film-bar, 0%),
+    transparent var(--film-bar, 0%) calc(100% - var(--film-bar, 0%)),
+    #000 calc(100% - var(--film-bar, 0%))
+  );
+}
+
+:root:not(.film-bars) #root::before {
+  display: none;
+}
+
 /* iOS EDGE TO EDGE, and the fallback under the measured shell. A fixed,
    non-scrolling shell laid out with `inset: 0` stops at the LAYOUT viewport,
    which on iOS leaves a dead band along the bottom of the screen — the game
@@ -1922,6 +1942,14 @@ canvas {
   stroke: currentcolor;
   stroke-width: 2.5;
   stroke-linejoin: round;
+}
+
+/* The downhill bike's riser bar across the thumb. */
+.hud-bar-handle {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 5;
+  stroke-linecap: round;
 }
 
 .hud-bar-line {
@@ -4474,4 +4502,14 @@ canvas {
     padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
       max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   }
+}
+
+/* THE BIKE CARD (menu-bike.tsx): one bike, so its name stands alone with no
+   arrows, and its four figures fill the row. */
+.skis-pick-one {
+  min-height: 3.2rem;
+}
+
+.menu-card-staged .skis-figures.bike-figures {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }

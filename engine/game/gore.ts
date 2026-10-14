@@ -63,6 +63,7 @@ import {
 } from "./gore-state.ts";
 import type { BodyPart } from "./defs/anatomy.ts";
 import type { GameEvent, GameState, Thrown } from "./state.ts";
+import type { Level } from "../mapgen/types.ts";
 
 const dt = TUNING.dt;
 const R = RAGDOLL;
@@ -497,6 +498,22 @@ function impale(state: GameState, g: GoreState, events: GameEvent[]): void {
       const dy = P[j + 1] - top;
       if (L[j + 1] - top < -I.below || dy > I.above || dy < -I.below) continue;
       if (hypot(L[j] - s.x, L[j + 2] - s.z) > I.reach) continue;
+      if (i >= R.head) {
+        // A limb or the head: torn open on the tip and carried on past it.
+        if (!g.gashes.some((h) => h.point === i)) {
+          g.gashes.push({ point: i, t: state.t, x: P[j], y: P[j + 1], z: P[j + 2] });
+          events.push({
+            kind: "gore",
+            t: state.t,
+            what: "gash",
+            x: P[j],
+            y: P[j + 1],
+            z: P[j + 2],
+          });
+        }
+        continue;
+      }
+      const sunk = Math.max(0, -dy);
       g.impaled = {
         x: s.x,
         y: top,
@@ -504,25 +521,56 @@ function impale(state: GameState, g: GoreState, events: GameEvent[]): void {
         radius: tree ? Math.min(0.06, s.radius) : s.radius,
         stuff: tree ? "tree" : "post",
         point: i,
-        sunk: Math.max(0, -dy),
+        sunk,
+        depth: Math.max(sunk, tree ? treeDepth(level, s) : I.sink),
         t: state.t,
       };
       b.pin = { point: i, x: s.x, y: top - g.impaled.sunk, z: s.z };
       events.push({ kind: "gore", t: state.t, what: "impaled", x: s.x, y: top, z: s.z });
-      // Through the trunk or the head, at once; a limb, slowly.
-      mortalBy(state, g, i <= R.head ? "impaled" : "bled");
+      // Through the trunk: at once.
+      mortalBy(state, g, "impaled");
       return;
     }
   }
 }
 
-/** On the spike, slid on down it under his weight until it holds him. */
+/** How far down a tree's stem a body sinks before it holds him: to where
+ * the trunk, tapering from its girth at the foot to its tip (`trunkProfile`'s
+ * taper, `tree-mesh.ts`), is `stop` m in radius — no more than `deep` of
+ * its height, and his pin kept `clear` over the snow under it. */
+function treeDepth(
+  level: Level,
+  s: { x: number; y: number; z: number; radius: number; height: number },
+): number {
+  const I = GORE.impale;
+  const taper = s.radius > I.stop ? Math.pow(I.stop / s.radius, 1 / 0.9) : 1;
+  const top = s.y + s.height;
+  const room = top - level.groundAt(s.x, s.z) - I.clear;
+  return Math.max(I.sink, Math.min(s.height * taper, s.height * I.deep, room));
+}
+
+/** On the spike, slid on down it under his weight until it holds him —
+ * quick at first, slowed as the wood thickens under him. */
 function slide(_state: GameState, g: GoreState, b: Thrown): void {
   const at = g.impaled;
   if (!at || !b.pin) return;
   const I = GORE.impale;
-  at.sunk = Math.min(I.sink, at.sunk + dt * Math.max(0.15, 2.2 * (1 - at.sunk / I.sink)));
+  const left = 1 - at.sunk / at.depth;
+  at.sunk = Math.min(
+    at.depth,
+    at.sunk + dt * Math.max(I.least, I.slide * Math.sqrt(Math.max(0, left))),
+  );
   b.pin.y = at.y - at.sunk;
+}
+
+/** Whether a body summed to `iss` dies of it on this run
+ * (`GORE.frailty`): the trauma ward's chance at that score against the
+ * run's frailty, drawn once off a hash. */
+export function diesOf(state: GameState, iss: number): boolean {
+  const F = GORE.frailty;
+  if (iss < F.least) return false;
+  const chance = 1 / (1 + Math.exp((F.half - iss) / F.spread));
+  return hash2(state.seed | 0, 0x7a11, SALT + 3) < chance;
 }
 
 /** Mortal, and dead. */
@@ -531,6 +579,7 @@ function mortality(state: GameState, g: GoreState, events: GameEvent[]): void {
   if (g.mortal < 0) {
     if (body.injuries.some((h) => h.ais >= GORE.mortalAis)) mortalBy(state, g, "trauma");
     else if (severityOf(body) >= GORE.mortalIss) mortalBy(state, g, "trauma");
+    else if (diesOf(state, severityOf(body))) mortalBy(state, g, "trauma");
     else if (body.injuries.some((h) => h.kind === "airwayBurn")) mortalBy(state, g, "fire");
     else if (state.skier.thrown?.cause === "maul") mortalBy(state, g, "maul");
   }
@@ -637,6 +686,7 @@ function flowOf(g: GoreState, state: GameState): { spurt: number; ooze: number }
   for (let k = 0; k < GORE_OPEN.length; k++)
     if (g.open & (1 << k)) add(F[GORE_OPEN[k]], state.t - opened);
   if (g.impaled) add(F.impaled, state.t - g.impaled.t);
+  for (const h of g.gashes) add(F.gash, state.t - h.t, false);
   if (g.crushed >= 0) add(F.crush, state.t - g.crushed);
   // A long bone broken out through the skin oozes where it stands out.
   const grades = fracturesOf(state.skier.body);

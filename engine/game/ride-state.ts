@@ -91,4 +91,10 @@ export type LiftRide = {
   foot?: number;
   rack?: number;
   skis?: LoneSki[];
+  /** A CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): whether the tuck has
+   * been let go since he sat down — a press after that, the bar up, takes
+   * him off — and whether he has ridden on past the unload, round the
+   * wheel and back down the line, on his chair wherever the clock has it. */
+  armed?: boolean;
+  round?: boolean;
 };

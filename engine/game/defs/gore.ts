@@ -65,12 +65,42 @@ export const GORE = {
    * to this injury severity score (`severityOf`). */
   mortalAis: 5,
   mortalIss: 50,
+  /** ...and short of them, MORTAL BY THE WHOLE BODY as often as a trauma
+   * ward's patients die of the same score: many injuries each short of
+   * critical kill together. A logistic with its even chance at `half` and
+   * its odds growing e-fold every `spread` points: one in ten at a score of
+   * 33, three in ten at 41 and over half at 48 — the major-trauma outcome
+   * series' curve for young, fit patients (a skier on the snow is one),
+   * which runs below the all-ages ward's. Drawn once a
+   * run off a hash (the run's FRAILTY), never the stream: a run that
+   * lives through a score lives through any lesser one, and dies of the
+   * blow that takes him past it. A score under `least` never kills. */
+  frailty: { half: 46, spread: 6, least: 16 },
   /** RUN THROUGH: a point of the body coming down onto a spike's tip — a
    * tree's top, or a post's of no more than `post` m radius — inside
    * `reach` m of its axis and no more than `above` m over it nor `below`
-   * under it, going down faster than `speed` m/s. It slides on down the
-   * spike, slowed, and stops `sink` m under the tip at the most. */
-  impale: { post: 0.16, reach: 0.32, above: 0.25, below: 0.9, speed: 3.5, sink: 0.55 },
+   * under it, going down faster than `speed` m/s — the trunk's points
+   * only (the hips and the shoulders); a limb or the head that comes down
+   * so is torn open on it instead (`Gash`). It slides on down the
+   * spike, slowed — on a post `sink` m under the tip at the most. */
+  impale: {
+    post: 0.16,
+    reach: 0.32,
+    above: 0.25,
+    below: 0.9,
+    speed: 3.5,
+    sink: 0.55,
+    /** ON A TREE he SINKS DOWN IT under his weight, the stem tapering to
+     * its tip, until the trunk is `stop` m in radius (thicker than his
+     * weight can force through him) — at most `deep` of the tree's height
+     * and never nearer the snow than `clear` m. He slides at `slide` m/s,
+     * slowed as the wood thickens to `least` m/s at the end. */
+    stop: 0.07,
+    deep: 0.35,
+    clear: 2.4,
+    slide: 2.4,
+    least: 0.2,
+  },
   /** THE BLOOD: the body's volume, L, the share whose loss kills, and the
    * flow out of each wound at the full pressure, L/s (shortened, above). */
   blood: {
@@ -87,6 +117,7 @@ export const GORE = {
       abdomen: 0.12,
       crush: 0.22,
       impaled: 0.2,
+      gash: 0.05,
       fracture: 0.03,
     },
     /** A TORN ARTERY CLOSING: the share of a wound's flow that spurts

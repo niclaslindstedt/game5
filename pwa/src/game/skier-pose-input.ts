@@ -59,6 +59,9 @@ export type SkierPoseInput = {
    * how far into it, signed to the shoulder he looks over (`skier-switch.ts`),
    * −1..1; none when left out. */
   switched?: number;
+  /** How far his fists and poles are carried switch, 0..1 (`SkierSpring`'s
+   * `carry`); the look's own share of it when left out. */
+  switchCarry?: number;
   /** WOUND UP for a hop into switch (`SkierSpring.wind`), −1..1, signed to
    * the side he means to turn to; none when left out. */
   windUp?: number;
@@ -73,6 +76,8 @@ export type SkierPoseInput = {
   /** How far his legs are folded by a hit, m — positive is the body sunk
    * toward the skis (`skierSpring`). */
   bump?: number;
+  /** How far the fists lag below his stance on a landing, m (`ARMS_LAG`). */
+  armsLag?: number;
   /** A pole plant in hand, 0..1 — a lone plant, when no `gait` is given. */
   plant?: number;
   /** THE POLE PLANT a turn is started on (`SkierSpring`): the pole (0
@@ -81,8 +86,9 @@ export type SkierPoseInput = {
   plantAt?: { side: 0 | 1; t: number; weight: number };
   /** THE GAIT the skier is working in at a crawl (`gaitOf`). */
   gait?: Gait;
-  /** The snow passed since the stroke's plant, m, as the view kept it
-   * (`SkierSpring.poled`) — the gait's own reckoning when left out. */
+  /** The snow passed since the stroke's plant, m, as the view kept it, held
+   * at the release (`SkierSpring.poled`) — the gait's own reckoning when
+   * left out. */
   poled?: number;
   /** How far into the air his body is, 0..1, eased (`SkierSpring.air`);
    * `airborne` as 0 or 1 when left out. */

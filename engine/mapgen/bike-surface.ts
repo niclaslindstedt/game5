@@ -7,10 +7,10 @@
 // the trail's own shape (`bike-trail-shape.ts`: the bench, the outslope or
 // the berm's bank, the features), eased into the map's ground across its
 // shoulders; everywhere else the map's own grid answers. The grid itself is
-// CUT under each footprint to just below that surface, never above it, so
-// what the renderer lays over it (the tread drawn off the same function)
-// is never pierced by the terrain under it, and nothing else that reads the
-// grid sees a trail standing proud of it.
+// LAID under each footprint to just below that surface — cut under a cut,
+// raised into an embankment under a fill — so what the renderer lays over
+// it (the tread drawn off the same function) is never pierced by the
+// terrain under it, and never floats over ground that is not there.
 //
 // Pure: no stream is drawn from. The index a point is looked up by is
 // built once a park and kept.
@@ -229,7 +229,10 @@ export function withBikeSurface(base: Level, park: BikePark): Level {
     out.y = inv;
     out.z = -gz * inv;
   };
-  // THE GRID CUT under every footprint, to just under the surface.
+  // THE GRID LAID under every footprint, to just under the surface: cut
+  // down under a cut and RAISED under a fill, so the bench a trail is
+  // built up on stands on an embankment of the mountain's own ground —
+  // never a tread floating over the grass with nothing under it.
   const field = base.ground;
   const data = new Float32Array(field.data);
   const reach = footprintReach(park);
@@ -249,7 +252,7 @@ export function withBikeSurface(base: Level, park: BikePark): Level {
           const x = field.originX + c * field.cell;
           const z = field.originZ + r * field.cell;
           const hit = bikeHit(park, x, z, field.data[i]);
-          if (hit) data[i] = Math.min(field.data[i], hit.y - 0.12);
+          if (hit) data[i] = hit.y - 0.12;
         }
       }
     }

@@ -20,9 +20,11 @@
 import { isBoardId, raceSkisOf, type GameMode, type PairId } from "@engine";
 
 import { MenuBody, MenuHead, StepRow, type Stop } from "./menu-knobs.tsx";
+import { BikePage } from "./menu-bike.tsx";
 import { SkisPage } from "./menu-skis.tsx";
 import { boardAllowed, kindPair, pickPair, type Settings } from "./settings.ts";
-import { GEAR, GEAR_SLOTS, type GearSlot, type Outfit } from "./outfit.ts";
+import { GEAR, GEAR_SLOTS, gearOf, type GearSlot, type Outfit } from "./outfit.ts";
+import { MODELS } from "./skier-models.ts";
 import { MenuStage } from "./menu-stage.tsx";
 import { useBusyPress } from "./busy-press.ts";
 import { STRINGS } from "./strings.ts";
@@ -41,6 +43,10 @@ const STOPS = Object.fromEntries(
 /** The rows on the rider card: every slot but the POLES, which go with the
  * skis on the gear card. */
 const RIDER_SLOTS = GEAR_SLOTS.filter((slot) => slot !== "poles");
+
+/** The rows a MODELLED body keeps (the hiker, `player-model.ts`): it comes
+ * in its own kit, so only who rides, the body and the weight, is picked. */
+const MODEL_SLOTS = RIDER_SLOTS.filter((slot) => slot === "body" || slot === "weight");
 
 export function DressPage({
   outfit,
@@ -85,15 +91,17 @@ export function DressPage({
         <MenuBody>
           <div class="dress-rows">
             {/* The POLES are the gear card's, with the skis. */}
-            {RIDER_SLOTS.map((slot) => (
-              <StepRow
-                key={slot}
-                label={STRINGS.dressSlots[slot]}
-                stops={STOPS[slot]}
-                value={outfit[slot]}
-                onPick={(id) => onOutfit({ ...outfit, [slot]: id })}
-              />
-            ))}
+            {(gearOf("body", outfit.body).model && MODELS.player ? MODEL_SLOTS : RIDER_SLOTS).map(
+              (slot) => (
+                <StepRow
+                  key={slot}
+                  label={STRINGS.dressSlots[slot]}
+                  stops={STOPS[slot]}
+                  value={outfit[slot]}
+                  onPick={(id) => onOutfit({ ...outfit, [slot]: id })}
+                />
+              ),
+            )}
           </div>
         </MenuBody>
       </div>
@@ -120,6 +128,10 @@ export function SkisCards(p: {
   /** A free ride flown in a WINGSUIT (`wingsuitOn`): no skis go with him, so
    * the rider card rides and the gear card is never shown. */
   noSkis?: boolean;
+  /** A SUMMER free ride: the stage stands him in summer. */
+  summer?: boolean;
+  /** ...begun on the DOWNHILL BIKE: the gear card is the bike's. */
+  bike?: boolean;
 }) {
   const boards = boardAllowed(p.mode);
   const skis = !boards && isBoardId(p.skis) ? (raceSkisOf(p.mode) ?? p.settings.kept.skis) : p.skis;
@@ -135,6 +147,7 @@ export function SkisCards(p: {
         shot={p.page === "dress" ? "rider" : "gear"}
         skis={skis}
         outfit={p.settings.outfit}
+        look={{ summer: !!p.summer, bike: !!p.bike }}
       />
       {p.page === "dress" ? (
         <DressPage
@@ -144,6 +157,8 @@ export function SkisCards(p: {
           onNext={() => p.onPage("skis")}
           fly={p.noSkis ? p.onRide : null}
         />
+      ) : p.bike ? (
+        <BikePage onBack={() => p.onPage("dress")} onRide={p.onRide} />
       ) : (
         <SkisPage
           skis={skis}

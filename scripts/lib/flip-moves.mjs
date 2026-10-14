@@ -3,7 +3,7 @@
 // same shape, which the title scene is rendered off and so is kept apart):
 // a backflip, a front flip and a held spin off a kicker's lip, the lean held once the
 // flight is under way and let go to come round (`engine/game/strokes.ts`).
-// The board skis them too.
+// The board rides its own off a kicker (`board-trick-moves.mjs`).
 
 const IDLE = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false };
 /** A kicker's lip at 65 km/h onto a 45 % landing. */

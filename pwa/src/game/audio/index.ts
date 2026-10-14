@@ -27,6 +27,7 @@ import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { createBikeBed, type BikeBed } from "./bike-bed.ts";
 import { createParaBed, type ParaBed } from "./para-bed.ts";
 import { createBalloonBed, type BalloonBed } from "./balloon-bed.ts";
+import { createBurnBed, type BurnBed } from "./burn-bed.ts";
 import { createPlaneBed, type PlaneBed } from "./plane-bed.ts";
 import { createChuteBed, type ChuteBed } from "./chute-bed.ts";
 import { createJumpBed, type JumpBed } from "./jump-bed.ts";
@@ -80,6 +81,9 @@ export function createRunAudio(): RunAudio {
   // THE FREE RIDE'S HOT AIR BALLOON (`balloon-bed.ts`): its burner over
   // his head, and as it flies on without him.
   const balloon: BalloonBed = createBalloonBed(sfx);
+  // A SKIER SET ALIGHT (`burn-bed.ts`): the fire on him, its roar and its
+  // crackle, and the embers after.
+  const burn: BurnBed = createBurnBed(sfx);
   // THE FREE RIDE'S JUMP PLANE (`plane-bed.ts`) and THE SKYDIVE out of its
   // door (`chute-bed.ts`): the turboprop and the cabin, the freefall's roar
   // and the canopy's quiet.
@@ -167,6 +171,7 @@ export function createRunAudio(): RunAudio {
       bike.update(state, dt, outside);
       para.update(state, dt, outside);
       balloon.update(state, dt, outside);
+      burn.update(state, dt, outside);
       plane.update(state, dt, outside);
       chute.update(state, dt, outside);
       jump.update(state, dt, outside);
@@ -181,6 +186,7 @@ export function createRunAudio(): RunAudio {
       bike.setView(view);
       para.setView(view);
       balloon.setView(view);
+      burn.setView(view);
       plane.setView(view);
       chute.setView(view);
       jump.setView(view);
@@ -194,6 +200,7 @@ export function createRunAudio(): RunAudio {
       bike.silence();
       para.silence();
       balloon.silence();
+      burn.silence();
       plane.silence();
       chute.silence();
       jump.silence();
@@ -208,6 +215,7 @@ export function createRunAudio(): RunAudio {
       bike.reset();
       para.reset();
       balloon.reset();
+      burn.reset();
       plane.reset();
       chute.reset();
       jump.reset();

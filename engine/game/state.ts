@@ -757,6 +757,9 @@ export type GameEvent =
   /** Taken into a WIND TUNNEL (R30, `wind-tunnel.ts`) by its id, or let go
    * of it. */
   | { kind: "tunnel"; t: number; id: string; phase: "in" | "out" }
+  /** A FIRE (`fire-burn.ts`): his clothes `caught` from the fire `fire`
+   * at (x, z), or `out` — burnt out, or put out as he is stood up. */
+  | { kind: "fire"; t: number; what: "caught" | "out"; fire: string; x: number; z: number }
   /** ON A JIB (`jib.ts`): onto a rail or a box by its id, or off it —
    * `whole` when he rode it to its end. */
   | {
@@ -877,6 +880,11 @@ export type GameState = ContestState & {
    * and the picture draws the summer ground (`summer-ground.ts`). Absent
    * on every other run. */
   summer?: true;
+  /** THE SHOWCASE'S TAKE (`CreateGameOptions.showcase`): present only on
+   * the menu's backdrop run, counting the times it has been stood up on
+   * this map, so the daring bot (`daring.ts`) roams and tricks a new way
+   * each take. Read, never written, during a run. */
+  showcase?: number;
   /** THE NEW SNOW, m: what the fall (`snowfall.ts`) has laid since the run
    * was stood up — 0 under a sky that does not snow, centimetres an hour
    * under one that does. Written once a step by `step`, shared with the
@@ -907,6 +915,10 @@ export type GameState = ContestState & {
   stakes?: import("./edge-stakes.ts").StakeState;
   /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
+  /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
+   * app asks for it, absent everywhere else — the labs, the suite and every
+   * rival stood off at the top as ever, so no digest moves. */
+  chairHands?: true;
   /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
   heli?: HeliState;
   sled?: SledState;
@@ -926,6 +938,9 @@ export type GameState = ContestState & {
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
+  /** HIS CLOTHES ALIGHT (`fire-burn.ts`): a free ride's, once he has
+   * ridden into a fire; absent otherwise, so no digest moves. */
+  burn?: import("./fire-burn.ts").BurnState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
   /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose

@@ -12,8 +12,8 @@
 // input manager under a run. Leaving a race for the front door hands the same skis back to the bot
 // rather than tearing anything down, which is why the menu comes up over the map the player was
 // just on. Until the first run the door stands over the TITLE SCENE instead (`title-app.tsx`), and
-// no map is built. Under a card the camera is the slow ORBIT round the skis; over a run it is the
-// rung the skier chose — his own, or the one he keeps for his machines (`cameraFor`).
+// no map is built. Under a card the race is cut as a FILM (`cinema-run.ts`); over a run the camera
+// is the rung the skier chose — his own, or the one he keeps for his machines (`cameraFor`).
 //
 // THE RECORD BOOK AND THE GHOST (`ghost-run.ts`): every run the player rides is armed with a ticket
 // — its seed, skis, mode and length — before its first step; every input the engine is handed
@@ -25,9 +25,8 @@
 // a copy up under the `replay` surface, setting the run aside and handing it back to the surface
 // it was watched from (on the bar's way out, or at the end of the crash an instant replay shows).
 //
-// THE URL: every parameter the app reads is listed in `game/url-params.ts`.
-// A URL that names a race (`start`, `shot`, `paused`) boots into one;
-// anything else opens on the attract card or the front door.
+// THE URL: every parameter the app reads is in `game/url-params.ts`. A URL that names a race
+// (`start`, `shot`, `paused`) boots into one; anything else opens on the attract card or the door.
 //
 // THE LOOP: `requestAnimationFrame` hands the clock (the framework's `loop/run-clock`) the wall
 // time; the clock says how many fixed steps to take; each step samples the input (§37.1, once per
@@ -47,7 +46,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   TUNING,
-  botInput,
   createGame,
   error,
   placeRun,
@@ -115,7 +113,9 @@ import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
 import { useAhead } from "./game/use-ahead.ts";
 import { backdropHeld } from "./game/backdrop-hold.ts";
-import { createRunActions } from "./game/run-actions.ts";
+import { backdropInput, backdropNext, backdropTaken } from "./game/backdrop-run.ts";
+import { createCinemaRun } from "./game/cinema-run.ts";
+import { createRunActions, type RunPress } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
 import { createRunClock } from "@niclaslindstedt/oss-game-framework/loop/run-clock";
 import { shotLabel } from "./game/run-news.ts";
@@ -251,6 +251,7 @@ export function App() {
   const nextSeedRef = useRef(nextSeed);
   nextSeedRef.current = nextSeed;
   const pressRef = useRef<Presses>(NO_PRESSES);
+  const actRef = useRef<(press: RunPress) => void>(() => {});
   /** The two flags the loop raises at most once a frame, as refs beside the
    * state, so the loop can ask "have I already said this?" without waiting
    * for a render to answer. */
@@ -288,8 +289,7 @@ export function App() {
     const renderer = renderKit.createWorldRenderer(canvas, { video: videoOf(settingsRef.current) });
     rendererRef.current = renderer;
     const cams = wireLook(manager, renderer, settingsRef, setSettings, shellRef);
-    const book = createRunBook({ show: (ghost) => renderer.setGhost(ghost) });
-    bookRef.current = book;
+    const book = (bookRef.current = createRunBook({ show: (ghost) => renderer.setGhost(ghost) }));
     const replays = (replayRef.current = createReplayRun({
       renderer,
       show: (s) => show(s),
@@ -297,6 +297,7 @@ export function App() {
       done: () => pressRef.current.unwatch(),
     }));
     const xray = createXrayRun(renderer.setXray, xrayHud, () => settingsRef.current);
+    const cinema = createCinemaRun(renderer, backdropInput);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
     const nav = createMenuNav();
@@ -340,6 +341,7 @@ export function App() {
         );
     // A link's SECOND RUN (`?run=2`): the first skied by the bot to its flag.
     if (params.rides && params.run === 2) state = secondRunOff(state);
+    else if (!params.rides && !params.free) state = backdropTaken(state) ?? state;
     /** The mode the player's runs are ridden in, until a tile says otherwise. */
     let mode: GameMode = params.mode;
     /** The player's run, in `mode` on his pair and help: on this map or a fresh one. */
@@ -413,13 +415,11 @@ export function App() {
       for (const k of Object.keys(tally)) delete tally[k];
     };
 
-    /** What this step is ridden on: the player's hands on a run, and the BOT
-     * everywhere else — the race behind a card is still being raced — and
-     * through a link's pre-roll, so a picture of a race is of one moving. */
+    /** The step's hands: the player's on a run, else a bot's (`backdrop-run.ts`'s DARING one). */
     const inputFor = () =>
-      preroll || params.bot || !playerRides(shellRef.current)
-        ? botInput(state)
-        : manager.ride(state);
+      playerRides(shellRef.current) && !preroll && !params.bot
+        ? manager.ride(state)
+        : backdropInput(state, preroll || params.bot);
 
     window.__SH_PROBE__ = () =>
       labProbe(state, book, {
@@ -613,6 +613,8 @@ export function App() {
         stats.rig.flush();
         pinned.clear();
         replays.clear();
+        const taken = backdropTaken(state); // a plain mountain's run: a showcase
+        if (taken) adopt(taken);
         setPage("root");
         frozen = false;
         clock.resume();
@@ -629,7 +631,7 @@ export function App() {
     };
 
     /** One of the game's own buttons, wherever the press came from. */
-    const act = createRunActions({
+    const act = (actRef.current = createRunActions({
       shell: () => shellRef.current,
       pause: () => pressRef.current.pause(),
       resume: () => pressRef.current.resume(),
@@ -641,7 +643,7 @@ export function App() {
       replay: () => pressRef.current.watch(replays.crash() ? "crash" : "recent"),
       shoot: shots.take,
       toggleHud: () => setSettings((s) => ({ ...s, hud: !s.hud })),
-    });
+    }));
     manager.onAction(act);
     // A MENU ROW, PRESSED: the desktop shell's menu bar reaches the game by
     // NAME (shell-host.ts), and every word lands on the handler its key does.
@@ -676,22 +678,20 @@ export function App() {
       loader.frame(frameMs);
       if (walk.walked()) nav.sync();
 
-      // THE BACKDROP RACES ON: a race behind a card that the bot has taken
-      // to the flag is stood back up on the same map, never left coasting.
+      // THE BACKDROP RACES ON, never left coasting: over, a showcase (`backdrop-run.ts`).
       const backdrop = !playerRides(shellRef.current) && !watching(shellRef.current);
       if (backdrop && shellRef.current !== "pause" && !loader.busy()) {
-        if (state.progress.finished) {
-          book.clear();
-          adopt(createGame({ level: state.level, seed: state.seed }));
-        }
+        const next = backdropNext(state);
+        if (next) adopt(next);
       }
       const held = !simulates(shellRef.current);
       const shown = drawable();
-      // SLOW MOTION is fewer steps a frame: the replay director's, the X-ray cam's, the exit cut's.
+      // SLOW MOTION is fewer steps a frame: the film's, the replay's, the X-ray cam's, the exit cut's.
       const xrayOn = playerRides(shellRef.current) && !frozen && !held && shown;
       renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
       const exit = xrayOn ? renderer.exitPace() : 1;
-      const rate = replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn) * exit;
+      const film = cinema.frame(state, backdrop && !held && title.raced()); // `cinema-run.ts`
+      const rate = film * replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn) * exit;
       const dtRun = dtFrame * rate;
       renderer.setPace(rate);
       const simAt = performance.now();
@@ -873,7 +873,7 @@ export function App() {
           feel={settings.touch}
           lever={settings.touch.lever}
           away={away}
-          onReset={() => playerRides(shell) && input?.requestReset()}
+          onReset={() => actRef.current("reset")}
           onCamera={() => pressRef.current.camera()}
           onPause={() => pressRef.current.pause()}
           bare={!settings.hud}

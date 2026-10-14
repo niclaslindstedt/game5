@@ -100,6 +100,10 @@ export function pelvisAxis(yaw: number, rise: number, half: number): V3 {
  * full tuck. */
 export const KNEE_MOST = { bent: 1.97, tucked: 2.16 };
 
+/** How far short of `KNEE_MOST` a folding knee begins to be eased onto
+ * it, rad. */
+const KNEE_SOFT = 0.2;
+
 /**
  * THE KNEES FOLD ONLY AS FAR AS KNEES DO: how far the hips (`hips`, the
  * pelvis's middle on `pelvis`, `half` its half width) must lift, m, so that
@@ -120,7 +124,12 @@ export function kneeRoom(
   bent = KNEE_MOST.bent,
 ): number {
   const most = bent + (KNEE_MOST.tucked - bent) * crouch;
-  const span = Math.sqrt(thigh * thigh + shin * shin + 2 * thigh * shin * Math.cos(most));
+  const spanAt = (a: number): number =>
+    Math.sqrt(thigh * thigh + shin * shin + 2 * thigh * shin * Math.cos(a));
+  // ...closed on softly from `KNEE_SOFT` short of it, so a knee folding
+  // fast into its last degrees slows into them rather than stopping dead.
+  const span = spanAt(most - KNEE_SOFT);
+  const band = Math.max(1e-3, span - spanAt(most));
   const reach = (thigh + shin) * 0.97;
   let need = 0;
   let room = Infinity;
@@ -130,7 +139,8 @@ export function kneeRoom(
     if (flat < span * span) need = Math.max(need, Math.sqrt(span * span - flat) - d.y);
     room = Math.min(room, flat < reach * reach ? Math.sqrt(reach * reach - flat) - d.y : 0);
   });
-  return Math.max(0, Math.min(need, room));
+  const soft = need - band * (1 - Math.exp(-need / band));
+  return Math.max(0, Math.min(soft, room));
 }
 
 /**
@@ -183,4 +193,28 @@ export function hipsOver(lift: number): number {
   if (lift <= -w) return lift / 2;
   if (lift >= w) return 0;
   return -((w - lift) * (w - lift)) / (8 * w);
+}
+
+/**
+ * A LIMB HELD TO ITS OWN LENGTHS: the joint (`mid`) and the end of two
+ * bones `a` and `b` long off `root`, as near the given `mid` and `end` as two
+ * bones of those lengths can be: the end kept on its line from the root,
+ * within the limb's reach, and the joint bent the way `mid` bends it. A
+ * ragdoll's links are a relaxation, not rods, and a pose carried point by
+ * point across a hand-off (`pose-handoff.ts`) is not a pose at all — hung
+ * on either, the figure drew a thigh half as long again.
+ */
+export function keepLengths(
+  root: V3,
+  mid: V3,
+  end: V3,
+  a: number,
+  b: number,
+): { mid: V3; end: V3 } {
+  const span = sub(end, root);
+  const d = len(span);
+  const dir = d > 1e-6 ? scale(span, 1 / d) : norm(sub(mid, root));
+  const reach = Math.min(Math.max(d, Math.abs(a - b) + 1e-3), (a + b) * 0.999);
+  const to = add(root, scale(dir, reach));
+  return { mid: solveLimb(root, to, a, b, sub(mid, root)), end: to };
 }

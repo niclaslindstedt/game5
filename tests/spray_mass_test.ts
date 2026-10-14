@@ -10,7 +10,8 @@ import { createGame, pairById, placeRun, step, TUNING } from "@engine";
 
 import { holdInput } from "../pwa/src/game/hold-input.ts";
 import { SNOW, type SnowKind } from "../pwa/src/game/snowpack.ts";
-import { createMassPool, edgeDepth, hardnessOf, settleSpeed } from "../pwa/src/game/spray-mass.ts";
+import { edgeDepth, hardnessOf, settleSpeed } from "../pwa/src/game/spray-mass.ts";
+import { createMassPool } from "../pwa/src/game/spray-mass-pool.ts";
 import { flatLevel } from "./support/synthetic.ts";
 
 /** A stop from 40 km/h on `kind` snow: the kilograms thrown and the

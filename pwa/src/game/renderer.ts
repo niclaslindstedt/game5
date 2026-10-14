@@ -43,13 +43,14 @@ import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { aboardCraft } from "./camera-aboard.ts";
 import { figureShown } from "./camera-para.ts";
 import { goneUnder, lensGround } from "./camera-buried.ts";
-import { createReplayCamera, type ReplayView } from "./camera-replay.ts";
+import { createWatchCamera } from "./camera-cinema.ts";
+import type { ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { compileByParts, compiled } from "./scene-compile.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
-import { createForest, type Forest, type ForestOptions } from "./forest.ts";
+import { createForest, forestOptionsOf, type Forest, type ForestOptions } from "./forest.ts";
 import { createHurtLens } from "./xray-scene.ts";
 import { wrecked } from "./impact-forecast.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
@@ -82,7 +83,7 @@ import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-b
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
 import { inStartGate } from "./skier-spring.ts";
 import { outfitKey } from "./dress.ts";
-import { suitOf } from "./wingsuit-look.ts";
+import { playerKitOf, playerDress, type PlayerKit } from "./player-dress.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { heightOverFar } from "./horizon.ts";
 import { keyAheadAt, skyLookAt } from "./sky.ts";
@@ -106,10 +107,10 @@ import {
 } from "./snowpack.ts";
 import {
   DEFAULT_VIDEO,
-  DISTANCE_LOOK,
   FOREST_LOOK,
   RESOLUTION_SHARE,
   SHADOW_LOOK,
+  SPRAY_GPU,
   SPRAY_SHARE,
   TRAIL_LOOK,
   terrainLook,
@@ -213,8 +214,8 @@ export function createWorldRenderer(
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
-  /** THE REPLAY'S LENSES (`camera-replay.ts`), or null for the ladder's own rung. */
-  const replayCam = createReplayCamera(() => (level && clear ? { level, clear } : null));
+  /** THE REPLAY'S LENSES and THE FILM's (`camera-cinema.ts`) — the menu's too — or null. */
+  const replayCam = createWatchCamera(() => (level && clear ? { level, clear } : null));
   const broadcast = createJumpBroadcast(); // a ski jump's director (`camera-skijump.ts`)
   let watched: ReplayView | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
@@ -397,13 +398,7 @@ export function createWorldRenderer(
     scene.add(ground.group);
     return ground;
   }
-  const forestOptions = (): ForestOptions => ({
-    ...FOREST_LOOK[video.forest],
-    far: DISTANCE_LOOK[video.distance].trees,
-    view: DISTANCE_LOOK[video.distance].view,
-    casters: SHADOW_LOOK[video.shadows].trees ? FOREST_LOOK[video.forest].casters : "none",
-    coverage: video.antialias,
-  });
+  const forestOptions = (): ForestOptions => forestOptionsOf(video);
 
   /** The player's outfit: slot 0 wears it, the field its slots' own. */
   let outfit: Outfit = DEFAULT_OUTFIT;
@@ -411,9 +406,9 @@ export function createWorldRenderer(
   /** The run's rivals, read for an enthusiast's own kit. */
   let field: readonly Rival[] = [];
   const dealtKits = new Map<string, SkierDress>();
-  let suited = false; // A wingsuit's run: the player in his suit.
+  let kit: PlayerKit = "own"; // His own kit, a wingsuit or a freerider's.
   const dressOf = (i: number): SkierDress => {
-    if (i === 0) return suited ? { outfit, suit: suitOf(outfit) } : { outfit };
+    if (i === 0) return playerDress(kit, outfit);
     const free = field[i - 1]?.free;
     return free
       ? dealtKit(dealtKits, free.look, free.rider)
@@ -530,6 +525,7 @@ export function createWorldRenderer(
       spray = createSpray(env.haze);
       spray.points.name = "spray";
       spray.setBudget(SPRAY_SHARE[video.spray]);
+      spray.setFlight?.(SPRAY_GPU[video.spray]);
       scene.add(spray.points);
       cloud = createSnowCloud(env.haze);
       cloud.mesh.name = "snow-cloud";
@@ -538,7 +534,7 @@ export function createWorldRenderer(
       machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
       field = state.rivals;
-      suited = !!state.wingsuit;
+      kit = playerKitOf(state);
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
       lastTick = -1;
@@ -568,7 +564,7 @@ export function createWorldRenderer(
       const opened = performance.now();
       const runs = runsOf(state);
       field = state.rivals;
-      suited = !!state.wingsuit;
+      kit = playerKitOf(state);
       while (riders.length < runs.length) {
         riders.push(riderFor(riders.length, runs[riders.length].skier.spec));
       }
@@ -682,7 +678,7 @@ export function createWorldRenderer(
         if (skier.airborne) r.vy = skier.vy;
       }
       if (state.gore && !gore) {
-        gore = createGoreView(level, wrap);
+        gore = createGoreView(level, wrap, () => FOREST_LOOK[video.forest].variants);
         scene.add(gore.group);
       }
       gore?.setPace(pace);
@@ -724,7 +720,7 @@ export function createWorldRenderer(
       const planted =
         override ??
         broadcast.lens(state, rigPose, watched, clear) ??
-        (watched ? replayCam.update(watched, rigPose, body, state.t, dt) : null) ??
+        (watched ? replayCam.update(watched, rigPose, body, state.t, dt, dt / pace) : null) ??
         (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??
         dead ??
@@ -862,7 +858,7 @@ export function createWorldRenderer(
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
     group: (name) => scene.getObjectByName(name),
-    plumes: () => plumeBits(spray?.points ?? null, cloud?.mesh ?? null),
+    plumes: () => plumeBits(spray, cloud?.mesh ?? null),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {
       overlayOn = on;
@@ -888,6 +884,7 @@ export function createWorldRenderer(
         z: cam.position.z,
         yaw: Math.atan2(lensDir.x, lensDir.z),
         pitch: Math.asin(Math.max(-1, Math.min(1, lensDir.y))),
+        fov: cam.fov,
       };
     },
 
@@ -947,6 +944,7 @@ export function createWorldRenderer(
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
+      spray?.setFlight?.(SPRAY_GPU[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);
       lifts?.setBudget(SPRAY_SHARE[video.spray]);
       snowfall.setBudget(SPRAY_SHARE[video.spray]);

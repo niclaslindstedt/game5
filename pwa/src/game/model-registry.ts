@@ -160,6 +160,27 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "dealt off the seed, the wires, the burner and the wicker basket; laid on the snow when it is down",
   },
   {
+    asset: "Player's kit",
+    ids: ["hiker", "hiker-woman"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
+    drawnBy: "pwa/src/game/player-model.ts",
+    blender: {
+      builder: "scripts/blender/hiker.py",
+      files: ["hiker.glb", "hiker-woman.glb"],
+      pattern: "<id>.glb",
+      switch: "VITE_MODEL_PLAYER",
+    },
+    note:
+      "the HIKER bodies on the rider card, a man and a woman: a mountain guide (hardshell, " +
+      "touring pants with reinforced knees and kick patches, harness, a two-colour rope coiled " +
+      "round the chest, a pack with a pale face and an ice axe, radio, helmet; her braid over the " +
+      "right shoulder), skinned on the dressed skier's rig so every pose moves it, reshaped by the " +
+      "WEIGHT row and a broken arm hangs from its break, with spring bones on the pack, the coil " +
+      "and the rope's tail and a flutter on the loose cloth on the run's clock; never dealt to a " +
+      "rival, and switched off the hiker is the man's or the woman's dress in code",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

@@ -59,6 +59,7 @@ import {
   carrierGripAt,
   carrierPlace,
   carrierRollAt,
+  chairBarDown,
   carrierSwingAt,
   turnRadius,
   gondolaGrip,
@@ -558,7 +559,7 @@ export function createLifts(
     reach: CHAIR_DISTANT,
   });
   // Every chair's SAFETY BAR, swung down over the riders' laps once the
-  // chair is clear of its load and up again before its unload (`BAR`).
+  // chair is clear of its load and up again before its unload (`chairBarDown`).
   const bars = movingCut(chairBarGeometry(), chairBarFarGeometry(), chairN, CHAIR_REACH, {
     geo: null,
     reach: CHAIR_DISTANT,
@@ -757,7 +758,7 @@ export function createLifts(
         hang(c.p, g, carrierGripAt(c.p, g.u), swing, carrierRollAt(c.p, g.turn));
         m4.compose(at, q, one);
         chairs.add(m4);
-        const lowered = g.side === 0 && g.turn === undefined ? barDown(c.p, g.u) : 0;
+        const lowered = chairBarDown(c.p, g);
         pivot.makeTranslation(0, CHAIR_BAR.y, CHAIR_BAR.z);
         swung.makeRotationX(CHAIR_BAR.up * (1 - lowered));
         bars.add(pivot.premultiply(m4).multiply(swung));
@@ -917,20 +918,6 @@ type Hold = { hide?: boolean; cord?: number; pull?: number };
 /** A T-bar's key among every lift's: its lift's index and its number. */
 function barKey(index: number, k: number): number {
   return index * 4096 + k;
-}
-
-/** THE SAFETY BAR (`docs/lifts.md`): lowered once the chair is clear of
- * its load — `down` m past the load line, over the metres between — and
- * raised `up` m short of the unload, where the sign asks for it: 0 up …
- * 1 down over the riders' laps, `u` m up the line. */
-const BAR = { down: [8, 16], up: [34, 26] } as const;
-function barDown(p: LiftPlan, u: number): number {
-  const load = p.look.entry.at;
-  const off = p.length - p.look.off;
-  return (
-    smoothstep(load + BAR.down[0], load + BAR.down[1], u) *
-    (1 - smoothstep(off - BAR.up[0], off - BAR.up[1], u))
-  );
 }
 
 /** A T-BAR'S CORD in its spring box: reeled up to `short` m while nobody

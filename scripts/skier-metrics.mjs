@@ -347,7 +347,7 @@ function measure(move) {
   let lastT = 0;
   for (let i = 0; i < steps; i++) {
     const t = state.t - t0;
-    E.step(state, move.input(t, state));
+    E.step(state, move.input(t, state, E));
     if (i % 2 === 0) continue;
     const c = state.skier;
     const now = state.t - t0;

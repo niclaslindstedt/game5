@@ -53,7 +53,9 @@ import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
 
 import type { BuildShape } from "./dress-body.ts";
 
-export type BodyId = "man" | "woman";
+export type BodyId = "man" | "woman" | "hiker" | "hikerWoman";
+/** A WHOLE KIT MODELLED in Blender (`player-model.ts`), by its name. */
+export type ModelKit = "hiker";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
 export type HelmetId = "race" | "freeride" | "visor" | "slalom";
@@ -72,8 +74,13 @@ export type Outfit = {
    * suit in the jacket's own colours, the helmet painted to match. Never a
    * slot of the DRESS card — the ski jump puts it on him. */
   suit?: boolean;
+  /** A FREERIDER'S KIT on the downhill bike (`rideKit`): a loose jersey,
+   * baggy shorts over knee pads and long socks, flat-pedal shoes and a
+   * full-face helmet, in the kit's own colours (`RIDE_KIT`). Never a slot
+   * of the DRESS card — the freeride bike puts it on him. */
+  bike?: boolean;
 };
-export type GearSlot = Exclude<keyof Outfit, "suit">;
+export type GearSlot = Exclude<keyof Outfit, "suit" | "bike">;
 
 /** A BUILD: its name and its shape (`dress-body.ts`' `builtTo`) — the
  * GIRTH, the body's breadth and depth as a share of the medium build's at
@@ -91,6 +98,11 @@ export type BodyDef = {
   hair: number;
   /** The shadowed partings between a braid's strands. */
   plait: number;
+  /** A WHOLE KIT MODELLED in Blender (`player-model.ts`): a man's or a
+   * woman's measure (`female`) in the kit's own clothes, harness, pack and
+   * helmet, so the jacket, pants, helmet and gloves rows are its already.
+   * Never dealt to the field. */
+  model?: ModelKit;
 };
 
 /** A garment's colours: the MAIN body of it, its SECOND colour (a yoke, a
@@ -127,6 +139,26 @@ export type PoleDef = {
 export const BODIES: readonly BodyDef[] = [
   { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e, plait: 0x241910 },
   { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232, plait: 0x6a4020 },
+  // The HIKER: a mountain guide's kit, modelled (`scripts/blender/hiker.py`),
+  // as a man and as a woman with the same skin and hair as the code's.
+  {
+    id: "hiker",
+    name: "Hiker man",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x3a2a1e,
+    plait: 0x241910,
+    model: "hiker",
+  },
+  {
+    id: "hikerWoman",
+    name: "Hiker woman",
+    female: true,
+    skin: 0xe0aa86,
+    hair: 0x9a6232,
+    plait: 0x6a4020,
+    model: "hiker",
+  },
 ];
 
 const WEIGHT_LOOK: Record<RiderId, { name: string; belly: number; chest: number }> = {
@@ -352,7 +384,10 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
     return kept[dealt(look, k, kept.length)].id;
   };
   return {
-    body: of(BODIES, 0),
+    body: of(
+      BODIES.filter((b) => !b.model),
+      0,
+    ),
     weight,
     jacket: of(JACKETS, 1),
     pants: of(PANTS, 2),
@@ -381,9 +416,44 @@ export function suitPants(o: Outfit): Colours {
  * shell painted in the suit's main and second colours. */
 export function helmetOf(o: Outfit): HelmetDef {
   const h = gearOf("helmet", o.helmet);
+  if (o.bike) return { ...h, ...RIDE_KIT.helmet };
   if (!o.suit) return h;
   const j = gearOf("jacket", o.jacket);
   return { ...h, shell: j.main, trim: j.second };
+}
+
+/** THE FREERIDER'S KIT'S COLOURS, after the big-mountain riders' own: a
+ * dark jersey with bright shoulders, sand shorts, black pads with grey
+ * caps, white socks striped at the top, dark skate-cut shoes on a gum
+ * sole, an off-white full-face helmet and a mirrored lens. */
+export const RIDE_KIT = {
+  jersey: { main: 0x22262b, second: 0xff6a13, third: 0xf2efe6 },
+  shorts: { main: 0x9c8a62, second: 0x6d6045, third: 0x2a2d31 },
+  pads: { main: 0x18191c, cap: 0x4a4e55, strap: 0x2c2f34 },
+  socks: { main: 0xeeeae0, stripe: 0xff6a13 },
+  shoes: { main: 0x2a2d33, sole: 0xa07a4e, lace: 0x8d9298 },
+  helmet: { shell: 0xe8e4d8, trim: 0x22262b, lens: 0xf08a2c },
+};
+
+/** THE FREERIDER'S KIT off the player's (or a rival's) own: his body,
+ * build and gloves kept, the rest the bike's (`Outfit.bike`) — and NO
+ * POLES. */
+export function rideKit(o: Outfit): Outfit {
+  return {
+    ...o,
+    jacket: "race",
+    pants: "baggy",
+    helmet: "freeride",
+    gloves: o.gloves === "mitten" ? "undercuff" : o.gloves,
+    poles: "none",
+    bike: true,
+  };
+}
+
+/** The jacket as worn: its catalog entry, or the freerider's jersey. */
+export function jacketOf(o: Outfit): JacketDef {
+  const j = gearOf("jacket", o.jacket);
+  return o.bike ? { ...j, ...RIDE_KIT.jersey } : j;
 }
 
 /** One slot's catalog entry for an id — its first when the id is unknown. */

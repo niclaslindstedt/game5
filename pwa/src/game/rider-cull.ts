@@ -14,7 +14,10 @@ const lensAxis = new THREE.Vector3();
 /** Hide every rider but the player (index 0) clear behind `camera`. */
 export function cullBehind(
   camera: THREE.Camera,
-  riders: readonly { drawn: { x: number; y: number; z: number }; model: { root: THREE.Object3D } }[],
+  riders: readonly {
+    drawn: { x: number; y: number; z: number };
+    model: { root: THREE.Object3D };
+  }[],
 ): void {
   const eye = camera.position;
   lensAxis.set(0, 0, -1).applyQuaternion(camera.quaternion);

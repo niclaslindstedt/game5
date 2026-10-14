@@ -20,15 +20,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
-import {
-  createGame,
-  pairById,
-  placeRun,
-  step,
-  TUNING,
-  type Level,
-  type SkierState,
-} from "@engine";
+import { createGame, pairById, placeRun, step, TUNING, type Level, type SkierState } from "@engine";
 
 import { holdInput, type HoldMove } from "../pwa/src/game/hold-input.ts";
 import { rideSink } from "../pwa/src/game/ride-sink.ts";
@@ -93,7 +85,9 @@ describe("the skis never under the drawn snow", () => {
                 seen++;
               }
               // The figure is let down into a furrow, never lifted out of one.
-              expect(rideSink(s, level, depth, true, () => SNOW[kind])).toBeGreaterThanOrEqual(-1e-9);
+              expect(rideSink(s, level, depth, true, () => SNOW[kind])).toBeGreaterThanOrEqual(
+                -1e-9,
+              );
             });
           }
         }

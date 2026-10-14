@@ -18,9 +18,12 @@ import type { TrailUniforms } from "./trail-map.ts";
 export type DeformRig = {
   /** The field's look for a ground about to be built (undefined: none),
    * its old field let go. */
-  build(video: VideoSettings, spacing: number, summer: boolean, uniforms: TrailUniforms):
-    | DeformLook
-    | undefined;
+  build(
+    video: VideoSettings,
+    spacing: number,
+    summer: boolean,
+    uniforms: TrailUniforms,
+  ): DeformLook | undefined;
   /** Before rider `i`'s stamps and spray: where his own stamps begin. */
   begin(i: number, skier: SkierState, stamps: readonly Stamp[]): void;
   /** After rider `i`'s stamps, spray and body: the player's pressed and

@@ -186,24 +186,67 @@ export function emptyStand(): Stand {
   };
 }
 
+/** THE LEGS LET OUT AS LEGS DO: how fast a drawn ski may drop away from
+ * the body, m/s² — the most the extension may speed up or slow down by.
+ * The engine's compression is the deepest of a leg's three stations
+ * (`skier.ts`), so as a ski pitches over a crest the deepest one hands over
+ * to the next, and as the snow falls away under a landing it lets go of
+ * the leg by five centimetres a step; drawn as it comes, the boots, the
+ * hips and the head were thrown down by it at 500 m/s². A ski coming UP
+ * (the snow pressing it) is drawn at once, so a drawn ski is only ever
+ * above where the engine has it, never in the snow. */
+export const LIFT_EASE = 80;
+
+/** The drawn skis' lift as the legs let it out (`LIFT_EASE`). */
+export type DrawnLift = { lift: [number, number]; rate: [number, number] };
+
+export function createDrawnLift(): DrawnLift {
+  return { lift: [Number.NaN, Number.NaN], rate: [0, 0] };
+}
+
+/** Step the drawn lift toward the engine's (`gearLift`) by `dt` s: taken
+ * at once upward, let down at no more than `LIFT_EASE`. */
+export function stepDrawnLift(
+  d: DrawnLift,
+  raw: readonly [number, number],
+  dt: number,
+): [number, number] {
+  for (let i = 0; i < 2; i++) {
+    const want = raw[i];
+    if (Number.isNaN(d.lift[i]) || want >= d.lift[i]) {
+      d.lift[i] = want;
+      d.rate[i] = 0;
+      continue;
+    }
+    if (!(dt > 0)) continue;
+    // The speed that comes to rest on the engine's just as it gets there,
+    // reached no faster than the ease allows.
+    const arrive = Math.sqrt(2 * LIFT_EASE * (d.lift[i] - want));
+    d.rate[i] = Math.min(arrive, d.rate[i] + LIFT_EASE * dt);
+    d.lift[i] = Math.max(want, d.lift[i] - d.rate[i] * dt);
+  }
+  return d.lift;
+}
+
 /** THE PAIR ON THE SNOW for one frame, into `out`: `ground` is how far he
  * stands on it, 0..1 (the view's own eased flag; 0 in the air and thrown);
  * `incline` the inclination the body is drawn at (the engine's, carried
  * to the drawn orientation when that is between two steps); `angle` the
- * skid's pivot as drawn (`drawnSkiAngle`). */
+ * skid's pivot as drawn (`drawnSkiAngle`); `lift` each ski's lift toward
+ * the body as drawn (`stepDrawnLift`), the engine's own when left out. */
 export function standOf(
   skier: SkierState,
   ground: number,
   out: Stand = emptyStand(),
   incline = skier.incline,
   angle = skier.skiAngle,
+  lift: readonly [number, number] = gearLift(skier),
 ): Stand {
   const g = clamp(ground, 0, 1);
   const r = incline * g;
   const sr = Math.sin(r);
   const cr = Math.cos(r);
   const w = skier.spec.stance / 2;
-  const lift = gearLift(skier);
   out.incline = r;
   // Each binding on the snow — half the stance across the skis' own line,
   // turned with the pivot — rolled into the body.

@@ -129,6 +129,33 @@ describe("a fall", () => {
   });
 });
 
+describe("the restart", () => {
+  it("puts him back where he last rode a trail, however far off it he is thrown", () => {
+    let s = bikeRun(level(), "B1");
+    const aim = bikeAim(s, "B1");
+    for (let i = 0; i < 60 / TUNING.dt && aim.s < 150; i++) s = step(s, bikePilot(s, aim));
+    const last = s.bike!.ridden!;
+    expect(last.trail).toBe("B1");
+    expect(last.s).toBeGreaterThan(100);
+    // Carried far off the park (a fall, a lift dropped off), then the reset.
+    const b = s.bike!;
+    b.x += 300;
+    b.z += 300;
+    s = step(s, { ...NEUTRAL_INPUT, reset: true });
+    const t = bikeTrailById(s.level, "B1")!;
+    const back = t.points.reduce((a, p) =>
+      Math.hypot(p.x - s.bike!.x, p.z - s.bike!.z) < Math.hypot(a.x - s.bike!.x, a.z - s.bike!.z)
+        ? p
+        : a,
+    );
+    expect(Math.hypot(back.x - s.bike!.x, back.z - s.bike!.z)).toBeLessThan(1);
+    // ...at the place he rode, or the first clear place a little down it.
+    expect(back.s).toBeGreaterThanOrEqual(last.s - 1);
+    expect(back.s).toBeLessThan(last.s + 61);
+    expect(s.bike!.onIt).toBe(true);
+  });
+});
+
 describe("a lift carries the bike", () => {
   // Every chair and gondola of two maps, rolled into from 8 m short of its
   // load zone at a walking pace (pedalled up to 1.5 m/s, never past it):
@@ -174,6 +201,45 @@ describe("a lift carries the bike", () => {
       expect(missed).toEqual([]);
     });
   }
+  // Dropped off a chair's seat partway up — the landing thrown or not — he
+  // is put back on the bike once he is up, as after any fall (it was once
+  // left lying, and he stood up with no way back onto it).
+  it("puts him back on it after he drops off a chair", () => {
+    const map = level();
+    const stuck: string[] = [];
+    for (const plan of liftPlans(map).filter((p) => p.lift.kind === "chair")) {
+      const e = plan.look.entry;
+      const u = e.at - e.along - 8;
+      const x = plan.lift.bottom.x + u * plan.dx + e.side * plan.dz;
+      const z = plan.lift.bottom.z + u * plan.dz - e.side * plan.dx;
+      let st = createGame({
+        level: map,
+        mode: "free",
+        summer: true,
+        bike: true,
+        spawn: { x, z },
+        quiet: true,
+      });
+      const b = st.bike!;
+      placeBike(b, bikeWorldOf(st.level, 0), x, z, plan.heading, 1.5);
+      st.skier.x = b.rider.x;
+      st.skier.y = b.rider.y;
+      st.skier.z = b.rider.z;
+      let lifted = -1;
+      for (let i = 0; i < 40 / TUNING.dt && !(lifted >= 0 && st.t - lifted > 18); i++) {
+        st = step(st, { ...NEUTRAL_INPUT, tuck: lifted < 0 && st.bike!.speed < 1.6 ? 1 : 0 });
+        if (lifted < 0 && st.bike!.mode === "lift") lifted = st.t;
+      }
+      st = step(st, { ...NEUTRAL_INPUT, machine: true });
+      let back = false;
+      for (let i = 0; i < 30 / TUNING.dt && !back; i++) {
+        st = step(st, NEUTRAL_INPUT);
+        back = st.bike!.onIt;
+      }
+      if (!back) stuck.push(plan.lift.id);
+    }
+    expect(stuck).toEqual([]);
+  });
 });
 
 describe("the bot", () => {

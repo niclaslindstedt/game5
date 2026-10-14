@@ -82,6 +82,7 @@ export function freshBike(riderMass: number = R.mass): BikeState {
     lift: null,
     afoot: null,
     trail: null,
+    ridden: null,
   };
 }
 

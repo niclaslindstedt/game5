@@ -383,6 +383,10 @@ const args = parseArgs(
       kind: "flag",
       help: "a free ride over the seed (its lifts' boarding rings, for the lift-ring view)",
     },
+    daring: {
+      kind: "flag",
+      help: "the menu's backdrop: a showcase ridden by the daring bot (the air-<n> and air-<n>-<rung> views — the nth flight in the air)",
+    },
     grimbear: {
       kind: "flag",
       help: "with --free, the grimbear hunts the ride (the grimbear-lurk, -chase, -run, -maul and -leave views)",
@@ -395,7 +399,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--grimbear] [--skis=id] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--daring] [--grimbear] [--skis=id] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -484,6 +488,7 @@ const query = new URLSearchParams({
   ...(args.slalom ? { slalom: "1" } : {}),
   ...(args.free ? { free: "1" } : {}),
   ...(args.grimbear ? { grimbear: "1" } : {}),
+  ...(args.daring ? { daring: "1" } : {}),
   ...(args.skis ? { skis: args.skis } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),
@@ -528,7 +533,12 @@ const isPlunge = (v) =>
 const plunges = wanted
   .filter(isPlunge)
   .sort((a, b) => Number(a.split("-").at(-1)) - Number(b.split("-").at(-1)));
+// A flight view (`air-3`, `air-3-far`, with `--daring`) is staged first,
+// in the order of its count: the daring bot's flights down one run.
+const isAir = (v) => /^air-\d+(-\w+)?$/.test(v);
+const airs = wanted.filter(isAir).sort((a, b) => Number(a.split("-")[1]) - Number(b.split("-")[1]));
 const order = [
+  ...airs,
   ...VIEWS.flatMap((v) =>
     v === "chase-60" ? chases : v === "wipeout" ? [...falls, v] : isChase(v) ? [] : [v],
   ),
@@ -542,7 +552,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.skis ? `${args.skis}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
+    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.daring ? "daring-" : ""}${args.skis ? `${args.skis}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

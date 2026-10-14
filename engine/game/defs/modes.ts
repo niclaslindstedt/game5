@@ -496,6 +496,22 @@ export function freeRules(laps: number): RunRules {
   };
 }
 
+/** THE SHOWCASE: the run the menu's backdrop stands up for the DARING BOT
+ * (`sim/daring.ts`) to show the mountain off on — the free ride's mountain
+ * with nobody else on it: no field, no lights, no course owed, the strokes
+ * read and every trick scored (so any flight he springs into is his to
+ * turn), under the real g a tricks run flies in, and no lift, machine,
+ * crowd or slab to meet. Nothing ends it — the app's backdrop and the
+ * daring lab stand it up again at the top (`showcaseOver`). No mode a
+ * player picks: `CreateGameOptions.showcase` asks for it. */
+export function showcaseRules(laps: number): RunRules {
+  return {
+    ...tricksRules(laps),
+    countdown: 0,
+    limit: 0,
+  };
+}
+
 // The run dials (the snow's depth, the resilience) are `dials.ts`'s.
 export { SNOW_DIAL, clampResilience, clampSnowDepth } from "./dials.ts";
 

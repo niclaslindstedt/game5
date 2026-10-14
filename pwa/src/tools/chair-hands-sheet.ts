@@ -42,6 +42,10 @@ export type HandsCtx = {
 
 const FRAME = 1 / 60;
 const STEPS = Math.round(FRAME / TUNING.dt);
+/** How long before a shot the picture is drawn, s. */
+const WARM = 1;
+/** Every how many frames of that second are drawn. */
+const WARM_EVERY = 12;
 
 /** Where his chair is, and its bar. */
 function chairOf(run: GameState, plan: LiftPlan): { side: number; turn?: number; bar: number } {
@@ -59,7 +63,7 @@ function lensFor(run: GameState, v: string, ctx: HandsCtx): void {
     const sh = Math.sin(c.heading);
     const ch = Math.cos(c.heading);
     ctx.renderer.setOverride({
-      eye: { x: c.x - sh * 0.35, y: c.y + 1.15, z: c.z - ch * 0.35 },
+      eye: { x: c.x + sh * 0.3, y: c.y + 0.95, z: c.z + ch * 0.3 },
       target: { x: c.x + sh * 30, y: c.y - 6, z: c.z + ch * 30 },
       fov: 70,
       roll: 0,
@@ -124,10 +128,16 @@ async function film(
 ): Promise<HTMLElement[][]> {
   const rows: HTMLElement[][] = views.map(() => []);
   let next = 0;
+  let frame = 0;
   while (next < times.length) {
+    frame++;
     for (let i = 0; i < STEPS; i++) step(run, pilot(run));
-    ctx.renderer.setOverride(null);
     const due = run.t >= times[next];
+    // Drawn only in the second before a shot (the lens settles, the spray
+    // and the tracks catch up); a software GL can't draw a whole ride.
+    if (run.t < times[next] - WARM) continue;
+    if (!due && frame % WARM_EVERY !== 0) continue;
+    ctx.renderer.setOverride(null);
     ctx.renderer.draw(run, 0, FRAME);
     if (!due) continue;
     views.forEach((v, row) => {

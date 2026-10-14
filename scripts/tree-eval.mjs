@@ -98,7 +98,7 @@ const args = parseArgs(
     },
     scenes: { kind: "string", default: "", help: "only these scenes in each group" },
     quality: { kind: "string", default: "high", help: "the picture preset: low, medium, high" },
-    frames: { kind: "number", default: 3, help: "frames timed for each half of a scene's price" },
+    frames: { kind: "number", default: 2, help: "frames timed for each half of a scene's price" },
     approach: { kind: "flag", help: "only the approach walk (with the alpine group)" },
     "no-approach": { kind: "flag", help: "skip the approach walk" },
     "no-cost": { kind: "flag", help: "pictures only, no prices" },
@@ -113,7 +113,11 @@ const args = parseArgs(
     width: { kind: "number", default: 1280, help: "canvas width, px" },
     height: { kind: "number", default: 720, help: "canvas height, px" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
-    timeout: { kind: "number", default: 1800, help: "how long the whole run may take, s" },
+    timeout: {
+      kind: "number",
+      default: 14400,
+      help: "how long the whole run may take, s (every scene in the software rasterizer is about an hour and a half)",
+    },
   },
   "usage: node scripts/tree-eval.mjs [--groups=a,b] [--scenes=a,b] [--quality=high] [--refs=DIR] [--json=FILE] [--compare=FILE] [--skip-build]",
 );

@@ -41,7 +41,7 @@
 // none of them is switched on by riding closer to its tree.
 
 import * as THREE from "three";
-import { felledTrees, regionOf, type Level, type Vec3 } from "@engine";
+import { felledTrees, regionOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth } from "./terrain-shade.ts";
@@ -49,11 +49,11 @@ import type { ForestLook, TreeCasters } from "./settings-video.ts";
 import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
 import { createRocks } from "./rocks.ts";
-import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
+import { graftGirth } from "./tree-mesh.ts";
 import { summerShown } from "./season-look.ts";
 import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
-import { treeTilt, trunkYaw } from "./tree-tilt.ts";
+import { createTreePlace, placeTree, treeHash } from "./tree-place.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
@@ -103,10 +103,7 @@ function inset(g: THREE.BufferGeometry, by: number): THREE.BufferGeometry {
   return g;
 }
 
-function hash(x: number, z: number): number {
-  const s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
-  return s - Math.floor(s);
-}
+const hash = treeHash;
 
 /** How close the lens may come to a drawn crown before the tree is taken
  * out of the picture once it is behind (`LENS_BEHIND`), m. */
@@ -221,13 +218,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   /** Each tree's LEAN as the shift of its axis in plan a metre up. */
   const leans = new Float32Array(count * 2);
   const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const lean = new THREE.Quaternion();
-  const s = new THREE.Vector3();
-  const p = new THREE.Vector3();
-  const up = new THREE.Vector3(0, 1, 0);
-  const across = new THREE.Vector3();
-  const ground: Vec3 = { x: 0, y: 1, z: 0 };
+  const at = createTreePlace();
   // The trees felled, by their number in the bin order.
   const felled = felledTrees(level);
   const gone = new Uint8Array(count);
@@ -235,33 +226,16 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   for (let i = 0; i < count; i++) {
     const t = trees[i];
     thin[i] = hash(t.x * 1.7 + 11, t.z * 0.6 - 5);
-    // Turned about its own axis, then LEANT off plumb about its foot
-    // (`tree-tilt.ts`): mostly a few degrees, mostly down the slope.
-    level.normalAt(t.x, t.z, ground);
-    const tilt = treeTilt(t.x, t.z, leadVariant(t.kind ?? "spruce").shape.form, ground.x, ground.z);
-    across.set(tilt.dz, 0, -tilt.dx);
-    lean.setFromAxisAngle(across, tilt.angle);
-    q.setFromAxisAngle(up, trunkYaw(t.x, t.z)).premultiply(lean);
+    const tilt = placeTree(level, t, at);
     const reach = Math.tan(tilt.angle);
     leans[i * 2] = tilt.dx * reach;
     leans[i * 2 + 1] = tilt.dz * reach;
-    // The crown the generator gives is the collision's idea of it; drawn a
-    // touch narrower so a wood keeps gaps between its trees — and every tree
-    // a little broader or slimmer and a little oval, off a hash of its
-    // place, so no two of one variant stand as the same tree.
-    const broad = 0.86 + 0.18 * hash(t.x * 0.37 + 3, t.z * 1.9);
-    const oval = 0.9 + 0.2 * hash(t.x * 2.3, t.z * 0.41 - 7);
-    s.set(t.crown * 0.95 * broad * oval, t.height, (t.crown * 0.95 * broad) / oval);
-    girths[i * 2] = t.radius / (TRUNK_REF * s.x);
-    girths[i * 2 + 1] = t.radius / (TRUNK_REF * s.z);
-    // Sunk a little, so a tree on a slope stands in the snow — and a leaning
-    // one by as much again as its flared foot rises on the side it leans
-    // from.
-    p.set(t.x, t.y - 0.3 - t.radius * 1.45 * Math.sin(tilt.angle), t.z);
+    girths[i * 2] = at.girth[0];
+    girths[i * 2 + 1] = at.girth[1];
     // A tree felled for the village or a building's site (`felledTrees`)
     // is drawn as nothing: its matrix squashed to its foot.
-    if (gone[i]) s.set(0, 0, 0);
-    m.compose(p, q, s).toArray(matrices, i * 16);
+    if (gone[i]) at.s.set(0, 0, 0);
+    m.compose(at.p, at.q, at.s).toArray(matrices, i * 16);
     const tone = 0.9 + hash(t.z, t.x) * 0.2;
     colours[i * 3] = tone;
     colours[i * 3 + 1] = tone;

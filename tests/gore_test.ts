@@ -9,8 +9,10 @@ import { describe, expect, it } from "vitest";
 import {
   GORE,
   GORE_PIECES,
+  RAGDOLL,
   TUNING,
   bleedsOf,
+  createGame,
   woundFlow,
   lostPiece,
   mendBody,
@@ -19,6 +21,7 @@ import {
 } from "@engine";
 
 import { stageTrial, type Staging } from "./support/injury-stage.ts";
+import { syntheticLevel } from "./support/synthetic.ts";
 
 const HEAD_INTO_TRUNK: Staging = {
   stage: { how: "into", pose: "head", stuff: "trunk", speed: 25 },
@@ -89,9 +92,53 @@ describe("mortal wounds", () => {
     expect(g.cause).toBe("impaled");
     const b = state.skier.thrown!;
     const p = g.impaled!.point;
-    // Held on the spike, slid down it no further than it holds him.
-    expect(b.points[3 * p + 1]).toBeCloseTo(g.impaled!.y - GORE.impale.sink, 2);
+    // Held on the spike, sunk down the stem to where it holds him: well
+    // past a post's sink, never through the snow.
+    const i = g.impaled!;
+    expect(i.depth).toBeGreaterThan(GORE.impale.sink);
+    expect(i.sunk).toBeCloseTo(i.depth, 3);
+    expect(b.points[3 * p + 1]).toBeCloseTo(i.y - i.depth, 2);
+    expect(i.y - i.depth).toBeGreaterThan(
+      state.level.groundAt(i.x, i.z) + GORE.impale.clear - 0.01,
+    );
     expect(Math.hypot(b.points[3 * p] - g.impaled!.x, b.points[3 * p + 2] - g.impaled!.z)).toBe(0);
+  });
+
+  it("tear a limb open on a tree's top rather than run it through", () => {
+    // The body shifted so his left foot, not his hips, is over the tip.
+    const { state, input } = stageTrial(ON_A_TREE, 0, true);
+    const b = state.skier.thrown!;
+    const f = 3 * RAGDOLL.footL;
+    const dx = 300 - b.points[f];
+    const dz = 300 - b.points[f + 2];
+    for (const arr of [b.points, b.last])
+      for (let k = 0; k < arr.length; k += 3) {
+        arr[k] += dx;
+        arr[k + 2] += dz;
+      }
+    b.x += dx;
+    b.z += dz;
+    const events: GameEvent[] = [];
+    for (let i = 0; i < Math.round(2 / TUNING.dt); i++) {
+      step(state, input);
+      events.push(...state.events);
+    }
+    const g = state.gore!;
+    expect(g.gashes.length).toBeGreaterThan(0);
+    for (const h of g.gashes) expect(h.point).toBeGreaterThanOrEqual(4);
+    expect(events.some((e) => e.kind === "gore" && e.what === "gash")).toBe(true);
+    if (g.impaled) expect(g.impaled.point).toBeLessThan(4);
+  });
+
+  it("never deal the mortal wounds to a safe-for-work run, even asked", () => {
+    const state = createGame({ level: syntheticLevel(), seed: 1, gore: true, sfw: true });
+    expect(state.gore).toBeUndefined();
+  });
+
+  it("never run a body through on a tree with the wounds off", () => {
+    const { state } = ride(ON_A_TREE, 4, false);
+    expect(state.gore).toBeUndefined();
+    expect(state.skier.thrown?.pin ?? null).toBeNull();
   });
 
   it("never stand a mortally wounded body back up", () => {

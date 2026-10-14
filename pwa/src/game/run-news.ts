@@ -87,6 +87,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.cause === "avalanche") return null;
       // Off the bike: its own `crash` says how he came off.
       if (e.cause === "bike") return null;
+      // Into a fire: its own `fire` event is the one to say so.
+      if (e.cause === "fire") return null;
       // Over the leading end riding switch is over the TAILS (`switch.ts`).
       if (e.cause === "nose" && state.skier.switched)
         return { text: STRINGS.newsTailDug, tone: "bad" };

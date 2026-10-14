@@ -333,8 +333,16 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
         const j = (i + 1) % sides;
         const shelf =
           snowy[i] || snowy[j] ? SNOW : i % 2 === 0 ? needle : dark.clone().lerp(needle, 0.55);
-        const tipL = snowy[i] && jitter(seed + ti * 5 + i) < snow * 0.5 ? SNOW_SHADE : needle;
-        const tipR = i % 2 === 0 ? dark.clone().lerp(needle, 0.55) : needle;
+        // A heavy load (a maritime wood's) plasters the tips too.
+        const heavy = (snow - 0.45) * 1.6;
+        const tipL =
+          snowy[i] && jitter(seed + ti * 5 + i) < Math.max(snow * 0.5, heavy) ? SNOW_SHADE : needle;
+        const tipR =
+          jitter(seed * 3 + ti * 7 + i) < heavy
+            ? SNOW_SHADE
+            : i % 2 === 0
+              ? dark.clone().lerp(needle, 0.55)
+              : needle;
         s.push(apex, cap, vol(apex, 1));
         s.push(mid[j], cap, vol(mid[j], 0.9));
         s.push(mid[i], cap, vol(mid[i], 0.9));

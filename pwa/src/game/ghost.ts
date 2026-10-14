@@ -96,6 +96,10 @@ export function snapInput(input: SkierInput): SkierInput {
   input.lean = snapAxis(input.lean, TAPE.lean);
   input.tuck = snapAxis(input.tuck, TAPE.tuck);
   input.brake = snapAxis(input.brake, TAPE.brake);
+  if (input.pop !== undefined) {
+    const level = popLevel(input.pop);
+    input.pop = level > 0 ? level / POP_LEVELS : undefined;
+  }
   // A helicopter flown (`heli.ts`) on the same grid: a free ride keeps no
   // tape, but the figure the engine flies on is still the figure snapped.
   const h = input.heli;
@@ -170,6 +174,18 @@ const FLAG_TRICK = 2;
 /** ...the edge cut hard, and the jump held. */
 const FLAG_CARVE = 4;
 const FLAG_JUMP = 8;
+/** ...and a flick's pop (`SkierInput.pop`), in `POP_LEVELS` steps packed
+ * into the three bits over them: 0 none. A tape older than the flick has
+ * them clear, and reads back as it was. */
+const POP_SHIFT = 4;
+const POP_LEVELS = 7;
+
+/** A pop on the tape's grid: one of `POP_LEVELS` shares, never 0. */
+function popLevel(pop: number | undefined): number {
+  return pop !== undefined && pop > 0
+    ? Math.min(POP_LEVELS, Math.max(1, Math.round(pop * POP_LEVELS)))
+    : 0;
+}
 
 export type ControlRecorder = {
   /** Write down the controls a step was ridden on — the input the engine
@@ -193,7 +209,8 @@ export function createControlRecorder(): ControlRecorder {
           (input.reset ? FLAG_RESET : 0) |
           (input.trick ? FLAG_TRICK : 0) |
           (input.carve ? FLAG_CARVE : 0) |
-          (input.jump ? FLAG_JUMP : 0),
+          (input.jump ? FLAG_JUMP : 0) |
+          (popLevel(input.pop) << POP_SHIFT),
       }),
     steps: tape.steps,
     seal: tape.seal,
@@ -217,7 +234,7 @@ export function readControls(tape: ControlTape): GhostTape {
     steps: reader.steps,
     at: (step) => {
       if (reader.at(step, axes) === null) {
-        input.trick = input.carve = input.jump = undefined;
+        input.trick = input.carve = input.jump = input.pop = undefined;
         return Object.assign(input, NEUTRAL_INPUT);
       }
       input.steer = axes.steer;
@@ -229,6 +246,8 @@ export function readControls(tape: ControlTape): GhostTape {
       input.trick = (axes.flags & FLAG_TRICK) !== 0 ? true : undefined;
       input.carve = (axes.flags & FLAG_CARVE) !== 0 ? true : undefined;
       input.jump = (axes.flags & FLAG_JUMP) !== 0 ? true : undefined;
+      const pop = (axes.flags >> POP_SHIFT) & POP_LEVELS;
+      input.pop = pop > 0 ? pop / POP_LEVELS : undefined;
       return input;
     },
   };

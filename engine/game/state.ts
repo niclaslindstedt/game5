@@ -86,6 +86,13 @@ export type SkierInput = {
    * held on the snow, and springs off them the step it is let go, the
    * higher the longer it was held (`TUNING.jump`). Left out, it is off. */
   jump?: boolean;
+  /** EDGE-TRIGGERED: THE JUMP SPRUNG AT ONCE, 0..1 — a touch flick's
+   * (`input-model.ts`'s `flickMove`): he pops this very step as if the jump
+   * had been held `pop × jump.full` s, with no load to wait through. Sent
+   * with `jump` held for the same one step, so whatever else reads the jump
+   * key (a rail, a rope, a jump hill's press) sees a press and its release.
+   * Left out, off. */
+  pop?: number;
   /** THE HELICOPTER'S (`heli.ts`) and THE JUMP PLANE'S (`plane.ts`) CONTROLS
    * while he flies one; left out, let go (the collective down, the rest centred). */
   heli?: HeliControls;

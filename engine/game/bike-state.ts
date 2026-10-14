@@ -17,6 +17,9 @@ export type BikeControls = {
   steer: number;
   lean: number;
   crouch: number;
+  /** A flick's pop, 0..1 (`SkierInput.pop`): the crouch loaded that far at
+   * once, so it springs the next step. Left out, none. */
+  charge?: number;
 };
 
 /** What a `bike` event says (`bike.ts`): got on (`board`), got off

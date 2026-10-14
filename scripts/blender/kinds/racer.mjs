@@ -30,5 +30,5 @@ export const kind = {
   },
   builder: "racer.py",
   fallback: "racer",
-  help: "racer (or racer-woman, or all), the World Cup racer's printed suit, bib and guards",
+  help: "racer (or racer-woman, or all), the top-level racer's printed suit, bib and guards",
 };

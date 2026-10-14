@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-# THE WORLD CUP RACER MODELLED IN BLENDER, as a man (`racer`) or a woman
+# THE TOP-LEVEL RACER MODELLED IN BLENDER, as a man (`racer`) or a woman
 # (`racer-woman`): a national team's printed one-piece race suit over a back
 # protector, the start bib over it, the slalom's hard shin guards, forearm
 # pads and the poles' knuckle shields, a gloss race helmet with its chin

@@ -139,12 +139,15 @@ export const POLES = {
   sweepSkate: 1,
   /** The quickest he works the poles, strides a second — a double pole
    * at its most driven: past the 1.3 a second measured of an elite
-   * double-poler at 80 poles a minute, an arcade skier's frantic arms —
+   * double-poler at 80 poles a minute, an arcade skier's quick arms, but
+   * no quicker than a stroke a body can swing smoothly (faster, the swing
+   * whips the baskets through and he double-poles on at 55 km/h where a
+   * racer tucks; at this one he gives it up past some 40 km/h) —
    * and the shares of the snow going by under one
    * push that a push at that cadence still sweeps where he starts to
    * give up poling for the tuck, and where he has (the arm reaches past
    * `sweep`, so he keeps up with somewhat more than it). */
-  cadenceMax: 2.4,
+  cadenceMax: 1.8,
   keepUp: { from: 0.95, to: 0.8 },
   /** The least share of a double pole's stroke the poles are on the snow
    * (`doublePoleDuty`): measured, a double-poler driving his cadence up

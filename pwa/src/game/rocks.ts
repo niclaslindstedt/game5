@@ -1,62 +1,32 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE ROCK AS DRAWN — the drops' rock (`rock-shapes.ts`): the skin over
-// every wall too steep for snow (the engine's `rockShare`) and every rocky
-// cliff's wall (`cliffWalls`), built into static meshes a TILE of the map
-// at a time: one draw a tile, culled by three against the lens like any
-// mesh, and BUILT ONLY WHEN IT FIRST COMES WITHIN REACH, so a phone never
-// holds the rock of a face it never sees. The building is SLICED: a strip
-// of the tile's lattice at a time, for at most `SLICE` ms a frame, so
-// riding toward a rocky face never hitches; only the tiles round the lens
-// itself, on the run's first frame or after a jump (a reset, a lift's
-// top), are built whole at once. The reach is the DISTANCE row's whole
-// view, not the trees': a far or high lens looks at the walls from across
-// the valley. Past it the snow shader's dark rock carries them to the rim.
+// THE ROCK AS DRAWN — two kinds of it. A WALL TOO STEEP FOR SNOW (the
+// engine's `rockShare`) is not built here at all: the ground itself is
+// reshaped into its beds, joints and ribs and painted as stone where it is
+// bare (`rock-relief-glsl.ts`, drawn by the ground's own clipmap — no draw
+// call and no triangle of its own, and the same surface the physics
+// rides). What is built here is every ROCKY CLIFF'S WALL (`cliffWalls`):
+// a few hundred faceted triangles a cliff, built a TILE of the map at a
+// time when a tile first comes within the DISTANCE row's reach and let go
+// well past it, so a phone never holds the walls of a face it never sees.
 //
-// A TILE IS BUILT AT THE CUT ITS DISTANCE ASKS (`CUTS`): the full lattice
-// near the lens, the cheap one past `CUTS[0].out` and a coarse one past
-// `CUTS[1].out`, a face across the valley a ninth of its triangles in the
-// same outline. A tile owed a finer or coarser cut keeps the one it has on
-// screen until the new one is whole, and only swaps past a margin
-// (`HYSTERESIS`), so riding to and fro across a band never rebuilds it.
-//
-// Near the lens the lattice is always the physics' own (`rock-ground.ts`),
-// whatever the picture: a coarser one stands up to metres off the rock a
-// body meets. The whole thing hangs off the forest (`forest.ts`), which
-// owns the woods' reach.
+// The group stays the rock's one switch: the labs hide it to price the
+// rock, and the ground's rock goes with it (`terrain.ts`' `uRockOn`). Its
+// stats (`userData.rockStats`) bill both: the walls' triangles and bytes,
+// and every ms spent building rock — the walls and the ground map's share
+// of rock at every node (`rockBakeMs`).
 
 import * as THREE from "three";
-import {
-  ROCKS,
-  SKIN_SALT,
-  cliffWalls,
-  regionOf,
-  rockHash,
-  type CliffWall,
-  type Level,
-} from "@engine";
+import { cliffWalls, regionOf, type CliffWall, type Level } from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
-import { buildSkin, buildWall, rockMesh, type RockMesh } from "./rock-shapes.ts";
+import { rockBakeMs } from "./rock-relief-glsl.ts";
+import { buildWall, rockMesh } from "./rock-shapes.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
-/** The building's share of a frame, ms. */
-const SLICE = 1.5;
-/** Within this of the lens a tile is built whole at once, whatever it
- * costs, m: a crag appearing that close would be seen. */
-const NOW = 110;
 /** How far past the reach a built tile is kept, m, before it is let go. */
 const KEEP = 2 * TILE;
-/** The lattice by distance from the lens to a tile's nearest corner: out
- * to `out` m the cell is `cell` m (`near` for the FOREST row's own). */
-export const CUTS = [
-  { out: 300, cell: "near" },
-  { out: 700, cell: ROCKS.skin.cheap },
-  { out: Infinity, cell: 12 },
-] as const;
-/** How far past a band's edge a tile must be before it changes cut, m. */
-const HYSTERESIS = 30;
 
 /** THE ROCK CALMED WITH DISTANCE: from `CALM_FROM` m to `CALM_TO` m off
  * the lens every corner eases from its facet's flat normal and own shade
@@ -107,18 +77,6 @@ const PULL_GLSL = /* glsl */ `
 }
 `;
 
-/** The cut a tile `d` m off wants, given the one it has (`had`, or -1). */
-export function cutOf(d: number, had: number): number {
-  let k = CUTS.findIndex((c) => d < c.out);
-  if (had >= 0 && k !== had) {
-    // Only past the margin: a coarser cut once `HYSTERESIS` beyond the
-    // edge, a finer one once as far inside it.
-    const edge = k > had ? CUTS[had].out + HYSTERESIS : CUTS[k].out - HYSTERESIS;
-    if (k > had ? d < edge : d > edge) k = had;
-  }
-  return k;
-}
-
 export type Rocks = {
   readonly group: THREE.Group;
   /** Show what is within `reach` m of the lens, building what is new. */
@@ -129,35 +87,26 @@ export type Rocks = {
 type Tile = {
   readonly cx: number;
   readonly cz: number;
-  /** Its first lattice column and row (`TILE` m a side). */
-  readonly i: number;
-  readonly j: number;
-  /** The cliffs' rock walls whose middle is on it, built first. */
+  /** The cliffs' rock walls whose middle is on it. */
   readonly walls: CliffWall[];
-  /** The rows of its lattice its building has reached, and the triangles
-   * so far, at the cut `building`. */
-  done: number;
-  part: RockMesh | null;
-  building: number;
-  /** What is on screen, and its cut (-1 for none). */
+  /** Built, and what is on screen (null when it holds none). */
+  built: boolean;
   mesh: THREE.Mesh | null;
-  cut: number;
-  /** Built at `cut`, and nothing stands on it. */
-  empty: boolean;
 };
 
 export function createRocks(level: Level, haze: HazeUniforms): Rocks {
   const group = new THREE.Group();
   group.name = "rocks";
   // WHAT THE ROCK HOLDS, for the rock eval lab (`make rock-eval`): every ms
-  // spent building it, the tiles in reach still owed their cut, and the
-  // triangles and bytes built. An instrument: nothing draws off it.
+  // spent building it, the tiles in reach still owed, and the triangles and
+  // bytes built. An instrument: nothing draws off it.
   const stats = { buildMs: 0, owed: 0, triangles: 0, bytes: 0 };
   group.userData.rockStats = stats;
-  // And, for the same lab, every tile owed at the last lens built whole at
-  // once, so a still is taken of the rock as it settles, never mid-build.
-  let lastEye: THREE.Vector3 | null = null;
-  let lastReach = 0;
+  let wallMs = 0;
+  const bill = (): void => {
+    stats.buildMs = wallMs + rockBakeMs(level);
+  };
+  bill();
   const band = regionLookOf(regionOf(level).id).rock;
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
@@ -178,19 +127,12 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
       tiles.push({
         cx: (i + 0.5) * TILE,
         cz: (j + 0.5) * TILE,
-        i,
-        j,
         walls: [],
-        done: 0,
-        part: null,
-        building: -1,
+        built: false,
         mesh: null,
-        cut: -1,
-        empty: false,
       });
     }
   }
-  const seed = rockHash(level.seed, SKIN_SALT);
   if (band) {
     for (const w of cliffWalls(level)) {
       const i = Math.min(cols - 1, Math.max(0, Math.floor(w.x / TILE)));
@@ -198,51 +140,13 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
       tiles[j * cols + i].walls.push(w);
     }
   }
-  /** The lattice rows a step builds before it looks at the clock. */
-  const BATCH = 4;
-  const cellOf = (k: number): number => {
-    const c = CUTS[k].cell;
-    // Near the lens always the physics' own lattice: the rock a body meets
-    // is the rock drawn, whatever the picture costs (a cheaper lattice
-    // stands up to metres off it).
-    return c === "near" ? ROCKS.skin.cell : c;
-  };
+  const walled = tiles.filter((t) => t.walls.length > 0);
 
-  /** Build a few more rows of `t` at cut `k`; true when it is whole. */
-  const step = (t: Tile, k: number): boolean => {
+  const build = (t: Tile): void => {
     const t0 = performance.now();
-    const whole = build(t, k);
-    stats.buildMs += performance.now() - t0;
-    return whole;
-  };
-  const build = (t: Tile, k: number): boolean => {
-    if (!t.part || t.building !== k) {
-      t.part = rockMesh();
-      t.building = k;
-      t.done = 0;
-      for (const w of t.walls) buildWall(t.part, w, band!.tone);
-    }
-    const part = t.part;
-    const cell = cellOf(k);
-    const n = Math.round(TILE / cell);
-    const end = Math.min(n, t.done + BATCH);
-    const i0 = t.i * n;
-    buildSkin(part, level, band!.tone, seed, cell, i0, t.j * n + t.done, i0 + n, t.j * n + end);
-    t.done = end;
-    if (t.done < n) return false;
-    t.part = null;
-    t.done = 0;
-    // The cut it replaces goes as the new one arrives.
-    const old = t.mesh;
-    if (old) {
-      forget(old);
-      group.remove(old);
-      old.geometry.dispose();
-      t.mesh = null;
-    }
-    t.cut = k;
-    t.empty = part.pos.length === 0;
-    if (t.empty) return true;
+    t.built = true;
+    const part = rockMesh();
+    for (const w of t.walls) buildWall(part, w, band!.tone);
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(part.pos, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(part.nrm, 3));
@@ -260,85 +164,42 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     mesh.receiveShadow = true;
     group.add(mesh);
     t.mesh = mesh;
-    return true;
-  };
-  const forget = (m: THREE.Mesh): void => {
-    stats.triangles -= (m.geometry.getAttribute("position")?.count ?? 0) / 3;
-    stats.bytes -= (m.userData.bytes as number | undefined) ?? 0;
+    wallMs += performance.now() - t0;
+    bill();
   };
   const drop = (t: Tile): void => {
-    t.empty = false;
-    t.done = 0;
-    t.part = null;
-    t.building = -1;
-    t.cut = -1;
-    if (!t.mesh) return;
-    forget(t.mesh);
-    group.remove(t.mesh);
-    t.mesh.geometry.dispose();
+    t.built = false;
+    const m = t.mesh;
+    if (!m) return;
+    stats.triangles -= (m.geometry.getAttribute("position")?.count ?? 0) / 3;
+    stats.bytes -= (m.userData.bytes as number | undefined) ?? 0;
+    group.remove(m);
+    m.geometry.dispose();
     t.mesh = null;
   };
-
-  group.userData.rockSettle = (): void => {
-    if (!lastEye) return;
-    const half = TILE / 2;
-    for (const t of tiles) {
-      const dx = Math.max(0, Math.abs(lastEye.x - t.cx) - half);
-      const dz = Math.max(0, Math.abs(lastEye.z - t.cz) - half);
-      const d2 = dx * dx + dz * dz;
-      if (d2 >= lastReach * lastReach) continue;
-      const k = cutOf(Math.sqrt(d2), t.cut);
-      if (k === t.cut) continue;
-      while (!step(t, k));
-      if (t.mesh) t.mesh.visible = true;
-    }
-    stats.owed = 0;
-  };
+  // Every wall is built whole the moment it is in reach, so nothing is
+  // ever left owed for the lab to settle — but the ground's own rock is
+  // billed as it is read.
+  group.userData.rockSettle = (): void => bill();
 
   return {
     group,
     update(eye, reach) {
-      lastEye = eye.clone();
-      lastReach = reach;
-      // The tile's corner nearest the lens, so a tile is shown as soon as
-      // any of it is in reach.
       const half = TILE / 2;
-      let next: Tile | null = null;
-      let nextK = 0;
-      let nextD2 = Infinity;
-      let owed = 0;
-      for (const t of tiles) {
+      for (const t of walled) {
         const dx = Math.max(0, Math.abs(eye.x - t.cx) - half);
         const dz = Math.max(0, Math.abs(eye.z - t.cz) - half);
         const d2 = dx * dx + dz * dz;
         const near = d2 < reach * reach;
-        const k = near ? cutOf(Math.sqrt(d2), t.cut) : -1;
-        if (near && k !== t.cut) {
-          owed++;
-          // A tile with nothing on screen yet, or one that close, is built
-          // whole now; one changing cut keeps its old one meanwhile.
-          if (d2 < NOW * NOW && (t.cut < 0 || k < t.cut)) while (!step(t, k));
-          else if (d2 < nextD2) {
-            next = t;
-            nextK = k;
-            nextD2 = d2;
-          }
-        }
+        if (near && !t.built) build(t);
         if (t.mesh) t.mesh.visible = near;
-        // Well out of reach, its triangles are let go, so a long ride never
-        // holds the whole mountain's rock.
-        if ((t.mesh || t.part) && d2 > (reach + KEEP) ** 2) drop(t);
+        // Well out of reach, its triangles are let go.
+        if (t.built && d2 > (reach + KEEP) ** 2) drop(t);
       }
-      // The nearest tile still owed, a slice of a frame's worth of it.
-      if (next) {
-        const until = performance.now() + SLICE;
-        while (!step(next, nextK) && performance.now() < until);
-        if (next.mesh) next.mesh.visible = true;
-      }
-      stats.owed = owed;
+      bill();
     },
     dispose() {
-      for (const t of tiles) drop(t);
+      for (const t of walled) drop(t);
       material.dispose();
     },
   };

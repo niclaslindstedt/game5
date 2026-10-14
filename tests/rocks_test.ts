@@ -8,8 +8,8 @@ import {
   generateLevel,
   onAnyCliff,
   regionOf,
-  rockHash,
   rockShare,
+  rockShareNodes,
   rockyCliff,
   solidsOf,
   wallOf,
@@ -18,7 +18,7 @@ import {
 } from "@engine";
 
 import { REGION_LOOKS, regionLookOf } from "../pwa/src/game/region-look.ts";
-import { buildSkin, buildWall, rockMesh } from "../pwa/src/game/rock-shapes.ts";
+import { buildWall, rockMesh } from "../pwa/src/game/rock-shapes.ts";
 import { levelFor } from "./support/levels.ts";
 
 // THE ROCK ON THE DROPS (`engine/game/rocks.ts`, `cliff-wall.ts`, drawn by
@@ -28,14 +28,6 @@ import { levelFor } from "./support/levels.ts";
 const level = levelFor(38);
 const band = regionLookOf(regionOf(level).id).rock;
 const walls = cliffWalls(level);
-
-/** The whole map's skin at a lattice of `cell` m. */
-function skinOf(cell: number) {
-  const m = rockMesh();
-  const n = Math.round(level.size / cell);
-  buildSkin(m, level, band!.tone, rockHash(level.seed, 1), cell, 0, 0, n, n);
-  return m;
-}
 
 describe("rocks", () => {
   it("lie only on the drops: a wall too steep to ski, never packed snow, never a cliff", () => {
@@ -132,15 +124,13 @@ describe("rocks", () => {
     expect(-(c.vx * fx + c.vz * fz)).toBeLessThan(5);
   });
 
-  it("cost a phone little: a few thousand triangles a square kilometre, fewer at a cheaper share", () => {
-    const whole = skinOf(ROCKS.skin.cell);
-    const cheap = skinOf(ROCKS.skin.cheap);
+  it("cost a phone little: a few hundred triangles a cliff, and the walls' rock none of its own", () => {
+    const whole = rockMesh();
     for (const w of walls) buildWall(whole, w, band!.tone);
     const tris = whole.pos.length / 9;
     const km2 = (level.size / 1000) ** 2;
-    expect(tris).toBeGreaterThan(1000);
+    expect(tris).toBeGreaterThan(100);
     expect(tris / km2).toBeLessThan(10_000);
-    expect(cheap.pos.length).toBeLessThan(whole.pos.length * 0.6);
     // A cliff's wall is a few hundred.
     for (const w of walls) expect(2 * (w.rows - 1) * (w.cols - 1)).toBeLessThan(600);
     // Every vertex is coloured, every normal unit length.
@@ -148,6 +138,18 @@ describe("rocks", () => {
     for (let i = 0; i < whole.nrm.length; i += 3 * 97) {
       expect(Math.hypot(whole.nrm[i], whole.nrm[i + 1], whole.nrm[i + 2])).toBeCloseTo(1, 5);
     }
+    // A wall too steep for snow is the ground itself, reshaped: its share
+    // rides the ground map's packed channel, one number a node it already
+    // has, and is read off the map's own slope.
+    const nodes = rockShareNodes(level);
+    expect(nodes.length).toBe(level.ground.cols * level.ground.rows);
+    let rock = 0;
+    for (const v of nodes) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+      if (v > 0) rock++;
+    }
+    expect(rock).toBeGreaterThan(1000);
   });
 
   it("are little in the fell, which shows rock only on its steepest crags", () => {

@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   NEUTRAL_INPUT,
   ROCKS,
-  SKIN_SALT,
+  ROCK_LATTICE,
   bedrockOf,
   createGame,
   packedSnow,
   placeRun,
   regionOf,
-  rockHash,
+  reliefAt,
+  reliefParams,
+  rockMask,
   rockShare,
   snowGive,
   step,
@@ -19,13 +21,12 @@ import {
 } from "@engine";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 
-import { regionLookOf } from "../pwa/src/game/region-look.ts";
-import { buildSkin, rockMesh } from "../pwa/src/game/rock-shapes.ts";
 import { levelFor } from "./support/levels.ts";
 
-// THE ROCK UNDERFOOT (`engine/game/rock-ground.ts`): a wall's drawn rock
-// skin is the surface a body meets — ridden on, hard and scraping, and a
-// crash when it is driven into.
+// THE ROCK UNDERFOOT (`engine/game/rock-ground.ts`): a wall's rock — the
+// ground reshaped by its relief (`rock-relief.ts`), as the ground draws it
+// (`tests/rock_drawn_test.ts`) — is the surface a body meets: ridden on,
+// hard and scraping, and a crash when it is driven into.
 
 const base = levelFor(38);
 const rocky = withRock(base);
@@ -80,63 +81,78 @@ describe("the rock underfoot", () => {
     expect(spots.length).toBeGreaterThan(8);
   });
 
-  it("stands where the rock is drawn: every bare facet's middle is the surface", () => {
-    const band = regionLookOf(regionOf(base).id).rock!;
-    const m = rockMesh();
-    const seed = rockHash(base.seed, SKIN_SALT);
-    const cell = ROCKS.skin.cell;
-    // The drawing of a patch round a few walls, at the physics' lattice.
+  it("is the ground reshaped by the rock's relief, as much as it is rock", () => {
+    const p = reliefParams(base);
     let checked = 0;
-    let on = 0;
-    for (const p of spots.slice(0, 6)) {
-      const i = Math.floor(p.x / cell);
-      const j = Math.floor(p.z / cell);
-      buildSkin(m, rocky, band.tone, seed, cell, i - 4, j - 4, i + 4, j + 4);
-    }
-    for (let t = 0; t < m.pos.length; t += 9) {
-      const x = (m.pos[t] + m.pos[t + 3] + m.pos[t + 6]) / 3;
-      const y = (m.pos[t + 1] + m.pos[t + 4] + m.pos[t + 7]) / 3;
-      const z = (m.pos[t + 2] + m.pos[t + 5] + m.pos[t + 8]) / 3;
-      if (y < base.groundAt(x, z) + 0.05) continue;
-      // Never under it — and on it, unless a jittered neighbour overlaps
-      // it in plan and stands higher, which is then the rock met (the byte
-      // a corner's bareness is kept in rounds its height by a millimetre).
-      const at = rocky.groundAt(x, z);
-      expect(at).toBeGreaterThan(y - 0.005);
-      if (Math.abs(at - y) < 0.005) on++;
-      checked++;
-    }
-    expect(checked).toBeGreaterThan(100);
-    expect(on / checked).toBeGreaterThan(0.95);
-  });
-
-  it("is met wherever it is drawn, on a summer bike park's map too: no facet stands over the surface", () => {
-    for (const summer of [false, true]) {
-      const s = createGame({ seed: 38, mode: "free", summer, bike: summer, crowd: 0, quiet: true });
-      const level = s.level;
-      const band = regionLookOf(regionOf(level).id).rock!;
-      const m = rockMesh();
-      const cell = ROCKS.skin.cell;
-      const n = Math.round(level.size / cell);
-      buildSkin(m, level, band.tone, rockHash(level.seed, SKIN_SALT), cell, 0, 0, n, n);
-      let worst = 0;
-      for (let t = 0; t < m.pos.length; t += 9) {
-        for (const [a, b, c] of [
-          [1 / 3, 1 / 3, 1 / 3],
-          [0.6, 0.2, 0.2],
-          [0.2, 0.6, 0.2],
-          [0.2, 0.2, 0.6],
-        ]) {
-          const x = a * m.pos[t] + b * m.pos[t + 3] + c * m.pos[t + 6];
-          const y = a * m.pos[t + 1] + b * m.pos[t + 4] + c * m.pos[t + 7];
-          const z = a * m.pos[t + 2] + b * m.pos[t + 5] + c * m.pos[t + 8];
-          worst = Math.max(worst, y - level.groundAt(x, z));
+    let shaped = 0;
+    for (const at of spots.slice(0, 12)) {
+      for (let dz = -6; dz <= 6; dz += 0.7) {
+        for (let dx = -6; dx <= 6; dx += 0.7) {
+          // A corner of the lattice the rock is laid on (between them it
+          // is laid flat, as the ground's mesh draws it).
+          const x = Math.round((at.x + dx) / ROCK_LATTICE) * ROCK_LATTICE;
+          const z = Math.round((at.z + dz) / ROCK_LATTICE) * ROCK_LATTICE;
+          const m = rockMask(base, x, z);
+          const y = base.groundAt(x, z);
+          expect(rocky.groundAt(x, z)).toBeCloseTo(y + (m > 0 ? m * reliefAt(p, x, z, y) : 0), 9);
+          expect(rocky.rockAt!(x, z)).toBeCloseTo(m, 9);
+          checked++;
+          if (Math.abs(rocky.groundAt(x, z) - y) > 0.3) shaped++;
         }
       }
-      expect(m.pos.length).toBeGreaterThan(9000);
-      expect(worst).toBeLessThan(0.02);
     }
-  }, 120_000);
+    expect(checked).toBeGreaterThan(1000);
+    // Most of a wall stands out of or is cut into the ground.
+    expect(shaped / checked).toBeGreaterThan(0.4);
+  });
+
+  it("is one surface with no step in it: a body never meets an edge it cannot ride over", () => {
+    // Along lines down and across the walls every 5 cm, the surface never
+    // rises or drops faster than a near-vertical riser's (a riser where a
+    // joint shifts the beds stands near 85°; a step would be thousands).
+    let worst = 0;
+    for (const at of spots.slice(0, 12)) {
+      for (const [ux, uz] of [
+        [1, 0],
+        [0, 1],
+        [0.6, 0.8],
+      ]) {
+        let last = rocky.groundAt(at.x - 15 * ux, at.z - 15 * uz);
+        for (let t = -15 + 0.05; t <= 15; t += 0.05) {
+          const y = rocky.groundAt(at.x + t * ux, at.z + t * uz);
+          worst = Math.max(worst, Math.abs(y - last) / 0.05);
+          last = y;
+        }
+      }
+    }
+    expect(worst).toBeLessThan(25);
+  });
+
+  it("holds the snow on its ledges: bare where its facet is steep, not where it faces the sky", () => {
+    let ledges = 0;
+    let bare = 0;
+    const n = { x: 0, y: 1, z: 0 };
+    for (const at of spots) {
+      for (let k = 0; k < 40; k++) {
+        const x = at.x + ((k * 37) % 13) - 6;
+        const z = at.z + ((k * 53) % 11) - 5;
+        const on = rocky.rockAt!(x, z);
+        if (on < 0.99) continue;
+        rocky.normalAt(x, z, n);
+        const b = rocky.bareRockAt!(x, z);
+        if (n.y > ROCKS.skin.holds) {
+          expect(b).toBe(0);
+          ledges++;
+        }
+        if (n.y < ROCKS.skin.slides) {
+          expect(b).toBeCloseTo(1, 9);
+          bare++;
+        }
+      }
+    }
+    expect(ledges).toBeGreaterThan(20);
+    expect(bare).toBeGreaterThan(20);
+  });
 
   it("leaves the snow alone: off the walls the ground is the map's", () => {
     for (let k = 0; k < base.track.points.length; k += 37) {

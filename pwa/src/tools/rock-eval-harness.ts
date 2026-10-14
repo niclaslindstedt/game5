@@ -38,6 +38,7 @@ import {
   type RegionId,
   type WeatherKind,
 } from "@engine";
+import { clipViewOf, drawnRockAt } from "../game/rock-drawn.ts";
 import * as THREE from "three";
 
 import type { LensPose } from "../game/camera-rigs.ts";
@@ -412,6 +413,23 @@ function gap(eye: { x: number; y: number; z: number }): Gap | null {
       }
     }
   });
+  // A rock the ground's own mesh draws (no triangles of its own): read off
+  // the clipmap as it stood for the frame, on a grid round the lens.
+  const view = errs.length ? undefined : clipViewOf(bed);
+  if (view) {
+    const step = 1.5;
+    for (let dz = -GAP_REACH; dz <= GAP_REACH; dz += step) {
+      for (let dx = -GAP_REACH; dx <= GAP_REACH; dx += step) {
+        if (dx * dx + dz * dz > GAP_REACH * GAP_REACH) continue;
+        const x = eye.x + dx;
+        const z = eye.z + dz;
+        if (rockShare(bed, x, z) <= 0 || onAnyCliff(bed, x, z, 2)) continue;
+        const y = drawnRockAt(bed, view, x, z);
+        if (y === null) continue;
+        errs.push(Math.abs(y - ridden.groundAt(x, z)));
+      }
+    }
+  }
   if (!errs.length) return null;
   errs.sort((a, b) => a - b);
   const mean = errs.reduce((a, b) => a + b, 0) / errs.length;

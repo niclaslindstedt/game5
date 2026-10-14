@@ -12,10 +12,10 @@
 //   * a WALL: the natural ground past `ROCKS.wall` (about 52°), off the
 //     packed snow and off every cliff — the headwalls and cliff bands of
 //     the face, not the steep powder a skier takes on: `rockShare` says how
-//     much of it is bare, and the drawing (`pwa/src/game/rock-shapes.ts`'
-//     `buildSkin`) lays a skin of coarse rock over the ground there. That
-//     skin hugs the ground the engine already stands a skier on, so it is
-//     met as the wall itself is.
+//     much of it is bare, and the ground there is reshaped by the rock's
+//     relief (`rock-relief.ts`, ridden through `rock-ground.ts`' `withRock`
+//     and drawn by the ground's own mesh, `pwa/src/game/
+//     rock-relief-glsl.ts`), so it is met as it is drawn.
 //
 // A pure function of the map, off hashes of `level.seed` and never the
 // engine's stream; none of it stands where a run is skied, so no digest

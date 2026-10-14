@@ -4,21 +4,17 @@
 // texture does it), flat-lit a facet at a time so a plane catches the sun
 // and the next goes dark.
 //
-// A WALL'S SKIN (`buildSkin`): a jittered lattice of corners over the
-// natural walls too steep to hold snow (the engine's `rockShare`), each
-// corner stood a little proud of the ground where it is bare and tucked
-// under the snow where it is not, so the rock is the surface of the whole
-// steep face and its edges, the top of the hill among them, go into the
-// snow rather than stopping. A CLIFF'S WALL (`buildWall`): the engine's
-// skin of corners over a rocky cliff's face (`cliffWalls`), lip to foot.
-// Two triangles a cell of either.
+// A CLIFF'S WALL (`buildWall`): the engine's skin of corners over a rocky
+// cliff's face (`cliffWalls`), lip to foot, two triangles a cell. (A wall
+// too steep for snow is not built here: the ground itself is reshaped into
+// its rock and drawn so — `rock-relief-glsl.ts`.)
 //
 // SNOW HOLDS ON A FACET THAT FACES UP: past `SNOW_HOLDS` of the sky the
 // facet is painted snow, between it and `SNOW_SLIDES` a mix, the rest the
 // region's rock in a shade of its own a facet. Three-free: plain arrays the
 // draw (`rocks.ts`) hands the GPU and the suite counts.
 
-import { ROCKS, rockDraw as unit, rockHash, rockShare, type CliffWall, type Level } from "@engine";
+import { rockDraw as unit, type CliffWall } from "@engine";
 import { summerShown } from "./season-look.ts";
 
 /** How dark the rock is where it goes into the snow, of its own colour. */
@@ -31,10 +27,6 @@ export type Tone = readonly [number, number, number];
  * it slides off below. */
 export const SNOW_HOLDS = 0.62;
 export const SNOW_SLIDES = 0.42;
-/** A wall's skin lies at 50° and more, so snow holds only on its ledges:
- * whole past this up share (a facet tipped under 30°) — the engine's, so
- * the rock a skier rides is bare where it is drawn bare. */
-const SKIN_HOLDS = ROCKS.skin.holds;
 /** The region's rock tone as the crags paint it: the region's hue, warmed
  * a little and brought to one VALUE (`ROCK_VALUE`, linear luminance) —
  * the shader's tone is that rock seen through a skin of snow and
@@ -118,83 +110,6 @@ function tri(
     m.col.push(col[0] * k, col[1] * k, col[2] * k);
     m.soft.push(calm.n[0], calm.n[1], calm.n[2]);
     m.calm.push(calm.col[0] * k, calm.col[1] * k, calm.col[2] * k);
-  }
-}
-
-/** A corner of a wall's skin: where it stands and how bare it is there. */
-type Corner = { readonly p: P; readonly bare: number };
-
-/** Append the ROCK SKIN of a wall over lattice cells `i0..i1` × `j0..j1`
- * (exclusive ends, the lattice `cell` m and global, so two tiles share
- * the corners on their seam) to `m`, its rock `tone`: a corner every
- * cell, jittered in plan off a hash of the map's `seed` and its place,
- * standing over the ground where it is bare (`rockShare`) — `proud` and up
- * to `rough` more by how bare — and tucked under the snow where it is not;
- * every cell with a bare corner laid as two flat facets, split along a
- * diagonal of its own. So the rock is the whole steep surface, from where
- * the slope turns too steep for snow to where it eases at the top, broken
- * into big flat planes at odd angles, with the snow on every facet that
- * faces the sky. */
-export function buildSkin(
-  m: RockMesh,
-  level: Level,
-  tone: Tone,
-  seed: number,
-  cell: number,
-  i0: number,
-  j0: number,
-  i1: number,
-  j1: number,
-): void {
-  const S = ROCKS.skin;
-  // Laid off the map under the skin the physics rides (`withRock`).
-  level = level.bedrock ?? level;
-  const stone = rockTone(tone);
-  const w = i1 - i0 + 1;
-  const corners: (Corner | null)[] = new Array(w * (j1 - j0 + 1)).fill(null);
-  const cornerAt = (i: number, j: number): Corner => {
-    const k = (j - j0) * w + (i - i0);
-    const had = corners[k];
-    if (had) return had;
-    const h = rockHash(seed, i, j);
-    const x = (i + (unit(h, 0) - 0.5) * 2 * S.jitter) * cell;
-    const z = (j + (unit(h, 1) - 0.5) * 2 * S.jitter) * cell;
-    const bare = rockShare(level, x, z);
-    const ground = level.groundAt(x, z);
-    const y = bare > S.from ? ground + S.proud + S.rough * bare * unit(h, 2) : ground - S.sink;
-    const c: Corner = { p: [x, y, z], bare };
-    corners[k] = c;
-    return c;
-  };
-  const shadeAt = (p: P): number => (p[1] < level.groundAt(p[0], p[2]) ? FOOT + 0.2 : 1);
-  // Calm: the ground's own normal under the corner, snow on it as a facet
-  // facing that way would hold it.
-  const calm = calmPaint(stone, SKIN_HOLDS);
-  const g = { x: 0, y: 1, z: 0 };
-  const calmOf = (p: P): { n: P; col: Tone } => {
-    level.normalAt(p[0], p[2], g);
-    return { n: [g.x, g.y, g.z], col: calm(g.y) };
-  };
-  for (let j = j0; j < j1; j++) {
-    for (let i = i0; i < i1; i++) {
-      const a = cornerAt(i, j);
-      const b = cornerAt(i + 1, j);
-      const c = cornerAt(i + 1, j + 1);
-      const d = cornerAt(i, j + 1);
-      if (Math.max(a.bare, b.bare, c.bare, d.bare) <= S.from) continue;
-      const h = rockHash(seed, i, j, 7);
-      const mx = (a.p[0] + b.p[0] + c.p[0] + d.p[0]) / 4;
-      const mz = (a.p[2] + b.p[2] + c.p[2] + d.p[2]) / 4;
-      // Under the ground at the cell's middle: inside the hill.
-      const inside: P = [mx, level.groundAt(mx, mz) - 3, mz];
-      if (unit(h, 0) < 0.5) {
-        tri(m, a.p, b.p, c.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
-        tri(m, a.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
-      } else {
-        tri(m, a.p, b.p, d.p, inside, paintOf(stone, h, 1, SKIN_HOLDS), shadeAt, calmOf);
-        tri(m, b.p, c.p, d.p, inside, paintOf(stone, h, 3, SKIN_HOLDS), shadeAt, calmOf);
-      }
-    }
   }
 }
 

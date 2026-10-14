@@ -62,6 +62,8 @@ import type { TerrainLook } from "./settings-video.ts";
 import type { TrailUniforms } from "./trail-map.ts";
 import type { DeformLook } from "./deform-field.ts";
 import { createTreeWells } from "./tree-wells.ts";
+import { reliefUniforms, rockShareBake } from "./rock-relief-glsl.ts";
+import { keepClipView, type ClipView } from "./rock-drawn.ts";
 import { trackFrameOf } from "./piste-tracks.ts";
 import { SUMMER_CHUNKS, type SummerTerrain } from "./summer-terrain.ts";
 import type { Grass, GrassLook } from "./summer-grass.ts";
@@ -349,7 +351,8 @@ function stampGround(level: Level, stamp: GroundStamp, ground: Uint16Array, dir:
       if (!stamp.at(f.originX + c * f.cell, f.originZ + r * f.cell, out)) continue;
       const k = r * f.cols + c;
       const was = THREE.DataUtils.fromHalfFloat(ground[k * 4 + 2]);
-      ground[k * 4 + 2] = h(Math.max(was, out.packed));
+      // The rock's share (below zero) stays where nothing is packed.
+      ground[k * 4 + 2] = h(out.packed > 0 ? Math.max(was, out.packed) : was);
       if (out.packed > 0.5) {
         dir[k * 4] = Math.round((Math.cos(2 * out.heading) * 0.5 + 0.5) * 255);
         dir[k * 4 + 1] = Math.round((Math.sin(2 * out.heading) * 0.5 + 0.5) * 255);
@@ -367,6 +370,10 @@ function groundTextures(level: Level) {
   height.needsUpdate = true;
 
   const forest = forestDensity(level);
+  // THE ROCK'S SHARE rides the packed channel below zero (a node is one or
+  // the other: no rock is laid on packed snow), so the ground's shaders
+  // read it with no texture of their own (`rock-relief-glsl.ts`).
+  const rock = rockShareBake(level);
   const support = regionOf(level).crust?.packed ?? 0;
   const ground = new Uint16Array(f.cols * f.rows * 4);
   const h = THREE.DataUtils.toHalfFloat;
@@ -390,7 +397,9 @@ function groundTextures(level: Level) {
         level.crust ? level.crust.data[k] * support : 0,
         level.ice ? level.ice.data[k] : 0,
       );
-      ground[k * 4 + 2] = h(wild > 0 ? Math.max(0, packed - wild) : packed);
+      ground[k * 4 + 2] = h(
+        rock && rock[k] > 0 ? -rock[k] : wild > 0 ? Math.max(0, packed - wild) : packed,
+      );
       ground[k * 4 + 3] = h(forest[k]);
     }
   }
@@ -465,6 +474,22 @@ export function createTerrain(
   // THE TREE WELLS in deep powder (`tree-wells.ts`): their map, and the
   // wood drawn down into them.
   const wells = createTreeWells(level, haze);
+  // THE ROCK, drawn in the ground (`rock-relief-glsl.ts`): shown while
+  // the scene's "rocks" group is (a lab hides it to price the rock).
+  const rockOn = reliefUniforms(level);
+  const rockLaid = rockOn.uRockOn.value;
+  let rocks: THREE.Object3D | null = null;
+  let seek = 0;
+  const gateRock = (_r: unknown, scene: THREE.Object3D): void => {
+    // Looked for again now and then until it is built, and once it is gone.
+    if ((!rocks || !rocks.parent) && seek-- <= 0) {
+      rocks = scene.getObjectByName("rocks") ?? null;
+      seek = 60;
+    }
+    let shown = rockLaid > 0;
+    for (let o: THREE.Object3D | null = rocks ?? null; o && shown; o = o.parent) shown = o.visible;
+    rockOn.uRockOn.value = shown ? 1 : 0;
+  };
   group.add(wells.group);
   const shared = {
     ...wells.uniforms,
@@ -480,6 +505,7 @@ export function createTerrain(
     uRockSlope: { value: new THREE.Vector2(look.rock?.from ?? 1, look.rock?.to ?? 2) },
     uSastrugi: { value: look.sastrugi },
     uWindDir: { value: new THREE.Vector2(Math.sin(wind), Math.cos(wind)) },
+    ...rockOn,
     uHeightOrigin: { value: new THREE.Vector2(f.originX, f.originZ) },
     uHeightCount: { value: new THREE.Vector2(f.cols, f.rows) },
     uCell: { value: f.cell },
@@ -600,6 +626,7 @@ export function createTerrain(
     mesh.receiveShadow = true;
     mesh.castShadow = false;
     mesh.matrixAutoUpdate = false;
+    mesh.onBeforeRender = gateRock as THREE.Mesh["onBeforeRender"];
     group.add(mesh);
     levels.push({ mesh, spacing, centre, hole, plain: material, cutting, whole: l === 0 });
   }
@@ -689,6 +716,16 @@ export function createTerrain(
     summer && options.grass ? summer.grass(haze, shared, options.grass) : null;
   if (grass) group.add(grass.group);
   let clock = 0;
+  const clipView: ClipView = {
+    n,
+    spacing: options.spacing,
+    reliefHalf: options.n / 2,
+    centres: [],
+    base: 0,
+    last: 0,
+    eye: { x: 0, z: 0 },
+  };
+  keepClipView(level, clipView);
 
   const frustum = new THREE.Frustum();
   const view = new THREE.Matrix4();
@@ -813,6 +850,16 @@ export function createTerrain(
           lv.hole.set(finer.centre.x, finer.centre.y, (options.n / 2) * finer.spacing, 1);
         }
         aim(lv, lens);
+      }
+      // Where the rock is drawn, for the lab's gap (`rock-drawn.ts`).
+      clipView.base = base;
+      clipView.last = last;
+      clipView.eye.x = lens ? lens.position.x : x;
+      clipView.eye.z = lens ? lens.position.z : z;
+      for (let l = 0; l < levels.length; l++) {
+        const c = (clipView.centres[l] ??= { x: 0, z: 0 });
+        c.x = levels[l].centre.x;
+        c.z = levels[l].centre.y;
       }
     },
     dispose() {

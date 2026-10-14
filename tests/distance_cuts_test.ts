@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE DISTANCE CUTS: what is drawn lighter, or not at all, far from the
 // lens — the small instanced parts kept in reach (`instance-reach.ts`), the
-// rock's lattice by distance (`rocks.ts`), the piste machines' far cut
-// (`groomer-far.ts`), a parked machine's stand-in (`far-swap.ts`).
+// piste machines' far cut (`groomer-far.ts`), a parked machine's stand-in
+// (`far-swap.ts`). (The rock's own is the ground's clipmap: `rock_drawn_test`.)
 
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { InstanceReach, nearOf } from "../pwa/src/game/instance-reach.ts";
-import { CUTS, cutOf } from "../pwa/src/game/rocks.ts";
 import {
   GROOMER_FAR,
   GROOMER_MARGIN,
@@ -94,24 +93,6 @@ describe("instance reach", () => {
     expect(reach.reach).toBe(450);
     reach.update({ x: 0, y: 0, z: 0 });
     expect(mesh.count).toBe(5);
-  });
-});
-
-describe("rock cuts", () => {
-  it("coarsens with distance", () => {
-    expect(cutOf(50, -1)).toBe(0);
-    expect(cutOf(CUTS[0].out + 1, -1)).toBe(1);
-    expect(cutOf(CUTS[1].out + 1, -1)).toBe(2);
-  });
-
-  it("keeps the cut it has inside the margin either side of a band's edge", () => {
-    const edge = CUTS[0].out;
-    expect(cutOf(edge + 10, 0)).toBe(0);
-    expect(cutOf(edge + 60, 0)).toBe(1);
-    expect(cutOf(edge - 10, 1)).toBe(1);
-    expect(cutOf(edge - 60, 1)).toBe(0);
-    // Far past a band, straight to the cut it asks.
-    expect(cutOf(5000, 0)).toBe(2);
   });
 });
 

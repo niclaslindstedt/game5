@@ -20,7 +20,8 @@ export const ROCKS = {
   wall: 1.15,
   whole: 1.5,
   packed: 0.02,
-  /** A wall's rock SKIN (drawn, `buildSkin`): a corner every `cell` m
+  /** A wall's rock SKIN (the old drawn skin's numbers; `clear`, `holds`
+   * and `slides` are still read by the rock underfoot): a corner every `cell` m
    * (the middle distance's cut `cheap` m), jittered `jitter` of a cell
    * in plan; a bare corner stands `proud` m over the ground plus up to
    * `rough` m by how bare it is, a corner where the snow holds is tucked

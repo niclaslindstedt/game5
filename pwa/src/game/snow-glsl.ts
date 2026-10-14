@@ -70,6 +70,7 @@ import { DEFORM_SHADE_GLSL } from "./deform-glsl.ts";
 import { SNOW_GLINTS_GLSL, SNOW_NOISE_GLSL } from "./snow-noise-glsl.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
+import * as ROCK from "./rock-relief-glsl.ts";
 import { PISTE_TRACKS_GLSL } from "./piste-tracks.ts";
 import { SNOW_SKY_LIGHT, SNOW_SKY_PARS } from "./snow-sky-glsl.ts";
 import { SLIDE_ALBEDO, SLIDE_GLSL, SLIDE_LUMPS, SLIDE_NORMAL } from "./avalanche-glsl.ts";
@@ -109,6 +110,7 @@ uniform float uDeformMesh;
 uniform float uReliefHalf;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
+${ROCK.ROCK_RELIEF_GLSL}
 ${TRAIL_GLSL}
 ${SKI_CLEAR_GLSL}
 ${WELL_GLSL}
@@ -197,10 +199,16 @@ float snowRelief;
 // ground is the track's graded surface; the skier drawn in powder is lowered
 // by as much in renderer.ts.)
 vec4 snowGroundV = textureLod(uGround, (snowXZ - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell), 0.0);
-float snowPackedV = snowGroundV.b;
+// The packed channel carries the rock's share below zero (\`rock-relief-glsl.ts\`).
+float snowPackedV = max(snowGroundV.b, 0.0);
+float snowBaseY = groundHeight(snowXZ);
+// THE ROCK (\`rock-relief-glsl.ts\`): the ground reshaped into the beds,
+// joints and ribs the physics rides, as much as it is rock — no tracks cut
+// into it and no loose cover on it.
+${ROCK.ROCK_VERTEX}
 // THE TREE WELLS (\`tree-wells.ts\`): the hollows round the trunks in deep
 // powder, off the engine's own wells.
-float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ)
+float snowY = snowBaseY + snowRockY + (snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV)) * (1.0 - vSnowRock) - wellDepth(snowXZ)
   // THE AVALANCHE (\`avalanche-glsl.ts\`): its bed below, its debris above.
   + slideAt(snowXZ);
 // Never over the player's skis (\`ski-clear.ts\`).
@@ -245,6 +253,7 @@ export const SNOW_VERTEX_BEGIN = /* glsl */ `
 vec3 transformed = vec3(snowXZ.x, snowY, snowXZ.y);
 vSnowWorld = transformed;
 vSnowNormal = objectNormal;
+vSnowBase = snowBaseY;
 `;
 
 /** The fragment half's declarations. */
@@ -269,6 +278,7 @@ uniform float uSastrugi;
 uniform vec2 uWindDir;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
+${ROCK.ROCK_RELIEF_GLSL}
 ${TRAIL_GLSL}
 ${DEFORM_SHADE_GLSL}
 ${WELL_GLSL}
@@ -334,7 +344,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   // New snow over the groomer (\`uFresh\`) buries its look — the comb's
   // corduroy first, the grey of worked snow by a few centimetres — while
   // the physics still feels the hard base under it (\`packedUnder\`).
-  snowPacked = g.b * (1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh));
+  snowPacked = max(g.b, 0.0) * (1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh));
   // A PISTE MACHINE'S SWATH (\`groomer.ts\`): packed through wherever the
   // tiller went, on the piste or off it, and only the snow since on it. On
   // a night the machines work, the rest of the piste is the day's: skied
@@ -370,9 +380,11 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   snowCombed = uPiste.w * untouched * untouched * notSwath;
   // The new snow a busy piste has taken: not a smooth blanket but skied
   // into heaps and troughs as it lands.
-  snowChop = uPiste.x * g.b * smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh) * (1.0 - snowGroomed);
+  snowChop = uPiste.x * max(g.b, 0.0) * smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh) * (1.0 - snowGroomed);
   snowForest = g.a;
   vec2 grad = g.rg;
+  vec2 rockShareGrad = vec2(0.0);
+  float rockFoot = length(fwidth(p));
   // The crust and the ice, one signed share in the track map's alpha
   // (\`terrain.ts\`'s \`foldSurface\`): above a half the crust, below it the ice.
   float surf = (texture2D(uTrackDir, guv).a * 255.0 - 128.0) / 127.0;
@@ -382,9 +394,13 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   {
     vec2 du = vec2(0.5 / uHeightCount.x, 0.0);
     vec2 dv = vec2(0.0, 0.5 / uHeightCount.y);
-    vec2 pg = vec2(texture2D(uGround, guv + du).b - texture2D(uGround, guv - du).b,
-                   texture2D(uGround, guv + dv).b - texture2D(uGround, guv - dv).b) / uCell;
-    grad -= ${LOOSE.toFixed(3)} * pg;
+    vec4 nb = vec4(texture2D(uGround, guv + du).b, texture2D(uGround, guv - du).b,
+                   texture2D(uGround, guv + dv).b, texture2D(uGround, guv - dv).b);
+    vec4 np = max(nb, 0.0);
+    vec2 pg = vec2(np.x - np.y, np.z - np.w) / uCell;
+    grad -= ${LOOSE.toFixed(3)} * pg * (1.0 - vSnowRock);
+    vec4 ns = max(-nb, 0.0);
+    rockShareGrad = vec2(ns.x - ns.y, ns.z - ns.w) / uCell;
   }
   // Past the map the ground's texture is clamped; the ridge's slope is
   // steep and the lighting the vertex normal gives it is enough.
@@ -394,7 +410,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     vec3 vn = normalize(vSnowNormal);
     grad = mix(grad, -vn.xz / max(vn.y, 0.2), smoothstep(0.0, 30.0, past));
   }
-  snowRock = uRock.w * smoothstep(uRockSlope.x, uRockSlope.y, length(grad)) * (1.0 - snowPacked);
+${ROCK.ROCK_FRAGMENT_SAMPLE}
 
   // THE SNOW'S AGE, here: only the loose snow (the groomer is the night's,
   // the ice and the rock are not snow), the run's own fall making it new
@@ -802,7 +818,7 @@ ${SLIDE_ALBEDO}
   if (snowIce > 0.0) {
     alb = mix(alb, uIceTone * mix(0.9, 1.05, snowNoise(p * 0.05)), snowIce * (1.0 - snowPress * 0.6));
   }
-  if (snowRock > 0.0) alb = mix(alb, uRock.rgb * mix(0.7, 1.2, snowNoise(p * 0.6)), snowRock);
+${ROCK.ROCK_FRAGMENT_COLOUR}
   diffuseColor.rgb = alb * ${GLARE.toFixed(3)};
 }
 `;

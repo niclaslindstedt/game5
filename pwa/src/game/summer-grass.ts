@@ -179,13 +179,15 @@ vec4 gG = texture2D(uGround, guv);
 vec2 suv = gAt / uSummerSize;
 vec4 sA = texture2D(uSummerA, suv);
 vec4 sB = texture2D(uSummerB, suv);
-float gy = grassHeight(gAt) + ${LOOSE.toFixed(3)} * (1.0 - gG.b);
+// The packed channel carries the rock's share below zero; no grass on it.
+float gy = grassHeight(gAt) + ${LOOSE.toFixed(3)} * (1.0 - max(gG.b, 0.0));
 float slope = length(gG.rg);
 float above = smoothstep(uSummerBands.y - 20.0, uSummerBands.y + 30.0, gy + (grassNoise(gAt * 0.02) - 0.5) * 60.0);
 // What grows here, 0 nothing .. 1 a full tuft.
 float grow = 1.0 - smoothstep(0.25, 0.45, max(max(sA.r, sA.g), max(sA.b, sA.a)));
 grow *= 1.0 - smoothstep(0.3, 0.6, sB.a);
 grow *= 1.0 - smoothstep(0.6, 0.85, slope);
+grow *= 1.0 - smoothstep(0.05, 0.2, -gG.b);
 grow *= 1.0 - 0.75 * smoothstep(0.3, 0.8, gG.a);
 grow *= 1.0 - 0.7 * smoothstep(0.3, 0.6, sB.b);
 // Thinned with distance to the whole grass's reach and by the row's share;

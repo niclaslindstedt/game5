@@ -206,6 +206,18 @@ export function skisOnRock(state: GameState): number {
   return rockStrike(state.level, c.x, c.z, c.vx, c.vy, c.vz, reach, K.rockClimb);
 }
 
+/** Whether the skis stand on or just short of a wall's bare rock. */
+function onBareRock(state: GameState): boolean {
+  const c = state.skier;
+  const rock = state.level.bareRockAt;
+  if (!rock || c.airborne) return false;
+  const plan = hypot(c.vx, c.vz);
+  const reach = envelopeOf(c.spec).length / 2 + K.rockReach;
+  const ux = plan > 0.1 ? c.vx / plan : Math.sin(c.heading);
+  const uz = plan > 0.1 ? c.vz / plan : Math.cos(c.heading);
+  return rock(c.x, c.z) > 0 || rock(c.x + ux * reach, c.z + uz * reach) > 0;
+}
+
 /** What, of this step's events and the skier's attitude, throws him — or
  * null. `speed0` is his speed before the step. */
 export function wipeoutCause(
@@ -238,6 +250,9 @@ export function wipeoutCause(
   }
   // A WALL'S ROCK met head on (`rock-ground.ts`).
   if (skisOnRock(state) >= crashLimit(c, "rockSpeed")) return "rock";
+  // ...or stopped dead on it this step (a riser's face takes the speed off
+  // him before the strike can be read ahead of the tips).
+  if (speed0 - c.speed >= crashLimit(c, "rockSpeed") && onBareRock(state)) return "rock";
   // THE BODY DOWN: his hips, shoulders or helmet driven into the snow —
   // whatever the skis were doing, he is on the ground; a landing's, when
   // the skis touched down a moment before.

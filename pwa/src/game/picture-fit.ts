@@ -82,7 +82,11 @@ export const FLOOR_MS = 3.81;
  * furrow, hard to see at speed.
  * TRAILS: the furrows are the game — OFF leaves the snow untouched behind
  * every skier, which is the heaviest loss on the list; the stops over LOW
- * are sharper and reach further.
+ * are sharper and reach further. MEDIUM and HIGH also draw the snow round
+ * the player as a deformable volume (`deform-snow.ts`): real trenches, a
+ * fall's crater, the berm a stop throws up, self-shadowed — the biggest
+ * gain on the row after the furrows themselves (+8 and +10 over the
+ * trail map's own).
  * FOREST: how far the full trees run before the sketch, and how thick the
  * far woods stand.
  * SHADOWS: the trees' shadows (MEDIUM) are the woods' depth, the skiers' own
@@ -145,11 +149,23 @@ export const PICTURE_PRICES: PriceList = {
     medium: { cost: 0, benefit: 8 },
     high: { cost: 0.21, benefit: 12 },
   },
+  // MEDIUM and HIGH carry the deformable snow, added after the costs under
+  // it were measured on a GPU: SOFTWARE-SCALED, AN ESTIMATE OWED A REAL
+  // GPU'S RE-PRICE (`make bench ARGS="--gpu --costs"`). Its patch (80k and
+  // 115k triangles, one draw call) and self-shadow march (7 and 14 steps)
+  // added +42 % to +57 % to the snow lab's software frame at 960 × 540,
+  // about 2,000 software ms; at RESOLUTION's 0.00044 reference ms a
+  // software ms of pixel work at 1280 × 720 (DISTANCE's note), 1.78 times
+  // that at 960 × 540, that is about 1.5 ms with the full march — taken as
+  // +1.0 at MEDIUM's half march and +1.6 at HIGH's. The field's own CPU
+  // (the presses, the settling, the upload) is a few tenths of a
+  // millisecond riding, more under a fall (`make snow-eval
+  // ARGS=--deform-perf`).
   trails: {
     off: { cost: 0, benefit: 0 },
     low: { cost: 0.06, benefit: 50 },
-    medium: { cost: 0.16, benefit: 58 },
-    high: { cost: 0.24, benefit: 62 },
+    medium: { cost: 1.16, benefit: 66 },
+    high: { cost: 1.84, benefit: 72 },
   },
   // Measured on a winter race. A SUMMER free ride also draws the grass the
   // row reaches (`FOREST_LOOK[...].grass`): ESTIMATED, not measured, at about

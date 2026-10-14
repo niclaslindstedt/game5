@@ -6,11 +6,14 @@
 // falling body is a fraction of a g and never turns the fall round — so
 // any rise in his vertical speed while he is well over the snow is
 // something meeting him that is not there: the legs standing on the face
-// he is falling past, a hull point caught on its lip.
+// he is falling past, a hull point caught on its lip. Nor does anything
+// SHOVE him sideways in the air: a step that carries him further than his
+// own speed does is the rock of the face met where he is clear of it.
 //
 // Every drop is a row (the seed, the cliff, its drop, the speed, the AIR
-// KICK — the upward speed he gained in the air, m/s — and how high over
-// the snow it found him), and the worst is drawn as a strobe from the side
+// KICK — the upward speed he gained in the air, m/s — how high over the
+// snow it found him, and the SHOVE — the furthest one step in the air put
+// him off his own way, m), and the worst is drawn as a strobe from the side
 // (`previews/landing-cliff.png`): the ground along his line, his centre of
 // gravity every 1/30 s and his skis under it, the steps the kick lifted him
 // in red.
@@ -25,7 +28,10 @@ import { createDrawing } from "@niclaslindstedt/oss-game-framework/tooling/draw"
  * the tips a metre over the snow under him on a short drop's apron. */
 const CLEAR = 2;
 /** Speeds he leaves the edge at, km/h, and the run-up behind it, m. */
-const SPEEDS = [30, 50, 70];
+const SPEEDS = [10, 30, 50, 70];
+/** A step in the air past this off his own way is a shove, m — under it,
+ * the step's own rounding against the legs' push. */
+const SHOVED = 0.2;
 const RUN_UP = 6;
 const SECONDS = 4;
 
@@ -62,8 +68,17 @@ function dropOff(E, seed, level, spec, cliff, kmh) {
   const c = state.skier;
   const frames = [];
   const input = { steer: 0, tuck: 1, brake: 0, lean: 0, reset: false };
+  let shove = 0;
   for (let i = 0; i <= SECONDS * E.TUNING.physicsHz; i++) {
-    if (i > 0) E.step(state, input);
+    if (i > 0) {
+      const x0 = c.x;
+      const z0 = c.z;
+      const vx = c.vx;
+      const vz = c.vz;
+      E.step(state, input);
+      const off = Math.hypot(c.x - x0 - vx * E.TUNING.dt, c.z - z0 - vz * E.TUNING.dt);
+      if (!c.thrown && c.y - level.groundAt(c.x, c.z) > 1) shove = Math.max(shove, off);
+    }
     if (c.thrown) break;
     const along = (c.x - cliff.x) * fx + (c.z - cliff.z) * fz;
     frames.push({
@@ -97,7 +112,7 @@ function dropOff(E, seed, level, spec, cliff, kmh) {
       y: level.groundAt(cliff.x + fx * s, cliff.z + fz * s),
     });
   }
-  return { seed, cliff, kmh, frames, ground, kick, at };
+  return { seed, cliff, kmh, frames, ground, kick, at, shove };
 }
 
 /** The strobe of one drop from the side, as a PNG. */
@@ -107,7 +122,7 @@ function drawDrop(run, title) {
   const d = createDrawing(W, H, INK.bg);
   d.text(title, 16, 12, INK.text, 2);
   d.text(
-    `seed ${run.seed}  ${run.cliff.id}  drop ${run.cliff.drop.toFixed(1)} m  ${run.kmh} km/h  air kick ${run.kick.toFixed(2)} m/s`,
+    `seed ${run.seed}  ${run.cliff.id}  drop ${run.cliff.drop.toFixed(1)} m  ${run.kmh} km/h  air kick ${run.kick.toFixed(2)} m/s  shove ${run.shove.toFixed(2)} m`,
     16,
     40,
     INK.dim,
@@ -154,19 +169,22 @@ export function cliffSweep(E, args, root, spec) {
       for (const kmh of SPEEDS) runs.push(dropOff(E, seed, level, spec, cliff, kmh));
     }
   }
-  console.log(" seed  cliff   drop  km/h   kick m/s   over m");
+  console.log(" seed  cliff   drop  km/h   kick m/s   over m  shove m");
+  const bad = (r) => r.kick > 0.05 || r.shove > SHOVED;
   for (const r of runs) {
-    if (!args.list && r.kick <= 0.05) continue;
+    if (!args.list && !bad(r)) continue;
     console.log(
-      `${String(r.seed).padStart(5)}  ${r.cliff.id.padEnd(5)} ${r.cliff.drop.toFixed(1).padStart(6)} ${String(r.kmh).padStart(5)} ${r.kick.toFixed(2).padStart(10)} ${r.at.toFixed(1).padStart(8)}`,
+      `${String(r.seed).padStart(5)}  ${r.cliff.id.padEnd(5)} ${r.cliff.drop.toFixed(1).padStart(6)} ${String(r.kmh).padStart(5)} ${r.kick.toFixed(2).padStart(10)} ${r.at.toFixed(1).padStart(8)} ${r.shove.toFixed(2).padStart(8)}`,
     );
   }
   const kicked = runs.filter((r) => r.kick > 0.05);
+  const shoved = runs.filter((r) => r.shove > SHOVED);
   console.log(
-    `\n${runs.length} drops off ${new Set(runs.map((r) => `${r.seed}:${r.cliff.id}`)).size} cliffs · ${kicked.length} pushed up in the air · worst ${Math.max(0, ...runs.map((r) => r.kick)).toFixed(2)} m/s`,
+    `\n${runs.length} drops off ${new Set(runs.map((r) => `${r.seed}:${r.cliff.id}`)).size} cliffs · ${kicked.length} pushed up in the air · worst ${Math.max(0, ...runs.map((r) => r.kick)).toFixed(2)} m/s · ${shoved.length} shoved sideways · worst ${Math.max(0, ...runs.map((r) => r.shove)).toFixed(2)} m`,
   );
   if (runs.length === 0) return;
-  const worst = runs.reduce((a, b) => (b.kick > a.kick ? b : a));
+  const score = (r) => r.kick + r.shove;
+  const worst = runs.reduce((a, b) => (score(b) > score(a) ? b : a));
   const shown = args.cliff
     ? (runs.find((r) => `${r.seed}:${r.cliff.id}:${r.kmh}` === args.cliff) ?? worst)
     : worst;

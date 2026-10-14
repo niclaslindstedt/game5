@@ -36,7 +36,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import type { GameEvent, GameState } from "./state.ts";
-import { treesNear, type Stuff } from "./upright-grid.ts";
+import { solidTopAt, treesNear, type Stuff } from "./upright-grid.ts";
 
 export { treesNear };
 
@@ -93,6 +93,8 @@ export function collideTrees(
       const d = hypot(dx, dz);
       const reach = K.bodyRadius + t.radius;
       if (d >= reach) continue;
+      // Over a cliff's face, a body above the face's line falls past it.
+      if (t.face && c.y > solidTopAt(t, c.x + ox, c.z + oz, K.bodyRadius)) continue;
       const nx = d > 1e-6 ? dx / d : -fx;
       const nz = d > 1e-6 ? dz / d : -fz;
       const pen = reach - d;

@@ -124,3 +124,57 @@ describe("bike animator on the trail", () => {
     expect(worst(drawn)).toBeLessThanOrEqual(worst(engine) + 1e-9);
   }, 120_000);
 });
+
+describe("bike animator's limb guards", () => {
+  // THE KNEE GUARD and THE TRUNK-PITCH SOLVE keep the limbs from folding
+  // shut through a landing and a pump — and do it without a jump: a
+  // sixtieth of a second apart, no joint moves 10 cm on the bike.
+  // The knees' least on each (a big landing folds them deeper than a
+  // pump), deg; the elbows never under the motion lab's 70.
+  for (const [id, least] of [
+    ["land", 60],
+    ["pump", 85],
+  ] as const) {
+    it(`keeps the knees open, the elbows soft and every joint steady through the ${id}`, async () => {
+      const clip = RIDES.find((c) => c.id === id)!;
+      const win = clipWindow(clip)!;
+      const angle = (p: number[], a: number, b: number, c: number) => {
+        const u = [0, 1, 2].map((j) => p[3 * a + j] - p[3 * b + j]);
+        const w = [0, 1, 2].map((j) => p[3 * c + j] - p[3 * b + j]);
+        const dot = u[0] * w[0] + u[1] * w[1] + u[2] * w[2];
+        return (Math.acos(dot / (Math.hypot(...u) * Math.hypot(...w))) * 180) / Math.PI;
+      };
+      let last: number[] | null = null;
+      let step = 0;
+      let lo = 180;
+      let elbow = 180;
+      await rideClip(clip, win, (s) => {
+        const b = s.bike!;
+        if (!b.onIt || s.skier.thrown) return void (last = null);
+        const pts = riderPoints(bikePose(b), animatedStyle(b, s.level, s.t));
+        for (const [h, k, f] of [
+          [R.hipL, R.kneeL, R.footL],
+          [R.hipR, R.kneeR, R.footR],
+        ]) {
+          const a = angle(pts, h, k, f);
+          lo = Math.min(lo, a);
+        }
+        for (const [sh, el, ha] of [
+          [R.shoulderL, R.elbowL, R.handL],
+          [R.shoulderR, R.elbowR, R.handR],
+        ])
+          elbow = Math.min(elbow, angle(pts, sh, el, ha));
+        if (last)
+          for (let i = 0; i < pts.length / 3; i++)
+            step = Math.max(
+              step,
+              Math.hypot(...[0, 1, 2].map((j) => pts[3 * i + j] - last![3 * i + j])),
+            );
+        last = pts;
+      });
+      expect(lo).toBeGreaterThan(least);
+      expect(elbow).toBeGreaterThan(70);
+      expect(step).toBeLessThan(0.1);
+    }, 120_000);
+  }
+});

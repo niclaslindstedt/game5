@@ -162,12 +162,15 @@ export function createForestCells(ctx: CellsContext): ForestCells {
       const tx = b % tiles;
       const tz = Math.floor(b / tiles);
       const list: ShellTree[] = [];
+      // As thinned as the sketches it takes over from, so the wood keeps
+      // its density across the hand-over.
+      const share = ctx.options().farShare;
       for (let r = tz * TILE - 1; r <= (tz + 1) * TILE; r++)
         for (let c = tx * TILE - 1; c <= (tx + 1) * TILE; c++) {
           if (r < 0 || c < 0 || r >= cols || c >= cols) continue;
           const cb = r * cols + c;
           for (let i = binStart[cb]; i < binStart[cb + 1]; i++) {
-            if (gone[i]) continue;
+            if (gone[i] || thin[i] >= share) continue;
             const t = trees[i];
             const k = shellKind(t.kind ?? "spruce");
             list.push({ ...k, x: t.x, y: t.y, z: t.z, height: t.height, crown: t.crown });

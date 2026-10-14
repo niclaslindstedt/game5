@@ -473,7 +473,7 @@ export function buildShell(
       // flanks; the shell's own slopes are steeper than the crowns', so
       // the snow is laid on by the load first and the slope after.
       const up = Math.min(1, Math.max(0, (ny / 127 - 0.2) / 0.6));
-      c.copy(t.paint.needle).lerp(t.paint.snow, 0.3 + load * (0.3 + 0.3 * up));
+      c.copy(t.paint.needle).lerp(t.paint.snow, 0.5 + load * (0.2 + 0.2 * up));
       T[v] = ((h[v] - t.y) / t.height) * 9;
     }
     C[v * 3] = Math.round(Math.min(1, c.r) * 255);

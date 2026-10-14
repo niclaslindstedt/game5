@@ -121,6 +121,9 @@ describe("the skis never under the drawn snow", () => {
     const uniforms = skiClearUniforms();
     const clear = createSkiClear(uniforms);
     clear.update(skis, true);
+    // Riding: let down and grooved; stood still, let down alone.
+    expect(uniforms.uSkiClear.value).toBe(2);
+    clear.update(skis, true, false);
     expect(uniforms.uSkiClear.value).toBe(1);
     const line = uniforms.uSkiLine.value;
     for (let k = 0; k < SKI_POINTS; k++) {

@@ -21,7 +21,13 @@
 import type { TreeKind } from "@engine";
 
 import type { ImpostorLook } from "./settings-video.ts";
-import { crownAt, kindVariants, type TreeVariant } from "./tree-variants.ts";
+import {
+  VARIANTS,
+  crownAt,
+  treeVariant,
+  variantAt,
+  type TreeVariant,
+} from "./tree-variants.ts";
 
 export type V3 = [number, number, number];
 
@@ -107,7 +113,18 @@ export function nearestPictured(v: TreeVariant, pictured: readonly TreeVariant[]
 
 /** The variants of `kind` an atlas pictures under `look`. */
 export function picturedOf(kind: TreeKind, look: ImpostorLook): TreeVariant[] {
-  return kindVariants(kind, look.variants);
+  // The first `n` of the kind's most-telling-first order: walk trunks until
+  // every pick a FOREST row drawing `n` of the kind makes has turned up.
+  const n = Math.max(1, Math.min(VARIANTS, Math.round(look.variants)));
+  const out: (TreeVariant | undefined)[] = new Array(n);
+  let found = 0;
+  for (let k = 0; found < n && k < 4096; k++) {
+    const pick = Math.floor(variantAt(k, 0) * n);
+    if (out[pick]) continue;
+    out[pick] = treeVariant(kind, k, 0, n);
+    found++;
+  }
+  return out.filter((v): v is TreeVariant => v !== undefined);
 }
 
 /** The bytes an atlas of `layers` variants holds on the GPU: two RGBA8

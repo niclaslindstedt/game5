@@ -11,6 +11,7 @@ import {
   GORE_PIECES,
   TUNING,
   bleedsOf,
+  createGame,
   woundFlow,
   lostPiece,
   mendBody,
@@ -19,6 +20,7 @@ import {
 } from "@engine";
 
 import { stageTrial, type Staging } from "./support/injury-stage.ts";
+import { syntheticLevel } from "./support/synthetic.ts";
 
 const HEAD_INTO_TRUNK: Staging = {
   stage: { how: "into", pose: "head", stuff: "trunk", speed: 25 },
@@ -99,6 +101,17 @@ describe("mortal wounds", () => {
       state.level.groundAt(i.x, i.z) + GORE.impale.clear - 0.01,
     );
     expect(Math.hypot(b.points[3 * p] - g.impaled!.x, b.points[3 * p + 2] - g.impaled!.z)).toBe(0);
+  });
+
+  it("never deal the mortal wounds to a safe-for-work run, even asked", () => {
+    const state = createGame({ level: syntheticLevel(), seed: 1, gore: true, sfw: true });
+    expect(state.gore).toBeUndefined();
+  });
+
+  it("never run a body through on a tree with the wounds off", () => {
+    const { state } = ride(ON_A_TREE, 4, false);
+    expect(state.gore).toBeUndefined();
+    expect(state.skier.thrown?.pin ?? null).toBeNull();
   });
 
   it("never stand a mortally wounded body back up", () => {

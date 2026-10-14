@@ -44,6 +44,7 @@ import {
   type StageId,
 } from "./lift-stage.ts";
 import { labPair } from "./lab-pair.ts";
+import { jumpSheet, staySheet, type HandsCtx } from "./chair-hands-sheet.ts";
 
 declare global {
   interface Window {
@@ -92,6 +93,11 @@ const VIEWS: Record<string, { x: number; y: number; z: number }> = {
 const approach = params.get("approach") ?? "lane";
 /** The lift whose foot is photographed boarding, by kind. */
 const board = (params.get("board") ?? "") as LiftKind | "";
+/** THE CHAIR LEFT ONLY BY HAND (`?hands=stay|jump`, `chair-hands-sheet.ts`):
+ * ridden untouched round the top and back down, or jumped off on the way
+ * down at each of `?heights=` m over the snow. */
+const hands = params.get("hands") ?? "";
+const heights = (params.get("heights") ?? "3,6,10,15,20").split(",").map(Number);
 /** THE STRIPS (`?strip=`): one stage of getting on or off a lift
  * (`lift-stage.ts`), filmed frame by frame — a row a lens (`?views=`), a
  * column a moment, `?frames=` of them evenly over the stage's window. */
@@ -121,8 +127,9 @@ const renderer = createWorldRenderer(canvas, {
 });
 renderer.resize(width, height, 1);
 
-function standUp(): GameState {
+function standUp(extra: { chairHands?: boolean; gore?: boolean } = {}): GameState {
   return createGame({
+    ...extra,
     seed,
     region,
     mode: "free",
@@ -296,6 +303,10 @@ async function stripSheet(id: StageId): Promise<{ note: string; tiles: number }>
 }
 
 async function sheet(): Promise<{ note: string; tiles: number }> {
+  if (hands) {
+    const ctx: HandsCtx = { renderer, canvas, sheet: sheetEl, width, height, scale, standUp };
+    return hands === "jump" ? jumpSheet(ctx, heights) : staySheet(ctx);
+  }
   if (strip) return stripSheet(strip);
   if (board) return boardSheet(board);
   const off = unloadAt();

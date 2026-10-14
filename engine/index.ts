@@ -891,6 +891,7 @@ export {
   stepLift,
   teeSide,
 } from "./game/lift-ride.ts";
+export { CHAIR_BAR_SWING, chairBarDown } from "./game/chair-hands.ts";
 export { CABIN_HALF, carrierNear, gondolaGrip, platformOf, railAt } from "./game/lift-board.ts";
 export {
   airPointsPerSecond,

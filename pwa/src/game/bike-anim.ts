@@ -37,10 +37,11 @@
 //
 // Three-free and DOM-free, so the suite and the motion lab read it.
 
-import { bikePose, RAGDOLL, type BikeState, type Level } from "@engine";
+import { RAGDOLL, type BikeState, type Level } from "@engine";
 
 import { fallLeft, rideStyleOf, type RideStyle } from "./bike-ride-style.ts";
 import { keyPoints } from "./party-pose.ts";
+import { drawnBikePose } from "./rider-follow.ts";
 import { ATTACK, freerideKey } from "./skier-bike.ts";
 
 /** THE BODY CHANNELS the animator drives, laid onto the freerider's key
@@ -130,9 +131,14 @@ export const ANIM = {
   trickOmega: 20,
   /** The hips' lead on the bike's turn in a whip, a share of it. */
   lead: 0.3,
-  /** The cranks: brought level (or the outside one down) coasting; caught
-   * up to the engine's when pedalling. */
-  crank: { coast: 7, air: 12, pedal: 22, turn: 0.22, drop: 0.75 },
+  /** The cranks: brought level (or the outside one down, eased in with the
+   * lean from `turn` to twice it) coasting; turned at the engine's cadence
+   * while it pedals (`pedal` the rate's grip, 1/s) — never chased to the
+   * engine's own angle, which a stroke of a frame or two would spin them
+   * half a turn after. `cadence` the slow mean the rate is read off, s;
+   * PEDALLING held on `hold` s after the engine's last stroke, so strokes
+   * ratcheted a few frames apart read as one bout of pedalling. */
+  crank: { coast: 7, air: 12, pedal: 10, turn: 0.22, drop: 0.75, cadence: 0.35, hold: 0.35 },
   /** The pedalling's rock: the hips up and down twice a turn, side to side
    * once, the trunk twisting with the stroke. */
   pedal: { bob: 0.022, sway: 0.018, twist: 0.06, omega: 6 },
@@ -247,6 +253,13 @@ export class BikeAnimator {
   private trick = { yaw: 0, roll: 0, vyaw: 0, vroll: 0 };
   private crank = 0;
   private crankV = 0;
+  /** The level the cranks come back to coasting (0 or π), kept until the
+   * cranks are well past the other's side. */
+  private crankBase = 0;
+  /** The engine's cadence, rpm, a slow mean, and how long since it last
+   * pedalled, s. */
+  private cadence = 0;
+  private sincePedal = Infinity;
   private pedal = 0;
   private pedalV = 0;
   private wasAir = false;
@@ -270,7 +283,7 @@ export class BikeAnimator {
   /** THE STYLE at the run's time `t`: stepped from the last call. */
   step(b: BikeState, level: Level, t: number): AnimatedStyle {
     if (this.last && t === this.t) return this.last;
-    const pose = bikePose(b);
+    const pose = drawnBikePose(b, t);
     const raw = rideStyleOf(b, level, t);
     const fresh = this.t < 0 || t < this.t || t - this.t > ANIM.leap;
     const dt = fresh ? 0 : t - this.t;
@@ -281,6 +294,10 @@ export class BikeAnimator {
     // ── THE STATES and their clocks ──────────────────────────────────────
     if (fresh) {
       this.crank = pose.crank;
+      this.crankV = 0;
+      this.cadence = b.cadence;
+      this.sincePedal = pose.pedalling ? 0 : Infinity;
+      this.crankBase = Math.abs(wrap(this.crank)) < Math.PI / 2 ? 0 : Math.PI;
       this.riderMean = pose.rider.y;
       this.wasAir = air;
       this.footSide = raw.foot;
@@ -367,16 +384,21 @@ export class BikeAnimator {
     target.hipZ += ANIM.pitch.back * held;
     target.hipY -= ANIM.pitch.up * held;
 
-    // THE PEDALLING: rocked over the cranks as they turn.
+    // THE PEDALLING: rocked over the cranks as they turn — held on through
+    // the engine's strokes ratcheted a few frames apart.
+    const C = ANIM.crank;
+    this.sincePedal = pose.pedalling ? 0 : this.sincePedal + dt;
+    this.cadence += (b.cadence - this.cadence) * (dt / (C.cadence + dt));
+    const pedalling = ridden && !air && this.sincePedal < C.hold;
     [this.pedal, this.pedalV] = spring(
       this.pedal,
       this.pedalV,
-      ridden && !air && pose.pedalling ? 1 : 0,
+      pedalling ? 1 : 0,
       ANIM.pedal.omega,
       dt,
     );
     const P = ANIM.pedal;
-    target.hipY += this.pedal * P.bob * Math.abs(Math.sin(this.crank));
+    target.hipY += this.pedal * P.bob * Math.sin(this.crank) ** 2;
     target.hipX += this.pedal * P.sway * Math.sin(this.crank);
     target.twist += this.pedal * P.twist * Math.sin(this.crank);
 
@@ -407,22 +429,33 @@ export class BikeAnimator {
       this.trick.roll *= 0.6;
     }
 
-    // THE CRANKS: the engine's while it pedals; level coasting and in the
-    // air, the outside one dropped through a turn (the foot nearer the
-    // inside forward).
-    const C = ANIM.crank;
-    let aim: number;
-    if (pose.pedalling && !air) aim = pose.crank;
-    else if (!air && Math.abs(b.roll) > C.turn) aim = b.roll > 0 ? C.drop : -C.drop;
-    else aim = Math.abs(wrap(this.crank)) < Math.PI / 2 ? 0 : Math.PI;
-    if (fresh) this.crank = pose.pedalling ? pose.crank : aim;
-    else {
-      const off = wrap(aim - this.crank);
-      [this.crank, this.crankV] = (() => {
-        const w = pose.pedalling && !air ? C.pedal : air ? C.air : C.coast;
-        const [x, v] = spring(0, this.crankV, off, w, dt);
-        return [this.crank + x, v];
-      })();
+    // THE CRANKS: turned at the engine's cadence while it pedals; level
+    // coasting and in the air, the outside one dropped through a turn (the
+    // foot nearer the inside forward) — the two blended by the pedalling's
+    // share, so a stroke begun or let go never kicks them.
+    if (Math.abs(wrap(this.crank - this.crankBase)) > Math.PI / 2 + 0.3)
+      this.crankBase = this.crankBase === 0 ? Math.PI : 0;
+    // Level through a landing's absorb: both legs take it.
+    const absorbing = this.landAt >= 0 ? 1 - smooth(0.5, 0.9, t - this.landAt) : 0;
+    const lean = air
+      ? 0
+      : smooth(C.turn, 2 * C.turn, Math.abs(b.roll)) * Math.sign(b.roll) * (1 - absorbing);
+    const aim = this.crankBase + (this.crankBase === 0 ? 1 : -1) * C.drop * lean;
+    if (!fresh) {
+      const w = air ? C.air : C.coast;
+      const rate = (this.cadence / 60) * 2 * Math.PI;
+      const share = clamp01(this.pedal);
+      const n = Math.max(1, Math.ceil(dt * 240));
+      const h = dt / n;
+      for (let i = 0; i < n; i++) {
+        const off = wrap(aim - this.crank);
+        const a =
+          share * C.pedal * (rate - this.crankV) +
+          (1 - share) * (w * w * off - 2 * w * this.crankV);
+        this.crankV += a * h;
+        this.crank += this.crankV * h;
+      }
+      this.crank = wrap(this.crank);
     }
 
     // THE HEAD HELD: where the head stands over the bike's middle (the

@@ -210,8 +210,16 @@ export function bikeSticks(ctx, state, at) {
   const v = new THREE.Vector3();
   const BB = E.BIKE_BB;
   /** A point from the bottom bracket, in the bike's frame, into his. */
+  // Moved as the drawing moves it under a rider held through a jolt
+  // (`rider-follow.ts`, `bike-view.ts`).
+  const ridden = b.onIt && b.mode === "ridden" && !state.skier.thrown;
+  const slack = ridden ? ctx.FOLLOW.riderSlack(pose, ctx.FOLLOW.drawnBikePose(b, state.t)) : null;
   const put = (p) => {
-    v.set(BB.x + p.x, BB.y + p.y, BB.z + p.z).applyQuaternion(qb);
+    v.set(
+      BB.x + p.x + (slack?.x ?? 0),
+      BB.y + p.y + (slack?.y ?? 0),
+      BB.z + p.z + (slack?.z ?? 0),
+    ).applyQuaternion(qb);
     v.x += pose.x - at.x;
     v.y += pose.y - at.y;
     v.z += pose.z - at.z;

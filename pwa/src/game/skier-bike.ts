@@ -16,12 +16,13 @@
 //
 // Three-free, so the suite reads it.
 
-import { BIKE, BIKE_BB, RAGDOLL as R, bikePose, type BikePose, type GameState } from "@engine";
+import { BIKE, BIKE_BB, RAGDOLL as R, type BikePose, type GameState } from "@engine";
 
 import { GRIPS, SADDLE_TOP, bracketFromRider, gripsAt, pedalsAt, type V3 } from "./bike-look.ts";
 import type { AnimatedStyle } from "./bike-anim.ts";
 import type { RideStyle } from "./bike-ride-style.ts";
 import { ANKLE, STAND, blend, keyOf, keyPoints, type Key } from "./party-pose.ts";
+import { drawnBikePose } from "./rider-follow.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { BODY } from "./skier-mounts.ts";
 import type { SkierPose } from "./skier-pose.ts";
@@ -56,6 +57,24 @@ export const ATTACK = {
 /** The share of the leg's length a pedal may stand off the hip joint. */
 const REACH = 0.94;
 
+/** THE LEGS NEVER LOCKED: where the bike's travel, his own sway or a
+ * pedal at the bottom of its stroke carries a foot further off its hip than
+ * `REACH` of the leg, the hips `at` come down along the line to it (each leg
+ * in turn, eased) — a rider's knee keeps some 30–40° of bend at the bottom
+ * of the stroke, stood or sat, and a knee straightened onto the reach's end
+ * is the kink a drawing snaps through. */
+export function kneesKept(at: V3, feet: readonly [V3, V3]): V3 {
+  let hips = at;
+  const most = REACH * (BODY.thigh + BODY.shin);
+  for (const [i, foot] of feet.entries()) {
+    const d = sub(foot, add(hips, v(i === 0 ? -BODY.hip : BODY.hip, 0, 0)));
+    const span = Math.hypot(d.x, d.y, d.z);
+    const give = softPlus(span - most, 0.02);
+    if (span > 1e-6) hips = add(hips, scale(d, give / span));
+  }
+  return hips;
+}
+
 /** THE KEY that lays him on the bike posed `pose`, in the root's frame —
  * `look` the head's own turn on top of the stance's, rad (the neck taking
  * the bike's pitch, `holdRider`). */
@@ -65,18 +84,7 @@ export function riderKey(pose: BikePose, look = 0): Key {
   const [p0, p1] = pedalsAt(pose.crank);
   const back = Math.max(0, pose.shift);
   const feet: [V3, V3] = [add(add(bb, p0), ATTACK.ankle), add(add(bb, p1), ATTACK.ankle)];
-  // The legs never locked: where the bike's travel and his own sway carry a
-  // pedal further off the hip than `REACH` of the leg, his hips come down
-  // along the line to it (each leg in turn, eased — a knee straightened
-  // onto the reach's end is the kink a drawing snaps through).
-  let hips = ATTACK.hips;
-  const most = REACH * (BODY.thigh + BODY.shin);
-  for (const [i, foot] of feet.entries()) {
-    const d = sub(foot, add(hips, v(i === 0 ? -BODY.hip : BODY.hip, 0, 0)));
-    const span = Math.hypot(d.x, d.y, d.z);
-    const give = softPlus(span - most, 0.02);
-    if (span > 1e-6) hips = add(hips, scale(d, give / span));
-  }
+  const hips = kneesKept(ATTACK.hips, feet);
   return {
     hipX: hips.x,
     hipY: hips.y,
@@ -185,6 +193,12 @@ export function freerideKey(pose: BikePose, style: RideStyle | AnimatedStyle): K
       key.roll += side * 0.12 * k;
     }
   }
+  // The freerider's hips are laid afresh above, so the legs are kept off
+  // their lock again (the pedal start's knee snapped straight without it).
+  const hips = kneesKept(v(key.hipX, key.hipY, key.hipZ), key.feet);
+  key.hipX = hips.x;
+  key.hipY = hips.y;
+  key.hipZ = hips.z;
   return key;
 }
 
@@ -428,7 +442,7 @@ export function bikeStood(
     if (was) {
       hold.mount = { from: keyBetween(was.key, was.ground, was.root, root), at: s.t };
     }
-    return { pose: riderPose(bikePose(b), style, hold, s.t), way: "bike" };
+    return { pose: riderPose(drawnBikePose(b, s.t), style, hold, s.t), way: "bike" };
   }
   hold.set = false;
   hold.mount = null;
@@ -457,8 +471,14 @@ export function riderPoints(pose: BikePose, style?: RideStyle | AnimatedStyle): 
   return "body" in style ? reachKept(key) : keyPoints(key, 0);
 }
 
+/** The share of the arm's length a grip may stand off the shoulder: past
+ * it the elbow nears its lock (a rider rides with them bent, never locked —
+ * about 150° at the most here), so the trunk comes toward the grip. */
+const ARM_REACH = 0.965;
+const ARM_MOST = ARM_REACH * (BODY.upperArm + BODY.forearm);
+
 /** THE REACH KEPT: a key pose an animator laid that would pull a hand off
- * its grip or a foot off its pedal (the limb straight and still short) is
+ * its grip, lock an elbow straight, or a foot off its pedal (the limb straight and still short) is
  * eased toward them — the hips brought forward and the chest down for a
  * hand, the hips down for a foot — a few times over, the joints of the
  * last. */
@@ -466,10 +486,12 @@ export function reachKept(key: Key): number[] {
   let pts = keyPoints(key, 0);
   const at = (i: number): V3 => v(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]);
   for (let n = 0; n < 8; n++) {
-    const hands = [R.handL, R.handR].map((j, i) => {
-      const p = at(j);
-      const to = key.hands[i];
-      return v(to.x - p.x, to.y - p.y, to.z - p.z);
+    // Each hand's grip off its shoulder past `ARM_REACH` of the arm: the
+    // arm left short, or about to lock its elbow straight.
+    const hands = [R.shoulderL, R.shoulderR].map((j, i) => {
+      const d = sub(key.hands[i], at(j));
+      const span = Math.hypot(d.x, d.y, d.z);
+      return span > 1e-6 ? scale(d, softPlus(span - ARM_MOST, 0.012) / span) : v(0, 0, 0);
     });
     const feet = [R.footL, R.footR].map((j, i) => {
       const p = at(j);

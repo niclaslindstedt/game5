@@ -30,10 +30,10 @@ const band = regionLookOf(regionOf(level).id).rock;
 const walls = cliffWalls(level);
 
 /** The whole map's skin at a lattice of `cell` m. */
-function skinOf(cell: number) {
+function skinOf(cell: number, every = 1) {
   const m = rockMesh();
   const n = Math.round(level.size / cell);
-  buildSkin(m, level, band!.tone, rockHash(level.seed, 1), cell, 0, 0, n, n);
+  buildSkin(m, level, band!.tone, rockHash(level.seed, 1), cell, 0, 0, n, n, every);
   return m;
 }
 
@@ -134,8 +134,9 @@ describe("rocks", () => {
 
   it("cost a phone little: a few thousand triangles a square kilometre, fewer at a cheaper share", () => {
     const whole = skinOf(ROCKS.skin.cell);
-    const cheap = skinOf(ROCKS.skin.cheap);
-    for (const w of walls) buildWall(whole, w, band!.tone);
+    // The middle distance's cut, its beds two at a time (`CUTS`).
+    const cheap = skinOf(ROCKS.skin.cheap, 2);
+    for (const w of walls) buildWall(whole, w, band!.tone, level);
     const tris = whole.pos.length / 9;
     const km2 = (level.size / 1000) ** 2;
     expect(tris).toBeGreaterThan(1000);

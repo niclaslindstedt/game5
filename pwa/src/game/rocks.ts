@@ -37,7 +37,7 @@ import {
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
-import { buildSkin, buildWall, rockMesh, type RockMesh } from "./rock-shapes.ts";
+import { buildSkin, buildWall, rockMesh, smoothSkin, type RockMesh } from "./rock-shapes.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
@@ -51,9 +51,9 @@ const KEEP = 2 * TILE;
 /** The lattice by distance from the lens to a tile's nearest corner: out
  * to `out` m the cell is `cell` m (`near` for the FOREST row's own). */
 export const CUTS = [
-  { out: 300, cell: "near" },
-  { out: 700, cell: ROCKS.skin.cheap },
-  { out: Infinity, cell: 12 },
+  { out: 300, cell: "near", every: 1 },
+  { out: 700, cell: ROCKS.skin.cheap, every: 2 },
+  { out: Infinity, cell: 2 * ROCKS.skin.cheap, every: ROCKS.strata.coarse },
 ] as const;
 /** How far past a band's edge a tile must be before it changes cut, m. */
 const HYSTERESIS = 30;
@@ -71,6 +71,8 @@ const CALM_TO = 350;
 const CALM_HEAD = /* glsl */ `
 attribute vec3 soft;
 attribute vec3 calm;
+attribute vec2 strata;
+varying vec2 vStrata;
 `;
 // Three's vertex shader colours before it reads the normal, so the share
 // is reckoned with the colour.
@@ -79,6 +81,80 @@ const CALM_COLOUR = /* glsl */ `
 float rockCalm = smoothstep(${CALM_FROM.toFixed(1)}, ${CALM_TO.toFixed(1)},
   distance((modelMatrix * vec4(position, 1.0)).xyz, cameraPosition));
 vColor.xyz = mix(color.xyz, calm, rockCalm);
+vStrata = strata;
+`;
+
+/** THE BEDS' FINE GRAIN, in the rock's own shader (no texture): each bed
+ * the skin lays (`strata.ts`, metres thick) is drawn as the thin layers it
+ * is made of — partings every `LAYER` m along its bed coordinate, each
+ * layer a shade of its own — cut by the joints' cracks (a few to a joint
+ * block, `vStrata.y`), each carried into the light as a little relief off
+ * its own derivatives (the surface gradient, no tangents), and all of it
+ * faded out where a pixel spans a layer, so a far face never shimmers.
+ * Only on the rock, never the snow lying on it. */
+const LAYER = 0.9;
+const STRATA_FRAG_HEAD = /* glsl */ `
+varying vec2 vStrata;
+float rkHash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float rkDetail;
+float rkHeight;
+float rkRock;
+`;
+const STRATA_COLOUR = /* glsl */ `
+#include <color_fragment>
+{
+  float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  rkRock = 1.0 - smoothstep(0.3, 0.55, lum);
+  float t = vStrata.x / ${LAYER.toFixed(2)} + 0.18 * sin(vStrata.y * 9.42);
+  float fwT = fwidth(t);
+  float fade = 1.0 - smoothstep(0.2, 0.55, fwT);
+  float p = fract(t);
+  float part = 1.0 - smoothstep(0.0, 0.04 + fwT, min(p, 1.0 - p));
+  // Not every layer parts cleanly: some run into the next unbroken.
+  part *= step(0.3, rkHash(vec2(floor(t + 0.5), 5.3)));
+  float layer = rkHash(vec2(floor(t), 3.1));
+  // The joints: the main set's cracks every block, faint and wandering
+  // with the layer, and a minor one now and then, broken off within a
+  // layer or two — never a grid.
+  // A joint stops at a parting and takes up again a little along: each
+  // few layers shift the set.
+  float u = vStrata.y + 0.012 * sin(t * 2.1 + vStrata.y * 5.0)
+    + 0.35 * rkHash(vec2(floor(t * 0.34), 1.7));
+  float fwU = fwidth(u);
+  float q = fract(u);
+  float jointMain = 1.0 - smoothstep(0.0, 0.012 + fwU, min(q, 1.0 - q));
+  jointMain *= step(0.3, rkHash(vec2(floor(u), floor(t * 0.34))));
+  float u3 = u * 3.0 + 0.4 * rkHash(vec2(floor(t * 0.5), 7.0));
+  float q3 = fract(u3);
+  float crack = (1.0 - smoothstep(0.0, 0.02 + 3.0 * fwU, min(q3, 1.0 - q3)))
+    * step(0.72, rkHash(vec2(floor(t * 0.5), floor(u3))));
+  crack = max(crack * 0.6, jointMain);
+  float fadeU = 1.0 - smoothstep(0.2, 0.55, fwU);
+  rkDetail = fade * rkRock;
+  float tone = (0.86 + 0.28 * layer) * (1.0 - 0.2 * part);
+  tone = mix(1.0, tone, fade) * mix(1.0, 1.0 - 0.35 * crack, fadeU);
+  diffuseColor.rgb *= mix(1.0, tone, rkRock);
+  // Each layer a hand proud at its top, its parting and the cracks cut in.
+  rkHeight = rkRock * (fade * (0.05 * p - 0.03 * part) - fadeU * 0.06 * crack);
+}
+`;
+const STRATA_NORMAL = /* glsl */ `
+#include <normal_fragment_maps>
+{
+  vec3 sp = -vViewPosition;
+  vec3 sx = dFdx(sp);
+  vec3 sy = dFdy(sp);
+  vec3 r1 = cross(sy, normal);
+  vec3 r2 = cross(normal, sx);
+  float det = dot(sx, r1) * faceDirection;
+  vec2 dh = vec2(dFdx(rkHeight), dFdy(rkHeight));
+  vec3 grad = sign(det) * (dh.x * r1 + dh.y * r2);
+  normal = normalize(abs(det) * normal - grad);
+}
 `;
 const CALM_NORMAL = /* glsl */ `
 vec3 objectNormal = normalize(mix(normal, soft, rockCalm));
@@ -169,6 +245,9 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
         .replace("#include <beginnormal_vertex>", CALM_NORMAL)
         .replace("#include <color_vertex>", CALM_COLOUR)
         .replace("#include <project_vertex>", PULL_GLSL);
+      shader.fragmentShader = (STRATA_FRAG_HEAD + shader.fragmentShader)
+        .replace("#include <color_fragment>", STRATA_COLOUR)
+        .replace("#include <normal_fragment_maps>", STRATA_NORMAL);
     },
   );
   const cols = band ? Math.ceil(level.size / TILE) : 0;
@@ -220,16 +299,28 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
       t.part = rockMesh();
       t.building = k;
       t.done = 0;
-      for (const w of t.walls) buildWall(t.part, w, band!.tone);
+      for (const w of t.walls) buildWall(t.part, w, band!.tone, level);
     }
     const part = t.part;
     const cell = cellOf(k);
     const n = Math.round(TILE / cell);
     const end = Math.min(n, t.done + BATCH);
     const i0 = t.i * n;
-    buildSkin(part, level, band!.tone, seed, cell, i0, t.j * n + t.done, i0 + n, t.j * n + end);
+    buildSkin(
+      part,
+      level,
+      band!.tone,
+      seed,
+      cell,
+      i0,
+      t.j * n + t.done,
+      i0 + n,
+      t.j * n + end,
+      CUTS[k].every,
+    );
     t.done = end;
     if (t.done < n) return false;
+    smoothSkin(part);
     t.part = null;
     t.done = 0;
     // The cut it replaces goes as the new one arrives.
@@ -249,10 +340,16 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
     g.setAttribute("color", new THREE.Float32BufferAttribute(part.col, 3));
     g.setAttribute("soft", new THREE.Float32BufferAttribute(part.soft, 3));
     g.setAttribute("calm", new THREE.Float32BufferAttribute(part.calm, 3));
+    g.setAttribute("strata", new THREE.Float32BufferAttribute(part.bed, 2));
     g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, material);
     mesh.userData.bytes =
-      (part.pos.length + part.nrm.length + part.col.length + part.soft.length + part.calm.length) *
+      (part.pos.length +
+        part.nrm.length +
+        part.col.length +
+        part.soft.length +
+        part.calm.length +
+        part.bed.length) *
       4;
     stats.triangles += part.pos.length / 9;
     stats.bytes += mesh.userData.bytes;

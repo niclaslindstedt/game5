@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   NEUTRAL_INPUT,
-  ROCKS,
-  SKIN_SALT,
+  ROCK_FIELD,
   bedrockOf,
   createGame,
   packedSnow,
   placeRun,
   regionOf,
-  rockHash,
   rockShare,
   snowGive,
   step,
@@ -20,7 +18,9 @@ import {
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 
 import { regionLookOf } from "../pwa/src/game/region-look.ts";
-import { buildSkin, rockMesh } from "../pwa/src/game/rock-shapes.ts";
+import { DOWN } from "../pwa/src/game/rock-shapes.ts";
+import { CUTS } from "../pwa/src/game/rocks.ts";
+import { rockSkinOf } from "./support/rock-skin.ts";
 import { levelFor } from "./support/levels.ts";
 
 // THE ROCK UNDERFOOT (`engine/game/rock-ground.ts`): a wall's drawn rock
@@ -43,7 +43,7 @@ function wallSpots(level: Level): { x: number; z: number }[] {
 const spots = wallSpots(base);
 
 /** A free ride on the map, its player stood `back` m down the wall from
- * `at`, facing up it at `speed`, then ridden on for `seconds` untouched. */
+ * `at`, facing and driven up it at `speed`, then ridden on for `seconds` untouched. */
 function intoWall(at: { x: number; z: number }, back: number, speed: number, seconds: number) {
   const s = createGame({ level: base, mode: "free", crowd: 0, quiet: true });
   const n = { x: 0, y: 1, z: 0 };
@@ -55,6 +55,13 @@ function intoWall(at: { x: number; z: number }, back: number, speed: number, sec
     heading: Math.atan2(-n.x, -n.z),
     speed,
   });
+  // Driven up the WALL's own face — not along the facet he is stood on,
+  // which may be a ledge's riser.
+  const t = { x: -n.x * n.y, y: 1 - n.y * n.y, z: -n.z * n.y };
+  const tl = Math.hypot(t.x, t.y, t.z);
+  s.skier.vx = (speed * t.x) / tl;
+  s.skier.vy = (speed * t.y) / tl;
+  s.skier.vz = (speed * t.z) / tl;
   const events: GameEvent[] = [];
   let fastest = 0;
   for (let k = 0; k < seconds * 120; k++) {
@@ -80,45 +87,49 @@ describe("the rock underfoot", () => {
     expect(spots.length).toBeGreaterThan(8);
   });
 
-  it("stands where the rock is drawn: every bare facet's middle is the surface", () => {
+  it("stands where the rock is drawn: the near cut stands on the surface ridden, a hair over at most", () => {
     const band = regionLookOf(regionOf(base).id).rock!;
-    const m = rockMesh();
-    const seed = rockHash(base.seed, SKIN_SALT);
-    const cell = ROCKS.skin.cell;
-    // The drawing of a patch round a few walls, at the physics' lattice.
+    const near = CUTS[0];
+    const T = ROCK_FIELD.tile;
+    // The near cut of the tiles round a few walls.
+    const round = spots.slice(0, 6).map((p) => [Math.floor(p.x / T) * T, Math.floor(p.z / T) * T]);
+    const { mesh: m } = rockSkinOf(rocky, band.tone, near, CUTS[1], (x0, z0) =>
+      round.some(([x, z]) => x === x0 && z === z0),
+    );
     let checked = 0;
     let on = 0;
-    for (const p of spots.slice(0, 6)) {
-      const i = Math.floor(p.x / cell);
-      const j = Math.floor(p.z / cell);
-      buildSkin(m, rocky, band.tone, seed, cell, i - 4, j - 4, i + 4, j + 4);
-    }
+    let worst = 0;
+    let deepest = 0;
     for (let t = 0; t < m.pos.length; t += 9) {
       const x = (m.pos[t] + m.pos[t + 3] + m.pos[t + 6]) / 3;
       const y = (m.pos[t + 1] + m.pos[t + 4] + m.pos[t + 7]) / 3;
       const z = (m.pos[t + 2] + m.pos[t + 5] + m.pos[t + 8]) / 3;
+      // The skirts hung under a tile's edge, and what is under the snow.
+      const same = (i: number, k: number): boolean =>
+        m.pos[t + 3 * i] === m.pos[t + 3 * k] && m.pos[t + 3 * i + 2] === m.pos[t + 3 * k + 2];
+      if (same(0, 1) || same(1, 2) || same(0, 2)) continue;
       if (y < base.groundAt(x, z) + 0.05) continue;
-      // Never under it — and on it, unless a jittered neighbour overlaps
-      // it in plan and stands higher, which is then the rock met (the byte
-      // a corner's bareness is kept in rounds its height by a millimetre).
       const at = rocky.groundAt(x, z);
-      expect(at).toBeGreaterThan(y - 0.005);
-      if (Math.abs(at - y) < 0.005) on++;
+      worst = Math.max(worst, y - at);
+      deepest = Math.max(deepest, at - y);
+      if (Math.abs(at - y) < 0.01) on++;
       checked++;
     }
-    expect(checked).toBeGreaterThan(100);
-    expect(on / checked).toBeGreaterThan(0.95);
-  });
+    expect(checked).toBeGreaterThan(1000);
+    // Never over the rock met by more than the cut's tolerance, never under
+    // it by more than DOWN of them, and on it (within a centimetre) nearly
+    // everywhere.
+    expect(worst).toBeLessThan(near.tol + 0.005);
+    expect(deepest).toBeLessThan(DOWN * near.tol + 0.005);
+    expect(on / checked).toBeGreaterThan(0.9);
+  }, 120_000);
 
   it("is met wherever it is drawn, on a summer bike park's map too: no facet stands over the surface", () => {
     for (const summer of [false, true]) {
       const s = createGame({ seed: 38, mode: "free", summer, bike: summer, crowd: 0, quiet: true });
       const level = s.level;
       const band = regionLookOf(regionOf(level).id).rock!;
-      const m = rockMesh();
-      const cell = ROCKS.skin.cell;
-      const n = Math.round(level.size / cell);
-      buildSkin(m, level, band.tone, rockHash(level.seed, SKIN_SALT), cell, 0, 0, n, n);
+      const { mesh: m } = rockSkinOf(level, band.tone, CUTS[0], CUTS[1]);
       let worst = 0;
       for (let t = 0; t < m.pos.length; t += 9) {
         for (const [a, b, c] of [
@@ -136,7 +147,7 @@ describe("the rock underfoot", () => {
       expect(m.pos.length).toBeGreaterThan(9000);
       expect(worst).toBeLessThan(0.02);
     }
-  }, 120_000);
+  }, 240_000);
 
   it("leaves the snow alone: off the walls the ground is the map's", () => {
     for (let k = 0; k < base.track.points.length; k += 37) {

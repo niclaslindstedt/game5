@@ -11,37 +11,37 @@
 // scraping, unforgiving surface (`snow.ts`' `onRock`, `rockDrag`,
 // `body.ts`' `snowGive`).
 //
-// The skin is the drawing's to the corner: the same lattice
-// (`ROCKS.skin.cell`), the same jitter off the same hashes, the same
-// heights over the ground and the same diagonal a cell, so what is met is
-// what is seen. (Only rock past 300 m of the lens is drawn on a coarser
-// lattice of the same rock, out where nobody rides.)
+// The skin is the ROCK FIELD's (`rock-field.ts`): the field sampled every
+// `ROCK_FIELD.fine` m and laid as the finest mesh of the drawing's adaptive
+// triangulation (`rock-rtin.ts`), so the drawing's near cut — a coarsening
+// of this very surface — stands within a few cm of what is met, and never
+// over it by more than a hair.
 //
-// CHEAP: nothing is stored but how bare each lattice corner is, a byte a
-// corner, a tile of corners at a time and only for a tile a body has
-// asked about — a tile with no bare corner is one shared empty mark. A
-// query on packed snow or off every wall reads that and the map itself.
-// A pure function of the map, off hashes of `level.seed`; no wall stands
-// where a run is skied or a bike trail ridden, so no digest moves.
+// CHEAP: nothing is stored but how bare each corner of a 4 m lattice is, a
+// byte a corner, a tile at a time and only where a body has asked; a query
+// is three samples of the field. A query on packed snow or off every wall
+// reads the map itself. A pure function of the map, off hashes of
+// `level.seed`; no wall stands where a run is skied or a bike trail ridden,
+// so no digest moves.
 
 import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { regionOf } from "../mapgen/regions.ts";
 import type { Level } from "../mapgen/types.ts";
 import { ROCKS } from "./defs/rocks.ts";
-import { hashOf, rockShare, unit } from "./rocks.ts";
+import {
+  ROCK_FIELD,
+  fieldAt,
+  noRockIn,
+  rockFieldOf,
+  type FieldPoint,
+  type RockField,
+} from "./rock-field.ts";
+import { rockLeaf } from "./rock-rtin.ts";
 
-/** The salt a wall's skin is dealt off (`hashOf(level.seed, SKIN_SALT)`),
- * the drawing's and the physics' alike. */
+/** The salt a wall's skin was once dealt off; kept for the drawing's cliff
+ * walls and the labs that name it. */
 export const SKIN_SALT = 0x534b494e;
-
-/** Corners a tile's side. */
-const TILE = 32;
-/** A corner's bareness as a byte: 0 where no rock is laid (`skin.from`). */
-const Q = 255;
-/** Below the snow by this much the skin is under a crust of snow, m: the
- * surface's share of rock fades out over it. */
-const BURIED = 0.15;
 
 /** What lies at a point of the surface. */
 type Under = {
@@ -59,8 +59,7 @@ type Under = {
 
 type Skin = {
   readonly base: Level;
-  readonly seed: number;
-  readonly tiles: Map<number, Uint8Array | null>;
+  readonly field: RockField;
   /** The last point asked and its answer: a body asks `groundAt`,
    * `normalAt` and `rockAt` at one point in a row. */
   lastX: number;
@@ -68,102 +67,14 @@ type Skin = {
   readonly last: Under;
 };
 
-const EMPTY = null;
+const LEAF = new Int32Array(6);
+const P: FieldPoint = { y: 0, ground: 0, rock: 0, phi: 0, shade: 0, cavity: 0 };
+const CELLS = ROCK_FIELD.tile / ROCK_FIELD.fine;
 
-function tileOf(s: Skin, ti: number, tj: number): Uint8Array | null {
-  const key = (ti + 2048) * 4096 + (tj + 2048);
-  const had = s.tiles.get(key);
-  if (had !== undefined) return had;
-  const S = ROCKS.skin;
-  const cell = S.cell;
-  const out = new Uint8Array(TILE * TILE);
-  let any = false;
-  for (let b = 0; b < TILE; b++) {
-    for (let a = 0; a < TILE; a++) {
-      const i = ti * TILE + a;
-      const j = tj * TILE + b;
-      const h = hashOf(s.seed, i, j);
-      const x = (i + (unit(h, 0) - 0.5) * 2 * S.jitter) * cell;
-      const z = (j + (unit(h, 1) - 0.5) * 2 * S.jitter) * cell;
-      const bare = rockShare(s.base, x, z);
-      if (bare > S.from) {
-        out[b * TILE + a] = Math.max(1, Math.round(bare * Q));
-        any = true;
-      }
-    }
-  }
-  const kept = any ? out : EMPTY;
-  s.tiles.set(key, kept);
-  return kept;
-}
-
-/** Corner (i, j)'s bareness, 0 where no rock is laid. */
-function bareOf(s: Skin, i: number, j: number): number {
-  const ti = Math.floor(i / TILE);
-  const tj = Math.floor(j / TILE);
-  const t = tileOf(s, ti, tj);
-  return t ? t[(j - tj * TILE) * TILE + (i - ti * TILE)] / Q : 0;
-}
-
-// The 4 × 4 corners round a point: plan, height, bareness.
-const CX = new Float64Array(16);
-const CY = new Float64Array(16);
-const CZ = new Float64Array(16);
-const CB = new Float64Array(16);
-const CS = new Uint8Array(16);
-
-function cornerAt(s: Skin, i: number, j: number, k: number): void {
-  const S = ROCKS.skin;
-  const h = hashOf(s.seed, i, j);
-  const x = (i + (unit(h, 0) - 0.5) * 2 * S.jitter) * S.cell;
-  const z = (j + (unit(h, 1) - 0.5) * 2 * S.jitter) * S.cell;
-  const ground = s.base.groundAt(x, z);
-  const bare = CB[k];
-  CX[k] = x;
-  CZ[k] = z;
-  CY[k] = bare > 0 ? ground + S.proud + S.rough * bare * unit(h, 2) : ground - S.sink;
-  CS[k] = 1;
-}
-
-/** Whether the triangle of corners `a`, `b`, `c` holds (x, z) in plan; if
- * so its height and up-facing normal into `u`. */
-function onTri(a: number, b: number, c: number, x: number, z: number, u: Under): boolean {
-  const ax = CX[a];
-  const az = CZ[a];
-  const e1x = CX[b] - ax;
-  const e1z = CZ[b] - az;
-  const e2x = CX[c] - ax;
-  const e2z = CZ[c] - az;
-  const det = e1x * e2z - e2x * e1z;
-  if (Math.abs(det) < 1e-9) return false;
-  const px = x - ax;
-  const pz = z - az;
-  const v = (px * e2z - e2x * pz) / det;
-  const w = (e1x * pz - px * e1z) / det;
-  const eps = -1e-7;
-  if (v < eps || w < eps || v + w > 1 - eps) return false;
-  const e1y = CY[b] - CY[a];
-  const e2y = CY[c] - CY[a];
-  u.y = CY[a] + v * e1y + w * e2y;
-  // e1 × e2, turned to face up.
-  let nx = e1y * e2z - e1z * e2y;
-  let ny = e1z * e2x - e1x * e2z;
-  let nz = e1x * e2y - e1y * e2x;
-  if (ny < 0) {
-    nx = -nx;
-    ny = -ny;
-    nz = -nz;
-  }
-  const l = hypot3(nx, ny, nz) || 1;
-  u.nx = nx / l;
-  u.ny = ny / l;
-  u.nz = nz / l;
-  return true;
-}
-
-const skinU: Under = { y: 0, on: 0, bare: 0, nx: 0, ny: 1, nz: 0 };
-
-/** The surface at (x, z) into `s.last`. */
+/** The surface at (x, z) into `s.last`: the FINEST triangle of the rock
+ * field's adaptive mesh (`rock-rtin.ts`' `rockLeaf`) holding it, its three
+ * samples the field's own — the surface the drawing's near cut stands
+ * within a few cm of. */
 function underOf(s: Skin, x: number, z: number): Under {
   const u = s.last;
   if (x === s.lastX && z === s.lastZ) return u;
@@ -174,88 +85,76 @@ function underOf(s: Skin, x: number, z: number): Under {
   u.y = ground;
   u.on = 0;
   u.bare = 0;
-  // No facet stands over packed snow or a summer bike trail: no corner
-  // within `ROCKS.skin.clear` of either is bare (`rocks.ts`' `rockShare`),
-  // so a run, a trail and everything on them read the map alone — and the
-  // rock the drawing lays is the rock met, to the corner.
-  const cell = ROCKS.skin.cell;
-  const i0 = Math.floor(x / cell) - 1;
-  const j0 = Math.floor(z / cell) - 1;
-  // The 4 × 4 corners lie in one to four tiles: none of them holding a
-  // bare corner, no rock is near.
-  const ti0 = Math.floor(i0 / TILE);
-  const ti1 = Math.floor((i0 + 3) / TILE);
-  const tj0 = Math.floor(j0 / TILE);
-  const tj1 = Math.floor((j0 + 3) / TILE);
-  if (
-    tileOf(s, ti0, tj0) === EMPTY &&
-    tileOf(s, ti1, tj0) === EMPTY &&
-    tileOf(s, ti0, tj1) === EMPTY &&
-    tileOf(s, ti1, tj1) === EMPTY
-  ) {
-    return u;
+  // No rock stands within `ROCKS.skin.clear` of packed snow or a summer bike
+  // trail (`rocks.ts`' `rockShare`): a run, a trail and everything on them
+  // read the map alone.
+  const f = s.field;
+  if (noRockIn(f, x - 1, z - 1, x + 1, z + 1)) return u;
+  const T = ROCK_FIELD.tile;
+  const step = ROCK_FIELD.fine;
+  const ti = Math.floor(x / T);
+  const tj = Math.floor(z / T);
+  const ox = ti * T;
+  const oz = tj * T;
+  rockLeaf(CELLS, (x - ox) / step, (z - oz) / step, LEAF);
+  const ax = ox + LEAF[0] * step;
+  const az = oz + LEAF[1] * step;
+  const bx = ox + LEAF[2] * step;
+  const bz = oz + LEAF[3] * step;
+  const cx = ox + LEAF[4] * step;
+  const cz = oz + LEAF[5] * step;
+  // The rock's three samples, lifted onto the snow where it is buried — the
+  // drawing's own finest mesh, which its every cut stands within a hair of.
+  let p = fieldAt(f, ax, az, P);
+  const ay = Math.max(p.y, p.ground);
+  let shows = p.y > p.ground;
+  let laid = p.rock > 0;
+  p = fieldAt(f, bx, bz, P);
+  const by = Math.max(p.y, p.ground);
+  shows ||= p.y > p.ground;
+  laid ||= p.rock > 0;
+  p = fieldAt(f, cx, cz, P);
+  const cy = Math.max(p.y, p.ground);
+  shows ||= p.y > p.ground;
+  laid ||= p.rock > 0;
+  // Where no rock is laid at all — everywhere off a crag — the snow is the
+  // map's own, to the last bit.
+  if (!laid) return u;
+  const e1x = bx - ax;
+  const e1y = by - ay;
+  const e1z = bz - az;
+  const e2x = cx - ax;
+  const e2y = cy - ay;
+  const e2z = cz - az;
+  const det = e1x * e2z - e2x * e1z;
+  const v = ((x - ax) * e2z - e2x * (z - az)) / det;
+  const w = (e1x * (z - az) - (x - ax) * e1z) / det;
+  const top = ay + v * e1y + w * e2y;
+  let nx = e1y * e2z - e1z * e2y;
+  let ny = e1z * e2x - e1x * e2z;
+  let nz = e1x * e2y - e1y * e2x;
+  if (ny < 0) {
+    nx = -nx;
+    ny = -ny;
+    nz = -nz;
   }
-  let any = false;
-  for (let b = 0; b < 4; b++) {
-    for (let a = 0; a < 4; a++) {
-      const k = b * 4 + a;
-      const v = bareOf(s, i0 + a, j0 + b);
-      CB[k] = v;
-      CS[k] = 0;
-      if (v > 0) any = true;
-    }
-  }
-  if (!any) return u;
-  // The jittered cells that can hold the point: the one it is in and its
-  // neighbours, each laid only where a corner of it is bare. Jittered,
-  // two facets can overlap in plan; the higher is the one met.
-  let found = false;
-  let top = -Infinity;
-  let tx = 0;
-  let ty = 1;
-  let tz = 0;
-  for (let b = 0; b < 3; b++) {
-    for (let a = 0; a < 3; a++) {
-      const ka = b * 4 + a;
-      const kb = ka + 1;
-      const kc = ka + 5;
-      const kd = ka + 4;
-      if (CB[ka] + CB[kb] + CB[kc] + CB[kd] <= 0) continue;
-      if (!CS[ka]) cornerAt(s, i0 + a, j0 + b, ka);
-      if (!CS[kb]) cornerAt(s, i0 + a + 1, j0 + b, kb);
-      if (!CS[kc]) cornerAt(s, i0 + a + 1, j0 + b + 1, kc);
-      if (!CS[kd]) cornerAt(s, i0 + a, j0 + b + 1, kd);
-      const split = unit(hashOf(s.seed, i0 + a, j0 + b, 7), 0) < 0.5;
-      for (let t = 0; t < 2; t++) {
-        const hit = split
-          ? t === 0
-            ? onTri(ka, kb, kc, x, z, skinU)
-            : onTri(ka, kc, kd, x, z, skinU)
-          : t === 0
-            ? onTri(ka, kb, kd, x, z, skinU)
-            : onTri(kb, kc, kd, x, z, skinU);
-        if (hit && skinU.y > top) {
-          found = true;
-          top = skinU.y;
-          tx = skinU.nx;
-          ty = skinU.ny;
-          tz = skinU.nz;
-        }
-      }
-    }
-  }
-  if (!found) return u;
-  const above = top - ground;
-  u.on = Math.max(0, Math.min(1, 1 + above / BURIED));
-  if (above > 0) {
+  const l = hypot3(nx, ny, nz) || 1;
+  nx /= l;
+  ny /= l;
+  nz /= l;
+  // Rock under the foot only where a corner of it stands out of the snow;
+  // elsewhere the mesh lies on the snow (within the ground's own bend over a
+  // metre), and is snow.
+  u.on = shows ? Math.max(0, Math.min(1, 1 + (top - ground) / ROCK_FIELD.under)) : 0;
+  if (top > ground) {
     u.y = top;
-    u.nx = tx;
-    u.ny = ty;
-    u.nz = tz;
+    u.nx = nx;
+    u.ny = ny;
+    u.nz = nz;
   }
   // A facet facing the sky holds snow, as it is painted.
   const S = ROCKS.skin;
-  u.bare = 1 - Math.max(0, Math.min(1, (ty - S.slides) / (S.holds - S.slides)));
+  u.bare = 1 - Math.max(0, Math.min(1, (ny - S.slides) / (S.holds - S.slides)));
   return u;
 }
 
@@ -269,8 +168,7 @@ export function withRock(level: Level): Level {
   if (had) return had;
   const s: Skin = {
     base: level,
-    seed: hashOf(level.seed, SKIN_SALT),
-    tiles: new Map(),
+    field: rockFieldOf(level),
     lastX: NaN,
     lastZ: NaN,
     last: { y: 0, on: 0, bare: 0, nx: 0, ny: 1, nz: 0 },
@@ -406,6 +304,38 @@ export function liftedOnRock(
   last[j] -= d * n.y * n.x;
   last[j + 1] += d * (1 - n.y * n.y);
   last[j + 2] -= d * n.y * n.z;
+}
+
+/**
+ * A POINT OF A BODY LIFTED onto a STEEP facet of rock — a ledge's riser, a
+ * wall's face, steeper than `ROCKS.skin.slides` — lifted by `d` m from
+ * where it is in `points[j..j+2]`: it ran into the stone, so it keeps only
+ * its way along the facet and loses its way into it; nothing of the lift is
+ * kept as speed. Lifted as `liftedOnRock` does, the share of a lift of a
+ * metre up a riser kept as the way out of it would fling the body off the
+ * face faster than it came. False, and nothing moved, off steep rock.
+ */
+export function stoppedOnRock(
+  level: Level,
+  points: number[],
+  last: number[],
+  j: number,
+  d: number,
+): boolean {
+  const x = points[j];
+  const z = points[j + 2];
+  if (d <= 0 || !level.rockAt || level.rockAt(x, z) <= 0) return false;
+  const n = lifted;
+  level.normalAt(x, z, n);
+  if (n.y > ROCKS.skin.slides) return false;
+  const vx = x - last[j];
+  const vy = points[j + 1] - last[j + 1];
+  const vz = z - last[j + 2];
+  const into = Math.min(0, vx * n.x + vy * n.y + vz * n.z);
+  last[j] = x - (vx - into * n.x);
+  last[j + 1] = points[j + 1] + d - (vy - into * n.y);
+  last[j + 2] = z - (vz - into * n.z);
+  return true;
 }
 
 /**

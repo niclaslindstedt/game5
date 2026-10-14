@@ -93,10 +93,23 @@ export function rockShare(level: Level, x: number, z: number): number {
   // Laid off the map under its skin (`rock-ground.ts`), never the skin.
   level = level.bedrock ?? level;
   if (level.packedAt(x, z) > ROCKS.packed) return 0;
-  level.normalAt(x, z, scratch);
-  const bare = wallOf(scratch);
+  const bare = wallBare(level, x, z);
   if (bare <= 0 || onAnyCliff(level, x, z, 0) || nearCut(level, x, z)) return 0;
   return bare;
+}
+
+/** How steep a wall (x, z) stands on, 0..1, whatever lies on it. */
+export function wallBare(level: Level, x: number, z: number): number {
+  level = level.bedrock ?? level;
+  level.normalAt(x, z, scratch);
+  return wallOf(scratch);
+}
+
+/** Whether rock is kept off (x, z) whatever the wall: packed snow, a cliff,
+ * within `ROCKS.skin.clear` m of a run or a trail. */
+export function rockKeptOff(level: Level, x: number, z: number): boolean {
+  level = level.bedrock ?? level;
+  return level.packedAt(x, z) > ROCKS.packed || onAnyCliff(level, x, z, 0) || nearCut(level, x, z);
 }
 
 /** The ring offsets `nearCut` reads the packed snow at: a disc of

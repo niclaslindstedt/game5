@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   REGIONS,
   ROCKS,
+  ROCK_FIELD,
   cliffWalls,
   collideTrees,
   createGame,
   generateLevel,
   onAnyCliff,
   regionOf,
-  rockHash,
   rockShare,
   rockyCliff,
   solidsOf,
@@ -18,7 +18,9 @@ import {
 } from "@engine";
 
 import { REGION_LOOKS, regionLookOf } from "../pwa/src/game/region-look.ts";
-import { buildSkin, buildWall, rockMesh } from "../pwa/src/game/rock-shapes.ts";
+import { buildWall } from "../pwa/src/game/rock-shapes.ts";
+import { CUTS } from "../pwa/src/game/rocks.ts";
+import { rockSkinOf } from "./support/rock-skin.ts";
 import { levelFor } from "./support/levels.ts";
 
 // THE ROCK ON THE DROPS (`engine/game/rocks.ts`, `cliff-wall.ts`, drawn by
@@ -29,12 +31,9 @@ const level = levelFor(38);
 const band = regionLookOf(regionOf(level).id).rock;
 const walls = cliffWalls(level);
 
-/** The whole map's skin at a lattice of `cell` m. */
-function skinOf(cell: number) {
-  const m = rockMesh();
-  const n = Math.round(level.size / cell);
-  buildSkin(m, level, band!.tone, rockHash(level.seed, 1), cell, 0, 0, n, n);
-  return m;
+/** The whole map's rock at cut `k` of the drawing's (`CUTS`). */
+function skinOf(k: number) {
+  return rockSkinOf(level, band!.tone, CUTS[k], CUTS[k + 1] ?? null);
 }
 
 describe("rocks", () => {
@@ -132,23 +131,48 @@ describe("rocks", () => {
     expect(-(c.vx * fx + c.vz * fz)).toBeLessThan(5);
   });
 
-  it("cost a phone little: a few thousand triangles a square kilometre, fewer at a cheaper share", () => {
-    const whole = skinOf(ROCKS.skin.cell);
-    const cheap = skinOf(ROCKS.skin.cheap);
-    for (const w of walls) buildWall(whole, w, band!.tone);
-    const tris = whole.pos.length / 9;
+  it("cost a phone little: a view draws tens of thousands, a far cut a few thousand a square kilometre, each cut far fewer than the one before", () => {
+    const cuts = CUTS.map((_, k) => skinOf(k));
     const km2 = (level.size / 1000) ** 2;
-    expect(tris).toBeGreaterThan(1000);
-    expect(tris / km2).toBeLessThan(10_000);
-    expect(cheap.pos.length).toBeLessThan(whole.pos.length * 0.6);
+    // Past the middle cuts the whole map is cheap.
+    const far = cuts[2].mesh.pos.length / 9;
+    expect(far).toBeGreaterThan(1000);
+    expect(far / km2).toBeLessThan(10_000);
+    // What a lens stood at the rockiest tile draws: each tile at the cut its
+    // distance asks.
+    const T = ROCK_FIELD.tile;
+    const per = cuts.map((c) => c.mesh.pos.length / 9 / c.tiles);
+    const tiles = cuts[0].centres;
+    let at = tiles[0];
+    let most = -1;
+    for (const t of tiles) {
+      const near = tiles.filter((u) => Math.hypot(u.x - t.x, u.z - t.z) < 200).length;
+      if (near > most) [most, at] = [near, t];
+    }
+    let view = 0;
+    for (const t of tiles) {
+      const d = Math.max(0, Math.hypot(t.x - at.x, t.z - at.z) - T / 2);
+      view += per[CUTS.findIndex((c) => d < c.out)];
+    }
+    expect(view).toBeLessThan(40_000);
+    // The near cut — drawn only round the lens — stands within centimetres
+    // of the rock ridden, and still costs a rocky tile a couple of thousand.
+    expect(per[0]).toBeLessThan(2500);
+    for (let k = 1; k < cuts.length; k++) {
+      expect(cuts[k].tiles).toBe(cuts[0].tiles);
+      expect(cuts[k].mesh.pos.length).toBeLessThan(cuts[k - 1].mesh.pos.length * 0.6);
+    }
+    const whole = cuts[1].mesh;
+    for (const w of walls) buildWall(whole, w, band!.tone);
     // A cliff's wall is a few hundred.
     for (const w of walls) expect(2 * (w.rows - 1) * (w.cols - 1)).toBeLessThan(600);
-    // Every vertex is coloured, every normal unit length.
+    // Every vertex is coloured and morphed, every normal unit length.
     expect(whole.col.length).toBe(whole.pos.length);
+    expect(whole.morph.length).toBe((whole.pos.length / 3) * 4);
     for (let i = 0; i < whole.nrm.length; i += 3 * 97) {
       expect(Math.hypot(whole.nrm[i], whole.nrm[i + 1], whole.nrm[i + 2])).toBeCloseTo(1, 5);
     }
-  });
+  }, 240_000);
 
   it("are little in the fell, which shows rock only on its steepest crags", () => {
     const fell = generateLevel(38, { region: "fell" });

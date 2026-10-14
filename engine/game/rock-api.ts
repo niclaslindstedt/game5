@@ -14,3 +14,13 @@ export {
 export { ROCKS } from "./defs/rocks.ts";
 export { SKIN_SALT, bedrockOf, rockStrike, withRock } from "./rock-ground.ts";
 export { cliffWalls, faceShare, wallSolids, type CliffWall } from "./cliff-wall.ts";
+export {
+  ROCK_FIELD,
+  bareAt as rockBareAt,
+  fieldAt as rockFieldAt,
+  noRockIn,
+  rockFieldOf,
+  type FieldPoint as RockFieldPoint,
+  type RockField,
+} from "./rock-field.ts";
+export { rockLeaf, rtinMesh, rtinStart, rtinStep, type RtinBuild } from "./rock-rtin.ts";

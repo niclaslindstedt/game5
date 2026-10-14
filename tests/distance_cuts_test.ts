@@ -99,9 +99,16 @@ describe("instance reach", () => {
 
 describe("rock cuts", () => {
   it("coarsens with distance", () => {
-    expect(cutOf(50, -1)).toBe(0);
+    expect(cutOf(CUTS[0].out - 10, -1)).toBe(0);
     expect(cutOf(CUTS[0].out + 1, -1)).toBe(1);
     expect(cutOf(CUTS[1].out + 1, -1)).toBe(2);
+    expect(cutOf(CUTS[2].out + 1, -1)).toBe(3);
+    expect(CUTS.length).toBe(4);
+    // Each cut a grid twice as coarse as the one before, on the physics' own.
+    for (let k = 1; k < CUTS.length; k++) {
+      expect(CUTS[k].step).toBe(2 * CUTS[k - 1].step);
+      expect(CUTS[k].tol).toBeGreaterThan(CUTS[k - 1].tol);
+    }
   });
 
   it("keeps the cut it has inside the margin either side of a band's edge", () => {
@@ -111,7 +118,7 @@ describe("rock cuts", () => {
     expect(cutOf(edge - 10, 1)).toBe(1);
     expect(cutOf(edge - 60, 1)).toBe(0);
     // Far past a band, straight to the cut it asks.
-    expect(cutOf(5000, 0)).toBe(2);
+    expect(cutOf(5000, 0)).toBe(3);
   });
 });
 

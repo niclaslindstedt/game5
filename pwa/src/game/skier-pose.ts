@@ -70,28 +70,25 @@
 import { TUNING } from "@engine";
 
 import { SIDE, STILL_GAIT } from "./skier-gait.ts";
-import { holdAt, sidestepBaskets, toward } from "./skier-sidestep.ts";
+import { holdAt, sidestepBaskets } from "./skier-sidestep.ts";
 import {
   armAt,
   DOUBLE_ARM,
-  DOUBLE_BASKET,
   easeFist,
   holdPush,
-  plantPole,
   plantReach,
   smooth,
   STRIDE_STROKE,
   strokeHand,
-  strokePole,
   strokeSwing,
   TURN_PLANT,
-  type Stroke,
 } from "./skier-stroke.ts";
+import { posePoles } from "./skier-poles.ts";
 import { joltHand, NO_JOLT } from "./skier-save.ts";
 import { bareRest, placeBare } from "./skier-bare.ts";
 import { flightHands } from "./skier-flight.ts";
 import { holdShins, trickFeet, tuckOf } from "./skier-somersault.ts";
-import { add, clamp01, mix, norm, scale, sub, turnTo, type V3 } from "./skier-vec.ts";
+import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
   bootFrame,
   bootKnee,
@@ -124,18 +121,16 @@ export type { SkierPoseInput } from "./skier-pose-input.ts";
 import {
   blockFist,
   blockingHand,
-  blockPole,
   FREE_POSE,
   HOLD_FLEX,
   HOLD_RISE,
   transitOf,
   tuckPitch,
-  underArmPole,
 } from "./technique-pose.ts";
 import type { GateShape } from "./slalom-start.ts";
 export type { SkierPose } from "./skier-joints.ts";
 import { BODY, MOUNTS, SHIN_ABOVE_CUFF } from "./skier-mounts.ts";
-import { switchHand, switchPole, switchShape } from "./skier-switch.ts";
+import { switchHand, switchShape } from "./skier-switch.ts";
 export { BODY, MOUNTS, mountsFor, SHIN_ABOVE_CUFF, type Mounts } from "./skier-mounts.ts";
 export { solveLimb, type Boot } from "./skier-limbs.ts";
 
@@ -175,11 +170,6 @@ const SPINE_ROUND = { stand: 0.08, tuck: 0.5, pole: 0.42, fold: 0.25 };
  * trunk, rad. */
 const HEAD_LEAN = 0.35;
 const NECK_ROLL = 0.5;
-/** How far back a hanging pole swings from the vertical, rad. */
-const POLE_HANG = 0.75;
-/** How far over the snow a pole the push cannot plant is held, m at none
- * of a plant — clear of the snow, never skimming along it. */
-const POLE_SHY = 0.2;
 
 /** How far a double-pole's push folds the trunk further over, rad — a
  * skier working out of a gate, not a cross-country racer bowed to his
@@ -874,110 +864,32 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       add(bendTo, scale(across, side * flare)),
     );
   }) as [V3, V3];
-  // THE POLES: hanging back from the grips, laid back under the arms in a
-  // tuck, a lone plant reaching the snow ahead — and, working, planted
-  // ahead of the boots on the push and swept back behind him through it,
-  // then swung forward in the air for the next.
-  const ground = M.ground + drop;
-  const poles = [-1, 1].map((side, i) => {
-    const hangDir = norm({ x: side * 0.12, y: -Math.cos(POLE_HANG), z: -Math.sin(POLE_HANG) });
-    const tuckDir = norm({ x: side * 0.06, y: 0.1, z: -1 });
-    const hung = switchPole(norm(mix(hangDir, tuckDir, crouch)), side, SW);
-    // A speed racer's bent poles carried under his arms, stood up too.
-    const dir =
-      S.underArm > 0
-        ? norm(mix(hung, underArmPole(side), S.underArm * (1 - crouch) * (1 - working)))
-        : hung;
-    const free = add(hands[i], scale(dir, M.pole));
-    const planted: V3 = { x: side * 0.4, y: ground, z: M.poleReach * 0.9 };
-    let tip = mix(free, planted, lone * (side > 0 ? 1 : 0.35));
-    // The fist at another point of a stroke, everything else held.
-    const handIn = (st: Stroke, w: number, now: number) => (at: number) => {
-      const a = strokeHand(st, now);
-      const b = strokeHand(st, at);
-      return { x: hands[i].x, y: hands[i].y + w * (b.y - a.y), z: hands[i].z + w * (b.z - a.z) };
-    };
-    if (gait.stride > 0) {
-      const dir = strokePole(
-        STRIDE_STROKE.basket,
-        side,
-        ground,
-        stridePhase[i],
-        strideDuty,
-        handIn(STRIDE_STROKE, gait.stride, strideSwing[i]),
-        M.pole,
-        undefined,
-        hands[i],
-      );
-      tip = add(hands[i], scale(norm(mix(norm(sub(tip, hands[i])), dir, gait.stride)), M.pole));
-    }
-    if (arms > 0) {
-      // The fist at another point of the push, its shoulder held.
-      const now = push ? push.arm[i] : double;
-      const handAt = (at: number): V3 => {
-        const b = armAt(DOUBLE_ARM, at, true);
-        return {
-          x: hands[i].x,
-          y: hands[i].y + arms * armLength * (b.y - now.y),
-          z: hands[i].z + arms * armLength * (b.z - now.z),
-        };
-      };
-      const dir = strokePole(
-        DOUBLE_BASKET,
-        side,
-        ground,
-        gait.phase,
-        duty,
-        handAt,
-        M.pole,
-        push?.held[i],
-        hands[i],
-      );
-      // Double-poling, a pole pushed on is IN the snow or it is not: half
-      // a stroke blended with the hang lifts a planted basket and drags
-      // it. Beside the diagonal stride it is shared by the arms as ever.
-      const w = clamp01(2 * arms) + (arms - clamp01(2 * arms)) * clamp01(4 * gait.stride);
-      tip = add(hands[i], scale(turnTo(norm(sub(tip, hands[i])), dir, w), M.pole));
-      // A POLE THE PUSH CANNOT PLANT is held clear of the snow, never
-      // skimming along it — the rod tipped up at the fist just enough,
-      // its heading kept.
-      const shy = POLE_SHY * (1 - gait.keep) * w;
-      if (shy > 0) {
-        const floor = ground + shy - hands[i].y;
-        const d = norm(sub(tip, hands[i]));
-        if (d.y * M.pole < floor) {
-          const y = Math.max(-1, Math.min(1, floor / M.pole));
-          const flat = Math.hypot(d.x, d.z);
-          const k = flat > 1e-6 ? Math.sqrt(1 - y * y) / flat : 0;
-          tip = add(hands[i], scale({ x: d.x * k, y, z: d.z * k }, M.pole));
-        }
-      }
-    }
-    if (ready > 0) {
-      // In the gate, planted ahead: the basket on the snow as far ahead of
-      // the fist as the rod reaches, the pole leant forward to it.
-      const h = hands[i];
-      const x = side * G.basket;
-      const reach = M.pole * M.pole - (h.y - ground) ** 2 - (x - h.x) ** 2;
-      const ahead = norm(sub({ x, y: ground, z: h.z + Math.sqrt(Math.max(0, reach)) }, h));
-      const w = ready * (1 - arms);
-      tip = add(h, scale(norm(mix(norm(sub(tip, h)), ahead, w)), M.pole));
-    }
-    if (plantAt && plantAt.side === i && plantW > 0) {
-      const hang = norm(sub(tip, hands[i]));
-      const dir = plantPole(hang, hands[i], ground, side, plantU, M.pole);
-      tip = add(hands[i], scale(norm(mix(hang, dir, plantW)), M.pole));
-    }
-    if (blockW > 0 && i === blocker) {
-      const was = norm(sub(tip, hands[i]));
-      tip = add(hands[i], scale(norm(mix(was, blockPole(i), blockW)), M.pole));
-    }
-    if (baskets) {
-      const was = norm(sub(tip, hands[i]));
-      tip = add(hands[i], scale(toward(was, hands[i], baskets[i], climbW), M.pole));
-    }
-    return tip;
-  }) as [V3, V3];
+  // THE POLES (`skier-poles.ts`).
+  const poles = posePoles({
+    hands,
+    M,
+    S,
+    SW,
+    G,
+    gait,
+    ground: M.ground + drop,
+    crouch,
+    working,
+    lone,
+    arms,
+    armLength,
+    double,
+    push,
+    duty,
+    stridePhase,
+    strideSwing,
+    strideDuty,
+    ready,
+    ...(plantAt ? { plant: { side: plantAt.side, w: plantW, u: plantU } } : {}),
+    ...(blockW > 0 ? { block: { hand: blocker, w: blockW } } : {}),
+    baskets,
+    climbW,
+  });
   return {
     hips,
     hipJoints,

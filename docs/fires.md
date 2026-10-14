@@ -4,9 +4,8 @@ A free ride's ski area keeps FIRES: a CAMP FIRE outside a share of its huts,
 where skiers stop to grill sausages and warm their hands, and a few BONFIRES
 on the valley floor at the bottom of the runs. This page is what they are
 modelled on and what is built. The engine half is built: where every fire
-stands and what riding into one does. Drawing the fires (the flames, the
-smoke, the light), the people grilling round them and the skier burning are
-the parts still to come.
+stands and what riding into one does; and the fires are drawn. The people
+grilling round them and the skier burning are the parts still to come.
 
 ## What they are modelled on
 
@@ -61,4 +60,26 @@ the parts still to come.
 - **Safe for work** (`RunRules.sfw`): a hearth is a solid; he is held off
   at its edge, his way into it taken off, and nothing burns.
 
-`tests/fires_test.ts` holds it.
+- **As drawn** (`pwa/src/game/fire-plan.ts` lays out the parts, three-free;
+  `fires-view.ts` draws them, built by `gates.ts` and shown on a run whose
+  rules keep fires): a camp fire's ring of a dozen stones round a teepee of
+  six split logs, charred where they burn, over a bed of embers glowing in
+  cells, a sooty grill grate over half of it on two stones, its benches
+  split half logs on two stumps, its woodpile split logs stacked ends out;
+  a bonfire's teepee of sixteen long logs over a burnt bed. Round both the
+  snow is trampled and melted — ash and char in the hearth, dark slush at
+  its rim, grey-brown boot-packed snow out past the benches fading into the
+  white. The FLAMES are tongues of fire, each a quad turned to the lens and
+  shaped in the shader off the run's clock: a yellow-white heart, an orange
+  body, red tips licking and tearing off the top, laid over by the wind; a
+  soft glow round them; sparks rising, slowing and swirling off downwind,
+  thick at night; a thin grey thread of smoke drifting off on the wind, a
+  bonfire's a taller column. Every particle is a pure function of the clock
+  in the shader. THE LIGHT: the four fires nearest the lens are dealt lamp
+  slots (`headlamp.ts`'s `Flood`, all round, warm orange, flickering), so
+  after dark the snow, the benches, the people and the trees round a fire
+  are lit by it. Eleven draw calls for every fire on a map. `make fires` is
+  its lab (sheets `camp`, `bonfire`, `night`, `map`, each frame captioned
+  with its milliseconds, draw calls and triangles).
+
+`tests/fires_test.ts` and `tests/fires_look_test.ts` hold it.

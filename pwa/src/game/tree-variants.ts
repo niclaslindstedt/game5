@@ -503,6 +503,16 @@ export function leadVariant(kind: TreeKind): TreeVariant {
   return TREE_VARIANTS[kind][VARIANT_ORDER[kind]?.[0] ?? 0];
 }
 
+/** The first `n` of a kind's variants, the most telling first — the ones
+ * a picture drawing `n` of each kind draws. */
+export function kindVariants(kind: TreeKind, n: number): TreeVariant[] {
+  const m = Math.max(1, Math.min(VARIANTS, Math.round(n)));
+  const out: TreeVariant[] = [];
+  for (let pick = 0; pick < m; pick++)
+    out.push(TREE_VARIANTS[kind][VARIANT_ORDER[kind]?.[pick] ?? pick]);
+  return out;
+}
+
 /** A hash of the trunk's place, 0..1 — a different one from the hash that
  * turns and tints the tree. */
 export function variantAt(x: number, z: number): number {

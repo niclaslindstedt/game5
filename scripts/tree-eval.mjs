@@ -220,7 +220,10 @@ for (const name of wantGroups) {
   console.log(
     `${name}: seed ${g.seed} ${g.region ?? "alpine"} ${g.hour}:00 ${g.weather} — ${map.trees} trees, ` +
       `loaded in ${(map.loadMs / 1000).toFixed(1)} s, forest ${map.geometries} geometries ` +
-      `${(map.forestBytes / 1048576).toFixed(1)} MB`,
+      `${(map.forestBytes / 1048576).toFixed(1)} MB` +
+      (map.textureBytes
+        ? ` + ${(map.textureBytes / 1048576).toFixed(1)} MB of textures (baked in ${Math.round(map.bakeMs)} ms)`
+        : ""),
   );
   const scenes = args.approach ? [] : g.scenes.filter((s) => !wantScenes || wantScenes.includes(s));
   for (const scene of scenes) {

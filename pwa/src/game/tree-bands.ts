@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HAND-OVER between the forest's bands (`forest.ts`), three-free. A
-// tree is the same tree cut lighter with distance — FULL, MID, the FAR
-// sketch — and a band that simply ended at its edge swapped one cut for the
+// tree is drawn as itself near the lens (FULL) and as its picture past it
+// (`tree-impostors.ts`: MID, every tree, and FAR, a thinned share) — and a
+// band that simply ended at its edge swapped one cut for the
 // next in a single frame, in plain sight: the boughs thinned as the skier
 // watched, and at the far edge the tree turned into its kind's lead variant
 // (and, on a thinner FOREST row, went out altogether).
@@ -10,8 +11,7 @@
 // `HAND_OVER_S`: for that moment it is drawn in both, each keeping a
 // complementary share of the screen's pixels (a dither the tree material
 // discards against — the window `[lo, hi)` of a 0..1 threshold), the old
-// cut's share falling from whole to nothing — into the mid cut, the sketch,
-// or nothing at all for a tree the far band leaves out; a tree reaching the
+// cut's share falling from whole to nothing — into its picture, or nothing at all for a tree the far band leaves out; a tree reaching the
 // end of the woods fades in the same way. It is a fade in TIME, not a ring
 // of distance: a ring would stand stippled round a skier at rest, where
 // this leaves every tree whole the moment the lens stops. A tree only
@@ -32,7 +32,8 @@ export const HAND_OVER_MS = 400;
 /** How far past an edge, m, a tree has to stand before it changes its cut. */
 export const HYSTERESIS = 3;
 
-/** The cut a tree is drawn in: 0 FULL, 1 MID, 2 the FAR sketch, -1 none. */
+/** The cut a tree is drawn in: 0 FULL, 1 MID and 2 FAR (both its picture,
+ * the far one thinned), -1 none. */
 export type BandIndex = -1 | 0 | 1 | 2;
 
 /** The cut a tree `d` m from the lens in plan belongs in. `inFar` is

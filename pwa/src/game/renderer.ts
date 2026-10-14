@@ -496,7 +496,7 @@ export function createWorldRenderer(
       terrain = buildTerrain(lv, trail);
       await breathe();
       if (mine !== loads) return;
-      forest = createForest(lv, env.haze, forestOptions());
+      forest = createForest(lv, env.haze, forestOptions(), gl);
       forest.group.name = "forest";
       scene.add(forest.group);
       if (!(await rest(mine))) return;
@@ -777,6 +777,7 @@ export function createWorldRenderer(
       const sky = skyLevel ?? level;
       const look = skyLookAt(sky, state.t, undefined, eyeAt.y); // over a valley fog, its sea
       windAt(sky, state.t, wind);
+      forest?.setWind(wind.x, wind.z, state.t);
       // The sun's map may stand a frame while only he moves under the lens (`sunDue`).
       const lone = !hidden.has("hero") && !own && !planted && !skier.thrown;
       const far = heightOverFar(level, eyeAt.x, eyeAt.y, eyeAt.z); // the true horizon's

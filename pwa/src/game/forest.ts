@@ -19,32 +19,37 @@
 // meshes on the GPU and makes fewer draws, and the wood is still the same
 // wood.
 //
-// TENS OF THOUSANDS OF THEM, so they are instanced — one instanced mesh a
-// shape, each sized to the trees it draws — in THREE BANDS of distance, the
-// same tree cut lighter in each (`TreeLod`): FULL at the lens, MID (the same
-// variant at a third of the triangles, so the hand-over keeps its
-// silhouette) and FAR (a sketch, one a kind). The trees are binned into
+// TENS OF THOUSANDS OF THEM, so only the nearest are geometry: one
+// instanced mesh a shape, each sized to the trees it draws, out to the
+// FOREST row's `full`. Past it every tree is ONE QUAD drawn out of a picture
+// of its own variant (`tree-impostors.ts`): the full cut baked at map load
+// from 8 × 8 directions over the upper hemisphere and relit under the sky's
+// own sun every frame, so a far tree seen from the valley, a chair or a
+// helicopter is the tree from there — and every one of them is ONE DRAW.
+// Past `mid` only the `farShare` of them stand. The trees are binned into
 // 64 m cells once; when the lens moves, the cells in reach are tested
-// against the view frustum and their trees are copied into the bands'
-// instance buffers. No band ends at a line: over the last stretch of each a
-// tree is drawn in both cuts, dithered into one another (`tree-bands.ts`),
-// so a skier never sees a tree swap its cut. Past the far band the
-// terrain's own forest tint (`snow-glsl.ts`) carries the woods to the
-// ridge.
+// against the view frustum and their trees are copied into the geometry's
+// instance buffers or the quads' list. No band ends at a line: over the
+// last stretch of the near band a tree is drawn both ways, dithered into
+// one another (`tree-bands.ts`), so a skier never sees a tree swap its cut.
+// Past the far band the terrain's own forest tint (`snow-glsl.ts`) carries
+// the woods to the ridge.
 //
 // THE SHADOWS ARE A THIRD SET, NOT A BAND. No band casts. Every tree whose
 // shadow can land in the sun's circle (`shadow-box.ts`'s `castsInto`) is
-// copied into a CASTER set drawn only into the shadow map — whatever band
-// the picture draws it in, in front of the lens or behind it — its kind's
-// MID cut or its sketch, as the FOREST row says. So a wood's
-// shadows are all there or fading out at the circle's rim together, and
-// none of them is switched on by riding closer to its tree.
+// listed for a quad drawn only into the shadow map — whatever band the
+// picture draws it in, in front of the lens or behind it — turned to the
+// sun and cut to its picture from there, so the shadow is the tree's own
+// outline as the sun sees it, all of them in one draw. So a wood's shadows
+// are all there or fading out at the circle's rim together, and none of
+// them is switched on by riding closer to its tree.
+//
+// THE WIND bends the near trees (`SWAY_PROJECT`).
 
 import * as THREE from "three";
 import { felledTrees, regionOf, type Level, type Vec3 } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
-import { createShadeDepth } from "./terrain-shade.ts";
 import type { ForestLook, TreeCasters } from "./settings-video.ts";
 import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
@@ -55,10 +60,12 @@ import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.t
 import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
 import { treeTilt, trunkYaw } from "./tree-tilt.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
+import { nearestPictured, picturedOf } from "./impostor-plan.ts";
+import { createImpostors, type ImpostorLayer } from "./tree-impostors.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
  * row's `far`, all m), how far the crags stand (the DISTANCE row's `view`:
- * the whole picture, since a crag far off is what a far lens looks at), the share of the far band's sketches that stand, how
+ * the whole picture, since a crag far off is what a far lens looks at), the share of the trees past `mid` that stand, how
  * many variants of each kind are drawn, and what the trees cast (the FOREST
  * row's cut, or none unless SHADOWS is ALL) — `settings-video.ts` says what
  * each stop buys. */
@@ -95,13 +102,32 @@ function graftFade(shader: { vertexShader: string; fragmentShader: string }): vo
     );
 }
 
-/** A shape drawn `by` of its width — its trunks' axes with it. */
-function inset(g: THREE.BufferGeometry, by: number): THREE.BufferGeometry {
-  g.scale(by, 1, by);
-  const stem = g.getAttribute("stem");
-  for (let i = 0; i < stem.count; i++) stem.setXY(i, stem.getX(i) * by, stem.getY(i) * by);
-  return g;
-}
+/** THE NEAR TREES IN THE WIND: each top bent down the wind by as much as
+ * the air's pressure on it (a still day a few centimetres, a gale over half
+ * a metre on a twenty-metre spruce), the bend growing with the square of the
+ * height up the stem, and swaying about that on a period of its own off a
+ * hash of where it stands — so a wood never swings as one. The far trees'
+ * pictures stand still: at a hundred metres the sway is under a pixel. */
+const SWAY_VERTEX_PARS = "uniform vec3 uSway;";
+const SWAY_PROJECT = `
+vec4 mvPosition = vec4(transformed, 1.0);
+#ifdef USE_INSTANCING
+  mvPosition = instanceMatrix * mvPosition;
+  {
+    vec3 foot = instanceMatrix[3].xyz;
+    float tall = length(instanceMatrix[1].xyz);
+    float ph = fract(sin(dot(foot.xz, vec2(12.9898, 78.233))) * 43758.5453);
+    float v = length(uSway.xy);
+    vec2 dir = v > 0.05 ? uSway.xy / v : vec2(0.6, 0.8);
+    float up = clamp(transformed.y, 0.0, 1.0);
+    float amp = tall * (0.00012 * v * v + 0.0015) * up * up;
+    float swing = sin(uSway.z * (1.1 + 0.6 * ph) + ph * 6.2832);
+    mvPosition.xz += dir * amp * (0.7 + 0.3 * swing)
+      + vec2(-dir.y, dir.x) * amp * 0.25 * sin(uSway.z * (1.7 + 0.5 * ph) + ph * 17.0);
+  }
+#endif
+mvPosition = modelViewMatrix * mvPosition;
+gl_Position = projectionMatrix * mvPosition;`;
 
 function hash(x: number, z: number): number {
   const s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
@@ -138,10 +164,6 @@ function atLens(
   return d - Math.max(t.radius, crown) < LENS_CLEAR;
 }
 
-/** A sketch caster stands this much inside the full tree's crown, so the
- * full tree drawn over it is not shaded blotchy by its own stand-in. */
-const SKETCH_INSET = 0.85;
-
 /** How far the lens has to stand from a tree before it cannot be inside
  * it, m — past this, `atLens` is not asked. */
 const LENS_REACH = 24;
@@ -159,10 +181,17 @@ export type Forest = {
    * each tree's cut chosen at its slant distance from a lens `lift` m over
    * the snow, the crags out to `view` m — none of it under the row's own. */
   setAloft(far: number, lift: number, view: number): void;
+  /** THE WIND in the near woods: the air's velocity, m/s, and the clock. */
+  setWind(x: number, z: number, t: number): void;
   dispose(): void;
 };
 
-export function createForest(level: Level, haze: HazeUniforms, initial: ForestOptions): Forest {
+export function createForest(
+  level: Level,
+  haze: HazeUniforms,
+  initial: ForestOptions,
+  renderer: THREE.WebGLRenderer | null = null,
+): Forest {
   let options = { ...initial };
   // The view aloft over the row's own (`setAloft`); on the snow, the row's.
   const aloft = { far: options.far, lift: 0, view: options.view };
@@ -214,12 +243,16 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   /** Every tree's GIRTH: its trunk's radius over the radius the shapes are
    * built with, on each of the instance's stretched axes. */
   const girths = new Float32Array(count * 2);
-  /** Each tree's place in the far band's thinning: a sketch stands while
+  /** Each tree's place in the far band's thinning: a tree stands while
    * this is under `farShare`, so a thinner wood is a subset of a thicker
    * one and walking the row never swaps one tree for another. */
   const thin = new Float32Array(count);
   /** Each tree's LEAN as the shift of its axis in plan a metre up. */
   const leans = new Float32Array(count * 2);
+  /** Each tree's foot, turn and stretch, for its impostor's row. */
+  const feet = new Float32Array(count * 3);
+  const turns = new Float32Array(count * 4);
+  const stretch = new Float32Array(count * 3);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const lean = new THREE.Quaternion();
@@ -262,6 +295,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     // is drawn as nothing: its matrix squashed to its foot.
     if (gone[i]) s.set(0, 0, 0);
     m.compose(p, q, s).toArray(matrices, i * 16);
+    p.toArray(feet, i * 3);
+    q.toArray(turns, i * 4);
+    s.toArray(stretch, i * 3);
     const tone = 0.9 + hash(t.z, t.x) * 0.2;
     colours[i * 3] = tone;
     colours[i * 3 + 1] = tone;
@@ -282,6 +318,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     }
   }
 
+  /** The air's velocity across (x, z), m/s, and the run's clock. */
+  const sway = { value: new THREE.Vector3() };
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
@@ -289,28 +327,12 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     (shader) => {
       graftGirth(shader);
       graftFade(shader);
+      shader.uniforms.uSway = sway;
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", `#include <common>\n${SWAY_VERTEX_PARS}`)
+        .replace("#include <project_vertex>", SWAY_PROJECT);
     },
   );
-  // The casters' depth, with the same girth: a veteran's trunk throws a
-  // veteran's shadow.
-  const casterDepth = createShadeDepth(haze);
-  const shadeCompile = casterDepth.onBeforeCompile.bind(casterDepth);
-  casterDepth.customProgramCacheKey = (): string => "terrain-shade-depth-girth";
-  casterDepth.onBeforeCompile = (shader, renderer) => {
-    shadeCompile(shader, renderer);
-    graftGirth(shader);
-  };
-  // THE CASTERS are drawn into the shadow map and nowhere else. Three picks
-  // its shadow pass off the MAIN camera's layers, so a layer cannot keep
-  // them out of the picture; instead their own material puts every vertex
-  // outside the clip volume — the picture's pass culls them before a pixel
-  // is shaded — while the shadow pass draws them with three's own depth
-  // material, which never runs this one.
-  const casterMaterial = new THREE.ShaderMaterial({
-    vertexShader: "void main() { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }",
-    fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
-    side: material.side,
-  });
   const region = treePaint(regionLookOf(regionOf(level).id));
   const paint = summerShown() ? summerPaint(region) : region;
 
@@ -330,20 +352,13 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     /** The first slot this refill wrote anything new into. */
     from: number[];
   };
-  type Casters = {
-    meshes: THREE.InstancedMesh[];
-    shape: Uint8Array;
-    mats: Float32Array[];
-    girths: Float32Array[];
-  };
   type Shapes = {
     variants: number;
     /** Each tree's variant, for the lens to clear it by. */
     variantOf: TreeVariant[];
     full: Band;
-    mid: Band;
-    far: Band;
-    casters: { full: Casters; sketch: Casters };
+    /** Each tree's picture in the impostors' atlas. */
+    layer: Uint8Array;
     geometries: THREE.BufferGeometry[];
   };
 
@@ -365,19 +380,13 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
 
   /** THE SHAPES for `variants` of every kind (the FOREST row's): which
    * variant every tree is, the meshes the map's own variants are built into
-   * at the full and the mid cut (only the ones it grows), and the far band
-   * and the casters over them, each mesh sized to the trees that can ever be
-   * drawn with it. The far band and the casters draw ONE shape a kind (its
-   * lead variant: the sketch, or the mid cut when the casters are full), so
-   * their cost is the number of kinds, not of variants. */
+   * at the full cut (only the ones it grows), each sized to the trees that
+   * can ever be drawn with it, and the far woods' atlas baked. */
   function buildShapes(variants: number): Shapes {
     const variantOf: TreeVariant[] = new Array<TreeVariant>(count);
     const nearShape = new Uint8Array(count);
-    const farShape = new Uint8Array(count);
     const nearRows: TreeVariant[] = [];
-    const farRows: TreeVariant[] = [];
     const nearCount: number[] = [];
-    const farCount: number[] = [];
     const indexOf = (row: TreeVariant, rows: TreeVariant[], n: number[]): number => {
       let k = rows.indexOf(row);
       if (k < 0) {
@@ -396,14 +405,54 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const v = treeVariant(kind, t.x, t.z, variants);
       variantOf[i] = v;
       nearShape[i] = indexOf(v, nearRows, nearCount);
-      farShape[i] = indexOf(leadVariant(kind), farRows, farCount);
     }
     const shape = (v: TreeVariant, lod: TreeLod) => buildTree(v, paint, lod);
     const full = nearRows.map((v) => shape(v, 0));
-    const mid = nearRows.map((v) => shape(v, 1));
-    const sketch = farRows.map((v) => shape(v, 2));
-    const leads = farRows.map((v) => shape(v, 1));
-    const insetSketch = farRows.map((v) => inset(shape(v, 2), SKETCH_INSET));
+    // THE IMPOSTORS: every tree past the near band drawn out of a picture of
+    // its own variant, or of the pictured one nearest it in outline.
+    const pictures: TreeVariant[] = [];
+    const layer = new Uint8Array(count);
+    const sums: { aspect: number; girth: number; n: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const v = variantOf[i];
+      const pic = nearestPictured(v, picturedOf(v.kind, options.impostor));
+      let k = pictures.indexOf(pic);
+      if (k < 0) {
+        k = pictures.length;
+        pictures.push(pic);
+        sums.push({ aspect: 0, girth: 0, n: 0 });
+      }
+      layer[i] = k;
+      if (stretch[i * 3 + 1] > 0) {
+        const at = sums[k];
+        at.aspect += (stretch[i * 3] + stretch[i * 3 + 2]) / (2 * stretch[i * 3 + 1]);
+        at.girth += (girths[i * 2] + girths[i * 2 + 1]) / 2;
+        at.n++;
+      }
+    }
+    const baked = pictures.map((v) => shape(v, 0));
+    const layers: ImpostorLayer[] = baked.map((geometry, k) => ({
+      geometry,
+      aspect: sums[k].n > 0 ? sums[k].aspect / sums[k].n : 0.25,
+      girth: sums[k].n > 0 ? sums[k].girth / sums[k].n : 1,
+    }));
+    impostors.bake(layers, options.impostor);
+    for (let i = 0; i < count; i++) {
+      tq.fromArray(turns, i * 4);
+      impostors.setTree(i, {
+        x: feet[i * 3],
+        y: feet[i * 3 + 1],
+        z: feet[i * 3 + 2],
+        q: tq,
+        sx: stretch[i * 3],
+        sy: stretch[i * 3 + 1],
+        sz: stretch[i * 3 + 2],
+        tint: colours[i * 3],
+        layer: layer[i],
+      });
+    }
+    impostors.commit();
+    for (const g of baked) g.dispose();
     const makeBand = (geos: THREE.BufferGeometry[], shape: Uint8Array, room: number[]): Band => {
       const meshes = geos.map((g, k) => {
         const im = new THREE.InstancedMesh(
@@ -434,55 +483,33 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         from: geos.map(() => 0),
       };
     };
-    const makeCasters = (
-      geos: THREE.BufferGeometry[],
-      shape: Uint8Array,
-      room: number[],
-    ): Casters => {
-      const meshes = geos.map((g, k) => {
-        const im = new THREE.InstancedMesh(withGirth(g, room[k]), casterMaterial, room[k]);
-        im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        im.castShadow = true;
-        // A tree the mountain already shades casts nothing (`terrain-shade.ts`).
-        im.customDepthMaterial = casterDepth;
-        im.receiveShadow = false;
-        im.frustumCulled = false;
-        im.count = 0;
-        im.visible = false;
-        group.add(im);
-        return im;
-      });
-      return {
-        shape,
-        meshes,
-        mats: meshes.map((im) => im.instanceMatrix.array as Float32Array),
-        girths: meshes.map((im) => girthOf(im).array as Float32Array),
-      };
-    };
     return {
       variants,
       variantOf,
       full: makeBand(full, nearShape, nearCount),
-      mid: makeBand(mid, nearShape, nearCount),
-      far: makeBand(sketch, farShape, farCount),
-      casters: {
-        full: makeCasters(leads, farShape, farCount),
-        sketch: makeCasters(insetSketch, farShape, farCount),
-      },
-      geometries: [...full, ...mid, ...sketch, ...leads, ...insetSketch],
+      layer,
+      geometries: full,
     };
   }
 
   function dropShapes(old: Shapes): void {
-    for (const set of [old.full, old.mid, old.far, old.casters.full, old.casters.sketch]) {
-      for (const im of set.meshes) {
-        group.remove(im);
-        im.dispose();
-      }
+    for (const im of old.full.meshes) {
+      group.remove(im);
+      im.dispose();
     }
     for (const g of old.geometries) g.dispose();
   }
 
+  // THE FAR WOODS: one draw of quads for every tree past the near band.
+  const impostors = createImpostors(haze, count, renderer, graftFade);
+  group.add(impostors.mesh);
+  group.add(impostors.casters);
+  const tq = new THREE.Quaternion();
+  const farIds = impostors.ids;
+  const farFades = impostors.fades;
+  const farWho = new Int32Array(Math.max(1, count)).fill(-1);
+  let farFill = 0;
+  let farFrom = 0;
   let shapes = buildShapes(options.variants);
   /** The tallest tree, for how far up-sun a caster can stand. */
   let tallest = 0;
@@ -533,6 +560,20 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     fade[k * 2 + 1] = hi;
     if (k < band.from[sh]) band.from[sh] = k;
   }
+  /** Tree `i` into the far woods' quads, keeping the dither window. */
+  function placeFar(i: number, lo: number, hi: number) {
+    if (hi <= lo) return;
+    const k = farFill++;
+    if (farWho[k] !== i) {
+      farWho[k] = i;
+      farIds[k] = i;
+    } else if (farFades[k * 2] === lo && farFades[k * 2 + 1] === hi) {
+      return;
+    }
+    farFades[k * 2] = lo;
+    farFades[k * 2 + 1] = hi;
+    if (k < farFrom) farFrom = k;
+  }
   /** Every tree's cut and its dissolve into the next (`tree-bands.ts`). */
   const hand = createHandOver(count);
   const draw: TreeDraw = { from: -1, band: -1, split: 0 };
@@ -542,15 +583,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
 
   /** Refill the casters: every tree whose shadow can reach the circle. */
   function fillCasters(shadow: ShadowBox | null) {
-    const sets = [shapes.casters.full, shapes.casters.sketch];
-    let n: number[] = [];
-    const into =
-      !shadow || options.casters === "none"
-        ? null
-        : options.casters === "full"
-          ? shapes.casters.full
-          : shapes.casters.sketch;
-    if (shadow && into) {
+    let n = 0;
+    if (shadow && options.casters !== "none") {
       // The cells the circle, and the shadows reaching into it, can touch.
       const plan = Math.hypot(shadow.sx, shadow.sz);
       const tail = plan > 1e-6 ? shadowLength(shadow, tallest) : 0;
@@ -565,40 +599,21 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const cMax = Math.min(cols - 1, Math.floor(x1 / CELL));
       const rMin = Math.max(0, Math.floor(z0 / CELL));
       const rMax = Math.min(cols - 1, Math.floor(z1 / CELL));
-      n = into.meshes.map(() => 0);
+      const ids = impostors.casterIds;
       for (let row = rMin; row <= rMax; row++) {
         for (let c = cMin; c <= cMax; c++) {
           const b = row * cols + c;
           for (let i = binStart[b]; i < binStart[b + 1]; i++) {
+            if (stretch[i * 3 + 1] <= 0) continue;
             const t = trees[i];
             const crown = t.crown + t.height * Math.hypot(leans[i * 2], leans[i * 2 + 1]);
             if (!castsInto(shadow, t.x, t.z, t.height, crown)) continue;
-            const sh = into.shape[i];
-            const k = n[sh]++;
-            const mat = into.mats[sh];
-            for (let j = 0; j < 16; j++) mat[k * 16 + j] = matrices[i * 16 + j];
-            const girth = into.girths[sh];
-            girth[k * 2] = girths[i * 2];
-            girth[k * 2 + 1] = girths[i * 2 + 1];
+            ids[n++] = i;
           }
         }
       }
     }
-    for (const set of sets) {
-      set.meshes.forEach((im, k) => {
-        const used = set === into ? n[k] : 0;
-        im.count = used;
-        im.visible = used > 0;
-        if (used === 0) return;
-        im.instanceMatrix.clearUpdateRanges();
-        im.instanceMatrix.addUpdateRange(0, used * 16);
-        im.instanceMatrix.needsUpdate = true;
-        const g = girthOf(im);
-        g.clearUpdateRanges();
-        g.addUpdateRange(0, used * 2);
-        g.needsUpdate = true;
-      });
-    }
+    impostors.setCasters(n, options.casters === "sketch");
   }
 
   return {
@@ -640,11 +655,11 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const cx = camera.position.x;
       const cy = camera.position.y;
       const cz = camera.position.z;
-      const { full, mid, far } = shapes;
-      for (const b of [full, mid, far]) {
-        b.fill.fill(0);
-        b.from.fill(Infinity);
-      }
+      const { full } = shapes;
+      full.fill.fill(0);
+      full.from.fill(Infinity);
+      farFill = 0;
+      farFrom = Infinity;
       // Aloft, a tree's cut is chosen at its SLANT distance from the lens
       // (`lift` over the snow), so the far edge is the plan reach's slant.
       const lift = aloft.lift;
@@ -660,7 +675,6 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       const ux = plan > 1e-6 ? look.x / plan : 0;
       const uz = plan > 1e-6 ? look.z / plan : 0;
       const far2 = aloft.far * aloft.far;
-      const bands = [full, mid, far];
       const now = performance.now();
       tick++;
       dissolving = false;
@@ -698,12 +712,31 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
             if (handOver(hand, i, d, lift > 0 ? edges : options, inFar, now, tick, draw)) {
               dissolving = true;
             }
-            if (draw.from >= 0) place(bands[draw.from], i, 0, draw.split);
-            if (draw.band >= 0) place(bands[draw.band], i, draw.split, 1);
+            // The near band is the tree's own geometry; past it, its impostor.
+            if (draw.from === 0) place(full, i, 0, draw.split);
+            else if (draw.from > 0) placeFar(i, 0, draw.split);
+            if (draw.band === 0) place(full, i, draw.split, 1);
+            else if (draw.band > 0) placeFar(i, draw.split, 1);
           }
         }
       }
-      for (const b of [full, mid, far]) {
+      {
+        const g = impostors.mesh.geometry as THREE.InstancedBufferGeometry;
+        g.instanceCount = farFill;
+        impostors.mesh.visible = farFill > 0;
+        if (farFill > 0 && farFrom < farFill) {
+          for (const [name, per] of [
+            ["aTree", 1],
+            ["fade", 2],
+          ] as const) {
+            const a = g.getAttribute(name) as THREE.InstancedBufferAttribute;
+            a.clearUpdateRanges();
+            a.addUpdateRange(farFrom * per, (farFill - farFrom) * per);
+            a.needsUpdate = true;
+          }
+        }
+      }
+      for (const b of [full]) {
         b.meshes.forEach((im, k) => {
           const n = b.fill[k];
           im.count = n;
@@ -737,17 +770,25 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       lastAt.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },
+    setWind(x, z, t) {
+      sway.value.set(x, z, t);
+    },
     setAloft(far, lift, view) {
       aloft.far = Math.max(far, options.far);
       aloft.lift = lift;
       aloft.view = Math.max(view, options.view);
     },
     setOptions(next) {
-      if (next.variants !== options.variants) {
+      const rebuild =
+        next.variants !== options.variants ||
+        next.impostor.frame !== options.impostor.frame ||
+        next.impostor.variants !== options.impostor.variants;
+      options = { ...next };
+      if (rebuild) {
         dropShapes(shapes);
+        farWho.fill(-1);
         shapes = buildShapes(next.variants);
       }
-      options = { ...next };
       Object.assign(aloft, { far: options.far, lift: 0, view: options.view });
       rocks.setShare(options.farShare);
       tick++;
@@ -757,9 +798,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     dispose() {
       rocks.dispose();
       dropShapes(shapes);
+      impostors.dispose();
       material.dispose();
-      casterMaterial.dispose();
-      casterDepth.dispose();
     },
   };
 }

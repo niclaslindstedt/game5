@@ -26,11 +26,12 @@
 //   TRAILS      the trail maps (`trail-map.ts`): the fine window's texels and
 //               span, the coarse map's texels — or OFF, which stamps nothing
 //               and leaves the snow untouched.
-//   FOREST      how far the full and the mid cut of a tree run, how many of
-//               the far band's sketches stand at all, how many VARIANTS of
-//               each kind are drawn (10, 5 or 2 — never fewer kinds), and —
-//               under SHADOWS MEDIUM and HIGH — whether a tree casts its
-//               mid cut or the sketch. Never WHICH trunks exist: the physics
+//   FOREST      how far a tree is drawn as itself, how sharp and how many
+//               the far woods' pictures are, how many of the far trees
+//               stand at all, how many VARIANTS of each kind are drawn (10,
+//               5 or 2 — never fewer kinds), and — under SHADOWS MEDIUM and
+//               HIGH — how sharp the shadow a picture casts is. Never WHICH
+//               trunks exist: the physics
 //               hits every one of them, and a tree the skier can hit is
 //               always drawn.
 //   SHADOWS     OFF, SKI_CATALOG (the machines, the skiers and the flags on a
@@ -170,25 +171,34 @@ export const TRAIL_LOOK: Record<TrailLevel, TrailLook> = {
   high: { stamp: true, fineSize: 2048, fineSpan: 160, coarseSize: 2048 },
 };
 
+/** What the FOREST row bakes for the far woods: each frame's side in
+ * texels, and how many of a kind's variants are pictured. */
+export type ImpostorLook = { frame: number; variants: number };
+
 export type ForestLook = {
-  /** The FULL tree runs out to here, m; past it the MID cut of the same
-   * variant, to `mid`; past that the far band's sketch. WHICH trees cast is
-   * the SHADOWS row's (`SHADOW_LOOK`), never a band's, so no shadow is
+  /** The FULL tree runs out to here, m; past it its PICTURE (`impostor`),
+   * every tree to `mid` and the `farShare` of them past it. WHICH trees cast
+   * is the SHADOWS row's (`SHADOW_LOOK`), never a band's, so no shadow is
    * switched on by riding closer to its tree. */
   full: number;
   mid: number;
-  /** The share of the far band's sketches that stand, 0..1. */
+  /** The share of the trees past `mid` that stand, 0..1. */
   farShare: number;
   /** HOW MANY VARIANTS OF EACH KIND are drawn, 1..10 (`tree-variants.ts`,
    * the most telling first) — every kind a map grows is always drawn, only
-   * in fewer shapes. A shape is a mesh at the full and the mid cut, so two
-   * draw calls and its triangles held on the GPU; the far band and the
-   * casters draw one shape a kind whatever this is. */
+   * in fewer shapes. A shape is a mesh at the full cut, so a draw call and
+   * its triangles held on the GPU; the far woods and the casters are one
+   * draw each whatever this is. */
   variants: number;
-  /** What a tree casts under SHADOWS MEDIUM and HIGH: its kind's mid cut,
-   * or the far band's sketch drawn a touch inside it (a fraction of the
-   * triangles in the shadow pass, and it reads the same on the snow). */
+  /** What a tree casts under SHADOWS MEDIUM and HIGH: its picture seen
+   * from the sun (`full`), or the same a mip blurrier (`sketch`: a softer
+   * shadow for a quarter of the texels). */
   casters: TreeCasters;
+  /** THE FAR WOODS' PICTURES (`tree-impostors.ts`): past `full` every tree
+   * is a quad drawn out of a hemi-octahedral atlas of its variant — each
+   * frame's side in texels, and how many of a kind's variants are
+   * pictured (a tree whose own is not is drawn as the nearest in outline). */
+  impostor: ImpostorLook;
   /** THE WILDLIFE rides the same row (the woods and what lives in them are
    * one thing to a skier): how many FORMS of each species are drawn, 1..3
    * (`wild-traits.ts`, the most telling first — a cheap picture draws a
@@ -216,6 +226,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     farShare: 0.5,
     variants: 2,
     casters: "sketch",
+    impostor: { frame: 32, variants: 1 },
     wild: { forms: 1, near: 35 },
     grass: { reach: 18, share: 0.5 },
   },
@@ -225,6 +236,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     farShare: 0.75,
     variants: 5,
     casters: "sketch",
+    impostor: { frame: 48, variants: 2 },
     wild: { forms: 2, near: 60 },
     grass: { reach: 28, share: 0.75 },
   },
@@ -234,6 +246,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     farShare: 1,
     variants: 10,
     casters: "full",
+    impostor: { frame: 64, variants: 3 },
     wild: { forms: 3, near: 90 },
     grass: { reach: 40, share: 1 },
   },

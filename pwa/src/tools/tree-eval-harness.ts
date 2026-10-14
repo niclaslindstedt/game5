@@ -56,7 +56,14 @@ export type SceneCost = {
 declare global {
   interface Window {
     __trees?: {
-      ready: Promise<{ trees: number; loadMs: number; forestBytes: number; geometries: number }>;
+      ready: Promise<{
+        trees: number;
+        loadMs: number;
+        forestBytes: number;
+        geometries: number;
+        textureBytes: number;
+        bakeMs: number;
+      }>;
       scenes(): string[];
       shoot(name: string): string;
       cost(frames: number): SceneCost;
@@ -441,12 +448,22 @@ function cost(frames: number): SceneCost {
   };
 }
 
-/** The bytes of every distinct geometry under the forest group. */
-function forestBytes(): { bytes: number; geometries: number } {
+/** The bytes of every distinct geometry under the forest group, and of the
+ * textures and the bake time any part of it reports (`userData`). */
+function forestBytes(): {
+  bytes: number;
+  geometries: number;
+  textureBytes: number;
+  bakeMs: number;
+} {
   const root = renderer.group("forest");
   const seen = new Set<unknown>();
   let bytes = 0;
+  let textureBytes = 0;
+  let bakeMs = 0;
   root?.traverse((o) => {
+    textureBytes += (o.userData?.textureBytes as number | undefined) ?? 0;
+    bakeMs += (o.userData?.bakeMs as number | undefined) ?? 0;
     const g = (
       o as {
         geometry?: {
@@ -460,7 +477,7 @@ function forestBytes(): { bytes: number; geometries: number } {
     for (const a of Object.values(g.attributes)) bytes += a.array.byteLength;
     if (g.index) bytes += g.index.array.byteLength;
   });
-  return { bytes, geometries: seen.size };
+  return { bytes, geometries: seen.size, textureBytes, bakeMs };
 }
 
 /** The canvas read back at a quarter size, as luminance. */
@@ -505,7 +522,14 @@ window.__trees = {
     await volumeNoise();
     const loadMs = performance.now() - t0;
     const fb = forestBytes();
-    return { trees: trees.length, loadMs, forestBytes: fb.bytes, geometries: fb.geometries };
+    return {
+      trees: trees.length,
+      loadMs,
+      forestBytes: fb.bytes,
+      geometries: fb.geometries,
+      textureBytes: fb.textureBytes,
+      bakeMs: fb.bakeMs,
+    };
   }),
   scenes: () => Object.keys(SCENES),
   shoot,

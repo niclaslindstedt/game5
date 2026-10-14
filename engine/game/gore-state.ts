@@ -78,6 +78,8 @@ export type Impaled = {
   stuff: "tree" | "post";
   point: number;
   sunk: number;
+  /** How far down the spike he goes before it holds him, m. */
+  depth: number;
   t: number;
 };
 

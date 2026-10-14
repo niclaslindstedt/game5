@@ -89,8 +89,15 @@ describe("mortal wounds", () => {
     expect(g.cause).toBe("impaled");
     const b = state.skier.thrown!;
     const p = g.impaled!.point;
-    // Held on the spike, slid down it no further than it holds him.
-    expect(b.points[3 * p + 1]).toBeCloseTo(g.impaled!.y - GORE.impale.sink, 2);
+    // Held on the spike, sunk down the stem to where it holds him: well
+    // past a post's sink, never through the snow.
+    const i = g.impaled!;
+    expect(i.depth).toBeGreaterThan(GORE.impale.sink);
+    expect(i.sunk).toBeCloseTo(i.depth, 3);
+    expect(b.points[3 * p + 1]).toBeCloseTo(i.y - i.depth, 2);
+    expect(i.y - i.depth).toBeGreaterThan(
+      state.level.groundAt(i.x, i.z) + GORE.impale.clear - 0.01,
+    );
     expect(Math.hypot(b.points[3 * p] - g.impaled!.x, b.points[3 * p + 2] - g.impaled!.z)).toBe(0);
   });
 

@@ -296,6 +296,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         const tree = solids[t];
         // A building's wall is met as the wall, below — never its posts.
         if (tree.wall || P[j + 1] > tree.y + tree.height) continue;
+        // The stem he is run through and sinking down is inside him.
+        if (b.pin && tree.x === b.pin.x && tree.z === b.pin.z) continue;
         const dx = P[j] - tree.x;
         const dz = P[j + 2] - tree.z;
         const d = hypot(dx, dz) || 1e-6;

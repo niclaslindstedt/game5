@@ -684,7 +684,7 @@ export function createWorldRenderer(
         if (skier.airborne) r.vy = skier.vy;
       }
       if (state.gore && !gore) {
-        gore = createGoreView(level, wrap);
+        gore = createGoreView(level, wrap, () => FOREST_LOOK[video.forest].variants);
         scene.add(gore.group);
       }
       gore?.setPace(pace);

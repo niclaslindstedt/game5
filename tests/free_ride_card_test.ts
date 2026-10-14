@@ -71,7 +71,7 @@ import {
   seedSchematic,
   toChart,
 } from "../pwa/src/game/seed-chart.ts";
-import { DEFAULT_FACE, rangeIds, rangeOf } from "../pwa/src/game/face-picks.ts";
+import { DEFAULT_FACE } from "../pwa/src/game/face-picks.ts";
 import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { takeSnapshot } from "../pwa/src/game/snapshot.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
@@ -93,18 +93,21 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       grade: null,
       run: null,
       avalanche: true,
-      placed: false,
+      where: false,
     });
   });
 
-  it("stands a first visit's WHERE steps on the first real range, once", () => {
+  it("stands a first visit's WHERE steps on GENERATED, once", () => {
     const ride = firstWhere(freshSettings().ride);
-    expect(ride.placed).toBe(true);
-    expect(ride.face).toBe(DEFAULT_FACE);
-    expect(rangeOf(ride.face)).toBe(rangeIds()[0]);
-    expect(rangeIds()[0]).toBe("ALPS");
-    // Placed, it is wherever the skier last left it, GENERATED included.
-    const left = { ...ride, face: null };
+    expect(ride.where).toBe(true);
+    expect(ride.face).toBe(null);
+    // A ride an older build stood on a real range is stood on GENERATED.
+    const old = mergeRide({ face: DEFAULT_FACE, region: "alpine", placed: true });
+    expect(old.face).toBe(DEFAULT_FACE);
+    expect(old.where).toBe(false);
+    expect(firstWhere(old).face).toBe(null);
+    // Placed, it is wherever the skier last left it, a real range included.
+    const left = { ...ride, face: DEFAULT_FACE };
     expect(firstWhere(left)).toBe(left);
   });
 
@@ -224,7 +227,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       run: { seed: 9, region: "fell" as const, id: "4" },
       suit: "rig" as const,
       avalanche: true,
-      placed: true,
+      where: true,
     };
     const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
     expect(opts.mode).toBe("free");

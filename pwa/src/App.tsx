@@ -127,6 +127,7 @@ import {
   injuriesShown,
   loadSettings,
   mixOf,
+  racesOpen,
   saveSettings,
   specFor,
   type Settings,
@@ -949,6 +950,7 @@ export function App() {
           onRace={() => setPage("races")}
           onFree={() => picks.openCard("free", "world")}
           tricks={tricksTile(settings.trickMap, params.seed)}
+          modes={racesOpen(settings)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}
           onGallery={() => setPage("gallery")}

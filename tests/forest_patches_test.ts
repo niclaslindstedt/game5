@@ -13,6 +13,7 @@ import {
   buildShell,
   createCellLod,
   createMeshCache,
+  drawOnly,
   hidden,
   levelAt,
   mergeBlock,
@@ -141,5 +142,29 @@ describe("the cache", () => {
     c.touch(3, 3);
     c.touch(2, 3);
     expect(c.trim(3)).toEqual([]);
+  });
+});
+
+describe("the cells a mesh draws", () => {
+  const flat = () => 100;
+  const paint = {
+    needle: new THREE.Color(0.05, 0.08, 0.05),
+    snow: new THREE.Color(0.9, 0.9, 0.95),
+  };
+  const at = (x: number, z: number) => ({ x, y: 100, z, height: 20, crown: 3, paint, spire: true });
+  it("cuts a shell tile's index to the cells marked, and draws it whole again", () => {
+    const g = buildShell(0, 0, [at(30, 30), at(30 + CELL, 30)], flat)!;
+    const whole = g.getAttribute("position").count;
+    const live = new Uint8Array(TILE * TILE);
+    live[0] = 1;
+    drawOnly(g, live);
+    expect(g.index).not.toBeNull();
+    expect(g.drawRange.count).toBeGreaterThan(0);
+    expect(g.drawRange.count).toBeLessThan(whole);
+    const sub = g.getAttribute("sub");
+    for (let k = 0; k < g.drawRange.count; k++) expect(sub.getX(g.index!.getX(k))).toBe(0);
+    live.fill(1);
+    drawOnly(g, live);
+    expect(g.index).toBeNull();
   });
 });

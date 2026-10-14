@@ -19,6 +19,7 @@ import {
   blockCell,
   buildShell,
   createMeshCache,
+  drawOnly,
   geometryBytes,
   graftCellLod,
   graftShellTier,
@@ -217,6 +218,9 @@ export function createForestCells(ctx: CellsContext): ForestCells {
   }
   function dropMesh(mesh: THREE.Mesh) {
     patches.remove(mesh);
+    // The cut index too, if it was last drawn whole.
+    const cut = mesh.geometry.userData.index as THREE.BufferAttribute | undefined;
+    if (cut) mesh.geometry.setIndex(cut);
     mesh.geometry.dispose();
   }
   /** The meshes made visible last pass, to hide on the next. */
@@ -255,8 +259,14 @@ export function createForestCells(ctx: CellsContext): ForestCells {
     for (const m of shown) m.visible = false;
     shown = [];
     const near: number[] = [];
-    const tilesOn = new Set<number>();
-    const blocksOn = [new Set<number>(), new Set<number>()];
+    // Every mesh drawn, with the cells in it it is drawn for (by `sub`).
+    const tilesOn = new Map<number, Uint8Array>();
+    const blocksOn = [new Map<number, Uint8Array>(), new Map<number, Uint8Array>()];
+    const mark = (on: Map<number, Uint8Array>, k: number, side: number, b: number) => {
+      let live = on.get(k);
+      if (!live) on.set(k, (live = new Uint8Array(side * side)));
+      live[(Math.floor(b / cols) % side) * side + ((b % cols) % side)] = 1;
+    };
     animating = false;
     // First every cell's level and whether it is in sight; then the merged
     // meshes missing, nearest first, as many as the frame has room for.
@@ -331,24 +341,26 @@ export function createForestCells(ctx: CellsContext): ForestCells {
         L++
       ) {
         if (L === 0) near.push(b);
-        else if (L === 3) tilesOn.add(tileOf(b));
-        else blocksOn[L - 1].add(blockOf(L as 1 | 2, b));
+        else if (L === 3) mark(tilesOn, tileOf(b), TILE, b);
+        else mark(blocksOn[L - 1], blockOf(L as 1 | 2, b), sideOf(L as 1 | 2), b);
       }
     }
     // Built when their level was settled; built now if the cache dropped one.
     for (const L of [1, 2] as const)
-      for (const k of blocksOn[L - 1]) {
+      for (const [k, live] of blocksOn[L - 1]) {
         const mesh = meshFor(L, k, () => true);
         cache.touch(keyOf(L, k), pass);
         if (mesh) {
+          drawOnly(mesh.geometry, live);
           mesh.visible = true;
           shown.push(mesh);
         }
       }
-    for (const t of tilesOn) {
+    for (const [t, live] of tilesOn) {
       const mesh = meshFor(3, t, () => true);
       cache.touch(keyOf(3, t), pass);
       if (mesh) {
+        drawOnly(mesh.geometry, live);
         mesh.visible = true;
         shown.push(mesh);
       }

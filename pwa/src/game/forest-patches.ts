@@ -245,8 +245,10 @@ export function mergeBlock(
   const nrm = new Int8Array(n * 3);
   const col = new Uint8Array(n * 3);
   const sub = new Uint8Array(n);
+  const spans = new Int32Array(side * side + 1);
   let o = 0;
   cells.forEach((b, cellIndex) => {
+    spans[subs[cellIndex]] = o;
     const lo = w.binStart[b];
     const hi = w.binStart[b + 1];
     for (let i = lo; i < hi; i++) {
@@ -301,12 +303,14 @@ export function mergeBlock(
         o++;
       }
     }
+    for (let k = subs[cellIndex] + 1; k <= side * side; k++) spans[k] = o;
   });
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   g.setAttribute("normal", new THREE.BufferAttribute(nrm, 3, true));
   g.setAttribute("color", new THREE.BufferAttribute(col, 3, true));
   g.setAttribute("sub", new THREE.BufferAttribute(sub, 1));
+  g.userData.spans = spans;
   g.computeBoundingSphere();
   return g;
 }
@@ -353,7 +357,7 @@ export function whitened(g: THREE.BufferGeometry, paint: ShellPaint): THREE.Buff
   const c = new THREE.Color();
   for (let v = 0; v < C.count; v++) {
     const up = Math.min(1, Math.max(0, (N.getY(v) - 0.1) / 0.5));
-    c.copy(paint.needle).lerp(paint.snow, 0.25 + 0.65 * up);
+    c.copy(paint.needle).lerp(paint.snow, 0.15 + 0.5 * up);
     C.setXYZ(v, c.r, c.g, c.b);
   }
   return out;
@@ -469,7 +473,7 @@ export function buildShell(
       // flanks; the shell's own slopes are steeper than the crowns', so
       // the snow is laid on by the load first and the slope after.
       const up = Math.min(1, Math.max(0, (ny / 127 - 0.2) / 0.6));
-      c.copy(t.paint.needle).lerp(t.paint.snow, load * (0.6 + 0.35 * up));
+      c.copy(t.paint.needle).lerp(t.paint.snow, 0.3 + load * (0.3 + 0.3 * up));
       T[v] = ((h[v] - t.y) / t.height) * 9;
     }
     C[v * 3] = Math.round(Math.min(1, c.r) * 255);
@@ -499,6 +503,20 @@ export function buildShell(
       }
     }
   if (list.length === 0) return null;
+  // Grouped by cell, so a cell not drawn is left out of the index whole.
+  const order = cellOf.map((_, k) => k).sort((p, q) => cellOf[p] - cellOf[q] || p - q);
+  const spans = new Int32Array(TILE * TILE + 1).fill(-1);
+  const sorted: number[] = [];
+  const subOf: number[] = [];
+  for (const k of order) {
+    if (spans[cellOf[k]] < 0) spans[cellOf[k]] = sorted.length;
+    sorted.push(list[k * 3], list[k * 3 + 1], list[k * 3 + 2]);
+    subOf.push(cellOf[k]);
+  }
+  spans[TILE * TILE] = sorted.length;
+  for (let k = TILE * TILE - 1; k >= 0; k--) if (spans[k] < 0) spans[k] = spans[k + 1];
+  for (let k = 0; k < sorted.length; k++) list[k] = sorted[k];
+  for (let k = 0; k < subOf.length; k++) cellOf[k] = subOf[k];
   const used = list.length;
   const pos = new Float32Array(used * 3);
   const nrm = new Int8Array(used * 3);
@@ -523,8 +541,43 @@ export function buildShell(
   g.setAttribute("color", new THREE.BufferAttribute(col, 3, true));
   g.setAttribute("tier", new THREE.BufferAttribute(tier, 1));
   g.setAttribute("sub", new THREE.BufferAttribute(sub, 1));
+  g.userData.spans = spans;
   g.computeBoundingSphere();
   return g;
+}
+
+/** THE CELLS A MESH DRAWS: its index cut to the points of the cells
+ * `live` marks (by `sub`), so a block or a tile shown for one of its cells
+ * submits that cell's triangles alone — the rest would only fold away in
+ * the shader after their points were transformed. Rebuilt only when the
+ * set moves. */
+export function drawOnly(g: THREE.BufferGeometry, live: Uint8Array): void {
+  const spans = g.userData.spans as Int32Array | undefined;
+  if (!spans) return;
+  let key = "";
+  for (let k = 0; k < spans.length - 1; k++) key += live[k] ? "1" : "0";
+  if (g.userData.live === key) return;
+  g.userData.live = key;
+  const total = spans[spans.length - 1];
+  if (!key.includes("0")) {
+    g.setIndex(null);
+    g.setDrawRange(0, Infinity);
+    return;
+  }
+  let index = g.userData.index as THREE.BufferAttribute | undefined;
+  if (!index) {
+    const a = total > 65535 ? new Uint32Array(total) : new Uint16Array(total);
+    index = new THREE.BufferAttribute(a, 1);
+    index.setUsage(THREE.DynamicDrawUsage);
+    g.userData.index = index;
+  }
+  const a = index.array as Uint16Array | Uint32Array;
+  let n = 0;
+  for (let k = 0; k < spans.length - 1; k++)
+    if (live[k]) for (let v = spans[k]; v < spans[k + 1]; v++) a[n++] = v;
+  index.needsUpdate = true;
+  g.setIndex(index);
+  g.setDrawRange(0, n);
 }
 
 /** THE SHELL'S TIERS in its shader: a stripe of the boughs' dark across
@@ -542,7 +595,7 @@ export function graftShellTier(shader: THREE.WebGLProgramParametersWithUniforms)
     float fw = fwidth(vTier);
     float band = smoothstep(0.35, 0.65, abs(fract(vTier) - 0.5) * 2.0);
     float stripe = mix(band, 0.5, clamp(fw * 1.6, 0.0, 1.0));
-    diffuseColor.rgb *= mix(1.0, 0.6, stripe * step(0.05, vTier));
+    diffuseColor.rgb *= mix(1.0, 0.75, stripe * step(0.05, vTier));
   }`,
     );
 }

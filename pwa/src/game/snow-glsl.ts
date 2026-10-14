@@ -260,7 +260,6 @@ uniform vec4 uPiste;
 uniform vec4 uSnowAge;
 uniform vec4 uSnowAge2;
 uniform float uGlitter;
-uniform sampler2D uSurface;
 uniform vec3 uForestTint;
 uniform vec3 uCrustTone;
 uniform vec3 uIceTone;
@@ -374,9 +373,11 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   snowChop = uPiste.x * g.b * smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh) * (1.0 - snowGroomed);
   snowForest = g.a;
   vec2 grad = g.rg;
-  vec2 surf = texture2D(uSurface, guv).rg;
-  snowCrust = surf.r;
-  snowIce = surf.g;
+  // The crust and the ice, one signed share in the track map's alpha
+  // (\`terrain.ts\`'s \`foldSurface\`): above a half the crust, below it the ice.
+  float surf = (texture2D(uTrackDir, guv).a * 255.0 - 128.0) / 127.0;
+  snowCrust = max(surf, 0.0);
+  snowIce = max(-surf, 0.0);
   // The loose cover's step at the track's shoulders.
   {
     vec2 du = vec2(0.5 / uHeightCount.x, 0.0);

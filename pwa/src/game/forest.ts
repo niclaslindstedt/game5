@@ -884,13 +884,6 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     }
     for (const m of cache.trim(pass)) dropMesh(m);
     lod.texture.needsUpdate = true;
-    if ((globalThis as { __forestDebug?: boolean }).__forestDebug !== false) {
-      const lv = [0, 0, 0, 0];
-      for (const m of shown) lv[m.material === shellMaterial ? 3 : m.material === patchMaterials[1] ? 1 : 2]++;
-      console.error(
-        `[forest] pass ${pass} jump ${jump} anim ${animating} near ${near.length} L1 ${lv[1]} L2 ${lv[2]} tiles ${lv[3]} wanting ${wanting.length} cache ${(cache.bytes() / 1e6).toFixed(1)}MB ms ${(performance.now() - t0).toFixed(1)}`,
-      );
-    }
     nearCells = near;
   }
 

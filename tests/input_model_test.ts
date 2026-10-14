@@ -31,6 +31,11 @@ import {
   trailAnchor,
   createInputModel,
   createJumpTap,
+  createFlick,
+  flickDown,
+  flickMove,
+  FLICK_LOAD_MAX,
+  FLICK_LOAD_MIN,
   jumpTapDown,
   jumpTapUp,
   leverBrake,
@@ -411,6 +416,39 @@ describe("the jump", () => {
     // A tap followed too late is a plain touch.
     jumpTapUp(tap, 7.2);
     expect(jumpTapDown(tap, 7.2 + JUMP_TAP_GAP * 2)).toBe(false);
+  });
+
+  it("is a quick flick up of the lever's thumb, and never a thumb coming back to full speed", () => {
+    const f = createFlick();
+    // A thumb eased off and brought back up at an ordinary pace: no jump.
+    flickDown(f, 400, 0);
+    for (let i = 1; i <= 20; i++) expect(flickMove(f, 400 - i * 4, i / 60)).toBe(0);
+    // A flick, 40 px in two frames: the jump, loaded for a moment.
+    flickDown(f, 400, 1);
+    expect(flickMove(f, 380, 1 + 1 / 60)).toBe(0);
+    const load = flickMove(f, 360, 1 + 2 / 60);
+    expect(load).toBeGreaterThanOrEqual(FLICK_LOAD_MIN);
+    expect(load).toBeLessThanOrEqual(FLICK_LOAD_MAX);
+    // Still rising, the same flick does not fire twice...
+    expect(flickMove(f, 320, 1 + 3 / 60)).toBe(0);
+    // ...but the thumb back down and flicked again is a second jump.
+    expect(flickMove(f, 340, 1.5)).toBe(0);
+    expect(flickMove(f, 300, 1.5 + 1 / 60)).toBeGreaterThan(0);
+    // The harder the flick, the longer the load.
+    const soft = createFlick();
+    flickDown(soft, 400, 0);
+    flickMove(soft, 385, 0.02);
+    const a = flickMove(soft, 368, 0.04);
+    const hard = createFlick();
+    flickDown(hard, 400, 0);
+    const b = flickMove(hard, 320, 0.02);
+    expect(a).toBeGreaterThan(0);
+    expect(b).toBeGreaterThan(a);
+  });
+
+  it("holds the flick's jump off the lever, the thumb already lifted", () => {
+    const touch = { ...neutralTouch(), flick: true };
+    expect(sampleInput(createInputModel(), NO_KEYS, touch, DT, false).jump).toBe(true);
   });
 });
 

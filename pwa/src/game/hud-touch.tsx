@@ -261,6 +261,24 @@ function PadArt({ glyph }: { glyph: PadGlyph }) {
       </>
     );
   }
+  if (glyph === "bike") {
+    // THE DOWNHILL BIKE from the saddle: the front tyre running up the
+    // glass ahead of the bars, the riser bar across with its grips and the
+    // stem, all turned about the head as the bars are.
+    return (
+      <>
+        <rect x="44" y="4" width="12" height="42" rx="6" class="hud-bar-wing" />
+        {[12, 20, 28, 36].map((y) => (
+          <line key={y} x1="46.5" y1={y} x2="53.5" y2={y} class="hud-bar-line" />
+        ))}
+        <line x1="50" y1="40" x2="50" y2="51" class="hud-bar-tube" />
+        <path d="M10 55Q30 50 50 50Q70 50 90 55" class="hud-bar-handle" />
+        <rect x="6" y="49" width="14" height="10" rx="4" class="hud-bar-grip" />
+        <rect x="80" y="49" width="14" height="10" rx="4" class="hud-bar-grip" />
+        <circle cx="50" cy="51" r="4.5" class="hud-bar-grip" />
+      </>
+    );
+  }
   // THE SKIS, the pair turning about the boots with the edge asked for.
   return (
     <>

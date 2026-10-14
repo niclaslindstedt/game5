@@ -13,6 +13,13 @@
 //     idle) — framed on him and the pair, three-quarters on, so the
 //     pair's length and shape read beside him.
 //
+//   * IN SUMMER (a free ride's summer season) the same stage with its snow
+//     gone (`createBackdrop(true)`), and where the ride is begun on the
+//     DOWNHILL BIKE the gear card stands him on the bike instead — the
+//     game's own bike (`bike-view.ts`'s `buildBike`) stood at sag on its
+//     wheels, him on it in the attack stance (`skier-bike.ts`), framed
+//     side on so the bike reads whole.
+//
 // Nothing turns on a disc: the lens moves between the two framings when
 // the card changes, and a drag across the picture walks it round him. The
 // picture is framed in the part of the screen the card leaves free
@@ -23,19 +30,36 @@
 // path must not carry the render stack.
 
 import * as THREE from "three";
-import { freshSkier, isBoard, pairById, type SkiSpec, type SkierState } from "@engine";
+import {
+  BIKE,
+  bikePose,
+  freshBike,
+  freshSkier,
+  isBoard,
+  pairById,
+  placeBike,
+  type BikeWorld,
+  type SkiSpec,
+  type SkierState,
+} from "@engine";
 
 import { holdHands } from "./backdrop-hold.ts";
 import { outfitKey } from "./dress.ts";
 import { carriesPoles, DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { idlePose, idleRoom } from "./rider-idle.ts";
 import { createSkisModel, pairStyle, REST_SAG, type SkisModel } from "./skis-body.ts";
-import { createBackdrop, HAZE, SUN_DIR } from "./stage-backdrop.ts";
+import { buildBike } from "./bike-view.ts";
+import { riderPose } from "./skier-bike.ts";
+import { createBackdrop, SUN_DIR, type Backdrop } from "./stage-backdrop.ts";
 
 export { loadModels } from "./skier-models.ts";
 
 /** Which card the stage is behind. */
 export type StageShot = "rider" | "gear";
+
+/** WHAT THE STAGE STANDS HIM IN: the season, and whether the gear card is
+ * the downhill bike's (a summer ride begun on it). */
+export type StageLook = { summer: boolean; bike: boolean };
 
 /** Where the screen is free of the card, as shares of the canvas: the
  * skier is framed inside it. */
@@ -53,6 +77,22 @@ const SHOTS: Record<
   // down on the pair, so the skis' or the board's top, shape and sidecut
   // read — his head may leave the frame.
   gear: { turn: 1.3, aim: 0.18, eye: 2.6, tall: 1.35, half: 1.05, fov: 30 },
+};
+/** THE BIKE'S FRAMING on the gear card: side on and a little ahead, the
+ * lens at his chest, the whole bike and him on it fitted. */
+const BIKE_SHOT = { turn: 1.25, aim: 0.75, eye: 1.45, tall: 1.9, half: 1.45, fov: 30 };
+
+/** Flat, firm ground for the bike to stand on at sag (`placeBike`). */
+const FLAT: BikeWorld = {
+  groundAt: () => 0,
+  normalAt: (_x, _z, out) => {
+    out.x = 0;
+    out.y = 1;
+    out.z = 0;
+  },
+  surfaceAt: () => ({ grip: 1, slide: 1, roll: 0 }),
+  wind: { x: 0, z: 0 },
+  rho: 1.2,
 };
 /** How quickly the lens settles on a new framing, 1/s. */
 const SETTLE = 3.2;
@@ -78,6 +118,9 @@ export type GearStage = {
    * start again; a held stage builds what it was last asked to at once
    * and draws one frame, so its shaders are compiled before it is shown. */
   hold: (held: boolean) => void;
+  /** The season and whether the gear card is the bike's; the backdrop is
+   * rebuilt when the season changes. */
+  look: (look: StageLook) => void;
   /** The other kind's pair on the gear card — the board where skis are
    * picked, the skis where a board is — built and compiled by a held
    * stage too, so the SKIS / SNOWBOARD switch builds nothing either. */
@@ -97,9 +140,47 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(HAZE.getHex(), FOG);
-  const backdrop = createBackdrop();
+  let summer = false;
+  let backdrop: Backdrop = createBackdrop(summer);
+  const fog = new THREE.FogExp2(backdrop.haze.getHex(), FOG);
+  scene.fog = fog;
   scene.add(backdrop.group);
+  /** The backdrop for the season asked for, the old one let go. */
+  const season = (on: boolean): void => {
+    if (on === summer) return;
+    summer = on;
+    scene.remove(backdrop.group);
+    backdrop.dispose();
+    backdrop = createBackdrop(summer);
+    fog.color.copy(backdrop.haze);
+    scene.add(backdrop.group);
+  };
+
+  // THE DOWNHILL BIKE, built once it is first asked for and stood at sag
+  // on flat ground, him on it where the engine settles a rider.
+  let biking = false;
+  let bike: ReturnType<typeof buildBike> | null = null;
+  const bikeState = freshBike();
+  placeBike(bikeState, FLAT, 0, 0, 0);
+  bikeState.onIt = true;
+  // Its ends settled at sag under him, as `placeBike` stood the frame.
+  bikeState.front.comp = BIKE.frontEnd.sag * BIKE.frontEnd.travel;
+  bikeState.rear.comp = BIKE.rearEnd.sag * BIKE.rearEnd.travel;
+  const onBike = bikePose(bikeState);
+  const seat = { x: bikeState.rider.x, y: bikeState.rider.y, z: bikeState.rider.z };
+  const bikeOn = (): boolean => biking && shot === "gear";
+  const showBike = (): void => {
+    const on = bikeOn();
+    if (on && !bike) {
+      bike = buildBike(null);
+      bike.root.position.set(bikeState.x, bikeState.y, bikeState.z);
+      bike.root.traverse((o) => {
+        if (o instanceof THREE.Mesh) o.castShadow = true;
+      });
+      pivot.add(bike.root);
+    }
+    if (bike) bike.root.visible = on;
+  };
 
   // THE LIGHT: the low sun, its shadow cut close round the skier so his
   // own is sharp on the corduroy, and the sky's blue fill over the snow's
@@ -171,18 +252,26 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
    * pair of skis, which are put away), on the pair picked on the gear
    * card. */
   const drawnSpec = (s: StageShot, spec: SkiSpec): SkiSpec =>
-    s === "rider" && isBoard(spec) ? pairById(FIGURE_PAIR) : spec;
+    (s === "rider" || biking) && isBoard(spec) ? pairById(FIGURE_PAIR) : spec;
   const keyOf = (s: StageShot, spec: SkiSpec, outfit: Outfit): string =>
     `${drawnSpec(s, spec).id}:${outfitKey(outfit)}`;
 
   /** Stood off his gear or on it, the poles in his hands or not — the
    * same model either way, so the card changing never rebuilds it. */
   const dress = (s: StageShot, outfit: Outfit): void => {
+    showBike();
     if (!model || !rest) return;
-    rest.poles = s === "gear" && carriesPoles(outfit);
+    const bikeShot = biking && s === "gear";
+    rest.poles = s === "gear" && !biking && carriesPoles(outfit);
     const room = idleRoom(outfit);
+    // On a bike ride his skis and poles are put away on both cards.
+    model.setBiking?.(biking);
     model.setStood?.(
-      s === "rider" ? (ground, frame) => idlePose(clock, ground, frame, room) : null,
+      bikeShot
+        ? riderPose(onBike)
+        : s === "rider"
+          ? (ground, frame) => idlePose(clock, ground, frame, room)
+          : null,
     );
   };
 
@@ -231,7 +320,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
   /** How far back the lens must stand to fit the shot into the free part
    * of the canvas. */
   const distanceFor = (s: StageShot): number => {
-    const f = SHOTS[s];
+    const f = framing(s);
     camera.fov = f.fov;
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
@@ -242,8 +331,9 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
     return margin * Math.max(f.tall / 2 / Math.tan(vHalf), f.half / Math.tan(hHalf));
   };
 
+  const framing = (s: StageShot) => (s === "gear" && biking ? BIKE_SHOT : SHOTS[s]);
   const place = (dt: number): void => {
-    const f = SHOTS[shot];
+    const f = framing(shot);
     target.turn = f.turn;
     target.aim = f.aim;
     target.eye = f.eye;
@@ -341,10 +431,12 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       // idle sinks him into a crouch a skier at a standstill never holds.
       model.pose(
         rest,
-        { x: 0, y: rest.spec.cogHeight, z: 0, q: IDENTITY },
+        bikeOn()
+          ? { x: seat.x, y: seat.y, z: seat.z, q: IDENTITY }
+          : { x: 0, y: rest.spec.cogHeight, z: 0, q: IDENTITY },
         0,
         null,
-        shot === "rider" ? step : 0,
+        shot === "rider" && !biking ? step : 0,
       );
     }
     renderer.render(scene, camera);
@@ -414,6 +506,15 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       last = performance.now();
       raf = requestAnimationFrame(tick);
     },
+    look: (next) => {
+      season(next.summer);
+      if (next.bike !== biking) {
+        biking = next.bike;
+        // The model drawn for a board's rider differs on the bike's card.
+        if (pick) pending = { shot, spec: pick, outfit: kit };
+      }
+      dress(shot, kit);
+    },
     spare: (spec) => {
       other = spec;
     },
@@ -427,6 +528,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       canvas.removeEventListener("pointercancel", onUp);
       clear();
       dropKept();
+      bike?.dispose();
       backdrop.dispose();
       renderer.dispose();
       // The CONTEXT goes too, now rather than whenever the canvas is

@@ -501,6 +501,16 @@ export const STRINGS = {
   skisPrev: "Previous pair",
   skisNext: "Next pair",
   skisOf: (at: number, of: number): string => `${at} / ${of}`,
+  /** ...and the summer's, the DOWNHILL BIKE (`menu-bike.tsx`). */
+  bikeTitle: "BIKE",
+  bikeName: "DOWNHILL BIKE",
+  bikeRide: "RIDE",
+  bikeFacts: {
+    travel: "TRAVEL",
+    head: "HEAD",
+    wheelbase: "WHEELBASE",
+    weight: "WEIGHT",
+  },
 
   /* ── THE RIDER CARD (menu-dress.tsx, outfit.ts) ───────────────────── */
   dressTitle: "RIDER",

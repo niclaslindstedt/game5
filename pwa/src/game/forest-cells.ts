@@ -15,6 +15,7 @@ import {
   CELL,
   TILE,
   BLOCK,
+  SKETCH_BLOCK,
   blockCell,
   buildShell,
   createMeshCache,
@@ -86,7 +87,10 @@ export function createForestCells(ctx: CellsContext): ForestCells {
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
       haze,
       `tree-patch${level}`,
-      (shader) => graftCellLod(shader, lod, level, blockCell(BLOCK), BLOCK),
+      (shader) => {
+        const side = level === 1 ? BLOCK : SKETCH_BLOCK;
+        graftCellLod(shader, lod, level, blockCell(side), side);
+      },
     );
   const patchMaterials = { 1: patchMaterial(1), 2: patchMaterial(2) };
   const shellMaterial = hazeMaterial(
@@ -126,9 +130,10 @@ export function createForestCells(ctx: CellsContext): ForestCells {
   let cache = createMeshCache<THREE.Mesh>(budgetOf(ctx.options().variants));
   /** A block's merged mesh at `L` (1 or 2), or a shell tile's, by key. */
   const keyOf = (L: 1 | 2 | 3, b: number): number => (L - 1) * cols * cols + b;
-  const blocks = Math.ceil(cols / BLOCK);
-  const blockOf = (b: number): number =>
-    Math.floor(Math.floor(b / cols) / BLOCK) * blocks + Math.floor((b % cols) / BLOCK);
+  const sideOf = (L: 1 | 2): number => (L === 1 ? BLOCK : SKETCH_BLOCK);
+  const blocksOf = (L: 1 | 2): number => Math.ceil(cols / sideOf(L));
+  const blockOf = (L: 1 | 2, b: number): number =>
+    Math.floor(Math.floor(b / cols) / sideOf(L)) * blocksOf(L) + Math.floor((b % cols) / sideOf(L));
   const tiles = Math.ceil(cols / TILE);
   const tileOf = (b: number): number =>
     Math.floor(Math.floor(b / cols) / TILE) * tiles + Math.floor((b % cols) / TILE);
@@ -175,11 +180,18 @@ export function createForestCells(ctx: CellsContext): ForestCells {
       const geos = L === 1 ? shapes.midGeos : shapes.sketchGeos;
       const near = shapes.midShape;
       const share = ctx.options().farShare;
-      const bx = b % blocks;
-      const bz = Math.floor(b / blocks);
-      g = mergeBlock(cells, bx, bz, (i) => (L === 2 && thin[i] >= share ? null : geos[near[i]]));
-      ox = bx * BLOCK * CELL;
-      oz = bz * BLOCK * CELL;
+      const side = sideOf(L);
+      const bx = b % blocksOf(L);
+      const bz = Math.floor(b / blocksOf(L));
+      g = mergeBlock(
+        cells,
+        bx,
+        bz,
+        (i) => (L === 2 && thin[i] >= share ? null : geos[near[i]]),
+        side,
+      );
+      ox = bx * side * CELL;
+      oz = bz * side * CELL;
     }
     if (!g) return null;
     const mesh = new THREE.Mesh(g, L === 3 ? shellMaterial : patchMaterials[L]);
@@ -282,22 +294,26 @@ export function createForestCells(ctx: CellsContext): ForestCells {
       if (
         inView &&
         (target === 1 || target === 2) &&
-        cache.get(keyOf(target, blockOf(b))) === undefined
+        cache.get(keyOf(target, blockOf(target, b))) === undefined
       )
         wanting.push(b);
     }
     wanting.sort((p, q) => cellD[p] - cellD[q]);
     for (const b of wanting) {
       if (!room()) break;
-      meshFor(want[b] as 1 | 2, blockOf(b), () => true);
-      cache.touch(keyOf(want[b] as 1 | 2, blockOf(b)), pass);
+      const L = want[b] as 1 | 2;
+      meshFor(L, blockOf(L, b), () => true);
+      cache.touch(keyOf(L, blockOf(L, b)), pass);
     }
     for (const b of filled) {
       const was = seenAt[b] === pass - 1;
       const inView = sight[b] === 1;
       let target = want[b] as CellLevel;
       // A merged level whose mesh is not built yet is its shell meanwhile.
-      if ((target === 1 || target === 2) && cache.get(keyOf(target, blockOf(b))) === undefined)
+      if (
+        (target === 1 || target === 2) &&
+        cache.get(keyOf(target, blockOf(target, b))) === undefined
+      )
         target = 3;
       lod.target[b] = target;
       if (!inView || !was) {
@@ -316,7 +332,7 @@ export function createForestCells(ctx: CellsContext): ForestCells {
       ) {
         if (L === 0) near.push(b);
         else if (L === 3) tilesOn.add(tileOf(b));
-        else blocksOn[L - 1].add(blockOf(b));
+        else blocksOn[L - 1].add(blockOf(L as 1 | 2, b));
       }
     }
     // Built when their level was settled; built now if the cache dropped one.

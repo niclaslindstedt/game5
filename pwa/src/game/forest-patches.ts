@@ -43,8 +43,11 @@ export const CELL = 64;
 /** A shell tile's side, in cells. */
 export const TILE = 8;
 
-/** A merged block's side, in cells: one mesh, one draw, for its cells' trees. */
+/** A merged block's side, in cells: one mesh, one draw, for its cells'
+ * trees — the mid cut's, and the sketch's twice as wide, since its trees
+ * are smaller and its blocks farther and more of them in the frame. */
 export const BLOCK = 2;
+export const SKETCH_BLOCK = 4;
 
 /** The shell's grid spacing, m. */
 export const SHELL_STEP = 4;
@@ -61,7 +64,7 @@ export type CellEdges = { near: number; mid: number; sketch: number; view: numbe
  * edge, m: a tree past it stands under a dozen pixels tall at a 1280-wide
  * picture, and the shell's lumps read as well as the sketch did. */
 export function shellFrom(mid: number): number {
-  return Math.max(mid * 1.6, mid + 120);
+  return Math.max(mid * 2.5, mid + 450);
 }
 
 /** The level a cell `d` m off belongs at. */
@@ -205,7 +208,7 @@ export type CellTrees = {
 const nm = new THREE.Matrix3();
 const m4 = new THREE.Matrix4();
 
-/** Every tree of block (`bx`, `bz`) — `BLOCK` cells a side — merged into
+/** Every tree of block (`bx`, `bz`) — `side` cells a side — merged into
  * one mesh, its points relative to the block's corner (the mesh stands
  * there) and each tagged with its cell in the block (`sub`), which is how
  * its shader knows the level of each tree's own cell; `shapeOf(i)` is tree
@@ -216,16 +219,17 @@ export function mergeBlock(
   bx: number,
   bz: number,
   shapeOf: (i: number) => THREE.BufferGeometry | null,
+  side = BLOCK,
 ): THREE.BufferGeometry | null {
   const cells: number[] = [];
   const subs: number[] = [];
-  for (let r = 0; r < BLOCK; r++)
-    for (let c = 0; c < BLOCK; c++) {
-      const cc = bx * BLOCK + c;
-      const rr = bz * BLOCK + r;
+  for (let r = 0; r < side; r++)
+    for (let c = 0; c < side; c++) {
+      const cc = bx * side + c;
+      const rr = bz * side + r;
       if (cc >= w.cols || rr >= w.cols) continue;
       cells.push(rr * w.cols + cc);
-      subs.push(r * BLOCK + c);
+      subs.push(r * side + c);
     }
   let n = 0;
   for (const b of cells)
@@ -235,8 +239,8 @@ export function mergeBlock(
       if (g) n += g.getAttribute("position").count;
     }
   if (n === 0) return null;
-  const ox = bx * BLOCK * CELL;
-  const oz = bz * BLOCK * CELL;
+  const ox = bx * side * CELL;
+  const oz = bz * side * CELL;
   const pos = new Float32Array(n * 3);
   const nrm = new Int8Array(n * 3);
   const col = new Uint8Array(n * 3);
@@ -315,9 +319,15 @@ export type ShellPaint = { needle: THREE.Color; snow: THREE.Color };
 export function shellPaintOf(g: THREE.BufferGeometry): ShellPaint {
   const N = g.getAttribute("normal").array as Float32Array;
   const C = g.getAttribute("color").array as Float32Array;
+  const P = g.getAttribute("position").array as Float32Array;
+  g.computeBoundingBox();
+  const { min, max } = g.boundingBox!;
+  // The crown only: the trunk under it is not what a far eye sees.
+  const above = min.y + (max.y - min.y) * 0.3;
   const needle = [0, 0, 0, 0];
   const snow = [0, 0, 0, 0];
   for (let v = 0; v < N.length / 3; v++) {
+    if (P[v * 3 + 1] < above) continue;
     const ny = N[v * 3 + 1];
     const into = ny > 0.55 ? snow : ny < 0.2 ? needle : null;
     if (!into) continue;
@@ -382,7 +392,7 @@ export function buildShell(
   trees.forEach((t, k) => {
     // A crown reads a touch wider at the shell's distance than its
     // collision radius, so a stand closes over into a roof.
-    const R = Math.max(SHELL_STEP * 0.9, t.crown * 1.25);
+    const R = Math.max(SHELL_STEP * 0.6, t.crown);
     const top = t.y + t.height - 0.3;
     const base = t.y + t.height * (t.spire ? 0.12 : 0.35);
     const i0 = Math.max(0, Math.ceil((t.x - R - x0) / SHELL_STEP));
@@ -392,11 +402,15 @@ export function buildShell(
     for (let j = j0; j <= j1; j++)
       for (let i = i0; i <= i1; i++) {
         const d = Math.hypot(x0 + i * SHELL_STEP - t.x, z0 + j * SHELL_STEP - t.z) / R;
-        if (d >= 1) continue;
+        // The grid point nearest the trunk always takes its top: a crown
+        // narrower than the grid would otherwise fall between the points.
+        const nearest =
+          i === Math.round((t.x - x0) / SHELL_STEP) && j === Math.round((t.z - z0) / SHELL_STEP);
+        if (d >= 1 && !nearest) continue;
         // A crown's top held over its nearest grid point (a spire between
         // four points would otherwise be read at half its height), falling
         // to its foot round it: steeply for a spire, as a dome for a head.
-        const s = Math.max(0, (d - 0.45) / 0.55);
+        const s = nearest ? 0 : Math.max(0, (d - 0.45) / 0.55);
         const y = top - (top - base) * (t.spire ? s * s : s * s * s);
         const v = j * row + i;
         if (y > h[v]) {
@@ -434,9 +448,12 @@ export function buildShell(
     } else {
       const t = trees[k];
       // How loaded this crown is: most carry snow, some are shaken bare.
-      const load = 0.35 + 0.65 * hash(t.x * 0.71 + 5, t.z * 1.3);
-      const up = Math.min(1, Math.max(0, (ny / 127 - 0.55) / 0.35));
-      c.copy(t.paint.needle).lerp(t.paint.snow, up * load * 0.85);
+      const load = 0.5 + 0.5 * hash(t.x * 0.71 + 5, t.z * 1.3);
+      // A loaded crown reads white from afar on all but its steepest
+      // flanks; the shell's own slopes are steeper than the crowns', so
+      // the snow is laid on by the load first and the slope after.
+      const up = Math.min(1, Math.max(0, (ny / 127 - 0.2) / 0.6));
+      c.copy(t.paint.needle).lerp(t.paint.snow, load * (0.6 + 0.35 * up));
       T[v] = ((h[v] - t.y) / t.height) * 9;
     }
     C[v * 3] = Math.round(Math.min(1, c.r) * 255);

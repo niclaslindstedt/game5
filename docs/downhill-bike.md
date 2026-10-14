@@ -385,3 +385,25 @@ Every chair and gondola on seeds 38 and 7 now boards, rolled in at 1.5 m/s from 
 - **The thrown body slides on grass** as on the groomer (μ 0.45), near a body's on grass and under its on dirt (0.6–0.8).
 - **The bot** still falls in rock gardens: a lowside on a black's garden on its own line.
 - **The model.** The code's bike is a placeholder until the modelled bike and rider are built.
+
+## Hurt by his own bike
+
+A rider thrown off the bike meets the bike, and it hurts him (`engine/game/bike-tangle.ts`, its numbers and their research in `defs/bike-tangle.ts`'s `BIKE_TANGLE`, measured by `make bike-tangle` over `tests/support/bike-tangles.ts`, held by `tests/bike_tangle_test.ts`).
+
+**What the research says.** The commonest bad fall in the sport is forward over the bars, downhill, and it brings most of the serious injuries. In trauma series of bicycle injuries a handlebar blow is about one injury in eleven, yet about ten times as likely to be severe as any other: a solid organ is hurt in about a third of them against a few per cent of the rest, mostly out of a simple fall, because the bar turns square across as the front wheel stops and its end goes into the belly. The chainring's teeth and the pedals' pins on the calf and the shin are the commonest small wounds. A foot or a hand caught in the spokes is a real injury, crushed or degloved at worst, but the series are nearly all children riding as passengers; a rider's own wheel takes a limb rarely, and only while it still turns. A limb torn off by a bicycle is a case report, not a rate.
+
+**What the game does.** For the first seconds after a throw (`window`) the bike's wheels, chainring, bars, stem and tubes are solids the ragdoll's points meet. A point that meets one is pushed out, shoves the bike (half the blow's momentum; the rest goes into the ground under it) and takes a blow stopped over that part's give (the wheel gives most; a bar end spears with next to nothing; the ring's teeth cut harder than a tube bruises). A touch can CATCH the limb (a turning wheel, the ring, the bars, the frame — a few per cent each, dealt off a hash, never the stream). A caught limb is held for a moment, towing the bike, and is snatched to the part's speed over a couple of centimetres. That yank is a blow on the joint a tear reads, so a catch at speed breaks the limb. At the throw the crash also deals what a real one does: over the bars, a bar end into the belly or the stem into the groin, a foot kept on its pedal, or a hand or foot through the front wheel's spokes. Laid down, the chainring into the shin of the leg under it, the foot trapped under the frame, or the foot into the rear wheel's spokes.
+
+**Torn off — the game's liberty.** The spokes take a limb at the whole crash speed. Past its ladder (`GORE.sever`) a limb then tears off: a forearm from about 45 km/h, a shin from about 50. That happens only on a run with INJURIES on. With INJURIES off there is no gore state, so a catch breaks and never tears.
+
+| `make bike-tangle` (24 crashes a row) | struck | hurt | caught | dealt | torn |
+| --- | --- | --- | --- | --- | --- |
+| over the bars, 20 km/h | 100% | 17% | 0% | 0% | 0% |
+| laid down, 20 km/h | 96% | 25% | 4% | 38% | 0% |
+| over the bars, 35 km/h | 100% | 4% | 13% | 42% | 0% |
+| laid down, 35 km/h | 100% | 50% | 17% | 21% | 0% |
+| over the bars, 50 km/h | 96% | 54% | 33% | 42% | 0% |
+| over the bars, 65 km/h | 79% | 71% | 29% | 46% | 8% |
+| laid down, 65 km/h | 100% | 83% | 4% | 0% | 0% |
+
+(The two faster ledge rows mostly crash as a lowside, laid down against the ledge.) The news says each: CAUGHT IN THE SPOKES!, CAUGHT IN THE CHAINRING!, BAR END TO THE GUT, STEM TO THE GROIN, CHAINRING TO THE SHIN.

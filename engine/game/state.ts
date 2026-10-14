@@ -421,7 +421,7 @@ export type BodyState = {
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */
 export type ImpactSource =
-  "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car" | "cable";
+  "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car" | "cable" | "bike";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether

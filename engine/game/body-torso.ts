@@ -6,7 +6,7 @@
 import { clamp, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import type { Facing } from "./defs/anatomy.ts";
-import { RAGDOLL } from "./ragdoll.ts";
+import { RAGDOLL } from "./ragdoll-points.ts";
 
 /** The body's frame off the ragdoll: its right and the way out of its
  * chest, unit vectors. */

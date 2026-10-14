@@ -9,7 +9,7 @@
 // ITSELF (`bike.ts`), spread into `STRINGS` as `BIKE_STRINGS` as the
 // snowmobile's are: the START row's stop, the news a ride earns, its HUD.
 
-import type { BikeCrash, BikeLanding, TrailGrade } from "@engine";
+import type { BikeCrash, BikeLanding, BikePart, TrailGrade } from "@engine";
 
 export const BIKE_TRAIL_NAMES: Readonly<Record<TrailGrade, readonly string[]>> = {
   green: ["EASY FLOW", "MEADOW LINE", "FIRST TURNS", "LAZY BERMS", "VALLEY WAY", "SUNNY SIDE"],
@@ -38,6 +38,26 @@ const CRASHES: Record<BikeCrash, string> = {
   down: "OFF THE BIKE!",
 };
 
+/** A limb caught in the bike, by the part that caught it. */
+const SNAGS: Record<BikePart, string> = {
+  front: "CAUGHT IN THE SPOKES!",
+  rear: "CAUGHT IN THE SPOKES!",
+  ring: "CAUGHT IN THE CHAINRING!",
+  bars: "TANGLED IN THE BARS!",
+  stem: "TANGLED IN THE BARS!",
+  frame: "TANGLED IN THE FRAME!",
+};
+
+/** Met by the bike as he came off it. */
+const STRUCK: Record<BikePart, string> = {
+  front: "INTO HIS OWN WHEEL",
+  rear: "INTO HIS OWN WHEEL",
+  ring: "CHAINRING TO THE SHIN",
+  bars: "BAR END TO THE GUT",
+  stem: "STEM TO THE GROIN",
+  frame: "INTO HIS OWN FRAME",
+};
+
 export const BIKE_STRINGS = {
   /** The START row's summer stop: the ride begun on the downhill bike. */
   startRunBike: "BIKE",
@@ -53,6 +73,9 @@ export const BIKE_STRINGS = {
     landing === "clean" ? `${LANDINGS.clean} ${air.toFixed(1)} S` : LANDINGS[landing],
   /** How he came off it. */
   newsBikeCrash: (how: BikeCrash | undefined): string => CRASHES[how ?? "down"],
+  /** A limb caught in his own bike, and the bike met as he came off it. */
+  newsBikeSnag: (part: BikePart | undefined): string => SNAGS[part ?? "frame"],
+  newsBikeStruck: (part: BikePart | undefined): string => STRUCK[part ?? "frame"],
 
   /* ── THE HUD (hud-bike.tsx) ────────────────────────────────────────── */
   /** How far is left of the trail he rides. */

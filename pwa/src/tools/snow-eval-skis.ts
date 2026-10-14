@@ -214,6 +214,9 @@ export async function underSheet(
           holdInput(state, scene.kmh, spot.heading, scene.move, state.t - t0);
         let k = 0;
         let last: UnderPoint[] = [];
+        // The sheet's frame: the first moment measured from the second-last
+        // on (a moment in the air is skipped, and the frame with it).
+        let shot = false;
         while (k < MOMENTS.length && state.t - t0 < 10) {
           step(state, input());
           step(state, input());
@@ -228,7 +231,8 @@ export async function underSheet(
             got.get(res)!.push(...pts);
             if (res === "100") last = pts;
           }
-          if (shoot && k === MOMENTS.length - 2) {
+          if (shoot && !shot && k >= MOMENTS.length - 2) {
+            shot = true;
             renderer.draw(state, 0, 0, true);
             const x0 = labelW + TRAIL_LEVELS.indexOf(trails) * cellW;
             ctx.drawImage(stage, x0, y0, cellW, cellH);

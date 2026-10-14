@@ -202,6 +202,7 @@ export function createDeformField(look: DeformLook): DeformField {
   let sz0 = 0;
   let sz1 = -1;
   let lo = { i: 0, j: 0 }; // the world cell at the ring's corner
+  let first = true;
   let kilos = 0;
   // Where a cell lies off a tool, written in place (no allocation a cell).
   const off = { d: 0, sd: 0 };
@@ -314,15 +315,41 @@ export function createDeformField(look: DeformLook): DeformField {
       if (cx === centre.x && cz === centre.z) return false;
       centre.x = cx;
       centre.z = cz;
+      const was = lo;
       lo = { i: Math.round(cx / cell) - span / 2 - 4, j: Math.round(cz / cell) - span / 2 - 4 };
-      for (let b = 0; b < size; b++) {
-        for (let a = 0; a < size; a++) {
-          const i = lo.i + mod(a - lo.i, size);
-          const j = lo.j + mod(b - lo.j, size);
-          const k = b * size + a;
+      const di = lo.i - was.i;
+      const dj = lo.j - was.j;
+      // Clear only the columns and rows the window took over (the ring's
+      // other cells still hold the world cells they held): at speed the
+      // window moves every frame or two, and the whole ring is ten times
+      // the work.
+      if (!first && Math.abs(di) < size && Math.abs(dj) < size) {
+        const claim = (k: number, i: number, j: number) => {
           if (ownI[k] !== i || ownJ[k] !== j) own(k, i, j);
+        };
+        const ci0 = di > 0 ? was.i + size : lo.i;
+        const ci1 = di > 0 ? lo.i + size : was.i;
+        for (let i = ci0; i < ci1; i++) {
+          const a = mod(i, size);
+          for (let b = 0; b < size; b++) claim(b * size + a, i, lo.j + mod(b - lo.j, size));
+        }
+        const cj0 = dj > 0 ? was.j + size : lo.j;
+        const cj1 = dj > 0 ? lo.j + size : was.j;
+        for (let j = cj0; j < cj1; j++) {
+          const b = mod(j, size);
+          for (let a = 0; a < size; a++) claim(b * size + a, lo.i + mod(a - lo.i, size), j);
+        }
+      } else {
+        for (let b = 0; b < size; b++) {
+          for (let a = 0; a < size; a++) {
+            const i = lo.i + mod(a - lo.i, size);
+            const j = lo.j + mod(b - lo.j, size);
+            const k = b * size + a;
+            if (ownI[k] !== i || ownJ[k] !== j) own(k, i, j);
+          }
         }
       }
+      first = false;
       dirty.all = true;
       return true;
     },
@@ -507,7 +534,13 @@ export function createDeformField(look: DeformLook): DeformField {
       const i1 = rx1 + 3;
       const j0 = rz0 - 3;
       const j1 = rz1 + 3;
-      let moved = 0;
+      // The box of the cells still moving more than `still` a pass: only
+      // they settle on next frame, so the box does not grow down the whole
+      // track behind a skier while one wall far back still creeps.
+      let mi0 = Infinity;
+      let mi1 = -Infinity;
+      let mj0 = Infinity;
+      let mj1 = -Infinity;
       rx0 = 0;
       rx1 = -1;
       rz0 = 0;
@@ -543,7 +576,12 @@ export function createDeformField(look: DeformLook): DeformField {
               const over = Math.abs(diff) - tan * run;
               if (over <= 0) continue;
               const m = over * 0.5 * slide;
-              moved = Math.max(moved, m);
+              if (m > DEFORM.still && pass === passes - 1) {
+                mi0 = Math.min(mi0, i);
+                mi1 = Math.max(mi1, i + 1);
+                mj0 = Math.min(mj0, j - 1);
+                mj1 = Math.max(mj1, j + 1);
+              }
               h[hi] -= m;
               h[low] += m;
               touched[low] = 1;
@@ -559,11 +597,11 @@ export function createDeformField(look: DeformLook): DeformField {
         for (let i = i0; i <= i1; i++) {
           if (insideWindow(i, j)) markDirty(mod(i, size), mod(j, size));
         }
-      if (moved > DEFORM.still) {
-        sx0 = i0 + 3;
-        sx1 = i1 - 3;
-        sz0 = j0 + 3;
-        sz1 = j1 - 3;
+      if (mi1 >= mi0) {
+        sx0 = mi0;
+        sx1 = mi1;
+        sz0 = mj0;
+        sz1 = mj1;
       } else {
         sx0 = 0;
         sx1 = -1;

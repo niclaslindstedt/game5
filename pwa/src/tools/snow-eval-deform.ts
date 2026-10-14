@@ -89,18 +89,19 @@ export async function deformPerf(lab: {
         renderer.draw(state, 0, 1 / 60, present);
       };
       while (state.t - t0 < 1.6) frame(false);
-      // Warm the shaders, then time.
-      for (let w = 0; w < 2; w++) frame(true);
-      let ms = 0;
+      // Warm the shaders (a first frame of a new variant compiles), then
+      // time: the median frame, so a stall left over is not the price.
+      for (let w = 0; w < 3; w++) frame(true);
+      const times: number[] = [];
       let trailMs = 0;
-      const n = 4;
+      const n = 5;
       let calls = 0;
       let triangles = 0;
       for (let f = 0; f < n; f++) {
         const a = performance.now();
         frame(true);
         (stage.getContext("webgl2") as WebGL2RenderingContext | null)?.finish();
-        ms += performance.now() - a;
+        times.push(performance.now() - a);
         trailMs += renderer.cost().trailMs;
         calls = Math.max(calls, renderer.info().calls);
         triangles = Math.max(triangles, renderer.info().triangles);
@@ -111,7 +112,7 @@ export async function deformPerf(lab: {
       rows.push({
         scene: scene.id,
         trails,
-        frameMs: ms / n,
+        frameMs: times.sort((x, y) => x - y)[n >> 1],
         calls,
         triangles,
         patch,

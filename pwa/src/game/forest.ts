@@ -346,8 +346,9 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     full: Band;
     mid: Band;
     casters: { full: Casters; sketch: Casters };
-    /** Each near shape's mid cut, for the merged cells. */
+    /** Each near shape's mid cut and its own sketch, for the merged cells. */
     midGeos: THREE.BufferGeometry[];
+    sketchGeos: THREE.BufferGeometry[];
     geometries: THREE.BufferGeometry[];
   };
 
@@ -405,6 +406,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     const shape = (v: TreeVariant, cut: TreeLod) => buildTree(v, paint, cut);
     const full = nearRows.map((v) => shape(v, 0));
     const mid = nearRows.map((v) => shape(v, 1));
+    const sketch = nearRows.map((v) => shape(v, 2));
     const leads = farRows.map((v) => shape(v, 1));
     const insetSketch = farRows.map((v) => inset(shape(v, 2), SKETCH_INSET));
     const makeBand = (geos: THREE.BufferGeometry[], shape: Uint8Array, room: number[]): Band => {
@@ -472,7 +474,8 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         sketch: makeCasters(insetSketch, farShape, farCount),
       },
       midGeos: mid,
-      geometries: [...full, ...mid, ...leads, ...insetSketch],
+      sketchGeos: sketch,
+      geometries: [...full, ...mid, ...sketch, ...leads, ...insetSketch],
     };
   }
 
@@ -621,6 +624,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     options: () => options,
     shapes: () => ({
       midGeos: shapes.midGeos,
+      sketchGeos: shapes.sketchGeos,
       midShape: shapes.mid.shape,
     }),
   });

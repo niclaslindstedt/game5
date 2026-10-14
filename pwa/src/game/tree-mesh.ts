@@ -65,6 +65,30 @@ export function graftGirth(shader: { vertexShader: string }): void {
     .replace("#include <begin_vertex>", `#include <begin_vertex>\n${GIRTH_VERTEX}`);
 }
 
+/** THE WIND IN THE CROWNS, in the vertex shader: every point carried
+ * downwind by its baked `flex` (`tree-shapes.ts`), swaying on a slow beat
+ * of each tree's own phase, in the tree's own unit frame — a few per cent
+ * of its crown, as a loaded spruce gives in a breeze. `uSway` is the wind
+ * across (x, z, in units of the crown a metre a second) and the clock. */
+export const SWAY_VERTEX_PARS = "attribute float flex;\nuniform vec3 uSway;";
+export const SWAY_VERTEX = `
+  {
+    float ph = dot(instanceMatrix[3].xz, vec2(0.13, 0.17));
+    float beat = 0.65 + 0.35 * sin(uSway.z * 1.3 + ph) + 0.12 * sin(uSway.z * 3.1 + ph * 2.0);
+    transformed.xz += uSway.xy * flex * beat;
+  }`;
+
+/** Graft the sway into an instanced tree material, its uniform shared. */
+export function graftSway(
+  shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> },
+  sway: THREE.IUniform<THREE.Vector3>,
+): void {
+  shader.uniforms.uSway = sway;
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", `#include <common>\n${SWAY_VERTEX_PARS}`)
+    .replace("#include <begin_vertex>", `#include <begin_vertex>\n${SWAY_VERTEX}`);
+}
+
 /** A triangle's own normal, unnormalised. */
 export function faceNormal(a: V3, b: V3, c: V3): V3 {
   const e = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];

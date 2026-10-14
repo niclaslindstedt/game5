@@ -41,7 +41,7 @@
 // none of them is switched on by riding closer to its tree.
 
 import * as THREE from "three";
-import { felledTrees, regionOf, type Level, type Vec3 } from "@engine";
+import { felledTrees, regionOf, windAt, type Level, type Vec3, type Wind } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth } from "./terrain-shade.ts";
@@ -49,7 +49,7 @@ import type { ForestLook, TreeCasters } from "./settings-video.ts";
 import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
 import { createRocks } from "./rocks.ts";
-import { TRUNK_REF, graftGirth } from "./tree-mesh.ts";
+import { TRUNK_REF, graftGirth, graftSway } from "./tree-mesh.ts";
 import { summerShown } from "./season-look.ts";
 import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
@@ -284,11 +284,16 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
 
   // EVERY CELL'S LEVEL (`forest-patches.ts`), read by every tree material.
   const lod = createCellLod(cols);
+  // THE WIND IN THE NEAR CROWNS (`tree-mesh.ts`'s sway), the map's own wind
+  // on the picture's clock.
+  const sway = { value: new THREE.Vector3() };
+  const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
     "tree",
     (shader) => {
+      graftSway(shader, sway);
       graftGirth(shader);
       graftFade(shader);
       graftCellLod(shader, lod, 0, "floor(instanceMatrix[3].xz / uCellGrid.y)");
@@ -301,6 +306,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   casterDepth.customProgramCacheKey = (): string => "terrain-shade-depth-girth";
   casterDepth.onBeforeCompile = (shader, renderer) => {
     shadeCompile(shader, renderer);
+    graftSway(shader, sway);
     graftGirth(shader);
   };
   // THE CASTERS are drawn into the shadow map and nowhere else. Three picks
@@ -642,6 +648,12 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
     group,
     update(camera, shadow) {
       rocks.update(camera.position, aloft.view);
+      const clock = performance.now() / 1000;
+      windAt(level, clock, wind);
+      // A few hundredths of a crown a metre a second, never past a tenth.
+      const give =
+        Math.min(0.1, 0.006 * Math.hypot(wind.x, wind.z)) / (Math.hypot(wind.x, wind.z) || 1);
+      sway.value.set(wind.x * give, wind.z * give, clock);
       // The casters, when the circle has moved, turned with the sun or
       // changed size — a metre, or a few hundredths of a degree.
       if (

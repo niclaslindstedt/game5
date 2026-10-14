@@ -275,6 +275,11 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
     return { ...t, radius };
   });
   const sides = lod === 0 ? Math.min(7, form.sides) : lod === 1 ? 5 : 4;
+  // LOPSIDED, as a grown tree is: its crown fuller toward the light it
+  // stood in and thinner toward a neighbour — a side and a share dealt off
+  // the variant's hash, so no two of a kind turn the same face.
+  const lopAt = jitter(seed * 13 + 101) * Math.PI * 2;
+  const lop = 0.06 + 0.14 * jitter(seed * 13 + 103);
   tiers.forEach((t, ti) => {
     if (lod === 0 && form.missing.includes(Math.round((ti * form.tiers) / count))) return;
     const twist = ti * 0.9 + seed;
@@ -290,7 +295,8 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
       // come and go.
       const lee = 1 + form.flag * Math.cos(a) * 0.9 - form.flag * 0.25;
       const ragged = 1 + form.rough * (jitter(k + 13) - 0.5) * 0.9;
-      const r = t.radius * jag * (0.9 + jitter(k + 5) * 0.2) * Math.max(0.15, lee) * ragged;
+      const side = 1 + lop * Math.cos(a - lopAt);
+      const r = t.radius * jag * (0.9 + jitter(k + 5) * 0.2) * Math.max(0.15, lee) * ragged * side;
       const droop = (t.top - t.bottom) * (0.12 + 0.1 * jitter(k + 7)) * jag * form.droop;
       rim.push([ox + Math.cos(a) * r, t.bottom - droop, Math.sin(a) * r]);
       const mr = r * 0.55;
@@ -780,14 +786,37 @@ export function buildTree(
 ): THREE.BufferGeometry {
   const seed = v.index * 3 + 1;
   const p = kindPaint(paint, v.kind);
-  switch (v.shape.form) {
-    case "conifer":
-      return conifer(v, v.shape, p, lod, seed);
-    case "pine":
-      return pine(v, v.shape, p, lod, seed);
-    case "larch":
-      return larch(v, v.shape, p, lod, seed);
-    case "birch":
-      return broadleaf(v, v.shape, p, lod, seed);
+  const g =
+    v.shape.form === "conifer"
+      ? conifer(v, v.shape, p, lod, seed)
+      : v.shape.form === "pine"
+        ? pine(v, v.shape, p, lod, seed)
+        : v.shape.form === "larch"
+          ? larch(v, v.shape, p, lod, seed)
+          : broadleaf(v, v.shape, p, lod, seed);
+  return withFlex(g);
+}
+
+/** THE WIND'S PIVOTS, baked: each point's `flex` — how far the wind may
+ * carry it — the square of how far up the tree it stands, and more out at
+ * a bough's tip than in by the trunk; the trunk's own rings barely move.
+ * The near woods' shader swings the crown by it. */
+function withFlex(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const P = g.getAttribute("position");
+  const stem = g.getAttribute("stem");
+  let top = 1e-6;
+  let reach = 1e-6;
+  for (let i = 0; i < P.count; i++) {
+    top = Math.max(top, P.getY(i));
+    reach = Math.max(reach, Math.hypot(P.getX(i), P.getZ(i)));
   }
+  const flex = new Float32Array(P.count);
+  for (let i = 0; i < P.count; i++) {
+    const up = Math.max(0, P.getY(i) / top);
+    const out = Math.min(1, Math.hypot(P.getX(i), P.getZ(i)) / reach);
+    const wood = stem && stem.getZ(i) > 0 ? 0.3 : 1;
+    flex[i] = up * up * (0.45 + 0.55 * out) * wood;
+  }
+  g.setAttribute("flex", new THREE.BufferAttribute(flex, 1));
+  return g;
 }

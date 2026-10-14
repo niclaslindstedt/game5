@@ -100,6 +100,11 @@ const args = parseArgs(
       default: "",
       help: "the angles --trace prints (ids off the charts, e.g. head_yaw,wrist_l); the scene's worst when left out",
     },
+    snaps: {
+      kind: "flag",
+      default: false,
+      help: "under each row, every angle snap (its angle and times) and the joints that snap (how many frames each, and when the first)",
+    },
     joints: {
       kind: "string",
       default: "",
@@ -199,6 +204,7 @@ for (const fam of families) {
     const v = verdictOf(m);
     const clean = cleanOf(v, m);
     if (args.trace) traceScene(scene, m, v, samples);
+    if (args.snaps) listSnaps(m);
     const row = { family: fam.id, id: scene.id, title: scene.title, ...v, clean };
     if (!args["no-sheets"]) {
       const png = drawSheet({
@@ -316,4 +322,21 @@ function traceScene(scene, m, v, samples) {
     }
     console.log(`  ${cells.join(" ")}`);
   });
+}
+
+/** `--snaps`: the angle snaps of a scene grouped by angle, and each joint
+ * that snaps with its count — where to point `--trace` next. */
+function listSnaps(m) {
+  const by = {};
+  for (const s of m.angleSnaps) (by[s.id] ??= []).push(s);
+  for (const [id, list] of Object.entries(by)) {
+    const at = list.map((s) => `${s.t.toFixed(2)}(${Math.round(s.a / 1000)}k)`).sort();
+    console.log(`    ∠ ${id.padEnd(12)} ${at.join(" ")}`);
+  }
+  for (const [n, s] of Object.entries(m.perJoint)) {
+    const ks = s.jolt.map((x, k) => (x !== null && x > m.most ? k : -1)).filter((k) => k >= 0);
+    if (!ks.length) continue;
+    const at = ks.slice(0, 8).map((k) => `${m.t[k].toFixed(2)}(${Math.round(s.jolt[k])})`);
+    console.log(`    • ${n.padEnd(12)} ${String(ks.length).padStart(3)}  ${at.join(" ")}`);
+  }
 }

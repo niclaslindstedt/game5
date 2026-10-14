@@ -596,6 +596,10 @@ export function freeGameOptions(
     // (The afterski asks for the chair too: a map with no lodge — which
     // the card never offers it on — comes onto the mountain by lift.)
     byLift: spot === null && !vehicle,
+    // ON A CHAIR HE SITS until he moves (`chair-hands.ts`): forward with the
+    // bar up takes him off — stood up over the unload, thrown off anywhere
+    // else — and untouched he rides round and back down.
+    chairHands: true,
     // THE GRIMBEAR, now and then.
     grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.

@@ -64,6 +64,30 @@ export function heldShare(share: number, held: (k: number) => boolean): number {
   return lo;
 }
 
+/** THE FIRST OF `share` (0..share) at which `held` stops saying every leg
+ * is inside its span, walked out from nothing in `steps` and bisected in
+ * the last: a tweak that rolls the deck through an arc can bring a foot back
+ * inside its span further on, and a bisection over the whole of it found
+ * that far side one frame and the near side the next. */
+export function heldFirst(share: number, held: (k: number) => boolean, steps = 12): number {
+  let lo = 0;
+  for (let i = 1; i <= steps; i++) {
+    const k = (share * i) / steps;
+    if (held(k)) {
+      lo = k;
+      continue;
+    }
+    let hi = k;
+    for (let j = 0; j < 10; j++) {
+      const m = (lo + hi) / 2;
+      if (held(m)) lo = m;
+      else hi = m;
+    }
+    return lo;
+  }
+  return share;
+}
+
 /** THE MOST OF `shift` a board may be moved by (`heldShare` along it). */
 export function heldShift(shift: V3, held: (s: V3) => boolean): V3 {
   return scale(
@@ -81,12 +105,59 @@ export function inSpan(hips: readonly V3[], cuffs: readonly V3[]): boolean {
   return true;
 }
 
+const DOWN: V3 = { x: 0, y: -1, z: 0 };
+
 /** An arm from `shoulder` toward `target`: the hand eased inside the arm's
  * reach, the elbow bent toward `pole`. */
-export function arm(shoulder: V3, target: V3, pole: V3): { elbow: V3; hand: V3 } {
+export function arm(
+  shoulder: V3,
+  target: V3,
+  pole: V3,
+  fallback: V3 = DOWN,
+): { elbow: V3; hand: V3 } {
   const reach = (BODY.upperArm + BODY.forearm) * 0.96;
   const d = sub(target, shoulder);
   const l = len(d);
   const hand = l > reach ? add(shoulder, scale(d, reach / l)) : target;
-  return { elbow: solveLimb(shoulder, hand, BODY.upperArm, BODY.forearm, pole), hand };
+  return {
+    elbow: solveLimb(
+      shoulder,
+      hand,
+      BODY.upperArm,
+      BODY.forearm,
+      steady(sub(hand, shoulder), pole, fallback),
+    ),
+    hand,
+  };
+}
+
+/** HOW FAR A HAND FALLS SHORT of `target` from `shoulder`, as the way the
+ * board must come to it, m: nothing well inside the arm's reach, then
+ * gathering softly over the last `REACH_EASE` m before the hand is held
+ * short (`arm`'s clamp) and one for one past it — so the knees start drawing
+ * the board up a little before the arm runs out, never all at once. */
+export const REACH_EASE = 0.02;
+export function shortOf(shoulder: V3, target: V3): V3 {
+  const d = sub(target, shoulder);
+  const l = len(d);
+  const m = REACH_EASE;
+  const e = l - ((BODY.upperArm + BODY.forearm) * 0.96 - m);
+  if (e <= 0 || l < 1e-9) return V0();
+  const s = e < 2 * m ? (e * e) / (4 * m) : e - m;
+  return scale(d, s / l);
+}
+
+/** An elbow's pole kept off the arm's own line: the further `pole` lies
+ * along the shoulder–hand line `line`, the more of `fallback` (a dropped
+ * elbow, or the arm's own pole when a grab's turns it) it is given — a pole along the line names no side, and an arm swung
+ * through it (a stalefish's hand reaching round behind the rear leg) had
+ * its elbow thrown round in a frame. */
+export function steady(line: V3, pole: V3, fallback: V3 = DOWN): V3 {
+  const l = len(line);
+  if (l < 1e-6) return pole;
+  const u = scale(line, 1 / l);
+  const p = sub(pole, scale(u, dot(pole, u)));
+  const q = sub(fallback, scale(u, dot(fallback, u)));
+  const w = 1 - Math.min(1, Math.max(0, (len(p) - 0.08) / 0.25));
+  return add(p, scale(q, w * w * (3 - 2 * w) * 0.7));
 }

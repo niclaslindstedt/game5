@@ -444,7 +444,9 @@ export const INJURY_SCENARIOS: readonly InjuryScenario[] = [
     id: "ski-trunk-shoulder",
     title: "a trunk taken on the right shoulder skiing past it at 40 km/h",
     ground: "groomed",
-    stage: { how: "ski", stuff: "trunk", speed: kmh(40), offset: 0.45 },
+    // Wide enough of his line that the skis pass it (the trunk's radius and
+    // `front.lane`, 0.47 m) and near enough that his body meets it (0.57 m).
+    stage: { how: "ski", stuff: "trunk", speed: kmh(40), offset: 0.49 },
     expect: [COLLARBONE],
     never: [...SPLEEN, "brokenScapula", "bootTop"],
   },

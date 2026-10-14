@@ -79,19 +79,18 @@ const SHOCK_REST = shockAt(0).length;
 
 const tv = (p: V3): THREE.Vector3 => new THREE.Vector3(p.x, p.y, p.z);
 
-/** The code's bike, its geometry merged a node and a material at a time. */
-function buildBike(haze: HazeUniforms): {
+/** The code's bike, its geometry merged a node and a material at a time —
+ * in the world's haze, or (`haze` null) plain, as the gear card's stage
+ * draws it (`gear-stage.ts`). */
+export function buildBike(haze: HazeUniforms | null): {
   root: THREE.Group;
   nodes: BikeNodes;
   dispose(): void;
 } {
   const mats: THREE.Material[] = [];
   const paint = (p: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial => {
-    const m = hazeMaterial(
-      new THREE.MeshStandardMaterial({ flatShading: true, ...p }),
-      haze,
-      "bike",
-    );
+    const plain = new THREE.MeshStandardMaterial({ flatShading: true, ...p });
+    const m = haze ? hazeMaterial(plain, haze, "bike") : plain;
     mats.push(m);
     return m;
   };

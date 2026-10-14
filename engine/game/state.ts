@@ -915,6 +915,10 @@ export type GameState = ContestState & {
   stakes?: import("./edge-stakes.ts").StakeState;
   /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
+  /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
+   * app asks for it, absent everywhere else — the labs, the suite and every
+   * rival stood off at the top as ever, so no digest moves. */
+  chairHands?: true;
   /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
   heli?: HeliState;
   sled?: SledState;

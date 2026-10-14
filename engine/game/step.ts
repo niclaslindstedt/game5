@@ -255,6 +255,11 @@ export type CreateGameOptions = {
    * (the app asks for it only without a spot: a spot picked is where the
    * ride starts). */
   byLift?: boolean;
+  /** THE PLAYER'S CHAIRS LEFT ONLY BY HAND (`chair-hands.ts`): sat on until
+   * forward is pressed with the safety bar up — stood up over the unload,
+   * thrown off anywhere else — and ridden round and back down untouched.
+   * Left out, a chair stands him up at the top as ever. */
+  chairHands?: boolean;
   /** A FREE RIDE begun ON THE HELICOPTER (`heli.ts`): sat on its skid on
    * its pad on the valley floor, the rotor turning, the controls the
    * helicopter's. Wins over `byLift` and `spawn`. Ignored by every mode
@@ -619,6 +624,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
       ? freeSpawn(level, options.spawn.x, options.spawn.z)
       : (head ?? gridSlot(state, 0));
   standSkier(state, at.x, at.z, at.heading);
+  if (options.chairHands) state.chairHands = true;
   if (rules.heli) state.heli = freshHeli(state);
   if (rules.sled) state.sled = freshSled(state);
   if (rules.afterski) state.afterski = freshAfterski();

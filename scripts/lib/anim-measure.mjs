@@ -223,10 +223,10 @@ export function measure(samples, opts = {}) {
           return x === null || !Number.isFinite(x) ? null : x;
         });
     if (v.every((x) => x === null)) continue;
-    const rate = diff(
-      t,
-      a.id.endsWith("yaw") || a.id === "twist" || a.id === "head_on_chest" ? unwrap(v) : v,
-    );
+    // Every angle is read round its circle (a lean or a bend past 180°
+    // comes back the other side, a turn of nothing) — all but the hips'
+    // height, which is no angle.
+    const rate = diff(t, a.id === "hips_height" ? v : unwrap(v));
     const accel = diff(t, rate);
     angles[a.id] = { id: a.id, say: a.say, group: a.group, v, rate, accel };
   }

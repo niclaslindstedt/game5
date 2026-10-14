@@ -27,7 +27,8 @@
 // −1 the heel edge, 0 an end.
 
 import type { BoardGrab, TrickPose } from "@engine";
-import type { BoardPoseInput } from "./board-pose.ts";
+import type { BoardFrame, BoardPoseInput } from "./board-pose.ts";
+import { add, dot, norm, scale, type V3 } from "./skier-vec.ts";
 
 /** One grab as drawn. */
 export type GrabLook = {
@@ -138,11 +139,11 @@ export const GRAB_LOOKS: Readonly<Record<BoardGrab, GrabLook>> = {
     hand: "front",
     at: 0.35,
     edge: -1,
-    roll: 1.65,
-    pitch: 0.15,
+    roll: 1.3,
+    pitch: 0.12,
     yaw: 0,
-    lift: 0.6,
-    across: -0.45,
+    lift: 0.48,
+    across: -0.36,
     lean: 0.1,
     to: -1,
     fore: 0,
@@ -248,4 +249,49 @@ export function spinTwist(input: BoardPoseInput): number {
   const wound = -SPIN.wind * clamp(input.windup ?? 0, -1, 1) * clamp(input.load, 0, 1);
   const led = clamp(SPIN.shoulders * (input.spin ?? 0), -SPIN.most, SPIN.most);
   return wound + led * Math.max(input.air, Math.abs(input.press ?? 0));
+}
+
+const UP: V3 = { x: 0, y: 1, z: 0 };
+export const cross = (a: V3, b: V3): V3 => ({
+  x: a.y * b.z - a.z * b.y,
+  y: a.z * b.x - a.x * b.z,
+  z: a.x * b.y - a.y * b.x,
+});
+/** `v` turned `a` rad about the unit axis `k`. */
+export function turn(v: V3, k: V3, a: number): V3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return add(add(scale(v, c), scale(cross(k, v), s)), scale(k, dot(k, v) * (1 - c)));
+}
+
+/** THE DECK A GRAB HOLDS: drawn up toward the hips and across (`lift`,
+ * `across`), tweaked (`roll` the heel edge up, `pitch` the nose up, `yaw`
+ * the nose toward the toes), all by the grab's share `g`. `face` +1 for a
+ * regular rider, `F` the way he faces. */
+export function tweakDeck(
+  deck: BoardFrame,
+  look: GrabLook,
+  g: number,
+  face: number,
+  F: V3,
+): BoardFrame {
+  const heel = scale(deck.right, -face);
+  const rollAxis = norm(cross(heel, deck.normal));
+  const pitchAxis = norm(cross(deck.along, deck.normal));
+  // About the deck's normal a positive turn is clockwise from above: the
+  // nose toward a regular rider's toes.
+  const spin = (v: V3): V3 =>
+    turn(
+      turn(turn(v, rollAxis, look.roll * g), pitchAxis, look.pitch * g),
+      deck.normal,
+      look.yaw * g * face,
+    );
+  const centre = add(add(deck.centre, scale(UP, look.lift * g)), scale(F, look.across * g));
+  return {
+    centre,
+    along: norm(spin(deck.along)),
+    normal: norm(spin(deck.normal)),
+    right: norm(spin(deck.right)),
+    bend: deck.bend * (1 - g),
+  };
 }

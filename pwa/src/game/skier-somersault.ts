@@ -40,8 +40,12 @@ export type Somersault = {
   /** How far the loop owns his body, 0..1: whole from the throw to the
    * snow, let go of over a moment after it. */
   own: number;
-  /** How far round the loop he is, 0..1. */
+  /** How far round the loop he is, 0..1, and how fast that is changing:
+   * eased, since the engine's goal moves the moment the lean is let go
+   * (held, it owes the opening on top of the stop) and what was a third
+   * of the way round was two thirds in a frame. */
   u: number;
+  uRate: number;
 };
 
 /** What the pose is handed: how tucked, which way he turns, how far the
@@ -49,7 +53,7 @@ export type Somersault = {
 export type SomersaultShape = { tuck: number; dir: number; own: number; u: number };
 
 export function createSomersault(): Somersault {
-  return { tuck: 0, rate: 0, dir: 1, own: 0, u: 0 };
+  return { tuck: 0, rate: 0, dir: 1, own: 0, u: 0, uRate: 0 };
 }
 
 /** How much of the loop still owed he turns opening out, rad: the last
@@ -65,6 +69,9 @@ const PULL = 16;
 const LET = 26;
 /** How quickly the loop lets go of his body once he is down, /s. */
 const RELEASE = 5;
+/** How quickly the drawn way round follows the engine's, rad/s of a
+ * critically damped spring. */
+const ROUND = 22;
 
 /** How tucked a throw asks him to be, 0..1: none with no loop owed, whole
  * while more than `OPEN` is, let out steadily over the last of it. */
@@ -81,7 +88,17 @@ export function stepSomersault(s: Somersault, t: FlipThrow | null | undefined, d
   const thrown = !!t && t.flipGoal !== 0;
   if (thrown) {
     s.dir = Math.sign(t.flipGoal);
-    s.u = Math.min(1, Math.max(0, t.flipDone / t.flipGoal));
+    const u = Math.min(1, Math.max(0, t.flipDone / t.flipGoal));
+    if (s.own <= 0 || dt <= 0) {
+      s.u = u;
+      s.uRate = 0;
+    } else {
+      const x = s.u - u;
+      const e = Math.exp(-ROUND * dt);
+      const v = s.uRate + ROUND * x;
+      s.u = Math.min(1, Math.max(0, u + (x + v * dt) * e));
+      s.uRate = (s.uRate - ROUND * v * dt) * e;
+    }
   }
   if (dt <= 0) return;
   s.own = thrown ? 1 : Math.max(0, s.own - RELEASE * dt);

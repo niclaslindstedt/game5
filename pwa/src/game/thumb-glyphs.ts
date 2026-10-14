@@ -17,12 +17,19 @@
 import type { GameState } from "@engine";
 
 /** What the edge thumb draws under the finger. */
-export type PadGlyph = "skis" | "suit" | "canopy" | "boots";
+export type PadGlyph = "skis" | "suit" | "canopy" | "boots" | "bike";
 
 /** The edge thumb's drawing for the player at this step: the skis unless he
  * is in a wingsuit (the suit; stood on its exit too), under a canopy of any
- * jump (opening or open), or down out of a wingsuit on his boots. */
+ * jump (opening or open), or down out of a wingsuit on his boots — and on
+ * a summer ride the downhill bike's handlebar while he rides it, his boots
+ * while he walks beside it. */
 export function padGlyphOf(state: GameState): PadGlyph {
+  const b = state.bike;
+  if (b && !state.skier.thrown && !state.skier.lift) {
+    if (b.onIt) return "bike";
+    if (b.afoot) return "boots";
+  }
   const ch = state.chute;
   if (!ch || ch.done || ch.fell || state.skier.thrown) return "skis";
   if (ch.mode === "deploying" || ch.mode === "open" || ch.mode === "snagged") return "canopy";

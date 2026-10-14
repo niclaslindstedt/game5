@@ -40,7 +40,7 @@ import type { Cliff, Kicker, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { trackPointAt } from "../mapgen/index.ts";
 import { landingAhead } from "../game/flight.ts";
 import { brakeDecel, flightGravity } from "../game/limits.ts";
-import { flipLean } from "../game/strokes.ts";
+import { flipLean, spinSteer } from "../game/strokes.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import type { GameState, SkierInput } from "../game/state.ts";
 import { solidsNear } from "../game/posts.ts";
@@ -426,16 +426,11 @@ export function daringAir(state: GameState, input: SkierInput, d: Daring): void 
     return;
   }
   // THE TWIRL, half a turn a tap.
-  let tapped = false;
-  for (let n = 0; n < plan.taps; n++) {
-    const at = A.tapFrom + n * A.tapEvery;
-    if (c.airTime >= at && c.airTime < at + A.tapFor) tapped = true;
-  }
-  if (tapped) input.steer = plan.way;
+  if (plan.taps > 0) input.steer = spinSteer(state, plan.taps, plan.way);
   // THE GRAB, once the taps are thrown and his pitch has settled onto the
   // landing — grabbing, nothing levels or damps it (`poseInput`) — let go
   // before the snow, or as soon as the levelling would ask hard again.
-  const thrown = A.tapFrom + plan.taps * A.tapEvery;
+  const thrown = TUNING.air.counts + TUNING.tricks.setFor;
   const settled = Math.abs(input.lean) < (k.pose !== null ? A.drift : A.settled);
   if (plan.grab && c.airTime >= thrown && left > A.letGo && settled) {
     input.trick = true;

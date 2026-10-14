@@ -54,6 +54,7 @@ import { riderOf } from "./defs/riders.ts";
 import { SKIS, inertiaOf, totalMass } from "./defs/skis.ts";
 import { techniqueOf } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { setting } from "./strokes.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
 import { chassisContacts } from "./chassis.ts";
 import {
@@ -823,7 +824,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   } else {
     const back = state.rules.stunts && c.way < 0;
     const assist = level.pipe ? 0 : state.assist.air;
-    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back);
+    const trim = state.rules.stunts && !setting(c.airTime) ? TUNING.tricks.trim : 1;
+    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back, trim);
   }
   // Euler's equations with a diagonal inertia: τ − ω × Iω. Only on the
   // snow: a skier in the air is no rigid rod — he holds his shape with his

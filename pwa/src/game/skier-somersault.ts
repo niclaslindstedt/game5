@@ -15,10 +15,11 @@
 // thrown back looking for the snow over it, a front flipper with his chin
 // in until the snow comes up in front of him.
 //
-// So the tuck is read off the THROW (`TrickState.flipGoal` / `.flipDone`):
-// full while most of a loop is still owed, let go through the last
-// `OPEN` rad of it, and eased on a quick spring so it pulls in as the throw
-// gathers and is open before the snow. A plank that tips over is what the
+// So the tuck is the ENGINE'S own (`TrickState.flipTuck`, the shape the
+// player's lean holds him in, which is what turns him faster or slower);
+// where a caller has none it is read off the throw (`flipGoal` /
+// `flipDone`), full while most of a loop is owed and let go through the
+// last `OPEN` rad of it — eased on a quick spring either way. A plank that tips over is what the
 // figure is without it — the lean's pose held stiff while the skis go
 // round.
 
@@ -28,7 +29,12 @@ import type { FlightShape } from "./skier-flight.ts";
 
 /** The throw as the engine keeps it: the angle owed in all and turned so
  * far, rad, back positive (`TrickState`). */
-export type FlipThrow = { readonly flipGoal: number; readonly flipDone: number };
+export type FlipThrow = {
+  readonly flipGoal: number;
+  readonly flipDone: number;
+  /** How tucked the engine has him, 0..1, where it says (`TrickState`). */
+  readonly flipTuck?: number;
+};
 
 /** THE TUCK as the view carries it between frames. */
 export type Somersault = {
@@ -77,6 +83,7 @@ const ROUND = 22;
  * while more than `OPEN` is, let out steadily over the last of it. */
 export function tuckAim(t: FlipThrow | null | undefined): number {
   if (!t || (t.flipGoal === 0 && t.flipDone === 0)) return 0;
+  if (t.flipTuck !== undefined) return t.flipTuck;
   const owed = Math.abs(t.flipGoal - t.flipDone);
   return Math.min(1, owed / OPEN);
 }

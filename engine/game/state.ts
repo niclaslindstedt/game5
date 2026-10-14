@@ -497,20 +497,29 @@ export type TrickState = {
   posed: TrickPose[];
   /** THE STROKES (`strokes.ts`): which way each input is still across its
    * gate from the last stroke (0 back at trim, ±1 the side it crossed
-   * to); on each axis the angle the strokes of this flight have asked for
-   * and not yet seen turned, rad, signed the way they went (tips up and
-   * clockwise from above positive) — 0 when nothing is owed — and how far
-   * the body has turned toward it since. */
+   * to); on each axis, while a throw turns him, the angle turned since it
+   * was thrown, rad, and where it is headed — the turn still to go to his
+   * feet under him (a loop) or a line he can ride (a spin), signed the way
+   * it turns (tips up and clockwise from above positive) — 0 when nothing
+   * is turning. */
   flipCrossed: number;
   spinCrossed: number;
   flipGoal: number;
   spinGoal: number;
   flipDone: number;
   spinDone: number;
-  /** THE LOOP'S OWN RATE, rad/s, back positive: what the held lean has
-   * gathered and the let-go loop is shedding (`strokes.ts`), kept apart
-   * from the body's `wx` so the air's own hand never eats into it. */
+  /** THE LOOP'S OWN RATE, rad/s, back positive: what the take-off set it
+   * going at with the body open (`strokes.ts`), kept apart from the body's
+   * `wx` so the air's own hand never eats into it. */
   flipSpeed: number;
+  /** THE SHAPE each throw is turned in, as a multiple of the open body's
+   * rate (`strokes.ts`: the tuck over 1, the layout under it), the spin's
+   * open rate, rad/s (clockwise positive), and how tucked the loop is for
+   * the figure, 0..1. */
+  flipForm: number;
+  spinSpeed: number;
+  spinForm: number;
+  flipTuck: number;
   /** Whether the lean and the edge are still held across their gates from
    * a stroke they bought — the throw's, not the air control's, until let
    * go (`strokes.ts`'s `poseInput`). */

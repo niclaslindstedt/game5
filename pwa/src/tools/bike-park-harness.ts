@@ -59,9 +59,28 @@ const height = Number(params.get("h") ?? 720);
 const cols = Number(params.get("cols") ?? 4);
 const scale = Number(params.get("scale") ?? 0.5);
 const hour = Number(params.get("hour") ?? 11);
+/** A spot of one's own (`at=x,z`): the rider stood there and the `spot-*`
+ * views looking out from it at a rider's eye, to the four quarters. */
+const spot = (params.get("at") ?? "")
+  .split(",")
+  .map(Number)
+  .filter((v) => Number.isFinite(v));
 const SUMMER_DAY = 196;
 
-const VIEWS = ["berm", "table", "flow", "rocks", "drop", "race", "head"] as const;
+const VIEWS = [
+  "berm",
+  "table",
+  "flow",
+  "rocks",
+  "drop",
+  "race",
+  "head",
+  "spot-n",
+  "spot-e",
+  "spot-s",
+  "spot-w",
+  "spot-air",
+] as const;
 type ViewId = (typeof VIEWS)[number];
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
@@ -94,7 +113,10 @@ function ride(): GameState {
     crowd: 0,
     quiet: true,
   });
-  const v = base.resort?.village ?? { x: base.size / 2, z: base.size / 2 };
+  const v =
+    spot.length === 2
+      ? { x: spot[0], z: spot[1] }
+      : (base.resort?.village ?? { x: base.size / 2, z: base.size / 2 });
   placeRun(s, { x: v.x, z: v.z, heading: 0 });
   for (let i = 0; i < STEPS * 3; i++) step(s, NEUTRAL_INPUT);
   return s;
@@ -133,6 +155,34 @@ function lensOf(id: ViewId, lv: Level): { lens: LensPose; caption: string } | nu
   const park = lv.bikePark;
   if (!park) return null;
   switch (id) {
+    case "spot-n":
+    case "spot-e":
+    case "spot-s":
+    case "spot-w":
+    case "spot-air": {
+      if (spot.length !== 2) return null;
+      const [x, z] = spot;
+      if (id === "spot-air") {
+        return {
+          lens: { eye: at(x - 30, z - 30, 25), target: at(x, z, 0), fov: 60, roll: 0 },
+          caption: `${x.toFixed(0)}, ${z.toFixed(0)} from above`,
+        };
+      }
+      // Stood 4 m back of the spot (the rider is there), at a fallen
+      // rider's chase lens's height.
+      const h = { "spot-n": 0, "spot-e": 0.5, "spot-s": 1, "spot-w": 1.5 }[id] * Math.PI;
+      const ex = x - Math.sin(h) * 4;
+      const ez = z - Math.cos(h) * 4;
+      return {
+        lens: {
+          eye: at(ex, ez, 1.2),
+          target: at(x + Math.sin(h) * 40, z + Math.cos(h) * 40, 1.2),
+          fov: 62,
+          roll: 0,
+        },
+        caption: `${x.toFixed(0)}, ${z.toFixed(0)} looking ${id.slice(5)}`,
+      };
+    }
     case "berm": {
       const hit = featureOf(lv, ["berm"], ["blue", "green"]);
       if (!hit) return null;

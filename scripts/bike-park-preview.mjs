@@ -37,9 +37,10 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (berm, table, flow, rocks, drop, race, head)",
+      help: "only these views, comma-separated (berm, table, flow, rocks, drop, race, head, spot-n|e|s|w|air with --at)",
     },
     hour: { kind: "number", default: 11, help: "the solar hour" },
+    at: { kind: "string", default: "", help: "x,z: stand the rider there for the spot-* views" },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: { kind: "string", default: "", help: "alpine, fell, continental, maritime" },
     face: { kind: "string", default: "", help: "a real face: continental-2, fell-3, …" },
@@ -115,6 +116,7 @@ const query = new URLSearchParams({
   scale: String(args.scale),
   hour: String(args.hour),
   ...(args.region ? { region: args.region } : {}),
+  ...(args.at ? { at: args.at } : {}),
   ...(args.face ? { face: args.face } : {}),
 }).toString();
 /** `work`, or a failure the moment the page throws — never the timeout

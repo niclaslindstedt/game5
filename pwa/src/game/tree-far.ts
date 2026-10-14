@@ -102,7 +102,12 @@ bool farInside(TreeFrame T, vec4 v0, vec4 v2, vec4 v3, int form, float snow, vec
     float lee = max(0.15, 1.0 + flag * cos(phi - T.leeAngle) * 0.9 - flag * 0.25);
     float jag = 1.0 + 0.12 * cos(v2.y * phi + k * 0.9 + T.seedA);
     float r = Rb * (1.0 - 0.62 * ft) * lee * jag * (1.0 - 0.22 * snow * snow);
-    if (rho >= r) return rho < trunk;
+    if (rho >= r) {
+      // The stem inside the crown, never above its last tier.
+      if (rho >= trunk || u > 0.85) return false;
+      n = vec3(d.x, 0.1, d.y); part = 0;
+      return true;
+    }
     float slope = 0.62 * Rb * count / span;
     n = normalize(vec3(d.x, slope, d.y));
     // The white shelf along the top of every tier, out as far as its load.

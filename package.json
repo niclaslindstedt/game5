@@ -26,6 +26,7 @@
     "bike-look": "node scripts/bike-park-preview.mjs",
     "bike-park": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-park-map.mjs",
     "bike-ride": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-ride-lab.mjs",
+    "bike-steer": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-steer-lab.mjs",
     "bike-hit": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/bike-hit-lab.mjs",
     "resort": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/resort-map.mjs",
     "lift-tops": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/lift-tops.mjs",

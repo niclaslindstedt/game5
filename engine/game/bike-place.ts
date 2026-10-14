@@ -50,6 +50,7 @@ export function freshBike(riderMass: number = R.mass): BikeState {
     feel: 0,
     turn: 0,
     aimLean: 0,
+    pastKnee: 0,
     shift: 0,
     rider: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 },
     front: wheel(),
@@ -123,6 +124,7 @@ export function placeBike(
   b.steerRate = 0;
   b.feel = 0;
   b.turn = 0;
+  b.pastKnee = 0;
   b.aimLean = 0;
   b.shift = 0;
   const stance = toWorld(stanceOf(b, neutral, v3()), v3());

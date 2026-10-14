@@ -134,7 +134,16 @@ describe("the deformable snow", () => {
   it("slumps a fresh crater's walls in a few frames, and conserves the snow", () => {
     const f = createDeformField(LOOK);
     f.follow(0, 0);
-    const body: Stamp = { ax: 0, az: 0, bx: 0.8, bz: 0, half: 0.31, depth: 0.6, berm: 0, wall: 0.2 };
+    const body: Stamp = {
+      ax: 0,
+      az: 0,
+      bx: 0.8,
+      bz: 0,
+      half: 0.31,
+      depth: 0.6,
+      berm: 0,
+      wall: 0.2,
+    };
     f.press(body, { slide: 0, body: true }, SNOW.new);
     const before = f.volume();
     // The steepest wall over the hole, as a tangent, after `frames` frames.

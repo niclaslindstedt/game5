@@ -53,9 +53,9 @@ import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
 
 import type { BuildShape } from "./dress-body.ts";
 
-export type BodyId = "man" | "woman" | "hiker" | "hikerWoman";
+export type BodyId = "man" | "woman" | "hiker" | "hikerWoman" | "racer" | "racerWoman";
 /** A WHOLE KIT MODELLED in Blender (`player-model.ts`), by its name. */
-export type ModelKit = "hiker";
+export type ModelKit = "hiker" | "racer";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
 export type HelmetId = "race" | "freeride" | "visor" | "slalom";
@@ -158,6 +158,26 @@ export const BODIES: readonly BodyDef[] = [
     hair: 0x9a6232,
     plait: 0x6a4020,
     model: "hiker",
+  },
+  // The RACER: a national team's printed race suit, bib and guards, modelled
+  // (`scripts/blender/racer.py`), as a man and as a woman.
+  {
+    id: "racer",
+    name: "Racer man",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x3a2a1e,
+    plait: 0x241910,
+    model: "racer",
+  },
+  {
+    id: "racerWoman",
+    name: "Racer woman",
+    female: true,
+    skin: 0xe0aa86,
+    hair: 0x9a6232,
+    plait: 0x6a4020,
+    model: "racer",
   },
 ];
 

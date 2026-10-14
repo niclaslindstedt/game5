@@ -51,10 +51,12 @@ const matNames = (file: string): string[] =>
     ...readFileSync(join(root, "scripts", "blender", file), "utf8").matchAll(/= mat\("([\w]+)"/g),
   ].map((m) => m[1]);
 
+const PLAYER = ["hiker.glb", "hiker-woman.glb", "racer.glb", "racer-woman.glb"];
+
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the player's hiker, man and woman", () => {
+  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the player's hiker and racer, man and woman", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
@@ -65,6 +67,8 @@ describe("the models the game ships", () => {
         "plane.glb",
         "hiker.glb",
         "hiker-woman.glb",
+        "racer.glb",
+        "racer-woman.glb",
       ].sort(),
     );
     const none = {
@@ -75,8 +79,8 @@ describe("the models the game ships", () => {
       plane: false,
       player: false,
     };
-    expect(modelFiles({ ...none, player: true })).toEqual(["hiker.glb", "hiker-woman.glb"]);
-    expect(modelFiles(ALL_MODELS, "player")).toEqual(["hiker.glb", "hiker-woman.glb"]);
+    expect(modelFiles({ ...none, player: true })).toEqual(PLAYER);
+    expect(modelFiles(ALL_MODELS, "player")).toEqual(PLAYER);
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
     expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);

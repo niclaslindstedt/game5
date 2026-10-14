@@ -399,7 +399,7 @@ const args = parseArgs(
     body: {
       kind: "string",
       default: "",
-      help: "the player's body by its outfit id (hiker, hikerWoman: the modelled hiker)",
+      help: "the player's body by its outfit id (hiker, hikerWoman, racer, racerWoman: the modelled kits)",
     },
     weight: {
       kind: "string",

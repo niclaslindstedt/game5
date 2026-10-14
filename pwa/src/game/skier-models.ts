@@ -41,7 +41,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { SKI_CATALOG, type SkiId, type SkiSpec, type SkierState } from "@engine";
 
 import { modelSwitch } from "./model-switch.ts";
-import { PLAYER_MODELS, readPlayerModel, setPlayerModel } from "./player-model.ts";
+import { kitOf, PLAYER_MODELS, readPlayerModel, setPlayerModel } from "./player-model.ts";
 import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
@@ -180,7 +180,7 @@ export function loadModels(): Promise<void> {
     for (const key of PLAYER_MODELS) {
       jobs.push(
         loader.loadAsync(at(`${key}.glb`)).then(
-          (g) => setPlayerModel(key, readPlayerModel(g.scene)),
+          (g) => setPlayerModel(key, readPlayerModel(g.scene, kitOf(key))),
           () => undefined,
         ),
       );

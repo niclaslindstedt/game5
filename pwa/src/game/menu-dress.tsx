@@ -44,7 +44,7 @@ const STOPS = Object.fromEntries(
  * skis on the gear card. */
 const RIDER_SLOTS = GEAR_SLOTS.filter((slot) => slot !== "poles");
 
-/** The rows a MODELLED body keeps (the hiker, `player-model.ts`): it comes
+/** The rows a MODELLED body keeps (the hiker, the racer, `player-model.ts`): it comes
  * in its own kit, so only who rides, the body and the weight, is picked. */
 const MODEL_SLOTS = RIDER_SLOTS.filter((slot) => slot === "body" || slot === "weight");
 

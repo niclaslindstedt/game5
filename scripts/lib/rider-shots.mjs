@@ -9,7 +9,7 @@ export const DRESS = { params: { menu: "dress" }, wait: ".menu-stage[data-ready]
 
 /** One stored outfit a body, keyed `dress-<body>`. */
 export const RIDER_SURFACES = Object.fromEntries(
-  ["hiker", "hikerWoman"].map((body) => [
+  ["hiker", "hikerWoman", "racer", "racerWoman"].map((body) => [
     `dress-${body}`,
     { ...DRESS, storage: { "fall-line.settings.v1": JSON.stringify({ outfit: { body } }) } },
   ]),

@@ -116,7 +116,7 @@ import { createWingsuitWings } from "./wingsuit-figure.ts";
 import { jumperPose, jumperShapeOf } from "./skier-jumper.ts";
 import { easeGrind, grindArms, grindInput, grindLook } from "./skier-grind.ts";
 import { createTuck, uprightSkier, type FlipThrow } from "./skier-somersault.ts";
-import { setPlayerClock } from "./player-model.ts";
+import { setPlayerClock, type RaceKit } from "./player-model.ts";
 
 export { REST_SAG } from "./ski-gear.ts";
 export { groundOf, hopLanding, legsLift, poseInputOf } from "./skis-pose-input.ts";
@@ -157,11 +157,24 @@ export const SLOT_DRESS: readonly SkierDress[] = [
   ...RIVAL_OUTFITS.map(({ tone, ...outfit }) => ({ outfit, tone })),
 ];
 
+/** WHICH DISCIPLINE'S KIT A RACER WEARS on a pair (`RACE_KITS`): a giant
+ * slalom's or a ski cross's pair the arm pads and no shin guards, a speed
+ * pair the airbag and no guards at all, every other the slalom's whole kit. */
+const RACE_KIT_OF: Readonly<Record<string, RaceKit>> = {
+  chough: "gs",
+  wolverine: "gs",
+  eagle: "speed",
+  falcon: "speed",
+  peregrine: "speed",
+};
+
 /** A pair in its own topsheet, `skier` on it. */
 export function pairStyle(spec: SkiSpec, skier: SkierDress): SkiStyle {
   // A ski jumper (only a jump rides the Albatross) in his suit (`jumpKit`).
   const dress =
-    spec.id === "albatross" ? { ...skier, outfit: jumpKit(skier.outfit), model: false } : skier;
+    spec.id === "albatross"
+      ? { ...skier, outfit: jumpKit(skier.outfit), model: false }
+      : { ...skier, kit: skier.kit ?? RACE_KIT_OF[spec.id] ?? "slalom" };
   return styleIn(TOPSHEETS[drawnAs(spec)], dress);
 }
 

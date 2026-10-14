@@ -181,6 +181,26 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "rival, and switched off the hiker is the man's or the woman's dress in code",
   },
   {
+    asset: "Racer's kit",
+    ids: ["racer", "racer-woman"],
+    source: "blender",
+    code: ["pwa/src/game/skier-dress.ts", "pwa/src/game/dress.ts"],
+    drawnBy: "pwa/src/game/player-model.ts",
+    blender: {
+      builder: "scripts/blender/racer.py",
+      files: ["racer.glb", "racer-woman.glb"],
+      pattern: "<id>.glb",
+      switch: "VITE_MODEL_PLAYER",
+    },
+    note:
+      "the RACER bodies on the rider card, a man and a woman: a national team's skin-tight race " +
+      "suit printed red to white down the legs, the back protector, the bib with its number, the " +
+      "race helmet and goggles; the kit follows the discipline the pair is for (a slalom's shin " +
+      "guards, knuckle shields and chin guard; a giant slalom's arm pads; a speed race's airbag); " +
+      "her braid out from under the helmet; the bib streams, flaps and floats off the suit in the " +
+      "air and the suit shivers on its lee side; never dealt to a rival",
+  },
+  {
     asset: "Skier",
     ids: ["skier"],
     source: "code",

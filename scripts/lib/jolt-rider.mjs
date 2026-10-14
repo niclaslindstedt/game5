@@ -77,6 +77,7 @@ export function createRiderReader(ctx) {
     const c = state.skier;
     if (c.thrown) return "thrown";
     if (c.lift) return `lift ${c.lift.phase ?? ""}`.trim();
+    if (state.bike) return state.bike.onIt ? (state.bike.airborne ? "bike air" : "bike") : "afoot";
     if (state.sled?.rider) return "sled";
     if (state.heli?.rider) return "heli";
     if (state.plane?.rider) return "plane";
@@ -150,6 +151,9 @@ export function createRiderReader(ctx) {
         joints: read(model, at, ctx.world || scene.world === true),
         phase: phaseOf(state),
       });
+      // A lab that reads more off the posed model (the animation lab's
+      // renders and bone frames) is handed it here, in the frame read.
+      ctx.onFrame?.(model, state, samples.at(-1), at, scene);
     }
     return samples;
   };

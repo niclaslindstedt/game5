@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike bike-park bike-look bike-ride bike-hit title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt
+.PHONY: bike bike-park bike-look bike-ride bike-hit title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam groomer snowguns water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -300,6 +300,20 @@ board-motion:
 # "--json=a.json" / "--compare=a.json".
 jolt:
 	npm run jolt -- $(ARGS)
+
+# THE ANIMATION LAB: every animation of the player's rider — on skis, on a
+# snowboard and on the downhill bike — ridden by the engine in pure Node and
+# the real model posed off every step, then drawn and measured: a sheet a
+# scene under previews/anim/ (the model rasterized shaded, its hidden-line
+# wireframe and its bones coloured by jolt, from the side, behind and the
+# front three-quarter; the onion skins and the tips' paths; every joint
+# angle, the angles' acceleration, each joint's jolt, each limb's stretch,
+# the tips' speeds and the clips against the clock), a table, summary.png
+# and index.html. ARGS="--family=bike", "--family=skier --move=carve,jump",
+# "--family=ride" (the machines and seats), "--no-render" (fast),
+# "--json=a.json" / "--compare=a.json" a before and after.
+anim:
+	npm run anim -- $(ARGS)
 
 # THE SAG LAB: the body PULLED DOWN onto his legs — landings, a pitch run
 # out onto the flat, a stop down a pitch, rollers, a tuck, and generated

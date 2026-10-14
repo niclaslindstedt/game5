@@ -57,6 +57,7 @@
     "board": "node scripts/board-preview.mjs",
     "board-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/board-metrics.mjs",
     "board-motion": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/board-motion.mjs",
+    "anim": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/anim-lab.mjs",
     "jolt": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/jolt-lab.mjs",
     "skier": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-preview.mjs",
     "skier-metrics": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/skier-metrics.mjs",

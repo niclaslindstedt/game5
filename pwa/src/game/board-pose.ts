@@ -852,14 +852,14 @@ export function boardPose(input: BoardPoseInput): BoardPose {
   handF = above(handF, LOW.gap);
   handR = above(handR, LOW.gap);
   // THE GRAB: the hand down to its place on the board, the free arm thrown
-  // out and up.
+  // out to the side and a little up for balance, never straight overhead.
   const grabFront = look?.hand === "front";
   if (look && g > 0) {
     const spot = grabSpot(look, ridden, b, face);
     const freeS = grabFront ? sR : sF;
-    const out = norm(sub(freeS, neck));
+    const out = level(sub(freeS, neck)); // level: never up a tilted trunk
     const thrown = add(
-      add(add(freeS, scale(UP, 0.32)), scale(out, 0.3)),
+      add(add(freeS, scale(UP, 0.15)), scale(out, 0.45)),
       scale(nose, (grabFront ? -0.25 : 0.25) * fakie),
     );
     if (grabFront) {

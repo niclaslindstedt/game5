@@ -120,7 +120,7 @@ export function createRiderReader(ctx) {
     let steps = 0;
     let last = null;
     while (state.t - t0 < scene.seconds) {
-      E.step(state, scene.input(state.t - t0, state));
+      E.step(state, scene.input(state.t - t0, state, E));
       scene.each?.(model, state);
       const t = state.t - t0;
       if (steps++ % every !== 0) continue;

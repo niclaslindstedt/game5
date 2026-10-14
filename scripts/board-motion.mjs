@@ -203,7 +203,7 @@ function ride(move) {
   let next = 0;
   const samples = [];
   while (state.t - t0 < move.seconds) {
-    E.step(state, move.input(state.t - t0, state));
+    E.step(state, move.input(state.t - t0, state, E));
     const c = state.skier;
     const held = state.tricks.pose;
     grab = BG.easeGrab(grab, BG.isBoardGrab(held) ? held : null, dt);

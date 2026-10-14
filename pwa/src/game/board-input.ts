@@ -163,6 +163,28 @@ export function boardInputOf(
   };
 }
 
+/** THE FEET LET DOWN, s: how long the drawn lift takes to follow the
+ * engine's legs DOWN (a foot unloaded — the nose station off a kicker's lip,
+ * a landing's rebound). The engine's lift is read off its stations, and one
+ * leaving the snow drops a foot's lift by centimetres in a step and back:
+ * drawn straight, the boot rings frame to frame. A leg extends under the
+ * body over a few hundredths of a second, so the drawn one does too; a foot
+ * pressed UP is taken at once (the hips carry it, `SAG_EASE`). */
+export const DROP_EASE = 0.05;
+
+/** `drawn` (each foot's lift last frame, or null) stepped `dt` s toward the
+ * engine's `lift`: at once upward, eased by `DROP_EASE` downward. */
+export function easeDrop(
+  drawn: [number, number] | null,
+  lift: [number, number],
+  dt: number,
+): [number, number] {
+  if (!drawn || !(dt > 0) || dt > 0.1) return [lift[0], lift[1]];
+  const k = 1 - Math.exp(-dt / DROP_EASE);
+  const one = (was: number, to: number) => (to >= was ? to : was + (to - was) * k);
+  return [one(drawn[0], lift[0]), one(drawn[1], lift[1])];
+}
+
 /** How fast the drawing draws the rear foot out of its binding or back
  * in, a share a second (about a quarter of a second each way). */
 const FREE_RATE = 4;

@@ -153,7 +153,7 @@ const E = await import(join(root, "engine/index.ts"));
 const spec = E.pairById(args.skis);
 const onBoard = E.isBoard(spec);
 // The loops are the board's as well: one lean, one throw (`strokes.ts`).
-const MOVES = onBoard ? [...BOARD_MOVES, ...FLIP_MOVES] : SKI_MOVES;
+const MOVES = onBoard ? BOARD_MOVES : SKI_MOVES;
 const MOMENTS = onBoard ? BOARD_MOMENTS : SKI_MOMENTS;
 const moves = args.move
   ? args.move.split(",").map((id) => {

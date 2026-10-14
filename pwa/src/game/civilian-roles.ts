@@ -20,6 +20,7 @@
 import type { CrowdBody } from "@engine";
 
 import type { SpotKind } from "./civilian-spots.ts";
+import { FIRE_ROLES } from "./civilian-fire-roles.ts";
 
 /** What a civilian is doing — the pose the figure is drawn in.
  *   * `stand`: stood idle, weight shifting; `talk` the same turned to
@@ -41,7 +42,11 @@ import type { SpotKind } from "./civilian-spots.ts";
  *   * `skate`: on his skis, skating along the valley floor from one lift's
  *     foot to the next (drawn on the crowd's skiing figure).
  *   * `stoop`: bent down to the snow before him, a bag over his hand,
- *     picking up after his dog (`dog-walk.ts`). */
+ *     picking up after his dog (`dog-walk.ts`).
+ *   * `grill`: a sausage on a long stick held over a fire's embers and
+ *     turned (stood or sat on its bench, `civilian-fires.ts`).
+ *   * `eat`: a sausage in bread held before him, a bite taken now and then.
+ *   * `warm`: both hands held out to a fire, palms to it. */
 export type Activity =
   | "stand"
   | "talk"
@@ -58,7 +63,10 @@ export type Activity =
   | "build"
   | "roll"
   | "skate"
-  | "stoop";
+  | "stoop"
+  | "grill"
+  | "eat"
+  | "warm";
 
 /** What a civilian has in his hands. `skis`: a pair on one shoulder, tips
  * forward and down, a hand in front on them, the bindings behind the
@@ -95,6 +103,14 @@ export type RoleId =
   | "roller"
   | "dogWalker"
   | "dogChild"
+  // At the camp fires and bonfires (`civilian-fire-roles.ts`).
+  | "campSitter"
+  | "campGriller"
+  | "campEater"
+  | "campWarmer"
+  | "bonfireSitter"
+  | "bonfireGriller"
+  | "bonfireGuest"
   // The summer's own (`civilian-summer.ts`).
   | "hiker"
   | "biker"
@@ -813,7 +829,8 @@ let rolesById: Map<RoleId, Role> | null = null;
 export function roleOf(id: RoleId): Role {
   if (!rolesById) {
     rolesById = new Map();
-    for (const r of CIVILIAN_ROLES) if (!rolesById.has(r.id)) rolesById.set(r.id, r);
+    for (const r of [...CIVILIAN_ROLES, ...FIRE_ROLES])
+      if (!rolesById.has(r.id)) rolesById.set(r.id, r);
   }
   const role = rolesById.get(id);
   if (!role) throw new Error(`no civilian role ${id}`);

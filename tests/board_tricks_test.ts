@@ -176,7 +176,7 @@ describe("the board's spins", () => {
           lean: t < 1.0 ? lean : 0,
           jump: t > 0.3 && t < 1.0,
           // Thrown once the hop round has let the edge go, let go at the half turn.
-          steer: up >= 0.2 && Math.abs(state.tricks.spinDone) < Math.PI * 0.75 ? 1 : 0,
+          steer: up >= 0.2 && Math.abs(state.tricks.spinDone) < Math.PI * 0.5 ? 1 : 0,
         };
       });
       return comboLine(state.tricks.lastParts);

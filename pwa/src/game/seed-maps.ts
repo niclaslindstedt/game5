@@ -85,7 +85,7 @@ const MAPS = 2;
  * with the ski area it holds. */
 const IDLE_MS = 30_000;
 
-type Job = SeedAsk & { key: string; paint: boolean };
+type Job = SeedAsk & { key: string; paint: boolean; behind?: Level };
 
 let worker: Worker | null = null;
 /** The map being raised by the attempt pool (`attempt-pool.ts`) rather than
@@ -94,6 +94,11 @@ let pool: MapJob | null = null;
 let busy: Job | null = null;
 let idle = 0;
 let wanted: SeedAsk | null = null;
+/** THE MAP BEING RIDDEN, to be painted behind the ride (`paintBehind`):
+ * a ride stood up with no chart of its map — QUICK START's, a link's —
+ * has it painted while it rides, so the pause card's PISTE MAP opens on
+ * it rather than on a bar. */
+let behind: { ask: SeedAsk; level: Level } | null = null;
 const answers = new Map<string, SeedAnswer>();
 const levels = new Map<string, GeneratedLevel>();
 /** THE MAP LAST RIDDEN, kept past the ride: back on the start card for the
@@ -174,9 +179,21 @@ export function keepRidden(ask: SeedAsk, level: Level): void {
 export function quietSeedMaps(ask: SeedAsk): void {
   const key = askKey(ask);
   wanted = null;
+  behind = null;
   if (busy && busy.key !== key) stop();
   levels.clear();
   if (ridden?.key !== key) ridden = null;
+  pump();
+}
+
+/** A FREE RIDE IS UNDER WAY on `level`, the map `ask` names: if no chart
+ * of it is held or kept, the worker paints one off that very map (never
+ * building it again) and is let go — so the pause card's PISTE MAP and the
+ * start card find it painted. A ride stood up off the start card has its
+ * chart already, and nothing is done. */
+export function paintBehind(ask: SeedAsk, level: Level): void {
+  if (answers.has(askKey(ask))) return;
+  behind = { ask, level };
   pump();
 }
 
@@ -229,6 +246,20 @@ function pump(): void {
     run({ ...ask, key, paint: !answer });
     return;
   }
+  // The map ridden, painted once nothing on a card is waiting.
+  if (!wanted && behind) {
+    const { ask, level } = behind;
+    const key = askKey(ask);
+    if (answers.has(key)) behind = null;
+    else if (!looked.has(key)) {
+      look(ask, key);
+      return;
+    } else {
+      behind = null;
+      run({ ...ask, key, paint: true, behind: level });
+      return;
+    }
+  }
   window.clearTimeout(idle);
   // A FREE RIDE IS BEING STOOD UP (`quietSeedMaps`): the worker goes now,
   // with the ski area it holds — tens of megabytes of its own heap that the
@@ -260,6 +291,7 @@ function run(job: Job): void {
   // A map this thread can stand up off the ski area it built last is
   // never built twice: it is stood up here and handed over to be painted.
   const own =
+    (job.behind as GeneratedLevel | undefined) ??
     levels.get(job.key) ??
     ((!job.face || realFaceLoaded(job.face)) &&
     levelIsCached(job.seed, { region: job.region, face: job.face ?? undefined })
@@ -269,7 +301,8 @@ function run(job: Job): void {
           grade: job.grade ?? undefined,
         })
       : null);
-  if (own) holdLevel(job.key, own);
+  // The map ridden is the ride's, never held here a second time.
+  if (own && !job.behind) holdLevel(job.key, own);
   if (own && !job.paint) {
     pump();
     return;
@@ -350,13 +383,14 @@ function spawn(): Worker {
       return;
     }
     shares.delete(key);
+    const job = busy;
     busy = null;
     if (!reply.ok) {
       void keep(key, reply);
       settle(key, null);
     } else {
       const level = levels.get(key) ?? (reply.level ? boundLevel(reply.level) : null);
-      if (level) holdLevel(key, level);
+      if (level && !job?.behind) holdLevel(key, level);
       settle(key, level);
       if (reply.painted) {
         void writeChart(key, reply.painted);

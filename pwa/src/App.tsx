@@ -499,23 +499,22 @@ export function App() {
       window.setTimeout(() => setLoadLeaving(false), LOAD_FADE_MS);
     };
 
-    /** The race again from the start line, on the same map: nothing to generate
-     * and nothing to build — the renderer sees a fresh state and starts its
-     * trails and its spray clean — so no card, just the lights again. */
+    /** The race again on the same map: nothing to generate or build — the
+     * renderer sees a fresh state and starts its trails and spray clean — so no
+     * card, just the lights again (`onSnow`, the PISTE MAP's way back on too). */
     const restart = (): void => {
       if (loader.busy()) return;
-      // A free ride starts again at the top of the last piste it skied;
-      // every other run from the start line, on the same map, in its mode.
+      // A free ride starts again at the top of the last piste it skied; every
+      // other run from the start line, on the same map, in its mode.
       const free = freeRestart(state, freeAgain);
-      const next = free
-        ? createGame(free)
-        : (pinned.again() ?? playerGame(state.level, state.seed));
+      onSnow(free ? createGame(free) : (pinned.again() ?? playerGame(state.level, state.seed)));
+    };
+    const onSnow = (next: GameState): void => {
       adopt(next, ticketFor(next), true);
       frozen = false;
       clock.resume();
       setShellNow("run");
     };
-
     /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
     const frees = createFreeRides({
       world,
@@ -525,6 +524,7 @@ export function App() {
       restore: () => void (title.raced() && build(state)),
       outfit: () => outfitKey(settingsRef.current.outfit),
       plan: () => ({ camera: camerasOf(settingsRef.current), done: lift }),
+      now: (game) => void (loader.busy() || onSnow(game)),
       stood: (again) => (freeAgain = again),
     });
     const pinned = createPinnedRuns({

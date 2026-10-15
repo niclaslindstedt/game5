@@ -520,14 +520,19 @@ shimmer:
 
 # THE ROCK EVAL LAB: the mountain's rock (the walls' skin and the cliffs)
 # drawn through the game's renderer from FIXED SCENES on fixed maps (the foot
-# of the rockiest face, the face from 40 m to 1200 m, the skyline, a cliff,
-# the piste, the air, the valley; a low sun, falling snow, every country, a
-# real face, summer), each priced with and without the rock (calls,
-# triangles, ms, settle, held memory), the drawn rock held to the ridden (the
-# PHYSICS GAP), the far face's SHIMMER and the APPROACH's pops — so ways of
-# building rock can be compared on the same pictures and numbers
-# (previews/rock-eval/). Its own bundle from pwa/rock-eval-preview.html.
-# ARGS="--groups=alpine --scenes=foot,face-150 --json=FILE --compare=FILE".
+# of the rockiest face, the face from 40 m to 1200 m, the skyline, the cliff
+# walls close and slanting, a gully, a buttress, the wall foot, the talus
+# ground, a skier's chase, the piste, the air, the valley; a low sun, night,
+# falling snow, every country, a real face, summer), every scene read from
+# nothing, priced with and without the rock and the ground (calls,
+# triangles, ms, settle, held memory), the drawn rock held to the ridden
+# within 250 m and 50 m (the PHYSICS GAP), the faces' SHIMMER, the
+# APPROACH's pops and `make shimmer`'s FLICKER — so ways of building rock
+# can be compared on the same pictures and numbers (previews/rock-eval/:
+# index.html by group, scenes.html by lens). Its own bundle from
+# pwa/rock-eval-preview.html. ARGS="--groups=alpine --scenes=foot,face-150
+# --json=FILE --compare=FILE"; --order-check the quick proof that no reading
+# hangs on the order the scenes are drawn in.
 rock-eval:
 	npm run rock-eval -- $(ARGS)
 

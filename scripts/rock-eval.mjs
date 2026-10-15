@@ -6,41 +6,60 @@
 // two ways of building rock (its shape, its shading, its cuts, its culling)
 // can be laid side by side on the same pictures and the same numbers.
 //
-// The scenes (`pwa/src/tools/rock-eval-harness.ts`) are pure functions of
+// The scenes (`pwa/src/tools/rock-eval-scenes.ts`) are pure functions of
 // the map — where its rock lies, its cliffs, its mountain, its piste — never
-// of a ride: at the foot of the rockiest face, the face from 40, 150, 400 and
-// 1200 m, the highest rock against the sky, the tallest cliff from 28 m, from
-// the piste nearest the face, from the air, and from the valley. They are
-// drawn on a few GROUPS of map and sky: seed 38's black (the most rock) at
-// 11:00, again under a low sun and in falling snow, the fell, continental and
-// maritime countries, a real face and the summer.
+// of a ride: at the foot of the rockiest face; the face from 40, 150, 250,
+// 400 and 1200 m; the highest rock against the sky; the tallest cliff from
+// 28 m, and from 20 and 60 m square on and 45° off; up a gully and across a
+// buttress; along the wall's foot and over the talus ground below the
+// tallest cliff; a skier's eye down the piste where the rock is nearest it;
+// from the piste nearest the face, from the air and from the valley. They
+// are drawn on GROUPS of map and sky: seed 38's black (the most rock) at
+// 11:00, again under a low sun, at night and in falling snow, the fell,
+// continental and maritime countries (the maritime lays no rock — its row's
+// `rock` is off — so its scenes show what a candidate would add there), a
+// real face and the summer.
 //
-// Every scene is priced twice, with the rock and without it (the renderer's
-// own A/B, `setHidden(["rocks"])`): the rock's draw calls and triangles (the
-// shadow pass's included) are the difference, the scene walk's count of what
-// the `rocks` group draws beside them, and the frame's ms in a SOFTWARE
-// rasterizer — a number to compare two builds by on one machine, never a
-// phone's. Beside the price: the PHYSICS GAP (the drawn rock near the lens
-// against the rock a body meets — cm), the SETTLE time (how long the rock in
-// view took to build), the SHIMMER of the far face as the lens slides across
-// it, and the APPROACH from 800 m to 20 m at the rockiest face (`pop` the
-// largest step over the median: a tile swapping its cut).
+// EVERY SCENE IS READ FROM NOTHING: the rock let go and built whole at the
+// scene's own lens before a frame is read, so the order the scenes are drawn
+// in never moves a number. The ORDER CHECK proves it on every alpine run:
+// face-400 read first and again after everything else (the picture's change
+// and its shimmer both times), beside the shimmer read round 1's way — the
+// tiles as the approach left them — which is what moved.
 //
-// Out: `previews/rock-eval/<group>-<scene>.png`, `rock-eval.txt` (the
-// table), `index.html` and `rock-eval.png` (the sheet: every scene with its
-// numbers, and `--refs=DIR`'s photographs beside the scene whose name a file
-// starts with — references stay local and are never committed).
-// `--json=FILE` writes the numbers, `--compare=FILE` prints this run beside
-// a run written before.
+// Every scene is priced, interleaved twice: whole, without the rock (the
+// renderer's own A/B, `setHidden(["rocks"])`: the rock's draw calls and
+// triangles, the shadow pass's included, and its ms), without the GROUND
+// (`terrain` hidden: the ground's ms, where rock drawn in the ground's shader
+// is paid) and, on a build whose `terrain` group carries a `rockGround`
+// switch, without the ground's own rock. The ms are a SOFTWARE rasterizer's —
+// compare two builds on one machine, never a phone's. Beside the price: the
+// PHYSICS GAP (the drawn rock against the rock a body meets, within 250 m of
+// the lens and within 50 m — cm; a ground that draws rock says where through
+// `rockDrawnAt`), the SETTLE time (the rock in view built from nothing), the
+// SHIMMER of the 250, 400 and 1200 m faces as the lens slides across them,
+// the APPROACH from 800 m to 20 m at the rockiest face (`pop` the largest
+// step over the median: a tile swapping its cut), and the FLICKER at 150,
+// 300, 600 and 1200 m off `make shimmer` itself (run after, on the same
+// preset), so one run gives it all.
+//
+// Out: `previews/rock-eval/<group>-<scene>.png` (or `.jpg`), `rock-eval.txt`
+// (the table), `index.html` (every scene by group), `scenes.html` (the same
+// lens on every map side by side), `flicker.png` (make shimmer's sheet) and
+// `rock-eval.png` (one of the two pages photographed, `--sheet`). `--refs=DIR`
+// lays photographs beside the scene whose name a file starts with (local,
+// never committed). `--json=FILE` writes the numbers, `--compare=FILE` prints
+// this run beside a run written before (round 1's JSON too).
 //
 //   node scripts/rock-eval.mjs
 //   node scripts/rock-eval.mjs --groups=alpine --scenes=foot,face-150
+//   node scripts/rock-eval.mjs --order-check            # the proof alone, quick
 //   node scripts/rock-eval.mjs --json=previews/rocks-before.json
 //   node scripts/rock-eval.mjs --compare=previews/rocks-before.json --refs=~/refs/rock
 //   node scripts/rock-eval.mjs --quality=low        # the LOW preset's rock
 
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,17 +68,30 @@ import process from "node:process";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import { compare, line, pages, table, totals } from "./lib/rock-eval-report.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".rock-eval-preview");
 
+/** Every scene, in the order a group draws them (round 1's names kept). */
 const ALL = [
   "foot",
   "face-40",
   "face-150",
+  "face-250",
   "face-400",
   "face-1200",
   "skyline",
   "cliff",
+  "cliff-20",
+  "cliff-20-oblique",
+  "cliff-60",
+  "cliff-60-oblique",
+  "gully",
+  "buttress",
+  "wall-foot",
+  "talus",
+  "chase",
   "piste",
   "aerial",
   "valley",
@@ -72,7 +104,14 @@ const GROUPS = {
     grade: "black",
     hour: 16.3,
     weather: "clear",
-    scenes: ["foot", "face-150", "skyline"],
+    scenes: ["foot", "face-150", "face-400", "skyline", "cliff-60-oblique", "buttress"],
+  },
+  night: {
+    seed: 38,
+    grade: "black",
+    hour: 21,
+    weather: "clear",
+    scenes: ["foot", "face-150", "face-400", "cliff-20", "chase"],
   },
   snow: { seed: 38, grade: "black", hour: 12, weather: "snow", scenes: ["foot", "face-150"] },
   fell: {
@@ -89,7 +128,7 @@ const GROUPS = {
     region: "continental",
     hour: 11,
     weather: "clear",
-    scenes: ["foot", "face-150", "cliff"],
+    scenes: ["foot", "face-150", "cliff", "cliff-20", "cliff-60-oblique", "gully", "talus"],
   },
   maritime: {
     seed: 38,
@@ -97,14 +136,28 @@ const GROUPS = {
     region: "maritime",
     hour: 11,
     weather: "fair",
-    scenes: ["foot", "face-150"],
+    scenes: ["foot", "face-150", "gully", "cliff-20"],
   },
   real: {
     seed: 38,
     face: "alpine-1",
     hour: 11,
     weather: "clear",
-    scenes: ["foot", "face-150", "skyline", "valley"],
+    scenes: [
+      "foot",
+      "face-150",
+      "face-250",
+      "skyline",
+      "valley",
+      "cliff-20",
+      "cliff-20-oblique",
+      "cliff-60",
+      "cliff-60-oblique",
+      "gully",
+      "buttress",
+      "talus",
+      "chase",
+    ],
   },
   summer: {
     seed: 38,
@@ -115,6 +168,11 @@ const GROUPS = {
     scenes: ["foot", "face-150"],
   },
 };
+/** The faces whose shimmer is read (the alpine group), and the scenes the
+ * quick `--order-check` stands at between its two readings. */
+const SHIMMER = ["face-250", "face-400", "face-1200"];
+const ORDER_SCENE = "face-400";
+const ORDER_BETWEEN = ["foot", "cliff-20", "face-1200"];
 
 const args = parseArgs(
   process.argv.slice(2),
@@ -124,15 +182,36 @@ const args = parseArgs(
       default: "",
       help: `only these groups (${Object.keys(GROUPS).join(", ")})`,
     },
-    scenes: { kind: "string", default: "", help: "only these scenes in each group" },
+    scenes: {
+      kind: "string",
+      default: "",
+      help: `only these scenes in each group (${ALL.join(", ")})`,
+    },
     quality: { kind: "string", default: "high", help: "the picture preset: low, medium, high" },
-    frames: { kind: "number", default: 2, help: "frames timed for each half of a scene's price" },
+    frames: { kind: "number", default: 2, help: "frames timed for each pass of a scene's price" },
     approach: {
       kind: "flag",
-      help: "only the approach walk and the shimmer (with the alpine group)",
+      help: "only the approach walk, the shimmer and the order check (with the alpine group)",
     },
     "no-approach": { kind: "flag", help: "skip the approach walk and the shimmer" },
     "no-cost": { kind: "flag", help: "pictures only, no prices" },
+    "order-check": {
+      kind: "flag",
+      help: `only the order check, quick: ${ORDER_SCENE} read, then ${ORDER_BETWEEN.join(", ")}, then ${ORDER_SCENE} again`,
+    },
+    "no-order-check": { kind: "flag", help: "skip the order check on the alpine group" },
+    "no-flicker": { kind: "flag", help: "skip make shimmer's flicker at 150–1200 m" },
+    "flicker-shots": {
+      kind: "string",
+      default: "rock-150,rock-300,rock-600,rock-1200",
+      help: "make shimmer's shots (rock-<m>, valley)",
+    },
+    sheet: {
+      kind: "string",
+      default: "group",
+      help: "which page rock-eval.png photographs: group (a map a row) or scene (a lens a row)",
+    },
+    format: { kind: "string", default: "png", help: "the scenes' pictures: png or jpg" },
     refs: {
       kind: "string",
       default: "",
@@ -143,14 +222,15 @@ const args = parseArgs(
     out: { kind: "string", default: "previews/rock-eval", help: "where the pictures go" },
     width: { kind: "number", default: 1280, help: "canvas width, px" },
     height: { kind: "number", default: 720, help: "canvas height, px" },
-    "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
+    "skip-build": { kind: "flag", help: "reuse the bundles from the last run" },
     timeout: { kind: "number", default: 14400, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/rock-eval.mjs [--groups=a,b] [--scenes=a,b] [--quality=high] [--refs=DIR] [--json=FILE] [--compare=FILE] [--skip-build]",
+  "usage: node scripts/rock-eval.mjs [--groups=a,b] [--scenes=a,b] [--quality=high] [--order-check] [--sheet=group|scene] [--format=png|jpg] [--refs=DIR] [--json=FILE] [--compare=FILE] [--skip-build]",
 );
 
 const outDir = resolve(root, args.out);
 mkdirSync(outDir, { recursive: true });
+const ext = args.format === "jpg" ? "jpg" : "png";
 
 if (!args["skip-build"] || !existsSync(join(buildDir, "rock-eval-preview.html"))) {
   const { build } = await import("vite");
@@ -204,17 +284,26 @@ const browser = await chromium.launch({
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
 });
 
-const wantGroups = args.approach
-  ? ["alpine"]
-  : args.groups
-    ? args.groups.split(",").map((g) => g.trim())
-    : Object.keys(GROUPS);
+const quick = args["order-check"];
+const wantGroups =
+  args.approach || quick
+    ? ["alpine"]
+    : args.groups
+      ? args.groups.split(",").map((g) => g.trim())
+      : Object.keys(GROUPS);
 const wantScenes = args.scenes ? args.scenes.split(",").map((s) => s.trim()) : null;
 
 /** Every number this run read. */
-const result = { quality: args.quality, maps: {}, scenes: {}, approach: null, shimmer: null };
-
-const cm = (m) => (m * 100).toFixed(0);
+const result = {
+  quality: args.quality,
+  maps: {},
+  groupNotes: {},
+  scenes: {},
+  approach: null,
+  shimmer: null,
+  orderCheck: null,
+  flicker: null,
+};
 
 for (const name of wantGroups) {
   const g = GROUPS[name];
@@ -249,33 +338,70 @@ for (const name of wantGroups) {
   const map = await page.evaluate("window.__rocks.ready");
   if (crashed) process.exit(1);
   result.maps[name] = map;
+  result.groupNotes[name] =
+    `seed ${g.seed} ${g.face ?? g.region ?? "alpine"}${g.summer ? " summer" : ""} ${g.hour}:00 ${g.weather}`;
   console.log(
-    `${name}: seed ${g.seed} ${g.face ?? g.region ?? "alpine"}${g.summer ? " summer" : ""} ${g.hour}:00 ${g.weather} — ` +
-      `${map.rockCells} rock cells of 12 m, ${map.cliffs} rocky cliffs, loaded in ${(map.loadMs / 1000).toFixed(1)} s`,
+    `${name}: ${result.groupNotes[name]} — ` +
+      `${map.rockCells} rock cells of 12 m, ${map.cliffs} rocky cliffs, loaded in ${(map.loadMs / 1000).toFixed(1)} s` +
+      ` (hooks: rockReset ${map.rockReset}, rockGround ${map.rockGround}, rockDrawnAt ${map.rockDrawnAt})`,
   );
-  const scenes = args.approach ? [] : g.scenes.filter((s) => !wantScenes || wantScenes.includes(s));
+  const alpine = name === "alpine";
+  const checking = alpine && !args["no-order-check"];
+  const order = { scene: ORDER_SCENE, between: [] };
+  if (checking) {
+    // THE ORDER CHECK's first reading, before anything else is drawn.
+    await page.evaluate((s) => globalThis.__rocks.mark(s), ORDER_SCENE);
+    order.shimmerFirst = await page.evaluate(
+      (s) => globalThis.__rocks.shimmer(s, 10, 0.02, true),
+      ORDER_SCENE,
+    );
+    console.log(
+      `  order check: ${ORDER_SCENE} read first, shimmer ${order.shimmerFirst.toFixed(2)}`,
+    );
+  }
+  const scenes = args.approach
+    ? []
+    : quick
+      ? (wantScenes ?? ORDER_BETWEEN)
+      : g.scenes.filter((s) => !wantScenes || wantScenes.includes(s));
   for (const scene of scenes) {
     const id = `${name}-${scene}`;
     const shot = await page.evaluate((s) => globalThis.__rocks.shoot(s), scene);
     if (crashed) process.exit(1);
-    await page.locator("body").screenshot({ path: join(outDir, `${id}.png`) });
+    order.between.push(scene);
+    if (!shot.clean)
+      console.warn(`  ${id}: the rock did not let go before the scene (held triangles)`);
+    await page
+      .locator("body")
+      .screenshot({
+        path: join(outDir, `${id}.${ext}`),
+        ...(ext === "jpg" ? { type: "jpeg", quality: 85 } : {}),
+      });
     let cost = null;
     let held = null;
-    if (!args["no-cost"] && shot.note !== "none on this map") {
+    if (!args["no-cost"] && !quick && shot.note !== "none on this map") {
       cost = await page.evaluate((n) => globalThis.__rocks.cost(n), args.frames);
       held = await page.evaluate(() => globalThis.__rocks.stats());
     }
     result.scenes[id] = { ...shot, cost, held };
-    console.log(`  ${id.padEnd(22)} ${cost ? line(result.scenes[id]) : shot.note}`);
+    console.log(`  ${id.padEnd(26)} ${cost ? line(result.scenes[id]) : shot.note}`);
   }
-  if (name === "alpine" && !args["no-approach"] && (!wantScenes || args.approach)) {
-    const far = await page.evaluate(() => globalThis.__rocks.shimmer("face-400", 10, 0.02));
-    const farthest = await page.evaluate(() => globalThis.__rocks.shimmer("face-1200", 10, 0.05));
-    result.shimmer = { "face-400": far, "face-1200": farthest };
+  if (alpine && !quick && !args["no-approach"] && (!wantScenes || args.approach)) {
+    result.shimmer = {};
+    for (const s of SHIMMER) {
+      const slide = s === "face-1200" ? 0.05 : 0.02;
+      result.shimmer[s] = await page.evaluate(
+        ([n, d]) => globalThis.__rocks.shimmer(n, 10, d, true),
+        [s, slide],
+      );
+    }
     console.log(
-      `  shimmer: face-400 ${far.toFixed(2)}, face-1200 ${farthest.toFixed(2)} (×1000, lower is steadier)`,
+      `  shimmer: ${Object.entries(result.shimmer)
+        .map(([k, v]) => `${k} ${v.toFixed(2)}`)
+        .join(", ")} (×1000, lower is steadier)`,
     );
     const steps = await page.evaluate(() => globalThis.__rocks.approach(800, 20, 10));
+    order.between.push("the approach 800→20 m");
     const sorted = [...steps].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)] || 1e-6;
     const worst = Math.max(...steps);
@@ -286,117 +412,80 @@ for (const name of wantGroups) {
         `(pop ${(worst / median).toFixed(1)}×)`,
     );
   }
-  await page.close();
-}
-
-/** One scene's numbers on a line. */
-function line(r) {
-  const c = r.cost;
-  const calls = c.calls - c.callsBare;
-  const tris = (c.triangles - c.trianglesBare) / 1000;
-  const gap = r.gap ? `gap ${cm(r.gap.mean)}/${cm(r.gap.p95)} cm (mean/p95)` : "gap n/a";
-  return (
-    `rock ${String(calls).padStart(3)} calls ${tris.toFixed(0).padStart(5)}k tris ` +
-    `(${(c.rockTriangles / 1000).toFixed(0)}k in view) · ` +
-    `frame ${c.ms.toFixed(0)} ms (${(c.ms - c.msBare).toFixed(0)} the rock) · ` +
-    `world ${(c.worldMs - c.worldMsBare).toFixed(2)} ms · settle ${r.settleMs.toFixed(0)} ms · ` +
-    `held ${((r.held?.triangles ?? 0) / 1000).toFixed(0)}k tris ${((r.held?.bytes ?? 0) / 1048576).toFixed(1)} MB · ${gap}`
-  );
-}
-
-// THE TABLE, and the totals a candidate is weighed by.
-const rows = Object.entries(result.scenes).filter(([, r]) => r.cost);
-const mean = (f) => rows.reduce((a, [, r]) => a + f(r), 0) / (rows.length || 1);
-const gapped = rows.filter(([, r]) => r.gap);
-result.totals = rows.length
-  ? {
-      scenes: rows.length,
-      rockCalls: mean((r) => r.cost.calls - r.cost.callsBare),
-      rockTriangles: mean((r) => r.cost.triangles - r.cost.trianglesBare),
-      rockMs: mean((r) => r.cost.ms - r.cost.msBare),
-      frameMs: mean((r) => r.cost.ms),
-      worldMs: mean((r) => r.cost.worldMs - r.cost.worldMsBare),
-      settleMs: mean((r) => r.settleMs),
-      heldTriangles: mean((r) => r.held?.triangles ?? 0),
-      heldBytes: mean((r) => r.held?.bytes ?? 0),
-      gapMean: gapped.length
-        ? gapped.reduce((a, [, r]) => a + r.gap.mean, 0) / gapped.length
-        : null,
-      gapP95: gapped.length ? Math.max(...gapped.map(([, r]) => r.gap.p95)) : null,
-    }
-  : null;
-const t = result.totals;
-const text = [
-  `rock eval — ${args.quality} preset, ${args.width}×${args.height}, software rasterizer (compare builds, not machines)`,
-  "",
-  ...Object.entries(result.maps).map(
-    ([n, m]) =>
-      `${n.padEnd(12)} ${m.rockCells} rock cells · ${m.cliffs} cliffs · load ${(m.loadMs / 1000).toFixed(1)} s`,
-  ),
-  "",
-  ...rows.map(([id, r]) => `${id.padEnd(22)} ${line(r)}`),
-  ...(t
-    ? [
-        "",
-        `MEAN over ${t.scenes} scenes: rock ${t.rockCalls.toFixed(0)} calls, ${(t.rockTriangles / 1000).toFixed(0)}k tris, ` +
-          `${t.rockMs.toFixed(0)} ms of a ${t.frameMs.toFixed(0)} ms frame, ${t.worldMs.toFixed(2)} ms of the world's CPU, ` +
-          `settle ${t.settleMs.toFixed(0)} ms, held ${(t.heldTriangles / 1000).toFixed(0)}k tris ${(t.heldBytes / 1048576).toFixed(1)} MB` +
-          (t.gapMean !== null
-            ? `, physics gap mean ${cm(t.gapMean)} cm, worst p95 ${cm(t.gapP95)} cm`
-            : ""),
-      ]
-    : []),
-  ...(result.shimmer
-    ? [
-        `SHIMMER face-400 ${result.shimmer["face-400"].toFixed(2)}, face-1200 ${result.shimmer["face-1200"].toFixed(2)}`,
-      ]
-    : []),
-  ...(result.approach
-    ? [
-        `APPROACH 800→20 m: median ${result.approach.median.toFixed(2)}, worst ${result.approach.worst.toFixed(2)} at ${result.approach.at} m, pop ${result.approach.pop.toFixed(1)}×`,
-      ]
-    : []),
-].join("\n");
-writeFileSync(join(outDir, "rock-eval.txt"), `${text}\n`);
-if (args.json) writeFileSync(resolve(args.json), JSON.stringify(result, null, 1));
-
-if (args.compare) {
-  const before = JSON.parse(readFileSync(resolve(args.compare), "utf8"));
-  console.log("\nBEFORE → AFTER (rock calls, rock k tris, rock ms, gap p95 cm)");
-  const f = (r) => [
-    r.cost.calls - r.cost.callsBare,
-    (r.cost.triangles - r.cost.trianglesBare) / 1000,
-    r.cost.ms - r.cost.msBare,
-    r.gap ? r.gap.p95 * 100 : NaN,
-  ];
-  for (const [id, r] of rows) {
-    const b = before.scenes?.[id];
-    if (!b?.cost) continue;
-    const [bc, bt, bm, bg] = f(b);
-    const [ac, at, am, ag] = f(r);
+  if (checking) {
+    // Round 1's way, the tiles as the last lens left them, then the
+    // reading again from nothing.
+    order.shimmerUnsettled = await page.evaluate(
+      (s) => globalThis.__rocks.shimmer(s, 10, 0.02, false),
+      ORDER_SCENE,
+    );
+    const again = await page.evaluate((s) => globalThis.__rocks.recheck(s), ORDER_SCENE);
+    order.shimmerLast = await page.evaluate(
+      (s) => globalThis.__rocks.shimmer(s, 10, 0.02, true),
+      ORDER_SCENE,
+    );
+    result.orderCheck = { ...order, ...again };
     console.log(
-      `${id.padEnd(22)} ${String(bc).padStart(3)} → ${String(ac).padStart(3)}   ` +
-        `${bt.toFixed(0).padStart(5)} → ${at.toFixed(0).padStart(5)}   ${bm.toFixed(0).padStart(5)} → ${am.toFixed(0).padStart(5)}   ` +
-        `${bg.toFixed(0).padStart(4)} → ${ag.toFixed(0).padStart(4)}`,
+      `  order check: ${ORDER_SCENE} again after ${order.between.join(", ")} — picture change ${again.change.toFixed(3)}, ` +
+        `rock in view ${again.rockTriangles.join(" → ")}, shimmer ${order.shimmerFirst.toFixed(2)} → ${order.shimmerLast.toFixed(2)} ` +
+        `(unsettled after the last lens, round 1's way: ${order.shimmerUnsettled.toFixed(2)})`,
     );
   }
-  const bt = before.totals;
-  if (bt && t)
-    console.log(
-      `MEAN${" ".repeat(18)} ${bt.rockCalls.toFixed(0).padStart(3)} → ${t.rockCalls.toFixed(0).padStart(3)}   ` +
-        `${(bt.rockTriangles / 1000).toFixed(0).padStart(5)} → ${(t.rockTriangles / 1000).toFixed(0).padStart(5)}   ` +
-        `${bt.rockMs.toFixed(0).padStart(5)} → ${t.rockMs.toFixed(0).padStart(5)}   settle ${bt.settleMs.toFixed(0)} → ${t.settleMs.toFixed(0)} ms`,
+  await page.close();
+}
+await browser.close();
+await server.close();
+
+// THE FLICKER: make shimmer itself, on the same preset, after this run's
+// browser has closed so the two never share the processor.
+if (
+  !args["no-flicker"] &&
+  !quick &&
+  wantGroups.includes("alpine") &&
+  (!wantScenes || args.approach)
+) {
+  const g = GROUPS.alpine;
+  try {
+    const out = execFileSync(
+      process.execPath,
+      [
+        join(root, "scripts", "shimmer-preview.mjs"),
+        "--json",
+        `--seed=${g.seed}`,
+        `--grade=${g.grade}`,
+        `--quality=${args.quality}`,
+        `--shots=${args["flicker-shots"]}`,
+        ...(args["skip-build"] ? ["--skip-build"] : []),
+      ],
+      { cwd: root, encoding: "utf8", maxBuffer: 64 << 20, stdio: ["ignore", "pipe", "inherit"] },
     );
-  if (before.shimmer && result.shimmer)
+    const json = JSON.parse(out.slice(out.indexOf('{\n  "seed"')));
+    const sheet = "flicker.png";
+    cpSync(join(root, "previews", `shimmer-${g.seed}-${g.grade}.png`), join(outDir, sheet));
+    result.flicker = {
+      seed: g.seed,
+      grade: g.grade,
+      frames: json.frames,
+      step: json.step,
+      rows: json.rows,
+      sheet,
+    };
     console.log(
-      `shimmer face-400 ${before.shimmer["face-400"].toFixed(2)} → ${result.shimmer["face-400"].toFixed(2)}, ` +
-        `face-1200 ${before.shimmer["face-1200"].toFixed(2)} → ${result.shimmer["face-1200"].toFixed(2)}`,
+      `  flicker: ${json.rows.map((r) => `${r.shot} ${r.flicker.toFixed(2)}`).join(", ")} (make shimmer, ×1000)`,
     );
-  if (before.approach && result.approach)
-    console.log(`pop ${before.approach.pop.toFixed(1)}× → ${result.approach.pop.toFixed(1)}×`);
+  } catch (err) {
+    console.error(`make shimmer failed: ${err.message}`);
+  }
 }
 
-// THE SHEET: every scene with its numbers, the references beside it.
+result.totals = totals(result);
+const text = table(result, args);
+writeFileSync(join(outDir, "rock-eval.txt"), `${text}\n`);
+if (args.json) writeFileSync(resolve(args.json), JSON.stringify(result, null, 1));
+if (args.compare)
+  console.log(compare(JSON.parse(readFileSync(resolve(args.compare), "utf8")), result));
+
+// THE PAGES: every scene by group and by scene, the references beside it.
 const refsDir = args.refs ? resolve(args.refs.replace(/^~/, process.env.HOME ?? "~")) : "";
 const refs =
   refsDir && existsSync(refsDir)
@@ -406,34 +495,14 @@ if (refs.length) {
   mkdirSync(join(outDir, "refs"), { recursive: true });
   for (const f of refs) cpSync(join(refsDir, f), join(outDir, "refs", f));
 }
-const esc = (s) =>
-  String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
-const cards = Object.entries(result.scenes)
-  .map(([id, r]) => {
-    const scene = id.split("-").slice(1).join("-");
-    const mine = refs.filter((f) => f.startsWith(`${id}`) || f.startsWith(`${scene}`));
-    return `<figure><img src="${id}.png"><figcaption><b>${esc(id)}</b> · ${esc(r.note)}<br>${r.cost ? esc(line(r)) : ""}</figcaption>${mine.map((f) => `<img class="ref" src="refs/${esc(f)}">`).join("")}</figure>`;
-  })
-  .join("\n");
-const curve = result.approach
-  ? `<figure class="wide"><svg viewBox="0 0 ${result.approach.steps.length} 100" preserveAspectRatio="none"><polyline fill="none" stroke="#7cf" stroke-width="0.6" vector-effect="non-scaling-stroke" points="${result.approach.steps
-      .map((v, i) => `${i},${100 - (100 * v) / (result.approach.worst || 1)}`)
-      .join(
-        " ",
-      )}"/></svg><figcaption><b>approach</b> 800 m → 20 m at the rockiest face, each 10 m step's change off the last (a spike is a pop): median ${result.approach.median.toFixed(2)}, worst ${result.approach.worst.toFixed(2)} at ${result.approach.at} m, pop ${result.approach.pop.toFixed(1)}×</figcaption></figure>`
-  : "";
-writeFileSync(
-  join(outDir, "index.html"),
-  `<!doctype html><meta charset="utf-8"><title>Rock eval</title><style>
-body{margin:0;background:#11161b;color:#dde;font:12px/1.35 monospace;padding:10px}
-main{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-figure{margin:0}img{width:100%;display:block}img.ref{margin-top:4px}
-figure.wide{grid-column:1/-1}svg{width:100%;height:90px;background:#0b0f13}
-pre{white-space:pre-wrap}</style><pre>${esc(text)}</pre><main>${cards}${curve}</main>`,
-);
-const sheet = await browser.newPage({ viewport: { width: 1800, height: 1000 } });
-await sheet.goto(`file://${join(outDir, "index.html")}`);
+const written = pages(result, text, ext, refs, Object.keys(GROUPS));
+for (const [file, html] of Object.entries(written)) writeFileSync(join(outDir, file), html);
+const shotBrowser = await chromium.launch({ executablePath });
+const sheet = await shotBrowser.newPage({ viewport: { width: 1800, height: 1000 } });
+await sheet.goto(`file://${join(outDir, args.sheet === "scene" ? "scenes.html" : "index.html")}`);
+await sheet.waitForLoadState("load");
 await sheet.screenshot({ path: join(outDir, "rock-eval.png"), fullPage: true });
-await browser.close();
-await server.close();
-console.log(`\n${text}\n\nsheet: ${join(outDir, "rock-eval.png").replace(`${root}/`, "")}`);
+await shotBrowser.close();
+console.log(
+  `\n${text}\n\npages: ${join(outDir, "index.html").replace(`${root}/`, "")}, scenes.html; sheet: rock-eval.png`,
+);

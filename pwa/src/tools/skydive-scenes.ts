@@ -239,6 +239,19 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     }
     st.shoot(t, "game lens", "chase");
   },
+  // ── THE RIG ON A BODY THROWN: no pull, into the snow — the container
+  // stays strapped to him through the fall and as he lies ───────────────
+  crash(st) {
+    const s = dive(st, 60);
+    st.until(s, (x) => !!x.skier.thrown, 20, still);
+    const body = (x: GameState) => x.skier.thrown ?? x.skier;
+    for (const k of [0.15, 0.6, 1.5]) {
+      st.until(s, (x) => (x.skier.thrown?.t ?? 0) >= k, 4, still);
+      st.shoot(s, `+${k}s`, overPoint(body, 3.5, 2.2, 3.5, 40));
+    }
+    st.shoot(s, "lying above", overPoint(body, 0.6, 3.2, 0.8, 40));
+    st.shoot(s, "lying side", overPoint(body, -3, 1.0, 0.4, 40));
+  },
   // ── FREEFALL: the box, the turns, the track, head down ────────────────
   freefall(st) {
     const s = dive(st, 2600);
@@ -652,6 +665,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   canopy: ["canopy", "landing"],
   shape: ["shape"],
   cutaway: ["cutaway"],
+  crash: ["crash"],
   reserve: ["reserve"],
   snag: ["snag"],
   malfunction: ["malfunction"],

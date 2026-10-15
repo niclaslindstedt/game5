@@ -51,6 +51,16 @@ export const PISTE_DAY = {
       storm: 0,
     },
   },
+  /** THE AIR (`airTempAt`, °C at the slopes' altitude). The snow must be
+   * near the melting point to go to slush: the sun's warmth reaches it in
+   * full in air at `sunFrom` and warmer, and none of it in air at `cold`
+   * and colder (a strong spring sun wets snow a few degrees below zero,
+   * never in deep cold). Air over zero warms the surface on its own, at
+   * `warm` per °C (the sun's own scale, a clear spring noon's excess about
+   * 0.4). Slush freezes again only as the air goes under the melting
+   * point: it keeps its warmth in air at `thaw` and over, and cools back
+   * in full at `freeze` and under. */
+  air: { cold: -8, sunFrom: -2, warm: 0.06, freeze: -1, thaw: 1 },
   /** The integration's step through the day, h. */
   step: 0.25,
   /** WHAT EACH DOES TO THE PHYSICS. `loose`: the share of a groomer's pack

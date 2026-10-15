@@ -238,8 +238,10 @@ export const BIKE = {
   /** THE AIR: the pitch his body English asks at full lean, rad/s (nose up
    * leaning back), the yaw a twist of the bars asks, rad/s, and the most
    * torque his body puts through the bike for either, N·m (our estimates);
-   * how hard the assist's hand levels the bike to the snow ahead, 1/s. */
-  air: { pitch: 2.2, yaw: 1.2, torque: 260, level: 2.5 },
+   * how hard the assist's hand levels the bike to the snow ahead, 1/s, and
+   * only within `reach` rad of the ground's line — further off, it lands
+   * on whatever is down. */
+  air: { pitch: 2.2, yaw: 1.2, torque: 260, level: 2.5, reach: 1 },
 
   /** WHAT THROWS HIM OFF (`bike.ts`): a lean past `lean` rad held `leanFor`
    * s (the lowside); the front's side force past `slide` × its sliding grip

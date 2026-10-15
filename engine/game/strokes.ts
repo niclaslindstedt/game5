@@ -1,71 +1,63 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE STROKES — the controls a FREE RIDE or a TRICKS run reads off the
-// SHAPE of an input rather than its value (`RunRules.stunts`), and the
-// skier's GRABS (on a tricks run). THE TWIRL is the edge thrown over, and
-// each one is HALF A TURN about the skier's own up axis: tap it once and he
-// comes down with the skis backward and rides away SWITCH (`skier.ts`);
-// twice, and it is a whole 360. THE LOOP is the lean carried to the top of
-// its axis — back, the backflip; forward, the front flip — and it is HELD,
-// not tapped: he turns nose over tail for as long as the lean stays there.
+// THE STROKES — the flips and spins a FREE RIDE or a TRICKS run lets the
+// skier throw (`RunRules.stunts`), and his GRABS. They are PHYSICAL: a
+// body in the air keeps the turn it left the snow with, and nothing but
+// the snow coming back stands him on his feet.
 //
-// Both are read off an input rather than a force, which is why they live
-// here and not in `flight.ts`: they are EARNED by carrying the input
-// across a gate near the top of its axis, on a skier who is flying. Below
-// the gate the lean and the edge are the ordinary air control — the lean's
-// torque — and a skier trimming his pitch never turns a trick by accident.
+// THE THROW IS MADE AT THE TAKE-OFF. Only in the first `setFor` s of a
+// flight (after `air.counts`), or wound up the ramp of a kicker and let go
+// at its lip, does an axis carried across its gate SET a rotation: the
+// lean back the backflip, forward the front flip, the edge over a spin. Held
+// across, the rate gathers (`flipSet`, `spinSet`, scaled by the pair's own
+// inertia) toward its cruise for as long as it is held in that window — a
+// quick tap a slow turn, a long one a fast turn — and then it is SET: the
+// window shut, nothing the controls do can add a turn or take one away.
 //
-// A TWIRL IS HELD AND SETTLED. The edge held across its gate spins him at
-// a rate the body GATHERS (`spinAccel`, toward a cruise the further over
-// the edge is pushed), for as long as it is held; let go, the spin is
-// carried on to the next half turn it can still stop square on and
-// stopped there (`TrickState.spinGoal`), so a tap is a 180 — the skis
-// straight backward, ridden away switch — and a held spin comes round
-// onto the skis forward or switch. While it turns, the edge's own yaw is
-// steered over. IT IS PACED TO THE SNOW: a settling spin is raised to
-// stop by `finish` s before the flight comes down (`landingAhead`), as
-// fast as `rateMost`, and a fresh twirl that could not turn half a turn
-// in the air left is not taken at all.
+// IN THE AIR HE CAN ONLY CHANGE HIS SHAPE. The body's inertia changes with
+// it, and the turn with it: the lean held the flip's way is the TUCK — the
+// knees to the chest, the loop turning `tuckForm` times as fast — and the
+// lean against it the LAYOUT, opened out to `openForm` of it; the edge held
+// the spin's way pulls the arms in (`spinIn`), against it throws them out
+// (`spinOut`). So a skier who threw too little tucks to bring it round and
+// one who threw too much opens out — and the timing is his.
 //
-// A LOOP IS THE SKIER'S OWN. Nothing stops it square: the lean held across
-// its gate gathers the rotation at `flipAccel` to its cruise and keeps it
-// there — a loop, a double, round past his feet if he holds it too long —
-// and let go he opens out and it dies away at `flipBrake`, carrying him
-// on a little over a third of a turn before the air's own control has the
-// axis back. So he lets go upside down, as a skier opens to spot the
-// snow, and comes round onto his skis; too early and he lands on his
-// tails, too late on his tips or his back. While the loop turns, the
-// lean's torque, the air's levelling and its damping are steered over
-// (`TrickState.flipGoal` keeps where it is headed, for the tuck as drawn).
-// The snow coming back under him ends it, wherever he is.
+// AT THE END HE SPOTS HIS LANDING — if he can. With the snow `catchLook` s
+// away and his body not tucked, a skier coming round within `flipCatch` of
+// his feet under him (or within `spinCatch` of a line he can ride, forward
+// or switch) opens out and slows the turn at no more than `flipCatchBrake`
+// (`spinCatchBrake`) to stop square, and once it has stopped the air's own
+// hand (`flight.ts`) lays him onto the slope. Turning too fast to stop in
+// what is left, he goes over; too slow to come round, he lands short of it;
+// and outside that reach he does not try at all: he meets the snow on
+// whatever is under him — the tails, the tips, his back, his side — and the
+// landing is judged as any other (`crash.ts`).
 //
 // A KICKER, AND NOT A BUMP. The lean held across the gate up a kicker's ramp
 // is one stroke at the lip: the skier set the trick up. Held anywhere else
 // on the snow — leaning back to float through powder, which every skier
 // does — the crossing is marked as already made, and the same hold off a
-// crest buys nothing until he lets it go and throws it again. And on a
-// FREE RIDE a flight takes a stroke only if he MEANT it — off a kicker, or
-// in a pop of his own (`popWindow`): a knee or a roller taken at speed
-// throws him without asking, and the edge he steers across it then is his
-// steering, never a 180 (`TrickState.meant`). A BIG FLIGHT is the
-// exception for the lean: with a second of air or more still ahead
-// (`bigFlight`) — off a crest, a cliff, a drop — the lean thrown across its
-// gate is a loop whatever launched him.
+// crest buys nothing. On a FREE RIDE a flight takes a stroke only if he
+// MEANT it — off a kicker, or in a pop of his own (`popWindow`): a knee
+// taken at speed throws him without asking, and the edge he steers across
+// it then is his steering (`TrickState.meant`). A BIG FLIGHT is the
+// exception for the lean: with a second of air or more ahead (`bigFlight`)
+// the lean thrown across its gate in the window is a loop whatever launched
+// him.
 //
 // THE GRABS. With the trick button held in the air the skier's body is off
 // the controls and into a grab: one ski kicked forward and one back, the
 // daffy (the edge over), both skis flung wide, the spread (the lean back),
 // or the body folded to a hand on the ski, the grab (the lean forward, or
-// nothing) — and on a board the board's seven (`board-tricks.ts`: the indy,
-// the mute, the melon, the stalefish, the method, the nose and the tail).
-// While he grabs the lean and the edge move his body and not his
-// flight (`poseInput`), so he flies on as he was and the grab is a thing he
-// has to get out of before the snow comes back (`tricks.ts` judges that).
+// nothing) — and on a board the board's seven (`board-tricks.ts`). While he
+// grabs the lean and the edge move his body and not his flight
+// (`poseInput`), and the turn he threw goes on as it was.
 //
 // Nothing here is random and nothing reads a clock: a run replays to the
 // same rotation.
 
 import { approach, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
-import { landingAhead } from "./flight.ts";
+import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { landingAhead, type Landing } from "./flight.ts";
 import { flightGravity } from "./limits.ts";
 import { SKIS, inertiaOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -101,10 +93,9 @@ const thrown: SkierInput = { steer: 0, tuck: 0, brake: 0, lean: 0, reset: false 
 
 /** THE INPUT THE SKIER FLIES ON while he grabs: the tuck and the brake are
  * still under his thumbs, but the lean and the edge are his body, and he
- * flies on without them. And an axis still held across its gate from the
- * stroke it bought is the THROW's: a lean held past a loop that had come
- * round would go on pitching him over onto his back. Anything else passes
- * as it is. */
+ * flies on without them. And while a throw turns him the lean and the edge
+ * are his SHAPE (`stepStrokes`), never the air control's torque on top of
+ * it. Anything else passes as it is. */
 export function poseInput(state: GameState, input: SkierInput): SkierInput {
   if (posing(state, input)) {
     posed.tuck = input.tuck;
@@ -114,8 +105,8 @@ export function poseInput(state: GameState, input: SkierInput): SkierInput {
     return posed;
   }
   const k = state.tricks;
-  const looping = k.flipHeld || k.flipGoal !== 0 || k.flipDone !== 0;
-  const twirling = k.spinHeld || k.spinGoal !== 0 || k.spinDone !== 0;
+  const looping = k.flipGoal !== 0;
+  const twirling = k.spinGoal !== 0;
   if (!state.skier.airborne || (!looping && !twirling)) return input;
   Object.assign(thrown, input);
   if (looping) thrown.lean = 0;
@@ -148,18 +139,23 @@ function across(value: number, gate: number): number {
   return v >= gate ? 1 : v <= -gate ? -1 : 0;
 }
 
-/** The least time, s, a throw gathered at `accel` rad/s² to no more than
- * `rate` rad/s and stopped again takes to turn `angle` rad from rest. */
-export function throwTime(angle: number, rate: number, accel: number): number {
-  const a = Math.abs(angle);
-  if (a * accel <= rate * rate) return 2 * Math.sqrt(a / accel);
-  return a / rate + rate / accel;
+/** Whether the take-off's window is still open on a skier `airTime` s up:
+ * the only time an axis thrown across its gate can set a turn going. */
+export function setting(airTime: number): boolean {
+  return airTime < TUNING.air.counts + T.setFor;
 }
 
-/** One step of both stroke detectors, the throws and the grab, run after
- * the skier has been stepped (his flight bookkeeping is current), on a run
- * whose rules let him trick (`RunRules.stunts`). `input` is what the skier
- * asked for, before `poseInput`. */
+/** THE SHAPE an axis asks for, as a multiple of the open body's rate:
+ * `a` the input held the turn's way (positive) or against it, `tight` the
+ * multiple fully pulled in and `wide` fully laid out. */
+function formOf(a: number, tight: number, wide: number): number {
+  return a >= 0 ? 1 + (tight - 1) * Math.min(1, a) : 1 - (1 - wide) * Math.min(1, -a);
+}
+
+/** One step of both throws and the grab, run after the skier has been
+ * stepped (his flight bookkeeping is current), on a run whose rules let
+ * him trick (`RunRules.stunts`). `input` is what the skier asked for,
+ * before `poseInput`. */
 export function stepStrokes(state: GameState, input: SkierInput): void {
   const k = state.tricks;
   const c = state.skier;
@@ -177,31 +173,27 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
   }
 
   const aloft = c.airborne && c.thrown === null && c.airTime >= TUNING.air.counts;
-  // A BIG FLIGHT — a crest, a cliff, a drop with the air still ahead of
-  // him for a loop (`bigFlight`) — is the pump's whatever launched it.
   const down = aloft ? landingAhead(c, state.level, flightGravity(state.rules)) : null;
   const ahead = down ? down.t : Infinity;
   const big = aloft && ahead >= T.bigFlight;
   const launched = aloft && c.launchVy >= T.launch;
-  // ...and a loop under way is turned out whatever the air left says.
-  const flying = launched || big || (aloft && owing(k.flipGoal, k.flipDone));
-  // An axis let back under its gate is the air control's again.
+  // ...and a throw under way turns on whatever the air left says.
+  const flying = launched || big || (aloft && (k.flipGoal !== 0 || k.spinGoal !== 0));
   if (flip === 0) k.flipHeld = false;
   if (spin === 0) k.spinHeld = false;
   if (!flying) {
-    k.flipHeld = false;
-    k.spinHeld = false;
-    k.flipGoal = 0;
-    k.spinGoal = 0;
-    k.flipDone = 0;
-    k.spinDone = 0;
-    k.flipSpeed = 0;
+    clearFlip(state);
+    clearSpin(state);
     if (!c.airborne) {
       // ARMED on the snow: across the gate up a kicker's ramp is a stroke
       // waiting for the lip; anywhere else it is a crossing already made.
+      // The edge thrown WITH THE JUMP — after the key was pressed, or as the
+      // pop leaves the snow — is the spin wound into it, not a turn he was
+      // already carving: a crossing made then is left for the air to take.
       const ramp = onRamp(state);
+      const jumping = c.jumpLoad > 0 || c.popped <= T.popWindow;
       k.flipCrossed = ramp ? 0 : flip;
-      k.spinCrossed = ramp ? 0 : spin;
+      k.spinCrossed = ramp || (jumping && spin !== k.spinCrossed) ? 0 : spin;
       // The flight he leaves the snow on next is MEANT if he leaves it off
       // a kicker or in his own pop; off a knee or a lip he did not jump, a
       // free ride's flight is a fall he steers, and nothing is thrown.
@@ -209,203 +201,343 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     }
     return;
   }
-  // WHAT THE LAST STEP TURNED toward what is owed. Tips up is a negative
-  // `wx` (`state.ts`), so a backflip's angle is −wx; a positive `wy` turns
-  // the skier clockwise, the way a positive edge does.
+  // WHAT THE LAST STEP TURNED. Tips up is a negative `wx` (`state.ts`), so
+  // a backflip's angle is −wx; a positive `wy` turns the skier clockwise,
+  // the way a positive edge does.
   const dt = TUNING.dt;
-  if (owing(k.flipGoal, k.flipDone)) k.flipDone -= c.wx * dt;
-  if (owing(k.spinGoal, k.spinDone)) k.spinDone += c.wy * dt;
+  if (k.flipGoal !== 0) k.flipDone -= c.wx * dt;
+  if (k.spinGoal !== 0) k.spinDone += c.wy * dt;
 
-  // THE PACE: this pair's throw, and the air left to turn it in.
-  const pace = flipPace(c.spec);
-  const I = inertiaOf(c.spec);
-  const ref = inertiaOf(SKIS);
-  const spinAccel = T.spinAccel * Math.sqrt(ref.y / I.y);
-  const left = ahead - T.finish;
+  const open = setting(c.airTime);
   // A flight he never meant (`TrickState.meant`) is steered, never thrown
   // — a twirl off a knee is his steering — but in a big one the lean is
-  // the pump all the same: there is the air for a loop, and leaning hard
-  // in it means one.
+  // the loop all the same.
   const willed = launched && (k.meant || state.rules.tricks);
-  // Grabbing, the body is busy, and whatever the axes are doing is the
-  // grab's — nothing is thrown, though a loop under way still turns (and
-  // dies away) and a twirl owed is still turned below. Let go, they must
-  // be thrown afresh.
+  // Grabbing, the body is busy: nothing is thrown and nothing is set, and
+  // a throw already going goes on as it was.
   const busy = k.pose !== null;
-  if (busy || !(willed || big || owing(k.flipGoal, k.flipDone))) {
-    k.flipCrossed = flip;
-    k.flipHeld = false;
-  } else {
-    // THE LOOP, turned the way the lean went for as long as it is held:
-    // back (+1) the backflip. Thrown across the gate it takes hold — the
-    // other way, it turns the loop back — and let back under it, it lets
-    // go and the rotation dies away.
-    if (flip === 0) k.flipCrossed = 0;
-    else if (flip !== k.flipCrossed) {
-      k.flipCrossed = flip;
-      if (!owing(k.flipGoal, k.flipDone)) k.flipDone = 0;
-      k.flipHeld = true;
-    }
-    if (flip !== k.flipCrossed || flip === 0) k.flipHeld = false;
-  }
-  if (busy || !(willed || big)) k.spinCrossed = spin;
-  else {
-    // THE TWIRL, half a turn the way the edge went.
-    // (A revert under way turns him round itself: no twirl is read on top.)
-    if (spin === 0 || c.revert != null || !willed) k.spinCrossed = spin;
-    else if (spin !== k.spinCrossed) {
-      k.spinCrossed = spin;
-      // A crossing is taken only if the air left can carry the turn it
-      // asks for (half a turn back always can).
-      const fresh = !owing(k.spinGoal, k.spinDone);
-      const most = state.rules.spinMost ?? T.spinMost;
-      // Each crossing is half a turn more the way it went (a tap the
-      // other way, half a turn back), whatever a hold then adds to it.
-      const goal = (fresh ? 0 : k.spinGoal) + spin * T.spinStep;
-      const done = fresh ? 0 : k.spinDone;
-      const back = !fresh && Math.abs(goal) < Math.abs(k.spinGoal);
-      if (Math.abs(goal) <= most && (back || takes(goal, done, most, spinAccel, left))) {
-        if (fresh) k.spinDone = 0;
-        k.spinGoal = goal;
-        k.spinHeld = true;
-      }
-    }
-    if (spin !== k.spinCrossed) k.spinHeld = false;
-  }
+  const I = inertiaOf(c.spec);
+  const ref = inertiaOf(SKIS);
 
-  // THE LOOP: held, the rate gathered toward its cruise the way the lean
-  // went — let go before the run's most would be turned on the way to a
-  // stop — and let go, opened out and slowing. Once it has all but died
-  // the axis is the air's again, the last of the rate the body's own.
-  if (k.flipHeld || owing(k.flipGoal, k.flipDone)) {
-    const most = state.rules.flipMost ?? T.flipMost;
-    // Taken up off the body's own rate as the loop takes hold.
-    let now = owing(k.flipGoal, k.flipDone) ? k.flipSpeed : -c.wx;
-    if (k.flipHeld && Math.abs(k.flipDone) + stopOf(now, pace.brake) >= most) k.flipHeld = false;
-    now = k.flipHeld
-      ? approach(now, k.flipCrossed * T.flipRate, pace.accel * dt)
-      : approach(now, 0, pace.brake * dt);
-    c.wx = -now;
-    k.flipSpeed = now;
-    // ...though a lean still held across the gate past the most keeps the
-    // axis, so its own torque cannot carry him on round.
-    const kept = flip !== 0 && flip === k.flipCrossed;
-    if (!k.flipHeld && !kept && Math.abs(now) < STILL) {
-      k.flipGoal = 0;
+  // THE LOOP: a fresh crossing in the window takes hold, and held, the rate
+  // gathers the way the lean went — up to what the run's ceiling lets come
+  // round in the air there is (a contest's most, `RunRules.flipMost`).
+  if (flip === 0) k.flipCrossed = 0;
+  else if (flip !== k.flipCrossed) {
+    k.flipCrossed = flip;
+    k.flipHeld = open && !busy && (willed || big);
+    if (k.flipHeld && k.flipGoal === 0) {
+      k.flipSpeed = -c.wx;
+      k.flipForm = 1;
       k.flipDone = 0;
-      k.flipSpeed = 0;
-    } else {
-      // Where it is headed: on round while held (the tuck kept), and where
-      // it will come to rest once let go (the body opening toward it).
-      const dir = k.flipHeld ? k.flipCrossed : Math.sign(now);
-      const stop = stopOf(now, pace.brake);
-      k.flipGoal = k.flipDone + dir * (k.flipHeld ? OPEN + stop : stop);
+      k.flipGoal = flip * 1e-3;
     }
   }
-  // THE TWIRL: held, the rate gathered toward its cruise the way the edge
-  // went — the further over the edge, the quicker, so a thumb dragged
-  // across spins him as hard as it is pushed — and let go (or held to the
-  // run's most), SETTLED: the spin carried on to the next half turn it can
-  // still stop square on, so a tap is a 180 and a held spin comes round
-  // onto the skis forward or switch.
-  const most = state.rules.spinMost ?? T.spinMost;
-  if (k.spinHeld && Math.abs(k.spinDone) + stopOf(c.wy, spinAccel) >= most) k.spinHeld = false;
-  if (k.spinHeld) {
-    const dir = k.spinCrossed;
-    const drive = 0.5 + 0.5 * clamp((Math.abs(input.steer) - T.spinGate) / (1 - T.spinGate), 0, 1);
-    c.wy = approach(c.wy, dir * T.spinRate * drive, spinAccel * dt);
-    // ...the half turn it settles on kept ahead of where it could stop.
-    const ahead = (dir * (k.spinDone + Math.sign(c.wy) * stopOf(c.wy, spinAccel))) / T.spinStep;
-    const halves = Math.min(Math.ceil(ahead - 0.1), Math.floor(most / T.spinStep));
-    if (halves > (dir * k.spinGoal) / T.spinStep) k.spinGoal = dir * halves * T.spinStep;
-  }
-  if (!k.spinHeld && owing(k.spinGoal, k.spinDone)) {
-    const rate = throwRate(k.spinGoal - k.spinDone, c.wy, T.spinRate, spinAccel, left);
-    if (rate === null) {
-      k.spinGoal = 0;
+  if (flip !== k.flipCrossed) k.flipHeld = false;
+  if (k.flipHeld && open && !busy) {
+    const most = state.rules.flipMost ?? T.flipMost;
+    const reach = Math.abs(k.flipSpeed) * Math.min(ahead, AIR_MOST) + Math.abs(k.flipDone);
+    const accel = T.flipSet * Math.sqrt(ref.x / I.x);
+    if (reach < most || Math.sign(k.flipSpeed) !== k.flipCrossed) {
+      k.flipSpeed = approach(k.flipSpeed, k.flipCrossed * T.flipRate, accel * dt);
+    }
+  } else k.flipHeld = false;
+
+  // THE SPIN: the same, the edge's way — the further over the edge the
+  // harder he winds it, so a thumb dragged across spins him as hard as it is
+  // pushed. (A revert under way turns him round itself: nothing on top.)
+  if (spin === 0) k.spinCrossed = 0;
+  else if (spin !== k.spinCrossed) {
+    k.spinCrossed = spin;
+    k.spinHeld = open && !busy && willed && c.revert == null;
+    if (k.spinHeld && k.spinGoal === 0) {
+      k.spinSpeed = c.wy;
+      k.spinForm = 1;
       k.spinDone = 0;
+      k.spinGoal = spin * 1e-3;
     }
-    c.wy = rate ?? 0;
   }
+  if (spin !== k.spinCrossed) k.spinHeld = false;
+  if (k.spinHeld && open && !busy) {
+    const most = state.rules.spinMost ?? T.spinMost;
+    const reach = Math.abs(k.spinSpeed) * Math.min(ahead, AIR_MOST) + Math.abs(k.spinDone);
+    const accel = T.spinSet * Math.sqrt(ref.y / I.y);
+    const drive = 0.5 + 0.5 * clamp((Math.abs(input.steer) - T.spinGate) / (1 - T.spinGate), 0, 1);
+    if (reach < most || Math.sign(k.spinSpeed) !== k.spinCrossed) {
+      k.spinSpeed = approach(k.spinSpeed, k.spinCrossed * T.spinRate * drive, accel * drive * dt);
+    }
+  } else k.spinHeld = false;
+
+  if (k.flipGoal !== 0) turnFlip(state, input, down, busy, open);
+  if (k.spinGoal !== 0) turnSpin(state, input, down, busy, open);
 }
 
-/** HOW THIS PAIR TURNS A LOOP: the rate it gathers at and the rate it
- * dies away at once let go, rad/s², each the reference pair's scaled by
- * the root of this one's pitch inertia against it. */
+/** One step of a loop under way: its shape off the lean, the body's rate
+ * off the shape, the spot at the end, and how far it still has to go. */
+function turnFlip(
+  state: GameState,
+  input: SkierInput,
+  down: Landing | null,
+  busy: boolean,
+  open: boolean,
+): void {
+  const k = state.tricks;
+  const c = state.skier;
+  const dt = TUNING.dt;
+  const dir = Math.sign(k.flipSpeed) || Math.sign(k.flipGoal);
+  const lean = busy ? 0 : clamp(input.lean, -1, 1) * dir;
+  k.flipForm = approach(k.flipForm, formOf(lean, T.tuckForm, T.openForm), T.formRate * dt);
+  let rate = k.flipSpeed * k.flipForm;
+  // Where his feet are: the angle still to turn the way he turns until his
+  // body's up meets the snow's, rad, in [0, 2π).
+  const n = down ? normalOf(state, down) : UP;
+  const u = rotate(c.q, UP);
+  const r = rotate(c.q, RIGHT);
+  const s = Math.atan2(dot(cross(u, n), r), dot(u, n));
+  const left = wrap(-Math.sign(rate || dir) * s, 2 * Math.PI);
+  const past = 2 * Math.PI - left;
+  // THE SPOT: near the end, not tucked, round past half a turn, and within
+  // reach of his feet — ahead of them, or turned past and coming back.
+  const spot =
+    !open &&
+    !busy &&
+    down !== null &&
+    down.t <= T.catchLook &&
+    lean < 0.5 &&
+    Math.abs(k.flipDone) > Math.PI &&
+    Math.min(left, past) < T.flipCatch;
+  if (spot) {
+    const brake = T.flipCatchBrake * Math.sqrt(inertiaOf(SKIS).x / inertiaOf(c.spec).x);
+    const d = Math.sign(rate) || dir;
+    const on = rate * d;
+    const want = left <= past ? Math.sqrt(2 * brake * left) : -Math.sqrt(2 * brake * past);
+    const next = on > want ? approach(on, want, brake * dt) : on;
+    rate = next * d;
+    k.flipForm = Math.max(T.openForm, Math.min(k.flipForm, 1));
+    k.flipSpeed = rate / k.flipForm;
+    if (Math.abs(rate) < STILL && Math.min(left, past) < SQUARE) {
+      c.wx = -rate;
+      clearFlip(state);
+      return;
+    }
+  }
+  c.wx = -rate;
+  // ...and for the figure: how far round it is still to go, and how tight.
+  k.flipGoal = k.flipDone + (Math.sign(rate) || dir) * Math.max(left, 1e-3);
+  k.flipTuck = clamp((k.flipForm - T.openForm) / (T.tuckForm - T.openForm), 0, 1);
+}
+
+/** One step of a spin under way: its shape off the edge, the body's rate
+ * off it, and the spot onto a line he can ride, forward or switch. */
+function turnSpin(
+  state: GameState,
+  input: SkierInput,
+  down: Landing | null,
+  busy: boolean,
+  open: boolean,
+): void {
+  const k = state.tricks;
+  const c = state.skier;
+  const dt = TUNING.dt;
+  const dir = Math.sign(k.spinSpeed) || Math.sign(k.spinGoal);
+  const steer = busy ? 0 : clamp(input.steer, -1, 1) * dir;
+  k.spinForm = approach(k.spinForm, formOf(steer, T.spinIn, T.spinOut), T.formRate * dt);
+  let rate = k.spinSpeed * k.spinForm;
+  // Where his skis point against the way he is going, about his own up:
+  // the angle still to turn the way he turns to the next line he can ride
+  // (the way, or switch to it — every half turn), in [0, π).
+  const u = rotate(c.q, UP);
+  const f = rotate(c.q, FORWARD);
+  const vu = c.vx * u.x + c.vy * u.y + c.vz * u.z;
+  way.x = c.vx - vu * u.x;
+  way.y = c.vy - vu * u.y;
+  way.z = c.vz - vu * u.z;
+  // On a pipe the air turns him round to the wall he comes down on
+  // (`pipe-air.ts`), so the lines are every half turn of the spin itself.
+  const pipe = state.level.pipe !== undefined;
+  const along = pipe ? 2 : Math.sqrt(dot(way, way));
+  const s = pipe ? -k.spinDone : along > 1 ? Math.atan2(dot(cross(f, way), u), dot(f, way)) : 0;
+  const left = along > 1 ? wrap(Math.sign(rate || dir) * s, Math.PI) : Math.PI;
+  const past = Math.PI - left;
+  const spot =
+    !open &&
+    !busy &&
+    along > 1 &&
+    down !== null &&
+    down.t <= T.catchLook &&
+    steer < 0.5 &&
+    Math.abs(k.spinDone) > Math.PI / 2 &&
+    Math.min(left, past) < T.spinCatch;
+  if (spot) {
+    const brake = T.spinCatchBrake * Math.sqrt(inertiaOf(SKIS).y / inertiaOf(c.spec).y);
+    const d = Math.sign(rate) || dir;
+    const on = rate * d;
+    const want = left <= past ? Math.sqrt(2 * brake * left) : -Math.sqrt(2 * brake * past);
+    const next = on > want ? approach(on, want, brake * dt) : on;
+    rate = next * d;
+    k.spinForm = Math.max(T.spinOut, Math.min(k.spinForm, 1));
+    k.spinSpeed = rate / k.spinForm;
+    if (Math.abs(rate) < STILL && Math.min(left, past) < SQUARE) {
+      c.wy = rate;
+      clearSpin(state);
+      return;
+    }
+  }
+  c.wy = rate;
+  k.spinGoal = k.spinDone + (Math.sign(rate) || dir) * Math.max(left, 1e-3);
+}
+
+/** The snow's normal where the flight comes down. */
+function normalOf(state: GameState, down: Landing): Vec3 {
+  if (down.wall) return down.wall;
+  state.level.normalAt(down.x, down.z, ground);
+  return ground;
+}
+
+function clearFlip(state: GameState): void {
+  const k = state.tricks;
+  k.flipGoal = 0;
+  k.flipDone = 0;
+  k.flipSpeed = 0;
+  k.flipForm = 1;
+  k.flipTuck = 0;
+  k.flipHeld = false;
+}
+
+function clearSpin(state: GameState): void {
+  const k = state.tricks;
+  k.spinGoal = 0;
+  k.spinDone = 0;
+  k.spinSpeed = 0;
+  k.spinForm = 1;
+  k.spinHeld = false;
+}
+
+/** HOW THIS PAIR TURNS A LOOP: the rate it is set going at in the window
+ * and the most the spot can shed, rad/s², each the reference pair's scaled
+ * by the root of this one's pitch inertia against it. */
 export function flipPace(spec: SkierState["spec"]): { accel: number; brake: number } {
   const k = Math.sqrt(inertiaOf(SKIS).x / inertiaOf(spec).x);
-  return { accel: T.flipAccel * k, brake: T.flipBrake * k };
+  return { accel: T.flipSet * k, brake: T.flipCatchBrake * k };
 }
 
-/** How far a loop turning at `rate` rad/s goes on once let go, rad. */
-function stopOf(rate: number, brake: number): number {
-  return (rate * rate) / (2 * brake);
-}
-
-/** How much of a turn the throw is kept ahead of a held loop, rad — the
- * whole of the view's tuck (`skier-somersault.ts`'s `OPEN`). */
-const OPEN = 3.2;
-
-/** THE LEAN THAT TURNS `loops` WHOLE LOOPS the way `dir` goes (+1 back)
- * and lets go in time to come round onto the skis: held while what is
- * turned and what a let-go loop would still carry fall short of them —
- * the bot's hand and the labs' (`sim/moguls-steer.ts`, the ride lab). */
-export function flipLean(state: GameState, loops: number, dir: number): number {
+/** THE HAND THAT THROWS `turns` rad on an axis the way `dir` goes and
+ * brings it round on the snow — the bot's and the labs': in the window it
+ * winds the throw up until the open body would turn what is owed in the
+ * air left, and after it tucks while the turn would come round short and
+ * opens out while it would go over, leaving the spot the rest. */
+function aimed(
+  state: GameState,
+  turns: number,
+  dir: number,
+  done: number,
+  speed: number,
+  going: boolean,
+  slack: number,
+  period: number,
+  most: number,
+  goal: number,
+  cut = period,
+): number {
   const c = state.skier;
+  if (c.thrown !== null || !c.airborne) return 0;
+  // The skis meet the snow before the CoG is back at its standing height
+  // (a leg's give, a tip pitched down), so the bot reads the flight to
+  // `LANDS_HIGH` over it.
+  const down = landingAhead(c, state.level, flightGravity(state.rules), LANDS_HIGH);
+  const t = down ? down.t : 1;
+  const turned = going ? done * dir : 0;
+  const ahead = turned + Math.max(0, going ? speed * dir : 0) * t;
+  // A plan more than the air can hold is cut to the whole turns it can:
+  // the most the body turns is `most` rad/s, less the window still to
+  // wind it up.
+  const left = Math.max(0, TUNING.air.counts + T.setFor - c.airTime);
+  const reach = turned + most * Math.max(0, t - left / 2);
+  const owed = Math.min(turns, Math.floor(reach / cut) * cut);
+  // Committed, he goes through with it.
+  if (!going) {
+    if (owed <= 0) return 0;
+    turns = owed;
+  }
+  // Once turning, the lines he can land on are known (the next is the
+  // goal, the one just passed behind it, the rest a `period` apart): aim
+  // at the one nearest the plan, never back at one long gone.
+  if (going) {
+    const next = goal * dir;
+    const back = next - turned > period / 2 ? -1 : 0;
+    turns = next + period * Math.max(back, Math.round((turns - next) / period));
+  }
+  if (setting(c.airTime)) return ahead < turns ? dir : 0;
+  if (!going) return 0;
+  if (ahead < turns - slack) return dir;
+  if (ahead > turns + slack) return -dir;
+  return 0;
+}
+
+/** THE LEAN THAT TURNS `loops` WHOLE LOOPS the way `dir` goes (+1 back). */
+export function flipLean(state: GameState, loops: number, dir: number): number {
   const k = state.tricks;
-  if (c.thrown !== null) return 0;
-  const turned = dir * k.rotation;
-  const rate = Math.max(0, (owing(k.flipGoal, k.flipDone) ? k.flipSpeed : -c.wx) * dir);
-  return turned + stopOf(rate, flipPace(c.spec).brake) < loops * 2 * Math.PI ? dir : 0;
+  return aimed(
+    state,
+    loops * 2 * Math.PI,
+    dir,
+    k.flipDone,
+    k.flipSpeed,
+    k.flipGoal !== 0,
+    0.35,
+    2 * Math.PI,
+    Math.min(T.flipRate, T.flipSet * T.setFor),
+    k.flipGoal,
+  );
 }
 
-/** Whether a throw is under way on an axis: something asked for, or
- * something turned that a stroke the other way has asked back. */
-function owing(goal: number, done: number): boolean {
-  return goal !== 0 || done !== 0;
+/** THE EDGE THAT TURNS `halves` HALF TURNS the way `dir` goes (+1
+ * clockwise from above); `forward` cuts a plan the air cannot hold to
+ * whole turns, never one that comes down switch. */
+export function spinSteer(state: GameState, halves: number, dir: number, forward = false): number {
+  const k = state.tricks;
+  const most = Math.min(T.spinRate, T.spinSet * T.setFor);
+  const cut = forward ? 2 * Math.PI : Math.PI;
+  return aimed(
+    state,
+    halves * Math.PI,
+    dir,
+    k.spinDone,
+    k.spinSpeed,
+    k.spinGoal !== 0,
+    0.3,
+    Math.PI,
+    most,
+    k.spinGoal,
+    cut,
+  );
 }
 
-/** Whether a stroke that would make an axis owe `goal` rad in all, `done`
- * of it turned, is taken: no more than the axis's most (the run's own
- * ceiling — a contest's — or the arcade's), and turnable at the
- * fastest throw in the `left` s before the snow. */
-function takes(goal: number, done: number, most: number, accel: number, left: number): boolean {
-  return Math.abs(goal) <= most && throwTime(goal - done, T.rateMost, accel) <= left;
+/** A turn this slow, rad/s, this close to square, rad, is stopped: the
+ * rest is the air's own hand's. */
+const SQUARE = 0.12;
+/** The air a throw is wound up against when no snow is in sight, s. */
+const AIR_MOST = 3;
+/** How far over his standing height the bot reckons the skis meet the
+ * snow, m. */
+const LANDS_HIGH = 0.4;
+const STILL = 0.4;
+
+/** `a` wrapped into [0, m). */
+function wrap(a: number, m: number): number {
+  return ((a % m) + m) % m;
 }
 
-/** The angle owed this close, rad, and the rate this slow, rad/s, is a
- * throw finished — stopped dead on its angle, the last of the rate the
- * body's own: left turning at it, a 180 drifted a fifth of a right angle
- * off the line before the snow came back. */
-const SQUARE = 0.01;
-const STILL = 0.3;
-
-/** THE RATE A THROW TURNS AT NEXT STEP, rad/s on its own axis (positive
- * the way its angle is owed), off the angle still `owed`, the rate it
- * turns at `now`, its cruise and acceleration and the `left` s to turn it
- * in — or null once it is done. The cruise is raised to the least that
- * turns the angle in the air left — a trapezoid of `owed/r + r/accel` s,
- * the smaller root of r² − left·accel·r + owed·accel — never past
- * `rateMost`; and the rate never asks more than stopping square on the
- * angle allows, √(2·accel·owed). */
-function throwRate(
-  owed: number,
-  now: number,
-  cruise: number,
-  accel: number,
-  left: number,
-): number | null {
-  const a = Math.abs(owed);
-  if (a < SQUARE && Math.abs(now) < STILL) return null;
-  // No snow in sight (`landingAhead`'s horizon): the cruise is enough.
-  const room = Math.max(left, 0.05);
-  const disc = room * room * accel * accel - 4 * a * accel;
-  const fit = !Number.isFinite(room)
-    ? 0
-    : disc > 0
-      ? (room * accel - Math.sqrt(disc)) / 2
-      : T.rateMost;
-  const top = clamp(Math.max(cruise, fit), 0, T.rateMost);
-  const want = Math.sign(owed) * Math.min(top, Math.sqrt(2 * accel * a));
-  return approach(now, want, accel * TUNING.dt);
+function dot(a: Vec3, b: Vec3): number {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
 }
+
+function cross(a: Vec3, b: Vec3): Vec3 {
+  return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x };
+}
+
+const UP: Vec3 = { x: 0, y: 1, z: 0 };
+const RIGHT: Vec3 = { x: 1, y: 0, z: 0 };
+const FORWARD: Vec3 = { x: 0, y: 0, z: 1 };
+const ground: Vec3 = { x: 0, y: 1, z: 0 };
+const way: Vec3 = { x: 0, y: 0, z: 0 };

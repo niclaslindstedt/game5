@@ -62,24 +62,27 @@
 // grey. So the tone is pushed past white and the tone mapper takes the lit
 // side down to a bright, unclipped white.
 
-import { FAR_RIM_GLSL } from "./far-ranges-plan.ts";
-import { LAMP_SLOTS } from "./haze.ts";
-import { SKI_CLEAR_GLSL } from "./ski-clear.ts";
-import { TRAIL_GLSL } from "./trail-map.ts";
 import { DEFORM_SHADE_GLSL } from "./deform-glsl.ts";
 import { SNOW_GLINTS_GLSL, SNOW_NOISE_GLSL } from "./snow-noise-glsl.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
+import { TRAIL_GLSL } from "./trail-map.ts";
 import { WELL_GLSL } from "./tree-wells.ts";
+import { SKI_GROOVE_GLSL } from "./ski-clear.ts";
 import { PISTE_TRACKS_GLSL } from "./piste-tracks.ts";
 import { SNOW_SKY_LIGHT, SNOW_SKY_PARS } from "./snow-sky-glsl.ts";
 import { SLIDE_ALBEDO, SLIDE_GLSL, SLIDE_LUMPS, SLIDE_NORMAL } from "./avalanche-glsl.ts";
+import { SNOW_LAMPS_LIGHT } from "./snow-lamps-glsl.ts";
+import { SNOW_RELIEF_SAMPLE } from "./snow-relief-glsl.ts";
+import { SNOW_SUN_LIGHT, SUN_GLARE } from "./snow-sun-glsl.ts";
+import { SNOW_TRAIL_ALBEDO, SNOW_TRAIL_LIGHT, SNOW_TRAIL_SAMPLE } from "./snow-trail-glsl.ts";
+
+// The vertex half (`snow-vertex-glsl.ts`), grafted beside the fragment's.
+export { SNOW_VERTEX_BEGIN, SNOW_VERTEX_PARS, SNOW_VERTEX_PLACE } from "./snow-vertex-glsl.ts";
 
 /** How much brighter than white snow's albedo is painted. */
 export const GLARE = 1.12;
 
-/** How bright the sun's forward glare off the snow is drawn, over the key's
- * own light: set by looking into the sun (`make snow ARGS=--sheet=sun`). */
-export const SUN_GLARE = 0.6;
+export { SUN_GLARE };
 
 // New snow that buries the groomed track's LOOK outright, m: stated
 // three-free in `trail-stamp.ts`, where the trail map's fill reads it too.
@@ -89,163 +92,6 @@ export { FRESH_LOOK };
 // `trail-stamp.ts`, so what stands ON the snow (the wildlife's feet) reads
 // the same surface this shader lifts.
 export { LOOSE };
-
-/** The vertex half's declarations: the height field, the clipmap level, the
- * rim of mountains past the map. */
-export const SNOW_VERTEX_PARS = /* glsl */ `
-uniform sampler2D uHeight;
-uniform vec2 uHeightOrigin;
-uniform vec2 uHeightCount;
-uniform float uCell;
-uniform vec2 uLevelCentre;
-uniform float uSpacing;
-uniform float uGridHalf;
-uniform float uBaseSpacing;
-uniform vec4 uHole;
-uniform sampler2D uGround;
-// 1 on the deformable snow's own mesh (\`deform-snow.ts\`); the relief's
-// filter is level 0's everywhere (\`uReliefHalf\`), so its rim meets it.
-uniform float uDeformMesh;
-uniform float uReliefHalf;
-varying vec3 vSnowWorld;
-varying vec3 vSnowNormal;
-${TRAIL_GLSL}
-${SKI_CLEAR_GLSL}
-${WELL_GLSL}
-${SLIDE_GLSL}
-
-float snowHash1(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
-}
-float snowNoise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(snowHash1(i), snowHash1(i + vec2(1, 0)), u.x),
-             mix(snowHash1(i + vec2(0, 1)), snowHash1(i + vec2(1, 1)), u.x), u.y);
-}
-
-// THE MOUNTAINS PAST THE MAP: the generator's world ends at its edge, the
-// eye's does not — past it the ground is the far ranges' rim
-// (far-ranges-plan.ts), so the clipmap's last ring meets them.
-${FAR_RIM_GLSL}
-
-float heightTexel(ivec2 c) {
-  ivec2 top = ivec2(uHeightCount) - 1;
-  return texelFetch(uHeight, clamp(c, ivec2(0), top), 0).r;
-}
-
-float groundHeight(vec2 p) {
-  vec2 lo = uHeightOrigin;
-  vec2 hi = uHeightOrigin + (uHeightCount - 1.0) * uCell;
-  vec2 q = clamp(p, lo, hi);
-  vec2 f = (q - lo) / uCell;
-  vec2 i = floor(f);
-  vec2 t = f - i;
-  ivec2 c = ivec2(i);
-  float a = heightTexel(c);
-  float b = heightTexel(c + ivec2(1, 0));
-  float d = heightTexel(c + ivec2(0, 1));
-  float e = heightTexel(c + ivec2(1, 1));
-  return mix(mix(a, b, t.x), mix(d, e, t.x), t.y) + rimRise(p, q);
-}
-`;
-
-/** Replaces `beginnormal_vertex`: place the vertex on the clipmap, morph it
- * toward the next level near this level's rim (so two levels meet with no
- * crack), and lift it onto the snow. */
-export const SNOW_VERTEX_PLACE = /* glsl */ `
-vec2 snowGrid = position.xz;
-vec2 snowLocal = (snowGrid - uGridHalf) * uSpacing;
-float snowEdge = max(abs(snowLocal.x), abs(snowLocal.y)) / (uGridHalf * uSpacing);
-float snowMorph = clamp((snowEdge - 0.72) / 0.2, 0.0, 1.0) * (1.0 - uDeformMesh);
-vec2 snowXZ = uLevelCentre + snowLocal - mod(snowGrid, 2.0) * uSpacing * snowMorph;
-// The furrow, low-passed to what the mesh can carry here. Close in, a tent
-// filter over the fine map a vertex's spacing wide — enough for the skis's
-// band to sink the mesh without the ski lines aliasing into a sawtooth;
-// further out, the coarse map alone, which is already that blur. The
-// per-pixel normal (fragment half) draws everything this leaves out. The
-// filter's width is a function of the DISTANCE, not of the level, so two
-// levels meeting at a vertex compute the same height there.
-float snowR = max(uBaseSpacing, distance(snowXZ, cameraPosition.xz) / uReliefHalf);
-float snowRelief;
-{
-  vec2 t = textureLod(uTrailCoarse, snowXZ / uMapSize, 0.0).rg * uTrailScale;
-  float coarseRelief = -t.x + t.y * (1.0 - clamp(t.x / 0.03, 0.0, 1.0));
-  float nearW = 1.0 - smoothstep(0.35, 0.7, snowR);
-  float fineRelief = 0.0;
-  if (nearW > 0.0) {
-    for (int i = -1; i <= 1; i++) {
-      for (int j = -1; j <= 1; j++) {
-        float w = (i == 0 ? 0.5 : 0.25) * (j == 0 ? 0.5 : 0.25);
-        fineRelief += w * trailRelief(snowXZ + vec2(float(i), float(j)) * snowR);
-      }
-    }
-  }
-  snowRelief = mix(coarseRelief, fineRelief, nearW);
-  // ON THE DEFORMABLE SNOW'S MESH: the field itself, a vertex a cell —
-  // every cut, heap and crater as the geometry it is.
-  if (uDeformMesh > 0.5) {
-    float dwv = deformWeight(snowXZ);
-    if (dwv > 0.0) snowRelief = mix(snowRelief, trailRelief(snowXZ), dwv);
-  }
-}
-// THE LOOSE COVER: powder stands a hand higher than the groomed track, so
-// the track's shoulders are a real edge the light picks out. (The engine's
-// ground is the track's graded surface; the skier drawn in powder is lowered
-// by as much in renderer.ts.)
-vec4 snowGroundV = textureLod(uGround, (snowXZ - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell), 0.0);
-float snowPackedV = snowGroundV.b;
-// THE TREE WELLS (\`tree-wells.ts\`): the hollows round the trunks in deep
-// powder, off the engine's own wells.
-float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ)
-  // THE AVALANCHE (\`avalanche-glsl.ts\`): its bed below, its debris above.
-  + slideAt(snowXZ);
-// Never over the player's skis (\`ski-clear.ts\`).
-snowY = skiClear(snowXZ, snowY, uSpacing);
-// UNDER THE FINER LEVEL (\`uHole\`: its centre and half extent), the
-// vertices it covers by a whole cell of this one are SUNK, so every
-// triangle of this level the finer one draws over hinges down from where
-// the two meet and lies under it — out of sight, and no pixel of it thrown
-// away. Thrown away per pixel, as it was, the ground's shader held a
-// \`discard\`, and a GPU that sorts what it draws before it shades it
-// (a phone's tiles) cannot, for any draw that may discard: every
-// fragment of the mountain behind a nearer one was shaded in full. The
-// finer level is wholly morphed onto this one's cells within two of them
-// of its edge (the morph's last 8 %), so the seam is one surface.
-if (uHole.w > 0.5) {
-  vec2 dh = abs(snowXZ - uHole.xy);
-  // Sunk at least a metre and a half under the deformable snow's mesh
-  // (\`uHole.w\` past 1: a crater goes deeper than two cells of level 0).
-  if (max(dh.x, dh.y) <= uHole.z - uSpacing + 0.01 * uSpacing) snowY -= max(2.0 * uSpacing, uHole.w - 1.0);
-}
-// THE MESH'S NORMAL. The snow's shading never reads it — the fragment
-// half lights every pixel by its own normal off the GROUND map's slope —
-// so on the map it is that same slope, already read above (the shadow's
-// normal bias is all it steers there); past the edge, where the rim's
-// rise is noise of its own, the ground is differenced, four heights.
-float snowE = max(uSpacing, uCell);
-vec2 snowLo = uHeightOrigin + snowE;
-vec2 snowHi = uHeightOrigin + (uHeightCount - 1.0) * uCell - snowE;
-vec3 objectNormal;
-if (all(greaterThanEqual(snowXZ, snowLo)) && all(lessThanEqual(snowXZ, snowHi))) {
-  objectNormal = normalize(vec3(-snowGroundV.r, 1.0, -snowGroundV.g));
-} else {
-  objectNormal = normalize(vec3(
-    groundHeight(snowXZ - vec2(snowE, 0.0)) - groundHeight(snowXZ + vec2(snowE, 0.0)),
-    2.0 * snowE,
-    groundHeight(snowXZ - vec2(0.0, snowE)) - groundHeight(snowXZ + vec2(0.0, snowE))));
-}
-`;
-
-/** Replaces `begin_vertex`. */
-export const SNOW_VERTEX_BEGIN = /* glsl */ `
-vec3 transformed = vec3(snowXZ.x, snowY, snowXZ.y);
-vSnowWorld = transformed;
-vSnowNormal = objectNormal;
-`;
 
 /** The fragment half's declarations. */
 export const SNOW_FRAGMENT_PARS = /* glsl */ `
@@ -270,6 +116,7 @@ uniform vec2 uWindDir;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
+${SKI_GROOVE_GLSL}
 ${DEFORM_SHADE_GLSL}
 ${WELL_GLSL}
 ${SLIDE_GLSL}
@@ -417,68 +264,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     snowCup = 0.0;
     snowScour = 0.0;
   }
-
-  // THE FURROWS, per pixel.
-  vec2 tr = trailAt(p);
-  snowPress = clamp(tr.x / 0.14, 0.0, 1.0);
-  snowWall = 0.0;
-  snowWallUp = vec2(0.0);
-  if (snowDist < 220.0) {
-    float fineW = trailFineWeight(p);
-    float e = mix(mix(uCoarseTexel, uFineTexel * 0.75, fineW), uDeformBox.w, deformWeight(p));
-    vec2 tg = vec2(trailRelief(p + vec2(e, 0.0)) - trailRelief(p - vec2(e, 0.0)),
-                   trailRelief(p + vec2(0.0, e)) - trailRelief(p - vec2(0.0, e))) / (2.0 * e);
-    tg *= 1.0 - smoothstep(120.0, 220.0, snowDist);
-    snowWall = clamp(length(tg), 0.0, 1.0);
-    snowWallUp = tg;
-    grad += tg;
-  }
-
-  // The sun the deformable snow's own relief hides (\`deform-glsl.ts\`).
-  snowSelf = deformSelf(p, uSunDir, g.rg, snowDist);
-
-  // THE THREE DEPTHS OF A TRAIL, off the depth the map holds here: a
-  // groomer's or a crust's SCUFF a centimetre or two deep — two pencil lines
-  // pressed glossy; powder's TROUGH a boot deep — soft, rounded, its walls
-  // crumbled; and deep snow's TRENCH — its walls fallen in, chunky, its
-  // floor down out of the sky's light going blue (snow lit from the side
-  // through its walls and by the sky alone), and the clods it threw out
-  // lying over its rim. The trench's depth below the snow round it is read
-  // off a ring of the map: down in one, the sky is walled off.
-  snowScuff = smoothstep(0.003, 0.012, tr.x) * (1.0 - smoothstep(0.02, 0.05, tr.x));
-  snowTrough = smoothstep(0.02, 0.05, tr.x) * (1.0 - smoothstep(0.16, 0.3, tr.x));
-  snowTrench = smoothstep(0.16, 0.3, tr.x);
-  snowHollow = 0.0;
-  snowSpill = 0.0;
-  if (snowDist < 110.0 && (tr.x > 0.03 || tr.y > 0.003)) {
-    float ring = 0.0;
-    float ringMax = 0.0;
-    for (int i = 0; i < 6; i++) {
-      float a = float(i) * 1.0471976;
-      float rd = trailAt(p + vec2(cos(a), sin(a)) * 0.9).x;
-      ring += rd;
-      ringMax = max(ringMax, rd);
-    }
-    ring /= 6.0;
-    float fade = 1.0 - smoothstep(60.0, 110.0, snowDist);
-    snowHollow = smoothstep(0.06, 0.55, tr.x) * mix(0.45, 1.0, clamp((tr.x - ring) / 0.2, 0.0, 1.0)) * fade;
-    snowSpill = smoothstep(0.12, 0.4, ringMax) * (1.0 - smoothstep(0.03, 0.12, tr.x)) * fade;
-  }
-  // The trough's walls crumbled; the trench's broken into blocks a hand
-  // to a forearm across where they fell in. Faded before they alias.
-  if (snowDist < 70.0 && snowWall > 0.02 && tr.x > 0.02) {
-    float wf = 1.0 - smoothstep(25.0, 70.0, snowDist);
-    float k = snowWall * wf;
-    grad += snowNoiseGrad(p * 6.0 + 19.0, 0.05) * 6.0 * 0.03 * k * snowTrough;
-    grad += snowNoiseGrad(p * 2.6 + 23.0, 0.08) * 2.6 * 0.09 * k * snowTrench;
-    grad += snowNoiseGrad(p * 7.5 + 29.0, 0.05) * 7.5 * 0.025 * k * snowTrench;
-  }
-  // THE SPILL: lumps and rolled balls of snow over the trench's rim.
-  if (snowSpill > 0.01) {
-    float lump = smoothstep(0.5, 0.75, snowNoise(p * 3.2 + 37.0));
-    grad += snowNoiseGrad(p * 3.2 + 37.0, 0.06) * 3.2 * 0.4 * snowSpill * (0.3 + lump);
-    grad += snowNoiseGrad(p * 8.0 + 43.0, 0.04) * 8.0 * 0.06 * snowSpill;
-  }
+${SNOW_TRAIL_SAMPLE}
 
   // THE PADDLES' PRINT across a belt's floor: a lug's imprint every pitch
   // along the belt, the paddles in staggered rows across it a half pitch
@@ -515,163 +301,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   }
   // THE AVALANCHE: its bed, its walls and its debris (\`avalanche-glsl.ts\`).
 ${SLIDE_NORMAL}
-
-  // THE MICRO-RELIEF: wind-packed swells a few metres long, and a finer
-  // grain, both faded out before they alias.
-  float nearFade = 1.0 - smoothstep(20.0, 90.0, snowDist);
-  float midFade = 1.0 - smoothstep(60.0, 400.0, snowDist);
-  // Every term below is skipped outright where its weight is nought — the
-  // far band, the groomer, off the berm — rather than computed and zeroed:
-  // the answer is the same and most of the screen is far snow.
-  if (midFade > 0.0 && snowPacked < 1.0) {
-    grad += snowNoiseGrad(p * 0.23, 0.35) * 0.23 * 0.35 * midFade * (1.0 - snowPacked);
-  }
-  // THE DAY'S PISTE (\`snowWorked\`): scraped swells where the turns have
-  // shoved the snow, heaps of it pushed up between, and the scratches of a
-  // thousand edges along the way.
-  if (snowWorked > 0.01 && midFade > 0.0) {
-    vec4 tw = texture2D(uTrackDir, guv);
-    vec2 dw = tw.xy * 2.0 - 1.0;
-    float tht = 0.5 * atan(dw.y, dw.x);
-    vec2 acr = vec2(cos(tht), -sin(tht));
-    vec2 alg = vec2(acr.y, -acr.x);
-    float k = snowWorked * midFade;
-    // Slush heaps the higher; frozen, they keep the shape they had.
-    grad += snowNoiseGrad(p * 0.55 + 3.1, 0.3) * 0.55 * 0.16 * k * (1.0 + 0.8 * snowSoft);
-    grad += snowNoiseGrad(p * 1.4 + 8.3, 0.25) * 1.4 * 0.05 * k * nearFade;
-    vec2 q = vec2(dot(p, acr) * 5.0, dot(p, alg) * 0.22);
-    vec2 sg = snowNoiseGrad(q, 0.3);
-    grad += (acr * sg.x * 5.0 + alg * sg.y * 0.22) * 0.006 * k * nearFade;
-    // ...and, by the afternoon, the start of bumps: the turns' heaps a few
-    // metres apart, longer across the piste than down it.
-    vec2 bq = vec2(dot(p, acr) * 0.2, dot(p, alg) * 0.32) + 17.0;
-    vec2 bg = snowNoiseGrad(bq, 0.3);
-    grad += (acr * bg.x * 0.2 + alg * bg.y * 0.32) * 0.55 * k * k;
-    // The tracks themselves: a thousand skiers' grooves along the way.
-    vec2 tq = vec2(dot(p, acr) * 2.4, dot(p, alg) * 0.06);
-    vec2 tg2 = snowNoiseGrad(tq, 0.2);
-    grad += (acr * tg2.x * 2.4 + alg * tg2.y * 0.06) * 0.02 * k * nearFade;
-  }
-  // THE SKIED-IN NEW SNOW: soft heaps a few metres apart where the turns
-  // have shoved it, the troughs between scraped through.
-  if (snowChop > 0.01 && midFade > 0.0) {
-    float k = snowChop * midFade;
-    grad += snowNoiseGrad(p * 0.38 + 13.7, 0.3) * 0.38 * 0.32 * k;
-    grad += snowNoiseGrad(p * 1.1 + 2.9, 0.25) * 1.1 * 0.07 * k * nearFade;
-  }
-  // SASTRUGI: the crust carved into ridges across the wind, a few metres
-  // apart and a hand high, broken up along their length.
-  if (uSastrugi > 0.0 && snowCrust > 0.01) {
-    float sFade = 1.0 - smoothstep(40.0, 260.0, snowDist);
-    vec2 across = vec2(-uWindDir.y, uWindDir.x);
-    float warp = snowNoise(p * 0.08) * 6.0;
-    float ph = dot(p, across) * 1.9 + warp;
-    float breakUp = smoothstep(0.3, 0.7, snowNoise(p * vec2(0.35, 0.35) + 7.0));
-    float k = uSastrugi * snowCrust * sFade * breakUp * (1.0 - snowPress);
-    grad += across * cos(ph) * 1.9 * 0.07 * k;
-  }
-  if (nearFade > 0.0) {
-    // New snow lies smooth over the old surface's grain; old snow is the
-    // coarser, a wet one the more.
-    float grain = (1.0 - 0.6 * snowNew) * (1.0 + 0.7 * snowOld) * (1.0 - 0.5 * snowWind);
-    grad += snowNoiseGrad(p * 1.7, 0.3) * 1.7 * 0.035 * nearFade * (1.0 - 0.4 * snowNew);
-    grad += snowNoiseGrad(p * 7.0, 0.3) * 7.0 * 0.007 * nearFade * (1.0 - snowPress) * grain;
-  }
-  // THE WIND'S SLAB: ripples across the way it blew, a hand apart and a
-  // centimetre high, wandering and broken, and patches scoured flat and
-  // polished between drifted ones — faded before the ripples alias.
-  if (snowWind > 0.01 && midFade > 0.0) {
-    snowScour = smoothstep(0.45, 0.75, snowNoise(p * 0.11 + 51.0)) * snowWind;
-    // The ripples alias out past a few tens of metres: not drawn there.
-    if (nearFade > 0.0) {
-      float warp = snowNoise(p * 0.5 + 3.0) * 4.0 + snowNoise(p * 1.3) * 1.2;
-      float ph = dot(p, uWindDir) * 6.2831853 / 0.32 + warp * 6.2831853;
-      float aa = 1.0 - smoothstep(0.25, 0.7, fwidth(ph) / 6.2831853);
-      float breakUp = smoothstep(0.25, 0.6, snowNoise(p * 0.7 + 9.0));
-      float k = snowWind * aa * breakUp * (1.0 - snowPress) * (1.0 - 0.6 * snowScour);
-      grad += uWindDir * sin(ph) * 0.32 * k;
-    }
-    // ...and the drifts' long, low swells in the lee of the scoured patches.
-    grad += snowNoiseGrad(p * 0.16 + 5.0, 0.4) * 0.16 * 0.45 * snowWind * midFade;
-  }
-  // THE SUN CRUST: a melt-frozen glaze with the faint orange-peel of the
-  // grains under it.
-  if (snowSunCrust > 0.01 && nearFade > 0.0) {
-    grad += snowNoiseGrad(p * 3.4 + 61.0, 0.12) * 3.4 * 0.012 * snowSunCrust * nearFade;
-  }
-  // SUN CUPS in the thawed snow: hollows half a metre or so across with
-  // soft ridges between — an egg-crate of dimples, turned off the axes and
-  // warped so no row lines up, faded before it aliases.
-  if (snowWet > 0.01 && snowDist < 120.0) {
-    // Two crates, turned and sized apart and warped by a metre or two, so
-    // the dimples neither line up nor repeat.
-    vec2 w = vec2(snowNoise(p * 0.45 + 3.0), snowNoise(p * 0.45 + 8.0)) * 5.0;
-    mat2 r1 = mat2(0.8, 0.6, -0.6, 0.8);
-    mat2 r2 = mat2(0.28, -0.96, 0.96, 0.28);
-    vec2 c1 = r1 * p * 10.5 + w;
-    vec2 c2 = r2 * p * 14.0 - w.yx;
-    float aa = 1.0 - smoothstep(0.6, 1.6, length(fwidth(c2)));
-    float k = snowWet * aa * (1.0 - smoothstep(60.0, 120.0, snowDist)) * (1.0 - snowPress);
-    // h = cos x + cos y on each; their slopes turned back into the world.
-    grad += (transpose(r1) * -vec2(sin(c1.x), sin(c1.y))) * 10.5 * 0.009 * k;
-    grad += (transpose(r2) * -vec2(sin(c2.x), sin(c2.y))) * 14.0 * 0.005 * k;
-    snowCup = clamp(0.15 * (cos(c1.x) + cos(c1.y) + cos(c2.x) + cos(c2.y)) + 0.5, 0.0, 1.0) * k;
-  }
-
-  // THE CORDUROY: the groomer's comb, running along the track — and WORN
-  // along it, in patches a few metres long where skis have scraped it
-  // flat and chips a hand across where it has crumbled. A comb running
-  // unbroken along the way looks the same however fast it is skied; its
-  // wear is what streams past.
-  vec4 td = texture2D(uTrackDir, guv);
-  snowBerm = td.b * (1.0 - snowGroomed);
-  float along = max(length(td.xy * 2.0 - 1.0), snowGroomed);
-  if (snowPacked > 0.05 && along > 0.05 && snowWorked < 0.98) {
-    vec2 dd = td.xy * 2.0 - 1.0;
-    float th = 0.5 * atan(dd.y, dd.x);
-    // In a swath the comb runs the way the machine went.
-    th = mix(th, groom.z * 3.14159265, step(0.5, snowGroomed));
-    vec2 across = vec2(cos(th), -sin(th));
-    float phase = dot(p, across) * 6.2831853 / 0.14;
-    float aa = 1.0 - smoothstep(0.35, 0.9, fwidth(phase));
-    float k = snowPacked * min(along * 2.0, 1.0) * aa * (1.0 - snowPress * 0.7) * (1.0 - snowBelt);
-
-    k *= 1.0 - smoothstep(0.0, 0.25, snowBerm);
-    float worn = smoothstep(0.3, 0.7, snowNoise(p * 0.42 + 11.0));
-    float chip = snowNoise(p * 2.6 + 5.0);
-    // Fresh off the comb it is whole — no wear, no chips — and a touch
-    // deeper; the day's piste has none left.
-    k *= mix(mix(0.3, 1.0, worn) * mix(0.55, 1.0, chip), 1.25, max(snowGroomed, snowCombed));
-    k *= 1.0 - snowWorked;
-    // The night's comb, untouched, stands the sharper.
-    k *= 1.0 + 0.6 * snowCombed;
-    // THE OTHER SKIERS' LINES (\`piste-tracks.ts\`), cutting the comb away.
-    k *= 1.0 - pisteTracks(p, across, snowPacked * min(along * 2.0, 1.0) * (1.0 - snowBelt) * (1.0 - snowGroomed), grad);
-    grad += across * cos(phase) * 0.14 * k;
-    snowCord = sin(phase) * min(k, 1.0);
-    // THE NIGHT'S PASSES, seen from further than the comb: the machine's
-    // lanes a swath wide side by side, each a shade of its own, a low
-    // ridge where the finisher's flaps left the seam between two.
-    float kl = snowPacked * min(along * 2.0, 1.0) * (1.0 - snowWorked) * (1.0 - snowPress * 0.7) * (1.0 - snowBelt);
-    kl *= 1.0 - smoothstep(0.0, 0.25, snowBerm);
-    kl *= mix(0.35, 1.0, max(snowCombed, snowGroomed)) * midFade;
-    if (kl > 0.01) {
-      float lane = dot(p, across) / 5.2;
-      float seam = 1.0 - smoothstep(0.0, 0.035, abs(fract(lane) - 0.5));
-      float laa = 1.0 - smoothstep(0.3, 0.8, fwidth(lane) * 12.0);
-      grad += across * sign(fract(lane) - 0.5) * seam * 0.08 * kl * laa;
-      snowLane = ((snowHash1(vec2(floor(lane), 7.0)) * 2.0 - 1.0) * 0.6 - seam * laa) * kl;
-    }
-  }
-
-  // THE PLOUGH'S CLODS on the berm: lumps a hand to a forearm across,
-  // faded out before they alias.
-  if (snowBerm > 0.01 && snowDist < 140.0) {
-    float clodFade = 1.0 - smoothstep(30.0, 140.0, snowDist);
-    float b = smoothstep(0.0, 0.3, snowBerm);
-    grad += snowNoiseGrad(p * 2.2, 0.15) * 2.2 * 0.09 * b * clodFade;
-    grad += snowNoiseGrad(p * 6.5, 0.1) * 6.5 * 0.025 * b * clodFade;
-  }
+${SNOW_RELIEF_SAMPLE}
 
   // Ice is flat: the swells and the grain are the snow's, not the ice's.
   grad = mix(grad, g.rg, snowIce * 0.85);
@@ -773,27 +403,7 @@ ${SLIDE_ALBEDO}
   if (snowBerm > 0.0) {
     float clod = snowNoise(p * 2.2);
     alb = mix(alb, fresh * mix(1.0, 0.88, clod), smoothstep(0.0, 0.35, snowBerm));
-  }
-  // Pressed snow is on its way to ice: a little less comes back.
-  alb *= mix(vec3(1.0), vec3(0.9, 0.93, 0.97), snowPress);
-  // A FAST LINE IN LOOSE SNOW: the planing ski's narrow trough, its floor
-  // pressed smooth and in its own walls' shade — a cool line the relief
-  // alone loses in a flat or a head-on light.
-  alb *= mix(vec3(1.0), vec3(0.86, 0.9, 0.96), smoothstep(0.04, 0.29, snowPress) * (1.0 - snowPacked) * (1.0 - snowTrench));
-  // THE SCUFF: snow pressed to a polish, a cool grey line.
-  alb *= mix(vec3(1.0), vec3(0.86, 0.9, 0.96), snowScuff * (0.35 + 0.65 * snowPacked));
-  // THE TRENCH: down out of the sky's light, its snow lit through its walls
-  // — the blue of a hole dug in deep snow, the deeper the bluer.
-  alb = mix(alb, vec3(0.56, 0.74, 1.0), 0.65 * snowHollow);
-  // ...its broken walls the bluer for the sky they do not see.
-  alb *= mix(vec3(1.0), vec3(0.82, 0.9, 1.0), snowWall * snowTrench);
-  // THE SPILL: snow turned over and thrown out, fresh white clods.
-  alb = mix(alb, fresh, 0.6 * snowSpill);
-  // The walls see less sky; a blue-grey the shading alone would not give —
-  // the wall turned from the sun the most and the one facing it hardly, so a
-  // wide trough reads as ONE groove shaded down one side, never two lines.
-  float awayW = 0.5 + 0.5 * dot(normalize(snowWallUp + vec2(1e-6)), normalize(uSunDir.xz + vec2(1e-6)));
-  alb *= mix(vec3(1.0), vec3(0.8, 0.86, 0.95), snowWall * mix(0.25, 1.0, awayW));
+  }${SNOW_TRAIL_ALBEDO}
   // A wood seen from afar is a darker, greener ground — the trees past the
   // draw distance are still there in its colour.
   alb = mix(alb, uForestTint, snowForest * 0.55 * smoothstep(160.0, 520.0, snowDist));
@@ -857,123 +467,15 @@ ${SNOW_SKY_LIGHT}
   vec3 lidDir = normalize(vec3(uSunPos.x, 2.2, uSunPos.z));
   float facing = clamp(dot(snowN, lidDir) / lidDir.y, 0.0, 1.3);
   reflectedLight.indirectDiffuse *= mix(1.0, 0.55 + 0.45 * facing, uFlat);
-  // DOWN IN A TRENCH the walls hide most of the sky, and all but a high
-  // sun: what light there is comes through the snow, and comes out blue.
-  reflectedLight.indirectDiffuse *= mix(vec3(1.0), vec3(0.45, 0.62, 0.92), snowHollow);
-  reflectedLight.directDiffuse *= 1.0 - 0.5 * snowHollow * (1.0 - smoothstep(0.3, 0.9, uSunPos.y / max(length(uSunPos), 1e-3)));
-}
-{
-  vec3 V = normalize(cameraPosition - vSnowWorld);
-  float loose = (1.0 - snowPacked * 0.8) * (1.0 - snowPress * 0.6) * (1.0 - snowIce) * (1.0 - snowRock);
-  vec3 lampLit = vec3(0.0);
-  vec3 lampGlint = vec3(0.0);
-  // THE LAMPS' CRYSTALS: every lamp glints off the same cells (one seed),
-  // so a cell's facet and its spot are found once, and each lamp pays only
-  // its own highlight — \`snowGlints\` lamp by lamp, without its hashes
-  // done six times over a pixel. The footprint is read out here, where
-  // every pixel of the quad still runs it. LAMPS LOW draws none of them
-  // (\`uLampGlint\`): the beams light the snow and no crystal flares.
-  vec3 lgQ = vSnowWorld * 7.0;
-  float lgRad = max(0.14, length(fwidth(lgQ)) * 0.75);
-  float lgK = 0.14 / lgRad;
-  vec3 lgFacet = vec3(0.0);
-  float lgSpot = 0.0;
-  if (uLampOn[0] > 0.0 && uLampGlint > 0.0 && snowDist < 40.0) {
-    vec3 lgCell = floor(lgQ);
-    vec3 lgR = snowHash3(lgCell + 57.0);
-    if (lgR.z <= 0.6) {
-      lgFacet = normalize(snowN + (snowHash3(lgCell + 57.0 + 7.13) * 2.0 - 1.0) * 0.6);
-      vec3 f = fract(lgQ) - (0.2 + 0.6 * lgR);
-      lgSpot = 1.0 - smoothstep(lgRad * 0.45, lgRad, length(f));
-    }
-  }
-  for (int i = 0; i < ${LAMP_SLOTS}; i++) {
-    if (uLampOn[i] <= 0.0) break;
-    if (uLampOn[i] <= 0.001) continue;
-    vec3 L = uLampPos[i] - vSnowWorld;
-    float d = length(L);
-    L /= max(d, 1e-3);
-    float e = lampReach(i, L, d);
-    // Outside its beam a lamp adds nothing, and is not asked to.
-    if (e <= 0.0) continue;
-    lampLit += uLampCol[i] * (e * max(dot(snowN, L), 0.0));
-    if (lgSpot > 0.0) {
-      vec3 H = normalize(L + V);
-      float g = pow(max(dot(lgFacet, H), 0.0), 600.0);
-      lampGlint += uLampCol[i] * (e * (g * lgSpot * lgK * lgK));
-    }
-  }
-  // THE PISTE LIGHTS, baked: a lit run's snow glitters toward its masts.
-  if (uPisteOn.x > 0.0) {
-    vec3 pv = pisteLight(vSnowWorld);
-    float pe = length(pv);
-    if (pe > 1e-4) {
-      lampLit += uPisteCol * max(dot(snowN, pv), 0.0);
-      if (snowDist < 40.0 && uLampGlint > 0.0) {
-        vec3 H = normalize(pv / pe + V);
-        lampGlint += uPisteCol * (pe * snowGlints(vSnowWorld, 7.0, 600.0, 0.6, snowN, H, 83.0));
-      }
-    }
-  }
-  reflectedLight.directDiffuse += BRDF_Lambert(diffuseColor.rgb) * lampLit * 9.0;
-  reflectedLight.directSpecular += lampGlint * loose
-    * (1.0 - smoothstep(12.0, 40.0, snowDist)) * 12.0;
-}
-#if NUM_DIR_LIGHTS > 0
-{
-  vec3 sunLit = directLight.color * snowSelf;
-  float ndl = dot(snowN, uSunDir);
-  // Wrap: what the terminator gains, tinted the blue of light that has been
-  // through a few centimetres of ice.
-  float wrap = (max(0.0, (ndl + 0.45) / 1.45) - max(ndl, 0.0)) * (1.0 - 0.7 * uFlat);
-  reflectedLight.directDiffuse +=
-    BRDF_Lambert(diffuseColor.rgb) * sunLit * wrap * vec3(0.55, 0.78, 1.0) * 0.9;
-
-  // THE GLITTER, two sizes of crystal cell: the fine one close in, a
-  // sparser, larger one carrying it a little further out.
-  // No crystal is drawn past 140 m, nor on a sky that does not glitter.
-  if (snowDist < 140.0 && uGlitter > 0.0) {
-    vec3 V = normalize(cameraPosition - vSnowWorld);
-    vec3 H = normalize(uSunDir + V);
-    float loose = (1.0 - snowPacked * 0.8) * (1.0 - snowPress * 0.6) * (1.0 - snowIce) * (1.0 - snowRock);
-    // THE GRAINS BY AGE: new snow's crystals a dense dust of fine points;
-    // old snow's rounded into fewer, coarser grains — the fine layer thinned,
-    // the coarse one fuller and brought in close; a crust's and wet snow's
-    // glazed over; and HOAR's feathers the biggest, brightest flashes of all,
-    // facing every way.
-    float keepFine = 0.6 * (1.0 + 0.45 * snowNew + 0.5 * snowHoar) * (1.0 - 0.55 * snowOld);
-    float keepCoarse = mix(0.35, 0.6, max(snowOld, snowHoar));
-    float near = mix(8.0, 1.5, max(snowOld, snowHoar));
-    float glaze = (1.0 - 0.6 * snowSunCrust) * (1.0 - 0.85 * snowWet);
-    float glint = 0.0;
-    if (snowDist < 45.0) {
-      glint += snowGlints(vSnowWorld, 7.0, mix(600.0, 320.0, snowNew), keepFine, snowN, H, 0.0)
-        * (1.0 - smoothstep(15.0, 45.0, snowDist)) * (1.0 + 0.3 * snowNew + 1.5 * snowHoar);
-    }
-    if (snowDist > near) {
-      glint += snowGlints(vSnowWorld, 2.5, mix(900.0, 140.0, snowHoar), mix(keepCoarse, 0.9, snowHoar), snowN, H, 31.0)
-        * smoothstep(near, near + 17.0, snowDist) * (1.0 - smoothstep(50.0, 140.0 + 60.0 * snowHoar, snowDist))
-        * (1.0 + 0.6 * snowOld + 4.0 * snowHoar);
-    }
-    reflectedLight.directSpecular += sunLit * glint * loose * glaze * 18.0 * uGlitter;
-  }
-
-  // THE GLARE: the sun scattered forward off the snow, the brighter the
-  // more grazing the look. Powder spreads it into a broad sheen; a crust,
-  // wet snow, the polished groomer and ice gather it into a hard streak
-  // toward the sun. Its own lobe over the material's GGX, which at snow's
-  // roughness all but loses it. Under a lid there is no sun to glare.
-  {
-    vec3 V = normalize(cameraPosition - vSnowWorld);
-    float rv = max(dot(reflect(-uSunDir, snowN), V), 0.0);
-    float gloss = clamp(0.3 * snowPacked + 0.85 * snowSunCrust + 0.55 * snowWet
-      + 0.3 * snowScour + 0.5 * snowHard + 0.4 * snowSoft + 0.9 * snowIce, 0.0, 1.0) * (1.0 - snowRock);
-    float k = mix(6.0, 140.0, gloss * gloss);
-    float graze = 1.0 - max(dot(snowN, V), 0.0);
-    graze *= graze;
-    float lobe = pow(rv, k) * (0.25 + 2.5 * gloss * gloss) * (0.15 + 1.6 * graze);
-    reflectedLight.directSpecular += sunLit * lobe * ${SUN_GLARE.toFixed(3)} * (1.0 - 0.8 * snowNew * (1.0 - gloss));
-  }
-}
-#endif
+  // ...and FORM under the lid: a bump's sides, tilted off the slope it
+  // stands on, see less of a lid whose zenith is the brightest of it (an
+  // overcast's sky is some three times as bright overhead as at its rim),
+  // so every swell, track and clod is rimmed a shade darker — the faint
+  // modelling a skier finds in flat light up close, gone by the middle
+  // distance, where the eye finds none.
+  float rel = max(dot(snowN, normalize(vSnowNormal)), 0.0);
+  float rel2 = rel * rel;
+  float rel8 = rel2 * rel2 * rel2 * rel2;
+  reflectedLight.indirectDiffuse *= mix(1.0, 0.68 + 0.32 * rel8 * rel2, uFlat * (1.0 - smoothstep(40.0, 160.0, snowDist)));${SNOW_TRAIL_LIGHT}
+}${SNOW_LAMPS_LIGHT}${SNOW_SUN_LIGHT}
 `;

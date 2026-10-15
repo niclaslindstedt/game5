@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // WHAT A SKIER THROWS, WEIGHED — the spray as a MASS of snow cut, shoved and
-// flown, the `mass` model of `spray-sim.ts` (three-free, so the labs fly it
-// in Node). Every other model decides how many grains to draw; this one
-// decides how many KILOGRAMS of snow leave the snow, out of the snow's own
-// strength and the skier's own load, and only then how to draw them.
+// flown, the one model behind `spray-sim.ts`'s pool (three-free, so the labs
+// fly it in Node). The counted models it replaced decided how many grains to
+// draw; this one decides how many KILOGRAMS of snow leave the snow, out of
+// the snow's own strength and the skier's own load, and only then how to
+// draw them.
 //
 // THE SNOW AN EDGE CUTS. A ski's edge pressed into a packed piste sinks
 // until the snow it displaces holds the load: the snow pushes back in

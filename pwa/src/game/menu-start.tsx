@@ -64,6 +64,14 @@
 //           its typical numbers (`weatherFor`). It names no hour: the hour
 //           is TIME's alone, so the two rows cannot disagree.
 //
+//   TEMPERATURE the air at the valley floor at the start hour
+//           (`Weather.temp`, `engine/game/air-temp.ts`): AUTO — the air
+//           model's own on the season, time and sky picked, its value shown
+//           in the dealt colour (`autoTempOf`) — or −20 to +10 °C, the whole
+//           day's air shifted to it. It wets the snow or keeps it dry, makes
+//           the piste's slush and its freeze, and runs the guns. Not in
+//           summer.
+//
 // THE DAY'S ROWS ARE PUT AWAY behind the SKY press in the head, a cloud
 // over a sun: the chart, the SEASON and the two rows that say where the
 // ride starts are the card, and the rest of the day is asked only by
@@ -84,7 +92,15 @@ import { TIMES_OF_DAY, WEATHER_KINDS, snows, summerSky, type WeatherKind } from 
 import { useState } from "preact/hooks";
 
 import { GENERATED, rangeOf } from "./face-picks.ts";
-import { SEASONS, SNOW_STOPS, runPicked, summerOn, type FreeRide } from "./free-ride.ts";
+import {
+  SEASONS,
+  SNOW_STOPS,
+  TEMP_STOPS,
+  autoTempOf,
+  runPicked,
+  summerOn,
+  type FreeRide,
+} from "./free-ride.ts";
 import { Glyph } from "./menu-glyphs.tsx";
 import { MenuBody, MenuHead, NumberRow, StepRow } from "./menu-knobs.tsx";
 import { startChosen, useRunPick } from "./run-pick.ts";
@@ -110,6 +126,16 @@ const SEASON_STOPS = SEASONS.map(({ id }) => ({ id, label: STRINGS.seasonNames[i
 
 /** The TIME row's stops: the four. */
 const TIME_STOPS = TIMES_OF_DAY.map((id) => ({ id, label: STRINGS.timeNames[id] }));
+
+/** The TEMPERATURE row's stops: AUTO — showing the air it would give —
+ * then the ladder, °C. */
+const AUTO_TEMP = "auto";
+function tempStops(auto: number | null): { id: string; label: string }[] {
+  return [
+    { id: AUTO_TEMP, label: STRINGS.tempAuto(auto) },
+    ...TEMP_STOPS.map((c) => ({ id: String(c), label: STRINGS.tempWord(c) })),
+  ];
+}
 
 /** The SNOW row's stops. */
 const SNOW_ROW = SNOW_STOPS.map(({ id }) => ({ id, label: STRINGS.snowNames[id] }));
@@ -210,6 +236,15 @@ export function StartPage({
                 extra={STRINGS.startRunWaiting}
                 onPick={(weather) => setRide({ weather })}
               />
+              {!summer && (
+                <StepRow
+                  label={STRINGS.startTemp}
+                  stops={tempStops(autoTempOf(ride, pick.dealt))}
+                  value={ride.temp === null ? AUTO_TEMP : String(ride.temp)}
+                  dealt={ride.temp === null}
+                  onPick={(id) => setRide({ temp: id === AUTO_TEMP ? null : Number(id) })}
+                />
+              )}
               {!summer && (
                 <StepRow
                   label={STRINGS.startSnow}

@@ -99,6 +99,18 @@ describe("the sky's clock (clock.ts, sky-clock.ts)", () => {
     expect(readParams("?skyclock=fast").skyClock).toBe(SKY_CLOCK.rate);
   });
 
+  it("reads the air's knob off a link (?temp=), alone or with a sky", () => {
+    expect(readParams("?temp=-12").sky).toEqual({ temp: -12 });
+    expect(readParams("?weather=snow&temp=2").sky).toEqual({ weather: "snow", temp: 2 });
+    expect(readParams("?temp=warm").sky).toBe(null);
+    expect(readParams("?temp=90").sky).toBe(null);
+  });
+
+  it("puts the air's knob in a repro where the run had one", () => {
+    const state = createGame({ seed: 3, sky: { temp: -7 }, quiet: true });
+    expect(readParams(reproQuery(reproOf(state, "free", "chase"))).sky?.temp).toBe(-7);
+  });
+
   it("puts the clock in a repro, so the link stands the frame under its sky", () => {
     setSkyClock(SKY_CLOCK.rate);
     const state = createGame({ seed: 3, quiet: true });

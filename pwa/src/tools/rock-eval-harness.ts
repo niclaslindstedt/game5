@@ -1,46 +1,39 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE ROCK EVAL LAB's page (driven by `scripts/rock-eval.mjs`): one map
 // stood up and its ROCK drawn through the game's own renderer from a FIXED
-// LIST OF SCENES — the same lenses whatever builds the rock, so two ways of
-// building it can be laid side by side — and every scene priced: the frame
-// with the rock and without it (`setHidden(["rocks"])`), so what the rock
-// costs is read off the difference, the shadow pass included, beside what
-// the scene walk bills to the `rocks` group.
+// LIST OF SCENES (`rock-eval-scenes.ts`) — the same lenses whatever builds
+// the rock, so two ways of building it can be laid side by side — and every
+// scene priced: the frame with the rock and without it
+// (`setHidden(["rocks"])`), so what the rock costs is read off the
+// difference, the shadow pass included, beside what the scene walk bills to
+// the `rocks` group; the frame without the GROUND (`setHidden(["terrain"])`),
+// so rock moved into the ground's shader still shows as the ground's ms; and,
+// where a candidate exposes the `terrain` group's `rockGround` switch, the
+// frame with the ground's own rock turned off (`rock-eval-measure.ts`).
 //
-// Every lens is a pure function of the map (where its rock lies, its
-// cliffs, its mountain, its piste), never of a ride: nothing is stepped, so
-// a scene is the same picture on every branch that draws the same map. The
-// rock is laid off `rockShare` (the walls too steep for snow) and
-// `cliffWalls` (the rocky cliffs) — the engine's, which a candidate may
-// redraw but never moves, so the lenses stand where they stood.
+// Every scene is read FROM NOTHING: the rock let go and built whole at the
+// scene's own lens before any frame is read (`standAt`), so the order the
+// scenes are drawn in never moves a number.
 //
-// Beside the price, three readings a candidate is weighed by:
-//   - the PHYSICS GAP: every drawn rock triangle within `GAP_REACH` m of the
-//     lens, its corners and middle measured against the surface a body
-//     meets there (`withRock`) — what is drawn is what is ridden;
-//   - the SHIMMER: the lens slid a few centimetres a frame across a far
-//     face, every pixel's mean second difference of brightness (the shimmer
-//     lab's measure) — far rock that crawls and sparkles;
-//   - the APPROACH: the lens walked in at the rockiest face from 800 m to
-//     20 m, each step's change off the last — a tile swapping its cut is a
-//     spike (a POP).
+// Beside the price, the readings a candidate is weighed by
+// (`rock-eval-measure.ts`): the PHYSICS GAP (within 250 m and within 50 m
+// of the lens), the SHIMMER (the lens slid a few centimetres a frame across
+// a far face), the APPROACH (the lens walked in at the rockiest face from
+// 800 m to 20 m — a POP is a spike), and the ORDER CHECK (a scene read
+// first and read again last, after everything else).
 
 import {
   cliffWalls,
   createGame,
   isRegionId,
   loadRealFace,
-  onAnyCliff,
-  rockShare,
   withRock,
   type GameState,
   type Level,
   type RegionId,
   type WeatherKind,
 } from "@engine";
-import * as THREE from "three";
 
-import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import {
   DEFAULT_VIDEO,
@@ -52,10 +45,18 @@ import {
 import { setSkyClock } from "../game/sky-clock.ts";
 import { setSummerLook } from "../game/season-look.ts";
 import { volumeNoise } from "../game/cloud-volume.ts";
+import { createMeasures, type Gap, type RockStats } from "./rock-eval-measure.ts";
+import { rockScenes } from "./rock-eval-scenes.ts";
 
-/** What one scene cost: the whole frame and the frame without the rock. ms
- * are a SOFTWARE rasterizer's (`--use-angle=swiftshader`) — comparable
- * between two builds on one machine, never a phone's. */
+export type { Gap, RockStats } from "./rock-eval-measure.ts";
+
+/** One timed pass: the frame's ms, its draws and triangles, the renderer's
+ * own processor time for the world. */
+type Pass = { ms: number; calls: number; triangles: number; worldMs: number };
+
+/** What one scene cost. ms are a SOFTWARE rasterizer's
+ * (`--use-angle=swiftshader`) — comparable between two builds on one
+ * machine, never a phone's. */
 export type SceneCost = {
   ms: number;
   msBare: number;
@@ -71,34 +72,47 @@ export type SceneCost = {
    * without the rock. */
   worldMs: number;
   worldMsBare: number;
+  /** The frame without the ground (`terrain` hidden): the ground's ms is
+   * `ms − msNoGround`, where rock drawn in its shader is paid. */
+  msNoGround: number;
+  callsNoGround: number;
+  trianglesNoGround: number;
+  /** The frame with the ground's own rock turned off (the `terrain`
+   * group's `rockGround` switch), or null where the build has none. */
+  msGroundRockOff: number | null;
 };
 
-/** The drawn rock against the rock a body meets, m: every visible point
-read (a triangle's corners and middle), off the cliffs. */
-export type Gap = { triangles: number; mean: number; p95: number; worst: number; over25: number };
+/** A scene stood: its note, the ms the rock spent building, whether the
+ * rock held nothing before it, and the physics gap at its lens. */
+type Shot = { note: string; settleMs: number; clean: boolean; gap: Gap | null };
 
-/** What the rock is holding, off `rocks.ts`'s `userData.rockStats`. */
-export type RockStats = {
-  /** Every ms spent building rock since the map was stood up. */
-  buildMs: number;
-  /** Tiles in reach not yet at the cut they are owed. */
-  owed: number;
-  /** Triangles built and held, on screen or not. */
-  triangles: number;
-  /** Bytes of geometry (and anything else) the rock holds on the card. */
-  bytes: number;
-};
+/** A scene's first reading, kept for the order check. */
+type Mark = { read: Float32Array; rockTriangles: number; heldTriangles: number };
 
 declare global {
   interface Window {
     __rocks?: {
-      ready: Promise<{ loadMs: number; rockCells: number; cliffs: number; stats: RockStats }>;
+      ready: Promise<{
+        loadMs: number;
+        rockCells: number;
+        cliffs: number;
+        stats: RockStats;
+        rockGround: boolean;
+        rockDrawnAt: boolean;
+        rockReset: boolean;
+      }>;
       scenes(): string[];
-      shoot(name: string): { note: string; settleMs: number; gap: Gap | null };
+      shoot(name: string): Promise<Shot>;
       cost(frames: number): SceneCost;
       stats(): RockStats;
-      shimmer(name: string, frames: number, slide: number): number;
-      approach(from: number, to: number, step: number): number[];
+      shimmer(name: string, frames: number, slide: number, fresh?: boolean): Promise<number>;
+      approach(from: number, to: number, step: number): Promise<number[]>;
+      mark(name: string): Promise<void>;
+      recheck(name: string): Promise<{
+        change: number;
+        rockTriangles: [number, number];
+        heldTriangles: [number, number];
+      } | null>;
     };
   }
 }
@@ -149,295 +163,29 @@ const level = state.level;
  * a body meets). */
 const bed: Level = level.bedrock ?? level;
 const ridden: Level = withRock(level);
+/** A frame with a sixtieth passing (what settles and what is timed), and
+ * one with none (what is read — `rock-eval-measure.ts`). */
 const still = () => renderer.draw(state, 0, FRAME, true);
+const frozen = () => renderer.draw(state, 0, 0, true);
+const lab = rockScenes(level, bed, ridden);
+const m = createMeasures(renderer, still, frozen, bed, ridden);
 
-/** Rock on a 12 m lattice: each cell's share (`rockShare`), and its point. */
-const STEP = 12;
-const N = Math.floor(bed.size / STEP);
-const share = new Float32Array(N * N);
-let rockCells = 0;
-for (let j = 0; j < N; j++)
-  for (let i = 0; i < N; i++) {
-    const s = rockShare(bed, (i + 0.5) * STEP, (j + 0.5) * STEP);
-    share[j * N + i] = s;
-    if (s > 0.15) rockCells++;
-  }
-const at = (i: number, j: number) => ({ x: (i + 0.5) * STEP, z: (j + 0.5) * STEP });
+const terrainHook = <T>(name: string): T | undefined =>
+  renderer.group("terrain")?.userData[name] as T | undefined;
 
-/** The way the ground falls at a point, a unit vector in plan. */
-function downhill(x: number, z: number): { x: number; z: number } {
-  const n = { x: 0, y: 1, z: 0 };
-  bed.normalAt(x, z, n);
-  const l = Math.hypot(n.x, n.z) || 1;
-  return { x: n.x / l, z: n.z / l };
-}
-
-/** THE ROCKIEST FACE: the 60 m patch with the most of its ground in the
- * rock skin (the shimmer lab's), and the way it falls. */
-const rockiest = (() => {
-  let best = { i: N >> 1, j: N >> 1, sum: -1 };
-  const r = 2;
-  for (let j = r; j < N - r; j++)
-    for (let i = r; i < N - r; i++) {
-      let sum = 0;
-      for (let dj = -r; dj <= r; dj++)
-        for (let di = -r; di <= r; di++) sum += share[(j + dj) * N + i + di];
-      if (sum > best.sum) best = { i, j, sum };
-    }
-  return at(best.i, best.j);
-})();
-const fall = { x: rockiest.x, z: rockiest.z };
-const { x: fx, z: fz } = downhill(fall.x, fall.z);
-
-/** Whether the line from `e` to `t` clears the snow by half a metre. */
-function sees(
-  e: { x: number; y: number; z: number },
-  t: { x: number; y: number; z: number },
-): boolean {
-  for (let k = 1; k < 32; k++) {
-    const u = k / 32;
-    const x = e.x + (t.x - e.x) * u;
-    const z = e.z + (t.z - e.z) * u;
-    if (ridden.groundAt(x, z) + 0.5 > e.y + (t.y - e.y) * u) return false;
-  }
-  return true;
-}
-
-/** THE FOOT of the rockiest face: down the way it falls from its heart
- * until the rock has given out for 6 m running (the snow under the wall),
- * m from the heart. */
-const footOff = (() => {
-  let run = 0;
-  for (let d = 0; d < 400; d += 2) {
-    run = rockShare(bed, fall.x + fx * d, fall.z + fz * d) > 0 ? 0 : run + 2;
-    if (run >= 6) return d - 6;
-  }
-  return 0;
-})();
-
-/** The rockiest face from `off` m out along the way it falls (past its
- * FOOT with `fromFoot`, else past its heart), `high` m over the snow
- * there — lifted until it sees the face over any rise. */
-function faceView(off: number, high: number, fov: number, fromFoot = false): LensPose {
-  const ex = fall.x + fx * (off + (fromFoot ? footOff : 0));
-  const ez = fall.z + fz * (off + (fromFoot ? footOff : 0));
-  const target = { x: fall.x, y: bed.groundAt(fall.x, fall.z) + 4, z: fall.z };
-  let eye = { x: ex, y: ridden.groundAt(ex, ez) + high, z: ez };
-  for (let k = 0; k < 20 && !sees(eye, target); k++) eye = { ...eye, y: eye.y + 5 };
-  return { eye, target, fov, roll: 0 };
-}
-
-/** The highest rock on the map from 120 m under it, a skier's eye — the
- * crag's edge against the sky. */
-function skylineView(): LensPose {
-  let best = at(N >> 1, N >> 1);
-  let top = -Infinity;
-  for (let j = 0; j < N; j++)
-    for (let i = 0; i < N; i++) {
-      if (share[j * N + i] < 0.5) continue;
-      const p = at(i, j);
-      const y = bed.groundAt(p.x, p.z);
-      if (y > top) {
-        top = y;
-        best = p;
-      }
-    }
-  const d = downhill(best.x, best.z);
-  const ex = best.x + d.x * 120;
-  const ez = best.z + d.z * 120;
-  return {
-    eye: { x: ex, y: ridden.groundAt(ex, ez) + 1.8, z: ez },
-    target: { x: best.x, y: top + 6, z: best.z },
-    fov: 55,
-    roll: 0,
-  };
-}
-
-/** The tallest rocky cliff's wall from 28 m in front of it, a skier's eye
- * on the snow below — or null on a map that lays none. */
-function cliffView(): LensPose | null {
-  const walls = cliffWalls(level);
-  if (!walls.length) return null;
-  let best = walls[0];
-  let tallest = -1;
-  for (const w of walls) {
-    const lip = w.pos[(1 * w.cols + (w.cols >> 1)) * 3 + 1];
-    const foot = w.pos[((w.rows - 1) * w.cols + (w.cols >> 1)) * 3 + 1];
-    if (lip - foot > tallest) {
-      tallest = lip - foot;
-      best = w;
-    }
-  }
-  const mid = ((best.rows >> 1) * best.cols + (best.cols >> 1)) * 3;
-  const tx = best.pos[mid];
-  const ty = best.pos[mid + 1];
-  const tz = best.pos[mid + 2];
-  const ex = tx + Math.sin(best.heading) * 28;
-  const ez = tz + Math.cos(best.heading) * 28;
-  return {
-    eye: { x: ex, y: ridden.groundAt(ex, ez) + 1.8, z: ez },
-    target: { x: tx, y: ty, z: tz },
-    fov: 60,
-    roll: 0,
-  };
-}
-
-/** On the piste where it passes nearest the rockiest face, a skier's eye
- * looking at the face — the rock as a run past it sees it. */
-function pisteView(): LensPose {
-  const pts = level.track.points;
-  let best = pts[0];
-  let near = Infinity;
-  for (const p of pts) {
-    const d = Math.hypot(p.x - fall.x, p.z - fall.z);
-    if (d < near) {
-      near = d;
-      best = p;
-    }
-  }
-  return {
-    eye: { x: best.x, y: ridden.groundAt(best.x, best.z) + 1.8, z: best.z },
-    target: { x: fall.x, y: bed.groundAt(fall.x, fall.z) + 4, z: fall.z },
-    fov: 62,
-    roll: 0,
-  };
-}
-
-/** 150 m over the rockiest face and 200 m out from it, looking down — the
- * crags as the helicopter, the plane and the paramotor see them. */
-function aerialView(): LensPose {
-  const ex = fall.x + fx * 200;
-  const ez = fall.z + fz * 200;
-  const y = bed.groundAt(fall.x, fall.z);
-  return {
-    eye: { x: ex, y: Math.max(y + 150, ridden.groundAt(ex, ez) + 60), z: ez },
-    target: { x: fall.x, y, z: fall.z },
-    fov: 60,
-    roll: 0,
-  };
-}
-
-/** From the valley floor up the face toward the rockiest crag. */
-function valleyView(): LensPose {
-  const b = level.mountain?.base ?? { x: bed.size / 2, z: bed.size * 0.92 };
-  return {
-    eye: { x: b.x, y: ridden.groundAt(b.x, b.z) + 2, z: b.z },
-    target: { x: fall.x, y: bed.groundAt(fall.x, fall.z), z: fall.z },
-    fov: 55,
-    roll: 0,
-  };
-}
-
-/** THE SCENES, in order. Each returns its lens. The face's field of view
- * narrows with range so the crag fills about as much of the frame. */
-const SCENES: Record<string, () => LensPose | null> = {
-  foot: () => faceView(14, 1.8, 70, true),
-  "face-40": () => faceView(40, 2, 62, true),
-  "face-150": () => faceView(150, 6, 45),
-  "face-400": () => faceView(400, 20, 28),
-  "face-1200": () => faceView(1200, 40, 12),
-  skyline: skylineView,
-  cliff: cliffView,
-  piste: pisteView,
-  aerial: aerialView,
-  valley: valleyView,
-};
-const NOTES: Record<string, string> = {
-  foot: "14 m out from the foot of the rockiest face, a skier's eye",
-  "face-40": "the rockiest face from 40 m out past its foot",
-  "face-150": "the rockiest face from 150 m",
-  "face-400": "the rockiest face from 400 m",
-  "face-1200": "the rockiest face from 1200 m (the far cut)",
-  skyline: "the highest rock against the sky, from 120 m under it",
-  cliff: "the tallest rocky cliff's wall from 28 m",
-  piste: "from the piste where it passes nearest the rockiest face",
-  aerial: "150 m over the rockiest face, 200 m out",
-  valley: "from the valley floor up toward the crags",
-};
-
-/** What the rock holds, off `rocks.ts`'s stats (zero where none). */
-function stats(): RockStats {
-  const s = renderer.group("rocks")?.userData.rockStats as RockStats | undefined;
-  return s ? { ...s } : { buildMs: 0, owed: 0, triangles: 0, bytes: 0 };
-}
-
-/** Draw a frame (the lens moved), build every tile it owes whole
-(`rocks.ts`'s `rockSettle`) and draw again: the ms the rock spent
-building, off its own clock. */
-function settle(): number {
-  const before = stats().buildMs;
-  still();
-  (renderer.group("rocks")?.userData.rockSettle as (() => void) | undefined)?.();
-  for (let i = 0; i < 2; i++) still();
-  return stats().buildMs - before;
-}
-
-/** Within this of the lens the drawn rock is held to the ridden. */
-const GAP_REACH = 250;
-
-/** THE PHYSICS GAP: every drawn rock triangle within `GAP_REACH` m of the
- * lens, read at its corners and middle against the surface a body meets
- * there. A rock drawn in the shader alone (no triangles under `rocks`)
- * reads none, and says so. */
-function gap(eye: { x: number; y: number; z: number }): Gap | null {
-  const root = renderer.group("rocks");
-  if (!root) return null;
-  const errs: number[] = [];
-  const p = new THREE.Vector3();
-  const pts = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-  root.updateMatrixWorld(true);
-  root.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh || !mesh.visible || (mesh as THREE.InstancedMesh).isInstancedMesh) return;
-    const pos = mesh.geometry.getAttribute("position");
-    if (!pos) return;
-    const index = mesh.geometry.index;
-    const count = index ? index.count : pos.count;
-    for (let t = 0; t + 2 < count; t += 3) {
-      for (let k = 0; k < 3; k++) {
-        const v = index ? index.getX(t + k) : t + k;
-        pts[k].fromBufferAttribute(pos, v).applyMatrix4(mesh.matrixWorld);
-      }
-      p.copy(pts[0])
-        .add(pts[1])
-        .add(pts[2])
-        .multiplyScalar(1 / 3);
-      if (Math.hypot(p.x - eye.x, p.z - eye.z) > GAP_REACH) continue;
-      // The skin a body meets, never a cliff's face (met as columns,
-      // `wallSolids`) nor rock tucked under the snow (drawn hidden).
-      if (onAnyCliff(bed, p.x, p.z, 2)) continue;
-      for (const q of [p, ...pts]) {
-        if (q.y < bed.groundAt(q.x, q.z) - 0.02) continue;
-        errs.push(Math.abs(q.y - ridden.groundAt(q.x, q.z)));
-      }
-    }
-  });
-  if (!errs.length) return null;
-  errs.sort((a, b) => a - b);
-  const mean = errs.reduce((a, b) => a + b, 0) / errs.length;
-  return {
-    triangles: Math.round(errs.length / 4),
-    mean,
-    p95: errs[Math.floor(errs.length * 0.95)],
-    worst: errs[errs.length - 1],
-    over25: errs.filter((e) => e > 0.25).length / errs.length,
-  };
-}
-
-function shoot(name: string): { note: string; settleMs: number; gap: Gap | null } {
-  const scene = SCENES[name];
-  if (!scene) throw new Error(`no scene "${name}" — known: ${Object.keys(SCENES).join(", ")}`);
+async function shoot(name: string): Promise<Shot> {
+  const scene = lab.scenes[name];
+  if (!scene) throw new Error(`no scene "${name}" — known: ${Object.keys(lab.scenes).join(", ")}`);
   const pose = scene();
   if (!pose) {
     label.textContent = `${name.toUpperCase()} · none on this map`;
     renderer.setOverride(null);
-    return { note: "none on this map", settleMs: 0, gap: null };
+    return { note: "none on this map", settleMs: 0, clean: true, gap: null };
   }
-  renderer.setOverride(pose);
-  const settleMs = settle();
-  const note = NOTES[name];
+  const { settleMs, clean } = await m.standAt(pose);
+  const note = lab.notes[name];
   label.textContent = `${name.toUpperCase()} · seed ${seed} · ${face ?? region ?? "alpine"}${summer ? " · summer" : ""} · ${hour}:00 ${weather} · ${note}`;
-  return { note, settleMs, gap: gap(pose.eye) };
+  return { note, settleMs, clean, gap: m.gap(pose.eye) };
 }
 
 /** Waits for the GPU: a pixel read back blocks until every draw before it
@@ -448,7 +196,7 @@ function sync(): void {
   gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
 }
 
-function timed(frames: number): { ms: number; calls: number; triangles: number; worldMs: number } {
+function timed(frames: number): Pass {
   still();
   sync();
   let world = 0;
@@ -463,119 +211,133 @@ function timed(frames: number): { ms: number; calls: number; triangles: number; 
   return { ms, calls: c.calls, triangles: c.triangles, worldMs: world / frames };
 }
 
-/** The scene priced: two rounds of `frames` frames with the rock and
- * without it, interleaved so a slow spell lands on both, each side's
- * quickest round kept. */
+/** The quicker of two passes, the world's ms the lesser of both. */
+const best = (a: Pass | null, b: Pass): Pass =>
+  !a
+    ? b
+    : b.ms < a.ms
+      ? { ...b, worldMs: Math.min(a.worldMs, b.worldMs) }
+      : { ...a, worldMs: Math.min(a.worldMs, b.worldMs) };
+
+/** The scene priced: two rounds of `frames` frames whole, without the
+ * rock, without the ground, and (where the build can) without the
+ * ground's own rock — interleaved so a slow spell lands on every side, each
+ * side's quickest round kept. */
 function cost(frames: number): SceneCost {
-  let all = timed(frames);
-  let bare = all;
+  const rockGround = terrainHook<(on: boolean) => void>("rockGround");
+  let all: Pass | null = null;
+  let bare: Pass | null = null;
+  let noGround: Pass | null = null;
+  let groundRockOff: Pass | null = null;
   for (let round = 0; round < 2; round++) {
     renderer.setHidden([]);
-    const a = timed(frames);
-    if (round === 0 || a.ms < all.ms) all = { ...a, worldMs: Math.min(a.worldMs, all.worldMs) };
+    all = best(all, timed(frames));
     renderer.setHidden(["rocks"]);
-    const b = timed(frames);
-    if (round === 0 || b.ms < bare.ms) bare = { ...b, worldMs: Math.min(b.worldMs, bare.worldMs) };
+    bare = best(bare, timed(frames));
+    renderer.setHidden(["terrain"]);
+    noGround = best(noGround, timed(frames));
+    renderer.setHidden([]);
+    if (rockGround) {
+      rockGround(false);
+      groundRockOff = best(groundRockOff, timed(frames));
+      rockGround(true);
+    }
   }
   renderer.setHidden([]);
   still();
+  const a = all as Pass;
+  const b = bare as Pass;
+  const g = noGround as Pass;
   const tally = renderer.sceneTally().find((s) => s.name === "rocks");
   return {
-    ms: all.ms,
-    msBare: bare.ms,
-    calls: all.calls,
-    callsBare: bare.calls,
-    triangles: all.triangles,
-    trianglesBare: bare.triangles,
+    ms: a.ms,
+    msBare: b.ms,
+    calls: a.calls,
+    callsBare: b.calls,
+    triangles: a.triangles,
+    trianglesBare: b.triangles,
     rockObjects: tally?.objects ?? 0,
     rockTriangles: tally?.triangles ?? 0,
-    worldMs: all.worldMs,
-    worldMsBare: bare.worldMs,
+    worldMs: a.worldMs,
+    worldMsBare: b.worldMs,
+    msNoGround: g.ms,
+    callsNoGround: g.calls,
+    trianglesNoGround: g.triangles,
+    msGroundRockOff: groundRockOff ? groundRockOff.ms : null,
   };
 }
 
-/** The canvas read back at a quarter size, as luminance 0..1. */
-function sample(): Float32Array {
-  const gl = renderer.gl.getContext();
-  const w = gl.drawingBufferWidth;
-  const h = gl.drawingBufferHeight;
-  const px = new Uint8Array(w * h * 4);
-  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
-  const sw = Math.floor(w / 4);
-  const sh = Math.floor(h / 4);
-  const o = new Float32Array(sw * sh);
-  for (let j = 0; j < sh; j++)
-    for (let i = 0; i < sw; i++) {
-      const k = (j * 4 * w + i * 4) * 4;
-      o[j * sw + i] = (0.2126 * px[k] + 0.7152 * px[k + 1] + 0.0722 * px[k + 2]) / 255;
-    }
-  return o;
+/** THE SHIMMER of scene `name` (see `rock-eval-measure.ts`). */
+async function shimmer(name: string, frames: number, slide: number, fresh = true) {
+  const pose = lab.scenes[name]?.();
+  return pose ? m.shimmer(pose, frames, slide, fresh) : 0;
 }
 
-/** THE SHIMMER of scene `name`: the lens slid `slide` m a frame across
- * the look for `frames` frames, every pixel's mean second difference of
- * brightness, ×1000 (the shimmer lab's FLICKER). */
-function shimmer(name: string, frames: number, slide: number): number {
-  const pose = SCENES[name]?.();
-  if (!pose) return 0;
-  const dx = pose.target.x - pose.eye.x;
-  const dz = pose.target.z - pose.eye.z;
-  const l = Math.hypot(dx, dz) || 1;
-  const sx = dz / l;
-  const sz = -dx / l;
-  const reads: Float32Array[] = [];
-  for (let k = 0; k < frames; k++) {
-    const eye = { ...pose.eye, x: pose.eye.x + sx * slide * k, z: pose.eye.z + sz * slide * k };
-    renderer.setOverride({ ...pose, eye });
-    still();
-    reads.push(sample());
-  }
-  let sum = 0;
-  let n = 0;
-  for (let k = 1; k + 1 < reads.length; k++)
-    for (let i = 0; i < reads[k].length; i++) {
-      sum += Math.abs(reads[k + 1][i] - 2 * reads[k][i] + reads[k - 1][i]);
-      n++;
-    }
-  return n ? (1000 * sum) / n : 0;
+/** The approach at the rockiest face, the lens narrowing as it comes. */
+function approach(from: number, to: number, step: number): Promise<number[]> {
+  return m.approach(
+    (d) => lab.faceView(d, 6 + d * 0.03, Math.max(14, Math.min(60, 7000 / d))),
+    from,
+    to,
+    step,
+  );
 }
 
-/** The lens walked in at the rockiest face from `from` m to `to` m in
- * `step` m steps, each frame's mean change off the last (a POP is a
- * spike) — the rock built whole at every step, so only a cut swapping
- * shows. */
-function approach(from: number, to: number, stepM: number): number[] {
-  const o: number[] = [];
-  let last: Float32Array | null = null;
-  for (let d = from; d >= to; d -= stepM) {
-    renderer.setOverride(faceView(d, 6 + d * 0.03, Math.max(14, Math.min(60, 7000 / d))));
-    settle();
-    const now = sample();
-    if (last) {
-      let sum = 0;
-      for (let i = 0; i < now.length; i++) sum += Math.abs(now[i] - last[i]);
-      o.push((255 * sum) / now.length);
-    }
-    last = now;
-  }
-  return o;
+/** THE ORDER CHECK: scene `name` read now (`mark`) and read again later
+ * (`recheck`), after other scenes: the mean change between the two
+ * pictures (0..255 steps), and the rock drawn and held each time. */
+const marks = new Map<string, Mark>();
+async function mark(name: string): Promise<void> {
+  await shoot(name);
+  marks.set(name, {
+    read: m.sample(),
+    rockTriangles: renderer.sceneTally().find((s) => s.name === "rocks")?.triangles ?? 0,
+    heldTriangles: m.stats().triangles,
+  });
+}
+async function recheck(name: string) {
+  const before = marks.get(name);
+  if (!before) return null;
+  await shoot(name);
+  return {
+    change: m.change(before.read, m.sample()),
+    rockTriangles: [
+      before.rockTriangles,
+      renderer.sceneTally().find((s) => s.name === "rocks")?.triangles ?? 0,
+    ] as [number, number],
+    heldTriangles: [before.heldTriangles, m.stats().triangles] as [number, number],
+  };
 }
 
 const t0 = performance.now();
 window.__rocks = {
   ready: renderer.load(state).then(async () => {
     await volumeNoise();
+    const loadMs = performance.now() - t0;
+    // One scene stood and let go before any is read: the page's first
+    // stand reads apart from every later one (face-400's shimmer 0.146
+    // first, 0.131 every time after, whatever came between).
+    const first = Object.values(lab.scenes)
+      .map((s) => s())
+      .find((p) => p);
+    if (first) await m.standAt(first);
+    m.reset();
     return {
-      loadMs: performance.now() - t0,
-      rockCells,
+      loadMs,
+      rockCells: lab.rockCells,
       cliffs: cliffWalls(level).length,
-      stats: stats(),
+      stats: m.stats(),
+      rockGround: typeof terrainHook("rockGround") === "function",
+      rockDrawnAt: typeof terrainHook("rockDrawnAt") === "function",
+      rockReset: typeof renderer.group("rocks")?.userData.rockReset === "function",
     };
   }),
-  scenes: () => Object.keys(SCENES),
+  scenes: () => Object.keys(lab.scenes),
   shoot,
   cost,
-  stats,
+  stats: m.stats,
   shimmer,
   approach,
+  mark,
+  recheck,
 };

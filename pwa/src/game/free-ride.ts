@@ -27,10 +27,14 @@ import {
   dayOfYearOf,
   hourOfTime,
   weatherOf,
+  weatherFor,
+  withDay,
+  airTempAt,
   freeRuns,
   skiRoutesOf,
   pickFreeRun,
   isRegionId,
+  REGION_IDS,
   snowCoverOf,
   type RunGrade,
   type RegionId,
@@ -127,6 +131,10 @@ export function depthOf(snow: SnowId): number {
   return stop.cm / 100 / snowCoverOf(1);
 }
 
+/** THE TEMPERATURE row's stops past AUTO: the air at the valley floor at
+ * the start hour, °C — deep cold to a thaw. */
+export const TEMP_STOPS = [-20, -15, -10, -5, 0, 5, 10] as const;
+
 /** What the start card writes. */
 export type FreeRide = {
   /** The map; null is the one the front door is standing over. */
@@ -143,6 +151,9 @@ export type FreeRide = {
   /** The sky to ride under (R19's kinds, at their typical numbers —
    * `weatherFor`); null is the one the map was dealt. */
   weather: WeatherKind | null;
+  /** THE AIR at the valley floor at the start hour, °C (one of
+   * {@link TEMP_STOPS}, `Weather.temp`); null is the air model's own (AUTO). */
+  temp: number | null;
   /** The kind of snow country the map is built in (R21). */
   region: RegionId;
   /** The REAL FACE the mountain is raised on (R25, one of the region's —
@@ -175,6 +186,7 @@ export function freshRide(): FreeRide {
     snow: "medium",
     spot: null,
     weather: null,
+    temp: null,
     region: DEFAULT_REGION,
     face: null,
     grade: null,
@@ -212,6 +224,7 @@ export function mergeRide(blob: unknown): FreeRide {
   if (typeof b.weather === "string" && WEATHER_KINDS.includes(b.weather as WeatherKind)) {
     out.weather = b.weather as WeatherKind;
   }
+  if (isNumber(b.temp) && (TEMP_STOPS as readonly number[]).includes(b.temp)) out.temp = b.temp;
   if (isRegionId(b.region)) out.region = b.region;
   if (typeof b.avalanche === "boolean") out.avalanche = b.avalanche;
   if (typeof b.where === "boolean") out.where = b.where;
@@ -440,9 +453,19 @@ export function seasonOn(ride: Pick<FreeRide, "season" | "face">): number | null
  * nearest its date, the time of day nearest its hour, and its sky. The
  * SEASON, TIME and WEATHER rows show these (in a colour of their own) until
  * the skier steps one. */
-export type DealtDay = { season: SeasonId; time: TimeOfDay; weather: WeatherKind };
+export type DealtDay = {
+  season: SeasonId;
+  time: TimeOfDay;
+  weather: WeatherKind;
+  /** What the TEMPERATURE row's AUTO reads the air off (`autoTempOf`): the
+   * map's sun as dealt, its country and its valley floor, m. Absent on a
+   * chart kept by an older build. */
+  air?: { sun: Level["sun"]; region?: RegionId; altitude?: number };
+};
 
-export function dealtDay(level: Pick<Level, "sun" | "weather">): DealtDay {
+export function dealtDay(
+  level: Pick<Level, "sun" | "weather"> & Partial<Pick<Level, "region" | "mountain">>,
+): DealtDay {
   const { hour, dayOfYear, latitude } = level.sun;
   const apart = (a: number, b: number, round: number): number => {
     const d = Math.abs(a - b) % round;
@@ -455,7 +478,36 @@ export function dealtDay(level: Pick<Level, "sun" | "weather">): DealtDay {
     apart(dayOfYearOf(seasonDay(s.day, latitude)), dayOfYear, 365),
   ).id;
   const time = nearest(TIMES_OF_DAY, (t) => apart(hourOfTime(latitude, dayOfYear, t), hour, 24));
-  return { season, time, weather: weatherOf(level).kind };
+  return {
+    season,
+    time,
+    weather: weatherOf(level).kind,
+    air: {
+      sun: level.sun,
+      ...(level.region ? { region: level.region } : {}),
+      ...(level.mountain ? { altitude: level.mountain.altitude } : {}),
+    },
+  };
+}
+
+/** THE AIR AUTO WOULD GIVE THE RIDE, °C: at the valley floor at the start
+ * hour of the map `dealt` describes, on the season, time and sky the card
+ * has picked — what the TEMPERATURE row shows in the dealt colour. Null
+ * before the chart is in. */
+export function autoTempOf(
+  ride: Pick<FreeRide, "season" | "time" | "weather" | "face">,
+  dealt: DealtDay | null,
+): number | null {
+  if (!dealt?.air) return null;
+  const { sun, region, altitude } = dealt.air;
+  const day = withDay({ sun }, { time: ride.time, dayOfYear: seasonOn(ride) });
+  const weather = weatherFor(ride.weather ?? dealt.weather);
+  return airTempAt({
+    sun: day.sun,
+    weather,
+    ...(region ? { region } : {}),
+    ...(altitude === undefined ? {} : { mountain: { altitude } }),
+  });
 }
 
 /** Every run of `level` a free ride can be carried to the top of, billed
@@ -508,6 +560,61 @@ export function markedRun(
     list.fallback ?? undefined,
   );
   return list.runs.find((r) => r.id === id) ?? null;
+}
+
+/** The highest seed QUICK START deals: any generated mountain at all. */
+export const QUICK_SEEDS = 999_999;
+
+/** QUICK START'S RIDE: a GENERATED mountain off a seed of its own, in any
+ * country, on any winter day (never summer), at any hour, under any sky
+ * and any depth of snow, in an air that fits them (`quickTempOf`) — and no
+ * run or spot, so the ride is carried up to the map's toughest piste
+ * (`pickFreeRun`). The rider, his pair or board and his help are the cards'
+ * as last picked (`skierOf`); the start card's own answers are left as they
+ * were. */
+export function quickRide(base: FreeRide, random: () => number = Math.random): FreeRide {
+  const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
+  const ride: FreeRide = {
+    ...base,
+    seed: 1 + Math.floor(random() * QUICK_SEEDS),
+    region: pick(REGION_IDS),
+    face: null,
+    grade: null,
+    season: pick(SEASONS.filter((s) => s.id !== "summer")).id,
+    time: pick(TIMES_OF_DAY),
+    weather: pick(WEATHER_KINDS),
+    snow: pick(SNOW_STOPS).id,
+    run: null,
+    spot: null,
+  };
+  return { ...ride, temp: quickTempOf(ride, random) };
+}
+
+/** How far QUICK START's air strays either way off what its day would
+ * give, °C. */
+export const QUICK_TEMP_SPREAD = 6;
+
+/** QUICK START'S AIR, one of `TEMP_STOPS`: what AUTO would give the ride's
+ * country, season, time and sky — read before its map is built, so at the
+ * middle of the country's latitudes over a valley floor at the model's
+ * (`AIR_TEMP.valley`) — strayed up to `QUICK_TEMP_SPREAD` either way and
+ * snapped to the nearest stop: a cold midwinter dawn stays cold, a spring
+ * afternoon may thaw. */
+export function quickTempOf(
+  ride: Pick<FreeRide, "region" | "season" | "time" | "weather">,
+  random: () => number = Math.random,
+): number {
+  const { latitude } = regionOf({ region: ride.region ?? DEFAULT_REGION }).sun;
+  const dayOfYear = seasonOn({ season: ride.season, face: null }) ?? SEASONS[1].day;
+  const sun = { hour: 12, dayOfYear, latitude: (latitude.min + latitude.max) / 2 };
+  const day = withDay({ sun }, { time: ride.time });
+  const auto = airTempAt({
+    sun: day.sun,
+    weather: weatherFor(ride.weather ?? "fair"),
+    region: ride.region ?? DEFAULT_REGION,
+  });
+  const air = auto + (random() * 2 - 1) * QUICK_TEMP_SPREAD;
+  return TEMP_STOPS.reduce((best, c) => (Math.abs(c - air) < Math.abs(best - air) ? c : best));
 }
 
 /** THE RUN A FREE RIDE IS STOOD UP AS, on `seed`, for the skier on his
@@ -588,7 +695,15 @@ export function freeGameOptions(
       time: ride.time,
       dayOfYear: seasonOn(ride),
     },
-    sky: ride.weather === null ? undefined : { weather: ride.weather },
+    // THE TEMPERATURE row lays the air's knob over whichever sky it is
+    // (never in summer, whose air is its own).
+    sky:
+      ride.weather === null && (ride.temp === null || summer)
+        ? undefined
+        : {
+            ...(ride.weather === null ? {} : { weather: ride.weather }),
+            ...(ride.temp === null || summer ? {} : { temp: ride.temp }),
+          },
     spawn: spot ?? undefined,
     // A SPOT PICKED ON THE CHART IS WHERE THE RIDE STARTS: stood on the snow
     // there, never carried up a lift to the top of the run beside it. With no

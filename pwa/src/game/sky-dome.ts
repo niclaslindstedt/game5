@@ -24,6 +24,8 @@
 import * as THREE from "three";
 
 import { DOME_CLOUD_GLSL, type Clouds } from "./clouds.ts";
+import { CONTRAIL_GLSL } from "./contrail-glsl.ts";
+import type { Contrails } from "./contrails.ts";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 import { MOON_GLSL } from "./moon-glsl.ts";
@@ -43,7 +45,12 @@ export type SkyDome = {
   dispose(): void;
 };
 
-export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds): SkyDome {
+export function createSkyDome(
+  haze: HazeUniforms,
+  radius: number,
+  clouds: Clouds,
+  contrails: Contrails | null = null,
+): SkyDome {
   const geometry = new THREE.SphereGeometry(radius, 48, 24);
   const own = {
     uStars: { value: 0 },
@@ -57,7 +64,7 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
     uStarSky: { value: new THREE.Vector4() },
   };
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...haze, ...clouds.uniforms, ...own },
+    uniforms: { ...haze, ...clouds.uniforms, ...(contrails?.uniforms ?? {}), ...own },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       varying vec4 vClip;
@@ -72,6 +79,7 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
     fragmentShader: /* glsl */ `
       ${SKY_GLSL}
       ${DOME_CLOUD_GLSL}
+      ${contrails ? CONTRAIL_GLSL : ""}
       uniform float uStars;
       uniform float uGalaxy;
       uniform mat3 uTurn;
@@ -157,6 +165,10 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         // in front of it, so it adds), dimmed by any cloud before it.
         c += moon.rgb * (1.0 - hide * 0.93);
 
+        // THE CONTRAILS (\`contrail-glsl.ts\`): over the sky, the sun and
+        // the stars, under every cloud layer (the cirrus stands under the
+        // airways).
+        ${contrails ? "vec4 tr = contrailSky(cameraPosition, d, c); c = c * (1.0 - tr.a) + tr.rgb;" : ""}
         c = c * clearSky + cl.rgb;
         // THE 22° HALO in a veil of ice round the sun, and round the moon.
         c += cloudHalo(d, uSunPos, uSunCol, uCloudOn.z) * (1.0 - 0.6 * hide);

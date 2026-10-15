@@ -6,6 +6,10 @@
 // he pushes it beside him; every chair's and gondola's load zone carries
 // the bike up with him; and the ride is
 // deterministic — the same keys, the same ride.
+// What the app draws on the snow is solid here as it is in the game
+// (`drawn-solids.ts`): the stations' houses, boards and signs, the fires'
+// benches.
+import "../pwa/src/game/drawn-solids.ts";
 import { describe, expect, it } from "vitest";
 import {
   bikeAim,
@@ -156,9 +160,14 @@ describe("the restart", () => {
   });
 });
 
+/** How far short of a lift's load zone a bike is rolled into it from, m:
+ * between the wheel and the station's house behind it (`HOUSE_CLEAR`), which
+ * is solid. */
+const RUN_UP = 4;
+
 describe("a lift carries the bike", () => {
-  // Every chair and gondola of two maps, rolled into from 8 m short of its
-  // load zone at a walking pace (pedalled up to 1.5 m/s, never past it):
+  // Every chair and gondola of two maps, rolled into from `RUN_UP` m short
+  // of its load zone at a walking pace (pedalled up to 1.5 m/s, never past it):
   // the bike is placed by `placeBike`, so it stands on the ground there
   // rather than at the trail head's height, and at that crawl the rider's
   // knees hold the bars to the line (`bike-body.ts`'s `crawlHeld`) — the
@@ -171,7 +180,7 @@ describe("a lift carries the bike", () => {
       const missed: string[] = [];
       for (const plan of plans) {
         const e = plan.look.entry;
-        const u = e.at - e.along - 8;
+        const u = e.at - e.along - RUN_UP;
         const x = plan.lift.bottom.x + u * plan.dx + e.side * plan.dz;
         const z = plan.lift.bottom.z + u * plan.dz - e.side * plan.dx;
         let st = createGame({
@@ -209,7 +218,7 @@ describe("a lift carries the bike", () => {
     const stuck: string[] = [];
     for (const plan of liftPlans(map).filter((p) => p.lift.kind === "chair")) {
       const e = plan.look.entry;
-      const u = e.at - e.along - 8;
+      const u = e.at - e.along - RUN_UP;
       const x = plan.lift.bottom.x + u * plan.dx + e.side * plan.dz;
       const z = plan.lift.bottom.z + u * plan.dz - e.side * plan.dx;
       let st = createGame({

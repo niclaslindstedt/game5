@@ -17,6 +17,14 @@
 //     only falls. Each flake is drawn as the smear that motion makes over
 //     the frame's shutter (`shutterOf`), so it reads as streaming past
 //     rather than as a dot hopping a hundred pixels between two frames.
+//   * SNOW NEVER FALLS UP. A lens sinking faster than the snow falls — a
+//     skier down a steep pitch drops several metres a second, a skydiver
+//     fifty — would see every flake rise past it, which reads as snow
+//     falling upward. So the box SINKS WITH THE LENS by whatever more than
+//     `KEEP_FALL` of the flake's own fall the lens drops (`boxSink`): the
+//     snow still streams at the lens across and along, the wind still
+//     blows it sideways, and up and down it always falls, at no less than
+//     that share of its own pace.
 
 /** Flakes in the pool at a SPRAY share of 1. */
 export const FLAKES = 14000;
@@ -32,6 +40,10 @@ export const MOTE_REACH = 14;
 /** The fall under which the box holds only the air's crystals: a tenth of a
  * full fall and up is a fall, and a fall grows out of them. */
 export const FALL_FROM = 0.1;
+/** The least share of its own fall a flake is always seen falling at past
+ * the lens, however fast the lens sinks. */
+export const KEEP_FALL = 0.6;
+
 /** THE SHUTTER: how much of a frame's time each smear spans (1 is the whole
  * frame, so one frame's smear meets the next's), and its bounds, s. */
 export const SHUTTER = { share: 1, min: 1 / 120, max: 1 / 30 };
@@ -71,11 +83,20 @@ export function flakeDrift(
   return out;
 }
 
+/** How fast the box of snow sinks with the lens, m/s (0 or less): the
+ * lens's drop past what would leave a flake falling at `KEEP_FALL` of its
+ * own pace. A lens that holds its height, climbs, or sinks slower than that
+ * leaves the box where the wind put it. */
+export function boxSink(drift: Vec3, lens: Vec3): number {
+  return Math.min(0, lens.y - drift.y * (1 - KEEP_FALL));
+}
+
 /** WHAT THE LENS SEES: a flake's velocity past it, m/s — the flake's own
- * less the lens's. */
+ * less the lens's, with the box sunk along with a falling lens
+ * (`boxSink`), so the snow is never seen rising. */
 export function airPast(drift: Vec3, lens: Vec3, out: Vec3 = { x: 0, y: 0, z: 0 }): Vec3 {
   out.x = drift.x - lens.x;
-  out.y = drift.y - lens.y;
+  out.y = drift.y + boxSink(drift, lens) - lens.y;
   out.z = drift.z - lens.z;
   return out;
 }

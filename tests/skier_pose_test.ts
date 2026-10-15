@@ -157,11 +157,13 @@ describe("the body on its legs", () => {
     }
   });
 
-  it("keeps a working elbow up and behind the arm through the whole stroke", () => {
-    // Double-poling and skating, the elbow rides over the line from the
-    // shoulder to the fist — over the grip at the plant, back past the
-    // hips at the end of the push — never under it, where it had to swing
-    // round behind the arm as the fist passed the shoulder.
+  it("keeps a working elbow behind the arm and in by the ribs through the whole stroke", () => {
+    // Double-poling and skating, the elbow rides BEHIND the line from the
+    // shoulder to the fist — under and behind the grip at the plant, back
+    // past the hips at the end of the push — and close in to the trunk,
+    // never flared out to the side like a wing (where it had been pushed
+    // when its bend pointed along an arm reaching ahead for the plant).
+    let widest = 0;
     for (const speed of [4, 7, 9.5]) {
       for (let k = 0; k <= 240; k++) {
         const gait = gaitOf({
@@ -174,21 +176,46 @@ describe("the body on its legs", () => {
         });
         const p = skierPose({ ...base, gait });
         for (const i of [0, 1]) {
+          const side = i === 0 ? -1 : 1;
           const s = p.shoulders[i];
           const h = p.hands[i];
           const e = p.elbows[i];
           const arm = { x: h.x - s.x, y: h.y - s.y, z: h.z - s.z };
           const n = Math.hypot(arm.x, arm.y, arm.z);
           const t = ((e.x - s.x) * arm.x + (e.y - s.y) * arm.y + (e.z - s.z) * arm.z) / (n * n);
-          const off = {
-            y: e.y - (s.y + arm.y * t),
-            z: e.z - (s.z + arm.z * t),
-          };
-          // Up or back of the arm's line (the push's plane, seen from his side).
-          expect(off.y - off.z, `at ${speed} m/s, stride ${k}, arm ${i}`).toBeGreaterThan(-0.01);
+          // Behind the arm's line (the push's plane, seen from his side).
+          const back = e.z - (s.z + arm.z * t);
+          expect(back, `at ${speed} m/s, stride ${k}, arm ${i}`).toBeLessThan(0.01);
+          // The upper arm out to his side, off the trunk's plane.
+          const up = Math.hypot(e.x - s.x, e.y - s.y, e.z - s.z);
+          const out = Math.asin(Math.max(-1, Math.min(1, (side * (e.x - s.x)) / up)));
+          widest = Math.max(widest, out);
         }
       }
     }
+    expect((widest * 180) / Math.PI).toBeLessThan(45);
+  });
+
+  it("throws the arms on further back behind him the faster he double-poles", () => {
+    // The follow-through: at a crawl the push lets go by the hips; going
+    // fast the arms carry on long and high behind him.
+    const furthest = (speed: number): number => {
+      let most = Infinity;
+      for (let k = 0; k <= 240; k++) {
+        const gait = gaitOf({
+          drive: 1,
+          stride: 3 + k / 120,
+          speed,
+          pitch: 0,
+          airborne: false,
+          thrown: null,
+        });
+        const p = skierPose({ ...base, gait });
+        most = Math.min(most, p.hands[0].z, p.hands[1].z);
+      }
+      return most;
+    };
+    expect(furthest(5.6)).toBeGreaterThan(furthest(9.5) + 0.2);
   });
 
   it("carries the weight across onto the gliding ski and swings the poles as rods", () => {

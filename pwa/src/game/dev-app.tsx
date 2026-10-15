@@ -14,6 +14,7 @@
 import { useRef, useState } from "preact/hooks";
 import type { GameMode, GameState } from "@engine";
 
+import { setAttemptPool } from "./attempt-pool.ts";
 import type { LoadPlan } from "./app-load.ts";
 import { createBenchRun } from "./bench-run.ts";
 import type { GpuMode, Hideable } from "./benchmark-report.ts";
@@ -23,7 +24,7 @@ import type { DebugSnapshot } from "./debug-readout.ts";
 import { createDevTools } from "./dev-tools.ts";
 import { BenchmarkCard } from "./menu-bench.tsx";
 import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
-import type { Settings } from "./settings.ts";
+import { parallelMaps, type Settings } from "./settings.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import { hudOver, type Shell } from "./shell.ts";
 
@@ -72,7 +73,10 @@ export type DevApp = {
   attach: (world: DevAppWorld) => DevRig;
 };
 
-export function useDevApp(): DevApp {
+export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
+  // DEVELOPER raises a map's attempts side by side (`attempt-pool.ts`) —
+  // set as the page draws, so the start card's first map is built by it.
+  setAttemptPool(parallelMaps(settings));
   const [bench, setBench] = useState<BenchmarkStatus | null>(null);
   const [debug, setDebug] = useState<DebugSnapshot | null>(null);
   const rig = useRef<DevRig | null>(null);

@@ -93,6 +93,7 @@ import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { deathOver } from "./game/hud-wreck.ts";
+import { rescueAgain } from "./game/rescue-book.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
@@ -499,18 +500,16 @@ export function App() {
       window.setTimeout(() => setLoadLeaving(false), LOAD_FADE_MS);
     };
 
-    /** The race again on the same map: nothing to generate or build — the
-     * renderer sees a fresh state and starts its trails and spray clean — so no
-     * card, just the lights again (`onSnow`, the PISTE MAP's way back on too). */
+    /** The race again on the same map, no card, just the lights (`onSnow`, the
+     * PISTE MAP's way back on too) — any rescue under way kept (`rescueAgain`). */
     const restart = (): void => {
       if (loader.busy()) return;
-      // A free ride starts again at the top of the last piste it skied; every
-      // other run from the start line, on the same map, in its mode.
+      // A free ride again at the top of its last piste; any other run from its start.
       const free = freeRestart(state, freeAgain);
       onSnow(free ? createGame(free) : (pinned.again() ?? playerGame(state.level, state.seed)));
     };
     const onSnow = (next: GameState): void => {
-      adopt(next, ticketFor(next), true);
+      adopt(rescueAgain(state, next), ticketFor(next), true);
       frozen = false;
       clock.resume();
       setShellNow("run");

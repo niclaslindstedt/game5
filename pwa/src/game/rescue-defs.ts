@@ -94,6 +94,14 @@ export const RESCUE = {
    * it is raised, then over the floor's edge, m. */
   short: 0.42,
   over: 0.06,
+  /** THE FLIGHT IN AND THE MACHINE'S ROUNDS (`rescue-flight.ts`): from
+   * the call (the run after he was hurt starting) to its skids on the snow,
+   * s; from there to its crew out of the door, s; the time they take to
+   * gather at the door with the board, s; and the stretchers its cabin
+   * takes (a light single's medical fit carries one or two) and how far
+   * from where it sits a second casualty is carried to it rather than
+   * another machine called, m. */
+  flight: { arrive: 32, out: 2.2, gather: 2.4, seats: 2, reach: 110 },
   /** The hover, m over the snow, and the climb-out: the acceleration, the
    * cruise and the climb, m/s², m/s, m/s. */
   hover: 4.5,

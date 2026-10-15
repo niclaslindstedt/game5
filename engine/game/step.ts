@@ -108,6 +108,7 @@ import { stepRun } from "./run.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshGore } from "./gore-state.ts";
+import { copyCall, type RescueCall } from "./rescue-call.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
 import { pisteDayOf } from "./piste-day.ts";
@@ -230,6 +231,10 @@ export type CreateGameOptions = {
    * back up — the app's to end. Off when left out, and then nothing of it
    * runs: the INJURIES switch's (`settings.ts`). */
   gore?: boolean;
+  /** THE AIR AMBULANCES still on the mountain from earlier runs that ended
+   * injured (`rescue-call.ts`): their landed machines are solid to this
+   * run's skier. The app's (`rescue-book.ts`); none when left out. */
+  rescue?: RescueCall[];
   /** SAFE FOR WORK (`RunRules.sfw`): no collisions between skiers, no
    * afterski, a helicopter and a balloon that cannot crash or burn. The
    * app asks for it when the INJURIES switch is off. Off when left out. */
@@ -605,6 +610,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
     ...(options.gore && !options.sfw ? { gore: freshGore() } : {}),
+    ...(options.rescue?.length ? { rescue: options.rescue.map(copyCall) } : {}),
     snowDepth: depth,
     fresh: summer ? 0 : Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],

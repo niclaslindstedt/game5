@@ -31,6 +31,8 @@ import {
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { bookRun, createRescueBook } from "../game/rescue-book.ts";
+import { flightAt, freshFlightFrame, planFlight } from "../game/rescue-flight.ts";
 import { BEARERS, RESCUE, freshRescueFrame, planRescue, rescueAt } from "../game/rescue-plan.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 
@@ -85,6 +87,11 @@ const pts = level.track.points;
 const fell = pts[Math.floor(pts.length * share)];
 const plan = planRescue(level, fell);
 const A = plan.at;
+/** The call's clock the first casualty's scoop starts at (`rescue-flight.ts`):
+ * the machine flown in, the crew out and round to him. The views below are
+ * timed off the scoop, as the plan is. */
+const flight = planFlight(level, [{ x: fell.x, z: fell.z, known: 0 }]);
+let T0 = flight.trips[0].offset;
 
 const fresh = (): GameState =>
   createGame({ level, seed, region, mode: "free", gore: true, crowd: 0, quiet: true });
@@ -99,6 +106,8 @@ function nextRun(back: number): GameState {
   const s = fresh();
   const up = pts.find((p) => p.s >= fell.s - back) ?? pts[0];
   placeRun(s, { x: up.x, z: up.z, heading: up.heading });
+  bookRun(createRescueBook(), hurt, s);
+  T0 = flight.trips[0].offset;
   renderer.draw(s, 1, FRAME, false);
   return s;
 }
@@ -108,6 +117,12 @@ const ready = (async () => {
   await renderer.load(first);
   if (baseSky) renderer.setSky(baseSky);
   renderer.draw(first, 1, FRAME);
+  // The air ambulance's model loaded with the rescue scene the first hurt
+  // run stands up, before any frame wants it.
+  const hurt = fresh();
+  hurt.gore!.injured = 0;
+  renderer.draw(hurt, 1, FRAME, false);
+  await new Promise((done) => setTimeout(done, 4000));
   await renderer.shadeSettled();
   const d = Math.hypot(plan.site.x - plan.spot.x, plan.site.z - plan.spot.z);
   return (
@@ -124,12 +139,13 @@ const now = freshRescueFrame();
 /** The rescue's clock run on to `t` over frames (the rotor, the wash and
  * the cloud stepped), the player held where he stands. */
 function poseAt(s: GameState, t: number, lead = 1.2): void {
-  const from = Math.max(t - lead, s.t);
-  for (let k = from; k < t; k += FRAME) {
+  const at = T0 + t;
+  const from = Math.max(at - lead, s.t);
+  for (let k = from; k < at; k += FRAME) {
     s.t = k;
     renderer.draw(s, 1, FRAME, false);
   }
-  s.t = t;
+  s.t = at;
 }
 
 function shoot(s: GameState, label: string, lens: LensPose | "chase"): void {
@@ -139,11 +155,10 @@ function shoot(s: GameState, label: string, lens: LensPose | "chase"): void {
   } else renderer.setOverride(lens);
   renderer.draw(s, 1, 1e-4, true);
   renderer.setOverride(null);
-  rescueAt(level, plan, s.t, now);
   frames.push({
     view,
     label,
-    caption: `${view} ${label}\nt ${s.t.toFixed(2)} s · ${stage(s.t)}`,
+    caption: `${view} ${label}\nt ${s.t.toFixed(2)} s · ${stage(s.t - T0)}`,
     png: canvas.toDataURL("image/png"),
   });
 }
@@ -245,7 +260,96 @@ function scoopViews(s: GameState, lenses: readonly ("side" | "above" | "chase")[
   }
 }
 
+/** A run skied on its own hands (`input`) for `seconds`, drawn, a frame
+ * shot every `every` s through `lens` (a function of the moment). */
+function skiFor(
+  s: GameState,
+  seconds: number,
+  every: number,
+  lens: () => LensPose | "chase",
+  input = NEUTRAL_INPUT,
+): void {
+  const n = Math.round(seconds / FRAME);
+  const each = Math.max(1, Math.round(every / FRAME));
+  for (let f = 0; f < n; f++) {
+    for (let i = 0; i < STEPS; i++) step(s, input);
+    renderer.draw(s, 1, FRAME, false);
+    if ((f + 1) % each === 0) shoot(s, `${(s.t - T0).toFixed(1)} s`, lens());
+  }
+}
+
+/** Bearer `j`'s place `t` s into the call (`flight`'s clock). */
+function bearerAt(t: number, j: number): { x: number; y: number; z: number; heading: number } {
+  const f = flightAt(level, flight, t, freshFlightFrame());
+  return f.crew[j];
+}
+
 const VIEWS: Record<string, (s: GameState) => void> = {
+  /** THE MACHINE FLOWN IN: from a lens off the site, the call's clock. */
+  arrive(s) {
+    T0 = 0;
+    const site = flight.site;
+    const lens = planted(site, site.heading + 0.9, 30, 26, 9, 55, 3);
+    const tr = flight.trips[0];
+    for (const [label, t] of [
+      ["inbound", flight.down - 22],
+      ["closing", flight.down - 12],
+      ["slowing", flight.down - 6],
+      ["hover", flight.down - 3],
+      ["flare", flight.down - 1.2],
+      ["down", flight.down + 0.4],
+      ["door open", flight.down + RESCUE.flight.out + 0.6],
+      ["out with the board", tr.begin + RESCUE.flight.gather * 0.7],
+      ["round to him", tr.begin + RESCUE.flight.gather + tr.lead.length / 2 / RESCUE.scoop.pace],
+      ["at him", tr.offset + 1],
+    ] as const) {
+      poseAt(s, t, 1.5);
+      shoot(s, label, lens);
+    }
+  },
+  /** THE NEXT RIDER'S OWN CHASE LENS while it comes in. */
+  "arrive-chase"(s) {
+    T0 = 0;
+    for (const t of [flight.down - 14, flight.down - 6, flight.down - 1, flight.down + 4]) {
+      poseAt(s, t, 1.5);
+      shoot(s, "chase", "chase");
+    }
+  },
+  /** THE CREW KNOCKED OVER: skied into one of them as they walk round to
+   * him, from a lens off to the side. */
+  knock(s) {
+    T0 = 0;
+    const tr = flight.trips[0];
+    const at = tr.begin + RESCUE.flight.gather + 2;
+    poseAt(s, at - 1.6, 0.5);
+    const b = bearerAt(at, 2);
+    const h = Math.atan2(b.x - s.skier.x, b.z - s.skier.z);
+    const back = 12;
+    placeRun(s, {
+      x: b.x - Math.sin(h) * back,
+      z: b.z - Math.cos(h) * back,
+      heading: h,
+      speed: 9,
+    });
+    const lens = planted(b, h, 9, -1, 2.4, 52, 0.6);
+    skiFor(s, 4.5, 0.3, () => lens, { ...NEUTRAL_INPUT, tuck: 1 });
+    skiFor(s, 8, 2, () => lens);
+  },
+  /** THE LANDED MACHINE MET: skied into its side at speed. */
+  solid(s) {
+    T0 = 0;
+    poseAt(s, flight.down + 8, 1);
+    const site = flight.site;
+    const h = site.heading + Math.PI / 2;
+    placeRun(s, {
+      x: site.x - Math.sin(h) * 14,
+      z: site.z - Math.cos(h) * 14,
+      heading: h,
+      speed: 11,
+    });
+    const lens = planted(site, h, 12, 4, 4, 55, 1);
+    skiFor(s, 3.2, 0.2, () => lens, { ...NEUTRAL_INPUT, tuck: 1 });
+  },
   overview(s) {
     const lens = planted(middle, across, 34, 12, 24, 50, 0);
     for (const [label, t] of [
@@ -400,6 +504,8 @@ async function planeCrash(): Promise<void> {
   );
   // THE NEXT RUN: in the door on the strip.
   const s = ride();
+  bookRun(createRescueBook(), hurt, s);
+  T0 = planFlight(level, [{ ...lay, known: 0 }]).trips[0].offset;
   renderer.draw(s, 1, FRAME, false);
   run(s, 1.5, false, false);
   shoot(s, "next run: the strip", planted(start, h0, 10, 16, 6, 55, 0.5));
@@ -408,14 +514,65 @@ async function planeCrash(): Promise<void> {
   // ...and skied up to it: out of the door, stood 40 m short of where he lay.
   s.plane!.rider = false;
   placeRun(s, { x: lay.x - Math.sin(h0) * 40, z: lay.z - Math.cos(h0) * 40, heading: h0 });
-  const t0 = s.t;
   for (const [label, t] of [
     ["walking up", 6],
     ["scooping", 30],
     ["carrying", 60],
   ] as const) {
-    poseAt(s, t0 + t, 2);
+    poseAt(s, t, 2);
     shoot(s, `next run, by the wreck: ${label}`, planted(lay, h0, 16, 22, 10, 55, 0.5));
+  }
+}
+
+/** THE SECOND CASUALTY: a run ended injured where he fell, the next one
+ * ended injured `20` s in a little further down, and the run after it —
+ * the same machine taking both. */
+function second(): void {
+  const book = createRescueBook();
+  const hurt = fresh();
+  placeRun(hurt, { x: fell.x, z: fell.z, heading: fell.heading });
+  hurt.gore!.injured = 0;
+  const s1 = fresh();
+  bookRun(book, hurt, s1);
+  const p2 = pts.find((p) => p.s >= fell.s + 26) ?? fell;
+  const off = 7;
+  const x2 = p2.x + Math.cos(p2.heading) * off;
+  const z2 = p2.z - Math.sin(p2.heading) * off;
+  placeRun(s1, { x: x2, z: z2, heading: p2.heading });
+  s1.t = 20;
+  s1.gore!.injured = 0;
+  const s = fresh();
+  const up = pts.find((p) => p.s >= fell.s - 60) ?? pts[0];
+  placeRun(s, { x: up.x, z: up.z, heading: up.heading });
+  bookRun(book, s1, s);
+  renderer.draw(s, 1, FRAME, false);
+  const call = s.rescue![0];
+  const both = planFlight(level, call.casualties);
+  T0 = call.start;
+  const [a, b] = both.trips;
+  if (!b) {
+    shoot(s, "no second trip: a machine of its own", "chase");
+    return;
+  }
+  const mid = {
+    x: (fell.x + x2) / 2,
+    y: (fell.y + level.groundAt(x2, z2)) / 2,
+    z: (fell.z + z2) / 2,
+  };
+  const lens = planted(mid, fell.heading + 1.2, 30, 10, 18, 55, 0);
+  for (const [label, t] of [
+    ["first scooped", a.offset + a.plan.at.scoop.strap],
+    ["first carried", a.offset + (a.plan.at.carry + a.plan.at.raise) / 2],
+    ["first loaded", a.offset + a.plan.at.slide + 1],
+    ["out for the second", b.begin + RESCUE.flight.gather * 0.8],
+    ["round to him", b.begin + RESCUE.flight.gather + b.lead.length / 2 / RESCUE.scoop.pace],
+    ["second scooped", b.offset + b.plan.at.scoop.strap],
+    ["second carried", b.offset + (b.plan.at.carry + b.plan.at.raise) / 2],
+    ["second loaded", b.offset + b.plan.at.slide + 1],
+    ["lift-off", both.lift + RESCUE.time.spool + 1.5],
+  ] as const) {
+    poseAt(s, t, 1.5);
+    shoot(s, label, lens);
   }
 }
 
@@ -428,6 +585,9 @@ const GROUPS: Record<string, readonly string[]> = {
   pass: ["pass"],
   night: ["night"],
   plane: ["plane"],
+  arrive: ["arrive", "arrive-chase"],
+  second: ["second"],
+  knock: ["knock", "solid"],
 };
 
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] }> {
@@ -437,6 +597,8 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
     view = v;
     if (v === "plane") {
       await planeCrash();
+    } else if (v === "second") {
+      second();
     } else if (v === "pass") {
       pass(nextRun(RESCUE.reach + 120));
     } else if (v === "night") {

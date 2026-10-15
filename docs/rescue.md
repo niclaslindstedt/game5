@@ -1,8 +1,8 @@
 # The rescue on the next run
 
-When a run ends with the skier **injured** (`GameState.gore.injured ≥ 0`, which needs the INJURIES switch), the run after it shows how he left the mountain. An **air ambulance** has set down near where he lay. Four of its crew and the ski patrol carry him to it on a stretcher, load him through its door, and the machine lifts off and flies down the valley. The scene starts the first time the player comes within **180 m** of the spot, so he skis past it while it happens.
+When a run ends with the skier **injured** (`GameState.gore.injured ≥ 0`, which needs the INJURIES switch), an **air ambulance** is called. The next run starts with it flying in from down the valley and setting down near where he lay. Four of its crew and the ski patrol carry him to it on a stretcher, load him through its door, and the machine lifts off and flies down the valley. Crash again while it is on the snow and it is still there; crash near it and the same machine takes you too.
 
-This is **presentation only**. Nothing in `engine/` reads it, and it draws nothing from `state.rng`, so no digest moves. It is planned in `pwa/src/game/rescue-plan.ts` (three-free, a pure function of the seconds since it started) and posed in `rescue-crew.ts`. `rescue-view.ts` draws it, and `machines.ts` holds it beside the machines. `make rescue` is its lab.
+The machine on its skids is a **solid** the skier can hit (`engine/game/rescue-call.ts`), and its crew can be **knocked over**. The engine reads only where and when the machine sits, handed in with the run (`GameState.rescue`), and draws nothing from `state.rng`, so a run without one moves no digest. The flight is planned in `pwa/src/game/rescue-flight.ts` and each casualty's scoop and carry in `rescue-plan.ts` (both three-free, pure functions of the seconds since the call), posed in `rescue-crew.ts`, kept across runs by `rescue-book.ts` and drawn by `rescue-view.ts`, which `machines.ts` holds beside the machines. `make rescue` is its lab (`--sheet=arrive,second,knock` the arrival, a second casualty, and the crew and the machine met).
 
 ## What a mountain rescue by helicopter looks like
 
@@ -69,10 +69,20 @@ The research below is restated in our own words, with the numbers the scene uses
   - **gone (40 s after lift-off):** it flies away, accelerating at 2.4 m/s² to 38 m/s and climbing at 2.2 m/s.
 - **In the scene:** the wash raised only once it pulls (a third of the player's own wash), its lights lit after dark with a landing lamp on the snow.
 
+## The call: flown in, kept, shared
+
+- **Flown in** (`rescue-flight.ts`, `RESCUE.flight`): the call is made the moment a run ends injured, so the next run starts with the machine still on its way. It comes in from down the valley along its own departure flown backwards (`heliArriving`), slows into a hover over the site, flares and sets down **32 s** into the call. The wash is thrown up as it comes in low.
+- **The crew out:** 2.2 s after it is down the four climb out of the door with the board, gather (2.4 s) and walk the **lead** to his scoop's start: out of the door, past him on the door's side, round behind him in a turn of 4.5 m radius and in on the walk-up's line. Each walks his own line beside the lead (never swung round it as a rigid frame), so the outside man is never faster than a brisk walk. The two carriers hold the board between them.
+- **Round the nose:** where he lies ahead of the machine or on its far side, the carry back to the door goes round a point clear of the nose, never under the tail.
+- **Kept from run to run** (`rescue-book.ts`): the app keeps one book of calls on the map with a clock that runs on through every run. A restart hands the new run every call still under way in its own clock (`GameState.rescue`, a `RescueCall`: the call's start, its site, when it is down and when it lifts, and the casualties). A crash during the arrival meets it landed on the next run; a call is dropped once its machine has flown off, and every call when the map changes.
+- **A second casualty:** a run that ends injured while a machine is still on the snow, within **110 m** of it and with a stretcher's room aboard (**two** a machine — a light single in an air-ambulance fit takes one or two), is taken by that machine. Once the first is slid in, the four come back out and walk the lead to him; it lifts after the last is loaded. Any other casualty calls a machine of its own.
+- **A solid** (`engine/game/rescue-call.ts`): a machine on its skids is boxes to the engine (the cabin, the engine deck, the boom, the fin, the tail rotor's disc and the two skids, off `HELI`), held exactly as the airstrip's plane is: met at a crawl the skier is held off, met at speed it is a `hit` on steel that throws him, and a thrown body is held out of it too. It is no solid before it touches down or after it lifts. A run with no call never reaches it, so no digest moves; a replay carries its calls in its recipe.
+- **The crew knocked over** (`rescue-view.ts`): the four are people on foot to `civilian-hits.ts`, struck by the skier or his thrown body like anyone in the village. A man struck staggers, falls or is flown on the ragdoll, lies, gets up and walks back to where the work has him. Presentation only, as every knock is.
+
 ## How it is triggered and cleared
 
-- **Triggered:** `machines.ts` hands every frame's `GameState` to `rescue-view.ts`. When the state object changes (a new run) and the run before ended with `gore.injured ≥ 0`, it plans a rescue at where he lay: his ragdoll's hips, or else where he stood.
-- **Cleared:** any other new run clears it, so it shows on the **one run after** an injured one and never again. Its clock (`watchRescue`) starts the first time the player comes within `RESCUE.reach`.
+- **Triggered:** `App.tsx`'s new run goes through `rescueAgain`, which books a call when the run before ended with `gore.injured ≥ 0`, at where he lay (his ragdoll's hips, or else where he stood). `rescue-view.ts` draws every call the run carries.
+- **Cleared:** a call lasts until its machine is gone, whatever runs come after.
 
 ## The model
 

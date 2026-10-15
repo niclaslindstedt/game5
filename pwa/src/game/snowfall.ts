@@ -32,8 +32,9 @@
 //     bigger and brighter they are drawn (`STREAKS`), the speed lines of a
 //     racing game made of the air itself. As the fall starts they become it.
 //   * THE SPINDRIFT is a few hundred grains on the CPU, lifted where the
-//     ground CRESTS (the ground over its neighbours) and blown downwind a
-//     metre or two off the snow, fading as they go. Only a wind that could
+//     ground CRESTS (the ground over its neighbours), torn off a metre or
+//     so up and blown downwind, settling onto the snow and fading as they
+//     go — never climbing, so nothing is ever seen snowing up. Only a wind that could
 //     really lift dry snow makes any: none under six metres a second.
 //
 // Presentation only, and never read by the engine. Drawn after the world,
@@ -52,6 +53,7 @@ import {
   MOTES,
   STREAKS,
   airPast,
+  boxSink,
   createLensTrack,
   flakeDrift,
   moteOf,
@@ -339,11 +341,13 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       // Off a crest every time; off the open snow now and then.
       if (crest(level, x, z) < 0.15 && rng.next() > 0.2) continue;
       gPos[i * 3] = x;
-      gPos[i * 3 + 1] = level.groundAt(x, z) + 0.1;
+      // Torn off the crest's top already in the air: from here it only
+      // ever settles, never climbs (snow is never seen rising).
+      gRise[i] = 0.3 + rng.next() * 0.9;
+      gPos[i * 3 + 1] = level.groundAt(x, z) + 0.1 + gRise[i];
       gPos[i * 3 + 2] = z;
       gAge[i] = 0;
       gLife[i] = 1.2 + rng.next() * 2;
-      gRise[i] = 0.3 + rng.next() * 0.9;
       return true;
     }
     return false;
@@ -372,10 +376,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       // slowly, and a fall grows out of them.
       own.uMote.value = moteOf(look.snowfall);
       flakeDrift(wind, look.snowfall, carried);
-      const s = own.uShift.value;
-      s.x = (s.x + carried.x * step) % BOX;
-      s.y = (s.y + carried.y * step) % BOX;
-      s.z = (s.z + carried.z * step) % BOX;
+
       const flakes = Math.round(share * Math.max(FLAKES * Math.pow(look.snowfall, 0.7), MOTES));
       own.uSize.value = 0.8 + 1.3 * look.snowfall;
       fallGeo.instanceCount = flakes;
@@ -385,6 +386,12 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       // picture) keeps the last frame's, as a photograph would.
       const lensV = lensTrack.step(camera.position, dt);
       airPast(carried, lensV, air);
+      // Carried by its own velocity — and sunk with a lens dropping faster
+      // than it falls, so it is never seen rising (`boxSink`).
+      const s = own.uShift.value;
+      s.x = (s.x + carried.x * step) % BOX;
+      s.y = (s.y + (carried.y + boxSink(carried, lensV)) * step) % BOX;
+      s.z = (s.z + carried.z * step) % BOX;
       own.uAir.value.set(air.x, air.y, air.z);
       own.uPace.value = streakOf(Math.hypot(lensV.x, lensV.y, lensV.z));
       if (dt > 0) own.uShutter.value = shutterOf(dt);
@@ -412,7 +419,13 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
         const z = gPos[i * 3 + 2] + wind.z * 1.1 * step;
         gPos[i * 3] = x;
         gPos[i * 3 + 2] = z;
-        gPos[i * 3 + 1] = level.groundAt(x, z) + 0.1 + gRise[i] * Math.sin(t * Math.PI * 0.6);
+        // Settling as it blows, down onto the snow by the end of its life.
+        // Met by the ground rising under it, it lies there and fades out
+        // rather than climb.
+        const settled = gPos[i * 3 + 1] - (gRise[i] / gLife[i]) * step;
+        const floor = level.groundAt(x, z) + 0.1;
+        if (settled < floor) gAge[i] = Math.max(gAge[i], gLife[i] * 0.85);
+        gPos[i * 3 + 1] = Math.max(floor, settled);
         gAlpha[i] = Math.sin(t * Math.PI) * strength;
       }
       for (let i = grains; i < GRAINS; i++) gAlpha[i] = 0;

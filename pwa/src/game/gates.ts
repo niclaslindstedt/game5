@@ -57,6 +57,7 @@ import {
 
 import { PALETTE } from "../identity.ts";
 import { bannerTexture } from "./banner-texture.ts";
+import { fadeGlow } from "./glow-fade.ts";
 import { glow } from "./glow-sprite.ts";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -517,14 +518,17 @@ export function createGates(
       group.add(lamp);
       floods.push({ x: mx, y: my + FLOOD.mast, z: mz, dx, dy, dz });
       const sprite = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: glow(),
-          color: 0xfff0d0,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          transparent: true,
-          opacity: 0,
-        }),
+        fadeGlow(
+          new THREE.SpriteMaterial({
+            map: glow(),
+            color: 0xfff0d0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0,
+          }),
+          haze,
+        ),
       );
       mats.push(sprite.material);
       sprite.scale.setScalar(FLOOD.glow);

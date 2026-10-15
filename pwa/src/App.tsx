@@ -79,6 +79,7 @@ import {
   type AgainAt,
   freeGameOptions,
   freeRestart,
+  quickRide,
 } from "./game/free-ride.ts";
 import { createFreeRides } from "./game/app-free.ts";
 import { createWorldBuild } from "./game/world-build.ts";
@@ -184,8 +185,7 @@ export function App() {
   const [loadingPhase, setLoadingPhase] = useState<LoadPhase | null>(null);
   const [loadLeaving, setLoadLeaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
-  /** True once the race has drawn a frame (over the title: once booted) —
-   * what the attract card waits on before it will take a press. */
+  /** True once the race has drawn a frame: the attract card waits on it. */
   const [warm, setWarm] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
@@ -211,8 +211,7 @@ export function App() {
     poles: params.poles ?? carriesPoles(s.outfit),
     mishapRate: s.mishaps,
   });
-  /** The picture drawn: the stored one, or a lab's preset for this visit —
-   * `?video=` is never written back. */
+  /** The picture drawn: the stored one, or a lab's `?video=`, never stored. */
   const videoOf = (s: Settings): VideoSettings => ({
     ...(params.video ? withPreset(s.video, params.video) : s.video),
     ...params.picture,
@@ -224,12 +223,11 @@ export function App() {
   const [nextSeed, setNextSeed] = useState(() => params.seed ?? FIRST_FREE_SEED);
   /** THE MAP THE MENU IS STANDING OVER — what a tricks run a link pinned rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
-  /** The mode the skis card's RIDE is for: whichever tile opened it. */
-  // (A link to a free ride's card is a free ride on its way: `readParams`.)
+  /** The mode the skis card's RIDE is for: the tile (or link) that opened it. */
   const modeRef = useRef<GameMode>(params.mode);
   /** The presses that route a card to the skis card (`map-picks.ts`). */
   const picks = mapPicks({ mode: modeRef, setPage, setSettings });
-  const dev = useDevApp();
+  const dev = useDevApp(settings);
   const bookRef = useRef<RunBook | null>(null);
   const stats = useStats();
   useCloudSync({ settings, setSettings, book: bookRef, shell });
@@ -501,23 +499,22 @@ export function App() {
       window.setTimeout(() => setLoadLeaving(false), LOAD_FADE_MS);
     };
 
-    /** The race again from the start line, on the same map: nothing to generate
-     * and nothing to build — the renderer sees a fresh state and starts its
-     * trails and its spray clean — so no card, just the lights again. */
+    /** The race again on the same map: nothing to generate or build — the
+     * renderer sees a fresh state and starts its trails and spray clean — so no
+     * card, just the lights again (`onSnow`, the PISTE MAP's way back on too). */
     const restart = (): void => {
       if (loader.busy()) return;
-      // A free ride starts again at the top of the last piste it skied;
-      // every other run from the start line, on the same map, in its mode.
+      // A free ride starts again at the top of the last piste it skied; every
+      // other run from the start line, on the same map, in its mode.
       const free = freeRestart(state, freeAgain);
-      const next = free
-        ? createGame(free)
-        : (pinned.again() ?? playerGame(state.level, state.seed));
+      onSnow(free ? createGame(free) : (pinned.again() ?? playerGame(state.level, state.seed)));
+    };
+    const onSnow = (next: GameState): void => {
       adopt(next, ticketFor(next), true);
       frozen = false;
       clock.resume();
       setShellNow("run");
     };
-
     /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
     const frees = createFreeRides({
       world,
@@ -527,6 +524,7 @@ export function App() {
       restore: () => void (title.raced() && build(state)),
       outfit: () => outfitKey(settingsRef.current.outfit),
       plan: () => ({ camera: camerasOf(settingsRef.current), done: lift }),
+      now: (game) => void (loader.busy() || onSnow(game)),
       stood: (again) => (freeAgain = again),
     });
     const pinned = createPinnedRuns({
@@ -847,9 +845,10 @@ export function App() {
     freeOptions: () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free")),
     presses: pressRef,
   });
-  /** Onto the snow on a FREE RIDE: the start card's map, day and snow (or the
-   * pause card's PISTE MAP's), on the pair the ski card holds. */
+  /** Onto the snow on a FREE RIDE: the start card's ride (or the pause card's
+   * PISTE MAP's, or QUICK START's dealt one), on the pair the ski card holds. */
   const freeRide = (ride = settings.ride): void => {
+    modeRef.current = "free";
     setPage("root");
     pressRef.current.free(freeGameOptions(ride, ride.seed ?? startSeed, skierOf(settings, "free")));
   };
@@ -949,6 +948,7 @@ export function App() {
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
           onFree={() => picks.openCard("free", "world")}
+          onQuick={() => freeRide(quickRide(settings.ride))}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

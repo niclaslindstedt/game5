@@ -298,6 +298,16 @@ export const CLOUD_TIER: Record<DistanceLevel, CloudTier> = {
   max: "volumeFine",
 };
 
+/** THE CONTRAILS ride it with the cloud (`contrails.ts`): how many
+ * trails the dome reads a pixel, and whether an old one's fibres are
+ * drawn. LOW reads the eight that fill the most sky, smooth. */
+export const CONTRAIL_LOOK: Record<DistanceLevel, { trails: number; fibres: number }> = {
+  low: { trails: 8, fibres: 0 },
+  medium: { trails: 12, fibres: 1 },
+  high: { trails: 16, fibres: 1 },
+  max: { trails: 16, fibres: 1 },
+};
+
 export type ShadowLook = {
   /** The key light's map, texels a side; 0 is no shadow at all. */
   size: number;

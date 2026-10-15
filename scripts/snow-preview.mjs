@@ -62,6 +62,11 @@ const args = parseArgs(
     },
     weather: { kind: "string", default: "clear", help: "the sky (clear, fair, high, overcast, …)" },
     hour: { kind: "number", default: NaN, help: "the solar hour; the map's own when left out" },
+    temp: {
+      kind: "number",
+      default: NaN,
+      help: "the air at the valley floor at the start hour, °C (the TEMPERATURE knob); the model's own when left out",
+    },
     at: {
       kind: "number",
       default: 0.3,
@@ -77,7 +82,7 @@ const args = parseArgs(
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1800, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/snow-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--weather=k] [--hour=h] [--skip-build]",
+  "usage: node scripts/snow-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--weather=k] [--hour=h] [--temp=c] [--skip-build]",
 );
 
 const list = (s) =>
@@ -139,6 +144,7 @@ const query = new URLSearchParams({
   weather: args.weather,
   ...(args.region ? { region: args.region } : {}),
   ...(Number.isFinite(args.hour) ? { hour: String(args.hour) } : {}),
+  ...(Number.isFinite(args.temp) ? { temp: String(args.temp) } : {}),
 }).toString();
 /** `work`, or a failure the moment the page throws — never the timeout
  * burnt on a page that died. */

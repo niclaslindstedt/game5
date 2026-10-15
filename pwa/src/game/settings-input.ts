@@ -156,7 +156,8 @@ export const DEFAULT_KEYS: KeyBindings = {
   // reaches without leaving the keyboard, and on no machine's key table.
   shot: ["KeyP"],
   // V FOR VIEW AGAIN, THE INSTANT REPLAY (`replay-run.ts`): the crash just
-  // taken, or the last few seconds, watched back and the run handed back.
+  // taken, or the last few seconds — straight after a restart, the run just
+  // left (`replay.ts`'s `PREVIOUS`) — watched back and the run handed back.
   replay: ["KeyV"],
   pause: ["Escape"],
 };

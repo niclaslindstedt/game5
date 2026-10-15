@@ -507,7 +507,9 @@ export function analyzeLevel(level: Level, opts: { network?: boolean } = {}): Le
       }
     }
   }
-  const offKickers = kickers.filter((k) => !k.onTrack && k.run === undefined);
+  const offKickers = kickers.filter(
+    (k) => !k.onTrack && k.run === undefined && k.route === undefined,
+  );
   for (const k of offKickers) {
     const distance = resort
       ? nearestRun(level, k.x, k.z, 400)

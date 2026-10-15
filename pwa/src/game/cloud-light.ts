@@ -44,7 +44,14 @@ export type CloudSky = {
    * volume takes it back out and lays it on as a soft light of its own,
    * since it does not come from the sun's side. */
   moon: Rgb;
+  /** THE HIGH ICE OF A CONTRAIL (`contrail-glsl.ts`), at `ICE_ALTITUDE`:
+   * the sun on it (a degree and more longer than the snow keeps it) and
+   * the sky's light from over it. */
+  ice: { sun: Rgb; sky: Rgb };
 };
+
+/** The altitude over the sea the contrails are lit at, m — the airways'. */
+export const ICE_ALTITUDE = 10500;
 
 /** A white cloud's radiance per unit of the sun's light on it (a thick
  * cloud's sunward face, ~0.9 of it sent back over a hemisphere: 0.9/π). */
@@ -128,5 +135,11 @@ export function lightClouds(layers: readonly CloudLayer[], i: CloudLightInput): 
     sea: [seaSun[0] + seaSky(0), seaSun[1] + seaSky(1), seaSun[2] + seaSky(2)],
     seaSun,
     moon: [i.moon[0], i.moon[1], i.moon[2]],
+    // Clear of every layer (the cirrus stands under the airways), lit from
+    // the zenith's blue over it: a thin trail's shade is the sky's.
+    ice: {
+      sun: sunOn(i, ICE_ALTITUDE, 1),
+      sky: [z[0] * 0.75 + h[0] * 0.3, z[1] * 0.75 + h[1] * 0.3, z[2] * 0.75 + h[2] * 0.3],
+    },
   };
 }

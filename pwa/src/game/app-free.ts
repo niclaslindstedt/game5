@@ -19,7 +19,9 @@ import {
   heldLevel,
   keepRidden,
   onSeedMaps,
+  paintBehind,
   riddenLevel,
+  type SeedAsk,
 } from "./seed-maps.ts";
 import type { WorldBuild } from "./world-build.ts";
 // What is drawn on the snow is solid (`drawn-solids.ts`), registered
@@ -31,6 +33,10 @@ import "./drawn-solids.ts";
 const STAGE_AFTER_MS = 400;
 /** How often a pinned run's stage looks for its map ordered ahead, ms. */
 const MAP_LOOK_MS = 300;
+/** How long a free ride is on the snow before a map with no chart has one
+ * painted behind it (`paintBehind`), ms: past the first frames, which
+ * have work of their own. */
+const PAINT_AFTER_MS = 2500;
 
 export function createFreeRides(deps: {
   world: WorldBuild;
@@ -43,6 +49,9 @@ export function createFreeRides(deps: {
   outfit: () => string;
   /** The rest of the load's plan: the camera, and the lift off the card. */
   plan: () => Pick<LoadPlan, "camera" | "done">;
+  /** Take a ride stood up on the map standing onto the snow at once, with
+   * no loading card (the pause card's PISTE MAP). */
+  now: (game: GameState) => void;
   /** The options the ride was stood up on, for START AGAIN. */
   stood: (again: CreateGameOptions) => void;
 }) {
@@ -68,6 +77,23 @@ export function createFreeRides(deps: {
     return () => {
       live = false;
       window.clearTimeout(t);
+    };
+  };
+  /** The load's plan, and once the card lifts the map's chart painted
+   * behind the ride if none is held — a QUICK START never stood on the
+   * start card, and the pause card's PISTE MAP would otherwise open on a
+   * bar while the worker raised and painted it. */
+  const plan = (ask: SeedAsk): Pick<LoadPlan, "camera" | "done"> => {
+    const own = deps.plan();
+    return {
+      ...own,
+      done: () => {
+        own.done();
+        window.setTimeout(() => {
+          const level = riddenLevel(ask);
+          if (level) paintBehind(ask, level);
+        }, PAINT_AFTER_MS);
+      },
     };
   };
   const stage = createFreeStage({
@@ -115,12 +141,11 @@ export function createFreeRides(deps: {
         deps.stood(freeAgainOptions(asked, game.level));
         return game;
       };
+      // No card goes up for it: the world standing is the one ridden on, and
+      // the run is stood up in the frame, as a restart is (`now`).
       if (kept) {
         const options = freeAgainOptions(asked, kept);
-        loader.begin({
-          build: () => stood(createGame(options), riddenLevel(freeAsk(asked)) ?? kept),
-          ...deps.plan(),
-        });
+        deps.now(stood(createGame(options), riddenLevel(freeAsk(asked)) ?? kept));
         return;
       }
       // The map staged behind the cards, the one standing, or the one the
@@ -137,7 +162,7 @@ export function createFreeRides(deps: {
           const game = createGame({ ...(staged ?? asked), level: base });
           return stood(game, raised ?? base ?? game.level);
         },
-        ...deps.plan(),
+        ...plan(freeAsk(asked)),
       });
     },
   };

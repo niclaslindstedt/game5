@@ -89,7 +89,7 @@ import { playerKitOf, playerDress, type PlayerKit } from "./player-dress.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { heightOverFar } from "./horizon.ts";
 import { keyAheadAt, skyLookAt } from "./sky.ts";
-import { sunNow } from "./sky-clock.ts";
+import { airNow, sunNow } from "./sky-clock.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { rideSink } from "./ride-sink.ts";
 import { castInLight } from "./terrain-shade.ts";
@@ -425,6 +425,7 @@ export function createWorldRenderer(
     packSun = sunNow(sky, state.t).elevation; // re-packed as the sky's clock moves it
     return snowpackOf(sky, {
       elevation: packSun,
+      air: airNow(sky, state.t),
       fresh: state.fresh,
       depth: state.snowDepth,
       ...snowForce,
@@ -782,7 +783,8 @@ export function createWorldRenderer(
       // THE NIGHT'S LIGHTS: every headlamp, the machines' lamps, the arena's floods.
       machines?.light(look);
       const floods = machines?.lamps(look.lamps, eye, gates?.floods ?? []) ?? gates?.floods;
-      dealLamps(env.haze, look.lamps, riders, floods ?? [], eye, video.lamps);
+      // In the jump plane's door his own lamp is off: it would light the cabin.
+      dealLamps(env.haze, look.lamps, riders, floods ?? [], eye, video.lamps, !!state.plane?.rider);
       const h = gl.domElement.height;
       const pixels = h / (2 * Math.tan(THREE.MathUtils.degToRad(lens.camera.fov) / 2));
       gates?.setLamps(look.lamps, pixels);

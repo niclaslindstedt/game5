@@ -42,8 +42,9 @@ import {
   type RegionId,
 } from "@engine";
 
+import { buildPooled, poolOn } from "./attempt-pool.ts";
 import { nextFreeSeed } from "./free-ride.ts";
-import { gameOrder, type MapOrder } from "./map-order.ts";
+import { gameOrder, type MapJob, type MapOrder } from "./map-order.ts";
 import { rememberBoard } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
 import type {
@@ -84,12 +85,20 @@ const MAPS = 2;
  * with the ski area it holds. */
 const IDLE_MS = 30_000;
 
-type Job = SeedAsk & { key: string; paint: boolean };
+type Job = SeedAsk & { key: string; paint: boolean; behind?: Level };
 
 let worker: Worker | null = null;
+/** The map being raised by the attempt pool (`attempt-pool.ts`) rather than
+ * the worker — DEVELOPER's — painted by the worker once it is in. */
+let pool: MapJob | null = null;
 let busy: Job | null = null;
 let idle = 0;
 let wanted: SeedAsk | null = null;
+/** THE MAP BEING RIDDEN, to be painted behind the ride (`paintBehind`):
+ * a ride stood up with no chart of its map — QUICK START's, a link's —
+ * has it painted while it rides, so the pause card's PISTE MAP opens on
+ * it rather than on a bar. */
+let behind: { ask: SeedAsk; level: Level } | null = null;
 const answers = new Map<string, SeedAnswer>();
 const levels = new Map<string, GeneratedLevel>();
 /** THE MAP LAST RIDDEN, kept past the ride: back on the start card for the
@@ -170,9 +179,21 @@ export function keepRidden(ask: SeedAsk, level: Level): void {
 export function quietSeedMaps(ask: SeedAsk): void {
   const key = askKey(ask);
   wanted = null;
+  behind = null;
   if (busy && busy.key !== key) stop();
   levels.clear();
   if (ridden?.key !== key) ridden = null;
+  pump();
+}
+
+/** A FREE RIDE IS UNDER WAY on `level`, the map `ask` names: if no chart
+ * of it is held or kept, the worker paints one off that very map (never
+ * building it again) and is let go — so the pause card's PISTE MAP and the
+ * start card find it painted. A ride stood up off the start card has its
+ * chart already, and nothing is done. */
+export function paintBehind(ask: SeedAsk, level: Level): void {
+  if (answers.has(askKey(ask))) return;
+  behind = { ask, level };
   pump();
 }
 
@@ -198,6 +219,8 @@ function settle(key: string, level: GeneratedLevel | null): void {
 function stop(): void {
   worker?.terminate();
   worker = null;
+  pool?.cancel();
+  pool = null;
   shares.clear();
   if (busy) settle(busy.key, null);
   busy = null;
@@ -222,6 +245,20 @@ function pump(): void {
     }
     run({ ...ask, key, paint: !answer });
     return;
+  }
+  // The map ridden, painted once nothing on a card is waiting.
+  if (!wanted && behind) {
+    const { ask, level } = behind;
+    const key = askKey(ask);
+    if (answers.has(key)) behind = null;
+    else if (!looked.has(key)) {
+      look(ask, key);
+      return;
+    } else {
+      behind = null;
+      run({ ...ask, key, paint: true, behind: level });
+      return;
+    }
   }
   window.clearTimeout(idle);
   // A FREE RIDE IS BEING STOOD UP (`quietSeedMaps`): the worker goes now,
@@ -254,6 +291,7 @@ function run(job: Job): void {
   // A map this thread can stand up off the ski area it built last is
   // never built twice: it is stood up here and handed over to be painted.
   const own =
+    (job.behind as GeneratedLevel | undefined) ??
     levels.get(job.key) ??
     ((!job.face || realFaceLoaded(job.face)) &&
     levelIsCached(job.seed, { region: job.region, face: job.face ?? undefined })
@@ -263,7 +301,8 @@ function run(job: Job): void {
           grade: job.grade ?? undefined,
         })
       : null);
-  if (own) holdLevel(job.key, own);
+  // The map ridden is the ride's, never held here a second time.
+  if (own && !job.behind) holdLevel(job.key, own);
   if (own && !job.paint) {
     pump();
     return;
@@ -276,6 +315,10 @@ function run(job: Job): void {
     shares.set(job.key, 0);
     notify();
   }
+  if (!own && poolOn()) {
+    raise(job);
+    return;
+  }
   const w = worker ?? spawn();
   const ask: PreviewRequest = {
     seed: job.seed,
@@ -286,6 +329,46 @@ function run(job: Job): void {
     ...(own ? { level: portableLevel(own) } : {}),
   };
   w.postMessage(ask);
+}
+
+/** Raise `job`'s map on the attempt pool; once it is in, it is held, the
+ * ride waiting on it handed it, and the worker paints it (`pump`). */
+function raise(job: Job): void {
+  const order: MapOrder = {
+    seed: job.seed,
+    generate: { region: job.region, face: job.face ?? undefined, grade: job.grade ?? undefined },
+  };
+  const own = buildPooled(order, () => {
+    if (pool !== own) return;
+    const level = own.level() as GeneratedLevel | undefined;
+    const failed = own.failed();
+    if (!level && failed === null) {
+      shares.set(job.key, own.share());
+      notify();
+      return;
+    }
+    pool = null;
+    busy = null;
+    shares.delete(job.key);
+    if (level) {
+      holdLevel(job.key, level);
+      settle(job.key, level);
+    } else {
+      const { seed, region, grade, key } = job;
+      void keep(key, {
+        seed,
+        region,
+        face: job.face ?? null,
+        grade,
+        ok: false,
+        error: failed ?? "",
+      });
+      settle(key, null);
+    }
+    notify();
+    pump();
+  });
+  pool = own;
 }
 
 function spawn(): Worker {
@@ -300,13 +383,14 @@ function spawn(): Worker {
       return;
     }
     shares.delete(key);
+    const job = busy;
     busy = null;
     if (!reply.ok) {
       void keep(key, reply);
       settle(key, null);
     } else {
       const level = levels.get(key) ?? (reply.level ? boundLevel(reply.level) : null);
-      if (level) holdLevel(key, level);
+      if (level && !job?.behind) holdLevel(key, level);
       settle(key, level);
       if (reply.painted) {
         void writeChart(key, reply.painted);

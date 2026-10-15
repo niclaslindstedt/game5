@@ -795,26 +795,39 @@ export function freeRuns(level: Level): Run[] {
 /** WHICH RUN A FREE RIDE BY LIFT STARTS DOWN, by id, of `runs` (the ski
  * area's {@link freeRuns}, or any list in their order): `run` where it is
  * one of them; else the first of them in `grade`, where one is asked; else,
- * with nothing asked, the MOST DIFFICULT PISTE of them — the first of the
- * hardest colour up to a black (`PISTE_GRADES`' order; a ski route is
- * never the default, only ever asked for); else
+ * with nothing asked, the MOST DIFFICULT PISTE of them — of the hardest
+ * colour up to a black (`PISTE_GRADES`' order; a ski route is never the
+ * default, only ever asked for), the FASTEST: the most drop at the steepest
+ * mean pitch (`dropOf`² ÷ its length — a short black off a low top is the
+ * first only where none drops further, steeper); else
  * `fallback` — the first run of the course the map is raced on (R28). A
  * colour asked for is a run of that colour even where no course of it
  * reaches the valley — the map's own course is only the nearest colour
  * (`chooseCourse`). The start card asks it of the runs its chart was sent,
  * the engine of the map. */
 export function pickFreeRun(
-  runs: readonly { id: string; grade: RunGrade }[],
+  runs: readonly { id: string; grade: RunGrade; length?: number; vertical?: number }[],
   ask: { run?: string | null; grade?: RunGrade | null },
   fallback: string | undefined,
 ): string | undefined {
   if (ask.run != null && runs.some((r) => r.id === ask.run)) return ask.run;
   if (ask.grade != null) return runs.find((r) => r.grade === ask.grade)?.id ?? fallback;
   const rank = (g: RunGrade): number => (PISTE_GRADES as readonly RunGrade[]).indexOf(g);
-  let hardest: { id: string; grade: RunGrade } | undefined;
-  for (const r of runs)
-    if (rank(r.grade) >= 0 && (!hardest || rank(r.grade) > rank(hardest.grade))) hardest = r;
+  const pace = (r: { length?: number; vertical?: number }): number =>
+    r.length && r.vertical ? (r.vertical * r.vertical) / r.length : 0;
+  let hardest: (typeof runs)[number] | undefined;
+  for (const r of runs) {
+    if (rank(r.grade) < 0) continue;
+    const by = hardest ? rank(r.grade) - rank(hardest.grade) : 1;
+    if (by > 0 || (by === 0 && pace(r) > pace(hardest!))) hardest = r;
+  }
   return hardest?.id ?? fallback;
+}
+
+/** How far a run DROPS, top to foot, m. */
+function dropOf(run: { points: readonly { y: number }[] }): number {
+  const p = run.points;
+  return p.length ? Math.max(0, p[0].y - p[p.length - 1].y) : 0;
 }
 
 /** {@link pickFreeRun} on `level`'s ski area; undefined off a resort. */
@@ -826,7 +839,13 @@ export function freeRunOf(
   if (!resort) return undefined;
   const course = resort.courses.find((c) => c.id === resort.course);
   // The ski routes (R42) after the pistes: the ORANGE asked for is one.
-  return pickFreeRun([...freeRuns(level), ...skiRoutesOf(level)], ask, course?.runs[0]);
+  const runs = [...freeRuns(level), ...skiRoutesOf(level)].map((r) => ({
+    id: r.id,
+    grade: r.grade,
+    length: r.length,
+    vertical: dropOf(r),
+  }));
+  return pickFreeRun(runs, ask, course?.runs[0]);
 }
 
 /** WHERE A FREE RIDE'S LIFT RIDE STARTS: `lift.arrive` s of carrying short

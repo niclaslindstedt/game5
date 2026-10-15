@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -460,6 +460,18 @@ ci-models:
 # --compare=FILE after.
 sky:
 	npm run sky -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE CONTRAILS LAB: the airliners' trails over one seed through the game's
+# own renderer from a skier's eye on the snow, as a labelled contact sheet
+# (previews/contrails-<seed>-<sheet>.png): ARGS=--sheet=life (the default:
+# one trail being laid, a short one in dry air, a persistent one at 1, 5, 15
+# and 40 minutes), --sheet=sky (the plan's own sky under a clear, a fair and
+# a humid high sky, a cold and a warm air mass) and --sheet=dusk (the
+# afternoon into the night). Its own one-off bundle from
+# pwa/contrails-preview.html (never deployed); needs a Chromium like `sky`.
+# SEED=n picks the map; ARGS="--quality=low --hour=15" the rest.
+contrails:
+	npm run contrails -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE SUN AND MOON LAB: the game's sun and moon (`sunAtRun`, `moonAtRun`)
 # held against a reference (the NOAA arithmetic after Meeus with

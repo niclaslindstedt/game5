@@ -41,10 +41,16 @@ export const STOP_HAND = {
   gentle: 0.26,
   steep: 0.66,
   /** ...and the hockey stop carried round uphill until the slope stops
-   * him: to `last` (100°) on a gentle slope, `lastSteep` (137°) on a steep
+   * him: to `last` (100°) on a gentle slope, `lastSteep` (110°) on a steep
    * one, where only climbing takes his speed. */
   last: 1.75,
-  lastSteep: 2.4,
+  lastSteep: 1.92,
+  /** A linked turn's skid let off as the skis come round ahead of the way he goes —
+   * from `slipFrom` (12°) of skis turned off his line, none by `slipTo`
+   * (30°): on firm snow a ski pivoted that far only scrapes, and the
+   * edge must bite to turn him. */
+  slipFrom: 0.21,
+  slipTo: 0.52,
   /** The steer eased off over the last `band` rad (25°) of a turn. */
   band: 0.44,
   /** The brake held through a linked turn, and through the hockey stop on
@@ -61,8 +67,12 @@ export const STOP_HAND = {
   swing: 1.5,
   ease: 1,
   least: 0.35,
-  /** Under this speed, m/s, he has STOPPED. */
+  /** Under this speed, m/s, he has STOPPED — and stood after, creeping
+   * over it, his uphill edges are rolled in on this much steer. */
   still: 0.3,
+  hold: 0.7,
+  /** ...and stood still, this much — short of a step (`sidestep.ts`, 0.3). */
+  set: 0.25,
   /** The steer, of full, under which the back key is the one-key brake —
    * an edge asked with it is the hockey stop by hand. */
   steerFree: 0.15,

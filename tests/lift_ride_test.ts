@@ -34,6 +34,7 @@ import {
   emptyChairAt,
   freeRunOf,
   freeRuns,
+  pickFreeRun,
   liftPlans,
   queueSpot,
   standSkier,
@@ -523,7 +524,22 @@ describe("which run a free ride by lift starts down", () => {
     const runs = freeRuns(map);
     const rank = (g: RunGrade): number => RUN_GRADES.indexOf(g);
     const top = Math.max(...runs.map((r) => rank(r.grade)));
-    expect(freeRunOf(map, {})).toBe(runs.find((r) => rank(r.grade) === top)!.id);
+    const hardest = runs.filter((r) => rank(r.grade) === top);
+    const pace = (r: (typeof runs)[number]): number =>
+      (r.points[0].y - r.points[r.points.length - 1].y) ** 2 / r.length;
+    const fastest = hardest.reduce((a, b) => (pace(b) > pace(a) ? b : a));
+    expect(freeRunOf(map, {})).toBe(fastest.id);
+  });
+
+  it("is the fastest of the hardest colour: the most drop at the steepest pitch", () => {
+    const runs = [
+      { id: "1", grade: "black" as const, length: 1700, vertical: 320 },
+      { id: "2", grade: "red" as const, length: 2000, vertical: 1200 },
+      { id: "3", grade: "black" as const, length: 3700, vertical: 1490 },
+      { id: "4", grade: "black" as const, length: 2700, vertical: 790 },
+    ];
+    expect(pickFreeRun(runs, {}, undefined)).toBe("3");
+    expect(pickFreeRun(runs, { grade: "black" }, undefined)).toBe("1");
   });
 });
 

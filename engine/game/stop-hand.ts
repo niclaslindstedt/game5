@@ -28,7 +28,7 @@
 // for it.
 
 import { angleDiff, approach, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
-import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { rotate, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
 import { hillSide, slopeOf } from "./sidestep.ts";
 import type { GameState, SkierInput } from "./state.ts";
@@ -92,6 +92,14 @@ function onOwnSkis(state: GameState): boolean {
   return !state.groomers?.some((g) => g.rider);
 }
 
+/** The side his uphill edges are on, ±1 (steer's sign) — the side the
+ * slope under `n` rises on — or 0 on the flat. */
+function uphillEdge(c: GameState["skier"]): number {
+  const right = rotate(c.q, { x: 1, y: 0, z: 0 });
+  const up = -(right.x * n.x + right.z * n.z);
+  return Math.abs(up) < 1e-3 ? 0 : Math.sign(up);
+}
+
 /** The heading straight down the slope under normal `n`, rad. */
 function fallHeading(v: Vec3): number {
   return Math.atan2(v.x, v.z);
@@ -145,6 +153,14 @@ export function stopHand(
       hand.plan = null;
       hand.owed = 0;
     }
+    // Stood and slid off again, he stops again.
+    if (hand.mode === "stopped" && speed > H.crawl) {
+      hand.mode = "stop";
+      hand.owed = 0;
+      const psi = angleDiff(fallHeading(n), Math.atan2(c.vx, c.vz));
+      hand.side = Math.abs(psi) > 0.05 ? Math.sign(psi) : hand.side;
+      hand.steer = input.steer;
+    }
     if (hand.mode === "stop") {
       if (speed < H.still) hand.mode = "stopped";
       // Steered by the way he is GOING, off the fall line: on a steep
@@ -156,14 +172,19 @@ export function stopHand(
           speed,
           slope,
           angleDiff(fallHeading(n), Math.atan2(c.vx, c.vz)),
+          theta,
         );
     }
     if (hand.mode === "stopped") {
-      // Stood on the brake, his skis set: held there, across the hill or
-      // a little up it, until he lets go — and held after, on his edges.
-      input.steer = 0;
+      // Stood, his skis set: held there, across the hill or a little up
+      // it, until he lets go — and held after, on his edges. Not on the
+      // brake: a ski pivoted into a skid is no ski stood still, and only a
+      // skier stood still sets his edges on the ledge they cut
+      // (`sidestep.ts`) — on a steep pitch flat skis slide him off. Should
+      // he creep, his uphill edges are rolled in until he stands again.
       input.tuck = 0;
-      input.brake = 1;
+      input.brake = 0;
+      input.steer = (speed > H.still ? H.hold : H.set) * uphillEdge(c);
       return input;
     }
     return goBack(hand, state, input, slope, theta);
@@ -191,6 +212,7 @@ function slowDown(
   speed: number,
   slope: number,
   psi: number,
+  theta: number,
 ): SkierInput {
   const linking = speed > H.link || (hand.owed > 0 && speed > H.owedTo);
   const steep = clamp((slope - H.gentle) / (H.steep - H.gentle), 0, 1);
@@ -208,7 +230,12 @@ function slowDown(
   const want = hand.side * clamp((across - hand.side * psi) / H.band, -most, most);
   hand.steer = approach(hand.steer, want, H.swing * TUNING.dt);
   input.steer = hand.steer;
-  input.brake = linking ? H.skid : H.stop * (1 - steep);
+  // ON FIRM SNOW a linked turn's pivoted skis scrape across the way he
+  // goes rather than turning it: the skid let off as they come round ahead
+  // of his line, so the edge bites and carries him round after them.
+  const slip = Math.abs(angleDiff(theta, psi));
+  const slipping = clamp((slip - H.slipFrom) / (H.slipTo - H.slipFrom), 0, 1);
+  input.brake = linking ? H.skid * (1 - slipping) : H.stop * (1 - steep);
   input.tuck = 0;
   input.lean = 0;
   return input;

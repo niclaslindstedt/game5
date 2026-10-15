@@ -111,10 +111,10 @@ export const TRICKS = {
    * lean and the edge are the ordinary air control of `flight.ts`. */
   flipGate: 0.8,
   spinGate: 0.6,
-  /** ...and the most a flight may turn on each axis, rad: a 720 and a
+  /** ...and the most a flight may turn on each axis, rad: a 1440 and a
    * double. Winding a throw up stops short of what would carry past it in
    * the air there is, the body open. */
-  spinMost: 4 * Math.PI,
+  spinMost: 8 * Math.PI,
   flipMost: 4 * Math.PI,
   /** THE TAKE-OFF'S WINDOW, s past `air.counts`: the only time an axis
    * thrown across its gate SETS a turn going — a skier's rotation comes off
@@ -125,15 +125,17 @@ export const TRICKS = {
    * body's rate gathers at `flipSet` / `spinSet` rad/s² (the reference
    * pair's, scaled by the root of each pair's own inertia against it) toward
    * a cruise of `flipRate` / `spinRate` rad/s — the spin's half of it at the
-   * gate and the whole at the edge's end. A tap a twentieth of a second
-   * long sets a spin of about 2 rad/s, a 180 off a park kicker's two
-   * seconds; the whole window held, a fast double. A backflip off the jump
+   * gate and the whole at the edge's end — the spin's twice as quick as
+   * the loop's, since a skier winds a spin up far faster than he throws a
+   * loop. A tap a twentieth of a second long sets a spin of about 4 rad/s,
+   * a 360 off a park kicker's two seconds, and a long flight's 1080 wants
+   * the edge held under a fifth of a second; the whole window held, a fast double. A backflip off the jump
    * key's own pop on the flat, about 1.1 s up, wants the lean held about
    * half the window. */
   flipRate: 10,
   flipSet: 25,
   spinRate: 10,
-  spinSet: 25,
+  spinSet: 50,
   /** WHAT THE BODY'S SHAPE DOES TO IT: the inertia about the side axis
    * tucked is about two thirds of the body laid out, so the lean held the
    * loop's way turns it `tuckForm` times as fast and held against it
@@ -156,7 +158,7 @@ export const TRICKS = {
   flipCatch: 0.7,
   flipCatchBrake: 10,
   spinCatch: 0.6,
-  spinCatchBrake: 15,
+  spinCatchBrake: 30,
   /** What the lean's own torque is left in the air once the window has
    * shut on a run that tricks (`flight.ts`): a skier trims his landing with
    * his arms and his hips, which turn him very little. */

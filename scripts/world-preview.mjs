@@ -30,7 +30,8 @@
 // sign (the head of the course raced, its piste-head sign beside it),
 // sign-tree (the post carrying the most boards), route-head, route-amateur,
 // route-amateur-close (the locals' sign pointing at it), route-warn, route-fallen, route-in,
-// route-steep, route-side, route-air (the map's SKI ROUTE, R42: its sign,
+// route-steep, route-side, route-air, route-plan, route-jump, route-jump-side,
+// route-woods, route-bend, route-drop (the map's SKI ROUTE, R42: its sign,
 // down it at a skier's eye, its steepest pitch, across the face and from
 // over it), gate, hut, finish (the
 // course's marks close to: the panel gate at the middle gate, the start
@@ -186,6 +187,12 @@ const VIEWS = [
   "route-steep",
   "route-side",
   "route-air",
+  "route-plan",
+  "route-jump",
+  "route-jump-side",
+  "route-woods",
+  "route-bend",
+  "route-drop",
   "gate",
   "hut",
   "finish",

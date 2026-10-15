@@ -104,6 +104,12 @@ export function comboLine(parts: readonly TrickPart[]): string {
 /** Metres of vertical, as the HUD and the cards print them. */
 const vertical = (metres: number): string => `${Math.round(metres)} M`;
 
+/** A temperature in whole degrees, signed (−5 °C, 0 °C, +5 °C). */
+function tempWord(c: number): string {
+  const n = Math.round(c);
+  return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)} °C`;
+}
+
 export const STRINGS = {
   /* ── THE SHUTTER AND THE GALLERY — stated in strings-gallery.ts ─────── */
   ...GALLERY_STRINGS,
@@ -464,6 +470,9 @@ export const STRINGS = {
     skiCross: "SKI CROSS",
     speedSki: "SPEED SKIING",
   },
+  /** QUICK START: a free ride on a mountain, day and sky dealt at random. */
+  menuQuick: "QUICK START",
+  menuQuickLine: "A RANDOM MOUNTAIN · DAY · SKY",
   menuFree: "FREE RIDE",
   menuFreeLine: "THE WHOLE MOUNTAIN · NO CLOCK TO BEAT",
   /* ── THE TRICKS RUN (menu-main.tsx, hud-combo.tsx, hud-result.tsx) ── */
@@ -605,7 +614,13 @@ export const STRINGS = {
     summer: "SUMMER",
   },
   startTime: "TIME",
-  timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
+  timeNames: {
+    morning: "MORNING",
+    day: "DAY",
+    evening: "EVENING",
+    sunset: "SUNSET",
+    night: "NIGHT",
+  },
   startWeather: "WEATHER",
   /** The start card's SKY press, a cloud over a sun: its name to a reader. */
   startSky: "THE DAY",
@@ -620,6 +635,13 @@ export const STRINGS = {
     storm: "STORM",
     fog: "FOG",
   },
+  /** THE TEMPERATURE row (`free-ride.ts`'s `temp`): the air at the valley
+   * floor at the start hour. */
+  startTemp: "TEMPERATURE",
+  /** A temperature in whole degrees, signed. */
+  tempWord,
+  /** The TEMPERATURE row's AUTO, with the air it would give when known. */
+  tempAuto: (c: number | null): string => (c === null ? "AUTO" : `AUTO ${tempWord(c)}`),
   startSnow: "SNOW",
   /** THE AVALANCHES row (`free-ride.ts`'s `avalanche`). */
   startAvalanche: "AVALANCHES",

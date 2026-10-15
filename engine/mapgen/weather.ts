@@ -151,6 +151,7 @@ export function withSky<L extends Level>(level: L, sky: SkyOverride): L {
   // (R19's even draw round the compass) unless it names one: a picked storm
   // blows from wherever that map's wind does, never always the one way.
   const windFrom = weather.windFrom;
+  const temp = sky.temp ?? weather.temp;
   if (typeof sky.weather === "string") weather = weatherFor(sky.weather, { windFrom });
   else if (sky.weather) {
     const kind = sky.weather.kind ?? weather.kind;
@@ -158,6 +159,12 @@ export function withSky<L extends Level>(level: L, sky: SkyOverride): L {
       kind === weather.kind
         ? { ...weather, ...sky.weather, kind }
         : weatherFor(kind, { windFrom, ...sky.weather });
+  }
+  // THE AIR'S KNOB rides on whatever sky came out: a kind picked keeps the
+  // temperature asked (or the map's own knob), and a temperature asked
+  // alone keeps the dealt sky.
+  if (temp !== undefined && Number.isFinite(temp) && weather.temp !== temp) {
+    weather = { ...weather, temp };
   }
   const sun = sky.hour === undefined ? level.sun : { ...level.sun, hour: sky.hour };
   // A map carrying a FRONT (`front.ts`) has it dealt again off the new sky:

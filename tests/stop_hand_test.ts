@@ -20,6 +20,7 @@ import {
   type GameState,
   type HandAsk,
   type StopHand,
+  CLEAR_WEATHER,
 } from "@engine";
 import { flatLevel } from "./support/synthetic.ts";
 
@@ -27,13 +28,29 @@ const DEG = Math.PI / 180;
 const HZ = TUNING.physicsHz;
 const BACK: HandAsk = { back: true, go: false };
 const GO: HandAsk = { back: false, go: true };
+/** The valley's air, °C, the hand is staged in. */
+const SOFT_AIR = 3;
+
 const NONE: HandAsk = { back: false, go: false };
 
 /** A free ride on a face of `deg`° falling along +z, the skier at `speed`
  * heading `heading` off straight down it — stood still a second first when
  * `speed` is 0. */
-function stage(deg: number, heading: number, speed: number, packed = 1): GameState {
-  const level = flatLevel({ packed, grade: Math.tan(deg * DEG), slopeFrom: 200, size: 4000 });
+function stage(
+  deg: number,
+  heading: number,
+  speed: number,
+  packed = 1,
+  air: { temp: number; hour?: number } = { temp: SOFT_AIR },
+): GameState {
+  // A spring afternoon's softened groomer (`pisteDayOf`), pinned by the
+  // air's warmth so the hand is held on one snow whatever the day deals.
+  const base = flatLevel({ packed, grade: Math.tan(deg * DEG), slopeFrom: 200, size: 4000 });
+  const level = {
+    ...base,
+    sun: { ...base.sun, hour: air.hour ?? base.sun.hour },
+    weather: { ...CLEAR_WEATHER, temp: air.temp },
+  };
   const state = createGame({
     level,
     spec: SKIS,
@@ -128,6 +145,43 @@ describe("the one-key brake (stop-hand.ts)", () => {
     placeRun(state, { x: 1500, z: 300, heading: 0, speed: 15 });
     const held = { ...NEUTRAL_INPUT, brake: 1 };
     expect(stopHand(createStopHand(), state, BACK, { ...held })).toEqual(held);
+  });
+});
+
+// A cold morning's groomer: the night's corduroy whole and frozen firm, next
+// to no loose snow on it — where a pivoted ski only scrapes and the edge
+// must bite to turn him.
+const FIRM = { temp: -5, hour: 9.5 };
+
+describe("the one-key brake on firm snow", () => {
+  for (const [deg, v0] of [
+    [22, 22],
+    [30, 22],
+  ] as const) {
+    it(`zig-zags from ${Math.round(v0 * 3.6)} km/h on ${deg}°, stops and stays stood`, () => {
+      const state = stage(deg, 0, v0, 1, FIRM);
+      expect(state.piste?.loose ?? 0).toBeLessThan(0.1);
+      const hand = createStopHand();
+      const run = ride(state, hand, BACK, 25, () => hand.mode === "stopped");
+      expect(run.thrown).toBe(false);
+      expect(run.sides).toBeGreaterThanOrEqual(1);
+      expect(hand.mode).toBe("stopped");
+      let most = 0;
+      for (let i = 0; i < 3 * HZ; i++) {
+        ride(state, hand, BACK, 1 / HZ);
+        most = Math.max(most, state.skier.speed);
+      }
+      expect(most).toBeLessThan(1);
+      expect(state.skier.thrown).toBeFalsy();
+    });
+  }
+
+  it("stops him on 38° too", () => {
+    const state = stage(38, 0, 12, 1, FIRM);
+    const hand = createStopHand();
+    const run = ride(state, hand, BACK, 25, () => hand.mode === "stopped");
+    expect(run.thrown).toBe(false);
+    expect(hand.mode).toBe("stopped");
   });
 });
 

@@ -187,9 +187,13 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     if (!c.airborne) {
       // ARMED on the snow: across the gate up a kicker's ramp is a stroke
       // waiting for the lip; anywhere else it is a crossing already made.
+      // The edge thrown WITH THE JUMP — after the key was pressed, or as the
+      // pop leaves the snow — is the spin wound into it, not a turn he was
+      // already carving: a crossing made then is left for the air to take.
       const ramp = onRamp(state);
+      const jumping = c.jumpLoad > 0 || c.popped <= T.popWindow;
       k.flipCrossed = ramp ? 0 : flip;
-      k.spinCrossed = ramp ? 0 : spin;
+      k.spinCrossed = ramp || (jumping && spin !== k.spinCrossed) ? 0 : spin;
       // The flight he leaves the snow on next is MEANT if he leaves it off
       // a kicker or in his own pop; off a knee or a lip he did not jump, a
       // free ride's flight is a fall he steers, and nothing is thrown.
@@ -434,6 +438,7 @@ function aimed(
   most: number,
   goal: number,
   cut = period,
+  gain = 0,
 ): number {
   const c = state.skier;
   if (c.thrown !== null || !c.airborne) return 0;
@@ -463,7 +468,9 @@ function aimed(
     const back = next - turned > period / 2 ? -1 : 0;
     turns = next + period * Math.max(back, Math.round((turns - next) / period));
   }
-  if (setting(c.airTime)) return ahead < turns ? dir : 0;
+  // In the window a step held adds `gain` rad/s, so he lets go once half
+  // a step more would carry him past the plan: the nearer of the two.
+  if (setting(c.airTime)) return ahead + (gain * TUNING.dt * t) / 2 < turns ? dir : 0;
   if (!going) return 0;
   if (ahead < turns - slack) return dir;
   if (ahead > turns + slack) return -dir;
@@ -506,6 +513,7 @@ export function spinSteer(state: GameState, halves: number, dir: number, forward
     most,
     k.spinGoal,
     cut,
+    T.spinSet,
   );
 }
 

@@ -21,8 +21,10 @@
 // its middle only so the Level is whole.
 //
 // Both are skied in STILL AIR (`STILL_AIR`): a figure taken on the bench is
-// the skier's own, with no wind in it. A test that wants the wind asks for
-// it with `withSky`.
+// the skier's own, with no wind in it, and at a fixed few degrees over
+// freezing (`BENCH_AIR`), so its spring afternoon's groomer is the softened
+// one the hands and moves were tuned on whatever the temperature model
+// deals. A test that wants the wind or the air's own asks with `withSky`.
 
 import {
   CLEAR_WEATHER,
@@ -41,8 +43,11 @@ import {
   type Weather,
 } from "@engine";
 
-/** The bench's sky: clear, and not a breath of wind. */
-export const STILL_AIR: Readonly<Weather> = { ...CLEAR_WEATHER, wind: 0 };
+/** The bench's air, °C. */
+export const BENCH_AIR = 3;
+
+/** The bench's sky: clear, not a breath of wind, at `BENCH_AIR`. */
+export const STILL_AIR: Readonly<Weather> = { ...CLEAR_WEATHER, wind: 0, temp: BENCH_AIR };
 
 /** The slope's geometry, m. */
 export const SLOPE = {

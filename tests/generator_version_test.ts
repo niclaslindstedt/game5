@@ -36,17 +36,19 @@ import {
 } from "@engine";
 
 import { BENCHMARK } from "../pwa/src/game/benchmark-plan.ts";
+import { JUMP_HILLS } from "../pwa/src/game/jump-hills.ts";
 import { RACE_MAPS } from "../pwa/src/game/race-maps.ts";
 import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 /** Every version something committed actually stands on: the race maps
- * (`race_maps_test.ts` holds their digests), the trick maps (`trick_maps_test.ts` holds their digests) and the
- * benchmark's race — each a map pinned so that a result on it is a result on
+ * (`race_maps_test.ts` holds their digests), the trick maps (`trick_maps_test.ts` holds their digests), ski
+ * jumping's hills (`jump_hills_test.ts`) and the benchmark's race — each a map pinned so that a result on it is a result on
  * the same snow. */
 const pinned = new Set([
   ...TRICK_MAPS.map((map) => map.version),
   ...Object.values(RACE_MAPS).flatMap((maps) => maps.map((map) => map.version)),
+  ...JUMP_HILLS.map((hill) => hill.version),
   BENCHMARK.version,
 ]);
 

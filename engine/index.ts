@@ -206,7 +206,7 @@ export {
   type WaterPhase,
   type WaterState,
 } from "./game/lake-ice.ts";
-export { LAKE_ICE } from "./game/defs/lake-ice.ts";
+export * from "./game/air-temp.ts"; // the air, and the lake-ice year it is built on (`LAKE_ICE`)
 export * from "./game/summer-api.ts";
 export * from "./game/bike-park-api.ts";
 export * from "./game/bike-api.ts";

@@ -24,6 +24,8 @@
 import * as THREE from "three";
 
 import { DOME_CLOUD_GLSL, type Clouds } from "./clouds.ts";
+import { CONTRAIL_GLSL } from "./contrail-glsl.ts";
+import type { Contrails } from "./contrails.ts";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 import { MOON_GLSL } from "./moon-glsl.ts";
@@ -43,7 +45,12 @@ export type SkyDome = {
   dispose(): void;
 };
 
-export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds): SkyDome {
+export function createSkyDome(
+  haze: HazeUniforms,
+  radius: number,
+  clouds: Clouds,
+  contrails: Contrails | null = null,
+): SkyDome {
   const geometry = new THREE.SphereGeometry(radius, 48, 24);
   const own = {
     uStars: { value: 0 },
@@ -57,7 +64,7 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
     uStarSky: { value: new THREE.Vector4() },
   };
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...haze, ...clouds.uniforms, ...own },
+    uniforms: { ...haze, ...clouds.uniforms, ...(contrails?.uniforms ?? {}), ...own },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       varying vec4 vClip;
@@ -72,6 +79,7 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
     fragmentShader: /* glsl */ `
       ${SKY_GLSL}
       ${DOME_CLOUD_GLSL}
+      ${contrails ? CONTRAIL_GLSL : ""}
       uniform float uStars;
       uniform float uGalaxy;
       uniform mat3 uTurn;
@@ -149,6 +157,9 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         // finer than the sky's grid can hold.
         float lift = 2.5 + 27.5 * smoothstep(0.0, 0.3, uSunPos.y);
         float own = smoothstep(0.02, 0.12, uSunPos.y);
+        // Under a lid the grey air and the snow between take it too, the
+        // more the lower it stands: no orange spark through a blizzard.
+        disc *= exp(-uCloudVeil * 600.0 / max(uSunPos.y, 0.03));
         c = mix(c, uSunCol * lift + c * mix(0.15, 1.0, own), disc * (1.0 - hide * 0.97));
         float aureole = exp(-(1.0 - mu) * 900.0) * 0.6 + exp(-(1.0 - mu) * 90.0) * 0.12;
         c += uSunCol * aureole * clearSky * smoothstep(-0.03, 0.01, uSunPos.y);
@@ -157,6 +168,10 @@ export function createSkyDome(haze: HazeUniforms, radius: number, clouds: Clouds
         // in front of it, so it adds), dimmed by any cloud before it.
         c += moon.rgb * (1.0 - hide * 0.93);
 
+        // THE CONTRAILS (\`contrail-glsl.ts\`): over the sky, the sun and
+        // the stars, under every cloud layer (the cirrus stands under the
+        // airways).
+        ${contrails ? "vec4 tr = contrailSky(cameraPosition, d, c); c = c * (1.0 - tr.a) + tr.rgb;" : ""}
         c = c * clearSky + cl.rgb;
         // THE 22° HALO in a veil of ice round the sun, and round the moon.
         c += cloudHalo(d, uSunPos, uSunCol, uCloudOn.z) * (1.0 - 0.6 * hide);

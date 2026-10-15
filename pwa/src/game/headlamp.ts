@@ -237,6 +237,10 @@ const waiting: Waiting[] = [];
  * what is near. The floods' own glow is `gates.ts`'s.
  * Every slot dealt is lit (its power over 0) and comes before every empty
  * one: the shaders' lamp loops stop at the first empty slot (`haze.ts`).
+ * With `ownOff` the player's lamp is switched off: stood in the jump
+ * plane's door a metre or two from the pilot, a lamp on his helmet would
+ * flood the whole cabin, the cowling and the strut white, where a real
+ * cockpit at night is dark but for its panel.
  */
 export function dealLamps(
   u: HazeUniforms,
@@ -245,10 +249,11 @@ export function dealLamps(
   floods: readonly Flood[],
   eye: THREE.Vector3,
   tier: Tier = "high",
+  ownOff = false,
 ): void {
   for (let i = 0; i < LAMP_SLOTS; i++) u.uLampOn.value[i] = 0;
   u.uLampGlint.value = LAMP_GLINT[tier] ? 1 : 0;
-  for (const s of skiers) s.model.lamp.setLit(level, eye);
+  skiers.forEach((s, i) => s.model.lamp.setLit(i === 0 && ownOff ? 0 : level, eye));
   if (level <= 0) return;
   const slots = Math.min(LAMP_COUNT[tier], LAMP_SLOTS);
   let n = 0;
@@ -264,7 +269,7 @@ export function dealLamps(
       f.colour ?? FLOOD_COLOUR,
       f.beam ?? FLOOD_BEAM,
     );
-  if (skiers.length > 0 && slots > 0) head(skiers[0].model.lamp);
+  if (skiers.length > 0 && slots > 0 && !ownOff) head(skiers[0].model.lamp);
   waiting.length = 0;
   for (const f of floods) {
     waiting.push({ far: Math.hypot(f.x - eye.x, f.y - eye.y, f.z - eye.z), deal: () => flood(f) });

@@ -407,6 +407,44 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
  * detail end, never so much that the far country under it is lost. */
 export const MIST_OPEN = 0.45;
 
+/** HOW MUCH AIR AND MIST STAND IN FRONT of a point (`hazeAir`,
+ * `hazeMist`, `hazeAmount`): functions alone, over the haze's uniforms
+ * (`uHaze`, `uHazeLift`, `uHazeFloor`, `uMist`, `uMistAloft`,
+ * `uMistOpen`), which the shader including it declares — `SKY_GLSL` does,
+ * and so does a lamp's glow faded into the air (`glow-fade.ts`). */
+export const HAZE_AMOUNT_GLSL = /* glsl */ `
+// How much of that colour stands between the lens and a point \`dist\` m
+// away whose height over the lens is \`rise\` m: exponential, thinning with
+// altitude so the peaks keep their shape a little longer than the valleys.
+float hazeAir(float dist, float rise) {
+  float thin = exp(-max(rise, 0.0) / uHazeLift);
+  return 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
+}
+
+// The DISTANCE row's MIST: clear round the skier, thickening with the
+// square of the distance and closed whole at its wall, at any height —
+// the ground and the woods stop there, and nothing past it may show.
+// Aloft (\`uMistAloft\`), across the ground, melting it into the haze over
+// most of the way out and whole a little inside the wall — where the woods
+// stop — so neither the woods nor the ground ends on a rim.
+float hazeMist(float dist, float rise) {
+  if (uMist <= 0.0) return 0.0;
+  float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
+  float m = across / uMist;
+  float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
+  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
+  // Let open (\`uMistOpen\`), the ground goes on past the wall: the mist
+  // thickens the air only so far, and the far country shows through it.
+  return mix(mist, min(mist, ${MIST_OPEN.toFixed(2)}), uMistOpen);
+}
+
+// Both together, for what is drawn into the haze's colour alone (the spray,
+// the snow's cloud, the water's far hill).
+float hazeAmount(float dist, float rise) {
+  return max(hazeAir(dist, rise), hazeMist(dist, rise));
+}
+`;
+
 export const SKY_GLSL = /* glsl */ `
 // THE SEA OF CLOUD'S TOP (\`uSea\`) as a field of lumps (\`seaTop\`): a
 // value noise over its plane in three octaves — the deck's long billows a
@@ -551,37 +589,7 @@ vec3 farColour(vec3 dir, float shadow) {
   return mix(air, ground, seen);
 }
 
-// How much of that colour stands between the lens and a point \`dist\` m
-// away whose height over the lens is \`rise\` m: exponential, thinning with
-// altitude so the peaks keep their shape a little longer than the valleys.
-float hazeAir(float dist, float rise) {
-  float thin = exp(-max(rise, 0.0) / uHazeLift);
-  return 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
-}
-
-// The DISTANCE row's MIST: clear round the skier, thickening with the
-// square of the distance and closed whole at its wall, at any height —
-// the ground and the woods stop there, and nothing past it may show.
-// Aloft (\`uMistAloft\`), across the ground, melting it into the haze over
-// most of the way out and whole a little inside the wall — where the woods
-// stop — so neither the woods nor the ground ends on a rim.
-float hazeMist(float dist, float rise) {
-  if (uMist <= 0.0) return 0.0;
-  float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
-  float m = across / uMist;
-  float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
-  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
-  // Let open (\`uMistOpen\`), the ground goes on past the wall: the mist
-  // thickens the air only so far, and the far country shows through it.
-  return mix(mist, min(mist, ${MIST_OPEN.toFixed(2)}), uMistOpen);
-}
-
-// Both together, for what is drawn into the haze's colour alone (the spray,
-// the snow's cloud, the water's far hill).
-float hazeAmount(float dist, float rise) {
-  return max(hazeAir(dist, rise), hazeMist(dist, rise));
-}
-
+${HAZE_AMOUNT_GLSL}
 // The mist on the dome: a band over the true horizon as deep as a mist
 // some forty metres thick stands at its wall, so a hill past the ground's
 // edge is sky the colour it would have faded into.

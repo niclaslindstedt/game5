@@ -10,6 +10,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   SKIS,
+  airTempAt,
+  FULL_ASSIST,
   cabinsOf,
   createGame,
   lastPiste,
@@ -42,7 +44,6 @@ import {
   freeAgainOptions,
   freeGameOptions,
   freeRestart,
-  onTheSlope,
   freeRunList,
   freeTopOptions,
   freshRide,
@@ -62,6 +63,14 @@ import {
   startPicked,
   dealtDay,
   firstWhere,
+  TEMP_STOPS,
+  autoTempOf,
+  quickRide,
+  quickTempOf,
+  QUICK_SEEDS,
+  QUICK_ODDS,
+  type FreeRide,
+  QUICK_TEMP_SPREAD,
 } from "../pwa/src/game/free-ride.ts";
 import {
   CHART_VIEW,
@@ -88,6 +97,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       snow: "medium",
       spot: null,
       weather: null,
+      temp: null,
       region: "alpine",
       face: null,
       grade: null,
@@ -95,6 +105,14 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       avalanche: true,
       where: false,
     });
+  });
+
+  it("keeps a temperature only on the row's own ladder", () => {
+    expect(mergeRide({ temp: -10 }).temp).toBe(-10);
+    expect(mergeRide({ temp: 5 }).temp).toBe(5);
+    expect(mergeRide({ temp: 7 }).temp).toBe(null);
+    expect(mergeRide({ temp: "cold" }).temp).toBe(null);
+    for (const c of TEMP_STOPS) expect(mergeRide({ temp: c }).temp).toBe(c);
   });
 
   it("stands a first visit's WHERE steps on GENERATED, once", () => {
@@ -125,6 +143,20 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       sun: { ...level.sun, dayOfYear: doy, hour: hourOfTime(lat, doy, "evening") },
     };
     expect(dealtDay(at)).toMatchObject({ season: "mid", time: "evening" });
+  });
+
+  it("shows on AUTO the air the ride would get, on the day and sky picked", () => {
+    const level = generateLevel(9);
+    const dealt = dealtDay(level);
+    const ride = freshRide();
+    // The map's own day: the air at its valley floor at its start hour.
+    expect(autoTempOf(ride, dealt)).toBeCloseTo(airTempAt(level), 9);
+    // A deep winter's night is colder than a spring afternoon.
+    const night = autoTempOf({ ...ride, season: "mid", time: "night", weather: "clear" }, dealt)!;
+    const spring = autoTempOf({ ...ride, season: "spring", time: "day", weather: "clear" }, dealt)!;
+    expect(night).toBeLessThan(spring - 5);
+    // ...and before the chart is in it has nothing to say.
+    expect(autoTempOf(ride, null)).toBe(null);
   });
 
   it("reads an older blob with no ride in it as a fresh one", () => {
@@ -221,6 +253,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       snow: "thick" as const,
       spot: { seed: 9, x: 400, z: 200 },
       weather: "fog" as const,
+      temp: null,
       region: "fell" as const,
       face: null,
       grade: "black" as const,
@@ -265,6 +298,32 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       freeGameOptions({ ...ride, weather: null }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } })
         .sky,
     ).toBe(undefined);
+    // The TEMPERATURE row lays the air's knob over the sky — the dealt one
+    // too — and never in summer.
+    expect(
+      freeGameOptions({ ...ride, temp: -10 }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }).sky,
+    ).toEqual({
+      weather: "fog",
+      temp: -10,
+    });
+    expect(
+      freeGameOptions({ ...ride, weather: null, temp: 5 }, 9, {
+        spec: SKIS,
+        assist: { yaw: 1, air: 1 },
+      }).sky,
+    ).toEqual({ temp: 5 });
+    expect(
+      freeGameOptions({ ...ride, weather: null, temp: 5, season: "summer" }, 9, {
+        spec: SKIS,
+        assist: { yaw: 1, air: 1 },
+      }).sky,
+    ).toBe(undefined);
+    const cold = createGame({
+      ...freeGameOptions({ ...ride, temp: -15 }, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      level: syntheticLevel(),
+      quiet: true,
+    });
+    expect(airTempAt(cold.level)).toBeCloseTo(-15, 9);
     const state = createGame({ ...opts, level: syntheticLevel(), quiet: true });
     expect(state.level.weather?.kind).toBe("fog");
     expect(state.rules.course).toBe(false);
@@ -329,7 +388,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(again.skier.z).toBeCloseTo(slot.z, 5);
   });
 
-  it("restarts a rider on his feet at the top of his slope, not on the machine he began on", () => {
+  it("restarts a ride on the machine it was last chosen on, however he came off it", () => {
     const ride = { ...freshRide(), run: { seed: 9, region: freshRide().region, id: SLED_RUN } };
     const opts = {
       ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
@@ -340,25 +399,39 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     const free = freeAgainOptions(opts, first.level);
     // Still on the snowmobile: the restart is the snowmobile's.
     expect(first.sled?.rider).toBe(true);
-    expect(onTheSlope(first)).toBe(false);
     expect(freeRestart(first, free)?.sled).toBe(true);
-    // Stepped off it and out on his skis: the restart is the slope's.
+    // Stepped off it and out on his skis: still the snowmobile's.
     if (first.sled) first.sled.rider = false;
-    expect(onTheSlope(first)).toBe(true);
-    const top = freeRestart(first, free);
+    const again = createGame(freeRestart(first, free)!);
+    expect(again.sled?.rider).toBe(true);
+    // Thrown off it, the same.
+    first.skier.thrown = { cause: "slam" } as never;
+    expect(freeRestart(first, free)?.sled).toBe(true);
+    // A ride on skis from the start starts again at the top of its slope.
+    const skied = freeAgainOptions({ ...opts, sled: undefined }, first.level);
+    const top = freeRestart(createGame(skied), skied);
     expect(top?.sled).toBeUndefined();
     expect(againAt(first.rules, top)).toBe("top");
-    const again = createGame(top!);
-    expect(again.sled?.rider).toBe(false);
-    const slot = first.level.grid[0];
-    expect(again.skier.x).toBeCloseTo(slot.x, 5);
-    expect(again.skier.z).toBeCloseTo(slot.z, 5);
-    // Thrown off the machine he is still its rider: stood back on it.
-    first.skier.thrown = { cause: "sled" } as never;
-    expect(onTheSlope(first)).toBe(false);
-    // A ride on skis from the start is the slope's however it ends.
-    const skied = createGame({ ...freeAgainOptions(opts, first.level), sled: undefined });
-    expect(onTheSlope(skied)).toBe(true);
+  });
+
+  it("restarts the helicopter picked on the pause card's piste map after he falls off its skid", () => {
+    const skis = freeGameOptions(freshRide(), 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    const first = createGame({ ...skis, quiet: true, level: syntheticLevel() });
+    // The PISTE MAP's GO stands a new ride up on the helicopter: that is the
+    // ride the restart keeps.
+    const heli = freeAgainOptions(
+      { ...skis, heli: true, run: undefined, byLift: false },
+      first.level,
+    );
+    const flown = createGame({ ...heli, quiet: true });
+    expect(flown.heli?.rider).toBe(true);
+    // Lost his grip on the skid and down on the snow.
+    if (flown.heli) flown.heli.rider = false;
+    flown.skier.thrown = { cause: "grip" } as never;
+    const next = freeRestart(flown, heli);
+    expect(next?.heli).toBe(true);
+    expect(againAt(flown.rules, next)).toBe("pad");
+    expect(createGame(next!).heli?.rider).toBe(true);
   });
 
   it("names where the next rider stands after a death, as the restart stands him", () => {
@@ -723,5 +796,83 @@ describe("the START row's afterski stop: the party in the lodge (free-ride.ts)",
       expect(moved.spot).toBeNull();
     }
     expect(rideOnto(ride, 38, "fell")).toMatchObject({ seed: 38, region: "fell" });
+  });
+});
+
+describe("QUICK START (free-ride.ts)", () => {
+  it("deals a generated mountain, a winter day, a sky and a snow, on the toughest piste", () => {
+    const base = {
+      ...freshRide(),
+      face: "alpine-1",
+      run: { seed: 5, region: "alpine" as const, id: "r1" },
+      spot: { seed: 5, x: 1, z: 2 },
+      avalanche: false,
+    };
+    const seasons = new Set<string>();
+    let k = 0;
+    // A fixed stream walks every pick's whole range.
+    const random = () => (k = (k * 7919 + 104729) % 1000003) / 1000003;
+    for (let i = 0; i < 400; i++) {
+      const ride = quickRide(base, random);
+      expect(ride.face).toBeNull();
+      expect(ride.run).toBeNull();
+      expect(ride.spot).toBeNull();
+      expect(ride.grade).toBeNull();
+      expect(ride.season).not.toBe("summer");
+      expect(ride.season).not.toBeNull();
+      expect(TIMES_OF_DAY).toContain(ride.time);
+      expect(WEATHER_KINDS).toContain(ride.weather);
+      expect(ride.seed).toBeGreaterThanOrEqual(1);
+      expect(ride.seed).toBeLessThanOrEqual(QUICK_SEEDS);
+      expect(ride.avalanche).toBe(false);
+      expect(TEMP_STOPS).toContain(ride.temp);
+      seasons.add(ride.season!);
+    }
+    expect(seasons.size).toBe(4);
+  });
+
+  it("leans toward the sunset, the clear night and the steep countries", () => {
+    let k = 0;
+    const random = () => (k = (k * 7919 + 104729) % 1000003) / 1000003;
+    const count = (pick: (r: FreeRide) => unknown, want: unknown, n = 2000): number => {
+      k = 1;
+      let hit = 0;
+      for (let i = 0; i < n; i++) if (pick(quickRide(freshRide(), random)) === want) hit++;
+      return hit / n;
+    };
+    expect(count((r) => r.time, "sunset")).toBeGreaterThan(count((r) => r.time, "day") * 2);
+    expect(count((r) => r.region, "fell")).toBeLessThan(count((r) => r.region, "alpine") / 2);
+    expect(count((r) => r.weather, "storm")).toBeLessThan(0.05);
+    // No fog, overcast or storm after dark: a night is clear or near it.
+    k = 1;
+    for (let i = 0; i < 2000; i++) {
+      const ride = quickRide(freshRide(), random);
+      if (ride.time === "night") expect(Object.keys(QUICK_ODDS.night)).toContain(ride.weather);
+    }
+  });
+
+  it("rolls an air that fits the season, the hour and the sky", () => {
+    const mid = { region: "alpine", season: "mid", time: "morning", weather: "clear" } as const;
+    const spring = { region: "alpine", season: "spring", time: "day", weather: "fair" } as const;
+    // The same stray: the spring afternoon is the warmer.
+    expect(quickTempOf(spring, () => 0.5)).toBeGreaterThan(quickTempOf(mid, () => 0.5));
+    // Strayed at most the spread (and half a stop's snap) off the AUTO air.
+    for (const r of [0, 0.25, 0.5, 0.75, 0.999]) {
+      const lo = quickTempOf(mid, () => 0);
+      const hi = quickTempOf(mid, () => 0.999);
+      expect(quickTempOf(mid, () => r)).toBeGreaterThanOrEqual(lo);
+      expect(quickTempOf(mid, () => r)).toBeLessThanOrEqual(hi);
+      expect(hi - lo).toBeLessThanOrEqual(2 * QUICK_TEMP_SPREAD + 5);
+    }
+  });
+
+  it("stands up as a free ride carried up to the map's toughest piste", () => {
+    const ride = quickRide(freshRide(), () => 0.5);
+    const o = freeGameOptions(ride, ride.seed!, { spec: SKIS, assist: FULL_ASSIST });
+    expect(o.mode).toBe("free");
+    expect(o.run).toBeUndefined();
+    expect(o.byLift).toBe(true);
+    expect(o.summer).toBeUndefined();
+    expect(o.face).toBeUndefined();
   });
 });

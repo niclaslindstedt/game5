@@ -384,15 +384,23 @@ export function outOfRock(
 
 const lifted = { x: 0, y: 1, z: 0 };
 
+/** THE STEEP SNOW a lift straight up is corrected on as on rock
+ * (`liftedOnto`): none of it on a face gentler than `from` (the cosine of
+ * its slope, 40°), all of it past `to` (55°) — the cut wall under a lift's
+ * pad, a headwall. A body on a skiable pitch keeps its lift as ever. */
+const STEEP = { from: Math.cos((40 * Math.PI) / 180), to: Math.cos((55 * Math.PI) / 180) };
+
 /**
- * A POINT LIFTED STRAIGHT UP by `d` m onto the rock at (`x`, `z`), as a
- * ragdoll's points and a lone ski's ends are put back on the surface: on a
- * steep facet most of that lift lies along it, and kept as speed (the
- * point's last position at `last[j..j+2]` left behind) it would fling the
- * point up the face. That share is moved with it, so only the lift's way out
- * of the facet is the point's to keep. Nothing off the rock is touched.
+ * A POINT LIFTED STRAIGHT UP by `d` m onto the surface at (`x`, `z`), as a
+ * ragdoll's points and a lone ski's ends are put back on it: on a steep
+ * facet most of that lift lies along it, and kept as speed (the point's
+ * last position at `last[j..j+2]` left behind) it would fling the point up
+ * the face — a body thrown against the cut under a lift's pad was shot tens
+ * of metres into the air. That share is moved with it, so only the lift's
+ * way out of the facet is the point's to keep: wholly on rock, and on snow
+ * by how steep it is past a skiable pitch (`STEEP`).
  */
-export function liftedOnRock(
+export function liftedOnto(
   level: Level,
   x: number,
   z: number,
@@ -400,12 +408,16 @@ export function liftedOnRock(
   last: number[],
   j: number,
 ): void {
-  if (d <= 0 || !level.rockAt || level.rockAt(x, z) <= 0) return;
+  if (d <= 0) return;
   level.normalAt(x, z, lifted);
   const n = lifted;
-  last[j] -= d * n.y * n.x;
-  last[j + 1] += d * (1 - n.y * n.y);
-  last[j + 2] -= d * n.y * n.z;
+  const rock = level.rockAt ? level.rockAt(x, z) > 0 : false;
+  const share = rock ? 1 : Math.min(1, Math.max(0, (STEEP.from - n.y) / (STEEP.from - STEEP.to)));
+  if (share <= 0) return;
+  const s = d * share;
+  last[j] -= s * n.y * n.x;
+  last[j + 1] += s * (1 - n.y * n.y);
+  last[j + 2] -= s * n.y * n.z;
 }
 
 /**

@@ -614,7 +614,13 @@ export const STRINGS = {
     summer: "SUMMER",
   },
   startTime: "TIME",
-  timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
+  timeNames: {
+    morning: "MORNING",
+    day: "DAY",
+    evening: "EVENING",
+    sunset: "SUNSET",
+    night: "NIGHT",
+  },
   startWeather: "WEATHER",
   /** The start card's SKY press, a cloud over a sun: its name to a reader. */
   startSky: "THE DAY",

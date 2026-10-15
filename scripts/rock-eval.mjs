@@ -371,12 +371,10 @@ for (const name of wantGroups) {
     order.between.push(scene);
     if (!shot.clean)
       console.warn(`  ${id}: the rock did not let go before the scene (held triangles)`);
-    await page
-      .locator("body")
-      .screenshot({
-        path: join(outDir, `${id}.${ext}`),
-        ...(ext === "jpg" ? { type: "jpeg", quality: 85 } : {}),
-      });
+    await page.locator("body").screenshot({
+      path: join(outDir, `${id}.${ext}`),
+      ...(ext === "jpg" ? { type: "jpeg", quality: 85 } : {}),
+    });
     let cost = null;
     let held = null;
     if (!args["no-cost"] && !quick && shot.note !== "none on this map") {

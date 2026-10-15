@@ -204,11 +204,13 @@ export function liftOf(
   // In from the wall's edge the ledges grow with how bare it is.
   const k0 = Math.min(1, (bare - S.from) / 0.25);
   const grow = k0 * k0 * (3 - 2 * k0);
-  return (
-    -S.sink +
-    grow *
-      (S.sink + S.proud + S.rough * 0.3 * rough + bare * (ledge * (1 - R.smooth * gully) + rise))
+  // A gully cuts back into the rock, never under the snow at its foot: its
+  // floor stays half the skin's proud over the ground.
+  const lift = Math.max(
+    S.sink + 0.5 * S.proud,
+    S.sink + S.proud + S.rough * 0.3 * rough + bare * (ledge * (1 - R.smooth * gully) + rise),
   );
+  return -S.sink + grow * lift;
 }
 
 /** HOW MUCH SNOW LIES on a facet of the skin facing up `ny` in bed

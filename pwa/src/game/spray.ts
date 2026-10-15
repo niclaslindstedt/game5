@@ -33,10 +33,8 @@ import { SPRAY_FRAGMENT, sprayVertex } from "./spray-glsl.ts";
 import type { AgedSnow, SnowProps } from "./snowpack.ts";
 import { createGpuSpray } from "./gpu-spray.ts";
 import type { PlumeBit } from "./spray-film.ts";
-import { createSprayPool, SPRAY_MODEL, type SprayModel } from "./spray-sim.ts";
+import { createSprayPool } from "./spray-sim.ts";
 import { SPRAY_STATS } from "./spray-stats.ts";
-
-export { heavyShare } from "./spray-sim.ts";
 
 const CAPACITY = 6000;
 /** The shutter a streak is drawn over, s: long enough that a chip thrown
@@ -97,9 +95,6 @@ export type Spray = {
   /** Every grain the last frame drew, as the snow eval lab's film score
    * reads them (`plume-probe.ts`). */
   bits(out: PlumeBit[]): void;
-  /** How a grain flies (`spray-sim.ts`'s `SprayModel`) — the game flies
-   * `SPRAY_MODEL`; the labs fly each candidate. */
-  setModel(model: SprayModel): void;
   clear(): void;
   dispose(): void;
 };
@@ -111,15 +106,6 @@ let flightFor: boolean | null = null;
  * the CPU (`false`), or as the SPRAY row says (`null`). */
 export function flySprayOn(onGpu: boolean | null): void {
   flightFor = onGpu;
-}
-
-/** The model every spray made from now on flies — `SPRAY_MODEL` unless a
- * lab says otherwise (`flySprayAs`, the spray lab's `?spray=`). */
-let flown: SprayModel = SPRAY_MODEL;
-
-/** A LAB'S SWITCH: fly every spray made after this by `model`. */
-export function flySprayAs(model: SprayModel): void {
-  flown = model;
 }
 
 /** What the CPU's draw reads per grain: its place and size, its motion
@@ -142,8 +128,7 @@ const CPU_SOURCE = /* glsl */ `
 `;
 
 /** THE SPRAY: both ways of flying it behind one face, the SPRAY row's
- * stop choosing (`setFlight`), each made the first time it is asked for.
- * The counted models (the labs' before) fly on the CPU only. */
+ * stop choosing (`setFlight`), each made the first time it is asked for. */
 export function createSpray(haze: HazeUniforms): Spray {
   const group = new THREE.Group();
   let cpu: Spray | null = null;
@@ -151,8 +136,6 @@ export function createSpray(haze: HazeUniforms): Spray {
   let share = 1;
   let scale = 600;
   let gpuWanted = false;
-  let current: SprayModel = flown;
-  const model = (): SprayModel => current;
   const make = (onGpu: boolean): Spray => {
     const made = onGpu
       ? (gpu ??= createGpuSpray(haze, CAPACITY, SHUTTER))
@@ -164,7 +147,7 @@ export function createSpray(haze: HazeUniforms): Spray {
   let live = make(false);
   group.add(live.points);
   const choose = () => {
-    const onGpu = (flightFor ?? gpuWanted) && model() === "mass";
+    const onGpu = flightFor ?? gpuWanted;
     const next = make(onGpu);
     if (next === live) return;
     live.clear();
@@ -190,11 +173,6 @@ export function createSpray(haze: HazeUniforms): Spray {
       gpuWanted = onGpu;
       choose();
     },
-    setModel(next) {
-      current = next;
-      cpu?.setModel(next);
-      choose();
-    },
     clear: () => live.clear(),
     bits: (out) => live.bits(out),
     dispose() {
@@ -208,7 +186,6 @@ export function createSpray(haze: HazeUniforms): Spray {
  * packed into the instance buffer every frame. */
 function createCpuSpray(haze: HazeUniforms): Spray {
   const pool = createSprayPool(CAPACITY);
-  pool.model = flown;
   // Per grain: where and how big (xyz, size), how it moves and how opaque
   // (xyz, alpha), and what it is (hardness, glint, its own seed).
   const a0 = new Float32Array(CAPACITY * 4);
@@ -238,8 +215,6 @@ function createCpuSpray(haze: HazeUniforms): Spray {
       ...airLightUniforms(),
       uScale: { value: 600 },
       uShutter: { value: SHUTTER },
-      // 0 draws every grain round (the `puff` model), 1 streaked.
-      uStreak: { value: pool.model === "puff" ? 0 : 1 },
       uTime: { value: 0 },
       ...SHELTER,
     },
@@ -325,10 +300,6 @@ function createCpuSpray(haze: HazeUniforms): Spray {
     },
     setBudget(next) {
       pool.setBudget(next);
-    },
-    setModel(model) {
-      pool.model = model;
-      material.uniforms.uStreak.value = model === "puff" ? 0 : 1;
     },
     clear() {
       pool.clear();

@@ -10,8 +10,8 @@
 //     the figure is never RAISED out of its furrow to be seen (`rideSink`
 //     never negative); and
 //   * the ground's vertex stage lets the mesh down under the player's own
-//     drawn bases (`ski-clear.ts`), whatever the grid's spacing — read off
-//     the posed meshes themselves.
+//     drawn bases and the nearest rivals' (`ski-clear.ts`), whatever the
+//     grid's spacing — read off the posed meshes themselves.
 //
 // The picture's own measure is the snow eval lab's chase lens
 // (`make snow-eval ARGS=--under=all`), at every TERRAIN, RESOLUTION and
@@ -26,6 +26,7 @@ import { holdInput, type HoldMove } from "../pwa/src/game/hold-input.ts";
 import { rideSink } from "../pwa/src/game/ride-sink.ts";
 import {
   createSkiClear,
+  RIVALS,
   SKI_CLEAR_GLSL,
   SKI_LINES,
   SKI_POINTS,
@@ -102,6 +103,42 @@ describe("the skis never under the drawn snow", () => {
     // ...and before the finer level's hole sinks what it covers.
     expect(at("skiClear(snowXZ, snowY, uSpacing)")).toBeLessThan(at("if (uHole.w > 0.5)"));
     expect(SKI_CLEAR_GLSL).toContain(`uSkiLine[${SKI_LINES * SKI_POINTS}]`);
+    expect(SKI_CLEAR_GLSL).toContain(`uRivalLine[${RIVALS * SKI_LINES * SKI_POINTS}]`);
+  });
+
+  it("lets the snow down under the nearest rivals' skis too, never a far one's", () => {
+    const geometry = new THREE.BoxGeometry(0.08, 0.02, 1.7, 1, 1, 68);
+    /** A rider stood at `x` along the snow, his pair beside each other. */
+    const rider = (x: number) => {
+      const figure = new THREE.Group();
+      const bases = [new THREE.Mesh(geometry), new THREE.Mesh(geometry)];
+      bases[0].position.set(x, 1, 0);
+      bases[1].position.set(x + 0.2, 1, 0);
+      for (const b of bases) {
+        b.visible = false;
+        figure.add(b);
+      }
+      return { model: { bases } };
+    };
+    // The player, and rivals at 5, 30, 12 and 200 m from the lens.
+    const riders = [rider(0), rider(5), rider(30), rider(12), rider(200)];
+    const uniforms = skiClearUniforms();
+    const clear = createSkiClear(uniforms);
+    clear.rivals(riders, new THREE.Vector3(0, 2, 0), true);
+    const line = uniforms.uRivalLine.value;
+    const middles = [];
+    for (let s = 0; s < RIVALS * SKI_LINES; s++) {
+      const m = line[s * SKI_POINTS + (SKI_POINTS >> 1)];
+      if (m.w > 0) middles.push(Math.round(m.x));
+    }
+    // The two nearest, both skis of each; the far one and the player left out.
+    expect(middles.sort((a, b) => a - b)).toEqual([5, 5, 12, 12]);
+    for (let s = 0; s < RIVALS * SKI_LINES; s++) {
+      expect(line[s * SKI_POINTS + 2].y).toBeCloseTo(0.99, 4);
+    }
+    // Off (summer, no skis): every line put away.
+    clear.rivals(riders, new THREE.Vector3(0, 2, 0), false);
+    for (const v of line) expect(v.w).toBeLessThan(0);
   });
 
   it("reads each drawn base's line off its posed mesh, tip to tail", () => {

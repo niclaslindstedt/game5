@@ -55,9 +55,13 @@ export const DEFORM = {
   /** The steepest slope loose snow stands at (tan), and packed snow's. */
   reposeLoose: 0.8,
   reposeFirm: 3.2,
-  /** Each cell's repose scaled by 1 ± this (a hash of the cell): walls that
-   * break ragged. */
+  /** Each cell's repose scaled by 1 ± this: walls that break ragged. Most
+   * of it is value noise over `jitterCell` m and the rest the cell's own
+   * hash — a cell's own alone set every column of a wall at a slope of its
+   * own, and a crater's walls stood in vertical ribs a cell wide. */
   jitter: 0.3,
+  jitterCell: 0.3,
+  jitterOwn: 0.2,
   /** Relaxation passes a frame over what changed, and how much of a
    * cell's excess slides each pass. */
   passes: 4,
@@ -219,7 +223,9 @@ export function createDeformField(look: DeformLook): DeformField {
     h[k] = 0;
     firm[k] = 0;
     touched[k] = 0;
-    rough[k] = 1 + DEFORM.jitter * (2 * cellHash(i, j) - 1);
+    const lump = valueNoise(i * cell, j * cell, DEFORM.jitterCell);
+    const grain = cellHash(i, j);
+    rough[k] = 1 + DEFORM.jitter * (2 * (lump + DEFORM.jitterOwn * (grain - lump)) - 1);
     rimOf[k] = 1 / (1 + DEFORM.rim * (2 * valueNoise(i * cell, j * cell, DEFORM.rimCell) - 1));
     put(k);
   };

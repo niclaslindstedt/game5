@@ -17,8 +17,6 @@ import {
   createSprayPool,
   edgeSlips,
   emptySlip,
-  SPRAY_MODELS,
-  type SprayModel,
   type SprayPool,
 } from "../pwa/src/game/spray-sim.ts";
 import { flatLevel } from "./support/synthetic.ts";
@@ -26,14 +24,7 @@ import { flatLevel } from "./support/synthetic.ts";
 /** Ride `move` from `kmh` for `seconds`, flying the spray at 60 frames a
  * second; what was thrown, the most the edges slid across and the throw's
  * share along the way he went. */
-function ride(
-  pair: string,
-  move: HoldMove,
-  kmh: number,
-  seconds: number,
-  share = 1,
-  model?: SprayModel,
-) {
+function ride(pair: string, move: HoldMove, kmh: number, seconds: number, share = 1) {
   const stop = move === "stop";
   const level = flatLevel(
     stop ? { packed: 1 } : { packed: 1, grade: Math.tan(0.17), slopeFrom: 200, size: 4000 },
@@ -52,7 +43,6 @@ function ride(
       : { x: 2000, z: 600, heading: 0, speed: kmh / 3.6 },
   );
   const pool = createSprayPool(20000);
-  if (model) pool.model = model;
   pool.setBudget(share);
   const slips = [emptySlip(), emptySlip()] as [
     ReturnType<typeof emptySlip>,
@@ -195,14 +185,5 @@ describe("the spray by the snow's age and depth", () => {
     expect(groomed.fine).toBeCloseTo(SNOW.groomed.fine, 5);
     expect(groomed.heavy).toBe(0);
     expect(groomed.plates).toBe(0);
-  });
-});
-
-describe("the spray's models", () => {
-  it("every model throws a stop's wall the way the edge slides", () => {
-    for (const model of SPRAY_MODELS) {
-      const r = ride("chamois", "stop", 40, 1.5, 1, model);
-      expect(r.thrown, model).toBeGreaterThan(80);
-    }
   });
 });

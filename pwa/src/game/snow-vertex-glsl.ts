@@ -126,7 +126,7 @@ float snowPackedV = snowGroundV.b;
 float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ)
   // THE AVALANCHE (\`avalanche-glsl.ts\`): its bed below, its debris above.
   + slideAt(snowXZ);
-// Never over the player's skis (\`ski-clear.ts\`).
+// Never over the player's skis, nor the nearest rivals' (\`ski-clear.ts\`).
 snowY = skiClear(snowXZ, snowY, uSpacing);
 // UNDER THE FINER LEVEL (\`uHole\`: its centre and half extent), the
 // vertices it covers by a whole cell of this one are SUNK, so every

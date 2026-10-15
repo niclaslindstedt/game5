@@ -63,12 +63,17 @@ const args = parseArgs(
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
     width: { kind: "number", default: 320, help: "one cell's width, px" },
     height: { kind: "number", default: 180, help: "one cell's height, px" },
+    dive: {
+      kind: "number",
+      default: 0,
+      help: "fly the lens down a pitch this steep, deg, at the held speed (a steep face's sink; 0 rides the meadow)",
+    },
     summer: { kind: "flag", help: "ride the map in midsummer (no crystals, no spindrift)" },
     json: { kind: "flag", help: "print the table as JSON instead" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1200, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/snowfall-preview.mjs [--seed=n] [--weathers=a,b] [--rides=a,b] [--speeds=a,b] [--camera=rung] [--sheets=frame,flow] [--summer] [--json] [--skip-build]",
+  "usage: node scripts/snowfall-preview.mjs [--seed=n] [--weathers=a,b] [--rides=a,b] [--speeds=a,b] [--camera=rung] [--sheets=frame,flow] [--dive=deg] [--summer] [--json] [--skip-build]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -122,6 +127,7 @@ const query = new URLSearchParams({
   strobe: String(args.strobe),
   ride: String(args.ride),
   summer: args.summer ? "1" : "0",
+  dive: String(args.dive),
 }).toString();
 const say = args.json ? () => {} : (line) => console.log(line);
 say(
@@ -148,7 +154,10 @@ for (const kind of String(args.sheets).split(",")) {
     width: Math.ceil(Math.max(1280, box?.width ?? 0)),
     height: Math.ceil(Math.max(720, box?.height ?? 0)),
   });
-  const out = join(outDir, `snowfall-${args.seed}${kind === "frame" ? "" : `-${kind}`}.png`);
+  const out = join(
+    outDir,
+    `snowfall-${args.seed}${args.dive ? `-dive${args.dive}` : ""}${kind === "frame" ? "" : `-${kind}`}.png`,
+  );
   await page.locator("#sheet").screenshot({ path: out });
   cells = await page.evaluate(() => globalThis.__snowfall.cells());
   say(`${out.replace(`${root}/`, "")}  ${drawn.rows}×${drawn.cols}: ${drawn.note}`);
@@ -159,12 +168,13 @@ if (args.json) {
 } else {
   const pad = (s, n) => String(s).padStart(n);
   console.log(
-    `\n${"sky".padEnd(9)}${"ride".padEnd(7)}${pad("km/h", 5)}${pad("skier", 7)}${pad("lens", 6)}${pad("wind", 6)}` +
+    `\n${"sky".padEnd(9)}${"ride".padEnd(7)}${pad("km/h", 5)}${pad("skier", 7)}${pad("lens", 6)}${pad("sink", 6)}${pad("falls", 7)}${pad("wind", 6)}` +
       `${pad("air m/s", 9)}${pad("at lens", 9)}${pad("smear m", 9)}${pad("cross s", 9)}`,
   );
   for (const c of cells) {
     console.log(
       `${c.weather.padEnd(9)}${c.ride.padEnd(7)}${pad(c.kmh, 5)}${pad(c.skier.toFixed(0), 7)}${pad(c.lens.toFixed(0), 6)}` +
+        `${pad(c.sink.toFixed(1), 6)}${pad(c.fall.toFixed(1), 7)}` +
         `${pad(c.wind.toFixed(1), 6)}${pad(c.air.toFixed(1), 9)}${pad(c.toward.toFixed(1), 9)}` +
         `${pad(c.smear.toFixed(2), 9)}${pad(Number.isFinite(c.cross) ? c.cross.toFixed(2) : "—", 9)}`,
     );

@@ -8,10 +8,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   FALL_SPEED,
+  KEEP_FALL,
   LENS,
   MOTE_SETTLE,
   SHUTTER,
   airPast,
+  boxSink,
   createLensTrack,
   flakeDrift,
   moteOf,
@@ -65,6 +67,39 @@ describe("the air past the lens", () => {
     const air = airPast(flakeDrift({ x: 0, z: 10 }, 0.5), lens);
     expect(Math.hypot(air.x, air.z)).toBeLessThan(0.05);
     expect(air.y).toBeCloseTo(-FALL_SPEED, 2);
+  });
+});
+
+describe("snow never falls up", () => {
+  // A skier down a steep pitch at 108 km/h sinks some ten metres a second;
+  // a skydiver fifty. Every flake still falls past the lens.
+  for (const sink of [0, 0.5, 3, 10, 56]) {
+    for (const sky of [0, 0.5, 0.9]) {
+      it(`falls past a lens sinking ${sink} m/s under a sky of ${sky}`, () => {
+        const drift = flakeDrift({ x: 6, z: -14 }, sky);
+        const air = airPast(drift, { x: 0, y: -sink, z: 30 });
+        expect(air.y).toBeLessThanOrEqual(drift.y * KEEP_FALL + 1e-9);
+        expect(air.y).toBeLessThan(0);
+        // The wind still blows it, and the lens's run still streams it.
+        expect(air.x).toBe(6);
+        expect(air.z).toBe(-44);
+      });
+    }
+  }
+
+  it("leaves the box alone for a lens that climbs or holds its height", () => {
+    const drift = flakeDrift(still, 0.5);
+    expect(boxSink(drift, { x: 0, y: 2, z: 0 })).toBe(0);
+    expect(boxSink(drift, { x: 0, y: 0, z: 0 })).toBe(0);
+    expect(airPast(drift, { x: 0, y: 2, z: 0 }).y).toBeCloseTo(-FALL_SPEED - 2, 9);
+  });
+
+  it("sinks the box with the lens past the share of the fall it keeps", () => {
+    const drift = flakeDrift(still, 0.5);
+    expect(boxSink(drift, { x: 0, y: -10, z: 0 })).toBeCloseTo(
+      -10 + FALL_SPEED * (1 - KEEP_FALL),
+      9,
+    );
   });
 });
 

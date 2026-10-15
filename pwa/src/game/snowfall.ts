@@ -52,6 +52,7 @@ import {
   MOTES,
   STREAKS,
   airPast,
+  boxSink,
   createLensTrack,
   flakeDrift,
   moteOf,
@@ -372,10 +373,7 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       // slowly, and a fall grows out of them.
       own.uMote.value = moteOf(look.snowfall);
       flakeDrift(wind, look.snowfall, carried);
-      const s = own.uShift.value;
-      s.x = (s.x + carried.x * step) % BOX;
-      s.y = (s.y + carried.y * step) % BOX;
-      s.z = (s.z + carried.z * step) % BOX;
+
       const flakes = Math.round(share * Math.max(FLAKES * Math.pow(look.snowfall, 0.7), MOTES));
       own.uSize.value = 0.8 + 1.3 * look.snowfall;
       fallGeo.instanceCount = flakes;
@@ -385,6 +383,12 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
       // picture) keeps the last frame's, as a photograph would.
       const lensV = lensTrack.step(camera.position, dt);
       airPast(carried, lensV, air);
+      // Carried by its own velocity — and sunk with a lens dropping faster
+      // than it falls, so it is never seen rising (`boxSink`).
+      const s = own.uShift.value;
+      s.x = (s.x + carried.x * step) % BOX;
+      s.y = (s.y + (carried.y + boxSink(carried, lensV)) * step) % BOX;
+      s.z = (s.z + carried.z * step) % BOX;
       own.uAir.value.set(air.x, air.y, air.z);
       own.uPace.value = streakOf(Math.hypot(lensV.x, lensV.y, lensV.z));
       if (dt > 0) own.uShutter.value = shutterOf(dt);

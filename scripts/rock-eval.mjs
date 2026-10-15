@@ -21,8 +21,12 @@
 // real face and the summer.
 //
 // EVERY SCENE IS READ FROM NOTHING: the rock let go and built whole at the
-// scene's own lens before a frame is read, so the order the scenes are drawn
-// in never moves a number. The ORDER CHECK proves it on every alpine run:
+// scene's own lens and the ground's shading baked before a frame is read,
+// and every frame READ drawn with no time passing (the sparkle, the woods'
+// sway and the wildlife run on the renderer's clock, which every earlier
+// frame moved on), so the order the scenes are drawn in never moves a
+// number. The shimmer is therefore the lens's alone, without the sparkle's
+// twinkle round 1 counted in. The ORDER CHECK proves it on every alpine run:
 // face-400 read first and again after everything else (the picture's change
 // and its shimmer both times), beside the shimmer read round 1's way — the
 // tiles as the approach left them — which is what moved.
@@ -409,6 +413,12 @@ for (const name of wantGroups) {
       `  approach 800→20 m: median change ${median.toFixed(2)}, worst ${worst.toFixed(2)} at ${at} m ` +
         `(pop ${(worst / median).toFixed(1)}×)`,
     );
+  }
+  if (checking && quick) {
+    // A shimmer read at another face between the two readings too: the
+    // full run's shimmer pass reads face-400 right after face-250's.
+    await page.evaluate(() => globalThis.__rocks.shimmer("face-250", 10, 0.02, true));
+    order.between.push("face-250's shimmer");
   }
   if (checking) {
     // Round 1's way, the tiles as the last lens left them, then the

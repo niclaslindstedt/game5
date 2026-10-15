@@ -13,7 +13,12 @@
 // stood far off the map for a frame, past every tile's keep, which lets
 // every tile and every tree's hand-over go) and then built whole at the
 // scene's own lens (`userData.rockSettle`), so what a scene reads is a pure
-// function of its lens.
+// function of its lens. The settle ends on the ground's shading baked
+// (`shadeSettled`) and every frame READ is drawn with no time passing
+// (`dt` 0, as the shimmer lab draws): the woods' sway, the snow's sparkle
+// and the wildlife run on the renderer's own clock, which every earlier
+// frame had moved on — so a reading taken with time passing hung on how
+// many frames came before it.
 //
 // Two hooks a candidate may hang on the `terrain` group, for rock drawn
 // inside the ground's own shader (not separable by hiding `rocks`):
@@ -66,7 +71,10 @@ export type Measures = ReturnType<typeof createMeasures>;
 
 export function createMeasures(
   renderer: WorldRendererExt,
+  /** A frame with a sixtieth of a second passing (what settles). */
   draw: () => void,
+  /** A frame with no time passing (what is read). */
+  still: () => void,
   bed: Level,
   ridden: Level,
 ) {
@@ -100,21 +108,24 @@ export function createMeasures(
   }
 
   /** Draw a frame at the lens, build every tile it owes whole
-   * (`rockSettle`) and draw twice more: the ms the rock spent building,
-   * off its own clock. */
-  function settle(): number {
+   * (`rockSettle`), draw three more, wait for the ground's shading to bake
+   * (`shadeSettled`) and draw once with no time passing: the ms the rock
+   * spent building, off its own clock. */
+  async function settle(): Promise<number> {
     const before = stats().buildMs;
     draw();
     (rocks()?.userData.rockSettle as (() => void) | undefined)?.();
-    for (let i = 0; i < 2; i++) draw();
+    for (let i = 0; i < 3; i++) draw();
+    await renderer.shadeSettled();
+    still();
     return stats().buildMs - before;
   }
 
   /** The lens stood from nothing: reset, then settled. */
-  function standAt(pose: LensPose): { settleMs: number; clean: boolean } {
+  async function standAt(pose: LensPose): Promise<{ settleMs: number; clean: boolean }> {
     const clean = reset();
     renderer.setOverride(pose);
-    return { settleMs: settle(), clean };
+    return { settleMs: await settle(), clean };
   }
 
   /** THE PHYSICS GAP at a lens: every drawn rock triangle within
@@ -231,9 +242,11 @@ export function createMeasures(
    * look for `frames` frames, every pixel's mean second difference of
    * brightness, ×1000 (the shimmer lab's FLICKER). Stood from nothing and
    * settled first (`fresh`, the default); without, it reads whatever the
-   * tiles held — round 1's way, kept to show the difference. */
-  function shimmer(pose: LensPose, frames: number, slide: number, fresh = true): number {
-    if (fresh) standAt(pose);
+   * tiles held — round 1's way, kept to show the difference. The frames
+   * read are drawn with no time passing, so only the lens moves (round 1
+   * let a sixtieth pass a frame, which counted the sparkle's twinkle in). */
+  async function shimmer(pose: LensPose, frames: number, slide: number, fresh = true) {
+    if (fresh) await standAt(pose);
     const dx = pose.target.x - pose.eye.x;
     const dz = pose.target.z - pose.eye.z;
     const l = Math.hypot(dx, dz) || 1;
@@ -243,7 +256,7 @@ export function createMeasures(
     for (let k = 0; k < frames; k++) {
       const eye = { ...pose.eye, x: pose.eye.x + sx * slide * k, z: pose.eye.z + sz * slide * k };
       renderer.setOverride({ ...pose, eye });
-      draw();
+      still();
       reads.push(sample());
     }
     let sum = 0;
@@ -260,13 +273,13 @@ export function createMeasures(
    * steps from nothing, each frame's mean change off the last (a POP is a
    * spike) — the rock built whole at every step, so only a cut swapping
    * shows. */
-  function approach(lens: (d: number) => LensPose, from: number, to: number, step: number) {
+  async function approach(lens: (d: number) => LensPose, from: number, to: number, step: number) {
     reset();
     const o: number[] = [];
     let last: Float32Array | null = null;
     for (let d = from; d >= to; d -= step) {
       renderer.setOverride(lens(d));
-      settle();
+      await settle();
       const now = sample();
       if (last) o.push(change(now, last));
       last = now;

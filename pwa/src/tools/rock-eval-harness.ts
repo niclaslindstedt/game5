@@ -82,6 +82,10 @@ export type SceneCost = {
   msGroundRockOff: number | null;
 };
 
+/** A scene stood: its note, the ms the rock spent building, whether the
+ * rock held nothing before it, and the physics gap at its lens. */
+type Shot = { note: string; settleMs: number; clean: boolean; gap: Gap | null };
+
 /** A scene's first reading, kept for the order check. */
 type Mark = { read: Float32Array; rockTriangles: number; heldTriangles: number };
 
@@ -98,17 +102,17 @@ declare global {
         rockReset: boolean;
       }>;
       scenes(): string[];
-      shoot(name: string): { note: string; settleMs: number; clean: boolean; gap: Gap | null };
+      shoot(name: string): Promise<Shot>;
       cost(frames: number): SceneCost;
       stats(): RockStats;
-      shimmer(name: string, frames: number, slide: number, fresh?: boolean): number;
-      approach(from: number, to: number, step: number): number[];
-      mark(name: string): void;
-      recheck(name: string): {
+      shimmer(name: string, frames: number, slide: number, fresh?: boolean): Promise<number>;
+      approach(from: number, to: number, step: number): Promise<number[]>;
+      mark(name: string): Promise<void>;
+      recheck(name: string): Promise<{
         change: number;
         rockTriangles: [number, number];
         heldTriangles: [number, number];
-      } | null;
+      } | null>;
     };
   }
 }
@@ -159,14 +163,17 @@ const level = state.level;
  * a body meets). */
 const bed: Level = level.bedrock ?? level;
 const ridden: Level = withRock(level);
+/** A frame with a sixtieth passing (what settles and what is timed), and
+ * one with none (what is read — `rock-eval-measure.ts`). */
 const still = () => renderer.draw(state, 0, FRAME, true);
+const frozen = () => renderer.draw(state, 0, 0, true);
 const lab = rockScenes(level, bed, ridden);
-const m = createMeasures(renderer, still, bed, ridden);
+const m = createMeasures(renderer, still, frozen, bed, ridden);
 
 const terrainHook = <T>(name: string): T | undefined =>
   renderer.group("terrain")?.userData[name] as T | undefined;
 
-function shoot(name: string): { note: string; settleMs: number; clean: boolean; gap: Gap | null } {
+async function shoot(name: string): Promise<Shot> {
   const scene = lab.scenes[name];
   if (!scene) throw new Error(`no scene "${name}" — known: ${Object.keys(lab.scenes).join(", ")}`);
   const pose = scene();
@@ -175,7 +182,7 @@ function shoot(name: string): { note: string; settleMs: number; clean: boolean; 
     renderer.setOverride(null);
     return { note: "none on this map", settleMs: 0, clean: true, gap: null };
   }
-  const { settleMs, clean } = m.standAt(pose);
+  const { settleMs, clean } = await m.standAt(pose);
   const note = lab.notes[name];
   label.textContent = `${name.toUpperCase()} · seed ${seed} · ${face ?? region ?? "alpine"}${summer ? " · summer" : ""} · ${hour}:00 ${weather} · ${note}`;
   return { note, settleMs, clean, gap: m.gap(pose.eye) };
@@ -261,13 +268,13 @@ function cost(frames: number): SceneCost {
 }
 
 /** THE SHIMMER of scene `name` (see `rock-eval-measure.ts`). */
-function shimmer(name: string, frames: number, slide: number, fresh = true): number {
+async function shimmer(name: string, frames: number, slide: number, fresh = true) {
   const pose = lab.scenes[name]?.();
   return pose ? m.shimmer(pose, frames, slide, fresh) : 0;
 }
 
 /** The approach at the rockiest face, the lens narrowing as it comes. */
-function approach(from: number, to: number, step: number): number[] {
+function approach(from: number, to: number, step: number): Promise<number[]> {
   return m.approach(
     (d) => lab.faceView(d, 6 + d * 0.03, Math.max(14, Math.min(60, 7000 / d))),
     from,
@@ -280,18 +287,18 @@ function approach(from: number, to: number, step: number): number[] {
  * (`recheck`), after other scenes: the mean change between the two
  * pictures (0..255 steps), and the rock drawn and held each time. */
 const marks = new Map<string, Mark>();
-function mark(name: string): void {
-  shoot(name);
+async function mark(name: string): Promise<void> {
+  await shoot(name);
   marks.set(name, {
     read: m.sample(),
     rockTriangles: renderer.sceneTally().find((s) => s.name === "rocks")?.triangles ?? 0,
     heldTriangles: m.stats().triangles,
   });
 }
-function recheck(name: string) {
+async function recheck(name: string) {
   const before = marks.get(name);
   if (!before) return null;
-  shoot(name);
+  await shoot(name);
   return {
     change: m.change(before.read, m.sample()),
     rockTriangles: [

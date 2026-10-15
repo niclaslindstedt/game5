@@ -30,7 +30,7 @@
 // — the width, the thinning, the puffs — is read by the shader off that.
 
 import {
-  airOn,
+  freeAirTempAt,
   frontAt,
   hasLid,
   weatherOf,
@@ -111,14 +111,7 @@ export const CONTRAIL = {
   wet: [1.03, 1.3] as const,
   /** The ice humidity of a flight outside the humid layer. */
   dry: [0.3, 0.97] as const,
-  /** THE AIR ALOFT (`airAloft`): the lapse, °C/km, the tropopause's height
-   * at 45° in the season's middle and how it moves, and the coldest the
-   * tropopause gets; the air mass a map is dealt, ± °C. */
-  lapse: 6.5,
-  tropopause: 10800,
-  tropoPerLatitude: 55,
-  tropoSeason: 700,
-  coldest: -62,
+  /** THE AIR MASS a map is dealt aloft (`airAloft`), ± °C. */
   airMass: 8,
   /** How many trails the dome draws at most. */
   most: 16,
@@ -146,11 +139,6 @@ const h = (seed: number, salt: number): number => cloudHash((seed ^ SALT) >>> 0,
 
 // --- THE AIR ALOFT ---------------------------------------------------------
 
-/** The day's air over the sea where the map is, °C, before the air mass. */
-function seaAir(level: Pick<Level, "sun" | "region">): number {
-  return airOn(level.sun.dayOfYear, level.sun.latitude, 0, level.region ?? "alpine");
-}
-
 /** A lab's hand on the air mass (°C), or null for the map's own. */
 let forcedMass: number | null = null;
 export function forceAirMass(next: number | null): void {
@@ -166,39 +154,20 @@ export function airMassOf(level: Pick<Level, "seed">): number {
   return (u * 2 - 1) * CONTRAIL.airMass;
 }
 
-/** The tropopause over the map, m over the sea: lower toward the pole and
- * in the winter, higher toward the tropics and in the summer. */
-export function tropopauseOf(level: Pick<Level, "sun">): number {
-  const lat = Math.abs(level.sun.latitude);
-  const coldest = level.sun.latitude < 0 ? 20 + 365 / 2 : 20;
-  const season = -Math.cos((TAU * (level.sun.dayOfYear - coldest)) / 365);
-  const hT =
-    CONTRAIL.tropopause - CONTRAIL.tropoPerLatitude * (lat - 45) + CONTRAIL.tropoSeason * season;
-  return Math.min(16000, Math.max(7500, hT));
-}
+/** What of a map the plan reads. */
+type PlanLevel = Pick<Level, "seed" | "sun" | "region" | "weather" | "front" | "mountain">;
 
 /**
  * THE FREE AIR'S TEMPERATURE at `altitude` m over the sea on `level` at
- * run time `t`, °C.
- *
- * THE ONE PLACE THE PLAN READS A TEMPERATURE. Until the engine has a model
- * of the air aloft this is a stand-in built here: the day's mean at the
- * sea (`lake-ice.ts`'s `airOn`) shifted by the map's dealt air mass,
- * falling `CONTRAIL.lapse` °C a kilometre to the tropopause and isothermal
- * over it. Swap the body for the engine's own (a free-air temperature at
- * an altitude and a moment) and every reader follows; `t` is in the
- * signature for that model's sake.
+ * run time `t`, °C — THE ONE PLACE THE PLAN READS A TEMPERATURE: the
+ * engine's free air (`freeAirTempAt`: the valley's day mean, the sky's
+ * offset and the TEMPERATURE knob's shift, falling 6.5 °C a kilometre to a
+ * tropopause set by the latitude and the season, isothermal over it), and
+ * the air mass the map is dealt aloft on top — the day-to-day swing of the
+ * upper air a mean cannot know.
  */
-export function airAloft(
-  level: Pick<Level, "seed" | "sun" | "region">,
-  t: number,
-  altitude: number,
-): number {
-  void t;
-  const top = tropopauseOf(level);
-  const sea = seaAir(level) + airMassOf(level);
-  const atTop = Math.max(CONTRAIL.coldest, sea - (CONTRAIL.lapse * top) / 1000);
-  return Math.max(atTop, sea - (CONTRAIL.lapse * Math.min(altitude, top)) / 1000);
+export function airAloft(level: PlanLevel, t: number, altitude: number): number {
+  return freeAirTempAt(level, t, altitude) + airMassOf(level);
 }
 
 /** The pressure at `altitude` m over the sea, hPa (the standard
@@ -298,8 +267,6 @@ function countIn(seed: number, k: number): number {
   }
   return 0;
 }
-
-type PlanLevel = Pick<Level, "seed" | "sun" | "region" | "weather" | "front">;
 
 /** THE FLIGHTS OF SLOT `k` (run seconds `k·slot` to `(k + 1)·slot`). */
 export function flightsOfSlot(level: PlanLevel, k: number): Flight[] {

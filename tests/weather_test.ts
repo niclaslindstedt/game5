@@ -232,15 +232,18 @@ describe("the sky under each weather", () => {
     expect(clear.glitter).toBe(1);
     expect(noon("fair").cloud.genus).toBe(1);
     expect(noon("high").cloud.genus).toBe(2);
-    // A flurry keeps the sun; a storm's deck is darker than an overcast's,
-    // and an overcast's darker than the snow under it.
+    // A flurry keeps the sun; a storm's sky is darker than an overcast's,
+    // and an overcast's deck darker than the snow under it — but a storm's
+    // deck is lost in its snow, so overhead it is the horizon's own grey,
+    // never a dark lid over a pale horizon.
     // (Over the map as a whole: the key is the cloud field's mean, and a
     // place in a gap between the heaps takes the sun whole — cloud-glsl.ts.)
     expect(noon("flurries").keyIntensity).toBeGreaterThan(clear.keyIntensity * 0.45);
     expect(noon("flurries").keyIntensity).toBeGreaterThan(noon("overcast").keyIntensity * 2);
     expect(noon("flurries").snowfall).toBeGreaterThan(0);
     const sum = (c: number[]) => c[0] + c[1] + c[2];
-    expect(sum(noon("storm").zenith)).toBeLessThan(sum(noon("overcast").zenith) * 0.5);
+    expect(sum(noon("storm").horizon)).toBeLessThan(sum(noon("overcast").horizon) * 0.7);
+    expect(sum(noon("storm").zenith)).toBeGreaterThan(sum(noon("storm").horizon) * 0.8);
     expect(sum(noon("overcast").zenith)).toBeLessThan(sum(noon("overcast").groundLight));
     expect(noon("storm").lamps).toBeGreaterThan(0.5);
   });

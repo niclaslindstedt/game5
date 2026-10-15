@@ -199,8 +199,10 @@ export type SkyLook = {
    * base, the halo, a fog's top from above; and how much of the field is
    * drawn at all (0 inside a valley fog, which hides it); and how much
    * each layer shades the snow (`shade`, one a layer of the field: 0 for a
-   * LOW DECK the eye stands over, whose shadow falls under it). */
-  clouds: CloudSky & { show: number; shade: number[] };
+   * LOW DECK the eye stands over, whose shadow falls under it); and the
+   * air under a lid the cloud is seen through (`murk`, 1/m past the clear
+   * day's — `cloud-glsl.ts`'s `uCloudVeil`). */
+  clouds: CloudSky & { show: number; shade: number[]; murk: number };
   /** THE LOW DECK OR VALLEY FOG round the mountain (`low-deck.ts`, read by
    * `skyLookAt` against the eye's height): its colour, its top's and its
    * base's world heights, m, and its density, 1/m (0: none — or the eye
@@ -407,6 +409,11 @@ const LID_HAZE = 1 / 1500;
 /** Koschmieder: the extinction that closes the view at a visual range V is
  * 3.912 / V. */
 const KOSCHMIEDER = 3.912;
+/** How high over the eye a lid's base hangs, m, for the snow that hides
+ * it; and the share of a lid's grey air a view up to the deck is through,
+ * the air thinning with height. */
+const DECK_OVER = 600;
+const MURK_LIFT = 0.25;
 
 /** The lens's altitude over the sea a look is reckoned at when none is
  * named, m: a generated mountain's middle. */
@@ -603,9 +610,14 @@ export function skyLookFor(
     const kind = weather.kind as keyof typeof DECK;
     const deck = DECK[kind];
     const light = (0.55 + 0.45 * high) * lightUp + 0.018 * night;
-    // A fall darkens the deck it comes out of.
+    // A fall darkens the deck it comes out of — and hides it: looking up
+    // through the snow driving between the eye and a deck some hundreds of
+    // metres over it, the eye sees the snow's own grey, the horizon's, all
+    // the way up (a blizzard's sky is one flat grey with the ground, not a
+    // dark lid over a pale horizon).
     const heavy = 1 - 0.3 * fall;
-    zenith = scale(deck.zenith, light * heavy);
+    const hidden = fall > 0 ? 1 - Math.exp((-DECK_OVER * KOSCHMIEDER) / visibilityIn(fall)) : 0;
+    zenith = scale(mix(deck.zenith, deck.horizon, 0.85 * hidden), light * heavy);
     horizon = scale(deck.horizon, light * heavy);
     glow = scale(glow, 0.12 + 0.3 * fog);
     // Under a deck there is no Earth's shadow to see: the low air is the
@@ -658,6 +670,16 @@ export function skyLookFor(
   if (weather.kind === "snow" || weather.kind === "storm") haze = LID_HAZE * 2.5;
   if (weather.kind === "fog") haze = LID_HAZE * (5 + 40 * fog);
   if (fall > 0) haze = Math.max(haze, KOSCHMIEDER / visibilityIn(fall));
+  // What of that the deck is seen through: the lid's grey air past the
+  // clear day's, thinned with height (`MURK_LIFT`), so a deck goes into the
+  // sky's own grey toward the horizon while its texture holds overhead —
+  // and the falling snow whole, so a storm's deck is lost in its snow.
+  const lidHaze = weather.kind === "overcast" ? LID_HAZE * 1.8 : LID_HAZE * 2.5;
+  const murk =
+    lidded && !inFog
+      ? Math.max(0, lidHaze - CLEAR_HAZE) * MURK_LIFT +
+        (fall > 0 ? KOSCHMIEDER / visibilityIn(fall) : 0)
+      : 0;
 
   // THE LIGHT ON EACH LAYER (`cloud-light.ts`): the sun through the air to
   // its own height, pressed as the dome is; the sky's on its shaded parts —
@@ -739,7 +761,7 @@ export function skyLookFor(
     hazeLift: fog > 0 ? 90 + 120 * (1 - fog) : 700,
     shadeLift: shadeLift(elevation),
     cloud: { genus: lid.genus, cover: lid.cover, lid: lidded ? 1 : 0 },
-    clouds: { ...clouds, show: inFog ? 0 : 1, shade: field.layers.map(() => 1) },
+    clouds: { ...clouds, show: inFog ? 0 : 1, shade: field.layers.map(() => 1), murk },
     sea: { colour: clouds.sea, sun: clouds.seaSun, top: 0, base: NO_BASE, k: 0 },
     night,
     stars: smooth(-1.6, 0, dark.starLimit) * clearNight,

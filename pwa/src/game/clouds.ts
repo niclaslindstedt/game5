@@ -90,6 +90,7 @@ function cloudUniforms() {
     uCloudOn: { value: new THREE.Vector4() },
     uCloudSea: { value: new THREE.Vector4() },
     uCloudSeaLevel: { value: 0 },
+    uCloudVeil: { value: 0 },
     /** The slab's picture (MEDIUM, HIGH): premultiplied, the share hidden. */
     uCloudTex: { value: null as THREE.Texture | null },
   };
@@ -363,6 +364,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       u.uCloudSea.value.set(...look.sea.colour, look.sea.k);
       u.uCloudOn.value.w = look.sea.top;
       u.uCloudSeaLevel.value = level?.mountain?.sea ?? 0;
+      u.uCloudVeil.value = look.clouds.murk;
       if (!gl) return;
       const before = gl.getRenderTarget();
       if (shadow && order.length > 0) draw(shadowMat, shadow);

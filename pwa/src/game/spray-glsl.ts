@@ -20,7 +20,6 @@ export const sprayVertex = (source: string): string => /* glsl */ `
       ${source}
       uniform float uScale;
       uniform float uShutter;
-      uniform float uStreak;
       ${AIR_LIGHT_VERTEX}
       varying vec2 vUv;
       varying float vAlpha;
@@ -49,7 +48,7 @@ export const sprayVertex = (source: string): string => /* glsl */ `
         }
         vec4 head = modelViewMatrix * vec4(world, 1.0);
         // The streak: where it was a shutter ago, a clump streaked less.
-        vec3 back = world - move * uShutter * uStreak * (1.0 - 0.75 * hard);
+        vec3 back = world - move * uShutter * (1.0 - 0.75 * hard);
         vec4 tail = modelViewMatrix * vec4(back, 1.0);
         float depth = max(-head.z, 0.1);
         // A clump is drawn a size smaller than it flies: what reads as a

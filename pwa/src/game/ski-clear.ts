@@ -16,7 +16,9 @@
 // wide, so the triangles that span the ski all hinge down to it). The line
 // is the drawn ski's own base — five stations read off its mesh, tip to tail
 // — so a rockered tip in the air lowers nothing and a ski in flight none.
-// The player's alone: his are the skis the lens is on.
+// The player's skis and the two nearest rivals' (`RIVALS`) are let down —
+// a rival skiing past the lens sank as the player's did — and the narrow
+// groove drawn under them in the fragment stage is the player's alone.
 
 import * as THREE from "three";
 
@@ -25,6 +27,14 @@ const STATIONS = [0.03, 0.14, 0.5, 0.86, 0.97];
 /** Points a ski carries in the uniform (`uSkiLine`), and skis. */
 export const SKI_POINTS = STATIONS.length;
 export const SKI_LINES = 2;
+/** The rivals nearest the lens whose skis are let down too, and how near
+ * one must be, m: past it a ski is a few pixels and its base's centimetres
+ * read as nothing. */
+export const RIVALS = 2;
+const RIVAL_REACH = 80;
+/** A ski's reach from its middle station to its ends, m, and more: the
+ * rivals' loop skips a ski whose middle is further than this from a vertex. */
+const SKI_HALF = 1.3;
 
 /** How far under the base the snow is let down, m: the base's own
  * thickness of clearance, so depth never fights at the base. */
@@ -36,25 +46,39 @@ uniform vec4 uSkiLine[${SKI_LINES * SKI_POINTS}];
 uniform float uSkiClear;
 `;
 
+/** The rivals' bases, the vertex stage's alone. */
+const RIVAL_LINE_PARS = /* glsl */ `
+uniform vec4 uRivalLine[${RIVALS * SKI_LINES * SKI_POINTS}];
+`;
+
 /** The GLSL: `skiClear(p, y)` is `y` let down under any of the player's
- * bases within reach of `p`. Read in the ground's vertex stage after the
+ * bases within reach of `p`, and any of the nearest rivals'. Read in the ground's vertex stage after the
  * surface's height is summed. Within the base's half-width and one grid step
  * every vertex goes down to the base, so the triangles spanning the ski all
  * hinge under it — and no further: the cut's walls are the grid's own one
  * step (easing them over a second step was tried, and the chase lens saw
  * the base stand twice as far over the dip it widened), and the groove is
  * drawn in the fragment stage (`SKI_GROOVE_GLSL`). */
-export const SKI_CLEAR_GLSL = /* glsl */ `${SKI_LINE_PARS}
+export const SKI_CLEAR_GLSL = /* glsl */ `${SKI_LINE_PARS}${RIVAL_LINE_PARS}
+float skiCut(vec4 a, vec4 b, vec2 p, float y, float reach) {
+  vec2 ab = b.xz - a.xz;
+  float t = clamp(dot(p - a.xz, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
+  float d = distance(p, a.xz + ab * t);
+  return d <= mix(a.w, b.w, t) + reach ? min(y, mix(a.y, b.y, t) - ${CLEAR.toFixed(3)}) : y;
+}
 float skiClear(vec2 p, float y, float reach) {
-  if (uSkiClear < 0.5) return y;
-  for (int s = 0; s < ${SKI_LINES}; s++) {
+  if (uSkiClear > 0.5) {
+    for (int s = 0; s < ${SKI_LINES}; s++) {
+      for (int k = 0; k < ${SKI_POINTS - 1}; k++) {
+        y = skiCut(uSkiLine[s * ${SKI_POINTS} + k], uSkiLine[s * ${SKI_POINTS} + k + 1], p, y, reach);
+      }
+    }
+  }
+  for (int s = 0; s < ${RIVALS * SKI_LINES}; s++) {
+    // Most vertices are nowhere near a rival's ski: one test by its middle.
+    if (distance(p, uRivalLine[s * ${SKI_POINTS} + ${SKI_POINTS >> 1}].xz) > ${SKI_HALF.toFixed(1)} + reach) continue;
     for (int k = 0; k < ${SKI_POINTS - 1}; k++) {
-      vec4 a = uSkiLine[s * ${SKI_POINTS} + k];
-      vec4 b = uSkiLine[s * ${SKI_POINTS} + k + 1];
-      vec2 ab = b.xz - a.xz;
-      float t = clamp(dot(p - a.xz, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
-      float d = distance(p, a.xz + ab * t);
-      if (d <= mix(a.w, b.w, t) + reach) y = min(y, mix(a.y, b.y, t) - ${CLEAR.toFixed(3)});
+      y = skiCut(uRivalLine[s * ${SKI_POINTS} + k], uRivalLine[s * ${SKI_POINTS} + k + 1], p, y, reach);
     }
   }
   return y;
@@ -104,7 +128,12 @@ vec3 skiGroove(vec2 p, float y) {
 export type SkiClearUniforms = {
   uSkiLine: { value: THREE.Vector4[] };
   uSkiClear: { value: number };
+  uRivalLine: { value: THREE.Vector4[] };
 };
+
+/** Where a ski not read is put: far off the map, so the rivals' loop
+ * skips it at its first test. */
+const AWAY = 1e9;
 
 export function skiClearUniforms(): SkiClearUniforms {
   return {
@@ -112,6 +141,12 @@ export function skiClearUniforms(): SkiClearUniforms {
       value: Array.from({ length: SKI_LINES * SKI_POINTS }, () => new THREE.Vector4()),
     },
     uSkiClear: { value: 0 },
+    uRivalLine: {
+      value: Array.from(
+        { length: RIVALS * SKI_LINES * SKI_POINTS },
+        () => new THREE.Vector4(AWAY, 0, AWAY, -1e6),
+      ),
+    },
   };
 }
 
@@ -152,40 +187,80 @@ export type SkiClear = {
    * `riding` false (stood still, lying) draws no groove under them — a
    * groove is what a ski moving through the snow presses. */
   update(bases: readonly THREE.Mesh[], on: boolean, riding?: boolean): void;
+  /** Read the nearest rivals' drawn bases within reach of `eye` (`riders`
+   * past the first, the player's own) — none when `on` is false. A rival's
+   * ski in the air stands over the snow and lowers nothing, so a rival on a
+   * lift or thrown needs no flag of his own. */
+  rivals(riders: readonly RiderBases[], eye: THREE.Vector3, on: boolean): void;
 };
+
+/** What the clamp reads of a rider: his drawn bases. */
+export type RiderBases = { readonly model: { readonly bases: readonly THREE.Mesh[] } };
 
 export function createSkiClear(uniforms: SkiClearUniforms): SkiClear {
   const local = new WeakMap<THREE.BufferGeometry, THREE.Vector4[]>();
   const p = new THREE.Vector3();
   const side = new THREE.Vector3();
+  const near = Array.from({ length: RIVALS }, () => ({ i: -1, d: 0 }));
+
+  /** Read the drawn bases of `bases` into `into` from line `n` up to line
+   * `room`; how many lines are filled after. */
+  function read(bases: readonly THREE.Mesh[], into: THREE.Vector4[], n: number, room: number) {
+    for (const mesh of bases) {
+      if (n >= room) break;
+      if (!drawn(mesh)) continue;
+      let stations = local.get(mesh.geometry);
+      if (!stations) {
+        stations = stationsOf(mesh.geometry);
+        local.set(mesh.geometry, stations);
+      }
+      mesh.updateWorldMatrix(true, false);
+      // The half-width in the world, off the mesh's own scale.
+      const scale = side.setFromMatrixColumn(mesh.matrixWorld, 0).length();
+      for (let k = 0; k < SKI_POINTS; k++) {
+        const s = stations[k];
+        p.set(s.x, s.y, s.z).applyMatrix4(mesh.matrixWorld);
+        into[n * SKI_POINTS + k].set(p.x, p.y, p.z, s.w * scale);
+      }
+      n++;
+    }
+    return n;
+  }
+
   return {
     update(bases, on, riding = on) {
-      let n = 0;
-      if (on) {
-        for (const mesh of bases) {
-          if (n >= SKI_LINES) break;
-          if (!drawn(mesh)) continue;
-          let stations = local.get(mesh.geometry);
-          if (!stations) {
-            stations = stationsOf(mesh.geometry);
-            local.set(mesh.geometry, stations);
-          }
-          mesh.updateWorldMatrix(true, false);
-          for (let k = 0; k < SKI_POINTS; k++) {
-            const s = stations[k];
-            p.set(s.x, s.y, s.z).applyMatrix4(mesh.matrixWorld);
-            // The half-width in the world, off the mesh's own scale.
-            const scale = side.setFromMatrixColumn(mesh.matrixWorld, 0).length();
-            uniforms.uSkiLine.value[n * SKI_POINTS + k].set(p.x, p.y, p.z, s.w * scale);
-          }
-          n++;
-        }
-      }
+      const n = on ? read(bases, uniforms.uSkiLine.value, 0, SKI_LINES) : 0;
       // A ski not read has no reach, and clears nothing.
       for (let s = n; s < SKI_LINES; s++)
         for (let k = 0; k < SKI_POINTS; k++)
           uniforms.uSkiLine.value[s * SKI_POINTS + k].set(0, 0, 0, -1e6);
       uniforms.uSkiClear.value = n > 0 ? (riding ? 2 : 1) : 0;
+    },
+    rivals(riders, eye, on) {
+      for (const slot of near) slot.i = -1;
+      // The nearest RIVALS within reach, by the first base's place: each
+      // taken into an empty slot, or over the furthest kept.
+      for (let i = 1; on && i < riders.length; i++) {
+        const base = riders[i].model.bases[0];
+        if (!base || !drawn(base)) continue;
+        base.getWorldPosition(p);
+        const d = Math.hypot(p.x - eye.x, p.z - eye.z);
+        if (d > RIVAL_REACH) continue;
+        let slot = near[0];
+        for (const k of near) if (k.i < 0 || (slot.i >= 0 && k.d > slot.d)) slot = k;
+        if (slot.i < 0 || d < slot.d) {
+          slot.i = i;
+          slot.d = d;
+        }
+      }
+      let n = 0;
+      for (const slot of near) {
+        if (slot.i >= 0)
+          n = read(riders[slot.i].model.bases, uniforms.uRivalLine.value, n, n + SKI_LINES);
+      }
+      for (let s = n; s < RIVALS * SKI_LINES; s++)
+        for (let k = 0; k < SKI_POINTS; k++)
+          uniforms.uRivalLine.value[s * SKI_POINTS + k].set(AWAY, 0, AWAY, -1e6);
     },
   };
 }

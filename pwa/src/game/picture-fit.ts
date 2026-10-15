@@ -97,8 +97,18 @@ export const FLOOR_MS = 3.81;
  *   CPU's spray time fell by a third to two thirds and its upload by seven
  *   eighths under the snow lab's software GPU, while the vertex stage flies
  *   a ring half as large again as the pool. The prices below were measured
- *   with the CPU's flight; a `make bench ARGS="--gpu --costs"` on a real GPU
- *   is owed to re-price the row.
+ *   with the old counted spray on the CPU's flight, which drew some 70, 130
+ *   and 200 grains at LOW, MEDIUM and HIGH through a hockey stop; the
+ *   weighed spray draws some 3,150, 5,850 and 9,000 there (the snow lab's
+ *   perf rows), each a cheap streak on the GPU. Kept as they were — the
+ *   software renderer's frame times are too noisy to price a row by — and
+ *   OWED A GPU RE-PRICE (`make bench ARGS="--gpu --costs"`).
+ * The TRAILS prices stand for the snow kept under the skis too: the
+ *   player's and the two nearest rivals' bases let the ground down in the
+ *   vertex stage at every stop (`ski-clear.ts`, a few dozen vector ops a
+ *   vertex, no texture read), and OFF and LOW draw the bases' own groove in
+ *   the fragment stage — too small to price apart, and OWED A GPU RE-PRICE
+ *   with the row.
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
  * the lower stops give up, and LOW the snow's glitter in the beams. The

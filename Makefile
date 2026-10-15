@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -549,17 +549,6 @@ cloud-metrics:
 spray-metrics:
 	npm run spray-metrics -- $(ARGS)
 
-# THE SPRAY EVAL: which way of flying the spray is best — the four models
-# spray-sim.ts carries (puff, streak, drag, sheet) flown through the same
-# carves, skids and stops on the groomer and in powder, each scored against
-# what a real turn throws (which way, how fast, how high and far, how a
-# carve's compares with a skid's, how the fines hang, how thin the curtain,
-# how a grain is drawn, the cost) — and the game's model through a stop on
-# every age of snow at three depths. Pure Node, seconds.
-# ARGS="--models=drag,sheet", "--detail=sheet" (run by run), "--ages".
-spray-eval:
-	npm run spray-eval -- $(ARGS)
-
 # THE SNOW EVAL LAB: the snow a skier and a snowboarder throw and leave on
 # fixed scenes — a carve on the groomer, a hockey stop on skis, a board's
 # heelside and toeside stops, a powder turn, a fall's crater in powder, the
@@ -570,8 +559,7 @@ spray-eval:
 # was when each bit left: film.png, film.json); and what the spray and the cloud cost at the
 # LOW, MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
 # perf.json. ARGS="--scenes=hockey,board-heel", "--lights=low,overcast,night",
-# "--film=day,low" ("none" skips it), "--no-sheet", "--model=sheet" (another
-# spray model, the before), "--no-perf", "--out=DIR"; "--under=all" the skis
+# "--film=day,low" ("none" skips it), "--no-sheet", "--no-perf", "--out=DIR"; "--under=all" the skis
 # measured against the drawn snow at every TERRAIN, RESOLUTION and TRAILS stop
 # (under.png, under.json), "--deform-perf" the deformable snow's cost by
 # TRAILS stop (deform-perf.json), "--no-deform" the trail map alone.
@@ -582,8 +570,9 @@ snow-eval:
 # throws off groomed, hard, icy, wet, soft and new snow, how deep the edge
 # cut, how high and far it flew and which way it left (way° off the travel,
 # rise° over the snow, the share thrown out ahead of him), each row held to
-# the band a real one sits in (spray-mass.ts). Pure Node, seconds. ARGS="--rows=stop/ice",
-# "--json=a.json" / "--compare=a.json".
+# the band a real one sits in (spray-mass.ts) — and with ARGS=--ages the same
+# stop in loose snow of every age at three depths. Pure Node, seconds.
+# ARGS="--rows=stop/ice", "--json=a.json" / "--compare=a.json", "--ages".
 snow-mass:
 	npm run snow-mass -- $(ARGS)
 
@@ -594,7 +583,7 @@ snow-mass:
 # meadow's powder: previews/turns-<seed>[-lynx]-close.png and -chase.png
 # (the meadow's written over the piste's — WHERE=meadow alone for those).
 # SEED=n; WHERE=piste|meadow; ARGS="--speeds=30,60 --times=0.5,1";
-# ARGS="--spray=puff" another model, "--age=wet" a snow age, "--depth=2".
+# ARGS="--age=wet" a snow age, "--depth=2".
 spray:
 	for pair in chamois lynx; do npm run turns -- --skis=$$pair --where=$(or $(WHERE),piste) --moves=carve,skid,stop --speeds=45 --times=0.6,1,1.4 --views=close,chase --width=480 --height=320 $(if $(SEED),--seed $(SEED),) $(ARGS) || exit 1; done
 

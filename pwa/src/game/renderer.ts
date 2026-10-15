@@ -730,6 +730,7 @@ export function createWorldRenderer(
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
       deform.update(skier, !hidden.has("trail"));
       skiClear.update(riders[0].model.bases, !skier.thrown && !summer(), skier.speed > 1);
+      skiClear.rivals(riders, eye, !summer());
       // THE NEW SNOW: it settles into every trail and buries the groomer.
       if (state.fresh > filled && !hidden.has("trail")) {
         trail.fill(gl, state.fresh - filled);

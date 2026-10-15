@@ -1,6 +1,6 @@
 ---
 name: snow-look
-description: "Use when working on how the SNOW LOOKS — the snow as DRAWN rather than as simulated: the terrain's shader (`snow-glsl.ts` grafted into a MeshStandardMaterial by `terrain.ts`), the ground read per pixel off the gradient texture, the wrap lighting and its blue terminator, the GLITTER (world-space crystal facets flaring when they line the sun up with the eye), the sheen at a grazing angle, the GROOMED PISTE (greyer, shinier, the comb's corduroy along it), the rock and the crust the region paints, the forest tint past the far band, and the DEFORMATION — the world-space trail map every skier's stations are stamped into (`trail-stamp.ts` decides each capsule, `trail-map.ts` keeps the coarse and fine maps), lowering the snow in the vertex shader and bending the normal per pixel. Not what the snow DOES to the skis (`ski-physics` — `snow.ts` is the engine's), not the sky it is lit by (`atmosphere`), not the spray in the air (`visual-effects`)."
+description: "Use when working on how the SNOW LOOKS — the snow as DRAWN rather than as simulated: the terrain's shader (`snow-glsl.ts` grafted into a MeshStandardMaterial by `terrain.ts`), the ground read per pixel off the gradient texture, the wrap lighting and its blue terminator, the GLITTER (world-space crystal facets flaring when they line the sun up with the eye), the sheen at a grazing angle, the GROOMED PISTE (greyer, shinier, the comb's corduroy along it), the rock and the crust the region paints, the forest tint past the far band, and the DEFORMATION — the world-space trail map every skier's stations are stamped into (`trail-stamp.ts` decides each capsule, `trail-map.ts` keeps the coarse and fine maps), lowering the snow in the vertex shader and bending the normal per pixel — and, at TRAILS MEDIUM and HIGH, the DEFORMABLE SNOW round the player (a 5 cm height field pressed, dug by the spray's own snow, slumped into craters and berms, self-shadowed), and the ground let down under the skiers' bases at every stop (`ski-clear.ts`). Not what the snow DOES to the skis (`ski-physics` — `snow.ts` is the engine's), not the sky it is lit by (`atmosphere`), not the spray in the air (`visual-effects`)."
 ---
 
 # The snow's look — the snow as drawn
@@ -11,8 +11,10 @@ what an edge holds in it; this skill owns everything between the generator's
 heightfield and the pixel: the light on it, the grain of the groomed piste,
 the glitter, and the tracks every skier leaves. The one rule under all of it:
 **nothing here moves the ground the physics skis.** A vertex is the
-generator's own height, lowered only by the trail map, and everything else
-this skill does happens to the LIGHT.
+generator's own height, lowered only by the trail map, the deformable
+field round the player and the clamp under the skis — all presentation,
+none of it read back by the engine — and everything else this skill does
+happens to the LIGHT.
 
 **Read this skill's lessons first** — `npx ogf-skill-lessons
 snow-look --list`. Load **`skill-reflection`** at both ends of the session
@@ -41,7 +43,7 @@ and **`write-code`** beside this one.
 | `pwa/src/game/snow-age.ts` | HOW OLD THE LOOSE SNOW IS (three-free): the days since the last fall dealt off the map's seed and its sky (none under a falling sky), and what they leave — `fresh` and `old`, the `wind`'s slab, a sun `crust` on the faces the NOON sun stands on, surface `hoar` in the shade, the high sun's `wet` — carried as `Snowpack.age` and written into `uSnowAge` / `uSnowAge2` by `haze.ts`'s `setRunSnow`; a lab forces one (`renderer.setSnow(null, age)`) |
 | `pwa/src/game/trail-map.ts` | THE TRAIL MAP, on the GPU in world space: a COARSE map over the whole mountain (every stamp of every skier, for the life of the run — a rival's track across the face is still there when the player comes down it) and a FINE window round the player at a few centimetres a texel, moved when he skis off its centre (the old window copied, the new edge filled from the coarse map). Each stamp an instanced quad with MAX blending: a groove skied twice is as deep as the deeper, and a windrow never fills a trough. `TRAIL_GLSL`'s `trailAt` is the one decoder |
 | `pwa/src/game/deform-field.ts`, `deform-snow.ts`, `renderer-deform.ts`, `deform-glsl.ts` | THE DEFORMABLE SNOW round the player at TRAILS MEDIUM and HIGH: a 5 cm height field in a ring (pressed by the same stamps, compacted or heaped, never made or lost; slumped to the snow's repose along a ragged line; dug by the spray's own takes — `snow-takes.ts`, one snow budget), drawn as a patch mesh of its own (`terrain-deform`) and self-shadowed by a march toward the key whose length is the TRAILS stop's (`uDeformMarch`). OFF and LOW keep the trail map alone; `tests/deform_field_test.ts` |
-| `pwa/src/game/ski-clear.ts` | THE SNOW KEPT UNDER THE PLAYER'S SKIS: the ground's vertex stage lets the mesh down under his posed bases within a grid step of their line, so the low-passed furrow never stands over a ski at any spacing; its `SKI_GROOVE_GLSL` (read by `snow-trail-glsl.ts`) draws the dip as the base's own narrow pressed groove where the trail map holds none (TRAILS off and low); with `drawnDepth`'s floor (the sink plus the loose cover) it is what `make snow-eval ARGS=--under=all` and `tests/skis_under_test.ts` hold |
+| `pwa/src/game/ski-clear.ts` | THE SNOW KEPT UNDER THE SKIS: the ground's vertex stage lets the mesh down under the player's posed bases and the two nearest rivals' within 80 m of the lens (`RIVALS`, vertex-only uniforms — no texture) within a grid step of their line, so the low-passed furrow never stands over a ski at any spacing; its `SKI_GROOVE_GLSL` (read by `snow-trail-glsl.ts`) draws the dip as the player's base's own narrow pressed groove where the trail map holds none (TRAILS off and low); with `drawnDepth`'s floor (the sink plus the loose cover) it is what `make snow-eval ARGS=--under=all` and `tests/skis_under_test.ts` hold |
 | `pwa/src/game/renderer.ts` | Stamps every skier's stations each frame (even with `present` off, so a fast-forward still cuts its tracks) and hands the terrain the trail uniforms |
 | `pwa/src/identity.ts` | `PALETTE.snow`, `snowShadow`, `track` — the colours the shader is keyed on |
 
@@ -87,6 +89,25 @@ and in a metre of fresh, each photographed from below, from above and close
 at a skier's knee (`bands`), under a low sun (`low`) and by the headlamp
 (`night`). Judge the three side by side — they must read as three different
 things, not one line at three strengths.
+
+**The snow lab's bench**, `make snow-eval`, films the same scenes at every
+light (`--lights=low,overcast,night`): the crater and the berm in the
+deformable field, the trench, the groomer, the skis against the drawn snow
+(`--under=all`: every TRAILS, TERRAIN and RESOLUTION stop, the worst
+millimetres a base is under the snow from the chase lens — the table must
+read zero) and what the field costs (`--deform-perf`).
+
+**The TRAILS row is the snow's tiers**, so judge a change at each:
+
+| Stop | The snow behind a skier |
+| --- | --- |
+| OFF | no trail map; the player's bases draw their own narrow groove (`SKI_GROOVE_GLSL`) |
+| LOW | the coarse map only, and the same base groove |
+| MEDIUM | the fine window too, and the deformable field 4.8 m round the player, its self-shadow marched 7 steps |
+| HIGH | the field 6 m round him, marched 14 steps |
+
+At every stop the ground is let down under the player's and the two nearest
+rivals' bases.
 
 Then the built app: `make build`, `make screenshots` at every viewport.
 `make profile` before and after anything that adds a pass, a texture read or a
@@ -166,7 +187,20 @@ of the frame.
   the sink plus that cover, or a groove narrower than a grid cell, buries
   the skis at speed. Fix it in the SURFACE (the furrow's floor, the mesh let
   down under the bases), never by raising the skier; measure it from the
-  chase lens with `make snow-eval ARGS=--under=all`.
+  chase lens with `make snow-eval ARGS=--under=all`. The rivals' skis are
+  held the same way (the nearest two), so a rival close past the lens is
+  never drawn wading.
+- **A slumped wall breaks in LUMPS, not cells.** The deformable field's
+  repose is jittered so a crater's wall does not slide as one cone, but a
+  jitter drawn per cell slumps each column on its own and the wall reads
+  as vertical ribs; the jitter is mostly a value noise over ~30 cm
+  (`DEFORM.jitterCell`) with a little of the cell's own (`jitterOwn`).
+  Judge it on the snow lab's `crater` at a low sun.
+- **No new sampler in the terrain's fragment stage.** It already reads
+  sixteen with shadows on (the iPhone's limit): a new term reads a texture
+  the stage already binds, or rides the vertex stage, or packs into a
+  channel that is free. Count them (a linked program's active samplers)
+  before and after a change to the snow shader.
 - **A stamp is continuous and a reset is not a track.** Capsules from the
   last touch to this one, broken on a jump past `TRAIL.jump` — a reset that
   drew a groove across the map is `world_render_test`'s case.

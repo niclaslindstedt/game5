@@ -31,6 +31,7 @@
 import { onAnyCliff, rockShare, type Level } from "@engine";
 import * as THREE from "three";
 
+import type { Hideable } from "../game/benchmark-report.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import type { WorldRendererExt } from "../game/renderer-api.ts";
 
@@ -67,6 +68,10 @@ export const GAP_REACH = 250;
 /** And this is NEAR — what a skier is close enough to touch soon, m. */
 export const NEAR_REACH = 50;
 
+/** Hidden while the shimmer is read: what floats in the air on a clock of
+ * its own, never the rock or what it stands among. */
+const AIRBORNE: Hideable[] = ["snowfall", "spray", "cloud", "wildlife"];
+
 export type Measures = ReturnType<typeof createMeasures>;
 
 export function createMeasures(
@@ -102,21 +107,24 @@ export function createMeasures(
         fov: 60,
         roll: 0,
       });
-      draw();
+      for (let i = 0; i < 3; i++) draw();
     }
     return stats().triangles === 0;
   }
 
   /** Draw a frame at the lens, build every tile it owes whole
-   * (`rockSettle`), draw three more, wait for the ground's shading to bake
-   * (`shadeSettled`) and draw once with no time passing: the ms the rock
-   * spent building, off its own clock. */
+   * (`rockSettle`), draw five more, wait for the ground's shading to bake
+   * (`shadeSettled`), draw once more and once with no time passing: the ms
+   * the rock spent building, off its own clock. (Three frames here and one
+   * far off in `reset` left the face-400 shimmer reading 0.14 after one
+   * lens and 0.13 after another; these read 0.12 both ways.) */
   async function settle(): Promise<number> {
     const before = stats().buildMs;
     draw();
     (rocks()?.userData.rockSettle as (() => void) | undefined)?.();
-    for (let i = 0; i < 3; i++) draw();
+    for (let i = 0; i < 5; i++) draw();
     await renderer.shadeSettled();
+    draw();
     still();
     return stats().buildMs - before;
   }
@@ -244,7 +252,11 @@ export function createMeasures(
    * settled first (`fresh`, the default); without, it reads whatever the
    * tiles held — round 1's way, kept to show the difference. The frames
    * read are drawn with no time passing, so only the lens moves (round 1
-   * let a sixtieth pass a frame, which counted the sparkle's twinkle in). */
+   * let a sixtieth pass a frame, which counted the sparkle's twinkle in),
+   * and with what floats in the air hidden (`AIRBORNE`): the falling
+   * crystals, the spray and its cloud run on clocks of their own that every
+   * earlier frame moved on — with them shown the same face read 0.135,
+   * 0.148, 0.153 and 0.163 four times running; hidden, 0.1195 each time. */
   async function shimmer(pose: LensPose, frames: number, slide: number, fresh = true) {
     if (fresh) await standAt(pose);
     const dx = pose.target.x - pose.eye.x;
@@ -253,12 +265,14 @@ export function createMeasures(
     const sx = dz / l;
     const sz = -dx / l;
     const reads: Float32Array[] = [];
+    renderer.setHidden(AIRBORNE);
     for (let k = 0; k < frames; k++) {
       const eye = { ...pose.eye, x: pose.eye.x + sx * slide * k, z: pose.eye.z + sz * slide * k };
       renderer.setOverride({ ...pose, eye });
       still();
       reads.push(sample());
     }
+    renderer.setHidden([]);
     let sum = 0;
     let n = 0;
     for (let k = 1; k + 1 < reads.length; k++)

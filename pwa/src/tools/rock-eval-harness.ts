@@ -313,8 +313,17 @@ const t0 = performance.now();
 window.__rocks = {
   ready: renderer.load(state).then(async () => {
     await volumeNoise();
+    const loadMs = performance.now() - t0;
+    // One scene stood and let go before any is read: the page's first
+    // stand reads apart from every later one (face-400's shimmer 0.146
+    // first, 0.131 every time after, whatever came between).
+    const first = Object.values(lab.scenes)
+      .map((s) => s())
+      .find((p) => p);
+    if (first) await m.standAt(first);
+    m.reset();
     return {
-      loadMs: performance.now() - t0,
+      loadMs,
       rockCells: lab.rockCells,
       cliffs: cliffWalls(level).length,
       stats: m.stats(),

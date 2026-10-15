@@ -105,7 +105,7 @@ and the bike's stick (`anim-families.mjs`'s `bikeSticks`).
    (`snow`, `air`, `thrown`, `bike`, `afoot`, `lift …`), the filmstrip's
    moments as grey lines and every snap as a red line down all of them:
    - joint angles in four groups (legs: knee, hip, ankle; arms: elbow,
-     shoulder, wrist; trunk: pitch, roll, the shoulders' twist over the
+     shoulder, elbow out (the upper arm off to his side), wrist; trunk: pitch, roll, the shoulders' twist over the
      hips, the hips' yaw; head: pitch, yaw, off the chest, and the hips'
      height over the boots);
    - the angles' acceleration, |deg/s²| on a log scale, the red line the
@@ -125,6 +125,7 @@ and the bike's stick (`anim-families.mjs`'s `bikeSticks`).
 | **stretch** | a held limb's length off its middle (thigh, shin, foot, upper arm, forearm, head) | 3 % (`--stretch-most`) | an IK target out of reach, a rig scaled, a bone fed the wrong parent |
 | **clip** | knees or boots closer than 7 cm, a hand or elbow within 9 cm of the spine's segment | any | a limb through another or the trunk |
 | **jerk rms** | the joints' third difference, m/s³ | none | a reading: the smoother the lower — compare it before and after a change to the same scene |
+| **elbow°** | how far out to his side the elbows ride: the 90th percentile over the scene of the wider upper arm's angle off the trunk's plane, deg | none | a reading: elbows tucked to the ribs read 15–35 working the poles, wings held out 70+ |
 
 A scene is CLEAN when it has no snap, no pop, no angle snap, no stretched
 limb and no clip. Some scenes are not meant to be clean — a wipeout's throw

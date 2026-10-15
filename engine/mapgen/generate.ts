@@ -80,8 +80,8 @@ import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./tra
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 import { chooseCourse } from "./course-gates.ts";
-import { attemptBegun, reached, reportingTo } from "./progress.ts";
-import { buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { attemptAlone, attemptBegun, reached, reportingTo } from "./progress.ts";
+import { attemptOrder, buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
 import { laySkiRoutes, type RouteStyle } from "./ski-routes.ts";
 import { fellOnRoutes, layRouteJumps } from "./route-features.ts";
 import { resortCached } from "./resort-cache.ts";
@@ -256,8 +256,9 @@ function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
   const region = regionRow(opts.region);
   const grade = UNGRADED;
   const reasons: string[] = [];
-  for (let a = 0; a < attempts; a++) {
-    attemptBegun(a);
+  for (const a of attemptOrder(attempts, opts.only)) {
+    if (opts.only === undefined) attemptBegun(a);
+    else attemptAlone();
     const built = attemptLevel(seed, a, laps, version, opts.tricks === true, region, grade);
     if (typeof built === "string") {
       reasons.push(`#${a}: ${built}`);
@@ -278,7 +279,7 @@ function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
 /** The attempts a map is searched over: a real face's more
  * (`RR.massif.real.attempts`), since its later ones give the dealt peak,
  * valley and stations back. */
-function attemptsOf(opts: GenerateOptions): number {
+export function attemptsOf(opts: GenerateOptions): number {
   return opts.attempts ?? (opts.face ? RESORT_RULES.massif.real.attempts : 16);
 }
 
@@ -287,7 +288,7 @@ function attemptsOf(opts: GenerateOptions): number {
  * stood up in milliseconds rather than a mountain raised in seconds. */
 export function levelIsCached(seed: number, opts: GenerateOptions = {}): boolean {
   const traits = generatorTraits(opts.version);
-  if (traits.singlePiste) return false;
+  if (traits.singlePiste || opts.only !== undefined) return false;
   const face = opts.face ? realFaceRegion(opts.face) : null;
   return resortCached(
     seed,
@@ -328,7 +329,16 @@ function generateResortLevel(
     });
     return b.courses.length > 0 ? null : "no course down the network stands";
   };
-  const built = buildResort(seed, opts.region, attempts, subSeed, accept, version, opts.face);
+  const built = buildResort(
+    seed,
+    opts.region,
+    attempts,
+    subSeed,
+    accept,
+    version,
+    opts.face,
+    opts.only,
+  );
   // R42 — the ski routes, found on the finished mountain; a version from
   // before them marks none.
   // A wild route fells the trunks on its line and cuts its jumps into the

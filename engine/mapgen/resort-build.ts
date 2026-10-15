@@ -43,7 +43,7 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import { layCliffs } from "./cliffs.ts";
-import { attemptBegun, partway, reached } from "./progress.ts";
+import { attemptAlone, attemptBegun, partway, reached } from "./progress.ts";
 import { composeCourse, courseArc, type CoursePlan } from "./courses.ts";
 import { dealDrifts } from "./drift.ts";
 import { layDrops, publishDrops } from "./drops.ts";
@@ -887,6 +887,13 @@ export function attemptResort(
   };
 }
 
+/** The attempts a search tries, in turn: every one, or the one asked for
+ * alone (`GenerateOptions.only`). */
+export function attemptOrder(attempts: number, only?: number): number[] {
+  if (only !== undefined) return only >= 0 && only < attempts ? [only] : [];
+  return Array.from({ length: attempts }, (_, a) => a);
+}
+
 export { lastResort } from "./resort-cache.ts";
 
 /** The resort a seed builds in a region: the first attempt that stands
@@ -899,18 +906,24 @@ export function buildResort(
   accept: (built: BuiltResort) => string | null,
   version: GeneratorVersion,
   faceId?: string,
+  only?: number,
 ): BuiltResort {
   const face = faceId ? realFace(faceId) : null;
   const region = regionRow(face ? face.region : regionId);
-  const key = resortKey(seed, region.id, attempts, version, face?.id);
+  // One attempt built alone is kept under a key of its own: it is the
+  // seed's resort only once every attempt before it is refused.
+  const key =
+    resortKey(seed, region.id, attempts, version, face?.id) +
+    (only === undefined ? "" : `#${only}`);
   const kept = cachedResort(key);
   if (kept) return kept;
   const reasons: string[] = [];
   // Held outside the loop and let go on a refusal, so a refused attempt's
   // grids are not kept alive through the next one's build.
   let built: BuiltResort | string | null = null;
-  for (let a = 0; a < attempts; a++) {
-    attemptBegun(a);
+  for (const a of attemptOrder(attempts, only)) {
+    if (only === undefined) attemptBegun(a);
+    else attemptAlone();
     built = attemptResort(seed, a, subSeed(seed, a), region, version, face);
     const why = typeof built === "string" ? built : accept(built);
     if (typeof built === "string" || why) {
@@ -924,7 +937,9 @@ export function buildResort(
     return built;
   }
   throw new Error(
-    `resort ${seed}: no clean resort in ${attempts} attempts — ${reasons.join("; ")}`,
+    only === undefined
+      ? `resort ${seed}: no clean resort in ${attempts} attempts — ${reasons.join("; ")}`
+      : `resort ${seed}: attempt ${only} refused — ${reasons.join("; ")}`,
   );
 }
 

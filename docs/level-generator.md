@@ -147,6 +147,15 @@ the bar slows as the search runs long and reaches one only when a map is accepte
 so no digest can see it. The app builds a new map on a worker (`map-worker.ts`, the start card's
 `seed-preview-worker.ts`) and the loading card and the start card draw the bar from it.
 
+**One attempt alone.** `GenerateOptions.only` builds a single attempt of the search and throws its
+refusal instead of trying the next. An attempt is a pure function of the seed and its number (held by
+`tests/attempt_alone_test.ts`), so the attempts can be built side by side and the lowest one accepted
+kept: the same map as the search in turn. Measured on Node, a resort's attempt costs four to eight
+seconds and seeds are often accepted on their third to seventh; on four cores, three workers bring
+seed 6 (accepted on its seventh) from 35 s to 18 s. Under DEVELOPER the app builds maps this way (`attempt-pool.ts` over
+`attempt-race.ts`: two to four `attempt-worker.ts`, each handed the next attempt as its last is refused); the rest of the time it
+builds them in turn on one worker. Its progress is the attempt's own, the whole bar.
+
 ## Regions (R21)
 
 A map is built in one REGION — a kind of snow country, never a place (`engine/mapgen/regions.ts`,

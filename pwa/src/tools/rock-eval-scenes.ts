@@ -197,25 +197,25 @@ export function rockScenes(level: Level, bed: Level, ridden: Level): RockScenes 
   }
 
   /** The ground below the tallest cliff (or, on a map with none, below the
-   * rockiest face's foot) from 45 m out and 20 m aside, 3 m up — where the
+   * rockiest face's foot) from 50 m out and 20 m aside, 12 m up — where the
    * fallen blocks lie: a talus apron or cone. */
   function talusView(): LensPose {
     const base = tallest
       ? { x: tallest.foot.x, z: tallest.foot.z, ox: tallest.ox, oz: tallest.oz }
       : { x: foot.x, z: foot.z, ox: fx, oz: fz };
-    const ex = base.x + base.ox * 45 - base.oz * 20;
-    const ez = base.z + base.oz * 45 + base.ox * 20;
-    const target = over(base.x + base.ox * 8, base.z + base.oz * 8, 1);
-    return look(over(ex, ez, 3), target, 50);
+    const ex = base.x + base.ox * 50 - base.oz * 20;
+    const ez = base.z + base.oz * 50 + base.ox * 20;
+    const target = over(base.x + base.ox * 4, base.z + base.oz * 4, 0.5);
+    return look(over(ex, ez, 12), target, 50);
   }
 
-  /** Along the foot of the rockiest face from 40 m aside, a skier's eye —
-   * where the wall meets the snow. */
+  /** The foot of the rockiest face slanting away, from 30 m down the fall
+   * line and 30 m aside, a skier's eye — where the wall meets the snow,
+   * seen along it. */
   function wallFootView(): LensPose {
-    const ex = foot.x + lx * 40 + fx * 4;
-    const ez = foot.z + lz * 40 + fz * 4;
-    const target = over(foot.x - lx * 10, foot.z - lz * 10, 2);
-    return look(over(ex, ez, 1.8), target, 55);
+    const ex = foot.x + fx * 30 + lx * 30;
+    const ez = foot.z + fz * 30 + lz * 30;
+    return look(over(ex, ez, 1.8), over(foot.x - lx * 15, foot.z - lz * 15, 3), 60);
   }
 
   /** THE GULLY and THE BUTTRESS: among the rock within 400 m of the
@@ -248,12 +248,12 @@ export function rockScenes(level: Level, bed: Level, ridden: Level): RockScenes 
     const target = { x: g.x, y: bed.groundAt(g.x, g.z) + 4, z: g.z };
     return look(over(g.x + d.x * 90, g.z + d.z * 90, 6), target, 50);
   }
-  /** The buttress raked from 60 m down and 60 m aside. */
+  /** The buttress raked from 110 m down and 80 m aside, 12 m up. */
   function buttressView(): LensPose {
     const b = ribs.buttress;
     const d = downhill(b.x, b.z);
     const target = { x: b.x, y: bed.groundAt(b.x, b.z) + 4, z: b.z };
-    return look(over(b.x + d.x * 60 - d.z * 60, b.z + d.z * 60 + d.x * 60, 6), target, 50);
+    return look(over(b.x + d.x * 110 - d.z * 80, b.z + d.z * 110 + d.x * 80, 12), target, 50);
   }
 
   /** The piste's point with the most rock within 60 m of it (sampled every
@@ -374,11 +374,12 @@ export function rockScenes(level: Level, bed: Level, ridden: Level): RockScenes 
     "cliff-60": "the tallest rocky cliff's wall from 60 m, square on",
     "cliff-60-oblique": "the tallest rocky cliff's wall from 60 m, 45° off square",
     gully: "up the most hollow rock near the rockiest face, from 90 m below",
-    buttress: "the most proud rock near the rockiest face, raked from 60 m down and aside",
-    "wall-foot": "along the foot of the rockiest face from 40 m aside, a skier's eye",
+    buttress: "the most proud rock near the rockiest face, raked from 110 m down and 80 m aside",
+    "wall-foot":
+      "the foot of the rockiest face slanting away, from 30 m out and 30 m aside, a skier's eye",
     talus: tallest
-      ? "the ground below the tallest cliff, where talus lies, from 45 m"
-      : "the ground below the rockiest face's foot (no rocky cliff), from 45 m",
+      ? "the ground below the tallest cliff, where talus lies, from 50 m, 12 m up"
+      : "the ground below the rockiest face's foot (no rocky cliff), from 50 m, 12 m up",
     chase: "a skier's eye on the piste where rock is nearest it, looking 40 m down it",
     piste: "from the piste where it passes nearest the rockiest face",
     aerial: "150 m over the rockiest face, 200 m out",

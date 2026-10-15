@@ -25,7 +25,8 @@
 // and every frame READ drawn with no time passing (the sparkle, the woods'
 // sway and the wildlife run on the renderer's clock, which every earlier
 // frame moved on), so the order the scenes are drawn in never moves a
-// number. The shimmer is therefore the lens's alone, without the sparkle's
+// number. The shimmer is therefore the lens's alone — read with the falling
+// crystals, the spray and its cloud hidden, and without the sparkle's
 // twinkle round 1 counted in. The ORDER CHECK proves it on every alpine run:
 // face-400 read first and again after everything else (the picture's change
 // and its shimmer both times), beside the shimmer read round 1's way — the

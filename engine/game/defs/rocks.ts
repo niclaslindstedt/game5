@@ -97,8 +97,9 @@ export const ROCKS = {
    * BUTTRESSES and the GULLIES between them, `across` m from one to the
    * next and running `along` m down it — a buttress stands up to `relief`
    * m prouder, a gully's floor is smoothed (its ledges `smooth` of the way
-   * gone), cut `cut` of the relief back and holds snow `snow` of the sky
-   * further over than a facet as steep: the face's rhythm of bare ribs and
+   * gone), cut `cut` of the relief back and, in its floor (the rib under
+   * `-floor`, all of it by `-1`), holds snow `snow` of the sky further
+   * over than a facet as steep: the face's rhythm of bare ribs and narrow
    * white chutes. */
   strata: {
     dip: [0.07, 0.38] as const,
@@ -117,7 +118,7 @@ export const ROCKS = {
     block: 0.5,
     coarse: 4,
     tread: 0.26,
-    ribs: { across: 30, along: 110, relief: 1.6, smooth: 0.7, cut: 0.3, snow: 0.32 },
+    ribs: { across: 30, along: 110, relief: 2.4, smooth: 0.7, cut: 0.45, floor: 0.35, snow: 0.28 },
   },
   lip: 0.35,
   /** WHAT A SKIER MEETS of a cliff's wall: a column inside the face no

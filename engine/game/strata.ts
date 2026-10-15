@@ -228,8 +228,16 @@ export function snowShare(st: Strata, w: number, ny: number, rib = 0, every = 1)
   const deal = unit(hashOf(st.seed, 0x79, k * every), 0);
   const held =
     (riser ? 0 : ROCKS.strata.tread * Math.max(0, (deal - 0.3) / 0.7)) +
-    ROCKS.strata.ribs.snow * Math.max(0, -rib);
+    ROCKS.strata.ribs.snow * gullyFloor(rib);
   return Math.max(0, Math.min(1, (ny + held - S.slides) / (S.holds - S.slides)));
+}
+
+/** How far into a gully's floor rib `rib` is, 0..1: none above
+ * `-ribs.floor`, the whole of it at the trough. */
+function gullyFloor(rib: number): number {
+  const F = ROCKS.strata.ribs.floor;
+  const g = Math.max(0, Math.min(1, (-rib - F) / (1 - F)));
+  return g * g * (3 - 2 * g);
 }
 
 const RIB_N: Vec3 = { x: 0, y: 1, z: 0 };

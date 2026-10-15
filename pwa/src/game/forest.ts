@@ -167,7 +167,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const group = new THREE.Group();
   // THE CRAGS on the drops stand with the woods, out to the whole view,
   // and the far share is the share of their blocks (`rocks.ts`).
-  const rocks = createRocks(level, haze);
+  const rocks = createRocks(level, haze, initial.rocks);
   group.add(rocks.group);
   const count = level.trees.length;
   // Binned by cell — and every tree NUMBERED in bin order, so a cell's
@@ -721,6 +721,7 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
         dropShapes(shapes);
         shapes = buildShapes(next.variants);
       }
+      rocks.setLook(next.rocks);
       options = { ...next };
       Object.assign(aloft, { far: options.far, lift: 0, view: options.view });
       tick++;

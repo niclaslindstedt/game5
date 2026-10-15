@@ -12,9 +12,9 @@
 // view, not the trees': a far or high lens looks at the walls from across
 // the valley. Past it the snow shader's dark rock carries them to the rim.
 //
-// A TILE IS BUILT AT THE CUT ITS DISTANCE ASKS (`CUTS`): the full lattice
-// near the lens, the cheap one past `CUTS[0].out` and a coarse one past
-// `CUTS[1].out`, a face across the valley a ninth of its triangles in the
+// A TILE IS BUILT AT THE CUT ITS DISTANCE ASKS (`cutsOf`, the FOREST row's): the full lattice
+// near the lens, the cheap one past the row's `near` and a coarse one past
+// its `mid`, a face across the valley a ninth of its triangles in the
 // same outline. A tile owed a finer or coarser cut keeps the one it has on
 // screen until the new one is whole, and only swaps past a margin
 // (`HYSTERESIS`), so riding to and fro across a band never rebuilds it.
@@ -37,6 +37,7 @@ import {
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
+import { FOREST_LOOK, type RockLook } from "./settings-video.ts";
 import { buildSkin, buildWall, rockMesh, smoothSkin, type RockMesh } from "./rock-shapes.ts";
 
 /** A tile's side, m. */
@@ -48,13 +49,24 @@ const SLICE = 1.5;
 const NOW = 110;
 /** How far past the reach a built tile is kept, m, before it is let go. */
 const KEEP = 2 * TILE;
-/** The lattice by distance from the lens to a tile's nearest corner: out
- * to `out` m the cell is `cell` m (`near` for the FOREST row's own). */
-export const CUTS = [
-  { out: 300, cell: "near", every: 1 },
-  { out: 700, cell: ROCKS.skin.cheap, every: 2 },
-  { out: Infinity, cell: 2 * ROCKS.skin.cheap, every: ROCKS.strata.coarse },
-] as const;
+/** A cut: out to `out` m off a tile's nearest corner its lattice is
+ * `cell` m, its beds taken `every` at a time. */
+export type Cut = { readonly out: number; readonly cell: number; readonly every: number };
+
+/** The lattice by distance from the lens to a tile's nearest corner, as
+ * the FOREST row has it (`ForestLook.rocks`): the physics' own lattice
+ * near (the rock drawn is the rock met), then the row's cheap one, then
+ * one twice as coarse, each taking more beds to a ledge. */
+export function cutsOf(look: RockLook): readonly Cut[] {
+  const every = look.cheap / ROCKS.skin.cheap;
+  return [
+    { out: look.near, cell: ROCKS.skin.cell, every: 1 },
+    { out: look.mid, cell: look.cheap, every: 2 * every },
+    { out: Infinity, cell: 2 * look.cheap, every: ROCKS.strata.coarse * every },
+  ];
+}
+/** HIGH's cuts. */
+export const CUTS = cutsOf(FOREST_LOOK.high.rocks);
 /** How far past a band's edge a tile must be before it changes cut, m. */
 const HYSTERESIS = 30;
 
@@ -184,12 +196,12 @@ const PULL_GLSL = /* glsl */ `
 `;
 
 /** The cut a tile `d` m off wants, given the one it has (`had`, or -1). */
-export function cutOf(d: number, had: number): number {
-  let k = CUTS.findIndex((c) => d < c.out);
+export function cutOf(d: number, had: number, cuts: readonly Cut[] = CUTS): number {
+  let k = cuts.findIndex((c) => d < c.out);
   if (had >= 0 && k !== had) {
     // Only past the margin: a coarser cut once `HYSTERESIS` beyond the
     // edge, a finer one once as far inside it.
-    const edge = k > had ? CUTS[had].out + HYSTERESIS : CUTS[k].out - HYSTERESIS;
+    const edge = k > had ? cuts[had].out + HYSTERESIS : cuts[k].out - HYSTERESIS;
     if (k > had ? d < edge : d > edge) k = had;
   }
   return k;
@@ -199,6 +211,8 @@ export type Rocks = {
   readonly group: THREE.Group;
   /** Show what is within `reach` m of the lens, building what is new. */
   update(eye: THREE.Vector3, reach: number): void;
+  /** The FOREST row moved: every tile is built again at the new cuts. */
+  setLook(look: RockLook): void;
   dispose(): void;
 };
 
@@ -222,7 +236,8 @@ type Tile = {
   empty: boolean;
 };
 
-export function createRocks(level: Level, haze: HazeUniforms): Rocks {
+export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): Rocks {
+  let cuts = cutsOf(look);
   const group = new THREE.Group();
   group.name = "rocks";
   // WHAT THE ROCK HOLDS, for the rock eval lab (`make rock-eval`): every ms
@@ -279,13 +294,10 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
   }
   /** The lattice rows a step builds before it looks at the clock. */
   const BATCH = 4;
-  const cellOf = (k: number): number => {
-    const c = CUTS[k].cell;
-    // Near the lens always the physics' own lattice: the rock a body meets
-    // is the rock drawn, whatever the picture costs (a cheaper lattice
-    // stands up to metres off it).
-    return c === "near" ? ROCKS.skin.cell : c;
-  };
+  // Near the lens always the physics' own lattice (`cutsOf`): the rock a
+  // body meets is the rock drawn, whatever the picture costs (a cheaper
+  // lattice stands up to metres off it).
+  const cellOf = (k: number): number => cuts[k].cell;
 
   /** Build a few more rows of `t` at cut `k`; true when it is whole. */
   const step = (t: Tile, k: number): boolean => {
@@ -316,7 +328,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
       t.j * n + t.done,
       i0 + n,
       t.j * n + end,
-      CUTS[k].every,
+      cuts[k].every,
     );
     t.done = end;
     if (t.done < n) return false;
@@ -384,7 +396,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
       const dz = Math.max(0, Math.abs(lastEye.z - t.cz) - half);
       const d2 = dx * dx + dz * dz;
       if (d2 >= lastReach * lastReach) continue;
-      const k = cutOf(Math.sqrt(d2), t.cut);
+      const k = cutOf(Math.sqrt(d2), t.cut, cuts);
       if (k === t.cut) continue;
       while (!step(t, k));
       if (t.mesh) t.mesh.visible = true;
@@ -409,7 +421,7 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
         const dz = Math.max(0, Math.abs(eye.z - t.cz) - half);
         const d2 = dx * dx + dz * dz;
         const near = d2 < reach * reach;
-        const k = near ? cutOf(Math.sqrt(d2), t.cut) : -1;
+        const k = near ? cutOf(Math.sqrt(d2), t.cut, cuts) : -1;
         if (near && k !== t.cut) {
           owed++;
           // A tile with nothing on screen yet, or one that close, is built
@@ -433,6 +445,12 @@ export function createRocks(level: Level, haze: HazeUniforms): Rocks {
         if (next.mesh) next.mesh.visible = true;
       }
       stats.owed = owed;
+    },
+    setLook(next) {
+      const was = cuts;
+      cuts = cutsOf(next);
+      if (cuts.every((c, k) => c.out === was[k].out && c.cell === was[k].cell)) return;
+      for (const t of tiles) drop(t);
     },
     dispose() {
       for (const t of tiles) drop(t);

@@ -16,7 +16,8 @@
 // diagonal a cell, and each triangle SLICED ALONG THE SAME BEDS and laid
 // at the same heights by the one function both read (`strata.ts`'
 // `liftOf`, `bandOf`), so a ledge met is the ledge seen to the millimetre.
-// (Only rock past 300 m of the lens is drawn on a coarser lattice, its
+// (Only rock past 250–300 m of the lens, by the FOREST row, is drawn on a
+// coarser lattice, a filtered copy of this one, its
 // beds taken two or more at a time, out where nobody rides.)
 //
 // CHEAP: nothing is stored but how bare each lattice corner is, a byte a
@@ -37,7 +38,9 @@ import {
   bandOf,
   bareKept,
   bedCoord,
+  ribOf,
   snowShare,
+  STRIDE,
   strataOf,
   type SliceVerts,
   type Strata,
@@ -129,6 +132,7 @@ const CK: StrataCorner[] = Array.from({ length: 16 }, () => ({
   w: 0,
   bare: 0,
   rough: 0,
+  rib: 0,
 }));
 const CS = new Uint8Array(16);
 
@@ -141,6 +145,7 @@ function cornerAt(s: Skin, i: number, j: number, k: number): void {
   c.g = s.base.groundAt(c.x, c.z);
   c.w = bedCoord(s.strata, c.x, c.z, c.g);
   c.rough = unit(h, 2);
+  c.rib = ribOf(s.strata, s.base, c.x, c.z);
   CS[k] = 1;
 }
 
@@ -166,8 +171,12 @@ function inTri(a: StrataCorner, b: StrataCorner, c: StrataCorner, x: number, z: 
   return true;
 }
 
+const F = STRIDE;
+/** The rib of the facet `onTri` last found. */
+let skinRib = 0;
+
 /** Whether the triangle of slice vertices `a`, `b`, `c` (indices into
- * `v`, four numbers each) holds (x, z) in plan; if so its height and
+ * `v`, `STRIDE` numbers each) holds (x, z) in plan; if so its height and
  * up-facing normal into `u`. */
 function onTri(
   v: SliceVerts,
@@ -178,12 +187,12 @@ function onTri(
   z: number,
   u: Under,
 ): boolean {
-  const ax = v[4 * a];
-  const az = v[4 * a + 2];
-  const e1x = v[4 * b] - ax;
-  const e1z = v[4 * b + 2] - az;
-  const e2x = v[4 * c] - ax;
-  const e2z = v[4 * c + 2] - az;
+  const ax = v[F * a];
+  const az = v[F * a + 2];
+  const e1x = v[F * b] - ax;
+  const e1z = v[F * b + 2] - az;
+  const e2x = v[F * c] - ax;
+  const e2z = v[F * c + 2] - az;
   const det = e1x * e2z - e2x * e1z;
   if (Math.abs(det) < 1e-12) return false;
   const px = x - ax;
@@ -192,9 +201,9 @@ function onTri(
   const q = (e1x * pz - px * e1z) / det;
   const eps = -1e-6;
   if (p < eps || q < eps || p + q > 1 - eps) return false;
-  const e1y = v[4 * b + 1] - v[4 * a + 1];
-  const e2y = v[4 * c + 1] - v[4 * a + 1];
-  u.y = v[4 * a + 1] + p * e1y + q * e2y;
+  const e1y = v[F * b + 1] - v[F * a + 1];
+  const e2y = v[F * c + 1] - v[F * a + 1];
+  u.y = v[F * a + 1] + p * e1y + q * e2y;
   // e1 × e2, turned to face up.
   let nx = e1y * e2z - e1z * e2y;
   let ny = e1z * e2x - e1x * e2z;
@@ -208,6 +217,8 @@ function onTri(
   u.nx = nx / l;
   u.ny = ny / l;
   u.nz = nz / l;
+  // The facet's rib, as the drawing paints it: its corners' mean.
+  skinRib = (v[F * a + 4] + v[F * b + 4] + v[F * c + 4]) / 3;
   return true;
 }
 
@@ -232,7 +243,7 @@ function onSlice(
   skinW = w;
   bandAround(s.strata, a, b, c, w, around);
   bandOf(s.strata, s.ground, a, b, c, around[0], around[1], slice);
-  const n = slice.length / 4;
+  const n = slice.length / STRIDE;
   for (let k = 2; k < n; k++) if (onTri(slice, 0, k - 1, k, x, z, skinU)) return true;
   return false;
 }
@@ -289,6 +300,7 @@ function underOf(s: Skin, x: number, z: number): Under {
   let ty = 1;
   let tw = 0;
   let tz = 0;
+  let tr = 0;
   for (let b = 0; b < 3; b++) {
     for (let a = 0; a < 3; a++) {
       const ka = b * 4 + a;
@@ -314,6 +326,7 @@ function underOf(s: Skin, x: number, z: number): Under {
           ty = skinU.ny;
           tz = skinU.nz;
           tw = skinW;
+          tr = skinRib;
         }
       }
     }
@@ -328,7 +341,7 @@ function underOf(s: Skin, x: number, z: number): Under {
     u.nz = tz;
   }
   // A facet facing the sky holds snow, a tread more, as it is painted.
-  u.bare = 1 - snowShare(s.strata, tw, ty);
+  u.bare = 1 - snowShare(s.strata, tw, ty, tr);
   return u;
 }
 
@@ -491,6 +504,38 @@ export function liftedOnRock(
   last[j] -= d * n.y * n.x;
   last[j + 1] += d * (1 - n.y * n.y);
   last[j + 2] -= d * n.y * n.z;
+}
+
+/**
+ * A POINT OF A BODY LIFTED onto a STEEP facet of rock — a ledge's riser, a
+ * wall's face, steeper than `ROCKS.skin.slides` — by `d` m from where it is
+ * in `points[j..j+2]`: it ran into the stone, so it keeps only its way ALONG
+ * the facet and loses its way into it, and nothing of the lift is kept as
+ * speed. Lifted as `liftedOnRock` does, the share of a metre's lift up a
+ * riser kept as the way out of it would fling the body off the face faster
+ * than it came. False, and nothing moved, off steep rock.
+ */
+export function stoppedOnRock(
+  level: Level,
+  points: number[],
+  last: number[],
+  j: number,
+  d: number,
+): boolean {
+  const x = points[j];
+  const z = points[j + 2];
+  if (d <= 0 || !level.rockAt || level.rockAt(x, z) <= 0) return false;
+  const n = lifted;
+  level.normalAt(x, z, n);
+  if (n.y > ROCKS.skin.slides) return false;
+  const vx = x - last[j];
+  const vy = points[j + 1] - last[j + 1];
+  const vz = z - last[j + 2];
+  const into = Math.min(0, vx * n.x + vy * n.y + vz * n.z);
+  last[j] = x - (vx - into * n.x);
+  last[j + 1] = points[j + 1] + d - (vy - into * n.y);
+  last[j + 2] = z - (vz - into * n.z);
+  return true;
 }
 
 /**

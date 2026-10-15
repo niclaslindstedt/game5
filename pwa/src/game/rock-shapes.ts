@@ -29,7 +29,9 @@ import {
   rockDraw as unit,
   rockHash,
   rockShare,
+  ribOf,
   sliceTri,
+  SLICE_STRIDE as F,
   snowShare,
   strataOf,
   type CliffWall,
@@ -47,16 +49,25 @@ const FOOT = 0.45;
  * calmed far face is painted with. */
 const CALM_HELD = 0.06;
 
-/** A CLIFF WALL'S BEDS: about `WALL_BED` m thick (0.55..1.45 of it), each
+/** A CLIFF WALL'S BEDS: about `WALL_BED` m thick (0.45..1.55 of it), each
  * jutting `WALL_JUT` m out of the face at its top (the least and the most)
- * and its foot up to `WALL_CUT` m further in or a little further out; its
- * joints run up it every `WALL_JOINT` m, and each block of columns between
- * two stands up to `WALL_BLOCK` m out or back. */
+ * and its foot up to `WALL_CUT` m further in or a little further out; the
+ * shader's fine joints run up it every `WALL_JOINT` m, and each block of
+ * columns between two of the wall's own joints stands up to `WALL_BLOCK` m
+ * out or back. */
 const WALL_BED = 1.25;
 const WALL_JUT = [0, 0.75] as const;
 const WALL_CUT = 0.55;
 const WALL_JOINT = 9;
 const WALL_BLOCK = 0.45;
+/** A bed's joint blocks span `WALL_BLOCKS` columns (the least and the
+ * most); a joint's column stands `WALL_NOTCH` m back, its crack; a bed is
+ * MASSIVE (twice and more as thick) `WALL_MASSIVE` of the time and a ROOF
+ * (an overhang over a deep recess) `WALL_ROOF` of it. */
+const WALL_BLOCKS = [1, 6] as const;
+const WALL_NOTCH = 0.22;
+const WALL_MASSIVE = 0.14;
+const WALL_ROOF = 0.16;
 
 /** Linear 0..1 RGB, the way `region-look.ts` authors its tones. */
 export type Tone = readonly [number, number, number];
@@ -193,6 +204,27 @@ export function buildSkin(
   const st = strataOf(level);
   const ground = (x: number, z: number): number => level.groundAt(x, z);
   const stone = rockTone(tone);
+  // A FAR CUT IS A FILTERED COPY of the near one, never a sparser sampling
+  // of it: on a lattice coarser than the physics' a corner's bareness is
+  // the mean of the ground round it, and what a cell that size cannot
+  // carry — a corner's own roughness, a joint block's jog, a buttress —
+  // fades with the cell, so the far rock is the near rock blurred rather
+  // than aliased into a different crag at every cut.
+  const coarse = cell > S.cell;
+  const T = ROCKS.strata;
+  const fade = (wave: number): number =>
+    coarse ? Math.max(0, Math.min(1, wave / cell - 1.25)) : 1;
+  const ribSoft = fade(T.ribs.across);
+  const jogSoft = fade(T.joints[0]);
+  const roughSoft = coarse ? S.cell / cell : 1;
+  const bareAt = (x: number, z: number): number => {
+    if (!coarse) return bareKept(rockShare(level, x, z));
+    const r = cell / 3;
+    let sum = rockShare(level, x, z);
+    sum += rockShare(level, x + r, z) + rockShare(level, x - r, z);
+    sum += rockShare(level, x, z + r) + rockShare(level, x, z - r);
+    return bareKept(sum / 5);
+  };
   const w = i1 - i0 + 1;
   const corners: (StrataCorner | null)[] = new Array(w * (j1 - j0 + 1)).fill(null);
   const cornerAt = (i: number, j: number): StrataCorner => {
@@ -207,9 +239,10 @@ export function buildSkin(
       x,
       z,
       g,
-      w: bedCoord(st, x, z, g),
-      bare: bareKept(rockShare(level, x, z)),
-      rough: unit(h, 2),
+      w: bedCoord(st, x, z, g, jogSoft),
+      bare: bareAt(x, z),
+      rough: unit(h, 2) * roughSoft,
+      rib: ribOf(st, level, x, z, ribSoft),
     };
     corners[k] = c;
     return c;
@@ -219,8 +252,8 @@ export function buildSkin(
   const g = { x: 0, y: 1, z: 0 };
   const emit = (v: SliceVerts, k: number, mid: number): void => {
     const a = 0;
-    const b = 4 * (k - 1);
-    const c = 4 * k;
+    const b = F * (k - 1);
+    const c = F * k;
     const ex = v[b] - v[a];
     const ey = v[b + 1] - v[a + 1];
     const ez = v[b + 2] - v[a + 2];
@@ -254,7 +287,8 @@ export function buildSkin(
     const zone = 2 * bed + (riser ? 1 : 0);
     const shade = 0.8 + 0.4 * unit(rockHash(st.seed, 0x77, bed * every), 0);
     // The snow lies as the physics reads it: a tread holds more.
-    const snow = SNOW_MOST * snowShare(st, mid, ny, every);
+    const rib = (v[a + 4] + v[b + 4] + v[c + 4]) / 3;
+    const snow = SNOW_MOST * snowShare(st, mid, ny, rib, every);
     for (const p of [a, q, r]) {
       const x = v[p];
       const y = v[p + 1];
@@ -446,26 +480,70 @@ export function buildWall(m: RockMesh, w: CliffWall, tone: Tone, level?: Level):
     lo = Math.min(lo, wOf(corner(rows - 2, j)));
   }
   const levels: number[] = [];
+  // The beds thin and thick by turns, now and then a MASSIVE one standing
+  // as a band of its own.
   for (let k = 0, y = Math.floor(hi / WALL_BED) * WALL_BED; y > lo - WALL_BED && k < 64; k++) {
     levels.push(y);
-    y -= WALL_BED * (0.55 + 0.9 * unit(rockHash(w.hash, 0x51, Math.round(y)), 0));
+    const h = rockHash(w.hash, 0x51, Math.round(y * 4));
+    const massive = unit(h, 1) < WALL_MASSIVE;
+    y -= WALL_BED * (massive ? 1.8 + 0.8 * unit(h, 2) : 0.45 + 1.1 * unit(h, 0));
   }
-  const band = (k: number, b: number): { top: number; foot: number; shade: number } => {
+  // THE JOINTS are no grid: each bed's blocks are dealt their own widths
+  // (`WALL_BLOCKS` columns, the least and the most — a wide one is two
+  // blocks whose joint was skipped), and a run of a bed or few shares one
+  // set before the joints JOG at a parting and the next run's are dealt
+  // afresh. `blocks[k][j]` is column `j`'s block in bed `k`, numbered over
+  // the whole wall.
+  const blocks: number[][] = [];
+  let id = 0;
+  for (let k = 0, run = -1, left = 0; k <= levels.length; k++) {
+    if (left <= 0) {
+      run++;
+      left = 1 + Math.floor(3 * unit(rockHash(w.hash, 0x55, run), 0));
+      const row: number[] = [];
+      let n = 0;
+      let width = 1 + Math.floor(WALL_BLOCKS[1] * unit(rockHash(w.hash, 0x56, run), 0));
+      for (let j = 0; j < cols; j++) {
+        if (width-- <= 0) {
+          id++;
+          n++;
+          const u = unit(rockHash(w.hash, 0x57, run, n), 0);
+          width = WALL_BLOCKS[0] + Math.floor((WALL_BLOCKS[1] - WALL_BLOCKS[0] + 1) * u) - 1;
+        }
+        row.push(id);
+      }
+      id++;
+      blocks.push(row);
+    } else blocks.push(blocks[k - 1]);
+    left--;
+  }
+  const blockOf = (j: number, k: number): number => blocks[Math.min(k, blocks.length - 1)][j];
+  // A JOINT'S CRACK: the column a joint runs up stands back, a notch.
+  const notchOf = (j: number, k: number): number =>
+    j > 0 && j < cols - 1 && blockOf(j - 1, k) !== blockOf(j, k) ? WALL_NOTCH : 0;
+  const band = (k: number, j: number): { top: number; foot: number; shade: number } => {
+    const b = blockOf(j, k);
     const h = rockHash(w.hash, 0x52, k);
     const g = rockHash(w.hash, 0x53, k, b);
     // Each joint block stood out or back as a whole, a bed's jut on that.
     const block = WALL_BLOCK * (2 * unit(rockHash(w.hash, 0x54, b), 0) - 1);
+    const notch = notchOf(j, k);
     const jut =
-      WALL_JUT[0] + (WALL_JUT[1] - WALL_JUT[0]) * unit(h, 0) + 0.18 * (unit(g, 0) - 0.5) + block;
+      WALL_JUT[0] +
+      (WALL_JUT[1] - WALL_JUT[0]) * unit(h, 0) +
+      0.18 * (unit(g, 0) - 0.5) +
+      block -
+      notch;
+    // Most beds undercut, a few leaning back, and now and then a ROOF: a
+    // bed jutting over a deep recess, an overhang's dark slot under it.
+    const roof = unit(h, 3) < WALL_ROOF;
+    const cut = roof ? -WALL_CUT * (1.6 + unit(g, 1)) : WALL_CUT * (2 * unit(h, 1) - 1.4);
     return {
-      top: jut,
-      // Most beds undercut, a few leaning back: lit and shadowed in turn.
-      foot: jut + WALL_CUT * (2 * unit(h, 1) - 1.4),
-      shade: 0.66 + 0.56 * unit(h, 2),
+      top: jut + (roof ? 0.35 : 0),
+      foot: jut + cut,
+      shade: (0.66 + 0.56 * unit(h, 2)) * (0.92 + 0.16 * unit(g, 2)),
     };
   };
-  const blockOf = (j: number): number =>
-    Math.floor((j + 4 * unit(w.hash, 3)) / (3 + Math.floor(3 * unit(w.hash, 4))));
   // Where on column `j` the bed coordinate is `v`, out of the face `out` m.
   const at = (j: number, v: number, out: number): P => {
     const a = eased(1, j);
@@ -500,16 +578,14 @@ export function buildWall(m: RockMesh, w: CliffWall, tone: Tone, level?: Level):
       tri(m, a, b, c, inside, paint, shadeAt, calmOf, along);
       tri(m, a, c, d, inside, paint, shadeAt, calmOf, along);
     };
-    const ba = blockOf(j);
-    const bb = blockOf(j + 1);
     // Behind the lip, down onto the face's first bed.
-    const first = band(0, ba);
-    const firstB = band(0, bb);
+    const first = band(0, j);
+    const firstB = band(0, j + 1);
     const plain = paintOf(stone, (w.hash ^ Math.imul(j + 1, 0x85ebca6b)) >>> 0, 1);
     quad(a0, b0, at(j + 1, levels[0], firstB.top), at(j, levels[0], first.top), plain);
     for (let k = 0; k < levels.length - 1; k++) {
-      const pa = band(k, ba);
-      const pb = band(k, bb);
+      const pa = band(k, j);
+      const pb = band(k, j + 1);
       const tone_: Tone = [stone[0] * pa.shade, stone[1] * pa.shade, stone[2] * pa.shade];
       const paint = snowOver(SNOW_HOLDS, tone_);
       const v0 = levels[k];
@@ -523,8 +599,8 @@ export function buildWall(m: RockMesh, w: CliffWall, tone: Tone, level?: Level):
         paint,
       );
       // The ledge onto the next bed's top.
-      const na = band(k + 1, ba);
-      const nb = band(k + 1, bb);
+      const na = band(k + 1, j);
+      const nb = band(k + 1, j + 1);
       quad(
         at(j, v1, pa.foot),
         at(j + 1, v1, pb.foot),
@@ -535,8 +611,8 @@ export function buildWall(m: RockMesh, w: CliffWall, tone: Tone, level?: Level):
     }
     // The last bed down into the foot's snow.
     const last = levels.length - 1;
-    const la = band(last, ba);
-    const lb = band(last, bb);
+    const la = band(last, j);
+    const lb = band(last, j + 1);
     quad(
       at(j, levels[last], la.top),
       at(j + 1, levels[last], lb.top),

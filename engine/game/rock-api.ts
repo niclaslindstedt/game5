@@ -22,6 +22,8 @@ export {
   jointOf,
   riserOf,
   liftOf,
+  ribOf,
+  STRIDE as SLICE_STRIDE,
   sliceTri,
   snowShare,
   strataOf,

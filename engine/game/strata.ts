@@ -9,10 +9,12 @@
 // each bed weathers back into a near vertical RISER of bare stone over a
 // flatter TREAD the snow lies on, so a wall reads as bands of ledges, not
 // as a field of spikes. Two sets of JOINTS cut across the beds and break
-// the rock into blocks: a ledge ends or steps where one crosses it, a
-// block stands a little prouder or further back than its neighbour, and
-// now and then a row of them stands out as a buttress with the gully
-// beside it.
+// the rock into blocks: a ledge ends or steps where one crosses it, and a
+// block stands a little prouder or further back than its neighbour. The
+// beds come in PACKETS, thin ones between thick. And the whole face is
+// furrowed down its fall line into BUTTRESSES and the GULLIES between them
+// (`ribOf`, some 30 m apart): a rib stands proud and bare, a gully's floor
+// is smoother, cut back and white.
 //
 // HOW IT IS BUILT. Every point of a wall carries a BED COORDINATE `w`: its
 // ground's height less the massif's dip plane, folded, and shifted by the
@@ -33,6 +35,7 @@
 
 import { ROCKS } from "./defs/rocks.ts";
 import { hashOf, unit } from "./rocks.ts";
+import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import type { Level } from "../mapgen/types.ts";
 
 /** A massif's beds and joints, dealt once a map. */
@@ -111,8 +114,9 @@ function joint2Of(st: Strata, x: number, z: number): number {
 }
 
 /** THE BED COORDINATE at (x, z) over ground `g`: the height over the
- * massif's folded dip plane, the joint block's jog added. */
-export function bedCoord(st: Strata, x: number, z: number, g: number): number {
+ * massif's folded dip plane, the joint block's jog added (`soft` of it, for
+ * a lattice too coarse to carry a joint block). */
+export function bedCoord(st: Strata, x: number, z: number, g: number, soft = 1): number {
   const S = ROCKS.strata;
   const f = S.foldOver;
   const fold =
@@ -122,17 +126,34 @@ export function bedCoord(st: Strata, x: number, z: number, g: number): number {
   const b1 = Math.floor(jointOf(st, x, z));
   const b2 = Math.floor(joint2Of(st, x, z));
   const jog =
+    soft *
     S.jog *
     st.bed *
     (unit(hashOf(st.seed, 0x21, b1), 0) - 0.5 + 0.6 * (unit(hashOf(st.seed, 0x22, b2), 0) - 0.5));
   return g - st.dipX * x - st.dipZ * z - fold + jog;
 }
 
-/** Bed `k`'s foot, in the bed coordinate, beds `every` at a time. */
+/** The beds' swell at bed `n`, -1..1: value noise over `strata.packet`
+ * beds, so a packet of thick beds gives way to a packet of thin ones. */
+function swellOf(st: Strata, n: number): number {
+  const t = n / ROCKS.strata.packet;
+  const i = Math.floor(t);
+  let f = t - i;
+  f = f * f * (3 - 2 * f);
+  const a = unit(hashOf(st.seed, 0x36, i), 0);
+  const b = unit(hashOf(st.seed, 0x36, i + 1), 0);
+  return 2 * (a + (b - a) * f) - 1;
+}
+
+/** Bed `k`'s foot, in the bed coordinate, beds `every` at a time: the
+ * beds' packets (`swell`) and each foot's own deal (`vary`), never two
+ * feet out of order. */
 export function bedLevel(st: Strata, k: number, every = 1): number {
-  const v = ROCKS.strata.vary;
+  const S = ROCKS.strata;
   const n = k * every;
-  return st.bed * (n + v * 2 * (unit(hashOf(st.seed, 0x31, n), 0) - 0.5));
+  return (
+    st.bed * (n + S.swell * swellOf(st, n) + S.vary * 2 * (unit(hashOf(st.seed, 0x31, n), 0) - 0.5))
+  );
 }
 
 /** The bed `w` lies in (its foot at or under `w`). */
@@ -159,6 +180,7 @@ export function liftOf(
   z: number,
   bare: number,
   rough: number,
+  rib: number,
   every = 1,
 ): number {
   const S = ROCKS.skin;
@@ -175,20 +197,28 @@ export function liftOf(
   depth *= 1 + T.block * 2 * (unit(hashOf(st.seed, 0x34, k * every, b1, b2), 0) - 0.5);
   const lip = Math.min(T.most, Math.min(0.96, depth) * (1 - r) * thick);
   const ledge = f >= r ? (lip * (1 - f)) / (1 - r) : (lip * f) / r;
-  const rib = T.rib * Math.max(0, (unit(hashOf(st.seed, 0x35, b1), 0) - 0.55) / 0.45);
+  // A buttress stands prouder; a gully's floor is smoothed and cut back.
+  const R = T.ribs;
+  const gully = Math.max(0, -rib);
+  const rise = R.relief * (Math.max(0, rib) - R.cut * gully);
   // In from the wall's edge the ledges grow with how bare it is.
   const k0 = Math.min(1, (bare - S.from) / 0.25);
   const grow = k0 * k0 * (3 - 2 * k0);
-  return -S.sink + grow * (S.sink + S.proud + S.rough * 0.3 * rough + bare * (ledge + rib));
+  return (
+    -S.sink +
+    grow *
+      (S.sink + S.proud + S.rough * 0.3 * rough + bare * (ledge * (1 - R.smooth * gully) + rise))
+  );
 }
 
 /** HOW MUCH SNOW LIES on a facet of the skin facing up `ny` in bed
- * coordinate `w`, 0..1: whole past `skin.holds`, none under `skin.slides`
- * — and a TREAD holds the snow a facet as steep would shed, up to
+ * coordinate `w` on rib `rib` (`ribOf`), 0..1: whole past `skin.holds`,
+ * none under `skin.slides` — a GULLY holding more, up to `ribs.snow` of
+ * the sky, and a TREAD holds the snow a facet as steep would shed, up to
  * `strata.tread` of the sky more, a share dealt its bed (some beds' treads
  * lie steeper or the wind scours them). The drawing paints it and the
  * physics reads the rest as bare (`rock-ground.ts`). */
-export function snowShare(st: Strata, w: number, ny: number, every = 1): number {
+export function snowShare(st: Strata, w: number, ny: number, rib = 0, every = 1): number {
   const S = ROCKS.skin;
   const k = bedOf(st, w, every);
   const foot = bedLevel(st, k, every);
@@ -196,13 +226,65 @@ export function snowShare(st: Strata, w: number, ny: number, every = 1): number 
   const riser = w < foot + riserOf(st, k, every) * thick;
   // A third of the beds shed it as a face does.
   const deal = unit(hashOf(st.seed, 0x79, k * every), 0);
-  const held = riser ? 0 : ROCKS.strata.tread * Math.max(0, (deal - 0.3) / 0.7);
+  const held =
+    (riser ? 0 : ROCKS.strata.tread * Math.max(0, (deal - 0.3) / 0.7)) +
+    ROCKS.strata.ribs.snow * Math.max(0, -rib);
   return Math.max(0, Math.min(1, (ny + held - S.slides) / (S.holds - S.slides)));
 }
 
+const RIB_N: Vec3 = { x: 0, y: 1, z: 0 };
+/** The frames a rib is read in, over half a turn (a rib has no way down). */
+const RIB_DIRS = 8;
+/** Where the fall line is read round a point, m: a buttress follows the
+ * face, not every crease in it. */
+const RIB_PROBE = 8;
+
+/** The ribs in frame `k`: value noise stretched down bearing `k`. */
+function ribIn(st: Strata, k: number, x: number, z: number): number {
+  const R = ROCKS.strata.ribs;
+  const th = ((k % RIB_DIRS) * Math.PI) / RIB_DIRS;
+  const dx = Math.cos(th);
+  const dz = Math.sin(th);
+  return noise(
+    st.seed ^ (0x40 + (k % RIB_DIRS)),
+    (dx * z - dz * x) / R.across,
+    (dx * x + dz * z) / R.along,
+  );
+}
+
+/** THE RIBS at (x, z) of `level`'s ground, -1..1: a BUTTRESS where it is
+ * over nought, a GULLY under it, furrowed down the fall line. Read in the
+ * two fixed frames whose bearings bracket the fall line there and blended
+ * between them, so the furrows turn with the face and never shear (a frame
+ * turned with every point would slide the pattern a wavelength a degree a
+ * few hundred metres out). `soft` fades it, for a lattice too coarse to
+ * carry a rib (`buildSkin`'s far cuts). */
+export function ribOf(st: Strata, level: Level, x: number, z: number, soft = 1): number {
+  if (soft <= 0) return 0;
+  let nx = 0;
+  let nz = 0;
+  for (let k = 0; k < 4; k++) {
+    const a = (k * Math.PI) / 2;
+    level.normalAt(x + RIB_PROBE * Math.cos(a), z + RIB_PROBE * Math.sin(a), RIB_N);
+    nx += RIB_N.x;
+    nz += RIB_N.z;
+  }
+  if (nx * nx + nz * nz < 1e-8) return 0;
+  let phi = Math.atan2(nz, nx);
+  if (phi < 0) phi += Math.PI;
+  if (phi >= Math.PI) phi -= Math.PI;
+  const t = (phi * RIB_DIRS) / Math.PI;
+  const k = Math.floor(t);
+  let f = t - k;
+  f = f * f * (3 - 2 * f);
+  const a = ribIn(st, k, x, z);
+  const b = ribIn(st, k + 1, x, z);
+  return soft * Math.max(-1, Math.min(1, 1.8 * (a + (b - a) * f)));
+}
+
 /** A corner of a wall's skin, before it is lifted: its place, its ground,
- * its bed coordinate, how bare (as the physics keeps it, `bareKept`) and
- * its rough draw. */
+ * its bed coordinate, how bare (as the physics keeps it, `bareKept`), its
+ * rough draw and its rib (`ribOf`). */
 export type StrataCorner = {
   x: number;
   z: number;
@@ -210,6 +292,7 @@ export type StrataCorner = {
   w: number;
   bare: number;
   rough: number;
+  rib: number;
 };
 
 /** How bare a corner is kept, quantised to the byte the physics stores. */
@@ -234,8 +317,10 @@ export function levelsIn(st: Strata, lo: number, hi: number, out: number[], ever
   return n;
 }
 
-/** A vertex of a slice: x, y, z, its bed coordinate. */
+/** A slice's vertices: x, y, z, its bed coordinate and its rib, `STRIDE`
+ * numbers each. */
 export type SliceVerts = number[];
+export const STRIDE = 5;
 
 function cross(
   p: StrataCorner,
@@ -255,16 +340,17 @@ function cross(
   const z = a.z + (b.z - a.z) * t;
   const bare = a.bare + (b.bare - a.bare) * t;
   const rough = a.rough + (b.rough - a.rough) * t;
+  const rib = a.rib + (b.rib - a.rib) * t;
   const g = ground(x, z);
-  out.push(x, g + liftOf(st, l, x, z, bare, rough, every), z, l);
+  out.push(x, g + liftOf(st, l, x, z, bare, rough, rib, every), z, l, rib);
 }
 
 function corner(c: StrataCorner, st: Strata, out: SliceVerts, every: number): void {
-  out.push(c.x, c.g + liftOf(st, c.w, c.x, c.z, c.bare, c.rough, every), c.z, c.w);
+  out.push(c.x, c.g + liftOf(st, c.w, c.x, c.z, c.bare, c.rough, c.rib, every), c.z, c.w, c.rib);
 }
 
 /** THE SLICE of triangle `a`, `b`, `c` between bed coordinates `lo` and
- * `hi` (either infinite), its polygon's vertices (four numbers each, in
+ * `hi` (either infinite), its polygon's vertices (`STRIDE` numbers each, in
  * the triangle's order) into `out`, emptied first: a convex polygon, none
  * where the triangle does not reach it. */
 export function bandOf(
@@ -318,7 +404,7 @@ export function sliceTri(
     const l1 = s === n ? Infinity : levels[s];
     bandOf(st, ground, a, b, c, l0, l1, band, every);
     const m = (Math.max(l0, lo) + Math.min(l1, hi)) / 2;
-    for (let k = 2; k < band.length / 4; k++) emit(band, k, m);
+    for (let k = 2; k < band.length / STRIDE; k++) emit(band, k, m);
   }
 }
 

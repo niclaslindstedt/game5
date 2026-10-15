@@ -11,7 +11,12 @@ import {
   rockHash,
   rockShare,
   rockyCliff,
+  bedLevel,
+  bedOf,
+  ribOf,
+  snowShare,
   solidsOf,
+  strataOf,
   wallOf,
   wallSolids,
   type GameEvent,
@@ -162,5 +167,48 @@ describe("rocks", () => {
       }
     }
     expect(low).toBeLessThan(alpine / 4);
+  });
+});
+
+// THE BEDS (`engine/game/strata.ts`): thick and thin by packets, never out
+// of order (`bedOf` reads them in order — a bed below the one under it is a
+// drawing and a physics that disagree), and the ribs furrowing the face.
+describe("the beds", () => {
+  it("swell and thin bed to bed and never cross, at every cut", () => {
+    const st = strataOf(level);
+    for (const every of [1, 2, 4, 8]) {
+      let least = Infinity;
+      let most = 0;
+      for (let k = -300; k < 300; k++) {
+        const t = bedLevel(st, k + 1, every) - bedLevel(st, k, every);
+        least = Math.min(least, t / (st.bed * every));
+        most = Math.max(most, t / (st.bed * every));
+        const mid = (bedLevel(st, k, every) + bedLevel(st, k + 1, every)) / 2;
+        expect(bedOf(st, mid, every)).toBe(k);
+      }
+      expect(least).toBeGreaterThan(0.1);
+      if (every === 1) expect(most - least).toBeGreaterThan(0.8);
+    }
+  });
+
+  it("furrow the face into buttresses and gullies, and a gully holds snow", () => {
+    const st = strataOf(level);
+    let up = 0;
+    let down = 0;
+    for (let z = 300; z < level.size - 300; z += 37) {
+      for (let x = 300; x < level.size - 300; x += 37) {
+        if (rockShare(level, x, z) <= 0.5) continue;
+        const r = ribOf(st, level, x, z);
+        expect(Math.abs(r)).toBeLessThanOrEqual(1);
+        if (r > 0.3) up++;
+        if (r < -0.3) down++;
+      }
+    }
+    expect(up).toBeGreaterThan(5);
+    expect(down).toBeGreaterThan(5);
+    // On a 55° facet, bare on a buttress and white in a gully.
+    const ny = Math.cos((55 * Math.PI) / 180);
+    expect(snowShare(st, 0.5, ny, 1)).toBe(0);
+    expect(snowShare(st, 0.5, ny, -1)).toBeGreaterThan(0);
   });
 });

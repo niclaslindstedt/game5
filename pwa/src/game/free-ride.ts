@@ -34,6 +34,7 @@ import {
   skiRoutesOf,
   pickFreeRun,
   isRegionId,
+  REGION_IDS,
   snowCoverOf,
   type RunGrade,
   type RegionId,
@@ -559,6 +560,61 @@ export function markedRun(
     list.fallback ?? undefined,
   );
   return list.runs.find((r) => r.id === id) ?? null;
+}
+
+/** The highest seed QUICK START deals: any generated mountain at all. */
+export const QUICK_SEEDS = 999_999;
+
+/** QUICK START'S RIDE: a GENERATED mountain off a seed of its own, in any
+ * country, on any winter day (never summer), at any hour, under any sky
+ * and any depth of snow, in an air that fits them (`quickTempOf`) — and no
+ * run or spot, so the ride is carried up to the map's toughest piste
+ * (`pickFreeRun`). The rider, his pair or board and his help are the cards'
+ * as last picked (`skierOf`); the start card's own answers are left as they
+ * were. */
+export function quickRide(base: FreeRide, random: () => number = Math.random): FreeRide {
+  const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
+  const ride: FreeRide = {
+    ...base,
+    seed: 1 + Math.floor(random() * QUICK_SEEDS),
+    region: pick(REGION_IDS),
+    face: null,
+    grade: null,
+    season: pick(SEASONS.filter((s) => s.id !== "summer")).id,
+    time: pick(TIMES_OF_DAY),
+    weather: pick(WEATHER_KINDS),
+    snow: pick(SNOW_STOPS).id,
+    run: null,
+    spot: null,
+  };
+  return { ...ride, temp: quickTempOf(ride, random) };
+}
+
+/** How far QUICK START's air strays either way off what its day would
+ * give, °C. */
+export const QUICK_TEMP_SPREAD = 6;
+
+/** QUICK START'S AIR, one of `TEMP_STOPS`: what AUTO would give the ride's
+ * country, season, time and sky — read before its map is built, so at the
+ * middle of the country's latitudes over a valley floor at the model's
+ * (`AIR_TEMP.valley`) — strayed up to `QUICK_TEMP_SPREAD` either way and
+ * snapped to the nearest stop: a cold midwinter dawn stays cold, a spring
+ * afternoon may thaw. */
+export function quickTempOf(
+  ride: Pick<FreeRide, "region" | "season" | "time" | "weather">,
+  random: () => number = Math.random,
+): number {
+  const { latitude } = regionOf({ region: ride.region ?? DEFAULT_REGION }).sun;
+  const dayOfYear = seasonOn({ season: ride.season, face: null }) ?? SEASONS[1].day;
+  const sun = { hour: 12, dayOfYear, latitude: (latitude.min + latitude.max) / 2 };
+  const day = withDay({ sun }, { time: ride.time });
+  const auto = airTempAt({
+    sun: day.sun,
+    weather: weatherFor(ride.weather ?? "fair"),
+    region: ride.region ?? DEFAULT_REGION,
+  });
+  const air = auto + (random() * 2 - 1) * QUICK_TEMP_SPREAD;
+  return TEMP_STOPS.reduce((best, c) => (Math.abs(c - air) < Math.abs(best - air) ? c : best));
 }
 
 /** THE RUN A FREE RIDE IS STOOD UP AS, on `seed`, for the skier on his

@@ -187,9 +187,13 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     if (!c.airborne) {
       // ARMED on the snow: across the gate up a kicker's ramp is a stroke
       // waiting for the lip; anywhere else it is a crossing already made.
+      // The edge thrown WITH THE JUMP — after the key was pressed, or as the
+      // pop leaves the snow — is the spin wound into it, not a turn he was
+      // already carving: a crossing made then is left for the air to take.
       const ramp = onRamp(state);
+      const jumping = c.jumpLoad > 0 || c.popped <= T.popWindow;
       k.flipCrossed = ramp ? 0 : flip;
-      k.spinCrossed = ramp ? 0 : spin;
+      k.spinCrossed = ramp || (jumping && spin !== k.spinCrossed) ? 0 : spin;
       // The flight he leaves the snow on next is MEANT if he leaves it off
       // a kicker or in his own pop; off a knee or a lip he did not jump, a
       // free ride's flight is a fall he steers, and nothing is thrown.

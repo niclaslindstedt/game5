@@ -6,6 +6,12 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  fromAxisAngle,
+  fromEuler,
+  multiply,
+  toEuler,
+} from "@niclaslindstedt/oss-game-framework/core/quat";
+import {
   createSomersault,
   createTuck,
   flipLift,
@@ -94,5 +100,44 @@ describe("the loop's ball and its top", () => {
     expect(over.roll).toBeCloseTo(0);
     const upright = { heading: 0.4, pitch: 0.2, roll: 0.3 };
     expect(uprightSkier(upright)).toBe(upright);
+  });
+
+  it("never mirrors him through a loop turned off square", () => {
+    // A backflip about an axis tilted off his side: the engine's own
+    // yaw-pitch-roll swings half a turn near the vertical, so read that way
+    // the roll jumps from one side to the other over the top.
+    for (const tilt of [0.15, -0.3, 0.5]) {
+      for (const dir of [1, -1]) {
+        const base = fromEuler(0.3, 0.1, 0);
+        let last: { heading: number; roll: number } | null = null;
+        let jump = 0;
+        let sign = 0;
+        for (let th = 0; th <= 2 * Math.PI; th += Math.PI / 200) {
+          const q = multiply(base, fromAxisAngle(-Math.cos(tilt), Math.sin(tilt), 0, dir * th));
+          const read = uprightSkier({ ...toEuler(q), q, airborne: true });
+          if (last) {
+            const dh = Math.atan2(
+              Math.sin(read.heading - last.heading),
+              Math.cos(read.heading - last.heading),
+            );
+            jump = Math.max(jump, Math.abs(read.roll - last.roll), Math.abs(dh));
+          }
+          if (Math.abs(read.roll) > 0.05) {
+            if (sign === 0) sign = Math.sign(read.roll);
+            expect(Math.sign(read.roll)).toBe(sign);
+          }
+          last = read;
+        }
+        expect(jump).toBeLessThan(0.05);
+      }
+    }
+  });
+
+  it("reads an ordinary air as the engine does", () => {
+    const q = fromEuler(0.4, 0.3, 0.25);
+    const read = uprightSkier({ ...toEuler(q), q, airborne: true });
+    expect(read.heading).toBeCloseTo(0.4, 6);
+    expect(read.pitch).toBeCloseTo(0.3, 6);
+    expect(read.roll).toBeCloseTo(0.25, 6);
   });
 });

@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SKIS,
+  FULL_ASSIST,
   cabinsOf,
   createGame,
   lastPiste,
@@ -62,6 +63,8 @@ import {
   startPicked,
   dealtDay,
   firstWhere,
+  quickRide,
+  QUICK_SEEDS,
 } from "../pwa/src/game/free-ride.ts";
 import {
   CHART_VIEW,
@@ -723,5 +726,47 @@ describe("the START row's afterski stop: the party in the lodge (free-ride.ts)",
       expect(moved.spot).toBeNull();
     }
     expect(rideOnto(ride, 38, "fell")).toMatchObject({ seed: 38, region: "fell" });
+  });
+});
+
+describe("QUICK START (free-ride.ts)", () => {
+  it("deals a generated mountain, a winter day, a sky and a snow, on the toughest piste", () => {
+    const base = {
+      ...freshRide(),
+      face: "alpine-1",
+      run: { seed: 5, region: "alpine" as const, id: "r1" },
+      spot: { seed: 5, x: 1, z: 2 },
+      avalanche: false,
+    };
+    const seasons = new Set<string>();
+    let k = 0;
+    // A fixed stream walks every pick's whole range.
+    const random = () => (k = (k * 7919 + 104729) % 1000003) / 1000003;
+    for (let i = 0; i < 400; i++) {
+      const ride = quickRide(base, random);
+      expect(ride.face).toBeNull();
+      expect(ride.run).toBeNull();
+      expect(ride.spot).toBeNull();
+      expect(ride.grade).toBeNull();
+      expect(ride.season).not.toBe("summer");
+      expect(ride.season).not.toBeNull();
+      expect(TIMES_OF_DAY).toContain(ride.time);
+      expect(WEATHER_KINDS).toContain(ride.weather);
+      expect(ride.seed).toBeGreaterThanOrEqual(1);
+      expect(ride.seed).toBeLessThanOrEqual(QUICK_SEEDS);
+      expect(ride.avalanche).toBe(false);
+      seasons.add(ride.season!);
+    }
+    expect(seasons.size).toBe(4);
+  });
+
+  it("stands up as a free ride carried up to the map's toughest piste", () => {
+    const ride = quickRide(freshRide(), () => 0.5);
+    const o = freeGameOptions(ride, ride.seed!, { spec: SKIS, assist: FULL_ASSIST });
+    expect(o.mode).toBe("free");
+    expect(o.run).toBeUndefined();
+    expect(o.byLift).toBe(true);
+    expect(o.summer).toBeUndefined();
+    expect(o.face).toBeUndefined();
   });
 });

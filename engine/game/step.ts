@@ -124,6 +124,9 @@ export type CreateGameOptions = {
   /** Told how far the generator has got building the seed's map, 0–1
    * (`GenerateOptions.progress`). Never called when `level` is given. */
   progress?: (share: number) => void;
+  /** Build ONE attempt of the map's search alone (`GenerateOptions.only`),
+   * throwing its refusal — a host running the attempts side by side. */
+  only?: number;
   /** HOW THE SKIER WORKS THE SKI (`technique.ts`), over the mode's own —
    * so a lab can ski one course with every technique. */
   technique?: TechniqueId;
@@ -478,6 +481,7 @@ export function levelFor(options: CreateGameOptions = {}): Level {
     grade: options.grade ?? (options.mode === "slalom" ? "red" : undefined),
     version: tricks ? PARK_VERSION : undefined,
     progress: options.progress,
+    only: options.only,
   };
   const built = generateLevel(options.seed ?? 1, ask);
   // A DOWNHILL off a seed of its own is raced on the ski area's course with

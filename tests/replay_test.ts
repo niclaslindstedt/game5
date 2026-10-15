@@ -26,7 +26,13 @@ import {
 } from "../pwa/src/game/camera-replay.ts";
 import { freshRigPose } from "../pwa/src/game/camera-rigs.ts";
 import { snapInput } from "../pwa/src/game/ghost.ts";
-import { createReplayRig, recipeOf, startPrint, type Replay } from "../pwa/src/game/replay.ts";
+import {
+  createReplayRig,
+  PREVIOUS,
+  recipeOf,
+  startPrint,
+  type Replay,
+} from "../pwa/src/game/replay.ts";
 import { WATCHING_CAMERAS } from "../pwa/src/game/replay-run.ts";
 import {
   SHOTS,
@@ -224,6 +230,36 @@ describe("the replay reaches the same flag", () => {
     rig.step(botInput(idle), idle);
     expect(rig.offers()).toBe(false);
     expect(rig.open()).toBeNull();
+  });
+
+  it("watches the run before a restart for the new run's first seconds", () => {
+    const rig = createReplayRig();
+    const ride = (s: ReturnType<typeof createGame>, steps: number): void => {
+      for (let i = 0; i < steps; i++) {
+        const input = botInput(s);
+        step(s, input);
+        rig.step(input, s);
+      }
+    };
+    const first = createGame({ level, seed: 3, mode: "free", quiet: true });
+    rig.arm(first, "free");
+    ride(first, 3 * HZ);
+    const again = createGame({ level, seed: 3, mode: "free", quiet: true });
+    rig.arm(again, "free");
+    // At once, before the new run has a step: the run just left.
+    expect(rig.offers()).toBe(true);
+    expect(rig.open()!.end).toBe(3 * HZ);
+    // A restart pressed straight after keeps that run standing.
+    const twice = createGame({ level, seed: 3, mode: "free", quiet: true });
+    rig.arm(twice, "free");
+    ride(twice, PREVIOUS * HZ - 1);
+    expect(rig.open()!.end).toBe(3 * HZ);
+    // Past the window, the run being ridden.
+    ride(twice, 1);
+    expect(rig.open()!.end).toBe(PREVIOUS * HZ);
+    // The bot's race under a card drops both.
+    rig.arm(createGame({ level, seed: 3, mode: "free", quiet: true }), null);
+    expect(rig.offers()).toBe(false);
   });
 
   it("cuts to a flight before its take-off, and runs the flight slow", () => {

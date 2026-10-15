@@ -34,7 +34,6 @@ import {
   skiRoutesOf,
   pickFreeRun,
   isRegionId,
-  REGION_IDS,
   snowCoverOf,
   type RunGrade,
   type RegionId,
@@ -565,25 +564,65 @@ export function markedRun(
 /** The highest seed QUICK START deals: any generated mountain at all. */
 export const QUICK_SEEDS = 999_999;
 
-/** QUICK START'S RIDE: a GENERATED mountain off a seed of its own, in any
- * country, on any winter day (never summer), at any hour, under any sky
- * and any depth of snow, in an air that fits them (`quickTempOf`) — and no
- * run or spot, so the ride is carried up to the map's toughest piste
+/** QUICK START'S ODDS, a weight a stop: tilted toward the scenes that
+ * look best (a sun on the horizon, a clear night under the moon, a sea of
+ * fog below the ridge) and the skiing that is fastest (the steep countries,
+ * the snow a ski runs on rather than sinks in). A stop missing is never
+ * rolled. Judged off `make sky ARGS="--sheet=weathers --view=sunset"`. */
+export const QUICK_ODDS = {
+  region: { alpine: 4, continental: 4, maritime: 2, fell: 1 },
+  time: { morning: 1, day: 1, evening: 2, sunset: 4, night: 2.5 },
+  /** By day: the bright skies, and fog for its sea of cloud. */
+  weather: {
+    clear: 6,
+    fair: 5,
+    high: 3,
+    fog: 2.5,
+    flurries: 1.5,
+    snow: 1,
+    overcast: 0.5,
+    storm: 0.5,
+  },
+  /** By night: clear nights, the moon and the stars. */
+  night: { clear: 6, fair: 2, high: 1, flurries: 0.5, snow: 0.5 },
+  snow: { thin: 3, medium: 4, thick: 2, deep: 1 },
+} as const satisfies {
+  region: Record<RegionId, number>;
+  time: Record<TimeOfDay, number>;
+  weather: Partial<Record<WeatherKind, number>>;
+  night: Partial<Record<WeatherKind, number>>;
+  snow: Record<SnowId, number>;
+};
+
+/** One key of `odds`, drawn by its weight. */
+function rollOf<K extends string>(odds: Partial<Record<K, number>>, random: () => number): K {
+  const keys = Object.keys(odds) as K[];
+  const total = keys.reduce((sum, k) => sum + (odds[k] ?? 0), 0);
+  let at = random() * total;
+  for (const k of keys) if ((at -= odds[k] ?? 0) < 0) return k;
+  return keys[keys.length - 1];
+}
+
+/** QUICK START'S RIDE: a GENERATED mountain off a seed of its own, on any
+ * winter day (never summer), rolled by `QUICK_ODDS` — its country, its hour,
+ * its sky and its snow — in an air that fits them (`quickTempOf`), and no
+ * run or spot, so the ride is carried up to the map's fastest black
  * (`pickFreeRun`). The rider, his pair or board and his help are the cards'
  * as last picked (`skierOf`); the start card's own answers are left as they
  * were. */
 export function quickRide(base: FreeRide, random: () => number = Math.random): FreeRide {
   const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
+  const time = rollOf<TimeOfDay>(QUICK_ODDS.time, random);
   const ride: FreeRide = {
     ...base,
     seed: 1 + Math.floor(random() * QUICK_SEEDS),
-    region: pick(REGION_IDS),
+    region: rollOf<RegionId>(QUICK_ODDS.region, random),
     face: null,
     grade: null,
     season: pick(SEASONS.filter((s) => s.id !== "summer")).id,
-    time: pick(TIMES_OF_DAY),
-    weather: pick(WEATHER_KINDS),
-    snow: pick(SNOW_STOPS).id,
+    time,
+    weather: rollOf<WeatherKind>(time === "night" ? QUICK_ODDS.night : QUICK_ODDS.weather, random),
+    snow: rollOf<SnowId>(QUICK_ODDS.snow, random),
     run: null,
     spot: null,
   };

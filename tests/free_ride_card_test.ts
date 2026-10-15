@@ -69,6 +69,8 @@ import {
   quickRide,
   quickTempOf,
   QUICK_SEEDS,
+  QUICK_ODDS,
+  type FreeRide,
   QUICK_TEMP_SPREAD,
 } from "../pwa/src/game/free-ride.ts";
 import {
@@ -814,6 +816,26 @@ describe("QUICK START (free-ride.ts)", () => {
       seasons.add(ride.season!);
     }
     expect(seasons.size).toBe(4);
+  });
+
+  it("leans toward the sunset, the clear night and the steep countries", () => {
+    let k = 0;
+    const random = () => (k = (k * 7919 + 104729) % 1000003) / 1000003;
+    const count = (pick: (r: FreeRide) => unknown, want: unknown, n = 2000): number => {
+      k = 1;
+      let hit = 0;
+      for (let i = 0; i < n; i++) if (pick(quickRide(freshRide(), random)) === want) hit++;
+      return hit / n;
+    };
+    expect(count((r) => r.time, "sunset")).toBeGreaterThan(count((r) => r.time, "day") * 2);
+    expect(count((r) => r.region, "fell")).toBeLessThan(count((r) => r.region, "alpine") / 2);
+    expect(count((r) => r.weather, "storm")).toBeLessThan(0.05);
+    // No fog, overcast or storm after dark: a night is clear or near it.
+    k = 1;
+    for (let i = 0; i < 2000; i++) {
+      const ride = quickRide(freshRide(), random);
+      if (ride.time === "night") expect(Object.keys(QUICK_ODDS.night)).toContain(ride.weather);
+    }
   });
 
   it("rolls an air that fits the season, the hour and the sky", () => {

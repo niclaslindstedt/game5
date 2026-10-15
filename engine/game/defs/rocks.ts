@@ -118,7 +118,7 @@ export const ROCKS = {
     block: 0.5,
     coarse: 4,
     tread: 0.26,
-    ribs: { across: 30, along: 110, relief: 2.4, smooth: 0.7, cut: 0.45, floor: 0.35, snow: 0.28 },
+    ribs: { across: 30, along: 110, relief: 2.0, smooth: 0.7, cut: 0.45, floor: 0.35, snow: 0.28 },
   },
   lip: 0.35,
   /** WHAT A SKIER MEETS of a cliff's wall: a column inside the face no

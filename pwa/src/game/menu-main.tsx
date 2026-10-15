@@ -71,6 +71,7 @@ export function MainMenu({
   pinned,
   onRace,
   onFree,
+  onQuick,
   onOptions,
   onGallery,
   stats,
@@ -92,6 +93,8 @@ export function MainMenu({
   onRace: () => void;
   /** Onto the free ride's start card. */
   onFree: () => void;
+  /** Straight onto a free ride dealt at random (`quickRide`). */
+  onQuick: () => void;
   onOptions: () => void;
   onGallery: () => void;
   /** The STATISTICS button's face (runs and metres skied; the rest is its
@@ -214,11 +217,27 @@ export function MainMenu({
                   </span>
                 </span>
               </button>
+              {/* QUICK START: no card at all — a generated mountain, a
+                  day and a sky dealt at random, on the toughest piste, on
+                  the rider and gear last picked. */}
+              <button
+                type="button"
+                class="menu-tile menu-tile-wide"
+                data-menu="quick"
+                style={at(1)}
+                onClick={onQuick}
+              >
+                <Glyph name="dice" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuQuick}</span>
+                  <span class="menu-tile-line">{STRINGS.menuQuickLine}</span>
+                </span>
+              </button>
               <button
                 type="button"
                 class="menu-tile menu-tile-wide"
                 data-menu="options"
-                style={at(1)}
+                style={at(2)}
                 onClick={onOptions}
               >
                 <Glyph name="sliders" />
@@ -233,7 +252,7 @@ export function MainMenu({
                 type="button"
                 class="menu-chip menu-minor-item"
                 data-menu="gallery"
-                style={at(2)}
+                style={at(3)}
                 onClick={onGallery}
               >
                 <Glyph name="camera" />
@@ -247,7 +266,7 @@ export function MainMenu({
                 type="button"
                 class="menu-chip menu-minor-item"
                 data-menu="stats"
-                style={at(3)}
+                style={at(4)}
                 onClick={onStats}
               >
                 <Glyph name="chart" />
@@ -259,7 +278,7 @@ export function MainMenu({
                 </span>
               </button>
             </div>
-            <div class="menu-strip" style={at(4)}>
+            <div class="menu-strip" style={at(5)}>
               {developer && (
                 <button type="button" class="menu-chip" data-menu="developer" onClick={onDeveloper}>
                   <Glyph name="gauge" />

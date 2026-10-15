@@ -464,6 +464,9 @@ export const STRINGS = {
     skiCross: "SKI CROSS",
     speedSki: "SPEED SKIING",
   },
+  /** QUICK START: a free ride on a mountain, day and sky dealt at random. */
+  menuQuick: "QUICK START",
+  menuQuickLine: "A RANDOM MOUNTAIN · DAY · SKY",
   menuFree: "FREE RIDE",
   menuFreeLine: "THE WHOLE MOUNTAIN · NO CLOCK TO BEAT",
   /* ── THE TRICKS RUN (menu-main.tsx, hud-combo.tsx, hud-result.tsx) ── */

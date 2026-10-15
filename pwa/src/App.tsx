@@ -79,6 +79,7 @@ import {
   type AgainAt,
   freeGameOptions,
   freeRestart,
+  quickRide,
 } from "./game/free-ride.ts";
 import { createFreeRides } from "./game/app-free.ts";
 import { createWorldBuild } from "./game/world-build.ts";
@@ -949,6 +950,10 @@ export function App() {
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
           onFree={() => picks.openCard("free", "world")}
+          onQuick={() => {
+            modeRef.current = "free";
+            freeRide(quickRide(settings.ride));
+          }}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

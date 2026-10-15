@@ -29,6 +29,7 @@ import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { horizonDip } from "./horizon.ts";
 import { createClouds, type Clouds } from "./clouds.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
+import { createContrails, type Contrails } from "./contrails.ts";
 import {
   CLOUD_TIER,
   mistFor,
@@ -65,6 +66,9 @@ export type Environment = {
   /** THE CLOUD FIELD on the GPU (`clouds.ts`): its tier rides the DISTANCE
    * row too. */
   clouds: Clouds;
+  /** THE CONTRAILS (`contrails.ts`), drawn in the dome: their rung rides
+   * the DISTANCE row with the cloud's. */
+  contrails: Contrails;
   /** Apply a look, and aim the shadow ahead of `camera`, its box standing
    * at height `y` (the skier's: what the depth range is centred on);
    * `cloud` the map the cloud field stands over and the run's clock it
@@ -224,7 +228,8 @@ export function createEnvironment(
   const gpu = createSkyGpu(gl, haze);
   const terrain = createTerrainShade(haze);
   const clouds = createClouds(gl, haze);
-  const dome = createSkyDome(haze, domeRadius, clouds);
+  const contrails = createContrails();
+  const dome = createSkyDome(haze, domeRadius, clouds, contrails);
   dome.mesh.name = "sky";
   scene.add(dome.mesh);
   const ranges = createFarRanges(haze);
@@ -280,6 +285,7 @@ export function createEnvironment(
   const origin = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   const cull = createViewCull();
+  const px = new THREE.Vector2();
   const cadence = createSunCadence();
 
   return {
@@ -288,11 +294,19 @@ export function createEnvironment(
     dome,
     gpu,
     clouds,
+    contrails,
     update(sky, camera, y, cloud, steady = false, ahead = null, far = 0) {
       writeHaze(haze, sky);
       haze.uFar.value.set(horizonDip(far), far);
       gpu.update(sky, camera);
       clouds.update(sky, cloud?.level ?? null, cloud?.t ?? 0, camera);
+      contrails.update(
+        sky,
+        cloud?.level ?? null,
+        cloud?.t ?? 0,
+        camera,
+        gl ? gl.getDrawingBufferSize(px).y : 720,
+      );
       dome.update(sky);
       ranges.update(sky);
       // The key is the sun by day and the moon by night (`sky.ts`).
@@ -339,6 +353,7 @@ export function createEnvironment(
       haze.uMist.value = mistFor(next);
       gpu.setTier(SKY_TIER[next]);
       clouds.setTier(CLOUD_TIER[next]);
+      contrails.setTier(next);
       ranges.setTier(FAR_TIER[next]);
     },
     setAloft(look) {

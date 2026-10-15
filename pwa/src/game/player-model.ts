@@ -1,29 +1,42 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE PLAYER'S MODELLED KITS: the HIKER made in Blender
-// (`scripts/blender/hiker.py`, `make models KIND=player`), a man
-// (`hiker.glb`) and a woman (`hiker-woman.glb`) — a mountain guide's
-// hardshell, reinforced touring pants, harness, pack, ice axe, rope coil,
-// climbing helmet and glacier glasses — skinned on the very rig the dressed
-// skier is bound on
+// THE PLAYER'S MODELLED KITS, made in Blender (`make models KIND=player`),
+// each a man (`<kit>.glb`) and a woman (`<kit>-woman.glb`): the HIKER
+// (`scripts/blender/hiker.py`) — a mountain guide's hardshell, reinforced
+// touring pants, harness, pack, ice axe, rope coil, climbing helmet and
+// glacier glasses — and the RACER (`scripts/blender/racer.py`) — a national
+// team's printed race suit over a back protector, the bib, the slalom's
+// guards and a race helmet with its chin guard, the parts a discipline does
+// not wear left off (`RACE_KITS`) — and the FREESTYLE rider
+// (`scripts/blender/freestyle.py`) — a park rider's tall baggy jacket and
+// loose pants stacked over the boots, a soft park helmet and big goggles,
+// his hood up over it and a gaiter, hers down on her back. Each is skinned on the very rig the
+// dressed skier is bound on
 // (`dress-loft.ts`'s `bindPose`, bone for bone by name). So it is handed to
 // `skier-dress.ts` as the dressed skin's two parts and every pose the game
 // has (a carve, the tuck, a landing, a grab, thrown, a torn piece) moves it
 // with no animation of its own. The WEIGHT row reshapes it as it does the
 // code's dress (`builtModel`, off `dress-body.ts`'s `builtTo` numbers).
 //
-// Two things move it beyond the rig, both presentation only:
+// What moves it beyond the rig, all presentation only:
 //
-// - THE SPRING BONES. The pack (`fx_pack`, hung off the chest at its top),
+// - THE SPRING BONES (a kit's own, `KITS`). The hiker's pack (`fx_pack`, hung off the chest at its top),
 //   the rope's coil on it (`fx_coil`) and the coil's loose tail (`fx_tail`)
 //   are each a damped pendulum about its own head, swung by the specific
 //   force there — his acceleration less gravity, read in the parent's frame
 //   — so a landing bobs the coil, a hard turn swings the tail out and a
 //   tuck lets it hang down past his back.
 // - THE FLUTTER. Every vertex carries how loose it is (the builder's
-//   `FLUTTER`, carried as the UV's u): the jacket's dropped hem, the
-//   straps' tails, the rope's tail. The cloth's vertex shader trails those
-//   points down the air past him and flaps them along their normal, harder
-//   the faster he goes.
+//   `FLUTTER`, carried as the UV's u): the hiker's dropped hem, straps' and
+//   rope's tails; the racer's bib, its hem and open sides freest; the
+//   freestyle jacket's long skirt, hood and stacked cuffs; and a woman's
+//   braid. The cloth's vertex shader trails those points down the
+//   air past him and flaps them along their normal, harder the faster he
+//   goes — and, where the kit says (`KitDef.wind.lift`), FLOATS them off
+//   him while he falls free and slaps them down on a landing (`hang`, a
+//   damped spring on what his weight presses them with).
+// - THE SHIVER. A skin-tight suit (the UV's v) does not flap: wrinkles run
+//   down its lee side, where the flow leaves it, read as much by the light
+//   on them as by the cloth's own move.
 
 import * as THREE from "three";
 
@@ -36,52 +49,131 @@ import { BREAK } from "./skier-broken.ts";
 import { SKIER_BONES, type BoneFrame, type SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
 
-/** A part of the model: the dressed skin's buffers and each vertex's
- * looseness (0 held, 1 free). */
-export type ModelPart = DressPart & { flutter: number[] };
-
-/** THE SPRING BONES, in the order they follow `SKIER_BONES` in the
- * skeleton: each one's parent, its pendulum's length (m), its own
- * frequency (Hz) and damping ratio, how far it may swing (rad), and how
- * much of the force reaches it (a pack strapped tight takes little). */
-export const SPRING_BONES = [
-  { name: "fx_pack", parent: "chest", length: 0.3, hz: 2.8, zeta: 0.4, most: 0.09, gain: 0.25 },
-  { name: "fx_coil", parent: "chest", length: 0.12, hz: 2.4, zeta: 0.3, most: 0.22, gain: 0.5 },
-  { name: "fx_tail", parent: "fx_coil", length: 0.22, hz: 1.5, zeta: 0.14, most: 0.85, gain: 1 },
-] as const;
-export type SpringBone = (typeof SPRING_BONES)[number]["name"];
-
-/** The model as the game holds it: the cloth (matt, both sides) and the
- * hard goods (a shine), and each spring bone's head in the bind pose. */
-export type PlayerModel = {
-  cloth: ModelPart;
-  hard: ModelPart;
-  heads: Record<SpringBone, V3>;
+/** A part of the model: the dressed skin's buffers, each vertex's
+ * looseness (0 held, 1 free) and how much of it is a skin-tight suit that
+ * shivers in the air (0..1), and the triangles each material holds
+ * (`groups`, by its name: what a discipline may leave off). */
+export type ModelPart = DressPart & {
+  flutter: number[];
+  shiver: number[];
+  groups: { name: string; start: number; count: number }[];
 };
 
-/** The materials `hiker.py` names that are drawn with a shine: the
- * helmet and its lamp, the glasses, the metal. The rest is cloth. */
-export const HARD_GOODS = new Set([
-  "helmet",
-  "helmet_dark",
-  "lamp",
-  "lamp_lens",
-  "glasses",
-  "glass_lens",
-  "metal",
-  "steel",
-  "axe_shaft",
-  "grip",
-  "biner_gold",
-  "biner_red",
-  "biner_blue",
-]);
+/** A SPRING BONE: its name in the model, its parent, its pendulum's length
+ * (m), its own frequency (Hz) and damping ratio, how far it may swing
+ * (rad), and how much of the force reaches it (a pack strapped tight takes
+ * little). They follow `SKIER_BONES` in the skeleton in this order. */
+export type SpringDef = {
+  name: string;
+  parent: string;
+  length: number;
+  hz: number;
+  zeta: number;
+  most: number;
+  gain: number;
+};
+
+/** WHAT A RACER LEAVES OFF FOR A DISCIPLINE: a slalom's racer wears the
+ * whole kit — the shin guards he knocks the poles off with, the knuckle
+ * shields, the chin guard; a giant slalom's racer only the arm pads; a speed
+ * racer none of them, but the AIRBAG speed events require under his suit. */
+export type RaceKit = "slalom" | "gs" | "speed";
+const GATE_KIT = ["shin_guard", "guard_edge", "guard_strap", "shield", "chin_guard"];
+export const RACE_KITS: Record<RaceKit, ReadonlySet<string>> = {
+  slalom: new Set(["airbag"]),
+  gs: new Set([...GATE_KIT, "airbag"]),
+  speed: new Set([...GATE_KIT, "arm_guard"]),
+};
+
+/** A KIT: its spring bones, the materials its builder names that are drawn
+ * with a shine (the rest is cloth), how rough its cloth is, what the air
+ * does to it (how far a loose point streams back and flaps, m; how far it
+ * floats off him falling free, m; how deep the suit's lee wrinkles are, m),
+ * and whether a discipline leaves parts of it off (`RACE_KITS`). */
+export type KitDef = {
+  springs: readonly SpringDef[];
+  hard: ReadonlySet<string>;
+  rough: number;
+  wind: { stream: number; flap: number; lift: number; shiver: number };
+  raced: boolean;
+};
+
+export const KITS: Record<ModelKit, KitDef> = {
+  hiker: {
+    springs: [
+      { name: "fx_pack", parent: "chest", length: 0.3, hz: 2.8, zeta: 0.4, most: 0.09, gain: 0.25 },
+      { name: "fx_coil", parent: "chest", length: 0.12, hz: 2.4, zeta: 0.3, most: 0.22, gain: 0.5 },
+      {
+        name: "fx_tail",
+        parent: "fx_coil",
+        length: 0.22,
+        hz: 1.5,
+        zeta: 0.14,
+        most: 0.85,
+        gain: 1,
+      },
+    ],
+    // The helmet and its lamp, the glasses, the metal.
+    hard: new Set([
+      "helmet",
+      "helmet_dark",
+      "lamp",
+      "lamp_lens",
+      "glasses",
+      "glass_lens",
+      "metal",
+      "steel",
+      "axe_shaft",
+      "grip",
+      "biner_gold",
+      "biner_red",
+      "biner_blue",
+    ]),
+    rough: 0.78,
+    wind: { stream: 0.035, flap: 0.022, lift: 0, shiver: 0 },
+    raced: false,
+  },
+  racer: {
+    springs: [],
+    // The helmet, its band, chin guard and goggles; the guards and shields.
+    hard: new Set([
+      "helmet",
+      "peak",
+      "chin",
+      "chin_guard",
+      "lens",
+      "shin_guard",
+      "guard_edge",
+      "arm_guard",
+      "shield",
+    ]),
+    // A race suit's knit has a sheen.
+    rough: 0.5,
+    wind: { stream: 0.075, flap: 0.03, lift: 0.06, shiver: 0.0022 },
+    raced: true,
+  },
+  freestyle: {
+    // The hood: up over the helmet (a man's), or down on the back (a woman's).
+    springs: [
+      { name: "fx_hood", parent: "chest", length: 0.2, hz: 2.2, zeta: 0.22, most: 0.32, gain: 0.7 },
+    ],
+    // The park helmet and its goggles.
+    hard: new Set(["helmet", "helmet_dark", "frame", "lens"]),
+    // Baggy cloth: matt, and it flaps.
+    rough: 0.86,
+    wind: { stream: 0.06, flap: 0.034, lift: 0.025, shiver: 0 },
+    raced: false,
+  },
+};
+
+/** The hiker's spring bones (the one kit that has any). */
+export const SPRING_BONES = KITS.hiker.springs;
 
 /** Each bone's index in the dressed skeleton: `SKIER_BONES`, then the
- * spring bones. A bone the game has no use for (the rig's root, an arm's
- * lower half) is folded onto the bone it lies on. */
-export function boneIndexOf(name: string): number {
-  const fx = SPRING_BONES.findIndex((b) => b.name === name);
+ * kit's spring bones. A bone the game has no use for (the rig's root, an
+ * arm's lower half) is folded onto the bone it lies on. */
+export function boneIndexOf(name: string, springs: readonly SpringDef[] = SPRING_BONES): number {
+  const fx = springs.findIndex((b) => b.name === name);
   if (fx >= 0) return SKIER_BONES.length + fx;
   const base = name === "body" ? "pelvis" : name.replace("_lo_", "_");
   const i = SKIER_BONES.indexOf(base as SkierBone);
@@ -129,7 +221,19 @@ const empty = (): ModelPart => ({
   skinWeight: [],
   index: [],
   flutter: [],
+  shiver: [],
+  groups: [],
 });
+
+/** The model as the game holds it: its kit, the cloth (matt, both sides)
+ * and the hard goods (a shine), and each spring bone's head in the bind
+ * pose. */
+export type PlayerModel = {
+  kit: ModelKit;
+  cloth: ModelPart;
+  hard: ModelPart;
+  heads: Record<string, V3>;
+};
 
 /** The glTF's bind pose read into the body frame: three.js's glTF frame is
  * the body frame half turned about its up (`scripts/blender/lib.py`'s
@@ -139,10 +243,11 @@ const body = (v: THREE.Vector3): V3 => ({ x: -v.x, y: v.y, z: -v.z });
 /** THE MODEL READ OUT OF ITS glTF: every skinned primitive, its vertices
  * at rest in the body frame, sorted into the cloth and the hard goods by
  * its material's name, its joints renumbered to the dressed skeleton's. */
-export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
+export function readPlayerModel(scene: THREE.Object3D, kit: ModelKit = "hiker"): PlayerModel {
   scene.updateMatrixWorld(true);
   const parts = { cloth: empty(), hard: empty() };
-  const heads = {} as Record<SpringBone, V3>;
+  const heads: Record<string, V3> = {};
+  const { springs, hard } = KITS[kit];
   const p = new THREE.Vector3();
   const n = new THREE.Vector3();
   const nm = new THREE.Matrix3();
@@ -150,11 +255,11 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
     const mesh = o as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
     for (const b of mesh.skeleton.bones) {
-      if (SPRING_BONES.some((s) => s.name === b.name) && !(b.name in heads))
-        heads[b.name as SpringBone] = body(b.getWorldPosition(new THREE.Vector3()));
+      if (springs.some((s) => s.name === b.name) && !(b.name in heads))
+        heads[b.name] = body(b.getWorldPosition(new THREE.Vector3()));
     }
     const mat = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material).name;
-    const into = HARD_GOODS.has(mat) ? parts.hard : parts.cloth;
+    const into = hard.has(mat) ? parts.hard : parts.cloth;
     const g = mesh.geometry;
     const pos = g.getAttribute("position");
     const nor = g.getAttribute("normal");
@@ -162,7 +267,7 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
     const uv = g.getAttribute("uv");
     const ji = g.getAttribute("skinIndex");
     const jw = g.getAttribute("skinWeight");
-    const joints = mesh.skeleton.bones.map((b) => boneIndexOf(b.name));
+    const joints = mesh.skeleton.bones.map((b) => boneIndexOf(b.name, springs));
     nm.getNormalMatrix(mesh.matrixWorld);
     const base = into.position.length / 3;
     for (let i = 0; i < pos.count; i++) {
@@ -174,6 +279,8 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
       if (col) into.color.push(col.getX(i), col.getY(i), col.getZ(i));
       else into.color.push(1, 1, 1);
       into.flutter.push(uv ? Math.max(0, Math.min(1, uv.getX(i))) : 0);
+      // glTF turns v over (1 − v): the builder wrote the shiver as v.
+      into.shiver.push(uv ? Math.max(0, Math.min(1, 1 - uv.getY(i))) : 0);
       // Weights summed onto the bones they fold to, the four largest kept.
       const w = new Map<number, number>();
       for (let k = 0; k < 4; k++) {
@@ -191,10 +298,29 @@ export function readPlayerModel(scene: THREE.Object3D): PlayerModel {
       }
     }
     const idx = g.getIndex();
+    const start = into.index.length;
     if (idx) for (let i = 0; i < idx.count; i++) into.index.push(base + idx.getX(i));
     else for (let i = 0; i < pos.count; i++) into.index.push(base + i);
+    into.groups.push({ name: mat, start, count: into.index.length - start });
   });
-  return { ...parts, heads };
+  return { kit, ...parts, heads };
+}
+
+/** The model with the materials `off` names left out (a discipline's kit,
+ * `RACE_KITS`): their triangles dropped, every vertex kept. */
+export function withoutParts(m: PlayerModel, off: ReadonlySet<string>): PlayerModel {
+  if (!off.size) return m;
+  const keep = (part: ModelPart): ModelPart => {
+    const index: number[] = [];
+    const groups: ModelPart["groups"] = [];
+    for (const g of part.groups) {
+      if (off.has(g.name)) continue;
+      groups.push({ name: g.name, start: index.length, count: g.count });
+      for (let i = g.start; i < g.start + g.count; i++) index.push(part.index[i]);
+    }
+    return { ...part, index, groups };
+  };
+  return { ...m, cloth: keep(m.cloth), hard: keep(m.hard) };
 }
 
 /** Which model of a kit: a man's or a woman's. */
@@ -203,7 +329,17 @@ export const modelKey = (kit: ModelKit, female: boolean): ModelKey =>
   female ? `${kit}-woman` : kit;
 
 /** Every model the build packs, each its own file (`<key>.glb`). */
-export const PLAYER_MODELS: readonly ModelKey[] = ["hiker", "hiker-woman"];
+export const PLAYER_MODELS: readonly ModelKey[] = [
+  "hiker",
+  "hiker-woman",
+  "racer",
+  "racer-woman",
+  "freestyle",
+  "freestyle-woman",
+];
+
+/** The kit a model's key is of. */
+export const kitOf = (key: ModelKey): ModelKit => key.replace(/-woman$/, "") as ModelKit;
 
 const held = new Map<ModelKey, PlayerModel>();
 const builds = new Map<string, PlayerModel>();
@@ -222,21 +358,25 @@ export function playerNow(): number {
 }
 
 /** A kit's model, a man's or a woman's, at the build its WEIGHT row picks
- * (`builtModel`, made once a build) — once `skier-models.ts`'s
- * `loadModels` has read it; or `null` (switched off, not packed, failed to
- * load, or not in yet), when the player is dressed in code as any other
- * skier. */
+ * (`builtModel`) and — a racer's — with what the discipline `raced` leaves
+ * off (`RACE_KITS`; the slalom's whole kit when none is named), made once
+ * each — once `skier-models.ts`'s `loadModels` has read it; or `null`
+ * (switched off, not packed, failed to load, or not in yet), when the
+ * player is dressed in code as any other skier. */
 export function playerModel(
   key: ModelKey,
   weight?: RiderId,
   shape?: BuildShape,
+  raced: RaceKit = "slalom",
 ): PlayerModel | null {
   const m = held.get(key) ?? null;
-  if (!m || !weight || !shape) return m;
-  const id = `${key}:${weight}`;
+  if (!m) return m;
+  const off = KITS[m.kit].raced ? RACE_KITS[raced] : new Set<string>();
+  const id = `${key}:${weight ?? "medium"}:${off.size ? raced : ""}`;
   let made = builds.get(id);
   if (!made) {
-    made = builtModel(m, shape, bindPose().frames);
+    const built = weight && shape ? builtModel(m, shape, bindPose().frames) : m;
+    made = withoutParts(built, off);
     builds.set(id, made);
   }
   return made;
@@ -275,6 +415,7 @@ export function builtModel(
   bind: Record<SkierBone, BoneFrame>,
 ): PlayerModel {
   if (b.girth === 1 && b.belly === 0 && b.chest === 0) return m;
+  const springs = KITS[m.kit].springs;
   const limb = 1 + (b.girth - 1) * 0.7;
   const spine = bind.pelvis;
   const chest = bind.chest;
@@ -298,7 +439,7 @@ export function builtModel(
       let to = p;
       if (bone >= SKIER_BONES.length) {
         // The pack and the coil ride his back and chest.
-        if (SPRING_BONES[bone - SKIER_BONES.length].parent === "chest") to = add(p, shift);
+        if (springs[bone - SKIER_BONES.length]?.parent === "chest") to = add(p, shift);
       } else {
         const name = SKIER_BONES[bone];
         const f = bind[name];
@@ -324,8 +465,8 @@ export function builtModel(
     return { ...part, position };
   };
   const heads = { ...m.heads };
-  for (const s of SPRING_BONES) if (s.parent === "chest") heads[s.name] = add(heads[s.name], shift);
-  return { cloth: reshape(m.cloth), hard: reshape(m.hard), heads };
+  for (const s of springs) if (s.parent === "chest") heads[s.name] = add(heads[s.name], shift);
+  return { ...m, cloth: reshape(m.cloth), hard: reshape(m.hard), heads };
 }
 
 // ---------------------------------------------------------------- springs
@@ -346,13 +487,14 @@ export type Springs = {
     frames: Record<SkierBone, BoneFrame>,
     world: THREE.Matrix4,
     now: number,
-  ): { frames: BoneFrame[]; flow: V3 };
+  ): { frames: BoneFrame[]; flow: V3; float: number };
   rest(): void;
 };
 
 export function createSprings(
   bind: Record<SkierBone, BoneFrame>,
-  heads: Record<SpringBone, V3>,
+  heads: Record<string, V3>,
+  springs: readonly SpringDef[] = SPRING_BONES,
 ): Springs {
   // Each spring's head stated in its parent's bind frame; every spring's
   // bind frame takes the chest's axes, so a chain's offsets are the same
@@ -360,15 +502,15 @@ export function createSprings(
   const chest = bind.chest;
   const offsets: V3[] = [];
   const headOf = (name: string): V3 =>
-    name === "chest" ? chest.head : (heads[name as SpringBone] ?? chest.head);
-  for (const s of SPRING_BONES) {
+    name === "chest" ? chest.head : (heads[name] ?? chest.head);
+  for (const s of springs) {
     const d = sub(heads[s.name] ?? headOf(s.parent), headOf(s.parent));
     offsets.push(v3(dot(d, chest.x), dot(d, chest.y), dot(d, chest.z)));
   }
   // Gravity as the chest is stood in the bind pose: the share of it the
   // springs hang against at rest, so the model's own drape is their zero.
   const restG = v3(dot(v3(0, 9.81, 0), chest.x), 0, dot(v3(0, 9.81, 0), chest.z));
-  const swings: Swing[] = SPRING_BONES.map(() => ({ pitch: 0, roll: 0, wp: 0, wr: 0 }));
+  const swings: Swing[] = springs.map(() => ({ pitch: 0, roll: 0, wp: 0, wr: 0 }));
   let last = -1;
   let pos: THREE.Vector3 | null = null;
   const vel = new THREE.Vector3();
@@ -378,9 +520,15 @@ export function createSprings(
   const inv = new THREE.Matrix4();
   const ax = new THREE.Vector3();
   const flow = new THREE.Vector3();
+  // THE FLOAT: a loose panel lifted off him while he is light (in the air,
+  // over a crest) — a spring on how much of his weight his kit feels, so
+  // the bib rises off the suit after take-off and settles on the landing.
+  let float = 0;
+  let floatRate = 0;
 
   const rest = (): void => {
     for (const w of swings) w.pitch = w.roll = w.wp = w.wr = 0;
+    float = floatRate = 0;
     pos = null;
     vel.set(0, 0, 0);
     acc.set(0, 0, 0);
@@ -397,7 +545,8 @@ export function createSprings(
       last = now;
       // The pack's head in the world: its velocity and acceleration,
       // smoothed over a few frames (a frame's jitter is not a jolt).
-      const top = inFrame(frames.chest, offsets[0]);
+      // A kit with no spring bones (the racer's) reads the chest's head.
+      const top = offsets.length ? inFrame(frames.chest, offsets[0]) : frames.chest.head;
       here.set(top.x, top.y, top.z).applyMatrix4(world);
       if (pos && dt > 1e-4) {
         const v = here.clone().sub(pos).divideScalar(dt);
@@ -421,15 +570,22 @@ export function createSprings(
         .applyMatrix4(inv);
       const force = v3(f.x, f.y, f.z);
       flow.copy(vel).negate().applyMatrix4(inv);
+      if (dt > 1e-4) {
+        const goal = Math.max(-1.5, Math.min(1, 1 - force.y / 9.81));
+        const om = 13;
+        for (let n = Math.ceil(dt * 240), h = dt / n; n > 0; n--) {
+          floatRate += (om * om * (goal - float) - 2 * 0.2 * om * floatRate) * h;
+          float += floatRate * h;
+        }
+        float = Math.max(-1.5, Math.min(1.5, float));
+      }
 
       const out: BoneFrame[] = [];
-      SPRING_BONES.forEach((s, i) => {
+      springs.forEach((s, i) => {
         // Each spring hangs off its own parent: the chest, or a spring
         // before it in the list.
         const parent =
-          s.parent === "chest"
-            ? frames.chest
-            : out[SPRING_BONES.findIndex((b) => b.name === s.parent)];
+          s.parent === "chest" ? frames.chest : out[springs.findIndex((b) => b.name === s.parent)];
         const head = inFrame(parent, offsets[i]);
         const w = swings[i];
         if (dt > 1e-4) {
@@ -460,46 +616,69 @@ export function createSprings(
         out.push(frame);
       });
       ax.set(flow.x, flow.y, flow.z);
-      return { frames: out, flow: v3(ax.x, ax.y, ax.z) };
+      return { frames: out, flow: v3(ax.x, ax.y, ax.z), float };
     },
   };
 }
 
 // ---------------------------------------------------------------- flutter
-export type FlutterUniforms = { uFlow: { value: THREE.Vector3 }; uFlTime: { value: number } };
+export type FlutterUniforms = {
+  uFlow: { value: THREE.Vector3 };
+  uFlTime: { value: number };
+  uFloat: { value: number };
+};
 
 export function flutterUniforms(): FlutterUniforms {
-  return { uFlow: { value: new THREE.Vector3() }, uFlTime: { value: 0 } };
+  return { uFlow: { value: new THREE.Vector3() }, uFlTime: { value: 0 }, uFloat: { value: 0 } };
 }
 
 /** THE FLUTTER, chained after whatever the material already does to its
  * shader (the haze): a loose point trailed down the air past him and
- * flapped along its normal, by its looseness and his speed. */
-export function withFlutter<M extends THREE.Material>(m: M, u: FlutterUniforms): M {
+ * flapped along its normal, by its looseness and his speed — by the kit's
+ * own amounts (`KitDef.wind`): a race bib streams and floats off the suit
+ * while he is light, and the suit's own skin shivers on its lee side. */
+export function withFlutter<M extends THREE.Material>(
+  m: M,
+  u: FlutterUniforms,
+  wind: KitDef["wind"] = KITS.hiker.wind,
+): M {
   const before = m.onBeforeCompile.bind(m);
   const key = m.customProgramCacheKey.bind(m);
-  m.customProgramCacheKey = (): string => `${key()}:flutter`;
+  const w = new THREE.Vector4(wind.stream, wind.flap, wind.lift, wind.shiver);
+  m.customProgramCacheKey = (): string => `${key()}:flutter:${w.toArray().join()}`;
   m.onBeforeCompile = (shader, renderer) => {
     before(shader, renderer);
     shader.uniforms.uFlow = u.uFlow;
     shader.uniforms.uFlTime = u.uFlTime;
+    shader.uniforms.uFloat = u.uFloat;
+    shader.uniforms.uWind = { value: w };
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
-        "#include <common>\nattribute float flutter;\nuniform vec3 uFlow;\nuniform float uFlTime;",
+        "#include <common>\nattribute float flutter;\nattribute float shiver;\nuniform vec3 uFlow;\nuniform float uFlTime;\nuniform float uFloat;\nuniform vec4 uWind;",
       )
       .replace(
         "#include <skinning_vertex>",
         `#include <skinning_vertex>
   {
     float sp = length(uFlow);
-    if (flutter > 0.0 && sp > 0.3) {
-      vec3 d = uFlow / sp;
+    if (flutter > 0.0) {
       float k = flutter * clamp(sp / 22.0, 0.0, 1.0);
-      float ph = dot(position, vec3(23.0, 17.0, 29.0));
-      float f = 9.0 + 9.0 * k;
-      transformed += d * k * (0.035 + 0.012 * sin(uFlTime * f * 0.7 + ph));
-      transformed += normalize(objectNormal) * k * 0.022 * sin(uFlTime * f + ph * 1.7);
+      transformed.y += flutter * uWind.z * uFloat;
+      if (sp > 0.3) {
+        vec3 d = uFlow / sp;
+        float ph = dot(position, vec3(23.0, 17.0, 29.0));
+        float f = 9.0 + 9.0 * k;
+        transformed += d * k * (uWind.x + 0.012 * sin(uFlTime * f * 0.7 + ph));
+        transformed += normalize(objectNormal) * k * uWind.y * sin(uFlTime * f + ph * 1.7);
+      }
+    }
+    if (shiver > 0.0 && sp > 4.0) {
+      vec3 nn = normalize(objectNormal);
+      float lee = max(0.0, dot(nn, uFlow / sp));
+      float ph = dot(position, vec3(41.0, 37.0, 31.0));
+      float a = shiver * lee * uWind.w * clamp((sp - 4.0) / 26.0, 0.0, 1.0);
+      transformed += nn * a * sin(uFlTime * (24.0 + sp * 0.6) + ph);
     }
   }`,
       );

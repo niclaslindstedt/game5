@@ -383,7 +383,7 @@ export function createWorldRenderer(
   /** The run's rivals, read for an enthusiast's own kit. */
   let field: readonly Rival[] = [];
   const dealtKits = new Map<string, SkierDress>();
-  let kit: PlayerKit = "own"; // His own kit, a wingsuit or a freerider's.
+  let kit: PlayerKit = "hiker"; // His mode's kit, a wingsuit or a freerider's.
   const dressOf = (i: number): SkierDress => {
     if (i === 0) return playerDress(kit, outfit);
     const free = field[i - 1]?.free;

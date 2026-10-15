@@ -157,6 +157,9 @@ export function createSkyDome(
         // finer than the sky's grid can hold.
         float lift = 2.5 + 27.5 * smoothstep(0.0, 0.3, uSunPos.y);
         float own = smoothstep(0.02, 0.12, uSunPos.y);
+        // Under a lid the grey air and the snow between take it too, the
+        // more the lower it stands: no orange spark through a blizzard.
+        disc *= exp(-uCloudVeil * 600.0 / max(uSunPos.y, 0.03));
         c = mix(c, uSunCol * lift + c * mix(0.15, 1.0, own), disc * (1.0 - hide * 0.97));
         float aureole = exp(-(1.0 - mu) * 900.0) * 0.6 + exp(-(1.0 - mu) * 90.0) * 0.12;
         c += uSunCol * aureole * clearSky * smoothstep(-0.03, 0.01, uSunPos.y);

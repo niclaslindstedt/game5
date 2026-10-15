@@ -89,7 +89,7 @@ import { playerKitOf, playerDress, type PlayerKit } from "./player-dress.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { heightOverFar } from "./horizon.ts";
 import { keyAheadAt, skyLookAt } from "./sky.ts";
-import { sunNow } from "./sky-clock.ts";
+import { airNow, sunNow } from "./sky-clock.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { rideSink } from "./ride-sink.ts";
 import { castInLight } from "./terrain-shade.ts";
@@ -425,6 +425,7 @@ export function createWorldRenderer(
     packSun = sunNow(sky, state.t).elevation; // re-packed as the sky's clock moves it
     return snowpackOf(sky, {
       elevation: packSun,
+      air: airNow(sky, state.t),
       fresh: state.fresh,
       depth: state.snowDepth,
       ...snowForce,

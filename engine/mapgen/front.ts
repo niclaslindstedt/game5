@@ -124,6 +124,8 @@ export function dealFront(level: Pick<Level, "seed" | "weather">): WeatherFront 
       fog: 0,
       windFrom: first.windFrom,
       evening: first.evening,
+      // The air's knob is the ride's, whichever sky it turns into.
+      ...(first.temp === undefined ? {} : { temp: first.temp }),
     });
     legs.push({ weather, from: at, full: at + come });
     at += come + hold;
@@ -205,5 +207,6 @@ export function weatherAt(level: Pick<Level, "weather" | "front">, t: number): W
     wind: mix(a.wind, b.wind),
     windFrom: a.windFrom,
     evening: a.evening,
+    ...(a.temp === undefined ? {} : { temp: a.temp }),
   };
 }

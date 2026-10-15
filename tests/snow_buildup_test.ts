@@ -34,8 +34,13 @@ import { flatLevel } from "./support/synthetic.ts";
 const FALL: Partial<Record<WeatherKind, number>> = { flurries: 0.17, snow: 0.5, storm: 0.88 };
 
 /** A map's day: `hour` on `dayOfYear` at `latitude` under `kind`. */
-function dayOf(kind: WeatherKind, hour: number, dayOfYear = 30, latitude = 46) {
-  const weather: Weather = { ...CLEAR_WEATHER, kind, snowfall: FALL[kind] ?? 0 };
+function dayOf(kind: WeatherKind, hour: number, dayOfYear = 30, latitude = 46, temp?: number) {
+  const weather: Weather = {
+    ...CLEAR_WEATHER,
+    kind,
+    snowfall: FALL[kind] ?? 0,
+    ...(temp === undefined ? {} : { temp }),
+  };
   return pisteDayOf({ sun: { hour, dayOfYear, latitude }, weather });
 }
 
@@ -90,6 +95,17 @@ describe("the runs through a day", () => {
     expect(dayOf("overcast", 13, 80).soft).toBeLessThan(noon.soft / 2);
     expect(dayOf("snow", 13, 80).soft).toBe(0);
     expect(dayOf("clear", 13, 30, 66).soft).toBe(0);
+  });
+
+  it("go soft only near the melting point, and freeze only once the air goes under it", () => {
+    // A spring sun in deep cold leaves the groomer firm...
+    expect(dayOf("clear", 13, 80, 46, -15).soft).toBe(0);
+    // ...air over zero softens it under a lid too...
+    expect(dayOf("overcast", 15, 80, 46, 8).soft).toBeGreaterThan(0.6);
+    // ...and a warm evening leaves it slush rather than ice.
+    const warm = dayOf("clear", 19, 80, 46, 14);
+    expect(warm.soft).toBeGreaterThan(0.6);
+    expect(warm.ice).toBe(0);
   });
 
   it("is the same deal every time it is asked", () => {

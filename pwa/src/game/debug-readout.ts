@@ -39,6 +39,8 @@ export type ReproFacts = {
   pose: SkisPose;
   /** False for a run skied without poles (the hard mode, `?poles=0`). */
   poles?: boolean;
+  /** The air's knob, °C (`Weather.temp`), where the run was given one. */
+  temp?: number;
 };
 
 /** Where the player's skis stands: plan position, heading, forward speed. */
@@ -58,6 +60,7 @@ export function reproOf(state: GameState, mode: GameMode, camera: CameraRung): R
     skyclock: skyClock(),
     pose: { x: s.x, z: s.z, heading: s.heading, speed: s.way },
     poles: s.poles,
+    ...(state.level.weather?.temp === undefined ? {} : { temp: state.level.weather.temp }),
   };
 }
 
@@ -77,6 +80,7 @@ export function reproQuery(f: ReproFacts): string {
   q.set("weather", f.weather);
   q.set("hour", String(round(f.hour, 2)));
   q.set("skyclock", String(f.skyclock));
+  if (f.temp !== undefined) q.set("temp", String(f.temp));
   const p = f.pose;
   q.set("pose", [round(p.x, 1), round(p.z, 1), round(p.heading, 3), round(p.speed, 1)].join(","));
   if (f.poles === false) q.set("poles", "0");

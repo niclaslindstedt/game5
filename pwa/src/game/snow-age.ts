@@ -23,7 +23,12 @@
 //   * a sun crust is a melt-and-freeze glaze on the faces the sun warms,
 //     and needs a sun high enough to melt the top — late winter and spring;
 //   * surface hoar grows on clear, calm, cold nights on shaded, sheltered
-//     snow, and is ruined by the sun and the wind.
+//     snow, and is ruined by the sun and the wind;
+//   * snow goes WET (free water in it) once its surface reaches 0 °C: air
+//     over the melting point wets it under a lid as much as under the sun,
+//     a strong spring sun wets the sunny snow down to a few degrees below
+//     zero, and in air colder than about −8 °C even a high sun leaves it
+//     dry; snow falling through air over zero lands heavy and wet.
 //
 // PRESENTATION ONLY: dealt off the map's seed on a salt of its own (never
 // the engine's stream, never a field the physics reads), so no digest moves;
@@ -34,7 +39,15 @@
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
-import { sunAtRun, weatherOf, type Level, type Weather } from "@engine";
+import {
+  airTempAt,
+  slopeAltitudeOf,
+  sunAtRun,
+  weatherOf,
+  type TempLevel,
+  type Level,
+  type Weather,
+} from "@engine";
 
 /** The surface's ages a lab forces, each a picture of its own. */
 export type SnowAgeKind = "fresh" | "settled" | "old" | "wind" | "crust" | "hoar" | "wet";
@@ -103,6 +116,32 @@ export const THAW = { from: (20 * Math.PI) / 180, full: (32 * Math.PI) / 180 } a
  * whole field grey. */
 export const WET_SUN = { from: (30 * Math.PI) / 180, full: (45 * Math.PI) / 180 } as const;
 
+/** THE AIR (°C) the snow is wet in: wet through in air at `full` and
+ * over, none of it in air at `from` and under, whatever the sun. */
+export const WET_AIR = { from: -0.5, full: 2.5 } as const;
+
+/** THE AIR (°C) the SUN can wet snow in: in full at `from` and warmer,
+ * not at all at `cold` and colder. */
+export const SUN_WETS = { cold: -8, from: -2 } as const;
+
+/** How wet the snow is in air at `air` °C with the sun's own share `sun`
+ * (0..1, the thaw its elevation and the sky give it) — `air` undefined
+ * leaves the sun's share alone. */
+export function wetIn(air: number | undefined, sun: number): number {
+  if (air === undefined) return sun;
+  return Math.max(
+    smooth(WET_AIR.from, WET_AIR.full, air),
+    sun * smooth(SUN_WETS.cold, SUN_WETS.from, air),
+  );
+}
+
+/** THE AIR the snow lies in on `level` at its start hour, °C (the slopes'
+ * altitude, `slopeAltitudeOf`) — what a reader handed no air of its own
+ * reads. */
+export function snowAirOf(level: TempLevel): number {
+  return airTempAt(level, undefined, slopeAltitudeOf(level));
+}
+
 /** Salt on the map's seed for the days' own draw. */
 const AGE_SALT = 0x5a0aa6e;
 
@@ -130,11 +169,14 @@ export type SnowAgeOptions = {
   elevation?: number;
   /** One surface everywhere (a lab), or null for the map's own. */
   force?: SnowAgeKind | null;
+  /** The air over the snow, °C — the map's own at its start hour and the
+   * slopes' altitude when left out (`snowAirOf`): what wets it. */
+  air?: number;
 };
 
 /** THE SURFACE OF THE LOOSE SNOW on `level` under its sky. */
 export function snowAgeOf(
-  level: Pick<Level, "seed" | "sun" | "weather">,
+  level: Pick<Level, "seed" | "sun" | "weather"> & TempLevel,
   options: SnowAgeOptions = {},
 ): SnowAge {
   const noonSun = sunAtRun({ sun: { ...level.sun, hour: 12 } });
@@ -159,14 +201,17 @@ export function snowAgeOf(
   const hoar =
     smooth(0.8, 2.5, days) * (1 - smooth(9, 14, days)) * clearness(weather) * calm * cold;
   // The thaw, as `snowpack.ts` reads it for what is thrown: the run's sun on
-  // the snow, a lid keeping it cold, a falling sky cold by definition.
+  // the snow — a lid keeping most of it off, a falling sky all of it, and
+  // only in air near the melting point — and the air itself over zero,
+  // which wets the snow (and a fall through it) under any sky.
   const snowing =
     weather.kind === "flurries" || weather.kind === "snow" || weather.kind === "storm";
   const lid = weather.kind === "overcast" || weather.kind === "fog" ? 0.35 : 1;
   const elevation = options.elevation ?? sunAtRun(level).elevation;
-  const wet = snowing
+  const sun = snowing
     ? 0
     : smooth(WET_SUN.from, WET_SUN.full, elevation) * lid * smooth(0.5, 2, days);
+  const wet = wetIn(options.air ?? snowAirOf({ ...level, weather }), sun);
   return { days, fresh, old, wind, crust, hoar, wet, noon };
 }
 

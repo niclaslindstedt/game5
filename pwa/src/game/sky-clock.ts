@@ -15,7 +15,18 @@
 //
 // DOM-free and three-free: a module the suite reads.
 
-import { moonAtRun, skyHourAt, skyLevelAt, sunAtRun, type Level } from "@engine";
+import {
+  airTempAt,
+  altitudeOfY,
+  freeAirTempAt,
+  moonAtRun,
+  skyHourAt,
+  skyLevelAt,
+  slopeAltitudeOf,
+  sunAtRun,
+  type TempLevel,
+  type Level,
+} from "@engine";
 
 let rate = 0;
 
@@ -48,3 +59,23 @@ export function sunNow(level: Pick<Level, "sun">, t: number): ReturnType<typeof 
 export function moonNow(level: Pick<Level, "sun">, t: number): ReturnType<typeof moonAtRun> {
   return moonAtRun(level, t, rate);
 }
+
+/** The air at run time `t`, °C, at `altitude` m over the sea — the slopes'
+ * (`slopeAltitudeOf`) when left out: what the snow is wet or dry in. */
+export function airNow(level: TempLevel, t: number, altitude?: number): number {
+  return airTempAt(level, t, altitude ?? slopeAltitudeOf(level), rate);
+}
+
+/** THE AIR OUTSIDE A CRAFT at map height `y` and `agl` m over the snow at
+ * run time `t`, °C: the ground's air (its day's cycle and all) eased into
+ * the free air aloft (`freeAirTempAt`) over the first `ABOVE` metres. */
+export function craftAirNow(level: Level, t: number, y: number, agl: number): number {
+  const altitude = altitudeOfY(level, y);
+  const ground = airTempAt(level, t, altitude, rate);
+  const free = freeAirTempAt(level, t, altitude, rate);
+  const k = Math.min(1, Math.max(0, agl / ABOVE));
+  return ground + (free - ground) * k;
+}
+
+/** How high over the snow the ground's own air gives way to the free air, m. */
+const ABOVE = 1500;

@@ -15,11 +15,15 @@
 //     rate times `pack` hours — a flurry leaves a dusting, a steady fall a
 //     few soft centimetres by the afternoon, a storm a hand of loose snow
 //     over the whole run (`fresh`, m).
-//   * THE SUN. A high sun on a groomer — a spring one; a midwinter noon sun
-//     never gets there — warms it to slush through the afternoon (`soft`),
-//     and as it goes the slush freezes hard and glassy (`hard`): the
-//     evening's scratchy piste. A lid over the sun keeps most of it off, and
-//     a snowing sky all of it.
+//   * THE SUN AND THE AIR. Slush wants the snow at the melting point: a
+//     high sun on a groomer — a spring one; a midwinter noon sun never gets
+//     there — warms it through the afternoon (`soft`) only while the air
+//     (`airTempAt`, at the slopes' altitude) is no colder than a few degrees
+//     below zero, and air over the melting point softens it on its own,
+//     under a lid too. As the sun goes the slush freezes hard and glassy
+//     (`hard`) — but only once the air falls below zero: a warm evening
+//     leaves it slush. A lid over the sun keeps most of the sun's share off,
+//     and a snowing sky all of it.
 //
 // A PURE FUNCTION OF THE MAP, worked out once as the run is stood up by
 // walking the day from the night's last pass to the hour — no draw from
@@ -32,6 +36,7 @@
 
 import { sunAt } from "@niclaslindstedt/oss-game-framework/core/solar";
 import { declinationOf, snows, weatherOf, type Level } from "../mapgen/index.ts";
+import { airTempAt, slopeAltitudeOf, type TempLevel } from "./air-temp.ts";
 import { PISTE_DAY } from "./defs/piste-day.ts";
 import { freshRate } from "./snowfall.ts";
 
@@ -69,9 +74,17 @@ function trafficAt(h: number): number {
   return h < P.close ? 1 : P.after;
 }
 
-/** THE RUNS ON `level` at its own hour, date and sky. */
-export function pisteDayOf(level: Pick<Level, "sun" | "weather">): PisteDay {
+/** THE RUNS ON `level` at its own hour, date, sky and air (the air at
+ * the slopes' altitude, `slopeAltitudeOf`; a map with no mountain stands
+ * its valley at `AIR_TEMP.valley`). */
+export function pisteDayOf(level: Pick<Level, "sun" | "weather"> & TempLevel): PisteDay {
   const hour = level.sun.hour;
+  const T = P.air;
+  const altitude = slopeAltitudeOf(level);
+  // The air over the day off the START hour's sky: the hour each step
+  // stands at, the sky the run starts under (no front, no clock).
+  const airAt = (h: number): number =>
+    airTempAt({ ...level, front: undefined, sun: { ...level.sun, hour: h } }, undefined, altitude);
   const weather = weatherOf(level);
   const rate = snows(weather.kind) ? freshRate(weather.snowfall) * 3600 : 0;
   const lid = P.sun.lid[weather.kind];
@@ -92,8 +105,14 @@ export function pisteDayOf(level: Pick<Level, "sun" | "weather">): PisteDay {
     fresh += (rate - (traffic * fresh) / P.pack) * dt;
     // The sun warms the surface over its threshold; it cools back always.
     const sun = sunAt(mid, level.sun.latitude, dec);
-    const heat = Math.max(0, Math.sin(sun.elevation) - sinFrom) * lid;
-    warm += (heat - warm / P.sun.cool) * dt;
+    const air = airAt(mid);
+    // The sun's share wants the air near the melting point; air over it
+    // warms the snow on its own; air over it keeps the warmth from going.
+    const sunHeat =
+      Math.max(0, Math.sin(sun.elevation) - sinFrom) * lid * smooth(T.cold, T.sunFrom, air);
+    const heat = sunHeat + T.warm * Math.max(0, air);
+    const cool = 1 - smooth(T.freeze, T.thaw, air);
+    warm += (heat - (cool * warm) / P.sun.cool) * dt;
     softMost = Math.max(softMost, smooth(P.sun.soft.from, P.sun.soft.full, warm));
     h += dt;
   }

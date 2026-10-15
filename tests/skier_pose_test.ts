@@ -196,6 +196,28 @@ describe("the body on its legs", () => {
     expect((widest * 180) / Math.PI).toBeLessThan(45);
   });
 
+  it("throws the arms on further back behind him the faster he double-poles", () => {
+    // The follow-through: at a crawl the push lets go by the hips; going
+    // fast the arms carry on long and high behind him.
+    const furthest = (speed: number): number => {
+      let most = Infinity;
+      for (let k = 0; k <= 240; k++) {
+        const gait = gaitOf({
+          drive: 1,
+          stride: 3 + k / 120,
+          speed,
+          pitch: 0,
+          airborne: false,
+          thrown: null,
+        });
+        const p = skierPose({ ...base, gait });
+        most = Math.min(most, p.hands[0].z, p.hands[1].z);
+      }
+      return most;
+    };
+    expect(furthest(5.6)).toBeGreaterThan(furthest(9.5) + 0.2);
+  });
+
   it("carries the weight across onto the gliding ski and swings the poles as rods", () => {
     const skate = (stride: number) =>
       skierPose({

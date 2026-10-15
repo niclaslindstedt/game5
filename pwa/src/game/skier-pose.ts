@@ -201,6 +201,12 @@ const PLANT_FLARE = 0.08;
  * reaching ahead and down for the plant has that along its own line and
  * the elbow is pushed out sideways like a wing. */
 const POLE_ELBOW = { up: 0.6, back: 0.8, share: 0.2 };
+/** THE FOLLOW-THROUGH AT SPEED, as a share of the double pole's swing the
+ * arms carry on past the finish once the poles let go (`holdPush`'s
+ * `over`): at a crawl the push ends just past the hips; going fast the
+ * arms are thrown on long and high behind him, near level with the snow —
+ * the faster the skier, the longer the follow-through, as coaches teach. */
+const FOLLOW_OVER = 0.25;
 /** The band, m, over which the hips' sink to the boots' reach is let in
  * and out (`softAbove`). */
 const CUFF_EASE = 0.045;
@@ -823,6 +829,12 @@ export function skierPose(input: SkierPoseInput): SkierPose {
           duty,
           poled: input.poled,
           reach: reachArm,
+          // ...the double pole's alone: a skate's quick push lets go by
+          // the hips, its arm clear of the driving leg.
+          over:
+            FOLLOW_OVER *
+            (gait.follow ?? 0) *
+            clamp01(1 - gait.skate / Math.max(1e-6, gait.skate + gait.pole + gait.stride)),
         })
       : null;
   if (push) {

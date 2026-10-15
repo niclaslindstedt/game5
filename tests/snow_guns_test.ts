@@ -16,6 +16,8 @@ import {
   snowGunsOf,
   snowGunsOut,
   snowGunsRun,
+  wetBulbAt,
+  slopeAltitudeOf,
   solidsOf,
   withDay,
   withSky,
@@ -55,6 +57,19 @@ describe("the seasons the guns stand in", () => {
     expect(snowGunsRun(on(349))).toBe(true);
     const noon = withSky(withDay(base, { dayOfYear: 115, hour: 12.5 }), { weather: "clear" });
     expect(snowGunsRun(noon)).toBe(false);
+  });
+
+  it("runs them only in air cold enough, whatever the day", () => {
+    // A mild early-season day is too warm; a cold spring noon is not.
+    expect(snowGunsRun(withSky(on(349), { temp: 6 }))).toBe(false);
+    const noon = withSky(withDay(base, { dayOfYear: 115, hour: 12.5 }), { weather: "clear" });
+    expect(snowGunsRun(withSky(noon, { temp: -6 }))).toBe(true);
+    // ...and under a damp lid the wet bulb is nearly the air.
+    const bulb = (weather: "overcast" | "clear"): number => {
+      const level = withSky(on(349), { weather });
+      return wetBulbAt(level, undefined, slopeAltitudeOf(level));
+    };
+    expect(bulb("overcast")).toBeGreaterThan(bulb("clear"));
   });
 });
 

@@ -39,7 +39,7 @@
 import { pisteDayOf, regionOf, sampleField, weatherOf, type Level, type Weather } from "@engine";
 
 import { NO_TRACKS, tracksOf, type Tracks } from "./piste-tracks.ts";
-import { snowAgeOf, THAW, type SnowAge, type SnowAgeKind } from "./snow-age.ts";
+import { snowAgeOf, snowAirOf, THAW, wetIn, type SnowAge, type SnowAgeKind } from "./snow-age.ts";
 
 export { THAW };
 
@@ -197,6 +197,10 @@ export type SnowpackOptions = {
   weather?: Weather;
   /** The sun's elevation over the run, rad; no thaw when left out. */
   elevation?: number;
+  /** The air over the snow, °C (`airTempAt` at the slopes' altitude): what
+   * wets it with the sun or without — the map's own at its start hour when
+   * left out on a map with a sun, none read on one without. */
+  air?: number;
   fresh?: number;
   depth?: number;
   force?: SnowKind | null;
@@ -215,22 +219,25 @@ const smooth = (a: number, b: number, x: number): number => {
 /** The snowpack of `level` under a sky. */
 export function snowpackOf(
   level: Pick<Level, "packedAt" | "crust" | "iceAt" | "region" | "weather"> &
-    Partial<Pick<Level, "seed" | "sun">>,
+    Partial<Pick<Level, "seed" | "sun" | "mountain" | "front">>,
   options: SnowpackOptions = {},
 ): Snowpack {
   const weather = options.weather ?? weatherOf(level);
   const snowing =
     weather.kind === "flurries" || weather.kind === "snow" || weather.kind === "storm";
-  // A thaw wants the sun on the snow: a lid over it keeps the snow cold, and
-  // a sky that is snowing is cold by definition.
+  // A thaw wants the sun on the snow in air near the melting point: a lid
+  // over it keeps most of the sun off, a snowing sky all of it — and air
+  // over the melting point wets the snow (and what is falling) on its own.
   const lid = weather.kind === "overcast" || weather.kind === "fog" ? 0.35 : 1;
   const sun = options.elevation ?? -1;
+  const sky = level.sun ? { ...level, sun: level.sun, weather } : null;
+  const air = options.air ?? (sky ? snowAirOf(sky) : undefined);
   return {
     level,
     crustHold: regionOf(level).crust?.packed ?? 0,
     laid: snowing ? NEW_LAID * weather.snowfall : 0,
     fresh: options.fresh ?? 0,
-    wet: snowing ? 0 : smooth(THAW.from, THAW.full, sun) * lid,
+    wet: wetIn(air, snowing ? 0 : smooth(THAW.from, THAW.full, sun) * lid),
     piste: {
       worn: options.piste?.worn ?? 0,
       soft: options.piste?.soft ?? 0,
@@ -242,7 +249,7 @@ export function snowpackOf(
       level.sun && level.seed !== undefined
         ? snowAgeOf(
             { seed: level.seed, sun: level.sun, weather },
-            { elevation: options.elevation, force: options.age ?? null },
+            { elevation: options.elevation, force: options.age ?? null, air },
           )
         : null,
     tracks: level.sun

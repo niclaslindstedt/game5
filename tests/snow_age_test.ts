@@ -62,6 +62,15 @@ describe("snow age", () => {
     expect(snowing.wet).toBe(0);
   });
 
+  it("wets in warm air whatever the sky, and keeps dry in deep cold under any sun", () => {
+    expect(snowAgeOf(under("overcast"), { elevation: 5 * deg, air: 4 }).wet).toBe(1);
+    expect(snowAgeOf(under("snow"), { elevation: 5 * deg, air: 3 }).wet).toBe(1);
+    expect(snowAgeOf(under("clear"), { elevation: 60 * deg, air: -15 }).wet).toBe(0);
+    // ...and with no air handed it, reads the map's own (the synthetic
+    // slope's March noon at the slopes' altitude: cold, dry snow).
+    expect(snowAgeOf(under("clear"), { elevation: 5 * deg }).wet).toBe(0);
+  });
+
   it("every forced kind is in range, and points the noon sun level", () => {
     for (const kind of SNOW_AGE_KINDS) {
       const a = snowAgeOf(under("clear"), { force: kind });

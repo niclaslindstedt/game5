@@ -20,6 +20,7 @@ import {
   type GameState,
   type HandAsk,
   type StopHand,
+  CLEAR_WEATHER,
 } from "@engine";
 import { flatLevel } from "./support/synthetic.ts";
 
@@ -27,13 +28,21 @@ const DEG = Math.PI / 180;
 const HZ = TUNING.physicsHz;
 const BACK: HandAsk = { back: true, go: false };
 const GO: HandAsk = { back: false, go: true };
+/** The valley's air, °C, the hand is staged in. */
+const SOFT_AIR = 3;
+
 const NONE: HandAsk = { back: false, go: false };
 
 /** A free ride on a face of `deg`° falling along +z, the skier at `speed`
  * heading `heading` off straight down it — stood still a second first when
  * `speed` is 0. */
 function stage(deg: number, heading: number, speed: number, packed = 1): GameState {
-  const level = flatLevel({ packed, grade: Math.tan(deg * DEG), slopeFrom: 200, size: 4000 });
+  // A spring afternoon's softened groomer (`pisteDayOf`), pinned by the
+  // air's warmth so the hand is held on one snow whatever the day deals.
+  const level = {
+    ...flatLevel({ packed, grade: Math.tan(deg * DEG), slopeFrom: 200, size: 4000 }),
+    weather: { ...CLEAR_WEATHER, temp: SOFT_AIR },
+  };
   const state = createGame({
     level,
     spec: SKIS,

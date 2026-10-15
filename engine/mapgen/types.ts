@@ -664,14 +664,23 @@ export interface Weather {
   windFrom: number;
   /** Whether R19 sent this map out in the evening (R15's exception). */
   evening: boolean;
+  /** THE AIR TEMPERATURE KNOB (`engine/game/air-temp.ts`): the air at the
+   * valley floor at the run's start hour, °C, picked by hand — absent, the
+   * model's own (AUTO). R19 never deals it and `levelDigest` never reads
+   * it, so no map moves; the whole day's air is shifted to meet it. */
+  temp?: number;
 }
 
 /** A sky chosen by hand rather than dealt: FREE's start card, a lab's sheet.
  * A kind alone takes that sky at its typical numbers (`weatherFor`); an
- * `hour` is the solar hour the run starts at, whatever R15 dealt. */
+ * `hour` is the solar hour the run starts at, whatever R15 dealt; a `temp`
+ * the air's knob. */
 export interface SkyOverride {
   weather?: WeatherKind | Partial<Weather>;
   hour?: number;
+  /** The air at the valley floor at the start hour, °C (`Weather.temp`),
+   * laid on after the sky — whichever sky that is. */
+  temp?: number;
 }
 
 /** A stretch of the piste the wind has drifted over (R17): its full-depth

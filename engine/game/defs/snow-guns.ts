@@ -23,8 +23,10 @@
 //     ski area's runs are covered, the greens most and the blacks least.
 //   * WHEN. Early in the season (November to the New Year) to build the
 //     base, and late in it to patch worn runs — never while it snows, and
-//     only cold: a wet bulb under −2 °C. So a spring sun high enough to
-//     soften the piste stops them; a gale (past ~12 m/s) turns them off.
+//     only cold: a wet bulb under −2 °C — the air a degree or two warmer
+//     than that in the dry air under a clear sky, hardly any under a lid
+//     of cloud. So a spring day's warmth stops them; a gale (past ~12 m/s)
+//     turns them off.
 //   * WHAT IT LEAVES. A WHALE of machine snow under each: dense (400–500
 //     kg/m³), heaped where the cone lands, stretched along the throw — 3 m
 //     and more after days in one place, until a snowcat pushes it out. On
@@ -36,10 +38,9 @@ export const SNOW_GUN = {
   /** THE THIN SEASONS, as days of the year: early from `early.from` round
    * the New Year to `early.to`, late from `late.from` to `late.to`. */
   season: { early: { from: 305, to: 10 }, late: { from: 50, to: 130 } },
-  /** Above this sun, rad (40°), a late season's air is too warm to make
-   * snow in — the noon of a spring day; and past this mean wind, m/s, the
-   * guns are turned off. */
-  warm: (40 * Math.PI) / 180,
+  /** The wet bulb under which the guns make snow, °C (`wetBulbAt`), and
+   * past this mean wind, m/s, the guns are turned off. */
+  cold: -2,
   windMost: 12,
   /** The share of a grade's runs that carry guns. */
   cover: { green: 1, blue: 0.85, red: 0.6, black: 0.35 },

@@ -114,6 +114,10 @@
 //                   stand a race in the dark — the sun HELD at it unless
 //                   `?skyclock=` says otherwise, so a link's picture is
 //                   the hour it names.
+//   ?temp=<°C>      ...and with the air at the valley floor at the start
+//                   hour this warm (−40–20; `Weather.temp`, the start
+//                   card's TEMPERATURE row) — how a lab photographs the
+//                   same snow cold and dry beside warm and wet.
 //   ?skyclock=<r>   the sky's clock this visit: sky seconds a run second
 //                   (`sky-clock.ts`; the game's own is 12 — five minutes
 //                   an hour of sun), 0 holding the sun at the start hour,
@@ -391,7 +395,9 @@ function skyOf(q: URLSearchParams): SkyOverride | null {
     sky.weather = weather as WeatherKind;
   }
   if (q.get("hour") !== null && Number.isFinite(hour) && hour >= 0 && hour <= 24) sky.hour = hour;
-  return sky.weather === undefined && sky.hour === undefined ? null : sky;
+  const temp = Number(q.get("temp") ?? NaN);
+  if (q.get("temp") !== null && Number.isFinite(temp) && temp >= -40 && temp <= 20) sky.temp = temp;
+  return sky.weather === undefined && sky.hour === undefined && sky.temp === undefined ? null : sky;
 }
 
 /** The sky's clock a link names (`?skyclock=`), held when it names only an

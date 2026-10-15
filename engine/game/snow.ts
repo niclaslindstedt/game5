@@ -50,6 +50,7 @@
 //     `skier.ts` off the knees' own depth under the untouched surface).
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import { PISTE_DAY } from "./defs/piste-day.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { groomedFresh } from "./groomed.ts";
 import { keptAt } from "./kept-ground.ts";
@@ -187,21 +188,37 @@ export function packedSnow(
   state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow" | "summer">,
   x: number,
   z: number,
+  looseShare = 1,
 ): number {
   // IN SUMMER (`summer.ts`) the snow is gone: the ground is as hard as the
   // hardest packed snow, and nothing sinks into it.
   if (state.summer) return 1;
-  const p = snowPacked(state, x, z);
+  const p = snowPacked(state, x, z, looseShare);
   // A wall's ROCK (`rock-ground.ts`) is as hard as anything gets: nothing
   // sinks into it, whatever has fallen on it — it slides off a wall.
   const rock = state.level.rockAt ? state.level.rockAt(x, z) : 0;
   return rock > p ? rock : p;
 }
 
+/** THE PACKED SHARE AN EDGE READS at a plan point: `packedSnow`'s, but
+ * with only `PISTE_DAY.edge` of the day's loose share (`PisteDay.loose`)
+ * counted as loose. The day's skied-up heaps and its slush are a few
+ * centimetres over the groomed base, and a tipped edge cuts through them
+ * into it: the sink, the drag and the hiss feel the loose layer, the
+ * edge's bite mostly does not. New snow and powder are what they are. */
+export function edgeSnow(
+  state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow" | "summer">,
+  x: number,
+  z: number,
+): number {
+  return packedSnow(state, x, z, PISTE_DAY.edge);
+}
+
 function snowPacked(
   state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow">,
   x: number,
   z: number,
+  looseShare: number,
 ): number {
   // A WHALE of machine snow (`snow-guns.ts`) is heavy loose snow heaped on
   // whatever lies under it, and reads as new snow over it.
@@ -211,7 +228,7 @@ function snowPacked(
   if (state.piste && keptAt(state.level, x, z)) {
     return packedUnder(1, Math.max(0, state.fresh - state.piste.fresh) + heap);
   }
-  return packedUnder(state.level.packedAt(x, z), state.fresh + heap, looseOf(state));
+  return packedUnder(state.level.packedAt(x, z), state.fresh + heap, looseOf(state) * looseShare);
 }
 
 /** The run's snow dial with `fresh` m of new snow laid over the powder: a

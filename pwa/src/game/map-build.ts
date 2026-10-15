@@ -25,6 +25,7 @@ import {
   type Level,
 } from "@engine";
 
+import { buildPooled, poolOn } from "./attempt-pool.ts";
 import { faceOfOrder, type MapJob, type MapOrder, type MapWorkerReply } from "./map-order.ts";
 
 export { gameOrder } from "./map-order.ts";
@@ -92,8 +93,10 @@ export function buildMap(order: MapOrder): MapJob {
   return onWorker(order);
 }
 
-/** A worker of its own building `order`'s map. */
+/** A worker of its own building `order`'s map — or, under DEVELOPER, a
+ * pool of them, one attempt each (`attempt-pool.ts`). */
 function onWorker(order: MapOrder): MapJob {
+  if (poolOn()) return buildPooled(order);
   let share = 0;
   let level: Level | undefined;
   let failed: string | null = null;

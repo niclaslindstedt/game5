@@ -258,6 +258,11 @@ export const DEV_HOLD_MS = 7000;
  * front door. Shut, PLAY goes straight to the free ride. */
 export const racesOpen = (settings: Pick<Settings, "developer">): boolean => settings.developer;
 
+/** A MAP'S ATTEMPTS RAISED SIDE BY SIDE (`attempt-pool.ts`), behind a
+ * feature flag: the same map sooner, at the cost of a worker's heap an
+ * attempt, so only DEVELOPER builds them so until it is tried on phones. */
+export const parallelMaps = (settings: Pick<Settings, "developer">): boolean => settings.developer;
+
 /** DEVELOPER's switches, every one an instrument over the picture rather
  * than a change to the game: the frame rate, the frame's cost, the physics'
  * readouts, the trail maps, the engine's debug output, the free camera. */

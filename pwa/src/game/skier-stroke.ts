@@ -79,7 +79,12 @@ export function armAt(
   const give = pushing
     ? -a.bend * Math.sin(Math.PI * clamp01(swing))
     : a.lift * Math.sin(Math.PI * u) - a.bend * Math.sin(Math.PI * Math.min(1, span)) * u;
-  const reach = a.plant.reach + (a.finish.reach - a.plant.reach) * swing + give;
+  // Carried on past the finish (a swing over 1, `holdPush`'s `over`) the
+  // arm goes on round behind him, never longer than it is.
+  const reach = Math.min(
+    REACH_MOST,
+    a.plant.reach + (a.finish.reach - a.plant.reach) * swing + give,
+  );
   return { y: -Math.cos(angle) * reach, z: Math.sin(angle) * reach };
 }
 
@@ -191,6 +196,14 @@ export function easeFist(shoulder: V3, hand: V3, length: number): V3 {
 const PIN = { knee: 0.55, ahead: 0.08, lead: 0.05 };
 const PIN_EASE = { in: 0.3 };
 const FOLLOW = { most: 1.2 };
+/** The most of the arm's length a fist swung on past the finish reaches. */
+const REACH_MOST = 0.98;
+/** The swell's scale: r²(1 − r)³ peaks at 0.4 of the recovery, 108/3125. */
+const THROW = 3125 / 108;
+const THROW_AT = 0.4;
+/** The most the swell adds, as a multiple of `over` — so a follow-through
+ * grows from nothing as he gathers speed, never all at once. */
+const THROW_MOST = 3;
 
 /** How far through its swing a push is with the basket held to the snow
  * `passed` m behind where it bit (`pinnedSwing`), eased past the knee onto
@@ -260,9 +273,14 @@ export function holdPush(o: {
   duty: number;
   poled?: number;
   reach: number;
+  /** How far past the finish, as a share of the swing, the recovery may
+   * carry the arm on behind him once the pole has let go (the
+   * follow-through a fast skier throws, `Gait.follow`); 0 stops it there. */
+  over?: number;
 }): HeldPush {
   const { arms, armLength, ground, pole, duty, phase, bites } = o;
   const pushing = phase < duty;
+  const over = Math.max(0, o.over ?? 0);
   // A fist moved from `from` (on the arm `base`) to `at` through a push.
   const swungTo = (from: V3, base: { y: number; z: number }, at: { y: number; z: number }): V3 => ({
     x: from.x,
@@ -301,8 +319,9 @@ export function holdPush(o: {
     // THE RECOVERY carries on from the release at the pace the push let
     // go at — back behind him, slowing — and swings forward to the next
     // plant, arriving at that plant's pace: a cubic off the swing and its
-    // rate at each end. ...never past the arm's own reach behind: the
-    // cubic carries on some 4/27 of its rate past where the push let go.
+    // rate at each end. ...never past the arm's own reach behind, or past
+    // it by `over` at speed: the cubic carries on some 4/27 of its rate
+    // past where the push let go.
     const r = (phase - duty) / (1 - duty);
     const lag = 0.02 * Math.max(1e-3, release);
     const rate = ((bites * (end - pinAt(release - lag))) / lag) * o.pass;
@@ -311,11 +330,18 @@ export function holdPush(o: {
       6.75 * Math.max(0, 1 - end),
       Math.max(0, rate * (1 - duty)),
     );
+    // ...and at speed THROWN ON past it (`over`): a swell on the cubic that
+    // leaves the release and the plant as they were (no step in the arm's
+    // place or pace at either), carrying the arm on to `1 + over` behind
+    // him a little before the recovery's middle.
+    const cubic = (r: number): number =>
+      end * (2 * r * r * r - 3 * r * r + 1) +
+      follow * (r * r * r - 2 * r * r + r) +
+      pace * (1 - duty) * (r * r * r - r * r);
+    const throwOn = Math.min(THROW_MOST * over, Math.max(0, 1 + over - cubic(THROW_AT)));
     const at = pushing
       ? timed + (pinAt(passed) - timed) * held
-      : end * (2 * r * r * r - 3 * r * r + 1) +
-        follow * (r * r * r - 2 * r * r + r) +
-        pace * (1 - duty) * (r * r * r - r * r);
+      : cubic(r) + throwOn * THROW * r * r * (1 - r) ** 3;
     const arm = armAt(DOUBLE_ARM, at, pushing, end);
     return {
       hand: easeFist(o.shoulders[i], swungTo(o.hands[i], o.arm, arm), o.reach),

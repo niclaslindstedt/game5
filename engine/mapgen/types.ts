@@ -941,6 +941,12 @@ export interface GenerateOptions {
   /** Told how far the search has got, 0–1, at its landmarks (`progress.ts`)
    * — for a loading card's bar. Draws nothing and moves nothing it builds. */
   progress?: (share: number) => void;
+  /** Build ONE attempt of the search — this sub-seed alone — and throw its
+   * refusal rather than try the next. An attempt is a pure function of the
+   * seed and its number, so a host can run the attempts side by side
+   * (`attempt-pool.ts`) and keep the lowest one accepted: the same map the
+   * search builds in turn. Its progress is told as the attempt's own. */
+  only?: number;
 }
 
 /** The answer to "where on the piste is this point nearest?" */

@@ -188,7 +188,7 @@ for (const fam of families) {
   if (!scenes.length) continue;
   console.log(`\n${fam.id} · ${fam.say}`);
   console.log(
-    `${"scene".padEnd(20)}${pad("frames", 7)}${pad("snap", 6)}${pad("worst m/s²", 12)}  ${"joint @ s".padEnd(22)}${pad("pops", 5)}${pad("∠snaps", 7)}${pad("worst °/s²", 11)}  ${"angle".padEnd(13)}${pad("stretch", 8)}  ${"bone".padEnd(11)}${pad("clips", 6)}${pad("jerk", 8)}  verdict`,
+    `${"scene".padEnd(20)}${pad("frames", 7)}${pad("snap", 6)}${pad("worst m/s²", 12)}  ${"joint @ s".padEnd(22)}${pad("pops", 5)}${pad("∠snaps", 7)}${pad("worst °/s²", 11)}  ${"angle".padEnd(13)}${pad("stretch", 8)}  ${"bone".padEnd(11)}${pad("clips", 6)}${pad("jerk", 8)}${pad("elbow°", 8)}  verdict`,
   );
   for (const scene of scenes) {
     const t0 = Date.now();
@@ -231,10 +231,10 @@ for (const fam of families) {
     rows.push(row);
     const was = before?.find((r) => r.family === fam.id && r.id === scene.id);
     const change = was
-      ? `  (was snap ${pct(was.snapShare)}, ${was.worstJolt}, pops ${was.pops}, ∠ ${was.angleSnaps}, stretch ${was.stretch}%, clips ${was.clips})`
+      ? `  (was snap ${pct(was.snapShare)}, ${was.worstJolt}, pops ${was.pops}, ∠ ${was.angleSnaps}, stretch ${was.stretch}%, clips ${was.clips}, elbow ${was.elbowOut ?? "–"}°)`
       : "";
     console.log(
-      `${scene.id.padEnd(20)}${pad(v.frames, 7)}${pad(pct(v.snapShare), 6)}${pad(v.worstJolt, 12)}  ${`${v.worstJoint} @${v.worstAt}`.padEnd(22)}${pad(v.pops, 5)}${pad(v.angleSnaps, 7)}${pad(v.worstAngle, 11)}  ${v.worstAngleId.padEnd(13)}${pad(`${v.stretch}%`, 8)}  ${v.stretchBone.padEnd(11)}${pad(v.clips, 6)}${pad(v.jerkRms, 8)}  ${clean ? "clean" : "LOOK"}${change}  ${((Date.now() - t0) / 1000).toFixed(1)}s`,
+      `${scene.id.padEnd(20)}${pad(v.frames, 7)}${pad(pct(v.snapShare), 6)}${pad(v.worstJolt, 12)}  ${`${v.worstJoint} @${v.worstAt}`.padEnd(22)}${pad(v.pops, 5)}${pad(v.angleSnaps, 7)}${pad(v.worstAngle, 11)}  ${v.worstAngleId.padEnd(13)}${pad(`${v.stretch}%`, 8)}  ${v.stretchBone.padEnd(11)}${pad(v.clips, 6)}${pad(v.jerkRms, 8)}${pad(v.elbowOut, 8)}  ${clean ? "clean" : "LOOK"}${change}  ${((Date.now() - t0) / 1000).toFixed(1)}s`,
     );
   }
 }

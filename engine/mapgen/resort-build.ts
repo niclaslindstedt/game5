@@ -167,6 +167,9 @@ export type BuiltResort = {
   /** R42 — the ski routes, laid on the finished area (`ski-routes.ts`);
    * absent until then, and on a version from before them. */
   routes?: SkiRoute[];
+  /** R42 — the jumps on the wild routes (`route-features.ts`), cut into
+   * the ground with them. */
+  routeKickers?: Kicker[];
   /** A real face's water (`real-water.ts`); null on a dealt massif. */
   water: FaceWater | null;
 };

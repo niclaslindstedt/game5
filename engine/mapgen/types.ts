@@ -724,6 +724,9 @@ export interface Kicker {
   /** The resort's run it stands on (R27), on one that is not the course
    * raced — a piste's kicker, though not this map's piste's. */
   run?: string;
+  /** The SKI ROUTE it stands on (R42, `O1…`): a jump on the wild line,
+   * off every run. */
+  route?: string;
   /** One of the TERRAIN PARK's (R20, `T1…`), laid on the piste only on a
    * map built for a tricks run. */
   trick?: boolean;
@@ -826,6 +829,12 @@ export interface SkiRoute {
   from: string;
   into: { run: string; s: number };
   steepest: number;
+  /** THE WILD LINE's (R42): each DROP it goes over — its arc at the top
+   * and how far it falls, m — and the metres of it through the woods and
+   * along an edge. Absent on a route from before them. */
+  drops?: { s: number; height: number }[];
+  woods?: number;
+  edge?: number;
 }
 
 /** A lift (R26): a straight line from its bottom station to its top. */

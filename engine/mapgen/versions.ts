@@ -94,6 +94,11 @@ export type GeneratorTraits = {
    * steepest line worth skiing off a top, past any black, is marked as a
    * SKI ROUTE, never groomed; nothing else on the map moves. */
   noRoutes?: boolean;
+  /** v9: the ski routes (R42) are the SHORTEST line off a top down onto a
+   * run, out of the woods and off every cliff, and nothing is laid down
+   * them. Later versions find the WILD line — through the woods, along the
+   * edges, over the drops — fell the trunks on it and stand jumps on it. */
+  straightRoutes?: boolean;
 };
 
 /** Every version the generator can still build, oldest first.
@@ -143,7 +148,19 @@ export const GENERATOR_VERSIONS: readonly GeneratorTraits[] = [
       "off a chair's or a gondola's top, found on the mountain as it lies between a black's " +
       "38° and 48° over a hundred metres, never a cliff and never through the woods, down " +
       "onto a piste or a lane; marked with orange stakes and signed at its head, and never " +
-      "groomed. Nothing else a seed builds moves: no ground, no snow and no tree.",
+      "groomed. Nothing else a seed builds moves: no ground, no snow and no tree. " +
+      "v10 makes the routes wild; this row's are the shortest line down.",
+    straightRoutes: true,
+  },
+  {
+    version: 10,
+    note:
+      "The wild ski routes (R42): an orange route is no longer the shortest line down but " +
+      "the line a skier is drawn along — through the woods, threading a lane with the trunks " +
+      "on it felled, along the tops of the crags and cliffs, traversing rather than " +
+      "plunging, and over a drop or two where a band of rock crosses it — with up to three " +
+      "jumps stood on its rolls, facing the way the line goes, the harder the roll the " +
+      "higher the lip. Nothing off the routes moves.",
   },
 ];
 

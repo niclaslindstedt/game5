@@ -12,13 +12,17 @@
 //   * THE BEAM: a column of light standing up out of it, fading to nothing
 //     overhead, seen over the corrals and the crowd.
 //
-// Unlit and untoned, so it glows at noon and at night alike. All the rings
-// of a resort are one draw a part; nothing here reads the engine's state
-// but the clock.
+// Unlit and untoned, so it glows at noon and at night alike — but faded
+// into the air as the snow under it is, and gone past `LOOK.reach`, where
+// its band is a fraction of a pixel and would only flicker (`glow-fade.ts`).
+// All the rings of a resort are one draw a part; nothing here reads the
+// engine's state but the clock.
 
 import * as THREE from "three";
 import { BOARDING_RING, boardingRing, type Level, type LiftPlan } from "@engine";
 
+import { fadeGlow } from "./glow-fade.ts";
+import type { HazeUniforms } from "./haze.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
 /** The light's colour, sRGB, and its look, m: the band's inner and outer
@@ -35,6 +39,9 @@ const LOOK = {
   lift: 0.06,
   /** Segments round a ring. */
   around: 72,
+  /** How far off a ring is still drawn, m: its beam a couple of pixels
+   * across there on a phone. */
+  reach: 1500,
 };
 
 export type BoardingRings = {
@@ -138,7 +145,11 @@ function alphaRow(w: number, f: (s: number) => number, vertical = false): THREE.
 }
 
 /** The boarding rings of every lift of the map, from its plans. */
-export function createBoardingRings(level: Level, plans: readonly LiftPlan[]): BoardingRings {
+export function createBoardingRings(
+  level: Level,
+  plans: readonly LiftPlan[],
+  haze: HazeUniforms,
+): BoardingRings {
   const group = new THREE.Group();
   group.name = "boarding-rings";
   const centres = plans.map((p) => boardingRing(p));
@@ -155,18 +166,22 @@ export function createBoardingRings(level: Level, plans: readonly LiftPlan[]): B
   const fade = alphaRow(64, (s) => (1 - s) ** 2, true);
   const textures = [dash, pool, fade];
   const light = (p: THREE.MeshBasicMaterialParameters): THREE.MeshBasicMaterial =>
-    new THREE.MeshBasicMaterial({
-      color: LOOK.colour,
-      transparent: true,
-      depthWrite: false,
-      toneMapped: false,
-      fog: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -4,
-      side: THREE.DoubleSide,
-      ...p,
-    });
+    fadeGlow(
+      new THREE.MeshBasicMaterial({
+        color: LOOK.colour,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+        fog: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -4,
+        side: THREE.DoubleSide,
+        ...p,
+      }),
+      haze,
+      { reach: LOOK.reach },
+    );
   const band = light({ opacity: 0.95 });
   const march = light({ alphaMap: dash, opacity: 0.9 });
   const fill = light({ alphaMap: pool, opacity: 1 });

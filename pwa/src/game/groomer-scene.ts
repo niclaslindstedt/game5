@@ -157,7 +157,7 @@ export function createGroomerScene(haze: HazeUniforms): GroomerScene {
 
   const viewOf = (i: number): GroomerView => {
     while (views.length <= i) {
-      const v = createGroomerView(paint, model);
+      const v = createGroomerView(paint, model, haze);
       views.push(v);
       group.add(v.group);
     }

@@ -472,7 +472,7 @@ export function createLifts(
   group.add(boards.group);
   disposeBoards = boards.dispose;
   // THE BOARDING RINGS where the queues start, ridden into to board.
-  const boarding = rings ? createBoardingRings(level, plans) : null;
+  const boarding = rings ? createBoardingRings(level, plans, haze) : null;
   if (boarding) {
     group.add(boarding.group);
     disposeRings = boarding.dispose;

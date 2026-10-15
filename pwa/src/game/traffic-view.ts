@@ -41,6 +41,7 @@ import type { SolidBox } from "./camera-clear.ts";
 import { PART } from "./civilian-dress.ts";
 import { buildPosedFigure, civilianMaterial } from "./civilian-shapes.ts";
 import { outfitOf } from "./crowd-dress.ts";
+import { fadeGlow } from "./glow-fade.ts";
 import { glow } from "./glow-sprite.ts";
 import type { Flood } from "./headlamp.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -288,16 +289,19 @@ export function createTrafficScene(level: Level, haze: HazeUniforms): TrafficSce
   glowGeo.setAttribute("position", new THREE.BufferAttribute(glowPos, 3));
   glowGeo.setAttribute("color", new THREE.BufferAttribute(glowCol, 3));
   geometries.push(glowGeo);
-  const glowMat = new THREE.PointsMaterial({
-    size: 1.4,
-    map: glow(),
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true,
-    fog: false,
-  });
+  const glowMat = fadeGlow(
+    new THREE.PointsMaterial({
+      size: 1.4,
+      map: glow(),
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
+      fog: false,
+    }),
+    haze,
+  );
   const glows = new THREE.Points(glowGeo, glowMat);
   glows.frustumCulled = false;
   glows.renderOrder = 7;

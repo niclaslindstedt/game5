@@ -173,7 +173,8 @@ def build_poles(rider, data, normal, length=1.22, wrist=0.6):
     HAND turns with it (at most `wrist` of the way to the carried line,
     about the fist), so the fingers stay wrapped round the shaft and the
     grip never leaves the glove. A shaft from above the fist to the tip,
-    the grip in the glove, a basket over the tip."""
+    the grip in the glove, a basket over the tip. Returns the drawn parts
+    and each shaft as (top, axis, length) for the snow it meets."""
     arm = _armature(rider)
     m = rider.matrix_world
     fwd = (m.to_3x3() @ Vector((0, 1, 0))).normalized()
@@ -185,7 +186,7 @@ def build_poles(rider, data, normal, length=1.22, wrist=0.6):
     pole_mat = mat("pole", _hexlin(data["outfit"]["pole"]), metal=0.8, rough=0.3)
     grip_mat = mat("grip", (0.02, 0.02, 0.025), rough=0.6)
     to_arm = arm.matrix_world.inverted()
-    out = []
+    out, shafts = [], []
     for i, (pb, hand) in enumerate(zip(bones, hands)):
         held = -(arm.matrix_world.to_3x3() @ pb.matrix.to_3x3() @ Vector((0, 0, 1))).normalized()
         away = (hand - (hands[0] + hands[1]) / 2).normalized()
@@ -207,4 +208,5 @@ def build_poles(rider, data, normal, length=1.22, wrist=0.6):
         out.append(cyl(f"grip{i}", top, hand + axis * 0.07, 0.016, grip_mat, seg=10))
         basket = tip - axis * 0.09
         out.append(cyl(f"basket{i}", basket - axis * 0.006, basket + axis * 0.006, 0.05, pole_mat, seg=14))
-    return out
+        shafts.append((top, axis, (tip - top).length))
+    return out, shafts

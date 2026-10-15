@@ -33,7 +33,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lib  # noqa: E402  (resets the scene)
-from lib import COL, mat, scene  # noqa: E402
+from lib import COL, cutters, mat, scene  # noqa: E402
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
 from mathutils import Vector  # noqa: E402
@@ -125,7 +125,7 @@ pair_mesh = rider_meshes[1].evaluated_get(dg)
 low = min((pair_mesh.matrix_world @ v.co - hit).dot(normal) for v in pair_mesh.data.vertices)
 rider.location -= normal * (low + 0.03)
 bpy.context.view_layer.update()
-poles = R.build_poles(rider, DATA, normal)
+poles, shafts = R.build_poles(rider, DATA, normal)
 cog = rider.matrix_world.translation.copy()
 travel = (rider.matrix_world.to_3x3() @ Vector((0, 1, 0)))
 travel = (travel - normal * travel.dot(normal)).normalized()
@@ -177,6 +177,30 @@ grains = S.point_object("spray", pos, rad, S.grain_material(W.aov))
 mist_pick = rng.uniform(0, 1, len(pos)) < 0.05
 mist = S.point_object("mist", pos[mist_pick], 0.12 + 0.25 * age[mist_pick], S.mist_material(),
                       as_volume=True, density=1.0, voxel=0.06)
+
+# ---------------------------------------------------------------- his poles
+# Where a pole's shaft goes into the snow it leaves its mark: the hole, the
+# furrow its tip drags, the clods thrown up along it and a puff off the tip.
+plant_rng = np.random.default_rng(23)
+clod_mat = mat("clod", PAL["snow"], rough=0.55)
+for i, (top, axis, length) in enumerate(shafts):
+    plant = S.pole_plant(bvh, top, axis, length, travel, normal, DATA["pose"]["speed"] * 0.55,
+                         plant_rng, snow)
+    if plant is None:
+        continue
+    cuts, (cp, cr), (gp, gr, ga) = plant
+    for ob in cuts:
+        COL.objects.unlink(ob)
+        cutters.objects.link(ob)
+    S.point_object(f"pole-clods{i}", cp, cr, clod_mat)
+    S.point_object(f"pole-puff{i}", gp, gr, S.grain_material(W.aov))
+if cutters.objects:
+    hole = mountain.modifiers.new("pole-plants", "BOOLEAN")
+    hole.operation = "DIFFERENCE"
+    hole.operand_type = "COLLECTION"
+    hole.collection = cutters
+    hole.solver = "EXACT"
+    hole.material_mode = "TRANSFER"
 
 # ---------------------------------------------------------------- the woods
 needle, needle_dark = W.mat("needle", PAL["pine"], rough=0.8), W.mat("needle-dark", PAL["pineDark"], rough=0.85)

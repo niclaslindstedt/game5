@@ -830,10 +830,13 @@ export function createChuteScene(
       observe(jumperTrack, c, state.tick);
       sample(jumperTrack, alpha, jumper);
       jq.set(jumper.q.x, jumper.q.y, jumper.q.z, jumper.q.w);
-      wearing = wearer && !c.thrown ? wearer : null;
+      // Worn on his posed bones whether he skis, hangs or is thrown: the
+      // figure is posed on the ragdoll then, and the rig stays strapped to
+      // it rather than left on the frame his skis carry on along.
+      wearing = wearer;
       wearing?.group.updateWorldMatrix(true, false);
       wear();
-      gear.body.visible = !ownEyes && (!c.thrown || !!ch);
+      gear.body.visible = !ownEyes;
       hideAll();
       const shape = base ? null : skydiveShapeOf(ch ?? null, !!p?.rider);
       // The red pad punched out is carried off in his right hand.

@@ -438,6 +438,7 @@ function aimed(
   most: number,
   goal: number,
   cut = period,
+  gain = 0,
 ): number {
   const c = state.skier;
   if (c.thrown !== null || !c.airborne) return 0;
@@ -467,7 +468,9 @@ function aimed(
     const back = next - turned > period / 2 ? -1 : 0;
     turns = next + period * Math.max(back, Math.round((turns - next) / period));
   }
-  if (setting(c.airTime)) return ahead < turns ? dir : 0;
+  // In the window a step held adds `gain` rad/s, so he lets go once half
+  // a step more would carry him past the plan: the nearer of the two.
+  if (setting(c.airTime)) return ahead + (gain * TUNING.dt * t) / 2 < turns ? dir : 0;
   if (!going) return 0;
   if (ahead < turns - slack) return dir;
   if (ahead > turns + slack) return -dir;
@@ -510,6 +513,7 @@ export function spinSteer(state: GameState, halves: number, dir: number, forward
     most,
     k.spinGoal,
     cut,
+    T.spinSet,
   );
 }
 

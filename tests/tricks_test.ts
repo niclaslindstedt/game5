@@ -280,7 +280,7 @@ describe("a free ride's flight that was never meant", () => {
     const full = TUNING.jump.full;
     const events = ride(state, full + 2.5, (t) => ({
       jump: t < full,
-      steer: state.skier.airborne && state.skier.airTime > 0.25 && t < full + 0.6 ? 1 : 0,
+      steer: state.skier.airborne && state.skier.airTime > 0.25 ? spinSteer(state, 1, 1) : 0,
     }));
     expect(events.some((e) => e.kind === "jump")).toBe(true);
     expect(tricksOf(events)).toContain("half");

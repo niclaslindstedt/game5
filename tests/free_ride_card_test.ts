@@ -44,7 +44,6 @@ import {
   freeAgainOptions,
   freeGameOptions,
   freeRestart,
-  onTheSlope,
   freeRunList,
   freeTopOptions,
   freshRide,
@@ -389,7 +388,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(again.skier.z).toBeCloseTo(slot.z, 5);
   });
 
-  it("restarts a rider on his feet at the top of his slope, not on the machine he began on", () => {
+  it("restarts a ride on the machine it was last chosen on, however he came off it", () => {
     const ride = { ...freshRide(), run: { seed: 9, region: freshRide().region, id: SLED_RUN } };
     const opts = {
       ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
@@ -400,25 +399,39 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     const free = freeAgainOptions(opts, first.level);
     // Still on the snowmobile: the restart is the snowmobile's.
     expect(first.sled?.rider).toBe(true);
-    expect(onTheSlope(first)).toBe(false);
     expect(freeRestart(first, free)?.sled).toBe(true);
-    // Stepped off it and out on his skis: the restart is the slope's.
+    // Stepped off it and out on his skis: still the snowmobile's.
     if (first.sled) first.sled.rider = false;
-    expect(onTheSlope(first)).toBe(true);
-    const top = freeRestart(first, free);
+    const again = createGame(freeRestart(first, free)!);
+    expect(again.sled?.rider).toBe(true);
+    // Thrown off it, the same.
+    first.skier.thrown = { cause: "slam" } as never;
+    expect(freeRestart(first, free)?.sled).toBe(true);
+    // A ride on skis from the start starts again at the top of its slope.
+    const skied = freeAgainOptions({ ...opts, sled: undefined }, first.level);
+    const top = freeRestart(createGame(skied), skied);
     expect(top?.sled).toBeUndefined();
     expect(againAt(first.rules, top)).toBe("top");
-    const again = createGame(top!);
-    expect(again.sled?.rider).toBe(false);
-    const slot = first.level.grid[0];
-    expect(again.skier.x).toBeCloseTo(slot.x, 5);
-    expect(again.skier.z).toBeCloseTo(slot.z, 5);
-    // Thrown off the machine he is still its rider: stood back on it.
-    first.skier.thrown = { cause: "sled" } as never;
-    expect(onTheSlope(first)).toBe(false);
-    // A ride on skis from the start is the slope's however it ends.
-    const skied = createGame({ ...freeAgainOptions(opts, first.level), sled: undefined });
-    expect(onTheSlope(skied)).toBe(true);
+  });
+
+  it("restarts the helicopter picked on the pause card's piste map after he falls off its skid", () => {
+    const skis = freeGameOptions(freshRide(), 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    const first = createGame({ ...skis, quiet: true, level: syntheticLevel() });
+    // The PISTE MAP's GO stands a new ride up on the helicopter: that is the
+    // ride the restart keeps.
+    const heli = freeAgainOptions(
+      { ...skis, heli: true, run: undefined, byLift: false },
+      first.level,
+    );
+    const flown = createGame({ ...heli, quiet: true });
+    expect(flown.heli?.rider).toBe(true);
+    // Lost his grip on the skid and down on the snow.
+    if (flown.heli) flown.heli.rider = false;
+    flown.skier.thrown = { cause: "grip" } as never;
+    const next = freeRestart(flown, heli);
+    expect(next?.heli).toBe(true);
+    expect(againAt(flown.rules, next)).toBe("pad");
+    expect(createGame(next!).heli?.rider).toBe(true);
   });
 
   it("names where the next rider stands after a death, as the restart stands him", () => {

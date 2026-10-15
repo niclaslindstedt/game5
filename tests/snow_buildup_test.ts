@@ -171,6 +171,32 @@ describe("under the skis", () => {
     expect(speedAfter(ridden(16))).toBeLessThan(speedAfter(ridden(9)));
   });
 
+  it("carve through a slushy afternoon's loose snow into the base under it", () => {
+    // The day's loose layer is a few centimetres over the groomer: a full
+    // edge at speed still turns hard on it, a little softer than on the
+    // morning's corduroy — never the half-powder skid it once read as.
+    const FLAT = flatLevel({ packed: 1, grade: 0, size: 3000 });
+    const turnG = (piste: boolean): number => {
+      const level: Level = { ...FLAT, sun: { ...FLAT.sun, hour: 15, dayOfYear: 80 } };
+      const s = createGame({ level, piste, rivals: 0, countdown: 0, quiet: true });
+      if (piste) expect(s.piste!.loose).toBeGreaterThan(0.4);
+      placeRun(s, { x: level.size / 2, z: 600, heading: 0, speed: 14 });
+      const turn = { ...NEUTRAL_INPUT, steer: 1 };
+      for (let i = 0; i < TUNING.physicsHz / 2; i++) step(s, turn);
+      const h0 = s.skier.heading;
+      let v = 0;
+      const n = TUNING.physicsHz / 2;
+      for (let i = 0; i < n; i++) {
+        step(s, turn);
+        v += s.skier.speed / n;
+      }
+      return (v * Math.abs(angleDiff(s.skier.heading, h0)) * 2) / TUNING.g;
+    };
+    const slush = turnG(true);
+    expect(slush).toBeGreaterThan(0.8);
+    expect(slush).toBeGreaterThan(turnG(false) * 0.6);
+  });
+
   it("hold less edge on a spring evening's refrozen groomer", () => {
     const evening = ridden(19, 80);
     const morning = ridden(9, 80);

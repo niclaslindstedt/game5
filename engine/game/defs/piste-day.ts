@@ -69,5 +69,6 @@ export const PISTE_DAY = {
    * rest (`packedUnder`). `ice`: the share of bare ice's grip (`grip.ice`)
    * a refrozen groomer stands at (`onIce`). */
   loose: { worn: 0.22, soft: 0.35, most: 0.5 },
+  edge: 0.2,
   ice: 0.4,
 } as const;

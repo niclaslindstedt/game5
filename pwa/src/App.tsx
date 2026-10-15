@@ -185,8 +185,7 @@ export function App() {
   const [loadingPhase, setLoadingPhase] = useState<LoadPhase | null>(null);
   const [loadLeaving, setLoadLeaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
-  /** True once the race has drawn a frame (over the title: once booted) —
-   * what the attract card waits on before it will take a press. */
+  /** True once the race has drawn a frame: the attract card waits on it. */
   const [warm, setWarm] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
@@ -212,8 +211,7 @@ export function App() {
     poles: params.poles ?? carriesPoles(s.outfit),
     mishapRate: s.mishaps,
   });
-  /** The picture drawn: the stored one, or a lab's preset for this visit —
-   * `?video=` is never written back. */
+  /** The picture drawn: the stored one, or a lab's `?video=`, never stored. */
   const videoOf = (s: Settings): VideoSettings => ({
     ...(params.video ? withPreset(s.video, params.video) : s.video),
     ...params.picture,
@@ -225,8 +223,7 @@ export function App() {
   const [nextSeed, setNextSeed] = useState(() => params.seed ?? FIRST_FREE_SEED);
   /** THE MAP THE MENU IS STANDING OVER — what a tricks run a link pinned rides. */
   const [mapSeed, setMapSeed] = useState(nextSeed);
-  /** The mode the skis card's RIDE is for: whichever tile opened it. */
-  // (A link to a free ride's card is a free ride on its way: `readParams`.)
+  /** The mode the skis card's RIDE is for: the tile (or link) that opened it. */
   const modeRef = useRef<GameMode>(params.mode);
   /** The presses that route a card to the skis card (`map-picks.ts`). */
   const picks = mapPicks({ mode: modeRef, setPage, setSettings });
@@ -848,9 +845,10 @@ export function App() {
     freeOptions: () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free")),
     presses: pressRef,
   });
-  /** Onto the snow on a FREE RIDE: the start card's map, day and snow (or the
-   * pause card's PISTE MAP's), on the pair the ski card holds. */
+  /** Onto the snow on a FREE RIDE: the start card's ride (or the pause card's
+   * PISTE MAP's, or QUICK START's dealt one), on the pair the ski card holds. */
   const freeRide = (ride = settings.ride): void => {
+    modeRef.current = "free";
     setPage("root");
     pressRef.current.free(freeGameOptions(ride, ride.seed ?? startSeed, skierOf(settings, "free")));
   };
@@ -950,10 +948,7 @@ export function App() {
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
           onFree={() => picks.openCard("free", "world")}
-          onQuick={() => {
-            modeRef.current = "free";
-            freeRide(quickRide(settings.ride));
-          }}
+          onQuick={() => freeRide(quickRide(settings.ride))}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

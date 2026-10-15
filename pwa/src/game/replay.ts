@@ -32,7 +32,9 @@
 //
 // EVERY RUN THE PLAYER RIDES KEEPS ONE (`keepsReplay`); what a recording is
 // cut to is the run thus far, up to `KEEP.window` back. Nothing is written
-// to disk — a replay lives as long as the run it was cut from.
+// to disk — a replay lives as long as the run it was cut from, and for the
+// first `PREVIOUS` seconds of a restart it is that run's still: the run
+// before it is what a replay asked for straight after a restart watches.
 //
 // `recipeOf` beside it is how a run is stood up AGAIN from the start (a
 // restart, a second run, the next jump of a contest — `pinned-run.ts`).
@@ -80,6 +82,12 @@ export const REPLAY_TAIL = 2.5;
  * `merge` seconds of each other are one moment. With no crash to offer,
  * the instant replay is the last `recent` seconds. */
 export const CRASH = { lead: 10, offer: 9, merge: 3, recent: 10 } as const;
+
+/** THE RUN BEFORE A RESTART, s: for this long into a run begun again, the
+ * replay is the run just left rather than the few seconds of this one — a
+ * player who restarts and then asks for a replay wants the run he gave up
+ * on (most often the crash that made him restart), not its fresh start. */
+export const PREVIOUS = 10;
 
 /** WHAT NAMES THE AFTERNOON: how `createGame` stands this run up again, read
  * off the run at its first step. The mode is the app's (a name the rules
@@ -306,9 +314,10 @@ export type Replay = {
 export type ReplayFrom = "start" | "crash" | "recent";
 
 export type ReplayRig = {
-  /** Arm a run: a recorder, a collector and the run's first copy, the last
-   * recording dropped. `mode` null (the bot's race under a card) arms
-   * nothing. */
+  /** Arm a run: a recorder, a collector and the run's first copy. The last
+   * recording is kept as the PREVIOUS run for the new one's first
+   * `PREVIOUS` seconds (`open` watches it meanwhile); `mode` null (the bot's
+   * race under a card) arms nothing and drops both. */
   arm: (state: GameState, mode: GameMode | null) => void;
   /** One step of the engine, AFTER it was taken: the controls it was handed
    * and the state it left. Anything but the armed run is ignored. */
@@ -342,23 +351,35 @@ const CRASHES = new Set(["wipeout", "injury", "death"]);
 
 export function createReplayRig(): ReplayRig {
   let cut: Cut | null = null;
+  /** The run before a restart, watched instead of this one for its first
+   * `PREVIOUS` seconds. */
+  let prior: Cut | null = null;
+  const filled = (c: Cut | null): c is Cut => c !== null && c.tape.steps() > 0;
+  /** The recording a replay is cut from now: the previous run while this
+   * one is young, else this one. */
+  const watchable = (): Cut | null =>
+    filled(prior) && (!cut || cut.tape.steps() < PREVIOUS * HZ) ? prior : cut;
 
-  const open = (from: ReplayFrom = "start"): Replay | null => {
-    if (!cut || cut.tape.steps() === 0) return null;
-    const { tape, keys, run } = cut;
-    const end = cut.finish
-      ? Math.min(tape.steps(), cut.finish.at + 1 + Math.round(REPLAY_TAIL * HZ))
+  const open = (asked: ReplayFrom = "start"): Replay | null => {
+    const rec = watchable();
+    if (!filled(rec)) return null;
+    const { tape, keys, run } = rec;
+    // The previous run's last few seconds are its crash where it ended on one.
+    const ended = rec.crash !== null && tape.steps() - rec.crash <= CRASH.offer * HZ;
+    const from = asked === "recent" && rec === prior && ended ? "crash" : asked;
+    const end = rec.finish
+      ? Math.min(tape.steps(), rec.finish.at + 1 + Math.round(REPLAY_TAIL * HZ))
       : tape.steps();
     const first = keys.first().step;
-    const plan = cut.shots.plan().filter((s) => s.at >= first);
+    const plan = rec.shots.plan().filter((s) => s.at >= first);
     const bill: ReplayBill = {
-      mode: cut.mode,
+      mode: rec.mode,
       skis: run.skier.spec.id,
       seed: run.seed,
-      time: cut.finish?.time ?? null,
-      place: cut.finish && run.rivals.length > 0 ? cut.finish.place : null,
+      time: rec.finish?.time ?? null,
+      place: rec.finish && run.rivals.length > 0 ? rec.finish.place : null,
     };
-    const moment = from === "crash" ? cut.crash : null;
+    const moment = from === "crash" ? rec.crash : null;
     let state = standUp(keys.first());
     let at = first;
     let target: number | null = null;
@@ -411,15 +432,22 @@ export function createReplayRig(): ReplayRig {
   return {
     clear: () => {
       cut = null;
+      prior = null;
     },
-    offers: () => cut !== null && cut.tape.steps() > 0,
+    offers: () => filled(watchable()),
     crash: () => {
       if (!cut || cut.crash === null) return null;
       return cut.tape.steps() - cut.crash <= CRASH.offer * HZ ? cut.crash : null;
     },
     arm: (state, mode) => {
+      // A run with nothing on its tape (a restart pressed straight after
+      // another) leaves the run before it standing.
+      if (filled(cut)) prior = cut;
       cut = null;
-      if (mode === null || !keepsReplay(mode)) return;
+      if (mode === null || !keepsReplay(mode)) {
+        prior = null;
+        return;
+      }
       cut = {
         run: state,
         mode,

@@ -125,11 +125,13 @@ import {
 } from "./settings-video.ts";
 import { aloftLook } from "./view-aloft.ts";
 import { tallyScene } from "./scene-tally.ts";
-import { createTerrain, type Terrain } from "./terrain.ts";
+import { createTerrain, groundPrimes, type Terrain } from "./terrain.ts";
 import { setSummerLook, summerOptions, summerShown as summer } from "./summer-terrain.ts";
 import { createTrailMap, type TrailMap } from "./trail-map.ts";
 import { createTrailOverlay } from "./trail-overlay.ts";
 import { createWildlife, type Wildlife } from "./wildlife.ts";
+import { paintAhead } from "./paint-ahead.ts";
+import * as ahead from "./world-prime.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
@@ -348,8 +350,11 @@ export function createWorldRenderer(
   /** Loads begun: one superseded stops at its next breath, adding nothing. */
   let loads = 0;
   const breathe = createBreath(() => !warmed);
+  void paintAhead(); // the map-free textures, painted off the thread from the start
   /** A breath between two heavy builders (paced while cold); false once superseded. */
   const rest = (mine: number): Promise<boolean> => breathe().then(() => mine === loads);
+  /** The pieces `world-prime.ts` names, a breath round each; false once superseded. */
+  const prime = (mine: number, pieces: ahead.Prime[]) => ahead.primed(pieces, () => rest(mine));
   /** Whether the world standing has had its shaders compiled. */
   let warmed = true;
   /** The trail maps and the ground that reads them, built for the picture in
@@ -464,16 +469,19 @@ export function createWorldRenderer(
       setSummerLook(!!state.summer); // the ground green, the snow shed, nothing thrown
       skyLevel = skyOverride ? withSky(level, skyOverride) : level;
       const lv = level;
+      const paints = paintAhead(); // the map-free textures, off the thread
+      // A breath first: what stood the run up has just run on this thread.
+      if (!(await rest(mine))) return;
       trail = buildTrail(lv);
-      await breathe();
-      if (mine !== loads) return;
+      if (!(await prime(mine, groundPrimes(lv)))) return;
       terrain = buildTerrain(lv, trail);
-      await breathe();
-      if (mine !== loads) return;
+      if (!(await rest(mine))) return;
       forest = createForest(lv, env.haze, forestOptions());
       forest.group.name = "forest";
       scene.add(forest.group);
-      if (!(await rest(mine))) return;
+      if (!(await prime(mine, ahead.gatePrimes(lv)))) return;
+      await paints;
+      if (mine !== loads) return;
       gates = createGates(lv, env.haze, state.rules.course);
       castInLight(gates.group, env.haze);
       gates.group.name = "checkpoints";
@@ -483,11 +491,14 @@ export function createWorldRenderer(
       scene.add(gates.group);
       if (gates.water) scene.add(gates.water.group);
       if (!(await rest(mine))) return;
-      lifts = createLifts(lv, env.haze, SPRAY_SHARE[video.spray], state.rules.lifts, env.cull);
+      const share = SPRAY_SHARE[video.spray];
+      const made = await ahead.liftParts(lv, env.haze, share, () => rest(mine)); // a breath each
+      if (!made) return;
+      lifts = createLifts(lv, env.haze, share, state.rules.lifts, env.cull, made);
       castInLight(lifts.group, env.haze);
       lifts.group.name = "lifts";
       scene.add(lifts.group);
-      if (!(await rest(mine))) return;
+      if (!(await prime(mine, ahead.wildPrimes(lv)))) return;
       pack = packFor(state);
       wildlife = createWildlife(lv, env.haze, FOREST_LOOK[video.forest].wild, {
         at: sampleSnow,
@@ -496,7 +507,7 @@ export function createWorldRenderer(
       });
       wildlife.group.name = "wildlife";
       scene.add(wildlife.group);
-      if (!(await rest(mine))) return;
+      if (!(await prime(mine, ahead.peoplePrimes(lv, state.rules, !!state.summer)))) return;
       crowd = createPeopleView(lv, env.haze, state.rules, env.cull, !!state.summer);
       scene.add(crowd.group);
       if (!(await rest(mine))) return;
@@ -509,6 +520,7 @@ export function createWorldRenderer(
       cloud.mesh.name = "snow-cloud";
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
+      if (!(await prime(mine, ahead.machinePrimes(lv)))) return;
       machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
       scene.add(machines.group);
       field = state.rivals;

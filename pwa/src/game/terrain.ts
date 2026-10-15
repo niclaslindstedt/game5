@@ -212,6 +212,9 @@ function gridVertices(n: number): THREE.BufferAttribute {
   return new THREE.BufferAttribute(pos, 3);
 }
 
+/** The forest blur's half width, cells. */
+const BLUR = 3;
+
 /** The forest's density on the ground's grid, 0..1: every crown splatted
  * and blurred, so a wood past the trees' draw distance still darkens the
  * hillside it stands on. */
@@ -231,34 +234,41 @@ function forestDensity(level: Level): Float32Array {
       }
     }
   }
-  // Three box passes ≈ a gaussian a dozen metres wide.
+  // Three box passes ≈ a gaussian a dozen metres wide, each a running sum
+  // along the rows and then the columns (the same box, a cell's cost the
+  // same however wide it is).
   const tmp = new Float32Array(out.length);
+  const { cols, rows } = f;
+  const sums = new Float64Array(cols);
   for (let pass = 0; pass < 3; pass++) {
-    for (let r = 0; r < f.rows; r++) {
-      for (let c = 0; c < f.cols; c++) {
-        let s = 0;
-        let w = 0;
-        for (let d = -3; d <= 3; d++) {
-          const cc = c + d;
-          if (cc < 0 || cc >= f.cols) continue;
-          s += out[r * f.cols + cc];
-          w++;
-        }
-        tmp[r * f.cols + c] = s / w;
+    for (let r = 0; r < rows; r++) {
+      const row = r * cols;
+      let s = 0;
+      for (let c = 0; c < Math.min(cols, BLUR); c++) s += out[row + c];
+      for (let c = 0; c < cols; c++) {
+        if (c + BLUR < cols) s += out[row + c + BLUR];
+        if (c - BLUR - 1 >= 0) s -= out[row + c - BLUR - 1];
+        tmp[row + c] = s / (Math.min(cols - 1, c + BLUR) - Math.max(0, c - BLUR) + 1);
       }
     }
-    for (let r = 0; r < f.rows; r++) {
-      for (let c = 0; c < f.cols; c++) {
-        let s = 0;
-        let w = 0;
-        for (let d = -3; d <= 3; d++) {
-          const rr = r + d;
-          if (rr < 0 || rr >= f.rows) continue;
-          s += tmp[rr * f.cols + c];
-          w++;
-        }
-        out[r * f.cols + c] = s / w;
+    // Down the columns a row at a time, every column's running sum kept
+    // side by side (a column walked on its own misses the cache every cell).
+    sums.fill(0);
+    for (let r = 0; r < Math.min(rows, BLUR); r++) {
+      for (let c = 0; c < cols; c++) sums[c] += tmp[r * cols + c];
+    }
+    for (let r = 0; r < rows; r++) {
+      if (r + BLUR < rows) {
+        const add = (r + BLUR) * cols;
+        for (let c = 0; c < cols; c++) sums[c] += tmp[add + c];
       }
+      if (r - BLUR - 1 >= 0) {
+        const drop = (r - BLUR - 1) * cols;
+        for (let c = 0; c < cols; c++) sums[c] -= tmp[drop + c];
+      }
+      const w = 1 / (Math.min(rows - 1, r + BLUR) - Math.max(0, r - BLUR) + 1);
+      const row = r * cols;
+      for (let c = 0; c < cols; c++) out[row + c] = sums[c] * w;
     }
   }
   for (let i = 0; i < out.length; i++) out[i] = Math.min(1, out[i]);
@@ -359,24 +369,52 @@ function stampGround(level: Level, stamp: GroundStamp, ground: Uint16Array, dir:
   }
 }
 
+/** THE GROUND'S GRIDS WORKED OUT AHEAD (`groundPrimes`): the heavy pieces
+ * of `groundTextures`, each in a moment of its own, for the next ground
+ * built of that map to take — and drop, so none is kept past it. */
+const ahead = new WeakMap<
+  Level,
+  { forest?: Float32Array; dir?: Uint8Array; frame?: ReturnType<typeof trackFrameOf> }
+>();
+const aheadOf = (level: Level) => {
+  let a = ahead.get(level);
+  if (!a) ahead.set(level, (a = {}));
+  return a;
+};
+
+/** The ground's heavy pieces for `level`, one a piece, ahead of
+ * `createTerrain` (the world's renderer, a breath between them). */
+export function groundPrimes(level: Level): (() => void)[] {
+  return [
+    () => void (aheadOf(level).forest ??= forestDensity(level)),
+    () => void (aheadOf(level).dir ??= trackDirection(level)),
+    () =>
+      void (aheadOf(level).frame ??= trackFrameOf(
+        level.track,
+        level.ground.cell,
+        THREE.DataUtils.toHalfFloat,
+      )),
+  ];
+}
+
 function groundTextures(level: Level) {
+  const made = ahead.get(level) ?? {};
+  ahead.delete(level);
   const f = level.ground;
   const height = new THREE.DataTexture(f.data, f.cols, f.rows, THREE.RedFormat, THREE.FloatType);
   height.minFilter = THREE.NearestFilter;
   height.magFilter = THREE.NearestFilter;
   height.needsUpdate = true;
 
-  const forest = forestDensity(level);
+  const forest = made.forest ?? forestDensity(level);
   const support = regionOf(level).crust?.packed ?? 0;
   const ground = new Uint16Array(f.cols * f.rows * 4);
   const h = THREE.DataUtils.toHalfFloat;
+  const at = (cc: number, rr: number): number =>
+    f.data[Math.min(f.rows - 1, Math.max(0, rr)) * f.cols + Math.min(f.cols - 1, Math.max(0, cc))];
   for (let r = 0; r < f.rows; r++) {
     for (let c = 0; c < f.cols; c++) {
       const k = r * f.cols + c;
-      const at = (cc: number, rr: number): number =>
-        f.data[
-          Math.min(f.rows - 1, Math.max(0, rr)) * f.cols + Math.min(f.cols - 1, Math.max(0, cc))
-        ];
       const gx = (at(c + 1, r) - at(c - 1, r)) / (2 * f.cell);
       const gz = (at(c, r + 1) - at(c, r - 1)) / (2 * f.cell);
       const x = f.originX + c * f.cell;
@@ -405,7 +443,12 @@ function groundTextures(level: Level) {
   groundTex.magFilter = THREE.LinearFilter;
   groundTex.needsUpdate = true;
 
-  const dir = new THREE.DataTexture(trackDirection(level), f.cols, f.rows, THREE.RGBAFormat);
+  const dir = new THREE.DataTexture(
+    made.dir ?? trackDirection(level),
+    f.cols,
+    f.rows,
+    THREE.RGBAFormat,
+  );
   dir.minFilter = THREE.LinearFilter;
   dir.magFilter = THREE.LinearFilter;
   dir.needsUpdate = true;
@@ -415,7 +458,7 @@ function groundTextures(level: Level) {
   live.push({ ground: groundTex, dir });
   liveGrounds.set(level, live);
   // THE PISTE'S OWN FRAME the other skiers' lines are laid in.
-  const tf = trackFrameOf(level.track, f.cell, THREE.DataUtils.toHalfFloat);
+  const tf = made.frame ?? trackFrameOf(level.track, f.cell, THREE.DataUtils.toHalfFloat);
   const frame = new THREE.DataTexture(
     tf.data,
     tf.cols,

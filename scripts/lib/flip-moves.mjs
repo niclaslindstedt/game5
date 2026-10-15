@@ -38,6 +38,16 @@ export const FLIP_MOVES = [
     input: LEAN(-1),
   },
   {
+    id: "backflip-off",
+    title: "a backflip off the lip leaning, so the loop is not turned square",
+    level: LIP,
+    place: () => ({ ...OFF_LIP(), roll: 0.3 }),
+    mode: "tricks",
+    seconds: 2.4,
+    window: [0.1, 1.3],
+    input: LEAN(1),
+  },
+  {
     id: "backflip-short",
     title: "a backflip thrown too softly: short of his feet, down on his back",
     level: LIP,

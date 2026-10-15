@@ -23,6 +23,7 @@
 // figure is without it — the lean's pose held stiff while the skis go
 // round.
 
+import { fromAxisAngle, multiply, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { add, mix, type V3 } from "./skier-vec.ts";
 import type { TrickPose } from "@engine";
 import type { FlightShape } from "./skier-flight.ts";
@@ -171,8 +172,54 @@ export function flipLift(f: SomersaultShape | undefined): number {
  * beside its skis, and a lens that reads the heading swings round to his
  * side. Past a quarter roll the same turn is read the other way round: the
  * heading turned back, the pitch carried on past upright, the roll near
- * level. */
-export function uprightSkier<T extends { heading: number; pitch: number; roll: number }>(s: T): T {
+ * level.
+ *
+ * THROUGH A LOOP NOT TURNED DEAD SQUARE that is not enough: with his body
+ * pitched near the vertical the engine's heading and roll swing through
+ * half a turn in a few degrees of loop (the yaw-pitch-roll order's
+ * gimbal), so a loop tilted a few degrees off his side axis read that way
+ * has him rolled one way going up and the other way coming over — the
+ * figure mirrored for the second half, the head jumping sides. So in the
+ * AIR, as he goes over past `LOOP_READ`, the same body is read off its RIGHT
+ * AXIS instead (`loopRead`: the heading and roll where that axis points,
+ * the pitch turned about it the whole way round), which a somersault
+ * leaves steady; on the snow, and in the air near level, the engine's own
+ * reading is kept, so nothing ridden moves. */
+export function uprightSkier<
+  T extends {
+    heading: number;
+    pitch: number;
+    roll: number;
+    q?: { x: number; y: number; z: number; w: number };
+    airborne?: boolean;
+  },
+>(s: T): T {
+  const level = levelRead(s);
+  if (!s.airborne || !s.q) return level;
+  // How far over he is: his nose's climb toward straight up or down, or
+  // how far his up has dropped from the sky — all the way upside down, so
+  // past the top a loop reads its own way.
+  const { x, z } = s.q;
+  const over = Math.max(Math.abs(Math.sin(s.pitch)), 2 * (x * x + z * z));
+  const w = smooth((over - LOOP_READ.from) / (LOOP_READ.to - LOOP_READ.from));
+  if (w <= 0) return level;
+  const loop = loopRead(s.q);
+  return {
+    ...s,
+    heading: level.heading + w * wrap(loop.heading - level.heading),
+    pitch: level.pitch + w * wrap(loop.pitch - level.pitch),
+    roll: level.roll + w * (loop.roll - level.roll),
+  };
+}
+
+/** How far over he goes (his nose's climb toward the vertical — the sine
+ * of the engine's pitch — or his up's drop from the sky) before the loop's
+ * own reading takes over from the engine's, eased between: none of it with
+ * his nose under 37°, so an ordinary air reads as it always has, all of it
+ * past 58°, short of the engine's gimbal — and all of it upside down. */
+export const LOOP_READ = { from: 0.6, to: 0.85 };
+
+function levelRead<T extends { heading: number; pitch: number; roll: number }>(s: T): T {
   if (Math.abs(s.roll) <= Math.PI / 2) return s;
   return {
     ...s,
@@ -180,6 +227,29 @@ export function uprightSkier<T extends { heading: number; pitch: number; roll: n
     pitch: (s.pitch >= 0 ? Math.PI : -Math.PI) - s.pitch,
     roll: s.roll - Math.sign(s.roll) * Math.PI,
   };
+}
+
+/** A body's heading, pitch and roll read off its RIGHT AXIS (the engine's
+ * conventions — heading 0 = +z clockwise, pitch tips-up, roll right side
+ * down): turned to the heading, rolled about the forward axis, then pitched
+ * about the rolled right axis — so the pitch goes the whole way round
+ * (−π..π) and the heading and the roll hold still through a somersault. */
+export function loopRead(q: { x: number; y: number; z: number; w: number }): {
+  heading: number;
+  pitch: number;
+  roll: number;
+} {
+  const right = rotate(q, { x: 1, y: 0, z: 0 });
+  const roll = -Math.asin(Math.max(-1, Math.min(1, right.y)));
+  const heading = Math.atan2(-right.z, right.x);
+  // Strip the heading and the roll back off: what is left turns about x.
+  const hr = multiply(fromAxisAngle(0, 1, 0, heading), fromAxisAngle(0, 0, 1, -roll));
+  const rest = multiply({ x: -hr.x, y: -hr.y, z: -hr.z, w: hr.w }, q);
+  return { heading, pitch: wrap(-2 * Math.atan2(rest.x, rest.w)), roll };
+}
+
+function wrap(a: number): number {
+  return a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
 }
 
 /** THE THREE MOMENTS OF A LOOP, each 0..1: the THROW (out of the tuck on

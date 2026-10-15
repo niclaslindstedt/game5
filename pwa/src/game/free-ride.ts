@@ -31,6 +31,7 @@ import {
   skiRoutesOf,
   pickFreeRun,
   isRegionId,
+  REGION_IDS,
   snowCoverOf,
   type RunGrade,
   type RegionId,
@@ -508,6 +509,32 @@ export function markedRun(
     list.fallback ?? undefined,
   );
   return list.runs.find((r) => r.id === id) ?? null;
+}
+
+/** The highest seed QUICK START deals: any generated mountain at all. */
+export const QUICK_SEEDS = 999_999;
+
+/** QUICK START'S RIDE: a GENERATED mountain off a seed of its own, in any
+ * country, on any winter day (never summer), at any hour, under any sky
+ * and any depth of snow — and no run or spot, so the ride is carried up
+ * to the map's toughest piste (`pickFreeRun`). The rider, his pair or board
+ * and his help are the cards' as last picked (`skierOf`); the start card's
+ * own answers are left as they were. */
+export function quickRide(base: FreeRide, random: () => number = Math.random): FreeRide {
+  const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
+  return {
+    ...base,
+    seed: 1 + Math.floor(random() * QUICK_SEEDS),
+    region: pick(REGION_IDS),
+    face: null,
+    grade: null,
+    season: pick(SEASONS.filter((s) => s.id !== "summer")).id,
+    time: pick(TIMES_OF_DAY),
+    weather: pick(WEATHER_KINDS),
+    snow: pick(SNOW_STOPS).id,
+    run: null,
+    spot: null,
+  };
 }
 
 /** THE RUN A FREE RIDE IS STOOD UP AS, on `seed`, for the skier on his

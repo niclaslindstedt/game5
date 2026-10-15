@@ -135,22 +135,16 @@ type PassList = {
 };
 
 /** The tree table's two textures: every tree's matrix and its own numbers.
- * One batch builds them; another may draw over the same table (the near
- * band's card trees, `forest.ts`). */
+ * One batch builds them; another may draw over the same table (the card
+ * woods over their faceted shadow casters', `forest.ts`). */
 export type TreeTable = { readonly matrix: THREE.DataTexture; readonly data: THREE.DataTexture };
 
 /** What a batch may be built with beside its shapes: another batch's
- * `table` to read instead of building its own, and an `early` material — a
- * DEPTH PRE-PASS: the same shapes, the same list, drawn first with no colour
- * so the picture's own pass is depth-tested against the nearest surface
- * before its fragments are shaded (`tree-card-material.ts`). A batch with a
- * pre-pass casts no shadow. */
-export type BatchExtras = { table?: TreeTable; early?: THREE.Material };
+ * `table` to read instead of building its own. */
+export type BatchExtras = { table?: TreeTable };
 
 export type TreeBatch = {
   readonly mesh: THREE.BatchedMesh;
-  /** The pre-pass drawn ahead of `mesh`, when there is one. */
-  readonly early: THREE.BatchedMesh | null;
   /** The tree table this batch reads. */
   readonly table: TreeTable;
   /** Triangles a shape has. */
@@ -289,38 +283,8 @@ export function createTreeBatch(
   mesh.onAfterRender = (renderer) => done(renderer, COLOUR);
   mesh.onBeforeShadow = (renderer) => hand(renderer, CASTERS);
   mesh.onAfterShadow = (renderer) => done(renderer, CASTERS);
-  mesh.castShadow = extras.early === undefined;
-  // THE PRE-PASS: a second object over the SAME geometry (three draws an
-  // object's own `geometry`, so nothing is copied), drawn ahead of the
-  // picture's pass with the same list.
-  let early: THREE.BatchedMesh | null = null;
-  if (extras.early) {
-    early = new THREE.BatchedMesh(1, 3, 0, extras.early);
-    early.geometry = mesh.geometry;
-    const pre = early as unknown as Drawn;
-    early.onBeforeRender = (renderer) => {
-      hand(renderer, COLOUR);
-      pre._multiDrawStarts = drawn._multiDrawStarts;
-      pre._multiDrawCounts = drawn._multiDrawCounts;
-      pre._multiDrawCount = drawn._multiDrawCount;
-    };
-    early.onAfterRender = (renderer) => done(renderer, COLOUR);
-    early.castShadow = false;
-    early.receiveShadow = false;
-    early.frustumCulled = false;
-    early.perObjectFrustumCulled = false;
-    early.sortObjects = false;
-    // Ahead of every opaque thing, so the ground behind a near tree is
-    // depth-tested against it too.
-    early.renderOrder = -1;
-    pre._multiDrawCount = 0;
-    early.userData.drawnTriangles = (): number => {
-      const l = lists[COLOUR];
-      let tris = 0;
-      for (let k = 0; k < l.draws; k++) tris += (l.counts[k] / 3) * l.instances[k];
-      return tris;
-    };
-  }
+  // A batch with no casters' room (the card woods) casts nothing.
+  mesh.castShadow = room.casters > 0;
   mesh.receiveShadow = true;
   mesh.customDepthMaterial = depth;
   mesh.frustumCulled = false;
@@ -344,7 +308,6 @@ export function createTreeBatch(
 
   return {
     mesh,
-    early,
     table: tree,
     triangles,
     bind(colour, casters) {
@@ -407,8 +370,6 @@ export function createTreeBatch(
       return { trees: l.n, triangles: tris };
     },
     dispose() {
-      // The pre-pass shares the geometry: let it go first.
-      early?.dispose();
       mesh.dispose();
       if (own) {
         matrix.dispose();

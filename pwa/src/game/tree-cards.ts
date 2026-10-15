@@ -15,15 +15,25 @@
 // the forest instances these exactly as it did the faceted ones, and the
 // trunk drawn is still the trunk a skier hits.
 //
-// THREE CUTS, the same tree lighter, each handed to the next by the
-// forest's dither:
-//   FULL — the bough cards, the core, the trunk, the leader;
-//   MID  — a BILLBOARD CLOUD: three cards standing through the tree carrying
-//          its whole silhouette from the side, a card laid across each of a
-//          few tiers carrying the tier seen from above, the core and the
-//          trunk — a few tens of triangles that read from the side AND from
-//          a chair overhead;
-//   FAR  — the three standing cards and one laid across, and the trunk.
+// THREE CUTS, the same tree in the same paint and the same cards, lighter
+// each time, handed one to the next by the forest's dither (`CardLod`):
+//   0 FULL — every whorl's boughs as two cards each, the core, the trunk,
+//          the leader: the nearest trees on the richest FOREST row;
+//   1 LIGHT — a third of the whorls, three single wider cards a whorl, a
+//          lighter core and two standing cards: the nearest trees on the
+//          middle row, the next ring on the richest — the same tree with
+//          fewer, bigger sprays;
+//   2 CLOUD — a BILLBOARD CLOUD: two cards standing through the tree
+//          carrying its whole silhouette from the side, one laid across it
+//          carrying it seen from above, the core and the trunk — a few tens
+//          of triangles that read from the side AND from a chair overhead.
+// Past the cloud a tree is a few pixels high and the forest draws its
+// faceted sketch, which reads the same at that size for less fill.
+//
+// A card's cost is its FILL: every pixel of every card is cut by its
+// coverage, layer behind layer, so each cut is held to a few times the
+// area of its faceted counterpart (the full cut, seen only close, the
+// most).
 //
 // Every vertex carries a `uv` into the atlas and a `card` pair: how much
 // snow the part can carry (0 for the wood and the core) and whether its
@@ -32,8 +42,22 @@
 
 import * as THREE from "three";
 
-import { atTile, type AtlasTile } from "./tree-atlas.ts";
-import { Shape, smooth, jitter, type V3 } from "./tree-mesh.ts";
+import { type AtlasTile } from "./tree-atlas.ts";
+import {
+  BARE_SNOW,
+  asCards,
+  bough,
+  card,
+  cardShape,
+  core,
+  deep,
+  merge,
+  paintOf,
+  solid,
+  standing,
+  umbrella,
+} from "./tree-card-parts.ts";
+import { smooth, jitter, type V3 } from "./tree-mesh.ts";
 import {
   buildTree,
   joints,
@@ -53,292 +77,18 @@ import {
   type TreeVariant,
 } from "./tree-variants.ts";
 
-/** The marks every card tree's vertices carry. */
-const MARKS = { uv: 2, card: 2 } as const;
+/** A card tree's cut: 0 full, 1 light, 2 the billboard cloud. */
+export type CardLod = 0 | 1 | 2;
 
-/** A shape for a card tree, its marks set to the solid tile and no snow. */
-/** The most snow a bare crown's twigs take: under the material's laden
- * mark, so a larch or a birch keeps its snow on the twigs' pillows and is
- * never crusted whole, which would read as solid plates of snow. */
-const BARE_SNOW = 0.78;
+/** How many cuts a card tree has. */
+export const CARD_LODS = 3;
 
-function cardShape(v: TreeVariant): Shape {
-  const s = new Shape(v.lean, { marks: MARKS });
-  solid(s);
-  return s;
-}
-
-/** What is pushed from here on is solid wood or core: the atlas's whole
- * tile, no snow of its own. */
-function solid(s: Shape): void {
-  s.mark("uv", ...atTile("solid", 0.5, 0.5));
-  s.mark("card", 0, 0);
-  s.facet = 0.25;
-}
-
-/** One CARD: the quad `a b c d` carrying `tile`, `a` its root's left
- * corner, `b` the tip's left, `c` the tip's right, `d` the root's right —
- * so the tile's root (its left edge) lies along `a d`. Its vertices' colours
- * from `root` to `tip`, its normal `n` (the crown's mass and the sky), its
- * snow `snowy`, its back an underside when `under`. Wound so its front faces
- * `n`. */
-function card(
-  s: Shape,
-  a: V3,
-  b: V3,
-  c: V3,
-  d: V3,
-  tile: AtlasTile,
-  root: THREE.Color,
-  tip: THREE.Color,
-  n: V3,
-  snowy: number,
-  under: boolean,
-  u0 = 0,
-  u1 = 1,
-): void {
-  s.facet = 0;
-  s.mark("card", snowy, under ? 1 : 0);
-  // Which way the quad faces as built: flip it to face `n`.
-  const e = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-  const f = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
-  const fx = e[1] * f[2] - e[2] * f[1];
-  const fy = e[2] * f[0] - e[0] * f[2];
-  const fz = e[0] * f[1] - e[1] * f[0];
-  const flip = fx * n[0] + fy * n[1] * 16 + fz * n[2] < 0;
-  const put = (p: V3, u: number, v: number, col: THREE.Color): void => {
-    s.mark("uv", ...atTile(tile, u, v));
-    s.push(p, col, n);
-  };
-  const A = (): void => put(a, u0, 0, root);
-  const B = (): void => put(b, u1, 0, tip);
-  const C = (): void => put(c, u1, 1, tip);
-  const D = (): void => put(d, u0, 1, root);
-  if (flip) {
-    A();
-    B();
-    C();
-    A();
-    C();
-    D();
-  } else {
-    A();
-    C();
-    B();
-    A();
-    D();
-    C();
-  }
-  solid(s);
-}
-
-/** A bough laid as two cards: from `root` out along `a` (rad in plan) to
- * `reach` crown radii, dropping `drop` (units of height) at its middle and
- * `tipDrop` at its tip, `wide` crown radii across at its broadest, rolled
- * `roll` about its axis. */
-function bough(
-  s: Shape,
-  root: V3,
-  a: number,
-  reach: number,
-  drop: number,
-  tipDrop: number,
-  wide: number,
-  roll: number,
-  tile: AtlasTile,
-  inner: THREE.Color,
-  outer: THREE.Color,
-  snowy: number,
-): void {
-  const ca = Math.cos(a);
-  const sa = Math.sin(a);
-  const at = (t: number, dy: number): V3 => [
-    root[0] + ca * reach * t,
-    root[1] - dy,
-    root[2] + sa * reach * t,
-  ];
-  const r0 = at(0, 0);
-  const r1 = at(0.5, drop);
-  const r2 = at(1, tipDrop);
-  // Across the bough, rolled toward the vertical; a unit of height is some
-  // four crown radii, hence the quarter.
-  const across = (w: number): V3 => [
-    -sa * w * Math.cos(roll),
-    (w * Math.sin(roll)) / 4,
-    ca * w * Math.cos(roll),
-  ];
-  const w0 = across(wide * 0.55);
-  const w1 = across(wide);
-  const w2 = across(wide * 0.75);
-  const n: V3 = [ca * 0.35, 0.8, sa * 0.35];
-  const mid = inner.clone().lerp(outer, 0.5);
-  const off = (p: V3, w: V3, k: number): V3 => [p[0] + w[0] * k, p[1] + w[1] * k, p[2] + w[2] * k];
-  card(
-    s,
-    off(r0, w0, -1),
-    off(r1, w1, -1),
-    off(r1, w1, 1),
-    off(r0, w0, 1),
-    tile,
-    inner,
-    mid,
-    n,
-    snowy,
-    true,
-    0,
-    0.5,
-  );
-  card(
-    s,
-    off(r1, w1, -1),
-    off(r2, w2, -1),
-    off(r2, w2, 1),
-    off(r1, w1, 1),
-    tile,
-    mid,
-    outer,
-    n,
-    snowy,
-    true,
-    0.5,
-    1,
-  );
-}
-
-/** The DARK CORE inside a crown: a closed body of `sides` round the stem
- * through the rings `ys` (shares of the height), each its `radius` (crown
- * radii), drawn in the deep interior's own dark — and, on a tree laden
- * past `snowy` 0.7, crusted where it faces the sky as its boughs are. */
-function core(
-  s: Shape,
-  ys: readonly number[],
-  radius: (y: number) => number,
-  sides: number,
-  col: THREE.Color,
-  x: (y: number) => number = () => 0,
-  snowy = 0,
-): void {
-  solid(s);
-  s.mark("card", snowy, 0);
-  const rings = ys.map((y, k) =>
-    Array.from({ length: sides }, (_, i): V3 => {
-      const a = (i / sides) * Math.PI * 2 + k * 0.6;
-      const r = Math.max(0.01, radius(y));
-      return [x(y) + Math.cos(a) * r, y, -Math.sin(a) * r];
-    }),
-  );
-  const centres = ys.map((y): V3 => [x(y), y, 0]);
-  s.loft(rings, centres, () => col);
-  s.cap(
-    rings[rings.length - 1],
-    [x(ys[ys.length - 1]), ys[ys.length - 1] + 0.02, 0],
-    col,
-    [0, 1, 0],
-    true,
-  );
-  s.cap(rings[0], [x(ys[0]), ys[0] - 0.01, 0], col, [0, -1, 0]);
-}
-
-/** THE STANDING CARDS of a mid or far cut: `n` cards through the stem at
- * even turns, `wide` crown radii either side, from `y0` to `y1`, carrying
- * the tree's silhouette from the side. */
-function standing(
-  s: Shape,
-  n: number,
-  y0: number,
-  y1: number,
-  wide: number,
-  tile: AtlasTile,
-  low: THREE.Color,
-  high: THREE.Color,
-  snowy: number,
-  seed: number,
-): void {
-  for (let k = 0; k < n; k++) {
-    const a = (k / n) * Math.PI + seed;
-    const ca = Math.cos(a) * wide;
-    const sa = Math.sin(a) * wide;
-    // The card's normal: square to it, leaning to the sky a little so the
-    // snow on its shelves takes the light.
-    const nrm: V3 = [-Math.sin(a) * 0.7, 0.7, Math.cos(a) * 0.7];
-    // The tile's root is its left edge; a standing card's root is its foot,
-    // so its corners go foot-left, head-left, head-right, foot-right.
-    s.facet = 0;
-    s.mark("card", snowy, 0);
-    const put = (p: V3, u: number, v: number, col: THREE.Color): void => {
-      // The silhouette tile is drawn upright: its u across, its v up.
-      s.mark("uv", ...atTile(tile, u, v));
-      s.push(p, col, nrm);
-    };
-    const fl: V3 = [-ca, y0, -sa];
-    const fr: V3 = [ca, y0, sa];
-    const hl: V3 = [-ca, y1, -sa];
-    const hr: V3 = [ca, y1, sa];
-    put(fl, 0, 0, low);
-    put(fr, 1, 0, low);
-    put(hr, 1, 1, high);
-    put(fl, 0, 0, low);
-    put(hr, 1, 1, high);
-    put(hl, 0, 1, high);
-  }
-  solid(s);
-}
-
-/** A tier seen from above, laid across the crown at `y`: an umbrella of four
- * triangles off a middle raised `rise`, `r` crown radii out. */
-function umbrella(
-  s: Shape,
-  y: number,
-  r: number,
-  rise: number,
-  tile: AtlasTile,
-  col: THREE.Color,
-  rim: THREE.Color,
-  snowy: number,
-  turn: number,
-  x = 0,
-  z = 0,
-): void {
-  s.facet = 0;
-  s.mark("card", snowy, 1);
-  const top: V3 = [x, y + rise, z];
-  const corners: V3[] = [0, 1, 2, 3].map((k) => {
-    const a = turn + (k * Math.PI) / 2;
-    return [x + Math.cos(a) * r * Math.SQRT2, y, z + Math.sin(a) * r * Math.SQRT2];
-  });
-  const uvs: [number, number][] = [
-    [1, 0.5],
-    [0.5, 1],
-    [0, 0.5],
-    [0.5, 0],
-  ];
-  // The corners of the tile are its corners; the umbrella's four ribs run
-  // to the middles of its edges, so the disc painted inside the tile is
-  // whole.
-  const uvAt = (k: number): [number, number] => {
-    const a = uvs[k];
-    const b = uvs[(k + 1) % 4];
-    return [a[0] + b[0] - 0.5, a[1] + b[1] - 0.5];
-  };
-  for (let k = 0; k < 4; k++) {
-    const p = corners[k];
-    const q = corners[(k + 1) % 4];
-    const nrm: V3 = [0, 1, 0];
-    s.mark("uv", ...atTile(tile, 0.5, 0.5));
-    s.push(top, col, nrm);
-    s.mark("uv", ...atTile(tile, ...uvAt((k + 3) % 4)));
-    s.push(q, rim, nrm);
-    s.mark("uv", ...atTile(tile, ...uvAt((k + 2) % 4)));
-    s.push(p, rim, nrm);
-  }
-  solid(s);
-}
-
-/** The core's colour: the crown's deep interior, its darkest green. */
-const deep = (p: KindPaint): THREE.Color => p.dark.clone();
+/** The faceted cut a card cut's wood (its trunk, its limbs, a tree drawn
+ * solid) is built at. */
+const woodLod = (lod: CardLod): TreeLod => (lod === 0 ? 0 : 1);
 
 /** A CONIFER: whorls of drooping bough cards over a dark core. */
-function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, seed: number) {
+function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: CardLod, seed: number) {
   const s = cardShape(v);
   const snowy = Math.min(1.4, form.snow * p.load * 1.6);
   const nodAt = (y: number): number =>
@@ -351,65 +101,71 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
     return r * (1 + form.club * 1.4 * smooth(0.62, 0.9, u));
   };
   const side: AtlasTile = v.taper > 1.3 || v.width < 0.7 ? "spireSide" : "spruceSide";
+  // A crown that is a cone has its standing cards cut to the cone; a
+  // flat-topped or clubbed one keeps the whole card.
+  const cone = form.flat <= 0 && form.club <= 0;
   const spray: AtlasTile = form.droop > 1.2 || v.taper > 1.3 ? "fir" : "spruce";
   const sprayB: AtlasTile = spray === "fir" ? "firB" : "spruceB";
   // The trunk into the crown.
-  const trunkTop = lod === 2 ? Math.max(0.3, v.base + 0.2) : Math.min(0.85, v.base + 0.5);
+  const trunkTop = Math.min(0.85, v.base + 0.5);
   trunk(
     s,
-    joints(trunkTop, lod),
+    joints(trunkTop, woodLod(lod)),
     1,
     0.35,
-    lod,
+    woodLod(lod),
     (y) => [nodAt(y), 0],
     (y) => p.bark.clone().multiplyScalar(0.75 + 0.35 * Math.min(1, y * 3)),
   );
   const dark = deep(p);
   const span = v.top - v.base;
-  if (lod > 0) {
-    // THE BILLBOARD CLOUD.
-    // Its opaque core at both cuts: at the far one it is most of what makes
-    // a distant spruce a dark cone rather than a wisp of needles.
-    const rings =
-      lod === 1
-        ? [v.base, v.base + span * 0.1, v.base + span * 0.45, v.top - span * 0.08]
-        : [v.base, v.base + span * 0.12, v.top - span * 0.12];
+  if (lod === 2) {
+    // THE BILLBOARD CLOUD, over its opaque core: most of what makes a
+    // distant spruce a dark cone rather than a wisp of needles.
     core(
       s,
-      rings,
+      [v.base, v.base + span * 0.1, v.base + span * 0.45, v.top - span * 0.08],
       (y) => radiusAt(y) * (y > v.base ? 0.5 : 0.15),
-      lod === 1 ? 4 : 3,
+      4,
       dark,
       nodAt,
       snowy,
     );
     standing(
       s,
-      3,
+      2,
       v.base - span * 0.04,
       v.top + 0.01,
-      v.width * 1.05,
+      v.width * 0.85,
       side,
       p.needle.clone().lerp(p.dark, 0.5),
       p.needle,
       snowy,
       seed,
+      cone,
     );
-    const discs = lod === 1 ? 3 : 1;
-    for (let k = 0; k < discs; k++) {
-      const u = discs === 1 ? 0.25 : 0.12 + (0.6 * k) / (discs - 1);
-      const y = v.base + span * u;
-      umbrella(s, y, radiusAt(y) * 0.95, span * 0.04, "disc", p.dark, p.needle, snowy, seed + k);
-    }
+    const y = v.base + span * 0.25;
+    umbrella(s, y, radiusAt(y) * 0.8, span * 0.04, "disc", p.dark, p.needle, snowy, seed);
     return s.geometry();
   }
+  // The light cut: a third of the whorls, three boughs a whorl, each one
+  // card and wider, so the crown reads full with a fifth of the cards.
+  const light = lod === 1;
   core(
     s,
     // Its foot drawn in to the stem, so from under the crown it is a point
     // and not a lid.
-    [v.base, v.base + span * 0.1, v.base + span * 0.3, v.base + span * 0.65, v.top - span * 0.04],
-    (y) => radiusAt(y) * (y > v.base ? 0.32 : 0.08),
-    5,
+    light
+      ? [v.base, v.base + span * 0.1, v.base + span * 0.45, v.top - span * 0.05]
+      : [
+          v.base,
+          v.base + span * 0.1,
+          v.base + span * 0.3,
+          v.base + span * 0.65,
+          v.top - span * 0.04,
+        ],
+    (y) => radiusAt(y) * (y > v.base ? (light ? 0.38 : 0.32) : 0.08),
+    light ? 4 : 5,
     dark,
     nodAt,
     snowy,
@@ -420,21 +176,24 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
   // cannot.
   standing(
     s,
-    3,
+    light ? 2 : 3,
     v.base - span * 0.02,
     v.top,
-    v.width * 0.92,
+    v.width * (light ? 0.7 : 0.82),
     side,
-    p.needle.clone().lerp(p.dark, 0.5),
-    p.needle,
+    p.needle.clone().lerp(p.dark, 0.7),
+    p.needle.clone().lerp(p.dark, 0.3),
     snowy,
     seed,
+    cone,
   );
   // THE WHORLS: one a tier, the boughs round it at a golden turn, each
   // bough drooping to its tip (and, on a spruce, turning up again at it).
-  const count = Math.max(5, Math.round(form.tiers * 0.75));
+  const count = light
+    ? Math.max(4, Math.round(form.tiers * 0.35))
+    : Math.max(5, Math.round(form.tiers * 0.65));
   const tiers = tiersOf(count, v.base, v.top, v.taper);
-  const per = Math.min(7, Math.max(5, form.sides - 2));
+  const per = light ? 3 : Math.min(7, Math.max(5, form.sides - 2));
   tiers.forEach((t, ti) => {
     if (form.missing.includes(Math.round((ti * form.tiers) / count))) return;
     const u = ti / count;
@@ -455,7 +214,10 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
       // A spruce's J: down to its middle, up a little at its tip; a fir's
       // plate stays flat.
       const tipFall = spray === "fir" ? fall * 1.1 : fall * 0.75;
-      const wide = Math.min(0.6, reach * (0.5 + 0.15 * jitter(k + 9)));
+      const wide = Math.min(
+        light ? 0.75 : 0.6,
+        reach * (0.5 + 0.15 * jitter(k + 9)) * (light ? 1.3 : 1),
+      );
       const roll = (jitter(k + 11) - 0.5) * 0.9;
       const tone = 0.8 + 0.35 * jitter(k + 3);
       const outer = p.needle.clone().multiplyScalar(1.15 * tone);
@@ -476,6 +238,7 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
         inner,
         outer,
         snowy * (0.75 + 0.25 * (1 - u)),
+        light,
       );
     }
   });
@@ -513,8 +276,8 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
       dark,
       () => off,
     );
-    for (let k = 0; k < 4; k++) {
-      const a = (k / 4) * Math.PI * 2 + seed;
+    for (let k = 0; k < (light ? 2 : 4); k++) {
+      const a = (k / (light ? 2 : 4)) * Math.PI * 2 + seed;
       bough(
         s,
         [off, from + (v.top * 0.95 - from) * 0.5, 0],
@@ -528,6 +291,7 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
         p.dark,
         p.needle,
         snowy,
+        light,
       );
     }
   }
@@ -540,14 +304,18 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
 
 /** A PINE: bare stems under pads, each pad a dark core under an umbrella of
  * tufts and tufts reaching out round it. */
-function pine(v: TreeVariant, form: PineForm, p: KindPaint, lod: TreeLod, seed: number) {
+function pine(v: TreeVariant, form: PineForm, p: KindPaint, cardLod: CardLod, seed: number) {
   const s = cardShape(v);
+  // The light cut is the full one with fewer pads and fewer tufts round
+  // each; the cloud is the pads' umbrellas.
+  const light = cardLod === 1;
+  const lod: TreeLod = cardLod <= 1 ? 0 : 1;
   // Barely past the laden mark: a pine's flat tufts crusted whole read as
   // grey plates, so its snow stays in the brushes.
   const snowy = Math.min(0.95, form.snow * p.load * 1.5);
   const kinkX = (y: number): number =>
     form.kink > 0 && y > form.kink ? Math.min(1, (y - form.kink) / 0.12) * form.kinkBy : 0;
-  const stems = lod === 2 ? Math.min(2, form.stems) : form.stems;
+  const stems = form.stems;
   const stemX = (st: number, y: number): [number, number] => {
     if (stems === 1) return [kinkX(y), 0];
     const a = st * 2.4 + seed;
@@ -569,25 +337,9 @@ function pine(v: TreeVariant, form: PineForm, p: KindPaint, lod: TreeLod, seed: 
     trunk(s, stops, share, 0.3, lod, (y) => stemX(st, y), barkAt);
   }
   const dark = deep(p);
-  if (lod === 2) {
-    const y0 = v.base;
-    standing(
-      s,
-      3,
-      y0,
-      v.top + 0.02,
-      v.width * form.spread * 1.15,
-      "pineSide",
-      p.dark,
-      p.needle,
-      snowy,
-      seed,
-    );
-    return s.geometry();
-  }
   const pads =
     lod === 0
-      ? Math.min(9, Math.max(3, Math.ceil(form.pads * 0.7)))
+      ? Math.min(light ? 6 : 9, Math.max(3, Math.ceil(form.pads * (light ? 0.5 : 0.7))))
       : Math.min(5, Math.max(3, Math.ceil(form.pads * 0.45)));
   for (let i = 0; i < pads; i++) {
     const st = i % stems;
@@ -646,8 +398,9 @@ function pine(v: TreeVariant, form: PineForm, p: KindPaint, lod: TreeLod, seed: 
       cz,
     );
     if (lod === 0) {
-      for (let j = 0; j < 6; j++) {
-        const b = a + (j / 6) * Math.PI * 2 + jitter(k + j) * 0.8;
+      const tufts = light ? 2 : 6;
+      for (let j = 0; j < tufts; j++) {
+        const b = a + (j / tufts) * Math.PI * 2 + jitter(k + j) * 0.8;
         bough(
           s,
           [cx, y + form.thick * 0.3, cz],
@@ -655,12 +408,13 @@ function pine(v: TreeVariant, form: PineForm, p: KindPaint, lod: TreeLod, seed: 
           pr * 1.1,
           form.thick * 0.15,
           form.thick * 0.45,
-          pr * 0.6,
+          pr * (light ? 0.8 : 0.6),
           0.5,
           "tuft",
           p.dark,
           p.needle,
           snowy * 0.8,
+          light,
         );
       }
     }
@@ -674,11 +428,14 @@ function larch(
   v: TreeVariant,
   form: LarchForm,
   p: KindPaint,
-  lod: TreeLod,
+  cardLod: CardLod,
   seed: number,
   paint: TreePaint,
 ) {
-  if (form.dead || p.leaf) return asCards(buildTree(v, paint, lod));
+  if (form.dead || p.leaf) return asCards(buildTree(v, paint, woodLod(cardLod)));
+  // The light cut is the full one with half the whorls and fewer arms.
+  const light = cardLod === 1;
+  const lod: TreeLod = cardLod <= 1 ? 0 : 1;
   const s = cardShape(v);
   const snowy = Math.min(BARE_SNOW, form.snow * p.load);
   trunk(
@@ -691,24 +448,36 @@ function larch(
     (y) => p.bark.clone().lerp(p.twigs, Math.min(1, y * 1.2)),
   );
   if (lod > 0) {
-    standing(s, 3, v.base, v.top + 0.02, v.width * 1.05, "bareSide", p.bark, p.twigs, snowy, seed);
-    if (lod === 1)
-      umbrella(
-        s,
-        v.base + (v.top - v.base) * 0.3,
-        v.width * 0.8,
-        0.03,
-        "twigDisc",
-        p.bark,
-        p.twigs,
-        snowy,
-        seed,
-      );
+    standing(s, 2, v.base, v.top + 0.02, v.width * 0.85, "bareSide", p.bark, p.twigs, snowy, seed);
+    umbrella(
+      s,
+      v.base + (v.top - v.base) * 0.3,
+      v.width * 0.6,
+      0.03,
+      "twigDisc",
+      p.bark,
+      p.twigs,
+      snowy,
+      seed,
+    );
     return s.geometry();
   }
-  standing(s, 2, v.base, v.top + 0.02, v.width * 0.95, "bareSide", p.bark, p.twigs, snowy, seed);
-  const whorls = Math.max(5, Math.round(form.whorls * 0.75));
-  const arms = Math.min(5, form.arms);
+  standing(
+    s,
+    2,
+    v.base,
+    v.top + 0.02,
+    v.width * (light ? 0.8 : 0.95),
+    "bareSide",
+    p.bark,
+    p.twigs,
+    snowy,
+    seed,
+  );
+  const whorls = light
+    ? Math.max(3, Math.round(form.whorls * 0.4))
+    : Math.max(5, Math.round(form.whorls * 0.75));
+  const arms = Math.min(light ? 3 : 5, form.arms);
   for (let w = 0; w < whorls; w++) {
     const u = (w + 0.5) / whorls;
     const y = v.base + (v.top - v.base) * u * 0.95;
@@ -725,12 +494,13 @@ function larch(
         reach,
         form.droop * 0.03,
         form.droop * 0.05,
-        reach * 0.45,
+        reach * (light ? 0.5 : 0.45),
         (jitter(k + 2) - 0.5) * 2.2,
         tile,
         p.bark,
         p.twigs,
         snowy * (u < 0.7 ? 1 : 0.3),
+        light,
       );
     }
   }
@@ -744,16 +514,18 @@ function broadleaf(
   v: TreeVariant,
   form: BirchForm,
   p: KindPaint,
-  lod: TreeLod,
+  cardLod: CardLod,
   seed: number,
   paint: TreePaint,
 ) {
-  if (p.leaf) return asCards(buildTree(v, paint, lod));
-  if (lod === 0) {
+  if (p.leaf) return asCards(buildTree(v, paint, woodLod(cardLod)));
+  if (cardLod <= 1) {
     // The faceted builder's stems and limbs, its sprays re-clothed: every
-    // fin it lays becomes a twig card.
-    return twigCards(v, form, p, seed);
+    // fin it lays becomes a twig card (half as many, wider, on the light
+    // cut, over its mid cut's wood).
+    return twigCards(v, form, p, seed, cardLod === 1);
   }
+  const lod: TreeLod = 1;
   const s = cardShape(v);
   const snowy = Math.min(BARE_SNOW, form.snow * p.load);
   const stems = Math.min(2, form.stems);
@@ -774,28 +546,27 @@ function broadleaf(
   }
   standing(
     s,
-    3,
+    2,
     v.base * 0.9,
     v.top + 0.02,
-    v.width * 1.1,
+    v.width * 0.7,
     "bareSide",
     p.bark,
     p.twigs,
     snowy,
     seed,
   );
-  if (lod === 1)
-    umbrella(
-      s,
-      v.base + (v.top - v.base) * 0.45,
-      v.width * 0.85,
-      0.04,
-      "twigDisc",
-      p.bark,
-      p.twigs,
-      snowy,
-      seed,
-    );
+  umbrella(
+    s,
+    v.base + (v.top - v.base) * 0.45,
+    v.width * 0.6,
+    0.04,
+    "twigDisc",
+    p.bark,
+    p.twigs,
+    snowy,
+    seed,
+  );
   return s.geometry();
 }
 
@@ -807,14 +578,15 @@ function twigCards(
   form: BirchForm,
   p: KindPaint,
   seed: number,
+  light: boolean,
 ): THREE.BufferGeometry {
   // The limbs and stems as the faceted builder lays them, but with no
   // sprays: built with no fins at all, then the sprays laid as cards here.
   const bare = { ...v, shape: { ...form, fins: 0, berries: 0, leaves: 0 } };
-  const wood = asCards(buildTree(bare, { ...paintOf(p), load: p.load }, 0));
+  const wood = asCards(buildTree(bare, { ...paintOf(p), load: p.load }, light ? 1 : 0));
   const s = cardShape(v);
   const snowy = Math.min(BARE_SNOW, form.snow * p.load);
-  const sprays = Math.round(form.fins * 0.7);
+  const sprays = Math.round(form.fins * (light ? 0.3 : 0.5));
   const stems = form.stems;
   for (let i = 0; i < sprays; i++) {
     const k = seed + i * 3 + 7;
@@ -843,65 +615,23 @@ function twigCards(
       len,
       -rise * 0.5,
       -rise,
-      len * 0.42,
+      len * (light ? 0.55 : 0.42),
       (jitter(k + 6) - 0.5) * 2.4,
       jitter(k + 3) < 0.5 ? "twig" : "twigB",
       p.twigs.clone().multiplyScalar(1.2),
       p.twigs,
       snowy * (u < 0.65 ? 1 : 0.2),
+      light,
     );
   }
   return merge(wood, s.geometry());
-}
-
-/** The region's paint back out of a kind's (for the faceted builder). */
-function paintOf(p: KindPaint): TreePaint {
-  return {
-    needle: p.needle,
-    needleDark: p.dark,
-    birchBark: p.bark,
-    birchTwigs: p.twigs,
-    load: p.load,
-  };
-}
-
-/** A faceted tree as a card tree: every vertex on the atlas's solid tile,
- * carrying no snow of its own. */
-function asCards(g: THREE.BufferGeometry): THREE.BufferGeometry {
-  const n = g.getAttribute("position").count;
-  const [u, v] = atTile("solid", 0.5, 0.5);
-  const uv = new Float32Array(n * 2);
-  for (let i = 0; i < n; i++) {
-    uv[i * 2] = u;
-    uv[i * 2 + 1] = v;
-  }
-  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  g.setAttribute("card", new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
-  return g;
-}
-
-/** Two non-indexed geometries with the same attributes as one. */
-function merge(a: THREE.BufferGeometry, b: THREE.BufferGeometry): THREE.BufferGeometry {
-  const g = new THREE.BufferGeometry();
-  for (const name of Object.keys(b.attributes)) {
-    const x = a.getAttribute(name);
-    const y = b.getAttribute(name);
-    const out = new Float32Array(x.array.length + y.array.length);
-    out.set(x.array as Float32Array, 0);
-    out.set(y.array as Float32Array, x.array.length);
-    g.setAttribute(name, new THREE.Float32BufferAttribute(out, y.itemSize));
-  }
-  a.dispose();
-  b.dispose();
-  g.computeBoundingSphere();
-  return g;
 }
 
 /** One variant's card tree at a level of detail. */
 export function buildCardTree(
   v: TreeVariant,
   paint: TreePaint,
-  lod: TreeLod = 0,
+  lod: CardLod = 0,
 ): THREE.BufferGeometry {
   const seed = v.index * 3 + 1;
   const p = kindPaint(paint, v.kind);
@@ -915,41 +645,4 @@ export function buildCardTree(
     case "birch":
       return broadleaf(v, v.shape, p, lod, seed, paint);
   }
-}
-
-/** A card tree PACKED for the forest's batch (`forest-batch.ts`), every one
- * with the same attributes in the same types, as a batch asks: the colours
- * as 16-bit shares and the normals as bytes (a third less on the card, as
- * the solid cuts are packed, `tree-snow.ts`); the position, the trunk's
- * `stem`, the atlas's `uv` and the `card` mark stay floats. */
-export function packCards(g: THREE.BufferGeometry): THREE.BufferGeometry {
-  const pos = g.getAttribute("position");
-  const n = pos.count;
-  const col = g.getAttribute("color");
-  const nrm = g.getAttribute("normal");
-  const colours = new Uint16Array(n * 3);
-  const normals = new Int8Array(n * 3);
-  for (let v = 0; v < n; v++) {
-    for (let k = 0; k < 3; k++) {
-      colours[v * 3 + k] = Math.round(Math.min(1, Math.max(0, col.getComponent(v, k))) * 65535);
-      normals[v * 3 + k] = Math.round(Math.max(-1, Math.min(1, nrm.getComponent(v, k))) * 127);
-    }
-  }
-  const floats = (name: string, size: number): THREE.BufferAttribute => {
-    const a = g.getAttribute(name);
-    const out = new Float32Array(n * size);
-    if (a)
-      for (let v = 0; v < n; v++)
-        for (let k = 0; k < size; k++) out[v * size + k] = a.getComponent(v, k);
-    return new THREE.BufferAttribute(out, size);
-  };
-  const out = new THREE.BufferGeometry();
-  out.setAttribute("position", floats("position", 3));
-  out.setAttribute("color", new THREE.BufferAttribute(colours, 3, true));
-  out.setAttribute("normal", new THREE.BufferAttribute(normals, 3, true));
-  out.setAttribute("stem", floats("stem", 3));
-  out.setAttribute("uv", floats("uv", 2));
-  out.setAttribute("card", floats("card", 2));
-  g.dispose();
-  return out;
 }

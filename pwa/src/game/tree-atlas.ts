@@ -229,19 +229,19 @@ function spray(cv: Canvas, seed: number, flat: number): void {
       }
       // The shoot's own twig, darker.
       cv.stroke(ax, ay, ex, ey, 1.3, 0.2, 0);
-      // A pillow on it, laid along it, the bigger the nearer the axis.
+      // The snow the axis's pillow spills onto the shoot's root: one lump
+      // joined to it, so the white is one shelf down the bough's top and
+      // the shoots' tips stay green — never a speck on every shoot.
       const turn = Math.atan2(ey - ay, ex - ax);
-      for (const at of [0.3, 0.62]) {
-        cv.snow(
-          ax + (ex - ax) * at,
-          ay + (ey - ay) * at,
-          len * (0.12 - 0.04 * at),
-          0.65 + 0.35 * rnd(),
-          len * (0.3 - 0.1 * at),
-          turn,
-          rnd() * 6.3,
-        );
-      }
+      cv.snow(
+        ax + (ex - ax) * 0.18,
+        ay + (ey - ay) * 0.18,
+        len * 0.1,
+        0.75 + 0.25 * rnd(),
+        len * 0.24,
+        turn,
+        rnd() * 6.3,
+      );
     }
   }
   // Needles round the axis itself, and its twig.
@@ -253,17 +253,19 @@ function spray(cv: Canvas, seed: number, flat: number): void {
     const [x1, y1] = axis((k + 1) / 8);
     cv.stroke(x0, y0, x1, y1, 2.4 - 1.5 * (k / 8), 0.2, 0);
   }
-  // The snow along the axis: one long pillow broken into lumps.
-  for (let k = 0; k < 9; k++) {
-    const u = 0.08 + k * 0.1 + rnd() * 0.04;
+  // The snow along the axis: one long pillow, its lumps overlapping into a
+  // single shelf, broadest at the root where the bough is stoutest and
+  // tapering out before the tip.
+  for (let k = 0; k < 16; k++) {
+    const u = 0.04 + k * 0.052 + rnd() * 0.02;
     const [x, y] = axis(u);
     cv.snow(
       x,
-      y + (rnd() - 0.5) * h * 0.1,
-      h * (0.13 - 0.06 * u) * (0.7 + 0.5 * rnd()),
+      y + (rnd() - 0.5) * h * 0.05,
+      h * (0.17 - 0.12 * u) * (0.8 + 0.35 * rnd()),
       1,
-      w * (0.045 + 0.035 * rnd()),
-      (rnd() - 0.5) * 0.4,
+      w * (0.05 + 0.025 * rnd()),
+      (rnd() - 0.5) * 0.3,
       rnd() * 6.3,
     );
   }
@@ -603,18 +605,23 @@ function side(cv: Canvas, seed: number, form: "spire" | "spruce" | "pine" | "bar
         );
       }
     }
-    // The shelf of snow along the tier's top, in lumps.
-    for (let k = 0; k < 9; k++) {
-      const f = (k + 0.5 + (rnd() - 0.5) * 0.6) / 9;
-      const x = (f * 2 - 1) * r * 0.85;
-      const lift = drop * Math.abs(f * 2 - 1) * 1.1;
+    // The shelf of snow along the tier's top: lumps overlapping into one
+    // cap down each side of the tier, its lower edge ragged, thinning to
+    // the tier's tips — the white over dark green a loaded spruce is.
+    for (let k = 0; k < 18; k++) {
+      const f = (k + 0.5 + (rnd() - 0.5) * 0.5) / 18;
+      const out = Math.abs(f * 2 - 1);
+      if (out > 0.92) continue;
+      const x = (f * 2 - 1) * r * 0.88;
+      const lift = drop * out * 1.15;
+      const slope = Math.atan2(drop * 1.15 * h, r * (w / 2)) * Math.sign(f * 2 - 1);
       cv.snow(
         X(x),
-        Y(y - lift + 0.004),
-        h * (0.006 + 0.006 * rnd()),
-        0.6 + 0.4 * rnd(),
-        (w / 2) * r * (0.08 + 0.08 * rnd()),
-        0,
+        Y(y - lift + 0.006),
+        h * (0.009 + 0.005 * rnd()) * (1 - 0.5 * out),
+        0.75 + 0.25 * rnd(),
+        (w / 2) * r * (0.09 + 0.05 * rnd()),
+        slope,
         rnd() * 6.3,
       );
     }

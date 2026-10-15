@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE HAND-OVER between the forest's bands (`forest.ts`), three-free. A
 // tree is the same tree cut lighter with distance — FULL, MID, the FAR
-// sketch, and on the richest FOREST row the CARD tree nearest of all (its
-// needles on cards, `tree-cards.ts`) — and a band that simply ended at its edge swapped one cut for the
-// next in a single frame, in plain sight: the boughs thinned as the skier
+// sketch, and on the richest FOREST row a nearest band in front of them all
+// (the card woods' fullest cut, `tree-cards.ts`) — and a band that simply
+// ended at its edge swapped one cut for the next in a single frame, in plain sight: the boughs thinned as the skier
 // watched, and at the far edge the tree turned into its kind's lead variant
 // (and, on a thinner FOREST row, went out altogether).
 //
@@ -34,8 +34,9 @@ export const HAND_OVER_MS = 400;
 /** How far past an edge, m, a tree has to stand before it changes its cut. */
 export const HYSTERESIS = 3;
 
-/** The cut a tree is drawn in: 0 FULL, 1 MID, 2 the FAR sketch, 3 the CARD
- * tree nearer than the full cut, -1 none. */
+/** The band a tree is drawn in: 0 FULL, 1 MID, 2 the FAR sketch, 3 the
+ * nearest band in front of the full one (the FOREST row's `cards`), -1
+ * none. Which cut of which style each band draws is `forest.ts`'s. */
 export type BandIndex = -1 | 0 | 1 | 2 | 3;
 
 /** The card band's index. */

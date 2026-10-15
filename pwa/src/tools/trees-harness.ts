@@ -31,7 +31,7 @@ import { createHazeUniforms, hazeMaterial } from "../game/haze.ts";
 import { regionLookOf } from "../game/region-look.ts";
 import { TRUNK_REF, graftGirth } from "../game/tree-mesh.ts";
 import { LOD_NAMES, buildTree, treePaint, type TreeLod } from "../game/tree-shapes.ts";
-import { buildCardTree } from "../game/tree-cards.ts";
+import { buildCardTree, type CardLod } from "../game/tree-cards.ts";
 import { atlasTexture, cardMaterial } from "../game/tree-card-material.ts";
 import { TREE_VARIANTS, leadVariant, type TreeVariant } from "../game/tree-variants.ts";
 
@@ -51,14 +51,15 @@ const FOV = 62;
 const query = new URLSearchParams(location.search);
 const asked = query.get("region") ?? "alpine";
 const region: RegionId = isRegionId(asked) ? asked : "alpine";
-const lod: TreeLod =
-  query.get("sketch") === "1"
-    ? 2
-    : (Math.max(0, Math.min(2, Number(query.get("lod") ?? 0))) as TreeLod);
+/** The cut drawn: a faceted tree's 0..2, a card tree's 0..2 (`CardLod`). */
+const askedLod = Math.max(0, Math.round(Number(query.get("lod") ?? 0)));
 const ageSheet = query.get("ages") === "1";
-/** `?cards=1`: the card trees the richest FOREST row draws nearest
- * (`tree-cards.ts`), instead of the faceted cuts every other band draws. */
+/** `?cards=1`: the card trees the MEDIUM and HIGH FOREST rows draw
+ * (`tree-cards.ts`), instead of the faceted cuts. */
 const faceted = query.get("cards") !== "1";
+const lod: TreeLod = query.get("sketch") === "1" ? 2 : (Math.min(2, askedLod) as TreeLod);
+const cardLod: CardLod = Math.min(2, askedLod) as CardLod;
+const CARD_NAMES = ["full", "light", "cloud"];
 const age = Number(query.get("age") ?? 90);
 const want = query.get("kinds");
 const kinds: readonly TreeKind[] = want
@@ -108,7 +109,7 @@ async function main(): Promise<void> {
         "tree",
         graftGirth,
       )
-    : cardMaterial(haze, atlasTexture(), true, graftGirth);
+    : cardMaterial(haze, atlasTexture(), graftGirth);
   const snowMaterial = new THREE.MeshLambertMaterial({ color: 0xeef3f8 });
   const dark = new THREE.MeshBasicMaterial({ color: 0x11181d });
   const pale = new THREE.MeshBasicMaterial({ color: 0x5a6670 });
@@ -130,7 +131,7 @@ async function main(): Promise<void> {
       const snow = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), snowMaterial);
       snow.rotation.x = -Math.PI / 2;
       scene.add(snow);
-      const geometry = faceted ? buildTree(v, paint, lod) : buildCardTree(v, paint, lod);
+      const geometry = faceted ? buildTree(v, paint, lod) : buildCardTree(v, paint, cardLod);
       // The trunk at the girth of its age, as the forest hands every
       // instance its own (`forest.ts`).
       const g = trunkRadius(years) / (TRUNK_REF * CROWN * 0.95);
@@ -157,7 +158,12 @@ async function main(): Promise<void> {
       camera.lookAt(0, EYE + Math.tan(tilt) * STAND, 0);
       renderer.render(scene, camera);
       sheet.drawImage(cell, col * CELL_W, row * CELL_H);
-      addLabel(`${v.kind} ${ageSheet ? v.index : col} · ${LOD_NAMES[lod]}`, col, row, 4);
+      addLabel(
+        `${v.kind} ${ageSheet ? v.index : col} · ${faceted ? LOD_NAMES[lod] : CARD_NAMES[cardLod]}`,
+        col,
+        row,
+        4,
+      );
       addLabel(`${name} · ${n / 3}`, col, row, CELL_H - 24, "foot");
       tree.geometry.dispose();
     });

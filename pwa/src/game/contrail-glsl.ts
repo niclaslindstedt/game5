@@ -51,8 +51,9 @@ uniform vec4 uTrailD[${TRAIL_SLOTS}];
 // x how many; y how much of the high sky shows; z one pixel's angle, rad;
 // w the fibres' detail (the CLOUDS row: 0 on LOW).
 uniform vec4 uTrailOn;
-// The map's middle (x, z) and the reach the trails fade out at, m.
-uniform vec3 uTrailMid;
+// The map's middle (x, z), the reach the trails fade out at, m, and w how
+// much the sun lights a plane for its glint (none once it has set up there).
+uniform vec4 uTrailMid;
 // The sun on the ice at their height, and the sky's light on it.
 uniform vec3 uTrailSun;
 uniform vec3 uTrailSky;
@@ -118,12 +119,13 @@ vec4 contrailSky(vec3 e, vec3 d, vec3 sky) {
       vec3 pl = vec3(A.x, B.x, A.y) - e;
       float dist = length(pl);
       float th = length(cross(d, pl / dist));
+      // One soft point, sun-lit only, faded out with the slant distance.
       float size = 32.0 / dist;
-      float px = max(size, uTrailOn.z * 0.9);
+      float px = max(size, uTrailOn.z * 1.4);
       float g = exp(-(th * th) / (px * px)) * (size * size) / (px * px);
+      g *= smoothstep(${f(CONTRAIL.glintReach)}, ${f(CONTRAIL.glintClear)}, dist);
       vec3 air = cloudAir(dist, e.y - uCloudSeaLevel, B.x - uCloudSeaLevel);
-      float lit = smoothstep(0.0, 0.02, dot(uTrailSun, vec3(0.33)));
-      acc.rgb += (1.0 - acc.a) * (uTrailSun * 9.0 + uTrailSky * 0.5) * air * g * mix(0.25, 1.0, lit);
+      acc.rgb += (1.0 - acc.a) * uTrailSun * 9.0 * air * g * uTrailMid.w;
     }
     // Past either end, nothing: the head is the dark gap, the tail as thin
     // as its age or the reach leaves it.
@@ -182,6 +184,8 @@ vec4 contrailSky(vec3 e, vec3 d, vec3 sky) {
     float slant = min(1.0 / max(d.y, 0.05), max(1.0, w / 350.0));
     float a = 1.0 - exp(-tau * prof * slant * (w / we));
     a *= smoothstep(uTrailMid.z, uTrailMid.z * 0.72, length(p - uTrailMid.xy));
+    // A short trail far off is a speck, not a plane's line: let it go.
+    if (persists < 0.5) a *= smoothstep(${f(CONTRAIL.shortReach)}, ${f(CONTRAIL.shortClear)}, length(vec2(t1 * length(d.xz), y - e.y)));
     if (a <= 0.0005) continue;
     // Old and thin, its shade more of the sky's: greyer against the blue.
     vec3 col = uTrailSun * phase * mix(1.0, 0.8, old) + uTrailSky * mix(0.85, 1.0, old);

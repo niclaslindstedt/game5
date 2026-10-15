@@ -94,7 +94,7 @@ export const CONTRAIL = {
    * sky, its depth and its humidity over ice. */
   window: 2400,
   humid: {
-    clear: 0.12,
+    clear: 0.08,
     fair: 0.22,
     flurries: 0.3,
     high: 0.8,
@@ -104,6 +104,10 @@ export const CONTRAIL = {
     fog: 0.18,
   } satisfies Record<WeatherKind, number>,
   layer: [900, 2400] as const,
+  /** The share of the flights through a humid layer's heights that cross
+   * its supersaturated air: the layer is patchy, so some planes over it
+   * trail for an hour and the next leaves a short line. */
+  patch: 0.55,
   wet: [1.03, 1.3] as const,
   /** The ice humidity of a flight outside the humid layer. */
   dry: [0.3, 0.97] as const,
@@ -118,6 +122,20 @@ export const CONTRAIL = {
   airMass: 8,
   /** How many trails the dome draws at most. */
   most: 16,
+  /** WHAT A SKIER SEES OF THE TRAFFIC: a plane's glint only within
+   * `glintReach` m slant of the lens (fading from `glintClear`) and only
+   * while the sun is on it; a short trail only within `shortReach`; and at
+   * most `busy` crossings (a plane or a short trail) at once, the nearest —
+   * a dry day shows one or two, never a sky of specks. Lasting bands are
+   * ranked on their own. */
+  glintReach: 55000,
+  glintClear: 25000,
+  shortReach: 55000,
+  shortClear: 30000,
+  busy: 3,
+  /** The most a trail shows by a full moon high in the sky: a faint grey
+   * line against the stars (`contrails.ts`'s `nightShow`). */
+  moonShow: 0.12,
 } as const;
 
 const SALT = 0x0c7a11a5;
@@ -301,7 +319,8 @@ export function flightsOfSlot(level: PlanLevel, k: number): Flight[] {
       u(5) < CONTRAIL.lowShare ? band(CONTRAIL.low, u(6)) : band(CONTRAIL.cruise, u(6));
     const temp = airAloft(level, tc, altitude);
     const layer = humidLayerAt(level, tc);
-    const inside = layer !== null && altitude >= layer.base && altitude <= layer.top;
+    const inside =
+      layer !== null && altitude >= layer.base && altitude <= layer.top && u(14) < CONTRAIL.patch;
     const rhi = inside ? layer.rhi : band(CONTRAIL.dry, u(7));
     const rhw = (rhi * eIce(temp)) / eWater(temp);
     const forms = temp < formationTemp(pressureAt(altitude), rhw);
@@ -378,6 +397,9 @@ export type Trail = {
   plane: boolean;
   /** The rank it is drawn by: the more of the sky it fills, the higher. */
   score: number;
+  /** The slant distance from the map's middle to the plane (or a gone
+   * plane's trail's nearest point), m. */
+  slant: number;
 };
 
 /** What a trail is reckoned in: the map's middle (world x, z), the sea's
@@ -491,6 +513,11 @@ export function trailAt(f: Flight, frame: TrailFrame, t: number): Trail | null {
   // A plane still crossing is ranked by how near overhead it is now: a new
   // one over the lens is never crowded out by an old band.
   const near = plane ? 1.2 / (1 + Math.hypot(head[0] - frame.cx, head[1] - frame.cz) / 20000) : 0;
+  const seg = segmentDistance(frame.cx, frame.cz, head, tail);
+  const slant = Math.hypot(
+    plane ? Math.hypot(head[0] - frame.cx, head[1] - frame.cz) : seg,
+    f.altitude,
+  );
   return {
     flight: f,
     head,
@@ -502,7 +529,17 @@ export function trailAt(f: Flight, frame: TrailFrame, t: number): Trail | null {
     alongTail: f.speed * (sa - f.tc),
     plane,
     score: fills / (1 + off / 30000) + near,
+    slant,
   };
+}
+
+/** The plan distance from (x, z) to the segment a–b, m. */
+function segmentDistance(x: number, z: number, a: [number, number], b: [number, number]): number {
+  const ax = b[0] - a[0];
+  const az = b[1] - a[1];
+  const L2 = ax * ax + az * az;
+  const u = L2 > 0 ? Math.min(1, Math.max(0, ((x - a[0]) * ax + (z - a[1]) * az) / L2)) : 0;
+  return Math.hypot(x - a[0] - ax * u, z - a[1] - az * u);
 }
 
 /** HOW MUCH OF THE HIGH SKY SHOWS at run time `t`: none under a lid (a
@@ -531,10 +568,26 @@ export function contrailsAt(
   if (contrailShow(level, t) <= 0) return out;
   // A crossing lasts at most 2R / v; a persistent trail an hour and a half.
   const span = (2 * CONTRAIL.reach) / CONTRAIL.speed[0];
+  const crossing: Trail[] = [];
   for (const f of flightsBetween(level, t - CONTRAIL.persist - span, t + span)) {
     const r = trailAt(f, frame, t);
-    if (r && r.score > 0.002) out.push(r);
+    if (!r) continue;
+    // A plane too far off to glint is only its trail.
+    if (r.plane && r.slant > CONTRAIL.glintReach) r.plane = false;
+    const lasting = f.forms && f.persists && r.ageTail > 120;
+    if (lasting) {
+      if (r.score > 0.002) out.push(r);
+      continue;
+    }
+    // A plane or a young or short trail: only the near ones read.
+    const short = f.forms && r.slant <= CONTRAIL.shortReach;
+    if (r.plane || short) crossing.push(r);
   }
+  crossing.sort((a, b) => a.slant - b.slant);
+  out.push(...crossing.slice(0, CONTRAIL.busy));
+  // And no more than `busy` glints in all, the nearest.
+  const planes = out.filter((r) => r.plane).sort((a, b) => a.slant - b.slant);
+  for (const r of planes.slice(CONTRAIL.busy)) r.plane = false;
   out.sort((a, b) => b.score - a.score);
   if (out.length > most) out.length = most;
   return out;

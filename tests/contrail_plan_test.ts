@@ -20,6 +20,7 @@ import {
   type Flight,
 } from "../pwa/src/game/contrail-plan.ts";
 import { levelFor } from "./support/levels.ts";
+import { glintOf, nightShow } from "../pwa/src/game/contrails.ts";
 
 const base = levelFor(1);
 /** The same map dealt another seed's flights (the plan reads the seed, the
@@ -196,8 +197,54 @@ describe("a trail through its life", () => {
     expect(contrailShow(sky("clear"), 600)).toBe(1);
   });
 
+  it("shows a skier a few planes at once, never a sky of specks", () => {
+    const l = sky("clear");
+    const frame = trailFrameOf(l);
+    let shown = 0;
+    let moments = 0;
+    for (let t = 300; t < 7200; t += 97) {
+      const now = contrailsAt(l, frame, t);
+      const crossing = now.filter((r) => r.plane || !r.flight.persists);
+      expect(crossing.length).toBeLessThanOrEqual(CONTRAIL.busy);
+      for (const r of now) if (r.plane) expect(r.slant).toBeLessThanOrEqual(CONTRAIL.glintReach);
+      expect(now.filter((r) => r.plane).length).toBeLessThanOrEqual(CONTRAIL.busy);
+      shown += crossing.length;
+      moments++;
+    }
+    // A dry day: one or two on average, sometimes none.
+    expect(shown / moments).toBeGreaterThan(0.5);
+    expect(shown / moments).toBeLessThanOrEqual(CONTRAIL.busy);
+  });
+
   it("is never more than the dome reads", () => {
     const l = sky("high");
     expect(contrailsAt(l, trailFrameOf(l), 5400).length).toBeLessThanOrEqual(CONTRAIL.most);
+  });
+});
+
+describe("contrails by night", () => {
+  const deg = Math.PI / 180;
+  const look = (elevation: number, moonLit = 0, moonUp = -0.5) => ({
+    elevation,
+    moonLit,
+    moon: { x: 0, y: moonUp, z: Math.sqrt(1 - moonUp * moonUp) },
+  });
+
+  it("show by day and in the glow after sunset, and not at all on a dark night", () => {
+    expect(nightShow(look(20 * deg))).toBe(1);
+    expect(nightShow(look(-2 * deg))).toBe(1);
+    expect(nightShow(look(-20 * deg))).toBe(0);
+    expect(nightShow(look(-20 * deg, 0.15, 0.8))).toBeLessThan(0.02);
+  });
+
+  it("are at most a faint line under a full moon high in the sky", () => {
+    const v = nightShow(look(-30 * deg, 1, 0.8));
+    expect(v).toBeGreaterThan(0);
+    expect(v).toBeLessThanOrEqual(CONTRAIL.moonShow);
+  });
+
+  it("glint only while the sun is over the plane's own horizon", () => {
+    expect(glintOf(look(10 * deg))).toBe(1);
+    expect(glintOf(look(-8 * deg))).toBe(0);
   });
 });

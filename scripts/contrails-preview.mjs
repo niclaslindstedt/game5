@@ -40,7 +40,11 @@ const args = parseArgs(
   process.argv.slice(2),
   {
     seed: { kind: "number", default: 38, help: "the map's seed (its day and latitude are kept)" },
-    sheet: { kind: "string", default: "life", help: "life, sky or dusk" },
+    sheet: {
+      kind: "string",
+      default: "life",
+      help: "life, sky, dusk or frames (plain in-game frames)",
+    },
     hour: { kind: "number", default: 11, help: "the solar hour of the life and sky sheets" },
     quality: {
       kind: "string",

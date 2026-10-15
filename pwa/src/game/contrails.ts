@@ -22,6 +22,7 @@ import { TRAIL_SLOTS } from "./contrail-glsl.ts";
 import type { DistanceLevel } from "./settings-video.ts";
 import { CONTRAIL_LOOK } from "./settings-video.ts";
 import type { SkyLook } from "./sky.ts";
+import { ICE_ALTITUDE } from "./cloud-light.ts";
 
 export type ContrailUniforms = ReturnType<typeof contrailUniforms>;
 function contrailUniforms() {
@@ -32,7 +33,7 @@ function contrailUniforms() {
     uTrailC: { value: v4() },
     uTrailD: { value: v4() },
     uTrailOn: { value: new THREE.Vector4() },
-    uTrailMid: { value: new THREE.Vector3(0, 0, CONTRAIL.reach) },
+    uTrailMid: { value: new THREE.Vector4(0, 0, CONTRAIL.reach, 0) },
     uTrailSun: { value: new THREE.Vector3() },
     uTrailSky: { value: new THREE.Vector3() },
   };
@@ -50,6 +51,32 @@ export function forceContrailTime(t: number | null): void {
 let forcedTrails: Trail[] | null = null;
 export function forceTrails(next: Trail[] | null): void {
   forcedTrails = next;
+}
+
+/** The sun's dip under the level at the trails' height: it sets for them
+ * that much later than for the snow. */
+const DIP = Math.sqrt((2 * ICE_ALTITUDE) / 6_360_000);
+const DEG = Math.PI / 180;
+
+/** HOW MUCH OF A TRAIL SHOWS BY NIGHT: all of it while the sun still
+ * lights it or the twilight sky behind it, nothing once the sun is past
+ * nautical twilight at its height — save, under a bright high moon, a
+ * faint grey line that mostly shows by the stars it dims. */
+export function nightShow(look: Pick<SkyLook, "elevation" | "moon" | "moonLit">): number {
+  const day = smooth(-(DIP + 12 * DEG), -(DIP + 3 * DEG), look.elevation);
+  const moon = CONTRAIL.moonShow * look.moonLit * smooth(0.15, 0.6, look.moon.y);
+  return Math.max(day, moon);
+}
+
+/** A plane's glint: only while the sun is over its own horizon. Its lights
+ * are far too small to show. */
+export function glintOf(look: Pick<SkyLook, "elevation">): number {
+  return smooth(-DIP, -DIP + 1.5 * DEG, look.elevation);
+}
+
+function smooth(e0: number, e1: number, x: number): number {
+  const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return u * u * (3 - 2 * u);
 }
 
 export type Contrails = {
@@ -88,7 +115,7 @@ export function createContrails(): Contrails {
       const at = forcedT ?? t;
       if (!frame || frame.level !== level) frame = { level, frame: trailFrameOf(level) };
       const f = frame.frame;
-      const show = contrailShow(level, at) * look.clouds.show;
+      const show = contrailShow(level, at) * look.clouds.show * nightShow(look);
       const most = Math.min(lookOf.trails, TRAIL_SLOTS);
       const trails =
         show <= 0
@@ -108,7 +135,7 @@ export function createContrails(): Contrails {
       const fov =
         camera instanceof THREE.PerspectiveCamera ? (camera.fov * Math.PI) / 180 / camera.zoom : 1;
       u.uTrailOn.value.set(count, show, fov / Math.max(1, heightPx), lookOf.fibres);
-      u.uTrailMid.value.set(f.cx, f.cz, CONTRAIL.reach);
+      u.uTrailMid.value.set(f.cx, f.cz, CONTRAIL.reach, glintOf(look));
       u.uTrailSun.value.set(...look.clouds.ice.sun);
       u.uTrailSky.value.set(...look.clouds.ice.sky);
     },

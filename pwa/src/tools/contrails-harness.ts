@@ -209,6 +209,30 @@ function skyCells(): Cell[][] {
   );
 }
 
+/** Plain frames as the game looks at a typical moment: a fair and a humid
+ * high sky an hour in, the lens a skier's looking down the piste and up a
+ * little, no caption. */
+function frameCells(): Cell[][] {
+  const pose = lens(eye().down, 0.32);
+  const day = (["fair", "high"] as const).map((weather) => ({
+    label: weather,
+    sky: { weather, hour: hourAsked } as SkyOverride,
+    pose,
+    t: RUN_T,
+    trails: null,
+  }));
+  // The same humid sky three hours after dark: nothing, or by a bright
+  // moon a faint line.
+  const night = {
+    label: "night",
+    sky: { weather: "high", hour: 21 } as SkyOverride,
+    pose,
+    t: RUN_T,
+    trails: null,
+  };
+  return [[...day, night]];
+}
+
 /** The hour of sunset on the map's day, scanned a minute at a time. */
 function sunsetHour(): number {
   let was = sunAtRun(withSky(level, { hour: 12 })).elevation;
@@ -275,6 +299,7 @@ async function drawCell(
   for (let i = 0; i < 6; i++) renderer.draw(state, 0, FRAME, false);
   renderer.draw(state, 0, FRAME, true);
   ctx.drawImage(stage, x, y, cellW, cellH);
+  if (kind === "frames") return c.label;
   const l = withSky(level, c.sky);
   const T10 = airAloft(l, t, 10500);
   ctx.fillStyle = "rgba(0,0,0,0.55)";
@@ -290,7 +315,14 @@ async function drawCell(
 }
 
 async function drawSheet(): Promise<{ rows: number; cols: number; note: string; lines: string[] }> {
-  const grid = kind === "sky" ? skyCells() : kind === "dusk" ? duskCells() : lifeCells();
+  const grid =
+    kind === "sky"
+      ? skyCells()
+      : kind === "dusk"
+        ? duskCells()
+        : kind === "frames"
+          ? frameCells()
+          : lifeCells();
   const cols = Math.max(...grid.map((r) => r.length));
   const head = 22;
   sheet.width = cols * cellW;

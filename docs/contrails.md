@@ -49,8 +49,13 @@ a sky.
     the hour, until it fades into the cirrus it has become.
 - **Light.** At 10–11 km a trail is still in the sun about 3° below the
   ground's horizon. That is some ten minutes after sunset at mid-latitudes
-  in winter, so trails glow pink and red over a dark valley. By moonlight
-  they are faint. Toward the horizon the air between hazes them.
+  in winter, so trails glow pink and red over a dark valley. Once the sun
+  is past nautical twilight at their height (12° under their own horizon)
+  they are gone from a dark night. Only a bright moon high in the sky shows
+  one, as a faint grey line that mostly dims the stars behind it
+  (`contrails.ts`'s `nightShow`, at most `CONTRAIL.moonShow`). A plane's
+  glint needs the sun on it (`glintOf`); its lights are far too small to
+  show. Toward the horizon the air between hazes the trails.
 
 ## How it is built
 
@@ -61,6 +66,19 @@ a sky.
 | `pwa/src/game/contrails.ts` | Packs the plan's trails into 16 slots of uniforms each frame on the run's clock, capped by the DISTANCE row (`settings-video.ts`'s `CONTRAIL_LOOK`: 8 trails and no fibres on LOW, 12 on MEDIUM, 16 on HIGH and MAX). |
 | `cloud-light.ts` | `CloudSky.ice`: the sun's and the sky's light at `ICE_ALTITUDE` (10.5 km), so the sky's clock moves the trails' colour. |
 | `sky-dome.ts`, `environment.ts` | The dome composites the trails just before the cloud stack, so they sit behind every cloud and the mountains and in front of the sun, moon and stars. |
+
+**What a skier sees of the traffic.** A pair of eyes on the snow sees
+far less than the timetable holds.
+- A plane glints only within 55 km slant of the lens, fading out from
+  25 km, and only while the sun is on it: one soft point, never a light at
+  night.
+- A short trail is drawn only within 55 km, fading from 30 km.
+- At most three crossings (a plane or a young or short trail) are drawn at
+  once, the nearest, and at most three glints in all. A dry day shows one
+  or two lines; a humid one shows those plus its lasting bands.
+- A humid layer is patchy: only 55 % of the flights through its heights
+  cross its supersaturated air, so some trail for an hour and the next
+  leaves a short line.
 
 **Cost.** No mesh, no pass, no texture and no draw call: the term runs
 inside the dome's fragment shader, which is already drawn. For every sky
@@ -98,6 +116,8 @@ own renderer from a skier's eye on the piste:
   many are drawn.
 - `dusk`: three trails from the afternoon through sunset, ten minutes
   after it, the blue hour and the night (`--none` the sky alone).
+- `frames`: plain in-game frames of a fair and a humid high sky an hour in
+  and the humid sky after dark.
 
 `ARGS="--width=960 --height=600"` makes the cells big enough to judge a
 young trail's detail.

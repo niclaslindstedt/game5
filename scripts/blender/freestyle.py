@@ -538,6 +538,31 @@ for i, s in enumerate("lr"):
     cs.thickness, cs.offset = 0.006, 1.0
     FLUTTER[cuff.name] = (lambda seg: (lambda co: 0.35 + 0.4 * max(0.0, min(1.0, (along(co, seg)[0] - 0.6) / 0.24))))(SEGMENTS[f"shin_{s}"])
 
+# THE INNER GAITERS: the wide stacked leg is open at its foot, and a deep
+# crouch swings it off the boot's shaft so the snow behind shows through
+# the gap. A park pant closes that with an elasticated gaiter sewn inside
+# the leg and pulled down over the boot's cuff — a snug tube from well up
+# inside the leg (hidden by it) down over the shaft, rigid on the shin as
+# the hiker's gaiter is, its elastic foot a band of the seam's dark.
+for i, s in enumerate("lr"):
+    rides(f"shin_{s}")
+    f, bx, by, bz, _ = frame(f"boot_{s}")
+    up_shin = (knees[i] - feet[i]).normalized()
+    sh = frame(f"shin_{s}")
+    # Snug over the shaft, then flared out under the stack to fill the wide
+    # leg, so nothing is seen up it from behind.
+    ca = r_of(ANSUR["calf"])
+    shaft = [(-0.015, 0.068, 0.08, 0.078), (0.03, 0.068, 0.079, 0.076), (0.06, 0.072, 0.082, 0.079),
+             (0.09, ca + 0.05, ca + 0.054, ca + 0.054), (0.115, ca + 0.058, ca + 0.062, ca + 0.062),
+             (0.155, ca + 0.056, ca + 0.06, ca + 0.06), (0.18, ca + 0.046, ca + 0.048, ca + 0.048),
+             (0.25, ca + 0.04, ca + 0.042, ca + 0.042)]
+    band = f + bz * -0.055 + up_shin * 0.035
+    loft("gaiter_inner", [[f + bz * -0.055 + up_shin * u + sh[1] * (w * math.cos(a))
+                           + sh[3] * ((fr if math.sin(a) > 0 else bk) * math.sin(a))
+                           for a in (2 * math.pi * k / 16 for k in range(16))] for u, w, fr, bk in shaft],
+         [M["pants"], M["seam"]], cap=False,
+         face_mat=lambda c, band=band, up=up_shin: 1 if (c - band).dot(up) < 0 else 0)
+
 # ---------------------------------------------------------------- the HEAD
 # The head in its helmet as the game's own triangles (`helmetParts`),
 # painted as a park helmet — a low matt soft shell, its liner dark — under

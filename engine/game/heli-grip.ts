@@ -24,7 +24,7 @@ import { HELI } from "./defs/heli.ts";
 import { HELI_BLADES, HELI_GRIP } from "./defs/heli-grip.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { SEAT, heliPoint, heliQuat } from "./heli-rotor.ts";
-import { RAGDOLL } from "./ragdoll.ts";
+import { RAGDOLL } from "./ragdoll-points.ts";
 import type { GameEvent, GameState, HeliState, Thrown } from "./state.ts";
 
 const G = HELI_GRIP;

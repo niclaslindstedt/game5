@@ -17,13 +17,17 @@ export type BikeControls = {
   steer: number;
   lean: number;
   crouch: number;
+  /** A flick's pop, 0..1 (`SkierInput.pop`): the crouch loaded that far at
+   * once, so it springs the next step. Left out, none. */
+  charge?: number;
 };
 
 /** What a `bike` event says (`bike.ts`): got on (`board`), got off
  * (`hop`), the rider thrown (`crash`), back on it where it lay (`right`),
  * the ride begun again at a trail head (`restart`), carried up a lift
  * (`lift`), or a landing judged (`land`). */
-export type BikePhaseEvent = "board" | "hop" | "crash" | "right" | "restart" | "lift" | "land";
+export type BikePhaseEvent =
+  "board" | "hop" | "crash" | "right" | "restart" | "lift" | "land" | "snag" | "struck";
 
 /** How a landing was judged: ridden away clean, CASED (short, onto the
  * deck or the lip's back), NOSED in (the front wheel first and steep), or
@@ -50,6 +54,42 @@ export type BikeEvent = {
   g?: number;
   air?: number;
   how?: BikeCrash;
+  /** For a `snag` (a limb caught) or a `struck` (the bike's part met at the
+   * throw), the part of the bike. */
+  part?: BikePart;
+};
+
+/** A PART OF THE BIKE the thrown rider meets (`bike-tangle.ts`): a wheel,
+ * the chainring and pedals, the bars, the stem, the frame. */
+export type BikePart = "front" | "rear" | "ring" | "bars" | "stem" | "frame";
+
+/** ONE BLOW OFF THE BIKE this step (`bike-tangle.ts`, read by `body.ts`): the
+ * ragdoll point met, its closing speed, m/s, the part and how — a TOUCH off
+ * a part, a bar end's SPEAR into the belly, the stem into the GROIN, or a
+ * caught limb's YANK — and the way out of the part toward him (world). */
+export type BikeBlow = {
+  point: number;
+  v: number;
+  part: BikePart;
+  kind: "touch" | "spear" | "groin" | "yank";
+  nx: number;
+  ny: number;
+  nz: number;
+};
+
+/** THE RIDER TANGLED IN HIS BIKE after a throw (`bike-tangle.ts`): the limb
+ * held (its point, the part, where on it in the bike's frame, m, and the
+ * seconds it is held yet), each point's seconds to its next blow, the
+ * points still lying in the bike since the throw (a bit each — no blow till
+ * clear of it), this step's blows, and the strikes dealt at the throw. */
+export type BikeTangle = {
+  snag: { point: number; part: BikePart; x: number; y: number; z: number; left: number } | null;
+  cool: number[];
+  ignore: number;
+  blows: BikeBlow[];
+  dealt: BikeBlow[];
+  /** Seconds since the throw. */
+  t: number;
 };
 
 /** WHAT THE BIKE IS DOING: `parked` with nobody on it, `ridden`, `lift` —
@@ -189,4 +229,11 @@ export type BikeState = {
    * fall or the reset puts it back (`restartPoint`) — or null: not ridden
    * on a trail since the ride began or a lift let it off at the top. */
   ridden: { trail: string; s: number } | null;
+  /** HURT BY IT (`bike-tangle.ts`): the rider thrown into it, while the two
+   * lie together — absent or null otherwise. */
+  tangle?: BikeTangle | null;
+  /** The pace he was riding at a moment ago, m/s: its speed held and let
+   * fall at `BIKE_TANGLE.pace` m/s² — what a crash that stops the bike
+   * before it throws him (a ledge, a wall) is dealt at. */
+  pace?: number;
 };

@@ -12,7 +12,7 @@ import {
   NEUTRAL_INPUT,
   SKI_CATALOG,
   createGame,
-  flipLean,
+  spinSteer,
   placeRun,
   skisById,
   step,
@@ -143,33 +143,46 @@ describe("the strokes off the jump key on a free ride", () => {
     const line = comboLine(tricks.map((e) => ({ kind: e.trick, spins: e.spins, flight: 1 })));
     return { state, events, line };
   }
-  const tap = (from: number, to: number, v: Partial<SkierInput>) => (t: number) =>
-    t >= from && t < to ? v : {};
+  // The edge only once the hop round (`switch.ts`) has let it go.
+  const late = 0.2;
 
-  it("one tap of the edge is a 180, ridden away switch", () => {
-    const { state, events, line } = popped(tap(0.2, 0.25, { steer: -1 }));
+  it("the edge thrown off the pop is a 180, ridden away switch", () => {
+    const { state, events, line } = popped((t, s) =>
+      t >= late ? { steer: spinSteer(s, 1, -1) } : {},
+    );
     expect(wipeouts(events)).toHaveLength(0);
     expect(line).toBe("BIG AIR + 180 + CLEAN LANDING");
     expect(state.skier.switched).toBe(true);
   });
 
-  it("two taps are a 360, ridden away forward", () => {
-    const { state, events, line } = popped((t) =>
-      (t >= 0.2 && t < 0.25) || (t >= 0.3 && t < 0.35) ? { steer: 1 } : {},
+  it("thrown harder, a 360, ridden away forward", () => {
+    const { state, events, line } = popped((t, s) =>
+      t >= late ? { steer: spinSteer(s, 2, 1) } : {},
     );
     expect(wipeouts(events)).toHaveLength(0);
     expect(line).toBe("BIG AIR + 360 + CLEAN LANDING");
     expect(state.skier.switched).toBe(false);
   });
 
-  it("the lean held and let go in time is a loop, back or forward", () => {
-    for (const [lean, word] of [
+  it("the lean held off the pop is a loop that only its timing lands, back or forward", () => {
+    /** The lean held from the pop, opened out once `open` rad have come
+     * round (never, held on). */
+    const loop = (dir: 1 | -1, open: number) =>
+      popped((t, s) => {
+        if (t < late || !s.skier.airborne) return {};
+        return { lean: s.tricks.flipDone * dir < open ? dir : -dir };
+      });
+    for (const [dir, word] of [
       [1, "BACKFLIP"],
       [-1, "FRONT FLIP"],
     ] as const) {
-      const { events, line } = popped((t, s) => (t >= 0.05 ? { lean: flipLean(s, 1, lean) } : {}));
-      expect(wipeouts(events)).toHaveLength(0);
-      expect(line).toBe(`BIG AIR + ${word} + CLEAN LANDING`);
+      // Opened out in time, he comes round onto his skis...
+      const landed = loop(dir, 4.2);
+      expect(wipeouts(landed.events), word).toHaveLength(0);
+      expect(landed.line).toBe(`BIG AIR + ${word} + CLEAN LANDING`);
+      // ...too early, he comes down short of his feet; held on, past them.
+      expect(wipeouts(loop(dir, 3).events).length, word).toBeGreaterThan(0);
+      expect(wipeouts(loop(dir, Infinity).events).length, word).toBeGreaterThan(0);
     }
   });
 

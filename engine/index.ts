@@ -206,7 +206,7 @@ export {
   type WaterPhase,
   type WaterState,
 } from "./game/lake-ice.ts";
-export { LAKE_ICE } from "./game/defs/lake-ice.ts";
+export * from "./game/air-temp.ts"; // the air, and the lake-ice year it is built on (`LAKE_ICE`)
 export * from "./game/summer-api.ts";
 export * from "./game/bike-park-api.ts";
 export * from "./game/bike-api.ts";
@@ -695,7 +695,8 @@ export {
 export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./game/groomer-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Stuff, type Upright } from "./game/upright-grid.ts";
-export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export { mapSolidsOf, postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export { drawnSolidsOf, setDrawnSolids, type DrawnSolids } from "./game/drawn-solids.ts";
 export {
   gunSeason,
   gunSolid,
@@ -900,7 +901,7 @@ export {
   lengthPointsPerMetre,
   stepTricks,
 } from "./game/tricks.ts";
-export { flipLean, flipPace, poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
+export { flipLean, flipPace, poseInput, poseOf, spinSteer, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
 export {
   SKY_CLOCK,

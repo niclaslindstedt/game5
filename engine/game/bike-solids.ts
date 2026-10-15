@@ -130,6 +130,38 @@ function barEnds(run: GameState, b: BikeState): number {
   return worst;
 }
 
+/** A LYING OR RESTARTED BIKE kept out of the solids along its whole plan
+ * (its middle is kept out by `outOfSolids`; its nose and tail would
+ * otherwise slide into a wall it is shoved against, or be stood up in
+ * one): moved clear, its way into each gone. */
+export function planOut(run: GameState, b: BikeState): void {
+  const level = run.level;
+  const solids = solidsOf(level);
+  if (solids.length === 0) return;
+  const P = BIKE_PLAN;
+  solidsNear(level, b.x, b.z, P.half + 1, near);
+  const fx = Math.sin(b.heading);
+  const fz = Math.cos(b.heading);
+  for (const i of near) {
+    const t = solids[i];
+    if (b.y < t.y - 1 || b.y > t.y + t.height || !standing(run, t)) continue;
+    const u = clamp((t.x - b.x) * fx + (t.z - b.z) * fz, -P.half, P.half);
+    const dx = b.x + fx * u - t.x;
+    const dz = b.z + fz * u - t.z;
+    const d = hypot(dx, dz);
+    const reach = P.wide + t.radius;
+    if (d >= reach) continue;
+    const nx = d > 1e-6 ? dx / d : -fx;
+    const nz = d > 1e-6 ? dz / d : -fz;
+    shiftBike(b, nx * (reach - d), nz * (reach - d));
+    const vn = b.vx * nx + b.vz * nz;
+    if (vn < 0) {
+      b.vx -= vn * nx;
+      b.vz -= vn * nz;
+    }
+  }
+}
+
 /** The bike, its rider and its wheels moved by (dx, dz). */
 export function shiftBike(b: BikeState, dx: number, dz: number): void {
   b.x += dx;

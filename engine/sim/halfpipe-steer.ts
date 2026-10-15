@@ -10,6 +10,7 @@
 // hit is a smaller trick, never a crash. Out of the pipe's foot, straight
 // down the middle to the finish line.
 
+import { setting, spinSteer } from "../game/strokes.ts";
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { pipeCoords, wallShare } from "../mapgen/pipe.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
@@ -62,13 +63,10 @@ export function halfpipeInput(state: GameState, on: TrackHit): SkierInput | null
     const hit = HITS[hits.length % HITS.length];
     const natural = -side;
     const way = hit.way === "oop" ? -natural : natural;
-    let tap = false;
-    for (let n = 0; n < hit.taps; n++) {
-      const t0 = K.tapFrom + n * K.tapEvery;
-      if (c.airTime > t0 && c.airTime < t0 + 0.1) tap = true;
-    }
-    const grab = hit.grab && c.airTime > K.tapFrom && c.vy > -4;
-    return { ...NEUTRAL_INPUT, steer: tap ? way : 0, trick: grab, tuck: 0.6 };
+    // The spin wound up off the lip, the grab once it is set.
+    const steer = hit.taps > 0 ? spinSteer(state, hit.taps, way) : 0;
+    const grab = hit.grab && !setting(c.airTime) && c.vy > -4;
+    return { ...NEUTRAL_INPUT, steer, trick: grab, tuck: 0.6 };
   }
   const inPipe = wallShare(p, at.along) > 0.6 && at.along < p.to - 25;
   const s = p.section;

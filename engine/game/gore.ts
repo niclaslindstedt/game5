@@ -51,7 +51,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { bonesOf, doseOn, fracturesOf, FRACTURE_GRADE, severityOf } from "./body.ts";
 import { BONES, INJURIES, type InjuryDef } from "./defs/anatomy.ts";
 import { throwRider } from "./crash.ts";
-import { RAGDOLL } from "./ragdoll.ts";
+import { RAGDOLL } from "./ragdoll-points.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import {
   GORE_OPEN,

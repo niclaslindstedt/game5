@@ -42,8 +42,9 @@ import {
   type RegionId,
 } from "@engine";
 
+import { buildPooled, poolOn } from "./attempt-pool.ts";
 import { nextFreeSeed } from "./free-ride.ts";
-import { gameOrder, type MapOrder } from "./map-order.ts";
+import { gameOrder, type MapJob, type MapOrder } from "./map-order.ts";
 import { rememberBoard } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
 import type {
@@ -87,6 +88,9 @@ const IDLE_MS = 30_000;
 type Job = SeedAsk & { key: string; paint: boolean };
 
 let worker: Worker | null = null;
+/** The map being raised by the attempt pool (`attempt-pool.ts`) rather than
+ * the worker — DEVELOPER's — painted by the worker once it is in. */
+let pool: MapJob | null = null;
 let busy: Job | null = null;
 let idle = 0;
 let wanted: SeedAsk | null = null;
@@ -198,6 +202,8 @@ function settle(key: string, level: GeneratedLevel | null): void {
 function stop(): void {
   worker?.terminate();
   worker = null;
+  pool?.cancel();
+  pool = null;
   shares.clear();
   if (busy) settle(busy.key, null);
   busy = null;
@@ -276,6 +282,10 @@ function run(job: Job): void {
     shares.set(job.key, 0);
     notify();
   }
+  if (!own && poolOn()) {
+    raise(job);
+    return;
+  }
   const w = worker ?? spawn();
   const ask: PreviewRequest = {
     seed: job.seed,
@@ -286,6 +296,46 @@ function run(job: Job): void {
     ...(own ? { level: portableLevel(own) } : {}),
   };
   w.postMessage(ask);
+}
+
+/** Raise `job`'s map on the attempt pool; once it is in, it is held, the
+ * ride waiting on it handed it, and the worker paints it (`pump`). */
+function raise(job: Job): void {
+  const order: MapOrder = {
+    seed: job.seed,
+    generate: { region: job.region, face: job.face ?? undefined, grade: job.grade ?? undefined },
+  };
+  const own = buildPooled(order, () => {
+    if (pool !== own) return;
+    const level = own.level() as GeneratedLevel | undefined;
+    const failed = own.failed();
+    if (!level && failed === null) {
+      shares.set(job.key, own.share());
+      notify();
+      return;
+    }
+    pool = null;
+    busy = null;
+    shares.delete(job.key);
+    if (level) {
+      holdLevel(job.key, level);
+      settle(job.key, level);
+    } else {
+      const { seed, region, grade, key } = job;
+      void keep(key, {
+        seed,
+        region,
+        face: job.face ?? null,
+        grade,
+        ok: false,
+        error: failed ?? "",
+      });
+      settle(key, null);
+    }
+    notify();
+    pump();
+  });
+  pool = own;
 }
 
 function spawn(): Worker {

@@ -23,7 +23,6 @@
 //
 //   node scripts/snow-eval.mjs
 //   node scripts/snow-eval.mjs --scenes=hockey,board-heel --skip-build
-//   node scripts/snow-eval.mjs --model=sheet --out=previews/snow-eval-before
 //   node scripts/snow-eval.mjs --lights=low,overcast,night --film=none --no-perf
 //   node scripts/snow-eval.mjs --no-sheet --no-perf --film=day,low --scenes=hockey
 //   node scripts/snow-eval.mjs --flight=cpu --out=previews/snow-eval-cpu   (the spray on the CPU)
@@ -52,11 +51,6 @@ const args = parseArgs(
       help: "only these scenes (carve, hockey, board-heel, board-toe, powder, crater, track)",
     },
     out: { kind: "string", default: "previews/snow-eval", help: "where the pictures go" },
-    model: {
-      kind: "string",
-      default: "",
-      help: "fly the spray as this model (the game's own unless said)",
-    },
     lights: {
       kind: "string",
       default: "day,low",
@@ -138,7 +132,6 @@ page.setDefaultTimeout(args.timeout * 1000);
 const query = new URLSearchParams({
   seed: String(args.seed),
   scenes: args.scenes,
-  model: args.model,
   lights: args.lights,
   flight: args.flight,
   perf: args.perf,

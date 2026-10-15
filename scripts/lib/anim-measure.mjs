@@ -123,6 +123,22 @@ export const ANGLES = [
       pair: (j) => [sub(j.pelvis, j.chest), sub(j[`forearm_${s}`], j[`upperarm_${s}`])],
     },
     {
+      // The upper arm out to his side off the trunk's plane, deg: a coach's
+      // "elbows in" — near 0 tucked to the ribs, 90 a wing held level.
+      id: `abduct_${s}`,
+      say: `elbow out ${s}`,
+      group: "arms",
+      of: (j) => {
+        const sh = j[`upperarm_${s}`];
+        const el = j[`forearm_${s}`];
+        if (!sh || !el) return null;
+        const d = sub(el, sh);
+        const l = Math.hypot(d.x, d.y, d.z);
+        const out = s === "r" ? d.x : -d.x;
+        return l > 1e-6 ? Math.asin(Math.max(-1, Math.min(1, out / l))) * DEG : null;
+      },
+    },
+    {
       id: `wrist_${s}`,
       say: `wrist ${s}`,
       group: "arms",
@@ -195,7 +211,10 @@ export const ANGLES = [
 
 export const ANGLE_GROUPS = [
   { id: "legs", say: "legs: knee, hip and ankle bends (deg, 0 straight)" },
-  { id: "arms", say: "arms: elbow, shoulder (arm off the trunk) and wrist (deg)" },
+  {
+    id: "arms",
+    say: "arms: elbow, shoulder (arm off the trunk), elbow out (to the side) and wrist (deg)",
+  },
   {
     id: "trunk",
     say: "trunk: pitch (+ forward), roll (+ right), the twist and the hips' yaw (deg)",
@@ -300,6 +319,7 @@ export function measure(samples, opts = {}) {
     jolt,
     perJoint,
     jerkRms: jerkN ? Math.sqrt(jerkSum / jerkN) : 0,
+    elbowOut: elbowOutOf(angles),
     stretch,
     stretchWorst,
     stretchMost,
@@ -309,6 +329,19 @@ export function measure(samples, opts = {}) {
     most,
     angleMost,
   };
+}
+
+/** How far out the elbows ride, deg: the 90th percentile over every frame
+ * of the wider arm's `abduct` — a wing held for a stroke shows, a frame's
+ * flick does not. */
+function elbowOutOf(angles) {
+  const l = angles.abduct_l?.v ?? [];
+  const r = angles.abduct_r?.v ?? [];
+  const wide = l
+    .map((x, k) => Math.max(x ?? -Infinity, r[k] ?? -Infinity))
+    .filter((x) => Number.isFinite(x))
+    .sort((a, b) => a - b);
+  return wide.length ? Math.round(wide[Math.floor(wide.length * 0.9)]) : 0;
 }
 
 /** The verdict a table row and the JSON carry. */
@@ -329,6 +362,7 @@ export function verdictOf(m) {
     clips: m.clips.length,
     clipKinds: m.clipKinds,
     jerkRms: Math.round(m.jerkRms),
+    elbowOut: m.elbowOut,
   };
 }
 

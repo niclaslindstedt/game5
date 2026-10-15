@@ -18,9 +18,15 @@
 // grains to the chest, the cloud — `dustOf` — the rest). A row outside
 // its band is printed with a cross. Pure Node, seconds.
 //
+// THE AGE AND DEPTH TABLE (`--ages`) rides the same spray through a hockey
+// stop in loose snow of every age (`snow-age.ts`'s forced kinds) and three
+// depths of it: how much the throw hangs on both — new snow fine and light,
+// old snow coarse and clumpy, a crust in plates, wet snow heavy and short.
+//
 //   node scripts/snow-mass-lab.mjs
 //   node scripts/snow-mass-lab.mjs --rows=stop/groomed,stop/ice --json=a.json
 //   node scripts/snow-mass-lab.mjs --compare=a.json
+//   node scripts/snow-mass-lab.mjs --rows=none --ages
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -41,8 +47,9 @@ const args = parseArgs(
     },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
     compare: { kind: "string", default: "", help: "a JSON table to print the change against" },
+    ages: { kind: "flag", help: "the age and depth table under it" },
   },
-  "usage: node scripts/snow-mass-lab.mjs [--rows=a,b] [--json=f] [--compare=f]",
+  "usage: node scripts/snow-mass-lab.mjs [--rows=a,b] [--json=f] [--compare=f] [--ages]",
 );
 
 aliasEngine(root);
@@ -51,7 +58,9 @@ const S = await import(join(root, "tests/support/synthetic.ts"));
 const M = await import(join(root, "pwa/src/game/spray-mass.ts"));
 const MP = await import(join(root, "pwa/src/game/spray-mass-pool.ts"));
 const P = await import(join(root, "pwa/src/game/spray-sim.ts"));
-const { SNOW } = await import(join(root, "pwa/src/game/snowpack.ts"));
+const K = await import(join(root, "pwa/src/game/snowpack.ts"));
+const A = await import(join(root, "pwa/src/game/snow-age.ts"));
+const { SNOW } = K;
 const H = await import(join(root, "pwa/src/game/hold-input.ts"));
 
 /** THE ROWS: a move on a snow from a speed on a pair, and the bands it is
@@ -337,4 +346,100 @@ for (const r of rows) {
   );
 }
 console.log(`${rows.length - out} of ${rows.length} rows inside every band`);
-if (args.json) writeFileSync(args.json, JSON.stringify(rows, null, 1));
+const ages = args.ages ? ageTable() : [];
+if (args.json) {
+  writeFileSync(args.json, JSON.stringify(args.ages ? { rows, ages } : rows, null, 1));
+}
+
+/** THE AGE AND DEPTH TABLE: the chamois through a hockey stop from 40 km/h
+ * in loose snow of every age and three depths of it. */
+function ageTable() {
+  const pad = (v, w) => String(v).padStart(w);
+  console.log("");
+  console.log("age and depth · chamois · hockey stop from 40 km/h in loose snow");
+  console.log(
+    [
+      "age".padEnd(9),
+      pad("depth", 6),
+      pad("grains/s", 9),
+      pad("clumps", 7),
+      pad("fines", 6),
+      pad("cloud", 6),
+      pad("launch", 7),
+      pad("high", 6),
+      pad("reach", 6),
+      pad("glint", 6),
+    ].join(""),
+  );
+  const table = [];
+  const level0 = S.flatLevel({ packed: 0 });
+  for (const kind of ["none", ...A.SNOW_AGE_KINDS]) {
+    for (const depth of [0.5, 1, 2]) {
+      const age =
+        kind === "none"
+          ? null
+          : A.snowAgeOf({ seed: 1, sun: level0.sun, weather: level0.weather }, { force: kind });
+      const base = { ...SNOW.soft, loose: SNOW.soft.loose * depth };
+      const snow = K.ageSnow(base, age, K.emptyAged());
+      const level = S.flatLevel({ packed: 0 });
+      const state = E.createGame({
+        level,
+        spec: E.pairById("chamois"),
+        rivals: 0,
+        countdown: 0,
+        quiet: true,
+      });
+      E.placeRun(state, { x: 1500, z: 200, heading: 0, speed: 40 / 3.6 });
+      let clumps = 0;
+      let n = 0;
+      let fines = 0;
+      let glints = 0;
+      const pool = P.createSprayPool(20000, {
+        spawn(i) {
+          n++;
+          if (pool.hard[i] > 0.5) clumps++;
+          if (pool.term[i] < 1.2) fines++;
+          glints += pool.glint[i];
+        },
+      });
+      const t0 = state.t;
+      const tally = { thrown: 0, launch: 0, high: 0, reach: 0, done: 0 };
+      for (let i = 0; i < 2 * E.TUNING.physicsHz; i++) {
+        E.step(state, H.holdInput(state, 40, 0, "stop", state.t - t0));
+        if (i % 2) continue;
+        pool.emit(state.skier, level, FRAME, 0, snow);
+        pool.step(FRAME, level);
+        const st = pool.stats();
+        for (const k of Object.keys(tally)) tally[k] += st[k];
+      }
+      const row = {
+        age: kind,
+        depth,
+        rate: n / 2,
+        clumps: n ? clumps / n : 0,
+        fines: n ? fines / n : 0,
+        cloud: snow.loose * snow.fine,
+        launch: tally.thrown ? tally.launch / tally.thrown : 0,
+        high: tally.done ? tally.high / tally.done : 0,
+        reach: tally.done ? tally.reach / tally.done : 0,
+        glint: n ? glints / n : 0,
+      };
+      table.push(row);
+      console.log(
+        [
+          kind.padEnd(9),
+          pad(depth, 6),
+          pad(fmt(row.rate, 0), 9),
+          pad(fmt(row.clumps, 2), 7),
+          pad(fmt(row.fines, 2), 6),
+          pad(fmt(row.cloud, 2), 6),
+          pad(fmt(row.launch, 1), 7),
+          pad(fmt(row.high, 2), 6),
+          pad(fmt(row.reach, 2), 6),
+          pad(fmt(row.glint, 2), 6),
+        ].join(""),
+      );
+    }
+  }
+  return table;
+}

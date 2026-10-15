@@ -514,9 +514,10 @@ export const TUNING = {
      * trim a landing, not to turn a flip (that is a STROKE, `strokes.ts`,
      * and only on a tricks run). */
     leanTorque: 53,
-    /** The edge in the air: a little yaw, N·m at full lock — the skis
-     * swung across. */
-    steerTorque: 6,
+    /** The edge in the air: a yaw, N·m at full lock — the skis swung
+     * across, about a half turn in the first two seconds of a long flight
+     * and a whole one by four. */
+    steerTorque: 12,
     /** Rotational damping in the air, N·m·s per rad/s: about the pitch
      * and the roll axes (a five-second decay on the reference pair), and
      * about the up axis — a skier is a tall body and a short one across,
@@ -547,7 +548,8 @@ export const TUNING = {
     pitchGiveUp: 1.0,
     /** The yaw rate, rad/s, past which a flying skier is SPINNING and the
      * roll's and the pitch's levelling are let go (`flight.ts`) — a 360
-     * turns at about 4; the edge's own little yaw never nears 1. */
+     * turns at about 4; the edge's own yaw comes near it only late in a
+     * long flight. */
     spinLevel: 2,
     /** ...letting them go from this yaw rate, rad/s, so the turn a skid or
      * a steer leaves him flying with is no spin. */

@@ -70,6 +70,7 @@ import {
   type V3,
 } from "./plane-cockpit-parts.ts";
 import { createCockpitPilot } from "./plane-cockpit-pilot.ts";
+import { craftAirNow } from "./sky-clock.ts";
 import {
   PLANE_COCKPIT,
   controlPose,
@@ -480,7 +481,14 @@ export function createPlaneCockpit(
       paintDebt -= dt;
       if (paintDebt > 0) return;
       paintDebt = 1 / (inside ? PAINT_HZ : PAINT_OUT_HZ);
-      const g = planeGaugesOf(p, level.groundAt(p.x, p.z), t);
+      const ground = level.groundAt(p.x, p.z);
+      const datum = PLANE.cog.y;
+      const g = planeGaugesOf(
+        p,
+        ground,
+        t,
+        craftAirNow(level, t, p.y + datum, p.y + datum - ground),
+      );
       const s = Math.sin(p.heading);
       const c = Math.cos(p.heading);
       paintPfd(live.pfd.ctx, g);

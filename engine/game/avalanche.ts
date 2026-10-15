@@ -56,7 +56,7 @@ import { TUNING } from "./defs/tuning.ts";
 import { throwRider } from "./crash.ts";
 import { treesNear } from "./upright-grid.ts";
 import { windFromOf } from "./wind.ts";
-import { RAGDOLL } from "./ragdoll.ts";
+import { RAGDOLL } from "./ragdoll-points.ts";
 import { smother } from "./gore.ts";
 import { catchOthers, freshBeacon, stepRescue } from "./avalanche-rescue.ts";
 import {

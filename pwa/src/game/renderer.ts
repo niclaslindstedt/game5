@@ -36,6 +36,8 @@ import {
   type Wind,
 } from "@engine";
 
+// What is drawn on the snow is solid (`drawn-solids.ts`), in every page that draws a run.
+import "./drawn-solids.ts";
 import { createBreath } from "./backdrop-hold.ts";
 import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
@@ -87,7 +89,7 @@ import { playerKitOf, playerDress, type PlayerKit } from "./player-dress.ts";
 import { DEFAULT_OUTFIT, type Outfit } from "./outfit.ts";
 import { heightOverFar } from "./horizon.ts";
 import { keyAheadAt, skyLookAt } from "./sky.ts";
-import { sunNow } from "./sky-clock.ts";
+import { airNow, sunNow } from "./sky-clock.ts";
 import { createSnowfall } from "./snowfall.ts";
 import { rideSink } from "./ride-sink.ts";
 import { castInLight } from "./terrain-shade.ts";
@@ -423,6 +425,7 @@ export function createWorldRenderer(
     packSun = sunNow(sky, state.t).elevation; // re-packed as the sky's clock moves it
     return snowpackOf(sky, {
       elevation: packSun,
+      air: airNow(sky, state.t),
       fresh: state.fresh,
       depth: state.snowDepth,
       ...snowForce,
@@ -727,7 +730,8 @@ export function createWorldRenderer(
       timer.push("trail");
       if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
       deform.update(skier, !hidden.has("trail"));
-      skiClear.update(riders[0].model.bases, !skier.thrown && !summer());
+      skiClear.update(riders[0].model.bases, !skier.thrown && !summer(), skier.speed > 1);
+      skiClear.rivals(riders, eye, !summer());
       // THE NEW SNOW: it settles into every trail and buries the groomer.
       if (state.fresh > filled && !hidden.has("trail")) {
         trail.fill(gl, state.fresh - filled);
@@ -790,7 +794,10 @@ export function createWorldRenderer(
       cloud.setFocus(d.x, d.y + 0.6, d.z, planted ? 1 : CLOUD_VEIL);
       cloud.update(Math.min(dt, 0.1), look, level, wind, lens.camera.position);
       snowfall.setScale(pixels);
-      snowfall.update(look, wind, lens.camera, level, dt);
+      // A summer's air holds no crystals and its ground no snow to lift: the
+      // motes streaking past at pace read as dark dashes on the sky.
+      snowfall.group.visible = !summer();
+      if (!summer()) snowfall.update(look, wind, lens.camera, level, dt);
       gates?.air(state, look, wind, lens.camera.position, pixels);
 
       const built = performance.now();

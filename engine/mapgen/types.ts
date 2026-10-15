@@ -664,14 +664,23 @@ export interface Weather {
   windFrom: number;
   /** Whether R19 sent this map out in the evening (R15's exception). */
   evening: boolean;
+  /** THE AIR TEMPERATURE KNOB (`engine/game/air-temp.ts`): the air at the
+   * valley floor at the run's start hour, °C, picked by hand — absent, the
+   * model's own (AUTO). R19 never deals it and `levelDigest` never reads
+   * it, so no map moves; the whole day's air is shifted to meet it. */
+  temp?: number;
 }
 
 /** A sky chosen by hand rather than dealt: FREE's start card, a lab's sheet.
  * A kind alone takes that sky at its typical numbers (`weatherFor`); an
- * `hour` is the solar hour the run starts at, whatever R15 dealt. */
+ * `hour` is the solar hour the run starts at, whatever R15 dealt; a `temp`
+ * the air's knob. */
 export interface SkyOverride {
   weather?: WeatherKind | Partial<Weather>;
   hour?: number;
+  /** The air at the valley floor at the start hour, °C (`Weather.temp`),
+   * laid on after the sky — whichever sky that is. */
+  temp?: number;
 }
 
 /** A stretch of the piste the wind has drifted over (R17): its full-depth
@@ -932,6 +941,12 @@ export interface GenerateOptions {
   /** Told how far the search has got, 0–1, at its landmarks (`progress.ts`)
    * — for a loading card's bar. Draws nothing and moves nothing it builds. */
   progress?: (share: number) => void;
+  /** Build ONE attempt of the search — this sub-seed alone — and throw its
+   * refusal rather than try the next. An attempt is a pure function of the
+   * seed and its number, so a host can run the attempts side by side
+   * (`attempt-pool.ts`) and keep the lowest one accepted: the same map the
+   * search builds in turn. Its progress is told as the attempt's own. */
+  only?: number;
 }
 
 /** The answer to "where on the piste is this point nearest?" */

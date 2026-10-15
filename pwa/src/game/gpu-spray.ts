@@ -78,7 +78,6 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
       ...airLightUniforms(),
       uScale: { value: 600 },
       uShutter: { value: shutter },
-      uStreak: { value: 1 },
       uTime: { value: 0 },
       uNow: { value: 0 },
       uOldest: { value: -1e9 },
@@ -311,9 +310,6 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
       cap = Math.max(1, Math.round(capacity * Math.max(0, Math.min(1, next))));
       head %= cap;
       if (used > cap) used = cap;
-    },
-    setModel() {
-      // The ring flies the weighed spray only.
     },
     clear() {
       pool.clear();

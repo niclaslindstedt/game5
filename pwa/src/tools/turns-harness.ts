@@ -35,8 +35,6 @@ import type { LensPose } from "../game/camera-rigs.ts";
 import { holdInput, isHoldMove, type HoldMove } from "../game/hold-input.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { isSnowAgeKind, type SnowAgeKind } from "../game/snow-age.ts";
-import { flySprayAs } from "../game/spray.ts";
-import { isSprayModel, SPRAY_MODEL } from "../game/spray-sim.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { skiGaps, standOf } from "../game/ski-stand.ts";
 import { hourAt, meadow, pisteSpot } from "./stage.ts";
@@ -72,9 +70,7 @@ const onMeadow = params.get("where") === "meadow";
 const along = Number(params.get("at") ?? 1 / 3);
 /** The pair ridden — a board's id (`lynx`) stands a snowboarder on it. */
 const spec = pairById(params.get("skis") || "chamois");
-/** The spray's model (`spray-sim.ts`), the snow's age and the snow dial. */
-const sprayModel = params.get("spray");
-if (isSprayModel(sprayModel)) flySprayAs(sprayModel);
+/** The snow's age and the snow dial. */
 const age = isSnowAgeKind(params.get("age")) ? (params.get("age") as SnowAgeKind) : null;
 const depth = Number(params.get("depth") ?? 1);
 
@@ -185,7 +181,7 @@ window.__turns = {
     ctx.font = "12px monospace";
     ctx.textBaseline = "middle";
     ctx.fillText(
-      `TURNS · ${spec.id} · seed ${seed}${region ? ` ${region}` : ""} · ${onMeadow ? "meadow" : `piste ${(along * 100).toFixed(0)}% down`} · ${isSprayModel(sprayModel) ? sprayModel : SPRAY_MODEL} spray${age ? ` · ${age} snow` : ""}${depth !== 1 ? ` · ×${depth} deep` : ""} at ${spot.x.toFixed(0)},${spot.z.toFixed(0)} · ${view.toUpperCase()} · ${tier}`,
+      `TURNS · ${spec.id} · seed ${seed}${region ? ` ${region}` : ""} · ${onMeadow ? "meadow" : `piste ${(along * 100).toFixed(0)}% down`} · ${age ? ` · ${age} snow` : ""}${depth !== 1 ? ` · ×${depth} deep` : ""} at ${spot.x.toFixed(0)},${spot.z.toFixed(0)} · ${view.toUpperCase()} · ${tier}`,
       8,
       10,
     );

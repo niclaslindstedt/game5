@@ -66,6 +66,10 @@ export type Gait = {
    * over the snow. */
   pass: number;
   keep: number;
+  /** How long the double pole's follow-through is, 0..1 (`holdPush`'s
+   * `over`): the arms let go just past the hips at a crawl and carried on
+   * long and high behind him at speed, where he needs every bit of the push. */
+  follow?: number;
   /** The share of the stride the POLES are on the snow (`poleDuty`): the
    * double pole's whole push, a quick bite inside a skate's long one. */
   duty: number;
@@ -91,6 +95,10 @@ export type Gait = {
  * double-poling and skating — and the share of it a full tuck takes off
  * (the pose's own strokes, measured). */
 const POLE_SWEEP = { pole: 1.55, skate: 1.19, tuck: 0.75 };
+
+/** The speeds, m/s, over which the double pole's follow-through grows from
+ * a crawl's short push to the long one thrown out behind (`Gait.follow`). */
+const FOLLOW = { from: 2.5, to: 9 };
 
 /** THE SKATE, after measured skating: how far out a push drives the ski,
  * m — the leg extended long and out to the side, a skater's foot ends
@@ -366,6 +374,7 @@ export function gaitOf(
     Math.abs(s.way ?? s.speed) /
     (strideRate(s.speed, poles, step, hill) * stepQuick(step, s.speed) * Math.max(0.2, s.drive));
   const poling = skate + work * Math.max(0, 1 - striding - skating);
+  const follow = smooth01((s.speed - FOLLOW.from) / (FOLLOW.to - FOLLOW.from));
   const sweep =
     (poling > 0
       ? (POLE_SWEEP.pole * (poling - skate) + POLE_SWEEP.skate * skate) / poling
@@ -418,6 +427,7 @@ export function gaitOf(
     tilt,
     pass,
     keep: poleKeepUp(s.speed, step) * smooth01((fit - 0.8) / 0.15),
+    follow,
     duty: poleShare,
     roll: WEIGHT.roll * across,
     sink: skate * (WEIGHT.stoop + WEIGHT.sink * (low - 0.5)) + CLIMB_DRIVE.sink * driven * low,

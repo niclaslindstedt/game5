@@ -1,6 +1,6 @@
 ---
 name: visual-effects
-description: "Use when creating or tuning what the SKIS THROW OFF, what they LEAVE and what the skier FEELS — the spray (the sheet of snow off a skidded turn, the powder off the tips and the tails in a carve, the landing puff), the tracks' STAMPING (every station laid as a capsule into the trail map, the drawn depth, an edged ski's narrower deeper groove, the windrow, the break on a reset), and the vibration table under the player's thumbs (the chatter on hard snow, a landing, a trunk, a fall, the gate's tick). Covers the event → effect flow (the engine emits events and writes `SkierState`; the renderer turns them into transient visuals and pulses), the two surfaces (the three.js scene for the air, the trail map for the snow), the low-poly art direction the effects sit inside, and the loop that judges them — zoomed. Not the snow's own light (`snow-look`) and not the sky (`atmosphere`)."
+description: "Use when creating or tuning what the SKIS THROW OFF, what they LEAVE and what the skier FEELS — the WEIGHED spray (the kilograms of snow an edge cuts and a ski shoves, the sheet off a skidded turn, the powder off the tips and the tails in a carve, the landing puff, flown on the GPU and dug out of the deformable snow as one snow budget), the snow cloud, the tracks' STAMPING (every station laid as a capsule into the trail map, the drawn depth, an edged ski's narrower deeper groove, the windrow, the break on a reset), and the vibration table under the player's thumbs (the chatter on hard snow, a landing, a trunk, a fall, the gate's tick). Covers the event → effect flow (the engine emits events and writes `SkierState`; the renderer turns them into transient visuals and pulses), the two surfaces (the three.js scene for the air, the trail map for the snow), the low-poly art direction the effects sit inside, and the loops that judge them — zoomed pictures and the snow lab's bench (`make snow-eval`, `make snow-mass`). Not the snow's own light (`snow-look`) and not the sky (`atmosphere`)."
 ---
 
 # Visual effects — what the skis throw off
@@ -25,7 +25,7 @@ Pick by what the effect is anchored to:
 | Surface | Use for | Lives in |
 | --- | --- | --- |
 | **The three.js scene** | Anything IN THE AIR: the skid's sheet, the powder off the tips and tails, the landing puff — the heavy grains and clumps as one pool of sprites, and the fine SNOW CLOUD they raise as one instanced draw of volume-shaded puffs, both lit as the snow is and faded into the same haze | `pwa/src/game/spray.ts`, `snow-cloud.ts` |
-| **The trail map** | Anything IN THE SNOW: every groove a ski's station presses, the windrow beside it — stamped as capsules into a world-space map the terrain shader lowers the snow by and shades | `pwa/src/game/trail-stamp.ts` decides each stamp (three-free), `trail-map.ts` keeps the maps (`snow-look`'s), `renderer.ts` stamps every skier every frame |
+| **The trail map, and the deformable snow over it** | Anything IN THE SNOW: every groove a ski's station presses, the windrow beside it — stamped as capsules into a world-space map the terrain shader lowers the snow by and shades; at TRAILS MEDIUM and HIGH also pressed into the 5 cm height field round the player, which the spray's own takes dig and which slumps into a crater or a berm | `pwa/src/game/trail-stamp.ts` decides each stamp (three-free), `trail-map.ts` keeps the maps and `deform-field.ts` the field (`snow-look`'s), `renderer.ts` stamps every skier every frame |
 
 There is no third surface: a decal or a second mesh laid over the snow is lit
 differently from the ground under it and reads as paint. The LENS's reaction
@@ -44,8 +44,8 @@ loaded ski's boot. Judge it with `make turns ARGS=--views=low`.
 
 | Effect | Where |
 | --- | --- |
-| THE EDGE'S SHEET: snow CUT by an edge sliding across its own line (`edgeSlips`: the skier's velocity read across the skis as they stand pivoted) — chips shoved ahead of the edge at about the slide's speed and thrown up off it, along the WHOLE loaded edge (a ski's tip to tail, a board's one long edge), each ski by its share; a hockey stop's wall ahead of him and down the hill, next to nothing off a clean carve | `spray-sim.ts` (three-free, `tests/spray_test.ts`) |
-| THE CARVE'S TAIL: the groove's lip flicked off a railed tail, by the edge and the speed; the powder off the tips (a board's nose) running deep | `spray-sim.ts` |
+| THE SEAM: `edgeSlips` (the one reading of a sliding edge — the skier's velocity read across the skis as they stand pivoted, along the WHOLE loaded edge: a ski's tip to tail, a board's one long edge, each ski by its share) and `createSprayPool`, which hands the renderer the weighed pool. There is ONE model; the counted ones it replaced (and their `spray-eval` lab) are retired | `spray-sim.ts` (three-free, `tests/spray_test.ts`) |
+| THE WEIGHED SPRAY: the KILOGRAMS that leave the snow — the layer an edge sliding across its line planes off (its depth off the snow's hardness and the skier's load: a hockey stop's 15–20 kg off a groomer, a kilo of dust off ice, wet clumps off spring snow), the loose snow a ski shoves (a share thrown, the rest into the berm), the bow wave off the tips in deep snow, the lip off a railed tail, a landing and a body's burst — then what it is made of (fragments, aggregates, clumps, dust) and each grain's own fall speed; thrown FORWARD, from under the skis and DOWN THE SLOPE; the same mass at every SPRAY stop, the stop a share of the parcels drawn | `spray-mass.ts` (the numbers, `MASS`), `spray-mass-pool.ts` (the emitter and the CPU flight), `tests/spray_mass_test.ts` |
 | THE GRAINS AS DRAWN: one instanced draw, each grain a STREAK along its motion over a short shutter (a dot cloud reads as foam), thinned by its length, let go of near the lens, glowing against a low sun and glinting | `spray.ts` |
 | THE GRAINS FLOWN ON THE GPU: each parcel written once at its throw into a ring (`gpu-spray.ts`, 1.5× the pool for the splashes written ahead, and cut each frame to the parcels the pool itself would hold, `uOldest` — a bigger ring keeps more of a saturated powder plume than the pool and lowers its film score) and flown off the clock in the vertex shader (`spray-flight.ts`'s `SPRAY_FLIGHT_GLSL` and its TypeScript twin `flyLaunch`, which lay the pool's own 60 Hz frame on their smooth grid: the first frame's drag, the frame-stepped lag, the landing on the frame, gravity raised to the pool's faster fall — without them a stop holds 7 % more snow in the air than the CPU's); the emitter, the kilograms and the look stay the CPU's and part 3's. A change to the CPU flight (`spray-mass-pool.ts`'s `step`) is a change to BOTH, held by `tests/spray_flight_test.ts`; which stops fly on the GPU is `SPRAY_GPU` | `gpu-spray.ts`, `spray-flight.ts`, `spray-glsl.ts` |
 | ONE SNOW BUDGET: every kilogram the weighed spray throws (an edge's cut, shove and lip, the bow wave, a landing, a body's burst) and every kilogram it shoves into a berm filed as a TAKE where it left the snow, and the deformable snow digs exactly that out — its `thrown()` is the spray's kilograms (`tests/deform_field_test.ts`, within 1 %) and the cloud reads the same emit (`dustOf`). A change to what the emitter throws moves the hole with it | `snow-takes.ts`, `spray-mass-pool.ts`, `deform-field.ts` |
@@ -156,15 +156,30 @@ in code. Snow in the air is:
 7. **Ski it** for anything that moves — a spray's timing and a pulse show in
    no still: `npm run dev`, or `make screenshots` at two offsets
    (`ARGS="--t 12"`, `--t 13`).
-8. Judge, refine the worst beat, re-shoot. `make profile` before and after.
+8. **The snow lab's bench**, for the spray as a whole: `make snow-eval`
+   films every scene, reads the drawn parcels back and scores them
+   (`film.json`, `perf.json`, kept from before beside after), and
+   `make snow-mass` weighs them in pure Node (`--json=` before,
+   `--compare=` after). A change to the emitter or the flight owes
+   both.
+9. Judge, refine the worst beat, re-shoot. `make profile` before and after.
 
 ## What the spray taught
 
+- **Weigh the snow, then draw it.** Counting grains (the old `drag`,
+  `sheet`, `streak` and `puff` models) gave a spray whose size was a
+  tuning knob; the weighed spray's size is the snow's hardness, the load
+  and the slide, so a stop on ice is dust and one in spring snow a heavy
+  wall without a number of its own. `make snow-mass` holds every scene's
+  kilograms to a band (`--json=` before, `--compare=` after) and
+  `make snow-eval` scores the picture as filmed; together they superseded
+  `spray-eval`, which scored the counted models and is gone.
 - **The edge's SLIDE throws the snow, not the brake key.** Read the
   velocity across the skis as they stand: a carve slides across nothing
   and throws a thin tail, a hockey stop slides at its whole speed and
-  throws a wall — and the wall goes AHEAD and down the hill, the way the
-  edge slides (`make spray-metrics`' `ahead` column), never back at him.
+  throws a wall — and the wall goes AHEAD, FROM UNDER THE SKIS and DOWN
+  THE HILL, the way the edge slides (`make snow-eval`'s throw angles,
+  `make spray-metrics`' `ahead` column), never back at him.
 - **A board is one long edge**, not two skis: emit along its whole deck
   with the whole load, or a board's stop throws half a pair's.
 - **Streaks, not dots.** A grain at 10 m/s drawn as a disc reads as foam
@@ -176,20 +191,29 @@ in code. Snow in the air is:
   is an egg across the picture.
 - **Fly a grain at its own fall speed.** Measured snow falls at half a
   metre a second as crystals, three to six as the chips an edge cuts and
-  some nine as a clump: a quadratic drag set by that speed (`drag` and
-  `sheet`) hangs the fines and throws the chips far, where one drag for
-  every grain (`streak`) can't do both. Puffs thrown any way (`puff`, the
-  control) read as smoke and score lowest. `make spray-eval` scores the
-  four against the research's bands; re-run it after any change to the
-  flight or the emission and keep the winner in `SPRAY_MODEL`.
+  some nine as a clump: the weighed spray's drag is set per grain by that
+  speed (`settleSpeed`), so the fines hang (and are handed to the cloud
+  as `dustOf`) while the chips fly far and a clump breaks where it lands.
+- **The pool is flown twice, and both must agree.** The CPU's flight
+  (`spray-mass-pool.ts`'s `step`) is the reference the labs fly in Node;
+  the game flies the same parcels in the vertex shader (`spray-flight.ts`).
+  A change to one is a change to both, `tests/spray_flight_test.ts`.
+- **What is thrown is dug.** Every kilogram leaves a TAKE in
+  `snow-takes.ts` and the deformable snow digs it out, so a stop's hole
+  and its wall are one snow budget; a spray tuned up without the hole
+  moving with it has broken `tests/deform_field_test.ts`.
 - **The snow's AGE makes the spray** (`snowpack.ts`'s `ageSnow`, off the
   same `SnowAge` the terrain is drawn by): new snow fine and light, old
   snow coarse and clumpy, a wind slab or a crust in plates, hoar glinting,
   wet snow heavy, short and cloudless. Its depth (the snow dial) scales
-  how much is thrown and how high. The eval's age and depth table holds it.
-- `make spray` (both pairs, close and chase, `WHERE=meadow`; `--age=`,
-  `--spray=`, `--depth=`), `make spray-metrics` and `make spray-eval` are
-  the labs; the turns lab takes `--skis=lynx`.
+  how much is thrown and how high. `make snow-mass ARGS="--rows=none
+  --ages"` prints the age and depth table.
+- `make snow-eval` (the film score and throw angles of every scene, the
+  perf rows, `--under=all` the skis against the drawn snow, `--deform-perf`
+  the deformable snow's cost, `--lights=low,overcast,night`),
+  `make snow-mass`, `make spray` (both pairs, close and chase,
+  `WHERE=meadow`; `--age=`, `--depth=`) and `make spray-metrics` are the
+  labs; the turns lab takes `--skis=lynx`.
 
 ## How snow in the air is lit
 
@@ -257,11 +281,13 @@ in code. Snow in the air is:
       haze, no foreign fidelity.
 - [ ] Pooled allocations; observed per step where the reading spikes.
 - [ ] You LOOKED at it zoomed, at two moments.
-- [ ] `make cloud` before and after for anything in the air, both sheets
-      in the PR; `make cloud-metrics` `--json` before and `--compare`
+- [ ] `make snow-eval` and `make snow-mass` before and after for anything
+      the spray throws; `make cloud` before and after for anything in the
+      air, both sheets in the PR; `make cloud-metrics` `--json` before and `--compare`
       after when HOW MUCH moved.
 - [ ] `npx vitest run tests/world_render_test.ts tests/rumble_test.ts
-      tests/snow_cloud_test.ts tests/snowpack_test.ts`;
+      tests/snow_cloud_test.ts tests/snowpack_test.ts tests/spray_test.ts
+      tests/spray_mass_test.ts tests/spray_flight_test.ts`;
       `make profile` both tables in the PR.
 - [ ] A `.changes/unreleased/` fragment — effects are player-visible.
 

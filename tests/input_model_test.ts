@@ -34,8 +34,8 @@ import {
   createFlick,
   flickDown,
   flickMove,
-  FLICK_LOAD_MAX,
-  FLICK_LOAD_MIN,
+  FLICK_POP_MAX,
+  FLICK_POP_MIN,
   jumpTapDown,
   jumpTapUp,
   leverBrake,
@@ -426,9 +426,9 @@ describe("the jump", () => {
     // A flick, 40 px in two frames: the jump, loaded for a moment.
     flickDown(f, 400, 1);
     expect(flickMove(f, 380, 1 + 1 / 60)).toBe(0);
-    const load = flickMove(f, 360, 1 + 2 / 60);
-    expect(load).toBeGreaterThanOrEqual(FLICK_LOAD_MIN);
-    expect(load).toBeLessThanOrEqual(FLICK_LOAD_MAX);
+    const pop = flickMove(f, 360, 1 + 2 / 60);
+    expect(pop).toBeGreaterThanOrEqual(FLICK_POP_MIN);
+    expect(pop).toBeLessThanOrEqual(FLICK_POP_MAX);
     // Still rising, the same flick does not fire twice...
     expect(flickMove(f, 320, 1 + 3 / 60)).toBe(0);
     // ...but the thumb back down and flicked again is a second jump.
@@ -446,9 +446,12 @@ describe("the jump", () => {
     expect(b).toBeGreaterThan(a);
   });
 
-  it("holds the flick's jump off the lever, the thumb already lifted", () => {
-    const touch = { ...neutralTouch(), flick: true };
-    expect(sampleInput(createInputModel(), NO_KEYS, touch, DT, false).jump).toBe(true);
+  it("hands the flick's pop to the step, the thumb already lifted", () => {
+    const touch = { ...neutralTouch(), pop: 0.5 };
+    const input = sampleInput(createInputModel(), NO_KEYS, touch, DT, false);
+    expect(input.jump).toBe(true);
+    expect(input.pop).toBeGreaterThan(0.4);
+    expect(input.pop).toBeLessThan(0.6);
   });
 });
 

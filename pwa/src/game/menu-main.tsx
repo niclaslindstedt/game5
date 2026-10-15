@@ -5,14 +5,15 @@
 // behind the card; a menu that froze the snow would announce the game is not
 // running.
 //
-// THREE THINGS, BY HOW OFTEN THEY ARE WANTED. PLAY is the lit slab and the
-// only red on the card: it goes straight onto the FREE RIDE (its WHERE
-// steps, then its start card, `menu-start.tsx`). With the races let out
-// (`racesOpen`: DEVELOPER only) it opens the door's second page instead,
+// BY HOW OFTEN THEY ARE WANTED. QUICK START is the lit slab and the only
+// red on the card: a free ride dealt at random, no card in between
+// (`free-ride.ts`'s `quickRide`). PLAY under it goes onto the FREE RIDE (its
+// WHERE steps, then its start card, `menu-start.tsx`). With the races let
+// out (`racesOpen`: DEVELOPER only) it opens the door's second page instead,
 // where the three ways onto the snow stand — RACE (the race card,
 // `menu-races.tsx`, each discipline on its pinned maps), TRICKS (the
 // freestyle card, `menu-freestyle.tsx`) and FREE RIDE.
-// OPTIONS is the second slab, as big and quieter: every setting, the sound
+// OPTIONS is the third slab, as big as PLAY: every setting, the sound
 // included, lives there. Under them, small, the two things that are not a
 // run at all — the GALLERY of pictures kept and the STATISTICS — and
 // DEVELOPER once it has been let out (the title HELD for seven seconds,
@@ -197,40 +198,42 @@ export function MainMenu({
         ) : (
           <>
             <div class="menu-tiles">
+              {/* QUICK START, the lit slab and the first pick: no card at
+                  all — a generated mountain, a day and a sky dealt at
+                  random, on the toughest piste, on the rider and gear last
+                  picked. The sheen: a slow bar of light travelling the
+                  slab, a transform and off under `prefers-reduced-motion`. */}
               <button
                 type="button"
                 class="menu-tile menu-tile-hero"
-                data-menu="play"
+                data-menu="quick"
                 data-nav-next
                 data-nav-focus
                 style={at(0)}
+                onClick={onQuick}
+              >
+                <span class="menu-tile-sheen" aria-hidden="true" />
+                <Glyph name="dice" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuQuick}</span>
+                  <span class="menu-tile-line">{STRINGS.menuQuickLine}</span>
+                </span>
+              </button>
+              {/* PLAY: the free ride picked step by step (or, with the
+                  races let out, their page). */}
+              <button
+                type="button"
+                class="menu-tile menu-tile-wide"
+                data-menu="play"
+                style={at(1)}
                 onClick={modes ? () => onPage("play") : onFree}
               >
-                {/* The sheen: a slow bar of light travelling the slab, a
-                    transform and off under `prefers-reduced-motion`. */}
-                <span class="menu-tile-sheen" aria-hidden="true" />
                 <Glyph name="play" />
                 <span class="menu-tile-words">
                   <span class="menu-tile-name">{STRINGS.menuPlay}</span>
                   <span class="menu-tile-line">
                     {modes ? STRINGS.menuPlayLine : STRINGS.menuFreeLine}
                   </span>
-                </span>
-              </button>
-              {/* QUICK START: no card at all — a generated mountain, a
-                  day and a sky dealt at random, on the toughest piste, on
-                  the rider and gear last picked. */}
-              <button
-                type="button"
-                class="menu-tile menu-tile-wide"
-                data-menu="quick"
-                style={at(1)}
-                onClick={onQuick}
-              >
-                <Glyph name="dice" />
-                <span class="menu-tile-words">
-                  <span class="menu-tile-name">{STRINGS.menuQuick}</span>
-                  <span class="menu-tile-line">{STRINGS.menuQuickLine}</span>
                 </span>
               </button>
               <button

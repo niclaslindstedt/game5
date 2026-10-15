@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DROP_SPAN,
   LEVEL_RULES,
   RESORT_RULES,
   createGame,
@@ -41,7 +42,13 @@ describe("R42 ski routes", () => {
         expect(steepest).toBeCloseTo(r.steepest, 9);
         expect(steepest).toBeGreaterThan(LEVEL_RULES.track.maxGrade);
         expect(steepest).toBeLessThanOrEqual(K.steepest);
-        expect(steepestAlong(r.points, K.pitchWindow)).toBeLessThanOrEqual(K.cliff);
+        // Its drops off the crags are the only pitches past a cliff's.
+        const drops = r.drops ?? [];
+        const excused = (s0: number, s1: number): boolean =>
+          drops.some((d) => s1 > d.s - DROP_SPAN && s0 < d.s + DROP_SPAN);
+        expect(steepestAlong(r.points, K.pitchWindow, excused)).toBeLessThanOrEqual(K.cliff);
+        expect(drops.length).toBeLessThanOrEqual(K.wild.drops);
+        for (const d of drops) expect(d.height).toBeLessThanOrEqual(K.wild.drop + K.cell);
         expect(r.length).toBeGreaterThanOrEqual(K.length.min);
         expect(r.length).toBeLessThanOrEqual(K.length.max);
         expect(r.points[0].y - r.points[r.points.length - 1].y).toBeGreaterThanOrEqual(K.vertical);
@@ -117,6 +124,53 @@ describe("R42 ski routes", () => {
       else expect(n).toBeGreaterThan(want);
     }
   });
+
+  it("goes through the woods and over gap jumps cut on its rolls", () => {
+    const J = K.wild.jump;
+    let wooded = 0;
+    let jumped = 0;
+    let routes = 0;
+    for (const { level } of maps()) {
+      for (const r of skiRoutesOf(level)) {
+        routes++;
+        if ((r.woods ?? 0) > 0) wooded++;
+        const jumps = (level.kickers ?? []).filter((k) => k.route === r.id);
+        if (jumps.length > 0) jumped++;
+        expect(jumps.length).toBeLessThanOrEqual(J.count.max);
+        for (const k of jumps) {
+          expect(k.onTrack).toBe(false);
+          expect(k.height).toBeGreaterThanOrEqual(J.height.min);
+          expect(k.height).toBeLessThanOrEqual(J.height.max);
+          // Standing on the line, facing the way it goes.
+          const near = r.points.reduce((a, p) =>
+            Math.hypot(p.x - k.x, p.z - k.z) < Math.hypot(a.x - k.x, a.z - k.z) ? p : a,
+          );
+          expect(Math.hypot(near.x - k.x, near.z - k.z)).toBeLessThan(K.station);
+          expect(Math.abs(Math.sin(near.heading - k.heading))).toBeLessThan(0.2);
+        }
+        for (let i = 1; i < jumps.length; i++) {
+          expect(
+            Math.hypot(jumps[i].x - jumps[i - 1].x, jumps[i].z - jumps[i - 1].z),
+          ).toBeGreaterThan(J.spacing / 2);
+        }
+      }
+    }
+    expect(routes).toBeGreaterThan(0);
+    expect(jumped).toBeGreaterThanOrEqual(Math.ceil(routes / 2));
+    expect(wooded).toBeGreaterThanOrEqual(Math.ceil(routes / 2));
+  });
+
+  it("is the shortest line down on a map from v9, with no jump on it", () => {
+    const level = generateLevel(LEVEL_SEEDS[0], { version: 9 });
+    expect(level.version).toBe(9);
+    for (const r of skiRoutesOf(level)) {
+      expect(r.drops ?? []).toEqual([]);
+      for (const p of r.points)
+        for (const t of level.trees)
+          expect(Math.hypot(t.x - p.x, t.z - p.z) - t.radius).toBeGreaterThan(K.open - 1.5);
+    }
+    expect((level.kickers ?? []).some((k) => k.route !== undefined)).toBe(false);
+  }, 300_000);
 
   it("is not marked on a map from before the routes", () => {
     const level = generateLevel(LEVEL_SEEDS[0], { version: 8 });

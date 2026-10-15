@@ -17,7 +17,15 @@
 //   * route-side — the whole route from across the face, its stakes down
 //     both sides and the run it comes onto;
 //   * route-air — high over the route's middle, the lift's top it leaves,
-//     its line and the groomed runs beside it.
+//     its line and the groomed runs beside it;
+//   * route-plan — straight down from high over the whole line: how it
+//     winds;
+//   * route-jump, route-jump-side — its first jump (R42's wild line), from
+//     a skier's eye up its ramp and from beside it;
+//   * route-woods — in the middle of its longest stretch through the woods;
+//   * route-bend — at its hardest bend, looking straight on past it, the
+//     way a skier who misses it goes;
+//   * route-drop — at the top of its first drop, looking over it.
 //
 // A map with none answers "no ski route on this map".
 
@@ -44,6 +52,12 @@ export const ROUTE_VIEWS = [
   "route-steep",
   "route-side",
   "route-air",
+  "route-plan",
+  "route-jump",
+  "route-jump-side",
+  "route-woods",
+  "route-bend",
+  "route-drop",
 ] as const;
 
 const asTrack = (r: SkiRoute) => ({ track: { points: r.points, length: r.length } });
@@ -82,6 +96,45 @@ function steepestAt(r: SkiRoute): number {
     if (g > best) {
       best = g;
       at = r.points[i].s;
+    }
+  }
+  return at;
+}
+
+/** The middle of `r`'s longest stretch through the woods (its narrow
+ * corridor), m, or null. */
+function woodsAt(r: SkiRoute): number | null {
+  let best = 0;
+  let at: number | null = null;
+  let from = -1;
+  for (const p of r.points) {
+    const narrow = p.width < r.points[0].width || p.width < 10;
+    if (narrow && from < 0) from = p.s;
+    if (!narrow && from >= 0) {
+      if (p.s - from > best) {
+        best = p.s - from;
+        at = (from + p.s) / 2;
+      }
+      from = -1;
+    }
+  }
+  return at;
+}
+
+/** Where `r` bends hardest over 30 m, m, past its first and before its
+ * last 60. */
+function bendAt(r: SkiRoute): number {
+  let best = 0;
+  let at = r.length / 2;
+  for (const p of r.points) {
+    if (p.s < 60 || p.s > r.length - 90) continue;
+    const q = trackPointAt(asTrack(r), p.s + 30);
+    const d = Math.abs(
+      Math.atan2(Math.sin(q.heading - p.heading), Math.cos(q.heading - p.heading)),
+    );
+    if (d > best) {
+      best = d;
+      at = p.s;
     }
   }
   return at;
@@ -222,6 +275,98 @@ export function routeView(level: Level, name: string): { pose: LensPose; note: s
           roll: 0,
         },
         note: `${name === "route-air" ? "over" : "across from"} ${said}`,
+      };
+    }
+    case "route-plan": {
+      const xs = r.points.map((p) => p.x);
+      const zs = r.points.map((p) => p.z);
+      const mx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const mz = (Math.min(...zs) + Math.max(...zs)) / 2;
+      const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
+      const y = Math.max(...r.points.map((p) => p.y));
+      return {
+        pose: {
+          eye: { x: mx, y: y + span * 1.1 + 100, z: mz - 1 },
+          target: { x: mx, y: level.groundAt(mx, mz), z: mz },
+          fov: 55,
+          roll: 0,
+        },
+        note: `straight down on ${said}`,
+      };
+    }
+    case "route-jump":
+    case "route-jump-side": {
+      const k = (level.kickers ?? []).find((x) => x.route === r.id);
+      if (!k) return null;
+      const fx = Math.sin(k.heading);
+      const fz = Math.cos(k.heading);
+      if (name === "route-jump") {
+        const x = k.x - fx * (k.ramp + 16);
+        const z = k.z - fz * (k.ramp + 16);
+        return {
+          pose: {
+            eye: { x, y: Math.max(level.groundAt(x, z) + 1.7, k.y + 2.5), z },
+            target: {
+              x: k.x + fx * 30,
+              y: level.groundAt(k.x + fx * 30, k.z + fz * 30),
+              z: k.z + fz * 30,
+            },
+            fov: 62,
+            roll: 0,
+          },
+          note: `up the ramp of ${k.id}, ${k.height.toFixed(1)} m, on ${said}`,
+        };
+      }
+      // From the side the ground falls away to, low, the ramp, the lip,
+      // the gap and the landing across the frame.
+      const side = [1, -1].reduce((a, c) =>
+        level.groundAt(k.x + fz * 20 * c, k.z - fx * 20 * c) <
+        level.groundAt(k.x + fz * 20 * a, k.z - fx * 20 * a)
+          ? c
+          : a,
+      );
+      const x = k.x + fz * 20 * side + fx * 4;
+      const z = k.z - fx * 20 * side + fz * 4;
+      return {
+        pose: {
+          eye: { x, y: level.groundAt(x, z) + 1.2, z },
+          target: { x: k.x + fx * 4, y: k.y - 1, z: k.z + fz * 4 },
+          fov: 60,
+          roll: 0,
+        },
+        note: `beside ${k.id}, ${k.height.toFixed(1)} m, on ${said}`,
+      };
+    }
+    case "route-woods": {
+      const s = woodsAt(r);
+      if (s === null) return null;
+      return { pose: along(level, r, s, 10, 1.7, 35), note: `in the woods on ${said}` };
+    }
+    case "route-bend": {
+      const s = bendAt(r);
+      const at = trackPointAt(asTrack(r), Math.max(0, s - 15));
+      const fx = Math.sin(at.heading);
+      const fz = Math.cos(at.heading);
+      return {
+        pose: {
+          eye: { x: at.x, y: level.groundAt(at.x, at.z) + 1.7, z: at.z },
+          target: {
+            x: at.x + fx * 50,
+            y: level.groundAt(at.x + fx * 50, at.z + fz * 50),
+            z: at.z + fz * 50,
+          },
+          fov: 70,
+          roll: 0,
+        },
+        note: `into the hardest bend of ${said}`,
+      };
+    }
+    case "route-drop": {
+      const d = r.drops?.[0];
+      if (!d) return null;
+      return {
+        pose: along(level, r, d.s, 12, 1.7, 30, 70),
+        note: `over a ${d.height.toFixed(0)} m drop on ${said}`,
       };
     }
   }

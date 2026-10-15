@@ -4,7 +4,7 @@
 
 export * from "./types.ts";
 export { attemptsOf, generateLevel, levelIsCached, subSeed } from "./generate.ts";
-export { laySkiRoutes, skiRoutesOf, steepestAlong } from "./ski-routes.ts";
+export { DROP_SPAN, laySkiRoutes, skiRoutesOf, steepestAlong } from "./ski-routes.ts";
 export { boundLevel, portableLevel, type PortableLevel } from "./compile.ts";
 export { LEVEL_RULES, bendFloor, inBand, withinBand, type Band } from "./rules.ts";
 export { bermCrest, bermProfile } from "./berm.ts";

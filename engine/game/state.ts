@@ -887,6 +887,9 @@ export type GameState = ContestState & {
   damage?: boolean;
   /** THE PLAYER'S MORTAL WOUNDS (`gore.ts`), on a run that asked for them. */
   gore?: GoreState;
+  /** THE AIR AMBULANCES on the mountain (`rescue-call.ts`), handed in
+   * before the first step and never written during a run; absent when none. */
+  rescue?: import("./rescue-call.ts").RescueCall[];
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's, 1 unless the run asked otherwise. Read, never written,
    * during a run, and shared with the field. */

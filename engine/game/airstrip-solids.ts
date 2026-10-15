@@ -172,6 +172,17 @@ export function meetStrip(state: GameState, events: GameEvent[]): void {
   const boxes = state.plane
     ? [...stripBoxes(level), ...planeBoxes(state.plane, own)]
     : stripBoxes(level);
+  meetBoxes(state, boxes, events);
+}
+
+/** THE SKIER ON HIS SKIS HELD OUT OF `boxes` this step: pushed back
+ * through each one's nearest face, the blow's normal part coming back at
+ * the trunks' restitution and the part along it scrubbed; the worst blow
+ * reported as a `hit` on a post of what it is made of. The airstrip's and
+ * the air ambulance's (`rescue-call.ts`). */
+export function meetBoxes(state: GameState, boxes: readonly StripBox[], events: GameEvent[]): void {
+  const c = state.skier;
+  const level = state.level;
   const R = K.bodyRadius;
   let worst = 0;
   let hitX = 0;
@@ -253,7 +264,6 @@ export function ragdollOutOfStrip(
   if (!state.rules.heli) return;
   const level = state.level;
   const site = stripSiteOf(level);
-  const n = radius.length;
   const x = P[0];
   const z = P[2];
   if (hypot(x - site.strip.x, z - site.strip.z) > site.strip.length / 2 + 120) {
@@ -263,6 +273,21 @@ export function ragdollOutOfStrip(
   const boxes = state.plane
     ? [...stripBoxes(level), ...planeBoxes(state.plane, own)]
     : stripBoxes(level);
+  ragdollOutOfBoxes(P, L, radius, struck, dt, boxes);
+}
+
+/** EVERY POINT OF A THROWN BODY held out of `boxes` (`ragdollOutOfStrip`'s,
+ * and the air ambulance's): pushed out through the nearest face and the way
+ * into it taken off, its closing speed into `struck`. */
+export function ragdollOutOfBoxes(
+  P: number[],
+  L: number[],
+  radius: ArrayLike<number>,
+  struck: number[],
+  dt: number,
+  boxes: readonly StripBox[],
+): void {
+  const n = radius.length;
   for (const b of boxes) {
     for (let i = 0; i < n; i++) {
       const j = 3 * i;

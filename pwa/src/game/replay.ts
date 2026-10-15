@@ -105,6 +105,8 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     assist: { ...state.assist },
     damage: state.damage,
     gore: state.gore !== undefined,
+    // The air ambulances on the mountain, whose landed machines are solid.
+    ...(state.rescue ? { rescue: state.rescue } : {}),
     sfw: state.rules.sfw === true,
     poles: state.skier.poles,
     snowDepth: state.snowDepth,

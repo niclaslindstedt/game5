@@ -78,6 +78,9 @@ let sink: MapProgress | null = null;
 let floor = 0;
 /** The last share reported. */
 let shown = 0;
+/** The share of what is left the attempt being built fills: `SLICE`, or the
+ * whole bar for an attempt built alone (`attemptAlone`). */
+let slice = SLICE;
 
 /** Run `build` with `to` told of its progress — the whole of a
  * `generateLevel`. A call that has no one to tell runs unchanged. A sink
@@ -87,6 +90,7 @@ export function reportingTo<T>(to: MapProgress | undefined, build: () => T): T {
   sink = to;
   floor = 0;
   shown = 0;
+  slice = SLICE;
   try {
     const built = build();
     tell(1);
@@ -103,10 +107,18 @@ export function attemptBegun(attempt: number): void {
   floor = 1 - (1 - SLICE) ** attempt;
 }
 
+/** The one attempt asked for is built alone (`GenerateOptions.only`): it
+ * fills the whole bar, there being no other attempt to leave room for. */
+export function attemptAlone(): void {
+  if (!sink) return;
+  floor = 0;
+  slice = 1;
+}
+
 /** A landmark of the attempt being built is reached. */
 export function reached(stage: MapStage): void {
   if (!sink) return;
-  tell(floor + (1 - floor) * SLICE * (REACHED.get(stage) ?? 0));
+  tell(floor + (1 - floor) * slice * (REACHED.get(stage) ?? 0));
 }
 
 /** Part of the way from the landmark before `stage` to `stage` itself — a
@@ -117,7 +129,7 @@ export function partway(stage: MapStage, done: number): void {
   const from = i > 0 ? (REACHED.get(ORDER[i - 1]) ?? 0) : 0;
   const to = REACHED.get(stage) ?? 0;
   const f = Math.max(0, Math.min(1, done));
-  tell(floor + (1 - floor) * SLICE * (from + (to - from) * f));
+  tell(floor + (1 - floor) * slice * (from + (to - from) * f));
 }
 
 function tell(share: number): void {

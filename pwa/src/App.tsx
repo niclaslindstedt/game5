@@ -227,7 +227,7 @@ export function App() {
   const modeRef = useRef<GameMode>(params.mode);
   /** The presses that route a card to the skis card (`map-picks.ts`). */
   const picks = mapPicks({ mode: modeRef, setPage, setSettings });
-  const dev = useDevApp();
+  const dev = useDevApp(settings);
   const bookRef = useRef<RunBook | null>(null);
   const stats = useStats();
   useCloudSync({ settings, setSettings, book: bookRef, shell });

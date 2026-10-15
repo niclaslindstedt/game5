@@ -122,13 +122,14 @@ export function stepPipeAir(state: GameState, fall: number): void {
   if (c.airTime <= dt * 1.5 && Math.abs(over.across) > s.flat + 0.5 * (s.arcEnd - s.flat)) {
     lip(c, p, over.across, fall);
   }
-  // THE TURN ROUND, while nothing is thrown.
+  // THE TURN ROUND, while nothing is thrown — and under a spin the same
+  // turn carried round by what the spin has turned, so the spin he set
+  // comes on top of it and is all that is counted.
   const k = state.tricks;
-  const busy = k.flipGoal !== 0 || k.flipDone !== 0 || k.spinGoal !== 0 || k.spinDone !== 0;
-  if (busy) return;
+  if (k.flipGoal !== 0 || k.flipDone !== 0) return;
   const down = pipeLanding(level, c, fall);
   if (!down) return;
-  turnRound(c, down, dt / Math.max(PIPE_AIR.least, down.t));
+  turnRound(c, down, dt / Math.max(PIPE_AIR.least, down.t), k.spinDone);
 }
 
 /** THE PUSH OFF THE VERT: his way across the pipe set so the flight comes
@@ -171,8 +172,9 @@ function lip(c: SkierState, p: PipeFrame, across: number, fall: number): void {
   c.wz = 0;
 }
 
-/** A share `share` of the turn from the body's attitude to the landing's. */
-function turnRound(c: SkierState, down: PipeLanding, share: number): void {
+/** A share `share` of the turn from the body's attitude to the landing's,
+ * that turned `spun` rad about his up by a spin under way. */
+function turnRound(c: SkierState, down: PipeLanding, share: number, spun: number): void {
   const up = down.n;
   // The way he will be going there, along the snow.
   const vn = down.v.x * up.x + down.v.y * up.y + down.v.z * up.z;
@@ -184,8 +186,9 @@ function turnRound(c: SkierState, down: PipeLanding, share: number): void {
   fx /= fl;
   fy /= fl;
   fz /= fl;
-  // Tails first if he is riding switch now.
-  const now = rotate(c.q, { x: 0, y: 0, z: 1 });
+  // Tails first if he is riding switch now (the spin under way left out).
+  const body = spun !== 0 ? multiply(c.q, fromAxisAngle(0, 1, 0, -spun)) : c.q;
+  const now = rotate(body, { x: 0, y: 0, z: 1 });
   const v = hypot3(c.vx, c.vy, c.vz) || 1;
   if ((now.x * c.vx + now.y * c.vy + now.z * c.vz) / v < -0.2) {
     fx = -fx;
@@ -196,7 +199,8 @@ function turnRound(c: SkierState, down: PipeLanding, share: number): void {
   const rx = up.y * fz - up.z * fy;
   const ry = up.z * fx - up.x * fz;
   const rz = up.x * fy - up.y * fx;
-  const target = fromBasis(rx, ry, rz, up.x, up.y, up.z, fx, fy, fz);
+  let target = fromBasis(rx, ry, rz, up.x, up.y, up.z, fx, fy, fz);
+  if (spun !== 0) target = multiply(target, fromAxisAngle(0, 1, 0, spun));
   // The error, world frame: target · q⁻¹, the shorter way round.
   const inv = { w: c.q.w, x: -c.q.x, y: -c.q.y, z: -c.q.z };
   let e = multiply(target, inv);

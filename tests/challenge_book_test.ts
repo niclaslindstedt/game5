@@ -188,6 +188,17 @@ describe("the challenges' rig", () => {
     }
   });
 
+  it("deals no challenges on a summer free ride", () => {
+    const rig = createChallengeRig(memoryStore());
+    const state = createGame({ level, countdown: 0, quiet: true, mode: "free", summer: true });
+    expect(state.summer).toBe(true);
+    rig.arm(state, "free", true);
+    expect(challengeTile(state)).toBeNull();
+    expect(challengeRows(state)).toBeNull();
+    expect(challengeMarks(state)).toBeNull();
+    expect(skiLine(state, rig, line)).toEqual([]);
+  });
+
   it("says a line's start, its split and its finish, files it at once and shows chip and plate", () => {
     const store = memoryStore();
     const rig = createChallengeRig(store);

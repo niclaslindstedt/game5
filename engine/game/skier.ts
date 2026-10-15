@@ -54,6 +54,7 @@ import { riderOf } from "./defs/riders.ts";
 import { SKIS, inertiaOf, totalMass } from "./defs/skis.ts";
 import { techniqueOf } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { setting } from "./strokes.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
 import { chassisContacts } from "./chassis.ts";
 import {
@@ -108,6 +109,7 @@ import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
 import { heldSlip, hopRevert, hopSwitch, revertHold, switchSteer } from "./switch.ts";
 import { slideOver } from "./sidestep.ts";
+import { stepJumpLoad } from "./jump-load.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
 
@@ -209,21 +211,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // snowplough, which pivots nothing and only scrubs.
   c.skid = approach(c.skid, c.brake, S.skidRate * dt);
   c.skiAngle = c.skid * skidAngleAt(speed0) * clamp(c.steer * 2, -1, 1);
-  // THE JUMP (`TUNING.jump`): loaded while it is held on the snow — the
-  // time held, to `full` — and sprung the step it is let go, off the snow
-  // if he is on it or left it under `grace` s ago (a lip is left a beat
-  // before the thumb comes off). Let go later in the air, it is spent.
-  let pop = 0;
-  let loaded = 0;
-  c.popped += dt;
-  const sprung = !c.airborne || c.airTime <= J.grace;
-  if (input.jump === true && c.thrown === null) {
-    if (!c.airborne) c.jumpLoad = Math.min(J.full, c.jumpLoad + dt);
-  } else if (c.jumpLoad > 0) {
-    loaded = c.jumpLoad;
-    if (sprung && c.thrown === null) pop = J.popMin + ((J.popMax - J.popMin) * loaded) / J.full;
-    c.jumpLoad = 0;
-  }
+  // THE JUMP (`jump-load.ts`): loaded while held, sprung on the release or a flick.
+  const { pop, loaded } = stepJumpLoad(c, input, dt);
   // THE DRIVE HE MAKES (`poles.ts`): automatic at a crawl once he is
   // rolling (or the moment the tuck asks him to go — a skier standing still
   // with his hands off stays standing), and not while he is braking,
@@ -823,15 +812,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   } else {
     const back = state.rules.stunts && c.way < 0;
     const assist = level.pipe ? 0 : state.assist.air;
-    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back);
+    const trim = state.rules.stunts && !setting(c.airTime) ? TUNING.tricks.trim : 1;
+    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back, trim);
   }
-  // Euler's equations with a diagonal inertia: τ − ω × Iω. Only on the
-  // snow: a skier in the air is no rigid rod — he holds his shape with his
-  // limbs — and a body as thin as his (its yaw inertia a third of its
-  // pitch and roll) spun for a 360 fed every wobble the levelling hands
-  // made back through the coupling until the spin was a tumble. Thrown,
-  // the ragdoll has its own physics and this body is the skis'. A body
-  // going over on the snow is on the snow (`airborne`, as the hips above).
+  // Euler's equations with a diagonal inertia: τ − ω × Iω, only on the snow.
+  // In the air he holds his shape with his limbs, and a body as thin as his
+  // (yaw inertia a third of pitch and roll) spun for a 360 fed every wobble
+  // of the levelling hands back through the coupling into a tumble. Thrown,
+  // the ragdoll is its own physics; going over on the snow is on the snow.
   const gyro = c.airborne && c.thrown === null ? 0 : 1;
   const gx = gyro * (I.z - I.y) * c.wy * c.wz;
   const gy = gyro * (I.x - I.z) * c.wz * c.wx;

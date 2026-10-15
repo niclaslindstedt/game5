@@ -17,6 +17,7 @@ import {
   placeRun,
   readTrick,
   spinSide,
+  spinSteer,
   step,
   trickKind,
   type GameEvent,
@@ -44,11 +45,15 @@ function staged(spec: SkiSpec = LYNX, moment: RunMoment = LAUNCH, grade = 0): Ga
   return state;
 }
 
-function ride(state: GameState, seconds: number, at: (t: number) => Partial<SkierInput>) {
+function ride(
+  state: GameState,
+  seconds: number,
+  at: (t: number, state: GameState) => Partial<SkierInput>,
+) {
   const events: GameEvent[] = [];
   const steps = Math.round(seconds * TUNING.physicsHz);
   for (let i = 0; i < steps; i++) {
-    step(state, { ...NEUTRAL_INPUT, ...at(i * TUNING.dt) });
+    step(state, { ...NEUTRAL_INPUT, ...at(i * TUNING.dt, state) });
     events.push(...state.events);
   }
   return events;
@@ -56,9 +61,10 @@ function ride(state: GameState, seconds: number, at: (t: number) => Partial<Skie
 
 const tricksOf = (events: GameEvent[]): string[] =>
   events.flatMap((e) => (e.kind === "trick" ? [e.trick] : []));
-/** Two taps of the edge to the right: a whole turn, clockwise from above. */
-const TWO_TAPS = (t: number): Partial<SkierInput> => ({
-  steer: t < 0.05 || (t > 0.1 && t < 0.15) ? 1 : 0,
+/** The edge thrown right off the lip and the spin spotted after a whole
+ * turn: clockwise from above. */
+const TWO_TAPS = (_t: number, s: GameState): Partial<SkierInput> => ({
+  steer: spinSteer(s, 2, 1),
 });
 
 describe("the board's grabs", () => {
@@ -169,7 +175,8 @@ describe("the board's spins", () => {
         return {
           lean: t < 1.0 ? lean : 0,
           jump: t > 0.3 && t < 1.0,
-          steer: up >= 0.2 && up < 0.25 ? 1 : 0,
+          // Thrown once the hop round has let the edge go, let go at the half turn.
+          steer: up >= 0.2 && Math.abs(state.tricks.spinDone) < Math.PI * 0.75 ? 1 : 0,
         };
       });
       return comboLine(state.tricks.lastParts);

@@ -49,8 +49,17 @@ import {
 
 import { rideStyleOf } from "../game/bike-ride-style.ts";
 
-/** THE MAP every clip is ridden on, and its fair midday sky. */
-export const CLIP_MAP = { seed: 38, trail: "B1", race: "DH", hour: 11 } as const;
+/** THE MAP every clip is ridden on, its trails (the race line, the trail
+ * most clips ride, the ones the bot throws a table and a whip off and rides
+ * away from clean), and its fair midday sky. */
+export const CLIP_MAP = {
+  seed: 38,
+  trail: "B1",
+  race: "DH",
+  table: "B4",
+  whip: "B3",
+  hour: 11,
+} as const;
 
 /** Frames a second a clip is read at. */
 export const CLIP_HZ = 60;
@@ -81,8 +90,7 @@ export type Signal = {
 export type Clip = {
   id: string;
   about: string;
-  /** The map's seed where it is not `CLIP_MAP`'s (no table is ever thrown
-   * on that one's trails). */
+  /** The map's seed where it is not `CLIP_MAP`'s. */
   seed?: number;
   /** The game begun for it (both passes call it). */
   start(level: Level): GameState;
@@ -245,15 +253,14 @@ export const CLIPS: readonly Clip[] = [
   {
     id: "whip",
     about: "the freerider's whip, through the whole flight",
-    ...bot(CLIP_MAP.race),
+    ...bot(CLIP_MAP.whip),
     limit: 120,
     pick: (sig) => flight(sig, (g) => (g.trick === "whip" ? g.amount : 0)),
   },
   {
     id: "table",
-    about: "the freerider's table, through the whole flight (seed 4's race line)",
-    seed: 4,
-    ...bot(CLIP_MAP.race),
+    about: "the freerider's table, through the whole flight, ridden away from",
+    ...bot(CLIP_MAP.table),
     limit: 120,
     pick: (sig) => flight(sig, (g) => (g.trick === "table" ? g.amount : 0)),
   },

@@ -13,6 +13,7 @@
 import { rotate, windAt, type SkierState, type Wind } from "@engine";
 
 import { stationOf } from "./ski-stand.ts";
+import { fileTake, SNOW_TAKES } from "./snow-takes.ts";
 import { emptyFlown, emptyLaunch, flyLaunch, type Launch } from "./spray-flight.ts";
 import {
   clamp01,
@@ -31,7 +32,6 @@ import {
   edgeSlips,
   emptySlip,
   type EdgeSlip,
-  type SprayModel,
   type SprayPool,
   type SprayStats,
   type SprayWatch,
@@ -78,6 +78,9 @@ export type MassPool = SprayPool & {
     burst: number;
     dust: number;
     berm: number;
+    /** Every kilogram thrown out of the snow, dust and all (the berm's
+     * shoved snow left out) — the hole's budget (`snow-takes.ts`). */
+    taken: number;
   };
 };
 
@@ -122,7 +125,7 @@ export function createMassPool(
   let clock = 0;
   const random = makeRandom(0x5a17);
   const tally: SprayStats = { thrown: 0, launch: 0, high: 0, reach: 0, done: 0 };
-  const kilos = { cut: 0, shove: 0, bow: 0, lip: 0, burst: 0, dust: 0, berm: 0 };
+  const kilos = { cut: 0, shove: 0, bow: 0, lip: 0, burst: 0, dust: 0, berm: 0, taken: 0 };
   const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
   const cutG: Grit = {
     d50: 0,
@@ -371,7 +374,6 @@ export function createMassPool(
 
   let debt = new WeakMap<SkierState, number[]>();
   const slips: [EdgeSlip, EdgeSlip] = [emptySlip(), emptySlip()];
-  let model: SprayModel = "mass";
 
   const pool: MassPool = {
     capacity,
@@ -385,12 +387,6 @@ export function createMassPool(
     term,
     get cap() {
       return cap;
-    },
-    get model() {
-      return model;
-    },
-    set model(next: SprayModel) {
-      model = next;
     },
     fling(x, y, z, vx, vy, vz, lifetime, s, h) {
       if (random() > share) return;
@@ -422,6 +418,10 @@ export function createMassPool(
       const n = edgeSlips(skier, slips);
       const board = skier.contacts.length === 4;
       let dust = 0;
+      // ONE SNOW BUDGET: this skier's takes filed for the hole (`snow-takes.ts`).
+      const files = SNOW_TAKES.on && SNOW_TAKES.skier === skier;
+      const rhoCut = snow ? snow.density : 480;
+      const rhoLoose = looseDensity(snow);
       const vx0 = skier.vx;
       const vz0 = skier.vz;
       for (let k = 0; k < n; k++) {
@@ -538,6 +538,39 @@ export function createMassPool(
           kilos.lip += lipKg;
           dust += flux.lip * looseG.dust;
         }
+        kilos.taken += cutKg + shoveKg + Math.max(0, lipKg);
+        if (files) {
+          // The edge's strip: the cut out of the base with its berm, the
+          // shove and the lip out of the loose snow over it.
+          const ax = e.across.x;
+          const az = e.across.z;
+          fileTake(
+            e.tip.x,
+            e.tip.z,
+            e.tail.x,
+            e.tail.z,
+            half,
+            false,
+            ax,
+            az,
+            cutKg,
+            rhoCut,
+            Math.max(0, bermKg),
+            rhoCut,
+          );
+          fileTake(
+            e.tip.x,
+            e.tip.z,
+            e.tail.x,
+            e.tail.z,
+            half,
+            false,
+            ax,
+            az,
+            shoveKg + Math.max(0, lipKg),
+            rhoLoose,
+          );
+        }
       }
       // THE BOW WAVE off tips running deep through loose snow.
       const tipA = board ? skier.contacts[0] : stationOf(skier.contacts, 0, 0);
@@ -566,6 +599,18 @@ export function createMassPool(
         };
         throwMass(bowKg, looseG, owed, 12, tipAt, bowKick);
         kilos.bow += bowKg;
+        kilos.taken += bowKg;
+        if (files) {
+          // Out of the snow at the tips, back along the way he goes.
+          const v = Math.hypot(vx0, vz0) || 1;
+          const tips = tipA && tipB && tipA !== tipB ? [tipA, tipB] : [tipA ?? tipB];
+          for (const c of tips) {
+            if (!c) continue;
+            const bx = c.x - (vx0 / v) * 0.5;
+            const bz = c.z - (vz0 / v) * 0.5;
+            fileTake(c.x, c.z, bx, bz, width / 4, false, 0, 0, bowKg / tips.length, rhoLoose);
+          }
+        }
         dust += (bowKg / Math.max(dt, 1e-6)) * looseG.dust;
       }
       // THE LANDING: the skis and the body coming down into the snow
@@ -594,6 +639,8 @@ export function createMassPool(
         };
         throwMass(kg, looseG, owed, 14, ringAt, ringKick);
         kilos.burst += kg;
+        kilos.taken += kg;
+        if (files) fileTake(skier.x, skier.z, skier.x, skier.z, 0.7, true, 0, 0, kg, rhoLoose);
         dust += (kg / Math.max(dt, 1e-6)) * looseG.dust * 0.2;
       }
       kilos.dust += dust * dt;
@@ -627,6 +674,8 @@ export function createMassPool(
       };
       throwMass(kg, looseG, owed, 0, ringAt, ringKick);
       kilos.burst += kg;
+      kilos.taken += kg;
+      fileTake(x, z, x, z, 0.45, true, 0, 0, kg, looseDensity(snow));
     },
     step(dt, level) {
       clock += dt;
@@ -767,6 +816,7 @@ export function createMassPool(
     weighed() {
       const out = { ...kilos };
       kilos.cut = kilos.shove = kilos.bow = kilos.lip = kilos.burst = kilos.dust = kilos.berm = 0;
+      kilos.taken = 0;
       return out;
     },
   };

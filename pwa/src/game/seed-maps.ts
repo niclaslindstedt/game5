@@ -92,6 +92,11 @@ let idle = 0;
 let wanted: SeedAsk | null = null;
 const answers = new Map<string, SeedAnswer>();
 const levels = new Map<string, GeneratedLevel>();
+/** THE MAP LAST RIDDEN, kept past the ride: back on the start card for the
+ * same mountain (the main menu and PLAY again), the ride stands up on it at
+ * once rather than raising it again. Let go the moment another mountain is
+ * asked for (`wantSeed`, `quietSeedMaps`) — one map's grids, never two. */
+let ridden: { key: string; level: Level } | null = null;
 /** How far the map being built has got, 0–1, by key — the job in hand's. */
 const shares = new Map<string, number>();
 /** Keys whose kept chart has been looked for, and those being read. */
@@ -120,6 +125,7 @@ export function seedAnswer(ask: SeedAsk): SeedAnswer | null {
  * ahead of it once that is done. */
 export function wantSeed(ask: SeedAsk): void {
   wanted = ask;
+  if (ridden && ridden.key !== askKey(ask)) ridden = null;
   // A job on another mountain is a guess that was wrong, or a map nobody
   // is looking at any more: it gives way. One on this mountain in another
   // grade is let finish — the ski area it is raising is this one's too,
@@ -146,6 +152,16 @@ export function heldLevel(ask: SeedAsk): GeneratedLevel | null {
   return levels.get(askKey(ask)) ?? null;
 }
 
+/** The map last ridden, where it is the one `ask` names. */
+export function riddenLevel(ask: SeedAsk): Level | null {
+  return ridden?.key === askKey(ask) ? ridden.level : null;
+}
+
+/** A FREE RIDE STOOD UP on `level` for `ask`: kept for the next one. */
+export function keepRidden(ask: SeedAsk, level: Level): void {
+  ridden = { key: askKey(ask), level };
+}
+
 /** A FREE RIDE IS BEING STOOD UP on `ask`: nothing more is built ahead —
  * the snow is about to take every core it can get — no map is held (the
  * ride has taken the one it rides, `freeRideLevel`, or is waiting on the
@@ -156,6 +172,7 @@ export function quietSeedMaps(ask: SeedAsk): void {
   wanted = null;
   if (busy && busy.key !== key) stop();
   levels.clear();
+  if (ridden?.key !== key) ridden = null;
   pump();
 }
 
@@ -196,7 +213,7 @@ function pump(): void {
     const key = askKey(ask);
     const answer = answers.get(key);
     if (answer && !answer.ok) continue;
-    if (answer && levels.has(key)) continue;
+    if (answer && (levels.has(key) || ridden?.key === key)) continue;
     // Its kept chart looked for first: a map whose chart is kept is only
     // built, never painted.
     if (!answer && !looked.has(key)) {
@@ -400,8 +417,8 @@ export function freeRideLevel(
   face: string | undefined;
 } {
   const ask = freeAsk(options);
-  const held = heldLevel(ask);
-  let came: GeneratedLevel | null | undefined = held ?? undefined;
+  const held = heldLevel(ask) ?? riddenLevel(ask);
+  let came: Level | null | undefined = held ?? undefined;
   const building = held ? null : buildingLevel(ask);
   if (building) void building.then((level) => (came = level));
   else came ??= null;

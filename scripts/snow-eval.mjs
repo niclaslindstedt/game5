@@ -10,7 +10,11 @@
 // every cell alone (`<scene>-<light>-<lens>.png`) and `perf.json` — and the
 // FILM SCORE: the scenes a real one was measured for (`spray-film.ts`), six
 // moments each side-on to the throw, the drawn snow scored against the film
-// (`film.png`, `film.json`; 100 the film, ~50 every number twice off).
+// (`film.png`, `film.json`; 100 the film, ~50 every number twice off) —
+// and, with `--under`, THE SKIS UNDER THE SNOW: how far each ski's tip,
+// middle and tail stand under the snow drawn round it from the chase lens,
+// at every TERRAIN and TRAILS stop and both RESOLUTION ends (`under.png`,
+// `under.json`; `pwa/src/tools/snow-eval-skis.ts`).
 //
 // The page (`pwa/src/tools/snow-eval-harness.ts`) does the drawing; this
 // builds it into a one-off bundle (never deployed), serves it and
@@ -19,11 +23,11 @@
 //
 //   node scripts/snow-eval.mjs
 //   node scripts/snow-eval.mjs --scenes=hockey,board-heel --skip-build
-//   node scripts/snow-eval.mjs --model=sheet --out=previews/snow-eval-before
 //   node scripts/snow-eval.mjs --lights=low,overcast,night --film=none --no-perf
 //   node scripts/snow-eval.mjs --no-sheet --no-perf --film=day,low --scenes=hockey
 //   node scripts/snow-eval.mjs --flight=cpu --out=previews/snow-eval-cpu   (the spray on the CPU)
 //   node scripts/snow-eval.mjs --no-sheet --film=none --perf=hockey --perf-flight=gpu
+//   node scripts/snow-eval.mjs --no-sheet --film=none --no-perf --under=all
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -47,11 +51,6 @@ const args = parseArgs(
       help: "only these scenes (carve, hockey, board-heel, board-toe, powder, crater, track)",
     },
     out: { kind: "string", default: "previews/snow-eval", help: "where the pictures go" },
-    model: {
-      kind: "string",
-      default: "",
-      help: "fly the spray as this model (the game's own unless said)",
-    },
     lights: {
       kind: "string",
       default: "day,low",
@@ -63,6 +62,19 @@ const args = parseArgs(
       help: "the film score's lights (day, low, overcast, night; none skips it)",
     },
     "no-sheet": { kind: "flag", help: "skip the picture sheet" },
+    "deform-perf": {
+      kind: "flag",
+      help: "the deformable snow's cost at each TRAILS stop (HIGH preset): ms, draw calls, triangles",
+    },
+    "no-deform": {
+      kind: "flag",
+      help: "draw without the deformable snow (the trail map alone, the before)",
+    },
+    under: {
+      kind: "string",
+      default: "",
+      help: "the skis-under-the-snow table and sheet: scene ids (groomer, report, carve, powder, powder-carve) or all",
+    },
     width: { kind: "number", default: 480, help: "one cell's width, px" },
     height: { kind: "number", default: 320, help: "one cell's height, px" },
     "no-perf": { kind: "flag", help: "skip the cost at the three presets" },
@@ -120,12 +132,13 @@ page.setDefaultTimeout(args.timeout * 1000);
 const query = new URLSearchParams({
   seed: String(args.seed),
   scenes: args.scenes,
-  model: args.model,
   lights: args.lights,
   flight: args.flight,
   perf: args.perf,
   perfFlight: args["perf-flight"],
   film: args.film === "none" ? "" : args.film,
+  under: args.under,
+  deform: args["no-deform"] ? "0" : "1",
   w: String(args.width),
   h: String(args.height),
 }).toString();
@@ -149,6 +162,41 @@ if (!args["no-sheet"]) {
   console.log(
     `${sheetPath.replace(`${root}/`, "")} and ${drawn.cells.length} cells (${((Date.now() - t0) / 1000).toFixed(0)} s)`,
   );
+}
+if (args["deform-perf"]) {
+  const rows = await page.evaluate(() => globalThis.__snowEval.deformPerf());
+  if (crashed) process.exit(1);
+  writeFileSync(join(outDir, "deform-perf.json"), JSON.stringify(rows, null, 2));
+  console.log(
+    "the deformable snow by TRAILS stop (HIGH preset; software GL ms read against each other)",
+  );
+  console.log("scene    trails  frame ms  trail ms  calls  triangles  patch tris  dug kg");
+  for (const r of rows) {
+    console.log(
+      `${r.scene.padEnd(8)} ${r.trails.padEnd(7)} ${r.frameMs.toFixed(1).padStart(8)}  ${r.trailMs.toFixed(2).padStart(8)}  ${String(r.calls).padStart(5)}  ${String(r.triangles).padStart(9)}  ${String(r.patch).padStart(10)}  ${r.dug.toFixed(2).padStart(6)}`,
+    );
+  }
+}
+if (args.under) {
+  const t2 = Date.now();
+  const drawn = await page.evaluate(() => globalThis.__snowEval.under());
+  if (crashed) process.exit(1);
+  await page.setViewportSize({ width: drawn.w, height: drawn.h });
+  await page.locator("#sheet").screenshot({ path: join(outDir, "under.png") });
+  writeFileSync(join(outDir, "under.json"), JSON.stringify(drawn.rows, null, 2));
+  console.log(
+    `skis under the drawn snow (${((Date.now() - t2) / 1000).toFixed(0)} s), cm worst / mean, hidden = share > 2 cm under`,
+  );
+  const cm = (s) =>
+    Number.isFinite(s.worst)
+      ? `${(s.worst * 100).toFixed(1).padStart(5)}/${(s.mean * 100).toFixed(1).padStart(5)}`
+      : "    –/    –";
+  console.log("scene         terrain trails res   tip          mid          tail         hidden");
+  for (const r of drawn.rows) {
+    console.log(
+      `${r.scene.padEnd(13)} ${r.terrain.padEnd(7)} ${r.trails.padEnd(6)} ${r.resolution.padEnd(5)} ${cm(r.tip)}  ${cm(r.mid)}  ${cm(r.tail)}  ${(r.hidden * 100).toFixed(0).padStart(4)} %`,
+    );
+  }
 }
 if (args.film !== "none") {
   const t1 = Date.now();

@@ -39,6 +39,7 @@ import {
 } from "./bike-look.ts";
 import { buildFreerideBike } from "./bike-freeride.ts";
 import { animatedStyle } from "./bike-anim.ts";
+import { drawnBikePose, riderSlack } from "./rider-follow.ts";
 import type { BikeLook } from "./bike-variant.ts";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -544,6 +545,17 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
       }
       shown = { x, y, z, q: shownQ.copy(q) };
       const pose = bikePose(b);
+      // Ridden, moved as far as his place on it is drawn off the engine's
+      // (held through a jolt, `rider-follow.ts`), so his hands and feet stay
+      // on the grips and pedals.
+      const drawn = drawnBikePose(b, state.t);
+      if (b.onIt && b.mode === "ridden" && !state.skier.thrown) {
+        const slack = riderSlack(pose, drawn);
+        off.set(slack.x, slack.y, slack.z).applyQuaternion(q);
+        x += off.x;
+        y += off.y;
+        z += off.z;
+      }
       // THE FREERIDER'S STYLE: the bike thrown under him in the air, turned
       // about his centre of mass so his body stays where the engine has it
       // (the lens follows the bike as the engine has it, unturned).
@@ -552,7 +564,7 @@ export function createBikeView(haze: HazeUniforms, look: BikeLook = "trail"): Bi
         whipTurn.setFromAxisAngle(Y_AXIS, style.yaw);
         whipRoll.setFromAxisAngle(Z_AXIS, style.roll);
         whipTurn.multiply(whipRoll);
-        pivot.set(pose.rider.x + BIKE_BB.x, pose.rider.y + BIKE_BB.y, pose.rider.z + BIKE_BB.z);
+        pivot.set(drawn.rider.x + BIKE_BB.x, drawn.rider.y + BIKE_BB.y, drawn.rider.z + BIKE_BB.z);
         swung.copy(pivot).applyQuaternion(whipTurn).sub(pivot).applyQuaternion(q);
         x -= swung.x;
         y -= swung.y;

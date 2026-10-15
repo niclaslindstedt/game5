@@ -37,6 +37,9 @@ import {
   barSteer,
   createJumpTap,
   edgeReachPx,
+  createFlick,
+  flickDown,
+  flickMove,
   jumpTapDown,
   jumpTapUp,
   leverBrake,
@@ -290,6 +293,9 @@ function PadArt({ glyph }: { glyph: PadGlyph }) {
   );
 }
 
+/** How long the knob rings for a flick, ms. */
+const FLICK_RING_MS = 180;
+
 /** The lever's drawing: the whole throw runs DOWN from the anchor — the
  * tuck easing off to the shut mark, then the brake's past it — with room
  * round the track for the knob and its stroke, px. */
@@ -301,8 +307,9 @@ const LEVER_BOX_PX = LEVER_DOWN_PX + LEVER_PAD_PX * 2;
 /** The right thumb: touching anywhere in the zone anchors the LEVER, WIDE
  * OPEN, under the finger. Sliding DOWN eases the tuck off over
  * `LEVER_EASE_PX` to shut; further down, past a small dead band, pulls the
- * BRAKE over `LEVER_BRAKE_PX`. A TAP and then the thumb held straight back
- * down LOADS THE JUMP (`jumpTapDown`) — the lever still under it — and
+ * BRAKE over `LEVER_BRAKE_PX`. A quick FLICK UP JUMPS at once (`flickMove`),
+ * the harder the flick the higher. A TAP and then the thumb held straight back down
+ * LOADS THE JUMP too (`jumpTapDown`) — the lever still under it — and
  * lifting it springs him. Analogue the whole way, held while the finger
  * is down and let go on the lift. `input-model.ts` states the maths once. */
 export function LeverZone({
@@ -323,6 +330,8 @@ export function LeverZone({
   const fillRef = useRef<SVGRectElement>(null);
   const originRef = useRef(0);
   const tapRef = useRef(createJumpTap());
+  const flickRef = useRef(createFlick());
+  const flickTimer = useRef(0);
 
   const write = (tuck: number, brake: number): void => {
     touch.tuck = tuck;
@@ -346,6 +355,18 @@ export function LeverZone({
     fill.setAttribute("height", Math.abs(px - LEVER_EASE_PX).toFixed(1));
     fill.classList.toggle("hud-lever-fill-reverse", brake > 0);
   };
+  // A flick springs him the next step; the knob rings a moment for it.
+  const flickAt = (y: number): void => {
+    const pop = flickMove(flickRef.current, y, performance.now() / 1000);
+    if (pop <= 0) return;
+    touch.pop = pop;
+    leverRef.current?.classList.add("hud-lever-jump");
+    window.clearTimeout(flickTimer.current);
+    flickTimer.current = window.setTimeout(() => {
+      if (!touch.jump) leverRef.current?.classList.remove("hud-lever-jump");
+    }, FLICK_RING_MS);
+  };
+  useEffect(() => () => window.clearTimeout(flickTimer.current), []);
   const letGo = (): void => {
     jumpTapUp(tapRef.current, performance.now() / 1000);
     touch.lever = false;
@@ -378,6 +399,7 @@ export function LeverZone({
           lever.style.display = "block";
         }
         touch.lever = true;
+        flickDown(flickRef.current, e.clientY, performance.now() / 1000);
         touch.jump = jumpTapDown(tapRef.current, performance.now() / 1000);
         if (touch.jump) touch.tap2 = true;
         lever?.classList.toggle("hud-lever-jump", touch.jump);
@@ -387,8 +409,13 @@ export function LeverZone({
         if (!guard.owns(e.pointerId)) return;
         const dy = e.clientY - originRef.current;
         write(leverTuck(dy, feel), leverBrake(dy, feel));
+        flickAt(e.clientY);
       }}
-      onPointerUp={(e) => guard.release(e.pointerId)}
+      onPointerUp={(e) => {
+        // A flick thrown off the glass ends on the lift: its last height counts.
+        if (guard.owns(e.pointerId)) flickAt(e.clientY);
+        guard.release(e.pointerId);
+      }}
       onPointerCancel={(e) => guard.release(e.pointerId)}
       onLostPointerCapture={(e) => guard.release(e.pointerId)}
     >

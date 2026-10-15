@@ -6,6 +6,10 @@
 // his wounds carried, dies of `fire`); safe for work he is held off it; a
 // race has no fires to meet.
 
+// What the app draws on the snow is solid here as it is in the game
+// (`drawn-solids.ts`): the stations' houses, boards and signs, the fires'
+// benches.
+import "../pwa/src/game/drawn-solids.ts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,9 +22,9 @@ import {
   createGame,
   firesOf,
   levelDigest,
+  mapSolidsOf,
   outsideHub,
   placeRun,
-  solidsOf,
   step,
   type Cabin,
   type Fire,
@@ -106,7 +110,7 @@ describe("where the fires burn", () => {
   it("every fire and every bench is off the runs' snow, the benches facing it, no trunk in the ring", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
-      const solids = solidsOf(level);
+      const solids = mapSolidsOf(level);
       for (const f of firesOf(level)) {
         expect(level.packedAt(f.x, f.z), f.id).toBeLessThanOrEqual(0.25 + 1e-9);
         expect(f.seats.length).toBeGreaterThanOrEqual(FIRE_KINDS[f.kind].seats.least);

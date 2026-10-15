@@ -55,48 +55,18 @@ import { holdStance } from "./board-crash.ts";
 import { airDrag } from "./ragdoll-air.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
+import { MASS, RADIUS, RAGDOLL } from "./ragdoll-points.ts";
+
+export { RADIUS, RAGDOLL } from "./ragdoll-points.ts";
 
 const K = TUNING.crash;
 const B = K.body;
 const dt = TUNING.dt;
 
-/** The body's points, in the order `Thrown.points` keeps them (x y z each). */
-export const RAGDOLL = {
-  hipL: 0,
-  hipR: 1,
-  shoulderL: 2,
-  shoulderR: 3,
-  head: 4,
-  kneeL: 5,
-  kneeR: 6,
-  footL: 7,
-  footR: 8,
-  elbowL: 9,
-  elbowR: 10,
-  handL: 11,
-  handR: 12,
-  count: 13,
-} as const;
-
 const N = RAGDOLL.count;
 const T = K.tone;
-const M = B.mass;
-const MASS: number[] = [
-  M.hip,
-  M.hip,
-  M.shoulder,
-  M.shoulder,
-  M.head,
-  M.knee,
-  M.knee,
-  M.foot,
-  M.foot,
-];
-MASS.push(M.elbow, M.elbow, M.hand, M.hand);
 const W = MASS.map((m) => 1 / m);
 const TOTAL = MASS.reduce((a, m) => a + m, 0);
-export const RADIUS: number[] = [K.radius, K.radius, K.radius, K.radius, B.head];
-for (let i = 5; i < N; i++) RADIUS.push(B.limb);
 
 /** The torso and the head in the torso's own frame (x right, y up the
  * spine, z out of the chest; the origin between the hips). */
@@ -296,6 +266,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         const tree = solids[t];
         // A building's wall is met as the wall, below — never its posts.
         if (tree.wall || P[j + 1] > tree.y + tree.height) continue;
+        // The stem he is run through and sinking down is inside him.
+        if (b.pin && tree.x === b.pin.x && tree.z === b.pin.z) continue;
         const dx = P[j] - tree.x;
         const dz = P[j + 2] - tree.z;
         const d = hypot(dx, dz) || 1e-6;

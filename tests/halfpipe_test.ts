@@ -32,6 +32,7 @@ import {
   setHalfpipe,
   simulateRun,
   skisById,
+  spinSteer,
   step,
   wallAt,
   type FlightRecord,
@@ -184,10 +185,8 @@ describe("riding a wall (the synthetic pipe)", () => {
     );
   });
 
-  it("a 360 off the wall lands", () => {
-    const state = ride(17, 65, 4, (s, t) => ({
-      steer: s.skier.airborne && ((t > 1.1 && t < 1.18) || (t > 1.35 && t < 1.43)) ? -1 : 0,
-    }));
+  it("a 360 off the wall lands, wound up off the lip and timed down", () => {
+    const state = ride(17, 65, 4, (s) => ({ steer: spinSteer(s, 2, -1) }));
     const h = state.tricks.flights.find((f) => f.pipe)!;
     expect(Math.abs(h.spin)).toBeGreaterThan(1.8 * Math.PI);
     expect(state.skier.thrown).toBeNull();

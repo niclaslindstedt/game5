@@ -8,8 +8,7 @@
 // the loading card was standing the race up on it (`createGame` — a second
 // on a phone) and the world's renderer building every mesh of it (several
 // more). Both are a function of what is decided — so they are paid for here,
-// behind the start card once its rows have been still a moment, and behind
-// the rider and gear cards, whose own stage covers the whole screen
+// behind the rider and gear cards, whose own stage covers the whole screen
 // (`menu-stage.tsx`) — and the press on RIDE finds them done.
 //
 // WHAT IS STAGED IS THE WORLD, NOT THE RUN. The run RIDE stands up is a new

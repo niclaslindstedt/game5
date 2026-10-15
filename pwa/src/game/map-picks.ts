@@ -48,7 +48,7 @@ export function mapPicks(world: {
     openCard: (mode, page) => {
       world.mode.current = mode;
       raceSkis(mode);
-      // A first free ride stands on a real range rather than GENERATED.
+      // A first free ride stands on GENERATED, the quickest mountain.
       if (mode === "free") world.setSettings((s) => ({ ...s, ride: firstWhere(s.ride) }));
       world.setPage(page);
     },

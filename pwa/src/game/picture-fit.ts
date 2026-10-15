@@ -82,7 +82,11 @@ export const FLOOR_MS = 3.81;
  * furrow, hard to see at speed.
  * TRAILS: the furrows are the game — OFF leaves the snow untouched behind
  * every skier, which is the heaviest loss on the list; the stops over LOW
- * are sharper and reach further.
+ * are sharper and reach further. MEDIUM and HIGH also draw the snow round
+ * the player as a deformable volume (`deform-snow.ts`): real trenches, a
+ * fall's crater, the berm a stop throws up, self-shadowed — the biggest
+ * gain on the row after the furrows themselves (+8 and +10 over the
+ * trail map's own).
  * FOREST: how far the full trees run before the sketch, and how thick the
  * far woods stand.
  * SHADOWS: the trees' shadows (MEDIUM) are the woods' depth, the skiers' own
@@ -93,8 +97,18 @@ export const FLOOR_MS = 3.81;
  *   CPU's spray time fell by a third to two thirds and its upload by seven
  *   eighths under the snow lab's software GPU, while the vertex stage flies
  *   a ring half as large again as the pool. The prices below were measured
- *   with the CPU's flight; a `make bench ARGS="--gpu --costs"` on a real GPU
- *   is owed to re-price the row.
+ *   with the old counted spray on the CPU's flight, which drew some 70, 130
+ *   and 200 grains at LOW, MEDIUM and HIGH through a hockey stop; the
+ *   weighed spray draws some 3,150, 5,850 and 9,000 there (the snow lab's
+ *   perf rows), each a cheap streak on the GPU. Kept as they were — the
+ *   software renderer's frame times are too noisy to price a row by — and
+ *   OWED A GPU RE-PRICE (`make bench ARGS="--gpu --costs"`).
+ * The TRAILS prices stand for the snow kept under the skis too: the
+ *   player's and the two nearest rivals' bases let the ground down in the
+ *   vertex stage at every stop (`ski-clear.ts`, a few dozen vector ops a
+ *   vertex, no texture read), and OFF and LOW draw the bases' own groove in
+ *   the fragment stage — too small to price apart, and OWED A GPU RE-PRICE
+ *   with the row.
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
  * the lower stops give up, and LOW the snow's glitter in the beams. The
@@ -145,11 +159,23 @@ export const PICTURE_PRICES: PriceList = {
     medium: { cost: 0, benefit: 8 },
     high: { cost: 0.21, benefit: 12 },
   },
+  // MEDIUM and HIGH carry the deformable snow, added after the costs under
+  // it were measured on a GPU: SOFTWARE-SCALED, AN ESTIMATE OWED A REAL
+  // GPU'S RE-PRICE (`make bench ARGS="--gpu --costs"`). Its patch (80k and
+  // 115k triangles, one draw call) and self-shadow march (7 and 14 steps)
+  // added +42 % to +57 % to the snow lab's software frame at 960 × 540,
+  // about 2,000 software ms; at RESOLUTION's 0.00044 reference ms a
+  // software ms of pixel work at 1280 × 720 (DISTANCE's note), 1.78 times
+  // that at 960 × 540, that is about 1.5 ms with the full march — taken as
+  // +1.0 at MEDIUM's half march and +1.6 at HIGH's. The field's own CPU
+  // (the presses, the settling, the upload) is a few tenths of a
+  // millisecond riding, more under a fall (`make snow-eval
+  // ARGS=--deform-perf`).
   trails: {
     off: { cost: 0, benefit: 0 },
     low: { cost: 0.06, benefit: 50 },
-    medium: { cost: 0.16, benefit: 58 },
-    high: { cost: 0.24, benefit: 62 },
+    medium: { cost: 1.16, benefit: 66 },
+    high: { cost: 1.84, benefit: 72 },
   },
   // Measured on a winter race. A SUMMER free ride also draws the grass the
   // row reaches (`FOREST_LOOK[...].grass`): ESTIMATED, not measured, at about

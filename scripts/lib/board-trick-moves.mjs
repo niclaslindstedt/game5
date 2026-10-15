@@ -100,7 +100,7 @@ export const BOARD_TRICK_MOVES = [
   ...GRAB_ASKS.map(grabMove),
   {
     id: "spin",
-    title: "a BACKSIDE 360 off a kicker's flight: two taps of the edge to the right",
+    title: "a BACKSIDE 360 off a kicker's flight: the edge thrown right, spotted square",
     level: LANDING,
     place: RUN_IN,
     mode: "tricks",
@@ -108,13 +108,13 @@ export const BOARD_TRICK_MOVES = [
     window: [1.1, 3.4],
     input: (_t, st, E) => ({
       ...IDLE,
-      steer: aloft(st, 0.1, 0.15) || aloft(st, 0.2, 0.25) ? 1 : 0,
+      steer: st.skier.airborne ? E.spinSteer(st, 2, 1) : 0,
       lean: levelled(KICKERS.park, 0.75)(st, E),
     }),
   },
   // The loops off the big kicker (the skier's own are `flip-moves.mjs`'s,
-  // off a flight begun in the air): the lean held once he is up and let go
-  // in time to come round (`strokes.ts`'s `flipLean`) — round from the lip's
+  // off a flight begun in the air): the lean thrown off the lip and tucked
+  // or opened to come round (`strokes.ts`'s `flipLean`) — round from the lip's
   // pitch to the landing's, 59° short of a whole loop backward and past it
   // forward, as a rider spots his landing — and a held spin.
   ...[
@@ -134,13 +134,13 @@ export const BOARD_TRICK_MOVES = [
     seconds: 4,
     window: [1.0, 3.8],
     input: (_t, st, E) => {
-      if (!st.skier.airborne || st.skier.airTime <= 0.25) return IDLE;
+      if (!st.skier.airborne) return IDLE;
       return { ...IDLE, lean: E.flipLean(st, loops, lean) };
     },
   })),
   {
     id: "spin-held",
-    title: "a spin off the big kicker: the edge held over, let go, settled square",
+    title: "a 360 off the big kicker: the edge thrown over, spotted square",
     level: kickerLevel(KICKERS.big),
     place: runIn(KICKERS.big),
     mode: "tricks",
@@ -148,7 +148,7 @@ export const BOARD_TRICK_MOVES = [
     window: [1.0, 3.8],
     input: (_t, st, E) => ({
       ...IDLE,
-      steer: aloft(st, 0.25, 0.8) ? 1 : 0,
+      steer: st.skier.airborne ? E.spinSteer(st, 2, 1) : 0,
       lean: levelled(KICKERS.big, 0.9)(st, E),
     }),
   },

@@ -131,6 +131,7 @@ const ctx = {
   G: await import(join(root, "pwa/src/game/skis-body.ts")),
   BIKE: await import(join(root, "pwa/src/game/skier-bike.ts")),
   LOOK: await import(join(root, "pwa/src/game/bike-look.ts")),
+  FOLLOW: await import(join(root, "pwa/src/game/rider-follow.ts")),
   ANIM: await import(join(root, "pwa/src/game/bike-anim.ts")),
   bikeLook: args["bike-look"],
 };

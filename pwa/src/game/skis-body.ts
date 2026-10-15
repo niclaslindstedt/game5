@@ -205,6 +205,10 @@ export type SkisModel = {
     flip?: FlipThrow | null,
   ): void;
   setSkierVisible(visible: boolean): void;
+  /** Each ski's (or the board's) own mesh as posed, its base the bottom of
+   * its geometry — what the snow lab measures the drawn snow against
+   * (`snow-under.ts`). */
+  readonly bases: readonly THREE.Mesh[];
   /** SAT ON A HELICOPTER'S SKID (`heli.ts`): the skid's top in his body
    * frame and what his dangling legs feel there (`skier-dangle.ts`), or
    * null off it — read at the next pose. */
@@ -537,6 +541,7 @@ export function createSkisModel(
 
   return {
     root,
+    bases: gear.skis.map(skiMesh),
     lamp,
     casters: [merged.mesh, ...figure.skin, ...(models?.meshes ?? [])],
     bound(out) {
@@ -953,4 +958,15 @@ export function createSkisModel(
       models?.dispose();
     },
   };
+}
+
+/** A ski's own mesh in its gear group: the first mesh under it (`buildGear`
+ * adds the ski before its decals, plate and binding). */
+function skiMesh(group: THREE.Group): THREE.Mesh {
+  let found: THREE.Mesh | null = null;
+  group.traverse((o) => {
+    if (!found && (o as THREE.Mesh).isMesh) found = o as THREE.Mesh;
+  });
+  if (!found) throw new Error("a ski's gear group holds no mesh");
+  return found;
 }

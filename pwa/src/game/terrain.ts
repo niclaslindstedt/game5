@@ -60,6 +60,7 @@ import {
 } from "./snow-glsl.ts";
 import type { TerrainLook } from "./settings-video.ts";
 import type { TrailUniforms } from "./trail-map.ts";
+import type { DeformLook } from "./deform-field.ts";
 import { createTreeWells } from "./tree-wells.ts";
 import { trackFrameOf } from "./piste-tracks.ts";
 import { SUMMER_CHUNKS, type SummerTerrain } from "./summer-terrain.ts";
@@ -71,6 +72,9 @@ export type TerrainOptions = TerrainLook & {
   /** A SUMMER map's ground (`summer-terrain.ts`), and its grass's reach. */
   summer?: SummerTerrain;
   grass?: GrassLook;
+  /** THE DEFORMABLE SNOW's field (`deform-snow.ts`), drawn as a mesh of its
+   * own a vertex a cell inside level 0, where the trail uniforms say it is. */
+  deform?: DeformLook;
 };
 
 export type Terrain = {
@@ -273,7 +277,9 @@ function trackDirection(level: Level): Uint8Array {
   for (let i = 0; i < out.length; i += 4) {
     out[i] = 128;
     out[i + 1] = 128;
+    out[i + 3] = 128;
   }
+  foldSurface(level, out);
   const toe = LEVEL_RULES.track.shoulder.flat;
   const bench = toe + LEVEL_RULES.berm.width;
   for (const p of level.track.points) {
@@ -378,7 +384,7 @@ function groundTextures(level: Level) {
       ground[k * 4] = h(gx);
       ground[k * 4 + 1] = h(gz);
       // The GROOMED share: the packed field less what the region laid
-      // itself (R21), which the surface map carries instead.
+      // itself (R21), which the track map's alpha carries instead.
       const packed = level.packed ? level.packed.data[k] : level.packedAt(x, z);
       const wild = Math.max(
         level.crust ? level.crust.data[k] * support : 0,
@@ -426,29 +432,23 @@ function groundTextures(level: Level) {
     1 / (tf.cols * tf.cell),
     1 / (tf.rows * tf.cell),
   );
-  return { height, ground: groundTex, dir, frame, frameBox, surface: surfaceTexture(level) };
+  return { height, ground: groundTex, dir, frame, frameBox };
 }
 
-/** R21 — the wind crust (R) and the river's ice (G) on the ground's grid; a
- * single black texel where the region lays neither. */
-function surfaceTexture(level: Level): THREE.DataTexture {
-  const f = level.ground;
+/** R21 — the wind crust and the river's ice on the ground's grid, folded
+ * into the track map's spare ALPHA as one signed share: 0.5 bare, above it
+ * the crust, below it the ice (`snow-glsl.ts` decodes it). No region lays
+ * both on one cell — none lays ice at all today — so nothing is lost, and
+ * the ground's fragment shader reads one texture fewer: with the shadow
+ * maps it is at the sixteen a phone's GPU allows a stage (WebGL 2's
+ * least), and one past that is a ground that does not draw. */
+function foldSurface(level: Level, out: Uint8Array): void {
   const { crust, ice } = level;
-  if (!crust && !ice) {
-    const none = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat);
-    none.needsUpdate = true;
-    return none;
+  if (!crust && !ice) return;
+  for (let k = 0; k < out.length / 4; k++) {
+    const share = (crust ? crust.data[k] : 0) - (ice ? ice.data[k] : 0);
+    out[k * 4 + 3] = 128 + Math.round(Math.max(-1, Math.min(1, share)) * 127);
   }
-  const data = new Uint8Array(f.cols * f.rows * 4);
-  for (let k = 0; k < f.cols * f.rows; k++) {
-    data[k * 4] = Math.round((crust ? crust.data[k] : 0) * 255);
-    data[k * 4 + 1] = Math.round((ice ? ice.data[k] : 0) * 255);
-  }
-  const tex = new THREE.DataTexture(data, f.cols, f.rows, THREE.RGBAFormat);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.needsUpdate = true;
-  return tex;
 }
 
 export function createTerrain(
@@ -473,7 +473,6 @@ export function createTerrain(
     uTrackDir: { value: tex.dir },
     uTrackFrame: { value: tex.frame },
     uTrackFrameBox: { value: tex.frameBox },
-    uSurface: { value: tex.surface },
     uForestTint: { value: new THREE.Vector3(...look.forestTint) },
     uCrustTone: { value: new THREE.Vector3(...look.crust) },
     uIceTone: { value: new THREE.Vector3(...look.ice) },
@@ -485,6 +484,8 @@ export function createTerrain(
     uHeightCount: { value: new THREE.Vector2(f.cols, f.rows) },
     uCell: { value: f.cell },
     uGridHalf: { value: options.n / 2 },
+    uReliefHalf: { value: options.n / 2 },
+    uDeformMesh: { value: 0 },
     uBaseSpacing: { value: options.spacing },
     ...options.summer?.uniforms,
   };
@@ -603,7 +604,8 @@ export function createTerrain(
     levels.push({ mesh, spacing, centre, hole, plain: material, cutting, whole: l === 0 });
   }
 
-  type Own = Record<"uLevelCentre" | "uSpacing" | "uHole", THREE.IUniform>;
+  type Own = Record<"uLevelCentre" | "uSpacing" | "uHole", THREE.IUniform> &
+    Partial<Record<"uGridHalf" | "uDeformMesh", THREE.IUniform>>;
   /** A level's ground, keeping the snow out of the rooms (`cut`) or not. */
   function groundMaterial(cut: boolean, own: Own): THREE.MeshStandardMaterial {
     const material = new THREE.MeshStandardMaterial({
@@ -650,6 +652,36 @@ export function createTerrain(
         );
     });
     return material;
+  }
+
+  // THE DEFORMABLE SNOW'S MESH: the field's own cells as vertices, drawn by
+  // the ground's program (its relief read off the field), set into level 0
+  // where level 0's vertices inside it are sunk out of sight.
+  const dl = options.deform;
+  const patch = dl ? deformPatch(dl) : null;
+  function deformPatch(look: DeformLook) {
+    const span = Math.round((2 * look.half) / look.cell);
+    const centre = new THREE.Vector2();
+    const own: Own = {
+      uLevelCentre: { value: centre },
+      uSpacing: { value: look.cell },
+      uHole: { value: new THREE.Vector4(0, 0, 0, 0) },
+      uGridHalf: { value: span / 2 },
+      uDeformMesh: { value: 1 },
+    };
+    const plain = groundMaterial(false, own);
+    const cutting = groundMaterial(true, own);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", gridVertices(span));
+    geometry.setIndex(new THREE.BufferAttribute(clipmapIndices(span, 0, 0), 1));
+    const mesh = new THREE.Mesh(geometry, plain);
+    mesh.frustumCulled = false;
+    mesh.receiveShadow = true;
+    mesh.matrixAutoUpdate = false;
+    mesh.visible = false;
+    mesh.name = "terrain-deform";
+    group.add(mesh);
+    return { mesh, centre, plain, cutting, look };
   }
 
   // THE GRASS round the lens, on the ground's own uniforms.
@@ -730,6 +762,24 @@ export function createTerrain(
       const reachOf = (l: number): number => half * levels[l].spacing;
       const last = lastLevel(reach, levels.length, reachOf);
       const base = baseLevel(over, last, reachOf);
+      // The deformable snow's mesh, where its field stands and level 0 is drawn
+      // round it with room to spare.
+      let deform = false;
+      if (patch) {
+        const box = trail.uDeformBox.value;
+        const lv0 = levels[0];
+        const room = half * lv0.spacing - patch.look.half - 4 * lv0.spacing;
+        deform =
+          trail.uDeformOn.value > 0.5 &&
+          base === 0 &&
+          Math.max(
+            Math.abs(box.x - Math.round(x / (lv0.spacing * 2)) * lv0.spacing * 2),
+            Math.abs(box.y - Math.round(z / (lv0.spacing * 2)) * lv0.spacing * 2),
+          ) < room;
+        patch.mesh.visible = deform;
+        patch.centre.set(box.x, box.y);
+        patch.mesh.material = cut ? patch.cutting : patch.plain;
+      }
       for (let l = 0; l < levels.length; l++) {
         const lv = levels[l];
         lv.mesh.material = cut ? lv.cutting : lv.plain;
@@ -746,7 +796,12 @@ export function createTerrain(
           lv.mesh.geometry.setIndex(whole ? fullIndex : ringIndex);
         }
         if (whole) {
-          lv.hole.set(0, 0, 0, 0);
+          // Level 0's vertices under the deformable snow's mesh sunk a metre
+          // and a half out of sight (`SNOW_VERTEX_PLACE`): it stands there.
+          if (l === 0 && deform && patch) {
+            const box = trail.uDeformBox.value;
+            lv.hole.set(box.x, box.y, patch.look.half, 2.6);
+          } else lv.hole.set(0, 0, 0, 0);
           lv.mesh.visible = true;
           lv.mesh.geometry.setDrawRange(0, Infinity);
           continue;
@@ -767,6 +822,11 @@ export function createTerrain(
         lv.cutting.dispose();
       }
       warm?.geometry.dispose();
+      if (patch) {
+        patch.mesh.geometry.dispose();
+        patch.plain.dispose();
+        patch.cutting.dispose();
+      }
       wells.dispose();
       grass?.dispose();
       summer?.dispose();
@@ -780,7 +840,6 @@ export function createTerrain(
       tex.ground.dispose();
       tex.dir.dispose();
       tex.frame.dispose();
-      tex.surface.dispose();
     },
   };
 }

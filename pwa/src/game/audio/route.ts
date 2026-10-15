@@ -516,6 +516,13 @@ export function soundForEvent(
             id: "bike_crash",
             shape: { ...heard, gain: heard.gain! * (0.6 + 0.6 * ramp(event.speed, 0, 14)) },
           };
+        // Caught in it, or met by it as he came off: its steel again, lower.
+        case "snag":
+        case "struck":
+          return {
+            id: "bike_crash",
+            shape: { ...heard, gain: heard.gain! * 0.5, pitch: 1.25 },
+          };
         default:
           return null;
       }

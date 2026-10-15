@@ -18,6 +18,7 @@ import { gunSolid, standingGuns } from "./snow-guns.ts";
 import { uprightsNear, type Upright } from "./upright-grid.ts";
 import { felledTrees } from "./felled.ts";
 import { villageSolids } from "./village.ts";
+import { drawnSolidsOf } from "./drawn-solids.ts";
 
 const lists = new WeakMap<Level, Upright[]>();
 
@@ -64,16 +65,17 @@ function padRadius(column: number): number {
   return (column * Math.SQRT2 + TOWER_PAD.thick) * Math.cos(Math.PI / 8);
 }
 
-const solids = new WeakMap<Level, Upright[]>();
+const placed = new WeakMap<Level, readonly Upright[]>();
+const solids = new WeakMap<Level, readonly Upright[]>();
 
-/** EVERYTHING SOLID standing in `level`'s snow: its trunks, in
+/** WHAT THE MAP ITSELF STANDS in `level`'s snow: its trunks, in
  * `level.trees`' order — so a trunk's index is its index there — then its
- * posts, then its buildings' walls as posts
- * (`building-walls.ts`), then the rock walls of
- * its cliffs (`cliff-wall.ts`). What a skier, his body thrown, his skis let go
- * and the snowmobile are pushed out of. */
-export function solidsOf(level: Level): readonly Upright[] {
-  let list = solids.get(level);
+ * posts, then its buildings' walls as posts (`building-walls.ts`), then the
+ * rock walls of its cliffs (`cliff-wall.ts`). What anything PLACED on the
+ * map keeps clear of (`fires.ts`), so a placement never hangs on what the
+ * host draws. */
+export function mapSolidsOf(level: Level): readonly Upright[] {
+  let list = placed.get(level);
   if (list) return list;
   const posts = postsOf(level);
   const cabins = cabinWalls(level);
@@ -90,6 +92,21 @@ export function solidsOf(level: Level): readonly Upright[] {
     trees === level.trees && posts.length + cabins.length + rocks.length + village.length === 0
       ? level.trees
       : [...trees, ...posts, ...cabins, ...rocks, ...village];
+  placed.set(level, list);
+  return list;
+}
+
+/** EVERYTHING SOLID standing in `level`'s snow: the map's own
+ * (`mapSolidsOf`), then what the host draws on it made solid
+ * (`drawn-solids.ts`) — the stations' houses, the signs, the fires' benches.
+ * What a skier, his body thrown, his skis let go and the machines are
+ * pushed out of. */
+export function solidsOf(level: Level): readonly Upright[] {
+  let list = solids.get(level);
+  if (list) return list;
+  const own = mapSolidsOf(level);
+  const drawn = drawnSolidsOf(level);
+  list = drawn.length === 0 ? own : [...own, ...drawn];
   solids.set(level, list);
   return list;
 }

@@ -28,7 +28,7 @@ import { clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
 import { SKIS, inertiaOf } from "./defs/skis.ts";
 import { pipeLanding } from "./pipe-air.ts";
-import type { Level } from "../mapgen/types.ts";
+import type { Level, Vec3 } from "../mapgen/types.ts";
 import type { SkierState } from "./state.ts";
 
 const A = TUNING.air;
@@ -43,8 +43,12 @@ export function airTorque(
   level = 1,
   landing: Landing | null = null,
   backward = false,
+  trim = 1,
 ): void {
-  out.x += -A.leanTorque * c.lean;
+  // `trim` is what the lean's torque is left once a trick run's take-off
+  // window has shut (`TUNING.tricks.trim`): the arms and hips trim a
+  // landing; the turn itself was set at the lip.
+  out.x += -A.leanTorque * trim * c.lean;
   out.y += A.steerTorque * c.steer;
   // Roll right-side-down is a negative rotation about the forward axis, so
   // a positive torque takes it back. Past a steep roll the skier has lost
@@ -108,8 +112,16 @@ export function airTorque(
 
 /** Where a flight comes down: `t` s from now, onto snow whose slope along
  * the skis is `slope` rad (tips-up positive, as `pitch` is), meeting it at
- * `into` m/s into the slope. */
-export type Landing = { t: number; slope: number; into: number };
+ * `into` m/s into the slope, at (`x`, `z`). */
+export type Landing = {
+  t: number;
+  slope: number;
+  into: number;
+  x: number;
+  z: number;
+  /** A pipe's wall where it is met: its normal there. */
+  wall?: Vec3;
+};
 
 /** The arc's own time step, s, and how far ahead it is traced, s. */
 const ARC_STEP = 1 / 30;
@@ -121,13 +133,13 @@ const ARC_HORIZON = 3;
  * height over the snow, and the slope there along the skis; null if the
  * snow does not come back within `ARC_HORIZON`. A pure function of the
  * skier and the map: it draws nothing and remembers nothing. */
-export function landingAhead(c: SkierState, level: Level, fall: number): Landing | null {
+export function landingAhead(c: SkierState, level: Level, fall: number, lift = 0): Landing | null {
   // A pipe's wall is met along its normal, not under the CoG (`pipe-air.ts`).
   if (level.pipe) {
     const down = pipeLanding(level, c, fall);
-    return down ? { t: down.t, slope: 0, into: 0 } : null;
+    return down ? { t: down.t, slope: 0, into: 0, x: c.x, z: c.z, wall: down.n } : null;
   }
-  const stand = c.spec.cogHeight;
+  const stand = c.spec.cogHeight + lift;
   let x = c.x;
   let y = c.y;
   let z = c.z;
@@ -143,7 +155,7 @@ export function landingAhead(c: SkierState, level: Level, fall: number): Landing
     const fz = Math.cos(c.heading);
     const rise = -(ground.x * fx + ground.z * fz) / Math.max(0.2, ground.y);
     const into = -(c.vx * ground.x + vy * ground.y + c.vz * ground.z);
-    return { t, slope: Math.atan(rise), into };
+    return { t, slope: Math.atan(rise), into, x, z };
   }
   return null;
 }

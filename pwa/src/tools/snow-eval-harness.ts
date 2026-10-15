@@ -38,13 +38,15 @@ import type { LensPose } from "../game/camera-rigs.ts";
 import { holdInput } from "../game/hold-input.ts";
 import type { SnowAgeKind } from "../game/snow-age.ts";
 import type { SnowKind } from "../game/snowpack.ts";
-import { createWorldRenderer } from "../game/renderer.ts";
-import { flySprayAs, flySprayOn } from "../game/spray.ts";
+import { createWorldRenderer, type WorldRendererExt } from "../game/renderer.ts";
+import { flySprayOn } from "../game/spray.ts";
 import { SPRAY_STATS } from "../game/spray-stats.ts";
-import { SPRAY_MODELS, type SprayModel } from "../game/spray-sim.ts";
 import { DEFAULT_VIDEO, withPreset, type Tier } from "../game/settings-video.ts";
 import { hourAt, meadow, pisteSpot } from "./stage.ts";
 import { FILM_SCENES, filmMeans, filmSheet, type FilmCell } from "./snow-eval-film.ts";
+import { deformAs } from "../game/deform-snow.ts";
+import { underSheet, type UnderRow } from "./snow-eval-skis.ts";
+import { deformPerf, deformPerfScenes, type DeformPerfRow } from "./snow-eval-deform.ts";
 
 declare global {
   interface Window {
@@ -53,6 +55,8 @@ declare global {
       sheet(): Promise<SheetOut>;
       perf(): Promise<PerfRow[]>;
       film(): Promise<FilmOut>;
+      under(): Promise<{ w: number; h: number; rows: UnderRow[] }>;
+      deformPerf(): Promise<DeformPerfRow[]>;
     };
   }
 }
@@ -116,15 +120,13 @@ const filmLights = list("film", "day,low").filter((l) => l in LIGHTS);
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
-// `?model=` flies the spray as another model (the game's before): every
-// spray made from now on.
-const model = params.get("model");
-if (model && (SPRAY_MODELS as readonly string[]).includes(model)) flySprayAs(model as SprayModel);
 // `?flight=cpu|gpu` flies the weighed spray one way at every stop (the
 // SPRAY row's own way unless said).
 const flight = params.get("flight");
+// `deform=0`: the game without the deformable snow, the trail map alone (a BEFORE).
+if (params.get("deform") === "0") deformAs(false);
 if (flight === "cpu" || flight === "gpu") flySprayOn(flight === "gpu");
-const renderer = createWorldRenderer(stage, {
+const renderer: WorldRendererExt = createWorldRenderer(stage, {
   video: withPreset(DEFAULT_VIDEO, "high"),
   preserveDrawingBuffer: true,
 });
@@ -580,6 +582,14 @@ window.__snowEval = {
     renderer.setSky(null);
     renderer.setSnow(null, null);
     return rows;
+  },
+  under() {
+    const ids = (params.get("under") ?? "").split(",").filter((id) => id && id !== "all");
+    return underSheet({ renderer, level, stage, sheet, cellW, cellH, loaded }, ids);
+  },
+  deformPerf() {
+    const spot = (id: string) => spotOf(ALL_SCENES.find((s) => s.id === id)!);
+    return deformPerf({ renderer, level, stage, loaded, scenes: deformPerfScenes(spot) });
   },
   async film() {
     const scenes = FILM_SCENES.filter((f) => only.length === 0 || only.includes(f.id));

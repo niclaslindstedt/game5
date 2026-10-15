@@ -152,13 +152,15 @@ describe("which snow lies where", () => {
 describe("what the snow does to a track", () => {
   it("takes a skier's furrow deepest in new snow and shallowest on the groomer", () => {
     const c = contact();
-    const at = (k: SnowKind) => drawnDepth(c, 0, 1, 1, SNOW[k]);
+    // (On the packed field, where no loose cover is drawn over the ground
+    // for the floor to reach down through.)
+    const at = (k: SnowKind) => drawnDepth(c, 1, 1, 1, SNOW[k]);
     expect(at("new")).toBeGreaterThan(at("soft"));
     expect(at("soft")).toBeGreaterThan(at("wet"));
     expect(at("wet")).toBeGreaterThan(at("hard"));
     expect(at("hard")).toBeGreaterThan(at("groomed"));
     // ...and never shallower than the physics' own sink.
-    expect(drawnDepth(contact({ sink: 0.2 }), 0, 1, 1, SNOW.groomed)).toBeCloseTo(0.2, 6);
+    expect(drawnDepth(contact({ sink: 0.2 }), 1, 1, 1, SNOW.groomed)).toBeCloseTo(0.2, 6);
   });
 
   it("stamps the snow's walls and berm with every capsule", () => {

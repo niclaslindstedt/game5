@@ -56,7 +56,6 @@ import {
   isBoard,
 } from "@engine";
 
-import { DEFAULT_FACE } from "./face-picks.ts";
 import { runNumbers } from "./run-names.ts";
 
 /** THE FREE RIDE'S MOUNTAINS, IN ORDER: the map the start card opens on
@@ -162,8 +161,10 @@ export type FreeRide = {
    * (`avalanche.ts`). On unless the player turns them off. */
   avalanche: boolean;
   /** Whether the WHERE steps have been opened on this ride: the first time
-   * they are, the ride is stood on the first real range (`firstWhere`). */
-  placed: boolean;
+   * they are, the ride is stood on GENERATED (`firstWhere`). Stored under a
+   * name of its own so a ride an older build stood on a real range is
+   * stood on GENERATED once more. */
+  where: boolean;
 };
 
 export function freshRide(): FreeRide {
@@ -179,7 +180,7 @@ export function freshRide(): FreeRide {
     grade: null,
     run: null,
     avalanche: true,
-    placed: false,
+    where: false,
   };
 }
 
@@ -213,7 +214,7 @@ export function mergeRide(blob: unknown): FreeRide {
   }
   if (isRegionId(b.region)) out.region = b.region;
   if (typeof b.avalanche === "boolean") out.avalanche = b.avalanche;
-  if (typeof b.placed === "boolean") out.placed = b.placed;
+  if (typeof b.where === "boolean") out.where = b.where;
   // A face is kept only in its own country: a face stored under another
   // region (or one this build has not baked) is the dealt massif.
   if (typeof b.face === "string" && realFaceRegion(b.face) === out.region) out.face = b.face;
@@ -789,10 +790,11 @@ export function rideOnFace(ride: FreeRide, face: string | null): FreeRide {
   return { ...ride, face, region, spot: null, run: null };
 }
 
-/** THE WHERE STEPS OPENED FOR THE FIRST TIME: the ride is stood on the first
- * real range's first mountain (`DEFAULT_FACE`) rather than on
- * GENERATED; after that, wherever the skier last left it. */
+/** THE WHERE STEPS OPENED FOR THE FIRST TIME: the ride is stood on
+ * GENERATED — the seed's own mountain, the quickest to stand up — rather
+ * than on a real range; after that, wherever the skier last left it. */
 export function firstWhere(ride: FreeRide): FreeRide {
-  if (ride.placed) return ride;
-  return { ...(DEFAULT_FACE ? rideOnFace(ride, DEFAULT_FACE) : ride), placed: true };
+  if (ride.where) return ride;
+  const generated = ride.face === null ? ride : { ...ride, face: null, spot: null, run: null };
+  return { ...generated, where: true };
 }

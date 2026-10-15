@@ -205,7 +205,8 @@ export function readEvents(
 /* ── THE RIG ───────────────────────────────────────────────────────────── */
 
 export type ChallengeRig = {
-  /** A new run stood up: judged when it is a free ride the player rides. */
+  /** A new run stood up: judged when it is a WINTER free ride the player
+   * rides — summer's bike is another sport, and its ride deals none. */
   arm(state: GameState, mode: GameMode, rides: boolean): void;
   /** After a step the player rode: the news lines it earned. */
   step(state: GameState): NewsLine[];
@@ -221,7 +222,7 @@ const ON_DEVICE: ChallengeStore = {
 export function createChallengeRig(store: ChallengeStore = ON_DEVICE): ChallengeRig {
   return {
     arm(state, mode, rides) {
-      if (!rides || mode !== "free" || !state.level.resort) return;
+      if (!rides || mode !== "free" || state.summer || !state.level.resort) return;
       const book = store.load();
       const run = createChallengeRun(state.level, memoryOf(book, challengeKey(state.level)));
       sessions.set(state, { run, level: state.level, book, plate: null });

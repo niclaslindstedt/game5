@@ -6,10 +6,12 @@
 // running.
 //
 // THREE THINGS, BY HOW OFTEN THEY ARE WANTED. PLAY is the lit slab and the
-// only red on the card: it opens the door's second page, where the three
-// ways onto the snow stand — RACE (the race card, `menu-races.tsx`, each
-// discipline on its pinned maps), TRICKS (the freestyle card,
-// `menu-freestyle.tsx`) and FREE RIDE (its start card, `menu-start.tsx`).
+// only red on the card: it goes straight onto the FREE RIDE (its WHERE
+// steps, then its start card, `menu-start.tsx`). With the races let out
+// (`racesOpen`: DEVELOPER only) it opens the door's second page instead,
+// where the three ways onto the snow stand — RACE (the race card,
+// `menu-races.tsx`, each discipline on its pinned maps), TRICKS (the
+// freestyle card, `menu-freestyle.tsx`) and FREE RIDE.
 // OPTIONS is the second slab, as big and quieter: every setting, the sound
 // included, lives there. Under them, small, the two things that are not a
 // run at all — the GALLERY of pictures kept and the STATISTICS — and
@@ -31,7 +33,7 @@ import { DISCIPLINES, SLALOM } from "@engine";
 import { REPO_URL } from "../identity.ts";
 import { Glyph } from "./menu-glyphs.tsx";
 import { NO_HOLD, holdWait, tickHold, type HoldState } from "./menu-hold.ts";
-import { DEV_HOLD_MS } from "./settings.ts";
+import { DEV_HOLD_MS, racesOpen } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
 import { TitleLogo } from "./title-logo.tsx";
 import type { MenuPage } from "./url-params.ts";
@@ -107,7 +109,10 @@ export function MainMenu({
 }) {
   const hold = useTitleHold(onHeld);
   const lean = useLean();
-  const play = page === "play";
+  // With the races and tricks let out (`racesOpen`), PLAY opens its page
+  // of three ways onto the snow; shut, it goes straight onto the free ride.
+  const modes = racesOpen({ developer: !!developer });
+  const play = modes && page === "play";
   return (
     <div class="menu menu-door" {...lean}>
       <div
@@ -196,7 +201,7 @@ export function MainMenu({
                 data-nav-next
                 data-nav-focus
                 style={at(0)}
-                onClick={() => onPage("play")}
+                onClick={modes ? () => onPage("play") : onFree}
               >
                 {/* The sheen: a slow bar of light travelling the slab, a
                     transform and off under `prefers-reduced-motion`. */}
@@ -204,7 +209,9 @@ export function MainMenu({
                 <Glyph name="play" />
                 <span class="menu-tile-words">
                   <span class="menu-tile-name">{STRINGS.menuPlay}</span>
-                  <span class="menu-tile-line">{STRINGS.menuPlayLine}</span>
+                  <span class="menu-tile-line">
+                    {modes ? STRINGS.menuPlayLine : STRINGS.menuFreeLine}
+                  </span>
                 </span>
               </button>
               <button

@@ -4,7 +4,10 @@ Every free ride map deals a set of **challenges** — goals the skier can go
 after whenever he rides that mountain — each with a **bronze**, a
 **silver** and a **gold**. The engine deals them and judges a run for them;
 the app keeps the book of what was won on which map, shows the flags, the
-running clock and the news, and lists them.
+running clock and the news, and lists them. They are a WINTER thing: a
+summer free ride (the downhill bike's) is judged for none, so it shows no
+flags, no chip, no plate and no CHALLENGES on the pause card
+(`challenge-run.ts`'s rig is never armed when `GameState.summer` is set).
 
 The engine side lives in `engine/game/challenges/`, its numbers in
 `engine/game/defs/challenges.ts` (`CHALLENGES`), and its lab is

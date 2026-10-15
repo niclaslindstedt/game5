@@ -469,6 +469,7 @@ export function createInputManager(
       rescueTap = false;
       jumped = false;
       touch.tap2 = false;
+      touch.pop = 0;
       return input;
     },
     ride: (state) => {

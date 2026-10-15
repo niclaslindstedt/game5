@@ -29,7 +29,7 @@ import { stepAfter, stepBefore } from "./where-steps.ts";
 import { bikeOn, seasonRide, summerOn, wingsuitOn } from "./free-ride.ts";
 import { skisBack } from "./pinned-run.ts";
 import type { RecordKey, RunRecord } from "./records.ts";
-import { boardAllowed, kindPair, type Settings } from "./settings.ts";
+import { boardAllowed, kindPair, racesOpen, type Settings } from "./settings.ts";
 import type { StatsBook } from "./stats.ts";
 import { STRINGS } from "./strings.ts";
 import type { MenuPage } from "./url-params.ts";
@@ -184,7 +184,12 @@ export function MenuPages(p: {
           settings={settings}
           seed={p.startSeed}
           onSettings={setSettings}
-          onBack={() => setPage(stepBefore(page, settings.ride.face))}
+          onBack={() => {
+            // PLAY's page stands only while the races are let out; shut,
+            // PLAY came straight here from the door.
+            const to = stepBefore(page, settings.ride.face);
+            setPage(to === "play" && !racesOpen(settings) ? "root" : to);
+          }}
           onNext={() => setPage(stepAfter(page, settings.ride.face))}
         />
       ) : page === "gallery" ? (

@@ -114,6 +114,13 @@ const BANDS = {
   feet: [5, 14],
   head: [-12, 12],
 };
+/** The knee's floor while he drives the cranks: a seated rider's fit allows
+ * his knee to fold to about 65° at the top of the stroke, and a 0.17 m crank
+ * stood vertical puts the feet 0.34 m apart, more than both knees can span
+ * inside the stance band at once — so the floor eases from the band's to
+ * this one by how far the cranks are his own stroke (`style.pedal`). */
+const PEDAL_KNEE = 65;
+const kneeFloor = (f) => BANDS.knee[0] - (BANDS.knee[0] - PEDAL_KNEE) * (f.pedal ?? 0);
 /** The figures charted: each its id, its words, its chart's range. */
 const CHARTS = [
   { id: "knee", say: "knee L/R deg", lo: 40, hi: 180 },
@@ -184,6 +191,7 @@ function measure(s, t) {
     joints,
     local,
     foot: style?.footOut > 0.2 ? style.foot : -1,
+    pedal: style?.pedal ?? 0,
   };
 }
 
@@ -200,7 +208,8 @@ function outShares(frames) {
       f[ch.id].forEach((v, i) => {
         if (ch.id === "feet" && f.foot === i) return;
         n++;
-        if (v < band[0] || v > band[1]) bad++;
+        const lo = ch.id === "knee" ? kneeFloor(f) : band[0];
+        if (v < lo || v > band[1]) bad++;
       });
     }
     out[ch.id] = n ? bad / n : 0;
@@ -261,9 +270,7 @@ const before = args.compare ? JSON.parse(readFileSync(resolve(root, args.compare
 const pad = (s, n) => String(s).padStart(n);
 const pct = (v) => `${Math.round(v * 100)}%`;
 const COLUMNS = [...CHARTS.map((c) => c.id), "snap", "world"];
-console.log(
-  `bike motion · seed ${C.CLIP_MAP.seed} (the table seed 4) · look ${args.look} · ${C.CLIP_HZ} Hz\n`,
-);
+console.log(`bike motion · seed ${C.CLIP_MAP.seed} · look ${args.look} · ${C.CLIP_HZ} Hz\n`);
 console.log(
   `${"clip".padEnd(9)}${"window s".padEnd(13)}${COLUMNS.map((c) => pad(c, 9)).join("")}${pad("travel", 11)}   worst snap`,
 );

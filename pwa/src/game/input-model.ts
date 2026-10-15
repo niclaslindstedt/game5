@@ -151,6 +151,70 @@ export function jumpTapUp(tap: JumpTap, t: number): void {
   tap.upAt = t;
 }
 
+/** THE FLICK: the lever's thumb thrown UP fast is a jump too — the same
+ * way the throw opens to full speed, so it is where a thumb goes for it.
+ * A flick is a rise of `FLICK_PX` or more inside `FLICK_WINDOW` s at
+ * `FLICK_SPEED` px/s or faster: a deliberate flick runs well past a
+ * thousand, while a thumb coming back up off the brake to full speed rises
+ * slower and is never one. The jump springs AT ONCE, the moment the flick
+ * is read (`SkierInput.pop`), as high as a keyboard's key held for a share
+ * of `TUNING.jump.full` that grows with the flick's speed, from
+ * `FLICK_POP_MIN` to `FLICK_POP_MAX` at `FLICK_SPEED_FULL`. Fired, the
+ * flick waits for the thumb to come back down `FLICK_REARM_PX` or a new
+ * touch before it fires again. */
+export const FLICK_PX = 30;
+export const FLICK_WINDOW = 0.1;
+export const FLICK_SPEED = 600;
+export const FLICK_SPEED_FULL = 2400;
+export const FLICK_POP_MIN = 0.15;
+export const FLICK_POP_MAX = 0.75;
+export const FLICK_REARM_PX = 12;
+
+/** The flick's memory: the thumb's recent heights (screen px, y down) and
+ * times (s, any one clock), whether it may fire, and the highest point
+ * since it last did. */
+export type Flick = { ys: number[]; ts: number[]; armed: boolean; peak: number };
+
+export function createFlick(): Flick {
+  return { ys: [], ts: [], armed: true, peak: 0 };
+}
+
+/** A new touch at `y` px, `t` s: armed afresh. */
+export function flickDown(f: Flick, y: number, t: number): void {
+  f.ys = [y];
+  f.ts = [t];
+  f.armed = true;
+  f.peak = y;
+}
+
+/** The thumb at `y` px at `t` s. Returns the pop, 0..1 of a full load,
+ * when this move completes a flick, and 0 otherwise. */
+export function flickMove(f: Flick, y: number, t: number): number {
+  f.ys.push(y);
+  f.ts.push(t);
+  while (f.ts.length > 1 && t - f.ts[0] > FLICK_WINDOW) {
+    f.ys.shift();
+    f.ts.shift();
+  }
+  if (!f.armed) {
+    f.peak = Math.min(f.peak, y);
+    if (y - f.peak >= FLICK_REARM_PX) f.armed = true;
+    return 0;
+  }
+  // The lowest point inside the window, and how fast the thumb has risen
+  // from it to here.
+  let low = 0;
+  for (let i = 1; i < f.ys.length; i++) if (f.ys[i] > f.ys[low]) low = i;
+  const rise = f.ys[low] - y;
+  const dt = Math.max(t - f.ts[low], 1e-3);
+  const speed = rise / dt;
+  if (rise < FLICK_PX || speed < FLICK_SPEED) return 0;
+  f.armed = false;
+  f.peak = y;
+  const strength = clamp((speed - FLICK_SPEED) / (FLICK_SPEED_FULL - FLICK_SPEED), 0, 1);
+  return FLICK_POP_MIN + (FLICK_POP_MAX - FLICK_POP_MIN) * strength;
+}
+
 /** THE BACK KEY'S TWO MEANINGS, told apart by ORDER. Pressed with no edge
  * asked, it is the BRAKE — and an edge put on while it is held swings the
  * skis across the way into a hockey stop. Pressed with an edge ALREADY on,
@@ -286,6 +350,9 @@ export type TouchChannel = {
   lever: boolean;
   /** The lever's thumb loading the jump (`jumpTapDown`). */
   jump: boolean;
+  /** THE FLICK's pop (`flickMove`), 0..1, set by the move that made it and
+   * kept until a step has taken it; 0 none. */
+  pop: number;
   /** THE TRICK KEY on touch: a ski jumper's TELEMARK press
    * (`hud-skijump.tsx`'s `JumpPad`), held while it is down. */
   trick: boolean;
@@ -318,6 +385,7 @@ export function neutralTouch(): TouchChannel {
     brake: 0,
     lever: false,
     jump: false,
+    pop: 0,
     trick: false,
     tap2: false,
     stickX: 0,
@@ -429,7 +497,8 @@ export function airGrab(model: InputModel, keys: KeysHeld, airborne: boolean): b
  * because a skier throwing a skid is not also asking to go faster,
  * whichever hand the other input came from. The back key is the brake or
  * the edge cut harder by the order it met the edge in (`backMode`); the
- * jump is the key or the lever thumb's tap-and-hold (`jumpTapDown`).
+ * jump is the key, the lever thumb's flick (`flickMove`) or its tap-and-hold
+ * (`jumpTapDown`).
  *
  * `airborne` is whether the skier being ridden is off the snow this step —
  * the one thing about the run the keyboard's maths reads (`airLean`). */
@@ -487,7 +556,10 @@ export function sampleInput(
     reset,
     trick: keys.trick || touch.trick || jumpGrab,
     carve: back === "carve",
-    jump: keys.jump || (touch.lever && touch.jump),
+    // A flick springs him this step, and is a press and release of the
+    // jump key to everything else that reads it.
+    jump: keys.jump || (touch.lever && touch.jump) || touch.pop > 0,
+    pop: touch.pop > 0 ? touch.pop : undefined,
   });
 }
 

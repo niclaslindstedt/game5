@@ -14,7 +14,7 @@
 import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fieldCoords, mogulShare, mogulsAt } from "../mapgen/mogul-field.ts";
 import { techniqueOf } from "../game/defs/technique.ts";
-import { flipLean } from "../game/strokes.ts";
+import { flipLean, setting, spinSteer } from "../game/strokes.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import { edgeLockAt, edgeMostOf } from "../game/limits.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "../game/state.ts";
@@ -65,14 +65,10 @@ export function mogulsInput(state: GameState, on: TrackHit): SkierInput | null {
     // levelled to the landing.
     if (air < 0 || c.launchVy < TUNING.tricks.launch) return null;
     const plan = AIRS[air % AIRS.length];
-    let steer = 0;
-    let lean = 0;
-    for (let n = 0; n < plan.taps; n++) {
-      const t0 = K.tapFrom + n * K.tapEvery;
-      if (c.airTime > t0 && c.airTime < t0 + 0.08) steer = 1;
-    }
-    if (plan.flips > 0 && c.airTime > K.tapFrom) lean = flipLean(state, plan.flips, 1);
-    return { ...NEUTRAL_INPUT, steer, lean, trick: plan.grab && c.airTime > K.tapFrom };
+    // Set off the lip, and the grab once the window has shut.
+    const steer = plan.taps > 0 ? spinSteer(state, plan.taps, 1, true) : 0;
+    const lean = plan.flips > 0 ? flipLean(state, plan.flips, 1) : 0;
+    return { ...NEUTRAL_INPUT, steer, lean, trick: plan.grab && !setting(c.airTime) };
   }
   const v = Math.max(1, c.speed);
   const travel = Math.atan2(c.vx, c.vz);

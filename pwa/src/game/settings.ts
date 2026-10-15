@@ -253,6 +253,11 @@ export const RESTART_AFTER = { min: 2, max: 10, start: 5 } as const;
  * ms: long enough that no thumb resting on it does it by accident. */
 export const DEV_HOLD_MS = 7000;
 
+/** THE RACES AND TRICKS, behind a feature flag: every discipline and
+ * freestyle format is built and kept, but only DEVELOPER lets them onto the
+ * front door. Shut, PLAY goes straight to the free ride. */
+export const racesOpen = (settings: Pick<Settings, "developer">): boolean => settings.developer;
+
 /** DEVELOPER's switches, every one an instrument over the picture rather
  * than a change to the game: the frame rate, the frame's cost, the physics'
  * readouts, the trail maps, the engine's debug output, the free camera. */

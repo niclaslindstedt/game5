@@ -186,12 +186,17 @@ export function twilightTail(elevation: number, at9: number): number {
  * blue (`sky.ts`), which the snow reads about `seen` as brightly as the
  * same units of the key (measured off `make sky ARGS=--sheet=moon`). The
  * gain is the eye's: under a quarter moon the snow reads about a third as
- * bright as under a full, under no moon about a tenth. */
+ * bright as under a full, under no moon about a tenth. The full moon's own
+ * level is set against the day and the lamps: moonlit snow reads about a
+ * fifth as bright as the noon's and darker than the dusk before it, so a
+ * floodlit piste's 30 lx (`piste-light-plan.ts`) stands two to three times
+ * over it and the woods off the lamps go dark — the night's look, never a
+ * blue day. */
 export const NIGHT = {
   ref: 0.25,
   adapt: 0.4,
-  key: 0.7,
-  ambient: 10,
+  key: 0.26,
+  ambient: 3.7,
   seen: 0.15,
   sky: 0.018,
   skyRef: 6.0e-3,

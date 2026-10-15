@@ -217,6 +217,17 @@ describe("the jump (TUNING.jump)", () => {
     expect(full.peak).toBeGreaterThan(0.6);
   });
 
+  it("springs at once on a flick's pop, as high as the same load held", () => {
+    const state = stage(PACKED, 50);
+    ride(state, 0.5);
+    step(state, { ...NEUTRAL_INPUT, jump: true, pop: 0.5 });
+    const now = state.events.find((e) => e.kind === "jump");
+    expect(now?.kind === "jump" && now.pop).toBeCloseTo(jump(TUNING.jump.full / 2).pop, 2);
+    // ...and nothing more the step after, the key let go.
+    step(state, NEUTRAL_INPUT);
+    expect(state.events.some((e) => e.kind === "jump")).toBe(false);
+  });
+
   it("is no higher for being held past two seconds", () => {
     expect(jump(3).pop).toBeCloseTo(jump(TUNING.jump.full).pop, 5);
   });

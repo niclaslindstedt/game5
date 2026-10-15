@@ -19,9 +19,10 @@
 // screen until the new one is whole, and only swaps past a margin
 // (`HYSTERESIS`), so riding to and fro across a band never rebuilds it.
 //
-// What it costs near the lens is the FOREST row's: under three quarters of
-// its far share the near lattice is the cheap one too. The whole thing
-// hangs off the forest (`forest.ts`), which owns the woods' reach.
+// Near the lens the lattice is always the physics' own (`rock-ground.ts`),
+// whatever the picture: a coarser one stands up to metres off the rock a
+// body meets. The whole thing hangs off the forest (`forest.ts`), which
+// owns the woods' reach.
 
 import * as THREE from "three";
 import {
@@ -122,8 +123,6 @@ export type Rocks = {
   readonly group: THREE.Group;
   /** Show what is within `reach` m of the lens, building what is new. */
   update(eye: THREE.Vector3, reach: number): void;
-  /** The FOREST row's far share, 0..1: under 0.75 the coarser skin. */
-  setShare(share: number): void;
   dispose(): void;
 };
 
@@ -147,7 +146,7 @@ type Tile = {
   empty: boolean;
 };
 
-export function createRocks(level: Level, haze: HazeUniforms, initial: number): Rocks {
+export function createRocks(level: Level, haze: HazeUniforms): Rocks {
   const group = new THREE.Group();
   group.name = "rocks";
   const band = regionLookOf(regionOf(level).id).rock;
@@ -163,7 +162,6 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
         .replace("#include <project_vertex>", PULL_GLSL);
     },
   );
-  let share = initial;
   const cols = band ? Math.ceil(level.size / TILE) : 0;
   const tiles: Tile[] = [];
   for (let j = 0; j < cols; j++) {
@@ -195,8 +193,10 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
   const BATCH = 4;
   const cellOf = (k: number): number => {
     const c = CUTS[k].cell;
-    if (c !== "near") return c;
-    return share < 0.75 ? ROCKS.skin.cheap : ROCKS.skin.cell;
+    // Near the lens always the physics' own lattice: the rock a body meets
+    // is the rock drawn, whatever the picture costs (a cheaper lattice
+    // stands up to metres off it).
+    return c === "near" ? ROCKS.skin.cell : c;
   };
 
   /** Build a few more rows of `t` at cut `k`; true when it is whole. */
@@ -289,11 +289,6 @@ export function createRocks(level: Level, haze: HazeUniforms, initial: number): 
         while (!step(next, nextK) && performance.now() < until);
         if (next.mesh) next.mesh.visible = true;
       }
-    },
-    setShare(next) {
-      if (next === share) return;
-      share = next;
-      for (const t of tiles) drop(t);
     },
     dispose() {
       for (const t of tiles) drop(t);

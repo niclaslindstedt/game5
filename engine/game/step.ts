@@ -600,7 +600,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     rules,
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
-    ...(options.gore ? { gore: freshGore() } : {}),
+    ...(options.gore && !options.sfw ? { gore: freshGore() } : {}),
     snowDepth: depth,
     fresh: summer ? 0 : Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],

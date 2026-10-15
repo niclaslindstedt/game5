@@ -13,17 +13,18 @@
 
 import * as THREE from "three";
 
-import { FACADE, FACADE_LAYERS, FACADE_SIZE, paintFacades } from "./facade-paint.ts";
+import { FACADE, FACADE_LAYERS, FACADE_SIZE } from "./facade-paint.ts";
+import { painted } from "./paint-ahead.ts";
 import { SUMMER_UNIFORM } from "./season-look.ts";
 
 let stack: { albedo: THREE.DataArrayTexture; normal: THREE.DataArrayTexture } | null = null;
 let users = 0;
 
-/** The two arrays, painted and uploaded on the first ask, kept while
- * anything draws with them. */
+/** The two arrays, uploaded on the first ask (painted off the main thread
+ * ahead, `paint-ahead.ts`), kept while anything draws with them. */
 function facadeStack(): { albedo: THREE.DataArrayTexture; normal: THREE.DataArrayTexture } {
   if (stack) return stack;
-  const { albedo, normal } = paintFacades();
+  const { albedo, normal } = painted("facades");
   const make = (data: Uint8Array, srgb: boolean) => {
     const t = new THREE.DataArrayTexture(data, FACADE_SIZE, FACADE_SIZE, FACADE_LAYERS);
     t.format = THREE.RGBAFormat;

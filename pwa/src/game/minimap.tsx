@@ -156,12 +156,18 @@ function bake(level: Level, strip: boolean): void {
     worker.onerror = fail;
     worker.onmessageerror = fail;
   }
-  const ask: BakeRequest = {
-    id,
-    source: minimapSource(level, { strip }),
-    px: mapPxFor(level.size),
-  };
-  worker.postMessage(ask);
+  // The source (the felled trees, the strip) is a heavy piece of its own:
+  // worked out in a task of its own, not on the back of whatever asked.
+  const w = worker;
+  setTimeout(() => {
+    if (picture !== entry || worker !== w) return;
+    const ask: BakeRequest = {
+      id,
+      source: minimapSource(level, { strip }),
+      px: mapPxFor(level.size),
+    };
+    w.postMessage(ask);
+  }, 0);
 }
 
 /** Start the picture of a map, if it is not the one already baked or

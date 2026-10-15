@@ -311,6 +311,59 @@ export function createBlockBuildings(
   const group = new THREE.Group();
   group.name = name;
   const material = facadeMaterial(haze, name);
+  // Built in a function of its own: V8 keeps every variable any closure of
+  // a function reads in ONE context that all its closures share, so a
+  // closure here over `blocks` would hold every block's arrays — a real
+  // town's are well over a hundred megabytes — for as long as `update`
+  // lives. Nothing returned below can reach them.
+  const { geos, own, cuts, dcuts, whole, boxes, areas } = buildBlocks(
+    blocks,
+    group,
+    material,
+    name,
+  );
+  // Until the first update, the whole village at its distant cut.
+  whole.visible = boxes.length > 0;
+  const band = new Int8Array(boxes.length).fill(-1);
+  const dband = new Int8Array(own.length).fill(-1);
+  return {
+    group,
+    update(eye) {
+      boxes.forEach((b, i) => {
+        band[i] = cutAt(blockDistance(b, eye), band[i]);
+      });
+      let distant = true;
+      areas.forEach((d, k) => {
+        dband[k] = cutAt(blockDistance(d, eye), dband[k], DISTANT);
+        if (dband[k] === 0) distant = false;
+      });
+      whole.visible = distant && boxes.length > 0;
+      own.forEach((list, k) => {
+        // A district with a block near the lens is drawn a block at a time.
+        const split = !distant && list.some((i) => band[i] === 0);
+        for (const i of list) {
+          cuts[i][0].visible = split && band[i] === 0;
+          cuts[i][1].visible = split && band[i] === 1;
+        }
+        dcuts[k][0].visible = !distant && !split && dband[k] === 0;
+        dcuts[k][1].visible = !distant && !split && dband[k] === 1;
+      });
+    },
+    dispose() {
+      for (const g of geos) g.dispose();
+      material.dispose();
+    },
+  };
+}
+
+/** Every mesh of `blocks`' cuts, added to `group` hidden, with what their
+ * update reads: the boxes, each district's blocks and the meshes. */
+function buildBlocks(
+  blocks: readonly VillageBlock[],
+  group: THREE.Group,
+  material: THREE.Material,
+  name: string,
+) {
   const geos: THREE.BufferGeometry[] = [];
   const meshOf = (a: FacadeArrays | THREE.BufferGeometry, cut: string) => {
     const geo = a instanceof THREE.BufferGeometry ? a : uploadOnce(facadeGeometry(a));
@@ -323,9 +376,6 @@ export function createBlockBuildings(
     group.add(mesh);
     return mesh;
   };
-  // Loops rather than closures over `blocks` and `districts`, so the update
-  // below holds no reference to the arrays the meshes were made of.
-  //
   // ONE COPY OF EACH CUT ON THE GPU. A district's far cut is its blocks'
   // far cuts one after another, and the whole village's distant cut is the
   // districts' distant cuts one after another (`districtsOf`, `merged`),
@@ -365,36 +415,5 @@ export function createBlockBuildings(
   // are let go, and the meshes' own go once they are on the GPU.
   const boxes = blocks.map(boxOf);
   const areas = [...districts.values()].map(boxOf);
-  // Until the first update, the whole village at its distant cut.
-  whole.visible = boxes.length > 0;
-  const band = new Int8Array(boxes.length).fill(-1);
-  const dband = new Int8Array(keys.length).fill(-1);
-  return {
-    group,
-    update(eye) {
-      boxes.forEach((b, i) => {
-        band[i] = cutAt(blockDistance(b, eye), band[i]);
-      });
-      let distant = true;
-      areas.forEach((d, k) => {
-        dband[k] = cutAt(blockDistance(d, eye), dband[k], DISTANT);
-        if (dband[k] === 0) distant = false;
-      });
-      whole.visible = distant && boxes.length > 0;
-      own.forEach((list, k) => {
-        // A district with a block near the lens is drawn a block at a time.
-        const split = !distant && list.some((i) => band[i] === 0);
-        for (const i of list) {
-          cuts[i][0].visible = split && band[i] === 0;
-          cuts[i][1].visible = split && band[i] === 1;
-        }
-        dcuts[k][0].visible = !distant && !split && dband[k] === 0;
-        dcuts[k][1].visible = !distant && !split && dband[k] === 1;
-      });
-    },
-    dispose() {
-      for (const g of geos) g.dispose();
-      material.dispose();
-    },
-  };
+  return { geos, own, cuts, dcuts, whole, boxes, areas };
 }

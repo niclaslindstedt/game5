@@ -6,6 +6,9 @@
 // draw from the mountain, a district a draw between — and the distant cars
 // are lighter than the far.
 
+import { setFlagsFromString } from "node:v8";
+import { runInNewContext } from "node:vm";
+
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 
@@ -15,6 +18,8 @@ import {
   DISTANT_AREA,
   NEAR,
   blockDistance,
+  blocksOf,
+  createBlockBuildings,
   createVillageBuildings,
   cutAt,
   districtsOf,
@@ -90,6 +95,29 @@ describe("the ski area's buildings at two cuts", () => {
       expect(lit(d.distant.glow)).toBe(lit(d.far.glow));
     }
     expect(DISTANT_AREA).toBeGreaterThan(0.3);
+  });
+
+  it("lets go of the blocks' arrays once their meshes are made", async () => {
+    // A view that kept its blocks would hold a real town's arrays — over a
+    // hundred megabytes — for as long as it is drawn: what crashed phones.
+    setFlagsFromString("--expose-gc");
+    const gc = runInNewContext("gc") as () => void;
+    const made = () => {
+      const own = blocksOf(() => {
+        const kit = buildResortBuildings(level);
+        return { kit, spans: [{ from: 0, to: kit.triangles, at: null }] };
+      });
+      const view = createBlockBuildings(own, createHazeUniforms(), "test");
+      return { view, held: new WeakRef(own) };
+    };
+    const { view, held } = made();
+    view.update(new THREE.Vector3(0, 0, 0));
+    for (let i = 0; i < 4 && held.deref(); i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      gc();
+    }
+    expect(held.deref()).toBeUndefined();
+    view.dispose();
   });
 
   it("draws a distant car lighter than a far one", () => {

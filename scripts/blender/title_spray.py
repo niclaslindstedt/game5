@@ -11,13 +11,19 @@
 # flies its puffs (`snow-cloud-plan.ts`); the grains are a point cloud the
 # renderer draws as spheres, the mist a volume grown off a sparser cut of
 # the same points.
+#
+# Where a POLE meets the snow it leaves its own mark (`pole_plant`): the
+# hole its tip and basket punch, the short furrow the tip drags behind it
+# as he carries on, the clods it throws up along both lips and a small
+# puff of grains kicked off the tip — the same ballistic grains, thrown
+# softer, left behind at his speed.
 
 import bpy
 import numpy as np
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
-from lib import link
+from lib import link, loft
 
 
 # ---------------------------------------------------------------- the snow
@@ -156,3 +162,80 @@ def mist_material():
     nt.links.new(k.outputs[0], vol.inputs["Density"])
     nt.links.new(vol.outputs[0], out.inputs["Volume"])
     return m
+
+
+# ---------------------------------------------------------------- a pole plant
+def _ring(c, a, b, r, n=16):
+    return [c + (a * np.cos(t) + b * np.sin(t)) * r for t in np.linspace(0, 2 * np.pi, n, endpoint=False)]
+
+
+def pole_plant(bvh, top, axis, length, travel, normal, speed, rng, snow_mat, cut_mat=None):
+    """The mark a pole leaves where its shaft goes into the snow: the hole
+    (a funnel along the shaft as wide as the basket at the surface), the
+    furrow the tip drags back along his line, both cut out of the
+    mountain by the returned cutters; the clods heaped along the lips and
+    round the hole and the puff of grains kicked off the tip, as points.
+    None when the shaft stays clear of the snow."""
+    hit = bvh.ray_cast(top, axis, length)
+    if hit[0] is None:
+        return None
+    p, n = hit[0], hit[1].normalized()
+    buried = length - (p - top).length
+    along = (travel - n * travel.dot(n)).normalized()
+    across = n.cross(along)
+    u = axis.orthogonal().normalized()
+    v = axis.cross(u)
+    # The hole, along the shaft: the basket's width at the surface,
+    # narrowing to the tip.
+    r0 = 0.05 if buried > 0.09 else 0.03
+    hole = [_ring(p - axis * 0.06, u, v, r0 * 1.1)]
+    for k in np.linspace(0, 1, 5):
+        hole.append(_ring(p + axis * (buried + 0.02) * k, u, v, r0 + (0.012 - r0) * k ** 1.5))
+    cuts = [loft("pole-hole", hole, [cut_mat or snow_mat], smooth=False)]
+    # The furrow the tip dragged back along his line: draped onto the snow,
+    # deepest at the hole and shallowing out behind it.
+    reach = 0.75
+    rings, rims = [], []
+    for t in np.linspace(0, 1, 14):
+        q = p - along * reach * t
+        h = bvh.ray_cast(q + n * 0.5, -n, 1.0)
+        q = h[0] if h[0] is not None else q
+        r = 0.032 * (1 - 0.7 * t) + 0.004
+        rings.append(_ring(q + n * r * 0.25, across, n, r, 10))
+        rims.append((q, r))
+    cuts.append(loft("pole-furrow", rings, [cut_mat or snow_mat], smooth=False))
+    # The clods: thrown out along both lips of the furrow and heaped round
+    # the hole, small lumps sitting half sunk in the snow.
+    pts, rad = [], []
+    for q, r in rims:
+        for side in (-1, 1):
+            for _ in range(int(rng.integers(5, 10))):
+                off = r * (1.0 + rng.uniform(0.1, 1.8))
+                pts.append(q + across * side * off - along * rng.uniform(-0.03, 0.03) + n * 0.003)
+                rad.append(rng.uniform(0.004, 0.012) * (1.4 - 0.6 * off / 0.07))
+    for k in range(70):
+        a = rng.uniform(0, 2 * np.pi)
+        d = r0 * rng.uniform(1.05, 2.4)
+        # Heaped up ahead of the shaft and out to its sides: the basket
+        # ploughs the snow as he carries the pole forward.
+        q = p + (across * np.cos(a) + along * abs(np.sin(a)) * 1.3) * d
+        pts.append(q + n * 0.004)
+        rad.append(rng.uniform(0.005, 0.016))
+    clods = (np.array([tuple(x) for x in pts]), np.clip(np.array(rad), 0.003, 0.02))
+    # The puff kicked off the tip: a few thousand grains thrown up and out
+    # of the turn softly, a tenth of a second old at most, left behind at
+    # his speed as the ski's spray is.
+    m = 2500
+    age = rng.uniform(0, 1, m) ** 1.8 * 0.1
+    drag = 1.6
+    k = (1 - np.exp(-drag * age)) / drag
+    vu = rng.normal(1.3, 0.45, m)
+    vs = rng.normal(0, 0.7, m)
+    vf = speed * rng.uniform(0.6, 0.9, m)
+    back = speed * age - vf * k
+    g = 9.81 * (age - k) / drag
+    P0, A, C, N = (np.array(tuple(x)) for x in (p + n * 0.02, along, across, n))
+    pos = (P0[None, :] - A[None, :] * back[:, None]
+           + C[None, :] * (vs * k)[:, None] + N[None, :] * (vu * k - g)[:, None])
+    grad = np.where(rng.uniform(0, 1, m) < 0.08, rng.uniform(0.008, 0.016, m), rng.uniform(0.002, 0.006, m))
+    return cuts, clods, (pos, grad, age)

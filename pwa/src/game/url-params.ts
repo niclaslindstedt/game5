@@ -105,6 +105,10 @@
 //                   every variant on the GPU (the interleaved A/B).
 //   ?frames=<n>     ...timing this many frames instead of the plan's (60 up
 //                   to the plan's own) — a price list's shorter stretch.
+//   ?sweep=<n>      ...PRICING EVERY PICTURE ROW in one long run: n random
+//                   pictures (60 up; `1` the plan's 240), a block of frames
+//                   each, every stop's cost fitted off the lot
+//                   (`picture-sweep.ts`; `make bench ARGS=--sweep`).
 //   ?view=vista     ...from high on a side ridge, looking across the whole
 //                   mountain (`vistaOf`): the view DISTANCE is dearest from.
 //   ?weather=<kind> ski the mountain under this sky instead of the one R19
@@ -214,6 +218,7 @@ import {
 } from "@engine";
 
 import { BENCHMARK } from "./benchmark-plan.ts";
+import { SWEEP, SWEEP_LEAST } from "./picture-sweep.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
 import { isHoldMove, type HoldMove } from "./hold-input.ts";
@@ -288,6 +293,8 @@ export type UrlParams = {
   ab: boolean;
   frames: number | null;
   view: "race" | "vista";
+  /** Pictures a picture sweep deals (`?sweep=`), or none. */
+  sweep: number | null;
   shot: boolean;
   paused: boolean;
   camera: CameraRung | null;
@@ -415,6 +422,14 @@ function framesOf(raw: string | null): number | null {
   return raw !== null && Number.isInteger(n) && n >= 60 && n <= BENCHMARK.frames ? n : null;
 }
 
+/** A picture sweep's pictures a link may name: `1` the plan's, or a whole
+ * number from the least the fit can read to 2000. */
+function sweepOf(raw: string | null): number | null {
+  if (raw === "1") return SWEEP.blocks;
+  const n = Number(raw);
+  return raw !== null && Number.isInteger(n) && n >= SWEEP_LEAST && n <= 2000 ? n : null;
+}
+
 /** A held ride a link may name: a speed, km/h (0–150), a move and the
  * seconds it is ridden (0.5–20, three unless named). */
 function holdOf(raw: string | null): UrlParams["hold"] {
@@ -475,6 +490,7 @@ export function readParams(search: string): UrlParams {
     ab: q.get("ab") === "1",
     frames: framesOf(q.get("frames")),
     view: q.get("view") === "vista" ? "vista" : "race",
+    sweep: sweepOf(q.get("sweep")),
     shot: q.get("shot") === "1",
     paused,
     camera:

@@ -102,7 +102,9 @@ is read. `--split` (`?gpu=split`) cuts the scene's pass by subsystem with
 timer queries instead, which a tiled GPU cannot do honestly (its lesson says
 why). `--hide a,b` (`?hide=`) draws a whole run without some subsystems, and
 `--dist <dir>` benchmarks a second build, so two builds can be run
-alternately in one sitting.
+alternately in one sitting. `--sweep` (`?sweep=`) prices every PICTURE row in one
+long run of random pictures and fits each stop's cost — the
+`picture-pricing` skill's.
 
 What to put in a PR that changes what a frame costs: `make profile` before
 and after, and a BENCHMARK report from each (off a device when the change is

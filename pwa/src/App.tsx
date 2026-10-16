@@ -556,6 +556,7 @@ export function App() {
       benchAb: params.ab,
       benchFrames: params.frames,
       benchVista: params.view === "vista",
+      benchSweep: params.sweep,
     });
     pressRef.current = {
       stageFree: frees.stageFree,

@@ -56,6 +56,14 @@ import {
   type RunTotals,
   type SceneShare,
 } from "./benchmark-report.ts";
+import {
+  fitSweep,
+  medianOf,
+  type SweepBlock,
+  type SweepPicture,
+  type SweepPlan,
+  type SweepResult,
+} from "./picture-sweep.ts";
 import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
 
 /** Engine steps per frame — exact by construction (`BenchmarkPlan.step`). */
@@ -94,6 +102,9 @@ export type BenchmarkStatus = {
   fence?: FenceAb;
   /** What the run is drawn without (`?hide=`), for the report's line. */
   hidden: readonly string[];
+  /** THE PICTURE SWEEP's blocks and fit, on a sweep's last reading
+   * (`picture-sweep.ts`). */
+  sweep?: SweepResult;
   machine: Machine;
   /** Skis on the snow, the player's included. */
   skis: number;
@@ -106,7 +117,9 @@ export type BenchmarkStatus = {
  * measured run, because the frames under the loading card have to be the
  * frames that come after it. */
 export type BenchmarkRace = {
-  /** The player's own run, ridden by the bot like every rival inside it. */
+  /** The player's own run, ridden by the bot like every rival inside it —
+   * stood up afresh at the start by a sweep that outlasts the plan's
+   * stretch. */
   state: GameState;
   renderer: WorldRenderer & DevRenderer;
 };
@@ -219,10 +232,22 @@ export function runBenchmark(
     /** Frames to time, over the plan's (`?frames=`). */
     frames?: number;
     plan?: ReportRow[];
+    /** THE PICTURE SWEEP (`?sweep=`): a picture dealt a block, the race
+     * stood up again at the start every `loopFrames`. */
+    sweep?: {
+      plan: SweepPlan;
+      pictures: readonly SweepPicture[];
+      view: SweepResult["view"];
+      apply: (picture: SweepPicture) => void;
+      restart: () => GameState;
+    };
   },
 ): () => void {
-  const planned = race.frames ?? BENCHMARK.frames;
-  const { state, renderer, onStatus } = race;
+  const sweep = race.sweep;
+  const planned = sweep
+    ? sweep.pictures.length * sweep.plan.blockFrames
+    : (race.frames ?? BENCHMARK.frames);
+  const { renderer, onStatus } = race;
   const hidden = [...(race.hidden ?? [])];
   const cycle: readonly (Hideable | "")[] = race.cycle ? ["", ...race.cycle] : [];
   const channel = new MessageChannel();
@@ -239,6 +264,13 @@ export function runBenchmark(
   const fence: FenceAb = {};
   for (const tag of cycle) fence[tag] = { frames: 0, gpu: 0, wall: 0 };
   let machine = noMachine();
+  // The sweep's bookkeeping: frames into the race loop, the block's timed
+  // frames, and every block so far.
+  let looped = 0;
+  const blockWall: number[] = [];
+  const blockCpu: number[] = [];
+  const blocks: SweepBlock[] = [];
+  let swept: SweepResult | undefined;
 
   const report = (phase: BenchmarkStatus["phase"]): void => {
     // Asked every time: a window resized mid-run is a changed workload, and
@@ -258,8 +290,9 @@ export function runBenchmark(
       gpu: renderer.gpuTotals(),
       fence: cycle.length > 0 ? structuredClone(fence) : undefined,
       hidden,
+      sweep: swept,
       machine,
-      skis: state.rivals.length + 1,
+      skis: race.state.rivals.length + 1,
       width: size.w,
       height: size.h,
     });
@@ -272,6 +305,19 @@ export function runBenchmark(
       renderer.resetGpu();
       green = framed = performance.now();
     }
+    const inBlock = sweep ? frames % sweep.plan.blockFrames : 0;
+    if (sweep && inBlock === 0) {
+      if (looped >= sweep.plan.loopFrames || race.state.phase === "finished") {
+        // The race again from the start, its lights run through untimed:
+        // the frames that follow are this block's settling ones.
+        race.state = sweep.restart();
+        while (race.state.phase === "countdown") step(race.state, botInput(race.state));
+        looped = 0;
+      }
+      sweep.apply(sweep.pictures[frames / sweep.plan.blockFrames]);
+      blockWall.length = blockCpu.length = 0;
+      framed = performance.now();
+    }
     const without = cycle.length > 0 ? cycle[frames % cycle.length] : null;
     if (without !== null) {
       renderer.setHidden(without === "" ? hidden : [...hidden, without], without);
@@ -283,6 +329,22 @@ export function runBenchmark(
       t.gpu += last.gpuMs;
       t.wall += last.wallMs;
     }
+    if (sweep && inBlock >= sweep.plan.settle) {
+      blockWall.push(last.wallMs);
+      blockCpu.push(last.simMs + renderer.cost().frameMs);
+    }
+    if (sweep && inBlock === sweep.plan.blockFrames - 1) {
+      const b = (frames + 1) / sweep.plan.blockFrames - 1;
+      blocks.push({
+        picture: sweep.pictures[b],
+        wall: medianOf(blockWall),
+        cpu: medianOf(blockCpu),
+        frames: blockWall.length,
+        at: (now - green) / 1000,
+        loop: Math.min(1, (looped + 1 - sweep.plan.blockFrames / 2) / sweep.plan.loopFrames),
+      });
+    }
+    looped += 1;
     frames += 1;
     elapsed = now - green;
     const fps = now > framed ? 1000 / (now - framed) : 0;
@@ -304,6 +366,18 @@ export function runBenchmark(
       // drawn: what the run was actually measured against.
       scene = renderer.sceneTally();
       machine = readMachine();
+      if (sweep) {
+        const size = renderer.bufferSize();
+        swept = {
+          plan: sweep.plan,
+          width: size.w,
+          height: size.h,
+          view: sweep.view,
+          wall: fitSweep(blocks, "wall", sweep.plan.phaseBins),
+          cpu: fitSweep(blocks, "cpu", sweep.plan.phaseBins),
+          blocks,
+        };
+      }
       report("done");
       return;
     }

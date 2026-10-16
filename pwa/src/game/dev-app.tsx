@@ -52,6 +52,7 @@ export type DevAppWorld = {
   benchAb: boolean;
   benchFrames: number | null;
   benchVista: boolean;
+  benchSweep: number | null;
 };
 
 export type DevRig = {
@@ -103,6 +104,7 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
       ab: world.benchAb,
       frames: world.benchFrames,
       vista: world.benchVista,
+      sweep: world.benchSweep,
     });
     /** From the press to the way out — the load under the card included. */
     let benching = false;

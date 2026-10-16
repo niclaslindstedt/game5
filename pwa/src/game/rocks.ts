@@ -50,14 +50,7 @@ import {
   type RockMesh,
 } from "./rock-shapes.ts";
 import { summerShown } from "./season-look.ts";
-import {
-  CALM_FROM,
-  CALM_TO,
-  FAR_EVEN,
-  ROCK_HAZE,
-  STRATA_GLSL,
-  strataUniforms,
-} from "./strata-glsl.ts";
+import { CALM_FROM, CALM_TO, FAR_EVEN, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
@@ -337,7 +330,7 @@ rkSlope = vec2(0.0);
     * rkRock * (1.0 - 0.8 * vCalm);
   diffuseColor.rgb = mix(c, ${RIME_GLSL}, cover2);
   rkSlope *= 1.0 - cover2;
-  rkHazeKeep = mix(1.0, ${ROCK_HAZE.toFixed(2)}, rkRock * (1.0 - cover2));
+  rkHazeKeep = stHazeKeep(distance(P, cameraPosition));
 }
 `;
 const STRATA_NORMAL = /* glsl */ `

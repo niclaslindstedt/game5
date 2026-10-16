@@ -78,8 +78,8 @@ export const FAR_DARK = 0.88;
  * more read pale blue-grey in the sky's light, and a darker stone at every
  * range flickered at 300 m, where a pixel still spans a bed's tread. */
 export const FAR_DARKEST = 0.7;
-export const FAR_DARK_FROM = 300;
-export const FAR_DARK_TO = 450;
+export const FAR_DARK_FROM = 380;
+export const FAR_DARK_TO = 500;
 /** Over the same span the even snow spread over a far face falls to
  * `FAR_EVEN_FAR` of it and the ledges carry more (`FAR_LEDGE_FAR`): the
  * pale wash 400 m out was the even cover, the stone under it dark enough. */
@@ -92,7 +92,16 @@ export const FAR_LEDGE_FAR = 2.2;
  * over half the way to the sky's colour 400 m out and washed a dark face
  * pale; the snow round it keeps the whole share, so the face reads darker
  * than the snow at range, as a real one does. */
-export const ROCK_HAZE = 0.55;
+export const ROCK_HAZE = 0.7;
+/** Laid on over `ROCK_HAZE_IN`–`ROCK_HAZE_FROM` m (nearer, the mist is
+ * thin and the flicker's 300 m shot paid for it) and given back over
+ * `ROCK_HAZE_FROM`–`ROCK_HAZE_TO` m: out there the skin's
+ * coarse cut and the ground under it trade pixels as the lens moves, and
+ * only the whole mist makes the two the same colour (the thinner air made
+ * 600 m flicker three times as much). */
+export const ROCK_HAZE_IN = 340;
+export const ROCK_HAZE_FROM = 420;
+export const ROCK_HAZE_TO = 600;
 
 /** The uniforms: the map's strata seed, and (dipX, dipZ, bed, on). */
 export type StrataUniforms = {
@@ -202,6 +211,11 @@ vec3 stBands(float w, float fw) {
 }
 // THE FAR FACE'S COLOUR (\`FAR_EVEN\`): the stone, its even snow and its
 // bands (\`stBands\`), the ledges' snow scaled by \`ledge\` (none in summer).
+// The share of the air over the far stone (\`ROCK_HAZE\`), \`dist\` m off.
+float stHazeKeep(float dist) {
+  float on = smoothstep(${ROCK_HAZE_IN.toFixed(1)}, ${ROCK_HAZE_FROM.toFixed(1)}, dist);
+  return mix(1.0, ${ROCK_HAZE.toFixed(2)}, on * (1.0 - smoothstep(${ROCK_HAZE_FROM.toFixed(1)}, ${ROCK_HAZE_TO.toFixed(1)}, dist)));
+}
 // The stone darker on past the mid band, \`dist\` m off (\`FAR_DARKEST\`).
 vec3 stFar(vec3 stone, vec3 snowC, float even, vec3 b, float ledge, float dist) {
   float far = smoothstep(${FAR_DARK_FROM.toFixed(1)}, ${FAR_DARK_TO.toFixed(1)}, dist);

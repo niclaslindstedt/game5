@@ -77,7 +77,7 @@ import { SNOW_LAMPS_LIGHT } from "./snow-lamps-glsl.ts";
 import { SNOW_RELIEF_SAMPLE } from "./snow-relief-glsl.ts";
 import { SNOW_SUN_LIGHT, SUN_GLARE } from "./snow-sun-glsl.ts";
 import { SNOW_TRAIL_ALBEDO, SNOW_TRAIL_LIGHT, SNOW_TRAIL_SAMPLE } from "./snow-trail-glsl.ts";
-import { CALM_FROM, CALM_TO, ROCK_HAZE, STRATA_GLSL } from "./strata-glsl.ts";
+import { CALM_FROM, CALM_TO, STRATA_GLSL } from "./strata-glsl.ts";
 import { CALM_HELD, ROCK_SNOW } from "./rock-shapes.ts";
 
 // The vertex half (`snow-vertex-glsl.ts`), grafted beside the fragment's.
@@ -456,7 +456,7 @@ ${SLIDE_ALBEDO}
     float grain = mix(0.5, snowNoise(p * 0.6), 1.0 - smoothstep(0.5, 1.4, snowFoot * 0.6));
     vec3 rockAlb = mix(uRock.rgb * mix(0.7, 1.2, grain), snowSkinCol, snowSkin);
     alb = mix(alb, rockAlb, snowRock);
-    snowHazeKeep = mix(1.0, ${ROCK_HAZE.toFixed(2)}, snowRock * snowSkin);
+    snowHazeKeep = mix(1.0, stHazeKeep(snowDist), snowSkin);
   }
   diffuseColor.rgb = alb * ${GLARE.toFixed(3)};
 }

@@ -248,7 +248,8 @@ export type CloudLayer = {
   opacity: number;
   tau: number;
   life: number;
-  /** How fast and toward where the wind aloft carries it: m/s, and the
+  /** How fast and toward where the wind aloft carries it (a share of it,
+   * `CLOUD_DRIFT`): m/s, and the
    * heading it moves TOWARD (rad, 0 along +z, clockwise from above). */
   speed: number;
   heading: number;
@@ -305,6 +306,17 @@ export function cloudHash(seed: number, salt: number): number {
 
 const deal = (band: [number, number], u: number): number => band[0] + (band[1] - band[0]) * u;
 
+/** HOW FAST THE CLOUDS DRIFT, a share of the wind aloft that carries them.
+ * The real wind moves a fair day's heaps at 10–13 m/s and the cirrus at
+ * 15–22, and the game draws them at that real speed on the run's own clock
+ * (never the sky's twelve-times one) — yet at a game's lens, over a
+ * mountain a few kilometres across, a real cloud shadow sweeping the snow
+ * at forty kilometres an hour reads as a time-lapse. So every layer drifts
+ * at a quarter of its wind: a heap's shadow takes ten minutes or more to
+ * cross the slope. The game's one liberty with the sky's motion; a cell's
+ * life (how fast the field boils) is left real. */
+export const CLOUD_DRIFT = 0.25;
+
 /** THE WIND ALOFT at `h` m over the floor, from a surface mean of
  * `surface` m/s: the log law's growth with height, floored at the genus's
  * least and held under a jet's 45 m/s. */
@@ -344,7 +356,7 @@ export function cloudLayersFor(
       opacity: def.opacity,
       tau: def.tau,
       life: def.life,
-      speed: windAloft(wind, mid, def.speed),
+      speed: windAloft(wind, mid, def.speed) * CLOUD_DRIFT,
       heading: from + Math.PI + veerAloft(mid, latitude),
       cut: coverCut(cover),
       ox: u(4),
@@ -390,7 +402,7 @@ export function cloudFieldOf(
       depth,
       cover: LOW_DECK.cover,
       cut: coverCut(LOW_DECK.cover),
-      speed: windAloft(w.wind, deck.base + depth / 2, 3),
+      speed: windAloft(w.wind, deck.base + depth / 2, 3) * CLOUD_DRIFT,
     };
     layers = w.kind === "overcast" ? [sheet] : [sheet, ...layers].slice(0, CLOUD_LAYERS);
     deckLayer = 0;

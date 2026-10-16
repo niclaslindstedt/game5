@@ -203,9 +203,16 @@ export const PICTURE_PRICES: PriceList = {
     medium: { cost: 0.3, benefit: 6 },
     high: { cost: 0.6, benefit: 10 },
   },
+  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE: the pinned
+  // race at 640 × 360 in software GL, frames timed with the row at each stop
+  // — 1167 against 1017 ms on the LOW preset, 5150 against 4900 on HIGH.
+  // LOW's 150 ms is 600 at 1280 × 720, at RESOLUTION's 0.00044 reference
+  // ms a software ms about 0.26 ms; HIGH's larger saving is mostly the
+  // cloud passes DISTANCE already prices. FULL's worth is the cloud, the
+  // sun and the night sky over a picture that has none.
   sky: {
     plain: { cost: 0, benefit: 0 },
-    full: { cost: 0.3, benefit: 14 },
+    full: { cost: 0.26, benefit: 14 },
   },
 };
 

@@ -63,7 +63,6 @@
 //   ?menu=start      the free ride's start card (its chart built in a worker).
 //   ?start=free      a FREE RIDE on the start card's stored map and day.
 //   ?video=<tier>    ride at a picture preset (low, medium, high) this visit.
-//   ?picture=<r:s,…> and these picture rows at these stops over it.
 //   ?weather=<kind>  the map under another sky (clear, fair, high, overcast,
 //                    snow, fog), and ?hour=<h> from another start hour.
 //   ?region=<id>     the seed's map built in another kind of snow country
@@ -644,10 +643,6 @@ const args = parseArgs(
     },
     "hold-for": { kind: "number", default: 3, help: "seconds the held ride is ridden" },
     video: { kind: "string", help: "picture preset for the visit (low, medium, high)" },
-    picture: {
-      kind: "string",
-      help: "picture rows over the preset, row:stop by commas (?picture=)",
-    },
     update: { kind: "flag", help: "draw the new-build button (?update=1)" },
     weather: { kind: "string", help: `ride under this sky (${WEATHERS.join(", ")}, all)` },
     region: {
@@ -704,7 +699,7 @@ const args = parseArgs(
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--picture r:s] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--skijump] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--skijump] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -896,7 +891,6 @@ if (args.surface) {
     if (args.face !== undefined) params.face = String(args.face);
     if (args.grade !== undefined) params.grade = String(args.grade);
     if (args.video !== undefined) params.video = String(args.video);
-    if (args.picture !== undefined) params.picture = String(args.picture);
     if (args.update) params.update = "1";
     if (args.camera !== undefined) params.camera = String(args.camera);
     if (args["no-poles"]) params.poles = "0";
@@ -959,7 +953,6 @@ if (args.surface) {
         };
         if (args.camera !== undefined) params.camera = String(args.camera);
         if (args.video !== undefined) params.video = String(args.video);
-        if (args.picture !== undefined) params.picture = String(args.picture);
         if (args.update) params.update = "1";
         if (sky !== undefined) params.weather = sky;
         if (args.hour !== undefined) params.hour = String(args.hour);
@@ -992,7 +985,6 @@ if (args.surface) {
           `${args.t !== undefined ? `-t${args.t}` : ""}` +
           `${args.camera !== undefined ? `-${args.camera}` : ""}` +
           `${args.video !== undefined ? `-${args.video}` : ""}${args.update ? "-update" : ""}` +
-          `${args.picture !== undefined ? `-${String(args.picture).replace(/[:,]/g, "-")}` : ""}` +
           `${args["no-poles"] ? "-nopoles" : ""}` +
           `${args.pose !== undefined ? "-posed" : ""}${hold !== undefined ? `-hold${hold}-${args.move}` : ""}`;
         for (const v of viewports) await capture(name, params, v);

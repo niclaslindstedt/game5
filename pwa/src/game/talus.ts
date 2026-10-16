@@ -245,6 +245,8 @@ export function createTalus(
   mesh.frustumCulled = false;
   mesh.receiveShadow = true;
   mesh.visible = false;
+  // Drawn only: no body meets a stone (the rock eval lab's gap leaves it out).
+  mesh.userData.unridden = true;
   let share = look.talus.share;
   reach.value.x = look.talus.reach;
   const stats = { stones: 0, triangles: 0 };

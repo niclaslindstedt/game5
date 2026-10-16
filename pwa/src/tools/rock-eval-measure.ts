@@ -157,7 +157,10 @@ export function createMeasures(
       root.updateMatrixWorld(true);
       root.traverse((o) => {
         const mesh = o as THREE.Mesh;
+        // Instanced pieces and drawn-only pieces (the talus, \`talus.ts\`:
+        // kept off the runs, never read by the physics) are no surface.
         if (!mesh.isMesh || !mesh.visible || (mesh as THREE.InstancedMesh).isInstancedMesh) return;
+        if (mesh.userData.unridden) return;
         const pos = mesh.geometry.getAttribute("position");
         if (!pos) return;
         const index = mesh.geometry.index;

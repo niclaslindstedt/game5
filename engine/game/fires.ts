@@ -9,11 +9,14 @@
 //     side of the door, on ground flat enough for its benches, off every
 //     run's snow, clear of every trunk, post, wall and lift line. Its
 //     benches stand in a ring round it facing it; most have a woodpile.
-//   * A BONFIRE stands on the open valley floor near the village, two to
-//     four of them, far apart: off the runs and the hub's snow, off the
-//     streets, fifteen metres from any building, clear of the lifts, the
-//     wind tunnels, the helicopter's pad, the parked snowmobile, the
-//     balloon's site and the airstrip.
+//   * A BONFIRE stands where a ski area's skiers stop, two to four of them,
+//     far apart: at the BASE beside the bottom station nearest the village,
+//     at the TOP a short walk off the highest lift's top station, and most
+//     often one at the MID-MOUNTAIN stop where a lift tops out half way up
+//     — each off the runs, the routes and the hub's snow, off the streets,
+//     fifteen metres from any building, clear of the lifts and their
+//     stations, the wind tunnels, the helicopter's pad, the parked
+//     snowmobile, the balloon's site and the airstrip.
 //
 // A REAL THING THE MAP KNOWS: a position, a hearth, the flames' height, the
 // benches round it and the building it belongs to, read by the contact
@@ -39,6 +42,9 @@ import { uprightsNear } from "./upright-grid.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { onStreet } from "./village.ts";
 
+/** Where on the mountain a bonfire stands (`FIRE_LAYOUT.bonfire.sites`). */
+export type BonfireSite = "base" | "mid" | "top";
+
 /** A bench round a fire: its middle on the snow (y the ground), the way
  * its sitter faces — at the fire (the heading convention: 0 = +z,
  * clockwise from above) — and its length, m. */
@@ -48,8 +54,9 @@ export type FireSeat = { x: number; y: number; z: number; heading: number; lengt
  * hearth's middle on the ground and its radius, its flames' height, the
  * benches round it, its woodpile (where it stands and the way its long
  * side faces) or none, and the building it is the fire of (`Cabin.id`) —
- * none for a bonfire. A camp fire is the one with a grill: sausages on
- * sticks over the ring. */
+ * none for a bonfire — and a bonfire's site on the mountain (null for a
+ * camp fire). A camp fire is the one with a grill: sausages on sticks over
+ * the ring. */
 export type Fire = {
   id: string;
   kind: FireKind;
@@ -61,6 +68,7 @@ export type Fire = {
   seats: FireSeat[];
   woodpile: { x: number; y: number; z: number; heading: number } | null;
   building: string | null;
+  site: BonfireSite | null;
 };
 
 /** The salt every fire's choice is dealt off. */
@@ -180,6 +188,7 @@ function placeFires(level: Level): Fire[] {
     key: string,
     away: number,
     building: string | null,
+    site: BonfireSite | null = null,
   ): Fire | null => {
     const def = FIRE_KINDS[kind];
     const S = def.seats;
@@ -223,6 +232,7 @@ function placeFires(level: Level): Fire[] {
       seats,
       woodpile,
       building,
+      site,
     };
   };
 
@@ -272,62 +282,133 @@ function placeFires(level: Level): Fire[] {
     }
   }
 
-  // THE BONFIRES: every spot of the grid round the village, the nearest
-  // first (each a little further or nearer by its hash, so they do not all
-  // crowd its nearest edge), stood where one fits until the dealt count.
+  // THE BONFIRES: at the base, the top and (most maps) half way up — each
+  // site's grid of spots round its station, the ones nearest its distance
+  // first (each nudged by its hash, so they do not all stand at the same
+  // bearing), stood where one fits.
   const B = FIRE_LAYOUT.bonfire;
-  const want = B.least + Math.floor(pick(seed, "bonfire", 0, SALT) * (B.most - B.least + 1));
   const centre = level.resort.village;
   const hub = level.resort.hub;
   const pads = [helipadOf(level), sledSpotOf(level), balloonSiteOf(level)];
   const strip = airstripOf(level);
   const sx = Math.sin(strip.heading);
   const sz = Math.cos(strip.heading);
-  const spots: { x: number; z: number; cost: number }[] = [];
-  for (let dz = -B.search; dz <= B.search; dz += B.step) {
-    for (let dx = -B.search; dx <= B.search; dx += B.step) {
-      const d = hypot(dx, dz);
-      if (d > B.search) continue;
-      const k = (dx + B.search) * 4096 + (dz + B.search);
-      spots.push({
-        x: centre.x + dx,
-        z: centre.z + dz,
-        cost: d + pick(seed, "spot", k, SALT) * 80,
-      });
-    }
-  }
-  spots.sort((a, b) => a.cost - b.cost);
-  let bonfires = 0;
-  for (const { x, z } of spots) {
-    if (bonfires >= want) break;
-    if (hub && outsideHub(hub, x, z) < B.hub) continue;
-    if (fires.some((f) => f.kind === "bonfire" && hypot(f.x - x, f.z - z) < B.apart)) continue;
-    if (pads.some((p) => hypot(p.x - x, p.z - z) < B.pad)) continue;
+  const lifts = level.resort.lifts;
+  const routes = level.resort.routes ?? [];
+
+  /** Whether a bonfire may stand at (x, z), past `fits`: off the hub, the
+   * other bonfires, the pads, the strip, the tunnels, the routes, the
+   * stations and every building. */
+  const room = (x: number, z: number): boolean => {
+    if (hub && outsideHub(hub, x, z) < B.hub) return false;
+    if (fires.some((f) => f.kind === "bonfire" && hypot(f.x - x, f.z - z) < B.apart)) return false;
+    if (pads.some((p) => hypot(p.x - x, p.z - z) < B.pad)) return false;
     const ax = Math.abs((x - strip.x) * sx + (z - strip.z) * sz) - strip.length / 2;
     const ac = Math.abs((x - strip.x) * sz - (z - strip.z) * sx) - strip.width / 2;
-    if (hypot(Math.max(0, ax), Math.max(0, ac)) < B.strip) continue;
-    let tunnel = false;
-    for (const t of level.resort.tunnels ?? []) {
-      for (const q of t.points) {
-        if (hypot(q.x - x, q.z - z) < t.width / 2 + B.tunnel) tunnel = true;
+    if (hypot(Math.max(0, ax), Math.max(0, ac)) < B.strip) return false;
+    for (const t of level.resort?.tunnels ?? []) {
+      for (const q of t.points) if (hypot(q.x - x, q.z - z) < t.width / 2 + B.tunnel) return false;
+    }
+    const ring = FIRE_KINDS.bonfire.seats.ring + FIRE_KINDS.bonfire.seats.length / 2;
+    for (const r of routes) {
+      for (const q of r.points) {
+        if (hypot(q.x - x, q.z - z) < q.width / 2 + ring + B.route) return false;
       }
     }
-    if (tunnel) continue;
+    for (const l of lifts) {
+      if (hypot(l.top.x - x, l.top.z - z) < B.station) return false;
+      if (hypot(l.bottom.x - x, l.bottom.z - z) < B.station) return false;
+    }
     const reach = B.building + FIRE_KINDS.bonfire.radius;
-    if (cabins.some((c) => fromWalls(c, x, z) < reach)) continue;
-    if (!fits("bonfire", x, z, B.slope)) continue;
-    // The woodpile on the side away from the village.
-    const fire = light(
-      "bonfire",
-      x,
-      z,
-      `B${bonfires + 1}`,
-      Math.atan2(x - centre.x, z - centre.z),
-      null,
-    );
-    if (!fire) continue;
-    fires.push(fire);
-    bonfires++;
+    if (cabins.some((c) => fromWalls(c, x, z) < reach)) return false;
+    return true;
+  };
+
+  /** Whether (x, z) stands in the open: no more than `glade.trunks` trunks
+   * within `glade.reach` of it. */
+  const open = (x: number, z: number): boolean => {
+    let trunks = 0;
+    for (const i of uprightsNear(solids, x, z, B.glade.reach, near)) {
+      const t = solids[i];
+      if (t.radius > 0 && hypot(t.x - x, t.z - z) < B.glade.reach) trunks++;
+    }
+    return trunks <= B.glade.trunks;
+  };
+
+  /** One bonfire stood at the `site` round (ax, az) on ground no higher
+   * than `under`, or false where none fits. */
+  const stand = (
+    site: BonfireSite,
+    ax: number,
+    az: number,
+    S: { near: number; search: number; slope: number },
+    under = Infinity,
+  ): boolean => {
+    const spots: { x: number; z: number; cost: number }[] = [];
+    for (let dz = -S.search; dz <= S.search; dz += B.step) {
+      for (let dx = -S.search; dx <= S.search; dx += B.step) {
+        const d = hypot(dx, dz);
+        if (d > S.search) continue;
+        const k = (dx + S.search) * 4096 + (dz + S.search);
+        spots.push({
+          x: ax + dx,
+          z: az + dz,
+          cost: Math.abs(d - S.near) + pick(seed, `spot-${site}`, k, SALT) * B.jitter,
+        });
+      }
+    }
+    spots.sort((a, b) => a.cost - b.cost);
+    // In the open first — a clearing a skier sees from the lift — and only
+    // then in among the trees.
+    for (const glade of [true, false]) {
+      for (const { x, z } of spots) {
+        if (level.groundAt(x, z) > under) continue;
+        if (glade && !open(x, z)) continue;
+        if (!room(x, z)) continue;
+        if (!fits("bonfire", x, z, S.slope)) continue;
+        // The woodpile on the side away from the station it stands by.
+        const key = `B${fires.filter((f) => f.kind === "bonfire").length + 1}`;
+        const fire = light("bonfire", x, z, key, Math.atan2(x - ax, z - az), null, site);
+        if (!fire) continue;
+        fires.push(fire);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // The stations each site stands by: the base's the bottom station
+  // nearest the village (the plaza the runs come home to), the top's the
+  // highest lift's top, the middle's the lift top nearest half way between
+  // them — a chair's or a gondola's, a drag topping out on the nursery.
+  const ridden = lifts.filter((l) => l.kind !== "drag");
+  const foot = [...lifts].sort(
+    (a, b) =>
+      hypot(a.bottom.x - centre.x, a.bottom.z - centre.z) -
+      hypot(b.bottom.x - centre.x, b.bottom.z - centre.z),
+  )[0];
+  const base = foot ? foot.bottom : centre;
+  const summit = [...ridden].sort((a, b) => b.top.y - a.top.y)[0];
+  const T = B.sites;
+  const want = B.least + Math.floor(pick(seed, "bonfire", 0, SALT) * (B.most - B.least + 1));
+  const count = () => fires.filter((f) => f.kind === "bonfire").length;
+
+  stand("base", base.x, base.z, T.base);
+  if (summit) stand("top", summit.top.x, summit.top.z, T.top, summit.top.y + B.rise);
+  if (summit && pick(seed, "bonfire", 1, SALT) < T.mid.odds) {
+    const rise = summit.top.y - base.y;
+    const half = ridden
+      .filter((l) => l !== summit)
+      .map((l) => ({ l, u: (l.top.y - base.y) / Math.max(1, rise) }))
+      .filter(({ u }) => u >= T.mid.band[0] && u <= T.mid.band[1])
+      .sort((a, b) => Math.abs(a.u - 0.5) - Math.abs(b.u - 0.5));
+    for (const { l } of half) if (stand("mid", l.top.x, l.top.z, T.mid, l.top.y + B.rise)) break;
   }
+  // A second at the base on some maps; and the base keeps as many more as
+  // the area's least asks where the mountain had no room.
+  if (count() < want && pick(seed, "bonfire", 2, SALT) < T.base.second) {
+    stand("base", base.x, base.z, T.base);
+  }
+  while (count() < B.least && stand("base", base.x, base.z, T.base));
   return fires;
 }

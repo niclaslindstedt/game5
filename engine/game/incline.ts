@@ -155,17 +155,19 @@ export function inclineTarget(
   pressed: number,
   goal: number,
   side = 0,
+  boost = 1,
+  arc: SkiSpec = spec,
 ): number {
   const K = TUNING.skier;
   const packed = c.packed;
   const bent = Math.min(
-    Math.abs(carveCurvature(spec, goal)) * (1 + TUNING.carve.tighten * c.carve),
-    carveMost(spec, goal),
+    Math.abs(carveCurvature(arc, goal)) * (1 + TUNING.carve.tighten * c.carve),
+    carveMost(arc, goal),
   );
   // The bend's pull, never more than the grip holds, less the wind's push
   // across him (`side`, toward his right, m/s²): the edges hold that too,
   // so he leans into a crosswind.
-  const held = cornerGrip(spec, packed, speed, goal, T) * pressed;
+  const held = cornerGrip(spec, packed, speed, goal, T, boost) * pressed;
   const pull = Math.min(c.way * c.way * bent, held) * Math.sign(goal);
   const asked = Math.atan2(clamp(pull - side, -held, held), TUNING.g);
   // Against the balance of the turn he is still making he crosses over

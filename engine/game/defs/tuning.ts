@@ -364,6 +364,21 @@ export const TUNING = {
      * by `tipLimit`, and by the roll the skier holds (`skier.rollMax`,
      * scaled). */
     hangOff: 1.4,
+    /** THE EDGE HELD AT SPEED, on a run that asks for it
+     * (`RunRules.freeCarve`, the free ride): the edges' sideways grip
+     * on the groomer times 1 + `more` past `full` m/s, eased in from
+     * `from` m/s. Left bare, a carve holds about 1 g at speed, and at
+     * 150 km/h that is a bend some 180 m round — a skier who can barely
+     * turn. With it the same carve pulls nearer 2 g, what a racer's edge
+     * holds, a carve at 50 km/h bites half as hard again, and the crawl
+     * under `from` is as it was. */
+    speedHold: { more: 0.8, from: 6, full: 26 },
+    /** ...and THE SIDECUT a pair carves on there, m, at the longest: a
+     * downhill pair's 50 m arc is a race's, where a free rider on it
+     * would barely turn off the fall line; a skier bends any ski tighter
+     * by pressure and a little pivot, so every pair carves at least as
+     * tight as an all-mountain one. A tighter pair keeps its own. */
+    freeSidecut: 20,
   },
 
   /** THE SKIER — the body on the skis is nine tenths of the moving mass,

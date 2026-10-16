@@ -17,6 +17,16 @@ import {
   type SweepPicture,
   type SweepResult,
 } from "../pwa/src/game/picture-sweep.ts";
+import type { Level } from "@engine";
+
+import {
+  BENCH_SCENE_IDS,
+  benchScene,
+  isBenchScene,
+  sceneHour,
+  sceneSky,
+} from "../pwa/src/game/bench-scenes.ts";
+import { BENCHMARK } from "../pwa/src/game/benchmark-plan.ts";
 import { PICTURE_PRICES } from "../pwa/src/game/picture-fit.ts";
 import { PICTURE_LADDERS, PICTURE_ROWS } from "../pwa/src/game/settings-video.ts";
 
@@ -119,5 +129,24 @@ describe("the picture sweep", () => {
     const text = ["BENCHMARK — a report", ...sweepLines(result), "trailing"].join("\n");
     expect(readSweeps(text)).toEqual([JSON.parse(JSON.stringify(result))]);
     expect(readSweeps("nothing here")).toEqual([]);
+  });
+});
+
+describe("the benchmark's scenes", () => {
+  const level = { sun: { hour: 11, dayOfYear: 40, latitude: 47 } } as unknown as Level;
+
+  it("stands each scene under its own calm sky", () => {
+    expect(BENCH_SCENE_IDS).toEqual(["race", "vista", "sunset", "night", "snow"]);
+    expect(sceneSky(benchScene("race"), level)).toEqual({
+      weather: { kind: BENCHMARK.sky.weather.kind, wind: 0 },
+      hour: BENCHMARK.sky.hour,
+    });
+    const sunset = sceneHour(benchScene("sunset"), level);
+    const night = sceneHour(benchScene("night"), level);
+    expect(sunset).toBeGreaterThan(15);
+    expect(night).toBeGreaterThan(sunset);
+    expect(sceneSky(benchScene("snow"), level).weather).toEqual({ kind: "snow", wind: 0 });
+    expect(isBenchScene("night")).toBe(true);
+    expect(isBenchScene("noon")).toBe(false);
   });
 });

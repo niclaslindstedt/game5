@@ -19,6 +19,7 @@ import { useState } from "preact/hooks";
 
 import { copyText } from "../lib/copy-text.ts";
 import { benchmarkMap } from "./bench-run.ts";
+import { BENCH_SCENE_IDS, type BenchSceneId } from "./bench-scenes.ts";
 import {
   benchmarkRuns,
   benchmarkSheet,
@@ -31,6 +32,7 @@ import { benchmarkReport, pictureRows } from "./benchmark-report.ts";
 import type { BenchmarkStatus } from "./benchmark.ts";
 import { useReceipt } from "./copy-receipt.ts";
 import { MenuBody, MenuHead } from "./menu-knobs.tsx";
+import { SWEEP } from "./picture-sweep.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import { STRINGS } from "./strings.ts";
 
@@ -70,6 +72,7 @@ export function BenchmarkCard({
       gpu: status.gpu,
       fence: status.fence,
       sweep: status.sweep,
+      sweeps: status.sweeps,
       hidden: status.hidden,
       machine: status.machine,
       step: BENCHMARK.step,
@@ -80,7 +83,11 @@ export function BenchmarkCard({
     <div class="bench-card" data-bench={status.phase}>
       <div class="bench-head">
         <span class="bench-title">{STRINGS.benchTitle}</span>
-        <span class="bench-sub">{benchmarkMap()}</span>
+        <span class="bench-sub">
+          {status.scenes
+            ? STRINGS.benchScene(status.scenes.at + 1, status.scenes.of, status.scenes.id)
+            : benchmarkMap()}
+        </span>
       </div>
       <div class="bench-score">
         <span class="bench-index">{Math.round(plot.index)}</span>
@@ -120,6 +127,50 @@ export function BenchmarkCard({
       <button type="button" class="menu-item menu-item-leave" data-nav-back onClick={onLeave}>
         {done ? STRINGS.benchLeave : STRINGS.benchStop}
       </button>
+    </div>
+  );
+}
+
+/** DEVELOPER ▸ PICTURE COSTS: the sweep run in one scene, or in all of them
+ * one after another (`bench-scenes.ts`). */
+export function BenchCostsPage({
+  onBack,
+  onRun,
+}: {
+  onBack: () => void;
+  onRun: (scenes: readonly BenchSceneId[]) => void;
+}) {
+  // A sweep's frames at sixty a second, and a little for each load.
+  const minutes = (SWEEP.blocks * SWEEP.blockFrames) / 60 / 60 + 0.25;
+  return (
+    <div class="menu-card menu-card-options">
+      <MenuHead back={onBack} backLabel={STRINGS.devTitle} title={STRINGS.benchCostsTitle} />
+      <MenuBody>
+        <div class="dev-line">{STRINGS.benchCostsLine}</div>
+        <button
+          type="button"
+          class="menu-item menu-item-dev"
+          onClick={() => onRun(BENCH_SCENE_IDS)}
+        >
+          {STRINGS.benchCostsAll}
+          <span class="menu-item-sub">
+            {STRINGS.benchCostsAllHint(BENCH_SCENE_IDS.length, minutes * BENCH_SCENE_IDS.length)}
+          </span>
+        </button>
+        {BENCH_SCENE_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            class="menu-item menu-item-dev"
+            onClick={() => onRun([id])}
+          >
+            {STRINGS.benchSceneName[id]}
+            <span class="menu-item-sub">
+              {STRINGS.benchSceneHint[id]} · {STRINGS.benchSceneMinutes(minutes)}
+            </span>
+          </button>
+        ))}
+      </MenuBody>
     </div>
   );
 }

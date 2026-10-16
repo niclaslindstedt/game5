@@ -21,10 +21,12 @@ import { useState } from "preact/hooks";
 import { RACE } from "@engine";
 
 import { copyText } from "../lib/copy-text.ts";
+import type { BenchKind } from "./bench-run.ts";
 import { benchmarkRuns } from "./benchmark-history.ts";
 import { BENCHMARK, benchmarkSeconds } from "./benchmark-plan.ts";
 import { useReceipt } from "./copy-receipt.ts";
-import { BenchHistoryPage } from "./menu-bench.tsx";
+import type { BenchSceneId } from "./bench-scenes.ts";
+import { BenchCostsPage, BenchHistoryPage } from "./menu-bench.tsx";
 import {
   Caption,
   KnobGroup,
@@ -52,8 +54,7 @@ function DeveloperPage({
   onSettings: (settings: Settings) => void;
   onBack: () => void;
   onPage: (page: DevPage) => void;
-  /** `true` the run part by part (the interleaved A/B). */
-  onBenchmark: (ab: boolean) => void;
+  onBenchmark: (kind: BenchKind) => void;
 }) {
   const [hint, setHint] = useState<Hint | null>(null);
   const [said, say] = useReceipt();
@@ -77,7 +78,7 @@ function DeveloperPage({
         </KnobGroup>
         {/* THE STOPWATCH, under the rows rather than among them: not a setting
           but a press that takes the canvas for half a minute. */}
-        <button type="button" class="menu-item menu-item-dev" onClick={() => onBenchmark(false)}>
+        <button type="button" class="menu-item menu-item-dev" onClick={() => onBenchmark("score")}>
           {STRINGS.benchTitle}
           <span class="menu-item-sub">
             {STRINGS.benchRowHint(benchmarkSeconds(), BENCHMARK.seed, RACE.rivals + 1)}
@@ -85,9 +86,16 @@ function DeveloperPage({
         </button>
         {/* The same race with each part of the picture left out a frame in
           turn: what a part costs on a machine with no GPU timer. */}
-        <button type="button" class="menu-item menu-item-dev" onClick={() => onBenchmark(true)}>
+        <button type="button" class="menu-item menu-item-dev" onClick={() => onBenchmark("parts")}>
           {STRINGS.benchPartsTitle}
           <span class="menu-item-sub">{STRINGS.benchPartsHint}</span>
+        </button>
+        {/* Every PICTURE row's stops dealt at random for a few minutes and
+          priced off the lot (`picture-sweep.ts`): the report's JSON is what
+          PRESET ▸ AUTO's price list is re-set from. */}
+        <button type="button" class="menu-item menu-item-dev" onClick={() => onPage("benchCosts")}>
+          {STRINGS.benchCostsTitle}
+          <span class="menu-item-sub">{STRINGS.benchCostsHint}</span>
         </button>
         <button
           type="button"
@@ -139,10 +147,18 @@ export function DevPages({
   onPage: (page: DevPage) => void;
   /** Out to the front door. */
   onBack: () => void;
-  onBenchmark: (ab: boolean) => void;
+  onBenchmark: (kind: BenchKind, scenes?: readonly BenchSceneId[]) => void;
 }) {
+  if (page === "benchCosts") {
+    return (
+      <BenchCostsPage
+        onBack={() => onPage("dev")}
+        onRun={(scenes) => onBenchmark("costs", scenes)}
+      />
+    );
+  }
   if (page === "benchHistory") {
-    return <BenchHistoryPage onBack={() => onPage("dev")} onRun={() => onBenchmark(false)} />;
+    return <BenchHistoryPage onBack={() => onPage("dev")} onRun={() => onBenchmark("score")} />;
   }
   return (
     <DeveloperPage

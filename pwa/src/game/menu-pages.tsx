@@ -196,7 +196,7 @@ export function MenuPages(p: {
         <GalleryPage onBack={back} />
       ) : page === "stats" ? (
         <StatsPage book={p.stats} onBack={back} onReset={p.onResetStats} />
-      ) : page === "dev" || page === "benchHistory" ? (
+      ) : page === "dev" || page === "benchHistory" || page === "benchCosts" ? (
         <DevPages
           page={page}
           settings={settings}
@@ -204,7 +204,7 @@ export function MenuPages(p: {
           onSettings={setSettings}
           onPage={setPage}
           onBack={back}
-          onBenchmark={(ab) => p.dev.rig.current?.startBench(ab)}
+          onBenchmark={(kind, scenes) => p.dev.rig.current?.startBench(kind, scenes)}
         />
       ) : page === "options" ? (
         <OptionsPage

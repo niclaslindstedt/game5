@@ -132,7 +132,7 @@ export function createFreeRides(deps: {
       // MAP): the map standing is ridden again as it is, day, sky and all,
       // so nothing is generated or built — only the rider is moved.
       const ask = askKey(freeAsk(asked));
-      const kept = rideKept(ridden, deps.current().level, ask);
+      const kept = rideKept(ridden, deps.current().level, ask, asked);
       // The map it stands up on is kept past the ride (`keepRidden`): the
       // main menu and PLAY again on the same mountain raise nothing.
       const stood = (game: GameState, base: Level): GameState => {

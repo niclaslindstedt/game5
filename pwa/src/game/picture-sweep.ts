@@ -29,6 +29,7 @@
 
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
+import type { BenchSceneId } from "./bench-scenes.ts";
 import { FLOOR_MS, PICTURE_PRICES, type PriceList, type StopPrice } from "./picture-fit.ts";
 import {
   PICTURE_LADDERS,
@@ -301,7 +302,7 @@ export type SweepResult = {
   /** The buffer drawn into, device pixels, and the view. */
   width: number;
   height: number;
-  view: "race" | "vista";
+  view: BenchSceneId;
   wall: SweepFit;
   cpu: SweepFit;
   blocks: SweepBlock[];

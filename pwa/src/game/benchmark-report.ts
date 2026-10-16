@@ -32,7 +32,7 @@
 // from the renderer would drag three.js into a suite on plain Node.
 
 import { fpsOfIndex, type BenchSample } from "./benchmark-index.ts";
-import { sweepLines, type SweepResult } from "./picture-sweep.ts";
+import { sweepLines, sweepTable, type SweepResult } from "./picture-sweep.ts";
 import type { VideoSettings } from "./settings-video.ts";
 
 /** What one frame cost the RENDERER, off its own counters. The `Ms` slices
@@ -305,6 +305,9 @@ export type BenchmarkRun = {
   fence?: FenceAb;
   /** THE PICTURE SWEEP's fit, where the run was one (`?sweep=`). */
   sweep?: SweepResult;
+  /** A PICTURE COSTS run's sweeps, every scene's, with the costs table off
+   * all of them at the end — where it ran more than the one. */
+  sweeps?: readonly SweepResult[];
   /** The subsystems the run was drawn WITHOUT (`?hide=`): an A/B reading,
    * never a score to compare with a whole picture's. */
   hidden: readonly string[];
@@ -493,7 +496,9 @@ export function benchmarkReport(run: BenchmarkRun): string {
   out.push(...whereTheFrameWent(totals, step));
   out.push(...whereTheGpuWent(run.gpu));
   out.push(...abByTheClock(run.fence));
-  if (run.sweep) out.push(...sweepLines(run.sweep));
+  const sweeps = run.sweeps ?? (run.sweep ? [run.sweep] : []);
+  for (const sweep of sweeps) out.push(...sweepLines(sweep));
+  if (sweeps.length > 0) out.push("", sweepTable(sweeps));
 
   if (costs.length > 0) {
     const held = costs[costs.length - 1];

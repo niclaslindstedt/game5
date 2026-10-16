@@ -16,7 +16,8 @@ import type { GameMode, GameState } from "@engine";
 
 import { setAttemptPool } from "./attempt-pool.ts";
 import type { LoadPlan } from "./app-load.ts";
-import { createBenchRun } from "./bench-run.ts";
+import { createBenchRun, type BenchKind } from "./bench-run.ts";
+import type { BenchSceneId } from "./bench-scenes.ts";
 import type { BenchmarkStatus } from "./benchmark.ts";
 import { DebugOverlay } from "./debug-hud.tsx";
 import type { DebugSnapshot } from "./debug-readout.ts";
@@ -54,8 +55,9 @@ export type DevRig = {
   frame: (frameMs: number, dt: number, simMs: number) => void;
   /** On the HUD's tick: the overlay's snapshot refreshed. */
   tick: () => void;
-  /** `ab` the run part by part; left out, the kind of run last pressed. */
-  startBench: (ab?: boolean) => void;
+  /** Left out, the kind of run last pressed, in its scenes (or the URL's
+   * ask). */
+  startBench: (kind?: BenchKind, scenes?: readonly BenchSceneId[]) => void;
   leaveBench: () => void;
   repro: () => string;
   dispose: () => void;
@@ -97,12 +99,13 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
       hide: world.bench.hide,
       ab: world.bench.ab,
       frames: world.bench.frames,
-      vista: world.bench.view === "vista",
+      view: world.bench.view,
       sweep: world.bench.sweep,
     });
     /** From the press to the way out — the load under the card included. */
     let benching = false;
-    let partByPart = world.bench.ab;
+    let kind: BenchKind | undefined;
+    let scenes: readonly BenchSceneId[] | undefined;
     const made: DevRig = {
       // Dark for the whole benchmark, load and warm-up included: an
       // instrument switched back on mid-run would be timed with it.
@@ -114,11 +117,14 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
         if (benching && world.shell() === "menu") benching = false;
         setDebug(benching ? null : tools.snapshot());
       },
-      startBench: (ab) => {
+      startBench: (asked, where) => {
         benching = true;
-        // AGAIN repeats the run it follows, whole or part by part.
-        if (ab !== undefined) partByPart = ab;
-        benchRun.start(partByPart);
+        // AGAIN repeats the run it follows, whatever kind and scenes it was.
+        if (asked !== undefined) {
+          kind = asked;
+          scenes = where;
+        }
+        benchRun.start(kind, scenes);
       },
       leaveBench: () => {
         benching = false;

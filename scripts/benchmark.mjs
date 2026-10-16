@@ -64,8 +64,8 @@ const args = parseArgs(
     },
     views: {
       kind: "string",
-      default: "race,vista",
-      help: "--sweep: the views swept, comma-separated (race, vista)",
+      default: "race,vista,sunset,night,snow",
+      help: "--sweep: the scenes swept, comma-separated (race, vista, sunset, night, snow — bench-scenes.ts)",
     },
     report: {
       kind: "string",
@@ -291,13 +291,14 @@ async function sweepList() {
   const { aliasEngine } = await import("@niclaslindstedt/oss-game-framework/tooling/alias");
   aliasEngine(root);
   const { readSweeps, sweepCosts, sweepTable } = await import("../pwa/src/game/picture-sweep.ts");
-  const views = args.views.split(",").filter((v) => v === "race" || v === "vista");
+  const { isBenchScene } = await import("../pwa/src/game/bench-scenes.ts");
+  const views = args.views.split(",").filter(isBenchScene);
   const results = [];
   const reports = [];
   for (const view of views) {
-    console.log(`  sweeping the ${view}'s view: ${args.blocks} random pictures…`);
+    console.log(`  sweeping the ${view} scene: ${args.blocks} random pictures…`);
     const extra = { sweep: String(args.blocks) };
-    if (view === "vista") extra.view = "vista";
+    if (view !== "race") extra.view = view;
     const report = await run("", args.picture, extra);
     if (report === null) return null;
     reports.push(report);

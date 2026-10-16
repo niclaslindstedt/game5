@@ -64,6 +64,7 @@ import {
   type SweepPlan,
   type SweepResult,
 } from "./picture-sweep.ts";
+import type { BenchSceneId } from "./bench-scenes.ts";
 import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
 
 /** Engine steps per frame — exact by construction (`BenchmarkPlan.step`). */
@@ -105,6 +106,10 @@ export type BenchmarkStatus = {
   /** THE PICTURE SWEEP's blocks and fit, on a sweep's last reading
    * (`picture-sweep.ts`). */
   sweep?: SweepResult;
+  /** Every sweep a PICTURE COSTS run has finished, this one's last
+   * (`bench-run.ts`), and where in a run of several scenes this one is. */
+  sweeps?: SweepResult[];
+  scenes?: { at: number; of: number; id: BenchSceneId };
   machine: Machine;
   /** Skis on the snow, the player's included. */
   skis: number;
@@ -237,7 +242,7 @@ export function runBenchmark(
     sweep?: {
       plan: SweepPlan;
       pictures: readonly SweepPicture[];
-      view: SweepResult["view"];
+      view: BenchSceneId;
       apply: (picture: SweepPicture) => void;
       restart: () => GameState;
     };

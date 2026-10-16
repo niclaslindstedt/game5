@@ -104,7 +104,8 @@ why). `--hide a,b` (`?hide=`) draws a whole run without some subsystems, and
 `--dist <dir>` benchmarks a second build, so two builds can be run
 alternately in one sitting. `--sweep` (`?sweep=`) prices every PICTURE row in one
 long run of random pictures and fits each stop's cost — the
-`picture-pricing` skill's.
+`picture-pricing` skill's; DEVELOPER ▸ PICTURE COSTS runs it from the menu,
+in one scene or all five (`bench-scenes.ts`).
 
 What to put in a PR that changes what a frame costs: `make profile` before
 and after, and a BENCHMARK report from each (off a device when the change is

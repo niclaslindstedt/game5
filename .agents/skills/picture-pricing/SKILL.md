@@ -46,8 +46,9 @@ live.
 ### The sweep: every row in one long run (`--sweep`)
 
 `make bench ARGS="--gpu --sweep --width 1920 --height 1080"` prices the
-whole list a second way, and is the faster of the two. Per view (the race
-and the vista, `--views` to pick), it loads the page ONCE and draws the
+whole list a second way, and is the faster of the two. Per SCENE
+(`bench-scenes.ts`: the race, the vista, sunset, night and a snowfall —
+every one calm on the same race; `--views` to pick), it loads the page ONCE and draws the
 race in blocks of 40 frames (`SWEEP` in `picture-sweep.ts`), each under a
 picture dealt at random — every row at a stop, each row's stops dealt
 equally often and shuffled apart from the other rows' — letting the first
@@ -66,15 +67,19 @@ lines up with any stop; blocks a hitch spoiled are dropped.
   price), `previews/picture-sweep.json` (`floorMs`, `costs` in
   `PICTURE_PRICES`' shape — the dearer view's, levelled up each ladder —
   and every view's blocks and fits), and the table to paste.
-- A DEVICE no lab drives: open the built site with `?bench=1&sweep=1`
-  (`&view=vista` for the other view), COPY DEBUG REPORT, save it, and
+- A DEVICE no lab drives: DEVELOPER ▸ PICTURE COSTS runs it from the
+  menu — ALL SCENES one after another (a single report carrying every
+  scene's sweep and the table off the dearest), or one scene — or open the
+  built site with `?bench=1&sweep=1` (`&view=<scene>` for another). COPY
+  DEBUG REPORT, save it, and
   `make bench ARGS="--sweep --report FILE"` prints its table; `--sweep
   --reprice` reprints the last JSON's.
 - What a figure means: the stop's cost AVERAGED over the pictures the other
   rows were dealt (a main effect). Rows that multiply each other
   (RESOLUTION and anything pixel-bound) read as at the middle of the other
-  ladders, which is what `pictureCost` adds up. LAMPS reads about nothing:
-  the race is by day.
+  ladders, which is what `pictureCost` adds up. LAMPS reads about nothing
+  by day: the NIGHT scene is where it is priced, and the costs take every
+  stop at its dearest scene.
 
 Why the `--costs` list is built this way, each point learned the hard way:
 

@@ -4,7 +4,16 @@
 // stated next door and spread into `STRINGS` under the same names, the
 // `strings-gallery.ts` pattern.
 
+import type { BenchSceneId } from "./bench-scenes.ts";
 import type { DevSettings } from "./settings.ts";
+
+const SCENE_NAMES: Record<BenchSceneId, string> = {
+  race: "RACE",
+  vista: "VISTA",
+  sunset: "SUNSET",
+  night: "NIGHT",
+  snow: "SNOWFALL",
+};
 
 export const DEV_STRINGS = {
   devTitle: "DEVELOPER",
@@ -50,6 +59,25 @@ export const DEV_STRINGS = {
   benchPartsTitle: "BENCHMARK, PART BY PART",
   benchPartsHint:
     "the same race with each part of the picture left out a frame in turn — what each costs",
+  benchCostsTitle: "PICTURE COSTS",
+  benchCostsHint:
+    "every picture setting priced in random runs, by day, at sunset, at night and in snow",
+  benchCostsLine:
+    "Each run deals the PICTURE rows at random for a few minutes and prices every stop off the lot. COPY DEBUG REPORT at the end carries the costs for the AUTO preset.",
+  benchCostsAll: "ALL SCENES",
+  benchCostsAllHint: (scenes: number, minutes: number): string =>
+    `the ${scenes} scenes one after another, about ${Math.round(minutes)} min — the costs off the dearest`,
+  benchSceneName: SCENE_NAMES,
+  benchSceneHint: {
+    race: "fair cumulus at 11h behind the racer — the score's own scene",
+    vista: "the same sky from high on the basin's edge, where the far view is dearest",
+    sunset: "a clear sky, the sun on the horizon and the long shadows",
+    night: "a clear night: the stars, the moon, the headlamps and the floods",
+    snow: "a steady snowfall at 11h behind the racer",
+  } as Record<BenchSceneId, string>,
+  benchSceneMinutes: (minutes: number): string => `about ${Math.round(minutes)} min`,
+  benchScene: (at: number, of: number, id: BenchSceneId): string =>
+    `SCENE ${at} OF ${of} · ${SCENE_NAMES[id]}`,
   benchMap: (seed: number): string => `SEED ${seed} · THE WOODS AND A KICKER`,
   benchIndexUnit: (fps: number, w: number, h: number): string => `INDEX · ${fps} FPS · ${w}×${h}`,
   benchAxis: (top: number, topFps: number): string => `0–${top} index · 0–${topFps} fps`,

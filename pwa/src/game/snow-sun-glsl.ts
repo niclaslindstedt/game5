@@ -68,7 +68,7 @@ export const SNOW_SUN_LIGHT = /* glsl */ `
     vec3 V = normalize(cameraPosition - vSnowWorld);
     float rv = max(dot(reflect(-uSunDir, snowN), V), 0.0);
     float gloss = clamp(0.3 * snowPacked + 0.85 * snowSunCrust + 0.55 * snowWet
-      + 0.3 * snowScour + 0.5 * snowHard + 0.4 * snowSoft + 0.9 * snowIce, 0.0, 1.0) * (1.0 - snowRock);
+      + 0.3 * snowScour + 0.9 * snowIce, 0.0, 1.0) * (1.0 - snowRock);
     float k = mix(6.0, 140.0, gloss * gloss);
     float graze = 1.0 - max(dot(snowN, V), 0.0);
     graze *= graze;

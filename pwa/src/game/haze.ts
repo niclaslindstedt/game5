@@ -159,7 +159,7 @@ export type HazeUniforms = {
    * skied up, sun-softened and refrozen the groomer is, each 0..1, and 1
    * in `w` on a run dealt it — all nought on one that was not. The
    * renderer writes it. */
-  uPiste: { value: THREE.Vector4 };
+  uPiste: { value: THREE.Vector2 };
   /** HOW OLD THE LOOSE SNOW IS (`snow-age.ts`): `uSnowAge` how new, how
    * old, how wind-packed and how sun-crusted; `uSnowAge2` the surface hoar,
    * the thaw, and the level direction toward the noon sun (x, z). The
@@ -225,21 +225,21 @@ export type HazeUniforms = {
 };
 
 /** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`), the
- * piste through the day (`uPiste`: worn, soft, hard, and 1 in `w` on a run
+ * piste through the day (`uPiste`: worn, and 1 in `y` on a run
  * dealt it — `GameState.piste`) and how old the loose snow is (`uSnowAge`,
  * `uSnowAge2` — settled powder when there is no age to read) and the other
  * skiers' tracks on the piste (`uTracks`). */
 export function setRunSnow(
   u: HazeUniforms,
   fresh: number,
-  day: { worn: number; soft: number; hard: number } | undefined,
+  day: { worn: number } | undefined,
   age?: SnowAge | null,
   tracks?: Tracks,
 ): void {
   u.uFresh.value = fresh;
   u.uTracks.value.set(tracks?.many ?? 0, tracks?.churn ?? 0);
-  if (day) u.uPiste.value.set(day.worn, day.soft, day.hard, 1);
-  else u.uPiste.value.set(0, 0, 0, 0);
+  if (day) u.uPiste.value.set(day.worn, 1);
+  else u.uPiste.value.set(0, 0);
   if (age) {
     u.uSnowAge.value.set(age.fresh, age.old, age.wind, age.crust);
     u.uSnowAge2.value.set(age.hoar, age.wet, age.noon.x, age.noon.z);
@@ -297,7 +297,7 @@ export function createHazeUniforms(): HazeUniforms {
     uFlat: { value: 0 },
     uGlitter: { value: 1 },
     uFresh: { value: 0 },
-    uPiste: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uPiste: { value: new THREE.Vector2(0, 0) },
     uSnowAge: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSnowAge2: { value: new THREE.Vector4(0, 0, 0, -1) },
     uTracks: { value: new THREE.Vector2(0, 0) },

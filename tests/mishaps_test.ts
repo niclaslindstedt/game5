@@ -167,7 +167,7 @@ describe("the paramotor's cravat and launch twists", () => {
   /** A paramotor ride on a long face, `draws` its mishap stream. */
   function rig(draws: number[] | null): GameState {
     const level = flatLevel({
-      grade: 0.3,
+      grade: 0.4,
       slopeFrom: 120,
       runOut: { at: 1500, bend: 300 },
       packed: 1,

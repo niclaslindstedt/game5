@@ -237,6 +237,9 @@ export const CRASH = {
     // caught on its ring or its bed and the body stumbled on into it, low,
     // barely off the snow.
     fire: { pitch: 0.6, side: 0.2, up: 0.2 },
+    // Blown off a snowmobile whose tank went up under him (`sled-fire.ts`):
+    // thrown up off the seat, head over heels backward and over onto a side.
+    blast: { pitch: -0.9, side: 0.8, up: 2.5 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,
